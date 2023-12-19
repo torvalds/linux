@@ -152,7 +152,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 
 	spin_lock(&ubi->volumes_lock);
 	vol = ubi->volumes[vol_id];
-	if (!vol)
+	if (!vol || vol->is_dead)
 		goto out_unlock;
 
 	err = -EBUSY;

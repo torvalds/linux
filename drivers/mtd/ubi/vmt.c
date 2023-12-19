@@ -59,7 +59,7 @@ static ssize_t vol_attribute_show(struct device *dev,
 	struct ubi_device *ubi = vol->ubi;
 
 	spin_lock(&ubi->volumes_lock);
-	if (!ubi->volumes[vol->vol_id]) {
+	if (!ubi->volumes[vol->vol_id] || ubi->volumes[vol->vol_id]->is_dead) {
 		spin_unlock(&ubi->volumes_lock);
 		return -ENODEV;
 	}
@@ -189,7 +189,7 @@ int ubi_create_volume(struct ubi_device *ubi, struct ubi_mkvol_req *req)
 
 	/* Ensure that the name is unique */
 	for (i = 0; i < ubi->vtbl_slots; i++)
-		if (ubi->volumes[i] &&
+		if (ubi->volumes[i] && !ubi->volumes[i]->is_dead &&
 		    ubi->volumes[i]->name_len == req->name_len &&
 		    !strcmp(ubi->volumes[i]->name, req->name)) {
 			ubi_err(ubi, "volume \"%s\" exists (ID %d)",
@@ -352,6 +352,19 @@ int ubi_remove_volume(struct ubi_volume_desc *desc, int no_vtbl)
 		err = -EBUSY;
 		goto out_unlock;
 	}
+
+	/*
+	 * Mark volume as dead at this point to prevent that anyone
+	 * can take a reference to the volume from now on.
+	 * This is necessary as we have to release the spinlock before
+	 * calling ubi_volume_notify.
+	 */
+	vol->is_dead = true;
+	spin_unlock(&ubi->volumes_lock);
+
+	ubi_volume_notify(ubi, vol, UBI_VOLUME_SHUTDOWN);
+
+	spin_lock(&ubi->volumes_lock);
 	ubi->volumes[vol_id] = NULL;
 	spin_unlock(&ubi->volumes_lock);
 
