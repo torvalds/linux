@@ -3880,10 +3880,12 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 	u16 meter_levels[SCARLETT2_MAX_METERS];
 	int i, err;
 
+	mutex_lock(&private->data_mutex);
+
 	err = scarlett2_usb_get_meter_levels(elem->head.mixer, elem->channels,
 					     meter_levels);
 	if (err < 0)
-		return err;
+		goto unlock;
 
 	/* copy & translate from meter_levels[] using meter_level_map[] */
 	for (i = 0; i < elem->channels; i++) {
@@ -3898,7 +3900,10 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 		ucontrol->value.integer.value[i] = value;
 	}
 
-	return 0;
+unlock:
+	mutex_unlock(&private->data_mutex);
+
+	return err;
 }
 
 static const struct snd_kcontrol_new scarlett2_meter_ctl = {
