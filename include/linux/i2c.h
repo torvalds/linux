@@ -23,7 +23,7 @@
 #include <linux/swab.h>		/* for swab16 */
 #include <uapi/linux/i2c.h>
 
-extern struct bus_type i2c_bus_type;
+extern const struct bus_type i2c_bus_type;
 extern struct device_type i2c_adapter_type;
 extern struct device_type i2c_client_type;
 
