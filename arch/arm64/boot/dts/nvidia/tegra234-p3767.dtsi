@@ -5,6 +5,10 @@
 / {
 	compatible = "nvidia,p3767", "nvidia,tegra234";
 
+	aliases {
+		mmc0 = "/bus@0/mmc@3400000";
+	};
+
 	bus@0 {
 		i2c@3160000 {
 			status = "okay";

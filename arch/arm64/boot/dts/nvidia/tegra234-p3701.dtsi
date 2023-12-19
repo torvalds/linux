@@ -3,6 +3,11 @@
 / {
 	compatible = "nvidia,p3701", "nvidia,tegra234";
 
+	aliases {
+		mmc0 = "/bus@0/mmc@3460000";
+		mmc1 = "/bus@0/mmc@3400000";
+	};
+
 	bus@0 {
 		aconnect@2900000 {
 			status = "okay";
