@@ -2127,6 +2127,9 @@ static int am65_cpsw_nuss_init_slave_ports(struct am65_cpsw_common *common)
 				dev_err(dev, "Use random MAC address\n");
 			}
 		}
+
+		/* Reset all Queue priorities to 0 */
+		writel(0, port->port_base + AM65_CPSW_PN_REG_TX_PRI_MAP);
 	}
 	of_node_put(node);
 
