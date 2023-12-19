@@ -684,7 +684,7 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
-	u32 regbit;
+	u32 hbb;
 	int ret;
 
 	gpu_write(gpu, REG_A5XX_VBIF_ROUND_ROBIN_QOS_ARB, 0x00000003);
@@ -820,18 +820,15 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 
 	gpu_write(gpu, REG_A5XX_RBBM_AHB_CNTL2, 0x0000003F);
 
-	/* Set the highest bank bit */
-	if (adreno_is_a540(adreno_gpu) || adreno_is_a530(adreno_gpu))
-		regbit = 2;
-	else
-		regbit = 1;
+	BUG_ON(adreno_gpu->ubwc_config.highest_bank_bit < 13);
+	hbb = adreno_gpu->ubwc_config.highest_bank_bit - 13;
 
-	gpu_write(gpu, REG_A5XX_TPL1_MODE_CNTL, regbit << 7);
-	gpu_write(gpu, REG_A5XX_RB_MODE_CNTL, regbit << 1);
+	gpu_write(gpu, REG_A5XX_TPL1_MODE_CNTL, hbb << 7);
+	gpu_write(gpu, REG_A5XX_RB_MODE_CNTL, hbb << 1);
 
 	if (adreno_is_a509(adreno_gpu) || adreno_is_a512(adreno_gpu) ||
 	    adreno_is_a540(adreno_gpu))
-		gpu_write(gpu, REG_A5XX_UCHE_DBG_ECO_CNTL_2, regbit);
+		gpu_write(gpu, REG_A5XX_UCHE_DBG_ECO_CNTL_2, hbb);
 
 	/* Disable All flat shading optimization (ALLFLATOPTDIS) */
 	gpu_rmw(gpu, REG_A5XX_VPC_DBG_ECO_CNTL, 0, (1 << 10));
@@ -1784,6 +1781,12 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 
 	/* Set up the preemption specific bits and pieces for each ringbuffer */
 	a5xx_preempt_init(gpu);
+
+	/* Set the highest bank bit */
+	if (adreno_is_a540(adreno_gpu) || adreno_is_a530(adreno_gpu))
+		adreno_gpu->ubwc_config.highest_bank_bit = 15;
+	else
+		adreno_gpu->ubwc_config.highest_bank_bit = 14;
 
 	return gpu;
 }

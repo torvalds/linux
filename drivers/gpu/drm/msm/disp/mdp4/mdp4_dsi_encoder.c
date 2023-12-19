@@ -26,18 +26,6 @@ static struct mdp4_kms *get_kms(struct drm_encoder *encoder)
 	return to_mdp4_kms(to_mdp_kms(priv->kms));
 }
 
-static void mdp4_dsi_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct mdp4_dsi_encoder *mdp4_dsi_encoder = to_mdp4_dsi_encoder(encoder);
-
-	drm_encoder_cleanup(encoder);
-	kfree(mdp4_dsi_encoder);
-}
-
-static const struct drm_encoder_funcs mdp4_dsi_encoder_funcs = {
-	.destroy = mdp4_dsi_encoder_destroy,
-};
-
 static void mdp4_dsi_encoder_mode_set(struct drm_encoder *encoder,
 				      struct drm_display_mode *mode,
 				      struct drm_display_mode *adjusted_mode)
@@ -148,28 +136,18 @@ static const struct drm_encoder_helper_funcs mdp4_dsi_encoder_helper_funcs = {
 /* initialize encoder */
 struct drm_encoder *mdp4_dsi_encoder_init(struct drm_device *dev)
 {
-	struct drm_encoder *encoder = NULL;
+	struct drm_encoder *encoder;
 	struct mdp4_dsi_encoder *mdp4_dsi_encoder;
-	int ret;
 
-	mdp4_dsi_encoder = kzalloc(sizeof(*mdp4_dsi_encoder), GFP_KERNEL);
-	if (!mdp4_dsi_encoder) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	mdp4_dsi_encoder = drmm_encoder_alloc(dev, struct mdp4_dsi_encoder, base,
+					      NULL, DRM_MODE_ENCODER_DSI, NULL);
+	if (IS_ERR(mdp4_dsi_encoder))
+		return ERR_CAST(mdp4_dsi_encoder);
 
 	encoder = &mdp4_dsi_encoder->base;
 
-	drm_encoder_init(dev, encoder, &mdp4_dsi_encoder_funcs,
-			 DRM_MODE_ENCODER_DSI, NULL);
 	drm_encoder_helper_add(encoder, &mdp4_dsi_encoder_helper_funcs);
 
 	return encoder;
-
-fail:
-	if (encoder)
-		mdp4_dsi_encoder_destroy(encoder);
-
-	return ERR_PTR(ret);
 }
 #endif /* CONFIG_DRM_MSM_DSI */

@@ -165,6 +165,15 @@ struct adreno_gpu {
 	/* firmware: */
 	const struct firmware *fw[ADRENO_FW_MAX];
 
+	struct {
+		u32 rgb565_predicator;
+		u32 uavflagprd_inv;
+		u32 min_acc_len;
+		u32 ubwc_mode;
+		u32 highest_bank_bit;
+		u32 amsbc;
+	} ubwc_config;
+
 	/*
 	 * Register offsets are different between some GPUs.
 	 * GPU specific offsets will be exported by GPU specific

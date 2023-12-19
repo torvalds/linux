@@ -58,6 +58,9 @@ git config --global user.email "fdo@example.com"
 git config --global user.name "freedesktop.org CI"
 git config --global pull.rebase true
 
+# cleanup git state on the worker
+rm -rf .git/rebase-merge
+
 # Try to merge fixes from target repo
 if [ "$(git ls-remote --exit-code --heads ${UPSTREAM_REPO} ${TARGET_BRANCH}-external-fixes)" ]; then
     git pull ${UPSTREAM_REPO} ${TARGET_BRANCH}-external-fixes

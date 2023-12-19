@@ -270,6 +270,9 @@ int msm_rd_debugfs_init(struct drm_minor *minor)
 	struct msm_rd_state *rd;
 	int ret;
 
+	if (!priv->gpu_pdev)
+		return 0;
+
 	/* only create on first minor: */
 	if (priv->rd)
 		return 0;

@@ -34,7 +34,8 @@ struct dp_debug {
  * @panel: instance of panel module
  * @link: instance of link module
  * @connector: double pointer to display connector
- * @minor: pointer to drm minor number after device registration
+ * @root: connector's debugfs root
+ * @is_edp: set for eDP connectors / panels
  * return: pointer to allocated debug module data
  *
  * This function sets up the debug module and provides a way
@@ -43,29 +44,19 @@ struct dp_debug {
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 		struct dp_link *link,
 		struct drm_connector *connector,
-		struct drm_minor *minor);
-
-/**
- * dp_debug_put()
- *
- * Cleans up dp_debug instance
- *
- * @dp_debug: instance of dp_debug
- */
-void dp_debug_put(struct dp_debug *dp_debug);
+		struct dentry *root,
+		bool is_edp);
 
 #else
 
 static inline
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 		struct dp_link *link,
-		struct drm_connector *connector, struct drm_minor *minor)
+		struct drm_connector *connector,
+		struct dentry *root,
+		bool is_edp)
 {
 	return ERR_PTR(-EINVAL);
-}
-
-static inline void dp_debug_put(struct dp_debug *dp_debug)
-{
 }
 
 #endif /* defined(CONFIG_DEBUG_FS) */
