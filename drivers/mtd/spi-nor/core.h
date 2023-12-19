@@ -18,6 +18,12 @@
 		   SPI_MEM_OP_DUMMY(ndummy, 0),				\
 		   SPI_MEM_OP_DATA_IN(len, buf, 0))
 
+#define SPI_NOR_VSR_WREN_OP						\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_VSR_WREN, 0),		\
+		   SPI_MEM_OP_NO_ADDR,					\
+		   SPI_MEM_OP_NO_DUMMY,					\
+		   SPI_MEM_OP_NO_DATA)
+
 #define SPI_NOR_WREN_OP							\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_WREN, 0),			\
 		   SPI_MEM_OP_NO_ADDR,					\
@@ -133,6 +139,7 @@ enum spi_nor_option_flags {
 	SNOR_F_RWW		= BIT(14),
 	SNOR_F_ECC		= BIT(15),
 	SNOR_F_NO_WP		= BIT(16),
+	SNOR_F_WR_VSR		= BIT(17),
 };
 
 struct spi_nor_read_command {
@@ -538,6 +545,7 @@ struct flash_info {
 	u8 fixup_flags;
 #define SPI_NOR_4B_OPCODES		BIT(0)
 #define SPI_NOR_IO_MODE_EN_VOLATILE	BIT(1)
+#define SPI_NOR_FORCE_WRITE_VOLATILE_SR	BIT(2)
 
 	u8 mfr_flags;
 
