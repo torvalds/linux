@@ -2097,10 +2097,10 @@ static struct subtest_case crafted_cases[] = {
 
 	{U32, S32, {0, U32_MAX}, {U32_MAX, U32_MAX}},
 
-	{S32, U64, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}, {(u32)(s32)-255, 0}},
-	{S32, S64, {(u32)(s32)S32_MIN, (u32)(s32)-255}, {(u32)(s32)-2, 0}},
-	{S32, S64, {0, 1}, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}},
-	{S32, U32, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}, {(u32)(s32)S32_MIN, (u32)(s32)S32_MIN}},
+	{S32, U64, {(u32)S32_MIN, (u32)S32_MIN}, {(u32)(s32)-255, 0}},
+	{S32, S64, {(u32)S32_MIN, (u32)(s32)-255}, {(u32)(s32)-2, 0}},
+	{S32, S64, {0, 1}, {(u32)S32_MIN, (u32)S32_MIN}},
+	{S32, U32, {(u32)S32_MIN, (u32)S32_MIN}, {(u32)S32_MIN, (u32)S32_MIN}},
 };
 
 /* Go over crafted hard-coded cases. This is fast, so we do it as part of
