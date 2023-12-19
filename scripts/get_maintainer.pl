@@ -2462,11 +2462,17 @@ sub clean_file_emails {
     foreach my $email (@file_emails) {
 	$email =~ s/[\(\<\{]{0,1}([A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+)[\)\>\}]{0,1}/\<$1\>/g;
 	my ($name, $address) = parse_email($email);
-	if ($name eq '"[,\.]"') {
-	    $name = "";
-	}
 
+	# Strip quotes for easier processing, format_email will add them back
+	$name =~ s/^"(.*)"$/$1/;
+
+	# Split into name-like parts and remove stray punctuation particles
 	my @nw = split(/[^\p{L}\'\,\.\+-]/, $name);
+	@nw = grep(!/^[\'\,\.\+-]$/, @nw);
+
+	# Make a best effort to extract the name, and only the name, by taking
+	# only the last two names, or in the case of obvious initials, the last
+	# three names.
 	if (@nw > 2) {
 	    my $first = $nw[@nw - 3];
 	    my $middle = $nw[@nw - 2];
@@ -2480,18 +2486,16 @@ sub clean_file_emails {
 	    } else {
 		$name = "$middle $last";
 	    }
+	} else {
+	    $name = "@nw";
 	}
 
 	if (substr($name, -1) =~ /[,\.]/) {
 	    $name = substr($name, 0, length($name) - 1);
-	} elsif (substr($name, -2) =~ /[,\.]"/) {
-	    $name = substr($name, 0, length($name) - 2) . '"';
 	}
 
 	if (substr($name, 0, 1) =~ /[,\.]/) {
 	    $name = substr($name, 1, length($name) - 1);
-	} elsif (substr($name, 0, 2) =~ /"[,\.]/) {
-	    $name = '"' . substr($name, 2, length($name) - 2);
 	}
 
 	my $fmt_email = format_email($name, $address, $email_usename);
