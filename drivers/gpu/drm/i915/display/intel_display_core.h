@@ -298,12 +298,6 @@ struct intel_display {
 		const struct intel_audio_funcs *audio;
 	} funcs;
 
-	/* Grouping using anonymous structs. Keep sorted. */
-	struct intel_atomic_helper {
-		struct llist_head free_list;
-		struct work_struct free_work;
-	} atomic_helper;
-
 	struct {
 		/* backlight registers and fields in struct intel_panel */
 		struct mutex lock;

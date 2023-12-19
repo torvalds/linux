@@ -812,13 +812,13 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 }
 
 static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
-			      bool *check_equal)
+			      bool *all_equal)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	i915_reg_t dsc_reg[2];
 	int i, vdsc_per_pipe, dsc_reg_num;
-	u32 val = 0;
+	u32 val;
 
 	vdsc_per_pipe = intel_dsc_get_vdsc_per_pipe(crtc_state);
 	dsc_reg_num = min_t(int, ARRAY_SIZE(dsc_reg), vdsc_per_pipe);
@@ -827,20 +827,13 @@ static u32 intel_dsc_pps_read(struct intel_crtc_state *crtc_state, int pps,
 
 	intel_dsc_get_pps_reg(crtc_state, pps, dsc_reg, dsc_reg_num);
 
-	if (check_equal)
-		*check_equal = true;
+	*all_equal = true;
 
-	for (i = 0; i < dsc_reg_num; i++) {
-		u32 tmp;
+	val = intel_de_read(i915, dsc_reg[0]);
 
-		tmp = intel_de_read(i915, dsc_reg[i]);
-
-		if (i == 0) {
-			val = tmp;
-		} else if (check_equal && tmp != val) {
-			*check_equal = false;
-			break;
-		} else if (!check_equal) {
+	for (i = 1; i < dsc_reg_num; i++) {
+		if (intel_de_read(i915, dsc_reg[i]) != val) {
+			*all_equal = false;
 			break;
 		}
 	}

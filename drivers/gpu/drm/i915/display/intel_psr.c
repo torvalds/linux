@@ -891,13 +891,13 @@ transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder cpu_trans
 		return false;
 }
 
-static u32 intel_get_frame_time_us(const struct intel_crtc_state *cstate)
+static u32 intel_get_frame_time_us(const struct intel_crtc_state *crtc_state)
 {
-	if (!cstate || !cstate->hw.active)
+	if (!crtc_state->hw.active)
 		return 0;
 
 	return DIV_ROUND_UP(1000 * 1000,
-			    drm_mode_vrefresh(&cstate->hw.adjusted_mode));
+			    drm_mode_vrefresh(&crtc_state->hw.adjusted_mode));
 }
 
 static void psr2_program_idle_frames(struct intel_dp *intel_dp,
