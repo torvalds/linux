@@ -328,10 +328,8 @@ static inline bool fib6_info_hold_safe(struct fib6_info *f6i)
 
 static inline void fib6_info_release(struct fib6_info *f6i)
 {
-	if (f6i && refcount_dec_and_test(&f6i->fib6_ref)) {
-		DEBUG_NET_WARN_ON_ONCE(!hlist_unhashed(&f6i->gc_link));
+	if (f6i && refcount_dec_and_test(&f6i->fib6_ref))
 		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
-	}
 }
 
 enum fib6_walk_state {
