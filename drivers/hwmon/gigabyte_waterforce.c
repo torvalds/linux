@@ -276,8 +276,10 @@ static int waterforce_raw_event(struct hid_device *hdev, struct hid_report *repo
 	priv->duty_input[0] = data[WATERFORCE_FAN_DUTY];
 	priv->duty_input[1] = data[WATERFORCE_PUMP_DUTY];
 
+	spin_lock(&priv->status_report_request_lock);
 	if (!completion_done(&priv->status_report_received))
 		complete_all(&priv->status_report_received);
+	spin_unlock(&priv->status_report_request_lock);
 
 	priv->updated = jiffies;
 
