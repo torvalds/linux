@@ -23,11 +23,11 @@ run_test() {
   # on every try.
   for tries in {1..3}; do
     # Actual test starts here
-    ip netns exec server_ns ./gro "${ARGS[@]}" "--rx" "--iface" "server" \
+    ip netns exec $server_ns ./gro "${ARGS[@]}" "--rx" "--iface" "server" \
       1>>log.txt &
     server_pid=$!
     sleep 0.5  # to allow for socket init
-    ip netns exec client_ns ./gro "${ARGS[@]}" "--iface" "client" \
+    ip netns exec $client_ns ./gro "${ARGS[@]}" "--iface" "client" \
       1>>log.txt
     wait "${server_pid}"
     exit_code=$?
