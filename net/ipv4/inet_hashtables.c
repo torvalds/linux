@@ -100,30 +100,30 @@ bool inet_bind_bucket_match(const struct inet_bind_bucket *tb, const struct net 
 		tb->l3mdev == l3mdev;
 }
 
-static void inet_bind2_bucket_init(struct inet_bind2_bucket *tb,
+static void inet_bind2_bucket_init(struct inet_bind2_bucket *tb2,
 				   struct net *net,
 				   struct inet_bind_hashbucket *head,
 				   unsigned short port, int l3mdev,
 				   const struct sock *sk)
 {
-	write_pnet(&tb->ib_net, net);
-	tb->l3mdev    = l3mdev;
-	tb->port      = port;
+	write_pnet(&tb2->ib_net, net);
+	tb2->l3mdev = l3mdev;
+	tb2->port = port;
 #if IS_ENABLED(CONFIG_IPV6)
 	BUILD_BUG_ON(USHRT_MAX < (IPV6_ADDR_ANY | IPV6_ADDR_MAPPED));
 	if (sk->sk_family == AF_INET6) {
-		tb->addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
-		tb->v6_rcv_saddr = sk->sk_v6_rcv_saddr;
+		tb2->addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
+		tb2->v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 	} else {
-		tb->addr_type = IPV6_ADDR_MAPPED;
-		ipv6_addr_set_v4mapped(sk->sk_rcv_saddr, &tb->v6_rcv_saddr);
+		tb2->addr_type = IPV6_ADDR_MAPPED;
+		ipv6_addr_set_v4mapped(sk->sk_rcv_saddr, &tb2->v6_rcv_saddr);
 	}
 #else
-	tb->rcv_saddr = sk->sk_rcv_saddr;
+	tb2->rcv_saddr = sk->sk_rcv_saddr;
 #endif
-	INIT_HLIST_HEAD(&tb->owners);
-	INIT_HLIST_HEAD(&tb->deathrow);
-	hlist_add_head(&tb->node, &head->chain);
+	INIT_HLIST_HEAD(&tb2->owners);
+	INIT_HLIST_HEAD(&tb2->deathrow);
+	hlist_add_head(&tb2->node, &head->chain);
 }
 
 struct inet_bind2_bucket *inet_bind2_bucket_create(struct kmem_cache *cachep,
@@ -133,12 +133,12 @@ struct inet_bind2_bucket *inet_bind2_bucket_create(struct kmem_cache *cachep,
 						   int l3mdev,
 						   const struct sock *sk)
 {
-	struct inet_bind2_bucket *tb = kmem_cache_alloc(cachep, GFP_ATOMIC);
+	struct inet_bind2_bucket *tb2 = kmem_cache_alloc(cachep, GFP_ATOMIC);
 
-	if (tb)
-		inet_bind2_bucket_init(tb, net, head, port, l3mdev, sk);
+	if (tb2)
+		inet_bind2_bucket_init(tb2, net, head, port, l3mdev, sk);
 
-	return tb;
+	return tb2;
 }
 
 /* Caller must hold hashbucket lock for this tb with local BH disabled */
