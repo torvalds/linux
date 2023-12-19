@@ -182,8 +182,10 @@ static bool onie_tlv_crc_is_valid(struct device *dev, size_t table_len, u8 *tabl
 	return true;
 }
 
-static int onie_tlv_parse_table(struct device *dev, struct nvmem_device *nvmem)
+static int onie_tlv_parse_table(struct nvmem_layout *layout)
 {
+	struct nvmem_device *nvmem = layout->nvmem;
+	struct device *dev = &layout->dev;
 	struct onie_tlv_hdr hdr;
 	size_t table_len, data_len, hdr_len;
 	u8 *table, *data;

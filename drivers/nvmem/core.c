@@ -854,7 +854,7 @@ int nvmem_layout_register(struct nvmem_layout *layout)
 		return -EINVAL;
 
 	/* Populate the cells */
-	ret = layout->add_cells(&layout->nvmem->dev, layout->nvmem);
+	ret = layout->add_cells(layout);
 	if (ret)
 		return ret;
 

@@ -173,7 +173,7 @@ struct nvmem_cell_table {
 struct nvmem_layout {
 	struct device dev;
 	struct nvmem_device *nvmem;
-	int (*add_cells)(struct device *dev, struct nvmem_device *nvmem);
+	int (*add_cells)(struct nvmem_layout *layout);
 };
 
 struct nvmem_layout_driver {
