@@ -76,19 +76,6 @@
  * the other protocols.
  */
 
-/* Define this to get the SOCK_DBG debugging facility. */
-#define SOCK_DEBUGGING
-#ifdef SOCK_DEBUGGING
-#define SOCK_DEBUG(sk, msg...) do { if ((sk) && sock_flag((sk), SOCK_DBG)) \
-					printk(KERN_DEBUG msg); } while (0)
-#else
-/* Validate arguments and do nothing */
-static inline __printf(2, 3)
-void SOCK_DEBUG(const struct sock *sk, const char *msg, ...)
-{
-}
-#endif
-
 /* This is the per-socket lock.  The spinlock provides a synchronization
  * between user contexts and software interrupt processing, whereas the
  * mini-semaphore synchronizes multiple users amongst themselves.
