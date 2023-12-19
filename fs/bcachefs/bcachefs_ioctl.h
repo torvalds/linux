@@ -397,7 +397,7 @@ struct bch_ioctl_fsck_offline {
 	__u64			flags;
 	__u64			opts;		/* string */
 	__u64			nr_devs;
-	__u64			devs[0];
+	__u64			devs[] __counted_by(nr_devs);
 };
 
 /*
