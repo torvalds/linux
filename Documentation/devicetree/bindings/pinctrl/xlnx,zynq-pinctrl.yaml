@@ -39,7 +39,7 @@ properties:
       phandle to the SLCR.
 
 patternProperties:
-  '^(.*-)?(default|gpio)$':
+  '^(.*-)?(default|gpio-grp)$':
     type: object
     patternProperties:
       '^mux':
