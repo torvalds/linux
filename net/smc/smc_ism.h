@@ -32,7 +32,8 @@ struct smc_ism_vlanid {			/* VLAN id set on ISM device */
 
 struct smcd_dev;
 
-int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *dev);
+int smc_ism_cantalk(struct smcd_gid *peer_gid, unsigned short vlan_id,
+		    struct smcd_dev *dev);
 void smc_ism_set_conn(struct smc_connection *conn);
 void smc_ism_unset_conn(struct smc_connection *conn);
 int smc_ism_get_vlan(struct smcd_dev *dev, unsigned short vlan_id);

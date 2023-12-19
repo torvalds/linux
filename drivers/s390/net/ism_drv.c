@@ -743,10 +743,10 @@ static int ism_query_rgid(struct ism_dev *ism, u64 rgid, u32 vid_valid,
 	return ism_cmd(ism, &cmd);
 }
 
-static int smcd_query_rgid(struct smcd_dev *smcd, u64 rgid, u32 vid_valid,
-			   u32 vid)
+static int smcd_query_rgid(struct smcd_dev *smcd, struct smcd_gid *rgid,
+			   u32 vid_valid, u32 vid)
 {
-	return ism_query_rgid(smcd->priv, rgid, vid_valid, vid);
+	return ism_query_rgid(smcd->priv, rgid->gid, vid_valid, vid);
 }
 
 static int smcd_register_dmb(struct smcd_dev *smcd, struct smcd_dmb *dmb,
@@ -797,10 +797,11 @@ static int ism_signal_ieq(struct ism_dev *ism, u64 rgid, u32 trigger_irq,
 	return ism_cmd(ism, &cmd);
 }
 
-static int smcd_signal_ieq(struct smcd_dev *smcd, u64 rgid, u32 trigger_irq,
-			   u32 event_code, u64 info)
+static int smcd_signal_ieq(struct smcd_dev *smcd, struct smcd_gid *rgid,
+			   u32 trigger_irq, u32 event_code, u64 info)
 {
-	return ism_signal_ieq(smcd->priv, rgid, trigger_irq, event_code, info);
+	return ism_signal_ieq(smcd->priv, rgid->gid,
+			      trigger_irq, event_code, info);
 }
 
 static int smcd_move(struct smcd_dev *smcd, u64 dmb_tok, unsigned int idx,
@@ -821,9 +822,11 @@ static u64 ism_get_local_gid(struct ism_dev *ism)
 	return ism->local_gid;
 }
 
-static u64 smcd_get_local_gid(struct smcd_dev *smcd)
+static void smcd_get_local_gid(struct smcd_dev *smcd,
+			       struct smcd_gid *smcd_gid)
 {
-	return ism_get_local_gid(smcd->priv);
+	smcd_gid->gid = ism_get_local_gid(smcd->priv);
+	smcd_gid->gid_ext = 0;
 }
 
 static u16 ism_get_chid(struct ism_dev *ism)

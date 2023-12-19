@@ -883,11 +883,13 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 		       ETH_ALEN);
 	}
 	if (smcd_indicated(ini->smc_type_v1)) {
+		struct smcd_gid smcd_gid;
+
 		/* add SMC-D specifics */
 		if (ini->ism_dev[0]) {
 			smcd = ini->ism_dev[0];
-			pclc_smcd->ism.gid =
-				htonll(smcd->ops->get_local_gid(smcd));
+			smcd->ops->get_local_gid(smcd, &smcd_gid);
+			pclc_smcd->ism.gid = htonll(smcd_gid.gid);
 			pclc_smcd->ism.chid =
 				htons(smc_ism_get_chid(ini->ism_dev[0]));
 		}
@@ -920,10 +922,11 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 		read_unlock(&smc_clc_eid_table.lock);
 	}
 	if (smcd_indicated(ini->smc_type_v2)) {
+		struct smcd_gid smcd_gid;
 		u8 *eid = NULL;
+		int entry = 0;
 
 		v2_ext->hdr.flag.seid = smc_clc_eid_table.seid_enabled;
-		v2_ext->hdr.ism_gid_cnt = ini->ism_offered_cnt;
 		v2_ext->hdr.smcd_v2_ext_offset = htons(sizeof(*v2_ext) -
 				offsetofend(struct smc_clnt_opts_area_hdr,
 					    smcd_v2_ext_offset) +
@@ -935,14 +938,26 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 		if (ini->ism_offered_cnt) {
 			for (i = 1; i <= ini->ism_offered_cnt; i++) {
 				smcd = ini->ism_dev[i];
-				gidchids[i - 1].gid =
-					htonll(smcd->ops->get_local_gid(smcd));
-				gidchids[i - 1].chid =
+				smcd->ops->get_local_gid(smcd, &smcd_gid);
+				gidchids[entry].chid =
 					htons(smc_ism_get_chid(ini->ism_dev[i]));
+				gidchids[entry].gid = htonll(smcd_gid.gid);
+				if (smc_ism_is_virtual(smcd)) {
+					/* a virtual ISM device takes two
+					 * entries. CHID of the second entry
+					 * repeats that of the first entry.
+					 */
+					gidchids[entry + 1].chid =
+						gidchids[entry].chid;
+					gidchids[entry + 1].gid =
+						htonll(smcd_gid.gid_ext);
+					entry++;
+				}
+				entry++;
 			}
-			plen += ini->ism_offered_cnt *
-				sizeof(struct smc_clc_smcd_gid_chid);
+			plen += entry * sizeof(struct smc_clc_smcd_gid_chid);
 		}
+		v2_ext->hdr.ism_gid_cnt = entry;
 	}
 	if (smcr_indicated(ini->smc_type_v2)) {
 		memcpy(v2_ext->roce, ini->smcrv2.ib_gid_v2, SMC_GID_SIZE);
@@ -978,7 +993,7 @@ int smc_clc_send_proposal(struct smc_sock *smc, struct smc_init_info *ini)
 			vec[i++].iov_len = sizeof(*smcd_v2_ext);
 			if (ini->ism_offered_cnt) {
 				vec[i].iov_base = gidchids;
-				vec[i++].iov_len = ini->ism_offered_cnt *
+				vec[i++].iov_len = v2_ext->hdr.ism_gid_cnt *
 					sizeof(struct smc_clc_smcd_gid_chid);
 			}
 		}
@@ -1009,13 +1024,16 @@ smcd_clc_prep_confirm_accept(struct smc_connection *conn,
 			     struct smc_clc_msg_trail *trl)
 {
 	struct smcd_dev *smcd = conn->lgr->smcd;
+	struct smcd_gid smcd_gid;
+	u16 chid;
 	int len;
 
 	/* SMC-D specific settings */
 	memcpy(clc->hdr.eyecatcher, SMCD_EYECATCHER,
 	       sizeof(SMCD_EYECATCHER));
+	smcd->ops->get_local_gid(smcd, &smcd_gid);
 	clc->hdr.typev1 = SMC_TYPE_D;
-	clc->d0.gid = htonll(smcd->ops->get_local_gid(smcd));
+	clc->d0.gid = htonll(smcd_gid.gid);
 	clc->d0.token = htonll(conn->rmb_desc->token);
 	clc->d0.dmbe_size = conn->rmbe_size_comp;
 	clc->d0.dmbe_idx = 0;
@@ -1023,9 +1041,12 @@ smcd_clc_prep_confirm_accept(struct smc_connection *conn,
 	if (version == SMC_V1) {
 		clc->hdr.length = htons(SMCD_CLC_ACCEPT_CONFIRM_LEN);
 	} else {
-		clc->d1.chid = htons(smc_ism_get_chid(smcd));
+		chid = smc_ism_get_chid(smcd);
+		clc->d1.chid = htons(chid);
 		if (eid && eid[0])
 			memcpy(clc->d1.eid, eid, SMC_MAX_EID_LEN);
+		if (__smc_ism_is_virtual(chid))
+			clc->d1.gid_ext = htonll(smcd_gid.gid_ext);
 		len = SMCD_CLC_ACCEPT_CONFIRM_LEN_V2;
 		if (first_contact) {
 			*fce_len = smc_clc_fill_fce_v2x(fce_v2x, ini);

@@ -44,7 +44,8 @@ static struct ism_client smc_ism_client = {
 #endif
 
 /* Test if an ISM communication is possible - same CPC */
-int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
+int smc_ism_cantalk(struct smcd_gid *peer_gid, unsigned short vlan_id,
+		    struct smcd_dev *smcd)
 {
 	return smcd->ops->query_remote_gid(smcd, peer_gid, vlan_id ? 1 : 0,
 					   vlan_id);
@@ -208,7 +209,7 @@ int smc_ism_register_dmb(struct smc_link_group *lgr, int dmb_len,
 	dmb.dmb_len = dmb_len;
 	dmb.sba_idx = dmb_desc->sba_idx;
 	dmb.vlan_id = lgr->vlan_id;
-	dmb.rgid = lgr->peer_gid;
+	dmb.rgid = lgr->peer_gid.gid;
 	rc = lgr->smcd->ops->register_dmb(lgr->smcd, &dmb, &smc_ism_client);
 	if (!rc) {
 		dmb_desc->sba_idx = dmb.sba_idx;
@@ -340,18 +341,20 @@ union smcd_sw_event_info {
 
 static void smcd_handle_sw_event(struct smc_ism_event_work *wrk)
 {
+	struct smcd_gid peer_gid = { .gid = wrk->event.tok,
+				     .gid_ext = 0 };
 	union smcd_sw_event_info ev_info;
 
 	ev_info.info = wrk->event.info;
 	switch (wrk->event.code) {
 	case ISM_EVENT_CODE_SHUTDOWN:	/* Peer shut down DMBs */
-		smc_smcd_terminate(wrk->smcd, wrk->event.tok, ev_info.vlan_id);
+		smc_smcd_terminate(wrk->smcd, &peer_gid, ev_info.vlan_id);
 		break;
 	case ISM_EVENT_CODE_TESTLINK:	/* Activity timer */
 		if (ev_info.code == ISM_EVENT_REQUEST) {
 			ev_info.code = ISM_EVENT_RESPONSE;
 			wrk->smcd->ops->signal_event(wrk->smcd,
-						     wrk->event.tok,
+						     &peer_gid,
 						     ISM_EVENT_REQUEST_IR,
 						     ISM_EVENT_CODE_TESTLINK,
 						     ev_info.info);
@@ -365,10 +368,12 @@ static void smc_ism_event_work(struct work_struct *work)
 {
 	struct smc_ism_event_work *wrk =
 		container_of(work, struct smc_ism_event_work, work);
+	struct smcd_gid smcd_gid = { .gid = wrk->event.tok,
+				     .gid_ext = 0 };
 
 	switch (wrk->event.type) {
 	case ISM_EVENT_GID:	/* GID event, token is peer GID */
-		smc_smcd_terminate(wrk->smcd, wrk->event.tok, VLAN_VID_MASK);
+		smc_smcd_terminate(wrk->smcd, &smcd_gid, VLAN_VID_MASK);
 		break;
 	case ISM_EVENT_DMB:
 		break;
@@ -525,7 +530,7 @@ int smc_ism_signal_shutdown(struct smc_link_group *lgr)
 	memcpy(ev_info.uid, lgr->id, SMC_LGR_ID_SIZE);
 	ev_info.vlan_id = lgr->vlan_id;
 	ev_info.code = ISM_EVENT_REQUEST;
-	rc = lgr->smcd->ops->signal_event(lgr->smcd, lgr->peer_gid,
+	rc = lgr->smcd->ops->signal_event(lgr->smcd, &lgr->peer_gid,
 					  ISM_EVENT_REQUEST_IR,
 					  ISM_EVENT_CODE_SHUTDOWN,
 					  ev_info.info);

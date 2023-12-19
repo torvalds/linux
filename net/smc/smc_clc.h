@@ -172,6 +172,11 @@ struct smc_clc_msg_proposal {	/* clc proposal message sent by Linux */
 
 #define SMC_CLC_MAX_V6_PREFIX		8
 #define SMC_CLC_MAX_UEID		8
+#define SMCD_CLC_MAX_V2_GID_ENTRIES	8 /* max # of CHID-GID entries in CLC
+					   * proposal SMC-Dv2 extension.
+					   * each ISM device takes one entry and
+					   * each virtual ISM takes two entries.
+					   */
 
 struct smc_clc_msg_proposal_area {
 	struct smc_clc_msg_proposal		pclc_base;
@@ -181,7 +186,8 @@ struct smc_clc_msg_proposal_area {
 	struct smc_clc_v2_extension		pclc_v2_ext;
 	u8			user_eids[SMC_CLC_MAX_UEID][SMC_MAX_EID_LEN];
 	struct smc_clc_smcd_v2_extension	pclc_smcd_v2_ext;
-	struct smc_clc_smcd_gid_chid		pclc_gidchids[SMC_MAX_ISM_DEVS];
+	struct smc_clc_smcd_gid_chid
+				pclc_gidchids[SMCD_CLC_MAX_V2_GID_ENTRIES];
 	struct smc_clc_msg_trail		pclc_trl;
 };
 
@@ -277,7 +283,7 @@ struct smc_clc_msg_accept_confirm {	/* clc accept / confirm message */
 			struct { /* v2 only, but 12 bytes reserved in v1 */
 				__be16 chid;
 				u8 eid[SMC_MAX_EID_LEN];
-				u8 reserved5[8];
+				__be64 gid_ext;
 			} __packed d1;
 		};
 	};
