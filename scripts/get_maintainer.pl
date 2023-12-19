@@ -20,6 +20,7 @@ use Getopt::Long qw(:config no_auto_abbrev);
 use Cwd;
 use File::Find;
 use File::Spec::Functions;
+use open qw(:std :encoding(UTF-8));
 
 my $cur_path = fastgetcwd() . '/';
 my $lk_path = "./";
@@ -445,7 +446,7 @@ sub maintainers_in_file {
 	my $text = do { local($/) ; <$f> };
 	close($f);
 
-	my @poss_addr = $text =~ m$[A-Za-zÀ-ÿ\"\' \,\.\+-]*\s*[\,]*\s*[\(\<\{]{0,1}[A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+\.[A-Za-z0-9]+[\)\>\}]{0,1}$g;
+	my @poss_addr = $text =~ m$[\p{L}\"\' \,\.\+-]*\s*[\,]*\s*[\(\<\{]{0,1}[A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+\.[A-Za-z0-9]+[\)\>\}]{0,1}$g;
 	push(@file_emails, clean_file_emails(@poss_addr));
     }
 }
@@ -1152,6 +1153,17 @@ sub top_of_kernel_tree {
     return 0;
 }
 
+sub escape_name {
+    my ($name) = @_;
+
+    if ($name =~ /[^\w \-]/ai) {  	 ##has "must quote" chars
+	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
+	$name = "\"$name\"";
+    }
+
+    return $name;
+}
+
 sub parse_email {
     my ($formatted_email) = @_;
 
@@ -1169,12 +1181,8 @@ sub parse_email {
 
     $name =~ s/^\s+|\s+$//g;
     $name =~ s/^\"|\"$//g;
+    $name = escape_name($name);
     $address =~ s/^\s+|\s+$//g;
-
-    if ($name =~ /[^\w \-]/i) {  	 ##has "must quote" chars
-	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
-	$name = "\"$name\"";
-    }
 
     return ($name, $address);
 }
@@ -1186,12 +1194,8 @@ sub format_email {
 
     $name =~ s/^\s+|\s+$//g;
     $name =~ s/^\"|\"$//g;
+    $name = escape_name($name);
     $address =~ s/^\s+|\s+$//g;
-
-    if ($name =~ /[^\w \-]/i) {          ##has "must quote" chars
-	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
-	$name = "\"$name\"";
-    }
 
     if ($usename) {
 	if ("$name" eq "") {
@@ -2462,13 +2466,13 @@ sub clean_file_emails {
 	    $name = "";
 	}
 
-	my @nw = split(/[^A-Za-zÀ-ÿ\'\,\.\+-]/, $name);
+	my @nw = split(/[^\p{L}\'\,\.\+-]/, $name);
 	if (@nw > 2) {
 	    my $first = $nw[@nw - 3];
 	    my $middle = $nw[@nw - 2];
 	    my $last = $nw[@nw - 1];
 
-	    if (((length($first) == 1 && $first =~ m/[A-Za-z]/) ||
+	    if (((length($first) == 1 && $first =~ m/\p{L}/) ||
 		 (length($first) == 2 && substr($first, -1) eq ".")) ||
 		(length($middle) == 1 ||
 		 (length($middle) == 2 && substr($middle, -1) eq "."))) {
