@@ -256,7 +256,7 @@ static int rtc_device_get_id(struct device *dev)
 		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
 
 	if (of_id >= 0) {
-		id = ida_simple_get(&rtc_ida, of_id, of_id + 1, GFP_KERNEL);
+		id = ida_alloc_range(&rtc_ida, of_id, of_id, GFP_KERNEL);
 		if (id < 0)
 			dev_warn(dev, "/aliases ID %d not available\n", of_id);
 	}
