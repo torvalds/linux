@@ -276,6 +276,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_WCD9335
 	imply SND_SOC_WCD934X
 	imply SND_SOC_WCD938X_SDW
+	imply SND_SOC_WCD939X_SDW
 	imply SND_SOC_LPASS_MACRO_COMMON
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
@@ -2058,6 +2059,15 @@ config SND_SOC_WCD938X_SDW
 	help
 	  The WCD9380/9385 is a audio codec IC Integrated in
 	  Qualcomm SoCs like SM8250.
+
+config SND_SOC_WCD939X_SDW
+	tristate "WCD9390/WCD9395 Codec - SDW"
+	select REGMAP_IRQ
+	depends on SOUNDWIRE
+	select REGMAP_SOUNDWIRE
+	help
+	  The WCD9390/9395 is a audio codec IC Integrated in
+	  Qualcomm SoCs like SM8650.
 
 config SND_SOC_WL1273
 	tristate
