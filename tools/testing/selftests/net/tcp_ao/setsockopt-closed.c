@@ -118,7 +118,7 @@ static void setsockopt_checked(int sk, int optname, void *optval,
 		break;
 	default:
 		break;
-	};
+	}
 
 	__setsockopt_checked(sk, optname, false, optval, &len, err, cmd, tst);
 }
