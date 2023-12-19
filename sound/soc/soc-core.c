@@ -576,6 +576,28 @@ free_rtd:
 	return NULL;
 }
 
+static void snd_soc_fill_dummy_dai(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *dai_link;
+	int i;
+
+	/*
+	 * COMP_DUMMY() creates size 0 array on dai_link.
+	 * Fill it as dummy DAI in case of CPU/Codec here.
+	 * Do nothing for Platform.
+	 */
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->num_cpus == 0 && dai_link->cpus) {
+			dai_link->num_cpus	= 1;
+			dai_link->cpus		= &snd_soc_dummy_dlc;
+		}
+		if (dai_link->num_codecs == 0 && dai_link->codecs) {
+			dai_link->num_codecs	= 1;
+			dai_link->codecs	= &snd_soc_dummy_dlc;
+		}
+	}
+}
+
 static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -2130,6 +2152,8 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 	mutex_lock(&client_mutex);
 	snd_soc_card_mutex_lock_root(card);
+
+	snd_soc_fill_dummy_dai(card);
 
 	snd_soc_dapm_init(&card->dapm, card, NULL);
 
