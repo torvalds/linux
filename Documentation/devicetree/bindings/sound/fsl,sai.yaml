@@ -80,11 +80,13 @@ properties:
     maxItems: 1
 
   dmas:
+    minItems: 1
     items:
       - description: DMA controller phandle and request line for RX
       - description: DMA controller phandle and request line for TX
 
   dma-names:
+    minItems: 1
     items:
       - const: rx
       - const: tx
