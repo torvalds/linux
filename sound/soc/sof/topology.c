@@ -1954,6 +1954,7 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		token_id = SOF_ACPDMIC_TOKENS;
 		num_tuples += token_list[SOF_ACPDMIC_TOKENS].count;
 		break;
+	case SOF_DAI_AMD_BT:
 	case SOF_DAI_AMD_SP:
 	case SOF_DAI_AMD_HS:
 	case SOF_DAI_AMD_SP_VIRTUAL:
