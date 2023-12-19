@@ -31,4 +31,24 @@
 /* Reboot */
 #define SCARLETT2_IOCTL_REBOOT _IO('S', 0x61)
 
+/* Select flash segment */
+#define SCARLETT2_SEGMENT_ID_SETTINGS 0
+#define SCARLETT2_SEGMENT_ID_FIRMWARE 1
+#define SCARLETT2_SEGMENT_ID_COUNT 2
+
+#define SCARLETT2_IOCTL_SELECT_FLASH_SEGMENT _IOW('S', 0x62, int)
+
+/* Erase selected flash segment */
+#define SCARLETT2_IOCTL_ERASE_FLASH_SEGMENT _IO('S', 0x63)
+
+/* Get selected flash segment erase progress
+ * 1 through to num_blocks, or 255 for complete
+ */
+struct scarlett2_flash_segment_erase_progress {
+	unsigned char progress;
+	unsigned char num_blocks;
+};
+#define SCARLETT2_IOCTL_GET_ERASE_PROGRESS \
+	_IOR('S', 0x64, struct scarlett2_flash_segment_erase_progress)
+
 #endif /* __UAPI_SOUND_SCARLETT2_H */

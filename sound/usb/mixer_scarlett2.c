@@ -193,11 +193,6 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 	16345
 };
 
-/* Flash segments that we may manipulate */
-#define SCARLETT2_SEGMENT_ID_SETTINGS 0
-#define SCARLETT2_SEGMENT_ID_FIRMWARE 1
-#define SCARLETT2_SEGMENT_ID_COUNT 2
-
 /* Maximum number of analogue outputs */
 #define SCARLETT2_ANALOGUE_MAX 10
 
@@ -265,6 +260,13 @@ enum {
 	SCARLETT2_BUTTON_MUTE    = 0,
 	SCARLETT2_BUTTON_DIM     = 1,
 	SCARLETT2_DIM_MUTE_COUNT = 2,
+};
+
+/* Flash Write State */
+enum {
+	SCARLETT2_FLASH_WRITE_STATE_IDLE = 0,
+	SCARLETT2_FLASH_WRITE_STATE_SELECTED = 1,
+	SCARLETT2_FLASH_WRITE_STATE_ERASING = 2
 };
 
 static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
@@ -427,6 +429,9 @@ struct scarlett2_data {
 	struct usb_mixer_interface *mixer;
 	struct mutex usb_mutex; /* prevent sending concurrent USB requests */
 	struct mutex data_mutex; /* lock access to this data */
+	u8 hwdep_in_use;
+	u8 selected_flash_segment_id;
+	u8 flash_write_state;
 	struct delayed_work work;
 	const struct scarlett2_device_info *info;
 	const char *series_name;
@@ -2137,6 +2142,11 @@ static int scarlett2_sync_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->sync_updated) {
 		err = scarlett2_update_sync(mixer);
 		if (err < 0)
@@ -2233,6 +2243,11 @@ static int scarlett2_master_volume_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->vol_updated) {
 		err = scarlett2_update_volumes(mixer);
 		if (err < 0)
@@ -2272,6 +2287,11 @@ static int scarlett2_volume_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->vol_updated) {
 		err = scarlett2_update_volumes(mixer);
 		if (err < 0)
@@ -2294,6 +2314,11 @@ static int scarlett2_volume_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->vol[index];
 	val = ucontrol->value.integer.value[0];
@@ -2352,6 +2377,11 @@ static int scarlett2_mute_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->vol_updated) {
 		err = scarlett2_update_volumes(mixer);
 		if (err < 0)
@@ -2374,6 +2404,11 @@ static int scarlett2_mute_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->mute_switch[index];
 	val = !!ucontrol->value.integer.value[0];
@@ -2514,6 +2549,11 @@ static int scarlett2_sw_hw_enum_ctl_put(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	oval = private->vol_sw_hw_switch[index];
 	val = !!ucontrol->value.enumerated.item[0];
 
@@ -2611,6 +2651,11 @@ static int scarlett2_level_enum_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->input_other_updated) {
 		err = scarlett2_update_input_other(mixer);
 		if (err < 0)
@@ -2635,6 +2680,11 @@ static int scarlett2_level_enum_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->level_switch[index];
 	val = !!ucontrol->value.enumerated.item[0];
@@ -2675,6 +2725,11 @@ static int scarlett2_pad_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->input_other_updated) {
 		err = scarlett2_update_input_other(mixer);
 		if (err < 0)
@@ -2699,6 +2754,11 @@ static int scarlett2_pad_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->pad_switch[index];
 	val = !!ucontrol->value.integer.value[0];
@@ -2739,6 +2799,11 @@ static int scarlett2_air_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->input_other_updated) {
 		err = scarlett2_update_input_other(mixer);
 		if (err < 0)
@@ -2762,6 +2827,11 @@ static int scarlett2_air_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->air_switch[index];
 	val = !!ucontrol->value.integer.value[0];
@@ -2802,6 +2872,11 @@ static int scarlett2_phantom_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->input_other_updated) {
 		err = scarlett2_update_input_other(mixer);
 		if (err < 0)
@@ -2826,6 +2901,11 @@ static int scarlett2_phantom_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->phantom_switch[index];
 	val = !!ucontrol->value.integer.value[0];
@@ -2877,6 +2957,11 @@ static int scarlett2_phantom_persistence_ctl_put(
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->phantom_persistence;
 	val = !!ucontrol->value.integer.value[0];
@@ -2988,6 +3073,11 @@ static int scarlett2_direct_monitor_ctl_get(
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->monitor_other_updated) {
 		err = scarlett2_update_monitor_other(mixer);
 		if (err < 0)
@@ -3011,6 +3101,11 @@ static int scarlett2_direct_monitor_ctl_put(
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->direct_monitor_switch;
 	val = min(ucontrol->value.enumerated.item[0], 2U);
@@ -3101,6 +3196,11 @@ static int scarlett2_speaker_switch_enum_ctl_get(
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->monitor_other_updated) {
 		err = scarlett2_update_monitor_other(mixer);
 		if (err < 0)
@@ -3180,6 +3280,11 @@ static int scarlett2_speaker_switch_enum_ctl_put(
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->speaker_switching_switch;
 	val = min(ucontrol->value.enumerated.item[0], 2U);
@@ -3262,6 +3367,11 @@ static int scarlett2_talkback_enum_ctl_get(
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->monitor_other_updated) {
 		err = scarlett2_update_monitor_other(mixer);
 		if (err < 0)
@@ -3284,6 +3394,11 @@ static int scarlett2_talkback_enum_ctl_put(
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->talkback_switch;
 	val = min(ucontrol->value.enumerated.item[0], 2U);
@@ -3348,6 +3463,11 @@ static int scarlett2_talkback_map_ctl_put(
 	u16 bitmap = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->talkback_map[index];
 	val = !!ucontrol->value.integer.value[0];
@@ -3423,6 +3543,11 @@ static int scarlett2_dim_mute_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->vol_updated) {
 		err = scarlett2_update_volumes(mixer);
 		if (err < 0)
@@ -3450,6 +3575,11 @@ static int scarlett2_dim_mute_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0, i;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->dim_mute[index];
 	val = !!ucontrol->value.integer.value[0];
@@ -3695,6 +3825,11 @@ static int scarlett2_mixer_ctl_put(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	oval = private->mix[index];
 	val = clamp(ucontrol->value.integer.value[0],
 		    0L, (long)SCARLETT2_MIXER_MAX_VALUE);
@@ -3808,6 +3943,11 @@ static int scarlett2_mux_src_enum_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	if (private->mux_updated) {
 		err = scarlett2_usb_get_mux(mixer);
 		if (err < 0)
@@ -3830,6 +3970,11 @@ static int scarlett2_mux_src_enum_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->mux[index];
 	val = min(ucontrol->value.enumerated.item[0],
@@ -3915,6 +4060,11 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	err = scarlett2_usb_get_meter_levels(elem->head.mixer, elem->channels,
 					     meter_levels);
 	if (err < 0)
@@ -3983,6 +4133,11 @@ static int scarlett2_msd_ctl_put(struct snd_kcontrol *kctl,
 
 	mutex_lock(&private->data_mutex);
 
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
 	oval = private->msd_switch;
 	val = !!ucontrol->value.integer.value[0];
 
@@ -4049,6 +4204,11 @@ static int scarlett2_standalone_ctl_put(struct snd_kcontrol *kctl,
 	int oval, val, err = 0;
 
 	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
 
 	oval = private->standalone_switch;
 	val = !!ucontrol->value.integer.value[0];
@@ -4712,10 +4872,239 @@ static int snd_scarlett2_controls_create(
 
 /*** hwdep interface ***/
 
-/* Reboot the device. */
+/* Set private->hwdep_in_use; prevents access to the ALSA controls
+ * while doing a config erase/firmware upgrade.
+ */
+static void scarlett2_lock(struct scarlett2_data *private)
+{
+	mutex_lock(&private->data_mutex);
+	private->hwdep_in_use = 1;
+	mutex_unlock(&private->data_mutex);
+}
+
+/* Call SCARLETT2_USB_GET_ERASE to get the erase progress */
+static int scarlett2_get_erase_progress(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int segment_id, segment_num, err;
+	u8 erase_resp;
+
+	struct {
+		__le32 segment_num;
+		__le32 pad;
+	} __packed erase_req;
+
+	segment_id = private->selected_flash_segment_id;
+	segment_num = private->flash_segment_nums[segment_id];
+
+	if (segment_num < SCARLETT2_SEGMENT_NUM_MIN ||
+	    segment_num > SCARLETT2_SEGMENT_NUM_MAX)
+		return -EFAULT;
+
+	/* Send the erase progress request */
+	erase_req.segment_num = cpu_to_le32(segment_num);
+	erase_req.pad = 0;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_GET_ERASE,
+			    &erase_req, sizeof(erase_req),
+			    &erase_resp, sizeof(erase_resp));
+	if (err < 0)
+		return err;
+
+	return erase_resp;
+}
+
+/* Repeatedly call scarlett2_get_erase_progress() until it returns
+ * 0xff (erase complete) or we've waited 10 seconds (it usually takes
+ * <3 seconds).
+ */
+static int scarlett2_wait_for_erase(struct usb_mixer_interface *mixer)
+{
+	int i, err;
+
+	for (i = 0; i < 100; i++) {
+		err = scarlett2_get_erase_progress(mixer);
+		if (err < 0)
+			return err;
+
+		if (err == 0xff)
+			return 0;
+
+		msleep(100);
+	}
+
+	return -ETIMEDOUT;
+}
+
+/* Reboot the device; wait for the erase to complete if one is in
+ * progress.
+ */
 static int scarlett2_reboot(struct usb_mixer_interface *mixer)
 {
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (private->flash_write_state ==
+	      SCARLETT2_FLASH_WRITE_STATE_ERASING) {
+		int err = scarlett2_wait_for_erase(mixer);
+
+		if (err < 0)
+			return err;
+	}
+
 	return scarlett2_usb(mixer, SCARLETT2_USB_REBOOT, NULL, 0, NULL, 0);
+}
+
+/* Select a flash segment for erasing (and possibly writing to) */
+static int scarlett2_ioctl_select_flash_segment(
+	struct usb_mixer_interface *mixer,
+	unsigned long arg)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int segment_id, segment_num;
+
+	if (get_user(segment_id, (int __user *)arg))
+		return -EFAULT;
+
+	/* Check the segment ID and segment number */
+	if (segment_id < 0 || segment_id >= SCARLETT2_SEGMENT_ID_COUNT)
+		return -EINVAL;
+
+	segment_num = private->flash_segment_nums[segment_id];
+	if (segment_num < SCARLETT2_SEGMENT_NUM_MIN ||
+	    segment_num > SCARLETT2_SEGMENT_NUM_MAX) {
+		usb_audio_err(mixer->chip,
+			      "%s: invalid segment number %d\n",
+			      __func__, segment_id);
+		return -EFAULT;
+	}
+
+	/* If erasing, wait for it to complete */
+	if (private->flash_write_state == SCARLETT2_FLASH_WRITE_STATE_ERASING) {
+		int err = scarlett2_wait_for_erase(mixer);
+
+		if (err < 0)
+			return err;
+	}
+
+	/* Save the selected segment ID and set the state to SELECTED */
+	private->selected_flash_segment_id = segment_id;
+	private->flash_write_state = SCARLETT2_FLASH_WRITE_STATE_SELECTED;
+
+	return 0;
+}
+
+/* Erase the previously-selected flash segment */
+static int scarlett2_ioctl_erase_flash_segment(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int segment_id, segment_num, err;
+
+	struct {
+		__le32 segment_num;
+		__le32 pad;
+	} __packed erase_req;
+
+	if (private->flash_write_state != SCARLETT2_FLASH_WRITE_STATE_SELECTED)
+		return -EINVAL;
+
+	segment_id = private->selected_flash_segment_id;
+	segment_num = private->flash_segment_nums[segment_id];
+
+	if (segment_num < SCARLETT2_SEGMENT_NUM_MIN ||
+	    segment_num > SCARLETT2_SEGMENT_NUM_MAX)
+		return -EFAULT;
+
+	/* Prevent access to ALSA controls that access the device from
+	 * here on
+	 */
+	scarlett2_lock(private);
+
+	/* Send the erase request */
+	erase_req.segment_num = cpu_to_le32(segment_num);
+	erase_req.pad = 0;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_ERASE_SEGMENT,
+			    &erase_req, sizeof(erase_req),
+			    NULL, 0);
+	if (err < 0)
+		return err;
+
+	/* On success, change the state from SELECTED to ERASING */
+	private->flash_write_state = SCARLETT2_FLASH_WRITE_STATE_ERASING;
+
+	return 0;
+}
+
+/* Get the erase progress from the device */
+static int scarlett2_ioctl_get_erase_progress(
+	struct usb_mixer_interface *mixer,
+	unsigned long arg)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	struct scarlett2_flash_segment_erase_progress progress;
+	int segment_id, segment_num, err;
+	u8 erase_resp;
+
+	struct {
+		__le32 segment_num;
+		__le32 pad;
+	} __packed erase_req;
+
+	/* Check that we're erasing */
+	if (private->flash_write_state != SCARLETT2_FLASH_WRITE_STATE_ERASING)
+		return -EINVAL;
+
+	segment_id = private->selected_flash_segment_id;
+	segment_num = private->flash_segment_nums[segment_id];
+
+	if (segment_num < SCARLETT2_SEGMENT_NUM_MIN ||
+	    segment_num > SCARLETT2_SEGMENT_NUM_MAX)
+		return -EFAULT;
+
+	/* Send the erase progress request */
+	erase_req.segment_num = cpu_to_le32(segment_num);
+	erase_req.pad = 0;
+
+	err = scarlett2_usb(mixer, SCARLETT2_USB_GET_ERASE,
+			    &erase_req, sizeof(erase_req),
+			    &erase_resp, sizeof(erase_resp));
+	if (err < 0)
+		return err;
+
+	progress.progress = erase_resp;
+	progress.num_blocks = private->flash_segment_blocks[segment_id];
+
+	if (copy_to_user((void __user *)arg, &progress, sizeof(progress)))
+		return -EFAULT;
+
+	/* If the erase is complete, change the state from ERASING to
+	 * IDLE.
+	 */
+	if (progress.progress == 0xff)
+		private->flash_write_state = SCARLETT2_FLASH_WRITE_STATE_IDLE;
+
+	return 0;
+}
+
+static int scarlett2_hwdep_open(struct snd_hwdep *hw, struct file *file)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+	struct scarlett2_data *private = mixer->private_data;
+
+	/* If erasing, wait for it to complete */
+	if (private->flash_write_state ==
+	      SCARLETT2_FLASH_WRITE_STATE_ERASING) {
+		int err = scarlett2_wait_for_erase(mixer);
+
+		if (err < 0)
+			return err;
+	}
+
+	/* Set the state to IDLE */
+	private->flash_write_state = SCARLETT2_FLASH_WRITE_STATE_IDLE;
+
+	return 0;
 }
 
 static int scarlett2_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
@@ -4732,9 +5121,34 @@ static int scarlett2_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	case SCARLETT2_IOCTL_REBOOT:
 		return scarlett2_reboot(mixer);
 
+	case SCARLETT2_IOCTL_SELECT_FLASH_SEGMENT:
+		return scarlett2_ioctl_select_flash_segment(mixer, arg);
+
+	case SCARLETT2_IOCTL_ERASE_FLASH_SEGMENT:
+		return scarlett2_ioctl_erase_flash_segment(mixer);
+
+	case SCARLETT2_IOCTL_GET_ERASE_PROGRESS:
+		return scarlett2_ioctl_get_erase_progress(mixer, arg);
+
 	default:
 		return -ENOIOCTLCMD;
 	}
+}
+
+static int scarlett2_hwdep_release(struct snd_hwdep *hw, struct file *file)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+	struct scarlett2_data *private = mixer->private_data;
+
+	/* Return from the SELECTED or WRITE state to IDLE.
+	 * The ERASING state is left as-is, and checked on next open.
+	 */
+	if (private &&
+	    private->hwdep_in_use &&
+	    private->flash_write_state != SCARLETT2_FLASH_WRITE_STATE_ERASING)
+		private->flash_write_state = SCARLETT2_FLASH_WRITE_STATE_IDLE;
+
+	return 0;
 }
 
 static int scarlett2_hwdep_init(struct usb_mixer_interface *mixer)
@@ -4748,7 +5162,9 @@ static int scarlett2_hwdep_init(struct usb_mixer_interface *mixer)
 
 	hw->private_data = mixer;
 	hw->exclusive = 1;
+	hw->ops.open = scarlett2_hwdep_open;
 	hw->ops.ioctl = scarlett2_hwdep_ioctl;
+	hw->ops.release = scarlett2_hwdep_release;
 
 	return 0;
 }
