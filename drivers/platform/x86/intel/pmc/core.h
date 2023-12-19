@@ -223,6 +223,10 @@ enum ppfear_regs {
 #define TGL_LPM_PRI_OFFSET			0x1C7C
 #define TGL_LPM_NUM_MAPS			6
 
+/* Tigerlake PSON residency register */
+#define TGL_PSON_RESIDENCY_OFFSET		0x18f8
+#define TGL_PSON_RES_COUNTER_STEP		0x7A
+
 /* Extended Test Mode Register 3 (CNL and later) */
 #define ETR3_OFFSET				0x1048
 #define ETR3_CF9GR				BIT(20)
@@ -507,6 +511,8 @@ int spt_core_init(struct pmc_dev *pmcdev);
 int cnp_core_init(struct pmc_dev *pmcdev);
 int icl_core_init(struct pmc_dev *pmcdev);
 int tgl_core_init(struct pmc_dev *pmcdev);
+int tgl_l_core_init(struct pmc_dev *pmcdev);
+int tgl_core_generic_init(struct pmc_dev *pmcdev, int pch_tp);
 int adl_core_init(struct pmc_dev *pmcdev);
 int mtl_core_init(struct pmc_dev *pmcdev);
 
