@@ -19,6 +19,8 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
+#include <linux/power_supply.h>
+#include <linux/soc/qcom/battery_charger.h>
 #include <linux/regmap.h>
 #include <linux/spinlock.h>
 #include <linux/leds-qpnp-flash.h>
@@ -183,6 +185,7 @@ enum wled_version {
 	WLED_PMI8998 = 4,
 	WLED_PM660L,
 	WLED_PM8150L,
+	WLED_PM7325B,
 };
 
 enum wled_flash_mode {
@@ -195,6 +198,7 @@ static const int version_table[] = {
 	[0] = WLED_PMI8998,
 	[1] = WLED_PM660L,
 	[2] = WLED_PM8150L,
+	[3] = WLED_PM7325B,
 };
 
 struct wled_config {
@@ -221,6 +225,7 @@ struct wled {
 	struct platform_device *pdev;
 	struct regmap *regmap;
 	struct iio_channel **iio_channels;
+	struct power_supply *batt_psy;
 	struct mutex lock;
 	struct wled_config cfg;
 	ktime_t last_sc_event_time;
@@ -242,6 +247,7 @@ struct wled {
 	bool auto_calib_done;
 	bool force_mod_disable;
 	bool cabc_disabled;
+	bool use_psy;
 	int (*cabc_config)(struct wled *wled, bool enable);
 
 	struct led_classdev flash_cdev;
@@ -300,7 +306,7 @@ static inline bool is_wled4(struct wled *wled)
 
 static inline bool is_wled5(struct wled *wled)
 {
-	if (*wled->version == WLED_PM8150L)
+	if (*wled->version == WLED_PM8150L || *wled->version == WLED_PM7325B)
 		return true;
 
 	return false;
@@ -315,7 +321,7 @@ static int wled_module_enable(struct wled *wled, int val)
 		return 0;
 
 	/* Force HFRC off */
-	if (*wled->version == WLED_PM8150L) {
+	if (is_wled5(wled)) {
 		reg = val ? 0 : 3;
 		rc = regmap_write(wled->regmap, wled->ctrl_addr +
 				  WLED5_CTRL_PBUS_WRITE_SYNC_CTL, reg);
@@ -330,7 +336,7 @@ static int wled_module_enable(struct wled *wled, int val)
 		return rc;
 
 	/* Force HFRC off */
-	if (*wled->version == WLED_PM8150L && val) {
+	if (is_wled5(wled) && val) {
 		rc = regmap_write(wled->regmap, wled->sink_addr +
 				  WLED5_SINK_FLASH_SHDN_CLR_REG, 0);
 		if (rc < 0)
@@ -1562,6 +1568,7 @@ static int wled_get_max_avail_current(struct led_classdev *led_cdev,
 	struct wled *wled;
 	int rc, ocv_mv, r_bat_mohms, i_bat_ma, i_sink_ma = 0, max_fsc_ma;
 	int64_t p_out_string, p_out, p_in, v_safe_mv, i_flash_ma, v_ph_mv;
+	union power_supply_propval prop = {};
 
 	if (!strcmp(led_cdev->name, "wled_switch"))
 		wled = container_of(led_cdev, struct wled, switch_cdev);
@@ -1577,26 +1584,59 @@ static int wled_get_max_avail_current(struct led_classdev *led_cdev,
 		return 0;
 	}
 
-	rc = wled_iio_get_prop(wled, OCV, &ocv_mv);
-	if (rc < 0) {
-		pr_err("Error in getting OCV rc=%d\n", rc);
-		return rc;
-	}
-	ocv_mv /= 1000;
+	if (wled->use_psy) {
+		if (!wled->batt_psy)
+			wled->batt_psy = power_supply_get_by_name("battery");
 
-	rc = wled_iio_get_prop(wled, IBAT, &i_bat_ma);
-	if (rc < 0) {
-		pr_err("Error in getting I_BAT rc=%d\n", rc);
-		return rc;
-	}
-	i_bat_ma /= 1000;
+		if (!wled->batt_psy) {
+			pr_err_ratelimited("Failed to get battery power supply\n");
+			return -ENODEV;
+		}
 
-	rc = wled_iio_get_prop(wled, RBATT, &r_bat_mohms);
-	if (rc < 0) {
-		pr_err("Error in getting R_BAT rc=%d\n", rc);
-		return rc;
+		rc = power_supply_get_property(wled->batt_psy, POWER_SUPPLY_PROP_VOLTAGE_OCV,
+				&prop);
+		if (rc < 0) {
+			pr_err("Failed to get battery OCV, rc=%d\n", rc);
+			return rc;
+		}
+		ocv_mv = prop.intval/1000;
+
+		rc = power_supply_get_property(wled->batt_psy, POWER_SUPPLY_PROP_CURRENT_NOW,
+				&prop);
+		if (rc < 0) {
+			pr_err("Failed to get battery current, rc=%d\n", rc);
+			return rc;
+		}
+		i_bat_ma = -prop.intval/1000;
+
+		rc = qti_battery_charger_get_prop("battery", BATTERY_RESISTANCE, &r_bat_mohms);
+		if (rc < 0) {
+			pr_err("Failed to get battery resistance, rc=%d\n", rc);
+			return rc;
+		}
+		r_bat_mohms /= 1000;
+	} else {
+		rc = wled_iio_get_prop(wled, OCV, &ocv_mv);
+		if (rc < 0) {
+			pr_err("Error in getting OCV rc=%d\n", rc);
+			return rc;
+		}
+		ocv_mv /= 1000;
+
+		rc = wled_iio_get_prop(wled, IBAT, &i_bat_ma);
+		if (rc < 0) {
+			pr_err("Error in getting I_BAT rc=%d\n", rc);
+			return rc;
+		}
+		i_bat_ma /= 1000;
+
+		rc = wled_iio_get_prop(wled, RBATT, &r_bat_mohms);
+		if (rc < 0) {
+			pr_err("Error in getting R_BAT rc=%d\n", rc);
+			return rc;
+		}
+		r_bat_mohms /= 1000;
 	}
-	r_bat_mohms /= 1000;
 
 	pr_debug("ocv: %d i_bat: %d r_bat: %d\n", ocv_mv, i_bat_ma,
 		r_bat_mohms);
@@ -2341,6 +2381,9 @@ static int wled_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (*wled->version == WLED_PM7325B)
+		wled->use_psy = true;
+
 	rc = wled_configure(wled, &pdev->dev);
 	if (rc < 0) {
 		dev_err(&pdev->dev, "wled configure failed rc:%d\n", rc);
@@ -2410,10 +2453,11 @@ static int wled_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id wled_match_table[] = {
-	{ .compatible = "qcom,pmi8998-spmi-wled", .data = &version_table[0] },
-	{ .compatible = "qcom,pm8150l-spmi-wled", .data = &version_table[2] },
 	{ .compatible = "qcom,pm6150l-spmi-wled", .data = &version_table[2] },
 	{ .compatible = "qcom,pm660l-spmi-wled",  .data = &version_table[1] },
+	{ .compatible = "qcom,pm7325b-spmi-wled", .data = &version_table[3] },
+	{ .compatible = "qcom,pm8150l-spmi-wled", .data = &version_table[2] },
+	{ .compatible = "qcom,pmi8998-spmi-wled", .data = &version_table[0] },
 	{ },
 };
 
