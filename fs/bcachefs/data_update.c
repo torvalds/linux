@@ -418,6 +418,8 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 			continue;
 		}
 
+		bch_err_fn_ratelimited(c, ret);
+
 		if (ret)
 			return;
 

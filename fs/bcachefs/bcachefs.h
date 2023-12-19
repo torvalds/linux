@@ -326,6 +326,12 @@ do {									\
 		bch_err(_c, "%s(): error %s", __func__, bch2_err_str(_ret));\
 } while (0)
 
+#define bch_err_fn_ratelimited(_c, _ret)				\
+do {									\
+	if (should_print_err(_ret))					\
+		bch_err_ratelimited(_c, "%s(): error %s", __func__, bch2_err_str(_ret));\
+} while (0)
+
 #define bch_err_msg(_c, _ret, _msg, ...)				\
 do {									\
 	if (should_print_err(_ret))					\

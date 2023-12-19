@@ -1190,6 +1190,9 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	return as;
 err:
 	bch2_btree_update_free(as, trans);
+	if (!bch2_err_matches(ret, ENOSPC) &&
+	    !bch2_err_matches(ret, EROFS))
+		bch_err_fn_ratelimited(c, ret);
 	return ERR_PTR(ret);
 }
 

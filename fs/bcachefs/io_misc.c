@@ -61,7 +61,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		 */
 		ret = bch2_disk_reservation_get(c, &disk_res, sectors, new_replicas, 0);
 		if (unlikely(ret))
-			goto err;
+			goto err_noprint;
 
 		bch2_bkey_buf_reassemble(&old, c, k);
 	}
@@ -125,7 +125,12 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 err:
 	if (!ret && sectors_allocated)
 		bch2_increment_clock(c, sectors_allocated, WRITE);
-
+	if (should_print_err(ret))
+		bch_err_inum_offset_ratelimited(c,
+			inum.inum,
+			iter->pos.offset << 9,
+			"%s(): error: %s", __func__, bch2_err_str(ret));
+err_noprint:
 	bch2_open_buckets_put(c, &open_buckets);
 	bch2_disk_reservation_put(c, &disk_res);
 	bch2_bkey_buf_exit(&new, c);
