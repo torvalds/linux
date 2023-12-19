@@ -27,7 +27,6 @@ u32 rtl8723_phy_query_bb_reg(struct ieee80211_hw *hw,
 			     u32 regaddr, u32 bitmask);
 void rtl8723_phy_set_bb_reg(struct ieee80211_hw *hw, u32 regaddr,
 			      u32 bitmask, u32 data);
-u32 rtl8723_phy_calculate_bit_shift(u32 bitmask);
 u32 rtl8723_phy_rf_serial_read(struct ieee80211_hw *hw,
 			       enum radio_path rfpath, u32 offset);
 void rtl8723_phy_rf_serial_write(struct ieee80211_hw *hw,
