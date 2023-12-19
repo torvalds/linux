@@ -4030,8 +4030,13 @@ struct mlx5_ifc_nic_vport_context_bits {
 	u8	   affiliation_criteria[0x4];
 	u8	   affiliated_vhca_id[0x10];
 
-	u8	   reserved_at_60[0xd0];
+	u8	   reserved_at_60[0xa0];
 
+	u8	   reserved_at_100[0x1];
+	u8         sd_group[0x3];
+	u8	   reserved_at_104[0x1c];
+
+	u8	   reserved_at_120[0x10];
 	u8         mtu[0x10];
 
 	u8         system_image_guid[0x40];
@@ -10116,8 +10121,7 @@ struct mlx5_ifc_mpir_reg_bits {
 	u8         reserved_at_20[0x20];
 
 	u8         local_port[0x8];
-	u8         reserved_at_28[0x15];
-	u8         sd_group[0x3];
+	u8         reserved_at_28[0x18];
 
 	u8         reserved_at_60[0x20];
 };
