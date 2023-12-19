@@ -13,6 +13,16 @@
 #include <asm/tlb.h>
 #include <asm/kvm_mmu.h>
 
+static inline bool kvm_hugepage_capable(struct kvm_memory_slot *slot)
+{
+	return slot->arch.flags & KVM_MEM_HUGEPAGE_CAPABLE;
+}
+
+static inline bool kvm_hugepage_incapable(struct kvm_memory_slot *slot)
+{
+	return slot->arch.flags & KVM_MEM_HUGEPAGE_INCAPABLE;
+}
+
 static inline void kvm_ptw_prepare(struct kvm *kvm, kvm_ptw_ctx *ctx)
 {
 	ctx->level = kvm->arch.root_level;
@@ -365,6 +375,69 @@ void kvm_arch_mmu_enable_log_dirty_pt_masked(struct kvm *kvm,
 	kvm_ptw_top(kvm->arch.pgd, start << PAGE_SHIFT, end << PAGE_SHIFT, &ctx);
 }
 
+int kvm_arch_prepare_memory_region(struct kvm *kvm, const struct kvm_memory_slot *old,
+				   struct kvm_memory_slot *new, enum kvm_mr_change change)
+{
+	gpa_t gpa_start;
+	hva_t hva_start;
+	size_t size, gpa_offset, hva_offset;
+
+	if ((change != KVM_MR_MOVE) && (change != KVM_MR_CREATE))
+		return 0;
+	/*
+	 * Prevent userspace from creating a memory region outside of the
+	 * VM GPA address space
+	 */
+	if ((new->base_gfn + new->npages) > (kvm->arch.gpa_size >> PAGE_SHIFT))
+		return -ENOMEM;
+
+	new->arch.flags = 0;
+	size = new->npages * PAGE_SIZE;
+	gpa_start = new->base_gfn << PAGE_SHIFT;
+	hva_start = new->userspace_addr;
+	if (IS_ALIGNED(size, PMD_SIZE) && IS_ALIGNED(gpa_start, PMD_SIZE)
+			&& IS_ALIGNED(hva_start, PMD_SIZE))
+		new->arch.flags |= KVM_MEM_HUGEPAGE_CAPABLE;
+	else {
+		/*
+		 * Pages belonging to memslots that don't have the same
+		 * alignment within a PMD for userspace and GPA cannot be
+		 * mapped with PMD entries, because we'll end up mapping
+		 * the wrong pages.
+		 *
+		 * Consider a layout like the following:
+		 *
+		 *    memslot->userspace_addr:
+		 *    +-----+--------------------+--------------------+---+
+		 *    |abcde|fgh  Stage-1 block  |    Stage-1 block tv|xyz|
+		 *    +-----+--------------------+--------------------+---+
+		 *
+		 *    memslot->base_gfn << PAGE_SIZE:
+		 *      +---+--------------------+--------------------+-----+
+		 *      |abc|def  Stage-2 block  |    Stage-2 block   |tvxyz|
+		 *      +---+--------------------+--------------------+-----+
+		 *
+		 * If we create those stage-2 blocks, we'll end up with this
+		 * incorrect mapping:
+		 *   d -> f
+		 *   e -> g
+		 *   f -> h
+		 */
+		gpa_offset = gpa_start & (PMD_SIZE - 1);
+		hva_offset = hva_start & (PMD_SIZE - 1);
+		if (gpa_offset != hva_offset) {
+			new->arch.flags |= KVM_MEM_HUGEPAGE_INCAPABLE;
+		} else {
+			if (gpa_offset == 0)
+				gpa_offset = PMD_SIZE;
+			if ((size + gpa_offset) < (PMD_SIZE * 2))
+				new->arch.flags |= KVM_MEM_HUGEPAGE_INCAPABLE;
+		}
+	}
+
+	return 0;
+}
+
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *old,
 				   const struct kvm_memory_slot *new,
@@ -562,46 +635,22 @@ out:
 }
 
 static bool fault_supports_huge_mapping(struct kvm_memory_slot *memslot,
-				unsigned long hva, unsigned long map_size, bool write)
+				unsigned long hva, bool write)
 {
-	size_t size;
-	gpa_t gpa_start;
-	hva_t uaddr_start, uaddr_end;
+	hva_t start, end;
 
 	/* Disable dirty logging on HugePages */
 	if (kvm_slot_dirty_track_enabled(memslot) && write)
 		return false;
 
-	size = memslot->npages * PAGE_SIZE;
-	gpa_start = memslot->base_gfn << PAGE_SHIFT;
-	uaddr_start = memslot->userspace_addr;
-	uaddr_end = uaddr_start + size;
+	if (kvm_hugepage_capable(memslot))
+		return true;
 
-	/*
-	 * Pages belonging to memslots that don't have the same alignment
-	 * within a PMD for userspace and GPA cannot be mapped with stage-2
-	 * PMD entries, because we'll end up mapping the wrong pages.
-	 *
-	 * Consider a layout like the following:
-	 *
-	 *    memslot->userspace_addr:
-	 *    +-----+--------------------+--------------------+---+
-	 *    |abcde|fgh  Stage-1 block  |    Stage-1 block tv|xyz|
-	 *    +-----+--------------------+--------------------+---+
-	 *
-	 *    memslot->base_gfn << PAGE_SIZE:
-	 *      +---+--------------------+--------------------+-----+
-	 *      |abc|def  Stage-2 block  |    Stage-2 block   |tvxyz|
-	 *      +---+--------------------+--------------------+-----+
-	 *
-	 * If we create those stage-2 blocks, we'll end up with this incorrect
-	 * mapping:
-	 *   d -> f
-	 *   e -> g
-	 *   f -> h
-	 */
-	if ((gpa_start & (map_size - 1)) != (uaddr_start & (map_size - 1)))
+	if (kvm_hugepage_incapable(memslot))
 		return false;
+
+	start = memslot->userspace_addr;
+	end = start + memslot->npages * PAGE_SIZE;
 
 	/*
 	 * Next, let's make sure we're not trying to map anything not covered
@@ -615,8 +664,7 @@ static bool fault_supports_huge_mapping(struct kvm_memory_slot *memslot,
 	 * userspace_addr or the base_gfn, as both are equally aligned (per
 	 * the check above) and equally sized.
 	 */
-	return (hva & ~(map_size - 1)) >= uaddr_start &&
-		(hva & ~(map_size - 1)) + map_size <= uaddr_end;
+	return (hva >= ALIGN(start, PMD_SIZE)) && (hva < ALIGN_DOWN(end, PMD_SIZE));
 }
 
 /*
@@ -842,7 +890,7 @@ retry:
 
 	/* Disable dirty logging on HugePages */
 	level = 0;
-	if (!fault_supports_huge_mapping(memslot, hva, PMD_SIZE, write)) {
+	if (!fault_supports_huge_mapping(memslot, hva, write)) {
 		level = 0;
 	} else {
 		level = host_pfn_mapping_level(kvm, gfn, memslot);
@@ -899,12 +947,6 @@ int kvm_handle_mm_fault(struct kvm_vcpu *vcpu, unsigned long gpa, bool write)
 
 void kvm_arch_sync_dirty_log(struct kvm *kvm, struct kvm_memory_slot *memslot)
 {
-}
-
-int kvm_arch_prepare_memory_region(struct kvm *kvm, const struct kvm_memory_slot *old,
-				   struct kvm_memory_slot *new, enum kvm_mr_change change)
-{
-	return 0;
 }
 
 void kvm_arch_flush_remote_tlbs_memslot(struct kvm *kvm,

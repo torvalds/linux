@@ -45,7 +45,10 @@ struct kvm_vcpu_stat {
 	u64 signal_exits;
 };
 
+#define KVM_MEM_HUGEPAGE_CAPABLE	(1UL << 0)
+#define KVM_MEM_HUGEPAGE_INCAPABLE	(1UL << 1)
 struct kvm_arch_memory_slot {
+	unsigned long flags;
 };
 
 struct kvm_context {
