@@ -310,7 +310,7 @@ static inline void check_indirect_extent_deleting(struct bkey_i *new, unsigned *
 	if ((*flags & BTREE_TRIGGER_INSERT) && !*bkey_refcount(new)) {
 		new->k.type = KEY_TYPE_deleted;
 		new->k.size = 0;
-		set_bkey_val_u64s(&new->k, 0);;
+		set_bkey_val_u64s(&new->k, 0);
 		*flags &= ~BTREE_TRIGGER_INSERT;
 	}
 }
