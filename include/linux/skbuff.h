@@ -754,7 +754,6 @@ typedef unsigned char *sk_buff_data_t;
  *	@dev_scratch: (aka @dev) alternate use of @dev when @dev would be %NULL
  *	@cb: Control buffer. Free for use by every layer. Put private vars here
  *	@_skb_refdst: destination entry (with norefcount bit)
- *	@sp: the security path, used for xfrm
  *	@len: Length of actual data
  *	@data_len: Data length
  *	@mac_len: Length of link layer header
@@ -788,7 +787,6 @@ typedef unsigned char *sk_buff_data_t;
  *	@tcp_tsorted_anchor: list structure for TCP (tp->tsorted_sent_queue)
  *	@_sk_redir: socket redirection information for skmsg
  *	@_nfct: Associated connection, if any (with nfctinfo bits)
- *	@nf_bridge: Saved data about a bridged frame - see br_netfilter.c
  *	@skb_iif: ifindex of device we arrived on
  *	@tc_index: Traffic control index
  *	@hash: the packet hash
