@@ -77,11 +77,26 @@ struct registered_event_data {
 
 static bool xlnx_is_error_event(const u32 node_id)
 {
-	if (node_id == EVENT_ERROR_PMC_ERR1 ||
-	    node_id == EVENT_ERROR_PMC_ERR2 ||
-	    node_id == EVENT_ERROR_PSM_ERR1 ||
-	    node_id == EVENT_ERROR_PSM_ERR2)
-		return true;
+	u32 pm_family_code, pm_sub_family_code;
+
+	zynqmp_pm_get_family_info(&pm_family_code, &pm_sub_family_code);
+
+	if (pm_sub_family_code == VERSAL_SUB_FAMILY_CODE) {
+		if (node_id == VERSAL_EVENT_ERROR_PMC_ERR1 ||
+		    node_id == VERSAL_EVENT_ERROR_PMC_ERR2 ||
+		    node_id == VERSAL_EVENT_ERROR_PSM_ERR1 ||
+		    node_id == VERSAL_EVENT_ERROR_PSM_ERR2)
+			return true;
+	} else {
+		if (node_id == VERSAL_NET_EVENT_ERROR_PMC_ERR1 ||
+		    node_id == VERSAL_NET_EVENT_ERROR_PMC_ERR2 ||
+		    node_id == VERSAL_NET_EVENT_ERROR_PMC_ERR3 ||
+		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR1 ||
+		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR2 ||
+		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR3 ||
+		    node_id == VERSAL_NET_EVENT_ERROR_PSM_ERR4)
+			return true;
+	}
 
 	return false;
 }
