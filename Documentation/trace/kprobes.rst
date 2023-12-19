@@ -321,6 +321,7 @@ architectures:
 - mips
 - s390
 - parisc
+- loongarch
 
 Configuring Kprobes
 ===================
