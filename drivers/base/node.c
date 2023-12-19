@@ -21,7 +21,7 @@
 #include <linux/swap.h>
 #include <linux/slab.h>
 
-static struct bus_type node_subsys = {
+static const struct bus_type node_subsys = {
 	.name = "node",
 	.dev_name = "node",
 };

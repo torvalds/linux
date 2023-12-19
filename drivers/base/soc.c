@@ -28,7 +28,7 @@ struct soc_device {
 	int soc_dev_num;
 };
 
-static struct bus_type soc_bus_type = {
+static const struct bus_type soc_bus_type = {
 	.name  = "soc",
 };
 static bool soc_bus_registered;
