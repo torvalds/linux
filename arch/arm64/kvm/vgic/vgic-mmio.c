@@ -301,9 +301,8 @@ static bool is_vgic_v2_sgi(struct kvm_vcpu *vcpu, struct vgic_irq *irq)
 		vcpu->kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V2);
 }
 
-void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
-			      gpa_t addr, unsigned int len,
-			      unsigned long val)
+static void __set_pending(struct kvm_vcpu *vcpu, gpa_t addr, unsigned int len,
+			  unsigned long val, bool is_user)
 {
 	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
 	int i;
@@ -312,13 +311,21 @@ void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 	for_each_set_bit(i, &val, len * 8) {
 		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
 
-		/* GICD_ISPENDR0 SGI bits are WI */
-		if (is_vgic_v2_sgi(vcpu, irq)) {
+		/* GICD_ISPENDR0 SGI bits are WI when written from the guest. */
+		if (is_vgic_v2_sgi(vcpu, irq) && !is_user) {
 			vgic_put_irq(vcpu->kvm, irq);
 			continue;
 		}
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
+
+		/*
+		 * GICv2 SGIs are terribly broken. We can't restore
+		 * the source of the interrupt, so just pick the vcpu
+		 * itself as the source...
+		 */
+		if (is_vgic_v2_sgi(vcpu, irq))
+			irq->source |= BIT(vcpu->vcpu_id);
 
 		if (irq->hw && vgic_irq_is_sgi(irq->intid)) {
 			/* HW SGI? Ask the GIC to inject it */
@@ -335,7 +342,7 @@ void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 		}
 
 		irq->pending_latch = true;
-		if (irq->hw)
+		if (irq->hw && !is_user)
 			vgic_irq_set_phys_active(irq, true);
 
 		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
@@ -343,33 +350,18 @@ void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
 	}
 }
 
+void vgic_mmio_write_spending(struct kvm_vcpu *vcpu,
+			      gpa_t addr, unsigned int len,
+			      unsigned long val)
+{
+	__set_pending(vcpu, addr, len, val, false);
+}
+
 int vgic_uaccess_write_spending(struct kvm_vcpu *vcpu,
 				gpa_t addr, unsigned int len,
 				unsigned long val)
 {
-	u32 intid = VGIC_ADDR_TO_INTID(addr, 1);
-	int i;
-	unsigned long flags;
-
-	for_each_set_bit(i, &val, len * 8) {
-		struct vgic_irq *irq = vgic_get_irq(vcpu->kvm, vcpu, intid + i);
-
-		raw_spin_lock_irqsave(&irq->irq_lock, flags);
-		irq->pending_latch = true;
-
-		/*
-		 * GICv2 SGIs are terribly broken. We can't restore
-		 * the source of the interrupt, so just pick the vcpu
-		 * itself as the source...
-		 */
-		if (is_vgic_v2_sgi(vcpu, irq))
-			irq->source |= BIT(vcpu->vcpu_id);
-
-		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
-
-		vgic_put_irq(vcpu->kvm, irq);
-	}
-
+	__set_pending(vcpu, addr, len, val, true);
 	return 0;
 }
 
