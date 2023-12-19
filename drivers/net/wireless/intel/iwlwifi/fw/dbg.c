@@ -3401,6 +3401,15 @@ void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt)
 	struct iwl_fw_dbg_params params = {0};
 
 	iwl_fw_dbg_stop_sync(fwrt);
+
+	if (fw_has_api(&fwrt->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR)) {
+		struct iwl_host_cmd hcmd = {
+			.id = WIDE_ID(DEBUG_GROUP, FW_CLEAR_BUFFER),
+		};
+		iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	}
+
 	iwl_dbg_tlv_init_cfg(fwrt);
 	iwl_fw_dbg_stop_restart_recording(fwrt, &params, false);
 }
