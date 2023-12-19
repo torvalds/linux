@@ -180,7 +180,7 @@ static int lm3630a_pwm_ctrl(struct lm3630a_chip *pchip, int br, int br_max)
 
 	pchip->pwmd_state.enabled = pchip->pwmd_state.duty_cycle ? true : false;
 
-	return pwm_apply_state(pchip->pwmd, &pchip->pwmd_state);
+	return pwm_apply_might_sleep(pchip->pwmd, &pchip->pwmd_state);
 }
 
 /* update and get brightness */

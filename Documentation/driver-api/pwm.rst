@@ -41,7 +41,7 @@ the getter, devm_pwm_get() and devm_fwnode_pwm_get(), also exist.
 
 After being requested, a PWM has to be configured using::
 
-	int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state);
+	int pwm_apply_might_sleep(struct pwm_device *pwm, struct pwm_state *state);
 
 This API controls both the PWM period/duty_cycle config and the
 enable/disable state.
@@ -57,13 +57,13 @@ If supported by the driver, the signal can be optimized, for example to improve
 EMI by phase shifting the individual channels of a chip.
 
 The pwm_config(), pwm_enable() and pwm_disable() functions are just wrappers
-around pwm_apply_state() and should not be used if the user wants to change
+around pwm_apply_might_sleep() and should not be used if the user wants to change
 several parameter at once. For example, if you see pwm_config() and
 pwm_{enable,disable}() calls in the same function, this probably means you
-should switch to pwm_apply_state().
+should switch to pwm_apply_might_sleep().
 
 The PWM user API also allows one to query the PWM state that was passed to the
-last invocation of pwm_apply_state() using pwm_get_state(). Note this is
+last invocation of pwm_apply_might_sleep() using pwm_get_state(). Note this is
 different to what the driver has actually implemented if the request cannot be
 satisfied exactly with the hardware in use. There is currently no way for
 consumers to get the actually implemented settings.

@@ -68,7 +68,7 @@ static int pwm_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 
 	for (i = 0; i < count; i++) {
 		state.enabled = !(i % 2);
-		pwm_apply_state(pwm, &state);
+		pwm_apply_might_sleep(pwm, &state);
 
 		edge = ktime_add_us(edge, txbuf[i]);
 		delta = ktime_us_delta(edge, ktime_get());
@@ -77,7 +77,7 @@ static int pwm_ir_tx(struct rc_dev *dev, unsigned int *txbuf,
 	}
 
 	state.enabled = false;
-	pwm_apply_state(pwm, &state);
+	pwm_apply_might_sleep(pwm, &state);
 
 	return count;
 }
