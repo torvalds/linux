@@ -1703,7 +1703,7 @@
 
 	vopb: vop@ff460000 {
 		compatible = "rockchip,px30-vop-big";
-		reg = <0x0 0xff460000 0x0 0x1fc>, <0x0 0xff460a00 0x0 0x400>;
+		reg = <0x0 0xff460000 0x0 0x260>, <0x0 0xff460a00 0x0 0x400>;
 		rockchip,grf = <&grf>;
 		reg-names = "regs", "gamma_lut";
 		interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
