@@ -5381,6 +5381,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			   assoc_data->ap_addr, tu, ms);
 		assoc_data->timeout = jiffies + msecs_to_jiffies(ms);
 		assoc_data->timeout_started = true;
+		assoc_data->comeback = true;
 		if (ms > IEEE80211_ASSOC_TIMEOUT)
 			run_again(sdata, assoc_data->timeout);
 		goto notify_driver;
@@ -6718,8 +6719,18 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			}
 			ifmgd->auth_data->timeout_started = true;
 		} else if (ifmgd->assoc_data &&
+			   !ifmgd->assoc_data->comeback &&
 			   (ieee80211_is_assoc_req(fc) ||
 			    ieee80211_is_reassoc_req(fc))) {
+			/*
+			 * Update association timeout based on the TX status
+			 * for the (Re)Association Request frame. Skip this if
+			 * we have already processed a (Re)Association Response
+			 * frame that indicated need for association comeback
+			 * at a specific time in the future. This could happen
+			 * if the TX status information is delayed enough for
+			 * the response to be received and processed first.
+			 */
 			if (status_acked) {
 				ifmgd->assoc_data->timeout =
 					jiffies + IEEE80211_ASSOC_TIMEOUT_SHORT;
