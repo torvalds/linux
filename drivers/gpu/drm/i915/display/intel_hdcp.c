@@ -347,7 +347,7 @@ u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *i915,
 		default:
 			drm_err(&i915->drm, "Unknown transcoder %d\n",
 				cpu_transcoder);
-			return -EINVAL;
+			return 0;
 		}
 	}
 
@@ -364,7 +364,7 @@ u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *i915,
 		return HDCP_DDIE_REP_PRESENT | HDCP_DDIE_SHA1_M0;
 	default:
 		drm_err(&i915->drm, "Unknown port %d\n", port);
-		return -EINVAL;
+		return 0;
 	}
 }
 
