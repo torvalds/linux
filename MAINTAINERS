@@ -8279,6 +8279,7 @@ S:	Maintained
 W:	https://github.com/geoffreybennett/scarlett-gen2
 B:	https://github.com/geoffreybennett/scarlett-gen2/issues
 T:	git https://github.com/geoffreybennett/scarlett-gen2.git
+F:	include/uapi/sound/scarlett2.h
 F:	sound/usb/mixer_scarlett2.c
 
 FORCEDETH GIGABIT ETHERNET DRIVER

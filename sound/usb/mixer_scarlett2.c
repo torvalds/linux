@@ -146,6 +146,9 @@
 
 #include <sound/control.h>
 #include <sound/tlv.h>
+#include <sound/hwdep.h>
+
+#include <uapi/sound/scarlett2.h>
 
 #include "usbaudio.h"
 #include "mixer.h"
@@ -1439,6 +1442,16 @@ static int scarlett2_usb(
 	/* validate the response */
 
 	if (err != resp_buf_size) {
+
+		/* ESHUTDOWN and EPROTO are valid responses to a
+		 * reboot request
+		 */
+		if (cmd == SCARLETT2_USB_REBOOT &&
+		    (err == -ESHUTDOWN || err == -EPROTO)) {
+			err = 0;
+			goto unlock;
+		}
+
 		usb_audio_err(
 			mixer->chip,
 			"%s USB response result cmd %x was %d expected %zu\n",
@@ -4697,6 +4710,49 @@ static int snd_scarlett2_controls_create(
 	return 0;
 }
 
+/*** hwdep interface ***/
+
+/* Reboot the device. */
+static int scarlett2_reboot(struct usb_mixer_interface *mixer)
+{
+	return scarlett2_usb(mixer, SCARLETT2_USB_REBOOT, NULL, 0, NULL, 0);
+}
+
+static int scarlett2_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
+				 unsigned int cmd, unsigned long arg)
+{
+	struct usb_mixer_interface *mixer = hw->private_data;
+
+	switch (cmd) {
+
+	case SCARLETT2_IOCTL_PVERSION:
+		return put_user(SCARLETT2_HWDEP_VERSION,
+				(int __user *)arg) ? -EFAULT : 0;
+
+	case SCARLETT2_IOCTL_REBOOT:
+		return scarlett2_reboot(mixer);
+
+	default:
+		return -ENOIOCTLCMD;
+	}
+}
+
+static int scarlett2_hwdep_init(struct usb_mixer_interface *mixer)
+{
+	struct snd_hwdep *hw;
+	int err;
+
+	err = snd_hwdep_new(mixer->chip->card, "Focusrite Control", 0, &hw);
+	if (err < 0)
+		return err;
+
+	hw->private_data = mixer;
+	hw->exclusive = 1;
+	hw->ops.ioctl = scarlett2_hwdep_ioctl;
+
+	return 0;
+}
+
 int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 {
 	struct snd_usb_audio *chip = mixer->chip;
@@ -4738,9 +4794,18 @@ int snd_scarlett2_init(struct usb_mixer_interface *mixer)
 		USB_ID_PRODUCT(chip->usb_id));
 
 	err = snd_scarlett2_controls_create(mixer, entry);
-	if (err < 0)
+	if (err < 0) {
 		usb_audio_err(mixer->chip,
 			      "Error initialising %s Mixer Driver: %d",
+			      entry->series_name,
+			      err);
+		return err;
+	}
+
+	err = scarlett2_hwdep_init(mixer);
+	if (err < 0)
+		usb_audio_err(mixer->chip,
+			      "Error creating %s hwdep device: %d",
 			      entry->series_name,
 			      err);
 
