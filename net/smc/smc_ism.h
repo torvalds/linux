@@ -16,6 +16,7 @@
 #include "smc.h"
 
 #define SMC_VIRTUAL_ISM_CHID_MASK	0xFF00
+#define SMC_ISM_IDENT_MASK		0x00FFFF
 
 struct smcd_dev_list {	/* List of SMCD devices */
 	struct list_head list;
@@ -28,6 +29,12 @@ struct smc_ism_vlanid {			/* VLAN id set on ISM device */
 	struct list_head list;
 	unsigned short vlanid;		/* Vlan id */
 	refcount_t refcnt;		/* Reference count */
+};
+
+struct smc_ism_seid {
+	u8 seid_string[24];
+	u8 serial_number[4];
+	u8 type[4];
 };
 
 struct smcd_dev;
