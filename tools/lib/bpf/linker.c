@@ -719,6 +719,9 @@ static int linker_sanity_check_elf(struct src_obj *obj)
 			return -EINVAL;
 		}
 
+		if (is_dwarf_sec_name(sec->sec_name))
+			continue;
+
 		if (sec->shdr->sh_addralign && !is_pow_of_2(sec->shdr->sh_addralign)) {
 			pr_warn("ELF section #%zu alignment %llu is non pow-of-2 alignment in %s\n",
 				sec->sec_idx, (long long unsigned)sec->shdr->sh_addralign,
