@@ -573,8 +573,13 @@ static int qcom_icc_bcm_voter_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		crm->dev = crm_get_device(crm_name);
-		if (IS_ERR(crm->dev))
+		if (IS_ERR(crm->dev)) {
+			if (PTR_ERR(crm->dev) == -ENODEV) {
+				dev_err(&pdev->dev, "crm_name=%s unavailable\n", crm_name);
+				return -EPROBE_DEFER;
+			}
 			return PTR_ERR(crm->dev);
+		}
 
 		crm->client_type = CRM_HW_DRV;
 
