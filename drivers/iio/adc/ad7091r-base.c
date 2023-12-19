@@ -20,14 +20,6 @@
 #define AD7091R_REG_RESULT_CH_ID(x)	    (((x) >> 13) & 0x3)
 #define AD7091R_REG_RESULT_CONV_RESULT(x)   ((x) & 0xfff)
 
-/* AD7091R_REG_CONF */
-#define AD7091R_REG_CONF_ALERT_EN   BIT(4)
-#define AD7091R_REG_CONF_AUTO   BIT(8)
-#define AD7091R_REG_CONF_CMD    BIT(10)
-
-#define AD7091R_REG_CONF_MODE_MASK  \
-	(AD7091R_REG_CONF_AUTO | AD7091R_REG_CONF_CMD)
-
 const struct iio_event_spec ad7091r_events[] = {
 	{
 		.type = IIO_EV_TYPE_THRESH,
@@ -48,34 +40,6 @@ const struct iio_event_spec ad7091r_events[] = {
 	},
 };
 EXPORT_SYMBOL_NS_GPL(ad7091r_events, IIO_AD7091R);
-
-static int ad7091r_set_mode(struct ad7091r_state *st, enum ad7091r_mode mode)
-{
-	int ret, conf;
-
-	switch (mode) {
-	case AD7091R_MODE_SAMPLE:
-		conf = 0;
-		break;
-	case AD7091R_MODE_COMMAND:
-		conf = AD7091R_REG_CONF_CMD;
-		break;
-	case AD7091R_MODE_AUTOCYCLE:
-		conf = AD7091R_REG_CONF_AUTO;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	ret = regmap_update_bits(st->map, AD7091R_REG_CONF,
-				 AD7091R_REG_CONF_MODE_MASK, conf);
-	if (ret)
-		return ret;
-
-	st->mode = mode;
-
-	return 0;
-}
 
 static int ad7091r_set_channel(struct ad7091r_state *st, unsigned int channel)
 {
@@ -406,7 +370,7 @@ int ad7091r_probe(struct device *dev, const struct ad7091r_init_info *init_info,
 	}
 
 	/* Use command mode by default to convert only desired channels*/
-	ret = ad7091r_set_mode(st, AD7091R_MODE_COMMAND);
+	ret = st->chip_info->set_mode(st, AD7091R_MODE_COMMAND);
 	if (ret)
 		return ret;
 

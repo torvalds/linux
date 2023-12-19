@@ -18,7 +18,14 @@
 #define AD7091R_REG_CH_HIGH_LIMIT(ch) ((ch) * 3 + 5)
 #define AD7091R_REG_CH_HYSTERESIS(ch) ((ch) * 3 + 6)
 
+/* AD7091R_REG_CONF */
 #define AD7091R_REG_CONF_INT_VREF	BIT(0)
+#define AD7091R_REG_CONF_ALERT_EN	BIT(4)
+#define AD7091R_REG_CONF_AUTO		BIT(8)
+#define AD7091R_REG_CONF_CMD		BIT(10)
+
+#define AD7091R_REG_CONF_MODE_MASK  \
+	(AD7091R_REG_CONF_AUTO | AD7091R_REG_CONF_CMD)
 
 /* AD7091R_REG_CH_LIMIT */
 #define AD7091R_HIGH_LIMIT		0xFFF
@@ -58,6 +65,7 @@ struct ad7091r_chip_info {
 	unsigned int num_channels;
 	const struct iio_chan_spec *channels;
 	unsigned int vref_mV;
+	int (*set_mode)(struct ad7091r_state *st, enum ad7091r_mode mode);
 };
 
 struct ad7091r_init_info {
