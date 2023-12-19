@@ -4474,11 +4474,43 @@ static int gfx_v11_0_wait_for_idle(void *handle)
 	return -ETIMEDOUT;
 }
 
+static int gfx_v11_0_request_gfx_index_mutex(struct amdgpu_device *adev,
+					     int req)
+{
+	u32 i, tmp, val;
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		/* Request with MeId=2, PipeId=0 */
+		tmp = REG_SET_FIELD(0, CP_GFX_INDEX_MUTEX, REQUEST, req);
+		tmp = REG_SET_FIELD(tmp, CP_GFX_INDEX_MUTEX, CLIENTID, 4);
+		WREG32_SOC15(GC, 0, regCP_GFX_INDEX_MUTEX, tmp);
+
+		val = RREG32_SOC15(GC, 0, regCP_GFX_INDEX_MUTEX);
+		if (req) {
+			if (val == tmp)
+				break;
+		} else {
+			tmp = REG_SET_FIELD(tmp, CP_GFX_INDEX_MUTEX,
+					    REQUEST, 1);
+
+			/* unlocked or locked by firmware */
+			if (val != tmp)
+				break;
+		}
+		udelay(1);
+	}
+
+	if (i >= adev->usec_timeout)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int gfx_v11_0_soft_reset(void *handle)
 {
 	u32 grbm_soft_reset = 0;
 	u32 tmp;
-	int i, j, k;
+	int r, i, j, k;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	tmp = RREG32_SOC15(GC, 0, regCP_INT_CNTL);
@@ -4518,6 +4550,13 @@ static int gfx_v11_0_soft_reset(void *handle)
 		}
 	}
 
+	/* Try to acquire the gfx mutex before access to CP_VMID_RESET */
+	r = gfx_v11_0_request_gfx_index_mutex(adev, 1);
+	if (r) {
+		DRM_ERROR("Failed to acquire the gfx mutex during soft reset\n");
+		return r;
+	}
+
 	WREG32_SOC15(GC, 0, regCP_VMID_RESET, 0xfffffffe);
 
 	// Read CP_VMID_RESET register three times.
@@ -4525,6 +4564,13 @@ static int gfx_v11_0_soft_reset(void *handle)
 	RREG32_SOC15(GC, 0, regCP_VMID_RESET);
 	RREG32_SOC15(GC, 0, regCP_VMID_RESET);
 	RREG32_SOC15(GC, 0, regCP_VMID_RESET);
+
+	/* release the gfx mutex */
+	r = gfx_v11_0_request_gfx_index_mutex(adev, 0);
+	if (r) {
+		DRM_ERROR("Failed to release the gfx mutex during soft reset\n");
+		return r;
+	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (!RREG32_SOC15(GC, 0, regCP_HQD_ACTIVE) &&
