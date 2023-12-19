@@ -267,29 +267,49 @@ int acp_sof_load_signed_firmware(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct acp_dev_data *adata = plat_data->hw_pdata;
+	const char *fw_filename;
 	int ret;
 
-	ret = request_firmware(&sdev->basefw.fw, adata->fw_code_bin, sdev->dev);
+	fw_filename = kasprintf(GFP_KERNEL, "%s/%s",
+				plat_data->fw_filename_prefix,
+				adata->fw_code_bin);
+	if (!fw_filename)
+		return -ENOMEM;
+
+	ret = request_firmware(&sdev->basefw.fw, fw_filename, sdev->dev);
 	if (ret < 0) {
+		kfree(fw_filename);
 		dev_err(sdev->dev, "sof signed firmware code bin is missing\n");
 		return ret;
 	} else {
-		dev_dbg(sdev->dev, "request_firmware %s successful\n", adata->fw_code_bin);
+		dev_dbg(sdev->dev, "request_firmware %s successful\n", fw_filename);
 	}
-	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM, 0,
-				      (void *)sdev->basefw.fw->data, sdev->basefw.fw->size);
+	kfree(fw_filename);
 
-	ret = request_firmware(&adata->fw_dbin, adata->fw_data_bin, sdev->dev);
+	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_IRAM, 0,
+				      (void *)sdev->basefw.fw->data,
+				      sdev->basefw.fw->size);
+
+	fw_filename = kasprintf(GFP_KERNEL, "%s/%s",
+				plat_data->fw_filename_prefix,
+				adata->fw_data_bin);
+	if (!fw_filename)
+		return -ENOMEM;
+
+	ret = request_firmware(&adata->fw_dbin, fw_filename, sdev->dev);
 	if (ret < 0) {
+		kfree(fw_filename);
 		dev_err(sdev->dev, "sof signed firmware data bin is missing\n");
 		return ret;
 
 	} else {
-		dev_dbg(sdev->dev, "request_firmware %s successful\n", adata->fw_data_bin);
+		dev_dbg(sdev->dev, "request_firmware %s successful\n", fw_filename);
 	}
+	kfree(fw_filename);
 
 	ret = snd_sof_dsp_block_write(sdev, SOF_FW_BLK_TYPE_DRAM, 0,
-				      (void *)adata->fw_dbin->data, adata->fw_dbin->size);
+				      (void *)adata->fw_dbin->data,
+				      adata->fw_dbin->size);
 	return ret;
 }
 EXPORT_SYMBOL_NS(acp_sof_load_signed_firmware, SND_SOC_SOF_AMD_COMMON);

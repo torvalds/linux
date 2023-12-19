@@ -493,7 +493,6 @@ EXPORT_SYMBOL_NS(amd_sof_acp_resume, SND_SOC_SOF_AMD_COMMON);
 int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
-	struct snd_sof_pdata *plat_data = sdev->pdata;
 	struct acp_dev_data *adata;
 	const struct sof_amd_acp_desc *chip;
 	const struct dmi_system_id *dmi_id;
@@ -561,8 +560,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 	dmi_id = dmi_first_match(acp_sof_quirk_table);
 	if (dmi_id && dmi_id->driver_data) {
 		adata->fw_code_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
-						    "%s/sof-%s-code.bin",
-						    plat_data->fw_filename_prefix,
+						    "sof-%s-code.bin",
 						    chip->name);
 		if (!adata->fw_code_bin) {
 			ret = -ENOMEM;
@@ -570,8 +568,7 @@ int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 		}
 
 		adata->fw_data_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
-						    "%s/sof-%s-data.bin",
-						    plat_data->fw_filename_prefix,
+						    "sof-%s-data.bin",
 						    chip->name);
 		if (!adata->fw_data_bin) {
 			ret = -ENOMEM;
