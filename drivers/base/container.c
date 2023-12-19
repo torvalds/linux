@@ -24,7 +24,7 @@ static int container_offline(struct device *dev)
 	return cdev->offline ? cdev->offline(cdev) : 0;
 }
 
-struct bus_type container_subsys = {
+const struct bus_type container_subsys = {
 	.name = CONTAINER_BUS_NAME,
 	.dev_name = CONTAINER_BUS_NAME,
 	.online = trivial_online,
