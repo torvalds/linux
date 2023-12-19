@@ -198,8 +198,7 @@
 # - pmtu_ipv6_route_change
 #	Same as above but with IPv6
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
+source ./lib.sh
 
 PAUSE_ON_FAIL=no
 VERBOSE=0
@@ -268,16 +267,6 @@ tests="
 	pmtu_ipv4_route_change		ipv4: PMTU exception w/route replace	1
 	pmtu_ipv6_route_change		ipv6: PMTU exception w/route replace	1"
 
-NS_A="ns-A"
-NS_B="ns-B"
-NS_C="ns-C"
-NS_R1="ns-R1"
-NS_R2="ns-R2"
-ns_a="ip netns exec ${NS_A}"
-ns_b="ip netns exec ${NS_B}"
-ns_c="ip netns exec ${NS_C}"
-ns_r1="ip netns exec ${NS_R1}"
-ns_r2="ip netns exec ${NS_R2}"
 # Addressing and routing for tests with routers: four network segments, with
 # index SEGMENT between 1 and 4, a common prefix (PREFIX4 or PREFIX6) and an
 # identifier ID, which is 1 for hosts (A and B), 2 for routers (R1 and R2).
@@ -543,13 +532,17 @@ setup_ip6ip6() {
 }
 
 setup_namespaces() {
+	setup_ns NS_A NS_B NS_C NS_R1 NS_R2
 	for n in ${NS_A} ${NS_B} ${NS_C} ${NS_R1} ${NS_R2}; do
-		ip netns add ${n} || return 1
-
 		# Disable DAD, so that we don't have to wait to use the
 		# configured IPv6 addresses
 		ip netns exec ${n} sysctl -q net/ipv6/conf/default/accept_dad=0
 	done
+	ns_a="ip netns exec ${NS_A}"
+	ns_b="ip netns exec ${NS_B}"
+	ns_c="ip netns exec ${NS_C}"
+	ns_r1="ip netns exec ${NS_R1}"
+	ns_r2="ip netns exec ${NS_R2}"
 }
 
 setup_veth() {
@@ -839,7 +832,7 @@ setup_bridge() {
 	run_cmd ${ns_a} ip link set br0 up
 
 	run_cmd ${ns_c} ip link add veth_C-A type veth peer name veth_A-C
-	run_cmd ${ns_c} ip link set veth_A-C netns ns-A
+	run_cmd ${ns_c} ip link set veth_A-C netns ${NS_A}
 
 	run_cmd ${ns_a} ip link set veth_A-C up
 	run_cmd ${ns_c} ip link set veth_C-A up
@@ -944,9 +937,7 @@ cleanup() {
 	done
 	socat_pids=
 
-	for n in ${NS_A} ${NS_B} ${NS_C} ${NS_R1} ${NS_R2}; do
-		ip netns del ${n} 2> /dev/null
-	done
+	cleanup_all_ns
 
 	ip link del veth_A-C			2>/dev/null
 	ip link del veth_A-R1			2>/dev/null
