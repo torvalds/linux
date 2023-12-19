@@ -155,8 +155,6 @@ static int avs_probing_link_init(struct snd_soc_pcm_runtime *rtm)
 	return 0;
 }
 
-SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
-
 static struct snd_soc_dai_link probing_link = {
 	.name = "probing-LINK",
 	.id = -1,
@@ -164,8 +162,8 @@ static struct snd_soc_dai_link probing_link = {
 	.no_pcm = 1,
 	.dpcm_playback = 1,
 	.dpcm_capture = 1,
-	.cpus = dummy,
-	.num_cpus = ARRAY_SIZE(dummy),
+	.cpus = &snd_soc_dummy_dlc,
+	.num_cpus = 1,
 	.init = avs_probing_link_init,
 };
 
