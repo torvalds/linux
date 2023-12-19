@@ -1714,7 +1714,7 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 					     ufs_qcom_write_msi_msg);
 	if (ret) {
 		dev_err(hba->dev, "Failed to request Platform MSI %d\n", ret);
-		goto out;
+		return ret;
 	}
 
 	msi_lock_descs(hba->dev);
@@ -1748,11 +1748,8 @@ static int ufs_qcom_config_esi(struct ufs_hba *hba)
 				    FIELD_PREP(ESI_VEC_MASK, MAX_ESI_VEC - 1),
 				    REG_UFS_CFG3);
 		ufshcd_mcq_enable_esi(hba);
-	}
-
-out:
-	if (!ret)
 		host->esi_enabled = true;
+	}
 
 	return ret;
 }
