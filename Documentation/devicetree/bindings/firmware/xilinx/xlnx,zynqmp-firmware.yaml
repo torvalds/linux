@@ -47,7 +47,7 @@ properties:
   "#power-domain-cells":
     const: 1
 
-  versal_fpga:
+  versal-fpga:
     $ref: /schemas/fpga/xlnx,versal-fpga.yaml#
     description: Compatible of the FPGA device.
     type: object
@@ -90,7 +90,7 @@ examples:
       compatible = "xlnx,versal-firmware";
       method = "smc";
 
-      versal_fpga: versal_fpga {
+      versal_fpga: versal-fpga {
         compatible = "xlnx,versal-fpga";
       };
 
