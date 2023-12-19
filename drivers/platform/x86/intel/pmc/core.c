@@ -1106,6 +1106,51 @@ int get_primary_reg_base(struct pmc *pmc)
 	return 0;
 }
 
+void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid)
+{
+	struct telem_endpoint *ep;
+	struct pci_dev *pcidev;
+
+	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(10, 0));
+	if (!pcidev) {
+		dev_err(&pmcdev->pdev->dev, "PUNIT PMT device not found.");
+		return;
+	}
+
+	ep = pmt_telem_find_and_register_endpoint(pcidev, guid, 0);
+	pci_dev_put(pcidev);
+	if (IS_ERR(ep)) {
+		dev_err(&pmcdev->pdev->dev,
+			"pmc_core: couldn't get DMU telem endpoint %ld",
+			PTR_ERR(ep));
+		return;
+	}
+
+	pmcdev->punit_ep = ep;
+
+	pmcdev->has_die_c6 = true;
+	pmcdev->die_c6_offset = MTL_PMT_DMU_DIE_C6_OFFSET;
+}
+
+void pmc_core_set_device_d3(unsigned int device)
+{
+	struct pci_dev *pcidev;
+
+	pcidev = pci_get_device(PCI_VENDOR_ID_INTEL, device, NULL);
+	if (pcidev) {
+		if (!device_trylock(&pcidev->dev)) {
+			pci_dev_put(pcidev);
+			return;
+		}
+		if (!pcidev->dev.driver) {
+			dev_info(&pcidev->dev, "Setting to D3hot\n");
+			pci_set_power_state(pcidev, PCI_D3hot);
+		}
+		device_unlock(&pcidev->dev);
+		pci_dev_put(pcidev);
+	}
+}
+
 static bool pmc_core_is_pson_residency_enabled(struct pmc_dev *pmcdev)
 {
 	struct platform_device *pdev = pmcdev->pdev;

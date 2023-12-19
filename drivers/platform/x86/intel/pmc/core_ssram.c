@@ -290,12 +290,12 @@ pmc_core_ssram_get_pmc(struct pmc_dev *pmcdev, int pmc_idx, u32 offset)
 	return pmc_core_pmc_add(pmcdev, pwrm_base, map, pmc_idx);
 }
 
-int pmc_core_ssram_init(struct pmc_dev *pmcdev)
+int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func)
 {
 	struct pci_dev *pcidev;
 	int ret;
 
-	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, 2));
+	pcidev = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(20, func));
 	if (!pcidev)
 		return -ENODEV;
 

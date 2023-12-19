@@ -268,6 +268,10 @@ enum ppfear_regs {
 #define MTL_SOCM_PPFEAR_NUM_ENTRIES		8
 #define MTL_IOE_PPFEAR_NUM_ENTRIES		10
 
+/* Die C6 from PUNIT telemetry */
+#define MTL_PMT_DMU_DIE_C6_OFFSET		15
+#define MTL_PMT_DMU_GUID			0x1A067102
+
 extern const char *pmc_lpm_modes[];
 
 struct pmc_bit_map {
@@ -504,8 +508,10 @@ extern int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value);
 int pmc_core_resume_common(struct pmc_dev *pmcdev);
 int get_primary_reg_base(struct pmc *pmc);
 extern void pmc_core_get_low_power_modes(struct pmc_dev *pmcdev);
+extern void pmc_core_punit_pmt_init(struct pmc_dev *pmcdev, u32 guid);
+extern void pmc_core_set_device_d3(unsigned int device);
 
-extern int pmc_core_ssram_init(struct pmc_dev *pmcdev);
+extern int pmc_core_ssram_init(struct pmc_dev *pmcdev, int func);
 
 int spt_core_init(struct pmc_dev *pmcdev);
 int cnp_core_init(struct pmc_dev *pmcdev);
