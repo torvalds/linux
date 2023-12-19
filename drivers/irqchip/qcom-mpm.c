@@ -423,9 +423,12 @@ static inline void msm_mpm_send_interrupt(void)
 	wmb();
 }
 
-static inline void msm_mpm_timer_write(void)
+void msm_mpm_timer_write(uint64_t counter)
 {
 	u32 lo = ~0U, hi = ~0U, ctrl;
+
+	lo = lower_32_bits(counter);
+	hi = upper_32_bits(counter);
 
 	ctrl = readl_relaxed(msm_mpm_dev_data.timer_frame_reg + MPM_CNTV_CTL);
 	if (ctrl & MPM_ARCH_TIMER_CTRL_ENABLE) {
@@ -443,7 +446,7 @@ int msm_mpm_enter_sleep(struct cpumask *cpumask)
 	struct irq_chip *irq_chip;
 	struct irq_data *irq_data;
 
-	msm_mpm_timer_write();
+	msm_mpm_timer_write(~0ULL);
 
 	for (i = 0; i < QCOM_MPM_REG_WIDTH; i++)
 		msm_mpm_write(MPM_REG_STATUS, i, 0);
@@ -463,7 +466,7 @@ int msm_mpm_enter_sleep(struct cpumask *cpumask)
 
 	return 0;
 }
-EXPORT_SYMBOL(msm_mpm_enter_sleep);
+EXPORT_SYMBOL_GPL(msm_mpm_enter_sleep);
 
 /*
  * Triggered by RPM when system resumes from deep sleep

@@ -22,14 +22,10 @@ static void system_sleep_exit(bool success)
 
 static int system_sleep_update_wakeup(bool from_idle)
 {
-	uint32_t lo = ~0U, hi = ~0U;
-	u64 wakeup;
+	uint64_t wakeup;
 
-	/* Read the hardware to get the most accurate value */
-	arch_timer_mem_get_cval(&lo, &hi);
-	wakeup = lo;
-	wakeup |= ((uint64_t)(hi) << 32);
-	msm_mpm_timer_write((uint32_t *)&wakeup);
+	wakeup = arch_timer_read_counter();
+	msm_mpm_timer_write(wakeup);
 
 	return 0;
 }
@@ -38,7 +34,7 @@ static int system_sleep_enter(struct cpumask *mask)
 {
 	int ret = 0;
 
-	ret = msm_rpm_enter_sleep(0, mask);
+	ret = msm_rpm_enter_sleep(mask);
 	if (ret)
 		return ret;
 
