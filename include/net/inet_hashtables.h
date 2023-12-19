@@ -88,7 +88,6 @@ struct inet_bind_bucket {
 	unsigned short		fast_sk_family;
 	bool			fast_ipv6_only;
 	struct hlist_node	node;
-	struct hlist_head	owners;
 	struct hlist_head	bhash2;
 };
 

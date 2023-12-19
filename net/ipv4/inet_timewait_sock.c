@@ -35,7 +35,6 @@ void inet_twsk_bind_unhash(struct inet_timewait_sock *tw,
 	if (!tb)
 		return;
 
-	__hlist_del(&tw->tw_bind_node);
 	tw->tw_tb = NULL;
 
 	__hlist_del(&tw->tw_bind2_node);
@@ -94,12 +93,6 @@ static void inet_twsk_add_node_rcu(struct inet_timewait_sock *tw,
 	hlist_nulls_add_head_rcu(&tw->tw_node, list);
 }
 
-static void inet_twsk_add_bind_node(struct inet_timewait_sock *tw,
-				    struct hlist_head *list)
-{
-	hlist_add_head(&tw->tw_bind_node, list);
-}
-
 static void inet_twsk_add_bind2_node(struct inet_timewait_sock *tw,
 				     struct hlist_head *list)
 {
@@ -133,7 +126,6 @@ void inet_twsk_hashdance(struct inet_timewait_sock *tw, struct sock *sk,
 
 	tw->tw_tb = icsk->icsk_bind_hash;
 	WARN_ON(!icsk->icsk_bind_hash);
-	inet_twsk_add_bind_node(tw, &tw->tw_tb->owners);
 
 	tw->tw_tb2 = icsk->icsk_bind2_hash;
 	WARN_ON(!icsk->icsk_bind2_hash);
