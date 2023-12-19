@@ -876,7 +876,7 @@ static int dma_debug_device_change(struct notifier_block *nb, unsigned long acti
 	return 0;
 }
 
-void dma_debug_add_bus(struct bus_type *bus)
+void dma_debug_add_bus(const struct bus_type *bus)
 {
 	struct notifier_block *nb;
 
