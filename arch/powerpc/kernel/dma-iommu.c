@@ -144,7 +144,7 @@ static bool dma_iommu_bypass_supported(struct device *dev, u64 mask)
 /* We support DMA to/from any memory page via the iommu */
 int dma_iommu_dma_supported(struct device *dev, u64 mask)
 {
-	struct iommu_table *tbl = get_iommu_table_base(dev);
+	struct iommu_table *tbl;
 
 	if (dev_is_pci(dev) && dma_iommu_bypass_supported(dev, mask)) {
 		/*
@@ -161,6 +161,8 @@ int dma_iommu_dma_supported(struct device *dev, u64 mask)
 			dev_dbg(dev, "iommu: 64-bit OK, using fixed ops\n");
 		return 1;
 	}
+
+	tbl = get_iommu_table_base(dev);
 
 	if (!tbl) {
 		dev_err(dev, "Warning: IOMMU dma not supported: mask 0x%08llx, table unavailable\n", mask);

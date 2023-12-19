@@ -210,7 +210,6 @@ arch/arm64/include/uapi/asm/bitsperlong.h
 arch/arm64/include/uapi/asm/bpf_perf_event.h
 arch/arm64/include/uapi/asm/byteorder.h
 arch/arm64/include/uapi/asm/fcntl.h
-arch/arm64/include/uapi/asm/gzvm_arch.h
 arch/arm64/include/uapi/asm/hwcap.h
 arch/arm64/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/mman.h
@@ -1881,9 +1880,11 @@ drivers/video/of_display_timing.c
 drivers/video/of_videomode.c
 drivers/video/videomode.c
 drivers/virt/geniezone/gzvm_common.h
+drivers/virt/geniezone/gzvm_exception.c
 drivers/virt/geniezone/gzvm_ioeventfd.c
 drivers/virt/geniezone/gzvm_irqfd.c
 drivers/virt/geniezone/gzvm_main.c
+drivers/virt/geniezone/gzvm_mmu.c
 drivers/virt/geniezone/gzvm_vcpu.c
 drivers/virt/geniezone/gzvm_vm.c
 drivers/virt/gunyah/gunyah_ioeventfd.c
@@ -1951,12 +1952,10 @@ fs/erofs/namei.c
 fs/erofs/pcpubuf.c
 fs/erofs/super.c
 fs/erofs/sysfs.c
-fs/erofs/tagptr.h
 fs/erofs/utils.c
 fs/erofs/xattr.c
 fs/erofs/xattr.h
 fs/erofs/zdata.c
-fs/erofs/zdata.h
 fs/erofs/zmap.c
 fs/eventfd.c
 fs/eventpoll.c
@@ -2273,6 +2272,7 @@ fs/stat.c
 fs/statfs.c
 fs/super.c
 fs/sync.c
+fs/sysctls.c
 fs/sysfs/dir.c
 fs/sysfs/file.c
 fs/sysfs/group.c
@@ -4272,6 +4272,7 @@ include/trace/hooks/sched.h
 include/trace/hooks/selinux.h
 include/trace/hooks/signal.h
 include/trace/hooks/softlockup.h
+include/trace/hooks/suspend.h
 include/trace/hooks/sys.h
 include/trace/hooks/syscall_check.h
 include/trace/hooks/sysrqcrash.h
@@ -6188,7 +6189,7 @@ net/xfrm/xfrm_hash.c
 net/xfrm/xfrm_hash.h
 net/xfrm/xfrm_inout.h
 net/xfrm/xfrm_input.c
-net/xfrm/xfrm_interface.c
+net/xfrm/xfrm_interface_core.c
 net/xfrm/xfrm_ipcomp.c
 net/xfrm/xfrm_output.c
 net/xfrm/xfrm_policy.c

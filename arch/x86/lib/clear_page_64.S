@@ -142,8 +142,8 @@ SYM_FUNC_START(clear_user_rep_good)
 	and $7, %edx
 	jz .Lrep_good_exit
 
-.Lrep_good_bytes:
 	mov %edx, %ecx
+.Lrep_good_bytes:
 	rep stosb
 
 .Lrep_good_exit:
