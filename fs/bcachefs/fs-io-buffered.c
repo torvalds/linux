@@ -52,23 +52,20 @@ struct readpages_iter {
 static int readpages_iter_init(struct readpages_iter *iter,
 			       struct readahead_control *ractl)
 {
-	memset(iter, 0, sizeof(*iter));
+	struct folio *folio;
 
-	iter->mapping = ractl->mapping;
+	*iter = (struct readpages_iter) { ractl->mapping };
 
-	int ret = bch2_filemap_get_contig_folios_d(iter->mapping,
-				ractl->_index << PAGE_SHIFT,
-				(ractl->_index + ractl->_nr_pages) << PAGE_SHIFT,
-				0, mapping_gfp_mask(iter->mapping),
-				&iter->folios);
-	if (ret)
-		return ret;
+	while ((folio = __readahead_folio(ractl))) {
+		if (!bch2_folio_create(folio, GFP_KERNEL) ||
+		    darray_push(&iter->folios, folio)) {
+			bch2_folio_release(folio);
+			ractl->_nr_pages += folio_nr_pages(folio);
+			ractl->_index -= folio_nr_pages(folio);
+			return iter->folios.nr ? 0 : -ENOMEM;
+		}
 
-	darray_for_each(iter->folios, fi) {
-		ractl->_nr_pages -= 1U << folio_order(*fi);
-		__bch2_folio_create(*fi, __GFP_NOFAIL|GFP_KERNEL);
-		folio_put(*fi);
-		folio_put(*fi);
+		folio_put(folio);
 	}
 
 	return 0;
@@ -270,12 +267,12 @@ void bch2_readahead(struct readahead_control *ractl)
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct folio *folio;
 	struct readpages_iter readpages_iter;
-	int ret;
 
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
-	ret = readpages_iter_init(&readpages_iter, ractl);
-	BUG_ON(ret);
+	int ret = readpages_iter_init(&readpages_iter, ractl);
+	if (ret)
+		return;
 
 	bch2_pagecache_add_get(inode);
 
