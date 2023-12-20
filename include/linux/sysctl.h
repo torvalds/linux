@@ -210,11 +210,6 @@ struct ctl_table_root {
 	int (*permissions)(struct ctl_table_header *head, struct ctl_table *table);
 };
 
-/* struct ctl_path describes where in the hierarchy a table is added */
-struct ctl_path {
-	const char *procname;
-};
-
 #define register_sysctl(path, table)	\
 	register_sysctl_sz(path, table, ARRAY_SIZE(table))
 
