@@ -20,6 +20,7 @@
 #include <net/cfg80211.h>
 #include <net/cfg80211-wext.h>
 #include <net/iw_handler.h>
+#include <kunit/visibility.h>
 #include "core.h"
 #include "nl80211.h"
 #include "wext-compat.h"
@@ -303,9 +304,10 @@ static size_t cfg80211_copy_elem_with_frags(const struct element *elem,
 	return *pos - buf;
 }
 
-static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
-				  const u8 *subie, size_t subie_len,
-				  u8 *new_ie, size_t new_ie_len)
+VISIBLE_IF_CFG80211_KUNIT size_t
+cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
+		    const u8 *subie, size_t subie_len,
+		    u8 *new_ie, size_t new_ie_len)
 {
 	const struct element *non_inherit_elem, *parent, *sub;
 	u8 *pos = new_ie;
@@ -413,6 +415,7 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 
 	return pos - new_ie;
 }
+EXPORT_SYMBOL_IF_CFG80211_KUNIT(cfg80211_gen_new_ie);
 
 static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 		   const u8 *ssid, size_t ssid_len)
