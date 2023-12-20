@@ -77,7 +77,7 @@ int drv_add_interface(struct ieee80211_local *local,
 
 	sdata->flags |= IEEE80211_SDATA_IN_DRIVER;
 
-	if (!local->in_reconfig) {
+	if (!local->in_reconfig && !local->resuming) {
 		drv_vif_add_debugfs(local, sdata);
 		/* initially vif is not MLD */
 		ieee80211_link_debugfs_drv_add(&sdata->deflink);
@@ -534,7 +534,7 @@ int drv_change_vif_links(struct ieee80211_local *local,
 	if (ret)
 		return ret;
 
-	if (!local->in_reconfig) {
+	if (!local->in_reconfig && !local->resuming) {
 		for_each_set_bit(link_id, &links_to_add,
 				 IEEE80211_MLD_MAX_NUM_LINKS) {
 			link = rcu_access_pointer(sdata->link[link_id]);
@@ -590,7 +590,7 @@ int drv_change_sta_links(struct ieee80211_local *local,
 		return ret;
 
 	/* during reconfig don't add it to debugfs again */
-	if (local->in_reconfig)
+	if (local->in_reconfig || local->resuming)
 		return 0;
 
 	for_each_set_bit(link_id, &links_to_add, IEEE80211_MLD_MAX_NUM_LINKS) {
