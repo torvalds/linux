@@ -373,11 +373,6 @@ static bool gfs2_ail1_empty(struct gfs2_sbd *sdp, int max_revokes)
 	empty = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
 
-	if (test_bit(SDF_WITHDRAWING, &sdp->sd_flags)) {
-		gfs2_lm(sdp, "fatal: I/O error(s)\n");
-		gfs2_withdraw(sdp);
-	}
-
 	return empty;
 }
 
@@ -815,6 +810,9 @@ void gfs2_flush_revokes(struct gfs2_sbd *sdp)
 	gfs2_log_lock(sdp);
 	gfs2_ail1_empty(sdp, max_revokes);
 	gfs2_log_unlock(sdp);
+
+	if (gfs2_withdrawing(sdp))
+		gfs2_withdraw(sdp);
 }
 
 /**
@@ -987,7 +985,13 @@ static void empty_ail1_list(struct gfs2_sbd *sdp)
 		gfs2_ail1_start(sdp);
 		gfs2_ail1_wait(sdp);
 		empty = gfs2_ail1_empty(sdp, 0);
+
+		if (gfs2_withdrawing_or_withdrawn(sdp))
+			break;
 	}
+
+	if (gfs2_withdrawing(sdp))
+		gfs2_withdraw(sdp);
 }
 
 /**
@@ -1343,6 +1347,9 @@ int gfs2_logd(void *data)
 				kthread_should_stop(),
 				t);
 	}
+
+	if (gfs2_withdrawing(sdp))
+		gfs2_withdraw(sdp);
 
 	return 0;
 }
