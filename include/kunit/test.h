@@ -1514,6 +1514,25 @@ do {									       \
 		return NULL;									\
 	}
 
+/**
+ * KUNIT_ARRAY_PARAM_DESC() - Define test parameter generator from an array.
+ * @name:  prefix for the test parameter generator function.
+ * @array: array of test parameters.
+ * @desc_member: structure member from array element to use as description
+ *
+ * Define function @name_gen_params which uses @array to generate parameters.
+ */
+#define KUNIT_ARRAY_PARAM_DESC(name, array, desc_member)					\
+	static const void *name##_gen_params(const void *prev, char *desc)			\
+	{											\
+		typeof((array)[0]) *__next = prev ? ((typeof(__next)) prev) + 1 : (array);	\
+		if (__next - (array) < ARRAY_SIZE((array))) {					\
+			strscpy(desc, __next->desc_member, KUNIT_PARAM_DESC_SIZE);		\
+			return __next;								\
+		}										\
+		return NULL;									\
+	}
+
 // TODO(dlatypov@google.com): consider eventually migrating users to explicitly
 // include resource.h themselves if they need it.
 #include <kunit/resource.h>

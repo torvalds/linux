@@ -566,13 +566,9 @@ By reusing the same ``cases`` array from above, we can write the test as a
 		},
 	};
 
-	// Need a helper function to generate a name for each test case.
-	static void case_to_desc(const struct sha1_test_case *t, char *desc)
-	{
-		strcpy(desc, t->str);
-	}
-	// Creates `sha1_gen_params()` to iterate over `cases`.
-	KUNIT_ARRAY_PARAM(sha1, cases, case_to_desc);
+	// Creates `sha1_gen_params()` to iterate over `cases` while using
+	// the struct member `str` for the case description.
+	KUNIT_ARRAY_PARAM_DESC(sha1, cases, str);
 
 	// Looks no different from a normal test.
 	static void sha1_test(struct kunit *test)
@@ -588,7 +584,7 @@ By reusing the same ``cases`` array from above, we can write the test as a
 	}
 
 	// Instead of KUNIT_CASE, we use KUNIT_CASE_PARAM and pass in the
-	// function declared by KUNIT_ARRAY_PARAM.
+	// function declared by KUNIT_ARRAY_PARAM or KUNIT_ARRAY_PARAM_DESC.
 	static struct kunit_case sha1_test_cases[] = {
 		KUNIT_CASE_PARAM(sha1_test, sha1_gen_params),
 		{}
