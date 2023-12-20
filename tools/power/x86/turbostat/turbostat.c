@@ -4581,20 +4581,15 @@ static void dump_sysfs_file(char *path)
 static void probe_intel_uncore_frequency(void)
 {
 	int i, j;
-	char path[128];
+	char path[256];
 
 	if (!genuine_intel)
 		return;
 
-	if (access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00", R_OK))
-		return;
+	if (access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00/current_freq_khz", R_OK))
+		goto probe_cluster;
 
-	/* Cluster level sysfs not supported yet. */
-	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00", R_OK))
-		return;
-
-	if (!access("/sys/devices/system/cpu/intel_uncore_frequency/package_00_die_00/current_freq_khz", R_OK))
-		BIC_PRESENT(BIC_UNCORE_MHZ);
+	BIC_PRESENT(BIC_UNCORE_MHZ);
 
 	if (quiet)
 		return;
@@ -4602,25 +4597,72 @@ static void probe_intel_uncore_frequency(void)
 	for (i = 0; i < topo.num_packages; ++i) {
 		for (j = 0; j < topo.num_die; ++j) {
 			int k, l;
+			char path_base[128];
 
-			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/min_freq_khz",
-				i, j);
-			k = read_sysfs_int(path);
-			sprintf(path, "/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/max_freq_khz",
-				i, j);
-			l = read_sysfs_int(path);
-			fprintf(outf, "Uncore Frequency pkg%d die%d: %d - %d MHz ", i, j, k / 1000, l / 1000);
+			sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/package_%02d_die_%02d", i,
+				j);
 
-			sprintf(path,
-				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_min_freq_khz",
-				i, j);
+			sprintf(path, "%s/min_freq_khz", path_base);
 			k = read_sysfs_int(path);
-			sprintf(path,
-				"/sys/devices/system/cpu/intel_uncore_frequency/package_0%d_die_0%d/initial_max_freq_khz",
-				i, j);
+			sprintf(path, "%s/max_freq_khz", path_base);
 			l = read_sysfs_int(path);
-			fprintf(outf, "(%d - %d MHz)\n", k / 1000, l / 1000);
+			fprintf(outf, "Uncore Frequency package%d die%d: %d - %d MHz ", i, j, k / 1000, l / 1000);
+
+			sprintf(path, "%s/initial_min_freq_khz", path_base);
+			k = read_sysfs_int(path);
+			sprintf(path, "%s/initial_max_freq_khz", path_base);
+			l = read_sysfs_int(path);
+			fprintf(outf, "(%d - %d MHz)", k / 1000, l / 1000);
+
+			sprintf(path, "%s/current_freq_khz", path_base);
+			k = read_sysfs_int(path);
+			fprintf(outf, " %d MHz\n", k / 1000);
 		}
+	}
+	return;
+
+probe_cluster:
+	if (access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00/current_freq_khz", R_OK))
+		return;
+
+	if (quiet)
+		return;
+
+	for (i = 0;; ++i) {
+		int k, l;
+		char path_base[128];
+		int package_id, domain_id, cluster_id;
+
+		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", i);
+
+		if (access(path_base, R_OK))
+			break;
+
+		sprintf(path, "%s/package_id", path_base);
+		package_id = read_sysfs_int(path);
+
+		sprintf(path, "%s/domain_id", path_base);
+		domain_id = read_sysfs_int(path);
+
+		sprintf(path, "%s/fabric_cluster_id", path_base);
+		cluster_id = read_sysfs_int(path);
+
+		sprintf(path, "%s/min_freq_khz", path_base);
+		k = read_sysfs_int(path);
+		sprintf(path, "%s/max_freq_khz", path_base);
+		l = read_sysfs_int(path);
+		fprintf(outf, "Uncore Frequency package%d domain%d cluster%d: %d - %d MHz ", package_id, domain_id,
+			cluster_id, k / 1000, l / 1000);
+
+		sprintf(path, "%s/initial_min_freq_khz", path_base);
+		k = read_sysfs_int(path);
+		sprintf(path, "%s/initial_max_freq_khz", path_base);
+		l = read_sysfs_int(path);
+		fprintf(outf, "(%d - %d MHz)", k / 1000, l / 1000);
+
+		sprintf(path, "%s/current_freq_khz", path_base);
+		k = read_sysfs_int(path);
+		fprintf(outf, " %d MHz\n", k / 1000);
 	}
 }
 
