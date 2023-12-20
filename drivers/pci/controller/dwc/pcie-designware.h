@@ -486,6 +486,99 @@ static inline void dw_pcie_writel_dbi2(struct dw_pcie *pci, u32 reg, u32 val)
 	dw_pcie_write_dbi2(pci, reg, 0x4, val);
 }
 
+static inline unsigned int dw_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep,
+						     u8 func_no)
+{
+	unsigned int dbi_offset = 0;
+
+	if (ep->ops->get_dbi_offset)
+		dbi_offset = ep->ops->get_dbi_offset(ep, func_no);
+
+	return dbi_offset;
+}
+
+static inline u32 dw_pcie_ep_read_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				      u32 reg, size_t size)
+{
+	unsigned int offset = dw_pcie_ep_get_dbi_offset(ep, func_no);
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	return dw_pcie_read_dbi(pci, offset + reg, size);
+}
+
+static inline void dw_pcie_ep_write_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					u32 reg, size_t size, u32 val)
+{
+	unsigned int offset = dw_pcie_ep_get_dbi_offset(ep, func_no);
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	dw_pcie_write_dbi(pci, offset + reg, size, val);
+}
+
+static inline void dw_pcie_ep_writel_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, u32 val)
+{
+	dw_pcie_ep_write_dbi(ep, func_no, reg, 0x4, val);
+}
+
+static inline u32 dw_pcie_ep_readl_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				       u32 reg)
+{
+	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x4);
+}
+
+static inline void dw_pcie_ep_writew_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, u16 val)
+{
+	dw_pcie_ep_write_dbi(ep, func_no, reg, 0x2, val);
+}
+
+static inline u16 dw_pcie_ep_readw_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				       u32 reg)
+{
+	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x2);
+}
+
+static inline void dw_pcie_ep_writeb_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, u8 val)
+{
+	dw_pcie_ep_write_dbi(ep, func_no, reg, 0x1, val);
+}
+
+static inline u8 dw_pcie_ep_readb_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				      u32 reg)
+{
+	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x1);
+}
+
+static inline unsigned int dw_pcie_ep_get_dbi2_offset(struct dw_pcie_ep *ep,
+						      u8 func_no)
+{
+	unsigned int dbi2_offset = 0;
+
+	if (ep->ops->get_dbi2_offset)
+		dbi2_offset = ep->ops->get_dbi2_offset(ep, func_no);
+	else if (ep->ops->get_dbi_offset)     /* for backward compatibility */
+		dbi2_offset = ep->ops->get_dbi_offset(ep, func_no);
+
+	return dbi2_offset;
+}
+
+static inline void dw_pcie_ep_write_dbi2(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, size_t size, u32 val)
+{
+	unsigned int offset = dw_pcie_ep_get_dbi2_offset(ep, func_no);
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	dw_pcie_write_dbi2(pci, offset + reg, size, val);
+}
+
+static inline void dw_pcie_ep_writel_dbi2(struct dw_pcie_ep *ep, u8 func_no,
+					  u32 reg, u32 val)
+{
+	dw_pcie_ep_write_dbi2(ep, func_no, reg, 0x4, val);
+}
+
 static inline void dw_pcie_dbi_ro_wr_en(struct dw_pcie *pci)
 {
 	u32 reg;
