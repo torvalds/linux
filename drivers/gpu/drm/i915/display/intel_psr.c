@@ -1380,7 +1380,7 @@ void intel_psr_compute_config(struct intel_dp *intel_dp,
 
 	crtc_state->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
 	intel_dp_compute_psr_vsc_sdp(intel_dp, crtc_state, conn_state,
-				     &crtc_state->psr_vsc);
+				     &crtc_state->infoframes.vsc);
 }
 
 void intel_psr_get_config(struct intel_encoder *encoder,
@@ -1652,7 +1652,7 @@ static void intel_psr_enable_locked(struct intel_dp *intel_dp,
 		drm_dbg_kms(&dev_priv->drm, "Enabling PSR%s\n",
 			    intel_dp->psr.psr2_enabled ? "2" : "1");
 
-	intel_write_dp_vsc_sdp(encoder, crtc_state, &crtc_state->psr_vsc);
+	intel_write_dp_vsc_sdp(encoder, crtc_state, &crtc_state->infoframes.vsc);
 	intel_snps_phy_update_psr_power_state(dev_priv, phy, true);
 	intel_psr_enable_sink(intel_dp);
 	intel_psr_enable_source(intel_dp, crtc_state);
