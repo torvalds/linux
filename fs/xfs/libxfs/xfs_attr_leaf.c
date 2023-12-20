@@ -704,10 +704,10 @@ struct xfs_attr_sf_entry *
 xfs_attr_sf_findname(
 	struct xfs_da_args		*args)
 {
-	struct xfs_attr_shortform	*sf = args->dp->i_af.if_data;
+	struct xfs_attr_sf_hdr		*sf = args->dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
 
-	for (sfe = &sf->list[0];
+	for (sfe = xfs_attr_sf_firstentry(sf);
 	     sfe < xfs_attr_sf_endptr(sf);
 	     sfe = xfs_attr_sf_nextentry(sfe)) {
 		if (xfs_attr_match(args, sfe->namelen, sfe->nameval,
@@ -730,7 +730,7 @@ xfs_attr_shortform_add(
 	struct xfs_inode		*dp = args->dp;
 	struct xfs_mount		*mp = dp->i_mount;
 	struct xfs_ifork		*ifp = &dp->i_af;
-	struct xfs_attr_shortform	*sf = ifp->if_data;
+	struct xfs_attr_sf_hdr		*sf = ifp->if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	int				size;
 
@@ -750,8 +750,8 @@ xfs_attr_shortform_add(
 	sfe->flags = args->attr_filter;
 	memcpy(sfe->nameval, args->name, args->namelen);
 	memcpy(&sfe->nameval[args->namelen], args->value, args->valuelen);
-	sf->hdr.count++;
-	be16_add_cpu(&sf->hdr.totsize, size);
+	sf->count++;
+	be16_add_cpu(&sf->totsize, size);
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
 
 	xfs_sbversion_add_attr2(mp, args->trans);
@@ -782,9 +782,9 @@ xfs_attr_sf_removename(
 {
 	struct xfs_inode		*dp = args->dp;
 	struct xfs_mount		*mp = dp->i_mount;
-	struct xfs_attr_shortform	*sf = dp->i_af.if_data;
+	struct xfs_attr_sf_hdr		*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
-	uint16_t			totsize = be16_to_cpu(sf->hdr.totsize);
+	uint16_t			totsize = be16_to_cpu(sf->totsize);
 	void				*next, *end;
 	int				size = 0;
 
@@ -809,9 +809,9 @@ xfs_attr_sf_removename(
 	end = xfs_attr_sf_endptr(sf);
 	if (next < end)
 		memmove(sfe, next, end - next);
-	sf->hdr.count--;
+	sf->count--;
 	totsize -= size;
-	sf->hdr.totsize = cpu_to_be16(totsize);
+	sf->totsize = cpu_to_be16(totsize);
 
 	/*
 	 * Fix up the start offset of the attribute fork
@@ -868,21 +868,21 @@ xfs_attr_shortform_to_leaf(
 {
 	struct xfs_inode		*dp = args->dp;
 	struct xfs_ifork		*ifp = &dp->i_af;
-	struct xfs_attr_shortform	*sf = ifp->if_data;
+	struct xfs_attr_sf_hdr		*sf = ifp->if_data;
 	struct xfs_attr_sf_entry	*sfe;
+	int				size = be16_to_cpu(sf->totsize);
 	struct xfs_da_args		nargs;
 	char				*tmpbuffer;
-	int				error, i, size;
+	int				error, i;
 	xfs_dablk_t			blkno;
 	struct xfs_buf			*bp;
 
 	trace_xfs_attr_sf_to_leaf(args);
 
-	size = be16_to_cpu(sf->hdr.totsize);
 	tmpbuffer = kmem_alloc(size, 0);
 	ASSERT(tmpbuffer != NULL);
 	memcpy(tmpbuffer, ifp->if_data, size);
-	sf = (struct xfs_attr_shortform *)tmpbuffer;
+	sf = (struct xfs_attr_sf_hdr *)tmpbuffer;
 
 	xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
 	xfs_bmap_local_to_extents_empty(args->trans, dp, XFS_ATTR_FORK);
@@ -905,8 +905,8 @@ xfs_attr_shortform_to_leaf(
 	nargs.trans = args->trans;
 	nargs.op_flags = XFS_DA_OP_OKNOENT;
 
-	sfe = &sf->list[0];
-	for (i = 0; i < sf->hdr.count; i++) {
+	sfe = xfs_attr_sf_firstentry(sf);
+	for (i = 0; i < sf->count; i++) {
 		nargs.name = sfe->nameval;
 		nargs.namelen = sfe->namelen;
 		nargs.value = &sfe->nameval[nargs.namelen];
@@ -973,10 +973,10 @@ xfs_attr_shortform_allfit(
 /* Verify the consistency of a raw inline attribute fork. */
 xfs_failaddr_t
 xfs_attr_shortform_verify(
-	struct xfs_attr_shortform	*sfp,
+	struct xfs_attr_sf_hdr		*sfp,
 	size_t				size)
 {
-	struct xfs_attr_sf_entry	*sfep;
+	struct xfs_attr_sf_entry	*sfep = xfs_attr_sf_firstentry(sfp);
 	struct xfs_attr_sf_entry	*next_sfep;
 	char				*endp;
 	int				i;
@@ -990,8 +990,7 @@ xfs_attr_shortform_verify(
 	endp = (char *)sfp + size;
 
 	/* Check all reported entries */
-	sfep = &sfp->list[0];
-	for (i = 0; i < sfp->hdr.count; i++) {
+	for (i = 0; i < sfp->count; i++) {
 		/*
 		 * struct xfs_attr_sf_entry has a variable length.
 		 * Check the fixed-offset parts of the structure are

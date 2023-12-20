@@ -760,7 +760,7 @@ xrep_dinode_check_afork(
 	struct xfs_scrub		*sc,
 	struct xfs_dinode		*dip)
 {
-	struct xfs_attr_shortform	*afork_ptr;
+	struct xfs_attr_sf_hdr		*afork_ptr;
 	size_t				attr_size;
 	unsigned int			afork_size;
 
@@ -778,7 +778,7 @@ xrep_dinode_check_afork(
 			return true;
 
 		/* xattr structure cannot be larger than the fork */
-		attr_size = be16_to_cpu(afork_ptr->hdr.totsize);
+		attr_size = be16_to_cpu(afork_ptr->totsize);
 		if (attr_size > afork_size)
 			return true;
 
