@@ -443,7 +443,6 @@ struct alvium_dev {
 
 	struct alvium_mode mode;
 	struct v4l2_fract frame_interval;
-	u64 fr;
 
 	u8 h_sup_csi_lanes;
 	u64 link_freq;
