@@ -1262,6 +1262,8 @@ void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
 	bool compound = flags & RMAP_COMPOUND;
 	bool first;
 
+	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
+
 	/* Is page being mapped by PTE? Is this its first map to be added? */
 	if (likely(!compound)) {
 		first = atomic_inc_and_test(&page->_mapcount);
@@ -1343,6 +1345,7 @@ void folio_add_new_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 {
 	int nr = folio_nr_pages(folio);
 
+	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
 	VM_BUG_ON_VMA(address < vma->vm_start ||
 			address + (nr << PAGE_SHIFT) > vma->vm_end, vma);
 	__folio_set_swapbacked(folio);
@@ -2634,6 +2637,7 @@ void rmap_walk_locked(struct folio *folio, struct rmap_walk_control *rwc)
 void hugetlb_add_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 		unsigned long address, rmap_t flags)
 {
+	VM_WARN_ON_FOLIO(!folio_test_hugetlb(folio), folio);
 	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
 
 	atomic_inc(&folio->_entire_mapcount);
@@ -2646,6 +2650,8 @@ void hugetlb_add_anon_rmap(struct folio *folio, struct vm_area_struct *vma,
 void hugetlb_add_new_anon_rmap(struct folio *folio,
 		struct vm_area_struct *vma, unsigned long address)
 {
+	VM_WARN_ON_FOLIO(!folio_test_hugetlb(folio), folio);
+
 	BUG_ON(address < vma->vm_start || address >= vma->vm_end);
 	/* increment count (starts at -1) */
 	atomic_set(&folio->_entire_mapcount, 0);
