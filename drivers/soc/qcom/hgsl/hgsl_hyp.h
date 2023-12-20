@@ -202,12 +202,25 @@ enum gsl_rpc_server_mode_t {
 
 #pragma pack(push, 4)
 
+/* For RPC_HANDSHAKE version < 2 */
 struct handshake_params_t {
 	uint32_t size;
 	uint32_t client_type;
 	uint32_t client_version;
 	uint32_t pid;
 	char name[RPC_CLIENT_NAME_SIZE];
+};
+
+struct handshake_params_v2_t {
+	uint32_t size;
+	uint32_t client_type;
+	uint32_t client_version;
+	uint32_t pid;
+	char name[RPC_CLIENT_NAME_SIZE];
+	/* user id in current namespace, if set to (uid_t)(-1),
+	 * backend will ignore it and use default settings
+	 */
+	uint32_t uid;
 };
 
 struct sub_handshake_params_t {
