@@ -245,6 +245,8 @@ struct PPTable_t {
 #define SMUQ10_TO_UINT(x) ((x) >> 10)
 #define SMUQ10_FRAC(x) ((x) & 0x3ff)
 #define SMUQ10_ROUND(x) ((SMUQ10_TO_UINT(x)) + ((SMUQ10_FRAC(x)) >= 0x200))
+#define GET_METRIC_FIELD(field) ((adev->flags & AMD_IS_APU) ?\
+		(metrics_a->field) : (metrics_x->field))
 
 struct smu_v13_0_6_dpm_map {
 	enum smu_clk_type clk_type;
@@ -327,7 +329,8 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		SMU_TABLE_INIT(tables, SMU_TABLE_PMSTATUSLOG, SMU13_TOOL_SIZE,
 			       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
-	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS, sizeof(MetricsTable_t),
+	SMU_TABLE_INIT(tables, SMU_TABLE_SMU_METRICS,
+		       max(sizeof(MetricsTableX_t), sizeof(MetricsTableA_t)),
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
@@ -335,7 +338,8 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		       PAGE_SIZE,
 		       AMDGPU_GEM_DOMAIN_VRAM | AMDGPU_GEM_DOMAIN_GTT);
 
-	smu_table->metrics_table = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
+	smu_table->metrics_table = kzalloc(max(sizeof(MetricsTableX_t),
+		       sizeof(MetricsTableA_t)), GFP_KERNEL);
 	if (!smu_table->metrics_table)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
@@ -431,9 +435,11 @@ static int smu_v13_0_6_get_metrics_table(struct smu_context *smu,
 static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	MetricsTableX_t *metrics_x = (MetricsTableX_t *)smu_table->metrics_table;
+	MetricsTableA_t *metrics_a = (MetricsTableA_t *)smu_table->metrics_table;
 	struct PPTable_t *pptable =
 		(struct PPTable_t *)smu_table->driver_pptable;
+	struct amdgpu_device *adev = smu->adev;
 	int ret, i, retry = 100;
 
 	/* Store one-time values in driver PPTable */
@@ -444,7 +450,7 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 				return ret;
 
 			/* Ensure that metrics have been updated */
-			if (metrics->AccumulationCounter)
+			if (GET_METRIC_FIELD(AccumulationCounter))
 				break;
 
 			usleep_range(1000, 1100);
@@ -454,29 +460,29 @@ static int smu_v13_0_6_setup_driver_pptable(struct smu_context *smu)
 			return -ETIME;
 
 		pptable->MaxSocketPowerLimit =
-			SMUQ10_ROUND(metrics->MaxSocketPowerLimit);
+			SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketPowerLimit));
 		pptable->MaxGfxclkFrequency =
-			SMUQ10_ROUND(metrics->MaxGfxclkFrequency);
+			SMUQ10_ROUND(GET_METRIC_FIELD(MaxGfxclkFrequency));
 		pptable->MinGfxclkFrequency =
-			SMUQ10_ROUND(metrics->MinGfxclkFrequency);
+			SMUQ10_ROUND(GET_METRIC_FIELD(MinGfxclkFrequency));
 
 		for (i = 0; i < 4; ++i) {
 			pptable->FclkFrequencyTable[i] =
-				SMUQ10_ROUND(metrics->FclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(FclkFrequencyTable)[i]);
 			pptable->UclkFrequencyTable[i] =
-				SMUQ10_ROUND(metrics->UclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequencyTable)[i]);
 			pptable->SocclkFrequencyTable[i] = SMUQ10_ROUND(
-				metrics->SocclkFrequencyTable[i]);
+				GET_METRIC_FIELD(SocclkFrequencyTable)[i]);
 			pptable->VclkFrequencyTable[i] =
-				SMUQ10_ROUND(metrics->VclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(VclkFrequencyTable)[i]);
 			pptable->DclkFrequencyTable[i] =
-				SMUQ10_ROUND(metrics->DclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(DclkFrequencyTable)[i]);
 			pptable->LclkFrequencyTable[i] =
-				SMUQ10_ROUND(metrics->LclkFrequencyTable[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(LclkFrequencyTable)[i]);
 		}
 
 		/* use AID0 serial number by default */
-		pptable->PublicSerialNumber_AID = metrics->PublicSerialNumber_AID[0];
+		pptable->PublicSerialNumber_AID = GET_METRIC_FIELD(PublicSerialNumber_AID)[0];
 
 		pptable->Init = true;
 	}
@@ -778,7 +784,8 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 					    uint32_t *value)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	MetricsTable_t *metrics = (MetricsTable_t *)smu_table->metrics_table;
+	MetricsTableX_t *metrics_x = (MetricsTableX_t *)smu_table->metrics_table;
+	MetricsTableA_t *metrics_a = (MetricsTableA_t *)smu_table->metrics_table;
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
 	int xcc_id;
@@ -793,50 +800,50 @@ static int smu_v13_0_6_get_smu_metrics_data(struct smu_context *smu,
 	case METRICS_AVERAGE_GFXCLK:
 		if (smu->smc_fw_version >= 0x552F00) {
 			xcc_id = GET_INST(GC, 0);
-			*value = SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
+			*value = SMUQ10_ROUND(GET_METRIC_FIELD(GfxclkFrequency)[xcc_id]);
 		} else {
 			*value = 0;
 		}
 		break;
 	case METRICS_CURR_SOCCLK:
 	case METRICS_AVERAGE_SOCCLK:
-		*value = SMUQ10_ROUND(metrics->SocclkFrequency[0]);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(SocclkFrequency)[0]);
 		break;
 	case METRICS_CURR_UCLK:
 	case METRICS_AVERAGE_UCLK:
-		*value = SMUQ10_ROUND(metrics->UclkFrequency);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequency));
 		break;
 	case METRICS_CURR_VCLK:
-		*value = SMUQ10_ROUND(metrics->VclkFrequency[0]);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(VclkFrequency)[0]);
 		break;
 	case METRICS_CURR_DCLK:
-		*value = SMUQ10_ROUND(metrics->DclkFrequency[0]);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(DclkFrequency)[0]);
 		break;
 	case METRICS_CURR_FCLK:
-		*value = SMUQ10_ROUND(metrics->FclkFrequency);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(FclkFrequency));
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
-		*value = SMUQ10_ROUND(metrics->SocketGfxBusy);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(SocketGfxBusy));
 		break;
 	case METRICS_AVERAGE_MEMACTIVITY:
-		*value = SMUQ10_ROUND(metrics->DramBandwidthUtilization);
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilization));
 		break;
 	case METRICS_CURR_SOCKETPOWER:
-		*value = SMUQ10_ROUND(metrics->SocketPower) << 8;
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(SocketPower)) << 8;
 		break;
 	case METRICS_TEMPERATURE_HOTSPOT:
-		*value = SMUQ10_ROUND(metrics->MaxSocketTemperature) *
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature)) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	case METRICS_TEMPERATURE_MEM:
-		*value = SMUQ10_ROUND(metrics->MaxHbmTemperature) *
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(MaxHbmTemperature)) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	/* This is the max of all VRs and not just SOC VR.
 	 * No need to define another data type for the same.
 	 */
 	case METRICS_TEMPERATURE_VRSOC:
-		*value = SMUQ10_ROUND(metrics->MaxVrTemperature) *
+		*value = SMUQ10_ROUND(GET_METRIC_FIELD(MaxVrTemperature)) *
 			 SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
 	default:
@@ -2026,63 +2033,66 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		(struct gpu_metrics_v1_4 *)smu_table->gpu_metrics_table;
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, xcc_id, inst, i;
-	MetricsTable_t *metrics;
+	MetricsTableX_t *metrics_x;
+	MetricsTableA_t *metrics_a;
 	u16 link_width_level;
 
-	metrics = kzalloc(sizeof(MetricsTable_t), GFP_KERNEL);
-	ret = smu_v13_0_6_get_metrics_table(smu, metrics, true);
+	metrics_x = kzalloc(max(sizeof(MetricsTableX_t), sizeof(MetricsTableA_t)), GFP_KERNEL);
+	ret = smu_v13_0_6_get_metrics_table(smu, metrics_x, true);
 	if (ret) {
-		kfree(metrics);
+		kfree(metrics_x);
 		return ret;
 	}
+
+	metrics_a = (MetricsTableA_t *)metrics_x;
 
 	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 4);
 
 	gpu_metrics->temperature_hotspot =
-		SMUQ10_ROUND(metrics->MaxSocketTemperature);
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature));
 	/* Individual HBM stack temperature is not reported */
 	gpu_metrics->temperature_mem =
-		SMUQ10_ROUND(metrics->MaxHbmTemperature);
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxHbmTemperature));
 	/* Reports max temperature of all voltage rails */
 	gpu_metrics->temperature_vrsoc =
-		SMUQ10_ROUND(metrics->MaxVrTemperature);
+		SMUQ10_ROUND(GET_METRIC_FIELD(MaxVrTemperature));
 
 	gpu_metrics->average_gfx_activity =
-		SMUQ10_ROUND(metrics->SocketGfxBusy);
+		SMUQ10_ROUND(GET_METRIC_FIELD(SocketGfxBusy));
 	gpu_metrics->average_umc_activity =
-		SMUQ10_ROUND(metrics->DramBandwidthUtilization);
+		SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilization));
 
 	gpu_metrics->curr_socket_power =
-		SMUQ10_ROUND(metrics->SocketPower);
+		SMUQ10_ROUND(GET_METRIC_FIELD(SocketPower));
 	/* Energy counter reported in 15.259uJ (2^-16) units */
-	gpu_metrics->energy_accumulator = metrics->SocketEnergyAcc;
+	gpu_metrics->energy_accumulator = GET_METRIC_FIELD(SocketEnergyAcc);
 
 	for (i = 0; i < MAX_GFX_CLKS; i++) {
 		xcc_id = GET_INST(GC, i);
 		if (xcc_id >= 0)
 			gpu_metrics->current_gfxclk[i] =
-				SMUQ10_ROUND(metrics->GfxclkFrequency[xcc_id]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(GfxclkFrequency)[xcc_id]);
 
 		if (i < MAX_CLKS) {
 			gpu_metrics->current_socclk[i] =
-				SMUQ10_ROUND(metrics->SocclkFrequency[i]);
+				SMUQ10_ROUND(GET_METRIC_FIELD(SocclkFrequency)[i]);
 			inst = GET_INST(VCN, i);
 			if (inst >= 0) {
 				gpu_metrics->current_vclk0[i] =
-					SMUQ10_ROUND(metrics->VclkFrequency[inst]);
+					SMUQ10_ROUND(GET_METRIC_FIELD(VclkFrequency)[inst]);
 				gpu_metrics->current_dclk0[i] =
-					SMUQ10_ROUND(metrics->DclkFrequency[inst]);
+					SMUQ10_ROUND(GET_METRIC_FIELD(DclkFrequency)[inst]);
 			}
 		}
 	}
 
-	gpu_metrics->current_uclk = SMUQ10_ROUND(metrics->UclkFrequency);
+	gpu_metrics->current_uclk = SMUQ10_ROUND(GET_METRIC_FIELD(UclkFrequency));
 
 	/* Throttle status is not reported through metrics now */
 	gpu_metrics->throttle_status = 0;
 
 	/* Clock Lock Status. Each bit corresponds to each GFXCLK instance */
-	gpu_metrics->gfxclk_lock_status = metrics->GfxLockXCDMak >> GET_INST(GC, 0);
+	gpu_metrics->gfxclk_lock_status = GET_METRIC_FIELD(GfxLockXCDMak) >> GET_INST(GC, 0);
 
 	if (!(adev->flags & AMD_IS_APU)) {
 		link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
@@ -2094,38 +2104,38 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 		gpu_metrics->pcie_link_speed =
 			smu_v13_0_6_get_current_pcie_link_speed(smu);
 		gpu_metrics->pcie_bandwidth_acc =
-				SMUQ10_ROUND(metrics->PcieBandwidthAcc[0]);
+				SMUQ10_ROUND(metrics_x->PcieBandwidthAcc[0]);
 		gpu_metrics->pcie_bandwidth_inst =
-				SMUQ10_ROUND(metrics->PcieBandwidth[0]);
+				SMUQ10_ROUND(metrics_x->PcieBandwidth[0]);
 		gpu_metrics->pcie_l0_to_recov_count_acc =
-				metrics->PCIeL0ToRecoveryCountAcc;
+				metrics_x->PCIeL0ToRecoveryCountAcc;
 		gpu_metrics->pcie_replay_count_acc =
-				metrics->PCIenReplayAAcc;
+				metrics_x->PCIenReplayAAcc;
 		gpu_metrics->pcie_replay_rover_count_acc =
-				metrics->PCIenReplayARolloverCountAcc;
+				metrics_x->PCIenReplayARolloverCountAcc;
 	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
 	gpu_metrics->gfx_activity_acc =
-		SMUQ10_ROUND(metrics->SocketGfxBusyAcc);
+		SMUQ10_ROUND(GET_METRIC_FIELD(SocketGfxBusyAcc));
 	gpu_metrics->mem_activity_acc =
-		SMUQ10_ROUND(metrics->DramBandwidthUtilizationAcc);
+		SMUQ10_ROUND(GET_METRIC_FIELD(DramBandwidthUtilizationAcc));
 
 	for (i = 0; i < NUM_XGMI_LINKS; i++) {
 		gpu_metrics->xgmi_read_data_acc[i] =
-			SMUQ10_ROUND(metrics->XgmiReadDataSizeAcc[i]);
+			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiReadDataSizeAcc)[i]);
 		gpu_metrics->xgmi_write_data_acc[i] =
-			SMUQ10_ROUND(metrics->XgmiWriteDataSizeAcc[i]);
+			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWriteDataSizeAcc)[i]);
 	}
 
-	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(metrics->XgmiWidth);
-	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(metrics->XgmiBitrate);
+	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWidth));
+	gpu_metrics->xgmi_link_speed = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiBitrate));
 
-	gpu_metrics->firmware_timestamp = metrics->Timestamp;
+	gpu_metrics->firmware_timestamp = GET_METRIC_FIELD(Timestamp);
 
 	*table = (void *)gpu_metrics;
-	kfree(metrics);
+	kfree(metrics_x);
 
 	return sizeof(*gpu_metrics);
 }
