@@ -2848,6 +2848,36 @@ cfg80211_inform_bss_data(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_inform_bss_data);
 
+static bool cfg80211_uhb_power_type_valid(const u8 *ie,
+					  size_t ielen,
+					  const u32 flags)
+{
+	const struct element *tmp;
+	struct ieee80211_he_operation *he_oper;
+
+	tmp = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie, ielen);
+	if (tmp && tmp->datalen >= sizeof(*he_oper) + 1) {
+		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
+
+		he_oper = (void *)&tmp->data[1];
+		he_6ghz_oper = ieee80211_he_6ghz_oper(he_oper);
+
+		if (!he_6ghz_oper)
+			return false;
+
+		switch (u8_get_bits(he_6ghz_oper->control,
+				    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+		case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+			return true;
+		case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+			return !(flags & IEEE80211_CHAN_NO_UHB_AFC_CLIENT);
+		case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
+			return !(flags & IEEE80211_CHAN_NO_UHB_VLP_CLIENT);
+		}
+	}
+	return false;
+}
+
 /* cfg80211_inform_bss_width_frame helper */
 static struct cfg80211_bss *
 cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
@@ -2905,6 +2935,14 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 	channel = cfg80211_get_bss_channel(wiphy, variable, ielen, data->chan);
 	if (!channel)
 		return NULL;
+
+	if (channel->band == NL80211_BAND_6GHZ &&
+	    !cfg80211_uhb_power_type_valid(variable, ielen, channel->flags)) {
+		data->restrict_use = 1;
+		data->use_for = 0;
+		data->cannot_use_reasons =
+			NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH;
+	}
 
 	if (ext) {
 		const struct ieee80211_s1g_bcn_compat_ie *compat;

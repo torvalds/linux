@@ -4260,6 +4260,10 @@ enum nl80211_wmm_rule {
  *	allowed for peer-to-peer or adhoc communication under the control
  *	of a DFS master which operates on the same channel (FCC-594280 D01
  *	Section B.3). Should be used together with %NL80211_RRF_DFS only.
+ * @NL80211_FREQUENCY_ATTR_NO_UHB_VLP_CLIENT: Client connection to VLP AP
+ *	not allowed using this channel
+ * @NL80211_FREQUENCY_ATTR_NO_UHB_AFC_CLIENT: Client connection to AFC AP
+ *	not allowed using this channel
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -4300,6 +4304,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_EHT,
 	NL80211_FREQUENCY_ATTR_PSD,
 	NL80211_FREQUENCY_ATTR_DFS_CONCURRENT,
+	NL80211_FREQUENCY_ATTR_NO_UHB_VLP_CLIENT,
+	NL80211_FREQUENCY_ATTR_NO_UHB_AFC_CLIENT,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -4509,6 +4515,8 @@ enum nl80211_sched_scan_match_attr {
 	peer-to-peer or adhoc communication under the control of a DFS master
 	which operates on the same channel (FCC-594280 D01 Section B.3).
 	Should be used together with %NL80211_RRF_DFS only.
+ * @NL80211_RRF_NO_UHB_VLP_CLIENT: Client connection to VLP AP not allowed
+ * @NL80211_RRF_NO_UHB_AFC_CLIENT: Client connection to AFC AP not allowed
  */
 enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_OFDM		= 1<<0,
@@ -4531,6 +4539,8 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_EHT		= 1<<19,
 	NL80211_RRF_PSD			= 1<<20,
 	NL80211_RRF_DFS_CONCURRENT	= 1<<21,
+	NL80211_RRF_NO_UHB_VLP_CLIENT	= 1<<22,
+	NL80211_RRF_NO_UHB_AFC_CLIENT	= 1<<23,
 };
 
 #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
@@ -5086,9 +5096,12 @@ enum nl80211_bss_use_for {
  *	BSS isn't possible
  * @NL80211_BSS_CANNOT_USE_NSTR_NONPRIMARY: NSTR nonprimary links aren't
  *	supported by the device, and this BSS entry represents one.
+ * @NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH: STA is not supporting
+ *	the AP power type (SP, VLP, AP) that the AP uses.
  */
 enum nl80211_bss_cannot_use_reasons {
 	NL80211_BSS_CANNOT_USE_NSTR_NONPRIMARY	= 1 << 0,
+	NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH	= 1 << 1,
 };
 
 /**

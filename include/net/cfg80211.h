@@ -118,6 +118,10 @@ struct wiphy;
  *	restrictions.
  * @IEEE80211_CHAN_NO_EHT: EHT operation is not permitted on this channel.
  * @IEEE80211_CHAN_DFS_CONCURRENT: See %NL80211_RRF_DFS_CONCURRENT
+ * @IEEE80211_CHAN_NO_UHB_VLP_CLIENT: Client connection with VLP AP
+ *	not permitted using this channel
+ * @IEEE80211_CHAN_NO_UHB_AFC_CLIENT: Client connection with AFC AP
+ *	not permitted using this channel
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED		= 1<<0,
@@ -142,6 +146,8 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_NO_320MHZ	= 1<<19,
 	IEEE80211_CHAN_NO_EHT		= 1<<20,
 	IEEE80211_CHAN_DFS_CONCURRENT	= 1<<21,
+	IEEE80211_CHAN_NO_UHB_VLP_CLIENT= 1<<22,
+	IEEE80211_CHAN_NO_UHB_AFC_CLIENT= 1<<23,
 };
 
 #define IEEE80211_CHAN_NO_HT40 \
