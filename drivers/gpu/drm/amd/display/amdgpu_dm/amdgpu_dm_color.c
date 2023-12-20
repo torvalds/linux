@@ -630,8 +630,7 @@ static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *f
 static enum dc_transfer_func_predefined
 amdgpu_tf_to_dc_tf(enum amdgpu_transfer_function tf)
 {
-	switch (tf)
-	{
+	switch (tf) {
 	default:
 	case AMDGPU_TRANSFER_FUNCTION_DEFAULT:
 	case AMDGPU_TRANSFER_FUNCTION_IDENTITY:
@@ -1225,7 +1224,7 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 	 * plane and CRTC degamma at the same time. Explicitly reject atomic
 	 * updates when userspace sets both plane and CRTC degamma properties.
 	 */
-	if (has_crtc_cm_degamma && ret != -EINVAL){
+	if (has_crtc_cm_degamma && ret != -EINVAL) {
 		drm_dbg_kms(crtc->base.crtc->dev,
 			    "doesn't support plane and CRTC degamma at the same time\n");
 			return -EINVAL;

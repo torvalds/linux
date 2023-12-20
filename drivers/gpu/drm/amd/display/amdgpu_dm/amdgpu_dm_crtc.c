@@ -305,7 +305,7 @@ dm_crtc_additional_color_mgmt(struct drm_crtc *crtc)
 {
 	struct amdgpu_device *adev = drm_to_adev(crtc->dev);
 
-	if(adev->dm.dc->caps.color.mpc.ogam_ram)
+	if (adev->dm.dc->caps.color.mpc.ogam_ram)
 		drm_object_attach_property(&crtc->base,
 					   adev->mode_info.regamma_tf_property,
 					   AMDGPU_TRANSFER_FUNCTION_DEFAULT);
