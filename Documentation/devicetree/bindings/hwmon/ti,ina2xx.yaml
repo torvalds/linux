@@ -32,6 +32,9 @@ properties:
   reg:
     maxItems: 1
 
+  "#io-channel-cells":
+    const: 1
+
   label:
     description: A descriptive name for this device.
 
@@ -80,6 +83,7 @@ examples:
         power-sensor@44 {
             compatible = "ti,ina220";
             reg = <0x44>;
+            #io-channel-cells = <1>;
             label = "vdd_3v0";
             shunt-resistor = <1000>;
             vs-supply = <&vdd_3v0>;
