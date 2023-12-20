@@ -230,8 +230,8 @@ int main(int argc, char **argv)
 			break;
 		default:
 			return EXIT_FAILURE;
-		};
-	};
+		}
+	}
 
 	if (nwatch) {
 		watches = calloc(nwatch, sizeof(*watches));
@@ -330,7 +330,7 @@ int main(int argc, char **argv)
 			i++;
 			break;
 		}
-	};
+	}
 
 	if (debug)
 		print_watch(watches, nwatch);
