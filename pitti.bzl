@@ -84,6 +84,7 @@ def define_pitti():
         "drivers/soc/qcom/charger-ulog-glink.ko",
         "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/debug_symbol.ko",
+        "drivers/soc/qcom/eud.ko",
         "drivers/soc/qcom/glink_probe.ko",
         "drivers/soc/qcom/mdt_loader.ko",
         "drivers/soc/qcom/mem-hooks.ko",
