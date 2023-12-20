@@ -1230,6 +1230,7 @@ static const struct {
 	 * Additional individual entries were added after verification.
 	 */
 	{ "Latitude 5480",      0x29 },
+	{ "Precision 3540",     0x29 },
 	{ "Vostro V131",        0x1d },
 	{ "Vostro 5568",        0x29 },
 };
