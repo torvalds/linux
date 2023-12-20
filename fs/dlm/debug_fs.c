@@ -748,7 +748,7 @@ static int table_open4(struct inode *inode, struct file *file)
 	struct seq_file *seq;
 	int ret;
 
-	ret = seq_open(file, &format5_seq_ops);
+	ret = seq_open(file, &format4_seq_ops);
 	if (ret)
 		return ret;
 
