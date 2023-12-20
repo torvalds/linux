@@ -13,6 +13,8 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
+#include <soc/rockchip/rockchip-system-status.h>
+
 #define SPI_OBJ_MAX_XFER_SIZE	0x1040
 #define SPI_OBJ_APP_RAM_SIZE	0x10000
 
@@ -21,6 +23,8 @@
 #define SPI_OBJ_CTRL_CMD_READ	0x3A
 #define SPI_OBJ_CTRL_CMD_WRITE	0x4B
 #define SPI_OBJ_CTRL_CMD_DUPLEX	0x5C
+
+#define SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD  0x20
 
 struct spi_obj_ctrl {
 	u16 cmd;
@@ -38,42 +42,60 @@ struct spidev_rkslv_data {
 	struct task_struct *tsk;
 	bool tsk_run;
 	struct miscdevice misc_dev;
+
+	/*
+	 * If the DRAM frequency conversion jitters during the transmission process,
+	 * it will cause the DMA to be unable to transport SPI FIFO data in a timely
+	 * manner, resulting in FIFO overflow/underflow.
+	 *
+	 * However, since the command packet length is smaller than FIFO, this
+	 * problem does not exist. So set performance status dynamically for data packet.
+	 */
+	bool dyq_perf;
 };
 
 static u32 bit_per_word = 8;
 
-static int spidev_slv_write(struct spidev_rkslv_data *spidev, const void *txbuf, size_t n)
+static int spidev_slv_write(struct spidev_rkslv_data *spidev, const void *txbuf, size_t len)
 {
-	int ret = -1;
 	struct spi_device *spi = spidev->spi;
 	struct spi_transfer t = {
 			.tx_buf = txbuf,
-			.len = n,
+			.len = len,
 			.bits_per_word = bit_per_word,
 		};
 	struct spi_message m;
+	int ret;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
+	if (spidev->dyq_perf && len > SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD)
+		rockchip_set_system_status(SYS_STATUS_PERFORMANCE);
 	ret = spi_sync(spi, &m);
+	if (spidev->dyq_perf && len > SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD)
+		rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 
 	return ret;
 }
 
-static int spidev_slv_read(struct spidev_rkslv_data *spidev, void *rxbuf, size_t n)
+static int spidev_slv_read(struct spidev_rkslv_data *spidev, void *rxbuf, size_t len)
 {
-	int ret = -1;
 	struct spi_device *spi = spidev->spi;
 	struct spi_transfer t = {
 			.rx_buf = rxbuf,
-			.len = n,
+			.len = len,
 			.bits_per_word = bit_per_word,
 		};
 	struct spi_message m;
+	int ret;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
+	if (spidev->dyq_perf && len > SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD)
+		rockchip_set_system_status(SYS_STATUS_PERFORMANCE);
 	ret = spi_sync(spi, &m);
+	if (spidev->dyq_perf && len > SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD)
+		rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
 
 	return ret;
 }
@@ -88,10 +110,18 @@ static int spidev_slv_write_and_read(struct spidev_rkslv_data *spidev, const voi
 			.len = len,
 		};
 	struct spi_message m;
+	int ret;
 
 	spi_message_init(&m);
 	spi_message_add_tail(&t, &m);
-	return spi_sync(spi, &m);
+
+	if (spidev->dyq_perf && len > SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD)
+		rockchip_set_system_status(SYS_STATUS_PERFORMANCE);
+	ret = spi_sync(spi, &m);
+	if (spidev->dyq_perf && len > SPI_OBJ_CTRL_DYQ_PERF_THRESHOLD)
+		rockchip_clear_system_status(SYS_STATUS_PERFORMANCE);
+
+	return ret;
 }
 
 static ssize_t spidev_rkslv_misc_write(struct file *filp, const char __user *buf,
@@ -318,6 +348,7 @@ static int spidev_rkslv_probe(struct spi_device *spi)
 	if (!spidev->tempbuf)
 		return -ENOMEM;
 
+	spidev->dyq_perf = true;
 	spidev->spi = spi;
 	spidev->dev = &spi->dev;
 	dev_set_drvdata(&spi->dev, spidev);
