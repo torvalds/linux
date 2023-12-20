@@ -129,6 +129,8 @@ struct dcn_optc_registers {
 	uint32_t OTG_V_TOTAL_MID;
 	uint32_t OTG_V_TOTAL_MIN;
 	uint32_t OTG_V_TOTAL_CONTROL;
+	uint32_t OTG_V_COUNT_STOP_CONTROL;
+	uint32_t OTG_V_COUNT_STOP_CONTROL2;
 	uint32_t OTG_TRIGA_CNTL;
 	uint32_t OTG_TRIGA_MANUAL_TRIG;
 	uint32_t OTG_MANUAL_FLOW_CONTROL;
@@ -581,7 +583,9 @@ struct dcn_optc_registers {
 	type OTG_CRC1_WINDOWB_X_END_READBACK;\
 	type OTG_CRC1_WINDOWB_Y_START_READBACK;\
 	type OTG_CRC1_WINDOWB_Y_END_READBACK;\
-	type OPTC_FGCG_REP_DIS;
+	type OPTC_FGCG_REP_DIS;\
+	type OTG_V_COUNT_STOP;\
+	type OTG_V_COUNT_STOP_TIMER;
 
 struct dcn_optc_shift {
 	TG_REG_FIELD_LIST(uint8_t)

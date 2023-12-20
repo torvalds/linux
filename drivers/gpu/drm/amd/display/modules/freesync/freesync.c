@@ -1126,6 +1126,8 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 		in_out_vrr->adjust.v_total_min = stream->timing.v_total;
 		in_out_vrr->adjust.v_total_max = stream->timing.v_total;
 	}
+
+	in_out_vrr->adjust.allow_otg_v_count_halt = (in_config->state == VRR_STATE_ACTIVE_FIXED) ? true : false;
 }
 
 void mod_freesync_handle_preflip(struct mod_freesync *mod_freesync,
