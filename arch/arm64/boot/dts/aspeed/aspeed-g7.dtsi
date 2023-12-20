@@ -1184,6 +1184,13 @@
 			};
 		};
 
+		chassis: chassis@14c04000 {
+			compatible = "aspeed,ast2600-chassis";
+			reg = <0 0x14c04010 0 0x4>;
+			interrupts-extended = <&intc5 5>;
+			status = "disabled";
+		};
+
 		espi0: espi@14c05000 {
 			compatible = "aspeed,ast2700-espi";
 			reg = <0 0x14c05000 0 0x1000>;
