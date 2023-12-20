@@ -7386,6 +7386,11 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 				}
 			} else {
 				sditf_disable_immediately(dev->sditf[0]);
+				dev->sditf[0]->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO;
+				sd = get_rkisp_sd(dev->sditf[0]);
+				if (sd)
+					ret = v4l2_subdev_call(sd, core, ioctl,
+							       RKISP_VICAP_CMD_MODE, &dev->sditf[0]->mode);
 				for (i = 0; i < stream_num; i++) {
 					if (dev->sditf[0]->mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO)
 						dev->stream[i].to_en_dma = RKCIF_DMAEN_BY_ISP;
@@ -10673,6 +10678,7 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 	unsigned long flags;
 	bool is_single_dev = false;
 	bool is_can_be_online = false;
+	struct rkisp_vicap_mode vicap_mode;
 
 	mutex_lock(&cif_dev->stream_lock);
 
@@ -10797,11 +10803,12 @@ int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode)
 					rkcif_init_rx_buf(stream, 1);
 			} else {
 				if (stream->is_single_cap && stream->id == 0) {
-					priv->mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO_ONE_FRAME;
+					vicap_mode = priv->mode;
+					vicap_mode.rdbk_mode = RKISP_VICAP_RDBK_AUTO_ONE_FRAME;
 					sd = get_rkisp_sd(priv);
 					if (sd) {
 						ret = v4l2_subdev_call(sd, core, ioctl,
-								       RKISP_VICAP_CMD_MODE, &priv->mode);
+								       RKISP_VICAP_CMD_MODE, &vicap_mode);
 						if (ret)
 							v4l2_err(&cif_dev->v4l2_dev,
 								 "set isp work mode rdbk aotu oneframe fail\n");
