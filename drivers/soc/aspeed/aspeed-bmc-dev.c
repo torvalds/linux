@@ -416,9 +416,9 @@ static void aspeed_bmc_device_init(struct aspeed_bmc_device *bmc_device)
 	 * 128:host2bmc-1 for pcie1
 	 */
 	if (bmc_device->id)
-		regmap_write(bmc_device->e2m, 0x108, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 4) | i);
-	else
 		regmap_write(bmc_device->e2m, 0x128, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 4) | i);
+	else
+		regmap_write(bmc_device->e2m, 0x108, ((bmc_device->bmc_mem_phy & ~BIT(34)) >> 4) | i);
 #else
 	if (bmc_device->pcie2lpc)
 		pcie_config_ctl |= SCU_PCIE_CONF_BMC_DEV_EN_E2L |
