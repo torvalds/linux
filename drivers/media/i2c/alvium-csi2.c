@@ -1660,13 +1660,24 @@ static int alvium_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int alvium_set_frame_interval(struct alvium_dev *alvium,
-				     struct v4l2_subdev_frame_interval *fi,
-				     u64 *req_fr)
+static int alvium_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state,
+				   struct v4l2_subdev_frame_interval *fi)
 {
+	struct alvium_dev *alvium = sd_to_alvium(sd);
 	struct device *dev = &alvium->i2c_client->dev;
-	u64 dft_fr, min_fr, max_fr;
+	u64 req_fr, dft_fr, min_fr, max_fr;
 	int ret;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
+	if (alvium->streaming)
+		return -EBUSY;
 
 	if (fi->interval.denominator == 0)
 		return -EINVAL;
@@ -1682,41 +1693,16 @@ static int alvium_set_frame_interval(struct alvium_dev *alvium,
 	dev_dbg(dev, "fi->interval.denominator = %d\n",
 		fi->interval.denominator);
 
-	*req_fr = (u64)((fi->interval.denominator * USEC_PER_SEC) /
+	req_fr = (u64)((fi->interval.denominator * USEC_PER_SEC) /
 		       fi->interval.numerator);
 
-	if (*req_fr >= max_fr && *req_fr <= min_fr)
-		*req_fr = dft_fr;
+	if (req_fr >= max_fr && req_fr <= min_fr)
+		req_fr = dft_fr;
 
 	alvium->frame_interval.numerator = fi->interval.numerator;
 	alvium->frame_interval.denominator = fi->interval.denominator;
 
-	return 0;
-}
-
-static int alvium_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state,
-				   struct v4l2_subdev_frame_interval *fi)
-{
-	struct alvium_dev *alvium = sd_to_alvium(sd);
-	u64 req_fr;
-	int ret;
-
-	/*
-	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
-	 * subdev active state API.
-	 */
-	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
-		return -EINVAL;
-
-	if (alvium->streaming)
-		return -EBUSY;
-
-	ret = alvium_set_frame_interval(alvium, fi, &req_fr);
-	if (!ret)
-		ret = alvium_set_frame_rate(alvium, req_fr);
-
-	return ret;
+	return alvium_set_frame_rate(alvium, req_fr);
 }
 
 static int alvium_enum_mbus_code(struct v4l2_subdev *sd,
