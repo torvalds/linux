@@ -92,6 +92,8 @@ def define_autogvm():
         "drivers/usb/gadget/function/usb_f_qdss.ko",
         "drivers/usb/misc/ehset.ko",
         "drivers/usb/phy/phy-generic.ko",
+        "drivers/usb/phy/phy-msm-qusb.ko",
+        "drivers/usb/phy/phy-msm-qusb-v2.ko",
         "drivers/usb/phy/phy-msm-snps-hs.ko",
         "drivers/usb/phy/phy-msm-ssusb-qmp.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
