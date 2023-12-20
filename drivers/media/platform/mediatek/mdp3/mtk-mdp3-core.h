@@ -19,10 +19,21 @@
 #define MDP_PHANDLE_NAME	"mediatek,mdp3"
 
 enum mdp_infra_id {
+	/*
+	 * Due to the sequential nature of function "mdp_mm_subsys_deploy",
+	 * adding new enum. necessitates careful consideration.
+	 */
 	MDP_INFRA_MMSYS,
+	MDP_INFRA_MMSYS2,
 	MDP_INFRA_MUTEX,
 	MDP_INFRA_SCP,
 	MDP_INFRA_MAX
+};
+
+enum mdp_mm_subsys_id {
+	MDP_MM_SUBSYS_0,
+	MDP_MM_SUBSYS_1,
+	MDP_MM_SUBSYS_MAX,
 };
 
 enum mdp_buffer_usage {
@@ -65,9 +76,13 @@ struct mtk_mdp_driver_data {
 	unsigned int pipe_info_len;
 };
 
+struct mdp_mm_subsys {
+	struct device *mmsys;
+};
+
 struct mdp_dev {
 	struct platform_device			*pdev;
-	struct device				*mdp_mmsys;
+	struct mdp_mm_subsys			mm_subsys[MDP_MM_SUBSYS_MAX];
 	struct mtk_mutex			*mdp_mutex[MDP_PIPE_MAX];
 	struct mdp_comp				*comp[MDP_MAX_COMP_COUNT];
 	const struct mtk_mdp_driver_data	*mdp_data;
@@ -96,6 +111,7 @@ struct mdp_dev {
 
 struct mdp_pipe_info {
 	enum mdp_pipe_id pipe_id;
+	enum mdp_mm_subsys_id sub_id;
 	u32 mutex_id;
 };
 

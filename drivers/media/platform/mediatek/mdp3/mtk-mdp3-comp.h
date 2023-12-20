@@ -138,6 +138,7 @@ struct mdp_comp_match {
 	enum mdp_comp_type type;
 	u32 alias_id;
 	s32 inner_id;
+	s32 subsys_id;
 };
 
 /* Used to describe the item order in MDP property */

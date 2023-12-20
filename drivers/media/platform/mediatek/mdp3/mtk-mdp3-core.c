@@ -26,9 +26,10 @@ static const struct of_device_id mdp_of_ids[] = {
 MODULE_DEVICE_TABLE(of, mdp_of_ids);
 
 static struct platform_device *__get_pdev_by_id(struct platform_device *pdev,
+						struct platform_device *from,
 						enum mdp_infra_id id)
 {
-	struct device_node *node;
+	struct device_node *node, *f = NULL;
 	struct platform_device *mdp_pdev = NULL;
 	const struct mtk_mdp_driver_data *mdp_data;
 	const char *compat;
@@ -46,9 +47,14 @@ static struct platform_device *__get_pdev_by_id(struct platform_device *pdev,
 		dev_err(&pdev->dev, "have no driver data to find node\n");
 		return NULL;
 	}
-	compat = mdp_data->mdp_probe_infra[id].compatible;
 
-	node = of_find_compatible_node(NULL, NULL, compat);
+	compat = mdp_data->mdp_probe_infra[id].compatible;
+	if (strlen(compat) == 0)
+		return NULL;
+
+	if (from)
+		f = from->dev.of_node;
+	node = of_find_compatible_node(f, NULL, compat);
 	if (WARN_ON(!node)) {
 		dev_err(&pdev->dev, "find node from id %d failed\n", id);
 		return NULL;
@@ -148,6 +154,46 @@ void mdp_video_device_release(struct video_device *vdev)
 	kfree(mdp);
 }
 
+static int mdp_mm_subsys_deploy(struct mdp_dev *mdp, enum mdp_infra_id id)
+{
+	struct platform_device *mm_pdev = NULL;
+	struct device **dev;
+	int i;
+
+	if (!mdp)
+		return -EINVAL;
+
+	for (i = 0; i < MDP_MM_SUBSYS_MAX; i++) {
+		const char *compat;
+		enum mdp_infra_id sub_id = id + i;
+
+		switch (id) {
+		case MDP_INFRA_MMSYS:
+			dev = &mdp->mm_subsys[i].mmsys;
+			break;
+		default:
+			dev_err(&mdp->pdev->dev, "Unknown infra id %d", id);
+			return -EINVAL;
+		}
+
+		/*
+		 * Not every chip has multiple multimedia subsystems, so
+		 * the config may be null.
+		 */
+		compat = mdp->mdp_data->mdp_probe_infra[sub_id].compatible;
+		if (strlen(compat) == 0)
+			continue;
+
+		mm_pdev = __get_pdev_by_id(mdp->pdev, mm_pdev, sub_id);
+		if (WARN_ON(!mm_pdev))
+			return -ENODEV;
+
+		*dev = &mm_pdev->dev;
+	}
+
+	return 0;
+}
+
 static int mdp_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -164,14 +210,11 @@ static int mdp_probe(struct platform_device *pdev)
 	mdp->pdev = pdev;
 	mdp->mdp_data = of_device_get_match_data(&pdev->dev);
 
-	mm_pdev = __get_pdev_by_id(pdev, MDP_INFRA_MMSYS);
-	if (!mm_pdev) {
-		ret = -ENODEV;
+	ret = mdp_mm_subsys_deploy(mdp, MDP_INFRA_MMSYS);
+	if (ret)
 		goto err_destroy_device;
-	}
-	mdp->mdp_mmsys = &mm_pdev->dev;
 
-	mm_pdev = __get_pdev_by_id(pdev, MDP_INFRA_MUTEX);
+	mm_pdev = __get_pdev_by_id(pdev, NULL, MDP_INFRA_MUTEX);
 	if (WARN_ON(!mm_pdev)) {
 		ret = -ENODEV;
 		goto err_destroy_device;
@@ -210,7 +253,7 @@ static int mdp_probe(struct platform_device *pdev)
 
 	mdp->scp = scp_get(pdev);
 	if (!mdp->scp) {
-		mm_pdev = __get_pdev_by_id(pdev, MDP_INFRA_SCP);
+		mm_pdev = __get_pdev_by_id(pdev, NULL, MDP_INFRA_SCP);
 		if (WARN_ON(!mm_pdev)) {
 			dev_err(&pdev->dev, "Could not get scp device\n");
 			ret = -ENODEV;
