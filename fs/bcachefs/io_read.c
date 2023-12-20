@@ -172,11 +172,13 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	int ret;
 
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
-		return NULL;
+		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
 
 	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_KERNEL);
-	if (!op)
+	if (!op) {
+		ret = -BCH_ERR_nopromote_enomem;
 		goto err;
+	}
 
 	op->start_time = local_clock();
 	op->pos = pos;
@@ -188,23 +190,28 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	*rbio = kzalloc(sizeof(struct bch_read_bio) +
 			sizeof(struct bio_vec) * pages,
 			GFP_KERNEL);
-	if (!*rbio)
+	if (!*rbio) {
+		ret = -BCH_ERR_nopromote_enomem;
 		goto err;
+	}
 
 	rbio_init(&(*rbio)->bio, opts);
 	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
 
-	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9,
-				 GFP_KERNEL))
+	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9, GFP_KERNEL)) {
+		ret = -BCH_ERR_nopromote_enomem;
 		goto err;
+	}
 
 	(*rbio)->bounce		= true;
 	(*rbio)->split		= true;
 	(*rbio)->kmalloc	= true;
 
 	if (rhashtable_lookup_insert_fast(&c->promote_table, &op->hash,
-					  bch_promote_params))
+					  bch_promote_params)) {
+		ret = -BCH_ERR_nopromote_in_flight;
 		goto err;
+	}
 
 	bio = &op->write.op.wbio.bio;
 	bio_init(bio, NULL, bio->bi_inline_vecs, pages, 0);
@@ -223,9 +230,8 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	 * -BCH_ERR_ENOSPC_disk_reservation:
 	 */
 	if (ret) {
-		ret = rhashtable_remove_fast(&c->promote_table, &op->hash,
-					bch_promote_params);
-		BUG_ON(ret);
+		BUG_ON(rhashtable_remove_fast(&c->promote_table, &op->hash,
+					      bch_promote_params));
 		goto err;
 	}
 
@@ -239,7 +245,7 @@ err:
 	*rbio = NULL;
 	kfree(op);
 	bch2_write_ref_put(c, BCH_WRITE_REF_promote);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 noinline
@@ -274,10 +280,9 @@ static struct promote_op *promote_alloc(struct btree_trans *trans,
 				  ? BTREE_ID_reflink
 				  : BTREE_ID_extents,
 				  k, pos, pick, opts, sectors, rbio);
-	if (!promote) {
-		ret = -BCH_ERR_nopromote_enomem;
+	ret = PTR_ERR_OR_ZERO(promote);
+	if (ret)
 		goto nopromote;
-	}
 
 	*bounce		= true;
 	*read_full	= promote_full;
