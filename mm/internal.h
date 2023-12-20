@@ -651,7 +651,7 @@ folio_within_vma(struct folio *folio, struct vm_area_struct *vma)
  * under page table lock for the pte/pmd being added or removed.
  *
  * mlock is usually called at the end of page_add_*_rmap(), munlock at
- * the end of page_remove_rmap(); but new anon folios are managed by
+ * the end of folio_remove_rmap_*(); but new anon folios are managed by
  * folio_add_lru_vma() calling mlock_new_folio().
  */
 void mlock_folio(struct folio *folio);
