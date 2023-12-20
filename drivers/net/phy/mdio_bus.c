@@ -787,6 +787,9 @@ void mdiobus_unregister(struct mii_bus *bus)
 		gpiod_set_value_cansleep(bus->reset_gpiod, 1);
 
 	device_del(&bus->dev);
+
+	if (bus->__unregister_callback)
+		bus->__unregister_callback(bus);
 }
 EXPORT_SYMBOL(mdiobus_unregister);
 
