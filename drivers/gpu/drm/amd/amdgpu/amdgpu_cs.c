@@ -870,9 +870,9 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		struct amdgpu_bo *bo = e->bo;
 		int i;
 
-		e->user_pages = kvmalloc_array(bo->tbo.ttm->num_pages,
-					sizeof(struct page *),
-					GFP_KERNEL | __GFP_ZERO);
+		e->user_pages = kvcalloc(bo->tbo.ttm->num_pages,
+					 sizeof(struct page *),
+					 GFP_KERNEL);
 		if (!e->user_pages) {
 			DRM_ERROR("kvmalloc_array failure\n");
 			r = -ENOMEM;
