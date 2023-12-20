@@ -72,6 +72,11 @@ enum pkvm_psci_notification {
  *				@register_host_perm_fault_handler), otherwise
  *				pKVM will be unable to handle this fault and the
  *				CPU will be stuck in an infinite loop.
+ * @host_stage2_mod_prot_range:	Similar to @host_stage2_mod_prot, but takes a
+ *				range as an argument (@nr_pages). This
+ *				considerably speeds up the process for a
+ *				contiguous memory region, compared to the
+ *				per-page @host_stage2_mod_prot.
  * @host_stage2_get_leaf:	Query the host's stage2 page-table entry for
  *				the page @phys.
  * @register_host_smc_handler:	@cb is called whenever the host issues an SMC
