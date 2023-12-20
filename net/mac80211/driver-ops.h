@@ -1666,6 +1666,26 @@ static inline int drv_net_setup_tc(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline bool drv_can_activate_links(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata,
+					  u16 active_links)
+{
+	bool ret = true;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	if (!check_sdata_in_driver(sdata))
+		return false;
+
+	trace_drv_can_activate_links(local, sdata, active_links);
+	if (local->ops->can_activate_links)
+		ret = local->ops->can_activate_links(&local->hw, &sdata->vif,
+						     active_links);
+	trace_drv_return_bool(local, ret);
+
+	return ret;
+}
+
 int drv_change_vif_links(struct ieee80211_local *local,
 			 struct ieee80211_sub_if_data *sdata,
 			 u16 old_links, u16 new_links,
