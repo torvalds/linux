@@ -123,7 +123,7 @@ typedef enum {
   VOLTAGE_GUARDBAND_COUNT
 } GFX_GUARDBAND_e;
 
-#define SMU_METRICS_TABLE_VERSION 0x9
+#define SMU_METRICS_TABLE_VERSION 0xB
 
 typedef struct __attribute__((packed, aligned(4))) {
   uint32_t AccumulationCounter;
@@ -219,6 +219,10 @@ typedef struct __attribute__((packed, aligned(4))) {
   uint32_t PCIenReplayARolloverCountAcc;  // The Pcie counter itself is accumulated
   uint32_t PCIeNAKSentCountAcc;           // The Pcie counter itself is accumulated
   uint32_t PCIeNAKReceivedCountAcc;       // The Pcie counter itself is accumulated
+
+  // VCN/JPEG ACTIVITY
+  uint32_t VcnBusy[4];
+  uint32_t JpegBusy[32];
 } MetricsTableX_t;
 
 typedef struct __attribute__((packed, aligned(4))) {
@@ -307,6 +311,10 @@ typedef struct __attribute__((packed, aligned(4))) {
   //XGMI Data tranfser size
   uint64_t XgmiReadDataSizeAcc[8];//in KByte
   uint64_t XgmiWriteDataSizeAcc[8];//in KByte
+
+  // VCN/JPEG ACTIVITY
+  uint32_t VcnBusy[4];
+  uint32_t JpegBusy[32];
 } MetricsTableA_t;
 
 #define SMU_VF_METRICS_TABLE_VERSION 0x3
