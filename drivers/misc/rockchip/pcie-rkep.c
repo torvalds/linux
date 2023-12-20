@@ -119,7 +119,7 @@ struct pcie_rkep {
 	struct dma_trx_obj *dma_obj;
 	struct pcie_ep_obj_info *obj_info;
 	struct page *user_pages; /* Allocated physical memory for user space */
-	struct mutex dev_lock_mutex;
+	struct mutex dev_lock_mutex; /* Sync resources in multi-process, such as vid and ELBI0 */
 	DECLARE_BITMAP(virtual_id_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
 	DECLARE_BITMAP(virtual_id_irq_bitmap, RKEP_EP_VIRTUAL_ID_MAX);
 	wait_queue_head_t wq_head;
@@ -220,10 +220,9 @@ static int rkep_ep_raise_elbi_irq(struct pcie_file *pcie_file, u32 interrupt_num
 	if (i >= gap_us)
 		dev_err(&pcie_rkep->pdev->dev, "elbi int is not clear, status=%x\n", val);
 
-	mutex_lock(&pcie_file->file_lock_mutex);
 	ret = pci_write_config_dword(pcie_rkep->pdev, PCIE_CFG_ELBI_APP_OFFSET + 4 * index,
 				      (1 << (off + 16)) | (1 << off));
-	mutex_unlock(&pcie_file->file_lock_mutex);
+
 	return ret;
 }
 
@@ -240,7 +239,9 @@ static int rkep_ep_raise_irq_user_obj(struct pcie_file *pcie_file, u32 index)
 
 	pcie_rkep->obj_info->irq_type_ep = OBJ_IRQ_USER;
 	pcie_rkep->obj_info->irq_user_data_ep = index;
+	mutex_lock(&pcie_rkep->dev_lock_mutex);
 	ret = rkep_ep_raise_elbi_irq(pcie_file, 0);
+	mutex_unlock(&pcie_rkep->dev_lock_mutex);
 
 	return ret;
 }
