@@ -198,8 +198,8 @@ void xe_gt_freq_init(struct xe_gt *gt)
 
 	gt->freq = kobject_create_and_add("freq0", gt->sysfs);
 	if (!gt->freq) {
-		drm_warn(&xe->drm, "failed to add freq0 directory to %s, err: %d\n",
-			 kobject_name(gt->sysfs), err);
+		drm_warn(&xe->drm, "failed to add freq0 directory to %s\n",
+			 kobject_name(gt->sysfs));
 		return;
 	}
 
