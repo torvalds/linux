@@ -1566,7 +1566,6 @@ put:
 
 /**
  * swsusp_close - close resume device.
- * @exclusive: Close the resume device which is exclusively opened.
  */
 
 void swsusp_close(void)
