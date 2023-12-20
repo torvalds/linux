@@ -319,7 +319,7 @@
 
 &gpio4 {
 	gpio-line-names = "", "", "", "",
-		"", "", "uart3_rs232#", "uart3_rs422#",
+		"dig1_ctl", "dig2_ctl", "uart3_rs232#", "uart3_rs422#",
 		"uart3_rs485#", "", "", "", "", "", "", "",
 		"", "", "", "", "", "", "", "",
 		"", "", "", "uart4_rs485#", "", "sim1det#", "sim2det#", "";
@@ -842,6 +842,8 @@
 
 	pinctrl_hog: hoggrp {
 		fsl,pins = <
+			MX8MM_IOMUXC_SAI1_RXD2_GPIO4_IO4	0x40000041 /* DIG1_CTL */
+			MX8MM_IOMUXC_SAI1_RXD3_GPIO4_IO5	0x40000041 /* DIG2_CTL */
 			MX8MM_IOMUXC_SPDIF_TX_GPIO5_IO3		0x40000041 /* DIG2_OUT */
 			MX8MM_IOMUXC_SPDIF_RX_GPIO5_IO4		0x40000041 /* DIG2_IN */
 			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6	0x40000041 /* DIG1_IN */
