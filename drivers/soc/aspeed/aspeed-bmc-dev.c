@@ -481,6 +481,10 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 	init_waitqueue_head(&bmc_device->rx_wait0);
 	init_waitqueue_head(&bmc_device->rx_wait1);
 
+	bmc_device->id = ida_simple_get(&bmc_device_ida, 0, 0, GFP_KERNEL);
+	if (bmc_device->id < 0)
+		goto out_region;
+
 	bmc_device->dev = dev;
 	bmc_device->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bmc_device->reg_base))
@@ -594,9 +598,6 @@ static int aspeed_bmc_device_probe(struct platform_device *pdev)
 		}
 	}
 #endif
-	bmc_device->id = ida_simple_get(&bmc_device_ida, 0, 0, GFP_KERNEL);
-	if (bmc_device->id < 0)
-		goto out_unmap;
 
 	bmc_device->miscdev.minor = MISC_DYNAMIC_MINOR;
 	bmc_device->miscdev.name = kasprintf(GFP_KERNEL, "bmc-device%d", bmc_device->id);
