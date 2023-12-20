@@ -2622,7 +2622,8 @@ static void intel_dp_compute_vsc_sdp(struct intel_dp *intel_dp,
 	if (crtc_state->has_psr)
 		return;
 
-	if (!intel_dp_needs_vsc_sdp(crtc_state, conn_state))
+	if (!intel_dp->colorimetry_support ||
+	    !intel_dp_needs_vsc_sdp(crtc_state, conn_state))
 		return;
 
 	crtc_state->infoframes.enable |= intel_hdmi_infoframe_enable(DP_SDP_VSC);
@@ -2639,7 +2640,7 @@ void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
 	vsc->sdp_type = DP_SDP_VSC;
 
 	if (crtc_state->has_psr2) {
-		if (intel_dp->psr.colorimetry_support &&
+		if (intel_dp->colorimetry_support &&
 		    intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
 			/* [PSR2, +Colorimetry] */
 			intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
@@ -2654,7 +2655,7 @@ void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
 			vsc->length = 0xe;
 		}
 	} else if (crtc_state->has_panel_replay) {
-		if (intel_dp->psr.colorimetry_support &&
+		if (intel_dp->colorimetry_support &&
 		    intel_dp_needs_vsc_sdp(crtc_state, conn_state)) {
 			/* [Panel Replay with colorimetry info] */
 			intel_dp_compute_vsc_colorimetry(crtc_state, conn_state,
@@ -6535,6 +6536,9 @@ intel_dp_init_connector(struct intel_digital_port *dig_port,
 			drm_dbg_kms(&dev_priv->drm,
 				    "HDCP init failed, skipping.\n");
 	}
+
+	intel_dp->colorimetry_support =
+		intel_dp_get_colorimetry_status(intel_dp);
 
 	intel_dp->frl.is_trained = false;
 	intel_dp->frl.trained_rate_gbps = 0;
