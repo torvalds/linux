@@ -1331,6 +1331,14 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	/* clear int first */
 	mpp_write(mpp, hw->int_clr_base, irq_status);
 
+	/*
+	 * prevent watch dog irq storm.
+	 * The encoder did not stop working when watchdog interrupt is triggered,
+	 * it still check timeout and trigger watch dog irq.
+	 */
+	if (irq_status & INT_STA_WDG_STA)
+		mpp_write(mpp, hw->int_mask_base, INT_STA_WDG_STA);
+
 	if (mpp->cur_task) {
 		mpp_task = mpp->cur_task;
 		task = to_rkvenc_task(mpp_task);
@@ -2526,7 +2534,7 @@ static int rkvenc_core_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, mpp->irq,
 					mpp_dev_irq,
 					mpp_dev_isr_sched,
-					IRQF_SHARED,
+					IRQF_ONESHOT,
 					dev_name(dev), mpp);
 	if (ret) {
 		dev_err(dev, "register interrupter runtime failed\n");
