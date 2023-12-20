@@ -495,7 +495,7 @@ static void aspeed_mctp_rx_trigger(struct mctp_channel *rx)
 			     rx->cmd.dma_handle);
 		if (priv->match_data->dma_need_64bits_width)
 			regmap_write(priv->map, ASPEED_MCTP_RX_BUF_HI_ADDR,
-				     rx->cmd.dma_handle >> 32);
+				     upper_32_bits(rx->cmd.dma_handle));
 	} else {
 		regmap_read(priv->map, ASPEED_MCTP_RX_BUF_ADDR, &reg);
 		if (!reg) {
@@ -601,7 +601,7 @@ static void aspeed_mctp_emit_tx_cmd(struct mctp_channel *tx,
 			tx_cmd_g7->tx_mid = TX_RESERVED_1;
 			tx_cmd_g7->tx_mid |= ((tx->data.dma_handle + offset) &
 					      GENMASK(31, 4));
-			tx_cmd_g7->tx_hi = (tx->data.dma_handle + offset) >> 32;
+			tx_cmd_g7->tx_hi = upper_32_bits((tx->data.dma_handle + offset));
 		} else {
 			tx_cmd->tx_lo = TX_PACKET_SIZE(packet_sz_dw);
 			tx_cmd->tx_hi = TX_RESERVED_1;
@@ -1019,8 +1019,7 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 		if (priv->match_data->dma_need_64bits_width) {
 			for (i = 0; i < priv->rx_packet_count; i++) {
 				rx_cmd_64->rx_hi =
-					(rx->data.dma_handle + data_size * i) >>
-					32;
+					upper_32_bits((rx->data.dma_handle + data_size * i));
 				rx_cmd_64->rx_lo =
 					(rx->data.dma_handle + data_size * i) &
 					GENMASK(31, 4);
@@ -1083,7 +1082,7 @@ static void aspeed_mctp_tx_chan_init(struct mctp_channel *tx)
 	regmap_write(priv->map, ASPEED_MCTP_TX_BUF_ADDR, tx->cmd.dma_handle);
 	if (priv->match_data->dma_need_64bits_width)
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_HI_ADDR,
-			     tx->cmd.dma_handle >> 32);
+			     upper_32_bits(tx->cmd.dma_handle));
 	if (priv->match_data->fifo_auto_surround) {
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_SIZE, TX_PACKET_COUNT);
 		regmap_write(priv->map, ASPEED_MCTP_TX_BUF_WR_PTR, 0);

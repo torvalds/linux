@@ -488,6 +488,11 @@
 	status = "okay";
 };
 
+&mctp0 {
+	status = "okay";
+	memory-region = <&mctp0_reserved>;
+};
+
 &spi1 {
 	status = "okay";
 	pinctrl-names = "default";
