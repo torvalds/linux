@@ -650,6 +650,10 @@
 	lanes-per-direction = <2>;
 };
 
+&chassis {
+	status = "okay";
+};
+
 &mdio0 {
 	status = "okay";
 	#address-cells = <1>;
