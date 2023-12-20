@@ -498,6 +498,21 @@ Description:	Show status of f2fs checkpoint in real time.
 		CP_RESIZEFS_FLAG		0x00004000
 		=============================== ==============================
 
+What:		/sys/fs/f2fs/<disk>/stat/issued_discard
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the number of issued discard.
+
+What:		/sys/fs/f2fs/<disk>/stat/queued_discard
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the number of queued discard.
+
+What:		/sys/fs/f2fs/<disk>/stat/undiscard_blks
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the total number of undiscard blocks.
+
 What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
 Date:		January 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
