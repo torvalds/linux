@@ -1043,9 +1043,12 @@ void ieee80211_debugfs_recreate_netdev(struct ieee80211_sub_if_data *sdata,
 {
 	ieee80211_debugfs_remove_netdev(sdata);
 	ieee80211_debugfs_add_netdev(sdata, mld_vif);
-	drv_vif_add_debugfs(sdata->local, sdata);
-	if (!mld_vif)
-		ieee80211_link_debugfs_drv_add(&sdata->deflink);
+
+	if (sdata->flags & IEEE80211_SDATA_IN_DRIVER) {
+		drv_vif_add_debugfs(sdata->local, sdata);
+		if (!mld_vif)
+			ieee80211_link_debugfs_drv_add(&sdata->deflink);
+	}
 }
 
 void ieee80211_link_debugfs_add(struct ieee80211_link_data *link)
