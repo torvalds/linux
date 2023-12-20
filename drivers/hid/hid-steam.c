@@ -101,6 +101,7 @@ static LIST_HEAD(steam_devices);
 #define STEAM_REG_GYRO_MODE		0x30
 #define STEAM_REG_LPAD_CLICK_PRESSURE	0x34
 #define STEAM_REG_RPAD_CLICK_PRESSURE	0x35
+#define STEAM_REG_WATCHDOG_ENABLE		0x47
 
 /* Raw event identifiers */
 #define STEAM_EV_INPUT_DATA		0x01
@@ -134,7 +135,6 @@ struct steam_device {
 	struct power_supply __rcu *battery;
 	u8 battery_charge;
 	u16 voltage;
-	struct delayed_work heartbeat;
 	struct work_struct rumble_work;
 	u16 rumble_left;
 	u16 rumble_right;
@@ -340,8 +340,6 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 		steam_send_report_byte(steam, STEAM_CMD_DEFAULT_MAPPINGS);
 		/* enable mouse */
 		steam_send_report_byte(steam, STEAM_CMD_DEFAULT_MOUSE);
-
-		cancel_delayed_work_sync(&steam->heartbeat);
 	} else {
 		/* disable esc, enter, cursor */
 		steam_send_report_byte(steam, STEAM_CMD_CLEAR_MAPPINGS);
@@ -352,13 +350,8 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 				STEAM_REG_RPAD_MODE, 0x07, /* disable mouse */
 				STEAM_REG_LPAD_CLICK_PRESSURE, 0xFFFF, /* disable clicky pad */
 				STEAM_REG_RPAD_CLICK_PRESSURE, 0xFFFF, /* disable clicky pad */
+				STEAM_REG_WATCHDOG_ENABLE, 0, /* disable watchdog that tests if Steam is active */
 				0);
-			/*
-			 * The Steam Deck has a watchdog that automatically enables
-			 * lizard mode if it doesn't see any traffic for too long
-			 */
-			if (!work_busy(&steam->heartbeat.work))
-				schedule_delayed_work(&steam->heartbeat, 5 * HZ);
 		} else {
 			steam_write_registers(steam,
 				STEAM_REG_LPAD_MODE, 0x07, /* disable mouse */
@@ -733,22 +726,6 @@ static bool steam_is_valve_interface(struct hid_device *hdev)
 	return !list_empty(&rep_enum->report_list);
 }
 
-static void steam_lizard_mode_heartbeat(struct work_struct *work)
-{
-	struct steam_device *steam = container_of(work, struct steam_device,
-							heartbeat.work);
-
-	mutex_lock(&steam->mutex);
-	if (!steam->client_opened && steam->client_hdev) {
-		steam_send_report_byte(steam, STEAM_CMD_CLEAR_MAPPINGS);
-		steam_write_registers(steam,
-			STEAM_REG_RPAD_MODE, 0x07, /* disable mouse */
-			0);
-		schedule_delayed_work(&steam->heartbeat, 5 * HZ);
-	}
-	mutex_unlock(&steam->mutex);
-}
-
 static int steam_client_ll_parse(struct hid_device *hdev)
 {
 	struct steam_device *steam = hdev->driver_data;
@@ -887,7 +864,6 @@ static int steam_probe(struct hid_device *hdev,
 	steam->quirks = id->driver_data;
 	INIT_WORK(&steam->work_connect, steam_work_connect_cb);
 	INIT_LIST_HEAD(&steam->list);
-	INIT_DEFERRABLE_WORK(&steam->heartbeat, steam_lizard_mode_heartbeat);
 	INIT_WORK(&steam->rumble_work, steam_haptic_rumble_cb);
 
 	steam->client_hdev = steam_create_client_hid(hdev);
@@ -944,7 +920,6 @@ hid_hw_start_fail:
 	hid_destroy_device(steam->client_hdev);
 client_hdev_fail:
 	cancel_work_sync(&steam->work_connect);
-	cancel_delayed_work_sync(&steam->heartbeat);
 	cancel_work_sync(&steam->rumble_work);
 steam_alloc_fail:
 	hid_err(hdev, "%s: failed with error %d\n",
@@ -965,7 +940,6 @@ static void steam_remove(struct hid_device *hdev)
 	mutex_lock(&steam->mutex);
 	steam->client_hdev = NULL;
 	steam->client_opened = false;
-	cancel_delayed_work_sync(&steam->heartbeat);
 	mutex_unlock(&steam->mutex);
 	cancel_work_sync(&steam->work_connect);
 	if (steam->quirks & STEAM_QUIRK_WIRELESS) {
