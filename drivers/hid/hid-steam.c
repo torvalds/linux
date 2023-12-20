@@ -340,9 +340,6 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 		steam_send_report_byte(steam, STEAM_CMD_DEFAULT_MAPPINGS);
 		/* enable mouse */
 		steam_send_report_byte(steam, STEAM_CMD_DEFAULT_MOUSE);
-		steam_write_registers(steam,
-			STEAM_REG_RPAD_MARGIN, 0x01, /* enable margin */
-			0);
 
 		cancel_delayed_work_sync(&steam->heartbeat);
 	} else {
@@ -351,7 +348,6 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 
 		if (steam->quirks & STEAM_QUIRK_DECK) {
 			steam_write_registers(steam,
-				STEAM_REG_RPAD_MARGIN, 0x00, /* disable margin */
 				STEAM_REG_LPAD_MODE, 0x07, /* disable mouse */
 				STEAM_REG_RPAD_MODE, 0x07, /* disable mouse */
 				STEAM_REG_LPAD_CLICK_PRESSURE, 0xFFFF, /* disable clicky pad */
@@ -365,7 +361,6 @@ static void steam_set_lizard_mode(struct steam_device *steam, bool enable)
 				schedule_delayed_work(&steam->heartbeat, 5 * HZ);
 		} else {
 			steam_write_registers(steam,
-				STEAM_REG_RPAD_MARGIN, 0x00, /* disable margin */
 				STEAM_REG_LPAD_MODE, 0x07, /* disable mouse */
 				STEAM_REG_RPAD_MODE, 0x07, /* disable mouse */
 				0);
