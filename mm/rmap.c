@@ -1270,7 +1270,7 @@ static void __page_check_anon_rmap(struct folio *folio, struct page *page,
 	 * The page's anon-rmap details (mapping and index) are guaranteed to
 	 * be set up correctly at this point.
 	 *
-	 * We have exclusion against page_add_anon_rmap because the caller
+	 * We have exclusion against folio_add_anon_rmap_*() because the caller
 	 * always holds the page locked.
 	 *
 	 * We have exclusion against folio_add_new_anon_rmap because those pages
@@ -1281,29 +1281,6 @@ static void __page_check_anon_rmap(struct folio *folio, struct page *page,
 			folio);
 	VM_BUG_ON_PAGE(page_to_pgoff(page) != linear_page_index(vma, address),
 		       page);
-}
-
-/**
- * page_add_anon_rmap - add pte mapping to an anonymous page
- * @page:	the page to add the mapping to
- * @vma:	the vm area in which the mapping is added
- * @address:	the user virtual address mapped
- * @flags:	the rmap flags
- *
- * The caller needs to hold the pte lock, and the page must be locked in
- * the anon_vma case: to serialize mapping,index checking after setting,
- * and to ensure that PageAnon is not being upgraded racily to PageKsm
- * (but PageKsm is never downgraded to PageAnon).
- */
-void page_add_anon_rmap(struct page *page, struct vm_area_struct *vma,
-		unsigned long address, rmap_t flags)
-{
-	struct folio *folio = page_folio(page);
-
-	if (likely(!(flags & RMAP_COMPOUND)))
-		folio_add_anon_rmap_pte(folio, page, vma, address, flags);
-	else
-		folio_add_anon_rmap_pmd(folio, page, vma, address, flags);
 }
 
 static __always_inline void __folio_add_anon_rmap(struct folio *folio,
@@ -1419,7 +1396,7 @@ void folio_add_anon_rmap_pmd(struct folio *folio, struct page *page,
  * @vma:	the vm area in which the mapping is added
  * @address:	the user virtual address mapped
  *
- * Like page_add_anon_rmap() but must only be called on *new* folios.
+ * Like folio_add_anon_rmap_*() but must only be called on *new* folios.
  * This means the inc-and-test can be bypassed.
  * The folio does not have to be locked.
  *
@@ -1479,7 +1456,7 @@ static __always_inline void __folio_add_file_rmap(struct folio *folio,
 	if (nr)
 		__lruvec_stat_mod_folio(folio, NR_FILE_MAPPED, nr);
 
-	/* See comments in page_add_anon_rmap() */
+	/* See comments in folio_add_anon_rmap_*() */
 	if (!folio_test_large(folio))
 		mlock_vma_folio(folio, vma);
 }
@@ -1593,7 +1570,7 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma,
 
 	/*
 	 * It would be tidy to reset folio_test_anon mapping when fully
-	 * unmapped, but that might overwrite a racing page_add_anon_rmap
+	 * unmapped, but that might overwrite a racing folio_add_anon_rmap_*()
 	 * which increments mapcount after us but sets mapping before us:
 	 * so leave the reset to free_pages_prepare, and remember that
 	 * it's only reliable while mapped.
