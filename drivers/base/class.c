@@ -213,6 +213,7 @@ int class_register(const struct class *cls)
 	return 0;
 
 err_out:
+	lockdep_unregister_key(key);
 	kfree(cp);
 	return error;
 }
