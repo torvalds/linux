@@ -8,6 +8,15 @@ config INTERCONNECT_QCOM
 config INTERCONNECT_QCOM_BCM_VOTER
 	tristate
 
+config INTERCONNECT_QCOM_MSM8909
+	tristate "Qualcomm MSM8909 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_SMD_RPM
+	select INTERCONNECT_QCOM_SMD_RPM
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on msm8909-based
+	  platforms.
+
 config INTERCONNECT_QCOM_MSM8916
 	tristate "Qualcomm MSM8916 interconnect driver"
 	depends on INTERCONNECT_QCOM
