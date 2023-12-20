@@ -3214,10 +3214,9 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 	mempool_exit(&c->btree_trans_pool);
 }
 
-int bch2_fs_btree_iter_init(struct bch_fs *c)
+void bch2_fs_btree_iter_init_early(struct bch_fs *c)
 {
 	struct btree_transaction_stats *s;
-	int ret;
 
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
@@ -3228,6 +3227,11 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 
 	INIT_LIST_HEAD(&c->btree_trans_list);
 	seqmutex_init(&c->btree_trans_lock);
+}
+
+int bch2_fs_btree_iter_init(struct bch_fs *c)
+{
+	int ret;
 
 	c->btree_trans_bufs = alloc_percpu(struct btree_trans_buf);
 	if (!c->btree_trans_bufs)
