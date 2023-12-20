@@ -437,16 +437,6 @@ static const char *subprog_name(const struct bpf_verifier_env *env, int subprog)
 	return btf_type_name(env->prog->aux->btf, info->type_id);
 }
 
-static struct bpf_func_info_aux *subprog_aux(const struct bpf_verifier_env *env, int subprog)
-{
-	return &env->prog->aux->func_info_aux[subprog];
-}
-
-static struct bpf_subprog_info *subprog_info(struct bpf_verifier_env *env, int subprog)
-{
-	return &env->subprog_info[subprog];
-}
-
 static void mark_subprog_exc_cb(struct bpf_verifier_env *env, int subprog)
 {
 	struct bpf_subprog_info *info = subprog_info(env, subprog);
@@ -5137,8 +5127,8 @@ static int __check_ptr_off_reg(struct bpf_verifier_env *env,
 	return 0;
 }
 
-int check_ptr_off_reg(struct bpf_verifier_env *env,
-		      const struct bpf_reg_state *reg, int regno)
+static int check_ptr_off_reg(struct bpf_verifier_env *env,
+		             const struct bpf_reg_state *reg, int regno)
 {
 	return __check_ptr_off_reg(env, reg, regno, false);
 }
@@ -7310,8 +7300,8 @@ static int check_mem_size_reg(struct bpf_verifier_env *env,
 	return err;
 }
 
-int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
-		   u32 regno, u32 mem_size)
+static int check_mem_reg(struct bpf_verifier_env *env, struct bpf_reg_state *reg,
+			 u32 regno, u32 mem_size)
 {
 	bool may_be_null = type_may_be_null(reg->type);
 	struct bpf_reg_state saved_reg;
@@ -8296,9 +8286,9 @@ reg_find_field_offset(const struct bpf_reg_state *reg, s32 off, u32 fields)
 	return field;
 }
 
-int check_func_arg_reg_off(struct bpf_verifier_env *env,
-			   const struct bpf_reg_state *reg, int regno,
-			   enum bpf_arg_type arg_type)
+static int check_func_arg_reg_off(struct bpf_verifier_env *env,
+				  const struct bpf_reg_state *reg, int regno,
+				  enum bpf_arg_type arg_type)
 {
 	u32 type = reg->type;
 
@@ -9256,6 +9246,102 @@ static int setup_func_entry(struct bpf_verifier_env *env, int subprog, int calls
 err_out:
 	free_func_state(callee);
 	state->frame[state->curframe + 1] = NULL;
+	return err;
+}
+
+static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
+				    const struct btf *btf,
+				    struct bpf_reg_state *regs)
+{
+	struct bpf_subprog_info *sub = subprog_info(env, subprog);
+	struct bpf_verifier_log *log = &env->log;
+	u32 i;
+	int ret;
+
+	ret = btf_prepare_func_args(env, subprog);
+	if (ret)
+		return ret;
+
+	/* check that BTF function arguments match actual types that the
+	 * verifier sees.
+	 */
+	for (i = 0; i < sub->arg_cnt; i++) {
+		u32 regno = i + 1;
+		struct bpf_reg_state *reg = &regs[regno];
+		struct bpf_subprog_arg_info *arg = &sub->args[i];
+
+		if (arg->arg_type == ARG_ANYTHING) {
+			if (reg->type != SCALAR_VALUE) {
+				bpf_log(log, "R%d is not a scalar\n", regno);
+				return -EINVAL;
+			}
+		} else if (arg->arg_type == ARG_PTR_TO_CTX) {
+			ret = check_func_arg_reg_off(env, reg, regno, ARG_DONTCARE);
+			if (ret < 0)
+				return ret;
+			/* If function expects ctx type in BTF check that caller
+			 * is passing PTR_TO_CTX.
+			 */
+			if (reg->type != PTR_TO_CTX) {
+				bpf_log(log, "arg#%d expects pointer to ctx\n", i);
+				return -EINVAL;
+			}
+		} else if (base_type(arg->arg_type) == ARG_PTR_TO_MEM) {
+			ret = check_func_arg_reg_off(env, reg, regno, ARG_DONTCARE);
+			if (ret < 0)
+				return ret;
+			if (check_mem_reg(env, reg, regno, arg->mem_size))
+				return -EINVAL;
+			if (!(arg->arg_type & PTR_MAYBE_NULL) && (reg->type & PTR_MAYBE_NULL)) {
+				bpf_log(log, "arg#%d is expected to be non-NULL\n", i);
+				return -EINVAL;
+			}
+		} else if (arg->arg_type == (ARG_PTR_TO_DYNPTR | MEM_RDONLY)) {
+			ret = process_dynptr_func(env, regno, -1, arg->arg_type, 0);
+			if (ret)
+				return ret;
+		} else {
+			bpf_log(log, "verifier bug: unrecognized arg#%d type %d\n",
+				i, arg->arg_type);
+			return -EFAULT;
+		}
+	}
+
+	return 0;
+}
+
+/* Compare BTF of a function call with given bpf_reg_state.
+ * Returns:
+ * EFAULT - there is a verifier bug. Abort verification.
+ * EINVAL - there is a type mismatch or BTF is not available.
+ * 0 - BTF matches with what bpf_reg_state expects.
+ * Only PTR_TO_CTX and SCALAR_VALUE states are recognized.
+ */
+static int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
+				  struct bpf_reg_state *regs)
+{
+	struct bpf_prog *prog = env->prog;
+	struct btf *btf = prog->aux->btf;
+	u32 btf_id;
+	int err;
+
+	if (!prog->aux->func_info)
+		return -EINVAL;
+
+	btf_id = prog->aux->func_info[subprog].type_id;
+	if (!btf_id)
+		return -EFAULT;
+
+	if (prog->aux->func_info_aux[subprog].unreliable)
+		return -EINVAL;
+
+	err = btf_check_func_arg_match(env, subprog, btf, regs);
+	/* Compiler optimizations can remove arguments from static functions
+	 * or mismatched type can be passed into a global function.
+	 * In such cases mark the function as unreliable from BTF point of view.
+	 */
+	if (err)
+		prog->aux->func_info_aux[subprog].unreliable = true;
 	return err;
 }
 
@@ -19909,6 +19995,7 @@ static void free_states(struct bpf_verifier_env *env)
 static int do_check_common(struct bpf_verifier_env *env, int subprog)
 {
 	bool pop_log = !(env->log.level & BPF_LOG_LEVEL2);
+	struct bpf_subprog_info *sub = subprog_info(env, subprog);
 	struct bpf_verifier_state *state;
 	struct bpf_reg_state *regs;
 	int ret, i;
@@ -19935,54 +20022,71 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 	state->first_insn_idx = env->subprog_info[subprog].start;
 	state->last_insn_idx = -1;
 
+
 	regs = state->frame[state->curframe]->regs;
 	if (subprog || env->prog->type == BPF_PROG_TYPE_EXT) {
-		u32 nargs;
+		const char *sub_name = subprog_name(env, subprog);
+		struct bpf_subprog_arg_info *arg;
+		struct bpf_reg_state *reg;
 
-		ret = btf_prepare_func_args(env, subprog, regs, &nargs);
+		verbose(env, "Validating %s() func#%d...\n", sub_name, subprog);
+		ret = btf_prepare_func_args(env, subprog);
 		if (ret)
 			goto out;
+
 		if (subprog_is_exc_cb(env, subprog)) {
 			state->frame[0]->in_exception_callback_fn = true;
 			/* We have already ensured that the callback returns an integer, just
 			 * like all global subprogs. We need to determine it only has a single
 			 * scalar argument.
 			 */
-			if (nargs != 1 || regs[BPF_REG_1].type != SCALAR_VALUE) {
+			if (sub->arg_cnt != 1 || sub->args[0].arg_type != ARG_ANYTHING) {
 				verbose(env, "exception cb only supports single integer argument\n");
 				ret = -EINVAL;
 				goto out;
 			}
 		}
-		for (i = BPF_REG_1; i <= BPF_REG_5; i++) {
-			if (regs[i].type == PTR_TO_CTX)
-				mark_reg_known_zero(env, regs, i);
-			else if (regs[i].type == SCALAR_VALUE)
-				mark_reg_unknown(env, regs, i);
-			else if (base_type(regs[i].type) == PTR_TO_MEM) {
-				const u32 mem_size = regs[i].mem_size;
+		for (i = BPF_REG_1; i <= sub->arg_cnt; i++) {
+			arg = &sub->args[i - BPF_REG_1];
+			reg = &regs[i];
 
+			if (arg->arg_type == ARG_PTR_TO_CTX) {
+				reg->type = PTR_TO_CTX;
 				mark_reg_known_zero(env, regs, i);
-				regs[i].mem_size = mem_size;
-				regs[i].id = ++env->id_gen;
+			} else if (arg->arg_type == ARG_ANYTHING) {
+				reg->type = SCALAR_VALUE;
+				mark_reg_unknown(env, regs, i);
+			} else if (arg->arg_type == (ARG_PTR_TO_DYNPTR | MEM_RDONLY)) {
+				/* assume unspecial LOCAL dynptr type */
+				__mark_dynptr_reg(reg, BPF_DYNPTR_TYPE_LOCAL, true, ++env->id_gen);
+			} else if (base_type(arg->arg_type) == ARG_PTR_TO_MEM) {
+				reg->type = PTR_TO_MEM;
+				if (arg->arg_type & PTR_MAYBE_NULL)
+					reg->type |= PTR_MAYBE_NULL;
+				mark_reg_known_zero(env, regs, i);
+				reg->mem_size = arg->mem_size;
+				reg->id = ++env->id_gen;
+			} else {
+				WARN_ONCE(1, "BUG: unhandled arg#%d type %d\n",
+					  i - BPF_REG_1, arg->arg_type);
+				ret = -EFAULT;
+				goto out;
 			}
 		}
 	} else {
+		/* if main BPF program has associated BTF info, validate that
+		 * it's matching expected signature, and otherwise mark BTF
+		 * info for main program as unreliable
+		 */
+		if (env->prog->aux->func_info_aux) {
+			ret = btf_prepare_func_args(env, 0);
+			if (ret || sub->arg_cnt != 1 || sub->args[0].arg_type != ARG_PTR_TO_CTX)
+				env->prog->aux->func_info_aux[0].unreliable = true;
+		}
+
 		/* 1st arg to a function */
 		regs[BPF_REG_1].type = PTR_TO_CTX;
 		mark_reg_known_zero(env, regs, BPF_REG_1);
-		ret = btf_check_subprog_arg_match(env, subprog, regs);
-		if (ret == -EFAULT)
-			/* unlikely verifier bug. abort.
-			 * ret == 0 and ret < 0 are sadly acceptable for
-			 * main() function due to backward compatibility.
-			 * Like socket filter program may be written as:
-			 * int bpf_prog(struct pt_regs *ctx)
-			 * and never dereference that ctx in the program.
-			 * 'struct pt_regs' is a type mismatch for socket
-			 * filter that should be using 'struct __sk_buff'.
-			 */
-			goto out;
 	}
 
 	ret = do_check(env);
