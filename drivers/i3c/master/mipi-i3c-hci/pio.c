@@ -15,6 +15,9 @@
 #include "cmd.h"
 #include "ibi.h"
 
+#define ASPEED_I3C_INTR_RENEW		0xF4
+#define ast_inhouse_read(r)		readl(hci->EXTCAPS_regs + (r))
+#define ast_inhouse_write(r, v)		writel(v, hci->EXTCAPS_regs + (r))
 
 /*
  * PIO Access Area
@@ -1106,6 +1109,10 @@ static bool hci_pio_irq_handler(struct i3c_hci *hci, unsigned int unused)
 	pio_reg_write(INTR_SIGNAL_ENABLE, pio->enabled_irqs);
 	DBG("(out) status: %#x/%#x",
 	    pio_reg_read(INTR_STATUS), pio_reg_read(INTR_SIGNAL_ENABLE));
+#ifdef CONFIG_ARCH_ASPEED
+	/* FIXME: W1 to trigger the INTC to check for interrupts again.*/
+	ast_inhouse_write(ASPEED_I3C_INTR_RENEW, 1);
+#endif
 	spin_unlock(&pio->lock);
 	return true;
 }

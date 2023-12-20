@@ -1075,9 +1075,6 @@ static irqreturn_t i3c_aspeed_irq_handler(int irqn, void *dev_id)
 	else
 		result = IRQ_HANDLED;
 
-	/* W1 to trigger the INTC to check for interrupts again.*/
-	ast_inhouse_write(ASPEED_I3C_INTR_RENEW, 1);
-
 	return result;
 }
 
