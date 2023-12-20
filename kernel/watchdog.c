@@ -151,6 +151,7 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 	 */
 	if (is_hardlockup(cpu)) {
 		unsigned int this_cpu = smp_processor_id();
+		unsigned long flags;
 
 		/* Only print hardlockups once. */
 		if (per_cpu(watchdog_hardlockup_warned, cpu))
@@ -165,7 +166,17 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 				return;
 		}
 
+		/*
+		 * NOTE: we call printk_cpu_sync_get_irqsave() after printing
+		 * the lockup message. While it would be nice to serialize
+		 * that printout, we really want to make sure that if some
+		 * other CPU somehow locked up while holding the lock associated
+		 * with printk_cpu_sync_get_irqsave() that we can still at least
+		 * get the message about the lockup out.
+		 */
 		pr_emerg("Watchdog detected hard LOCKUP on cpu %d\n", cpu);
+		printk_cpu_sync_get_irqsave(flags);
+
 		print_modules();
 		print_irqtrace_events(current);
 		if (cpu == this_cpu) {
@@ -173,7 +184,9 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 				show_regs(regs);
 			else
 				dump_stack();
+			printk_cpu_sync_put_irqrestore(flags);
 		} else {
+			printk_cpu_sync_put_irqrestore(flags);
 			trigger_single_cpu_backtrace(cpu);
 		}
 
