@@ -442,7 +442,6 @@ struct alvium_dev {
 	s32 inc_sharp;
 
 	struct alvium_mode mode;
-	struct v4l2_fract frame_interval;
 
 	u8 h_sup_csi_lanes;
 	u64 link_freq;
