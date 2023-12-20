@@ -1065,16 +1065,6 @@ static int gfs2_drop_inode(struct inode *inode)
 	return generic_drop_inode(inode);
 }
 
-static int is_ancestor(const struct dentry *d1, const struct dentry *d2)
-{
-	do {
-		if (d1 == d2)
-			return 1;
-		d1 = d1->d_parent;
-	} while (!IS_ROOT(d1));
-	return 0;
-}
-
 /**
  * gfs2_show_options - Show mount options for /proc/mounts
  * @s: seq_file structure
@@ -1096,7 +1086,7 @@ static int gfs2_show_options(struct seq_file *s, struct dentry *root)
 	statfs_slow = sdp->sd_tune.gt_statfs_slow;
 	spin_unlock(&sdp->sd_tune.gt_spin);
 
-	if (is_ancestor(root, sdp->sd_master_dir))
+	if (is_subdir(root, sdp->sd_master_dir))
 		seq_puts(s, ",meta");
 	if (args->ar_lockproto[0])
 		seq_show_option(s, "lockproto", args->ar_lockproto);
