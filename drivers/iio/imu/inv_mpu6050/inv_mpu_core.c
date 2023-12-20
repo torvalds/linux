@@ -567,15 +567,12 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 static int inv_mpu6050_sensor_set(struct inv_mpu6050_state  *st, int reg,
 				int axis, int val)
 {
-	int ind, result;
+	int ind;
 	__be16 d = cpu_to_be16(val);
 
 	ind = (axis - IIO_MOD_X) * 2;
-	result = regmap_bulk_write(st->map, reg + ind, &d, sizeof(d));
-	if (result)
-		return -EINVAL;
 
-	return 0;
+	return regmap_bulk_write(st->map, reg + ind, &d, sizeof(d));
 }
 
 static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
@@ -587,7 +584,7 @@ static int inv_mpu6050_sensor_show(struct inv_mpu6050_state  *st, int reg,
 	ind = (axis - IIO_MOD_X) * 2;
 	result = regmap_bulk_read(st->map, reg + ind, &d, sizeof(d));
 	if (result)
-		return -EINVAL;
+		return result;
 	*val = (short)be16_to_cpup(&d);
 
 	return IIO_VAL_INT;

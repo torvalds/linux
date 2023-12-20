@@ -25,6 +25,10 @@ properties:
 
   spi-cpol: true
 
+  spi-cs-inactive-delay-ns:
+    minimum: 16000
+    default: 16000
+
   interrupts:
     maxItems: 1
 

@@ -3059,6 +3059,13 @@ S:	Supported
 W:	http://www.akm.com/
 F:	drivers/iio/magnetometer/ak8974.c
 
+AOSONG AGS02MA TVOC SENSOR DRIVER
+M:	Anshul Dalal <anshulusr@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/chemical/aosong,ags02ma.yaml
+F:	drivers/iio/chemical/ags02ma.c
+
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
 L:	linux-hwmon@vger.kernel.org
@@ -3634,6 +3641,13 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/accel/bosch,bma400.yaml
 F:	drivers/iio/accel/bma400*
+
+BOSCH SENSORTEC BMI323 IMU IIO DRIVER
+M:	Jagath Jog J <jagathjog1996@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/imu/bosch,bmi323.yaml
+F:	drivers/iio/imu/bmi323/
 
 BPF JIT for ARM
 M:	Russell King <linux@armlinux.org.uk>
@@ -9647,6 +9661,13 @@ F:	lib/test_hmm*
 F:	mm/hmm*
 F:	tools/testing/selftests/mm/*hmm*
 
+HONEYWELL HSC030PA PRESSURE SENSOR SERIES IIO DRIVER
+M:	Petre Rodan <petre.rodan@subdimension.ro>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/pressure/honeywell,hsc030pa.yaml
+F:	drivers/iio/pressure/hsc030pa*
+
 HONEYWELL MPRLS0025PA PRESSURE SENSOR SERIES IIO DRIVER
 M:	Andreas Klinger <ak@it-klinger.de>
 L:	linux-iio@vger.kernel.org
@@ -10278,8 +10299,8 @@ IIO LIGHT SENSOR GAIN-TIME-SCALE HELPERS
 M:	Matti Vaittinen <mazziesaccount@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-F:	drivers/iio/light/gain-time-scale-helper.c
-F:	drivers/iio/light/gain-time-scale-helper.h
+F:	drivers/iio/industrialio-gts-helper.c
+F:	include/linux/iio/iio-gts-helper.h
 
 IIO MULTIPLEXER
 M:	Peter Rosin <peda@axentia.se>
@@ -12596,6 +12617,13 @@ S:	Maintained
 W:	http://linux-test-project.github.io/
 T:	git https://github.com/linux-test-project/ltp.git
 
+LTR390 AMBIENT/UV LIGHT SENSOR DRIVER
+M:	Anshul Dalal <anshulusr@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/light/liteon,ltr390.yaml
+F:	drivers/iio/light/ltr390.c
+
 LYNX 28G SERDES PHY DRIVER
 M:	Ioana Ciornei <ioana.ciornei@nxp.com>
 L:	netdev@vger.kernel.org
@@ -13662,6 +13690,13 @@ S:	Supported
 W:	http://www.melexis.com
 F:	drivers/iio/temperature/mlx90632.c
 
+MELEXIS MLX90635 DRIVER
+M:	Crt Mori <cmo@melexis.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+W:	http://www.melexis.com
+F:	drivers/iio/temperature/mlx90635.c
+
 MELFAS MIP4 TOUCHSCREEN DRIVER
 M:	Sangwon Jee <jeesw@melfas.com>
 S:	Supported
@@ -14132,11 +14167,12 @@ F:	Documentation/devicetree/bindings/regulator/mcp16502-regulator.txt
 F:	drivers/regulator/mcp16502.c
 
 MICROCHIP MCP3564 ADC DRIVER
-M:      Marius Cristea <marius.cristea@microchip.com>
-L:      linux-iio@vger.kernel.org
-S:      Supported
-F:      Documentation/devicetree/bindings/iio/adc/microchip,mcp3564.yaml
-F:      drivers/iio/adc/mcp3564.c
+M:	Marius Cristea <marius.cristea@microchip.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	Documentation/ABI/testing/sysfs-bus-iio-adc-mcp3564
+F:	Documentation/devicetree/bindings/iio/adc/microchip,mcp3564.yaml
+F:	drivers/iio/adc/mcp3564.c
 
 MICROCHIP MCP3911 ADC DRIVER
 M:	Marcus Folkesson <marcus.folkesson@gmail.com>
@@ -23112,6 +23148,12 @@ M:	Stephen Chandler Paul <thatslyude@gmail.com>
 S:	Maintained
 F:	drivers/input/serio/userio.c
 F:	include/uapi/linux/userio.h
+
+VISHAY VEML6075 UVA AND UVB LIGHT SENSOR DRIVER
+M:	Javier Carrasco <javier.carrasco.cruz@gmail.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/light/vishay,veml6075.yaml
+F:	drivers/iio/light/veml6075.c
 
 VISL VIRTUAL STATELESS DECODER DRIVER
 M:	Daniel Almeida <daniel.almeida@collabora.com>

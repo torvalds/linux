@@ -117,6 +117,8 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_LIGHT_GREEN] = "green",
 	[IIO_MOD_LIGHT_BLUE] = "blue",
 	[IIO_MOD_LIGHT_UV] = "uv",
+	[IIO_MOD_LIGHT_UVA] = "uva",
+	[IIO_MOD_LIGHT_UVB] = "uvb",
 	[IIO_MOD_LIGHT_DUV] = "duv",
 	[IIO_MOD_QUATERNION] = "quaternion",
 	[IIO_MOD_TEMP_AMBIENT] = "ambient",
@@ -182,6 +184,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_THERMOCOUPLE_TYPE] = "thermocouple_type",
 	[IIO_CHAN_INFO_CALIBAMBIENT] = "calibambient",
 	[IIO_CHAN_INFO_ZEROPOINT] = "zeropoint",
+	[IIO_CHAN_INFO_TROUGH] = "trough_raw",
 };
 /**
  * iio_device_id() - query the unique ID for the device
@@ -1896,6 +1899,66 @@ static int iio_check_extended_name(const struct iio_dev *indio_dev)
 
 static const struct iio_buffer_setup_ops noop_ring_setup_ops;
 
+static void iio_sanity_check_avail_scan_masks(struct iio_dev *indio_dev)
+{
+	unsigned int num_masks, masklength, longs_per_mask;
+	const unsigned long *av_masks;
+	int i;
+
+	av_masks = indio_dev->available_scan_masks;
+	masklength = indio_dev->masklength;
+	longs_per_mask = BITS_TO_LONGS(masklength);
+
+	/*
+	 * The code determining how many available_scan_masks is in the array
+	 * will be assuming the end of masks when first long with all bits
+	 * zeroed is encountered. This is incorrect for masks where mask
+	 * consists of more than one long, and where some of the available masks
+	 * has long worth of bits zeroed (but has subsequent bit(s) set). This
+	 * is a safety measure against bug where array of masks is terminated by
+	 * a single zero while mask width is greater than width of a long.
+	 */
+	if (longs_per_mask > 1)
+		dev_warn(indio_dev->dev.parent,
+			 "multi long available scan masks not fully supported\n");
+
+	if (bitmap_empty(av_masks, masklength))
+		dev_warn(indio_dev->dev.parent, "empty scan mask\n");
+
+	for (num_masks = 0; *av_masks; num_masks++)
+		av_masks += longs_per_mask;
+
+	if (num_masks < 2)
+		return;
+
+	av_masks = indio_dev->available_scan_masks;
+
+	/*
+	 * Go through all the masks from first to one before the last, and see
+	 * that no mask found later from the available_scan_masks array is a
+	 * subset of mask found earlier. If this happens, then the mask found
+	 * later will never get used because scanning the array is stopped when
+	 * the first suitable mask is found. Drivers should order the array of
+	 * available masks in the order of preference (presumably the least
+	 * costy to access masks first).
+	 */
+	for (i = 0; i < num_masks - 1; i++) {
+		const unsigned long *mask1;
+		int j;
+
+		mask1 = av_masks + i * longs_per_mask;
+		for (j = i + 1; j < num_masks; j++) {
+			const unsigned long *mask2;
+
+			mask2 = av_masks + j * longs_per_mask;
+			if (bitmap_subset(mask2, mask1, masklength))
+				dev_warn(indio_dev->dev.parent,
+					 "available_scan_mask %d subset of %d. Never used\n",
+					 j, i);
+		}
+	}
+}
+
 int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
@@ -1933,6 +1996,9 @@ int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod)
 			"Failed to create buffer sysfs interfaces\n");
 		goto error_unreg_debugfs;
 	}
+
+	if (indio_dev->available_scan_masks)
+		iio_sanity_check_avail_scan_masks(indio_dev);
 
 	ret = iio_device_register_sysfs(indio_dev);
 	if (ret) {

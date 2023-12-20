@@ -14,8 +14,7 @@
 static int bmp280_regmap_spi_write(void *context, const void *data,
                                    size_t count)
 {
-	struct device *dev = context;
-	struct spi_device *spi = to_spi_device(dev);
+	struct spi_device *spi = to_spi_device(context);
 	u8 buf[2];
 
 	memcpy(buf, data, 2);
@@ -31,8 +30,7 @@ static int bmp280_regmap_spi_write(void *context, const void *data,
 static int bmp280_regmap_spi_read(void *context, const void *reg,
                                   size_t reg_size, void *val, size_t val_size)
 {
-	struct device *dev = context;
-	struct spi_device *spi = to_spi_device(dev);
+	struct spi_device *spi = to_spi_device(context);
 
 	return spi_write_then_read(spi, reg, reg_size, val, val_size);
 }
@@ -58,9 +56,7 @@ static int bmp280_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	chip_info = device_get_match_data(&spi->dev);
-	if (!chip_info)
-		chip_info = (const struct bmp280_chip_info *) id->driver_data;
+	chip_info = spi_get_device_match_data(spi);
 
 	regmap = devm_regmap_init(&spi->dev,
 				  &bmp280_regmap_bus,

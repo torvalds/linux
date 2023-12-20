@@ -473,7 +473,7 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	const char **values;
 	int nval, ret;
 
-	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
+	nval = fwnode_property_string_array_count(fwnode, propname);
 	if (nval < 0)
 		return nval;
 
@@ -497,6 +497,41 @@ out_free:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
+
+/**
+ * fwnode_property_match_property_string - find a property string value in an array and return index
+ * @fwnode: Firmware node to get the property of
+ * @propname: Name of the property holding the string value
+ * @array: String array to search in
+ * @n: Size of the @array
+ *
+ * Find a property string value in a given @array and if it is found return
+ * the index back.
+ *
+ * Return: index, starting from %0, if the string value was found in the @array (success),
+ *	   %-ENOENT when the string value was not found in the @array,
+ *	   %-EINVAL if given arguments are not valid,
+ *	   %-ENODATA if the property does not have a value,
+ *	   %-EPROTO or %-EILSEQ if the property is not a string,
+ *	   %-ENXIO if no suitable firmware interface is present.
+ */
+int fwnode_property_match_property_string(const struct fwnode_handle *fwnode,
+	const char *propname, const char * const *array, size_t n)
+{
+	const char *string;
+	int ret;
+
+	ret = fwnode_property_read_string(fwnode, propname, &string);
+	if (ret)
+		return ret;
+
+	ret = match_string(array, n, string);
+	if (ret < 0)
+		ret = -ENOENT;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(fwnode_property_match_property_string);
 
 /**
  * fwnode_property_get_reference_args() - Find a reference with arguments
