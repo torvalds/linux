@@ -632,7 +632,7 @@ static inline u16 bnxt_qplib_calc_ilsize(struct bnxt_qplib_swqe *wqe, u16 max)
 }
 
 /* MSN table update inlin */
-static inline uint64_t bnxt_re_update_msn_tbl(u32 st_idx, u32 npsn, u32 start_psn)
+static inline __le64 bnxt_re_update_msn_tbl(u32 st_idx, u32 npsn, u32 start_psn)
 {
 	return cpu_to_le64((((u64)(st_idx) << SQ_MSN_SEARCH_START_IDX_SFT) &
 		SQ_MSN_SEARCH_START_IDX_MASK) |
