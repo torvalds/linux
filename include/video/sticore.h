@@ -3,7 +3,6 @@
 #define STICORE_H
 
 struct device;
-struct fb_info;
 
 /* generic STI structures & functions */
 
@@ -367,9 +366,6 @@ struct sti_struct {
 
 	/* PCI data structures (pg. 17ff from sti.pdf) */
 	u8 rm_entry[16]; /* pci region mapper array == pci config space offset */
-
-	/* pointer to the fb_info where this STI device is used */
-	struct fb_info *info;
 
 	/* pointer to the parent device */
 	struct device *dev;

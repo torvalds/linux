@@ -1389,7 +1389,6 @@ static int __init stifb_init_fb(struct sti_struct *sti, int bpp_pref)
 	}
 
 	/* save for primary gfx device detection & unregister_framebuffer() */
-	sti->info = info;
 	if (register_framebuffer(fb->info) < 0)
 		goto out_err4;
 
@@ -1417,7 +1416,6 @@ out_err1:
 	iounmap(info->screen_base);
 out_err0:
 	framebuffer_release(info);
-	sti->info = NULL;
 	return -ENXIO;
 }
 
@@ -1496,7 +1494,6 @@ stifb_cleanup(void)
 		        framebuffer_release(info);
 			dev_set_drvdata(sti->dev, NULL);
 		}
-		sti->info = NULL;
 	}
 }
 
