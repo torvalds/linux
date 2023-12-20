@@ -93,6 +93,13 @@ struct power_allocator_params {
 	struct power_actor *power;
 };
 
+static bool power_actor_is_valid(struct power_allocator_params *params,
+				 struct thermal_instance *instance)
+{
+	return (instance->trip == params->trip_max &&
+		 cdev_is_power_actor(instance->cdev));
+}
+
 /**
  * estimate_sustainable_power() - Estimate the sustainable power of a thermal zone
  * @tz: thermal zone we are operating in
@@ -113,14 +120,10 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
 	u32 min_power;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (!power_actor_is_valid(params, instance))
+			continue;
+
 		cdev = instance->cdev;
-
-		if (instance->trip != params->trip_max)
-			continue;
-
-		if (!cdev_is_power_actor(cdev))
-			continue;
-
 		if (cdev->ops->state2power(cdev, instance->upper, &min_power))
 			continue;
 
@@ -409,8 +412,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 		return -ENODEV;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
-		if ((instance->trip == params->trip_max) &&
-		    cdev_is_power_actor(instance->cdev))
+		if (power_actor_is_valid(params, instance))
 			total_weight += instance->weight;
 
 	/* Clean all buffers for new power estimations */
@@ -419,13 +421,10 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		struct power_actor *pa = &power[i];
 
+		if (!power_actor_is_valid(params, instance))
+			continue;
+
 		cdev = instance->cdev;
-
-		if (instance->trip != params->trip_max)
-			continue;
-
-		if (!cdev_is_power_actor(cdev))
-			continue;
 
 		ret = cdev->ops->get_requested_power(cdev, &pa->req_power);
 		if (ret)
@@ -459,10 +458,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		struct power_actor *pa = &power[i];
 
-		if (instance->trip != params->trip_max)
-			continue;
-
-		if (!cdev_is_power_actor(instance->cdev))
+		if (!power_actor_is_valid(params, instance))
 			continue;
 
 		power_actor_set_power(instance->cdev, instance,
@@ -548,11 +544,10 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 	u32 req_power;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		cdev = instance->cdev;
-
-		if (instance->trip != params->trip_max ||
-		    !cdev_is_power_actor(instance->cdev))
+		if (!power_actor_is_valid(params, instance))
 			continue;
+
+		cdev = instance->cdev;
 
 		instance->target = 0;
 		mutex_lock(&cdev->lock);
@@ -648,8 +643,7 @@ static void power_allocator_update_tz(struct thermal_zone_device *tz,
 	case THERMAL_TZ_BIND_CDEV:
 	case THERMAL_TZ_UNBIND_CDEV:
 		list_for_each_entry(instance, &tz->thermal_instances, tz_node)
-			if ((instance->trip == params->trip_max) &&
-			    cdev_is_power_actor(instance->cdev))
+			if (power_actor_is_valid(params, instance))
 				num_actors++;
 
 		if (num_actors == params->num_actors)
