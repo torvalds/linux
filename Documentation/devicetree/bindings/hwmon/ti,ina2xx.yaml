@@ -32,6 +32,9 @@ properties:
   reg:
     maxItems: 1
 
+  label:
+    description: A descriptive name for this device.
+
   shunt-resistor:
     description:
       Shunt resistor value in micro-Ohm.
@@ -77,6 +80,7 @@ examples:
         power-sensor@44 {
             compatible = "ti,ina220";
             reg = <0x44>;
+            label = "vdd_3v0";
             shunt-resistor = <1000>;
             vs-supply = <&vdd_3v0>;
         };
