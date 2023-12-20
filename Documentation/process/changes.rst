@@ -39,7 +39,7 @@ binutils               2.25             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.16             pahole --version
-util-linux             2.10o            fdformat --version
+util-linux             2.10o            mount --version
 kmod                   13               depmod -V
 e2fsprogs              1.41.4           e2fsck -V
 jfsutils               1.1.3            fsck.jfs -V
@@ -213,7 +213,7 @@ Util-linux
 
 New versions of util-linux provide ``fdisk`` support for larger disks,
 support new options to mount, recognize more supported partition
-types, have a fdformat which works with 2.4 kernels, and similar goodies.
+types, and similar goodies.
 You'll probably want to upgrade.
 
 Ksymoops
