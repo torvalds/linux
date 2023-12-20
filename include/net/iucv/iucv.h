@@ -80,7 +80,7 @@ struct iucv_array {
 	u32 length;
 } __attribute__ ((aligned (8)));
 
-extern struct bus_type iucv_bus;
+extern const struct bus_type iucv_bus;
 extern struct device *iucv_root;
 
 /*
@@ -489,7 +489,7 @@ struct iucv_interface {
 	int (*path_sever)(struct iucv_path *path, u8 userdata[16]);
 	int (*iucv_register)(struct iucv_handler *handler, int smp);
 	void (*iucv_unregister)(struct iucv_handler *handler, int smp);
-	struct bus_type *bus;
+	const struct bus_type *bus;
 	struct device *root;
 };
 
