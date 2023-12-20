@@ -33,6 +33,10 @@ In 'operating-points-v2' table:
                        max-pvtm: maximum frequency count in KHz.
                        voltage-selector: a sequence number which is used to math
                        opp-microvolt-L<number> property in OPP node.
+- rockchip,pvtm-voltage-sel-B<number>: Similar to 'rockchip,pvtm-voltage-sel', this
+                       depends on 'rockchip,pvtm-hw' property. If contain
+                       'rockchip,pvtm-voltage-sel-hw', the property is unused.
+
 - rockchip,pvtm-scaling-sel: Similar to 'rockchip,pvtm-voltage-sel', this allows
                        to change maximum frequency according to pvtm.
 
@@ -56,6 +60,12 @@ In 'operating-points-v2' table:
 - intermediate-threshold-freq: Clock frequency in KHz, if current frequency or
                        target frequency less than the threshold frequency,
                        there may be no need to set intermediate rate.
+
+- rockchip,pvtpll-table: The property is an array of 5-tuples items, and
+                       each item consists frequency and pvtpll config like
+                       <freq_khz ring length low_temp_ring low_temp_length>,
+                       this allows to change pvtpll config through sip smc interface.
+- rockchip,pvtpll-table-B<number>: Similar to 'rockchip,pvtpll-table'.
 
 - rockchip,pvtpll-avg-offset: The offset of average value register.
 - rockchip,pvtpll-min-rate: Clock frequency in KHz, if opp frequency is higher
@@ -161,7 +171,7 @@ cluster0_opp: opp_table0 {
 		25  254  1
 	>;
 	nvmem-cells = <&cpu_leakage>;
-	nvmem-cell-names = "cpu_leakage";
+	nvmem-cell-names = "leakage";
 
 	opp@216000000 {
 		opp-hz = /bits/ 64 <216000000>;
