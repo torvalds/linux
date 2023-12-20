@@ -8,8 +8,18 @@
 #include <asm/kvm_vcpu_sbi.h>
 #include <asm/sbi.h>
 
+void kvm_riscv_vcpu_sbi_sta_reset(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.sta.shmem = INVALID_GPA;
+	vcpu->arch.sta.last_steal = 0;
+}
+
 void kvm_riscv_vcpu_record_steal_time(struct kvm_vcpu *vcpu)
 {
+	gpa_t shmem = vcpu->arch.sta.shmem;
+
+	if (shmem == INVALID_GPA)
+		return;
 }
 
 static int kvm_sbi_sta_steal_time_set_shmem(struct kvm_vcpu *vcpu)
