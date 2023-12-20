@@ -262,7 +262,7 @@ static bool remove_migration_pte(struct folio *folio,
 				page_add_anon_rmap(new, vma, pvmw.address,
 						   rmap_flags);
 			else
-				page_add_file_rmap(new, vma, false);
+				folio_add_file_rmap_pte(folio, new, vma);
 			set_pte_at(vma->vm_mm, pvmw.address, pvmw.pte, pte);
 		}
 		if (vma->vm_flags & VM_LOCKED)
