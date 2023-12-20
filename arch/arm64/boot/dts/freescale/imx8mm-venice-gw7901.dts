@@ -285,7 +285,8 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_spi1>;
-	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>,
+		   <&gpio4 24 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
 	flash@0 {
@@ -293,6 +294,12 @@
 		reg = <0>;
 		spi-max-frequency = <40000000>;
 		status = "okay";
+	};
+
+	tpm@1 {
+		compatible = "tcg,tpm_tis-spi";
+		reg = <0x1>;
+		spi-max-frequency = <36000000>;
 	};
 };
 
@@ -989,6 +996,7 @@
 			MX8MM_IOMUXC_ECSPI1_MOSI_ECSPI1_MOSI	0x82
 			MX8MM_IOMUXC_ECSPI1_MISO_ECSPI1_MISO	0x82
 			MX8MM_IOMUXC_ECSPI1_SS0_GPIO5_IO9	0x140
+			MX8MM_IOMUXC_SAI2_TXFS_GPIO4_IO24	0x140
 		>;
 	};
 
