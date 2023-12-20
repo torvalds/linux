@@ -547,7 +547,7 @@ static const struct pci_device_id virtiovf_pci_table[] = {
 
 MODULE_DEVICE_TABLE(pci, virtiovf_pci_table);
 
-void virtiovf_pci_aer_reset_done(struct pci_dev *pdev)
+static void virtiovf_pci_aer_reset_done(struct pci_dev *pdev)
 {
 	struct virtiovf_pci_core_device *virtvdev = dev_get_drvdata(&pdev->dev);
 
