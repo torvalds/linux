@@ -344,7 +344,7 @@ static int smu_v13_0_6_tables_init(struct smu_context *smu)
 		return -ENOMEM;
 	smu_table->metrics_time = 0;
 
-	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_4);
+	smu_table->gpu_metrics_table_size = sizeof(struct gpu_metrics_v1_5);
 	smu_table->gpu_metrics_table =
 		kzalloc(smu_table->gpu_metrics_table_size, GFP_KERNEL);
 	if (!smu_table->gpu_metrics_table) {
@@ -2029,10 +2029,10 @@ static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
-	struct gpu_metrics_v1_4 *gpu_metrics =
-		(struct gpu_metrics_v1_4 *)smu_table->gpu_metrics_table;
+	struct gpu_metrics_v1_5 *gpu_metrics =
+		(struct gpu_metrics_v1_5 *)smu_table->gpu_metrics_table;
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0, xcc_id, inst, i;
+	int ret = 0, xcc_id, inst, i, j;
 	MetricsTableX_t *metrics_x;
 	MetricsTableA_t *metrics_a;
 	u16 link_width_level;
@@ -2046,7 +2046,7 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 
 	metrics_a = (MetricsTableA_t *)metrics_x;
 
-	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 4);
+	smu_cmn_init_soft_gpu_metrics(gpu_metrics, 1, 5);
 
 	gpu_metrics->temperature_hotspot =
 		SMUQ10_ROUND(GET_METRIC_FIELD(MaxSocketTemperature));
@@ -2113,6 +2113,10 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 				metrics_x->PCIenReplayAAcc;
 		gpu_metrics->pcie_replay_rover_count_acc =
 				metrics_x->PCIenReplayARolloverCountAcc;
+		gpu_metrics->pcie_nak_sent_count_acc =
+				metrics_x->PCIeNAKSentCountAcc;
+		gpu_metrics->pcie_nak_rcvd_count_acc =
+				metrics_x->PCIeNAKReceivedCountAcc;
 	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
@@ -2127,6 +2131,21 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiReadDataSizeAcc)[i]);
 		gpu_metrics->xgmi_write_data_acc[i] =
 			SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWriteDataSizeAcc)[i]);
+	}
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
+		inst = GET_INST(JPEG, i);
+		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j) {
+			gpu_metrics->jpeg_activity[(i * adev->jpeg.num_jpeg_rings) + j] =
+				SMUQ10_ROUND(GET_METRIC_FIELD(JpegBusy)
+				[(inst * adev->jpeg.num_jpeg_rings) + j]);
+		}
+	}
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
+		inst = GET_INST(VCN, i);
+		gpu_metrics->vcn_activity[i] =
+			SMUQ10_ROUND(GET_METRIC_FIELD(VcnBusy)[inst]);
 	}
 
 	gpu_metrics->xgmi_link_width = SMUQ10_ROUND(GET_METRIC_FIELD(XgmiWidth));
