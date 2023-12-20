@@ -853,6 +853,9 @@ int mdp_comp_clocks_on(struct device *dev, struct mdp_comp *comps, int num)
 	int i, ret;
 
 	for (i = 0; i < num; i++) {
+		/* Bypass the dummy component*/
+		if (!comps[i].mdp_dev)
+			continue;
 		ret = mdp_comp_clock_on(dev, &comps[i]);
 		if (ret)
 			return ret;
@@ -865,8 +868,12 @@ void mdp_comp_clocks_off(struct device *dev, struct mdp_comp *comps, int num)
 {
 	int i;
 
-	for (i = 0; i < num; i++)
+	for (i = 0; i < num; i++) {
+		/* Bypass the dummy component*/
+		if (!comps[i].mdp_dev)
+			continue;
 		mdp_comp_clock_off(dev, &comps[i]);
+	}
 }
 
 static int mdp_get_subsys_id(struct mdp_dev *mdp, struct device *dev,

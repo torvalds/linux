@@ -451,3 +451,11 @@ enum mtk_mdp_comp_id mdp_cfg_get_id_public(struct mdp_dev *mdp_dev, s32 inner_id
 err_public_id:
 	return public_id;
 }
+
+bool mdp_cfg_comp_is_dummy(struct mdp_dev *mdp_dev, s32 inner_id)
+{
+	enum mtk_mdp_comp_id id = mdp_cfg_get_id_public(mdp_dev, inner_id);
+	enum mdp_comp_type type = mdp_dev->mdp_data->comp_data[id].match.type;
+
+	return (type == MDP_COMP_TYPE_DUMMY);
+}
