@@ -253,7 +253,7 @@ void hugetlb_add_anon_rmap(struct folio *, struct vm_area_struct *,
 void hugetlb_add_new_anon_rmap(struct folio *, struct vm_area_struct *,
 		unsigned long address);
 
-/* See page_try_dup_anon_rmap() */
+/* See folio_try_dup_anon_rmap_*() */
 static inline int hugetlb_try_dup_anon_rmap(struct folio *folio,
 		struct vm_area_struct *vma)
 {
@@ -478,16 +478,6 @@ static inline int folio_try_dup_anon_rmap_pmd(struct folio *folio,
 #endif
 }
 
-static inline int page_try_dup_anon_rmap(struct page *page, bool compound,
-					 struct vm_area_struct *vma)
-{
-	struct folio *folio = page_folio(page);
-
-	if (likely(!compound))
-		return folio_try_dup_anon_rmap_pte(folio, page, vma);
-	return folio_try_dup_anon_rmap_pmd(folio, page, vma);
-}
-
 /**
  * page_try_share_anon_rmap - try marking an exclusive anonymous page possibly
  *			      shared to prepare for KSM or temporary unmapping
@@ -496,8 +486,8 @@ static inline int page_try_dup_anon_rmap(struct page *page, bool compound,
  * The caller needs to hold the PT lock and has to have the page table entry
  * cleared/invalidated.
  *
- * This is similar to page_try_dup_anon_rmap(), however, not used during fork()
- * to duplicate a mapping, but instead to prepare for KSM or temporarily
+ * This is similar to folio_try_dup_anon_rmap_*(), however, not used during
+ * fork() to duplicate a mapping, but instead to prepare for KSM or temporarily
  * unmapping a page (swap, migration) via folio_remove_rmap_*().
  *
  * Marking the page shared can only fail if the page may be pinned; device
