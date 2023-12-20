@@ -436,7 +436,7 @@ static void rcar_gen4_remove_dw_pcie_ep(struct rcar_gen4_pcie *rcar)
 /* Common */
 static int rcar_gen4_add_dw_pcie(struct rcar_gen4_pcie *rcar)
 {
-	rcar->mode = (enum dw_pcie_device_mode)of_device_get_match_data(&rcar->pdev->dev);
+	rcar->mode = (uintptr_t)of_device_get_match_data(&rcar->pdev->dev);
 
 	switch (rcar->mode) {
 	case DW_PCIE_RC_TYPE:
