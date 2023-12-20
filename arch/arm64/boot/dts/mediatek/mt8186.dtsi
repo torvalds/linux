@@ -1963,6 +1963,43 @@
 			power-domains = <&spm MT8186_POWER_DOMAIN_IMG2>;
 		};
 
+		video_decoder: video-decoder@16000000 {
+			compatible = "mediatek,mt8186-vcodec-dec";
+			reg = <0 0x16000000 0 0x1000>;
+			ranges;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			dma-ranges = <0x1 0x0 0x0 0x40000000 0x0 0xfff00000>;
+			iommus = <&iommu_mm IOMMU_PORT_L4_HW_VDEC_MC_EXT>;
+			mediatek,scp = <&scp>;
+
+			vcodec_core: video-codec@16025000 {
+				compatible = "mediatek,mtk-vcodec-core";
+				reg = <0 0x16025000 0 0x1000>;
+				interrupts = <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH 0>;
+				iommus = <&iommu_mm IOMMU_PORT_L4_HW_VDEC_MC_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_UFO_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_PP_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_PRED_RD_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_PRED_WR_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_PPWRAP_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_TILE_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_VLD_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_VLD2_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_AVC_MV_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_UFO_ENC_EXT>,
+					 <&iommu_mm IOMMU_PORT_L4_HW_VDEC_RG_CTRL_DMA_EXT>;
+				clocks = <&topckgen CLK_TOP_VDEC>,
+					 <&vdecsys CLK_VDEC_CKEN>,
+					 <&vdecsys CLK_VDEC_LARB1_CKEN>,
+					 <&topckgen CLK_TOP_UNIVPLL_D3>;
+				clock-names = "vdec-sel", "vdec-soc-vdec", "vdec", "vdec-top";
+				assigned-clocks = <&topckgen CLK_TOP_VDEC>;
+				assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D3>;
+				power-domains = <&spm MT8186_POWER_DOMAIN_VDEC>;
+			};
+		};
+
 		larb4: smi@1602e000 {
 			compatible = "mediatek,mt8186-smi-larb";
 			reg = <0 0x1602e000 0 0x1000>;
