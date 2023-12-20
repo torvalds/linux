@@ -362,68 +362,130 @@ static inline void folio_dup_file_rmap_pmd(struct folio *folio,
 #endif
 }
 
-static inline void __page_dup_rmap(struct page *page, bool compound)
+static __always_inline int __folio_try_dup_anon_rmap(struct folio *folio,
+		struct page *page, int nr_pages, struct vm_area_struct *src_vma,
+		enum rmap_level level)
 {
-	VM_WARN_ON(folio_test_hugetlb(page_folio(page)));
+	bool maybe_pinned;
+	int i;
 
-	if (compound) {
-		struct folio *folio = (struct folio *)page;
+	VM_WARN_ON_FOLIO(!folio_test_anon(folio), folio);
+	__folio_rmap_sanity_checks(folio, page, nr_pages, level);
 
-		VM_BUG_ON_PAGE(compound && !PageHead(page), page);
+	/*
+	 * If this folio may have been pinned by the parent process,
+	 * don't allow to duplicate the mappings but instead require to e.g.,
+	 * copy the subpage immediately for the child so that we'll always
+	 * guarantee the pinned folio won't be randomly replaced in the
+	 * future on write faults.
+	 */
+	maybe_pinned = likely(!folio_is_device_private(folio)) &&
+		       unlikely(folio_needs_cow_for_dma(src_vma, folio));
+
+	/*
+	 * No need to check+clear for already shared PTEs/PMDs of the
+	 * folio. But if any page is PageAnonExclusive, we must fallback to
+	 * copying if the folio maybe pinned.
+	 */
+	switch (level) {
+	case RMAP_LEVEL_PTE:
+		if (unlikely(maybe_pinned)) {
+			for (i = 0; i < nr_pages; i++)
+				if (PageAnonExclusive(page + i))
+					return -EBUSY;
+		}
+		do {
+			if (PageAnonExclusive(page))
+				ClearPageAnonExclusive(page);
+			atomic_inc(&page->_mapcount);
+		} while (page++, --nr_pages > 0);
+		break;
+	case RMAP_LEVEL_PMD:
+		if (PageAnonExclusive(page)) {
+			if (unlikely(maybe_pinned))
+				return -EBUSY;
+			ClearPageAnonExclusive(page);
+		}
 		atomic_inc(&folio->_entire_mapcount);
-	} else {
-		atomic_inc(&page->_mapcount);
+		break;
 	}
+	return 0;
 }
 
 /**
- * page_try_dup_anon_rmap - try duplicating a mapping of an already mapped
- *			    anonymous page
- * @page: the page to duplicate the mapping for
- * @compound: the page is mapped as compound or as a small page
- * @vma: the source vma
+ * folio_try_dup_anon_rmap_ptes - try duplicating PTE mappings of a page range
+ *				  of a folio
+ * @folio:	The folio to duplicate the mappings of
+ * @page:	The first page to duplicate the mappings of
+ * @nr_pages:	The number of pages of which the mapping will be duplicated
+ * @src_vma:	The vm area from which the mappings are duplicated
  *
- * The caller needs to hold the PT lock and the vma->vma_mm->write_protect_seq.
+ * The page range of the folio is defined by [page, page + nr_pages)
  *
- * Duplicating the mapping can only fail if the page may be pinned; device
- * private pages cannot get pinned and consequently this function cannot fail.
+ * The caller needs to hold the page table lock and the
+ * vma->vma_mm->write_protect_seq.
  *
- * If duplicating the mapping succeeds, the page has to be mapped R/O into
- * the parent and the child. It must *not* get mapped writable after this call.
+ * Duplicating the mappings can only fail if the folio may be pinned; device
+ * private folios cannot get pinned and consequently this function cannot fail
+ * for them.
+ *
+ * If duplicating the mappings succeeded, the duplicated PTEs have to be R/O in
+ * the parent and the child. They must *not* be writable after this call
+ * succeeded.
+ *
+ * Returns 0 if duplicating the mappings succeeded. Returns -EBUSY otherwise.
+ */
+static inline int folio_try_dup_anon_rmap_ptes(struct folio *folio,
+		struct page *page, int nr_pages, struct vm_area_struct *src_vma)
+{
+	return __folio_try_dup_anon_rmap(folio, page, nr_pages, src_vma,
+					 RMAP_LEVEL_PTE);
+}
+#define folio_try_dup_anon_rmap_pte(folio, page, vma) \
+	folio_try_dup_anon_rmap_ptes(folio, page, 1, vma)
+
+/**
+ * folio_try_dup_anon_rmap_pmd - try duplicating a PMD mapping of a page range
+ *				 of a folio
+ * @folio:	The folio to duplicate the mapping of
+ * @page:	The first page to duplicate the mapping of
+ * @src_vma:	The vm area from which the mapping is duplicated
+ *
+ * The page range of the folio is defined by [page, page + HPAGE_PMD_NR)
+ *
+ * The caller needs to hold the page table lock and the
+ * vma->vma_mm->write_protect_seq.
+ *
+ * Duplicating the mapping can only fail if the folio may be pinned; device
+ * private folios cannot get pinned and consequently this function cannot fail
+ * for them.
+ *
+ * If duplicating the mapping succeeds, the duplicated PMD has to be R/O in
+ * the parent and the child. They must *not* be writable after this call
+ * succeeded.
  *
  * Returns 0 if duplicating the mapping succeeded. Returns -EBUSY otherwise.
  */
+static inline int folio_try_dup_anon_rmap_pmd(struct folio *folio,
+		struct page *page, struct vm_area_struct *src_vma)
+{
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+	return __folio_try_dup_anon_rmap(folio, page, HPAGE_PMD_NR, src_vma,
+					 RMAP_LEVEL_PMD);
+#else
+	WARN_ON_ONCE(true);
+	return -EBUSY;
+#endif
+}
+
 static inline int page_try_dup_anon_rmap(struct page *page, bool compound,
 					 struct vm_area_struct *vma)
 {
-	VM_BUG_ON_PAGE(!PageAnon(page), page);
+	struct folio *folio = page_folio(page);
 
-	/*
-	 * No need to check+clear for already shared pages, including KSM
-	 * pages.
-	 */
-	if (!PageAnonExclusive(page))
-		goto dup;
-
-	/*
-	 * If this page may have been pinned by the parent process,
-	 * don't allow to duplicate the mapping but instead require to e.g.,
-	 * copy the page immediately for the child so that we'll always
-	 * guarantee the pinned page won't be randomly replaced in the
-	 * future on write faults.
-	 */
-	if (likely(!is_device_private_page(page)) &&
-	    unlikely(page_needs_cow_for_dma(vma, page)))
-		return -EBUSY;
-
-	ClearPageAnonExclusive(page);
-	/*
-	 * It's okay to share the anon page between both processes, mapping
-	 * the page R/O into both processes.
-	 */
-dup:
-	__page_dup_rmap(page, compound);
-	return 0;
+	if (likely(!compound))
+		return folio_try_dup_anon_rmap_pte(folio, page, vma);
+	return folio_try_dup_anon_rmap_pmd(folio, page, vma);
 }
 
 /**

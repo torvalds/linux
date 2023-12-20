@@ -1975,12 +1975,6 @@ static inline bool folio_needs_cow_for_dma(struct vm_area_struct *vma,
 	return folio_maybe_dma_pinned(folio);
 }
 
-static inline bool page_needs_cow_for_dma(struct vm_area_struct *vma,
-					  struct page *page)
-{
-	return folio_needs_cow_for_dma(vma, page_folio(page));
-}
-
 /**
  * is_zero_page - Query if a page is a zero page
  * @page: The page to query
