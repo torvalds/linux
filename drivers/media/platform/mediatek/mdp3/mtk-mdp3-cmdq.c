@@ -40,6 +40,10 @@ static bool is_output_disabled(int p_id, const struct img_compparam *param, u32 
 		num = CFG_COMP(MT8183, param, num_subfrms);
 		dis_output = CFG_COMP(MT8183, param, frame.output_disable);
 		dis_tile = CFG_COMP(MT8183, param, frame.output_disable);
+	} else if (CFG_CHECK(MT8195, p_id)) {
+		num = CFG_COMP(MT8195, param, num_subfrms);
+		dis_output = CFG_COMP(MT8195, param, frame.output_disable);
+		dis_tile = CFG_COMP(MT8195, param, frame.output_disable);
 	}
 
 	return (count < num) ? (dis_output || dis_tile) : true;
@@ -101,6 +105,8 @@ static int mdp_path_subfrm_require(const struct mdp_path *path,
 
 	if (CFG_CHECK(MT8183, p_id))
 		num_comp = CFG_GET(MT8183, path->config, num_components);
+	else if (CFG_CHECK(MT8195, p_id))
+		num_comp = CFG_GET(MT8195, path->config, num_components);
 
 	/* Decide which mutex to use based on the current pipeline */
 	index = __get_pipe(path->mdp_dev, path->comps[0].comp->public_id);
@@ -115,6 +121,9 @@ static int mdp_path_subfrm_require(const struct mdp_path *path,
 
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 
@@ -156,12 +165,17 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 
 	if (CFG_CHECK(MT8183, p_id))
 		num_comp = CFG_GET(MT8183, path->config, num_components);
+	else if (CFG_CHECK(MT8195, p_id))
+		num_comp = CFG_GET(MT8195, path->config, num_components);
 
 	/* Wait WROT SRAM shared to DISP RDMA */
 	/* Clear SOF event for each engine */
 	for (index = 0; index < num_comp; index++) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -180,6 +194,9 @@ static int mdp_path_subfrm_run(const struct mdp_path *path,
 	for (index = 0; index < num_comp; index++) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -202,6 +219,8 @@ static int mdp_path_ctx_init(struct mdp_dev *mdp, struct mdp_path *path)
 
 	if (CFG_CHECK(MT8183, p_id))
 		num_comp = CFG_GET(MT8183, path->config, num_components);
+	else if (CFG_CHECK(MT8195, p_id))
+		num_comp = CFG_GET(MT8195, path->config, num_components);
 
 	if (num_comp < 1)
 		return -EINVAL;
@@ -211,10 +230,15 @@ static int mdp_path_ctx_init(struct mdp_dev *mdp, struct mdp_path *path)
 
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		if (CFG_CHECK(MT8183, p_id))
 			param = (void *)CFG_ADDR(MT8183, path->config, components[index]);
+		else if (CFG_CHECK(MT8195, p_id))
+			param = (void *)CFG_ADDR(MT8195, path->config, components[index]);
 		ret = mdp_comp_ctx_config(mdp, &path->comps[index],
 					  param, path->param);
 		if (ret)
@@ -238,9 +262,13 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 
 	if (CFG_CHECK(MT8183, p_id))
 		num_comp = CFG_GET(MT8183, path->config, num_components);
+	else if (CFG_CHECK(MT8195, p_id))
+		num_comp = CFG_GET(MT8195, path->config, num_components);
 
 	if (CFG_CHECK(MT8183, p_id))
 		ctrl = CFG_ADDR(MT8183, path->config, ctrls[count]);
+	else if (CFG_CHECK(MT8195, p_id))
+		ctrl = CFG_ADDR(MT8195, path->config, ctrls[count]);
 
 	/* Acquire components */
 	ret = mdp_path_subfrm_require(path, cmd, &pipe, count);
@@ -256,6 +284,9 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 	for (index = (num_comp - 1); index >= 0; index--) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -273,6 +304,9 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 	for (index = 0; index < num_comp; index++) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -286,6 +320,9 @@ static int mdp_path_config_subfrm(struct mdp_cmdq_cmd *cmd,
 	for (index = 0; index < num_comp; index++) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -315,15 +352,22 @@ static int mdp_path_config(struct mdp_dev *mdp, struct mdp_cmdq_cmd *cmd,
 
 	if (CFG_CHECK(MT8183, p_id))
 		num_comp = CFG_GET(MT8183, path->config, num_components);
+	else if (CFG_CHECK(MT8195, p_id))
+		num_comp = CFG_GET(MT8195, path->config, num_components);
 
 	if (CFG_CHECK(MT8183, p_id))
 		num_sub = CFG_GET(MT8183, path->config, num_subfrms);
+	else if (CFG_CHECK(MT8195, p_id))
+		num_sub = CFG_GET(MT8195, path->config, num_subfrms);
 
 	/* Config path frame */
 	/* Reset components */
 	for (index = 0; index < num_comp; index++) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -339,11 +383,16 @@ static int mdp_path_config(struct mdp_dev *mdp, struct mdp_cmdq_cmd *cmd,
 		ctx = &path->comps[index];
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 
 		if (CFG_CHECK(MT8183, p_id))
 			out = CFG_COMP(MT8183, ctx->param, outputs[0]);
+		else if (CFG_CHECK(MT8195, p_id))
+			out = CFG_COMP(MT8195, ctx->param, outputs[0]);
 
 		compose = path->composes[out];
 		ret = call_op(ctx, config_frame, cmd, compose);
@@ -361,6 +410,9 @@ static int mdp_path_config(struct mdp_dev *mdp, struct mdp_cmdq_cmd *cmd,
 	for (index = 0; index < num_comp; index++) {
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[index].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[index].type);
+
 		if (mdp_cfg_comp_is_dummy(path->mdp_dev, inner_id))
 			continue;
 		ctx = &path->comps[index];
@@ -515,6 +567,8 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 
 	if (CFG_CHECK(MT8183, p_id)) {
 		num_comp = CFG_GET(MT8183, param->config, num_components);
+	} else if (CFG_CHECK(MT8195, p_id)) {
+		num_comp = CFG_GET(MT8195, param->config, num_components);
 	} else {
 		ret = -EINVAL;
 		goto err_destroy_pkt;
@@ -570,6 +624,9 @@ int mdp_cmdq_send(struct mdp_dev *mdp, struct mdp_cmdq_param *param)
 
 		if (CFG_CHECK(MT8183, p_id))
 			inner_id = CFG_GET(MT8183, path->config, components[i].type);
+		else if (CFG_CHECK(MT8195, p_id))
+			inner_id = CFG_GET(MT8195, path->config, components[i].type);
+
 		if (mdp_cfg_comp_is_dummy(mdp, inner_id))
 			continue;
 		memcpy(&comps[i], path->comps[i].comp,
