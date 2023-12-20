@@ -192,6 +192,44 @@ typedef int __bitwise rmap_t;
 #define RMAP_COMPOUND		((__force rmap_t)BIT(1))
 
 /*
+ * Internally, we're using an enum to specify the granularity. We make the
+ * compiler emit specialized code for each granularity.
+ */
+enum rmap_level {
+	RMAP_LEVEL_PTE = 0,
+	RMAP_LEVEL_PMD,
+};
+
+static inline void __folio_rmap_sanity_checks(struct folio *folio,
+		struct page *page, int nr_pages, enum rmap_level level)
+{
+	/* hugetlb folios are handled separately. */
+	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
+	VM_WARN_ON_FOLIO(folio_test_large(folio) &&
+			 !folio_test_large_rmappable(folio), folio);
+
+	VM_WARN_ON_ONCE(nr_pages <= 0);
+	VM_WARN_ON_FOLIO(page_folio(page) != folio, folio);
+	VM_WARN_ON_FOLIO(page_folio(page + nr_pages - 1) != folio, folio);
+
+	switch (level) {
+	case RMAP_LEVEL_PTE:
+		break;
+	case RMAP_LEVEL_PMD:
+		/*
+		 * We don't support folios larger than a single PMD yet. So
+		 * when RMAP_LEVEL_PMD is set, we assume that we are creating
+		 * a single "entire" mapping of the folio.
+		 */
+		VM_WARN_ON_FOLIO(folio_nr_pages(folio) != HPAGE_PMD_NR, folio);
+		VM_WARN_ON_FOLIO(nr_pages != HPAGE_PMD_NR, folio);
+		break;
+	default:
+		VM_WARN_ON_ONCE(true);
+	}
+}
+
+/*
  * rmap interfaces called when adding or removing pte of page
  */
 void folio_move_anon_rmap(struct folio *, struct vm_area_struct *);
@@ -201,8 +239,12 @@ void folio_add_new_anon_rmap(struct folio *, struct vm_area_struct *,
 		unsigned long address);
 void page_add_file_rmap(struct page *, struct vm_area_struct *,
 		bool compound);
-void folio_add_file_rmap_range(struct folio *, struct page *, unsigned int nr,
-		struct vm_area_struct *, bool compound);
+void folio_add_file_rmap_ptes(struct folio *, struct page *, int nr_pages,
+		struct vm_area_struct *);
+#define folio_add_file_rmap_pte(folio, page, vma) \
+	folio_add_file_rmap_ptes(folio, page, 1, vma)
+void folio_add_file_rmap_pmd(struct folio *, struct page *,
+		struct vm_area_struct *);
 void page_remove_rmap(struct page *, struct vm_area_struct *,
 		bool compound);
 
