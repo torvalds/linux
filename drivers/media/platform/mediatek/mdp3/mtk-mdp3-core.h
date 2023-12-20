@@ -26,6 +26,7 @@ enum mdp_infra_id {
 	MDP_INFRA_MMSYS,
 	MDP_INFRA_MMSYS2,
 	MDP_INFRA_MUTEX,
+	MDP_INFRA_MUTEX2,
 	MDP_INFRA_SCP,
 	MDP_INFRA_MAX
 };
@@ -78,12 +79,13 @@ struct mtk_mdp_driver_data {
 
 struct mdp_mm_subsys {
 	struct device *mmsys;
+	struct device *mutex;
+	struct mtk_mutex *mdp_mutex[MDP_PIPE_MAX];
 };
 
 struct mdp_dev {
 	struct platform_device			*pdev;
 	struct mdp_mm_subsys			mm_subsys[MDP_MM_SUBSYS_MAX];
-	struct mtk_mutex			*mdp_mutex[MDP_PIPE_MAX];
 	struct mdp_comp				*comp[MDP_MAX_COMP_COUNT];
 	const struct mtk_mdp_driver_data	*mdp_data;
 

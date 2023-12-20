@@ -146,8 +146,17 @@ void mdp_video_device_release(struct video_device *vdev)
 	vb2_dma_contig_clear_max_seg_size(&mdp->pdev->dev);
 
 	mdp_comp_destroy(mdp);
-	for (i = 0; i < MDP_PIPE_MAX; i++)
-		mtk_mutex_put(mdp->mdp_mutex[i]);
+	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++) {
+		enum mdp_mm_subsys_id idx;
+		struct mtk_mutex *m;
+		u32 m_id;
+
+		idx = mdp->mdp_data->pipe_info[i].sub_id;
+		m_id = mdp->mdp_data->pipe_info[i].mutex_id;
+		m = mdp->mm_subsys[idx].mdp_mutex[m_id];
+		if (!IS_ERR_OR_NULL(m))
+			mtk_mutex_put(m);
+	}
 
 	mdp_vpu_shared_mem_free(&mdp->vpu);
 	v4l2_m2m_release(mdp->m2m_dev);
@@ -170,6 +179,9 @@ static int mdp_mm_subsys_deploy(struct mdp_dev *mdp, enum mdp_infra_id id)
 		switch (id) {
 		case MDP_INFRA_MMSYS:
 			dev = &mdp->mm_subsys[i].mmsys;
+			break;
+		case MDP_INFRA_MUTEX:
+			dev = &mdp->mm_subsys[i].mutex;
 			break;
 		default:
 			dev_err(&mdp->pdev->dev, "Unknown infra id %d", id);
@@ -214,18 +226,24 @@ static int mdp_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_destroy_device;
 
-	mm_pdev = __get_pdev_by_id(pdev, NULL, MDP_INFRA_MUTEX);
-	if (WARN_ON(!mm_pdev)) {
-		ret = -ENODEV;
+	ret = mdp_mm_subsys_deploy(mdp, MDP_INFRA_MUTEX);
+	if (ret)
 		goto err_destroy_device;
-	}
+
 	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++) {
+		enum mdp_mm_subsys_id idx;
+		struct mtk_mutex **m;
+
+		idx = mdp->mdp_data->pipe_info[i].sub_id;
 		mutex_id = mdp->mdp_data->pipe_info[i].mutex_id;
-		if (!IS_ERR_OR_NULL(mdp->mdp_mutex[mutex_id]))
+		m = &mdp->mm_subsys[idx].mdp_mutex[mutex_id];
+
+		if (!IS_ERR_OR_NULL(*m))
 			continue;
-		mdp->mdp_mutex[mutex_id] = mtk_mutex_get(&mm_pdev->dev);
-		if (IS_ERR(mdp->mdp_mutex[mutex_id])) {
-			ret = PTR_ERR(mdp->mdp_mutex[mutex_id]);
+
+		*m = mtk_mutex_get(mdp->mm_subsys[idx].mutex);
+		if (IS_ERR(*m)) {
+			ret = PTR_ERR(*m);
 			goto err_free_mutex;
 		}
 	}
@@ -309,9 +327,16 @@ err_destroy_job_wq:
 err_deinit_comp:
 	mdp_comp_destroy(mdp);
 err_free_mutex:
-	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++)
-		if (!IS_ERR_OR_NULL(mdp->mdp_mutex[i]))
-			mtk_mutex_put(mdp->mdp_mutex[i]);
+	for (i = 0; i < mdp->mdp_data->pipe_info_len; i++) {
+		enum mdp_mm_subsys_id idx;
+		struct mtk_mutex *m;
+
+		idx = mdp->mdp_data->pipe_info[i].sub_id;
+		mutex_id = mdp->mdp_data->pipe_info[i].mutex_id;
+		m = mdp->mm_subsys[idx].mdp_mutex[mutex_id];
+		if (!IS_ERR_OR_NULL(m))
+			mtk_mutex_put(m);
+	}
 err_destroy_device:
 	kfree(mdp);
 err_return:
