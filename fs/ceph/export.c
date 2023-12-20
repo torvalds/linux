@@ -286,8 +286,6 @@ static struct dentry *__snapfh_to_dentry(struct super_block *sb,
 		doutc(cl, "%llx.%llx parent %llx hash %x err=%d", vino.ino,
 		      vino.snap, sfh->parent_ino, sfh->hash, err);
 	}
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
 	/* see comments in ceph_get_parent() */
 	return unlinked ? d_obtain_root(inode) : d_obtain_alias(inode);
 }
