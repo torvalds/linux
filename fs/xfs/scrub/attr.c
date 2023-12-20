@@ -527,19 +527,15 @@ xchk_xattr_check_sf(
 	struct xfs_scrub		*sc)
 {
 	struct xchk_xattr_buf		*ab = sc->buf;
-	struct xfs_attr_shortform	*sf;
+	struct xfs_ifork		*ifp = &sc->ip->i_af;
+	struct xfs_attr_shortform	*sf = ifp->if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	struct xfs_attr_sf_entry	*next;
-	struct xfs_ifork		*ifp;
-	unsigned char			*end;
+	unsigned char			*end = ifp->if_data + ifp->if_bytes;
 	int				i;
 	int				error = 0;
 
-	ifp = xfs_ifork_ptr(sc->ip, XFS_ATTR_FORK);
-
 	bitmap_zero(ab->usedmap, ifp->if_bytes);
-	sf = (struct xfs_attr_shortform *)sc->ip->i_af.if_u1.if_data;
-	end = (unsigned char *)ifp->if_u1.if_data + ifp->if_bytes;
 	xchk_xattr_set_map(sc, ab->usedmap, 0, sizeof(sf->hdr));
 
 	sfe = &sf->list[0];

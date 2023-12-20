@@ -131,10 +131,10 @@ xfs_readlink(
 		 * The VFS crashes on a NULL pointer, so return -EFSCORRUPTED
 		 * if if_data is junk.
 		 */
-		if (XFS_IS_CORRUPT(ip->i_mount, !ip->i_df.if_u1.if_data))
+		if (XFS_IS_CORRUPT(ip->i_mount, !ip->i_df.if_data))
 			goto out;
 
-		memcpy(link, ip->i_df.if_u1.if_data, pathlen + 1);
+		memcpy(link, ip->i_df.if_data, pathlen + 1);
 		error = 0;
 	} else {
 		error = xfs_readlink_bmap_ilocked(ip, link);

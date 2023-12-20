@@ -56,12 +56,11 @@ xfs_attr_shortform_list(
 	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
 	struct xfs_inode		*dp = context->dp;
 	struct xfs_attr_sf_sort		*sbuf, *sbp;
-	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_shortform	*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	int				sbsize, nsbuf, count, i;
 	int				error = 0;
 
-	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 	ASSERT(sf != NULL);
 	if (!sf->hdr.count)
 		return 0;

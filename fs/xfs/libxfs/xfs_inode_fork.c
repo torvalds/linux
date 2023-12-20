@@ -50,12 +50,15 @@ xfs_init_local_fork(
 		mem_size++;
 
 	if (size) {
-		ifp->if_u1.if_data = kmem_alloc(mem_size, KM_NOFS);
-		memcpy(ifp->if_u1.if_data, data, size);
+		char *new_data = kmem_alloc(mem_size, KM_NOFS);
+
+		memcpy(new_data, data, size);
 		if (zero_terminate)
-			ifp->if_u1.if_data[size] = '\0';
+			new_data[size] = '\0';
+
+		ifp->if_data = new_data;
 	} else {
-		ifp->if_u1.if_data = NULL;
+		ifp->if_data = NULL;
 	}
 
 	ifp->if_bytes = size;
@@ -125,7 +128,7 @@ xfs_iformat_extents(
 	}
 
 	ifp->if_bytes = 0;
-	ifp->if_u1.if_root = NULL;
+	ifp->if_data = NULL;
 	ifp->if_height = 0;
 	if (size) {
 		dp = (xfs_bmbt_rec_t *) XFS_DFORK_PTR(dip, whichfork);
@@ -212,7 +215,7 @@ xfs_iformat_btree(
 			 ifp->if_broot, size);
 
 	ifp->if_bytes = 0;
-	ifp->if_u1.if_root = NULL;
+	ifp->if_data = NULL;
 	ifp->if_height = 0;
 	return 0;
 }
@@ -509,14 +512,14 @@ xfs_idata_realloc(
 		return;
 
 	if (new_size == 0) {
-		kmem_free(ifp->if_u1.if_data);
-		ifp->if_u1.if_data = NULL;
+		kmem_free(ifp->if_data);
+		ifp->if_data = NULL;
 		ifp->if_bytes = 0;
 		return;
 	}
 
-	ifp->if_u1.if_data = krealloc(ifp->if_u1.if_data, new_size,
-				      GFP_NOFS | __GFP_NOFAIL);
+	ifp->if_data = krealloc(ifp->if_data, new_size,
+			GFP_NOFS | __GFP_NOFAIL);
 	ifp->if_bytes = new_size;
 }
 
@@ -532,8 +535,8 @@ xfs_idestroy_fork(
 
 	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_LOCAL:
-		kmem_free(ifp->if_u1.if_data);
-		ifp->if_u1.if_data = NULL;
+		kmem_free(ifp->if_data);
+		ifp->if_data = NULL;
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
 	case XFS_DINODE_FMT_BTREE:
@@ -626,9 +629,9 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_LOCAL:
 		if ((iip->ili_fields & dataflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
-			ASSERT(ifp->if_u1.if_data != NULL);
+			ASSERT(ifp->if_data != NULL);
 			ASSERT(ifp->if_bytes <= xfs_inode_fork_size(ip, whichfork));
-			memcpy(cp, ifp->if_u1.if_data, ifp->if_bytes);
+			memcpy(cp, ifp->if_data, ifp->if_bytes);
 		}
 		break;
 
@@ -706,17 +709,15 @@ xfs_ifork_verify_local_data(
 	case S_IFDIR: {
 		struct xfs_mount	*mp = ip->i_mount;
 		struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
-		struct xfs_dir2_sf_hdr	*sfp;
+		struct xfs_dir2_sf_hdr	*sfp = ifp->if_data;
 
-		sfp = (struct xfs_dir2_sf_hdr *)ifp->if_u1.if_data;
 		fa = xfs_dir2_sf_verify(mp, sfp, ifp->if_bytes);
 		break;
 	}
 	case S_IFLNK: {
 		struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
 
-		fa = xfs_symlink_shortform_verify(ifp->if_u1.if_data,
-				ifp->if_bytes);
+		fa = xfs_symlink_shortform_verify(ifp->if_data, ifp->if_bytes);
 		break;
 	}
 	default:
@@ -725,7 +726,7 @@ xfs_ifork_verify_local_data(
 
 	if (fa) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "data fork",
-				ip->i_df.if_u1.if_data, ip->i_df.if_bytes, fa);
+				ip->i_df.if_data, ip->i_df.if_bytes, fa);
 		return -EFSCORRUPTED;
 	}
 
@@ -743,20 +744,14 @@ xfs_ifork_verify_local_attr(
 	if (!xfs_inode_has_attr_fork(ip)) {
 		fa = __this_address;
 	} else {
-		struct xfs_attr_shortform	*sfp;
-		struct xfs_ifork		*ifp;
-		int64_t				size;
+		struct xfs_ifork		*ifp = &ip->i_af;
 
-		ASSERT(ip->i_af.if_format == XFS_DINODE_FMT_LOCAL);
-		ifp = xfs_ifork_ptr(ip, XFS_ATTR_FORK);
-		sfp = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
-		size = ifp->if_bytes;
-
-		fa = xfs_attr_shortform_verify(sfp, size);
+		ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
+		fa = xfs_attr_shortform_verify(ifp->if_data, ifp->if_bytes);
 	}
 	if (fa) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "attr fork",
-				ifp->if_u1.if_data, ifp->if_bytes, fa);
+				ifp->if_data, ifp->if_bytes, fa);
 		return -EFSCORRUPTED;
 	}
 

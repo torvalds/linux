@@ -691,7 +691,7 @@ xfs_attr_shortform_create(
 	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS)
 		ifp->if_format = XFS_DINODE_FMT_LOCAL;
 	xfs_idata_realloc(dp, sizeof(*hdr), XFS_ATTR_FORK);
-	hdr = (struct xfs_attr_sf_hdr *)ifp->if_u1.if_data;
+	hdr = ifp->if_data;
 	memset(hdr, 0, sizeof(*hdr));
 	hdr->totsize = cpu_to_be16(sizeof(*hdr));
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_ADATA);
@@ -712,14 +712,13 @@ xfs_attr_sf_findname(
 	struct xfs_attr_sf_entry **sfep,
 	unsigned int		 *basep)
 {
-	struct xfs_attr_shortform *sf;
+	struct xfs_attr_shortform *sf = args->dp->i_af.if_data;
 	struct xfs_attr_sf_entry *sfe;
 	unsigned int		base = sizeof(struct xfs_attr_sf_hdr);
 	int			size = 0;
 	int			end;
 	int			i;
 
-	sf = (struct xfs_attr_shortform *)args->dp->i_af.if_u1.if_data;
 	sfe = &sf->list[0];
 	end = sf->hdr.count;
 	for (i = 0; i < end; sfe = xfs_attr_sf_nextentry(sfe),
@@ -751,29 +750,25 @@ xfs_attr_shortform_add(
 	struct xfs_da_args		*args,
 	int				forkoff)
 {
-	struct xfs_attr_shortform	*sf;
+	struct xfs_inode		*dp = args->dp;
+	struct xfs_mount		*mp = dp->i_mount;
+	struct xfs_ifork		*ifp = &dp->i_af;
+	struct xfs_attr_shortform	*sf = ifp->if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	int				offset, size;
-	struct xfs_mount		*mp;
-	struct xfs_inode		*dp;
-	struct xfs_ifork		*ifp;
 
 	trace_xfs_attr_sf_add(args);
 
-	dp = args->dp;
-	mp = dp->i_mount;
 	dp->i_forkoff = forkoff;
 
-	ifp = &dp->i_af;
 	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
-	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	if (xfs_attr_sf_findname(args, &sfe, NULL) == -EEXIST)
 		ASSERT(0);
 
 	offset = (char *)sfe - (char *)sf;
 	size = xfs_attr_sf_entsize_byname(args->namelen, args->valuelen);
 	xfs_idata_realloc(dp, size, XFS_ATTR_FORK);
-	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
+	sf = ifp->if_data;
 	sfe = (struct xfs_attr_sf_entry *)((char *)sf + offset);
 
 	sfe->namelen = args->namelen;
@@ -811,19 +806,15 @@ int
 xfs_attr_sf_removename(
 	struct xfs_da_args		*args)
 {
-	struct xfs_attr_shortform	*sf;
+	struct xfs_inode		*dp = args->dp;
+	struct xfs_mount		*mp = dp->i_mount;
+	struct xfs_attr_shortform	*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	int				size = 0, end, totsize;
 	unsigned int			base;
-	struct xfs_mount		*mp;
-	struct xfs_inode		*dp;
 	int				error;
 
 	trace_xfs_attr_sf_remove(args);
-
-	dp = args->dp;
-	mp = dp->i_mount;
-	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 
 	error = xfs_attr_sf_findname(args, &sfe, &base);
 
@@ -878,18 +869,17 @@ xfs_attr_sf_removename(
  */
 /*ARGSUSED*/
 int
-xfs_attr_shortform_lookup(xfs_da_args_t *args)
+xfs_attr_shortform_lookup(
+	struct xfs_da_args		*args)
 {
-	struct xfs_attr_shortform *sf;
-	struct xfs_attr_sf_entry *sfe;
-	int i;
-	struct xfs_ifork *ifp;
+	struct xfs_ifork		*ifp = &args->dp->i_af;
+	struct xfs_attr_shortform	*sf = ifp->if_data;
+	struct xfs_attr_sf_entry	*sfe;
+	int				i;
 
 	trace_xfs_attr_sf_lookup(args);
 
-	ifp = &args->dp->i_af;
 	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
-	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;
 				sfe = xfs_attr_sf_nextentry(sfe), i++) {
@@ -909,14 +899,13 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
  */
 int
 xfs_attr_shortform_getvalue(
-	struct xfs_da_args	*args)
+	struct xfs_da_args		*args)
 {
-	struct xfs_attr_shortform *sf;
-	struct xfs_attr_sf_entry *sfe;
-	int			i;
+	struct xfs_attr_shortform	*sf = args->dp->i_af.if_data;
+	struct xfs_attr_sf_entry	*sfe;
+	int				i;
 
 	ASSERT(args->dp->i_af.if_format == XFS_DINODE_FMT_LOCAL);
-	sf = (struct xfs_attr_shortform *)args->dp->i_af.if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;
 				sfe = xfs_attr_sf_nextentry(sfe), i++) {
@@ -933,25 +922,22 @@ int
 xfs_attr_shortform_to_leaf(
 	struct xfs_da_args		*args)
 {
-	struct xfs_inode		*dp;
-	struct xfs_attr_shortform	*sf;
+	struct xfs_inode		*dp = args->dp;
+	struct xfs_ifork		*ifp = &dp->i_af;
+	struct xfs_attr_shortform	*sf = ifp->if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	struct xfs_da_args		nargs;
 	char				*tmpbuffer;
 	int				error, i, size;
 	xfs_dablk_t			blkno;
 	struct xfs_buf			*bp;
-	struct xfs_ifork		*ifp;
 
 	trace_xfs_attr_sf_to_leaf(args);
 
-	dp = args->dp;
-	ifp = &dp->i_af;
-	sf = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	size = be16_to_cpu(sf->hdr.totsize);
 	tmpbuffer = kmem_alloc(size, 0);
 	ASSERT(tmpbuffer != NULL);
-	memcpy(tmpbuffer, ifp->if_u1.if_data, size);
+	memcpy(tmpbuffer, ifp->if_data, size);
 	sf = (struct xfs_attr_shortform *)tmpbuffer;
 
 	xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);

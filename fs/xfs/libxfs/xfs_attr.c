@@ -1049,9 +1049,8 @@ out_trans_cancel:
 
 static inline int xfs_attr_sf_totsize(struct xfs_inode *dp)
 {
-	struct xfs_attr_shortform *sf;
+	struct xfs_attr_shortform *sf = dp->i_af.if_data;
 
-	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 	return be16_to_cpu(sf->hdr.totsize);
 }
 

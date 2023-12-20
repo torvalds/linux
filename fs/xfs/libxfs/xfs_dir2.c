@@ -196,7 +196,7 @@ xfs_dir_isempty(
 		return 1;
 	if (dp->i_disk_size > xfs_inode_data_fork_size(dp))
 		return 0;
-	sfp = (xfs_dir2_sf_hdr_t *)dp->i_df.if_u1.if_data;
+	sfp = dp->i_df.if_data;
 	return !sfp->count;
 }
 

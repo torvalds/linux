@@ -872,7 +872,7 @@ xfs_init_new_inode(
 	case S_IFLNK:
 		ip->i_df.if_format = XFS_DINODE_FMT_EXTENTS;
 		ip->i_df.if_bytes = 0;
-		ip->i_df.if_u1.if_root = NULL;
+		ip->i_df.if_data = NULL;
 		break;
 	default:
 		ASSERT(0);
@@ -2378,8 +2378,8 @@ xfs_ifree(
 	 * already been freed by xfs_attr_inactive.
 	 */
 	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		kmem_free(ip->i_df.if_u1.if_data);
-		ip->i_df.if_u1.if_data = NULL;
+		kmem_free(ip->i_df.if_data);
+		ip->i_df.if_data = NULL;
 		ip->i_df.if_bytes = 0;
 	}
 
