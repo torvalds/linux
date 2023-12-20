@@ -499,7 +499,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 		return;
 	}
 
-	if (unlikely(gfs2_withdrawn(sdp)))
+	if (gfs2_withdrawn(sdp))
 		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);

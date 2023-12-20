@@ -156,7 +156,7 @@ static bool glock_blocked_by_withdraw(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (likely(!gfs2_withdrawn(sdp)))
+	if (!gfs2_withdrawn(sdp))
 		return false;
 	if (gl->gl_ops->go_flags & GLOF_NONDISK)
 		return false;
@@ -774,7 +774,7 @@ skip_inval:
 	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
 	 * then it's okay to tell dlm to unlock it.
 	 */
-	if (unlikely(sdp->sd_log_error && !gfs2_withdrawn(sdp)))
+	if (unlikely(sdp->sd_log_error) && !gfs2_withdrawn(sdp))
 		gfs2_withdraw_delayed(sdp);
 	if (glock_blocked_by_withdraw(gl) &&
 	    (target != LM_ST_UNLOCKED ||
