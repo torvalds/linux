@@ -114,6 +114,8 @@ int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
 int thermal_build_list_of_policies(char *buf);
 void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event);
+void thermal_governor_update_tz(struct thermal_zone_device *tz,
+				enum thermal_notify_event reason);
 
 /* Helpers */
 #define for_each_trip(__tz, __trip)	\
