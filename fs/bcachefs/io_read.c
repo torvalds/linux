@@ -174,7 +174,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
 		return NULL;
 
-	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_NOFS);
+	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_KERNEL);
 	if (!op)
 		goto err;
 
@@ -187,7 +187,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	 */
 	*rbio = kzalloc(sizeof(struct bch_read_bio) +
 			sizeof(struct bio_vec) * pages,
-			GFP_NOFS);
+			GFP_KERNEL);
 	if (!*rbio)
 		goto err;
 
@@ -195,7 +195,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	bio_init(&(*rbio)->bio, NULL, (*rbio)->bio.bi_inline_vecs, pages, 0);
 
 	if (bch2_bio_alloc_pages(&(*rbio)->bio, sectors << 9,
-				 GFP_NOFS))
+				 GFP_KERNEL))
 		goto err;
 
 	(*rbio)->bounce		= true;
