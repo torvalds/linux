@@ -91,7 +91,7 @@ static DEFINE_PER_CPU(atomic_t, hrtimer_interrupts);
 static DEFINE_PER_CPU(int, hrtimer_interrupts_saved);
 static DEFINE_PER_CPU(bool, watchdog_hardlockup_warned);
 static DEFINE_PER_CPU(bool, watchdog_hardlockup_touched);
-static unsigned long watchdog_hardlockup_all_cpu_dumped;
+static unsigned long hard_lockup_nmi_warn;
 
 notrace void arch_touch_nmi_watchdog(void)
 {
@@ -156,6 +156,15 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 		if (per_cpu(watchdog_hardlockup_warned, cpu))
 			return;
 
+		/*
+		 * Prevent multiple hard-lockup reports if one cpu is already
+		 * engaged in dumping all cpu back traces.
+		 */
+		if (sysctl_hardlockup_all_cpu_backtrace) {
+			if (test_and_set_bit_lock(0, &hard_lockup_nmi_warn))
+				return;
+		}
+
 		pr_emerg("Watchdog detected hard LOCKUP on cpu %d\n", cpu);
 		print_modules();
 		print_irqtrace_events(current);
@@ -168,13 +177,10 @@ void watchdog_hardlockup_check(unsigned int cpu, struct pt_regs *regs)
 			trigger_single_cpu_backtrace(cpu);
 		}
 
-		/*
-		 * Perform multi-CPU dump only once to avoid multiple
-		 * hardlockups generating interleaving traces
-		 */
-		if (sysctl_hardlockup_all_cpu_backtrace &&
-		    !test_and_set_bit(0, &watchdog_hardlockup_all_cpu_dumped))
+		if (sysctl_hardlockup_all_cpu_backtrace) {
 			trigger_allbutcpu_cpu_backtrace(cpu);
+			clear_bit_unlock(0, &hard_lockup_nmi_warn);
+		}
 
 		if (hardlockup_panic)
 			nmi_panic(regs, "Hard LOCKUP");
