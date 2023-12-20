@@ -469,11 +469,12 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 				      granted_power[i]);
 		total_granted_power += granted_power[i];
 
+		trace_thermal_power_actor(tz, i, req_power[i],
+					  granted_power[i]);
 		i++;
 	}
 
-	trace_thermal_power_allocator(tz, req_power, total_req_power,
-				      granted_power, total_granted_power,
+	trace_thermal_power_allocator(tz, total_req_power, total_granted_power,
 				      num_actors, power_range,
 				      max_allocatable_power, tz->temperature,
 				      control_temp - tz->temperature);
