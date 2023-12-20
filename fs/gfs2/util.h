@@ -198,10 +198,11 @@ static inline void gfs2_withdraw_delayed(struct gfs2_sbd *sdp)
 }
 
 /**
- * gfs2_withdrawn - test whether the file system is withdrawing or withdrawn
+ * gfs2_withdrawing_or_withdrawn - test whether the file system is withdrawing
+ *                                 or withdrawn
  * @sdp: the superblock
  */
-static inline bool gfs2_withdrawn(struct gfs2_sbd *sdp)
+static inline bool gfs2_withdrawing_or_withdrawn(struct gfs2_sbd *sdp)
 {
 	return unlikely(test_bit(SDF_WITHDRAWN, &sdp->sd_flags) ||
 			test_bit(SDF_WITHDRAWING, &sdp->sd_flags));

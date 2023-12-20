@@ -134,7 +134,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	int error;
 
 	j_gl->gl_ops->go_inval(j_gl, DIO_METADATA);
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return -EIO;
 
 	error = gfs2_find_jhead(sdp->sd_jdesc, &head, false);
@@ -153,7 +153,7 @@ int gfs2_make_fs_rw(struct gfs2_sbd *sdp)
 	gfs2_log_pointers_init(sdp, head.lh_blkno);
 
 	error = gfs2_quota_init(sdp);
-	if (!error && gfs2_withdrawn(sdp))
+	if (!error && gfs2_withdrawing_or_withdrawn(sdp))
 		error = -EIO;
 	if (!error)
 		set_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
@@ -499,7 +499,7 @@ static void gfs2_dirty_inode(struct inode *inode, int flags)
 		return;
 	}
 
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return;
 	if (!gfs2_glock_is_locked_by_me(ip->i_gl)) {
 		ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
@@ -605,7 +605,7 @@ restart:
 	if (!sb_rdonly(sb))
 		gfs2_make_fs_ro(sdp);
 	else {
-		if (gfs2_withdrawn(sdp))
+		if (gfs2_withdrawing_or_withdrawn(sdp))
 			gfs2_destroy_threads(sdp);
 
 		gfs2_quota_cleanup(sdp);
@@ -685,7 +685,7 @@ static int gfs2_freeze_locally(struct gfs2_sbd *sdp)
 	if (test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags)) {
 		gfs2_log_flush(sdp, NULL, GFS2_LOG_HEAD_FLUSH_FREEZE |
 			       GFS2_LFC_FREEZE_GO_SYNC);
-		if (gfs2_withdrawn(sdp)) {
+		if (gfs2_withdrawing_or_withdrawn(sdp)) {
 			error = thaw_super(sb, FREEZE_HOLDER_USERSPACE);
 			if (error)
 				return error;
