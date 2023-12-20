@@ -300,10 +300,10 @@ enum dw_pcie_ltssm {
 };
 
 struct dw_pcie_host_ops {
-	int (*host_init)(struct dw_pcie_rp *pp);
-	void (*host_deinit)(struct dw_pcie_rp *pp);
-	void (*host_post_init)(struct dw_pcie_rp *pp);
-	int (*msi_host_init)(struct dw_pcie_rp *pp);
+	int (*init)(struct dw_pcie_rp *pp);
+	void (*deinit)(struct dw_pcie_rp *pp);
+	void (*post_init)(struct dw_pcie_rp *pp);
+	int (*msi_init)(struct dw_pcie_rp *pp);
 	void (*pme_turn_off)(struct dw_pcie_rp *pp);
 };
 

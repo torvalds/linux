@@ -371,7 +371,7 @@ static int dra7xx_pcie_init_irq_domain(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops dra7xx_pcie_host_ops = {
-	.host_init = dra7xx_pcie_host_init,
+	.init = dra7xx_pcie_host_init,
 };
 
 static void dra7xx_pcie_ep_init(struct dw_pcie_ep *ep)

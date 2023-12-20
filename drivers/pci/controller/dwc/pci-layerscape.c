@@ -169,7 +169,7 @@ static int ls_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops ls_pcie_host_ops = {
-	.host_init = ls_pcie_host_init,
+	.init = ls_pcie_host_init,
 	.pme_turn_off = ls_pcie_send_turnoff_msg,
 };
 

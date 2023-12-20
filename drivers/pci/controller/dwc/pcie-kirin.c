@@ -672,7 +672,7 @@ static const struct dw_pcie_ops kirin_dw_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops kirin_pcie_host_ops = {
-	.host_init = kirin_pcie_host_init,
+	.init = kirin_pcie_host_init,
 };
 
 static int kirin_pcie_power_off(struct kirin_pcie *kirin_pcie)

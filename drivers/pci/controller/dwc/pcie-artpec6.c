@@ -333,7 +333,7 @@ static int artpec6_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops artpec6_pcie_host_ops = {
-	.host_init = artpec6_pcie_host_init,
+	.init = artpec6_pcie_host_init,
 };
 
 static void artpec6_pcie_ep_init(struct dw_pcie_ep *ep)

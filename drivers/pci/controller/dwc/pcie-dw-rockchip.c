@@ -215,7 +215,7 @@ static int rockchip_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops rockchip_pcie_host_ops = {
-	.host_init = rockchip_pcie_host_init,
+	.init = rockchip_pcie_host_init,
 };
 
 static int rockchip_pcie_clk_init(struct rockchip_pcie *rockchip)

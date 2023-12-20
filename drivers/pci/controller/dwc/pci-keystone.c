@@ -838,12 +838,12 @@ static int __init ks_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops ks_pcie_host_ops = {
-	.host_init = ks_pcie_host_init,
-	.msi_host_init = ks_pcie_msi_host_init,
+	.init = ks_pcie_host_init,
+	.msi_init = ks_pcie_msi_host_init,
 };
 
 static const struct dw_pcie_host_ops ks_pcie_am654_host_ops = {
-	.host_init = ks_pcie_host_init,
+	.init = ks_pcie_host_init,
 };
 
 static irqreturn_t ks_pcie_err_irq_handler(int irq, void *priv)

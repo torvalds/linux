@@ -307,8 +307,8 @@ static void rcar_gen4_pcie_host_deinit(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops rcar_gen4_pcie_host_ops = {
-	.host_init = rcar_gen4_pcie_host_init,
-	.host_deinit = rcar_gen4_pcie_host_deinit,
+	.init = rcar_gen4_pcie_host_init,
+	.deinit = rcar_gen4_pcie_host_deinit,
 };
 
 static int rcar_gen4_add_dw_pcie_rp(struct rcar_gen4_pcie *rcar)

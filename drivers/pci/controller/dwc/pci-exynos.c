@@ -268,7 +268,7 @@ static int exynos_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops exynos_pcie_host_ops = {
-	.host_init = exynos_pcie_host_init,
+	.init = exynos_pcie_host_init,
 };
 
 static int exynos_add_pcie_port(struct exynos_pcie *ep,
