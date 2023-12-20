@@ -12154,9 +12154,10 @@ F:	drivers/ata/sata_promise.*
 
 LIBATA SUBSYSTEM (Serial and Parallel ATA drivers)
 M:	Damien Le Moal <dlemoal@kernel.org>
+M:	Niklas Cassel <cassel@kernel.org>
 L:	linux-ide@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dlemoal/libata.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/libata/linux.git
 F:	Documentation/ABI/testing/sysfs-ata
 F:	Documentation/devicetree/bindings/ata/
 F:	drivers/ata/
