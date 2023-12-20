@@ -758,7 +758,7 @@ do {									       \
 		.right_text = #right,					       \
 	};								       \
 									       \
-	if (likely(strcmp(__left, __right) op 0))			       \
+	if (likely((__left) && (__right) && (strcmp(__left, __right) op 0)))   \
 		break;							       \
 									       \
 									       \
