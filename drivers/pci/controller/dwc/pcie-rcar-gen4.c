@@ -394,7 +394,7 @@ rcar_gen4_pcie_ep_get_features(struct dw_pcie_ep *ep)
 	return &rcar_gen4_pcie_epc_features;
 }
 
-static unsigned int rcar_gen4_pcie_ep_func_conf_select(struct dw_pcie_ep *ep,
+static unsigned int rcar_gen4_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep,
 						       u8 func_no)
 {
 	return func_no * RCAR_GEN4_PCIE_EP_FUNC_DBI_OFFSET;
@@ -412,7 +412,7 @@ static const struct dw_pcie_ep_ops pcie_ep_ops = {
 	.deinit = rcar_gen4_pcie_ep_deinit,
 	.raise_irq = rcar_gen4_pcie_ep_raise_irq,
 	.get_features = rcar_gen4_pcie_ep_get_features,
-	.func_conf_select = rcar_gen4_pcie_ep_func_conf_select,
+	.get_dbi_offset = rcar_gen4_pcie_ep_get_dbi_offset,
 	.get_dbi2_offset = rcar_gen4_pcie_ep_get_dbi2_offset,
 };
 
