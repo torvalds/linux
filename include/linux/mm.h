@@ -886,8 +886,8 @@ static inline bool vma_is_anonymous(struct vm_area_struct *vma)
  */
 static inline bool vma_is_initial_heap(const struct vm_area_struct *vma)
 {
-       return vma->vm_start <= vma->vm_mm->brk &&
-		vma->vm_end >= vma->vm_mm->start_brk;
+	return vma->vm_start < vma->vm_mm->brk &&
+		vma->vm_end > vma->vm_mm->start_brk;
 }
 
 /*
@@ -901,8 +901,8 @@ static inline bool vma_is_initial_stack(const struct vm_area_struct *vma)
 	 * its "stack".  It's not even well-defined for programs written
 	 * languages like Go.
 	 */
-       return vma->vm_start <= vma->vm_mm->start_stack &&
-	       vma->vm_end >= vma->vm_mm->start_stack;
+	return vma->vm_start <= vma->vm_mm->start_stack &&
+		vma->vm_end >= vma->vm_mm->start_stack;
 }
 
 static inline bool vma_is_temporary_stack(struct vm_area_struct *vma)
