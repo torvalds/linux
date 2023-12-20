@@ -574,7 +574,11 @@ static int clk_alpha_pll_enable(struct clk_hw *hw)
 		ret = clk_enable_regmap(hw);
 		if (ret)
 			return ret;
-		return wait_for_pll_enable_active(pll);
+		ret = wait_for_pll_enable_active(pll);
+		if (ret == 0)
+			if (pll->flags & SUPPORTS_FSM_MODE)
+				*pll->soft_vote |= (pll->soft_vote_mask);
+		return ret;
 	}
 
 	/* Skip if already enabled */
@@ -622,7 +626,12 @@ static void clk_alpha_pll_disable(struct clk_hw *hw)
 
 	/* If in FSM mode, just unvote it */
 	if (val & PLL_VOTE_FSM_ENA) {
-		clk_disable_regmap(hw);
+		if (pll->flags & SUPPORTS_FSM_MODE) {
+			*pll->soft_vote &= ~(pll->soft_vote_mask);
+			if (!*pll->soft_vote)
+				clk_disable_regmap(hw);
+		} else
+			clk_disable_regmap(hw);
 		return;
 	}
 
