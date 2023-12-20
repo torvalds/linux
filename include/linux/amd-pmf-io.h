@@ -17,9 +17,11 @@
 /**
  * enum sfh_message_type - Query the SFH message type
  * @MT_HPD: Message ID to know the Human presence info from MP2 FW
+ * @MT_ALS: Message ID to know the Ambient light info from MP2 FW
  */
 enum sfh_message_type {
 	MT_HPD,
+	MT_ALS,
 };
 
 /**
@@ -36,9 +38,11 @@ enum sfh_hpd_info {
 
 /**
  * struct amd_sfh_info - get HPD sensor info from MP2 FW
+ * @ambient_light: Populates the ambient light information
  * @user_present: Populates the user presence information
  */
 struct amd_sfh_info {
+	u32 ambient_light;
 	u8 user_present;
 };
 

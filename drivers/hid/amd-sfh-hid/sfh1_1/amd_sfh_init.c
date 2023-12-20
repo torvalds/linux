@@ -77,6 +77,9 @@ static int amd_sfh_hid_client_deinit(struct amd_mp2_dev *privdata)
 		case HPD_IDX:
 			privdata->dev_en.is_hpd_present = false;
 			break;
+		case ALS_IDX:
+			privdata->dev_en.is_als_present = false;
+			break;
 		}
 
 		if (cl_data->sensor_sts[i] == SENSOR_ENABLED) {
@@ -187,6 +190,9 @@ static int amd_sfh1_1_hid_client_init(struct amd_mp2_dev *privdata)
 			switch (cl_data->sensor_idx[i]) {
 			case HPD_IDX:
 				privdata->dev_en.is_hpd_present = true;
+				break;
+			case ALS_IDX:
+				privdata->dev_en.is_als_present = true;
 				break;
 			}
 		}
