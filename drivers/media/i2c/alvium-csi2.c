@@ -1171,12 +1171,10 @@ static int alvium_set_bayer_pattern(struct alvium_dev *alvium,
 }
 
 static int alvium_get_frame_interval(struct alvium_dev *alvium,
-				     u64 *dft_fr, u64 *min_fr, u64 *max_fr)
+				     u64 *min_fr, u64 *max_fr)
 {
 	int ret = 0;
 
-	alvium_read(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_RW,
-		    dft_fr, &ret);
 	alvium_read(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_MIN_R,
 		    min_fr, &ret);
 	alvium_read(alvium, REG_BCRM_ACQUISITION_FRAME_RATE_MAX_R,
@@ -1647,7 +1645,7 @@ static int alvium_s_frame_interval(struct v4l2_subdev *sd,
 {
 	struct alvium_dev *alvium = sd_to_alvium(sd);
 	struct device *dev = &alvium->i2c_client->dev;
-	u64 req_fr, dft_fr, min_fr, max_fr;
+	u64 req_fr, min_fr, max_fr;
 	struct v4l2_fract *interval;
 	int ret;
 
@@ -1657,7 +1655,7 @@ static int alvium_s_frame_interval(struct v4l2_subdev *sd,
 	if (fi->interval.denominator == 0)
 		return -EINVAL;
 
-	ret = alvium_get_frame_interval(alvium, &dft_fr, &min_fr, &max_fr);
+	ret = alvium_get_frame_interval(alvium, &min_fr, &max_fr);
 	if (ret) {
 		dev_err(dev, "Fail to get frame interval\n");
 		return ret;
@@ -1670,9 +1668,7 @@ static int alvium_s_frame_interval(struct v4l2_subdev *sd,
 
 	req_fr = (u64)((fi->interval.denominator * USEC_PER_SEC) /
 		       fi->interval.numerator);
-
-	if (req_fr >= max_fr && req_fr <= min_fr)
-		req_fr = dft_fr;
+	req_fr = clamp(req_fr, min_fr, max_fr);
 
 	interval = v4l2_subdev_state_get_interval(sd_state, 0);
 
