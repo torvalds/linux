@@ -47,6 +47,15 @@ properties:
   "#power-domain-cells":
     const: 1
 
+  clock-controller:
+    $ref: /schemas/clock/xlnx,versal-clk.yaml#
+    description: The clock controller is a hardware block of Xilinx versal
+      clock tree. It reads required input clock frequencies from the devicetree
+      and acts as clock provider for all clock consumers of PS clocks.list of
+      clock specifiers which are external input clocks to the given clock
+      controller.
+    type: object
+
   gpio:
     $ref: /schemas/gpio/xlnx,zynqmp-gpio-modepin.yaml#
     description: The gpio node describes connect to PS_MODE pins via firmware
@@ -88,15 +97,6 @@ properties:
     description: The ZynqMP AES-GCM hardened cryptographic accelerator is
       used to encrypt or decrypt the data with provided key and initialization
       vector.
-    type: object
-
-  clock-controller:
-    $ref: /schemas/clock/xlnx,versal-clk.yaml#
-    description: The clock controller is a hardware block of Xilinx versal
-      clock tree. It reads required input clock frequencies from the devicetree
-      and acts as clock provider for all clock consumers of PS clocks.list of
-      clock specifiers which are external input clocks to the given clock
-      controller.
     type: object
 
 required:
