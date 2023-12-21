@@ -47,6 +47,37 @@ properties:
   "#power-domain-cells":
     const: 1
 
+  gpio:
+    $ref: /schemas/gpio/xlnx,zynqmp-gpio-modepin.yaml#
+    description: The gpio node describes connect to PS_MODE pins via firmware
+      interface.
+    type: object
+
+  pcap:
+    $ref: /schemas/fpga/xlnx,zynqmp-pcap-fpga.yaml
+    description: The ZynqMP SoC uses the PCAP (Processor Configuration Port) to
+      configure the Programmable Logic (PL). The configuration uses the
+      firmware interface.
+    type: object
+
+  pinctrl:
+    $ref: /schemas/pinctrl/xlnx,zynqmp-pinctrl.yaml#
+    description: The pinctrl node provides access to pinconfig and pincontrol
+      functionality available in firmware.
+    type: object
+
+  power-management:
+    $ref: /schemas/power/reset/xlnx,zynqmp-power.yaml#
+    description: The zynqmp-power node describes the power management
+      configurations. It will control remote suspend/shutdown interfaces.
+    type: object
+
+  reset-controller:
+    $ref: /schemas/reset/xlnx,zynqmp-reset.yaml#
+    description: The reset-controller node describes connection to the reset
+      functionality via firmware interface.
+    type: object
+
   versal-fpga:
     $ref: /schemas/fpga/xlnx,versal-fpga.yaml#
     description: Compatible of the FPGA device.
@@ -79,7 +110,26 @@ examples:
     firmware {
       zynqmp_firmware: zynqmp-firmware {
         #power-domain-cells = <1>;
+        gpio {
+          compatible = "xlnx,zynqmp-gpio-modepin";
+          gpio-controller;
+          #gpio-cells = <2>;
         };
+        pcap {
+          compatible = "xlnx,zynqmp-pcap-fpga";
+        };
+        pinctrl {
+          compatible = "xlnx,zynqmp-pinctrl";
+        };
+        power-management {
+          compatible = "xlnx,zynqmp-power";
+          interrupts = <0 35 4>;
+        };
+        reset-controller {
+          compatible = "xlnx,zynqmp-reset";
+          #reset-cells = <1>;
+        };
+      };
     };
 
     sata {
