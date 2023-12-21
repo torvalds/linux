@@ -44,7 +44,7 @@ static int mem_region_callback(struct resource *res, void *arg)
 	struct init_pgtable_data *data = arg;
 
 	return kernel_ident_mapping_init(data->info, data->level4p,
-					 res->start, res->end);
+					 res->start, res->end + 1);
 }
 
 static int
