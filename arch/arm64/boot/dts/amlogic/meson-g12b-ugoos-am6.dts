@@ -17,7 +17,6 @@
 	spdif_dit: audio-codec-1 {
 		#sound-dai-cells = <0>;
 		compatible = "linux,spdif-dit";
-		status = "okay";
 		sound-name-prefix = "DIT";
 	};
 
