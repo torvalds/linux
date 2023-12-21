@@ -186,7 +186,7 @@
 			method = "smc";
 			bootph-all;
 
-			zynqmp_power: zynqmp-power {
+			zynqmp_power: power-management {
 				bootph-all;
 				compatible = "xlnx,zynqmp-power";
 				interrupt-parent = <&gic>;
