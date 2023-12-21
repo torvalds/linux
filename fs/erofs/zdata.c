@@ -1202,34 +1202,27 @@ static int z_erofs_parse_in_bvecs(struct z_erofs_decompress_backend *be,
 		struct z_erofs_bvec *bvec = &pcl->compressed_bvecs[i];
 		struct page *page = bvec->page;
 
-		/* compressed pages ought to be present before decompressing */
+		/* compressed data ought to be valid before decompressing */
 		if (!page) {
-			DBG_BUGON(1);
+			err = -EIO;
 			continue;
 		}
 		be->compressed_pages[i] = page;
 
-		if (z_erofs_is_inline_pcluster(pcl)) {
+		if (z_erofs_is_inline_pcluster(pcl) ||
+		    erofs_page_is_managed(EROFS_SB(be->sb), page)) {
 			if (!PageUptodate(page))
 				err = -EIO;
 			continue;
 		}
 
 		DBG_BUGON(z_erofs_page_is_invalidated(page));
-		if (!z_erofs_is_shortlived_page(page)) {
-			if (erofs_page_is_managed(EROFS_SB(be->sb), page)) {
-				if (!PageUptodate(page))
-					err = -EIO;
-				continue;
-			}
-			z_erofs_do_decompressed_bvec(be, bvec);
-			*overlapped = true;
-		}
+		if (z_erofs_is_shortlived_page(page))
+			continue;
+		z_erofs_do_decompressed_bvec(be, bvec);
+		*overlapped = true;
 	}
-
-	if (err)
-		return err;
-	return 0;
+	return err;
 }
 
 static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
@@ -1238,7 +1231,7 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 	struct erofs_sb_info *const sbi = EROFS_SB(be->sb);
 	struct z_erofs_pcluster *pcl = be->pcl;
 	unsigned int pclusterpages = z_erofs_pclusterpages(pcl);
-	const struct z_erofs_decompressor *decompressor =
+	const struct z_erofs_decompressor *decomp =
 				&erofs_decompressors[pcl->algorithmformat];
 	int i, err2;
 	struct page *page;
@@ -1274,10 +1267,8 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 	err2 = z_erofs_parse_in_bvecs(be, &overlapped);
 	if (err2)
 		err = err2;
-	if (err)
-		goto out;
-
-	err = decompressor->decompress(&(struct z_erofs_decompress_req) {
+	if (!err)
+		err = decomp->decompress(&(struct z_erofs_decompress_req) {
 					.sb = be->sb,
 					.in = be->compressed_pages,
 					.out = be->decompressed_pages,
@@ -1291,7 +1282,6 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 					.fillgaps = pcl->multibases,
 				 }, be->pagepool);
 
-out:
 	/* must handle all compressed pages before actual file pages */
 	if (z_erofs_is_inline_pcluster(pcl)) {
 		page = pcl->compressed_bvecs[0].page;
@@ -1302,7 +1292,7 @@ out:
 			/* consider shortlived pages added when decompressing */
 			page = be->compressed_pages[i];
 
-			if (erofs_page_is_managed(sbi, page))
+			if (!page || erofs_page_is_managed(sbi, page))
 				continue;
 			(void)z_erofs_put_shortlivedpage(be->pagepool, page);
 			WRITE_ONCE(pcl->compressed_bvecs[i].page, NULL);
