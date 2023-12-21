@@ -873,6 +873,7 @@ static const struct spinand_manufacturer *spinand_manufacturers[] = {
 	&skyhigh_spinand_manufacturer,
 	&toshiba_spinand_manufacturer,
 	&unim_spinand_manufacturer,
+	&unim_zl_spinand_manufacturer,
 	&winbond_spinand_manufacturer,
 	&xincun_spinand_manufacturer,
 	&xtx_spinand_manufacturer,
