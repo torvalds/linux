@@ -513,8 +513,6 @@ static inline bool kasan_byte_accessible(const void *addr)
  * @size - range size, must be aligned to KASAN_GRANULE_SIZE
  * @value - value that's written to metadata for the range
  * @init - whether to initialize the memory range (only for hardware tag-based)
- *
- * The size gets aligned to KASAN_GRANULE_SIZE before marking the range.
  */
 void kasan_poison(const void *addr, size_t size, u8 value, bool init);
 
