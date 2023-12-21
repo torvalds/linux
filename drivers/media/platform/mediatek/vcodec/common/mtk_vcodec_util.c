@@ -96,8 +96,9 @@ void mtk_vcodec_mem_free(void *priv, struct mtk_vcodec_mem *mem)
 	}
 
 	if (!mem->va) {
-		mtk_v4l2_err(plat_dev, "%s dma_free size=0x%zx failed!",
-			     __func__, mem->size);
+		mtk_v4l2_err(plat_dev, "%s: Tried to free a NULL VA", __func__);
+		if (mem->size)
+			mtk_v4l2_err(plat_dev, "Failed to free %zu bytes", mem->size);
 		return;
 	}
 
