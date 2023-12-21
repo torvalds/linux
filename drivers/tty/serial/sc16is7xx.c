@@ -1787,8 +1787,6 @@ static struct spi_driver sc16is7xx_spi_uart_driver = {
 	.remove		= sc16is7xx_spi_remove,
 	.id_table	= sc16is7xx_spi_id_table,
 };
-
-MODULE_ALIAS("spi:sc16is7xx");
 #endif
 
 #ifdef CONFIG_SERIAL_SC16IS7XX_I2C
