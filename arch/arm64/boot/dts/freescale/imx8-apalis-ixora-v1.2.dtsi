@@ -68,6 +68,7 @@
 		gpio = <&lsio_gpio5 22 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-name = "can1_supply";
+		startup-delay-us = <1000>;
 	};
 
 	reg_can2_supply: regulator-can2-supply {
@@ -77,6 +78,7 @@
 		gpio = <&lsio_gpio2 8 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-name = "can2_supply";
+		startup-delay-us = <1000>;
 	};
 
 	reg_usb_host_vbus: regulator-usb-host-vbus {

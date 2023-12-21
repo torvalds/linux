@@ -24,7 +24,6 @@ audio_subsys: bus@59000000 {
 		compatible = "fsl,imx8qm-edma";
 		reg = <0x591f0000 0x190000>;
 		#dma-cells = <3>;
-		shared-interrupt;
 		dma-channels = <24>;
 		dma-channel-mask = <0x5c0c00>;
 		interrupts = <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>, /* 0 asrc 0 */
@@ -127,7 +126,6 @@ audio_subsys: bus@59000000 {
 		compatible = "fsl,imx8qm-edma";
 		reg = <0x599f0000 0xc0000>;
 		#dma-cells = <3>;
-		shared-interrupt;
 		dma-channels = <11>;
 		dma-channel-mask = <0xc0>;
 		interrupts = <GIC_SPI 382 IRQ_TYPE_LEVEL_HIGH>, /* 0 asrc 1 */

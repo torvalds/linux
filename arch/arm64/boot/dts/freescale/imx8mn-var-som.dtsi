@@ -31,6 +31,14 @@
 		gpio = <&gpio2 9 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	reg_3v3_fixed: regulator-3v3-fixed {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
 };
 
 &A53_0 {
@@ -234,6 +242,7 @@
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 		pagesize = <16>;
+		vcc-supply = <&reg_3v3_fixed>;
 	};
 };
 

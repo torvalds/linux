@@ -420,6 +420,18 @@
 		reg = <0x53>;
 	};
 
+	eeprom0wl: eeprom@58 {
+		compatible = "atmel,24c32d-wl";	/* M24C32-D WL page of 0x50 */
+		pagesize = <32>;
+		reg = <0x58>;
+	};
+
+	eeprom1wl: eeprom@5b {
+		compatible = "atmel,24c32d-wl";	/* M24C32-D WL page of 0x53 */
+		pagesize = <32>;
+		reg = <0x5b>;
+	};
+
 	ioexp: gpio@74 {
 		compatible = "nxp,pca9539";
 		reg = <0x74>;
