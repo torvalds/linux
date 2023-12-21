@@ -243,11 +243,13 @@ struct fsl_edma_engine {
 
 #define edma_readl_chreg(chan, __name)				\
 	edma_readl(chan->edma,					\
-		   (void __iomem *)&(container_of(chan->tcd, struct fsl_edma3_ch_reg, tcd)->__name))
+		   (void __iomem *)&(container_of(((__force void *)chan->tcd),\
+						  struct fsl_edma3_ch_reg, tcd)->__name))
 
 #define edma_writel_chreg(chan, val,  __name)			\
 	edma_writel(chan->edma, val,				\
-		   (void __iomem *)&(container_of(chan->tcd, struct fsl_edma3_ch_reg, tcd)->__name))
+		   (void __iomem *)&(container_of(((__force void *)chan->tcd),\
+						  struct fsl_edma3_ch_reg, tcd)->__name))
 
 #define fsl_edma_get_tcd(_chan, _tcd, _field) ((_tcd)->_field)
 
