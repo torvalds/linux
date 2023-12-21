@@ -77,10 +77,10 @@ static const struct cs35l41_config cs35l41_config_table[] = {
 static int cs35l41_add_gpios(struct cs35l41_hda *cs35l41, struct device *physdev, int reset_gpio,
 			     int spkid_gpio, int cs_gpio_index, int num_amps)
 {
-	struct acpi_gpio_mapping *gpio_mapping;
-	struct acpi_gpio_params *reset_gpio_params;
-	struct acpi_gpio_params *spkid_gpio_params;
-	struct acpi_gpio_params *cs_gpio_params;
+	struct acpi_gpio_mapping *gpio_mapping = NULL;
+	struct acpi_gpio_params *reset_gpio_params = NULL;
+	struct acpi_gpio_params *spkid_gpio_params = NULL;
+	struct acpi_gpio_params *cs_gpio_params = NULL;
 	unsigned int num_entries = 0;
 	unsigned int reset_index, spkid_index, csgpio_index;
 	int i;
@@ -210,6 +210,8 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 
 	if (cfg->bus == SPI) {
 		cs35l41->index = id;
+
+#if IS_ENABLED(CONFIG_SPI)
 		/*
 		 * Manually set the Chip Select for the second amp <cs_gpio_index> in the node.
 		 * This is only supported for systems with 2 amps, since we cannot expand the
@@ -249,6 +251,7 @@ static int generic_dsd_config(struct cs35l41_hda *cs35l41, struct device *physde
 				spi_setup(spi);
 			}
 		}
+#endif
 	} else {
 		if (cfg->num_amps > 2)
 			/*
