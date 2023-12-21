@@ -300,6 +300,10 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	if (err)
 		goto destroy_neigh_entry;
 
+	e->encap_size = ipv4_encap_size;
+	e->encap_header = encap_header;
+	encap_header = NULL;
+
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
@@ -310,8 +314,8 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
 	reformat_params.type = e->reformat_type;
-	reformat_params.size = ipv4_encap_size;
-	reformat_params.data = encap_header;
+	reformat_params.size = e->encap_size;
+	reformat_params.data = e->encap_header;
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
@@ -319,8 +323,6 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 		goto destroy_neigh_entry;
 	}
 
-	e->encap_size = ipv4_encap_size;
-	e->encap_header = encap_header;
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
 	mlx5e_route_lookup_ipv4_put(&attr);
@@ -403,28 +405,29 @@ int mlx5e_tc_tun_update_header_ipv4(struct mlx5e_priv *priv,
 	if (err)
 		goto free_encap;
 
+	e->encap_size = ipv4_encap_size;
+	kfree(e->encap_header);
+	e->encap_header = encap_header;
+	encap_header = NULL;
+
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
 		 * and not used before that.
 		 */
-		goto free_encap;
+		goto release_neigh;
 	}
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
 	reformat_params.type = e->reformat_type;
-	reformat_params.size = ipv4_encap_size;
-	reformat_params.data = encap_header;
+	reformat_params.size = e->encap_size;
+	reformat_params.data = e->encap_header;
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
 		goto free_encap;
 	}
-
-	e->encap_size = ipv4_encap_size;
-	kfree(e->encap_header);
-	e->encap_header = encap_header;
 
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
@@ -567,6 +570,10 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	if (err)
 		goto destroy_neigh_entry;
 
+	e->encap_size = ipv6_encap_size;
+	e->encap_header = encap_header;
+	encap_header = NULL;
+
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
@@ -577,8 +584,8 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
 	reformat_params.type = e->reformat_type;
-	reformat_params.size = ipv6_encap_size;
-	reformat_params.data = encap_header;
+	reformat_params.size = e->encap_size;
+	reformat_params.data = e->encap_header;
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
@@ -586,8 +593,6 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 		goto destroy_neigh_entry;
 	}
 
-	e->encap_size = ipv6_encap_size;
-	e->encap_header = encap_header;
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
 	mlx5e_route_lookup_ipv6_put(&attr);
@@ -669,28 +674,29 @@ int mlx5e_tc_tun_update_header_ipv6(struct mlx5e_priv *priv,
 	if (err)
 		goto free_encap;
 
+	e->encap_size = ipv6_encap_size;
+	kfree(e->encap_header);
+	e->encap_header = encap_header;
+	encap_header = NULL;
+
 	if (!(nud_state & NUD_VALID)) {
 		neigh_event_send(attr.n, NULL);
 		/* the encap entry will be made valid on neigh update event
 		 * and not used before that.
 		 */
-		goto free_encap;
+		goto release_neigh;
 	}
 
 	memset(&reformat_params, 0, sizeof(reformat_params));
 	reformat_params.type = e->reformat_type;
-	reformat_params.size = ipv6_encap_size;
-	reformat_params.data = encap_header;
+	reformat_params.size = e->encap_size;
+	reformat_params.data = e->encap_header;
 	e->pkt_reformat = mlx5_packet_reformat_alloc(priv->mdev, &reformat_params,
 						     MLX5_FLOW_NAMESPACE_FDB);
 	if (IS_ERR(e->pkt_reformat)) {
 		err = PTR_ERR(e->pkt_reformat);
 		goto free_encap;
 	}
-
-	e->encap_size = ipv6_encap_size;
-	kfree(e->encap_header);
-	e->encap_header = encap_header;
 
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(netdev_priv(attr.out_dev));
