@@ -1953,47 +1953,24 @@ static void find_terminal_resolution(struct sc200ai *sc200ai)
 {
 	int i = 0;
 	const struct sc200ai_mode *mode = NULL;
-	const struct sc200ai_mode *fit_mode = NULL;
-	u32 cur_fps = 0;
-	u32 dst_fps = 0;
-	u32 tmp_fps = 0;
 	u32 rk_cam_hdr = get_rk_cam_hdr();
 	u32 rk_cam_w = get_rk_cam_w();
 	u32 rk_cam_h = get_rk_cam_h();
-	u32 rk_cam_fps = get_rk_cam_fps();
 
-	if (rk_cam_w == 0 || rk_cam_h == 0 ||
-	    rk_cam_fps == 0)
+	if (rk_cam_w == 0 || rk_cam_h == 0)
 		goto err_find_res;
 
-	dst_fps = rk_cam_fps;
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 		mode = &supported_modes[i];
-		cur_fps = mode->max_fps.denominator / mode->max_fps.numerator;
 		if (mode->width == rk_cam_w && mode->height == rk_cam_h &&
 		    mode->hdr_mode == rk_cam_hdr) {
-			if (cur_fps == dst_fps) {
-				sc200ai->cur_mode = mode;
-				return;
-			}
-			if (cur_fps >= dst_fps) {
-				if (fit_mode) {
-					tmp_fps = fit_mode->max_fps.denominator / fit_mode->max_fps.numerator;
-					if (tmp_fps - dst_fps > cur_fps - dst_fps)
-						fit_mode = mode;
-				} else {
-					fit_mode = mode;
-				}
-			}
+			sc200ai->cur_mode = mode;
+			return;
 		}
 	}
-	if (fit_mode) {
-		sc200ai->cur_mode = fit_mode;
-		return;
-	}
 err_find_res:
-	dev_err(&sc200ai->client->dev, "not match %dx%d@%dfps mode %d\n!",
-		rk_cam_w, rk_cam_h, dst_fps, rk_cam_hdr);
+	dev_err(&sc200ai->client->dev, "not match %dx%d mode %d\n!",
+		rk_cam_w, rk_cam_h, rk_cam_hdr);
 	sc200ai->cur_mode = &supported_modes[0];
 }
 #else
