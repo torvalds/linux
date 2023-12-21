@@ -466,35 +466,23 @@ static inline u8 kasan_random_tag(void) { return 0; }
 
 static inline void kasan_poison(const void *addr, size_t size, u8 value, bool init)
 {
-	addr = kasan_reset_tag(addr);
-
-	/* Skip KFENCE memory if called explicitly outside of sl*b. */
-	if (is_kfence_address(addr))
-		return;
-
 	if (WARN_ON((unsigned long)addr & KASAN_GRANULE_MASK))
 		return;
 	if (WARN_ON(size & KASAN_GRANULE_MASK))
 		return;
 
-	hw_set_mem_tag_range((void *)addr, size, value, init);
+	hw_set_mem_tag_range(kasan_reset_tag(addr), size, value, init);
 }
 
 static inline void kasan_unpoison(const void *addr, size_t size, bool init)
 {
 	u8 tag = get_tag(addr);
 
-	addr = kasan_reset_tag(addr);
-
-	/* Skip KFENCE memory if called explicitly outside of sl*b. */
-	if (is_kfence_address(addr))
-		return;
-
 	if (WARN_ON((unsigned long)addr & KASAN_GRANULE_MASK))
 		return;
 	size = round_up(size, KASAN_GRANULE_SIZE);
 
-	hw_set_mem_tag_range((void *)addr, size, tag, init);
+	hw_set_mem_tag_range(kasan_reset_tag(addr), size, tag, init);
 }
 
 static inline bool kasan_byte_accessible(const void *addr)

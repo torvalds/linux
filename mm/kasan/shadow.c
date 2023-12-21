@@ -135,10 +135,6 @@ void kasan_poison(const void *addr, size_t size, u8 value, bool init)
 	 */
 	addr = kasan_reset_tag(addr);
 
-	/* Skip KFENCE memory if called explicitly outside of sl*b. */
-	if (is_kfence_address(addr))
-		return;
-
 	if (WARN_ON((unsigned long)addr & KASAN_GRANULE_MASK))
 		return;
 	if (WARN_ON(size & KASAN_GRANULE_MASK))
@@ -174,14 +170,6 @@ void kasan_unpoison(const void *addr, size_t size, bool init)
 	 * addresses to this function.
 	 */
 	addr = kasan_reset_tag(addr);
-
-	/*
-	 * Skip KFENCE memory if called explicitly outside of sl*b. Also note
-	 * that calls to ksize(), where size is not a multiple of machine-word
-	 * size, would otherwise poison the invalid portion of the word.
-	 */
-	if (is_kfence_address(addr))
-		return;
 
 	if (WARN_ON((unsigned long)addr & KASAN_GRANULE_MASK))
 		return;
