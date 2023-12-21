@@ -164,7 +164,7 @@
 				reg = <0x80018000 0x2000>;
 
 				gpio0: gpio@0 {
-					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx28-gpio";
 					reg = <0>;
 					interrupts = <127>;
 					gpio-controller;
@@ -174,7 +174,7 @@
 				};
 
 				gpio1: gpio@1 {
-					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx28-gpio";
 					reg = <1>;
 					interrupts = <126>;
 					gpio-controller;
@@ -184,7 +184,7 @@
 				};
 
 				gpio2: gpio@2 {
-					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx28-gpio";
 					reg = <2>;
 					interrupts = <125>;
 					gpio-controller;
@@ -194,7 +194,7 @@
 				};
 
 				gpio3: gpio@3 {
-					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx28-gpio";
 					reg = <3>;
 					interrupts = <124>;
 					gpio-controller;
@@ -204,7 +204,7 @@
 				};
 
 				gpio4: gpio@4 {
-					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					compatible = "fsl,imx28-gpio";
 					reg = <4>;
 					interrupts = <123>;
 					gpio-controller;
@@ -990,7 +990,7 @@
 				status = "disabled";
 			};
 
-			dma_apbx: dma-apbx@80024000 {
+			dma_apbx: dma-controller@80024000 {
 				compatible = "fsl,imx28-dma-apbx";
 				reg = <0x80024000 0x2000>;
 				interrupts = <78>, <79>, <66>, <0>,
@@ -1100,7 +1100,7 @@
 			ranges;
 
 			clks: clkctrl@80040000 {
-				compatible = "fsl,imx28-clkctrl", "fsl,clkctrl";
+				compatible = "fsl,imx28-clkctrl";
 				reg = <0x80040000 0x2000>;
 				#clock-cells = <1>;
 			};

@@ -467,7 +467,7 @@
 
 	pinctrl_pwm2: pwm2grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6UL_PAD_GPIO1_IO09__PWM2_OUT		0x00003050
 		>;
 	};

@@ -11,6 +11,10 @@
 		/* Required to properly pass MAC addresses from bootloader. */
 		ethernet0 = &fec1;
 		ethernet1 = &fec2;
+		mmc0 = &usdhc3; /* eMMC */
+		mmc1 = &usdhc1; /* MMC/SD slot */
+		/delete-property/ mmc2;
+		/delete-property/ mmc3;
 	};
 
 	memory@80000000 {

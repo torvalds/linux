@@ -183,6 +183,15 @@
 		interrupt-parent = <&gpc>;
 		ranges;
 
+		ocram: sram@900000 {
+			compatible = "mmio-sram";
+			reg = <0x00900000 0x20000>;
+			ranges = <0 0x00900000 0x20000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&clks IMX7D_OCRAM_CLK>;
+		};
+
 		funnel@30041000 {
 			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x30041000 0x1000>;
@@ -190,7 +199,11 @@
 			clock-names = "apb_pclk";
 
 			ca_funnel_in_ports: in-ports {
-				port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
 					ca_funnel_in_port0: endpoint {
 						remote-endpoint = <&etm0_out_port>;
 					};
@@ -605,6 +618,7 @@
 					nvmem-cells = <&tempmon_calib>,	<&fuse_grade>;
 					nvmem-cell-names = "calib", "temp_grade";
 					clocks = <&clks IMX7D_PLL_SYS_MAIN_CLK>;
+					#thermal-sensor-cells = <0>;
 				};
 			};
 
@@ -720,6 +734,8 @@
 				clocks = <&clks IMX7D_ECSPI4_ROOT_CLK>,
 					<&clks IMX7D_ECSPI4_ROOT_CLK>;
 				clock-names = "ipg", "per";
+				dma-names = "rx", "tx";
+				dmas = <&sdma 6 7 1>, <&sdma 7 7 2>;
 				status = "disabled";
 			};
 
@@ -811,13 +827,23 @@
 			};
 
 			lcdif: lcdif@30730000 {
-				compatible = "fsl,imx7d-lcdif", "fsl,imx28-lcdif";
+				compatible = "fsl,imx7d-lcdif", "fsl,imx6sx-lcdif";
 				reg = <0x30730000 0x10000>;
 				interrupts = <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clks IMX7D_LCDIF_PIXEL_ROOT_CLK>,
 					<&clks IMX7D_LCDIF_PIXEL_ROOT_CLK>;
 				clock-names = "pix", "axi";
 				status = "disabled";
+
+				port {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					lcdif_out_mipi_dsi: endpoint@0 {
+						reg = <0>;
+						remote-endpoint = <&mipi_dsi_in_lcdif>;
+					};
+				};
 			};
 
 			mipi_csi: mipi-csi@30750000 {
@@ -850,6 +876,42 @@
 					};
 				};
 			};
+
+			mipi_dsi: dsi@30760000 {
+				compatible = "fsl,imx7d-mipi-dsim", "fsl,imx8mm-mipi-dsim";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x30760000 0x400>;
+				clocks = <&clks IMX7D_MIPI_DSI_ROOT_CLK>,
+					 <&clks IMX7D_MIPI_DPHY_ROOT_CLK>;
+				clock-names = "bus_clk", "sclk_mipi";
+				assigned-clocks = <&clks IMX7D_MIPI_DSI_ROOT_SRC>,
+						  <&clks IMX7D_PLL_SYS_PFD5_CLK>;
+				assigned-clock-parents = <&clks IMX7D_PLL_SYS_PFD5_CLK>;
+				assigned-clock-rates = <0>, <333000000>;
+				power-domains = <&pgc_mipi_phy>;
+				interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>;
+				samsung,burst-clock-frequency = <891000000>;
+				samsung,esc-clock-frequency = <20000000>;
+				samsung,pll-clock-frequency = <24000000>;
+				status = "disabled";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@0 {
+						reg = <0>;
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						mipi_dsi_in_lcdif: endpoint@0 {
+							reg = <0>;
+							remote-endpoint = <&lcdif_out_mipi_dsi>;
+						};
+					};
+				};
+			};
 		};
 
 		aips3: bus@30800000 {
@@ -875,6 +937,8 @@
 					clocks = <&clks IMX7D_ECSPI1_ROOT_CLK>,
 						<&clks IMX7D_ECSPI1_ROOT_CLK>;
 					clock-names = "ipg", "per";
+					dma-names = "rx", "tx";
+					dmas = <&sdma 0 7 1>, <&sdma 1 7 2>;
 					status = "disabled";
 				};
 
@@ -887,6 +951,8 @@
 					clocks = <&clks IMX7D_ECSPI2_ROOT_CLK>,
 						<&clks IMX7D_ECSPI2_ROOT_CLK>;
 					clock-names = "ipg", "per";
+					dma-names = "rx", "tx";
+					dmas = <&sdma 2 7 1>, <&sdma 3 7 2>;
 					status = "disabled";
 				};
 
@@ -899,6 +965,8 @@
 					clocks = <&clks IMX7D_ECSPI3_ROOT_CLK>,
 						<&clks IMX7D_ECSPI3_ROOT_CLK>;
 					clock-names = "ipg", "per";
+					dma-names = "rx", "tx";
+					dmas = <&sdma 4 7 1>, <&sdma 5 7 2>;
 					status = "disabled";
 				};
 
@@ -1275,7 +1343,7 @@
 		gpmi: nand-controller@33002000 {
 			compatible = "fsl,imx7d-gpmi-nand";
 			#address-cells = <1>;
-			#size-cells = <1>;
+			#size-cells = <0>;
 			reg = <0x33002000 0x2000>, <0x33004000 0x4000>;
 			reg-names = "gpmi-nand", "bch";
 			interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
