@@ -211,7 +211,6 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 	snprintf(onkey->phys, sizeof(onkey->phys), "%s/input0",
 		 onkey->config->name);
 	onkey->input->phys = onkey->phys;
-	onkey->input->dev.parent = &pdev->dev;
 
 	input_set_capability(onkey->input, EV_KEY, KEY_POWER);
 
