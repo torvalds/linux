@@ -108,6 +108,7 @@ struct cxl_event_record_raw {
 } __packed;
 
 enum cxl_event_type {
+	CXL_CPER_EVENT_GENERIC,
 	CXL_CPER_EVENT_GEN_MEDIA,
 	CXL_CPER_EVENT_DRAM,
 	CXL_CPER_EVENT_MEM_MODULE,

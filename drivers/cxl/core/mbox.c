@@ -836,21 +836,37 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(cxl_enumerate_cmds, CXL);
 
-static void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
-				   enum cxl_event_log_type type,
-				   struct cxl_event_record_raw *record)
+void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
+			    enum cxl_event_log_type type,
+			    enum cxl_event_type event_type,
+			    const uuid_t *uuid, union cxl_event *evt)
 {
-	union cxl_event *evt = &record->event;
-	uuid_t *id = &record->id;
-
-	if (uuid_equal(id, &CXL_EVENT_GEN_MEDIA_UUID))
+	if (event_type == CXL_CPER_EVENT_GEN_MEDIA)
 		trace_cxl_general_media(cxlmd, type, &evt->gen_media);
-	else if (uuid_equal(id, &CXL_EVENT_DRAM_UUID))
+	else if (event_type == CXL_CPER_EVENT_DRAM)
 		trace_cxl_dram(cxlmd, type, &evt->dram);
-	else if (uuid_equal(id, &CXL_EVENT_MEM_MODULE_UUID))
+	else if (event_type == CXL_CPER_EVENT_MEM_MODULE)
 		trace_cxl_memory_module(cxlmd, type, &evt->mem_module);
 	else
-		trace_cxl_generic_event(cxlmd, type, id, &evt->generic);
+		trace_cxl_generic_event(cxlmd, type, uuid, &evt->generic);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_event_trace_record, CXL);
+
+static void __cxl_event_trace_record(const struct cxl_memdev *cxlmd,
+				     enum cxl_event_log_type type,
+				     struct cxl_event_record_raw *record)
+{
+	enum cxl_event_type ev_type = CXL_CPER_EVENT_GENERIC;
+	const uuid_t *uuid = &record->id;
+
+	if (uuid_equal(uuid, &CXL_EVENT_GEN_MEDIA_UUID))
+		ev_type = CXL_CPER_EVENT_GEN_MEDIA;
+	else if (uuid_equal(uuid, &CXL_EVENT_DRAM_UUID))
+		ev_type = CXL_CPER_EVENT_DRAM;
+	else if (uuid_equal(uuid, &CXL_EVENT_MEM_MODULE_UUID))
+		ev_type = CXL_CPER_EVENT_MEM_MODULE;
+
+	cxl_event_trace_record(cxlmd, type, ev_type, uuid, &record->event);
 }
 
 static int cxl_clear_event_record(struct cxl_memdev_state *mds,
@@ -961,8 +977,8 @@ static void cxl_mem_get_records_log(struct cxl_memdev_state *mds,
 			break;
 
 		for (i = 0; i < nr_rec; i++)
-			cxl_event_trace_record(cxlmd, type,
-					       &payload->records[i]);
+			__cxl_event_trace_record(cxlmd, type,
+						 &payload->records[i]);
 
 		if (payload->flags & CXL_GET_EVENT_FLAG_OVERFLOW)
 			trace_cxl_overflow(cxlmd, type, payload);
