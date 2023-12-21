@@ -336,6 +336,7 @@ static inline void set_pte(pte_t *ptep, pte_t pte)
 }
 
 #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
+struct vm_area_struct;
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma,
 		unsigned long address, pte_t *ptep)
 {
