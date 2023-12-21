@@ -1036,8 +1036,8 @@ EXPORT_SYMBOL_GPL(gpiochip_add_data_with_key);
 void gpiochip_remove(struct gpio_chip *gc)
 {
 	struct gpio_device *gdev = gc->gpiodev;
-	unsigned long	flags;
-	unsigned int	i;
+	unsigned long flags;
+	unsigned int i;
 
 	down_write(&gdev->sem);
 
@@ -2173,10 +2173,10 @@ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
  */
 static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 {
-	struct gpio_chip	*gc = desc->gdev->chip;
-	int			ret;
-	unsigned long		flags;
-	unsigned		offset;
+	struct gpio_chip *gc = desc->gdev->chip;
+	unsigned long flags;
+	unsigned int offset;
+	int ret;
 
 	if (label) {
 		label = kstrdup_const(label, GFP_KERNEL);
@@ -2288,9 +2288,9 @@ int gpiod_request(struct gpio_desc *desc, const char *label)
 
 static bool gpiod_free_commit(struct gpio_desc *desc)
 {
-	bool			ret = false;
-	unsigned long		flags;
-	struct gpio_chip	*gc;
+	struct gpio_chip *gc;
+	unsigned long flags;
+	bool ret = false;
 
 	might_sleep();
 
@@ -2564,8 +2564,8 @@ int gpio_set_debounce_timeout(struct gpio_desc *desc, unsigned int debounce)
  */
 int gpiod_direction_input(struct gpio_desc *desc)
 {
-	struct gpio_chip	*gc;
-	int			ret = 0;
+	struct gpio_chip *gc;
+	int ret = 0;
 
 	VALIDATE_DESC(desc);
 	gc = desc->gdev->chip;
@@ -2914,7 +2914,7 @@ static int gpio_chip_get_value(struct gpio_chip *gc, const struct gpio_desc *des
 
 static int gpiod_get_raw_value_commit(const struct gpio_desc *desc)
 {
-	struct gpio_chip	*gc;
+	struct gpio_chip *gc;
 	int value;
 
 	gc = desc->gdev->chip;
@@ -3209,7 +3209,7 @@ static void gpio_set_open_source_value_commit(struct gpio_desc *desc, bool value
 
 static void gpiod_set_raw_value_commit(struct gpio_desc *desc, bool value)
 {
-	struct gpio_chip	*gc;
+	struct gpio_chip *gc;
 
 	gc = desc->gdev->chip;
 	trace_gpio_value(desc_to_gpio(desc), 0, value);
@@ -4696,13 +4696,11 @@ core_initcall(gpiolib_dev_init);
 
 static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 {
-	struct gpio_chip	*gc = gdev->chip;
-	struct gpio_desc	*desc;
-	unsigned		gpio = gdev->base;
-	int			value;
-	bool			is_out;
-	bool			is_irq;
-	bool			active_low;
+	struct gpio_chip *gc = gdev->chip;
+	bool active_low, is_irq, is_out;
+	unsigned int gpio = gdev->base;
+	struct gpio_desc *desc;
+	int value;
 
 	for_each_gpio_desc(gc, desc) {
 		if (test_bit(FLAG_REQUESTED, &desc->flags)) {
