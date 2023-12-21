@@ -1201,9 +1201,11 @@ static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
 	}
 	ufshcd_set_link_active(hba);
 
-	if (!hba->mcq_enabled) {
-		err = ufshcd_make_hba_operational(hba);
-	} else {
+	err = ufshcd_make_hba_operational(hba);
+	if (err)
+		return err;
+
+	if (is_mcq_enabled(hba)) {
 		ufs_mtk_config_mcq(hba, false);
 		ufshcd_mcq_make_queues_operational(hba);
 		ufshcd_mcq_config_mac(hba, hba->nutrs);
@@ -1211,9 +1213,6 @@ static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
 		ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x1,
 			      REG_UFS_MEM_CFG);
 	}
-
-	if (err)
-		return err;
 
 	return 0;
 }
