@@ -1219,7 +1219,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				ieee->AsocRetryCount = 0;
 				if ((ieee->current_network.qos_data.supported == 1) &&
 				    ieee->current_network.bssht.bd_support_ht)
-					HTResetSelfAndSavePeerSetting(ieee,
+					ht_reset_self_and_save_peer_setting(ieee,
 						 &(ieee->current_network));
 				else
 					ieee->ht_info->current_ht_support = false;
