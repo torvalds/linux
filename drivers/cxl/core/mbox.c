@@ -846,16 +846,16 @@ static void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
 		struct cxl_event_gen_media *rec =
 				(struct cxl_event_gen_media *)record;
 
-		trace_cxl_general_media(cxlmd, type, id, rec);
+		trace_cxl_general_media(cxlmd, type, rec);
 	} else if (uuid_equal(id, &CXL_EVENT_DRAM_UUID)) {
 		struct cxl_event_dram *rec = (struct cxl_event_dram *)record;
 
-		trace_cxl_dram(cxlmd, type, id, rec);
+		trace_cxl_dram(cxlmd, type, rec);
 	} else if (uuid_equal(id, &CXL_EVENT_MEM_MODULE_UUID)) {
 		struct cxl_event_mem_module *rec =
 				(struct cxl_event_mem_module *)record;
 
-		trace_cxl_memory_module(cxlmd, type, id, rec);
+		trace_cxl_memory_module(cxlmd, type, rec);
 	} else {
 		/* For unknown record types print just the header */
 		trace_cxl_generic_event(cxlmd, type, id, record);
