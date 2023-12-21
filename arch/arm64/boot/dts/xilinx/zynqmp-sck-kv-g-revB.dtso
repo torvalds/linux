@@ -16,6 +16,44 @@
 /dts-v1/;
 /plugin/;
 
+&{/} {
+	si5332_0: si5332-0 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <125000000>;
+	};
+
+	si5332_1: si5332-1 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
+	si5332_2: si5332-2 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <48000000>;
+	};
+
+	si5332_3: si5332-3 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	si5332_4: si5332-4 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
+	};
+
+	si5332_5: si5332-5 { /* u17 */
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
+	};
+};
+
 &i2c1 { /* I2C_SCK C23/C24 - MIO from SOM */
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -28,44 +66,6 @@
 	/* u14 - 0x40 - ina260 */
 	/* u43 - 0x2d - usb5744 */
 	/* u27 - 0xe0 - STDP4320 DP/HDMI splitter */
-};
-
-&amba {
-	si5332_0: si5332_0 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <125000000>;
-	};
-
-	si5332_1: si5332_1 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <25000000>;
-	};
-
-	si5332_2: si5332_2 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <48000000>;
-	};
-
-	si5332_3: si5332_3 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <24000000>;
-	};
-
-	si5332_4: si5332_4 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <26000000>;
-	};
-
-	si5332_5: si5332_5 { /* u17 */
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <27000000>;
-	};
 };
 
 /* DP/USB 3.0 */
