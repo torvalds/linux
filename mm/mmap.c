@@ -2051,7 +2051,6 @@ static int expand_upwards(struct vm_area_struct *vma, unsigned long address)
 		}
 	}
 	anon_vma_unlock_write(vma->anon_vma);
-	khugepaged_enter_vma(vma, vma->vm_flags);
 	mas_destroy(&mas);
 	validate_mm(mm);
 	return error;
@@ -2145,7 +2144,6 @@ int expand_downwards(struct vm_area_struct *vma, unsigned long address)
 		}
 	}
 	anon_vma_unlock_write(vma->anon_vma);
-	khugepaged_enter_vma(vma, vma->vm_flags);
 	mas_destroy(&mas);
 	validate_mm(mm);
 	return error;
