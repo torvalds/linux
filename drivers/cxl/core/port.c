@@ -541,7 +541,10 @@ static void cxl_port_release(struct device *dev)
 	xa_destroy(&port->dports);
 	xa_destroy(&port->regions);
 	ida_free(&cxl_port_ida, port->id);
-	kfree(port);
+	if (is_cxl_root(port))
+		kfree(to_cxl_root(port));
+	else
+		kfree(port);
 }
 
 static ssize_t decoders_committed_show(struct device *dev,
@@ -669,17 +672,31 @@ static struct lock_class_key cxl_port_key;
 static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 				       struct cxl_dport *parent_dport)
 {
-	struct cxl_port *port;
+	struct cxl_root *cxl_root __free(kfree) = NULL;
+	struct cxl_port *port, *_port __free(kfree) = NULL;
 	struct device *dev;
 	int rc;
 
-	port = kzalloc(sizeof(*port), GFP_KERNEL);
-	if (!port)
-		return ERR_PTR(-ENOMEM);
+	/* No parent_dport, root cxl_port */
+	if (!parent_dport) {
+		cxl_root = kzalloc(sizeof(*cxl_root), GFP_KERNEL);
+		if (!cxl_root)
+			return ERR_PTR(-ENOMEM);
+	} else {
+		_port = kzalloc(sizeof(*port), GFP_KERNEL);
+		if (!_port)
+			return ERR_PTR(-ENOMEM);
+	}
 
 	rc = ida_alloc(&cxl_port_ida, GFP_KERNEL);
 	if (rc < 0)
-		goto err;
+		return ERR_PTR(rc);
+
+	if (cxl_root)
+		port = &no_free_ptr(cxl_root)->port;
+	else
+		port = no_free_ptr(_port);
+
 	port->id = rc;
 	port->uport_dev = uport_dev;
 
@@ -731,10 +748,6 @@ static struct cxl_port *cxl_port_alloc(struct device *uport_dev,
 	dev->type = &cxl_port_type;
 
 	return port;
-
-err:
-	kfree(port);
-	return ERR_PTR(rc);
 }
 
 static int cxl_setup_comp_regs(struct device *host, struct cxl_register_map *map,
@@ -883,6 +896,22 @@ struct cxl_port *devm_cxl_add_port(struct device *host,
 	return port;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_port, CXL);
+
+struct cxl_root *devm_cxl_add_root(struct device *host,
+				   const struct cxl_root_ops *ops)
+{
+	struct cxl_root *cxl_root;
+	struct cxl_port *port;
+
+	port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
+	if (IS_ERR(port))
+		return (struct cxl_root *)port;
+
+	cxl_root = to_cxl_root(port);
+	cxl_root->ops = ops;
+	return cxl_root;
+}
+EXPORT_SYMBOL_NS_GPL(devm_cxl_add_root, CXL);
 
 struct pci_bus *cxl_port_to_pci_bus(struct cxl_port *port)
 {
