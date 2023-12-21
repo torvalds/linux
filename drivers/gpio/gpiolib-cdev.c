@@ -1454,13 +1454,18 @@ static long linereq_get_values(struct linereq *lr, void __user *ip)
 	return 0;
 }
 
-static long linereq_set_values_unlocked(struct linereq *lr,
-					struct gpio_v2_line_values *lv)
+static long linereq_set_values(struct linereq *lr, void __user *ip)
 {
 	DECLARE_BITMAP(vals, GPIO_V2_LINES_MAX);
+	struct gpio_v2_line_values lv;
 	struct gpio_desc **descs;
 	unsigned int i, didx, num_set;
 	int ret;
+
+	if (copy_from_user(&lv, ip, sizeof(lv)))
+		return -EFAULT;
+
+	guard(mutex)(&lr->config_mutex);
 
 	/*
 	 * gpiod_set_array_value_complex() requires compacted desc and val
@@ -1472,12 +1477,12 @@ static long linereq_set_values_unlocked(struct linereq *lr,
 	bitmap_zero(vals, GPIO_V2_LINES_MAX);
 	/* scan requested lines to determine the subset to be set */
 	for (num_set = 0, i = 0; i < lr->num_lines; i++) {
-		if (lv->mask & BIT_ULL(i)) {
+		if (lv.mask & BIT_ULL(i)) {
 			/* setting inputs is not allowed */
 			if (!test_bit(FLAG_IS_OUT, &lr->lines[i].desc->flags))
 				return -EPERM;
 			/* add to compacted values */
-			if (lv->bits & BIT_ULL(i))
+			if (lv.bits & BIT_ULL(i))
 				__set_bit(num_set, vals);
 			num_set++;
 			/* capture desc for the num_set == 1 case */
@@ -1493,7 +1498,7 @@ static long linereq_set_values_unlocked(struct linereq *lr,
 		if (!descs)
 			return -ENOMEM;
 		for (didx = 0, i = 0; i < lr->num_lines; i++) {
-			if (lv->mask & BIT_ULL(i)) {
+			if (lv.mask & BIT_ULL(i)) {
 				descs[didx] = lr->lines[i].desc;
 				didx++;
 			}
@@ -1507,64 +1512,13 @@ static long linereq_set_values_unlocked(struct linereq *lr,
 	return ret;
 }
 
-static long linereq_set_values(struct linereq *lr, void __user *ip)
+static long linereq_set_config(struct linereq *lr, void __user *ip)
 {
-	struct gpio_v2_line_values lv;
-
-	if (copy_from_user(&lv, ip, sizeof(lv)))
-		return -EFAULT;
-
-	guard(mutex)(&lr->config_mutex);
-
-	return linereq_set_values_unlocked(lr, &lv);
-}
-
-static long linereq_set_config_unlocked(struct linereq *lr,
-					struct gpio_v2_line_config *lc)
-{
+	struct gpio_v2_line_config lc;
 	struct gpio_desc *desc;
 	struct line *line;
 	unsigned int i;
 	u64 flags, edflags;
-	int ret;
-
-	for (i = 0; i < lr->num_lines; i++) {
-		line = &lr->lines[i];
-		desc = lr->lines[i].desc;
-		flags = gpio_v2_line_config_flags(lc, i);
-		gpio_v2_line_config_flags_to_desc_flags(flags, &desc->flags);
-		edflags = flags & GPIO_V2_LINE_EDGE_DETECTOR_FLAGS;
-		/*
-		 * Lines have to be requested explicitly for input
-		 * or output, else the line will be treated "as is".
-		 */
-		if (flags & GPIO_V2_LINE_FLAG_OUTPUT) {
-			int val = gpio_v2_line_config_output_value(lc, i);
-
-			edge_detector_stop(line);
-			ret = gpiod_direction_output(desc, val);
-			if (ret)
-				return ret;
-		} else if (flags & GPIO_V2_LINE_FLAG_INPUT) {
-			ret = gpiod_direction_input(desc);
-			if (ret)
-				return ret;
-
-			ret = edge_detector_update(line, lc, i, edflags);
-			if (ret)
-				return ret;
-		}
-
-		WRITE_ONCE(line->edflags, edflags);
-
-		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_CONFIG);
-	}
-	return 0;
-}
-
-static long linereq_set_config(struct linereq *lr, void __user *ip)
-{
-	struct gpio_v2_line_config lc;
 	int ret;
 
 	if (copy_from_user(&lc, ip, sizeof(lc)))
@@ -1576,7 +1530,38 @@ static long linereq_set_config(struct linereq *lr, void __user *ip)
 
 	guard(mutex)(&lr->config_mutex);
 
-	return linereq_set_config_unlocked(lr, &lc);
+	for (i = 0; i < lr->num_lines; i++) {
+		line = &lr->lines[i];
+		desc = lr->lines[i].desc;
+		flags = gpio_v2_line_config_flags(&lc, i);
+		gpio_v2_line_config_flags_to_desc_flags(flags, &desc->flags);
+		edflags = flags & GPIO_V2_LINE_EDGE_DETECTOR_FLAGS;
+		/*
+		 * Lines have to be requested explicitly for input
+		 * or output, else the line will be treated "as is".
+		 */
+		if (flags & GPIO_V2_LINE_FLAG_OUTPUT) {
+			int val = gpio_v2_line_config_output_value(&lc, i);
+
+			edge_detector_stop(line);
+			ret = gpiod_direction_output(desc, val);
+			if (ret)
+				return ret;
+		} else if (flags & GPIO_V2_LINE_FLAG_INPUT) {
+			ret = gpiod_direction_input(desc);
+			if (ret)
+				return ret;
+
+			ret = edge_detector_update(line, &lc, i, edflags);
+			if (ret)
+				return ret;
+		}
+
+		WRITE_ONCE(line->edflags, edflags);
+
+		gpiod_line_state_notify(desc, GPIO_V2_LINE_CHANGED_CONFIG);
+	}
+	return 0;
 }
 
 static long linereq_ioctl_unlocked(struct file *file, unsigned int cmd,
