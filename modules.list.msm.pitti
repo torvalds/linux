@@ -34,6 +34,7 @@ sdhci-msm.ko
 stub-regulator.ko
 gdsc-regulator.ko
 arm_smmu.ko
+gic_intr_routing.ko
 iommu-logger.ko
 qcom_iommu_util.ko
 mem-hooks.ko
