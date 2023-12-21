@@ -57,7 +57,7 @@ examples:
 
     firmware {
       zynqmp-firmware {
-        zynqmp-power {
+        power-management {
           compatible = "xlnx,zynqmp-power";
           interrupts = <0 35 4>;
         };
@@ -70,7 +70,7 @@ examples:
 
     firmware {
       zynqmp-firmware {
-        zynqmp-power {
+        power-management {
           compatible = "xlnx,zynqmp-power";
           interrupt-parent = <&gic>;
           interrupts = <0 35 4>;
