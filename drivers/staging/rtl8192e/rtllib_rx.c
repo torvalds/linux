@@ -2189,7 +2189,7 @@ static inline int rtllib_network_init(
 	network->RSSI = stats->SignalStrength;
 	network->CountryIeLen = 0;
 	memset(network->CountryIeBuf, 0, MAX_IE_LEN);
-	HTInitializeBssDesc(&network->bssht);
+	ht_initialize_bss_desc(&network->bssht);
 	network->flags |= NETWORK_HAS_CCK;
 
 	network->wpa_ie_len = 0;
