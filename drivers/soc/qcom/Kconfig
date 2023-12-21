@@ -123,6 +123,14 @@ config MSM_L2_SPM
           Enabling this driver allows configuring L2 SPM for low power modes
           on supported chipsets.
 
+config QCOM_SOC_SLEEP_STATS
+	tristate "Qualcomm Technologies, Inc. (QTI) SoC sleep stats driver"
+	help
+	  Qualcomm Technologies Inc (QTI) SoC sleep stats driver to read
+	  the shared memory exported by the remote processor related to
+	  various SoC level low power modes statistics and export to sysfs
+	  interface.
+
 config QTI_SYSTEM_PM_RPM
 	bool
 
