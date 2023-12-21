@@ -13,6 +13,17 @@
 		reg = <0x60000000 0x20000000>;
 	};
 
+	hdmi_con: hdmi-con {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds: gpio-leds {
 		compatible = "gpio-leds";
 
@@ -108,6 +119,12 @@
 
 &hdmi {
 	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
 };
 
 &i2c1 {
