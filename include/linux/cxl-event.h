@@ -107,4 +107,54 @@ struct cxl_event_record_raw {
 	union cxl_event event;
 } __packed;
 
+enum cxl_event_type {
+	CXL_CPER_EVENT_GEN_MEDIA,
+	CXL_CPER_EVENT_DRAM,
+	CXL_CPER_EVENT_MEM_MODULE,
+};
+
+#define CPER_CXL_DEVICE_ID_VALID		BIT(0)
+#define CPER_CXL_DEVICE_SN_VALID		BIT(1)
+#define CPER_CXL_COMP_EVENT_LOG_VALID		BIT(2)
+struct cxl_cper_event_rec {
+	struct {
+		u32 length;
+		u64 validation_bits;
+		struct cper_cxl_event_devid {
+			u16 vendor_id;
+			u16 device_id;
+			u8 func_num;
+			u8 device_num;
+			u8 bus_num;
+			u16 segment_num;
+			u16 slot_num; /* bits 2:0 reserved */
+			u8 reserved;
+		} __packed device_id;
+		struct cper_cxl_event_sn {
+			u32 lower_dw;
+			u32 upper_dw;
+		} __packed dev_serial_num;
+	} __packed hdr;
+
+	union cxl_event event;
+} __packed;
+
+typedef void (*cxl_cper_callback)(enum cxl_event_type type,
+				  struct cxl_cper_event_rec *rec);
+
+#ifdef CONFIG_ACPI_APEI_GHES
+int cxl_cper_register_callback(cxl_cper_callback callback);
+int cxl_cper_unregister_callback(cxl_cper_callback callback);
+#else
+static inline int cxl_cper_register_callback(cxl_cper_callback callback)
+{
+	return 0;
+}
+
+static inline int cxl_cper_unregister_callback(cxl_cper_callback callback)
+{
+	return 0;
+}
+#endif
+
 #endif /* _LINUX_CXL_EVENT_H */
