@@ -83,6 +83,11 @@ static inline bool kasan_sample_page_alloc(unsigned int order)
 
 #else /* CONFIG_KASAN_HW_TAGS */
 
+static inline bool kasan_vmalloc_enabled(void)
+{
+	return IS_ENABLED(CONFIG_KASAN_VMALLOC);
+}
+
 static inline bool kasan_async_fault_possible(void)
 {
 	return false;

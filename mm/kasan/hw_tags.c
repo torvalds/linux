@@ -62,6 +62,7 @@ DEFINE_STATIC_KEY_TRUE(kasan_flag_vmalloc);
 #else
 DEFINE_STATIC_KEY_FALSE(kasan_flag_vmalloc);
 #endif
+EXPORT_SYMBOL_GPL(kasan_flag_vmalloc);
 
 #define PAGE_ALLOC_SAMPLE_DEFAULT	1
 #define PAGE_ALLOC_SAMPLE_ORDER_DEFAULT	3
