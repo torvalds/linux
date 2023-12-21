@@ -109,6 +109,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 
 	/* Cache the data early to ensure is_visible() works */
 	read_cdat_data(port);
+	cxl_endpoint_parse_cdat(port);
 
 	get_device(&cxlmd->dev);
 	rc = devm_add_action_or_reset(&port->dev, schedule_detach, cxlmd);
