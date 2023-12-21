@@ -38,7 +38,7 @@ netdev_features_t                   wanted_features
 netdev_features_t                   vlan_features                                                   
 netdev_features_t                   hw_enc_features         -                   -                   netif_skb_features
 netdev_features_t                   mpls_features                                                   
-netdev_features_t                   gso_partial_features                                            
+netdev_features_t                   gso_partial_features    read_mostly                             gso_features_check
 unsigned_int                        min_mtu                                                         
 unsigned_int                        max_mtu                                                         
 unsigned_short                      type                                                            

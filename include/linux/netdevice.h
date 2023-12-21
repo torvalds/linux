@@ -2115,6 +2115,7 @@ struct net_device {
 	const struct net_device_ops *netdev_ops;
 	const struct header_ops *header_ops;
 	struct netdev_queue	*_tx;
+	netdev_features_t	gso_partial_features;
 	unsigned int		real_num_tx_queues;
 	unsigned int		gso_max_size;
 	unsigned int		gso_ipv4_max_size;
@@ -2211,7 +2212,6 @@ struct net_device {
 	netdev_features_t	vlan_features;
 	netdev_features_t	hw_enc_features;
 	netdev_features_t	mpls_features;
-	netdev_features_t	gso_partial_features;
 
 	unsigned int		min_mtu;
 	unsigned int		max_mtu;
