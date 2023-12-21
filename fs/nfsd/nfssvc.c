@@ -542,7 +542,7 @@ static struct notifier_block nfsd_inet6addr_notifier = {
 /* Only used under nfsd_mutex, so this atomic may be overkill: */
 static atomic_t nfsd_notifier_refcount = ATOMIC_INIT(0);
 
-static void nfsd_last_thread(struct net *net)
+void nfsd_last_thread(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct svc_serv *serv = nn->nfsd_serv;
@@ -955,7 +955,6 @@ nfsd(void *vrqstp)
 		rqstp->rq_server->sv_maxconn = nn->max_connections;
 
 		svc_recv(rqstp);
-		validate_process_creds();
 	}
 
 	atomic_dec(&nfsdstats.th_cnt);

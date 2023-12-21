@@ -423,8 +423,9 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 		}
 
 		for (i = 0; i < dml2->config.bbox_overrides.clks_table.num_entries_per_clk.num_dtbclk_levels; i++) {
-			p->in_states->state_array[i].dtbclk_mhz =
-				dml2->config.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz;
+			if (dml2->config.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz > 0)
+				p->in_states->state_array[i].dtbclk_mhz =
+					dml2->config.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz;
 		}
 
 		for (i = 0; i < dml2->config.bbox_overrides.clks_table.num_entries_per_clk.num_dispclk_levels; i++) {

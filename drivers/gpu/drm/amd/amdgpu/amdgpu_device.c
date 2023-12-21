@@ -4516,8 +4516,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 
 	amdgpu_ras_suspend(adev);
 
-	amdgpu_ttm_set_buffer_funcs_status(adev, false);
-
 	amdgpu_device_ip_suspend_phase1(adev);
 
 	if (!adev->in_s0ix)
