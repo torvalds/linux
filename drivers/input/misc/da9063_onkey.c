@@ -9,11 +9,12 @@
 #include <linux/errno.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/property.h>
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
-#include <linux/of.h>
 #include <linux/mfd/da9063/core.h>
 #include <linux/mfd/da9063/registers.h>
 #include <linux/mfd/da9062/core.h>
@@ -199,8 +200,8 @@ static int da9063_onkey_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, -ENXIO,
 				     "Parent regmap unavailable.\n");
 
-	onkey->key_power = !of_property_read_bool(pdev->dev.of_node,
-						  "dlg,disable-key-power");
+	onkey->key_power = !device_property_read_bool(&pdev->dev,
+						      "dlg,disable-key-power");
 
 	onkey->input = devm_input_allocate_device(&pdev->dev);
 	if (!onkey->input)
