@@ -48,6 +48,7 @@ icc-rpm.ko
 qnoc-pitti.ko
 qnoc-qos-rpm.ko
 msm_qmp.ko
+gh_arm_drv.ko
 gh_rm_drv.ko
 gunyah_loader.ko
 mdt_loader.ko
