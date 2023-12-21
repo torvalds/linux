@@ -537,6 +537,13 @@ static inline void pwm_apply_args(struct pwm_device *pwm)
 	pwm_apply_might_sleep(pwm, &state);
 }
 
+/* only for backwards-compatibility, new code should not use this */
+static inline int pwm_apply_state(struct pwm_device *pwm,
+				  const struct pwm_state *state)
+{
+	return pwm_apply_might_sleep(pwm, state);
+}
+
 struct pwm_lookup {
 	struct list_head list;
 	const char *provider;
