@@ -1678,7 +1678,6 @@ static CLOSURE_CALLBACK(do_journal_write)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	struct journal_buf *w = journal_last_unwritten_buf(j);
-	struct bch_extent_ptr *ptr;
 	struct bio *bio;
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 

@@ -396,16 +396,14 @@ void bch2_submit_wbio_replicas(struct bch_write_bio *wbio, struct bch_fs *c,
 			       bool nocow)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(k));
-	const struct bch_extent_ptr *ptr;
 	struct bch_write_bio *n;
-	struct bch_dev *ca;
 
 	BUG_ON(c->opts.nochanges);
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		BUG_ON(!bch2_dev_exists2(c, ptr->dev));
 
-		ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 
 		if (to_entry(ptr + 1) < ptrs.end) {
 			n = to_wbio(bio_alloc_clone(NULL, &wbio->bio,
@@ -1108,7 +1106,6 @@ static bool bch2_extent_is_writeable(struct bch_write_op *op,
 static inline void bch2_nocow_write_unlock(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
-	const struct bch_extent_ptr *ptr;
 	struct bkey_i *k;
 
 	for_each_keylist_key(&op->insert_keys, k) {
@@ -1127,25 +1124,20 @@ static int bch2_nocow_write_convert_one_unwritten(struct btree_trans *trans,
 						  struct bkey_s_c k,
 						  u64 new_i_size)
 {
-	struct bkey_i *new;
-	struct bkey_ptrs ptrs;
-	struct bch_extent_ptr *ptr;
-	int ret;
-
 	if (!bch2_extents_match(bkey_i_to_s_c(orig), k)) {
 		/* trace this */
 		return 0;
 	}
 
-	new = bch2_bkey_make_mut_noupdate(trans, k);
-	ret = PTR_ERR_OR_ZERO(new);
+	struct bkey_i *new = bch2_bkey_make_mut_noupdate(trans, k);
+	int ret = PTR_ERR_OR_ZERO(new);
 	if (ret)
 		return ret;
 
 	bch2_cut_front(bkey_start_pos(&orig->k), new);
 	bch2_cut_back(orig->k.p, new);
 
-	ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 	bkey_for_each_ptr(ptrs, ptr)
 		ptr->unwritten = 0;
 
@@ -1225,8 +1217,6 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_ptrs_c ptrs;
-	const struct bch_extent_ptr *ptr;
 	DARRAY_PREALLOCATED(struct bucket_to_lock, 3) buckets;
 	u32 snapshot;
 	struct bucket_to_lock *stale_at;
@@ -1269,7 +1259,7 @@ retry:
 			break;
 
 		/* Get iorefs before dropping btree locks: */
-		ptrs = bch2_bkey_ptrs_c(k);
+		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		bkey_for_each_ptr(ptrs, ptr) {
 			struct bpos b = PTR_BUCKET_POS(c, ptr);
 			struct nocow_lock_bucket *l =

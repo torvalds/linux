@@ -74,7 +74,6 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		struct bkey_i_extent *e;
 		struct bch_devs_list devs_have;
 		struct write_point *wp;
-		struct bch_extent_ptr *ptr;
 
 		devs_have.nr = 0;
 

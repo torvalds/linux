@@ -1844,7 +1844,6 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 	struct bkey_i *u;
 	int ret;
 

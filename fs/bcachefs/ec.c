@@ -161,7 +161,6 @@ static const struct bch_extent_ptr *bkey_matches_stripe(struct bch_stripe *s,
 						struct bkey_s_c k, unsigned *block)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 	unsigned i, nr_data = s->nr_blocks - s->nr_redundant;
 
 	bkey_for_each_ptr(ptrs, ptr)

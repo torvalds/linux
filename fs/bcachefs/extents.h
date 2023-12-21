@@ -300,7 +300,7 @@ static inline struct bkey_ptrs bch2_bkey_ptrs(struct bkey_s k)
 	bkey_extent_entry_for_each_from(_p, _entry, _p.start)
 
 #define __bkey_for_each_ptr(_start, _end, _ptr)				\
-	for ((_ptr) = (_start);						\
+	for (typeof(_start) (_ptr) = (_start);				\
 	     ((_ptr) = __bkey_ptr_next(_ptr, _end));			\
 	     (_ptr)++)
 
@@ -547,7 +547,6 @@ static inline bool bkey_extent_is_allocation(const struct bkey *k)
 static inline bool bkey_extent_is_unwritten(struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr)
 		if (ptr->unwritten)
@@ -565,7 +564,6 @@ static inline struct bch_devs_list bch2_bkey_devs(struct bkey_s_c k)
 {
 	struct bch_devs_list ret = (struct bch_devs_list) { 0 };
 	struct bkey_ptrs_c p = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(p, ptr)
 		ret.data[ret.nr++] = ptr->dev;
@@ -577,7 +575,6 @@ static inline struct bch_devs_list bch2_bkey_dirty_devs(struct bkey_s_c k)
 {
 	struct bch_devs_list ret = (struct bch_devs_list) { 0 };
 	struct bkey_ptrs_c p = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(p, ptr)
 		if (!ptr->cached)
@@ -590,7 +587,6 @@ static inline struct bch_devs_list bch2_bkey_cached_devs(struct bkey_s_c k)
 {
 	struct bch_devs_list ret = (struct bch_devs_list) { 0 };
 	struct bkey_ptrs_c p = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(p, ptr)
 		if (ptr->cached)

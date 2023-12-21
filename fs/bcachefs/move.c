@@ -695,9 +695,6 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			break;
 
 		if (!bp.level) {
-			const struct bch_extent_ptr *ptr;
-			unsigned i = 0;
-
 			k = bch2_backpointer_get_key(trans, &iter, bp_pos, bp, 0);
 			ret = bkey_err(k);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -720,6 +717,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			data_opts.target	= io_opts.background_target;
 			data_opts.rewrite_ptrs = 0;
 
+			unsigned i = 0;
 			bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr) {
 				if (ptr->dev == bucket.inode) {
 					data_opts.rewrite_ptrs |= 1U << i;
@@ -890,7 +888,6 @@ static bool migrate_pred(struct bch_fs *c, void *arg,
 			 struct data_update_opts *data_opts)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 	struct bch_ioctl_data *op = arg;
 	unsigned i = 0;
 

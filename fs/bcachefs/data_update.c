@@ -356,7 +356,6 @@ void bch2_data_update_exit(struct data_update *update)
 	struct bch_fs *c = update->op.c;
 	struct bkey_ptrs_c ptrs =
 		bch2_bkey_ptrs_c(bkey_i_to_s_c(update->k.k));
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		if (c->opts.nocow_enabled)
@@ -377,7 +376,6 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 	struct bio *bio = &update->op.wbio.bio;
 	struct bkey_i_extent *e;
 	struct write_point *wp;
-	struct bch_extent_ptr *ptr;
 	struct closure cl;
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -509,7 +507,6 @@ int bch2_data_update_init(struct btree_trans *trans,
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
-	const struct bch_extent_ptr *ptr;
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
 	unsigned ptrs_locked = 0;
 	int ret = 0;
@@ -655,7 +652,6 @@ done:
 void bch2_data_update_opts_normalize(struct bkey_s_c k, struct data_update_opts *opts)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 	unsigned i = 0;
 
 	bkey_for_each_ptr(ptrs, ptr) {
