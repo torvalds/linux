@@ -857,7 +857,7 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 	size_t hdrlen;
 
 	hdrlen = rtllib_get_hdrlen(fc);
-	if (HTCCheck(ieee, skb->data)) {
+	if (ht_c_check(ieee, skb->data)) {
 		if (net_ratelimit())
 			netdev_info(ieee->dev, "%s: find HTCControl!\n",
 				    __func__);
@@ -1401,7 +1401,7 @@ static int rtllib_rx_Monitor(struct rtllib_device *ieee, struct sk_buff *skb,
 		return 0;
 	}
 
-	if (HTCCheck(ieee, skb->data)) {
+	if (ht_c_check(ieee, skb->data)) {
 		if (net_ratelimit())
 			netdev_info(ieee->dev, "%s: Find HTCControl!\n",
 				    __func__);
