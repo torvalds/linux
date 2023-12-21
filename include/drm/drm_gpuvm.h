@@ -1008,6 +1008,16 @@ struct drm_gpuva_ops {
 	list_for_each_entry_from_reverse(op, &(ops)->list, entry)
 
 /**
+ * drm_gpuva_for_each_op_reverse - iterator to walk over &drm_gpuva_ops in reverse
+ * @op: &drm_gpuva_op to assign in each iteration step
+ * @ops: &drm_gpuva_ops to walk
+ *
+ * This iterator walks over all ops within a given list of operations in reverse
+ */
+#define drm_gpuva_for_each_op_reverse(op, ops) \
+	list_for_each_entry_reverse(op, &(ops)->list, entry)
+
+/**
  * drm_gpuva_first_op() - returns the first &drm_gpuva_op from &drm_gpuva_ops
  * @ops: the &drm_gpuva_ops to get the fist &drm_gpuva_op from
  */

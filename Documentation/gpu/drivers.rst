@@ -18,6 +18,7 @@ GPU Driver Documentation
    vkms
    bridge/dw-hdmi
    xen-front
+   xe/index
    afbc
    komeda-kms
    panfrost
