@@ -695,6 +695,73 @@ out:
 	test_sockmap_pass_prog__destroy(skel);
 }
 
+static void test_sockmap_same_sock(void)
+{
+	struct test_sockmap_pass_prog *skel;
+	int stream[2], dgram, udp, tcp;
+	int i, err, map, zero = 0;
+
+	skel = test_sockmap_pass_prog__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		return;
+
+	map = bpf_map__fd(skel->maps.sock_map_rx);
+
+	dgram = xsocket(AF_UNIX, SOCK_DGRAM, 0);
+	if (dgram < 0) {
+		test_sockmap_pass_prog__destroy(skel);
+		return;
+	}
+
+	tcp = connected_socket_v4();
+	if (!ASSERT_GE(tcp, 0, "connected_socket_v4")) {
+		close(dgram);
+		test_sockmap_pass_prog__destroy(skel);
+		return;
+	}
+
+	udp = xsocket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK, 0);
+	if (udp < 0) {
+		close(dgram);
+		close(tcp);
+		test_sockmap_pass_prog__destroy(skel);
+		return;
+	}
+
+	err = socketpair(AF_UNIX, SOCK_STREAM, 0, stream);
+	ASSERT_OK(err, "socketpair(af_unix, sock_stream)");
+	if (err)
+		goto out;
+
+	for (i = 0; i < 2; i++) {
+		err = bpf_map_update_elem(map, &zero, &stream[0], BPF_ANY);
+		ASSERT_OK(err, "bpf_map_update_elem(stream)");
+	}
+	for (i = 0; i < 2; i++) {
+		err = bpf_map_update_elem(map, &zero, &dgram, BPF_ANY);
+		ASSERT_OK(err, "bpf_map_update_elem(dgram)");
+	}
+	for (i = 0; i < 2; i++) {
+		err = bpf_map_update_elem(map, &zero, &udp, BPF_ANY);
+		ASSERT_OK(err, "bpf_map_update_elem(udp)");
+	}
+	for (i = 0; i < 2; i++) {
+		err = bpf_map_update_elem(map, &zero, &tcp, BPF_ANY);
+		ASSERT_OK(err, "bpf_map_update_elem(tcp)");
+	}
+
+	err = bpf_map_delete_elem(map, &zero);
+	ASSERT_OK(err, "bpf_map_delete_elem(entry)");
+
+	close(stream[0]);
+	close(stream[1]);
+out:
+	close(dgram);
+	close(tcp);
+	close(udp);
+	test_sockmap_pass_prog__destroy(skel);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
@@ -743,4 +810,6 @@ void test_sockmap_basic(void)
 		test_sockmap_many_socket();
 	if (test__start_subtest("sockmap one socket to many maps"))
 		test_sockmap_many_maps();
+	if (test__start_subtest("sockmap same socket replace"))
+		test_sockmap_same_sock();
 }
