@@ -64,7 +64,7 @@ __naked void load_bytes_negative_len_2(void)
 
 SEC("tc")
 __description("raw_stack: skb_load_bytes, zero len")
-__failure __msg("invalid zero-sized read")
+__failure __msg("R4 invalid zero-sized read: u64=[0,0]")
 __naked void skb_load_bytes_zero_len(void)
 {
 	asm volatile ("					\
