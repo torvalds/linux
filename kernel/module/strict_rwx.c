@@ -26,7 +26,7 @@ static void module_set_memory(const struct module *mod, enum mod_mem_type type,
  * CONFIG_STRICT_MODULE_RWX because they are needed regardless of whether we
  * are strict.
  */
-void module_enable_rox(const struct module *mod)
+void module_enable_text_rox(const struct module *mod)
 {
 	for_class_mod_mem_type(type, text) {
 		if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
@@ -36,7 +36,7 @@ void module_enable_rox(const struct module *mod)
 	}
 }
 
-void module_enable_ro(const struct module *mod, bool after_init)
+void module_enable_rodata_ro(const struct module *mod, bool after_init)
 {
 	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 		return;
@@ -52,7 +52,7 @@ void module_enable_ro(const struct module *mod, bool after_init)
 		module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
 }
 
-void module_enable_nx(const struct module *mod)
+void module_enable_data_nx(const struct module *mod)
 {
 	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
 		return;

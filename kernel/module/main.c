@@ -2571,7 +2571,7 @@ static noinline int do_init_module(struct module *mod)
 	/* Switch to core kallsyms now init is done: kallsyms may be walking! */
 	rcu_assign_pointer(mod->kallsyms, &mod->core_kallsyms);
 #endif
-	module_enable_ro(mod, true);
+	module_enable_rodata_ro(mod, true);
 	mod_tree_remove_init(mod);
 	module_arch_freeing_init(mod);
 	for_class_mod_mem_type(type, init) {
@@ -2736,9 +2736,9 @@ static int complete_formation(struct module *mod, struct load_info *info)
 	module_bug_finalize(info->hdr, info->sechdrs, mod);
 	module_cfi_finalize(info->hdr, info->sechdrs, mod);
 
-	module_enable_ro(mod, false);
-	module_enable_nx(mod);
-	module_enable_rox(mod);
+	module_enable_rodata_ro(mod, false);
+	module_enable_data_nx(mod);
+	module_enable_text_rox(mod);
 
 	/*
 	 * Mark state as coming so strong_try_module_get() ignores us,
