@@ -13,6 +13,7 @@
 	compatible = "tsd,px30-ringneck-haikou", "rockchip,px30";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc2 = &sdmmc;
 	};
 

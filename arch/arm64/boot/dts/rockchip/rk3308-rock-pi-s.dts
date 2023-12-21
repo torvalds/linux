@@ -250,3 +250,61 @@
 &wdt {
 	status = "okay";
 };
+
+&gpio0 {
+	gpio-line-names =
+	/* GPIO0_A0 - A7 */
+	"", "", "", "", "", "", "", "",
+	/* GPIO0_B0 - B7 */
+	"", "", "", "header1-pin3 [GPIO0_B3]", "header1-pin5 [GPIO0_B4]",
+	"", "", "header1-pin11 [GPIO0_B7]",
+	/* GPIO0_C0 - C7 */
+	"header1-pin13 [GPIO0_C0]", "header1-pin15 [GPIO0_C1]", "", "", "",
+	"", "", "",
+	/* GPIO0_D0 - D8 */
+	"", "", "", "", "", "", "", "";
+};
+
+&gpio1 {
+	gpio-line-names =
+	/* GPIO1_A0 - A7 */
+	"", "", "", "", "", "", "", "",
+	/* GPIO1_B0 - B7 */
+	"", "", "", "", "", "", "", "",
+	/* GPIO1_C0 - C7 */
+	"", "", "", "", "", "", "header1-pin21 [GPIO1_C6]",
+	"header1-pin19 [GPIO1_C7]",
+	/* GPIO1_D0 - D8 */
+	"header1-pin23 [GPIO1_D0]", "header1-pin24 [GPIO1_D1]", "", "", "",
+	"", "", "";
+};
+
+&gpio2 {
+	gpio-line-names =
+	/* GPIO2_A0 - A7 */
+	"header1-pin10 [GPIO2_A0]", "header1-pin8 [GPIO2_A1]", "", "",
+	"header1-pin7 [GPIO2_A4]", "header1-pin12 [GPIO2_A5]",
+	"header2-pin46 [GPIO2_A6]", "header1-pin22 [GPIO1_A7]",
+	/* GPIO2_B0 - B7 */
+	"header2-pin45 [GPIO2_B0]", "header1-pin18 [GPIO2_B1]",
+	"header1-pin16 [GPIO2_B2]", "header2-pin44 [GPIO2_B3]",
+	"header2-pin43 [GPIO2_B4]", "header2-pin28 [GPIO2_B5]",
+	"header2-pin30 [GPIO2_B6]", "header2-pin32 [GPIO2_B7]",
+	/* GPIO2_C0 - C7 */
+	"header2-pin34 [GPIO2_C0]", "", "", "", "", "", "", "",
+	/* GPIO2_D0 - D8 */
+	"", "", "", "", "", "", "", "";
+};
+
+&gpio3 {
+	gpio-line-names =
+	/* GPIO3_A0 - A7 */
+	"", "", "", "", "", "", "", "",
+	/* GPIO3_B0 - B7 */
+	"", "", "header2-pin42 [GPIO3_B2]", "header2-pin41 [GPIO3_B3]",
+	"header2-pin40 [GPIO3_B4]", "header2-pin39 [GPIO3_B5]", "", "",
+	/* GPIO3_C0 - C7 */
+	"", "", "", "", "", "", "", "",
+	/* GPIO3_D0 - D8 */
+	"", "", "", "", "", "", "", "";
+};

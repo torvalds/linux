@@ -21,6 +21,8 @@
 	compatible = "radxa,rockpi-e", "rockchip,rk3328";
 
 	aliases {
+		ethernet0 = &gmac2io;
+		ethernet1 = &gmac2phy;
 		mmc0 = &sdmmc;
 		mmc1 = &emmc;
 	};
