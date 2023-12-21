@@ -20,7 +20,6 @@ try_modprobe act_ct
 try_modprobe act_ctinfo
 try_modprobe act_gact
 try_modprobe act_gate
-try_modprobe act_ipt
 try_modprobe act_mirred
 try_modprobe act_mpls
 try_modprobe act_nat
