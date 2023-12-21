@@ -131,7 +131,7 @@ static inline int avc_audit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 #define AVC_STRICT	   1 /* Ignore permissive mode. */
 #define AVC_EXTENDED_PERMS 2 /* update extended permissions */
 int avc_has_perm_noaudit(u32 ssid, u32 tsid, u16 tclass, u32 requested,
-			 unsigned flags, struct av_decision *avd);
+			 unsigned int flags, struct av_decision *avd);
 
 int avc_has_perm(u32 ssid, u32 tsid, u16 tclass, u32 requested,
 		 struct common_audit_data *auditdata);
