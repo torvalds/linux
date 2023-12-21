@@ -362,8 +362,7 @@ struct cxl_event_record_raw hardware_replace = {
 
 struct cxl_event_gen_media gen_media = {
 	.hdr = {
-		.id = UUID_INIT(0xfbcd0a77, 0xc260, 0x417f,
-				0x85, 0xa9, 0x08, 0x8b, 0x16, 0x21, 0xeb, 0xa6),
+		.id = CXL_EVENT_GEN_MEDIA_UUID,
 		.length = sizeof(struct cxl_event_gen_media),
 		.flags[0] = CXL_EVENT_RECORD_FLAG_PERMANENT,
 		/* .handle = Set dynamically */
@@ -380,8 +379,7 @@ struct cxl_event_gen_media gen_media = {
 
 struct cxl_event_dram dram = {
 	.hdr = {
-		.id = UUID_INIT(0x601dcbb3, 0x9c06, 0x4eab,
-				0xb8, 0xaf, 0x4e, 0x9b, 0xfb, 0x5c, 0x96, 0x24),
+		.id = CXL_EVENT_DRAM_UUID,
 		.length = sizeof(struct cxl_event_dram),
 		.flags[0] = CXL_EVENT_RECORD_FLAG_PERF_DEGRADED,
 		/* .handle = Set dynamically */
@@ -400,8 +398,7 @@ struct cxl_event_dram dram = {
 
 struct cxl_event_mem_module mem_module = {
 	.hdr = {
-		.id = UUID_INIT(0xfe927475, 0xdd59, 0x4339,
-				0xa5, 0x86, 0x79, 0xba, 0xb1, 0x13, 0xb7, 0x74),
+		.id = CXL_EVENT_MEM_MODULE_UUID,
 		.length = sizeof(struct cxl_event_mem_module),
 		/* .handle = Set dynamically */
 		.related_handle = cpu_to_le16(0),

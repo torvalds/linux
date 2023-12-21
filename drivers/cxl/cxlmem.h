@@ -581,6 +581,30 @@ struct cxl_mbox_identify {
 } __packed;
 
 /*
+ * General Media Event Record UUID
+ * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
+ */
+#define CXL_EVENT_GEN_MEDIA_UUID                                            \
+	UUID_INIT(0xfbcd0a77, 0xc260, 0x417f, 0x85, 0xa9, 0x08, 0x8b, 0x16, \
+		  0x21, 0xeb, 0xa6)
+
+/*
+ * DRAM Event Record UUID
+ * CXL rev 3.0 section 8.2.9.2.1.2; Table 8-44
+ */
+#define CXL_EVENT_DRAM_UUID                                                 \
+	UUID_INIT(0x601dcbb3, 0x9c06, 0x4eab, 0xb8, 0xaf, 0x4e, 0x9b, 0xfb, \
+		  0x5c, 0x96, 0x24)
+
+/*
+ * Memory Module Event Record UUID
+ * CXL rev 3.0 section 8.2.9.2.1.3; Table 8-45
+ */
+#define CXL_EVENT_MEM_MODULE_UUID                                           \
+	UUID_INIT(0xfe927475, 0xdd59, 0x4339, 0xa5, 0x86, 0x79, 0xba, 0xb1, \
+		  0x13, 0xb7, 0x74)
+
+/*
  * Get Event Records output payload
  * CXL rev 3.0 section 8.2.9.2.2; Table 8-50
  */
