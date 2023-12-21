@@ -57,6 +57,7 @@ Structure of this header is
   ``ETHTOOL_A_HEADER_DEV_INDEX``  u32     device ifindex
   ``ETHTOOL_A_HEADER_DEV_NAME``   string  device name
   ``ETHTOOL_A_HEADER_FLAGS``      u32     flags common for all requests
+  ``ETHTOOL_A_HEADER_PHY_INDEX``  u32     phy device index
   ==============================  ======  =============================
 
 ``ETHTOOL_A_HEADER_DEV_INDEX`` and ``ETHTOOL_A_HEADER_DEV_NAME`` identify the
@@ -81,6 +82,12 @@ the behaviour is backward compatible, i.e. requests from old clients not aware
 of the flag should be interpreted the way the client expects. A client must
 not set flags it does not understand.
 
+``ETHTOOL_A_HEADER_PHY_INDEX`` identify the ethernet PHY the message relates to.
+As there are numerous commands that are related to PHY configuration, and because
+we can have more than one PHY on the link, the PHY index can be passed in the
+request for the commands that needs it. It is however not mandatory, and if it
+is not passed for commands that target a PHY, the net_device.phydev pointer
+is used, as a fallback that keeps the legacy behaviour.
 
 Bit sets
 ========
