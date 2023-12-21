@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright 2014 Linaro Ltd.
+ * Copyright 2023 Linus Walleij <linus.walleij@linaro.org>
  */
 
-#include "ste-ab8500.dtsi"
+#include "ste-ab8505.dtsi"
 
 / {
 	soc {
 		prcmu@80157000 {
-			ab8500 {
+			ab8505 {
 				phy {
 					pinctrl-names = "default", "sleep";
 					pinctrl-0 = <&usb_a_1_default>;
