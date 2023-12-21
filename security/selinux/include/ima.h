@@ -25,4 +25,4 @@ static inline void selinux_ima_measure_state_locked(void)
 }
 #endif
 
-#endif	/* _SELINUX_IMA_H_ */
+#endif /* _SELINUX_IMA_H_ */
