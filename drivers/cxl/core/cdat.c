@@ -6,6 +6,7 @@
 #include <linux/node.h>
 #include <linux/overflow.h>
 #include "cxlpci.h"
+#include "cxlmem.h"
 #include "cxl.h"
 
 struct dsmas_entry {
@@ -206,6 +207,71 @@ static int cxl_port_perf_data_calculate(struct cxl_port *port,
 	return 0;
 }
 
+static void add_perf_entry(struct device *dev, struct dsmas_entry *dent,
+			   struct list_head *list)
+{
+	struct cxl_dpa_perf *dpa_perf;
+
+	dpa_perf = kzalloc(sizeof(*dpa_perf), GFP_KERNEL);
+	if (!dpa_perf)
+		return;
+
+	dpa_perf->dpa_range = dent->dpa_range;
+	dpa_perf->coord = dent->coord;
+	dpa_perf->qos_class = dent->qos_class;
+	list_add_tail(&dpa_perf->list, list);
+	dev_dbg(dev,
+		"DSMAS: dpa: %#llx qos: %d read_bw: %d write_bw %d read_lat: %d write_lat: %d\n",
+		dent->dpa_range.start, dpa_perf->qos_class,
+		dent->coord.read_bandwidth, dent->coord.write_bandwidth,
+		dent->coord.read_latency, dent->coord.write_latency);
+}
+
+static void free_perf_ents(void *data)
+{
+	struct cxl_memdev_state *mds = data;
+	struct cxl_dpa_perf *dpa_perf, *n;
+	LIST_HEAD(discard);
+
+	list_splice_tail_init(&mds->ram_perf_list, &discard);
+	list_splice_tail_init(&mds->pmem_perf_list, &discard);
+	list_for_each_entry_safe(dpa_perf, n, &discard, list) {
+		list_del(&dpa_perf->list);
+		kfree(dpa_perf);
+	}
+}
+
+static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
+				     struct xarray *dsmas_xa)
+{
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
+	struct device *dev = cxlds->dev;
+	struct range pmem_range = {
+		.start = cxlds->pmem_res.start,
+		.end = cxlds->pmem_res.end,
+	};
+	struct range ram_range = {
+		.start = cxlds->ram_res.start,
+		.end = cxlds->ram_res.end,
+	};
+	struct dsmas_entry *dent;
+	unsigned long index;
+
+	xa_for_each(dsmas_xa, index, dent) {
+		if (resource_size(&cxlds->ram_res) &&
+		    range_contains(&ram_range, &dent->dpa_range))
+			add_perf_entry(dev, dent, &mds->ram_perf_list);
+		else if (resource_size(&cxlds->pmem_res) &&
+			 range_contains(&pmem_range, &dent->dpa_range))
+			add_perf_entry(dev, dent, &mds->pmem_perf_list);
+		else
+			dev_dbg(dev, "no partition for dsmas dpa: %#llx\n",
+				dent->dpa_range.start);
+	}
+
+	devm_add_action_or_reset(&cxlds->cxlmd->dev, free_perf_ents, mds);
+}
+
 static void discard_dsmas(struct xarray *xa)
 {
 	unsigned long index;
@@ -221,6 +287,8 @@ DEFINE_FREE(dsmas, struct xarray *, if (_T) discard_dsmas(_T))
 
 void cxl_endpoint_parse_cdat(struct cxl_port *port)
 {
+	struct cxl_memdev *cxlmd = to_cxl_memdev(port->uport_dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct xarray __dsmas_xa;
 	struct xarray *dsmas_xa __free(dsmas) = &__dsmas_xa;
 	int rc;
@@ -241,6 +309,7 @@ void cxl_endpoint_parse_cdat(struct cxl_port *port)
 		return;
 	}
 
+	cxl_memdev_set_qos_class(cxlds, dsmas_xa);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, CXL);
 
