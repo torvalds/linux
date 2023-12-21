@@ -1472,7 +1472,7 @@ static int alvium_get_hw_features_params(struct alvium_dev *alvium)
 
 	ret = alvium_get_img_height_params(alvium);
 	if (ret) {
-		dev_err(dev, "Fail to read img heigth regs\n");
+		dev_err(dev, "Fail to read img height regs\n");
 		return ret;
 	}
 
