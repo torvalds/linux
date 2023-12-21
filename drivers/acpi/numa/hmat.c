@@ -108,6 +108,47 @@ static struct memory_target *find_mem_target(unsigned int mem_pxm)
 	return NULL;
 }
 
+static struct memory_target *acpi_find_genport_target(u32 uid)
+{
+	struct memory_target *target;
+	u32 target_uid;
+	u8 *uid_ptr;
+
+	list_for_each_entry(target, &targets, node) {
+		uid_ptr = target->gen_port_device_handle + 8;
+		target_uid = *(u32 *)uid_ptr;
+		if (uid == target_uid)
+			return target;
+	}
+
+	return NULL;
+}
+
+/**
+ * acpi_get_genport_coordinates - Retrieve the access coordinates for a generic port
+ * @uid: ACPI unique id
+ * @coord: The access coordinates written back out for the generic port
+ *
+ * Return: 0 on success. Errno on failure.
+ *
+ * Only supports device handles that are ACPI. Assume ACPI0016 HID for CXL.
+ */
+int acpi_get_genport_coordinates(u32 uid,
+				 struct access_coordinate *coord)
+{
+	struct memory_target *target;
+
+	guard(mutex)(&target_lock);
+	target = acpi_find_genport_target(uid);
+	if (!target)
+		return -ENOENT;
+
+	*coord = target->coord[NODE_ACCESS_CLASS_GENPORT_SINK];
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(acpi_get_genport_coordinates, CXL);
+
 static __init void alloc_memory_initiator(unsigned int cpu_pxm)
 {
 	struct memory_initiator *initiator;
