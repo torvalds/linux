@@ -31,8 +31,8 @@ static const char *get_common_bug_type(struct kasan_report_info *info)
 static void kasan_complete_extra_report_info(struct kasan_track *track,
 					 struct kasan_stack_ring_entry *entry)
 {
-	track->cpu = entry->cpu;
-	track->timestamp = entry->timestamp;
+	track->cpu = entry->track.cpu;
+	track->timestamp = entry->track.timestamp;
 }
 #endif /* CONFIG_KASAN_EXTRA_INFO */
 
@@ -80,8 +80,8 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 			if (free_found)
 				break;
 
-			info->free_track.pid = entry->pid;
-			info->free_track.stack = entry->stack;
+			info->free_track.pid = entry->track.pid;
+			info->free_track.stack = entry->track.stack;
 #ifdef CONFIG_KASAN_EXTRA_INFO
 			kasan_complete_extra_report_info(&info->free_track, entry);
 #endif /* CONFIG_KASAN_EXTRA_INFO */
@@ -98,8 +98,8 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 			if (alloc_found)
 				break;
 
-			info->alloc_track.pid = entry->pid;
-			info->alloc_track.stack = entry->stack;
+			info->alloc_track.pid = entry->track.pid;
+			info->alloc_track.stack = entry->track.stack;
 #ifdef CONFIG_KASAN_EXTRA_INFO
 			kasan_complete_extra_report_info(&info->alloc_track, entry);
 #endif /* CONFIG_KASAN_EXTRA_INFO */

@@ -100,8 +100,8 @@ static void save_extra_info(struct kasan_stack_ring_entry *entry)
 	u32 cpu = raw_smp_processor_id();
 	u64 ts_nsec = local_clock();
 
-	entry->cpu = cpu;
-	entry->timestamp = ts_nsec >> 3;
+	entry->track.cpu = cpu;
+	entry->track.timestamp = ts_nsec >> 3;
 }
 #endif /* CONFIG_KASAN_EXTRA_INFO */
 
@@ -134,15 +134,15 @@ next:
 	if (!try_cmpxchg(&entry->ptr, &old_ptr, STACK_RING_BUSY_PTR))
 		goto next; /* Busy slot. */
 
-	old_stack = entry->stack;
+	old_stack = entry->track.stack;
 
 	entry->size = cache->object_size;
-	entry->pid = current->pid;
-	entry->stack = stack;
-	entry->is_free = is_free;
+	entry->track.pid = current->pid;
+	entry->track.stack = stack;
 #ifdef CONFIG_KASAN_EXTRA_INFO
 	save_extra_info(entry);
 #endif /* CONFIG_KASAN_EXTRA_INFO */
+	entry->is_free = is_free;
 
 	entry->ptr = object;
 
