@@ -1355,6 +1355,15 @@ config MDM_DEBUGCC_9607
 	  Say Y if you want to support the clock measurement
 	  functionality.
 
+config SM_DEBUGCC_PITTI
+	tristate "PITTI Debug Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc
+	  PITTI devices.
+	  Say Y if you want to support the debug clocks such as clock
+	  measurement functionality.
+
 endif
 
 config VIRTIO_CLK
