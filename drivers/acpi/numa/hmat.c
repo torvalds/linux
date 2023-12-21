@@ -61,6 +61,7 @@ struct target_cache {
 enum {
 	NODE_ACCESS_CLASS_0 = 0,
 	NODE_ACCESS_CLASS_1,
+	NODE_ACCESS_CLASS_GENPORT_SINK,
 	NODE_ACCESS_CLASS_MAX,
 };
 
@@ -654,6 +655,11 @@ static void hmat_update_target_attrs(struct memory_target *target,
 	u32 best = 0;
 	int i;
 
+	/* Don't update for generic port if there's no device handle */
+	if (access == NODE_ACCESS_CLASS_GENPORT_SINK &&
+	    !(*(u16 *)target->gen_port_device_handle))
+		return;
+
 	bitmap_zero(p_nodes, MAX_NUMNODES);
 	/*
 	 * If the Address Range Structure provides a local processor pxm, set
@@ -723,6 +729,14 @@ static void __hmat_register_target_initiators(struct memory_target *target,
 	}
 }
 
+static void hmat_register_generic_target_initiators(struct memory_target *target)
+{
+	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
+
+	__hmat_register_target_initiators(target, p_nodes,
+					  NODE_ACCESS_CLASS_GENPORT_SINK);
+}
+
 static void hmat_register_target_initiators(struct memory_target *target)
 {
 	static DECLARE_BITMAP(p_nodes, MAX_NUMNODES);
@@ -773,6 +787,17 @@ static void hmat_register_target(struct memory_target *target)
 	 * node, so unconditionally add them.
 	 */
 	hmat_register_target_devices(target);
+
+	/*
+	 * Register generic port perf numbers. The nid may not be
+	 * initialized and is still NUMA_NO_NODE.
+	 */
+	mutex_lock(&target_lock);
+	if (*(u16 *)target->gen_port_device_handle) {
+		hmat_register_generic_target_initiators(target);
+		target->registered = true;
+	}
+	mutex_unlock(&target_lock);
 
 	/*
 	 * Skip offline nodes. This can happen when memory
