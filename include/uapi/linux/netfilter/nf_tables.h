@@ -179,6 +179,7 @@ enum nft_hook_attributes {
  * enum nft_table_flags - nf_tables table flags
  *
  * @NFT_TABLE_F_DORMANT: this table is not active
+ * @NFT_TABLE_F_OWNER:   this table is owned by a process
  */
 enum nft_table_flags {
 	NFT_TABLE_F_DORMANT	= 0x1,
