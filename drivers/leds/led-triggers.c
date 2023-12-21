@@ -250,6 +250,7 @@ EXPORT_SYMBOL_GPL(led_trigger_remove);
 void led_trigger_set_default(struct led_classdev *led_cdev)
 {
 	struct led_trigger *trig;
+	bool found = false;
 
 	if (!led_cdev->default_trigger)
 		return;
@@ -259,6 +260,7 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 	list_for_each_entry(trig, &trigger_list, next_trig) {
 		if (!strcmp(led_cdev->default_trigger, trig->name) &&
 		    trigger_relevant(led_cdev, trig)) {
+			found = true;
 			led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
 			led_trigger_set(led_cdev, trig);
 			break;
@@ -266,6 +268,13 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 	}
 	up_write(&led_cdev->trigger_lock);
 	up_read(&triggers_list_lock);
+
+	/*
+	 * If default trigger wasn't found, maybe trigger module isn't loaded yet.
+	 * Once loaded it will re-probe with all led_cdev's.
+	 */
+	if (!found)
+		request_module_nowait("ledtrig:%s", led_cdev->default_trigger);
 }
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
 
