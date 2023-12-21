@@ -183,6 +183,7 @@ struct ufs_mtk_host {
 	u32 ip_ver;
 
 	bool mcq_set_intr;
+	bool is_mcq_intr_enabled;
 	int mcq_nr_intr;
 	struct ufs_mtk_mcq_intr_info mcq_intr_info[UFSHCD_MAX_Q_NR];
 };
