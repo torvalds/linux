@@ -238,6 +238,9 @@ struct fsl_edma_engine {
 	edma_writel(chan->edma, (u32 __force)val, &chan->tcd->__name) :	\
 	edma_writew(chan->edma, (u16 __force)val, &chan->tcd->__name))
 
+#define edma_cp_tcd_to_reg(chan, __tcd, __name)			\
+	edma_write_tcdreg(chan, __tcd->__name, __name)
+
 #define edma_readl_chreg(chan, __name)				\
 	edma_readl(chan->edma,					\
 		   (void __iomem *)&(container_of(chan->tcd, struct fsl_edma3_ch_reg, tcd)->__name))
@@ -245,6 +248,26 @@ struct fsl_edma_engine {
 #define edma_writel_chreg(chan, val,  __name)			\
 	edma_writel(chan->edma, val,				\
 		   (void __iomem *)&(container_of(chan->tcd, struct fsl_edma3_ch_reg, tcd)->__name))
+
+#define fsl_edma_get_tcd(_chan, _tcd, _field) ((_tcd)->_field)
+
+#define fsl_edma_le_to_cpu(x)					\
+(sizeof(x) == sizeof(u32) ? le32_to_cpu((__force __le32)(x)) : le16_to_cpu((__force __le16)(x)))
+
+#define fsl_edma_get_tcd_to_cpu(_chan, _tcd, _field)		\
+fsl_edma_le_to_cpu(fsl_edma_get_tcd(_chan, _tcd, _field))
+
+#define fsl_edma_set_tcd_to_le(_fsl_chan, _tcd, _val, _field)			\
+do {										\
+	switch (sizeof((_tcd)->_field)) {					\
+	case sizeof(u32):							\
+		*(__force __le32 *)(&((_tcd)->_field)) = cpu_to_le32(_val);	\
+		break;								\
+	case sizeof(u16):							\
+		*(__force __le16 *)(&((_tcd)->_field)) = cpu_to_le16(_val);	\
+		break;								\
+	}									\
+} while (0)
 
 /*
  * R/W functions for big- or little-endian registers:
