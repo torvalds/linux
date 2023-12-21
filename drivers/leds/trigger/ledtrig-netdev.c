@@ -666,3 +666,4 @@ MODULE_AUTHOR("Ben Whitten <ben.whitten@gmail.com>");
 MODULE_AUTHOR("Oliver Jowett <oliver@opencloud.com>");
 MODULE_DESCRIPTION("Netdev LED trigger");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("ledtrig:netdev");
