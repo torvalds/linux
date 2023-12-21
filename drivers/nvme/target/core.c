@@ -1425,9 +1425,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!ctrl->sqs)
 		goto out_free_changed_ns_list;
 
-	if (subsys->cntlid_min > subsys->cntlid_max)
-		goto out_free_sqs;
-
 	ret = ida_alloc_range(&cntlid_ida,
 			     subsys->cntlid_min, subsys->cntlid_max,
 			     GFP_KERNEL);
