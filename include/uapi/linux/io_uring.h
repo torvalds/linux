@@ -567,6 +567,9 @@ enum {
 	/* register a range of fixed file slots for automatic slot allocation */
 	IORING_REGISTER_FILE_ALLOC_RANGE	= 25,
 
+	/* return status information for a buffer group */
+	IORING_REGISTER_PBUF_STATUS		= 26,
+
 	/* this goes last */
 	IORING_REGISTER_LAST,
 
@@ -691,6 +694,13 @@ struct io_uring_buf_reg {
 	__u16	bgid;
 	__u16	flags;
 	__u64	resv[3];
+};
+
+/* argument for IORING_REGISTER_PBUF_STATUS */
+struct io_uring_buf_status {
+	__u32	buf_group;	/* input */
+	__u32	head;		/* output */
+	__u32	resv[8];
 };
 
 /*
