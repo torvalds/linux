@@ -8,16 +8,20 @@
  */
 
 #include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/gfp_types.h>
 #include <linux/io.h>
-#include <linux/kernel.h>
 #include <linux/kexec.h>
+#include <linux/kstrtox.h>
+#include <linux/limits.h>
+#include <linux/list.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/panic_notifier.h>
+#include <linux/platform_device.h>
+#include <linux/spinlock.h>
+#include <linux/sysfs.h>
 #include <linux/types.h>
-#include <linux/cdev.h>
-#include <linux/list.h>
 
 #include <uapi/misc/pvpanic.h>
 

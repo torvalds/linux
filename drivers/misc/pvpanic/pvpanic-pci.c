@@ -5,13 +5,10 @@
  *  Copyright (C) 2021 Oracle.
  */
 
-#include <linux/kernel.h>
+#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/types.h>
-#include <linux/slab.h>
-
-#include <uapi/misc/pvpanic.h>
 
 #include "pvpanic.h"
 
