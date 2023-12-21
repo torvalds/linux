@@ -237,7 +237,8 @@ void mt7996_dma_start(struct mt7996_dev *dev, bool reset, bool wed_reset)
 				 MT_WFDMA0_GLO_CFG_TX_DMA_EN |
 				 MT_WFDMA0_GLO_CFG_RX_DMA_EN |
 				 MT_WFDMA0_GLO_CFG_OMIT_TX_INFO |
-				 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2);
+				 MT_WFDMA0_GLO_CFG_OMIT_RX_INFO_PFET2 |
+				 MT_WFDMA0_GLO_CFG_EXT_EN);
 
 		if (dev->hif2)
 			mt76_set(dev, MT_WFDMA0_GLO_CFG + hif1_ofs,
