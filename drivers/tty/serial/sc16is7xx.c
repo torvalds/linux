@@ -347,7 +347,7 @@ struct sc16is7xx_port {
 	struct sc16is7xx_one		p[];
 };
 
-static unsigned long sc16is7xx_lines;
+static DECLARE_BITMAP(sc16is7xx_lines, SC16IS7XX_MAX_DEVS);
 
 static struct uart_driver sc16is7xx_uart = {
 	.owner		= THIS_MODULE,
@@ -1536,7 +1536,7 @@ static int sc16is7xx_probe(struct device *dev,
 		     SC16IS7XX_IOCONTROL_SRESET_BIT);
 
 	for (i = 0; i < devtype->nr_uart; ++i) {
-		s->p[i].port.line = find_first_zero_bit(&sc16is7xx_lines,
+		s->p[i].port.line = find_first_zero_bit(sc16is7xx_lines,
 							SC16IS7XX_MAX_DEVS);
 		if (s->p[i].port.line >= SC16IS7XX_MAX_DEVS) {
 			ret = -ERANGE;
@@ -1587,7 +1587,7 @@ static int sc16is7xx_probe(struct device *dev,
 		if (ret)
 			goto out_ports;
 
-		set_bit(s->p[i].port.line, &sc16is7xx_lines);
+		set_bit(s->p[i].port.line, sc16is7xx_lines);
 
 		/* Enable EFR */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG,
@@ -1646,7 +1646,7 @@ static int sc16is7xx_probe(struct device *dev,
 
 out_ports:
 	for (i = 0; i < devtype->nr_uart; i++)
-		if (test_and_clear_bit(s->p[i].port.line, &sc16is7xx_lines))
+		if (test_and_clear_bit(s->p[i].port.line, sc16is7xx_lines))
 			uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 
 	kthread_stop(s->kworker_task);
@@ -1669,7 +1669,7 @@ static void sc16is7xx_remove(struct device *dev)
 
 	for (i = 0; i < s->devtype->nr_uart; i++) {
 		kthread_cancel_delayed_work_sync(&s->p[i].ms_work);
-		if (test_and_clear_bit(s->p[i].port.line, &sc16is7xx_lines))
+		if (test_and_clear_bit(s->p[i].port.line, sc16is7xx_lines))
 			uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
