@@ -642,6 +642,7 @@ struct lskcipher_instance *lskcipher_alloc_instance_simple(
 	inst->alg.co.min_keysize = cipher_alg->co.min_keysize;
 	inst->alg.co.max_keysize = cipher_alg->co.max_keysize;
 	inst->alg.co.ivsize = cipher_alg->co.base.cra_blocksize;
+	inst->alg.co.statesize = cipher_alg->co.statesize;
 
 	/* Use struct crypto_lskcipher * by default, can be overridden */
 	inst->alg.co.base.cra_ctxsize = sizeof(struct crypto_lskcipher *);
