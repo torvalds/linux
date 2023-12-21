@@ -5,4 +5,5 @@ dtb-$(CONFIG_ARCH_EXYNOS) += \
 	exynos7-espresso.dtb		\
 	exynos7885-jackpotlte.dtb	\
 	exynos850-e850-96.dtb		\
-	exynosautov9-sadk.dtb
+	exynosautov9-sadk.dtb		\
+	exynosautov920-sadk.dtb
