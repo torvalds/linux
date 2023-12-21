@@ -12,6 +12,7 @@
 #include "errcode.h"
 #include "error.h"
 #include "journal.h"
+#include "journal_io.h"
 #include "journal_reclaim.h"
 #include "replicas.h"
 #include "snapshot.h"
@@ -798,6 +799,27 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 	return -EINVAL;
 }
 
+static noinline int bch2_trans_commit_journal_entry_invalid(struct btree_trans *trans,
+						   struct jset_entry *i)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+
+	prt_printf(&buf, "invalid bkey on insert from %s", trans->fn);
+	prt_newline(&buf);
+	printbuf_indent_add(&buf, 2);
+
+	bch2_journal_entry_to_text(&buf, c, i);
+	prt_newline(&buf);
+
+	bch2_print_string_as_lines(KERN_ERR, buf.buf);
+
+	bch2_inconsistent_error(c);
+	bch2_dump_trans_updates(trans);
+
+	return -EINVAL;
+}
+
 static int bch2_trans_commit_journal_pin_flush(struct journal *j,
 				struct journal_entry_pin *_pin, u64 seq)
 {
@@ -993,6 +1015,23 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 			ret = bch2_trans_commit_bkey_invalid(trans, invalid_flags, i, &buf);
 		btree_insert_entry_checks(trans, i);
 		printbuf_exit(&buf);
+
+		if (ret)
+			return ret;
+	}
+
+	for (struct jset_entry *i = trans->journal_entries;
+	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	     i = vstruct_next(i)) {
+		enum bkey_invalid_flags invalid_flags = 0;
+
+		if (!(flags & BCH_TRANS_COMMIT_no_journal_res))
+			invalid_flags |= BKEY_INVALID_WRITE|BKEY_INVALID_COMMIT;
+
+		if (unlikely(bch2_journal_entry_validate(c, NULL, i,
+					bcachefs_metadata_version_current,
+					CPU_BIG_ENDIAN, invalid_flags)))
+			ret = bch2_trans_commit_journal_entry_invalid(trans, i);
 
 		if (ret)
 			return ret;

@@ -2172,6 +2172,19 @@ enum {
 	BCH_JSET_ENTRY_NR
 };
 
+static inline bool jset_entry_is_key(struct jset_entry *e)
+{
+	switch (e->type) {
+	case BCH_JSET_ENTRY_btree_keys:
+	case BCH_JSET_ENTRY_btree_root:
+	case BCH_JSET_ENTRY_overwrite:
+	case BCH_JSET_ENTRY_write_buffer_keys:
+		return true;
+	}
+
+	return false;
+}
+
 /*
  * Journal sequence numbers can be blacklisted: bsets record the max sequence
  * number of all the journal entries they contain updates for, so that on
