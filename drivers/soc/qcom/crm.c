@@ -52,6 +52,8 @@
 #define NUM_HW_DRVS_SHIFT		16
 #define NUM_VCD_VOTED_BY_BW_MASK	0xF
 #define NUM_VCD_VOTED_BY_BW_SHIFT	24
+#define NUM_OF_RAILS_MASK		0xF
+#define NUM_OF_RAILS_SHIFT		12
 #define NUM_VCD_VOTED_BY_PERF_OL_MASK	0xF
 #define NUM_VCD_VOTED_BY_PERF_OL_SHIFT	8
 #define NUM_CH_MASK			0xF
@@ -142,6 +144,12 @@ enum {
 /* CRM Register */
 	CRM_BASE,
 	CRM_DISTANCE,
+/* CRMV Registers */
+	AGGR_VOL_STS,
+	SEQ_VOL_STS,
+	CURR_VOL_STS,
+	RAIL_FSM_STS,
+	RAIL_TCS_STS,
 /* CRMB Registers */
 	STATUS_BE,
 	STATUS_FE,
@@ -156,6 +164,16 @@ static u32 chn_regs[] = {
 	[CHN_UPDATE]			= 0x1020,
 	[CHN_BEHAVE]			= 0x1040,
 	[CHN_DRV_DISTANCE]		= 0x4,
+};
+
+static u32 crmv_regs[] = {
+	[CRM_BASE]			= 0x0,
+	[CRM_DISTANCE]		= 0x80,
+	[AGGR_VOL_STS]		= 0x0,
+	[SEQ_VOL_STS]		= 0x4,
+	[CURR_VOL_STS]		= 0x8,
+	[RAIL_FSM_STS]		= 0x14,
+	[RAIL_TCS_STS]		= 0x38,
 };
 
 static u32 crmb_regs[] = {
@@ -328,6 +346,7 @@ struct crm_mgr {
  * @num_channels:       Number of Channels, Applicable only for HW DRV
  * @sw_drvs:            Controller for each SW DRV
  * @num_sw_drvs:        Number of SW DRV controllers in the CRM device
+ * @crmv_mgr:           Controller for CRMV device.
  * @crmb_mgr:           Controller for CRMB device.
  * @crmc_mgr:           Controller for CRMC device.
  * @list:               CRM device added in crm_dev_list.
@@ -343,6 +362,7 @@ struct crm_drv_top {
 	u32 num_channels;
 	struct crm_drv *sw_drvs;
 	int num_sw_drvs;
+	struct crm_mgr crmv_mgr;
 	struct crm_mgr crmb_mgr;
 	struct crm_mgr crmc_mgr;
 	struct list_head list;
@@ -642,6 +662,32 @@ static int _crm_dump_regs(const struct device *dev)
 
 		offset = crm_mgr_get_offset(&crm->crmc_mgr, SEQ_STATUS, i);
 		data = readl_relaxed(crm->crmc_mgr.base + offset);
+		crm_print_reg(phy_base + offset, data);
+	}
+
+	pr_err("CRMV Regs\n");
+	phy_base = get_crm_phy_addr(crm->crmv_mgr.base) +
+					((unsigned long) crm->crmv_mgr.base & VPAGE_SHIFT_BITS);
+
+	for (i = 0; i < crm->crmv_mgr.num_resources; i++) {
+		offset = crm_mgr_get_offset(&crm->crmv_mgr, AGGR_VOL_STS, i);
+		data = readl_relaxed(crm->crmv_mgr.base + offset);
+		crm_print_reg(phy_base + offset, data);
+
+		offset = crm_mgr_get_offset(&crm->crmv_mgr, SEQ_VOL_STS, i);
+		data = readl_relaxed(crm->crmv_mgr.base + offset);
+		crm_print_reg(phy_base + offset, data);
+
+		offset = crm_mgr_get_offset(&crm->crmv_mgr, CURR_VOL_STS, i);
+		data = readl_relaxed(crm->crmv_mgr.base + offset);
+		crm_print_reg(phy_base + offset, data);
+
+		offset = crm_mgr_get_offset(&crm->crmv_mgr, RAIL_FSM_STS, i);
+		data = readl_relaxed(crm->crmv_mgr.base + offset);
+		crm_print_reg(phy_base + offset, data);
+
+		offset = crm_mgr_get_offset(&crm->crmv_mgr, RAIL_TCS_STS, i);
+		data = readl_relaxed(crm->crmv_mgr.base + offset);
 		crm_print_reg(phy_base + offset, data);
 	}
 
@@ -1195,8 +1241,11 @@ static int crm_probe_set_vcd_caches(struct crm_drv_top *crm, u32 crm_cfg, u32 cr
 	struct crm_vcd *vcd;
 	struct crm_drv *drv;
 	u32 num_perf_ol_vcds, num_nds, num_pwr_states;
-	u32 num_bw_vote_vcds;
+	u32 num_bw_vote_vcds, num_rails;
 	int i, j, ret;
+
+	num_rails = crm_cfg & (NUM_OF_RAILS_MASK << NUM_OF_RAILS_SHIFT);
+	num_rails >>= NUM_OF_RAILS_SHIFT;
 
 	num_perf_ol_vcds = crm_cfg & (NUM_VCD_VOTED_BY_PERF_OL_MASK <<
 				      NUM_VCD_VOTED_BY_PERF_OL_SHIFT);
@@ -1268,6 +1317,8 @@ static int crm_probe_set_vcd_caches(struct crm_drv_top *crm, u32 crm_cfg, u32 cr
 		}
 	}
 
+	crm->crmv_mgr.offsets = crmv_regs;
+	crm->crmv_mgr.num_resources = num_rails;
 	crm->crmb_mgr.offsets = crmb_regs;
 	crm->crmb_mgr.num_resources = num_bw_vote_vcds;
 	crm->crmc_mgr.offsets = crmc_regs;
@@ -1396,6 +1447,11 @@ static int crm_probe_platform_resources(struct platform_device *pdev, struct crm
 	if (IS_ERR(crm->crmc_mgr.base))
 		return -ENOMEM;
 	strscpy(crm->crmc_mgr.name, res->name, sizeof(crm->crmc_mgr.name));
+
+	crm->crmv_mgr.base = devm_platform_get_and_ioremap_resource(pdev, 3, &res);
+	if (IS_ERR(crm->crmv_mgr.base))
+		return -ENOMEM;
+	strscpy(crm->crmv_mgr.name, res->name, sizeof(crm->crmv_mgr.name));
 
 	return 0;
 }
