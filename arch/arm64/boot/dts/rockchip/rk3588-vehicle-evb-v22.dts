@@ -9,6 +9,7 @@
 #include "rk3588-vehicle-evb-v21.dtsi"
 #include "rk3588-vehicle-evb-v22-nca9539-io-expander.dtsi"
 #include "rk3588-vehicle-evb-maxim-max96712-dphy3.dtsi"
+#include "rk3588-vehicle-evb-maxim-max96756-dphy0.dtsi"
 #include "rk3588-vehicle-serdes-mfd-display-rohm.dtsi"
 #include "rk3588-android.dtsi"
 
@@ -346,6 +347,10 @@
 
 &max96712_dphy3_poc {
 	vin-supply = <&dphy3_vcc12v_buck>;
+};
+
+&max96756_dphy0_vcc1v2 {
+	vin-supply = <&vcc5v0_buck>;
 };
 
 &avdd1v8_ddr_pll_s0 {
