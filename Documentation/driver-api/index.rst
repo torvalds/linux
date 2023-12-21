@@ -81,7 +81,6 @@ available subsections can be seen below.
    dcdbas
    eisa
    isa
-   isapnp
    io-mapping
    io_ordering
    generic-counter
