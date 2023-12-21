@@ -1723,7 +1723,7 @@ static void linereq_free(struct linereq *lr)
 	kfifo_free(&lr->events);
 	kfree(lr->label);
 	gpio_device_put(lr->gdev);
-	kfree(lr);
+	kvfree(lr);
 }
 
 static int linereq_release(struct inode *inode, struct file *file)
@@ -1788,7 +1788,7 @@ static int linereq_create(struct gpio_device *gdev, void __user *ip)
 	if (ret)
 		return ret;
 
-	lr = kzalloc(struct_size(lr, lines, ulr.num_lines), GFP_KERNEL);
+	lr = kvzalloc(struct_size(lr, lines, ulr.num_lines), GFP_KERNEL);
 	if (!lr)
 		return -ENOMEM;
 	lr->num_lines = ulr.num_lines;
