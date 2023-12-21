@@ -1189,10 +1189,17 @@ static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
 		return err;
 
 	err = ufshcd_uic_hibern8_exit(hba);
-	if (!err)
-		ufshcd_set_link_active(hba);
-	else
+	if (err)
 		return err;
+
+	/* Check link state to make sure exit h8 success */
+	ufs_mtk_wait_idle_state(hba, 5);
+	err = ufs_mtk_wait_link_state(hba, VS_LINK_UP, 100);
+	if (err) {
+		dev_warn(hba->dev, "exit h8 state fail, err=%d\n", err);
+		return err;
+	}
+	ufshcd_set_link_active(hba);
 
 	if (!hba->mcq_enabled) {
 		err = ufshcd_make_hba_operational(hba);
