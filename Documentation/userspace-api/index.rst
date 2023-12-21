@@ -32,6 +32,7 @@ place where this information is gathered.
    futex2
    tee
    isapnp
+   dcdbas
 
 .. only::  subproject and html
 

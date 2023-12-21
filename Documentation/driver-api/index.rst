@@ -78,7 +78,6 @@ available subsections can be seen below.
    backlight/lp855x-driver.rst
    connector
    console
-   dcdbas
    eisa
    isa
    io-mapping
