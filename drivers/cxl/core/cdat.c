@@ -272,6 +272,108 @@ static void cxl_memdev_set_qos_class(struct cxl_dev_state *cxlds,
 	devm_add_action_or_reset(&cxlds->cxlmd->dev, free_perf_ents, mds);
 }
 
+static int match_cxlrd_qos_class(struct device *dev, void *data)
+{
+	int dev_qos_class = *(int *)data;
+	struct cxl_root_decoder *cxlrd;
+
+	if (!is_root_decoder(dev))
+		return 0;
+
+	cxlrd = to_cxl_root_decoder(dev);
+	if (cxlrd->qos_class == CXL_QOS_CLASS_INVALID)
+		return 0;
+
+	if (cxlrd->qos_class == dev_qos_class)
+		return 1;
+
+	return 0;
+}
+
+static void cxl_qos_match(struct cxl_port *root_port,
+			  struct list_head *work_list,
+			  struct list_head *discard_list)
+{
+	struct cxl_dpa_perf *dpa_perf, *n;
+
+	list_for_each_entry_safe(dpa_perf, n, work_list, list) {
+		int rc;
+
+		if (dpa_perf->qos_class == CXL_QOS_CLASS_INVALID)
+			return;
+
+		rc = device_for_each_child(&root_port->dev,
+					   (void *)&dpa_perf->qos_class,
+					   match_cxlrd_qos_class);
+		if (!rc)
+			list_move_tail(&dpa_perf->list, discard_list);
+	}
+}
+
+static int match_cxlrd_hb(struct device *dev, void *data)
+{
+	struct device *host_bridge = data;
+	struct cxl_switch_decoder *cxlsd;
+	struct cxl_root_decoder *cxlrd;
+	unsigned int seq;
+
+	if (!is_root_decoder(dev))
+		return 0;
+
+	cxlrd = to_cxl_root_decoder(dev);
+	cxlsd = &cxlrd->cxlsd;
+
+	do {
+		seq = read_seqbegin(&cxlsd->target_lock);
+		for (int i = 0; i < cxlsd->nr_targets; i++) {
+			if (host_bridge == cxlsd->target[i]->dport_dev)
+				return 1;
+		}
+	} while (read_seqretry(&cxlsd->target_lock, seq));
+
+	return 0;
+}
+
+static void discard_dpa_perf(struct list_head *list)
+{
+	struct cxl_dpa_perf *dpa_perf, *n;
+
+	list_for_each_entry_safe(dpa_perf, n, list, list) {
+		list_del(&dpa_perf->list);
+		kfree(dpa_perf);
+	}
+}
+DEFINE_FREE(dpa_perf, struct list_head *, if (!list_empty(_T)) discard_dpa_perf(_T))
+
+static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
+{
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
+	struct cxl_port *root_port __free(put_device) = NULL;
+	LIST_HEAD(__discard);
+	struct list_head *discard __free(dpa_perf) = &__discard;
+	int rc;
+
+	root_port = find_cxl_root(cxlmd->endpoint);
+	if (!root_port)
+		return -ENODEV;
+
+	/* Check that the QTG IDs are all sane between end device and root decoders */
+	cxl_qos_match(root_port, &mds->ram_perf_list, discard);
+	cxl_qos_match(root_port, &mds->pmem_perf_list, discard);
+
+	/* Check to make sure that the device's host bridge is under a root decoder */
+	rc = device_for_each_child(&root_port->dev,
+				   (void *)cxlmd->endpoint->host_bridge,
+				   match_cxlrd_hb);
+	if (!rc) {
+		list_splice_tail_init(&mds->ram_perf_list, discard);
+		list_splice_tail_init(&mds->pmem_perf_list, discard);
+	}
+
+	return rc;
+}
+
 static void discard_dsmas(struct xarray *xa)
 {
 	unsigned long index;
@@ -310,6 +412,7 @@ void cxl_endpoint_parse_cdat(struct cxl_port *port)
 	}
 
 	cxl_memdev_set_qos_class(cxlds, dsmas_xa);
+	cxl_qos_class_verify(cxlmd);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_endpoint_parse_cdat, CXL);
 
