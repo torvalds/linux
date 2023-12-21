@@ -75,18 +75,6 @@ static inline void file_free(struct file *f)
 	}
 }
 
-void release_empty_file(struct file *f)
-{
-	WARN_ON_ONCE(f->f_mode & (FMODE_BACKING | FMODE_OPENED));
-	if (atomic_long_dec_and_test(&f->f_count)) {
-		security_file_free(f);
-		put_cred(f->f_cred);
-		if (likely(!(f->f_mode & FMODE_NOACCOUNT)))
-			percpu_counter_dec(&nr_files);
-		kmem_cache_free(filp_cachep, f);
-	}
-}
-
 /*
  * Return the total number of open files in the system
  */
@@ -419,7 +407,7 @@ static void delayed_fput(struct work_struct *unused)
 
 static void ____fput(struct callback_head *work)
 {
-	__fput(container_of(work, struct file, f_rcuhead));
+	__fput(container_of(work, struct file, f_task_work));
 }
 
 /*
@@ -445,9 +433,13 @@ void fput(struct file *file)
 	if (atomic_long_dec_and_test(&file->f_count)) {
 		struct task_struct *task = current;
 
+		if (unlikely(!(file->f_mode & (FMODE_BACKING | FMODE_OPENED)))) {
+			file_free(file);
+			return;
+		}
 		if (likely(!in_interrupt() && !(task->flags & PF_KTHREAD))) {
-			init_task_work(&file->f_rcuhead, ____fput);
-			if (!task_work_add(task, &file->f_rcuhead, TWA_RESUME))
+			init_task_work(&file->f_task_work, ____fput);
+			if (!task_work_add(task, &file->f_task_work, TWA_RESUME))
 				return;
 			/*
 			 * After this task has run exit_task_work(),

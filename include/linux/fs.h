@@ -991,8 +991,10 @@ static inline int ra_has_index(struct file_ra_state *ra, pgoff_t index)
  */
 struct file {
 	union {
+		/* fput() uses task work when closing and freeing file (default). */
+		struct callback_head 	f_task_work;
+		/* fput() must use workqueue (most kernel threads). */
 		struct llist_node	f_llist;
-		struct rcu_head 	f_rcuhead;
 		unsigned int 		f_iocb_flags;
 	};
 

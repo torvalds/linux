@@ -629,18 +629,22 @@ void fd_install(unsigned int fd, struct file *file)
 EXPORT_SYMBOL(fd_install);
 
 /**
- * pick_file - return file associatd with fd
+ * file_close_fd_locked - return file associated with fd
  * @files: file struct to retrieve file from
  * @fd: file descriptor to retrieve file for
+ *
+ * Doesn't take a separate reference count.
  *
  * Context: files_lock must be held.
  *
  * Returns: The file associated with @fd (NULL if @fd is not open)
  */
-static struct file *pick_file(struct files_struct *files, unsigned fd)
+struct file *file_close_fd_locked(struct files_struct *files, unsigned fd)
 {
 	struct fdtable *fdt = files_fdtable(files);
 	struct file *file;
+
+	lockdep_assert_held(&files->file_lock);
 
 	if (fd >= fdt->max_fds)
 		return NULL;
@@ -660,7 +664,7 @@ int close_fd(unsigned fd)
 	struct file *file;
 
 	spin_lock(&files->file_lock);
-	file = pick_file(files, fd);
+	file = file_close_fd_locked(files, fd);
 	spin_unlock(&files->file_lock);
 	if (!file)
 		return -EBADF;
@@ -707,7 +711,7 @@ static inline void __range_close(struct files_struct *files, unsigned int fd,
 	max_fd = min(max_fd, n);
 
 	for (; fd <= max_fd; fd++) {
-		file = pick_file(files, fd);
+		file = file_close_fd_locked(files, fd);
 		if (file) {
 			spin_unlock(&files->file_lock);
 			filp_close(file, files);
@@ -795,26 +799,21 @@ int __close_range(unsigned fd, unsigned max_fd, unsigned int flags)
 	return 0;
 }
 
-/*
- * See close_fd_get_file() below, this variant assumes current->files->file_lock
- * is held.
+/**
+ * file_close_fd - return file associated with fd
+ * @fd: file descriptor to retrieve file for
+ *
+ * Doesn't take a separate reference count.
+ *
+ * Returns: The file associated with @fd (NULL if @fd is not open)
  */
-struct file *__close_fd_get_file(unsigned int fd)
-{
-	return pick_file(current->files, fd);
-}
-
-/*
- * variant of close_fd that gets a ref on the file for later fput.
- * The caller must ensure that filp_close() called on the file.
- */
-struct file *close_fd_get_file(unsigned int fd)
+struct file *file_close_fd(unsigned int fd)
 {
 	struct files_struct *files = current->files;
 	struct file *file;
 
 	spin_lock(&files->file_lock);
-	file = pick_file(files, fd);
+	file = file_close_fd_locked(files, fd);
 	spin_unlock(&files->file_lock);
 
 	return file;
@@ -959,31 +958,45 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		struct file *file;
 		struct fdtable *fdt = rcu_dereference_raw(files->fdt);
 		struct file __rcu **fdentry;
+		unsigned long nospec_mask;
 
-		if (unlikely(fd >= fdt->max_fds))
-			return NULL;
-
-		fdentry = fdt->fd + array_index_nospec(fd, fdt->max_fds);
+		/* Mask is a 0 for invalid fd's, ~0 for valid ones */
+		nospec_mask = array_index_mask_nospec(fd, fdt->max_fds);
 
 		/*
-		 * Ok, we have a file pointer. However, because we do
-		 * this all locklessly under RCU, we may be racing with
-		 * that file being closed.
+		 * fdentry points to the 'fd' offset, or fdt->fd[0].
+		 * Loading from fdt->fd[0] is always safe, because the
+		 * array always exists.
+		 */
+		fdentry = fdt->fd + (fd & nospec_mask);
+
+		/* Do the load, then mask any invalid result */
+		file = rcu_dereference_raw(*fdentry);
+		file = (void *)(nospec_mask & (unsigned long)file);
+		if (unlikely(!file))
+			return NULL;
+
+		/*
+		 * Ok, we have a file pointer that was valid at
+		 * some point, but it might have become stale since.
 		 *
+		 * We need to confirm it by incrementing the refcount
+		 * and then check the lookup again.
+		 *
+		 * atomic_long_inc_not_zero() gives us a full memory
+		 * barrier. We only really need an 'acquire' one to
+		 * protect the loads below, but we don't have that.
+		 */
+		if (unlikely(!atomic_long_inc_not_zero(&file->f_count)))
+			continue;
+
+		/*
 		 * Such a race can take two forms:
 		 *
 		 *  (a) the file ref already went down to zero and the
 		 *      file hasn't been reused yet or the file count
 		 *      isn't zero but the file has already been reused.
-		 */
-		file = __get_file_rcu(fdentry);
-		if (unlikely(!file))
-			return NULL;
-
-		if (unlikely(IS_ERR(file)))
-			continue;
-
-		/*
+		 *
 		 *  (b) the file table entry has changed under us.
 		 *       Note that we don't need to re-check the 'fdt->fd'
 		 *       pointer having changed, because it always goes
@@ -991,7 +1004,8 @@ static inline struct file *__fget_files_rcu(struct files_struct *files,
 		 *
 		 * If so, we need to put our ref and try again.
 		 */
-		if (unlikely(rcu_dereference_raw(files->fdt) != fdt)) {
+		if (unlikely(file != rcu_dereference_raw(*fdentry)) ||
+		    unlikely(rcu_dereference_raw(files->fdt) != fdt)) {
 			fput(file);
 			continue;
 		}
@@ -1128,13 +1142,13 @@ static unsigned long __fget_light(unsigned int fd, fmode_t mask)
 	 * atomic_read_acquire() pairs with atomic_dec_and_test() in
 	 * put_files_struct().
 	 */
-	if (atomic_read_acquire(&files->count) == 1) {
+	if (likely(atomic_read_acquire(&files->count) == 1)) {
 		file = files_lookup_fd_raw(files, fd);
 		if (!file || unlikely(file->f_mode & mask))
 			return 0;
 		return (unsigned long)file;
 	} else {
-		file = __fget(fd, mask);
+		file = __fget_files(files, fd, mask);
 		if (!file)
 			return 0;
 		return FDPUT_FPUT | (unsigned long)file;
@@ -1282,7 +1296,7 @@ out_unlock:
 }
 
 /**
- * __receive_fd() - Install received file into file descriptor table
+ * receive_fd() - Install received file into file descriptor table
  * @file: struct file that was received from another process
  * @ufd: __user pointer to write new fd number to
  * @o_flags: the O_* flags to apply to the new fd entry
@@ -1296,7 +1310,7 @@ out_unlock:
  *
  * Returns newly install fd or -ve on error.
  */
-int __receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
+int receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 {
 	int new_fd;
 	int error;
@@ -1321,6 +1335,7 @@ int __receive_fd(struct file *file, int __user *ufd, unsigned int o_flags)
 	__receive_sock(file);
 	return new_fd;
 }
+EXPORT_SYMBOL_GPL(receive_fd);
 
 int receive_fd_replace(int new_fd, struct file *file, unsigned int o_flags)
 {
@@ -1335,12 +1350,6 @@ int receive_fd_replace(int new_fd, struct file *file, unsigned int o_flags)
 	__receive_sock(file);
 	return new_fd;
 }
-
-int receive_fd(struct file *file, unsigned int o_flags)
-{
-	return __receive_fd(file, NULL, o_flags);
-}
-EXPORT_SYMBOL_GPL(receive_fd);
 
 static int ksys_dup3(unsigned int oldfd, unsigned int newfd, int flags)
 {

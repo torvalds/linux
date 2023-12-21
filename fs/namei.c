@@ -3785,10 +3785,7 @@ static struct file *path_openat(struct nameidata *nd,
 		WARN_ON(1);
 		error = -EINVAL;
 	}
-	if (unlikely(file->f_mode & FMODE_OPENED))
-		fput(file);
-	else
-		release_empty_file(file);
+	fput(file);
 	if (error == -EOPENSTALE) {
 		if (flags & LOOKUP_RCU)
 			error = -ECHILD;
