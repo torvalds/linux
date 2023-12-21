@@ -2738,7 +2738,7 @@ static int complete_formation(struct module *mod, struct load_info *info)
 
 	module_enable_ro(mod, false);
 	module_enable_nx(mod);
-	module_enable_x(mod);
+	module_enable_rox(mod);
 
 	/*
 	 * Mark state as coming so strong_try_module_get() ignores us,
