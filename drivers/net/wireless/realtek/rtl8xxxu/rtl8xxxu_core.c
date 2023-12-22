@@ -7665,6 +7665,20 @@ static void rtl8xxxu_deinit_led(struct rtl8xxxu_priv *priv)
 	led_classdev_unregister(led);
 }
 
+struct ieee80211_iface_limit rtl8xxxu_limits[] = {
+	{ .max = 2, .types = BIT(NL80211_IFTYPE_STATION), },
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP), },
+};
+
+struct ieee80211_iface_combination rtl8xxxu_combinations[] = {
+	{
+		.limits = rtl8xxxu_limits,
+		.n_limits = ARRAY_SIZE(rtl8xxxu_limits),
+		.max_interfaces = 2,
+		.num_different_channels = 1,
+	},
+};
+
 static int rtl8xxxu_probe(struct usb_interface *interface,
 			  const struct usb_device_id *id)
 {
@@ -7810,6 +7824,11 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	if (priv->fops->supports_ap)
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
 	hw->queues = 4;
+
+	if (priv->fops->supports_concurrent) {
+		hw->wiphy->iface_combinations = rtl8xxxu_combinations;
+		hw->wiphy->n_iface_combinations = ARRAY_SIZE(rtl8xxxu_combinations);
+	}
 
 	sband = &rtl8xxxu_supported_band;
 	sband->ht_cap.ht_supported = true;
