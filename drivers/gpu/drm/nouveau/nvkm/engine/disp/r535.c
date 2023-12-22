@@ -957,40 +957,60 @@ r535_dp_train_target(struct nvkm_outp *outp, u8 target, bool mst, u8 link_nr, u8
 {
 	struct nvkm_disp *disp = outp->disp;
 	NV0073_CTRL_DP_CTRL_PARAMS *ctrl;
-	int ret;
+	int ret, retries;
+	u32 cmd, data;
 
-	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom, NV0073_CTRL_CMD_DP_CTRL, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
-
-	ctrl->subDeviceInstance = 0;
-	ctrl->displayId = BIT(outp->index);
-	ctrl->cmd = NVDEF(NV0073_CTRL, DP_CMD, SET_LANE_COUNT, TRUE) |
-		    NVDEF(NV0073_CTRL, DP_CMD, SET_LINK_BW, TRUE) |
-		    NVDEF(NV0073_CTRL, DP_CMD, TRAIN_PHY_REPEATER, YES);
-	ctrl->data = NVVAL(NV0073_CTRL, DP_DATA, SET_LANE_COUNT, link_nr) |
-		     NVVAL(NV0073_CTRL, DP_DATA, SET_LINK_BW, link_bw) |
-		     NVVAL(NV0073_CTRL, DP_DATA, TARGET, target);
+	cmd = NVDEF(NV0073_CTRL, DP_CMD, SET_LANE_COUNT, TRUE) |
+	      NVDEF(NV0073_CTRL, DP_CMD, SET_LINK_BW, TRUE) |
+	      NVDEF(NV0073_CTRL, DP_CMD, TRAIN_PHY_REPEATER, YES);
+	data = NVVAL(NV0073_CTRL, DP_DATA, SET_LANE_COUNT, link_nr) |
+	       NVVAL(NV0073_CTRL, DP_DATA, SET_LINK_BW, link_bw) |
+	       NVVAL(NV0073_CTRL, DP_DATA, TARGET, target);
 
 	if (mst)
-		ctrl->cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_FORMAT_MODE, MULTI_STREAM);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_FORMAT_MODE, MULTI_STREAM);
 
 	if (outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
-		ctrl->cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_ENHANCED_FRAMING, TRUE);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_ENHANCED_FRAMING, TRUE);
 
 	if (target == 0 &&
 	     (outp->dp.dpcd[DPCD_RC02] & 0x20) &&
 	    !(outp->dp.dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED))
-	    ctrl->cmd |= NVDEF(NV0073_CTRL, DP_CMD, POST_LT_ADJ_REQ_GRANTED, YES);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, POST_LT_ADJ_REQ_GRANTED, YES);
 
-	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
-	if (ret) {
-		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
-		return ret;
+	/* We should retry up to 3 times, but only if GSP asks politely */
+	for (retries = 0; retries < 3; ++retries) {
+		ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom, NV0073_CTRL_CMD_DP_CTRL,
+					    sizeof(*ctrl));
+		if (IS_ERR(ctrl))
+			return PTR_ERR(ctrl);
+
+		ctrl->subDeviceInstance = 0;
+		ctrl->displayId = BIT(outp->index);
+		ctrl->retryTimeMs = 0;
+		ctrl->cmd = cmd;
+		ctrl->data = data;
+
+		ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+		if (ret == -EAGAIN && ctrl->retryTimeMs) {
+			/*
+			 * Device (likely an eDP panel) isn't ready yet, wait for the time specified
+			 * by GSP before retrying again
+			 */
+			nvkm_debug(&disp->engine.subdev,
+				   "Waiting %dms for GSP LT panel delay before retrying\n",
+				   ctrl->retryTimeMs);
+			msleep(ctrl->retryTimeMs);
+			nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		} else {
+			/* GSP didn't say to retry, or we were successful */
+			if (ctrl->err)
+				ret = -EIO;
+			nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+			break;
+		}
 	}
 
-	ret = ctrl->err ? -EIO : 0;
-	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
 	return ret;
 }
 
