@@ -3580,15 +3580,25 @@ void rtl8723a_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
-static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv)
+static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv, int port_num)
 {
 	int i;
 	u16 reg;
 
-	reg = REG_MACID;
+	switch (port_num) {
+	case 0:
+		reg = REG_MACID;
+		break;
+	case 1:
+		reg = REG_MACID1;
+		break;
+	default:
+		WARN_ONCE("%s: invalid port_num\n", __func__);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ETH_ALEN; i++)
-		rtl8xxxu_write8(priv, reg + i, priv->mac_addr[i]);
+		rtl8xxxu_write8(priv, reg + i, priv->vifs[port_num]->addr[i]);
 
 	return 0;
 }
@@ -4242,8 +4252,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write32(priv, REG_HISR, 0xffffffff);
 		rtl8xxxu_write32(priv, REG_HIMR, 0xffffffff);
 	}
-
-	rtl8xxxu_set_mac(priv);
 
 	/*
 	 * Configure initial WMAC settings
@@ -6619,7 +6627,7 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 
 	rtl8xxxu_set_linktype(priv, vif->type, 0);
 	ether_addr_copy(priv->mac_addr, vif->addr);
-	rtl8xxxu_set_mac(priv);
+	rtl8xxxu_set_mac(priv, 0);
 
 	return ret;
 }
