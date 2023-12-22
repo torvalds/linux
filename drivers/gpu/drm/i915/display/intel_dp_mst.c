@@ -959,6 +959,10 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 	}
 
+	*status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	if (*status != MODE_OK)
+		return 0;
+
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
 		*status = MODE_NO_DBLESCAN;
 		return 0;
@@ -993,6 +997,10 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	if (intel_dp_need_bigjoiner(intel_dp, mode->hdisplay, target_clock)) {
 		bigjoiner = true;
 		max_dotclk *= 2;
+
+		/* TODO: add support for bigjoiner */
+		*status = MODE_CLOCK_HIGH;
+		return 0;
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 10 &&
@@ -1027,11 +1035,15 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	 * Big joiner configuration needs DSC for TGL which is not true for
 	 * XE_LPD where uncompressed joiner is supported.
 	 */
-	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc)
-		return MODE_CLOCK_HIGH;
+	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc) {
+		*status = MODE_CLOCK_HIGH;
+		return 0;
+	}
 
-	if (mode_rate > max_rate && !dsc)
-		return MODE_CLOCK_HIGH;
+	if (mode_rate > max_rate && !dsc) {
+		*status = MODE_CLOCK_HIGH;
+		return 0;
+	}
 
 	*status = intel_mode_valid_max_plane_size(dev_priv, mode, false);
 	return 0;

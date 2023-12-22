@@ -1362,7 +1362,6 @@
 			     <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH 0>,
 			     <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH 0>,
 			     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "ch0", "ch1", "ch2", "ch3";
 		rockchip,pmu = <&pmu1grf>;
 	};
 

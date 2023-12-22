@@ -107,11 +107,12 @@ config NVME_TCP_TLS
 	  If unsure, say N.
 
 config NVME_HOST_AUTH
-	bool "NVM Express over Fabrics In-Band Authentication"
+	bool "NVMe over Fabrics In-Band Authentication in host side"
 	depends on NVME_CORE
 	select NVME_AUTH
 	help
-	  This provides support for NVMe over Fabrics In-Band Authentication.
+	  This provides support for NVMe over Fabrics In-Band Authentication in
+	  host side.
 
 	  If unsure, say N.
 
