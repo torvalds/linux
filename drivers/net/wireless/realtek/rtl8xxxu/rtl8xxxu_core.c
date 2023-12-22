@@ -3603,14 +3603,24 @@ static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv, int port_num)
 	return 0;
 }
 
-static int rtl8xxxu_set_bssid(struct rtl8xxxu_priv *priv, const u8 *bssid)
+static int rtl8xxxu_set_bssid(struct rtl8xxxu_priv *priv, const u8 *bssid, int port_num)
 {
 	int i;
 	u16 reg;
 
 	dev_dbg(&priv->udev->dev, "%s: (%pM)\n", __func__, bssid);
 
-	reg = REG_BSSID;
+	switch (port_num) {
+	case 0:
+		reg = REG_BSSID;
+		break;
+	case 1:
+		reg = REG_BSSID1;
+		break;
+	default:
+		WARN_ONCE("%s: invalid port_num\n", __func__);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl8xxxu_write8(priv, reg + i, bssid[i]);
@@ -5068,7 +5078,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_BSSID) {
 		dev_dbg(dev, "Changed BSSID!\n");
-		rtl8xxxu_set_bssid(priv, bss_conf->bssid);
+		rtl8xxxu_set_bssid(priv, bss_conf->bssid, 0);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
@@ -5097,7 +5107,7 @@ static int rtl8xxxu_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct device *dev = &priv->udev->dev;
 
 	dev_dbg(dev, "Start AP mode\n");
-	rtl8xxxu_set_bssid(priv, vif->bss_conf.bssid);
+	rtl8xxxu_set_bssid(priv, vif->bss_conf.bssid, 0);
 	rtl8xxxu_write16(priv, REG_BCN_INTERVAL, vif->bss_conf.beacon_int);
 	priv->fops->report_connect(priv, RTL8XXXU_BC_MC_MACID, 0, true);
 
