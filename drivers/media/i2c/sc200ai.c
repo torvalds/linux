@@ -1231,12 +1231,15 @@ static long sc200ai_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 
 		stream = *((u32 *)arg);
 
-		if (stream)
+		if (stream) {
+			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 1);
 			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
 				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_STREAMING);
-		else
+		} else {
 			ret = sc200ai_write_reg(sc200ai->client, SC200AI_REG_CTRL_MODE,
 				 SC200AI_REG_VALUE_08BIT, SC200AI_MODE_SW_STANDBY);
+			gpiod_set_value_cansleep(sc200ai->pwdn_gpio, 0);
+		}
 		break;
 	case RKMODULE_GET_CHANNEL_INFO:
 		ch_info = (struct rkmodule_channel_info *)arg;
