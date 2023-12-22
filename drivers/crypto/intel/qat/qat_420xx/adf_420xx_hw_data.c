@@ -15,6 +15,7 @@
 #include <adf_gen4_pm.h>
 #include <adf_gen4_ras.h>
 #include <adf_gen4_timer.h>
+#include <adf_gen4_tl.h>
 #include "adf_420xx_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -543,6 +544,7 @@ void adf_init_hw_data_420xx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	adf_gen4_init_pf_pfvf_ops(&hw_data->pfvf_ops);
 	adf_gen4_init_dc_ops(&hw_data->dc_ops);
 	adf_gen4_init_ras_ops(&hw_data->ras_ops);
+	adf_gen4_init_tl_data(&hw_data->tl_data);
 	adf_init_rl_data(&hw_data->rl_data);
 }
 

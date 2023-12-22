@@ -1,0 +1,103 @@
+What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/control
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(RW) Enables/disables the reporting of telemetry metrics.
+
+		Allowed values to write:
+		========================
+		* 0: disable telemetry
+		* 1: enable telemetry
+		* 2, 3, 4: enable telemetry and calculate minimum, maximum
+		  and average for each counter over 2, 3 or 4 samples
+
+		Returned values:
+		================
+		* 1-4: telemetry is enabled and running
+		* 0: telemetry is disabled
+
+		Example.
+
+		Writing '3' to this file starts the collection of
+		telemetry metrics. Samples are collected every second and
+		stored in a circular buffer of size 3. These values are then
+		used to calculate the minimum, maximum and average for each
+		counter. After enabling, counters can be retrieved through
+		the ``device_data`` file::
+
+		  echo 3 > /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/control
+
+		Writing '0' to this file stops the collection of telemetry
+		metrics::
+
+		  echo 0 > /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/control
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/telemetry/device_data
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(RO) Reports device telemetry counters.
+		Reads report metrics about performance and utilization of
+		a QAT device:
+
+		=======================	========================================
+		Field			Description
+		=======================	========================================
+		sample_cnt		number of acquisitions of telemetry data
+					from the device. Reads are performed
+					every 1000 ms.
+		pci_trans_cnt		number of PCIe partial transactions
+		max_rd_lat		maximum logged read latency [ns] (could
+					be any read operation)
+		rd_lat_acc_avg		average read latency [ns]
+		max_gp_lat		max get to put latency [ns] (only takes
+					samples for AE0)
+		gp_lat_acc_avg		average get to put latency [ns]
+		bw_in			PCIe, write bandwidth [Mbps]
+		bw_out			PCIe, read bandwidth [Mbps]
+		at_page_req_lat_avg	Address Translator(AT), average page
+					request latency [ns]
+		at_trans_lat_avg	AT, average page translation latency [ns]
+		at_max_tlb_used		AT, maximum uTLB used
+		util_cpr<N>		utilization of Compression slice N [%]
+		exec_cpr<N>		execution count of Compression slice N
+		util_xlt<N>		utilization of Translator slice N [%]
+		exec_xlt<N>		execution count of Translator slice N
+		util_dcpr<N>		utilization of Decompression slice N [%]
+		exec_dcpr<N>		execution count of Decompression slice N
+		util_pke<N>		utilization of PKE N [%]
+		exec_pke<N>		execution count of PKE N
+		util_ucs<N>		utilization of UCS slice N [%]
+		exec_ucs<N>		execution count of UCS slice N
+		util_wat<N>		utilization of Wireless Authentication
+					slice N [%]
+		exec_wat<N>		execution count of Wireless Authentication
+					slice N
+		util_wcp<N>		utilization of Wireless Cipher slice N [%]
+		exec_wcp<N>		execution count of Wireless Cipher slice N
+		util_cph<N>		utilization of Cipher slice N [%]
+		exec_cph<N>		execution count of Cipher slice N
+		util_ath<N>		utilization of Authentication slice N [%]
+		exec_ath<N>		execution count of Authentication slice N
+		=======================	========================================
+
+		The telemetry report file can be read with the following command::
+
+		  cat /sys/kernel/debug/qat_4xxx_0000:6b:00.0/telemetry/device_data
+
+		If ``control`` is set to 1, only the current values of the
+		counters are displayed::
+
+		  <counter_name> <current>
+
+		If ``control`` is 2, 3 or 4, counters are displayed in the
+		following format::
+
+		  <counter_name> <current> <min> <max> <avg>
+
+		If a device lacks of a specific accelerator, the corresponding
+		attribute is not reported.
+
+		This attribute is only available for qat_4xxx devices.

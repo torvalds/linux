@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include "adf_cfg_common.h"
 #include "adf_rl.h"
+#include "adf_telemetry.h"
 #include "adf_pfvf_msg.h"
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
@@ -254,6 +255,7 @@ struct adf_hw_device_data {
 	struct adf_ras_ops ras_ops;
 	struct adf_dev_err_mask dev_err_mask;
 	struct adf_rl_hw_data rl_data;
+	struct adf_tl_hw_data tl_data;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
@@ -308,6 +310,7 @@ struct adf_hw_device_data {
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
 #define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->pfvf_ops)
 #define GET_DC_OPS(accel_dev) (&(accel_dev)->hw_device->dc_ops)
+#define GET_TL_DATA(accel_dev) GET_HW_DATA(accel_dev)->tl_data
 #define accel_to_pci_dev(accel_ptr) accel_ptr->accel_pci_dev.pci_dev
 
 struct adf_admin_comms;
@@ -356,6 +359,7 @@ struct adf_accel_dev {
 	struct adf_cfg_device_data *cfg;
 	struct adf_fw_loader_data *fw_loader;
 	struct adf_admin_comms *admin;
+	struct adf_telemetry *telemetry;
 	struct adf_dc_data *dc_data;
 	struct adf_pm power_management;
 	struct list_head crypto_list;
