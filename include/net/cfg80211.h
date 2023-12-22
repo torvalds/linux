@@ -8775,6 +8775,19 @@ bool ieee80211_operating_class_to_band(u8 operating_class,
 				       enum nl80211_band *band);
 
 /**
+ * ieee80211_operating_class_to_chandef - convert operating class to chandef
+ *
+ * @operating_class: the operating class to convert
+ * @chan: the ieee80211_channel to convert
+ * @chandef: a pointer to the resulting chandef
+ *
+ * Returns %true if the conversion was successful, %false otherwise.
+ */
+bool ieee80211_operating_class_to_chandef(u8 operating_class,
+					  struct ieee80211_channel *chan,
+					  struct cfg80211_chan_def *chandef);
+
+/**
  * ieee80211_chandef_to_operating_class - convert chandef to operation class
  *
  * @chandef: the chandef to convert
