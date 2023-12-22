@@ -28,6 +28,7 @@
 /* Accelerators */
 #define ADF_GEN4_ACCELERATORS_MASK	0x1
 #define ADF_GEN4_MAX_ACCELERATORS	1
+#define ADF_GEN4_ADMIN_ACCELENGINES	1
 
 /* MSIX interrupt */
 #define ADF_GEN4_SMIAPF_RP_X0_MASK_OFFSET	0x41A040
@@ -193,6 +194,9 @@ do { \
 #define ADF_GEN4_RL_TOKEN_PCIEIN_BUCKET_OFFSET	0x508800
 #define ADF_GEN4_RL_TOKEN_PCIEOUT_BUCKET_OFFSET	0x508804
 
+/* Arbiter threads mask with error value */
+#define ADF_GEN4_ENA_THD_MASK_ERROR	GENMASK(ADF_NUM_THREADS_PER_AE, 0)
+
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 
 enum icp_qat_gen4_slice_mask {
@@ -205,6 +209,12 @@ enum icp_qat_gen4_slice_mask {
 	ICP_ACCEL_GEN4_MASK_SMX_SLICE = BIT(7),
 	ICP_ACCEL_GEN4_MASK_WCP_WAT_SLICE = BIT(8),
 	ICP_ACCEL_GEN4_MASK_ZUC_256_SLICE = BIT(9),
+};
+
+enum adf_gen4_rp_groups {
+	RP_GROUP_0,
+	RP_GROUP_1,
+	RP_GROUP_COUNT
 };
 
 void adf_gen4_enable_error_correction(struct adf_accel_dev *accel_dev);
@@ -224,4 +234,6 @@ void adf_gen4_init_hw_csr_ops(struct adf_hw_csr_ops *csr_ops);
 int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);
 void adf_gen4_set_msix_default_rttable(struct adf_accel_dev *accel_dev);
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
+int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev);
+
 #endif

@@ -13,6 +13,7 @@
 #include "adf_rl.h"
 #include "adf_telemetry.h"
 #include "adf_pfvf_msg.h"
+#include "icp_qat_hw.h"
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
@@ -248,6 +249,8 @@ struct adf_hw_device_data {
 	const char *(*uof_get_name)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	u32 (*uof_get_num_objs)(struct adf_accel_dev *accel_dev);
 	u32 (*uof_get_ae_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
+	int (*get_rp_group)(struct adf_accel_dev *accel_dev, u32 ae_mask);
+	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*dev_config)(struct adf_accel_dev *accel_dev);
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
@@ -270,6 +273,7 @@ struct adf_hw_device_data {
 	u32 admin_ae_mask;
 	u16 tx_rings_mask;
 	u16 ring_to_svc_map;
+	u32 thd_to_arb_map[ICP_QAT_HW_AE_DELIMITER];
 	u8 tx_rx_gap;
 	u8 num_banks;
 	u16 num_banks_per_vf;

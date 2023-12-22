@@ -23,6 +23,11 @@
 #define ADF_AE_GROUP_1		GENMASK(7, 4)
 #define ADF_AE_GROUP_2		BIT(8)
 
+#define ENA_THD_MASK_ASYM	GENMASK(1, 0)
+#define ENA_THD_MASK_ASYM_401XX	GENMASK(5, 0)
+#define ENA_THD_MASK_SYM	GENMASK(6, 0)
+#define ENA_THD_MASK_DC		GENMASK(1, 0)
+
 static const char * const adf_4xxx_fw_objs[] = {
 	[ADF_FW_SYM_OBJ] =  ADF_4XXX_SYM_OBJ,
 	[ADF_FW_ASYM_OBJ] =  ADF_4XXX_ASYM_OBJ,
@@ -85,25 +90,6 @@ static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_asym_config));
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_asym_dc_config));
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_sym_dc_config));
 static_assert(ARRAY_SIZE(adf_fw_cy_config) == ARRAY_SIZE(adf_fw_dcc_config));
-
-/* Worker thread to service arbiter mappings */
-static const u32 default_thrd_to_arb_map[ADF_4XXX_MAX_ACCELENGINES] = {
-	0x5555555, 0x5555555, 0x5555555, 0x5555555,
-	0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA, 0xAAAAAAA,
-	0x0
-};
-
-static const u32 thrd_to_arb_map_dc[ADF_4XXX_MAX_ACCELENGINES] = {
-	0x000000FF, 0x000000FF, 0x000000FF, 0x000000FF,
-	0x000000FF, 0x000000FF, 0x000000FF, 0x000000FF,
-	0x0
-};
-
-static const u32 thrd_to_arb_map_dcc[ADF_4XXX_MAX_ACCELENGINES] = {
-	0x00000000, 0x00000000, 0x00000000, 0x00000000,
-	0x0000FFFF, 0x0000FFFF, 0x0000FFFF, 0x0000FFFF,
-	0x0
-};
 
 static struct adf_hw_device_class adf_4xxx_class = {
 	.name = ADF_4XXX_DEVICE_NAME,
@@ -220,14 +206,11 @@ static u32 get_accel_cap(struct adf_accel_dev *accel_dev)
 
 static const u32 *adf_get_arbiter_mapping(struct adf_accel_dev *accel_dev)
 {
-	switch (adf_get_service_enabled(accel_dev)) {
-	case SVC_DC:
-		return thrd_to_arb_map_dc;
-	case SVC_DCC:
-		return thrd_to_arb_map_dcc;
-	default:
-		return default_thrd_to_arb_map;
-	}
+	if (adf_gen4_init_thd2arb_map(accel_dev))
+		dev_warn(&GET_DEV(accel_dev),
+			 "Generate of the thread to arbiter map failed");
+
+	return GET_HW_DATA(accel_dev)->thd_to_arb_map;
 }
 
 static void adf_init_rl_data(struct adf_rl_hw_data *rl_data)
@@ -278,11 +261,64 @@ static const struct adf_fw_config *get_fw_config(struct adf_accel_dev *accel_dev
 	}
 }
 
-enum adf_rp_groups {
-	RP_GROUP_0 = 0,
-	RP_GROUP_1,
-	RP_GROUP_COUNT
-};
+static int get_rp_group(struct adf_accel_dev *accel_dev, u32 ae_mask)
+{
+	switch (ae_mask) {
+	case ADF_AE_GROUP_0:
+		return RP_GROUP_0;
+	case ADF_AE_GROUP_1:
+		return RP_GROUP_1;
+	default:
+		dev_dbg(&GET_DEV(accel_dev), "ae_mask not recognized");
+		return -EINVAL;
+	}
+}
+
+static u32 get_ena_thd_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
+{
+	const struct adf_fw_config *fw_config;
+
+	if (obj_num >= uof_get_num_objs(accel_dev))
+		return ADF_GEN4_ENA_THD_MASK_ERROR;
+
+	fw_config = get_fw_config(accel_dev);
+	if (!fw_config)
+		return ADF_GEN4_ENA_THD_MASK_ERROR;
+
+	switch (fw_config[obj_num].obj) {
+	case ADF_FW_ASYM_OBJ:
+		return ENA_THD_MASK_ASYM;
+	case ADF_FW_SYM_OBJ:
+		return ENA_THD_MASK_SYM;
+	case ADF_FW_DC_OBJ:
+		return ENA_THD_MASK_DC;
+	default:
+		return ADF_GEN4_ENA_THD_MASK_ERROR;
+	}
+}
+
+static u32 get_ena_thd_mask_401xx(struct adf_accel_dev *accel_dev, u32 obj_num)
+{
+	const struct adf_fw_config *fw_config;
+
+	if (obj_num >= uof_get_num_objs(accel_dev))
+		return ADF_GEN4_ENA_THD_MASK_ERROR;
+
+	fw_config = get_fw_config(accel_dev);
+	if (!fw_config)
+		return ADF_GEN4_ENA_THD_MASK_ERROR;
+
+	switch (fw_config[obj_num].obj) {
+	case ADF_FW_ASYM_OBJ:
+		return ENA_THD_MASK_ASYM_401XX;
+	case ADF_FW_SYM_OBJ:
+		return ENA_THD_MASK_SYM;
+	case ADF_FW_DC_OBJ:
+		return ENA_THD_MASK_DC;
+	default:
+		return ADF_GEN4_ENA_THD_MASK_ERROR;
+	}
+}
 
 static u16 get_ring_to_svc_map(struct adf_accel_dev *accel_dev)
 {
@@ -428,14 +464,22 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 		hw_data->fw_mmp_name = ADF_402XX_MMP;
 		hw_data->uof_get_name = uof_get_name_402xx;
 		break;
-
+	case ADF_401XX_PCI_DEVICE_ID:
+		hw_data->fw_name = ADF_4XXX_FW;
+		hw_data->fw_mmp_name = ADF_4XXX_MMP;
+		hw_data->uof_get_name = uof_get_name_4xxx;
+		hw_data->get_ena_thd_mask = get_ena_thd_mask_401xx;
+		break;
 	default:
 		hw_data->fw_name = ADF_4XXX_FW;
 		hw_data->fw_mmp_name = ADF_4XXX_MMP;
 		hw_data->uof_get_name = uof_get_name_4xxx;
+		hw_data->get_ena_thd_mask = get_ena_thd_mask;
+		break;
 	}
 	hw_data->uof_get_num_objs = uof_get_num_objs;
 	hw_data->uof_get_ae_mask = uof_get_ae_mask;
+	hw_data->get_rp_group = get_rp_group;
 	hw_data->set_msix_rttable = adf_gen4_set_msix_default_rttable;
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
 	hw_data->get_ring_to_svc_map = get_ring_to_svc_map;

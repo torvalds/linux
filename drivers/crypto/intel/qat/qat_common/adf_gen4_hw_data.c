@@ -2,6 +2,7 @@
 /* Copyright(c) 2020 Intel Corporation */
 #include <linux/iopoll.h>
 #include "adf_accel_devices.h"
+#include "adf_cfg_services.h"
 #include "adf_common_drv.h"
 #include "adf_gen4_hw_data.h"
 #include "adf_gen4_pm.h"
@@ -340,3 +341,92 @@ int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_ring_pair_reset);
+
+static const u32 thrd_to_arb_map_dcc[] = {
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0000FFFF, 0x0000FFFF, 0x0000FFFF, 0x0000FFFF,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x00000000, 0x00000000, 0x00000000, 0x00000000,
+	0x0
+};
+
+static const u16 rp_group_to_arb_mask[] = {
+	[RP_GROUP_0] = 0x5,
+	[RP_GROUP_1] = 0xA,
+};
+
+static bool is_single_service(int service_id)
+{
+	switch (service_id) {
+	case SVC_DC:
+	case SVC_SYM:
+	case SVC_ASYM:
+		return true;
+	case SVC_CY:
+	case SVC_CY2:
+	case SVC_DCC:
+	case SVC_ASYM_DC:
+	case SVC_DC_ASYM:
+	case SVC_SYM_DC:
+	case SVC_DC_SYM:
+	default:
+		return false;
+	}
+}
+
+int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	u32 *thd2arb_map = hw_data->thd_to_arb_map;
+	unsigned int ae_cnt, worker_obj_cnt, i, j;
+	unsigned long ae_mask, thds_mask;
+	int srv_id, rp_group;
+	u32 thd2arb_map_base;
+	u16 arb_mask;
+
+	if (!hw_data->get_rp_group || !hw_data->get_ena_thd_mask ||
+	    !hw_data->get_num_aes || !hw_data->uof_get_num_objs ||
+	    !hw_data->uof_get_ae_mask)
+		return -EFAULT;
+
+	srv_id = adf_get_service_enabled(accel_dev);
+	if (srv_id < 0)
+		return srv_id;
+
+	ae_cnt = hw_data->get_num_aes(hw_data);
+	worker_obj_cnt = hw_data->uof_get_num_objs(accel_dev) -
+			 ADF_GEN4_ADMIN_ACCELENGINES;
+
+	if (srv_id == SVC_DCC) {
+		memcpy(thd2arb_map, thrd_to_arb_map_dcc,
+		       array_size(sizeof(*thd2arb_map), ae_cnt));
+		return 0;
+	}
+
+	for (i = 0; i < worker_obj_cnt; i++) {
+		ae_mask = hw_data->uof_get_ae_mask(accel_dev, i);
+		rp_group = hw_data->get_rp_group(accel_dev, ae_mask);
+		thds_mask = hw_data->get_ena_thd_mask(accel_dev, i);
+		thd2arb_map_base = 0;
+
+		if (rp_group >= RP_GROUP_COUNT || rp_group < RP_GROUP_0)
+			return -EINVAL;
+
+		if (thds_mask == ADF_GEN4_ENA_THD_MASK_ERROR)
+			return -EINVAL;
+
+		if (is_single_service(srv_id))
+			arb_mask = rp_group_to_arb_mask[RP_GROUP_0] |
+				   rp_group_to_arb_mask[RP_GROUP_1];
+		else
+			arb_mask = rp_group_to_arb_mask[rp_group];
+
+		for_each_set_bit(j, &thds_mask, ADF_NUM_THREADS_PER_AE)
+			thd2arb_map_base |= arb_mask << (j * 4);
+
+		for_each_set_bit(j, &ae_mask, ae_cnt)
+			thd2arb_map[j] = thd2arb_map_base;
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_init_thd2arb_map);
