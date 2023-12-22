@@ -1100,16 +1100,12 @@ r535_gsp_acpi_caps(acpi_handle handle, CAPS_METHOD_DATA *caps)
 	if (!obj)
 		return;
 
-	printk(KERN_ERR "nvop: obj type %d\n", obj->type);
-	printk(KERN_ERR "nvop: obj len %d\n", obj->buffer.length);
-
 	if (WARN_ON(obj->type != ACPI_TYPE_BUFFER) ||
 	    WARN_ON(obj->buffer.length != 4))
 		return;
 
 	caps->status = 0;
 	caps->optimusCaps = *(u32 *)obj->buffer.pointer;
-	printk(KERN_ERR "nvop: caps %08x\n", caps->optimusCaps);
 
 	ACPI_FREE(obj);
 
@@ -1136,9 +1132,6 @@ r535_gsp_acpi_jt(acpi_handle handle, JT_METHOD_DATA *jt)
 	if (!obj)
 		return;
 
-	printk(KERN_ERR "jt: obj type %d\n", obj->type);
-	printk(KERN_ERR "jt: obj len %d\n", obj->buffer.length);
-
 	if (WARN_ON(obj->type != ACPI_TYPE_BUFFER) ||
 	    WARN_ON(obj->buffer.length != 4))
 		return;
@@ -1147,7 +1140,6 @@ r535_gsp_acpi_jt(acpi_handle handle, JT_METHOD_DATA *jt)
 	jt->jtCaps = *(u32 *)obj->buffer.pointer;
 	jt->jtRevId = (jt->jtCaps & 0xfff00000) >> 20;
 	jt->bSBIOSCaps = 0;
-	printk(KERN_ERR "jt: caps %08x rev:%04x\n", jt->jtCaps, jt->jtRevId);
 
 	ACPI_FREE(obj);
 
@@ -1233,7 +1225,6 @@ r535_gsp_acpi_dod(acpi_handle handle, DOD_METHOD_DATA *dod)
 		dod->acpiIdListLen += sizeof(dod->acpiIdList[0]);
 	}
 
-	printk(KERN_ERR "_DOD: ok! len:%d\n", dod->acpiIdListLen);
 	dod->status = 0;
 }
 #endif

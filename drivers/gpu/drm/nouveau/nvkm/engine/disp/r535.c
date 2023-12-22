@@ -1465,8 +1465,6 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 				bool nvhg = acpi_check_dsm(handle, &NVHG_DSM_GUID, NVHG_DSM_REV,
 						           1ULL << 0x00000014);
 
-				printk(KERN_ERR "bl: nbci:%d nvhg:%d\n", nbci, nvhg);
-
 				if (nbci || nvhg) {
 					union acpi_object argv4 = {
 						.buffer.type    = ACPI_TYPE_BUFFER,
@@ -1479,9 +1477,6 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 					if (!obj) {
 						acpi_handle_info(handle, "failed to evaluate _DSM\n");
 					} else {
-						printk(KERN_ERR "bl: obj type %d\n", obj->type);
-						printk(KERN_ERR "bl: obj len %d\n", obj->package.count);
-
 						for (int i = 0; i < obj->package.count; i++) {
 							union acpi_object *elt = &obj->package.elements[i];
 							u32 size;
@@ -1491,12 +1486,10 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 							else
 								size = 4;
 
-							printk(KERN_ERR "elt %03d: type %d size %d\n", i, elt->type, size);
 							memcpy(&ctrl->backLightData[ctrl->backLightDataSize], &elt->integer.value, size);
 							ctrl->backLightDataSize += size;
 						}
 
-						printk(KERN_ERR "bl: data size %d\n", ctrl->backLightDataSize);
 						ctrl->status = 0;
 						ACPI_FREE(obj);
 					}
