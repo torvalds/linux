@@ -605,8 +605,7 @@ r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 		ret = repc ? rpc->params : NULL;
 	}
 
-	if (ret)
-		nvkm_gsp_rpc_done(gsp, rpc);
+	nvkm_gsp_rpc_done(gsp, rpc);
 
 	return ret;
 }
