@@ -1392,10 +1392,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 			stream->curr_buf->vb.sequence =
 				atomic_read(&stream->sequence) - 1;
 		if (!ns)
-			ns = ktime_get_ns();
+			ns = rkisp_time_get_ns(dev);
 		vb2_buf->timestamp = ns;
 
-		ns = ktime_get_ns();
+		ns = rkisp_time_get_ns(dev);
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = stream->curr_buf->vb.sequence;
@@ -1439,7 +1439,7 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 				u32 sizeimage = vb2_plane_size(&stream->curr_buf->vb.vb2_buf, 0);
 				u32 *buf = (u32 *)vb2_plane_vaddr(&stream->curr_buf->vb.vb2_buf, 0);
 
-				*(u64 *)(buf + sizeimage / 4 - 2) = ktime_get_ns();
+				*(u64 *)(buf + sizeimage / 4 - 2) = rkisp_time_get_ns(dev);
 				stream->curr_buf->dev_id = dev->dev_id;
 				rkisp_bridge_save_spbuf(dev, stream->curr_buf);
 			} else {

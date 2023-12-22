@@ -996,10 +996,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 		rkisp_dmarx_get_frame(dev, &i, NULL, &ns, true);
 		buf->vb.sequence = i;
 		if (!ns)
-			ns = ktime_get_ns();
+			ns = rkisp_time_get_ns(dev);
 		vb2_buf->timestamp = ns;
 
-		ns = ktime_get_ns();
+		ns = rkisp_time_get_ns(dev);
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = buf->vb.sequence;

@@ -1046,7 +1046,7 @@ rkisp_stats_isr_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		work.frame_id = cur_frame_id;
 		work.isp_ris = temp_isp_ris | isp_ris;
 		work.isp3a_ris = temp_isp3a_ris;
-		work.timestamp = ktime_get_ns();
+		work.timestamp = rkisp_time_get_ns(stats_vdev->dev);
 		rkisp_stats_send_meas_v32(stats_vdev, &work);
 	}
 

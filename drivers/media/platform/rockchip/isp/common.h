@@ -196,4 +196,5 @@ int rkisp_alloc_common_dummy_buf(struct rkisp_device *dev);
 void rkisp_free_common_dummy_buf(struct rkisp_device *dev);
 
 void rkisp_set_clk_rate(struct clk *clk, unsigned long rate);
+u64 rkisp_time_get_ns(struct rkisp_device *dev);
 #endif /* _RKISP_COMMON_H */

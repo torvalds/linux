@@ -456,3 +456,14 @@ void rkisp_free_common_dummy_buf(struct rkisp_device *dev)
 	else
 		rkisp_free_buffer(dev, &hw->dummy_buf);
 }
+
+u64 rkisp_time_get_ns(struct rkisp_device *dev)
+{
+	u64 ns;
+
+	if (dev->isp_ver == ISP_V32)
+		ns = ktime_get_boottime_ns();
+	else
+		ns = ktime_get_ns();
+	return ns;
+}

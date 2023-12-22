@@ -396,7 +396,7 @@ void rkisp_luma_isr(struct rkisp_luma_vdev *luma_vdev, u32 isp_stat)
 
 	if (send_task) {
 		luma_vdev->work.readout = RKISP_ISP_READOUT_LUMA;
-		luma_vdev->work.timestamp = ktime_get_ns();
+		luma_vdev->work.timestamp = rkisp_time_get_ns(luma_vdev->dev);
 		luma_vdev->work.frame_id = cur_frame_id;
 
 		if (frm_mode == RKISP_LUMA_THREEFRM)

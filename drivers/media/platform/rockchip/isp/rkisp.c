@@ -4176,7 +4176,7 @@ void rkisp_isp_isr(unsigned int isp_mis,
 		if (isp_mis & CIF_ISP_FRAME)
 			sof_event_later = true;
 		if (dev->vs_irq < 0 && !sof_event_later) {
-			dev->isp_sdev.frm_timestamp = ktime_get_ns();
+			dev->isp_sdev.frm_timestamp = rkisp_time_get_ns(dev);
 			rkisp_isp_queue_event_sof(&dev->isp_sdev);
 			rkisp_stream_frame_start(dev, isp_mis);
 		}
@@ -4244,7 +4244,7 @@ vs_skip:
 	/* sampled input frame is complete */
 	if (isp_mis & CIF_ISP_FRAME_IN) {
 		dev->isp_sdev.dbg.interval =
-			ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
+			rkisp_time_get_ns(dev) - dev->isp_sdev.dbg.timestamp;
 		rkisp_set_state(&dev->isp_state, ISP_FRAME_IN);
 		writel(CIF_ISP_FRAME_IN, base + CIF_ISP_ICR);
 		isp_mis_tmp = readl(base + CIF_ISP_MIS);
@@ -4258,7 +4258,7 @@ vs_skip:
 		dev->rawaf_irq_cnt = 0;
 		if (!dev->is_pre_on || !IS_HDR_RDBK(dev->rd_mode))
 			dev->isp_sdev.dbg.interval =
-				ktime_get_ns() - dev->isp_sdev.dbg.timestamp;
+				rkisp_time_get_ns(dev) - dev->isp_sdev.dbg.timestamp;
 		/* Clear Frame In (ISP) */
 		rkisp_set_state(&dev->isp_state, ISP_FRAME_END);
 		writel(CIF_ISP_FRAME, base + CIF_ISP_ICR);
@@ -4278,7 +4278,7 @@ vs_skip:
 			u64 tmp = dev->isp_sdev.dbg.interval +
 					dev->isp_sdev.dbg.timestamp;
 
-			dev->isp_sdev.dbg.timestamp = ktime_get_ns();
+			dev->isp_sdev.dbg.timestamp = rkisp_time_get_ns(dev);
 			/* v-blank: frame(N)start - frame(N-1)end */
 			dev->isp_sdev.dbg.delay = dev->isp_sdev.dbg.timestamp - tmp;
 		}
@@ -4330,7 +4330,7 @@ vs_skip:
 
 	/* cur frame end and next frame start irq togeter */
 	if (dev->vs_irq < 0 && sof_event_later) {
-		dev->isp_sdev.frm_timestamp = ktime_get_ns();
+		dev->isp_sdev.frm_timestamp = rkisp_time_get_ns(dev);
 		rkisp_isp_queue_event_sof(&dev->isp_sdev);
 		rkisp_stream_frame_start(dev, isp_mis);
 	}

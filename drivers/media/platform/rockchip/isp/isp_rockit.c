@@ -265,7 +265,7 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 		rkisp_dmarx_get_frame(stream->ispdev, &seq, NULL, &ns, true);
 
 		if (!ns)
-			ns = ktime_get_ns();
+			ns = rkisp_time_get_ns(dev);
 
 		rockit_cfg->frame.u64PTS = ns;
 

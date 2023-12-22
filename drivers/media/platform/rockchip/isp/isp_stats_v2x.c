@@ -1406,7 +1406,7 @@ rkisp_stats_isr_v2x(struct rkisp_isp_stats_vdev *stats_vdev,
 		work.frame_id = cur_frame_id;
 		work.isp_ris = temp_isp_ris | isp_ris;
 		work.isp3a_ris = temp_isp3a_ris | iq_3a_mask;
-		work.timestamp = ktime_get_ns();
+		work.timestamp = rkisp_time_get_ns(dev);
 
 		if (!IS_HDR_RDBK(dev->hdr.op_mode)) {
 			if (!kfifo_is_full(&stats_vdev->rd_kfifo))

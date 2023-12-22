@@ -669,7 +669,7 @@ static int bridge_frame_end(struct rkisp_bridge_device *dev, u32 state)
 	struct rkisp_hw_dev *hw = ispdev->hw_dev;
 	struct v4l2_subdev *sd = v4l2_get_subdev_hostdata(&dev->sd);
 	unsigned long lock_flags = 0;
-	u64 ns = ktime_get_ns();
+	u64 ns = rkisp_time_get_ns(ispdev);
 	struct rkisp_bridge_buf *buf;
 	u32 val;
 
@@ -711,7 +711,7 @@ static int bridge_frame_end(struct rkisp_bridge_device *dev, u32 state)
 			if (!sof_ns)
 				sof_ns = 0;
 			if (!ns)
-				ns = ktime_get_ns();
+				ns = rkisp_time_get_ns(ispdev);
 			hw->cur_buf->frame_timestamp = ns;
 			hw->cur_buf->index = ispdev->dev_id;
 			v4l2_subdev_call(sd, core, ioctl, RKISP_ISPP_CMD_REQUEST_REGBUF,
@@ -744,11 +744,11 @@ static int bridge_frame_end(struct rkisp_bridge_device *dev, u32 state)
 				buf = to_bridge_buf(hw->cur_buf);
 				vaddr = buf->dummy[GROUP_BUF_PIC].vaddr;
 				size = buf->dummy[GROUP_BUF_PIC].size;
-				*(u64 *)(vaddr + size / 4 - 2) = ktime_get_ns();
+				*(u64 *)(vaddr + size / 4 - 2) = rkisp_time_get_ns(ispdev);
 
 				vaddr = buf->dummy[GROUP_BUF_GAIN].vaddr;
 				size = buf->dummy[GROUP_BUF_GAIN].size;
-				*(u64 *)(vaddr + size / 4 - 2) = ktime_get_ns();
+				*(u64 *)(vaddr + size / 4 - 2) = rkisp_time_get_ns(ispdev);
 				hw->cur_buf->mfbc_dmaidx = hw->cur_buf->didx[GROUP_BUF_PIC];
 				hw->cur_buf->gain_dmaidx = hw->cur_buf->didx[GROUP_BUF_GAIN];
 				hw->cur_buf->is_move_judge = true;

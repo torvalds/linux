@@ -1240,7 +1240,7 @@ static void luma_frame_readout(unsigned long arg)
 		data++;
 	}
 	if (!ns)
-		ns = ktime_get_ns();
+		ns = rkisp_time_get_ns(dev);
 	stream->curr_buf->vb.vb2_buf.timestamp = ns;
 	stream->curr_buf->vb.sequence = seq;
 	vb2_set_plane_payload(&stream->curr_buf->vb.vb2_buf, 0, val * 4);
@@ -1455,10 +1455,10 @@ static int mi_frame_end(struct rkisp_stream *stream, u32 state)
 
 		rkisp_dmarx_get_frame(dev, &i, NULL, &ns, true);
 		if (!ns)
-			ns = ktime_get_ns();
+			ns = rkisp_time_get_ns(dev);
 		buf->vb.sequence = i;
 		buf->vb.vb2_buf.timestamp = ns;
-		ns = ktime_get_ns();
+		ns = rkisp_time_get_ns(dev);
 		stream->dbg.interval = ns - stream->dbg.timestamp;
 		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 		stream->dbg.timestamp = ns;
@@ -2325,7 +2325,7 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 				wake_up(&stream->done);
 			}
 		} else if (stream->id == RKISP_STREAM_MP && dev->cap_dev.wrap_line) {
-			ns = ktime_get_ns();
+			ns = rkisp_time_get_ns(dev);
 			rkisp_dmarx_get_frame(dev, &seq, NULL, NULL, true);
 			stream->dbg.interval = ns - stream->dbg.timestamp;
 			stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
