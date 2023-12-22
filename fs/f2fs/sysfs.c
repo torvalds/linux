@@ -741,6 +741,13 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "dir_level")) {
+		if (t > MAX_DIR_HASH_DEPTH)
+			return -EINVAL;
+		sbi->dir_level = t;
+		return count;
+	}
+
 	*ui = (unsigned int)t;
 
 	return count;
