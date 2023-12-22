@@ -3747,8 +3747,8 @@ static bool hsw_get_pipe_config(struct intel_crtc *crtc,
 	if (!active)
 		goto out;
 
-	intel_dsc_get_config(pipe_config);
 	intel_bigjoiner_get_config(pipe_config);
+	intel_dsc_get_config(pipe_config);
 
 	if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
 	    DISPLAY_VER(dev_priv) >= 11)
@@ -6029,6 +6029,17 @@ static int intel_async_flip_check_uapi(struct intel_atomic_state *state,
 	if (intel_crtc_needs_modeset(new_crtc_state)) {
 		drm_dbg_kms(&i915->drm,
 			    "[CRTC:%d:%s] modeset required\n",
+			    crtc->base.base.id, crtc->base.name);
+		return -EINVAL;
+	}
+
+	/*
+	 * FIXME: Bigjoiner+async flip is busted currently.
+	 * Remove this check once the issues are fixed.
+	 */
+	if (new_crtc_state->bigjoiner_pipes) {
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] async flip disallowed with bigjoiner\n",
 			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}
