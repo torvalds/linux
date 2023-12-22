@@ -684,7 +684,7 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 	u32 reg;
 
 	reg = IXGBE_READ_REG(hw, IXGBE_STATUS);
-	bus->func = (reg & IXGBE_STATUS_LAN_ID) >> IXGBE_STATUS_LAN_ID_SHIFT;
+	bus->func = FIELD_GET(IXGBE_STATUS_LAN_ID, reg);
 	bus->lan_id = bus->func;
 
 	/* check for a port swap */
@@ -695,8 +695,8 @@ void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw)
 	/* Get MAC instance from EEPROM for configuring CS4227 */
 	if (hw->device_id == IXGBE_DEV_ID_X550EM_A_SFP) {
 		hw->eeprom.ops.read(hw, IXGBE_EEPROM_CTRL_4, &ee_ctrl_4);
-		bus->instance_id = (ee_ctrl_4 & IXGBE_EE_CTRL_4_INST_ID) >>
-				   IXGBE_EE_CTRL_4_INST_ID_SHIFT;
+		bus->instance_id = FIELD_GET(IXGBE_EE_CTRL_4_INST_ID,
+					     ee_ctrl_4);
 	}
 }
 
@@ -870,10 +870,9 @@ s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 			 * SPI EEPROM is assumed here.  This code would need to
 			 * change if a future EEPROM is not SPI.
 			 */
-			eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
-					    IXGBE_EEC_SIZE_SHIFT);
+			eeprom_size = FIELD_GET(IXGBE_EEC_SIZE, eec);
 			eeprom->word_size = BIT(eeprom_size +
-						 IXGBE_EEPROM_WORD_SIZE_SHIFT);
+						IXGBE_EEPROM_WORD_SIZE_SHIFT);
 		}
 
 		if (eec & IXGBE_EEC_ADDR_SIZE)
@@ -3946,10 +3945,10 @@ s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw)
 		if (status)
 			return status;
 
-		sensor_index = ((ets_sensor & IXGBE_ETS_DATA_INDEX_MASK) >>
-				IXGBE_ETS_DATA_INDEX_SHIFT);
-		sensor_location = ((ets_sensor & IXGBE_ETS_DATA_LOC_MASK) >>
-				   IXGBE_ETS_DATA_LOC_SHIFT);
+		sensor_index = FIELD_GET(IXGBE_ETS_DATA_INDEX_MASK,
+					 ets_sensor);
+		sensor_location = FIELD_GET(IXGBE_ETS_DATA_LOC_MASK,
+					    ets_sensor);
 
 		if (sensor_location != 0) {
 			status = hw->phy.ops.read_i2c_byte(hw,
@@ -3993,8 +3992,7 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 	if (status)
 		return status;
 
-	low_thresh_delta = ((ets_cfg & IXGBE_ETS_LTHRES_DELTA_MASK) >>
-			     IXGBE_ETS_LTHRES_DELTA_SHIFT);
+	low_thresh_delta = FIELD_GET(IXGBE_ETS_LTHRES_DELTA_MASK, ets_cfg);
 	num_sensors = (ets_cfg & IXGBE_ETS_NUM_SENSORS_MASK);
 	if (num_sensors > IXGBE_MAX_SENSORS)
 		num_sensors = IXGBE_MAX_SENSORS;
@@ -4008,10 +4006,10 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 			       ets_offset + 1 + i);
 			continue;
 		}
-		sensor_index = ((ets_sensor & IXGBE_ETS_DATA_INDEX_MASK) >>
-				IXGBE_ETS_DATA_INDEX_SHIFT);
-		sensor_location = ((ets_sensor & IXGBE_ETS_DATA_LOC_MASK) >>
-				   IXGBE_ETS_DATA_LOC_SHIFT);
+		sensor_index = FIELD_GET(IXGBE_ETS_DATA_INDEX_MASK,
+					 ets_sensor);
+		sensor_location = FIELD_GET(IXGBE_ETS_DATA_LOC_MASK,
+					    ets_sensor);
 		therm_limit = ets_sensor & IXGBE_ETS_DATA_HTHRESH_MASK;
 
 		hw->phy.ops.write_i2c_byte(hw,

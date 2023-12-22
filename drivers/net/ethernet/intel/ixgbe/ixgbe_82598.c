@@ -794,7 +794,7 @@ static s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
 
 	rar_high = IXGBE_READ_REG(hw, IXGBE_RAH(rar));
 	rar_high &= ~IXGBE_RAH_VIND_MASK;
-	rar_high |= ((vmdq << IXGBE_RAH_VIND_SHIFT) & IXGBE_RAH_VIND_MASK);
+	rar_high |= FIELD_PREP(IXGBE_RAH_VIND_MASK, vmdq);
 	IXGBE_WRITE_REG(hw, IXGBE_RAH(rar), rar_high);
 	return 0;
 }

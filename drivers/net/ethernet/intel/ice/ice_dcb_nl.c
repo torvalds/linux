@@ -227,7 +227,7 @@ static void ice_get_pfc_delay(struct ice_hw *hw, u16 *delay)
 	u32 val;
 
 	val = rd32(hw, PRTDCB_GENC);
-	*delay = (u16)((val & PRTDCB_GENC_PFCLDA_M) >> PRTDCB_GENC_PFCLDA_S);
+	*delay = FIELD_GET(PRTDCB_GENC_PFCLDA_M, val);
 }
 
 /**

@@ -1197,11 +1197,9 @@ static void i40e_update_pf_stats(struct i40e_pf *pf)
 
 	val = rd32(hw, I40E_PRTPM_EEE_STAT);
 	nsd->tx_lpi_status =
-		       (val & I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_MASK) >>
-			I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_SHIFT;
+		       FIELD_GET(I40E_PRTPM_EEE_STAT_TX_LPI_STATUS_MASK, val);
 	nsd->rx_lpi_status =
-		       (val & I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_MASK) >>
-			I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_SHIFT;
+		       FIELD_GET(I40E_PRTPM_EEE_STAT_RX_LPI_STATUS_MASK, val);
 	i40e_stat_update32(hw, I40E_PRTPM_TLPIC,
 			   pf->stat_offsets_loaded,
 			   &osd->tx_lpi_count, &nsd->tx_lpi_count);
@@ -3536,21 +3534,19 @@ static int i40e_configure_tx_ring(struct i40e_ring *ring)
 		else
 			return -EINVAL;
 
-		qtx_ctl |= (ring->ch->vsi_number <<
-			    I40E_QTX_CTL_VFVM_INDX_SHIFT) &
-			    I40E_QTX_CTL_VFVM_INDX_MASK;
+		qtx_ctl |= FIELD_PREP(I40E_QTX_CTL_VFVM_INDX_MASK,
+				      ring->ch->vsi_number);
 	} else {
 		if (vsi->type == I40E_VSI_VMDQ2) {
 			qtx_ctl = I40E_QTX_CTL_VM_QUEUE;
-			qtx_ctl |= ((vsi->id) << I40E_QTX_CTL_VFVM_INDX_SHIFT) &
-				    I40E_QTX_CTL_VFVM_INDX_MASK;
+			qtx_ctl |= FIELD_PREP(I40E_QTX_CTL_VFVM_INDX_MASK,
+					      vsi->id);
 		} else {
 			qtx_ctl = I40E_QTX_CTL_PF_QUEUE;
 		}
 	}
 
-	qtx_ctl |= ((hw->pf_id << I40E_QTX_CTL_PF_INDX_SHIFT) &
-		    I40E_QTX_CTL_PF_INDX_MASK);
+	qtx_ctl |= FIELD_PREP(I40E_QTX_CTL_PF_INDX_MASK, hw->pf_id);
 	wr32(hw, I40E_QTX_CTL(pf_q), qtx_ctl);
 	i40e_flush(hw);
 
@@ -4342,8 +4338,7 @@ static irqreturn_t i40e_intr(int irq, void *data)
 			set_bit(__I40E_RESET_INTR_RECEIVED, pf->state);
 		ena_mask &= ~I40E_PFINT_ICR0_ENA_GRST_MASK;
 		val = rd32(hw, I40E_GLGEN_RSTAT);
-		val = (val & I40E_GLGEN_RSTAT_RESET_TYPE_MASK)
-		       >> I40E_GLGEN_RSTAT_RESET_TYPE_SHIFT;
+		val = FIELD_GET(I40E_GLGEN_RSTAT_RESET_TYPE_MASK, val);
 		if (val == I40E_RESET_CORER) {
 			pf->corer_count++;
 		} else if (val == I40E_RESET_GLOBR) {
@@ -5005,8 +5000,8 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 			 * next_q field of the registers.
 			 */
 			val = rd32(hw, I40E_PFINT_LNKLSTN(vector - 1));
-			qp = (val & I40E_PFINT_LNKLSTN_FIRSTQ_INDX_MASK)
-				>> I40E_PFINT_LNKLSTN_FIRSTQ_INDX_SHIFT;
+			qp = FIELD_GET(I40E_PFINT_LNKLSTN_FIRSTQ_INDX_MASK,
+				       val);
 			val |= I40E_QUEUE_END_OF_LIST
 				<< I40E_PFINT_LNKLSTN_FIRSTQ_INDX_SHIFT;
 			wr32(hw, I40E_PFINT_LNKLSTN(vector - 1), val);
@@ -5028,8 +5023,8 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 
 				val = rd32(hw, I40E_QINT_TQCTL(qp));
 
-				next = (val & I40E_QINT_TQCTL_NEXTQ_INDX_MASK)
-					>> I40E_QINT_TQCTL_NEXTQ_INDX_SHIFT;
+				next = FIELD_GET(I40E_QINT_TQCTL_NEXTQ_INDX_MASK,
+						 val);
 
 				val &= ~(I40E_QINT_TQCTL_MSIX_INDX_MASK  |
 					 I40E_QINT_TQCTL_MSIX0_INDX_MASK |
@@ -5047,8 +5042,7 @@ static void i40e_vsi_free_irq(struct i40e_vsi *vsi)
 		free_irq(pf->pdev->irq, pf);
 
 		val = rd32(hw, I40E_PFINT_LNKLST0);
-		qp = (val & I40E_PFINT_LNKLSTN_FIRSTQ_INDX_MASK)
-			>> I40E_PFINT_LNKLSTN_FIRSTQ_INDX_SHIFT;
+		qp = FIELD_GET(I40E_PFINT_LNKLSTN_FIRSTQ_INDX_MASK, val);
 		val |= I40E_QUEUE_END_OF_LIST
 			<< I40E_PFINT_LNKLST0_FIRSTQ_INDX_SHIFT;
 		wr32(hw, I40E_PFINT_LNKLST0, val);
@@ -9551,18 +9545,18 @@ static void i40e_handle_lan_overflow_event(struct i40e_pf *pf,
 	dev_dbg(&pf->pdev->dev, "overflow Rx Queue Number = %d QTX_CTL=0x%08x\n",
 		queue, qtx_ctl);
 
+	if (FIELD_GET(I40E_QTX_CTL_PFVF_Q_MASK, qtx_ctl) !=
+	    I40E_QTX_CTL_VF_QUEUE)
+		return;
+
 	/* Queue belongs to VF, find the VF and issue VF reset */
-	if (((qtx_ctl & I40E_QTX_CTL_PFVF_Q_MASK)
-	    >> I40E_QTX_CTL_PFVF_Q_SHIFT) == I40E_QTX_CTL_VF_QUEUE) {
-		vf_id = (u16)((qtx_ctl & I40E_QTX_CTL_VFVM_INDX_MASK)
-			 >> I40E_QTX_CTL_VFVM_INDX_SHIFT);
-		vf_id -= hw->func_caps.vf_base_id;
-		vf = &pf->vf[vf_id];
-		i40e_vc_notify_vf_reset(vf);
-		/* Allow VF to process pending reset notification */
-		msleep(20);
-		i40e_reset_vf(vf, false);
-	}
+	vf_id = FIELD_GET(I40E_QTX_CTL_VFVM_INDX_MASK, qtx_ctl);
+	vf_id -= hw->func_caps.vf_base_id;
+	vf = &pf->vf[vf_id];
+	i40e_vc_notify_vf_reset(vf);
+	/* Allow VF to process pending reset notification */
+	msleep(20);
+	i40e_reset_vf(vf, false);
 }
 
 /**
@@ -9588,8 +9582,7 @@ u32 i40e_get_current_fd_count(struct i40e_pf *pf)
 
 	val = rd32(&pf->hw, I40E_PFQF_FDSTAT);
 	fcnt_prog = (val & I40E_PFQF_FDSTAT_GUARANT_CNT_MASK) +
-		    ((val & I40E_PFQF_FDSTAT_BEST_CNT_MASK) >>
-		      I40E_PFQF_FDSTAT_BEST_CNT_SHIFT);
+		    FIELD_GET(I40E_PFQF_FDSTAT_BEST_CNT_MASK, val);
 	return fcnt_prog;
 }
 
@@ -9603,8 +9596,7 @@ u32 i40e_get_global_fd_count(struct i40e_pf *pf)
 
 	val = rd32(&pf->hw, I40E_GLQF_FDCNT_0);
 	fcnt_prog = (val & I40E_GLQF_FDCNT_0_GUARANT_CNT_MASK) +
-		    ((val & I40E_GLQF_FDCNT_0_BESTCNT_MASK) >>
-		     I40E_GLQF_FDCNT_0_BESTCNT_SHIFT);
+		    FIELD_GET(I40E_GLQF_FDCNT_0_BESTCNT_MASK, val);
 	return fcnt_prog;
 }
 
@@ -11186,14 +11178,10 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	/* find what triggered the MDD event */
 	reg = rd32(hw, I40E_GL_MDET_TX);
 	if (reg & I40E_GL_MDET_TX_VALID_MASK) {
-		u8 pf_num = (reg & I40E_GL_MDET_TX_PF_NUM_MASK) >>
-				I40E_GL_MDET_TX_PF_NUM_SHIFT;
-		u16 vf_num = (reg & I40E_GL_MDET_TX_VF_NUM_MASK) >>
-				I40E_GL_MDET_TX_VF_NUM_SHIFT;
-		u8 event = (reg & I40E_GL_MDET_TX_EVENT_MASK) >>
-				I40E_GL_MDET_TX_EVENT_SHIFT;
-		u16 queue = ((reg & I40E_GL_MDET_TX_QUEUE_MASK) >>
-				I40E_GL_MDET_TX_QUEUE_SHIFT) -
+		u8 pf_num = FIELD_GET(I40E_GL_MDET_TX_PF_NUM_MASK, reg);
+		u16 vf_num = FIELD_GET(I40E_GL_MDET_TX_VF_NUM_MASK, reg);
+		u8 event = FIELD_GET(I40E_GL_MDET_TX_EVENT_MASK, reg);
+		u16 queue = FIELD_GET(I40E_GL_MDET_TX_QUEUE_MASK, reg) -
 				pf->hw.func_caps.base_queue;
 		if (netif_msg_tx_err(pf))
 			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on TX queue %d PF number 0x%02x VF number 0x%02x\n",
@@ -11203,12 +11191,9 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	}
 	reg = rd32(hw, I40E_GL_MDET_RX);
 	if (reg & I40E_GL_MDET_RX_VALID_MASK) {
-		u8 func = (reg & I40E_GL_MDET_RX_FUNCTION_MASK) >>
-				I40E_GL_MDET_RX_FUNCTION_SHIFT;
-		u8 event = (reg & I40E_GL_MDET_RX_EVENT_MASK) >>
-				I40E_GL_MDET_RX_EVENT_SHIFT;
-		u16 queue = ((reg & I40E_GL_MDET_RX_QUEUE_MASK) >>
-				I40E_GL_MDET_RX_QUEUE_SHIFT) -
+		u8 func = FIELD_GET(I40E_GL_MDET_RX_FUNCTION_MASK, reg);
+		u8 event = FIELD_GET(I40E_GL_MDET_RX_EVENT_MASK, reg);
+		u16 queue = FIELD_GET(I40E_GL_MDET_RX_QUEUE_MASK, reg) -
 				pf->hw.func_caps.base_queue;
 		if (netif_msg_rx_err(pf))
 			dev_info(&pf->pdev->dev, "Malicious Driver Detection event 0x%02x on RX queue %d of function 0x%02x\n",
@@ -16172,8 +16157,8 @@ static int i40e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* make sure the MFS hasn't been set lower than the default */
 #define MAX_FRAME_SIZE_DEFAULT 0x2600
-	val = (rd32(&pf->hw, I40E_PRTGL_SAH) &
-	       I40E_PRTGL_SAH_MFS_MASK) >> I40E_PRTGL_SAH_MFS_SHIFT;
+	val = FIELD_GET(I40E_PRTGL_SAH_MFS_MASK,
+			rd32(&pf->hw, I40E_PRTGL_SAH));
 	if (val < MAX_FRAME_SIZE_DEFAULT)
 		dev_warn(&pdev->dev, "MFS for port %x has been set below the default: %x\n",
 			 pf->hw.port, val);

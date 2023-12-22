@@ -50,7 +50,7 @@ void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw)
 	 * for the device regardless of function swap state.
 	 */
 	reg = er32(STATUS);
-	bus->func = (reg & E1000_STATUS_FUNC_MASK) >> E1000_STATUS_FUNC_SHIFT;
+	bus->func = FIELD_GET(E1000_STATUS_FUNC_MASK, reg);
 }
 
 /**

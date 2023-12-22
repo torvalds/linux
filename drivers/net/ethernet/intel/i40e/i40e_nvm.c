@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2018 Intel Corporation. */
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include "i40e_alloc.h"
 #include "i40e_prototype.h"
@@ -26,8 +27,7 @@ int i40e_init_nvm(struct i40e_hw *hw)
 	 * as the blank mode may be used in the factory line.
 	 */
 	gens = rd32(hw, I40E_GLNVM_GENS);
-	sr_size = ((gens & I40E_GLNVM_GENS_SR_SIZE_MASK) >>
-			   I40E_GLNVM_GENS_SR_SIZE_SHIFT);
+	sr_size = FIELD_GET(I40E_GLNVM_GENS_SR_SIZE_MASK, gens);
 	/* Switching to words (sr_size contains power of 2KB) */
 	nvm->sr_size = BIT(sr_size) * I40E_SR_WORDS_IN_1KB;
 
@@ -193,9 +193,8 @@ static int i40e_read_nvm_word_srctl(struct i40e_hw *hw, u16 offset,
 		ret_code = i40e_poll_sr_srctl_done_bit(hw);
 		if (!ret_code) {
 			sr_reg = rd32(hw, I40E_GLNVM_SRDATA);
-			*data = (u16)((sr_reg &
-				       I40E_GLNVM_SRDATA_RDDATA_MASK)
-				    >> I40E_GLNVM_SRDATA_RDDATA_SHIFT);
+			*data = FIELD_GET(I40E_GLNVM_SRDATA_RDDATA_MASK,
+					  sr_reg);
 		}
 	}
 	if (ret_code)
@@ -771,13 +770,12 @@ static inline u8 i40e_nvmupd_get_module(u32 val)
 }
 static inline u8 i40e_nvmupd_get_transaction(u32 val)
 {
-	return (u8)((val & I40E_NVM_TRANS_MASK) >> I40E_NVM_TRANS_SHIFT);
+	return FIELD_GET(I40E_NVM_TRANS_MASK, val);
 }
 
 static inline u8 i40e_nvmupd_get_preservation_flags(u32 val)
 {
-	return (u8)((val & I40E_NVM_PRESERVATION_FLAGS_MASK) >>
-		    I40E_NVM_PRESERVATION_FLAGS_SHIFT);
+	return FIELD_GET(I40E_NVM_PRESERVATION_FLAGS_MASK, val);
 }
 
 static const char * const i40e_nvm_update_state_str[] = {

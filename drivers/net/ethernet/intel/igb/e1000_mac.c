@@ -56,7 +56,7 @@ s32 igb_get_bus_info_pcie(struct e1000_hw *hw)
 	}
 
 	reg = rd32(E1000_STATUS);
-	bus->func = (reg & E1000_STATUS_FUNC_MASK) >> E1000_STATUS_FUNC_SHIFT;
+	bus->func = FIELD_GET(E1000_STATUS_FUNC_MASK, reg);
 
 	return 0;
 }

@@ -628,16 +628,16 @@ static s32 ixgbe_fc_autoneg_fw(struct ixgbe_hw *hw)
 static s32 ixgbe_init_eeprom_params_X550(struct ixgbe_hw *hw)
 {
 	struct ixgbe_eeprom_info *eeprom = &hw->eeprom;
-	u32 eec;
-	u16 eeprom_size;
 
 	if (eeprom->type == ixgbe_eeprom_uninitialized) {
+		u16 eeprom_size;
+		u32 eec;
+
 		eeprom->semaphore_delay = 10;
 		eeprom->type = ixgbe_flash;
 
 		eec = IXGBE_READ_REG(hw, IXGBE_EEC(hw));
-		eeprom_size = (u16)((eec & IXGBE_EEC_SIZE) >>
-				    IXGBE_EEC_SIZE_SHIFT);
+		eeprom_size = FIELD_GET(IXGBE_EEC_SIZE, eec);
 		eeprom->word_size = BIT(eeprom_size +
 					IXGBE_EEPROM_WORD_SIZE_SHIFT);
 
@@ -712,8 +712,7 @@ static s32 ixgbe_read_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 	ret = ixgbe_iosf_wait(hw, &command);
 
 	if ((command & IXGBE_SB_IOSF_CTRL_RESP_STAT_MASK) != 0) {
-		error = (command & IXGBE_SB_IOSF_CTRL_CMPL_ERR_MASK) >>
-			 IXGBE_SB_IOSF_CTRL_CMPL_ERR_SHIFT;
+		error = FIELD_GET(IXGBE_SB_IOSF_CTRL_CMPL_ERR_MASK, command);
 		hw_dbg(hw, "Failed to read, error %x\n", error);
 		return IXGBE_ERR_PHY;
 	}
@@ -1412,8 +1411,7 @@ static s32 ixgbe_write_iosf_sb_reg_x550(struct ixgbe_hw *hw, u32 reg_addr,
 	ret = ixgbe_iosf_wait(hw, &command);
 
 	if ((command & IXGBE_SB_IOSF_CTRL_RESP_STAT_MASK) != 0) {
-		error = (command & IXGBE_SB_IOSF_CTRL_CMPL_ERR_MASK) >>
-			 IXGBE_SB_IOSF_CTRL_CMPL_ERR_SHIFT;
+		error = FIELD_GET(IXGBE_SB_IOSF_CTRL_CMPL_ERR_MASK, command);
 		hw_dbg(hw, "Failed to write, error %x\n", error);
 		return IXGBE_ERR_PHY;
 	}
@@ -3222,9 +3220,8 @@ static void ixgbe_read_mng_if_sel_x550em(struct ixgbe_hw *hw)
 	 */
 	if (hw->mac.type == ixgbe_mac_x550em_a &&
 	    hw->phy.nw_mng_if_sel & IXGBE_NW_MNG_IF_SEL_MDIO_ACT) {
-		hw->phy.mdio.prtad = (hw->phy.nw_mng_if_sel &
-				      IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD) >>
-				     IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD_SHIFT;
+		hw->phy.mdio.prtad = FIELD_GET(IXGBE_NW_MNG_IF_SEL_MDIO_PHY_ADD,
+					       hw->phy.nw_mng_if_sel);
 	}
 }
 
