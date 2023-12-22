@@ -1774,6 +1774,7 @@ struct rtl8xxxu_cfo_tracking {
 #define RTL8XXXU_HW_LED_CONTROL	2
 #define RTL8XXXU_MAX_MAC_ID_NUM	128
 #define RTL8XXXU_BC_MC_MACID	0
+#define RTL8XXXU_BC_MC_MACID1	1
 
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;

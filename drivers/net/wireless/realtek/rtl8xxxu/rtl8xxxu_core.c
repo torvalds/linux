@@ -4053,10 +4053,13 @@ static inline u8 rtl8xxxu_get_macid(struct rtl8xxxu_priv *priv,
 {
 	struct rtl8xxxu_sta_info *sta_info;
 
-	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_STATION || !sta)
+	if (!sta)
 		return 0;
 
 	sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+	if (!sta_info)
+		return 0;
+
 	return sta_info->macid;
 }
 
@@ -4536,6 +4539,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8188e_ra_info_init_all(&priv->ra_info);
 
 	set_bit(RTL8XXXU_BC_MC_MACID, priv->mac_id_map);
+	set_bit(RTL8XXXU_BC_MC_MACID1, priv->mac_id_map);
 
 exit:
 	return ret;
@@ -7375,6 +7379,7 @@ static int rtl8xxxu_sta_add(struct ieee80211_hw *hw,
 			    struct ieee80211_sta *sta)
 {
 	struct rtl8xxxu_sta_info *sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 
 	if (vif->type == NL80211_IFTYPE_AP) {
@@ -7384,6 +7389,17 @@ static int rtl8xxxu_sta_add(struct ieee80211_hw *hw,
 
 		rtl8xxxu_refresh_rate_mask(priv, 0, sta, true);
 		priv->fops->report_connect(priv, sta_info->macid, H2C_MACID_ROLE_STA, true);
+	} else {
+		switch (rtlvif->port_num) {
+		case 0:
+			sta_info->macid = RTL8XXXU_BC_MC_MACID;
+			break;
+		case 1:
+			sta_info->macid = RTL8XXXU_BC_MC_MACID1;
+			break;
+		default:
+			break;
+		}
 	}
 
 	return 0;
