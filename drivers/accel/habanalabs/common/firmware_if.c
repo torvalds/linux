@@ -646,39 +646,27 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	return rc;
 }
 
-static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
-								u32 sts_val)
+static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val, u32 sts_val)
 {
 	bool err_exists = false;
 
 	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
 		return false;
 
-	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - DRAM initialization failed\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
+		dev_err(hdev->dev, "Device boot error - DRAM initialization failed\n");
 
-	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED) {
+	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
 		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - Thermal Sensor initialization failed\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
+		dev_err(hdev->dev, "Device boot error - Thermal Sensor initialization failed\n");
 
 	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
 		if (hdev->bmc_enable) {
-			dev_err(hdev->dev,
-				"Device boot error - Skipped waiting for BMC\n");
-			err_exists = true;
+			dev_err(hdev->dev, "Device boot error - Skipped waiting for BMC\n");
 		} else {
-			dev_info(hdev->dev,
-				"Device boot message - Skipped waiting for BMC\n");
+			dev_info(hdev->dev, "Device boot message - Skipped waiting for BMC\n");
 			/* This is an info so we don't want it to disable the
 			 * device
 			 */
@@ -686,48 +674,29 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		}
 	}
 
-	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY) {
-		dev_err(hdev->dev,
-			"Device boot error - Serdes data from BMC not available\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
+		dev_err(hdev->dev, "Device boot error - Serdes data from BMC not available\n");
 
-	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - NIC F/W initialization failed\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
+		dev_err(hdev->dev, "Device boot error - NIC F/W initialization failed\n");
 
-	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY) {
-		dev_err(hdev->dev,
-			"Device boot warning - security not ready\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
+		dev_err(hdev->dev, "Device boot warning - security not ready\n");
 
-	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
 		dev_err(hdev->dev, "Device boot error - security failure\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
 		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL)
 		dev_err(hdev->dev, "Device boot error - Failed to load preboot secondary image\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_PLL_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_PLL_FAIL)
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL)
 		dev_err(hdev->dev, "Device boot error - Failed to set threshold for temperature sensor\n");
-		err_exists = true;
-	}
 
 	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
 		/* Ignore this bit, don't prevent driver loading */
@@ -735,52 +704,32 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_BINNING_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_BINNING_FAIL)
 		dev_err(hdev->dev, "Device boot error - binning failure\n");
-		err_exists = true;
-	}
 
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
+		dev_err(hdev->dev, "Device boot warning - Skipped DRAM initialization\n");
+
+	if (err_val & CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL)
+		dev_err(hdev->dev, "Device boot error - ARC memory scrub failed\n");
+
+	/* All warnings should go here in order not to reach the unknown error validation */
 	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
 		dev_err(hdev->dev, "Device boot error - EEPROM failure detected\n");
 		err_exists = true;
 	}
 
-	/* All warnings should go here in order not to reach the unknown error validation */
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
-	}
+	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL)
+		dev_warn(hdev->dev, "Device boot warning - Failed to load preboot primary image\n");
 
-	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Failed to load preboot primary image\n");
-		/* This is a warning so we don't want it to disable the
-		 * device as we have a secondary preboot image
-		 */
-		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
-	}
+	if (err_val & CPU_BOOT_ERR0_TPM_FAIL)
+		dev_warn(hdev->dev, "Device boot warning - TPM failure\n");
 
-	if (err_val & CPU_BOOT_ERR0_TPM_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - TPM failure\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_TPM_FAIL;
-	}
-
-	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
-		dev_err(hdev->dev,
-			"Device boot error - unknown ERR0 error 0x%08x\n", err_val);
+	if (err_val & CPU_BOOT_ERR_FATAL_MASK)
 		err_exists = true;
-	}
 
 	/* return error only if it's in the predefined mask */
 	if (err_exists && ((err_val & ~CPU_BOOT_ERR0_ENABLED) &
@@ -3293,6 +3242,14 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_SEC_ATTEST_GET, sec_attest_info,
 					sizeof(struct cpucp_sec_attest_info), nonce,
 					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
+}
+
+int hl_fw_get_dev_info_signed(struct hl_device *hdev,
+			      struct cpucp_dev_info_signed *dev_info_signed, u32 nonce)
+{
+	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_INFO_SIGNED_GET, dev_info_signed,
+					 sizeof(struct cpucp_dev_info_signed), nonce,
+					 HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }
 
 int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,
