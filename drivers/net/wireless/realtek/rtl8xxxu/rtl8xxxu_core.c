@@ -5706,6 +5706,16 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 	rtl8xxxu_send_beacon_frame(hw, vif);
 }
 
+static inline bool rtl8xxxu_is_packet_match_bssid(struct rtl8xxxu_priv *priv,
+						  struct ieee80211_hdr *hdr,
+						  int port_num)
+{
+	return priv->vifs[port_num] &&
+	       priv->vifs[port_num]->type == NL80211_IFTYPE_STATION &&
+	       priv->vifs[port_num]->cfg.assoc &&
+	       ether_addr_equal(priv->vifs[port_num]->bss_conf.bssid, hdr->addr2);
+}
+
 void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 				 struct ieee80211_rx_status *rx_status,
 				 struct rtl8723au_phy_stats *phy_stats,
@@ -5722,12 +5732,10 @@ void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 		rx_status->signal = priv->fops->cck_rssi(priv, phy_stats);
 	} else {
 		bool parse_cfo = priv->fops->set_crystal_cap &&
-				 priv->vif &&
-				 priv->vif->type == NL80211_IFTYPE_STATION &&
-				 priv->vif->cfg.assoc &&
 				 !crc_icv_err &&
 				 !ieee80211_is_ctl(hdr->frame_control) &&
-				 ether_addr_equal(priv->vif->bss_conf.bssid, hdr->addr2);
+				 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
+				  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
 
 		if (parse_cfo) {
 			priv->cfo_tracking.cfo_tail[0] = phy_stats->path_cfotail[0];
@@ -5762,12 +5770,10 @@ static void jaguar2_rx_parse_phystats_type1(struct rtl8xxxu_priv *priv,
 					    bool crc_icv_err)
 {
 	bool parse_cfo = priv->fops->set_crystal_cap &&
-			 priv->vif &&
-			 priv->vif->type == NL80211_IFTYPE_STATION &&
-			 priv->vif->cfg.assoc &&
 			 !crc_icv_err &&
 			 !ieee80211_is_ctl(hdr->frame_control) &&
-			 ether_addr_equal(priv->vif->bss_conf.bssid, hdr->addr2);
+			 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
+			  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
 	u8 pwdb_max = 0;
 	int rx_path;
 
