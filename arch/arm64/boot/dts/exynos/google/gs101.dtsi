@@ -292,6 +292,26 @@
 			clock-names = "dout_cmu_misc_bus", "dout_cmu_misc_sss";
 		};
 
+		timer@10050000 {
+			compatible = "google,gs101-mct",
+				     "samsung,exynos4210-mct";
+			reg = <0x10050000 0x800>;
+			interrupts = <GIC_SPI 753 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 754 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 755 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 756 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 757 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 758 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 759 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 760 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 761 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 762 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 763 IRQ_TYPE_LEVEL_HIGH 0>,
+				     <GIC_SPI 764 IRQ_TYPE_LEVEL_HIGH 0>;
+			clocks = <&ext_24_5m>, <&cmu_misc CLK_GOUT_MISC_MCT_PCLK>;
+			clock-names = "fin_pll", "mct";
+		};
+
 		watchdog_cl0: watchdog@10060000 {
 			compatible = "google,gs101-wdt";
 			reg = <0x10060000 0x100>;
