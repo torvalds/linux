@@ -520,6 +520,7 @@ void adf_init_hw_data_420xx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->init_device = adf_gen4_init_device;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->admin_ae_mask = ADF_420XX_ADMIN_AE_MASK;
+	hw_data->num_rps = ADF_GEN4_MAX_RPS;
 	hw_data->fw_name = ADF_420XX_FW;
 	hw_data->fw_mmp_name = ADF_420XX_MMP;
 	hw_data->uof_get_name = uof_get_name_420xx;

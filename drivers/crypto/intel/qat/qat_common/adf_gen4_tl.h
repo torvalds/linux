@@ -21,6 +21,9 @@ struct adf_tl_hw_data;
 /* Max number of HW resources of one type. */
 #define ADF_GEN4_TL_MAX_SLICES_PER_TYPE		24
 
+/* Max number of simultaneously monitored ring pairs. */
+#define ADF_GEN4_TL_MAX_RP_NUM			4
+
 /**
  * struct adf_gen4_tl_slice_data_regs - HW slice data as populated by FW.
  * @reg_tm_slice_exec_cnt: Slice execution count.
@@ -93,17 +96,51 @@ struct adf_gen4_tl_device_data_regs {
 };
 
 /**
+ * struct adf_gen4_tl_ring_pair_data_regs - This structure stores Ring Pair
+ * telemetry counter values as are being populated periodically by device.
+ * @reg_tl_gp_lat_acc: get-put latency accumulator
+ * @reserved: reserved
+ * @reg_tl_pci_trans_cnt: PCIe partial transactions
+ * @reg_tl_ae_put_cnt: Accelerator Engine put counts across all rings
+ * @reg_tl_bw_in: PCIe write bandwidth
+ * @reg_tl_bw_out: PCIe read bandwidth
+ * @reg_tl_at_glob_devtlb_hit: Message descriptor DevTLB hit rate
+ * @reg_tl_at_glob_devtlb_miss: Message descriptor DevTLB miss rate
+ * @reg_tl_at_payld_devtlb_hit: Payload DevTLB hit rate
+ * @reg_tl_at_payld_devtlb_miss: Payload DevTLB miss rate
+ * @reg_tl_re_cnt: ring empty time samples count
+ * @reserved1: reserved
+ */
+struct adf_gen4_tl_ring_pair_data_regs {
+	__u64 reg_tl_gp_lat_acc;
+	__u64 reserved;
+	__u32 reg_tl_pci_trans_cnt;
+	__u32 reg_tl_ae_put_cnt;
+	__u32 reg_tl_bw_in;
+	__u32 reg_tl_bw_out;
+	__u32 reg_tl_at_glob_devtlb_hit;
+	__u32 reg_tl_at_glob_devtlb_miss;
+	__u32 reg_tl_at_payld_devtlb_hit;
+	__u32 reg_tl_at_payld_devtlb_miss;
+	__u32 reg_tl_re_cnt;
+	__u32 reserved1;
+};
+
+#define ADF_GEN4_TL_RP_REG_SZ sizeof(struct adf_gen4_tl_ring_pair_data_regs)
+
+/**
  * struct adf_gen4_tl_layout - This structure represents entire telemetry
  * counters data: Device + 4 Ring Pairs as are being populated periodically
  * by device.
  * @tl_device_data_regs: structure of device telemetry registers
- * @reserved1: reserved
+ * @tl_ring_pairs_data_regs: array of ring pairs telemetry registers
  * @reg_tl_msg_cnt: telemetry messages counter
  * @reserved: reserved
  */
 struct adf_gen4_tl_layout {
 	struct adf_gen4_tl_device_data_regs tl_device_data_regs;
-	__u32 reserved1[14];
+	struct adf_gen4_tl_ring_pair_data_regs
+			tl_ring_pairs_data_regs[ADF_GEN4_TL_MAX_RP_NUM];
 	__u32 reg_tl_msg_cnt;
 	__u32 reserved;
 };

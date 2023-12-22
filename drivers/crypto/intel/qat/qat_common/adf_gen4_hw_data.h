@@ -36,6 +36,7 @@
 #define ADF_GEN4_MSIX_RTTABLE_OFFSET(i)		(0x409000 + ((i) * 0x04))
 
 /* Bank and ring configuration */
+#define ADF_GEN4_MAX_RPS		64
 #define ADF_GEN4_NUM_RINGS_PER_BANK	2
 #define ADF_GEN4_NUM_BANKS_PER_VF	4
 #define ADF_GEN4_ETR_MAX_BANKS		64

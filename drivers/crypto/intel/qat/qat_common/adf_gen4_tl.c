@@ -9,6 +9,8 @@
 
 #define ADF_GEN4_TL_DEV_REG_OFF(reg) ADF_TL_DEV_REG_OFF(reg, gen4)
 
+#define ADF_GEN4_TL_RP_REG_OFF(reg) ADF_TL_RP_REG_OFF(reg, gen4)
+
 #define ADF_GEN4_TL_SL_UTIL_COUNTER(_name)	\
 	ADF_TL_COUNTER("util_" #_name,		\
 			ADF_TL_SIMPLE_COUNT,	\
@@ -101,11 +103,42 @@ static const struct adf_tl_dbg_counter sl_exec_counters[ADF_TL_SL_CNT_COUNT] = {
 	ADF_GEN4_TL_SL_EXEC_COUNTER(ath),
 };
 
+/* Ring pair counters. */
+static const struct adf_tl_dbg_counter rp_counters[] = {
+	/* PCIe partial transactions. */
+	ADF_TL_COUNTER(PCI_TRANS_CNT_NAME, ADF_TL_SIMPLE_COUNT,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_pci_trans_cnt)),
+	/* Get to put latency average[ns]. */
+	ADF_TL_COUNTER_LATENCY(LAT_ACC_NAME, ADF_TL_COUNTER_NS_AVG,
+			       ADF_GEN4_TL_RP_REG_OFF(reg_tl_gp_lat_acc),
+			       ADF_GEN4_TL_RP_REG_OFF(reg_tl_ae_put_cnt)),
+	/* PCIe write bandwidth[Mbps]. */
+	ADF_TL_COUNTER(BW_IN_NAME, ADF_TL_COUNTER_MBPS,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_bw_in)),
+	/* PCIe read bandwidth[Mbps]. */
+	ADF_TL_COUNTER(BW_OUT_NAME, ADF_TL_COUNTER_MBPS,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_bw_out)),
+	/* Message descriptor DevTLB hit rate. */
+	ADF_TL_COUNTER(AT_GLOB_DTLB_HIT_NAME, ADF_TL_SIMPLE_COUNT,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_at_glob_devtlb_hit)),
+	/* Message descriptor DevTLB miss rate. */
+	ADF_TL_COUNTER(AT_GLOB_DTLB_MISS_NAME, ADF_TL_SIMPLE_COUNT,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_at_glob_devtlb_miss)),
+	/* Payload DevTLB hit rate. */
+	ADF_TL_COUNTER(AT_PAYLD_DTLB_HIT_NAME, ADF_TL_SIMPLE_COUNT,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_at_payld_devtlb_hit)),
+	/* Payload DevTLB miss rate. */
+	ADF_TL_COUNTER(AT_PAYLD_DTLB_MISS_NAME, ADF_TL_SIMPLE_COUNT,
+		       ADF_GEN4_TL_RP_REG_OFF(reg_tl_at_payld_devtlb_miss)),
+};
+
 void adf_gen4_init_tl_data(struct adf_tl_hw_data *tl_data)
 {
 	tl_data->layout_sz = ADF_GEN4_TL_LAYOUT_SZ;
 	tl_data->slice_reg_sz = ADF_GEN4_TL_SLICE_REG_SZ;
+	tl_data->rp_reg_sz = ADF_GEN4_TL_RP_REG_SZ;
 	tl_data->num_hbuff = ADF_GEN4_TL_NUM_HIST_BUFFS;
+	tl_data->max_rp = ADF_GEN4_TL_MAX_RP_NUM;
 	tl_data->msg_cnt_off = ADF_GEN4_TL_MSG_CNT_OFF;
 	tl_data->cpp_ns_per_cycle = ADF_GEN4_CPP_NS_PER_CYCLE;
 	tl_data->bw_units_to_bytes = ADF_GEN4_TL_BW_HW_UNITS_TO_BYTES;
@@ -114,5 +147,7 @@ void adf_gen4_init_tl_data(struct adf_tl_hw_data *tl_data)
 	tl_data->num_dev_counters = ARRAY_SIZE(dev_counters);
 	tl_data->sl_util_counters = sl_util_counters;
 	tl_data->sl_exec_counters = sl_exec_counters;
+	tl_data->rp_counters = rp_counters;
+	tl_data->num_rp_counters = ARRAY_SIZE(rp_counters);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_tl_data);

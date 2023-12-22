@@ -24,6 +24,13 @@ struct adf_accel_dev;
 #define AT_GLOB_DTLB_MISS_NAME	"at_glob_devtlb_miss"
 #define AT_PAYLD_DTLB_HIT_NAME	"tl_at_payld_devtlb_hit"
 #define AT_PAYLD_DTLB_MISS_NAME	"tl_at_payld_devtlb_miss"
+#define RP_SERVICE_TYPE		"service_type"
+
+#define ADF_TL_DBG_RP_ALPHA_INDEX(index) ((index) + 'A')
+#define ADF_TL_DBG_RP_INDEX_ALPHA(alpha) ((alpha) - 'A')
+
+#define ADF_TL_RP_REGS_FNAME		"rp_%c_data"
+#define ADF_TL_RP_REGS_FNAME_SIZE		16
 
 #define ADF_TL_DATA_REG_OFF(reg, qat_gen)	\
 	offsetof(struct adf_##qat_gen##_tl_layout, reg)
@@ -35,6 +42,10 @@ struct adf_accel_dev;
 #define ADF_TL_SLICE_REG_OFF(slice, reg, qat_gen)		\
 	(ADF_TL_DEV_REG_OFF(slice##_slices[0], qat_gen) +	\
 	offsetof(struct adf_##qat_gen##_tl_slice_data_regs, reg))
+
+#define ADF_TL_RP_REG_OFF(reg, qat_gen)					\
+	(ADF_TL_DATA_REG_OFF(tl_ring_pairs_data_regs[0], qat_gen) +	\
+	offsetof(struct adf_##qat_gen##_tl_ring_pair_data_regs, reg))
 
 /**
  * enum adf_tl_counter_type - telemetry counter types

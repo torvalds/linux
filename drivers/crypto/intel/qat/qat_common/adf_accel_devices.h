@@ -278,6 +278,7 @@ struct adf_hw_device_data {
 	u8 num_logical_accel;
 	u8 num_engines;
 	u32 num_hb_ctrs;
+	u8 num_rps;
 };
 
 /* CSR write macro */

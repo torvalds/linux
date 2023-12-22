@@ -421,6 +421,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 	hw_data->init_device = adf_gen4_init_device;
 	hw_data->reset_device = adf_reset_flr;
 	hw_data->admin_ae_mask = ADF_4XXX_ADMIN_AE_MASK;
+	hw_data->num_rps = ADF_GEN4_MAX_RPS;
 	switch (dev_id) {
 	case ADF_402XX_PCI_DEVICE_ID:
 		hw_data->fw_name = ADF_402XX_FW;

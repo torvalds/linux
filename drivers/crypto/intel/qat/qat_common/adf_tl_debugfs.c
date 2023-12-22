@@ -6,6 +6,7 @@
 #include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/dcache.h>
+#include <linux/file.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
 #include <linux/mutex.h>
@@ -14,11 +15,13 @@
 #include <linux/units.h>
 
 #include "adf_accel_devices.h"
+#include "adf_cfg_strings.h"
 #include "adf_telemetry.h"
 #include "adf_tl_debugfs.h"
 
 #define TL_VALUE_MIN_PADDING	20
 #define TL_KEY_MIN_PADDING	23
+#define TL_RP_SRV_UNKNOWN	"Unknown"
 
 static int tl_collect_values_u32(struct adf_telemetry *telemetry,
 				 size_t counter_offset, u64 *arr)
@@ -470,11 +473,210 @@ unlock_and_exit:
 }
 DEFINE_SHOW_STORE_ATTRIBUTE(tl_control);
 
+static int get_rp_index_from_file(const struct file *f, u8 *rp_id, u8 rp_num)
+{
+	char alpha;
+	u8 index;
+	int ret;
+
+	ret = sscanf(f->f_path.dentry->d_name.name, ADF_TL_RP_REGS_FNAME, &alpha);
+	if (ret != 1)
+		return -EINVAL;
+
+	index = ADF_TL_DBG_RP_INDEX_ALPHA(alpha);
+	*rp_id = index;
+
+	return 0;
+}
+
+static int adf_tl_dbg_change_rp_index(struct adf_accel_dev *accel_dev,
+				      unsigned int new_rp_num,
+				      unsigned int rp_regs_index)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	struct adf_telemetry *telemetry = accel_dev->telemetry;
+	struct device *dev = &GET_DEV(accel_dev);
+	unsigned int i;
+	u8 curr_state;
+	int ret;
+
+	if (new_rp_num >= hw_data->num_rps) {
+		dev_info(dev, "invalid Ring Pair number selected\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < hw_data->tl_data.max_rp; i++) {
+		if (telemetry->rp_num_indexes[i] == new_rp_num) {
+			dev_info(dev, "RP nr: %d is already selected in slot rp_%c_data\n",
+				 new_rp_num, ADF_TL_DBG_RP_ALPHA_INDEX(i));
+			return 0;
+		}
+	}
+
+	dev_dbg(dev, "selecting RP nr %u into slot rp_%c_data\n",
+		new_rp_num, ADF_TL_DBG_RP_ALPHA_INDEX(rp_regs_index));
+
+	curr_state = atomic_read(&telemetry->state);
+
+	if (curr_state) {
+		ret = adf_tl_halt(accel_dev);
+		if (ret)
+			return ret;
+
+		telemetry->rp_num_indexes[rp_regs_index] = new_rp_num;
+
+		ret = adf_tl_run(accel_dev, curr_state);
+		if (ret)
+			return ret;
+	} else {
+		telemetry->rp_num_indexes[rp_regs_index] = new_rp_num;
+	}
+
+	return 0;
+}
+
+static void tl_print_rp_srv(struct adf_accel_dev *accel_dev, struct seq_file *s,
+			    u8 rp_idx)
+{
+	u32 banks_per_vf = GET_HW_DATA(accel_dev)->num_banks_per_vf;
+	enum adf_cfg_service_type svc;
+
+	seq_printf(s, "%-*s", TL_KEY_MIN_PADDING, RP_SERVICE_TYPE);
+
+	svc = GET_SRV_TYPE(accel_dev, rp_idx % banks_per_vf);
+	switch (svc) {
+	case COMP:
+		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, ADF_CFG_DC);
+		break;
+	case SYM:
+		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, ADF_CFG_SYM);
+		break;
+	case ASYM:
+		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, ADF_CFG_ASYM);
+		break;
+	default:
+		seq_printf(s, "%*s\n", TL_VALUE_MIN_PADDING, TL_RP_SRV_UNKNOWN);
+		break;
+	}
+}
+
+static int tl_print_rp_data(struct adf_accel_dev *accel_dev, struct seq_file *s,
+			    u8 rp_regs_index)
+{
+	struct adf_tl_hw_data *tl_data = &GET_TL_DATA(accel_dev);
+	struct adf_telemetry *telemetry = accel_dev->telemetry;
+	const struct adf_tl_dbg_counter *rp_tl_counters;
+	u8 num_rp_counters = tl_data->num_rp_counters;
+	size_t rp_regs_sz = tl_data->rp_reg_sz;
+	struct adf_tl_dbg_counter ctr;
+	unsigned int i;
+	u8 rp_idx;
+	int ret;
+
+	if (!atomic_read(&telemetry->state)) {
+		dev_info(&GET_DEV(accel_dev), "not enabled\n");
+		return -EPERM;
+	}
+
+	rp_tl_counters = tl_data->rp_counters;
+	rp_idx = telemetry->rp_num_indexes[rp_regs_index];
+
+	if (rp_idx == ADF_TL_RP_REGS_DISABLED) {
+		dev_info(&GET_DEV(accel_dev), "no RP number selected in rp_%c_data\n",
+			 ADF_TL_DBG_RP_ALPHA_INDEX(rp_regs_index));
+		return -EPERM;
+	}
+
+	tl_print_msg_cnt(s, telemetry->msg_cnt);
+	seq_printf(s, "%-*s", TL_KEY_MIN_PADDING, RP_NUM_INDEX);
+	seq_printf(s, "%*d\n", TL_VALUE_MIN_PADDING, rp_idx);
+	tl_print_rp_srv(accel_dev, s, rp_idx);
+
+	for (i = 0; i < num_rp_counters; i++) {
+		ctr = rp_tl_counters[i];
+		ctr.offset1 += rp_regs_sz * rp_regs_index;
+		ctr.offset2 += rp_regs_sz * rp_regs_index;
+		ret = tl_calc_and_print_counter(telemetry, s, &ctr, NULL);
+		if (ret) {
+			dev_dbg(&GET_DEV(accel_dev),
+				"invalid RP counter type\n");
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int tl_rp_data_show(struct seq_file *s, void *unused)
+{
+	struct adf_accel_dev *accel_dev = s->private;
+	u8 rp_regs_index;
+	u8 max_rp;
+	int ret;
+
+	if (!accel_dev)
+		return -EINVAL;
+
+	max_rp = GET_TL_DATA(accel_dev).max_rp;
+	ret = get_rp_index_from_file(s->file, &rp_regs_index, max_rp);
+	if (ret) {
+		dev_dbg(&GET_DEV(accel_dev), "invalid RP data file name\n");
+		return ret;
+	}
+
+	return tl_print_rp_data(accel_dev, s, rp_regs_index);
+}
+
+static ssize_t tl_rp_data_write(struct file *file, const char __user *userbuf,
+				size_t count, loff_t *ppos)
+{
+	struct seq_file *seq_f = file->private_data;
+	struct adf_accel_dev *accel_dev;
+	struct adf_telemetry *telemetry;
+	unsigned int new_rp_num;
+	u8 rp_regs_index;
+	u8 max_rp;
+	int ret;
+
+	accel_dev = seq_f->private;
+	if (!accel_dev)
+		return -EINVAL;
+
+	telemetry = accel_dev->telemetry;
+	max_rp = GET_TL_DATA(accel_dev).max_rp;
+
+	mutex_lock(&telemetry->wr_lock);
+
+	ret = get_rp_index_from_file(file, &rp_regs_index, max_rp);
+	if (ret) {
+		dev_dbg(&GET_DEV(accel_dev), "invalid RP data file name\n");
+		goto unlock_and_exit;
+	}
+
+	ret = kstrtou32_from_user(userbuf, count, 10, &new_rp_num);
+	if (ret)
+		goto unlock_and_exit;
+
+	ret = adf_tl_dbg_change_rp_index(accel_dev, new_rp_num, rp_regs_index);
+	if (ret)
+		goto unlock_and_exit;
+
+	ret = count;
+
+unlock_and_exit:
+	mutex_unlock(&telemetry->wr_lock);
+	return ret;
+}
+DEFINE_SHOW_STORE_ATTRIBUTE(tl_rp_data);
+
 void adf_tl_dbgfs_add(struct adf_accel_dev *accel_dev)
 {
 	struct adf_telemetry *telemetry = accel_dev->telemetry;
 	struct dentry *parent = accel_dev->debugfs_dir;
+	u8 max_rp = GET_TL_DATA(accel_dev).max_rp;
+	char name[ADF_TL_RP_REGS_FNAME_SIZE];
 	struct dentry *dir;
+	unsigned int i;
 
 	if (!telemetry)
 		return;
@@ -483,6 +685,12 @@ void adf_tl_dbgfs_add(struct adf_accel_dev *accel_dev)
 	accel_dev->telemetry->dbg_dir = dir;
 	debugfs_create_file("device_data", 0444, dir, accel_dev, &tl_dev_data_fops);
 	debugfs_create_file("control", 0644, dir, accel_dev, &tl_control_fops);
+
+	for (i = 0; i < max_rp; i++) {
+		snprintf(name, sizeof(name), ADF_TL_RP_REGS_FNAME,
+			 ADF_TL_DBG_RP_ALPHA_INDEX(i));
+		debugfs_create_file(name, 0644, dir, accel_dev, &tl_rp_data_fops);
+	}
 }
 
 void adf_tl_dbgfs_rm(struct adf_accel_dev *accel_dev)

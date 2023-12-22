@@ -33,7 +33,9 @@ static int validate_tl_data(struct adf_tl_hw_data *tl_data)
 	if (!tl_data->dev_counters ||
 	    TL_IS_ZERO(tl_data->num_dev_counters) ||
 	    !tl_data->sl_util_counters ||
-	    !tl_data->sl_exec_counters)
+	    !tl_data->sl_exec_counters ||
+	    !tl_data->rp_counters ||
+	    TL_IS_ZERO(tl_data->num_rp_counters))
 		return -EOPNOTSUPP;
 
 	return 0;
@@ -53,11 +55,17 @@ static int adf_tl_alloc_mem(struct adf_accel_dev *accel_dev)
 	if (!telemetry)
 		return -ENOMEM;
 
+	telemetry->rp_num_indexes = kmalloc_array(tl_data->max_rp,
+						  sizeof(*telemetry->rp_num_indexes),
+						  GFP_KERNEL);
+	if (!telemetry->rp_num_indexes)
+		goto err_free_tl;
+
 	telemetry->regs_hist_buff = kmalloc_array(tl_data->num_hbuff,
 						  sizeof(*telemetry->regs_hist_buff),
 						  GFP_KERNEL);
 	if (!telemetry->regs_hist_buff)
-		goto err_free_tl;
+		goto err_free_rp_indexes;
 
 	telemetry->regs_data = dma_alloc_coherent(dev, regs_sz,
 						  &telemetry->regs_data_p,
@@ -86,6 +94,8 @@ err_free_dma:
 
 err_free_regs_hist_buff:
 	kfree(telemetry->regs_hist_buff);
+err_free_rp_indexes:
+	kfree(telemetry->rp_num_indexes);
 err_free_tl:
 	kfree(telemetry);
 
@@ -107,6 +117,7 @@ static void adf_tl_free_mem(struct adf_accel_dev *accel_dev)
 			  telemetry->regs_data_p);
 
 	kfree(telemetry->regs_hist_buff);
+	kfree(telemetry->rp_num_indexes);
 	kfree(telemetry);
 	accel_dev->telemetry = NULL;
 }
@@ -196,7 +207,8 @@ int adf_tl_run(struct adf_accel_dev *accel_dev, int state)
 	int ret;
 
 	ret = adf_send_admin_tl_start(accel_dev, telemetry->regs_data_p,
-				      layout_sz, NULL, &telemetry->slice_cnt);
+				      layout_sz, telemetry->rp_num_indexes,
+				      &telemetry->slice_cnt);
 	if (ret) {
 		dev_err(dev, "failed to start telemetry\n");
 		return ret;
@@ -213,8 +225,10 @@ int adf_tl_run(struct adf_accel_dev *accel_dev, int state)
 int adf_tl_init(struct adf_accel_dev *accel_dev)
 {
 	struct adf_tl_hw_data *tl_data = &GET_TL_DATA(accel_dev);
+	u8 max_rp = GET_TL_DATA(accel_dev).max_rp;
 	struct device *dev = &GET_DEV(accel_dev);
 	struct adf_telemetry *telemetry;
+	unsigned int i;
 	int ret;
 
 	ret = validate_tl_data(tl_data);
@@ -233,6 +247,9 @@ int adf_tl_init(struct adf_accel_dev *accel_dev)
 	mutex_init(&telemetry->wr_lock);
 	mutex_init(&telemetry->regs_hist_lock);
 	INIT_DELAYED_WORK(&telemetry->work_ctx, tl_work_handler);
+
+	for (i = 0; i < max_rp; i++)
+		telemetry->rp_num_indexes[i] = ADF_TL_RP_REGS_DISABLED;
 
 	return 0;
 }

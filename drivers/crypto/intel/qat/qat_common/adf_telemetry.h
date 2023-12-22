@@ -23,17 +23,23 @@ struct dentry;
 /* Interval within timer interrupt should be handled. Value in milliseconds. */
 #define ADF_TL_TIMER_INT_MS		(ADF_TL_DATA_WR_INTERVAL_MS / 2)
 
+#define ADF_TL_RP_REGS_DISABLED		(0xff)
+
 struct adf_tl_hw_data {
 	size_t layout_sz;
 	size_t slice_reg_sz;
+	size_t rp_reg_sz;
 	size_t msg_cnt_off;
 	const struct adf_tl_dbg_counter *dev_counters;
 	const struct adf_tl_dbg_counter *sl_util_counters;
 	const struct adf_tl_dbg_counter *sl_exec_counters;
+	const struct adf_tl_dbg_counter *rp_counters;
 	u8 num_hbuff;
 	u8 cpp_ns_per_cycle;
 	u8 bw_units_to_bytes;
 	u8 num_dev_counters;
+	u8 num_rp_counters;
+	u8 max_rp;
 };
 
 struct adf_telemetry {
@@ -50,6 +56,7 @@ struct adf_telemetry {
 	 */
 	void **regs_hist_buff;
 	struct dentry *dbg_dir;
+	u8 *rp_num_indexes;
 	/**
 	 * @regs_hist_lock: protects from race conditions between write and read
 	 * to the copies referenced by @regs_hist_buff
