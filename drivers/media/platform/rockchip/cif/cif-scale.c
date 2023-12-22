@@ -968,7 +968,7 @@ static void rkcif_scale_vb_done_oneframe(struct rkcif_scale_vdev *scale_vdev,
 				      scale_vdev->pixm.plane_fmt[i].sizeimage);
 	}
 
-	vb_done->vb2_buf.timestamp = ktime_get_ns();
+	vb_done->vb2_buf.timestamp = rkcif_time_get_ns(scale_vdev->cifdev);
 
 	vb2_buffer_done(&vb_done->vb2_buf, VB2_BUF_STATE_DONE);
 }

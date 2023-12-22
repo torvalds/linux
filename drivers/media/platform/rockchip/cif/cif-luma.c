@@ -361,7 +361,7 @@ void rkcif_luma_isr(struct rkcif_luma_vdev *luma_vdev, int mipi_id, u32 frame_id
 
 	if (send_task) {
 		luma_vdev->work.readout = RKCIF_READOUT_LUMA;
-		luma_vdev->work.timestamp = ktime_get_ns();
+		luma_vdev->work.timestamp = rkcif_time_get_ns(luma_vdev->cifdev);
 		luma_vdev->work.frame_id = frame_id;
 
 		if (frm_mode == RKCIF_LUMA_THREEFRM)

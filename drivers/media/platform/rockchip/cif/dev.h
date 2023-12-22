@@ -1024,4 +1024,12 @@ void rkcif_err_print_work(struct work_struct *work);
 int rkcif_stream_suspend(struct rkcif_device *cif_dev, int mode);
 int rkcif_stream_resume(struct rkcif_device *cif_dev, int mode);
 
+static inline u64 rkcif_time_get_ns(struct rkcif_device *dev)
+{
+	if (dev->chip_id == CHIP_RV1106_CIF)
+		return ktime_get_boottime_ns();
+	else
+		return ktime_get_ns();
+}
+
 #endif
