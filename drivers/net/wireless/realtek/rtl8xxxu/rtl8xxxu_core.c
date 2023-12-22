@@ -6794,8 +6794,8 @@ static void rtl8xxxu_configure_filter(struct ieee80211_hw *hw,
 	else
 		rcr |= RCR_CHECK_BSSID_BEACON | RCR_CHECK_BSSID_MATCH;
 
-	if (priv->vif && priv->vif->type == NL80211_IFTYPE_AP)
-		rcr &= ~RCR_CHECK_BSSID_MATCH;
+	if (priv->vifs[0] && priv->vifs[0]->type == NL80211_IFTYPE_AP)
+		rcr &= ~(RCR_CHECK_BSSID_MATCH | RCR_CHECK_BSSID_BEACON);
 
 	if (*total_flags & FIF_CONTROL)
 		rcr |= RCR_ACCEPT_CTRL_FRAME;
