@@ -277,22 +277,38 @@ void __test_init(unsigned int ntests, int family, unsigned int prefix,
 
 /* /proc/sys/net/core/optmem_max artifically limits the amount of memory
  * that can be allocated with sock_kmalloc() on each socket in the system.
- * It is not virtualized, so it has to written outside test namespaces.
- * To be nice a test will revert optmem back to the old value.
+ * It is not virtualized in v6.7, so it has to written outside test
+ * namespaces. To be nice a test will revert optmem back to the old value.
  * Keeping it simple without any file lock, which means the tests that
  * need to set/increase optmem value shouldn't run in parallel.
  * Also, not re-entrant.
+ * Since commit f5769faeec36 ("net: Namespace-ify sysctl_optmem_max")
+ * it is per-namespace, keeping logic for non-virtualized optmem_max
+ * for v6.7, which supports TCP-AO.
  */
 static const char *optmem_file = "/proc/sys/net/core/optmem_max";
 static size_t saved_optmem;
+static int optmem_ns = -1;
+
+static bool is_optmem_namespaced(void)
+{
+	if (optmem_ns == -1) {
+		int old_ns = switch_save_ns(nsfd_child);
+
+		optmem_ns = !access(optmem_file, F_OK);
+		switch_ns(old_ns);
+	}
+	return !!optmem_ns;
+}
 
 size_t test_get_optmem(void)
 {
+	int old_ns = 0;
 	FILE *foptmem;
-	int old_ns;
 	size_t ret;
 
-	old_ns = switch_save_ns(nsfd_outside);
+	if (!is_optmem_namespaced())
+		old_ns = switch_save_ns(nsfd_outside);
 	foptmem = fopen(optmem_file, "r");
 	if (!foptmem)
 		test_error("failed to open %s", optmem_file);
@@ -300,19 +316,21 @@ size_t test_get_optmem(void)
 	if (fscanf(foptmem, "%zu", &ret) != 1)
 		test_error("can't read from %s", optmem_file);
 	fclose(foptmem);
-	switch_ns(old_ns);
+	if (!is_optmem_namespaced())
+		switch_ns(old_ns);
 	return ret;
 }
 
 static void __test_set_optmem(size_t new, size_t *old)
 {
+	int old_ns = 0;
 	FILE *foptmem;
-	int old_ns;
 
 	if (old != NULL)
 		*old = test_get_optmem();
 
-	old_ns = switch_save_ns(nsfd_outside);
+	if (!is_optmem_namespaced())
+		old_ns = switch_save_ns(nsfd_outside);
 	foptmem = fopen(optmem_file, "w");
 	if (!foptmem)
 		test_error("failed to open %s", optmem_file);
@@ -320,7 +338,8 @@ static void __test_set_optmem(size_t new, size_t *old)
 	if (fprintf(foptmem, "%zu", new) <= 0)
 		test_error("can't write %zu to %s", new, optmem_file);
 	fclose(foptmem);
-	switch_ns(old_ns);
+	if (!is_optmem_namespaced())
+		switch_ns(old_ns);
 }
 
 static void test_revert_optmem(void)
