@@ -4913,14 +4913,20 @@ static void rtl8xxxu_set_aifs(struct rtl8xxxu_priv *priv, u8 slot_time)
 	u8 aifs, aifsn, sifs;
 	int i;
 
-	if (priv->vif) {
+	for (i = 0; i < ARRAY_SIZE(priv->vifs); i++) {
+		if (!priv->vifs[i])
+			continue;
+
 		struct ieee80211_sta *sta;
 
 		rcu_read_lock();
-		sta = ieee80211_find_sta(priv->vif, priv->vif->bss_conf.bssid);
+		sta = ieee80211_find_sta(priv->vifs[i], priv->vifs[i]->bss_conf.bssid);
 		if (sta)
 			wireless_mode = rtl8xxxu_wireless_mode(priv->hw, sta);
 		rcu_read_unlock();
+
+		if (wireless_mode)
+			break;
 	}
 
 	if (priv->hw->conf.chandef.chan->band == NL80211_BAND_5GHZ ||
