@@ -121,6 +121,8 @@ struct bpf_mem_caches {
 	struct bpf_mem_cache cache[NUM_CACHES];
 };
 
+static const u16 sizes[NUM_CACHES] = {96, 192, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
+
 static struct llist_node notrace *__llist_del_first(struct llist_head *head)
 {
 	struct llist_node *entry, *next;
@@ -499,11 +501,13 @@ static void prefill_mem_cache(struct bpf_mem_cache *c, int cpu)
  */
 int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 {
-	static u16 sizes[NUM_CACHES] = {96, 192, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096};
 	struct bpf_mem_caches *cc, __percpu *pcc;
 	struct bpf_mem_cache *c, __percpu *pc;
 	struct obj_cgroup *objcg = NULL;
 	int cpu, i, unit_size, percpu_size = 0;
+
+	if (percpu && size == 0)
+		return -EINVAL;
 
 	/* room for llist_node and per-cpu pointer */
 	if (percpu)
@@ -524,6 +528,7 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 			objcg = get_obj_cgroup_from_current();
 #endif
 		ma->objcg = objcg;
+
 		for_each_possible_cpu(cpu) {
 			c = per_cpu_ptr(pc, cpu);
 			c->unit_size = unit_size;
@@ -559,6 +564,56 @@ int bpf_mem_alloc_init(struct bpf_mem_alloc *ma, int size, bool percpu)
 	}
 
 	ma->caches = pcc;
+	return 0;
+}
+
+int bpf_mem_alloc_percpu_init(struct bpf_mem_alloc *ma, struct obj_cgroup *objcg)
+{
+	struct bpf_mem_caches __percpu *pcc;
+
+	pcc = __alloc_percpu_gfp(sizeof(struct bpf_mem_caches), 8, GFP_KERNEL);
+	if (!pcc)
+		return -ENOMEM;
+
+	ma->caches = pcc;
+	ma->objcg = objcg;
+	ma->percpu = true;
+	return 0;
+}
+
+int bpf_mem_alloc_percpu_unit_init(struct bpf_mem_alloc *ma, int size)
+{
+	struct bpf_mem_caches *cc, __percpu *pcc;
+	int cpu, i, unit_size, percpu_size;
+	struct obj_cgroup *objcg;
+	struct bpf_mem_cache *c;
+
+	i = bpf_mem_cache_idx(size);
+	if (i < 0)
+		return -EINVAL;
+
+	/* room for llist_node and per-cpu pointer */
+	percpu_size = LLIST_NODE_SZ + sizeof(void *);
+
+	unit_size = sizes[i];
+	objcg = ma->objcg;
+	pcc = ma->caches;
+
+	for_each_possible_cpu(cpu) {
+		cc = per_cpu_ptr(pcc, cpu);
+		c = &cc->cache[i];
+		if (cpu == 0 && c->unit_size)
+			break;
+
+		c->unit_size = unit_size;
+		c->objcg = objcg;
+		c->percpu_size = percpu_size;
+		c->tgt = c;
+
+		init_refill_work(c);
+		prefill_mem_cache(c, cpu);
+	}
+
 	return 0;
 }
 
