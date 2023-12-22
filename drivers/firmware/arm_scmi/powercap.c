@@ -17,6 +17,9 @@
 #include "protocols.h"
 #include "notify.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+
 enum scmi_powercap_protocol_cmd {
 	POWERCAP_DOMAIN_ATTRIBUTES = 0x3,
 	POWERCAP_CAP_GET = 0x4,
@@ -270,7 +273,7 @@ clean:
 	 */
 	if (!ret && SUPPORTS_EXTENDED_NAMES(flags))
 		ph->hops->extended_name_get(ph, POWERCAP_DOMAIN_NAME_GET,
-					    domain, dom_info->name,
+					    domain, NULL, dom_info->name,
 					    SCMI_MAX_STR_SIZE);
 
 	return ret;
@@ -975,7 +978,7 @@ scmi_powercap_protocol_init(const struct scmi_protocol_handle *ph)
 	}
 
 	pinfo->version = version;
-	return ph->set_priv(ph, pinfo);
+	return ph->set_priv(ph, pinfo, version);
 }
 
 static const struct scmi_protocol scmi_powercap = {
@@ -984,6 +987,7 @@ static const struct scmi_protocol scmi_powercap = {
 	.instance_init = &scmi_powercap_protocol_init,
 	.ops = &powercap_proto_ops,
 	.events = &powercap_protocol_events,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(powercap, scmi_powercap)
