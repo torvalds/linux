@@ -50,32 +50,9 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/interrupt-controller/irq.h>
-    #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/clock/hi3660-clock.h>
-
-    iomcu: iomcu@ffd7e000 {
-        compatible = "hisilicon,hi3660-iomcu", "syscon";
-        reg = <0xffd7e000 0x1000>;
-    };
-
-    iomcu_rst: iomcu_rst_controller {
+    iomcu_rst_controller {
         compatible = "hisilicon,hi3660-reset";
         hisilicon,rst-syscon = <&iomcu>;
         #reset-cells = <2>;
-    };
-
-    /* Specifying reset lines connected to IP modules */
-    i2c@ffd71000 {
-        compatible = "snps,designware-i2c";
-        reg = <0xffd71000 0x1000>;
-        interrupts = <GIC_SPI 118 IRQ_TYPE_LEVEL_HIGH>;
-        #address-cells = <1>;
-        #size-cells = <0>;
-        clock-frequency = <400000>;
-        clocks = <&crg_ctrl HI3660_CLK_GATE_I2C0>;
-        resets = <&iomcu_rst 0x20 3>;
-        pinctrl-names = "default";
-        pinctrl-0 = <&i2c0_pmx_func &i2c0_cfg_func>;
     };
 ...

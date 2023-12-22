@@ -18,16 +18,16 @@ properties:
     oneOf:
       - description: on SC7180 SoCs the following compatibles must be specified
         items:
-          - const: "qcom,sc7180-pdc-global"
-          - const: "qcom,sdm845-pdc-global"
+          - const: qcom,sc7180-pdc-global
+          - const: qcom,sdm845-pdc-global
 
       - description: on SC7280 SoCs the following compatibles must be specified
         items:
-          - const: "qcom,sc7280-pdc-global"
+          - const: qcom,sc7280-pdc-global
 
       - description: on SDM845 SoCs the following compatibles must be specified
         items:
-          - const: "qcom,sdm845-pdc-global"
+          - const: qcom,sdm845-pdc-global
 
   reg:
     maxItems: 1
