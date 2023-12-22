@@ -55,7 +55,7 @@ rk_serdes_connector_helper_funcs = {
 	.get_modes = serdes_connector_get_modes,
 };
 
-enum drm_connector_status
+static enum drm_connector_status
 serdes_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct rk_serdes_panel *sd_panel = drm_connector_to_serdes_panel(connector);
