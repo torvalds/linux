@@ -8,4 +8,10 @@ config AX45MP_L2_CACHE
 	help
 	  Support for the L2 cache controller on Andes Technology AX45MP platforms.
 
+config SIFIVE_CCACHE
+	bool "Sifive Composable Cache controller"
+	depends on ARCH_SIFIVE || ARCH_STARFIVE
+	help
+	  Support for the composable cache controller on SiFive platforms.
+
 endmenu

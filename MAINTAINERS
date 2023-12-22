@@ -19783,6 +19783,13 @@ S:	Supported
 N:	sifive
 K:	[^@]sifive
 
+SIFIVE CACHE DRIVER
+M:	Conor Dooley <conor@kernel.org>
+L:	linux-riscv@lists.infradead.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/cache/sifive,ccache0.yaml
+F:	drivers/cache/sifive_ccache.c
+
 SIFIVE FU540 SYSTEM-ON-CHIP
 M:	Paul Walmsley <paul.walmsley@sifive.com>
 M:	Palmer Dabbelt <palmer@dabbelt.com>
@@ -19798,13 +19805,6 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/dma/sifive,fu540-c000-pdma.yaml
 F:	drivers/dma/sf-pdma/
 
-SIFIVE SOC DRIVERS
-M:	Conor Dooley <conor@kernel.org>
-L:	linux-riscv@lists.infradead.org
-S:	Maintained
-T:	git https://git.kernel.org/pub/scm/linux/kernel/git/conor/linux.git/
-F:	Documentation/devicetree/bindings/cache/sifive,ccache0.yaml
-F:	drivers/soc/sifive/
 
 SILEAD TOUCHSCREEN DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
