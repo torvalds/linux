@@ -5716,6 +5716,14 @@ static inline bool rtl8xxxu_is_packet_match_bssid(struct rtl8xxxu_priv *priv,
 	       ether_addr_equal(priv->vifs[port_num]->bss_conf.bssid, hdr->addr2);
 }
 
+static inline bool rtl8xxxu_is_sta_sta(struct rtl8xxxu_priv *priv)
+{
+	return (priv->vifs[0] && priv->vifs[0]->cfg.assoc &&
+		priv->vifs[0]->type == NL80211_IFTYPE_STATION) &&
+	       (priv->vifs[1] && priv->vifs[1]->cfg.assoc &&
+		priv->vifs[1]->type == NL80211_IFTYPE_STATION);
+}
+
 void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 				 struct ieee80211_rx_status *rx_status,
 				 struct rtl8723au_phy_stats *phy_stats,
@@ -5734,6 +5742,7 @@ void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 		bool parse_cfo = priv->fops->set_crystal_cap &&
 				 !crc_icv_err &&
 				 !ieee80211_is_ctl(hdr->frame_control) &&
+				 !rtl8xxxu_is_sta_sta(priv) &&
 				 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
 				  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
 
@@ -5772,6 +5781,7 @@ static void jaguar2_rx_parse_phystats_type1(struct rtl8xxxu_priv *priv,
 	bool parse_cfo = priv->fops->set_crystal_cap &&
 			 !crc_icv_err &&
 			 !ieee80211_is_ctl(hdr->frame_control) &&
+			 !rtl8xxxu_is_sta_sta(priv) &&
 			 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
 			  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
 	u8 pwdb_max = 0;
