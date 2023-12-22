@@ -2478,6 +2478,15 @@ static const struct samsung_cmu_info misc_cmu_info __initconst = {
 	.clk_name		= "bus",
 };
 
+static void __init gs101_cmu_misc_init(struct device_node *np)
+{
+	exynos_arm64_register_cmu(NULL, np, &misc_cmu_info);
+}
+
+/* Register CMU_MISC early, as it's needed for MCT timer */
+CLK_OF_DECLARE(gs101_cmu_misc, "google,gs101-cmu-misc",
+	       gs101_cmu_misc_init);
+
 /* ---- platform_driver ----------------------------------------------------- */
 
 static int __init gs101_cmu_probe(struct platform_device *pdev)
@@ -2495,9 +2504,6 @@ static const struct of_device_id gs101_cmu_of_match[] = {
 	{
 		.compatible = "google,gs101-cmu-apm",
 		.data = &apm_cmu_info,
-	}, {
-		.compatible = "google,gs101-cmu-misc",
-		.data = &misc_cmu_info,
 	}, {
 	},
 };
