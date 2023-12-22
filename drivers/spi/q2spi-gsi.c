@@ -87,8 +87,7 @@ static void q2spi_parse_q2spi_status(struct msm_gpi_dma_async_tx_cb_param *cb_pa
 
 static void q2spi_parse_cr_header(struct q2spi_geni *q2spi, struct msm_gpi_cb const *cb)
 {
-	Q2SPI_DEBUG(q2spi, "%s complete_tx_cb\n", __func__);
-	complete_all(&q2spi->tx_cb);
+	Q2SPI_DEBUG(q2spi, "%s line:%d\n", __func__, __LINE__);
 	q2spi_doorbell(q2spi, &cb->q2spi_cr_header_event);
 }
 
