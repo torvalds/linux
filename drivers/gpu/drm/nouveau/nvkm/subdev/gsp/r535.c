@@ -298,7 +298,8 @@ retry:
 		struct nvkm_gsp_msgq_ntfy *ntfy = &gsp->msgq.ntfy[i];
 
 		if (ntfy->fn == msg->function) {
-			ntfy->func(ntfy->priv, ntfy->fn, msg->data, msg->length - sizeof(*msg));
+			if (ntfy->func)
+				ntfy->func(ntfy->priv, ntfy->fn, msg->data, msg->length - sizeof(*msg));
 			break;
 		}
 	}
@@ -2186,7 +2187,9 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_MMU_FAULT_QUEUED,
 			      r535_gsp_msg_mmu_fault_queued, gsp);
 	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_OS_ERROR_LOG, r535_gsp_msg_os_error_log, gsp);
-
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_PERF_BRIDGELESS_INFO_UPDATE, NULL, NULL);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_UCODE_LIBOS_PRINT, NULL, NULL);
+	r535_gsp_msg_ntfy_add(gsp, NV_VGPU_MSG_EVENT_GSP_SEND_USER_SHARED_DATA, NULL, NULL);
 	ret = r535_gsp_rm_boot_ctor(gsp);
 	if (ret)
 		return ret;
