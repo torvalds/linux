@@ -599,13 +599,13 @@ r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 
 	if (rpc->status) {
 		ret = ERR_PTR(r535_rpc_status_to_errno(rpc->status));
-		if (ret != -EAGAIN)
+		if (PTR_ERR(ret) != -EAGAIN)
 			nvkm_error(&gsp->subdev, "RM_ALLOC: 0x%x\n", rpc->status);
 	} else {
 		ret = repc ? rpc->params : NULL;
 	}
 
-	if (IS_ERR_OR_NULL(ret))
+	if (ret)
 		nvkm_gsp_rpc_done(gsp, rpc);
 
 	return ret;
@@ -639,30 +639,34 @@ r535_gsp_rpc_rm_ctrl_done(struct nvkm_gsp_object *object, void *repv)
 {
 	rpc_gsp_rm_control_v03_00 *rpc = container_of(repv, typeof(*rpc), params);
 
+	if (!repv)
+		return;
 	nvkm_gsp_rpc_done(object->client->gsp, rpc);
 }
 
-static void *
-r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
+static int
+r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void **argv, u32 repc)
 {
-	rpc_gsp_rm_control_v03_00 *rpc = container_of(argv, typeof(*rpc), params);
+	rpc_gsp_rm_control_v03_00 *rpc = container_of((*argv), typeof(*rpc), params);
 	struct nvkm_gsp *gsp = object->client->gsp;
-	void *ret;
+	int ret = 0;
 
 	rpc = nvkm_gsp_rpc_push(gsp, rpc, true, repc);
-	if (IS_ERR_OR_NULL(rpc))
-		return rpc;
+	if (IS_ERR_OR_NULL(rpc)) {
+		*argv = NULL;
+		return PTR_ERR(rpc);
+	}
 
 	if (rpc->status) {
-		ret = ERR_PTR(r535_rpc_status_to_errno(rpc->status));
+		ret = r535_rpc_status_to_errno(rpc->status);
 		if (ret != -EAGAIN)
 			nvkm_error(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x failed: 0x%08x\n",
 				   object->client->object.handle, object->handle, rpc->cmd, rpc->status);
-	} else {
-		ret = repc ? rpc->params : NULL;
 	}
 
-	if (IS_ERR_OR_NULL(ret))
+	if (repc)
+		*argv = rpc->params;
+	else
 		nvkm_gsp_rpc_done(gsp, rpc);
 
 	return ret;
@@ -860,9 +864,11 @@ r535_gsp_intr_get_table(struct nvkm_gsp *gsp)
 	if (IS_ERR(ctrl))
 		return PTR_ERR(ctrl);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&gsp->internal.device.subdevice, ctrl, sizeof(*ctrl));
-	if (WARN_ON(IS_ERR(ctrl)))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&gsp->internal.device.subdevice, &ctrl, sizeof(*ctrl));
+	if (WARN_ON(ret)) {
+		nvkm_gsp_rm_ctrl_done(&gsp->internal.device.subdevice, ctrl);
+		return ret;
+	}
 
 	for (unsigned i = 0; i < ctrl->tableLen; i++) {
 		enum nvkm_subdev_type type;
