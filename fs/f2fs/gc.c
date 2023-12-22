@@ -1865,6 +1865,9 @@ retry:
 
 	seg_freed = do_garbage_collect(sbi, segno, &gc_list, gc_type,
 				gc_control->should_migrate_blocks);
+	if (seg_freed < 0)
+		goto stop;
+
 	total_freed += seg_freed;
 
 	if (seg_freed == f2fs_usable_segs_in_sec(sbi, segno)) {
