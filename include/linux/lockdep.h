@@ -181,6 +181,9 @@ static inline void lockdep_init_map(struct lockdep_map *lock, const char *name,
 #define lockdep_set_novalidate_class(lock) \
 	lockdep_set_class_and_name(lock, &__lockdep_no_validate__, #lock)
 
+#define lockdep_set_notrack_class(lock) \
+	lockdep_set_class_and_name(lock, &__lockdep_no_track__, #lock)
+
 /*
  * Compare locking classes
  */
@@ -338,6 +341,7 @@ static inline void lockdep_set_selftest_task(struct task_struct *task)
 #define lockdep_set_subclass(lock, sub)		do { } while (0)
 
 #define lockdep_set_novalidate_class(lock) do { } while (0)
+#define lockdep_set_notrack_class(lock) do { } while (0)
 
 /*
  * We don't define lockdep_match_class() and lockdep_match_key() for !LOCKDEP
