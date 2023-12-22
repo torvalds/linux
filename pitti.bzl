@@ -102,6 +102,7 @@ def define_pitti():
         "drivers/soc/qcom/qcom_logbuf_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_stats.ko",
+        "drivers/soc/qcom/qcom_va_minidump.ko",
         "drivers/soc/qcom/qfprom-sys.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/qti_battery_debug.ko",
