@@ -62,6 +62,7 @@ struct eventfs_inode {
 		struct rcu_head		rcu;
 	};
 	unsigned int			is_freed:1;
+	unsigned int			is_events:1;
 	unsigned int			nr_entries:31;
 };
 
@@ -77,6 +78,7 @@ struct inode *tracefs_get_inode(struct super_block *sb);
 struct dentry *eventfs_start_creating(const char *name, struct dentry *parent);
 struct dentry *eventfs_failed_creating(struct dentry *dentry);
 struct dentry *eventfs_end_creating(struct dentry *dentry);
+void eventfs_update_gid(struct dentry *dentry, kgid_t gid);
 void eventfs_set_ei_status_free(struct tracefs_inode *ti, struct dentry *dentry);
 
 #endif /* _TRACEFS_INTERNAL_H */
