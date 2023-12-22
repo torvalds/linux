@@ -35,8 +35,8 @@ struct cs35l41_amp_efi_data {
 } __packed;
 
 enum cs35l41_hda_spk_pos {
-	CS35l41_LEFT,
-	CS35l41_RIGHT,
+	CS35L41_LEFT,
+	CS35L41_RIGHT,
 };
 
 enum cs35l41_hda_gpio_function {
@@ -50,6 +50,7 @@ struct cs35l41_hda {
 	struct device *dev;
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
+	struct gpio_desc *cs_gpio;
 	struct cs35l41_hw_cfg hw_cfg;
 	struct hda_codec *codec;
 
