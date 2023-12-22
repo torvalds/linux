@@ -2063,9 +2063,11 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 		if (err)
 			return ERR_PTR(err);
 
-		vm_bo = drm_gpuvm_bo_find(&vm->gpuvm, obj);
-		if (!vm_bo)
-			break;
+		vm_bo = drm_gpuvm_bo_obtain(&vm->gpuvm, obj);
+		if (IS_ERR(vm_bo)) {
+			xe_bo_unlock(bo);
+			return ERR_CAST(vm_bo);
+		}
 
 		ops = drm_gpuvm_bo_unmap_ops_create(vm_bo);
 		drm_gpuvm_bo_put(vm_bo);
