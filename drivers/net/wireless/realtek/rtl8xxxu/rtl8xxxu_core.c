@@ -6666,7 +6666,6 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 	}
 
 	priv->vifs[port_num] = vif;
-	priv->vif = vif;
 	rtlvif->port_num = port_num;
 
 	rtl8xxxu_set_linktype(priv, vif->type, port_num);
@@ -6684,7 +6683,6 @@ static void rtl8xxxu_remove_interface(struct ieee80211_hw *hw,
 
 	dev_dbg(&priv->udev->dev, "%s\n", __func__);
 
-	priv->vif = NULL;
 	priv->vifs[rtlvif->port_num] = NULL;
 }
 
