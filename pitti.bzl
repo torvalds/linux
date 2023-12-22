@@ -93,6 +93,7 @@ def define_pitti():
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
         "drivers/soc/qcom/minidump.ko",
+        "drivers/soc/qcom/panel_event_notifier.ko",
         "drivers/soc/qcom/pdr_interface.ko",
         "drivers/soc/qcom/pmic-glink-debug.ko",
         "drivers/soc/qcom/pmic-pon-log.ko",
