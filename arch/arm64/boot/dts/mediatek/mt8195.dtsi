@@ -1701,6 +1701,9 @@
 			svs_calib_data: svs-calib@580 {
 				reg = <0x580 0x64>;
 			};
+			socinfo-data1@7a0 {
+				reg = <0x7a0 0x4>;
+			};
 		};
 
 		u3phy2: t-phy@11c40000 {

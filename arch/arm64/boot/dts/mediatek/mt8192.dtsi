@@ -1164,6 +1164,14 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
+			socinfo-data1@44 {
+				reg = <0x044 0x4>;
+			};
+
+			socinfo-data2@50 {
+				reg = <0x050 0x4>;
+			};
+
 			lvts_e_data1: data1@1c0 {
 				reg = <0x1c0 0x58>;
 			};
