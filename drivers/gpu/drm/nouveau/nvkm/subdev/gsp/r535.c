@@ -70,6 +70,20 @@ struct r535_gsp_msg {
 
 #define GSP_MSG_HDR_SIZE offsetof(struct r535_gsp_msg, data)
 
+static int
+r535_rpc_status_to_errno(uint32_t rpc_status)
+{
+	switch (rpc_status) {
+	case 0x55: /* NV_ERR_NOT_READY */
+	case 0x66: /* NV_ERR_TIMEOUT_RETRY */
+		return -EAGAIN;
+	case 0x51: /* NV_ERR_NO_MEMORY */
+		return -ENOMEM;
+	default:
+		return -EINVAL;
+	}
+}
+
 static void *
 r535_gsp_msgq_wait(struct nvkm_gsp *gsp, u32 repc, u32 *prepc, int *ptime)
 {
@@ -584,8 +598,9 @@ r535_gsp_rpc_rm_alloc_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 		return rpc;
 
 	if (rpc->status) {
-		nvkm_error(&gsp->subdev, "RM_ALLOC: 0x%x\n", rpc->status);
-		ret = ERR_PTR(-EINVAL);
+		ret = ERR_PTR(r535_rpc_status_to_errno(rpc->status));
+		if (ret != -EAGAIN)
+			nvkm_error(&gsp->subdev, "RM_ALLOC: 0x%x\n", rpc->status);
 	} else {
 		ret = repc ? rpc->params : NULL;
 	}
@@ -639,9 +654,10 @@ r535_gsp_rpc_rm_ctrl_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 		return rpc;
 
 	if (rpc->status) {
-		nvkm_error(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x failed: 0x%08x\n",
-			   object->client->object.handle, object->handle, rpc->cmd, rpc->status);
-		ret = ERR_PTR(-EINVAL);
+		ret = ERR_PTR(r535_rpc_status_to_errno(rpc->status));
+		if (ret != -EAGAIN)
+			nvkm_error(&gsp->subdev, "cli:0x%08x obj:0x%08x ctrl cmd:0x%08x failed: 0x%08x\n",
+				   object->client->object.handle, object->handle, rpc->cmd, rpc->status);
 	} else {
 		ret = repc ? rpc->params : NULL;
 	}
