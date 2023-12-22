@@ -754,10 +754,10 @@ xdma_prep_interleaved_dma(struct dma_chan *chan,
 	dst_addr = xt->dst_start;
 	for (i = 0; i < xt->frame_size; ++i) {
 		desc_num += xdma_fill_descs(sw_desc, src_addr, dst_addr, xt->sgl[i].size, desc_num);
-		src_addr += dmaengine_get_src_icg(xt, &xt->sgl[i]) + xt->src_inc ?
-							      xt->sgl[i].size : 0;
-		dst_addr += dmaengine_get_dst_icg(xt, &xt->sgl[i]) + xt->dst_inc ?
-							      xt->sgl[i].size : 0;
+		src_addr += dmaengine_get_src_icg(xt, &xt->sgl[i]) + (xt->src_inc ?
+							      xt->sgl[i].size : 0);
+		dst_addr += dmaengine_get_dst_icg(xt, &xt->sgl[i]) + (xt->dst_inc ?
+							      xt->sgl[i].size : 0);
 		period_size += xt->sgl[i].size;
 	}
 	sw_desc->period_size = period_size;
