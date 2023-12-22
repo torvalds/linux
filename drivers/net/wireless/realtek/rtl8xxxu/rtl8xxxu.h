@@ -1897,6 +1897,8 @@ struct rtl8xxxu_priv {
 	 * is supported and no iface_combinations are provided.
 	 */
 	struct ieee80211_vif *vif;
+
+	struct ieee80211_vif *vifs[2];
 	struct delayed_work ra_watchdog;
 	struct work_struct c2hcmd_work;
 	struct sk_buff_head c2hcmd_queue;

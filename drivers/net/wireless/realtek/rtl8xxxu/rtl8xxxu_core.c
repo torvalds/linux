@@ -6569,10 +6569,12 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 	int ret;
 	u8 val8;
 
-	if (!priv->vif)
+	if (!priv->vif) {
 		priv->vif = vif;
-	else
+		priv->vifs[0] = vif;
+	} else {
 		return -EOPNOTSUPP;
+	}
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -6622,8 +6624,10 @@ static void rtl8xxxu_remove_interface(struct ieee80211_hw *hw,
 
 	dev_dbg(&priv->udev->dev, "%s\n", __func__);
 
-	if (priv->vif)
+	if (priv->vif) {
 		priv->vif = NULL;
+		priv->vifs[0] = NULL;
+	}
 }
 
 static int rtl8xxxu_config(struct ieee80211_hw *hw, u32 changed)
