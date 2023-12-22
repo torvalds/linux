@@ -65,6 +65,7 @@ enum linux_mptcp_mib_field {
 					 * conflict with another subflow while updating msk rcv wnd
 					 */
 	MPTCP_MIB_RCVWNDCONFLICT,	/* Conflict with while updating msk rcv wnd */
+	MPTCP_MIB_CURRESTAB,		/* Current established MPTCP connections */
 	__MPTCP_MIB_MAX
 };
 
@@ -93,6 +94,13 @@ static inline void __MPTCP_INC_STATS(struct net *net,
 {
 	if (likely(net->mib.mptcp_statistics))
 		__SNMP_INC_STATS(net->mib.mptcp_statistics, field);
+}
+
+static inline void MPTCP_DEC_STATS(struct net *net,
+				   enum linux_mptcp_mib_field field)
+{
+	if (likely(net->mib.mptcp_statistics))
+		SNMP_DEC_STATS(net->mib.mptcp_statistics, field);
 }
 
 bool mptcp_mib_alloc(struct net *net);
