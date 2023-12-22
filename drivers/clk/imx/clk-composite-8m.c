@@ -212,9 +212,9 @@ struct clk_hw *__imx8m_clk_hw_composite(const char *name,
 {
 	struct clk_hw *hw = ERR_PTR(-ENOMEM), *mux_hw;
 	struct clk_hw *div_hw, *gate_hw = NULL;
-	struct clk_divider *div = NULL;
+	struct clk_divider *div;
 	struct clk_gate *gate = NULL;
-	struct clk_mux *mux = NULL;
+	struct clk_mux *mux;
 	const struct clk_ops *divider_ops;
 	const struct clk_ops *mux_ops;
 
