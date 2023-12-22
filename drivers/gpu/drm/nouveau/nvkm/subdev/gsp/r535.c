@@ -1150,6 +1150,8 @@ static void
 r535_gsp_acpi_mux_id(acpi_handle handle, u32 id, MUX_METHOD_DATA_ELEMENT *mode,
 						 MUX_METHOD_DATA_ELEMENT *part)
 {
+	union acpi_object mux_arg = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list input = { 1, &mux_arg };
 	acpi_handle iter = NULL, handle_mux = NULL;
 	acpi_status status;
 	unsigned long long value;
@@ -1172,14 +1174,18 @@ r535_gsp_acpi_mux_id(acpi_handle handle, u32 id, MUX_METHOD_DATA_ELEMENT *mode,
 	if (!handle_mux)
 		return;
 
-	status = acpi_evaluate_integer(handle_mux, "MXDM", NULL, &value);
+	/* I -think- 0 means "acquire" according to nvidia's driver source */
+	input.pointer->integer.type = ACPI_TYPE_INTEGER;
+	input.pointer->integer.value = 0;
+
+	status = acpi_evaluate_integer(handle_mux, "MXDM", &input, &value);
 	if (ACPI_SUCCESS(status)) {
 		mode->acpiId = id;
 		mode->mode   = value;
 		mode->status = 0;
 	}
 
-	status = acpi_evaluate_integer(handle_mux, "MXDS", NULL, &value);
+	status = acpi_evaluate_integer(handle_mux, "MXDS", &input, &value);
 	if (ACPI_SUCCESS(status)) {
 		part->acpiId = id;
 		part->mode   = value;
