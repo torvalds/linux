@@ -725,7 +725,7 @@ failed:
  * @xt: DMA transfer template
  * @flags: tx flags
  */
-struct dma_async_tx_descriptor *
+static struct dma_async_tx_descriptor *
 xdma_prep_interleaved_dma(struct dma_chan *chan,
 			  struct dma_interleaved_template *xt,
 			  unsigned long flags)
