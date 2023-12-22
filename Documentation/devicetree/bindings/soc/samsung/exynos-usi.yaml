@@ -24,7 +24,10 @@ properties:
   compatible:
     oneOf:
       - items:
-          - const: samsung,exynosautov9-usi
+          - enum:
+              - google,gs101-usi
+              - samsung,exynosautov9-usi
+              - samsung,exynosautov920-usi
           - const: samsung,exynos850-usi
       - enum:
           - samsung,exynos850-usi
@@ -155,7 +158,7 @@ examples:
         };
 
         hsi2c_0: i2c@13820000 {
-            compatible = "samsung,exynosautov9-hsi2c";
+            compatible = "samsung,exynos850-hsi2c", "samsung,exynosautov9-hsi2c";
             reg = <0x13820000 0xc0>;
             interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
             #address-cells = <1>;
