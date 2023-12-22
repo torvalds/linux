@@ -4559,8 +4559,10 @@ static void rtl8xxxu_cam_write(struct rtl8xxxu_priv *priv,
 	 * This is a bit of a hack - the lower bits of the cipher
 	 * suite selector happens to match the cipher index in the CAM
 	 */
-	addr = key->keyidx << CAM_CMD_KEY_SHIFT;
+	addr = key->hw_key_idx << CAM_CMD_KEY_SHIFT;
 	ctrl = (key->cipher & 0x0f) << 2 | key->keyidx | CAM_WRITE_VALID;
+	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		ctrl |= BIT(6);
 
 	for (j = 5; j >= 0; j--) {
 		switch (j) {
@@ -5546,13 +5548,14 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct device *dev = &priv->udev->dev;
 	u32 queue, rts_rate;
 	u16 pktlen = skb->len;
 	int tx_desc_size = priv->fops->tx_desc_size;
 	u8 macid;
 	int ret;
-	bool ampdu_enable, sgi = false, short_preamble = false;
+	bool ampdu_enable, sgi = false, short_preamble = false, bmc = false;
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
@@ -5594,10 +5597,14 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		tx_desc->txdw0 =
 			TXDESC_OWN | TXDESC_FIRST_SEGMENT | TXDESC_LAST_SEGMENT;
 	if (is_multicast_ether_addr(ieee80211_get_DA(hdr)) ||
-	    is_broadcast_ether_addr(ieee80211_get_DA(hdr)))
+	    is_broadcast_ether_addr(ieee80211_get_DA(hdr))) {
 		tx_desc->txdw0 |= TXDESC_BROADMULTICAST;
+		bmc = true;
+	}
+
 
 	tx_desc->txdw1 = cpu_to_le32(queue << TXDESC_QUEUE_SHIFT);
+	macid = rtl8xxxu_get_macid(priv, sta);
 
 	if (tx_info->control.hw_key) {
 		switch (tx_info->control.hw_key->cipher) {
@@ -5611,6 +5618,10 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			break;
 		default:
 			break;
+		}
+		if (bmc && rtlvif->hw_key_idx != 0xff) {
+			tx_desc->txdw1 |= TXDESC_EN_DESC_ID;
+			macid = rtlvif->hw_key_idx;
 		}
 	}
 
@@ -5655,7 +5666,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	else
 		rts_rate = 0;
 
-	macid = rtl8xxxu_get_macid(priv, sta);
 	priv->fops->fill_txdesc(hw, hdr, tx_info, tx_desc, sgi, short_preamble,
 				ampdu_enable, rts_rate, macid);
 
@@ -6667,6 +6677,7 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 
 	priv->vifs[port_num] = vif;
 	rtlvif->port_num = port_num;
+	rtlvif->hw_key_idx = 0xff;
 
 	rtl8xxxu_set_linktype(priv, vif->type, port_num);
 	ether_addr_copy(priv->mac_addr, vif->addr);
@@ -6843,11 +6854,19 @@ static int rtl8xxxu_set_rts_threshold(struct ieee80211_hw *hw, u32 rts)
 	return 0;
 }
 
+static int rtl8xxxu_get_free_sec_cam(struct ieee80211_hw *hw)
+{
+	struct rtl8xxxu_priv *priv = hw->priv;
+
+	return find_first_zero_bit(priv->cam_map, priv->fops->max_sec_cam_num);
+}
+
 static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta,
 			    struct ieee80211_key_conf *key)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct device *dev = &priv->udev->dev;
 	u8 mac_addr[ETH_ALEN];
@@ -6858,9 +6877,6 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	dev_dbg(dev, "%s: cmd %02x, cipher %08x, index %i\n",
 		__func__, cmd, key->cipher, key->keyidx);
-
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
 
 	if (key->keyidx > 3)
 		return -EOPNOTSUPP;
@@ -6885,7 +6901,7 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ether_addr_copy(mac_addr, sta->addr);
 	} else {
 		dev_dbg(dev, "%s: group key\n", __func__);
-		eth_broadcast_addr(mac_addr);
+		ether_addr_copy(mac_addr, vif->bss_conf.bssid);
 	}
 
 	val16 = rtl8xxxu_read16(priv, REG_CR);
@@ -6899,16 +6915,28 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		key->hw_key_idx = key->keyidx;
+
+		retval = rtl8xxxu_get_free_sec_cam(hw);
+		if (retval < 0)
+			return -EOPNOTSUPP;
+
+		key->hw_key_idx = retval;
+
+		if (vif->type == NL80211_IFTYPE_AP && !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+			rtlvif->hw_key_idx = key->hw_key_idx;
+
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		rtl8xxxu_cam_write(priv, key, mac_addr);
+		set_bit(key->hw_key_idx, priv->cam_map);
 		retval = 0;
 		break;
 	case DISABLE_KEY:
 		rtl8xxxu_write32(priv, REG_CAM_WRITE, 0x00000000);
 		val32 = CAM_CMD_POLLING | CAM_CMD_WRITE |
-			key->keyidx << CAM_CMD_KEY_SHIFT;
+			key->hw_key_idx << CAM_CMD_KEY_SHIFT;
 		rtl8xxxu_write32(priv, REG_CAM_CMD, val32);
+		rtlvif->hw_key_idx = 0xff;
+		clear_bit(key->hw_key_idx, priv->cam_map);
 		retval = 0;
 		break;
 	default:
