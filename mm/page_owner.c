@@ -121,7 +121,6 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	 * Sometimes page metadata allocation tracking requires more
 	 * memory to be allocated:
 	 * - when new stack trace is saved to stack depot
-	 * - when backtrace itself is calculated (ia64)
 	 */
 	if (current->in_page_owner)
 		return dummy_handle;
