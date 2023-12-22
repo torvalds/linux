@@ -160,10 +160,8 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 
 	ret = devm_add_action_or_reset(&pdev->dev, devm_clk_rate_exclusive_put,
 				       pc->clk);
-	if (ret) {
-		clk_rate_exclusive_put(pc->clk);
+	if (ret)
 		return ret;
-	}
 
 	pc->rate = clk_get_rate(pc->clk);
 	if (!pc->rate)
