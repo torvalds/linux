@@ -387,7 +387,6 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 	unsigned int ctrl;
 
 	i2c->processed = 0;
-	i2c->msg = NULL;
 	i2c->error = error;
 
 	if (i2c->is_last_msg) {
@@ -404,6 +403,7 @@ static void rk3x_i2c_stop(struct rk3x_i2c *i2c, int error)
 		/* Signal rk3x_i2c_xfer to start the next message. */
 		i2c->busy = false;
 		i2c->state = STATE_IDLE;
+		i2c->msg = NULL;
 
 		/*
 		 * The HW is actually not capable of REPEATED START. But we can
@@ -572,7 +572,6 @@ static void rk3x_i2c_handle_stop(struct rk3x_i2c *i2c, unsigned int ipd)
 		}
 
 		i2c->processed = 0;
-		i2c->msg = NULL;
 	}
 
 	/* ack interrupt */
@@ -587,6 +586,7 @@ static void rk3x_i2c_handle_stop(struct rk3x_i2c *i2c, unsigned int ipd)
 
 	i2c->busy = false;
 	i2c->state = STATE_IDLE;
+	i2c->msg = NULL;
 
 	/* signal rk3x_i2c_xfer that we are finished */
 	rk3x_i2c_wake_up(i2c);
