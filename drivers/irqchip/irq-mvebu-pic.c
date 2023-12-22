@@ -167,14 +167,12 @@ static int mvebu_pic_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mvebu_pic_remove(struct platform_device *pdev)
+static void mvebu_pic_remove(struct platform_device *pdev)
 {
 	struct mvebu_pic *pic = platform_get_drvdata(pdev);
 
 	on_each_cpu(mvebu_pic_disable_percpu_irq, pic, 1);
 	irq_domain_remove(pic->domain);
-
-	return 0;
 }
 
 static const struct of_device_id mvebu_pic_of_match[] = {
@@ -184,11 +182,11 @@ static const struct of_device_id mvebu_pic_of_match[] = {
 MODULE_DEVICE_TABLE(of, mvebu_pic_of_match);
 
 static struct platform_driver mvebu_pic_driver = {
-	.probe  = mvebu_pic_probe,
-	.remove = mvebu_pic_remove,
+	.probe		= mvebu_pic_probe,
+	.remove_new	= mvebu_pic_remove,
 	.driver = {
-		.name = "mvebu-pic",
-		.of_match_table = mvebu_pic_of_match,
+		.name		= "mvebu-pic",
+		.of_match_table	= mvebu_pic_of_match,
 	},
 };
 module_platform_driver(mvebu_pic_driver);
