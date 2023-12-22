@@ -29,11 +29,20 @@ enum icp_qat_fw_init_admin_cmd_id {
 	ICP_QAT_FW_RL_ADD = 134,
 	ICP_QAT_FW_RL_UPDATE = 135,
 	ICP_QAT_FW_RL_REMOVE = 136,
+	ICP_QAT_FW_TL_START = 137,
+	ICP_QAT_FW_TL_STOP = 138,
 };
 
 enum icp_qat_fw_init_admin_resp_status {
 	ICP_QAT_FW_INIT_RESP_STATUS_SUCCESS = 0,
 	ICP_QAT_FW_INIT_RESP_STATUS_FAIL
+};
+
+struct icp_qat_fw_init_admin_tl_rp_indexes {
+	__u8 rp_num_index_0;
+	__u8 rp_num_index_1;
+	__u8 rp_num_index_2;
+	__u8 rp_num_index_3;
 };
 
 struct icp_qat_fw_init_admin_slice_cnt {
@@ -87,6 +96,7 @@ struct icp_qat_fw_init_admin_req {
 			__u8 rp_count;
 		};
 		__u32 idle_filter;
+		struct icp_qat_fw_init_admin_tl_rp_indexes rp_indexes;
 	};
 
 	__u32 resrvd4;
