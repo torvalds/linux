@@ -830,6 +830,12 @@ void blk_mq_end_request_batch(struct io_comp_batch *ib);
  */
 static inline bool blk_mq_need_time_stamp(struct request *rq)
 {
+	/*
+	 * passthrough io doesn't use iostat accounting, cgroup stats
+	 * and io scheduler functionalities.
+	 */
+	if (blk_rq_is_passthrough(rq))
+		return false;
 	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_USE_SCHED));
 }
 
