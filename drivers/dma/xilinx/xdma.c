@@ -548,11 +548,11 @@ static void xdma_synchronize(struct dma_chan *chan)
 
 /**
  * xdma_fill_descs - Fill hardware descriptors with contiguous memory block addresses
- * @sw_desc - tx descriptor state container
- * @src_addr - Value for a ->src_addr field of a first descriptor
- * @dst_addr - Value for a ->dst_addr field of a first descriptor
- * @size - Total size of a contiguous memory block
- * @filled_descs_num - Number of filled hardware descriptors for corresponding sw_desc
+ * @sw_desc: tx descriptor state container
+ * @src_addr: Value for a ->src_addr field of a first descriptor
+ * @dst_addr: Value for a ->dst_addr field of a first descriptor
+ * @size: Total size of a contiguous memory block
+ * @filled_descs_num: Number of filled hardware descriptors for corresponding sw_desc
  */
 static inline u32 xdma_fill_descs(struct xdma_desc *sw_desc, u64 src_addr,
 				  u64 dst_addr, u32 size, u32 filled_descs_num)
