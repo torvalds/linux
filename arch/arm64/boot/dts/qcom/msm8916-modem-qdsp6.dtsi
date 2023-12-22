@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
+/*
+ * msm8916-modem-qdsp6.dtsi describes the typical modem setup on MSM8916 devices
+ * (or similar SoCs) with audio routed via the QDSP6 services provided by the
+ * modem firmware. The digital/analog codec in the SoC/PMIC is used by default,
+ * but boards can define additional codecs by adding additional backend DAI links.
+ */
+
+#include <dt-bindings/sound/qcom,q6afe.h>
+#include <dt-bindings/sound/qcom,q6asm.h>
+
+&apr {
+	status = "okay";
+};
+
+&bam_dmux {
+	status = "okay";
+};
+
+&bam_dmux_dma {
+	status = "okay";
+};
+
+&lpass {
+	status = "reserved"; /* Controlled by QDSP6 */
+};
+
+&lpass_codec {
+	status = "okay";
+};
+
+&mba_mem {
+	status = "okay";
+};
+
+&mpss {
+	status = "okay";
+};
+
+&mpss_mem {
+	status = "okay";
+};
+
+&pm8916_codec {
+	status = "okay";
+};
+
+&q6afedai {
+	dai@16 {
+		reg = <PRIMARY_MI2S_RX>;
+		qcom,sd-lines = <0 1>;
+	};
+	dai@20 {
+		reg = <TERTIARY_MI2S_TX>;
+		qcom,sd-lines = <0 1>;
+	};
+};
+
+&q6asmdai {
+	dai@0 {
+		reg = <0>;
+		direction = <Q6ASM_DAI_RX>;
+	};
+	dai@1 {
+		reg = <1>;
+		direction = <Q6ASM_DAI_TX>;
+	};
+	dai@2 {
+		reg = <2>;
+		direction = <Q6ASM_DAI_RX>;
+	};
+	dai@3 {
+		reg = <3>;
+		direction = <Q6ASM_DAI_RX>;
+		is-compress-dai;
+	};
+};
+
+&sound {
+	compatible = "qcom,msm8916-qdsp6-sndcard";
+	model = "msm8916";
+
+	pinctrl-0 = <&cdc_pdm_default>;
+	pinctrl-1 = <&cdc_pdm_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
+
+	frontend0-dai-link {
+		link-name = "MultiMedia1";
+
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA1>;
+		};
+	};
+
+	frontend1-dai-link {
+		link-name = "MultiMedia2";
+
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA2>;
+		};
+	};
+
+	frontend2-dai-link {
+		link-name = "MultiMedia3";
+
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA3>;
+		};
+	};
+
+	frontend3-dai-link {
+		link-name = "MultiMedia4";
+
+		cpu {
+			sound-dai = <&q6asmdai MSM_FRONTEND_DAI_MULTIMEDIA4>;
+		};
+	};
+
+	sound_link_backend0: backend0-dai-link {
+		link-name = "Primary MI2S";
+
+		cpu {
+			sound-dai = <&q6afedai PRIMARY_MI2S_RX>;
+		};
+		platform {
+			sound-dai = <&q6routing>;
+		};
+		codec {
+			sound-dai = <&lpass_codec 0>, <&pm8916_codec 0>;
+		};
+	};
+
+	sound_link_backend1: backend1-dai-link {
+		link-name = "Tertiary MI2S";
+
+		cpu {
+			sound-dai = <&q6afedai TERTIARY_MI2S_TX>;
+		};
+		platform {
+			sound-dai = <&q6routing>;
+		};
+		codec {
+			sound-dai = <&lpass_codec 1>, <&pm8916_codec 1>;
+		};
+	};
+};

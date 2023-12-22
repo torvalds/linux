@@ -80,6 +80,15 @@
 		};
 	};
 
+	touch_avdd: touch-avdd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "touch_avdd";
+		gpio = <&tlmm 59 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_avdd_default>;
+		enable-active-high;
+	};
+
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
@@ -136,9 +145,10 @@
 		interrupts = <22 0x2008>;
 
 		vdd-supply = <&pm6125_l13>;
+		avdd-supply = <&touch_avdd>;
 
 		pinctrl-names = "default";
-		pinctrl-0 = <&ts_int_default &ts_avdd_default>;
+		pinctrl-0 = <&ts_int_default>;
 	};
 };
 
@@ -184,6 +194,11 @@
 
 &remoteproc_cdsp {
 	firmware-name = "qcom/sm6375/Sony/murray/cdsp.mbn";
+	status = "okay";
+};
+
+&remoteproc_mss {
+	firmware-name = "qcom/sm6375/Sony/murray/modem.mbn";
 	status = "okay";
 };
 
@@ -238,8 +253,8 @@
 		};
 
 		pm6125_l7: l7 {
-			regulator-min-microvolt = <720000>;
-			regulator-max-microvolt = <1050000>;
+			regulator-min-microvolt = <880000>;
+			regulator-max-microvolt = <880000>;
 		};
 
 		pm6125_l8: l8 {
@@ -306,7 +321,7 @@
 
 		pm6125_l21: l21 {
 			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3400000>;
+			regulator-max-microvolt = <3312000>;
 		};
 
 		pm6125_l22: l22 {
@@ -317,7 +332,7 @@
 
 		pm6125_l23: l23 {
 			regulator-min-microvolt = <3000000>;
-			regulator-max-microvolt = <3400000>;
+			regulator-max-microvolt = <3312000>;
 		};
 
 		pm6125_l24: l24 {
@@ -340,8 +355,8 @@
 		};
 
 		pmr735a_l2: l2 {
-			regulator-min-microvolt = <352000>;
-			regulator-max-microvolt = <796000>;
+			regulator-min-microvolt = <640000>;
+			regulator-max-microvolt = <640000>;
 		};
 
 		pmr735a_l3: l3 {
@@ -412,7 +427,7 @@
 		pins = "gpio59";
 		function = "gpio";
 		drive-strength = <8>;
-		output-high;
+		output-low;
 	};
 };
 
@@ -425,6 +440,18 @@
 };
 
 &usb_1_hsphy {
+	vdda-pll-supply = <&pm6125_l7>;
+	vdda18-supply = <&pm6125_l10>;
+	vdda33-supply = <&pmr735a_l7>;
+	status = "okay";
+};
+
+&wifi {
+	vdd-0.8-cx-mx-supply = <&pmr735a_l2>;
+	vdd-1.8-xo-supply = <&pm6125_l16>;
+	vdd-1.3-rfa-supply = <&pm6125_l2>;
+	vdd-3.3-ch0-supply = <&pm6125_l23>;
+	vdd-3.3-ch1-supply = <&pm6125_l21>;
 	status = "okay";
 };
 

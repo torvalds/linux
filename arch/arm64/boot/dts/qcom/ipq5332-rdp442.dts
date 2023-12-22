@@ -15,7 +15,7 @@
 };
 
 &blsp1_i2c1 {
-	clock-frequency  = <400000>;
+	clock-frequency = <400000>;
 	pinctrl-0 = <&i2c_1_pins>;
 	pinctrl-names = "default";
 	status = "okay";
