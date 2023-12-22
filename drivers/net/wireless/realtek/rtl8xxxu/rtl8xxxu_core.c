@@ -6610,28 +6610,33 @@ error:
 static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
-	int ret;
+	int port_num;
 	u8 val8;
 
-	if (!priv->vif) {
-		priv->vif = vif;
-		priv->vifs[0] = vif;
-	} else {
+	if (!priv->vifs[0])
+		port_num = 0;
+	else if (!priv->vifs[1])
+		port_num = 1;
+	else
 		return -EOPNOTSUPP;
-	}
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		rtl8xxxu_stop_tx_beacon(priv);
+		if (port_num == 0) {
+			rtl8xxxu_stop_tx_beacon(priv);
 
-		val8 = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
-		val8 |= BEACON_ATIM | BEACON_FUNCTION_ENABLE |
-			BEACON_DISABLE_TSF_UPDATE;
-		rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
-		ret = 0;
+			val8 = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
+			val8 |= BEACON_ATIM | BEACON_FUNCTION_ENABLE |
+				BEACON_DISABLE_TSF_UPDATE;
+			rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
+		}
 		break;
 	case NL80211_IFTYPE_AP:
+		if (port_num == 1)
+			return -EOPNOTSUPP;
+
 		rtl8xxxu_write8(priv, REG_BEACON_CTRL,
 				BEACON_DISABLE_TSF_UPDATE | BEACON_CTRL_MBSSID);
 		rtl8xxxu_write8(priv, REG_ATIMWND, 0x0c); /* 12ms */
@@ -6648,31 +6653,32 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 		val8 = rtl8xxxu_read8(priv, REG_CCK_CHECK);
 		val8 &= ~BIT_BCN_PORT_SEL;
 		rtl8xxxu_write8(priv, REG_CCK_CHECK, val8);
-
-		ret = 0;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
-	rtl8xxxu_set_linktype(priv, vif->type, 0);
-	ether_addr_copy(priv->mac_addr, vif->addr);
-	rtl8xxxu_set_mac(priv, 0);
+	priv->vifs[port_num] = vif;
+	priv->vif = vif;
+	rtlvif->port_num = port_num;
 
-	return ret;
+	rtl8xxxu_set_linktype(priv, vif->type, port_num);
+	ether_addr_copy(priv->mac_addr, vif->addr);
+	rtl8xxxu_set_mac(priv, port_num);
+
+	return 0;
 }
 
 static void rtl8xxxu_remove_interface(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 
 	dev_dbg(&priv->udev->dev, "%s\n", __func__);
 
-	if (priv->vif) {
-		priv->vif = NULL;
-		priv->vifs[0] = NULL;
-	}
+	priv->vif = NULL;
+	priv->vifs[rtlvif->port_num] = NULL;
 }
 
 static int rtl8xxxu_config(struct ieee80211_hw *hw, u32 changed)
@@ -7661,6 +7667,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	ret = rtl8xxxu_init_device(hw);
 	if (ret)
 		goto err_set_intfdata;
+
+	hw->vif_data_size = sizeof(struct rtl8xxxu_vif);
 
 	hw->wiphy->max_scan_ssids = 1;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
