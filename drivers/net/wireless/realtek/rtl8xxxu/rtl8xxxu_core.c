@@ -1633,33 +1633,41 @@ rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 }
 
 static void rtl8xxxu_set_linktype(struct rtl8xxxu_priv *priv,
-				  enum nl80211_iftype linktype)
+				  enum nl80211_iftype linktype, int port_num)
 {
-	u8 val8;
-
-	val8 = rtl8xxxu_read8(priv, REG_MSR);
-	val8 &= ~MSR_LINKTYPE_MASK;
+	u8 val8, type;
 
 	switch (linktype) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		val8 |= MSR_LINKTYPE_NONE;
+		type = MSR_LINKTYPE_NONE;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		val8 |= MSR_LINKTYPE_ADHOC;
+		type = MSR_LINKTYPE_ADHOC;
 		break;
 	case NL80211_IFTYPE_STATION:
-		val8 |= MSR_LINKTYPE_STATION;
+		type = MSR_LINKTYPE_STATION;
 		break;
 	case NL80211_IFTYPE_AP:
-		val8 |= MSR_LINKTYPE_AP;
+		type = MSR_LINKTYPE_AP;
 		break;
 	default:
-		goto out;
+		return;
+	}
+
+	switch (port_num) {
+	case 0:
+		val8 = rtl8xxxu_read8(priv, REG_MSR) & 0x0c;
+		val8 |= type;
+		break;
+	case 1:
+		val8 = rtl8xxxu_read8(priv, REG_MSR) & 0x03;
+		val8 |= type << 2;
+		break;
+	default:
+		return;
 	}
 
 	rtl8xxxu_write8(priv, REG_MSR, val8);
-out:
-	return;
 }
 
 static void
@@ -4236,7 +4244,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 	}
 
 	rtl8xxxu_set_mac(priv);
-	rtl8xxxu_set_linktype(priv, NL80211_IFTYPE_STATION);
 
 	/*
 	 * Configure initial WMAC settings
@@ -4964,7 +4971,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changed & BSS_CHANGED_ASSOC) {
 		dev_dbg(dev, "Changed ASSOC: %i!\n", vif->cfg.assoc);
 
-		rtl8xxxu_set_linktype(priv, vif->type);
+		rtl8xxxu_set_linktype(priv, vif->type, 0);
 
 		if (vif->cfg.assoc) {
 			u32 ramask;
@@ -6610,7 +6617,7 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 		ret = -EOPNOTSUPP;
 	}
 
-	rtl8xxxu_set_linktype(priv, vif->type);
+	rtl8xxxu_set_linktype(priv, vif->type, 0);
 	ether_addr_copy(priv->mac_addr, vif->addr);
 	rtl8xxxu_set_mac(priv);
 
