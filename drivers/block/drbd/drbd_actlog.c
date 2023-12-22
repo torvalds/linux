@@ -838,8 +838,8 @@ static bool plausible_request_size(int size)
 }
 
 /* clear the bit corresponding to the piece of storage in question:
- * size byte of data starting from sector.  Only clear a bits of the affected
- * one ore more _aligned_ BM_BLOCK_SIZE blocks.
+ * size byte of data starting from sector.  Only clear bits of the affected
+ * one or more _aligned_ BM_BLOCK_SIZE blocks.
  *
  * called by worker on C_SYNC_TARGET and receiver on SyncSource.
  *
@@ -957,7 +957,9 @@ static int _is_in_al(struct drbd_device *device, unsigned int enr)
  * @device:	DRBD device.
  * @sector:	The sector number.
  *
- * This functions sleeps on al_wait. Returns 0 on success, -EINTR if interrupted.
+ * This functions sleeps on al_wait.
+ *
+ * Returns: %0 on success, -EINTR if interrupted.
  */
 int drbd_rs_begin_io(struct drbd_device *device, sector_t sector)
 {
@@ -1004,11 +1006,13 @@ retry:
 
 /**
  * drbd_try_rs_begin_io() - Gets an extent in the resync LRU cache, does not sleep
- * @device:	DRBD device.
+ * @peer_device: DRBD device.
  * @sector:	The sector number.
  *
  * Gets an extent in the resync LRU cache, sets it to BME_NO_WRITES, then
- * tries to set it to BME_LOCKED. Returns 0 upon success, and -EAGAIN
+ * tries to set it to BME_LOCKED.
+ *
+ * Returns: %0 upon success, and -EAGAIN
  * if there is still application IO going on in this area.
  */
 int drbd_try_rs_begin_io(struct drbd_peer_device *peer_device, sector_t sector)
@@ -1190,7 +1194,7 @@ void drbd_rs_cancel_all(struct drbd_device *device)
  * drbd_rs_del_all() - Gracefully remove all extents from the resync LRU
  * @device:	DRBD device.
  *
- * Returns 0 upon success, -EAGAIN if at least one reference count was
+ * Returns: %0 upon success, -EAGAIN if at least one reference count was
  * not zero.
  */
 int drbd_rs_del_all(struct drbd_device *device)
