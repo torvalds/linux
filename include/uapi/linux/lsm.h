@@ -9,6 +9,7 @@
 #ifndef _UAPI_LINUX_LSM_H
 #define _UAPI_LINUX_LSM_H
 
+#include <linux/stddef.h>
 #include <linux/types.h>
 #include <linux/unistd.h>
 
@@ -36,7 +37,7 @@ struct lsm_ctx {
 	__u64 flags;
 	__u64 len;
 	__u64 ctx_len;
-	__u8 ctx[];
+	__u8 ctx[] __counted_by(ctx_len);
 };
 
 /*
