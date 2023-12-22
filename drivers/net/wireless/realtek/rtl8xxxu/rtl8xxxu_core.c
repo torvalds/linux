@@ -7200,11 +7200,15 @@ static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 {
 	struct ieee80211_vif *vif;
 	struct rtl8xxxu_priv *priv;
+	int i;
 
 	priv = container_of(work, struct rtl8xxxu_priv, ra_watchdog.work);
-	vif = priv->vif;
+	for (i = 0; i < ARRAY_SIZE(priv->vifs); i++) {
+		vif = priv->vifs[i];
 
-	if (vif && vif->type == NL80211_IFTYPE_STATION) {
+		if (!vif || vif->type != NL80211_IFTYPE_STATION)
+			continue;
+
 		int signal;
 		struct ieee80211_sta *sta;
 
@@ -7215,22 +7219,21 @@ static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 
 			dev_dbg(dev, "%s: no sta found\n", __func__);
 			rcu_read_unlock();
-			goto out;
+			continue;
 		}
 		rcu_read_unlock();
 
 		signal = ieee80211_ave_rssi(vif);
 
-		priv->fops->report_rssi(priv, 0,
+		priv->fops->report_rssi(priv, rtl8xxxu_get_macid(priv, sta),
 					rtl8xxxu_signal_to_snr(signal));
-
-		if (priv->fops->set_crystal_cap)
-			rtl8xxxu_track_cfo(priv);
 
 		rtl8xxxu_refresh_rate_mask(priv, signal, sta, false);
 	}
 
-out:
+	if (priv->fops->set_crystal_cap)
+		rtl8xxxu_track_cfo(priv);
+
 	schedule_delayed_work(&priv->ra_watchdog, 2 * HZ);
 }
 
