@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+
+gh_arm_drv.ko
+qcom-scm.ko
+mem_buf_dev.ko
+mem_buf.ko
+qcom_wdt_core.ko
+virtio_mmio.ko
+virtio_blk.ko
+rename_devices.ko
+gh_msgq.ko
+gh_dbl.ko
+gh_rm_drv.ko
+hvc_gunyah.ko
+qcom_dma_heaps.ko
+gh_virt_wdt.ko
+gh_ctrl.ko
+net_failover.ko
+failover.ko
+virtio_net.ko
+virtio_input.ko
