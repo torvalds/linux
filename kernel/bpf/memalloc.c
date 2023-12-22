@@ -833,7 +833,9 @@ void notrace *bpf_mem_alloc(struct bpf_mem_alloc *ma, size_t size)
 	if (!size)
 		return NULL;
 
-	idx = bpf_mem_cache_idx(size + LLIST_NODE_SZ);
+	if (!ma->percpu)
+		size += LLIST_NODE_SZ;
+	idx = bpf_mem_cache_idx(size);
 	if (idx < 0)
 		return NULL;
 
