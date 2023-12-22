@@ -464,11 +464,17 @@ static void notrace irq_work_raise(struct bpf_mem_cache *c)
  * consume ~ 11 Kbyte per cpu.
  * Typical case will be between 11K and 116K closer to 11K.
  * bpf progs can and should share bpf_mem_cache when possible.
+ *
+ * Percpu allocation is typically rare. To avoid potential unnecessary large
+ * memory consumption, set low_mark = 1 and high_mark = 3, resulting in c->batch = 1.
  */
 static void init_refill_work(struct bpf_mem_cache *c)
 {
 	init_irq_work(&c->refill_work, bpf_mem_refill);
-	if (c->unit_size <= 256) {
+	if (c->percpu_size) {
+		c->low_watermark = 1;
+		c->high_watermark = 3;
+	} else if (c->unit_size <= 256) {
 		c->low_watermark = 32;
 		c->high_watermark = 96;
 	} else {
