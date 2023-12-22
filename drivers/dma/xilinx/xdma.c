@@ -888,6 +888,8 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	if (ret)
 		goto out;
 
+	desc = to_xdma_desc(vd);
+
 	st &= XDMA_CHAN_STATUS_MASK;
 	if ((st & XDMA_CHAN_ERROR_MASK) ||
 	    !(st & (CHAN_CTRL_IE_DESC_COMPLETED | CHAN_CTRL_IE_DESC_STOPPED))) {
@@ -901,7 +903,6 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	if (ret)
 		goto out;
 
-	desc = to_xdma_desc(vd);
 	if (desc->interleaved_dma) {
 		xchan->busy = false;
 		desc->completed_desc_num += complete_desc_num;
