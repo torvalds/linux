@@ -50,18 +50,16 @@ static inline struct bkey_i *bch2_keylist_front(struct keylist *l)
 }
 
 #define for_each_keylist_key(_keylist, _k)			\
-	for (_k = (_keylist)->keys;				\
+	for (struct bkey_i *_k = (_keylist)->keys;		\
 	     _k != (_keylist)->top;				\
 	     _k = bkey_next(_k))
 
 static inline u64 keylist_sectors(struct keylist *keys)
 {
-	struct bkey_i *k;
 	u64 ret = 0;
 
 	for_each_keylist_key(keys, k)
 		ret += k->k.size;
-
 	return ret;
 }
 

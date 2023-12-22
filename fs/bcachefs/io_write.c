@@ -1106,15 +1106,14 @@ static bool bch2_extent_is_writeable(struct bch_write_op *op,
 static inline void bch2_nocow_write_unlock(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
-	struct bkey_i *k;
 
 	for_each_keylist_key(&op->insert_keys, k) {
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(bkey_i_to_s_c(k));
 
 		bkey_for_each_ptr(ptrs, ptr)
 			bch2_bucket_nocow_unlock(&c->nocow_locks,
-					       PTR_BUCKET_POS(c, ptr),
-					       BUCKET_NOCOW_LOCK_UPDATE);
+						 PTR_BUCKET_POS(c, ptr),
+						 BUCKET_NOCOW_LOCK_UPDATE);
 	}
 }
 
@@ -1158,11 +1157,9 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct bkey_i *orig;
-	int ret;
 
 	for_each_keylist_key(&op->insert_keys, orig) {
-		ret = for_each_btree_key_upto_commit(trans, iter, BTREE_ID_extents,
+		int ret = for_each_btree_key_upto_commit(trans, iter, BTREE_ID_extents,
 				     bkey_start_pos(&orig->k), orig->k.p,
 				     BTREE_ITER_INTENT, k,
 				     NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({

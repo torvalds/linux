@@ -556,8 +556,6 @@ static void btree_update_add_key(struct btree_update *as,
 static int btree_update_nodes_written_trans(struct btree_trans *trans,
 					    struct btree_update *as)
 {
-	struct bkey_i *k;
-
 	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, as->journal_u64s);
 	int ret = PTR_ERR_OR_ZERO(e);
 	if (ret)
