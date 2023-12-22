@@ -659,6 +659,8 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 	if (!tas_priv)
 		return -ENOMEM;
 
+	dev_set_drvdata(&clt->dev, tas_priv);
+
 	tas_priv->irq_info.irq = clt->irq;
 	ret = tas2781_read_acpi(tas_priv, device_name);
 	if (ret)
