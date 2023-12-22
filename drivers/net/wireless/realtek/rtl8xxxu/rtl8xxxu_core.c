@@ -5712,7 +5712,7 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 	struct rtl8xxxu_priv *priv =
 		container_of(work, struct rtl8xxxu_priv, update_beacon_work);
 	struct ieee80211_hw *hw = priv->hw;
-	struct ieee80211_vif *vif = priv->vif;
+	struct ieee80211_vif *vif = priv->vifs[0];
 
 	if (!vif) {
 		WARN_ONCE(true, "no vif to update beacon\n");
