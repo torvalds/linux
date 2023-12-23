@@ -134,14 +134,16 @@ config TI_K3_AM65_CPTS
 	  protocol, Ethernet Enhanced Scheduled Traffic Operations (CPTS_ESTFn)
 	  and PCIe Subsystem Precision Time Measurement (PTM).
 
-config TI_AM65_CPSW_TAS
-	bool "Enable TAS offload in AM65 CPSW"
+config TI_AM65_CPSW_QOS
+	bool "Enable QoS offload features in AM65 CPSW"
 	depends on TI_K3_AM65_CPSW_NUSS && NET_SCH_TAPRIO && TI_K3_AM65_CPTS
 	help
-	  Say y here to support Time Aware Shaper(TAS) offload in AM65 CPSW.
-	  AM65 CPSW hardware supports Enhanced Scheduled Traffic (EST)
-	  defined in IEEE 802.1Q 2018. The EST scheduler runs on CPTS and the
-	  TAS/EST schedule is updated in the Fetch RAM memory of the CPSW.
+	  This option enables QoS offload features in AM65 CPSW like
+	  Time Aware Shaper (TAS) / Enhanced Scheduled Traffic (EST),
+	  MQPRIO qdisc offload and Frame-Preemption MAC Merge / Interspersing
+	  Express Traffic (IET).
+	  The EST scheduler runs on CPTS and the TAS/EST schedule is
+	  updated in the Fetch RAM memory of the CPSW.
 
 config TI_KEYSTONE_NETCP
 	tristate "TI Keystone NETCP Core Support"
