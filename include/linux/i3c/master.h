@@ -76,7 +76,6 @@ struct i2c_dev_boardinfo {
 /**
  * struct i2c_dev_desc - I2C device descriptor
  * @common: common part of the I2C device descriptor
- * @boardinfo: pointer to the boardinfo attached to this I2C device
  * @dev: I2C device object registered to the I2C framework
  * @addr: I2C device address
  * @lvr: LVR (Legacy Virtual Register) needed by the I3C core to know about
