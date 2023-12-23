@@ -61,7 +61,7 @@ static void rtllib_mfie_brate(struct rtllib_device *ieee, u8 **tag_p)
 	*tag_p = tag;
 }
 
-static void rtllib_MFIE_Grate(struct rtllib_device *ieee, u8 **tag_p)
+static void rtllib_mfie_grate(struct rtllib_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
@@ -342,7 +342,7 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 	tag += len;
 
 	rtllib_mfie_brate(ieee, &tag);
-	rtllib_MFIE_Grate(ieee, &tag);
+	rtllib_mfie_grate(ieee, &tag);
 
 	return skb;
 }
