@@ -452,6 +452,7 @@ extern const struct pmc_bit_map tgl_vnn_misc_status_map[];
 extern const struct pmc_bit_map tgl_signal_status_map[];
 extern const struct pmc_bit_map *tgl_lpm_maps[];
 extern const struct pmc_reg_map tgl_reg_map;
+extern const struct pmc_reg_map tgl_h_reg_map;
 extern const struct pmc_bit_map adl_pfear_map[];
 extern const struct pmc_bit_map *ext_adl_pfear_map[];
 extern const struct pmc_bit_map adl_ltr_show_map[];
