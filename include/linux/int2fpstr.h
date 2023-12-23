@@ -35,13 +35,14 @@ inline char *int2fpstr(int number, int decimal_places)
 	if(neg) {
 		buf_index ++;
 		number *= -1;
+	}
 
 	for (; number && buf_index; 
 		--buf_index, number /= 10) 
 	{
-		count_decimal_place++;
+		c_dec_places++;
 		if (!point_include 
-			&& count_decimal_place > decimal_places) 
+			&& c_dec_places > decimal_places) 
 		{
 			buffer[buf_index--] = '.';
 			point_include = 1;
