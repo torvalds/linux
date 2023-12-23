@@ -5615,6 +5615,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 	struct hwrm_cfa_ntuple_filter_free_input *req;
 	int rc;
 
+	set_bit(BNXT_FLTR_FW_DELETED, &fltr->base.state);
 	rc = hwrm_req_init(bp, req, HWRM_CFA_NTUPLE_FILTER_FREE);
 	if (rc)
 		return rc;

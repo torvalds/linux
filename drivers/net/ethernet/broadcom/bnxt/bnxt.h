@@ -1349,6 +1349,7 @@ struct bnxt_filter_base {
 	unsigned long		state;
 #define BNXT_FLTR_VALID		0
 #define BNXT_FLTR_INSERTED	1
+#define BNXT_FLTR_FW_DELETED	2
 
 	struct rcu_head         rcu;
 };

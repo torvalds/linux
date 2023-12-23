@@ -1012,28 +1012,60 @@ static int bnxt_set_channels(struct net_device *dev,
 }
 
 #ifdef CONFIG_RFS_ACCEL
+static u32 bnxt_get_all_fltr_ids_rcu(struct bnxt *bp, struct hlist_head tbl[],
+				     int tbl_size, u32 *ids, u32 start,
+				     u32 id_cnt)
+{
+	int i, j = start;
+
+	if (j >= id_cnt)
+		return j;
+	for (i = 0; i < tbl_size; i++) {
+		struct hlist_head *head;
+		struct bnxt_filter_base *fltr;
+
+		head = &tbl[i];
+		hlist_for_each_entry_rcu(fltr, head, hash) {
+			if (!fltr->flags ||
+			    test_bit(BNXT_FLTR_FW_DELETED, &fltr->state))
+				continue;
+			ids[j++] = fltr->sw_id;
+			if (j == id_cnt)
+				return j;
+		}
+	}
+	return j;
+}
+
+static struct bnxt_filter_base *bnxt_get_one_fltr_rcu(struct bnxt *bp,
+						      struct hlist_head tbl[],
+						      int tbl_size, u32 id)
+{
+	int i;
+
+	for (i = 0; i < tbl_size; i++) {
+		struct hlist_head *head;
+		struct bnxt_filter_base *fltr;
+
+		head = &tbl[i];
+		hlist_for_each_entry_rcu(fltr, head, hash) {
+			if (fltr->flags && fltr->sw_id == id)
+				return fltr;
+		}
+	}
+	return NULL;
+}
+
 static int bnxt_grxclsrlall(struct bnxt *bp, struct ethtool_rxnfc *cmd,
 			    u32 *rule_locs)
 {
-	int i, j = 0;
-
 	cmd->data = bp->ntp_fltr_count;
-	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
-		struct hlist_head *head;
-		struct bnxt_ntuple_filter *fltr;
+	rcu_read_lock();
+	cmd->rule_cnt = bnxt_get_all_fltr_ids_rcu(bp, bp->ntp_fltr_hash_tbl,
+						  BNXT_NTP_FLTR_HASH_SIZE,
+						  rule_locs, 0, cmd->rule_cnt);
+	rcu_read_unlock();
 
-		head = &bp->ntp_fltr_hash_tbl[i];
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, base.hash) {
-			if (j == cmd->rule_cnt)
-				break;
-			rule_locs[j++] = fltr->base.sw_id;
-		}
-		rcu_read_unlock();
-		if (j == cmd->rule_cnt)
-			break;
-	}
-	cmd->rule_cnt = j;
 	return 0;
 }
 
@@ -1041,27 +1073,24 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fs =
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
+	struct bnxt_filter_base *fltr_base;
 	struct bnxt_ntuple_filter *fltr;
 	struct flow_keys *fkeys;
-	int i, rc = -EINVAL;
+	int rc = -EINVAL;
 
 	if (fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
 		return rc;
 
-	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
-		struct hlist_head *head;
-
-		head = &bp->ntp_fltr_hash_tbl[i];
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, base.hash) {
-			if (fltr->base.sw_id == fs->location)
-				goto fltr_found;
-		}
+	rcu_read_lock();
+	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->ntp_fltr_hash_tbl,
+					  BNXT_NTP_FLTR_HASH_SIZE,
+					  fs->location);
+	if (!fltr_base) {
 		rcu_read_unlock();
+		return rc;
 	}
-	return rc;
+	fltr = container_of(fltr_base, struct bnxt_ntuple_filter, base);
 
-fltr_found:
 	fkeys = &fltr->fkeys;
 	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
 		if (fkeys->basic.ip_proto == IPPROTO_TCP)
