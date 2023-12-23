@@ -134,7 +134,8 @@ static void enqueue_mgmt(struct rtllib_device *ieee, struct sk_buff *skb)
 
 static void init_mgmt_queue(struct rtllib_device *ieee)
 {
-	ieee->mgmt_queue_tail = ieee->mgmt_queue_head = 0;
+	ieee->mgmt_queue_tail = 0;
+	ieee->mgmt_queue_head = 0;
 }
 
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
@@ -1911,6 +1912,7 @@ static void rtllib_link_change_wq(void *data)
 				     struct rtllib_device, link_change_wq);
 	ieee->link_change(ieee->dev);
 }
+
 /* called only in userspace context */
 void rtllib_disassociate(struct rtllib_device *ieee)
 {
