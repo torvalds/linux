@@ -60,7 +60,7 @@ static void kunit_device_release(struct device *d)
 	kfree(to_kunit_device(d));
 }
 
-/**
+/*
  * Create and register a KUnit-managed struct device_driver on the kunit_bus.
  * Returns an error pointer on failure.
  */
@@ -124,7 +124,7 @@ static struct kunit_device *kunit_device_register_internal(struct kunit *test,
 	return kunit_dev;
 }
 
-/**
+/*
  * Create and register a new KUnit-managed device, using the user-supplied device_driver.
  * On failure, returns an error pointer.
  */
@@ -141,7 +141,7 @@ struct device *kunit_device_register_with_driver(struct kunit *test,
 }
 EXPORT_SYMBOL_GPL(kunit_device_register_with_driver);
 
-/**
+/*
  * Create and register a new KUnit-managed device, including a matching device_driver.
  * On failure, returns an error pointer.
  */
