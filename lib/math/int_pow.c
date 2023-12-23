@@ -22,7 +22,7 @@ u64 int_pow(u64 base, unsigned int exp)
 	if(!base || !exp) return 0;
 
 	u64 result = 1;
-	for(; exp ; exp --) result *= base;
+	for(; exp ; result *= base, exp --);
 
 	return result;
 }
