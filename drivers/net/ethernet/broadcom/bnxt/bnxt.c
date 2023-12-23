@@ -4789,7 +4789,7 @@ static void bnxt_clear_ring_indices(struct bnxt *bp)
 	}
 }
 
-static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool irq_reinit)
+static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 {
 #ifdef CONFIG_RFS_ACCEL
 	int i;
@@ -4804,14 +4804,19 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool irq_reinit)
 
 		head = &bp->ntp_fltr_hash_tbl[i];
 		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
+			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
+				continue;
 			hlist_del(&fltr->base.hash);
+			clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
+			bp->ntp_fltr_count--;
 			kfree(fltr);
 		}
 	}
-	if (irq_reinit) {
-		bitmap_free(bp->ntp_fltr_bmap);
-		bp->ntp_fltr_bmap = NULL;
-	}
+	if (!all)
+		return;
+
+	bitmap_free(bp->ntp_fltr_bmap);
+	bp->ntp_fltr_bmap = NULL;
 	bp->ntp_fltr_count = 0;
 #endif
 }
@@ -4821,7 +4826,7 @@ static int bnxt_alloc_ntp_fltrs(struct bnxt *bp)
 #ifdef CONFIG_RFS_ACCEL
 	int i, rc = 0;
 
-	if (!(bp->flags & BNXT_FLAG_RFS))
+	if (!(bp->flags & BNXT_FLAG_RFS) || bp->ntp_fltr_bmap)
 		return 0;
 
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++)
@@ -4839,6 +4844,38 @@ static int bnxt_alloc_ntp_fltrs(struct bnxt *bp)
 #endif
 }
 
+static void bnxt_free_l2_filters(struct bnxt *bp, bool all)
+{
+	int i;
+
+	for (i = 0; i < BNXT_L2_FLTR_HASH_SIZE; i++) {
+		struct hlist_head *head;
+		struct hlist_node *tmp;
+		struct bnxt_l2_filter *fltr;
+
+		head = &bp->l2_fltr_hash_tbl[i];
+		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
+			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
+				continue;
+			hlist_del(&fltr->base.hash);
+			if (fltr->base.flags) {
+				clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
+				bp->ntp_fltr_count--;
+			}
+			kfree(fltr);
+		}
+	}
+}
+
+static void bnxt_init_l2_fltr_tbl(struct bnxt *bp)
+{
+	int i;
+
+	for (i = 0; i < BNXT_L2_FLTR_HASH_SIZE; i++)
+		INIT_HLIST_HEAD(&bp->l2_fltr_hash_tbl[i]);
+	get_random_bytes(&bp->hash_seed, sizeof(bp->hash_seed));
+}
+
 static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 {
 	bnxt_free_vnic_attributes(bp);
@@ -4846,7 +4883,8 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 	bnxt_free_rx_rings(bp);
 	bnxt_free_cp_rings(bp);
 	bnxt_free_all_cp_arrays(bp);
-	bnxt_free_ntp_fltrs(bp, irq_re_init);
+	bnxt_free_ntp_fltrs(bp, false);
+	bnxt_free_l2_filters(bp, false);
 	if (irq_re_init) {
 		bnxt_free_ring_stats(bp);
 		if (!(bp->phy_flags & BNXT_PHY_FL_PORT_STATS_NO_RESET) ||
@@ -5290,6 +5328,92 @@ static int bnxt_hwrm_cfa_l2_set_rx_mask(struct bnxt *bp, u16 vnic_id)
 	return hwrm_req_send_silent(bp, req);
 }
 
+void bnxt_del_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr)
+{
+	if (!atomic_dec_and_test(&fltr->refcnt))
+		return;
+	spin_lock_bh(&bp->ntp_fltr_lock);
+	hlist_del_rcu(&fltr->base.hash);
+	if (fltr->base.flags) {
+		clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
+		bp->ntp_fltr_count--;
+	}
+	spin_unlock_bh(&bp->ntp_fltr_lock);
+	kfree_rcu(fltr, base.rcu);
+}
+
+static struct bnxt_l2_filter *__bnxt_lookup_l2_filter(struct bnxt *bp,
+						      struct bnxt_l2_key *key,
+						      u32 idx)
+{
+	struct hlist_head *head = &bp->l2_fltr_hash_tbl[idx];
+	struct bnxt_l2_filter *fltr;
+
+	hlist_for_each_entry_rcu(fltr, head, base.hash) {
+		struct bnxt_l2_key *l2_key = &fltr->l2_key;
+
+		if (ether_addr_equal(l2_key->dst_mac_addr, key->dst_mac_addr) &&
+		    l2_key->vlan == key->vlan)
+			return fltr;
+	}
+	return NULL;
+}
+
+static struct bnxt_l2_filter *bnxt_lookup_l2_filter(struct bnxt *bp,
+						    struct bnxt_l2_key *key,
+						    u32 idx)
+{
+	struct bnxt_l2_filter *fltr = NULL;
+
+	rcu_read_lock();
+	fltr = __bnxt_lookup_l2_filter(bp, key, idx);
+	if (fltr)
+		atomic_inc(&fltr->refcnt);
+	rcu_read_unlock();
+	return fltr;
+}
+
+static int bnxt_init_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr,
+			       struct bnxt_l2_key *key, u32 idx)
+{
+	struct hlist_head *head;
+
+	ether_addr_copy(fltr->l2_key.dst_mac_addr, key->dst_mac_addr);
+	fltr->l2_key.vlan = key->vlan;
+	fltr->base.type = BNXT_FLTR_TYPE_L2;
+	head = &bp->l2_fltr_hash_tbl[idx];
+	hlist_add_head_rcu(&fltr->base.hash, head);
+	atomic_set(&fltr->refcnt, 1);
+	return 0;
+}
+
+static struct bnxt_l2_filter *bnxt_alloc_l2_filter(struct bnxt *bp,
+						   struct bnxt_l2_key *key,
+						   gfp_t gfp)
+{
+	struct bnxt_l2_filter *fltr;
+	u32 idx;
+	int rc;
+
+	idx = jhash2(&key->filter_key, BNXT_L2_KEY_SIZE, bp->hash_seed) &
+	      BNXT_L2_FLTR_HASH_MASK;
+	fltr = bnxt_lookup_l2_filter(bp, key, idx);
+	if (fltr)
+		return fltr;
+
+	fltr = kzalloc(sizeof(*fltr), gfp);
+	if (!fltr)
+		return ERR_PTR(-ENOMEM);
+	spin_lock_bh(&bp->ntp_fltr_lock);
+	rc = bnxt_init_l2_filter(bp, fltr, key, idx);
+	spin_unlock_bh(&bp->ntp_fltr_lock);
+	if (rc) {
+		bnxt_del_l2_filter(bp, fltr);
+		fltr = ERR_PTR(rc);
+	}
+	return fltr;
+}
+
 #ifdef CONFIG_RFS_ACCEL
 static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 					    struct bnxt_ntuple_filter *fltr)
@@ -5330,6 +5454,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	struct hwrm_cfa_ntuple_filter_alloc_output *resp;
 	struct hwrm_cfa_ntuple_filter_alloc_input *req;
 	struct flow_keys *keys = &fltr->fkeys;
+	struct bnxt_l2_filter *l2_fltr;
 	struct bnxt_vnic_info *vnic;
 	u32 flags = 0;
 	int rc;
@@ -5338,7 +5463,9 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	if (rc)
 		return rc;
 
-	req->l2_filter_id = bp->vnic_info[0].fw_l2_filter_id[fltr->l2_fltr_idx];
+	l2_fltr = bp->vnic_info[0].l2_filters[fltr->l2_fltr_idx];
+	req->l2_filter_id = l2_fltr->base.filter_id;
+
 
 	if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2) {
 		flags = CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_RFS_RING_IDX;
@@ -5400,7 +5527,15 @@ static int bnxt_hwrm_set_vnic_filter(struct bnxt *bp, u16 vnic_id, u16 idx,
 {
 	struct hwrm_cfa_l2_filter_alloc_output *resp;
 	struct hwrm_cfa_l2_filter_alloc_input *req;
+	struct bnxt_l2_filter *fltr;
+	struct bnxt_l2_key key;
 	int rc;
+
+	ether_addr_copy(key.dst_mac_addr, mac_addr);
+	key.vlan = 0;
+	fltr = bnxt_alloc_l2_filter(bp, &key, GFP_KERNEL);
+	if (IS_ERR(fltr))
+		return PTR_ERR(fltr);
 
 	rc = hwrm_req_init(bp, req, HWRM_CFA_L2_FILTER_ALLOC);
 	if (rc)
@@ -5425,9 +5560,13 @@ static int bnxt_hwrm_set_vnic_filter(struct bnxt *bp, u16 vnic_id, u16 idx,
 
 	resp = hwrm_req_hold(bp, req);
 	rc = hwrm_req_send(bp, req);
-	if (!rc)
-		bp->vnic_info[vnic_id].fw_l2_filter_id[idx] =
-							resp->l2_filter_id;
+	if (rc) {
+		bnxt_del_l2_filter(bp, fltr);
+	} else {
+		fltr->base.filter_id = resp->l2_filter_id;
+		set_bit(BNXT_FLTR_VALID, &fltr->base.state);
+		bp->vnic_info[vnic_id].l2_filters[idx] = fltr;
+	}
 	hwrm_req_drop(bp, req);
 	return rc;
 }
@@ -5447,9 +5586,13 @@ static int bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 		struct bnxt_vnic_info *vnic = &bp->vnic_info[i];
 
 		for (j = 0; j < vnic->uc_filter_count; j++) {
-			req->l2_filter_id = vnic->fw_l2_filter_id[j];
+			struct bnxt_l2_filter *fltr;
+
+			fltr = vnic->l2_filters[j];
+			req->l2_filter_id = fltr->base.filter_id;
 
 			rc = hwrm_req_send(bp, req);
+			bnxt_del_l2_filter(bp, fltr);
 		}
 		vnic->uc_filter_count = 0;
 	}
@@ -11759,9 +11902,12 @@ static int bnxt_cfg_rx_mode(struct bnxt *bp)
 		return rc;
 	hwrm_req_hold(bp, req);
 	for (i = 1; i < vnic->uc_filter_count; i++) {
-		req->l2_filter_id = vnic->fw_l2_filter_id[i];
+		struct bnxt_l2_filter *fltr = vnic->l2_filters[i];
+
+		req->l2_filter_id = fltr->base.filter_id;
 
 		rc = hwrm_req_send(bp, req);
+		bnxt_del_l2_filter(bp, fltr);
 	}
 	hwrm_req_drop(bp, req);
 
@@ -13901,6 +14047,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 
 	bnxt_ptp_clear(bp);
 	unregister_netdev(dev);
+	bnxt_free_l2_filters(bp, true);
+	bnxt_free_ntp_fltrs(bp, true);
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	/* Flush any pending tasks */
 	cancel_work_sync(&bp->sp_task);
@@ -14450,6 +14598,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
+	bnxt_init_l2_fltr_tbl(bp);
 	bnxt_set_rx_skb_mode(bp, false);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);

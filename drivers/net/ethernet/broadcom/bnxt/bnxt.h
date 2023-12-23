@@ -1219,7 +1219,7 @@ struct bnxt_vnic_info {
 	u16		fw_rss_cos_lb_ctx[BNXT_MAX_CTX_PER_VNIC];
 	u16		fw_l2_ctx_id;
 #define BNXT_MAX_UC_ADDRS	4
-	__le64		fw_l2_filter_id[BNXT_MAX_UC_ADDRS];
+	struct bnxt_l2_filter *l2_filters[BNXT_MAX_UC_ADDRS];
 				/* index 0 always dev_addr */
 	u16		uc_filter_count;
 	u8		*uc_list;
@@ -1349,6 +1349,8 @@ struct bnxt_filter_base {
 	unsigned long		state;
 #define BNXT_FLTR_VALID		0
 #define BNXT_FLTR_UPDATE	1
+
+	struct rcu_head         rcu;
 };
 
 struct bnxt_ntuple_filter {
@@ -1358,6 +1360,24 @@ struct bnxt_ntuple_filter {
 	struct flow_keys	fkeys;
 	u8			l2_fltr_idx;
 	u32			flow_id;
+};
+
+struct bnxt_l2_key {
+	union {
+		struct {
+			u8	dst_mac_addr[ETH_ALEN];
+			u16	vlan;
+		};
+		u32	filter_key;
+	};
+};
+
+#define BNXT_L2_KEY_SIZE	(sizeof(struct bnxt_l2_key) / 4)
+
+struct bnxt_l2_filter {
+	struct bnxt_filter_base	base;
+	struct bnxt_l2_key	l2_key;
+	atomic_t		refcnt;
 };
 
 struct bnxt_link_info {
@@ -2388,6 +2408,13 @@ struct bnxt {
 	unsigned long		*ntp_fltr_bmap;
 	int			ntp_fltr_count;
 
+#define BNXT_L2_FLTR_MAX_FLTR	1024
+#define BNXT_L2_FLTR_HASH_SIZE	32
+#define BNXT_L2_FLTR_HASH_MASK	(BNXT_L2_FLTR_HASH_SIZE - 1)
+	struct hlist_head	l2_fltr_hash_tbl[BNXT_L2_FLTR_HASH_SIZE];
+
+	u32			hash_seed;
+
 	/* To protect link related settings during link changes and
 	 * ethtool settings changes.
 	 */
@@ -2595,6 +2622,7 @@ int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap,
 			    int bmap_size, bool async_only);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp);
+void bnxt_del_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr);
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id);
 int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings);
