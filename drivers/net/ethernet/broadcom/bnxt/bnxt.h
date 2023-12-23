@@ -1332,19 +1332,32 @@ struct bnxt_pf_info {
 	struct bnxt_vf_info	*vf;
 };
 
-struct bnxt_ntuple_filter {
+struct bnxt_filter_base {
 	struct hlist_node	hash;
-	u8			dst_mac_addr[ETH_ALEN];
-	u8			src_mac_addr[ETH_ALEN];
-	struct flow_keys	fkeys;
 	__le64			filter_id;
+	u8			type;
+#define BNXT_FLTR_TYPE_NTUPLE	1
+#define BNXT_FLTR_TYPE_L2	2
+	u8			flags;
+#define BNXT_ACT_DROP		1
+#define BNXT_ACT_RING_DST	2
+#define BNXT_ACT_FUNC_DST	4
 	u16			sw_id;
-	u8			l2_fltr_idx;
 	u16			rxq;
-	u32			flow_id;
+	u16			fw_vnic_id;
+	u16			vf_idx;
 	unsigned long		state;
 #define BNXT_FLTR_VALID		0
 #define BNXT_FLTR_UPDATE	1
+};
+
+struct bnxt_ntuple_filter {
+	struct bnxt_filter_base	base;
+	u8			dst_mac_addr[ETH_ALEN];
+	u8			src_mac_addr[ETH_ALEN];
+	struct flow_keys	fkeys;
+	u8			l2_fltr_idx;
+	u32			flow_id;
 };
 
 struct bnxt_link_info {

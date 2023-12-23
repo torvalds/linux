@@ -1024,10 +1024,10 @@ static int bnxt_grxclsrlall(struct bnxt *bp, struct ethtool_rxnfc *cmd,
 
 		head = &bp->ntp_fltr_hash_tbl[i];
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, hash) {
+		hlist_for_each_entry_rcu(fltr, head, base.hash) {
 			if (j == cmd->rule_cnt)
 				break;
-			rule_locs[j++] = fltr->sw_id;
+			rule_locs[j++] = fltr->base.sw_id;
 		}
 		rcu_read_unlock();
 		if (j == cmd->rule_cnt)
@@ -1053,8 +1053,8 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 
 		head = &bp->ntp_fltr_hash_tbl[i];
 		rcu_read_lock();
-		hlist_for_each_entry_rcu(fltr, head, hash) {
-			if (fltr->sw_id == fs->location)
+		hlist_for_each_entry_rcu(fltr, head, base.hash) {
+			if (fltr->base.sw_id == fs->location)
 				goto fltr_found;
 		}
 		rcu_read_unlock();
@@ -1107,7 +1107,7 @@ fltr_found:
 		fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
 	}
 
-	fs->ring_cookie = fltr->rxq;
+	fs->ring_cookie = fltr->base.rxq;
 	rc = 0;
 
 fltr_err:

@@ -4803,8 +4803,8 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool irq_reinit)
 		struct bnxt_ntuple_filter *fltr;
 
 		head = &bp->ntp_fltr_hash_tbl[i];
-		hlist_for_each_entry_safe(fltr, tmp, head, hash) {
-			hlist_del(&fltr->hash);
+		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
+			hlist_del(&fltr->base.hash);
 			kfree(fltr);
 		}
 	}
@@ -5301,7 +5301,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 	if (rc)
 		return rc;
 
-	req->ntuple_filter_id = fltr->filter_id;
+	req->ntuple_filter_id = fltr->base.filter_id;
 	return hwrm_req_send(bp, req);
 }
 
@@ -5342,9 +5342,9 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 
 	if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2) {
 		flags = CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_RFS_RING_IDX;
-		req->dst_id = cpu_to_le16(fltr->rxq);
+		req->dst_id = cpu_to_le16(fltr->base.rxq);
 	} else {
-		vnic = &bp->vnic_info[fltr->rxq + 1];
+		vnic = &bp->vnic_info[fltr->base.rxq + 1];
 		req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
 	}
 	req->flags = cpu_to_le32(flags);
@@ -5389,7 +5389,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	resp = hwrm_req_hold(bp, req);
 	rc = hwrm_req_send(bp, req);
 	if (!rc)
-		fltr->filter_id = resp->ntuple_filter_id;
+		fltr->base.filter_id = resp->ntuple_filter_id;
 	hwrm_req_drop(bp, req);
 	return rc;
 }
@@ -13653,9 +13653,9 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	idx = skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
 	head = &bp->ntp_fltr_hash_tbl[idx];
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(fltr, head, hash) {
+	hlist_for_each_entry_rcu(fltr, head, base.hash) {
 		if (bnxt_fltr_match(fltr, new_fltr)) {
-			rc = fltr->sw_id;
+			rc = fltr->base.sw_id;
 			rcu_read_unlock();
 			goto err_free;
 		}
@@ -13671,17 +13671,18 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 
-	new_fltr->sw_id = (u16)bit_id;
+	new_fltr->base.sw_id = (u16)bit_id;
 	new_fltr->flow_id = flow_id;
 	new_fltr->l2_fltr_idx = l2_idx;
-	new_fltr->rxq = rxq_index;
-	hlist_add_head_rcu(&new_fltr->hash, head);
+	new_fltr->base.rxq = rxq_index;
+	new_fltr->base.type = BNXT_FLTR_TYPE_NTUPLE;
+	hlist_add_head_rcu(&new_fltr->base.hash, head);
 	bp->ntp_fltr_count++;
 	spin_unlock_bh(&bp->ntp_fltr_lock);
 
 	bnxt_queue_sp_work(bp, BNXT_RX_NTP_FLTR_SP_EVENT);
 
-	return new_fltr->sw_id;
+	return new_fltr->base.sw_id;
 
 err_free:
 	kfree(new_fltr);
@@ -13699,13 +13700,13 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 		int rc;
 
 		head = &bp->ntp_fltr_hash_tbl[i];
-		hlist_for_each_entry_safe(fltr, tmp, head, hash) {
+		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
 			bool del = false;
 
-			if (test_bit(BNXT_FLTR_VALID, &fltr->state)) {
-				if (rps_may_expire_flow(bp->dev, fltr->rxq,
+			if (test_bit(BNXT_FLTR_VALID, &fltr->base.state)) {
+				if (rps_may_expire_flow(bp->dev, fltr->base.rxq,
 							fltr->flow_id,
-							fltr->sw_id)) {
+							fltr->base.sw_id)) {
 					bnxt_hwrm_cfa_ntuple_filter_free(bp,
 									 fltr);
 					del = true;
@@ -13716,16 +13717,16 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 				if (rc)
 					del = true;
 				else
-					set_bit(BNXT_FLTR_VALID, &fltr->state);
+					set_bit(BNXT_FLTR_VALID, &fltr->base.state);
 			}
 
 			if (del) {
 				spin_lock_bh(&bp->ntp_fltr_lock);
-				hlist_del_rcu(&fltr->hash);
+				hlist_del_rcu(&fltr->base.hash);
 				bp->ntp_fltr_count--;
 				spin_unlock_bh(&bp->ntp_fltr_lock);
 				synchronize_rcu();
-				clear_bit(fltr->sw_id, bp->ntp_fltr_bmap);
+				clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
 				kfree(fltr);
 			}
 		}
