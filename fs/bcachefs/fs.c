@@ -1624,31 +1624,6 @@ static struct bch_fs *bch2_path_to_fs(const char *path)
 	return c ?: ERR_PTR(-ENOENT);
 }
 
-static char **split_devs(const char *_dev_name, unsigned *nr)
-{
-	char *dev_name = NULL, **devs = NULL, *s;
-	size_t i = 0, nr_devs = 0;
-
-	dev_name = kstrdup(_dev_name, GFP_KERNEL);
-	if (!dev_name)
-		return NULL;
-
-	for (s = dev_name; s; s = strchr(s + 1, ':'))
-		nr_devs++;
-
-	devs = kcalloc(nr_devs + 1, sizeof(const char *), GFP_KERNEL);
-	if (!devs) {
-		kfree(dev_name);
-		return NULL;
-	}
-
-	while ((s = strsep(&dev_name, ":")))
-		devs[i++] = s;
-
-	*nr = nr_devs;
-	return devs;
-}
-
 static int bch2_remount(struct super_block *sb, int *flags, char *data)
 {
 	struct bch_fs *c = sb->s_fs_info;
@@ -1801,17 +1776,18 @@ static int bch2_noset_super(struct super_block *s, void *data)
 	return -EBUSY;
 }
 
+typedef DARRAY(struct bch_fs *) darray_fs;
+
 static int bch2_test_super(struct super_block *s, void *data)
 {
 	struct bch_fs *c = s->s_fs_info;
-	struct bch_fs **devs = data;
-	unsigned i;
+	darray_fs *d = data;
 
 	if (!c)
 		return false;
 
-	for (i = 0; devs[i]; i++)
-		if (c != devs[i])
+	darray_for_each(*d, i)
+		if (c != *i)
 			return false;
 	return true;
 }
@@ -1823,9 +1799,6 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	struct super_block *sb;
 	struct inode *vinode;
 	struct bch_opts opts = bch2_opts_empty();
-	char **devs;
-	struct bch_fs **devs_to_fs = NULL;
-	unsigned nr_devs;
 	int ret;
 
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
@@ -1837,25 +1810,25 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	if (!dev_name || strlen(dev_name) == 0)
 		return ERR_PTR(-EINVAL);
 
-	devs = split_devs(dev_name, &nr_devs);
-	if (!devs)
-		return ERR_PTR(-ENOMEM);
+	darray_str devs;
+	ret = bch2_split_devs(dev_name, &devs);
+	if (ret)
+		return ERR_PTR(ret);
 
-	devs_to_fs = kcalloc(nr_devs + 1, sizeof(void *), GFP_KERNEL);
-	if (!devs_to_fs) {
-		sb = ERR_PTR(-ENOMEM);
-		goto got_sb;
+	darray_fs devs_to_fs = {};
+	darray_for_each(devs, i) {
+		ret = darray_push(&devs_to_fs, bch2_path_to_fs(*i));
+		if (ret) {
+			sb = ERR_PTR(ret);
+			goto got_sb;
+		}
 	}
 
-	for (unsigned i = 0; i < nr_devs; i++)
-		devs_to_fs[i] = bch2_path_to_fs(devs[i]);
-
-	sb = sget(fs_type, bch2_test_super, bch2_noset_super,
-		  flags|SB_NOSEC, devs_to_fs);
+	sb = sget(fs_type, bch2_test_super, bch2_noset_super, flags|SB_NOSEC, &devs_to_fs);
 	if (!IS_ERR(sb))
 		goto got_sb;
 
-	c = bch2_fs_open(devs, nr_devs, opts);
+	c = bch2_fs_open(devs.data, devs.nr, opts);
 	if (IS_ERR(c)) {
 		sb = ERR_CAST(c);
 		goto got_sb;
@@ -1875,9 +1848,8 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	if (IS_ERR(sb))
 		bch2_fs_stop(c);
 got_sb:
-	kfree(devs_to_fs);
-	kfree(devs[0]);
-	kfree(devs);
+	darray_exit(&devs_to_fs);
+	bch2_darray_str_exit(&devs);
 
 	if (IS_ERR(sb)) {
 		ret = PTR_ERR(sb);

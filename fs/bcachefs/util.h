@@ -863,4 +863,7 @@ static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 	return l.len == r.len && !memcmp(l.name, r.name, l.len);
 }
 
+void bch2_darray_str_exit(darray_str *);
+int bch2_split_devs(const char *, darray_str *);
+
 #endif /* _BCACHEFS_UTIL_H */

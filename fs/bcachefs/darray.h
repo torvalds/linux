@@ -20,6 +20,7 @@ struct {								\
 #define DARRAY(_type) DARRAY_PREALLOCATED(_type, 0)
 
 typedef DARRAY(char)	darray_char;
+typedef DARRAY(char *) darray_str;
 
 int __bch2_darray_resize(darray_char *, size_t, size_t, gfp_t);
 

@@ -1174,3 +1174,37 @@ u64 *bch2_acc_percpu_u64s(u64 __percpu *p, unsigned nr)
 
 	return ret;
 }
+
+void bch2_darray_str_exit(darray_str *d)
+{
+	darray_for_each(*d, i)
+		kfree(*i);
+	darray_exit(d);
+}
+
+int bch2_split_devs(const char *_dev_name, darray_str *ret)
+{
+	darray_init(ret);
+
+	char *dev_name = kstrdup(_dev_name, GFP_KERNEL), *s = dev_name;
+	if (!dev_name)
+		return -ENOMEM;
+
+	while ((s = strsep(&dev_name, ":"))) {
+		char *p = kstrdup(s, GFP_KERNEL);
+		if (!p)
+			goto err;
+
+		if (darray_push(ret, p)) {
+			kfree(p);
+			goto err;
+		}
+	}
+
+	kfree(dev_name);
+	return 0;
+err:
+	bch2_darray_str_exit(ret);
+	kfree(dev_name);
+	return -ENOMEM;
+}
