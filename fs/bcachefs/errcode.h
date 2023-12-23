@@ -223,6 +223,7 @@
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				btree_node_read_err)			\
+	x(EIO,				sb_not_downgraded)			\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\
