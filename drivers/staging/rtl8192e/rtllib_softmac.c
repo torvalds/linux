@@ -2267,11 +2267,7 @@ static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
 	}
 }
 
-static void
-rtllib_MgntDisconnectAP(
-	struct rtllib_device *rtllib,
-	u8 asRsn
-)
+static void rtllib_MgntDisconnectAP(struct rtllib_device *rtllib, u8 asRsn)
 {
 	bool bFilterOutNonAssociatedBSSID = false;
 
