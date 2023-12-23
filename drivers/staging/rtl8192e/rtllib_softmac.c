@@ -2231,7 +2231,7 @@ u8 rtllib_ap_sec_type(struct rtllib_device *ieee)
 		return SEC_ALG_WEP;
 	} else if ((wpa_ie_len != 0)) {
 		if (((ieee->wpa_ie[0] == 0xdd) &&
-		    (!memcmp(&(ieee->wpa_ie[14]), ccmp_ie, 4))) ||
+		    (!memcmp(&ieee->wpa_ie[14], ccmp_ie, 4))) ||
 		    ((ieee->wpa_ie[0] == 0x30) &&
 		    (!memcmp(&ieee->wpa_ie[10], ccmp_rsn_ie, 4))))
 			return SEC_ALG_CCMP;
