@@ -1355,10 +1355,8 @@ struct bnxt_filter_base {
 
 struct bnxt_ntuple_filter {
 	struct bnxt_filter_base	base;
-	u8			dst_mac_addr[ETH_ALEN];
-	u8			src_mac_addr[ETH_ALEN];
 	struct flow_keys	fkeys;
-	u8			l2_fltr_idx;
+	struct bnxt_l2_filter	*l2_fltr;
 	u32			flow_id;
 };
 

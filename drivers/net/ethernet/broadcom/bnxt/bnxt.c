@@ -4804,6 +4804,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 
 		head = &bp->ntp_fltr_hash_tbl[i];
 		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
+			bnxt_del_l2_filter(bp, fltr->l2_fltr);
 			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
 				continue;
 			hlist_del(&fltr->base.hash);
@@ -5373,6 +5374,20 @@ static struct bnxt_l2_filter *bnxt_lookup_l2_filter(struct bnxt *bp,
 	return fltr;
 }
 
+#ifdef CONFIG_RFS_ACCEL
+static struct bnxt_l2_filter *
+bnxt_lookup_l2_filter_from_key(struct bnxt *bp, struct bnxt_l2_key *key)
+{
+	struct bnxt_l2_filter *fltr;
+	u32 idx;
+
+	idx = jhash2(&key->filter_key, BNXT_L2_KEY_SIZE, bp->hash_seed) &
+	      BNXT_L2_FLTR_HASH_MASK;
+	fltr = bnxt_lookup_l2_filter(bp, key, idx);
+	return fltr;
+}
+#endif
+
 static int bnxt_init_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr,
 			       struct bnxt_l2_key *key, u32 idx)
 {
@@ -5432,7 +5447,6 @@ static int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 #define BNXT_NTP_FLTR_FLAGS					\
 	(CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_L2_FILTER_ID |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_ETHERTYPE |	\
-	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_SRC_MACADDR |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_IPADDR_TYPE |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_SRC_IPADDR |	\
 	 CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_SRC_IPADDR_MASK |	\
@@ -5463,7 +5477,7 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	if (rc)
 		return rc;
 
-	l2_fltr = bp->vnic_info[0].l2_filters[fltr->l2_fltr_idx];
+	l2_fltr = fltr->l2_fltr;
 	req->l2_filter_id = l2_fltr->base.filter_id;
 
 
@@ -5478,7 +5492,6 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req->enables = cpu_to_le32(BNXT_NTP_FLTR_FLAGS);
 
 	req->ethertype = htons(ETH_P_IP);
-	memcpy(req->src_macaddr, fltr->src_mac_addr, ETH_ALEN);
 	req->ip_addr_type = CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV4;
 	req->ip_protocol = keys->basic.ip_proto;
 
@@ -13730,8 +13743,7 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 
 	if (keys1->ports.ports == keys2->ports.ports &&
 	    keys1->control.flags == keys2->control.flags &&
-	    ether_addr_equal(f1->src_mac_addr, f2->src_mac_addr) &&
-	    ether_addr_equal(f1->dst_mac_addr, f2->dst_mac_addr))
+	    f1->l2_fltr == f2->l2_fltr)
 		return true;
 
 	return false;
@@ -13744,29 +13756,32 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	struct bnxt_ntuple_filter *fltr, *new_fltr;
 	struct flow_keys *fkeys;
 	struct ethhdr *eth = (struct ethhdr *)skb_mac_header(skb);
-	int rc = 0, idx, bit_id, l2_idx = 0;
+	struct bnxt_l2_filter *l2_fltr;
+	int rc = 0, idx, bit_id;
 	struct hlist_head *head;
 	u32 flags;
 
-	if (!ether_addr_equal(dev->dev_addr, eth->h_dest)) {
-		struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
-		int off = 0, j;
+	if (ether_addr_equal(dev->dev_addr, eth->h_dest)) {
+		l2_fltr = bp->vnic_info[0].l2_filters[0];
+		atomic_inc(&l2_fltr->refcnt);
+	} else {
+		struct bnxt_l2_key key;
 
-		netif_addr_lock_bh(dev);
-		for (j = 0; j < vnic->uc_filter_count; j++, off += ETH_ALEN) {
-			if (ether_addr_equal(eth->h_dest,
-					     vnic->uc_list + off)) {
-				l2_idx = j + 1;
-				break;
-			}
-		}
-		netif_addr_unlock_bh(dev);
-		if (!l2_idx)
+		ether_addr_copy(key.dst_mac_addr, eth->h_dest);
+		key.vlan = 0;
+		l2_fltr = bnxt_lookup_l2_filter_from_key(bp, &key);
+		if (!l2_fltr)
 			return -EINVAL;
+		if (l2_fltr->base.flags & BNXT_ACT_FUNC_DST) {
+			bnxt_del_l2_filter(bp, l2_fltr);
+			return -EINVAL;
+		}
 	}
 	new_fltr = kzalloc(sizeof(*new_fltr), GFP_ATOMIC);
-	if (!new_fltr)
+	if (!new_fltr) {
+		bnxt_del_l2_filter(bp, l2_fltr);
 		return -ENOMEM;
+	}
 
 	fkeys = &new_fltr->fkeys;
 	if (!skb_flow_dissect_flow_keys(skb, fkeys, 0)) {
@@ -13793,8 +13808,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		goto err_free;
 	}
 
-	memcpy(new_fltr->dst_mac_addr, eth->h_dest, ETH_ALEN);
-	memcpy(new_fltr->src_mac_addr, eth->h_source, ETH_ALEN);
+	new_fltr->l2_fltr = l2_fltr;
 
 	idx = skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
 	head = &bp->ntp_fltr_hash_tbl[idx];
@@ -13819,9 +13833,9 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 
 	new_fltr->base.sw_id = (u16)bit_id;
 	new_fltr->flow_id = flow_id;
-	new_fltr->l2_fltr_idx = l2_idx;
 	new_fltr->base.rxq = rxq_index;
 	new_fltr->base.type = BNXT_FLTR_TYPE_NTUPLE;
+	new_fltr->base.flags = BNXT_ACT_RING_DST;
 	hlist_add_head_rcu(&new_fltr->base.hash, head);
 	bp->ntp_fltr_count++;
 	spin_unlock_bh(&bp->ntp_fltr_lock);
@@ -13831,6 +13845,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	return new_fltr->base.sw_id;
 
 err_free:
+	bnxt_del_l2_filter(bp, l2_fltr);
 	kfree(new_fltr);
 	return rc;
 }
@@ -13871,6 +13886,7 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 				hlist_del_rcu(&fltr->base.hash);
 				bp->ntp_fltr_count--;
 				spin_unlock_bh(&bp->ntp_fltr_lock);
+				bnxt_del_l2_filter(bp, fltr->l2_fltr);
 				synchronize_rcu();
 				clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
 				kfree(fltr);
