@@ -5642,6 +5642,14 @@ int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 #define BNXT_NTP_TUNNEL_FLTR_FLAG				\
 		CFA_NTUPLE_FILTER_ALLOC_REQ_ENABLES_TUNNEL_TYPE
 
+void bnxt_fill_ipv6_mask(__be32 mask[4])
+{
+	int i;
+
+	for (i = 0; i < 4; i++)
+		mask[i] = cpu_to_be32(~0);
+}
+
 static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 					     struct bnxt_ntuple_filter *fltr)
 {
@@ -5676,24 +5684,28 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	req->ip_protocol = keys->basic.ip_proto;
 
 	if (keys->basic.n_proto == htons(ETH_P_IPV6)) {
-		int i;
-
 		req->ethertype = htons(ETH_P_IPV6);
 		req->ip_addr_type =
 			CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV6;
-		*(struct in6_addr *)&req->src_ipaddr[0] =
-			keys->addrs.v6addrs.src;
-		*(struct in6_addr *)&req->dst_ipaddr[0] =
-			keys->addrs.v6addrs.dst;
-		for (i = 0; i < 4; i++) {
-			req->src_ipaddr_mask[i] = cpu_to_be32(0xffffffff);
-			req->dst_ipaddr_mask[i] = cpu_to_be32(0xffffffff);
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
+			*(struct in6_addr *)&req->src_ipaddr[0] =
+				keys->addrs.v6addrs.src;
+			bnxt_fill_ipv6_mask(req->src_ipaddr_mask);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
+			*(struct in6_addr *)&req->dst_ipaddr[0] =
+				keys->addrs.v6addrs.dst;
+			bnxt_fill_ipv6_mask(req->dst_ipaddr_mask);
 		}
 	} else {
-		req->src_ipaddr[0] = keys->addrs.v4addrs.src;
-		req->src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-		req->dst_ipaddr[0] = keys->addrs.v4addrs.dst;
-		req->dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
+			req->src_ipaddr[0] = keys->addrs.v4addrs.src;
+			req->src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+		}
+		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
+			req->dst_ipaddr[0] = keys->addrs.v4addrs.dst;
+			req->dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
+		}
 	}
 	if (keys->control.flags & FLOW_DIS_ENCAPSULATION) {
 		req->enables |= cpu_to_le32(BNXT_NTP_TUNNEL_FLTR_FLAG);
@@ -5701,10 +5713,14 @@ static int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 			CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL;
 	}
 
-	req->src_port = keys->ports.src;
-	req->src_port_mask = cpu_to_be16(0xffff);
-	req->dst_port = keys->ports.dst;
-	req->dst_port_mask = cpu_to_be16(0xffff);
+	if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) {
+		req->src_port = keys->ports.src;
+		req->src_port_mask = cpu_to_be16(0xffff);
+	}
+	if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) {
+		req->dst_port = keys->ports.dst;
+		req->dst_port_mask = cpu_to_be16(0xffff);
+	}
 
 	resp = hwrm_req_hold(bp, req);
 	rc = hwrm_req_send(bp, req);
@@ -13886,24 +13902,38 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	struct flow_keys *keys1 = &f1->fkeys;
 	struct flow_keys *keys2 = &f2->fkeys;
 
+	if (f1->ntuple_flags != f2->ntuple_flags)
+		return false;
+
 	if (keys1->basic.n_proto != keys2->basic.n_proto ||
 	    keys1->basic.ip_proto != keys2->basic.ip_proto)
 		return false;
 
 	if (keys1->basic.n_proto == htons(ETH_P_IP)) {
-		if (keys1->addrs.v4addrs.src != keys2->addrs.v4addrs.src ||
-		    keys1->addrs.v4addrs.dst != keys2->addrs.v4addrs.dst)
+		if (((f1->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) &&
+		     keys1->addrs.v4addrs.src != keys2->addrs.v4addrs.src) ||
+		    ((f1->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) &&
+		     keys1->addrs.v4addrs.dst != keys2->addrs.v4addrs.dst))
 			return false;
 	} else {
-		if (memcmp(&keys1->addrs.v6addrs.src, &keys2->addrs.v6addrs.src,
-			   sizeof(keys1->addrs.v6addrs.src)) ||
-		    memcmp(&keys1->addrs.v6addrs.dst, &keys2->addrs.v6addrs.dst,
-			   sizeof(keys1->addrs.v6addrs.dst)))
+		if (((f1->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) &&
+		     memcmp(&keys1->addrs.v6addrs.src,
+			    &keys2->addrs.v6addrs.src,
+			    sizeof(keys1->addrs.v6addrs.src))) ||
+		    ((f1->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) &&
+		     memcmp(&keys1->addrs.v6addrs.dst,
+			    &keys2->addrs.v6addrs.dst,
+			    sizeof(keys1->addrs.v6addrs.dst))))
 			return false;
 	}
 
-	if (keys1->ports.ports == keys2->ports.ports &&
-	    keys1->control.flags == keys2->control.flags &&
+	if (((f1->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) &&
+	     keys1->ports.src != keys2->ports.src) ||
+	    ((f1->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) &&
+	     keys1->ports.dst != keys2->ports.dst))
+		return false;
+
+	if (keys1->control.flags == keys2->control.flags &&
 	    f1->l2_fltr == f2->l2_fltr)
 		return true;
 
@@ -13985,6 +14015,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	}
 
 	new_fltr->l2_fltr = l2_fltr;
+	new_fltr->ntuple_flags = BNXT_NTUPLE_MATCH_ALL;
 
 	idx = bnxt_get_ntp_filter_idx(bp, fkeys, skb);
 	rcu_read_lock();
