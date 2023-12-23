@@ -121,16 +121,6 @@ struct skcipher_alg_common SKCIPHER_ALG_COMMON;
 
 /**
  * struct skcipher_alg - symmetric key cipher definition
- * @min_keysize: Minimum key size supported by the transformation. This is the
- *		 smallest key length supported by this transformation algorithm.
- *		 This must be set to one of the pre-defined values as this is
- *		 not hardware specific. Possible values for this field can be
- *		 found via git grep "_MIN_KEY_SIZE" include/crypto/
- * @max_keysize: Maximum key size supported by the transformation. This is the
- *		 largest key length supported by this transformation algorithm.
- *		 This must be set to one of the pre-defined values as this is
- *		 not hardware specific. Possible values for this field can be
- *		 found via git grep "_MAX_KEY_SIZE" include/crypto/
  * @setkey: Set key for the transformation. This function is used to either
  *	    program a supplied key into the hardware or store the key in the
  *	    transformation context for programming it later. Note that this
@@ -176,15 +166,9 @@ struct skcipher_alg_common SKCIPHER_ALG_COMMON;
  * @exit: Deinitialize the cryptographic transformation object. This is a
  *	  counterpart to @init, used to remove various changes set in
  *	  @init.
- * @ivsize: IV size applicable for transformation. The consumer must provide an
- *	    IV of exactly that size to perform the encrypt or decrypt operation.
- * @chunksize: Equal to the block size except for stream ciphers such as
- *	       CTR where it is set to the underlying block size.
  * @walksize: Equal to the chunk size except in cases where the algorithm is
  * 	      considerably more efficient if it can operate on multiple chunks
  * 	      in parallel. Should be a multiple of chunksize.
- * @stat: Statistics for cipher algorithm
- * @base: Definition of a generic crypto algorithm.
  * @co: see struct skcipher_alg_common
  *
  * All fields except @ivsize are mandatory and must be filled.
