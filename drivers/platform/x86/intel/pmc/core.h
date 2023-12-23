@@ -363,6 +363,7 @@ struct pmc {
  * @s0ix_counter:	S0ix residency (step adjusted)
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
+ * @suspend:		Function to perform platform specific suspend
  * @resume:		Function to perform platform specific resume
  *
  * pmc_dev contains info about power management controller device.
@@ -379,6 +380,7 @@ struct pmc_dev {
 	u64 s0ix_counter;
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
+	void (*suspend)(struct pmc_dev *pmcdev);
 	int (*resume)(struct pmc_dev *pmcdev);
 
 	bool has_die_c6;

@@ -1279,6 +1279,9 @@ static __maybe_unused int pmc_core_suspend(struct device *dev)
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 
+	if (pmcdev->suspend)
+		pmcdev->suspend(pmcdev);
+
 	/* Check if the syspend will actually use S0ix */
 	if (pm_suspend_via_firmware())
 		return 0;
