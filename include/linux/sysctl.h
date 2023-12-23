@@ -255,8 +255,6 @@ extern int unaligned_enabled;
 extern int unaligned_dump_stack;
 extern int no_unaligned_warning;
 
-#define SYSCTL_PERM_EMPTY_DIR	(1 << 0)
-
 #else /* CONFIG_SYSCTL */
 
 static inline void register_sysctl_init(const char *path, struct ctl_table *table)
