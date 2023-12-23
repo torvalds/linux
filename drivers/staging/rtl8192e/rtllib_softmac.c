@@ -141,26 +141,26 @@ static void init_mgmt_queue(struct rtllib_device *ieee)
 u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 {
 	u16	i;
-	u8	QueryRate = 0;
+	u8	query_rate = 0;
 	u8	BasicRate;
 
 	for (i = 0; i < ieee->current_network.rates_len; i++) {
 		BasicRate = ieee->current_network.rates[i] & 0x7F;
 		if (!rtllib_is_cck_rate(BasicRate)) {
-			if (QueryRate == 0) {
-				QueryRate = BasicRate;
+			if (query_rate == 0) {
+				query_rate = BasicRate;
 			} else {
-				if (BasicRate < QueryRate)
-					QueryRate = BasicRate;
+				if (BasicRate < query_rate)
+					query_rate = BasicRate;
 			}
 		}
 	}
 
-	if (QueryRate == 0) {
-		QueryRate = 12;
+	if (query_rate == 0) {
+		query_rate = 12;
 		netdev_info(ieee->dev, "No BasicRate found!!\n");
 	}
-	return QueryRate;
+	return query_rate;
 }
 
 static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
