@@ -557,21 +557,6 @@ enum {
 
 #define TCA_CBQ_MAX	(__TCA_CBQ_MAX - 1)
 
-/* ATM  section */
-
-enum {
-	TCA_ATM_UNSPEC,
-	TCA_ATM_FD,		/* file/socket descriptor */
-	TCA_ATM_PTR,		/* pointer to descriptor - later */
-	TCA_ATM_HDR,		/* LL header */
-	TCA_ATM_EXCESS,		/* excess traffic class (0 for CLP)  */
-	TCA_ATM_ADDR,		/* PVC address (for output only) */
-	TCA_ATM_STATE,		/* VC state (ATM_VS_*; for output only) */
-	__TCA_ATM_MAX,
-};
-
-#define TCA_ATM_MAX	(__TCA_ATM_MAX - 1)
-
 /* Network emulator */
 
 enum {
