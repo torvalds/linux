@@ -1011,7 +1011,6 @@ static int bnxt_set_channels(struct net_device *dev,
 	return rc;
 }
 
-#ifdef CONFIG_RFS_ACCEL
 static u32 bnxt_get_all_fltr_ids_rcu(struct bnxt *bp, struct hlist_head tbl[],
 				     int tbl_size, u32 *ids, u32 start,
 				     u32 id_cnt)
@@ -1152,7 +1151,195 @@ fltr_err:
 
 	return rc;
 }
-#endif
+
+#define IPV4_ALL_MASK		((__force __be32)~0)
+#define L4_PORT_ALL_MASK	((__force __be16)~0)
+
+static bool ipv6_mask_is_full(__be32 mask[4])
+{
+	return (mask[0] & mask[1] & mask[2] & mask[3]) == IPV4_ALL_MASK;
+}
+
+static bool ipv6_mask_is_zero(__be32 mask[4])
+{
+	return !(mask[0] | mask[1] | mask[2] | mask[3]);
+}
+
+static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
+				    struct ethtool_rx_flow_spec *fs)
+{
+	u8 vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
+	u32 ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
+	struct bnxt_ntuple_filter *new_fltr, *fltr;
+	struct bnxt_l2_filter *l2_fltr;
+	u32 flow_type = fs->flow_type;
+	struct flow_keys *fkeys;
+	u32 idx;
+	int rc;
+
+	if (!bp->vnic_info)
+		return -EAGAIN;
+
+	if ((flow_type & (FLOW_MAC_EXT | FLOW_EXT)) || vf)
+		return -EOPNOTSUPP;
+
+	new_fltr = kzalloc(sizeof(*new_fltr), GFP_KERNEL);
+	if (!new_fltr)
+		return -ENOMEM;
+
+	l2_fltr = bp->vnic_info[0].l2_filters[0];
+	atomic_inc(&l2_fltr->refcnt);
+	new_fltr->l2_fltr = l2_fltr;
+	fkeys = &new_fltr->fkeys;
+
+	rc = -EOPNOTSUPP;
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW: {
+		struct ethtool_tcpip4_spec *ip_spec = &fs->h_u.tcp_ip4_spec;
+		struct ethtool_tcpip4_spec *ip_mask = &fs->m_u.tcp_ip4_spec;
+
+		fkeys->basic.ip_proto = IPPROTO_TCP;
+		if (flow_type == UDP_V4_FLOW)
+			fkeys->basic.ip_proto = IPPROTO_UDP;
+		fkeys->basic.n_proto = htons(ETH_P_IP);
+
+		if (ip_mask->ip4src == IPV4_ALL_MASK) {
+			fkeys->addrs.v4addrs.src = ip_spec->ip4src;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_IP;
+		} else if (ip_mask->ip4src) {
+			goto ntuple_err;
+		}
+		if (ip_mask->ip4dst == IPV4_ALL_MASK) {
+			fkeys->addrs.v4addrs.dst = ip_spec->ip4dst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_IP;
+		} else if (ip_mask->ip4dst) {
+			goto ntuple_err;
+		}
+
+		if (ip_mask->psrc == L4_PORT_ALL_MASK) {
+			fkeys->ports.src = ip_spec->psrc;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_PORT;
+		} else if (ip_mask->psrc) {
+			goto ntuple_err;
+		}
+		if (ip_mask->pdst == L4_PORT_ALL_MASK) {
+			fkeys->ports.dst = ip_spec->pdst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_PORT;
+		} else if (ip_mask->pdst) {
+			goto ntuple_err;
+		}
+		break;
+	}
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW: {
+		struct ethtool_tcpip6_spec *ip_spec = &fs->h_u.tcp_ip6_spec;
+		struct ethtool_tcpip6_spec *ip_mask = &fs->m_u.tcp_ip6_spec;
+
+		fkeys->basic.ip_proto = IPPROTO_TCP;
+		if (flow_type == UDP_V6_FLOW)
+			fkeys->basic.ip_proto = IPPROTO_UDP;
+		fkeys->basic.n_proto = htons(ETH_P_IPV6);
+
+		if (ipv6_mask_is_full(ip_mask->ip6src)) {
+			fkeys->addrs.v6addrs.src =
+				*(struct in6_addr *)&ip_spec->ip6src;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_IP;
+		} else if (!ipv6_mask_is_zero(ip_mask->ip6src)) {
+			goto ntuple_err;
+		}
+		if (ipv6_mask_is_full(ip_mask->ip6dst)) {
+			fkeys->addrs.v6addrs.dst =
+				*(struct in6_addr *)&ip_spec->ip6dst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_IP;
+		} else if (!ipv6_mask_is_zero(ip_mask->ip6dst)) {
+			goto ntuple_err;
+		}
+
+		if (ip_mask->psrc == L4_PORT_ALL_MASK) {
+			fkeys->ports.src = ip_spec->psrc;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_PORT;
+		} else if (ip_mask->psrc) {
+			goto ntuple_err;
+		}
+		if (ip_mask->pdst == L4_PORT_ALL_MASK) {
+			fkeys->ports.dst = ip_spec->pdst;
+			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_PORT;
+		} else if (ip_mask->pdst) {
+			goto ntuple_err;
+		}
+		break;
+	}
+	default:
+		rc = -EOPNOTSUPP;
+		goto ntuple_err;
+	}
+	if (!new_fltr->ntuple_flags)
+		goto ntuple_err;
+
+	idx = bnxt_get_ntp_filter_idx(bp, fkeys, NULL);
+	rcu_read_lock();
+	fltr = bnxt_lookup_ntp_filter_from_idx(bp, new_fltr, idx);
+	if (fltr) {
+		rcu_read_unlock();
+		rc = -EEXIST;
+		goto ntuple_err;
+	}
+	rcu_read_unlock();
+
+	new_fltr->base.rxq = ring;
+	new_fltr->base.flags = BNXT_ACT_NO_AGING;
+	__set_bit(BNXT_FLTR_VALID, &new_fltr->base.state);
+	rc = bnxt_insert_ntp_filter(bp, new_fltr, idx);
+	if (!rc) {
+		rc = bnxt_hwrm_cfa_ntuple_filter_alloc(bp, new_fltr);
+		if (rc) {
+			bnxt_del_ntp_filter(bp, new_fltr);
+			return rc;
+		}
+		fs->location = new_fltr->base.sw_id;
+		return 0;
+	}
+
+ntuple_err:
+	atomic_dec(&l2_fltr->refcnt);
+	kfree(new_fltr);
+	return rc;
+}
+
+static int bnxt_srxclsrlins(struct bnxt *bp, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fs = &cmd->fs;
+	u32 ring, flow_type;
+	int rc;
+	u8 vf;
+
+	if (!netif_running(bp->dev))
+		return -EAGAIN;
+	if (!(bp->flags & BNXT_FLAG_RFS))
+		return -EPERM;
+	if (fs->location != RX_CLS_LOC_ANY)
+		return -EINVAL;
+
+	ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
+	vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
+	if (BNXT_VF(bp) && vf)
+		return -EINVAL;
+	if (BNXT_PF(bp) && vf > bp->pf.active_vfs)
+		return -EINVAL;
+	if (!vf && ring >= bp->rx_nr_rings)
+		return -EINVAL;
+
+	flow_type = fs->flow_type;
+	if (flow_type & (FLOW_MAC_EXT | FLOW_RSS))
+		return -EINVAL;
+	flow_type &= ~FLOW_EXT;
+	if (flow_type == ETHER_FLOW)
+		rc = -EOPNOTSUPP;
+	else
+		rc = bnxt_add_ntuple_cls_rule(bp, fs);
+	return rc;
+}
 
 static u64 get_ethtool_ipv4_rss(struct bnxt *bp)
 {
@@ -1302,14 +1489,13 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	int rc = 0;
 
 	switch (cmd->cmd) {
-#ifdef CONFIG_RFS_ACCEL
 	case ETHTOOL_GRXRINGS:
 		cmd->data = bp->rx_nr_rings;
 		break;
 
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bp->ntp_fltr_count;
-		cmd->data = BNXT_NTP_FLTR_MAX_FLTR;
+		cmd->data = BNXT_NTP_FLTR_MAX_FLTR | RX_CLS_LOC_SPECIAL;
 		break;
 
 	case ETHTOOL_GRXCLSRLALL:
@@ -1319,7 +1505,6 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	case ETHTOOL_GRXCLSRULE:
 		rc = bnxt_grxclsrule(bp, cmd);
 		break;
-#endif
 
 	case ETHTOOL_GRXFH:
 		rc = bnxt_grxfh(bp, cmd);
@@ -1341,6 +1526,10 @@ static int bnxt_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
 		rc = bnxt_srxfh(bp, cmd);
+		break;
+
+	case ETHTOOL_SRXCLSRLINS:
+		rc = bnxt_srxclsrlins(bp, cmd);
 		break;
 
 	default:

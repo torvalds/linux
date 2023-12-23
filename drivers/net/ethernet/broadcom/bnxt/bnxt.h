@@ -1342,6 +1342,7 @@ struct bnxt_filter_base {
 #define BNXT_ACT_DROP		1
 #define BNXT_ACT_RING_DST	2
 #define BNXT_ACT_FUNC_DST	4
+#define BNXT_ACT_NO_AGING	8
 	u16			sw_id;
 	u16			rxq;
 	u16			fw_vnic_id;
@@ -2647,6 +2648,8 @@ int bnxt_hwrm_l2_filter_free(struct bnxt *bp, struct bnxt_l2_filter *fltr);
 int bnxt_hwrm_l2_filter_alloc(struct bnxt *bp, struct bnxt_l2_filter *fltr);
 int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
 				     struct bnxt_ntuple_filter *fltr);
+int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
+				      struct bnxt_ntuple_filter *fltr);
 void bnxt_fill_ipv6_mask(__be32 mask[4]);
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id);
