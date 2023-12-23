@@ -283,7 +283,7 @@ struct dasd_pprc_dev_info {
 	__u8 secondary;		/* 7       Secondary device address */
 	__u16 pprc_id;		/* 8-9     Peer-to-Peer Remote Copy ID */
 	__u8 reserved2[12];	/* 10-21   reserved */
-	__u16 prim_cu_ssid;	/* 22-23   Pimary Control Unit SSID */
+	__u16 prim_cu_ssid;	/* 22-23   Primary Control Unit SSID */
 	__u8 reserved3[12];	/* 24-35   reserved */
 	__u16 sec_cu_ssid;	/* 36-37   Secondary Control Unit SSID */
 	__u8 reserved4[90];	/* 38-127  reserved */

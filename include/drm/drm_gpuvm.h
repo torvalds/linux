@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/* SPDX-License-Identifier: GPL-2.0-only OR MIT */
 
 #ifndef __DRM_GPUVM_H__
 #define __DRM_GPUVM_H__

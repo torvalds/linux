@@ -434,6 +434,21 @@ export INSTALL SHELL_PATH
 
 SHELL = $(SHELL_PATH)
 
+arm64_gen_sysreg_dir := $(srctree)/tools/arch/arm64/tools
+ifneq ($(OUTPUT),)
+  arm64_gen_sysreg_outdir := $(OUTPUT)
+else
+  arm64_gen_sysreg_outdir := $(CURDIR)
+endif
+
+arm64-sysreg-defs: FORCE
+	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir)
+
+arm64-sysreg-defs-clean:
+	$(call QUIET_CLEAN,arm64-sysreg-defs)
+	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) O=$(arm64_gen_sysreg_outdir) \
+		clean > /dev/null
+
 beauty_linux_dir := $(srctree)/tools/perf/trace/beauty/include/linux/
 linux_uapi_dir := $(srctree)/tools/include/uapi/linux
 asm_generic_uapi_dir := $(srctree)/tools/include/uapi/asm-generic
@@ -449,15 +464,6 @@ drm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/drm_ioctl.sh
 
 # Create output directory if not already present
 _dummy := $(shell [ -d '$(beauty_ioctl_outdir)' ] || mkdir -p '$(beauty_ioctl_outdir)')
-
-arm64_gen_sysreg_dir := $(srctree)/tools/arch/arm64/tools
-
-arm64-sysreg-defs: FORCE
-	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir)
-
-arm64-sysreg-defs-clean:
-	$(call QUIET_CLEAN,arm64-sysreg-defs)
-	$(Q)$(MAKE) -C $(arm64_gen_sysreg_dir) clean > /dev/null
 
 $(drm_ioctl_array): $(drm_hdr_dir)/drm.h $(drm_hdr_dir)/i915_drm.h $(drm_ioctl_tbl)
 	$(Q)$(SHELL) '$(drm_ioctl_tbl)' $(drm_hdr_dir) > $@

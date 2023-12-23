@@ -151,7 +151,11 @@ struct bpos {
 #else
 #error edit for your odd byteorder.
 #endif
-} __packed __aligned(4);
+} __packed
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+__aligned(4)
+#endif
+;
 
 #define KEY_INODE_MAX			((__u64)~0ULL)
 #define KEY_OFFSET_MAX			((__u64)~0ULL)
@@ -1528,7 +1532,7 @@ struct bch_sb_field_disk_groups {
 	x(move_extent_write,				36)	\
 	x(move_extent_finish,				37)	\
 	x(move_extent_fail,				38)	\
-	x(move_extent_alloc_mem_fail,			39)	\
+	x(move_extent_start_fail,			39)	\
 	x(copygc,					40)	\
 	x(copygc_wait,					41)	\
 	x(gc_gens_end,					42)	\

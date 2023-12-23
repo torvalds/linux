@@ -1358,10 +1358,9 @@ static bool btree_node_has_extra_bsets(struct bch_fs *c, unsigned offset, void *
 	return offset;
 }
 
-static void btree_node_read_all_replicas_done(struct closure *cl)
+static CLOSURE_CALLBACK(btree_node_read_all_replicas_done)
 {
-	struct btree_node_read_all *ra =
-		container_of(cl, struct btree_node_read_all, cl);
+	closure_type(ra, struct btree_node_read_all, cl);
 	struct bch_fs *c = ra->c;
 	struct btree *b = ra->b;
 	struct printbuf buf = PRINTBUF;
@@ -1567,7 +1566,7 @@ static int btree_node_read_all_replicas(struct bch_fs *c, struct btree *b, bool 
 
 	if (sync) {
 		closure_sync(&ra->cl);
-		btree_node_read_all_replicas_done(&ra->cl);
+		btree_node_read_all_replicas_done(&ra->cl.work);
 	} else {
 		continue_at(&ra->cl, btree_node_read_all_replicas_done,
 			    c->io_complete_wq);
@@ -1705,8 +1704,8 @@ int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 	return bch2_trans_run(c, __bch2_btree_root_read(trans, id, k, level));
 }
 
-void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
-			      struct btree_write *w)
+static void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
+				      struct btree_write *w)
 {
 	unsigned long old, new, v = READ_ONCE(b->will_make_reachable);
 

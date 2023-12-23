@@ -322,28 +322,32 @@ cifs_disable_secondary_channels(struct cifs_ses *ses)
 		iface = ses->chans[i].iface;
 		server = ses->chans[i].server;
 
+		/*
+		 * remove these references first, since we need to unlock
+		 * the chan_lock here, since iface_lock is a higher lock
+		 */
+		ses->chans[i].iface = NULL;
+		ses->chans[i].server = NULL;
+		spin_unlock(&ses->chan_lock);
+
 		if (iface) {
 			spin_lock(&ses->iface_lock);
-			kref_put(&iface->refcount, release_iface);
-			ses->chans[i].iface = NULL;
 			iface->num_channels--;
 			if (iface->weight_fulfilled)
 				iface->weight_fulfilled--;
+			kref_put(&iface->refcount, release_iface);
 			spin_unlock(&ses->iface_lock);
 		}
 
-		spin_unlock(&ses->chan_lock);
-		if (server && !server->terminate) {
-			server->terminate = true;
-			cifs_signal_cifsd_for_reconnect(server, false);
-		}
-		spin_lock(&ses->chan_lock);
-
 		if (server) {
-			ses->chans[i].server = NULL;
+			if (!server->terminate) {
+				server->terminate = true;
+				cifs_signal_cifsd_for_reconnect(server, false);
+			}
 			cifs_put_tcp_session(server, false);
 		}
 
+		spin_lock(&ses->chan_lock);
 	}
 
 done:

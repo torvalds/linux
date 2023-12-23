@@ -13,7 +13,7 @@
 
 int bch2_filemap_get_contig_folios_d(struct address_space *mapping,
 				     loff_t start, u64 end,
-				     int fgp_flags, gfp_t gfp,
+				     fgf_t fgp_flags, gfp_t gfp,
 				     folios *fs)
 {
 	struct folio *f;

@@ -647,7 +647,7 @@ static int __aq_ring_rx_clean(struct aq_ring_s *self, struct napi_struct *napi,
 		}
 		if (is_ptp_ring)
 			buff->len -=
-				aq_ptp_extract_ts(self->aq_nic, skb,
+				aq_ptp_extract_ts(self->aq_nic, skb_hwtstamps(skb),
 						  aq_buf_vaddr(&buff->rxdata),
 						  buff->len);
 
@@ -742,6 +742,8 @@ static int __aq_ring_xdp_clean(struct aq_ring_s *rx_ring,
 		struct aq_ring_buff_s *buff = &rx_ring->buff_ring[rx_ring->sw_head];
 		bool is_ptp_ring = aq_ptp_ring(rx_ring->aq_nic, rx_ring);
 		struct aq_ring_buff_s *buff_ = NULL;
+		u16 ptp_hwtstamp_len = 0;
+		struct skb_shared_hwtstamps shhwtstamps;
 		struct sk_buff *skb = NULL;
 		unsigned int next_ = 0U;
 		struct xdp_buff xdp;
@@ -810,11 +812,12 @@ static int __aq_ring_xdp_clean(struct aq_ring_s *rx_ring,
 		hard_start = page_address(buff->rxdata.page) +
 			     buff->rxdata.pg_off - rx_ring->page_offset;
 
-		if (is_ptp_ring)
-			buff->len -=
-				aq_ptp_extract_ts(rx_ring->aq_nic, skb,
-						  aq_buf_vaddr(&buff->rxdata),
-						  buff->len);
+		if (is_ptp_ring) {
+			ptp_hwtstamp_len = aq_ptp_extract_ts(rx_ring->aq_nic, &shhwtstamps,
+							     aq_buf_vaddr(&buff->rxdata),
+							     buff->len);
+			buff->len -= ptp_hwtstamp_len;
+		}
 
 		xdp_init_buff(&xdp, frame_sz, &rx_ring->xdp_rxq);
 		xdp_prepare_buff(&xdp, hard_start, rx_ring->page_offset,
@@ -833,6 +836,9 @@ static int __aq_ring_xdp_clean(struct aq_ring_s *rx_ring,
 		skb = aq_xdp_run_prog(aq_nic, &xdp, rx_ring, buff);
 		if (IS_ERR(skb) || !skb)
 			continue;
+
+		if (ptp_hwtstamp_len > 0)
+			*skb_hwtstamps(skb) = shhwtstamps;
 
 		if (buff->is_vlan)
 			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
@@ -932,11 +938,14 @@ void aq_ring_free(struct aq_ring_s *self)
 		return;
 
 	kfree(self->buff_ring);
+	self->buff_ring = NULL;
 
-	if (self->dx_ring)
+	if (self->dx_ring) {
 		dma_free_coherent(aq_nic_get_dev(self->aq_nic),
 				  self->size * self->dx_size, self->dx_ring,
 				  self->dx_ring_pa);
+		self->dx_ring = NULL;
+	}
 }
 
 unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)

@@ -547,6 +547,7 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 	struct jset_entry_data_usage *u =
 		container_of(entry, struct jset_entry_data_usage, entry);
 	unsigned bytes = jset_u64s(le16_to_cpu(entry->u64s)) * sizeof(u64);
+	struct printbuf err = PRINTBUF;
 	int ret = 0;
 
 	if (journal_entry_err_on(bytes < sizeof(*u) ||
@@ -555,10 +556,19 @@ static int journal_entry_data_usage_validate(struct bch_fs *c,
 				 journal_entry_data_usage_bad_size,
 				 "invalid journal entry usage: bad size")) {
 		journal_entry_null_range(entry, vstruct_next(entry));
-		return ret;
+		goto out;
 	}
 
+	if (journal_entry_err_on(bch2_replicas_entry_validate(&u->r, c->disk_sb.sb, &err),
+				 c, version, jset, entry,
+				 journal_entry_data_usage_bad_size,
+				 "invalid journal entry usage: %s", err.buf)) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		goto out;
+	}
+out:
 fsck_err:
+	printbuf_exit(&err);
 	return ret;
 }
 
@@ -1025,10 +1035,9 @@ next_block:
 	return 0;
 }
 
-static void bch2_journal_read_device(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_journal_read_device)
 {
-	struct journal_device *ja =
-		container_of(cl, struct journal_device, read);
+	closure_type(ja, struct journal_device, read);
 	struct bch_dev *ca = container_of(ja, struct bch_dev, journal);
 	struct bch_fs *c = ca->fs;
 	struct journal_list *jlist =
@@ -1079,6 +1088,12 @@ found:
 
 	if (ja->bucket_seq[ja->cur_idx] &&
 	    ja->sectors_free == ca->mi.bucket_size) {
+#if 0
+		/*
+		 * Debug code for ZNS support, where we (probably) want to be
+		 * correlated where we stopped in the journal to the zone write
+		 * points:
+		 */
 		bch_err(c, "ja->sectors_free == ca->mi.bucket_size");
 		bch_err(c, "cur_idx %u/%u", ja->cur_idx, ja->nr);
 		for (i = 0; i < 3; i++) {
@@ -1086,6 +1101,7 @@ found:
 
 			bch_err(c, "bucket_seq[%u] = %llu", idx, ja->bucket_seq[idx]);
 		}
+#endif
 		ja->sectors_free = 0;
 	}
 
@@ -1513,9 +1529,9 @@ static inline struct journal_buf *journal_last_unwritten_buf(struct journal *j)
 	return j->buf + (journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK);
 }
 
-static void journal_write_done(struct closure *cl)
+static CLOSURE_CALLBACK(journal_write_done)
 {
-	struct journal *j = container_of(cl, struct journal, io);
+	closure_type(j, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *w = journal_last_unwritten_buf(j);
 	struct bch_replicas_padded replicas;
@@ -1583,6 +1599,7 @@ static void journal_write_done(struct closure *cl)
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
+	bch2_journal_reclaim_fast(j);
 	bch2_journal_space_available(j);
 
 	closure_wake_up(&w->wait);
@@ -1631,9 +1648,9 @@ static void journal_write_endio(struct bio *bio)
 	percpu_ref_put(&ca->io_ref);
 }
 
-static void do_journal_write(struct closure *cl)
+static CLOSURE_CALLBACK(do_journal_write)
 {
-	struct journal *j = container_of(cl, struct journal, io);
+	closure_type(j, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	struct journal_buf *w = journal_last_unwritten_buf(j);
@@ -1843,9 +1860,9 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 	return 0;
 }
 
-void bch2_journal_write(struct closure *cl)
+CLOSURE_CALLBACK(bch2_journal_write)
 {
-	struct journal *j = container_of(cl, struct journal, io);
+	closure_type(j, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_dev *ca;
 	struct journal_buf *w = journal_last_unwritten_buf(j);

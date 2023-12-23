@@ -52,7 +52,6 @@ struct dr_qp_init_attr {
 	u32 cqn;
 	u32 pdn;
 	u32 max_send_wr;
-	u32 max_send_sge;
 	struct mlx5_uars_page *uar;
 	u8 isolate_vl_tc:1;
 };
@@ -247,37 +246,6 @@ static int dr_poll_cq(struct mlx5dr_cq *dr_cq, int ne)
 	return err == CQ_POLL_ERR ? err : npolled;
 }
 
-static int dr_qp_get_args_update_send_wqe_size(struct dr_qp_init_attr *attr)
-{
-	return roundup_pow_of_two(sizeof(struct mlx5_wqe_ctrl_seg) +
-				  sizeof(struct mlx5_wqe_flow_update_ctrl_seg) +
-				  sizeof(struct mlx5_wqe_header_modify_argument_update_seg));
-}
-
-/* We calculate for specific RC QP with the required functionality */
-static int dr_qp_calc_rc_send_wqe(struct dr_qp_init_attr *attr)
-{
-	int update_arg_size;
-	int inl_size = 0;
-	int tot_size;
-	int size;
-
-	update_arg_size = dr_qp_get_args_update_send_wqe_size(attr);
-
-	size = sizeof(struct mlx5_wqe_ctrl_seg) +
-	       sizeof(struct mlx5_wqe_raddr_seg);
-	inl_size = size + ALIGN(sizeof(struct mlx5_wqe_inline_seg) +
-				DR_STE_SIZE, 16);
-
-	size += attr->max_send_sge * sizeof(struct mlx5_wqe_data_seg);
-
-	size = max(size, update_arg_size);
-
-	tot_size = max(size, inl_size);
-
-	return ALIGN(tot_size, MLX5_SEND_WQE_BB);
-}
-
 static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 					 struct dr_qp_init_attr *attr)
 {
@@ -285,7 +253,6 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 	u32 temp_qpc[MLX5_ST_SZ_DW(qpc)] = {};
 	struct mlx5_wq_param wqp;
 	struct mlx5dr_qp *dr_qp;
-	int wqe_size;
 	int inlen;
 	void *qpc;
 	void *in;
@@ -365,15 +332,6 @@ static struct mlx5dr_qp *dr_create_rc_qp(struct mlx5_core_dev *mdev,
 	if (err)
 		goto err_in;
 	dr_qp->uar = attr->uar;
-	wqe_size = dr_qp_calc_rc_send_wqe(attr);
-	dr_qp->max_inline_data = min(wqe_size -
-				     (sizeof(struct mlx5_wqe_ctrl_seg) +
-				      sizeof(struct mlx5_wqe_raddr_seg) +
-				      sizeof(struct mlx5_wqe_inline_seg)),
-				     (2 * MLX5_SEND_WQE_BB -
-				      (sizeof(struct mlx5_wqe_ctrl_seg) +
-				       sizeof(struct mlx5_wqe_raddr_seg) +
-				       sizeof(struct mlx5_wqe_inline_seg))));
 
 	return dr_qp;
 
@@ -437,48 +395,8 @@ dr_rdma_handle_flow_access_arg_segments(struct mlx5_wqe_ctrl_seg *wq_ctrl,
 		MLX5_SEND_WQE_DS;
 }
 
-static int dr_set_data_inl_seg(struct mlx5dr_qp *dr_qp,
-			       struct dr_data_seg *data_seg, void *wqe)
-{
-	int inline_header_size = sizeof(struct mlx5_wqe_ctrl_seg) +
-				sizeof(struct mlx5_wqe_raddr_seg) +
-				sizeof(struct mlx5_wqe_inline_seg);
-	struct mlx5_wqe_inline_seg *seg;
-	int left_space;
-	int inl = 0;
-	void *addr;
-	int len;
-	int idx;
-
-	seg = wqe;
-	wqe += sizeof(*seg);
-	addr = (void *)(unsigned long)(data_seg->addr);
-	len  = data_seg->length;
-	inl += len;
-	left_space = MLX5_SEND_WQE_BB - inline_header_size;
-
-	if (likely(len > left_space)) {
-		memcpy(wqe, addr, left_space);
-		len -= left_space;
-		addr += left_space;
-		idx = (dr_qp->sq.pc + 1) & (dr_qp->sq.wqe_cnt - 1);
-		wqe = mlx5_wq_cyc_get_wqe(&dr_qp->wq.sq, idx);
-	}
-
-	memcpy(wqe, addr, len);
-
-	if (likely(inl)) {
-		seg->byte_count = cpu_to_be32(inl | MLX5_INLINE_SEG);
-		return DIV_ROUND_UP(inl + sizeof(seg->byte_count),
-				    MLX5_SEND_WQE_DS);
-	} else {
-		return 0;
-	}
-}
-
 static void
-dr_rdma_handle_icm_write_segments(struct mlx5dr_qp *dr_qp,
-				  struct mlx5_wqe_ctrl_seg *wq_ctrl,
+dr_rdma_handle_icm_write_segments(struct mlx5_wqe_ctrl_seg *wq_ctrl,
 				  u64 remote_addr,
 				  u32 rkey,
 				  struct dr_data_seg *data_seg,
@@ -494,17 +412,15 @@ dr_rdma_handle_icm_write_segments(struct mlx5dr_qp *dr_qp,
 	wq_raddr->reserved = 0;
 
 	wq_dseg = (void *)(wq_raddr + 1);
-	/* WQE ctrl segment + WQE remote addr segment */
-	*size = (sizeof(*wq_ctrl) + sizeof(*wq_raddr)) / MLX5_SEND_WQE_DS;
 
-	if (data_seg->send_flags & IB_SEND_INLINE) {
-		*size += dr_set_data_inl_seg(dr_qp, data_seg, wq_dseg);
-	} else {
-		wq_dseg->byte_count = cpu_to_be32(data_seg->length);
-		wq_dseg->lkey = cpu_to_be32(data_seg->lkey);
-		wq_dseg->addr = cpu_to_be64(data_seg->addr);
-		*size += sizeof(*wq_dseg) / MLX5_SEND_WQE_DS;  /* WQE data segment */
-	}
+	wq_dseg->byte_count = cpu_to_be32(data_seg->length);
+	wq_dseg->lkey = cpu_to_be32(data_seg->lkey);
+	wq_dseg->addr = cpu_to_be64(data_seg->addr);
+
+	*size = (sizeof(*wq_ctrl) +    /* WQE ctrl segment */
+		 sizeof(*wq_dseg) +    /* WQE data segment */
+		 sizeof(*wq_raddr)) /  /* WQE remote addr segment */
+		MLX5_SEND_WQE_DS;
 }
 
 static void dr_set_ctrl_seg(struct mlx5_wqe_ctrl_seg *wq_ctrl,
@@ -535,7 +451,7 @@ static void dr_rdma_segments(struct mlx5dr_qp *dr_qp, u64 remote_addr,
 	switch (opcode) {
 	case MLX5_OPCODE_RDMA_READ:
 	case MLX5_OPCODE_RDMA_WRITE:
-		dr_rdma_handle_icm_write_segments(dr_qp, wq_ctrl, remote_addr,
+		dr_rdma_handle_icm_write_segments(wq_ctrl, remote_addr,
 						  rkey, data_seg, &size);
 		break;
 	case MLX5_OPCODE_FLOW_TBL_ACCESS:
@@ -656,7 +572,7 @@ static void dr_fill_write_args_segs(struct mlx5dr_send_ring *send_ring,
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
 		send_info->write.send_flags |= IB_SEND_SIGNALED;
 	else
-		send_info->write.send_flags &= ~IB_SEND_SIGNALED;
+		send_info->write.send_flags = 0;
 }
 
 static void dr_fill_write_icm_segs(struct mlx5dr_domain *dmn,
@@ -680,13 +596,9 @@ static void dr_fill_write_icm_segs(struct mlx5dr_domain *dmn,
 	}
 
 	send_ring->pending_wqe++;
-	if (!send_info->write.lkey)
-		send_info->write.send_flags |= IB_SEND_INLINE;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
 		send_info->write.send_flags |= IB_SEND_SIGNALED;
-	else
-		send_info->write.send_flags &= ~IB_SEND_SIGNALED;
 
 	send_ring->pending_wqe++;
 	send_info->read.length = send_info->write.length;
@@ -696,9 +608,9 @@ static void dr_fill_write_icm_segs(struct mlx5dr_domain *dmn,
 	send_info->read.lkey = send_ring->sync_mr->mkey;
 
 	if (send_ring->pending_wqe % send_ring->signal_th == 0)
-		send_info->read.send_flags |= IB_SEND_SIGNALED;
+		send_info->read.send_flags = IB_SEND_SIGNALED;
 	else
-		send_info->read.send_flags &= ~IB_SEND_SIGNALED;
+		send_info->read.send_flags = 0;
 }
 
 static void dr_fill_data_segs(struct mlx5dr_domain *dmn,
@@ -1345,7 +1257,6 @@ int mlx5dr_send_ring_alloc(struct mlx5dr_domain *dmn)
 	dmn->send_ring->cq->qp = dmn->send_ring->qp;
 
 	dmn->info.max_send_wr = QUEUE_SIZE;
-	init_attr.max_send_sge = 1;
 	dmn->info.max_inline_size = min(dmn->send_ring->qp->max_inline_data,
 					DR_STE_SIZE);
 

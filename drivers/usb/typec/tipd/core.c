@@ -968,16 +968,17 @@ static int tps25750_start_patch_burst_mode(struct tps6598x *tps)
 	ret = of_property_match_string(np, "reg-names", "patch-address");
 	if (ret < 0) {
 		dev_err(tps->dev, "failed to get patch-address %d\n", ret);
-		return ret;
+		goto release_fw;
 	}
 
 	ret = of_property_read_u32_index(np, "reg", ret, &addr);
 	if (ret)
-		return ret;
+		goto release_fw;
 
 	if (addr == 0 || (addr >= 0x20 && addr <= 0x23)) {
 		dev_err(tps->dev, "wrong patch address %u\n", addr);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto release_fw;
 	}
 
 	bpms_data.addr = (u8)addr;
@@ -1226,7 +1227,10 @@ static int tps6598x_probe(struct i2c_client *client)
 			TPS_REG_INT_PLUG_EVENT;
 	}
 
-	tps->data = device_get_match_data(tps->dev);
+	if (dev_fwnode(tps->dev))
+		tps->data = device_get_match_data(tps->dev);
+	else
+		tps->data = i2c_get_match_data(client);
 	if (!tps->data)
 		return -EINVAL;
 
@@ -1425,7 +1429,7 @@ static const struct of_device_id tps6598x_of_match[] = {
 MODULE_DEVICE_TABLE(of, tps6598x_of_match);
 
 static const struct i2c_device_id tps6598x_id[] = {
-	{ "tps6598x" },
+	{ "tps6598x", (kernel_ulong_t)&tps6598x_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tps6598x_id);

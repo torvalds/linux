@@ -23,7 +23,7 @@
 static inline struct ieee80211_sub_if_data *
 get_bss_sdata(struct ieee80211_sub_if_data *sdata)
 {
-	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+	if (sdata && sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
 				     u.ap);
 
@@ -695,10 +695,13 @@ static inline void drv_flush(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *sdata,
 			     u32 queues, bool drop)
 {
-	struct ieee80211_vif *vif = sdata ? &sdata->vif : NULL;
+	struct ieee80211_vif *vif;
 
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
+
+	sdata = get_bss_sdata(sdata);
+	vif = sdata ? &sdata->vif : NULL;
 
 	if (sdata && !check_sdata_in_driver(sdata))
 		return;
@@ -715,6 +718,8 @@ static inline void drv_flush_sta(struct ieee80211_local *local,
 {
 	might_sleep();
 	lockdep_assert_wiphy(local->hw.wiphy);
+
+	sdata = get_bss_sdata(sdata);
 
 	if (sdata && !check_sdata_in_driver(sdata))
 		return;

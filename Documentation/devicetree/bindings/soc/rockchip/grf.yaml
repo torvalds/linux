@@ -233,6 +233,7 @@ allOf:
               - rockchip,rk3399-grf
               - rockchip,rk3399-pmugrf
               - rockchip,rk3568-pmugrf
+              - rockchip,rk3588-pmugrf
               - rockchip,rv1108-grf
               - rockchip,rv1108-pmugrf
 

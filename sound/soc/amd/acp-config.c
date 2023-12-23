@@ -111,6 +111,20 @@ static const struct config_entry config_table[] = {
 				.matches = {
 					DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "HUAWEI"),
 					DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "HVY-WXX9"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "M1010"),
+				},
+			},
+			{}
+		},
+	},
+	{
+		.flags = FLAG_AMD_LEGACY,
+		.device = ACP_PCI_DEV_ID,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.matches = {
+					DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "HUAWEI"),
+					DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "HVY-WXX9"),
 					DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "M1020"),
 				},
 			},

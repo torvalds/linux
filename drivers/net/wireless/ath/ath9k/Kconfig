@@ -57,8 +57,7 @@ config ATH9K_AHB
 
 config ATH9K_DEBUGFS
 	bool "Atheros ath9k debugging"
-	depends on ATH9K && DEBUG_FS
-	select MAC80211_DEBUGFS
+	depends on ATH9K && DEBUG_FS && MAC80211_DEBUGFS
 	select ATH9K_COMMON_DEBUG
 	help
 	  Say Y, if you need access to ath9k's statistics for
@@ -70,7 +69,6 @@ config ATH9K_DEBUGFS
 config ATH9K_STATION_STATISTICS
 	bool "Detailed station statistics"
 	depends on ATH9K && ATH9K_DEBUGFS && DEBUG_FS
-	select MAC80211_DEBUGFS
 	default n
 	help
 	  This option enables detailed statistics for association stations.

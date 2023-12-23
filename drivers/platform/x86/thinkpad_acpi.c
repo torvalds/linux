@@ -512,10 +512,10 @@ struct tpacpi_quirk {
  * Iterates over a quirks list until one is found that matches the
  * ThinkPad's vendor, BIOS and EC model.
  *
- * Returns 0 if nothing matches, otherwise returns the quirks field of
+ * Returns: %0 if nothing matches, otherwise returns the quirks field of
  * the matching &struct tpacpi_quirk entry.
  *
- * The match criteria is: vendor, ec and bios much match.
+ * The match criteria is: vendor, ec and bios must match.
  */
 static unsigned long __init tpacpi_check_quirks(
 			const struct tpacpi_quirk *qlist,
@@ -9303,7 +9303,7 @@ static struct tpacpi_battery_driver_data battery_info;
 
 /* ACPI helpers/functions/probes */
 
-/**
+/*
  * This evaluates a ACPI method call specific to the battery
  * ACPI extension. The specifics are that an error is marked
  * in the 32rd bit of the response, so we just check that here.
