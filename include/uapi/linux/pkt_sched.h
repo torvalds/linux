@@ -557,20 +557,6 @@ enum {
 
 #define TCA_CBQ_MAX	(__TCA_CBQ_MAX - 1)
 
-/* dsmark section */
-
-enum {
-	TCA_DSMARK_UNSPEC,
-	TCA_DSMARK_INDICES,
-	TCA_DSMARK_DEFAULT_INDEX,
-	TCA_DSMARK_SET_TC_INDEX,
-	TCA_DSMARK_MASK,
-	TCA_DSMARK_VALUE,
-	__TCA_DSMARK_MAX,
-};
-
-#define TCA_DSMARK_MAX (__TCA_DSMARK_MAX - 1)
-
 /* ATM  section */
 
 enum {
