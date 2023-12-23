@@ -270,7 +270,7 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 	} else {
 		ieee->dev->type = ARPHRD_ETHER;
 		if (ieee->iw_mode == IW_MODE_MONITOR)
-			rtllib_DisableNetMonitorMode(ieee->dev, false);
+			rtllib_disable_net_monitor_mode(ieee->dev, false);
 	}
 
 	if (!ieee->proto_started) {

@@ -361,7 +361,7 @@ void rtllib_EnableNetMonitorMode(struct net_device *dev,
 /* Disables network monitor mode. Only packets destinated to
  * us will be received.
  */
-void rtllib_DisableNetMonitorMode(struct net_device *dev,
+void rtllib_disable_net_monitor_mode(struct net_device *dev,
 		bool init_state)
 {
 	struct rtllib_device *ieee = netdev_priv_rsl(dev);
