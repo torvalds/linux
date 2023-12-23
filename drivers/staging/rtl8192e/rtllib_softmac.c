@@ -82,7 +82,7 @@ static void rtllib_mfie_grate(struct rtllib_device *ieee, u8 **tag_p)
 	*tag_p = tag;
 }
 
-static void rtllib_WMM_Info(struct rtllib_device *ieee, u8 **tag_p)
+static void rtllib_wmm_info(struct rtllib_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
@@ -888,7 +888,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 	if (wmm_info_len) {
 		tag = skb_put(skb, wmm_info_len);
-		rtllib_WMM_Info(ieee, &tag);
+		rtllib_wmm_info(ieee, &tag);
 	}
 
 	if (wps_ie_len && ieee->wps_ie)
