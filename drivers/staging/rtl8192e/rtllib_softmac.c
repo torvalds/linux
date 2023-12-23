@@ -917,7 +917,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 
 	kfree(ieee->assocreq_ies);
 	ieee->assocreq_ies = NULL;
-	ies = &(hdr->info_element[0].id);
+	ies = &hdr->info_element[0].id;
 	ieee->assocreq_ies_len = (skb->data + skb->len) - ies;
 	ieee->assocreq_ies = kmemdup(ies, ieee->assocreq_ies_len, GFP_ATOMIC);
 	if (!ieee->assocreq_ies)
