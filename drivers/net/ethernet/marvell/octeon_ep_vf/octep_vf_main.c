@@ -187,6 +187,19 @@ static netdev_tx_t octep_vf_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+int octep_vf_get_link_info(struct octep_vf_device *oct)
+{
+	int ret, size;
+
+	ret = octep_vf_mbox_bulk_read(oct, OCTEP_PFVF_MBOX_CMD_GET_LINK_INFO,
+				      (u8 *)&oct->link_info, &size);
+	if (ret) {
+		dev_err(&oct->pdev->dev, "Get VF link info failed via VF Mbox\n");
+		return ret;
+	}
+	return 0;
+}
+
 /**
  * octep_vf_tx_timeout_task - work queue task to Handle Tx queue timeout.
  *
@@ -225,11 +238,84 @@ static void octep_vf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	queue_work(octep_vf_wq, &oct->tx_timeout_task);
 }
 
+static int octep_vf_set_mac(struct net_device *netdev, void *p)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	struct sockaddr *addr = (struct sockaddr *)p;
+	int err;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	err = octep_vf_mbox_set_mac_addr(oct, addr->sa_data);
+	if (err)
+		return err;
+
+	memcpy(oct->mac_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(netdev, addr->sa_data);
+
+	return 0;
+}
+
+static int octep_vf_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	struct octep_vf_iface_link_info *link_info;
+	int err;
+
+	link_info = &oct->link_info;
+	if (link_info->mtu == new_mtu)
+		return 0;
+
+	err = octep_vf_mbox_set_mtu(oct, new_mtu);
+	if (!err) {
+		oct->link_info.mtu = new_mtu;
+		netdev->mtu = new_mtu;
+	}
+	return err;
+}
+
+static int octep_vf_set_features(struct net_device *netdev,
+				 netdev_features_t features)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	u16 rx_offloads = 0, tx_offloads = 0;
+	int err;
+
+	/* We only support features received from firmware */
+	if ((features & netdev->hw_features) != features)
+		return -EINVAL;
+
+	if (features & NETIF_F_TSO)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_TSO;
+
+	if (features & NETIF_F_TSO6)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_TSO;
+
+	if (features & NETIF_F_IP_CSUM)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_CKSUM;
+
+	if (features & NETIF_F_IPV6_CSUM)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_CKSUM;
+
+	if (features & NETIF_F_RXCSUM)
+		rx_offloads |= OCTEP_VF_RX_OFFLOAD_CKSUM;
+
+	err = octep_vf_mbox_set_offloads(oct, tx_offloads, rx_offloads);
+	if (!err)
+		netdev->features = features;
+
+	return err;
+}
+
 static const struct net_device_ops octep_vf_netdev_ops = {
 	.ndo_open                = octep_vf_open,
 	.ndo_stop                = octep_vf_stop,
 	.ndo_start_xmit          = octep_vf_start_xmit,
 	.ndo_tx_timeout          = octep_vf_tx_timeout,
+	.ndo_set_mac_address     = octep_vf_set_mac,
+	.ndo_change_mtu          = octep_vf_change_mtu,
+	.ndo_set_features        = octep_vf_set_features,
 };
 
 static const char *octep_vf_devid_to_str(struct octep_vf_device *oct)
@@ -411,10 +497,27 @@ static int octep_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_mbox_version;
 	}
 
+	if (octep_vf_mbox_get_fw_info(octep_vf_dev)) {
+		dev_err(&pdev->dev, "unable to get fw info\n");
+		err = -EINVAL;
+		goto err_mbox_version;
+	}
+
 	netdev->hw_features = NETIF_F_SG;
+	if (OCTEP_VF_TX_IP_CSUM(octep_vf_dev->fw_info.tx_ol_flags))
+		netdev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+
+	if (OCTEP_VF_RX_IP_CSUM(octep_vf_dev->fw_info.rx_ol_flags))
+		netdev->hw_features |= NETIF_F_RXCSUM;
+
 	netdev->min_mtu = OCTEP_VF_MIN_MTU;
 	netdev->max_mtu = OCTEP_VF_MAX_MTU;
 	netdev->mtu = OCTEP_VF_DEFAULT_MTU;
+
+	if (OCTEP_VF_TX_TSO(octep_vf_dev->fw_info.tx_ol_flags)) {
+		netdev->hw_features |= NETIF_F_TSO;
+		netif_set_tso_max_size(netdev, netdev->max_mtu);
+	}
 
 	netdev->features |= netdev->hw_features;
 	octep_vf_get_mac_addr(octep_vf_dev, octep_vf_dev->mac_addr);
