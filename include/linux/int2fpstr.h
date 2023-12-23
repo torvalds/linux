@@ -4,22 +4,36 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 
+static inline int size_alloc(int number) 
+{
+	if(number < 0) number *= -1;
+
+	int ret = 0;
+	for(; 
+		number;
+		number /= 10, ret++
+	); 
+
+	return ret;
+}
+
 inline char *int2fpstr(int number, int decimal_places) 
 {
 	if(!number)	return "0";
 
-	char *buffer = kmalloc(32, GFP_KERNEL);
+	int buf_index = size_alloc(number) + 1;
+	char *buffer = kmalloc(buf_index, GFP_KERNEL);
 	if (!buffer) {
 		pr_err("Error: Memory allocation failed.\n");
 		return NULL;
 	}
 
-	int buf_index = 30;
-	int count_decimal_place = 0;
+	int c_dec_places = 0;
 	int point_include = decimal_places < 1;
 
 	int neg = number < 0;
-	if(neg)
+	if(neg) {
+		buf_index ++;
 		number *= -1;
 
 	for (; number && buf_index; 
