@@ -19,7 +19,7 @@
 u64 int_pow(u64 base, unsigned int exp)
 {
 	if(exp < 0) return 0;
-	if(!base || !exp) return NULL;
+	if(!base || !exp) return 0;
 
 	u64 result = 1;
 	for(; exp ; exp --) result *= base;
