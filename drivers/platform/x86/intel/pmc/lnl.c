@@ -509,6 +509,8 @@ static void lnl_d3_fixup(void)
 static int lnl_resume(struct pmc_dev *pmcdev)
 {
 	lnl_d3_fixup();
+	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+
 	return pmc_core_resume_common(pmcdev);
 }
 
@@ -521,6 +523,7 @@ int lnl_core_init(struct pmc_dev *pmcdev)
 
 	lnl_d3_fixup();
 
+	pmcdev->suspend = cnl_suspend;
 	pmcdev->resume = lnl_resume;
 	pmcdev->regmap_list = lnl_pmc_info_list;
 	ret = pmc_core_ssram_init(pmcdev, func);
