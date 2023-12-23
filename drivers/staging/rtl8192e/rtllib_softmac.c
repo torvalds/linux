@@ -1619,7 +1619,7 @@ rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 
 			kfree(ieee->assocresp_ies);
 			ieee->assocresp_ies = NULL;
-			ies = &(assoc_resp->info_element[0].id);
+			ies = &assoc_resp->info_element[0].id;
 			ieee->assocresp_ies_len = (skb->data + skb->len) - ies;
 			ieee->assocresp_ies = kmemdup(ies,
 						      ieee->assocresp_ies_len,
