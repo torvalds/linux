@@ -7,7 +7,7 @@ target_name = "pitti"
 def define_pitti():
     _pitti_in_tree_modules = [
         # keep sorted
-        # TODO: Need to add GKI modules
+        "arch/arm64/gunyah/gh_arm_drv.ko",
         "drivers/base/regmap/qti-regmap-debugfs.ko",
         "drivers/char/rdbg.ko",
         "drivers/clk/qcom/clk-dummy.ko",
