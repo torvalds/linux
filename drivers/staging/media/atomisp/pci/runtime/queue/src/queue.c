@@ -123,7 +123,7 @@ int ia_css_queue_enqueue(ia_css_queue_t *qhandle, uint32_t item)
 
 		/* c. Store the queue object */
 		/* Set only fields requiring update with
-		 * valid value. Avoids uncessary calls
+		 * valid value. Avoids unnecessary calls
 		 * to load/store functions
 		 */
 		ignore_desc_flags = QUEUE_IGNORE_SIZE_START_STEP_FLAGS;
@@ -180,7 +180,7 @@ int ia_css_queue_dequeue(ia_css_queue_t *qhandle, uint32_t *item)
 
 		/* c. Store the queue object */
 		/* Set only fields requiring update with
-		 * valid value. Avoids uncessary calls
+		 * valid value. Avoids unnecessary calls
 		 * to load/store functions
 		 */
 		ignore_desc_flags = QUEUE_IGNORE_SIZE_END_STEP_FLAGS;
