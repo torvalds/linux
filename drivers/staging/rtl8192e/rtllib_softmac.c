@@ -142,23 +142,23 @@ u8 MgntQuery_TxRateExcludeCCKRates(struct rtllib_device *ieee)
 {
 	u16	i;
 	u8	query_rate = 0;
-	u8	BasicRate;
+	u8	basic_rate;
 
 	for (i = 0; i < ieee->current_network.rates_len; i++) {
-		BasicRate = ieee->current_network.rates[i] & 0x7F;
-		if (!rtllib_is_cck_rate(BasicRate)) {
+		basic_rate = ieee->current_network.rates[i] & 0x7F;
+		if (!rtllib_is_cck_rate(basic_rate)) {
 			if (query_rate == 0) {
-				query_rate = BasicRate;
+				query_rate = basic_rate;
 			} else {
-				if (BasicRate < query_rate)
-					query_rate = BasicRate;
+				if (basic_rate < query_rate)
+					query_rate = basic_rate;
 			}
 		}
 	}
 
 	if (query_rate == 0) {
 		query_rate = 12;
-		netdev_info(ieee->dev, "No BasicRate found!!\n");
+		netdev_info(ieee->dev, "No basic_rate found!!\n");
 	}
 	return query_rate;
 }
