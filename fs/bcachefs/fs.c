@@ -1630,11 +1630,11 @@ static int bch2_remount(struct super_block *sb, int *flags, char *data)
 	struct bch_opts opts = bch2_opts_empty();
 	int ret;
 
-	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
-
 	ret = bch2_parse_mount_opts(c, &opts, data);
 	if (ret)
 		goto err;
+
+	opt_set(opts, read_only, (*flags & SB_RDONLY) != 0);
 
 	if (opts.read_only != c->opts.read_only) {
 		down_write(&c->state_lock);
