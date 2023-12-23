@@ -69,7 +69,6 @@ struct pwm_state {
  * @label: name of the PWM device
  * @flags: flags associated with the PWM device
  * @hwpwm: per-chip relative index of the PWM device
- * @pwm: global index of the PWM device
  * @chip: PWM chip providing this PWM device
  * @args: PWM arguments
  * @state: last applied state
