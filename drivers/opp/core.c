@@ -1066,6 +1066,7 @@ static int _set_required_opps(struct device *dev, struct opp_table *opp_table,
 			      struct dev_pm_opp *opp, bool up)
 {
 	struct device **devs = opp_table->required_devs;
+	struct dev_pm_opp *required_opp;
 	int index, target, delta, ret;
 
 	if (!devs)
@@ -1088,7 +1089,9 @@ static int _set_required_opps(struct device *dev, struct opp_table *opp_table,
 
 	while (index != target) {
 		if (devs[index]) {
-			ret = dev_pm_opp_set_opp(devs[index], opp->required_opps[index]);
+			required_opp = opp ? opp->required_opps[index] : NULL;
+
+			ret = dev_pm_opp_set_opp(devs[index], required_opp);
 			if (ret)
 				return ret;
 		}
