@@ -98,7 +98,7 @@ static void rtllib_wmm_info(struct rtllib_device *ieee, u8 **tag_p)
 	*tag_p = tag;
 }
 
-static void rtllib_TURBO_Info(struct rtllib_device *ieee, u8 **tag_p)
+static void rtllib_turbo_info(struct rtllib_device *ieee, u8 **tag_p)
 {
 	u8 *tag = *tag_p;
 
@@ -896,7 +896,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 
 	if (turbo_info_len) {
 		tag = skb_put(skb, turbo_info_len);
-		rtllib_TURBO_Info(ieee, &tag);
+		rtllib_turbo_info(ieee, &tag);
 	}
 
 	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
