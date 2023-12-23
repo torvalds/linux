@@ -114,7 +114,7 @@ static int __octep_vf_mbox_send_cmd(struct octep_vf_device *oct,
 {
 	struct octep_vf_mbox *mbox = oct->mbox;
 	u64 reg_val = 0ull;
-	int count = 0;
+	int count;
 
 	if (!mbox)
 		return OCTEP_PFVF_MBOX_CMD_STATUS_NOT_SETUP;
