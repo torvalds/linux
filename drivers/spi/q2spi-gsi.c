@@ -28,10 +28,10 @@ static void q2spi_rx_xfer_completion_event(struct msm_gpi_dma_async_tx_cb_param 
 		return;
 	}
 
-	Q2SPI_DEBUG(q2spi, "%s cb_param:%p cb_param->len:%p cb_param->status:%d\n",
+	Q2SPI_DEBUG(q2spi, "%s cb_param:%p cb_param->len:%d cb_param->status:%d\n",
 		    __func__, cb_param, cb_param->length, cb_param->status);
 	Q2SPI_DEBUG(q2spi, "%s xfer:%p rx_buf:%p rx_dma:%p rx_len:%d m_cmd_param:%d\n",
-		    __func__, xfer, xfer->rx_buf, xfer->rx_dma, xfer->rx_len,
+		    __func__, xfer, xfer->rx_buf, (void *)xfer->rx_dma, xfer->rx_len,
 		    q2spi_pkt->m_cmd_param);
 
 	status = cb_param->status; //check status is 0 or EOT for success
