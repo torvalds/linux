@@ -5398,6 +5398,12 @@ F:	include/linux/counter.h
 F:	include/uapi/linux/counter.h
 F:	tools/counter/
 
+COUNTER WATCH EVENTS TOOL
+M:	Fabrice Gasnier <fabrice.gasnier@foss.st.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	tools/counter/counter_watch_events.c
+
 CP2615 I2C DRIVER
 M:	Bence Csókás <bence98@sch.bme.hu>
 S:	Maintained
