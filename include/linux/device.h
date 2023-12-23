@@ -662,7 +662,6 @@ struct device_physical_location {
  * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
- * @knode_class: The node used to add the device to the class list.
  * @class:	The class of the device.
  * @groups:	Optional attribute groups.
  * @release:	Callback to free the device after all references have
