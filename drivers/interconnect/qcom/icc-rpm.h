@@ -161,7 +161,7 @@ extern const struct rpm_clk_resource aggre1_branch_clk;
 extern const struct rpm_clk_resource aggre2_branch_clk;
 
 int qnoc_probe(struct platform_device *pdev);
-int qnoc_remove(struct platform_device *pdev);
+void qnoc_remove(struct platform_device *pdev);
 
 bool qcom_icc_rpm_smd_available(void);
 int qcom_icc_rpm_smd_send(int ctx, int rsc_type, int id, u32 val);
