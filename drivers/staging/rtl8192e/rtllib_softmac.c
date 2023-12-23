@@ -172,9 +172,8 @@ static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
 	else
 		rate = ieee->basic_rate & 0x7f;
 
-	if (rate == 0) {
+	if (rate == 0)
 		rate = 0x02;
-	}
 
 	return rate;
 }
