@@ -1728,7 +1728,7 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 	}
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_purge(&priv->rtllib->skb_waitQ[i]);
+		skb_queue_purge(&priv->rtllib->skb_waitq[i]);
 
 	skb_queue_purge(&priv->skb_queue);
 }

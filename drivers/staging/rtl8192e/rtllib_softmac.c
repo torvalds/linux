@@ -236,7 +236,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 		/* check whether the managed packet queued greater than 5 */
 		if (!ieee->check_nic_enough_desc(ieee->dev,
 						 tcb_desc->queue_index) ||
-		    skb_queue_len(&ieee->skb_waitQ[tcb_desc->queue_index]) ||
+		    skb_queue_len(&ieee->skb_waitq[tcb_desc->queue_index]) ||
 		    ieee->queue_stop) {
 			/* insert the skb packet to the management queue
 			 *
@@ -246,7 +246,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 			netdev_info(ieee->dev,
 			       "%s():insert to waitqueue, queue_index:%d!\n",
 			       __func__, tcb_desc->queue_index);
-			skb_queue_tail(&ieee->skb_waitQ[tcb_desc->queue_index],
+			skb_queue_tail(&ieee->skb_waitq[tcb_desc->queue_index],
 				       skb);
 		} else {
 			ieee->softmac_hard_start_xmit(skb, ieee->dev);
@@ -1823,7 +1823,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	 * the wait queue
 	 */
 	for (i = 0; i < txb->nr_frags; i++) {
-		queue_len = skb_queue_len(&ieee->skb_waitQ[queue_index]);
+		queue_len = skb_queue_len(&ieee->skb_waitq[queue_index]);
 		if ((queue_len  != 0) ||
 		    (!ieee->check_nic_enough_desc(ieee->dev, queue_index)) ||
 		    (ieee->queue_stop)) {
@@ -1832,7 +1832,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 			 * to check it any more.
 			 */
 			if (queue_len < 200)
-				skb_queue_tail(&ieee->skb_waitQ[queue_index],
+				skb_queue_tail(&ieee->skb_waitq[queue_index],
 					       txb->fragments[i]);
 			else
 				kfree_skb(txb->fragments[i]);

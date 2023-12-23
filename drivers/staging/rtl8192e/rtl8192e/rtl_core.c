@@ -723,7 +723,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	skb_queue_head_init(&priv->skb_queue);
 
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
-		skb_queue_head_init(&priv->rtllib->skb_waitQ[i]);
+		skb_queue_head_init(&priv->rtllib->skb_waitq[i]);
 }
 
 static void _rtl92e_init_priv_lock(struct r8192_priv *priv)
@@ -1574,9 +1574,9 @@ static void _rtl92e_tx_resume(struct net_device *dev)
 
 	for (queue_index = BK_QUEUE;
 	     queue_index < MAX_QUEUE_SIZE; queue_index++) {
-		while ((!skb_queue_empty(&ieee->skb_waitQ[queue_index])) &&
+		while ((!skb_queue_empty(&ieee->skb_waitq[queue_index])) &&
 		(priv->rtllib->check_nic_enough_desc(dev, queue_index) > 0)) {
-			skb = skb_dequeue(&ieee->skb_waitQ[queue_index]);
+			skb = skb_dequeue(&ieee->skb_waitq[queue_index]);
 			ieee->softmac_data_hard_start_xmit(skb, dev, 0);
 		}
 	}
