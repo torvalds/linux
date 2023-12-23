@@ -13899,6 +13899,21 @@ static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 	return false;
 }
 
+static struct bnxt_ntuple_filter *
+bnxt_lookup_ntp_filter_from_idx(struct bnxt *bp,
+				struct bnxt_ntuple_filter *fltr, u32 idx)
+{
+	struct bnxt_ntuple_filter *f;
+	struct hlist_head *head;
+
+	head = &bp->ntp_fltr_hash_tbl[idx];
+	hlist_for_each_entry_rcu(f, head, base.hash) {
+		if (bnxt_fltr_match(f, fltr))
+			return f;
+	}
+	return NULL;
+}
+
 static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 			      u16 rxq_index, u32 flow_id)
 {
@@ -13963,12 +13978,11 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	idx = bnxt_get_ntp_filter_idx(bp, fkeys, skb);
 	head = &bp->ntp_fltr_hash_tbl[idx];
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(fltr, head, base.hash) {
-		if (bnxt_fltr_match(fltr, new_fltr)) {
-			rc = fltr->base.sw_id;
-			rcu_read_unlock();
-			goto err_free;
-		}
+	fltr = bnxt_lookup_ntp_filter_from_idx(bp, new_fltr, idx);
+	if (fltr) {
+		rcu_read_unlock();
+		rc = fltr->base.sw_id;
+		goto err_free;
 	}
 	rcu_read_unlock();
 
