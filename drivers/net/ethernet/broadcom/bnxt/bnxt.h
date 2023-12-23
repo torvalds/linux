@@ -1370,6 +1370,16 @@ struct bnxt_l2_key {
 	};
 };
 
+struct bnxt_ipv4_tuple {
+	struct flow_dissector_key_ipv4_addrs v4addrs;
+	struct flow_dissector_key_ports ports;
+};
+
+struct bnxt_ipv6_tuple {
+	struct flow_dissector_key_ipv6_addrs v6addrs;
+	struct flow_dissector_key_ports ports;
+};
+
 #define BNXT_L2_KEY_SIZE	(sizeof(struct bnxt_l2_key) / 4)
 
 struct bnxt_l2_filter {
@@ -2413,6 +2423,7 @@ struct bnxt {
 	struct hlist_head	l2_fltr_hash_tbl[BNXT_L2_FLTR_HASH_SIZE];
 
 	u32			hash_seed;
+	u64			toeplitz_prefix;
 
 	/* To protect link related settings during link changes and
 	 * ethtool settings changes.

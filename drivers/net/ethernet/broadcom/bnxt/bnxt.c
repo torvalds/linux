@@ -4199,13 +4199,22 @@ static void bnxt_init_vnics(struct bnxt *bp)
 		vnic->fw_l2_ctx_id = INVALID_HW_RING_ID;
 
 		if (bp->vnic_info[i].rss_hash_key) {
-			if (i == 0)
+			if (!i) {
+				u8 *key = (void *)vnic->rss_hash_key;
+				int k;
+
+				bp->toeplitz_prefix = 0;
 				get_random_bytes(vnic->rss_hash_key,
 					      HW_HASH_KEY_SIZE);
-			else
+				for (k = 0; k < 8; k++) {
+					bp->toeplitz_prefix <<= 8;
+					bp->toeplitz_prefix |= key[k];
+				}
+			} else {
 				memcpy(vnic->rss_hash_key,
 				       bp->vnic_info[0].rss_hash_key,
 				       HW_HASH_KEY_SIZE);
+			}
 		}
 	}
 }
@@ -5372,6 +5381,79 @@ static struct bnxt_l2_filter *bnxt_lookup_l2_filter(struct bnxt *bp,
 		atomic_inc(&fltr->refcnt);
 	rcu_read_unlock();
 	return fltr;
+}
+
+#define BNXT_IPV4_4TUPLE(bp, fkeys)					\
+	(((fkeys)->basic.ip_proto == IPPROTO_TCP &&			\
+	  (bp)->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV4) ||	\
+	 ((fkeys)->basic.ip_proto == IPPROTO_UDP &&			\
+	  (bp)->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV4))
+
+#define BNXT_IPV6_4TUPLE(bp, fkeys)					\
+	(((fkeys)->basic.ip_proto == IPPROTO_TCP &&			\
+	  (bp)->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_TCP_IPV6) ||	\
+	 ((fkeys)->basic.ip_proto == IPPROTO_UDP &&			\
+	  (bp)->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6))
+
+static u32 bnxt_get_rss_flow_tuple_len(struct bnxt *bp, struct flow_keys *fkeys)
+{
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		if (BNXT_IPV4_4TUPLE(bp, fkeys))
+			return sizeof(fkeys->addrs.v4addrs) +
+			       sizeof(fkeys->ports);
+
+		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV4)
+			return sizeof(fkeys->addrs.v4addrs);
+	}
+
+	if (fkeys->basic.n_proto == htons(ETH_P_IPV6)) {
+		if (BNXT_IPV6_4TUPLE(bp, fkeys))
+			return sizeof(fkeys->addrs.v6addrs) +
+			       sizeof(fkeys->ports);
+
+		if (bp->rss_hash_cfg & VNIC_RSS_CFG_REQ_HASH_TYPE_IPV6)
+			return sizeof(fkeys->addrs.v6addrs);
+	}
+
+	return 0;
+}
+
+static u32 bnxt_toeplitz(struct bnxt *bp, struct flow_keys *fkeys,
+			 const unsigned char *key)
+{
+	u64 prefix = bp->toeplitz_prefix, hash = 0;
+	struct bnxt_ipv4_tuple tuple4;
+	struct bnxt_ipv6_tuple tuple6;
+	int i, j, len = 0;
+	u8 *four_tuple;
+
+	len = bnxt_get_rss_flow_tuple_len(bp, fkeys);
+	if (!len)
+		return 0;
+
+	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
+		tuple4.v4addrs = fkeys->addrs.v4addrs;
+		tuple4.ports = fkeys->ports;
+		four_tuple = (unsigned char *)&tuple4;
+	} else {
+		tuple6.v6addrs = fkeys->addrs.v6addrs;
+		tuple6.ports = fkeys->ports;
+		four_tuple = (unsigned char *)&tuple6;
+	}
+
+	for (i = 0, j = 8; i < len; i++, j++) {
+		u8 byte = four_tuple[i];
+		int bit;
+
+		for (bit = 0; bit < 8; bit++, prefix <<= 1, byte <<= 1) {
+			if (byte & 0x80)
+				hash ^= prefix;
+		}
+		prefix |= (j < HW_HASH_KEY_SIZE) ? key[j] : 0;
+	}
+
+	/* The valid part of the hash is in the upper 32 bits. */
+	return (hash >> 32) & BNXT_NTP_FLTR_HASH_MASK;
 }
 
 #ifdef CONFIG_RFS_ACCEL
@@ -13774,6 +13856,18 @@ static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
+static u32 bnxt_get_ntp_filter_idx(struct bnxt *bp, struct flow_keys *fkeys,
+				   const struct sk_buff *skb)
+{
+	struct bnxt_vnic_info *vnic;
+
+	if (skb)
+		return skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
+
+	vnic = &bp->vnic_info[0];
+	return bnxt_toeplitz(bp, fkeys, (void *)vnic->rss_hash_key);
+}
+
 #ifdef CONFIG_RFS_ACCEL
 static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 			    struct bnxt_ntuple_filter *f2)
@@ -13866,7 +13960,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 
 	new_fltr->l2_fltr = l2_fltr;
 
-	idx = skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
+	idx = bnxt_get_ntp_filter_idx(bp, fkeys, skb);
 	head = &bp->ntp_fltr_hash_tbl[idx];
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(fltr, head, base.hash) {
