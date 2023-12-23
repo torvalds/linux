@@ -349,26 +349,26 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 
 /* Enables network monitor mode, all rx packets will be received. */
 void rtllib_EnableNetMonitorMode(struct net_device *dev,
-		bool bInitState)
+		bool init_state)
 {
 	struct rtllib_device *ieee = netdev_priv_rsl(dev);
 
 	netdev_info(dev, "========>Enter Monitor Mode\n");
 
-	ieee->AllowAllDestAddrHandler(dev, true, !bInitState);
+	ieee->AllowAllDestAddrHandler(dev, true, !init_state);
 }
 
 /* Disables network monitor mode. Only packets destinated to
  * us will be received.
  */
 void rtllib_DisableNetMonitorMode(struct net_device *dev,
-		bool bInitState)
+		bool init_state)
 {
 	struct rtllib_device *ieee = netdev_priv_rsl(dev);
 
 	netdev_info(dev, "========>Exit Monitor Mode\n");
 
-	ieee->AllowAllDestAddrHandler(dev, false, !bInitState);
+	ieee->AllowAllDestAddrHandler(dev, false, !init_state);
 }
 
 static void rtllib_send_probe(struct rtllib_device *ieee)
