@@ -1225,8 +1225,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 					ieee->ht_info->current_ht_support = false;
 
 				ieee->link_state = RTLLIB_ASSOCIATING;
-				schedule_delayed_work(
-					   &ieee->associate_procedure_wq, 0);
+				schedule_delayed_work(&ieee->associate_procedure_wq, 0);
 			} else {
 				if (rtllib_is_54g(&ieee->current_network)) {
 					ieee->rate = 108;
