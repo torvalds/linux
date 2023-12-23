@@ -21,8 +21,6 @@
  */
 struct wmi_device {
 	struct device dev;
-
-	/* private: used by the WMI driver core */
 	bool setable;
 };
 
