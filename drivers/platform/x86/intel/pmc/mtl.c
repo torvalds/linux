@@ -1006,7 +1006,7 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 	 * when a cable is attached. Tell the PMC to ignore it.
 	 */
 	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
+	pmc_core_send_ltr_ignore(pmcdev, 3, 1);
 
 	return 0;
 }
