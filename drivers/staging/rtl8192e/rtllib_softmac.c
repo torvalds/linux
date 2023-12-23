@@ -1838,8 +1838,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 			else
 				kfree_skb(txb->fragments[i]);
 		} else {
-			ieee->softmac_data_hard_start_xmit(
-					txb->fragments[i],
+			ieee->softmac_data_hard_start_xmit(txb->fragments[i],
 					ieee->dev, ieee->rate);
 		}
 	}
