@@ -5343,6 +5343,10 @@ void bnxt_del_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr)
 	if (!atomic_dec_and_test(&fltr->refcnt))
 		return;
 	spin_lock_bh(&bp->ntp_fltr_lock);
+	if (!test_and_clear_bit(BNXT_FLTR_INSERTED, &fltr->base.state)) {
+		spin_unlock_bh(&bp->ntp_fltr_lock);
+		return;
+	}
 	hlist_del_rcu(&fltr->base.hash);
 	if (fltr->base.flags) {
 		clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
@@ -5489,6 +5493,7 @@ static int bnxt_init_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr,
 	}
 	head = &bp->l2_fltr_hash_tbl[idx];
 	hlist_add_head_rcu(&fltr->base.hash, head);
+	set_bit(BNXT_FLTR_INSERTED, &fltr->base.state);
 	atomic_set(&fltr->refcnt, 1);
 	return 0;
 }
@@ -14000,6 +14005,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	new_fltr->base.type = BNXT_FLTR_TYPE_NTUPLE;
 	new_fltr->base.flags = BNXT_ACT_RING_DST;
 	hlist_add_head_rcu(&new_fltr->base.hash, head);
+	set_bit(BNXT_FLTR_INSERTED, &new_fltr->base.state);
 	bp->ntp_fltr_count++;
 	spin_unlock_bh(&bp->ntp_fltr_lock);
 
@@ -14046,6 +14052,10 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 
 			if (del) {
 				spin_lock_bh(&bp->ntp_fltr_lock);
+				if (!test_and_clear_bit(BNXT_FLTR_INSERTED, &fltr->base.state)) {
+					spin_unlock_bh(&bp->ntp_fltr_lock);
+					continue;
+				}
 				hlist_del_rcu(&fltr->base.hash);
 				bp->ntp_fltr_count--;
 				spin_unlock_bh(&bp->ntp_fltr_lock);
