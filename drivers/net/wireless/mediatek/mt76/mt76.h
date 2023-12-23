@@ -210,6 +210,8 @@ struct mt76_queue {
 	u16 first;
 	u16 head;
 	u16 tail;
+	u8 hw_idx;
+	u8 ep;
 	int ndesc;
 	int queued;
 	int buf_size;
@@ -217,7 +219,6 @@ struct mt76_queue {
 	bool blocked;
 
 	u8 buf_offset;
-	u8 hw_idx;
 	u16 flags;
 
 	struct mtk_wed_device *wed;
@@ -1468,13 +1469,6 @@ static inline bool mt76u_urb_error(struct urb *urb)
 	       urb->status != -ECONNRESET &&
 	       urb->status != -ESHUTDOWN &&
 	       urb->status != -ENOENT;
-}
-
-/* Map hardware queues to usb endpoints */
-static inline u8 q2ep(u8 qid)
-{
-	/* TODO: take management packets to queue 5 */
-	return qid + 1;
 }
 
 static inline int
