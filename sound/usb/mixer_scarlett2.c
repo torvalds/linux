@@ -208,6 +208,9 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 /* Maximum number of outputs from the mixer */
 #define SCARLETT2_OUTPUT_MIX_MAX 12
 
+/* Maximum number of mixer gain controls */
+#define SCARLETT2_MIX_MAX (SCARLETT2_INPUT_MIX_MAX * SCARLETT2_OUTPUT_MIX_MAX)
+
 /* Maximum size of the data in the USB mux assignment message:
  * 20 inputs, 20 outputs, 25 matrix inputs, 12 spare
  */
@@ -719,7 +722,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *speaker_switching_ctl;
 	struct snd_kcontrol *talkback_ctl;
 	u8 mux[SCARLETT2_MUX_MAX];
-	u8 mix[SCARLETT2_INPUT_MIX_MAX * SCARLETT2_OUTPUT_MIX_MAX];
+	u8 mix[SCARLETT2_MIX_MAX];
 };
 
 /*** Model-specific data ***/
