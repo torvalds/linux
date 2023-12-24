@@ -1763,6 +1763,19 @@ static int scarlett2_has_mixer(struct scarlett2_data *private)
 	return !!private->info->mux_assignment[0][0].count;
 }
 
+/* Map from mixer value to (db + 80) * 2
+ * (reverse of scarlett2_mixer_values[])
+ */
+static int scarlett2_mixer_value_to_db(int value)
+{
+	int i;
+
+	for (i = 0; i < SCARLETT2_MIXER_VALUE_COUNT; i++)
+		if (scarlett2_mixer_values[i] >= value)
+			return i;
+	return SCARLETT2_MIXER_MAX_VALUE;
+}
+
 /* Send a USB message to get the volumes for all inputs of one mix
  * and put the values into private->mix[]
  */
@@ -1772,7 +1785,7 @@ static int scarlett2_usb_get_mix(struct usb_mixer_interface *mixer,
 	struct scarlett2_data *private = mixer->private_data;
 
 	int num_mixer_in = private->num_mix_in;
-	int err, i, j, k;
+	int err, i, j;
 
 	struct {
 		__le16 mix_num;
@@ -1790,16 +1803,9 @@ static int scarlett2_usb_get_mix(struct usb_mixer_interface *mixer,
 	if (err < 0)
 		return err;
 
-	for (i = 0, j = mix_num * num_mixer_in; i < num_mixer_in; i++, j++) {
-		u16 mixer_value = le16_to_cpu(data[i]);
-
-		for (k = 0; k < SCARLETT2_MIXER_VALUE_COUNT; k++)
-			if (scarlett2_mixer_values[k] >= mixer_value)
-				break;
-		if (k == SCARLETT2_MIXER_VALUE_COUNT)
-			k = SCARLETT2_MIXER_MAX_VALUE;
-		private->mix[j] = k;
-	}
+	for (i = 0, j = mix_num * num_mixer_in; i < num_mixer_in; i++, j++)
+		private->mix[j] = scarlett2_mixer_value_to_db(
+			le16_to_cpu(data[i]));
 
 	return 0;
 }
