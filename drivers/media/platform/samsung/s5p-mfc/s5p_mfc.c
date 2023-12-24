@@ -1533,7 +1533,7 @@ static const struct s5p_mfc_buf_size buf_size_v5 = {
 	.priv	= &mfc_buf_size_v5,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v5 = {
+static const struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.version	= MFC_VERSION,
 	.version_bit	= MFC_V5_BIT,
 	.port_num	= MFC_NUM_PORTS,
@@ -1558,7 +1558,7 @@ static const struct s5p_mfc_buf_size buf_size_v6 = {
 	.priv	= &mfc_buf_size_v6,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v6 = {
+static const struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.version	= MFC_VERSION_V6,
 	.version_bit	= MFC_V6_BIT,
 	.port_num	= MFC_NUM_PORTS_V6,
@@ -1587,7 +1587,7 @@ static const struct s5p_mfc_buf_size buf_size_v7 = {
 	.priv	= &mfc_buf_size_v7,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v7 = {
+static const struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.version	= MFC_VERSION_V7,
 	.version_bit	= MFC_V7_BIT,
 	.port_num	= MFC_NUM_PORTS_V7,
@@ -1597,7 +1597,7 @@ static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.num_clocks	= 1,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v7_3250 = {
+static const struct s5p_mfc_variant mfc_drvdata_v7_3250 = {
 	.version        = MFC_VERSION_V7,
 	.version_bit    = MFC_V7_BIT,
 	.port_num       = MFC_NUM_PORTS_V7,
@@ -1621,7 +1621,7 @@ static const struct s5p_mfc_buf_size buf_size_v8 = {
 	.priv	= &mfc_buf_size_v8,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v8 = {
+static const struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.version	= MFC_VERSION_V8,
 	.version_bit	= MFC_V8_BIT,
 	.port_num	= MFC_NUM_PORTS_V8,
@@ -1631,7 +1631,7 @@ static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.num_clocks	= 1,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v8_5433 = {
+static const struct s5p_mfc_variant mfc_drvdata_v8_5433 = {
 	.version	= MFC_VERSION_V8,
 	.version_bit	= MFC_V8_BIT,
 	.port_num	= MFC_NUM_PORTS_V8,
@@ -1656,7 +1656,7 @@ static const struct s5p_mfc_buf_size buf_size_v10 = {
 	.priv   = &mfc_buf_size_v10,
 };
 
-static struct s5p_mfc_variant mfc_drvdata_v10 = {
+static const struct s5p_mfc_variant mfc_drvdata_v10 = {
 	.version        = MFC_VERSION_V10,
 	.version_bit    = MFC_V10_BIT,
 	.port_num       = MFC_NUM_PORTS_V10,
