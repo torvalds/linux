@@ -693,7 +693,7 @@ static const struct file_operations journal_pins_ops = {
 	.read		= bch2_journal_pins_read,
 };
 
-static int lock_held_stats_open(struct inode *inode, struct file *file)
+static int btree_transaction_stats_open(struct inode *inode, struct file *file)
 {
 	struct bch_fs *c = inode->i_private;
 	struct dump_iter *i;
@@ -703,7 +703,7 @@ static int lock_held_stats_open(struct inode *inode, struct file *file)
 	if (!i)
 		return -ENOMEM;
 
-	i->iter = 0;
+	i->iter = 1;
 	i->c    = c;
 	i->buf  = PRINTBUF;
 	file->private_data = i;
@@ -711,7 +711,7 @@ static int lock_held_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int lock_held_stats_release(struct inode *inode, struct file *file)
+static int btree_transaction_stats_release(struct inode *inode, struct file *file)
 {
 	struct dump_iter *i = file->private_data;
 
@@ -721,8 +721,8 @@ static int lock_held_stats_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
-				      size_t size, loff_t *ppos)
+static ssize_t btree_transaction_stats_read(struct file *file, char __user *buf,
+					    size_t size, loff_t *ppos)
 {
 	struct dump_iter        *i = file->private_data;
 	struct bch_fs *c = i->c;
@@ -755,6 +755,13 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 		prt_printf(&i->buf, "Max mem used: %u", s->max_mem);
 		prt_newline(&i->buf);
 
+		prt_printf(&i->buf, "Transaction duration:");
+		prt_newline(&i->buf);
+
+		printbuf_indent_add(&i->buf, 2);
+		bch2_time_stats_to_text(&i->buf, &s->duration);
+		printbuf_indent_sub(&i->buf, 2);
+
 		if (IS_ENABLED(CONFIG_BCACHEFS_LOCK_TIME_STATS)) {
 			prt_printf(&i->buf, "Lock hold times:");
 			prt_newline(&i->buf);
@@ -786,11 +793,11 @@ static ssize_t lock_held_stats_read(struct file *file, char __user *buf,
 	return i->ret;
 }
 
-static const struct file_operations lock_held_stats_op = {
-	.owner = THIS_MODULE,
-	.open = lock_held_stats_open,
-	.release = lock_held_stats_release,
-	.read = lock_held_stats_read,
+static const struct file_operations btree_transaction_stats_op = {
+	.owner		= THIS_MODULE,
+	.open		= btree_transaction_stats_open,
+	.release	= btree_transaction_stats_release,
+	.read		= btree_transaction_stats_read,
 };
 
 static ssize_t bch2_btree_deadlock_read(struct file *file, char __user *buf,
@@ -882,7 +889,7 @@ void bch2_fs_debug_init(struct bch_fs *c)
 			    c->btree_debug, &journal_pins_ops);
 
 	debugfs_create_file("btree_transaction_stats", 0400, c->fs_debug_dir,
-			    c, &lock_held_stats_op);
+			    c, &btree_transaction_stats_op);
 
 	debugfs_create_file("btree_deadlock", 0400, c->fs_debug_dir,
 			    c->btree_debug, &btree_deadlock_ops);

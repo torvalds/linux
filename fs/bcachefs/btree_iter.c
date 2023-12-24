@@ -2894,9 +2894,15 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	}
 
 	now = local_clock();
+
+	if (!IS_ENABLED(CONFIG_BCACHEFS_NO_LATENCY_ACCT) &&
+	    time_after64(now, trans->last_begin_time + 10))
+		__bch2_time_stats_update(&btree_trans_stats(trans)->duration,
+					 trans->last_begin_time, now);
+
 	if (!trans->restarted &&
 	    (need_resched() ||
-	     now - trans->last_begin_time > BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS)) {
+	     time_after64(now, trans->last_begin_time + BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS))) {
 		drop_locks_do(trans, (cond_resched(), 0));
 		now = local_clock();
 	}
@@ -3232,6 +3238,7 @@ void bch2_fs_btree_iter_init_early(struct bch_fs *c)
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
 	     s++) {
+		bch2_time_stats_init(&s->duration);
 		bch2_time_stats_init(&s->lock_hold_times);
 		mutex_init(&s->lock);
 	}
