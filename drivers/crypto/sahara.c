@@ -1440,7 +1440,6 @@ static int sahara_probe(struct platform_device *pdev)
 
 err_algs:
 	kthread_stop(dev->kthread);
-	dev_ptr = NULL;
 
 	return err;
 }
@@ -1452,8 +1451,6 @@ static void sahara_remove(struct platform_device *pdev)
 	kthread_stop(dev->kthread);
 
 	sahara_unregister_algs(dev);
-
-	dev_ptr = NULL;
 }
 
 static struct platform_driver sahara_driver = {
