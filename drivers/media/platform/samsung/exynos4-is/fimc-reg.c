@@ -167,7 +167,7 @@ void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_frame *frame = &ctx->d_frame;
-	struct fimc_dma_offset *offset = &frame->dma_offset;
+	const struct fimc_dma_offset *offset = &frame->dma_offset;
 	const struct fimc_fmt *fmt = frame->fmt;
 	u32 cfg;
 
@@ -421,7 +421,7 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_frame *frame = &ctx->s_frame;
-	struct fimc_dma_offset *offset = &frame->dma_offset;
+	const struct fimc_dma_offset *offset = &frame->dma_offset;
 	u32 cfg;
 
 	/* Set the pixel offsets. */
