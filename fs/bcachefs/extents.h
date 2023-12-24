@@ -568,7 +568,7 @@ static inline struct bch_devs_list bch2_bkey_devs(struct bkey_s_c k)
 	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(p, ptr)
-		ret.devs[ret.nr++] = ptr->dev;
+		ret.data[ret.nr++] = ptr->dev;
 
 	return ret;
 }
@@ -581,7 +581,7 @@ static inline struct bch_devs_list bch2_bkey_dirty_devs(struct bkey_s_c k)
 
 	bkey_for_each_ptr(p, ptr)
 		if (!ptr->cached)
-			ret.devs[ret.nr++] = ptr->dev;
+			ret.data[ret.nr++] = ptr->dev;
 
 	return ret;
 }
@@ -594,7 +594,7 @@ static inline struct bch_devs_list bch2_bkey_cached_devs(struct bkey_s_c k)
 
 	bkey_for_each_ptr(p, ptr)
 		if (ptr->cached)
-			ret.devs[ret.nr++] = ptr->dev;
+			ret.data[ret.nr++] = ptr->dev;
 
 	return ret;
 }

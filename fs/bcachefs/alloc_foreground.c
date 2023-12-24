@@ -970,8 +970,8 @@ static int __open_bucket_add_buckets(struct btree_trans *trans,
 	devs = target_rw_devs(c, wp->data_type, target);
 
 	/* Don't allocate from devices we already have pointers to: */
-	for (i = 0; i < devs_have->nr; i++)
-		__clear_bit(devs_have->devs[i], devs.d);
+	darray_for_each(*devs_have, i)
+		__clear_bit(*i, devs.d);
 
 	open_bucket_for_each(c, ptrs, ob, i)
 		__clear_bit(ob->dev, devs.d);

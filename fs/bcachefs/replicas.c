@@ -173,8 +173,6 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *e,
 			      enum bch_data_type data_type,
 			      struct bch_devs_list devs)
 {
-	unsigned i;
-
 	BUG_ON(!data_type ||
 	       data_type == BCH_DATA_sb ||
 	       data_type >= BCH_DATA_NR);
@@ -183,8 +181,8 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *e,
 	e->nr_devs	= 0;
 	e->nr_required	= 1;
 
-	for (i = 0; i < devs.nr; i++)
-		e->devs[e->nr_devs++] = devs.devs[i];
+	darray_for_each(devs, i)
+		e->devs[e->nr_devs++] = *i;
 
 	bch2_replicas_entry_sort(e);
 }

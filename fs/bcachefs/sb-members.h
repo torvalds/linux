@@ -2,6 +2,8 @@
 #ifndef _BCACHEFS_SB_MEMBERS_H
 #define _BCACHEFS_SB_MEMBERS_H
 
+#include "darray.h"
+
 extern char * const bch2_member_error_strs[];
 
 static inline struct bch_member *
@@ -47,23 +49,18 @@ static inline unsigned dev_mask_nr(const struct bch_devs_mask *devs)
 static inline bool bch2_dev_list_has_dev(struct bch_devs_list devs,
 					 unsigned dev)
 {
-	unsigned i;
-
-	for (i = 0; i < devs.nr; i++)
-		if (devs.devs[i] == dev)
+	darray_for_each(devs, i)
+		if (*i == dev)
 			return true;
-
 	return false;
 }
 
 static inline void bch2_dev_list_drop_dev(struct bch_devs_list *devs,
 					  unsigned dev)
 {
-	unsigned i;
-
-	for (i = 0; i < devs->nr; i++)
-		if (devs->devs[i] == dev) {
-			array_remove_item(devs->devs, devs->nr, i);
+	darray_for_each(*devs, i)
+		if (*i == dev) {
+			darray_remove_item(devs, i);
 			return;
 		}
 }
@@ -72,14 +69,14 @@ static inline void bch2_dev_list_add_dev(struct bch_devs_list *devs,
 					 unsigned dev)
 {
 	if (!bch2_dev_list_has_dev(*devs, dev)) {
-		BUG_ON(devs->nr >= ARRAY_SIZE(devs->devs));
-		devs->devs[devs->nr++] = dev;
+		BUG_ON(devs->nr >= ARRAY_SIZE(devs->data));
+		devs->data[devs->nr++] = dev;
 	}
 }
 
 static inline struct bch_devs_list bch2_dev_list_single(unsigned dev)
 {
-	return (struct bch_devs_list) { .nr = 1, .devs[0] = dev };
+	return (struct bch_devs_list) { .nr = 1, .data[0] = dev };
 }
 
 static inline struct bch_dev *__bch2_next_dev(struct bch_fs *c, unsigned *iter,
