@@ -557,9 +557,7 @@ struct jset_entry *__bch2_trans_jset_entry_alloc(struct btree_trans *trans, unsi
 	if (new_top > trans->journal_entries_size) {
 		trans->journal_entries_size = roundup_pow_of_two(new_top);
 
-		struct btree_transaction_stats *s = btree_trans_stats(trans);
-		if (s)
-			s->journal_entries_size = trans->journal_entries_size;
+		btree_trans_stats(trans)->journal_entries_size = trans->journal_entries_size;
 	}
 
 	struct jset_entry *n =

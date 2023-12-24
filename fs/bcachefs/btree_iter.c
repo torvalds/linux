@@ -1476,9 +1476,6 @@ static void bch2_trans_update_max_paths(struct btree_trans *trans)
 	struct printbuf buf = PRINTBUF;
 	size_t nr = bitmap_weight(trans->paths_allocated, trans->nr_paths);
 
-	if (!s)
-		return;
-
 	bch2_trans_paths_to_text(&buf, trans);
 
 	if (!buf.allocation_failure) {
@@ -2781,8 +2778,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	WARN_ON_ONCE(new_bytes > BTREE_TRANS_MEM_MAX);
 
 	struct btree_transaction_stats *s = btree_trans_stats(trans);
-	if (s)
-		s->max_mem = max(s->max_mem, new_bytes);
+	s->max_mem = max(s->max_mem, new_bytes);
 
 	new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
 	if (unlikely(!new_mem)) {
@@ -2919,13 +2915,11 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 	return trans->restart_count;
 }
 
-const char *bch2_btree_transaction_fns[BCH_TRANSACTIONS_NR];
+const char *bch2_btree_transaction_fns[BCH_TRANSACTIONS_NR] = { "(unknown)" };
 
 unsigned bch2_trans_get_fn_idx(const char *fn)
 {
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(bch2_btree_transaction_fns); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(bch2_btree_transaction_fns); i++)
 		if (!bch2_btree_transaction_fns[i] ||
 		    bch2_btree_transaction_fns[i] == fn) {
 			bch2_btree_transaction_fns[i] = fn;
@@ -2933,7 +2927,7 @@ unsigned bch2_trans_get_fn_idx(const char *fn)
 		}
 
 	pr_warn_once("BCH_TRANSACTIONS_NR not big enough!");
-	return i;
+	return 0;
 }
 
 struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
