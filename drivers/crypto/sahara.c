@@ -682,11 +682,8 @@ static int sahara_aes_crypt(struct skcipher_request *req, unsigned long mode)
 	dev_dbg(dev->device, "nbytes: %d, enc: %d, cbc: %d\n",
 		req->cryptlen, !!(mode & FLAGS_ENCRYPT), !!(mode & FLAGS_CBC));
 
-	if (!IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE)) {
-		dev_err(dev->device,
-			"request size is not exact amount of AES blocks\n");
+	if (!IS_ALIGNED(req->cryptlen, AES_BLOCK_SIZE))
 		return -EINVAL;
-	}
 
 	rctx->mode = mode;
 
