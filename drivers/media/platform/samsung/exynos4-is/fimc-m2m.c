@@ -237,7 +237,7 @@ static int fimc_m2m_querycap(struct file *file, void *fh,
 static int fimc_m2m_enum_fmt(struct file *file, void *priv,
 			     struct v4l2_fmtdesc *f)
 {
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
 
 	fmt = fimc_find_format(NULL, NULL, get_m2m_fmt_flags(f->type),
 			       f->index);
@@ -266,7 +266,7 @@ static int fimc_try_fmt_mplane(struct fimc_ctx *ctx, struct v4l2_format *f)
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	const struct fimc_variant *variant = fimc->variant;
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
 	u32 max_w, mod_x, mod_y;
 
 	if (!IS_M2M(f->type))

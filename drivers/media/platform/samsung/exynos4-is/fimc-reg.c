@@ -168,7 +168,7 @@ void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_frame *frame = &ctx->d_frame;
 	struct fimc_dma_offset *offset = &frame->dma_offset;
-	struct fimc_fmt *fmt = frame->fmt;
+	const struct fimc_fmt *fmt = frame->fmt;
 	u32 cfg;
 
 	/* Set the input dma offsets. */

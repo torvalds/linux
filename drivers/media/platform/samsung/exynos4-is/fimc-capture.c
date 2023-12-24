@@ -343,7 +343,7 @@ static int queue_setup(struct vb2_queue *vq,
 {
 	struct fimc_ctx *ctx = vq->drv_priv;
 	struct fimc_frame *frame = &ctx->d_frame;
-	struct fimc_fmt *fmt = frame->fmt;
+	const struct fimc_fmt *fmt = frame->fmt;
 	unsigned long wh = frame->f_width * frame->f_height;
 	int i;
 
@@ -722,7 +722,7 @@ static int fimc_cap_querycap(struct file *file, void *priv,
 static int fimc_cap_enum_fmt(struct file *file, void *priv,
 			     struct v4l2_fmtdesc *f)
 {
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
 
 	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM | FMT_FLAGS_M2M,
 			       f->index);
@@ -1460,7 +1460,7 @@ static int fimc_subdev_enum_mbus_code(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_state *sd_state,
 				      struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
 
 	fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, code->index);
 	if (!fmt)
