@@ -1010,7 +1010,7 @@ static int __fimc_capture_set_format(struct fimc_dev *fimc,
 {
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct fimc_ctx *ctx = vc->ctx;
-	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
+	const struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct fimc_frame *ff = &ctx->d_frame;
 	const struct fimc_fmt *inp_fmt = NULL;
 	int ret, i;

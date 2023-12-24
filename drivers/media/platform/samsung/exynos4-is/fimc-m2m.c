@@ -316,7 +316,7 @@ static int fimc_m2m_try_fmt_mplane(struct file *file, void *fh,
 
 static void __set_frame_format(struct fimc_frame *frame,
 			       const struct fimc_fmt *fmt,
-			       struct v4l2_pix_format_mplane *pixm)
+			       const struct v4l2_pix_format_mplane *pixm)
 {
 	int i;
 
