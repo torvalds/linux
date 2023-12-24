@@ -30,99 +30,99 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 
-#define SHA_BUFFER_LEN		PAGE_SIZE
-#define SAHARA_MAX_SHA_BLOCK_SIZE	SHA256_BLOCK_SIZE
+#define SHA_BUFFER_LEN				PAGE_SIZE
+#define SAHARA_MAX_SHA_BLOCK_SIZE		SHA256_BLOCK_SIZE
 
-#define SAHARA_NAME "sahara"
-#define SAHARA_VERSION_3	3
-#define SAHARA_VERSION_4	4
-#define SAHARA_TIMEOUT_MS	1000
-#define SAHARA_MAX_HW_DESC	2
-#define SAHARA_MAX_HW_LINK	20
+#define SAHARA_NAME				"sahara"
+#define SAHARA_VERSION_3			3
+#define SAHARA_VERSION_4			4
+#define SAHARA_TIMEOUT_MS			1000
+#define SAHARA_MAX_HW_DESC			2
+#define SAHARA_MAX_HW_LINK			20
 
-#define FLAGS_MODE_MASK		0x000f
-#define FLAGS_ENCRYPT		BIT(0)
-#define FLAGS_CBC		BIT(1)
+#define FLAGS_MODE_MASK				0x000f
+#define FLAGS_ENCRYPT				BIT(0)
+#define FLAGS_CBC				BIT(1)
 
-#define SAHARA_HDR_BASE			0x00800000
-#define SAHARA_HDR_SKHA_ALG_AES	0
-#define SAHARA_HDR_SKHA_OP_ENC		(1 << 2)
-#define SAHARA_HDR_SKHA_MODE_ECB	(0 << 3)
-#define SAHARA_HDR_SKHA_MODE_CBC	(1 << 3)
-#define SAHARA_HDR_FORM_DATA		(5 << 16)
-#define SAHARA_HDR_FORM_KEY		(8 << 16)
-#define SAHARA_HDR_LLO			(1 << 24)
-#define SAHARA_HDR_CHA_SKHA		(1 << 28)
-#define SAHARA_HDR_CHA_MDHA		(2 << 28)
-#define SAHARA_HDR_PARITY_BIT		(1 << 31)
+#define SAHARA_HDR_BASE				0x00800000
+#define SAHARA_HDR_SKHA_ALG_AES			0
+#define SAHARA_HDR_SKHA_OP_ENC			(1 << 2)
+#define SAHARA_HDR_SKHA_MODE_ECB		(0 << 3)
+#define SAHARA_HDR_SKHA_MODE_CBC		(1 << 3)
+#define SAHARA_HDR_FORM_DATA			(5 << 16)
+#define SAHARA_HDR_FORM_KEY			(8 << 16)
+#define SAHARA_HDR_LLO				(1 << 24)
+#define SAHARA_HDR_CHA_SKHA			(1 << 28)
+#define SAHARA_HDR_CHA_MDHA			(2 << 28)
+#define SAHARA_HDR_PARITY_BIT			(1 << 31)
 
-#define SAHARA_HDR_MDHA_SET_MODE_MD_KEY	0x20880000
-#define SAHARA_HDR_MDHA_SET_MODE_HASH	0x208D0000
-#define SAHARA_HDR_MDHA_HASH		0xA0850000
-#define SAHARA_HDR_MDHA_STORE_DIGEST	0x20820000
-#define SAHARA_HDR_MDHA_ALG_SHA1	0
-#define SAHARA_HDR_MDHA_ALG_MD5		1
-#define SAHARA_HDR_MDHA_ALG_SHA256	2
-#define SAHARA_HDR_MDHA_ALG_SHA224	3
-#define SAHARA_HDR_MDHA_PDATA		(1 << 2)
-#define SAHARA_HDR_MDHA_HMAC		(1 << 3)
-#define SAHARA_HDR_MDHA_INIT		(1 << 5)
-#define SAHARA_HDR_MDHA_IPAD		(1 << 6)
-#define SAHARA_HDR_MDHA_OPAD		(1 << 7)
-#define SAHARA_HDR_MDHA_SWAP		(1 << 8)
-#define SAHARA_HDR_MDHA_MAC_FULL	(1 << 9)
-#define SAHARA_HDR_MDHA_SSL		(1 << 10)
+#define SAHARA_HDR_MDHA_SET_MODE_MD_KEY		0x20880000
+#define SAHARA_HDR_MDHA_SET_MODE_HASH		0x208D0000
+#define SAHARA_HDR_MDHA_HASH			0xA0850000
+#define SAHARA_HDR_MDHA_STORE_DIGEST		0x20820000
+#define SAHARA_HDR_MDHA_ALG_SHA1		0
+#define SAHARA_HDR_MDHA_ALG_MD5			1
+#define SAHARA_HDR_MDHA_ALG_SHA256		2
+#define SAHARA_HDR_MDHA_ALG_SHA224		3
+#define SAHARA_HDR_MDHA_PDATA			(1 << 2)
+#define SAHARA_HDR_MDHA_HMAC			(1 << 3)
+#define SAHARA_HDR_MDHA_INIT			(1 << 5)
+#define SAHARA_HDR_MDHA_IPAD			(1 << 6)
+#define SAHARA_HDR_MDHA_OPAD			(1 << 7)
+#define SAHARA_HDR_MDHA_SWAP			(1 << 8)
+#define SAHARA_HDR_MDHA_MAC_FULL		(1 << 9)
+#define SAHARA_HDR_MDHA_SSL			(1 << 10)
 
 /* SAHARA can only process one request at a time */
-#define SAHARA_QUEUE_LENGTH	1
+#define SAHARA_QUEUE_LENGTH			1
 
-#define SAHARA_REG_VERSION	0x00
-#define SAHARA_REG_DAR		0x04
-#define SAHARA_REG_CONTROL	0x08
-#define		SAHARA_CONTROL_SET_THROTTLE(x)	(((x) & 0xff) << 24)
-#define		SAHARA_CONTROL_SET_MAXBURST(x)	(((x) & 0xff) << 16)
-#define		SAHARA_CONTROL_RNG_AUTORSD	(1 << 7)
-#define		SAHARA_CONTROL_ENABLE_INT	(1 << 4)
-#define SAHARA_REG_CMD		0x0C
-#define		SAHARA_CMD_RESET		(1 << 0)
-#define		SAHARA_CMD_CLEAR_INT		(1 << 8)
-#define		SAHARA_CMD_CLEAR_ERR		(1 << 9)
-#define		SAHARA_CMD_SINGLE_STEP		(1 << 10)
-#define		SAHARA_CMD_MODE_BATCH		(1 << 16)
-#define		SAHARA_CMD_MODE_DEBUG		(1 << 18)
-#define	SAHARA_REG_STATUS	0x10
-#define		SAHARA_STATUS_GET_STATE(x)	((x) & 0x7)
-#define			SAHARA_STATE_IDLE	0
-#define			SAHARA_STATE_BUSY	1
-#define			SAHARA_STATE_ERR	2
-#define			SAHARA_STATE_FAULT	3
-#define			SAHARA_STATE_COMPLETE	4
-#define			SAHARA_STATE_COMP_FLAG	(1 << 2)
-#define		SAHARA_STATUS_DAR_FULL		(1 << 3)
-#define		SAHARA_STATUS_ERROR		(1 << 4)
-#define		SAHARA_STATUS_SECURE		(1 << 5)
-#define		SAHARA_STATUS_FAIL		(1 << 6)
-#define		SAHARA_STATUS_INIT		(1 << 7)
-#define		SAHARA_STATUS_RNG_RESEED	(1 << 8)
-#define		SAHARA_STATUS_ACTIVE_RNG	(1 << 9)
-#define		SAHARA_STATUS_ACTIVE_MDHA	(1 << 10)
-#define		SAHARA_STATUS_ACTIVE_SKHA	(1 << 11)
-#define		SAHARA_STATUS_MODE_BATCH	(1 << 16)
-#define		SAHARA_STATUS_MODE_DEDICATED	(1 << 17)
-#define		SAHARA_STATUS_MODE_DEBUG	(1 << 18)
-#define		SAHARA_STATUS_GET_ISTATE(x)	(((x) >> 24) & 0xff)
-#define SAHARA_REG_ERRSTATUS	0x14
-#define		SAHARA_ERRSTATUS_GET_SOURCE(x)	((x) & 0xf)
-#define			SAHARA_ERRSOURCE_CHA	14
-#define			SAHARA_ERRSOURCE_DMA	15
-#define		SAHARA_ERRSTATUS_DMA_DIR	(1 << 8)
-#define		SAHARA_ERRSTATUS_GET_DMASZ(x)(((x) >> 9) & 0x3)
-#define		SAHARA_ERRSTATUS_GET_DMASRC(x) (((x) >> 13) & 0x7)
-#define		SAHARA_ERRSTATUS_GET_CHASRC(x)	(((x) >> 16) & 0xfff)
-#define		SAHARA_ERRSTATUS_GET_CHAERR(x)	(((x) >> 28) & 0x3)
-#define SAHARA_REG_FADDR	0x18
-#define SAHARA_REG_CDAR		0x1C
-#define SAHARA_REG_IDAR		0x20
+#define SAHARA_REG_VERSION			0x00
+#define SAHARA_REG_DAR				0x04
+#define SAHARA_REG_CONTROL			0x08
+#define SAHARA_CONTROL_SET_THROTTLE(x)		(((x) & 0xff) << 24)
+#define SAHARA_CONTROL_SET_MAXBURST(x)		(((x) & 0xff) << 16)
+#define SAHARA_CONTROL_RNG_AUTORSD		(1 << 7)
+#define SAHARA_CONTROL_ENABLE_INT		(1 << 4)
+#define SAHARA_REG_CMD				0x0C
+#define SAHARA_CMD_RESET			(1 << 0)
+#define SAHARA_CMD_CLEAR_INT			(1 << 8)
+#define SAHARA_CMD_CLEAR_ERR			(1 << 9)
+#define SAHARA_CMD_SINGLE_STEP			(1 << 10)
+#define SAHARA_CMD_MODE_BATCH			(1 << 16)
+#define SAHARA_CMD_MODE_DEBUG			(1 << 18)
+#define SAHARA_REG_STATUS			0x10
+#define SAHARA_STATUS_GET_STATE(x)		((x) & 0x7)
+#define SAHARA_STATE_IDLE			0
+#define SAHARA_STATE_BUSY			1
+#define SAHARA_STATE_ERR			2
+#define SAHARA_STATE_FAULT			3
+#define SAHARA_STATE_COMPLETE			4
+#define SAHARA_STATE_COMP_FLAG			(1 << 2)
+#define SAHARA_STATUS_DAR_FULL			(1 << 3)
+#define SAHARA_STATUS_ERROR			(1 << 4)
+#define SAHARA_STATUS_SECURE			(1 << 5)
+#define SAHARA_STATUS_FAIL			(1 << 6)
+#define SAHARA_STATUS_INIT			(1 << 7)
+#define SAHARA_STATUS_RNG_RESEED		(1 << 8)
+#define SAHARA_STATUS_ACTIVE_RNG		(1 << 9)
+#define SAHARA_STATUS_ACTIVE_MDHA		(1 << 10)
+#define SAHARA_STATUS_ACTIVE_SKHA		(1 << 11)
+#define SAHARA_STATUS_MODE_BATCH		(1 << 16)
+#define SAHARA_STATUS_MODE_DEDICATED		(1 << 17)
+#define SAHARA_STATUS_MODE_DEBUG		(1 << 18)
+#define SAHARA_STATUS_GET_ISTATE(x)		(((x) >> 24) & 0xff)
+#define SAHARA_REG_ERRSTATUS			0x14
+#define SAHARA_ERRSTATUS_GET_SOURCE(x)		((x) & 0xf)
+#define SAHARA_ERRSOURCE_CHA			14
+#define SAHARA_ERRSOURCE_DMA			15
+#define SAHARA_ERRSTATUS_DMA_DIR		(1 << 8)
+#define SAHARA_ERRSTATUS_GET_DMASZ(x)		(((x) >> 9) & 0x3)
+#define SAHARA_ERRSTATUS_GET_DMASRC(x)		(((x) >> 13) & 0x7)
+#define SAHARA_ERRSTATUS_GET_CHASRC(x)		(((x) >> 16) & 0xfff)
+#define SAHARA_ERRSTATUS_GET_CHAERR(x)		(((x) >> 28) & 0x3)
+#define SAHARA_REG_FADDR			0x18
+#define SAHARA_REG_CDAR				0x1C
+#define SAHARA_REG_IDAR				0x20
 
 struct sahara_hw_desc {
 	u32	hdr;
