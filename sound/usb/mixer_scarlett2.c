@@ -2149,6 +2149,7 @@ static int scarlett2_add_firmware_version_ctl(
 	return scarlett2_add_new_ctl(mixer, &scarlett2_firmware_version_ctl,
 				     0, 0, "Firmware Version", NULL);
 }
+
 /*** Sync Control ***/
 
 /* Update sync control after receiving notification that the status
@@ -3373,8 +3374,7 @@ static const struct snd_kcontrol_new scarlett2_speaker_switch_enum_ctl = {
 	.put  = scarlett2_speaker_switch_enum_ctl_put,
 };
 
-static int scarlett2_add_speaker_switch_ctl(
-	struct usb_mixer_interface *mixer)
+static int scarlett2_add_speaker_switch_ctl(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
@@ -3542,8 +3542,7 @@ static const struct snd_kcontrol_new scarlett2_talkback_map_ctl = {
 	.put  = scarlett2_talkback_map_ctl_put,
 };
 
-static int scarlett2_add_talkback_ctls(
-	struct usb_mixer_interface *mixer)
+static int scarlett2_add_talkback_ctls(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
@@ -4611,8 +4610,7 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 }
 
 /* Notify on sync change */
-static void scarlett2_notify_sync(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_sync(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 
@@ -4623,8 +4621,7 @@ static void scarlett2_notify_sync(
 }
 
 /* Notify on monitor change */
-static void scarlett2_notify_monitor(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_monitor(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
@@ -4650,8 +4647,7 @@ static void scarlett2_notify_monitor(
 }
 
 /* Notify on dim/mute change */
-static void scarlett2_notify_dim_mute(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_dim_mute(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
@@ -4677,8 +4673,7 @@ static void scarlett2_notify_dim_mute(
 }
 
 /* Notify on "input other" change (level/pad/air) */
-static void scarlett2_notify_input_other(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_input_other(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
@@ -4704,8 +4699,7 @@ static void scarlett2_notify_input_other(
 /* Notify on "monitor other" change (direct monitor, speaker
  * switching, talkback)
  */
-static void scarlett2_notify_monitor_other(
-	struct usb_mixer_interface *mixer)
+static void scarlett2_notify_monitor_other(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
