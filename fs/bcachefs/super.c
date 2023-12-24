@@ -1057,12 +1057,13 @@ int bch2_fs_start(struct bch_fs *c)
 	}
 
 	ret = 0;
-out:
+err:
+	if (ret)
+		bch_err_msg(c, ret, "starting filesystem");
+	else
+		bch_verbose(c, "done starting filesystem");
 	up_write(&c->state_lock);
 	return ret;
-err:
-	bch_err_msg(c, ret, "starting filesystem");
-	goto out;
 }
 
 static int bch2_dev_may_add(struct bch_sb *sb, struct bch_fs *c)
