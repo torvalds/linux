@@ -1352,17 +1352,15 @@ static int sahara_probe(struct platform_device *pdev)
 	}
 
 	/* clocks */
-	dev->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
-	if (IS_ERR(dev->clk_ipg)) {
-		dev_err(&pdev->dev, "Could not get ipg clock\n");
-		return PTR_ERR(dev->clk_ipg);
-	}
+	dev->clk_ipg = devm_clk_get_enabled(&pdev->dev, "ipg");
+	if (IS_ERR(dev->clk_ipg))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dev->clk_ipg),
+				     "Could not get ipg clock\n");
 
-	dev->clk_ahb = devm_clk_get(&pdev->dev, "ahb");
-	if (IS_ERR(dev->clk_ahb)) {
-		dev_err(&pdev->dev, "Could not get ahb clock\n");
-		return PTR_ERR(dev->clk_ahb);
-	}
+	dev->clk_ahb = devm_clk_get_enabled(&pdev->dev, "ahb");
+	if (IS_ERR(dev->clk_ahb))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dev->clk_ahb),
+				     "Could not get ahb clock\n");
 
 	/* Allocate HW descriptors */
 	dev->hw_desc[0] = dmam_alloc_coherent(&pdev->dev,
@@ -1422,13 +1420,6 @@ static int sahara_probe(struct platform_device *pdev)
 
 	init_completion(&dev->dma_completion);
 
-	err = clk_prepare_enable(dev->clk_ipg);
-	if (err)
-		return err;
-	err = clk_prepare_enable(dev->clk_ahb);
-	if (err)
-		goto clk_ipg_disable;
-
 	version = sahara_read(dev, SAHARA_REG_VERSION);
 	if (of_device_is_compatible(pdev->dev.of_node, "fsl,imx27-sahara")) {
 		if (version != SAHARA_VERSION_3)
@@ -1466,9 +1457,6 @@ static int sahara_probe(struct platform_device *pdev)
 err_algs:
 	kthread_stop(dev->kthread);
 	dev_ptr = NULL;
-	clk_disable_unprepare(dev->clk_ahb);
-clk_ipg_disable:
-	clk_disable_unprepare(dev->clk_ipg);
 
 	return err;
 }
@@ -1480,9 +1468,6 @@ static void sahara_remove(struct platform_device *pdev)
 	kthread_stop(dev->kthread);
 
 	sahara_unregister_algs(dev);
-
-	clk_disable_unprepare(dev->clk_ipg);
-	clk_disable_unprepare(dev->clk_ahb);
 
 	dev_ptr = NULL;
 }
