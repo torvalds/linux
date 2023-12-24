@@ -9,6 +9,9 @@ title: Neonode infrared touchscreen controller
 maintainers:
   - Heiko Stuebner <heiko@sntech.de>
 
+allOf:
+  - $ref: touchscreen.yaml#
+
 properties:
   compatible:
     const: neonode,zforce
@@ -26,9 +29,11 @@ properties:
     maxItems: 1
 
   x-size:
+    deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint32
 
   y-size:
+    deprecated: true
     $ref: /schemas/types.yaml#/definitions/uint32
 
   vdd-supply: true
@@ -38,8 +43,6 @@ required:
   - reg
   - interrupts
   - reset-gpios
-  - x-size
-  - y-size
 
 unevaluatedProperties: false
 
@@ -60,8 +63,10 @@ examples:
             reset-gpios = <&gpio5 9 0>; /* RST */
             irq-gpios = <&gpio5 6 0>; /* IRQ, optional */
 
-            x-size = <800>;
-            y-size = <600>;
+            touchscreen-min-x = <0>;
+            touchscreen-size-x = <800>;
+            touchscreen-min-y = <0>;
+            touchscreen-size-y = <600>;
         };
     };
 ...
