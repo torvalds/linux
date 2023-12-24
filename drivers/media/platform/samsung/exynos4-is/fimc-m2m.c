@@ -314,7 +314,8 @@ static int fimc_m2m_try_fmt_mplane(struct file *file, void *fh,
 	return fimc_try_fmt_mplane(ctx, f);
 }
 
-static void __set_frame_format(struct fimc_frame *frame, struct fimc_fmt *fmt,
+static void __set_frame_format(struct fimc_frame *frame,
+			       const struct fimc_fmt *fmt,
 			       struct v4l2_pix_format_mplane *pixm)
 {
 	int i;
@@ -340,7 +341,7 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
 	struct vb2_queue *vq;
 	struct fimc_frame *frame;
 	int ret;
@@ -588,7 +589,7 @@ static int fimc_m2m_set_default_format(struct fimc_ctx *ctx)
 			.sizeimage = 800 * 4 * 600,
 		},
 	};
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
 
 	fmt = fimc_find_format(&pixm.pixelformat, NULL, FMT_FLAGS_M2M, 0);
 	if (!fmt)

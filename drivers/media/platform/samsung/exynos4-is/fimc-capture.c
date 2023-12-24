@@ -559,9 +559,9 @@ static const struct v4l2_file_operations fimc_capture_fops = {
  * Format and crop negotiation helpers
  */
 
-static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
-						u32 *width, u32 *height,
-						u32 *code, u32 *fourcc, int pad)
+static const struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
+						      u32 *width, u32 *height,
+						      u32 *code, u32 *fourcc, int pad)
 {
 	bool rotation = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
@@ -569,8 +569,8 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 	const struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *dst = &ctx->d_frame;
 	u32 depth, min_w, max_w, min_h, align_h = 3;
+	const struct fimc_fmt *ffmt;
 	u32 mask = FMT_FLAGS_CAM;
-	struct fimc_fmt *ffmt;
 
 	/* Conversion from/to JPEG or User Defined format is not supported */
 	if (code && ctx->s_frame.fmt && pad == FIMC_SD_PAD_SOURCE &&
@@ -757,7 +757,7 @@ static struct media_entity *fimc_pipeline_get_head(struct media_entity *me)
  */
 static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 				    struct v4l2_mbus_framefmt *tfmt,
-				    struct fimc_fmt **fmt_id,
+				    const struct fimc_fmt **fmt_id,
 				    bool set)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
@@ -768,8 +768,8 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 		       : V4L2_SUBDEV_FORMAT_TRY,
 	};
 	struct v4l2_mbus_framefmt *mf = &sfmt.format;
+	const struct fimc_fmt *ffmt;
 	struct media_entity *me;
-	struct fimc_fmt *ffmt;
 	struct media_pad *pad;
 	int ret, i = 1;
 	u32 fcc;
@@ -903,8 +903,8 @@ static int fimc_cap_g_fmt_mplane(struct file *file, void *fh,
  */
 static int __video_try_or_set_format(struct fimc_dev *fimc,
 				     struct v4l2_format *f, bool try,
-				     struct fimc_fmt **inp_fmt,
-				     struct fimc_fmt **out_fmt)
+				     const struct fimc_fmt **inp_fmt,
+				     const struct fimc_fmt **out_fmt)
 {
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
@@ -986,7 +986,7 @@ static int fimc_cap_try_fmt_mplane(struct file *file, void *fh,
 				   struct v4l2_format *f)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_fmt *out_fmt = NULL, *inp_fmt = NULL;
+	const struct fimc_fmt *out_fmt = NULL, *inp_fmt = NULL;
 
 	return __video_try_or_set_format(fimc, f, true, &inp_fmt, &out_fmt);
 }
@@ -1012,7 +1012,7 @@ static int __fimc_capture_set_format(struct fimc_dev *fimc,
 	struct fimc_ctx *ctx = vc->ctx;
 	struct v4l2_pix_format_mplane *pix = &f->fmt.pix_mp;
 	struct fimc_frame *ff = &ctx->d_frame;
-	struct fimc_fmt *inp_fmt = NULL;
+	const struct fimc_fmt *inp_fmt = NULL;
 	int ret, i;
 
 	if (vb2_is_busy(&fimc->vid_cap.vbq))
@@ -1519,7 +1519,7 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 	struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct fimc_ctx *ctx = vc->ctx;
 	struct fimc_frame *ff;
-	struct fimc_fmt *ffmt;
+	const struct fimc_fmt *ffmt;
 
 	dbg("pad%d: code: 0x%x, %dx%d",
 	    fmt->pad, mf->code, mf->width, mf->height);
@@ -1715,9 +1715,9 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 {
 	struct video_device *vfd = &fimc->vid_cap.ve.vdev;
 	struct vb2_queue *q = &fimc->vid_cap.vbq;
-	struct fimc_ctx *ctx;
 	struct fimc_vid_cap *vid_cap;
-	struct fimc_fmt *fmt;
+	const struct fimc_fmt *fmt;
+	struct fimc_ctx *ctx;
 	int ret = -ENOMEM;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);

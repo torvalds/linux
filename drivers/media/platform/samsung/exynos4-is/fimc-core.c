@@ -33,7 +33,7 @@ static const char *fimc_clocks[MAX_FIMC_CLOCKS] = {
 	"sclk_fimc", "fimc"
 };
 
-static struct fimc_fmt fimc_formats[] = {
+static const struct fimc_fmt fimc_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= { 16 },
@@ -180,7 +180,7 @@ static struct fimc_fmt fimc_formats[] = {
 	},
 };
 
-struct fimc_fmt *fimc_get_format(unsigned int index)
+const struct fimc_fmt *fimc_get_format(unsigned int index)
 {
 	if (index >= ARRAY_SIZE(fimc_formats))
 		return NULL;
@@ -752,10 +752,11 @@ void fimc_adjust_mplane_format(const struct fimc_fmt *fmt, u32 width, u32 height
  * @mask: the color flags to match
  * @index: offset in the fimc_formats array, ignored if negative
  */
-struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
-				  unsigned int mask, int index)
+const struct fimc_fmt *fimc_find_format(const u32 *pixelformat,
+					const u32 *mbus_code,
+					unsigned int mask, int index)
 {
-	struct fimc_fmt *fmt, *def_fmt = NULL;
+	const struct fimc_fmt *fmt, *def_fmt = NULL;
 	unsigned int i;
 	int id = 0;
 

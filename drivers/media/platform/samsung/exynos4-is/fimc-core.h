@@ -257,7 +257,7 @@ struct fimc_frame {
 	unsigned int		bytesperline[VIDEO_MAX_PLANES];
 	struct fimc_addr	addr;
 	struct fimc_dma_offset	dma_offset;
-	struct fimc_fmt		*fmt;
+	const struct fimc_fmt	*fmt;
 	u8			alpha;
 };
 
@@ -617,9 +617,10 @@ void fimc_alpha_ctrl_update(struct fimc_ctx *ctx);
 void __fimc_get_format(const struct fimc_frame *frame, struct v4l2_format *f);
 void fimc_adjust_mplane_format(const struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix);
-struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
-				  unsigned int mask, int index);
-struct fimc_fmt *fimc_get_format(unsigned int index);
+const struct fimc_fmt *fimc_find_format(const u32 *pixelformat,
+					const u32 *mbus_code,
+					unsigned int mask, int index);
+const struct fimc_fmt *fimc_get_format(unsigned int index);
 
 int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
 			    int dw, int dh, int rotation);
