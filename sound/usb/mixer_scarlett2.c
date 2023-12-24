@@ -1680,6 +1680,12 @@ static int scarlett2_usb_get_volume_status(
 				 buf, sizeof(*buf));
 }
 
+/* Return true if the device has a mixer that we can control */
+static int scarlett2_has_mixer(struct scarlett2_data *private)
+{
+	return !!private->info->mux_assignment[0][0].count;
+}
+
 /* Send a USB message to get the volumes for all inputs of one mix
  * and put the values into private->mix[]
  */
@@ -2175,7 +2181,7 @@ static int scarlett2_add_sync_ctl(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* devices without a mixer also don't support reporting sync status */
-	if (private->info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
+	if (!scarlett2_has_mixer(private))
 		return 0;
 
 	return scarlett2_add_new_ctl(mixer, &scarlett2_sync_ctl,
@@ -4111,7 +4117,7 @@ static int scarlett2_add_meter_ctl(struct usb_mixer_interface *mixer)
 	struct scarlett2_data *private = mixer->private_data;
 
 	/* devices without a mixer also don't support reporting levels */
-	if (private->info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
+	if (!scarlett2_has_mixer(private))
 		return 0;
 
 	return scarlett2_add_new_ctl(mixer, &scarlett2_meter_ctl,
@@ -4516,7 +4522,7 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 		return err;
 
 	/* the rest of the configuration is for devices with a mixer */
-	if (info->config_set == SCARLETT2_CONFIG_SET_GEN_3A)
+	if (!scarlett2_has_mixer(private))
 		return 0;
 
 	if (scarlett2_has_config_item(private,
