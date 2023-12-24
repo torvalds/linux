@@ -1769,14 +1769,16 @@ kill_processes:
 		hdev->device_cpu_disabled = false;
 		hdev->reset_info.hard_reset_pending = false;
 
+		/*
+		 * Put the device in an unusable state if there are 2 back to back resets due to
+		 * fatal errors.
+		 */
 		if (hdev->reset_info.reset_trigger_repeated &&
-				(hdev->reset_info.prev_reset_trigger ==
-						HL_DRV_RESET_FW_FATAL_ERR)) {
-			/* if there 2 back to back resets from FW,
-			 * ensure driver puts the driver in a unusable state
-			 */
+				(hdev->reset_info.prev_reset_trigger == HL_DRV_RESET_FW_FATAL_ERR ||
+						hdev->reset_info.prev_reset_trigger ==
+								HL_DRV_RESET_HEARTBEAT)) {
 			dev_crit(hdev->dev,
-				"%s Consecutive FW fatal errors received, stopping hard reset\n",
+				"%s Consecutive fatal errors, stopping hard reset\n",
 				dev_name(&(hdev)->pdev->dev));
 			rc = -EIO;
 			goto out_err;
