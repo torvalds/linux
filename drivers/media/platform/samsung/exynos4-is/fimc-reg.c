@@ -526,7 +526,7 @@ void fimc_hw_set_output_path(struct fimc_ctx *ctx)
 	writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
 }
 
-void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *addr)
+void fimc_hw_set_input_addr(struct fimc_dev *dev, const struct fimc_addr *addr)
 {
 	u32 cfg = readl(dev->regs + FIMC_REG_CIREAL_ISIZE);
 	cfg |= FIMC_REG_CIREAL_ISIZE_ADDR_CH_DIS;
@@ -541,7 +541,7 @@ void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *addr)
 }
 
 void fimc_hw_set_output_addr(struct fimc_dev *dev,
-			     struct fimc_addr *addr, int index)
+			     const struct fimc_addr *addr, int index)
 {
 	int i = (index == -1) ? 0 : index;
 	do {
@@ -554,7 +554,7 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 }
 
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct fimc_source_info *cam)
+				const struct fimc_source_info *cam)
 {
 	u32 cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
@@ -648,7 +648,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 	return 0;
 }
 
-void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
+void fimc_hw_set_camera_offset(struct fimc_dev *fimc, const struct fimc_frame *f)
 {
 	u32 hoff2, voff2;
 
@@ -668,7 +668,7 @@ void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 }
 
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct fimc_source_info *source)
+			    const struct fimc_source_info *source)
 {
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	u32 csis_data_alignment = 32;

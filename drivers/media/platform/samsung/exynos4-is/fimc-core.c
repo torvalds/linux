@@ -326,7 +326,7 @@ out:
 
 /* The color format (colplanes, memplanes) must be already configured. */
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
-		      struct fimc_frame *frame, struct fimc_addr *addr)
+		      const struct fimc_frame *frame, struct fimc_addr *addr)
 {
 	int ret = 0;
 	u32 pix_size;
@@ -670,7 +670,7 @@ void fimc_alpha_ctrl_update(struct fimc_ctx *ctx)
 	v4l2_ctrl_unlock(ctrl);
 }
 
-void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
+void __fimc_get_format(const struct fimc_frame *frame, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
 	int i;
@@ -695,7 +695,7 @@ void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
  * @height: requested pixel height
  * @pix: multi-plane format to adjust
  */
-void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
+void fimc_adjust_mplane_format(const struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix)
 {
 	u32 bytesperline = 0;
