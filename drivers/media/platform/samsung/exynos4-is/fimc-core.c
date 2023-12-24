@@ -29,7 +29,7 @@
 #include "fimc-reg.h"
 #include "media-dev.h"
 
-static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
+static const char *fimc_clocks[MAX_FIMC_CLOCKS] = {
 	"sclk_fimc", "fimc"
 };
 
