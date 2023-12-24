@@ -607,8 +607,8 @@ struct scarlett2_data {
 	__u8 bEndpointAddress;
 	__u16 wMaxPacketSize;
 	__u8 bInterval;
-	int num_mux_srcs;
-	int num_mux_dsts;
+	u8 num_mux_srcs;
+	u8 num_mux_dsts;
 	u32 firmware_version;
 	u8 flash_segment_nums[SCARLETT2_SEGMENT_ID_COUNT];
 	u8 flash_segment_blocks[SCARLETT2_SEGMENT_ID_COUNT];
