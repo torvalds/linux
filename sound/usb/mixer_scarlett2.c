@@ -2621,11 +2621,15 @@ static int scarlett2_update_input_other(struct usb_mixer_interface *mixer)
 		if (err < 0)
 			return err;
 
-		err = scarlett2_usb_get_config(
-			mixer, SCARLETT2_CONFIG_PHANTOM_PERSISTENCE,
-			1, &private->phantom_persistence);
-		if (err < 0)
-			return err;
+		if (scarlett2_has_config_item(
+				private,
+				SCARLETT2_CONFIG_PHANTOM_PERSISTENCE)) {
+			err = scarlett2_usb_get_config(
+				mixer, SCARLETT2_CONFIG_PHANTOM_PERSISTENCE,
+				1, &private->phantom_persistence);
+			if (err < 0)
+				return err;
+		}
 	}
 
 	return 0;
@@ -3779,7 +3783,9 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 				return err;
 		}
 	}
-	if (info->phantom_count) {
+	if (info->phantom_count &&
+	    scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_PHANTOM_PERSISTENCE)) {
 		err = scarlett2_add_new_ctl(
 			mixer, &scarlett2_phantom_persistence_ctl, 0, 1,
 			"Phantom Power Persistence Capture Switch", NULL);
