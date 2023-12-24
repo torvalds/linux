@@ -263,6 +263,29 @@ static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
 	"Mute Playback Switch", "Dim Playback Switch"
 };
 
+/* Notification callback functions */
+struct scarlett2_notification {
+	u32 mask;
+	void (*func)(struct usb_mixer_interface *mixer);
+};
+
+static void scarlett2_notify_sync(struct usb_mixer_interface *mixer);
+static void scarlett2_notify_dim_mute(struct usb_mixer_interface *mixer);
+static void scarlett2_notify_monitor(struct usb_mixer_interface *mixer);
+static void scarlett2_notify_input_other(struct usb_mixer_interface *mixer);
+static void scarlett2_notify_monitor_other(struct usb_mixer_interface *mixer);
+
+/* Array of notification callback functions */
+static const struct scarlett2_notification scarlett2_notifications[] = {
+	{ 0x00000001, NULL }, /* ack, gets ignored */
+	{ 0x00000008, scarlett2_notify_sync },
+	{ 0x00200000, scarlett2_notify_dim_mute },
+	{ 0x00400000, scarlett2_notify_monitor },
+	{ 0x00800000, scarlett2_notify_input_other },
+	{ 0x01000000, scarlett2_notify_monitor_other },
+	{ 0, NULL }
+};
+
 /* Configuration parameters that can be read and written */
 enum {
 	SCARLETT2_CONFIG_DIM_MUTE,
@@ -293,11 +316,13 @@ struct scarlett2_config {
 };
 
 struct scarlett2_config_set {
+	const struct scarlett2_notification *notifications;
 	const struct scarlett2_config items[SCARLETT2_CONFIG_COUNT];
 };
 
 /* Gen 2 devices: 6i6, 18i8, 18i20 */
 static const struct scarlett2_config_set scarlett2_config_set_gen2 = {
+	.notifications = scarlett2_notifications,
 	.items = {
 		[SCARLETT2_CONFIG_DIM_MUTE] = {
 			.offset = 0x31, .size = 8, .activate = 2 },
@@ -324,6 +349,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen2 = {
 
 /* Gen 3 devices without a mixer (Solo and 2i2) */
 static const struct scarlett2_config_set scarlett2_config_set_gen3a = {
+	.notifications = scarlett2_notifications,
 	.items = {
 		[SCARLETT2_CONFIG_MSD_SWITCH] = {
 			.offset = 0x04, .size = 8, .activate = 6 },
@@ -347,6 +373,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen3a = {
 
 /* Gen 3 devices: 4i4, 8i6, 18i8, 18i20 */
 static const struct scarlett2_config_set scarlett2_config_set_gen3b = {
+	.notifications = scarlett2_notifications,
 	.items = {
 		[SCARLETT2_CONFIG_DIM_MUTE] = {
 			.offset = 0x31, .size = 8, .activate = 2 },
@@ -394,6 +421,7 @@ static const struct scarlett2_config_set scarlett2_config_set_gen3b = {
 
 /* Clarett USB and Clarett+ devices: 2Pre, 4Pre, 8Pre */
 static const struct scarlett2_config_set scarlett2_config_set_clarett = {
+	.notifications = scarlett2_notifications,
 	.items = {
 		[SCARLETT2_CONFIG_DIM_MUTE] = {
 			.offset = 0x31, .size = 8, .activate = 2 },
@@ -1273,13 +1301,6 @@ static int scarlett2_get_port_start_num(
 }
 
 /*** USB Interactions ***/
-
-/* Notifications from the interface */
-#define SCARLETT2_USB_NOTIFY_SYNC          0x00000008
-#define SCARLETT2_USB_NOTIFY_DIM_MUTE      0x00200000
-#define SCARLETT2_USB_NOTIFY_MONITOR       0x00400000
-#define SCARLETT2_USB_NOTIFY_INPUT_OTHER   0x00800000
-#define SCARLETT2_USB_NOTIFY_MONITOR_OTHER 0x01000000
 
 /* Commands for sending/receiving requests/responses */
 #define SCARLETT2_USB_CMD_INIT 0
@@ -4745,21 +4766,28 @@ static void scarlett2_notify(struct urb *urb)
 	int len = urb->actual_length;
 	int ustatus = urb->status;
 	u32 data;
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_notification *notifications =
+		private->config_set->notifications;
 
 	if (ustatus != 0 || len != 8)
 		goto requeue;
 
 	data = le32_to_cpu(*(__le32 *)urb->transfer_buffer);
-	if (data & SCARLETT2_USB_NOTIFY_SYNC)
-		scarlett2_notify_sync(mixer);
-	if (data & SCARLETT2_USB_NOTIFY_MONITOR)
-		scarlett2_notify_monitor(mixer);
-	if (data & SCARLETT2_USB_NOTIFY_DIM_MUTE)
-		scarlett2_notify_dim_mute(mixer);
-	if (data & SCARLETT2_USB_NOTIFY_INPUT_OTHER)
-		scarlett2_notify_input_other(mixer);
-	if (data & SCARLETT2_USB_NOTIFY_MONITOR_OTHER)
-		scarlett2_notify_monitor_other(mixer);
+
+	while (data && notifications->mask) {
+		if (data & notifications->mask) {
+			data &= ~notifications->mask;
+			if (notifications->func)
+				notifications->func(mixer);
+		}
+		notifications++;
+	}
+
+	if (data)
+		usb_audio_warn(mixer->chip,
+			       "%s: Unhandled notification: 0x%08x\n",
+			       __func__, data);
 
 requeue:
 	if (ustatus != -ENOENT &&
