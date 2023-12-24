@@ -1310,3 +1310,7 @@ void fw_node_event(struct fw_card *card, struct fw_node *node, int event)
 		break;
 	}
 }
+
+#ifdef CONFIG_FIREWIRE_KUNIT_DEVICE_ATTRIBUTE_TEST
+#include "device-attribute-test.c"
+#endif
