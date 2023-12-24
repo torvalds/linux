@@ -15,15 +15,12 @@
 #include "s5p_mfc_pm.h"
 
 static struct s5p_mfc_pm *pm;
-static struct s5p_mfc_dev *p_dev;
 
 int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 {
 	int i;
 
 	pm = &dev->pm;
-	p_dev = dev;
-
 	pm->num_clocks = dev->variant->num_clocks;
 	pm->clk_names = dev->variant->clk_names;
 	pm->device = &dev->plat_dev->dev;
