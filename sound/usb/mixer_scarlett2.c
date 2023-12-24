@@ -1562,27 +1562,6 @@ static int scarlett2_usb_get_config(
 	return 0;
 }
 
-/* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
-static void scarlett2_config_save(struct usb_mixer_interface *mixer)
-{
-	__le32 req = cpu_to_le32(SCARLETT2_USB_CONFIG_SAVE);
-
-	int err = scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
-				&req, sizeof(u32),
-				NULL, 0);
-	if (err < 0)
-		usb_audio_err(mixer->chip, "config save failed: %d\n", err);
-}
-
-/* Delayed work to save config */
-static void scarlett2_config_save_work(struct work_struct *work)
-{
-	struct scarlett2_data *private =
-		container_of(work, struct scarlett2_data, work.work);
-
-	scarlett2_config_save(private->mixer);
-}
-
 /* Send a SCARLETT2_USB_SET_DATA command.
  * offset: location in the device's data space
  * size: size in bytes of the value (1, 2, 4)
@@ -1684,6 +1663,25 @@ static int scarlett2_usb_set_config(
 		schedule_delayed_work(&private->work, msecs_to_jiffies(2000));
 
 	return 0;
+}
+
+/* Send SCARLETT2_USB_DATA_CMD SCARLETT2_USB_CONFIG_SAVE */
+static void scarlett2_config_save(struct usb_mixer_interface *mixer)
+{
+	int err;
+
+	err = scarlett2_usb_activate_config(mixer, SCARLETT2_USB_CONFIG_SAVE);
+	if (err < 0)
+		usb_audio_err(mixer->chip, "config save failed: %d\n", err);
+}
+
+/* Delayed work to save config */
+static void scarlett2_config_save_work(struct work_struct *work)
+{
+	struct scarlett2_data *private =
+		container_of(work, struct scarlett2_data, work.work);
+
+	scarlett2_config_save(private->mixer);
 }
 
 /* Send a USB message to get sync status; result placed in *sync */
