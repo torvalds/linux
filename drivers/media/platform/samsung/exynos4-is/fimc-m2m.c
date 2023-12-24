@@ -170,7 +170,7 @@ static int fimc_queue_setup(struct vb2_queue *vq,
 			    unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct fimc_ctx *ctx = vb2_get_drv_priv(vq);
-	struct fimc_frame *f;
+	const struct fimc_frame *f;
 	int i;
 
 	f = ctx_get_frame(ctx, vq->type);
@@ -192,7 +192,7 @@ static int fimc_queue_setup(struct vb2_queue *vq,
 static int fimc_buf_prepare(struct vb2_buffer *vb)
 {
 	struct fimc_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	struct fimc_frame *frame;
+	const struct fimc_frame *frame;
 	int i;
 
 	frame = ctx_get_frame(ctx, vb->vb2_queue->type);
@@ -252,7 +252,7 @@ static int fimc_m2m_g_fmt_mplane(struct file *file, void *fh,
 				 struct v4l2_format *f)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-	struct fimc_frame *frame = ctx_get_frame(ctx, f->type);
+	const struct fimc_frame *frame = ctx_get_frame(ctx, f->type);
 
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
@@ -379,7 +379,7 @@ static int fimc_m2m_g_selection(struct file *file, void *fh,
 				struct v4l2_selection *s)
 {
 	struct fimc_ctx *ctx = fh_to_ctx(fh);
-	struct fimc_frame *frame;
+	const struct fimc_frame *frame;
 
 	frame = ctx_get_frame(ctx, s->type);
 	if (IS_ERR(frame))
@@ -429,7 +429,7 @@ static int fimc_m2m_try_selection(struct fimc_ctx *ctx,
 				  struct v4l2_selection *s)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct fimc_frame *f;
+	const struct fimc_frame *f;
 	u32 min_size, halign, depth = 0;
 	int i;
 

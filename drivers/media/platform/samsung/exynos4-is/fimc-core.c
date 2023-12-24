@@ -228,8 +228,8 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 	const struct fimc_variant *variant = ctx->fimc_dev->variant;
 	struct device *dev = &ctx->fimc_dev->pdev->dev;
 	struct fimc_scaler *sc = &ctx->scaler;
-	struct fimc_frame *s_frame = &ctx->s_frame;
-	struct fimc_frame *d_frame = &ctx->d_frame;
+	const struct fimc_frame *s_frame = &ctx->s_frame;
+	const struct fimc_frame *d_frame = &ctx->d_frame;
 	int tx, ty, sx, sy;
 	int ret;
 

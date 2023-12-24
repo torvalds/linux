@@ -105,7 +105,7 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 {
 	u32 cfg;
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_frame *frame = &ctx->d_frame;
+	const struct fimc_frame *frame = &ctx->d_frame;
 
 	dbg("w= %d, h= %d color: %d", frame->width,
 	    frame->height, frame->fmt->color);
@@ -147,7 +147,7 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 static void fimc_hw_set_out_dma_size(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_frame *frame = &ctx->d_frame;
+	const struct fimc_frame *frame = &ctx->d_frame;
 	u32 cfg;
 
 	cfg = (frame->f_height << 16) | frame->f_width;
@@ -166,7 +166,7 @@ static void fimc_hw_set_out_dma_size(struct fimc_ctx *ctx)
 void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_frame *frame = &ctx->d_frame;
+	const struct fimc_frame *frame = &ctx->d_frame;
 	const struct fimc_dma_offset *offset = &frame->dma_offset;
 	const struct fimc_fmt *fmt = frame->fmt;
 	u32 cfg;
@@ -248,8 +248,8 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_scaler *sc = &ctx->scaler;
-	struct fimc_frame *src_frame = &ctx->s_frame;
-	struct fimc_frame *dst_frame = &ctx->d_frame;
+	const struct fimc_frame *src_frame = &ctx->s_frame;
+	const struct fimc_frame *dst_frame = &ctx->d_frame;
 
 	u32 cfg = readl(dev->regs + FIMC_REG_CISCCTRL);
 
@@ -388,7 +388,7 @@ void fimc_hw_set_effect(struct fimc_ctx *ctx)
 void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_frame *frame = &ctx->d_frame;
+	const struct fimc_frame *frame = &ctx->d_frame;
 	u32 cfg;
 
 	if (!(frame->fmt->flags & FMT_HAS_ALPHA))
@@ -403,7 +403,7 @@ void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx)
 static void fimc_hw_set_in_dma_size(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_frame *frame = &ctx->s_frame;
+	const struct fimc_frame *frame = &ctx->s_frame;
 	u32 cfg_o = 0;
 	u32 cfg_r = 0;
 
@@ -420,7 +420,7 @@ static void fimc_hw_set_in_dma_size(struct fimc_ctx *ctx)
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
-	struct fimc_frame *frame = &ctx->s_frame;
+	const struct fimc_frame *frame = &ctx->s_frame;
 	const struct fimc_dma_offset *offset = &frame->dma_offset;
 	u32 cfg;
 
@@ -599,7 +599,7 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			      struct fimc_source_info *source)
 {
 	const struct fimc_vid_cap *vc = &fimc->vid_cap;
-	struct fimc_frame *f = &vc->ctx->s_frame;
+	const struct fimc_frame *f = &vc->ctx->s_frame;
 	u32 bus_width, cfg = 0;
 	int i;
 
