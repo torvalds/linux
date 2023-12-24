@@ -676,7 +676,7 @@ static int s5p_mfc_set_enc_ref_buffer_v5(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	unsigned int reg;
 	unsigned int shm;
 
@@ -759,8 +759,8 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_h264_enc_params *p_264 = &p->codec.h264;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_h264_enc_params *p_264 = &p->codec.h264;
 	unsigned int reg;
 	unsigned int shm;
 
@@ -916,8 +916,8 @@ static int s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
 	unsigned int reg;
 	unsigned int shm;
 	unsigned int framerate;
@@ -995,8 +995,8 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
 	unsigned int reg;
 	unsigned int shm;
 

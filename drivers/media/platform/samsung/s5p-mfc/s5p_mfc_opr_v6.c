@@ -863,7 +863,7 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	unsigned int reg = 0;
 
 	mfc_debug_enter();
@@ -1349,8 +1349,8 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
 	unsigned int reg = 0;
 
 	mfc_debug_enter();
@@ -1431,8 +1431,8 @@ static int s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
 	unsigned int reg = 0;
 
 	mfc_debug_enter();
@@ -1501,8 +1501,8 @@ static int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_vp8_enc_params *p_vp8 = &p->codec.vp8;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_vp8_enc_params *p_vp8 = &p->codec.vp8;
 	unsigned int reg = 0;
 	unsigned int val = 0;
 
@@ -1897,8 +1897,8 @@ static int s5p_mfc_h264_set_aso_slice_order_v6(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_h264_enc_params *p_h264 = &p->codec.h264;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_h264_enc_params *p_h264 = &p->codec.h264;
 	int i;
 
 	if (p_h264->aso) {
