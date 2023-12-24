@@ -1528,6 +1528,12 @@ static int scarlett2_usb_get_config(
 	u8 *buf_8;
 	u8 value;
 
+	/* Check that the configuration item is present in the
+	 * configuration set used by this device
+	 */
+	if (!config_item->offset)
+		return -EFAULT;
+
 	/* For byte-sized parameters, retrieve directly into buf */
 	if (config_item->size >= 8) {
 		size = config_item->size / 8 * count;
@@ -1593,6 +1599,12 @@ static int scarlett2_usb_set_config(
 	__le32 req2;
 	int offset, size;
 	int err;
+
+	/* Check that the configuration item is present in the
+	 * configuration set used by this device
+	 */
+	if (!config_item->offset)
+		return -EFAULT;
 
 	/* Cancel any pending NVRAM save */
 	cancel_delayed_work_sync(&private->work);
