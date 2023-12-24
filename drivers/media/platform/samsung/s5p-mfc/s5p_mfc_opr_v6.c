@@ -2165,7 +2165,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 	/* Last frame has already been sent to MFC
 	 * Now obtaining frames from MFC buffer */
 
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(dev);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 
 	if (ctx->type == MFCINST_DECODER) {
@@ -2245,7 +2245,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 		 * scheduled, reduce the clock count as no one will
 		 * ever do this, because no interrupt related to this try_run
 		 * will ever come from hardware. */
-		s5p_mfc_clock_off();
+		s5p_mfc_clock_off(dev);
 	}
 }
 
@@ -2261,9 +2261,9 @@ s5p_mfc_read_info_v6(struct s5p_mfc_ctx *ctx, unsigned long ofs)
 {
 	int ret;
 
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(ctx->dev);
 	ret = readl((void __iomem *)ofs);
-	s5p_mfc_clock_off();
+	s5p_mfc_clock_off(ctx->dev);
 
 	return ret;
 }
