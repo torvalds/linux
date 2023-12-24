@@ -1583,7 +1583,45 @@ static void scarlett2_config_save_work(struct work_struct *work)
 	scarlett2_config_save(private->mixer);
 }
 
-/* Send a USB message to set a SCARLETT2_CONFIG_* parameter */
+/* Send a SCARLETT2_USB_SET_DATA command.
+ * offset: location in the device's data space
+ * size: size in bytes of the value (1, 2, 4)
+ */
+static int scarlett2_usb_set_data(
+	struct usb_mixer_interface *mixer,
+	int offset, int size, int value)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	struct {
+		__le32 offset;
+		__le32 size;
+		__le32 value;
+	} __packed req;
+
+	req.offset = cpu_to_le32(offset);
+	req.size = cpu_to_le32(size);
+	req.value = cpu_to_le32(value);
+	return scarlett2_usb(private->mixer, SCARLETT2_USB_SET_DATA,
+			     &req, sizeof(u32) * 2 + size, NULL, 0);
+}
+
+/* Send a SCARLETT2_USB_DATA_CMD command.
+ * Configuration changes require activation with this after they have
+ * been uploaded by a previous SCARLETT2_USB_SET_DATA.
+ * The value for activate needed is determined by the configuration
+ * item.
+ */
+static int scarlett2_usb_activate_config(
+	struct usb_mixer_interface *mixer, int activate)
+{
+	__le32 req;
+
+	req = cpu_to_le32(activate);
+	return scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
+			     &req, sizeof(req), NULL, 0);
+}
+
+/* Send USB messages to set a SCARLETT2_CONFIG_* parameter */
 static int scarlett2_usb_set_config(
 	struct usb_mixer_interface *mixer,
 	int config_item_num, int index, int value)
@@ -1591,12 +1629,6 @@ static int scarlett2_usb_set_config(
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_config *config_item =
 		&private->config_set->items[config_item_num];
-	struct {
-		__le32 offset;
-		__le32 bytes;
-		__le32 value;
-	} __packed req;
-	__le32 req2;
 	int offset, size;
 	int err;
 
@@ -1638,19 +1670,12 @@ static int scarlett2_usb_set_config(
 	}
 
 	/* Send the configuration parameter data */
-	req.offset = cpu_to_le32(offset);
-	req.bytes = cpu_to_le32(size);
-	req.value = cpu_to_le32(value);
-	err = scarlett2_usb(mixer, SCARLETT2_USB_SET_DATA,
-			    &req, sizeof(u32) * 2 + size,
-			    NULL, 0);
+	err = scarlett2_usb_set_data(mixer, offset, size, value);
 	if (err < 0)
 		return err;
 
 	/* Activate the change */
-	req2 = cpu_to_le32(config_item->activate);
-	err = scarlett2_usb(mixer, SCARLETT2_USB_DATA_CMD,
-			    &req2, sizeof(req2), NULL, 0);
+	err = scarlett2_usb_activate_config(mixer, config_item->activate);
 	if (err < 0)
 		return err;
 
