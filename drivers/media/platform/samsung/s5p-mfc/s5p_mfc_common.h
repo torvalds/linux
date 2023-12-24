@@ -639,8 +639,8 @@ struct s5p_mfc_ctx {
 	unsigned int int_err;
 	wait_queue_head_t queue;
 
-	struct s5p_mfc_fmt *src_fmt;
-	struct s5p_mfc_fmt *dst_fmt;
+	const struct s5p_mfc_fmt *src_fmt;
+	const struct s5p_mfc_fmt *dst_fmt;
 
 	struct vb2_queue vq_src;
 	struct vb2_queue vq_dst;
