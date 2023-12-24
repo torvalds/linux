@@ -379,13 +379,20 @@ pub const fn handle_alloc_error(layout: Layout) -> ! {
         panic!("allocation failed");
     }
 
+    #[inline]
     fn rt_error(layout: Layout) -> ! {
         unsafe {
             __rust_alloc_error_handler(layout.size(), layout.align());
         }
     }
 
-    unsafe { core::intrinsics::const_eval_select((layout,), ct_error, rt_error) }
+    #[cfg(not(feature = "panic_immediate_abort"))]
+    unsafe {
+        core::intrinsics::const_eval_select((layout,), ct_error, rt_error)
+    }
+
+    #[cfg(feature = "panic_immediate_abort")]
+    ct_error(layout)
 }
 
 // For alloc test `std::alloc::handle_alloc_error` can be used directly.
