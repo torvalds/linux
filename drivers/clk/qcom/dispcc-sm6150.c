@@ -867,6 +867,7 @@ static void dispcc_sm6150_fixup_sa6155(struct platform_device *pdev)
 	vdd_cx.num_levels = VDD_NUM_SA6155;
 	vdd_cx.cur_level = VDD_NUM_SA6155;
 	disp_cc_pll0.clkr.hw.init = &disp_cc_pll0_sa6155;
+	disp_cc_pll0.flags = SUPPORTS_SLEW;
 }
 
 static int disp_cc_sm6150_probe(struct platform_device *pdev)
