@@ -828,8 +828,10 @@ struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
 		goto free_handle;
 
 	/* Blocking writes requires exclusive opener */
-	if (mode & BLK_OPEN_RESTRICT_WRITES && !holder)
-		return ERR_PTR(-EINVAL);
+	if (mode & BLK_OPEN_RESTRICT_WRITES && !holder) {
+		ret = -EINVAL;
+		goto free_handle;
+	}
 
 	bdev = blkdev_get_no_open(dev);
 	if (!bdev) {
