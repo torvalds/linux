@@ -355,12 +355,6 @@ struct scarlett2_meter_entry {
 };
 
 struct scarlett2_device_info {
-	/* Gen 3 devices have an internal MSD mode switch that needs
-	 * to be disabled in order to access the full functionality of
-	 * the device.
-	 */
-	u8 has_msd_mode;
-
 	/* which set of configuration parameters the device uses */
 	u8 config_set;
 
@@ -652,7 +646,6 @@ static const struct scarlett2_device_info s18i20_gen2_info = {
 };
 
 static const struct scarlett2_device_info solo_gen3_info = {
-	.has_msd_mode = 1,
 	.config_set = SCARLETT2_CONFIG_SET_GEN_3A,
 	.level_input_count = 1,
 	.level_input_first = 1,
@@ -663,7 +656,6 @@ static const struct scarlett2_device_info solo_gen3_info = {
 };
 
 static const struct scarlett2_device_info s2i2_gen3_info = {
-	.has_msd_mode = 1,
 	.config_set = SCARLETT2_CONFIG_SET_GEN_3A,
 	.level_input_count = 2,
 	.air_input_count = 2,
@@ -673,7 +665,6 @@ static const struct scarlett2_device_info s2i2_gen3_info = {
 };
 
 static const struct scarlett2_device_info s4i4_gen3_info = {
-	.has_msd_mode = 1,
 	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.level_input_count = 2,
 	.pad_input_count = 2,
@@ -723,7 +714,6 @@ static const struct scarlett2_device_info s4i4_gen3_info = {
 };
 
 static const struct scarlett2_device_info s8i6_gen3_info = {
-	.has_msd_mode = 1,
 	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.level_input_count = 2,
 	.pad_input_count = 2,
@@ -782,7 +772,6 @@ static const struct scarlett2_device_info s8i6_gen3_info = {
 };
 
 static const struct scarlett2_device_info s18i8_gen3_info = {
-	.has_msd_mode = 1,
 	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.line_out_hw_vol = 1,
 	.has_speaker_switching = 1,
@@ -863,7 +852,6 @@ static const struct scarlett2_device_info s18i8_gen3_info = {
 };
 
 static const struct scarlett2_device_info s18i20_gen3_info = {
-	.has_msd_mode = 1,
 	.config_set = SCARLETT2_CONFIG_SET_GEN_3B,
 	.line_out_hw_vol = 1,
 	.has_speaker_switching = 1,
@@ -1516,6 +1504,19 @@ static int scarlett2_usb_get(
 	req.size = cpu_to_le32(size);
 	return scarlett2_usb(mixer, SCARLETT2_USB_GET_DATA,
 			     &req, sizeof(req), buf, size);
+}
+
+/* Return true if the given configuration item is present in the
+ * configuration set used by this device.
+ */
+static int scarlett2_has_config_item(
+	struct scarlett2_data *private, int config_item_num)
+{
+	const struct scarlett2_device_info *info = private->info;
+	const struct scarlett2_config *config_item =
+		&scarlett2_config_items[info->config_set][config_item_num];
+
+	return !!config_item->offset;
 }
 
 /* Send a USB message to get configuration parameters; result placed in *buf */
@@ -4170,9 +4171,8 @@ static const struct snd_kcontrol_new scarlett2_msd_ctl = {
 static int scarlett2_add_msd_ctl(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
-	const struct scarlett2_device_info *info = private->info;
 
-	if (!info->has_msd_mode)
+	if (!scarlett2_has_config_item(private, SCARLETT2_CONFIG_MSD_SWITCH))
 		return 0;
 
 	/* If MSD mode is off, hide the switch by default */
@@ -4488,7 +4488,7 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	struct scarlett2_usb_volume_status volume_status;
 	int err, i;
 
-	if (info->has_msd_mode) {
+	if (scarlett2_has_config_item(private, SCARLETT2_CONFIG_MSD_SWITCH)) {
 		err = scarlett2_usb_get_config(
 			mixer, SCARLETT2_CONFIG_MSD_SWITCH,
 			1, &private->msd_switch);
