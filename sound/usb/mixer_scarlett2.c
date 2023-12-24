@@ -628,6 +628,7 @@ struct scarlett2_data {
 	u16 scarlett2_seq;
 	u8 sync_updated;
 	u8 vol_updated;
+	u8 dim_mute_updated;
 	u8 input_other_updated;
 	u8 monitor_other_updated;
 	u8 mux_updated;
@@ -2222,7 +2223,6 @@ static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
 	const struct scarlett2_device_info *info = private->info;
 	s16 vol;
 	int err, i;
-	int mute;
 
 	private->vol_updated = 0;
 
@@ -2238,22 +2238,9 @@ static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
 	private->master_vol = clamp(vol + SCARLETT2_VOLUME_BIAS,
 				    0, SCARLETT2_VOLUME_BIAS);
 
-	err = scarlett2_usb_get_config(
-		mixer, SCARLETT2_CONFIG_DIM_MUTE,
-		SCARLETT2_DIM_MUTE_COUNT, private->dim_mute);
-	if (err < 0)
-		return err;
-
-	for (i = 0; i < SCARLETT2_DIM_MUTE_COUNT; i++)
-		private->dim_mute[i] = !!private->dim_mute[i];
-
-	mute = private->dim_mute[SCARLETT2_BUTTON_MUTE];
-
 	for (i = 0; i < private->num_line_out; i++)
-		if (private->vol_sw_hw_switch[i]) {
+		if (private->vol_sw_hw_switch[i])
 			private->vol[i] = private->master_vol;
-			private->mute_switch[i] = mute;
-		}
 
 	return 0;
 }
@@ -2401,6 +2388,36 @@ static const struct snd_kcontrol_new scarlett2_line_out_volume_ctl = {
 
 /*** Mute Switch Controls ***/
 
+static int scarlett2_update_dim_mute(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+	int err, i;
+	u8 mute;
+
+	private->dim_mute_updated = 0;
+
+	if (!info->line_out_hw_vol)
+		return 0;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_DIM_MUTE,
+		SCARLETT2_DIM_MUTE_COUNT, private->dim_mute);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < SCARLETT2_DIM_MUTE_COUNT; i++)
+		private->dim_mute[i] = !!private->dim_mute[i];
+
+	mute = private->dim_mute[SCARLETT2_BUTTON_MUTE];
+
+	for (i = 0; i < private->num_line_out; i++)
+		if (private->vol_sw_hw_switch[i])
+			private->mute_switch[i] = mute;
+
+	return 0;
+}
+
 static int scarlett2_mute_ctl_get(struct snd_kcontrol *kctl,
 					struct snd_ctl_elem_value *ucontrol)
 {
@@ -2417,8 +2434,8 @@ static int scarlett2_mute_ctl_get(struct snd_kcontrol *kctl,
 		goto unlock;
 	}
 
-	if (private->vol_updated) {
-		err = scarlett2_update_volumes(mixer);
+	if (private->dim_mute_updated) {
+		err = scarlett2_update_dim_mute(mixer);
 		if (err < 0)
 			goto unlock;
 	}
@@ -3575,8 +3592,8 @@ static int scarlett2_dim_mute_ctl_get(struct snd_kcontrol *kctl,
 		goto unlock;
 	}
 
-	if (private->vol_updated) {
-		err = scarlett2_update_volumes(mixer);
+	if (private->dim_mute_updated) {
+		err = scarlett2_update_dim_mute(mixer);
 		if (err < 0)
 			goto unlock;
 	}
@@ -4582,6 +4599,10 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	if (err < 0)
 		return err;
 
+	err = scarlett2_update_dim_mute(mixer);
+	if (err < 0)
+		return err;
+
 	for (i = 0; i < private->num_mix_out; i++) {
 		err = scarlett2_usb_get_mix(mixer, i);
 		if (err < 0)
@@ -4633,10 +4654,10 @@ static void scarlett2_notify_dim_mute(struct usb_mixer_interface *mixer)
 	const struct scarlett2_device_info *info = private->info;
 	int i;
 
-	private->vol_updated = 1;
-
 	if (!info->line_out_hw_vol)
 		return;
+
+	private->dim_mute_updated = 1;
 
 	for (i = 0; i < SCARLETT2_DIM_MUTE_COUNT; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
