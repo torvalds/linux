@@ -610,8 +610,6 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 
 /* -----------------------------------------------------*/
 /* fimc-core.c */
-int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
-				struct v4l2_fmtdesc *f);
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
