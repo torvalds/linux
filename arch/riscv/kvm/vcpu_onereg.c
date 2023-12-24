@@ -485,7 +485,7 @@ static int kvm_riscv_vcpu_set_reg_csr(struct kvm_vcpu *vcpu,
 		if (riscv_has_extension_unlikely(RISCV_ISA_EXT_SMSTATEEN))
 			rc = kvm_riscv_vcpu_smstateen_set_csr(vcpu, reg_num,
 							      reg_val);
-break;
+		break;
 	default:
 		rc = -ENOENT;
 		break;
