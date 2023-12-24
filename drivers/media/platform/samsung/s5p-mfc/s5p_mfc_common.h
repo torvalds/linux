@@ -340,7 +340,7 @@ struct s5p_mfc_dev {
 
 	struct s5p_mfc_priv_buf ctx_buf;
 	int warn_start;
-	struct s5p_mfc_hw_ops *mfc_ops;
+	const struct s5p_mfc_hw_ops *mfc_ops;
 	const struct s5p_mfc_hw_cmds *mfc_cmds;
 	const struct s5p_mfc_regs *mfc_regs;
 	enum s5p_mfc_fw_ver fw_ver;

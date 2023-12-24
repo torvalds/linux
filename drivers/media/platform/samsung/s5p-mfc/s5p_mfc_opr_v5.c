@@ -1593,7 +1593,7 @@ static unsigned int s5p_mfc_get_crop_info_v_v5(struct s5p_mfc_ctx *ctx)
 }
 
 /* Initialize opr function pointers for MFC v5 */
-static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
+static const struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.alloc_dec_temp_buffers = s5p_mfc_alloc_dec_temp_buffers_v5,
 	.release_dec_desc_buffer = s5p_mfc_release_dec_desc_buffer_v5,
 	.alloc_codec_buffers = s5p_mfc_alloc_codec_buffers_v5,
@@ -1633,7 +1633,7 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.get_crop_info_v = s5p_mfc_get_crop_info_v_v5,
 };
 
-struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v5(void)
+const struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v5(void)
 {
 	return &s5p_mfc_ops_v5;
 }

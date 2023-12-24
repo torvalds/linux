@@ -2657,7 +2657,7 @@ done:
 }
 
 /* Initialize opr function pointers for MFC v6 */
-static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
+static const struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.alloc_dec_temp_buffers = s5p_mfc_alloc_dec_temp_buffers_v6,
 	.release_dec_desc_buffer = s5p_mfc_release_dec_desc_buffer_v6,
 	.alloc_codec_buffers = s5p_mfc_alloc_codec_buffers_v6,
@@ -2701,7 +2701,7 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.get_e_min_scratch_buf_size = s5p_mfc_get_e_min_scratch_buf_size,
 };
 
-struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void)
+const struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void)
 {
 	return &s5p_mfc_ops_v6;
 }
