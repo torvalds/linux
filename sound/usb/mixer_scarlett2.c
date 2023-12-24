@@ -2417,7 +2417,7 @@ unlock:
 }
 
 static const DECLARE_TLV_DB_MINMAX(
-	db_scale_scarlett2_gain, -SCARLETT2_VOLUME_BIAS * 100, 0
+	db_scale_scarlett2_volume, -SCARLETT2_VOLUME_BIAS * 100, 0
 );
 
 static const struct snd_kcontrol_new scarlett2_master_volume_ctl = {
@@ -2428,7 +2428,7 @@ static const struct snd_kcontrol_new scarlett2_master_volume_ctl = {
 	.info = scarlett2_volume_ctl_info,
 	.get  = scarlett2_master_volume_ctl_get,
 	.private_value = 0, /* max value */
-	.tlv = { .p = db_scale_scarlett2_gain }
+	.tlv = { .p = db_scale_scarlett2_volume }
 };
 
 static const struct snd_kcontrol_new scarlett2_line_out_volume_ctl = {
@@ -2440,7 +2440,7 @@ static const struct snd_kcontrol_new scarlett2_line_out_volume_ctl = {
 	.get  = scarlett2_volume_ctl_get,
 	.put  = scarlett2_volume_ctl_put,
 	.private_value = 0, /* max value */
-	.tlv = { .p = db_scale_scarlett2_gain }
+	.tlv = { .p = db_scale_scarlett2_volume }
 };
 
 /*** Mute Switch Controls ***/
