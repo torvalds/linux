@@ -598,7 +598,7 @@ static const struct mbus_pixfmt_desc pix_desc[] = {
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			      struct fimc_source_info *source)
 {
-	struct fimc_vid_cap *vc = &fimc->vid_cap;
+	const struct fimc_vid_cap *vc = &fimc->vid_cap;
 	struct fimc_frame *f = &vc->ctx->s_frame;
 	u32 bus_width, cfg = 0;
 	int i;
@@ -670,7 +670,7 @@ void fimc_hw_set_camera_offset(struct fimc_dev *fimc, const struct fimc_frame *f
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 			    const struct fimc_source_info *source)
 {
-	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
+	const struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	u32 csis_data_alignment = 32;
 	u32 cfg, tmp;
 
