@@ -168,7 +168,6 @@ struct sahara_aes_reqctx {
  * @total: total number of bytes for transfer
  * @last: is this the last block
  * @first: is this the first block
- * @active: inside a transfer
  */
 struct sahara_sha_reqctx {
 	u8			buf[SAHARA_MAX_SHA_BLOCK_SIZE];
@@ -184,7 +183,6 @@ struct sahara_sha_reqctx {
 	size_t			total;
 	unsigned int		last;
 	unsigned int		first;
-	unsigned int		active;
 };
 
 struct sahara_dev {
@@ -1053,11 +1051,6 @@ static int sahara_sha_enqueue(struct ahash_request *req, int last)
 
 	rctx->last = last;
 
-	if (!rctx->active) {
-		rctx->active = 1;
-		rctx->first = 1;
-	}
-
 	spin_lock_bh(&dev->queue_spinlock);
 	ret = crypto_enqueue_request(&dev->queue, &req->base);
 	spin_unlock_bh(&dev->queue_spinlock);
@@ -1088,7 +1081,7 @@ static int sahara_sha_init(struct ahash_request *req)
 	}
 
 	rctx->context_size = rctx->digest_size + 4;
-	rctx->active = 0;
+	rctx->first = 1;
 
 	return 0;
 }
