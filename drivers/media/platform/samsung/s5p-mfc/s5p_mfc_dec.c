@@ -1159,7 +1159,7 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
-static struct vb2_ops s5p_mfc_dec_qops = {
+static const struct vb2_ops s5p_mfc_dec_qops = {
 	.queue_setup		= s5p_mfc_queue_setup,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
@@ -1174,7 +1174,7 @@ const struct s5p_mfc_codec_ops *get_dec_codec_ops(void)
 	return &decoder_codec_ops;
 }
 
-struct vb2_ops *get_dec_queue_ops(void)
+const struct vb2_ops *get_dec_queue_ops(void)
 {
 	return &s5p_mfc_dec_qops;
 }
