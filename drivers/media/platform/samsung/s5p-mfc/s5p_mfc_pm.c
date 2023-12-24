@@ -16,7 +16,6 @@
 
 static struct s5p_mfc_pm *pm;
 static struct s5p_mfc_dev *p_dev;
-static atomic_t clk_ref;
 
 int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 {
@@ -49,7 +48,6 @@ int s5p_mfc_init_pm(struct s5p_mfc_dev *dev)
 		pm->clock_gate = pm->clocks[0];
 
 	pm_runtime_enable(pm->device);
-	atomic_set(&clk_ref, 0);
 	return 0;
 }
 
@@ -60,17 +58,11 @@ void s5p_mfc_final_pm(struct s5p_mfc_dev *dev)
 
 int s5p_mfc_clock_on(void)
 {
-	atomic_inc(&clk_ref);
-	mfc_debug(3, "+ %d\n", atomic_read(&clk_ref));
-
 	return clk_enable(pm->clock_gate);
 }
 
 void s5p_mfc_clock_off(void)
 {
-	atomic_dec(&clk_ref);
-	mfc_debug(3, "- %d\n", atomic_read(&clk_ref));
-
 	clk_disable(pm->clock_gate);
 }
 
