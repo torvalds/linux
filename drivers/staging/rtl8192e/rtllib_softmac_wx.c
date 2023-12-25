@@ -266,7 +266,7 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	if (wrqu->mode == IW_MODE_MONITOR) {
 		ieee->dev->type = ARPHRD_IEEE80211;
-		rtllib_EnableNetMonitorMode(ieee->dev, false);
+		rtllib_enable_net_monitor_mode(ieee->dev, false);
 	} else {
 		ieee->dev->type = ARPHRD_ETHER;
 		if (ieee->iw_mode == IW_MODE_MONITOR)

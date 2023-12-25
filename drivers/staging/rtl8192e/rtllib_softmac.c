@@ -348,7 +348,7 @@ static inline struct sk_buff *rtllib_probe_req(struct rtllib_device *ieee)
 }
 
 /* Enables network monitor mode, all rx packets will be received. */
-void rtllib_EnableNetMonitorMode(struct net_device *dev,
+void rtllib_enable_net_monitor_mode(struct net_device *dev,
 		bool init_state)
 {
 	struct rtllib_device *ieee = netdev_priv_rsl(dev);
