@@ -1402,7 +1402,7 @@ struct rtllib_device {
 	bool FwRWRF;
 
 	struct rt_link_detect link_detect_info;
-	bool bIsAggregateFrame;
+	bool is_aggregate_frame;
 	struct rt_pwr_save_ctrl pwr_save_ctrl;
 
 	/* used if IEEE_SOFTMAC_TX_QUEUE is set */
