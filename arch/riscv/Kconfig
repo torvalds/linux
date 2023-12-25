@@ -651,6 +651,19 @@ config RISCV_MISALIGNED
 	  load/store for both kernel and userspace. When disable, misaligned
 	  accesses will generate SIGBUS in userspace and panic in kernel.
 
+config RISCV_EFFICIENT_UNALIGNED_ACCESS
+	bool "Assume the CPU supports fast unaligned memory accesses"
+	depends on NONPORTABLE
+	select HAVE_EFFICIENT_UNALIGNED_ACCESS
+	help
+	  Say Y here if you want the kernel to assume that the CPU supports
+	  efficient unaligned memory accesses.  When enabled, this option
+	  improves the performance of the kernel on such CPUs.  However, the
+	  kernel will run much more slowly, or will not be able to run at all,
+	  on CPUs that do not support efficient unaligned memory accesses.
+
+	  If unsure what to do here, say N.
+
 endmenu # "Platform type"
 
 menu "Kernel features"
