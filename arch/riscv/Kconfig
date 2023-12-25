@@ -654,6 +654,7 @@ config RISCV_MISALIGNED
 config RISCV_EFFICIENT_UNALIGNED_ACCESS
 	bool "Assume the CPU supports fast unaligned memory accesses"
 	depends on NONPORTABLE
+	select DCACHE_WORD_ACCESS if MMU
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 	help
 	  Say Y here if you want the kernel to assume that the CPU supports
