@@ -291,6 +291,9 @@ handle_line() {
 }
 
 while read line; do
+	# Strip unexpected carriage return at end of line
+	line=${line%$'\r'}
+
 	# Let's see if we have an address in the line
 	if [[ $line =~ \[\<([^]]+)\>\] ]] ||
 	   [[ $line =~ [^+\ ]+\+0x[0-9a-f]+/0x[0-9a-f]+ ]]; then
