@@ -1187,7 +1187,7 @@ struct rtllib_device {
 	unsigned long status;
 	u8	CntAfterLink;
 
-	enum rt_op_mode OpMode;
+	enum rt_op_mode op_mode;
 
 	/* The last AssocReq/Resp IEs */
 	u8 *assocreq_ies, *assocresp_ies;

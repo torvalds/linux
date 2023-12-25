@@ -2245,7 +2245,7 @@ static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
 					   u8 *asSta, u8 asRsn)
 {
 	u8 i;
-	u8	OpMode;
+	u8	op_mode;
 
 	RemovePeerTS(rtllib, asSta);
 
@@ -2254,10 +2254,10 @@ static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
 
 		for (i = 0; i < 6; i++)
 			rtllib->current_network.bssid[i] = 0x22;
-		OpMode = RT_OP_MODE_NO_LINK;
-		rtllib->OpMode = RT_OP_MODE_NO_LINK;
+		op_mode = RT_OP_MODE_NO_LINK;
+		rtllib->op_mode = RT_OP_MODE_NO_LINK;
 		rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_MEDIA_STATUS,
-					(u8 *)(&OpMode));
+					(u8 *)(&op_mode));
 		rtllib_disassociate(rtllib);
 
 		rtllib->SetHwRegHandler(rtllib->dev, HW_VAR_BSSID,

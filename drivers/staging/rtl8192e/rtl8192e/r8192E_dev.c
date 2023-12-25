@@ -51,12 +51,12 @@ void rtl92e_set_reg(struct net_device *dev, u8 variable, u8 *val)
 
 	case HW_VAR_MEDIA_STATUS:
 	{
-		enum rt_op_mode OpMode = *((enum rt_op_mode *)(val));
+		enum rt_op_mode op_mode = *((enum rt_op_mode *)(val));
 		u8 btMsr = rtl92e_readb(dev, MSR);
 
 		btMsr &= 0xfc;
 
-		switch (OpMode) {
+		switch (op_mode) {
 		case RT_OP_MODE_INFRASTRUCTURE:
 			btMsr |= MSR_INFRA;
 			break;
@@ -1693,12 +1693,12 @@ void rtl92e_stop_adapter(struct net_device *dev, bool reset)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	int i;
-	u8	OpMode;
+	u8	op_mode;
 	u8	u1bTmp;
 	u32	ulRegRead;
 
-	OpMode = RT_OP_MODE_NO_LINK;
-	priv->rtllib->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &OpMode);
+	op_mode = RT_OP_MODE_NO_LINK;
+	priv->rtllib->SetHwRegHandler(dev, HW_VAR_MEDIA_STATUS, &op_mode);
 
 	if (!priv->rtllib->bSupportRemoteWakeUp) {
 		u1bTmp = 0x0;
