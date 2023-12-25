@@ -123,6 +123,9 @@ struct mlx5_vdpa_virtqueue {
 
 	u64 modified_fields;
 
+	struct mlx5_vdpa_mr *vq_mr;
+	struct mlx5_vdpa_mr *desc_mr;
+
 	struct msi_map map;
 
 	/* keep last in the struct */
@@ -946,6 +949,14 @@ static int create_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtque
 	kfree(in);
 	mvq->virtq_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
 
+	mlx5_vdpa_get_mr(mvdev, vq_mr);
+	mvq->vq_mr = vq_mr;
+
+	if (vq_desc_mr && MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, desc_group_mkey_supported)) {
+		mlx5_vdpa_get_mr(mvdev, vq_desc_mr);
+		mvq->desc_mr = vq_desc_mr;
+	}
+
 	return 0;
 
 err_cmd:
@@ -972,6 +983,12 @@ static void destroy_virtqueue(struct mlx5_vdpa_net *ndev, struct mlx5_vdpa_virtq
 	}
 	mvq->fw_state = MLX5_VIRTIO_NET_Q_OBJECT_NONE;
 	umems_destroy(ndev, mvq);
+
+	mlx5_vdpa_put_mr(&ndev->mvdev, mvq->vq_mr);
+	mvq->vq_mr = NULL;
+
+	mlx5_vdpa_put_mr(&ndev->mvdev, mvq->desc_mr);
+	mvq->desc_mr = NULL;
 }
 
 static u32 get_rqpn(struct mlx5_vdpa_virtqueue *mvq, bool fw)
@@ -1207,6 +1224,8 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 	int inlen = MLX5_ST_SZ_BYTES(modify_virtio_net_q_in);
 	u32 out[MLX5_ST_SZ_DW(modify_virtio_net_q_out)] = {};
 	struct mlx5_vdpa_dev *mvdev = &ndev->mvdev;
+	struct mlx5_vdpa_mr *desc_mr = NULL;
+	struct mlx5_vdpa_mr *vq_mr = NULL;
 	bool state_change = false;
 	void *obj_context;
 	void *cmd_hdr;
@@ -1257,19 +1276,19 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 		MLX5_SET(virtio_net_q_object, obj_context, hw_used_index, mvq->used_idx);
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY) {
-		struct mlx5_vdpa_mr *mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP]];
+		vq_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_GROUP]];
 
-		if (mr)
-			MLX5_SET(virtio_q, vq_ctx, virtio_q_mkey, mr->mkey);
+		if (vq_mr)
+			MLX5_SET(virtio_q, vq_ctx, virtio_q_mkey, vq_mr->mkey);
 		else
 			mvq->modified_fields &= ~MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY;
 	}
 
 	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY) {
-		struct mlx5_vdpa_mr *mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
+		desc_mr = mvdev->mr[mvdev->group2asid[MLX5_VDPA_DATAVQ_DESC_GROUP]];
 
-		if (mr && MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, desc_group_mkey_supported))
-			MLX5_SET(virtio_q, vq_ctx, desc_group_mkey, mr->mkey);
+		if (desc_mr && MLX5_CAP_DEV_VDPA_EMULATION(mvdev->mdev, desc_group_mkey_supported))
+			MLX5_SET(virtio_q, vq_ctx, desc_group_mkey, desc_mr->mkey);
 		else
 			mvq->modified_fields &= ~MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY;
 	}
@@ -1281,6 +1300,18 @@ static int modify_virtqueue(struct mlx5_vdpa_net *ndev,
 
 	if (state_change)
 		mvq->fw_state = state;
+
+	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_VIRTIO_Q_MKEY) {
+		mlx5_vdpa_put_mr(mvdev, mvq->vq_mr);
+		mlx5_vdpa_get_mr(mvdev, vq_mr);
+		mvq->vq_mr = vq_mr;
+	}
+
+	if (mvq->modified_fields & MLX5_VIRTQ_MODIFY_MASK_DESC_GROUP_MKEY) {
+		mlx5_vdpa_put_mr(mvdev, mvq->desc_mr);
+		mlx5_vdpa_get_mr(mvdev, desc_mr);
+		mvq->desc_mr = desc_mr;
+	}
 
 	mvq->modified_fields = 0;
 
@@ -3095,7 +3126,7 @@ static int set_map_data(struct mlx5_vdpa_dev *mvdev, struct vhost_iotlb *iotlb,
 	return mlx5_vdpa_update_cvq_iotlb(mvdev, iotlb, asid);
 
 out_err:
-	mlx5_vdpa_destroy_mr(mvdev, new_mr);
+	mlx5_vdpa_put_mr(mvdev, new_mr);
 	return err;
 }
 

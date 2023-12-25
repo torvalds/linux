@@ -35,6 +35,8 @@ struct mlx5_vdpa_mr {
 	struct vhost_iotlb *iotlb;
 
 	bool user_mr;
+
+	refcount_t refcount;
 };
 
 struct mlx5_vdpa_resources {
@@ -118,8 +120,10 @@ int mlx5_vdpa_destroy_mkey(struct mlx5_vdpa_dev *mvdev, u32 mkey);
 struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 					 struct vhost_iotlb *iotlb);
 void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev);
-void mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev,
-			  struct mlx5_vdpa_mr *mr);
+void mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
+		      struct mlx5_vdpa_mr *mr);
+void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
+		      struct mlx5_vdpa_mr *mr);
 void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
 			 struct mlx5_vdpa_mr *mr,
 			 unsigned int asid);
