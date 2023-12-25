@@ -2096,6 +2096,8 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 					  (u32)stream->next_buf_toisp->dummy.dma_addr);
 		} else {
 			stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
+			if (stream->is_single_cap)
+				active_buf = stream->curr_buf_toisp;
 		}
 
 		if (active_buf) {
