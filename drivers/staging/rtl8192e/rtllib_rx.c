@@ -1285,7 +1285,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 
 	/* Update statstics for AP roaming */
 	ieee->link_detect_info.NumRecvDataInPeriod++;
-	ieee->link_detect_info.NumRxOkInPeriod++;
+	ieee->link_detect_info.num_rx_ok_in_period++;
 
 	/* Data frame - extract src/dst addresses */
 	rtllib_rx_extract_addr(ieee, hdr, dst, src, bssid);
