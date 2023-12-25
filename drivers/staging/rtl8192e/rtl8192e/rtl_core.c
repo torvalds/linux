@@ -972,11 +972,11 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	}
 	if ((ieee->link_state == MAC80211_LINKED) && (ieee->iw_mode == IW_MODE_INFRA)) {
 		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
-		ieee->link_detect_info.NumTxOkInPeriod > 100)
+		ieee->link_detect_info.num_tx_ok_in_period > 100)
 			bBusyTraffic = true;
 
 		if (ieee->link_detect_info.NumRxOkInPeriod > 4000 ||
-		    ieee->link_detect_info.NumTxOkInPeriod > 4000) {
+		    ieee->link_detect_info.num_tx_ok_in_period > 4000) {
 			bHigherBusyTraffic = true;
 			if (ieee->link_detect_info.NumRxOkInPeriod > 5000)
 				bHigherBusyRxTraffic = true;
@@ -985,7 +985,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		}
 
 		if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
-		    ieee->link_detect_info.NumTxOkInPeriod) > 8) ||
+		    ieee->link_detect_info.num_tx_ok_in_period) > 8) ||
 		    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2))
 			bEnterPS = false;
 		else
@@ -1004,7 +1004,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	}
 
 	ieee->link_detect_info.NumRxOkInPeriod = 0;
-	ieee->link_detect_info.NumTxOkInPeriod = 0;
+	ieee->link_detect_info.num_tx_ok_in_period = 0;
 	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
 	ieee->link_detect_info.bBusyTraffic = bBusyTraffic;
 
@@ -1773,22 +1773,22 @@ static irqreturn_t _rtl92e_irq(int irq, void *netdev)
 		tasklet_schedule(&priv->irq_rx_tasklet);
 
 	if (inta & IMR_BKDOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, BK_QUEUE);
 	}
 
 	if (inta & IMR_BEDOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, BE_QUEUE);
 	}
 
 	if (inta & IMR_VIDOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, VI_QUEUE);
 	}
 
 	if (inta & IMR_VODOK) {
-		priv->rtllib->link_detect_info.NumTxOkInPeriod++;
+		priv->rtllib->link_detect_info.num_tx_ok_in_period++;
 		_rtl92e_tx_isr(dev, VO_QUEUE);
 	}
 
