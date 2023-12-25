@@ -819,6 +819,7 @@ static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
 		return -EINVAL;
 	}
 
+	atomic_inc(&sb->s_active);
 	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
 
 	error = gfs2_do_thaw(sdp);
@@ -828,6 +829,7 @@ static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
 		clear_bit(SDF_FROZEN, &sdp->sd_flags);
 	}
 	mutex_unlock(&sdp->sd_freeze_mutex);
+	deactivate_super(sb);
 	return error;
 }
 
