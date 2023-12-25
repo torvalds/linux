@@ -1164,7 +1164,7 @@ struct rt_pmkid_list {
 	u8 Bssid[ETH_ALEN];
 	u8 PMKID[16];
 	u8 SsidBuf[33];
-	u8 bUsed;
+	u8 used;
 };
 
 /*************** DRIVER STATUS   *****/
