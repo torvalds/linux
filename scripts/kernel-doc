@@ -2121,6 +2121,7 @@ sub process_body($$) {
     }
 
     if (/$doc_sect/i) { # case insensitive for supported section names
+	$in_doc_sect = 1;
 	$newsection = $1;
 	$newcontents = $2;
 
