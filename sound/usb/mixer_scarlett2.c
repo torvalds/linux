@@ -324,6 +324,8 @@ static void scarlett2_notify_input_safe(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_monitor_other(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_direct_monitor(struct usb_mixer_interface *mixer);
 static void scarlett2_notify_power_status(struct usb_mixer_interface *mixer);
+static void scarlett2_notify_pcm_input_switch(
+					struct usb_mixer_interface *mixer);
 
 /* Arrays of notification callback functions */
 
@@ -351,6 +353,7 @@ static const struct scarlett2_notification scarlett4_solo_notifications[] = {
 	{ 0x00800000, scarlett2_notify_direct_monitor },
 	{ 0x01000000, scarlett2_notify_input_level },
 	{ 0x02000000, scarlett2_notify_input_phantom },
+	{ 0x04000000, scarlett2_notify_pcm_input_switch },
 	{ 0, NULL }
 };
 
@@ -413,6 +416,7 @@ enum {
 	SCARLETT2_CONFIG_INPUT_LINK_SWITCH,
 	SCARLETT2_CONFIG_POWER_EXT,
 	SCARLETT2_CONFIG_POWER_STATUS,
+	SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
 	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
 	SCARLETT2_CONFIG_COUNT
 };
@@ -623,6 +627,9 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_solo = {
 
 		[SCARLETT2_CONFIG_AIR_SWITCH] = {
 			.offset = 0x3e, .activate = 11 },
+
+		[SCARLETT2_CONFIG_PCM_INPUT_SWITCH] = {
+			.offset = 0x206, .activate = 25 },
 
 		[SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN] = {
 			.offset = 0x232, .size = 16, .activate = 26 }
@@ -955,6 +962,7 @@ struct scarlett2_data {
 	u8 input_gain_updated;
 	u8 autogain_updated;
 	u8 input_safe_updated;
+	u8 pcm_input_switch_updated;
 	u8 monitor_other_updated;
 	u8 direct_monitor_updated;
 	u8 mux_updated;
@@ -979,6 +987,7 @@ struct scarlett2_data {
 	u8 autogain_switch[SCARLETT2_INPUT_GAIN_MAX];
 	u8 autogain_status[SCARLETT2_INPUT_GAIN_MAX];
 	u8 safe_switch[SCARLETT2_INPUT_GAIN_MAX];
+	u8 pcm_input_switch;
 	u8 direct_monitor_switch;
 	u8 speaker_switching_switch;
 	u8 talkback_switch;
@@ -1004,6 +1013,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *autogain_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *autogain_status_ctls[SCARLETT2_INPUT_GAIN_MAX];
 	struct snd_kcontrol *safe_ctls[SCARLETT2_INPUT_GAIN_MAX];
+	struct snd_kcontrol *pcm_input_switch_ctl;
 	struct snd_kcontrol *mux_ctls[SCARLETT2_MUX_MAX];
 	struct snd_kcontrol *mix_ctls[SCARLETT2_MIX_MAX];
 	struct snd_kcontrol *direct_monitor_ctl;
@@ -3633,6 +3643,101 @@ static const struct snd_kcontrol_new scarlett2_safe_ctl = {
 	.put  = scarlett2_safe_ctl_put,
 };
 
+/*** PCM Input Control ***/
+
+static int scarlett2_update_pcm_input_switch(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+
+	private->pcm_input_switch_updated = 0;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
+		1, &private->pcm_input_switch);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
+static int scarlett2_pcm_input_switch_ctl_get(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+	int err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->pcm_input_switch_updated) {
+		err = scarlett2_update_pcm_input_switch(mixer);
+		if (err < 0)
+			goto unlock;
+	}
+	ucontrol->value.enumerated.item[0] = private->pcm_input_switch;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_pcm_input_switch_ctl_put(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+
+	int oval, val, err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	oval = private->pcm_input_switch;
+	val = !!ucontrol->value.integer.value[0];
+
+	if (oval == val)
+		goto unlock;
+
+	private->pcm_input_switch = val;
+
+	/* Send switch change to the device */
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
+		0, val);
+	if (err == 0)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_pcm_input_switch_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	static const char *const values[2] = {
+		"Direct", "Mixer"
+	};
+
+	return snd_ctl_enum_info(
+		uinfo, 1, 2, values);
+}
+
+static const struct snd_kcontrol_new scarlett2_pcm_input_switch_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "",
+	.info = scarlett2_pcm_input_switch_ctl_info,
+	.get  = scarlett2_pcm_input_switch_ctl_get,
+	.put  = scarlett2_pcm_input_switch_ctl_put
+};
+
 /*** Analogue Line Out Volume Controls ***/
 
 /* Update hardware volume controls after receiving notification that
@@ -5419,6 +5524,17 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 		}
 	}
 
+	/* Add PCM Input Switch control */
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_PCM_INPUT_SWITCH)) {
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_pcm_input_switch_ctl, 0, 1,
+			"PCM Input Capture Switch",
+			&private->pcm_input_switch_ctl);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
@@ -6650,6 +6766,13 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	if (err < 0)
 		return err;
 
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_PCM_INPUT_SWITCH)) {
+		err = scarlett2_update_pcm_input_switch(mixer);
+		if (err < 0)
+			return err;
+	}
+
 	err = scarlett2_update_mix(mixer);
 	if (err < 0)
 		return err;
@@ -6944,6 +7067,34 @@ static void scarlett2_notify_power_status(struct usb_mixer_interface *mixer)
 
 	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 		       &private->power_status_ctl->id);
+}
+
+/* Notify on mux change */
+static void scarlett2_notify_mux(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	int i;
+
+	private->mux_updated = 1;
+
+	for (i = 0; i < private->num_mux_dsts; i++)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &private->mux_ctls[i]->id);
+}
+
+/* Notify on PCM input switch change */
+static void scarlett2_notify_pcm_input_switch(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+
+	private->pcm_input_switch_updated = 1;
+
+	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &private->pcm_input_switch_ctl->id);
+
+	scarlett2_notify_mux(mixer);
 }
 
 /* Interrupt callback */
