@@ -10,7 +10,7 @@
 #include <linux/processor.h>
 #include <linux/types.h>
 
-#include <asm-generic/bug.h>
+#include <linux/bug.h>
 
 #include "common.h"
 
