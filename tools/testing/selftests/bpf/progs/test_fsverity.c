@@ -38,7 +38,7 @@ int BPF_PROG(test_file_open, struct file *f)
 		return 0;
 	got_fsverity = 1;
 
-	for (i = 0; i < sizeof(digest); i++) {
+	for (i = 0; i < (int)sizeof(digest); i++) {
 		if (digest[i] != expected_digest[i])
 			return 0;
 	}

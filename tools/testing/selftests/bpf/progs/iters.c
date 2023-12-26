@@ -6,7 +6,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define ARRAY_SIZE(x) (int)(sizeof(x) / sizeof((x)[0]))
 
 static volatile int zero = 0;
 
@@ -676,7 +676,7 @@ static __noinline int sum(struct bpf_iter_num *it, int *arr, __u32 n)
 
 	while ((t = bpf_iter_num_next(it))) {
 		i = *t;
-		if (i >= n)
+		if ((__u32)i >= n)
 			break;
 		sum += arr[i];
 	}

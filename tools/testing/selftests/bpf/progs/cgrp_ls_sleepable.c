@@ -15,7 +15,7 @@ struct {
 	__type(value, long);
 } map_a SEC(".maps");
 
-__u32 target_pid;
+__s32 target_pid;
 __u64 cgroup_id;
 int target_hid;
 bool is_cgroup1;

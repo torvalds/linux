@@ -132,7 +132,7 @@ struct {
 } disallowed_exec_inodes SEC(".maps");
 
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#define ARRAY_SIZE(arr) (int)(sizeof(arr) / sizeof(arr[0]))
 #endif
 
 static INLINE bool IS_ERR(const void* ptr)
@@ -645,7 +645,7 @@ int raw_tracepoint__sched_process_exit(void* ctx)
 	for (int i = 0; i < ARRAY_SIZE(arr_struct->array); i++) {
 		struct var_kill_data_t* past_kill_data = &arr_struct->array[i];
 
-		if (past_kill_data != NULL && past_kill_data->kill_target_pid == tpid) {
+		if (past_kill_data != NULL && past_kill_data->kill_target_pid == (pid_t)tpid) {
 			bpf_probe_read_kernel(kill_data, sizeof(*past_kill_data),
 					      past_kill_data);
 			void* payload = kill_data->payload;

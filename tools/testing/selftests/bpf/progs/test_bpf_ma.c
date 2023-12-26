@@ -21,7 +21,7 @@ const unsigned int data_sizes[] = {16, 32, 64, 96, 128, 192, 256, 512, 1024, 204
 const volatile unsigned int data_btf_ids[ARRAY_SIZE(data_sizes)] = {};
 
 int err = 0;
-int pid = 0;
+u32 pid = 0;
 
 #define DEFINE_ARRAY_WITH_KPTR(_size) \
 	struct bin_data_##_size { \
