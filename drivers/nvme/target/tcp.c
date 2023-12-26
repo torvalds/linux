@@ -1778,7 +1778,7 @@ static int nvmet_tcp_try_peek_pdu(struct nvmet_tcp_queue *queue)
 		 (int)sizeof(struct nvme_tcp_icreq_pdu));
 	if (hdr->type == nvme_tcp_icreq &&
 	    hdr->hlen == sizeof(struct nvme_tcp_icreq_pdu) &&
-	    hdr->plen == (__le32)sizeof(struct nvme_tcp_icreq_pdu)) {
+	    hdr->plen == cpu_to_le32(sizeof(struct nvme_tcp_icreq_pdu))) {
 		pr_debug("queue %d: icreq detected\n",
 			 queue->idx);
 		return len;
