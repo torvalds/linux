@@ -1752,7 +1752,10 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl, struct gendisk *disk,
 		return;
 
 	blk_queue_max_discard_sectors(queue, max_discard_sectors);
-	blk_queue_max_discard_segments(queue, ctrl->max_discard_segments);
+	if (ctrl->dmrl)
+		blk_queue_max_discard_segments(queue, ctrl->dmrl);
+	else
+		blk_queue_max_discard_segments(queue, NVME_DSM_MAX_RANGES);
 	queue->limits.discard_granularity = queue_logical_block_size(queue);
 
 	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
@@ -2912,11 +2915,6 @@ static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
 	struct nvme_id_ctrl_nvm *id;
 	int ret;
 
-	if (ctrl->oncs & NVME_CTRL_ONCS_DSM)
-		ctrl->max_discard_segments = NVME_DSM_MAX_RANGES;
-	else
-		ctrl->max_discard_segments = 0;
-
 	/*
 	 * Even though NVMe spec explicitly states that MDTS is not applicable
 	 * to the write-zeroes, we are cautious and limit the size to the
@@ -2946,8 +2944,7 @@ static int nvme_init_non_mdts_limits(struct nvme_ctrl *ctrl)
 	if (ret)
 		goto free_data;
 
-	if (id->dmrl)
-		ctrl->max_discard_segments = id->dmrl;
+	ctrl->dmrl = id->dmrl;
 	ctrl->dmrsl = le32_to_cpu(id->dmrsl);
 	if (id->wzsl)
 		ctrl->max_zeroes_sectors = nvme_mps_to_sectors(ctrl, id->wzsl);
