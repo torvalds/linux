@@ -6285,11 +6285,23 @@ static void scarlett2_notify_direct_monitor(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
 	struct scarlett2_data *private = mixer->private_data;
+	int count = private->num_mix_in * private->num_mix_out;
+	int i;
 
 	private->direct_monitor_updated = 1;
 
 	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 		       &private->direct_monitor_ctl->id);
+
+	if (!scarlett2_has_mixer(private))
+		return;
+
+	private->mix_updated = 1;
+
+	/* Notify of change to the mix controls */
+	for (i = 0; i < count; i++)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+			       &private->mix_ctls[i]->id);
 }
 
 /* Notify on power change */
