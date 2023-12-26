@@ -5898,12 +5898,15 @@ static int snd_scarlett2_controls_create(
 	struct usb_mixer_interface *mixer,
 	const struct scarlett2_device_entry *entry)
 {
+	struct scarlett2_data *private;
 	int err;
 
 	/* Initialise private data */
 	err = scarlett2_init_private(mixer, entry);
 	if (err < 0)
 		return err;
+
+	private = mixer->private_data;
 
 	/* Send proprietary USB initialisation sequence */
 	err = scarlett2_usb_init(mixer);
@@ -5931,7 +5934,7 @@ static int snd_scarlett2_controls_create(
 		return err;
 
 	/* If MSD mode is enabled, don't create any other controls */
-	if (((struct scarlett2_data *)mixer->private_data)->msd_switch)
+	if (private->msd_switch)
 		return 0;
 
 	/* Create the analogue output controls */
