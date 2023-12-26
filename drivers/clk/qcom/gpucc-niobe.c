@@ -21,9 +21,24 @@
 #include "vdd-level.h"
 
 static DEFINE_VDD_REGULATORS(vdd_cx, VDD_LOW_L1 + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_gfx, VDD_LOWER + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mx, VDD_LOW_L1 + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_mxc, VDD_LOWER + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *gpu_cc_niobe_regulators[] = {
+	&vdd_cx,
+	&vdd_gfx,
+	&vdd_mx,
+	&vdd_mxc,
+};
+
+static struct clk_vdd_class *gpu_cc_niobe_regulators_1[] = {
+	&vdd_cx,
+	&vdd_gfx,
+	&vdd_mxc,
+};
+
+static struct clk_vdd_class *gpu_cc_niobe_regulators_2[] = {
 	&vdd_cx,
 	&vdd_mx,
 };
@@ -167,7 +182,8 @@ static struct clk_rcg2 gpu_cc_ff_clk_src = {
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_cx,
+		.vdd_classes = gpu_cc_niobe_regulators_1,
+		.num_vdd_classes = ARRAY_SIZE(gpu_cc_niobe_regulators_1),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER] = 200000000},
@@ -197,8 +213,8 @@ static struct clk_rcg2 gpu_cc_gmu_clk_src = {
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_classes = gpu_cc_niobe_regulators,
-		.num_vdd_classes = ARRAY_SIZE(gpu_cc_niobe_regulators),
+		.vdd_classes = gpu_cc_niobe_regulators_2,
+		.num_vdd_classes = ARRAY_SIZE(gpu_cc_niobe_regulators_2),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER] = 350000000,
