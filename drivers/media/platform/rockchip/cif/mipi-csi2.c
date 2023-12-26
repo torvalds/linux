@@ -779,7 +779,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct csi2_hw *csi2_hw = dev_get_drvdata(dev);
-	struct csi2_dev *csi2 = csi2_hw->csi2;
+	struct csi2_dev *csi2 = NULL;
 	struct csi2_err_stats *err_list = NULL;
 	unsigned long err_stat = 0;
 	u32 val;
@@ -788,11 +788,16 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	char vc_info[CSI_VCINFO_LEN] = {0};
 	bool is_add_cnt = false;
 
-	if (!csi2_hw || !csi2) {
+	if (!csi2_hw) {
 		disable_irq_nosync(irq);
 		return IRQ_HANDLED;
 	}
 
+	csi2 = csi2_hw->csi2;
+	if (!csi2) {
+		disable_irq_nosync(irq);
+		return IRQ_HANDLED;
+	}
 	val = read_csihost_reg(csi2_hw->base, CSIHOST_ERR1);
 	if (val) {
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
