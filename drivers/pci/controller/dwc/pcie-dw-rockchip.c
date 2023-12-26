@@ -1990,6 +1990,7 @@ static int rk_pcie_really_probe(void *p)
 
 	if (!IS_ERR_OR_NULL(rk_pcie->prsnt_gpio)) {
 		if (!gpiod_get_value(rk_pcie->prsnt_gpio)) {
+			dev_info(dev, "device isn't present\n");
 			ret = -ENODEV;
 			goto release_driver;
 		}
