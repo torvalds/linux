@@ -3927,7 +3927,7 @@ static int scarlett2_direct_monitor_ctl_get(
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct usb_mixer_interface *mixer = elem->head.mixer;
-	struct scarlett2_data *private = elem->head.mixer->private_data;
+	struct scarlett2_data *private = mixer->private_data;
 	int err = 0;
 
 	mutex_lock(&private->data_mutex);
@@ -4191,7 +4191,8 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 				   struct snd_ctl_elem_value *ucontrol)
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
-	struct scarlett2_data *private = elem->head.mixer->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
 	u8 *meter_level_map = private->meter_level_map;
 	u16 meter_levels[SCARLETT2_MAX_METERS];
 	int i, err;
@@ -4203,7 +4204,7 @@ static int scarlett2_meter_ctl_get(struct snd_kcontrol *kctl,
 		goto unlock;
 	}
 
-	err = scarlett2_usb_get_meter_levels(elem->head.mixer, elem->channels,
+	err = scarlett2_usb_get_meter_levels(mixer, elem->channels,
 					     meter_levels);
 	if (err < 0)
 		goto unlock;
