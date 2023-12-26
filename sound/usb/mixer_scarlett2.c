@@ -647,6 +647,12 @@ struct scarlett2_device_info {
 	/* the first input with an air control (0-based) */
 	u8 air_input_first;
 
+	/* number of additional air options
+	 * 0 for air presence only (Gen 3)
+	 * 1 for air presence+drive (Gen 4)
+	 */
+	u8 air_option;
+
 	/* the number of phantom (48V) software switchable controls */
 	u8 phantom_count;
 
@@ -3022,7 +3028,7 @@ static int scarlett2_air_ctl_put(struct snd_kcontrol *kctl,
 	}
 
 	oval = private->air_switch[index];
-	val = !!ucontrol->value.integer.value[0];
+	val = ucontrol->value.integer.value[0];
 
 	if (oval == val)
 		goto unlock;
@@ -3040,12 +3046,31 @@ unlock:
 	return err;
 }
 
-static const struct snd_kcontrol_new scarlett2_air_ctl = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "",
-	.info = snd_ctl_boolean_mono_info,
-	.get  = scarlett2_air_ctl_get,
-	.put  = scarlett2_air_ctl_put,
+static int scarlett2_air_with_drive_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	static const char *const values[3] = {
+		"Off", "Presence", "Presence + Drive"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 3, values);
+}
+
+static const struct snd_kcontrol_new scarlett2_air_ctl[2] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "",
+		.info = snd_ctl_boolean_mono_info,
+		.get  = scarlett2_air_ctl_get,
+		.put  = scarlett2_air_ctl_put,
+	},
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "",
+		.info = scarlett2_air_with_drive_ctl_info,
+		.get  = scarlett2_air_ctl_get,
+		.put  = scarlett2_air_ctl_put,
+	}
 };
 
 /*** Phantom Switch Controls ***/
@@ -3839,9 +3864,10 @@ static int scarlett2_add_line_in_ctls(struct usb_mixer_interface *mixer)
 	/* Add input air controls */
 	for (i = 0; i < info->air_input_count; i++) {
 		snprintf(s, sizeof(s), fmt, i + 1 + info->air_input_first,
-			 "Air", "Switch");
-		err = scarlett2_add_new_ctl(mixer, &scarlett2_air_ctl,
-					    i, 1, s, &private->air_ctls[i]);
+			 "Air", info->air_option ? "Enum" : "Switch");
+		err = scarlett2_add_new_ctl(
+			mixer, &scarlett2_air_ctl[info->air_option],
+			i, 1, s, &private->air_ctls[i]);
 		if (err < 0)
 			return err;
 	}
