@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *   Focusrite Scarlett 2 Protocol Driver for ALSA
- *   (including Scarlett 2nd Gen, 3rd Gen, Clarett USB, and Clarett+
- *   series products)
+ *   (including Scarlett 2nd Gen, 3rd Gen, 4th Gen, Clarett USB, and
+ *   Clarett+ series products)
  *
  *   Copyright (c) 2023 by Geoffrey D. Bennett <g at b4.vu>
  */
