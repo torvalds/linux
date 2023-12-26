@@ -3,8 +3,6 @@
 
 include debian/rules.vars
 
-srctree ?= .
-
 ifneq (,$(filter-out parallel=1,$(filter parallel=%,$(DEB_BUILD_OPTIONS))))
     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     MAKEFLAGS += -j$(NUMJOBS)
@@ -18,20 +16,20 @@ make-opts = ARCH=$(ARCH) KERNELRELEASE=$(KERNELRELEASE) KBUILD_BUILD_VERSION=$(r
 binary: binary-arch binary-indep
 binary-indep: build-indep
 binary-arch: build-arch
-	$(MAKE) -f $(srctree)/Makefile $(make-opts) \
+	$(MAKE) $(make-opts) \
 	run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb'
 
 .PHONY: build build-indep build-arch
 build: build-arch build-indep
 build-indep:
 build-arch:
-	$(MAKE) -f $(srctree)/Makefile $(make-opts) \
+	$(MAKE) $(make-opts) \
 	olddefconfig all
 
 .PHONY: clean
 clean:
 	rm -rf debian/files debian/linux-* debian/deb-env.vars*
-	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) clean
+	$(MAKE) ARCH=$(ARCH) clean
 
 # If DEB_HOST_ARCH is empty, it is likely that debian/rules was executed
 # directly. Run 'dpkg-architecture --print-set --print-format=make' to
