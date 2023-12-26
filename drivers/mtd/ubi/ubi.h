@@ -1123,6 +1123,19 @@ static inline struct ubi_vid_hdr *ubi_get_vid_hdr(struct ubi_vid_io_buf *vidb)
 	return vidb->hdr;
 }
 
+/**
+ * ubi_ro_mode - switch to read-only mode.
+ * @ubi: UBI device description object
+ */
+static inline void ubi_ro_mode(struct ubi_device *ubi)
+{
+	if (!ubi->ro_mode) {
+		ubi->ro_mode = 1;
+		ubi_warn(ubi, "switch to read-only mode");
+		dump_stack();
+	}
+}
+
 /*
  * This function is equivalent to 'ubi_io_read()', but @offset is relative to
  * the beginning of the logical eraseblock, not to the beginning of the
@@ -1144,20 +1157,13 @@ static inline int ubi_io_write_data(struct ubi_device *ubi, const void *buf,
 				    int pnum, int offset, int len)
 {
 	ubi_assert(offset >= 0);
-	return ubi_io_write(ubi, buf, pnum, offset + ubi->leb_start, len);
-}
 
-/**
- * ubi_ro_mode - switch to read-only mode.
- * @ubi: UBI device description object
- */
-static inline void ubi_ro_mode(struct ubi_device *ubi)
-{
-	if (!ubi->ro_mode) {
-		ubi->ro_mode = 1;
-		ubi_warn(ubi, "switch to read-only mode");
-		dump_stack();
+	if (ubi_dbg_power_cut(ubi, MASK_POWER_CUT_DATA)) {
+		ubi_warn(ubi, "XXXXX emulating a power cut when writing data XXXXX");
+		ubi_ro_mode(ubi);
+		return -EROFS;
 	}
+	return ubi_io_write(ubi, buf, pnum, offset + ubi->leb_start, len);
 }
 
 /**
