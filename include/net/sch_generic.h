@@ -19,6 +19,7 @@
 #include <net/gen_stats.h>
 #include <net/rtnetlink.h>
 #include <net/flow_offload.h>
+#include <linux/xarray.h>
 
 struct Qdisc_ops;
 struct qdisc_walker;
@@ -456,6 +457,7 @@ struct tcf_chain {
 };
 
 struct tcf_block {
+	struct xarray ports; /* datapath accessible */
 	/* Lock protects tcf_block and lifetime-management data of chains
 	 * attached to the block (refcnt, action_refcnt, explicitly_created).
 	 */
@@ -481,6 +483,8 @@ struct tcf_block {
 	DECLARE_HASHTABLE(proto_destroy_ht, 7);
 	struct mutex proto_destroy_lock; /* Lock for proto_destroy hashtable. */
 };
+
+struct tcf_block *tcf_block_lookup(struct net *net, u32 block_index);
 
 static inline bool lockdep_tcf_chain_is_locked(struct tcf_chain *chain)
 {

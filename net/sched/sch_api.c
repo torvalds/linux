@@ -1180,6 +1180,43 @@ skip:
 	return 0;
 }
 
+static int qdisc_block_add_dev(struct Qdisc *sch, struct net_device *dev,
+			       struct netlink_ext_ack *extack)
+{
+	const struct Qdisc_class_ops *cl_ops = sch->ops->cl_ops;
+	struct tcf_block *block;
+	int err;
+
+	block = cl_ops->tcf_block(sch, TC_H_MIN_INGRESS, NULL);
+	if (block) {
+		err = xa_insert(&block->ports, dev->ifindex, dev, GFP_KERNEL);
+		if (err) {
+			NL_SET_ERR_MSG(extack,
+				       "ingress block dev insert failed");
+			return err;
+		}
+	}
+
+	block = cl_ops->tcf_block(sch, TC_H_MIN_EGRESS, NULL);
+	if (block) {
+		err = xa_insert(&block->ports, dev->ifindex, dev, GFP_KERNEL);
+		if (err) {
+			NL_SET_ERR_MSG(extack,
+				       "Egress block dev insert failed");
+			goto err_out;
+		}
+	}
+
+	return 0;
+
+err_out:
+	block = cl_ops->tcf_block(sch, TC_H_MIN_INGRESS, NULL);
+	if (block)
+		xa_erase(&block->ports, dev->ifindex);
+
+	return err;
+}
+
 static int qdisc_block_indexes_set(struct Qdisc *sch, struct nlattr **tca,
 				   struct netlink_ext_ack *extack)
 {
@@ -1349,6 +1386,10 @@ static struct Qdisc *qdisc_create(struct net_device *dev,
 
 	qdisc_hash_add(sch, false);
 	trace_qdisc_create(ops, dev, parent);
+
+	err = qdisc_block_add_dev(sch, dev, extack);
+	if (err)
+		goto err_out4;
 
 	return sch;
 
