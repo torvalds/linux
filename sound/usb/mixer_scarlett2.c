@@ -325,11 +325,18 @@ enum {
  * A size of 0 indicates that the parameter is a byte-sized Scarlett
  * Gen 4 configuration which is written through the gen4_write_addr
  * location (but still read through the given offset location).
+ *
+ * Some Gen 4 configuration parameters are written with 0x02 for a
+ * desired value of 0x01, and 0x03 for 0x00. These are indicated with
+ * mute set to 1. 0x02 and 0x03 are temporary values while the device
+ * makes the change and the channel and/or corresponding DSP channel
+ * output is muted.
  */
 struct scarlett2_config {
 	u16 offset;
 	u8 size;
 	u8 activate;
+	u8 mute;
 };
 
 struct scarlett2_config_set {
@@ -2177,6 +2184,15 @@ static int scarlett2_usb_get_meter_levels(struct usb_mixer_interface *mixer,
 	return 0;
 }
 
+/* For config items with mute=1, xor bits 0 & 1 together to get the
+ * current/next state. This won't have any effect on values which are
+ * only ever 0/1.
+ */
+static uint8_t scarlett2_decode_muteable(uint8_t v)
+{
+	return (v ^ (v >> 1)) & 1;
+}
+
 /*** Control Functions ***/
 
 /* helper function to create a new control */
@@ -2798,7 +2814,8 @@ static int scarlett2_level_enum_ctl_get(struct snd_kcontrol *kctl,
 		if (err < 0)
 			goto unlock;
 	}
-	ucontrol->value.enumerated.item[0] = private->level_switch[index];
+	ucontrol->value.enumerated.item[0] = scarlett2_decode_muteable(
+		private->level_switch[index]);
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -2830,6 +2847,10 @@ static int scarlett2_level_enum_ctl_put(struct snd_kcontrol *kctl,
 		goto unlock;
 
 	private->level_switch[index] = val;
+
+	/* To set the Gen 4 muteable controls, bit 1 gets set instead */
+	if (private->config_set->items[SCARLETT2_CONFIG_LEVEL_SWITCH].mute)
+		val = (!val) | 0x02;
 
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_LEVEL_SWITCH,
@@ -3078,8 +3099,8 @@ static int scarlett2_phantom_ctl_get(struct snd_kcontrol *kctl,
 		if (err < 0)
 			goto unlock;
 	}
-	ucontrol->value.integer.value[0] =
-		private->phantom_switch[elem->control];
+	ucontrol->value.integer.value[0] = scarlett2_decode_muteable(
+		private->phantom_switch[elem->control]);
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -3111,6 +3132,10 @@ static int scarlett2_phantom_ctl_put(struct snd_kcontrol *kctl,
 		goto unlock;
 
 	private->phantom_switch[index] = val;
+
+	/* To set the Gen 4 muteable controls, bit 1 gets set */
+	if (private->config_set->items[SCARLETT2_CONFIG_PHANTOM_SWITCH].mute)
+		val = (!val) | 0x02;
 
 	/* Send switch change to the device */
 	err = scarlett2_usb_set_config(mixer, SCARLETT2_CONFIG_PHANTOM_SWITCH,
