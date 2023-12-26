@@ -49,7 +49,7 @@ install_linux_image () {
 		${MAKE} -f ${srctree}/Makefile INSTALL_DTBS_PATH="${pdir}/usr/lib/linux-image-${KERNELRELEASE}" dtbs_install
 	fi
 
-	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" modules_install
+	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" INSTALL_MOD_STRIP=1 modules_install
 	rm -f "${pdir}/lib/modules/${KERNELRELEASE}/build"
 
 	# Install the kernel
@@ -110,25 +110,21 @@ install_linux_image () {
 
 install_linux_image_dbg () {
 	pdir=$1
-	image_pdir=$2
 
 	rm -rf ${pdir}
 
-	for module in $(find ${image_pdir}/lib/modules/ -name *.ko -printf '%P\n'); do
-		module=lib/modules/${module}
-		mkdir -p $(dirname ${pdir}/usr/lib/debug/${module})
-		# only keep debug symbols in the debug file
-		${OBJCOPY} --only-keep-debug ${image_pdir}/${module} ${pdir}/usr/lib/debug/${module}
-		# strip original module from debug symbols
-		${OBJCOPY} --strip-debug ${image_pdir}/${module}
-		# then add a link to those
-		${OBJCOPY} --add-gnu-debuglink=${pdir}/usr/lib/debug/${module} ${image_pdir}/${module}
-	done
+	# Parse modules.order directly because 'make modules_install' may sign,
+	# compress modules, and then run unneeded depmod.
+	while read -r mod; do
+		mod="${mod%.o}.ko"
+		dbg="${pdir}/usr/lib/debug/lib/modules/${KERNELRELEASE}/kernel/${mod}"
+		buildid=$("${READELF}" -n "${mod}" | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p')
+		link="${pdir}/usr/lib/debug/.build-id/${buildid}.debug"
 
-	# re-sign stripped modules
-	if is_enabled CONFIG_MODULE_SIG_ALL; then
-		${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${image_pdir}" modules_sign
-	fi
+		mkdir -p "${dbg%/*}" "${link%/*}"
+		"${OBJCOPY}" --only-keep-debug "${mod}" "${dbg}"
+		ln -sf --relative "${dbg}" "${link}"
+	done < modules.order
 
 	# Build debug package
 	# Different tools want the image in different locations
@@ -176,9 +172,7 @@ for package in ${packages_enabled}
 do
 	case ${package} in
 	*-dbg)
-		# This must be done after linux-image, that is, we expect the
-		# debug package appears after linux-image in debian/control.
-		install_linux_image_dbg debian/linux-image-dbg debian/linux-image;;
+		install_linux_image_dbg debian/linux-image-dbg;;
 	linux-image-*|user-mode-linux-*)
 		install_linux_image debian/linux-image ${package};;
 	linux-libc-dev)
