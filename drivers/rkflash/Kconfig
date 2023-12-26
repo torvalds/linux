@@ -22,7 +22,7 @@ comment "Rockchip Flash Devices"
 config RK_SFTL
 	tristate "Rockchip Slc Nand FTL support"
 	default y
-	depends on (RK_NAND || (RK_SFC_NAND && RK_SFC_NAND_MTD !=y))
+	depends on (RK_NANDC_NAND || (RK_SFC_NAND && RK_SFC_NAND_MTD !=y))
 	help
 	  This enables support for Slc Nand FTL.
 
