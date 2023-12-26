@@ -47,6 +47,7 @@
 #include <linux/kern_levels.h>
 #include <linux/kstrtox.h>
 #include <linux/kthread.h>
+#include <linux/wordpart.h>
 
 #include <asm/page.h>
 #include <asm/memtype.h>
