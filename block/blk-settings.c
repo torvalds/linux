@@ -837,8 +837,6 @@ void blk_queue_write_cache(struct request_queue *q, bool wc, bool fua)
 		blk_queue_flag_set(QUEUE_FLAG_FUA, q);
 	else
 		blk_queue_flag_clear(QUEUE_FLAG_FUA, q);
-
-	wbt_set_write_cache(q, test_bit(QUEUE_FLAG_WC, &q->queue_flags));
 }
 EXPORT_SYMBOL_GPL(blk_queue_write_cache);
 
