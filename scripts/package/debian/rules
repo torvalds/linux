@@ -30,5 +30,16 @@ build-arch:
 
 .PHONY: clean
 clean:
-	rm -rf debian/files debian/linux-*
+	rm -rf debian/files debian/linux-* debian/deb-env.vars*
 	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) clean
+
+# If DEB_HOST_ARCH is empty, it is likely that debian/rules was executed
+# directly. Run 'dpkg-architecture --print-set --print-format=make' to
+# generate a makefile construct that exports all DEB_* variables.
+ifndef DEB_HOST_ARCH
+include debian/deb-env.vars
+
+debian/deb-env.vars:
+	dpkg-architecture -a$$(cat debian/arch) --print-set --print-format=make > $@.tmp
+	mv $@.tmp $@
+endif
