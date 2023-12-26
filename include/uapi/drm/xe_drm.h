@@ -832,7 +832,6 @@ struct drm_xe_vm_destroy {
  *
  * and the @flags can be:
  *  - %DRM_XE_VM_BIND_FLAG_READONLY
- *  - %DRM_XE_VM_BIND_FLAG_ASYNC
  *  - %DRM_XE_VM_BIND_FLAG_IMMEDIATE - Valid on a faulting VM only, do the
  *    MAP operation immediately rather than deferring the MAP to the page
  *    fault handler.
