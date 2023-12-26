@@ -235,13 +235,15 @@ static const struct of_device_id rockchip_npu_of_match[] = {
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 void rknpu_devfreq_lock(struct rknpu_device *rknpu_dev)
 {
-	rockchip_opp_dvfs_lock(&rknpu_dev->opp_info);
+	if (rknpu_dev->devfreq)
+		rockchip_opp_dvfs_lock(&rknpu_dev->opp_info);
 }
 EXPORT_SYMBOL(rknpu_devfreq_lock);
 
 void rknpu_devfreq_unlock(struct rknpu_device *rknpu_dev)
 {
-	rockchip_opp_dvfs_unlock(&rknpu_dev->opp_info);
+	if (rknpu_dev->devfreq)
+		rockchip_opp_dvfs_unlock(&rknpu_dev->opp_info);
 }
 EXPORT_SYMBOL(rknpu_devfreq_unlock);
 
@@ -332,6 +334,7 @@ int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 						     (void *)rknpu_dev);
 	if (IS_ERR(rknpu_dev->devfreq)) {
 		LOG_DEV_ERROR(dev, "failed to add devfreq\n");
+		rknpu_dev->devfreq = NULL;
 		ret = PTR_ERR(rknpu_dev->devfreq);
 		goto err_remove_governor;
 	}
