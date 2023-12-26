@@ -213,6 +213,13 @@ static const u16 scarlett2_mixer_values[SCARLETT2_MIXER_VALUE_COUNT] = {
 /* Maximum number of mixer gain controls */
 #define SCARLETT2_MIX_MAX (SCARLETT2_INPUT_MIX_MAX * SCARLETT2_OUTPUT_MIX_MAX)
 
+/* Maximum number of direct monitor mixer gain controls
+ * 1 (Solo) or 2 (2i2) direct monitor selections (Mono & Stereo)
+ * 2 Mix outputs (A/Left & B/Right)
+ * 4 Mix inputs
+ */
+#define SCARLETT2_MONITOR_MIX_MAX (2 * 2 * 4)
+
 /* Maximum size of the data in the USB mux assignment message:
  * 20 inputs, 20 outputs, 25 matrix inputs, 12 spare
  */
@@ -344,6 +351,7 @@ enum {
 	SCARLETT2_CONFIG_INPUT_LINK_SWITCH,
 	SCARLETT2_CONFIG_POWER_EXT,
 	SCARLETT2_CONFIG_POWER_STATUS,
+	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
 	SCARLETT2_CONFIG_COUNT
 };
 
@@ -742,6 +750,7 @@ struct scarlett2_data {
 	u8 num_mix_in;
 	u8 num_mix_out;
 	u8 num_line_out;
+	u8 num_monitor_mix_ctls;
 	u32 firmware_version;
 	u8 flash_segment_nums[SCARLETT2_SEGMENT_ID_COUNT];
 	u8 flash_segment_blocks[SCARLETT2_SEGMENT_ID_COUNT];
@@ -812,6 +821,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *power_status_ctl;
 	u8 mux[SCARLETT2_MUX_MAX];
 	u8 mix[SCARLETT2_MIX_MAX];
+	u8 monitor_mix[SCARLETT2_MONITOR_MIX_MAX];
 };
 
 /*** Model-specific data ***/
@@ -5108,6 +5118,28 @@ static int scarlett2_update_direct_monitor(struct usb_mixer_interface *mixer)
 		1, &private->direct_monitor_switch);
 }
 
+static int scarlett2_update_monitor_mix(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int err, i;
+	u16 mix_values[SCARLETT2_MONITOR_MIX_MAX];
+
+	if (!private->num_monitor_mix_ctls)
+		return 0;
+
+	err = scarlett2_usb_get_config(
+		mixer, SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
+		private->num_monitor_mix_ctls, mix_values);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < private->num_monitor_mix_ctls; i++)
+		private->monitor_mix[i] = scarlett2_mixer_value_to_db(
+			mix_values[i]);
+
+	return 0;
+}
+
 static int scarlett2_direct_monitor_ctl_get(
 	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
 {
@@ -5201,11 +5233,70 @@ static const struct snd_kcontrol_new scarlett2_direct_monitor_ctl[2] = {
 	}
 };
 
-static int scarlett2_add_direct_monitor_ctl(struct usb_mixer_interface *mixer)
+static int scarlett2_monitor_mix_ctl_get(struct snd_kcontrol *kctl,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct scarlett2_data *private = elem->head.mixer->private_data;
+
+	ucontrol->value.integer.value[0] = private->monitor_mix[elem->control];
+
+	return 0;
+}
+
+static int scarlett2_monitor_mix_ctl_put(struct snd_kcontrol *kctl,
+					 struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int oval, val, err = 0;
+	int index = elem->control;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	oval = private->monitor_mix[index];
+	val = clamp(ucontrol->value.integer.value[0],
+		    0L, (long)SCARLETT2_MIXER_MAX_VALUE);
+
+	if (oval == val)
+		goto unlock;
+
+	private->monitor_mix[index] = val;
+	err = scarlett2_usb_set_config(
+		mixer, SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
+		index, scarlett2_mixer_values[val]);
+	if (err == 0)
+		err = 1;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static const struct snd_kcontrol_new scarlett2_monitor_mix_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+	.name = "",
+	.info = scarlett2_mixer_ctl_info,
+	.get  = scarlett2_monitor_mix_ctl_get,
+	.put  = scarlett2_monitor_mix_ctl_put,
+	.private_value = SCARLETT2_MIXER_MAX_DB, /* max value */
+	.tlv = { .p = db_scale_scarlett2_mixer }
+};
+
+static int scarlett2_add_direct_monitor_ctls(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	const struct scarlett2_device_info *info = private->info;
 	const char *s;
+	int err, i, j, k, index;
 
 	if (!info->direct_monitor)
 		return 0;
@@ -5214,9 +5305,47 @@ static int scarlett2_add_direct_monitor_ctl(struct usb_mixer_interface *mixer)
 	      ? "Direct Monitor Playback Switch"
 	      : "Direct Monitor Playback Enum";
 
-	return scarlett2_add_new_ctl(
+	err = scarlett2_add_new_ctl(
 		mixer, &scarlett2_direct_monitor_ctl[info->direct_monitor - 1],
 		0, 1, s, &private->direct_monitor_ctl);
+	if (err < 0)
+		return err;
+
+	if (!private->num_monitor_mix_ctls)
+		return 0;
+
+	/* 1 or 2 direct monitor selections (Mono & Stereo) */
+	for (i = 0, index = 0; i < info->direct_monitor; i++) {
+		const char * const format =
+			"Monitor %sMix %c Input %02d Playback Volume";
+		const char *mix_type;
+
+		if (info->direct_monitor == 1)
+			mix_type = "";
+		else if (i == 0)
+			mix_type = "1 ";
+		else
+			mix_type = "2 ";
+
+		/* 2 Mix outputs, A/Left & B/Right */
+		for (j = 0; j < 2; j++)
+
+			/* Mix inputs */
+			for (k = 0; k < private->num_mix_in; k++, index++) {
+				char name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+
+				snprintf(name, sizeof(name), format,
+					 mix_type, 'A' + j, k + 1);
+
+				err = scarlett2_add_new_ctl(
+					mixer, &scarlett2_monitor_mix_ctl,
+					index, 1, name, NULL);
+				if (err < 0)
+					return err;
+			}
+	}
+
+	return 0;
 }
 
 /*** Mux Source Selection Controls ***/
@@ -5708,6 +5837,10 @@ static void scarlett2_count_io(struct scarlett2_data *private)
 	/* Number of analogue line outputs */
 	private->num_line_out =
 		port_count[SCARLETT2_PORT_TYPE_ANALOGUE][SCARLETT2_PORT_OUT];
+
+	/* Number of monitor mix controls */
+	private->num_monitor_mix_ctls =
+		info->direct_monitor * 2 * private->num_mix_in;
 }
 
 /* Look through the interface descriptors for the Focusrite Control
@@ -5937,6 +6070,10 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 	/* the rest of the configuration is for devices with a mixer */
 	if (!scarlett2_has_mixer(private))
 		return 0;
+
+	err = scarlett2_update_monitor_mix(mixer);
+	if (err < 0)
+		return err;
 
 	err = scarlett2_update_monitor_other(mixer);
 	if (err < 0)
@@ -6474,8 +6611,8 @@ static int snd_scarlett2_controls_create(
 	if (err < 0)
 		return err;
 
-	/* Create the direct monitor control */
-	err = scarlett2_add_direct_monitor_ctl(mixer);
+	/* Create the direct monitor control(s) */
+	err = scarlett2_add_direct_monitor_ctls(mixer);
 	if (err < 0)
 		return err;
 
