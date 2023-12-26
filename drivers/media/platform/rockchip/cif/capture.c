@@ -2097,8 +2097,11 @@ static int rkcif_assign_new_buffer_update_toisp(struct rkcif_stream *stream,
 					  (u32)stream->next_buf_toisp->dummy.dma_addr);
 		} else {
 			stream->toisp_buf_state.state = RKCIF_TOISP_BUF_LOSS;
-			if (stream->is_single_cap)
+			if (stream->is_single_cap) {
 				active_buf = stream->curr_buf_toisp;
+				stream->curr_buf_toisp = NULL;
+				stream->next_buf_toisp = NULL;
+			}
 		}
 
 		if (active_buf) {
@@ -7436,8 +7439,11 @@ static long rkcif_ioctl_default(struct file *file, void *fh,
 						 RKMODULE_SET_QUICK_STREAM, &stream_param->on);
 			}
 			stream_param->frame_num = dev->stream[0].frame_idx - 1;
-			if (!dev->is_rtt_suspend)
+			if (!dev->is_rtt_suspend) {
 				dev->resume_mode = stream_param->resume_mode;
+				v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
+					 "set resume mode %d\n", dev->resume_mode);
+			}
 		}
 		break;
 	default:
