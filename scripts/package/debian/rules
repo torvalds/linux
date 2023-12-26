@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 # SPDX-License-Identifier: GPL-2.0-only
 
+# in case debian/rules is executed directly
+export DEB_RULES_REQUIRES_ROOT := no
+
 include debian/rules.vars
 
 ifneq (,$(filter-out parallel=1,$(filter parallel=%,$(DEB_BUILD_OPTIONS))))

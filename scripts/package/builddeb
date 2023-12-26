@@ -26,23 +26,16 @@ if_enabled_echo() {
 
 create_package() {
 	local pname="$1" pdir="$2"
-	local dpkg_deb_opts
 
-	mkdir -m 755 -p "$pdir/DEBIAN"
-	mkdir -p "$pdir/usr/share/doc/$pname"
-	cp debian/copyright "$pdir/usr/share/doc/$pname/"
-	cp debian/changelog "$pdir/usr/share/doc/$pname/changelog.Debian"
-	gzip -n -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
-	sh -c "cd '$pdir'; find . -type f ! -path './DEBIAN/*' -printf '%P\0' \
-		| xargs -r0 md5sum > DEBIAN/md5sums"
+	export DH_OPTIONS="-p${pname} -P${pdir}"
 
-	# a+rX in case we are in a restrictive umask environment like 0077
-	# ug-s in case we build in a setuid/setgid directory
-	chmod -R go-w,a+rX,ug-s "$pdir"
-
-	# Create the package
-	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg-deb --root-owner-group ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb -- ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS}
 }
 
 install_linux_image () {
