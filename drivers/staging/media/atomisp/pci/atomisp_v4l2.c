@@ -1192,48 +1192,6 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	return fw;
 }
 
-/*
- * Check for flags the driver was compiled with against the PCI
- * device. Always returns true on other than ISP 2400.
- */
-static bool is_valid_device(struct pci_dev *pdev, const struct pci_device_id *id)
-{
-	const char *name;
-	const char *product;
-
-	product = dmi_get_system_info(DMI_PRODUCT_NAME);
-
-	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
-	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
-		name = "Merrifield";
-		break;
-	case ATOMISP_PCI_DEVICE_SOC_BYT:
-		name = "Baytrail";
-		break;
-	case ATOMISP_PCI_DEVICE_SOC_ANN:
-		name = "Anniedale";
-		break;
-	case ATOMISP_PCI_DEVICE_SOC_CHT:
-		name = "Cherrytrail";
-		break;
-	default:
-		dev_err(&pdev->dev, "%s: unknown device ID %x04:%x04\n",
-			product, id->vendor, id->device);
-		return false;
-	}
-
-	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
-		dev_err(&pdev->dev, "%s revision %d is not unsupported\n",
-			name, pdev->revision);
-		return false;
-	}
-
-	dev_info(&pdev->dev, "Detected %s version %d (ISP240%c) on %s\n",
-		 name, pdev->revision, IS_ISP2401 ? '1' : '0', product);
-
-	return true;
-}
-
 #define ATOM_ISP_PCI_BAR	0
 
 static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1243,9 +1201,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	unsigned int start;
 	int err, val;
 	u32 irq;
-
-	if (!is_valid_device(pdev, id))
-		return -ENODEV;
 
 	/* Pointer to struct device. */
 	atomisp_dev = &pdev->dev;
@@ -1384,6 +1339,11 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		dev_err(&pdev->dev, "un-supported IUNIT device\n");
 		err = -ENODEV;
 		goto atomisp_dev_alloc_fail;
+	}
+
+	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
+		dev_err(&pdev->dev, "revision %d is not unsupported\n", pdev->revision);
+		return -ENODEV;
 	}
 
 	dev_info(&pdev->dev, "ISP HPLL frequency base = %d MHz\n", isp->hpll_freq);
