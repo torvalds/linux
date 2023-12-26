@@ -2391,6 +2391,10 @@ static int scarlett2_add_sync_ctl(struct usb_mixer_interface *mixer)
 
 /*** Autogain Switch and Status Controls ***/
 
+/* Forward declarations as phantom power and autogain can disable each other */
+static int scarlett2_check_input_phantom_updated(struct usb_mixer_interface *);
+static int scarlett2_phantom_is_switching(struct scarlett2_data *, int);
+
 /* Set the access mode of a control to read-only (val = 0) or
  * read-write (val = 1).
  */
@@ -2557,6 +2561,27 @@ static int scarlett2_check_put_during_autogain(
 	return 0;
 }
 
+static int scarlett2_autogain_switch_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+
+	mutex_lock(&private->data_mutex);
+
+	err = scarlett2_check_input_phantom_updated(mixer);
+	if (err < 0)
+		goto unlock;
+
+	err = snd_ctl_boolean_mono_info(kctl, uinfo);
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
 static int scarlett2_autogain_switch_ctl_get(
 	struct snd_kcontrol *kctl, struct snd_ctl_elem_value *ucontrol)
 {
@@ -2619,12 +2644,21 @@ static int scarlett2_autogain_switch_ctl_put(
 	struct scarlett2_data *private = mixer->private_data;
 
 	int index = elem->control;
-	int oval, val, err = 0;
+	int oval, val, err;
 
 	mutex_lock(&private->data_mutex);
 
 	if (private->hwdep_in_use) {
 		err = -EBUSY;
+		goto unlock;
+	}
+
+	err = scarlett2_check_input_phantom_updated(mixer);
+	if (err < 0)
+		goto unlock;
+
+	if (scarlett2_phantom_is_switching(private, index)) {
+		err = -EPERM;
 		goto unlock;
 	}
 
@@ -2664,7 +2698,7 @@ static int scarlett2_autogain_status_ctl_info(
 static const struct snd_kcontrol_new scarlett2_autogain_switch_ctl = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "",
-	.info = snd_ctl_boolean_mono_info,
+	.info = scarlett2_autogain_switch_ctl_info,
 	.get  = scarlett2_autogain_switch_ctl_get,
 	.put  = scarlett2_autogain_switch_ctl_put
 };
@@ -3983,13 +4017,74 @@ static int scarlett2_update_input_phantom(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+/* Check if phantom power on the given input is currently changing state */
+static int scarlett2_phantom_is_switching(
+	struct scarlett2_data *private, int line_num)
+{
+	const struct scarlett2_device_info *info = private->info;
+	int index = line_num / info->inputs_per_phantom;
+
+	return !!(private->phantom_switch[index] & 0x02);
+}
+
+/* Update autogain controls' access mode when phantom power changes state */
+static void scarlett2_phantom_update_access(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+	int i;
+
+	/* Disable autogain controls if phantom power is changing state */
+	for (i = 0; i < info->gain_input_count; i++) {
+		int val = !scarlett2_phantom_is_switching(private, i);
+
+		scarlett2_set_ctl_access(private->autogain_ctls[i], val);
+	}
+}
+
+/* Notify of access mode change for autogain which can't be enabled
+ * while phantom power is changing.
+ */
+static void scarlett2_phantom_notify_access(struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_device_info *info = private->info;
+	int i;
+
+	for (i = 0; i < info->gain_input_count; i++)
+		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_INFO,
+			       &private->autogain_ctls[i]->id);
+}
+
+/* Call scarlett2_update_input_phantom() and
+ * scarlett2_phantom_update_access() if input_phantom_updated is set.
+ */
+static int scarlett2_check_input_phantom_updated(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+
+	if (!private->input_phantom_updated)
+		return 0;
+
+	err = scarlett2_update_input_phantom(mixer);
+	if (err < 0)
+		return err;
+
+	scarlett2_phantom_update_access(mixer);
+
+	return 0;
+}
+
 static int scarlett2_phantom_ctl_get(struct snd_kcontrol *kctl,
 				     struct snd_ctl_elem_value *ucontrol)
 {
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct scarlett2_data *private = mixer->private_data;
-	int err = 0;
+	int err;
 
 	mutex_lock(&private->data_mutex);
 
@@ -3998,11 +4093,10 @@ static int scarlett2_phantom_ctl_get(struct snd_kcontrol *kctl,
 		goto unlock;
 	}
 
-	if (private->input_phantom_updated) {
-		err = scarlett2_update_input_phantom(mixer);
-		if (err < 0)
-			goto unlock;
-	}
+	err = scarlett2_check_input_phantom_updated(mixer);
+	if (err < 0)
+		goto unlock;
+
 	ucontrol->value.integer.value[0] = scarlett2_decode_muteable(
 		private->phantom_switch[elem->control]);
 
@@ -4050,6 +4144,9 @@ static int scarlett2_phantom_ctl_put(struct snd_kcontrol *kctl,
 				       index + info->phantom_first, val);
 	if (err == 0)
 		err = 1;
+
+	scarlett2_phantom_update_access(mixer);
+	scarlett2_phantom_notify_access(mixer);
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -5912,6 +6009,8 @@ static void scarlett2_notify_input_phantom(struct usb_mixer_interface *mixer)
 	for (i = 0; i < info->phantom_count; i++)
 		snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 			       &private->phantom_ctls[i]->id);
+
+	scarlett2_phantom_notify_access(mixer);
 }
 
 /* Notify on "input other" change (level/pad/air/phantom) */
@@ -6231,9 +6330,13 @@ static int snd_scarlett2_controls_create(
 	if (err < 0)
 		return err;
 
-	/* Set the access mode of controls disabled during autogain */
-	if (private->info->gain_input_count)
+	/* Set the access mode of controls disabled during
+	 * autogain/phantom power switching.
+	 */
+	if (private->info->gain_input_count) {
 		scarlett2_autogain_update_access(mixer);
+		scarlett2_phantom_update_access(mixer);
+	}
 
 	/* Set up the interrupt polling */
 	err = scarlett2_init_notify(mixer);
