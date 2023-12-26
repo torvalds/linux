@@ -1743,7 +1743,13 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl, struct gendisk *disk,
 
 	queue->limits.discard_granularity = size;
 
-	/* If discard is already enabled, don't reset queue limits */
+	/*
+	 * If discard is already enabled, don't reset queue limits.
+	 *
+	 * This works around the fact that the block layer can't cope well with
+	 * updating the hardware limits when overridden through sysfs.  This is
+	 * harmless because discard limits in NVMe are purely advisory.
+	 */
 	if (queue->limits.max_discard_sectors)
 		return;
 
