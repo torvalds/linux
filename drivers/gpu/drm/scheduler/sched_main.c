@@ -1289,7 +1289,7 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 	sched->sched_rq = kmalloc_array(num_rqs, sizeof(*sched->sched_rq),
 					GFP_KERNEL | __GFP_ZERO);
 	if (!sched->sched_rq)
-		goto Out_free;
+		goto Out_check_own;
 	sched->num_rqs = num_rqs;
 	for (i = DRM_SCHED_PRIORITY_KERNEL; i < sched->num_rqs; i++) {
 		sched->sched_rq[i] = kzalloc(sizeof(*sched->sched_rq[i]), GFP_KERNEL);
@@ -1314,9 +1314,10 @@ int drm_sched_init(struct drm_gpu_scheduler *sched,
 Out_unroll:
 	for (--i ; i >= DRM_SCHED_PRIORITY_KERNEL; i--)
 		kfree(sched->sched_rq[i]);
-Out_free:
+
 	kfree(sched->sched_rq);
 	sched->sched_rq = NULL;
+Out_check_own:
 	if (sched->own_submit_wq)
 		destroy_workqueue(sched->submit_wq);
 	drm_err(sched, "%s: Failed to setup GPU scheduler--out of memory\n", __func__);
