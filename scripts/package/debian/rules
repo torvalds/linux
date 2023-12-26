@@ -19,7 +19,7 @@ binary: binary-arch binary-indep
 binary-indep: build-indep
 binary-arch: build-arch
 	$(MAKE) -f $(srctree)/Makefile $(make-opts) \
-	run-command KBUILD_RUN_COMMAND=+$(srctree)/scripts/package/builddeb
+	run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb'
 
 .PHONY: build build-indep build-arch
 build: build-arch build-indep
