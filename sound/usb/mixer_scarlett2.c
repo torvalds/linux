@@ -320,16 +320,21 @@ enum {
 };
 
 /* Location, size, and activation command number for the configuration
- * parameters. Size is in bits and may be 1, 8, or 16.
+ * parameters. Size is in bits and may be 0, 1, 8, or 16.
+ *
+ * A size of 0 indicates that the parameter is a byte-sized Scarlett
+ * Gen 4 configuration which is written through the gen4_write_addr
+ * location (but still read through the given offset location).
  */
 struct scarlett2_config {
-	u8 offset;
+	u16 offset;
 	u8 size;
 	u8 activate;
 };
 
 struct scarlett2_config_set {
 	const struct scarlett2_notification *notifications;
+	u16 gen4_write_addr;
 	const struct scarlett2_config items[SCARLETT2_CONFIG_COUNT];
 };
 
@@ -1612,9 +1617,12 @@ static int scarlett2_usb_get_config(
 	if (!config_item->offset)
 		return -EFAULT;
 
+	/* Gen 4 style parameters are always 1 byte */
+	size = config_item->size ? config_item->size : 8;
+
 	/* For byte-sized parameters, retrieve directly into buf */
-	if (config_item->size >= 8) {
-		size = config_item->size / 8 * count;
+	if (size >= 8) {
+		size = size / 8 * count;
 		err = scarlett2_usb_get(mixer, config_item->offset, buf, size);
 		if (err < 0)
 			return err;
@@ -1684,8 +1692,9 @@ static int scarlett2_usb_set_config(
 	int config_item_num, int index, int value)
 {
 	struct scarlett2_data *private = mixer->private_data;
+	const struct scarlett2_config_set *config_set = private->config_set;
 	const struct scarlett2_config *config_item =
-		&private->config_set->items[config_item_num];
+		&config_set->items[config_item_num];
 	int offset, size;
 	int err;
 
@@ -1694,6 +1703,36 @@ static int scarlett2_usb_set_config(
 	 */
 	if (!config_item->offset)
 		return -EFAULT;
+
+	/* Gen 4 style writes are selected with size = 0;
+	 * these are only byte-sized values written through a shared
+	 * location, different to the read address
+	 */
+	if (!config_item->size) {
+		if (!config_set->gen4_write_addr)
+			return -EFAULT;
+
+		/* Place index in gen4_write_addr + 1 */
+		err = scarlett2_usb_set_data(
+			mixer, config_set->gen4_write_addr + 1, 1, index);
+		if (err < 0)
+			return err;
+
+		/* Place value in gen4_write_addr */
+		err = scarlett2_usb_set_data(
+			mixer, config_set->gen4_write_addr, 1, value);
+		if (err < 0)
+			return err;
+
+		/* Request the interface do the write */
+		return scarlett2_usb_activate_config(
+			mixer, config_item->activate);
+	}
+
+	/* Not-Gen 4 style needs NVRAM save, supports
+	 * bit-modification, and writing is done to the same place
+	 * that the value can be read from
+	 */
 
 	/* Cancel any pending NVRAM save */
 	cancel_delayed_work_sync(&private->work);
@@ -1735,6 +1774,10 @@ static int scarlett2_usb_set_config(
 	err = scarlett2_usb_activate_config(mixer, config_item->activate);
 	if (err < 0)
 		return err;
+
+	/* Gen 2 style writes to Gen 4 devices don't need saving */
+	if (config_set->gen4_write_addr)
+		return 0;
 
 	/* Schedule the change to be written to NVRAM */
 	if (config_item->activate != SCARLETT2_USB_CONFIG_SAVE)
