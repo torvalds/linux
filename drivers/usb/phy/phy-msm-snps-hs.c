@@ -106,6 +106,7 @@ struct msm_hsphy {
 
 	struct clk		*ref_clk_src;
 	struct clk		*cfg_ahb_clk;
+	struct clk		*ref_clk;
 	struct reset_control	*phy_reset;
 
 	struct regulator	*vdd;
@@ -152,6 +153,9 @@ static void msm_hsphy_enable_clocks(struct msm_hsphy *phy, bool on)
 	if (!phy->clocks_enabled && on) {
 		clk_prepare_enable(phy->ref_clk_src);
 
+		if (phy->ref_clk)
+			clk_prepare_enable(phy->ref_clk);
+
 		if (phy->cfg_ahb_clk)
 			clk_prepare_enable(phy->cfg_ahb_clk);
 
@@ -159,6 +163,10 @@ static void msm_hsphy_enable_clocks(struct msm_hsphy *phy, bool on)
 	}
 
 	if (phy->clocks_enabled && !on) {
+
+		if (phy->ref_clk)
+			clk_disable_unprepare(phy->ref_clk);
+
 		if (phy->cfg_ahb_clk)
 			clk_disable_unprepare(phy->cfg_ahb_clk);
 
@@ -888,6 +896,13 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 	if (IS_ERR(phy->ref_clk_src)) {
 		dev_dbg(dev, "clk get failed for ref_clk_src\n");
 		ret = PTR_ERR(phy->ref_clk_src);
+		return ret;
+	}
+
+	phy->ref_clk = devm_clk_get_optional(dev, "ref_clk");
+	if (IS_ERR(phy->ref_clk)) {
+		dev_dbg(dev, "clk get failed for ref_clk\n");
+		ret = PTR_ERR(phy->ref_clk);
 		return ret;
 	}
 
