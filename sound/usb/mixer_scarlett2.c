@@ -583,6 +583,8 @@ struct scarlett2_port {
 	const char * const src_descr;
 	int src_num_offset;
 	const char * const dst_descr;
+	const char * const dsp_src_descr;
+	const char * const dsp_dst_descr;
 };
 
 static const struct scarlett2_port scarlett2_ports[SCARLETT2_PORT_TYPE_COUNT] = {
@@ -612,7 +614,9 @@ static const struct scarlett2_port scarlett2_ports[SCARLETT2_PORT_TYPE_COUNT] = 
 		.id = 0x300,
 		.src_descr = "Mix %c",
 		.src_num_offset = 'A',
-		.dst_descr = "Mixer Input %02d Capture"
+		.dst_descr = "Mixer Input %02d Capture",
+		.dsp_src_descr = "DSP %d",
+		.dsp_dst_descr = "DSP Input %d Capture"
 	},
 	[SCARLETT2_PORT_TYPE_PCM] = {
 		.id = 0x600,
@@ -5378,8 +5382,16 @@ static int scarlett2_mux_src_enum_ctl_info(struct snd_kcontrol *kctl,
 			const struct scarlett2_port *port =
 				&scarlett2_ports[port_type];
 
-			sprintf(uinfo->value.enumerated.name,
-				port->src_descr, item + port->src_num_offset);
+			if (port_type == SCARLETT2_PORT_TYPE_MIX &&
+			    item >= private->num_mix_out)
+				sprintf(uinfo->value.enumerated.name,
+					port->dsp_src_descr,
+					item - private->num_mix_out + 1);
+			else
+				sprintf(uinfo->value.enumerated.name,
+					port->src_descr,
+					item + port->src_num_offset);
+
 			return 0;
 		}
 		item -= port_count[port_type][SCARLETT2_PORT_IN];
@@ -5472,10 +5484,18 @@ static int scarlett2_add_mux_enums(struct usb_mixer_interface *mixer)
 		     channel++, i++) {
 			int err;
 			char s[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
-			const char *const descr =
-				scarlett2_ports[port_type].dst_descr;
+			int channel_num = channel + 1;
+			const struct scarlett2_port *port =
+				&scarlett2_ports[port_type];
+			const char *descr = port->dst_descr;
 
-			snprintf(s, sizeof(s) - 5, descr, channel + 1);
+			if (port_type == SCARLETT2_PORT_TYPE_MIX &&
+			    channel >= private->num_mix_in) {
+				channel_num -= private->num_mix_in;
+				descr = port->dsp_dst_descr;
+			}
+
+			snprintf(s, sizeof(s) - 5, descr, channel_num);
 			strcat(s, " Enum");
 
 			err = scarlett2_add_new_ctl(mixer,
