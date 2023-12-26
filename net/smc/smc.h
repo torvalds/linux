@@ -29,9 +29,6 @@
 #define SMCPROTO_SMC		0	/* SMC protocol, IPv4 */
 #define SMCPROTO_SMC6		1	/* SMC protocol, IPv6 */
 
-#define SMC_MAX_ISM_DEVS	8	/* max # of proposed non-native ISM
-					 * devices
-					 */
 #define SMC_AUTOCORKING_DEFAULT_SIZE	0x10000	/* 64K by default */
 
 extern struct proto smc_proto;
@@ -57,6 +54,13 @@ enum smc_state {		/* possible states of an SMC socket */
 	SMC_PEERABORTWAIT	= 26,
 	SMC_PROCESSABORT	= 27,
 };
+
+enum smc_supplemental_features {
+	SMC_SPF_VIRT_ISM_DEV	= 0,
+};
+
+#define SMC_FEATURE_MASK \
+	(BIT(SMC_SPF_VIRT_ISM_DEV))
 
 struct smc_link_group;
 
