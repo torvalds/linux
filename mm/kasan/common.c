@@ -255,14 +255,33 @@ static inline bool poison_slab_object(struct kmem_cache *cache, void *object,
 bool __kasan_slab_free(struct kmem_cache *cache, void *object,
 				unsigned long ip, bool init)
 {
-	bool buggy_object;
-
 	if (is_kfence_address(object))
 		return false;
 
-	buggy_object = poison_slab_object(cache, object, ip, init);
+	/*
+	 * If the object is buggy, do not let slab put the object onto the
+	 * freelist. The object will thus never be allocated again and its
+	 * metadata will never get released.
+	 */
+	if (poison_slab_object(cache, object, ip, init))
+		return true;
 
-	return buggy_object ? true : kasan_quarantine_put(cache, object);
+	/*
+	 * If the object is put into quarantine, do not let slab put the object
+	 * onto the freelist for now. The object's metadata is kept until the
+	 * object gets evicted from quarantine.
+	 */
+	if (kasan_quarantine_put(cache, object))
+		return true;
+
+	/*
+	 * If the object is not put into quarantine, it will likely be quickly
+	 * reallocated. Thus, release its metadata now.
+	 */
+	kasan_release_object_meta(cache, object);
+
+	/* Let slab put the object onto the freelist. */
+	return false;
 }
 
 static inline bool check_page_allocation(void *ptr, unsigned long ip)

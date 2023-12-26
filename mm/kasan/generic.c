@@ -480,10 +480,10 @@ struct kasan_free_meta *kasan_get_free_meta(struct kmem_cache *cache,
 void kasan_init_object_meta(struct kmem_cache *cache, const void *object)
 {
 	struct kasan_alloc_meta *alloc_meta;
-	struct kasan_free_meta *free_meta;
 
 	alloc_meta = kasan_get_alloc_meta(cache, object);
 	if (alloc_meta) {
+		/* Zero out alloc meta to mark it as invalid. */
 		__memset(alloc_meta, 0, sizeof(*alloc_meta));
 
 		/*
@@ -495,9 +495,50 @@ void kasan_init_object_meta(struct kmem_cache *cache, const void *object)
 		raw_spin_lock_init(&alloc_meta->aux_lock);
 		kasan_enable_current();
 	}
+
+	/*
+	 * Explicitly marking free meta as invalid is not required: the shadow
+	 * value for the first 8 bytes of a newly allocated object is not
+	 * KASAN_SLAB_FREE_META.
+	 */
+}
+
+static void release_alloc_meta(struct kasan_alloc_meta *meta)
+{
+	/* Evict the stack traces from stack depot. */
+	stack_depot_put(meta->alloc_track.stack);
+	stack_depot_put(meta->aux_stack[0]);
+	stack_depot_put(meta->aux_stack[1]);
+
+	/* Zero out alloc meta to mark it as invalid. */
+	__memset(meta, 0, sizeof(*meta));
+}
+
+static void release_free_meta(const void *object, struct kasan_free_meta *meta)
+{
+	/* Check if free meta is valid. */
+	if (*(u8 *)kasan_mem_to_shadow(object) != KASAN_SLAB_FREE_META)
+		return;
+
+	/* Evict the stack trace from the stack depot. */
+	stack_depot_put(meta->free_track.stack);
+
+	/* Mark free meta as invalid. */
+	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREE;
+}
+
+void kasan_release_object_meta(struct kmem_cache *cache, const void *object)
+{
+	struct kasan_alloc_meta *alloc_meta;
+	struct kasan_free_meta *free_meta;
+
+	alloc_meta = kasan_get_alloc_meta(cache, object);
+	if (alloc_meta)
+		release_alloc_meta(alloc_meta);
+
 	free_meta = kasan_get_free_meta(cache, object);
 	if (free_meta)
-		__memset(free_meta, 0, sizeof(*free_meta));
+		release_free_meta(object, free_meta);
 }
 
 size_t kasan_metadata_size(struct kmem_cache *cache, bool in_object)
@@ -573,11 +614,8 @@ void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags)
 	if (!alloc_meta)
 		return;
 
-	/* Evict previous stack traces (might exist for krealloc). */
-	stack_depot_put(alloc_meta->alloc_track.stack);
-	stack_depot_put(alloc_meta->aux_stack[0]);
-	stack_depot_put(alloc_meta->aux_stack[1]);
-	__memset(alloc_meta, 0, sizeof(*alloc_meta));
+	/* Evict previous stack traces (might exist for krealloc or mempool). */
+	release_alloc_meta(alloc_meta);
 
 	kasan_save_track(&alloc_meta->alloc_track, flags);
 }
@@ -590,7 +628,11 @@ void kasan_save_free_info(struct kmem_cache *cache, void *object)
 	if (!free_meta)
 		return;
 
+	/* Evict previous stack trace (might exist for mempool). */
+	release_free_meta(object, free_meta);
+
 	kasan_save_track(&free_meta->free_track, 0);
-	/* The object was freed and has free track set. */
-	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREETRACK;
+
+	/* Mark free meta as valid. */
+	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREE_META;
 }

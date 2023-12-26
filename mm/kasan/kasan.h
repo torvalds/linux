@@ -156,7 +156,7 @@ static inline bool kasan_requires_meta(void)
 
 #ifdef CONFIG_KASAN_GENERIC
 
-#define KASAN_SLAB_FREETRACK	0xFA  /* freed slab object with free track */
+#define KASAN_SLAB_FREE_META	0xFA  /* freed slab object with free meta */
 #define KASAN_GLOBAL_REDZONE	0xF9  /* redzone for global variable */
 
 /* Stack redzone shadow values. Compiler ABI, do not change. */
@@ -253,6 +253,15 @@ struct kasan_global {
 
 #ifdef CONFIG_KASAN_GENERIC
 
+/*
+ * Alloc meta contains the allocation-related information about a slab object.
+ * Alloc meta is saved when an object is allocated and is kept until either the
+ * object returns to the slab freelist (leaves quarantine for quarantined
+ * objects or gets freed for the non-quarantined ones) or reallocated via
+ * krealloc or through a mempool.
+ * Alloc meta is stored inside of the object's redzone.
+ * Alloc meta is considered valid whenever it contains non-zero data.
+ */
 struct kasan_alloc_meta {
 	struct kasan_track alloc_track;
 	/* Free track is stored in kasan_free_meta. */
@@ -278,8 +287,12 @@ struct qlist_node {
 #define KASAN_NO_FREE_META INT_MAX
 
 /*
- * Free meta is only used by Generic mode while the object is in quarantine.
- * After that, slab allocator stores the freelist pointer in the object.
+ * Free meta contains the freeing-related information about a slab object.
+ * Free meta is only kept for quarantined objects and for mempool objects until
+ * the object gets allocated again.
+ * Free meta is stored within the object's memory.
+ * Free meta is considered valid whenever the value of the shadow byte that
+ * corresponds to the first 8 bytes of the object is KASAN_SLAB_FREE_META.
  */
 struct kasan_free_meta {
 	struct qlist_node quarantine_link;
@@ -380,15 +393,15 @@ void kasan_report_invalid_free(void *object, unsigned long ip, enum kasan_report
 struct slab *kasan_addr_to_slab(const void *addr);
 
 #ifdef CONFIG_KASAN_GENERIC
-void kasan_init_cache_meta(struct kmem_cache *cache, unsigned int *size);
-void kasan_init_object_meta(struct kmem_cache *cache, const void *object);
 struct kasan_alloc_meta *kasan_get_alloc_meta(struct kmem_cache *cache,
 						const void *object);
 struct kasan_free_meta *kasan_get_free_meta(struct kmem_cache *cache,
 						const void *object);
+void kasan_init_object_meta(struct kmem_cache *cache, const void *object);
+void kasan_release_object_meta(struct kmem_cache *cache, const void *object);
 #else
-static inline void kasan_init_cache_meta(struct kmem_cache *cache, unsigned int *size) { }
 static inline void kasan_init_object_meta(struct kmem_cache *cache, const void *object) { }
+static inline void kasan_release_object_meta(struct kmem_cache *cache, const void *object) { }
 #endif
 
 depot_stack_handle_t kasan_save_stack(gfp_t flags, depot_flags_t depot_flags);
