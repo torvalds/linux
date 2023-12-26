@@ -706,6 +706,9 @@ struct scarlett2_device_info {
 	 */
 	u8 direct_monitor;
 
+	/* the number of DSP channels */
+	u8 dsp_count;
+
 	/* remap analogue outputs; 18i8 Gen 3 has "line 3/4" connected
 	 * internally to the analogue 7/8 outputs
 	 */
@@ -5827,12 +5830,17 @@ static void scarlett2_count_io(struct scarlett2_data *private)
 	private->num_mux_srcs = srcs;
 	private->num_mux_dsts = dsts;
 
-	/* Mixer inputs are mux outputs and vice versa */
+	/* Mixer inputs are mux outputs and vice versa.
+	 * Scarlett Gen 4 DSP I/O uses SCARLETT2_PORT_TYPE_MIX but
+	 * doesn't have mixer controls.
+	 */
 	private->num_mix_in =
-		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_OUT];
+		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_OUT] -
+			info->dsp_count;
 
 	private->num_mix_out =
-		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_IN];
+		port_count[SCARLETT2_PORT_TYPE_MIX][SCARLETT2_PORT_IN] -
+			info->dsp_count;
 
 	/* Number of analogue line outputs */
 	private->num_line_out =
