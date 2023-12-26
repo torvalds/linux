@@ -1727,7 +1727,6 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl, struct gendisk *disk,
 		struct nvme_ns_head *head)
 {
 	struct request_queue *queue = disk->queue;
-	u32 size = queue_logical_block_size(queue);
 
 	if (ctrl->dmrsl && ctrl->dmrsl <= nvme_sect_to_lba(head, UINT_MAX))
 		ctrl->max_discard_sectors =
@@ -1741,8 +1740,6 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl, struct gendisk *disk,
 	BUILD_BUG_ON(PAGE_SIZE / sizeof(struct nvme_dsm_range) <
 			NVME_DSM_MAX_RANGES);
 
-	queue->limits.discard_granularity = size;
-
 	/*
 	 * If discard is already enabled, don't reset queue limits.
 	 *
@@ -1755,6 +1752,7 @@ static void nvme_config_discard(struct nvme_ctrl *ctrl, struct gendisk *disk,
 
 	blk_queue_max_discard_sectors(queue, ctrl->max_discard_sectors);
 	blk_queue_max_discard_segments(queue, ctrl->max_discard_segments);
+	queue->limits.discard_granularity = queue_logical_block_size(queue);
 
 	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
 		blk_queue_max_write_zeroes_sectors(queue, UINT_MAX);
