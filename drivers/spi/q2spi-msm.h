@@ -578,6 +578,7 @@ void q2spi_kfree(struct q2spi_geni *q2spi, void *ptr, int line);
 int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt);
 int q2spi_alloc_xfer_tid(struct q2spi_geni *q2spi);
 int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi);
+void q2spi_geni_gsi_release(struct q2spi_geni *q2spi);
 int check_gsi_transfer_completion(struct q2spi_geni *q2spi);
 int check_gsi_transfer_completion_rx(struct q2spi_geni *q2spi);
 int q2spi_read_reg(struct q2spi_geni *q2spi, int reg_offset);
