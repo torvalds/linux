@@ -52,6 +52,7 @@ def define_niobe():
         "drivers/rpmsg/qcom_smd.ko",
         "drivers/soc/qcom/boot_stats.ko",
         "drivers/soc/qcom/cmd-db.ko",
+        "drivers/soc/qcom/core_hang_detect.ko",
         "drivers/soc/qcom/cpucp_log.ko",
         "drivers/soc/qcom/dcvs/bwmon.ko",
         "drivers/soc/qcom/dcvs/c1dcvs_scmi_v2.ko",
