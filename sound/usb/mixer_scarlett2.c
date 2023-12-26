@@ -332,6 +332,7 @@ enum {
 	SCARLETT2_CONFIG_MUTE_SWITCH,
 	SCARLETT2_CONFIG_SW_HW_SWITCH,
 	SCARLETT2_CONFIG_MASTER_VOLUME,
+	SCARLETT2_CONFIG_HEADPHONE_VOLUME,
 	SCARLETT2_CONFIG_LEVEL_SWITCH,
 	SCARLETT2_CONFIG_PAD_SWITCH,
 	SCARLETT2_CONFIG_MSD_SWITCH,
@@ -784,6 +785,7 @@ struct scarlett2_data {
 	u8 power_status_updated;
 	u8 sync;
 	u8 master_vol;
+	u8 headphone_vol;
 	u8 vol[SCARLETT2_ANALOGUE_MAX];
 	u8 vol_sw_hw_switch[SCARLETT2_ANALOGUE_MAX];
 	u8 mute_switch[SCARLETT2_ANALOGUE_MAX];
@@ -809,6 +811,7 @@ struct scarlett2_data {
 	u8 meter_level_map[SCARLETT2_MAX_METERS];
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
+	struct snd_kcontrol *headphone_vol_ctl;
 	struct snd_kcontrol *vol_ctls[SCARLETT2_ANALOGUE_MAX];
 	struct snd_kcontrol *sw_hw_ctls[SCARLETT2_ANALOGUE_MAX];
 	struct snd_kcontrol *mute_ctls[SCARLETT2_ANALOGUE_MAX];
@@ -3324,6 +3327,18 @@ static int scarlett2_update_volumes(struct usb_mixer_interface *mixer)
 					private->vol[i] = private->master_vol;
 	}
 
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_HEADPHONE_VOLUME)) {
+		err = scarlett2_usb_get_config(
+			mixer, SCARLETT2_CONFIG_HEADPHONE_VOLUME,
+			1, &vol);
+		if (err < 0)
+			return err;
+
+		private->headphone_vol = clamp(vol + SCARLETT2_VOLUME_BIAS,
+					       0, SCARLETT2_VOLUME_BIAS);
+	}
+
 	return 0;
 }
 
@@ -3361,6 +3376,34 @@ static int scarlett2_master_volume_ctl_get(struct snd_kcontrol *kctl,
 			goto unlock;
 	}
 	ucontrol->value.integer.value[0] = private->master_vol;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_headphone_volume_ctl_get(
+	struct snd_kcontrol *kctl,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->hwdep_in_use) {
+		err = -EBUSY;
+		goto unlock;
+	}
+
+	if (private->vol_updated) {
+		err = scarlett2_update_volumes(mixer);
+		if (err < 0)
+			goto unlock;
+	}
+	ucontrol->value.integer.value[0] = private->headphone_vol;
 
 unlock:
 	mutex_unlock(&private->data_mutex);
@@ -3452,6 +3495,17 @@ static const struct snd_kcontrol_new scarlett2_master_volume_ctl = {
 	.name = "",
 	.info = scarlett2_volume_ctl_info,
 	.get  = scarlett2_master_volume_ctl_get,
+	.private_value = 0, /* max value */
+	.tlv = { .p = db_scale_scarlett2_volume }
+};
+
+static const struct snd_kcontrol_new scarlett2_headphone_volume_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.access = SNDRV_CTL_ELEM_ACCESS_READ |
+		  SNDRV_CTL_ELEM_ACCESS_TLV_READ,
+	.name = "",
+	.info = scarlett2_volume_ctl_info,
+	.get  = scarlett2_headphone_volume_ctl_get,
 	.private_value = 0, /* max value */
 	.tlv = { .p = db_scale_scarlett2_volume }
 };
@@ -4802,6 +4856,18 @@ static int scarlett2_add_line_out_ctls(struct usb_mixer_interface *mixer)
 		err = scarlett2_add_new_ctl(mixer,
 					    &scarlett2_master_volume_ctl,
 					    0, 1, s, &private->master_vol_ctl);
+		if (err < 0)
+			return err;
+	}
+
+	/* Add R/O headphone volume control */
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_HEADPHONE_VOLUME)) {
+		snprintf(s, sizeof(s), "Headphone Playback Volume");
+		err = scarlett2_add_new_ctl(mixer,
+					    &scarlett2_headphone_volume_ctl,
+					    0, 1, s,
+					    &private->headphone_vol_ctl);
 		if (err < 0)
 			return err;
 	}
@@ -6265,7 +6331,7 @@ static void scarlett2_notify_sync(struct usb_mixer_interface *mixer)
 		       &private->sync_ctl->id);
 }
 
-/* Notify on monitor change */
+/* Notify on monitor change (Gen 2/3) */
 static void scarlett2_notify_monitor(struct usb_mixer_interface *mixer)
 {
 	struct snd_card *card = mixer->chip->card;
@@ -6284,6 +6350,20 @@ static void scarlett2_notify_monitor(struct usb_mixer_interface *mixer)
 		if (private->vol_sw_hw_switch[line_out_remap(private, i)])
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 				       &private->vol_ctls[i]->id);
+}
+
+/* Notify on volume change (Gen 4) */
+static __always_unused void scarlett2_notify_volume(
+	struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	private->vol_updated = 1;
+
+	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &private->master_vol_ctl->id);
+	snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &private->headphone_vol_ctl->id);
 }
 
 /* Notify on dim/mute change */
