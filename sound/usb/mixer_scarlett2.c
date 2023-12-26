@@ -278,6 +278,14 @@ enum {
 	SCARLETT2_AUTOGAIN_STATUS_COUNT
 };
 
+/* Power Status Values */
+enum {
+	SCARLETT2_POWER_STATUS_EXT,
+	SCARLETT2_POWER_STATUS_BUS,
+	SCARLETT2_POWER_STATUS_FAIL,
+	SCARLETT2_POWER_STATUS_COUNT
+};
+
 /* Notification callback functions */
 struct scarlett2_notification {
 	u32 mask;
@@ -334,6 +342,8 @@ enum {
 	SCARLETT2_CONFIG_SAFE_SWITCH,
 	SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
 	SCARLETT2_CONFIG_INPUT_LINK_SWITCH,
+	SCARLETT2_CONFIG_POWER_EXT,
+	SCARLETT2_CONFIG_POWER_STATUS,
 	SCARLETT2_CONFIG_COUNT
 };
 
@@ -751,6 +761,7 @@ struct scarlett2_data {
 	u8 direct_monitor_updated;
 	u8 mux_updated;
 	u8 speaker_switching_switched;
+	u8 power_status_updated;
 	u8 sync;
 	u8 master_vol;
 	u8 vol[SCARLETT2_ANALOGUE_MAX];
@@ -774,6 +785,7 @@ struct scarlett2_data {
 	u8 talkback_map[SCARLETT2_OUTPUT_MIX_MAX];
 	u8 msd_switch;
 	u8 standalone_switch;
+	u8 power_status;
 	u8 meter_level_map[SCARLETT2_MAX_METERS];
 	struct snd_kcontrol *sync_ctl;
 	struct snd_kcontrol *master_vol_ctl;
@@ -795,6 +807,7 @@ struct scarlett2_data {
 	struct snd_kcontrol *direct_monitor_ctl;
 	struct snd_kcontrol *speaker_switching_ctl;
 	struct snd_kcontrol *talkback_ctl;
+	struct snd_kcontrol *power_status_ctl;
 	u8 mux[SCARLETT2_MUX_MAX];
 	u8 mix[SCARLETT2_MIX_MAX];
 };
@@ -5526,6 +5539,91 @@ static int scarlett2_add_standalone_ctl(struct usb_mixer_interface *mixer)
 				     0, 1, "Standalone Switch", NULL);
 }
 
+/*** Power Status ***/
+
+static int scarlett2_update_power_status(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+	int err;
+	u8 power_ext;
+	u8 power_status;
+
+	private->power_status_updated = 0;
+
+	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_POWER_EXT,
+				       1, &power_ext);
+	if (err < 0)
+		return err;
+
+	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_POWER_STATUS,
+				       1, &power_status);
+	if (err < 0)
+		return err;
+
+	if (power_status > 1)
+		private->power_status = SCARLETT2_POWER_STATUS_FAIL;
+	else if (power_ext)
+		private->power_status = SCARLETT2_POWER_STATUS_EXT;
+	else
+		private->power_status = SCARLETT2_POWER_STATUS_BUS;
+
+	return 0;
+}
+
+static int scarlett2_power_status_ctl_get(struct snd_kcontrol *kctl,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	struct usb_mixer_elem_info *elem = kctl->private_data;
+	struct usb_mixer_interface *mixer = elem->head.mixer;
+	struct scarlett2_data *private = mixer->private_data;
+	int err = 0;
+
+	mutex_lock(&private->data_mutex);
+
+	if (private->power_status_updated) {
+		err = scarlett2_update_power_status(mixer);
+		if (err < 0)
+			goto unlock;
+	}
+	ucontrol->value.integer.value[0] = private->power_status;
+
+unlock:
+	mutex_unlock(&private->data_mutex);
+	return err;
+}
+
+static int scarlett2_power_status_ctl_info(
+	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
+{
+	static const char *const values[3] = {
+		"External", "Bus", "Fail"
+	};
+
+	return snd_ctl_enum_info(uinfo, 1, 3, values);
+}
+
+static const struct snd_kcontrol_new scarlett2_power_status_ctl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
+	.access = SNDRV_CTL_ELEM_ACCESS_READ,
+	.name = "",
+	.info = scarlett2_power_status_ctl_info,
+	.get  = scarlett2_power_status_ctl_get,
+};
+
+static int scarlett2_add_power_status_ctl(struct usb_mixer_interface *mixer)
+{
+	struct scarlett2_data *private = mixer->private_data;
+
+	if (!scarlett2_has_config_item(private,
+				       SCARLETT2_CONFIG_POWER_EXT))
+		return 0;
+
+	/* Add power status control */
+	return scarlett2_add_new_ctl(mixer, &scarlett2_power_status_ctl,
+				     0, 1, "Power Status Card Enum",
+				     &private->power_status_ctl);
+}
+
 /*** Cleanup/Suspend Callbacks ***/
 
 static void scarlett2_private_free(struct usb_mixer_interface *mixer)
@@ -5813,6 +5911,13 @@ static int scarlett2_read_configs(struct usb_mixer_interface *mixer)
 		err = scarlett2_usb_get_config(
 			mixer, SCARLETT2_CONFIG_STANDALONE_SWITCH,
 			1, &private->standalone_switch);
+		if (err < 0)
+			return err;
+	}
+
+	if (scarlett2_has_config_item(private,
+				      SCARLETT2_CONFIG_POWER_EXT)) {
+		err = scarlett2_update_power_status(mixer);
 		if (err < 0)
 			return err;
 	}
@@ -6153,6 +6258,19 @@ static void scarlett2_notify_direct_monitor(struct usb_mixer_interface *mixer)
 		       &private->direct_monitor_ctl->id);
 }
 
+/* Notify on power change */
+static __always_unused void scarlett2_notify_power_status(
+	struct usb_mixer_interface *mixer)
+{
+	struct snd_card *card = mixer->chip->card;
+	struct scarlett2_data *private = mixer->private_data;
+
+	private->power_status_updated = 1;
+
+	snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
+		       &private->power_status_ctl->id);
+}
+
 /* Interrupt callback */
 static void scarlett2_notify(struct urb *urb)
 {
@@ -6327,6 +6445,11 @@ static int snd_scarlett2_controls_create(
 
 	/* Create the standalone control */
 	err = scarlett2_add_standalone_ctl(mixer);
+	if (err < 0)
+		return err;
+
+	/* Create the power status control */
+	err = scarlett2_add_power_status_ctl(mixer);
 	if (err < 0)
 		return err;
 
