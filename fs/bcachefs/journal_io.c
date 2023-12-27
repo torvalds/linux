@@ -1862,8 +1862,14 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 		}
 	}
 
-	if (wb.wb)
-		bch2_journal_keys_to_write_buffer_end(c, &wb);
+	if (wb.wb) {
+		ret = bch2_journal_keys_to_write_buffer_end(c, &wb);
+		if (ret) {
+			bch2_fs_fatal_error(c, "error flushing journal keys to btree write buffer: %s",
+					    bch2_err_str(ret));
+			return ret;
+		}
+	}
 
 	spin_lock(&c->journal.lock);
 	w->need_flush_to_write_buffer = false;

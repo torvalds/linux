@@ -610,6 +610,29 @@ static void bch2_btree_write_buffer_flush_work(struct work_struct *work)
 	bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
 }
 
+static void wb_accounting_sort(struct btree_write_buffer *wb)
+{
+	eytzinger0_sort(wb->accounting.data, wb->accounting.nr,
+			sizeof(wb->accounting.data[0]),
+			wb_key_cmp, NULL);
+}
+
+int bch2_accounting_key_to_wb_slowpath(struct bch_fs *c, enum btree_id btree,
+				       struct bkey_i_accounting *k)
+{
+	struct btree_write_buffer *wb = &c->btree_write_buffer;
+	struct btree_write_buffered_key new = { .btree = btree };
+
+	bkey_copy(&new.k, &k->k_i);
+
+	int ret = darray_push(&wb->accounting, new);
+	if (ret)
+		return ret;
+
+	wb_accounting_sort(wb);
+	return 0;
+}
+
 int bch2_journal_key_to_wb_slowpath(struct bch_fs *c,
 			     struct journal_keys_to_wb *dst,
 			     enum btree_id btree, struct bkey_i *k)
@@ -679,11 +702,35 @@ void bch2_journal_keys_to_write_buffer_start(struct bch_fs *c, struct journal_ke
 
 	bch2_journal_pin_add(&c->journal, seq, &dst->wb->pin,
 			     bch2_btree_write_buffer_journal_flush);
+
+	darray_for_each(wb->accounting, i)
+		memset(&i->k.v, 0, bkey_val_bytes(&i->k.k));
 }
 
-void bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys_to_wb *dst)
+int bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys_to_wb *dst)
 {
 	struct btree_write_buffer *wb = &c->btree_write_buffer;
+	unsigned live_accounting_keys = 0;
+	int ret = 0;
+
+	darray_for_each(wb->accounting, i)
+		if (!bch2_accounting_key_is_zero(bkey_i_to_s_c_accounting(&i->k))) {
+			i->journal_seq = dst->seq;
+			live_accounting_keys++;
+			ret = __bch2_journal_key_to_wb(c, dst, i->btree, &i->k);
+			if (ret)
+				break;
+		}
+
+	if (live_accounting_keys * 2 < wb->accounting.nr) {
+		struct btree_write_buffered_key *dst = wb->accounting.data;
+
+		darray_for_each(wb->accounting, src)
+			if (!bch2_accounting_key_is_zero(bkey_i_to_s_c_accounting(&src->k)))
+				*dst++ = *src;
+		wb->accounting.nr = dst - wb->accounting.data;
+		wb_accounting_sort(wb);
+	}
 
 	if (!dst->wb->keys.nr)
 		bch2_journal_pin_drop(&c->journal, &dst->wb->pin);
@@ -696,6 +743,8 @@ void bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys
 	if (dst->wb == &wb->flushing)
 		mutex_unlock(&wb->flushing.lock);
 	mutex_unlock(&wb->inc.lock);
+
+	return ret;
 }
 
 static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_buf *buf)
@@ -719,7 +768,7 @@ static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_bu
 	buf->need_flush_to_write_buffer = false;
 	spin_unlock(&c->journal.lock);
 out:
-	bch2_journal_keys_to_write_buffer_end(c, &dst);
+	ret = bch2_journal_keys_to_write_buffer_end(c, &dst) ?: ret;
 	return ret;
 }
 
@@ -751,6 +800,7 @@ void bch2_fs_btree_write_buffer_exit(struct bch_fs *c)
 	BUG_ON((wb->inc.keys.nr || wb->flushing.keys.nr) &&
 	       !bch2_journal_error(&c->journal));
 
+	darray_exit(&wb->accounting);
 	darray_exit(&wb->sorted);
 	darray_exit(&wb->flushing.keys);
 	darray_exit(&wb->inc.keys);
