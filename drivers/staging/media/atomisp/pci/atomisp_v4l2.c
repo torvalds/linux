@@ -1524,11 +1524,10 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 {
 	struct atomisp_device *isp = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "Removing atomisp driver\n");
-
 	atomisp_drvfs_exit();
 
 	ia_css_unload_firmware();
+	devm_free_irq(&pdev->dev, pdev->irq, isp);
 	hmm_cleanup();
 
 	pm_runtime_forbid(&pdev->dev);
@@ -1536,8 +1535,10 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	dev_pm_domain_set(&pdev->dev, NULL);
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 
-	atomisp_msi_irq_uninit(isp);
 	atomisp_unregister_entities(isp);
+	atomisp_uninitialize_modules(isp);
+	atomisp_msi_irq_uninit(isp);
+	pci_free_irq_vectors(pdev);
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {
