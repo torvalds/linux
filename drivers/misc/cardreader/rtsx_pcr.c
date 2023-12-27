@@ -1342,7 +1342,9 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 
 static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 {
-	int err;
+	struct rtsx_cr_option *option = &(pcr->option);
+	int err, l1ss;
+	u32 lval;
 	u16 cfg_val;
 	u8 val;
 
@@ -1425,6 +1427,48 @@ static int rtsx_pci_init_chip(struct rtsx_pcr *pcr)
 			pcr->aspm_enabled = false;
 		else
 			pcr->aspm_enabled = true;
+	}
+
+	l1ss = pci_find_ext_capability(pcr->pci, PCI_EXT_CAP_ID_L1SS);
+	if (l1ss) {
+		pci_read_config_dword(pcr->pci, l1ss + PCI_L1SS_CTL1, &lval);
+
+		if (lval & PCI_L1SS_CTL1_ASPM_L1_1)
+			rtsx_set_dev_flag(pcr, ASPM_L1_1_EN);
+		else
+			rtsx_clear_dev_flag(pcr, ASPM_L1_1_EN);
+
+		if (lval & PCI_L1SS_CTL1_ASPM_L1_2)
+			rtsx_set_dev_flag(pcr, ASPM_L1_2_EN);
+		else
+			rtsx_clear_dev_flag(pcr, ASPM_L1_2_EN);
+
+		if (lval & PCI_L1SS_CTL1_PCIPM_L1_1)
+			rtsx_set_dev_flag(pcr, PM_L1_1_EN);
+		else
+			rtsx_clear_dev_flag(pcr, PM_L1_1_EN);
+
+		if (lval & PCI_L1SS_CTL1_PCIPM_L1_2)
+			rtsx_set_dev_flag(pcr, PM_L1_2_EN);
+		else
+			rtsx_clear_dev_flag(pcr, PM_L1_2_EN);
+
+		pcie_capability_read_word(pcr->pci, PCI_EXP_DEVCTL2, &cfg_val);
+		if (cfg_val & PCI_EXP_DEVCTL2_LTR_EN) {
+			option->ltr_enabled = true;
+			option->ltr_active = true;
+		} else {
+			option->ltr_enabled = false;
+		}
+
+		if (rtsx_check_dev_flag(pcr, ASPM_L1_1_EN | ASPM_L1_2_EN
+				| PM_L1_1_EN | PM_L1_2_EN))
+			option->force_clkreq_0 = false;
+		else
+			option->force_clkreq_0 = true;
+	} else {
+		option->ltr_enabled = false;
+		option->force_clkreq_0 = true;
 	}
 
 	if (pcr->ops->fetch_vendor_settings)

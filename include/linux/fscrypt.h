@@ -67,6 +67,18 @@ struct fscrypt_name {
  */
 #define FS_CFLG_OWN_PAGES (1U << 1)
 
+/*
+ * If set, then fs/crypto/ will allow users to select a crypto data unit size
+ * that is less than the filesystem block size.  This is done via the
+ * log2_data_unit_size field of the fscrypt policy.  This flag is not compatible
+ * with filesystems that encrypt variable-length blocks (i.e. blocks that aren't
+ * all equal to filesystem's block size), for example as a result of
+ * compression.  It's also not compatible with the
+ * fscrypt_encrypt_block_inplace() and fscrypt_decrypt_block_inplace()
+ * functions.
+ */
+#define FS_CFLG_SUPPORTS_SUBBLOCK_DATA_UNITS (1U << 2)
+
 /* Crypto operations for filesystems */
 struct fscrypt_operations {
 

@@ -131,6 +131,8 @@ static void ice_ptp_src_cmd(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 	case READ_TIME:
 		cmd_val |= GLTSYN_CMD_READ_TIME;
 		break;
+	case ICE_PTP_NOP:
+		break;
 	}
 
 	wr32(hw, GLTSYN_CMD, cmd_val);
@@ -1200,18 +1202,18 @@ ice_ptp_read_port_capture(struct ice_hw *hw, u8 port, u64 *tx_ts, u64 *rx_ts)
 }
 
 /**
- * ice_ptp_one_port_cmd - Prepare a single PHY port for a timer command
+ * ice_ptp_write_port_cmd_e822 - Prepare a single PHY port for a timer command
  * @hw: pointer to HW struct
  * @port: Port to which cmd has to be sent
  * @cmd: Command to be sent to the port
  *
  * Prepare the requested port for an upcoming timer sync command.
  *
- * Note there is no equivalent of this operation on E810, as that device
- * always handles all external PHYs internally.
+ * Do not use this function directly. If you want to configure exactly one
+ * port, use ice_ptp_one_port_cmd() instead.
  */
 static int
-ice_ptp_one_port_cmd(struct ice_hw *hw, u8 port, enum ice_ptp_tmr_cmd cmd)
+ice_ptp_write_port_cmd_e822(struct ice_hw *hw, u8 port, enum ice_ptp_tmr_cmd cmd)
 {
 	u32 cmd_val, val;
 	u8 tmr_idx;
@@ -1234,6 +1236,8 @@ ice_ptp_one_port_cmd(struct ice_hw *hw, u8 port, enum ice_ptp_tmr_cmd cmd)
 		break;
 	case ADJ_TIME_AT_TIME:
 		cmd_val |= PHY_CMD_ADJ_TIME_AT_TIME;
+		break;
+	case ICE_PTP_NOP:
 		break;
 	}
 
@@ -1281,6 +1285,39 @@ ice_ptp_one_port_cmd(struct ice_hw *hw, u8 port, enum ice_ptp_tmr_cmd cmd)
 }
 
 /**
+ * ice_ptp_one_port_cmd - Prepare one port for a timer command
+ * @hw: pointer to the HW struct
+ * @configured_port: the port to configure with configured_cmd
+ * @configured_cmd: timer command to prepare on the configured_port
+ *
+ * Prepare the configured_port for the configured_cmd, and prepare all other
+ * ports for ICE_PTP_NOP. This causes the configured_port to execute the
+ * desired command while all other ports perform no operation.
+ */
+static int
+ice_ptp_one_port_cmd(struct ice_hw *hw, u8 configured_port,
+		     enum ice_ptp_tmr_cmd configured_cmd)
+{
+	u8 port;
+
+	for (port = 0; port < ICE_NUM_EXTERNAL_PORTS; port++) {
+		enum ice_ptp_tmr_cmd cmd;
+		int err;
+
+		if (port == configured_port)
+			cmd = configured_cmd;
+		else
+			cmd = ICE_PTP_NOP;
+
+		err = ice_ptp_write_port_cmd_e822(hw, port, cmd);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+/**
  * ice_ptp_port_cmd_e822 - Prepare all ports for a timer command
  * @hw: pointer to the HW struct
  * @cmd: timer command to prepare
@@ -1296,7 +1333,7 @@ ice_ptp_port_cmd_e822(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 	for (port = 0; port < ICE_NUM_EXTERNAL_PORTS; port++) {
 		int err;
 
-		err = ice_ptp_one_port_cmd(hw, port, cmd);
+		err = ice_ptp_write_port_cmd_e822(hw, port, cmd);
 		if (err)
 			return err;
 	}
@@ -2245,6 +2282,9 @@ static int ice_sync_phy_timer_e822(struct ice_hw *hw, u8 port)
 	if (err)
 		goto err_unlock;
 
+	/* Do not perform any action on the main timer */
+	ice_ptp_src_cmd(hw, ICE_PTP_NOP);
+
 	/* Issue the sync to activate the time adjustment */
 	ice_ptp_exec_tmr_cmd(hw);
 
@@ -2370,6 +2410,9 @@ ice_start_phy_timer_e822(struct ice_hw *hw, u8 port, bool bypass)
 	err = ice_ptp_one_port_cmd(hw, port, INIT_INCVAL);
 	if (err)
 		return err;
+
+	/* Do not perform any action on the main timer */
+	ice_ptp_src_cmd(hw, ICE_PTP_NOP);
 
 	ice_ptp_exec_tmr_cmd(hw);
 
@@ -2914,6 +2957,8 @@ static int ice_ptp_port_cmd_e810(struct ice_hw *hw, enum ice_ptp_tmr_cmd cmd)
 	case ADJ_TIME_AT_TIME:
 		cmd_val = GLTSYN_CMD_ADJ_INIT_TIME;
 		break;
+	case ICE_PTP_NOP:
+		return 0;
 	}
 
 	/* Read, modify, write */

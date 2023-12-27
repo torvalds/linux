@@ -1655,13 +1655,8 @@ static void invoke_bpf_prog(struct jit_ctx *ctx, struct bpf_tramp_link *l,
 	struct bpf_prog *p = l->link.prog;
 	int cookie_off = offsetof(struct bpf_tramp_run_ctx, bpf_cookie);
 
-	if (p->aux->sleepable) {
-		enter_prog = (u64)__bpf_prog_enter_sleepable;
-		exit_prog = (u64)__bpf_prog_exit_sleepable;
-	} else {
-		enter_prog = (u64)__bpf_prog_enter;
-		exit_prog = (u64)__bpf_prog_exit;
-	}
+	enter_prog = (u64)bpf_trampoline_enter(p);
+	exit_prog = (u64)bpf_trampoline_exit(p);
 
 	if (l->cookie == 0) {
 		/* if cookie is zero, one instruction is enough to store it */

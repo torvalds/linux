@@ -20,11 +20,6 @@
     "BriefDescription": "Marked Branch Taken instruction completed."
   },
   {
-    "EventCode": "0x20112",
-    "EventName": "PM_MRK_NTF_FIN",
-    "BriefDescription": "The marked instruction became the oldest in the pipeline before it finished. It excludes instructions that finish at dispatch."
-  },
-  {
     "EventCode": "0x2C01C",
     "EventName": "PM_EXEC_STALL_DMISS_OFF_CHIP",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a remote chip."
@@ -62,17 +57,12 @@
   {
     "EventCode": "0x200FD",
     "EventName": "PM_L1_ICACHE_MISS",
-    "BriefDescription": "Demand iCache Miss."
-  },
-  {
-    "EventCode": "0x30130",
-    "EventName": "PM_MRK_INST_FIN",
-    "BriefDescription": "marked instruction finished. Excludes instructions that finish at dispatch. Note that stores always finish twice since the address gets issued to the LSU and the data gets issued to the VSU."
+    "BriefDescription": "Demand instruction cache miss."
   },
   {
     "EventCode": "0x34146",
     "EventName": "PM_MRK_LD_CMPL",
-    "BriefDescription": "Marked loads completed."
+    "BriefDescription": "Marked load instruction completed."
   },
   {
     "EventCode": "0x3E158",
@@ -82,12 +72,12 @@
   {
     "EventCode": "0x3E15A",
     "EventName": "PM_MRK_ST_FIN",
-    "BriefDescription": "The marked instruction was a store of any kind."
+    "BriefDescription": "Marked store instruction finished."
   },
   {
     "EventCode": "0x30068",
     "EventName": "PM_L1_ICACHE_RELOADED_PREF",
-    "BriefDescription": "Counts all Icache prefetch reloads ( includes demand turned into prefetch)."
+    "BriefDescription": "Counts all instruction cache prefetch reloads (includes demand turned into prefetch)."
   },
   {
     "EventCode": "0x301E4",
@@ -102,12 +92,12 @@
   {
     "EventCode": "0x300FE",
     "EventName": "PM_DATA_FROM_L3MISS",
-    "BriefDescription": "The processor's data cache was reloaded from a source other than the local core's L1, L2, or L3 due to a demand miss."
+    "BriefDescription": "The processor's L1 data cache was reloaded from beyond the local core's L3 due to a demand miss."
   },
   {
     "EventCode": "0x40012",
     "EventName": "PM_L1_ICACHE_RELOADED_ALL",
-    "BriefDescription": "Counts all Icache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
+    "BriefDescription": "Counts all instruction cache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch."
   },
   {
     "EventCode": "0x40134",
@@ -117,22 +107,22 @@
   {
     "EventCode": "0x4505A",
     "EventName": "PM_SP_FLOP_CMPL",
-    "BriefDescription": "Single Precision floating point instructions completed."
+    "BriefDescription": "Single Precision floating point instruction completed."
   },
   {
     "EventCode": "0x4D058",
     "EventName": "PM_VECTOR_FLOP_CMPL",
-    "BriefDescription": "Vector floating point instructions completed."
+    "BriefDescription": "Vector floating point instruction completed."
   },
   {
     "EventCode": "0x4D05A",
     "EventName": "PM_NON_MATH_FLOP_CMPL",
-    "BriefDescription": "Non Math instructions completed."
+    "BriefDescription": "Non Math instruction completed."
   },
   {
     "EventCode": "0x401E0",
     "EventName": "PM_MRK_INST_CMPL",
-    "BriefDescription": "marked instruction completed."
+    "BriefDescription": "Marked instruction completed."
   },
   {
     "EventCode": "0x400FE",

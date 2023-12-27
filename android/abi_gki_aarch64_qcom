@@ -3295,7 +3295,9 @@
   _totalram_pages
   _trace_android_vh_record_pcpu_rwsem_starttime
   _trace_android_vh_record_pcpu_rwsem_time_early
+  trace_array_get_by_name
   trace_array_put
+  trace_array_set_clr_event
   __trace_bprintk
   trace_clock_local
   trace_event_buffer_commit
@@ -3773,6 +3775,7 @@
   usb_autopm_put_interface_async
   usb_bus_idr
   usb_bus_idr_lock
+  usb_check_bulk_endpoints
   usb_clear_halt
   usb_composite_setup_continue
   usb_control_msg

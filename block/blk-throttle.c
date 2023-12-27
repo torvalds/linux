@@ -697,66 +697,6 @@ static bool throtl_slice_used(struct throtl_grp *tg, bool rw)
 	return true;
 }
 
-/* Trim the used slices and adjust slice start accordingly */
-static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
-{
-	unsigned long nr_slices, time_elapsed, io_trim;
-	u64 bytes_trim, tmp;
-
-	BUG_ON(time_before(tg->slice_end[rw], tg->slice_start[rw]));
-
-	/*
-	 * If bps are unlimited (-1), then time slice don't get
-	 * renewed. Don't try to trim the slice if slice is used. A new
-	 * slice will start when appropriate.
-	 */
-	if (throtl_slice_used(tg, rw))
-		return;
-
-	/*
-	 * A bio has been dispatched. Also adjust slice_end. It might happen
-	 * that initially cgroup limit was very low resulting in high
-	 * slice_end, but later limit was bumped up and bio was dispatched
-	 * sooner, then we need to reduce slice_end. A high bogus slice_end
-	 * is bad because it does not allow new slice to start.
-	 */
-
-	throtl_set_slice_end(tg, rw, jiffies + tg->td->throtl_slice);
-
-	time_elapsed = jiffies - tg->slice_start[rw];
-
-	nr_slices = time_elapsed / tg->td->throtl_slice;
-
-	if (!nr_slices)
-		return;
-	tmp = tg_bps_limit(tg, rw) * tg->td->throtl_slice * nr_slices;
-	do_div(tmp, HZ);
-	bytes_trim = tmp;
-
-	io_trim = (tg_iops_limit(tg, rw) * tg->td->throtl_slice * nr_slices) /
-		HZ;
-
-	if (!bytes_trim && !io_trim)
-		return;
-
-	if (tg->bytes_disp[rw] >= bytes_trim)
-		tg->bytes_disp[rw] -= bytes_trim;
-	else
-		tg->bytes_disp[rw] = 0;
-
-	if (tg->io_disp[rw] >= io_trim)
-		tg->io_disp[rw] -= io_trim;
-	else
-		tg->io_disp[rw] = 0;
-
-	tg->slice_start[rw] += nr_slices * tg->td->throtl_slice;
-
-	throtl_log(&tg->service_queue,
-		   "[%c] trim slice nr=%lu bytes=%llu io=%lu start=%lu end=%lu jiffies=%lu",
-		   rw == READ ? 'R' : 'W', nr_slices, bytes_trim, io_trim,
-		   tg->slice_start[rw], tg->slice_end[rw], jiffies);
-}
-
 static unsigned int calculate_io_allowed(u32 iops_limit,
 					 unsigned long jiffy_elapsed)
 {
@@ -784,6 +724,67 @@ static unsigned int calculate_io_allowed(u32 iops_limit,
 static u64 calculate_bytes_allowed(u64 bps_limit, unsigned long jiffy_elapsed)
 {
 	return mul_u64_u64_div_u64(bps_limit, (u64)jiffy_elapsed, (u64)HZ);
+}
+
+/* Trim the used slices and adjust slice start accordingly */
+static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
+{
+	unsigned long time_elapsed;
+	long long bytes_trim;
+	int io_trim;
+
+	BUG_ON(time_before(tg->slice_end[rw], tg->slice_start[rw]));
+
+	/*
+	 * If bps are unlimited (-1), then time slice don't get
+	 * renewed. Don't try to trim the slice if slice is used. A new
+	 * slice will start when appropriate.
+	 */
+	if (throtl_slice_used(tg, rw))
+		return;
+
+	/*
+	 * A bio has been dispatched. Also adjust slice_end. It might happen
+	 * that initially cgroup limit was very low resulting in high
+	 * slice_end, but later limit was bumped up and bio was dispatched
+	 * sooner, then we need to reduce slice_end. A high bogus slice_end
+	 * is bad because it does not allow new slice to start.
+	 */
+
+	throtl_set_slice_end(tg, rw, jiffies + tg->td->throtl_slice);
+
+	time_elapsed = rounddown(jiffies - tg->slice_start[rw],
+				 tg->td->throtl_slice);
+	if (!time_elapsed)
+		return;
+
+	bytes_trim = calculate_bytes_allowed(tg_bps_limit(tg, rw),
+					     time_elapsed) +
+		     tg->carryover_bytes[rw];
+	io_trim = calculate_io_allowed(tg_iops_limit(tg, rw), time_elapsed) +
+		  tg->carryover_ios[rw];
+	if (bytes_trim <= 0 && io_trim <= 0)
+		return;
+
+	tg->carryover_bytes[rw] = 0;
+	if ((long long)tg->bytes_disp[rw] >= bytes_trim)
+		tg->bytes_disp[rw] -= bytes_trim;
+	else
+		tg->bytes_disp[rw] = 0;
+
+	tg->carryover_ios[rw] = 0;
+	if ((int)tg->io_disp[rw] >= io_trim)
+		tg->io_disp[rw] -= io_trim;
+	else
+		tg->io_disp[rw] = 0;
+
+	tg->slice_start[rw] += time_elapsed;
+
+	throtl_log(&tg->service_queue,
+		   "[%c] trim slice nr=%lu bytes=%lld io=%d start=%lu end=%lu jiffies=%lu",
+		   rw == READ ? 'R' : 'W', time_elapsed / tg->td->throtl_slice,
+		   bytes_trim, io_trim, tg->slice_start[rw], tg->slice_end[rw],
+		   jiffies);
 }
 
 static void __tg_update_carryover(struct throtl_grp *tg, bool rw)

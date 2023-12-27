@@ -133,7 +133,20 @@ SECTIONS
 		LOCK_TEXT
 		KPROBES_TEXT
 		ALIGN_ENTRY_TEXT_BEGIN
+#ifdef CONFIG_CPU_SRSO
+		*(.text..__x86.rethunk_untrain)
+#endif
+
 		ENTRY_TEXT
+
+#ifdef CONFIG_CPU_SRSO
+		/*
+		 * See the comment above srso_alias_untrain_ret()'s
+		 * definition.
+		 */
+		. = srso_alias_untrain_ret | (1 << 2) | (1 << 8) | (1 << 14) | (1 << 20);
+		*(.text..__x86.rethunk_safe)
+#endif
 		ALIGN_ENTRY_TEXT_END
 		SOFTIRQENTRY_TEXT
 		STATIC_CALL_TEXT
@@ -141,13 +154,15 @@ SECTIONS
 
 #ifdef CONFIG_RETPOLINE
 		__indirect_thunk_start = .;
-		*(.text.__x86.*)
+		*(.text..__x86.indirect_thunk)
+		*(.text..__x86.return_thunk)
 		__indirect_thunk_end = .;
 #endif
 	} :text =0xcccc
 
 	/* End of text section, which should occupy whole number of pages */
 	_etext = .;
+
 	. = ALIGN(PAGE_SIZE);
 
 	X86_ALIGN_RODATA_BEGIN
@@ -490,6 +505,27 @@ INIT_PER_CPU(irq_stack_backing_store);
 #ifdef CONFIG_SMP
 . = ASSERT((fixed_percpu_data == 0),
            "fixed_percpu_data is not at start of per-cpu area");
+#endif
+
+#ifdef CONFIG_RETHUNK
+. = ASSERT((retbleed_return_thunk & 0x3f) == 0, "retbleed_return_thunk not cacheline-aligned");
+. = ASSERT((srso_safe_ret & 0x3f) == 0, "srso_safe_ret not cacheline-aligned");
+#endif
+
+#ifdef CONFIG_CPU_SRSO
+/*
+ * GNU ld cannot do XOR until 2.41.
+ * https://sourceware.org/git/?p=binutils-gdb.git;a=commit;h=f6f78318fca803c4907fb8d7f6ded8295f1947b1
+ *
+ * LLVM lld cannot do XOR until lld-17.
+ * https://github.com/llvm/llvm-project/commit/fae96104d4378166cbe5c875ef8ed808a356f3fb
+ *
+ * Instead do: (A | B) - (A & B) in order to compute the XOR
+ * of the two function addresses:
+ */
+. = ASSERT(((ABSOLUTE(srso_alias_untrain_ret) | srso_alias_safe_ret) -
+		(ABSOLUTE(srso_alias_untrain_ret) & srso_alias_safe_ret)) == ((1 << 2) | (1 << 8) | (1 << 14) | (1 << 20)),
+		"SRSO function pair won't alias");
 #endif
 
 #endif /* CONFIG_X86_64 */

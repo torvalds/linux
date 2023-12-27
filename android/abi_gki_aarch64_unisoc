@@ -715,10 +715,12 @@
   __traceiter_android_vh_cpu_idle_exit
   __traceiter_android_vh_enable_thermal_power_throttle
   __traceiter_android_vh_get_thermal_zone_device
+  __traceiter_android_vh_kmalloc_large_alloced
   __traceiter_android_vh_modify_thermal_request_freq
   __traceiter_android_vh_modify_thermal_target_freq
   __traceiter_android_vh_regmap_update
   __traceiter_android_vh_scheduler_tick
+  __traceiter_android_vh_slab_folio_alloced
   __traceiter_android_vh_thermal_power_cap
   __traceiter_android_vh_thermal_register
   __traceiter_android_vh_thermal_unregister
@@ -794,10 +796,12 @@
   __tracepoint_android_vh_cpu_idle_exit
   __tracepoint_android_vh_enable_thermal_power_throttle
   __tracepoint_android_vh_get_thermal_zone_device
+  __tracepoint_android_vh_kmalloc_large_alloced
   __tracepoint_android_vh_modify_thermal_request_freq
   __tracepoint_android_vh_modify_thermal_target_freq
   __tracepoint_android_vh_regmap_update
   __tracepoint_android_vh_scheduler_tick
+  __tracepoint_android_vh_slab_folio_alloced
   __tracepoint_android_vh_thermal_power_cap
   __tracepoint_android_vh_thermal_register
   __tracepoint_android_vh_thermal_unregister

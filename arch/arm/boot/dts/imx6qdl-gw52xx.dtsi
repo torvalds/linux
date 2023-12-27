@@ -80,20 +80,20 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
-		led0: user1 {
+		led0: led-user1 {
 			label = "user1";
 			gpios = <&gpio4 6 GPIO_ACTIVE_HIGH>; /* MX6_PANLEDG */
 			default-state = "on";
 			linux,default-trigger = "heartbeat";
 		};
 
-		led1: user2 {
+		led1: led-user2 {
 			label = "user2";
 			gpios = <&gpio4 7 GPIO_ACTIVE_HIGH>; /* MX6_PANLEDR */
 			default-state = "off";
 		};
 
-		led2: user3 {
+		led2: led-user3 {
 			label = "user3";
 			gpios = <&gpio4 15 GPIO_ACTIVE_LOW>; /* MX6_LOCLED# */
 			default-state = "off";

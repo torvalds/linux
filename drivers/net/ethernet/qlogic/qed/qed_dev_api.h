@@ -194,6 +194,22 @@ void qed_hw_remove(struct qed_dev *cdev);
 struct qed_ptt *qed_ptt_acquire(struct qed_hwfn *p_hwfn);
 
 /**
+ * qed_ptt_acquire_context(): Allocate a PTT window honoring the context
+ *			      atomicy.
+ *
+ * @p_hwfn: HW device data.
+ * @is_atomic: Hint from the caller - if the func can sleep or not.
+ *
+ * Context: The function should not sleep in case is_atomic == true.
+ * Return: struct qed_ptt.
+ *
+ * Should be called at the entry point to the driver
+ * (at the beginning of an exported function).
+ */
+struct qed_ptt *qed_ptt_acquire_context(struct qed_hwfn *p_hwfn,
+					bool is_atomic);
+
+/**
  * qed_ptt_release(): Release PTT Window.
  *
  * @p_hwfn: HW device data.

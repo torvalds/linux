@@ -10,8 +10,8 @@
 #include "print-tree.h"
 
 struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
-						   int slot, const char *name,
-						   int name_len)
+						   int slot,
+						   const struct fscrypt_str *name)
 {
 	struct btrfs_inode_ref *ref;
 	unsigned long ptr;
@@ -27,9 +27,10 @@ struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 		len = btrfs_inode_ref_name_len(leaf, ref);
 		name_ptr = (unsigned long)(ref + 1);
 		cur_offset += len + sizeof(*ref);
-		if (len != name_len)
+		if (len != name->len)
 			continue;
-		if (memcmp_extent_buffer(leaf, name, name_ptr, name_len) == 0)
+		if (memcmp_extent_buffer(leaf, name->name, name_ptr,
+					 name->len) == 0)
 			return ref;
 	}
 	return NULL;
@@ -37,7 +38,7 @@ struct btrfs_inode_ref *btrfs_find_name_in_backref(struct extent_buffer *leaf,
 
 struct btrfs_inode_extref *btrfs_find_name_in_ext_backref(
 		struct extent_buffer *leaf, int slot, u64 ref_objectid,
-		const char *name, int name_len)
+		const struct fscrypt_str *name)
 {
 	struct btrfs_inode_extref *extref;
 	unsigned long ptr;
@@ -60,9 +61,10 @@ struct btrfs_inode_extref *btrfs_find_name_in_ext_backref(
 		name_ptr = (unsigned long)(&extref->name);
 		ref_name_len = btrfs_inode_extref_name_len(leaf, extref);
 
-		if (ref_name_len == name_len &&
+		if (ref_name_len == name->len &&
 		    btrfs_inode_extref_parent(leaf, extref) == ref_objectid &&
-		    (memcmp_extent_buffer(leaf, name, name_ptr, name_len) == 0))
+		    (memcmp_extent_buffer(leaf, name->name, name_ptr,
+					  name->len) == 0))
 			return extref;
 
 		cur_offset += ref_name_len + sizeof(*extref);
@@ -75,7 +77,7 @@ struct btrfs_inode_extref *
 btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root,
 			  struct btrfs_path *path,
-			  const char *name, int name_len,
+			  const struct fscrypt_str *name,
 			  u64 inode_objectid, u64 ref_objectid, int ins_len,
 			  int cow)
 {
@@ -84,7 +86,7 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 
 	key.objectid = inode_objectid;
 	key.type = BTRFS_INODE_EXTREF_KEY;
-	key.offset = btrfs_extref_hash(ref_objectid, name, name_len);
+	key.offset = btrfs_extref_hash(ref_objectid, name->name, name->len);
 
 	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
 	if (ret < 0)
@@ -92,13 +94,13 @@ btrfs_lookup_inode_extref(struct btrfs_trans_handle *trans,
 	if (ret > 0)
 		return NULL;
 	return btrfs_find_name_in_ext_backref(path->nodes[0], path->slots[0],
-					      ref_objectid, name, name_len);
+					      ref_objectid, name);
 
 }
 
 static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
-				  const char *name, int name_len,
+				  const struct fscrypt_str *name,
 				  u64 inode_objectid, u64 ref_objectid,
 				  u64 *index)
 {
@@ -107,14 +109,14 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_extref *extref;
 	struct extent_buffer *leaf;
 	int ret;
-	int del_len = name_len + sizeof(*extref);
+	int del_len = name->len + sizeof(*extref);
 	unsigned long ptr;
 	unsigned long item_start;
 	u32 item_size;
 
 	key.objectid = inode_objectid;
 	key.type = BTRFS_INODE_EXTREF_KEY;
-	key.offset = btrfs_extref_hash(ref_objectid, name, name_len);
+	key.offset = btrfs_extref_hash(ref_objectid, name->name, name->len);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -132,7 +134,7 @@ static int btrfs_del_inode_extref(struct btrfs_trans_handle *trans,
 	 * readonly.
 	 */
 	extref = btrfs_find_name_in_ext_backref(path->nodes[0], path->slots[0],
-						ref_objectid, name, name_len);
+						ref_objectid, name);
 	if (!extref) {
 		btrfs_handle_fs_error(root->fs_info, -ENOENT, NULL);
 		ret = -EROFS;
@@ -168,8 +170,7 @@ out:
 }
 
 int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root,
-			const char *name, int name_len,
+			struct btrfs_root *root, const struct fscrypt_str *name,
 			u64 inode_objectid, u64 ref_objectid, u64 *index)
 {
 	struct btrfs_path *path;
@@ -182,7 +183,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 	u32 sub_item_len;
 	int ret;
 	int search_ext_refs = 0;
-	int del_len = name_len + sizeof(*ref);
+	int del_len = name->len + sizeof(*ref);
 
 	key.objectid = inode_objectid;
 	key.offset = ref_objectid;
@@ -201,8 +202,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 
-	ref = btrfs_find_name_in_backref(path->nodes[0], path->slots[0], name,
-					 name_len);
+	ref = btrfs_find_name_in_backref(path->nodes[0], path->slots[0], name);
 	if (!ref) {
 		ret = -ENOENT;
 		search_ext_refs = 1;
@@ -219,7 +219,7 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 		goto out;
 	}
 	ptr = (unsigned long)ref;
-	sub_item_len = name_len + sizeof(*ref);
+	sub_item_len = name->len + sizeof(*ref);
 	item_start = btrfs_item_ptr_offset(leaf, path->slots[0]);
 	memmove_extent_buffer(leaf, ptr, ptr + sub_item_len,
 			      item_size - (ptr + sub_item_len - item_start));
@@ -233,7 +233,7 @@ out:
 		 * name in our ref array. Find and remove the extended
 		 * inode ref then.
 		 */
-		return btrfs_del_inode_extref(trans, root, name, name_len,
+		return btrfs_del_inode_extref(trans, root, name,
 					      inode_objectid, ref_objectid, index);
 	}
 
@@ -247,12 +247,13 @@ out:
  */
 static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
-				     const char *name, int name_len,
-				     u64 inode_objectid, u64 ref_objectid, u64 index)
+				     const struct fscrypt_str *name,
+				     u64 inode_objectid, u64 ref_objectid,
+				     u64 index)
 {
 	struct btrfs_inode_extref *extref;
 	int ret;
-	int ins_len = name_len + sizeof(*extref);
+	int ins_len = name->len + sizeof(*extref);
 	unsigned long ptr;
 	struct btrfs_path *path;
 	struct btrfs_key key;
@@ -260,7 +261,7 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 
 	key.objectid = inode_objectid;
 	key.type = BTRFS_INODE_EXTREF_KEY;
-	key.offset = btrfs_extref_hash(ref_objectid, name, name_len);
+	key.offset = btrfs_extref_hash(ref_objectid, name->name, name->len);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -272,7 +273,7 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 		if (btrfs_find_name_in_ext_backref(path->nodes[0],
 						   path->slots[0],
 						   ref_objectid,
-						   name, name_len))
+						   name))
 			goto out;
 
 		btrfs_extend_item(path, ins_len);
@@ -286,12 +287,12 @@ static int btrfs_insert_inode_extref(struct btrfs_trans_handle *trans,
 	ptr += btrfs_item_size(leaf, path->slots[0]) - ins_len;
 	extref = (struct btrfs_inode_extref *)ptr;
 
-	btrfs_set_inode_extref_name_len(path->nodes[0], extref, name_len);
+	btrfs_set_inode_extref_name_len(path->nodes[0], extref, name->len);
 	btrfs_set_inode_extref_index(path->nodes[0], extref, index);
 	btrfs_set_inode_extref_parent(path->nodes[0], extref, ref_objectid);
 
 	ptr = (unsigned long)&extref->name;
-	write_extent_buffer(path->nodes[0], name, ptr, name_len);
+	write_extent_buffer(path->nodes[0], name->name, ptr, name->len);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 
 out:
@@ -301,8 +302,7 @@ out:
 
 /* Will return 0, -ENOMEM, -EMLINK, or -EEXIST or anything from the CoW path */
 int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
-			   struct btrfs_root *root,
-			   const char *name, int name_len,
+			   struct btrfs_root *root, const struct fscrypt_str *name,
 			   u64 inode_objectid, u64 ref_objectid, u64 index)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -311,7 +311,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_ref *ref;
 	unsigned long ptr;
 	int ret;
-	int ins_len = name_len + sizeof(*ref);
+	int ins_len = name->len + sizeof(*ref);
 
 	key.objectid = inode_objectid;
 	key.offset = ref_objectid;
@@ -327,7 +327,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 	if (ret == -EEXIST) {
 		u32 old_size;
 		ref = btrfs_find_name_in_backref(path->nodes[0], path->slots[0],
-						 name, name_len);
+						 name);
 		if (ref)
 			goto out;
 
@@ -336,7 +336,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				     struct btrfs_inode_ref);
 		ref = (struct btrfs_inode_ref *)((unsigned long)ref + old_size);
-		btrfs_set_inode_ref_name_len(path->nodes[0], ref, name_len);
+		btrfs_set_inode_ref_name_len(path->nodes[0], ref, name->len);
 		btrfs_set_inode_ref_index(path->nodes[0], ref, index);
 		ptr = (unsigned long)(ref + 1);
 		ret = 0;
@@ -344,7 +344,7 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 		if (ret == -EOVERFLOW) {
 			if (btrfs_find_name_in_backref(path->nodes[0],
 						       path->slots[0],
-						       name, name_len))
+						       name))
 				ret = -EEXIST;
 			else
 				ret = -EMLINK;
@@ -353,11 +353,11 @@ int btrfs_insert_inode_ref(struct btrfs_trans_handle *trans,
 	} else {
 		ref = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				     struct btrfs_inode_ref);
-		btrfs_set_inode_ref_name_len(path->nodes[0], ref, name_len);
+		btrfs_set_inode_ref_name_len(path->nodes[0], ref, name->len);
 		btrfs_set_inode_ref_index(path->nodes[0], ref, index);
 		ptr = (unsigned long)(ref + 1);
 	}
-	write_extent_buffer(path->nodes[0], name, ptr, name_len);
+	write_extent_buffer(path->nodes[0], name->name, ptr, name->len);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 
 out:
@@ -370,7 +370,6 @@ out:
 		if (btrfs_super_incompat_flags(disk_super)
 		    & BTRFS_FEATURE_INCOMPAT_EXTENDED_IREF)
 			ret = btrfs_insert_inode_extref(trans, root, name,
-							name_len,
 							inode_objectid,
 							ref_objectid, index);
 	}

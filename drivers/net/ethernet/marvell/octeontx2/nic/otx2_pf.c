@@ -791,10 +791,6 @@ static void otx2_process_pfaf_mbox_msg(struct otx2_nic *pf,
 	case MBOX_MSG_NIX_LF_ALLOC:
 		mbox_handler_nix_lf_alloc(pf, (struct nix_lf_alloc_rsp *)msg);
 		break;
-	case MBOX_MSG_NIX_TXSCH_ALLOC:
-		mbox_handler_nix_txsch_alloc(pf,
-					     (struct nix_txsch_alloc_rsp *)msg);
-		break;
 	case MBOX_MSG_NIX_BP_ENABLE:
 		mbox_handler_nix_bp_enable(pf, (struct nix_bp_cfg_rsp *)msg);
 		break;
@@ -1517,8 +1513,7 @@ err_free_nix_queues:
 	otx2_free_cq_res(pf);
 	otx2_ctx_disable(mbox, NIX_AQ_CTYPE_RQ, false);
 err_free_txsch:
-	if (otx2_txschq_stop(pf))
-		dev_err(pf->dev, "%s failed to stop TX schedulers\n", __func__);
+	otx2_txschq_stop(pf);
 err_free_sq_ptrs:
 	otx2_sq_free_sqbs(pf);
 err_free_rq_ptrs:
@@ -1553,15 +1548,13 @@ static void otx2_free_hw_resources(struct otx2_nic *pf)
 	struct mbox *mbox = &pf->mbox;
 	struct otx2_cq_queue *cq;
 	struct msg_req *req;
-	int qidx, err;
+	int qidx;
 
 	/* Ensure all SQE are processed */
 	otx2_sqb_flush(pf);
 
 	/* Stop transmission */
-	err = otx2_txschq_stop(pf);
-	if (err)
-		dev_err(pf->dev, "RVUPF: Failed to stop/free TX schedulers\n");
+	otx2_txschq_stop(pf);
 
 #ifdef CONFIG_DCB
 	if (pf->pfc_en)

@@ -86,27 +86,27 @@
 	leds {
 		compatible = "gpio-leds";
 
-		pwr-r {
+		led-pwr-r {
 			gpios = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		pwr-g {
+		led-pwr-g {
 			gpios = <&gpio3 24 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		pwr-b {
+		led-pwr-b {
 			gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
-		sd1-b {
+		led-sd1-b {
 			linux,default-trigger = "mmc0";
 			gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
 		};
 
-		sd2-b {
+		led-sd2-b {
 			linux,default-trigger = "mmc1";
 			gpios = <&gpio3 17 GPIO_ACTIVE_HIGH>;
 		};

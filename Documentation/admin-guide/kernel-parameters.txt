@@ -323,6 +323,7 @@
 				       option with care.
 			pgtbl_v1     - Use v1 page table for DMA-API (Default).
 			pgtbl_v2     - Use v2 page table for DMA-API.
+			irtcachedis  - Disable Interrupt Remapping Table (IRT) caching.
 
 	amd_iommu_dump=	[HW,X86-64]
 			Enable AMD IOMMU driver option to dump the ACPI table
@@ -1596,6 +1597,26 @@
 	gart_fix_e820=	[X86-64] disable the fix e820 for K8 GART
 			Format: off | on
 			default: on
+
+	gather_data_sampling=
+			[X86,INTEL] Control the Gather Data Sampling (GDS)
+			mitigation.
+
+			Gather Data Sampling is a hardware vulnerability which
+			allows unprivileged speculative access to data which was
+			previously stored in vector registers.
+
+			This issue is mitigated by default in updated microcode.
+			The mitigation may have a performance impact but can be
+			disabled. On systems without the microcode mitigation
+			disabling AVX serves as a mitigation.
+
+			force:	Disable AVX to mitigate systems without
+				microcode mitigation. No effect if the microcode
+				mitigation is present. Known to cause crashes in
+				userspace with buggy AVX enumeration.
+
+			off:	Disable GDS mitigation.
 
 	gcov_persist=	[GCOV] When non-zero (default), profiling data for
 			kernel modules is saved and remains accessible via
@@ -3265,24 +3286,25 @@
 				Disable all optional CPU mitigations.  This
 				improves system performance, but it may also
 				expose users to several CPU vulnerabilities.
-				Equivalent to: nopti [X86,PPC]
-					       if nokaslr then kpti=0 [ARM64]
-					       nospectre_v1 [X86,PPC]
-					       nobp=0 [S390]
-					       nospectre_v2 [X86,PPC,S390,ARM64]
-					       spectre_v2_user=off [X86]
-					       spec_store_bypass_disable=off [X86,PPC]
-					       ssbd=force-off [ARM64]
-					       nospectre_bhb [ARM64]
+				Equivalent to: if nokaslr then kpti=0 [ARM64]
+					       gather_data_sampling=off [X86]
+					       kvm.nx_huge_pages=off [X86]
 					       l1tf=off [X86]
 					       mds=off [X86]
-					       tsx_async_abort=off [X86]
-					       kvm.nx_huge_pages=off [X86]
-					       srbds=off [X86,INTEL]
+					       mmio_stale_data=off [X86]
 					       no_entry_flush [PPC]
 					       no_uaccess_flush [PPC]
-					       mmio_stale_data=off [X86]
+					       nobp=0 [S390]
+					       nopti [X86,PPC]
+					       nospectre_bhb [ARM64]
+					       nospectre_v1 [X86,PPC]
+					       nospectre_v2 [X86,PPC,S390,ARM64]
 					       retbleed=off [X86]
+					       spec_store_bypass_disable=off [X86,PPC]
+					       spectre_v2_user=off [X86]
+					       srbds=off [X86,INTEL]
+					       ssbd=force-off [ARM64]
+					       tsx_async_abort=off [X86]
 
 				Exceptions:
 					       This does not have any effect on
@@ -5801,6 +5823,17 @@
 			Not specifying this option is equivalent to
 			spectre_v2_user=auto.
 
+	spec_rstack_overflow=
+			[X86] Control RAS overflow mitigation on AMD Zen CPUs
+
+			off		- Disable mitigation
+			microcode	- Enable microcode mitigation only
+			safe-ret	- Enable sw-only safe RET mitigation (default)
+			ibpb		- Enable mitigation by issuing IBPB on
+					  kernel entry
+			ibpb-vmexit	- Issue IBPB only on VMEXIT
+					  (cloud-specific mitigation)
+
 	spec_store_bypass_disable=
 			[HW] Control Speculative Store Bypass (SSB) Disable mitigation
 			(Speculative Store Bypass vulnerability)
@@ -6167,10 +6200,6 @@
 	thermal.crt=	[HW,ACPI]
 			-1: disable all critical trip points in all thermal zones
 			<degrees C>: override all critical trip points
-
-	thermal.nocrt=	[HW,ACPI]
-			Set to disable actions on ACPI thermal zone
-			critical and hot trip points.
 
 	thermal.off=	[HW,ACPI]
 			1: disable ACPI thermal control

@@ -1664,7 +1664,7 @@ static int cam_cc_sc7180_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = pm_runtime_get(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret)
 		return ret;
 
