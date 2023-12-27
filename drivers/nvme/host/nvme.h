@@ -920,6 +920,10 @@ extern struct device_attribute dev_attr_ana_grpid;
 extern struct device_attribute dev_attr_ana_state;
 extern struct device_attribute subsys_attr_iopolicy;
 
+static inline bool nvme_disk_is_ns_head(struct gendisk *disk)
+{
+	return disk->fops == &nvme_ns_head_ops;
+}
 #else
 #define multipath false
 static inline bool nvme_ctrl_use_ana(struct nvme_ctrl *ctrl)
@@ -997,6 +1001,10 @@ static inline void nvme_mpath_start_request(struct request *rq)
 static inline void nvme_mpath_end_request(struct request *rq)
 {
 }
+static inline bool nvme_disk_is_ns_head(struct gendisk *disk)
+{
+	return false;
+}
 #endif /* CONFIG_NVME_MULTIPATH */
 
 int nvme_revalidate_zones(struct nvme_ns *ns);
@@ -1025,7 +1033,10 @@ static inline int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 
 static inline struct nvme_ns *nvme_get_ns_from_dev(struct device *dev)
 {
-	return dev_to_disk(dev)->private_data;
+	struct gendisk *disk = dev_to_disk(dev);
+
+	WARN_ON(nvme_disk_is_ns_head(disk));
+	return disk->private_data;
 }
 
 #ifdef CONFIG_NVME_HWMON
