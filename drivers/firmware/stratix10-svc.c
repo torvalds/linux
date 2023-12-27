@@ -1251,7 +1251,7 @@ err_destroy_pool:
 	return ret;
 }
 
-static int stratix10_svc_drv_remove(struct platform_device *pdev)
+static void stratix10_svc_drv_remove(struct platform_device *pdev)
 {
 	struct stratix10_svc *svc = dev_get_drvdata(&pdev->dev);
 	struct stratix10_svc_controller *ctrl = platform_get_drvdata(pdev);
@@ -1267,13 +1267,11 @@ static int stratix10_svc_drv_remove(struct platform_device *pdev)
 	if (ctrl->genpool)
 		gen_pool_destroy(ctrl->genpool);
 	list_del(&ctrl->node);
-
-	return 0;
 }
 
 static struct platform_driver stratix10_svc_driver = {
 	.probe = stratix10_svc_drv_probe,
-	.remove = stratix10_svc_drv_remove,
+	.remove_new = stratix10_svc_drv_remove,
 	.driver = {
 		.name = "stratix10-svc",
 		.of_match_table = stratix10_svc_drv_match,
