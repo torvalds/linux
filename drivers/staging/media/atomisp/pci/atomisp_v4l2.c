@@ -1370,8 +1370,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	atomisp_msi_irq_init(isp);
 
-	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-
 	/*
 	 * for MRFLD, Software/firmware needs to write a 1 to bit 0 of
 	 * the register at CSI_RECEIVER_SELECTION_REG to enable SH CSI
@@ -1440,6 +1438,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->pm_domain.ops.suspend = atomisp_suspend;
 	isp->pm_domain.ops.resume = atomisp_resume;
 
+	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 	dev_pm_domain_set(&pdev->dev, &isp->pm_domain);
 
 	pm_runtime_put_noidle(&pdev->dev);
@@ -1486,11 +1485,11 @@ error_unregister_entities:
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 	dev_pm_domain_set(&pdev->dev, NULL);
+	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_unregister_entities(isp);
 error_uninitialize_modules:
 	atomisp_uninitialize_modules(isp);
 error_irq_uninit:
-	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_msi_irq_uninit(isp);
 	pci_free_irq_vectors(pdev);
 error_release_firmware:
