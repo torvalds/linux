@@ -316,6 +316,16 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 			    bpos_gt(k->k.k.p, path->l[0].b->key.k.p)) {
 				bch2_btree_node_unlock_write(trans, path, path->l[0].b);
 				write_locked = false;
+
+				ret = lockrestart_do(trans,
+					bch2_btree_iter_traverse(&iter) ?:
+					bch2_foreground_maybe_merge(trans, iter.path, 0,
+							BCH_WATERMARK_reclaim|
+							BCH_TRANS_COMMIT_journal_reclaim|
+							BCH_TRANS_COMMIT_no_check_rw|
+							BCH_TRANS_COMMIT_no_enospc));
+				if (ret)
+					goto err;
 			}
 		}
 
@@ -382,10 +392,10 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 
 			ret = commit_do(trans, NULL, NULL,
 					BCH_WATERMARK_reclaim|
+					BCH_TRANS_COMMIT_journal_reclaim|
 					BCH_TRANS_COMMIT_no_check_rw|
 					BCH_TRANS_COMMIT_no_enospc|
-					BCH_TRANS_COMMIT_no_journal_res|
-					BCH_TRANS_COMMIT_journal_reclaim,
+					BCH_TRANS_COMMIT_no_journal_res ,
 					btree_write_buffered_insert(trans, i));
 			if (ret)
 				goto err;
