@@ -921,7 +921,7 @@ static void rockchip_low_temp_adjust(struct monitor_dev_info *info,
 	if (devp->update_volt)
 		devp->update_volt(info);
 
-	if (devp->opp_info->pvtpll_low_temp) {
+	if (devp->opp_info && devp->opp_info->pvtpll_low_temp) {
 		res = sip_smc_pvtpll_config(PVTPLL_LOW_TEMP,
 					    devp->opp_info->pvtpll_clk_id,
 					    is_low, 0, 0, 0, 0);
