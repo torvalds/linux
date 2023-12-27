@@ -1303,8 +1303,6 @@ loop_set_status(struct loop_device *lo, const struct loop_info64 *info)
 		loop_set_size(lo, new_size);
 	}
 
-	loop_config_discard(lo);
-
 	/* update dio if lo_offset or transfer is changed */
 	__loop_update_dio(lo, lo->use_dio);
 
