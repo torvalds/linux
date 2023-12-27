@@ -1405,6 +1405,19 @@ static int i3c_master_retrieve_dev_info(struct i3c_dev_desc *dev)
 	if (dev->info.bcr & I3C_BCR_IBI_PAYLOAD)
 		dev->info.max_ibi_len = 1;
 
+	/*
+	 * FIXME: The default mwl/mrl of the AST2700 A0 I3C target is 0, which can lead to
+	 * application issues. Therefore, add a workaround to set mwl/mrl to meet the hardware
+	 * capability when PID indicates that the devices is AST2700 A0 I3C
+	 * MANUF_ID 0x3f6 => ASPEED
+	 * PART_ID 0x600 => Ast2700 A0
+	 */
+	if (I3C_PID_MANUF_ID(dev->info.pid) == 0x3f6 &&
+	    I3C_PID_PART_ID(dev->info.pid) == 0x0600) {
+		i3c_master_setmrl_locked(master, &dev->info, 128, 128);
+		i3c_master_setmwl_locked(master, &dev->info, 128);
+	}
+
 	i3c_master_getmrl_locked(master, &dev->info);
 	i3c_master_getmwl_locked(master, &dev->info);
 
