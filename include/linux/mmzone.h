@@ -440,14 +440,12 @@ struct lru_gen_folio {
 	atomic_long_t refaulted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
 	/* whether the multi-gen LRU is enabled */
 	bool enabled;
-#ifdef CONFIG_MEMCG
 	/* the memcg generation this lru_gen_folio belongs to */
 	u8 gen;
 	/* the list segment this lru_gen_folio belongs to */
 	u8 seg;
 	/* per-node lru_gen_folio list for global reclaim */
 	struct hlist_nulls_node list;
-#endif
 };
 
 enum {
@@ -492,11 +490,6 @@ struct lru_gen_mm_walk {
 	bool can_swap;
 	bool force_scan;
 };
-
-void lru_gen_init_lruvec(struct lruvec *lruvec);
-void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
-
-#ifdef CONFIG_MEMCG
 
 /*
  * For each node, memcgs are divided into two generations: the old and the
@@ -555,6 +548,8 @@ struct lru_gen_memcg {
 };
 
 void lru_gen_init_pgdat(struct pglist_data *pgdat);
+void lru_gen_init_lruvec(struct lruvec *lruvec);
+void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
 
 void lru_gen_init_memcg(struct mem_cgroup *memcg);
 void lru_gen_exit_memcg(struct mem_cgroup *memcg);
@@ -562,19 +557,6 @@ void lru_gen_online_memcg(struct mem_cgroup *memcg);
 void lru_gen_offline_memcg(struct mem_cgroup *memcg);
 void lru_gen_release_memcg(struct mem_cgroup *memcg);
 void lru_gen_soft_reclaim(struct mem_cgroup *memcg, int nid);
-
-#else /* !CONFIG_MEMCG */
-
-#define MEMCG_NR_GENS	1
-
-struct lru_gen_memcg {
-};
-
-static inline void lru_gen_init_pgdat(struct pglist_data *pgdat)
-{
-}
-
-#endif /* CONFIG_MEMCG */
 
 #else /* !CONFIG_LRU_GEN */
 
@@ -589,8 +571,6 @@ static inline void lru_gen_init_lruvec(struct lruvec *lruvec)
 static inline void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 {
 }
-
-#ifdef CONFIG_MEMCG
 
 static inline void lru_gen_init_memcg(struct mem_cgroup *memcg)
 {
@@ -615,8 +595,6 @@ static inline void lru_gen_release_memcg(struct mem_cgroup *memcg)
 static inline void lru_gen_soft_reclaim(struct mem_cgroup *memcg, int nid)
 {
 }
-
-#endif /* CONFIG_MEMCG */
 
 #endif /* CONFIG_LRU_GEN */
 
