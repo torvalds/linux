@@ -558,7 +558,7 @@ void dc_hw_enable_gamma(struct dc_hw *hw, u8 id, bool enable);
 void dc_hw_enable_dump(struct dc_hw *hw, u32 addr, u32 pitch);
 void dc_hw_disable_dump(struct dc_hw *hw);
 void dc_hw_setup_display(struct dc_hw *hw, struct dc_hw_display *display);
-void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable);
+void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable, u32 ctrc_mask);
 u32 dc_hw_get_interrupt(struct dc_hw *hw);
 bool dc_hw_check_underflow(struct dc_hw *hw);
 void dc_hw_enable_shadow_register(struct dc_hw *hw, bool enable);

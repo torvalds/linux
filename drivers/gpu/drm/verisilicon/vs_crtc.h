@@ -21,7 +21,7 @@ struct vs_crtc_funcs {
 			   struct drm_color_lut *lut, unsigned int size);
 	void (*enable_gamma)(struct device *dev, struct drm_crtc *crtc,
 			   bool enable);
-	void (*enable_vblank)(struct device *dev, bool enable);
+	void (*enable_vblank)(struct device *dev, bool enable, u32 ctrc_mask);
 	void (*commit)(struct device *dev);
 };
 
