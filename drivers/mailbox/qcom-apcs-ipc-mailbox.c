@@ -129,14 +129,12 @@ static int qcom_apcs_ipc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_apcs_ipc_remove(struct platform_device *pdev)
+static void qcom_apcs_ipc_remove(struct platform_device *pdev)
 {
 	struct qcom_apcs_ipc *apcs = platform_get_drvdata(pdev);
 	struct platform_device *clk = apcs->clk;
 
 	platform_device_unregister(clk);
-
-	return 0;
 }
 
 /* .data is the offset of the ipc register within the global block */
@@ -169,7 +167,7 @@ MODULE_DEVICE_TABLE(of, qcom_apcs_ipc_of_match);
 
 static struct platform_driver qcom_apcs_ipc_driver = {
 	.probe = qcom_apcs_ipc_probe,
-	.remove = qcom_apcs_ipc_remove,
+	.remove_new = qcom_apcs_ipc_remove,
 	.driver = {
 		.name = "qcom_apcs_ipc",
 		.of_match_table = qcom_apcs_ipc_of_match,
