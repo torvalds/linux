@@ -640,9 +640,11 @@ struct lruvec {
 #ifdef CONFIG_LRU_GEN
 	/* evictable pages divided into generations */
 	struct lru_gen_folio		lrugen;
+#ifdef CONFIG_LRU_GEN_WALKS_MMU
 	/* to concurrently iterate lru_gen_mm_list */
 	struct lru_gen_mm_state		mm_state;
 #endif
+#endif /* CONFIG_LRU_GEN */
 #ifdef CONFIG_MEMCG
 	struct pglist_data *pgdat;
 #endif

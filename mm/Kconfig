@@ -1274,6 +1274,10 @@ config LRU_GEN_STATS
 	  from evicted generations for debugging purpose.
 
 	  This option has a per-memcg and per-node memory overhead.
+
+config LRU_GEN_WALKS_MMU
+	def_bool y
+	depends on LRU_GEN && ARCH_HAS_HW_PTE_YOUNG
 # }
 
 config ARCH_SUPPORTS_PER_VMA_LOCK
