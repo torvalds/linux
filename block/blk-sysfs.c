@@ -241,7 +241,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 	if (max_sectors_kb == 0) {
 		q->limits.max_user_sectors = 0;
 		max_sectors_kb = min(max_hw_sectors_kb,
-				     BLK_DEF_MAX_SECTORS >> 1);
+				     BLK_DEF_MAX_SECTORS_CAP >> 1);
 	} else {
 		if (max_sectors_kb > max_hw_sectors_kb ||
 		    max_sectors_kb < page_kb)

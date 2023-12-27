@@ -139,7 +139,7 @@ void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_secto
 	if (limits->max_user_sectors)
 		max_sectors = min(max_sectors, limits->max_user_sectors);
 	else
-		max_sectors = min(max_sectors, BLK_DEF_MAX_SECTORS);
+		max_sectors = min(max_sectors, BLK_DEF_MAX_SECTORS_CAP);
 
 	max_sectors = round_down(max_sectors,
 				 limits->logical_block_size >> SECTOR_SHIFT);
