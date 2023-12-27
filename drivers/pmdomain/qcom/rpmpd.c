@@ -16,6 +16,8 @@
 
 #define domain_to_rpmpd(domain) container_of(domain, struct rpmpd, pd)
 
+static struct qcom_smd_rpm *rpmpd_smd_rpm;
+
 /* Resource types:
  * RPMPD_X is X encoded as a little-endian, lower-case, ASCII string */
 #define RPMPD_SMPA 0x61706d73
@@ -54,7 +56,6 @@ struct rpmpd {
 	bool enabled;
 	const int res_type;
 	const int res_id;
-	struct qcom_smd_rpm *rpm;
 	unsigned int max_state;
 	__le32 key;
 	bool state_synced;
@@ -879,7 +880,7 @@ static int rpmpd_send_enable(struct rpmpd *pd, bool enable)
 		.value = cpu_to_le32(enable),
 	};
 
-	return qcom_rpm_smd_write(pd->rpm, QCOM_SMD_RPM_ACTIVE_STATE,
+	return qcom_rpm_smd_write(rpmpd_smd_rpm, QCOM_SMD_RPM_ACTIVE_STATE,
 				  pd->res_type, pd->res_id, &req, sizeof(req));
 }
 
@@ -891,7 +892,7 @@ static int rpmpd_send_corner(struct rpmpd *pd, int state, unsigned int corner)
 		.value = cpu_to_le32(corner),
 	};
 
-	return qcom_rpm_smd_write(pd->rpm, state, pd->res_type, pd->res_id,
+	return qcom_rpm_smd_write(rpmpd_smd_rpm, state, pd->res_type, pd->res_id,
 				  &req, sizeof(req));
 };
 
@@ -1004,12 +1005,11 @@ static int rpmpd_probe(struct platform_device *pdev)
 	int i;
 	size_t num;
 	struct genpd_onecell_data *data;
-	struct qcom_smd_rpm *rpm;
 	struct rpmpd **rpmpds;
 	const struct rpmpd_desc *desc;
 
-	rpm = dev_get_drvdata(pdev->dev.parent);
-	if (!rpm) {
+	rpmpd_smd_rpm = dev_get_drvdata(pdev->dev.parent);
+	if (!rpmpd_smd_rpm) {
 		dev_err(&pdev->dev, "Unable to retrieve handle to RPM\n");
 		return -ENODEV;
 	}
@@ -1039,7 +1039,6 @@ static int rpmpd_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		rpmpds[i]->rpm = rpm;
 		rpmpds[i]->max_state = desc->max_state;
 		rpmpds[i]->pd.power_off = rpmpd_power_off;
 		rpmpds[i]->pd.power_on = rpmpd_power_on;
