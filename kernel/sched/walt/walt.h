@@ -625,8 +625,10 @@ static inline unsigned long capacity_of(int cpu)
 
 static inline bool __cpu_overutilized(int cpu, int delta)
 {
-	return (capacity_orig_of(cpu) * 1024) <
-		((cpu_util(cpu) + delta) * sched_capacity_margin_up[cpu]);
+	unsigned long cap = capacity_orig_of(cpu);
+
+	return cap ? ((cap * 1024) <
+			((cpu_util(cpu) + delta) * sched_capacity_margin_up[cpu])) : true;
 }
 
 static inline bool cpu_overutilized(int cpu)

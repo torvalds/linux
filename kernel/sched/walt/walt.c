@@ -4641,18 +4641,33 @@ void fmax_uncap_checkpoint(int nr_big, u64 window_start, u32 wakeup_ctr_sum)
 void update_freq_relation(struct walt_sched_cluster *cluster)
 {
 	int cluster_id = cluster->id;
-	int tgt_cpu, i;
-	unsigned int tgt_freq;
+	int tgt_cpu, i, cpu;
+	unsigned int tgt_freq = 0;
 	struct walt_sched_cluster *tgt_cluster;
 	unsigned int prev_cap = fmax_cap[FREQ_REL_CAP][cluster_id];
+	bool cluster_active = false;
 
 	for (i = 0; i < MAX_FREQ_RELATIONS; i++) {
+		cluster_active = false;
+		tgt_freq = 0;
 		tgt_cpu = relation_data[cluster_id][i].target_cluster_cpu;
 		if (tgt_cpu < 0)
 			break;
 		tgt_cluster = cpu_cluster(tgt_cpu);
-		tgt_freq = (arch_scale_freq_capacity(tgt_cpu) *
-			(unsigned long)tgt_cluster->max_possible_freq) >> SCHED_CAPACITY_SHIFT;
+		/* frequency is valid only if we are running something */
+		for_each_cpu(cpu, &tgt_cluster->cpus) {
+			struct rq *rq = cpu_rq(cpu);
+
+			if (rq->nr_running) {
+				cluster_active = true;
+				break;
+			}
+		}
+
+		if (cluster_active)
+			tgt_freq = (arch_scale_freq_capacity(tgt_cpu) *
+				    (unsigned long)tgt_cluster->max_possible_freq) >>
+					SCHED_CAPACITY_SHIFT;
 
 		if (tgt_freq < relation_data[cluster_id][i].tgt_freq) {
 			fmax_cap[FREQ_REL_CAP][cluster_id] = relation_data[cluster_id][i].src_freq;
