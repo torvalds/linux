@@ -367,7 +367,7 @@ static int cmdq_resume(struct device *dev)
 	return 0;
 }
 
-static int cmdq_remove(struct platform_device *pdev)
+static void cmdq_remove(struct platform_device *pdev)
 {
 	struct cmdq *cmdq = platform_get_drvdata(pdev);
 
@@ -378,7 +378,6 @@ static int cmdq_remove(struct platform_device *pdev)
 		cmdq_runtime_suspend(&pdev->dev);
 
 	clk_bulk_unprepare(cmdq->pdata->gce_num, cmdq->clocks);
-	return 0;
 }
 
 static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
@@ -761,7 +760,7 @@ static const struct of_device_id cmdq_of_ids[] = {
 
 static struct platform_driver cmdq_drv = {
 	.probe = cmdq_probe,
-	.remove = cmdq_remove,
+	.remove_new = cmdq_remove,
 	.driver = {
 		.name = "mtk_cmdq",
 		.pm = &cmdq_pm_ops,
