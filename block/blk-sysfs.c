@@ -615,6 +615,7 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 QUEUE_RW_ENTRY(queue_wb_lat, "wbt_lat_usec");
 #endif
 
+/* Common attributes for bio-based and request-based queues. */
 static struct attribute *queue_attrs[] = {
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
@@ -659,6 +660,7 @@ static struct attribute *queue_attrs[] = {
 	NULL,
 };
 
+/* Request-based queue attributes that are not relevant for bio-based queues. */
 static struct attribute *blk_mq_queue_attrs[] = {
 	&queue_requests_entry.attr,
 	&elv_iosched_entry.attr,

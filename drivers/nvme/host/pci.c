@@ -1233,7 +1233,7 @@ static bool nvme_should_reset(struct nvme_dev *dev, u32 csts)
 	bool nssro = dev->subsystem && (csts & NVME_CSTS_NSSRO);
 
 	/* If there is a reset/reinit ongoing, we shouldn't reset again. */
-	switch (dev->ctrl.state) {
+	switch (nvme_ctrl_state(&dev->ctrl)) {
 	case NVME_CTRL_RESETTING:
 	case NVME_CTRL_CONNECTING:
 		return false;
@@ -1321,7 +1321,7 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	 * cancellation error. All outstanding requests are completed on
 	 * shutdown, so we return BLK_EH_DONE.
 	 */
-	switch (dev->ctrl.state) {
+	switch (nvme_ctrl_state(&dev->ctrl)) {
 	case NVME_CTRL_CONNECTING:
 		nvme_change_ctrl_state(&dev->ctrl, NVME_CTRL_DELETING);
 		fallthrough;
@@ -1593,7 +1593,7 @@ static int nvme_setup_io_queues_trylock(struct nvme_dev *dev)
 	/*
 	 * Controller is in wrong state, fail early.
 	 */
-	if (dev->ctrl.state != NVME_CTRL_CONNECTING) {
+	if (nvme_ctrl_state(&dev->ctrl) != NVME_CTRL_CONNECTING) {
 		mutex_unlock(&dev->shutdown_lock);
 		return -ENODEV;
 	}
@@ -2573,13 +2573,13 @@ static bool nvme_pci_ctrl_is_dead(struct nvme_dev *dev)
 
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 {
+	enum nvme_ctrl_state state = nvme_ctrl_state(&dev->ctrl);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	bool dead;
 
 	mutex_lock(&dev->shutdown_lock);
 	dead = nvme_pci_ctrl_is_dead(dev);
-	if (dev->ctrl.state == NVME_CTRL_LIVE ||
-	    dev->ctrl.state == NVME_CTRL_RESETTING) {
+	if (state == NVME_CTRL_LIVE || state == NVME_CTRL_RESETTING) {
 		if (pci_is_enabled(pdev))
 			nvme_start_freeze(&dev->ctrl);
 		/*
@@ -2690,7 +2690,7 @@ static void nvme_reset_work(struct work_struct *work)
 	bool was_suspend = !!(dev->ctrl.ctrl_config & NVME_CC_SHN_NORMAL);
 	int result;
 
-	if (dev->ctrl.state != NVME_CTRL_RESETTING) {
+	if (nvme_ctrl_state(&dev->ctrl) != NVME_CTRL_RESETTING) {
 		dev_warn(dev->ctrl.device, "ctrl state %d is not RESETTING\n",
 			 dev->ctrl.state);
 		result = -ENODEV;
@@ -2902,6 +2902,18 @@ static unsigned long check_vendor_combination_bug(struct pci_dev *pdev)
 		if ((dmi_match(DMI_BOARD_VENDOR, "LENOVO")) &&
 		     dmi_match(DMI_BOARD_NAME, "LNVNB161216"))
 			return NVME_QUIRK_SIMPLE_SUSPEND;
+	} else if (pdev->vendor == 0x2646 && (pdev->device == 0x2263 ||
+		   pdev->device == 0x500f)) {
+		/*
+		 * Exclude some Kingston NV1 and A2000 devices from
+		 * NVME_QUIRK_SIMPLE_SUSPEND. Do a full suspend to save a
+		 * lot fo energy with s2idle sleep on some TUXEDO platforms.
+		 */
+		if (dmi_match(DMI_BOARD_NAME, "NS5X_NS7XAU") ||
+		    dmi_match(DMI_BOARD_NAME, "NS5x_7xAU") ||
+		    dmi_match(DMI_BOARD_NAME, "NS5x_7xPU") ||
+		    dmi_match(DMI_BOARD_NAME, "PH4PRX1_PH6PRX1"))
+			return NVME_QUIRK_FORCE_NO_SIMPLE_SUSPEND;
 	}
 
 	return 0;
@@ -2932,7 +2944,9 @@ static struct nvme_dev *nvme_pci_alloc_dev(struct pci_dev *pdev,
 	dev->dev = get_device(&pdev->dev);
 
 	quirks |= check_vendor_combination_bug(pdev);
-	if (!noacpi && acpi_storage_d3(&pdev->dev)) {
+	if (!noacpi &&
+	    !(quirks & NVME_QUIRK_FORCE_NO_SIMPLE_SUSPEND) &&
+	    acpi_storage_d3(&pdev->dev)) {
 		/*
 		 * Some systems use a bios work around to ask for D3 on
 		 * platforms that support kernel managed suspend.
@@ -3192,7 +3206,7 @@ static int nvme_suspend(struct device *dev)
 	nvme_wait_freeze(ctrl);
 	nvme_sync_queues(ctrl);
 
-	if (ctrl->state != NVME_CTRL_LIVE)
+	if (nvme_ctrl_state(ctrl) != NVME_CTRL_LIVE)
 		goto unfreeze;
 
 	/*

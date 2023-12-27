@@ -580,9 +580,9 @@ static inline void wp_update_state(struct write_point *wp, bool running)
 	__wp_update_state(wp, state);
 }
 
-static void bch2_write_index(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_write_index)
 {
-	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	closure_type(op, struct bch_write_op, cl);
 	struct write_point *wp = op->wp;
 	struct workqueue_struct *wq = index_update_wq(op);
 	unsigned long flags;
@@ -1208,9 +1208,9 @@ static void __bch2_nocow_write_done(struct bch_write_op *op)
 		bch2_nocow_write_convert_unwritten(op);
 }
 
-static void bch2_nocow_write_done(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_nocow_write_done)
 {
-	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	closure_type(op, struct bch_write_op, cl);
 
 	__bch2_nocow_write_done(op);
 	bch2_write_done(cl);
@@ -1363,7 +1363,7 @@ err:
 		op->insert_keys.top = op->insert_keys.keys;
 	} else if (op->flags & BCH_WRITE_SYNC) {
 		closure_sync(&op->cl);
-		bch2_nocow_write_done(&op->cl);
+		bch2_nocow_write_done(&op->cl.work);
 	} else {
 		/*
 		 * XXX
@@ -1566,9 +1566,9 @@ err:
  * If op->discard is true, instead of inserting the data it invalidates the
  * region of the cache represented by op->bio and op->inode.
  */
-void bch2_write(struct closure *cl)
+CLOSURE_CALLBACK(bch2_write)
 {
-	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	closure_type(op, struct bch_write_op, cl);
 	struct bio *bio = &op->wbio.bio;
 	struct bch_fs *c = op->c;
 	unsigned data_len;

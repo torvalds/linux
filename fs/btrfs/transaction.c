@@ -37,8 +37,6 @@
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
-#define BTRFS_ROOT_TRANS_TAG 0
-
 /*
  * Transaction states and transitions
  *
@@ -1774,7 +1772,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_release_path(path);
 
 	ret = btrfs_create_qgroup(trans, objectid);
-	if (ret) {
+	if (ret && ret != -EEXIST) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}

@@ -207,7 +207,7 @@ static int bch2_copygc(struct moving_context *ctxt,
 		goto err;
 
 	darray_for_each(buckets, i) {
-		if (unlikely(freezing(current)))
+		if (kthread_should_stop() || freezing(current))
 			break;
 
 		f = move_bucket_in_flight_add(buckets_in_flight, *i);

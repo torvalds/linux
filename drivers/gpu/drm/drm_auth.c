@@ -236,7 +236,7 @@ static int
 drm_master_check_perm(struct drm_device *dev, struct drm_file *file_priv)
 {
 	if (file_priv->was_master &&
-	    rcu_access_pointer(file_priv->pid) == task_pid(current))
+	    rcu_access_pointer(file_priv->pid) == task_tgid(current))
 		return 0;
 
 	if (!capable(CAP_SYS_ADMIN))

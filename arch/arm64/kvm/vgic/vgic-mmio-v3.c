@@ -820,7 +820,7 @@ out_unlock:
 	return ret;
 }
 
-static void vgic_unregister_redist_iodev(struct kvm_vcpu *vcpu)
+void vgic_unregister_redist_iodev(struct kvm_vcpu *vcpu)
 {
 	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
 
@@ -832,6 +832,8 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 	struct kvm_vcpu *vcpu;
 	unsigned long c;
 	int ret = 0;
+
+	lockdep_assert_held(&kvm->slots_lock);
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		ret = vgic_register_redist_iodev(vcpu);

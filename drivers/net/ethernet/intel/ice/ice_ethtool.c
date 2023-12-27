@@ -1850,14 +1850,14 @@ ice_phy_type_to_ethtool(struct net_device *netdev,
 	linkmode_zero(ks->link_modes.supported);
 	linkmode_zero(ks->link_modes.advertising);
 
-	for (i = 0; i < BITS_PER_TYPE(u64); i++) {
+	for (i = 0; i < ARRAY_SIZE(phy_type_low_lkup); i++) {
 		if (phy_types_low & BIT_ULL(i))
 			ice_linkmode_set_bit(&phy_type_low_lkup[i], ks,
 					     req_speeds, advert_phy_type_lo,
 					     i);
 	}
 
-	for (i = 0; i < BITS_PER_TYPE(u64); i++) {
+	for (i = 0; i < ARRAY_SIZE(phy_type_high_lkup); i++) {
 		if (phy_types_high & BIT_ULL(i))
 			ice_linkmode_set_bit(&phy_type_high_lkup[i], ks,
 					     req_speeds, advert_phy_type_hi,

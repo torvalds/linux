@@ -1290,6 +1290,15 @@ static noinline int __btrfs_ioctl_snap_create(struct file *file,
 			 * are limited to own subvolumes only
 			 */
 			ret = -EPERM;
+		} else if (btrfs_ino(BTRFS_I(src_inode)) != BTRFS_FIRST_FREE_OBJECTID) {
+			/*
+			 * Snapshots must be made with the src_inode referring
+			 * to the subvolume inode, otherwise the permission
+			 * checking above is useless because we may have
+			 * permission on a lower directory but not the subvol
+			 * itself.
+			 */
+			ret = -EINVAL;
 		} else {
 			ret = btrfs_mksnapshot(&file->f_path, idmap,
 					       name, namelen,
@@ -4356,6 +4365,7 @@ static int _btrfs_ioctl_send(struct inode *inode, void __user *argp, bool compat
 		arg->clone_sources = compat_ptr(args32.clone_sources);
 		arg->parent_root = args32.parent_root;
 		arg->flags = args32.flags;
+		arg->version = args32.version;
 		memcpy(arg->reserved, args32.reserved,
 		       sizeof(args32.reserved));
 #else

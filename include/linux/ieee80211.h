@@ -2830,11 +2830,13 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 static inline const struct ieee80211_he_6ghz_oper *
 ieee80211_he_6ghz_oper(const struct ieee80211_he_operation *he_oper)
 {
-	const u8 *ret = (const void *)&he_oper->optional;
+	const u8 *ret;
 	u32 he_oper_params;
 
 	if (!he_oper)
 		return NULL;
+
+	ret = (const void *)&he_oper->optional;
 
 	he_oper_params = le32_to_cpu(he_oper->he_oper_params);
 
@@ -4445,7 +4447,8 @@ ieee80211_is_protected_dual_of_public_action(struct sk_buff *skb)
 		action != WLAN_PUB_ACTION_LOC_TRACK_NOTI &&
 		action != WLAN_PUB_ACTION_FTM_REQUEST &&
 		action != WLAN_PUB_ACTION_FTM_RESPONSE &&
-		action != WLAN_PUB_ACTION_FILS_DISCOVERY;
+		action != WLAN_PUB_ACTION_FILS_DISCOVERY &&
+		action != WLAN_PUB_ACTION_VENDOR_SPECIFIC;
 }
 
 /**

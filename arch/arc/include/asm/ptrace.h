@@ -54,6 +54,10 @@ struct pt_regs {
 	ecr_reg ecr;
 };
 
+struct callee_regs {
+	unsigned long r25, r24, r23, r22, r21, r20, r19, r18, r17, r16, r15, r14, r13;
+};
+
 #define MAX_REG_OFFSET offsetof(struct pt_regs, ecr)
 
 #else
@@ -92,15 +96,13 @@ struct pt_regs {
 	unsigned long status32;
 };
 
-#define MAX_REG_OFFSET offsetof(struct pt_regs, status32)
-
-#endif
-
-/* Callee saved registers - need to be saved only when you are scheduled out */
-
 struct callee_regs {
 	unsigned long r25, r24, r23, r22, r21, r20, r19, r18, r17, r16, r15, r14, r13;
 };
+
+#define MAX_REG_OFFSET offsetof(struct pt_regs, status32)
+
+#endif
 
 #define instruction_pointer(regs)	((regs)->ret)
 #define profile_pc(regs)		instruction_pointer(regs)

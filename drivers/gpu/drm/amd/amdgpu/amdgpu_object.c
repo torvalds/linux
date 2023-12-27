@@ -1343,6 +1343,8 @@ void amdgpu_bo_release_notify(struct ttm_buffer_object *bo)
 
 	abo = ttm_to_amdgpu_bo(bo);
 
+	WARN_ON(abo->vm_bo);
+
 	if (abo->kfd_bo)
 		amdgpu_amdkfd_release_notify(abo);
 
@@ -1527,10 +1529,14 @@ u64 amdgpu_bo_gpu_offset(struct amdgpu_bo *bo)
 u64 amdgpu_bo_gpu_offset_no_check(struct amdgpu_bo *bo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
-	uint64_t offset;
+	uint64_t offset = AMDGPU_BO_INVALID_OFFSET;
 
-	offset = (bo->tbo.resource->start << PAGE_SHIFT) +
-		 amdgpu_ttm_domain_start(adev, bo->tbo.resource->mem_type);
+	if (bo->tbo.resource->mem_type == TTM_PL_TT)
+		offset = amdgpu_gmc_agp_addr(&bo->tbo);
+
+	if (offset == AMDGPU_BO_INVALID_OFFSET)
+		offset = (bo->tbo.resource->start << PAGE_SHIFT) +
+			amdgpu_ttm_domain_start(adev, bo->tbo.resource->mem_type);
 
 	return amdgpu_gmc_sign_extend(offset);
 }

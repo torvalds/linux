@@ -295,6 +295,7 @@ void handshake_done_req_free(struct handshake_done_req *req)
 
 int handshake_done(struct ynl_sock *ys, struct handshake_done_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -308,7 +309,7 @@ int handshake_done(struct ynl_sock *ys, struct handshake_done_req *req)
 	for (unsigned int i = 0; i < req->n_remote_auth; i++)
 		mnl_attr_put_u32(nlh, HANDSHAKE_A_DONE_REMOTE_AUTH, req->remote_auth[i]);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 

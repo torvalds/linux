@@ -2311,13 +2311,13 @@ int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 		goto err_request;
 
 	/*
-	 * Always keep 1000 Mb/s to make sure xHCI has at least some
+	 * Always keep 900 Mb/s to make sure xHCI has at least some
 	 * bandwidth available for isochronous traffic.
 	 */
-	if (consumed_up < 1000)
-		consumed_up = 1000;
-	if (consumed_down < 1000)
-		consumed_down = 1000;
+	if (consumed_up < 900)
+		consumed_up = 900;
+	if (consumed_down < 900)
+		consumed_down = 900;
 
 	ret = usb4_usb3_port_write_allocated_bandwidth(port, consumed_up,
 						       consumed_down);

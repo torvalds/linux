@@ -249,7 +249,7 @@ static bool journal_entry_want_write(struct journal *j)
 	return ret;
 }
 
-static bool journal_entry_close(struct journal *j)
+bool bch2_journal_entry_close(struct journal *j)
 {
 	bool ret;
 
@@ -321,6 +321,8 @@ static int journal_entry_open(struct journal *j)
 	atomic64_inc(&j->seq);
 	journal_pin_list_init(fifo_push_ref(&j->pin), 1);
 
+	BUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
+
 	BUG_ON(j->buf + (journal_cur_seq(j) & JOURNAL_BUF_MASK) != buf);
 
 	bkey_extent_init(&buf->key);
@@ -381,7 +383,7 @@ static bool journal_quiesced(struct journal *j)
 	bool ret = atomic64_read(&j->seq) == j->seq_ondisk;
 
 	if (!ret)
-		journal_entry_close(j);
+		bch2_journal_entry_close(j);
 	return ret;
 }
 
@@ -434,7 +436,7 @@ retry:
 
 	/*
 	 * Recheck after taking the lock, so we don't race with another thread
-	 * that just did journal_entry_open() and call journal_entry_close()
+	 * that just did journal_entry_open() and call bch2_journal_entry_close()
 	 * unnecessarily
 	 */
 	if (journal_res_get_fast(j, res, flags)) {
@@ -1039,7 +1041,7 @@ void bch2_fs_journal_stop(struct journal *j)
 	bch2_journal_reclaim_stop(j);
 	bch2_journal_flush_all_pins(j);
 
-	wait_event(j->wait, journal_entry_close(j));
+	wait_event(j->wait, bch2_journal_entry_close(j));
 
 	/*
 	 * Always write a new journal entry, to make sure the clock hands are up

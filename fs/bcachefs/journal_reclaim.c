@@ -776,6 +776,9 @@ static int journal_flush_done(struct journal *j, u64 seq_to_flush,
 			       (1U << JOURNAL_PIN_btree), 0, 0, 0))
 		*did_work = true;
 
+	if (seq_to_flush > journal_cur_seq(j))
+		bch2_journal_entry_close(j);
+
 	spin_lock(&j->lock);
 	/*
 	 * If journal replay hasn't completed, the unreplayed journal entries

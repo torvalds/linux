@@ -1816,7 +1816,7 @@ static int arm_cmn_event_add(struct perf_event *event, int flags)
 			idx = 0;
 			while (cmn->dtc[j].counters[idx])
 				if (++idx == CMN_DT_NUM_COUNTERS)
-					goto free_dtms;
+					return -ENOSPC;
 		}
 		hw->dtc_idx[j] = idx;
 	}

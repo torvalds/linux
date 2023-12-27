@@ -253,8 +253,7 @@ static const struct backlight_ops acpi_backlight_ops = {
 static int video_get_max_state(struct thermal_cooling_device *cooling_dev,
 			       unsigned long *state)
 {
-	struct acpi_device *device = cooling_dev->devdata;
-	struct acpi_video_device *video = acpi_driver_data(device);
+	struct acpi_video_device *video = cooling_dev->devdata;
 
 	*state = video->brightness->count - ACPI_VIDEO_FIRST_LEVEL - 1;
 	return 0;
@@ -263,8 +262,7 @@ static int video_get_max_state(struct thermal_cooling_device *cooling_dev,
 static int video_get_cur_state(struct thermal_cooling_device *cooling_dev,
 			       unsigned long *state)
 {
-	struct acpi_device *device = cooling_dev->devdata;
-	struct acpi_video_device *video = acpi_driver_data(device);
+	struct acpi_video_device *video = cooling_dev->devdata;
 	unsigned long long level;
 	int offset;
 
@@ -283,8 +281,7 @@ static int video_get_cur_state(struct thermal_cooling_device *cooling_dev,
 static int
 video_set_cur_state(struct thermal_cooling_device *cooling_dev, unsigned long state)
 {
-	struct acpi_device *device = cooling_dev->devdata;
-	struct acpi_video_device *video = acpi_driver_data(device);
+	struct acpi_video_device *video = cooling_dev->devdata;
 	int level;
 
 	if (state >= video->brightness->count - ACPI_VIDEO_FIRST_LEVEL)
@@ -1125,7 +1122,6 @@ static int acpi_video_bus_get_one_device(struct acpi_device *device, void *arg)
 
 	strcpy(acpi_device_name(device), ACPI_VIDEO_DEVICE_NAME);
 	strcpy(acpi_device_class(device), ACPI_VIDEO_CLASS);
-	device->driver_data = data;
 
 	data->device_id = device_id;
 	data->video = video;
@@ -1747,8 +1743,8 @@ static void acpi_video_dev_register_backlight(struct acpi_video_device *device)
 	device->backlight->props.brightness =
 			acpi_video_get_brightness(device->backlight);
 
-	device->cooling_dev = thermal_cooling_device_register("LCD",
-				device->dev, &video_cooling_ops);
+	device->cooling_dev = thermal_cooling_device_register("LCD", device,
+							      &video_cooling_ops);
 	if (IS_ERR(device->cooling_dev)) {
 		/*
 		 * Set cooling_dev to NULL so we don't crash trying to free it.

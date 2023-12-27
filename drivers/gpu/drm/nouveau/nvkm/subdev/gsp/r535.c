@@ -365,10 +365,8 @@ r535_gsp_rpc_send(struct nvkm_gsp *gsp, void *argv, bool wait, u32 repc)
 	}
 
 	ret = r535_gsp_cmdq_push(gsp, rpc);
-	if (ret) {
-		mutex_unlock(&gsp->cmdq.mutex);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	if (wait) {
 		msg = r535_gsp_msg_recv(gsp, fn, repc);
@@ -1048,7 +1046,7 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 	char *strings;
 	int str_offset;
 	int i;
-	size_t rpc_size = sizeof(*rpc) + sizeof(rpc->entries[0]) * NV_GSP_REG_NUM_ENTRIES;
+	size_t rpc_size = struct_size(rpc, entries, NV_GSP_REG_NUM_ENTRIES);
 
 	/* add strings + null terminator */
 	for (i = 0; i < NV_GSP_REG_NUM_ENTRIES; i++)
@@ -1379,6 +1377,13 @@ r535_gsp_msg_post_event(void *priv, u32 fn, void *repv, u32 repc)
 	return 0;
 }
 
+/**
+ * r535_gsp_msg_run_cpu_sequencer() -- process I/O commands from the GSP
+ *
+ * The GSP sequencer is a list of I/O commands that the GSP can send to
+ * the driver to perform for various purposes.  The most common usage is to
+ * perform a special mid-initialization reset.
+ */
 static int
 r535_gsp_msg_run_cpu_sequencer(void *priv, u32 fn, void *repv, u32 repc)
 {
@@ -1718,6 +1723,23 @@ r535_gsp_libos_id8(const char *name)
 	return id;
 }
 
+/**
+ * create_pte_array() - creates a PTE array of a physically contiguous buffer
+ * @ptes: pointer to the array
+ * @addr: base address of physically contiguous buffer (GSP_PAGE_SIZE aligned)
+ * @size: size of the buffer
+ *
+ * GSP-RM sometimes expects physically-contiguous buffers to have an array of
+ * "PTEs" for each page in that buffer.  Although in theory that allows for
+ * the buffer to be physically discontiguous, GSP-RM does not currently
+ * support that.
+ *
+ * In this case, the PTEs are DMA addresses of each page of the buffer.  Since
+ * the buffer is physically contiguous, calculating all the PTEs is simple
+ * math.
+ *
+ * See memdescGetPhysAddrsForGpu()
+ */
 static void create_pte_array(u64 *ptes, dma_addr_t addr, size_t size)
 {
 	unsigned int num_pages = DIV_ROUND_UP_ULL(size, GSP_PAGE_SIZE);
@@ -1727,6 +1749,35 @@ static void create_pte_array(u64 *ptes, dma_addr_t addr, size_t size)
 		ptes[i] = (u64)addr + (i << GSP_PAGE_SHIFT);
 }
 
+/**
+ * r535_gsp_libos_init() -- create the libos arguments structure
+ *
+ * The logging buffers are byte queues that contain encoded printf-like
+ * messages from GSP-RM.  They need to be decoded by a special application
+ * that can parse the buffers.
+ *
+ * The 'loginit' buffer contains logs from early GSP-RM init and
+ * exception dumps.  The 'logrm' buffer contains the subsequent logs. Both are
+ * written to directly by GSP-RM and can be any multiple of GSP_PAGE_SIZE.
+ *
+ * The physical address map for the log buffer is stored in the buffer
+ * itself, starting with offset 1. Offset 0 contains the "put" pointer.
+ *
+ * The GSP only understands 4K pages (GSP_PAGE_SIZE), so even if the kernel is
+ * configured for a larger page size (e.g. 64K pages), we need to give
+ * the GSP an array of 4K pages. Fortunately, since the buffer is
+ * physically contiguous, it's simple math to calculate the addresses.
+ *
+ * The buffers must be a multiple of GSP_PAGE_SIZE.  GSP-RM also currently
+ * ignores the @kind field for LOGINIT, LOGINTR, and LOGRM, but expects the
+ * buffers to be physically contiguous anyway.
+ *
+ * The memory allocated for the arguments must remain until the GSP sends the
+ * init_done RPC.
+ *
+ * See _kgspInitLibosLoggingStructures (allocates memory for buffers)
+ * See kgspSetupLibosInitArgs_IMPL (creates pLibosInitArgs[] array)
+ */
 static int
 r535_gsp_libos_init(struct nvkm_gsp *gsp)
 {
@@ -1837,6 +1888,35 @@ nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
 		nvkm_gsp_mem_dtor(gsp, &rx3->mem[i]);
 }
 
+/**
+ * nvkm_gsp_radix3_sg - build a radix3 table from a S/G list
+ *
+ * The GSP uses a three-level page table, called radix3, to map the firmware.
+ * Each 64-bit "pointer" in the table is either the bus address of an entry in
+ * the next table (for levels 0 and 1) or the bus address of the next page in
+ * the GSP firmware image itself.
+ *
+ * Level 0 contains a single entry in one page that points to the first page
+ * of level 1.
+ *
+ * Level 1, since it's also only one page in size, contains up to 512 entries,
+ * one for each page in Level 2.
+ *
+ * Level 2 can be up to 512 pages in size, and each of those entries points to
+ * the next page of the firmware image.  Since there can be up to 512*512
+ * pages, that limits the size of the firmware to 512*512*GSP_PAGE_SIZE = 1GB.
+ *
+ * Internally, the GSP has its window into system memory, but the base
+ * physical address of the aperture is not 0.  In fact, it varies depending on
+ * the GPU architecture.  Since the GPU is a PCI device, this window is
+ * accessed via DMA and is therefore bound by IOMMU translation.  The end
+ * result is that GSP-RM must translate the bus addresses in the table to GSP
+ * physical addresses.  All this should happen transparently.
+ *
+ * Returns 0 on success, or negative error code
+ *
+ * See kgspCreateRadix3_IMPL
+ */
 static int
 nvkm_gsp_radix3_sg(struct nvkm_device *device, struct sg_table *sgt, u64 size,
 		   struct nvkm_gsp_radix3 *rx3)

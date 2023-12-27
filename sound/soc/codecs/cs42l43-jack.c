@@ -237,7 +237,7 @@ error:
 	return ret;
 }
 
-static void cs42l43_start_hs_bias(struct cs42l43_codec *priv, bool force_high)
+static void cs42l43_start_hs_bias(struct cs42l43_codec *priv, bool type_detect)
 {
 	struct cs42l43 *cs42l43 = priv->core;
 	unsigned int val = 0x3 << CS42L43_HSBIAS_MODE_SHIFT;
@@ -247,16 +247,17 @@ static void cs42l43_start_hs_bias(struct cs42l43_codec *priv, bool force_high)
 	regmap_update_bits(cs42l43->regmap, CS42L43_HS2,
 			   CS42L43_HS_CLAMP_DISABLE_MASK, CS42L43_HS_CLAMP_DISABLE_MASK);
 
-	if (!force_high && priv->bias_low)
-		val = 0x2 << CS42L43_HSBIAS_MODE_SHIFT;
+	if (!type_detect) {
+		if (priv->bias_low)
+			val = 0x2 << CS42L43_HSBIAS_MODE_SHIFT;
 
-	if (priv->bias_sense_ua) {
-		regmap_update_bits(cs42l43->regmap,
-				   CS42L43_HS_BIAS_SENSE_AND_CLAMP_AUTOCONTROL,
-				   CS42L43_HSBIAS_SENSE_EN_MASK |
-				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK,
-				   CS42L43_HSBIAS_SENSE_EN_MASK |
-				   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK);
+		if (priv->bias_sense_ua)
+			regmap_update_bits(cs42l43->regmap,
+					   CS42L43_HS_BIAS_SENSE_AND_CLAMP_AUTOCONTROL,
+					   CS42L43_HSBIAS_SENSE_EN_MASK |
+					   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK,
+					   CS42L43_HSBIAS_SENSE_EN_MASK |
+					   CS42L43_AUTO_HSBIAS_CLAMP_EN_MASK);
 	}
 
 	regmap_update_bits(cs42l43->regmap, CS42L43_MIC_DETECT_CONTROL_1,

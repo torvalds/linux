@@ -2252,7 +2252,7 @@ int register_kretprobe(struct kretprobe *rp)
 		rp->rph = NULL;
 		return -ENOMEM;
 	}
-	rp->rph->rp = rp;
+	rcu_assign_pointer(rp->rph->rp, rp);
 	rp->nmissed = 0;
 	/* Establish function entry probe point */
 	ret = register_kprobe(&rp->kp);
@@ -2300,7 +2300,7 @@ void unregister_kretprobes(struct kretprobe **rps, int num)
 #ifdef CONFIG_KRETPROBE_ON_RETHOOK
 		rethook_free(rps[i]->rh);
 #else
-		rps[i]->rph->rp = NULL;
+		rcu_assign_pointer(rps[i]->rph->rp, NULL);
 #endif
 	}
 	mutex_unlock(&kprobe_mutex);

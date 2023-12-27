@@ -136,9 +136,7 @@ static inline u64 journal_last_seq(struct journal *j)
 
 static inline u64 journal_cur_seq(struct journal *j)
 {
-	EBUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
-
-	return j->pin.back - 1;
+	return atomic64_read(&j->seq);
 }
 
 static inline u64 journal_last_unwritten_seq(struct journal *j)
@@ -268,6 +266,7 @@ static inline union journal_res_state journal_state_buf_put(struct journal *j, u
 	return s;
 }
 
+bool bch2_journal_entry_close(struct journal *);
 void bch2_journal_buf_put_final(struct journal *, u64, bool);
 
 static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
