@@ -468,6 +468,7 @@ static const struct ib_device_ops erdma_device_ops = {
 	.driver_id = RDMA_DRIVER_ERDMA,
 	.uverbs_abi_ver = ERDMA_ABI_VERSION,
 
+	.alloc_hw_port_stats = erdma_alloc_hw_port_stats,
 	.alloc_mr = erdma_ib_alloc_mr,
 	.alloc_pd = erdma_alloc_pd,
 	.alloc_ucontext = erdma_alloc_ucontext,
@@ -479,6 +480,7 @@ static const struct ib_device_ops erdma_device_ops = {
 	.destroy_cq = erdma_destroy_cq,
 	.destroy_qp = erdma_destroy_qp,
 	.get_dma_mr = erdma_get_dma_mr,
+	.get_hw_stats = erdma_get_hw_stats,
 	.get_port_immutable = erdma_get_port_immutable,
 	.iw_accept = erdma_accept,
 	.iw_add_ref = erdma_qp_get_ref,
