@@ -1337,25 +1337,25 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (!isp->firmware) {
 		err = -ENOENT;
 		dev_dbg(&pdev->dev, "Firmware load failed\n");
-		goto load_fw_fail;
+		goto error_power_off;
 	}
 
 	err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
 	if (err) {
 		dev_dbg(&pdev->dev, "Firmware version check failed\n");
-		goto fw_validation_fail;
+		goto error_release_firmware;
 	}
 
 	err = pcim_enable_device(pdev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to enable ISP PCI device (%d)\n", err);
-		goto pci_enable_fail;
+		goto error_release_firmware;
 	}
 
 	err = pcim_iomap_regions(pdev, BIT(ATOM_ISP_PCI_BAR), pci_name(pdev));
 	if (err) {
 		dev_err(&pdev->dev, "Failed to I/O memory remapping (%d)\n", err);
-		goto ioremap_fail;
+		goto error_release_firmware;
 	}
 
 	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
@@ -1365,7 +1365,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Failed to enable msi (%d)\n", err);
-		goto enable_msi_fail;
+		goto error_release_firmware;
 	}
 
 	atomisp_msi_irq_init(isp);
@@ -1408,13 +1408,13 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	err = atomisp_initialize_modules(isp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "atomisp_initialize_modules (%d)\n", err);
-		goto initialize_modules_fail;
+		goto error_irq_uninit;
 	}
 
 	err = atomisp_register_entities(isp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "atomisp_register_entities failed (%d)\n", err);
-		goto register_entities_fail;
+		goto error_uninitialize_modules;
 	}
 
 	INIT_WORK(&isp->assert_recovery_work, atomisp_assert_recovery_work);
@@ -1453,14 +1453,14 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 					IRQF_SHARED, "isp_irq", isp);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request irq (%d)\n", err);
-		goto request_irq_fail;
+		goto error_unregister_entities;
 	}
 
 	/* Load firmware into ISP memory */
 	err = atomisp_css_load_firmware(isp);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init css.\n");
-		goto css_init_fail;
+		goto error_free_irq;
 	}
 	/* Clear FW image from memory */
 	release_firmware(isp->firmware);
@@ -1470,33 +1470,32 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	err = v4l2_async_nf_register(&isp->notifier);
 	if (err) {
 		dev_err(isp->dev, "failed to register async notifier : %d\n", err);
-		goto css_init_fail;
+		goto error_unload_firmware;
 	}
 
 	atomisp_drvfs_init(isp);
 
 	return 0;
 
-css_init_fail:
+error_unload_firmware:
+	ia_css_unload_firmware();
+error_free_irq:
 	devm_free_irq(&pdev->dev, pdev->irq, isp);
-request_irq_fail:
+error_unregister_entities:
 	hmm_cleanup();
+	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 	dev_pm_domain_set(&pdev->dev, NULL);
 	atomisp_unregister_entities(isp);
-register_entities_fail:
+error_uninitialize_modules:
 	atomisp_uninitialize_modules(isp);
-initialize_modules_fail:
+error_irq_uninit:
 	cpu_latency_qos_remove_request(&isp->pm_qos);
 	atomisp_msi_irq_uninit(isp);
 	pci_free_irq_vectors(pdev);
-enable_msi_fail:
-	pcim_iounmap_regions(pdev, BIT(ATOM_ISP_PCI_BAR));
-ioremap_fail:
-pci_enable_fail:
-fw_validation_fail:
+error_release_firmware:
 	release_firmware(isp->firmware);
-load_fw_fail:
+error_power_off:
 	/*
 	 * Switch off ISP, as keeping it powered on would prevent
 	 * reaching S0ix states.
