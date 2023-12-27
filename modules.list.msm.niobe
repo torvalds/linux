@@ -47,3 +47,7 @@ mdt_loader.ko
 tmecom-intf.ko
 msm_qmp.ko
 qcom_aoss.ko
+glink_pkt.ko
+qcom_glink_smem.ko
+qcom_glink.ko
+qcom_glink_spss.ko
