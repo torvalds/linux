@@ -16,12 +16,12 @@
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	li      r11, API_NUMBER;		\
 	lv1call;				\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -38,7 +38,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu    r3, -8(r1);			\
 						\
@@ -49,7 +49,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -57,7 +57,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r3, -8(r1);			\
 	stdu	r4, -16(r1);			\
@@ -71,7 +71,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -79,7 +79,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r3, -8(r1);			\
 	std	r4, -16(r1);			\
@@ -96,7 +96,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -24(r1);			\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -104,7 +104,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r3, -8(r1);			\
 	std	r4, -16(r1);			\
@@ -133,7 +133,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -56(r1);			\
 	std	r10, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -141,7 +141,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu    r4, -8(r1);			\
 						\
@@ -152,7 +152,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -160,7 +160,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r4, -8(r1);			\
 	stdu	r5, -16(r1);			\
@@ -174,7 +174,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -182,7 +182,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r4, -8(r1);			\
 	std	r5, -16(r1);			\
@@ -199,7 +199,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -24(r1);			\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -207,7 +207,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r4, -8(r1);			\
 	std	r5, -16(r1);			\
@@ -227,7 +227,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -32(r1);			\
 	std	r7, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -235,7 +235,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r4, -8(r1);			\
 	std	r5, -16(r1);			\
@@ -258,7 +258,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -40(r1);			\
 	std	r8, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -266,7 +266,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r4, -8(r1);			\
 	std	r5, -16(r1);			\
@@ -292,7 +292,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -48(r1);			\
 	std	r9, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -300,7 +300,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r4, -8(r1);			\
 	std	r5, -16(r1);			\
@@ -329,7 +329,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -56(r1);			\
 	std	r10, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -337,7 +337,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu	r5, -8(r1);			\
 						\
@@ -348,7 +348,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -356,7 +356,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r5, -8(r1);			\
 	stdu	r6, -16(r1);			\
@@ -370,7 +370,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -378,7 +378,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r5, -8(r1);			\
 	std	r6, -16(r1);			\
@@ -395,7 +395,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -24(r1);			\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -403,7 +403,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r5, -8(r1);			\
 	std	r6, -16(r1);			\
@@ -423,7 +423,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -32(r1);			\
 	std	r7, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -431,7 +431,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r5, -8(r1);			\
 	std	r6, -16(r1);			\
@@ -454,7 +454,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -40(r1);			\
 	std	r8, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -462,7 +462,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu	r6, -8(r1);			\
 						\
@@ -473,7 +473,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -481,7 +481,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r6, -8(r1);			\
 	stdu	r7, -16(r1);			\
@@ -495,7 +495,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -503,7 +503,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r6, -8(r1);			\
 	std	r7, -16(r1);			\
@@ -520,7 +520,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -24(r1);			\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -528,7 +528,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu    r7, -8(r1);			\
 						\
@@ -539,7 +539,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -547,7 +547,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r7, -8(r1);			\
 	stdu	r8, -16(r1);			\
@@ -561,7 +561,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -569,7 +569,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r7, -8(r1);			\
 	std	r8, -16(r1);			\
@@ -586,7 +586,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -24(r1);			\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -594,7 +594,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu    r8, -8(r1);			\
 						\
@@ -605,7 +605,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -613,7 +613,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r8, -8(r1);			\
 	stdu	r9, -16(r1);			\
@@ -627,7 +627,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -635,7 +635,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r8, -8(r1);			\
 	std	r9, -16(r1);			\
@@ -652,7 +652,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -24(r1);			\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -660,7 +660,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu    r9, -8(r1);			\
 						\
@@ -671,7 +671,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -679,7 +679,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r9, -8(r1);			\
 	stdu    r10, -16(r1);			\
@@ -693,7 +693,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -16(r1);			\
 	std	r5, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -701,7 +701,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std     r9, -8(r1);			\
 	stdu    r10, -16(r1);			\
@@ -717,7 +717,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, STK_PARAM_AREA+8*8(r1);	\
 	std	r6, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -725,7 +725,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	stdu    r10, -8(r1);			\
 						\
@@ -736,7 +736,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, -8(r1);			\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -744,7 +744,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	std	r10, STK_PARAM_AREA+8*7(r1);	\
 						\
@@ -764,7 +764,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, STK_PARAM_AREA+8*12(r1);	\
 	std	r9, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
@@ -772,7 +772,7 @@ _GLOBAL(_##API_NAME)				\
 _GLOBAL(_##API_NAME)				\
 						\
 	mflr	r0;				\
-	std	r0, 16(r1);			\
+	std	r0, LRSAVE(r1);			\
 						\
 	li      r11, API_NUMBER;		\
 	lv1call;				\
@@ -780,7 +780,7 @@ _GLOBAL(_##API_NAME)				\
 	ld	r11, STK_PARAM_AREA+8*8(r1);	\
 	std	r4, 0(r11);			\
 						\
-	ld	r0, 16(r1);			\
+	ld	r0, LRSAVE(r1);			\
 	mtlr	r0;				\
 	blr
 
