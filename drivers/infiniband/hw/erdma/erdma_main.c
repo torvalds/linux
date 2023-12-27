@@ -172,14 +172,30 @@ static int erdma_device_init(struct erdma_dev *dev, struct pci_dev *pdev)
 {
 	int ret;
 
+	dev->resp_pool = dma_pool_create("erdma_resp_pool", &pdev->dev,
+					 ERDMA_HW_RESP_SIZE, ERDMA_HW_RESP_SIZE,
+					 0);
+	if (!dev->resp_pool)
+		return -ENOMEM;
+
 	ret = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(ERDMA_PCI_WIDTH));
 	if (ret)
-		return ret;
+		goto destroy_pool;
 
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	return 0;
+
+destroy_pool:
+	dma_pool_destroy(dev->resp_pool);
+
+	return ret;
+}
+
+static void erdma_device_uninit(struct erdma_dev *dev)
+{
+	dma_pool_destroy(dev->resp_pool);
 }
 
 static void erdma_hw_reset(struct erdma_dev *dev)
@@ -273,7 +289,7 @@ static int erdma_probe_dev(struct pci_dev *pdev)
 
 	err = erdma_request_vectors(dev);
 	if (err)
-		goto err_iounmap_func_bar;
+		goto err_uninit_device;
 
 	err = erdma_comm_irq_init(dev);
 	if (err)
@@ -314,6 +330,9 @@ err_uninit_comm_irq:
 err_free_vectors:
 	pci_free_irq_vectors(dev->pdev);
 
+err_uninit_device:
+	erdma_device_uninit(dev);
+
 err_iounmap_func_bar:
 	devm_iounmap(&pdev->dev, dev->func_bar);
 
@@ -339,6 +358,7 @@ static void erdma_remove_dev(struct pci_dev *pdev)
 	erdma_aeq_destroy(dev);
 	erdma_comm_irq_uninit(dev);
 	pci_free_irq_vectors(dev->pdev);
+	erdma_device_uninit(dev);
 
 	devm_iounmap(&pdev->dev, dev->func_bar);
 	pci_release_selected_regions(pdev, ERDMA_BAR_MASK);

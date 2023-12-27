@@ -357,6 +357,8 @@ struct erdma_cmdq_reflush_req {
 	u32 rq_pi;
 };
 
+#define ERDMA_HW_RESP_SIZE 256
+
 /* cap qword 0 definition */
 #define ERDMA_CMD_DEV_CAP_MAX_CQE_MASK GENMASK_ULL(47, 40)
 #define ERDMA_CMD_DEV_CAP_FLAGS_MASK GENMASK_ULL(31, 24)
