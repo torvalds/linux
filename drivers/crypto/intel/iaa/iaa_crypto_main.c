@@ -1017,11 +1017,16 @@ static void rebalance_wq_table(void)
 		return;
 	}
 
-	for_each_online_node(node) {
+	for_each_node_with_cpus(node) {
 		node_cpus = cpumask_of_node(node);
 
 		for (cpu = 0; cpu < nr_cpus_per_node; cpu++) {
 			int node_cpu = cpumask_nth(cpu, node_cpus);
+
+			if (WARN_ON(node_cpu >= nr_cpu_ids)) {
+				pr_debug("node_cpu %d doesn't exist!\n", node_cpu);
+				return;
+			}
 
 			if ((cpu % cpus_per_iaa) == 0)
 				iaa++;
@@ -2095,9 +2100,15 @@ static struct idxd_device_driver iaa_crypto_driver = {
 static int __init iaa_crypto_init_module(void)
 {
 	int ret = 0;
+	int node;
 
 	nr_cpus = num_online_cpus();
-	nr_nodes = num_online_nodes();
+	for_each_node_with_cpus(node)
+		nr_nodes++;
+	if (!nr_nodes) {
+		pr_err("IAA couldn't find any nodes with cpus\n");
+		return -ENODEV;
+	}
 	nr_cpus_per_node = nr_cpus / nr_nodes;
 
 	if (crypto_has_comp("deflate-generic", 0, 0))
