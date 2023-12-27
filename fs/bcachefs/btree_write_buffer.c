@@ -17,14 +17,14 @@ static int bch2_btree_write_buffer_journal_flush(struct journal *,
 
 static int bch2_journal_keys_to_write_buffer(struct bch_fs *, struct journal_buf *);
 
-static inline bool __wb_key_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
+static inline bool __wb_key_ref_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
 {
 	return (cmp_int(l->hi, r->hi) ?:
 		cmp_int(l->mi, r->mi) ?:
 		cmp_int(l->lo, r->lo)) >= 0;
 }
 
-static inline bool wb_key_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
+static inline bool wb_key_ref_cmp(const struct wb_key_ref *l, const struct wb_key_ref *r)
 {
 #ifdef CONFIG_X86_64
 	int cmp;
@@ -39,10 +39,10 @@ static inline bool wb_key_cmp(const struct wb_key_ref *l, const struct wb_key_re
 	    : [l] "r" (l), [r] "r" (r)
 	    : "rax", "cc");
 
-	EBUG_ON(cmp != __wb_key_cmp(l, r));
+	EBUG_ON(cmp != __wb_key_ref_cmp(l, r));
 	return cmp;
 #else
-	return __wb_key_cmp(l, r);
+	return __wb_key_ref_cmp(l, r);
 #endif
 }
 
@@ -87,12 +87,12 @@ static noinline void wb_sort(struct wb_key_ref *base, size_t num)
 		 * average, 3/4 worst-case.)
 		 */
 		for (b = a; c = 2*b + 1, (d = c + 1) < n;)
-			b = wb_key_cmp(base + c, base + d) ? c : d;
+			b = wb_key_ref_cmp(base + c, base + d) ? c : d;
 		if (d == n)		/* Special case last leaf with no sibling */
 			b = c;
 
 		/* Now backtrack from "b" to the correct location for "a" */
-		while (b != a && wb_key_cmp(base + a, base + b))
+		while (b != a && wb_key_ref_cmp(base + a, base + b))
 			b = (b - 1) / 2;
 		c = b;			/* Where "a" belongs */
 		while (b != a) {	/* Shift it into place */
