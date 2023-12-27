@@ -90,6 +90,7 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	__set_bit_le64(BCH_FSCK_ERR_freespace_hole_missing, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_ptr_to_missing_backpointer, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_lru_entry_bad, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_accounting_mismatch, ext->errors_silent);
 	c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 
 	bch2_write_super(c);

@@ -7,6 +7,7 @@
 #include "btree_types.h"
 #include "alloc_background.h"
 #include "dirent.h"
+#include "disk_accounting.h"
 #include "ec.h"
 #include "error.h"
 #include "extents.h"
