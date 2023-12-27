@@ -1130,6 +1130,7 @@ static int __init genpd_power_off_unused(void)
 		return 0;
 	}
 
+	pr_info("genpd: Disabling unused power domains\n");
 	mutex_lock(&gpd_list_lock);
 
 	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
