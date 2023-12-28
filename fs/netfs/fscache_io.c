@@ -158,46 +158,6 @@ int __fscache_begin_write_operation(struct netfs_cache_resources *cres,
 }
 EXPORT_SYMBOL(__fscache_begin_write_operation);
 
-/**
- * fscache_dirty_folio - Mark folio dirty and pin a cache object for writeback
- * @mapping: The mapping the folio belongs to.
- * @folio: The folio being dirtied.
- * @cookie: The cookie referring to the cache object
- *
- * Set the dirty flag on a folio and pin an in-use cache object in memory
- * so that writeback can later write to it.  This is intended
- * to be called from the filesystem's ->dirty_folio() method.
- *
- * Return: true if the dirty flag was set on the folio, false otherwise.
- */
-bool fscache_dirty_folio(struct address_space *mapping, struct folio *folio,
-				struct fscache_cookie *cookie)
-{
-	struct inode *inode = mapping->host;
-	bool need_use = false;
-
-	_enter("");
-
-	if (!filemap_dirty_folio(mapping, folio))
-		return false;
-	if (!fscache_cookie_valid(cookie))
-		return true;
-
-	if (!(inode->i_state & I_PINNING_FSCACHE_WB)) {
-		spin_lock(&inode->i_lock);
-		if (!(inode->i_state & I_PINNING_FSCACHE_WB)) {
-			inode->i_state |= I_PINNING_FSCACHE_WB;
-			need_use = true;
-		}
-		spin_unlock(&inode->i_lock);
-
-		if (need_use)
-			fscache_use_cookie(cookie, true);
-	}
-	return true;
-}
-EXPORT_SYMBOL(fscache_dirty_folio);
-
 struct fscache_write_request {
 	struct netfs_cache_resources cache_resources;
 	struct address_space	*mapping;
@@ -277,7 +237,7 @@ void __fscache_write_to_cache(struct fscache_cookie *cookie,
 				    fscache_access_io_write) < 0)
 		goto abandon_free;
 
-	ret = cres->ops->prepare_write(cres, &start, &len, i_size, false);
+	ret = cres->ops->prepare_write(cres, &start, &len, len, i_size, false);
 	if (ret < 0)
 		goto abandon_end;
 
