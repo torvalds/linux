@@ -9,17 +9,15 @@ int bch2_reflink_p_invalid(struct bch_fs *, struct bkey_s_c,
 void bch2_reflink_p_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 bool bch2_reflink_p_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
-int bch2_trans_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
-			      struct bkey_s_c, struct bkey_s, unsigned);
-int bch2_mark_reflink_p(struct btree_trans *, enum btree_id, unsigned,
-			struct bkey_s_c, struct bkey_s, unsigned);
+int bch2_trigger_reflink_p(struct btree_trans *, enum btree_id, unsigned,
+			   struct bkey_s_c, struct bkey_s, unsigned);
 
 #define bch2_bkey_ops_reflink_p ((struct bkey_ops) {		\
 	.key_invalid	= bch2_reflink_p_invalid,		\
 	.val_to_text	= bch2_reflink_p_to_text,		\
 	.key_merge	= bch2_reflink_p_merge,			\
-	.trans_trigger	= bch2_trans_mark_reflink_p,		\
-	.atomic_trigger	= bch2_mark_reflink_p,			\
+	.trans_trigger	= bch2_trigger_reflink_p,		\
+	.atomic_trigger	= bch2_trigger_reflink_p,		\
 	.min_val_size	= 16,					\
 })
 
