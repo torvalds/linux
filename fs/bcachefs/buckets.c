@@ -1023,6 +1023,18 @@ int bch2_trigger_extent(struct btree_trans *trans,
 			struct bkey_s_c old, struct bkey_s new,
 			unsigned flags)
 {
+	struct bkey_ptrs_c new_ptrs = bch2_bkey_ptrs_c(new.s_c);
+	struct bkey_ptrs_c old_ptrs = bch2_bkey_ptrs_c(old);
+	unsigned new_ptrs_bytes = (void *) new_ptrs.end - (void *) new_ptrs.start;
+	unsigned old_ptrs_bytes = (void *) old_ptrs.end - (void *) old_ptrs.start;
+
+	/* if pointers aren't changing - nothing to do: */
+	if (new_ptrs_bytes == old_ptrs_bytes &&
+	    !memcmp(new_ptrs.start,
+		    old_ptrs.start,
+		    new_ptrs_bytes))
+		return 0;
+
 	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
 		struct bch_fs *c = trans->c;
 		int mod = (int) bch2_bkey_needs_rebalance(c, new.s_c) -
