@@ -3723,12 +3723,10 @@ apply_min_padding:
 
 static int atomisp_set_crop(struct atomisp_device *isp,
 			    const struct v4l2_mbus_framefmt *format,
+			    struct v4l2_subdev_state *sd_state,
 			    int which)
 {
 	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
-	struct v4l2_subdev_state pad_state = {
-		.pads = &input->pad_cfg,
-	};
 	struct v4l2_subdev_selection sel = {
 		.which = which,
 		.target = V4L2_SEL_TGT_CROP,
@@ -3754,7 +3752,7 @@ static int atomisp_set_crop(struct atomisp_device *isp,
 	sel.r.left = ((input->native_rect.width - sel.r.width) / 2) & ~1;
 	sel.r.top = ((input->native_rect.height - sel.r.height) / 2) & ~1;
 
-	ret = v4l2_subdev_call(input->camera, pad, set_selection, &pad_state, &sel);
+	ret = v4l2_subdev_call(input->camera, pad, set_selection, sd_state, &sel);
 	if (ret)
 		dev_err(isp->dev, "Error setting crop to %ux%u @%ux%u: %d\n",
 			sel.r.width, sel.r.height, sel.r.left, sel.r.top, ret);
@@ -3770,9 +3768,6 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 	const struct atomisp_format_bridge *fmt, *snr_fmt;
 	struct atomisp_sub_device *asd = &isp->asd;
 	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
-	struct v4l2_subdev_state pad_state = {
-		.pads = &input->pad_cfg,
-	};
 	struct v4l2_subdev_format format = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -3809,11 +3804,16 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 	dev_dbg(isp->dev, "try_mbus_fmt: asking for %ux%u\n",
 		format.format.width, format.format.height);
 
-	ret = atomisp_set_crop(isp, &format.format, V4L2_SUBDEV_FORMAT_TRY);
-	if (ret)
-		return ret;
+	v4l2_subdev_lock_state(input->try_sd_state);
 
-	ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &format);
+	ret = atomisp_set_crop(isp, &format.format, input->try_sd_state,
+			       V4L2_SUBDEV_FORMAT_TRY);
+	if (ret == 0)
+		ret = v4l2_subdev_call(input->camera, pad, set_fmt,
+				       input->try_sd_state, &format);
+
+	v4l2_subdev_unlock_state(input->try_sd_state);
+
 	if (ret)
 		return ret;
 
@@ -4238,9 +4238,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 	struct atomisp_device *isp = asd->isp;
 	struct atomisp_input_subdev *input = &isp->inputs[asd->input_curr];
 	const struct atomisp_format_bridge *format;
-	struct v4l2_subdev_state pad_state = {
-		.pads = &input->pad_cfg,
-	};
+	struct v4l2_subdev_state *act_sd_state;
 	struct v4l2_subdev_format vformat = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
@@ -4268,12 +4266,18 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 
 	/* Disable dvs if resolution can't be supported by sensor */
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		ret = atomisp_set_crop(isp, &vformat.format, V4L2_SUBDEV_FORMAT_TRY);
-		if (ret)
-			return ret;
+		v4l2_subdev_lock_state(input->try_sd_state);
 
-		vformat.which = V4L2_SUBDEV_FORMAT_TRY;
-		ret = v4l2_subdev_call(input->camera, pad, set_fmt, &pad_state, &vformat);
+		ret = atomisp_set_crop(isp, &vformat.format, input->try_sd_state,
+				       V4L2_SUBDEV_FORMAT_TRY);
+		if (ret == 0) {
+			vformat.which = V4L2_SUBDEV_FORMAT_TRY;
+			ret = v4l2_subdev_call(input->camera, pad, set_fmt,
+					       input->try_sd_state, &vformat);
+		}
+
+		v4l2_subdev_unlock_state(input->try_sd_state);
+
 		if (ret)
 			return ret;
 
@@ -4291,12 +4295,18 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 		}
 	}
 
-	ret = atomisp_set_crop(isp, &vformat.format, V4L2_SUBDEV_FORMAT_ACTIVE);
-	if (ret)
-		return ret;
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
 
-	vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	ret = v4l2_subdev_call(input->camera, pad, set_fmt, NULL, &vformat);
+	ret = atomisp_set_crop(isp, &vformat.format, act_sd_state,
+			       V4L2_SUBDEV_FORMAT_ACTIVE);
+	if (ret == 0) {
+		vformat.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+		ret = v4l2_subdev_call(input->camera, pad, set_fmt, act_sd_state, &vformat);
+	}
+
+	if (act_sd_state)
+		v4l2_subdev_unlock_state(act_sd_state);
+
 	if (ret)
 		return ret;
 
