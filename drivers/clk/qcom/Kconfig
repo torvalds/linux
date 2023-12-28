@@ -1372,6 +1372,15 @@ config SM_GCC_VOLCANO
 	  Volcano devices.
 	  Say Y if you want to use peripheral devices such as UART,
 	  SPI, I2C, USB, SD/UFS, PCIe etc.
+
+config SM_GPUCC_VOLCANO
+	tristate "Volcano Graphics Clock Controller"
+	select SM_GCC_VOLCANO
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc
+	  Volcano devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
 endif
 
 config VIRTIO_CLK
