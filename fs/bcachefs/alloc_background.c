@@ -843,6 +843,114 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	return 0;
 }
 
+int bch2_mark_alloc(struct btree_trans *trans,
+		    enum btree_id btree, unsigned level,
+		    struct bkey_s_c old, struct bkey_s new,
+		    unsigned flags)
+{
+	bool gc = flags & BTREE_TRIGGER_GC;
+	u64 journal_seq = trans->journal_res.seq;
+	u64 bucket_journal_seq;
+	struct bch_fs *c = trans->c;
+	struct bch_alloc_v4 old_a_convert, new_a_convert;
+	const struct bch_alloc_v4 *old_a, *new_a;
+	struct bch_dev *ca;
+	int ret = 0;
+
+	/*
+	 * alloc btree is read in by bch2_alloc_read, not gc:
+	 */
+	if ((flags & BTREE_TRIGGER_GC) &&
+	    !(flags & BTREE_TRIGGER_BUCKET_INVALIDATE))
+		return 0;
+
+	if (bch2_trans_inconsistent_on(!bch2_dev_bucket_exists(c, new.k->p), trans,
+				       "alloc key for invalid device or bucket"))
+		return -EIO;
+
+	ca = bch_dev_bkey_exists(c, new.k->p.inode);
+
+	old_a = bch2_alloc_to_v4(old, &old_a_convert);
+	new_a = bch2_alloc_to_v4(new.s_c, &new_a_convert);
+
+	bucket_journal_seq = new_a->journal_seq;
+
+	if ((flags & BTREE_TRIGGER_INSERT) &&
+	    data_type_is_empty(old_a->data_type) !=
+	    data_type_is_empty(new_a->data_type) &&
+	    new.k->type == KEY_TYPE_alloc_v4) {
+		struct bch_alloc_v4 *v = (struct bch_alloc_v4 *) new.v;
+
+		EBUG_ON(!journal_seq);
+
+		/*
+		 * If the btree updates referring to a bucket weren't flushed
+		 * before the bucket became empty again, then the we don't have
+		 * to wait on a journal flush before we can reuse the bucket:
+		 */
+		v->journal_seq = bucket_journal_seq =
+			data_type_is_empty(new_a->data_type) &&
+			(journal_seq == v->journal_seq ||
+			 bch2_journal_noflush_seq(&c->journal, v->journal_seq))
+			? 0 : journal_seq;
+	}
+
+	if (!data_type_is_empty(old_a->data_type) &&
+	    data_type_is_empty(new_a->data_type) &&
+	    bucket_journal_seq) {
+		ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+				c->journal.flushed_seq_ondisk,
+				new.k->p.inode, new.k->p.offset,
+				bucket_journal_seq);
+		if (ret) {
+			bch2_fs_fatal_error(c,
+				"error setting bucket_needs_journal_commit: %i", ret);
+			return ret;
+		}
+	}
+
+	percpu_down_read(&c->mark_lock);
+	if (!gc && new_a->gen != old_a->gen)
+		*bucket_gen(ca, new.k->p.offset) = new_a->gen;
+
+	bch2_dev_usage_update(c, ca, old_a, new_a, journal_seq, gc);
+
+	if (gc) {
+		struct bucket *g = gc_bucket(ca, new.k->p.offset);
+
+		bucket_lock(g);
+
+		g->gen_valid		= 1;
+		g->gen			= new_a->gen;
+		g->data_type		= new_a->data_type;
+		g->stripe		= new_a->stripe;
+		g->stripe_redundancy	= new_a->stripe_redundancy;
+		g->dirty_sectors	= new_a->dirty_sectors;
+		g->cached_sectors	= new_a->cached_sectors;
+
+		bucket_unlock(g);
+	}
+	percpu_up_read(&c->mark_lock);
+
+	if (new_a->data_type == BCH_DATA_free &&
+	    (!new_a->journal_seq || new_a->journal_seq < c->journal.flushed_seq_ondisk))
+		closure_wake_up(&c->freelist_wait);
+
+	if (new_a->data_type == BCH_DATA_need_discard &&
+	    (!bucket_journal_seq || bucket_journal_seq < c->journal.flushed_seq_ondisk))
+		bch2_do_discards(c);
+
+	if (old_a->data_type != BCH_DATA_cached &&
+	    new_a->data_type == BCH_DATA_cached &&
+	    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
+		bch2_do_invalidates(c);
+
+	if (new_a->data_type == BCH_DATA_need_gc_gens)
+		bch2_do_gc_gens(c);
+
+	return 0;
+}
+
 /*
  * This synthesizes deleted extents for holes, similar to BTREE_ITER_SLOTS for
  * extents style btrees, but works on non-extents btrees:

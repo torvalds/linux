@@ -302,6 +302,10 @@ u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage_online *);
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
 
+void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
+			   const struct bch_alloc_v4 *,
+			   const struct bch_alloc_v4 *, u64, bool);
+
 /* key/bucket marking: */
 
 static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
@@ -327,8 +331,6 @@ int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			      size_t, enum bch_data_type, unsigned,
 			      struct gc_pos, unsigned);
 
-int bch2_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
-		    struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_mark_extent(struct btree_trans *, enum btree_id, unsigned,
 		     struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
