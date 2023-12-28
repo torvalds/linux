@@ -576,7 +576,7 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 	for_each_keylist_key(&as->new_keys, k) {
 		unsigned level = bkey_i_to_btree_ptr_v2(k)->v.mem_ptr;
 
-		ret = bch2_trans_mark_new(trans, as->btree_id, level, k, 0);
+		ret = bch2_trans_mark_new(trans, as->btree_id, level, bkey_i_to_s(k), 0);
 		if (ret)
 			return ret;
 	}
@@ -2162,7 +2162,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 			return ret;
 
 		ret = bch2_trans_mark_new(trans, b->c.btree_id, b->c.level + 1,
-					  new_key, 0);
+					  bkey_i_to_s(new_key), 0);
 		if (ret)
 			return ret;
 	}

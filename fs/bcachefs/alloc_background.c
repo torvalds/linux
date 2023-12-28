@@ -751,7 +751,7 @@ static noinline int bch2_bucket_gen_update(struct btree_trans *trans,
 
 int bch2_trans_mark_alloc(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old, struct bkey_i *new,
+			  struct bkey_s_c old, struct bkey_s new,
 			  unsigned flags)
 {
 	struct bch_fs *c = trans->c;
@@ -764,10 +764,10 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	 * Deletion only happens in the device removal path, with
 	 * BTREE_TRIGGER_NORUN:
 	 */
-	BUG_ON(new->k.type != KEY_TYPE_alloc_v4);
+	BUG_ON(new.k->type != KEY_TYPE_alloc_v4);
 
 	old_a = bch2_alloc_to_v4(old, &old_a_convert);
-	new_a = &bkey_i_to_alloc_v4(new)->v;
+	new_a = bkey_s_to_alloc_v4(new).v;
 
 	new_a->data_type = alloc_data_type(*new_a, new_a->data_type);
 
@@ -780,7 +780,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 
 	if (data_type_is_empty(new_a->data_type) &&
 	    BCH_ALLOC_V4_NEED_INC_GEN(new_a) &&
-	    !bch2_bucket_is_open_safe(c, new->k.p.inode, new->k.p.offset)) {
+	    !bch2_bucket_is_open_safe(c, new.k->p.inode, new.k->p.offset)) {
 		new_a->gen++;
 		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, false);
 	}
@@ -789,7 +789,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	    (new_a->data_type == BCH_DATA_free &&
 	     alloc_freespace_genbits(*old_a) != alloc_freespace_genbits(*new_a))) {
 		ret =   bch2_bucket_do_index(trans, old, old_a, false) ?:
-			bch2_bucket_do_index(trans, bkey_i_to_s_c(new), new_a, true);
+			bch2_bucket_do_index(trans, new.s_c, new_a, true);
 		if (ret)
 			return ret;
 	}
@@ -802,27 +802,27 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 	new_lru = alloc_lru_idx_read(*new_a);
 
 	if (old_lru != new_lru) {
-		ret = bch2_lru_change(trans, new->k.p.inode,
-				      bucket_to_u64(new->k.p),
+		ret = bch2_lru_change(trans, new.k->p.inode,
+				      bucket_to_u64(new.k->p),
 				      old_lru, new_lru);
 		if (ret)
 			return ret;
 	}
 
 	new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a,
-					bch_dev_bkey_exists(c, new->k.p.inode));
+					bch_dev_bkey_exists(c, new.k->p.inode));
 
 	if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
 		ret = bch2_lru_change(trans,
 				BCH_LRU_FRAGMENTATION_START,
-				bucket_to_u64(new->k.p),
+				bucket_to_u64(new.k->p),
 				old_a->fragmentation_lru, new_a->fragmentation_lru);
 		if (ret)
 			return ret;
 	}
 
 	if (old_a->gen != new_a->gen) {
-		ret = bch2_bucket_gen_update(trans, new->k.p, new_a->gen);
+		ret = bch2_bucket_gen_update(trans, new.k->p, new_a->gen);
 		if (ret)
 			return ret;
 	}
@@ -834,7 +834,7 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 
 	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
 	    old_a->cached_sectors) {
-		ret = bch2_update_cached_sectors_list(trans, new->k.p.inode,
+		ret = bch2_update_cached_sectors_list(trans, new.k->p.inode,
 						      -((s64) old_a->cached_sectors));
 		if (ret)
 			return ret;

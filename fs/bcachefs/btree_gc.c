@@ -1589,7 +1589,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 		if (!r->refcount)
 			new->k.type = KEY_TYPE_deleted;
 		else
-			*bkey_refcount(new) = cpu_to_le64(r->refcount);
+			*bkey_refcount(bkey_i_to_s(new)) = cpu_to_le64(r->refcount);
 	}
 fsck_err:
 	printbuf_exit(&buf);

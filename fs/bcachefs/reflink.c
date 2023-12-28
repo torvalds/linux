@@ -93,7 +93,7 @@ static int trans_mark_reflink_p_segment(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	refcount = bkey_refcount(k);
+	refcount = bkey_refcount(bkey_i_to_s(k));
 	if (!refcount) {
 		bch2_bkey_val_to_text(&buf, c, p.s_c);
 		bch2_trans_inconsistent(trans,
@@ -161,11 +161,11 @@ static int __trans_mark_reflink_p(struct btree_trans *trans,
 int bch2_trans_mark_reflink_p(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old,
-			      struct bkey_i *new,
+			      struct bkey_s new,
 			      unsigned flags)
 {
 	if (flags & BTREE_TRIGGER_INSERT) {
-		struct bch_reflink_p *v = &bkey_i_to_reflink_p(new)->v;
+		struct bch_reflink_p *v = bkey_s_to_reflink_p(new).v;
 
 		v->front_pad = v->back_pad = 0;
 	}
@@ -305,29 +305,29 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 }
 #endif
 
-static inline void check_indirect_extent_deleting(struct bkey_i *new, unsigned *flags)
+static inline void check_indirect_extent_deleting(struct bkey_s new, unsigned *flags)
 {
 	if ((*flags & BTREE_TRIGGER_INSERT) && !*bkey_refcount(new)) {
-		new->k.type = KEY_TYPE_deleted;
-		new->k.size = 0;
-		set_bkey_val_u64s(&new->k, 0);
+		new.k->type = KEY_TYPE_deleted;
+		new.k->size = 0;
+		set_bkey_val_u64s(new.k, 0);
 		*flags &= ~BTREE_TRIGGER_INSERT;
 	}
 }
 
 int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
-			      struct bkey_s_c old, struct bkey_i *new,
+			      struct bkey_s_c old, struct bkey_s new,
 			      unsigned flags)
 {
 	check_indirect_extent_deleting(new, &flags);
 
 	if (old.k->type == KEY_TYPE_reflink_v &&
-	    new->k.type == KEY_TYPE_reflink_v &&
-	    old.k->u64s == new->k.u64s &&
+	    new.k->type == KEY_TYPE_reflink_v &&
+	    old.k->u64s == new.k->u64s &&
 	    !memcmp(bkey_s_c_to_reflink_v(old).v->start,
-		    bkey_i_to_reflink_v(new)->v.start,
-		    bkey_val_bytes(&new->k) - 8))
+		    bkey_s_to_reflink_v(new).v->start,
+		    bkey_val_bytes(new.k) - 8))
 		return 0;
 
 	return bch2_trans_mark_extent(trans, btree_id, level, old, new, flags);
@@ -355,7 +355,7 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 
 int bch2_trans_mark_indirect_inline_data(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
-			      struct bkey_s_c old, struct bkey_i *new,
+			      struct bkey_s_c old, struct bkey_s new,
 			      unsigned flags)
 {
 	check_indirect_extent_deleting(new, &flags);
@@ -398,7 +398,7 @@ static int bch2_make_extent_indirect(struct btree_trans *trans,
 
 	set_bkey_val_bytes(&r_v->k, sizeof(__le64) + bkey_val_bytes(&orig->k));
 
-	refcount	= bkey_refcount(r_v);
+	refcount	= bkey_refcount(bkey_i_to_s(r_v));
 	*refcount	= 0;
 	memcpy(refcount + 1, &orig->v, bkey_val_bytes(&orig->k));
 

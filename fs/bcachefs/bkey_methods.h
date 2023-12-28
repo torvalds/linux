@@ -29,7 +29,7 @@ struct bkey_ops {
 	bool		(*key_normalize)(struct bch_fs *, struct bkey_s);
 	bool		(*key_merge)(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	int		(*trans_trigger)(struct btree_trans *, enum btree_id, unsigned,
-					 struct bkey_s_c, struct bkey_i *, unsigned);
+					 struct bkey_s_c, struct bkey_s, unsigned);
 	int		(*atomic_trigger)(struct btree_trans *, enum btree_id, unsigned,
 					  struct bkey_s_c, struct bkey_s_c, unsigned);
 	void		(*compat)(enum btree_id id, unsigned version,
@@ -120,10 +120,10 @@ enum btree_update_flags {
 
 static inline int bch2_trans_mark_key(struct btree_trans *trans,
 				      enum btree_id btree_id, unsigned level,
-				      struct bkey_s_c old, struct bkey_i *new,
+				      struct bkey_s_c old, struct bkey_s new,
 				      unsigned flags)
 {
-	const struct bkey_ops *ops = bch2_bkey_type_ops(old.k->type ?: new->k.type);
+	const struct bkey_ops *ops = bch2_bkey_type_ops(old.k->type ?: new.k->type);
 
 	return ops->trans_trigger
 		? ops->trans_trigger(trans, btree_id, level, old, new, flags)
@@ -139,18 +139,18 @@ static inline int bch2_trans_mark_old(struct btree_trans *trans,
 	bkey_init(&deleted.k);
 	deleted.k.p = old.k->p;
 
-	return bch2_trans_mark_key(trans, btree_id, level, old, &deleted,
+	return bch2_trans_mark_key(trans, btree_id, level, old, bkey_i_to_s(&deleted),
 				   BTREE_TRIGGER_OVERWRITE|flags);
 }
 
 static inline int bch2_trans_mark_new(struct btree_trans *trans,
 				      enum btree_id btree_id, unsigned level,
-				      struct bkey_i *new, unsigned flags)
+				      struct bkey_s new, unsigned flags)
 {
 	struct bkey_i deleted;
 
 	bkey_init(&deleted.k);
-	deleted.k.p = new->k.p;
+	deleted.k.p = new.k->p;
 
 	return bch2_trans_mark_key(trans, btree_id, level, bkey_i_to_s_c(&deleted), new,
 				   BTREE_TRIGGER_INSERT|flags);

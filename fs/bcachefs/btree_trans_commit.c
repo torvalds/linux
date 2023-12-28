@@ -494,7 +494,7 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 	    old_ops->trans_trigger == new_ops->trans_trigger) {
 		i->overwrite_trigger_run = true;
 		i->insert_trigger_run = true;
-		return bch2_trans_mark_key(trans, i->btree_id, i->level, old, i->k,
+		return bch2_trans_mark_key(trans, i->btree_id, i->level, old, bkey_i_to_s(i->k),
 					   BTREE_TRIGGER_INSERT|
 					   BTREE_TRIGGER_OVERWRITE|
 					   i->flags) ?: 1;
@@ -503,7 +503,7 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 		return bch2_trans_mark_old(trans, i->btree_id, i->level, old, i->flags) ?: 1;
 	} else if (!overwrite && !i->insert_trigger_run) {
 		i->insert_trigger_run = true;
-		return bch2_trans_mark_new(trans, i->btree_id, i->level, i->k, i->flags) ?: 1;
+		return bch2_trans_mark_new(trans, i->btree_id, i->level, bkey_i_to_s(i->k), i->flags) ?: 1;
 	} else {
 		return 0;
 	}

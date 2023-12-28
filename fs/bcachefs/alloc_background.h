@@ -233,7 +233,7 @@ static inline bool bkey_is_alloc(const struct bkey *k)
 int bch2_alloc_read(struct bch_fs *);
 
 int bch2_trans_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_i *, unsigned);
+			  struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_check_alloc_info(struct bch_fs *);
 int bch2_check_alloc_to_lru_refs(struct bch_fs *);
 void bch2_do_discards(struct bch_fs *);

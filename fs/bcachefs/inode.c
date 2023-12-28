@@ -564,12 +564,12 @@ static inline bool bkey_is_deleted_inode(struct bkey_s_c k)
 int bch2_trans_mark_inode(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old,
-			  struct bkey_i *new,
+			  struct bkey_s new,
 			  unsigned flags)
 {
-	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
+	s64 nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
 	bool old_deleted = bkey_is_deleted_inode(old);
-	bool new_deleted = bkey_is_deleted_inode(bkey_i_to_s_c(new));
+	bool new_deleted = bkey_is_deleted_inode(new.s_c);
 
 	if (nr) {
 		int ret = bch2_replicas_deltas_realloc(trans, 0);
@@ -582,7 +582,7 @@ int bch2_trans_mark_inode(struct btree_trans *trans,
 	}
 
 	if (old_deleted != new_deleted) {
-		int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new->k.p, new_deleted);
+		int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new.k->p, new_deleted);
 		if (ret)
 			return ret;
 	}

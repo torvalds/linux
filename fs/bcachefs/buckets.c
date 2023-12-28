@@ -1423,15 +1423,15 @@ static int __trans_mark_extent(struct btree_trans *trans,
 
 int bch2_trans_mark_extent(struct btree_trans *trans,
 			   enum btree_id btree_id, unsigned level,
-			   struct bkey_s_c old, struct bkey_i *new,
+			   struct bkey_s_c old, struct bkey_s new,
 			   unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	int mod = (int) bch2_bkey_needs_rebalance(c, bkey_i_to_s_c(new)) -
+	int mod = (int) bch2_bkey_needs_rebalance(c, new.s_c) -
 		  (int) bch2_bkey_needs_rebalance(c, old);
 
 	if (mod) {
-		int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new->k.p, mod > 0);
+		int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new.k->p, mod > 0);
 		if (ret)
 			return ret;
 	}
@@ -1519,7 +1519,7 @@ err:
 
 int bch2_trans_mark_stripe(struct btree_trans *trans,
 			   enum btree_id btree_id, unsigned level,
-			   struct bkey_s_c old, struct bkey_i *new,
+			   struct bkey_s_c old, struct bkey_s new,
 			   unsigned flags)
 {
 	const struct bch_stripe *old_s = NULL;
@@ -1530,8 +1530,8 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 
 	if (old.k->type == KEY_TYPE_stripe)
 		old_s = bkey_s_c_to_stripe(old).v;
-	if (new->k.type == KEY_TYPE_stripe)
-		new_s = &bkey_i_to_stripe(new)->v;
+	if (new.k->type == KEY_TYPE_stripe)
+		new_s = bkey_s_to_stripe(new).v;
 
 	/*
 	 * If the pointers aren't changing, we don't need to do anything:
@@ -1552,7 +1552,7 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 	if (new_s) {
 		s64 sectors = le16_to_cpu(new_s->sectors);
 
-		bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(new));
+		bch2_bkey_to_replicas(&r.e, new.s_c);
 		ret = bch2_update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
 		if (ret)
 			return ret;
@@ -1576,7 +1576,7 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 
 		if (new_s) {
 			ret = bch2_trans_mark_stripe_bucket(trans,
-					bkey_i_to_s_c_stripe(new), i, false);
+					bkey_s_to_stripe(new).c, i, false);
 			if (ret)
 				break;
 		}
@@ -1620,7 +1620,7 @@ static int __trans_mark_reservation(struct btree_trans *trans,
 int bch2_trans_mark_reservation(struct btree_trans *trans,
 				enum btree_id btree_id, unsigned level,
 				struct bkey_s_c old,
-				struct bkey_i *new,
+				struct bkey_s new,
 				unsigned flags)
 {
 	return trigger_run_overwrite_then_insert(__trans_mark_reservation, trans, btree_id, level, old, new, flags);
