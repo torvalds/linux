@@ -145,6 +145,7 @@ static const struct amd_pmc_bit_map soc15_ip_blk[] = {
 	{"JPEG",	BIT(18)},
 	{"IPU",		BIT(19)},
 	{"UMSCH",	BIT(20)},
+	{"VPE",		BIT(21)},
 	{}
 };
 
@@ -354,6 +355,10 @@ static void amd_pmc_get_ip_info(struct amd_pmc_dev *dev)
 	case AMD_CPU_ID_PS:
 		dev->num_ips = 21;
 		dev->s2d_msg_id = 0x85;
+		break;
+	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
+		dev->num_ips = 22;
+		dev->s2d_msg_id = 0xDE;
 		break;
 	}
 }
