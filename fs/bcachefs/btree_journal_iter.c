@@ -467,9 +467,7 @@ static void __journal_keys_sort(struct journal_keys *keys)
 	src = dst = keys->d;
 	while (src < keys->d + keys->nr) {
 		while (src + 1 < keys->d + keys->nr &&
-		       src[0].btree_id	== src[1].btree_id &&
-		       src[0].level	== src[1].level &&
-		       bpos_eq(src[0].k->k.p, src[1].k->k.p))
+		       !journal_key_cmp(src, src + 1))
 			src++;
 
 		*dst++ = *src++;
