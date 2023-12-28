@@ -31,7 +31,6 @@
 #include "pmc.h"
 
 /* SMU communication registers */
-#define AMD_PMC_REGISTER_MESSAGE	0x538
 #define AMD_PMC_REGISTER_RESPONSE	0x980
 #define AMD_PMC_REGISTER_ARGUMENT	0x9BC
 
@@ -352,14 +351,17 @@ static void amd_pmc_get_ip_info(struct amd_pmc_dev *dev)
 	case AMD_CPU_ID_CB:
 		dev->num_ips = 12;
 		dev->s2d_msg_id = 0xBE;
+		dev->smu_msg = 0x538;
 		break;
 	case AMD_CPU_ID_PS:
 		dev->num_ips = 21;
 		dev->s2d_msg_id = 0x85;
+		dev->smu_msg = 0x538;
 		break;
 	case PCI_DEVICE_ID_AMD_1AH_M20H_ROOT:
 		dev->num_ips = 22;
 		dev->s2d_msg_id = 0xDE;
+		dev->smu_msg = 0x938;
 		break;
 	}
 }
@@ -663,7 +665,7 @@ static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 		argument = AMD_S2D_REGISTER_ARGUMENT;
 		response = AMD_S2D_REGISTER_RESPONSE;
 	} else {
-		message = AMD_PMC_REGISTER_MESSAGE;
+		message = dev->smu_msg;
 		argument = AMD_PMC_REGISTER_ARGUMENT;
 		response = AMD_PMC_REGISTER_RESPONSE;
 	}
@@ -690,7 +692,7 @@ static int amd_pmc_send_cmd(struct amd_pmc_dev *dev, u32 arg, u32 *data, u8 msg,
 		argument = AMD_S2D_REGISTER_ARGUMENT;
 		response = AMD_S2D_REGISTER_RESPONSE;
 	} else {
-		message = AMD_PMC_REGISTER_MESSAGE;
+		message = dev->smu_msg;
 		argument = AMD_PMC_REGISTER_ARGUMENT;
 		response = AMD_PMC_REGISTER_RESPONSE;
 	}

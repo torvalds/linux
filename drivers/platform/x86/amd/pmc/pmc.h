@@ -26,6 +26,7 @@ struct amd_pmc_dev {
 	u32 dram_size;
 	u32 num_ips;
 	u32 s2d_msg_id;
+	u32 smu_msg;
 /* SMU version information */
 	u8 smu_program;
 	u8 major;
