@@ -785,8 +785,15 @@ revert_fs_usage:
 
 static noinline void bch2_drop_overwrites_from_journal(struct btree_trans *trans)
 {
+	/*
+	 * Accounting keys aren't deduped in the journal: we have to compare
+	 * each individual update against what's in the btree to see if it has
+	 * been applied yet, and accounting updates also don't overwrite,
+	 * they're deltas that accumulate.
+	 */
 	trans_for_each_update(trans, i)
-		bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
+		if (i->k->k.type != KEY_TYPE_accounting)
+			bch2_journal_key_overwritten(trans->c, i->btree_id, i->level, i->k->k.p);
 }
 
 static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
@@ -993,15 +1000,24 @@ static noinline int
 do_bch2_trans_commit_to_journal_replay(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
-	int ret = 0;
 
 	trans_for_each_update(trans, i) {
-		ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->k);
+		int ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->k);
 		if (ret)
-			break;
+			return ret;
 	}
 
-	return ret;
+	for (struct jset_entry *i = trans->journal_entries;
+	     i != (void *) ((u64 *) trans->journal_entries + trans->journal_entries_u64s);
+	     i = vstruct_next(i))
+		if (i->type == BCH_JSET_ENTRY_btree_keys ||
+		    i->type == BCH_JSET_ENTRY_write_buffer_keys) {
+			int ret = bch2_journal_key_insert(c, i->btree_id, i->level, i->start);
+			if (ret)
+				return ret;
+		}
+
+	return 0;
 }
 
 int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)

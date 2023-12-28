@@ -26,6 +26,21 @@ struct btree_and_journal_iter {
 	bool			prefetch;
 };
 
+static inline int __journal_key_cmp(enum btree_id	l_btree_id,
+				    unsigned		l_level,
+				    struct bpos	l_pos,
+				    const struct journal_key *r)
+{
+	return (cmp_int(l_btree_id,	r->btree_id) ?:
+		cmp_int(l_level,	r->level) ?:
+		bpos_cmp(l_pos,	r->k->k.p));
+}
+
+static inline int journal_key_cmp(const struct journal_key *l, const struct journal_key *r)
+{
+	return __journal_key_cmp(l->btree_id, l->level, l->k->k.p, r);
+}
+
 struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *, enum btree_id,
 				unsigned, struct bpos, struct bpos, size_t *);
 struct bkey_i *bch2_journal_keys_peek_slot(struct bch_fs *, enum btree_id,

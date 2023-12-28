@@ -130,7 +130,19 @@ static inline int __must_check bch2_trans_update_buffered(struct btree_trans *tr
 					    enum btree_id btree,
 					    struct bkey_i *k)
 {
-	if (unlikely(trans->journal_replay_not_finished))
+	/*
+	 * Most updates skip the btree write buffer until journal replay is
+	 * finished because synchronization with journal replay relies on having
+	 * a btree node locked - if we're overwriting a key in the journal that
+	 * journal replay hasn't yet replayed, we have to mark it as
+	 * overwritten.
+	 *
+	 * But accounting updates don't overwrite, they're deltas, and they have
+	 * to be flushed to the btree strictly in order for journal replay to be
+	 * able to tell which updates need to be applied:
+	 */
+	if (k->k.type != KEY_TYPE_accounting &&
+	    unlikely(trans->journal_replay_not_finished))
 		return bch2_btree_insert_clone_trans(trans, btree, k);
 
 	struct jset_entry *e = bch2_trans_jset_entry_alloc(trans, jset_u64s(k->k.u64s));

@@ -10,6 +10,7 @@
 #include "btree_io.h"
 #include "buckets.h"
 #include "dirent.h"
+#include "disk_accounting.h"
 #include "errcode.h"
 #include "error.h"
 #include "fs-common.h"
@@ -135,6 +136,47 @@ static void replay_now_at(struct journal *j, u64 seq)
 		bch2_journal_pin_put(j, j->replay_journal_seq++);
 }
 
+static int bch2_journal_replay_accounting_key(struct btree_trans *trans,
+					      struct journal_key *k)
+{
+	struct journal_keys *keys = &trans->c->journal_keys;
+
+	struct btree_iter iter;
+	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
+				  BTREE_MAX_DEPTH, k->level,
+				  BTREE_ITER_intent);
+	int ret = bch2_btree_iter_traverse(&iter);
+	if (ret)
+		goto out;
+
+	struct bkey u;
+	struct bkey_s_c old = bch2_btree_path_peek_slot(btree_iter_path(trans, &iter), &u);
+
+	/* Has this delta already been applied to the btree? */
+	if (bversion_cmp(old.k->version, k->k->k.version) >= 0) {
+		ret = 0;
+		goto out;
+	}
+
+	struct bkey_i *new = k->k;
+	if (old.k->type == KEY_TYPE_accounting) {
+		new = bch2_bkey_make_mut_noupdate(trans, bkey_i_to_s_c(k->k));
+		ret = PTR_ERR_OR_ZERO(new);
+		if (ret)
+			goto out;
+
+		bch2_accounting_accumulate(bkey_i_to_accounting(new),
+					   bkey_s_c_to_accounting(old));
+	}
+
+	trans->journal_res.seq = k->journal_seq;
+
+	ret = bch2_trans_update(trans, &iter, new, BTREE_TRIGGER_norun);
+out:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static int bch2_journal_replay_key(struct btree_trans *trans,
 				   struct journal_key *k)
 {
@@ -185,6 +227,11 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	if (k->overwritten)
 		goto out;
 
+	if (k->k->k.type == KEY_TYPE_accounting) {
+		ret = bch2_trans_update_buffered(trans, BTREE_ID_accounting, k->k);
+		goto out;
+	}
+
 	ret = bch2_trans_update(trans, &iter, k->k, update_flags);
 out:
 	bch2_trans_iter_exit(trans, &iter);
@@ -223,6 +270,27 @@ int bch2_journal_replay(struct bch_fs *c)
 	trans = bch2_trans_get(c);
 
 	/*
+	 * Replay accounting keys first: we can't allow the write buffer to
+	 * flush accounting keys until we're done
+	 */
+	darray_for_each(*keys, k) {
+		if (!(k->k->k.type == KEY_TYPE_accounting && !k->allocated))
+			continue;
+
+		cond_resched();
+
+		ret = commit_do(trans, NULL, NULL,
+				BCH_TRANS_COMMIT_no_enospc|
+				BCH_TRANS_COMMIT_journal_reclaim|
+				BCH_TRANS_COMMIT_no_journal_res,
+			     bch2_journal_replay_accounting_key(trans, k));
+		if (bch2_fs_fatal_err_on(ret, c, "error replaying accounting; %s", bch2_err_str(ret)))
+			goto err;
+
+		k->overwritten = true;
+	}
+
+	/*
 	 * First, attempt to replay keys in sorted order. This is more
 	 * efficient - better locality of btree access -  but some might fail if
 	 * that would cause a journal deadlock.
@@ -244,7 +312,7 @@ int bch2_journal_replay(struct bch_fs *c)
 				  BCH_TRANS_COMMIT_journal_reclaim|
 				  (!k->allocated ? BCH_TRANS_COMMIT_no_journal_res : 0),
 			     bch2_journal_replay_key(trans, k));
-		BUG_ON(!ret && !k->overwritten);
+		BUG_ON(!ret && !k->overwritten && k->k->k.type != KEY_TYPE_accounting);
 		if (ret) {
 			ret = darray_push(&keys_sorted, k);
 			if (ret)
@@ -281,7 +349,7 @@ int bch2_journal_replay(struct bch_fs *c)
 		if (ret)
 			goto err;
 
-		BUG_ON(!k->overwritten);
+		BUG_ON(k->btree_id != BTREE_ID_accounting && !k->overwritten);
 	}
 
 	/*
