@@ -62,8 +62,6 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
 
 #define list_lru_init(lru)				\
 	__list_lru_init((lru), false, NULL, NULL)
-#define list_lru_init_key(lru, key)			\
-	__list_lru_init((lru), false, (key), NULL)
 #define list_lru_init_memcg(lru, shrinker)		\
 	__list_lru_init((lru), true, NULL, shrinker)
 
