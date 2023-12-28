@@ -1121,45 +1121,6 @@ int bch2_mark_stripe(struct btree_trans *trans,
 	return 0;
 }
 
-static int __mark_reservation(struct btree_trans *trans,
-			      enum btree_id btree_id, unsigned level,
-			      struct bkey_s_c k, unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_fs_usage *fs_usage;
-	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
-	s64 sectors = (s64) k.k->size;
-
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
-
-	if (flags & BTREE_TRIGGER_OVERWRITE)
-		sectors = -sectors;
-	sectors *= replicas;
-
-	percpu_down_read(&c->mark_lock);
-	preempt_disable();
-
-	fs_usage = fs_usage_ptr(c, trans->journal_res.seq, flags & BTREE_TRIGGER_GC);
-	replicas = clamp_t(unsigned, replicas, 1,
-			   ARRAY_SIZE(fs_usage->persistent_reserved));
-
-	fs_usage->reserved				+= sectors;
-	fs_usage->persistent_reserved[replicas - 1]	+= sectors;
-
-	preempt_enable();
-	percpu_up_read(&c->mark_lock);
-
-	return 0;
-}
-
-int bch2_mark_reservation(struct btree_trans *trans,
-			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old, struct bkey_s new,
-			  unsigned flags)
-{
-	return trigger_run_overwrite_then_insert(__mark_reservation, trans, btree_id, level, old, new, flags);
-}
-
 void bch2_trans_fs_usage_revert(struct btree_trans *trans,
 				struct replicas_delta_list *deltas)
 {
@@ -1593,39 +1554,56 @@ int bch2_trans_mark_stripe(struct btree_trans *trans,
 	return ret;
 }
 
-static int __trans_mark_reservation(struct btree_trans *trans,
-				    enum btree_id btree_id, unsigned level,
-				    struct bkey_s_c k, unsigned flags)
+/* KEY_TYPE_reservation */
+
+static int __trigger_reservation(struct btree_trans *trans,
+				 enum btree_id btree_id, unsigned level,
+				 struct bkey_s_c k, unsigned flags)
 {
+	struct bch_fs *c = trans->c;
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
-	s64 sectors = (s64) k.k->size;
-	struct replicas_delta_list *d;
-	int ret;
+	s64 sectors = (s64) k.k->size * replicas;
 
 	if (flags & BTREE_TRIGGER_OVERWRITE)
 		sectors = -sectors;
-	sectors *= replicas;
 
-	ret = bch2_replicas_deltas_realloc(trans, 0);
-	if (ret)
-		return ret;
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		int ret = bch2_replicas_deltas_realloc(trans, 0);
+		if (ret)
+			return ret;
 
-	d = trans->fs_usage_deltas;
-	replicas = clamp_t(unsigned, replicas, 1,
-			   ARRAY_SIZE(d->persistent_reserved));
+		struct replicas_delta_list *d = trans->fs_usage_deltas;
+		replicas = min(replicas, ARRAY_SIZE(d->persistent_reserved));
 
-	d->persistent_reserved[replicas - 1] += sectors;
+		d->persistent_reserved[replicas - 1] += sectors;
+	}
+
+	if (flags & BTREE_TRIGGER_GC) {
+		percpu_down_read(&c->mark_lock);
+		preempt_disable();
+
+		struct bch_fs_usage *fs_usage = this_cpu_ptr(c->usage_gc);
+
+		replicas = min(replicas, ARRAY_SIZE(fs_usage->persistent_reserved));
+		fs_usage->reserved				+= sectors;
+		fs_usage->persistent_reserved[replicas - 1]	+= sectors;
+
+		preempt_enable();
+		percpu_up_read(&c->mark_lock);
+	}
+
 	return 0;
 }
 
-int bch2_trans_mark_reservation(struct btree_trans *trans,
-				enum btree_id btree_id, unsigned level,
-				struct bkey_s_c old,
-				struct bkey_s new,
-				unsigned flags)
+int bch2_trigger_reservation(struct btree_trans *trans,
+			  enum btree_id btree_id, unsigned level,
+			  struct bkey_s_c old, struct bkey_s new,
+			  unsigned flags)
 {
-	return trigger_run_overwrite_then_insert(__trans_mark_reservation, trans, btree_id, level, old, new, flags);
+	return trigger_run_overwrite_then_insert(__trigger_reservation, trans, btree_id, level, old, new, flags);
 }
+
+/* Mark superblocks: */
 
 static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    struct bch_dev *ca, size_t b,

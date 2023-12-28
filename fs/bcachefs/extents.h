@@ -454,8 +454,8 @@ bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.key_invalid	= bch2_reservation_invalid,		\
 	.val_to_text	= bch2_reservation_to_text,		\
 	.key_merge	= bch2_reservation_merge,		\
-	.trans_trigger	= bch2_trans_mark_reservation,		\
-	.atomic_trigger	= bch2_mark_reservation,		\
+	.trans_trigger	= bch2_trigger_reservation,		\
+	.atomic_trigger	= bch2_trigger_reservation,		\
 	.min_val_size	= 8,					\
 })
 
