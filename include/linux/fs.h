@@ -1650,9 +1650,9 @@ static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
  * @sb: the super we write to
  * @level: the freeze level
  *
- * > 0 sb freeze level is held
- *   0 sb freeze level is not held
- * < 0 !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN
+ * * > 0 - sb freeze level is held
+ * *   0 - sb freeze level is not held
+ * * < 0 - !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN
  */
 static inline int __sb_write_started(const struct super_block *sb, int level)
 {
