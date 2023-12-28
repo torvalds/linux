@@ -597,18 +597,6 @@ static inline void mod_lruvec_page_state(struct page *page,
 
 #endif /* CONFIG_MEMCG */
 
-static inline void __inc_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx)
-{
-	__mod_lruvec_page_state(page, idx, 1);
-}
-
-static inline void __dec_lruvec_page_state(struct page *page,
-					   enum node_stat_item idx)
-{
-	__mod_lruvec_page_state(page, idx, -1);
-}
-
 static inline void __lruvec_stat_mod_folio(struct folio *folio,
 					   enum node_stat_item idx, int val)
 {
@@ -625,18 +613,6 @@ static inline void __lruvec_stat_sub_folio(struct folio *folio,
 					   enum node_stat_item idx)
 {
 	__lruvec_stat_mod_folio(folio, idx, -folio_nr_pages(folio));
-}
-
-static inline void inc_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx)
-{
-	mod_lruvec_page_state(page, idx, 1);
-}
-
-static inline void dec_lruvec_page_state(struct page *page,
-					 enum node_stat_item idx)
-{
-	mod_lruvec_page_state(page, idx, -1);
 }
 
 static inline void lruvec_stat_mod_folio(struct folio *folio,
