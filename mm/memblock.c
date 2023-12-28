@@ -2113,12 +2113,13 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 		 * Free the pages in the largest chunks alignment allows.
 		 *
 		 * __ffs() behaviour is undefined for 0. start == 0 is
-		 * MAX_ORDER-aligned, set order to MAX_ORDER for the case.
+		 * MAX_PAGE_ORDER-aligned, set order to MAX_PAGE_ORDER for
+		 * the case.
 		 */
 		if (start)
-			order = min_t(int, MAX_ORDER, __ffs(start));
+			order = min_t(int, MAX_PAGE_ORDER, __ffs(start));
 		else
-			order = MAX_ORDER;
+			order = MAX_PAGE_ORDER;
 
 		while (start + (1UL << order) > end)
 			order--;

@@ -141,7 +141,7 @@ struct smallstack {
 
 static struct smallstack collect = {
 	.index = 0,
-	.order = MAX_ORDER,
+	.order = MAX_PAGE_ORDER,
 };
 
 static void smallstack_push(struct smallstack *stack, struct page *pages)
@@ -211,8 +211,8 @@ static void kmsan_memblock_discard(void)
 	 *    order=N-1,
 	 *  - repeat.
 	 */
-	collect.order = MAX_ORDER;
-	for (int i = MAX_ORDER; i >= 0; i--) {
+	collect.order = MAX_PAGE_ORDER;
+	for (int i = MAX_PAGE_ORDER; i >= 0; i--) {
 		if (held_back[i].shadow)
 			smallstack_push(&collect, held_back[i].shadow);
 		if (held_back[i].origin)

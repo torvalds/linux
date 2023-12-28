@@ -999,7 +999,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			 * a valid page order. Consider only values in the
 			 * valid order range to prevent low_pfn overflow.
 			 */
-			if (freepage_order > 0 && freepage_order <= MAX_ORDER) {
+			if (freepage_order > 0 && freepage_order <= MAX_PAGE_ORDER) {
 				low_pfn += (1UL << freepage_order) - 1;
 				nr_scanned += (1UL << freepage_order) - 1;
 			}
@@ -1017,7 +1017,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 		if (PageCompound(page) && !cc->alloc_contig) {
 			const unsigned int order = compound_order(page);
 
-			if (likely(order <= MAX_ORDER)) {
+			if (likely(order <= MAX_PAGE_ORDER)) {
 				low_pfn += (1UL << order) - 1;
 				nr_scanned += (1UL << order) - 1;
 			}

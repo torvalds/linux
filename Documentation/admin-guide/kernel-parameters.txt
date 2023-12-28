@@ -970,17 +970,17 @@
 			buddy allocator. Bigger value increase the probability
 			of catching random memory corruption, but reduce the
 			amount of memory for normal system use. The maximum
-			possible value is MAX_ORDER/2.  Setting this parameter
-			to 1 or 2 should be enough to identify most random
-			memory corruption problems caused by bugs in kernel or
-			driver code when a CPU writes to (or reads from) a
-			random memory location. Note that there exists a class
-			of memory corruptions problems caused by buggy H/W or
-			F/W or by drivers badly programming DMA (basically when
-			memory is written at bus level and the CPU MMU is
-			bypassed) which are not detectable by
-			CONFIG_DEBUG_PAGEALLOC, hence this option will not help
-			tracking down these problems.
+			possible value is MAX_PAGE_ORDER/2.  Setting this
+			parameter to 1 or 2 should be enough to identify most
+			random memory corruption problems caused by bugs in
+			kernel or driver code when a CPU writes to (or reads
+			from) a random memory location. Note that there exists
+			a class of memory corruptions problems caused by buggy
+			H/W or F/W or by drivers badly programming DMA
+			(basically when memory is written at bus level and the
+			CPU MMU is bypassed) which are not detectable by
+			CONFIG_DEBUG_PAGEALLOC, hence this option will not
+			help tracking down these problems.
 
 	debug_pagealloc=
 			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this parameter
@@ -4136,7 +4136,7 @@
 			[KNL] Minimal page reporting order
 			Format: <integer>
 			Adjust the minimal page reporting order. The page
-			reporting is disabled when it exceeds MAX_ORDER.
+			reporting is disabled when it exceeds MAX_PAGE_ORDER.
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting

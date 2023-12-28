@@ -927,8 +927,8 @@ static phys_addr_t hvfb_get_phymem(struct hv_device *hdev,
 	if (request_size == 0)
 		return -1;
 
-	if (order <= MAX_ORDER) {
-		/* Call alloc_pages if the size is less than 2^MAX_ORDER */
+	if (order <= MAX_PAGE_ORDER) {
+		/* Call alloc_pages if the size is less than 2^MAX_PAGE_ORDER */
 		page = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 		if (!page)
 			return -1;
@@ -958,7 +958,7 @@ static void hvfb_release_phymem(struct hv_device *hdev,
 {
 	unsigned int order = get_order(size);
 
-	if (order <= MAX_ORDER)
+	if (order <= MAX_PAGE_ORDER)
 		__free_pages(pfn_to_page(paddr >> PAGE_SHIFT), order);
 	else
 		dma_free_coherent(&hdev->device,

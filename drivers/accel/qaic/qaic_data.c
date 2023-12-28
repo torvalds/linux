@@ -451,7 +451,7 @@ static int create_sgt(struct qaic_device *qdev, struct sg_table **sgt_out, u64 s
 		 * later
 		 */
 		buf_extra = (PAGE_SIZE - size % PAGE_SIZE) % PAGE_SIZE;
-		max_order = min(MAX_ORDER - 1, get_order(size));
+		max_order = min(MAX_PAGE_ORDER - 1, get_order(size));
 	} else {
 		/* allocate a single page for book keeping */
 		nr_pages = 1;

@@ -320,7 +320,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 				unsigned long freepage_order;
 
 				freepage_order = buddy_order_unsafe(page);
-				if (freepage_order <= MAX_ORDER)
+				if (freepage_order <= MAX_PAGE_ORDER)
 					pfn += (1UL << freepage_order) - 1;
 				continue;
 			}
@@ -555,7 +555,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		if (PageBuddy(page)) {
 			unsigned long freepage_order = buddy_order_unsafe(page);
 
-			if (freepage_order <= MAX_ORDER)
+			if (freepage_order <= MAX_PAGE_ORDER)
 				pfn += (1UL << freepage_order) - 1;
 			continue;
 		}
@@ -663,7 +663,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			if (PageBuddy(page)) {
 				unsigned long order = buddy_order_unsafe(page);
 
-				if (order > 0 && order <= MAX_ORDER)
+				if (order > 0 && order <= MAX_PAGE_ORDER)
 					pfn += (1UL << order) - 1;
 				continue;
 			}

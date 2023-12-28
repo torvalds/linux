@@ -381,7 +381,7 @@ config SHUFFLE_PAGE_ALLOCATOR
 	  the presence of a memory-side-cache. There are also incidental
 	  security benefits as it reduces the predictability of page
 	  allocations to compliment SLAB_FREELIST_RANDOM, but the
-	  default granularity of shuffling on the MAX_ORDER i.e, 10th
+	  default granularity of shuffling on the MAX_PAGE_ORDER i.e, 10th
 	  order of pages is selected based on cache utilization benefits
 	  on x86.
 
@@ -713,8 +713,8 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
 	  on a platform.
 
-	  Note that the pageblock_order cannot exceed MAX_ORDER and will be
-	  clamped down to MAX_ORDER.
+	  Note that the pageblock_order cannot exceed MAX_PAGE_ORDER and will be
+	  clamped down to MAX_PAGE_ORDER.
 
 config CONTIG_ALLOC
 	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA

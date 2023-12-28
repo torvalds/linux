@@ -686,8 +686,8 @@ static struct io_tlb_pool *swiotlb_alloc_pool(struct device *dev,
 	size_t pool_size;
 	size_t tlb_size;
 
-	if (nslabs > SLABS_PER_PAGE << MAX_ORDER) {
-		nslabs = SLABS_PER_PAGE << MAX_ORDER;
+	if (nslabs > SLABS_PER_PAGE << MAX_PAGE_ORDER) {
+		nslabs = SLABS_PER_PAGE << MAX_PAGE_ORDER;
 		nareas = limit_nareas(nareas, nslabs);
 	}
 
