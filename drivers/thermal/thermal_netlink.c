@@ -76,12 +76,20 @@ typedef int (*cb_t)(struct param *);
 
 static struct genl_family thermal_gnl_family;
 
+static int thermal_group_has_listeners(enum thermal_genl_multicast_groups group)
+{
+	return genl_has_listeners(&thermal_gnl_family, &init_net, group);
+}
+
 /************************** Sampling encoding *******************************/
 
 int thermal_genl_sampling_temp(int id, int temp)
 {
 	struct sk_buff *skb;
 	void *hdr;
+
+	if (!thermal_group_has_listeners(THERMAL_GENL_SAMPLING_GROUP))
+		return 0;
 
 	skb = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -279,6 +287,9 @@ static int thermal_genl_send_event(enum thermal_genl_event event,
 	struct sk_buff *msg;
 	int ret = -EMSGSIZE;
 	void *hdr;
+
+	if (!thermal_group_has_listeners(THERMAL_GENL_EVENT_GROUP))
+		return 0;
 
 	msg = genlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!msg)
