@@ -749,173 +749,163 @@ static noinline int bch2_bucket_gen_update(struct btree_trans *trans,
 	return ret;
 }
 
-int bch2_trans_mark_alloc(struct btree_trans *trans,
-			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old, struct bkey_s new,
-			  unsigned flags)
+int bch2_trigger_alloc(struct btree_trans *trans,
+		       enum btree_id btree, unsigned level,
+		       struct bkey_s_c old, struct bkey_s new,
+		       unsigned flags)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_alloc_v4 old_a_convert, *new_a;
-	const struct bch_alloc_v4 *old_a;
-	u64 old_lru, new_lru;
 	int ret = 0;
-
-	/*
-	 * Deletion only happens in the device removal path, with
-	 * BTREE_TRIGGER_NORUN:
-	 */
-	BUG_ON(new.k->type != KEY_TYPE_alloc_v4);
-
-	old_a = bch2_alloc_to_v4(old, &old_a_convert);
-	new_a = bkey_s_to_alloc_v4(new).v;
-
-	new_a->data_type = alloc_data_type(*new_a, new_a->data_type);
-
-	if (bch2_bucket_sectors(*new_a) > bch2_bucket_sectors(*old_a)) {
-		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
-		new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
-		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
-		SET_BCH_ALLOC_V4_NEED_DISCARD(new_a, true);
-	}
-
-	if (data_type_is_empty(new_a->data_type) &&
-	    BCH_ALLOC_V4_NEED_INC_GEN(new_a) &&
-	    !bch2_bucket_is_open_safe(c, new.k->p.inode, new.k->p.offset)) {
-		new_a->gen++;
-		SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, false);
-	}
-
-	if (old_a->data_type != new_a->data_type ||
-	    (new_a->data_type == BCH_DATA_free &&
-	     alloc_freespace_genbits(*old_a) != alloc_freespace_genbits(*new_a))) {
-		ret =   bch2_bucket_do_index(trans, old, old_a, false) ?:
-			bch2_bucket_do_index(trans, new.s_c, new_a, true);
-		if (ret)
-			return ret;
-	}
-
-	if (new_a->data_type == BCH_DATA_cached &&
-	    !new_a->io_time[READ])
-		new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
-
-	old_lru = alloc_lru_idx_read(*old_a);
-	new_lru = alloc_lru_idx_read(*new_a);
-
-	if (old_lru != new_lru) {
-		ret = bch2_lru_change(trans, new.k->p.inode,
-				      bucket_to_u64(new.k->p),
-				      old_lru, new_lru);
-		if (ret)
-			return ret;
-	}
-
-	new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a,
-					bch_dev_bkey_exists(c, new.k->p.inode));
-
-	if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
-		ret = bch2_lru_change(trans,
-				BCH_LRU_FRAGMENTATION_START,
-				bucket_to_u64(new.k->p),
-				old_a->fragmentation_lru, new_a->fragmentation_lru);
-		if (ret)
-			return ret;
-	}
-
-	if (old_a->gen != new_a->gen) {
-		ret = bch2_bucket_gen_update(trans, new.k->p, new_a->gen);
-		if (ret)
-			return ret;
-	}
-
-	/*
-	 * need to know if we're getting called from the invalidate path or
-	 * not:
-	 */
-
-	if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
-	    old_a->cached_sectors) {
-		ret = bch2_update_cached_sectors_list(trans, new.k->p.inode,
-						      -((s64) old_a->cached_sectors));
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-int bch2_mark_alloc(struct btree_trans *trans,
-		    enum btree_id btree, unsigned level,
-		    struct bkey_s_c old, struct bkey_s new,
-		    unsigned flags)
-{
-	bool gc = flags & BTREE_TRIGGER_GC;
-	u64 journal_seq = trans->journal_res.seq;
-	u64 bucket_journal_seq;
-	struct bch_fs *c = trans->c;
-	struct bch_alloc_v4 old_a_convert, new_a_convert;
-	const struct bch_alloc_v4 *old_a, *new_a;
-	struct bch_dev *ca;
-	int ret = 0;
-
-	/*
-	 * alloc btree is read in by bch2_alloc_read, not gc:
-	 */
-	if ((flags & BTREE_TRIGGER_GC) &&
-	    !(flags & BTREE_TRIGGER_BUCKET_INVALIDATE))
-		return 0;
 
 	if (bch2_trans_inconsistent_on(!bch2_dev_bucket_exists(c, new.k->p), trans,
 				       "alloc key for invalid device or bucket"))
 		return -EIO;
 
-	ca = bch_dev_bkey_exists(c, new.k->p.inode);
+	struct bch_dev *ca = bch_dev_bkey_exists(c, new.k->p.inode);
 
-	old_a = bch2_alloc_to_v4(old, &old_a_convert);
-	new_a = bch2_alloc_to_v4(new.s_c, &new_a_convert);
+	struct bch_alloc_v4 old_a_convert;
+	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
 
-	bucket_journal_seq = new_a->journal_seq;
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
 
-	if ((flags & BTREE_TRIGGER_INSERT) &&
-	    data_type_is_empty(old_a->data_type) !=
-	    data_type_is_empty(new_a->data_type) &&
-	    new.k->type == KEY_TYPE_alloc_v4) {
-		struct bch_alloc_v4 *v = (struct bch_alloc_v4 *) new.v;
+		new_a->data_type = alloc_data_type(*new_a, new_a->data_type);
 
-		EBUG_ON(!journal_seq);
+		if (bch2_bucket_sectors(*new_a) > bch2_bucket_sectors(*old_a)) {
+			new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
+			new_a->io_time[WRITE]= max_t(u64, 1, atomic64_read(&c->io_clock[WRITE].now));
+			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, true);
+			SET_BCH_ALLOC_V4_NEED_DISCARD(new_a, true);
+		}
+
+		if (data_type_is_empty(new_a->data_type) &&
+		    BCH_ALLOC_V4_NEED_INC_GEN(new_a) &&
+		    !bch2_bucket_is_open_safe(c, new.k->p.inode, new.k->p.offset)) {
+			new_a->gen++;
+			SET_BCH_ALLOC_V4_NEED_INC_GEN(new_a, false);
+		}
+
+		if (old_a->data_type != new_a->data_type ||
+		    (new_a->data_type == BCH_DATA_free &&
+		     alloc_freespace_genbits(*old_a) != alloc_freespace_genbits(*new_a))) {
+			ret =   bch2_bucket_do_index(trans, old, old_a, false) ?:
+				bch2_bucket_do_index(trans, new.s_c, new_a, true);
+			if (ret)
+				return ret;
+		}
+
+		if (new_a->data_type == BCH_DATA_cached &&
+		    !new_a->io_time[READ])
+			new_a->io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
+
+		u64 old_lru = alloc_lru_idx_read(*old_a);
+		u64 new_lru = alloc_lru_idx_read(*new_a);
+		if (old_lru != new_lru) {
+			ret = bch2_lru_change(trans, new.k->p.inode,
+					      bucket_to_u64(new.k->p),
+					      old_lru, new_lru);
+			if (ret)
+				return ret;
+		}
+
+		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a,
+						bch_dev_bkey_exists(c, new.k->p.inode));
+		if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
+			ret = bch2_lru_change(trans,
+					BCH_LRU_FRAGMENTATION_START,
+					bucket_to_u64(new.k->p),
+					old_a->fragmentation_lru, new_a->fragmentation_lru);
+			if (ret)
+				return ret;
+		}
+
+		if (old_a->gen != new_a->gen) {
+			ret = bch2_bucket_gen_update(trans, new.k->p, new_a->gen);
+			if (ret)
+				return ret;
+		}
 
 		/*
-		 * If the btree updates referring to a bucket weren't flushed
-		 * before the bucket became empty again, then the we don't have
-		 * to wait on a journal flush before we can reuse the bucket:
+		 * need to know if we're getting called from the invalidate path or
+		 * not:
 		 */
-		v->journal_seq = bucket_journal_seq =
-			data_type_is_empty(new_a->data_type) &&
-			(journal_seq == v->journal_seq ||
-			 bch2_journal_noflush_seq(&c->journal, v->journal_seq))
-			? 0 : journal_seq;
-	}
 
-	if (!data_type_is_empty(old_a->data_type) &&
-	    data_type_is_empty(new_a->data_type) &&
-	    bucket_journal_seq) {
-		ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-				c->journal.flushed_seq_ondisk,
-				new.k->p.inode, new.k->p.offset,
-				bucket_journal_seq);
-		if (ret) {
-			bch2_fs_fatal_error(c,
-				"error setting bucket_needs_journal_commit: %i", ret);
-			return ret;
+		if ((flags & BTREE_TRIGGER_BUCKET_INVALIDATE) &&
+		    old_a->cached_sectors) {
+			ret = bch2_update_cached_sectors_list(trans, new.k->p.inode,
+							      -((s64) old_a->cached_sectors));
+			if (ret)
+				return ret;
 		}
 	}
 
-	percpu_down_read(&c->mark_lock);
-	if (!gc && new_a->gen != old_a->gen)
-		*bucket_gen(ca, new.k->p.offset) = new_a->gen;
+	if (!(flags & BTREE_TRIGGER_TRANSACTIONAL) && (flags & BTREE_TRIGGER_INSERT)) {
+		struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
+		u64 journal_seq = trans->journal_res.seq;
+		u64 bucket_journal_seq = new_a->journal_seq;
 
-	bch2_dev_usage_update(c, ca, old_a, new_a, journal_seq, gc);
+		if ((flags & BTREE_TRIGGER_INSERT) &&
+		    data_type_is_empty(old_a->data_type) !=
+		    data_type_is_empty(new_a->data_type) &&
+		    new.k->type == KEY_TYPE_alloc_v4) {
+			struct bch_alloc_v4 *v = bkey_s_to_alloc_v4(new).v;
 
-	if (gc) {
+			/*
+			 * If the btree updates referring to a bucket weren't flushed
+			 * before the bucket became empty again, then the we don't have
+			 * to wait on a journal flush before we can reuse the bucket:
+			 */
+			v->journal_seq = bucket_journal_seq =
+				data_type_is_empty(new_a->data_type) &&
+				(journal_seq == v->journal_seq ||
+				 bch2_journal_noflush_seq(&c->journal, v->journal_seq))
+				? 0 : journal_seq;
+		}
+
+		if (!data_type_is_empty(old_a->data_type) &&
+		    data_type_is_empty(new_a->data_type) &&
+		    bucket_journal_seq) {
+			ret = bch2_set_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+					c->journal.flushed_seq_ondisk,
+					new.k->p.inode, new.k->p.offset,
+					bucket_journal_seq);
+			if (ret) {
+				bch2_fs_fatal_error(c,
+					"error setting bucket_needs_journal_commit: %i", ret);
+				return ret;
+			}
+		}
+
+		percpu_down_read(&c->mark_lock);
+		if (new_a->gen != old_a->gen)
+			*bucket_gen(ca, new.k->p.offset) = new_a->gen;
+
+		bch2_dev_usage_update(c, ca, old_a, new_a, journal_seq, false);
+
+		if (new_a->data_type == BCH_DATA_free &&
+		    (!new_a->journal_seq || new_a->journal_seq < c->journal.flushed_seq_ondisk))
+			closure_wake_up(&c->freelist_wait);
+
+		if (new_a->data_type == BCH_DATA_need_discard &&
+		    (!bucket_journal_seq || bucket_journal_seq < c->journal.flushed_seq_ondisk))
+			bch2_do_discards(c);
+
+		if (old_a->data_type != BCH_DATA_cached &&
+		    new_a->data_type == BCH_DATA_cached &&
+		    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
+			bch2_do_invalidates(c);
+
+		if (new_a->data_type == BCH_DATA_need_gc_gens)
+			bch2_do_gc_gens(c);
+		percpu_up_read(&c->mark_lock);
+	}
+
+	if ((flags & BTREE_TRIGGER_GC) &&
+	    (flags & BTREE_TRIGGER_BUCKET_INVALIDATE)) {
+		struct bch_alloc_v4 new_a_convert;
+		const struct bch_alloc_v4 *new_a = bch2_alloc_to_v4(new.s_c, &new_a_convert);
+
+		percpu_down_read(&c->mark_lock);
 		struct bucket *g = gc_bucket(ca, new.k->p.offset);
 
 		bucket_lock(g);
@@ -929,24 +919,8 @@ int bch2_mark_alloc(struct btree_trans *trans,
 		g->cached_sectors	= new_a->cached_sectors;
 
 		bucket_unlock(g);
+		percpu_up_read(&c->mark_lock);
 	}
-	percpu_up_read(&c->mark_lock);
-
-	if (new_a->data_type == BCH_DATA_free &&
-	    (!new_a->journal_seq || new_a->journal_seq < c->journal.flushed_seq_ondisk))
-		closure_wake_up(&c->freelist_wait);
-
-	if (new_a->data_type == BCH_DATA_need_discard &&
-	    (!bucket_journal_seq || bucket_journal_seq < c->journal.flushed_seq_ondisk))
-		bch2_do_discards(c);
-
-	if (old_a->data_type != BCH_DATA_cached &&
-	    new_a->data_type == BCH_DATA_cached &&
-	    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
-		bch2_do_invalidates(c);
-
-	if (new_a->data_type == BCH_DATA_need_gc_gens)
-		bch2_do_gc_gens(c);
 
 	return 0;
 }
