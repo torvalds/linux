@@ -65,7 +65,7 @@
 	x(btree_node_bkey_out_of_order,				57)	\
 	x(btree_root_bkey_invalid,				58)	\
 	x(btree_root_read_error,				59)	\
-	x(btree_root_bad_min_key,				50)	\
+	x(btree_root_bad_min_key,				60)	\
 	x(btree_root_bad_max_key,				61)	\
 	x(btree_node_read_error,				62)	\
 	x(btree_node_topology_bad_min_key,			63)	\
