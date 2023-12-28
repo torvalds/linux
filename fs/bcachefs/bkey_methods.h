@@ -95,11 +95,10 @@ enum btree_update_flags {
 	__BTREE_UPDATE_NOJOURNAL,
 	__BTREE_UPDATE_KEY_CACHE_RECLAIM,
 
-	__BTREE_TRIGGER_NORUN,		/* Don't run triggers at all */
-
+	__BTREE_TRIGGER_NORUN,
+	__BTREE_TRIGGER_TRANSACTIONAL,
 	__BTREE_TRIGGER_INSERT,
 	__BTREE_TRIGGER_OVERWRITE,
-
 	__BTREE_TRIGGER_GC,
 	__BTREE_TRIGGER_BUCKET_INVALIDATE,
 };
@@ -108,12 +107,31 @@ enum btree_update_flags {
 #define BTREE_UPDATE_NOJOURNAL		(1U << __BTREE_UPDATE_NOJOURNAL)
 #define BTREE_UPDATE_KEY_CACHE_RECLAIM	(1U << __BTREE_UPDATE_KEY_CACHE_RECLAIM)
 
+/* Don't run triggers at all */
 #define BTREE_TRIGGER_NORUN		(1U << __BTREE_TRIGGER_NORUN)
 
+/*
+ * If set, we're running transactional triggers as part of a transaction commit:
+ * triggers may generate new updates
+ *
+ * If cleared, and either BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE are set,
+ * we're running atomic triggers during a transaction commit: we have our
+ * journal reservation, we're holding btree node write locks, and we know the
+ * transaction is going to commit (returning an error here is a fatal error,
+ * causing us to go emergency read-only)
+ */
+#define BTREE_TRIGGER_TRANSACTIONAL	(1U << __BTREE_TRIGGER_TRANSACTIONAL)
+
+/* @new is entering the btree */
 #define BTREE_TRIGGER_INSERT		(1U << __BTREE_TRIGGER_INSERT)
+
+/* @old is leaving the btree */
 #define BTREE_TRIGGER_OVERWRITE		(1U << __BTREE_TRIGGER_OVERWRITE)
 
+/* We're in gc/fsck: running triggers to recalculate e.g. disk usage */
 #define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
+
+/* signal from bucket invalidate path to alloc trigger */
 #define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)
 
 static inline int bch2_trans_mark_key(struct btree_trans *trans,
@@ -124,7 +142,7 @@ static inline int bch2_trans_mark_key(struct btree_trans *trans,
 	const struct bkey_ops *ops = bch2_bkey_type_ops(old.k->type ?: new.k->type);
 
 	return ops->trans_trigger
-		? ops->trans_trigger(trans, btree_id, level, old, new, flags)
+		? ops->trans_trigger(trans, btree_id, level, old, new, flags|BTREE_TRIGGER_TRANSACTIONAL)
 		: 0;
 }
 
