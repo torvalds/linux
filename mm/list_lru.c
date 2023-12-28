@@ -567,6 +567,9 @@ int __list_lru_init(struct list_lru *lru, bool memcg_aware,
 		lru->shrinker_id = shrinker->id;
 	else
 		lru->shrinker_id = -1;
+
+	if (mem_cgroup_kmem_disabled())
+		memcg_aware = false;
 #endif
 
 	lru->node = kcalloc(nr_node_ids, sizeof(*lru->node), GFP_KERNEL);
