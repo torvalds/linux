@@ -1880,7 +1880,6 @@ static void null_config_discard(struct nullb *nullb)
 		return;
 	}
 
-	nullb->q->limits.discard_granularity = nullb->dev->blocksize;
 	blk_queue_max_discard_sectors(nullb->q, UINT_MAX >> 9);
 }
 
