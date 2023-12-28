@@ -29,7 +29,7 @@ struct journal_keys_to_wb {
 	u64				seq;
 };
 
-int __bch2_journal_key_to_wb(struct bch_fs *,
+int bch2_journal_key_to_wb_slowpath(struct bch_fs *,
 			     struct journal_keys_to_wb *,
 			     enum btree_id, struct bkey_i *);
 
@@ -40,7 +40,7 @@ static inline int bch2_journal_key_to_wb(struct bch_fs *c,
 	EBUG_ON(!dst->seq);
 
 	if (unlikely(!dst->room))
-		return __bch2_journal_key_to_wb(c, dst, btree, k);
+		return bch2_journal_key_to_wb_slowpath(c, dst, btree, k);
 
 	struct btree_write_buffered_key *wb_k = &darray_top(dst->wb->keys);
 	wb_k->journal_seq	= dst->seq;

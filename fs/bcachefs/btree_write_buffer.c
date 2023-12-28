@@ -484,7 +484,7 @@ static void bch2_btree_write_buffer_flush_work(struct work_struct *work)
 	bch2_write_ref_put(c, BCH_WRITE_REF_btree_write_buffer);
 }
 
-int __bch2_journal_key_to_wb(struct bch_fs *c,
+int bch2_journal_key_to_wb_slowpath(struct bch_fs *c,
 			     struct journal_keys_to_wb *dst,
 			     enum btree_id btree, struct bkey_i *k)
 {
