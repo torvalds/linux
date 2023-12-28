@@ -427,28 +427,10 @@ static int journal_replay_entry_early(struct bch_fs *c,
 			container_of(entry, struct jset_entry_usage, entry);
 
 		switch (entry->btree_id) {
-		case BCH_FS_USAGE_reserved:
-			if (entry->level < BCH_REPLICAS_MAX)
-				c->usage_base->persistent_reserved[entry->level] =
-					le64_to_cpu(u->v);
-			break;
-		case BCH_FS_USAGE_inodes:
-			c->usage_base->b.nr_inodes = le64_to_cpu(u->v);
-			break;
 		case BCH_FS_USAGE_key_version:
-			atomic64_set(&c->key_version,
-				     le64_to_cpu(u->v));
+			atomic64_set(&c->key_version, le64_to_cpu(u->v));
 			break;
 		}
-
-		break;
-	}
-	case BCH_JSET_ENTRY_data_usage: {
-		struct jset_entry_data_usage *u =
-			container_of(entry, struct jset_entry_data_usage, entry);
-
-		ret = bch2_replicas_set_usage(c, &u->r,
-					      le64_to_cpu(u->v));
 		break;
 	}
 	case BCH_JSET_ENTRY_blacklist: {

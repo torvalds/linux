@@ -53,10 +53,6 @@ int bch2_replicas_gc_end(struct bch_fs *, int);
 int bch2_replicas_gc_start(struct bch_fs *, unsigned);
 int bch2_replicas_gc2(struct bch_fs *);
 
-int bch2_replicas_set_usage(struct bch_fs *,
-			    struct bch_replicas_entry_v1 *,
-			    u64);
-
 #define for_each_cpu_replicas_entry(_r, _i)				\
 	for (_i = (_r)->entries;					\
 	     (void *) (_i) < (void *) (_r)->entries + (_r)->nr * (_r)->entry_size;\

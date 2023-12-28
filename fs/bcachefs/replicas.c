@@ -307,46 +307,23 @@ static void __replicas_table_update_pcpu(struct bch_fs_usage __percpu *dst_p,
 static int replicas_table_update(struct bch_fs *c,
 				 struct bch_replicas_cpu *new_r)
 {
-	struct bch_fs_usage __percpu *new_usage[JOURNAL_BUF_NR];
 	struct bch_fs_usage __percpu *new_gc = NULL;
-	struct bch_fs_usage *new_base = NULL;
-	unsigned i, bytes = sizeof(struct bch_fs_usage) +
+	unsigned bytes = sizeof(struct bch_fs_usage) +
 		sizeof(u64) * new_r->nr;
 	int ret = 0;
 
-	memset(new_usage, 0, sizeof(new_usage));
-
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		if (!(new_usage[i] = __alloc_percpu_gfp(bytes,
-					sizeof(u64), GFP_KERNEL)))
-			goto err;
-
-	if (!(new_base = kzalloc(bytes, GFP_KERNEL)) ||
-	    (c->usage_gc &&
+	if ((c->usage_gc &&
 	     !(new_gc = __alloc_percpu_gfp(bytes, sizeof(u64), GFP_KERNEL))))
 		goto err;
 
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		if (c->usage[i])
-			__replicas_table_update_pcpu(new_usage[i], new_r,
-						     c->usage[i], &c->replicas);
-	if (c->usage_base)
-		__replicas_table_update(new_base,		new_r,
-					c->usage_base,		&c->replicas);
 	if (c->usage_gc)
 		__replicas_table_update_pcpu(new_gc,		new_r,
 					     c->usage_gc,	&c->replicas);
 
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		swap(c->usage[i],	new_usage[i]);
-	swap(c->usage_base,	new_base);
 	swap(c->usage_gc,	new_gc);
 	swap(c->replicas,	*new_r);
 out:
 	free_percpu(new_gc);
-	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
-		free_percpu(new_usage[i]);
-	kfree(new_base);
 	return ret;
 err:
 	bch_err(c, "error updating replicas table: memory allocation failure");
@@ -537,6 +514,8 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
  */
 int bch2_replicas_gc2(struct bch_fs *c)
 {
+	return 0;
+#if 0
 	struct bch_replicas_cpu new = { 0 };
 	unsigned i, nr;
 	int ret = 0;
@@ -591,34 +570,7 @@ retry:
 	mutex_unlock(&c->sb_lock);
 
 	return ret;
-}
-
-int bch2_replicas_set_usage(struct bch_fs *c,
-			    struct bch_replicas_entry_v1 *r,
-			    u64 sectors)
-{
-	int ret, idx = bch2_replicas_entry_idx(c, r);
-
-	if (idx < 0) {
-		struct bch_replicas_cpu n;
-
-		n = cpu_replicas_add_entry(c, &c->replicas, r);
-		if (!n.entries)
-			return -BCH_ERR_ENOMEM_cpu_replicas;
-
-		ret = replicas_table_update(c, &n);
-		if (ret)
-			return ret;
-
-		kfree(n.entries);
-
-		idx = bch2_replicas_entry_idx(c, r);
-		BUG_ON(ret < 0);
-	}
-
-	c->usage_base->replicas[idx] = sectors;
-
-	return 0;
+#endif
 }
 
 /* Replicas tracking - superblock: */
@@ -1020,11 +972,6 @@ unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 
 void bch2_fs_replicas_exit(struct bch_fs *c)
 {
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-		free_percpu(c->usage[i]);
-	kfree(c->usage_base);
 	kfree(c->replicas.entries);
 	kfree(c->replicas_gc.entries);
 }

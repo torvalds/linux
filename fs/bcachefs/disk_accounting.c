@@ -384,7 +384,7 @@ int bch2_accounting_read(struct bch_fs *c)
 
 	percpu_down_read(&c->mark_lock);
 	preempt_disable();
-	struct bch_fs_usage_base *usage = &c->usage_base->b;
+	struct bch_fs_usage_base *usage = this_cpu_ptr(c->usage);
 
 	for (unsigned i = 0; i < acc->k.nr; i++) {
 		struct disk_accounting_pos k;

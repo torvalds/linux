@@ -891,8 +891,7 @@ struct bch_fs {
 	struct percpu_rw_semaphore	mark_lock;
 
 	seqcount_t			usage_lock;
-	struct bch_fs_usage		*usage_base;
-	struct bch_fs_usage __percpu	*usage[JOURNAL_BUF_NR];
+	struct bch_fs_usage_base __percpu *usage;
 	struct bch_fs_usage __percpu	*usage_gc;
 	u64 __percpu		*online_reserved;
 

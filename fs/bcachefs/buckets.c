@@ -26,59 +26,10 @@
 
 #include <linux/preempt.h>
 
-static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
-						unsigned journal_seq,
-						bool gc)
-{
-	percpu_rwsem_assert_held(&c->mark_lock);
-	BUG_ON(!gc && !journal_seq);
-
-	return this_cpu_ptr(gc
-			    ? c->usage_gc
-			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
-}
-
 void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 {
 	memset(usage, 0, sizeof(*usage));
 	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage, dev_usage_u64s());
-}
-
-u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
-{
-	ssize_t offset = v - (u64 *) c->usage_base;
-	unsigned i, seq;
-	u64 ret;
-
-	BUG_ON(offset < 0 || offset >= fs_usage_u64s(c));
-	percpu_rwsem_assert_held(&c->mark_lock);
-
-	do {
-		seq = read_seqcount_begin(&c->usage_lock);
-		ret = *v;
-
-		for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-			ret += percpu_u64_get((u64 __percpu *) c->usage[i] + offset);
-	} while (read_seqcount_retry(&c->usage_lock, seq));
-
-	return ret;
-}
-
-void bch2_fs_usage_acc_to_base(struct bch_fs *c, unsigned idx)
-{
-	unsigned u64s = fs_usage_u64s(c);
-
-	BUG_ON(idx >= ARRAY_SIZE(c->usage));
-
-	preempt_disable();
-	write_seqcount_begin(&c->usage_lock);
-
-	acc_u64s_percpu((u64 *) c->usage_base,
-			(u64 __percpu *) c->usage[idx], u64s);
-	percpu_memset(c->usage[idx], 0, u64s * sizeof(u64));
-
-	write_seqcount_end(&c->usage_lock);
-	preempt_enable();
 }
 
 void bch2_fs_usage_to_text(struct printbuf *out,
@@ -142,17 +93,17 @@ __bch2_fs_usage_read_short(struct bch_fs *c)
 	u64 data, reserved;
 
 	ret.capacity = c->capacity -
-		bch2_fs_usage_read_one(c, &c->usage_base->b.hidden);
+		percpu_u64_get(&c->usage->hidden);
 
-	data		= bch2_fs_usage_read_one(c, &c->usage_base->b.data) +
-		bch2_fs_usage_read_one(c, &c->usage_base->b.btree);
-	reserved	= bch2_fs_usage_read_one(c, &c->usage_base->b.reserved) +
+	data		= percpu_u64_get(&c->usage->data) +
+		percpu_u64_get(&c->usage->btree);
+	reserved	= percpu_u64_get(&c->usage->reserved) +
 		percpu_u64_get(c->online_reserved);
 
 	ret.used	= min(ret.capacity, data + reserve_factor(reserved));
 	ret.free	= ret.capacity - ret.used;
 
-	ret.nr_inodes	= bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes);
+	ret.nr_inodes	= percpu_u64_get(&c->usage->nr_inodes);
 
 	return ret;
 }
@@ -673,7 +624,7 @@ void bch2_trans_account_disk_usage_change(struct btree_trans *trans)
 
 	percpu_down_read(&c->mark_lock);
 	preempt_disable();
-	struct bch_fs_usage_base *dst = &fs_usage_ptr(c, trans->journal_res.seq, false)->b;
+	struct bch_fs_usage_base *dst = this_cpu_ptr(c->usage);
 	struct bch_fs_usage_base *src = &trans->fs_usage_delta;
 
 	s64 added = src->btree + src->data + src->reserved;

@@ -769,10 +769,8 @@ static int bch2_gc_done(struct bch_fs *c)
 #define copy_fs_field(_err, _f, _msg, ...)					\
 	copy_field(_err, _f, "fs has wrong " _msg, ##__VA_ARGS__)
 
-	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
-		bch2_fs_usage_acc_to_base(c, i);
-
 	__for_each_member_device(c, ca) {
+		/* XXX */
 		struct bch_dev_usage *dst = this_cpu_ptr(ca->usage);
 		struct bch_dev_usage *src = (void *)
 			bch2_acc_percpu_u64s((u64 __percpu *) ca->usage_gc,
@@ -789,8 +787,10 @@ static int bch2_gc_done(struct bch_fs *c)
 	}
 
 	{
+#if 0
 		unsigned nr = fs_usage_u64s(c);
-		struct bch_fs_usage *dst = c->usage_base;
+		/* XX: */
+		struct bch_fs_usage *dst = this_cpu_ptr(c->usage);
 		struct bch_fs_usage *src = (void *)
 			bch2_acc_percpu_u64s((u64 __percpu *) c->usage_gc, nr);
 
@@ -823,6 +823,7 @@ static int bch2_gc_done(struct bch_fs *c)
 			copy_fs_field(fs_usage_replicas_wrong,
 				      replicas[i], "%s", buf.buf);
 		}
+#endif
 	}
 
 #undef copy_fs_field
