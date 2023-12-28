@@ -111,7 +111,6 @@ int apmf_os_power_slider_update(struct amd_pmf_dev *pdev, u8 event)
 	struct os_power_slider args;
 	struct acpi_buffer params;
 	union acpi_object *info;
-	int err = 0;
 
 	args.size = sizeof(args);
 	args.slider_event = event;
@@ -121,10 +120,10 @@ int apmf_os_power_slider_update(struct amd_pmf_dev *pdev, u8 event)
 
 	info = apmf_if_call(pdev, APMF_FUNC_OS_POWER_SLIDER_UPDATE, &params);
 	if (!info)
-		err = -EIO;
+		return -EIO;
 
 	kfree(info);
-	return err;
+	return 0;
 }
 
 static void apmf_sbios_heartbeat_notify(struct work_struct *work)
@@ -146,7 +145,6 @@ int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx)
 	union acpi_object *info;
 	struct apmf_fan_idx args;
 	struct acpi_buffer params;
-	int err = 0;
 
 	args.size = sizeof(args);
 	args.fan_ctl_mode = manual;
@@ -156,14 +154,11 @@ int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx)
 	params.pointer = (void *)&args;
 
 	info = apmf_if_call(pdev, APMF_FUNC_SET_FAN_IDX, &params);
-	if (!info) {
-		err = -EIO;
-		goto out;
-	}
+	if (!info)
+		return -EIO;
 
-out:
 	kfree(info);
-	return err;
+	return 0;
 }
 
 int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data)
