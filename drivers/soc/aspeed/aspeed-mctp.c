@@ -3,7 +3,7 @@
 
 #include <linux/aspeed-mctp.h>
 #include <linux/bitfield.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -2030,87 +2030,59 @@ static int aspeed_mctp_dma_init(struct aspeed_mctp *priv)
 	struct mctp_channel *tx = &priv->tx;
 	struct mctp_channel *rx = &priv->rx;
 	size_t alloc_size;
-	int ret = -ENOMEM;
+	struct device_node *memory_region;
+	struct reserved_mem *rmem;
+	phys_addr_t phy_base;
 
 	BUILD_BUG_ON(TX_PACKET_COUNT >= TX_MAX_PACKET_COUNT);
 	BUILD_BUG_ON(RX_PACKET_COUNT >= RX_MAX_PACKET_COUNT);
 
-	ret = of_reserved_mem_device_init(priv->dev);
-	if (ret) {
-		dev_err(priv->dev, "device does not have specific DMA pool: %d\n",
-			ret);
-		return ret;
+	memory_region = of_parse_phandle(priv->dev->of_node, "memory-region", 0);
+	if (!memory_region) {
+		dev_err(priv->dev, "Failed to find memory-region.\n");
+		return -ENOMEM;
 	}
 
+	rmem = of_reserved_mem_lookup(memory_region);
+	of_node_put(memory_region);
+	if (!rmem) {
+		dev_err(priv->dev, "Failed to find reserved memory.\n");
+		return -ENOMEM;
+	}
+	phy_base = rmem->base;
+
 	alloc_size = PAGE_ALIGN(priv->rx_packet_count * priv->match_data->packet_unit_size);
-	rx->data.vaddr =
-		dma_alloc_coherent(priv->dev, alloc_size, &rx->data.dma_handle, GFP_KERNEL);
+	rx->data.dma_handle = phys_to_dma(priv->dev, phy_base);
+	rx->data.vaddr = devm_ioremap(priv->dev, phy_base, alloc_size);
+	phy_base += alloc_size;
 
 	if (!rx->data.vaddr)
-		return ret;
+		return -ENOMEM;
 
 	alloc_size = PAGE_ALIGN(priv->rx_packet_count * priv->match_data->rx_cmd_size);
-	rx->cmd.vaddr = dma_alloc_coherent(priv->dev, alloc_size, &rx->cmd.dma_handle, GFP_KERNEL);
+	rx->cmd.dma_handle = phys_to_dma(priv->dev, phy_base);
+	rx->cmd.vaddr = devm_ioremap(priv->dev, phy_base, alloc_size);
+	phy_base += alloc_size;
 
 	if (!rx->cmd.vaddr)
-		goto out_rx_cmd;
+		return -ENOMEM;
 
 	alloc_size = PAGE_ALIGN(TX_PACKET_COUNT * priv->match_data->packet_unit_size);
-	tx->data.vaddr =
-		dma_alloc_coherent(priv->dev, alloc_size, &tx->data.dma_handle, GFP_KERNEL);
+	tx->data.dma_handle = phys_to_dma(priv->dev, phy_base);
+	tx->data.vaddr = devm_ioremap(priv->dev, phy_base, alloc_size);
+	phy_base += alloc_size;
 
 	if (!tx->data.vaddr)
-		goto out_tx_data;
+		return -ENOMEM;
+
 	alloc_size = TX_CMD_BUF_SIZE;
-	tx->cmd.vaddr = dma_alloc_coherent(priv->dev, alloc_size, &tx->cmd.dma_handle, GFP_KERNEL);
+	tx->cmd.dma_handle = phys_to_dma(priv->dev, phy_base);
+	tx->cmd.vaddr = devm_ioremap(priv->dev, phy_base, alloc_size);
 
 	if (!tx->cmd.vaddr)
-		goto out_tx_cmd;
+		return -ENOMEM;
 
 	return 0;
-out_tx_cmd:
-	alloc_size = PAGE_ALIGN(TX_PACKET_COUNT *
-				priv->match_data->packet_unit_size);
-	dma_free_coherent(priv->dev, alloc_size, tx->data.vaddr,
-			  tx->data.dma_handle);
-
-out_tx_data:
-	alloc_size = PAGE_ALIGN(priv->rx_packet_count *
-				priv->match_data->rx_cmd_size);
-	dma_free_coherent(priv->dev, alloc_size, rx->cmd.vaddr,
-			  rx->cmd.dma_handle);
-
-out_rx_cmd:
-	alloc_size = PAGE_ALIGN(priv->rx_packet_count *
-				priv->match_data->packet_unit_size);
-	dma_free_coherent(priv->dev, alloc_size, rx->data.vaddr,
-			  rx->data.dma_handle);
-
-	return ret;
-}
-
-static void aspeed_mctp_dma_fini(struct aspeed_mctp *priv)
-{
-	struct mctp_channel *tx = &priv->tx;
-	struct mctp_channel *rx = &priv->rx;
-
-	dma_free_coherent(priv->dev, TX_CMD_BUF_SIZE, tx->cmd.vaddr,
-			  tx->cmd.dma_handle);
-
-	dma_free_coherent(
-		priv->dev,
-		PAGE_ALIGN(priv->rx_packet_count * priv->match_data->rx_cmd_size),
-		rx->cmd.vaddr, rx->cmd.dma_handle);
-
-	dma_free_coherent(priv->dev,
-			  PAGE_ALIGN(TX_PACKET_COUNT *
-				     priv->match_data->packet_unit_size),
-			  tx->data.vaddr, tx->data.dma_handle);
-
-	dma_free_coherent(priv->dev,
-			  PAGE_ALIGN(priv->rx_packet_count *
-				     priv->match_data->packet_unit_size),
-			  rx->data.vaddr, rx->data.dma_handle);
 }
 
 static int aspeed_mctp_irq_init(struct aspeed_mctp *priv)
@@ -2217,14 +2189,14 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 	ret = misc_register(&priv->mctp_miscdev);
 	if (ret) {
 		dev_err(priv->dev, "Failed to register miscdev\n");
-		goto out_dma;
+		goto out_drv;
 	}
 	priv->mctp_miscdev.this_device->type = &aspeed_mctp_type;
 
 	ret = aspeed_mctp_irq_init(priv);
 	if (ret) {
 		dev_err(priv->dev, "Failed to init IRQ!\n");
-		goto out_dma;
+		goto out_drv;
 	}
 	bdf = aspeed_mctp_pcie_setup(priv);
 	if (bdf != 0) {
@@ -2251,8 +2223,6 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_dma:
-	aspeed_mctp_dma_fini(priv);
 out_drv:
 	aspeed_mctp_drv_fini(priv);
 out:
@@ -2269,8 +2239,6 @@ static int aspeed_mctp_remove(struct platform_device *pdev)
 	misc_deregister(&priv->mctp_miscdev);
 
 	aspeed_mctp_irq_disable(priv);
-
-	aspeed_mctp_dma_fini(priv);
 
 	aspeed_mctp_drv_fini(priv);
 
