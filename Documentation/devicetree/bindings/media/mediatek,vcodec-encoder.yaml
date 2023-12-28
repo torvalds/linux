@@ -16,14 +16,18 @@ description: |+
 
 properties:
   compatible:
-    enum:
-      - mediatek,mt8173-vcodec-enc-vp8
-      - mediatek,mt8173-vcodec-enc
-      - mediatek,mt8183-vcodec-enc
-      - mediatek,mt8188-vcodec-enc
-      - mediatek,mt8192-vcodec-enc
-      - mediatek,mt8195-vcodec-enc
-
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt8173-vcodec-enc-vp8
+              - mediatek,mt8173-vcodec-enc
+              - mediatek,mt8183-vcodec-enc
+              - mediatek,mt8188-vcodec-enc
+              - mediatek,mt8192-vcodec-enc
+              - mediatek,mt8195-vcodec-enc
+      - items:
+          - const: mediatek,mt8186-vcodec-enc
+          - const: mediatek,mt8183-vcodec-enc
   reg:
     maxItems: 1
 
