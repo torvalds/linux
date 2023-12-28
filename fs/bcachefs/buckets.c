@@ -945,90 +945,12 @@ err:
 	return 0;
 }
 
-static int __mark_extent(struct btree_trans *trans,
-			 enum btree_id btree_id, unsigned level,
-			 struct bkey_s_c k, unsigned flags)
+static int __trigger_extent(struct btree_trans *trans,
+			    enum btree_id btree_id, unsigned level,
+			    struct bkey_s_c k, unsigned flags)
 {
-	u64 journal_seq = trans->journal_res.seq;
+	bool gc = flags & BTREE_TRIGGER_GC;
 	struct bch_fs *c = trans->c;
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	struct bch_replicas_padded r;
-	enum bch_data_type data_type = bkey_is_btree_ptr(k.k)
-		? BCH_DATA_btree
-		: BCH_DATA_user;
-	s64 dirty_sectors = 0;
-	int ret;
-
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
-
-	r.e.data_type	= data_type;
-	r.e.nr_devs	= 0;
-	r.e.nr_required	= 1;
-
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors;
-		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, &disk_sectors, flags);
-		if (ret < 0)
-			return ret;
-
-		bool stale = ret > 0;
-
-		if (p.ptr.cached) {
-			if (!stale) {
-				ret = update_cached_sectors(c, k, p.ptr.dev,
-						disk_sectors, journal_seq, true);
-				if (ret) {
-					bch2_fs_fatal_error(c, "%s(): no replicas entry while updating cached sectors",
-							    __func__);
-					return ret;
-				}
-			}
-		} else if (!p.has_ec) {
-			dirty_sectors	       += disk_sectors;
-			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
-		} else {
-			ret = bch2_trigger_stripe_ptr(trans, k, p, data_type, disk_sectors, flags);
-			if (ret)
-				return ret;
-
-			/*
-			 * There may be other dirty pointers in this extent, but
-			 * if so they're not required for mounting if we have an
-			 * erasure coded pointer in this extent:
-			 */
-			r.e.nr_required = 0;
-		}
-	}
-
-	if (r.e.nr_devs) {
-		ret = bch2_update_replicas(c, k, &r.e, dirty_sectors, journal_seq, true);
-		if (ret) {
-			struct printbuf buf = PRINTBUF;
-
-			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
-			printbuf_exit(&buf);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-int bch2_mark_extent(struct btree_trans *trans,
-		     enum btree_id btree_id, unsigned level,
-		     struct bkey_s_c old, struct bkey_s new,
-		     unsigned flags)
-{
-	return trigger_run_overwrite_then_insert(__mark_extent, trans, btree_id, level, old, new, flags);
-}
-
-static int __trans_mark_extent(struct btree_trans *trans,
-			       enum btree_id btree_id, unsigned level,
-			       struct bkey_s_c k, unsigned flags)
-{
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p;
@@ -1053,8 +975,11 @@ static int __trans_mark_extent(struct btree_trans *trans,
 
 		if (p.ptr.cached) {
 			if (!stale) {
-				ret = bch2_update_cached_sectors_list(trans, p.ptr.dev,
-								      disk_sectors);
+				ret = !gc
+					? bch2_update_cached_sectors_list(trans, p.ptr.dev, disk_sectors)
+					: update_cached_sectors(c, k, p.ptr.dev, disk_sectors, 0, true);
+				bch2_fs_fatal_err_on(ret && gc, c, "%s(): no replicas entry while updating cached sectors",
+						     __func__);
 				if (ret)
 					return ret;
 			}
@@ -1066,12 +991,26 @@ static int __trans_mark_extent(struct btree_trans *trans,
 			if (ret)
 				return ret;
 
+			/*
+			 * There may be other dirty pointers in this extent, but
+			 * if so they're not required for mounting if we have an
+			 * erasure coded pointer in this extent:
+			 */
 			r.e.nr_required = 0;
 		}
 	}
 
 	if (r.e.nr_devs) {
-		ret = bch2_update_replicas_list(trans, &r.e, dirty_sectors);
+		ret = !gc
+			? bch2_update_replicas_list(trans, &r.e, dirty_sectors)
+			: bch2_update_replicas(c, k, &r.e, dirty_sectors, 0, true);
+		if (unlikely(ret && gc)) {
+			struct printbuf buf = PRINTBUF;
+
+			bch2_bkey_val_to_text(&buf, c, k);
+			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
+			printbuf_exit(&buf);
+		}
 		if (ret)
 			return ret;
 	}
@@ -1079,22 +1018,27 @@ static int __trans_mark_extent(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_trans_mark_extent(struct btree_trans *trans,
-			   enum btree_id btree_id, unsigned level,
-			   struct bkey_s_c old, struct bkey_s new,
-			   unsigned flags)
+int bch2_trigger_extent(struct btree_trans *trans,
+			enum btree_id btree_id, unsigned level,
+			struct bkey_s_c old, struct bkey_s new,
+			unsigned flags)
 {
-	struct bch_fs *c = trans->c;
-	int mod = (int) bch2_bkey_needs_rebalance(c, new.s_c) -
-		  (int) bch2_bkey_needs_rebalance(c, old);
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		struct bch_fs *c = trans->c;
+		int mod = (int) bch2_bkey_needs_rebalance(c, new.s_c) -
+			  (int) bch2_bkey_needs_rebalance(c, old);
 
-	if (mod) {
-		int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new.k->p, mod > 0);
-		if (ret)
-			return ret;
+		if (mod) {
+			int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new.k->p, mod > 0);
+			if (ret)
+				return ret;
+		}
 	}
 
-	return trigger_run_overwrite_then_insert(__trans_mark_extent, trans, btree_id, level, old, new, flags);
+	if (flags & (BTREE_TRIGGER_TRANSACTIONAL|BTREE_TRIGGER_GC))
+		return trigger_run_overwrite_then_insert(__trigger_extent, trans, btree_id, level, old, new, flags);
+
+	return 0;
 }
 
 /* KEY_TYPE_reservation */

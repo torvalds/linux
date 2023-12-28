@@ -308,7 +308,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 		    bkey_val_bytes(new.k) - 8))
 		return 0;
 
-	return bch2_trans_mark_extent(trans, btree_id, level, old, new, flags);
+	return bch2_trigger_extent(trans, btree_id, level, old, new, flags);
 }
 
 /* indirect inline data */

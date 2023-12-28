@@ -33,7 +33,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *, enum btree_id, unsigned,
 	.val_to_text	= bch2_reflink_v_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.trans_trigger	= bch2_trans_mark_reflink_v,		\
-	.atomic_trigger	= bch2_mark_extent,			\
+	.atomic_trigger	= bch2_trigger_extent,			\
 	.min_val_size	= 8,					\
 })
 

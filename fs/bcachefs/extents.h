@@ -415,8 +415,8 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 	.key_invalid	= bch2_btree_ptr_invalid,		\
 	.val_to_text	= bch2_btree_ptr_to_text,		\
 	.swab		= bch2_ptr_swab,			\
-	.trans_trigger	= bch2_trans_mark_extent,		\
-	.atomic_trigger	= bch2_mark_extent,			\
+	.trans_trigger	= bch2_trigger_extent,			\
+	.atomic_trigger	= bch2_trigger_extent,			\
 })
 
 #define bch2_bkey_ops_btree_ptr_v2 ((struct bkey_ops) {		\
@@ -424,8 +424,8 @@ void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
 	.val_to_text	= bch2_btree_ptr_v2_to_text,		\
 	.swab		= bch2_ptr_swab,			\
 	.compat		= bch2_btree_ptr_v2_compat,		\
-	.trans_trigger	= bch2_trans_mark_extent,		\
-	.atomic_trigger	= bch2_mark_extent,			\
+	.trans_trigger	= bch2_trigger_extent,			\
+	.atomic_trigger	= bch2_trigger_extent,			\
 	.min_val_size	= 40,					\
 })
 
@@ -439,8 +439,8 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 	.swab		= bch2_ptr_swab,			\
 	.key_normalize	= bch2_extent_normalize,		\
 	.key_merge	= bch2_extent_merge,			\
-	.trans_trigger	= bch2_trans_mark_extent,		\
-	.atomic_trigger	= bch2_mark_extent,			\
+	.trans_trigger	= bch2_trigger_extent,			\
+	.atomic_trigger	= bch2_trigger_extent,			\
 })
 
 /* KEY_TYPE_reservation: */
