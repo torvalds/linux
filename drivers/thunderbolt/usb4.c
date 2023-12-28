@@ -2858,8 +2858,10 @@ static int usb4_dp_port_wait_and_clear_cm_ack(struct tb_port *port,
 		usleep_range(50, 100);
 	} while (ktime_before(ktime_get(), end));
 
-	if (val & ADP_DP_CS_8_DR)
+	if (val & ADP_DP_CS_8_DR) {
+		tb_port_warn(port, "timeout waiting for DPTX request to clear\n");
 		return -ETIMEDOUT;
+	}
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);
