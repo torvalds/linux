@@ -2,7 +2,7 @@
 /*
  * Copyright(C) 2016 Linaro Limited. All rights reserved.
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -1812,6 +1812,7 @@ static int _tmc_disable_etr_sink(struct coresight_device *csdev,
 {
 	unsigned long flags;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
+	u32 previous_mode;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
@@ -1842,6 +1843,8 @@ static int _tmc_disable_etr_sink(struct coresight_device *csdev,
 		tmc_usb_disable(drvdata->usb_data);
 		spin_lock_irqsave(&drvdata->spinlock, flags);
 	}
+	/* Presave mode to ensure if it's need to stop byte_cntr. */
+	previous_mode = drvdata->mode;
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
 	drvdata->mode = CS_MODE_DISABLED;
@@ -1849,7 +1852,8 @@ static int _tmc_disable_etr_sink(struct coresight_device *csdev,
 	drvdata->perf_buf = NULL;
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
-	tmc_etr_byte_cntr_stop(drvdata->byte_cntr);
+	if (previous_mode == CS_MODE_SYSFS)
+		tmc_etr_byte_cntr_stop(drvdata->byte_cntr);
 
 	dev_dbg(&csdev->dev, "TMC-ETR disabled\n");
 	return 0;
@@ -1859,11 +1863,25 @@ static int tmc_disable_etr_sink(struct coresight_device *csdev)
 {
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 	int ret;
+	uint32_t mode;
+	unsigned long flags;
 
-	mutex_lock(&drvdata->mem_lock);
-	ret = _tmc_disable_etr_sink(csdev, false);
-	mutex_unlock(&drvdata->mem_lock);
-	return ret;
+	spin_lock_irqsave(&drvdata->spinlock, flags);
+	mode = drvdata->mode;
+	spin_unlock_irqrestore(&drvdata->spinlock, flags);
+
+	switch (mode) {
+	/* mem_lock is used to support USB mode for protection */
+	case CS_MODE_SYSFS:
+		mutex_lock(&drvdata->mem_lock);
+		ret = _tmc_disable_etr_sink(csdev, false);
+		mutex_unlock(&drvdata->mem_lock);
+		return ret;
+	case CS_MODE_PERF:
+		return _tmc_disable_etr_sink(csdev, false);
+	}
+	/* We shouldn't be here */
+	return -EINVAL;
 }
 
 int tmc_etr_switch_mode(struct tmc_drvdata *drvdata, const char *out_mode)
