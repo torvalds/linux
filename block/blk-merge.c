@@ -115,17 +115,13 @@ static struct bio *bio_split_discard(struct bio *bio,
 
 	*nsegs = 1;
 
-	/* Zero-sector (unknown) and one-sector granularities are the same.  */
 	granularity = max(lim->discard_granularity >> 9, 1U);
 
 	max_discard_sectors =
 		min(lim->max_discard_sectors, bio_allowed_max_sectors(lim));
 	max_discard_sectors -= max_discard_sectors % granularity;
-
-	if (unlikely(!max_discard_sectors)) {
-		/* XXX: warn */
+	if (unlikely(!max_discard_sectors))
 		return NULL;
-	}
 
 	if (bio_sectors(bio) <= max_discard_sectors)
 		return NULL;
