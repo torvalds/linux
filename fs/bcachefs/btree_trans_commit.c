@@ -453,14 +453,14 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 
 	if (old_ops->atomic_trigger == new_ops->atomic_trigger) {
 		ret   = bch2_mark_key(trans, i->btree_id, i->level,
-				old, bkey_i_to_s_c(new),
+				old, bkey_i_to_s(new),
 				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
 	} else {
 		struct bkey		_deleted = POS_KEY((trans->paths + i->path)->pos);
-		struct bkey_s_c		deleted = (struct bkey_s_c) { &_deleted, NULL };
+		struct bkey_s		deleted = (struct bkey_s) { { { &_deleted, NULL } } };
 
 		ret   = bch2_mark_key(trans, i->btree_id, i->level,
-				deleted, bkey_i_to_s_c(new),
+				deleted.s_c, bkey_i_to_s(new),
 				BTREE_TRIGGER_INSERT|flags) ?:
 			bch2_mark_key(trans, i->btree_id, i->level,
 				old, deleted,

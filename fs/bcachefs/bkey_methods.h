@@ -31,7 +31,7 @@ struct bkey_ops {
 	int		(*trans_trigger)(struct btree_trans *, enum btree_id, unsigned,
 					 struct bkey_s_c, struct bkey_s, unsigned);
 	int		(*atomic_trigger)(struct btree_trans *, enum btree_id, unsigned,
-					  struct bkey_s_c, struct bkey_s_c, unsigned);
+					  struct bkey_s_c, struct bkey_s, unsigned);
 	void		(*compat)(enum btree_id id, unsigned version,
 				  unsigned big_endian, int write,
 				  struct bkey_s);
@@ -80,7 +80,7 @@ bool bch2_bkey_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 static inline int bch2_mark_key(struct btree_trans *trans,
 		enum btree_id btree, unsigned level,
-		struct bkey_s_c old, struct bkey_s_c new,
+		struct bkey_s_c old, struct bkey_s new,
 		unsigned flags)
 {
 	const struct bkey_ops *ops = bch2_bkey_type_ops(old.k->type ?: new.k->type);

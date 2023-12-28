@@ -498,7 +498,7 @@ int bch2_update_cached_sectors_list(struct btree_trans *trans, unsigned dev, s64
 
 int bch2_mark_alloc(struct btree_trans *trans,
 		    enum btree_id btree, unsigned level,
-		    struct bkey_s_c old, struct bkey_s_c new,
+		    struct bkey_s_c old, struct bkey_s new,
 		    unsigned flags)
 {
 	bool gc = flags & BTREE_TRIGGER_GC;
@@ -524,7 +524,7 @@ int bch2_mark_alloc(struct btree_trans *trans,
 	ca = bch_dev_bkey_exists(c, new.k->p.inode);
 
 	old_a = bch2_alloc_to_v4(old, &old_a_convert);
-	new_a = bch2_alloc_to_v4(new, &new_a_convert);
+	new_a = bch2_alloc_to_v4(new.s_c, &new_a_convert);
 
 	bucket_journal_seq = new_a->journal_seq;
 
@@ -1008,7 +1008,7 @@ static int __mark_extent(struct btree_trans *trans,
 
 int bch2_mark_extent(struct btree_trans *trans,
 		     enum btree_id btree_id, unsigned level,
-		     struct bkey_s_c old, struct bkey_s_c new,
+		     struct bkey_s_c old, struct bkey_s new,
 		     unsigned flags)
 {
 	return mem_trigger_run_overwrite_then_insert(__mark_extent, trans, btree_id, level, old, new, flags);
@@ -1016,9 +1016,10 @@ int bch2_mark_extent(struct btree_trans *trans,
 
 int bch2_mark_stripe(struct btree_trans *trans,
 		     enum btree_id btree_id, unsigned level,
-		     struct bkey_s_c old, struct bkey_s_c new,
+		     struct bkey_s_c old, struct bkey_s _new,
 		     unsigned flags)
 {
+	struct bkey_s_c new = _new.s_c;
 	bool gc = flags & BTREE_TRIGGER_GC;
 	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
@@ -1153,7 +1154,7 @@ static int __mark_reservation(struct btree_trans *trans,
 
 int bch2_mark_reservation(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old, struct bkey_s_c new,
+			  struct bkey_s_c old, struct bkey_s new,
 			  unsigned flags)
 {
 	return mem_trigger_run_overwrite_then_insert(__mark_reservation, trans, btree_id, level, old, new, flags);

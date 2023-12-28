@@ -592,7 +592,7 @@ int bch2_trans_mark_inode(struct btree_trans *trans,
 
 int bch2_mark_inode(struct btree_trans *trans,
 		    enum btree_id btree_id, unsigned level,
-		    struct bkey_s_c old, struct bkey_s_c new,
+		    struct bkey_s_c old, struct bkey_s new,
 		    unsigned flags)
 {
 	struct bch_fs *c = trans->c;
@@ -600,12 +600,9 @@ int bch2_mark_inode(struct btree_trans *trans,
 	u64 journal_seq = trans->journal_res.seq;
 
 	if (flags & BTREE_TRIGGER_INSERT) {
-		struct bch_inode_v3 *v = (struct bch_inode_v3 *) new.v;
-
 		BUG_ON(!journal_seq);
-		BUG_ON(new.k->type != KEY_TYPE_inode_v3);
 
-		v->bi_journal_seq = cpu_to_le64(journal_seq);
+		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(journal_seq);
 	}
 
 	if (flags & BTREE_TRIGGER_GC) {

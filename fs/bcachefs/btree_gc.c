@@ -41,6 +41,14 @@
 #define DROP_THIS_NODE		10
 #define DROP_PREV_NODE		11
 
+static struct bkey_s unsafe_bkey_s_c_to_s(struct bkey_s_c k)
+{
+	return (struct bkey_s) {{{
+		(struct bkey *) k.k,
+		(struct bch_val *) k.v
+	}}};
+}
+
 static bool should_restart_for_topology_repair(struct bch_fs *c)
 {
 	return c->opts.fix_errors != FSCK_FIX_no &&
@@ -829,7 +837,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	}
 
 	ret = commit_do(trans, NULL, NULL, 0,
-			bch2_mark_key(trans, btree_id, level, old, *k, flags));
+			bch2_mark_key(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(*k), flags));
 fsck_err:
 err:
 	bch_err_fn(c, ret);

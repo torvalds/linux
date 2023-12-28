@@ -276,7 +276,7 @@ static void set_is_ancestor_bitmap(struct bch_fs *c, u32 id)
 	mutex_unlock(&c->snapshot_table_lock);
 }
 
-int bch2_mark_snapshot(struct btree_trans *trans,
+static int __bch2_mark_snapshot(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s_c new,
 		       unsigned flags)
@@ -328,6 +328,14 @@ int bch2_mark_snapshot(struct btree_trans *trans,
 err:
 	mutex_unlock(&c->snapshot_table_lock);
 	return ret;
+}
+
+int bch2_mark_snapshot(struct btree_trans *trans,
+		       enum btree_id btree, unsigned level,
+		       struct bkey_s_c old, struct bkey_s new,
+		       unsigned flags)
+{
+	return __bch2_mark_snapshot(trans, btree, level, old, new.s_c, flags);
 }
 
 int bch2_snapshot_lookup(struct btree_trans *trans, u32 id,
@@ -1055,7 +1063,7 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 		bubble_sort(n->v.skip, ARRAY_SIZE(n->v.skip), cmp_le32);
 		SET_BCH_SNAPSHOT_SUBVOL(&n->v, true);
 
-		ret = bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0,
+		ret = __bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0,
 					 bkey_s_c_null, bkey_i_to_s_c(&n->k_i), 0);
 		if (ret)
 			goto err;
@@ -1664,7 +1672,7 @@ int bch2_snapshots_read(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_snapshots,
 				   POS_MIN, 0, k,
-			bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
+			__bch2_mark_snapshot(trans, BTREE_ID_snapshots, 0, bkey_s_c_null, k, 0) ?:
 			bch2_snapshot_set_equiv(trans, k) ?:
 			bch2_check_snapshot_needs_deletion(trans, k)) ?:
 		for_each_btree_key(trans, iter, BTREE_ID_snapshots,

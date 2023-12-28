@@ -328,13 +328,13 @@ int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			      struct gc_pos, unsigned);
 
 int bch2_mark_alloc(struct btree_trans *, enum btree_id, unsigned,
-		    struct bkey_s_c, struct bkey_s_c, unsigned);
+		    struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_mark_extent(struct btree_trans *, enum btree_id, unsigned,
-		     struct bkey_s_c, struct bkey_s_c, unsigned);
+		     struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
-		     struct bkey_s_c, struct bkey_s_c, unsigned);
+		     struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_mark_reservation(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_s_c, unsigned);
+			  struct bkey_s_c, struct bkey_s, unsigned);
 
 int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_s, unsigned);
@@ -346,12 +346,12 @@ int bch2_trans_mark_reservation(struct btree_trans *, enum btree_id, unsigned, s
 	if (_old.k->type)									\
 		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_INSERT);	\
 	if (!ret && _new.k->type)								\
-		ret = _fn(_trans, _btree_id, _level, _new, _flags & ~BTREE_TRIGGER_OVERWRITE);	\
+		ret = _fn(_trans, _btree_id, _level, _new.s_c, _flags & ~BTREE_TRIGGER_OVERWRITE);\
 	ret;											\
 })
 
 #define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)	\
-	mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new.s_c, _flags)
+	mem_trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)
 
 void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
