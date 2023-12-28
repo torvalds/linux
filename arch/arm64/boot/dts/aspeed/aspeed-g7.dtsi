@@ -1191,6 +1191,48 @@
 			status = "disabled";
 		};
 
+		soc1_backed_sram0: sram@14c04100 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x14c04100 0x0 0x80>;	/* 128b Battery Backed SRAM on soc1 */
+			ranges = <0x0 0x0 0x0 0x14c04100 0x0 0x80>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			no-memory-wc;
+
+			exported@0 {
+				reg = <0 0x0 0 0x80>;
+				export;
+			};
+		};
+
+		soc1_backed_sram1: sram@14c04300 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x14c04300 0x0 0x80>;	/* 128b Battery Backed SRAM on soc1 */
+			ranges = <0x0 0x0 0x0 0x14c04300 0x0 0x80>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			no-memory-wc;
+
+			exported@0 {
+				reg = <0 0x0 0 0x80>;
+				export;
+			};
+		};
+
+		soc1_backed_sram2: sram@14c04500 {
+			compatible = "mmio-sram";
+			reg = <0x0 0x14c04500 0x0 0x40>;	/* 64b Battery Backed SRAM on soc1 */
+			ranges = <0x0 0x0 0x0 0x14c04500 0x0 0x40>;
+			#address-cells = <2>;
+			#size-cells = <2>;
+			no-memory-wc;
+
+			exported@0 {
+				reg = <0 0x0 0 0x40>;
+				export;
+			};
+		};
+
 		espi0: espi@14c05000 {
 			compatible = "aspeed,ast2700-espi";
 			reg = <0 0x14c05000 0 0x1000>;
