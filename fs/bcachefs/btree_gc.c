@@ -813,9 +813,6 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	struct bch_fs *c = trans->c;
 	struct bkey deleted = KEY(0, 0, 0);
 	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
-	unsigned flags =
-		BTREE_TRIGGER_GC|
-		(initial ? BTREE_TRIGGER_NOATOMIC : 0);
 	int ret = 0;
 
 	deleted.p = k->k->p;
@@ -837,7 +834,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	}
 
 	ret = commit_do(trans, NULL, NULL, 0,
-			bch2_mark_key(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(*k), flags));
+			bch2_mark_key(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
 fsck_err:
 err:
 	bch_err_fn(c, ret);

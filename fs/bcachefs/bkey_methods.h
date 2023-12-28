@@ -102,7 +102,6 @@ enum btree_update_flags {
 
 	__BTREE_TRIGGER_GC,
 	__BTREE_TRIGGER_BUCKET_INVALIDATE,
-	__BTREE_TRIGGER_NOATOMIC,
 };
 
 #define BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE (1U << __BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE)
@@ -116,7 +115,6 @@ enum btree_update_flags {
 
 #define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
 #define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)
-#define BTREE_TRIGGER_NOATOMIC		(1U << __BTREE_TRIGGER_NOATOMIC)
 
 static inline int bch2_trans_mark_key(struct btree_trans *trans,
 				      enum btree_id btree_id, unsigned level,
