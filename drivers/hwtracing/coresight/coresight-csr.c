@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/coresight.h>
 #include <linux/clk.h>
-#include <linux/mutex.h>
 
 #include "coresight-priv.h"
 #include "coresight-common.h"
@@ -132,7 +131,7 @@ struct csr_drvdata {
 DEFINE_CORESIGHT_DEVLIST(csr_devs, "csr");
 
 static LIST_HEAD(csr_list);
-static DEFINE_MUTEX(csr_lock);
+static DEFINE_SPINLOCK(csr_spinlock);
 
 #define to_csr_drvdata(c) container_of(c, struct csr_drvdata, csr)
 
@@ -366,16 +365,17 @@ EXPORT_SYMBOL(coresight_csr_set_byte_cntr);
 struct coresight_csr *coresight_csr_get(const char *name)
 {
 	struct coresight_csr *csr;
+	unsigned long flags;
 
-	mutex_lock(&csr_lock);
+	spin_lock_irqsave(&csr_spinlock, flags);
 	list_for_each_entry(csr, &csr_list, link) {
 		if (!strcmp(csr->name, name)) {
-			mutex_unlock(&csr_lock);
+			spin_unlock_irqrestore(&csr_spinlock, flags);
 			return csr;
 		}
 	}
 
-	mutex_unlock(&csr_lock);
+	spin_unlock_irqrestore(&csr_spinlock, flags);
 	return ERR_PTR(-EINVAL);
 }
 EXPORT_SYMBOL(coresight_csr_get);
@@ -959,9 +959,9 @@ static int csr_probe(struct platform_device *pdev)
 	spin_lock_init(&drvdata->spin_lock);
 	drvdata->csr.name = desc.name;
 
-	mutex_lock(&csr_lock);
+	spin_lock(&csr_spinlock);
 	list_add_tail(&drvdata->csr.link, &csr_list);
-	mutex_unlock(&csr_lock);
+	spin_unlock(&csr_spinlock);
 
 	dev_info(dev, "CSR initialized: %s\n", drvdata->csr.name);
 	return 0;
@@ -971,9 +971,9 @@ static int csr_remove(struct platform_device *pdev)
 {
 	struct csr_drvdata *drvdata = platform_get_drvdata(pdev);
 
-	mutex_lock(&csr_lock);
+	spin_lock(&csr_spinlock);
 	list_del(&drvdata->csr.link);
-	mutex_unlock(&csr_lock);
+	spin_unlock(&csr_spinlock);
 
 	coresight_remove_csr_ops();
 	coresight_unregister(drvdata->csdev);
