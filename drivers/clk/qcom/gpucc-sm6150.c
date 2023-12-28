@@ -542,7 +542,9 @@ static void gpucc_sm6150_fixup_sa6155(struct platform_device *pdev)
 	gpu_cc_gx_gfx3d_clk_src.freq_tbl = ftbl_sa6155_gpu_cc_gx_gfx3d_clk_src;
 
 	gpu_cc_pll0.clkr.hw.init = &gpu_cc_pll0_sa6155;
+	gpu_cc_pll0.flags = SUPPORTS_SLEW;
 	gpu_cc_pll1.clkr.hw.init = &gpu_cc_pll1_sa6155;
+	gpu_cc_pll1.flags = SUPPORTS_SLEW;
 }
 
 static int gpu_cc_sm6150_probe(struct platform_device *pdev)

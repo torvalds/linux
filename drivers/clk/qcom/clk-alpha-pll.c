@@ -4588,5 +4588,6 @@ const struct clk_ops clk_alpha_pll_slew_ops = {
 #ifdef CONFIG_COMMON_CLK_QCOM_DEBUG
 	.list_rate_vdd_level = clk_list_rate_vdd_level,
 #endif
+	.restore_context = clk_pll_restore_context,
 };
 EXPORT_SYMBOL(clk_alpha_pll_slew_ops);
