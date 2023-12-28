@@ -13,9 +13,14 @@
 
 #include "thermal_core.h"
 
+enum thermal_genl_multicast_groups {
+	THERMAL_GENL_SAMPLING_GROUP = 0,
+	THERMAL_GENL_EVENT_GROUP = 1,
+};
+
 static const struct genl_multicast_group thermal_genl_mcgrps[] = {
-	{ .name = THERMAL_GENL_SAMPLING_GROUP_NAME, },
-	{ .name = THERMAL_GENL_EVENT_GROUP_NAME,  },
+	[THERMAL_GENL_SAMPLING_GROUP] = { .name = THERMAL_GENL_SAMPLING_GROUP_NAME, },
+	[THERMAL_GENL_EVENT_GROUP]  = { .name = THERMAL_GENL_EVENT_GROUP_NAME,  },
 };
 
 static const struct nla_policy thermal_genl_policy[THERMAL_GENL_ATTR_MAX + 1] = {
@@ -95,7 +100,7 @@ int thermal_genl_sampling_temp(int id, int temp)
 
 	genlmsg_end(skb, hdr);
 
-	genlmsg_multicast(&thermal_gnl_family, skb, 0, 0, GFP_KERNEL);
+	genlmsg_multicast(&thermal_gnl_family, skb, 0, THERMAL_GENL_SAMPLING_GROUP, GFP_KERNEL);
 
 	return 0;
 out_cancel:
@@ -290,7 +295,7 @@ static int thermal_genl_send_event(enum thermal_genl_event event,
 
 	genlmsg_end(msg, hdr);
 
-	genlmsg_multicast(&thermal_gnl_family, msg, 0, 1, GFP_KERNEL);
+	genlmsg_multicast(&thermal_gnl_family, msg, 0, THERMAL_GENL_EVENT_GROUP, GFP_KERNEL);
 
 	return 0;
 
