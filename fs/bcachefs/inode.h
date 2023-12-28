@@ -17,32 +17,30 @@ int bch2_inode_v3_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
-int bch2_trans_mark_inode(struct btree_trans *, enum btree_id, unsigned,
+int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, struct bkey_s, unsigned);
-int bch2_mark_inode(struct btree_trans *, enum btree_id, unsigned,
-		    struct bkey_s_c, struct bkey_s, unsigned);
 
 #define bch2_bkey_ops_inode ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_invalid,		\
 	.val_to_text	= bch2_inode_to_text,		\
-	.trans_trigger	= bch2_trans_mark_inode,	\
-	.atomic_trigger	= bch2_mark_inode,		\
+	.trans_trigger	= bch2_trigger_inode,		\
+	.atomic_trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 16,				\
 })
 
 #define bch2_bkey_ops_inode_v2 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_v2_invalid,	\
 	.val_to_text	= bch2_inode_to_text,		\
-	.trans_trigger	= bch2_trans_mark_inode,	\
-	.atomic_trigger	= bch2_mark_inode,		\
+	.trans_trigger	= bch2_trigger_inode,		\
+	.atomic_trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 32,				\
 })
 
 #define bch2_bkey_ops_inode_v3 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_v3_invalid,	\
 	.val_to_text	= bch2_inode_to_text,		\
-	.trans_trigger	= bch2_trans_mark_inode,	\
-	.atomic_trigger	= bch2_mark_inode,		\
+	.trans_trigger	= bch2_trigger_inode,		\
+	.atomic_trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 48,				\
 })
 

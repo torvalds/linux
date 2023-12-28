@@ -561,61 +561,46 @@ static inline bool bkey_is_deleted_inode(struct bkey_s_c k)
 	return bkey_inode_flags(k) & BCH_INODE_unlinked;
 }
 
-int bch2_trans_mark_inode(struct btree_trans *trans,
-			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old,
-			  struct bkey_s new,
-			  unsigned flags)
+int bch2_trigger_inode(struct btree_trans *trans,
+		       enum btree_id btree_id, unsigned level,
+		       struct bkey_s_c old,
+		       struct bkey_s new,
+		       unsigned flags)
 {
 	s64 nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
-	bool old_deleted = bkey_is_deleted_inode(old);
-	bool new_deleted = bkey_is_deleted_inode(new.s_c);
 
-	if (nr) {
-		int ret = bch2_replicas_deltas_realloc(trans, 0);
-		struct replicas_delta_list *d = trans->fs_usage_deltas;
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		if (nr) {
+			int ret = bch2_replicas_deltas_realloc(trans, 0);
+			if (ret)
+				return ret;
 
-		if (ret)
-			return ret;
+			trans->fs_usage_deltas->nr_inodes += nr;
+		}
 
-		d->nr_inodes += nr;
+		bool old_deleted = bkey_is_deleted_inode(old);
+		bool new_deleted = bkey_is_deleted_inode(new.s_c);
+		if (old_deleted != new_deleted) {
+			int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new.k->p, new_deleted);
+			if (ret)
+				return ret;
+		}
 	}
 
-	if (old_deleted != new_deleted) {
-		int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new.k->p, new_deleted);
-		if (ret)
-			return ret;
-	}
+	if (!(flags & BTREE_TRIGGER_TRANSACTIONAL) && (flags & BTREE_TRIGGER_INSERT)) {
+		BUG_ON(!trans->journal_res.seq);
 
-	return 0;
-}
-
-int bch2_mark_inode(struct btree_trans *trans,
-		    enum btree_id btree_id, unsigned level,
-		    struct bkey_s_c old, struct bkey_s new,
-		    unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_fs_usage *fs_usage;
-	u64 journal_seq = trans->journal_res.seq;
-
-	if (flags & BTREE_TRIGGER_INSERT) {
-		BUG_ON(!journal_seq);
-
-		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(journal_seq);
+		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);
 	}
 
 	if (flags & BTREE_TRIGGER_GC) {
+		struct bch_fs *c = trans->c;
+
 		percpu_down_read(&c->mark_lock);
-		preempt_disable();
-
-		fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
-		fs_usage->nr_inodes += bkey_is_inode(new.k);
-		fs_usage->nr_inodes -= bkey_is_inode(old.k);
-
-		preempt_enable();
+		this_cpu_add(c->usage_gc->nr_inodes, nr);
 		percpu_up_read(&c->mark_lock);
 	}
+
 	return 0;
 }
 
