@@ -93,6 +93,7 @@ sub parse_abi {
 	return if ($mode & S_IFDIR);
 	return if ($file =~ m,/README,);
 	return if ($file =~ m,/\.,);
+	return if ($file =~ m,\.(rej|org|orig|bak)$,);
 
 	my $name = $file;
 	$name =~ s,.*/,,;
