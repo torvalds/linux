@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  * Copyright (c) 2018, Linaro Limited
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -93,6 +94,8 @@ static const struct reg_field tsens_v2_regfields[MAX_REGFIELDS] = {
 static const struct tsens_ops ops_generic_v2 = {
 	.init		= init_common,
 	.get_temp	= get_temp_tsens_valid,
+	.suspend = tsens_v2_tsens_suspend,
+	.resume = tsens_v2_tsens_resume,
 };
 
 struct tsens_plat_data data_tsens_v2 = {
