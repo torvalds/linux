@@ -334,8 +334,8 @@ int rknpu_devfreq_init(struct rknpu_device *rknpu_dev)
 						     (void *)rknpu_dev);
 	if (IS_ERR(rknpu_dev->devfreq)) {
 		LOG_DEV_ERROR(dev, "failed to add devfreq\n");
-		rknpu_dev->devfreq = NULL;
 		ret = PTR_ERR(rknpu_dev->devfreq);
+		rknpu_dev->devfreq = NULL;
 		goto err_remove_governor;
 	}
 
