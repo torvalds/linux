@@ -67,6 +67,7 @@ struct xfs_buf_log_format;
 struct xfs_inode_log_format;
 struct xfs_bmbt_irec;
 struct xfs_btree_cur;
+struct xfs_defer_op_type;
 struct xfs_refcount_irec;
 struct xfs_fsmap;
 struct xfs_rmap_irec;
@@ -145,21 +146,23 @@ DEFINE_ATTR_LIST_EVENT(xfs_attr_leaf_list);
 DEFINE_ATTR_LIST_EVENT(xfs_attr_node_list);
 
 TRACE_EVENT(xlog_intent_recovery_failed,
-	TP_PROTO(struct xfs_mount *mp, int error, void *function),
-	TP_ARGS(mp, error, function),
+	TP_PROTO(struct xfs_mount *mp, const struct xfs_defer_op_type *ops,
+		 int error),
+	TP_ARGS(mp, ops, error),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__string(name, ops->name)
 		__field(int, error)
-		__field(void *, function)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
+		__assign_str(name, ops->name);
 		__entry->error = error;
-		__entry->function = function;
 	),
-	TP_printk("dev %d:%d error %d function %pS",
+	TP_printk("dev %d:%d optype %s error %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->error, __entry->function)
+		  __get_str(name),
+		  __entry->error)
 );
 
 DECLARE_EVENT_CLASS(xfs_perag_class,
