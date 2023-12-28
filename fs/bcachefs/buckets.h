@@ -305,6 +305,8 @@ bch2_fs_usage_read_short(struct bch_fs *);
 void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
 			   const struct bch_alloc_v4 *,
 			   const struct bch_alloc_v4 *, u64, bool);
+void bch2_dev_usage_update_m(struct bch_fs *, struct bch_dev *,
+			     struct bucket *, struct bucket *);
 
 /* key/bucket marking: */
 
@@ -320,6 +322,9 @@ static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
 			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
 }
 
+int bch2_update_replicas(struct bch_fs *, struct bkey_s_c,
+			 struct bch_replicas_entry_v1 *, s64,
+			 unsigned, bool);
 int bch2_update_replicas_list(struct btree_trans *,
 			 struct bch_replicas_entry_v1 *, s64);
 int bch2_update_cached_sectors_list(struct btree_trans *, unsigned, s64);
@@ -327,19 +332,20 @@ int bch2_replicas_deltas_realloc(struct btree_trans *, unsigned);
 
 void bch2_fs_usage_initialize(struct bch_fs *);
 
+int bch2_check_bucket_ref(struct btree_trans *, struct bkey_s_c,
+			  const struct bch_extent_ptr *,
+			  s64, enum bch_data_type, u8, u8, u32);
+
 int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
 			      size_t, enum bch_data_type, unsigned,
 			      struct gc_pos, unsigned);
 
 int bch2_mark_extent(struct btree_trans *, enum btree_id, unsigned,
 		     struct bkey_s_c, struct bkey_s, unsigned);
-int bch2_mark_stripe(struct btree_trans *, enum btree_id, unsigned,
-		     struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
 			  struct bkey_s_c, struct bkey_s, unsigned);
 
 int bch2_trans_mark_extent(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_s, unsigned);
-int bch2_trans_mark_stripe(struct btree_trans *, enum btree_id, unsigned, struct bkey_s_c, struct bkey_s, unsigned);
 #define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
 ({												\
 	int ret = 0;										\
