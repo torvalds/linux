@@ -237,81 +237,6 @@ err:
 	return ret;
 }
 
-int bch2_trans_mark_stripe(struct btree_trans *trans,
-			   enum btree_id btree_id, unsigned level,
-			   struct bkey_s_c old, struct bkey_s new,
-			   unsigned flags)
-{
-	const struct bch_stripe *old_s = NULL;
-	struct bch_stripe *new_s = NULL;
-	struct bch_replicas_padded r;
-	unsigned i, nr_blocks;
-	int ret = 0;
-
-	if (old.k->type == KEY_TYPE_stripe)
-		old_s = bkey_s_c_to_stripe(old).v;
-	if (new.k->type == KEY_TYPE_stripe)
-		new_s = bkey_s_to_stripe(new).v;
-
-	/*
-	 * If the pointers aren't changing, we don't need to do anything:
-	 */
-	if (new_s && old_s &&
-	    new_s->nr_blocks	== old_s->nr_blocks &&
-	    new_s->nr_redundant	== old_s->nr_redundant &&
-	    !memcmp(old_s->ptrs, new_s->ptrs,
-		    new_s->nr_blocks * sizeof(struct bch_extent_ptr)))
-		return 0;
-
-	BUG_ON(new_s && old_s &&
-	       (new_s->nr_blocks	!= old_s->nr_blocks ||
-		new_s->nr_redundant	!= old_s->nr_redundant));
-
-	nr_blocks = new_s ? new_s->nr_blocks : old_s->nr_blocks;
-
-	if (new_s) {
-		s64 sectors = le16_to_cpu(new_s->sectors);
-
-		bch2_bkey_to_replicas(&r.e, new.s_c);
-		ret = bch2_update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
-		if (ret)
-			return ret;
-	}
-
-	if (old_s) {
-		s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
-
-		bch2_bkey_to_replicas(&r.e, old);
-		ret = bch2_update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; i < nr_blocks; i++) {
-		if (new_s && old_s &&
-		    !memcmp(&new_s->ptrs[i],
-			    &old_s->ptrs[i],
-			    sizeof(new_s->ptrs[i])))
-			continue;
-
-		if (new_s) {
-			ret = bch2_trans_mark_stripe_bucket(trans,
-					bkey_s_to_stripe(new).c, i, false);
-			if (ret)
-				break;
-		}
-
-		if (old_s) {
-			ret = bch2_trans_mark_stripe_bucket(trans,
-					bkey_s_c_to_stripe(old), i, true);
-			if (ret)
-				break;
-		}
-	}
-
-	return ret;
-}
-
 static int mark_stripe_bucket(struct btree_trans *trans,
 			      struct bkey_s_c k,
 			      unsigned ptr_idx,
@@ -370,26 +295,79 @@ err:
 	return ret;
 }
 
-int bch2_mark_stripe(struct btree_trans *trans,
-		     enum btree_id btree_id, unsigned level,
-		     struct bkey_s_c old, struct bkey_s _new,
-		     unsigned flags)
+int bch2_trigger_stripe(struct btree_trans *trans,
+			enum btree_id btree_id, unsigned level,
+			struct bkey_s_c old, struct bkey_s _new,
+			unsigned flags)
 {
 	struct bkey_s_c new = _new.s_c;
-	bool gc = flags & BTREE_TRIGGER_GC;
-	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
 	u64 idx = new.k->p.offset;
 	const struct bch_stripe *old_s = old.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(old).v : NULL;
 	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(new).v : NULL;
-	unsigned i;
-	int ret;
 
-	BUG_ON(gc && old_s);
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		/*
+		 * If the pointers aren't changing, we don't need to do anything:
+		 */
+		if (new_s && old_s &&
+		    new_s->nr_blocks	== old_s->nr_blocks &&
+		    new_s->nr_redundant	== old_s->nr_redundant &&
+		    !memcmp(old_s->ptrs, new_s->ptrs,
+			    new_s->nr_blocks * sizeof(struct bch_extent_ptr)))
+			return 0;
 
-	if (!gc) {
+		BUG_ON(new_s && old_s &&
+		       (new_s->nr_blocks	!= old_s->nr_blocks ||
+			new_s->nr_redundant	!= old_s->nr_redundant));
+
+		if (new_s) {
+			s64 sectors = le16_to_cpu(new_s->sectors);
+
+			struct bch_replicas_padded r;
+			bch2_bkey_to_replicas(&r.e, new);
+			int ret = bch2_update_replicas_list(trans, &r.e, sectors * new_s->nr_redundant);
+			if (ret)
+				return ret;
+		}
+
+		if (old_s) {
+			s64 sectors = -((s64) le16_to_cpu(old_s->sectors));
+
+			struct bch_replicas_padded r;
+			bch2_bkey_to_replicas(&r.e, old);
+			int ret = bch2_update_replicas_list(trans, &r.e, sectors * old_s->nr_redundant);
+			if (ret)
+				return ret;
+		}
+
+		unsigned nr_blocks = new_s ? new_s->nr_blocks : old_s->nr_blocks;
+		for (unsigned i = 0; i < nr_blocks; i++) {
+			if (new_s && old_s &&
+			    !memcmp(&new_s->ptrs[i],
+				    &old_s->ptrs[i],
+				    sizeof(new_s->ptrs[i])))
+				continue;
+
+			if (new_s) {
+				int ret = bch2_trans_mark_stripe_bucket(trans,
+						bkey_s_c_to_stripe(new), i, false);
+				if (ret)
+					return ret;
+			}
+
+			if (old_s) {
+				int ret = bch2_trans_mark_stripe_bucket(trans,
+						bkey_s_c_to_stripe(old), i, true);
+				if (ret)
+					return ret;
+			}
+		}
+	}
+
+	if (!(flags & (BTREE_TRIGGER_TRANSACTIONAL|BTREE_TRIGGER_GC))) {
 		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
 		if (!m) {
@@ -418,7 +396,7 @@ int bch2_mark_stripe(struct btree_trans *trans,
 			m->nr_redundant	= new_s->nr_redundant;
 			m->blocks_nonempty = 0;
 
-			for (i = 0; i < new_s->nr_blocks; i++)
+			for (unsigned i = 0; i < new_s->nr_blocks; i++)
 				m->blocks_nonempty += !!stripe_blockcount_get(new_s, i);
 
 			if (!old_s)
@@ -426,7 +404,9 @@ int bch2_mark_stripe(struct btree_trans *trans,
 			else
 				bch2_stripes_heap_update(c, m, idx);
 		}
-	} else {
+	}
+
+	if (flags & BTREE_TRIGGER_GC) {
 		struct gc_stripe *m =
 			genradix_ptr_alloc(&c->gc_stripes, idx, GFP_KERNEL);
 
@@ -444,7 +424,7 @@ int bch2_mark_stripe(struct btree_trans *trans,
 		m->nr_blocks	= new_s->nr_blocks;
 		m->nr_redundant	= new_s->nr_redundant;
 
-		for (i = 0; i < new_s->nr_blocks; i++)
+		for (unsigned i = 0; i < new_s->nr_blocks; i++)
 			m->ptrs[i] = new_s->ptrs[i];
 
 		bch2_bkey_to_replicas(&m->r.e, new);
@@ -455,15 +435,15 @@ int bch2_mark_stripe(struct btree_trans *trans,
 		 */
 		memset(m->block_sectors, 0, sizeof(m->block_sectors));
 
-		for (i = 0; i < new_s->nr_blocks; i++) {
-			ret = mark_stripe_bucket(trans, new, i, flags);
+		for (unsigned i = 0; i < new_s->nr_blocks; i++) {
+			int ret = mark_stripe_bucket(trans, new, i, flags);
 			if (ret)
 				return ret;
 		}
 
-		ret = bch2_update_replicas(c, new, &m->r.e,
+		int ret = bch2_update_replicas(c, new, &m->r.e,
 				      ((s64) m->sectors * m->nr_redundant),
-				      journal_seq, gc);
+				      0, true);
 		if (ret) {
 			struct printbuf buf = PRINTBUF;
 
