@@ -271,7 +271,7 @@ int bch2_mark_reflink_p(struct btree_trans *trans,
 			struct bkey_s_c old, struct bkey_s new,
 			unsigned flags)
 {
-	return mem_trigger_run_overwrite_then_insert(__mark_reflink_p, trans, btree_id, level, old, new, flags);
+	return trigger_run_overwrite_then_insert(__mark_reflink_p, trans, btree_id, level, old, new, flags);
 }
 
 /* indirect extents */

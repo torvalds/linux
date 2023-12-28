@@ -1011,7 +1011,7 @@ int bch2_mark_extent(struct btree_trans *trans,
 		     struct bkey_s_c old, struct bkey_s new,
 		     unsigned flags)
 {
-	return mem_trigger_run_overwrite_then_insert(__mark_extent, trans, btree_id, level, old, new, flags);
+	return trigger_run_overwrite_then_insert(__mark_extent, trans, btree_id, level, old, new, flags);
 }
 
 int bch2_mark_stripe(struct btree_trans *trans,
@@ -1157,7 +1157,7 @@ int bch2_mark_reservation(struct btree_trans *trans,
 			  struct bkey_s_c old, struct bkey_s new,
 			  unsigned flags)
 {
-	return mem_trigger_run_overwrite_then_insert(__mark_reservation, trans, btree_id, level, old, new, flags);
+	return trigger_run_overwrite_then_insert(__mark_reservation, trans, btree_id, level, old, new, flags);
 }
 
 void bch2_trans_fs_usage_revert(struct btree_trans *trans,
