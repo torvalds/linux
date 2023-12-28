@@ -2406,8 +2406,23 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	tb_port_dbg(in, "handling bandwidth allocation request\n");
 
+	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
+	if (!tunnel) {
+		tb_port_warn(in, "failed to find tunnel\n");
+		goto put_sw;
+	}
+
 	if (!usb4_dp_port_bandwidth_mode_enabled(in)) {
-		tb_port_warn(in, "bandwidth allocation mode not enabled\n");
+		if (tunnel->bw_mode) {
+			/*
+			 * Reset the tunnel back to use the legacy
+			 * allocation.
+			 */
+			tunnel->bw_mode = false;
+			tb_port_dbg(in, "DPTX disabled bandwidth allocation mode\n");
+		} else {
+			tb_port_warn(in, "bandwidth allocation mode not enabled\n");
+		}
 		goto put_sw;
 	}
 
@@ -2432,11 +2447,6 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	tb_port_dbg(in, "requested bandwidth %d Mb/s\n", requested_bw);
 
-	tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
-	if (!tunnel) {
-		tb_port_warn(in, "failed to find tunnel\n");
-		goto put_sw;
-	}
 
 	out = tunnel->dst_port;
 
