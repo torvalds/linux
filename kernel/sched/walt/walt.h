@@ -187,6 +187,7 @@ struct freq_relation_map {
 extern struct walt_sched_cluster *sched_cluster[WALT_NR_CPUS];
 extern cpumask_t part_haltable_cpus;
 extern cpumask_t cpus_paused_by_us;
+extern cpumask_t cpus_part_paused_by_us;
 /*END SCHED.H PORT*/
 
 extern int num_sched_clusters;

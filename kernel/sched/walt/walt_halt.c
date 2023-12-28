@@ -548,12 +548,21 @@ static void android_rvh_get_nohz_timer_target(void *unused, int *cpu, bool *done
 	 * affecting externally halted cpus.
 	 */
 	if (!cpumask_andnot(&unhalted, cpu_active_mask, cpu_halt_mask)) {
-		if (cpumask_weight(&cpus_paused_by_us))
-			*cpu = cpumask_first(&cpus_paused_by_us);
-		else
-			*cpu = cpumask_first(cpu_halt_mask);
+		cpumask_t tmp_pause, tmp_part_pause, tmp_halt, *tmp;
 
-		return;
+		cpumask_and(&tmp_part_pause, cpu_active_mask, &cpus_part_paused_by_us);
+		cpumask_and(&tmp_pause, cpu_active_mask, &cpus_paused_by_us);
+		cpumask_and(&tmp_halt, cpu_active_mask, cpu_halt_mask);
+		tmp = cpumask_weight(&tmp_part_pause) ? &tmp_part_pause :
+			cpumask_weight(&tmp_pause) ? &tmp_pause : &tmp_halt;
+
+		for_each_cpu(i, tmp) {
+			if ((*cpu == i) && cpumask_weight(tmp) > 1)
+				continue;
+
+			*cpu = i;
+			return;
+		}
 	}
 
 	rcu_read_lock();
