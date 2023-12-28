@@ -9,10 +9,6 @@
 			Linus
 ----------
 
-N: Matt Mackal
-E: mpm@selenic.com
-D: SLOB slab allocator
-
 N: Matti Aarnio
 E: mea@nic.funet.fi
 D: Alpha systems hacking, IPv6 and other network related stuff
@@ -1572,6 +1568,10 @@ S: Ampferstr. 50 / 4
 S: 6020 Innsbruck
 S: Austria
 
+N: Mark Hemment
+E: markhe@nextd.demon.co.uk
+D: SLAB allocator implementation
+
 N: Richard Henderson
 E: rth@twiddle.net
 E: rth@cygnus.com
@@ -2436,6 +2436,10 @@ D: sun4/330 port, capabilities for elf, speedup for rm on ext2, USB,
 D: work on suspend-to-ram/disk, killing duplicates from ioctl32,
 D: Altera SoCFPGA and Nokia N900 support.
 S: Czech Republic
+
+N: Olivia Mackall
+E: olivia@selenic.com
+D: SLOB slab allocator
 
 N: Paul Mackerras
 E: paulus@samba.org
