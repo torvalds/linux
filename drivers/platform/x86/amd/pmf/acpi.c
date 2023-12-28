@@ -135,11 +135,9 @@ static void apmf_sbios_heartbeat_notify(struct work_struct *work)
 	dev_dbg(dev->dev, "Sending heartbeat to SBIOS\n");
 	info = apmf_if_call(dev, APMF_FUNC_SBIOS_HEARTBEAT, NULL);
 	if (!info)
-		goto out;
+		return;
 
 	schedule_delayed_work(&dev->heart_beat, msecs_to_jiffies(dev->hb_interval * 1000));
-
-out:
 	kfree(info);
 }
 
