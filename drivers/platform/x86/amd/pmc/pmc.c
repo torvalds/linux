@@ -973,9 +973,6 @@ static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 	/* Spill to DRAM feature uses separate SMU message port */
 	dev->msg_port = 1;
 
-	/* Get num of IP blocks within the SoC */
-	amd_pmc_get_ip_info(dev);
-
 	amd_pmc_send_cmd(dev, S2D_TELEMETRY_SIZE, &size, dev->s2d_msg_id, true);
 	if (size != S2D_TELEMETRY_BYTES_MAX)
 		return -EIO;
@@ -1082,6 +1079,9 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&dev->lock);
+
+	/* Get num of IP blocks within the SoC */
+	amd_pmc_get_ip_info(dev);
 
 	if (enable_stb && amd_pmc_is_stb_supported(dev)) {
 		err = amd_pmc_s2d_init(dev);
