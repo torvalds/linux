@@ -973,11 +973,11 @@
 	status = "okay";
 };
 
-&phy2a1 {
+&phy2a {
 	status = "okay";
 };
 
-&phy2b1 {
+&phy2b {
 	status = "okay";
 };
 #endif

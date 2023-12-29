@@ -205,10 +205,10 @@
 			status = "disabled";
 		};
 
-		phy2a1: phy2@12011800 {
-			compatible = "aspeed,ast2700-phy2a1";
+		phy2a: phy2@12011800 {
+			compatible = "aspeed,ast2700-phy2a";
 			reg = <0x0 0x12011800 0x0 0x10>;
-			ctrl = <0x4 0xbc001e00>;	/* <offset, value> */
+			ctrl = <0x4 0xbc001e00>;	/* xHCI to vHub1 clock rate: 60MHz */
 			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
@@ -238,10 +238,10 @@
 			status = "disabled";
 		};
 
-		phy2b1: phy2@12021800 {
-			compatible = "aspeed,ast2700-phy2b1";
+		phy2b: phy2@12021800 {
+			compatible = "aspeed,ast2700-phy2b";
 			reg = <0x0 0x12021800 0x0 0x10>;
-			ctrl = <0x4 0xbc001e00>;	/* <offset, value> */
+			ctrl = <0x4 0xbc001e00>;	/* xHCI to vHub1 clock rate: 60MHz */
 			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
