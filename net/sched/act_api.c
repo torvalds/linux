@@ -1313,7 +1313,7 @@ void tcf_idr_insert_many(struct tc_action *actions[], int init_res[])
 	tcf_act_for_each_action(i, a, actions) {
 		struct tcf_idrinfo *idrinfo;
 
-		if (init_res[i] == 0) /* Bound */
+		if (init_res[i] == ACT_P_BOUND)
 			continue;
 
 		idrinfo = a->idrinfo;

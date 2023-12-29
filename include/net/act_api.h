@@ -137,6 +137,7 @@ struct tc_action_ops {
 
 #ifdef CONFIG_NET_CLS_ACT
 
+#define ACT_P_BOUND 0
 #define ACT_P_CREATED 1
 #define ACT_P_DELETED 1
 

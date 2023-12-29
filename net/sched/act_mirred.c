@@ -135,7 +135,7 @@ static int tcf_mirred_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	if (tb[TCA_MIRRED_BLOCKID] && parm->ifindex) {
 		NL_SET_ERR_MSG_MOD(extack,
