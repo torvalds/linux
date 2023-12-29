@@ -6163,7 +6163,7 @@ static int clear_subpage(unsigned long addr, int idx, void *arg)
 {
 	struct page *page = arg;
 
-	clear_user_highpage(page + idx, addr);
+	clear_user_highpage(nth_page(page, idx), addr);
 	return 0;
 }
 
@@ -6213,10 +6213,11 @@ struct copy_subpage_arg {
 static int copy_subpage(unsigned long addr, int idx, void *arg)
 {
 	struct copy_subpage_arg *copy_arg = arg;
+	struct page *dst = nth_page(copy_arg->dst, idx);
+	struct page *src = nth_page(copy_arg->src, idx);
 
-	if (copy_mc_user_highpage(copy_arg->dst + idx, copy_arg->src + idx,
-				  addr, copy_arg->vma)) {
-		memory_failure_queue(page_to_pfn(copy_arg->src + idx), 0);
+	if (copy_mc_user_highpage(dst, src, addr, copy_arg->vma)) {
+		memory_failure_queue(page_to_pfn(src), 0);
 		return -EHWPOISON;
 	}
 	return 0;
