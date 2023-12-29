@@ -80,6 +80,78 @@ static const struct mpr_func_spec mpr_func_spec[] = {
 	[MPR_FUNCTION_C] = { .output_min = 3355443, .output_max = 13421773 },
 };
 
+enum mpr_variants {
+	MPR0001BA = 0x00, MPR01_6BA = 0x01, MPR02_5BA = 0x02, MPR0060MG = 0x03,
+	MPR0100MG = 0x04, MPR0160MG = 0x05, MPR0250MG = 0x06, MPR0400MG = 0x07,
+	MPR0600MG = 0x08, MPR0001BG = 0x09, MPR01_6BG = 0x0a, MPR02_5BG = 0x0b,
+	MPR0100KA = 0x0c, MPR0160KA = 0x0d, MPR0250KA = 0x0e, MPR0006KG = 0x0f,
+	MPR0010KG = 0x10, MPR0016KG = 0x11, MPR0025KG = 0x12, MPR0040KG = 0x13,
+	MPR0060KG = 0x14, MPR0100KG = 0x15, MPR0160KG = 0x16, MPR0250KG = 0x17,
+	MPR0015PA = 0x18, MPR0025PA = 0x19, MPR0030PA = 0x1a, MPR0001PG = 0x1b,
+	MPR0005PG = 0x1c, MPR0015PG = 0x1d, MPR0030PG = 0x1e, MPR0300YG = 0x1f,
+	MPR_VARIANTS_MAX
+};
+
+static const char * const mpr_triplet_variants[MPR_VARIANTS_MAX] = {
+	[MPR0001BA] = "0001BA", [MPR01_6BA] = "01.6BA", [MPR02_5BA] = "02.5BA",
+	[MPR0060MG] = "0060MG", [MPR0100MG] = "0100MG", [MPR0160MG] = "0160MG",
+	[MPR0250MG] = "0250MG", [MPR0400MG] = "0400MG", [MPR0600MG] = "0600MG",
+	[MPR0001BG] = "0001BG", [MPR01_6BG] = "01.6BG", [MPR02_5BG] = "02.5BG",
+	[MPR0100KA] = "0100KA", [MPR0160KA] = "0160KA", [MPR0250KA] = "0250KA",
+	[MPR0006KG] = "0006KG", [MPR0010KG] = "0010KG", [MPR0016KG] = "0016KG",
+	[MPR0025KG] = "0025KG", [MPR0040KG] = "0040KG", [MPR0060KG] = "0060KG",
+	[MPR0100KG] = "0100KG", [MPR0160KG] = "0160KG", [MPR0250KG] = "0250KG",
+	[MPR0015PA] = "0015PA", [MPR0025PA] = "0025PA", [MPR0030PA] = "0030PA",
+	[MPR0001PG] = "0001PG", [MPR0005PG] = "0005PG", [MPR0015PG] = "0015PG",
+	[MPR0030PG] = "0030PG", [MPR0300YG] = "0300YG"
+};
+
+/**
+ * struct mpr_range_config - list of pressure ranges based on nomenclature
+ * @pmin: lowest pressure that can be measured
+ * @pmax: highest pressure that can be measured
+ */
+struct mpr_range_config {
+	const s32 pmin;
+	const s32 pmax;
+};
+
+/* All min max limits have been converted to pascals */
+static const struct mpr_range_config mpr_range_config[MPR_VARIANTS_MAX] = {
+	[MPR0001BA] = { .pmin = 0, .pmax = 100000 },
+	[MPR01_6BA] = { .pmin = 0, .pmax = 160000 },
+	[MPR02_5BA] = { .pmin = 0, .pmax = 250000 },
+	[MPR0060MG] = { .pmin = 0, .pmax =   6000 },
+	[MPR0100MG] = { .pmin = 0, .pmax =  10000 },
+	[MPR0160MG] = { .pmin = 0, .pmax =  16000 },
+	[MPR0250MG] = { .pmin = 0, .pmax =  25000 },
+	[MPR0400MG] = { .pmin = 0, .pmax =  40000 },
+	[MPR0600MG] = { .pmin = 0, .pmax =  60000 },
+	[MPR0001BG] = { .pmin = 0, .pmax = 100000 },
+	[MPR01_6BG] = { .pmin = 0, .pmax = 160000 },
+	[MPR02_5BG] = { .pmin = 0, .pmax = 250000 },
+	[MPR0100KA] = { .pmin = 0, .pmax = 100000 },
+	[MPR0160KA] = { .pmin = 0, .pmax = 160000 },
+	[MPR0250KA] = { .pmin = 0, .pmax = 250000 },
+	[MPR0006KG] = { .pmin = 0, .pmax =   6000 },
+	[MPR0010KG] = { .pmin = 0, .pmax =  10000 },
+	[MPR0016KG] = { .pmin = 0, .pmax =  16000 },
+	[MPR0025KG] = { .pmin = 0, .pmax =  25000 },
+	[MPR0040KG] = { .pmin = 0, .pmax =  40000 },
+	[MPR0060KG] = { .pmin = 0, .pmax =  60000 },
+	[MPR0100KG] = { .pmin = 0, .pmax = 100000 },
+	[MPR0160KG] = { .pmin = 0, .pmax = 160000 },
+	[MPR0250KG] = { .pmin = 0, .pmax = 250000 },
+	[MPR0015PA] = { .pmin = 0, .pmax = 103421 },
+	[MPR0025PA] = { .pmin = 0, .pmax = 172369 },
+	[MPR0030PA] = { .pmin = 0, .pmax = 206843 },
+	[MPR0001PG] = { .pmin = 0, .pmax =   6895 },
+	[MPR0005PG] = { .pmin = 0, .pmax =  34474 },
+	[MPR0015PG] = { .pmin = 0, .pmax = 103421 },
+	[MPR0030PG] = { .pmin = 0, .pmax = 206843 },
+	[MPR0300YG] = { .pmin = 0, .pmax =  39997 }
+};
+
 static const struct iio_chan_spec mpr_channels[] = {
 	{
 		.type = IIO_PRESSURE,
@@ -257,6 +329,7 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 	int ret;
 	struct mpr_data *data;
 	struct iio_dev *indio_dev;
+	const char *triplet;
 	s64 scale, offset;
 	u32 func;
 
@@ -298,16 +371,32 @@ int mpr_common_probe(struct device *dev, const struct mpr_ops *ops, int irq)
 				     "honeywell,transfer-function %d invalid\n",
 				     data->function);
 
-	ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
-				       &data->pmin);
-	if (ret)
-		return dev_err_probe(dev, ret,
+	ret = device_property_read_string(dev, "honeywell,pressure-triplet",
+					  &triplet);
+	if (ret) {
+		ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
+					       &data->pmin);
+		if (ret)
+			return dev_err_probe(dev, ret,
 				   "honeywell,pmin-pascal could not be read\n");
-	ret = device_property_read_u32(dev, "honeywell,pmax-pascal",
-				       &data->pmax);
-	if (ret)
-		return dev_err_probe(dev, ret,
+
+		ret = device_property_read_u32(dev, "honeywell,pmax-pascal",
+					       &data->pmax);
+		if (ret)
+			return dev_err_probe(dev, ret,
 				   "honeywell,pmax-pascal could not be read\n");
+	} else {
+		ret = device_property_match_property_string(dev,
+						   "honeywell,pressure-triplet",
+						   mpr_triplet_variants,
+						   MPR_VARIANTS_MAX);
+		if (ret < 0)
+			return dev_err_probe(dev, -EINVAL,
+				     "honeywell,pressure-triplet is invalid\n");
+
+		data->pmin = mpr_range_config[ret].pmin;
+		data->pmax = mpr_range_config[ret].pmax;
+	}
 
 	if (data->pmin >= data->pmax)
 		return dev_err_probe(dev, -EINVAL,
