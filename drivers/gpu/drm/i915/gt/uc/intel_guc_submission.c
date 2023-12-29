@@ -398,7 +398,7 @@ static inline void set_context_guc_id_invalid(struct intel_context *ce)
 
 static inline struct intel_guc *ce_to_guc(struct intel_context *ce)
 {
-	return &ce->engine->gt->uc.guc;
+	return gt_to_guc(ce->engine->gt);
 }
 
 static inline struct i915_priolist *to_priolist(struct rb_node *rb)
@@ -1246,7 +1246,7 @@ static void __get_engine_usage_record(struct intel_engine_cs *engine,
 static void guc_update_engine_gt_clks(struct intel_engine_cs *engine)
 {
 	struct intel_engine_guc_stats *stats = &engine->stats.guc;
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	u32 last_switch, ctx_id, total;
 
 	lockdep_assert_held(&guc->timestamp.lock);
@@ -1311,7 +1311,7 @@ static ktime_t guc_engine_busyness(struct intel_engine_cs *engine, ktime_t *now)
 	struct intel_engine_guc_stats stats_saved, *stats = &engine->stats.guc;
 	struct i915_gpu_error *gpu_error = &engine->i915->gpu_error;
 	struct intel_gt *gt = engine->gt;
-	struct intel_guc *guc = &gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(gt);
 	u64 total, gt_stamp_saved;
 	unsigned long flags;
 	u32 reset_count;
@@ -1576,7 +1576,7 @@ static void guc_fini_engine_stats(struct intel_guc *guc)
 
 void intel_guc_busyness_park(struct intel_gt *gt)
 {
-	struct intel_guc *guc = &gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(gt);
 
 	if (!guc_submission_initialized(guc))
 		return;
@@ -1603,7 +1603,7 @@ void intel_guc_busyness_park(struct intel_gt *gt)
 
 void intel_guc_busyness_unpark(struct intel_gt *gt)
 {
-	struct intel_guc *guc = &gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(gt);
 	unsigned long flags;
 	ktime_t unused;
 
@@ -2194,7 +2194,7 @@ static bool need_tasklet(struct intel_guc *guc, struct i915_request *rq)
 static void guc_submit_request(struct i915_request *rq)
 {
 	struct i915_sched_engine *sched_engine = rq->engine->sched_engine;
-	struct intel_guc *guc = &rq->engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(rq->engine->gt);
 	unsigned long flags;
 
 	/* Will be called from irq-context when using foreign fences. */
@@ -2660,7 +2660,7 @@ static int __guc_context_set_context_policies(struct intel_guc *guc,
 static int guc_context_policy_init_v70(struct intel_context *ce, bool loop)
 {
 	struct intel_engine_cs *engine = ce->engine;
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	struct context_policy policy;
 	u32 execution_quantum;
 	u32 preemption_timeout;
@@ -2736,7 +2736,7 @@ static u32 map_guc_prio_to_lrc_desc_prio(u8 prio)
 static void prepare_context_registration_info_v69(struct intel_context *ce)
 {
 	struct intel_engine_cs *engine = ce->engine;
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	u32 ctx_id = ce->guc_id.id;
 	struct guc_lrc_desc_v69 *desc;
 	struct intel_context *child;
@@ -2805,7 +2805,7 @@ static void prepare_context_registration_info_v70(struct intel_context *ce,
 						  struct guc_ctxt_registration_info *info)
 {
 	struct intel_engine_cs *engine = ce->engine;
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	u32 ctx_id = ce->guc_id.id;
 
 	GEM_BUG_ON(!engine->mask);
@@ -2868,7 +2868,7 @@ static int try_context_registration(struct intel_context *ce, bool loop)
 {
 	struct intel_engine_cs *engine = ce->engine;
 	struct intel_runtime_pm *runtime_pm = engine->uncore->rpm;
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	intel_wakeref_t wakeref;
 	u32 ctx_id = ce->guc_id.id;
 	bool context_registered;
@@ -4549,7 +4549,7 @@ static void guc_sched_engine_destroy(struct kref *kref)
 int intel_guc_submission_setup(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 
 	/*
 	 * The setup relies on several assumptions (e.g. irqs always enabled)
@@ -5308,7 +5308,7 @@ int intel_guc_engine_failure_process_msg(struct intel_guc *guc,
 
 void intel_guc_find_hung_context(struct intel_engine_cs *engine)
 {
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	struct intel_context *ce;
 	struct i915_request *rq;
 	unsigned long index;
@@ -5370,7 +5370,7 @@ void intel_guc_dump_active_requests(struct intel_engine_cs *engine,
 				    struct i915_request *hung_rq,
 				    struct drm_printer *m)
 {
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	struct intel_context *ce;
 	unsigned long index;
 	unsigned long flags;
@@ -5822,7 +5822,7 @@ guc_create_virtual(struct intel_engine_cs **siblings, unsigned int count,
 	if (!ve)
 		return ERR_PTR(-ENOMEM);
 
-	guc = &siblings[0]->gt->uc.guc;
+	guc = gt_to_guc(siblings[0]->gt);
 
 	ve->base.i915 = siblings[0]->i915;
 	ve->base.gt = siblings[0]->gt;

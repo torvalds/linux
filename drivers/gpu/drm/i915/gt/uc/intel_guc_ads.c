@@ -961,7 +961,7 @@ u32 intel_guc_engine_usage_offset(struct intel_guc *guc)
 
 struct iosys_map intel_guc_engine_usage_record_map(struct intel_engine_cs *engine)
 {
-	struct intel_guc *guc = &engine->gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(engine->gt);
 	u8 guc_class = engine_class_to_guc_class(engine->class);
 	size_t offset = offsetof(struct __guc_ads_blob,
 				 engine_usage.engines[guc_class][ilog2(engine->logical_mask)]);

@@ -1441,7 +1441,7 @@ int intel_guc_capture_print_engine_node(struct drm_i915_error_state_buf *ebuf,
 	if (!cap || !ee->engine)
 		return -ENODEV;
 
-	guc = &ee->engine->gt->uc.guc;
+	guc = gt_to_guc(ee->engine->gt);
 
 	i915_error_printf(ebuf, "global --- GuC Error Capture on %s command stream:\n",
 			  ee->engine->name);
@@ -1543,7 +1543,7 @@ bool intel_guc_capture_is_matching_engine(struct intel_gt *gt,
 	if (!gt || !ce || !engine)
 		return false;
 
-	guc = &gt->uc.guc;
+	guc = gt_to_guc(gt);
 	if (!guc->capture)
 		return false;
 
@@ -1573,7 +1573,7 @@ void intel_guc_capture_get_matching_node(struct intel_gt *gt,
 	if (!gt || !ee || !ce)
 		return;
 
-	guc = &gt->uc.guc;
+	guc = gt_to_guc(gt);
 	if (!guc->capture)
 		return;
 

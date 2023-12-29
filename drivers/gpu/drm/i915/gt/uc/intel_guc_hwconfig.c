@@ -111,7 +111,7 @@ static bool has_table(struct drm_i915_private *i915)
 static int guc_hwconfig_init(struct intel_gt *gt)
 {
 	struct intel_hwconfig *hwconfig = &gt->info.hwconfig;
-	struct intel_guc *guc = &gt->uc.guc;
+	struct intel_guc *guc = gt_to_guc(gt);
 	int ret;
 
 	if (!has_table(gt->i915))
