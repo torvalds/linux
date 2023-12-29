@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # Check that route PMTU values match expectations, and that initial device MTU
@@ -198,7 +198,7 @@
 # - pmtu_ipv6_route_change
 #	Same as above but with IPv6
 
-source ./lib.sh
+source lib.sh
 
 PAUSE_ON_FAIL=no
 VERBOSE=0
