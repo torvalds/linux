@@ -89,7 +89,7 @@ find_sources()
 all_sources()
 {
 	find_arch_include_sources ${SRCARCH} '*.[chS]'
-	if [ ! -z "$archinclude" ]; then
+	if [ -n "$archinclude" ]; then
 		find_arch_include_sources $archinclude '*.[chS]'
 	fi
 	find_include_sources '*.[chS]'
