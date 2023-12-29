@@ -2591,7 +2591,7 @@ static void md_kick_rdev_from_array(struct md_rdev *rdev)
 	list_del_rcu(&rdev->same_set);
 	pr_debug("md: unbind<%pg>\n", rdev->bdev);
 	mddev_destroy_serial_pool(rdev->mddev, rdev);
-	rdev->mddev = NULL;
+	WRITE_ONCE(rdev->mddev, NULL);
 	sysfs_remove_link(&rdev->kobj, "block");
 	sysfs_put(rdev->sysfs_state);
 	sysfs_put(rdev->sysfs_unack_badblocks);
@@ -3664,7 +3664,7 @@ rdev_attr_store(struct kobject *kobj, struct attribute *attr,
 	struct kernfs_node *kn = NULL;
 	bool suspend = false;
 	ssize_t rv;
-	struct mddev *mddev = rdev->mddev;
+	struct mddev *mddev = READ_ONCE(rdev->mddev);
 
 	if (!entry->store)
 		return -EIO;
