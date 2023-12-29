@@ -44,26 +44,23 @@ static inline struct optimistic_spin_node *decode_cpu(int encoded_cpu_val)
 /*
  * Get a stable @node->next pointer, either for unlock() or unqueue() purposes.
  * Can return NULL in case we were the last queued and we updated @lock instead.
+ *
+ * If osq_lock() is being cancelled there must be a previous node
+ * and 'old_cpu' is its CPU #.
+ * For osq_unlock() there is never a previous node and old_cpu is
+ * set to OSQ_UNLOCKED_VAL.
  */
 static inline struct optimistic_spin_node *
 osq_wait_next(struct optimistic_spin_queue *lock,
 	      struct optimistic_spin_node *node,
-	      struct optimistic_spin_node *prev)
+	      int old_cpu)
 {
 	struct optimistic_spin_node *next = NULL;
 	int curr = encode_cpu(smp_processor_id());
-	int old;
-
-	/*
-	 * If there is a prev node in queue, then the 'old' value will be
-	 * the prev node's CPU #, else it's set to OSQ_UNLOCKED_VAL since if
-	 * we're currently last in queue, then the queue will then become empty.
-	 */
-	old = prev ? prev->cpu : OSQ_UNLOCKED_VAL;
 
 	for (;;) {
 		if (atomic_read(&lock->tail) == curr &&
-		    atomic_cmpxchg_acquire(&lock->tail, curr, old) == curr) {
+		    atomic_cmpxchg_acquire(&lock->tail, curr, old_cpu) == curr) {
 			/*
 			 * We were the last queued, we moved @lock back. @prev
 			 * will now observe @lock and will complete its
@@ -193,7 +190,7 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 	 * back to @prev.
 	 */
 
-	next = osq_wait_next(lock, node, prev);
+	next = osq_wait_next(lock, node, prev->cpu);
 	if (!next)
 		return false;
 
@@ -233,7 +230,7 @@ void osq_unlock(struct optimistic_spin_queue *lock)
 		return;
 	}
 
-	next = osq_wait_next(lock, node, NULL);
+	next = osq_wait_next(lock, node, OSQ_UNLOCKED_VAL);
 	if (next)
 		WRITE_ONCE(next->locked, 1);
 }
