@@ -1192,6 +1192,41 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	return fw;
 }
 
+static void atomisp_pm_init(struct atomisp_device *isp)
+{
+	/*
+	 * The atomisp does not use standard PCI power-management through the
+	 * PCI config space. Instead this driver directly tells the P-Unit to
+	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
+	 * try to access the config space before (resume) / after (suspend) this
+	 * driver has turned the ISP on / off, resulting in the following errors:
+	 *
+	 * "Unable to change power state from D0 to D3hot, device inaccessible"
+	 * "Unable to change power state from D3cold to D0, device inaccessible"
+	 *
+	 * To avoid these errors override the pm_domain so that all the PCI
+	 * subsys suspend / resume handling is skipped.
+	 */
+	isp->pm_domain.ops.runtime_suspend = atomisp_power_off;
+	isp->pm_domain.ops.runtime_resume = atomisp_power_on;
+	isp->pm_domain.ops.suspend = atomisp_suspend;
+	isp->pm_domain.ops.resume = atomisp_resume;
+
+	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	dev_pm_domain_set(isp->dev, &isp->pm_domain);
+
+	pm_runtime_allow(isp->dev);
+	pm_runtime_put_sync_suspend(isp->dev);
+}
+
+static void atomisp_pm_uninit(struct atomisp_device *isp)
+{
+	pm_runtime_get_sync(isp->dev);
+	pm_runtime_forbid(isp->dev);
+	dev_pm_domain_set(isp->dev, NULL);
+	cpu_latency_qos_remove_request(&isp->pm_qos);
+}
+
 #define ATOM_ISP_PCI_BAR	0
 
 static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
@@ -1438,29 +1473,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
-	/*
-	 * The atomisp does not use standard PCI power-management through the
-	 * PCI config space. Instead this driver directly tells the P-Unit to
-	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
-	 * try to access the config space before (resume) / after (suspend) this
-	 * driver has turned the ISP on / off, resulting in the following errors:
-	 *
-	 * "Unable to change power state from D0 to D3hot, device inaccessible"
-	 * "Unable to change power state from D3cold to D0, device inaccessible"
-	 *
-	 * To avoid these errors override the pm_domain so that all the PCI
-	 * subsys suspend / resume handling is skipped.
-	 */
-	isp->pm_domain.ops.runtime_suspend = atomisp_power_off;
-	isp->pm_domain.ops.runtime_resume = atomisp_power_on;
-	isp->pm_domain.ops.suspend = atomisp_suspend;
-	isp->pm_domain.ops.resume = atomisp_resume;
-
-	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
-	dev_pm_domain_set(&pdev->dev, &isp->pm_domain);
-
-	pm_runtime_allow(&pdev->dev);
-	pm_runtime_put_sync_suspend(&pdev->dev);
+	atomisp_pm_init(isp);
 
 	err = v4l2_async_nf_register(&isp->notifier);
 	if (err) {
@@ -1471,10 +1484,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	return 0;
 
 error_unload_firmware:
-	pm_runtime_get_sync(&pdev->dev);
-	pm_runtime_forbid(&pdev->dev);
-	dev_pm_domain_set(&pdev->dev, NULL);
-	cpu_latency_qos_remove_request(&isp->pm_qos);
+	atomisp_pm_uninit(isp);
 	ia_css_unload_firmware();
 error_free_irq:
 	devm_free_irq(&pdev->dev, pdev->irq, isp);
@@ -1495,10 +1505,7 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 {
 	struct atomisp_device *isp = pci_get_drvdata(pdev);
 
-	pm_runtime_get_sync(&pdev->dev);
-	pm_runtime_forbid(&pdev->dev);
-	dev_pm_domain_set(&pdev->dev, NULL);
-	cpu_latency_qos_remove_request(&isp->pm_qos);
+	atomisp_pm_uninit(isp);
 
 	/* Undo ia_css_init() from atomisp_power_on() */
 	atomisp_css_uninit(isp);
