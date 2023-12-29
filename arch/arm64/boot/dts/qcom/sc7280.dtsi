@@ -2353,6 +2353,8 @@
 				 <&apps_smmu 0x4e6 0x0011>;
 			qcom,ee = <0>;
 			qcom,controlled-remotely;
+			num-channels = <16>;
+			qcom,num-ees = <4>;
 		};
 
 		crypto: crypto@1dfa000 {
