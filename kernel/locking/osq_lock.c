@@ -55,7 +55,6 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 	      struct optimistic_spin_node *node,
 	      int old_cpu)
 {
-	struct optimistic_spin_node *next = NULL;
 	int curr = encode_cpu(smp_processor_id());
 
 	for (;;) {
@@ -66,7 +65,7 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 			 * will now observe @lock and will complete its
 			 * unlock()/unqueue().
 			 */
-			break;
+			return NULL;
 		}
 
 		/*
@@ -80,15 +79,15 @@ osq_wait_next(struct optimistic_spin_queue *lock,
 		 * wait for a new @node->next from its Step-C.
 		 */
 		if (node->next) {
+			struct optimistic_spin_node *next;
+
 			next = xchg(&node->next, NULL);
 			if (next)
-				break;
+				return next;
 		}
 
 		cpu_relax();
 	}
-
-	return next;
 }
 
 bool osq_lock(struct optimistic_spin_queue *lock)
