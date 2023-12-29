@@ -39,6 +39,7 @@
 #include "nbio_v7_9.h"
 #include "atom.h"
 #include "amdgpu_reset.h"
+#include "amdgpu_psp.h"
 
 #ifdef CONFIG_X86_MCE_AMD
 #include <asm/mce.h>
@@ -2811,6 +2812,87 @@ static void amdgpu_ras_get_quirks(struct amdgpu_device *adev)
 		adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__GFX);
 }
 
+/* Query ras capablity via atomfirmware interface */
+static void amdgpu_ras_query_ras_capablity_from_vbios(struct amdgpu_device *adev)
+{
+	/* mem_ecc cap */
+	if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
+		dev_info(adev->dev, "MEM ECC is active.\n");
+		adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__UMC |
+					 1 << AMDGPU_RAS_BLOCK__DF);
+	} else {
+		dev_info(adev->dev, "MEM ECC is not presented.\n");
+	}
+
+	/* sram_ecc cap */
+	if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
+		dev_info(adev->dev, "SRAM ECC is active.\n");
+		if (!amdgpu_sriov_vf(adev))
+			adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
+						  1 << AMDGPU_RAS_BLOCK__DF);
+		else
+			adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__PCIE_BIF |
+						 1 << AMDGPU_RAS_BLOCK__SDMA |
+						 1 << AMDGPU_RAS_BLOCK__GFX);
+
+		/*
+		 * VCN/JPEG RAS can be supported on both bare metal and
+		 * SRIOV environment
+		 */
+		if (amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(2, 6, 0) ||
+		    amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 0) ||
+		    amdgpu_ip_version(adev, VCN_HWIP, 0) == IP_VERSION(4, 0, 3))
+			adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
+						 1 << AMDGPU_RAS_BLOCK__JPEG);
+		else
+			adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
+						  1 << AMDGPU_RAS_BLOCK__JPEG);
+
+		/*
+		 * XGMI RAS is not supported if xgmi num physical nodes
+		 * is zero
+		 */
+		if (!adev->gmc.xgmi.num_physical_nodes)
+			adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__XGMI_WAFL);
+	} else {
+		dev_info(adev->dev, "SRAM ECC is not presented.\n");
+	}
+}
+
+/* Query poison mode from umc/df IP callbacks */
+static void amdgpu_ras_query_poison_mode(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	bool df_poison, umc_poison;
+
+	/* poison setting is useless on SRIOV guest */
+	if (amdgpu_sriov_vf(adev) || !con)
+		return;
+
+	/* Init poison supported flag, the default value is false */
+	if (adev->gmc.xgmi.connected_to_cpu ||
+	    adev->gmc.is_app_apu) {
+		/* enabled by default when GPU is connected to CPU */
+		con->poison_supported = true;
+	} else if (adev->df.funcs &&
+	    adev->df.funcs->query_ras_poison_mode &&
+	    adev->umc.ras &&
+	    adev->umc.ras->query_ras_poison_mode) {
+		df_poison =
+			adev->df.funcs->query_ras_poison_mode(adev);
+		umc_poison =
+			adev->umc.ras->query_ras_poison_mode(adev);
+
+		/* Only poison is set in both DF and UMC, we can support it */
+		if (df_poison && umc_poison)
+			con->poison_supported = true;
+		else if (df_poison != umc_poison)
+			dev_warn(adev->dev,
+				"Poison setting is inconsistent in DF/UMC(%d:%d)!\n",
+				df_poison, umc_poison);
+	}
+}
+
 /*
  * check hardware's ras ability which will be saved in hw_supported.
  * if hardware does not support ras, we can skip some ras initializtion and
@@ -2827,49 +2909,13 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 	if (!amdgpu_ras_asic_supported(adev))
 		return;
 
-	if (!adev->gmc.xgmi.connected_to_cpu &&	!adev->gmc.is_app_apu) {
-		if (amdgpu_atomfirmware_mem_ecc_supported(adev)) {
-			dev_info(adev->dev, "MEM ECC is active.\n");
-			adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__UMC |
-						   1 << AMDGPU_RAS_BLOCK__DF);
-		} else {
-			dev_info(adev->dev, "MEM ECC is not presented.\n");
-		}
+	/* query ras capability from psp */
+	if (amdgpu_psp_get_ras_capability(&adev->psp))
+		goto init_ras_enabled_flag;
 
-		if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
-			dev_info(adev->dev, "SRAM ECC is active.\n");
-			if (!amdgpu_sriov_vf(adev))
-				adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
-							    1 << AMDGPU_RAS_BLOCK__DF);
-			else
-				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__PCIE_BIF |
-								1 << AMDGPU_RAS_BLOCK__SDMA |
-								1 << AMDGPU_RAS_BLOCK__GFX);
-
-			/* VCN/JPEG RAS can be supported on both bare metal and
-			 * SRIOV environment
-			 */
-			if (amdgpu_ip_version(adev, VCN_HWIP, 0) ==
-				    IP_VERSION(2, 6, 0) ||
-			    amdgpu_ip_version(adev, VCN_HWIP, 0) ==
-				    IP_VERSION(4, 0, 0) ||
-			    amdgpu_ip_version(adev, VCN_HWIP, 0) ==
-				    IP_VERSION(4, 0, 3))
-				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
-							1 << AMDGPU_RAS_BLOCK__JPEG);
-			else
-				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
-							1 << AMDGPU_RAS_BLOCK__JPEG);
-
-			/*
-			 * XGMI RAS is not supported if xgmi num physical nodes
-			 * is zero
-			 */
-			if (!adev->gmc.xgmi.num_physical_nodes)
-				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__XGMI_WAFL);
-		} else {
-			dev_info(adev->dev, "SRAM ECC is not presented.\n");
-		}
+	/* query ras capablity from bios */
+	if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu) {
+		amdgpu_ras_query_ras_capablity_from_vbios(adev);
 	} else {
 		/* driver only manages a few IP blocks RAS feature
 		 * when GPU is connected cpu through XGMI */
@@ -2878,8 +2924,13 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 					   1 << AMDGPU_RAS_BLOCK__MMHUB);
 	}
 
+	/* apply asic specific settings (vega20 only for now) */
 	amdgpu_ras_get_quirks(adev);
 
+	/* query poison mode from umc/df ip callback */
+	amdgpu_ras_query_poison_mode(adev);
+
+init_ras_enabled_flag:
 	/* hw_supported needs to be aligned with RAS block mask. */
 	adev->ras_hw_enabled &= AMDGPU_RAS_BLOCK_MASK;
 
@@ -2913,39 +2964,6 @@ static void amdgpu_ras_counte_dw(struct work_struct *work)
 	pm_runtime_mark_last_busy(dev->dev);
 Out:
 	pm_runtime_put_autosuspend(dev->dev);
-}
-
-static void amdgpu_ras_query_poison_mode(struct amdgpu_device *adev)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	bool df_poison, umc_poison;
-
-	/* poison setting is useless on SRIOV guest */
-	if (amdgpu_sriov_vf(adev) || !con)
-		return;
-
-	/* Init poison supported flag, the default value is false */
-	if (adev->gmc.xgmi.connected_to_cpu ||
-	    adev->gmc.is_app_apu) {
-		/* enabled by default when GPU is connected to CPU */
-		con->poison_supported = true;
-	} else if (adev->df.funcs &&
-	    adev->df.funcs->query_ras_poison_mode &&
-	    adev->umc.ras &&
-	    adev->umc.ras->query_ras_poison_mode) {
-		df_poison =
-			adev->df.funcs->query_ras_poison_mode(adev);
-		umc_poison =
-			adev->umc.ras->query_ras_poison_mode(adev);
-
-		/* Only poison is set in both DF and UMC, we can support it */
-		if (df_poison && umc_poison)
-			con->poison_supported = true;
-		else if (df_poison != umc_poison)
-			dev_warn(adev->dev,
-				"Poison setting is inconsistent in DF/UMC(%d:%d)!\n",
-				df_poison, umc_poison);
-	}
 }
 
 static int amdgpu_get_ras_schema(struct amdgpu_device *adev)
@@ -3051,8 +3069,6 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 		if (r)
 			goto release_con;
 	}
-
-	amdgpu_ras_query_poison_mode(adev);
 
 	/* Packed socket_id to ras feature mask bits[31:29] */
 	if (adev->smuio.funcs &&
