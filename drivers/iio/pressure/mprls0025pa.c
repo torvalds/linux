@@ -353,34 +353,26 @@ static int mpr_probe(struct i2c_client *client)
 		return dev_err_probe(dev, ret,
 				"can't get and enable vdd supply\n");
 
-	if (dev_fwnode(dev)) {
-		ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
-								&data->pmin);
-		if (ret)
-			return dev_err_probe(dev, ret,
-				"honeywell,pmin-pascal could not be read\n");
-		ret = device_property_read_u32(dev, "honeywell,pmax-pascal",
-								&data->pmax);
-		if (ret)
-			return dev_err_probe(dev, ret,
-				"honeywell,pmax-pascal could not be read\n");
-		ret = device_property_read_u32(dev,
-				"honeywell,transfer-function", &func);
-		if (ret)
-			return dev_err_probe(dev, ret,
-				"honeywell,transfer-function could not be read\n");
-		data->function = func - 1;
-		if (data->function > MPR_FUNCTION_C)
-			return dev_err_probe(dev, -EINVAL,
-				"honeywell,transfer-function %d invalid\n",
-								data->function);
-	} else {
-		/* when loaded as i2c device we need to use default values */
-		dev_notice(dev, "firmware node not found; using defaults\n");
-		data->pmin = 0;
-		data->pmax = 172369; /* 25 psi */
-		data->function = MPR_FUNCTION_A;
-	}
+	ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
+				       &data->pmin);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				   "honeywell,pmin-pascal could not be read\n");
+	ret = device_property_read_u32(dev, "honeywell,pmax-pascal",
+				       &data->pmax);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				   "honeywell,pmax-pascal could not be read\n");
+	ret = device_property_read_u32(dev,
+				       "honeywell,transfer-function", &func);
+	if (ret)
+		return dev_err_probe(dev, ret,
+			     "honeywell,transfer-function could not be read\n");
+	data->function = func - 1;
+	if (data->function > MPR_FUNCTION_C)
+		return dev_err_probe(dev, -EINVAL,
+				     "honeywell,transfer-function %d invalid\n",
+				     data->function);
 
 	data->outmin = mpr_func_spec[data->function].output_min;
 	data->outmax = mpr_func_spec[data->function].output_max;
