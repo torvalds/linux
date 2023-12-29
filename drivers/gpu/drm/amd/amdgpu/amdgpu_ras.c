@@ -2919,6 +2919,11 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 
 	amdgpu_ras_query_poison_mode(adev);
 
+	/* Packed socket_id to ras feature mask bits[31:29] */
+	if (adev->smuio.funcs &&
+	    adev->smuio.funcs->get_socket_id)
+		con->features |= ((adev->smuio.funcs->get_socket_id(adev)) << 29);
+
 	/* Get RAS schema for particular SOC */
 	con->schema = amdgpu_get_ras_schema(adev);
 
