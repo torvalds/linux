@@ -50,7 +50,7 @@ fi
 find_arch_sources()
 {
 	for i in $archincludedir; do
-		prune="$prune ( -path $i ) -prune -o"
+		local prune="$prune ( -path $i ) -prune -o"
 	done
 	find ${tree}arch/$1 $ignore $prune -name "$2" -not -type l -print;
 }
@@ -58,7 +58,7 @@ find_arch_sources()
 # find sources in arch/$1/include
 find_arch_include_sources()
 {
-	include=$(find ${tree}arch/$1/ -name include -type d -print);
+	local include=$(find ${tree}arch/$1/ -name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
 		find $include $ignore -name "$2" -not -type l -print;
