@@ -921,61 +921,67 @@ mt7925_mcu_sta_key_tlv(struct mt76_wcid *wcid,
 		       struct ieee80211_key_conf *key,
 		       enum set_key_cmd cmd)
 {
+	struct mt792x_sta *msta = container_of(wcid, struct mt792x_sta, wcid);
 	struct sta_rec_sec_uni *sec;
+	struct mt792x_vif *mvif = msta->vif;
+	struct ieee80211_sta *sta;
+	struct ieee80211_vif *vif;
 	struct tlv *tlv;
 
-	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_KEY_V2, sizeof(*sec));
+	sta = msta == &mvif->sta ?
+		      NULL :
+		      container_of((void *)msta, struct ieee80211_sta, drv_priv);
+	vif = container_of((void *)mvif, struct ieee80211_vif, drv_priv);
+
+	tlv = mt76_connac_mcu_add_tlv(skb, STA_REC_KEY_V3, sizeof(*sec));
 	sec = (struct sta_rec_sec_uni *)tlv;
-	sec->add = cmd;
+	sec->bss_idx = mvif->mt76.idx;
+	sec->is_authenticator = 0;
+	sec->mgmt_prot = 0;
+	sec->wlan_idx = (u8)wcid->idx;
+
+	if (sta) {
+		sec->tx_key = 1;
+		sec->key_type = 1;
+		memcpy(sec->peer_addr, sta->addr, ETH_ALEN);
+	} else {
+		memcpy(sec->peer_addr, vif->bss_conf.bssid, ETH_ALEN);
+	}
 
 	if (cmd == SET_KEY) {
-		struct sec_key_uni *sec_key;
 		u8 cipher;
 
-		cipher = mt76_connac_mcu_get_cipher(key->cipher);
-		if (cipher == MCU_CIPHER_NONE)
+		sec->add = 1;
+		cipher = mt7925_mcu_get_cipher(key->cipher);
+		if (cipher == CONNAC3_CIPHER_NONE)
 			return -EOPNOTSUPP;
 
-		sec_key = &sec->key[0];
-		sec_key->cipher_len = sizeof(*sec_key);
-
-		if (cipher == MCU_CIPHER_BIP_CMAC_128) {
-			sec_key->wlan_idx = cpu_to_le16(wcid->idx);
-			sec_key->cipher_id = MCU_CIPHER_AES_CCMP;
-			sec_key->key_id = sta_key_conf->keyidx;
-			sec_key->key_len = 16;
-			memcpy(sec_key->key, sta_key_conf->key, 16);
-
-			sec_key = &sec->key[1];
-			sec_key->wlan_idx = cpu_to_le16(wcid->idx);
-			sec_key->cipher_id = MCU_CIPHER_BIP_CMAC_128;
-			sec_key->cipher_len = sizeof(*sec_key);
-			sec_key->key_len = 16;
-			memcpy(sec_key->key, key->key, 16);
-			sec->n_cipher = 2;
+		if (cipher == CONNAC3_CIPHER_BIP_CMAC_128) {
+			sec->cipher_id = CONNAC3_CIPHER_BIP_CMAC_128;
+			sec->key_id = sta_key_conf->keyidx;
+			sec->key_len = 32;
+			memcpy(sec->key, sta_key_conf->key, 16);
+			memcpy(sec->key + 16, key->key, 16);
 		} else {
-			sec_key->wlan_idx = cpu_to_le16(wcid->idx);
-			sec_key->cipher_id = cipher;
-			sec_key->key_id = key->keyidx;
-			sec_key->key_len = key->keylen;
-			memcpy(sec_key->key, key->key, key->keylen);
+			sec->cipher_id = cipher;
+			sec->key_id = key->keyidx;
+			sec->key_len = key->keylen;
+			memcpy(sec->key, key->key, key->keylen);
 
-			if (cipher == MCU_CIPHER_TKIP) {
+			if (cipher == CONNAC3_CIPHER_TKIP) {
 				/* Rx/Tx MIC keys are swapped */
-				memcpy(sec_key->key + 16, key->key + 24, 8);
-				memcpy(sec_key->key + 24, key->key + 16, 8);
+				memcpy(sec->key + 16, key->key + 24, 8);
+				memcpy(sec->key + 24, key->key + 16, 8);
 			}
 
 			/* store key_conf for BIP batch update */
-			if (cipher == MCU_CIPHER_AES_CCMP) {
+			if (cipher == CONNAC3_CIPHER_AES_CCMP) {
 				memcpy(sta_key_conf->key, key->key, key->keylen);
 				sta_key_conf->keyidx = key->keyidx;
 			}
-
-			sec->n_cipher = 1;
 		}
 	} else {
-		sec->n_cipher = 0;
+		sec->add = 0;
 	}
 
 	return 0;
@@ -2122,21 +2128,21 @@ mt7925_mcu_bss_sec_tlv(struct sk_buff *skb, struct ieee80211_vif *vif)
 	sec = (struct bss_sec_tlv *)tlv;
 
 	switch (mvif->cipher) {
-	case MCU_CIPHER_GCMP_256:
-	case MCU_CIPHER_GCMP:
+	case CONNAC3_CIPHER_GCMP_256:
+	case CONNAC3_CIPHER_GCMP:
 		sec->mode = MODE_WPA3_SAE;
 		sec->status = 8;
 		break;
-	case MCU_CIPHER_AES_CCMP:
+	case CONNAC3_CIPHER_AES_CCMP:
 		sec->mode = MODE_WPA2_PSK;
 		sec->status = 6;
 		break;
-	case MCU_CIPHER_TKIP:
+	case CONNAC3_CIPHER_TKIP:
 		sec->mode = MODE_WPA2_PSK;
 		sec->status = 4;
 		break;
-	case MCU_CIPHER_WEP104:
-	case MCU_CIPHER_WEP40:
+	case CONNAC3_CIPHER_WEP104:
+	case CONNAC3_CIPHER_WEP40:
 		sec->mode = MODE_SHARED;
 		sec->status = 0;
 		break;
