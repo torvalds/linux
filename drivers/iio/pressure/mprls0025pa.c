@@ -5,10 +5,7 @@
  * Copyright (c) Andreas Klinger <ak@it-klinger.de>
  *
  * Data sheet:
- *  https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/
- *    products/sensors/pressure-sensors/board-mount-pressure-sensors/
- *    micropressure-mpr-series/documents/
- *    sps-siot-mpr-series-datasheet-32332628-ciid-172626.pdf
+ *  https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/board-mount-pressure-sensors/micropressure-mpr-series/documents/sps-siot-mpr-series-datasheet-32332628-ciid-172626.pdf
  *
  * 7-bit I2C default slave address: 0x18
  */
@@ -84,9 +81,9 @@ struct mpr_func_spec {
 };
 
 static const struct mpr_func_spec mpr_func_spec[] = {
-	[MPR_FUNCTION_A] = {.output_min = 1677722, .output_max = 15099494},
-	[MPR_FUNCTION_B] = {.output_min =  419430, .output_max =  3774874},
-	[MPR_FUNCTION_C] = {.output_min = 3355443, .output_max = 13421773},
+	[MPR_FUNCTION_A] = { .output_min = 1677722, .output_max = 15099494 },
+	[MPR_FUNCTION_B] = { .output_min =  419430, .output_max =  3774874 },
+	[MPR_FUNCTION_C] = { .output_min = 3355443, .output_max = 13421773 },
 };
 
 struct mpr_chan {
@@ -273,7 +270,7 @@ static irqreturn_t mpr_trigger_handler(int irq, void *p)
 		goto err;
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &data->chan,
-						iio_get_time_ns(indio_dev));
+					   iio_get_time_ns(indio_dev));
 
 err:
 	mutex_unlock(&data->lock);
@@ -351,7 +348,7 @@ static int mpr_probe(struct i2c_client *client)
 	ret = devm_regulator_get_enable(dev, "vdd");
 	if (ret)
 		return dev_err_probe(dev, ret,
-				"can't get and enable vdd supply\n");
+				     "can't get and enable vdd supply\n");
 
 	ret = device_property_read_u32(dev, "honeywell,pmin-pascal",
 				       &data->pmin);
@@ -379,42 +376,44 @@ static int mpr_probe(struct i2c_client *client)
 
 	/* use 64 bit calculation for preserving a reasonable precision */
 	scale = div_s64(((s64)(data->pmax - data->pmin)) * NANO,
-						data->outmax - data->outmin);
+			data->outmax - data->outmin);
 	data->scale = div_s64_rem(scale, NANO, &data->scale2);
 	/*
 	 * multiply with NANO before dividing by scale and later divide by NANO
 	 * again.
 	 */
 	offset = ((-1LL) * (s64)data->outmin) * NANO -
-			div_s64(div_s64((s64)data->pmin * NANO, scale), NANO);
+		  div_s64(div_s64((s64)data->pmin * NANO, scale), NANO);
 	data->offset = div_s64_rem(offset, NANO, &data->offset2);
 
 	if (data->irq > 0) {
 		ret = devm_request_irq(dev, data->irq, mpr_eoc_handler,
-				IRQF_TRIGGER_RISING, client->name, data);
+				       IRQF_TRIGGER_RISING,
+				       client->name,
+				       data);
 		if (ret)
 			return dev_err_probe(dev, ret,
-				"request irq %d failed\n", data->irq);
+					  "request irq %d failed\n", data->irq);
 	}
 
 	data->gpiod_reset = devm_gpiod_get_optional(dev, "reset",
-							GPIOD_OUT_HIGH);
+						    GPIOD_OUT_HIGH);
 	if (IS_ERR(data->gpiod_reset))
 		return dev_err_probe(dev, PTR_ERR(data->gpiod_reset),
-						"request reset-gpio failed\n");
+				     "request reset-gpio failed\n");
 
 	mpr_reset(data);
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
-						mpr_trigger_handler, NULL);
+					      mpr_trigger_handler, NULL);
 	if (ret)
 		return dev_err_probe(dev, ret,
-					"iio triggered buffer setup failed\n");
+				     "iio triggered buffer setup failed\n");
 
 	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
 		return dev_err_probe(dev, ret,
-					"unable to register iio device\n");
+				     "unable to register iio device\n");
 
 	return 0;
 }
