@@ -19,14 +19,17 @@ description: |
   calls them "mpr series". All of them have the identical programming model and
   differ in the pressure range, unit and transfer function.
 
-  To support different models one need to specify the pressure range as well as
-  the transfer function. Pressure range needs to be converted from its unit to
-  pascal.
+  To support different models one need to specify its pressure triplet as well
+  as the transfer function.
+
+  For custom silicon chips not covered by the Honeywell MPR series datasheet,
+  the pressure values can be specified manually via honeywell,pmin-pascal and
+  honeywell,pmax-pascal.
+  The minimal range value stands for the minimum pressure and the maximum value
+  also for the maximum pressure with linear relation inside the range.
 
   The transfer function defines the ranges of numerical values delivered by the
-  sensor. The minimal range value stands for the minimum pressure and the
-  maximum value also for the maximum pressure with linear relation inside the
-  range.
+  sensor.
 
   Specifications about the devices can be found at:
     https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/
@@ -54,14 +57,6 @@ properties:
       If not present the device is not reset during the probe.
     maxItems: 1
 
-  honeywell,pmin-pascal:
-    description:
-      Minimum pressure value the sensor can measure in pascal.
-
-  honeywell,pmax-pascal:
-    description:
-      Maximum pressure value the sensor can measure in pascal.
-
   honeywell,transfer-function:
     description: |
       Transfer function which defines the range of valid values delivered by the
@@ -72,16 +67,49 @@ properties:
     enum: [1, 2, 3]
     $ref: /schemas/types.yaml#/definitions/uint32
 
+  honeywell,pressure-triplet:
+    description: |
+      Case-sensitive five character string that defines pressure range, unit
+      and type as part of the device nomenclature. In the unlikely case of a
+      custom chip, unset and provide pmin-pascal and pmax-pascal instead.
+    enum: [0001BA, 01.6BA, 02.5BA, 0060MG, 0100MG, 0160MG, 0250MG, 0400MG,
+           0600MG, 0001BG, 01.6BG, 02.5BG, 0100KA, 0160KA, 0250KA, 0006KG,
+           0010KG, 0016KG, 0025KG, 0040KG, 0060KG, 0100KG, 0160KG, 0250KG,
+           0015PA, 0025PA, 0030PA, 0001PG, 0005PG, 0015PG, 0030PG, 0300YG]
+    $ref: /schemas/types.yaml#/definitions/string
+
+  honeywell,pmin-pascal:
+    description:
+      Minimum pressure value the sensor can measure in pascal.
+
+  honeywell,pmax-pascal:
+    description:
+      Maximum pressure value the sensor can measure in pascal.
+
   vdd-supply:
     description: provide VDD power to the sensor.
 
 required:
   - compatible
   - reg
-  - honeywell,pmin-pascal
-  - honeywell,pmax-pascal
   - honeywell,transfer-function
   - vdd-supply
+
+oneOf:
+  - required:
+      - honeywell,pressure-triplet
+  - required:
+      - honeywell,pmin-pascal
+      - honeywell,pmax-pascal
+
+allOf:
+  - if:
+      required:
+        - honeywell,pressure-triplet
+    then:
+      properties:
+        honeywell,pmin-pascal: false
+        honeywell,pmax-pascal: false
 
 additionalProperties: false
 
@@ -99,8 +127,8 @@ examples:
             reset-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
             interrupt-parent = <&gpio3>;
             interrupts = <21 IRQ_TYPE_EDGE_RISING>;
-            honeywell,pmin-pascal = <0>;
-            honeywell,pmax-pascal = <172369>;
+
+            honeywell,pressure-triplet = "0025PA";
             honeywell,transfer-function = <1>;
             vdd-supply = <&vcc_3v3>;
         };
