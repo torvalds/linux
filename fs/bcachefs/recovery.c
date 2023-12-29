@@ -27,6 +27,7 @@
 #include "recovery.h"
 #include "replicas.h"
 #include "sb-clean.h"
+#include "sb-downgrade.h"
 #include "snapshot.h"
 #include "subvolume.h"
 #include "super-io.h"
@@ -744,6 +745,27 @@ int bch2_fs_recovery(struct bch_fs *c)
 			printbuf_exit(&buf);
 		}
 
+		if (bch2_check_version_downgrade(c)) {
+			struct printbuf buf = PRINTBUF;
+
+			prt_str(&buf, "Version downgrade required:\n");
+
+			__le64 passes = ext->recovery_passes_required[0];
+			bch2_sb_set_downgrade(c,
+					BCH_VERSION_MINOR(bcachefs_metadata_version_current),
+					BCH_VERSION_MINOR(c->sb.version));
+			passes = ext->recovery_passes_required[0] & ~passes;
+			if (passes) {
+				prt_str(&buf, "  running recovery passes: ");
+				prt_bitflags(&buf, bch2_recovery_passes,
+					     bch2_recovery_passes_from_stable(le64_to_cpu(passes)));
+			}
+
+			bch_info(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+			write_sb = true;
+		}
+
 		if (check_version_upgrade(c))
 			write_sb = true;
 
@@ -1022,7 +1044,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_bformat_overflow_done);
 
-	bch2_sb_maybe_downgrade(c);
+	bch2_check_version_downgrade(c);
 
 	if (c->opts.version_upgrade != BCH_VERSION_UPGRADE_none) {
 		bch2_sb_upgrade(c, bcachefs_metadata_version_current);

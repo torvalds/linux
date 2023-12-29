@@ -13,6 +13,7 @@
 #include "replicas.h"
 #include "quota.h"
 #include "sb-clean.h"
+#include "sb-downgrade.h"
 #include "sb-errors.h"
 #include "sb-members.h"
 #include "super-io.h"
@@ -939,6 +940,7 @@ int bch2_write_super(struct bch_fs *c)
 	bch2_sb_members_from_cpu(c);
 	bch2_sb_members_cpy_v2_v1(&c->disk_sb);
 	bch2_sb_errors_from_cpu(c);
+	bch2_sb_downgrade_update(c);
 
 	for_each_online_member(ca, c, i)
 		bch2_sb_from_fs(c, ca);
@@ -1062,8 +1064,10 @@ void __bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 }
 
 /* Downgrade if superblock is at a higher version than currently supported: */
-void bch2_sb_maybe_downgrade(struct bch_fs *c)
+bool bch2_check_version_downgrade(struct bch_fs *c)
 {
+	bool ret = bcachefs_metadata_version_current < c->sb.version;
+
 	lockdep_assert_held(&c->sb_lock);
 
 	/*
@@ -1077,11 +1081,16 @@ void bch2_sb_maybe_downgrade(struct bch_fs *c)
 	if (c->sb.version_min > bcachefs_metadata_version_current)
 		c->disk_sb.sb->version_min = cpu_to_le16(bcachefs_metadata_version_current);
 	c->disk_sb.sb->compat[0] &= cpu_to_le64((1ULL << BCH_COMPAT_NR) - 1);
+	return ret;
 }
 
 void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
 {
 	lockdep_assert_held(&c->sb_lock);
+
+	if (BCH_VERSION_MAJOR(new_version) >
+	    BCH_VERSION_MAJOR(le16_to_cpu(c->disk_sb.sb->version)))
+		bch2_sb_field_resize(&c->disk_sb, downgrade, 0);
 
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
