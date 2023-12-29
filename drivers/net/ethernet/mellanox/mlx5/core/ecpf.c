@@ -75,6 +75,9 @@ int mlx5_ec_init(struct mlx5_core_dev *dev)
 	if (!mlx5_core_is_ecpf(dev))
 		return 0;
 
+	if (mlx5_core_is_mgmt_pf(dev))
+		return 0;
+
 	return mlx5_host_pf_init(dev);
 }
 
@@ -83,6 +86,9 @@ void mlx5_ec_cleanup(struct mlx5_core_dev *dev)
 	int err;
 
 	if (!mlx5_core_is_ecpf(dev))
+		return;
+
+	if (mlx5_core_is_mgmt_pf(dev))
 		return;
 
 	mlx5_host_pf_cleanup(dev);

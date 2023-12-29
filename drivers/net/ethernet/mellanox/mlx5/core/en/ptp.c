@@ -646,7 +646,6 @@ static void mlx5e_ptp_build_sq_param(struct mlx5_core_dev *mdev,
 
 static void mlx5e_ptp_build_rq_param(struct mlx5_core_dev *mdev,
 				     struct net_device *netdev,
-				     u16 q_counter,
 				     struct mlx5e_ptp_params *ptp_params)
 {
 	struct mlx5e_rq_param *rq_params = &ptp_params->rq_param;
@@ -655,7 +654,7 @@ static void mlx5e_ptp_build_rq_param(struct mlx5_core_dev *mdev,
 	params->rq_wq_type = MLX5_WQ_TYPE_CYCLIC;
 	mlx5e_init_rq_type_params(mdev, params);
 	params->sw_mtu = netdev->max_mtu;
-	mlx5e_build_rq_param(mdev, params, NULL, q_counter, rq_params);
+	mlx5e_build_rq_param(mdev, params, NULL, rq_params);
 }
 
 static void mlx5e_ptp_build_params(struct mlx5e_ptp *c,
@@ -681,7 +680,7 @@ static void mlx5e_ptp_build_params(struct mlx5e_ptp *c,
 	/* RQ */
 	if (test_bit(MLX5E_PTP_STATE_RX, c->state)) {
 		params->vlan_strip_disable = orig->vlan_strip_disable;
-		mlx5e_ptp_build_rq_param(c->mdev, c->netdev, c->priv->q_counter, cparams);
+		mlx5e_ptp_build_rq_param(c->mdev, c->netdev, cparams);
 	}
 }
 
@@ -714,13 +713,16 @@ static int mlx5e_ptp_open_rq(struct mlx5e_ptp *c, struct mlx5e_params *params,
 			     struct mlx5e_rq_param *rq_param)
 {
 	int node = dev_to_node(c->mdev->device);
-	int err;
+	int err, sd_ix;
+	u16 q_counter;
 
 	err = mlx5e_init_ptp_rq(c, params, &c->rq);
 	if (err)
 		return err;
 
-	return mlx5e_open_rq(params, rq_param, NULL, node, &c->rq);
+	sd_ix = mlx5_sd_ch_ix_get_dev_ix(c->mdev, MLX5E_PTP_CHANNEL_IX);
+	q_counter = c->priv->q_counter[sd_ix];
+	return mlx5e_open_rq(params, rq_param, NULL, node, q_counter, &c->rq);
 }
 
 static int mlx5e_ptp_open_queues(struct mlx5e_ptp *c,
