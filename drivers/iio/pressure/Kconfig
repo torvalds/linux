@@ -182,6 +182,7 @@ config MPL3115
 config MPRLS0025PA
 	tristate "Honeywell MPRLS0025PA (MicroPressure sensors series)"
 	depends on I2C
+	select MPRLS0025PA_I2C if I2C
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	help
@@ -191,6 +192,11 @@ config MPRLS0025PA
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called mprls0025pa.
+
+config MPRLS0025PA_I2C
+	tristate
+	depends on MPRLS0025PA
+	depends on I2C
 
 config MS5611
 	tristate "Measurement Specialties MS5611 pressure sensor driver"
