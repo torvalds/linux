@@ -1248,10 +1248,10 @@ const char * const vmstat_text[] = {
 #ifdef CONFIG_NUMA_BALANCING
 	"pgpromote_success",
 	"pgpromote_candidate",
+#endif
 	"pgdemote_kswapd",
 	"pgdemote_direct",
 	"pgdemote_khugepaged",
-#endif
 
 	/* enum writeback_stat_item counters */
 	"nr_dirty_threshold",

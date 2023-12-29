@@ -409,12 +409,10 @@ void drop_slab(void)
 
 static int reclaimer_offset(void)
 {
-#ifdef CONFIG_NUMA_BALANCING
 	BUILD_BUG_ON(PGSTEAL_DIRECT - PGSTEAL_KSWAPD !=
 			PGDEMOTE_DIRECT - PGDEMOTE_KSWAPD);
 	BUILD_BUG_ON(PGSTEAL_KHUGEPAGED - PGSTEAL_KSWAPD !=
 			PGDEMOTE_KHUGEPAGED - PGDEMOTE_KSWAPD);
-#endif
 	BUILD_BUG_ON(PGSTEAL_DIRECT - PGSTEAL_KSWAPD !=
 			PGSCAN_DIRECT - PGSCAN_KSWAPD);
 	BUILD_BUG_ON(PGSTEAL_KHUGEPAGED - PGSTEAL_KSWAPD !=
@@ -978,10 +976,9 @@ static unsigned int demote_folio_list(struct list_head *demote_folios,
 	migrate_pages(demote_folios, alloc_demote_folio, NULL,
 		      (unsigned long)&mtc, MIGRATE_ASYNC, MR_DEMOTION,
 		      &nr_succeeded);
-#ifdef CONFIG_NUMA_BALANCING
+
 	mod_node_page_state(pgdat, PGDEMOTE_KSWAPD + reclaimer_offset(),
 			    nr_succeeded);
-#endif
 
 	return nr_succeeded;
 }
