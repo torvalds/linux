@@ -3,10 +3,72 @@
 
 /dts-v1/;
 
-#include "aspeed-ast2600-evb.dts"
+#include "aspeed-g6.dtsi"
+#include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
 	model = "AST2600 DC-SCM AMD";
+	compatible = "aspeed,ast2600";
+
+	aliases {
+		serial4 = &uart5;
+	};
+
+	chosen {
+		bootargs = "console=ttyS4,115200n8";
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		video_engine_memory: video {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		bmc_dev_memory: bmc_dev_memory {
+			size = <0x00100000>;
+			alignment = <0x00100000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		ssp_memory: ssp_memory {
+			size = <0x02000000>;
+			alignment = <0x01000000>;
+			shm-size = <0x1000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp0_reserved: mctp0_reserved@b1000000 {
+			reg = <0xb1000000 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		mctp1_reserved: mctp1_reserved@b1010000 {
+			reg = <0xb1010000 0x10000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+	};
 };
 
 &fmc {
@@ -24,7 +86,25 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			/delete-node/ rwfs@2e00000;
+			u-boot@0 {
+				reg = <0x0 0x140000>; // 1280KB
+				label = "u-boot";
+			};
+
+			u-boot-env@140000 {
+				reg = <0x140000 0x20000>; // 128KB
+				label = "u-boot-env";
+			};
+
+			kernel@160000 {
+				reg = <0x160000 0x800000>; // 8MB
+				label = "kernel";
+			};
+
+			rofs@960000 {
+				reg = <0x960000 0x24a0000>; // 36.625MB
+				label = "rofs";
+			};
 
 			rwfs@2e00000 {
 				reg = <0x2e00000 0xfe0000>; // 16256KB
@@ -192,53 +272,22 @@
 &i2c4 {
 	status = "okay";
 	multi-master;
-	/delete-node/ ssif-bmc@10;
 };
 
 &i2c5 {
 	status = "okay";
-
-	ipmb@10 {
-		compatible = "ipmb-dev";
-		reg = <0x10>;
-		i2c-protocol;
-	};
 };
 
 &i2c6 {
 	status = "okay";
-
-	ipmb@12 {
-		compatible = "ipmb-dev";
-		reg = <0x12>;
-		i2c-protocol;
-	};
 };
 
 &i2c7 {
 	status = "okay";
-
-	temp@2e {
-		compatible = "adi,adt7490";
-		reg = <0x2e>;
-	};
-
-	eeprom@50 {
-		compatible = "atmel,24c08";
-		reg = <0x50>;
-		pagesize = <16>;
-	};
-
 };
 
 &i2c8 {
 	status = "okay";
-
-	lm75@4d {
-		compatible = "national,lm75";
-		reg = <0x4d>;
-	};
-
 };
 
 &i2c9 {
@@ -266,74 +315,23 @@
 	status = "okay";
 };
 
-#if 0
-&ehci0 {
-	status = "disabled";
-};
-#endif
+&mdio1 {
+	status = "okay";
 
-&ehci1 {
-	status = "disabled";
-};
-
-&uhci {
-	status = "disabled";
+	ethphy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
 };
 
-&vhub {
-	status = "disabled";
+&mac1 {
+	status = "okay";
+
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethphy1>;
+
 	pinctrl-names = "default";
-#if 0
-	pinctrl-0 = <&pinctrl_usb2adp_default>;
-#endif
-};
-
-#if 0
-&udc {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usb2bd_default>;
-};
-#endif
-
-&uphyb {
-	status = "disabled";
-};
-
-&sdc {
-	status = "disabled";
-};
-
-&sdhci0 {
-	status = "disabled";
-};
-
-&sdhci1 {
-	status = "disabled";
-};
-
-&mac0 {
-	status = "disabled";
-};
-
-&mac2 {
-	status = "disabled";
-};
-
-&mac3 {
-	status = "disabled";
-};
-
-&mdio0 {
-	status = "disabled";
-};
-
-&mdio2 {
-	status = "disabled";
-};
-
-&mdio3 {
-	status = "disabled";
+	pinctrl-0 = <&pinctrl_rgmii2_default>;
 };
 
 &sgpiom0 {
@@ -379,32 +377,131 @@
 		/*AC0 - AC7*/   "", "", "", "", "", "", "", "";
 };
 
-&i3c0 {
-	status = "disabled";
-};
-
 &i3c1 {
+	initial-role = "target";
+	pid = <0x000007ec 0x05031000>;
+	dcr = /bits/ 8 <0xcc>;
 	status = "okay";
-	secondary;
-
-	/delete-property/ jdec-spd;
-	/delete-node/ i3cmux@0f,4cc31020000;
-	/delete-node/ spd@50,4cc51180000;
-	/delete-node/ spd@51,4cc51181000;
 };
 
-&i3c2 {
-	status = "disabled";
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
 };
 
-&i3c3 {
-	status = "disabled";
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
 };
 
-&i3c4 {
-	status = "disabled";
+&pciecfg {
+	status = "okay";
 };
 
-&i3c5 {
-	status = "disabled";
+&pcie1 {
+	status = "okay";
+};
+
+&espi {
+	status = "okay";
+	perif-dma-mode;
+	oob-dma-mode;
+	flash-dma-mode;
+};
+
+&lpc_snoop {
+	status = "okay";
+	snoop-ports = <0x80>;
+};
+
+&ibt {
+	status = "okay";
+};
+
+&kcs1 {
+	kcs-io-addr = <0xca0>;
+	kcs-channel = <1>;
+	status = "okay";
+};
+
+&kcs2 {
+	kcs-io-addr = <0xca8>;
+	kcs-channel = <2>;
+	status = "okay";
+};
+
+&kcs3 {
+	status = "okay";
+	kcs-io-addr = <0xca2>;
+	kcs-channel = <3>;
+};
+
+&kcs4 {
+	status = "okay";
+	kcs-io-addr = <0xca4>;
+	kcs-channel = <4>;
+};
+
+&mbox {
+	status = "okay";
+};
+
+&pcie_kcs1 {
+	kcs-io-addr = <0x3a0>;
+	kcs-channel = <5>;
+	status = "okay";
+};
+
+&pcie_kcs2 {
+	kcs-io-addr = <0x3a8>;
+	kcs-channel = <6>;
+	status = "okay";
+};
+
+&pcie_kcs3 {
+	kcs-io-addr = <0x3a2>;
+	kcs-channel = <7>;
+	status = "okay";
+};
+
+&pcie_kcs4 {
+	kcs-io-addr = <0x3a4>;
+	kcs-channel = <8>;
+	status = "okay";
+};
+
+&hace {
+	status = "okay";
+};
+
+&acry {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&uart4 {
+	status = "okay";
+};
+
+&uart10 {
+	status = "okay";
+};
+
+&uart11 {
+	status = "okay";
+};
+
+&uart_routing {
+	status = "okay";
+};
+
+&rng {
+	status = "okay";
+};
+
+&ssp {
+	memory-region = <&ssp_memory>;
 };
