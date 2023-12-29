@@ -481,7 +481,7 @@ static int bch2_fs_upgrade_for_subvolumes(struct bch_fs *c)
 }
 
 const char * const bch2_recovery_passes[] = {
-#define x(_fn, _when)	#_fn,
+#define x(_fn, ...)	#_fn,
 	BCH_RECOVERY_PASSES()
 #undef x
 	NULL
@@ -504,10 +504,40 @@ struct recovery_pass_fn {
 };
 
 static struct recovery_pass_fn recovery_pass_fns[] = {
-#define x(_fn, _when)	{ .fn = bch2_##_fn, .when = _when },
+#define x(_fn, _id, _when)	{ .fn = bch2_##_fn, .when = _when },
 	BCH_RECOVERY_PASSES()
 #undef x
 };
+
+u64 bch2_recovery_passes_to_stable(u64 v)
+{
+	static const u8 map[] = {
+#define x(n, id, ...)	[BCH_RECOVERY_PASS_##n] = BCH_RECOVERY_PASS_STABLE_##n,
+	BCH_RECOVERY_PASSES()
+#undef x
+	};
+
+	u64 ret = 0;
+	for (unsigned i = 0; i < ARRAY_SIZE(map); i++)
+		if (v & BIT_ULL(i))
+			ret |= BIT_ULL(map[i]);
+	return ret;
+}
+
+u64 bch2_recovery_passes_from_stable(u64 v)
+{
+	static const u8 map[] = {
+#define x(n, id, ...)	[BCH_RECOVERY_PASS_STABLE_##n] = BCH_RECOVERY_PASS_##n,
+	BCH_RECOVERY_PASSES()
+#undef x
+	};
+
+	u64 ret = 0;
+	for (unsigned i = 0; i < ARRAY_SIZE(map); i++)
+		if (v & BIT_ULL(i))
+			ret |= BIT_ULL(map[i]);
+	return ret;
+}
 
 static void check_version_upgrade(struct bch_fs *c)
 {
