@@ -4,7 +4,7 @@
 #include "sb-errors.h"
 #include "super-io.h"
 
-static const char * const bch2_sb_error_strs[] = {
+const char * const bch2_sb_error_strs[] = {
 #define x(t, n, ...) [n] = #t,
 	BCH_SB_ERRS()
 	NULL

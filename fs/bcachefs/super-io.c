@@ -264,6 +264,17 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *sb,
 	return f;
 }
 
+struct bch_sb_field *bch2_sb_field_get_minsize_id(struct bch_sb_handle *sb,
+						  enum bch_sb_field_type type,
+						  unsigned u64s)
+{
+	struct bch_sb_field *f = bch2_sb_field_get_id(sb->sb, type);
+
+	if (!f || le32_to_cpu(f->u64s) < u64s)
+		f = bch2_sb_field_resize_id(sb, type, u64s);
+	return f;
+}
+
 /* Superblock validate: */
 
 static int validate_sb_layout(struct bch_sb_layout *layout, struct printbuf *out)
@@ -484,6 +495,21 @@ static int bch2_sb_validate(struct bch_sb_handle *disk_sb, struct printbuf *out,
 
 /* device open: */
 
+static unsigned long le_ulong_to_cpu(unsigned long v)
+{
+	return sizeof(unsigned long) == 8
+		? le64_to_cpu(v)
+		: le32_to_cpu(v);
+}
+
+static void le_bitvector_to_cpu(unsigned long *dst, unsigned long *src, unsigned nr)
+{
+	BUG_ON(nr & (BITS_PER_TYPE(long) - 1));
+
+	for (unsigned i = 0; i < BITS_TO_LONGS(nr); i++)
+		dst[i] = le_ulong_to_cpu(src[i]);
+}
+
 static void bch2_sb_update(struct bch_fs *c)
 {
 	struct bch_sb *src = c->disk_sb.sb;
@@ -512,8 +538,15 @@ static void bch2_sb_update(struct bch_fs *c)
 	c->sb.features		= le64_to_cpu(src->features[0]);
 	c->sb.compat		= le64_to_cpu(src->compat[0]);
 
+	memset(c->sb.errors_silent, 0, sizeof(c->sb.errors_silent));
+
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(src, ext);
+	if (ext)
+		le_bitvector_to_cpu(c->sb.errors_silent, (void *) ext->errors_silent,
+				    sizeof(c->sb.errors_silent) * 8);
+
 	for_each_member_device(ca, c, i) {
-		struct bch_member m = bch2_sb_member_get(src, i);
+		struct bch_member m = bch2_sb_member_get(src, ca->dev_idx);
 		ca->mi = bch2_mi_to_cpu(&m);
 	}
 }
@@ -1053,6 +1086,46 @@ void bch2_sb_upgrade(struct bch_fs *c, unsigned new_version)
 	c->disk_sb.sb->version = cpu_to_le16(new_version);
 	c->disk_sb.sb->features[0] |= cpu_to_le64(BCH_SB_FEATURES_ALL);
 }
+
+static int bch2_sb_ext_validate(struct bch_sb *sb, struct bch_sb_field *f,
+				struct printbuf *err)
+{
+	if (vstruct_bytes(f) < 88) {
+		prt_printf(err, "field too small (%zu < %u)", vstruct_bytes(f), 88);
+		return -BCH_ERR_invalid_sb_ext;
+	}
+
+	return 0;
+}
+
+static void bch2_sb_ext_to_text(struct printbuf *out, struct bch_sb *sb,
+				struct bch_sb_field *f)
+{
+	struct bch_sb_field_ext *e = field_to_type(f, ext);
+
+	prt_printf(out, "Recovery passes required:");
+	prt_tab(out);
+	prt_bitflags(out, bch2_recovery_passes,
+		     bch2_recovery_passes_from_stable(le64_to_cpu(e->recovery_passes_required[0])));
+	prt_newline(out);
+
+	unsigned long *errors_silent = kmalloc(sizeof(e->errors_silent), GFP_KERNEL);
+	if (errors_silent) {
+		le_bitvector_to_cpu(errors_silent, (void *) e->errors_silent, sizeof(e->errors_silent) * 8);
+
+		prt_printf(out, "Errors to silently fix:");
+		prt_tab(out);
+		prt_bitflags_vector(out, bch2_sb_error_strs, errors_silent, sizeof(e->errors_silent) * 8);
+		prt_newline(out);
+
+		kfree(errors_silent);
+	}
+}
+
+static const struct bch_sb_field_ops bch_sb_field_ops_ext = {
+	.validate	= bch2_sb_ext_validate,
+	.to_text	= bch2_sb_ext_to_text,
+};
 
 static const struct bch_sb_field_ops *bch2_sb_field_ops[] = {
 #define x(f, nr)					\
