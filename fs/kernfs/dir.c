@@ -27,7 +27,7 @@ static DEFINE_RWLOCK(kernfs_rename_lock);	/* kn->parent and ->name */
  */
 static DEFINE_SPINLOCK(kernfs_pr_cont_lock);
 static char kernfs_pr_cont_buf[PATH_MAX];	/* protected by pr_cont_lock */
-static DEFINE_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
+static DEFINE_RAW_SPINLOCK(kernfs_idr_lock);	/* root->ino_idr */
 
 #define rb_to_kn(X) rb_entry((X), struct kernfs_node, rb)
 
@@ -539,6 +539,7 @@ void kernfs_put(struct kernfs_node *kn)
 {
 	struct kernfs_node *parent;
 	struct kernfs_root *root;
+	unsigned long flags;
 
 	if (!kn || !atomic_dec_and_test(&kn->count))
 		return;
@@ -563,9 +564,9 @@ void kernfs_put(struct kernfs_node *kn)
 		simple_xattrs_free(&kn->iattr->xattrs, NULL);
 		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
 	}
-	spin_lock(&kernfs_idr_lock);
+	raw_spin_lock_irqsave(&kernfs_idr_lock, flags);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
-	spin_unlock(&kernfs_idr_lock);
+	raw_spin_unlock_irqrestore(&kernfs_idr_lock, flags);
 	kmem_cache_free(kernfs_node_cache, kn);
 
 	kn = parent;
@@ -607,6 +608,7 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	struct kernfs_node *kn;
 	u32 id_highbits;
 	int ret;
+	unsigned long irqflags;
 
 	name = kstrdup_const(name, GFP_KERNEL);
 	if (!name)
@@ -617,13 +619,13 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 		goto err_out1;
 
 	idr_preload(GFP_KERNEL);
-	spin_lock(&kernfs_idr_lock);
+	raw_spin_lock_irqsave(&kernfs_idr_lock, irqflags);
 	ret = idr_alloc_cyclic(&root->ino_idr, kn, 1, 0, GFP_ATOMIC);
 	if (ret >= 0 && ret < root->last_id_lowbits)
 		root->id_highbits++;
 	id_highbits = root->id_highbits;
 	root->last_id_lowbits = ret;
-	spin_unlock(&kernfs_idr_lock);
+	raw_spin_unlock_irqrestore(&kernfs_idr_lock, irqflags);
 	idr_preload_end();
 	if (ret < 0)
 		goto err_out2;
@@ -659,9 +661,9 @@ static struct kernfs_node *__kernfs_new_node(struct kernfs_root *root,
 	return kn;
 
  err_out3:
-	spin_lock(&kernfs_idr_lock);
+	raw_spin_lock_irqsave(&kernfs_idr_lock, irqflags);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
-	spin_unlock(&kernfs_idr_lock);
+	raw_spin_unlock_irqrestore(&kernfs_idr_lock, irqflags);
  err_out2:
 	kmem_cache_free(kernfs_node_cache, kn);
  err_out1:
@@ -714,8 +716,9 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 	struct kernfs_node *kn;
 	ino_t ino = kernfs_id_ino(id);
 	u32 gen = kernfs_id_gen(id);
+	unsigned long flags;
 
-	spin_lock(&kernfs_idr_lock);
+	raw_spin_lock_irqsave(&kernfs_idr_lock, flags);
 
 	kn = idr_find(&root->ino_idr, (u32)ino);
 	if (!kn)
@@ -739,10 +742,10 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 	if (unlikely(!__kernfs_active(kn) || !atomic_inc_not_zero(&kn->count)))
 		goto err_unlock;
 
-	spin_unlock(&kernfs_idr_lock);
+	raw_spin_unlock_irqrestore(&kernfs_idr_lock, flags);
 	return kn;
 err_unlock:
-	spin_unlock(&kernfs_idr_lock);
+	raw_spin_unlock_irqrestore(&kernfs_idr_lock, flags);
 	return NULL;
 }
 
