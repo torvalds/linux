@@ -42,6 +42,10 @@ properties:
     maxItems: 1
 
   interrupts:
+    description:
+      Optional interrupt for indicating End-of-conversion.
+      If not present, the driver loops for a while until the received status
+      byte indicates correct measurement.
     maxItems: 1
 
   reset-gpios:
@@ -65,6 +69,7 @@ properties:
       1 - A, 10% to 90% of 2^24 (1677722 .. 15099494)
       2 - B, 2.5% to 22.5% of 2^24 (419430 .. 3774874)
       3 - C, 20% to 80% of 2^24 (3355443 .. 13421773)
+    enum: [1, 2, 3]
     $ref: /schemas/types.yaml#/definitions/uint32
 
   vdd-supply:
@@ -93,7 +98,7 @@ examples:
             reg = <0x18>;
             reset-gpios = <&gpio3 19 GPIO_ACTIVE_HIGH>;
             interrupt-parent = <&gpio3>;
-            interrupts = <21 IRQ_TYPE_EDGE_FALLING>;
+            interrupts = <21 IRQ_TYPE_EDGE_RISING>;
             honeywell,pmin-pascal = <0>;
             honeywell,pmax-pascal = <172369>;
             honeywell,transfer-function = <1>;
