@@ -52,7 +52,7 @@ static struct intel_guc_slpc *rps_to_slpc(struct intel_rps *rps)
 {
 	struct intel_gt *gt = rps_to_gt(rps);
 
-	return &gt->uc.guc.slpc;
+	return &gt_to_guc(gt)->slpc;
 }
 
 static bool rps_uses_slpc(struct intel_rps *rps)

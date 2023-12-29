@@ -538,7 +538,7 @@ static bool rps_eval(void *data)
 {
 	struct intel_gt *gt = data;
 
-	if (intel_guc_slpc_is_used(&gt->uc.guc))
+	if (intel_guc_slpc_is_used(gt_to_guc(gt)))
 		return false;
 	else
 		return HAS_RPS(gt->i915);

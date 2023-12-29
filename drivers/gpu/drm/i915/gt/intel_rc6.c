@@ -109,7 +109,7 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 	 * thus allowing GuC to control RC6 entry/exit fully instead.
 	 * We will not set the HW ENABLE and EI bits
 	 */
-	if (!intel_guc_rc_enable(&gt->uc.guc))
+	if (!intel_guc_rc_enable(gt_to_guc(gt)))
 		rc6->ctl_enable = GEN6_RC_CTL_RC6_ENABLE;
 	else
 		rc6->ctl_enable =
@@ -569,7 +569,7 @@ static void __intel_rc6_disable(struct intel_rc6 *rc6)
 	struct intel_gt *gt = rc6_to_gt(rc6);
 
 	/* Take control of RC6 back from GuC */
-	intel_guc_rc_disable(&gt->uc.guc);
+	intel_guc_rc_disable(gt_to_guc(gt));
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 	if (GRAPHICS_VER(i915) >= 9)
