@@ -14,7 +14,7 @@
 #include <linux/reset.h>
 #include <linux/mfd/syscon.h>
 
-static const struct of_device_id aspeed_usb_ahp_dt_ids[] = {
+static const struct of_device_id aspeed_usb_hp_dt_ids[] = {
 	{
 		.compatible = "aspeed,ast2600-usb2ahp",
 	},
@@ -31,9 +31,9 @@ static const struct of_device_id aspeed_usb_ahp_dt_ids[] = {
 		.compatible = "aspeed,ast2700-usb2bhp",
 	},
 };
-MODULE_DEVICE_TABLE(of, aspeed_usb_ahp_dt_ids);
+MODULE_DEVICE_TABLE(of, aspeed_usb_hp_dt_ids);
 
-static int aspeed_usb_ahp_probe(struct platform_device *pdev)
+static int aspeed_usb_hp_probe(struct platform_device *pdev)
 {
 	struct clk		*clk;
 	struct reset_control	*rst;
@@ -104,22 +104,22 @@ err:
 	return rc;
 }
 
-static int aspeed_usb_ahp_remove(struct platform_device *pdev)
+static int aspeed_usb_hp_remove(struct platform_device *pdev)
 {
 	dev_info(&pdev->dev, "Remove USB Host PCIe\n");
 
 	return 0;
 }
 
-static struct platform_driver aspeed_usb_ahp_driver = {
-	.probe		= aspeed_usb_ahp_probe,
-	.remove		= aspeed_usb_ahp_remove,
+static struct platform_driver aspeed_usb_hp_driver = {
+	.probe		= aspeed_usb_hp_probe,
+	.remove		= aspeed_usb_hp_remove,
 	.driver		= {
 		.name	= KBUILD_MODNAME,
-		.of_match_table	= aspeed_usb_ahp_dt_ids,
+		.of_match_table	= aspeed_usb_hp_dt_ids,
 	},
 };
-module_platform_driver(aspeed_usb_ahp_driver);
+module_platform_driver(aspeed_usb_hp_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Neal Liu <neal_liu@aspeedtech.com>");
