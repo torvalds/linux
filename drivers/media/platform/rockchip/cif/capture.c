@@ -7286,8 +7286,9 @@ void rkcif_set_fps(struct rkcif_stream *stream, struct rkcif_fps *fps)
 
 static bool rkcif_check_can_be_online(struct rkcif_device *cif_dev)
 {
-	if (cif_dev->chip_id == CHIP_RV1106_CIF &&
-	    strstr(cif_dev->sditf[0]->mode.name, "unite"))
+	if (cif_dev->sditf[0] == NULL || cif_dev->sditf[0]->mode.name == NULL ||
+	    (cif_dev->chip_id == CHIP_RV1106_CIF &&
+	     strstr(cif_dev->sditf[0]->mode.name, "unite")))
 		return false;
 	return true;
 }
