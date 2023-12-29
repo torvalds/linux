@@ -1966,7 +1966,7 @@ static int scarlett2_usb_get_meter_levels(struct usb_mixer_interface *mixer,
 		__le16 num_meters;
 		__le32 magic;
 	} __packed req;
-	u32 resp[SCARLETT2_MAX_METERS];
+	__le32 resp[SCARLETT2_MAX_METERS];
 	int i, err;
 
 	req.pad = 0;
@@ -1979,7 +1979,7 @@ static int scarlett2_usb_get_meter_levels(struct usb_mixer_interface *mixer,
 
 	/* copy, convert to u16 */
 	for (i = 0; i < num_meters; i++)
-		levels[i] = resp[i];
+		levels[i] = le32_to_cpu(resp[i]);
 
 	return 0;
 }
