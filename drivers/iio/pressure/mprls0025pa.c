@@ -39,6 +39,8 @@
 #define MPR_I2C_MEMORY	BIT(2)	/* integrity test passed */
 #define MPR_I2C_MATH	BIT(0)	/* internal math saturation */
 
+#define MPR_I2C_ERR_FLAG  (MPR_I2C_BUSY | MPR_I2C_MEMORY | MPR_I2C_MATH)
+
 /*
  * support _RAW sysfs interface:
  *
@@ -213,7 +215,7 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 					status);
 				return status;
 			}
-			if (!(status & MPR_I2C_BUSY))
+			if (!(status & MPR_I2C_ERR_FLAG))
 				break;
 		}
 		if (i == nloops) {
@@ -233,7 +235,7 @@ static int mpr_read_pressure(struct mpr_data *data, s32 *press)
 		return -EIO;
 	}
 
-	if (buf[0] & MPR_I2C_BUSY) {
+	if (buf[0] & MPR_I2C_ERR_FLAG) {
 		/*
 		 * it should never be the case that status still indicates
 		 * business
