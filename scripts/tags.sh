@@ -81,11 +81,6 @@ find_other_sources()
 	       -name "$1" -not -type l -print;
 }
 
-find_sources()
-{
-	find_arch_sources $1 "$2"
-}
-
 all_sources()
 {
 	find_arch_include_sources ${SRCARCH} '*.[chS]'
@@ -95,7 +90,7 @@ all_sources()
 	find_include_sources '*.[chS]'
 	for arch in $ALLSOURCE_ARCHS
 	do
-		find_sources $arch '*.[chS]'
+		find_arch_sources $arch '*.[chS]'
 	done
 	find_other_sources '*.[chS]'
 }
@@ -125,7 +120,7 @@ all_kconfigs()
 	find ${tree}arch/ -maxdepth 1 $ignore \
 	       -name "Kconfig*" -not -type l -print;
 	for arch in $ALLSOURCE_ARCHS; do
-		find_sources $arch 'Kconfig*'
+		find_arch_sources $arch 'Kconfig*'
 	done
 	find_other_sources 'Kconfig*'
 }
