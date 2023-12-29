@@ -1279,8 +1279,9 @@ static int csi2_hw_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "csi-intr1");
 	if (irq > 0) {
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(&pdev->dev, irq,
-				       rk_csirx_irq1_handler, IRQ_NOAUTOEN,
+				       rk_csirx_irq1_handler, 0,
 				       dev_driver_string(&pdev->dev),
 				       &pdev->dev);
 		if (ret < 0)
@@ -1293,8 +1294,9 @@ static int csi2_hw_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq_byname(pdev, "csi-intr2");
 	if (irq > 0) {
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
 		ret = devm_request_irq(&pdev->dev, irq,
-				       rk_csirx_irq2_handler, IRQ_NOAUTOEN,
+				       rk_csirx_irq2_handler, 0,
 				       dev_driver_string(&pdev->dev),
 				       &pdev->dev);
 		if (ret < 0)
