@@ -31,7 +31,7 @@
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 #define bswap16_based_on_endian(big_endian, value) \
-	(big_endian) ? cpu_to_be16(value) : cpu_to_le16(value)
+	((big_endian) ? cpu_to_be16(value) : cpu_to_le16(value))
 
 /* Possible Min Reduction config from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
