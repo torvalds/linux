@@ -1468,8 +1468,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		goto error_unload_firmware;
 	}
 
-	atomisp_drvfs_init(isp);
-
 	return 0;
 
 error_unload_firmware:
@@ -1496,8 +1494,6 @@ error_release_firmware:
 static void atomisp_pci_remove(struct pci_dev *pdev)
 {
 	struct atomisp_device *isp = pci_get_drvdata(pdev);
-
-	atomisp_drvfs_exit();
 
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_forbid(&pdev->dev);
@@ -1529,11 +1525,12 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_CHT)},
 	{0,}
 };
-
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
-
 static struct pci_driver atomisp_pci_driver = {
+	.driver = {
+		.dev_groups = dbg_attr_groups,
+	},
 	.name = "atomisp-isp2",
 	.id_table = atomisp_pci_tbl,
 	.probe = atomisp_pci_probe,
