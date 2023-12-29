@@ -204,21 +204,35 @@ const struct pmc_reg_map cnp_reg_map = {
 	.etr3_offset = ETR3_OFFSET,
 };
 
+void cnl_suspend(struct pmc_dev *pmcdev)
+{
+	/*
+	 * Due to a hardware limitation, the GBE LTR blocks PC10
+	 * when a cable is attached. To unblock PC10 during suspend,
+	 * tell the PMC to ignore it.
+	 */
+	pmc_core_send_ltr_ignore(pmcdev, 3, 1);
+}
+
+int cnl_resume(struct pmc_dev *pmcdev)
+{
+	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+
+	return pmc_core_resume_common(pmcdev);
+}
+
 int cnp_core_init(struct pmc_dev *pmcdev)
 {
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
+	pmcdev->suspend = cnl_suspend;
+	pmcdev->resume = cnl_resume;
+
 	pmc->map = &cnp_reg_map;
 	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
-
-	/* Due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
 
 	return 0;
 }
