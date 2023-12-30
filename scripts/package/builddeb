@@ -25,9 +25,7 @@ if_enabled_echo() {
 }
 
 create_package() {
-	local pname="$1" pdir="$2"
-
-	export DH_OPTIONS="-p${pname} -P${pdir}"
+	export DH_OPTIONS="-p${1}"
 
 	dh_installdocs
 	dh_installchangelogs
@@ -39,8 +37,8 @@ create_package() {
 }
 
 install_linux_image () {
-	pdir=$1
-	pname=$2
+	pname=$1
+	pdir=debian/$1
 
 	rm -rf ${pdir}
 
@@ -109,7 +107,7 @@ install_linux_image () {
 }
 
 install_linux_image_dbg () {
-	pdir=$1
+	pdir=debian/$1
 
 	rm -rf ${pdir}
 
@@ -139,8 +137,8 @@ install_linux_image_dbg () {
 }
 
 install_kernel_headers () {
-	pdir=$1
-	version=$2
+	pdir=debian/$1
+	version=${1#linux-headers-}
 
 	rm -rf $pdir
 
@@ -151,7 +149,7 @@ install_kernel_headers () {
 }
 
 install_libc_headers () {
-	pdir=$1
+	pdir=debian/$1
 
 	rm -rf $pdir
 
@@ -171,28 +169,13 @@ for package in ${packages_enabled}
 do
 	case ${package} in
 	*-dbg)
-		install_linux_image_dbg debian/linux-image-dbg;;
+		install_linux_image_dbg "${package}";;
 	linux-image-*|user-mode-linux-*)
-		install_linux_image debian/linux-image ${package};;
+		install_linux_image "${package}";;
 	linux-libc-dev)
-		install_libc_headers debian/linux-libc-dev;;
+		install_libc_headers "${package}";;
 	linux-headers-*)
-		install_kernel_headers debian/linux-headers ${package#linux-headers-};;
+		install_kernel_headers "${package}";;
 	esac
+	create_package "${package}"
 done
-
-for package in ${packages_enabled}
-do
-	case ${package} in
-	*-dbg)
-		create_package ${package} debian/linux-image-dbg;;
-	linux-image-*|user-mode-linux-*)
-		create_package ${package} debian/linux-image;;
-	linux-libc-dev)
-		create_package ${package} debian/linux-libc-dev;;
-	linux-headers-*)
-		create_package ${package} debian/linux-headers;;
-	esac
-done
-
-exit 0
