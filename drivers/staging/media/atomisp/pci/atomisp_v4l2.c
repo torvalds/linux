@@ -548,7 +548,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	dev_dbg(isp->dev, "IUNIT power-%s.\n", enable ? "on" : "off");
 
 	/* WA for P-Unit, if DVFS enabled, ISP timeout observed */
-	if (IS_CHT && enable) {
+	if (IS_CHT && enable && !isp->pm_only) {
 		punit_ddr_dvfs_enable(false);
 		msleep(20);
 	}
@@ -558,7 +558,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 			val, MRFLD_ISPSSPM0_ISPSSC_MASK);
 
 	/* WA:Enable DVFS */
-	if (IS_CHT && !enable)
+	if (IS_CHT && !enable && !isp->pm_only)
 		punit_ddr_dvfs_enable(true);
 
 	/*
@@ -601,11 +601,15 @@ int atomisp_power_off(struct device *dev)
 	int ret;
 	u32 reg;
 
-	atomisp_css_uninit(isp);
+	if (isp->pm_only) {
+		pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, 0);
+	} else {
+		atomisp_css_uninit(isp);
 
-	ret = atomisp_mrfld_pre_power_down(isp);
-	if (ret)
-		return ret;
+		ret = atomisp_mrfld_pre_power_down(isp);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * MRFLD IUNIT DPHY is located in an always-power-on island
@@ -633,6 +637,9 @@ int atomisp_power_on(struct device *dev)
 
 	pci_restore_state(to_pci_dev(dev));
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
+
+	if (isp->pm_only)
+		return 0;
 
 	/*restore register values for iUnit and iUnitPHY registers*/
 	if (isp->saved_regs.pcicmdsts)
@@ -1252,6 +1259,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	isp->dev = &pdev->dev;
 	isp->saved_regs.ispmmadr = start;
+	isp->asd.isp = isp;
 
 	mutex_init(&isp->mutex);
 	spin_lock_init(&isp->lock);
@@ -1368,8 +1376,13 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	/* Load isp firmware from user space */
 	isp->firmware = atomisp_load_firmware(isp);
-	if (!isp->firmware)
-		return -ENOENT;
+	if (!isp->firmware) {
+		/* No firmware continue in pm-only mode for S0i3 support */
+		dev_info(&pdev->dev, "Continuing in power-management only mode\n");
+		isp->pm_only = true;
+		atomisp_pm_init(isp);
+		return 0;
+	}
 
 	err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
 	if (err) {
@@ -1506,6 +1519,9 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	struct atomisp_device *isp = pci_get_drvdata(pdev);
 
 	atomisp_pm_uninit(isp);
+
+	if (isp->pm_only)
+		return;
 
 	/* Undo ia_css_init() from atomisp_power_on() */
 	atomisp_css_uninit(isp);
