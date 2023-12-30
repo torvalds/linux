@@ -224,6 +224,13 @@ properties:
               - friendlyarm,nanopi-r5s
           - const: rockchip,rk3568
 
+      - description: FriendlyElec NanoPi R6 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopi-r6c
+              - friendlyarm,nanopi-r6s
+          - const: rockchip,rk3588s
+
       - description: FriendlyElec NanoPC T6
         items:
           - const: friendlyarm,nanopc-t6
