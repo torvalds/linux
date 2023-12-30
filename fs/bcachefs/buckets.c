@@ -653,201 +653,6 @@ err:
 	goto out;
 }
 
-static int __mark_pointer(struct btree_trans *trans,
-			  struct bkey_s_c k,
-			  const struct bch_extent_ptr *ptr,
-			  s64 sectors, enum bch_data_type ptr_data_type,
-			  u8 bucket_gen, u8 *bucket_data_type,
-			  u32 *dirty_sectors, u32 *cached_sectors)
-{
-	u32 *dst_sectors = !ptr->cached
-		? dirty_sectors
-		: cached_sectors;
-	int ret = bch2_check_bucket_ref(trans, k, ptr, sectors, ptr_data_type,
-				   bucket_gen, *bucket_data_type, *dst_sectors);
-
-	if (ret)
-		return ret;
-
-	*dst_sectors += sectors;
-
-	if (!*dirty_sectors && !*cached_sectors)
-		*bucket_data_type = 0;
-	else if (*bucket_data_type != BCH_DATA_stripe)
-		*bucket_data_type = ptr_data_type;
-
-	return 0;
-}
-
-static int bch2_mark_pointer(struct btree_trans *trans,
-			     enum btree_id btree_id, unsigned level,
-			     struct bkey_s_c k,
-			     struct extent_ptr_decoded p,
-			     s64 sectors,
-			     unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
-	struct bucket old, new, *g;
-	enum bch_data_type data_type = bkey_ptr_data_type(btree_id, level, k, p);
-	u8 bucket_data_type;
-	int ret = 0;
-
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
-
-	percpu_down_read(&c->mark_lock);
-	g = PTR_GC_BUCKET(ca, &p.ptr);
-	bucket_lock(g);
-	old = *g;
-
-	bucket_data_type = g->data_type;
-	ret = __mark_pointer(trans, k, &p.ptr, sectors,
-			     data_type, g->gen,
-			     &bucket_data_type,
-			     &g->dirty_sectors,
-			     &g->cached_sectors);
-	if (!ret)
-		g->data_type = bucket_data_type;
-
-	new = *g;
-	bucket_unlock(g);
-	if (!ret)
-		bch2_dev_usage_update_m(c, ca, &old, &new);
-	percpu_up_read(&c->mark_lock);
-
-	return ret;
-}
-
-static int bch2_mark_stripe_ptr(struct btree_trans *trans,
-				struct bkey_s_c k,
-				struct bch_extent_stripe_ptr p,
-				enum bch_data_type data_type,
-				s64 sectors,
-				unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_replicas_padded r;
-	struct gc_stripe *m;
-
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
-
-	m = genradix_ptr_alloc(&c->gc_stripes, p.idx, GFP_KERNEL);
-	if (!m) {
-		bch_err(c, "error allocating memory for gc_stripes, idx %llu",
-			(u64) p.idx);
-		return -BCH_ERR_ENOMEM_mark_stripe_ptr;
-	}
-
-	mutex_lock(&c->ec_stripes_heap_lock);
-
-	if (!m || !m->alive) {
-		mutex_unlock(&c->ec_stripes_heap_lock);
-		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
-				    (u64) p.idx);
-		bch2_inconsistent_error(c);
-		return -EIO;
-	}
-
-	m->block_sectors[p.block] += sectors;
-
-	r = m->r;
-	mutex_unlock(&c->ec_stripes_heap_lock);
-
-	r.e.data_type = data_type;
-	bch2_update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, true);
-
-	return 0;
-}
-
-static int __mark_extent(struct btree_trans *trans,
-			 enum btree_id btree_id, unsigned level,
-			 struct bkey_s_c k, unsigned flags)
-{
-	u64 journal_seq = trans->journal_res.seq;
-	struct bch_fs *c = trans->c;
-	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
-	struct bch_replicas_padded r;
-	enum bch_data_type data_type = bkey_is_btree_ptr(k.k)
-		? BCH_DATA_btree
-		: BCH_DATA_user;
-	s64 sectors = bkey_is_btree_ptr(k.k)
-		? btree_sectors(c)
-		: k.k->size;
-	s64 dirty_sectors = 0;
-	bool stale;
-	int ret;
-
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
-
-	r.e.data_type	= data_type;
-	r.e.nr_devs	= 0;
-	r.e.nr_required	= 1;
-
-	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors = ptr_disk_sectors(sectors, p);
-
-		if (flags & BTREE_TRIGGER_OVERWRITE)
-			disk_sectors = -disk_sectors;
-
-		ret = bch2_mark_pointer(trans, btree_id, level, k, p, disk_sectors, flags);
-		if (ret < 0)
-			return ret;
-
-		stale = ret > 0;
-
-		if (p.ptr.cached) {
-			if (!stale) {
-				ret = update_cached_sectors(c, k, p.ptr.dev,
-						disk_sectors, journal_seq, true);
-				if (ret) {
-					bch2_fs_fatal_error(c, "%s(): no replicas entry while updating cached sectors",
-							    __func__);
-					return ret;
-				}
-			}
-		} else if (!p.has_ec) {
-			dirty_sectors	       += disk_sectors;
-			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
-		} else {
-			ret = bch2_mark_stripe_ptr(trans, k, p.ec, data_type,
-					disk_sectors, flags);
-			if (ret)
-				return ret;
-
-			/*
-			 * There may be other dirty pointers in this extent, but
-			 * if so they're not required for mounting if we have an
-			 * erasure coded pointer in this extent:
-			 */
-			r.e.nr_required = 0;
-		}
-	}
-
-	if (r.e.nr_devs) {
-		ret = bch2_update_replicas(c, k, &r.e, dirty_sectors, journal_seq, true);
-		if (ret) {
-			struct printbuf buf = PRINTBUF;
-
-			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
-			printbuf_exit(&buf);
-			return ret;
-		}
-	}
-
-	return 0;
-}
-
-int bch2_mark_extent(struct btree_trans *trans,
-		     enum btree_id btree_id, unsigned level,
-		     struct bkey_s_c old, struct bkey_s new,
-		     unsigned flags)
-{
-	return trigger_run_overwrite_then_insert(__mark_extent, trans, btree_id, level, old, new, flags);
-}
-
 void bch2_trans_fs_usage_revert(struct btree_trans *trans,
 				struct replicas_delta_list *deltas)
 {
@@ -967,44 +772,139 @@ need_mark:
 	return -1;
 }
 
-/* trans_mark: */
+/* KEY_TYPE_extent: */
 
-static inline int bch2_trans_mark_pointer(struct btree_trans *trans,
-				   enum btree_id btree_id, unsigned level,
-				   struct bkey_s_c k, struct extent_ptr_decoded p,
-				   unsigned flags)
+static int __mark_pointer(struct btree_trans *trans,
+			  struct bkey_s_c k,
+			  const struct bch_extent_ptr *ptr,
+			  s64 sectors, enum bch_data_type ptr_data_type,
+			  u8 bucket_gen, u8 *bucket_data_type,
+			  u32 *dirty_sectors, u32 *cached_sectors)
 {
-	bool insert = !(flags & BTREE_TRIGGER_OVERWRITE);
-	struct btree_iter iter;
-	struct bkey_i_alloc_v4 *a;
-	struct bpos bucket;
-	struct bch_backpointer bp;
-	s64 sectors;
-	int ret;
-
-	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, &bucket, &bp);
-	sectors = bp.bucket_len;
-	if (!insert)
-		sectors = -sectors;
-
-	a = bch2_trans_start_alloc_update(trans, &iter, bucket);
-	if (IS_ERR(a))
-		return PTR_ERR(a);
-
-	ret = __mark_pointer(trans, k, &p.ptr, sectors, bp.data_type,
-			     a->v.gen, &a->v.data_type,
-			     &a->v.dirty_sectors, &a->v.cached_sectors) ?:
-		bch2_trans_update(trans, &iter, &a->k_i, 0);
-	bch2_trans_iter_exit(trans, &iter);
+	u32 *dst_sectors = !ptr->cached
+		? dirty_sectors
+		: cached_sectors;
+	int ret = bch2_check_bucket_ref(trans, k, ptr, sectors, ptr_data_type,
+				   bucket_gen, *bucket_data_type, *dst_sectors);
 
 	if (ret)
 		return ret;
 
-	if (!p.ptr.cached) {
-		ret = bch2_bucket_backpointer_mod(trans, bucket, bp, k, insert);
+	*dst_sectors += sectors;
+
+	if (!*dirty_sectors && !*cached_sectors)
+		*bucket_data_type = 0;
+	else if (*bucket_data_type != BCH_DATA_stripe)
+		*bucket_data_type = ptr_data_type;
+
+	return 0;
+}
+
+static int bch2_trigger_pointer(struct btree_trans *trans,
+			enum btree_id btree_id, unsigned level,
+			struct bkey_s_c k, struct extent_ptr_decoded p,
+			s64 *sectors,
+			unsigned flags)
+{
+	bool insert = !(flags & BTREE_TRIGGER_OVERWRITE);
+	struct bpos bucket;
+	struct bch_backpointer bp;
+
+	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, &bucket, &bp);
+	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
+
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		struct btree_iter iter;
+		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, &iter, bucket);
+		int ret = PTR_ERR_OR_ZERO(a);
 		if (ret)
 			return ret;
+
+		ret = __mark_pointer(trans, k, &p.ptr, *sectors, bp.data_type,
+				     a->v.gen, &a->v.data_type,
+				     &a->v.dirty_sectors, &a->v.cached_sectors) ?:
+			bch2_trans_update(trans, &iter, &a->k_i, 0);
+		bch2_trans_iter_exit(trans, &iter);
+
+		if (ret)
+			return ret;
+
+		if (!p.ptr.cached) {
+			ret = bch2_bucket_backpointer_mod(trans, bucket, bp, k, insert);
+			if (ret)
+				return ret;
+		}
 	}
+
+	if (flags & BTREE_TRIGGER_GC) {
+		struct bch_fs *c = trans->c;
+		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+		enum bch_data_type data_type = bkey_ptr_data_type(btree_id, level, k, p);
+
+		percpu_down_read(&c->mark_lock);
+		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
+		bucket_lock(g);
+		struct bucket old = *g;
+
+		u8 bucket_data_type = g->data_type;
+		int ret = __mark_pointer(trans, k, &p.ptr, *sectors,
+				     data_type, g->gen,
+				     &bucket_data_type,
+				     &g->dirty_sectors,
+				     &g->cached_sectors);
+		if (ret) {
+			bucket_unlock(g);
+			percpu_up_read(&c->mark_lock);
+			return ret;
+		}
+
+		g->data_type = bucket_data_type;
+		struct bucket new = *g;
+		bucket_unlock(g);
+		bch2_dev_usage_update_m(c, ca, &old, &new);
+		percpu_up_read(&c->mark_lock);
+	}
+
+	return 0;
+}
+
+static int bch2_mark_stripe_ptr(struct btree_trans *trans,
+				struct bkey_s_c k,
+				struct bch_extent_stripe_ptr p,
+				enum bch_data_type data_type,
+				s64 sectors,
+				unsigned flags)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_replicas_padded r;
+	struct gc_stripe *m;
+
+	BUG_ON(!(flags & BTREE_TRIGGER_GC));
+
+	m = genradix_ptr_alloc(&c->gc_stripes, p.idx, GFP_KERNEL);
+	if (!m) {
+		bch_err(c, "error allocating memory for gc_stripes, idx %llu",
+			(u64) p.idx);
+		return -BCH_ERR_ENOMEM_mark_stripe_ptr;
+	}
+
+	mutex_lock(&c->ec_stripes_heap_lock);
+
+	if (!m || !m->alive) {
+		mutex_unlock(&c->ec_stripes_heap_lock);
+		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
+				    (u64) p.idx);
+		bch2_inconsistent_error(c);
+		return -EIO;
+	}
+
+	m->block_sectors[p.block] += sectors;
+
+	r = m->r;
+	mutex_unlock(&c->ec_stripes_heap_lock);
+
+	r.e.data_type = data_type;
+	bch2_update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, true);
 
 	return 0;
 }
@@ -1049,10 +949,11 @@ err:
 	return ret;
 }
 
-static int __trans_mark_extent(struct btree_trans *trans,
-			       enum btree_id btree_id, unsigned level,
-			       struct bkey_s_c k, unsigned flags)
+static int __mark_extent(struct btree_trans *trans,
+			 enum btree_id btree_id, unsigned level,
+			 struct bkey_s_c k, unsigned flags)
 {
+	u64 journal_seq = trans->journal_res.seq;
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -1061,11 +962,86 @@ static int __trans_mark_extent(struct btree_trans *trans,
 	enum bch_data_type data_type = bkey_is_btree_ptr(k.k)
 		? BCH_DATA_btree
 		: BCH_DATA_user;
-	s64 sectors = bkey_is_btree_ptr(k.k)
-		? btree_sectors(c)
-		: k.k->size;
 	s64 dirty_sectors = 0;
-	bool stale;
+	int ret;
+
+	BUG_ON(!(flags & BTREE_TRIGGER_GC));
+
+	r.e.data_type	= data_type;
+	r.e.nr_devs	= 0;
+	r.e.nr_required	= 1;
+
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		s64 disk_sectors;
+		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, &disk_sectors, flags);
+		if (ret < 0)
+			return ret;
+
+		bool stale = ret > 0;
+
+		if (p.ptr.cached) {
+			if (!stale) {
+				ret = update_cached_sectors(c, k, p.ptr.dev,
+						disk_sectors, journal_seq, true);
+				if (ret) {
+					bch2_fs_fatal_error(c, "%s(): no replicas entry while updating cached sectors",
+							    __func__);
+					return ret;
+				}
+			}
+		} else if (!p.has_ec) {
+			dirty_sectors	       += disk_sectors;
+			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
+		} else {
+			ret = bch2_mark_stripe_ptr(trans, k, p.ec, data_type,
+					disk_sectors, flags);
+			if (ret)
+				return ret;
+
+			/*
+			 * There may be other dirty pointers in this extent, but
+			 * if so they're not required for mounting if we have an
+			 * erasure coded pointer in this extent:
+			 */
+			r.e.nr_required = 0;
+		}
+	}
+
+	if (r.e.nr_devs) {
+		ret = bch2_update_replicas(c, k, &r.e, dirty_sectors, journal_seq, true);
+		if (ret) {
+			struct printbuf buf = PRINTBUF;
+
+			bch2_bkey_val_to_text(&buf, c, k);
+			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
+			printbuf_exit(&buf);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+int bch2_mark_extent(struct btree_trans *trans,
+		     enum btree_id btree_id, unsigned level,
+		     struct bkey_s_c old, struct bkey_s new,
+		     unsigned flags)
+{
+	return trigger_run_overwrite_then_insert(__mark_extent, trans, btree_id, level, old, new, flags);
+}
+
+static int __trans_mark_extent(struct btree_trans *trans,
+			       enum btree_id btree_id, unsigned level,
+			       struct bkey_s_c k, unsigned flags)
+{
+	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
+	struct bch_replicas_padded r;
+	enum bch_data_type data_type = bkey_is_btree_ptr(k.k)
+		? BCH_DATA_btree
+		: BCH_DATA_user;
+	s64 dirty_sectors = 0;
 	int ret = 0;
 
 	r.e.data_type	= data_type;
@@ -1073,16 +1049,12 @@ static int __trans_mark_extent(struct btree_trans *trans,
 	r.e.nr_required	= 1;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors = ptr_disk_sectors(sectors, p);
-
-		if (flags & BTREE_TRIGGER_OVERWRITE)
-			disk_sectors = -disk_sectors;
-
-		ret = bch2_trans_mark_pointer(trans, btree_id, level, k, p, flags);
+		s64 disk_sectors;
+		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, &disk_sectors, flags);
 		if (ret < 0)
 			return ret;
 
-		stale = ret > 0;
+		bool stale = ret > 0;
 
 		if (p.ptr.cached) {
 			if (!stale) {
@@ -1104,10 +1076,13 @@ static int __trans_mark_extent(struct btree_trans *trans,
 		}
 	}
 
-	if (r.e.nr_devs)
+	if (r.e.nr_devs) {
 		ret = bch2_update_replicas_list(trans, &r.e, dirty_sectors);
+		if (ret)
+			return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 int bch2_trans_mark_extent(struct btree_trans *trans,
