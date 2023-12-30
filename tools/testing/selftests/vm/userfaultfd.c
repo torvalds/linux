@@ -1255,7 +1255,7 @@ static void prevent_hugepages()
 	}
 }
 
-static void request_hugepages()
+static void request_src_hugepages()
 {
 	/* This should be done before source area is populated */
 	if (madvise(area_src, nr_pages * page_size, MADV_HUGEPAGE)) {
@@ -1266,12 +1266,30 @@ static void request_hugepages()
 	}
 }
 
+static void request_hugepages()
+{
+	request_src_hugepages();
+	if (madvise(area_dst, nr_pages * page_size, MADV_HUGEPAGE))
+		err("madvise(MADV_HUGEPAGE) failure");
+}
+
+static void request_split_hugepages()
+{
+	request_src_hugepages();
+	if (madvise(area_dst, nr_pages * page_size, MADV_NOHUGEPAGE))
+		err("madvise(MADV_NOHUGEPAGE) failure");
+}
+
 struct uffd_test_case_ops uffd_move_test_case_ops = {
 	.post_alloc = prevent_hugepages,
 };
 
 struct uffd_test_case_ops uffd_move_test_pmd_case_ops = {
 	.post_alloc = request_hugepages,
+};
+
+struct uffd_test_case_ops uffd_move_test_pmd_split_case_ops = {
+	.post_alloc = request_split_hugepages,
 };
 
 static void
@@ -1420,6 +1438,14 @@ static int uffd_move_pmd_test(void)
 				     uffd_move_pmd_handle_fault);
 }
 
+static int uffd_move_pmd_split_test(void)
+{
+	printf("move-pmd-split ");
+	return uffd_move_test_common(&uffd_move_test_pmd_split_case_ops,
+				     read_pmd_pagesize(),
+				     uffd_move_pmd_handle_fault);
+}
+
 static int userfaultfd_move_test(void)
 {
 	int ret;
@@ -1430,7 +1456,8 @@ static int userfaultfd_move_test(void)
 	printf("testing UFFDIO_MOVE: ");
 	fflush(stdout);
 
-	ret = uffd_move_test() || uffd_move_pmd_test();
+	ret = uffd_move_test() || uffd_move_pmd_test()
+		|| uffd_move_pmd_split_test();
 
 	printf("done.\n");
 	return ret;
