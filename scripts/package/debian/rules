@@ -26,8 +26,8 @@ binary-arch: build-arch
 build: build-arch build-indep
 build-indep:
 build-arch:
-	$(MAKE) $(make-opts) \
-	olddefconfig all
+	$(MAKE) $(make-opts) olddefconfig
+	$(MAKE) $(make-opts) $(if $(filter um,$(ARCH)),,headers) all
 
 .PHONY: clean
 clean:

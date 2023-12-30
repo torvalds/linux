@@ -155,7 +155,6 @@ install_libc_headers () {
 
 	rm -rf $pdir
 
-	$MAKE -f $srctree/Makefile headers
 	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH=$pdir/usr
 
 	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
