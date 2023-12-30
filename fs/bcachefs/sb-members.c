@@ -266,7 +266,7 @@ static void member_to_text(struct printbuf *out,
 
 	prt_str(out, "Durability:");
 	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_DURABILITY(&m));
+	prt_printf(out, "%llu", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
 	prt_newline(out);
 
 	prt_printf(out, "Discard:");
