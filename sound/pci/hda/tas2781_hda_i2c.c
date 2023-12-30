@@ -81,7 +81,7 @@ static int tas2781_get_i2c_res(struct acpi_resource *ares, void *data)
 
 	if (i2c_acpi_get_i2c_resource(ares, &sb)) {
 		if (tas_priv->ndev < TASDEVICE_MAX_CHANNELS &&
-			sb->slave_address != TAS2781_GLOBAL_ADDR) {
+			sb->slave_address != tas_priv->global_addr) {
 			tas_priv->tasdevice[tas_priv->ndev].dev_addr =
 				(unsigned int)sb->slave_address;
 			tas_priv->ndev++;
@@ -701,6 +701,7 @@ static int tas2781_hda_i2c_probe(struct i2c_client *clt)
 		device_name = "TIAS2781";
 		tas_hda->priv->save_calibration = tas2781_save_calibration;
 		tas_hda->priv->apply_calibration = tas2781_apply_calib;
+		tas_hda->priv->global_addr = TAS2781_GLOBAL_ADDR;
 	} else
 		return -ENODEV;
 
