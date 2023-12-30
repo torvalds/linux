@@ -10,17 +10,20 @@
 
 #include <linux/slab.h>
 
-#define DARRAY(type)							\
+#define DARRAY_PREALLOCATED(_type, _nr)					\
 struct {								\
 	size_t nr, size;						\
-	type *data;							\
+	_type *data;							\
+	_type preallocated[_nr];					\
 }
 
-typedef DARRAY(void) darray_void;
+#define DARRAY(_type) DARRAY_PREALLOCATED(_type, 0)
 
-int __bch2_darray_resize(darray_void *, size_t, size_t, gfp_t);
+typedef DARRAY(char)	darray_char;
 
-static inline int __darray_resize(darray_void *d, size_t element_size,
+int __bch2_darray_resize(darray_char *, size_t, size_t, gfp_t);
+
+static inline int __darray_resize(darray_char *d, size_t element_size,
 				  size_t new_size, gfp_t gfp)
 {
 	return unlikely(new_size > d->size)
@@ -29,18 +32,18 @@ static inline int __darray_resize(darray_void *d, size_t element_size,
 }
 
 #define darray_resize_gfp(_d, _new_size, _gfp)				\
-	__darray_resize((darray_void *) (_d), sizeof((_d)->data[0]), (_new_size), _gfp)
+	unlikely(__darray_resize((darray_char *) (_d), sizeof((_d)->data[0]), (_new_size), _gfp))
 
 #define darray_resize(_d, _new_size)					\
 	darray_resize_gfp(_d, _new_size, GFP_KERNEL)
 
-static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more, gfp_t gfp)
+static inline int __darray_make_room(darray_char *d, size_t t_size, size_t more, gfp_t gfp)
 {
 	return __darray_resize(d, t_size, d->nr + more, gfp);
 }
 
 #define darray_make_room_gfp(_d, _more, _gfp)				\
-	__darray_make_room((darray_void *) (_d), sizeof((_d)->data[0]), (_more), _gfp)
+	__darray_make_room((darray_char *) (_d), sizeof((_d)->data[0]), (_more), _gfp)
 
 #define darray_make_room(_d, _more)					\
 	darray_make_room_gfp(_d, _more, GFP_KERNEL)
@@ -86,13 +89,16 @@ static inline int __darray_make_room(darray_void *d, size_t t_size, size_t more,
 
 #define darray_init(_d)							\
 do {									\
-	(_d)->data = NULL;						\
-	(_d)->nr = (_d)->size = 0;					\
+	(_d)->nr = 0;							\
+	(_d)->size = ARRAY_SIZE((_d)->preallocated);			\
+	(_d)->data = (_d)->size ? (_d)->preallocated : NULL;		\
 } while (0)
 
 #define darray_exit(_d)							\
 do {									\
-	kvfree((_d)->data);						\
+	if (!ARRAY_SIZE((_d)->preallocated) ||				\
+	    (_d)->data != (_d)->preallocated)				\
+		kvfree((_d)->data);					\
 	darray_init(_d);						\
 } while (0)
 
