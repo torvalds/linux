@@ -584,6 +584,8 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 	 */
 	tas2781_save_calibration(tas_priv);
 
+	tasdevice_tuning_switch(tas_hda->priv, 0);
+
 out:
 	mutex_unlock(&tas_hda->priv->codec_lock);
 	if (fmw)
