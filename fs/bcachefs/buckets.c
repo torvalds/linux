@@ -868,85 +868,81 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	return 0;
 }
 
-static int bch2_mark_stripe_ptr(struct btree_trans *trans,
+static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 				struct bkey_s_c k,
-				struct bch_extent_stripe_ptr p,
+				struct extent_ptr_decoded p,
 				enum bch_data_type data_type,
-				s64 sectors,
-				unsigned flags)
+				s64 sectors, unsigned flags)
 {
-	struct bch_fs *c = trans->c;
-	struct bch_replicas_padded r;
-	struct gc_stripe *m;
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		struct btree_iter iter;
+		struct bkey_i_stripe *s = bch2_bkey_get_mut_typed(trans, &iter,
+				BTREE_ID_stripes, POS(0, p.ec.idx),
+				BTREE_ITER_WITH_UPDATES, stripe);
+		int ret = PTR_ERR_OR_ZERO(s);
+		if (unlikely(ret)) {
+			bch2_trans_inconsistent_on(bch2_err_matches(ret, ENOENT), trans,
+				"pointer to nonexistent stripe %llu",
+				(u64) p.ec.idx);
+			goto err;
+		}
 
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
+		if (!bch2_ptr_matches_stripe(&s->v, p)) {
+			bch2_trans_inconsistent(trans,
+				"stripe pointer doesn't match stripe %llu",
+				(u64) p.ec.idx);
+			ret = -EIO;
+			goto err;
+		}
 
-	m = genradix_ptr_alloc(&c->gc_stripes, p.idx, GFP_KERNEL);
-	if (!m) {
-		bch_err(c, "error allocating memory for gc_stripes, idx %llu",
-			(u64) p.idx);
-		return -BCH_ERR_ENOMEM_mark_stripe_ptr;
+		stripe_blockcount_set(&s->v, p.ec.block,
+			stripe_blockcount_get(&s->v, p.ec.block) +
+			sectors);
+
+		struct bch_replicas_padded r;
+		bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(&s->k_i));
+		r.e.data_type = data_type;
+		ret = bch2_update_replicas_list(trans, &r.e, sectors);
+err:
+		bch2_trans_iter_exit(trans, &iter);
+		return ret;
 	}
 
-	mutex_lock(&c->ec_stripes_heap_lock);
+	if (flags & BTREE_TRIGGER_GC) {
+		struct bch_fs *c = trans->c;
 
-	if (!m || !m->alive) {
+		BUG_ON(!(flags & BTREE_TRIGGER_GC));
+
+		struct gc_stripe *m = genradix_ptr_alloc(&c->gc_stripes, p.ec.idx, GFP_KERNEL);
+		if (!m) {
+			bch_err(c, "error allocating memory for gc_stripes, idx %llu",
+				(u64) p.ec.idx);
+			return -BCH_ERR_ENOMEM_mark_stripe_ptr;
+		}
+
+		mutex_lock(&c->ec_stripes_heap_lock);
+
+		if (!m || !m->alive) {
+			mutex_unlock(&c->ec_stripes_heap_lock);
+			struct printbuf buf = PRINTBUF;
+			bch2_bkey_val_to_text(&buf, c, k);
+			bch_err_ratelimited(c, "pointer to nonexistent stripe %llu\n  while marking %s",
+					    (u64) p.ec.idx, buf.buf);
+			printbuf_exit(&buf);
+			bch2_inconsistent_error(c);
+			return -EIO;
+		}
+
+		m->block_sectors[p.ec.block] += sectors;
+
+		struct bch_replicas_padded r = m->r;
 		mutex_unlock(&c->ec_stripes_heap_lock);
-		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
-				    (u64) p.idx);
-		bch2_inconsistent_error(c);
-		return -EIO;
+
+		r.e.data_type = data_type;
+		bch2_update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, true);
 	}
-
-	m->block_sectors[p.block] += sectors;
-
-	r = m->r;
-	mutex_unlock(&c->ec_stripes_heap_lock);
-
-	r.e.data_type = data_type;
-	bch2_update_replicas(c, k, &r.e, sectors, trans->journal_res.seq, true);
 
 	return 0;
-}
-
-static int bch2_trans_mark_stripe_ptr(struct btree_trans *trans,
-			struct extent_ptr_decoded p,
-			s64 sectors, enum bch_data_type data_type)
-{
-	struct btree_iter iter;
-	struct bkey_i_stripe *s;
-	struct bch_replicas_padded r;
-	int ret = 0;
-
-	s = bch2_bkey_get_mut_typed(trans, &iter,
-			BTREE_ID_stripes, POS(0, p.ec.idx),
-			BTREE_ITER_WITH_UPDATES, stripe);
-	ret = PTR_ERR_OR_ZERO(s);
-	if (unlikely(ret)) {
-		bch2_trans_inconsistent_on(bch2_err_matches(ret, ENOENT), trans,
-			"pointer to nonexistent stripe %llu",
-			(u64) p.ec.idx);
-		goto err;
-	}
-
-	if (!bch2_ptr_matches_stripe(&s->v, p)) {
-		bch2_trans_inconsistent(trans,
-			"stripe pointer doesn't match stripe %llu",
-			(u64) p.ec.idx);
-		ret = -EIO;
-		goto err;
-	}
-
-	stripe_blockcount_set(&s->v, p.ec.block,
-		stripe_blockcount_get(&s->v, p.ec.block) +
-		sectors);
-
-	bch2_bkey_to_replicas(&r.e, bkey_i_to_s_c(&s->k_i));
-	r.e.data_type = data_type;
-	ret = bch2_update_replicas_list(trans, &r.e, sectors);
-err:
-	bch2_trans_iter_exit(trans, &iter);
-	return ret;
 }
 
 static int __mark_extent(struct btree_trans *trans,
@@ -993,8 +989,7 @@ static int __mark_extent(struct btree_trans *trans,
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			ret = bch2_mark_stripe_ptr(trans, k, p.ec, data_type,
-					disk_sectors, flags);
+			ret = bch2_trigger_stripe_ptr(trans, k, p, data_type, disk_sectors, flags);
 			if (ret)
 				return ret;
 
@@ -1067,8 +1062,7 @@ static int __trans_mark_extent(struct btree_trans *trans,
 			dirty_sectors	       += disk_sectors;
 			r.e.devs[r.e.nr_devs++]	= p.ptr.dev;
 		} else {
-			ret = bch2_trans_mark_stripe_ptr(trans, p,
-					disk_sectors, data_type);
+			ret = bch2_trigger_stripe_ptr(trans, k, p, data_type, disk_sectors, flags);
 			if (ret)
 				return ret;
 
