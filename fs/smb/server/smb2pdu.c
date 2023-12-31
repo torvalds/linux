@@ -2691,7 +2691,7 @@ int smb2_open(struct ksmbd_work *work)
 		    *(char *)req->Buffer == '\\') {
 			pr_err("not allow directory name included leading slash\n");
 			rc = -EINVAL;
-			goto err_out1;
+			goto err_out2;
 		}
 
 		name = smb2_get_name(req->Buffer,
@@ -2702,7 +2702,7 @@ int smb2_open(struct ksmbd_work *work)
 			if (rc != -ENOMEM)
 				rc = -ENOENT;
 			name = NULL;
-			goto err_out1;
+			goto err_out2;
 		}
 
 		ksmbd_debug(SMB, "converted name = %s\n", name);
@@ -2710,28 +2710,28 @@ int smb2_open(struct ksmbd_work *work)
 			if (!test_share_config_flag(work->tcon->share_conf,
 						    KSMBD_SHARE_FLAG_STREAMS)) {
 				rc = -EBADF;
-				goto err_out1;
+				goto err_out2;
 			}
 			rc = parse_stream_name(name, &stream_name, &s_type);
 			if (rc < 0)
-				goto err_out1;
+				goto err_out2;
 		}
 
 		rc = ksmbd_validate_filename(name);
 		if (rc < 0)
-			goto err_out1;
+			goto err_out2;
 
 		if (ksmbd_share_veto_filename(share, name)) {
 			rc = -ENOENT;
 			ksmbd_debug(SMB, "Reject open(), vetoed file: %s\n",
 				    name);
-			goto err_out1;
+			goto err_out2;
 		}
 	} else {
 		name = kstrdup("", GFP_KERNEL);
 		if (!name) {
 			rc = -ENOMEM;
-			goto err_out1;
+			goto err_out2;
 		}
 	}
 
@@ -2744,14 +2744,14 @@ int smb2_open(struct ksmbd_work *work)
 		       le32_to_cpu(req->ImpersonationLevel));
 		rc = -EIO;
 		rsp->hdr.Status = STATUS_BAD_IMPERSONATION_LEVEL;
-		goto err_out1;
+		goto err_out2;
 	}
 
 	if (req->CreateOptions && !(req->CreateOptions & CREATE_OPTIONS_MASK_LE)) {
 		pr_err("Invalid create options : 0x%x\n",
 		       le32_to_cpu(req->CreateOptions));
 		rc = -EINVAL;
-		goto err_out1;
+		goto err_out2;
 	} else {
 		if (req->CreateOptions & FILE_SEQUENTIAL_ONLY_LE &&
 		    req->CreateOptions & FILE_RANDOM_ACCESS_LE)
@@ -2761,13 +2761,13 @@ int smb2_open(struct ksmbd_work *work)
 		    (FILE_OPEN_BY_FILE_ID_LE | CREATE_TREE_CONNECTION |
 		     FILE_RESERVE_OPFILTER_LE)) {
 			rc = -EOPNOTSUPP;
-			goto err_out1;
+			goto err_out2;
 		}
 
 		if (req->CreateOptions & FILE_DIRECTORY_FILE_LE) {
 			if (req->CreateOptions & FILE_NON_DIRECTORY_FILE_LE) {
 				rc = -EINVAL;
-				goto err_out1;
+				goto err_out2;
 			} else if (req->CreateOptions & FILE_NO_COMPRESSION_LE) {
 				req->CreateOptions = ~(FILE_NO_COMPRESSION_LE);
 			}
@@ -2779,21 +2779,21 @@ int smb2_open(struct ksmbd_work *work)
 		pr_err("Invalid create disposition : 0x%x\n",
 		       le32_to_cpu(req->CreateDisposition));
 		rc = -EINVAL;
-		goto err_out1;
+		goto err_out2;
 	}
 
 	if (!(req->DesiredAccess & DESIRED_ACCESS_MASK)) {
 		pr_err("Invalid desired access : 0x%x\n",
 		       le32_to_cpu(req->DesiredAccess));
 		rc = -EACCES;
-		goto err_out1;
+		goto err_out2;
 	}
 
 	if (req->FileAttributes && !(req->FileAttributes & FILE_ATTRIBUTE_MASK_LE)) {
 		pr_err("Invalid file attribute : 0x%x\n",
 		       le32_to_cpu(req->FileAttributes));
 		rc = -EINVAL;
-		goto err_out1;
+		goto err_out2;
 	}
 
 	if (req->CreateContextsOffset) {
@@ -2801,19 +2801,19 @@ int smb2_open(struct ksmbd_work *work)
 		context = smb2_find_context_vals(req, SMB2_CREATE_EA_BUFFER, 4);
 		if (IS_ERR(context)) {
 			rc = PTR_ERR(context);
-			goto err_out1;
+			goto err_out2;
 		} else if (context) {
 			ea_buf = (struct create_ea_buf_req *)context;
 			if (le16_to_cpu(context->DataOffset) +
 			    le32_to_cpu(context->DataLength) <
 			    sizeof(struct create_ea_buf_req)) {
 				rc = -EINVAL;
-				goto err_out1;
+				goto err_out2;
 			}
 			if (req->CreateOptions & FILE_NO_EA_KNOWLEDGE_LE) {
 				rsp->hdr.Status = STATUS_ACCESS_DENIED;
 				rc = -EACCES;
-				goto err_out1;
+				goto err_out2;
 			}
 		}
 
@@ -2821,7 +2821,7 @@ int smb2_open(struct ksmbd_work *work)
 						 SMB2_CREATE_QUERY_MAXIMAL_ACCESS_REQUEST, 4);
 		if (IS_ERR(context)) {
 			rc = PTR_ERR(context);
-			goto err_out1;
+			goto err_out2;
 		} else if (context) {
 			ksmbd_debug(SMB,
 				    "get query maximal access context\n");
@@ -2832,11 +2832,11 @@ int smb2_open(struct ksmbd_work *work)
 						 SMB2_CREATE_TIMEWARP_REQUEST, 4);
 		if (IS_ERR(context)) {
 			rc = PTR_ERR(context);
-			goto err_out1;
+			goto err_out2;
 		} else if (context) {
 			ksmbd_debug(SMB, "get timewarp context\n");
 			rc = -EBADF;
-			goto err_out1;
+			goto err_out2;
 		}
 
 		if (tcon->posix_extensions) {
@@ -2844,7 +2844,7 @@ int smb2_open(struct ksmbd_work *work)
 							 SMB2_CREATE_TAG_POSIX, 16);
 			if (IS_ERR(context)) {
 				rc = PTR_ERR(context);
-				goto err_out1;
+				goto err_out2;
 			} else if (context) {
 				struct create_posix *posix =
 					(struct create_posix *)context;
@@ -2852,7 +2852,7 @@ int smb2_open(struct ksmbd_work *work)
 				    le32_to_cpu(context->DataLength) <
 				    sizeof(struct create_posix) - 4) {
 					rc = -EINVAL;
-					goto err_out1;
+					goto err_out2;
 				}
 				ksmbd_debug(SMB, "get posix context\n");
 
@@ -2864,7 +2864,7 @@ int smb2_open(struct ksmbd_work *work)
 
 	if (ksmbd_override_fsids(work)) {
 		rc = -ENOMEM;
-		goto err_out1;
+		goto err_out2;
 	}
 
 	rc = ksmbd_vfs_kern_path_locked(work, name, LOOKUP_NO_SYMLINKS,
@@ -3177,11 +3177,6 @@ int smb2_open(struct ksmbd_work *work)
 
 	fp->attrib_only = !(req->DesiredAccess & ~(FILE_READ_ATTRIBUTES_LE |
 			FILE_WRITE_ATTRIBUTES_LE | FILE_SYNCHRONIZE_LE));
-	if (!S_ISDIR(file_inode(filp)->i_mode) && open_flags & O_TRUNC &&
-	    !fp->attrib_only && !stream_name) {
-		smb_break_all_oplock(work, fp);
-		need_truncate = 1;
-	}
 
 	/* fp should be searchable through ksmbd_inode.m_fp_list
 	 * after daccess, saccess, attrib_only, and stream are
@@ -3195,80 +3190,6 @@ int smb2_open(struct ksmbd_work *work)
 	if (ksmbd_inode_pending_delete(fp)) {
 		rc = -EBUSY;
 		goto err_out;
-	}
-
-	share_ret = ksmbd_smb_check_shared_mode(fp->filp, fp);
-	if (!test_share_config_flag(work->tcon->share_conf, KSMBD_SHARE_FLAG_OPLOCKS) ||
-	    (req_op_level == SMB2_OPLOCK_LEVEL_LEASE &&
-	     !(conn->vals->capabilities & SMB2_GLOBAL_CAP_LEASING))) {
-		if (share_ret < 0 && !S_ISDIR(file_inode(fp->filp)->i_mode)) {
-			rc = share_ret;
-			goto err_out;
-		}
-	} else {
-		if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE) {
-			req_op_level = smb2_map_lease_to_oplock(lc->req_state);
-			ksmbd_debug(SMB,
-				    "lease req for(%s) req oplock state 0x%x, lease state 0x%x\n",
-				    name, req_op_level, lc->req_state);
-			rc = find_same_lease_key(sess, fp->f_ci, lc);
-			if (rc)
-				goto err_out;
-		} else if (open_flags == O_RDONLY &&
-			   (req_op_level == SMB2_OPLOCK_LEVEL_BATCH ||
-			    req_op_level == SMB2_OPLOCK_LEVEL_EXCLUSIVE))
-			req_op_level = SMB2_OPLOCK_LEVEL_II;
-
-		rc = smb_grant_oplock(work, req_op_level,
-				      fp->persistent_id, fp,
-				      le32_to_cpu(req->hdr.Id.SyncId.TreeId),
-				      lc, share_ret);
-		if (rc < 0)
-			goto err_out;
-	}
-
-	if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE)
-		ksmbd_fd_set_delete_on_close(fp, file_info);
-
-	if (req->CreateContextsOffset) {
-		struct create_alloc_size_req *az_req;
-
-		az_req = (struct create_alloc_size_req *)smb2_find_context_vals(req,
-					SMB2_CREATE_ALLOCATION_SIZE, 4);
-		if (IS_ERR(az_req)) {
-			rc = PTR_ERR(az_req);
-			goto err_out;
-		} else if (az_req) {
-			loff_t alloc_size;
-			int err;
-
-			if (le16_to_cpu(az_req->ccontext.DataOffset) +
-			    le32_to_cpu(az_req->ccontext.DataLength) <
-			    sizeof(struct create_alloc_size_req)) {
-				rc = -EINVAL;
-				goto err_out;
-			}
-			alloc_size = le64_to_cpu(az_req->AllocationSize);
-			ksmbd_debug(SMB,
-				    "request smb2 create allocate size : %llu\n",
-				    alloc_size);
-			smb_break_all_levII_oplock(work, fp, 1);
-			err = vfs_fallocate(fp->filp, FALLOC_FL_KEEP_SIZE, 0,
-					    alloc_size);
-			if (err < 0)
-				ksmbd_debug(SMB,
-					    "vfs_fallocate is failed : %d\n",
-					    err);
-		}
-
-		context = smb2_find_context_vals(req, SMB2_CREATE_QUERY_ON_DISK_ID, 4);
-		if (IS_ERR(context)) {
-			rc = PTR_ERR(context);
-			goto err_out;
-		} else if (context) {
-			ksmbd_debug(SMB, "get query on disk id context\n");
-			query_disk_id = 1;
-		}
 	}
 
 	rc = ksmbd_vfs_getattr(&path, &stat);
@@ -3287,6 +3208,95 @@ int smb2_open(struct ksmbd_work *work)
 		smb2_update_xattrs(tcon, &path, fp);
 	else
 		smb2_new_xattrs(tcon, &path, fp);
+
+	if (file_present || created)
+		ksmbd_vfs_kern_path_unlock(&parent_path, &path);
+
+	if (!S_ISDIR(file_inode(filp)->i_mode) && open_flags & O_TRUNC &&
+	    !fp->attrib_only && !stream_name) {
+		smb_break_all_oplock(work, fp);
+		need_truncate = 1;
+	}
+
+	share_ret = ksmbd_smb_check_shared_mode(fp->filp, fp);
+	if (!test_share_config_flag(work->tcon->share_conf, KSMBD_SHARE_FLAG_OPLOCKS) ||
+	    (req_op_level == SMB2_OPLOCK_LEVEL_LEASE &&
+	     !(conn->vals->capabilities & SMB2_GLOBAL_CAP_LEASING))) {
+		if (share_ret < 0 && !S_ISDIR(file_inode(fp->filp)->i_mode)) {
+			rc = share_ret;
+			goto err_out1;
+		}
+	} else {
+		if (req_op_level == SMB2_OPLOCK_LEVEL_LEASE) {
+			req_op_level = smb2_map_lease_to_oplock(lc->req_state);
+			ksmbd_debug(SMB,
+				    "lease req for(%s) req oplock state 0x%x, lease state 0x%x\n",
+				    name, req_op_level, lc->req_state);
+			rc = find_same_lease_key(sess, fp->f_ci, lc);
+			if (rc)
+				goto err_out1;
+		} else if (open_flags == O_RDONLY &&
+			   (req_op_level == SMB2_OPLOCK_LEVEL_BATCH ||
+			    req_op_level == SMB2_OPLOCK_LEVEL_EXCLUSIVE))
+			req_op_level = SMB2_OPLOCK_LEVEL_II;
+
+		rc = smb_grant_oplock(work, req_op_level,
+				      fp->persistent_id, fp,
+				      le32_to_cpu(req->hdr.Id.SyncId.TreeId),
+				      lc, share_ret);
+		if (rc < 0)
+			goto err_out1;
+	}
+
+	if (req->CreateOptions & FILE_DELETE_ON_CLOSE_LE)
+		ksmbd_fd_set_delete_on_close(fp, file_info);
+
+	if (need_truncate) {
+		rc = smb2_create_truncate(&fp->filp->f_path);
+		if (rc)
+			goto err_out1;
+	}
+
+	if (req->CreateContextsOffset) {
+		struct create_alloc_size_req *az_req;
+
+		az_req = (struct create_alloc_size_req *)smb2_find_context_vals(req,
+					SMB2_CREATE_ALLOCATION_SIZE, 4);
+		if (IS_ERR(az_req)) {
+			rc = PTR_ERR(az_req);
+			goto err_out1;
+		} else if (az_req) {
+			loff_t alloc_size;
+			int err;
+
+			if (le16_to_cpu(az_req->ccontext.DataOffset) +
+			    le32_to_cpu(az_req->ccontext.DataLength) <
+			    sizeof(struct create_alloc_size_req)) {
+				rc = -EINVAL;
+				goto err_out1;
+			}
+			alloc_size = le64_to_cpu(az_req->AllocationSize);
+			ksmbd_debug(SMB,
+				    "request smb2 create allocate size : %llu\n",
+				    alloc_size);
+			smb_break_all_levII_oplock(work, fp, 1);
+			err = vfs_fallocate(fp->filp, FALLOC_FL_KEEP_SIZE, 0,
+					    alloc_size);
+			if (err < 0)
+				ksmbd_debug(SMB,
+					    "vfs_fallocate is failed : %d\n",
+					    err);
+		}
+
+		context = smb2_find_context_vals(req, SMB2_CREATE_QUERY_ON_DISK_ID, 4);
+		if (IS_ERR(context)) {
+			rc = PTR_ERR(context);
+			goto err_out1;
+		} else if (context) {
+			ksmbd_debug(SMB, "get query on disk id context\n");
+			query_disk_id = 1;
+		}
+	}
 
 	memcpy(fp->client_guid, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE);
 
@@ -3394,14 +3404,13 @@ int smb2_open(struct ksmbd_work *work)
 	}
 
 err_out:
-	if (file_present || created)
+	if (rc && (file_present || created))
 		ksmbd_vfs_kern_path_unlock(&parent_path, &path);
 
-	if (fp && need_truncate)
-		rc = smb2_create_truncate(&fp->filp->f_path);
-
-	ksmbd_revert_fsids(work);
 err_out1:
+	ksmbd_revert_fsids(work);
+
+err_out2:
 	if (!rc) {
 		ksmbd_update_fstate(&work->sess->file_table, fp, FP_INITED);
 		rc = ksmbd_iov_pin_rsp(work, (void *)rsp, iov_len);
