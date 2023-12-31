@@ -720,7 +720,7 @@ SYM_DATA(smpboot_control,		.long 0)
 SYM_DATA(phys_base, .quad 0x0)
 EXPORT_SYMBOL(phys_base)
 
-#include "../../x86/xen/xen-head.S"
+#include "../xen/xen-head.S"
 
 	__PAGE_ALIGNED_BSS
 SYM_DATA_START_PAGE_ALIGNED(empty_zero_page)
