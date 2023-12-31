@@ -464,6 +464,7 @@ enum bch_time_stats {
 #include "replicas_types.h"
 #include "subvolume_types.h"
 #include "super_types.h"
+#include "thread_with_file_types.h"
 
 /* Number of nodes btree coalesce will try to coalesce at once */
 #define GC_MERGE_NODES		4U
@@ -477,12 +478,6 @@ enum bch_time_stats {
 #define BTREE_NODE_OPEN_BUCKET_RESERVE	(BTREE_RESERVE_MAX * BCH_REPLICAS_MAX)
 
 struct btree;
-
-struct log_output {
-	spinlock_t		lock;
-	wait_queue_head_t	wait;
-	struct printbuf		buf;
-};
 
 enum gc_phase {
 	GC_PHASE_NOT_RUNNING,
@@ -739,8 +734,8 @@ struct bch_fs {
 	struct super_block	*vfs_sb;
 	dev_t			dev;
 	char			name[40];
-	struct log_output	*output;
-	struct task_struct	*output_filter;
+	struct stdio_redirect	*stdio;
+	struct task_struct	*stdio_filter;
 
 	/* ro/rw, add/remove/resize devices: */
 	struct rw_semaphore	state_lock;
@@ -1250,6 +1245,15 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
 {
 	return dev < c->sb.nr_devices && c->devs[dev];
+}
+
+static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)
+{
+	struct stdio_redirect *stdio = c->stdio;
+
+	if (c->stdio_filter && c->stdio_filter != current)
+		stdio = NULL;
+	return stdio;
 }
 
 #define BKEY_PADDED_ONSTACK(key, pad)				\

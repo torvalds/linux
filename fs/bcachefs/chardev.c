@@ -11,16 +11,13 @@
 #include "replicas.h"
 #include "super.h"
 #include "super-io.h"
+#include "thread_with_file.h"
 
-#include <linux/anon_inodes.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
-#include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
-#include <linux/kthread.h>
 #include <linux/major.h>
-#include <linux/poll.h>
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
@@ -29,65 +26,6 @@ __must_check
 static int copy_to_user_errcode(void __user *to, const void *from, unsigned long n)
 {
 	return copy_to_user(to, from, n) ? -EFAULT : 0;
-}
-
-struct thread_with_file {
-	struct task_struct	*task;
-	int			ret;
-	bool			done;
-};
-
-static void thread_with_file_exit(struct thread_with_file *thr)
-{
-	if (thr->task) {
-		kthread_stop(thr->task);
-		put_task_struct(thr->task);
-	}
-}
-
-__printf(4, 0)
-static int run_thread_with_file(struct thread_with_file *thr,
-				const struct file_operations *fops,
-				int (*fn)(void *), const char *fmt, ...)
-{
-	va_list args;
-	struct file *file = NULL;
-	int ret, fd = -1;
-	struct printbuf name = PRINTBUF;
-	unsigned fd_flags = O_RDONLY|O_CLOEXEC|O_NONBLOCK;
-
-	va_start(args, fmt);
-	prt_vprintf(&name, fmt, args);
-	va_end(args);
-
-	thr->ret = 0;
-	thr->task = kthread_create(fn, thr, name.buf);
-	ret = PTR_ERR_OR_ZERO(thr->task);
-	if (ret)
-		goto err;
-
-	ret = get_unused_fd_flags(fd_flags);
-	if (ret < 0)
-		goto err_stop_task;
-	fd = ret;
-
-	file = anon_inode_getfile(name.buf, fops, thr, fd_flags);
-	ret = PTR_ERR_OR_ZERO(file);
-	if (ret)
-		goto err_put_fd;
-
-	fd_install(fd, file);
-	get_task_struct(thr->task);
-	wake_up_process(thr->task);
-	printbuf_exit(&name);
-	return fd;
-err_put_fd:
-	put_unused_fd(fd);
-err_stop_task:
-	kthread_stop(thr->task);
-err:
-	printbuf_exit(&name);
-	return ret;
 }
 
 /* returns with ref on ca->ref */
@@ -200,132 +138,33 @@ static long bch2_ioctl_incremental(struct bch_ioctl_incremental __user *user_arg
 #endif
 
 struct fsck_thread {
-	struct thread_with_file	thr;
-	struct printbuf		buf;
+	struct thread_with_stdio thr;
 	struct bch_fs		*c;
 	char			**devs;
 	size_t			nr_devs;
 	struct bch_opts		opts;
-
-	struct log_output	output;
-	DARRAY(char)		output2;
 };
 
-static void bch2_fsck_thread_free(struct fsck_thread *thr)
+static void bch2_fsck_thread_exit(struct thread_with_stdio *_thr)
 {
-	thread_with_file_exit(&thr->thr);
+	struct fsck_thread *thr = container_of(_thr, struct fsck_thread, thr);
 	if (thr->devs)
 		for (size_t i = 0; i < thr->nr_devs; i++)
 			kfree(thr->devs[i]);
-	darray_exit(&thr->output2);
-	printbuf_exit(&thr->output.buf);
 	kfree(thr->devs);
 	kfree(thr);
 }
-
-static int bch2_fsck_thread_release(struct inode *inode, struct file *file)
-{
-	struct fsck_thread *thr = container_of(file->private_data, struct fsck_thread, thr);
-
-	bch2_fsck_thread_free(thr);
-	return 0;
-}
-
-static bool fsck_thread_ready(struct fsck_thread *thr)
-{
-	return thr->output.buf.pos ||
-		thr->output2.nr ||
-		thr->thr.done;
-}
-
-static ssize_t bch2_fsck_thread_read(struct file *file, char __user *buf,
-				     size_t len, loff_t *ppos)
-{
-	struct fsck_thread *thr = container_of(file->private_data, struct fsck_thread, thr);
-	size_t copied = 0, b;
-	int ret = 0;
-
-	if ((file->f_flags & O_NONBLOCK) &&
-	    !fsck_thread_ready(thr))
-		return -EAGAIN;
-
-	ret = wait_event_interruptible(thr->output.wait,
-			fsck_thread_ready(thr));
-	if (ret)
-		return ret;
-
-	if (thr->thr.done)
-		return 0;
-
-	while (len) {
-		ret = darray_make_room(&thr->output2, thr->output.buf.pos);
-		if (ret)
-			break;
-
-		spin_lock_irq(&thr->output.lock);
-		b = min_t(size_t, darray_room(thr->output2), thr->output.buf.pos);
-
-		memcpy(&darray_top(thr->output2), thr->output.buf.buf, b);
-		memmove(thr->output.buf.buf,
-			thr->output.buf.buf + b,
-			thr->output.buf.pos - b);
-
-		thr->output2.nr += b;
-		thr->output.buf.pos -= b;
-		spin_unlock_irq(&thr->output.lock);
-
-		b = min(len, thr->output2.nr);
-		if (!b)
-			break;
-
-		b -= copy_to_user(buf, thr->output2.data, b);
-		if (!b) {
-			ret = -EFAULT;
-			break;
-		}
-
-		copied	+= b;
-		buf	+= b;
-		len	-= b;
-
-		memmove(thr->output2.data,
-			thr->output2.data + b,
-			thr->output2.nr - b);
-		thr->output2.nr -= b;
-	}
-
-	return copied ?: ret;
-}
-
-static __poll_t bch2_fsck_thread_poll(struct file *file, struct poll_table_struct *wait)
-{
-	struct fsck_thread *thr = container_of(file->private_data, struct fsck_thread, thr);
-
-	poll_wait(file, &thr->output.wait, wait);
-
-	return fsck_thread_ready(thr)
-		? EPOLLIN|EPOLLHUP
-		: 0;
-}
-
-static const struct file_operations fsck_thread_ops = {
-	.release	= bch2_fsck_thread_release,
-	.read		= bch2_fsck_thread_read,
-	.poll		= bch2_fsck_thread_poll,
-	.llseek		= no_llseek,
-};
 
 static int bch2_fsck_offline_thread_fn(void *arg)
 {
 	struct fsck_thread *thr = container_of(arg, struct fsck_thread, thr);
 	struct bch_fs *c = bch2_fs_open(thr->devs, thr->nr_devs, thr->opts);
 
-	thr->thr.ret = PTR_ERR_OR_ZERO(c);
-	if (!thr->thr.ret)
+	thr->thr.thr.ret = PTR_ERR_OR_ZERO(c);
+	if (!thr->thr.thr.ret)
 		bch2_fs_stop(c);
 
-	thr->thr.done = true;
-	wake_up(&thr->output.wait);
+	thread_with_stdio_done(&thr->thr);
 	return 0;
 }
 
@@ -354,11 +193,6 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	thr->opts = bch2_opts_empty();
 	thr->nr_devs = arg.nr_devs;
-	thr->output.buf	= PRINTBUF;
-	thr->output.buf.atomic++;
-	spin_lock_init(&thr->output.lock);
-	init_waitqueue_head(&thr->output.wait);
-	darray_init(&thr->output2);
 
 	if (copy_from_user(devs, &user_arg->devs[0],
 			   array_size(sizeof(user_arg->devs[0]), arg.nr_devs))) {
@@ -384,16 +218,15 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 			goto err;
 	}
 
-	opt_set(thr->opts, log_output, (u64)(unsigned long)&thr->output);
+	opt_set(thr->opts, stdio, (u64)(unsigned long)&thr->thr.stdio);
 
-	ret = run_thread_with_file(&thr->thr,
-				   &fsck_thread_ops,
-				   bch2_fsck_offline_thread_fn,
-				   "bch-fsck");
+	ret = bch2_run_thread_with_stdio(&thr->thr,
+			bch2_fsck_thread_exit,
+			bch2_fsck_offline_thread_fn);
 err:
 	if (ret < 0) {
 		if (thr)
-			bch2_fsck_thread_free(thr);
+			bch2_fsck_thread_exit(&thr->thr);
 		pr_err("ret %s", bch2_err_str(ret));
 	}
 	kfree(devs);
@@ -592,7 +425,7 @@ static int bch2_data_job_release(struct inode *inode, struct file *file)
 {
 	struct bch_data_ctx *ctx = container_of(file->private_data, struct bch_data_ctx, thr);
 
-	thread_with_file_exit(&ctx->thr);
+	bch2_thread_with_file_exit(&ctx->thr);
 	kfree(ctx);
 	return 0;
 }
@@ -642,10 +475,9 @@ static long bch2_ioctl_data(struct bch_fs *c,
 	ctx->c = c;
 	ctx->arg = arg;
 
-	ret = run_thread_with_file(&ctx->thr,
-				   &bcachefs_data_ops,
-				   bch2_data_thread,
-				   "bch-data/%s", c->name);
+	ret = bch2_run_thread_with_file(&ctx->thr,
+			&bcachefs_data_ops,
+			bch2_data_thread);
 	if (ret < 0)
 		kfree(ctx);
 	return ret;
@@ -936,8 +768,8 @@ static int bch2_fsck_online_thread_fn(void *arg)
 	struct fsck_thread *thr = container_of(arg, struct fsck_thread, thr);
 	struct bch_fs *c = thr->c;
 
-	c->output_filter = current;
-	c->output = &thr->output;
+	c->stdio_filter = current;
+	c->stdio = &thr->thr.stdio;
 
 	/*
 	 * XXX: can we figure out a way to do this without mucking with c->opts?
@@ -949,11 +781,10 @@ static int bch2_fsck_online_thread_fn(void *arg)
 	c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
 	bch2_run_online_recovery_passes(c);
 
-	c->output = NULL;
-	c->output_filter = NULL;
+	c->stdio = NULL;
+	c->stdio_filter = NULL;
 
-	thr->thr.done = true;
-	wake_up(&thr->output.wait);
+	thread_with_stdio_done(&thr->thr);
 
 	up(&c->online_fsck_mutex);
 	bch2_ro_ref_put(c);
@@ -988,11 +819,6 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 
 	thr->c = c;
 	thr->opts = bch2_opts_empty();
-	thr->output.buf	= PRINTBUF;
-	thr->output.buf.atomic++;
-	spin_lock_init(&thr->output.lock);
-	init_waitqueue_head(&thr->output.wait);
-	darray_init(&thr->output2);
 
 	if (arg.opts) {
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
@@ -1005,15 +831,14 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 			goto err;
 	}
 
-	ret = run_thread_with_file(&thr->thr,
-				   &fsck_thread_ops,
-				   bch2_fsck_online_thread_fn,
-				   "bch-fsck");
+	ret = bch2_run_thread_with_stdio(&thr->thr,
+			bch2_fsck_thread_exit,
+			bch2_fsck_online_thread_fn);
 err:
 	if (ret < 0) {
 		bch_err_fn(c, ret);
 		if (thr)
-			bch2_fsck_thread_free(thr);
+			bch2_fsck_thread_exit(&thr->thr);
 		up(&c->online_fsck_mutex);
 		bch2_ro_ref_put(c);
 	}

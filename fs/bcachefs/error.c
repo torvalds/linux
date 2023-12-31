@@ -2,6 +2,7 @@
 #include "bcachefs.h"
 #include "error.h"
 #include "super.h"
+#include "thread_with_file.h"
 
 #define FSCK_ERR_RATELIMIT_NR	10
 
@@ -69,29 +70,11 @@ enum ask_yn {
 	YN_ALLYES,
 };
 
-#ifdef __KERNEL__
-#define bch2_fsck_ask_yn()	YN_NO
-#else
-
-#include "tools-util.h"
-
-enum ask_yn bch2_fsck_ask_yn(void)
+static enum ask_yn parse_yn_response(char *buf)
 {
-	char *buf = NULL;
-	size_t buflen = 0;
-	bool ret;
+	buf = strim(buf);
 
-	while (true) {
-		fputs(" (y,n, or Y,N for all errors of this type) ", stdout);
-		fflush(stdout);
-
-		if (getline(&buf, &buflen, stdin) < 0)
-			die("error reading from standard input");
-
-		strim(buf);
-		if (strlen(buf) != 1)
-			continue;
-
+	if (strlen(buf) == 1)
 		switch (buf[0]) {
 		case 'n':
 			return YN_NO;
@@ -102,7 +85,51 @@ enum ask_yn bch2_fsck_ask_yn(void)
 		case 'Y':
 			return YN_ALLYES;
 		}
-	}
+	return -1;
+}
+
+#ifdef __KERNEL__
+static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
+{
+	struct stdio_redirect *stdio = c->stdio;
+
+	if (c->stdio_filter && c->stdio_filter != current)
+		stdio = NULL;
+
+	if (!stdio)
+		return YN_NO;
+
+	char buf[100];
+	int ret;
+
+	do {
+		bch2_print(c, " (y,n, or Y,N for all errors of this type) ");
+
+		int r = bch2_stdio_redirect_readline(stdio, buf, sizeof(buf) - 1);
+		if (r < 0)
+			return YN_NO;
+		buf[r] = '\0';
+	} while ((ret = parse_yn_response(buf)) < 0);
+
+	return ret;
+}
+#else
+
+#include "tools-util.h"
+
+static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
+{
+	char *buf = NULL;
+	size_t buflen = 0;
+	int ret;
+
+	do {
+		fputs(" (y,n, or Y,N for all errors of this type) ", stdout);
+		fflush(stdout);
+
+		if (getline(&buf, &buflen, stdin) < 0)
+			die("error reading from standard input");
+	} while ((ret = parse_yn_response(buf)) < 0);
 
 	free(buf);
 	return ret;
@@ -221,10 +248,13 @@ int bch2_fsck_err(struct bch_fs *c,
 			int ask;
 
 			prt_str(out, ": fix?");
-			bch2_print_string_as_lines(KERN_ERR, out->buf);
+			if (bch2_fs_stdio_redirect(c))
+				bch2_print(c, "%s", out->buf);
+			else
+				bch2_print_string_as_lines(KERN_ERR, out->buf);
 			print = false;
 
-			ask = bch2_fsck_ask_yn();
+			ask = bch2_fsck_ask_yn(c);
 
 			if (ask >= YN_ALLNO && s)
 				s->fix = ask == YN_ALLNO
@@ -253,8 +283,12 @@ int bch2_fsck_err(struct bch_fs *c,
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 
-	if (print)
-		bch2_print_string_as_lines(KERN_ERR, out->buf);
+	if (print) {
+		if (bch2_fs_stdio_redirect(c))
+			bch2_print(c, "%s\n", out->buf);
+		else
+			bch2_print_string_as_lines(KERN_ERR, out->buf);
+	}
 
 	if (!test_bit(BCH_FS_fsck_done, &c->flags) &&
 	    (ret != -BCH_ERR_fsck_fix &&
