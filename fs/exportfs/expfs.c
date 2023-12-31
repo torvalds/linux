@@ -244,16 +244,6 @@ struct getdents_callback {
 	int sequence;		/* sequence counter */
 };
 
-/* Copied from lookup_one_common() */
-static inline bool is_dot_dotdot(const char *name, size_t len)
-{
-	if (unlikely(name[0] == '.')) {
-		if (len < 2 || (len == 2 && name[1] == '.'))
-			return true;
-	}
-	return false;
-}
-
 /*
  * A rather strange filldir function to capture
  * the name matching the specified inode number.
