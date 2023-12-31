@@ -29,7 +29,6 @@ static inline bool reserved_by_other(uint32_t *res_map, int idx,
 /**
  * struct dpu_rm_requirements - Reservation requirements parameter bundle
  * @topology:  selected topology for the display
- * @hw_res:	   Hardware resources required as reported by the encoders
  */
 struct dpu_rm_requirements {
 	struct msm_display_topology topology;
@@ -204,6 +203,8 @@ static bool _dpu_rm_needs_split_display(const struct msm_display_topology *top)
  * _dpu_rm_get_lm_peer - get the id of a mixer which is a peer of the primary
  * @rm: dpu resource manager handle
  * @primary_idx: index of primary mixer in rm->mixer_blks[]
+ *
+ * Returns: lm peer mixed id on success or %-EINVAL on error
  */
 static int _dpu_rm_get_lm_peer(struct dpu_rm *rm, int primary_idx)
 {
