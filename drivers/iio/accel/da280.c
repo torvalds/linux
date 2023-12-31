@@ -172,7 +172,7 @@ MODULE_DEVICE_TABLE(i2c, da280_i2c_id);
 static struct i2c_driver da280_driver = {
 	.driver = {
 		.name = "da280",
-		.acpi_match_table = ACPI_PTR(da280_acpi_match),
+		.acpi_match_table = da280_acpi_match,
 		.pm = pm_sleep_ptr(&da280_pm_ops),
 	},
 	.probe		= da280_probe,
