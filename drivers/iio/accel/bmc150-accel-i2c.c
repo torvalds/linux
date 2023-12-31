@@ -266,7 +266,7 @@ static struct i2c_driver bmc150_accel_driver = {
 	.driver = {
 		.name	= "bmc150_accel_i2c",
 		.of_match_table = bmc150_accel_of_match,
-		.acpi_match_table = ACPI_PTR(bmc150_accel_acpi_match),
+		.acpi_match_table = bmc150_accel_acpi_match,
 		.pm	= &bmc150_accel_pm_ops,
 	},
 	.probe		= bmc150_accel_probe,
