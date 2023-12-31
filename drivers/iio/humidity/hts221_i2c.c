@@ -9,7 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -63,7 +63,7 @@ static struct i2c_driver hts221_driver = {
 		.name = "hts221_i2c",
 		.pm = pm_sleep_ptr(&hts221_pm_ops),
 		.of_match_table = hts221_i2c_of_match,
-		.acpi_match_table = ACPI_PTR(hts221_acpi_match),
+		.acpi_match_table = hts221_acpi_match,
 	},
 	.probe = hts221_i2c_probe,
 	.id_table = hts221_i2c_id_table,
