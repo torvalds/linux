@@ -183,25 +183,6 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 					   struct jset_entry **end,
 					   u64 journal_seq)
 {
-	percpu_down_read(&c->mark_lock);
-
-	if (!journal_seq) {
-		for (unsigned i = 0; i < ARRAY_SIZE(c->usage); i++)
-			bch2_fs_usage_acc_to_base(c, i);
-	} else {
-		bch2_fs_usage_acc_to_base(c, journal_seq & JOURNAL_BUF_MASK);
-	}
-
-	{
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_inodes;
-		u->v		= cpu_to_le64(c->usage_base->b.nr_inodes);
-	}
-
 	{
 		struct jset_entry_usage *u =
 			container_of(jset_entry_init(end, sizeof(*u)),
@@ -211,32 +192,6 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 		u->entry.btree_id = BCH_FS_USAGE_key_version;
 		u->v		= cpu_to_le64(atomic64_read(&c->key_version));
 	}
-
-	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
-		struct jset_entry_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u)),
-				     struct jset_entry_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_usage;
-		u->entry.btree_id = BCH_FS_USAGE_reserved;
-		u->entry.level	= i;
-		u->v		= cpu_to_le64(c->usage_base->persistent_reserved[i]);
-	}
-
-	for (unsigned i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry_v1 *e =
-			cpu_replicas_entry(&c->replicas, i);
-		struct jset_entry_data_usage *u =
-			container_of(jset_entry_init(end, sizeof(*u) + e->nr_devs),
-				     struct jset_entry_data_usage, entry);
-
-		u->entry.type	= BCH_JSET_ENTRY_data_usage;
-		u->v		= cpu_to_le64(c->usage_base->replicas[i]);
-		unsafe_memcpy(&u->r, e, replicas_entry_bytes(e),
-			      "embedded variable length struct");
-	}
-
-	percpu_up_read(&c->mark_lock);
 
 	for (unsigned i = 0; i < 2; i++) {
 		struct jset_entry_clock *clock =
