@@ -301,6 +301,8 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 			}
 			ena_xdp_exchange_program(adapter, prog);
 
+			netif_dbg(adapter, drv, adapter->netdev, "Set a new XDP program\n");
+
 			if (is_up && !old_bpf_prog) {
 				rc = ena_up(adapter);
 				if (rc)
@@ -309,6 +311,8 @@ static int ena_xdp_set(struct net_device *netdev, struct netdev_bpf *bpf)
 			xdp_features_set_redirect_target(netdev, false);
 		} else if (old_bpf_prog) {
 			xdp_features_clear_redirect_target(netdev);
+			netif_dbg(adapter, drv, adapter->netdev, "Removing XDP program\n");
+
 			rc = ena_destroy_and_free_all_xdp_queues(adapter);
 			if (rc)
 				return rc;
