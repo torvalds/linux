@@ -87,9 +87,6 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 
 	xdp_prog = READ_ONCE(rx_ring->xdp_bpf_prog);
 
-	if (!xdp_prog)
-		return verdict;
-
 	verdict = bpf_prog_run_xdp(xdp_prog, xdp);
 
 	switch (verdict) {
