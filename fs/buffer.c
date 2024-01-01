@@ -1028,8 +1028,8 @@ static sector_t folio_init_buffers(struct folio *folio,
  *
  * This is used purely for blockdev mappings.
  *
- * Returns false if we have a 'permanent' failure.  Returns true if
- * we succeeded, or the caller should retry.
+ * Returns false if we have a failure which cannot be cured by retrying
+ * without sleeping.  Returns true if we succeeded, or the caller should retry.
  */
 static bool grow_dev_folio(struct block_device *bdev, sector_t block,
 		pgoff_t index, unsigned size, gfp_t gfp)
@@ -1051,10 +1051,17 @@ static bool grow_dev_folio(struct block_device *bdev, sector_t block,
 			goto unlock;
 		}
 
-		/* Caller should retry if this call fails */
-		end_block = ~0ULL;
-		if (!try_to_free_buffers(folio))
+		/*
+		 * Retrying may succeed; for example the folio may finish
+		 * writeback, or buffers may be cleaned.  This should not
+		 * happen very often; maybe we have old buffers attached to
+		 * this blockdev's page cache and we're trying to change
+		 * the block size?
+		 */
+		if (!try_to_free_buffers(folio)) {
+			end_block = ~0ULL;
 			goto unlock;
+		}
 	}
 
 	bh = folio_alloc_buffers(folio, size, gfp | __GFP_ACCOUNT);
