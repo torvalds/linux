@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 
 #include "ena_netdev.h"
+#include "ena_xdp.h"
 
 struct ena_stats {
 	char name[ETH_GSTRING_LEN];
