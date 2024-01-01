@@ -1754,18 +1754,28 @@ static void ena_del_napi_in_range(struct ena_adapter *adapter,
 static void ena_init_napi_in_range(struct ena_adapter *adapter,
 				   int first_index, int count)
 {
+	int (*napi_handler)(struct napi_struct *napi, int budget);
 	int i;
 
 	for (i = first_index; i < first_index + count; i++) {
 		struct ena_napi *napi = &adapter->ena_napi[i];
+		struct ena_ring *rx_ring, *tx_ring;
 
-		netif_napi_add(adapter->netdev, &napi->napi,
-			       ENA_IS_XDP_INDEX(adapter, i) ? ena_xdp_io_poll : ena_io_poll);
+		memset(napi, 0, sizeof(*napi));
+
+		rx_ring = &adapter->rx_ring[i];
+		tx_ring = &adapter->tx_ring[i];
+
+		napi_handler = ena_io_poll;
+		if (ENA_IS_XDP_INDEX(adapter, i))
+			napi_handler = ena_xdp_io_poll;
+
+		netif_napi_add(adapter->netdev, &napi->napi, napi_handler);
 
 		if (!ENA_IS_XDP_INDEX(adapter, i))
-			napi->rx_ring = &adapter->rx_ring[i];
+			napi->rx_ring = rx_ring;
 
-		napi->tx_ring = &adapter->tx_ring[i];
+		napi->tx_ring = tx_ring;
 		napi->qid = i;
 	}
 }
