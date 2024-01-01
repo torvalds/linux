@@ -16,6 +16,11 @@ definitions:
     name: stringset
     type: enum
     entries: []
+  -
+    name: phy-upstream-type
+    enum-name:
+    type: enum
+    entries: [ mac, phy ]
 
 attribute-sets:
   -
@@ -29,6 +34,9 @@ attribute-sets:
         type: string
       -
         name: flags
+        type: u32
+      -
+        name: phy-index
         type: u32
 
   -
@@ -942,6 +950,45 @@ attribute-sets:
       -
         name: burst-tmr
         type: u32
+  -
+    name: phy-upstream
+    attributes:
+      -
+        name: index
+        type: u32
+      -
+        name: sfp-name
+        type: string
+  -
+    name: phy
+    attributes:
+      -
+        name: header
+        type: nest
+        nested-attributes: header
+      -
+        name: index
+        type: u32
+      -
+        name: drvname
+        type: string
+      -
+        name: name
+        type: string
+      -
+        name: upstream-type
+        type: u8
+        enum: phy-upstream-type
+      -
+        name: upstream
+        type: nest
+        nested-attributes: phy-upstream
+      -
+        name: downstream-sfp-name
+        type: string
+      -
+        name: id
+        type: u32
 
 operations:
   enum-model: directional
@@ -1693,3 +1740,24 @@ operations:
       name: mm-ntf
       doc: Notification for change in MAC Merge configuration.
       notify: mm-get
+    -
+      name: phy-get
+      doc: Get PHY devices attached to an interface
+
+      attribute-set: phy
+
+      do: &phy-get-op
+        request:
+          attributes:
+            - header
+        reply:
+          attributes:
+            - header
+            - index
+            - drvname
+            - name
+            - upstream-type
+            - upstream
+            - downstream-sfp-name
+            - id
+      dump: *phy-get-op
