@@ -426,7 +426,7 @@ static inline void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 	ena_increase_stat(&tx_ring->tx_stats.doorbells, 1, &tx_ring->syncp);
 }
 
-int ena_xmit_common(struct net_device *dev,
+int ena_xmit_common(struct ena_adapter *adapter,
 		    struct ena_ring *ring,
 		    struct ena_tx_buffer *tx_info,
 		    struct ena_com_tx_ctx *ena_tx_ctx,

@@ -88,19 +88,18 @@ static int ena_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
-int ena_xmit_common(struct net_device *dev,
+int ena_xmit_common(struct ena_adapter *adapter,
 		    struct ena_ring *ring,
 		    struct ena_tx_buffer *tx_info,
 		    struct ena_com_tx_ctx *ena_tx_ctx,
 		    u16 next_to_use,
 		    u32 bytes)
 {
-	struct ena_adapter *adapter = netdev_priv(dev);
 	int rc, nb_hw_desc;
 
 	if (unlikely(ena_com_is_doorbell_needed(ring->ena_com_io_sq,
 						ena_tx_ctx))) {
-		netif_dbg(adapter, tx_queued, dev,
+		netif_dbg(adapter, tx_queued, adapter->netdev,
 			  "llq tx max burst size of queue %d achieved, writing doorbell to send burst\n",
 			  ring->qid);
 		ena_ring_tx_doorbell(ring);
@@ -115,7 +114,7 @@ int ena_xmit_common(struct net_device *dev,
 	 * ena_com_prepare_tx() are fatal and therefore require a device reset.
 	 */
 	if (unlikely(rc)) {
-		netif_err(adapter, tx_queued, dev,
+		netif_err(adapter, tx_queued, adapter->netdev,
 			  "Failed to prepare tx bufs\n");
 		ena_increase_stat(&ring->tx_stats.prepare_ctx_err, 1,
 				  &ring->syncp);
@@ -2599,7 +2598,7 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* set flags and meta data */
 	ena_tx_csum(&ena_tx_ctx, skb, tx_ring->disable_meta_caching);
 
-	rc = ena_xmit_common(dev,
+	rc = ena_xmit_common(adapter,
 			     tx_ring,
 			     tx_info,
 			     &ena_tx_ctx,

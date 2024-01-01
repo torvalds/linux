@@ -36,7 +36,7 @@ void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  int first, int count);
 int ena_xdp_io_poll(struct napi_struct *napi, int budget);
 int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
-		       struct net_device *dev,
+		       struct ena_adapter *adapter,
 		       struct xdp_frame *xdpf,
 		       int flags);
 int ena_xdp_xmit(struct net_device *dev, int n,
@@ -108,7 +108,7 @@ static inline int ena_xdp_execute(struct ena_ring *rx_ring, struct xdp_buff *xdp
 		/* The XDP queues are shared between XDP_TX and XDP_REDIRECT */
 		spin_lock(&xdp_ring->xdp_tx_lock);
 
-		if (ena_xdp_xmit_frame(xdp_ring, rx_ring->netdev, xdpf,
+		if (ena_xdp_xmit_frame(xdp_ring, rx_ring->adapter, xdpf,
 				       XDP_XMIT_FLUSH))
 			xdp_return_frame(xdpf);
 

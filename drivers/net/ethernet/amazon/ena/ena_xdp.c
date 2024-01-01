@@ -73,7 +73,7 @@ error_report_dma_error:
 }
 
 int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
-		       struct net_device *dev,
+		       struct ena_adapter *adapter,
 		       struct xdp_frame *xdpf,
 		       int flags)
 {
@@ -93,7 +93,7 @@ int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
 
 	ena_tx_ctx.req_id = req_id;
 
-	rc = ena_xmit_common(dev,
+	rc = ena_xmit_common(adapter,
 			     xdp_ring,
 			     tx_info,
 			     &ena_tx_ctx,
@@ -141,7 +141,7 @@ int ena_xdp_xmit(struct net_device *dev, int n,
 	spin_lock(&xdp_ring->xdp_tx_lock);
 
 	for (i = 0; i < n; i++) {
-		if (ena_xdp_xmit_frame(xdp_ring, dev, frames[i], 0))
+		if (ena_xdp_xmit_frame(xdp_ring, adapter, frames[i], 0))
 			break;
 		nxmit++;
 	}
