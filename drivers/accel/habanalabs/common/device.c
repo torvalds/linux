@@ -2833,6 +2833,6 @@ void hl_set_irq_affinity(struct hl_device *hdev, int irq)
 		return;
 	}
 
-	if (irq_set_affinity_hint(irq, &hdev->irq_affinity_mask))
+	if (irq_set_affinity_and_hint(irq, &hdev->irq_affinity_mask))
 		dev_err(hdev->dev, "Failed setting irq %d affinity\n", irq);
 }
