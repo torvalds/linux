@@ -348,7 +348,8 @@ static void test_func_sockmap_update(void)
 }
 
 static void test_obj_load_failure_common(const char *obj_file,
-					 const char *target_obj_file)
+					 const char *target_obj_file,
+					 const char *exp_msg)
 {
 	/*
 	 * standalone test that asserts failure to load freplace prog
@@ -356,6 +357,7 @@ static void test_obj_load_failure_common(const char *obj_file,
 	 */
 	struct bpf_object *obj = NULL, *pkt_obj;
 	struct bpf_program *prog;
+	char log_buf[64 * 1024];
 	int err, pkt_fd;
 	__u32 duration = 0;
 
@@ -374,11 +376,21 @@ static void test_obj_load_failure_common(const char *obj_file,
 	err = bpf_program__set_attach_target(prog, pkt_fd, NULL);
 	ASSERT_OK(err, "set_attach_target");
 
+	log_buf[0] = '\0';
+	if (exp_msg)
+		bpf_program__set_log_buf(prog, log_buf, sizeof(log_buf));
+	if (env.verbosity > VERBOSE_NONE)
+		bpf_program__set_log_level(prog, 2);
+
 	/* It should fail to load the program */
 	err = bpf_object__load(obj);
+	if (env.verbosity > VERBOSE_NONE && exp_msg) /* we overtook log */
+		printf("VERIFIER LOG:\n================\n%s\n================\n", log_buf);
 	if (CHECK(!err, "bpf_obj_load should fail", "err %d\n", err))
 		goto close_prog;
 
+	if (exp_msg)
+		ASSERT_HAS_SUBSTR(log_buf, exp_msg, "fail_msg");
 close_prog:
 	bpf_object__close(obj);
 	bpf_object__close(pkt_obj);
@@ -388,14 +400,24 @@ static void test_func_replace_return_code(void)
 {
 	/* test invalid return code in the replaced program */
 	test_obj_load_failure_common("./freplace_connect_v4_prog.bpf.o",
-				     "./connect4_prog.bpf.o");
+				     "./connect4_prog.bpf.o", NULL);
 }
 
 static void test_func_map_prog_compatibility(void)
 {
 	/* test with spin lock map value in the replaced program */
 	test_obj_load_failure_common("./freplace_attach_probe.bpf.o",
-				     "./test_attach_probe.bpf.o");
+				     "./test_attach_probe.bpf.o", NULL);
+}
+
+static void test_func_replace_unreliable(void)
+{
+	/* freplace'ing unreliable main prog should fail with error
+	 * "Cannot replace static functions"
+	 */
+	test_obj_load_failure_common("freplace_unreliable_prog.bpf.o",
+				     "./verifier_btf_unreliable_prog.bpf.o",
+				     "Cannot replace static functions");
 }
 
 static void test_func_replace_global_func(void)
@@ -563,6 +585,8 @@ void serial_test_fexit_bpf2bpf(void)
 		test_func_replace_return_code();
 	if (test__start_subtest("func_map_prog_compatibility"))
 		test_func_map_prog_compatibility();
+	if (test__start_subtest("func_replace_unreliable"))
+		test_func_replace_unreliable();
 	if (test__start_subtest("func_replace_multi"))
 		test_func_replace_multi();
 	if (test__start_subtest("fmod_ret_freplace"))
