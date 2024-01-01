@@ -130,6 +130,7 @@ int ena_xmit_common(struct ena_adapter *adapter,
 	u64_stats_update_end(&ring->syncp);
 
 	tx_info->tx_descs = nb_hw_desc;
+	tx_info->total_tx_size = bytes;
 	tx_info->last_jiffies = jiffies;
 	tx_info->print_once = 0;
 
@@ -842,7 +843,7 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 			  "tx_poll: q %d skb %p completed\n", tx_ring->qid,
 			  skb);
 
-		tx_bytes += skb->len;
+		tx_bytes += tx_info->total_tx_size;
 		dev_kfree_skb(skb);
 		tx_pkts++;
 		total_done += tx_info->tx_descs;
