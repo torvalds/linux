@@ -602,9 +602,6 @@ struct bch_dev {
 };
 
 /*
- * fsck_done - kill?
- *
- * replace with something more general from enumated fsck passes/errors:
  * initial_gc_unfixed
  * error
  * topology error
@@ -620,7 +617,7 @@ struct bch_dev {
 	x(going_ro)			\
 	x(write_disable_complete)	\
 	x(clean_shutdown)		\
-	x(fsck_done)			\
+	x(fsck_running)			\
 	x(initial_gc_unfixed)		\
 	x(need_another_gc)		\
 	x(need_delete_dead_snapshots)	\

@@ -832,6 +832,9 @@ int bch2_fs_recovery(struct bch_fs *c)
 	if (c->opts.fsck && IS_ENABLED(CONFIG_BCACHEFS_DEBUG))
 		c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
 
+	if (c->opts.fsck)
+		set_bit(BCH_FS_fsck_running, &c->flags);
+
 	ret = bch2_blacklist_table_initialize(c);
 	if (ret) {
 		bch_err(c, "error initializing blacklist table");
@@ -972,6 +975,8 @@ use_clean:
 	if (ret)
 		goto err;
 
+	clear_bit(BCH_FS_fsck_running, &c->flags);
+
 	/* If we fixed errors, verify that fs is actually clean now: */
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
 	    test_bit(BCH_FS_errors_fixed, &c->flags) &&
@@ -1066,7 +1071,6 @@ use_clean:
 
 	ret = 0;
 out:
-	set_bit(BCH_FS_fsck_done, &c->flags);
 	bch2_flush_fsck_errs(c);
 
 	if (!c->opts.keep_journal &&
@@ -1113,7 +1117,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	c->curr_recovery_pass = ARRAY_SIZE(recovery_pass_fns);
 	set_bit(BCH_FS_may_go_rw, &c->flags);
-	set_bit(BCH_FS_fsck_done, &c->flags);
 
 	for (unsigned i = 0; i < BTREE_ID_NR; i++)
 		bch2_btree_root_alloc(c, i);

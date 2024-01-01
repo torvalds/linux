@@ -774,15 +774,24 @@ static int bch2_fsck_online_thread_fn(void *arg)
 	/*
 	 * XXX: can we figure out a way to do this without mucking with c->opts?
 	 */
+	unsigned old_fix_errors = c->opts.fix_errors;
 	if (opt_defined(thr->opts, fix_errors))
 		c->opts.fix_errors = thr->opts.fix_errors;
+	else
+		c->opts.fix_errors = FSCK_FIX_ask;
+
 	c->opts.fsck = true;
+	set_bit(BCH_FS_fsck_running, &c->flags);
 
 	c->curr_recovery_pass = BCH_RECOVERY_PASS_check_alloc_info;
-	bch2_run_online_recovery_passes(c);
+	int ret = bch2_run_online_recovery_passes(c);
+
+	clear_bit(BCH_FS_fsck_running, &c->flags);
+	bch_err_fn(c, ret);
 
 	c->stdio = NULL;
 	c->stdio_filter = NULL;
+	c->opts.fix_errors = old_fix_errors;
 
 	thread_with_stdio_done(&thr->thr);
 
