@@ -2795,6 +2795,7 @@ static void ena_get_stats64(struct net_device *netdev,
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_ring *rx_ring, *tx_ring;
+	u64 total_xdp_rx_drops = 0;
 	unsigned int start;
 	u64 rx_drops;
 	u64 tx_drops;
@@ -2803,8 +2804,8 @@ static void ena_get_stats64(struct net_device *netdev,
 	if (!test_bit(ENA_FLAG_DEV_UP, &adapter->flags))
 		return;
 
-	for (i = 0; i < adapter->num_io_queues; i++) {
-		u64 bytes, packets;
+	for (i = 0; i < adapter->num_io_queues + adapter->xdp_num_queues; i++) {
+		u64 bytes, packets, xdp_rx_drops;
 
 		tx_ring = &adapter->tx_ring[i];
 
@@ -2817,16 +2818,22 @@ static void ena_get_stats64(struct net_device *netdev,
 		stats->tx_packets += packets;
 		stats->tx_bytes += bytes;
 
+		/* In XDP there isn't an RX queue counterpart */
+		if (ENA_IS_XDP_INDEX(adapter, i))
+			continue;
+
 		rx_ring = &adapter->rx_ring[i];
 
 		do {
 			start = u64_stats_fetch_begin(&rx_ring->syncp);
 			packets = rx_ring->rx_stats.cnt;
 			bytes = rx_ring->rx_stats.bytes;
+			xdp_rx_drops = rx_ring->rx_stats.xdp_drop;
 		} while (u64_stats_fetch_retry(&rx_ring->syncp, start));
 
 		stats->rx_packets += packets;
 		stats->rx_bytes += bytes;
+		total_xdp_rx_drops += xdp_rx_drops;
 	}
 
 	do {
@@ -2835,7 +2842,7 @@ static void ena_get_stats64(struct net_device *netdev,
 		tx_drops = adapter->dev_stats.tx_drops;
 	} while (u64_stats_fetch_retry(&adapter->syncp, start));
 
-	stats->rx_dropped = rx_drops;
+	stats->rx_dropped = rx_drops + total_xdp_rx_drops;
 	stats->tx_dropped = tx_drops;
 
 	stats->multicast = 0;
