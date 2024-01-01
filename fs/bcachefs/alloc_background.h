@@ -182,24 +182,21 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 #define bch2_bkey_ops_alloc ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v1_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trigger_alloc,		\
-	.atomic_trigger	= bch2_trigger_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v2 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v2_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trigger_alloc,		\
-	.atomic_trigger	= bch2_trigger_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 8,				\
 })
 
 #define bch2_bkey_ops_alloc_v3 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_alloc_v3_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
-	.trans_trigger	= bch2_trigger_alloc,		\
-	.atomic_trigger	= bch2_trigger_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 16,				\
 })
 
@@ -207,8 +204,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.key_invalid	= bch2_alloc_v4_invalid,	\
 	.val_to_text	= bch2_alloc_to_text,		\
 	.swab		= bch2_alloc_v4_swab,		\
-	.trans_trigger	= bch2_trigger_alloc,		\
-	.atomic_trigger	= bch2_trigger_alloc,		\
+	.trigger	= bch2_trigger_alloc,		\
 	.min_val_size	= 48,				\
 })
 

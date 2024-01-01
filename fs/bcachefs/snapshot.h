@@ -27,7 +27,7 @@ int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
 #define bch2_bkey_ops_snapshot ((struct bkey_ops) {		\
 	.key_invalid	= bch2_snapshot_invalid,		\
 	.val_to_text	= bch2_snapshot_to_text,		\
-	.atomic_trigger	= bch2_mark_snapshot,			\
+	.trigger	= bch2_mark_snapshot,			\
 	.min_val_size	= 24,					\
 })
 

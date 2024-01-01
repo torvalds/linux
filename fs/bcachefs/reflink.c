@@ -298,7 +298,9 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 			      struct bkey_s_c old, struct bkey_s new,
 			      unsigned flags)
 {
-	check_indirect_extent_deleting(new, &flags);
+	if ((flags & BTREE_TRIGGER_TRANSACTIONAL) &&
+	    (flags & BTREE_TRIGGER_INSERT))
+		check_indirect_extent_deleting(new, &flags);
 
 	if (old.k->type == KEY_TYPE_reflink_v &&
 	    new.k->type == KEY_TYPE_reflink_v &&

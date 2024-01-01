@@ -19,8 +19,7 @@ int bch2_trigger_stripe(struct btree_trans *, enum btree_id, unsigned,
 	.key_invalid	= bch2_stripe_invalid,		\
 	.val_to_text	= bch2_stripe_to_text,		\
 	.swab		= bch2_ptr_swab,		\
-	.trans_trigger	= bch2_trigger_stripe,		\
-	.atomic_trigger	= bch2_trigger_stripe,		\
+	.trigger	= bch2_trigger_stripe,		\
 	.min_val_size	= 8,				\
 })
 

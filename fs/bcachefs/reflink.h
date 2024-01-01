@@ -16,8 +16,7 @@ int bch2_trigger_reflink_p(struct btree_trans *, enum btree_id, unsigned,
 	.key_invalid	= bch2_reflink_p_invalid,		\
 	.val_to_text	= bch2_reflink_p_to_text,		\
 	.key_merge	= bch2_reflink_p_merge,			\
-	.trans_trigger	= bch2_trigger_reflink_p,		\
-	.atomic_trigger	= bch2_trigger_reflink_p,		\
+	.trigger	= bch2_trigger_reflink_p,		\
 	.min_val_size	= 16,					\
 })
 
@@ -32,8 +31,7 @@ int bch2_trans_mark_reflink_v(struct btree_trans *, enum btree_id, unsigned,
 	.key_invalid	= bch2_reflink_v_invalid,		\
 	.val_to_text	= bch2_reflink_v_to_text,		\
 	.swab		= bch2_ptr_swab,			\
-	.trans_trigger	= bch2_trans_mark_reflink_v,		\
-	.atomic_trigger	= bch2_trigger_extent,			\
+	.trigger	= bch2_trans_mark_reflink_v,		\
 	.min_val_size	= 8,					\
 })
 
@@ -49,7 +47,7 @@ int bch2_trans_mark_indirect_inline_data(struct btree_trans *,
 #define bch2_bkey_ops_indirect_inline_data ((struct bkey_ops) {	\
 	.key_invalid	= bch2_indirect_inline_data_invalid,	\
 	.val_to_text	= bch2_indirect_inline_data_to_text,	\
-	.trans_trigger	= bch2_trans_mark_indirect_inline_data,	\
+	.trigger	= bch2_trans_mark_indirect_inline_data,	\
 	.min_val_size	= 8,					\
 })
 

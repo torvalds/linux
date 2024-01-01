@@ -834,7 +834,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	}
 
 	ret = commit_do(trans, NULL, NULL, 0,
-			bch2_mark_key(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
+			bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
 fsck_err:
 err:
 	bch_err_fn(c, ret);

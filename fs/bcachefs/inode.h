@@ -23,24 +23,21 @@ int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
 #define bch2_bkey_ops_inode ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_invalid,		\
 	.val_to_text	= bch2_inode_to_text,		\
-	.trans_trigger	= bch2_trigger_inode,		\
-	.atomic_trigger	= bch2_trigger_inode,		\
+	.trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 16,				\
 })
 
 #define bch2_bkey_ops_inode_v2 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_v2_invalid,	\
 	.val_to_text	= bch2_inode_to_text,		\
-	.trans_trigger	= bch2_trigger_inode,		\
-	.atomic_trigger	= bch2_trigger_inode,		\
+	.trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 32,				\
 })
 
 #define bch2_bkey_ops_inode_v3 ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_v3_invalid,	\
 	.val_to_text	= bch2_inode_to_text,		\
-	.trans_trigger	= bch2_trigger_inode,		\
-	.atomic_trigger	= bch2_trigger_inode,		\
+	.trigger	= bch2_trigger_inode,		\
 	.min_val_size	= 48,				\
 })
 
