@@ -191,12 +191,14 @@ setup_err:
 /* Provides a way for both kernel and bpf-prog to know
  * more about the RX-queue a given XDP frame arrived on.
  */
-static int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
+int ena_xdp_register_rxq_info(struct ena_ring *rx_ring)
 {
 	int rc;
 
 	rc = xdp_rxq_info_reg(&rx_ring->xdp_rxq, rx_ring->netdev, rx_ring->qid, 0);
 
+	netif_dbg(rx_ring->adapter, ifup, rx_ring->netdev, "Registering RX info for queue %d",
+		  rx_ring->qid);
 	if (rc) {
 		netif_err(rx_ring->adapter, ifup, rx_ring->netdev,
 			  "Failed to register xdp rx queue info. RX queue num %d rc: %d\n",
@@ -217,8 +219,11 @@ err:
 	return rc;
 }
 
-static void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
+void ena_xdp_unregister_rxq_info(struct ena_ring *rx_ring)
 {
+	netif_dbg(rx_ring->adapter, ifdown, rx_ring->netdev,
+		  "Unregistering RX info for queue %d",
+		  rx_ring->qid);
 	xdp_rxq_info_unreg_mem_model(&rx_ring->xdp_rxq);
 	xdp_rxq_info_unreg(&rx_ring->xdp_rxq);
 }
@@ -236,10 +241,8 @@ void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 		old_bpf_prog = xchg(&rx_ring->xdp_bpf_prog, prog);
 
 		if (!old_bpf_prog && prog) {
-			ena_xdp_register_rxq_info(rx_ring);
 			rx_ring->rx_headroom = XDP_PACKET_HEADROOM;
 		} else if (old_bpf_prog && !prog) {
-			ena_xdp_unregister_rxq_info(rx_ring);
 			rx_ring->rx_headroom = NET_SKB_PAD;
 		}
 	}

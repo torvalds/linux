@@ -753,6 +753,7 @@ static void ena_destroy_all_rx_queues(struct ena_adapter *adapter)
 	for (i = 0; i < adapter->num_io_queues; i++) {
 		ena_qid = ENA_IO_RXQ_IDX(i);
 		cancel_work_sync(&adapter->ena_napi[i].dim.work);
+		ena_xdp_unregister_rxq_info(&adapter->rx_ring[i]);
 		ena_com_destroy_io_queue(adapter->ena_dev, ena_qid);
 	}
 }
@@ -1984,12 +1985,15 @@ static int ena_create_all_io_rx_queues(struct ena_adapter *adapter)
 		if (rc)
 			goto create_err;
 		INIT_WORK(&adapter->ena_napi[i].dim.work, ena_dim_work);
+
+		ena_xdp_register_rxq_info(&adapter->rx_ring[i]);
 	}
 
 	return 0;
 
 create_err:
 	while (i--) {
+		ena_xdp_unregister_rxq_info(&adapter->rx_ring[i]);
 		cancel_work_sync(&adapter->ena_napi[i].dim.work);
 		ena_com_destroy_io_queue(ena_dev, ENA_IO_RXQ_IDX(i));
 	}
