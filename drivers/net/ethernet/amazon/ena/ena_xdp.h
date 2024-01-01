@@ -35,7 +35,7 @@ void ena_xdp_exchange_program_rx_in_range(struct ena_adapter *adapter,
 					  struct bpf_prog *prog,
 					  int first, int count);
 int ena_xdp_io_poll(struct napi_struct *napi, int budget);
-int ena_xdp_xmit_frame(struct ena_ring *xdp_ring,
+int ena_xdp_xmit_frame(struct ena_ring *tx_ring,
 		       struct ena_adapter *adapter,
 		       struct xdp_frame *xdpf,
 		       int flags);

@@ -125,7 +125,6 @@ struct ena_napi {
 	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
-	struct ena_ring *xdp_ring;
 	u32 qid;
 	struct dim dim;
 };
