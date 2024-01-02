@@ -173,16 +173,28 @@ static int tb_pci_set_ext_encapsulation(struct tb_tunnel *tunnel, bool enable)
 	int ret;
 
 	/* Only supported of both routers are at least USB4 v2 */
-	if (tb_port_get_link_generation(port) < 4)
+	if ((usb4_switch_version(tunnel->src_port->sw) < 2) ||
+	   (usb4_switch_version(tunnel->dst_port->sw) < 2))
+		return 0;
+
+	if (enable && tb_port_get_link_generation(port) < 4)
 		return 0;
 
 	ret = usb4_pci_port_set_ext_encapsulation(tunnel->src_port, enable);
 	if (ret)
 		return ret;
 
+	/*
+	 * Downstream router could be unplugged so disable of encapsulation
+	 * in upstream router is still possible.
+	 */
 	ret = usb4_pci_port_set_ext_encapsulation(tunnel->dst_port, enable);
-	if (ret)
-		return ret;
+	if (ret) {
+		if (enable)
+			return ret;
+		if (ret != -ENODEV)
+			return ret;
+	}
 
 	tb_tunnel_dbg(tunnel, "extended encapsulation %s\n",
 		      str_enabled_disabled(enable));
@@ -199,14 +211,21 @@ static int tb_pci_activate(struct tb_tunnel *tunnel, bool activate)
 			return res;
 	}
 
-	res = tb_pci_port_enable(tunnel->src_port, activate);
+	if (activate)
+		res = tb_pci_port_enable(tunnel->dst_port, activate);
+	else
+		res = tb_pci_port_enable(tunnel->src_port, activate);
 	if (res)
 		return res;
 
-	if (tb_port_is_pcie_up(tunnel->dst_port)) {
-		res = tb_pci_port_enable(tunnel->dst_port, activate);
+
+	if (activate) {
+		res = tb_pci_port_enable(tunnel->src_port, activate);
 		if (res)
 			return res;
+	} else {
+		/* Downstream router could be unplugged */
+		tb_pci_port_enable(tunnel->dst_port, activate);
 	}
 
 	return activate ? 0 : tb_pci_set_ext_encapsulation(tunnel, activate);
@@ -1067,8 +1086,7 @@ static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 	return 0;
 }
 
-static int tb_dp_read_dprx(struct tb_tunnel *tunnel, u32 *rate, u32 *lanes,
-			   int timeout_msec)
+static int tb_dp_wait_dprx(struct tb_tunnel *tunnel, int timeout_msec)
 {
 	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 	struct tb_port *in = tunnel->src_port;
@@ -1087,15 +1105,13 @@ static int tb_dp_read_dprx(struct tb_tunnel *tunnel, u32 *rate, u32 *lanes,
 			return ret;
 
 		if (val & DP_COMMON_CAP_DPRX_DONE) {
-			*rate = tb_dp_cap_get_rate(val);
-			*lanes = tb_dp_cap_get_lanes(val);
-
 			tb_tunnel_dbg(tunnel, "DPRX read done\n");
 			return 0;
 		}
 		usleep_range(100, 150);
 	} while (ktime_before(ktime_get(), timeout));
 
+	tb_tunnel_dbg(tunnel, "DPRX read timeout\n");
 	return -ETIMEDOUT;
 }
 
@@ -1110,6 +1126,7 @@ static int tb_dp_read_cap(struct tb_tunnel *tunnel, unsigned int cap, u32 *rate,
 	switch (cap) {
 	case DP_LOCAL_CAP:
 	case DP_REMOTE_CAP:
+	case DP_COMMON_CAP:
 		break;
 
 	default:
@@ -1182,7 +1199,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 		 * reduced one). Otherwise return the remote (possibly
 		 * reduced) caps.
 		 */
-		ret = tb_dp_read_dprx(tunnel, &rate, &lanes, 150);
+		ret = tb_dp_wait_dprx(tunnel, 150);
 		if (ret) {
 			if (ret == -ETIMEDOUT)
 				ret = tb_dp_read_cap(tunnel, DP_REMOTE_CAP,
@@ -1190,6 +1207,9 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 			if (ret)
 				return ret;
 		}
+		ret = tb_dp_read_cap(tunnel, DP_COMMON_CAP, &rate, &lanes);
+		if (ret)
+			return ret;
 	} else if (sw->generation >= 2) {
 		ret = tb_dp_read_cap(tunnel, DP_REMOTE_CAP, &rate, &lanes);
 		if (ret)
@@ -1312,8 +1332,6 @@ static void tb_dp_dump(struct tb_tunnel *tunnel)
 	tb_tunnel_dbg(tunnel,
 		      "DP IN maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
 		      rate, lanes, tb_dp_bandwidth(rate, lanes));
-
-	out = tunnel->dst_port;
 
 	if (tb_port_read(out, &dp_cap, TB_CFG_PORT,
 			 out->cap_adap + DP_LOCAL_CAP, 1))
