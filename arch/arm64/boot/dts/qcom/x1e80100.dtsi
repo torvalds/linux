@@ -395,16 +395,24 @@
 		CLUSTER_PD0: power-domain-cpu-cluster0 {
 			#power-domain-cells = <0>;
 			domain-idle-states = <&CLUSTER_CL4>, <&CLUSTER_CL5>;
+			power-domains = <&SYSTEM_PD>;
 		};
 
 		CLUSTER_PD1: power-domain-cpu-cluster1 {
 			#power-domain-cells = <0>;
 			domain-idle-states = <&CLUSTER_CL4>, <&CLUSTER_CL5>;
+			power-domains = <&SYSTEM_PD>;
 		};
 
 		CLUSTER_PD2: power-domain-cpu-cluster2 {
 			#power-domain-cells = <0>;
 			domain-idle-states = <&CLUSTER_CL4>, <&CLUSTER_CL5>;
+			power-domains = <&SYSTEM_PD>;
+		};
+
+		SYSTEM_PD: power-domain-system {
+			#power-domain-cells = <0>;
+			/* TODO: system-wide idle states */
 		};
 	};
 
