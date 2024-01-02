@@ -393,6 +393,11 @@ static inline int khz_to_mhz_ceil(int khz)
 	return (khz + 999) / 1000;
 }
 
+static inline int khz_to_mhz_floor(int khz)
+{
+	return khz / 1000;
+}
+
 int clk_mgr_helper_get_active_display_cnt(
 		struct dc *dc,
 		struct dc_state *context);
