@@ -2,7 +2,7 @@
 /*
  * KUnit tests for inform_bss functions
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -406,9 +406,27 @@ static struct inform_bss_ml_sta_case {
 	const char *desc;
 	int mld_id;
 	bool sta_prof_vendor_elems;
+	bool include_oper_class;
 } inform_bss_ml_sta_cases[] = {
-	{ .desc = "no_mld_id", .mld_id = 0, .sta_prof_vendor_elems = false },
-	{ .desc = "mld_id_eq_1", .mld_id = 1, .sta_prof_vendor_elems = true },
+	{
+		.desc = "zero_mld_id",
+		.mld_id = 0,
+		.sta_prof_vendor_elems = false,
+	}, {
+		.desc = "zero_mld_id_with_oper_class",
+		.mld_id = 0,
+		.sta_prof_vendor_elems = false,
+		.include_oper_class = true,
+	}, {
+		.desc = "mld_id_eq_1",
+		.mld_id = 1,
+		.sta_prof_vendor_elems = true,
+	}, {
+		.desc = "mld_id_eq_1_with_oper_class",
+		.mld_id = 1,
+		.sta_prof_vendor_elems = true,
+		.include_oper_class = true,
+	},
 };
 KUNIT_ARRAY_PARAM_DESC(inform_bss_ml_sta, inform_bss_ml_sta_cases, desc)
 
@@ -515,6 +533,12 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	skb_put_u8(input, 4);
 	skb_put_data(input, "TEST", 4);
 
+	if (params->include_oper_class) {
+		skb_put_u8(input, WLAN_EID_SUPPORTED_REGULATORY_CLASSES);
+		skb_put_u8(input, 1);
+		skb_put_u8(input, 81);
+	}
+
 	skb_put_u8(input, WLAN_EID_REDUCED_NEIGHBOR_REPORT);
 	skb_put_u8(input, sizeof(rnr));
 	skb_put_data(input, &rnr, sizeof(rnr));
@@ -582,15 +606,21 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ies->tsf, tsf + le64_to_cpu(sta_prof.tsf_offset));
 	/* Resulting length should be:
 	 * SSID (inherited) + RNR (inherited) + vendor element(s) +
+	 * operating class (if requested) +
+	 * generated RNR (if MLD ID == 0) +
 	 * MLE common info + MLE header and control
 	 */
 	if (params->sta_prof_vendor_elems)
 		KUNIT_EXPECT_EQ(test, ies->len,
 				6 + 2 + sizeof(rnr) + 2 + 160 + 2 + 165 +
+				(params->include_oper_class ? 3 : 0) +
+				(!params->mld_id ? 22 : 0) +
 				mle_basic_common_info.var_len + 5);
 	else
 		KUNIT_EXPECT_EQ(test, ies->len,
 				6 + 2 + sizeof(rnr) + 2 + 155 +
+				(params->include_oper_class ? 3 : 0) +
+				(!params->mld_id ? 22 : 0) +
 				mle_basic_common_info.var_len + 5);
 	rcu_read_unlock();
 
