@@ -773,7 +773,7 @@ int gpiochip_sysfs_register_all(void)
 	struct gpio_device *gdev;
 	int ret;
 
-	guard(mutex)(&gpio_devices_lock);
+	guard(rwsem_read)(&gpio_devices_sem);
 
 	list_for_each_entry(gdev, &gpio_devices, list) {
 		if (gdev->mockdev)
