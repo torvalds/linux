@@ -1254,9 +1254,7 @@ static int ufs_mtk_link_set_hpm(struct ufs_hba *hba)
 		ufs_mtk_config_mcq(hba, false);
 		ufshcd_mcq_make_queues_operational(hba);
 		ufshcd_mcq_config_mac(hba, hba->nutrs);
-		/* Enable MCQ mode */
-		ufshcd_writel(hba, ufshcd_readl(hba, REG_UFS_MEM_CFG) | 0x1,
-			      REG_UFS_MEM_CFG);
+		ufshcd_mcq_enable(hba);
 	}
 
 	return 0;
