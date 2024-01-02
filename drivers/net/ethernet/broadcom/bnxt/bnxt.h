@@ -1219,7 +1219,7 @@ struct bnxt_vnic_info {
 	u16		fw_rss_cos_lb_ctx[BNXT_MAX_CTX_PER_VNIC];
 	u16		fw_l2_ctx_id;
 #define BNXT_MAX_UC_ADDRS	4
-	__le64		fw_l2_filter_id[BNXT_MAX_UC_ADDRS];
+	struct bnxt_l2_filter *l2_filters[BNXT_MAX_UC_ADDRS];
 				/* index 0 always dev_addr */
 	u16		uc_filter_count;
 	u8		*uc_list;
@@ -1332,19 +1332,71 @@ struct bnxt_pf_info {
 	struct bnxt_vf_info	*vf;
 };
 
-struct bnxt_ntuple_filter {
+struct bnxt_filter_base {
 	struct hlist_node	hash;
-	u8			dst_mac_addr[ETH_ALEN];
-	u8			src_mac_addr[ETH_ALEN];
-	struct flow_keys	fkeys;
 	__le64			filter_id;
+	u8			type;
+#define BNXT_FLTR_TYPE_NTUPLE	1
+#define BNXT_FLTR_TYPE_L2	2
+	u8			flags;
+#define BNXT_ACT_DROP		1
+#define BNXT_ACT_RING_DST	2
+#define BNXT_ACT_FUNC_DST	4
+#define BNXT_ACT_NO_AGING	8
 	u16			sw_id;
-	u8			l2_fltr_idx;
 	u16			rxq;
-	u32			flow_id;
+	u16			fw_vnic_id;
+	u16			vf_idx;
 	unsigned long		state;
 #define BNXT_FLTR_VALID		0
-#define BNXT_FLTR_UPDATE	1
+#define BNXT_FLTR_INSERTED	1
+#define BNXT_FLTR_FW_DELETED	2
+
+	struct rcu_head         rcu;
+};
+
+struct bnxt_ntuple_filter {
+	struct bnxt_filter_base	base;
+	struct flow_keys	fkeys;
+	struct bnxt_l2_filter	*l2_fltr;
+	u32			ntuple_flags;
+#define BNXT_NTUPLE_MATCH_SRC_IP	1
+#define BNXT_NTUPLE_MATCH_DST_IP	2
+#define BNXT_NTUPLE_MATCH_SRC_PORT	4
+#define BNXT_NTUPLE_MATCH_DST_PORT	8
+#define BNXT_NTUPLE_MATCH_ALL		(BNXT_NTUPLE_MATCH_SRC_IP |	\
+					 BNXT_NTUPLE_MATCH_DST_IP |	\
+					 BNXT_NTUPLE_MATCH_SRC_PORT |	\
+					 BNXT_NTUPLE_MATCH_DST_PORT)
+	u32			flow_id;
+};
+
+struct bnxt_l2_key {
+	union {
+		struct {
+			u8	dst_mac_addr[ETH_ALEN];
+			u16	vlan;
+		};
+		u32	filter_key;
+	};
+};
+
+struct bnxt_ipv4_tuple {
+	struct flow_dissector_key_ipv4_addrs v4addrs;
+	struct flow_dissector_key_ports ports;
+};
+
+struct bnxt_ipv6_tuple {
+	struct flow_dissector_key_ipv6_addrs v6addrs;
+	struct flow_dissector_key_ports ports;
+};
+
+#define BNXT_L2_KEY_SIZE	(sizeof(struct bnxt_l2_key) / 4)
+
+struct bnxt_l2_filter {
+	struct bnxt_filter_base	base;
+	struct bnxt_l2_key	l2_key;
+	atomic_t		refcnt;
 };
 
 struct bnxt_link_info {
@@ -2367,6 +2419,7 @@ struct bnxt {
 	int			db_size;
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
+#define BNXT_MAX_FLTR		(BNXT_NTP_FLTR_MAX_FLTR + BNXT_L2_FLTR_MAX_FLTR)
 #define BNXT_NTP_FLTR_HASH_SIZE	512
 #define BNXT_NTP_FLTR_HASH_MASK	(BNXT_NTP_FLTR_HASH_SIZE - 1)
 	struct hlist_head	ntp_fltr_hash_tbl[BNXT_NTP_FLTR_HASH_SIZE];
@@ -2374,6 +2427,14 @@ struct bnxt {
 
 	unsigned long		*ntp_fltr_bmap;
 	int			ntp_fltr_count;
+
+#define BNXT_L2_FLTR_MAX_FLTR	1024
+#define BNXT_L2_FLTR_HASH_SIZE	32
+#define BNXT_L2_FLTR_HASH_MASK	(BNXT_L2_FLTR_HASH_SIZE - 1)
+	struct hlist_head	l2_fltr_hash_tbl[BNXT_L2_FLTR_HASH_SIZE];
+
+	u32			hash_seed;
+	u64			toeplitz_prefix;
 
 	/* To protect link related settings during link changes and
 	 * ethtool settings changes.
@@ -2582,6 +2643,14 @@ int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap,
 			    int bmap_size, bool async_only);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp);
+void bnxt_del_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr);
+int bnxt_hwrm_l2_filter_free(struct bnxt *bp, struct bnxt_l2_filter *fltr);
+int bnxt_hwrm_l2_filter_alloc(struct bnxt *bp, struct bnxt_l2_filter *fltr);
+int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,
+				     struct bnxt_ntuple_filter *fltr);
+int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
+				      struct bnxt_ntuple_filter *fltr);
+void bnxt_fill_ipv6_mask(__be32 mask[4]);
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id);
 int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings);
@@ -2625,6 +2694,13 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 int bnxt_fw_init_one(struct bnxt *bp);
 bool bnxt_hwrm_reset_permitted(struct bnxt *bp);
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
+struct bnxt_ntuple_filter *bnxt_lookup_ntp_filter_from_idx(struct bnxt *bp,
+				struct bnxt_ntuple_filter *fltr, u32 idx);
+u32 bnxt_get_ntp_filter_idx(struct bnxt *bp, struct flow_keys *fkeys,
+			    const struct sk_buff *skb);
+int bnxt_insert_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr,
+			   u32 idx);
+void bnxt_del_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 int bnxt_restore_pf_fw_resources(struct bnxt *bp);
 int bnxt_get_port_parent_id(struct net_device *dev,
