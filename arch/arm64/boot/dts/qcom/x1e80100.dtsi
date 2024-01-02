@@ -3418,12 +3418,12 @@
 			reg = <0 0x17800000 0 0x1000>;
 
 			#address-cells = <2>;
-			#size-cells = <2>;
-			ranges;
+			#size-cells = <1>;
+			ranges = <0 0 0 0 0x20000000>;
 
 			frame@17801000 {
-				reg = <0 0x17801000 0 0x1000>,
-				      <0 0x17802000 0 0x1000>;
+				reg = <0 0x17801000 0x1000>,
+				      <0 0x17802000 0x1000>;
 
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 					     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
@@ -3432,7 +3432,7 @@
 			};
 
 			frame@17803000 {
-				reg = <0 0x17803000 0 0x1000>;
+				reg = <0 0x17803000 0x1000>;
 
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -3442,7 +3442,7 @@
 			};
 
 			frame@17805000 {
-				reg = <0 0x17805000 0 0x1000>;
+				reg = <0 0x17805000 0x1000>;
 
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -3452,7 +3452,7 @@
 			};
 
 			frame@17807000 {
-				reg = <0 0x17807000 0 0x1000>;
+				reg = <0 0x17807000 0x1000>;
 
 				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -3462,7 +3462,7 @@
 			};
 
 			frame@17809000 {
-				reg = <0 0x17809000 0 0x1000>;
+				reg = <0 0x17809000 0x1000>;
 
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -3472,7 +3472,7 @@
 			};
 
 			frame@1780b000 {
-				reg = <0 0x1780b000 0 0x1000>;
+				reg = <0 0x1780b000 0x1000>;
 
 				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 
@@ -3482,7 +3482,7 @@
 			};
 
 			frame@1780d000 {
-				reg = <0 0x1780d000 0 0x1000>;
+				reg = <0 0x1780d000 0x1000>;
 
 				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 

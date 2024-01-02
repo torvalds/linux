@@ -40,13 +40,11 @@
 
 		vdd-bob1-supply = <&vph_pwr>;
 		vdd-bob2-supply = <&vph_pwr>;
-		vdd-l1-supply = <&vreg_s4c_1p8>;
+		vdd-l1-l4-l10-supply = <&vreg_s4c_1p8>;
 		vdd-l2-l13-l14-supply = <&vreg_bob1>;
-		vdd-l4-supply = <&vreg_s4c_1p8>;
 		vdd-l5-l16-supply = <&vreg_bob1>;
 		vdd-l6-l7-supply = <&vreg_bob2>;
 		vdd-l8-l9-supply = <&vreg_bob1>;
-		vdd-l10-supply = <&vreg_s4c_1p8>;
 		vdd-l12-supply = <&vreg_s5j_1p2>;
 		vdd-l15-supply = <&vreg_s4c_1p8>;
 		vdd-l17-supply = <&vreg_bob2>;
