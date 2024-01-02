@@ -261,7 +261,7 @@ static int __ip_route_add(int sock, uint32_t seq, const char *intf, int family,
 	req.nh.nlmsg_seq	= seq;
 	req.rt.rtm_family	= family;
 	req.rt.rtm_dst_len	= (family == AF_INET) ? 32 : 128;
-	req.rt.rtm_table	= RT_TABLE_MAIN;
+	req.rt.rtm_table	= vrf;
 	req.rt.rtm_protocol	= RTPROT_BOOT;
 	req.rt.rtm_scope	= RT_SCOPE_UNIVERSE;
 	req.rt.rtm_type		= RTN_UNICAST;
@@ -294,8 +294,6 @@ int ip_route_add_vrf(const char *intf, int family,
 
 	ret = __ip_route_add(route_sock, route_seq++, intf,
 			     family, src, dst, vrf);
-	if (ret == -EEXIST) /* ignoring */
-		ret = 0;
 
 	close(route_sock);
 	return ret;

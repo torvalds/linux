@@ -46,8 +46,10 @@ static void test_add_routes(union tcp_addr *ips, size_t ips_nr)
 
 	for (i = 0; i < ips_nr; i++) {
 		union tcp_addr *p = (union tcp_addr *)&ips[i];
+		int err;
 
-		if (ip_route_add(veth_name, TEST_FAMILY, this_ip_addr, *p))
+		err = ip_route_add(veth_name, TEST_FAMILY, this_ip_addr, *p);
+		if (err && err != -EEXIST)
 			test_error("Failed to add route");
 	}
 }
