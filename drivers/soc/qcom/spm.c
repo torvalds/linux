@@ -36,6 +36,26 @@ enum spm_reg {
 	SPM_REG_NR,
 };
 
+#define MAX_PMIC_DATA		2
+#define MAX_SEQ_DATA		64
+
+struct spm_reg_data {
+	const u16 *reg_offset;
+	u32 spm_cfg;
+	u32 spm_dly;
+	u32 pmic_dly;
+	u32 pmic_data[MAX_PMIC_DATA];
+	u32 avs_ctl;
+	u32 avs_limit;
+	u8 seq[MAX_SEQ_DATA];
+	u8 start_index[PM_SLEEP_MODE_NR];
+};
+
+struct spm_driver_data {
+	void __iomem *reg_base;
+	const struct spm_reg_data *reg_data;
+};
+
 static const u16 spm_reg_offset_v4_1[SPM_REG_NR] = {
 	[SPM_REG_AVS_CTL]	= 0x904,
 	[SPM_REG_AVS_LIMIT]	= 0x908,
