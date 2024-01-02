@@ -4936,6 +4936,30 @@ static inline u8 ieee80211_mle_common_size(const u8 *data)
 }
 
 /**
+ * ieee80211_mle_get_link_id - returns the link ID
+ * @data: the basic multi link element
+ *
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ *
+ * If the BSS link ID can't be found, -1 will be returned
+ */
+static inline int ieee80211_mle_get_link_id(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	/* common points now at the beginning of ieee80211_mle_basic_common_info */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_LINK_ID))
+		return -1;
+
+	return *common;
+}
+
+/**
  * ieee80211_mle_get_bss_param_ch_cnt - returns the BSS parameter change count
  * @mle: the basic multi link element
  *
