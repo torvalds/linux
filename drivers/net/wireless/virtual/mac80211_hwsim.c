@@ -5003,6 +5003,8 @@ static const struct wiphy_iftype_ext_capab mac80211_hwsim_iftypes_ext_capa[] = {
 		.extended_capabilities = iftypes_ext_capa_ap,
 		.extended_capabilities_mask = iftypes_ext_capa_ap,
 		.extended_capabilities_len = sizeof(iftypes_ext_capa_ap),
+		.eml_capabilities = IEEE80211_EML_CAP_EMLSR_SUPP |
+				    IEEE80211_EML_CAP_EMLMR_SUPPORT,
 		.mld_capa_and_ops = MAC80211_HWSIM_MLD_CAPA_OPS,
 	},
 };
