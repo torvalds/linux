@@ -553,8 +553,8 @@ static int alloc_hpa(struct cxl_region *cxlr, resource_size_t size)
 				    dev_name(&cxlr->dev));
 	if (IS_ERR(res)) {
 		dev_dbg(&cxlr->dev,
-			"HPA allocation error (%ld) for size:%#llx in %s %pr\n",
-			PTR_ERR(res), size, cxlrd->res->name, cxlrd->res);
+			"HPA allocation error (%ld) for size:%pap in %s %pr\n",
+			PTR_ERR(res), &size, cxlrd->res->name, cxlrd->res);
 		return PTR_ERR(res);
 	}
 
