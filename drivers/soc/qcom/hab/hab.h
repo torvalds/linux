@@ -305,6 +305,7 @@ struct hab_device {
 struct uhab_context {
 	struct list_head node; /* managed by the driver */
 	struct kref refcount;
+	struct work_struct destroy_work;
 
 	struct list_head vchannels;
 	int vcnt;
