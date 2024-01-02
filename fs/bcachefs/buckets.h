@@ -283,22 +283,10 @@ static inline unsigned fs_usage_u64s(struct bch_fs *c)
 	return __fs_usage_u64s(READ_ONCE(c->replicas.nr));
 }
 
-static inline unsigned __fs_usage_online_u64s(unsigned nr_replicas)
-{
-	return sizeof(struct bch_fs_usage_online) / sizeof(u64) + nr_replicas;
-}
-
-static inline unsigned fs_usage_online_u64s(struct bch_fs *c)
-{
-	return __fs_usage_online_u64s(READ_ONCE(c->replicas.nr));
-}
-
 static inline unsigned dev_usage_u64s(void)
 {
 	return sizeof(struct bch_dev_usage) / sizeof(u64);
 }
-
-u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage_online *);
 
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);

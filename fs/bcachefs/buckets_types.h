@@ -64,11 +64,6 @@ struct bch_fs_usage {
 	u64			replicas[];
 };
 
-struct bch_fs_usage_online {
-	u64			online_reserved;
-	struct bch_fs_usage	u;
-};
-
 struct bch_fs_usage_short {
 	u64			capacity;
 	u64			used;

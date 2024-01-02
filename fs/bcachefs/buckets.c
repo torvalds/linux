@@ -37,16 +37,6 @@ static u64 reserve_factor(u64 r)
 	return r + (round_up(r, (1 << RESERVE_FACTOR)) >> RESERVE_FACTOR);
 }
 
-u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage_online *fs_usage)
-{
-	return min(fs_usage->u.b.hidden +
-		   fs_usage->u.b.btree +
-		   fs_usage->u.b.data +
-		   reserve_factor(fs_usage->u.b.reserved +
-				  fs_usage->online_reserved),
-		   c->capacity);
-}
-
 static struct bch_fs_usage_short
 __bch2_fs_usage_read_short(struct bch_fs *c)
 {
