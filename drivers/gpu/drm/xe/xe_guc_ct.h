@@ -24,9 +24,11 @@ void xe_guc_ct_print(struct xe_guc_ct *ct, struct drm_printer *p, bool atomic);
 
 static inline void xe_guc_ct_irq_handler(struct xe_guc_ct *ct)
 {
+	if (!ct->enabled)
+		return;
+
 	wake_up_all(&ct->wq);
-	if (ct->enabled)
-		queue_work(system_unbound_wq, &ct->g2h_worker);
+	queue_work(system_unbound_wq, &ct->g2h_worker);
 	xe_guc_ct_fast_path(ct);
 }
 
