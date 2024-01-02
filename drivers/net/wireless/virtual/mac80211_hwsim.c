@@ -4984,6 +4984,29 @@ static void mac80211_hwsim_sband_capab(struct ieee80211_supported_band *sband)
 	 BIT(NL80211_IFTYPE_MESH_POINT) | \
 	 BIT(NL80211_IFTYPE_OCB))
 
+static const u8 iftypes_ext_capa_ap[] = {
+	 [0] = WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING,
+	 [2] = WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT,
+	 [7] = WLAN_EXT_CAPA8_OPMODE_NOTIF |
+	       WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB,
+	 [8] = WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB,
+	 [9] = WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT,
+};
+
+#define MAC80211_HWSIM_MLD_CAPA_OPS FIELD_PREP_CONST( \
+	IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP, \
+	IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME)
+
+static const struct wiphy_iftype_ext_capab mac80211_hwsim_iftypes_ext_capa[] = {
+	{
+		.iftype = NL80211_IFTYPE_AP,
+		.extended_capabilities = iftypes_ext_capa_ap,
+		.extended_capabilities_mask = iftypes_ext_capa_ap,
+		.extended_capabilities_len = sizeof(iftypes_ext_capa_ap),
+		.mld_capa_and_ops = MAC80211_HWSIM_MLD_CAPA_OPS,
+	},
+};
+
 static int mac80211_hwsim_new_radio(struct genl_info *info,
 				    struct hwsim_new_radio_params *param)
 {
@@ -5178,6 +5201,10 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 		ieee80211_hw_set(hw, CONNECTION_MONITOR);
 		ieee80211_hw_set(hw, AP_LINK_PS);
+
+		hw->wiphy->iftype_ext_capab = mac80211_hwsim_iftypes_ext_capa;
+		hw->wiphy->num_iftype_ext_capab =
+			ARRAY_SIZE(mac80211_hwsim_iftypes_ext_capa);
 	} else {
 		ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
 		ieee80211_hw_set(hw, PS_NULLFUNC_STACK);
