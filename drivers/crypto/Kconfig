@@ -611,13 +611,13 @@ config CRYPTO_DEV_QCOM_RNG
 	  To compile this driver as a module, choose M here. The
 	  module will be called qcom-rng. If unsure, say N.
 
-config CRYPTO_DEV_VMX
-	bool "Support for VMX cryptographic acceleration instructions"
-	depends on PPC64 && VSX
-	help
-	  Support for VMX cryptographic acceleration instructions.
-
-source "drivers/crypto/vmx/Kconfig"
+#config CRYPTO_DEV_VMX
+#	bool "Support for VMX cryptographic acceleration instructions"
+#	depends on PPC64 && VSX
+#	help
+#	  Support for VMX cryptographic acceleration instructions.
+#
+#source "drivers/crypto/vmx/Kconfig"
 
 config CRYPTO_DEV_IMGTEC_HASH
 	tristate "Imagination Technologies hardware hash accelerator"
