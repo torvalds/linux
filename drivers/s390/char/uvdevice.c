@@ -109,6 +109,7 @@ static int uvio_copy_attest_result_to_user(struct uv_cb_attest *uvcb_attest,
 					   struct uvio_attest *uvio_attest)
 {
 	struct uvio_attest __user *user_uvio_attest = (void __user *)uv_ioctl->argument_addr;
+	u32 __user *user_buf_add_len = (u32 __user *)&user_uvio_attest->add_data_len;
 	void __user *user_buf_add = (void __user *)uvio_attest->add_data_addr;
 	void __user *user_buf_meas = (void __user *)uvio_attest->meas_addr;
 	void __user *user_buf_uid = &user_uvio_attest->config_uid;
@@ -116,6 +117,8 @@ static int uvio_copy_attest_result_to_user(struct uv_cb_attest *uvcb_attest,
 	if (copy_to_user(user_buf_meas, measurement, uvio_attest->meas_len))
 		return -EFAULT;
 	if (add_data && copy_to_user(user_buf_add, add_data, uvio_attest->add_data_len))
+		return -EFAULT;
+	if (put_user(uvio_attest->add_data_len, user_buf_add_len))
 		return -EFAULT;
 	if (copy_to_user(user_buf_uid, uvcb_attest->config_uid, sizeof(uvcb_attest->config_uid)))
 		return -EFAULT;
