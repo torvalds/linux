@@ -604,12 +604,11 @@ static ssize_t rescan_store(const struct bus_type *bus,
 
 	/* Rescan all the devices */
 	for_each_compatible_node(np, NULL, compat_node_name) {
-		if (!np)
-			return -EINVAL;
-
 		pd = of_find_device_by_node(np);
-		if (!pd)
+		if (!pd) {
+			of_node_put(np);
 			return -EINVAL;
+		}
 
 		cdx = platform_get_drvdata(pd);
 		if (cdx && cdx->controller_registered && cdx->ops->scan)
