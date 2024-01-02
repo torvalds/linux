@@ -518,9 +518,7 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
 	struct bch_ioctl_fs_usage arg;
-	struct bch_fs_usage_online *src = NULL;
 	darray_char replicas = {};
-	unsigned i;
 	u32 replica_entries_bytes;
 	int ret = 0;
 
@@ -536,25 +534,26 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	if (ret)
 		goto err;
 
+	struct bch_fs_usage_short u = bch2_fs_usage_read_short(c);
 	arg.capacity		= c->capacity;
-	arg.used		= bch2_fs_sectors_used(c, src);
-	arg.online_reserved	= src->online_reserved;
+	arg.used		= u.used;
+	arg.online_reserved	= percpu_u64_get(c->online_reserved);
 	arg.replica_entries_bytes = replicas.nr;
 
-	src = bch2_fs_usage_read(c);
-	if (!src) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++) {
+		struct disk_accounting_pos k = {
+			.type = BCH_DISK_ACCOUNTING_persistent_reserved,
+			.persistent_reserved.nr_replicas = i,
+		};
 
-	for (i = 0; i < BCH_REPLICAS_MAX; i++)
-		arg.persistent_reserved[i] = src->u.persistent_reserved[i];
-	percpu_up_read(&c->mark_lock);
+		bch2_accounting_mem_read(c,
+					 disk_accounting_pos_to_bpos(&k),
+					 &arg.persistent_reserved[i], 1);
+	}
 
 	ret = copy_to_user_errcode(user_arg, &arg, sizeof(arg));
 err:
 	darray_exit(&replicas);
-	kfree(src);
 	return ret;
 }
 

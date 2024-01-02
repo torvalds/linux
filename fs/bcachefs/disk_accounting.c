@@ -38,7 +38,7 @@
  * replay).
  *
  * To do a disk accounting update:
- * - initialize a disk_accounting_key, to specify which counter is being update
+ * - initialize a disk_accounting_pos, to specify which counter is being update
  * - initialize counter deltas, as an array of 1-3 s64s
  * - call bch2_disk_accounting_mod()
  *

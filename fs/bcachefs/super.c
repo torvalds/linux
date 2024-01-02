@@ -791,8 +791,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	INIT_LIST_HEAD(&c->list);
 
-	mutex_init(&c->usage_scratch_lock);
-
 	mutex_init(&c->bio_bounce_pages_lock);
 	mutex_init(&c->snapshot_table_lock);
 	init_rwsem(&c->snapshot_create_lock);

@@ -308,12 +308,9 @@ static int replicas_table_update(struct bch_fs *c,
 				 struct bch_replicas_cpu *new_r)
 {
 	struct bch_fs_usage __percpu *new_usage[JOURNAL_BUF_NR];
-	struct bch_fs_usage_online *new_scratch = NULL;
 	struct bch_fs_usage __percpu *new_gc = NULL;
 	struct bch_fs_usage *new_base = NULL;
 	unsigned i, bytes = sizeof(struct bch_fs_usage) +
-		sizeof(u64) * new_r->nr;
-	unsigned scratch_bytes = sizeof(struct bch_fs_usage_online) +
 		sizeof(u64) * new_r->nr;
 	int ret = 0;
 
@@ -325,7 +322,6 @@ static int replicas_table_update(struct bch_fs *c,
 			goto err;
 
 	if (!(new_base = kzalloc(bytes, GFP_KERNEL)) ||
-	    !(new_scratch  = kmalloc(scratch_bytes, GFP_KERNEL)) ||
 	    (c->usage_gc &&
 	     !(new_gc = __alloc_percpu_gfp(bytes, sizeof(u64), GFP_KERNEL))))
 		goto err;
@@ -344,12 +340,10 @@ static int replicas_table_update(struct bch_fs *c,
 	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
 		swap(c->usage[i],	new_usage[i]);
 	swap(c->usage_base,	new_base);
-	swap(c->usage_scratch,	new_scratch);
 	swap(c->usage_gc,	new_gc);
 	swap(c->replicas,	*new_r);
 out:
 	free_percpu(new_gc);
-	kfree(new_scratch);
 	for (i = 0; i < ARRAY_SIZE(new_usage); i++)
 		free_percpu(new_usage[i]);
 	kfree(new_base);
@@ -1028,7 +1022,6 @@ void bch2_fs_replicas_exit(struct bch_fs *c)
 {
 	unsigned i;
 
-	kfree(c->usage_scratch);
 	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 		free_percpu(c->usage[i]);
 	kfree(c->usage_base);

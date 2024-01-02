@@ -300,8 +300,6 @@ static inline unsigned dev_usage_u64s(void)
 
 u64 bch2_fs_usage_read_one(struct bch_fs *, u64 *);
 
-struct bch_fs_usage_online *bch2_fs_usage_read(struct bch_fs *);
-
 void bch2_fs_usage_acc_to_base(struct bch_fs *, unsigned);
 
 void bch2_fs_usage_to_text(struct printbuf *,
