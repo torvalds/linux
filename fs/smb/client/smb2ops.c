@@ -614,7 +614,7 @@ parse_server_interfaces(struct network_interface_info_ioctl_rsp *buf,
 				 "multichannel not available\n"
 				 "Empty network interface list returned by server %s\n",
 				 ses->server->hostname);
-		rc = -EINVAL;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -733,12 +733,6 @@ next_iface:
 	/* Azure rounds the buffer size up 8, to a 16 byte boundary */
 	if ((bytes_left > 8) || p->Next)
 		cifs_dbg(VFS, "%s: incomplete interface info\n", __func__);
-
-
-	if (!ses->iface_count) {
-		rc = -EINVAL;
-		goto out;
-	}
 
 out:
 	/*
