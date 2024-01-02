@@ -4879,10 +4879,27 @@ static void __init vmap_init_free_space(void)
 static void vmap_init_nodes(void)
 {
 	struct vmap_node *vn;
-	int i, j;
+	int i, n;
 
-	for (i = 0; i < nr_vmap_nodes; i++) {
-		vn = &vmap_nodes[i];
+#if BITS_PER_LONG == 64
+	/* A high threshold of max nodes is fixed and bound to 128. */
+	n = clamp_t(unsigned int, num_possible_cpus(), 1, 128);
+
+	if (n > 1) {
+		vn = kmalloc_array(n, sizeof(*vn), GFP_NOWAIT | __GFP_NOWARN);
+		if (vn) {
+			/* Node partition is 16 pages. */
+			vmap_zone_size = (1 << 4) * PAGE_SIZE;
+			nr_vmap_nodes = n;
+			vmap_nodes = vn;
+		} else {
+			pr_err("Failed to allocate an array. Disable a node layer\n");
+		}
+	}
+#endif
+
+	for (n = 0; n < nr_vmap_nodes; n++) {
+		vn = &vmap_nodes[n];
 		vn->busy.root = RB_ROOT;
 		INIT_LIST_HEAD(&vn->busy.head);
 		spin_lock_init(&vn->busy.lock);
@@ -4891,9 +4908,9 @@ static void vmap_init_nodes(void)
 		INIT_LIST_HEAD(&vn->lazy.head);
 		spin_lock_init(&vn->lazy.lock);
 
-		for (j = 0; j < MAX_VA_SIZE_PAGES; j++) {
-			INIT_LIST_HEAD(&vn->pool[j].head);
-			WRITE_ONCE(vn->pool[j].len, 0);
+		for (i = 0; i < MAX_VA_SIZE_PAGES; i++) {
+			INIT_LIST_HEAD(&vn->pool[i].head);
+			WRITE_ONCE(vn->pool[i].len, 0);
 		}
 
 		spin_lock_init(&vn->pool_lock);
