@@ -2738,6 +2738,24 @@ static int mac80211_hwsim_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
+static enum ieee80211_neg_ttlm_res
+mac80211_hwsim_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			    struct ieee80211_neg_ttlm *neg_ttlm)
+{
+	u32 i;
+
+	/* For testing purposes, accept if all TIDs are mapped to the same links
+	 * set, otherwise reject.
+	 */
+	for (i = 0; i < IEEE80211_TTLM_NUM_TIDS; i++) {
+		if (neg_ttlm->downlink[i] != neg_ttlm->uplink[i] ||
+		    neg_ttlm->downlink[i] != neg_ttlm->downlink[0])
+			return NEG_TTLM_RES_REJECT;
+	}
+
+	return NEG_TTLM_RES_ACCEPT;
+}
+
 #ifdef CONFIG_NL80211_TESTMODE
 /*
  * This section contains example code for using netlink
@@ -3903,6 +3921,7 @@ static const struct ieee80211_ops mac80211_hwsim_mlo_ops = {
 	.change_vif_links = mac80211_hwsim_change_vif_links,
 	.change_sta_links = mac80211_hwsim_change_sta_links,
 	.sta_state = mac80211_hwsim_sta_state,
+	.can_neg_ttlm = mac80211_hwsim_can_neg_ttlm,
 };
 
 struct hwsim_new_radio_params {
