@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018-19, Linaro Limited
-// Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -1522,6 +1522,15 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	}
 	ETHQOSDBG(": emac_core_version = %d\n", ethqos->emac_ver);
 
+	if (of_property_read_bool(pdev->dev.of_node,
+				  "gdsc-off-on-suspend")) {
+		ethqos->gdsc_off_on_suspend = true;
+	} else {
+		ethqos->gdsc_off_on_suspend = false;
+	}
+	ETHQOSDBG("gdsc-off-on-suspend = %d\n",
+		  ethqos->gdsc_off_on_suspend);
+
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
 		goto err_clk;
@@ -1600,6 +1609,13 @@ static int qcom_ethqos_suspend(struct device *dev)
 	ret = stmmac_suspend(dev);
 	qcom_ethqos_phy_suspend_clks(ethqos);
 
+	if (ethqos->gdsc_off_on_suspend) {
+		if (ethqos->gdsc_emac) {
+			regulator_disable(ethqos->gdsc_emac);
+			ETHQOSDBG("Disabled <%s>\n", EMAC_GDSC_EMAC_NAME);
+		}
+	}
+
 	ETHQOSDBG(" ret = %d\n", ret);
 	return ret;
 }
@@ -1619,6 +1635,13 @@ static int qcom_ethqos_resume(struct device *dev)
 	if (!ethqos)
 		return -ENODEV;
 
+	if (ethqos->gdsc_off_on_suspend) {
+		ret = regulator_enable(ethqos->gdsc_emac);
+		if (ret)
+			ETHQOSERR("Can not enable <%s>\n", EMAC_GDSC_EMAC_NAME);
+		ETHQOSDBG("Enabled <%s>\n", EMAC_GDSC_EMAC_NAME);
+	}
+
 	ndev = dev_get_drvdata(dev);
 	if (!ndev || !netif_running(ndev)) {
 		ETHQOSERR(" Resume not possible\n");
@@ -1626,6 +1649,8 @@ static int qcom_ethqos_resume(struct device *dev)
 	}
 
 	qcom_ethqos_phy_resume_clks(ethqos);
+	if (ethqos->gdsc_off_on_suspend)
+		ethqos_set_func_clk_en(ethqos);
 
 	ret = stmmac_resume(dev);
 

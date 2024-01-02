@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
-/*Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.*/
+/*Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.*/
 #ifndef	_DWMAC_QCOM_ETHQOS_H
 #define	_DWMAC_QCOM_ETHQOS_H
 
@@ -39,6 +39,8 @@
 #define EMAC_HW_v3_1_0 0x30010000
 #define EMAC_HW_v4_0_0 0x40000000
 #define EMAC_HW_vMAX 9
+
+#define EMAC_GDSC_EMAC_NAME "gdsc_emac"
 
 struct ethqos_emac_por {
 	unsigned int offset;
@@ -81,6 +83,9 @@ struct qcom_ethqos {
 	/* Boolean to check if clock is suspended*/
 	int clks_suspended;
 	struct completion clk_enable_done;
+	/* Boolean flag for turning off GDSC during suspend */
+	bool gdsc_off_on_suspend;
+
 };
 
 int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);
