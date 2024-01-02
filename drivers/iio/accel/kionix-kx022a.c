@@ -393,17 +393,17 @@ static const unsigned int kx022a_odrs[] = {
  *	(range / 2^bits) * g = (range / 2^bits) * 9.80665 m/s^2
  *	=> KX022A uses 16 bit (HiRes mode - assume the low 8 bits are zeroed
  *	in low-power mode(?) )
- *	=> +/-2G  => 4 / 2^16 * 9,80665 * 10^6 (to scale to micro)
- *	=> +/-2G  - 598.550415
- *	   +/-4G  - 1197.10083
- *	   +/-8G  - 2394.20166
- *	   +/-16G - 4788.40332
+ *	=> +/-2G  => 4 / 2^16 * 9,80665
+ *	=> +/-2G  - 0.000598550415
+ *	   +/-4G  - 0.00119710083
+ *	   +/-8G  - 0.00239420166
+ *	   +/-16G - 0.00478840332
  */
 static const int kx022a_scale_table[][2] = {
-	{ 598, 550415 },
-	{ 1197, 100830 },
-	{ 2394, 201660 },
-	{ 4788, 403320 },
+	{ 0, 598550 },
+	{ 0, 1197101 },
+	{ 0, 2394202 },
+	{ 0, 4788403 },
 };
 
 static int kx022a_read_avail(struct iio_dev *indio_dev,
@@ -422,7 +422,7 @@ static int kx022a_read_avail(struct iio_dev *indio_dev,
 		*vals = (const int *)kx022a_scale_table;
 		*length = ARRAY_SIZE(kx022a_scale_table) *
 			  ARRAY_SIZE(kx022a_scale_table[0]);
-		*type = IIO_VAL_INT_PLUS_MICRO;
+		*type = IIO_VAL_INT_PLUS_NANO;
 		return IIO_AVAIL_LIST;
 	default:
 		return -EINVAL;
@@ -483,6 +483,20 @@ static int kx022a_turn_on_unlock(struct kx022a_data *data)
 	mutex_unlock(&data->mutex);
 
 	return ret;
+}
+
+static int kx022a_write_raw_get_fmt(struct iio_dev *idev,
+				    struct iio_chan_spec const *chan,
+				    long mask)
+{
+	switch (mask) {
+	case IIO_CHAN_INFO_SCALE:
+		return IIO_VAL_INT_PLUS_NANO;
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		return IIO_VAL_INT_PLUS_MICRO;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int kx022a_write_raw(struct iio_dev *idev,
@@ -629,7 +643,7 @@ static int kx022a_read_raw(struct iio_dev *idev,
 
 		kx022a_reg2scale(regval, val, val2);
 
-		return IIO_VAL_INT_PLUS_MICRO;
+		return IIO_VAL_INT_PLUS_NANO;
 	}
 
 	return -EINVAL;
@@ -856,6 +870,7 @@ static int kx022a_fifo_flush(struct iio_dev *idev, unsigned int samples)
 static const struct iio_info kx022a_info = {
 	.read_raw = &kx022a_read_raw,
 	.write_raw = &kx022a_write_raw,
+	.write_raw_get_fmt = &kx022a_write_raw_get_fmt,
 	.read_avail = &kx022a_read_avail,
 
 	.validate_trigger	= iio_validate_own_trigger,

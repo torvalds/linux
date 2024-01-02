@@ -654,9 +654,8 @@ static bool svc_alloc_arg(struct svc_rqst *rqstp)
 	}
 
 	for (filled = 0; filled < pages; filled = ret) {
-		ret = alloc_pages_bulk_array_node(GFP_KERNEL,
-						  rqstp->rq_pool->sp_id,
-						  pages, rqstp->rq_pages);
+		ret = alloc_pages_bulk_array(GFP_KERNEL, pages,
+					     rqstp->rq_pages);
 		if (ret > filled)
 			/* Made progress, don't sleep yet */
 			continue;

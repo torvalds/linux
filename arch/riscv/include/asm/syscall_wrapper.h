@@ -46,9 +46,6 @@ asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *);
 		return sys_ni_syscall();						\
 	}
 
-#define COMPAT_SYS_NI(name) \
-	SYSCALL_ALIAS(__riscv_compat_sys_##name, sys_ni_posix_timers);
-
 #endif /* CONFIG_COMPAT */
 
 #define __SYSCALL_DEFINEx(x, name, ...)						\
@@ -81,7 +78,5 @@ asmlinkage long __riscv_sys_ni_syscall(const struct pt_regs *);
 	{									\
 		return sys_ni_syscall();					\
 	}
-
-#define SYS_NI(name) SYSCALL_ALIAS(__riscv_sys_##name, sys_ni_posix_timers);
 
 #endif /* __ASM_SYSCALL_WRAPPER_H */

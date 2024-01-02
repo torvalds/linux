@@ -104,12 +104,14 @@ int debugfs_file_get(struct dentry *dentry)
 					~DEBUGFS_FSDATA_IS_REAL_FOPS_BIT);
 		refcount_set(&fsd->active_users, 1);
 		init_completion(&fsd->active_users_drained);
+		INIT_LIST_HEAD(&fsd->cancellations);
+		mutex_init(&fsd->cancellations_mtx);
+
 		if (cmpxchg(&dentry->d_fsdata, d_fsd, fsd) != d_fsd) {
+			mutex_destroy(&fsd->cancellations_mtx);
 			kfree(fsd);
 			fsd = READ_ONCE(dentry->d_fsdata);
 		}
-		INIT_LIST_HEAD(&fsd->cancellations);
-		mutex_init(&fsd->cancellations_mtx);
 	}
 
 	/*
