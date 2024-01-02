@@ -149,6 +149,8 @@ struct aca_handle {
 	struct aca_handle_manager *mgr;
 	struct aca_error_cache error_cache;
 	const struct aca_bank_ops *bank_ops;
+	struct device_attribute aca_attr;
+	char attr_name[64];
 	const char *name;
 	u32 mask;
 	void *data;

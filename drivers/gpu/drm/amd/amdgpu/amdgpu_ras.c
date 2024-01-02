@@ -1214,6 +1214,21 @@ static int amdgpu_aca_log_ras_error_data(struct amdgpu_device *adev, enum amdgpu
 	return amdgpu_aca_get_error_data(adev, &obj->aca_handle, type, err_data);
 }
 
+ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *attr,
+				  struct aca_handle *handle, char *buf, void *data)
+{
+	struct ras_manager *obj = container_of(handle, struct ras_manager, aca_handle);
+	struct ras_query_if info = {
+		.head = obj->head,
+	};
+
+	if (amdgpu_ras_query_error_status(obj->adev, &info))
+		return -EINVAL;
+
+	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
+			  "ce", info.ce_count);
+}
+
 static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 						struct ras_query_if *info,
 						struct ras_err_data *err_data,

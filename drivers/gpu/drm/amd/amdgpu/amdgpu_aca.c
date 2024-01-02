@@ -572,15 +572,45 @@ static int add_aca_handle(struct amdgpu_device *adev, struct aca_handle_manager 
 	return 0;
 }
 
+static ssize_t aca_sysfs_read(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct aca_handle *handle = container_of(attr, struct aca_handle, aca_attr);
+
+	/* NOTE: the aca cache will be auto cleared once read,
+	 * So the driver should unify the query entry point, forward request to ras query interface directly */
+	return amdgpu_ras_aca_sysfs_read(dev, attr, handle, buf, handle->data);
+}
+
+static int add_aca_sysfs(struct amdgpu_device *adev, struct aca_handle *handle)
+{
+	struct device_attribute *aca_attr = &handle->aca_attr;
+
+	snprintf(handle->attr_name, sizeof(handle->attr_name) - 1, "aca_%s", handle->name);
+	aca_attr->show = aca_sysfs_read;
+	aca_attr->attr.name = handle->attr_name;
+	aca_attr->attr.mode = S_IRUGO;
+	sysfs_attr_init(&aca_attr->attr);
+
+	return sysfs_add_file_to_group(&adev->dev->kobj,
+				       &aca_attr->attr,
+				       "ras");
+}
+
 int amdgpu_aca_add_handle(struct amdgpu_device *adev, struct aca_handle *handle,
 			  const char *name, const struct aca_info *ras_info, void *data)
 {
 	struct amdgpu_aca *aca = &adev->aca;
+	int ret;
 
 	if (!amdgpu_aca_is_enabled(adev))
 		return 0;
 
-	return add_aca_handle(adev, &aca->mgr, handle, name, ras_info, data);
+	ret = add_aca_handle(adev, &aca->mgr, handle, name, ras_info, data);
+	if (ret)
+		return ret;
+
+	return add_aca_sysfs(adev, handle);
 }
 
 static void remove_aca(struct aca_handle *handle)
