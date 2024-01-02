@@ -36,11 +36,11 @@ static int so_priority;
 module_param(so_priority, int, 0644);
 MODULE_PARM_DESC(so_priority, "nvme tcp socket optimize priority");
 
-#ifdef CONFIG_NVME_TCP_TLS
 /*
  * TLS handshake timeout
  */
 static int tls_handshake_timeout = 10;
+#ifdef CONFIG_NVME_TCP_TLS
 module_param(tls_handshake_timeout, int, 0644);
 MODULE_PARM_DESC(tls_handshake_timeout,
 		 "nvme TLS handshake timeout in seconds (default 10)");
@@ -161,10 +161,8 @@ struct nvme_tcp_queue {
 	struct ahash_request	*snd_hash;
 	__le32			exp_ddgst;
 	__le32			recv_ddgst;
-#ifdef CONFIG_NVME_TCP_TLS
 	struct completion       tls_complete;
 	int                     tls_err;
-#endif
 	struct page_frag_cache	pf_cache;
 
 	void (*state_change)(struct sock *);
@@ -205,6 +203,14 @@ static inline struct nvme_tcp_ctrl *to_tcp_ctrl(struct nvme_ctrl *ctrl)
 static inline int nvme_tcp_queue_id(struct nvme_tcp_queue *queue)
 {
 	return queue - queue->ctrl->queues;
+}
+
+static inline bool nvme_tcp_tls(struct nvme_ctrl *ctrl)
+{
+	if (!IS_ENABLED(CONFIG_NVME_TCP_TLS))
+		return 0;
+
+	return ctrl->opts->tls;
 }
 
 static inline struct blk_mq_tags *nvme_tcp_tagset(struct nvme_tcp_queue *queue)
@@ -1412,7 +1418,7 @@ static int nvme_tcp_init_connection(struct nvme_tcp_queue *queue)
 	memset(&msg, 0, sizeof(msg));
 	iov.iov_base = icresp;
 	iov.iov_len = sizeof(*icresp);
-	if (queue->ctrl->ctrl.opts->tls) {
+	if (nvme_tcp_tls(&queue->ctrl->ctrl)) {
 		msg.msg_control = cbuf;
 		msg.msg_controllen = sizeof(cbuf);
 	}
@@ -1424,7 +1430,7 @@ static int nvme_tcp_init_connection(struct nvme_tcp_queue *queue)
 		goto free_icresp;
 	}
 	ret = -ENOTCONN;
-	if (queue->ctrl->ctrl.opts->tls) {
+	if (nvme_tcp_tls(&queue->ctrl->ctrl)) {
 		ctype = tls_get_record_type(queue->sock->sk,
 					    (struct cmsghdr *)cbuf);
 		if (ctype != TLS_RECORD_TYPE_DATA) {
@@ -1548,7 +1554,6 @@ static void nvme_tcp_set_queue_io_cpu(struct nvme_tcp_queue *queue)
 	queue->io_cpu = cpumask_next_wrap(n - 1, cpu_online_mask, -1, false);
 }
 
-#ifdef CONFIG_NVME_TCP_TLS
 static void nvme_tcp_tls_done(void *data, int status, key_serial_t pskid)
 {
 	struct nvme_tcp_queue *queue = data;
@@ -1625,14 +1630,6 @@ static int nvme_tcp_start_tls(struct nvme_ctrl *nctrl,
 	}
 	return ret;
 }
-#else
-static int nvme_tcp_start_tls(struct nvme_ctrl *nctrl,
-			      struct nvme_tcp_queue *queue,
-			      key_serial_t pskid)
-{
-	return -EPROTONOSUPPORT;
-}
-#endif
 
 static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl, int qid,
 				key_serial_t pskid)
@@ -1759,7 +1756,7 @@ static int nvme_tcp_alloc_queue(struct nvme_ctrl *nctrl, int qid,
 	}
 
 	/* If PSKs are configured try to start TLS */
-	if (pskid) {
+	if (IS_ENABLED(CONFIG_NVME_TCP_TLS) && pskid) {
 		ret = nvme_tcp_start_tls(nctrl, queue, pskid);
 		if (ret)
 			goto err_init_connect;
@@ -1916,7 +1913,7 @@ static int nvme_tcp_alloc_admin_queue(struct nvme_ctrl *ctrl)
 	int ret;
 	key_serial_t pskid = 0;
 
-	if (ctrl->opts->tls) {
+	if (nvme_tcp_tls(ctrl)) {
 		if (ctrl->opts->tls_key)
 			pskid = key_serial(ctrl->opts->tls_key);
 		else
@@ -1949,7 +1946,7 @@ static int __nvme_tcp_alloc_io_queues(struct nvme_ctrl *ctrl)
 {
 	int i, ret;
 
-	if (ctrl->opts->tls && !ctrl->tls_key) {
+	if (nvme_tcp_tls(ctrl) && !ctrl->tls_key) {
 		dev_err(ctrl->device, "no PSK negotiated\n");
 		return -ENOKEY;
 	}
@@ -2155,10 +2152,11 @@ static void nvme_tcp_teardown_io_queues(struct nvme_ctrl *ctrl,
 
 static void nvme_tcp_reconnect_or_remove(struct nvme_ctrl *ctrl)
 {
+	enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
 	/* If we are resetting/deleting then do nothing */
-	if (ctrl->state != NVME_CTRL_CONNECTING) {
-		WARN_ON_ONCE(ctrl->state == NVME_CTRL_NEW ||
-			ctrl->state == NVME_CTRL_LIVE);
+	if (state != NVME_CTRL_CONNECTING) {
+		WARN_ON_ONCE(state == NVME_CTRL_NEW || state == NVME_CTRL_LIVE);
 		return;
 	}
 
@@ -2218,8 +2216,10 @@ static int nvme_tcp_setup_ctrl(struct nvme_ctrl *ctrl, bool new)
 		 * unless we're during creation of a new controller to
 		 * avoid races with teardown flow.
 		 */
-		WARN_ON_ONCE(ctrl->state != NVME_CTRL_DELETING &&
-			     ctrl->state != NVME_CTRL_DELETING_NOIO);
+		enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
+			     state != NVME_CTRL_DELETING_NOIO);
 		WARN_ON_ONCE(new);
 		ret = -EINVAL;
 		goto destroy_io;
@@ -2237,6 +2237,7 @@ destroy_io:
 		nvme_tcp_destroy_io_queues(ctrl, new);
 	}
 destroy_admin:
+	nvme_stop_keep_alive(ctrl);
 	nvme_tcp_teardown_admin_queue(ctrl, false);
 	return ret;
 }
@@ -2282,8 +2283,10 @@ static void nvme_tcp_error_recovery_work(struct work_struct *work)
 
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_CONNECTING)) {
 		/* state change failure is ok if we started ctrl delete */
-		WARN_ON_ONCE(ctrl->state != NVME_CTRL_DELETING &&
-			     ctrl->state != NVME_CTRL_DELETING_NOIO);
+		enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
+			     state != NVME_CTRL_DELETING_NOIO);
 		return;
 	}
 
@@ -2313,8 +2316,10 @@ static void nvme_reset_ctrl_work(struct work_struct *work)
 
 	if (!nvme_change_ctrl_state(ctrl, NVME_CTRL_CONNECTING)) {
 		/* state change failure is ok if we started ctrl delete */
-		WARN_ON_ONCE(ctrl->state != NVME_CTRL_DELETING &&
-			     ctrl->state != NVME_CTRL_DELETING_NOIO);
+		enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
+			     state != NVME_CTRL_DELETING_NOIO);
 		return;
 	}
 
@@ -2432,7 +2437,7 @@ static enum blk_eh_timer_return nvme_tcp_timeout(struct request *rq)
 		nvme_tcp_queue_id(req->queue), nvme_cid(rq), pdu->hdr.type,
 		opc, nvme_opcode_str(qid, opc, fctype));
 
-	if (ctrl->state != NVME_CTRL_LIVE) {
+	if (nvme_ctrl_state(ctrl) != NVME_CTRL_LIVE) {
 		/*
 		 * If we are resetting, connecting or deleting we should
 		 * complete immediately because we may block controller

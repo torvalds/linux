@@ -186,8 +186,11 @@ int bch2_trans_update_extent_overwrite(struct btree_trans *trans,
 	enum btree_id btree_id = iter->btree_id;
 	struct bkey_i *update;
 	struct bpos new_start = bkey_start_pos(new.k);
-	bool front_split = bkey_lt(bkey_start_pos(old.k), new_start);
-	bool back_split  = bkey_gt(old.k->p, new.k->p);
+	unsigned front_split = bkey_lt(bkey_start_pos(old.k), new_start);
+	unsigned back_split  = bkey_gt(old.k->p, new.k->p);
+	unsigned middle_split = (front_split || back_split) &&
+		old.k->p.snapshot != new.k->p.snapshot;
+	unsigned nr_splits = front_split + back_split + middle_split;
 	int ret = 0, compressed_sectors;
 
 	/*
@@ -195,10 +198,9 @@ int bch2_trans_update_extent_overwrite(struct btree_trans *trans,
 	 * so that __bch2_trans_commit() can increase our disk
 	 * reservation:
 	 */
-	if (((front_split && back_split) ||
-	     ((front_split || back_split) && old.k->p.snapshot != new.k->p.snapshot)) &&
+	if (nr_splits > 1 &&
 	    (compressed_sectors = bch2_bkey_sectors_compressed(old)))
-		trans->extra_journal_res += compressed_sectors;
+		trans->extra_journal_res += compressed_sectors * (nr_splits - 1);
 
 	if (front_split) {
 		update = bch2_bkey_make_mut_noupdate(trans, old);
@@ -216,8 +218,7 @@ int bch2_trans_update_extent_overwrite(struct btree_trans *trans,
 	}
 
 	/* If we're overwriting in a different snapshot - middle split: */
-	if (old.k->p.snapshot != new.k->p.snapshot &&
-	    (front_split || back_split)) {
+	if (middle_split) {
 		update = bch2_bkey_make_mut_noupdate(trans, old);
 		if ((ret = PTR_ERR_OR_ZERO(update)))
 			return ret;
@@ -554,6 +555,19 @@ int __must_check bch2_trans_update_seq(struct btree_trans *trans, u64 seq,
 						 BTREE_UPDATE_PREJOURNAL);
 }
 
+static noinline int bch2_btree_insert_clone_trans(struct btree_trans *trans,
+						  enum btree_id btree,
+						  struct bkey_i *k)
+{
+	struct bkey_i *n = bch2_trans_kmalloc(trans, bkey_bytes(&k->k));
+	int ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	bkey_copy(n, k);
+	return bch2_btree_insert_trans(trans, btree, n, 0);
+}
+
 int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 					    enum btree_id btree,
 					    struct bkey_i *k)
@@ -563,6 +577,9 @@ int __must_check bch2_trans_update_buffered(struct btree_trans *trans,
 
 	EBUG_ON(trans->nr_wb_updates > trans->wb_updates_size);
 	EBUG_ON(k->k.u64s > BTREE_WRITE_BUFERED_U64s_MAX);
+
+	if (unlikely(trans->journal_replay_not_finished))
+		return bch2_btree_insert_clone_trans(trans, btree, k);
 
 	trans_for_each_wb_update(trans, i) {
 		if (i->btree == btree && bpos_eq(i->k.k.p, k->k.p)) {

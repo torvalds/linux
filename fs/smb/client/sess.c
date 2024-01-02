@@ -322,28 +322,32 @@ cifs_disable_secondary_channels(struct cifs_ses *ses)
 		iface = ses->chans[i].iface;
 		server = ses->chans[i].server;
 
+		/*
+		 * remove these references first, since we need to unlock
+		 * the chan_lock here, since iface_lock is a higher lock
+		 */
+		ses->chans[i].iface = NULL;
+		ses->chans[i].server = NULL;
+		spin_unlock(&ses->chan_lock);
+
 		if (iface) {
 			spin_lock(&ses->iface_lock);
-			kref_put(&iface->refcount, release_iface);
-			ses->chans[i].iface = NULL;
 			iface->num_channels--;
 			if (iface->weight_fulfilled)
 				iface->weight_fulfilled--;
+			kref_put(&iface->refcount, release_iface);
 			spin_unlock(&ses->iface_lock);
 		}
 
-		spin_unlock(&ses->chan_lock);
-		if (server && !server->terminate) {
-			server->terminate = true;
-			cifs_signal_cifsd_for_reconnect(server, false);
-		}
-		spin_lock(&ses->chan_lock);
-
 		if (server) {
-			ses->chans[i].server = NULL;
+			if (!server->terminate) {
+				server->terminate = true;
+				cifs_signal_cifsd_for_reconnect(server, false);
+			}
 			cifs_put_tcp_session(server, false);
 		}
 
+		spin_lock(&ses->chan_lock);
 	}
 
 done:
@@ -435,7 +439,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 		cifs_dbg(FYI, "unable to find a suitable iface\n");
 	}
 
-	if (!chan_index && !iface) {
+	if (!iface) {
 		cifs_dbg(FYI, "unable to get the interface matching: %pIS\n",
 			 &ss);
 		spin_unlock(&ses->iface_lock);
@@ -443,7 +447,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 	}
 
 	/* now drop the ref to the current iface */
-	if (old_iface && iface) {
+	if (old_iface) {
 		cifs_dbg(FYI, "replacing iface: %pIS with %pIS\n",
 			 &old_iface->sockaddr,
 			 &iface->sockaddr);
@@ -456,43 +460,31 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 
 		kref_put(&old_iface->refcount, release_iface);
 	} else if (old_iface) {
-		cifs_dbg(FYI, "releasing ref to iface: %pIS\n",
+		/* if a new candidate is not found, keep things as is */
+		cifs_dbg(FYI, "could not replace iface: %pIS\n",
 			 &old_iface->sockaddr);
-
-		old_iface->num_channels--;
-		if (old_iface->weight_fulfilled)
-			old_iface->weight_fulfilled--;
-
-		kref_put(&old_iface->refcount, release_iface);
 	} else if (!chan_index) {
 		/* special case: update interface for primary channel */
-		cifs_dbg(FYI, "referencing primary channel iface: %pIS\n",
-			 &iface->sockaddr);
-		iface->num_channels++;
-		iface->weight_fulfilled++;
-	} else {
-		WARN_ON(!iface);
-		cifs_dbg(FYI, "adding new iface: %pIS\n", &iface->sockaddr);
+		if (iface) {
+			cifs_dbg(FYI, "referencing primary channel iface: %pIS\n",
+				 &iface->sockaddr);
+			iface->num_channels++;
+			iface->weight_fulfilled++;
+		}
 	}
 	spin_unlock(&ses->iface_lock);
 
-	spin_lock(&ses->chan_lock);
-	chan_index = cifs_ses_get_chan_index(ses, server);
-	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+	if (iface) {
+		spin_lock(&ses->chan_lock);
+		chan_index = cifs_ses_get_chan_index(ses, server);
+		if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+			spin_unlock(&ses->chan_lock);
+			return 0;
+		}
+
+		ses->chans[chan_index].iface = iface;
 		spin_unlock(&ses->chan_lock);
-		return 0;
 	}
-
-	ses->chans[chan_index].iface = iface;
-
-	/* No iface is found. if secondary chan, drop connection */
-	if (!iface && SERVER_IS_CHAN(server))
-		ses->chans[chan_index].server = NULL;
-
-	spin_unlock(&ses->chan_lock);
-
-	if (!iface && SERVER_IS_CHAN(server))
-		cifs_put_tcp_session(server, false);
 
 	return rc;
 }

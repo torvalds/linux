@@ -402,13 +402,7 @@ static int __cifs_reconnect(struct TCP_Server_Info *server,
 			spin_unlock(&server->srv_lock);
 			cifs_swn_reset_server_dstaddr(server);
 			cifs_server_unlock(server);
-
-			/* increase ref count which reconnect work will drop */
-			spin_lock(&cifs_tcp_ses_lock);
-			server->srv_count++;
-			spin_unlock(&cifs_tcp_ses_lock);
-			if (mod_delayed_work(cifsiod_wq, &server->reconnect, 0))
-				cifs_put_tcp_session(server, false);
+			mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 		}
 	} while (server->tcpStatus == CifsNeedReconnect);
 
@@ -538,13 +532,7 @@ static int reconnect_dfs_server(struct TCP_Server_Info *server)
 		spin_unlock(&server->srv_lock);
 		cifs_swn_reset_server_dstaddr(server);
 		cifs_server_unlock(server);
-
-		/* increase ref count which reconnect work will drop */
-		spin_lock(&cifs_tcp_ses_lock);
-		server->srv_count++;
-		spin_unlock(&cifs_tcp_ses_lock);
-		if (mod_delayed_work(cifsiod_wq, &server->reconnect, 0))
-			cifs_put_tcp_session(server, false);
+		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
 	} while (server->tcpStatus == CifsNeedReconnect);
 
 	mutex_lock(&server->refpath_lock);
@@ -1213,7 +1201,12 @@ next_pdu:
 		server->total_read += length;
 
 		if (server->ops->next_header) {
-			next_offset = server->ops->next_header(buf);
+			if (server->ops->next_header(server, buf, &next_offset)) {
+				cifs_dbg(VFS, "%s: malformed response (next_offset=%u)\n",
+					 __func__, next_offset);
+				cifs_reconnect(server, true);
+				continue;
+			}
 			if (next_offset)
 				server->pdu_size = next_offset;
 		}
@@ -1620,25 +1613,22 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 	list_del_init(&server->tcp_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	/* For secondary channels, we pick up ref-count on the primary server */
-	if (SERVER_IS_CHAN(server))
-		cifs_put_tcp_session(server->primary_server, from_reconnect);
-
 	cancel_delayed_work_sync(&server->echo);
 
-	if (from_reconnect) {
+	if (from_reconnect)
 		/*
 		 * Avoid deadlock here: reconnect work calls
 		 * cifs_put_tcp_session() at its end. Need to be sure
 		 * that reconnect work does nothing with server pointer after
 		 * that step.
 		 */
-		if (cancel_delayed_work(&server->reconnect))
-			cifs_put_tcp_session(server, from_reconnect);
-	} else {
-		if (cancel_delayed_work_sync(&server->reconnect))
-			cifs_put_tcp_session(server, from_reconnect);
-	}
+		cancel_delayed_work(&server->reconnect);
+	else
+		cancel_delayed_work_sync(&server->reconnect);
+
+	/* For secondary channels, we pick up ref-count on the primary server */
+	if (SERVER_IS_CHAN(server))
+		cifs_put_tcp_session(server->primary_server, from_reconnect);
 
 	spin_lock(&server->srv_lock);
 	server->tcpStatus = CifsExiting;
@@ -2063,6 +2053,12 @@ void __cifs_put_smb_ses(struct cifs_ses *ses)
 		}
 		cifs_put_tcp_session(ses->chans[i].server, 0);
 		ses->chans[i].server = NULL;
+	}
+
+	/* we now account for primary channel in iface->refcount */
+	if (ses->chans[0].iface) {
+		kref_put(&ses->chans[0].iface->refcount, release_iface);
+		ses->chans[0].server = NULL;
 	}
 
 	sesInfoFree(ses);

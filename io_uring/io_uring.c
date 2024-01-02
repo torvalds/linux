@@ -271,6 +271,7 @@ static __cold void io_fallback_req_func(struct work_struct *work)
 	struct io_kiocb *req, *tmp;
 	struct io_tw_state ts = { .locked = true, };
 
+	percpu_ref_get(&ctx->refs);
 	mutex_lock(&ctx->uring_lock);
 	llist_for_each_entry_safe(req, tmp, node, io_task_work.node)
 		req->io_task_work.func(req, &ts);
@@ -278,6 +279,7 @@ static __cold void io_fallback_req_func(struct work_struct *work)
 		return;
 	io_submit_flush_completions(ctx);
 	mutex_unlock(&ctx->uring_lock);
+	percpu_ref_put(&ctx->refs);
 }
 
 static int io_alloc_hash_table(struct io_hash_table *table, unsigned bits)
@@ -325,6 +327,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	INIT_LIST_HEAD(&ctx->io_buffers_cache);
+	INIT_HLIST_HEAD(&ctx->io_buf_list);
 	io_alloc_cache_init(&ctx->rsrc_node_cache, IO_NODE_ALLOC_CACHE_MAX,
 			    sizeof(struct io_rsrc_node));
 	io_alloc_cache_init(&ctx->apoll_cache, IO_ALLOC_CACHE_MAX,
@@ -2666,7 +2669,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	return READ_ONCE(rings->cq.head) == READ_ONCE(rings->cq.tail) ? ret : 0;
 }
 
-static void io_mem_free(void *ptr)
+void io_mem_free(void *ptr)
 {
 	if (!ptr)
 		return;
@@ -2697,6 +2700,7 @@ static void *__io_uaddr_map(struct page ***pages, unsigned short *npages,
 {
 	struct page **page_array;
 	unsigned int nr_pages;
+	void *page_addr;
 	int ret, i;
 
 	*npages = 0;
@@ -2718,27 +2722,29 @@ err:
 		io_pages_free(&page_array, ret > 0 ? ret : 0);
 		return ret < 0 ? ERR_PTR(ret) : ERR_PTR(-EFAULT);
 	}
-	/*
-	 * Should be a single page. If the ring is small enough that we can
-	 * use a normal page, that is fine. If we need multiple pages, then
-	 * userspace should use a huge page. That's the only way to guarantee
-	 * that we get contigious memory, outside of just being lucky or
-	 * (currently) having low memory fragmentation.
-	 */
-	if (page_array[0] != page_array[ret - 1])
-		goto err;
 
-	/*
-	 * Can't support mapping user allocated ring memory on 32-bit archs
-	 * where it could potentially reside in highmem. Just fail those with
-	 * -EINVAL, just like we did on kernels that didn't support this
-	 * feature.
-	 */
+	page_addr = page_address(page_array[0]);
 	for (i = 0; i < nr_pages; i++) {
-		if (PageHighMem(page_array[i])) {
-			ret = -EINVAL;
+		ret = -EINVAL;
+
+		/*
+		 * Can't support mapping user allocated ring memory on 32-bit
+		 * archs where it could potentially reside in highmem. Just
+		 * fail those with -EINVAL, just like we did on kernels that
+		 * didn't support this feature.
+		 */
+		if (PageHighMem(page_array[i]))
 			goto err;
-		}
+
+		/*
+		 * No support for discontig pages for now, should either be a
+		 * single normal page, or a huge page. Later on we can add
+		 * support for remapping discontig pages, for now we will
+		 * just fail them with EINVAL.
+		 */
+		if (page_address(page_array[i]) != page_addr)
+			goto err;
+		page_addr += PAGE_SIZE;
 	}
 
 	*pages = page_array;
@@ -2775,7 +2781,7 @@ static void io_rings_free(struct io_ring_ctx *ctx)
 	}
 }
 
-static void *io_mem_alloc(size_t size)
+void *io_mem_alloc(size_t size)
 {
 	gfp_t gfp = GFP_KERNEL_ACCOUNT | __GFP_ZERO | __GFP_NOWARN | __GFP_COMP;
 	void *ret;
@@ -2947,6 +2953,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		ctx->mm_account = NULL;
 	}
 	io_rings_free(ctx);
+	io_kbuf_mmap_list_free(ctx);
 
 	percpu_ref_exit(&ctx->refs);
 	free_uid(ctx->user);
@@ -3141,12 +3148,7 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 	init_completion(&exit.completion);
 	init_task_work(&exit.task_work, io_tctx_exit_cb);
 	exit.ctx = ctx;
-	/*
-	 * Some may use context even when all refs and requests have been put,
-	 * and they are free to do so while still holding uring_lock or
-	 * completion_lock, see io_req_task_submit(). Apart from other work,
-	 * this lock/unlock section also waits them to finish.
-	 */
+
 	mutex_lock(&ctx->uring_lock);
 	while (!list_empty(&ctx->tctx_list)) {
 		WARN_ON_ONCE(time_after(jiffies, timeout));
@@ -3475,25 +3477,27 @@ static void *io_uring_validate_mmap_request(struct file *file,
 	struct page *page;
 	void *ptr;
 
-	/* Don't allow mmap if the ring was setup without it */
-	if (ctx->flags & IORING_SETUP_NO_MMAP)
-		return ERR_PTR(-EINVAL);
-
 	switch (offset & IORING_OFF_MMAP_MASK) {
 	case IORING_OFF_SQ_RING:
 	case IORING_OFF_CQ_RING:
+		/* Don't allow mmap if the ring was setup without it */
+		if (ctx->flags & IORING_SETUP_NO_MMAP)
+			return ERR_PTR(-EINVAL);
 		ptr = ctx->rings;
 		break;
 	case IORING_OFF_SQES:
+		/* Don't allow mmap if the ring was setup without it */
+		if (ctx->flags & IORING_SETUP_NO_MMAP)
+			return ERR_PTR(-EINVAL);
 		ptr = ctx->sq_sqes;
 		break;
 	case IORING_OFF_PBUF_RING: {
 		unsigned int bgid;
 
 		bgid = (offset & ~IORING_OFF_MMAP_MASK) >> IORING_OFF_PBUF_SHIFT;
-		mutex_lock(&ctx->uring_lock);
+		rcu_read_lock();
 		ptr = io_pbuf_get_address(ctx, bgid);
-		mutex_unlock(&ctx->uring_lock);
+		rcu_read_unlock();
 		if (!ptr)
 			return ERR_PTR(-EINVAL);
 		break;
@@ -3645,7 +3649,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		size_t, argsz)
 {
 	struct io_ring_ctx *ctx;
-	struct fd f;
+	struct file *file;
 	long ret;
 
 	if (unlikely(flags & ~(IORING_ENTER_GETEVENTS | IORING_ENTER_SQ_WAKEUP |
@@ -3663,20 +3667,19 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
 			return -EINVAL;
 		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
-		f.file = tctx->registered_rings[fd];
-		f.flags = 0;
-		if (unlikely(!f.file))
+		file = tctx->registered_rings[fd];
+		if (unlikely(!file))
 			return -EBADF;
 	} else {
-		f = fdget(fd);
-		if (unlikely(!f.file))
+		file = fget(fd);
+		if (unlikely(!file))
 			return -EBADF;
 		ret = -EOPNOTSUPP;
-		if (unlikely(!io_is_uring_fops(f.file)))
+		if (unlikely(!io_is_uring_fops(file)))
 			goto out;
 	}
 
-	ctx = f.file->private_data;
+	ctx = file->private_data;
 	ret = -EBADFD;
 	if (unlikely(ctx->flags & IORING_SETUP_R_DISABLED))
 		goto out;
@@ -3770,7 +3773,8 @@ iopoll_locked:
 		}
 	}
 out:
-	fdput(f);
+	if (!(flags & IORING_ENTER_REGISTERED_RING))
+		fput(file);
 	return ret;
 }
 
@@ -4611,7 +4615,7 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 {
 	struct io_ring_ctx *ctx;
 	long ret = -EBADF;
-	struct fd f;
+	struct file *file;
 	bool use_registered_ring;
 
 	use_registered_ring = !!(opcode & IORING_REGISTER_USE_REGISTERED_RING);
@@ -4630,27 +4634,27 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
 			return -EINVAL;
 		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
-		f.file = tctx->registered_rings[fd];
-		f.flags = 0;
-		if (unlikely(!f.file))
+		file = tctx->registered_rings[fd];
+		if (unlikely(!file))
 			return -EBADF;
 	} else {
-		f = fdget(fd);
-		if (unlikely(!f.file))
+		file = fget(fd);
+		if (unlikely(!file))
 			return -EBADF;
 		ret = -EOPNOTSUPP;
-		if (!io_is_uring_fops(f.file))
+		if (!io_is_uring_fops(file))
 			goto out_fput;
 	}
 
-	ctx = f.file->private_data;
+	ctx = file->private_data;
 
 	mutex_lock(&ctx->uring_lock);
 	ret = __io_uring_register(ctx, opcode, arg, nr_args);
 	mutex_unlock(&ctx->uring_lock);
 	trace_io_uring_register(ctx, opcode, ctx->nr_user_files, ctx->nr_user_bufs, ret);
 out_fput:
-	fdput(f);
+	if (!use_registered_ring)
+		fput(file);
 	return ret;
 }
 

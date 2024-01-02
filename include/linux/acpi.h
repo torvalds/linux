@@ -15,7 +15,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/uuid.h>
-#include <linux/fw_table.h>
 
 struct irq_domain;
 struct irq_domain_ops;
@@ -24,6 +23,20 @@ struct irq_domain_ops;
 #define _LINUX
 #endif
 #include <acpi/acpi.h>
+
+#ifdef	CONFIG_ACPI
+
+#include <linux/list.h>
+#include <linux/dynamic_debug.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/fw_table.h>
+
+#include <acpi/acpi_bus.h>
+#include <acpi/acpi_drivers.h>
+#include <acpi/acpi_numa.h>
+#include <acpi/acpi_io.h>
+#include <asm/acpi.h>
 
 #ifdef CONFIG_ACPI_TABLE_LIB
 #define EXPORT_SYMBOL_ACPI_LIB(x) EXPORT_SYMBOL_NS_GPL(x, ACPI)
@@ -34,19 +47,6 @@ struct irq_domain_ops;
 #define __init_or_acpilib __init
 #define __initdata_or_acpilib __initdata
 #endif
-
-#ifdef	CONFIG_ACPI
-
-#include <linux/list.h>
-#include <linux/dynamic_debug.h>
-#include <linux/module.h>
-#include <linux/mutex.h>
-
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
-#include <acpi/acpi_numa.h>
-#include <acpi/acpi_io.h>
-#include <asm/acpi.h>
 
 static inline acpi_handle acpi_device_handle(struct acpi_device *adev)
 {

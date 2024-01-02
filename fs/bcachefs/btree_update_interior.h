@@ -6,10 +6,6 @@
 #include "btree_locking.h"
 #include "btree_update.h"
 
-void __bch2_btree_calc_format(struct bkey_format_state *, struct btree *);
-bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *,
-				struct bkey_format *);
-
 #define BTREE_UPDATE_NODES_MAX		((BTREE_MAX_DEPTH - 2) * 2 + GC_MERGE_NODES)
 
 #define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_NODES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
@@ -55,7 +51,6 @@ struct btree_update {
 	unsigned			update_level;
 
 	struct disk_reservation		disk_res;
-	struct journal_preres		journal_preres;
 
 	/*
 	 * BTREE_INTERIOR_UPDATING_NODE:

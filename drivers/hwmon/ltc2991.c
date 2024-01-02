@@ -373,7 +373,7 @@ static int ltc2991_init(struct ltc2991_state *st)
 			   LTC2991_REPEAT_ACQ_EN);
 	if (ret)
 		return dev_err_probe(st->dev, ret,
-				     "Error: Failed to set contiuous mode.\n");
+				     "Error: Failed to set continuous mode.\n");
 
 	/* Enable all channels and trigger conversions */
 	return regmap_write(st->regmap, LTC2991_CH_EN_TRIGGER,

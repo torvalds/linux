@@ -260,7 +260,6 @@ static int paiext_event_init(struct perf_event *event)
 	rc = paiext_alloc(a, event);
 	if (rc)
 		return rc;
-	event->hw.last_tag = 0;
 	event->destroy = paiext_event_destroy;
 
 	if (a->sample_period) {

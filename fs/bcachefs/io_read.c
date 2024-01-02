@@ -209,7 +209,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	bio = &op->write.op.wbio.bio;
 	bio_init(bio, NULL, bio->bi_inline_vecs, pages, 0);
 
-	ret = bch2_data_update_init(trans, NULL, &op->write,
+	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
 			opts,
 			(struct data_update_opts) {

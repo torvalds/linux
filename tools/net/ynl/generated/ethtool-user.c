@@ -1843,6 +1843,7 @@ void ethtool_linkinfo_set_req_free(struct ethtool_linkinfo_set_req *req)
 int ethtool_linkinfo_set(struct ynl_sock *ys,
 			 struct ethtool_linkinfo_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -1862,7 +1863,7 @@ int ethtool_linkinfo_set(struct ynl_sock *ys,
 	if (req->_present.transceiver)
 		mnl_attr_put_u8(nlh, ETHTOOL_A_LINKINFO_TRANSCEIVER, req->transceiver);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2067,6 +2068,7 @@ void ethtool_linkmodes_set_req_free(struct ethtool_linkmodes_set_req *req)
 int ethtool_linkmodes_set(struct ynl_sock *ys,
 			  struct ethtool_linkmodes_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2094,7 +2096,7 @@ int ethtool_linkmodes_set(struct ynl_sock *ys,
 	if (req->_present.rate_matching)
 		mnl_attr_put_u8(nlh, ETHTOOL_A_LINKMODES_RATE_MATCHING, req->rate_matching);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2398,6 +2400,7 @@ void ethtool_debug_set_req_free(struct ethtool_debug_set_req *req)
 
 int ethtool_debug_set(struct ynl_sock *ys, struct ethtool_debug_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2409,7 +2412,7 @@ int ethtool_debug_set(struct ynl_sock *ys, struct ethtool_debug_set_req *req)
 	if (req->_present.msgmask)
 		ethtool_bitset_put(nlh, ETHTOOL_A_DEBUG_MSGMASK, &req->msgmask);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2577,6 +2580,7 @@ void ethtool_wol_set_req_free(struct ethtool_wol_set_req *req)
 
 int ethtool_wol_set(struct ynl_sock *ys, struct ethtool_wol_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2590,7 +2594,7 @@ int ethtool_wol_set(struct ynl_sock *ys, struct ethtool_wol_set_req *req)
 	if (req->_present.sopass_len)
 		mnl_attr_put(nlh, ETHTOOL_A_WOL_SOPASS, req->_present.sopass_len, req->sopass);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3045,6 +3049,7 @@ void ethtool_privflags_set_req_free(struct ethtool_privflags_set_req *req)
 int ethtool_privflags_set(struct ynl_sock *ys,
 			  struct ethtool_privflags_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3056,7 +3061,7 @@ int ethtool_privflags_set(struct ynl_sock *ys,
 	if (req->_present.flags)
 		ethtool_bitset_put(nlh, ETHTOOL_A_PRIVFLAGS_FLAGS, &req->flags);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3273,6 +3278,7 @@ void ethtool_rings_set_req_free(struct ethtool_rings_set_req *req)
 
 int ethtool_rings_set(struct ynl_sock *ys, struct ethtool_rings_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3312,7 +3318,7 @@ int ethtool_rings_set(struct ynl_sock *ys, struct ethtool_rings_set_req *req)
 	if (req->_present.tx_push_buf_len_max)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_RINGS_TX_PUSH_BUF_LEN_MAX, req->tx_push_buf_len_max);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3495,6 +3501,7 @@ void ethtool_channels_set_req_free(struct ethtool_channels_set_req *req)
 int ethtool_channels_set(struct ynl_sock *ys,
 			 struct ethtool_channels_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3520,7 +3527,7 @@ int ethtool_channels_set(struct ynl_sock *ys,
 	if (req->_present.combined_count)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_CHANNELS_COMBINED_COUNT, req->combined_count);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3798,6 +3805,7 @@ void ethtool_coalesce_set_req_free(struct ethtool_coalesce_set_req *req)
 int ethtool_coalesce_set(struct ynl_sock *ys,
 			 struct ethtool_coalesce_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3861,7 +3869,7 @@ int ethtool_coalesce_set(struct ynl_sock *ys,
 	if (req->_present.tx_aggr_time_usecs)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_COALESCE_TX_AGGR_TIME_USECS, req->tx_aggr_time_usecs);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4036,6 +4044,7 @@ void ethtool_pause_set_req_free(struct ethtool_pause_set_req *req)
 
 int ethtool_pause_set(struct ynl_sock *ys, struct ethtool_pause_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4055,7 +4064,7 @@ int ethtool_pause_set(struct ynl_sock *ys, struct ethtool_pause_set_req *req)
 	if (req->_present.stats_src)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_PAUSE_STATS_SRC, req->stats_src);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4242,6 +4251,7 @@ void ethtool_eee_set_req_free(struct ethtool_eee_set_req *req)
 
 int ethtool_eee_set(struct ynl_sock *ys, struct ethtool_eee_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4263,7 +4273,7 @@ int ethtool_eee_set(struct ynl_sock *ys, struct ethtool_eee_set_req *req)
 	if (req->_present.tx_lpi_timer)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_EEE_TX_LPI_TIMER, req->tx_lpi_timer);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4437,6 +4447,7 @@ void ethtool_cable_test_act_req_free(struct ethtool_cable_test_act_req *req)
 int ethtool_cable_test_act(struct ynl_sock *ys,
 			   struct ethtool_cable_test_act_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4446,7 +4457,7 @@ int ethtool_cable_test_act(struct ynl_sock *ys,
 	if (req->_present.header)
 		ethtool_header_put(nlh, ETHTOOL_A_CABLE_TEST_HEADER, &req->header);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4465,6 +4476,7 @@ ethtool_cable_test_tdr_act_req_free(struct ethtool_cable_test_tdr_act_req *req)
 int ethtool_cable_test_tdr_act(struct ynl_sock *ys,
 			       struct ethtool_cable_test_tdr_act_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4474,7 +4486,7 @@ int ethtool_cable_test_tdr_act(struct ynl_sock *ys,
 	if (req->_present.header)
 		ethtool_header_put(nlh, ETHTOOL_A_CABLE_TEST_TDR_HEADER, &req->header);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4782,6 +4794,7 @@ void ethtool_fec_set_req_free(struct ethtool_fec_set_req *req)
 
 int ethtool_fec_set(struct ynl_sock *ys, struct ethtool_fec_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4799,7 +4812,7 @@ int ethtool_fec_set(struct ynl_sock *ys, struct ethtool_fec_set_req *req)
 	if (req->_present.stats)
 		ethtool_fec_stat_put(nlh, ETHTOOL_A_FEC_STATS, &req->stats);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5235,6 +5248,7 @@ void ethtool_module_set_req_free(struct ethtool_module_set_req *req)
 
 int ethtool_module_set(struct ynl_sock *ys, struct ethtool_module_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5248,7 +5262,7 @@ int ethtool_module_set(struct ynl_sock *ys, struct ethtool_module_set_req *req)
 	if (req->_present.power_mode)
 		mnl_attr_put_u8(nlh, ETHTOOL_A_MODULE_POWER_MODE, req->power_mode);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5397,6 +5411,7 @@ void ethtool_pse_set_req_free(struct ethtool_pse_set_req *req)
 
 int ethtool_pse_set(struct ynl_sock *ys, struct ethtool_pse_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5412,7 +5427,7 @@ int ethtool_pse_set(struct ynl_sock *ys, struct ethtool_pse_set_req *req)
 	if (req->_present.pw_d_status)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_PODL_PSE_PW_D_STATUS, req->pw_d_status);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5746,6 +5761,7 @@ void ethtool_plca_set_cfg_req_free(struct ethtool_plca_set_cfg_req *req)
 int ethtool_plca_set_cfg(struct ynl_sock *ys,
 			 struct ethtool_plca_set_cfg_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5771,7 +5787,7 @@ int ethtool_plca_set_cfg(struct ynl_sock *ys,
 	if (req->_present.burst_tmr)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_PLCA_BURST_TMR, req->burst_tmr);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6124,6 +6140,7 @@ void ethtool_mm_set_req_free(struct ethtool_mm_set_req *req)
 
 int ethtool_mm_set(struct ynl_sock *ys, struct ethtool_mm_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6143,7 +6160,7 @@ int ethtool_mm_set(struct ynl_sock *ys, struct ethtool_mm_set_req *req)
 	if (req->_present.tx_min_frag_size)
 		mnl_attr_put_u32(nlh, ETHTOOL_A_MM_TX_MIN_FRAG_SIZE, req->tx_min_frag_size);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 

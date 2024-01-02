@@ -2981,7 +2981,8 @@ struct btree_trans *__bch2_trans_get(struct bch_fs *c, unsigned fn_idx)
 	trans->fn_idx		= fn_idx;
 	trans->locking_wait.task = current;
 	trans->journal_replay_not_finished =
-		!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags);
+		unlikely(!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags)) &&
+		atomic_inc_not_zero(&c->journal_keys.ref);
 	closure_init_stack(&trans->ref);
 
 	s = btree_trans_stats(trans);
@@ -3087,8 +3088,6 @@ void bch2_trans_put(struct btree_trans *trans)
 		srcu_read_unlock(&c->btree_trans_barrier, trans->srcu_idx);
 	}
 
-	bch2_journal_preres_put(&c->journal, &trans->journal_preres);
-
 	kfree(trans->extra_journal_entries.data);
 
 	if (trans->fs_usage_deltas) {
@@ -3099,6 +3098,9 @@ void bch2_trans_put(struct btree_trans *trans)
 		else
 			kfree(trans->fs_usage_deltas);
 	}
+
+	if (unlikely(trans->journal_replay_not_finished))
+		bch2_journal_keys_put(c);
 
 	if (trans->mem_bytes == BTREE_TRANS_MEM_MAX)
 		mempool_free(trans->mem, &c->btree_trans_mem_pool);
@@ -3212,10 +3214,9 @@ void bch2_fs_btree_iter_exit(struct bch_fs *c)
 	mempool_exit(&c->btree_trans_pool);
 }
 
-int bch2_fs_btree_iter_init(struct bch_fs *c)
+void bch2_fs_btree_iter_init_early(struct bch_fs *c)
 {
 	struct btree_transaction_stats *s;
-	int ret;
 
 	for (s = c->btree_transaction_stats;
 	     s < c->btree_transaction_stats + ARRAY_SIZE(c->btree_transaction_stats);
@@ -3226,6 +3227,11 @@ int bch2_fs_btree_iter_init(struct bch_fs *c)
 
 	INIT_LIST_HEAD(&c->btree_trans_list);
 	seqmutex_init(&c->btree_trans_lock);
+}
+
+int bch2_fs_btree_iter_init(struct bch_fs *c)
+{
+	int ret;
 
 	c->btree_trans_bufs = alloc_percpu(struct btree_trans_buf);
 	if (!c->btree_trans_bufs)

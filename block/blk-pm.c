@@ -163,38 +163,15 @@ EXPORT_SYMBOL(blk_pre_runtime_resume);
  * @q: the queue of the device
  *
  * Description:
- *    For historical reasons, this routine merely calls blk_set_runtime_active()
- *    to do the real work of restarting the queue.  It does this regardless of
- *    whether the device's runtime-resume succeeded; even if it failed the
+ *    Restart the queue of a runtime suspended device. It does this regardless
+ *    of whether the device's runtime-resume succeeded; even if it failed the
  *    driver or error handler will need to communicate with the device.
  *
  *    This function should be called near the end of the device's
- *    runtime_resume callback.
+ *    runtime_resume callback to correct queue runtime PM status and re-enable
+ *    peeking requests from the queue.
  */
 void blk_post_runtime_resume(struct request_queue *q)
-{
-	blk_set_runtime_active(q);
-}
-EXPORT_SYMBOL(blk_post_runtime_resume);
-
-/**
- * blk_set_runtime_active - Force runtime status of the queue to be active
- * @q: the queue of the device
- *
- * If the device is left runtime suspended during system suspend the resume
- * hook typically resumes the device and corrects runtime status
- * accordingly. However, that does not affect the queue runtime PM status
- * which is still "suspended". This prevents processing requests from the
- * queue.
- *
- * This function can be used in driver's resume hook to correct queue
- * runtime PM status and re-enable peeking requests from the queue. It
- * should be called before first request is added to the queue.
- *
- * This function is also called by blk_post_runtime_resume() for
- * runtime resumes.  It does everything necessary to restart the queue.
- */
-void blk_set_runtime_active(struct request_queue *q)
 {
 	int old_status;
 
@@ -211,4 +188,4 @@ void blk_set_runtime_active(struct request_queue *q)
 	if (old_status != RPM_ACTIVE)
 		blk_clear_pm_only(q);
 }
-EXPORT_SYMBOL(blk_set_runtime_active);
+EXPORT_SYMBOL(blk_post_runtime_resume);

@@ -1839,6 +1839,10 @@ static int __init __kpti_install_ng_mappings(void *__unused)
 
 static void __init kpti_install_ng_mappings(void)
 {
+	/* Check whether KPTI is going to be used */
+	if (!cpus_have_cap(ARM64_UNMAP_KERNEL_AT_EL0))
+		return;
+
 	/*
 	 * We don't need to rewrite the page-tables if either we've done
 	 * it already or we have KASLR enabled and therefore have not

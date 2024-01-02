@@ -2,6 +2,7 @@
 config VIDEO_MGB4
 	tristate "Digiteq Automotive MGB4 support"
 	depends on VIDEO_DEV && PCI && I2C && DMADEVICES && SPI && MTD && IIO
+	depends on COMMON_CLK
 	select VIDEOBUF2_DMA_SG
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER

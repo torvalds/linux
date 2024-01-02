@@ -979,6 +979,8 @@ static void mtl_d3_fixup(void)
 static int mtl_resume(struct pmc_dev *pmcdev)
 {
 	mtl_d3_fixup();
+	pmc_core_send_ltr_ignore(pmcdev, 3, 0);
+
 	return pmc_core_resume_common(pmcdev);
 }
 
@@ -989,6 +991,7 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 
 	mtl_d3_fixup();
 
+	pmcdev->suspend = cnl_suspend;
 	pmcdev->resume = mtl_resume;
 
 	pmcdev->regmap_list = mtl_pmc_info_list;
@@ -1001,12 +1004,6 @@ int mtl_core_init(struct pmc_dev *pmcdev)
 		if (ret)
 			return ret;
 	}
-
-	/* Due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
 
 	return 0;
 }

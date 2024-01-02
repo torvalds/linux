@@ -3317,6 +3317,9 @@ static void raid_dtr(struct dm_target *ti)
 	mddev_lock_nointr(&rs->md);
 	md_stop(&rs->md);
 	mddev_unlock(&rs->md);
+
+	if (work_pending(&rs->md.event_work))
+		flush_work(&rs->md.event_work);
 	raid_set_free(rs);
 }
 
