@@ -2199,6 +2199,14 @@ static int anx7625_bridge_attach(struct drm_bridge *bridge,
 	}
 
 	if (!ctx->pdata.is_dpi) {
+		err  = anx7625_setup_dsi_device(ctx);
+		if (err) {
+			DRM_DEV_ERROR(dev, "Fail to attach to dsi : %d\n", err);
+			return err;
+		}
+	}
+
+	if (!ctx->pdata.is_dpi) {
 		err  = anx7625_attach_dsi(ctx);
 		if (err) {
 			DRM_DEV_ERROR(dev, "Fail to attach to dsi : %d\n", err);
@@ -2654,12 +2662,6 @@ static int anx7625_link_bridge(struct drm_dp_aux *aux)
 
 	drm_bridge_add(&platform->bridge);
 
-	if (!platform->pdata.is_dpi) {
-		ret = anx7625_attach_dsi(platform);
-		if (ret)
-			drm_bridge_remove(&platform->bridge);
-	}
-
 	return ret;
 }
 
@@ -2747,11 +2749,6 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 		goto free_wq;
 	}
 
-	if (!platform->pdata.is_dpi) {
-		ret = anx7625_setup_dsi_device(platform);
-		if (ret < 0)
-			goto free_wq;
-	}
 
 	/*
 	 * Registering the i2c devices will retrigger deferred probe, so it
@@ -2783,10 +2780,6 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 			DRM_DEV_ERROR(dev, "failed to populate aux bus : %d\n", ret);
 			goto free_wq;
 		}
-
-		ret = anx7625_link_bridge(&platform->aux);
-		if (ret)
-			goto free_wq;
 	}
 
 	if (!platform->pdata.low_power_mode) {
@@ -2798,6 +2791,10 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 	/* Add work function */
 	if (platform->pdata.intp_irq)
 		queue_work(platform->workqueue, &platform->work);
+
+	ret = anx7625_link_bridge(&platform->aux);
+	if (ret)
+		goto free_wq;
 
 	if (platform->pdata.audio_en)
 		anx7625_register_audio(dev, platform);
