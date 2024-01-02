@@ -58,6 +58,9 @@ Everything else
    ELF
    netlink/index
    sysfs-platform_profile
+   vduse
+   futex2
+   perf_ring_buffer
 
 .. only::  subproject and html
 
