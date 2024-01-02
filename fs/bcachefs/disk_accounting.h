@@ -3,6 +3,7 @@
 #define _BCACHEFS_DISK_ACCOUNTING_H
 
 #include "eytzinger.h"
+#include "sb-members.h"
 
 static inline void bch2_u64s_neg(u64 *v, unsigned nr)
 {
@@ -131,6 +132,7 @@ static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_ac
 static inline int bch2_accounting_mem_mod(struct btree_trans *trans, struct
 					  bkey_s_c_accounting a)
 {
+	struct bch_fs *c = trans->c;
 	struct disk_accounting_pos acc_k;
 	bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 
@@ -141,8 +143,18 @@ static inline int bch2_accounting_mem_mod(struct btree_trans *trans, struct
 	case BCH_DISK_ACCOUNTING_replicas:
 		fs_usage_data_type_to_base(&trans->fs_usage_delta, acc_k.replicas.data_type, a.v->d[0]);
 		break;
+	case BCH_DISK_ACCOUNTING_dev_data_type:
+		rcu_read_lock();
+		struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+		if (ca) {
+			this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
+			this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
+			this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].fragmented, a.v->d[2]);
+		}
+		rcu_read_unlock();
+		break;
 	}
-	return __bch2_accounting_mem_mod(trans->c, a);
+	return __bch2_accounting_mem_mod(c, a);
 }
 
 static inline void bch2_accounting_mem_read_counters(struct bch_fs *c,

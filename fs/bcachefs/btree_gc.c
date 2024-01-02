@@ -773,7 +773,7 @@ static int bch2_gc_done(struct bch_fs *c)
 		bch2_fs_usage_acc_to_base(c, i);
 
 	__for_each_member_device(c, ca) {
-		struct bch_dev_usage *dst = ca->usage_base;
+		struct bch_dev_usage *dst = this_cpu_ptr(ca->usage);
 		struct bch_dev_usage *src = (void *)
 			bch2_acc_percpu_u64s((u64 __percpu *) ca->usage_gc,
 					     dev_usage_u64s());

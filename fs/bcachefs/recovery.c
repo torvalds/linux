@@ -451,23 +451,6 @@ static int journal_replay_entry_early(struct bch_fs *c,
 					      le64_to_cpu(u->v));
 		break;
 	}
-	case BCH_JSET_ENTRY_dev_usage: {
-		struct jset_entry_dev_usage *u =
-			container_of(entry, struct jset_entry_dev_usage, entry);
-		unsigned nr_types = jset_entry_dev_usage_nr_types(u);
-
-		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu(c, le32_to_cpu(u->dev));
-		if (ca)
-			for (unsigned i = 0; i < min_t(unsigned, nr_types, BCH_DATA_NR); i++) {
-				ca->usage_base->d[i].buckets	= le64_to_cpu(u->d[i].buckets);
-				ca->usage_base->d[i].sectors	= le64_to_cpu(u->d[i].sectors);
-				ca->usage_base->d[i].fragmented	= le64_to_cpu(u->d[i].fragmented);
-			}
-		rcu_read_unlock();
-
-		break;
-	}
 	case BCH_JSET_ENTRY_blacklist: {
 		struct jset_entry_blacklist *bl_entry =
 			container_of(entry, struct jset_entry_blacklist, entry);

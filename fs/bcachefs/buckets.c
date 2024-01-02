@@ -69,15 +69,8 @@ void bch2_fs_usage_initialize(struct bch_fs *c)
 
 void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 {
-	struct bch_fs *c = ca->fs;
-	unsigned seq, i, u64s = dev_usage_u64s();
-
-	do {
-		seq = read_seqcount_begin(&c->usage_lock);
-		memcpy(usage, ca->usage_base, u64s * sizeof(u64));
-		for (i = 0; i < ARRAY_SIZE(ca->usage); i++)
-			acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage[i], u64s);
-	} while (read_seqcount_retry(&c->usage_lock, seq));
+	memset(usage, 0, sizeof(*usage));
+	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage, dev_usage_u64s());
 }
 
 u64 bch2_fs_usage_read_one(struct bch_fs *c, u64 *v)
@@ -146,16 +139,6 @@ void bch2_fs_usage_acc_to_base(struct bch_fs *c, unsigned idx)
 	acc_u64s_percpu((u64 *) c->usage_base,
 			(u64 __percpu *) c->usage[idx], u64s);
 	percpu_memset(c->usage[idx], 0, u64s * sizeof(u64));
-
-	rcu_read_lock();
-	for_each_member_device_rcu(c, ca, NULL) {
-		u64s = dev_usage_u64s();
-
-		acc_u64s_percpu((u64 *) ca->usage_base,
-				(u64 __percpu *) ca->usage[idx], u64s);
-		percpu_memset(ca->usage[idx], 0, u64s * sizeof(u64));
-	}
-	rcu_read_unlock();
 
 	write_seqcount_end(&c->usage_lock);
 	preempt_enable();
@@ -1488,23 +1471,14 @@ void bch2_dev_buckets_free(struct bch_dev *ca)
 {
 	kvfree(ca->buckets_nouse);
 	kvfree(rcu_dereference_protected(ca->bucket_gens, 1));
-
-	for (unsigned i = 0; i < ARRAY_SIZE(ca->usage); i++)
-		free_percpu(ca->usage[i]);
-	kfree(ca->usage_base);
+	free_percpu(ca->usage);
 }
 
 int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	ca->usage_base = kzalloc(sizeof(struct bch_dev_usage), GFP_KERNEL);
-	if (!ca->usage_base)
+	ca->usage = alloc_percpu(struct bch_dev_usage);
+	if (!ca->usage)
 		return -BCH_ERR_ENOMEM_usage_init;
-
-	for (unsigned i = 0; i < ARRAY_SIZE(ca->usage); i++) {
-		ca->usage[i] = alloc_percpu(struct bch_dev_usage);
-		if (!ca->usage[i])
-			return -BCH_ERR_ENOMEM_usage_init;
-	}
 
 	return bch2_dev_buckets_resize(c, ca, ca->mi.nbuckets);
 }

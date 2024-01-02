@@ -36,7 +36,7 @@ struct bucket_gens {
 };
 
 struct bch_dev_usage {
-	struct {
+	struct bch_dev_usage_type {
 		u64		buckets;
 		u64		sectors; /* _compressed_ sectors: */
 		/*

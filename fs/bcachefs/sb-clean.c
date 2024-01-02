@@ -236,23 +236,6 @@ void bch2_journal_super_entries_add_common(struct bch_fs *c,
 			      "embedded variable length struct");
 	}
 
-	for_each_member_device(c, ca) {
-		unsigned b = sizeof(struct jset_entry_dev_usage) +
-			sizeof(struct jset_entry_dev_usage_type) * BCH_DATA_NR;
-		struct jset_entry_dev_usage *u =
-			container_of(jset_entry_init(end, b),
-				     struct jset_entry_dev_usage, entry);
-
-		u->entry.type = BCH_JSET_ENTRY_dev_usage;
-		u->dev = cpu_to_le32(ca->dev_idx);
-
-		for (unsigned i = 0; i < BCH_DATA_NR; i++) {
-			u->d[i].buckets = cpu_to_le64(ca->usage_base->d[i].buckets);
-			u->d[i].sectors	= cpu_to_le64(ca->usage_base->d[i].sectors);
-			u->d[i].fragmented = cpu_to_le64(ca->usage_base->d[i].fragmented);
-		}
-	}
-
 	percpu_up_read(&c->mark_lock);
 
 	for (unsigned i = 0; i < 2; i++) {

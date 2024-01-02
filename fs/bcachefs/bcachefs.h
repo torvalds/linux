@@ -545,8 +545,7 @@ struct bch_dev {
 	unsigned long		*buckets_nouse;
 	struct rw_semaphore	bucket_lock;
 
-	struct bch_dev_usage		*usage_base;
-	struct bch_dev_usage __percpu	*usage[JOURNAL_BUF_NR];
+	struct bch_dev_usage __percpu	*usage;
 	struct bch_dev_usage __percpu	*usage_gc;
 
 	/* Allocator: */
