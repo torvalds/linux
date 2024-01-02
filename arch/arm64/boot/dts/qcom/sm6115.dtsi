@@ -3318,7 +3318,7 @@
 				trip-point1 {
 					temperature = <125000>;
 					hysteresis = <1000>;
-					type = "passive";
+					type = "critical";
 				};
 			};
 		};
