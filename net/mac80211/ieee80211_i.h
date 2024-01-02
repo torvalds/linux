@@ -441,6 +441,7 @@ struct ieee80211_mgd_assoc_data {
 	bool timeout_started;
 	bool comeback; /* whether the AP has requested association comeback */
 	bool s1g;
+	bool spp_amsdu;
 
 	unsigned int assoc_link_id;
 

@@ -735,8 +735,11 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 				      NL80211_EXT_FEATURE_SCAN_MIN_PREQ_CONTENT);
 	}
 
-	if (!ops->set_key)
+	if (!ops->set_key) {
 		wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+		wiphy_ext_feature_set(wiphy,
+				      NL80211_EXT_FEATURE_SPP_AMSDU_SUPPORT);
+	}
 
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_TXQS);
 	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_RRM);

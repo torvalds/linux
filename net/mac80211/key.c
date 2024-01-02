@@ -925,6 +925,10 @@ int ieee80211_key_link(struct ieee80211_key *key,
 	 */
 	key->color = atomic_inc_return(&key_color);
 
+	/* keep this flag for easier access later */
+	if (sta && sta->sta.spp_amsdu)
+		key->conf.flags |= IEEE80211_KEY_FLAG_SPP_AMSDU;
+
 	increment_tailroom_need_count(sdata);
 
 	ret = ieee80211_key_replace(sdata, link, sta, pairwise, old_key, key);
