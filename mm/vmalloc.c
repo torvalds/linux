@@ -731,10 +731,6 @@ EXPORT_SYMBOL(vmalloc_to_pfn);
 static DEFINE_SPINLOCK(free_vmap_area_lock);
 static bool vmap_initialized __read_mostly;
 
-static struct rb_root purge_vmap_area_root = RB_ROOT;
-static LIST_HEAD(purge_vmap_area_list);
-static DEFINE_SPINLOCK(purge_vmap_area_lock);
-
 /*
  * This kmem_cache is used for vmap_area objects. Instead of
  * allocating from slab we reuse an object from this cache to
@@ -782,6 +778,12 @@ struct rb_list {
 static struct vmap_node {
 	/* Bookkeeping data of this node. */
 	struct rb_list busy;
+	struct rb_list lazy;
+
+	/*
+	 * Ready-to-free areas.
+	 */
+	struct list_head purge_list;
 } single;
 
 static struct vmap_node *vmap_nodes = &single;
@@ -1766,40 +1768,22 @@ static DEFINE_MUTEX(vmap_purge_lock);
 
 /* for per-CPU blocks */
 static void purge_fragmented_blocks_allcpus(void);
+static cpumask_t purge_nodes;
 
 /*
  * Purges all lazily-freed vmap areas.
  */
-static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+static unsigned long
+purge_vmap_node(struct vmap_node *vn)
 {
-	unsigned long resched_threshold;
-	unsigned int num_purged_areas = 0;
-	struct list_head local_purge_list;
+	unsigned long num_purged_areas = 0;
 	struct vmap_area *va, *n_va;
 
-	lockdep_assert_held(&vmap_purge_lock);
-
-	spin_lock(&purge_vmap_area_lock);
-	purge_vmap_area_root = RB_ROOT;
-	list_replace_init(&purge_vmap_area_list, &local_purge_list);
-	spin_unlock(&purge_vmap_area_lock);
-
-	if (unlikely(list_empty(&local_purge_list)))
-		goto out;
-
-	start = min(start,
-		list_first_entry(&local_purge_list,
-			struct vmap_area, list)->va_start);
-
-	end = max(end,
-		list_last_entry(&local_purge_list,
-			struct vmap_area, list)->va_end);
-
-	flush_tlb_kernel_range(start, end);
-	resched_threshold = lazy_max_pages() << 1;
+	if (list_empty(&vn->purge_list))
+		return 0;
 
 	spin_lock(&free_vmap_area_lock);
-	list_for_each_entry_safe(va, n_va, &local_purge_list, list) {
+	list_for_each_entry_safe(va, n_va, &vn->purge_list, list) {
 		unsigned long nr = (va->va_end - va->va_start) >> PAGE_SHIFT;
 		unsigned long orig_start = va->va_start;
 		unsigned long orig_end = va->va_end;
@@ -1821,13 +1805,55 @@ static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
 
 		atomic_long_sub(nr, &vmap_lazy_nr);
 		num_purged_areas++;
-
-		if (atomic_long_read(&vmap_lazy_nr) < resched_threshold)
-			cond_resched_lock(&free_vmap_area_lock);
 	}
 	spin_unlock(&free_vmap_area_lock);
 
-out:
+	return num_purged_areas;
+}
+
+/*
+ * Purges all lazily-freed vmap areas.
+ */
+static bool __purge_vmap_area_lazy(unsigned long start, unsigned long end)
+{
+	unsigned long num_purged_areas = 0;
+	struct vmap_node *vn;
+	int i;
+
+	lockdep_assert_held(&vmap_purge_lock);
+	purge_nodes = CPU_MASK_NONE;
+
+	for (i = 0; i < nr_vmap_nodes; i++) {
+		vn = &vmap_nodes[i];
+
+		INIT_LIST_HEAD(&vn->purge_list);
+
+		if (RB_EMPTY_ROOT(&vn->lazy.root))
+			continue;
+
+		spin_lock(&vn->lazy.lock);
+		WRITE_ONCE(vn->lazy.root.rb_node, NULL);
+		list_replace_init(&vn->lazy.head, &vn->purge_list);
+		spin_unlock(&vn->lazy.lock);
+
+		start = min(start, list_first_entry(&vn->purge_list,
+			struct vmap_area, list)->va_start);
+
+		end = max(end, list_last_entry(&vn->purge_list,
+			struct vmap_area, list)->va_end);
+
+		cpumask_set_cpu(i, &purge_nodes);
+	}
+
+	if (cpumask_weight(&purge_nodes) > 0) {
+		flush_tlb_kernel_range(start, end);
+
+		for_each_cpu(i, &purge_nodes) {
+			vn = &nodes[i];
+			num_purged_areas += purge_vmap_node(vn);
+		}
+	}
+
 	trace_purge_vmap_area_lazy(start, end, num_purged_areas);
 	return num_purged_areas > 0;
 }
@@ -1846,16 +1872,9 @@ static void reclaim_and_purge_vmap_areas(void)
 
 static void drain_vmap_area_work(struct work_struct *work)
 {
-	unsigned long nr_lazy;
-
-	do {
-		mutex_lock(&vmap_purge_lock);
-		__purge_vmap_area_lazy(ULONG_MAX, 0);
-		mutex_unlock(&vmap_purge_lock);
-
-		/* Recheck if further work is required. */
-		nr_lazy = atomic_long_read(&vmap_lazy_nr);
-	} while (nr_lazy > lazy_max_pages());
+	mutex_lock(&vmap_purge_lock);
+	__purge_vmap_area_lazy(ULONG_MAX, 0);
+	mutex_unlock(&vmap_purge_lock);
 }
 
 /*
@@ -1865,6 +1884,7 @@ static void drain_vmap_area_work(struct work_struct *work)
  */
 static void free_vmap_area_noflush(struct vmap_area *va)
 {
+	struct vmap_node *vn = addr_to_node(va->va_start);
 	unsigned long nr_lazy_max = lazy_max_pages();
 	unsigned long va_start = va->va_start;
 	unsigned long nr_lazy;
@@ -1878,10 +1898,9 @@ static void free_vmap_area_noflush(struct vmap_area *va)
 	/*
 	 * Merge or place it to the purge tree/list.
 	 */
-	spin_lock(&purge_vmap_area_lock);
-	merge_or_add_vmap_area(va,
-		&purge_vmap_area_root, &purge_vmap_area_list);
-	spin_unlock(&purge_vmap_area_lock);
+	spin_lock(&vn->lazy.lock);
+	merge_or_add_vmap_area(va, &vn->lazy.root, &vn->lazy.head);
+	spin_unlock(&vn->lazy.lock);
 
 	trace_free_vmap_area_noflush(va_start, nr_lazy, nr_lazy_max);
 
@@ -4411,15 +4430,21 @@ static void show_numa_info(struct seq_file *m, struct vm_struct *v)
 
 static void show_purge_info(struct seq_file *m)
 {
+	struct vmap_node *vn;
 	struct vmap_area *va;
+	int i;
 
-	spin_lock(&purge_vmap_area_lock);
-	list_for_each_entry(va, &purge_vmap_area_list, list) {
-		seq_printf(m, "0x%pK-0x%pK %7ld unpurged vm_area\n",
-			(void *)va->va_start, (void *)va->va_end,
-			va->va_end - va->va_start);
+	for (i = 0; i < nr_vmap_nodes; i++) {
+		vn = &vmap_nodes[i];
+
+		spin_lock(&vn->lazy.lock);
+		list_for_each_entry(va, &vn->lazy.head, list) {
+			seq_printf(m, "0x%pK-0x%pK %7ld unpurged vm_area\n",
+				(void *)va->va_start, (void *)va->va_end,
+				va->va_end - va->va_start);
+		}
+		spin_unlock(&vn->lazy.lock);
 	}
-	spin_unlock(&purge_vmap_area_lock);
 }
 
 static int s_show(struct seq_file *m, void *p)
@@ -4558,6 +4583,10 @@ static void vmap_init_nodes(void)
 		vn->busy.root = RB_ROOT;
 		INIT_LIST_HEAD(&vn->busy.head);
 		spin_lock_init(&vn->busy.lock);
+
+		vn->lazy.root = RB_ROOT;
+		INIT_LIST_HEAD(&vn->lazy.head);
+		spin_lock_init(&vn->lazy.lock);
 	}
 }
 
