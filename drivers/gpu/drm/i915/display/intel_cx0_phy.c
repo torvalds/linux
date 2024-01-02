@@ -2096,15 +2096,6 @@ int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
 	return intel_c20pll_calc_state(crtc_state, encoder);
 }
 
-static bool intel_c20_use_mplla(u32 clock)
-{
-	/* 10G and 20G rates use MPLLA */
-	if (clock == 1000000 || clock == 2000000)
-		return true;
-
-	return false;
-}
-
 static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
 					const struct intel_c20pll_state *pll_state)
 {
@@ -2221,12 +2212,12 @@ void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
 	drm_dbg_kms(&i915->drm, "cmn[0] = 0x%.4x, cmn[1] = 0x%.4x, cmn[2] = 0x%.4x, cmn[3] = 0x%.4x\n",
 		    hw_state->cmn[0], hw_state->cmn[1], hw_state->cmn[2], hw_state->cmn[3]);
 
-	if (intel_c20_use_mplla(hw_state->clock)) {
-		for (i = 0; i < ARRAY_SIZE(hw_state->mplla); i++)
-			drm_dbg_kms(&i915->drm, "mplla[%d] = 0x%.4x\n", i, hw_state->mplla[i]);
-	} else {
+	if (hw_state->tx[0] & C20_PHY_USE_MPLLB) {
 		for (i = 0; i < ARRAY_SIZE(hw_state->mpllb); i++)
 			drm_dbg_kms(&i915->drm, "mpllb[%d] = 0x%.4x\n", i, hw_state->mpllb[i]);
+	} else {
+		for (i = 0; i < ARRAY_SIZE(hw_state->mplla); i++)
+			drm_dbg_kms(&i915->drm, "mplla[%d] = 0x%.4x\n", i, hw_state->mplla[i]);
 	}
 }
 
@@ -2373,18 +2364,7 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 	}
 
 	/* 3.3 mpllb or mplla configuration */
-	if (intel_c20_use_mplla(clock)) {
-		for (i = 0; i < ARRAY_SIZE(pll_state->mplla); i++) {
-			if (cntx)
-				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
-						     PHY_C20_A_MPLLA_CNTX_CFG(i),
-						     pll_state->mplla[i]);
-			else
-				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
-						     PHY_C20_B_MPLLA_CNTX_CFG(i),
-						     pll_state->mplla[i]);
-		}
-	} else {
+	if (pll_state->tx[0] & C20_PHY_USE_MPLLB) {
 		for (i = 0; i < ARRAY_SIZE(pll_state->mpllb); i++) {
 			if (cntx)
 				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
@@ -2394,6 +2374,17 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
 						     PHY_C20_B_MPLLB_CNTX_CFG(i),
 						     pll_state->mpllb[i]);
+		}
+	} else {
+		for (i = 0; i < ARRAY_SIZE(pll_state->mplla); i++) {
+			if (cntx)
+				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
+						     PHY_C20_A_MPLLA_CNTX_CFG(i),
+						     pll_state->mplla[i]);
+			else
+				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
+						     PHY_C20_B_MPLLA_CNTX_CFG(i),
+						     pll_state->mplla[i]);
 		}
 	}
 
