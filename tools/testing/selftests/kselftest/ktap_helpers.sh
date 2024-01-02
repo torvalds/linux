@@ -9,6 +9,12 @@ KTAP_CNT_PASS=0
 KTAP_CNT_FAIL=0
 KTAP_CNT_SKIP=0
 
+KSFT_PASS=0
+KSFT_FAIL=1
+KSFT_XFAIL=2
+KSFT_XPASS=3
+KSFT_SKIP=4
+
 ktap_print_header() {
 	echo "TAP version 13"
 }
