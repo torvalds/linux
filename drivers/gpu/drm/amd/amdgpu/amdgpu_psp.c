@@ -2128,6 +2128,16 @@ int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev)
 	return ret;
 }
 
+bool amdgpu_psp_get_ras_capability(struct psp_context *psp)
+{
+	if (psp->funcs &&
+	    psp->funcs->get_ras_capability) {
+		return psp->funcs->get_ras_capability(psp);
+	} else {
+		return false;
+	}
+}
+
 static int psp_hw_start(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
