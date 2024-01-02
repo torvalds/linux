@@ -75,6 +75,7 @@ def define_niobe():
         "drivers/soc/qcom/qcom_cpucp.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
+        "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/smp2p.ko",
         "drivers/soc/qcom/socinfo.ko",
