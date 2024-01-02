@@ -331,32 +331,6 @@ err:
 	goto out;
 }
 
-static unsigned reserve_journal_replicas(struct bch_fs *c,
-				     struct bch_replicas_cpu *r)
-{
-	struct bch_replicas_entry_v1 *e;
-	unsigned journal_res_u64s = 0;
-
-	/* nr_inodes: */
-	journal_res_u64s +=
-		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64));
-
-	/* key_version: */
-	journal_res_u64s +=
-		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64));
-
-	/* persistent_reserved: */
-	journal_res_u64s +=
-		DIV_ROUND_UP(sizeof(struct jset_entry_usage), sizeof(u64)) *
-		BCH_REPLICAS_MAX;
-
-	for_each_cpu_replicas_entry(r, e)
-		journal_res_u64s +=
-			DIV_ROUND_UP(sizeof(struct jset_entry_data_usage) +
-				     e->nr_devs, sizeof(u64));
-	return journal_res_u64s;
-}
-
 noinline
 static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 				struct bch_replicas_entry_v1 *new_entry)
@@ -390,10 +364,6 @@ static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 		ret = bch2_cpu_replicas_to_sb_replicas(c, &new_r);
 		if (ret)
 			goto err;
-
-		bch2_journal_entry_res_resize(&c->journal,
-				&c->replicas_journal_res,
-				reserve_journal_replicas(c, &new_r));
 	}
 
 	if (!new_r.entries &&
@@ -978,9 +948,5 @@ void bch2_fs_replicas_exit(struct bch_fs *c)
 
 int bch2_fs_replicas_init(struct bch_fs *c)
 {
-	bch2_journal_entry_res_resize(&c->journal,
-			&c->replicas_journal_res,
-			reserve_journal_replicas(c, &c->replicas));
-
 	return replicas_table_update(c, &c->replicas);
 }
