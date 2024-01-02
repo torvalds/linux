@@ -96,7 +96,7 @@ unsigned_char*                      dev_addr
 struct_netdev_queue*                _rx                     read_mostly         -                   netdev_get_rx_queue(rx)
 unsigned_int                        num_rx_queues                                                   
 unsigned_int                        real_num_rx_queues      -                   read_mostly         get_rps_cpu
-struct_bpf_prog*                    xdp_prog                                                        
+struct_bpf_prog*                    xdp_prog                -                   read_mostly         netif_elide_gro()
 unsigned_long                       gro_flush_timeout       -                   read_mostly         napi_complete_done
 int                                 napi_defer_hard_irqs    -                   read_mostly         napi_complete_done
 unsigned_int                        gro_max_size            -                   read_mostly         skb_gro_receive
