@@ -99,7 +99,7 @@ enum {
  * versions.
  */
 #define TCA_ACT_GACT 5
-#define TCA_ACT_IPT 6
+#define TCA_ACT_IPT 6 /* obsoleted, can be reused */
 #define TCA_ACT_PEDIT 7
 #define TCA_ACT_MIRRED 8
 #define TCA_ACT_NAT 9
@@ -120,7 +120,7 @@ enum tca_id {
 	TCA_ID_UNSPEC = 0,
 	TCA_ID_POLICE = 1,
 	TCA_ID_GACT = TCA_ACT_GACT,
-	TCA_ID_IPT = TCA_ACT_IPT,
+	TCA_ID_IPT = TCA_ACT_IPT, /* Obsoleted, can be reused */
 	TCA_ID_PEDIT = TCA_ACT_PEDIT,
 	TCA_ID_MIRRED = TCA_ACT_MIRRED,
 	TCA_ID_NAT = TCA_ACT_NAT,
