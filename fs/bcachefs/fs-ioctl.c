@@ -413,7 +413,7 @@ retry:
 
 	if ((arg.flags & BCH_SUBVOL_SNAPSHOT_CREATE) &&
 	    !arg.src_ptr)
-		snapshot_src.subvol = to_bch_ei(dir)->ei_inode.bi_subvol;
+		snapshot_src.subvol = inode_inum(to_bch_ei(dir)).subvol;
 
 	inode = __bch2_create(file_mnt_idmap(filp), to_bch_ei(dir),
 			      dst_dentry, arg.mode|S_IFDIR,

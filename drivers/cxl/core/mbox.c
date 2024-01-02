@@ -1405,6 +1405,8 @@ struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev)
 	mds->cxlds.reg_map.host = dev;
 	mds->cxlds.reg_map.resource = CXL_RESOURCE_NONE;
 	mds->cxlds.type = CXL_DEVTYPE_CLASSMEM;
+	INIT_LIST_HEAD(&mds->ram_perf_list);
+	INIT_LIST_HEAD(&mds->pmem_perf_list);
 
 	return mds;
 }

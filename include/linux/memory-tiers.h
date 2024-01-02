@@ -33,7 +33,7 @@ struct memory_dev_type {
 	struct kref kref;
 };
 
-struct node_hmem_attrs;
+struct access_coordinate;
 
 #ifdef CONFIG_NUMA
 extern bool numa_demotion_enabled;
@@ -45,9 +45,9 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype);
 int register_mt_adistance_algorithm(struct notifier_block *nb);
 int unregister_mt_adistance_algorithm(struct notifier_block *nb);
 int mt_calc_adistance(int node, int *adist);
-int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 			     const char *source);
-int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist);
+int mt_perf_to_adistance(struct access_coordinate *perf, int *adist);
 #ifdef CONFIG_MIGRATION
 int next_demotion_node(int node);
 void node_get_allowed_targets(pg_data_t *pgdat, nodemask_t *targets);
@@ -126,13 +126,13 @@ static inline int mt_calc_adistance(int node, int *adist)
 	return NOTIFY_DONE;
 }
 
-static inline int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+static inline int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 					   const char *source)
 {
 	return -EIO;
 }
 
-static inline int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist)
+static inline int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 {
 	return -EIO;
 }

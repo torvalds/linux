@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2021 Intel Corporation. All rights reserved. */
+#include <linux/units.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -620,7 +621,7 @@ void read_cdat_data(struct cxl_port *port)
 	struct pci_dev *pdev = NULL;
 	struct cxl_memdev *cxlmd;
 	size_t cdat_length;
-	void *cdat_table;
+	void *cdat_table, *cdat_buf;
 	int rc;
 
 	if (is_cxl_memdev(uport)) {
@@ -651,16 +652,15 @@ void read_cdat_data(struct cxl_port *port)
 		return;
 	}
 
-	cdat_table = devm_kzalloc(dev, cdat_length + sizeof(__le32),
-				  GFP_KERNEL);
-	if (!cdat_table)
+	cdat_buf = devm_kzalloc(dev, cdat_length + sizeof(__le32), GFP_KERNEL);
+	if (!cdat_buf)
 		return;
 
-	rc = cxl_cdat_read_table(dev, cdat_doe, cdat_table, &cdat_length);
+	rc = cxl_cdat_read_table(dev, cdat_doe, cdat_buf, &cdat_length);
 	if (rc)
 		goto err;
 
-	cdat_table = cdat_table + sizeof(__le32);
+	cdat_table = cdat_buf + sizeof(__le32);
 	if (cdat_checksum(cdat_table, cdat_length))
 		goto err;
 
@@ -670,7 +670,7 @@ void read_cdat_data(struct cxl_port *port)
 
 err:
 	/* Don't leave table data allocated on error */
-	devm_kfree(dev, cdat_table);
+	devm_kfree(dev, cdat_buf);
 	dev_err(dev, "Failed to read/validate CDAT.\n");
 }
 EXPORT_SYMBOL_NS_GPL(read_cdat_data, CXL);
@@ -980,3 +980,38 @@ pci_ers_result_t cxl_error_detected(struct pci_dev *pdev,
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_error_detected, CXL);
+
+static int cxl_flit_size(struct pci_dev *pdev)
+{
+	if (cxl_pci_flit_256(pdev))
+		return 256;
+
+	return 68;
+}
+
+/**
+ * cxl_pci_get_latency - calculate the link latency for the PCIe link
+ * @pdev: PCI device
+ *
+ * return: calculated latency or 0 for no latency
+ *
+ * CXL Memory Device SW Guide v1.0 2.11.4 Link latency calculation
+ * Link latency = LinkPropagationLatency + FlitLatency + RetimerLatency
+ * LinkProgationLatency is negligible, so 0 will be used
+ * RetimerLatency is assumed to be negligible and 0 will be used
+ * FlitLatency = FlitSize / LinkBandwidth
+ * FlitSize is defined by spec. CXL rev3.0 4.2.1.
+ * 68B flit is used up to 32GT/s. >32GT/s, 256B flit size is used.
+ * The FlitLatency is converted to picoseconds.
+ */
+long cxl_pci_get_latency(struct pci_dev *pdev)
+{
+	long bw;
+
+	bw = pcie_link_speed_mbps(pdev);
+	if (bw < 0)
+		return 0;
+	bw /= BITS_PER_BYTE;
+
+	return cxl_flit_size(pdev) * MEGA / bw;
+}

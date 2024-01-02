@@ -1547,6 +1547,23 @@ out:
 	return ret;
 }
 
+static void free_head_ref_squota_rsv(struct btrfs_fs_info *fs_info,
+				     struct btrfs_delayed_ref_head *href)
+{
+	u64 root = href->owning_root;
+
+	/*
+	 * Don't check must_insert_reserved, as this is called from contexts
+	 * where it has already been unset.
+	 */
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE ||
+	    !href->is_data || !is_fstree(root))
+		return;
+
+	btrfs_qgroup_free_refroot(fs_info, root, href->reserved_bytes,
+				  BTRFS_QGROUP_RSV_DATA);
+}
+
 static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_delayed_ref_head *href,
 				struct btrfs_delayed_ref_node *node,
@@ -1569,7 +1586,6 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = href->owning_root,
 			.num_bytes = node->num_bytes,
-			.rsv_bytes = href->reserved_bytes,
 			.is_data = true,
 			.is_inc	= true,
 			.generation = trans->transid,
@@ -1586,11 +1602,9 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 						 flags, ref->objectid,
 						 ref->offset, &key,
 						 node->ref_mod, href->owning_root);
+		free_head_ref_squota_rsv(trans->fs_info, href);
 		if (!ret)
 			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
-		else
-			btrfs_qgroup_free_refroot(trans->fs_info, delta.root,
-						  delta.rsv_bytes, BTRFS_QGROUP_RSV_DATA);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, parent, ref->root,
 					     ref->objectid, ref->offset,
@@ -1742,7 +1756,6 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = href->owning_root,
 			.num_bytes = fs_info->nodesize,
-			.rsv_bytes = 0,
 			.is_data = false,
 			.is_inc = true,
 			.generation = trans->transid,
@@ -1774,8 +1787,10 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	if (TRANS_ABORTED(trans)) {
-		if (insert_reserved)
+		if (insert_reserved) {
 			btrfs_pin_extent(trans, node->bytenr, node->num_bytes, 1);
+			free_head_ref_squota_rsv(trans->fs_info, href);
+		}
 		return 0;
 	}
 
@@ -1871,6 +1886,8 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head)
 {
+	u64 ret = 0;
+
 	/*
 	 * We had csum deletions accounted for in our delayed refs rsv, we need
 	 * to drop the csum leaves for this update from our delayed_refs_rsv.
@@ -1885,14 +1902,13 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 
 		btrfs_delayed_refs_rsv_release(fs_info, 0, nr_csums);
 
-		return btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
+		ret = btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
 	}
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE &&
-	    head->must_insert_reserved && head->is_data)
-		btrfs_qgroup_free_refroot(fs_info, head->owning_root,
-					  head->reserved_bytes, BTRFS_QGROUP_RSV_DATA);
+	/* must_insert_reserved can be set only if we didn't run the head ref. */
+	if (head->must_insert_reserved)
+		free_head_ref_squota_rsv(fs_info, head);
 
-	return 0;
+	return ret;
 }
 
 static int cleanup_ref_head(struct btrfs_trans_handle *trans,
@@ -2033,6 +2049,12 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 		 * spin lock.
 		 */
 		must_insert_reserved = locked_ref->must_insert_reserved;
+		/*
+		 * Unsetting this on the head ref relinquishes ownership of
+		 * the rsv_bytes, so it is critical that every possible code
+		 * path from here forward frees all reserves including qgroup
+		 * reserve.
+		 */
 		locked_ref->must_insert_reserved = false;
 
 		extent_op = locked_ref->extent_op;
@@ -3292,7 +3314,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = delayed_ref_root,
 			.num_bytes = num_bytes,
-			.rsv_bytes = 0,
 			.is_data = is_data,
 			.is_inc = false,
 			.generation = btrfs_extent_generation(leaf, ei),
@@ -4937,7 +4958,6 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 		.root = root_objectid,
 		.num_bytes = ins->offset,
 		.generation = trans->transid,
-		.rsv_bytes = 0,
 		.is_data = true,
 		.is_inc = true,
 	};

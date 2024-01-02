@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define PMFW_DRIVER_IF_VERSION 6
+#define PMFW_DRIVER_IF_VERSION 7
 
 typedef struct {
   int32_t value;
@@ -150,37 +150,50 @@ typedef struct {
 } DpmClocks_t;
 
 typedef struct {
-  uint16_t CoreFrequency[16];        //Target core frequency [MHz]
-  uint16_t CorePower[16];            //CAC calculated core power [mW]
-  uint16_t CoreTemperature[16];      //TSEN measured core temperature [centi-C]
-  uint16_t GfxTemperature;           //TSEN measured GFX temperature [centi-C]
-  uint16_t SocTemperature;           //TSEN measured SOC temperature [centi-C]
-  uint16_t StapmOpnLimit;            //Maximum IRM defined STAPM power limit [mW]
-  uint16_t StapmCurrentLimit;        //Time filtered STAPM power limit [mW]
-  uint16_t InfrastructureCpuMaxFreq; //CCLK frequency limit enforced on classic cores [MHz]
-  uint16_t InfrastructureGfxMaxFreq; //GFXCLK frequency limit enforced on GFX [MHz]
-  uint16_t SkinTemp;                 //Maximum skin temperature reported by APU and HS2 chassis sensors [centi-C]
-  uint16_t GfxclkFrequency;          //Time filtered target GFXCLK frequency [MHz]
-  uint16_t FclkFrequency;            //Time filtered target FCLK frequency [MHz]
-  uint16_t GfxActivity;              //Time filtered GFX busy % [0-100]
-  uint16_t SocclkFrequency;          //Time filtered target SOCCLK frequency [MHz]
-  uint16_t VclkFrequency;            //Time filtered target VCLK frequency [MHz]
-  uint16_t VcnActivity;              //Time filtered VCN busy % [0-100]
-  uint16_t VpeclkFrequency;          //Time filtered target VPECLK frequency [MHz]
-  uint16_t IpuclkFrequency;          //Time filtered target IPUCLK frequency [MHz]
-  uint16_t IpuBusy[8];               //Time filtered IPU per-column busy % [0-100]
-  uint16_t DRAMReads;                //Time filtered DRAM read bandwidth [MB/sec]
-  uint16_t DRAMWrites;               //Time filtered DRAM write bandwidth [MB/sec]
-  uint16_t CoreC0Residency[16];      //Time filtered per-core C0 residency % [0-100]
-  uint16_t IpuPower;                 //Time filtered IPU power [mW]
-  uint32_t ApuPower;                 //Time filtered APU power [mW]
-  uint32_t GfxPower;                 //Time filtered GFX power [mW]
-  uint32_t dGpuPower;                //Time filtered dGPU power [mW]
-  uint32_t SocketPower;              //Time filtered power used for PPT/STAPM [APU+dGPU] [mW]
-  uint32_t AllCorePower;             //Time filtered sum of core power across all cores in the socket [mW]
-  uint32_t FilterAlphaValue;         //Metrics table alpha filter time constant [us]
-  uint32_t MetricsCounter;           //Counter that is incremented on every metrics table update [PM_TIMER cycles]
-  uint32_t spare[16];
+  uint16_t CoreFrequency[16];          //Target core frequency [MHz]
+  uint16_t CorePower[16];              //CAC calculated core power [mW]
+  uint16_t CoreTemperature[16];        //TSEN measured core temperature [centi-C]
+  uint16_t GfxTemperature;             //TSEN measured GFX temperature [centi-C]
+  uint16_t SocTemperature;             //TSEN measured SOC temperature [centi-C]
+  uint16_t StapmOpnLimit;              //Maximum IRM defined STAPM power limit [mW]
+  uint16_t StapmCurrentLimit;          //Time filtered STAPM power limit [mW]
+  uint16_t InfrastructureCpuMaxFreq;   //CCLK frequency limit enforced on classic cores [MHz]
+  uint16_t InfrastructureGfxMaxFreq;   //GFXCLK frequency limit enforced on GFX [MHz]
+  uint16_t SkinTemp;                   //Maximum skin temperature reported by APU and HS2 chassis sensors [centi-C]
+  uint16_t GfxclkFrequency;            //Time filtered target GFXCLK frequency [MHz]
+  uint16_t FclkFrequency;              //Time filtered target FCLK frequency [MHz]
+  uint16_t GfxActivity;                //Time filtered GFX busy % [0-100]
+  uint16_t SocclkFrequency;            //Time filtered target SOCCLK frequency [MHz]
+  uint16_t VclkFrequency;              //Time filtered target VCLK frequency [MHz]
+  uint16_t VcnActivity;                //Time filtered VCN busy % [0-100]
+  uint16_t VpeclkFrequency;            //Time filtered target VPECLK frequency [MHz]
+  uint16_t IpuclkFrequency;            //Time filtered target IPUCLK frequency [MHz]
+  uint16_t IpuBusy[8];                 //Time filtered IPU per-column busy % [0-100]
+  uint16_t DRAMReads;                  //Time filtered DRAM read bandwidth [MB/sec]
+  uint16_t DRAMWrites;                 //Time filtered DRAM write bandwidth [MB/sec]
+  uint16_t CoreC0Residency[16];        //Time filtered per-core C0 residency % [0-100]
+  uint16_t IpuPower;                   //Time filtered IPU power [mW]
+  uint32_t ApuPower;                   //Time filtered APU power [mW]
+  uint32_t GfxPower;                   //Time filtered GFX power [mW]
+  uint32_t dGpuPower;                  //Time filtered dGPU power [mW]
+  uint32_t SocketPower;                //Time filtered power used for PPT/STAPM [APU+dGPU] [mW]
+  uint32_t AllCorePower;               //Time filtered sum of core power across all cores in the socket [mW]
+  uint32_t FilterAlphaValue;           //Metrics table alpha filter time constant [us]
+  uint32_t MetricsCounter;             //Counter that is incremented on every metrics table update [PM_TIMER cycles]
+  uint16_t MemclkFrequency;            //Time filtered target MEMCLK frequency [MHz]
+  uint16_t MpipuclkFrequency;          //Time filtered target MPIPUCLK frequency [MHz]
+  uint16_t IpuReads;                   //Time filtered IPU read bandwidth [MB/sec]
+  uint16_t IpuWrites;                  //Time filtered IPU write bandwidth [MB/sec]
+  uint32_t ThrottleResidency_PROCHOT;  //Counter that is incremented on every metrics table update when PROCHOT was engaged [PM_TIMER cycles]
+  uint32_t ThrottleResidency_SPL;      //Counter that is incremented on every metrics table update when SPL was engaged [PM_TIMER cycles]
+  uint32_t ThrottleResidency_FPPT;     //Counter that is incremented on every metrics table update when fast PPT was engaged [PM_TIMER cycles]
+  uint32_t ThrottleResidency_SPPT;     //Counter that is incremented on every metrics table update when slow PPT was engaged [PM_TIMER cycles]
+  uint32_t ThrottleResidency_THM_CORE; //Counter that is incremented on every metrics table update when CORE thermal throttling was engaged [PM_TIMER cycles]
+  uint32_t ThrottleResidency_THM_GFX;  //Counter that is incremented on every metrics table update when GFX thermal throttling was engaged [PM_TIMER cycles]
+  uint32_t ThrottleResidency_THM_SOC;  //Counter that is incremented on every metrics table update when SOC thermal throttling was engaged [PM_TIMER cycles]
+  uint16_t Psys;                       //Time filtered Psys power [mW]
+  uint16_t spare1;
+  uint32_t spare[6];
 } SmuMetrics_t;
 
 //ISP tile definitions

@@ -790,7 +790,8 @@ static int veth_convert_skb_to_xdp_buff(struct veth_rq *rq,
 
 			skb_add_rx_frag(nskb, i, page, page_offset, size,
 					truesize);
-			if (skb_copy_bits(skb, off, page_address(page),
+			if (skb_copy_bits(skb, off,
+					  page_address(page) + page_offset,
 					  size)) {
 				consume_skb(nskb);
 				goto drop;

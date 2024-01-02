@@ -109,7 +109,7 @@ static struct demotion_nodes *node_demotion __read_mostly;
 static BLOCKING_NOTIFIER_HEAD(mt_adistance_algorithms);
 
 static bool default_dram_perf_error;
-static struct node_hmem_attrs default_dram_perf;
+static struct access_coordinate default_dram_perf;
 static int default_dram_perf_ref_nid = NUMA_NO_NODE;
 static const char *default_dram_perf_ref_source;
 
@@ -601,15 +601,15 @@ void clear_node_memory_type(int node, struct memory_dev_type *memtype)
 }
 EXPORT_SYMBOL_GPL(clear_node_memory_type);
 
-static void dump_hmem_attrs(struct node_hmem_attrs *attrs, const char *prefix)
+static void dump_hmem_attrs(struct access_coordinate *coord, const char *prefix)
 {
 	pr_info(
 "%sread_latency: %u, write_latency: %u, read_bandwidth: %u, write_bandwidth: %u\n",
-		prefix, attrs->read_latency, attrs->write_latency,
-		attrs->read_bandwidth, attrs->write_bandwidth);
+		prefix, coord->read_latency, coord->write_latency,
+		coord->read_bandwidth, coord->write_bandwidth);
 }
 
-int mt_set_default_dram_perf(int nid, struct node_hmem_attrs *perf,
+int mt_set_default_dram_perf(int nid, struct access_coordinate *perf,
 			     const char *source)
 {
 	int rc = 0;
@@ -666,7 +666,7 @@ out:
 	return rc;
 }
 
-int mt_perf_to_adistance(struct node_hmem_attrs *perf, int *adist)
+int mt_perf_to_adistance(struct access_coordinate *perf, int *adist)
 {
 	if (default_dram_perf_error)
 		return -EIO;

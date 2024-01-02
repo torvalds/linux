@@ -15,6 +15,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/uuid.h>
+#include <linux/node.h>
 
 struct irq_domain;
 struct irq_domain_ops;
@@ -423,6 +424,16 @@ extern long acpi_is_video_device(acpi_handle handle);
 extern int acpi_blacklisted(void);
 extern void acpi_osi_setup(char *str);
 extern bool acpi_osi_is_win8(void);
+
+#ifdef CONFIG_ACPI_HMAT
+int acpi_get_genport_coordinates(u32 uid, struct access_coordinate *coord);
+#else
+static inline int acpi_get_genport_coordinates(u32 uid,
+					       struct access_coordinate *coord)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 #ifdef CONFIG_ACPI_NUMA
 int acpi_map_pxm_to_node(int pxm);

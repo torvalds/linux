@@ -69,6 +69,8 @@ static int cxl_switch_port_probe(struct cxl_port *port)
 	if (rc < 0)
 		return rc;
 
+	cxl_switch_parse_cdat(port);
+
 	cxlhdm = devm_cxl_setup_hdm(port, NULL);
 	if (!IS_ERR(cxlhdm))
 		return devm_cxl_enumerate_decoders(cxlhdm, NULL);
@@ -109,6 +111,7 @@ static int cxl_endpoint_port_probe(struct cxl_port *port)
 
 	/* Cache the data early to ensure is_visible() works */
 	read_cdat_data(port);
+	cxl_endpoint_parse_cdat(port);
 
 	get_device(&cxlmd->dev);
 	rc = devm_add_action_or_reset(&port->dev, schedule_detach, cxlmd);

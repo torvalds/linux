@@ -88,4 +88,6 @@ enum cxl_poison_trace_type {
 	CXL_POISON_TRACE_CLEAR,
 };
 
+long cxl_pci_get_latency(struct pci_dev *pdev);
+
 #endif /* __CXL_CORE_H__ */

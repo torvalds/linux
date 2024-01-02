@@ -955,7 +955,6 @@ nfsd(void *vrqstp)
 		rqstp->rq_server->sv_maxconn = nn->max_connections;
 
 		svc_recv(rqstp);
-		validate_process_creds();
 	}
 
 	atomic_dec(&nfsdstats.th_cnt);

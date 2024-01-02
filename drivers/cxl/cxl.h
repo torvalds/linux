@@ -8,6 +8,7 @@
 #include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/node.h>
 #include <linux/io.h>
 
 /**
@@ -590,6 +591,7 @@ struct cxl_dax_region {
  * @depth: How deep this port is relative to the root. depth 0 is the root.
  * @cdat: Cached CDAT data
  * @cdat_available: Should a CDAT attribute be available in sysfs
+ * @pci_latency: Upstream latency in picoseconds
  */
 struct cxl_port {
 	struct device dev;
@@ -612,7 +614,31 @@ struct cxl_port {
 		size_t length;
 	} cdat;
 	bool cdat_available;
+	long pci_latency;
 };
+
+struct cxl_root_ops {
+	int (*qos_class)(struct cxl_port *root_port,
+			 struct access_coordinate *coord, int entries,
+			 int *qos_class);
+};
+
+/**
+ * struct cxl_root - logical collection of root cxl_port items
+ *
+ * @port: cxl_port member
+ * @ops: cxl root operations
+ */
+struct cxl_root {
+	struct cxl_port port;
+	const struct cxl_root_ops *ops;
+};
+
+static inline struct cxl_root *
+to_cxl_root(const struct cxl_port *port)
+{
+	return container_of(port, struct cxl_root, port);
+}
 
 static inline struct cxl_dport *
 cxl_find_dport_by_dev(struct cxl_port *port, const struct device *dport_dev)
@@ -634,6 +660,9 @@ struct cxl_rcrb_info {
  * @rch: Indicate whether this dport was enumerated in RCH or VH mode
  * @port: reference to cxl_port that contains this downstream port
  * @regs: Dport parsed register blocks
+ * @sw_coord: access coordinates (performance) for switch from CDAT
+ * @hb_coord: access coordinates (performance) from ACPI generic port (host bridge)
+ * @link_latency: calculated PCIe downstream latency
  */
 struct cxl_dport {
 	struct device *dport_dev;
@@ -643,6 +672,9 @@ struct cxl_dport {
 	bool rch;
 	struct cxl_port *port;
 	struct cxl_regs regs;
+	struct access_coordinate sw_coord;
+	struct access_coordinate hb_coord;
+	long link_latency;
 };
 
 /**
@@ -700,6 +732,8 @@ struct cxl_port *devm_cxl_add_port(struct device *host,
 				   struct device *uport_dev,
 				   resource_size_t component_reg_phys,
 				   struct cxl_dport *parent_dport);
+struct cxl_root *devm_cxl_add_root(struct device *host,
+				   const struct cxl_root_ops *ops);
 struct cxl_port *find_cxl_root(struct cxl_port *port);
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd);
 void cxl_bus_rescan(void);
@@ -838,6 +872,12 @@ static inline struct cxl_dax_region *to_cxl_dax_region(struct device *dev)
 	return NULL;
 }
 #endif
+
+void cxl_endpoint_parse_cdat(struct cxl_port *port);
+void cxl_switch_parse_cdat(struct cxl_port *port);
+
+int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
+				      struct access_coordinate *coord);
 
 /*
  * Unit test builds overrides this to __weak, find the 'strong' version

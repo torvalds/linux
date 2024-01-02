@@ -37,8 +37,6 @@
 
 static struct kmem_cache *btrfs_trans_handle_cachep;
 
-#define BTRFS_ROOT_TRANS_TAG 0
-
 /*
  * Transaction states and transitions
  *

@@ -1056,6 +1056,17 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	flags &= ~BCH_WATERMARK_MASK;
 	flags |= watermark;
 
+	if (!(flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
+	    watermark < c->journal.watermark) {
+		struct journal_res res = { 0 };
+
+		ret = drop_locks_do(trans,
+			bch2_journal_res_get(&c->journal, &res, 1,
+					     watermark|JOURNAL_RES_GET_CHECK));
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
 	while (1) {
 		nr_nodes[!!update_level] += 1 + split;
 		update_level++;

@@ -1704,8 +1704,8 @@ int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
 	return bch2_trans_run(c, __bch2_btree_root_read(trans, id, k, level));
 }
 
-void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
-			      struct btree_write *w)
+static void bch2_btree_complete_write(struct bch_fs *c, struct btree *b,
+				      struct btree_write *w)
 {
 	unsigned long old, new, v = READ_ONCE(b->will_make_reachable);
 

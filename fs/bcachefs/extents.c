@@ -1294,7 +1294,8 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 		unsigned i = 0;
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible) {
+			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
+			    p.ptr.unwritten) {
 				rewrite_ptrs = 0;
 				goto incompressible;
 			}
