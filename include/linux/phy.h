@@ -434,9 +434,6 @@ struct mii_bus {
 
 	/** @shared: shared state across different PHYs */
 	struct phy_package_shared *shared[PHY_MAX_ADDR];
-
-	/** @__unregister_callback: called at the last step of unregistration */
-	void (*__unregister_callback)(struct mii_bus *bus);
 };
 #define to_mii_bus(d) container_of(d, struct mii_bus, dev)
 

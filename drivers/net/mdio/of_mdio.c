@@ -139,11 +139,6 @@ bool of_mdiobus_child_is_phy(struct device_node *child)
 }
 EXPORT_SYMBOL(of_mdiobus_child_is_phy);
 
-static void __of_mdiobus_unregister_callback(struct mii_bus *mdio)
-{
-	of_node_put(mdio->dev.of_node);
-}
-
 /**
  * __of_mdiobus_register - Register mii_bus and create PHYs from the device tree
  * @mdio: pointer to mii_bus structure
@@ -171,8 +166,6 @@ int __of_mdiobus_register(struct mii_bus *mdio, struct device_node *np,
 	 * the device tree are populated after the bus has been registered */
 	mdio->phy_mask = ~0;
 
-	mdio->__unregister_callback = __of_mdiobus_unregister_callback;
-	of_node_get(np);
 	device_set_node(&mdio->dev, of_fwnode_handle(np));
 
 	/* Get bus level PHY reset GPIO details */
@@ -184,7 +177,7 @@ int __of_mdiobus_register(struct mii_bus *mdio, struct device_node *np,
 	/* Register the MDIO bus */
 	rc = __mdiobus_register(mdio, owner);
 	if (rc)
-		goto put_node;
+		return rc;
 
 	/* Loop over the child nodes and register a phy_device for each phy */
 	for_each_available_child_of_node(np, child) {
@@ -244,9 +237,6 @@ int __of_mdiobus_register(struct mii_bus *mdio, struct device_node *np,
 unregister:
 	of_node_put(child);
 	mdiobus_unregister(mdio);
-
-put_node:
-	of_node_put(np);
 	return rc;
 }
 EXPORT_SYMBOL(__of_mdiobus_register);
