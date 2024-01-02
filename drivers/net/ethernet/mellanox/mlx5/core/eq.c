@@ -885,11 +885,14 @@ static void comp_irq_release_sf(struct mlx5_core_dev *dev, u16 vecidx)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
 	struct mlx5_irq *irq;
+	int cpu;
 
 	irq = xa_load(&table->comp_irqs, vecidx);
 	if (!irq)
 		return;
 
+	cpu = cpumask_first(mlx5_irq_get_affinity_mask(irq));
+	cpumask_clear_cpu(cpu, &table->used_cpus);
 	xa_erase(&table->comp_irqs, vecidx);
 	mlx5_irq_affinity_irq_release(dev, irq);
 }
@@ -897,16 +900,26 @@ static void comp_irq_release_sf(struct mlx5_core_dev *dev, u16 vecidx)
 static int comp_irq_request_sf(struct mlx5_core_dev *dev, u16 vecidx)
 {
 	struct mlx5_eq_table *table = dev->priv.eq_table;
+	struct mlx5_irq_pool *pool = mlx5_irq_pool_get(dev);
+	struct irq_affinity_desc af_desc = {};
 	struct mlx5_irq *irq;
 
-	irq = mlx5_irq_affinity_irq_request_auto(dev, &table->used_cpus, vecidx);
-	if (IS_ERR(irq)) {
-		/* In case SF irq pool does not exist, fallback to the PF irqs*/
-		if (PTR_ERR(irq) == -ENOENT)
-			return comp_irq_request_pci(dev, vecidx);
+	/* In case SF irq pool does not exist, fallback to the PF irqs*/
+	if (!mlx5_irq_pool_is_sf_pool(pool))
+		return comp_irq_request_pci(dev, vecidx);
 
+	af_desc.is_managed = 1;
+	cpumask_copy(&af_desc.mask, cpu_online_mask);
+	cpumask_andnot(&af_desc.mask, &af_desc.mask, &table->used_cpus);
+	irq = mlx5_irq_affinity_request(pool, &af_desc);
+	if (IS_ERR(irq))
 		return PTR_ERR(irq);
-	}
+
+	cpumask_or(&table->used_cpus, &table->used_cpus, mlx5_irq_get_affinity_mask(irq));
+	mlx5_core_dbg(pool->dev, "IRQ %u mapped to cpu %*pbl, %u EQs on this irq\n",
+		      pci_irq_vector(dev->pdev, mlx5_irq_get_index(irq)),
+		      cpumask_pr_args(mlx5_irq_get_affinity_mask(irq)),
+		      mlx5_irq_read_locked(irq) / MLX5_EQ_REFS_PER_IRQ);
 
 	return xa_err(xa_store(&table->comp_irqs, vecidx, irq, GFP_KERNEL));
 }

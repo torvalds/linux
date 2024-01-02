@@ -146,7 +146,7 @@ static int rtd_pinctrl_get_function_groups(struct pinctrl_dev *pcdev,
 
 static const struct rtd_pin_desc *rtd_pinctrl_find_mux(struct rtd_pinctrl *data, unsigned int pin)
 {
-	if (!data->info->muxes[pin].name)
+	if (data->info->muxes[pin].name)
 		return &data->info->muxes[pin];
 
 	return NULL;
@@ -249,7 +249,7 @@ static const struct pinctrl_pin_desc
 static const struct rtd_pin_config_desc
 	*rtd_pinctrl_find_config(struct rtd_pinctrl *data, unsigned int pin)
 {
-	if (!data->info->configs[pin].name)
+	if (data->info->configs[pin].name)
 		return &data->info->configs[pin];
 
 	return NULL;

@@ -246,10 +246,19 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		*value = 0;
 		break;
 	case METRICS_AVERAGE_UCLK:
-		*value = 0;
+		*value = metrics->MemclkFrequency;
 		break;
 	case METRICS_AVERAGE_FCLK:
 		*value = metrics->FclkFrequency;
+		break;
+	case METRICS_AVERAGE_VPECLK:
+		*value = metrics->VpeclkFrequency;
+		break;
+	case METRICS_AVERAGE_IPUCLK:
+		*value = metrics->IpuclkFrequency;
+		break;
+	case METRICS_AVERAGE_MPIPUCLK:
+		*value = metrics->MpipuclkFrequency;
 		break;
 	case METRICS_AVERAGE_GFXACTIVITY:
 		*value = metrics->GfxActivity / 100;
@@ -270,8 +279,26 @@ static int smu_v14_0_0_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->SocTemperature / 100 *
 		SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
 		break;
-	case METRICS_THROTTLER_STATUS:
-		*value = 0;
+	case METRICS_THROTTLER_RESIDENCY_PROCHOT:
+		*value = metrics->ThrottleResidency_PROCHOT;
+		break;
+	case METRICS_THROTTLER_RESIDENCY_SPL:
+		*value = metrics->ThrottleResidency_SPL;
+		break;
+	case METRICS_THROTTLER_RESIDENCY_FPPT:
+		*value = metrics->ThrottleResidency_FPPT;
+		break;
+	case METRICS_THROTTLER_RESIDENCY_SPPT:
+		*value = metrics->ThrottleResidency_SPPT;
+		break;
+	case METRICS_THROTTLER_RESIDENCY_THM_CORE:
+		*value = metrics->ThrottleResidency_THM_CORE;
+		break;
+	case METRICS_THROTTLER_RESIDENCY_THM_GFX:
+		*value = metrics->ThrottleResidency_THM_GFX;
+		break;
+	case METRICS_THROTTLER_RESIDENCY_THM_SOC:
+		*value = metrics->ThrottleResidency_THM_SOC;
 		break;
 	case METRICS_VOLTAGE_VDDGFX:
 		*value = 0;
@@ -498,6 +525,8 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 		sizeof(uint16_t) * 16);
 	gpu_metrics->average_dram_reads = metrics.DRAMReads;
 	gpu_metrics->average_dram_writes = metrics.DRAMWrites;
+	gpu_metrics->average_ipu_reads = metrics.IpuReads;
+	gpu_metrics->average_ipu_writes = metrics.IpuWrites;
 
 	gpu_metrics->average_socket_power = metrics.SocketPower;
 	gpu_metrics->average_ipu_power = metrics.IpuPower;
@@ -505,6 +534,7 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_gfx_power = metrics.GfxPower;
 	gpu_metrics->average_dgpu_power = metrics.dGpuPower;
 	gpu_metrics->average_all_core_power = metrics.AllCorePower;
+	gpu_metrics->average_sys_power = metrics.Psys;
 	memcpy(&gpu_metrics->average_core_power[0],
 		&metrics.CorePower[0],
 		sizeof(uint16_t) * 16);
@@ -515,12 +545,22 @@ static ssize_t smu_v14_0_0_get_gpu_metrics(struct smu_context *smu,
 	gpu_metrics->average_fclk_frequency = metrics.FclkFrequency;
 	gpu_metrics->average_vclk_frequency = metrics.VclkFrequency;
 	gpu_metrics->average_ipuclk_frequency = metrics.IpuclkFrequency;
+	gpu_metrics->average_uclk_frequency = metrics.MemclkFrequency;
+	gpu_metrics->average_mpipu_frequency = metrics.MpipuclkFrequency;
 
 	memcpy(&gpu_metrics->current_coreclk[0],
 		&metrics.CoreFrequency[0],
 		sizeof(uint16_t) * 16);
 	gpu_metrics->current_core_maxfreq = metrics.InfrastructureCpuMaxFreq;
 	gpu_metrics->current_gfx_maxfreq = metrics.InfrastructureGfxMaxFreq;
+
+	gpu_metrics->throttle_residency_prochot = metrics.ThrottleResidency_PROCHOT;
+	gpu_metrics->throttle_residency_spl = metrics.ThrottleResidency_SPL;
+	gpu_metrics->throttle_residency_fppt = metrics.ThrottleResidency_FPPT;
+	gpu_metrics->throttle_residency_sppt = metrics.ThrottleResidency_SPPT;
+	gpu_metrics->throttle_residency_thm_core = metrics.ThrottleResidency_THM_CORE;
+	gpu_metrics->throttle_residency_thm_gfx = metrics.ThrottleResidency_THM_GFX;
+	gpu_metrics->throttle_residency_thm_soc = metrics.ThrottleResidency_THM_SOC;
 
 	gpu_metrics->time_filter_alphavalue = metrics.FilterAlphaValue;
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();

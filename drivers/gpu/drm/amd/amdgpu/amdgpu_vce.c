@@ -230,6 +230,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
  * amdgpu_vce_entity_init - init entity
  *
  * @adev: amdgpu_device pointer
+ * @ring: amdgpu_ring pointer to check
  *
  * Initialize the entity used for handle management in the kernel driver.
  */

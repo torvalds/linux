@@ -64,8 +64,8 @@
 #define OFF	insn->off
 #define IMM	insn->imm
 
-struct bpf_mem_alloc bpf_global_ma, bpf_global_percpu_ma;
-bool bpf_global_ma_set, bpf_global_percpu_ma_set;
+struct bpf_mem_alloc bpf_global_ma;
+bool bpf_global_ma_set;
 
 /* No hurry in this branch
  *
@@ -371,14 +371,18 @@ static int bpf_adj_delta_to_imm(struct bpf_insn *insn, u32 pos, s32 end_old,
 static int bpf_adj_delta_to_off(struct bpf_insn *insn, u32 pos, s32 end_old,
 				s32 end_new, s32 curr, const bool probe_pass)
 {
-	const s32 off_min = S16_MIN, off_max = S16_MAX;
+	s64 off_min, off_max, off;
 	s32 delta = end_new - end_old;
-	s32 off;
 
-	if (insn->code == (BPF_JMP32 | BPF_JA))
+	if (insn->code == (BPF_JMP32 | BPF_JA)) {
 		off = insn->imm;
-	else
+		off_min = S32_MIN;
+		off_max = S32_MAX;
+	} else {
 		off = insn->off;
+		off_min = S16_MIN;
+		off_max = S16_MAX;
+	}
 
 	if (curr < pos && curr + off + 1 >= end_old)
 		off += delta;
@@ -2934,9 +2938,7 @@ static int __init bpf_global_ma_init(void)
 
 	ret = bpf_mem_alloc_init(&bpf_global_ma, 0, false);
 	bpf_global_ma_set = !ret;
-	ret = bpf_mem_alloc_init(&bpf_global_percpu_ma, 0, true);
-	bpf_global_percpu_ma_set = !ret;
-	return !bpf_global_ma_set || !bpf_global_percpu_ma_set;
+	return ret;
 }
 late_initcall(bpf_global_ma_init);
 #endif

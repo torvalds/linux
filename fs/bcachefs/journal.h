@@ -136,9 +136,7 @@ static inline u64 journal_last_seq(struct journal *j)
 
 static inline u64 journal_cur_seq(struct journal *j)
 {
-	EBUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
-
-	return j->pin.back - 1;
+	return atomic64_read(&j->seq);
 }
 
 static inline u64 journal_last_unwritten_seq(struct journal *j)
@@ -268,6 +266,7 @@ static inline union journal_res_state journal_state_buf_put(struct journal *j, u
 	return s;
 }
 
+bool bch2_journal_entry_close(struct journal *);
 void bch2_journal_buf_put_final(struct journal *, u64, bool);
 
 static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
@@ -393,104 +392,6 @@ out:
 		EBUG_ON(!res->ref);
 	}
 	return 0;
-}
-
-/* journal_preres: */
-
-static inline void journal_set_watermark(struct journal *j)
-{
-	union journal_preres_state s = READ_ONCE(j->prereserved);
-	unsigned watermark = BCH_WATERMARK_stripe;
-
-	if (fifo_free(&j->pin) < j->pin.size / 4)
-		watermark = max_t(unsigned, watermark, BCH_WATERMARK_copygc);
-	if (fifo_free(&j->pin) < j->pin.size / 8)
-		watermark = max_t(unsigned, watermark, BCH_WATERMARK_reclaim);
-
-	if (s.reserved > s.remaining)
-		watermark = max_t(unsigned, watermark, BCH_WATERMARK_copygc);
-	if (!s.remaining)
-		watermark = max_t(unsigned, watermark, BCH_WATERMARK_reclaim);
-
-	if (watermark == j->watermark)
-		return;
-
-	swap(watermark, j->watermark);
-	if (watermark > j->watermark)
-		journal_wake(j);
-}
-
-static inline void bch2_journal_preres_put(struct journal *j,
-					   struct journal_preres *res)
-{
-	union journal_preres_state s = { .reserved = res->u64s };
-
-	if (!res->u64s)
-		return;
-
-	s.v = atomic64_sub_return(s.v, &j->prereserved.counter);
-	res->u64s = 0;
-
-	if (unlikely(s.waiting)) {
-		clear_bit(ilog2((((union journal_preres_state) { .waiting = 1 }).v)),
-			  (unsigned long *) &j->prereserved.v);
-		closure_wake_up(&j->preres_wait);
-	}
-
-	if (s.reserved <= s.remaining && j->watermark)
-		journal_set_watermark(j);
-}
-
-int __bch2_journal_preres_get(struct journal *,
-			struct journal_preres *, unsigned, unsigned);
-
-static inline int bch2_journal_preres_get_fast(struct journal *j,
-					       struct journal_preres *res,
-					       unsigned new_u64s,
-					       unsigned flags,
-					       bool set_waiting)
-{
-	int d = new_u64s - res->u64s;
-	union journal_preres_state old, new;
-	u64 v = atomic64_read(&j->prereserved.counter);
-	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
-	int ret;
-
-	do {
-		old.v = new.v = v;
-		ret = 0;
-
-		if (watermark == BCH_WATERMARK_reclaim ||
-		    new.reserved + d < new.remaining) {
-			new.reserved += d;
-			ret = 1;
-		} else if (set_waiting && !new.waiting)
-			new.waiting = true;
-		else
-			return 0;
-	} while ((v = atomic64_cmpxchg(&j->prereserved.counter,
-				       old.v, new.v)) != old.v);
-
-	if (ret)
-		res->u64s += d;
-	return ret;
-}
-
-static inline int bch2_journal_preres_get(struct journal *j,
-					  struct journal_preres *res,
-					  unsigned new_u64s,
-					  unsigned flags)
-{
-	if (new_u64s <= res->u64s)
-		return 0;
-
-	if (bch2_journal_preres_get_fast(j, res, new_u64s, flags, false))
-		return 0;
-
-	if (flags & JOURNAL_RES_GET_NONBLOCK)
-		return -BCH_ERR_journal_preres_get_blocked;
-
-	return __bch2_journal_preres_get(j, res, new_u64s, flags);
 }
 
 /* journal_entry_res: */

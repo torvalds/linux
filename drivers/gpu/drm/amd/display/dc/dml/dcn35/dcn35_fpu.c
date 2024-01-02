@@ -124,7 +124,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 600.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 186.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 1,
@@ -133,7 +133,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 2,
@@ -142,7 +142,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 3,
@@ -151,7 +151,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 371.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 4,
@@ -160,14 +160,14 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 	},
 	.num_states = 5,
-	.sr_exit_time_us = 9.0,
-	.sr_enter_plus_exit_time_us = 11.0,
-	.sr_exit_z8_time_us = 50.0, /*changed from 442.0*/
-	.sr_enter_plus_exit_z8_time_us = 50.0,/*changed from 560.0*/
+	.sr_exit_time_us = 14.0,
+	.sr_enter_plus_exit_time_us = 16.0,
+	.sr_exit_z8_time_us = 525.0,
+	.sr_enter_plus_exit_z8_time_us = 715.0,
 	.fclk_change_latency_us = 20.0,
 	.usr_retraining_latency_us = 2,
 	.writeback_latency_us = 12.0,
@@ -329,6 +329,52 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 	/*temp till dml2 fully work without dml1*/
 	dml_init_instance(&dc->dml, &dcn3_5_soc, &dcn3_5_ip,
 				DML_PROJECT_DCN31);
+
+	/*copy to dml2, before dml2_create*/
+	if (clk_table->num_entries > 2) {
+
+		for (i = 0; i < clk_table->num_entries; i++) {
+			dc->dml2_options.bbox_overrides.clks_table.num_states =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dcfclk_mhz =
+				clock_limits[i].dcfclk_mhz;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].fclk_mhz =
+				clock_limits[i].fabricclk_mhz;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dispclk_mhz =
+				clock_limits[i].dispclk_mhz;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dppclk_mhz =
+				clock_limits[i].dppclk_mhz;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].socclk_mhz =
+				clock_limits[i].socclk_mhz;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].memclk_mhz =
+				clk_table->entries[i].memclk_mhz * clk_table->entries[i].wck_ratio;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz =
+				clock_limits[i].dtbclk_mhz;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_fclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dispclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dppclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_socclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_memclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dtbclk_levels =
+				clk_table->num_entries;
+		}
+	}
+
+	/* Update latency values */
+	dc->dml2_options.bbox_overrides.dram_clock_change_latency_us = dcn3_5_soc.dram_clock_change_latency_us;
+
+	dc->dml2_options.bbox_overrides.sr_exit_latency_us = dcn3_5_soc.sr_exit_time_us;
+	dc->dml2_options.bbox_overrides.sr_enter_plus_exit_latency_us = dcn3_5_soc.sr_enter_plus_exit_time_us;
+
+	dc->dml2_options.bbox_overrides.sr_exit_z8_time_us = dcn3_5_soc.sr_exit_z8_time_us;
+	dc->dml2_options.bbox_overrides.sr_enter_plus_exit_z8_time_us = dcn3_5_soc.sr_enter_plus_exit_z8_time_us;
 }
 
 static bool is_dual_plane(enum surface_pixel_format format)
@@ -506,4 +552,38 @@ int dcn35_populate_dml_pipes_from_context_fpu(struct dc *dc,
 	}
 
 	return pipe_cnt;
+}
+
+void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
+{
+	enum dcn_zstate_support_state support = DCN_ZSTATE_SUPPORT_DISALLOW;
+	unsigned int i, plane_count = 0;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].plane_state)
+			plane_count++;
+	}
+
+	if (plane_count == 0) {
+		support = DCN_ZSTATE_SUPPORT_ALLOW;
+	} else if (plane_count == 1 && context->stream_count == 1 && context->streams[0]->signal == SIGNAL_TYPE_EDP) {
+		struct dc_link *link = context->streams[0]->sink->link;
+		bool is_pwrseq0 = link && link->link_index == 0;
+		bool is_psr1 = link && link->psr_settings.psr_version == DC_PSR_VERSION_1 && !link->panel_config.psr.disable_psr;
+		int minmum_z8_residency =
+			dc->debug.minimum_z8_residency_time > 0 ? dc->debug.minimum_z8_residency_time : 1000;
+		bool allow_z8 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z8_residency;
+		int minmum_z10_residency =
+			dc->debug.minimum_z10_residency_time > 0 ? dc->debug.minimum_z10_residency_time : 5000;
+		bool allow_z10 = context->bw_ctx.dml.vba.StutterPeriod > (double)minmum_z10_residency;
+
+		if (is_pwrseq0 && allow_z10)
+			support = DCN_ZSTATE_SUPPORT_ALLOW;
+		else if (is_pwrseq0 && is_psr1)
+			support = allow_z8 ? DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY : DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
+		else if (allow_z8)
+			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY;
+	}
+
+	context->bw_ctx.bw.dcn.clk.zstate_support = support;
 }

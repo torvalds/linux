@@ -182,6 +182,7 @@ static int kvm_mmu_rmaps_stat_release(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations mmu_rmaps_stat_fops = {
+	.owner		= THIS_MODULE,
 	.open		= kvm_mmu_rmaps_stat_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,

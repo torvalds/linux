@@ -55,7 +55,6 @@ struct btree_update {
 	unsigned			update_level;
 
 	struct disk_reservation		disk_res;
-	struct journal_preres		journal_preres;
 
 	/*
 	 * BTREE_INTERIOR_UPDATING_NODE:

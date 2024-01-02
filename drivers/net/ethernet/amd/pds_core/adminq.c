@@ -146,7 +146,7 @@ irqreturn_t pdsc_adminq_isr(int irq, void *data)
 	}
 
 	queue_work(pdsc->wq, &qcq->work);
-	pds_core_intr_mask(&pdsc->intr_ctrl[irq], PDS_CORE_INTR_MASK_CLEAR);
+	pds_core_intr_mask(&pdsc->intr_ctrl[qcq->intx], PDS_CORE_INTR_MASK_CLEAR);
 
 	return IRQ_HANDLED;
 }

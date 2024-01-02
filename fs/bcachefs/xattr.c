@@ -552,6 +552,14 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		s.v = v + 1;
 		s.defined = true;
 	} else {
+		/*
+		 * Check if this option was set on the parent - if so, switched
+		 * back to inheriting from the parent:
+		 *
+		 * rename() also has to deal with keeping inherited options up
+		 * to date - see bch2_reinherit_attrs()
+		 */
+		spin_lock(&dentry->d_lock);
 		if (!IS_ROOT(dentry)) {
 			struct bch_inode_info *dir =
 				to_bch_ei(d_inode(dentry->d_parent));
@@ -560,6 +568,7 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		} else {
 			s.v = 0;
 		}
+		spin_unlock(&dentry->d_lock);
 
 		s.defined = false;
 	}

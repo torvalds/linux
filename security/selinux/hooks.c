@@ -1660,8 +1660,6 @@ static int inode_has_perm(const struct cred *cred,
 	struct inode_security_struct *isec;
 	u32 sid;
 
-	validate_creds(cred);
-
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;
 
@@ -3056,8 +3054,6 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct inode *inode,
 	struct inode_security_struct *isec;
 	u32 sid;
 
-	validate_creds(cred);
-
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = dentry;
 	sid = cred_sid(cred);
@@ -3100,8 +3096,6 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	/* No permission to check.  Existence test. */
 	if (!mask)
 		return 0;
-
-	validate_creds(cred);
 
 	if (unlikely(IS_PRIVATE(inode)))
 		return 0;

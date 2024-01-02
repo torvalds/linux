@@ -32,10 +32,6 @@ void entry_SYSCALL_compat(void);
 void entry_SYSCALL_compat_safe_stack(void);
 void entry_SYSRETL_compat_unsafe_stack(void);
 void entry_SYSRETL_compat_end(void);
-void entry_INT80_compat(void);
-#ifdef CONFIG_XEN_PV
-void xen_entry_INT80_compat(void);
-#endif
 #else /* !CONFIG_IA32_EMULATION */
 #define entry_SYSCALL_compat NULL
 #define entry_SYSENTER_compat NULL

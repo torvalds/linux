@@ -2474,7 +2474,7 @@ nv50_disp_atomic_commit(struct drm_device *dev,
 
 err_cleanup:
 	if (ret)
-		drm_atomic_helper_cleanup_planes(dev, state);
+		drm_atomic_helper_unprepare_planes(dev, state);
 done:
 	pm_runtime_put_autosuspend(dev->dev);
 	return ret;

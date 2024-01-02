@@ -207,6 +207,7 @@ int amdgpu_user_partt_mode = AMDGPU_AUTO_COMPUTE_PARTITION_MODE;
 int amdgpu_umsch_mm;
 int amdgpu_seamless = -1; /* auto */
 uint amdgpu_debug_mask;
+int amdgpu_agp = -1; /* auto */
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -960,6 +961,15 @@ module_param_named(seamless, amdgpu_seamless, int, 0444);
  */
 MODULE_PARM_DESC(debug_mask, "debug options for amdgpu, disabled by default");
 module_param_named(debug_mask, amdgpu_debug_mask, uint, 0444);
+
+/**
+ * DOC: agp (int)
+ * Enable the AGP aperture.  This provides an aperture in the GPU's internal
+ * address space for direct access to system memory.  Note that these accesses
+ * are non-snooped, so they are only used for access to uncached memory.
+ */
+MODULE_PARM_DESC(agp, "AGP (-1 = auto (default), 0 = disable, 1 = enable)");
+module_param_named(agp, amdgpu_agp, int, 0444);
 
 /* These devices are not supported by amdgpu.
  * They are supported by the mach64, r128, radeon drivers
@@ -2252,6 +2262,8 @@ retry_init:
 
 		pm_runtime_mark_last_busy(ddev->dev);
 		pm_runtime_put_autosuspend(ddev->dev);
+
+		pci_wake_from_d3(pdev, TRUE);
 
 		/*
 		 * For runpm implemented via BACO, PMFW will handle the

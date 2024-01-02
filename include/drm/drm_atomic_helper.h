@@ -97,6 +97,8 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 
 int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 				     struct drm_atomic_state *state);
+void drm_atomic_helper_unprepare_planes(struct drm_device *dev,
+					struct drm_atomic_state *state);
 
 #define DRM_PLANE_COMMIT_ACTIVE_ONLY			BIT(0)
 #define DRM_PLANE_COMMIT_NO_DISABLE_AFTER_MODESET	BIT(1)

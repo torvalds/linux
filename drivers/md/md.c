@@ -490,7 +490,7 @@ int mddev_suspend(struct mddev *mddev, bool interruptible)
 }
 EXPORT_SYMBOL_GPL(mddev_suspend);
 
-void mddev_resume(struct mddev *mddev)
+static void __mddev_resume(struct mddev *mddev, bool recovery_needed)
 {
 	lockdep_assert_not_held(&mddev->reconfig_mutex);
 
@@ -507,11 +507,17 @@ void mddev_resume(struct mddev *mddev)
 	percpu_ref_resurrect(&mddev->active_io);
 	wake_up(&mddev->sb_wait);
 
-	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	if (recovery_needed)
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
 	md_wakeup_thread(mddev->sync_thread); /* possibly kick off a reshape */
 
 	mutex_unlock(&mddev->suspend_mutex);
+}
+
+void mddev_resume(struct mddev *mddev)
+{
+	return __mddev_resume(mddev, true);
 }
 EXPORT_SYMBOL_GPL(mddev_resume);
 
@@ -4840,25 +4846,29 @@ action_show(struct mddev *mddev, char *page)
 	return sprintf(page, "%s\n", type);
 }
 
-static void stop_sync_thread(struct mddev *mddev)
+/**
+ * stop_sync_thread() - wait for sync_thread to stop if it's running.
+ * @mddev:	the array.
+ * @locked:	if set, reconfig_mutex will still be held after this function
+ *		return; if not set, reconfig_mutex will be released after this
+ *		function return.
+ * @check_seq:	if set, only wait for curent running sync_thread to stop, noted
+ *		that new sync_thread can still start.
+ */
+static void stop_sync_thread(struct mddev *mddev, bool locked, bool check_seq)
 {
-	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		return;
+	int sync_seq;
 
-	if (mddev_lock(mddev))
-		return;
+	if (check_seq)
+		sync_seq = atomic_read(&mddev->sync_seq);
 
-	/*
-	 * Check again in case MD_RECOVERY_RUNNING is cleared before lock is
-	 * held.
-	 */
 	if (!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery)) {
-		mddev_unlock(mddev);
+		if (!locked)
+			mddev_unlock(mddev);
 		return;
 	}
 
-	if (work_pending(&mddev->del_work))
-		flush_workqueue(md_misc_wq);
+	mddev_unlock(mddev);
 
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	/*
@@ -4866,21 +4876,28 @@ static void stop_sync_thread(struct mddev *mddev)
 	 * never happen
 	 */
 	md_wakeup_thread_directly(mddev->sync_thread);
+	if (work_pending(&mddev->sync_work))
+		flush_work(&mddev->sync_work);
 
-	mddev_unlock(mddev);
+	wait_event(resync_wait,
+		   !test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
+		   (check_seq && sync_seq != atomic_read(&mddev->sync_seq)));
+
+	if (locked)
+		mddev_lock_nointr(mddev);
 }
 
 static void idle_sync_thread(struct mddev *mddev)
 {
-	int sync_seq = atomic_read(&mddev->sync_seq);
-
 	mutex_lock(&mddev->sync_mutex);
 	clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	stop_sync_thread(mddev);
 
-	wait_event(resync_wait, sync_seq != atomic_read(&mddev->sync_seq) ||
-			!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery));
+	if (mddev_lock(mddev)) {
+		mutex_unlock(&mddev->sync_mutex);
+		return;
+	}
 
+	stop_sync_thread(mddev, false, true);
 	mutex_unlock(&mddev->sync_mutex);
 }
 
@@ -4888,11 +4905,13 @@ static void frozen_sync_thread(struct mddev *mddev)
 {
 	mutex_lock(&mddev->sync_mutex);
 	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	stop_sync_thread(mddev);
 
-	wait_event(resync_wait, mddev->sync_thread == NULL &&
-			!test_bit(MD_RECOVERY_RUNNING, &mddev->recovery));
+	if (mddev_lock(mddev)) {
+		mutex_unlock(&mddev->sync_mutex);
+		return;
+	}
 
+	stop_sync_thread(mddev, false, false);
 	mutex_unlock(&mddev->sync_mutex);
 }
 
@@ -6264,14 +6283,7 @@ static void md_clean(struct mddev *mddev)
 
 static void __md_stop_writes(struct mddev *mddev)
 {
-	set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-	if (work_pending(&mddev->del_work))
-		flush_workqueue(md_misc_wq);
-	if (mddev->sync_thread) {
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-		md_reap_sync_thread(mddev);
-	}
-
+	stop_sync_thread(mddev, true, false);
 	del_timer_sync(&mddev->safemode_timer);
 
 	if (mddev->pers && mddev->pers->quiesce) {
@@ -6355,25 +6367,16 @@ static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
 	int err = 0;
 	int did_freeze = 0;
 
+	if (mddev->external && test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags))
+		return -EBUSY;
+
 	if (!test_bit(MD_RECOVERY_FROZEN, &mddev->recovery)) {
 		did_freeze = 1;
 		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 	}
-	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 
-	/*
-	 * Thread might be blocked waiting for metadata update which will now
-	 * never happen
-	 */
-	md_wakeup_thread_directly(mddev->sync_thread);
-
-	if (mddev->external && test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags))
-		return -EBUSY;
-	mddev_unlock(mddev);
-	wait_event(resync_wait, !test_bit(MD_RECOVERY_RUNNING,
-					  &mddev->recovery));
+	stop_sync_thread(mddev, false, false);
 	wait_event(mddev->sb_wait,
 		   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
 	mddev_lock_nointr(mddev);
@@ -6383,29 +6386,30 @@ static int md_set_readonly(struct mddev *mddev, struct block_device *bdev)
 	    mddev->sync_thread ||
 	    test_bit(MD_RECOVERY_RUNNING, &mddev->recovery)) {
 		pr_warn("md: %s still in use.\n",mdname(mddev));
-		if (did_freeze) {
-			clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
-			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-			md_wakeup_thread(mddev->thread);
-		}
 		err = -EBUSY;
 		goto out;
 	}
+
 	if (mddev->pers) {
 		__md_stop_writes(mddev);
 
-		err  = -ENXIO;
-		if (mddev->ro == MD_RDONLY)
+		if (mddev->ro == MD_RDONLY) {
+			err  = -ENXIO;
 			goto out;
+		}
+
 		mddev->ro = MD_RDONLY;
 		set_disk_ro(mddev->gendisk, 1);
+	}
+
+out:
+	if ((mddev->pers && !err) || did_freeze) {
 		clear_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 		sysfs_notify_dirent_safe(mddev->sysfs_state);
-		err = 0;
 	}
-out:
+
 	mutex_unlock(&mddev->open_mutex);
 	return err;
 }
@@ -6426,20 +6430,8 @@ static int do_md_stop(struct mddev *mddev, int mode,
 		set_bit(MD_RECOVERY_FROZEN, &mddev->recovery);
 		md_wakeup_thread(mddev->thread);
 	}
-	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery))
-		set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 
-	/*
-	 * Thread might be blocked waiting for metadata update which will now
-	 * never happen
-	 */
-	md_wakeup_thread_directly(mddev->sync_thread);
-
-	mddev_unlock(mddev);
-	wait_event(resync_wait, (mddev->sync_thread == NULL &&
-				 !test_bit(MD_RECOVERY_RUNNING,
-					   &mddev->recovery)));
-	mddev_lock_nointr(mddev);
+	stop_sync_thread(mddev, true, false);
 
 	mutex_lock(&mddev->open_mutex);
 	if ((mddev->pers && atomic_read(&mddev->openers) > !!bdev) ||
@@ -8666,7 +8658,8 @@ static void md_end_clone_io(struct bio *bio)
 	struct bio *orig_bio = md_io_clone->orig_bio;
 	struct mddev *mddev = md_io_clone->mddev;
 
-	orig_bio->bi_status = bio->bi_status;
+	if (bio->bi_status && !orig_bio->bi_status)
+		orig_bio->bi_status = bio->bi_status;
 
 	if (md_io_clone->start_time)
 		bio_end_io_acct(orig_bio, md_io_clone->start_time);
@@ -9402,7 +9395,15 @@ static void md_start_sync(struct work_struct *ws)
 		goto not_running;
 	}
 
-	suspend ? mddev_unlock_and_resume(mddev) : mddev_unlock(mddev);
+	mddev_unlock(mddev);
+	/*
+	 * md_start_sync was triggered by MD_RECOVERY_NEEDED, so we should
+	 * not set it again. Otherwise, we may cause issue like this one:
+	 *     https://bugzilla.kernel.org/show_bug.cgi?id=218200
+	 * Therefore, use __mddev_resume(mddev, false).
+	 */
+	if (suspend)
+		__mddev_resume(mddev, false);
 	md_wakeup_thread(mddev->sync_thread);
 	sysfs_notify_dirent_safe(mddev->sysfs_action);
 	md_new_event();
@@ -9414,7 +9415,15 @@ not_running:
 	clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 	clear_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-	suspend ? mddev_unlock_and_resume(mddev) : mddev_unlock(mddev);
+	mddev_unlock(mddev);
+	/*
+	 * md_start_sync was triggered by MD_RECOVERY_NEEDED, so we should
+	 * not set it again. Otherwise, we may cause issue like this one:
+	 *     https://bugzilla.kernel.org/show_bug.cgi?id=218200
+	 * Therefore, use __mddev_resume(mddev, false).
+	 */
+	if (suspend)
+		__mddev_resume(mddev, false);
 
 	wake_up(&resync_wait);
 	if (test_and_clear_bit(MD_RECOVERY_RECOVER, &mddev->recovery) &&

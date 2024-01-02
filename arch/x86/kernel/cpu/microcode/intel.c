@@ -339,16 +339,9 @@ static enum ucode_state __apply_microcode(struct ucode_cpu_info *uci,
 static enum ucode_state apply_microcode_early(struct ucode_cpu_info *uci)
 {
 	struct microcode_intel *mc = uci->mc;
-	enum ucode_state ret;
-	u32 cur_rev, date;
+	u32 cur_rev;
 
-	ret = __apply_microcode(uci, mc, &cur_rev);
-	if (ret == UCODE_UPDATED) {
-		date = mc->hdr.date;
-		pr_info_once("updated early: 0x%x -> 0x%x, date = %04x-%02x-%02x\n",
-			     cur_rev, mc->hdr.rev, date & 0xffff, date >> 24, (date >> 16) & 0xff);
-	}
-	return ret;
+	return __apply_microcode(uci, mc, &cur_rev);
 }
 
 static __init bool load_builtin_intel_microcode(struct cpio_data *cp)
@@ -413,13 +406,17 @@ static int __init save_builtin_microcode(void)
 early_initcall(save_builtin_microcode);
 
 /* Load microcode on BSP from initrd or builtin blobs */
-void __init load_ucode_intel_bsp(void)
+void __init load_ucode_intel_bsp(struct early_load_data *ed)
 {
 	struct ucode_cpu_info uci;
+
+	ed->old_rev = intel_get_microcode_revision();
 
 	uci.mc = get_microcode_blob(&uci, false);
 	if (uci.mc && apply_microcode_early(&uci) == UCODE_UPDATED)
 		ucode_patch_va = UCODE_BSP_LOADED;
+
+	ed->new_rev = uci.cpu_sig.rev;
 }
 
 void load_ucode_intel_ap(void)

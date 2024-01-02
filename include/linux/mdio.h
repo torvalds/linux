@@ -420,7 +420,7 @@ static inline u32 linkmode_adv_to_mii_t1_adv_m_t(unsigned long *advertising)
  * A function that translates value of following registers to the linkmode:
  * IEEE 802.3-2018 45.2.3.10 "EEE control and capability 1" register (3.20)
  * IEEE 802.3-2018 45.2.7.13 "EEE advertisement 1" register (7.60)
- * IEEE 802.3-2018 45.2.7.14 "EEE "link partner ability 1 register (7.61)
+ * IEEE 802.3-2018 45.2.7.14 "EEE link partner ability 1" register (7.61)
  */
 static inline void mii_eee_cap1_mod_linkmode_t(unsigned long *adv, u32 val)
 {

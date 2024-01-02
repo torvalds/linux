@@ -166,6 +166,7 @@ void bch2_free_super(struct bch_sb_handle *sb)
 	if (!IS_ERR_OR_NULL(sb->bdev))
 		blkdev_put(sb->bdev, sb->holder);
 	kfree(sb->holder);
+	kfree(sb->sb_name);
 
 	kfree(sb->sb);
 	memset(sb, 0, sizeof(*sb));
@@ -673,6 +674,10 @@ retry:
 	sb->have_bio	= true;
 	sb->holder	= kmalloc(1, GFP_KERNEL);
 	if (!sb->holder)
+		return -ENOMEM;
+
+	sb->sb_name = kstrdup(path, GFP_KERNEL);
+	if (!sb->sb_name)
 		return -ENOMEM;
 
 #ifndef __KERNEL__

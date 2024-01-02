@@ -250,9 +250,6 @@ int ivpu_rpm_get_if_active(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ivpu_dbg(vdev, RPM, "rpm_get_if_active count %d\n",
-		 atomic_read(&vdev->drm.dev->power.usage_count));
-
 	ret = pm_runtime_get_if_active(vdev->drm.dev, false);
 	drm_WARN_ON(&vdev->drm, ret < 0);
 

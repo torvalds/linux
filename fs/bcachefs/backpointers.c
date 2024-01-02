@@ -313,17 +313,17 @@ struct btree *bch2_backpointer_get_node(struct btree_trans *trans,
 				  bp.level - 1,
 				  0);
 	b = bch2_btree_iter_peek_node(iter);
-	if (IS_ERR(b))
+	if (IS_ERR_OR_NULL(b))
 		goto err;
 
 	BUG_ON(b->c.level != bp.level - 1);
 
-	if (b && extent_matches_bp(c, bp.btree_id, bp.level,
-				   bkey_i_to_s_c(&b->key),
-				   bucket, bp))
+	if (extent_matches_bp(c, bp.btree_id, bp.level,
+			      bkey_i_to_s_c(&b->key),
+			      bucket, bp))
 		return b;
 
-	if (b && btree_node_will_make_reachable(b)) {
+	if (btree_node_will_make_reachable(b)) {
 		b = ERR_PTR(-BCH_ERR_backpointer_to_overwritten_btree_node);
 	} else {
 		backpointer_not_found(trans, bp_pos, bp, bkey_i_to_s_c(&b->key));
