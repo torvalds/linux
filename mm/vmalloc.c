@@ -4709,30 +4709,6 @@ bool vmalloc_dump_obj(void *object)
 #endif
 
 #ifdef CONFIG_PROC_FS
-static void *s_start(struct seq_file *m, loff_t *pos)
-{
-	struct vmap_node *vn = addr_to_node(0);
-
-	mutex_lock(&vmap_purge_lock);
-	spin_lock(&vn->busy.lock);
-
-	return seq_list_start(&vn->busy.head, *pos);
-}
-
-static void *s_next(struct seq_file *m, void *p, loff_t *pos)
-{
-	struct vmap_node *vn = addr_to_node(0);
-	return seq_list_next(p, &vn->busy.head, pos);
-}
-
-static void s_stop(struct seq_file *m, void *p)
-{
-	struct vmap_node *vn = addr_to_node(0);
-
-	spin_unlock(&vn->busy.lock);
-	mutex_unlock(&vmap_purge_lock);
-}
-
 static void show_numa_info(struct seq_file *m, struct vm_struct *v)
 {
 	if (IS_ENABLED(CONFIG_NUMA)) {
@@ -4776,84 +4752,82 @@ static void show_purge_info(struct seq_file *m)
 	}
 }
 
-static int s_show(struct seq_file *m, void *p)
+static int vmalloc_info_show(struct seq_file *m, void *p)
 {
 	struct vmap_node *vn;
 	struct vmap_area *va;
 	struct vm_struct *v;
+	int i;
 
-	vn = addr_to_node(0);
-	va = list_entry(p, struct vmap_area, list);
+	for (i = 0; i < nr_vmap_nodes; i++) {
+		vn = &vmap_nodes[i];
 
-	if (!va->vm) {
-		if (va->flags & VMAP_RAM)
-			seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
-				(void *)va->va_start, (void *)va->va_end,
-				va->va_end - va->va_start);
+		spin_lock(&vn->busy.lock);
+		list_for_each_entry(va, &vn->busy.head, list) {
+			if (!va->vm) {
+				if (va->flags & VMAP_RAM)
+					seq_printf(m, "0x%pK-0x%pK %7ld vm_map_ram\n",
+						(void *)va->va_start, (void *)va->va_end,
+						va->va_end - va->va_start);
 
-		goto final;
+				continue;
+			}
+
+			v = va->vm;
+
+			seq_printf(m, "0x%pK-0x%pK %7ld",
+				v->addr, v->addr + v->size, v->size);
+
+			if (v->caller)
+				seq_printf(m, " %pS", v->caller);
+
+			if (v->nr_pages)
+				seq_printf(m, " pages=%d", v->nr_pages);
+
+			if (v->phys_addr)
+				seq_printf(m, " phys=%pa", &v->phys_addr);
+
+			if (v->flags & VM_IOREMAP)
+				seq_puts(m, " ioremap");
+
+			if (v->flags & VM_ALLOC)
+				seq_puts(m, " vmalloc");
+
+			if (v->flags & VM_MAP)
+				seq_puts(m, " vmap");
+
+			if (v->flags & VM_USERMAP)
+				seq_puts(m, " user");
+
+			if (v->flags & VM_DMA_COHERENT)
+				seq_puts(m, " dma-coherent");
+
+			if (is_vmalloc_addr(v->pages))
+				seq_puts(m, " vpages");
+
+			show_numa_info(m, v);
+			seq_putc(m, '\n');
+		}
+		spin_unlock(&vn->busy.lock);
 	}
-
-	v = va->vm;
-
-	seq_printf(m, "0x%pK-0x%pK %7ld",
-		v->addr, v->addr + v->size, v->size);
-
-	if (v->caller)
-		seq_printf(m, " %pS", v->caller);
-
-	if (v->nr_pages)
-		seq_printf(m, " pages=%d", v->nr_pages);
-
-	if (v->phys_addr)
-		seq_printf(m, " phys=%pa", &v->phys_addr);
-
-	if (v->flags & VM_IOREMAP)
-		seq_puts(m, " ioremap");
-
-	if (v->flags & VM_ALLOC)
-		seq_puts(m, " vmalloc");
-
-	if (v->flags & VM_MAP)
-		seq_puts(m, " vmap");
-
-	if (v->flags & VM_USERMAP)
-		seq_puts(m, " user");
-
-	if (v->flags & VM_DMA_COHERENT)
-		seq_puts(m, " dma-coherent");
-
-	if (is_vmalloc_addr(v->pages))
-		seq_puts(m, " vpages");
-
-	show_numa_info(m, v);
-	seq_putc(m, '\n');
 
 	/*
 	 * As a final step, dump "unpurged" areas.
 	 */
-final:
-	if (list_is_last(&va->list, &vn->busy.head))
-		show_purge_info(m);
-
+	show_purge_info(m);
 	return 0;
 }
 
-static const struct seq_operations vmalloc_op = {
-	.start = s_start,
-	.next = s_next,
-	.stop = s_stop,
-	.show = s_show,
-};
-
 static int __init proc_vmalloc_init(void)
 {
+	void *priv_data = NULL;
+
 	if (IS_ENABLED(CONFIG_NUMA))
-		proc_create_seq_private("vmallocinfo", 0400, NULL,
-				&vmalloc_op,
-				nr_node_ids * sizeof(unsigned int), NULL);
-	else
-		proc_create_seq("vmallocinfo", 0400, NULL, &vmalloc_op);
+		priv_data = kmalloc(nr_node_ids * sizeof(unsigned int), GFP_KERNEL);
+
+	proc_create_single_data("vmallocinfo",
+		0400, NULL, vmalloc_info_show, priv_data);
+
 	return 0;
 }
 module_init(proc_vmalloc_init);
