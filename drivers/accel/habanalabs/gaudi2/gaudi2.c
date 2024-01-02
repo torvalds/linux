@@ -10345,14 +10345,20 @@ static int gaudi2_memset_memory_chunk_using_edma_qm(struct hl_device *hdev,
 
 	pkt_size = sizeof(struct packet_lin_dma);
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 3; i++) {
 		rc = hdev->asic_funcs->access_dev_mem(hdev, PCI_REGION_DRAM,
 				phys_addr + (i * sizeof(u64)),
 				((u64 *)(lin_dma_pkt)) + i, DEBUGFS_WRITE64);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to copy lin_dma packet to HBM (%#llx)\n",
+				phys_addr);
+			return rc;
+		}
+	}
 
 	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, phys_addr);
 	if (rc)
-		dev_err(hdev->dev, "Failed to send lin dma packet to H/W queue %d\n",
+		dev_err(hdev->dev, "Failed to send lin_dma packet to H/W queue %d\n",
 				hw_queue_id);
 
 	return rc;
