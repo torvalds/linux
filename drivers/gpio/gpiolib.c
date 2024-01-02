@@ -651,9 +651,6 @@ static void gpiodev_release(struct device *dev)
 {
 	struct gpio_device *gdev = to_gpio_device(dev);
 
-	scoped_guard(mutex, &gpio_devices_lock)
-		list_del(&gdev->list);
-
 	ida_free(&gpio_ida, gdev->id);
 	kfree_const(gdev->label);
 	kfree(gdev->descs);
@@ -1067,6 +1064,9 @@ void gpiochip_remove(struct gpio_chip *gc)
 	if (i != gdev->ngpio)
 		dev_crit(&gdev->dev,
 			 "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
+
+	scoped_guard(mutex, &gpio_devices_lock)
+		list_del(&gdev->list);
 
 	/*
 	 * The gpiochip side puts its use of the device to rest here:
