@@ -1078,9 +1078,18 @@ retry:
 
 		/* at this point we have src_folio locked */
 		if (folio_test_large(src_folio)) {
+			/* split_folio() can block */
+			pte_unmap(&orig_src_pte);
+			pte_unmap(&orig_dst_pte);
+			src_pte = dst_pte = NULL;
 			err = split_folio(src_folio);
 			if (err)
 				goto out;
+			/* have to reacquire the folio after it got split */
+			folio_unlock(src_folio);
+			folio_put(src_folio);
+			src_folio = NULL;
+			goto retry;
 		}
 
 		if (!src_anon_vma) {
