@@ -2569,10 +2569,12 @@ cfg80211_tbtt_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
 	return false;
 }
 
-static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
-				       struct cfg80211_inform_single_bss_data *tx_data,
-				       struct cfg80211_bss *source_bss,
-				       gfp_t gfp)
+static void
+cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
+				struct cfg80211_inform_single_bss_data *tx_data,
+				struct cfg80211_bss *source_bss,
+				const struct element *elem,
+				gfp_t gfp)
 {
 	struct cfg80211_inform_single_bss_data data = {
 		.drv_data = tx_data->drv_data,
@@ -2581,7 +2583,6 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 		.bss_source = BSS_SOURCE_STA_PROFILE,
 	};
 	struct ieee80211_multi_link_elem *ml_elem;
-	const struct element *elem;
 	struct cfg80211_mle *mle;
 	u16 control;
 	u8 *new_ie;
@@ -2591,15 +2592,7 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 	const u8 *pos;
 	u8 i;
 
-	if (!source_bss)
-		return;
-
-	if (tx_data->ftype != CFG80211_BSS_FTYPE_PRESP)
-		return;
-
-	elem = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_MULTI_LINK,
-				      tx_data->ie, tx_data->ielen);
-	if (!elem || !ieee80211_mle_size_ok(elem->data + 1, elem->datalen - 1))
+	if (!ieee80211_mle_size_ok(elem->data + 1, elem->datalen - 1))
 		return;
 
 	ml_elem = (void *)elem->data + 1;
@@ -2732,6 +2725,25 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 out:
 	kfree(new_ie);
 	kfree(mle);
+}
+
+static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
+				       struct cfg80211_inform_single_bss_data *tx_data,
+				       struct cfg80211_bss *source_bss,
+				       gfp_t gfp)
+{
+	const struct element *elem;
+
+	if (!source_bss)
+		return;
+
+	if (tx_data->ftype != CFG80211_BSS_FTYPE_PRESP)
+		return;
+
+	for_each_element_extid(elem, WLAN_EID_EXT_EHT_MULTI_LINK,
+			       tx_data->ie, tx_data->ielen)
+		cfg80211_parse_ml_elem_sta_data(wiphy, tx_data, source_bss,
+						elem, gfp);
 }
 
 struct cfg80211_bss *
