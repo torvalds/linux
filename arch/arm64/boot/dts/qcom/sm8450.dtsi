@@ -2038,6 +2038,7 @@
 			operating-points-v2 = <&gpu_opp_table>;
 
 			qcom,gmu = <&gmu>;
+			#cooling-cells = <2>;
 
 			status = "disabled";
 
@@ -4892,6 +4893,13 @@
 			polling-delay = <0>;
 			thermal-sensors = <&tsens0 14>;
 
+			cooling-maps {
+				map0 {
+					trip = <&gpu_top_alert0>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
 			trips {
 				thermal-engine-config {
 					temperature = <125000>;
@@ -4911,7 +4919,7 @@
 					type = "passive";
 				};
 
-				gpu0_tj_cfg: tj-cfg {
+				gpu_top_alert0: trip-point0 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
@@ -4924,6 +4932,13 @@
 			polling-delay = <0>;
 			thermal-sensors = <&tsens0 15>;
 
+			cooling-maps {
+				map0 {
+					trip = <&gpu_bottom_alert0>;
+					cooling-device = <&gpu THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+
 			trips {
 				thermal-engine-config {
 					temperature = <125000>;
@@ -4943,7 +4958,7 @@
 					type = "passive";
 				};
 
-				gpu1_tj_cfg: tj-cfg {
+				gpu_bottom_alert0: trip-point0 {
 					temperature = <95000>;
 					hysteresis = <5000>;
 					type = "passive";
