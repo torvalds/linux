@@ -48,6 +48,7 @@ static inline void btrfs_extent_state_leak_debug_check(void)
 		       extent_state_in_tree(state),
 		       refcount_read(&state->refs));
 		list_del(&state->leak_list);
+		WARN_ON_ONCE(1);
 		kmem_cache_free(extent_state_cache, state);
 	}
 }
