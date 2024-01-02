@@ -73,6 +73,7 @@ icc-rpmh.ko
 qnoc-qos.ko
 qnoc-cliffs.ko
 qnoc-pineapple.ko
+qnoc-volcano.ko
 icc-debug.ko
 icc-test.ko
 qcom_hwspinlock.ko
