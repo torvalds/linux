@@ -1454,6 +1454,20 @@ struct ieee80211_mgmt {
 					u8 max_tod_error;
 					u8 max_toa_error;
 				} __packed wnm_timing_msr;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 variable[];
+				} __packed ttlm_req;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 status_code;
+					u8 variable[];
+				} __packed ttlm_res;
+				struct {
+					u8 action_code;
+				} __packed ttlm_tear_down;
 			} u;
 		} __packed action;
 		DECLARE_FLEX_ARRAY(u8, body); /* Generic frame body */
@@ -3357,6 +3371,8 @@ enum ieee80211_statuscode {
 	WLAN_STATUS_UNKNOWN_AUTHENTICATION_SERVER = 109,
 	WLAN_STATUS_SAE_HASH_TO_ELEMENT = 126,
 	WLAN_STATUS_SAE_PK = 127,
+	WLAN_STATUS_DENIED_TID_TO_LINK_MAPPING = 133,
+	WLAN_STATUS_PREF_TID_TO_LINK_MAPPING_SUGGESTED = 134,
 };
 
 
@@ -3682,6 +3698,7 @@ enum ieee80211_category {
 	WLAN_CATEGORY_UNPROT_DMG = 20,
 	WLAN_CATEGORY_VHT = 21,
 	WLAN_CATEGORY_S1G = 22,
+	WLAN_CATEGORY_PROTECTED_EHT = 37,
 	WLAN_CATEGORY_VENDOR_SPECIFIC_PROTECTED = 126,
 	WLAN_CATEGORY_VENDOR_SPECIFIC = 127,
 };
@@ -3743,6 +3760,13 @@ enum ieee80211_mesh_actioncode {
 enum ieee80211_unprotected_wnm_actioncode {
 	WLAN_UNPROTECTED_WNM_ACTION_TIM = 0,
 	WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE = 1,
+};
+
+/* Protected EHT action codes */
+enum ieee80211_protected_eht_actioncode {
+	WLAN_PROTECTED_EHT_ACTION_TTLM_REQ = 0,
+	WLAN_PROTECTED_EHT_ACTION_TTLM_RES = 1,
+	WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN = 2,
 };
 
 /* Security key length */
@@ -4845,6 +4869,10 @@ struct ieee80211_multi_link_elem {
 #define IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS		0x000f
 #define IEEE80211_MLD_CAP_OP_SRS_SUPPORT		0x0010
 #define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP	0x0060
+#define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_NO_SUPP	0
+#define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_SAME	1
+#define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_RESERVED	2
+#define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP_DIFF	3
 #define IEEE80211_MLD_CAP_OP_FREQ_SEP_TYPE_IND		0x0f80
 #define IEEE80211_MLD_CAP_OP_AAR_SUPPORT		0x1000
 
