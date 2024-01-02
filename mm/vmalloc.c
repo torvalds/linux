@@ -906,7 +906,7 @@ unsigned long vmalloc_nr_pages(void)
 
 /* Look up the first VA which satisfies addr < va_end, NULL if none. */
 static struct vmap_area *
-find_vmap_area_exceed_addr(unsigned long addr, struct rb_root *root)
+__find_vmap_area_exceed_addr(unsigned long addr, struct rb_root *root)
 {
 	struct vmap_area *va = NULL;
 	struct rb_node *n = root->rb_node;
@@ -928,6 +928,41 @@ find_vmap_area_exceed_addr(unsigned long addr, struct rb_root *root)
 	}
 
 	return va;
+}
+
+/*
+ * Returns a node where a first VA, that satisfies addr < va_end, resides.
+ * If success, a node is locked. A user is responsible to unlock it when a
+ * VA is no longer needed to be accessed.
+ *
+ * Returns NULL if nothing found.
+ */
+static struct vmap_node *
+find_vmap_area_exceed_addr_lock(unsigned long addr, struct vmap_area **va)
+{
+	struct vmap_node *vn, *va_node = NULL;
+	struct vmap_area *va_lowest;
+	int i;
+
+	for (i = 0; i < nr_vmap_nodes; i++) {
+		vn = &vmap_nodes[i];
+
+		spin_lock(&vn->busy.lock);
+		va_lowest = __find_vmap_area_exceed_addr(addr, &vn->busy.root);
+		if (va_lowest) {
+			if (!va_node || va_lowest->va_start < (*va)->va_start) {
+				if (va_node)
+					spin_unlock(&va_node->busy.lock);
+
+				*va = va_lowest;
+				va_node = vn;
+				continue;
+			}
+		}
+		spin_unlock(&vn->busy.lock);
+	}
+
+	return va_node;
 }
 
 static struct vmap_area *__find_vmap_area(unsigned long addr, struct rb_root *root)
@@ -4102,6 +4137,7 @@ long vread_iter(struct iov_iter *iter, const char *addr, size_t count)
 	struct vm_struct *vm;
 	char *vaddr;
 	size_t n, size, flags, remains;
+	unsigned long next;
 
 	addr = kasan_reset_tag(addr);
 
@@ -4111,19 +4147,15 @@ long vread_iter(struct iov_iter *iter, const char *addr, size_t count)
 
 	remains = count;
 
-	/* Hooked to node_0 so far. */
-	vn = addr_to_node(0);
-	spin_lock(&vn->busy.lock);
-
-	va = find_vmap_area_exceed_addr((unsigned long)addr, &vn->busy.root);
-	if (!va)
+	vn = find_vmap_area_exceed_addr_lock((unsigned long) addr, &va);
+	if (!vn)
 		goto finished_zero;
 
 	/* no intersects with alive vmap_area */
 	if ((unsigned long)addr + remains <= va->va_start)
 		goto finished_zero;
 
-	list_for_each_entry_from(va, &vn->busy.head, list) {
+	do {
 		size_t copied;
 
 		if (remains == 0)
@@ -4138,10 +4170,10 @@ long vread_iter(struct iov_iter *iter, const char *addr, size_t count)
 		WARN_ON(flags == VMAP_BLOCK);
 
 		if (!vm && !flags)
-			continue;
+			goto next_va;
 
 		if (vm && (vm->flags & VM_UNINITIALIZED))
-			continue;
+			goto next_va;
 
 		/* Pair with smp_wmb() in clear_vm_uninitialized_flag() */
 		smp_rmb();
@@ -4150,7 +4182,7 @@ long vread_iter(struct iov_iter *iter, const char *addr, size_t count)
 		size = vm ? get_vm_area_size(vm) : va_size(va);
 
 		if (addr >= vaddr + size)
-			continue;
+			goto next_va;
 
 		if (addr < vaddr) {
 			size_t to_zero = min_t(size_t, vaddr - addr, remains);
@@ -4179,15 +4211,22 @@ long vread_iter(struct iov_iter *iter, const char *addr, size_t count)
 
 		if (copied != n)
 			goto finished;
-	}
+
+	next_va:
+		next = va->va_end;
+		spin_unlock(&vn->busy.lock);
+	} while ((vn = find_vmap_area_exceed_addr_lock(next, &va)));
 
 finished_zero:
-	spin_unlock(&vn->busy.lock);
+	if (vn)
+		spin_unlock(&vn->busy.lock);
+
 	/* zero-fill memory holes */
 	return count - remains + zero_iter(iter, remains);
 finished:
 	/* Nothing remains, or We couldn't copy/zero everything. */
-	spin_unlock(&vn->busy.lock);
+	if (vn)
+		spin_unlock(&vn->busy.lock);
 
 	return count - remains;
 }
