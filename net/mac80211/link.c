@@ -444,6 +444,9 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
+	if (!drv_can_activate_links(local, sdata, active_links))
+		return -EINVAL;
+
 	old_active = sdata->vif.active_links;
 	if (old_active & active_links) {
 		/*

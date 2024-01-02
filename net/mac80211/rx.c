@@ -566,7 +566,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 
 	if (local->hw.radiotap_timestamp.units_pos >= 0) {
 		u16 accuracy = 0;
-		u8 flags = IEEE80211_RADIOTAP_TIMESTAMP_FLAG_32BIT;
+		u8 flags;
+		u64 ts;
 
 		rthdr->it_present |=
 			cpu_to_le32(BIT(IEEE80211_RADIOTAP_TIMESTAMP));
@@ -575,7 +576,15 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		while ((pos - (u8 *)rthdr) & 7)
 			pos++;
 
-		put_unaligned_le64(status->device_timestamp, pos);
+		if (status->flag & RX_FLAG_MACTIME_IS_RTAP_TS64) {
+			flags = IEEE80211_RADIOTAP_TIMESTAMP_FLAG_64BIT;
+			ts = status->mactime;
+		} else {
+			flags = IEEE80211_RADIOTAP_TIMESTAMP_FLAG_32BIT;
+			ts = status->device_timestamp;
+		}
+
+		put_unaligned_le64(ts, pos);
 		pos += sizeof(u64);
 
 		if (local->hw.radiotap_timestamp.accuracy >= 0) {

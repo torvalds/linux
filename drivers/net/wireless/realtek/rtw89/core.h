@@ -1706,6 +1706,7 @@ struct rtw89_btc_wl_info {
 	u8 port_id[RTW89_WIFI_ROLE_MLME_MAX];
 	u8 rssi_level;
 	u8 cn_report;
+	u8 coex_mode;
 
 	bool scbd_change;
 	u32 scbd;
@@ -1813,6 +1814,7 @@ struct rtw89_btc_bt_info {
 	union rtw89_btc_bt_rfk_info_map rfk_info;
 
 	u8 raw_info[BTC_BTINFO_MAX]; /* raw bt info from mailbox */
+	u8 rssi_level;
 
 	u32 scbd;
 	u32 feature;
@@ -1829,7 +1831,8 @@ struct rtw89_btc_bt_info {
 	u32 hi_lna_rx: 1;
 	u32 scan_rx_low_pri: 1;
 	u32 scan_info_update: 1;
-	u32 rsvd: 20;
+	u32 lna_constrain: 3;
+	u32 rsvd: 17;
 };
 
 struct rtw89_btc_cx {
@@ -2307,12 +2310,6 @@ struct rtw89_btc_fbtc_fddt_cell_status {
 	u8 state_phase; /* [0:3] train state, [4:7] train phase */
 } __packed;
 
-struct rtw89_btc_fbtc_fddt_cell_status_v5 {
-	s8 wl_tx_pwr;
-	s8 bt_tx_pwr;
-	s8 bt_rx_gain;
-} __packed;
-
 struct rtw89_btc_fbtc_cysta_v3 { /* statistics for cycles */
 	u8 fver;
 	u8 rsvd;
@@ -2376,9 +2373,9 @@ struct rtw89_btc_fbtc_cysta_v5 { /* statistics for cycles */
 	struct rtw89_btc_fbtc_cycle_a2dp_empty_info a2dp_ept;
 	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 a2dp_trx[BTC_CYCLE_SLOT_MAX];
 	struct rtw89_btc_fbtc_cycle_fddt_info_v5 fddt_trx[BTC_CYCLE_SLOT_MAX];
-	struct rtw89_btc_fbtc_fddt_cell_status_v5 fddt_cells[FDD_TRAIN_WL_DIRECTION]
-							    [FDD_TRAIN_WL_RSSI_LEVEL]
-							    [FDD_TRAIN_BT_RSSI_LEVEL];
+	struct rtw89_btc_fbtc_fddt_cell_status fddt_cells[FDD_TRAIN_WL_DIRECTION]
+							 [FDD_TRAIN_WL_RSSI_LEVEL]
+							 [FDD_TRAIN_BT_RSSI_LEVEL];
 	__le32 except_map;
 } __packed;
 
@@ -2511,18 +2508,22 @@ struct rtw89_btc_dm {
 	u32 noisy_level: 3;
 	u32 coex_info_map: 8;
 	u32 bt_only: 1;
-	u32 wl_btg_rx: 1;
+	u32 wl_btg_rx: 2;
 	u32 trx_para_level: 8;
 	u32 wl_stb_chg: 1;
 	u32 pta_owner: 1;
+
 	u32 tdma_instant_excute: 1;
+	u32 wl_btg_rx_rb: 2;
 
 	u16 slot_dur[CXST_MAX];
 
 	u8 run_reason;
 	u8 run_action;
 
+	u8 wl_pre_agc: 2;
 	u8 wl_lna2: 1;
+	u8 wl_pre_agc_rb: 2;
 };
 
 struct rtw89_btc_ctrl {

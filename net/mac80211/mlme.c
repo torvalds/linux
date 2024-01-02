@@ -43,6 +43,9 @@
 #define IEEE80211_ASSOC_TIMEOUT_SHORT	(HZ / 10)
 #define IEEE80211_ASSOC_MAX_TRIES	3
 
+#define IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS msecs_to_jiffies(100)
+#define IEEE80211_ADV_TTLM_ST_UNDERFLOW 0xff00
+
 static int max_nullfunc_tries = 2;
 module_param(max_nullfunc_tries, int, 0644);
 MODULE_PARM_DESC(max_nullfunc_tries,
@@ -598,6 +601,7 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 		return ret;
 	}
 
+	cfg80211_schedule_channels_check(&sdata->wdev);
 	return 0;
 }
 
@@ -5381,6 +5385,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			   assoc_data->ap_addr, tu, ms);
 		assoc_data->timeout = jiffies + msecs_to_jiffies(ms);
 		assoc_data->timeout_started = true;
+		assoc_data->comeback = true;
 		if (ms > IEEE80211_ASSOC_TIMEOUT)
 			run_again(sdata, assoc_data->timeout);
 		goto notify_driver;
@@ -5964,6 +5969,13 @@ ieee80211_parse_adv_t2l(struct ieee80211_sub_if_data *sdata,
 	pos++;
 
 	ttlm_info->switch_time = get_unaligned_le16(pos);
+
+	/* Since ttlm_info->switch_time == 0 means no switch time, bump it
+	 * by 1.
+	 */
+	if (!ttlm_info->switch_time)
+		ttlm_info->switch_time = 1;
+
 	pos += 2;
 
 	if (control & IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT) {
@@ -6058,25 +6070,46 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (ttlm_info.switch_time) {
-			u32 st_us, delay = 0;
-			u32 ts_l26 = beacon_ts & GENMASK(25, 0);
+			u16 beacon_ts_tu, st_tu, delay;
+			u32 delay_jiffies;
+			u64 mask;
 
 			/* The t2l map switch time is indicated with a partial
-			 * TSF value, convert it to TSF and calc the delay
-			 * to the start time.
+			 * TSF value (bits 10 to 25), get the partial beacon TS
+			 * as well, and calc the delay to the start time.
 			 */
-			st_us = ieee80211_tu_to_usec(ttlm_info.switch_time);
-			if (st_us > ts_l26)
-				delay = st_us - ts_l26;
+			mask = GENMASK_ULL(25, 10);
+			beacon_ts_tu = (beacon_ts & mask) >> 10;
+			st_tu = ttlm_info.switch_time;
+			delay = st_tu - beacon_ts_tu;
+
+			/*
+			 * If the switch time is far in the future, then it
+			 * could also be the previous switch still being
+			 * announced.
+			 * We can simply ignore it for now, if it is a future
+			 * switch the AP will continue to announce it anyway.
+			 */
+			if (delay > IEEE80211_ADV_TTLM_ST_UNDERFLOW)
+				return;
+
+			delay_jiffies = TU_TO_JIFFIES(delay);
+
+			/* Link switching can take time, so schedule it
+			 * 100ms before to be ready on time
+			 */
+			if (delay_jiffies > IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS)
+				delay_jiffies -=
+					IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS;
 			else
-				continue;
+				delay_jiffies = 0;
 
 			sdata->u.mgd.ttlm_info = ttlm_info;
 			wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
 						  &sdata->u.mgd.ttlm_work);
 			wiphy_delayed_work_queue(sdata->local->hw.wiphy,
 						 &sdata->u.mgd.ttlm_work,
-						 usecs_to_jiffies(delay));
+						 delay_jiffies);
 			return;
 		}
 	}
@@ -6720,8 +6753,18 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			}
 			ifmgd->auth_data->timeout_started = true;
 		} else if (ifmgd->assoc_data &&
+			   !ifmgd->assoc_data->comeback &&
 			   (ieee80211_is_assoc_req(fc) ||
 			    ieee80211_is_reassoc_req(fc))) {
+			/*
+			 * Update association timeout based on the TX status
+			 * for the (Re)Association Request frame. Skip this if
+			 * we have already processed a (Re)Association Response
+			 * frame that indicated need for association comeback
+			 * at a specific time in the future. This could happen
+			 * if the TX status information is delayed enough for
+			 * the response to be received and processed first.
+			 */
 			if (status_acked) {
 				ifmgd->assoc_data->timeout =
 					jiffies + IEEE80211_ASSOC_TIMEOUT_SHORT;

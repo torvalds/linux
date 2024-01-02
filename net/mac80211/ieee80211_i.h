@@ -439,6 +439,7 @@ struct ieee80211_mgd_assoc_data {
 	bool need_beacon;
 	bool synced;
 	bool timeout_started;
+	bool comeback; /* whether the AP has requested association comeback */
 	bool s1g;
 
 	unsigned int assoc_link_id;
@@ -1775,10 +1776,7 @@ static inline bool txq_has_queue(struct ieee80211_txq *txq)
 static inline bool
 ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 {
-	WARN_ON_ONCE(status->flag & RX_FLAG_MACTIME_START &&
-		     status->flag & RX_FLAG_MACTIME_END);
-	return !!(status->flag & (RX_FLAG_MACTIME_START | RX_FLAG_MACTIME_END |
-				  RX_FLAG_MACTIME_PLCP_START));
+	return status->flag & RX_FLAG_MACTIME;
 }
 
 void ieee80211_vif_inc_num_mcast(struct ieee80211_sub_if_data *sdata);

@@ -27,9 +27,6 @@
 #define MVM_UCODE_ALIVE_TIMEOUT	(2 * HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
 
-#define IWL_TAS_US_MCC 0x5553
-#define IWL_TAS_CANADA_MCC 0x4341
-
 #define IWL_UATS_VLP_AP_SUPPORTED BIT(29)
 #define IWL_UATS_AFC_AP_SUPPORTED BIT(30)
 
@@ -1234,10 +1231,10 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 				dmi_get_system_info(DMI_SYS_VENDOR));
 		if ((!iwl_mvm_add_to_tas_block_list(cmd.v4.block_list_array,
 						    &cmd.v4.block_list_size,
-							IWL_TAS_US_MCC)) ||
+							IWL_MCC_US)) ||
 		    (!iwl_mvm_add_to_tas_block_list(cmd.v4.block_list_array,
 						    &cmd.v4.block_list_size,
-							IWL_TAS_CANADA_MCC))) {
+							IWL_MCC_CANADA))) {
 			IWL_DEBUG_RADIO(mvm,
 					"Unable to add US/Canada to TAS block list, disabling TAS\n");
 			return;

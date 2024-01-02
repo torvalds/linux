@@ -1609,10 +1609,17 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	/* Set the GO concurrent flag only in case that NO_IR is set.
 	 * Otherwise it is meaningless
 	 */
-	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
-	    (flags & NL80211_RRF_NO_IR))
-		flags |= NL80211_RRF_GO_CONCURRENT;
-
+	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT)) {
+		if (flags & NL80211_RRF_NO_IR)
+			flags |= NL80211_RRF_GO_CONCURRENT;
+		if (flags & NL80211_RRF_DFS) {
+			flags |= NL80211_RRF_DFS_CONCURRENT;
+			/* Our device doesn't set active bit for DFS channels
+			 * however, once marked as DFS no-ir is not needed.
+			 */
+			flags &= ~NL80211_RRF_NO_IR;
+		}
+	}
 	/*
 	 * reg_capa is per regulatory domain so apply it for every channel
 	 */
