@@ -12,7 +12,7 @@
 #define str_has_pfx(str, pfx) \
 	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
 
-#define TEST_LOADER_LOG_BUF_SZ 1048576
+#define TEST_LOADER_LOG_BUF_SZ 2097152
 
 #define TEST_TAG_EXPECT_FAILURE "comment:test_expect_failure"
 #define TEST_TAG_EXPECT_SUCCESS "comment:test_expect_success"
