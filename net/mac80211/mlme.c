@@ -46,6 +46,8 @@
 #define IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS msecs_to_jiffies(100)
 #define IEEE80211_ADV_TTLM_ST_UNDERFLOW 0xff00
 
+#define IEEE80211_NEG_TTLM_REQ_TIMEOUT (HZ / 5)
+
 static int max_nullfunc_tries = 2;
 module_param(max_nullfunc_tries, int, 0644);
 MODULE_PARM_DESC(max_nullfunc_tries,
@@ -3087,6 +3089,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	memset(&sdata->u.mgd.ttlm_info, 0,
 	       sizeof(sdata->u.mgd.ttlm_info));
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy, &ifmgd->ttlm_work);
+	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+				  &ifmgd->neg_ttlm_timeout_work);
 	ieee80211_vif_set_links(sdata, 0, 0);
 }
 
@@ -4984,6 +4988,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				ieee80211_mle_get_eml_cap(eht_ml_elem->data + 1);
 			sdata->vif.cfg.eml_med_sync_delay =
 				ieee80211_mle_get_eml_med_sync_delay(eht_ml_elem->data + 1);
+			sdata->vif.cfg.mld_capa_op =
+				ieee80211_mle_get_mld_capa_op(eht_ml_elem->data + 1);
 		}
 	}
 
@@ -6501,6 +6507,19 @@ static void ieee80211_apply_neg_ttlm(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.neg_ttlm.valid = true;
 }
 
+static void ieee80211_neg_ttlm_timeout_work(struct wiphy *wiphy,
+					    struct wiphy_work *work)
+{
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.neg_ttlm_timeout_work.work);
+
+	sdata_info(sdata,
+		   "No negotiated TTLM response from AP, disconnecting.\n");
+
+	__ieee80211_disconnect(sdata);
+}
+
 static void
 ieee80211_neg_ttlm_add_suggested_map(struct sk_buff *skb,
 				     struct ieee80211_neg_ttlm *neg_ttlm)
@@ -6545,6 +6564,74 @@ ieee80211_neg_ttlm_add_suggested_map(struct sk_buff *skb,
 		if (direction[i] == IEEE80211_TTLM_DIRECTION_BOTH)
 			break;
 	}
+}
+
+static void
+ieee80211_send_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
+			    struct ieee80211_neg_ttlm *neg_ttlm,
+			    u8 dialog_token)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_mgmt *mgmt;
+	struct sk_buff *skb;
+	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.ttlm_req);
+	int ttlm_max_len = 2 + 1 + sizeof(struct ieee80211_ttlm_elem) + 1 +
+		2 * 2 * IEEE80211_TTLM_NUM_TIDS;
+
+	skb = dev_alloc_skb(local->tx_headroom + hdr_len + ttlm_max_len);
+	if (!skb)
+		return;
+
+	skb_reserve(skb, local->tx_headroom);
+	mgmt = skb_put_zero(skb, hdr_len);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
+	memcpy(mgmt->da, sdata->vif.cfg.ap_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
+
+	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
+	mgmt->u.action.u.ttlm_req.action_code =
+		WLAN_PROTECTED_EHT_ACTION_TTLM_REQ;
+	mgmt->u.action.u.ttlm_req.dialog_token = dialog_token;
+	ieee80211_neg_ttlm_add_suggested_map(skb, neg_ttlm);
+	ieee80211_tx_skb(sdata, skb);
+}
+
+int ieee80211_req_neg_ttlm(struct ieee80211_sub_if_data *sdata,
+			   struct cfg80211_ttlm_params *params)
+{
+	struct ieee80211_neg_ttlm neg_ttlm = {};
+	u8 i;
+
+	if (!ieee80211_vif_is_mld(&sdata->vif) ||
+	    !(sdata->vif.cfg.mld_capa_op &
+	      IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP))
+		return -EINVAL;
+
+	for (i = 0; i < IEEE80211_TTLM_NUM_TIDS; i++) {
+		if ((params->dlink[i] & ~sdata->vif.valid_links) ||
+		    (params->ulink[i] & ~sdata->vif.valid_links))
+			return -EINVAL;
+
+		neg_ttlm.downlink[i] = params->dlink[i];
+		neg_ttlm.uplink[i] = params->ulink[i];
+	}
+
+	if (drv_can_neg_ttlm(sdata->local, sdata, &neg_ttlm) !=
+	    NEG_TTLM_RES_ACCEPT)
+		return -EINVAL;
+
+	ieee80211_apply_neg_ttlm(sdata, neg_ttlm);
+	sdata->u.mgd.dialog_token_alloc++;
+	ieee80211_send_neg_ttlm_req(sdata, &sdata->vif.neg_ttlm,
+				    sdata->u.mgd.dialog_token_alloc);
+	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+				  &sdata->u.mgd.neg_ttlm_timeout_work);
+	wiphy_delayed_work_queue(sdata->local->hw.wiphy,
+				 &sdata->u.mgd.neg_ttlm_timeout_work,
+				 IEEE80211_NEG_TTLM_REQ_TIMEOUT);
+	return 0;
 }
 
 static void
@@ -6738,6 +6825,29 @@ void ieee80211_process_neg_ttlm_req(struct ieee80211_sub_if_data *sdata,
 out:
 	kfree(elems);
 	ieee80211_send_neg_ttlm_res(sdata, ttlm_res, dialog_token, &neg_ttlm);
+}
+
+void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
+				    struct ieee80211_mgmt *mgmt, size_t len)
+{
+	if (!ieee80211_vif_is_mld(&sdata->vif) ||
+	    mgmt->u.action.u.ttlm_req.dialog_token !=
+	    sdata->u.mgd.dialog_token_alloc)
+		return;
+
+	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+				  &sdata->u.mgd.neg_ttlm_timeout_work);
+
+	/* MLD station sends a TID to link mapping request, mainly to handle
+	 * BTM (BSS transition management) request, in which case it needs to
+	 * restrict the active links set.
+	 * In this case it's not expected that the MLD AP will reject the
+	 * negotiated TTLM request.
+	 * This can be better implemented in the future, to handle request
+	 * rejections.
+	 */
+	if (mgmt->u.action.u.ttlm_res.status_code != WLAN_STATUS_SUCCESS)
+		__ieee80211_disconnect(sdata);
 }
 
 void ieee80211_sta_rx_queued_ext(struct ieee80211_sub_if_data *sdata,
@@ -7369,6 +7479,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 				ieee80211_sta_handle_tspec_ac_params_wk);
 	wiphy_delayed_work_init(&ifmgd->ttlm_work,
 				ieee80211_tid_to_link_map_work);
+	wiphy_delayed_work_init(&ifmgd->neg_ttlm_timeout_work,
+				ieee80211_neg_ttlm_timeout_work);
 
 	ifmgd->flags = 0;
 	ifmgd->powersave = sdata->wdev.ps;
@@ -8459,6 +8571,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
 				  &ifmgd->ml_reconf_work);
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy, &ifmgd->ttlm_work);
+	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
+				  &ifmgd->neg_ttlm_timeout_work);
 
 	if (ifmgd->assoc_data)
 		ieee80211_destroy_assoc_data(sdata, ASSOC_TIMEOUT);

@@ -5025,6 +5025,43 @@ static inline u16 ieee80211_mle_get_eml_cap(const u8 *data)
 }
 
 /**
+ * ieee80211_mle_get_mld_capa_op - returns the MLD capabilities and operations.
+ * @data: pointer to the multi link EHT IE
+ *
+ * The element is assumed to be of the correct type (BASIC) and big enough,
+ * this must be checked using ieee80211_mle_type_ok().
+ *
+ * If the MLD capabilities and operations field is not present, 0 will be
+ * returned.
+ */
+static inline u16 ieee80211_mle_get_mld_capa_op(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	const u8 *common = mle->variable;
+
+	/*
+	 * common points now at the beginning of
+	 * ieee80211_mle_basic_common_info
+	 */
+	common += sizeof(struct ieee80211_mle_basic_common_info);
+
+	if (!(control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP))
+		return 0;
+
+	if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+		common += 1;
+	if (control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY)
+		common += 2;
+	if (control & IEEE80211_MLC_BASIC_PRES_EML_CAPA)
+		common += 2;
+
+	return get_unaligned_le16(common);
+}
+
+/**
  * ieee80211_mle_size_ok - validate multi-link element size
  * @data: pointer to the element data
  * @len: length of the containing element
