@@ -253,7 +253,7 @@ static int __net_init ipmr_rules_init(struct net *net)
 		goto err1;
 	}
 
-	err = fib_default_rule_add(ops, 0x7fff, RT_TABLE_DEFAULT, 0);
+	err = fib_default_rule_add(ops, 0x7fff, RT_TABLE_DEFAULT);
 	if (err < 0)
 		goto err2;
 

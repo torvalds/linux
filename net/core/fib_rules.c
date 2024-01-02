@@ -53,7 +53,7 @@ bool fib_rule_matchall(const struct fib_rule *rule)
 EXPORT_SYMBOL_GPL(fib_rule_matchall);
 
 int fib_default_rule_add(struct fib_rules_ops *ops,
-			 u32 pref, u32 table, u32 flags)
+			 u32 pref, u32 table)
 {
 	struct fib_rule *r;
 
@@ -65,7 +65,6 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 	r->action = FR_ACT_TO_TBL;
 	r->pref = pref;
 	r->table = table;
-	r->flags = flags;
 	r->proto = RTPROT_KERNEL;
 	r->fr_net = ops->fro_net;
 	r->uid_range = fib_kuid_range_unset;

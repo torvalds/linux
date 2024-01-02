@@ -395,13 +395,13 @@ static int fib_default_rules_init(struct fib_rules_ops *ops)
 {
 	int err;
 
-	err = fib_default_rule_add(ops, 0, RT_TABLE_LOCAL, 0);
+	err = fib_default_rule_add(ops, 0, RT_TABLE_LOCAL);
 	if (err < 0)
 		return err;
-	err = fib_default_rule_add(ops, 0x7FFE, RT_TABLE_MAIN, 0);
+	err = fib_default_rule_add(ops, 0x7FFE, RT_TABLE_MAIN);
 	if (err < 0)
 		return err;
-	err = fib_default_rule_add(ops, 0x7FFF, RT_TABLE_DEFAULT, 0);
+	err = fib_default_rule_add(ops, 0x7FFF, RT_TABLE_DEFAULT);
 	if (err < 0)
 		return err;
 	return 0;
