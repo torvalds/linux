@@ -2091,7 +2091,9 @@
   synchronize_rcu
   syscon_regmap_lookup_by_phandle
   sysctl_sched_features
+  sysctl_sched_idle_min_granularity
   sysctl_sched_latency
+  sysctl_sched_min_granularity
   sysfs_add_file_to_group
   sysfs_add_link_to_group
   sysfs_create_file_ns
