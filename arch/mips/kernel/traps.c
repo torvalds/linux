@@ -2381,7 +2381,7 @@ void __init trap_init(void)
 		set_except_vector(i, handle_reserved);
 
 	/*
-	 * Copy the EJTAG debug exception vector handler code to it's final
+	 * Copy the EJTAG debug exception vector handler code to its final
 	 * destination.
 	 */
 	if (cpu_has_ejtag && board_ejtag_handler_setup)

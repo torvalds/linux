@@ -183,7 +183,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	int idx, pid;
 
 	/*
-	 * Handle debugger faulting in for debugee.
+	 * Handle debugger faulting in for debuggee.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;
