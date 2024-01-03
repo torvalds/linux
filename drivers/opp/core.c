@@ -3013,6 +3013,47 @@ put_table:
 EXPORT_SYMBOL_GPL(dev_pm_opp_adjust_voltage);
 
 /**
+ * dev_pm_opp_sync_regulators() - Sync state of voltage regulators
+ * @dev:	device for which we do this operation
+ *
+ * Sync voltage state of the OPP table regulators.
+ *
+ * Return: 0 on success or a negative error value.
+ */
+int dev_pm_opp_sync_regulators(struct device *dev)
+{
+	struct opp_table *opp_table;
+	struct regulator *reg;
+	int i, ret = 0;
+
+	/* Device may not have OPP table */
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table))
+		return 0;
+
+	/* Regulator may not be required for the device */
+	if (unlikely(!opp_table->regulators))
+		goto put_table;
+
+	/* Nothing to sync if voltage wasn't changed */
+	if (!opp_table->enabled)
+		goto put_table;
+
+	for (i = 0; i < opp_table->regulator_count; i++) {
+		reg = opp_table->regulators[i];
+		ret = regulator_sync_voltage(reg);
+		if (ret)
+			break;
+	}
+put_table:
+	/* Drop reference taken by _find_opp_table() */
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_sync_regulators);
+
+/**
  * dev_pm_opp_enable() - Enable a specific OPP
  * @dev:	device for which we do this operation
  * @freq:	OPP frequency to enable
@@ -3135,44 +3176,3 @@ void dev_pm_opp_remove_table(struct device *dev)
 	dev_pm_opp_put_opp_table(opp_table);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove_table);
-
-/**
- * dev_pm_opp_sync_regulators() - Sync state of voltage regulators
- * @dev:	device for which we do this operation
- *
- * Sync voltage state of the OPP table regulators.
- *
- * Return: 0 on success or a negative error value.
- */
-int dev_pm_opp_sync_regulators(struct device *dev)
-{
-	struct opp_table *opp_table;
-	struct regulator *reg;
-	int i, ret = 0;
-
-	/* Device may not have OPP table */
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
-		return 0;
-
-	/* Regulator may not be required for the device */
-	if (unlikely(!opp_table->regulators))
-		goto put_table;
-
-	/* Nothing to sync if voltage wasn't changed */
-	if (!opp_table->enabled)
-		goto put_table;
-
-	for (i = 0; i < opp_table->regulator_count; i++) {
-		reg = opp_table->regulators[i];
-		ret = regulator_sync_voltage(reg);
-		if (ret)
-			break;
-	}
-put_table:
-	/* Drop reference taken by _find_opp_table() */
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_sync_regulators);
