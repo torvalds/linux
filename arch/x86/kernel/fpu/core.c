@@ -308,7 +308,7 @@ EXPORT_SYMBOL_GPL(fpu_update_guest_xfd);
  * Must be invoked from KVM after a VMEXIT before enabling interrupts when
  * XFD write emulation is disabled. This is required because the guest can
  * freely modify XFD and the state at VMEXIT is not guaranteed to be the
- * same as the state on VMENTER. So software state has to be udpated before
+ * same as the state on VMENTER. So software state has to be updated before
  * any operation which depends on it can take place.
  *
  * Note: It can be invoked unconditionally even when write emulation is

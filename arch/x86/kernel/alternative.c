@@ -1896,7 +1896,7 @@ static void *__text_poke(text_poke_f func, void *addr, const void *src, size_t l
  * Note that the caller must ensure that if the modified code is part of a
  * module, the module would not be removed during poking. This can be achieved
  * by registering a module notifier, and ordering module removal and patching
- * trough a mutex.
+ * through a mutex.
  */
 void *text_poke(void *addr, const void *opcode, size_t len)
 {

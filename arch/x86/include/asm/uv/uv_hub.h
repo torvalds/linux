@@ -653,7 +653,7 @@ static inline int uv_blade_to_node(int blade)
 	return uv_socket_to_node(blade);
 }
 
-/* Blade number of current cpu. Numnbered 0 .. <#blades -1> */
+/* Blade number of current cpu. Numbered 0 .. <#blades -1> */
 static inline int uv_numa_blade_id(void)
 {
 	return uv_hub_info->numa_blade_id;

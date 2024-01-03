@@ -987,7 +987,7 @@ static void pte_list_desc_remove_entry(struct kvm *kvm,
 
 	/*
 	 * The head descriptor is empty.  If there are no tail descriptors,
-	 * nullify the rmap head to mark the list as emtpy, else point the rmap
+	 * nullify the rmap head to mark the list as empty, else point the rmap
 	 * head at the next descriptor, i.e. the new head.
 	 */
 	if (!head_desc->more)
@@ -6544,7 +6544,7 @@ void kvm_mmu_try_split_huge_pages(struct kvm *kvm,
 	kvm_tdp_mmu_try_split_huge_pages(kvm, memslot, start, end, target_level, false);
 
 	/*
-	 * A TLB flush is unnecessary at this point for the same resons as in
+	 * A TLB flush is unnecessary at this point for the same reasons as in
 	 * kvm_mmu_slot_try_split_huge_pages().
 	 */
 }

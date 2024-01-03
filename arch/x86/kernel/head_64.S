@@ -205,9 +205,9 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	 * Switch to new page-table
 	 *
 	 * For the boot CPU this switches to early_top_pgt which still has the
-	 * indentity mappings present. The secondary CPUs will switch to the
+	 * identity mappings present. The secondary CPUs will switch to the
 	 * init_top_pgt here, away from the trampoline_pgd and unmap the
-	 * indentity mapped ranges.
+	 * identity mapped ranges.
 	 */
 	movq	%rax, %cr3
 
