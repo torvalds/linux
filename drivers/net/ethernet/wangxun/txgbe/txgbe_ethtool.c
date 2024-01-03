@@ -58,6 +58,19 @@ static int txgbe_set_ringparam(struct net_device *netdev,
 	return 0;
 }
 
+static int txgbe_set_channels(struct net_device *dev,
+			      struct ethtool_channels *ch)
+{
+	int err;
+
+	err = wx_set_channels(dev, ch);
+	if (err < 0)
+		return err;
+
+	/* use setup TC to update any traffic class queue mapping */
+	return txgbe_setup_tc(dev, netdev_get_num_tc(dev));
+}
+
 static const struct ethtool_ops txgbe_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_TX_MAX_FRAMES_IRQ,
@@ -77,6 +90,8 @@ static const struct ethtool_ops txgbe_ethtool_ops = {
 	.set_ringparam		= txgbe_set_ringparam,
 	.get_coalesce		= wx_get_coalesce,
 	.set_coalesce		= wx_set_coalesce,
+	.get_channels		= wx_get_channels,
+	.set_channels		= txgbe_set_channels,
 };
 
 void txgbe_set_ethtool_ops(struct net_device *netdev)

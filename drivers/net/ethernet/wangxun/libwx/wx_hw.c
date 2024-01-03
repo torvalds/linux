@@ -149,9 +149,9 @@ void wx_irq_disable(struct wx *wx)
 		int vector;
 
 		for (vector = 0; vector < wx->num_q_vectors; vector++)
-			synchronize_irq(wx->msix_entries[vector].vector);
+			synchronize_irq(wx->msix_q_entries[vector].vector);
 
-		synchronize_irq(wx->msix_entries[vector].vector);
+		synchronize_irq(wx->msix_entry->vector);
 	} else {
 		synchronize_irq(pdev->irq);
 	}
@@ -1597,6 +1597,72 @@ static void wx_restore_vlan(struct wx *wx)
 		wx_vlan_rx_add_vid(wx->netdev, htons(ETH_P_8021Q), vid);
 }
 
+static void wx_store_reta(struct wx *wx)
+{
+	u8 *indir_tbl = wx->rss_indir_tbl;
+	u32 reta = 0;
+	u32 i;
+
+	/* Fill out the redirection table as follows:
+	 *  - 8 bit wide entries containing 4 bit RSS index
+	 */
+	for (i = 0; i < WX_MAX_RETA_ENTRIES; i++) {
+		reta |= indir_tbl[i] << (i & 0x3) * 8;
+		if ((i & 3) == 3) {
+			wr32(wx, WX_RDB_RSSTBL(i >> 2), reta);
+			reta = 0;
+		}
+	}
+}
+
+static void wx_setup_reta(struct wx *wx)
+{
+	u16 rss_i = wx->ring_feature[RING_F_RSS].indices;
+	u32 random_key_size = WX_RSS_KEY_SIZE / 4;
+	u32 i, j;
+
+	/* Fill out hash function seeds */
+	for (i = 0; i < random_key_size; i++)
+		wr32(wx, WX_RDB_RSSRK(i), wx->rss_key[i]);
+
+	/* Fill out redirection table */
+	memset(wx->rss_indir_tbl, 0, sizeof(wx->rss_indir_tbl));
+
+	for (i = 0, j = 0; i < WX_MAX_RETA_ENTRIES; i++, j++) {
+		if (j == rss_i)
+			j = 0;
+
+		wx->rss_indir_tbl[i] = j;
+	}
+
+	wx_store_reta(wx);
+}
+
+static void wx_setup_mrqc(struct wx *wx)
+{
+	u32 rss_field = 0;
+
+	/* Disable indicating checksum in descriptor, enables RSS hash */
+	wr32m(wx, WX_PSR_CTL, WX_PSR_CTL_PCSD, WX_PSR_CTL_PCSD);
+
+	/* Perform hash on these packet types */
+	rss_field = WX_RDB_RA_CTL_RSS_IPV4 |
+		    WX_RDB_RA_CTL_RSS_IPV4_TCP |
+		    WX_RDB_RA_CTL_RSS_IPV4_UDP |
+		    WX_RDB_RA_CTL_RSS_IPV6 |
+		    WX_RDB_RA_CTL_RSS_IPV6_TCP |
+		    WX_RDB_RA_CTL_RSS_IPV6_UDP;
+
+	netdev_rss_key_fill(wx->rss_key, sizeof(wx->rss_key));
+
+	wx_setup_reta(wx);
+
+	if (wx->rss_enabled)
+		rss_field |= WX_RDB_RA_CTL_RSS_EN;
+
+	wr32(wx, WX_RDB_RA_CTL, rss_field);
+}
+
 /**
  * wx_configure_rx - Configure Receive Unit after Reset
  * @wx: pointer to private structure
@@ -1628,6 +1694,8 @@ void wx_configure_rx(struct wx *wx)
 		psrctl |= WX_PSR_CTL_RSC_DIS;
 		wr32(wx, WX_PSR_CTL, psrctl);
 	}
+
+	wx_setup_mrqc(wx);
 
 	/* set_rx_buffer_len must be called before ring initialization */
 	wx_set_rx_buffer_len(wx);
@@ -1826,6 +1894,28 @@ int wx_get_pcie_msix_counts(struct wx *wx, u16 *msix_count, u16 max_msix_count)
 }
 EXPORT_SYMBOL(wx_get_pcie_msix_counts);
 
+/**
+ * wx_init_rss_key - Initialize wx RSS key
+ * @wx: device handle
+ *
+ * Allocates and initializes the RSS key if it is not allocated.
+ **/
+static int wx_init_rss_key(struct wx *wx)
+{
+	u32 *rss_key;
+
+	if (!wx->rss_key) {
+		rss_key = kzalloc(WX_RSS_KEY_SIZE, GFP_KERNEL);
+		if (unlikely(!rss_key))
+			return -ENOMEM;
+
+		netdev_rss_key_fill(rss_key, WX_RSS_KEY_SIZE);
+		wx->rss_key = rss_key;
+	}
+
+	return 0;
+}
+
 int wx_sw_init(struct wx *wx)
 {
 	struct pci_dev *pdev = wx->pdev;
@@ -1853,13 +1943,22 @@ int wx_sw_init(struct wx *wx)
 		wx->subsystem_device_id = swab16((u16)ssid);
 	}
 
+	err = wx_init_rss_key(wx);
+	if (err < 0) {
+		wx_err(wx, "rss key allocation failed\n");
+		return err;
+	}
+
 	wx->mac_table = kcalloc(wx->mac.num_rar_entries,
 				sizeof(struct wx_mac_addr),
 				GFP_KERNEL);
 	if (!wx->mac_table) {
 		wx_err(wx, "mac_table allocation failed\n");
+		kfree(wx->rss_key);
 		return -ENOMEM;
 	}
+
+	wx->msix_in_use = false;
 
 	return 0;
 }

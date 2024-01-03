@@ -34,4 +34,8 @@ int wx_set_coalesce(struct net_device *netdev,
 		    struct ethtool_coalesce *ec,
 		    struct kernel_ethtool_coalesce *kernel_coal,
 		    struct netlink_ext_ack *extack);
+void wx_get_channels(struct net_device *dev,
+		     struct ethtool_channels *ch);
+int wx_set_channels(struct net_device *dev,
+		    struct ethtool_channels *ch);
 #endif /* _WX_ETHTOOL_H_ */

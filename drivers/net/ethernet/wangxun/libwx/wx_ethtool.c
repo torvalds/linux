@@ -348,3 +348,60 @@ int wx_set_coalesce(struct net_device *netdev,
 	return 0;
 }
 EXPORT_SYMBOL(wx_set_coalesce);
+
+static unsigned int wx_max_channels(struct wx *wx)
+{
+	unsigned int max_combined;
+
+	if (!wx->msix_q_entries) {
+		/* We only support one q_vector without MSI-X */
+		max_combined = 1;
+	} else {
+		/* support up to max allowed queues with RSS */
+		if (wx->mac.type == wx_mac_sp)
+			max_combined = 63;
+		else
+			max_combined = 8;
+	}
+
+	return max_combined;
+}
+
+void wx_get_channels(struct net_device *dev,
+		     struct ethtool_channels *ch)
+{
+	struct wx *wx = netdev_priv(dev);
+
+	/* report maximum channels */
+	ch->max_combined = wx_max_channels(wx);
+
+	/* report info for other vector */
+	if (wx->msix_q_entries) {
+		ch->max_other = 1;
+		ch->other_count = 1;
+	}
+
+	/* record RSS queues */
+	ch->combined_count = wx->ring_feature[RING_F_RSS].indices;
+}
+EXPORT_SYMBOL(wx_get_channels);
+
+int wx_set_channels(struct net_device *dev,
+		    struct ethtool_channels *ch)
+{
+	unsigned int count = ch->combined_count;
+	struct wx *wx = netdev_priv(dev);
+
+	/* verify other_count has not changed */
+	if (ch->other_count != 1)
+		return -EINVAL;
+
+	/* verify the number of channels does not exceed hardware limits */
+	if (count > wx_max_channels(wx))
+		return -EINVAL;
+
+	wx->ring_feature[RING_F_RSS].limit = count;
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_set_channels);

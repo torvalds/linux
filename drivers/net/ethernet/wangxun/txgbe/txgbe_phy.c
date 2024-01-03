@@ -487,7 +487,7 @@ static void txgbe_irq_handler(struct irq_desc *desc)
 	}
 
 	/* unmask interrupt */
-	wx_intr_enable(wx, TXGBE_INTR_MISC(wx));
+	wx_intr_enable(wx, TXGBE_INTR_MISC);
 }
 
 static int txgbe_gpio_init(struct txgbe *txgbe)
@@ -531,7 +531,12 @@ static int txgbe_gpio_init(struct txgbe *txgbe)
 				     sizeof(*girq->parents), GFP_KERNEL);
 	if (!girq->parents)
 		return -ENOMEM;
-	girq->parents[0] = wx->msix_entries[wx->num_q_vectors].vector;
+
+	/* now only suuported on MSI-X interrupt */
+	if (!wx->msix_entry)
+		return -EPERM;
+
+	girq->parents[0] = wx->msix_entry->vector;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_bad_irq;
 
@@ -749,6 +754,8 @@ int txgbe_init_phy(struct txgbe *txgbe)
 		goto err_unregister_i2c;
 	}
 
+	wx->msix_in_use = true;
+
 	return 0;
 
 err_unregister_i2c:
@@ -781,4 +788,5 @@ void txgbe_remove_phy(struct txgbe *txgbe)
 	phylink_destroy(txgbe->wx->phylink);
 	xpcs_destroy(txgbe->xpcs);
 	software_node_unregister_node_group(txgbe->nodes.group);
+	txgbe->wx->msix_in_use = false;
 }

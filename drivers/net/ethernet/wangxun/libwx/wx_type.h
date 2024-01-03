@@ -147,8 +147,16 @@
 #define WX_RDB_PL_CFG_L2HDR          BIT(3)
 #define WX_RDB_PL_CFG_TUN_TUNHDR     BIT(4)
 #define WX_RDB_PL_CFG_TUN_OUTL2HDR   BIT(5)
+#define WX_RDB_RSSTBL(_i)            (0x19400 + ((_i) * 4))
+#define WX_RDB_RSSRK(_i)             (0x19480 + ((_i) * 4))
 #define WX_RDB_RA_CTL                0x194F4
 #define WX_RDB_RA_CTL_RSS_EN         BIT(2) /* RSS Enable */
+#define WX_RDB_RA_CTL_RSS_IPV4_TCP   BIT(16)
+#define WX_RDB_RA_CTL_RSS_IPV4       BIT(17)
+#define WX_RDB_RA_CTL_RSS_IPV6       BIT(20)
+#define WX_RDB_RA_CTL_RSS_IPV6_TCP   BIT(21)
+#define WX_RDB_RA_CTL_RSS_IPV4_UDP   BIT(22)
+#define WX_RDB_RA_CTL_RSS_IPV6_UDP   BIT(23)
 
 /******************************* PSR Registers *******************************/
 /* psr control */
@@ -921,6 +929,19 @@ struct wx_q_vector {
 	struct wx_ring ring[] ____cacheline_internodealigned_in_smp;
 };
 
+struct wx_ring_feature {
+	u16 limit;      /* upper limit on feature indices */
+	u16 indices;    /* current value of indices */
+	u16 mask;       /* Mask used for feature to ring mapping */
+	u16 offset;     /* offset to start of feature */
+};
+
+enum wx_ring_f_enum {
+	RING_F_NONE = 0,
+	RING_F_RSS,
+	RING_F_ARRAY_SIZE  /* must be last in enum set */
+};
+
 enum wx_isb_idx {
 	WX_ISB_HEADER,
 	WX_ISB_MISC,
@@ -1024,7 +1045,10 @@ struct wx {
 	struct wx_q_vector *q_vector[64];
 
 	unsigned int queues_per_pool;
-	struct msix_entry *msix_entries;
+	struct msix_entry *msix_q_entries;
+	struct msix_entry *msix_entry;
+	bool msix_in_use;
+	struct wx_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 
 	/* misc interrupt status block */
 	dma_addr_t isb_dma;
@@ -1032,8 +1056,9 @@ struct wx {
 	u32 isb_tag[WX_ISB_MAX];
 
 #define WX_MAX_RETA_ENTRIES 128
+#define WX_RSS_INDIR_TBL_MAX 64
 	u8 rss_indir_tbl[WX_MAX_RETA_ENTRIES];
-
+	bool rss_enabled;
 #define WX_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
 	u32 wol;
@@ -1050,7 +1075,7 @@ struct wx {
 };
 
 #define WX_INTR_ALL (~0ULL)
-#define WX_INTR_Q(i) BIT(i)
+#define WX_INTR_Q(i) BIT((i) + 1)
 
 /* register operations */
 #define wr32(a, reg, value)	writel((value), ((a)->hw_addr + (reg)))

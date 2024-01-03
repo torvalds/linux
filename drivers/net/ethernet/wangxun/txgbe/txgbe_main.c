@@ -86,7 +86,7 @@ static void txgbe_irq_enable(struct wx *wx, bool queues)
 	wr32(wx, WX_PX_MISC_IEN, TXGBE_PX_MISC_IEN_MASK);
 
 	/* unmask interrupt */
-	wx_intr_enable(wx, TXGBE_INTR_MISC(wx));
+	wx_intr_enable(wx, TXGBE_INTR_MISC);
 	if (queues)
 		wx_intr_enable(wx, TXGBE_INTR_QALL(wx));
 }
@@ -145,7 +145,7 @@ static int txgbe_request_msix_irqs(struct wx *wx)
 
 	for (vector = 0; vector < wx->num_q_vectors; vector++) {
 		struct wx_q_vector *q_vector = wx->q_vector[vector];
-		struct msix_entry *entry = &wx->msix_entries[vector];
+		struct msix_entry *entry = &wx->msix_q_entries[vector];
 
 		if (q_vector->tx.ring && q_vector->rx.ring)
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -168,7 +168,7 @@ static int txgbe_request_msix_irqs(struct wx *wx)
 free_queue_irqs:
 	while (vector) {
 		vector--;
-		free_irq(wx->msix_entries[vector].vector,
+		free_irq(wx->msix_q_entries[vector].vector,
 			 wx->q_vector[vector]);
 	}
 	wx_reset_interrupt_capability(wx);
@@ -378,6 +378,10 @@ static int txgbe_sw_init(struct wx *wx)
 		wx_err(wx, "Do not support MSI-X\n");
 	wx->mac.max_msix_vectors = msix_count;
 
+	wx->ring_feature[RING_F_RSS].limit = min_t(int, TXGBE_MAX_RSS_INDICES,
+						   num_online_cpus());
+	wx->rss_enabled = true;
+
 	/* enable itr by default in dynamic mode */
 	wx->rx_itr_setting = 1;
 	wx->tx_itr_setting = 1;
@@ -502,6 +506,41 @@ static void txgbe_shutdown(struct pci_dev *pdev)
 		pci_wake_from_d3(pdev, false);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
+}
+
+/**
+ * txgbe_setup_tc - routine to configure net_device for multiple traffic
+ * classes.
+ *
+ * @dev: net device to configure
+ * @tc: number of traffic classes to enable
+ */
+int txgbe_setup_tc(struct net_device *dev, u8 tc)
+{
+	struct wx *wx = netdev_priv(dev);
+
+	/* Hardware has to reinitialize queues and interrupts to
+	 * match packet buffer alignment. Unfortunately, the
+	 * hardware is not flexible enough to do this dynamically.
+	 */
+	if (netif_running(dev))
+		txgbe_close(dev);
+	else
+		txgbe_reset(wx);
+
+	wx_clear_interrupt_scheme(wx);
+
+	if (tc)
+		netdev_set_num_tc(dev, tc);
+	else
+		netdev_reset_tc(dev);
+
+	wx_init_interrupt_scheme(wx);
+
+	if (netif_running(dev))
+		txgbe_open(dev);
+
+	return 0;
 }
 
 static const struct net_device_ops txgbe_netdev_ops = {
@@ -778,6 +817,7 @@ static void txgbe_remove(struct pci_dev *pdev)
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
+	kfree(wx->rss_key);
 	kfree(wx->mac_table);
 	wx_clear_interrupt_scheme(wx);
 
