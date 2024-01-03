@@ -219,6 +219,17 @@ static int wmidev_match_guid(struct device *dev, const void *data)
 	return 0;
 }
 
+static int wmidev_match_notify_id(struct device *dev, const void *data)
+{
+	struct wmi_block *wblock = dev_to_wblock(dev);
+	const u32 *notify_id = data;
+
+	if (wblock->gblock.flags & ACPI_WMI_EVENT && wblock->gblock.notify_id == *notify_id)
+		return 1;
+
+	return 0;
+}
+
 static struct bus_type wmi_bus_type;
 
 static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
@@ -236,6 +247,17 @@ static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
 		return ERR_PTR(-ENODEV);
 
 	return dev_to_wdev(dev);
+}
+
+static struct wmi_device *wmi_find_event_by_notify_id(const u32 notify_id)
+{
+	struct device *dev;
+
+	dev = bus_find_device(&wmi_bus_type, NULL, &notify_id, wmidev_match_notify_id);
+	if (!dev)
+		return ERR_PTR(-ENODEV);
+
+	return to_wmi_device(dev);
 }
 
 static void wmi_device_put(struct wmi_device *wdev)
@@ -572,34 +594,30 @@ acpi_status wmi_install_notify_handler(const char *guid,
 				       wmi_notify_handler handler,
 				       void *data)
 {
-	struct wmi_block *block;
-	guid_t guid_input;
+	struct wmi_block *wblock;
+	struct wmi_device *wdev;
+	acpi_status status;
 
-	if (!guid || !handler)
-		return AE_BAD_PARAMETER;
+	wdev = wmi_find_device_by_guid(guid);
+	if (IS_ERR(wdev))
+		return AE_ERROR;
 
-	if (guid_parse(guid, &guid_input))
-		return AE_BAD_PARAMETER;
+	wblock = container_of(wdev, struct wmi_block, dev);
+	if (wblock->handler) {
+		status = AE_ALREADY_ACQUIRED;
+	} else {
+		wblock->handler = handler;
+		wblock->handler_data = data;
 
-	list_for_each_entry(block, &wmi_block_list, list) {
-		acpi_status wmi_status;
+		if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
+			dev_warn(&wblock->dev.dev, "Failed to enable device\n");
 
-		if (guid_equal(&block->gblock.guid, &guid_input)) {
-			if (block->handler)
-				return AE_ALREADY_ACQUIRED;
-
-			block->handler = handler;
-			block->handler_data = data;
-
-			wmi_status = wmi_method_enable(block, true);
-			if (ACPI_FAILURE(wmi_status))
-				dev_warn(&block->dev.dev, "Failed to enable device\n");
-
-			return AE_OK;
-		}
+		status = AE_OK;
 	}
 
-	return AE_NOT_EXIST;
+	wmi_device_put(wdev);
+
+	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 
@@ -613,34 +631,30 @@ EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
  */
 acpi_status wmi_remove_notify_handler(const char *guid)
 {
-	struct wmi_block *block;
-	guid_t guid_input;
+	struct wmi_block *wblock;
+	struct wmi_device *wdev;
+	acpi_status status;
 
-	if (!guid)
-		return AE_BAD_PARAMETER;
+	wdev = wmi_find_device_by_guid(guid);
+	if (IS_ERR(wdev))
+		return AE_ERROR;
 
-	if (guid_parse(guid, &guid_input))
-		return AE_BAD_PARAMETER;
+	wblock = container_of(wdev, struct wmi_block, dev);
+	if (!wblock->handler) {
+		status = AE_NULL_ENTRY;
+	} else {
+		if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
+			dev_warn(&wblock->dev.dev, "Failed to disable device\n");
 
-	list_for_each_entry(block, &wmi_block_list, list) {
-		acpi_status wmi_status;
+		wblock->handler = NULL;
+		wblock->handler_data = NULL;
 
-		if (guid_equal(&block->gblock.guid, &guid_input)) {
-			if (!block->handler)
-				return AE_NULL_ENTRY;
-
-			wmi_status = wmi_method_enable(block, false);
-			if (ACPI_FAILURE(wmi_status))
-				dev_warn(&block->dev.dev, "Failed to disable device\n");
-
-			block->handler = NULL;
-			block->handler_data = NULL;
-
-			return AE_OK;
-		}
+		status = AE_OK;
 	}
 
-	return AE_NOT_EXIST;
+	wmi_device_put(wdev);
+
+	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
 
@@ -657,15 +671,19 @@ EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
 acpi_status wmi_get_event_data(u32 event, struct acpi_buffer *out)
 {
 	struct wmi_block *wblock;
+	struct wmi_device *wdev;
+	acpi_status status;
 
-	list_for_each_entry(wblock, &wmi_block_list, list) {
-		struct guid_block *gblock = &wblock->gblock;
+	wdev = wmi_find_event_by_notify_id(event);
+	if (IS_ERR(wdev))
+		return AE_NOT_FOUND;
 
-		if ((gblock->flags & ACPI_WMI_EVENT) && gblock->notify_id == event)
-			return get_event_data(wblock, out);
-	}
+	wblock = container_of(wdev, struct wmi_block, dev);
+	status = get_event_data(wblock, out);
 
-	return AE_NOT_FOUND;
+	wmi_device_put(wdev);
+
+	return status;
 }
 EXPORT_SYMBOL_GPL(wmi_get_event_data);
 
