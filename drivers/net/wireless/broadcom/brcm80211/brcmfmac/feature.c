@@ -340,6 +340,9 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_FWSUP, "sup_wpa");
 	brcmf_feat_iovar_int_get(ifp, BRCMF_FEAT_SCAN_V2, "scan_ver");
 
+	brcmf_feat_wlc_version_overrides(drvr);
+	brcmf_feat_firmware_overrides(drvr);
+
 	brcmf_fwvid_feat_attach(ifp);
 
 	if (drvr->settings->feature_disable) {
@@ -348,9 +351,6 @@ void brcmf_feat_attach(struct brcmf_pub *drvr)
 			  drvr->settings->feature_disable);
 		ifp->drvr->feat_flags &= ~drvr->settings->feature_disable;
 	}
-
-	brcmf_feat_wlc_version_overrides(drvr);
-	brcmf_feat_firmware_overrides(drvr);
 
 	/* set chip related quirks */
 	switch (drvr->bus_if->chip) {
