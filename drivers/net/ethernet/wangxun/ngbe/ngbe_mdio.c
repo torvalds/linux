@@ -75,6 +75,8 @@ static void ngbe_mac_link_up(struct phylink_config *config,
 	struct wx *wx = phylink_to_wx(config);
 	u32 lan_speed, reg;
 
+	wx_fc_enable(wx, tx_pause, rx_pause);
+
 	switch (speed) {
 	case SPEED_10:
 		lan_speed = 0;

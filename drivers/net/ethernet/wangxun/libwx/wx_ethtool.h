@@ -18,4 +18,8 @@ int wx_get_link_ksettings(struct net_device *netdev,
 			  struct ethtool_link_ksettings *cmd);
 int wx_set_link_ksettings(struct net_device *netdev,
 			  const struct ethtool_link_ksettings *cmd);
+void wx_get_pauseparam(struct net_device *netdev,
+		       struct ethtool_pauseparam *pause);
+int wx_set_pauseparam(struct net_device *netdev,
+		      struct ethtool_pauseparam *pause);
 #endif /* _WX_ETHTOOL_H_ */

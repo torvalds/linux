@@ -1158,6 +1158,81 @@ static void wx_set_rxpba(struct wx *wx)
 	wr32(wx, WX_TDM_PB_THRE(0), txpbthresh);
 }
 
+#define WX_ETH_FRAMING 20
+
+/**
+ * wx_hpbthresh - calculate high water mark for flow control
+ *
+ * @wx: board private structure to calculate for
+ **/
+static int wx_hpbthresh(struct wx *wx)
+{
+	struct net_device *dev = wx->netdev;
+	int link, tc, kb, marker;
+	u32 dv_id, rx_pba;
+
+	/* Calculate max LAN frame size */
+	link = dev->mtu + ETH_HLEN + ETH_FCS_LEN + WX_ETH_FRAMING;
+	tc = link;
+
+	/* Calculate delay value for device */
+	dv_id = WX_DV(link, tc);
+
+	/* Delay value is calculated in bit times convert to KB */
+	kb = WX_BT2KB(dv_id);
+	rx_pba = rd32(wx, WX_RDB_PB_SZ(0)) >> WX_RDB_PB_SZ_SHIFT;
+
+	marker = rx_pba - kb;
+
+	/* It is possible that the packet buffer is not large enough
+	 * to provide required headroom. In this case throw an error
+	 * to user and a do the best we can.
+	 */
+	if (marker < 0) {
+		dev_warn(&wx->pdev->dev,
+			 "Packet Buffer can not provide enough headroom to support flow control. Decrease MTU or number of traffic classes\n");
+		marker = tc + 1;
+	}
+
+	return marker;
+}
+
+/**
+ * wx_lpbthresh - calculate low water mark for flow control
+ *
+ * @wx: board private structure to calculate for
+ **/
+static int wx_lpbthresh(struct wx *wx)
+{
+	struct net_device *dev = wx->netdev;
+	u32 dv_id;
+	int tc;
+
+	/* Calculate max LAN frame size */
+	tc = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
+
+	/* Calculate delay value for device */
+	dv_id = WX_LOW_DV(tc);
+
+	/* Delay value is calculated in bit times convert to KB */
+	return WX_BT2KB(dv_id);
+}
+
+/**
+ * wx_pbthresh_setup - calculate and setup high low water marks
+ *
+ * @wx: board private structure to calculate for
+ **/
+static void wx_pbthresh_setup(struct wx *wx)
+{
+	wx->fc.high_water = wx_hpbthresh(wx);
+	wx->fc.low_water = wx_lpbthresh(wx);
+
+	/* Low water marks must not be larger than high water marks */
+	if (wx->fc.low_water > wx->fc.high_water)
+		wx->fc.low_water = 0;
+}
+
 static void wx_configure_port(struct wx *wx)
 {
 	u32 value, i;
@@ -1584,6 +1659,7 @@ static void wx_configure_isb(struct wx *wx)
 void wx_configure(struct wx *wx)
 {
 	wx_set_rxpba(wx);
+	wx_pbthresh_setup(wx);
 	wx_configure_port(wx);
 
 	wx_set_rx_mode(wx->netdev);
@@ -2002,6 +2078,102 @@ int wx_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return 0;
 }
 EXPORT_SYMBOL(wx_vlan_rx_kill_vid);
+
+static void wx_enable_rx_drop(struct wx *wx, struct wx_ring *ring)
+{
+	u16 reg_idx = ring->reg_idx;
+	u32 srrctl;
+
+	srrctl = rd32(wx, WX_PX_RR_CFG(reg_idx));
+	srrctl |= WX_PX_RR_CFG_DROP_EN;
+
+	wr32(wx, WX_PX_RR_CFG(reg_idx), srrctl);
+}
+
+static void wx_disable_rx_drop(struct wx *wx, struct wx_ring *ring)
+{
+	u16 reg_idx = ring->reg_idx;
+	u32 srrctl;
+
+	srrctl = rd32(wx, WX_PX_RR_CFG(reg_idx));
+	srrctl &= ~WX_PX_RR_CFG_DROP_EN;
+
+	wr32(wx, WX_PX_RR_CFG(reg_idx), srrctl);
+}
+
+int wx_fc_enable(struct wx *wx, bool tx_pause, bool rx_pause)
+{
+	u16 pause_time = WX_DEFAULT_FCPAUSE;
+	u32 mflcn_reg, fccfg_reg, reg;
+	u32 fcrtl, fcrth;
+	int i;
+
+	/* Low water mark of zero causes XOFF floods */
+	if (tx_pause && wx->fc.high_water) {
+		if (!wx->fc.low_water || wx->fc.low_water >= wx->fc.high_water) {
+			wx_err(wx, "Invalid water mark configuration\n");
+			return -EINVAL;
+		}
+	}
+
+	/* Disable any previous flow control settings */
+	mflcn_reg = rd32(wx, WX_MAC_RX_FLOW_CTRL);
+	mflcn_reg &= ~WX_MAC_RX_FLOW_CTRL_RFE;
+
+	fccfg_reg = rd32(wx, WX_RDB_RFCC);
+	fccfg_reg &= ~WX_RDB_RFCC_RFCE_802_3X;
+
+	if (rx_pause)
+		mflcn_reg |= WX_MAC_RX_FLOW_CTRL_RFE;
+	if (tx_pause)
+		fccfg_reg |= WX_RDB_RFCC_RFCE_802_3X;
+
+	/* Set 802.3x based flow control settings. */
+	wr32(wx, WX_MAC_RX_FLOW_CTRL, mflcn_reg);
+	wr32(wx, WX_RDB_RFCC, fccfg_reg);
+
+	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
+	if (tx_pause && wx->fc.high_water) {
+		fcrtl = (wx->fc.low_water << 10) | WX_RDB_RFCL_XONE;
+		wr32(wx, WX_RDB_RFCL, fcrtl);
+		fcrth = (wx->fc.high_water << 10) | WX_RDB_RFCH_XOFFE;
+	} else {
+		wr32(wx, WX_RDB_RFCL, 0);
+		/* In order to prevent Tx hangs when the internal Tx
+		 * switch is enabled we must set the high water mark
+		 * to the Rx packet buffer size - 24KB.  This allows
+		 * the Tx switch to function even under heavy Rx
+		 * workloads.
+		 */
+		fcrth = rd32(wx, WX_RDB_PB_SZ(0)) - 24576;
+	}
+
+	wr32(wx, WX_RDB_RFCH, fcrth);
+
+	/* Configure pause time */
+	reg = pause_time * 0x00010001;
+	wr32(wx, WX_RDB_RFCV, reg);
+
+	/* Configure flow control refresh threshold value */
+	wr32(wx, WX_RDB_RFCRT, pause_time / 2);
+
+	/*  We should set the drop enable bit if:
+	 *  Number of Rx queues > 1 and flow control is disabled
+	 *
+	 *  This allows us to avoid head of line blocking for security
+	 *  and performance reasons.
+	 */
+	if (wx->num_rx_queues > 1 && !tx_pause) {
+		for (i = 0; i < wx->num_rx_queues; i++)
+			wx_enable_rx_drop(wx, wx->rx_ring[i]);
+	} else {
+		for (i = 0; i < wx->num_rx_queues; i++)
+			wx_disable_rx_drop(wx, wx->rx_ring[i]);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(wx_fc_enable);
 
 /**
  * wx_update_stats - Update the board statistics counters.

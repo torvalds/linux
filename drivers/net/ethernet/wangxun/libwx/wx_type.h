@@ -131,6 +131,15 @@
 #define WX_RDB_PFCMACDAH             0x19214
 #define WX_RDB_LXOFFTXC              0x19218
 #define WX_RDB_LXONTXC               0x1921C
+/* Flow Control Registers */
+#define WX_RDB_RFCV                  0x19200
+#define WX_RDB_RFCL                  0x19220
+#define WX_RDB_RFCL_XONE             BIT(31)
+#define WX_RDB_RFCH                  0x19260
+#define WX_RDB_RFCH_XOFFE            BIT(31)
+#define WX_RDB_RFCRT                 0x192A0
+#define WX_RDB_RFCC                  0x192A4
+#define WX_RDB_RFCC_RFCE_802_3X      BIT(3)
 /* ring assignment */
 #define WX_RDB_PL_CFG(_i)            (0x19300 + ((_i) * 4))
 #define WX_RDB_PL_CFG_L4HDR          BIT(1)
@@ -331,6 +340,7 @@ enum WX_MSCA_CMD_value {
 #define WX_PX_MPRC(_i)               (0x01020 + ((_i) * 0x40))
 /* PX_RR_CFG bit definitions */
 #define WX_PX_RR_CFG_VLAN            BIT(31)
+#define WX_PX_RR_CFG_DROP_EN         BIT(30)
 #define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
 #define WX_PX_RR_CFG_RR_THER_SHIFT   16
 #define WX_PX_RR_CFG_RR_HDR_SZ       GENMASK(15, 12)
@@ -367,6 +377,38 @@ enum WX_MSCA_CMD_value {
 #define WX_MAC_STATE_DEFAULT         0x1
 #define WX_MAC_STATE_MODIFIED        0x2
 #define WX_MAC_STATE_IN_USE          0x4
+
+/* BitTimes (BT) conversion */
+#define WX_BT2KB(BT)         (((BT) + (8 * 1024 - 1)) / (8 * 1024))
+#define WX_B2BT(BT)          ((BT) * 8)
+
+/* Calculate Delay to respond to PFC */
+#define WX_PFC_D     672
+/* Calculate Cable Delay */
+#define WX_CABLE_DC  5556 /* Delay Copper */
+/* Calculate Delay incurred from higher layer */
+#define WX_HD        6144
+
+/* Calculate Interface Delay */
+#define WX_PHY_D     12800
+#define WX_MAC_D     4096
+#define WX_XAUI_D    (2 * 1024)
+#define WX_ID        (WX_MAC_D + WX_XAUI_D + WX_PHY_D)
+/* Calculate PCI Bus delay for low thresholds */
+#define WX_PCI_DELAY 10000
+
+/* Calculate delay value in bit times */
+#define WX_DV(_max_frame_link, _max_frame_tc) \
+	((36 * (WX_B2BT(_max_frame_link) + WX_PFC_D + \
+		(2 * WX_CABLE_DC) + (2 * WX_ID) + WX_HD) / 25 + 1) + \
+	 2 * WX_B2BT(_max_frame_tc))
+
+/* Calculate low threshold delay values */
+#define WX_LOW_DV(_max_frame_tc) \
+	(2 * (2 * WX_B2BT(_max_frame_tc) + (36 * WX_PCI_DELAY / 25) + 1))
+
+/* flow control */
+#define WX_DEFAULT_FCPAUSE           0xFFFF
 
 #define WX_MAX_RXD                   8192
 #define WX_MAX_TXD                   8192
@@ -880,6 +922,11 @@ enum wx_isb_idx {
 	WX_ISB_MAX
 };
 
+struct wx_fc_info {
+	u32 high_water; /* Flow Ctrl High-water */
+	u32 low_water; /* Flow Ctrl Low-water */
+};
+
 /* Statistics counters collected by the MAC */
 struct wx_hw_stats {
 	u64 gprc;
@@ -920,6 +967,7 @@ struct wx {
 	enum sp_media_type media_type;
 	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
+	struct wx_fc_info fc;
 	struct wx_mac_addr *mac_table;
 	u16 device_id;
 	u16 vendor_id;
