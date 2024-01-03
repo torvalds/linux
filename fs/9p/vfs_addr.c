@@ -28,8 +28,6 @@
 
 static void v9fs_upload_to_server(struct netfs_io_subrequest *subreq)
 {
-	struct inode *inode = subreq->rreq->inode;
-	struct v9fs_inode __maybe_unused *v9inode = V9FS_I(inode);
 	struct p9_fid *fid = subreq->rreq->netfs_priv;
 	int err;
 
@@ -98,15 +96,13 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 
 	if (file) {
 		fid = file->private_data;
-		BUG_ON(!fid);
+		if (!fid)
+			goto no_fid;
 		p9_fid_get(fid);
 	} else {
 		fid = v9fs_fid_find_inode(rreq->inode, writing, INVALID_UID, true);
-		if (!fid) {
-			WARN_ONCE(1, "folio expected an open fid inode->i_private=%p\n",
-				  rreq->inode->i_private);
-			return -EINVAL;
-		}
+		if (!fid)
+			goto no_fid;
 	}
 
 	/* we might need to read from a fid that was opened write-only
@@ -115,6 +111,11 @@ static int v9fs_init_request(struct netfs_io_request *rreq, struct file *file)
 	WARN_ON(rreq->origin == NETFS_READ_FOR_WRITE && !(fid->mode & P9_ORDWR));
 	rreq->netfs_priv = fid;
 	return 0;
+
+no_fid:
+	WARN_ONCE(1, "folio expected an open fid inode->i_ino=%lx\n",
+		  rreq->inode->i_ino);
+	return -EINVAL;
 }
 
 /**
