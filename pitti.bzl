@@ -49,6 +49,7 @@ def define_pitti():
         "drivers/nvmem/nvmem_qfprom.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-waipio.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qrbtc-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
