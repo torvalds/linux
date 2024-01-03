@@ -1252,6 +1252,11 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 			 &rxfh_dev.hfunc, sizeof(rxfh.hfunc))) {
 		ret = -EFAULT;
 	} else if (copy_to_user(useraddr +
+				offsetof(struct ethtool_rxfh, input_xfrm),
+				&rxfh_dev.input_xfrm,
+				sizeof(rxfh.input_xfrm))) {
+		ret = -EFAULT;
+	} else if (copy_to_user(useraddr +
 			      offsetof(struct ethtool_rxfh, rss_config[0]),
 			      rss_config, total_size)) {
 		ret = -EFAULT;
@@ -1299,14 +1304,16 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	/* If either indir, hash key or function is valid, proceed further.
-	 * Must request at least one change: indir size, hash key or function.
+	 * Must request at least one change: indir size, hash key, function
+	 * or input transformation.
 	 */
 	if ((rxfh.indir_size &&
 	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.indir_size != dev_indir_size) ||
 	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
 	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
-	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE))
+	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
 	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
