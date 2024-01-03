@@ -410,13 +410,12 @@ void intel_hfi_online(unsigned int cpu)
 	/*
 	 * Now check if the HFI instance of the package/die of @cpu has been
 	 * initialized (by checking its header). In such case, all we have to
-	 * do is to add @cpu to this instance's cpumask.
+	 * do is to add @cpu to this instance's cpumask and enable the instance
+	 * if needed.
 	 */
 	mutex_lock(&hfi_instance_lock);
-	if (hfi_instance->hdr) {
-		cpumask_set_cpu(cpu, hfi_instance->cpus);
-		goto unlock;
-	}
+	if (hfi_instance->hdr)
+		goto enable;
 
 	/*
 	 * Hardware is programmed with the physical address of the first page
@@ -442,10 +441,14 @@ void intel_hfi_online(unsigned int cpu)
 	raw_spin_lock_init(&hfi_instance->table_lock);
 	raw_spin_lock_init(&hfi_instance->event_lock);
 
+enable:
 	cpumask_set_cpu(cpu, hfi_instance->cpus);
 
-	hfi_set_hw_table(hfi_instance);
-	hfi_enable();
+	/* Enable this HFI instance if this is its first online CPU. */
+	if (cpumask_weight(hfi_instance->cpus) == 1) {
+		hfi_set_hw_table(hfi_instance);
+		hfi_enable();
+	}
 
 unlock:
 	mutex_unlock(&hfi_instance_lock);
