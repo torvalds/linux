@@ -930,8 +930,6 @@ void bch2_debug_exit(void)
 
 int __init bch2_debug_init(void)
 {
-	int ret = 0;
-
 	bch_debug = debugfs_create_dir("bcachefs", NULL);
-	return ret;
+	return 0;
 }
