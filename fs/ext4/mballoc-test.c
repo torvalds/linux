@@ -675,6 +675,74 @@ static void test_mb_mark_used(struct kunit *test)
 	ext4_mb_unload_buddy(&e4b);
 }
 
+static void
+test_mb_free_blocks_range(struct kunit *test, struct ext4_buddy *e4b,
+			  ext4_grpblk_t start, ext4_grpblk_t len, void *bitmap,
+			  void *buddy, struct ext4_group_info *grp)
+{
+	struct super_block *sb = (struct super_block *)test->priv;
+	int i;
+
+	/* mb_free_blocks will WARN if len is 0 */
+	if (len == 0)
+		return;
+
+	mb_free_blocks(NULL, e4b, start, len);
+
+	mb_clear_bits(bitmap, start, len);
+	/* bypass bb_free validatoin in ext4_mb_generate_buddy */
+	grp->bb_free += len;
+	memset(buddy, 0xff, sb->s_blocksize);
+	for (i = 0; i < MB_NUM_ORDERS(sb); i++)
+		grp->bb_counters[i] = 0;
+	ext4_mb_generate_buddy(sb, buddy, bitmap, 0, grp);
+
+	KUNIT_ASSERT_EQ(test, memcmp(buddy, e4b->bd_buddy, sb->s_blocksize),
+			0);
+	mbt_validate_group_info(test, grp, e4b->bd_info);
+
+}
+
+static void test_mb_free_blocks(struct kunit *test)
+{
+	struct ext4_buddy e4b;
+	struct super_block *sb = (struct super_block *)test->priv;
+	void *bitmap, *buddy;
+	struct ext4_group_info *grp;
+	struct ext4_free_extent ex;
+	int ret;
+	int i;
+	struct test_range ranges[TEST_RANGE_COUNT];
+
+	/* buddy cache assumes that each page contains at least one block */
+	if (sb->s_blocksize > PAGE_SIZE)
+		kunit_skip(test, "blocksize exceeds pagesize");
+
+	bitmap = kunit_kzalloc(test, sb->s_blocksize, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, bitmap);
+	buddy = kunit_kzalloc(test, sb->s_blocksize, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buddy);
+	grp = kunit_kzalloc(test, offsetof(struct ext4_group_info,
+				bb_counters[MB_NUM_ORDERS(sb)]), GFP_KERNEL);
+
+	ret = ext4_mb_load_buddy(sb, TEST_GOAL_GROUP, &e4b);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	ex.fe_start = 0;
+	ex.fe_len = EXT4_CLUSTERS_PER_GROUP(sb);
+	ex.fe_group = TEST_GOAL_GROUP;
+	mb_mark_used(&e4b, &ex);
+	grp->bb_free = 0;
+	memset(bitmap, 0xff, sb->s_blocksize);
+
+	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
+	for (i = 0; i < TEST_RANGE_COUNT; i++)
+		test_mb_free_blocks_range(test, &e4b, ranges[i].start,
+					  ranges[i].len, bitmap, buddy, grp);
+
+	ext4_mb_unload_buddy(&e4b);
+}
+
 static const struct mbt_ext4_block_layout mbt_test_layouts[] = {
 	{
 		.blocksize_bits = 10,
@@ -715,6 +783,7 @@ static struct kunit_case mbt_test_cases[] = {
 	KUNIT_CASE_PARAM(test_free_blocks_simple, mbt_layouts_gen_params),
 	KUNIT_CASE_PARAM(test_mb_generate_buddy, mbt_layouts_gen_params),
 	KUNIT_CASE_PARAM(test_mb_mark_used, mbt_layouts_gen_params),
+	KUNIT_CASE_PARAM(test_mb_free_blocks, mbt_layouts_gen_params),
 	{}
 };
 
