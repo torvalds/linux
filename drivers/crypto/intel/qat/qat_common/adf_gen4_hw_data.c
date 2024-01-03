@@ -398,6 +398,9 @@ int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 			 ADF_GEN4_ADMIN_ACCELENGINES;
 
 	if (srv_id == SVC_DCC) {
+		if (ae_cnt > ICP_QAT_HW_AE_DELIMITER)
+			return -EINVAL;
+
 		memcpy(thd2arb_map, thrd_to_arb_map_dcc,
 		       array_size(sizeof(*thd2arb_map), ae_cnt));
 		return 0;
