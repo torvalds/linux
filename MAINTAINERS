@@ -5274,10 +5274,10 @@ W:	http://accessrunner.sourceforge.net/
 F:	drivers/usb/atm/cxacru.c
 
 CONFIDENTIAL COMPUTING THREAT MODEL FOR X86 VIRTUALIZATION (SNP/TDX)
-M:    Elena Reshetova <elena.reshetova@intel.com>
-M:    Carlos Bilbao <carlos.bilbao@amd.com>
-S:    Maintained
-F:    Documentation/security/snp-tdx-threat-model.rst
+M:	Elena Reshetova <elena.reshetova@intel.com>
+M:	Carlos Bilbao <carlos.bilbao@amd.com>
+S:	Maintained
+F:	Documentation/security/snp-tdx-threat-model.rst
 
 CONFIGFS
 M:	Joel Becker <jlbec@evilplan.org>
