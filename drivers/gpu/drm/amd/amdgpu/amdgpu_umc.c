@@ -208,6 +208,7 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 		if (ret == AMDGPU_RAS_SUCCESS && obj) {
 			obj->err_data.ue_count += err_data.ue_count;
 			obj->err_data.ce_count += err_data.ce_count;
+			obj->err_data.de_count += err_data.de_count;
 		}
 
 		amdgpu_ras_error_data_fini(&err_data);

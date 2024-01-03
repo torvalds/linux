@@ -256,9 +256,14 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 		if (type == AMDGPU_MCA_ERROR_TYPE_UE)
 			amdgpu_ras_error_statistic_ue_count(err_data,
 				&mcm_info, &err_addr, (uint64_t)count);
-		else
-			amdgpu_ras_error_statistic_ce_count(err_data,
-				&mcm_info, &err_addr, (uint64_t)count);
+		else {
+			if (!!(MCA_REG__STATUS__DEFERRED(entry->regs[MCA_REG_IDX_STATUS])))
+				amdgpu_ras_error_statistic_de_count(err_data,
+					&mcm_info, &err_addr, (uint64_t)count);
+			else
+				amdgpu_ras_error_statistic_ce_count(err_data,
+					&mcm_info, &err_addr, (uint64_t)count);
+		}
 	}
 
 out_mca_release:
