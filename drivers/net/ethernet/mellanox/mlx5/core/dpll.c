@@ -36,11 +36,15 @@ static int mlx5_dpll_clock_id_get(struct mlx5_core_dev *mdev, u64 *clock_id)
 	return 0;
 }
 
+struct mlx5_dpll_synce_status {
+	enum mlx5_msees_admin_status admin_status;
+	enum mlx5_msees_oper_status oper_status;
+	bool ho_acq;
+};
+
 static int
 mlx5_dpll_synce_status_get(struct mlx5_core_dev *mdev,
-			   enum mlx5_msees_admin_status *admin_status,
-			   enum mlx5_msees_oper_status *oper_status,
-			   bool *ho_acq)
+			   struct mlx5_dpll_synce_status *synce_status)
 {
 	u32 out[MLX5_ST_SZ_DW(msees_reg)] = {};
 	u32 in[MLX5_ST_SZ_DW(msees_reg)] = {};
@@ -50,11 +54,9 @@ mlx5_dpll_synce_status_get(struct mlx5_core_dev *mdev,
 				   MLX5_REG_MSEES, 0, 0);
 	if (err)
 		return err;
-	if (admin_status)
-		*admin_status = MLX5_GET(msees_reg, out, admin_status);
-	*oper_status = MLX5_GET(msees_reg, out, oper_status);
-	if (ho_acq)
-		*ho_acq = MLX5_GET(msees_reg, out, ho_acq);
+	synce_status->admin_status = MLX5_GET(msees_reg, out, admin_status);
+	synce_status->oper_status = MLX5_GET(msees_reg, out, oper_status);
+	synce_status->ho_acq = MLX5_GET(msees_reg, out, ho_acq);
 	return 0;
 }
 
@@ -74,14 +76,14 @@ mlx5_dpll_synce_status_set(struct mlx5_core_dev *mdev,
 }
 
 static enum dpll_lock_status
-mlx5_dpll_lock_status_get(enum mlx5_msees_oper_status oper_status, bool ho_acq)
+mlx5_dpll_lock_status_get(struct mlx5_dpll_synce_status *synce_status)
 {
-	switch (oper_status) {
+	switch (synce_status->oper_status) {
 	case MLX5_MSEES_OPER_STATUS_SELF_TRACK:
 		fallthrough;
 	case MLX5_MSEES_OPER_STATUS_OTHER_TRACK:
-		return ho_acq ? DPLL_LOCK_STATUS_LOCKED_HO_ACQ :
-				DPLL_LOCK_STATUS_LOCKED;
+		return synce_status->ho_acq ? DPLL_LOCK_STATUS_LOCKED_HO_ACQ :
+					      DPLL_LOCK_STATUS_LOCKED;
 	case MLX5_MSEES_OPER_STATUS_HOLDOVER:
 		fallthrough;
 	case MLX5_MSEES_OPER_STATUS_FAIL_HOLDOVER:
@@ -92,12 +94,11 @@ mlx5_dpll_lock_status_get(enum mlx5_msees_oper_status oper_status, bool ho_acq)
 }
 
 static enum dpll_pin_state
-mlx5_dpll_pin_state_get(enum mlx5_msees_admin_status admin_status,
-			enum mlx5_msees_oper_status oper_status)
+mlx5_dpll_pin_state_get(struct mlx5_dpll_synce_status *synce_status)
 {
-	return (admin_status == MLX5_MSEES_ADMIN_STATUS_TRACK &&
-		(oper_status == MLX5_MSEES_OPER_STATUS_SELF_TRACK ||
-		 oper_status == MLX5_MSEES_OPER_STATUS_OTHER_TRACK)) ?
+	return (synce_status->admin_status == MLX5_MSEES_ADMIN_STATUS_TRACK &&
+		(synce_status->oper_status == MLX5_MSEES_OPER_STATUS_SELF_TRACK ||
+		 synce_status->oper_status == MLX5_MSEES_OPER_STATUS_OTHER_TRACK)) ?
 	       DPLL_PIN_STATE_CONNECTED : DPLL_PIN_STATE_DISCONNECTED;
 }
 
@@ -106,17 +107,14 @@ static int mlx5_dpll_device_lock_status_get(const struct dpll_device *dpll,
 					    enum dpll_lock_status *status,
 					    struct netlink_ext_ack *extack)
 {
-	enum mlx5_msees_oper_status oper_status;
+	struct mlx5_dpll_synce_status synce_status;
 	struct mlx5_dpll *mdpll = priv;
-	bool ho_acq;
 	int err;
 
-	err = mlx5_dpll_synce_status_get(mdpll->mdev, NULL,
-					 &oper_status, &ho_acq);
+	err = mlx5_dpll_synce_status_get(mdpll->mdev, &synce_status);
 	if (err)
 		return err;
-
-	*status = mlx5_dpll_lock_status_get(oper_status, ho_acq);
+	*status = mlx5_dpll_lock_status_get(&synce_status);
 	return 0;
 }
 
@@ -151,16 +149,14 @@ static int mlx5_dpll_state_on_dpll_get(const struct dpll_pin *pin,
 				       enum dpll_pin_state *state,
 				       struct netlink_ext_ack *extack)
 {
-	enum mlx5_msees_admin_status admin_status;
-	enum mlx5_msees_oper_status oper_status;
+	struct mlx5_dpll_synce_status synce_status;
 	struct mlx5_dpll *mdpll = pin_priv;
 	int err;
 
-	err = mlx5_dpll_synce_status_get(mdpll->mdev, &admin_status,
-					 &oper_status, NULL);
+	err = mlx5_dpll_synce_status_get(mdpll->mdev, &synce_status);
 	if (err)
 		return err;
-	*state = mlx5_dpll_pin_state_get(admin_status, oper_status);
+	*state = mlx5_dpll_pin_state_get(&synce_status);
 	return 0;
 }
 
@@ -202,19 +198,16 @@ static void mlx5_dpll_periodic_work(struct work_struct *work)
 {
 	struct mlx5_dpll *mdpll = container_of(work, struct mlx5_dpll,
 					       work.work);
-	enum mlx5_msees_admin_status admin_status;
-	enum mlx5_msees_oper_status oper_status;
+	struct mlx5_dpll_synce_status synce_status;
 	enum dpll_lock_status lock_status;
 	enum dpll_pin_state pin_state;
-	bool ho_acq;
 	int err;
 
-	err = mlx5_dpll_synce_status_get(mdpll->mdev, &admin_status,
-					 &oper_status, &ho_acq);
+	err = mlx5_dpll_synce_status_get(mdpll->mdev, &synce_status);
 	if (err)
 		goto err_out;
-	lock_status = mlx5_dpll_lock_status_get(oper_status, ho_acq);
-	pin_state = mlx5_dpll_pin_state_get(admin_status, oper_status);
+	lock_status = mlx5_dpll_lock_status_get(&synce_status);
+	pin_state = mlx5_dpll_pin_state_get(&synce_status);
 
 	if (!mdpll->last.valid)
 		goto invalid_out;
