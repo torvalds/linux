@@ -24,6 +24,7 @@
 #include <linux/bitops.h>
 #include <linux/cpufeature.h>
 #include <linux/cpumask.h>
+#include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -358,6 +359,32 @@ static void hfi_set_hw_table(struct hfi_instance *hfi_instance)
 	wrmsrl(MSR_IA32_HW_FEEDBACK_PTR, msr_val);
 }
 
+/* Caller must hold hfi_instance_lock. */
+static void hfi_disable(void)
+{
+	u64 msr_val;
+	int i;
+
+	rdmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
+	msr_val &= ~HW_FEEDBACK_CONFIG_HFI_ENABLE_BIT;
+	wrmsrl(MSR_IA32_HW_FEEDBACK_CONFIG, msr_val);
+
+	/*
+	 * Wait for hardware to acknowledge the disabling of HFI. Some
+	 * processors may not do it. Wait for ~2ms. This is a reasonable
+	 * time for hardware to complete any pending actions on the HFI
+	 * memory.
+	 */
+	for (i = 0; i < 2000; i++) {
+		rdmsrl(MSR_IA32_PACKAGE_THERM_STATUS, msr_val);
+		if (msr_val & PACKAGE_THERM_STATUS_HFI_UPDATED)
+			break;
+
+		udelay(1);
+		cpu_relax();
+	}
+}
+
 /**
  * intel_hfi_online() - Enable HFI on @cpu
  * @cpu:	CPU in which the HFI will be enabled
@@ -412,6 +439,10 @@ void intel_hfi_online(unsigned int cpu)
 	/*
 	 * Hardware is programmed with the physical address of the first page
 	 * frame of the table. Hence, the allocated memory must be page-aligned.
+	 *
+	 * Some processors do not forget the initial address of the HFI table
+	 * even after having been reprogrammed. Keep using the same pages. Do
+	 * not free them.
 	 */
 	hfi_instance->hw_table = alloc_pages_exact(hfi_features.nr_table_pages,
 						   GFP_KERNEL | __GFP_ZERO);
@@ -476,6 +507,10 @@ void intel_hfi_offline(unsigned int cpu)
 
 	mutex_lock(&hfi_instance_lock);
 	cpumask_clear_cpu(cpu, hfi_instance->cpus);
+
+	if (!cpumask_weight(hfi_instance->cpus))
+		hfi_disable();
+
 	mutex_unlock(&hfi_instance_lock);
 }
 
