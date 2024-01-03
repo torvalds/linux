@@ -40,6 +40,8 @@ struct mlx5_dpll_synce_status {
 	enum mlx5_msees_admin_status admin_status;
 	enum mlx5_msees_oper_status oper_status;
 	bool ho_acq;
+	bool oper_freq_measure;
+	s32 frequency_diff;
 };
 
 static int
@@ -57,6 +59,8 @@ mlx5_dpll_synce_status_get(struct mlx5_core_dev *mdev,
 	synce_status->admin_status = MLX5_GET(msees_reg, out, admin_status);
 	synce_status->oper_status = MLX5_GET(msees_reg, out, oper_status);
 	synce_status->ho_acq = MLX5_GET(msees_reg, out, ho_acq);
+	synce_status->oper_freq_measure = MLX5_GET(msees_reg, out, oper_freq_measure);
+	synce_status->frequency_diff = MLX5_GET(msees_reg, out, frequency_diff);
 	return 0;
 }
 
@@ -69,8 +73,10 @@ mlx5_dpll_synce_status_set(struct mlx5_core_dev *mdev,
 
 	MLX5_SET(msees_reg, in, field_select,
 		 MLX5_MSEES_FIELD_SELECT_ENABLE |
+		 MLX5_MSEES_FIELD_SELECT_ADMIN_FREQ_MEASURE |
 		 MLX5_MSEES_FIELD_SELECT_ADMIN_STATUS);
 	MLX5_SET(msees_reg, in, admin_status, admin_status);
+	MLX5_SET(msees_reg, in, admin_freq_measure, true);
 	return mlx5_core_access_reg(mdev, in, sizeof(in), out, sizeof(out),
 				    MLX5_REG_MSEES, 0, 1);
 }
@@ -100,6 +106,16 @@ mlx5_dpll_pin_state_get(struct mlx5_dpll_synce_status *synce_status)
 		(synce_status->oper_status == MLX5_MSEES_OPER_STATUS_SELF_TRACK ||
 		 synce_status->oper_status == MLX5_MSEES_OPER_STATUS_OTHER_TRACK)) ?
 	       DPLL_PIN_STATE_CONNECTED : DPLL_PIN_STATE_DISCONNECTED;
+}
+
+static int
+mlx5_dpll_pin_ffo_get(struct mlx5_dpll_synce_status *synce_status,
+		      s64 *ffo)
+{
+	if (!synce_status->oper_freq_measure)
+		return -ENODATA;
+	*ffo = synce_status->frequency_diff;
+	return 0;
 }
 
 static int mlx5_dpll_device_lock_status_get(const struct dpll_device *dpll,
@@ -175,10 +191,25 @@ static int mlx5_dpll_state_on_dpll_set(const struct dpll_pin *pin,
 					  MLX5_MSEES_ADMIN_STATUS_FREE_RUNNING);
 }
 
+static int mlx5_dpll_ffo_get(const struct dpll_pin *pin, void *pin_priv,
+			     const struct dpll_device *dpll, void *dpll_priv,
+			     s64 *ffo, struct netlink_ext_ack *extack)
+{
+	struct mlx5_dpll_synce_status synce_status;
+	struct mlx5_dpll *mdpll = pin_priv;
+	int err;
+
+	err = mlx5_dpll_synce_status_get(mdpll->mdev, &synce_status);
+	if (err)
+		return err;
+	return mlx5_dpll_pin_ffo_get(&synce_status, ffo);
+}
+
 static const struct dpll_pin_ops mlx5_dpll_pins_ops = {
 	.direction_get = mlx5_dpll_pin_direction_get,
 	.state_on_dpll_get = mlx5_dpll_state_on_dpll_get,
 	.state_on_dpll_set = mlx5_dpll_state_on_dpll_set,
+	.ffo_get = mlx5_dpll_ffo_get,
 };
 
 static const struct dpll_pin_properties mlx5_dpll_pin_properties = {
