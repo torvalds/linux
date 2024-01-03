@@ -25,6 +25,19 @@ static struct iommu_domain_ops domain_nested_ops;
 
 size_t iommufd_test_memory_limit = 65536;
 
+struct mock_bus_type {
+	struct bus_type bus;
+	struct notifier_block nb;
+};
+
+static struct mock_bus_type iommufd_mock_bus_type = {
+	.bus = {
+		.name = "iommufd_mock",
+	},
+};
+
+static atomic_t mock_dev_num;
+
 enum {
 	MOCK_DIRTY_TRACK = 1,
 	MOCK_IO_PAGE_SIZE = PAGE_SIZE / 2,
@@ -437,6 +450,8 @@ static struct iommu_device mock_iommu_device = {
 
 static struct iommu_device *mock_probe_device(struct device *dev)
 {
+	if (dev->bus != &iommufd_mock_bus_type.bus)
+		return ERR_PTR(-ENODEV);
 	return &mock_iommu_device;
 }
 
@@ -575,19 +590,6 @@ get_md_pagetable_nested(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 				    struct mock_iommu_domain_nested, domain);
 	return hwpt;
 }
-
-struct mock_bus_type {
-	struct bus_type bus;
-	struct notifier_block nb;
-};
-
-static struct mock_bus_type iommufd_mock_bus_type = {
-	.bus = {
-		.name = "iommufd_mock",
-	},
-};
-
-static atomic_t mock_dev_num;
 
 static void mock_dev_release(struct device *dev)
 {
