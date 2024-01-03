@@ -342,6 +342,9 @@ void blk_queue_physical_block_size(struct request_queue *q, unsigned int size)
 	if (q->limits.physical_block_size < q->limits.logical_block_size)
 		q->limits.physical_block_size = q->limits.logical_block_size;
 
+	if (q->limits.discard_granularity < q->limits.physical_block_size)
+		q->limits.discard_granularity = q->limits.physical_block_size;
+
 	if (q->limits.io_min < q->limits.physical_block_size)
 		q->limits.io_min = q->limits.physical_block_size;
 }
