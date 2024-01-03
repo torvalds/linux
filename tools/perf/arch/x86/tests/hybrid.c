@@ -47,7 +47,7 @@ static int test__hybrid_hw_group_event(struct evlist *evlist)
 	evsel = evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
-	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_INSTRUCTIONS));
+	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_BRANCH_INSTRUCTIONS));
 	TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 	return TEST_OK;
 }
@@ -102,7 +102,7 @@ static int test__hybrid_group_modifier1(struct evlist *evlist)
 	evsel = evsel__next(evsel);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
 	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
-	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_INSTRUCTIONS));
+	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_BRANCH_INSTRUCTIONS));
 	TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
 	TEST_ASSERT_VAL("wrong exclude_user", !evsel->core.attr.exclude_user);
 	TEST_ASSERT_VAL("wrong exclude_kernel", evsel->core.attr.exclude_kernel);
@@ -171,27 +171,27 @@ struct evlist_test {
 
 static const struct evlist_test test__hybrid_events[] = {
 	{
-		.name  = "cpu_core/cpu-cycles/",
+		.name  = "cpu_core/cycles/",
 		.check = test__hybrid_hw_event_with_pmu,
 		/* 0 */
 	},
 	{
-		.name  = "{cpu_core/cpu-cycles/,cpu_core/instructions/}",
+		.name  = "{cpu_core/cycles/,cpu_core/branches/}",
 		.check = test__hybrid_hw_group_event,
 		/* 1 */
 	},
 	{
-		.name  = "{cpu-clock,cpu_core/cpu-cycles/}",
+		.name  = "{cpu-clock,cpu_core/cycles/}",
 		.check = test__hybrid_sw_hw_group_event,
 		/* 2 */
 	},
 	{
-		.name  = "{cpu_core/cpu-cycles/,cpu-clock}",
+		.name  = "{cpu_core/cycles/,cpu-clock}",
 		.check = test__hybrid_hw_sw_group_event,
 		/* 3 */
 	},
 	{
-		.name  = "{cpu_core/cpu-cycles/k,cpu_core/instructions/u}",
+		.name  = "{cpu_core/cycles/k,cpu_core/branches/u}",
 		.check = test__hybrid_group_modifier1,
 		/* 4 */
 	},
