@@ -719,12 +719,6 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	if (IS_ERR(b))
 		return b;
 
-	/*
-	 * Btree nodes read in from disk should not have the accessed bit set
-	 * initially, so that linear scans don't thrash the cache:
-	 */
-	clear_btree_node_accessed(b);
-
 	bkey_copy(&b->key, k);
 	if (bch2_btree_node_hash_insert(bc, b, level, btree_id)) {
 		/* raced with another fill: */
