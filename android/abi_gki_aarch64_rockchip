@@ -1268,6 +1268,15 @@
   usb_submit_urb
   __usecs_to_jiffies
   usleep_range_state
+  __v4l2_async_nf_add_fwnode_remote
+  v4l2_async_nf_cleanup
+  v4l2_async_nf_init
+  v4l2_async_nf_parse_fwnode_endpoints
+  v4l2_async_nf_register
+  v4l2_async_register_subdev
+  v4l2_async_register_subdev_sensor
+  v4l2_async_subdev_nf_register
+  v4l2_async_unregister_subdev
   v4l2_ctrl_find
   v4l2_ctrl_g_ctrl
   v4l2_ctrl_g_ctrl_int64
@@ -1295,6 +1304,9 @@
   v4l2_event_subscribe
   v4l2_event_unsubscribe
   v4l2_fh_open
+  v4l2_fwnode_endpoint_alloc_parse
+  v4l2_fwnode_endpoint_free
+  v4l2_fwnode_endpoint_parse
   v4l2_i2c_subdev_init
   v4l2_match_dv_timings
   v4l2_pipeline_link_notify
@@ -2871,9 +2883,11 @@
 
 # required by video_rkcif.ko
   media_entity_setup_link
+  __v4l2_async_nf_add_fwnode
 
 # required by video_rkisp.ko
   param_ops_ullong
+  v4l2_async_nf_unregister
   v4l2_ctrl_poll
 
 # required by videobuf2-cma-sg.ko
