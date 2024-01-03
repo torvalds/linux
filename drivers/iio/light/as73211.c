@@ -356,25 +356,24 @@ static int as73211_read_raw(struct iio_dev *indio_dev, struct iio_chan_spec cons
 			return IIO_VAL_INT_PLUS_MICRO;
 
 		case IIO_INTENSITY: {
-			unsigned int scale;
 
 			switch (chan->channel2) {
 			case IIO_MOD_X:
-				scale = AS73211_SCALE_X;
+				*val = AS73211_SCALE_X;
 				break;
 			case IIO_MOD_Y:
-				scale = AS73211_SCALE_Y;
+				*val = AS73211_SCALE_Y;
 				break;
 			case IIO_MOD_Z:
-				scale = AS73211_SCALE_Z;
+				*val = AS73211_SCALE_Z;
 				break;
 			default:
 				return -EINVAL;
 			}
-			scale /= as73211_gain(data);
-			scale /= as73211_integration_time_1024cyc(data);
-			*val = scale;
-			return IIO_VAL_INT;
+			*val2 = as73211_integration_time_1024cyc(data) *
+				as73211_gain(data);
+
+			return IIO_VAL_FRACTIONAL;
 
 		default:
 			return -EINVAL;
