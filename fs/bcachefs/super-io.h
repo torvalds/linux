@@ -40,6 +40,16 @@ struct bch_sb_field *bch2_sb_field_resize_id(struct bch_sb_handle *,
 #define bch2_sb_field_resize(_sb, _name, _u64s)				\
 	field_to_type(bch2_sb_field_resize_id(_sb, BCH_SB_FIELD_##_name, _u64s), _name)
 
+struct bch_sb_field *bch2_sb_field_get_minsize_id(struct bch_sb_handle *,
+					enum bch_sb_field_type, unsigned);
+#define bch2_sb_field_get_minsize(_sb, _name, _u64s)				\
+	field_to_type(bch2_sb_field_get_minsize_id(_sb, BCH_SB_FIELD_##_name, _u64s), _name)
+
+#define bch2_sb_field_nr_entries(_f)					\
+	(_f ? ((bch2_sb_field_bytes(&_f->field) - sizeof(*_f)) /	\
+	       sizeof(_f->entries[0]))					\
+	    : 0)
+
 void bch2_sb_field_delete(struct bch_sb_handle *, enum bch_sb_field_type);
 
 extern const char * const bch2_sb_fields[];
@@ -83,7 +93,7 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 		__bch2_check_set_feature(c, feat);
 }
 
-void bch2_sb_maybe_downgrade(struct bch_fs *);
+bool bch2_check_version_downgrade(struct bch_fs *);
 void bch2_sb_upgrade(struct bch_fs *, unsigned);
 
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,

@@ -100,7 +100,8 @@ static int bch2_ioc_setflags(struct bch_fs *c,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret = bch2_write_inode(c, inode, bch2_inode_flags_set, &s,
+	ret   = bch2_subvol_is_ro(c, inode->ei_subvol) ?:
+		bch2_write_inode(c, inode, bch2_inode_flags_set, &s,
 			       ATTR_CTIME);
 	mutex_unlock(&inode->ei_update_lock);
 
@@ -183,13 +184,10 @@ static int bch2_ioc_fssetxattr(struct bch_fs *c,
 	}
 
 	mutex_lock(&inode->ei_update_lock);
-	ret = bch2_set_projid(c, inode, fa.fsx_projid);
-	if (ret)
-		goto err_unlock;
-
-	ret = bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
+	ret   = bch2_subvol_is_ro(c, inode->ei_subvol) ?:
+		bch2_set_projid(c, inode, fa.fsx_projid) ?:
+		bch2_write_inode(c, inode, fssetxattr_inode_update_fn, &s,
 			       ATTR_CTIME);
-err_unlock:
 	mutex_unlock(&inode->ei_update_lock);
 err:
 	inode_unlock(&inode->v);

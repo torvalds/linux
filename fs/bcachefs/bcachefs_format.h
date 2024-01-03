@@ -1207,19 +1207,21 @@ struct bch_sb_field {
 };
 
 #define BCH_SB_FIELDS()				\
-	x(journal,	0)			\
-	x(members_v1,	1)			\
-	x(crypt,	2)			\
-	x(replicas_v0,	3)			\
-	x(quota,	4)			\
-	x(disk_groups,	5)			\
-	x(clean,	6)			\
-	x(replicas,	7)			\
-	x(journal_seq_blacklist, 8)		\
-	x(journal_v2,	9)			\
-	x(counters,	10)			\
-	x(members_v2,	11)			\
-	x(errors,	12)
+	x(journal,			0)	\
+	x(members_v1,			1)	\
+	x(crypt,			2)	\
+	x(replicas_v0,			3)	\
+	x(quota,			4)	\
+	x(disk_groups,			5)	\
+	x(clean,			6)	\
+	x(replicas,			7)	\
+	x(journal_seq_blacklist,	8)	\
+	x(journal_v2,			9)	\
+	x(counters,			10)	\
+	x(members_v2,			11)	\
+	x(errors,			12)	\
+	x(ext,				13)	\
+	x(downgrade,			14)
 
 enum bch_sb_field_type {
 #define x(f, nr)	BCH_SB_FIELD_##f = nr,
@@ -1631,6 +1633,24 @@ struct bch_sb_field_errors {
 LE64_BITMASK(BCH_SB_ERROR_ENTRY_ID,	struct bch_sb_field_error_entry, v,  0, 16);
 LE64_BITMASK(BCH_SB_ERROR_ENTRY_NR,	struct bch_sb_field_error_entry, v, 16, 64);
 
+struct bch_sb_field_ext {
+	struct bch_sb_field	field;
+	__le64			recovery_passes_required[2];
+	__le64			errors_silent[8];
+};
+
+struct bch_sb_field_downgrade_entry {
+	__le16			version;
+	__le64			recovery_passes[2];
+	__le16			nr_errors;
+	__le16			errors[] __counted_by(nr_errors);
+} __packed __aligned(2);
+
+struct bch_sb_field_downgrade {
+	struct bch_sb_field	field;
+	struct bch_sb_field_downgrade_entry entries[];
+};
+
 /* Superblock: */
 
 /*
@@ -1644,6 +1664,11 @@ LE64_BITMASK(BCH_SB_ERROR_ENTRY_NR,	struct bch_sb_field_error_entry, v, 16, 64);
 
 #define RECOVERY_PASS_ALL_FSCK		(1ULL << 63)
 
+/*
+ * field 1:		version name
+ * field 2:		BCH_VERSION(major, minor)
+ * field 3:		recovery passess required on upgrade
+ */
 #define BCH_METADATA_VERSIONS()						\
 	x(bkey_renumber,		BCH_VERSION(0, 10),		\
 	  RECOVERY_PASS_ALL_FSCK)					\
