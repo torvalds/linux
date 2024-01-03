@@ -130,4 +130,7 @@
 
 extern char ngbe_driver_name[];
 
+void ngbe_down(struct wx *wx);
+void ngbe_up(struct wx *wx);
+
 #endif /* _NGBE_TYPE_H_ */

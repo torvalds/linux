@@ -288,7 +288,7 @@ static void txgbe_disable_device(struct wx *wx)
 	wx_update_stats(wx);
 }
 
-static void txgbe_down(struct wx *wx)
+void txgbe_down(struct wx *wx)
 {
 	txgbe_disable_device(wx);
 	txgbe_reset(wx);
@@ -296,6 +296,12 @@ static void txgbe_down(struct wx *wx)
 
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
+}
+
+void txgbe_up(struct wx *wx)
+{
+	wx_configure(wx);
+	txgbe_up_complete(wx);
 }
 
 /**

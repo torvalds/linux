@@ -129,6 +129,9 @@
 
 extern char txgbe_driver_name[];
 
+void txgbe_down(struct wx *wx);
+void txgbe_up(struct wx *wx);
+
 #define NODE_PROP(_NAME, _PROP)			\
 	(const struct software_node) {		\
 		.name = _NAME,			\
