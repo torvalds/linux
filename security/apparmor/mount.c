@@ -499,6 +499,10 @@ int aa_move_mount(const struct cred *subj_cred,
 	error = -ENOMEM;
 	if (!to_buffer || !from_buffer)
 		goto out;
+
+	if (!our_mnt(from_path->mnt))
+		/* moving a mount detached from the namespace */
+		from_path = NULL;
 	error = fn_for_each_confined(label, profile,
 			match_mnt(subj_cred, profile, to_path, to_buffer,
 				  from_path, from_buffer,
