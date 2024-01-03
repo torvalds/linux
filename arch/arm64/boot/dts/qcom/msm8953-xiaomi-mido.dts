@@ -125,6 +125,13 @@
 	touchscreen-size-y = <1920>;
 };
 
+&gt917d_ts {
+	status = "disabled";
+
+	touchscreen-size-x = <1080>;
+	touchscreen-size-y = <1920>;
+};
+
 &panel {
 	compatible = "xiaomi,mido-panel";
 };
