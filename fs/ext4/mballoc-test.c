@@ -5,6 +5,7 @@
 
 #include <kunit/test.h>
 #include <kunit/static_stub.h>
+#include <linux/random.h>
 
 #include "ext4.h"
 
@@ -110,6 +111,13 @@ static void mbt_ctx_mark_used(struct super_block *sb, ext4_group_t group,
 	struct mbt_grp_ctx *grp_ctx = MBT_GRP_CTX(sb, group);
 
 	mb_set_bits(grp_ctx->bitmap_bh.b_data, start, len);
+}
+
+static void *mbt_ctx_bitmap(struct super_block *sb, ext4_group_t group)
+{
+	struct mbt_grp_ctx *grp_ctx = MBT_GRP_CTX(sb, group);
+
+	return grp_ctx->bitmap_bh.b_data;
 }
 
 /* called after mbt_init_sb_layout */
@@ -297,6 +305,93 @@ static void test_new_blocks_simple(struct kunit *test)
 		"unexpectedly get block when no block is available");
 }
 
+#define TEST_RANGE_COUNT 8
+
+struct test_range {
+	ext4_grpblk_t start;
+	ext4_grpblk_t len;
+};
+
+static void
+mbt_generate_test_ranges(struct super_block *sb, struct test_range *ranges,
+			 int count)
+{
+	ext4_grpblk_t start, len, max;
+	int i;
+
+	max = EXT4_CLUSTERS_PER_GROUP(sb) / count;
+	for (i = 0; i < count; i++) {
+		start = get_random_u32() % max;
+		len = get_random_u32() % max;
+		len = min(len, max - start);
+
+		ranges[i].start = start + i * max;
+		ranges[i].len = len;
+	}
+}
+
+static void
+validate_free_blocks_simple(struct kunit *test, struct super_block *sb,
+			    ext4_group_t goal_group, ext4_grpblk_t start,
+			    ext4_grpblk_t len)
+{
+	void *bitmap;
+	ext4_grpblk_t bit, max = EXT4_CLUSTERS_PER_GROUP(sb);
+	ext4_group_t i;
+
+	for (i = 0; i < ext4_get_groups_count(sb); i++) {
+		if (i == goal_group)
+			continue;
+
+		bitmap = mbt_ctx_bitmap(sb, i);
+		bit = mb_find_next_zero_bit(bitmap, max, 0);
+		KUNIT_ASSERT_EQ_MSG(test, bit, max,
+				    "free block on unexpected group %d", i);
+	}
+
+	bitmap = mbt_ctx_bitmap(sb, goal_group);
+	bit = mb_find_next_zero_bit(bitmap, max, 0);
+	KUNIT_ASSERT_EQ(test, bit, start);
+
+	bit = mb_find_next_bit(bitmap, max, bit + 1);
+	KUNIT_ASSERT_EQ(test, bit, start + len);
+}
+
+static void
+test_free_blocks_simple_range(struct kunit *test, ext4_group_t goal_group,
+			      ext4_grpblk_t start, ext4_grpblk_t len)
+{
+	struct super_block *sb = (struct super_block *)test->priv;
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+	struct inode inode = { .i_sb = sb, };
+	ext4_fsblk_t block;
+
+	if (len == 0)
+		return;
+
+	block = ext4_group_first_block_no(sb, goal_group) +
+		EXT4_C2B(sbi, start);
+	ext4_free_blocks_simple(&inode, block, len);
+	validate_free_blocks_simple(test, sb, goal_group, start, len);
+	mbt_ctx_mark_used(sb, goal_group, 0, EXT4_CLUSTERS_PER_GROUP(sb));
+}
+
+static void test_free_blocks_simple(struct kunit *test)
+{
+	struct super_block *sb = (struct super_block *)test->priv;
+	ext4_grpblk_t max = EXT4_CLUSTERS_PER_GROUP(sb);
+	ext4_group_t i;
+	struct test_range ranges[TEST_RANGE_COUNT];
+
+	for (i = 0; i < ext4_get_groups_count(sb); i++)
+		mbt_ctx_mark_used(sb, i, 0, max);
+
+	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
+	for (i = 0; i < TEST_RANGE_COUNT; i++)
+		test_free_blocks_simple_range(test, TEST_GOAL_GROUP,
+			ranges[i].start, ranges[i].len);
+}
+
 static const struct mbt_ext4_block_layout mbt_test_layouts[] = {
 	{
 		.blocksize_bits = 10,
@@ -334,6 +429,7 @@ KUNIT_ARRAY_PARAM(mbt_layouts, mbt_test_layouts, mbt_show_layout);
 
 static struct kunit_case mbt_test_cases[] = {
 	KUNIT_CASE_PARAM(test_new_blocks_simple, mbt_layouts_gen_params),
+	KUNIT_CASE_PARAM(test_free_blocks_simple, mbt_layouts_gen_params),
 	{}
 };
 
