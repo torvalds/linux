@@ -605,6 +605,7 @@ struct ice_pf {
 	wait_queue_head_t reset_wait_queue;
 
 	u32 hw_csum_rx_error;
+	u32 hw_rx_eipe_error;
 	u32 oicr_err_reg;
 	struct msi_map oicr_irq;	/* Other interrupt cause MSIX vector */
 	struct msi_map ll_ts_irq;	/* LL_TS interrupt MSIX vector */
