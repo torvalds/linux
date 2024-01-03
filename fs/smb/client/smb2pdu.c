@@ -405,6 +405,8 @@ skip_sess_setup:
 				cifs_server_dbg(VFS, "supports multichannel now\n");
 
 			cifs_try_adding_channels(ses);
+			queue_delayed_work(cifsiod_wq, &tcon->query_interfaces,
+					   (SMB_INTERFACE_POLL_INTERVAL * HZ));
 		}
 	} else {
 		mutex_unlock(&ses->session_mutex);
