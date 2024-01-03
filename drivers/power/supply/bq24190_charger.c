@@ -246,7 +246,7 @@ struct bq24190_dev_info {
 struct bq24190_chip_info {
 	int ichg_array_size;
 #ifdef CONFIG_REGULATOR
-	const struct regulator_desc vbus_desc;
+	const struct regulator_desc *vbus_desc;
 #endif
 	int (*check_chip)(struct bq24190_dev_info *bdi);
 	int (*set_chg_config)(struct bq24190_dev_info *bdi, const u8 chg_config);
@@ -728,7 +728,7 @@ static int bq24190_register_vbus_regulator(struct bq24190_dev_info *bdi)
 	else
 		cfg.init_data = &bq24190_vbus_init_data;
 	cfg.driver_data = bdi;
-	reg = devm_regulator_register(bdi->dev, &bdi->info->vbus_desc, &cfg);
+	reg = devm_regulator_register(bdi->dev, bdi->info->vbus_desc, &cfg);
 	if (IS_ERR(reg)) {
 		ret = PTR_ERR(reg);
 		dev_err(bdi->dev, "Can't register regulator: %d\n", ret);
@@ -1975,7 +1975,7 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 	[BQ24190] = {
 		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
 #ifdef CONFIG_REGULATOR
-		.vbus_desc = bq24190_vbus_desc,
+		.vbus_desc = &bq24190_vbus_desc,
 #endif
 		.check_chip = bq24190_check_chip,
 		.set_chg_config = bq24190_battery_set_chg_config,
@@ -1986,7 +1986,7 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 	[BQ24192] = {
 		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
 #ifdef CONFIG_REGULATOR
-		.vbus_desc = bq24190_vbus_desc,
+		.vbus_desc = &bq24190_vbus_desc,
 #endif
 		.check_chip = bq24190_check_chip,
 		.set_chg_config = bq24190_battery_set_chg_config,
@@ -1997,7 +1997,7 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 	[BQ24192i] = {
 		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
 #ifdef CONFIG_REGULATOR
-		.vbus_desc = bq24190_vbus_desc,
+		.vbus_desc = &bq24190_vbus_desc,
 #endif
 		.check_chip = bq24190_check_chip,
 		.set_chg_config = bq24190_battery_set_chg_config,
@@ -2008,7 +2008,7 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 	[BQ24196] = {
 		.ichg_array_size = ARRAY_SIZE(bq24190_ccc_ichg_values),
 #ifdef CONFIG_REGULATOR
-		.vbus_desc = bq24190_vbus_desc,
+		.vbus_desc = &bq24190_vbus_desc,
 #endif
 		.check_chip = bq24190_check_chip,
 		.set_chg_config = bq24190_battery_set_chg_config,
@@ -2019,7 +2019,7 @@ static const struct bq24190_chip_info bq24190_chip_info_tbl[] = {
 	[BQ24296] = {
 		.ichg_array_size = BQ24296_CCC_ICHG_VALUES_LEN,
 #ifdef CONFIG_REGULATOR
-		.vbus_desc = bq24296_vbus_desc,
+		.vbus_desc = &bq24296_vbus_desc,
 #endif
 		.check_chip = bq24296_check_chip,
 		.set_chg_config = bq24296_battery_set_chg_config,
