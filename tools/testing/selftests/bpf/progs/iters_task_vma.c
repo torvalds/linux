@@ -28,9 +28,8 @@ int iter_task_vma_for_each(const void *ctx)
 		return 0;
 
 	bpf_for_each(task_vma, vma, task, 0) {
-		if (seen >= 1000)
+		if (bpf_cmp_unlikely(seen, >=, 1000))
 			break;
-		barrier_var(seen);
 
 		vm_ranges[seen].vm_start = vma->vm_start;
 		vm_ranges[seen].vm_end = vma->vm_end;

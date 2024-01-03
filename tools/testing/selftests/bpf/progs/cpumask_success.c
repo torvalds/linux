@@ -332,7 +332,7 @@ SEC("tp_btf/task_newtask")
 int BPF_PROG(test_copy_any_anyand, struct task_struct *task, u64 clone_flags)
 {
 	struct bpf_cpumask *mask1, *mask2, *dst1, *dst2;
-	u32 cpu;
+	int cpu;
 
 	if (!is_test_task())
 		return 0;
