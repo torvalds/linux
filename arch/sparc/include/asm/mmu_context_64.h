@@ -93,7 +93,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 
 	/* We have to be extremely careful here or else we will miss
 	 * a TSB grow if we switch back and forth between a kernel
-	 * thread and an address space which has it's TSB size increased
+	 * thread and an address space which has its TSB size increased
 	 * on another processor.
 	 *
 	 * It is possible to play some games in order to optimize the
@@ -118,7 +118,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	 *
 	 * At that point cpu0 continues to use a stale TSB, the one from
 	 * before the TSB grow performed on cpu1.  cpu1 did not cross-call
-	 * cpu0 to update it's TSB because at that point the cpu_vm_mask
+	 * cpu0 to update its TSB because at that point the cpu_vm_mask
 	 * only had cpu1 set in it.
 	 */
 	tsb_context_switch_ctx(mm, CTX_HWBITS(mm->context));

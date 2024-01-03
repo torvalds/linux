@@ -385,7 +385,7 @@ static unsigned long tsb_size_to_rss_limit(unsigned long new_size)
  * will not trigger any longer.
  *
  * The TSB can be anywhere from 8K to 1MB in size, in increasing powers
- * of two.  The TSB must be aligned to it's size, so f.e. a 512K TSB
+ * of two.  The TSB must be aligned to its size, so f.e. a 512K TSB
  * must be 512K aligned.  It also must be physically contiguous, so we
  * cannot use vmalloc().
  *
