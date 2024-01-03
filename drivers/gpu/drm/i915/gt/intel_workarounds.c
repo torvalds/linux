@@ -820,6 +820,9 @@ static void xelpg_ctx_workarounds_init(struct intel_engine_cs *engine,
 
 	/* Wa_18019271663 */
 	wa_masked_en(wal, CACHE_MODE_1, MSAA_OPTIMIZATION_REDUC_DISABLE);
+
+	/* Wa_14019877138 */
+	wa_mcr_masked_en(wal, XEHP_PSS_CHICKEN, FD_END_COLLECT);
 }
 
 static void fakewa_disable_nestedbb_mode(struct intel_engine_cs *engine,
