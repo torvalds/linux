@@ -309,7 +309,7 @@ int vgic_init(struct kvm *kvm)
 		vgic_lpi_translation_cache_init(kvm);
 
 	/*
-	 * If we have GICv4.1 enabled, unconditionnaly request enable the
+	 * If we have GICv4.1 enabled, unconditionally request enable the
 	 * v4 support so that we get HW-accelerated vSGIs. Otherwise, only
 	 * enable it if we present a virtual ITS to the guest.
 	 */

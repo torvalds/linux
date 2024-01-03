@@ -117,7 +117,7 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Called just before entering the guest once we are no longer preemptable
+ * Called just before entering the guest once we are no longer preemptible
  * and interrupts are disabled. If we have managed to run anything using
  * FP while we were preemptible (such as off the back of an interrupt),
  * then neither the host nor the guest own the FP hardware (and it was the
