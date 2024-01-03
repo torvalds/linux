@@ -426,3 +426,63 @@ For 32-bit we have the following conventions - kernel is built with
 .endm
 
 #endif /* CONFIG_SMP */
+
+#ifdef CONFIG_X86_64
+
+/* rdi:	arg1 ... normal C conventions. rax is saved/restored. */
+.macro THUNK name, func
+SYM_FUNC_START(\name)
+	pushq %rbp
+	movq %rsp, %rbp
+
+	pushq %rdi
+	pushq %rsi
+	pushq %rdx
+	pushq %rcx
+	pushq %rax
+	pushq %r8
+	pushq %r9
+	pushq %r10
+	pushq %r11
+
+	call \func
+
+	popq %r11
+	popq %r10
+	popq %r9
+	popq %r8
+	popq %rax
+	popq %rcx
+	popq %rdx
+	popq %rsi
+	popq %rdi
+	popq %rbp
+	RET
+SYM_FUNC_END(\name)
+	_ASM_NOKPROBE(\name)
+.endm
+
+#else /* CONFIG_X86_32 */
+
+/* put return address in eax (arg1) */
+.macro THUNK name, func, put_ret_addr_in_eax=0
+SYM_CODE_START_NOALIGN(\name)
+	pushl %eax
+	pushl %ecx
+	pushl %edx
+
+	.if \put_ret_addr_in_eax
+	/* Place EIP in the arg1 */
+	movl 3*4(%esp), %eax
+	.endif
+
+	call \func
+	popl %edx
+	popl %ecx
+	popl %eax
+	RET
+	_ASM_NOKPROBE(\name)
+SYM_CODE_END(\name)
+	.endm
+
+#endif

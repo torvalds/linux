@@ -7,6 +7,8 @@
 #include <linux/linkage.h>
 #include <asm/msr-index.h>
 
+#include "calling.h"
+
 .pushsection .noinstr.text, "ax"
 
 SYM_FUNC_START(entry_ibpb)
@@ -20,3 +22,5 @@ SYM_FUNC_END(entry_ibpb)
 EXPORT_SYMBOL_GPL(entry_ibpb);
 
 .popsection
+
+THUNK warn_thunk_thunk, __warn_thunk

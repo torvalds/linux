@@ -2850,3 +2850,8 @@ ssize_t cpu_show_gds(struct device *dev, struct device_attribute *attr, char *bu
 	return cpu_show_common(dev, attr, buf, X86_BUG_GDS);
 }
 #endif
+
+void __warn_thunk(void)
+{
+	WARN_ONCE(1, "Unpatched return thunk in use. This should not happen!\n");
+}
