@@ -8,10 +8,12 @@
 #include "firmware.h"
 
 struct brcmf_pub;
+struct brcmf_if;
 
 struct brcmf_fwvid_ops {
 	int (*attach)(struct brcmf_pub *drvr);
 	void (*detach)(struct brcmf_pub *drvr);
+	void (*feat_attach)(struct brcmf_if *ifp);
 };
 
 /* exported functions */
@@ -42,6 +44,16 @@ static inline void brcmf_fwvid_detach(struct brcmf_pub *drvr)
 
 	drvr->vops->detach(drvr);
 	brcmf_fwvid_detach_ops(drvr);
+}
+
+static inline void brcmf_fwvid_feat_attach(struct brcmf_if *ifp)
+{
+	const struct brcmf_fwvid_ops *vops = ifp->drvr->vops;
+
+	if (!vops->feat_attach)
+		return;
+
+	vops->feat_attach(ifp);
 }
 
 #endif /* FWVID_H_ */
