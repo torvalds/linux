@@ -360,6 +360,9 @@ int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_err
 	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
 	int count;
 
+	if (!mca_funcs || !mca_funcs->mca_get_mca_entry)
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case AMDGPU_MCA_ERROR_TYPE_UE:
 		count = mca_funcs->max_ue_count;
@@ -374,10 +377,7 @@ int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_err
 	if (idx >= count)
 		return -EINVAL;
 
-	if (mca_funcs && mca_funcs->mca_get_mca_entry)
-		return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
-
-	return -EOPNOTSUPP;
+	return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
 }
 
 #if defined(CONFIG_DEBUG_FS)
