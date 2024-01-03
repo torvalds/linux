@@ -573,7 +573,6 @@ acpi_status wmi_install_notify_handler(const char *guid,
 				       void *data)
 {
 	struct wmi_block *block;
-	acpi_status status = AE_NOT_EXIST;
 	guid_t guid_input;
 
 	if (!guid || !handler)
@@ -596,11 +595,11 @@ acpi_status wmi_install_notify_handler(const char *guid,
 			if (ACPI_FAILURE(wmi_status))
 				dev_warn(&block->dev.dev, "Failed to enable device\n");
 
-			status = AE_OK;
+			return AE_OK;
 		}
 	}
 
-	return status;
+	return AE_NOT_EXIST;
 }
 EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 
@@ -615,7 +614,6 @@ EXPORT_SYMBOL_GPL(wmi_install_notify_handler);
 acpi_status wmi_remove_notify_handler(const char *guid)
 {
 	struct wmi_block *block;
-	acpi_status status = AE_NOT_EXIST;
 	guid_t guid_input;
 
 	if (!guid)
@@ -638,11 +636,11 @@ acpi_status wmi_remove_notify_handler(const char *guid)
 			block->handler = NULL;
 			block->handler_data = NULL;
 
-			status = AE_OK;
+			return AE_OK;
 		}
 	}
 
-	return status;
+	return AE_NOT_EXIST;
 }
 EXPORT_SYMBOL_GPL(wmi_remove_notify_handler);
 
