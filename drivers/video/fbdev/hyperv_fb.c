@@ -48,7 +48,6 @@
 #include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/screen_info.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/completion.h>
@@ -1059,14 +1058,8 @@ getmem_done:
 	else
 		aperture_remove_all_conflicting_devices(KBUILD_MODNAME);
 
-	if (!gen2vm) {
+	if (!gen2vm)
 		pci_dev_put(pdev);
-	} else if (IS_ENABLED(CONFIG_SYSFB)) {
-		/* framebuffer is reallocated, clear screen_info to avoid misuse from kexec */
-		screen_info.lfb_size = 0;
-		screen_info.lfb_base = 0;
-		screen_info.orig_video_isVGA = 0;
-	}
 
 	return 0;
 
