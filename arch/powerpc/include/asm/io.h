@@ -982,7 +982,7 @@ static inline phys_addr_t page_to_phys(struct page *page)
 }
 
 /*
- * 32 bits still uses virt_to_bus() for it's implementation of DMA
+ * 32 bits still uses virt_to_bus() for its implementation of DMA
  * mappings se we have to keep it defined here. We also have some old
  * drivers (shame shame shame) that use bus_to_virt() and haven't been
  * fixed yet so I need to define it here.

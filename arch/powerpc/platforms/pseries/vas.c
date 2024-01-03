@@ -228,7 +228,7 @@ static irqreturn_t pseries_vas_irq_handler(int irq, void *data)
 	struct pseries_vas_window *txwin = data;
 
 	/*
-	 * The thread hanlder will process this interrupt if it is
+	 * The thread handler will process this interrupt if it is
 	 * already running.
 	 */
 	atomic_inc(&txwin->pending_faults);

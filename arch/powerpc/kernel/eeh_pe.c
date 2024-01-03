@@ -527,7 +527,7 @@ EXPORT_SYMBOL_GPL(eeh_pe_state_mark);
  * eeh_pe_mark_isolated
  * @pe: EEH PE
  *
- * Record that a PE has been isolated by marking the PE and it's children as
+ * Record that a PE has been isolated by marking the PE and its children as
  * EEH_PE_ISOLATED (and EEH_PE_CFG_BLOCKED, if required) and their PCI devices
  * as pci_channel_io_frozen.
  */

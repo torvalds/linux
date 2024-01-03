@@ -681,7 +681,7 @@ void crash_fadump(struct pt_regs *regs, const char *str)
 	 * old_cpu == -1 means this is the first CPU which has come here,
 	 * go ahead and trigger fadump.
 	 *
-	 * old_cpu != -1 means some other CPU has already on it's way
+	 * old_cpu != -1 means some other CPU has already on its way
 	 * to trigger fadump, just keep looping here.
 	 */
 	this_cpu = smp_processor_id();

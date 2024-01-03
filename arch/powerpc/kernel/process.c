@@ -1661,7 +1661,7 @@ void arch_setup_new_exec(void)
  * cases will happen:
  *
  * 1. The correct thread is running, the wrong thread is not
- * In this situation, the correct thread is woken and proceeds to pass it's
+ * In this situation, the correct thread is woken and proceeds to pass its
  * condition check.
  *
  * 2. Neither threads are running
@@ -1671,15 +1671,15 @@ void arch_setup_new_exec(void)
  * for the wrong thread, or they will execute the condition check immediately.
  *
  * 3. The wrong thread is running, the correct thread is not
- * The wrong thread will be woken, but will fail it's condition check and
+ * The wrong thread will be woken, but will fail its condition check and
  * re-execute wait. The correct thread, when scheduled, will execute either
- * it's condition check (which will pass), or wait, which returns immediately
- * when called the first time after the thread is scheduled, followed by it's
+ * its condition check (which will pass), or wait, which returns immediately
+ * when called the first time after the thread is scheduled, followed by its
  * condition check (which will pass).
  *
  * 4. Both threads are running
- * Both threads will be woken. The wrong thread will fail it's condition check
- * and execute another wait, while the correct thread will pass it's condition
+ * Both threads will be woken. The wrong thread will fail its condition check
+ * and execute another wait, while the correct thread will pass its condition
  * check.
  *
  * @t: the task to set the thread ID for

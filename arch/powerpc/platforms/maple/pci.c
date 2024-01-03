@@ -595,7 +595,7 @@ void __init maple_pci_init(void)
 
 	/* Probe root PCI hosts, that is on U3 the AGP host and the
 	 * HyperTransport host. That one is actually "kept" around
-	 * and actually added last as it's resource management relies
+	 * and actually added last as its resource management relies
 	 * on the AGP resources to have been setup first
 	 */
 	root = of_find_node_by_path("/");
