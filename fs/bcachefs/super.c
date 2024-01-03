@@ -868,7 +868,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    !(c->copygc_wq = alloc_workqueue("bcachefs_copygc",
 				WQ_FREEZABLE|WQ_MEM_RECLAIM|WQ_CPU_INTENSIVE, 1)) ||
 	    !(c->io_complete_wq = alloc_workqueue("bcachefs_io",
-				WQ_FREEZABLE|WQ_HIGHPRI|WQ_MEM_RECLAIM, 1)) ||
+				WQ_FREEZABLE|WQ_HIGHPRI|WQ_MEM_RECLAIM, 512)) ||
 	    !(c->write_ref_wq = alloc_workqueue("bcachefs_write_ref",
 				WQ_FREEZABLE, 0)) ||
 #ifndef BCH_WRITE_REF_DEBUG
