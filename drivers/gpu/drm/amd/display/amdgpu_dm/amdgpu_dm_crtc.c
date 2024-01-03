@@ -142,7 +142,12 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 			amdgpu_dm_psr_disable(vblank_work->stream);
 	} else if (link->psr_settings.psr_feature_enabled &&
 		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
-		amdgpu_dm_psr_enable(vblank_work->stream);
+
+		struct amdgpu_dm_connector *aconn =
+			(struct amdgpu_dm_connector *) vblank_work->stream->dm_stream_context;
+
+		if (!aconn->disallow_edp_enter_psr)
+			amdgpu_dm_psr_enable(vblank_work->stream);
 	}
 }
 

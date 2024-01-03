@@ -8570,7 +8570,12 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 				amdgpu_dm_link_setup_replay(acrtc_state->stream->link, aconn);
 			} else if (acrtc_state->stream->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED &&
 					!acrtc_state->stream->link->psr_settings.psr_feature_enabled) {
-				amdgpu_dm_link_setup_psr(acrtc_state->stream);
+
+				struct amdgpu_dm_connector *aconn = (struct amdgpu_dm_connector *)
+					acrtc_state->stream->dm_stream_context;
+
+				if (!aconn->disallow_edp_enter_psr)
+					amdgpu_dm_link_setup_psr(acrtc_state->stream);
 			}
 		}
 
@@ -8599,6 +8604,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			    !amdgpu_dm_crc_window_is_activated(acrtc_state->base.crtc) &&
 #endif
 			    !acrtc_state->stream->link->psr_settings.psr_allow_active &&
+			    !aconn->disallow_edp_enter_psr &&
 			    (timestamp_ns -
 			    acrtc_state->stream->link->psr_settings.psr_dirty_rects_change_timestamp_ns) >
 			    500000000)
