@@ -975,7 +975,8 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	struct pci_dev *pdev  = NULL;
 	void __iomem *fb_virt;
 	int gen2vm = efi_enabled(EFI_BOOT);
-	resource_size_t base, size;
+	resource_size_t base = 0;
+	resource_size_t size = 0;
 	phys_addr_t paddr;
 	int ret;
 
@@ -1010,9 +1011,6 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 			goto getmem_done;
 		}
 		pr_info("Unable to allocate enough contiguous physical memory on Gen 1 VM. Using MMIO instead.\n");
-	} else if (IS_ENABLED(CONFIG_SYSFB)) {
-		base = screen_info.lfb_base;
-		size = screen_info.lfb_size;
 	} else {
 		goto err1;
 	}
@@ -1056,7 +1054,10 @@ static int hvfb_getmem(struct hv_device *hdev, struct fb_info *info)
 	info->screen_size = dio_fb_size;
 
 getmem_done:
-	aperture_remove_conflicting_devices(base, size, KBUILD_MODNAME);
+	if (base && size)
+		aperture_remove_conflicting_devices(base, size, KBUILD_MODNAME);
+	else
+		aperture_remove_all_conflicting_devices(KBUILD_MODNAME);
 
 	if (!gen2vm) {
 		pci_dev_put(pdev);
