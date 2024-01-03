@@ -154,6 +154,8 @@ var S_TRAPSTS_HWREG				= HW_REG_WAVE_EXCP_FLAG_PRIV
 var S_TRAPSTS_SAVE_CONTEXT_MASK			= SQ_WAVE_EXCP_FLAG_PRIV_SAVE_CONTEXT_MASK
 var S_TRAPSTS_SAVE_CONTEXT_SHIFT		= SQ_WAVE_EXCP_FLAG_PRIV_SAVE_CONTEXT_SHIFT
 var S_TRAPSTS_NON_MASKABLE_EXCP_MASK		= SQ_WAVE_EXCP_FLAG_PRIV_MEM_VIOL_MASK|SQ_WAVE_EXCP_FLAG_PRIV_ILLEGAL_INST_MASK
+var BARRIER_STATE_SIGNAL_OFFSET			= 16
+var BARRIER_STATE_VALID_OFFSET			= 0
 #endif
 
 // bits [31:24] unused by SPI debug data
@@ -227,6 +229,7 @@ var s_restore_buf_rsrc3				= ttmp11
 var s_restore_size				= ttmp6
 var s_restore_ttmps_lo				= s_restore_tmp
 var s_restore_ttmps_hi				= s_restore_alloc_size
+var s_restore_spi_init_hi_save			= s_restore_exec_hi
 
 shader main
 	asic(DEFAULT)
@@ -639,6 +642,10 @@ L_SAVE_HWREG:
 
 	s_getreg_b32	s_save_tmp, hwreg(HW_REG_WAVE_STATUS)
 	write_hwreg_to_mem(s_save_tmp, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_get_barrier_state s_save_tmp, -1
+	s_wait_kmcnt (0)
+	write_hwreg_to_mem(s_save_tmp, s_save_buf_rsrc0, s_save_mem_offset)
 #endif
 
 #if NO_SQC_STORE
@@ -1001,6 +1008,11 @@ L_RESTORE:
 	s_mov_b32	s_restore_buf_rsrc2, 0					//NUM_RECORDS initial value = 0 (in bytes)
 	s_mov_b32	s_restore_buf_rsrc3, S_RESTORE_BUF_RSRC_WORD3_MISC
 
+#if ASIC_FAMILY >= CHIP_GFX12
+	// Save s_restore_spi_init_hi for later use.
+	s_mov_b32 s_restore_spi_init_hi_save, s_restore_spi_init_hi
+#endif
+
 	//determine it is wave32 or wave64
 	get_wave_size2(s_restore_size)
 
@@ -1250,6 +1262,11 @@ L_RESTORE_HWREG:
 
 	s_mov_b32	s_restore_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
+#if ASIC_FAMILY >= CHIP_GFX12
+	// Restore s_restore_spi_init_hi before the saved value gets clobbered.
+	s_mov_b32 s_restore_spi_init_hi, s_restore_spi_init_hi_save
+#endif
+
 	read_hwreg_from_mem(s_restore_m0, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_pc_lo, s_restore_buf_rsrc0, s_restore_mem_offset)
 	read_hwreg_from_mem(s_restore_pc_hi, s_restore_buf_rsrc0, s_restore_mem_offset)
@@ -1277,6 +1294,32 @@ L_RESTORE_HWREG:
 	read_hwreg_from_mem(s_restore_tmp, s_restore_buf_rsrc0, s_restore_mem_offset)
 	s_waitcnt	lgkmcnt(0)
 	s_setreg_b32	hwreg(HW_REG_WAVE_TRAP_CTRL), s_restore_tmp
+
+	// Only the first wave needs to restore the workgroup barrier.
+	s_and_b32	s_restore_tmp, s_restore_spi_init_hi, S_RESTORE_SPI_INIT_FIRST_WAVE_MASK
+	s_cbranch_scc0	L_SKIP_BARRIER_RESTORE
+
+	// Skip over WAVE_STATUS, since there is no state to restore from it
+	s_add_u32	s_restore_mem_offset, s_restore_mem_offset, 4
+
+	read_hwreg_from_mem(s_restore_tmp, s_restore_buf_rsrc0, s_restore_mem_offset)
+	s_waitcnt	lgkmcnt(0)
+
+	s_bitcmp1_b32	s_restore_tmp, BARRIER_STATE_VALID_OFFSET
+	s_cbranch_scc0	L_SKIP_BARRIER_RESTORE
+
+	// extract the saved signal count from s_restore_tmp
+	s_lshr_b32	s_restore_tmp, s_restore_tmp, BARRIER_STATE_SIGNAL_OFFSET
+
+	// We need to call s_barrier_signal repeatedly to restore the signal
+	// count of the work group barrier.  The member count is already
+	// initialized with the number of waves in the work group.
+L_BARRIER_RESTORE_LOOP:
+	s_and_b32	s_restore_tmp, s_restore_tmp, s_restore_tmp
+	s_cbranch_scc0	L_SKIP_BARRIER_RESTORE
+	s_barrier_signal	-1
+	s_add_i32	s_restore_tmp, s_restore_tmp, -1
+	s_branch	L_BARRIER_RESTORE_LOOP
 
 L_SKIP_BARRIER_RESTORE:
 	// Make barrier and LDS state visible to all waves in the group.
