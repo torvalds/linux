@@ -135,6 +135,7 @@ iommufd_hwpt_paging_alloc(struct iommufd_ctx *ictx, struct iommufd_ioas *ioas,
 			hwpt->domain = NULL;
 			goto out_abort;
 		}
+		hwpt->domain->owner = ops;
 	} else {
 		hwpt->domain = iommu_domain_alloc(idev->dev->bus);
 		if (!hwpt->domain) {
@@ -233,6 +234,7 @@ iommufd_hwpt_nested_alloc(struct iommufd_ctx *ictx,
 		hwpt->domain = NULL;
 		goto out_abort;
 	}
+	hwpt->domain->owner = ops;
 
 	if (WARN_ON_ONCE(hwpt->domain->type != IOMMU_DOMAIN_NESTED)) {
 		rc = -EINVAL;
