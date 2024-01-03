@@ -304,30 +304,30 @@ out_free_msg:
 	return ret;
 }
 
-int thermal_notify_tz_create(int tz_id, const char *name)
+int thermal_notify_tz_create(const struct thermal_zone_device *tz)
 {
-	struct param p = { .tz_id = tz_id, .name = name };
+	struct param p = { .tz_id = tz->id, .name = tz->type };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_CREATE, &p);
 }
 
-int thermal_notify_tz_delete(int tz_id)
+int thermal_notify_tz_delete(const struct thermal_zone_device *tz)
 {
-	struct param p = { .tz_id = tz_id };
+	struct param p = { .tz_id = tz->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_DELETE, &p);
 }
 
-int thermal_notify_tz_enable(int tz_id)
+int thermal_notify_tz_enable(const struct thermal_zone_device *tz)
 {
-	struct param p = { .tz_id = tz_id };
+	struct param p = { .tz_id = tz->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_ENABLE, &p);
 }
 
-int thermal_notify_tz_disable(int tz_id)
+int thermal_notify_tz_disable(const struct thermal_zone_device *tz)
 {
-	struct param p = { .tz_id = tz_id };
+	struct param p = { .tz_id = tz->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_DISABLE, &p);
 }
@@ -386,9 +386,10 @@ int thermal_notify_cdev_delete(int cdev_id)
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_DELETE, &p);
 }
 
-int thermal_notify_tz_gov_change(int tz_id, const char *name)
+int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
+				 const char *name)
 {
-	struct param p = { .tz_id = tz_id, .name = name };
+	struct param p = { .tz_id = tz->id, .name = name };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_GOV_CHANGE, &p);
 }

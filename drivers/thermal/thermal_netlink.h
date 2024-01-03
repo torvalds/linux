@@ -17,10 +17,10 @@ struct thermal_trip;
 #ifdef CONFIG_THERMAL_NETLINK
 int __init thermal_netlink_init(void);
 void __init thermal_netlink_exit(void);
-int thermal_notify_tz_create(int tz_id, const char *name);
-int thermal_notify_tz_delete(int tz_id);
-int thermal_notify_tz_enable(int tz_id);
-int thermal_notify_tz_disable(int tz_id);
+int thermal_notify_tz_create(const struct thermal_zone_device *tz);
+int thermal_notify_tz_delete(const struct thermal_zone_device *tz);
+int thermal_notify_tz_enable(const struct thermal_zone_device *tz);
+int thermal_notify_tz_disable(const struct thermal_zone_device *tz);
 int thermal_notify_tz_trip_down(const struct thermal_zone_device *tz,
 				const struct thermal_trip *trip);
 int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
@@ -30,7 +30,8 @@ int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
 int thermal_notify_cdev_state_update(int cdev_id, int state);
 int thermal_notify_cdev_add(int cdev_id, const char *name, int max_state);
 int thermal_notify_cdev_delete(int cdev_id);
-int thermal_notify_tz_gov_change(int tz_id, const char *name);
+int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
+				 const char *name);
 int thermal_genl_sampling_temp(int id, int temp);
 int thermal_genl_cpu_capability_event(int count,
 				      struct thermal_genl_cpu_caps *caps);
@@ -40,22 +41,22 @@ static inline int thermal_netlink_init(void)
 	return 0;
 }
 
-static inline int thermal_notify_tz_create(int tz_id, const char *name)
+static inline int thermal_notify_tz_create(const struct thermal_zone_device *tz)
 {
 	return 0;
 }
 
-static inline int thermal_notify_tz_delete(int tz_id)
+static inline int thermal_notify_tz_delete(const struct thermal_zone_device *tz)
 {
 	return 0;
 }
 
-static inline int thermal_notify_tz_enable(int tz_id)
+static inline int thermal_notify_tz_enable(const struct thermal_zone_device *tz)
 {
 	return 0;
 }
 
-static inline int thermal_notify_tz_disable(int tz_id)
+static inline int thermal_notify_tz_disable(const struct thermal_zone_device *tz)
 {
 	return 0;
 }
@@ -94,7 +95,8 @@ static inline int thermal_notify_cdev_delete(int cdev_id)
 	return 0;
 }
 
-static inline int thermal_notify_tz_gov_change(int tz_id, const char *name)
+static inline int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
+					       const char *name)
 {
 	return 0;
 }
