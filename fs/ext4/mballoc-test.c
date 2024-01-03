@@ -470,6 +470,57 @@ static void test_free_blocks_simple(struct kunit *test)
 			ranges[i].start, ranges[i].len);
 }
 
+static void
+test_mark_diskspace_used_range(struct kunit *test,
+			       struct ext4_allocation_context *ac,
+			       ext4_grpblk_t start,
+			       ext4_grpblk_t len)
+{
+	struct super_block *sb = (struct super_block *)test->priv;
+	int ret;
+	void *bitmap;
+	ext4_grpblk_t i, max;
+
+	/* ext4_mb_mark_diskspace_used will BUG if len is 0 */
+	if (len == 0)
+		return;
+
+	ac->ac_b_ex.fe_group = TEST_GOAL_GROUP;
+	ac->ac_b_ex.fe_start = start;
+	ac->ac_b_ex.fe_len = len;
+
+	bitmap = mbt_ctx_bitmap(sb, TEST_GOAL_GROUP);
+	memset(bitmap, 0, sb->s_blocksize);
+	ret = ext4_mb_mark_diskspace_used(ac, NULL, 0);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	max = EXT4_CLUSTERS_PER_GROUP(sb);
+	i = mb_find_next_bit(bitmap, max, 0);
+	KUNIT_ASSERT_EQ(test, i, start);
+	i = mb_find_next_zero_bit(bitmap, max, i + 1);
+	KUNIT_ASSERT_EQ(test, i, start + len);
+	i = mb_find_next_bit(bitmap, max, i + 1);
+	KUNIT_ASSERT_EQ(test, max, i);
+}
+
+static void test_mark_diskspace_used(struct kunit *test)
+{
+	struct super_block *sb = (struct super_block *)test->priv;
+	struct inode inode = { .i_sb = sb, };
+	struct ext4_allocation_context ac;
+	struct test_range ranges[TEST_RANGE_COUNT];
+	int i;
+
+	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
+
+	ac.ac_status = AC_STATUS_FOUND;
+	ac.ac_sb = sb;
+	ac.ac_inode = &inode;
+	for (i = 0; i < TEST_RANGE_COUNT; i++)
+		test_mark_diskspace_used_range(test, &ac, ranges[i].start,
+					       ranges[i].len);
+}
+
 static void mbt_generate_buddy(struct super_block *sb, void *buddy,
 			       void *bitmap, struct ext4_group_info *grp)
 {
@@ -784,6 +835,7 @@ static struct kunit_case mbt_test_cases[] = {
 	KUNIT_CASE_PARAM(test_mb_generate_buddy, mbt_layouts_gen_params),
 	KUNIT_CASE_PARAM(test_mb_mark_used, mbt_layouts_gen_params),
 	KUNIT_CASE_PARAM(test_mb_free_blocks, mbt_layouts_gen_params),
+	KUNIT_CASE_PARAM(test_mark_diskspace_used, mbt_layouts_gen_params),
 	{}
 };
 
