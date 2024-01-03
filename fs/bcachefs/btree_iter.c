@@ -897,7 +897,8 @@ static noinline int btree_node_iter_and_journal_peek(struct btree_trans *trans,
 
 	bch2_bkey_buf_reassemble(out, c, k);
 
-	if (flags & BTREE_ITER_PREFETCH)
+	if ((flags & BTREE_ITER_PREFETCH) &&
+	    c->opts.btree_node_prefetch)
 		ret = btree_path_prefetch_j(trans, path, &jiter);
 
 	bch2_btree_and_journal_iter_exit(&jiter);
@@ -929,7 +930,8 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 		bch2_bkey_buf_unpack(&tmp, c, l->b,
 				 bch2_btree_node_iter_peek(&l->iter, l->b));
 
-		if (flags & BTREE_ITER_PREFETCH) {
+		if ((flags & BTREE_ITER_PREFETCH) &&
+		    c->opts.btree_node_prefetch) {
 			ret = btree_path_prefetch(trans, path);
 			if (ret)
 				goto err;
