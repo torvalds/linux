@@ -52,8 +52,8 @@ struct ast2600_ssp {
 	void __iomem	*ssp_shared_mem_vir_addr;
 	int		ssp_shared_mem_size;
 	void __iomem	*cvic;
-	int			irq[16];
-	int			n_irq;
+	int		irq[16];
+	int		n_irq;
 };
 
 static int ast_ssp_open(struct inode *inode, struct file *file)
@@ -169,7 +169,7 @@ static int ast_ssp_probe(struct platform_device *pdev)
 					- priv->ssp_shared_mem_size;
 
 	dev_info(priv->dev, "Shared memory from reserved memory.\n");
-	dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x,  size = 0x%08x\n",
+	dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x, size = 0x%08x\n",
 		 (uint32_t)priv->ssp_shared_mem_vir_addr, priv->ssp_shared_mem_phy_addr,
 		 priv->ssp_shared_mem_size);
 
