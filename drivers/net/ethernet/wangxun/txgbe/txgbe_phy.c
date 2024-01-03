@@ -159,7 +159,8 @@ static int txgbe_mdio_pcs_init(struct txgbe *txgbe)
 static struct phylink_pcs *txgbe_phylink_mac_select(struct phylink_config *config,
 						    phy_interface_t interface)
 {
-	struct txgbe *txgbe = netdev_to_txgbe(to_net_dev(config->dev));
+	struct wx *wx = phylink_to_wx(config);
+	struct txgbe *txgbe = wx->priv;
 
 	if (interface == PHY_INTERFACE_MODE_10GBASER)
 		return &txgbe->xpcs->pcs;
@@ -175,7 +176,7 @@ static void txgbe_mac_config(struct phylink_config *config, unsigned int mode,
 static void txgbe_mac_link_down(struct phylink_config *config,
 				unsigned int mode, phy_interface_t interface)
 {
-	struct wx *wx = netdev_priv(to_net_dev(config->dev));
+	struct wx *wx = phylink_to_wx(config);
 
 	wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
 }
@@ -186,7 +187,7 @@ static void txgbe_mac_link_up(struct phylink_config *config,
 			      int speed, int duplex,
 			      bool tx_pause, bool rx_pause)
 {
-	struct wx *wx = netdev_priv(to_net_dev(config->dev));
+	struct wx *wx = phylink_to_wx(config);
 	u32 txcfg, wdg;
 
 	txcfg = rd32(wx, WX_MAC_TX_CFG);
@@ -217,7 +218,7 @@ static void txgbe_mac_link_up(struct phylink_config *config,
 static int txgbe_mac_prepare(struct phylink_config *config, unsigned int mode,
 			     phy_interface_t interface)
 {
-	struct wx *wx = netdev_priv(to_net_dev(config->dev));
+	struct wx *wx = phylink_to_wx(config);
 
 	wr32m(wx, WX_MAC_TX_CFG, WX_MAC_TX_CFG_TE, 0);
 	wr32m(wx, WX_MAC_RX_CFG, WX_MAC_RX_CFG_RE, 0);
@@ -228,7 +229,7 @@ static int txgbe_mac_prepare(struct phylink_config *config, unsigned int mode,
 static int txgbe_mac_finish(struct phylink_config *config, unsigned int mode,
 			    phy_interface_t interface)
 {
-	struct wx *wx = netdev_priv(to_net_dev(config->dev));
+	struct wx *wx = phylink_to_wx(config);
 
 	txgbe_enable_sec_tx_path(wx);
 	wr32m(wx, WX_MAC_RX_CFG, WX_MAC_RX_CFG_RE, WX_MAC_RX_CFG_RE);
@@ -253,10 +254,7 @@ static int txgbe_phylink_init(struct txgbe *txgbe)
 	phy_interface_t phy_mode;
 	struct phylink *phylink;
 
-	config = devm_kzalloc(&wx->pdev->dev, sizeof(*config), GFP_KERNEL);
-	if (!config)
-		return -ENOMEM;
-
+	config = &wx->phylink_config;
 	config->dev = &wx->netdev->dev;
 	config->type = PHYLINK_NETDEV;
 	config->mac_capabilities = MAC_10000FD | MAC_1000FD | MAC_100FD |
@@ -287,7 +285,7 @@ static int txgbe_phylink_init(struct txgbe *txgbe)
 		}
 	}
 
-	txgbe->phylink = phylink;
+	wx->phylink = phylink;
 
 	return 0;
 }
@@ -483,7 +481,7 @@ static void txgbe_irq_handler(struct irq_desc *desc)
 		    TXGBE_PX_MISC_ETH_AN)) {
 		u32 reg = rd32(wx, TXGBE_CFG_PORT_ST);
 
-		phylink_mac_change(txgbe->phylink, !!(reg & TXGBE_CFG_PORT_ST_LINK_UP));
+		phylink_mac_change(wx->phylink, !!(reg & TXGBE_CFG_PORT_ST_LINK_UP));
 	}
 
 	/* unmask interrupt */
@@ -701,6 +699,7 @@ static int txgbe_ext_phy_init(struct txgbe *txgbe)
 
 int txgbe_init_phy(struct txgbe *txgbe)
 {
+	struct wx *wx = txgbe->wx;
 	int ret;
 
 	if (txgbe->wx->media_type == sp_media_copper)
@@ -708,43 +707,43 @@ int txgbe_init_phy(struct txgbe *txgbe)
 
 	ret = txgbe_swnodes_register(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to register software nodes\n");
+		wx_err(wx, "failed to register software nodes\n");
 		return ret;
 	}
 
 	ret = txgbe_mdio_pcs_init(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to init mdio pcs: %d\n", ret);
+		wx_err(wx, "failed to init mdio pcs: %d\n", ret);
 		goto err_unregister_swnode;
 	}
 
 	ret = txgbe_phylink_init(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to init phylink\n");
+		wx_err(wx, "failed to init phylink\n");
 		goto err_destroy_xpcs;
 	}
 
 	ret = txgbe_gpio_init(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to init gpio\n");
+		wx_err(wx, "failed to init gpio\n");
 		goto err_destroy_phylink;
 	}
 
 	ret = txgbe_clock_register(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to register clock: %d\n", ret);
+		wx_err(wx, "failed to register clock: %d\n", ret);
 		goto err_destroy_phylink;
 	}
 
 	ret = txgbe_i2c_register(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to init i2c interface: %d\n", ret);
+		wx_err(wx, "failed to init i2c interface: %d\n", ret);
 		goto err_unregister_clk;
 	}
 
 	ret = txgbe_sfp_register(txgbe);
 	if (ret) {
-		wx_err(txgbe->wx, "failed to register sfp\n");
+		wx_err(wx, "failed to register sfp\n");
 		goto err_unregister_i2c;
 	}
 
@@ -756,7 +755,7 @@ err_unregister_clk:
 	clkdev_drop(txgbe->clock);
 	clk_unregister(txgbe->clk);
 err_destroy_phylink:
-	phylink_destroy(txgbe->phylink);
+	phylink_destroy(wx->phylink);
 err_destroy_xpcs:
 	xpcs_destroy(txgbe->xpcs);
 err_unregister_swnode:
@@ -768,8 +767,8 @@ err_unregister_swnode:
 void txgbe_remove_phy(struct txgbe *txgbe)
 {
 	if (txgbe->wx->media_type == sp_media_copper) {
-		phylink_disconnect_phy(txgbe->phylink);
-		phylink_destroy(txgbe->phylink);
+		phylink_disconnect_phy(txgbe->wx->phylink);
+		phylink_destroy(txgbe->wx->phylink);
 		return;
 	}
 
@@ -777,7 +776,7 @@ void txgbe_remove_phy(struct txgbe *txgbe)
 	platform_device_unregister(txgbe->i2c_dev);
 	clkdev_drop(txgbe->clock);
 	clk_unregister(txgbe->clk);
-	phylink_destroy(txgbe->phylink);
+	phylink_destroy(txgbe->wx->phylink);
 	xpcs_destroy(txgbe->xpcs);
 	software_node_unregister_node_group(txgbe->nodes.group);
 }

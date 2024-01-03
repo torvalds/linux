@@ -10,35 +10,12 @@
 #include "txgbe_type.h"
 #include "txgbe_ethtool.h"
 
-static int txgbe_nway_reset(struct net_device *netdev)
-{
-	struct txgbe *txgbe = netdev_to_txgbe(netdev);
-
-	return phylink_ethtool_nway_reset(txgbe->phylink);
-}
-
-static int txgbe_get_link_ksettings(struct net_device *netdev,
-				    struct ethtool_link_ksettings *cmd)
-{
-	struct txgbe *txgbe = netdev_to_txgbe(netdev);
-
-	return phylink_ethtool_ksettings_get(txgbe->phylink, cmd);
-}
-
-static int txgbe_set_link_ksettings(struct net_device *netdev,
-				    const struct ethtool_link_ksettings *cmd)
-{
-	struct txgbe *txgbe = netdev_to_txgbe(netdev);
-
-	return phylink_ethtool_ksettings_set(txgbe->phylink, cmd);
-}
-
 static const struct ethtool_ops txgbe_ethtool_ops = {
 	.get_drvinfo		= wx_get_drvinfo,
-	.nway_reset		= txgbe_nway_reset,
+	.nway_reset		= wx_nway_reset,
 	.get_link		= ethtool_op_get_link,
-	.get_link_ksettings	= txgbe_get_link_ksettings,
-	.set_link_ksettings	= txgbe_set_link_ksettings,
+	.get_link_ksettings	= wx_get_link_ksettings,
+	.set_link_ksettings	= wx_set_link_ksettings,
 	.get_sset_count		= wx_get_sset_count,
 	.get_strings		= wx_get_strings,
 	.get_ethtool_stats	= wx_get_ethtool_stats,
