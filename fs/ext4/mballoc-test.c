@@ -148,9 +148,13 @@ static void mbt_init_sb_layout(struct super_block *sb,
 static int mbt_grp_ctx_init(struct super_block *sb,
 			    struct mbt_grp_ctx *grp_ctx)
 {
+	ext4_grpblk_t max = EXT4_CLUSTERS_PER_GROUP(sb);
+
 	grp_ctx->bitmap_bh.b_data = kzalloc(EXT4_BLOCK_SIZE(sb), GFP_KERNEL);
 	if (grp_ctx->bitmap_bh.b_data == NULL)
 		return -ENOMEM;
+	mb_set_bits(grp_ctx->bitmap_bh.b_data, max, sb->s_blocksize * 8 - max);
+	ext4_free_group_clusters_set(sb, &grp_ctx->desc, max);
 
 	return 0;
 }
@@ -197,6 +201,8 @@ static int mbt_ctx_init(struct super_block *sb)
 	 * block which will fail ext4_sb_block_valid check.
 	 */
 	mb_set_bits(ctx->grp_ctx[0].bitmap_bh.b_data, 0, 1);
+	ext4_free_group_clusters_set(sb, &ctx->grp_ctx[0].desc,
+				     EXT4_CLUSTERS_PER_GROUP(sb) - 1);
 
 	return 0;
 out:
@@ -231,6 +237,13 @@ static int ext4_wait_block_bitmap_stub(struct super_block *sb,
 				       ext4_group_t block_group,
 				       struct buffer_head *bh)
 {
+	/*
+	 * real ext4_wait_block_bitmap will set these flags and
+	 * functions like ext4_mb_init_cache will verify the flags.
+	 */
+	set_buffer_uptodate(bh);
+	set_bitmap_uptodate(bh);
+	set_buffer_verified(bh);
 	return 0;
 }
 
@@ -598,6 +611,70 @@ static void test_mb_generate_buddy(struct kunit *test)
 	}
 }
 
+static void
+test_mb_mark_used_range(struct kunit *test, struct ext4_buddy *e4b,
+			ext4_grpblk_t start, ext4_grpblk_t len, void *bitmap,
+			void *buddy, struct ext4_group_info *grp)
+{
+	struct super_block *sb = (struct super_block *)test->priv;
+	struct ext4_free_extent ex;
+	int i;
+
+	/* mb_mark_used only accepts non-zero len */
+	if (len == 0)
+		return;
+
+	ex.fe_start = start;
+	ex.fe_len = len;
+	ex.fe_group = TEST_GOAL_GROUP;
+	mb_mark_used(e4b, &ex);
+
+	mb_set_bits(bitmap, start, len);
+	/* bypass bb_free validatoin in ext4_mb_generate_buddy */
+	grp->bb_free -= len;
+	memset(buddy, 0xff, sb->s_blocksize);
+	for (i = 0; i < MB_NUM_ORDERS(sb); i++)
+		grp->bb_counters[i] = 0;
+	ext4_mb_generate_buddy(sb, buddy, bitmap, 0, grp);
+
+	KUNIT_ASSERT_EQ(test, memcmp(buddy, e4b->bd_buddy, sb->s_blocksize),
+			0);
+	mbt_validate_group_info(test, grp, e4b->bd_info);
+}
+
+static void test_mb_mark_used(struct kunit *test)
+{
+	struct ext4_buddy e4b;
+	struct super_block *sb = (struct super_block *)test->priv;
+	void *bitmap, *buddy;
+	struct ext4_group_info *grp;
+	int ret;
+	struct test_range ranges[TEST_RANGE_COUNT];
+	int i;
+
+	/* buddy cache assumes that each page contains at least one block */
+	if (sb->s_blocksize > PAGE_SIZE)
+		kunit_skip(test, "blocksize exceeds pagesize");
+
+	bitmap = kunit_kzalloc(test, sb->s_blocksize, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, bitmap);
+	buddy = kunit_kzalloc(test, sb->s_blocksize, GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, buddy);
+	grp = kunit_kzalloc(test, offsetof(struct ext4_group_info,
+				bb_counters[MB_NUM_ORDERS(sb)]), GFP_KERNEL);
+
+	ret = ext4_mb_load_buddy(sb, TEST_GOAL_GROUP, &e4b);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	grp->bb_free = EXT4_CLUSTERS_PER_GROUP(sb);
+	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
+	for (i = 0; i < TEST_RANGE_COUNT; i++)
+		test_mb_mark_used_range(test, &e4b, ranges[i].start,
+					ranges[i].len, bitmap, buddy, grp);
+
+	ext4_mb_unload_buddy(&e4b);
+}
+
 static const struct mbt_ext4_block_layout mbt_test_layouts[] = {
 	{
 		.blocksize_bits = 10,
@@ -637,6 +714,7 @@ static struct kunit_case mbt_test_cases[] = {
 	KUNIT_CASE_PARAM(test_new_blocks_simple, mbt_layouts_gen_params),
 	KUNIT_CASE_PARAM(test_free_blocks_simple, mbt_layouts_gen_params),
 	KUNIT_CASE_PARAM(test_mb_generate_buddy, mbt_layouts_gen_params),
+	KUNIT_CASE_PARAM(test_mb_mark_used, mbt_layouts_gen_params),
 	{}
 };
 
