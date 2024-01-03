@@ -343,6 +343,9 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
+	rockchip_drm_encoder_set_crtc_endpoint_id(&dp->encoder,
+						  dev->of_node, 0, 0);
+
 	dp->plat_data.encoder = &dp->encoder.encoder;
 
 	ret = analogix_dp_bind(dp->adp, drm_dev);
