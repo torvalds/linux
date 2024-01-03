@@ -163,6 +163,24 @@ static int test__checkevent_pmu(struct evlist *evlist)
 	return TEST_OK;
 }
 
+static int test__hybrid_hw_group_event_2(struct evlist *evlist)
+{
+	struct evsel *evsel, *leader;
+
+	evsel = leader = evlist__first(evlist);
+	TEST_ASSERT_VAL("wrong number of entries", 2 == evlist->core.nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->core.attr.type);
+	TEST_ASSERT_VAL("wrong hybrid type", test_hybrid_type(evsel, PERF_TYPE_RAW));
+	TEST_ASSERT_VAL("wrong config", test_config(evsel, PERF_COUNT_HW_CPU_CYCLES));
+	TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
+
+	evsel = evsel__next(evsel);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->core.attr.type);
+	TEST_ASSERT_VAL("wrong config", evsel->core.attr.config == 0x3c);
+	TEST_ASSERT_VAL("wrong leader", evsel__has_leader(evsel, leader));
+	return TEST_OK;
+}
+
 struct evlist_test {
 	const char *name;
 	bool (*valid)(void);
@@ -214,6 +232,11 @@ static const struct evlist_test test__hybrid_events[] = {
 		.name  = "cpu_core/LLC-loads/",
 		.check = test__hybrid_cache_event,
 		/* 8 */
+	},
+	{
+		.name  = "{cpu_core/cycles/,cpu_core/cpu-cycles/}",
+		.check = test__hybrid_hw_group_event_2,
+		/* 9 */
 	},
 };
 
