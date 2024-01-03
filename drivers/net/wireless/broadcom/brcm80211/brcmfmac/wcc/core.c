@@ -7,6 +7,7 @@
 #include <core.h>
 #include <bus.h>
 #include <fwvid.h>
+#include <fwil.h>
 
 #include "vops.h"
 
@@ -21,7 +22,15 @@ static void brcmf_wcc_detach(struct brcmf_pub *drvr)
 	pr_debug("%s: executing\n", __func__);
 }
 
+static int brcmf_wcc_set_sae_pwd(struct brcmf_if *ifp,
+				 struct cfg80211_crypto_settings *crypto)
+{
+	return brcmf_set_wsec(ifp, crypto->sae_pwd, crypto->sae_pwd_len,
+			      BRCMF_WSEC_PASSPHRASE);
+}
+
 const struct brcmf_fwvid_ops brcmf_wcc_ops = {
 	.attach = brcmf_wcc_attach,
 	.detach = brcmf_wcc_detach,
+	.set_sae_password = brcmf_wcc_set_sae_pwd,
 };
