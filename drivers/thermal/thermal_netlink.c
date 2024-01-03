@@ -377,12 +377,14 @@ int thermal_notify_tz_trip_delete(int tz_id, int trip_id)
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_DELETE, &p);
 }
 
-int thermal_notify_tz_trip_change(int tz_id, int trip_id, int trip_type,
-				  int trip_temp, int trip_hyst)
+int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
+				  const struct thermal_trip *trip)
 {
-	struct param p = { .tz_id = tz_id, .trip_id = trip_id,
-			   .trip_type = trip_type, .trip_temp = trip_temp,
-			   .trip_hyst = trip_hyst };
+	struct param p = { .tz_id = tz->id,
+			   .trip_id = thermal_zone_trip_id(tz, trip),
+			   .trip_type = trip->type,
+			   .trip_temp = trip->temperature,
+			   .trip_hyst = trip->hysteresis };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_CHANGE, &p);
 }

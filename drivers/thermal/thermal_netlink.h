@@ -10,6 +10,9 @@ struct thermal_genl_cpu_caps {
 	int efficiency;
 };
 
+struct thermal_zone_device;
+struct thermal_trip;
+
 /* Netlink notification function */
 #ifdef CONFIG_THERMAL_NETLINK
 int __init thermal_netlink_init(void);
@@ -23,8 +26,8 @@ int thermal_notify_tz_trip_up(int tz_id, int id, int temp);
 int thermal_notify_tz_trip_delete(int tz_id, int id);
 int thermal_notify_tz_trip_add(int tz_id, int id, int type,
 			       int temp, int hyst);
-int thermal_notify_tz_trip_change(int tz_id, int id, int type,
-				  int temp, int hyst);
+int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
+				  const struct thermal_trip *trip);
 int thermal_notify_cdev_state_update(int cdev_id, int state);
 int thermal_notify_cdev_add(int cdev_id, const char *name, int max_state);
 int thermal_notify_cdev_delete(int cdev_id);
@@ -79,8 +82,8 @@ static inline int thermal_notify_tz_trip_add(int tz_id, int id, int type,
 	return 0;
 }
 
-static inline int thermal_notify_tz_trip_change(int tz_id, int id, int type,
-						int temp, int hyst)
+static inline int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
+						const struct thermal_trip *trip)
 {
 	return 0;
 }
