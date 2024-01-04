@@ -3216,7 +3216,6 @@ static int ceph_try_drop_cap_snap(struct ceph_inode_info *ci,
 
 enum put_cap_refs_mode {
 	PUT_CAP_REFS_SYNC = 0,
-	PUT_CAP_REFS_NO_CHECK,
 	PUT_CAP_REFS_ASYNC,
 };
 
@@ -3330,11 +3329,6 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 void ceph_put_cap_refs_async(struct ceph_inode_info *ci, int had)
 {
 	__ceph_put_cap_refs(ci, had, PUT_CAP_REFS_ASYNC);
-}
-
-void ceph_put_cap_refs_no_check_caps(struct ceph_inode_info *ci, int had)
-{
-	__ceph_put_cap_refs(ci, had, PUT_CAP_REFS_NO_CHECK);
 }
 
 /*
