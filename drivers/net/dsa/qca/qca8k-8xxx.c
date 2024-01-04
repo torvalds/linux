@@ -961,12 +961,11 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 		goto out_put_node;
 	}
 
+	priv->internal_mdio_bus = bus;
 	bus->priv = (void *)priv;
 	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d.%d",
 		 ds->dst->index, ds->index);
 	bus->parent = ds->dev;
-	bus->phy_mask = ~ds->phys_mii_mask;
-	ds->user_mii_bus = bus;
 
 	/* Check if the devicetree declare the port:phy mapping */
 	if (mdio) {
@@ -980,6 +979,8 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 	/* If a mapping can't be found the legacy mapping is used,
 	 * using the qca8k_port_to_phy function
 	 */
+	ds->user_mii_bus = bus;
+	bus->phy_mask = ~ds->phys_mii_mask;
 	bus->name = "qca8k-legacy user mii";
 	bus->read = qca8k_legacy_mdio_read;
 	bus->write = qca8k_legacy_mdio_write;
