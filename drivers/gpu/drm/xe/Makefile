@@ -148,6 +148,7 @@ xe-$(CONFIG_HWMON) += xe_hwmon.o
 
 # graphics virtualization (SR-IOV) support
 xe-y += \
+	xe_guc_relay.o \
 	xe_memirq.o \
 	xe_sriov.o
 

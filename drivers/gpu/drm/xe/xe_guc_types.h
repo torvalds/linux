@@ -15,6 +15,7 @@
 #include "xe_guc_fwif.h"
 #include "xe_guc_log_types.h"
 #include "xe_guc_pc_types.h"
+#include "xe_guc_relay_types.h"
 #include "xe_uc_fw_types.h"
 
 /**
@@ -84,6 +85,9 @@ struct xe_guc {
 		/** @size: size of the hardware config */
 		u32 size;
 	} hwconfig;
+
+	/** @relay: GuC Relay Communication used in SR-IOV */
+	struct xe_guc_relay relay;
 
 	/**
 	 * @notify_reg: Register which is written to notify GuC of H2G messages

@@ -21,6 +21,7 @@
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
 #include "xe_memirq.h"
 #include "xe_mmio.h"
@@ -260,6 +261,10 @@ int xe_guc_init(struct xe_guc *guc)
 		goto out;
 
 	ret = xe_guc_ct_init(&guc->ct);
+	if (ret)
+		goto out;
+
+	ret = xe_guc_relay_init(&guc->relay);
 	if (ret)
 		goto out;
 
