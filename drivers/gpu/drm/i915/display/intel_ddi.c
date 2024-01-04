@@ -5117,6 +5117,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 		encoder->suspend_complete = intel_ddi_tc_encoder_suspend_complete;
 		encoder->shutdown_complete = intel_ddi_tc_encoder_shutdown_complete;
 
+		dig_port->lock = intel_tc_port_lock;
+		dig_port->unlock = intel_tc_port_unlock;
+
 		if (intel_tc_port_init(dig_port, is_legacy) < 0)
 			goto err;
 	}

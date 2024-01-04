@@ -5426,8 +5426,24 @@ edp_detect(struct intel_dp *intel_dp)
 	return connector_status_connected;
 }
 
+void intel_digital_port_lock(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (dig_port->lock)
+		dig_port->lock(dig_port);
+}
+
+void intel_digital_port_unlock(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (dig_port->unlock)
+		dig_port->unlock(dig_port);
+}
+
 /*
- * intel_digital_port_connected - is the specified port connected?
+ * intel_digital_port_connected_locked - is the specified port connected?
  * @encoder: intel_encoder
  *
  * In cases where there's a connector physically connected but it can't be used
@@ -5435,9 +5451,12 @@ edp_detect(struct intel_dp *intel_dp)
  * pretty much treat the port as disconnected. This is relevant for type-C
  * (starting on ICL) where there's ownership involved.
  *
+ * The caller must hold the lock acquired by calling intel_digital_port_lock()
+ * when calling this function.
+ *
  * Return %true if port is connected, %false otherwise.
  */
-bool intel_digital_port_connected(struct intel_encoder *encoder)
+bool intel_digital_port_connected_locked(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
@@ -5448,6 +5467,17 @@ bool intel_digital_port_connected(struct intel_encoder *encoder)
 		is_connected = dig_port->connected(encoder);
 
 	return is_connected;
+}
+
+bool intel_digital_port_connected(struct intel_encoder *encoder)
+{
+	bool ret;
+
+	intel_digital_port_lock(encoder);
+	ret = intel_digital_port_connected_locked(encoder);
+	intel_digital_port_unlock(encoder);
+
+	return ret;
 }
 
 static const struct drm_edid *

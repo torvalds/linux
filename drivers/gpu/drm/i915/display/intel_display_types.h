@@ -1890,6 +1890,9 @@ struct intel_digital_port {
 	u32 (*infoframes_enabled)(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *pipe_config);
 	bool (*connected)(struct intel_encoder *encoder);
+
+	void (*lock)(struct intel_digital_port *dig_port);
+	void (*unlock)(struct intel_digital_port *dig_port);
 };
 
 struct intel_dp_mst_encoder {
