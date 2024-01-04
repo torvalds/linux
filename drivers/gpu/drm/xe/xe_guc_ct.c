@@ -9,6 +9,8 @@
 #include <linux/circ_buf.h>
 #include <linux/delay.h>
 
+#include <kunit/static_stub.h>
+
 #include <drm/drm_managed.h>
 
 #include "abi/guc_actions_abi.h"
@@ -782,6 +784,7 @@ retry_same_fence:
 int xe_guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
 			u32 *response_buffer)
 {
+	KUNIT_STATIC_STUB_REDIRECT(xe_guc_ct_send_recv, ct, action, len, response_buffer);
 	return guc_ct_send_recv(ct, action, len, response_buffer, false);
 }
 
