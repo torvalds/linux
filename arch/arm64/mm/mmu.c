@@ -674,6 +674,9 @@ static int __init map_entry_trampoline(void)
 {
 	int i;
 
+	if (!arm64_kernel_unmapped_at_el0())
+		return 0;
+
 	pgprot_t prot = kernel_exec_prot();
 	phys_addr_t pa_start = __pa_symbol(__entry_tramp_text_start);
 
