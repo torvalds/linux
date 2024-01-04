@@ -17,23 +17,33 @@
 #include <linux/of_irq.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <crypto/internal/akcipher.h>
-#include <crypto/internal/ecc.h>
 #include <crypto/akcipher.h>
 #include <crypto/ecdh.h>
+#include <crypto/engine.h>
+#include <crypto/internal/akcipher.h>
+#include <crypto/internal/ecc.h>
 #include <crypto/sha2.h>
 
 #include "aspeed-ecdsa.h"
 
-#ifdef CONFIG_CRYPTO_DEV_ASPEED_DEBUG
-static void hexdump(unsigned char *buf, unsigned int len)
+//#define ASPEED_ECDSA_IRQ_MODE
+
+static inline struct akcipher_request *
+	akcipher_request_cast(struct crypto_async_request *req)
 {
+	return container_of(req, struct akcipher_request, base);
+}
+
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_DEBUG
+static void hexdump(const char *name, unsigned char *buf, unsigned int len)
+{
+	pr_info("%s\n", name);
 	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
 		       16, 1,
 		       buf, len, false);
 }
 #else
-static void hexdump(unsigned char *buf, unsigned int len)
+static void hexdump(const char *name, unsigned char *buf, unsigned int len)
 {
 	/* empty */
 }
@@ -63,15 +73,12 @@ static bool aspeed_ecdsa_need_fallback(struct aspeed_ecc_ctx *ctx, int d_len)
 	return false;
 }
 
-static int aspeed_ecdsa_trigger(struct aspeed_ecdsa_dev *ecdsa_dev)
+#ifndef ASPEED_ECDSA_IRQ_MODE
+static int aspeed_ecdsa_wait_complete(struct aspeed_ecdsa_dev *ecdsa_dev)
 {
-	u32 val, sts;
+	struct aspeed_engine_ecdsa *ecdsa_engine = &ecdsa_dev->ecdsa_engine;
+	u32 sts;
 	int ret;
-
-	ast_write(ecdsa_dev, 0x1, ASPEED_ECC_ECDSA_VERIFY);
-
-	ast_write(ecdsa_dev, ECC_EN, ASPEED_ECC_CMD_REG);
-	ast_write(ecdsa_dev, 0x0, ASPEED_ECC_CMD_REG);
 
 	ret = readl_poll_timeout(ecdsa_dev->regs + ASPEED_ECC_STS_REG, sts,
 				 ((sts & ECC_IDLE) == ECC_IDLE),
@@ -82,15 +89,38 @@ static int aspeed_ecdsa_trigger(struct aspeed_ecdsa_dev *ecdsa_dev)
 		return -EIO;
 	}
 
-	val = ast_read(ecdsa_dev, ASPEED_ECC_STS_REG) & ECC_VERIFY_PASS;
-	if (val == ECC_VERIFY_PASS) {
+	sts = ast_read(ecdsa_dev, ASPEED_ECC_STS_REG) & ECC_VERIFY_PASS;
+	if (sts == ECC_VERIFY_PASS) {
 		AST_DBG(ecdsa_dev, "Verify PASS !\n");
-		return 0;
+
+		ecdsa_engine->results = 0;
+		/* Stop ECDSA engine */
+		if (ecdsa_engine->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&ecdsa_engine->done_task);
+		else
+			dev_err(ecdsa_dev->dev, "ECDSA no active requests.\n");
+
+	} else {
+		ecdsa_engine->results = -EKEYREJECTED;
+		AST_DBG(ecdsa_dev, "Verify FAILED !\n");
 	}
 
-	AST_DBG(ecdsa_dev, "Verify FAILED !\n");
+	return ecdsa_engine->results;
+}
+#endif
 
-	return -EKEYREJECTED;
+static int aspeed_hw_trigger(struct aspeed_ecdsa_dev *ecdsa_dev)
+{
+	ast_write(ecdsa_dev, 0x1, ASPEED_ECC_ECDSA_VERIFY);
+
+	ast_write(ecdsa_dev, ECC_EN, ASPEED_ECC_CMD_REG);
+	ast_write(ecdsa_dev, 0x0, ASPEED_ECC_CMD_REG);
+
+#ifdef ASPEED_ECDSA_IRQ_MODE
+	return 0;
+#else
+	return aspeed_ecdsa_wait_complete(ecdsa_dev);
+#endif
 }
 
 static int _aspeed_ecdsa_verify(struct aspeed_ecc_ctx *ctx, const u64 *hash,
@@ -115,37 +145,55 @@ static int _aspeed_ecdsa_verify(struct aspeed_ecc_ctx *ctx, const u64 *hash,
 	if (!data)
 		return -ENOMEM;
 
-	AST_DBG(ctx->ecdsa_dev, "Dump r:\n");
 	buf = (u8 *)r;
-	hexdump(buf, nbytes);
+	hexdump("Dump r:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)r, nbytes);
 	memcpy_toio(base + ASPEED_ECC_SIGN_R_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump s:\n");
 	buf = (u8 *)s;
-	hexdump(buf, nbytes);
+	hexdump("Dump s:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)s, nbytes);
 	memcpy_toio(base + ASPEED_ECC_SIGN_S_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump m:\n");
 	buf = (u8 *)hash;
-	hexdump(buf, nbytes);
+	hexdump("Dump m:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)hash, nbytes);
 	memcpy_toio(base + ASPEED_ECC_MESSAGE_REG, data, nbytes);
 
 	vfree(data);
 
-	return aspeed_ecdsa_trigger(ctx->ecdsa_dev);
+	return aspeed_hw_trigger(ctx->ecdsa_dev);
 }
 
-/*
- * Verify an ECDSA signature.
- */
-static int aspeed_ecdsa_verify(struct akcipher_request *req)
+static int aspeed_ecdsa_handle_queue(struct aspeed_ecdsa_dev *ecdsa_dev,
+				     struct akcipher_request *req)
 {
+	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
+	struct aspeed_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+	int ret;
+
+	if (aspeed_ecdsa_need_fallback(ctx, req->dst_len)) {
+		AST_DBG(ctx->ecdsa_dev, "SW fallback\n");
+
+		akcipher_request_set_tfm(req, ctx->fallback_tfm);
+		ret = crypto_akcipher_verify(req);
+		akcipher_request_set_tfm(req, tfm);
+
+		AST_DBG(ctx->ecdsa_dev, "SW verify...ret:0x%x\n", ret);
+
+		return ret;
+	}
+
+	return crypto_transfer_akcipher_request_to_engine(ecdsa_dev->crypt_engine_ecdsa, req);
+}
+
+static int aspeed_ecdsa_trigger(struct aspeed_ecdsa_dev *ecdsa_dev)
+{
+	struct aspeed_engine_ecdsa *ecdsa_engine = &ecdsa_dev->ecdsa_engine;
+	struct akcipher_request *req = ecdsa_engine->req;
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 	struct aspeed_ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
 	size_t keylen = ctx->curve->g.ndigits * sizeof(u64);
@@ -160,18 +208,6 @@ static int aspeed_ecdsa_verify(struct akcipher_request *req)
 
 	if (unlikely(!ctx->pub_key_set))
 		return -EINVAL;
-
-	if (aspeed_ecdsa_need_fallback(ctx, req->dst_len)) {
-		AST_DBG(ctx->ecdsa_dev, "SW fallback\n");
-
-		akcipher_request_set_tfm(req, ctx->fallback_tfm);
-		ret = crypto_akcipher_verify(req);
-		akcipher_request_set_tfm(req, tfm);
-
-		AST_DBG(ctx->ecdsa_dev, "SW verify...ret:0x%x\n", ret);
-
-		return ret;
-	}
 
 	buffer = kmalloc(req->src_len + req->dst_len, GFP_KERNEL);
 	if (!buffer)
@@ -207,6 +243,20 @@ error:
 	return ret;
 }
 
+/*
+ * Verify an ECDSA signature.
+ */
+static int aspeed_ecdsa_verify(struct akcipher_request *req)
+{
+	struct crypto_akcipher *cipher = crypto_akcipher_reqtfm(req);
+	struct aspeed_ecc_ctx *ctx = akcipher_tfm_ctx(cipher);
+	struct aspeed_ecdsa_dev *ecdsa_dev = ctx->ecdsa_dev;
+
+	ctx->trigger = aspeed_ecdsa_trigger;
+
+	return aspeed_ecdsa_handle_queue(ecdsa_dev, req);
+}
+
 static int aspeed_ecdsa_ecc_ctx_init(struct aspeed_ecc_ctx *ctx, unsigned int curve_id)
 {
 	void __iomem *base = ctx->ecdsa_dev->regs;
@@ -239,37 +289,32 @@ static int aspeed_ecdsa_ecc_ctx_init(struct aspeed_ecc_ctx *ctx, unsigned int cu
 	if (!data)
 		return -ENOMEM;
 
-	AST_DBG(ctx->ecdsa_dev, "Dump Gx:\n");
 	buf = (u8 *)ctx->curve->g.x;
-	hexdump(buf, nbytes);
+	hexdump("Dump Gx:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)ctx->curve->g.x, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_GX_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump Gy:\n");
 	buf = (u8 *)ctx->curve->g.y;
-	hexdump(buf, nbytes);
+	hexdump("Dump Gy:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)ctx->curve->g.y, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_GY_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump P:\n");
 	buf = (u8 *)ctx->curve->p;
-	hexdump(buf, nbytes);
+	hexdump("Dump P:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)ctx->curve->p, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_P_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump A:\n");
 	buf = (u8 *)ctx->curve->a;
-	hexdump(buf, nbytes);
+	hexdump("Dump A:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)ctx->curve->a, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_A_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump N:\n");
 	buf = (u8 *)ctx->curve->n;
-	hexdump(buf, nbytes);
+	hexdump("Dump N:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)ctx->curve->n, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_N_REG, data, nbytes);
@@ -332,16 +377,15 @@ static int aspeed_ecdsa_set_pub_key(struct crypto_akcipher *tfm, const void *key
 	if (!data)
 		return -ENOMEM;
 
-	AST_DBG(ctx->ecdsa_dev, "Dump Qx:\n");
 	buf = (u8 *)ctx->pub_key.x;
-	hexdump(buf, nbytes);
+	hexdump("Dump Qx:", buf, nbytes);
 
 	buff_reverse(data, (u8 *)ctx->pub_key.x, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_QX_REG, data, nbytes);
 
-	AST_DBG(ctx->ecdsa_dev, "Dump Qy:\n");
 	buf = (u8 *)ctx->pub_key.y;
-	hexdump(buf, nbytes);
+	hexdump("Dump Qy:", buf, nbytes);
+
 	buff_reverse(data, (u8 *)ctx->pub_key.y, nbytes);
 	memcpy_toio(base + ASPEED_ECC_PAR_QY_REG, data, nbytes);
 
@@ -375,7 +419,7 @@ static int aspeed_ecdsa_nist_p384_init_tfm(struct crypto_akcipher *tfm)
 	const char *name = crypto_tfm_alg_name(&tfm->base);
 	struct aspeed_ecdsa_alg *ecdsa_alg;
 
-	ecdsa_alg = container_of(alg, struct aspeed_ecdsa_alg, akcipher);
+	ecdsa_alg = container_of(alg, struct aspeed_ecdsa_alg, akcipher.base);
 
 	ctx->ecdsa_dev = ecdsa_alg->ecdsa_dev;
 
@@ -397,7 +441,7 @@ static int aspeed_ecdsa_nist_p256_init_tfm(struct crypto_akcipher *tfm)
 	const char *name = crypto_tfm_alg_name(&tfm->base);
 	struct aspeed_ecdsa_alg *ecdsa_alg;
 
-	ecdsa_alg = container_of(alg, struct aspeed_ecdsa_alg, akcipher);
+	ecdsa_alg = container_of(alg, struct aspeed_ecdsa_alg, akcipher.base);
 
 	ctx->ecdsa_dev = ecdsa_alg->ecdsa_dev;
 
@@ -412,8 +456,54 @@ static int aspeed_ecdsa_nist_p256_init_tfm(struct crypto_akcipher *tfm)
 	return aspeed_ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P256);
 }
 
+static int aspeed_ecdsa_complete(struct aspeed_ecdsa_dev *ecdsa_dev)
+{
+	struct aspeed_engine_ecdsa *ecdsa_engine = &ecdsa_dev->ecdsa_engine;
+	struct akcipher_request *req = ecdsa_engine->req;
+	int results = ecdsa_engine->results;
+
+	ecdsa_engine->flags &= ~CRYPTO_FLAGS_BUSY;
+
+	crypto_finalize_akcipher_request(ecdsa_dev->crypt_engine_ecdsa, req, results);
+
+	return results;
+}
+
+static int aspeed_ecdsa_do_request(struct crypto_engine *engine, void *areq)
+{
+	struct akcipher_request *req = akcipher_request_cast(areq);
+	struct crypto_akcipher *cipher = crypto_akcipher_reqtfm(req);
+	struct aspeed_ecc_ctx *ctx = akcipher_tfm_ctx(cipher);
+	struct aspeed_ecdsa_dev *ecdsa_dev = ctx->ecdsa_dev;
+	struct aspeed_engine_ecdsa *ecdsa_engine;
+
+	ecdsa_engine = &ecdsa_dev->ecdsa_engine;
+	ecdsa_engine->req = req;
+	ecdsa_engine->flags |= CRYPTO_FLAGS_BUSY;
+	ecdsa_engine->resume = aspeed_ecdsa_complete;
+
+	return ctx->trigger(ecdsa_dev);
+}
+
+static void aspeed_ecdsa_done_task(unsigned long data)
+{
+	struct aspeed_ecdsa_dev *ecdsa_dev = (struct aspeed_ecdsa_dev *)data;
+	struct aspeed_engine_ecdsa *ecdsa_engine = &ecdsa_dev->ecdsa_engine;
+	u32 ctrl;
+
+	/* Reset engine */
+	ctrl = ast_read(ecdsa_dev, ASPEED_ECC_CTRL_REG);
+	ast_write(ecdsa_dev, 0, ASPEED_ECC_CTRL_REG);
+
+	/* Memory barrier to ensure ecc ctrl is reset. */
+	mb();
+	ast_write(ecdsa_dev, ctrl, ASPEED_ECC_CTRL_REG);
+
+	(void)ecdsa_engine->resume(ecdsa_dev);
+}
+
 static struct aspeed_ecdsa_alg aspeed_ecdsa_nist_p256 = {
-	.akcipher = {
+	.akcipher.base = {
 		.verify = aspeed_ecdsa_verify,
 		.set_pub_key = aspeed_ecdsa_set_pub_key,
 		.max_size = aspeed_ecdsa_max_size,
@@ -429,10 +519,13 @@ static struct aspeed_ecdsa_alg aspeed_ecdsa_nist_p256 = {
 				     CRYPTO_ALG_NEED_FALLBACK,
 		},
 	},
+	.akcipher.op = {
+		.do_one_request = aspeed_ecdsa_do_request,
+	},
 };
 
 static struct aspeed_ecdsa_alg aspeed_ecdsa_nist_p384 = {
-	.akcipher = {
+	.akcipher.base = {
 		.verify = aspeed_ecdsa_verify,
 		.set_pub_key = aspeed_ecdsa_set_pub_key,
 		.max_size = aspeed_ecdsa_max_size,
@@ -448,6 +541,9 @@ static struct aspeed_ecdsa_alg aspeed_ecdsa_nist_p384 = {
 				     CRYPTO_ALG_NEED_FALLBACK,
 		},
 	},
+	.akcipher.op = {
+		.do_one_request = aspeed_ecdsa_do_request,
+	},
 };
 
 static int aspeed_ecdsa_register(struct aspeed_ecdsa_dev *ecdsa_dev)
@@ -455,19 +551,19 @@ static int aspeed_ecdsa_register(struct aspeed_ecdsa_dev *ecdsa_dev)
 	int rc;
 
 	aspeed_ecdsa_nist_p256.ecdsa_dev = ecdsa_dev;
-	rc = crypto_register_akcipher(&aspeed_ecdsa_nist_p256.akcipher);
+	rc = crypto_engine_register_akcipher(&aspeed_ecdsa_nist_p256.akcipher);
 	if (rc)
 		goto nist_p256_error;
 
 	aspeed_ecdsa_nist_p384.ecdsa_dev = ecdsa_dev;
-	rc = crypto_register_akcipher(&aspeed_ecdsa_nist_p384.akcipher);
+	rc = crypto_engine_register_akcipher(&aspeed_ecdsa_nist_p384.akcipher);
 	if (rc)
 		goto nist_p384_error;
 
 	return 0;
 
 nist_p384_error:
-	crypto_unregister_akcipher(&aspeed_ecdsa_nist_p256.akcipher);
+	crypto_engine_unregister_akcipher(&aspeed_ecdsa_nist_p256.akcipher);
 
 nist_p256_error:
 	return rc;
@@ -475,8 +571,8 @@ nist_p256_error:
 
 static void aspeed_ecdsa_unregister(struct aspeed_ecdsa_dev *ecdsa_dev)
 {
-	crypto_unregister_akcipher(&aspeed_ecdsa_nist_p256.akcipher);
-	crypto_unregister_akcipher(&aspeed_ecdsa_nist_p384.akcipher);
+	crypto_engine_unregister_akcipher(&aspeed_ecdsa_nist_p256.akcipher);
+	crypto_engine_unregister_akcipher(&aspeed_ecdsa_nist_p384.akcipher);
 }
 
 #ifdef ASPEED_ECDSA_IRQ_MODE
@@ -484,6 +580,7 @@ static void aspeed_ecdsa_unregister(struct aspeed_ecdsa_dev *ecdsa_dev)
 static irqreturn_t aspeed_ecdsa_irq(int irq, void *dev)
 {
 	struct aspeed_ecdsa_dev *ecdsa_dev = (struct aspeed_ecdsa_dev *)dev;
+	struct aspeed_engine_ecdsa *ecdsa_engine = &ecdsa_dev->ecdsa_engine;
 	u32 sts;
 
 	sts = ast_read(ecdsa_dev, ASPEED_ECC_INT_STS);
@@ -491,9 +588,26 @@ static irqreturn_t aspeed_ecdsa_irq(int irq, void *dev)
 
 	AST_DBG(ecdsa_dev, "irq sts:0x%x\n", sts);
 
+	sts = ast_read(ecdsa_dev, ASPEED_ECC_STS_REG) & ECC_VERIFY_PASS;
+	if (sts == ECC_VERIFY_PASS) {
+		AST_DBG(ecdsa_dev, "Verify PASS !\n");
+
+		ecdsa_engine->results = 0;
+		/* Stop ECDSA engine */
+		if (ecdsa_engine->flags & CRYPTO_FLAGS_BUSY)
+			tasklet_schedule(&ecdsa_engine->done_task);
+		else
+			dev_err(ecdsa_dev->dev, "ECDSA no active requests.\n");
+
+	} else {
+		ecdsa_engine->results = -EKEYREJECTED;
+		AST_DBG(ecdsa_dev, "Verify FAILED !\n");
+	}
+
 	return IRQ_HANDLED;
 }
 #endif
+
 static const struct of_device_id aspeed_ecdsa_of_matches[] = {
 	{ .compatible = "aspeed,ast2700-ecdsa", },
 	{},
@@ -501,6 +615,7 @@ static const struct of_device_id aspeed_ecdsa_of_matches[] = {
 
 static int aspeed_ecdsa_probe(struct platform_device *pdev)
 {
+	struct aspeed_engine_ecdsa *ecdsa_engine;
 	struct aspeed_ecdsa_dev *ecdsa_dev;
 	struct device *dev = &pdev->dev;
 	int rc;
@@ -559,6 +674,22 @@ static int aspeed_ecdsa_probe(struct platform_device *pdev)
 		return rc;
 	}
 
+	ecdsa_engine = &ecdsa_dev->ecdsa_engine;
+
+	/* Initialize crypto hardware engine structure for ECDSA */
+	ecdsa_dev->crypt_engine_ecdsa = crypto_engine_alloc_init(ecdsa_dev->dev, true);
+	if (!ecdsa_dev->crypt_engine_ecdsa) {
+		rc = -ENOMEM;
+		goto end;
+	}
+
+	rc = crypto_engine_start(ecdsa_dev->crypt_engine_ecdsa);
+	if (rc)
+		goto err_engine_ecdsa_start;
+
+	tasklet_init(&ecdsa_engine->done_task, aspeed_ecdsa_done_task,
+		     (unsigned long)ecdsa_dev);
+
 	rc = aspeed_ecdsa_register(ecdsa_dev);
 	if (rc) {
 		dev_err(dev, "ECDSA algo register failed\n");
@@ -568,6 +699,11 @@ static int aspeed_ecdsa_probe(struct platform_device *pdev)
 	dev_info(dev, "Aspeed ECDSA Hardware Accelerator successfully registered\n");
 
 	return 0;
+
+err_engine_ecdsa_start:
+	crypto_engine_exit(ecdsa_dev->crypt_engine_ecdsa);
+end:
+	return rc;
 }
 
 static int aspeed_ecdsa_remove(struct platform_device *pdev)

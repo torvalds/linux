@@ -52,23 +52,31 @@
 #define ASPEED_ECC_POLLING_TIME		100
 #define ASPEED_ECC_TIMEOUT		100000	/* 100 ms */
 
+#define CRYPTO_FLAGS_BUSY		BIT(1)
+
 #define ast_write(ast, val, offset)	\
 	writel((val), (ast)->regs + (offset))
 
 #define ast_read(ast, offset)		\
 	readl((ast)->regs + (offset))
 
+struct aspeed_ecdsa_dev;
+
+typedef int (*aspeed_ecdsa_fn_t)(struct aspeed_ecdsa_dev *);
+
 struct aspeed_ecc_ctx {
-	struct aspeed_ecdsa_dev *ecdsa_dev;
-	unsigned int curve_id;
-	const struct ecc_curve *curve;
+	struct aspeed_ecdsa_dev		*ecdsa_dev;
+	unsigned int			curve_id;
+	const struct ecc_curve		*curve;
 
-	bool pub_key_set;
-	u64 x[ECC_MAX_DIGITS]; /* pub key x and y coordinates */
-	u64 y[ECC_MAX_DIGITS];
-	struct ecc_point pub_key;
+	bool				pub_key_set;
+	u64				x[ECC_MAX_DIGITS]; /* pub key x and y coordinates */
+	u64				y[ECC_MAX_DIGITS];
+	struct ecc_point		pub_key;
 
-	struct crypto_akcipher *fallback_tfm;
+	struct crypto_akcipher		*fallback_tfm;
+
+	aspeed_ecdsa_fn_t		trigger;
 };
 
 struct ecdsa_signature_ctx {
@@ -77,17 +85,30 @@ struct ecdsa_signature_ctx {
 	u64 s[ECC_MAX_DIGITS];
 };
 
+struct aspeed_engine_ecdsa {
+	struct tasklet_struct		done_task;
+	unsigned long			flags;
+	struct akcipher_request		*req;
+	int				results;
+
+	/* callback func */
+	aspeed_ecdsa_fn_t		resume;
+};
+
 struct aspeed_ecdsa_alg {
-	struct aspeed_ecdsa_dev *ecdsa_dev;
-	struct akcipher_alg akcipher;
+	struct aspeed_ecdsa_dev		*ecdsa_dev;
+	struct akcipher_engine_alg	akcipher;
 };
 
 struct aspeed_ecdsa_dev {
-	void __iomem *regs;
-	struct device *dev;
-	struct clk *clk;
-	struct reset_control *rst;
-	int irq;
+	void __iomem			*regs;
+	struct device			*dev;
+	struct clk			*clk;
+	struct reset_control		*rst;
+	int				irq;
+
+	struct crypto_engine		*crypt_engine_ecdsa;
+	struct aspeed_engine_ecdsa	ecdsa_engine;
 };
 
 extern const struct asn1_decoder ecdsasignature_decoder;
