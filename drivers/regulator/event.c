@@ -8,10 +8,11 @@
 #include <regulator/regulator.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
+#include <linux/atomic.h>
 
 #include "regnl.h"
 
-static unsigned int reg_event_seqnum;
+static atomic_t reg_event_seqnum = ATOMIC_INIT(0);
 
 static const struct genl_multicast_group reg_event_mcgrps[] = {
 	{ .name = REG_GENL_MCAST_GROUP_NAME, },
@@ -43,9 +44,8 @@ int reg_generate_netlink_event(const char *reg_name, u64 event)
 		return -ENOMEM;
 
 	/* add the genetlink message header */
-	msg_header = genlmsg_put(skb, 0, reg_event_seqnum++,
-				 &reg_event_genl_family, 0,
-				 REG_GENL_CMD_EVENT);
+	msg_header = genlmsg_put(skb, 0, atomic_inc_return(&reg_event_seqnum),
+				 &reg_event_genl_family, 0, REG_GENL_CMD_EVENT);
 	if (!msg_header) {
 		nlmsg_free(skb);
 		return -ENOMEM;
