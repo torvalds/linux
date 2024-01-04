@@ -438,6 +438,10 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_pat_init_early(xe);
 
+	err = xe_sriov_init(xe);
+	if (err)
+		return err;
+
 	xe->info.mem_region_mask = 1;
 	err = xe_display_init_nommio(xe);
 	if (err)
