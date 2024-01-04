@@ -448,6 +448,9 @@ int cn10k_set_ipolicer_rate(struct otx2_nic *pfvf, u16 profile,
 	aq->prof.pebs_mantissa = 0;
 	aq->prof_mask.pebs_mantissa = 0xFF;
 
+	aq->prof.hl_en = 0;
+	aq->prof_mask.hl_en = 1;
+
 	/* Fill AQ info */
 	aq->qidx = profile;
 	aq->ctype = NIX_AQ_CTYPE_BANDPROF;
