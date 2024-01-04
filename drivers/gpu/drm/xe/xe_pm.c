@@ -163,6 +163,12 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 	pm_runtime_put(dev);
 }
 
+void xe_pm_init_early(struct xe_device *xe)
+{
+	INIT_LIST_HEAD(&xe->mem_access.vram_userfault.list);
+	drmm_mutex_init(&xe->drm, &xe->mem_access.vram_userfault.lock);
+}
+
 void xe_pm_init(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
@@ -214,6 +220,7 @@ struct task_struct *xe_pm_read_callback_task(struct xe_device *xe)
 
 int xe_pm_runtime_suspend(struct xe_device *xe)
 {
+	struct xe_bo *bo, *on;
 	struct xe_gt *gt;
 	u8 id;
 	int err = 0;
@@ -246,6 +253,16 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	 * the potential lock inversion and give us a nice splat.
 	 */
 	lock_map_acquire(&xe_device_mem_access_lockdep_map);
+
+	/*
+	 * Applying lock for entire list op as xe_ttm_bo_destroy and xe_bo_move_notify
+	 * also checks and delets bo entry from user fault list.
+	 */
+	mutex_lock(&xe->mem_access.vram_userfault.lock);
+	list_for_each_entry_safe(bo, on,
+				 &xe->mem_access.vram_userfault.list, vram_userfault_link)
+		xe_bo_runtime_pm_release_mmap_offset(bo);
+	mutex_unlock(&xe->mem_access.vram_userfault.lock);
 
 	if (xe->d3cold.allowed) {
 		err = xe_bo_evict_all(xe);

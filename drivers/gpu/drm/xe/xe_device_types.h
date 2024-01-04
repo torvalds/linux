@@ -387,6 +387,22 @@ struct xe_device {
 	struct {
 		/** @ref: ref count of memory accesses */
 		atomic_t ref;
+
+		/** @vram_userfault: Encapsulate vram_userfault related stuff */
+		struct {
+			/**
+			 * @lock: Protects access to @vram_usefault.list
+			 * Using mutex instead of spinlock as lock is applied to entire
+			 * list operation which may sleep
+			 */
+			struct mutex lock;
+
+			/**
+			 * @list: Keep list of userfaulted vram bo, which require to release their
+			 * mmap mappings at runtime suspend path
+			 */
+			struct list_head list;
+		} vram_userfault;
 	} mem_access;
 
 	/**

@@ -88,6 +88,9 @@ struct xe_bo {
 	 * objects.
 	 */
 	u16 cpu_caching;
+
+	/** @vram_userfault_link: Link into @mem_access.vram_userfault.list */
+		struct list_head vram_userfault_link;
 };
 
 #define intel_bo_to_drm_bo(bo) (&(bo)->ttm.base)
