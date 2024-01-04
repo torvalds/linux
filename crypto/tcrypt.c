@@ -1855,6 +1855,15 @@ static int do_test(const char *alg, u32 type, u32 mask, int m, u32 num_mb)
 		ret = min(ret, tcrypt_test("cfb(aria)"));
 		ret = min(ret, tcrypt_test("ctr(aria)"));
 		break;
+	case 193:
+		ret = min(ret, tcrypt_test("rsa"));
+		break;
+	case 194:
+		ret = min(ret, tcrypt_test("ecdsa-nist-p256"));
+		break;
+	case 195:
+		ret = min(ret, tcrypt_test("ecdsa-nist-p384"));
+		break;
 	case 200:
 		test_cipher_speed("ecb(aes)", ENCRYPT, sec, NULL, 0,
 				speed_template_16_24_32);
@@ -2899,7 +2908,7 @@ static int __init tcrypt_mod_init(void)
 	err = do_test(alg, type, mask, mode, num_mb);
 
 	if (err) {
-		pr_err("one or more tests failed!\n");
+		pr_err("one or more tests failed!, err:%d\n", err);
 		goto err_free_tv;
 	} else {
 		pr_debug("all tests passed\n");
