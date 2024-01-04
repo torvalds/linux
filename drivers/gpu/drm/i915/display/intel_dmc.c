@@ -1158,7 +1158,7 @@ static int intel_dmc_debugfs_status_show(struct seq_file *m, void *unused)
 		   str_yes_no(intel_dmc_has_payload(i915)));
 	seq_printf(m, "path: %s\n", dmc ? dmc->fw_path : "N/A");
 	seq_printf(m, "Pipe A fw needed: %s\n",
-		   str_yes_no(GRAPHICS_VER(i915) >= 12));
+		   str_yes_no(DISPLAY_VER(i915) >= 12));
 	seq_printf(m, "Pipe A fw loaded: %s\n",
 		   str_yes_no(has_dmc_id_fw(i915, DMC_FW_PIPEA)));
 	seq_printf(m, "Pipe B fw needed: %s\n",
