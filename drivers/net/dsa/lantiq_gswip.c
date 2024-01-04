@@ -521,7 +521,6 @@ static int gswip_mdio(struct gswip_priv *priv, struct device_node *mdio_np)
 	snprintf(ds->user_mii_bus->id, MII_BUS_ID_SIZE, "%s-mii",
 		 dev_name(priv->dev));
 	ds->user_mii_bus->parent = priv->dev;
-	ds->user_mii_bus->phy_mask = ~ds->phys_mii_mask;
 
 	err = of_mdiobus_register(ds->user_mii_bus, mdio_np);
 	if (err)
