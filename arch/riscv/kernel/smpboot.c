@@ -49,7 +49,6 @@ void __init smp_prepare_boot_cpu(void)
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpuid;
-	int ret;
 	unsigned int curr_cpuid;
 
 	init_cpu_topology();
@@ -66,11 +65,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	for_each_possible_cpu(cpuid) {
 		if (cpuid == curr_cpuid)
 			continue;
-		if (cpu_ops[cpuid]->cpu_prepare) {
-			ret = cpu_ops[cpuid]->cpu_prepare(cpuid);
-			if (ret)
-				continue;
-		}
 		set_cpu_present(cpuid, true);
 		numa_store_cpu_info(cpuid);
 	}
@@ -125,18 +119,7 @@ static int __init acpi_parse_rintc(union acpi_subtable_headers *header, const un
 
 static void __init acpi_parse_and_init_cpus(void)
 {
-	int cpuid;
-
-	cpu_set_ops(0);
-
 	acpi_table_parse_madt(ACPI_MADT_TYPE_RINTC, acpi_parse_rintc, 0);
-
-	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++) {
-		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID) {
-			cpu_set_ops(cpuid);
-			set_cpu_possible(cpuid, true);
-		}
-	}
 }
 #else
 #define acpi_parse_and_init_cpus(...)	do { } while (0)
@@ -149,8 +132,6 @@ static void __init of_parse_and_init_cpus(void)
 	bool found_boot_cpu = false;
 	int cpuid = 1;
 	int rc;
-
-	cpu_set_ops(0);
 
 	for_each_of_cpu_node(dn) {
 		rc = riscv_early_of_processor_hartid(dn, &hart);
@@ -179,27 +160,28 @@ static void __init of_parse_and_init_cpus(void)
 	if (cpuid > nr_cpu_ids)
 		pr_warn("Total number of cpus [%d] is greater than nr_cpus option value [%d]\n",
 			cpuid, nr_cpu_ids);
-
-	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++) {
-		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID) {
-			cpu_set_ops(cpuid);
-			set_cpu_possible(cpuid, true);
-		}
-	}
 }
 
 void __init setup_smp(void)
 {
+	int cpuid;
+
+	cpu_set_ops();
+
 	if (acpi_disabled)
 		of_parse_and_init_cpus();
 	else
 		acpi_parse_and_init_cpus();
+
+	for (cpuid = 1; cpuid < nr_cpu_ids; cpuid++)
+		if (cpuid_to_hartid_map(cpuid) != INVALID_HARTID)
+			set_cpu_possible(cpuid, true);
 }
 
 static int start_secondary_cpu(int cpu, struct task_struct *tidle)
 {
-	if (cpu_ops[cpu]->cpu_start)
-		return cpu_ops[cpu]->cpu_start(cpu, tidle);
+	if (cpu_ops->cpu_start)
+		return cpu_ops->cpu_start(cpu, tidle);
 
 	return -EOPNOTSUPP;
 }
