@@ -19,10 +19,6 @@ static inline bool bch2_version_compatible(u16 version)
 void bch2_version_to_text(struct printbuf *, unsigned);
 unsigned bch2_latest_compatible_version(unsigned);
 
-u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
-				 unsigned,
-				 unsigned);
-
 static inline size_t bch2_sb_field_bytes(struct bch_sb_field *f)
 {
 	return le32_to_cpu(f->u64s) * sizeof(u64);
