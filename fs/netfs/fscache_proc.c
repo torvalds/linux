@@ -16,7 +16,7 @@
  */
 int __init fscache_proc_init(void)
 {
-	if (!proc_symlink("fs/fscache", NULL, "../netfs"))
+	if (!proc_symlink("fs/fscache", NULL, "netfs"))
 		goto error_sym;
 
 	if (!proc_create_seq("fs/netfs/caches", S_IFREG | 0444, NULL,
