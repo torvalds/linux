@@ -14,6 +14,7 @@
 #include <drm/drm_managed.h>
 
 #include "abi/guc_actions_abi.h"
+#include "abi/guc_actions_sriov_abi.h"
 #include "abi/guc_klvs_abi.h"
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -22,6 +23,7 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_guc.h"
+#include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
 #include "xe_map.h"
 #include "xe_pm.h"
@@ -968,6 +970,12 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	case XE_GUC_ACTION_ACCESS_COUNTER_NOTIFY:
 		ret = xe_guc_access_counter_notify_handler(guc, payload,
 							   adj_len);
+		break;
+	case XE_GUC_ACTION_GUC2PF_RELAY_FROM_VF:
+		ret = xe_guc_relay_process_guc2pf(&guc->relay, payload, adj_len);
+		break;
+	case XE_GUC_ACTION_GUC2VF_RELAY_FROM_PF:
+		ret = xe_guc_relay_process_guc2vf(&guc->relay, payload, adj_len);
 		break;
 	default:
 		drm_err(&xe->drm, "unexpected action 0x%04x\n", action);
