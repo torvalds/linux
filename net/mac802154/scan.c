@@ -466,6 +466,7 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 				  struct cfg802154_beacon_request *request)
 {
 	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
 
 	ASSERT_RTNL();
 
@@ -495,8 +496,7 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 		local->beacon.mac_pl.superframe_order = request->interval;
 	local->beacon.mac_pl.final_cap_slot = 0xf;
 	local->beacon.mac_pl.battery_life_ext = 0;
-	/* TODO: Fill this field with the coordinator situation in the network */
-	local->beacon.mac_pl.pan_coordinator = 1;
+	local->beacon.mac_pl.pan_coordinator = !wpan_dev->parent;
 	local->beacon.mac_pl.assoc_permit = 1;
 
 	if (request->interval == IEEE802154_ACTIVE_SCAN_DURATION)
@@ -507,6 +507,409 @@ int mac802154_send_beacons_locked(struct ieee802154_sub_if_data *sdata,
 		mac802154_scan_get_channel_time(request->interval,
 						request->wpan_phy->symbol_duration);
 	queue_delayed_work(local->mac_wq, &local->beacon_work, 0);
+
+	return 0;
+}
+
+int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
+				  struct ieee802154_pan_device *coord,
+				  __le16 *short_addr)
+{
+	u64 ceaddr = swab64((__force u64)coord->extended_addr);
+	struct ieee802154_association_req_frame frame = {};
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sk_buff *skb;
+	int ret;
+
+	frame.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
+	frame.mhr.fc.security_enabled = 0;
+	frame.mhr.fc.frame_pending = 0;
+	frame.mhr.fc.ack_request = 1; /* We always expect an ack here */
+	frame.mhr.fc.intra_pan = 0;
+	frame.mhr.fc.dest_addr_mode = (coord->mode == IEEE802154_ADDR_LONG) ?
+		IEEE802154_EXTENDED_ADDRESSING : IEEE802154_SHORT_ADDRESSING;
+	frame.mhr.fc.version = IEEE802154_2003_STD;
+	frame.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.source.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.source.pan_id = cpu_to_le16(IEEE802154_PANID_BROADCAST);
+	frame.mhr.source.extended_addr = wpan_dev->extended_addr;
+	frame.mhr.dest.mode = coord->mode;
+	frame.mhr.dest.pan_id = coord->pan_id;
+	if (coord->mode == IEEE802154_ADDR_LONG)
+		frame.mhr.dest.extended_addr = coord->extended_addr;
+	else
+		frame.mhr.dest.short_addr = coord->short_addr;
+	frame.mhr.seq = atomic_inc_return(&wpan_dev->dsn) & 0xFF;
+	frame.mac_pl.cmd_id = IEEE802154_CMD_ASSOCIATION_REQ;
+	frame.assoc_req_pl.device_type = 1;
+	frame.assoc_req_pl.power_source = 1;
+	frame.assoc_req_pl.rx_on_when_idle = 1;
+	frame.assoc_req_pl.alloc_addr = 1;
+
+	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(frame.assoc_req_pl),
+			GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb->dev = sdata->dev;
+
+	ret = ieee802154_mac_cmd_push(skb, &frame, &frame.assoc_req_pl,
+				      sizeof(frame.assoc_req_pl));
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	local->assoc_dev = coord;
+	reinit_completion(&local->assoc_done);
+	set_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+
+	ret = ieee802154_mlme_tx_one_locked(local, sdata, skb);
+	if (ret) {
+		if (ret > 0)
+			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+		dev_warn(&sdata->dev->dev,
+			 "No ASSOC REQ ACK received from %8phC\n", &ceaddr);
+		goto clear_assoc;
+	}
+
+	ret = wait_for_completion_killable_timeout(&local->assoc_done, 10 * HZ);
+	if (ret <= 0) {
+		dev_warn(&sdata->dev->dev,
+			 "No ASSOC RESP received from %8phC\n", &ceaddr);
+		ret = -ETIMEDOUT;
+		goto clear_assoc;
+	}
+
+	if (local->assoc_status != IEEE802154_ASSOCIATION_SUCCESSFUL) {
+		if (local->assoc_status == IEEE802154_PAN_AT_CAPACITY)
+			ret = -ERANGE;
+		else
+			ret = -EPERM;
+
+		dev_warn(&sdata->dev->dev,
+			 "Negative ASSOC RESP received from %8phC: %s\n", &ceaddr,
+			 local->assoc_status == IEEE802154_PAN_AT_CAPACITY ?
+			 "PAN at capacity" : "access denied");
+	}
+
+	ret = 0;
+	*short_addr = local->assoc_addr;
+
+clear_assoc:
+	clear_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+	local->assoc_dev = NULL;
+
+	return ret;
+}
+
+int mac802154_process_association_resp(struct ieee802154_sub_if_data *sdata,
+				       struct sk_buff *skb)
+{
+	struct ieee802154_addr *src = &mac_cb(skb)->source;
+	struct ieee802154_addr *dest = &mac_cb(skb)->dest;
+	u64 deaddr = swab64((__force u64)dest->extended_addr);
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_assoc_resp_pl resp_pl = {};
+
+	if (skb->len != sizeof(resp_pl))
+		return -EINVAL;
+
+	if (unlikely(src->mode != IEEE802154_EXTENDED_ADDRESSING ||
+		     dest->mode != IEEE802154_EXTENDED_ADDRESSING))
+		return -EINVAL;
+
+	if (unlikely(dest->extended_addr != wpan_dev->extended_addr ||
+		     src->extended_addr != local->assoc_dev->extended_addr))
+		return -ENODEV;
+
+	memcpy(&resp_pl, skb->data, sizeof(resp_pl));
+	local->assoc_addr = resp_pl.short_addr;
+	local->assoc_status = resp_pl.status;
+
+	dev_dbg(&skb->dev->dev,
+		"ASSOC RESP 0x%x received from %8phC, getting short address %04x\n",
+		local->assoc_status, &deaddr, local->assoc_addr);
+
+	complete(&local->assoc_done);
+
+	return 0;
+}
+
+int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+					struct ieee802154_pan_device *target,
+					u8 reason)
+{
+	struct ieee802154_disassociation_notif_frame frame = {};
+	u64 teaddr = swab64((__force u64)target->extended_addr);
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sk_buff *skb;
+	int ret;
+
+	frame.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
+	frame.mhr.fc.security_enabled = 0;
+	frame.mhr.fc.frame_pending = 0;
+	frame.mhr.fc.ack_request = 1;
+	frame.mhr.fc.intra_pan = 1;
+	frame.mhr.fc.dest_addr_mode = (target->mode == IEEE802154_ADDR_LONG) ?
+		IEEE802154_EXTENDED_ADDRESSING : IEEE802154_SHORT_ADDRESSING;
+	frame.mhr.fc.version = IEEE802154_2003_STD;
+	frame.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.source.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.source.pan_id = wpan_dev->pan_id;
+	frame.mhr.source.extended_addr = wpan_dev->extended_addr;
+	frame.mhr.dest.mode = target->mode;
+	frame.mhr.dest.pan_id = wpan_dev->pan_id;
+	if (target->mode == IEEE802154_ADDR_LONG)
+		frame.mhr.dest.extended_addr = target->extended_addr;
+	else
+		frame.mhr.dest.short_addr = target->short_addr;
+	frame.mhr.seq = atomic_inc_return(&wpan_dev->dsn) & 0xFF;
+	frame.mac_pl.cmd_id = IEEE802154_CMD_DISASSOCIATION_NOTIFY;
+	frame.disassoc_pl = reason;
+
+	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(frame.disassoc_pl),
+			GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb->dev = sdata->dev;
+
+	ret = ieee802154_mac_cmd_push(skb, &frame, &frame.disassoc_pl,
+				      sizeof(frame.disassoc_pl));
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	ret = ieee802154_mlme_tx_one_locked(local, sdata, skb);
+	if (ret) {
+		dev_warn(&sdata->dev->dev,
+			 "No DISASSOC ACK received from %8phC\n", &teaddr);
+		if (ret > 0)
+			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+		return ret;
+	}
+
+	dev_dbg(&sdata->dev->dev, "DISASSOC ACK received from %8phC\n", &teaddr);
+	return 0;
+}
+
+static int
+mac802154_send_association_resp_locked(struct ieee802154_sub_if_data *sdata,
+				       struct ieee802154_pan_device *target,
+				       struct ieee802154_assoc_resp_pl *assoc_resp_pl)
+{
+	u64 teaddr = swab64((__force u64)target->extended_addr);
+	struct ieee802154_association_resp_frame frame = {};
+	struct ieee802154_local *local = sdata->local;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct sk_buff *skb;
+	int ret;
+
+	frame.mhr.fc.type = IEEE802154_FC_TYPE_MAC_CMD;
+	frame.mhr.fc.security_enabled = 0;
+	frame.mhr.fc.frame_pending = 0;
+	frame.mhr.fc.ack_request = 1; /* We always expect an ack here */
+	frame.mhr.fc.intra_pan = 1;
+	frame.mhr.fc.dest_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.fc.version = IEEE802154_2003_STD;
+	frame.mhr.fc.source_addr_mode = IEEE802154_EXTENDED_ADDRESSING;
+	frame.mhr.source.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.source.extended_addr = wpan_dev->extended_addr;
+	frame.mhr.dest.mode = IEEE802154_ADDR_LONG;
+	frame.mhr.dest.pan_id = wpan_dev->pan_id;
+	frame.mhr.dest.extended_addr = target->extended_addr;
+	frame.mhr.seq = atomic_inc_return(&wpan_dev->dsn) & 0xFF;
+	frame.mac_pl.cmd_id = IEEE802154_CMD_ASSOCIATION_RESP;
+
+	skb = alloc_skb(IEEE802154_MAC_CMD_SKB_SZ + sizeof(*assoc_resp_pl),
+			GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	skb->dev = sdata->dev;
+
+	ret = ieee802154_mac_cmd_push(skb, &frame, assoc_resp_pl,
+				      sizeof(*assoc_resp_pl));
+	if (ret) {
+		kfree_skb(skb);
+		return ret;
+	}
+
+	ret = ieee802154_mlme_tx_locked(local, sdata, skb);
+	if (ret) {
+		dev_warn(&sdata->dev->dev,
+			 "No ASSOC RESP ACK received from %8phC\n", &teaddr);
+		if (ret > 0)
+			ret = (ret == IEEE802154_NO_ACK) ? -EREMOTEIO : -EIO;
+		return ret;
+	}
+
+	return 0;
+}
+
+int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
+				      struct sk_buff *skb)
+{
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_addr *src = &mac_cb(skb)->source;
+	struct ieee802154_addr *dest = &mac_cb(skb)->dest;
+	struct ieee802154_assoc_resp_pl assoc_resp_pl = {};
+	struct ieee802154_assoc_req_pl assoc_req_pl;
+	struct ieee802154_pan_device *child, *exchild;
+	struct ieee802154_addr tmp = {};
+	u64 ceaddr;
+	int ret;
+
+	if (skb->len != sizeof(assoc_req_pl))
+		return -EINVAL;
+
+	if (unlikely(src->mode != IEEE802154_EXTENDED_ADDRESSING))
+		return -EINVAL;
+
+	if (unlikely(dest->pan_id != wpan_dev->pan_id))
+		return -ENODEV;
+
+	if (dest->mode == IEEE802154_EXTENDED_ADDRESSING &&
+	    unlikely(dest->extended_addr != wpan_dev->extended_addr))
+		return -ENODEV;
+	else if (dest->mode == IEEE802154_SHORT_ADDRESSING &&
+		 unlikely(dest->short_addr != wpan_dev->short_addr))
+		return -ENODEV;
+
+	if (wpan_dev->parent) {
+		dev_dbg(&sdata->dev->dev,
+			"Ignoring ASSOC REQ, not the PAN coordinator\n");
+		return -ENODEV;
+	}
+
+	mutex_lock(&wpan_dev->association_lock);
+
+	memcpy(&assoc_req_pl, skb->data, sizeof(assoc_req_pl));
+	if (assoc_req_pl.assoc_type) {
+		dev_err(&skb->dev->dev, "Fast associations not supported yet\n");
+		ret = -EOPNOTSUPP;
+		goto unlock;
+	}
+
+	child = kzalloc(sizeof(*child), GFP_KERNEL);
+	if (!child) {
+		ret = -ENOMEM;
+		goto unlock;
+	}
+
+	child->extended_addr = src->extended_addr;
+	child->mode = IEEE802154_EXTENDED_ADDRESSING;
+	ceaddr = swab64((__force u64)child->extended_addr);
+
+	if (wpan_dev->nchildren >= wpan_dev->max_associations) {
+		if (!wpan_dev->max_associations)
+			assoc_resp_pl.status = IEEE802154_PAN_ACCESS_DENIED;
+		else
+			assoc_resp_pl.status = IEEE802154_PAN_AT_CAPACITY;
+		assoc_resp_pl.short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_BROADCAST);
+		dev_dbg(&sdata->dev->dev,
+			"Refusing ASSOC REQ from child %8phC, %s\n", &ceaddr,
+			assoc_resp_pl.status == IEEE802154_PAN_ACCESS_DENIED ?
+			"access denied" : "too many children");
+	} else {
+		assoc_resp_pl.status = IEEE802154_ASSOCIATION_SUCCESSFUL;
+		if (assoc_req_pl.alloc_addr) {
+			assoc_resp_pl.short_addr = cfg802154_get_free_short_addr(wpan_dev);
+			child->mode = IEEE802154_SHORT_ADDRESSING;
+		} else {
+			assoc_resp_pl.short_addr = cpu_to_le16(IEEE802154_ADDR_SHORT_UNSPEC);
+		}
+		child->short_addr = assoc_resp_pl.short_addr;
+		dev_dbg(&sdata->dev->dev,
+			"Accepting ASSOC REQ from child %8phC, providing short address 0x%04x\n",
+			&ceaddr, le16_to_cpu(child->short_addr));
+	}
+
+	ret = mac802154_send_association_resp_locked(sdata, child, &assoc_resp_pl);
+	if (ret || assoc_resp_pl.status != IEEE802154_ASSOCIATION_SUCCESSFUL) {
+		kfree(child);
+		goto unlock;
+	}
+
+	dev_dbg(&sdata->dev->dev,
+		"Successful association with new child %8phC\n", &ceaddr);
+
+	/* Ensure this child is not already associated (might happen due to
+	 * retransmissions), in this case drop the ex structure.
+	 */
+	tmp.mode = child->mode;
+	tmp.extended_addr = child->extended_addr;
+	exchild = cfg802154_device_is_child(wpan_dev, &tmp);
+	if (exchild) {
+		dev_dbg(&sdata->dev->dev,
+			"Child %8phC was already known\n", &ceaddr);
+		list_del(&exchild->node);
+	}
+
+	list_add(&child->node, &wpan_dev->children);
+	wpan_dev->nchildren++;
+
+unlock:
+	mutex_unlock(&wpan_dev->association_lock);
+	return ret;
+}
+
+int mac802154_process_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+					   struct sk_buff *skb)
+{
+	struct ieee802154_addr *src = &mac_cb(skb)->source;
+	struct ieee802154_addr *dest = &mac_cb(skb)->dest;
+	struct wpan_dev *wpan_dev = &sdata->wpan_dev;
+	struct ieee802154_pan_device *child;
+	struct ieee802154_addr target;
+	bool parent;
+	u64 teaddr;
+
+	if (skb->len != sizeof(u8))
+		return -EINVAL;
+
+	if (unlikely(src->mode != IEEE802154_EXTENDED_ADDRESSING))
+		return -EINVAL;
+
+	if (dest->mode == IEEE802154_EXTENDED_ADDRESSING &&
+	    unlikely(dest->extended_addr != wpan_dev->extended_addr))
+		return -ENODEV;
+	else if (dest->mode == IEEE802154_SHORT_ADDRESSING &&
+		 unlikely(dest->short_addr != wpan_dev->short_addr))
+		return -ENODEV;
+
+	if (dest->pan_id != wpan_dev->pan_id)
+		return -ENODEV;
+
+	target.mode = IEEE802154_EXTENDED_ADDRESSING;
+	target.extended_addr = src->extended_addr;
+	teaddr = swab64((__force u64)target.extended_addr);
+	dev_dbg(&skb->dev->dev, "Processing DISASSOC NOTIF from %8phC\n", &teaddr);
+
+	mutex_lock(&wpan_dev->association_lock);
+	parent = cfg802154_device_is_parent(wpan_dev, &target);
+	if (!parent)
+		child = cfg802154_device_is_child(wpan_dev, &target);
+	if (!parent && !child) {
+		mutex_unlock(&wpan_dev->association_lock);
+		return -EINVAL;
+	}
+
+	if (parent) {
+		kfree(wpan_dev->parent);
+		wpan_dev->parent = NULL;
+	} else {
+		list_del(&child->node);
+		kfree(child);
+		wpan_dev->nchildren--;
+	}
+
+	mutex_unlock(&wpan_dev->association_lock);
 
 	return 0;
 }

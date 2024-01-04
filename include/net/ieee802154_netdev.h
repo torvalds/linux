@@ -125,6 +125,35 @@ struct ieee802154_hdr_fc {
 #endif
 };
 
+struct ieee802154_assoc_req_pl {
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	u8 reserved1:1,
+	   device_type:1,
+	   power_source:1,
+	   rx_on_when_idle:1,
+	   assoc_type:1,
+	   reserved2:1,
+	   security_cap:1,
+	   alloc_addr:1;
+#elif defined(__BIG_ENDIAN_BITFIELD)
+	u8 alloc_addr:1,
+	   security_cap:1,
+	   reserved2:1,
+	   assoc_type:1,
+	   rx_on_when_idle:1,
+	   power_source:1,
+	   device_type:1,
+	   reserved1:1;
+#else
+#error	"Please fix <asm/byteorder.h>"
+#endif
+} __packed;
+
+struct ieee802154_assoc_resp_pl {
+	__le16 short_addr;
+	u8 status;
+} __packed;
+
 enum ieee802154_frame_version {
 	IEEE802154_2003_STD,
 	IEEE802154_2006_STD,
@@ -138,6 +167,19 @@ enum ieee802154_addressing_mode {
 	IEEE802154_RESERVED,
 	IEEE802154_SHORT_ADDRESSING,
 	IEEE802154_EXTENDED_ADDRESSING,
+};
+
+enum ieee802154_association_status {
+	IEEE802154_ASSOCIATION_SUCCESSFUL = 0x00,
+	IEEE802154_PAN_AT_CAPACITY = 0x01,
+	IEEE802154_PAN_ACCESS_DENIED = 0x02,
+	IEEE802154_HOPPING_SEQUENCE_OFFSET_DUP = 0x03,
+	IEEE802154_FAST_ASSOCIATION_SUCCESSFUL = 0x80,
+};
+
+enum ieee802154_disassociation_reason {
+	IEEE802154_COORD_WISHES_DEVICE_TO_LEAVE = 0x1,
+	IEEE802154_DEVICE_WISHES_TO_LEAVE = 0x2,
 };
 
 struct ieee802154_hdr {
@@ -161,6 +203,24 @@ struct ieee802154_mac_cmd_frame {
 struct ieee802154_beacon_req_frame {
 	struct ieee802154_hdr mhr;
 	struct ieee802154_mac_cmd_pl mac_pl;
+};
+
+struct ieee802154_association_req_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+	struct ieee802154_assoc_req_pl assoc_req_pl;
+};
+
+struct ieee802154_association_resp_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+	struct ieee802154_assoc_resp_pl assoc_resp_pl;
+};
+
+struct ieee802154_disassociation_notif_frame {
+	struct ieee802154_hdr mhr;
+	struct ieee802154_mac_cmd_pl mac_pl;
+	u8 disassoc_pl;
 };
 
 /* pushes hdr onto the skb. fields of hdr->fc that can be calculated from
