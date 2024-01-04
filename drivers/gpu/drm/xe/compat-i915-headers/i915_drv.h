@@ -162,18 +162,18 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 
 #include "intel_wakeref.h"
 
-static inline bool intel_runtime_pm_get(struct xe_runtime_pm *pm)
+static inline intel_wakeref_t intel_runtime_pm_get(struct xe_runtime_pm *pm)
 {
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
 
 	if (xe_pm_runtime_get(xe) < 0) {
 		xe_pm_runtime_put(xe);
-		return false;
+		return 0;
 	}
-	return true;
+	return 1;
 }
 
-static inline bool intel_runtime_pm_get_if_in_use(struct xe_runtime_pm *pm)
+static inline intel_wakeref_t intel_runtime_pm_get_if_in_use(struct xe_runtime_pm *pm)
 {
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
 
@@ -187,7 +187,7 @@ static inline void intel_runtime_pm_put_unchecked(struct xe_runtime_pm *pm)
 	xe_pm_runtime_put(xe);
 }
 
-static inline void intel_runtime_pm_put(struct xe_runtime_pm *pm, bool wakeref)
+static inline void intel_runtime_pm_put(struct xe_runtime_pm *pm, intel_wakeref_t wakeref)
 {
 	if (wakeref)
 		intel_runtime_pm_put_unchecked(pm);
