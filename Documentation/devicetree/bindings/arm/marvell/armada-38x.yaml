@@ -31,6 +31,14 @@ properties:
           - const: marvell,armada380
 
       - description:
+          Kobol Armada 388 based Helios-4 NAS.
+        items:
+          - const: kobol,helios4
+          - const: marvell,armada388
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+      - description:
           Marvell Armada 388 Development Boards.
         items:
           - enum:
