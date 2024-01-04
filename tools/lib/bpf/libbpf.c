@@ -6181,7 +6181,7 @@ reloc_prog_func_and_line_info(const struct bpf_object *obj,
 	int err;
 
 	/* no .BTF.ext relocation if .BTF.ext is missing or kernel doesn't
-	 * supprot func/line info
+	 * support func/line info
 	 */
 	if (!obj->btf_ext || !kernel_supports(obj, FEAT_BTF_FUNC))
 		return 0;
@@ -6663,8 +6663,247 @@ static int bpf_prog_assign_exc_cb(struct bpf_object *obj, struct bpf_program *pr
 	return 0;
 }
 
-static int
-bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
+static struct {
+	enum bpf_prog_type prog_type;
+	const char *ctx_name;
+} global_ctx_map[] = {
+	{ BPF_PROG_TYPE_CGROUP_DEVICE,           "bpf_cgroup_dev_ctx" },
+	{ BPF_PROG_TYPE_CGROUP_SKB,              "__sk_buff" },
+	{ BPF_PROG_TYPE_CGROUP_SOCK,             "bpf_sock" },
+	{ BPF_PROG_TYPE_CGROUP_SOCK_ADDR,        "bpf_sock_addr" },
+	{ BPF_PROG_TYPE_CGROUP_SOCKOPT,          "bpf_sockopt" },
+	{ BPF_PROG_TYPE_CGROUP_SYSCTL,           "bpf_sysctl" },
+	{ BPF_PROG_TYPE_FLOW_DISSECTOR,          "__sk_buff" },
+	{ BPF_PROG_TYPE_KPROBE,                  "bpf_user_pt_regs_t" },
+	{ BPF_PROG_TYPE_LWT_IN,                  "__sk_buff" },
+	{ BPF_PROG_TYPE_LWT_OUT,                 "__sk_buff" },
+	{ BPF_PROG_TYPE_LWT_SEG6LOCAL,           "__sk_buff" },
+	{ BPF_PROG_TYPE_LWT_XMIT,                "__sk_buff" },
+	{ BPF_PROG_TYPE_NETFILTER,               "bpf_nf_ctx" },
+	{ BPF_PROG_TYPE_PERF_EVENT,              "bpf_perf_event_data" },
+	{ BPF_PROG_TYPE_RAW_TRACEPOINT,          "bpf_raw_tracepoint_args" },
+	{ BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE, "bpf_raw_tracepoint_args" },
+	{ BPF_PROG_TYPE_SCHED_ACT,               "__sk_buff" },
+	{ BPF_PROG_TYPE_SCHED_CLS,               "__sk_buff" },
+	{ BPF_PROG_TYPE_SK_LOOKUP,               "bpf_sk_lookup" },
+	{ BPF_PROG_TYPE_SK_MSG,                  "sk_msg_md" },
+	{ BPF_PROG_TYPE_SK_REUSEPORT,            "sk_reuseport_md" },
+	{ BPF_PROG_TYPE_SK_SKB,                  "__sk_buff" },
+	{ BPF_PROG_TYPE_SOCK_OPS,                "bpf_sock_ops" },
+	{ BPF_PROG_TYPE_SOCKET_FILTER,           "__sk_buff" },
+	{ BPF_PROG_TYPE_XDP,                     "xdp_md" },
+	/* all other program types don't have "named" context structs */
+};
+
+static int clone_func_btf_info(struct btf *btf, int orig_fn_id, struct bpf_program *prog)
+{
+	int fn_id, fn_proto_id, ret_type_id, orig_proto_id;
+	int i, err, arg_cnt, fn_name_off, linkage;
+	struct btf_type *fn_t, *fn_proto_t, *t;
+	struct btf_param *p;
+
+	/* caller already validated FUNC -> FUNC_PROTO validity */
+	fn_t = btf_type_by_id(btf, orig_fn_id);
+	fn_proto_t = btf_type_by_id(btf, fn_t->type);
+
+	/* Note that each btf__add_xxx() operation invalidates
+	 * all btf_type and string pointers, so we need to be
+	 * very careful when cloning BTF types. BTF type
+	 * pointers have to be always refetched. And to avoid
+	 * problems with invalidated string pointers, we
+	 * add empty strings initially, then just fix up
+	 * name_off offsets in place. Offsets are stable for
+	 * existing strings, so that works out.
+	 */
+	fn_name_off = fn_t->name_off; /* we are about to invalidate fn_t */
+	linkage = btf_func_linkage(fn_t);
+	orig_proto_id = fn_t->type; /* original FUNC_PROTO ID */
+	ret_type_id = fn_proto_t->type; /* fn_proto_t will be invalidated */
+	arg_cnt = btf_vlen(fn_proto_t);
+
+	/* clone FUNC_PROTO and its params */
+	fn_proto_id = btf__add_func_proto(btf, ret_type_id);
+	if (fn_proto_id < 0)
+		return -EINVAL;
+
+	for (i = 0; i < arg_cnt; i++) {
+		int name_off;
+
+		/* copy original parameter data */
+		t = btf_type_by_id(btf, orig_proto_id);
+		p = &btf_params(t)[i];
+		name_off = p->name_off;
+
+		err = btf__add_func_param(btf, "", p->type);
+		if (err)
+			return err;
+
+		fn_proto_t = btf_type_by_id(btf, fn_proto_id);
+		p = &btf_params(fn_proto_t)[i];
+		p->name_off = name_off; /* use remembered str offset */
+	}
+
+	/* clone FUNC now, btf__add_func() enforces non-empty name, so use
+	 * entry program's name as a placeholder, which we replace immediately
+	 * with original name_off
+	 */
+	fn_id = btf__add_func(btf, prog->name, linkage, fn_proto_id);
+	if (fn_id < 0)
+		return -EINVAL;
+
+	fn_t = btf_type_by_id(btf, fn_id);
+	fn_t->name_off = fn_name_off; /* reuse original string */
+
+	return fn_id;
+}
+
+/* Check if main program or global subprog's function prototype has `arg:ctx`
+ * argument tags, and, if necessary, substitute correct type to match what BPF
+ * verifier would expect, taking into account specific program type. This
+ * allows to support __arg_ctx tag transparently on old kernels that don't yet
+ * have a native support for it in the verifier, making user's life much
+ * easier.
+ */
+static int bpf_program_fixup_func_info(struct bpf_object *obj, struct bpf_program *prog)
+{
+	const char *ctx_name = NULL, *ctx_tag = "arg:ctx";
+	struct bpf_func_info_min *func_rec;
+	struct btf_type *fn_t, *fn_proto_t;
+	struct btf *btf = obj->btf;
+	const struct btf_type *t;
+	struct btf_param *p;
+	int ptr_id = 0, struct_id, tag_id, orig_fn_id;
+	int i, n, arg_idx, arg_cnt, err, rec_idx;
+	int *orig_ids;
+
+	/* no .BTF.ext, no problem */
+	if (!obj->btf_ext || !prog->func_info)
+		return 0;
+
+	/* some BPF program types just don't have named context structs, so
+	 * this fallback mechanism doesn't work for them
+	 */
+	for (i = 0; i < ARRAY_SIZE(global_ctx_map); i++) {
+		if (global_ctx_map[i].prog_type != prog->type)
+			continue;
+		ctx_name = global_ctx_map[i].ctx_name;
+		break;
+	}
+	if (!ctx_name)
+		return 0;
+
+	/* remember original func BTF IDs to detect if we already cloned them */
+	orig_ids = calloc(prog->func_info_cnt, sizeof(*orig_ids));
+	if (!orig_ids)
+		return -ENOMEM;
+	for (i = 0; i < prog->func_info_cnt; i++) {
+		func_rec = prog->func_info + prog->func_info_rec_size * i;
+		orig_ids[i] = func_rec->type_id;
+	}
+
+	/* go through each DECL_TAG with "arg:ctx" and see if it points to one
+	 * of our subprogs; if yes and subprog is global and needs adjustment,
+	 * clone and adjust FUNC -> FUNC_PROTO combo
+	 */
+	for (i = 1, n = btf__type_cnt(btf); i < n; i++) {
+		/* only DECL_TAG with "arg:ctx" value are interesting */
+		t = btf__type_by_id(btf, i);
+		if (!btf_is_decl_tag(t))
+			continue;
+		if (strcmp(btf__str_by_offset(btf, t->name_off), ctx_tag) != 0)
+			continue;
+
+		/* only global funcs need adjustment, if at all */
+		orig_fn_id = t->type;
+		fn_t = btf_type_by_id(btf, orig_fn_id);
+		if (!btf_is_func(fn_t) || btf_func_linkage(fn_t) != BTF_FUNC_GLOBAL)
+			continue;
+
+		/* sanity check FUNC -> FUNC_PROTO chain, just in case */
+		fn_proto_t = btf_type_by_id(btf, fn_t->type);
+		if (!fn_proto_t || !btf_is_func_proto(fn_proto_t))
+			continue;
+
+		/* find corresponding func_info record */
+		func_rec = NULL;
+		for (rec_idx = 0; rec_idx < prog->func_info_cnt; rec_idx++) {
+			if (orig_ids[rec_idx] == t->type) {
+				func_rec = prog->func_info + prog->func_info_rec_size * rec_idx;
+				break;
+			}
+		}
+		/* current main program doesn't call into this subprog */
+		if (!func_rec)
+			continue;
+
+		/* some more sanity checking of DECL_TAG */
+		arg_cnt = btf_vlen(fn_proto_t);
+		arg_idx = btf_decl_tag(t)->component_idx;
+		if (arg_idx < 0 || arg_idx >= arg_cnt)
+			continue;
+
+		/* check if existing parameter already matches verifier expectations */
+		p = &btf_params(fn_proto_t)[arg_idx];
+		t = skip_mods_and_typedefs(btf, p->type, NULL);
+		if (btf_is_ptr(t) &&
+		    (t = skip_mods_and_typedefs(btf, t->type, NULL)) &&
+		    btf_is_struct(t) &&
+		    strcmp(btf__str_by_offset(btf, t->name_off), ctx_name) == 0) {
+			continue; /* no need for fix up */
+		}
+
+		/* clone fn/fn_proto, unless we already did it for another arg */
+		if (func_rec->type_id == orig_fn_id) {
+			int fn_id;
+
+			fn_id = clone_func_btf_info(btf, orig_fn_id, prog);
+			if (fn_id < 0) {
+				err = fn_id;
+				goto err_out;
+			}
+
+			/* point func_info record to a cloned FUNC type */
+			func_rec->type_id = fn_id;
+		}
+
+		/* create PTR -> STRUCT type chain to mark PTR_TO_CTX argument;
+		 * we do it just once per main BPF program, as all global
+		 * funcs share the same program type, so need only PTR ->
+		 * STRUCT type chain
+		 */
+		if (ptr_id == 0) {
+			struct_id = btf__add_struct(btf, ctx_name, 0);
+			ptr_id = btf__add_ptr(btf, struct_id);
+			if (ptr_id < 0 || struct_id < 0) {
+				err = -EINVAL;
+				goto err_out;
+			}
+		}
+
+		/* for completeness, clone DECL_TAG and point it to cloned param */
+		tag_id = btf__add_decl_tag(btf, ctx_tag, func_rec->type_id, arg_idx);
+		if (tag_id < 0) {
+			err = -EINVAL;
+			goto err_out;
+		}
+
+		/* all the BTF manipulations invalidated pointers, refetch them */
+		fn_t = btf_type_by_id(btf, func_rec->type_id);
+		fn_proto_t = btf_type_by_id(btf, fn_t->type);
+
+		/* fix up type ID pointed to by param */
+		p = &btf_params(fn_proto_t)[arg_idx];
+		p->type = ptr_id;
+	}
+
+	free(orig_ids);
+	return 0;
+err_out:
+	free(orig_ids);
+	return err;
+}
+
+static int bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 {
 	struct bpf_program *prog;
 	size_t i, j;
@@ -6745,16 +6984,25 @@ bpf_object__relocate(struct bpf_object *obj, const char *targ_btf_path)
 			}
 		}
 	}
-	/* Process data relos for main programs */
 	for (i = 0; i < obj->nr_programs; i++) {
 		prog = &obj->programs[i];
 		if (prog_is_subprog(obj, prog))
 			continue;
 		if (!prog->autoload)
 			continue;
+
+		/* Process data relos for main programs */
 		err = bpf_object__relocate_data(obj, prog);
 		if (err) {
 			pr_warn("prog '%s': failed to relocate data references: %d\n",
+				prog->name, err);
+			return err;
+		}
+
+		/* Fix up .BTF.ext information, if necessary */
+		err = bpf_program_fixup_func_info(obj, prog);
+		if (err) {
+			pr_warn("prog '%s': failed to perform .BTF.ext fix ups: %d\n",
 				prog->name, err);
 			return err;
 		}
