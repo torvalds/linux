@@ -305,11 +305,13 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			return -EINVAL;
 
 		data->head.block = block_id;
-		/* only ue and ce errors are supported */
+		/* only ue, ce and poison errors are supported */
 		if (!memcmp("ue", err, 2))
 			data->head.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		else if (!memcmp("ce", err, 2))
 			data->head.type = AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		else if (!memcmp("poison", err, 6))
+			data->head.type = AMDGPU_RAS_ERROR__POISON;
 		else
 			return -EINVAL;
 
@@ -431,9 +433,10 @@ static void amdgpu_ras_instance_mask_check(struct amdgpu_device *adev,
  * The block is one of: umc, sdma, gfx, etc.
  *	see ras_block_string[] for details
  *
- * The error type is one of: ue, ce, where,
+ * The error type is one of: ue, ce and poison where,
  *	ue is multi-uncorrectable
  *	ce is single-correctable
+ *	poison is poison
  *
  * The sub-block is a the sub-block index, pass 0 if there is no sub-block.
  * The address and value are hexadecimal numbers, leading 0x is optional.
