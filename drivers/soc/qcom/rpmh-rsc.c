@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2016-2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s " fmt, KBUILD_MODNAME
@@ -908,6 +908,11 @@ int rpmh_rsc_write_ctrl_data(struct rsc_drv *drv, const struct tcs_request *msg,
 	struct tcs_group *tcs;
 	int tcs_id = 0, cmd_id = 0;
 	int ret;
+
+	if (!msg->num_cmds) {
+		ipc_log_string(drv->ipc_log_ctx, "Empty num_cmds, returning");
+		return 0;
+	}
 
 	tcs = get_tcs_for_msg(drv, msg->state, ch);
 	if (IS_ERR(tcs))
