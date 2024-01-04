@@ -179,7 +179,8 @@ int bch2_fsck_err(struct bch_fs *c,
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 
-	if (test_bit(err, c->sb.errors_silent))
+	if ((flags & FSCK_CAN_FIX) &&
+	    test_bit(err, c->sb.errors_silent))
 		return -BCH_ERR_fsck_fix;
 
 	bch2_sb_error_count(c, err);
