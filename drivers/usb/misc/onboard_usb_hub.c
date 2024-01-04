@@ -244,7 +244,7 @@ static void onboard_hub_attach_usb_driver(struct work_struct *work)
 {
 	int err;
 
-	err = driver_attach(&onboard_hub_usbdev_driver.drvwrap.driver);
+	err = driver_attach(&onboard_hub_usbdev_driver.driver);
 	if (err)
 		pr_err("Failed to attach USB driver: %pe\n", ERR_PTR(err));
 }

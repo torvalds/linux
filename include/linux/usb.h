@@ -1144,16 +1144,6 @@ extern ssize_t usb_store_new_id(struct usb_dynids *dynids,
 extern ssize_t usb_show_dynids(struct usb_dynids *dynids, char *buf);
 
 /**
- * struct usbdrv_wrap - wrapper for driver-model structure
- * @driver: The driver-model core driver structure.
- * @for_devices: Non-zero for device drivers, 0 for interface drivers.
- */
-struct usbdrv_wrap {
-	struct device_driver driver;
-	int for_devices;
-};
-
-/**
  * struct usb_driver - identifies USB interface driver to usbcore
  * @name: The driver name should be unique among USB drivers,
  *	and should normally be the same as the module name.
@@ -1193,7 +1183,7 @@ struct usbdrv_wrap {
  *	is bound to the driver.
  * @dynids: used internally to hold the list of dynamically added device
  *	ids for this driver.
- * @drvwrap: Driver-model core structure wrapper.
+ * @driver: The driver-model core driver structure.
  * @no_dynamic_id: if set to 1, the USB core will not allow dynamic ids to be
  *	added to this driver by preventing the sysfs file from being created.
  * @supports_autosuspend: if set to 0, the USB core will not allow autosuspend
@@ -1241,13 +1231,13 @@ struct usb_driver {
 	const struct attribute_group **dev_groups;
 
 	struct usb_dynids dynids;
-	struct usbdrv_wrap drvwrap;
+	struct device_driver driver;
 	unsigned int no_dynamic_id:1;
 	unsigned int supports_autosuspend:1;
 	unsigned int disable_hub_initiated_lpm:1;
 	unsigned int soft_unbind:1;
 };
-#define	to_usb_driver(d) container_of(d, struct usb_driver, drvwrap.driver)
+#define	to_usb_driver(d) container_of(d, struct usb_driver, driver)
 
 /**
  * struct usb_device_driver - identifies USB device driver to usbcore
@@ -1268,7 +1258,7 @@ struct usb_driver {
  *	on to call the normal usb_choose_configuration().
  * @dev_groups: Attributes attached to the device that will be created once it
  *	is bound to the driver.
- * @drvwrap: Driver-model core structure wrapper.
+ * @driver: The driver-model core driver structure.
  * @id_table: used with @match() to select better matching driver at
  * 	probe() time.
  * @supports_autosuspend: if set to 0, the USB core will not allow autosuspend
@@ -1277,7 +1267,7 @@ struct usb_driver {
  *	resume and suspend functions will be called in addition to the driver's
  *	own, so this part of the setup does not need to be replicated.
  *
- * USB drivers must provide all the fields listed above except drvwrap,
+ * USB drivers must provide all the fields listed above except driver,
  * match, and id_table.
  */
 struct usb_device_driver {
@@ -1293,13 +1283,13 @@ struct usb_device_driver {
 	int (*choose_configuration) (struct usb_device *udev);
 
 	const struct attribute_group **dev_groups;
-	struct usbdrv_wrap drvwrap;
+	struct device_driver driver;
 	const struct usb_device_id *id_table;
 	unsigned int supports_autosuspend:1;
 	unsigned int generic_subclass:1;
 };
 #define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
-		drvwrap.driver)
+		driver)
 
 /**
  * struct usb_class_driver - identifies a USB driver that wants to use the USB major number

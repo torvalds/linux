@@ -1521,7 +1521,7 @@ int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[]
 
 	/* Now set udriver's id_table and look for matches */
 	udriver->id_table = id_table;
-	rc = driver_attach(&udriver->drvwrap.driver);
+	rc = driver_attach(&udriver->driver);
 	return 0;
 
 err_deregister_drivers:
