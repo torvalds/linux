@@ -949,9 +949,11 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 	struct dsa_switch *ds = priv->ds;
 	struct device_node *mdio;
 	struct mii_bus *bus;
-	int err;
+	int err = 0;
 
 	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
+	if (mdio && !of_device_is_available(mdio))
+		goto out;
 
 	bus = devm_mdiobus_alloc(ds->dev);
 	if (!bus) {
@@ -967,7 +969,7 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 	ds->user_mii_bus = bus;
 
 	/* Check if the devicetree declare the port:phy mapping */
-	if (of_device_is_available(mdio)) {
+	if (mdio) {
 		bus->name = "qca8k user mii";
 		bus->read = qca8k_internal_mdio_read;
 		bus->write = qca8k_internal_mdio_write;
@@ -986,7 +988,7 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 
 out_put_node:
 	of_node_put(mdio);
-
+out:
 	return err;
 }
 
