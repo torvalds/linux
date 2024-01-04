@@ -127,12 +127,35 @@ struct tcp_ao_info {
 	struct rcu_head		rcu;
 };
 
+#ifdef CONFIG_TCP_MD5SIG
+#include <linux/jump_label.h>
+extern struct static_key_false_deferred tcp_md5_needed;
+#define static_branch_tcp_md5()	static_branch_unlikely(&tcp_md5_needed.key)
+#else
+#define static_branch_tcp_md5()	false
+#endif
+#ifdef CONFIG_TCP_AO
+/* TCP-AO structures and functions */
+#include <linux/jump_label.h>
+extern struct static_key_false_deferred tcp_ao_needed;
+#define static_branch_tcp_ao()	static_branch_unlikely(&tcp_ao_needed.key)
+#else
+#define static_branch_tcp_ao()	false
+#endif
+
+static inline bool tcp_hash_should_produce_warnings(void)
+{
+	return static_branch_tcp_md5() || static_branch_tcp_ao();
+}
+
 #define tcp_hash_fail(msg, family, skb, fmt, ...)			\
 do {									\
 	const struct tcphdr *th = tcp_hdr(skb);				\
 	char hdr_flags[6];						\
 	char *f = hdr_flags;						\
 									\
+	if (!tcp_hash_should_produce_warnings())			\
+		break;							\
 	if (th->fin)							\
 		*f++ = 'F';						\
 	if (th->syn)							\
@@ -159,9 +182,6 @@ do {									\
 
 #ifdef CONFIG_TCP_AO
 /* TCP-AO structures and functions */
-#include <linux/jump_label.h>
-extern struct static_key_false_deferred tcp_ao_needed;
-
 struct tcp4_ao_context {
 	__be32		saddr;
 	__be32		daddr;
