@@ -86,8 +86,14 @@ static noinline void print_cycle(struct printbuf *out, struct lock_graph *g)
 	prt_printf(out, "Found lock cycle (%u entries):", g->nr);
 	prt_newline(out);
 
-	for (i = g->g; i < g->g + g->nr; i++)
+	for (i = g->g; i < g->g + g->nr; i++) {
+		struct task_struct *task = READ_ONCE(i->trans->locking_wait.task);
+		if (!task)
+			continue;
+
 		bch2_btree_trans_to_text(out, i->trans);
+		bch2_prt_task_backtrace(out, task, i == g->g ? 5 : 1);
+	}
 }
 
 static noinline void print_chain(struct printbuf *out, struct lock_graph *g)
@@ -144,8 +150,7 @@ static bool lock_graph_remove_non_waiters(struct lock_graph *g)
 	return false;
 }
 
-static void trace_would_deadlock(struct lock_graph *g, struct btree_trans *trans,
-				 unsigned long ip)
+static void trace_would_deadlock(struct lock_graph *g, struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
 
@@ -157,7 +162,7 @@ static void trace_would_deadlock(struct lock_graph *g, struct btree_trans *trans
 		buf.atomic++;
 		print_cycle(&buf, g);
 
-		trace_trans_restart_would_deadlock(trans, ip, buf.buf);
+		trace_trans_restart_would_deadlock(trans, buf.buf);
 		printbuf_exit(&buf);
 	}
 }
@@ -165,7 +170,7 @@ static void trace_would_deadlock(struct lock_graph *g, struct btree_trans *trans
 static int abort_lock(struct lock_graph *g, struct trans_waiting_for_lock *i)
 {
 	if (i == g->g) {
-		trace_would_deadlock(g, i->trans, _RET_IP_);
+		trace_would_deadlock(g, i->trans);
 		return btree_trans_restart(i->trans, BCH_ERR_transaction_restart_would_deadlock);
 	} else {
 		i->trans->lock_must_abort = true;
@@ -222,7 +227,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 			prt_printf(&buf, "backtrace:");
 			prt_newline(&buf);
 			printbuf_indent_add(&buf, 2);
-			bch2_prt_task_backtrace(&buf, trans->locking_wait.task);
+			bch2_prt_task_backtrace(&buf, trans->locking_wait.task, 2);
 			printbuf_indent_sub(&buf, 2);
 			prt_newline(&buf);
 		}
@@ -291,7 +296,7 @@ int bch2_check_for_deadlock(struct btree_trans *trans, struct printbuf *cycle)
 		if (cycle)
 			return -1;
 
-		trace_would_deadlock(&g, trans, _RET_IP_);
+		trace_would_deadlock(&g, trans);
 		return btree_trans_restart(trans, BCH_ERR_transaction_restart_would_deadlock);
 	}
 

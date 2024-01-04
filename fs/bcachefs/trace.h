@@ -72,6 +72,27 @@ DECLARE_EVENT_CLASS(trans_str,
 		  __entry->trans_fn, (void *) __entry->caller_ip, __get_str(str))
 );
 
+DECLARE_EVENT_CLASS(trans_str_nocaller,
+	TP_PROTO(struct btree_trans *trans, const char *str),
+	TP_ARGS(trans, str),
+
+	TP_STRUCT__entry(
+		__field(dev_t,		dev			)
+		__array(char,		trans_fn, 32		)
+		__string(str,		str			)
+	),
+
+	TP_fast_assign(
+		__entry->dev		= trans->c->dev;
+		strscpy(__entry->trans_fn, trans->fn, sizeof(__entry->trans_fn));
+		__assign_str(str, str);
+	),
+
+	TP_printk("%d,%d %s %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->trans_fn, __get_str(str))
+);
+
 DECLARE_EVENT_CLASS(btree_node_nofs,
 	TP_PROTO(struct bch_fs *c, struct btree *b),
 	TP_ARGS(c, b),
@@ -1243,11 +1264,10 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_memory_allocation_failure,
 	TP_ARGS(trans, caller_ip, path)
 );
 
-DEFINE_EVENT(trans_str, trans_restart_would_deadlock,
+DEFINE_EVENT(trans_str_nocaller, trans_restart_would_deadlock,
 	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip,
 		 const char *cycle),
-	TP_ARGS(trans, caller_ip, cycle)
+	TP_ARGS(trans, cycle)
 );
 
 DEFINE_EVENT(transaction_event,	trans_restart_would_deadlock_recursion_limit,

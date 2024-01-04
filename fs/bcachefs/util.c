@@ -267,7 +267,7 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 	console_unlock();
 }
 
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr)
 {
 #ifdef CONFIG_STACKTRACE
 	unsigned nr_entries = 0;
@@ -282,7 +282,7 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 		return -1;
 
 	do {
-		nr_entries = stack_trace_save_tsk(task, stack->data, stack->size, 0);
+		nr_entries = stack_trace_save_tsk(task, stack->data, stack->size, skipnr + 1);
 	} while (nr_entries == stack->size &&
 		 !(ret = darray_make_room(stack, stack->size * 2)));
 
@@ -303,10 +303,10 @@ void bch2_prt_backtrace(struct printbuf *out, bch_stacktrace *stack)
 	}
 }
 
-int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task)
+int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task, unsigned skipnr)
 {
 	bch_stacktrace stack = { 0 };
-	int ret = bch2_save_backtrace(&stack, task);
+	int ret = bch2_save_backtrace(&stack, task, skipnr + 1);
 
 	bch2_prt_backtrace(out, &stack);
 	darray_exit(&stack);

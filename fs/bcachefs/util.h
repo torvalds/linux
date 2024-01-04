@@ -347,9 +347,9 @@ void bch2_prt_u64_binary(struct printbuf *, u64, unsigned);
 void bch2_print_string_as_lines(const char *prefix, const char *lines);
 
 typedef DARRAY(unsigned long) bch_stacktrace;
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *);
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned);
 void bch2_prt_backtrace(struct printbuf *, bch_stacktrace *);
-int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *);
+int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *, unsigned);
 
 #define NR_QUANTILES	15
 #define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)
