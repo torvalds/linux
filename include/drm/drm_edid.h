@@ -24,11 +24,14 @@
 #define __DRM_EDID_H__
 
 #include <linux/types.h>
-#include <linux/hdmi.h>
-#include <drm/drm_mode.h>
 
+enum hdmi_quantization_range;
+struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_edid;
+struct hdmi_avi_infoframe;
+struct hdmi_vendor_infoframe;
 struct i2c_adapter;
 
 #define EDID_LENGTH 128
@@ -318,11 +321,6 @@ struct cea_sad {
 	u8 freq;
 	u8 byte2; /* meaning depends on format */
 };
-
-struct drm_encoder;
-struct drm_connector;
-struct drm_connector_state;
-struct drm_display_mode;
 
 int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads);
 int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb);
