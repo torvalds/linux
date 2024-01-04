@@ -8,6 +8,8 @@
 
 #include <drm/drm_managed.h>
 
+#include <kunit/static_stub.h>
+
 #include "abi/guc_actions_sriov_abi.h"
 #include "abi/guc_relay_actions_abi.h"
 #include "abi/guc_relay_communication_abi.h"
@@ -60,6 +62,7 @@ static int relay_get_totalvfs(struct xe_guc_relay *relay)
 	struct xe_device *xe = relay_to_xe(relay);
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 
+	KUNIT_STATIC_STUB_REDIRECT(relay_get_totalvfs, relay);
 	return IS_SRIOV_VF(xe) ? 0 : pci_sriov_get_totalvfs(pdev);
 }
 
@@ -392,6 +395,11 @@ static u32 prepare_error_reply(u32 *msg, u32 error, u32 hint)
 	return GUC_HXG_FAILURE_MSG_LEN;
 }
 
+static void relay_testonly_nop(struct xe_guc_relay *relay)
+{
+	KUNIT_STATIC_STUB_REDIRECT(relay_testonly_nop, relay);
+}
+
 static int relay_send_message_and_wait(struct xe_guc_relay *relay,
 				       struct relay_transaction *txn,
 				       u32 *buf, u32 buf_size)
@@ -434,8 +442,10 @@ wait:
 		reinit_completion(&txn->done);
 		if (txn->reply == -EAGAIN)
 			goto resend;
-		if (txn->reply == -EBUSY)
+		if (txn->reply == -EBUSY) {
+			relay_testonly_nop(relay);
 			goto wait;
+		}
 		if (txn->reply > 0)
 			ret = from_relay_error(txn->reply);
 		else
@@ -751,6 +761,7 @@ static bool relay_needs_worker(struct xe_guc_relay *relay)
 
 static void relay_kick_worker(struct xe_guc_relay *relay)
 {
+	KUNIT_STATIC_STUB_REDIRECT(relay_kick_worker, relay);
 	queue_work(relay_to_xe(relay)->sriov.wq, &relay->worker);
 }
 
@@ -849,7 +860,7 @@ int xe_guc_relay_process_guc2vf(struct xe_guc_relay *relay, const u32 *msg, u32 
 	relay_assert(relay, FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[0]) ==
 		     XE_GUC_ACTION_GUC2VF_RELAY_FROM_PF);
 
-	if (unlikely(!IS_SRIOV_VF(relay_to_xe(relay))))
+	if (unlikely(!IS_SRIOV_VF(relay_to_xe(relay)) && !kunit_get_current_test()))
 		return -EPERM;
 
 	if (unlikely(!relay_is_ready(relay)))
@@ -895,7 +906,7 @@ int xe_guc_relay_process_guc2pf(struct xe_guc_relay *relay, const u32 *msg, u32 
 	relay_assert(relay, FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[0]) ==
 		     XE_GUC_ACTION_GUC2PF_RELAY_FROM_VF);
 
-	if (unlikely(!IS_SRIOV_PF(relay_to_xe(relay))))
+	if (unlikely(!IS_SRIOV_PF(relay_to_xe(relay)) && !kunit_get_current_test()))
 		return -EPERM;
 
 	if (unlikely(!relay_is_ready(relay)))
@@ -922,4 +933,8 @@ int xe_guc_relay_process_guc2pf(struct xe_guc_relay *relay, const u32 *msg, u32 
 
 	return err;
 }
+#endif
+
+#if IS_BUILTIN(CONFIG_DRM_XE_KUNIT_TEST)
+#include "tests/xe_guc_relay_test.c"
 #endif
