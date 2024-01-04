@@ -38,7 +38,9 @@
 	x(snapshot_trees,					\
 	  RECOVERY_PASS_ALL_FSCK)				\
 	x(snapshot_skiplists,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots))		\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots),		\
+	  BCH_FSCK_ERR_snapshot_bad_depth,			\
+	  BCH_FSCK_ERR_snapshot_bad_skiplist)			\
 	x(deleted_inodes,					\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
 	  BCH_FSCK_ERR_unlinked_inode_not_on_deleted_list)	\

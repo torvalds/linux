@@ -870,8 +870,7 @@ static int check_inode(struct btree_trans *trans,
 		return 0;
 	}
 
-	if (u.bi_flags & BCH_INODE_unlinked &&
-	    c->sb.version >= bcachefs_metadata_version_deleted_inodes) {
+	if (u.bi_flags & BCH_INODE_unlinked) {
 		ret = check_inode_deleted_list(trans, k.k->p);
 		if (ret < 0)
 			return ret;
@@ -1594,13 +1593,12 @@ static int check_dirent_target(struct btree_trans *trans,
 		d = dirent_i_to_s_c(n);
 	}
 
-	if (d.v->d_type == DT_SUBVOL &&
-	    target->bi_parent_subvol != le32_to_cpu(d.v->d_parent_subvol) &&
-	    (c->sb.version < bcachefs_metadata_version_subvol_dirent ||
-	     fsck_err(c, dirent_d_parent_subvol_wrong,
-		      "dirent has wrong d_parent_subvol field: got %u, should be %u",
-		      le32_to_cpu(d.v->d_parent_subvol),
-		      target->bi_parent_subvol))) {
+	if (fsck_err_on(d.v->d_type == DT_SUBVOL &&
+			target->bi_parent_subvol != le32_to_cpu(d.v->d_parent_subvol),
+			c, dirent_d_parent_subvol_wrong,
+			"dirent has wrong d_parent_subvol field: got %u, should be %u",
+			le32_to_cpu(d.v->d_parent_subvol),
+			target->bi_parent_subvol)) {
 		n = bch2_trans_kmalloc(trans, bkey_bytes(d.k));
 		ret = PTR_ERR_OR_ZERO(n);
 		if (ret)

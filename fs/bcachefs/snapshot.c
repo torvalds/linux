@@ -814,11 +814,10 @@ static int check_snapshot(struct btree_trans *trans,
 
 	real_depth = bch2_snapshot_depth(c, parent_id);
 
-	if (le32_to_cpu(s.depth) != real_depth &&
-	    (c->sb.version_upgrade_complete < bcachefs_metadata_version_snapshot_skiplists ||
-	     fsck_err(c, snapshot_bad_depth,
-		      "snapshot with incorrect depth field, should be %u:\n  %s",
-		      real_depth, (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))) {
+	if (fsck_err_on(le32_to_cpu(s.depth) != real_depth,
+			c, snapshot_bad_depth,
+			"snapshot with incorrect depth field, should be %u:\n  %s",
+			real_depth, (bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		u = bch2_bkey_make_mut_typed(trans, iter, &k, 0, snapshot);
 		ret = PTR_ERR_OR_ZERO(u);
 		if (ret)
@@ -832,11 +831,9 @@ static int check_snapshot(struct btree_trans *trans,
 	if (ret < 0)
 		goto err;
 
-	if (!ret &&
-	    (c->sb.version_upgrade_complete < bcachefs_metadata_version_snapshot_skiplists ||
-	     fsck_err(c, snapshot_bad_skiplist,
-		      "snapshot with bad skiplist field:\n  %s",
-		      (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))) {
+	if (fsck_err_on(!ret, c, snapshot_bad_skiplist,
+			"snapshot with bad skiplist field:\n  %s",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		u = bch2_bkey_make_mut_typed(trans, iter, &k, 0, snapshot);
 		ret = PTR_ERR_OR_ZERO(u);
 		if (ret)
