@@ -39,4 +39,15 @@ properties:
           - const: marvell,armada385
           - const: marvell,armada380
 
+      - description:
+          SolidRun Armada 388 clearfog family single-board computers.
+        items:
+          - enum:
+              - solidrun,clearfog-base-a1
+              - solidrun,clearfog-pro-a1
+          - const: solidrun,clearfog-a1
+          - const: marvell,armada388
+          - const: marvell,armada385
+          - const: marvell,armada380
+
 additionalProperties: true
