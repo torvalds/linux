@@ -884,6 +884,10 @@
 		compatible = "national,lm75";
 		reg = <0x4d>;
 	};
+	rtc@30 {
+		compatible = "s35390a";
+		reg = <0x30>;
+	};
 };
 
 &i2c1 {
