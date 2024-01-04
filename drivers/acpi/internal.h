@@ -85,6 +85,15 @@ bool acpi_scan_is_offline(struct acpi_device *adev, bool uevent);
 acpi_status acpi_sysfs_table_handler(u32 event, void *table, void *context);
 void acpi_scan_table_notify(void);
 
+#ifdef CONFIG_ARM64
+int acpi_arch_thermal_cpufreq_pctg(void);
+#else
+static inline int acpi_arch_thermal_cpufreq_pctg(void)
+{
+	return 0;
+}
+#endif
+
 /* --------------------------------------------------------------------------
                      Device Node Initialization / Removal
    -------------------------------------------------------------------------- */
@@ -148,8 +157,11 @@ int acpi_wakeup_device_init(void);
 #ifdef CONFIG_ARCH_MIGHT_HAVE_ACPI_PDC
 void acpi_early_processor_control_setup(void);
 void acpi_early_processor_set_pdc(void);
-
+#ifdef CONFIG_X86
 void acpi_proc_quirk_mwait_check(void);
+#else
+static inline void acpi_proc_quirk_mwait_check(void) {}
+#endif
 bool processor_physically_present(acpi_handle handle);
 #else
 static inline void acpi_early_processor_control_setup(void) {}
@@ -275,5 +287,14 @@ void acpi_init_lpit(void);
 #else
 static inline void acpi_init_lpit(void) { }
 #endif
+
+/*--------------------------------------------------------------------------
+		ACPI _CRS CSI-2 and MIPI DisCo for Imaging
+  -------------------------------------------------------------------------- */
+
+void acpi_mipi_check_crs_csi2(acpi_handle handle);
+void acpi_mipi_scan_crs_csi2(void);
+void acpi_mipi_init_crs_csi2_swnodes(void);
+void acpi_mipi_crs_csi2_cleanup(void);
 
 #endif /* _ACPI_INTERNAL_H_ */

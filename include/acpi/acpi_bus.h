@@ -366,6 +366,98 @@ struct acpi_device_data {
 
 struct acpi_gpio_mapping;
 
+#define ACPI_DEVICE_SWNODE_ROOT			0
+
+/*
+ * The maximum expected number of CSI-2 data lanes.
+ *
+ * This number is not expected to ever have to be equal to or greater than the
+ * number of bits in an unsigned long variable, but if it needs to be increased
+ * above that limit, code will need to be adjusted accordingly.
+ */
+#define ACPI_DEVICE_CSI2_DATA_LANES		8
+
+#define ACPI_DEVICE_SWNODE_PORT_NAME_LENGTH	8
+
+enum acpi_device_swnode_dev_props {
+	ACPI_DEVICE_SWNODE_DEV_ROTATION,
+	ACPI_DEVICE_SWNODE_DEV_CLOCK_FREQUENCY,
+	ACPI_DEVICE_SWNODE_DEV_LED_MAX_MICROAMP,
+	ACPI_DEVICE_SWNODE_DEV_FLASH_MAX_MICROAMP,
+	ACPI_DEVICE_SWNODE_DEV_FLASH_MAX_TIMEOUT_US,
+	ACPI_DEVICE_SWNODE_DEV_NUM_OF,
+	ACPI_DEVICE_SWNODE_DEV_NUM_ENTRIES
+};
+
+enum acpi_device_swnode_port_props {
+	ACPI_DEVICE_SWNODE_PORT_REG,
+	ACPI_DEVICE_SWNODE_PORT_NUM_OF,
+	ACPI_DEVICE_SWNODE_PORT_NUM_ENTRIES
+};
+
+enum acpi_device_swnode_ep_props {
+	ACPI_DEVICE_SWNODE_EP_REMOTE_EP,
+	ACPI_DEVICE_SWNODE_EP_BUS_TYPE,
+	ACPI_DEVICE_SWNODE_EP_REG,
+	ACPI_DEVICE_SWNODE_EP_CLOCK_LANES,
+	ACPI_DEVICE_SWNODE_EP_DATA_LANES,
+	ACPI_DEVICE_SWNODE_EP_LANE_POLARITIES,
+	/* TX only */
+	ACPI_DEVICE_SWNODE_EP_LINK_FREQUENCIES,
+	ACPI_DEVICE_SWNODE_EP_NUM_OF,
+	ACPI_DEVICE_SWNODE_EP_NUM_ENTRIES
+};
+
+/*
+ * Each device has a root software node plus two times as many nodes as the
+ * number of CSI-2 ports.
+ */
+#define ACPI_DEVICE_SWNODE_PORT(port)	(2 * (port) + 1)
+#define ACPI_DEVICE_SWNODE_EP(endpoint)	\
+		(ACPI_DEVICE_SWNODE_PORT(endpoint) + 1)
+
+/**
+ * struct acpi_device_software_node_port - MIPI DisCo for Imaging CSI-2 port
+ * @port_name: Port name.
+ * @data_lanes: "data-lanes" property values.
+ * @lane_polarities: "lane-polarities" property values.
+ * @link_frequencies: "link_frequencies" property values.
+ * @port_nr: Port number.
+ * @crs_crs2_local: _CRS CSI2 record present (i.e. this is a transmitter one).
+ * @port_props: Port properties.
+ * @ep_props: Endpoint properties.
+ * @remote_ep: Reference to the remote endpoint.
+ */
+struct acpi_device_software_node_port {
+	char port_name[ACPI_DEVICE_SWNODE_PORT_NAME_LENGTH + 1];
+	u32 data_lanes[ACPI_DEVICE_CSI2_DATA_LANES];
+	u32 lane_polarities[ACPI_DEVICE_CSI2_DATA_LANES + 1 /* clock lane */];
+	u64 link_frequencies[ACPI_DEVICE_CSI2_DATA_LANES];
+	unsigned int port_nr;
+	bool crs_csi2_local;
+
+	struct property_entry port_props[ACPI_DEVICE_SWNODE_PORT_NUM_ENTRIES];
+	struct property_entry ep_props[ACPI_DEVICE_SWNODE_EP_NUM_ENTRIES];
+
+	struct software_node_ref_args remote_ep[1];
+};
+
+/**
+ * struct acpi_device_software_nodes - Software nodes for an ACPI device
+ * @dev_props: Device properties.
+ * @nodes: Software nodes for root as well as ports and endpoints.
+ * @nodeprts: Array of software node pointers, for (un)registering them.
+ * @ports: Information related to each port and endpoint within a port.
+ * @num_ports: The number of ports.
+ */
+struct acpi_device_software_nodes {
+	struct property_entry dev_props[ACPI_DEVICE_SWNODE_DEV_NUM_ENTRIES];
+	struct software_node *nodes;
+	const struct software_node **nodeptrs;
+	struct acpi_device_software_node_port *ports;
+	unsigned int num_ports;
+};
+
 /* Device */
 struct acpi_device {
 	u32 pld_crc;
@@ -384,6 +476,7 @@ struct acpi_device {
 	struct acpi_device_data data;
 	struct acpi_scan_handler *handler;
 	struct acpi_hotplug_context *hp;
+	struct acpi_device_software_nodes *swnodes;
 	const struct acpi_gpio_mapping *driver_gpios;
 	void *driver_data;
 	struct device dev;
