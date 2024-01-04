@@ -372,4 +372,5 @@ static void __exit idt77105_exit(void)
 
 module_exit(idt77105_exit);
 
+MODULE_DESCRIPTION("IDT77105 PHY driver");
 MODULE_LICENSE("GPL");
