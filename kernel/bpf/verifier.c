@@ -195,6 +195,8 @@ struct bpf_verifier_stack_elem {
 					  POISON_POINTER_DELTA))
 #define BPF_MAP_PTR(X)		((struct bpf_map *)((X) & ~BPF_MAP_PTR_UNPRIV))
 
+#define BPF_GLOBAL_PERCPU_MA_MAX_SIZE  512
+
 static int acquire_reference_state(struct bpf_verifier_env *env, int insn_idx);
 static int release_reference(struct bpf_verifier_env *env, int ref_obj_id);
 static void invalidate_non_owning_refs(struct bpf_verifier_env *env);
@@ -12139,20 +12141,6 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				if (meta.func_id == special_kfunc_list[KF_bpf_obj_new_impl] && !bpf_global_ma_set)
 					return -ENOMEM;
 
-				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
-					if (!bpf_global_percpu_ma_set) {
-						mutex_lock(&bpf_percpu_ma_lock);
-						if (!bpf_global_percpu_ma_set) {
-							err = bpf_mem_alloc_init(&bpf_global_percpu_ma, 0, true);
-							if (!err)
-								bpf_global_percpu_ma_set = true;
-						}
-						mutex_unlock(&bpf_percpu_ma_lock);
-						if (err)
-							return err;
-					}
-				}
-
 				if (((u64)(u32)meta.arg_constant.value) != meta.arg_constant.value) {
 					verbose(env, "local type ID argument must be in range [0, U32_MAX]\n");
 					return -EINVAL;
@@ -12171,6 +12159,35 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 				if (!ret_t || !__btf_type_is_struct(ret_t)) {
 					verbose(env, "bpf_obj_new/bpf_percpu_obj_new type ID argument must be of a struct\n");
 					return -EINVAL;
+				}
+
+				if (meta.func_id == special_kfunc_list[KF_bpf_percpu_obj_new_impl]) {
+					if (ret_t->size > BPF_GLOBAL_PERCPU_MA_MAX_SIZE) {
+						verbose(env, "bpf_percpu_obj_new type size (%d) is greater than %d\n",
+							ret_t->size, BPF_GLOBAL_PERCPU_MA_MAX_SIZE);
+						return -EINVAL;
+					}
+
+					if (!bpf_global_percpu_ma_set) {
+						mutex_lock(&bpf_percpu_ma_lock);
+						if (!bpf_global_percpu_ma_set) {
+							/* Charge memory allocated with bpf_global_percpu_ma to
+							 * root memcg. The obj_cgroup for root memcg is NULL.
+							 */
+							err = bpf_mem_alloc_percpu_init(&bpf_global_percpu_ma, NULL);
+							if (!err)
+								bpf_global_percpu_ma_set = true;
+						}
+						mutex_unlock(&bpf_percpu_ma_lock);
+						if (err)
+							return err;
+					}
+
+					mutex_lock(&bpf_percpu_ma_lock);
+					err = bpf_mem_alloc_percpu_unit_init(&bpf_global_percpu_ma, ret_t->size);
+					mutex_unlock(&bpf_percpu_ma_lock);
+					if (err)
+						return err;
 				}
 
 				struct_meta = btf_find_struct_meta(ret_btf, ret_btf_id);
