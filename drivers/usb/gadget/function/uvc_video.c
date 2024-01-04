@@ -276,10 +276,9 @@ static int uvcg_video_usb_req_queue(struct uvc_video *video,
 	bool is_bulk = video->max_payload_size;
 	struct list_head *list = NULL;
 
-	if (!video->is_enabled) {
-		uvc_video_free_request(req->context, video->ep);
+	if (!video->is_enabled)
 		return -ENODEV;
-	}
+
 	if (queue_to_ep) {
 		struct uvc_request *ureq = req->context;
 		/*
@@ -464,8 +463,15 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 		 * and this thread for isoc endpoints.
 		 */
 		ret = uvcg_video_usb_req_queue(video, to_queue, !is_bulk);
-		if (ret < 0)
+		if (ret < 0) {
+			/*
+			 * Endpoint error, but the stream is still enabled.
+			 * Put request back in req_free for it to be cleaned
+			 * up later.
+			 */
 			uvcg_queue_cancel(queue, 0);
+			list_add_tail(&to_queue->list, &video->req_free);
+		}
 	} else {
 		uvc_video_free_request(ureq, ep);
 	}
