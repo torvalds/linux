@@ -200,7 +200,7 @@ endif
 endif
 
 vdso-install-y				+= arch/arm64/kernel/vdso/vdso.so.dbg
-vdso-install-$(CONFIG_COMPAT_VDSO)	+= arch/arm64/kernel/vdso32/vdso.so.dbg:vdso32.so
+vdso-install-$(CONFIG_COMPAT_VDSO)	+= arch/arm64/kernel/vdso32/vdso32.so.dbg
 
 include $(srctree)/scripts/Makefile.defconf
 

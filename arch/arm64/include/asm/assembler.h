@@ -12,7 +12,7 @@
 #ifndef __ASM_ASSEMBLER_H
 #define __ASM_ASSEMBLER_H
 
-#include <asm-generic/export.h>
+#include <linux/export.h>
 
 #include <asm/alternative.h>
 #include <asm/asm-bug.h>
