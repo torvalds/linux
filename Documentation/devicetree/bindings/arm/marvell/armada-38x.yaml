@@ -31,6 +31,15 @@ properties:
           - const: marvell,armada380
 
       - description:
+          SolidRun Armada 385 based single-board computers.
+        items:
+          - enum:
+              - solidrun,clearfog-gtr-l8
+              - solidrun,clearfog-gtr-s4
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+      - description:
           Kobol Armada 388 based Helios-4 NAS.
         items:
           - const: kobol,helios4
