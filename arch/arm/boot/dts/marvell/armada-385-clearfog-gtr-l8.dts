@@ -4,6 +4,8 @@
 
 / {
 	model = "SolidRun Clearfog GTR L8";
+	compatible = "solidrun,clearfog-gtr-l8", "marvell,armada385",
+		     "marvell,armada380";
 };
 
 &mdio {

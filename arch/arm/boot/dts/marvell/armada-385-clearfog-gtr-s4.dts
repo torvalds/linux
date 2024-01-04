@@ -4,6 +4,8 @@
 
 / {
 	model = "SolidRun Clearfog GTR S4";
+	compatible = "solidrun,clearfog-gtr-s4", "marvell,armada385",
+		     "marvell,armada380";
 };
 
 &sfp0 {
