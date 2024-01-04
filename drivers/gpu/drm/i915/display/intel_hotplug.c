@@ -710,12 +710,17 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 		cancel_work(&dev_priv->display.hotplug.poll_init_work);
 	}
 
+	spin_lock_irq(&dev_priv->irq_lock);
+
 	drm_connector_list_iter_begin(&dev_priv->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
 		enum hpd_pin pin;
 
 		pin = intel_connector_hpd_pin(connector);
 		if (pin == HPD_NONE)
+			continue;
+
+		if (dev_priv->display.hotplug.stats[pin].state == HPD_DISABLED)
 			continue;
 
 		connector->base.polled = connector->polled;
@@ -725,6 +730,8 @@ static void i915_hpd_poll_init_work(struct work_struct *work)
 				DRM_CONNECTOR_POLL_DISCONNECT;
 	}
 	drm_connector_list_iter_end(&conn_iter);
+
+	spin_unlock_irq(&dev_priv->irq_lock);
 
 	if (enabled)
 		drm_kms_helper_poll_reschedule(&dev_priv->drm);
