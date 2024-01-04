@@ -14059,6 +14059,7 @@ void bnxt_del_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr)
 
 static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 {
+#ifdef CONFIG_RFS_ACCEL
 	int i;
 
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
@@ -14096,6 +14097,7 @@ static void bnxt_cfg_ntp_filters(struct bnxt *bp)
 	}
 	if (test_and_clear_bit(BNXT_HWRM_PF_UNLOAD_SP_EVENT, &bp->sp_event))
 		netdev_info(bp->dev, "Receive PF driver unload event!\n");
+#endif
 }
 
 static int bnxt_udp_tunnel_set_port(struct net_device *netdev, unsigned int table,
