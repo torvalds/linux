@@ -613,7 +613,7 @@ int bpf_mem_alloc_percpu_unit_init(struct bpf_mem_alloc *ma, int size)
 	for_each_possible_cpu(cpu) {
 		cc = per_cpu_ptr(pcc, cpu);
 		c = &cc->cache[i];
-		if (cpu == 0 && c->unit_size)
+		if (c->unit_size)
 			break;
 
 		c->unit_size = unit_size;
