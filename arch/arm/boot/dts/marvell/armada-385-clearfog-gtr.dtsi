@@ -141,18 +141,13 @@
 			};
 
 			pinctrl@18000 {
-				cf_gtr_switch_reset_pins: cf-gtr-switch-reset-pins {
-					marvell,pins = "mpp18";
-					marvell,function = "gpio";
-				};
-
-				cf_gtr_usb3_con_vbus: cf-gtr-usb3-con-vbus {
-					marvell,pins = "mpp22";
-					marvell,function = "gpio";
-				};
-
 				cf_gtr_fan_pwm: cf-gtr-fan-pwm {
 					marvell,pins = "mpp23";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_front_button_pins: cf-gtr-front-button-pins {
+					marvell,pins = "mpp53";
 					marvell,function = "gpio";
 				};
 
@@ -160,13 +155,6 @@
 					/* SFP */
 					marvell,pins = "mpp26", "mpp27";
 					marvell,function = "i2c1";
-				};
-
-				cf_gtr_sdhci_pins: cf-gtr-sdhci-pins {
-					marvell,pins = "mpp21", "mpp28",
-						       "mpp37", "mpp38",
-						       "mpp39", "mpp40";
-					marvell,function = "sd0";
 				};
 
 				cf_gtr_isolation_pins: cf-gtr-isolation-pins {
@@ -179,18 +167,30 @@
 					marvell,function = "gpio";
 				};
 
+				cf_gtr_rear_button_pins: cf-gtr-rear-button-pins {
+					marvell,pins = "mpp36";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_sdhci_pins: cf-gtr-sdhci-pins {
+					marvell,pins = "mpp21", "mpp28",
+						       "mpp37", "mpp38",
+						       "mpp39", "mpp40";
+					marvell,function = "sd0";
+				};
+
 				cf_gtr_spi1_cs_pins: spi1-cs-pins {
 					marvell,pins = "mpp59";
 					marvell,function = "spi1";
 				};
 
-				cf_gtr_front_button_pins: cf-gtr-front-button-pins {
-					marvell,pins = "mpp53";
+				cf_gtr_switch_reset_pins: cf-gtr-switch-reset-pins {
+					marvell,pins = "mpp18";
 					marvell,function = "gpio";
 				};
 
-				cf_gtr_rear_button_pins: cf-gtr-rear-button-pins {
-					marvell,pins = "mpp36";
+				cf_gtr_usb3_con_vbus: cf-gtr-usb3-con-vbus {
+					marvell,pins = "mpp22";
 					marvell,function = "gpio";
 				};
 			};
