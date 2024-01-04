@@ -414,6 +414,8 @@ out:
  * @propname:	Name of property containing gpio specifier(s)
  * @index:	index of the GPIO
  *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ *
  * Returns GPIO number to use with Linux generic GPIO API, or one of the errno
  * value on the error condition.
  */

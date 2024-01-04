@@ -6,6 +6,9 @@
 
 #include "gpiolib.h"
 
+/*
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ */
 void gpio_free(unsigned gpio)
 {
 	gpiod_free(gpio_to_desc(gpio));
@@ -17,6 +20,8 @@ EXPORT_SYMBOL_GPL(gpio_free);
  * @gpio:	the GPIO number
  * @flags:	GPIO configuration as specified by GPIOF_*
  * @label:	a literal description string of this GPIO
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
  */
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 {
@@ -53,6 +58,9 @@ int gpio_request_one(unsigned gpio, unsigned long flags, const char *label)
 }
 EXPORT_SYMBOL_GPL(gpio_request_one);
 
+/*
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
+ */
 int gpio_request(unsigned gpio, const char *label)
 {
 	struct gpio_desc *desc = gpio_to_desc(gpio);
@@ -69,6 +77,8 @@ EXPORT_SYMBOL_GPL(gpio_request);
  * gpio_request_array - request multiple GPIOs in a single call
  * @array:	array of the 'struct gpio'
  * @num:	how many GPIOs in the array
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
  */
 int gpio_request_array(const struct gpio *array, size_t num)
 {
@@ -92,6 +102,8 @@ EXPORT_SYMBOL_GPL(gpio_request_array);
  * gpio_free_array - release multiple GPIOs in a single call
  * @array:	array of the 'struct gpio'
  * @num:	how many GPIOs in the array
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
  */
 void gpio_free_array(const struct gpio *array, size_t num)
 {
