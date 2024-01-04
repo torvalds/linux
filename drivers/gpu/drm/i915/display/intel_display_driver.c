@@ -486,14 +486,15 @@ void intel_display_driver_unregister(struct drm_i915_private *i915)
 		return;
 
 	intel_fbdev_unregister(i915);
-	intel_audio_deinit(i915);
-
 	/*
 	 * After flushing the fbdev (incl. a late async config which
 	 * will have delayed queuing of a hotplug event), then flush
 	 * the hotplug events.
 	 */
 	drm_kms_helper_poll_fini(&i915->drm);
+
+	intel_audio_deinit(i915);
+
 	drm_atomic_helper_shutdown(&i915->drm);
 
 	acpi_video_unregister();
