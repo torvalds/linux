@@ -119,6 +119,7 @@ static const struct dsa_device_ops qca_netdev_ops = {
 	.promisc_on_conduit = true,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Qualcomm Atheros QCA8K switches");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA, QCA_NAME);
 

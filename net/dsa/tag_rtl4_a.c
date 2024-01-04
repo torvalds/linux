@@ -121,5 +121,6 @@ static const struct dsa_device_ops rtl4a_netdev_ops = {
 };
 module_dsa_tag_driver(rtl4a_netdev_ops);
 
+MODULE_DESCRIPTION("DSA tag driver for Realtek 4 byte protocol A tags");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_RTL4_A, RTL4_A_NAME);

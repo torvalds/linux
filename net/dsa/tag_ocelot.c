@@ -217,4 +217,5 @@ static struct dsa_tag_driver *ocelot_tag_driver_array[] = {
 
 module_dsa_tag_drivers(ocelot_tag_driver_array);
 
+MODULE_DESCRIPTION("DSA tag driver for Ocelot family of switches, using NPI port");
 MODULE_LICENSE("GPL v2");

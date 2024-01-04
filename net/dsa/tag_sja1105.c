@@ -806,4 +806,5 @@ static struct dsa_tag_driver *sja1105_tag_driver_array[] = {
 
 module_dsa_tag_drivers(sja1105_tag_driver_array);
 
+MODULE_DESCRIPTION("DSA tag driver for NXP SJA1105 switches");
 MODULE_LICENSE("GPL v2");

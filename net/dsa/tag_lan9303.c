@@ -119,6 +119,7 @@ static const struct dsa_device_ops lan9303_netdev_ops = {
 	.needed_headroom = LAN9303_TAG_LEN,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for SMSC/Microchip LAN9303 family of switches");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_LAN9303, LAN9303_NAME);
 

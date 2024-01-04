@@ -60,6 +60,7 @@ static const struct dsa_device_ops xrs700x_netdev_ops = {
 	.needed_tailroom = 1,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for XRS700x switches");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_XRS700X, XRS700X_NAME);
 
