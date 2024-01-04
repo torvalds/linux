@@ -621,8 +621,6 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 		goto err_of_node_put;
 	}
 
-	priv->master_mii_dn = dn;
-
 	priv->user_mii_bus = mdiobus_alloc();
 	if (!priv->user_mii_bus) {
 		err = -ENOMEM;
@@ -682,8 +680,10 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	}
 
 	err = mdiobus_register(priv->user_mii_bus);
-	if (err && dn)
+	if (err)
 		goto err_free_user_mii_bus;
+
+	of_node_put(dn);
 
 	return 0;
 
