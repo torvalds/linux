@@ -1080,6 +1080,7 @@ static int i915_drm_suspend(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	intel_power_domains_disable(dev_priv);
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
 	if (HAS_DISPLAY(dev_priv))
 		drm_kms_helper_poll_disable(dev);
 
@@ -1102,8 +1103,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_suspend(dev_priv, opregion_target_state);
-
-	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
 
 	dev_priv->suspend_count++;
 
