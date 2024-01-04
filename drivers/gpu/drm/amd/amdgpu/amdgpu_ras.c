@@ -1067,8 +1067,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 			mcm_info = &err_info->mcm_info;
 			if (err_info->ce_count) {
 				dev_info(adev->dev, "socket: %d, die: %d, "
-					 "%lld new correctable hardware errors detected in %s block, "
-					 "no user action is needed\n",
+					 "%lld new correctable hardware errors detected in %s block\n",
 					 mcm_info->socket_id,
 					 mcm_info->die_id,
 					 err_info->ce_count,
@@ -1080,8 +1079,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 			err_info = &err_node->err_info;
 			mcm_info = &err_info->mcm_info;
 			dev_info(adev->dev, "socket: %d, die: %d, "
-				 "%lld correctable hardware errors detected in total in %s block, "
-				 "no user action is needed\n",
+				 "%lld correctable hardware errors detected in total in %s block\n",
 				 mcm_info->socket_id, mcm_info->die_id, err_info->ce_count, blk_name);
 		}
 	}
@@ -1108,16 +1106,14 @@ static void amdgpu_ras_error_generate_report(struct amdgpu_device *adev,
 			   adev->smuio.funcs->get_die_id) {
 			dev_info(adev->dev, "socket: %d, die: %d "
 				 "%ld correctable hardware errors "
-				 "detected in %s block, no user "
-				 "action is needed.\n",
+				 "detected in %s block\n",
 				 adev->smuio.funcs->get_socket_id(adev),
 				 adev->smuio.funcs->get_die_id(adev),
 				 ras_mgr->err_data.ce_count,
 				 blk_name);
 		} else {
 			dev_info(adev->dev, "%ld correctable hardware errors "
-				 "detected in %s block, no user "
-				 "action is needed.\n",
+				 "detected in %s block\n",
 				 ras_mgr->err_data.ce_count,
 				 blk_name);
 		}
@@ -1920,7 +1916,7 @@ static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj
 				struct amdgpu_iv_entry *entry)
 {
 	dev_info(obj->adev->dev,
-		"Poison is created, no user action is needed.\n");
+		"Poison is created\n");
 }
 
 static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
