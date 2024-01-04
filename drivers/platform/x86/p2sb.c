@@ -26,21 +26,6 @@ static const struct x86_cpu_id p2sb_cpu_ids[] = {
 	{}
 };
 
-/*
- * Cache BAR0 of P2SB device functions 0 to 7.
- * TODO: The constant 8 is the number of functions that PCI specification
- *       defines. Same definitions exist tree-wide. Unify this definition and
- *       the other definitions then move to include/uapi/linux/pci.h.
- */
-#define NR_P2SB_RES_CACHE 8
-
-struct p2sb_res_cache {
-	u32 bus_dev_id;
-	struct resource res;
-};
-
-static struct p2sb_res_cache p2sb_resources[NR_P2SB_RES_CACHE];
-
 static int p2sb_get_devfn(unsigned int *devfn)
 {
 	unsigned int fn = P2SB_DEVFN_DEFAULT;
@@ -54,16 +39,8 @@ static int p2sb_get_devfn(unsigned int *devfn)
 	return 0;
 }
 
-static bool p2sb_valid_resource(struct resource *res)
-{
-	if (res->flags)
-		return true;
-
-	return false;
-}
-
 /* Copy resource from the first BAR of the device in question */
-static void p2sb_read_bar0(struct pci_dev *pdev, struct resource *mem)
+static int p2sb_read_bar0(struct pci_dev *pdev, struct resource *mem)
 {
 	struct resource *bar0 = &pdev->resource[0];
 
@@ -79,100 +56,22 @@ static void p2sb_read_bar0(struct pci_dev *pdev, struct resource *mem)
 	mem->end = bar0->end;
 	mem->flags = bar0->flags;
 	mem->desc = bar0->desc;
-}
-
-static void p2sb_scan_and_cache_devfn(struct pci_bus *bus, unsigned int devfn)
-{
-	struct p2sb_res_cache *cache = &p2sb_resources[PCI_FUNC(devfn)];
-	struct pci_dev *pdev;
-
-	pdev = pci_scan_single_device(bus, devfn);
-	if (!pdev)
-		return;
-
-	p2sb_read_bar0(pdev, &cache->res);
-	cache->bus_dev_id = bus->dev.id;
-
-	pci_stop_and_remove_bus_device(pdev);
-	return;
-}
-
-static int p2sb_scan_and_cache(struct pci_bus *bus, unsigned int devfn)
-{
-	unsigned int slot, fn;
-
-	if (PCI_FUNC(devfn) == 0) {
-		/*
-		 * When function number of the P2SB device is zero, scan it and
-		 * other function numbers, and if devices are available, cache
-		 * their BAR0s.
-		 */
-		slot = PCI_SLOT(devfn);
-		for (fn = 0; fn < NR_P2SB_RES_CACHE; fn++)
-			p2sb_scan_and_cache_devfn(bus, PCI_DEVFN(slot, fn));
-	} else {
-		/* Scan the P2SB device and cache its BAR0 */
-		p2sb_scan_and_cache_devfn(bus, devfn);
-	}
-
-	if (!p2sb_valid_resource(&p2sb_resources[PCI_FUNC(devfn)].res))
-		return -ENOENT;
 
 	return 0;
 }
 
-static struct pci_bus *p2sb_get_bus(struct pci_bus *bus)
+static int p2sb_scan_and_read(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
 {
-	static struct pci_bus *p2sb_bus;
-
-	bus = bus ?: p2sb_bus;
-	if (bus)
-		return bus;
-
-	/* Assume P2SB is on the bus 0 in domain 0 */
-	p2sb_bus = pci_find_bus(0, 0);
-	return p2sb_bus;
-}
-
-static int p2sb_cache_resources(void)
-{
-	struct pci_bus *bus;
-	unsigned int devfn_p2sb;
-	u32 value = P2SBC_HIDE;
+	struct pci_dev *pdev;
 	int ret;
 
-	/* Get devfn for P2SB device itself */
-	ret = p2sb_get_devfn(&devfn_p2sb);
-	if (ret)
-		return ret;
-
-	bus = p2sb_get_bus(NULL);
-	if (!bus)
+	pdev = pci_scan_single_device(bus, devfn);
+	if (!pdev)
 		return -ENODEV;
 
-	/*
-	 * Prevent concurrent PCI bus scan from seeing the P2SB device and
-	 * removing via sysfs while it is temporarily exposed.
-	 */
-	pci_lock_rescan_remove();
+	ret = p2sb_read_bar0(pdev, mem);
 
-	/*
-	 * The BIOS prevents the P2SB device from being enumerated by the PCI
-	 * subsystem, so we need to unhide and hide it back to lookup the BAR.
-	 * Unhide the P2SB device here, if needed.
-	 */
-	pci_bus_read_config_dword(bus, devfn_p2sb, P2SBC, &value);
-	if (value & P2SBC_HIDE)
-		pci_bus_write_config_dword(bus, devfn_p2sb, P2SBC, 0);
-
-	ret = p2sb_scan_and_cache(bus, devfn_p2sb);
-
-	/* Hide the P2SB device, if it was hidden */
-	if (value & P2SBC_HIDE)
-		pci_bus_write_config_dword(bus, devfn_p2sb, P2SBC, P2SBC_HIDE);
-
-	pci_unlock_rescan_remove();
-
+	pci_stop_and_remove_bus_device(pdev);
 	return ret;
 }
 
@@ -182,53 +81,64 @@ static int p2sb_cache_resources(void)
  * @devfn: PCI slot and function to communicate with
  * @mem: memory resource to be filled in
  *
- * If @bus is NULL, the bus 0 in domain 0 will be used.
+ * The BIOS prevents the P2SB device from being enumerated by the PCI
+ * subsystem, so we need to unhide and hide it back to lookup the BAR.
+ *
+ * if @bus is NULL, the bus 0 in domain 0 will be used.
  * If @devfn is 0, it will be replaced by devfn of the P2SB device.
  *
  * Caller must provide a valid pointer to @mem.
+ *
+ * Locking is handled by pci_rescan_remove_lock mutex.
  *
  * Return:
  * 0 on success or appropriate errno value on error.
  */
 int p2sb_bar(struct pci_bus *bus, unsigned int devfn, struct resource *mem)
 {
-	struct p2sb_res_cache *cache;
+	struct pci_dev *pdev_p2sb;
+	unsigned int devfn_p2sb;
+	u32 value = P2SBC_HIDE;
 	int ret;
 
-	bus = p2sb_get_bus(bus);
-	if (!bus)
+	/* Get devfn for P2SB device itself */
+	ret = p2sb_get_devfn(&devfn_p2sb);
+	if (ret)
+		return ret;
+
+	/* if @bus is NULL, use bus 0 in domain 0 */
+	bus = bus ?: pci_find_bus(0, 0);
+
+	/*
+	 * Prevent concurrent PCI bus scan from seeing the P2SB device and
+	 * removing via sysfs while it is temporarily exposed.
+	 */
+	pci_lock_rescan_remove();
+
+	/* Unhide the P2SB device, if needed */
+	pci_bus_read_config_dword(bus, devfn_p2sb, P2SBC, &value);
+	if (value & P2SBC_HIDE)
+		pci_bus_write_config_dword(bus, devfn_p2sb, P2SBC, 0);
+
+	pdev_p2sb = pci_scan_single_device(bus, devfn_p2sb);
+	if (devfn)
+		ret = p2sb_scan_and_read(bus, devfn, mem);
+	else
+		ret = p2sb_read_bar0(pdev_p2sb, mem);
+	pci_stop_and_remove_bus_device(pdev_p2sb);
+
+	/* Hide the P2SB device, if it was hidden */
+	if (value & P2SBC_HIDE)
+		pci_bus_write_config_dword(bus, devfn_p2sb, P2SBC, P2SBC_HIDE);
+
+	pci_unlock_rescan_remove();
+
+	if (ret)
+		return ret;
+
+	if (mem->flags == 0)
 		return -ENODEV;
 
-	if (!devfn) {
-		ret = p2sb_get_devfn(&devfn);
-		if (ret)
-			return ret;
-	}
-
-	cache = &p2sb_resources[PCI_FUNC(devfn)];
-	if (cache->bus_dev_id != bus->dev.id)
-		return -ENODEV;
-
-	if (!p2sb_valid_resource(&cache->res))
-		return -ENOENT;
-
-	memcpy(mem, &cache->res, sizeof(*mem));
 	return 0;
 }
 EXPORT_SYMBOL_GPL(p2sb_bar);
-
-static int __init p2sb_fs_init(void)
-{
-	p2sb_cache_resources();
-	return 0;
-}
-
-/*
- * pci_rescan_remove_lock to avoid access to unhidden P2SB devices can
- * not be locked in sysfs pci bus rescan path because of deadlock. To
- * avoid the deadlock, access to P2SB devices with the lock at an early
- * step in kernel initialization and cache required resources. This
- * should happen after subsys_initcall which initializes PCI subsystem
- * and before device_initcall which requires P2SB resources.
- */
-fs_initcall(p2sb_fs_init);
