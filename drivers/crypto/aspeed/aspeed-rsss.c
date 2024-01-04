@@ -34,7 +34,7 @@ static void aspeed_rsss_register(struct aspeed_rsss_dev *rsss_dev)
 		}
 
 		if (rc)
-			RSSS_DBG(rsss_dev, "Failed to register [%d] %s\n", i, cra_name);
+			dev_warn(rsss_dev->dev, "Failed to register [%d] %s(0x%x)\n", i, cra_name, rc);
 	}
 }
 

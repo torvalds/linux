@@ -422,6 +422,7 @@ static int aspeed_sha3_do_request(struct crypto_engine *engine, void *areq)
 
 	sha3_engine = &rsss_dev->sha3_engine;
 	sha3_engine->flags |= CRYPTO_FLAGS_BUSY;
+	sha3_engine->req = req;
 
 	if (sha3_engine->sg_mode)
 		sha3_engine->dma_prepare = aspeed_sha3_dma_prepare_sg;
@@ -611,8 +612,6 @@ static int aspeed_sha3_cra_init(struct crypto_tfm *tfm)
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
 				 sizeof(struct aspeed_sha3_reqctx));
 
-	ast_alg->alg.ahash.op.do_one_request = aspeed_sha3_do_request;
-
 	return 0;
 }
 
@@ -652,6 +651,9 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_224 = {
 			}
 		}
 	},
+	.alg.ahash.op = {
+		.do_one_request = aspeed_sha3_do_request,
+	},
 };
 
 struct aspeed_rsss_alg aspeed_rsss_algs_sha3_256 = {
@@ -681,6 +683,9 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_256 = {
 				.cra_exit		= aspeed_sha3_cra_exit,
 			}
 		}
+	},
+	.alg.ahash.op = {
+		.do_one_request = aspeed_sha3_do_request,
 	},
 };
 
@@ -712,6 +717,9 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_384 = {
 			}
 		}
 	},
+	.alg.ahash.op = {
+		.do_one_request = aspeed_sha3_do_request,
+	},
 };
 
 struct aspeed_rsss_alg aspeed_rsss_algs_sha3_512 = {
@@ -741,6 +749,9 @@ struct aspeed_rsss_alg aspeed_rsss_algs_sha3_512 = {
 				.cra_exit		= aspeed_sha3_cra_exit,
 			}
 		}
+	},
+	.alg.ahash.op = {
+		.do_one_request = aspeed_sha3_do_request,
 	},
 };
 
