@@ -52,7 +52,7 @@
 /*
  * Following notifications should be emitted only if detected condition
  * is such that the HW is likely to still be working but consumers should
- * take a recovery action to prevent problems esacalating into errors.
+ * take a recovery action to prevent problems escalating into errors.
  */
 #define REGULATOR_EVENT_UNDER_VOLTAGE_WARN	0x2000
 #define REGULATOR_EVENT_OVER_CURRENT_WARN	0x4000
