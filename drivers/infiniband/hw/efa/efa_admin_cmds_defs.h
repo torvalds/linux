@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause */
 /*
- * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #ifndef _EFA_ADMIN_CMDS_H_
@@ -415,6 +415,32 @@ struct efa_admin_reg_mr_resp {
 	 * memory region
 	 */
 	u32 r_key;
+
+	/*
+	 * Mask indicating which fields have valid values
+	 * 0 : recv_ic_id
+	 * 1 : rdma_read_ic_id
+	 * 2 : rdma_recv_ic_id
+	 */
+	u8 validity;
+
+	/*
+	 * Physical interconnect used by the device to reach the MR for receive
+	 * operation
+	 */
+	u8 recv_ic_id;
+
+	/*
+	 * Physical interconnect used by the device to reach the MR for RDMA
+	 * read operation
+	 */
+	u8 rdma_read_ic_id;
+
+	/*
+	 * Physical interconnect used by the device to reach the MR for RDMA
+	 * write receive
+	 */
+	u8 rdma_recv_ic_id;
 };
 
 struct efa_admin_dereg_mr_cmd {
@@ -998,6 +1024,11 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_REG_MR_CMD_LOCAL_WRITE_ENABLE_MASK        BIT(0)
 #define EFA_ADMIN_REG_MR_CMD_REMOTE_WRITE_ENABLE_MASK       BIT(1)
 #define EFA_ADMIN_REG_MR_CMD_REMOTE_READ_ENABLE_MASK        BIT(2)
+
+/* reg_mr_resp */
+#define EFA_ADMIN_REG_MR_RESP_RECV_IC_ID_MASK               BIT(0)
+#define EFA_ADMIN_REG_MR_RESP_RDMA_READ_IC_ID_MASK          BIT(1)
+#define EFA_ADMIN_REG_MR_RESP_RDMA_RECV_IC_ID_MASK          BIT(2)
 
 /* create_cq_cmd */
 #define EFA_ADMIN_CREATE_CQ_CMD_INTERRUPT_MODE_ENABLED_MASK BIT(5)

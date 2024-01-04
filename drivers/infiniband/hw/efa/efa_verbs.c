@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -13,6 +13,9 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_ioctl.h>
+#define UVERBS_MODULE_NAME efa_ib
+#include <rdma/uverbs_named_ioctl.h>
+#include <rdma/ib_user_ioctl_cmds.h>
 
 #include "efa.h"
 #include "efa_io_defs.h"
@@ -1653,6 +1656,12 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 	mr->ibmr.lkey = result.l_key;
 	mr->ibmr.rkey = result.r_key;
 	mr->ibmr.length = length;
+	mr->ic_info.recv_ic_id = result.ic_info.recv_ic_id;
+	mr->ic_info.rdma_read_ic_id = result.ic_info.rdma_read_ic_id;
+	mr->ic_info.rdma_recv_ic_id = result.ic_info.rdma_recv_ic_id;
+	mr->ic_info.recv_ic_id_valid = result.ic_info.recv_ic_id_valid;
+	mr->ic_info.rdma_read_ic_id_valid = result.ic_info.rdma_read_ic_id_valid;
+	mr->ic_info.rdma_recv_ic_id_valid = result.ic_info.rdma_recv_ic_id_valid;
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
 
 	return 0;
@@ -1733,6 +1742,39 @@ err_free:
 err_out:
 	atomic64_inc(&dev->stats.reg_mr_err);
 	return ERR_PTR(err);
+}
+
+static int UVERBS_HANDLER(EFA_IB_METHOD_MR_QUERY)(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_mr *ibmr = uverbs_attr_get_obj(attrs, EFA_IB_ATTR_QUERY_MR_HANDLE);
+	struct efa_mr *mr = to_emr(ibmr);
+	u16 ic_id_validity = 0;
+	int ret;
+
+	ret = uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_RECV_IC_ID,
+			     &mr->ic_info.recv_ic_id, sizeof(mr->ic_info.recv_ic_id));
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_RDMA_READ_IC_ID,
+			     &mr->ic_info.rdma_read_ic_id, sizeof(mr->ic_info.rdma_read_ic_id));
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_RDMA_RECV_IC_ID,
+			     &mr->ic_info.rdma_recv_ic_id, sizeof(mr->ic_info.rdma_recv_ic_id));
+	if (ret)
+		return ret;
+
+	if (mr->ic_info.recv_ic_id_valid)
+		ic_id_validity |= EFA_QUERY_MR_VALIDITY_RECV_IC_ID;
+	if (mr->ic_info.rdma_read_ic_id_valid)
+		ic_id_validity |= EFA_QUERY_MR_VALIDITY_RDMA_READ_IC_ID;
+	if (mr->ic_info.rdma_recv_ic_id_valid)
+		ic_id_validity |= EFA_QUERY_MR_VALIDITY_RDMA_RECV_IC_ID;
+
+	return uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_IC_ID_VALIDITY,
+			      &ic_id_validity, sizeof(ic_id_validity));
 }
 
 int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
@@ -2157,3 +2199,30 @@ enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_UNSPECIFIED;
 }
 
+DECLARE_UVERBS_NAMED_METHOD(EFA_IB_METHOD_MR_QUERY,
+			    UVERBS_ATTR_IDR(EFA_IB_ATTR_QUERY_MR_HANDLE,
+					    UVERBS_OBJECT_MR,
+					    UVERBS_ACCESS_READ,
+					    UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_IC_ID_VALIDITY,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_RECV_IC_ID,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_RDMA_READ_IC_ID,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_RDMA_RECV_IC_ID,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY));
+
+ADD_UVERBS_METHODS(efa_mr,
+		   UVERBS_OBJECT_MR,
+		   &UVERBS_METHOD(EFA_IB_METHOD_MR_QUERY));
+
+const struct uapi_definition efa_uapi_defs[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR,
+				&efa_mr),
+	{},
+};
