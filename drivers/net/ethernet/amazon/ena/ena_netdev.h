@@ -110,19 +110,6 @@
 
 #define ENA_MMIO_DISABLE_REG_READ	BIT(0)
 
-/* The max MTU size is configured to be the ethernet frame size without
- * the overhead of the ethernet header, which can have a VLAN header, and
- * a frame check sequence (FCS).
- * The buffer size we share with the device is defined to be ENA_PAGE_SIZE
- */
-
-#define ENA_XDP_MAX_MTU (ENA_PAGE_SIZE - ETH_HLEN - ETH_FCS_LEN -	\
-			 VLAN_HLEN - XDP_PACKET_HEADROOM -		\
-			 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
-
-#define ENA_IS_XDP_INDEX(adapter, index) (((index) >= (adapter)->xdp_first_ring) && \
-	((index) < (adapter)->xdp_first_ring + (adapter)->xdp_num_queues))
-
 struct ena_irq {
 	irq_handler_t handler;
 	void *data;
@@ -138,13 +125,18 @@ struct ena_napi {
 	struct napi_struct napi;
 	struct ena_ring *tx_ring;
 	struct ena_ring *rx_ring;
-	struct ena_ring *xdp_ring;
 	u32 qid;
 	struct dim dim;
 };
 
 struct ena_tx_buffer {
-	struct sk_buff *skb;
+	union {
+		struct sk_buff *skb;
+		/* XDP buffer structure which is used for sending packets in
+		 * the xdp queues
+		 */
+		struct xdp_frame *xdpf;
+	};
 	/* num of ena desc for this specific skb
 	 * (includes data desc and metadata desc)
 	 */
@@ -152,16 +144,14 @@ struct ena_tx_buffer {
 	/* num of buffers used by this skb */
 	u32 num_of_bufs;
 
-	/* XDP buffer structure which is used for sending packets in
-	 * the xdp queues
-	 */
-	struct xdp_frame *xdpf;
+	/* Total size of all buffers in bytes */
+	u32 total_tx_size;
 
 	/* Indicate if bufs[0] map the linear data of the skb. */
 	u8 map_linear_data;
 
 	/* Used for detect missing tx packets to limit the number of prints */
-	u32 print_once;
+	u8 print_once;
 	/* Save the last jiffies to detect missing tx packets
 	 *
 	 * sets to non zero value on ena_start_xmit and set to zero on
@@ -421,47 +411,44 @@ static inline void ena_reset_device(struct ena_adapter *adapter,
 	set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags);
 }
 
-enum ena_xdp_errors_t {
-	ENA_XDP_ALLOWED = 0,
-	ENA_XDP_CURRENT_MTU_TOO_LARGE,
-	ENA_XDP_NO_ENOUGH_QUEUES,
-};
+int handle_invalid_req_id(struct ena_ring *ring, u16 req_id,
+			  struct ena_tx_buffer *tx_info, bool is_xdp);
 
-enum ENA_XDP_ACTIONS {
-	ENA_XDP_PASS		= 0,
-	ENA_XDP_TX		= BIT(0),
-	ENA_XDP_REDIRECT	= BIT(1),
-	ENA_XDP_DROP		= BIT(2)
-};
-
-#define ENA_XDP_FORWARDED (ENA_XDP_TX | ENA_XDP_REDIRECT)
-
-static inline bool ena_xdp_present(struct ena_adapter *adapter)
+/* Increase a stat by cnt while holding syncp seqlock on 32bit machines */
+static inline void ena_increase_stat(u64 *statp, u64 cnt,
+				     struct u64_stats_sync *syncp)
 {
-	return !!adapter->xdp_bpf_prog;
+	u64_stats_update_begin(syncp);
+	(*statp) += cnt;
+	u64_stats_update_end(syncp);
 }
 
-static inline bool ena_xdp_present_ring(struct ena_ring *ring)
+static inline void ena_ring_tx_doorbell(struct ena_ring *tx_ring)
 {
-	return !!ring->xdp_bpf_prog;
+	ena_com_write_sq_doorbell(tx_ring->ena_com_io_sq);
+	ena_increase_stat(&tx_ring->tx_stats.doorbells, 1, &tx_ring->syncp);
 }
 
-static inline bool ena_xdp_legal_queue_count(struct ena_adapter *adapter,
-					     u32 queues)
-{
-	return 2 * queues <= adapter->max_num_io_queues;
-}
-
-static inline enum ena_xdp_errors_t ena_xdp_allowed(struct ena_adapter *adapter)
-{
-	enum ena_xdp_errors_t rc = ENA_XDP_ALLOWED;
-
-	if (adapter->netdev->mtu > ENA_XDP_MAX_MTU)
-		rc = ENA_XDP_CURRENT_MTU_TOO_LARGE;
-	else if (!ena_xdp_legal_queue_count(adapter, adapter->num_io_queues))
-		rc = ENA_XDP_NO_ENOUGH_QUEUES;
-
-	return rc;
-}
-
+int ena_xmit_common(struct ena_adapter *adapter,
+		    struct ena_ring *ring,
+		    struct ena_tx_buffer *tx_info,
+		    struct ena_com_tx_ctx *ena_tx_ctx,
+		    u16 next_to_use,
+		    u32 bytes);
+void ena_unmap_tx_buff(struct ena_ring *tx_ring,
+		       struct ena_tx_buffer *tx_info);
+void ena_init_io_rings(struct ena_adapter *adapter,
+		       int first_index, int count);
+int ena_create_io_tx_queues_in_range(struct ena_adapter *adapter,
+				     int first_index, int count);
+int ena_setup_tx_resources_in_range(struct ena_adapter *adapter,
+				    int first_index, int count);
+void ena_free_all_io_tx_resources_in_range(struct ena_adapter *adapter,
+					   int first_index, int count);
+void ena_free_all_io_tx_resources(struct ena_adapter *adapter);
+void ena_down(struct ena_adapter *adapter);
+int ena_up(struct ena_adapter *adapter);
+void ena_unmask_interrupt(struct ena_ring *tx_ring, struct ena_ring *rx_ring);
+void ena_update_ring_numa_node(struct ena_ring *tx_ring,
+			       struct ena_ring *rx_ring);
 #endif /* !(ENA_H) */
