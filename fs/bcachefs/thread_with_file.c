@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
+#ifndef NO_BCACHEFS_FS
 
 #include "bcachefs.h"
 #include "printbuf.h"
@@ -294,3 +295,5 @@ int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, char *buf, size_t
 	wake_up(&stdio->input_wait);
 	return ret;
 }
+
+#endif /* NO_BCACHEFS_FS */
