@@ -1248,9 +1248,9 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_dp_mst_resume(dev_priv);
 	intel_display_driver_resume(dev_priv);
 
-	intel_hpd_poll_disable(dev_priv);
 	if (HAS_DISPLAY(dev_priv))
 		drm_kms_helper_poll_enable(dev);
+	intel_hpd_poll_disable(dev_priv);
 
 	intel_opregion_resume(dev_priv);
 
