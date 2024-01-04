@@ -811,7 +811,7 @@ static umode_t arm_cmn_event_attr_is_visible(struct kobject *kobj,
 #define CMN_EVENT_HNF_OCC(_model, _name, _event)			\
 	CMN_EVENT_HN_OCC(_model, hnf_##_name, CMN_TYPE_HNF, _event)
 #define CMN_EVENT_HNF_CLS(_model, _name, _event)			\
-	CMN_EVENT_HN_CLS(_model, hnf_##_name, CMN_TYPE_HNS, _event)
+	CMN_EVENT_HN_CLS(_model, hnf_##_name, CMN_TYPE_HNF, _event)
 #define CMN_EVENT_HNF_SNT(_model, _name, _event)			\
 	CMN_EVENT_HN_SNT(_model, hnf_##_name, CMN_TYPE_HNF, _event)
 
