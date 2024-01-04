@@ -635,7 +635,6 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	priv->user_mii_bus->write = bcm_sf2_sw_mdio_write;
 	snprintf(priv->user_mii_bus->id, MII_BUS_ID_SIZE, "sf2-%d",
 		 index++);
-	priv->user_mii_bus->dev.of_node = dn;
 
 	/* Include the pseudo-PHY address to divert reads towards our
 	 * workaround. This is only required for 7445D0, since 7445E0
