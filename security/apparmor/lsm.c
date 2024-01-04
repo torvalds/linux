@@ -177,14 +177,13 @@ static int apparmor_capget(const struct task_struct *target, kernel_cap_t *effec
 
 		label_for_each_confined(i, label, profile) {
 			struct aa_ruleset *rules;
-			if (COMPLAIN_MODE(profile))
-				continue;
+			kernel_cap_t allowed;
+
 			rules = list_first_entry(&profile->rules,
 						 typeof(*rules), list);
-			*effective = cap_intersect(*effective,
-						   rules->caps.allow);
-			*permitted = cap_intersect(*permitted,
-						   rules->caps.allow);
+			allowed = aa_profile_capget(profile);
+			*effective = cap_intersect(*effective, allowed);
+			*permitted = cap_intersect(*permitted, allowed);
 		}
 	}
 	rcu_read_unlock();
