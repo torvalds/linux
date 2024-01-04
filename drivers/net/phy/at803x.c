@@ -2035,10 +2035,43 @@ static int qca808x_cable_test_start(struct phy_device *phydev)
 	return 0;
 }
 
+static int qca808x_cable_test_get_pair_status(struct phy_device *phydev, u8 pair,
+					      u16 status)
+{
+	u16 pair_code;
+	int length;
+
+	switch (pair) {
+	case ETHTOOL_A_CABLE_PAIR_A:
+		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_A, status);
+		break;
+	case ETHTOOL_A_CABLE_PAIR_B:
+		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_B, status);
+		break;
+	case ETHTOOL_A_CABLE_PAIR_C:
+		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_C, status);
+		break;
+	case ETHTOOL_A_CABLE_PAIR_D:
+		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_D, status);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ethnl_cable_test_result(phydev, pair,
+				qca808x_cable_test_result_trans(pair_code));
+
+	if (qca808x_cdt_fault_length_valid(pair_code)) {
+		length = qca808x_cdt_fault_length(phydev, pair);
+		ethnl_cable_test_fault_length(phydev, pair, length);
+	}
+
+	return 0;
+}
+
 static int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finished)
 {
 	int ret, val;
-	int pair_a, pair_b, pair_c, pair_d;
 
 	*finished = false;
 
@@ -2057,36 +2090,21 @@ static int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finish
 	if (val < 0)
 		return val;
 
-	pair_a = FIELD_GET(QCA808X_CDT_CODE_PAIR_A, val);
-	pair_b = FIELD_GET(QCA808X_CDT_CODE_PAIR_B, val);
-	pair_c = FIELD_GET(QCA808X_CDT_CODE_PAIR_C, val);
-	pair_d = FIELD_GET(QCA808X_CDT_CODE_PAIR_D, val);
+	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_A, val);
+	if (ret)
+		return ret;
 
-	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
-				qca808x_cable_test_result_trans(pair_a));
-	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_B,
-				qca808x_cable_test_result_trans(pair_b));
-	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_C,
-				qca808x_cable_test_result_trans(pair_c));
-	ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_D,
-				qca808x_cable_test_result_trans(pair_d));
+	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_B, val);
+	if (ret)
+		return ret;
 
-	if (qca808x_cdt_fault_length_valid(pair_a)) {
-		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A);
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A, val);
-	}
-	if (qca808x_cdt_fault_length_valid(pair_b)) {
-		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B);
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_B, val);
-	}
-	if (qca808x_cdt_fault_length_valid(pair_c)) {
-		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C);
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_C, val);
-	}
-	if (qca808x_cdt_fault_length_valid(pair_d)) {
-		val = qca808x_cdt_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D);
-		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_D, val);
-	}
+	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_C, val);
+	if (ret)
+		return ret;
+
+	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_D, val);
+	if (ret)
+		return ret;
 
 	*finished = true;
 
