@@ -231,8 +231,6 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
-	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
-	bool is_tc_port = intel_phy_is_tc(i915, phy);
 	i915_reg_t ch_ctl, ch_data[5];
 	u32 aux_clock_divider;
 	enum intel_display_power_domain aux_domain;
@@ -252,9 +250,8 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 	 * Abort transfers on a disconnected port as required by
 	 * DP 1.4a link CTS 4.2.1.5, also avoiding the long AUX
 	 * timeouts that would otherwise happen.
-	 * TODO: abort the transfer on non-TC ports as well.
 	 */
-	if (is_tc_port &&
+	if (!intel_dp_is_edp(intel_dp) &&
 	    !intel_digital_port_connected_locked(&dig_port->base)) {
 		ret = -ENXIO;
 		goto out_unlock;
