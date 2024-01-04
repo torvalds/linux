@@ -76,10 +76,6 @@ config THERMAL_OF
 	  Say 'Y' here if you need to build thermal infrastructure
 	  based on device tree.
 
-config THERMAL_ACPI
-       depends on ACPI
-       bool
-
 config THERMAL_WRITABLE_TRIPS
 	bool "Enable writable trip points"
 	help
