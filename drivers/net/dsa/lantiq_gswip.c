@@ -510,11 +510,11 @@ static int gswip_mdio(struct gswip_priv *priv)
 	struct device_node *mdio_np, *switch_np = priv->dev->of_node;
 	struct device *dev = priv->dev;
 	struct mii_bus *bus;
-	int err;
+	int err = 0;
 
 	mdio_np = of_get_compatible_child(switch_np, "lantiq,xrx200-mdio");
-	if (!mdio_np)
-		return 0;
+	if (!of_device_is_available(mdio_np))
+		goto out_put_node;
 
 	bus = devm_mdiobus_alloc(dev);
 	if (!bus) {
