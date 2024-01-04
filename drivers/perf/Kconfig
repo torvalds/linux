@@ -169,4 +169,14 @@ config ARM_DMC620_PMU
 
 source "drivers/perf/hisilicon/Kconfig"
 
+config SIFIVE_U74_L2_PMU
+	bool "Sifive U74 L2 Cache PMU"
+	depends on SIFIVE_L2 && PERF_EVENTS
+	default y
+	help
+	  Support for the private L2 cache controller performance monitor unit
+	  (PMU) on SiFive platforms. The SiFive private L2 PMU can monitor the
+	  each hart L2 cache performance and it consists of a set of event
+	  programmable counters and their event selector registers.
+
 endmenu

@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <asm/cacheinfo.h>
 #include <asm/page.h>
+#include "sifive_pl2.h"
 #include <soc/sifive/sifive_l2_cache.h>
 
 #define SIFIVE_L2_DIRECCFIX_LOW 0x100
@@ -281,7 +282,7 @@ static int __init sifive_l2_init(void)
 {
 	struct device_node *np;
 	struct resource res;
-	int i, rc, intr_num;
+	int i, rc, intr_num, cpu;
 	u64 offset;
 
 	np = of_find_matching_node(NULL, sifive_l2_ids);
@@ -316,6 +317,16 @@ static int __init sifive_l2_init(void)
 	}
 
 	l2_config_read();
+
+	if (IS_ENABLED(CONFIG_SIFIVE_U74_L2_PMU)) {
+		for_each_cpu(cpu, cpu_possible_mask) {
+			rc = sifive_u74_l2_pmu_probe(np, l2_base, cpu);
+			if (rc) {
+				pr_err("Failed to probe sifive_u74_l2_pmu driver.\n");
+				return -EINVAL;
+			}
+		}
+	}
 
 	l2_cache_ops.get_priv_group = l2_get_priv_group;
 	riscv_set_cacheinfo_ops(&l2_cache_ops);
