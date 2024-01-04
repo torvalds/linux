@@ -1052,8 +1052,6 @@ static void __qdisc_destroy(struct Qdisc *qdisc)
 {
 	const struct Qdisc_ops  *ops = qdisc->ops;
 	struct net_device *dev = qdisc_dev(qdisc);
-	const struct Qdisc_class_ops *cops;
-	struct tcf_block *block;
 
 #ifdef CONFIG_NET_SCHED
 	qdisc_hash_del(qdisc);
@@ -1064,18 +1062,6 @@ static void __qdisc_destroy(struct Qdisc *qdisc)
 
 	qdisc_reset(qdisc);
 
-	cops = ops->cl_ops;
-	if (ops->ingress_block_get) {
-		block = cops->tcf_block(qdisc, TC_H_MIN_INGRESS, NULL);
-		if (block)
-			xa_erase(&block->ports, dev->ifindex);
-	}
-
-	if (ops->egress_block_get) {
-		block = cops->tcf_block(qdisc, TC_H_MIN_EGRESS, NULL);
-		if (block)
-			xa_erase(&block->ports, dev->ifindex);
-	}
 
 	if (ops->destroy)
 		ops->destroy(qdisc);
