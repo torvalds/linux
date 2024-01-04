@@ -442,6 +442,7 @@ struct q2spi_dma_transfer {
  * @alloc_count: reflects count of memory allocations done by q2spi_kzalloc
  * @resources_on: flag which reflects geni resources are turned on/off
  * @port_release: reflects if q2spi port is being closed
+ * @is_suspend: reflects if q2spi driver is in system suspend
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -521,6 +522,7 @@ struct q2spi_geni {
 	atomic_t alloc_count;
 	bool resources_on;
 	bool port_release;
+	bool is_suspend;
 };
 
 /**

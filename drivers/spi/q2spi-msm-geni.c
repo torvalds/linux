@@ -28,6 +28,7 @@
 
 static int q2spi_slave_init(struct q2spi_geni *q2spi);
 static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt);
+static struct q2spi_geni *get_q2spi(struct device *dev);
 
 /* FTRACE Logging */
 void q2spi_trace_log(struct device *dev, const char *fmt, ...)
@@ -139,8 +140,7 @@ void q2spi_dump_ipc(struct q2spi_geni *q2spi, void *ipc_ctx, char *prefix,
  */
 static ssize_t max_dump_size_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+	struct q2spi_geni *q2spi = get_q2spi(dev);
 
 	return scnprintf(buf, sizeof(int), "%d\n", q2spi->max_data_dump_size);
 }
@@ -158,8 +158,7 @@ static ssize_t max_dump_size_show(struct device *dev, struct device_attribute *a
 static ssize_t max_dump_size_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t size)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+	struct q2spi_geni *q2spi = get_q2spi(dev);
 
 	if (kstrtoint(buf, 0, &q2spi->max_data_dump_size)) {
 		dev_err(dev, "%s Invalid input\n", __func__);
@@ -600,8 +599,8 @@ int q2spi_map_doorbell_rx_buf(struct q2spi_geni *q2spi)
 
 	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d\n", __func__, current->pid);
 
-	if (q2spi->port_release) {
-		Q2SPI_DEBUG(q2spi, "%s Port being closed return\n", __func__);
+	if (q2spi->port_release || q2spi->is_suspend) {
+		Q2SPI_DEBUG(q2spi, "%s Port being closed or suspend return\n", __func__);
 		return 0;
 	}
 	if (q2spi->db_xfer->rx_dma) {
@@ -1814,17 +1813,15 @@ static __poll_t q2spi_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static int q2spi_release(struct inode *inode, struct file *filp)
+/**
+ * q2spi_flush_pending_crs - check any pending CRs to consume
+ * @q2spi: pointer to q2spi_geni driver data
+ *
+ * Return: none
+ */
+static void q2spi_flush_pending_crs(struct q2spi_geni *q2spi)
 {
-	struct q2spi_geni *q2spi;
 	struct q2spi_cr_packet *q2spi_cr_pkt = NULL;
-
-	if (!filp || !filp->private_data) {
-		pr_err("%s Err close return\n", __func__);
-		return -EINVAL;
-	}
-	q2spi = filp->private_data;
-	q2spi->port_release = true;
 
 	Q2SPI_DEBUG(q2spi, "%s rx_avail:%d, tx_queue:%d cr_queue:%d\n",
 		    __func__, atomic_read(&q2spi->rx_avail),
@@ -1849,6 +1846,20 @@ static int q2spi_release(struct inode *inode, struct file *filp)
 		}
 		atomic_dec(&q2spi->rx_avail);
 	}
+}
+
+static int q2spi_release(struct inode *inode, struct file *filp)
+{
+	struct q2spi_geni *q2spi;
+
+	if (!filp || !filp->private_data) {
+		pr_err("%s Err close return\n", __func__);
+		return -EINVAL;
+	}
+	q2spi = filp->private_data;
+	q2spi->port_release = true;
+
+	q2spi_flush_pending_crs(q2spi);
 	q2spi->doorbell_setup = false;
 	q2spi_geni_resources_off(q2spi);
 	Q2SPI_DEBUG(q2spi, "%s End PID:%d allocs:%d rx_avail:%d tx_queue:%d cr_queue:%d\n",
@@ -3453,6 +3464,20 @@ static int q2spi_geni_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/**
+ * get_q2spi - get q2spi pointer from device
+ * @dev: Device pointer
+ *
+ * Return: return q2spi pointer
+ */
+static struct q2spi_geni *get_q2spi(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+
+	return q2spi;
+}
+
 static int q2spi_geni_runtime_suspend(struct device *dev)
 {
 	pr_err("%s PID=%d\n", __func__, current->pid);
@@ -3467,13 +3492,34 @@ static int q2spi_geni_runtime_resume(struct device *dev)
 
 static int q2spi_geni_resume(struct device *dev)
 {
+	struct q2spi_geni *q2spi = get_q2spi(dev);
+	int ret = 0;
+
 	pr_err("%s PID=%d\n", __func__, current->pid);
-	return 0;
+	if (q2spi) {
+		q2spi->is_suspend = false;
+		Q2SPI_INFO(q2spi, "%s: PID=%d\n", __func__, current->pid);
+		if (q2spi_geni_resources_on(q2spi))
+			return -EIO;
+		/* map the RX dma buffer to receive doorbell if not mapped previously */
+		ret = q2spi_map_doorbell_rx_buf(q2spi);
+		if (ret)
+			Q2SPI_ERROR(q2spi, "%s Err failed to alloc RX DMA buf\n", __func__);
+	}
+	return ret;
 }
 
 static int q2spi_geni_suspend(struct device *dev)
 {
+	struct q2spi_geni *q2spi = get_q2spi(dev);
+
 	pr_err("%s PID=%d\n", __func__, current->pid);
+	if (q2spi) {
+		q2spi->is_suspend = true;
+		Q2SPI_INFO(q2spi, "%s: PID=%d\n", __func__, current->pid);
+		q2spi_flush_pending_crs(q2spi);
+		q2spi_geni_resources_off(q2spi);
+	}
 	return 0;
 }
 
