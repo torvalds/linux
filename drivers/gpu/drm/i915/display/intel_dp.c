@@ -5460,11 +5460,20 @@ bool intel_digital_port_connected_locked(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	bool is_glitch_free = intel_tc_port_handles_hpd_glitches(dig_port);
 	bool is_connected = false;
 	intel_wakeref_t wakeref;
 
-	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref)
-		is_connected = dig_port->connected(encoder);
+	with_intel_display_power(dev_priv, POWER_DOMAIN_DISPLAY_CORE, wakeref) {
+		unsigned long wait_expires = jiffies + msecs_to_jiffies_timeout(4);
+
+		do {
+			is_connected = dig_port->connected(encoder);
+			if (is_connected || is_glitch_free)
+				break;
+			usleep_range(10, 30);
+		} while (time_before(jiffies, wait_expires));
+	}
 
 	return is_connected;
 }

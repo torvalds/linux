@@ -122,6 +122,15 @@ bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port)
 	return intel_tc_port_in_mode(dig_port, TC_PORT_LEGACY);
 }
 
+bool intel_tc_port_handles_hpd_glitches(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	return intel_phy_is_tc(i915, phy) && !tc->legacy_port;
+}
+
 /*
  * The display power domains used for TC ports depending on the
  * platform and TC mode (legacy, DP-alt, TBT):
