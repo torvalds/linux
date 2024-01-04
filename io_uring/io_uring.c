@@ -2475,6 +2475,7 @@ struct ext_arg {
 	size_t argsz;
 	struct __kernel_timespec __user *ts;
 	const sigset_t __user *sig;
+	ktime_t min_time;
 };
 
 /*
@@ -2508,7 +2509,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events, u32 flags,
 	iowq.cq_min_tail = READ_ONCE(ctx->rings->cq.tail);
 	iowq.nr_timeouts = atomic_read(&ctx->cq_timeouts);
 	iowq.hit_timeout = 0;
-	iowq.min_timeout = 0;
+	iowq.min_timeout = ext_arg->min_time;
 	iowq.timeout = KTIME_MAX;
 	start_time = io_get_time(ctx);
 
@@ -3239,8 +3240,7 @@ static int io_get_ext_arg(unsigned flags, const void __user *argp,
 		return -EINVAL;
 	if (copy_from_user(&arg, argp, sizeof(arg)))
 		return -EFAULT;
-	if (arg.pad)
-		return -EINVAL;
+	ext_arg->min_time = arg.min_wait_usec * NSEC_PER_USEC;
 	ext_arg->sig = u64_to_user_ptr(arg.sigmask);
 	ext_arg->argsz = arg.sigmask_sz;
 	ext_arg->ts = u64_to_user_ptr(arg.ts);
@@ -3641,7 +3641,7 @@ static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
 			IORING_FEAT_EXT_ARG | IORING_FEAT_NATIVE_WORKERS |
 			IORING_FEAT_RSRC_TAGS | IORING_FEAT_CQE_SKIP |
 			IORING_FEAT_LINKED_FILE | IORING_FEAT_REG_REG_RING |
-			IORING_FEAT_RECVSEND_BUNDLE;
+			IORING_FEAT_RECVSEND_BUNDLE | IORING_FEAT_MIN_TIMEOUT;
 
 	if (copy_to_user(params, p, sizeof(*p))) {
 		ret = -EFAULT;
