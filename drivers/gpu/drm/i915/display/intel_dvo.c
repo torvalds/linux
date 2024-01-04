@@ -35,6 +35,7 @@
 #include "i915_reg.h"
 #include "intel_connector.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dvo.h"
 #include "intel_dvo_dev.h"
@@ -327,6 +328,9 @@ intel_dvo_detect(struct drm_connector *_connector, bool force)
 
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
+
+	if (!intel_display_driver_check_access(i915))
+		return connector->base.status;
 
 	return intel_dvo->dev.dev_ops->detect(&intel_dvo->dev);
 }
