@@ -1500,7 +1500,7 @@ static int __maybe_unused tps6598x_resume(struct device *dev)
 		return ret;
 
 	if (ret == TPS_MODE_PTCH) {
-		ret = tps25750_init(tps);
+		ret = tps->data->init(tps);
 		if (ret)
 			return ret;
 	}
