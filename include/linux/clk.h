@@ -202,6 +202,18 @@ bool clk_is_match(const struct clk *p, const struct clk *q);
 int clk_rate_exclusive_get(struct clk *clk);
 
 /**
+ * devm_clk_rate_exclusive_get - devm variant of clk_rate_exclusive_get
+ * @dev: device the exclusivity is bound to
+ * @clk: clock source
+ *
+ * Calls clk_rate_exclusive_get() on @clk and registers a devm cleanup handler
+ * on @dev to call clk_rate_exclusive_put().
+ *
+ * Must not be called from within atomic context.
+ */
+int devm_clk_rate_exclusive_get(struct device *dev, struct clk *clk);
+
+/**
  * clk_rate_exclusive_put - release exclusivity over the rate control of a
  *                          producer
  * @clk: clock source
