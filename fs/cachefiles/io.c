@@ -528,12 +528,12 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 
 	/* Round to DIO size */
 	start = round_down(*_start, PAGE_SIZE);
-	if (start != *_start) {
-		kleave(" = -ENOBUFS [down]");
-		return -ENOBUFS;
-	}
-	if (*_len > upper_len) {
-		kleave(" = -ENOBUFS [up]");
+	if (start != *_start || *_len > upper_len) {
+		/* Probably asked to cache a streaming write written into the
+		 * pagecache when the cookie was temporarily out of service to
+		 * culling.
+		 */
+		fscache_count_dio_misfit();
 		return -ENOBUFS;
 	}
 
