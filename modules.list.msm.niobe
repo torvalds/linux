@@ -20,6 +20,7 @@ qcom_dma_heaps.ko
 qcom_iommu_util.ko
 iommu-logger.ko
 arm_smmu.ko
+secure_buffer.ko
 clk-dummy.ko
 clk-qcom.ko
 qcom_cpucp.ko
