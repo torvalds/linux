@@ -1020,12 +1020,8 @@ static int at803x_read_specific_status(struct phy_device *phydev,
 
 static int at803x_read_status(struct phy_device *phydev)
 {
-	struct at803x_priv *priv = phydev->priv;
 	struct at803x_ss_mask ss_mask = { 0 };
 	int err, old_link = phydev->link;
-
-	if (priv->is_1000basex)
-		return genphy_c37_read_status(phydev);
 
 	/* Update the link, but return if there was an error */
 	err = genphy_update_link(phydev);
@@ -1616,6 +1612,17 @@ static int at8031_config_intr(struct phy_device *phydev)
 	}
 
 	return at803x_config_intr(phydev);
+}
+
+/* AR8031 and AR8033 share the same read status logic */
+static int at8031_read_status(struct phy_device *phydev)
+{
+	struct at803x_priv *priv = phydev->priv;
+
+	if (priv->is_1000basex)
+		return genphy_c37_read_status(phydev);
+
+	return at803x_read_status(phydev);
 }
 
 /* AR8031 and AR8035 share the same cable test get status reg */
@@ -2281,7 +2288,7 @@ static struct phy_driver at803x_driver[] = {
 	.read_page		= at803x_read_page,
 	.write_page		= at803x_write_page,
 	.get_features		= at803x_get_features,
-	.read_status		= at803x_read_status,
+	.read_status		= at8031_read_status,
 	.config_intr		= at8031_config_intr,
 	.handle_interrupt	= at803x_handle_interrupt,
 	.get_tunable		= at803x_get_tunable,
