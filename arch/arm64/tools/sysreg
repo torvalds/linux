@@ -2004,9 +2004,10 @@ Field	27:24	CWG
 Field	23:20	ERG
 Field	19:16	DminLine
 Enum	15:14	L1Ip
-	0b00	VPIPT
+	# This was named as VPIPT in the ARM but now documented as reserved
+	0b00	RESERVED_VPIPT
 	# This is named as AIVIVT in the ARM but documented as reserved
-	0b01	RESERVED
+	0b01	RESERVED_AIVIVT
 	0b10	VIPT
 	0b11	PIPT
 EndEnum
