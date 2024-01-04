@@ -1250,6 +1250,7 @@ config CPU_LOONGSON64
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
+	select CPU_SUPPORTS_VZ
 	select CPU_DIEI_BROKEN if !LOONGSON3_ENHANCEMENT
 	select CPU_MIPSR2_IRQ_VI
 	select DMA_NONCOHERENT
@@ -1389,6 +1390,7 @@ config CPU_MIPS32_R5
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
+	select CPU_SUPPORTS_VZ
 	select HAVE_KVM
 	select MIPS_O32_FP64_SUPPORT
 	help
@@ -1405,6 +1407,7 @@ config CPU_MIPS32_R6
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
+	select CPU_SUPPORTS_VZ
 	select HAVE_KVM
 	select MIPS_O32_FP64_SUPPORT
 	help
@@ -1459,6 +1462,7 @@ config CPU_MIPS64_R5
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
 	select MIPS_O32_FP64_SUPPORT if 32BIT || MIPS32_O32
+	select CPU_SUPPORTS_VZ
 	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 5 or later of the
@@ -1477,6 +1481,7 @@ config CPU_MIPS64_R6
 	select CPU_SUPPORTS_HUGEPAGES
 	select CPU_SUPPORTS_MSA
 	select MIPS_O32_FP64_SUPPORT if 32BIT || MIPS32_O32
+	select CPU_SUPPORTS_VZ
 	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 6 or later of the
@@ -1492,6 +1497,7 @@ config CPU_P5600
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_MSA
 	select CPU_SUPPORTS_CPUFREQ
+	select CPU_SUPPORTS_VZ
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select HAVE_KVM
@@ -1614,6 +1620,7 @@ config CPU_CAVIUM_OCTEON
 	select USB_EHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select USB_OHCI_BIG_ENDIAN_MMIO if CPU_BIG_ENDIAN
 	select MIPS_L1_CACHE_SHIFT_7
+	select CPU_SUPPORTS_VZ
 	select HAVE_KVM
 	help
 	  The Cavium Octeon processor is a highly integrated chip containing
@@ -1969,6 +1976,8 @@ config CPU_SUPPORTS_ADDRWINCFG
 config CPU_SUPPORTS_HUGEPAGES
 	bool
 	depends on !(32BIT && (PHYS_ADDR_T_64BIT || EVA))
+config CPU_SUPPORTS_VZ
+	bool
 config MIPS_PGD_C0_CONTEXT
 	bool
 	depends on 64BIT
