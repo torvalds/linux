@@ -288,6 +288,8 @@ alternative_else_nop_endif
 	mov	sp, x0
 
 	/* And turn the MMU back on! */
+	dsb	nsh
+	isb
 	set_sctlr_el2	x2
 	ret	x1
 SYM_FUNC_END(__pkvm_init_switch_pgd)
