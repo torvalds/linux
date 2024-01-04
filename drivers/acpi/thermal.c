@@ -247,7 +247,6 @@ static bool update_trip_devices(struct acpi_thermal *tz,
 {
 	struct acpi_handle_list devices = { 0 };
 	char method[] = "_PSL";
-	acpi_status status;
 
 	if (index != ACPI_THERMAL_TRIP_PASSIVE) {
 		method[1] = 'A';
@@ -255,8 +254,7 @@ static bool update_trip_devices(struct acpi_thermal *tz,
 		method[3] = '0' + index;
 	}
 
-	status = acpi_evaluate_reference(tz->device->handle, method, NULL, &devices);
-	if (ACPI_FAILURE(status)) {
+	if (!acpi_evaluate_reference(tz->device->handle, method, NULL, &devices)) {
 		acpi_handle_info(tz->device->handle, "%s evaluation failure\n", method);
 		return false;
 	}
