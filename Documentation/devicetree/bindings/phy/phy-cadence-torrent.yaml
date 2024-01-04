@@ -35,14 +35,18 @@ properties:
     minItems: 1
     maxItems: 2
     description:
-      PHY reference clock for 1 item. Must contain an entry in clock-names.
-      Optional Parent to enable output reference clock.
+      PHY input reference clocks - refclk (for PLL0) & pll1_refclk (for PLL1).
+      pll1_refclk is optional and used for multi-protocol configurations requiring
+      separate reference clock for each protocol.
+      Same refclk is used for both PLL0 and PLL1 if no separate pll1_refclk is used.
+      Optional parent clock (phy_en_refclk) to enable a reference clock output feature
+      on some platforms to output either derived or received reference clock.
 
   clock-names:
     minItems: 1
     items:
       - const: refclk
-      - const: phy_en_refclk
+      - enum: [ pll1_refclk, phy_en_refclk ]
 
   reg:
     minItems: 1
