@@ -29,7 +29,6 @@
 #include <linux/uaccess.h>
 #include <linux/user_namespace.h>
 #include <linux/xarray.h>
-#include <linux/errno.h>
 #include <uapi/linux/android/binder.h>
 #include <uapi/linux/android/binderfs.h>
 
