@@ -89,6 +89,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_5_0_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_5_0_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_1_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_11_0[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL, 0x20000000, 0x20000000)
