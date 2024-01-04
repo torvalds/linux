@@ -32,49 +32,49 @@
 
 			ethernet-port@1 {
 				reg = <1>;
-				label = "lan8";
+				label = "lan1";
 				phy-handle = <&switch0phy0>;
 			};
 
 			ethernet-port@2 {
 				reg = <2>;
-				label = "lan7";
+				label = "lan2";
 				phy-handle = <&switch0phy1>;
 			};
 
 			ethernet-port@3 {
 				reg = <3>;
-				label = "lan6";
+				label = "lan3";
 				phy-handle = <&switch0phy2>;
 			};
 
 			ethernet-port@4 {
 				reg = <4>;
-				label = "lan5";
+				label = "lan4";
 				phy-handle = <&switch0phy3>;
 			};
 
 			ethernet-port@5 {
 				reg = <5>;
-				label = "lan4";
+				label = "lan5";
 				phy-handle = <&switch0phy4>;
 			};
 
 			ethernet-port@6 {
 				reg = <6>;
-				label = "lan3";
+				label = "lan6";
 				phy-handle = <&switch0phy5>;
 			};
 
 			ethernet-port@7 {
 				reg = <7>;
-				label = "lan2";
+				label = "lan7";
 				phy-handle = <&switch0phy6>;
 			};
 
 			ethernet-port@8 {
 				reg = <8>;
-				label = "lan1";
+				label = "lan8";
 				phy-handle = <&switch0phy7>;
 			};
 
