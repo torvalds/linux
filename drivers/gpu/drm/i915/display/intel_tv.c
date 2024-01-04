@@ -1990,6 +1990,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	 * More recent chipsets favour HDMI rather than integrated S-Video.
 	 */
 	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	intel_connector->base.polled = intel_connector->polled;
 
 	drm_connector_init(&dev_priv->drm, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);
