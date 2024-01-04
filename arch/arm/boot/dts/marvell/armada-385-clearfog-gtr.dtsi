@@ -162,6 +162,22 @@
 					marvell,function = "gpio";
 				};
 
+				cf_gtr_led_pins: led-pins {
+					marvell,pins = "mpp42", "mpp52";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_lte_disable_pins: lte-disable-pins {
+					marvell,pins = "mpp34";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_pci_pins: pci-pins {
+					// pci reset
+					marvell,pins = "mpp33", "mpp35", "mpp44";
+					marvell,function = "gpio";
+				};
+
 				cf_gtr_poe_reset_pins: cf-gtr-poe-reset-pins {
 					marvell,pins = "mpp48";
 					marvell,function = "gpio";
@@ -179,6 +195,12 @@
 					marvell,function = "sd0";
 				};
 
+				cf_gtr_sfp0_pins: sfp0-pins {
+					/* sfp modabs, txdisable */
+					marvell,pins = "mpp25", "mpp46";
+					marvell,function = "gpio";
+				};
+
 				cf_gtr_spi1_cs_pins: spi1-cs-pins {
 					marvell,pins = "mpp59";
 					marvell,function = "spi1";
@@ -191,6 +213,11 @@
 
 				cf_gtr_usb3_con_vbus: cf-gtr-usb3-con-vbus {
 					marvell,pins = "mpp22";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_wifi_disable_pins: wifi-disable-pins {
+					marvell,pins = "mpp30", "mpp31";
 					marvell,function = "gpio";
 				};
 			};
@@ -221,21 +248,26 @@
 		};
 
 		pcie {
+			pinctrl-0 = <&cf_gtr_pci_pins>;
+			pinctrl-names = "default";
 			status = "okay";
 			/*
 			 * The PCIe units are accessible through
 			 * the mini-PCIe connectors on the board.
 			 */
+			/* CON3 - serdes 0 */
 			pcie@1,0 {
 				reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 				status = "okay";
 			};
 
+			/* CON4 - serdes 2 */
 			pcie@2,0 {
 				reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 				status = "okay";
 			};
 
+			/* CON2 - serdes 4 */
 			pcie@3,0 {
 				reset-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
 				status = "okay";
@@ -243,10 +275,12 @@
 		};
 	};
 
+	/* CON5 */
 	sfp0: sfp {
 		compatible = "sff,sfp";
+		pinctrl-0 = <&cf_gtr_sfp0_pins>;
+		pinctrl-names = "default";
 		i2c-bus = <&i2c1>;
-		los-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
 		mod-def0-gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
 		tx-disable-gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 	};
@@ -273,6 +307,8 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&cf_gtr_led_pins>;
+		pinctrl-names = "default";
 
 		led1 {
 			function = LED_FUNCTION_CPU;
@@ -408,7 +444,7 @@
 };
 
 &gpio0 {
-	pinctrl-0 = <&cf_gtr_fan_pwm>;
+	pinctrl-0 = <&cf_gtr_fan_pwm &cf_gtr_wifi_disable_pins>;
 	pinctrl-names = "default";
 
 	wifi-disable {
@@ -420,7 +456,7 @@
 };
 
 &gpio1 {
-	pinctrl-0 = <&cf_gtr_isolation_pins &cf_gtr_poe_reset_pins>;
+	pinctrl-0 = <&cf_gtr_isolation_pins &cf_gtr_poe_reset_pins &cf_gtr_lte_disable_pins>;
 	pinctrl-names = "default";
 
 	lte-disable {
