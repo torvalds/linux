@@ -9,6 +9,7 @@
 #include <drm/drm_managed.h>
 
 #include <kunit/static_stub.h>
+#include <kunit/test-bug.h>
 
 #include "abi/guc_actions_sriov_abi.h"
 #include "abi/guc_relay_actions_abi.h"
