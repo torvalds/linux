@@ -263,6 +263,27 @@ dpll_msg_add_phase_offset(struct sk_buff *msg, struct dpll_pin *pin,
 	return 0;
 }
 
+static int dpll_msg_add_ffo(struct sk_buff *msg, struct dpll_pin *pin,
+			    struct dpll_pin_ref *ref,
+			    struct netlink_ext_ack *extack)
+{
+	const struct dpll_pin_ops *ops = dpll_pin_ops(ref);
+	struct dpll_device *dpll = ref->dpll;
+	s64 ffo;
+	int ret;
+
+	if (!ops->ffo_get)
+		return 0;
+	ret = ops->ffo_get(pin, dpll_pin_on_dpll_priv(dpll, pin),
+			   dpll, dpll_priv(dpll), &ffo, extack);
+	if (ret) {
+		if (ret == -ENODATA)
+			return 0;
+		return ret;
+	}
+	return nla_put_sint(msg, DPLL_A_PIN_FRACTIONAL_FREQUENCY_OFFSET, ffo);
+}
+
 static int
 dpll_msg_add_pin_freq(struct sk_buff *msg, struct dpll_pin *pin,
 		      struct dpll_pin_ref *ref, struct netlink_ext_ack *extack)
@@ -440,6 +461,9 @@ dpll_cmd_pin_get_one(struct sk_buff *msg, struct dpll_pin *pin,
 			prop->phase_range.max))
 		return -EMSGSIZE;
 	ret = dpll_msg_add_pin_phase_adjust(msg, pin, ref, extack);
+	if (ret)
+		return ret;
+	ret = dpll_msg_add_ffo(msg, pin, ref, extack);
 	if (ret)
 		return ret;
 	if (xa_empty(&pin->parent_refs))
