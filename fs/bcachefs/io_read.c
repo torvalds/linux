@@ -642,12 +642,17 @@ csum_err:
 		goto out;
 	}
 
+	struct printbuf buf = PRINTBUF;
+	buf.atomic++;
+	prt_str(&buf, "data ");
+	bch2_csum_err_msg(&buf, crc.csum_type, rbio->pick.crc.csum, csum);
+
 	bch_err_inum_offset_ratelimited(ca,
 		rbio->read_pos.inode,
 		rbio->read_pos.offset << 9,
-		"data checksum error: expected %0llx:%0llx got %0llx:%0llx (type %s)",
-		rbio->pick.crc.csum.hi, rbio->pick.crc.csum.lo,
-		csum.hi, csum.lo, bch2_csum_types[crc.csum_type]);
+		"data %s", buf.buf);
+	printbuf_exit(&buf);
+
 	bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	goto out;

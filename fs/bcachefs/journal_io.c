@@ -27,11 +27,15 @@ static struct nonce journal_nonce(const struct jset *jset)
 	}};
 }
 
-static bool jset_csum_good(struct bch_fs *c, struct jset *j)
+static bool jset_csum_good(struct bch_fs *c, struct jset *j, struct bch_csum *csum)
 {
-	return bch2_checksum_type_valid(c, JSET_CSUM_TYPE(j)) &&
-		!bch2_crc_cmp(j->csum,
-			      csum_vstruct(c, JSET_CSUM_TYPE(j), journal_nonce(j), j));
+	if (!bch2_checksum_type_valid(c, JSET_CSUM_TYPE(j))) {
+		*csum = (struct bch_csum) {};
+		return false;
+	}
+
+	*csum = csum_vstruct(c, JSET_CSUM_TYPE(j), journal_nonce(j), j);
+	return !bch2_crc_cmp(j->csum, *csum);
 }
 
 static inline u32 journal_entry_radix_idx(struct bch_fs *c, u64 seq)
@@ -934,6 +938,7 @@ static int journal_read_bucket(struct bch_dev *ca,
 	u64 offset = bucket_to_sector(ca, ja->buckets[bucket]),
 	    end = offset + ca->mi.bucket_size;
 	bool saw_bad = false, csum_good;
+	struct printbuf err = PRINTBUF;
 	int ret = 0;
 
 	pr_debug("reading %u", bucket);
@@ -966,7 +971,7 @@ reread:
 				 * found on a different device, and missing or
 				 * no journal entries will be handled later
 				 */
-				return 0;
+				goto out;
 			}
 
 			j = buf->data;
@@ -983,12 +988,12 @@ reread:
 				ret = journal_read_buf_realloc(buf,
 							vstruct_bytes(j));
 				if (ret)
-					return ret;
+					goto err;
 			}
 			goto reread;
 		case JOURNAL_ENTRY_NONE:
 			if (!saw_bad)
-				return 0;
+				goto out;
 			/*
 			 * On checksum error we don't really trust the size
 			 * field of the journal entry we read, so try reading
@@ -997,7 +1002,7 @@ reread:
 			sectors = block_sectors(c);
 			goto next_block;
 		default:
-			return ret;
+			goto err;
 		}
 
 		/*
@@ -1007,20 +1012,28 @@ reread:
 		 * bucket:
 		 */
 		if (le64_to_cpu(j->seq) < ja->bucket_seq[bucket])
-			return 0;
+			goto out;
 
 		ja->bucket_seq[bucket] = le64_to_cpu(j->seq);
 
-		csum_good = jset_csum_good(c, j);
+		enum bch_csum_type csum_type = JSET_CSUM_TYPE(j);
+		struct bch_csum csum;
+		csum_good = jset_csum_good(c, j, &csum);
+
 		if (bch2_dev_io_err_on(!csum_good, ca, BCH_MEMBER_ERROR_checksum,
-				       "journal checksum error"))
+				       "%s",
+				       (printbuf_reset(&err),
+					prt_str(&err, "journal "),
+					bch2_csum_err_msg(&err, csum_type, j->csum, csum),
+					err.buf)))
 			saw_bad = true;
 
 		ret = bch2_encrypt(c, JSET_CSUM_TYPE(j), journal_nonce(j),
 			     j->encrypted_start,
 			     vstruct_end(j) - (void *) j->encrypted_start);
 		bch2_fs_fatal_err_on(ret, c,
-				"error decrypting journal entry: %i", ret);
+				"error decrypting journal entry: %s",
+				bch2_err_str(ret));
 
 		mutex_lock(&jlist->lock);
 		ret = journal_entry_add(c, ca, (struct journal_ptr) {
@@ -1039,7 +1052,7 @@ reread:
 		case JOURNAL_ENTRY_ADD_OUT_OF_RANGE:
 			break;
 		default:
-			return ret;
+			goto err;
 		}
 next_block:
 		pr_debug("next");
@@ -1048,7 +1061,11 @@ next_block:
 		j = ((void *) j) + (sectors << 9);
 	}
 
-	return 0;
+out:
+	ret = 0;
+err:
+	printbuf_exit(&err);
+	return ret;
 }
 
 static CLOSURE_CALLBACK(bch2_journal_read_device)

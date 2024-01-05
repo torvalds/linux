@@ -1042,8 +1042,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			nonce = btree_nonce(i, b->written << 9);
 
-			csum_bad = bch2_crc_cmp(b->data->csum,
-				csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data));
+			struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, b->data);
+			csum_bad = bch2_crc_cmp(b->data->csum, csum);
 			if (csum_bad)
 				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 
@@ -1051,7 +1051,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     -BCH_ERR_btree_node_read_err_want_retry,
 				     c, ca, b, i,
 				     bset_bad_csum,
-				     "invalid checksum");
+				     "%s",
+				     (printbuf_reset(&buf),
+				      bch2_csum_err_msg(&buf, BSET_CSUM_TYPE(i), b->data->csum, csum),
+				      buf.buf));
 
 			ret = bset_encrypt(c, i, b->written << 9);
 			if (bch2_fs_fatal_err_on(ret, c,
@@ -1080,8 +1083,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     "unknown checksum type %llu", BSET_CSUM_TYPE(i));
 
 			nonce = btree_nonce(i, b->written << 9);
-			csum_bad = bch2_crc_cmp(bne->csum,
-				csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne));
+			struct bch_csum csum = csum_vstruct(c, BSET_CSUM_TYPE(i), nonce, bne);
+			csum_bad = bch2_crc_cmp(bne->csum, csum);
 			if (csum_bad)
 				bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 
@@ -1089,7 +1092,10 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 				     -BCH_ERR_btree_node_read_err_want_retry,
 				     c, ca, b, i,
 				     bset_bad_csum,
-				     "invalid checksum");
+				     "%s",
+				     (printbuf_reset(&buf),
+				      bch2_csum_err_msg(&buf, BSET_CSUM_TYPE(i), bne->csum, csum),
+				      buf.buf));
 
 			ret = bset_encrypt(c, i, b->written << 9);
 			if (bch2_fs_fatal_err_on(ret, c,

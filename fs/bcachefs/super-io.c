@@ -612,7 +612,6 @@ int bch2_sb_from_fs(struct bch_fs *c, struct bch_dev *ca)
 
 static int read_one_super(struct bch_sb_handle *sb, u64 offset, struct printbuf *err)
 {
-	struct bch_csum csum;
 	size_t bytes;
 	int ret;
 reread:
@@ -653,17 +652,16 @@ reread:
 		goto reread;
 	}
 
-	if (BCH_SB_CSUM_TYPE(sb->sb) >= BCH_CSUM_NR) {
+	enum bch_csum_type csum_type = BCH_SB_CSUM_TYPE(sb->sb);
+	if (csum_type >= BCH_CSUM_NR) {
 		prt_printf(err, "unknown checksum type %llu", BCH_SB_CSUM_TYPE(sb->sb));
 		return -BCH_ERR_invalid_sb_csum_type;
 	}
 
 	/* XXX: verify MACs */
-	csum = csum_vstruct(NULL, BCH_SB_CSUM_TYPE(sb->sb),
-			    null_nonce(), sb->sb);
-
+	struct bch_csum csum = csum_vstruct(NULL, csum_type, null_nonce(), sb->sb);
 	if (bch2_crc_cmp(csum, sb->sb->csum)) {
-		prt_printf(err, "bad checksum");
+		bch2_csum_err_msg(err, csum_type, sb->sb->csum, csum);
 		return -BCH_ERR_invalid_sb_csum;
 	}
 
