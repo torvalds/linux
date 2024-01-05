@@ -963,7 +963,7 @@ _opp_config_clk_single(struct device *dev, struct opp_table *opp_table,
 		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
 			ret);
 	} else {
-		opp_table->rate_clk_single = freq;
+		opp_table->current_rate_single_clk = freq;
 	}
 
 	return ret;
@@ -1352,7 +1352,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		 * value of the frequency. In such a case, do not abort but
 		 * configure the hardware to the desired frequency forcefully.
 		 */
-		forced = opp_table->rate_clk_single != freq;
+		forced = opp_table->current_rate_single_clk != freq;
 	}
 
 	ret = _set_opp(dev, opp_table, opp, &freq, forced);

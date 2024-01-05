@@ -170,7 +170,7 @@ enum opp_table_access {
  * @clock_latency_ns_max: Max clock latency in nanoseconds.
  * @parsed_static_opps: Count of devices for which OPPs are initialized from DT.
  * @shared_opp: OPP is shared between multiple devices.
- * @rate_clk_single: Currently configured frequency for single clk.
+ * @current_rate_single_clk: Currently configured frequency for single clk.
  * @current_opp: Currently configured OPP for the table.
  * @suspend_opp: Pointer to OPP to be used during device suspend.
  * @required_opp_tables: List of device OPP tables that are required by OPPs in
@@ -219,7 +219,7 @@ struct opp_table {
 
 	unsigned int parsed_static_opps;
 	enum opp_table_access shared_opp;
-	unsigned long rate_clk_single;
+	unsigned long current_rate_single_clk;
 	struct dev_pm_opp *current_opp;
 	struct dev_pm_opp *suspend_opp;
 
