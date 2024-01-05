@@ -116,3 +116,20 @@ config USB_AUTOSUSPEND_DELAY
 	  The default value Linux has always had is 2 seconds.  Change
 	  this value if you want a different delay and cannot modify
 	  the command line or module parameter.
+
+config USB_DEFAULT_AUTHORIZATION_MODE
+	int "Default authorization mode for USB devices"
+	range 0 2
+	default 1
+	depends on USB
+	help
+	  Select the default USB device authorization mode. Can be overridden
+	  with usbcore.authorized_default command line or module parameter.
+
+	  The available values have the following meanings:
+		0 is unauthorized for all devices
+		1 is authorized for all devices (default)
+		2 is authorized for internal devices
+
+	  If the default value is too permissive but you are unsure which mode
+	  to use, say 2.
