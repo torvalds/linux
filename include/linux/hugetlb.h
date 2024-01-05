@@ -880,10 +880,7 @@ static inline bool hugepage_migration_supported(struct hstate *h)
 	return arch_hugetlb_migration_supported(h);
 }
 
-static inline bool __vma_private_lock(struct vm_area_struct *vma)
-{
-	return (!(vma->vm_flags & VM_MAYSHARE)) && vma->vm_private_data;
-}
+bool __vma_private_lock(struct vm_area_struct *vma);
 
 /*
  * Movability check is different as compared to migration check.
