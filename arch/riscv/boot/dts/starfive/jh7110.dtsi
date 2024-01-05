@@ -1696,7 +1696,7 @@
 				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_APB>,
 				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_TXESC>,
 				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_DPI>;
-			clock-names = "sys", "apb", "txesc", "dpi";
+			clock-names = "dpi", "apb", "txesc", "sys";
 			resets = <&rstgen RSTN_U0_CDNS_DSITX_DPI>,
 				 <&rstgen RSTN_U0_CDNS_DSITX_APB>,
 				 <&rstgen RSTN_U0_CDNS_DSITX_RXESC>,

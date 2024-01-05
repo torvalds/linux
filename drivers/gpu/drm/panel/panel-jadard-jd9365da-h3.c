@@ -512,9 +512,9 @@ static const struct jadard_panel_desc cz101b4001_desc[] = {
 		.clock		= 79200,
 
 		.hdisplay	= 800,
-		.hsync_start	= 800 + 139,
-		.hsync_end	= 800 + 139 + 5,
-		.htotal		= 800 + 139 + 5 + 5,
+		.hsync_start	= 800 + 180,
+		.hsync_end	= 800 + 180 + 15,
+		.htotal		= 800 + 180 + 15 + 45,
 
 		.vdisplay	= 1280,
 		.vsync_start	= 1280 + 84,

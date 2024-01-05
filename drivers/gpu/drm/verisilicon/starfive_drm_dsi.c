@@ -746,22 +746,6 @@ static int cdns_dsi_mode2cfg(struct cdns_dsi *dsi,
 					  bpp, 0);
 	dsi_cfg->hfp = dpi_to_dsi_timing(mode_to_dpi_hfp(mode, mode_valid_check),
 					 bpp, DSI_HFP_FRAME_OVERHEAD);
-	//dpi to dsi transfer can not match , reconfig those parms for waveshare
-	//for taobao old mipi panel .should change here : hsa 36 , hbp 108, hfp 288
-	if (mode->vdisplay == 480) {//seeed
-		dsi_cfg->hsa = 117-DSI_HSA_FRAME_OVERHEAD;
-		dsi_cfg->hbp = 115-DSI_HBP_FRAME_OVERHEAD;
-		dsi_cfg->hfp = 209-DSI_HFP_FRAME_OVERHEAD;
-	} else if (mode->vdisplay == 1280) {//8inch
-		dsi_cfg->hsa = 45-DSI_HSA_FRAME_OVERHEAD;
-		dsi_cfg->hbp = 134-DSI_HBP_FRAME_OVERHEAD;
-		dsi_cfg->hfp = 356-DSI_HFP_FRAME_OVERHEAD;
-	} else if (mode->vdisplay == 1920) {//10inch
-		dsi_cfg->hsa = 405-DSI_HSA_FRAME_OVERHEAD;
-		dsi_cfg->hbp = 403-DSI_HBP_FRAME_OVERHEAD;
-		dsi_cfg->hfp = 396-DSI_HFP_FRAME_OVERHEAD;
-
-	}
 
 	return 0;
 }
@@ -795,6 +779,7 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 	 * misalignment.
 	 */
 	adj_dsi_htotal = dsi_htotal;
+
 	if (dsi_htotal % lanes)
 		adj_dsi_htotal += lanes - (dsi_htotal % lanes);
 
@@ -804,7 +789,22 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 	/* data rate in bytes/sec is not an integer, refuse the mode. */
 	dpi_htotal = mode_valid_check ? mode->htotal : mode->crtc_htotal;
 
+	if (do_div(dlane_bps, lanes * dpi_htotal))
+		return -EINVAL;
+
+	/* data rate was in bytes/sec, convert to bits/sec. */
+	phy_cfg->hs_clk_rate = dlane_bps * 8;
+	phy_cfg->hs_clk_rate = phy_cfg->hs_clk_rate - (phy_cfg->hs_clk_rate % 10000000);
+	phy_cfg->hs_clk_rate = phy_cfg->hs_clk_rate + 10000000;
+	printk("%s,hs_clk_rate %ld\n",__func__,phy_cfg->hs_clk_rate);
+
+	dlane_bps = phy_cfg->hs_clk_rate * lanes * dpi_htotal / 8;
+
+	adj_dsi_htotal = dlane_bps/dpi_hz;
+
 	dsi_hfp_ext = adj_dsi_htotal - dsi_htotal;
+
+	printk("%s,dsi_hfp_ext %d\n",__func__,dsi_hfp_ext);
 	dsi_cfg->hfp += dsi_hfp_ext;
 
 	dsi_cfg->htotal = dsi_htotal + dsi_hfp_ext;
@@ -839,19 +839,9 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 	if (ret)
 		return ret;
 
-	//phy_cfg->hs_clk_rate = output->phy_opts.mipi_dphy.hs_clk_rate;
-
-	if (mode->vdisplay == 480) {
-		phy_cfg->hs_clk_rate = 750000000;//seeed
-	} else if (mode->vdisplay == 1280) {
-		phy_cfg->hs_clk_rate = 490000000;//8 inch
-	} else if (mode->vdisplay == 1920) {
-		phy_cfg->hs_clk_rate = 980000000;//10 inch
-	}
-
 	dsi_cfg->htotal = dsi_cfg->hsa + DSI_HSA_FRAME_OVERHEAD +
-			  			dsi_cfg->hbp + DSI_HBP_FRAME_OVERHEAD +
-			  			dsi_cfg->hfp + DSI_HFP_FRAME_OVERHEAD + dsi_cfg->hact;
+					  dsi_cfg->hbp + DSI_HBP_FRAME_OVERHEAD +
+					  dsi_cfg->hfp + DSI_HFP_FRAME_OVERHEAD + dsi_cfg->hact;
 
 	dsi_hss_hsa_hse_hbp = dsi_cfg->hbp + DSI_HBP_FRAME_OVERHEAD;
 	if (output->dev->mode_flags & MIPI_DSI_MODE_VIDEO_SYNC_PULSE)
