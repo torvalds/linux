@@ -896,7 +896,7 @@ static int wmi_dev_probe(struct device *dev)
 	if (wdriver->probe) {
 		ret = wdriver->probe(dev_to_wdev(dev),
 				find_guid_context(wblock, wdriver));
-		if (!ret) {
+		if (ret) {
 			if (ACPI_FAILURE(wmi_method_enable(wblock, false)))
 				dev_warn(dev, "Failed to disable device\n");
 
