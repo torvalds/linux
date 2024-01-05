@@ -1308,8 +1308,8 @@ static int guc_exec_queue_set_priority(struct xe_exec_queue *q,
 	if (!msg)
 		return -ENOMEM;
 
-	guc_exec_queue_add_msg(q, msg, SET_SCHED_PROPS);
 	q->priority = priority;
+	guc_exec_queue_add_msg(q, msg, SET_SCHED_PROPS);
 
 	return 0;
 }
