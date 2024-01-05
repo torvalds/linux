@@ -35,7 +35,7 @@
 
 #define CORESIGHT_UNLOCK	0xc5acce55
 
-extern struct bus_type coresight_bustype;
+extern const struct bus_type coresight_bustype;
 
 enum coresight_dev_type {
 	CORESIGHT_DEV_TYPE_SINK,

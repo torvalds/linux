@@ -1799,7 +1799,7 @@ done:
 }
 EXPORT_SYMBOL_GPL(coresight_alloc_device_name);
 
-struct bus_type coresight_bustype = {
+const struct bus_type coresight_bustype = {
 	.name	= "coresight",
 };
 
