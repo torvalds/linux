@@ -905,6 +905,8 @@ static void rtw89_phy_config_bb_reg(struct rtw89_dev *rtwdev,
 		udelay(5);
 	else if (reg->addr == 0xf9)
 		udelay(1);
+	else if (reg->data == BYPASS_CR_DATA)
+		rtw89_debug(rtwdev, RTW89_DBG_PHY_TRACK, "Bypass CR 0x%x\n", reg->addr);
 	else
 		rtw89_phy_write32(rtwdev, reg->addr, reg->data);
 }
