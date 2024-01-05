@@ -182,7 +182,7 @@ static void gbphy_dev_remove(struct device *dev)
 	pm_runtime_dont_use_autosuspend(dev);
 }
 
-static struct bus_type gbphy_bus_type = {
+static const struct bus_type gbphy_bus_type = {
 	.name =		"gbphy",
 	.match =	gbphy_dev_match,
 	.probe =	gbphy_dev_probe,
