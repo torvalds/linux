@@ -20865,3 +20865,9 @@ STARFIVE JH7110 SDIO
 M:	William Qiu <william.qiu@starfivetech.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/mmc/starfive,jh7110-sdio.yaml
+
+SIFIVE L2 CACHE PMU
+M:	Minda.chen <minda.chen@starfivetech.com>
+S:	Maintained
+F:	drivers/perf/sifive_u74_l2_pmu.c
+F:	drivers/soc/sifive/sifive_pl2.h

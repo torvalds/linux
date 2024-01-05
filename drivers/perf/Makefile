@@ -17,3 +17,4 @@ obj-$(CONFIG_THUNDERX2_PMU) += thunderx2_pmu.o
 obj-$(CONFIG_XGENE_PMU) += xgene_pmu.o
 obj-$(CONFIG_ARM_SPE_PMU) += arm_spe_pmu.o
 obj-$(CONFIG_ARM_DMC620_PMU) += arm_dmc620_pmu.o
+obj-$(CONFIG_SIFIVE_U74_L2_PMU) += sifive_u74_l2_pmu.o
