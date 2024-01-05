@@ -104,7 +104,7 @@ void gb_debugfs_init(void);
 void gb_debugfs_cleanup(void);
 struct dentry *gb_debugfs_get(void);
 
-extern struct bus_type greybus_bus_type;
+extern const struct bus_type greybus_bus_type;
 
 extern struct device_type greybus_hd_type;
 extern struct device_type greybus_module_type;

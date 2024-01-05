@@ -155,7 +155,7 @@ static void greybus_shutdown(struct device *dev)
 	}
 }
 
-struct bus_type greybus_bus_type = {
+const struct bus_type greybus_bus_type = {
 	.name =		"greybus",
 	.match =	greybus_match_device,
 	.uevent =	greybus_uevent,
