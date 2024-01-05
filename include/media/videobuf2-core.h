@@ -271,11 +271,11 @@ struct vb2_buffer {
 	 *			skips cache sync/invalidation.
 	 * skip_cache_sync_on_finish: when set buffer's ->finish() function
 	 *			skips cache sync/invalidation.
+	 * planes:		per-plane information; do not change
 	 * queued_entry:	entry on the queued buffers list, which holds
 	 *			all buffers queued from userspace
 	 * done_entry:		entry on the list that stores all buffers ready
 	 *			to be dequeued to userspace
-	 * vb2_plane:		per-plane information; do not change
 	 */
 	enum vb2_buffer_state	state;
 	unsigned int		synced:1;
