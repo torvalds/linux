@@ -114,12 +114,26 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 	    !test_bit(FLAG_REQUESTED, &flags))
 		return "interrupt";
 
-	return test_bit(FLAG_REQUESTED, &flags) ? desc->label : NULL;
+	return test_bit(FLAG_REQUESTED, &flags) ?
+			rcu_dereference(desc->label) : NULL;
 }
 
-static inline void desc_set_label(struct gpio_desc *d, const char *label)
+static int desc_set_label(struct gpio_desc *desc, const char *label)
 {
-	d->label = label;
+	const char *new = NULL, *old;
+
+	if (label) {
+		/* FIXME: make this GFP_KERNEL once the spinlock is out. */
+		new = kstrdup_const(label, GFP_ATOMIC);
+		if (!new)
+			return -ENOMEM;
+	}
+
+	old = rcu_replace_pointer(desc->label, new, 1);
+	synchronize_srcu(&desc->srcu);
+	kfree_const(old);
+
+	return 0;
 }
 
 /**
@@ -2229,9 +2243,7 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 	 * before IRQs are enabled, for non-sleeping (SOC) GPIOs.
 	 */
 
-	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags) == 0) {
-		desc_set_label(desc, label ? : "?");
-	} else {
+	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags)) {
 		ret = -EBUSY;
 		goto out_free_unlock;
 	}
@@ -2259,6 +2271,13 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 		spin_lock_irqsave(&gpio_lock, flags);
 	}
 	spin_unlock_irqrestore(&gpio_lock, flags);
+
+	ret = desc_set_label(desc, label ? : "?");
+	if (ret) {
+		clear_bit(FLAG_REQUESTED, &desc->flags);
+		return ret;
+	}
+
 	return 0;
 
 out_free_unlock:
@@ -2343,8 +2362,6 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 			gc->free(gc, gpio_chip_hwgpio(desc));
 			spin_lock_irqsave(&gpio_lock, flags);
 		}
-		kfree_const(desc->label);
-		desc_set_label(desc, NULL);
 		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
 		clear_bit(FLAG_REQUESTED, &desc->flags);
 		clear_bit(FLAG_OPEN_DRAIN, &desc->flags);
@@ -2362,6 +2379,7 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 	}
 
 	spin_unlock_irqrestore(&gpio_lock, flags);
+	desc_set_label(desc, NULL);
 	gpiod_line_state_notify(desc, GPIOLINE_CHANGED_RELEASED);
 
 	return ret;
@@ -2408,6 +2426,8 @@ char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset)
 
 	if (!test_bit(FLAG_REQUESTED, &desc->flags))
 		return NULL;
+
+	guard(srcu)(&desc->srcu);
 
 	/*
 	 * FIXME: Once we mark gpiod_direction_input/output() and
@@ -3520,16 +3540,8 @@ EXPORT_SYMBOL_GPL(gpiod_cansleep);
 int gpiod_set_consumer_name(struct gpio_desc *desc, const char *name)
 {
 	VALIDATE_DESC(desc);
-	if (name) {
-		name = kstrdup_const(name, GFP_KERNEL);
-		if (!name)
-			return -ENOMEM;
-	}
 
-	kfree_const(desc->label);
-	desc_set_label(desc, name);
-
-	return 0;
+	return desc_set_label(desc, name);
 }
 EXPORT_SYMBOL_GPL(gpiod_set_consumer_name);
 
@@ -4739,6 +4751,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 	int value;
 
 	for_each_gpio_desc(gc, desc) {
+		guard(srcu)(&desc->srcu);
 		if (test_bit(FLAG_REQUESTED, &desc->flags)) {
 			gpiod_get_direction(desc);
 			is_out = test_bit(FLAG_IS_OUT, &desc->flags);

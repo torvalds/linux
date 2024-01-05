@@ -180,7 +180,7 @@ struct gpio_desc {
 #define FLAG_EVENT_CLOCK_HTE		19 /* GPIO CDEV reports hardware timestamps in events */
 
 	/* Connection label */
-	const char		*label;
+	const char __rcu	*label;
 	/* Name of the GPIO */
 	const char		*name;
 #ifdef CONFIG_OF_DYNAMIC
@@ -223,15 +223,29 @@ static inline int gpio_chip_hwgpio(const struct gpio_desc *desc)
 
 /* With descriptor prefix */
 
-#define gpiod_err(desc, fmt, ...)					       \
-	pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",  \
-		 ##__VA_ARGS__)
-#define gpiod_warn(desc, fmt, ...)					       \
-	pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?", \
-		 ##__VA_ARGS__)
-#define gpiod_dbg(desc, fmt, ...)					       \
-	pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), desc->label ? : "?",\
-		 ##__VA_ARGS__)
+#define gpiod_err(desc, fmt, ...) \
+do { \
+	scoped_guard(srcu, &desc->srcu) { \
+		pr_err("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
+		       gpiod_get_label(desc) ? : "?", ##__VA_ARGS__); \
+	} \
+} while (0)
+
+#define gpiod_warn(desc, fmt, ...) \
+do { \
+	scoped_guard(srcu, &desc->srcu) { \
+		pr_warn("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
+			gpiod_get_label(desc) ? : "?", ##__VA_ARGS__); \
+	} \
+} while (0)
+
+#define gpiod_dbg(desc, fmt, ...) \
+do { \
+	scoped_guard(srcu, &desc->srcu) { \
+		pr_debug("gpio-%d (%s): " fmt, desc_to_gpio(desc), \
+			 gpiod_get_label(desc) ? : "?", ##__VA_ARGS__); \
+	} \
+} while (0)
 
 /* With chip prefix */
 

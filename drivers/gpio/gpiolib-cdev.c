@@ -2297,6 +2297,7 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 {
 	struct gpio_chip *gc = desc->gdev->chip;
 	unsigned long dflags;
+	const char *label;
 
 	memset(info, 0, sizeof(*info));
 	info->offset = gpio_chip_hwgpio(desc);
@@ -2305,9 +2306,12 @@ static void gpio_desc_to_lineinfo(struct gpio_desc *desc,
 		if (desc->name)
 			strscpy(info->name, desc->name, sizeof(info->name));
 
-		if (gpiod_get_label(desc))
-			strscpy(info->consumer, gpiod_get_label(desc),
-				sizeof(info->consumer));
+		scoped_guard(srcu, &desc->srcu) {
+			label = gpiod_get_label(desc);
+			if (label)
+				strscpy(info->consumer, label,
+					sizeof(info->consumer));
+		}
 
 		dflags = READ_ONCE(desc->flags);
 	}
