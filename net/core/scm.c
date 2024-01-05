@@ -26,7 +26,9 @@
 #include <linux/nsproxy.h>
 #include <linux/slab.h>
 #include <linux/errqueue.h>
+#ifndef __GENKSYMS__
 #include <linux/io_uring.h>
+#endif
 
 #include <linux/uaccess.h>
 
