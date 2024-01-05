@@ -282,7 +282,7 @@ r535_sor_bl_get(struct nvkm_ior *sor)
 {
 	struct nvkm_disp *disp = sor->disp;
 	NV0073_CTRL_SPECIFIC_BACKLIGHT_BRIGHTNESS_PARAMS *ctrl;
-	int lvl;
+	int ret, lvl;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
 				    NV0073_CTRL_CMD_SPECIFIC_GET_BACKLIGHT_BRIGHTNESS,
@@ -292,9 +292,11 @@ r535_sor_bl_get(struct nvkm_ior *sor)
 
 	ctrl->displayId = BIT(sor->asy.outp->index);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	lvl = ctrl->brightness;
 	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
@@ -649,9 +651,11 @@ r535_conn_new(struct nvkm_disp *disp, u32 id)
 	ctrl->subDeviceInstance = 0;
 	ctrl->displayId = BIT(id);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return (void *)ctrl;
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ERR_PTR(ret);
+	}
 
 	list_for_each_entry(conn, &disp->conns, head) {
 		if (conn->index == ctrl->data[0].index) {
@@ -686,7 +690,7 @@ r535_outp_acquire(struct nvkm_outp *outp, bool hda)
 	struct nvkm_disp *disp = outp->disp;
 	struct nvkm_ior *ior;
 	NV0073_CTRL_DFP_ASSIGN_SOR_PARAMS *ctrl;
-	int or;
+	int ret, or;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
 				    NV0073_CTRL_CMD_DFP_ASSIGN_SOR, sizeof(*ctrl));
@@ -699,9 +703,11 @@ r535_outp_acquire(struct nvkm_outp *outp, bool hda)
 	if (hda)
 		ctrl->flags |= NVDEF(NV0073_CTRL, DFP_ASSIGN_SOR_FLAGS, AUDIO, OPTIMAL);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	for (or = 0; or < ARRAY_SIZE(ctrl->sorAssignListWithTag); or++) {
 		if (ctrl->sorAssignListWithTag[or].displayMask & BIT(outp->index)) {
@@ -727,6 +733,7 @@ static int
 r535_disp_head_displayid(struct nvkm_disp *disp, int head, u32 *displayid)
 {
 	NV0073_CTRL_SYSTEM_GET_ACTIVE_PARAMS *ctrl;
+	int ret;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
 				    NV0073_CTRL_CMD_SYSTEM_GET_ACTIVE, sizeof(*ctrl));
@@ -736,9 +743,11 @@ r535_disp_head_displayid(struct nvkm_disp *disp, int head, u32 *displayid)
 	ctrl->subDeviceInstance = 0;
 	ctrl->head = head;
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	*displayid = ctrl->displayId;
 	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
@@ -772,9 +781,11 @@ r535_outp_inherit(struct nvkm_outp *outp)
 			ctrl->subDeviceInstance = 0;
 			ctrl->displayId = displayid;
 
-			ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-			if (IS_ERR(ctrl))
+			ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+			if (ret) {
+				nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
 				return NULL;
+			}
 
 			id = ctrl->index;
 			proto = ctrl->protocol;
@@ -825,6 +836,7 @@ r535_outp_dfp_get_info(struct nvkm_outp *outp)
 {
 	NV0073_CTRL_DFP_GET_INFO_PARAMS *ctrl;
 	struct nvkm_disp *disp = outp->disp;
+	int ret;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom, NV0073_CTRL_CMD_DFP_GET_INFO, sizeof(*ctrl));
 	if (IS_ERR(ctrl))
@@ -832,9 +844,11 @@ r535_outp_dfp_get_info(struct nvkm_outp *outp)
 
 	ctrl->displayId = BIT(outp->index);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	nvkm_debug(&disp->engine.subdev, "DFP %08x: flags:%08x flags2:%08x\n",
 		   ctrl->displayId, ctrl->flags, ctrl->flags2);
@@ -858,9 +872,11 @@ r535_outp_detect(struct nvkm_outp *outp)
 	ctrl->subDeviceInstance = 0;
 	ctrl->displayMask = BIT(outp->index);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	if (ctrl->displayMask & BIT(outp->index)) {
 		ret = r535_outp_dfp_get_info(outp);
@@ -895,6 +911,7 @@ r535_dp_mst_id_get(struct nvkm_outp *outp, u32 *pid)
 {
 	NV0073_CTRL_CMD_DP_TOPOLOGY_ALLOCATE_DISPLAYID_PARAMS *ctrl;
 	struct nvkm_disp *disp = outp->disp;
+	int ret;
 
 	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom,
 				    NV0073_CTRL_CMD_DP_TOPOLOGY_ALLOCATE_DISPLAYID,
@@ -904,9 +921,11 @@ r535_dp_mst_id_get(struct nvkm_outp *outp, u32 *pid)
 
 	ctrl->subDeviceInstance = 0;
 	ctrl->displayId = BIT(outp->index);
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	*pid = ctrl->displayIdAssigned;
 	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
@@ -938,38 +957,60 @@ r535_dp_train_target(struct nvkm_outp *outp, u8 target, bool mst, u8 link_nr, u8
 {
 	struct nvkm_disp *disp = outp->disp;
 	NV0073_CTRL_DP_CTRL_PARAMS *ctrl;
-	int ret;
+	int ret, retries;
+	u32 cmd, data;
 
-	ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom, NV0073_CTRL_CMD_DP_CTRL, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
-
-	ctrl->subDeviceInstance = 0;
-	ctrl->displayId = BIT(outp->index);
-	ctrl->cmd = NVDEF(NV0073_CTRL, DP_CMD, SET_LANE_COUNT, TRUE) |
-		    NVDEF(NV0073_CTRL, DP_CMD, SET_LINK_BW, TRUE) |
-		    NVDEF(NV0073_CTRL, DP_CMD, TRAIN_PHY_REPEATER, YES);
-	ctrl->data = NVVAL(NV0073_CTRL, DP_DATA, SET_LANE_COUNT, link_nr) |
-		     NVVAL(NV0073_CTRL, DP_DATA, SET_LINK_BW, link_bw) |
-		     NVVAL(NV0073_CTRL, DP_DATA, TARGET, target);
+	cmd = NVDEF(NV0073_CTRL, DP_CMD, SET_LANE_COUNT, TRUE) |
+	      NVDEF(NV0073_CTRL, DP_CMD, SET_LINK_BW, TRUE) |
+	      NVDEF(NV0073_CTRL, DP_CMD, TRAIN_PHY_REPEATER, YES);
+	data = NVVAL(NV0073_CTRL, DP_DATA, SET_LANE_COUNT, link_nr) |
+	       NVVAL(NV0073_CTRL, DP_DATA, SET_LINK_BW, link_bw) |
+	       NVVAL(NV0073_CTRL, DP_DATA, TARGET, target);
 
 	if (mst)
-		ctrl->cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_FORMAT_MODE, MULTI_STREAM);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_FORMAT_MODE, MULTI_STREAM);
 
 	if (outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_ENHANCED_FRAME_CAP)
-		ctrl->cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_ENHANCED_FRAMING, TRUE);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, SET_ENHANCED_FRAMING, TRUE);
 
 	if (target == 0 &&
 	     (outp->dp.dpcd[DPCD_RC02] & 0x20) &&
 	    !(outp->dp.dpcd[DPCD_RC03] & DPCD_RC03_TPS4_SUPPORTED))
-	    ctrl->cmd |= NVDEF(NV0073_CTRL, DP_CMD, POST_LT_ADJ_REQ_GRANTED, YES);
+		cmd |= NVDEF(NV0073_CTRL, DP_CMD, POST_LT_ADJ_REQ_GRANTED, YES);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	/* We should retry up to 3 times, but only if GSP asks politely */
+	for (retries = 0; retries < 3; ++retries) {
+		ctrl = nvkm_gsp_rm_ctrl_get(&disp->rm.objcom, NV0073_CTRL_CMD_DP_CTRL,
+					    sizeof(*ctrl));
+		if (IS_ERR(ctrl))
+			return PTR_ERR(ctrl);
 
-	ret = ctrl->err ? -EIO : 0;
-	nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		ctrl->subDeviceInstance = 0;
+		ctrl->displayId = BIT(outp->index);
+		ctrl->retryTimeMs = 0;
+		ctrl->cmd = cmd;
+		ctrl->data = data;
+
+		ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+		if (ret == -EAGAIN && ctrl->retryTimeMs) {
+			/*
+			 * Device (likely an eDP panel) isn't ready yet, wait for the time specified
+			 * by GSP before retrying again
+			 */
+			nvkm_debug(&disp->engine.subdev,
+				   "Waiting %dms for GSP LT panel delay before retrying\n",
+				   ctrl->retryTimeMs);
+			msleep(ctrl->retryTimeMs);
+			nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		} else {
+			/* GSP didn't say to retry, or we were successful */
+			if (ctrl->err)
+				ret = -EIO;
+			nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+			break;
+		}
+	}
+
 	return ret;
 }
 
@@ -1036,9 +1077,11 @@ r535_dp_aux_xfer(struct nvkm_outp *outp, u8 type, u32 addr, u8 *data, u8 *psize)
 	ctrl->size = !ctrl->bAddrOnly ? (size - 1) : 0;
 	memcpy(ctrl->data, data, size);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
 		return PTR_ERR(ctrl);
+	}
 
 	memcpy(data, ctrl->data, size);
 	*psize = ctrl->size;
@@ -1111,10 +1154,13 @@ r535_tmds_edid_get(struct nvkm_outp *outp, u8 *data, u16 *psize)
 	ctrl->subDeviceInstance = 0;
 	ctrl->displayId = BIT(outp->index);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
+	ret = -E2BIG;
 	if (ctrl->bufferSize <= *psize) {
 		memcpy(data, ctrl->edidBuffer, ctrl->bufferSize);
 		*psize = ctrl->bufferSize;
@@ -1153,9 +1199,11 @@ r535_outp_new(struct nvkm_disp *disp, u32 id)
 	ctrl->subDeviceInstance = 0;
 	ctrl->displayId = BIT(id);
 
-	ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-	if (IS_ERR(ctrl))
-		return PTR_ERR(ctrl);
+	ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+	if (ret) {
+		nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+		return ret;
+	}
 
 	switch (ctrl->type) {
 	case NV0073_CTRL_SPECIFIC_OR_TYPE_NONE:
@@ -1229,9 +1277,11 @@ r535_outp_new(struct nvkm_disp *disp, u32 id)
 
 		ctrl->sorIndex = ~0;
 
-		ctrl = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, ctrl, sizeof(*ctrl));
-		if (IS_ERR(ctrl))
-			return PTR_ERR(ctrl);
+		ret = nvkm_gsp_rm_ctrl_push(&disp->rm.objcom, &ctrl, sizeof(*ctrl));
+		if (ret) {
+			nvkm_gsp_rm_ctrl_done(&disp->rm.objcom, ctrl);
+			return ret;
+		}
 
 		switch (NVVAL_GET(ctrl->maxLinkRate, NV0073_CTRL_CMD, DP_GET_CAPS, MAX_LINK_RATE)) {
 		case NV0073_CTRL_CMD_DP_GET_CAPS_MAX_LINK_RATE_1_62:
@@ -1465,8 +1515,6 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 				bool nvhg = acpi_check_dsm(handle, &NVHG_DSM_GUID, NVHG_DSM_REV,
 						           1ULL << 0x00000014);
 
-				printk(KERN_ERR "bl: nbci:%d nvhg:%d\n", nbci, nvhg);
-
 				if (nbci || nvhg) {
 					union acpi_object argv4 = {
 						.buffer.type    = ACPI_TYPE_BUFFER,
@@ -1479,9 +1527,6 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 					if (!obj) {
 						acpi_handle_info(handle, "failed to evaluate _DSM\n");
 					} else {
-						printk(KERN_ERR "bl: obj type %d\n", obj->type);
-						printk(KERN_ERR "bl: obj len %d\n", obj->package.count);
-
 						for (int i = 0; i < obj->package.count; i++) {
 							union acpi_object *elt = &obj->package.elements[i];
 							u32 size;
@@ -1491,12 +1536,10 @@ r535_disp_oneinit(struct nvkm_disp *disp)
 							else
 								size = 4;
 
-							printk(KERN_ERR "elt %03d: type %d size %d\n", i, elt->type, size);
 							memcpy(&ctrl->backLightData[ctrl->backLightDataSize], &elt->integer.value, size);
 							ctrl->backLightDataSize += size;
 						}
 
-						printk(KERN_ERR "bl: data size %d\n", ctrl->backLightDataSize);
 						ctrl->status = 0;
 						ACPI_FREE(obj);
 					}
