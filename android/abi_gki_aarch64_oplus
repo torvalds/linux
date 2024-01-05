@@ -123,7 +123,10 @@
   __traceiter_android_vh_record_rwsem_lock_starttime
   __traceiter_android_vh_alter_mutex_list_add
   __traceiter_android_vh_binder_free_proc
+  __traceiter_android_vh_binder_has_special_work_ilocked
   __traceiter_android_vh_binder_has_work_ilocked
+  __traceiter_android_vh_binder_ioctl_end
+  __traceiter_android_vh_binder_looper_exited
   __traceiter_android_vh_binder_looper_state_registered
   __traceiter_android_vh_binder_new_ref
   __traceiter_android_vh_binder_del_ref
@@ -134,6 +137,8 @@
   __traceiter_android_vh_binder_proc_transaction_finish
   __traceiter_android_vh_binder_read_done
   __traceiter_android_vh_binder_select_worklist_ilocked
+  __traceiter_android_vh_binder_select_special_worklist
+  __traceiter_android_vh_binder_spawn_new_thread
   __traceiter_android_vh_binder_thread_read
   __traceiter_android_vh_binder_thread_release
   __traceiter_android_vh_binder_wait_for_work
@@ -209,7 +214,10 @@
   __tracepoint_android_vh_account_task_time
   __tracepoint_android_vh_alter_mutex_list_add
   __tracepoint_android_vh_binder_free_proc
+  __tracepoint_android_vh_binder_has_special_work_ilocked
   __tracepoint_android_vh_binder_has_work_ilocked
+  __tracepoint_android_vh_binder_ioctl_end
+  __tracepoint_android_vh_binder_looper_exited
   __tracepoint_android_vh_binder_looper_state_registered
   __tracepoint_android_vh_binder_new_ref
   __tracepoint_android_vh_binder_del_ref
@@ -220,6 +228,8 @@
   __tracepoint_android_vh_binder_proc_transaction_finish
   __tracepoint_android_vh_binder_read_done
   __tracepoint_android_vh_binder_select_worklist_ilocked
+  __tracepoint_android_vh_binder_select_special_worklist
+  __tracepoint_android_vh_binder_spawn_new_thread
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_binder_wait_for_work
