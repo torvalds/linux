@@ -2811,6 +2811,7 @@ static int haptics_erase(struct input_dev *dev, int effect_id)
 	int rc;
 
 	dev_dbg(chip->dev, "erase effect, really stop play\n");
+	cancel_work_sync(&chip->set_gain_work);
 	mutex_lock(&play->lock);
 	cancel_delayed_work_sync(&chip->stop_work);
 	if ((play->pattern_src == FIFO) &&
