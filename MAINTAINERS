@@ -20815,6 +20815,7 @@ ST STM32 FIREWALL
 M:	Gatien Chevallier <gatien.chevallier@foss.st.com>
 S:	Maintained
 F:	drivers/bus/stm32_firewall.c
+F:	drivers/bus/stm32_rifsc.c
 
 ST STM32 I2C/SMBUS DRIVER
 M:	Pierre-Yves MORDRET <pierre-yves.mordret@foss.st.com>
