@@ -33,11 +33,6 @@ struct fdtable {
 	struct rcu_head rcu;
 };
 
-static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
-{
-	return test_bit(fd, fdt->open_fds);
-}
-
 /*
  * Open file table structure
  */

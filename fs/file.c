@@ -271,6 +271,11 @@ static inline void __clear_open_fd(unsigned int fd, struct fdtable *fdt)
 	__clear_bit(fd / BITS_PER_LONG, fdt->full_fds_bits);
 }
 
+static inline bool fd_is_open(unsigned int fd, const struct fdtable *fdt)
+{
+	return test_bit(fd, fdt->open_fds);
+}
+
 static unsigned int count_open_files(struct fdtable *fdt)
 {
 	unsigned int size = fdt->max_fds;
