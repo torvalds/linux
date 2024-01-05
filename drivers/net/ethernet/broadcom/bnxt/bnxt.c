@@ -14020,8 +14020,8 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	rcu_read_lock();
 	fltr = bnxt_lookup_ntp_filter_from_idx(bp, new_fltr, idx);
 	if (fltr) {
-		rcu_read_unlock();
 		rc = fltr->base.sw_id;
+		rcu_read_unlock();
 		goto err_free;
 	}
 	rcu_read_unlock();
