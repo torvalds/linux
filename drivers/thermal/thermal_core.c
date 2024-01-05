@@ -845,7 +845,7 @@ static void thermal_release(struct device *dev)
 			    sizeof("cooling_device") - 1)) {
 		cdev = to_cooling_device(dev);
 		thermal_cooling_device_destroy_sysfs(cdev);
-		kfree(cdev->type);
+		kfree_const(cdev->type);
 		ida_free(&thermal_cdev_ida, cdev->id);
 		kfree(cdev);
 	}
@@ -917,7 +917,7 @@ __thermal_cooling_device_register(struct device_node *np,
 	cdev->id = ret;
 	id = ret;
 
-	cdev->type = kstrdup(type ? type : "", GFP_KERNEL);
+	cdev->type = kstrdup_const(type ? type : "", GFP_KERNEL);
 	if (!cdev->type) {
 		ret = -ENOMEM;
 		goto out_ida_remove;
@@ -970,7 +970,7 @@ __thermal_cooling_device_register(struct device_node *np,
 out_cooling_dev:
 	thermal_cooling_device_destroy_sysfs(cdev);
 out_cdev_type:
-	kfree(cdev->type);
+	kfree_const(cdev->type);
 out_ida_remove:
 	ida_free(&thermal_cdev_ida, id);
 out_kfree_cdev:
