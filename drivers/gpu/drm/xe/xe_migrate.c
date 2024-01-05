@@ -344,7 +344,8 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 
 		m->q = xe_exec_queue_create(xe, vm, logical_mask, 1, hwe,
 					    EXEC_QUEUE_FLAG_KERNEL |
-					    EXEC_QUEUE_FLAG_PERMANENT);
+					    EXEC_QUEUE_FLAG_PERMANENT |
+					    EXEC_QUEUE_FLAG_HIGH_PRIORITY);
 	} else {
 		m->q = xe_exec_queue_create_class(xe, primary_gt, vm,
 						  XE_ENGINE_CLASS_COPY,
@@ -355,8 +356,6 @@ struct xe_migrate *xe_migrate_init(struct xe_tile *tile)
 		xe_vm_close_and_put(vm);
 		return ERR_CAST(m->q);
 	}
-	if (xe->info.has_usm)
-		m->q->priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
 
 	mutex_init(&m->job_mutex);
 
