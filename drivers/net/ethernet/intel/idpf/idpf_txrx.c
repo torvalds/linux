@@ -396,7 +396,7 @@ static void idpf_rx_desc_rel(struct idpf_queue *rxq, bool bufq, s32 q_model)
 	if (!rxq)
 		return;
 
-	if (!bufq && idpf_is_queue_model_split(q_model) && rxq->skb) {
+	if (rxq->skb) {
 		dev_kfree_skb_any(rxq->skb);
 		rxq->skb = NULL;
 	}

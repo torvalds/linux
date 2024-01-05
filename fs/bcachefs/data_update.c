@@ -587,7 +587,8 @@ int bch2_data_update_init(struct btree_trans *trans,
 	 * Increasing replication is an explicit operation triggered by
 	 * rereplicate, currently, so that users don't get an unexpected -ENOSPC
 	 */
-	if (durability_have >= io_opts.data_replicas) {
+	if (!(m->data_opts.write_flags & BCH_WRITE_CACHED) &&
+	    durability_have >= io_opts.data_replicas) {
 		m->data_opts.kill_ptrs |= m->data_opts.rewrite_ptrs;
 		m->data_opts.rewrite_ptrs = 0;
 		/* if iter == NULL, it's just a promote */

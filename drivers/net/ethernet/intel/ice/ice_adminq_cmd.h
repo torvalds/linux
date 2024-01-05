@@ -1360,8 +1360,9 @@ struct ice_aqc_get_link_status_data {
 	u8 lp_flowcontrol;
 #define ICE_AQ_LINK_LP_PAUSE_ADV       BIT(0)
 #define ICE_AQ_LINK_LP_ASM_DIR_ADV     BIT(1)
+	u8 reserved5[5];
 #define ICE_AQC_LS_DATA_SIZE_V2 \
-	offsetofend(struct ice_aqc_get_link_status_data, lp_flowcontrol)
+	offsetofend(struct ice_aqc_get_link_status_data, reserved5)
 } __packed;
 
 /* Set event mask command (direct 0x0613) */
