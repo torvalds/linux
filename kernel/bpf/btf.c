@@ -7058,10 +7058,6 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
-		if (btf_type_is_int(t) || btf_is_any_enum(t)) {
-			sub->args[i].arg_type = ARG_ANYTHING;
-			continue;
-		}
 		if (btf_type_is_ptr(t) && btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
 			sub->args[i].arg_type = ARG_PTR_TO_CTX;
 			continue;
@@ -7090,6 +7086,10 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 		if (is_nonnull) {
 			bpf_log(log, "arg#%d marked as non-null, but is not a pointer type\n", i);
 			return -EINVAL;
+		}
+		if (btf_type_is_int(t) || btf_is_any_enum(t)) {
+			sub->args[i].arg_type = ARG_ANYTHING;
+			continue;
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
