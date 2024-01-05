@@ -50,6 +50,10 @@ properties:
       Reflects the memory layout with four integer values per bank. Format:
       <bank-number> 0 <address of the bank> <size>
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 patternProperties:
   "^.*@[0-4],[a-f0-9]+$":
     additionalProperties: true
