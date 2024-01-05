@@ -93,6 +93,8 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 bool bch2_check_version_downgrade(struct bch_fs *);
 void bch2_sb_upgrade(struct bch_fs *, unsigned);
 
+void __bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
+			     struct bch_sb_field *);
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
 			   struct bch_sb_field *);
 void bch2_sb_layout_to_text(struct printbuf *, struct bch_sb_layout *);

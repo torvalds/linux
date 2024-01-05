@@ -1187,14 +1187,23 @@ static int bch2_sb_field_validate(struct bch_sb *sb, struct bch_sb_field *f,
 	return ret;
 }
 
-void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
-			   struct bch_sb_field *f)
+void __bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
+			     struct bch_sb_field *f)
 {
 	unsigned type = le32_to_cpu(f->type);
 	const struct bch_sb_field_ops *ops = bch2_sb_field_type_ops(type);
 
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
+
+	if (ops->to_text)
+		ops->to_text(out, sb, f);
+}
+
+void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
+			   struct bch_sb_field *f)
+{
+	unsigned type = le32_to_cpu(f->type);
 
 	if (type < BCH_SB_FIELD_NR)
 		prt_printf(out, "%s", bch2_sb_fields[type]);
@@ -1204,11 +1213,7 @@ void bch2_sb_field_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, " (size %zu):", vstruct_bytes(f));
 	prt_newline(out);
 
-	if (ops->to_text) {
-		printbuf_indent_add(out, 2);
-		ops->to_text(out, sb, f);
-		printbuf_indent_sub(out, 2);
-	}
+	__bch2_sb_field_to_text(out, sb, f);
 }
 
 void bch2_sb_layout_to_text(struct printbuf *out, struct bch_sb_layout *l)
