@@ -253,9 +253,12 @@ void v9fs_set_netfs_context(struct inode *inode)
 }
 
 int v9fs_init_inode(struct v9fs_session_info *v9ses,
-		    struct inode *inode, umode_t mode, dev_t rdev)
+		    struct inode *inode, struct p9_qid *qid, umode_t mode, dev_t rdev)
 {
 	int err = 0;
+	struct v9fs_inode *v9inode = V9FS_I(inode);
+
+	memcpy(&v9inode->qid, qid, sizeof(struct p9_qid));
 
 	inode_init_owner(&nop_mnt_idmap, inode, NULL, mode);
 	inode->i_blocks = 0;
@@ -354,80 +357,40 @@ void v9fs_evict_inode(struct inode *inode)
 #endif
 }
 
-static int v9fs_test_inode(struct inode *inode, void *data)
-{
-	int umode;
-	dev_t rdev;
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct p9_wstat *st = (struct p9_wstat *)data;
-	struct v9fs_session_info *v9ses = v9fs_inode2v9ses(inode);
-
-	umode = p9mode2unixmode(v9ses, st, &rdev);
-	/* don't match inode of different type */
-	if (inode_wrong_type(inode, umode))
-		return 0;
-
-	/* compare qid details */
-	if (memcmp(&v9inode->qid.version,
-		   &st->qid.version, sizeof(v9inode->qid.version)))
-		return 0;
-
-	if (v9inode->qid.type != st->qid.type)
-		return 0;
-
-	if (v9inode->qid.path != st->qid.path)
-		return 0;
-	return 1;
-}
-
-static int v9fs_test_new_inode(struct inode *inode, void *data)
-{
-	return 0;
-}
-
-static int v9fs_set_inode(struct inode *inode,  void *data)
-{
-	struct v9fs_inode *v9inode = V9FS_I(inode);
-	struct p9_wstat *st = (struct p9_wstat *)data;
-
-	memcpy(&v9inode->qid, &st->qid, sizeof(st->qid));
-	return 0;
-}
-
-static struct inode *v9fs_qid_iget(struct super_block *sb,
-				   struct p9_qid *qid,
-				   struct p9_wstat *st,
-				   int new)
+struct inode *v9fs_fid_iget(struct super_block *sb, struct p9_fid *fid)
 {
 	dev_t rdev;
 	int retval;
 	umode_t umode;
 	struct inode *inode;
+	struct p9_wstat *st;
 	struct v9fs_session_info *v9ses = sb->s_fs_info;
-	int (*test)(struct inode *inode, void *data);
 
-	if (new)
-		test = v9fs_test_new_inode;
-	else
-		test = v9fs_test_inode;
-
-	inode = iget5_locked(sb, QID2INO(qid), test, v9fs_set_inode, st);
-	if (!inode)
+	inode = iget_locked(sb, QID2INO(&fid->qid));
+	if (unlikely(!inode))
 		return ERR_PTR(-ENOMEM);
 	if (!(inode->i_state & I_NEW))
 		return inode;
+
 	/*
 	 * initialize the inode with the stat info
 	 * FIXME!! we may need support for stale inodes
 	 * later.
 	 */
-	inode->i_ino = QID2INO(qid);
+	st = p9_client_stat(fid);
+	if (IS_ERR(st)) {
+		retval = PTR_ERR(st);
+		goto error;
+	}
+
 	umode = p9mode2unixmode(v9ses, st, &rdev);
-	retval = v9fs_init_inode(v9ses, inode, umode, rdev);
+	retval = v9fs_init_inode(v9ses, inode, &fid->qid, umode, rdev);
+	v9fs_stat2inode(st, inode, sb, 0);
+	p9stat_free(st);
+	kfree(st);
 	if (retval)
 		goto error;
 
-	v9fs_stat2inode(st, inode, sb, 0);
 	v9fs_set_netfs_context(inode);
 	v9fs_cache_inode_get_cookie(inode);
 	unlock_new_inode(inode);
@@ -436,23 +399,6 @@ error:
 	iget_failed(inode);
 	return ERR_PTR(retval);
 
-}
-
-struct inode *
-v9fs_inode_from_fid(struct v9fs_session_info *v9ses, struct p9_fid *fid,
-		    struct super_block *sb, int new)
-{
-	struct p9_wstat *st;
-	struct inode *inode = NULL;
-
-	st = p9_client_stat(fid);
-	if (IS_ERR(st))
-		return ERR_CAST(st);
-
-	inode = v9fs_qid_iget(sb, &st->qid, st, new);
-	p9stat_free(st);
-	kfree(st);
-	return inode;
 }
 
 /**
@@ -601,7 +547,7 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 		/*
 		 * instantiate inode and assign the unopened fid to the dentry
 		 */
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 		if (IS_ERR(inode)) {
 			err = PTR_ERR(inode);
 			p9_debug(P9_DEBUG_VFS,
@@ -729,10 +675,8 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = NULL;
 	else if (IS_ERR(fid))
 		inode = ERR_CAST(fid);
-	else if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	else
-		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
+		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
