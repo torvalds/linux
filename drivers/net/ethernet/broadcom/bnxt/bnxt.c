@@ -5752,10 +5752,9 @@ static int bnxt_hwrm_set_vnic_filter(struct bnxt *bp, u16 vnic_id, u16 idx,
 	return rc;
 }
 
-static int bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
+static void bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 {
 	u16 i, j, num_of_vnics = 1; /* only vnic 0 supported */
-	int rc = 0;
 
 	/* Any associated ntuple filters will also be cleared by firmware. */
 	for (i = 0; i < num_of_vnics; i++) {
@@ -5769,8 +5768,6 @@ static int bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 		}
 		vnic->uc_filter_count = 0;
 	}
-
-	return rc;
 }
 
 #define BNXT_DFLT_TUNL_TPA_BMAP				\
