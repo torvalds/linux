@@ -1,4 +1,7 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: GPL-2.0
+ *
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
 
 #ifndef _LINUX_RPMSG_QCOM_GLINK_H
 #define _LINUX_RPMSG_QCOM_GLINK_H
@@ -44,7 +47,7 @@ qcom_glink_smem_register(struct device *parent,
 static inline void qcom_glink_smem_unregister(struct qcom_glink *glink) {}
 static inline void qcom_glink_early_ssr_notify(void *data) {}
 
-int qcom_glink_smem_start(struct qcom_glink *glink)
+static inline int qcom_glink_smem_start(struct qcom_glink *glink)
 {
 	return -ENXIO;
 }
