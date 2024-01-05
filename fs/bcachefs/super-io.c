@@ -628,7 +628,9 @@ reread:
 
 	if (!uuid_equal(&sb->sb->magic, &BCACHE_MAGIC) &&
 	    !uuid_equal(&sb->sb->magic, &BCHFS_MAGIC)) {
-		prt_printf(err, "Not a bcachefs superblock");
+		prt_str(err, "Not a bcachefs superblock (got magic ");
+		pr_uuid(err, sb->sb->magic.b);
+		prt_str(err, ")");
 		return -BCH_ERR_invalid_sb_magic;
 	}
 
@@ -1259,6 +1261,11 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, "Internal UUID:");
 	prt_tab(out);
 	pr_uuid(out, sb->uuid.b);
+	prt_newline(out);
+
+	prt_printf(out, "Magic number:");
+	prt_tab(out);
+	pr_uuid(out, sb->magic.b);
 	prt_newline(out);
 
 	prt_str(out, "Device index:");
