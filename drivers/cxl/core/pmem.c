@@ -64,12 +64,14 @@ static int match_nvdimm_bridge(struct device *dev, void *data)
 
 struct cxl_nvdimm_bridge *cxl_find_nvdimm_bridge(struct cxl_memdev *cxlmd)
 {
-	struct cxl_port *port = find_cxl_root(cxlmd->endpoint);
+	struct cxl_root *cxl_root = find_cxl_root(cxlmd->endpoint);
+	struct cxl_port *port;
 	struct device *dev;
 
-	if (!port)
+	if (!cxl_root)
 		return NULL;
 
+	port = &cxl_root->port;
 	dev = device_find_child(&port->dev, NULL, match_nvdimm_bridge);
 	put_device(&port->dev);
 
