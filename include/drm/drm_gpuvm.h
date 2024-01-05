@@ -92,7 +92,7 @@ struct drm_gpuva {
 	 */
 	struct {
 		/**
-		 * @addr: the start address
+		 * @va.addr: the start address
 		 */
 		u64 addr;
 
@@ -107,17 +107,17 @@ struct drm_gpuva {
 	 */
 	struct {
 		/**
-		 * @offset: the offset within the &drm_gem_object
+		 * @gem.offset: the offset within the &drm_gem_object
 		 */
 		u64 offset;
 
 		/**
-		 * @obj: the mapped &drm_gem_object
+		 * @gem.obj: the mapped &drm_gem_object
 		 */
 		struct drm_gem_object *obj;
 
 		/**
-		 * @entry: the &list_head to attach this object to a &drm_gpuvm_bo
+		 * @gem.entry: the &list_head to attach this object to a &drm_gpuvm_bo
 		 */
 		struct list_head entry;
 	} gem;
@@ -127,12 +127,12 @@ struct drm_gpuva {
 	 */
 	struct {
 		/**
-		 * @rb: the rb-tree node
+		 * @rb.node: the rb-tree node
 		 */
 		struct rb_node node;
 
 		/**
-		 * @entry: The &list_head to additionally connect &drm_gpuvas
+		 * @rb.entry: The &list_head to additionally connect &drm_gpuvas
 		 * in the same order they appear in the interval tree. This is
 		 * useful to keep iterating &drm_gpuvas from a start node found
 		 * through the rb-tree while doing modifications on the rb-tree
@@ -141,7 +141,7 @@ struct drm_gpuva {
 		struct list_head entry;
 
 		/**
-		 * @__subtree_last: needed by the interval tree, holding last-in-subtree
+		 * @rb.__subtree_last: needed by the interval tree, holding last-in-subtree
 		 */
 		u64 __subtree_last;
 	} rb;
@@ -187,6 +187,8 @@ static inline void drm_gpuva_invalidate(struct drm_gpuva *va, bool invalidate)
  * drm_gpuva_invalidated() - indicates whether the backing BO of this &drm_gpuva
  * is invalidated
  * @va: the &drm_gpuva to check
+ *
+ * Returns: %true if the GPU VA is invalidated, %false otherwise
  */
 static inline bool drm_gpuva_invalidated(struct drm_gpuva *va)
 {
@@ -252,12 +254,12 @@ struct drm_gpuvm {
 	 */
 	struct {
 		/**
-		 * @tree: the rb-tree to track GPU VA mappings
+		 * @rb.tree: the rb-tree to track GPU VA mappings
 		 */
 		struct rb_root_cached tree;
 
 		/**
-		 * @list: the &list_head to track GPU VA mappings
+		 * @rb.list: the &list_head to track GPU VA mappings
 		 */
 		struct list_head list;
 	} rb;
@@ -290,19 +292,19 @@ struct drm_gpuvm {
 	 */
 	struct {
 		/**
-		 * @list: &list_head storing &drm_gpuvm_bos serving as
+		 * @extobj.list: &list_head storing &drm_gpuvm_bos serving as
 		 * external object
 		 */
 		struct list_head list;
 
 		/**
-		 * @local_list: pointer to the local list temporarily storing
-		 * entries from the external object list
+		 * @extobj.local_list: pointer to the local list temporarily
+		 * storing entries from the external object list
 		 */
 		struct list_head *local_list;
 
 		/**
-		 * @lock: spinlock to protect the extobj list
+		 * @extobj.lock: spinlock to protect the extobj list
 		 */
 		spinlock_t lock;
 	} extobj;
@@ -312,19 +314,19 @@ struct drm_gpuvm {
 	 */
 	struct {
 		/**
-		 * @list: &list_head storing &drm_gpuvm_bos currently being
-		 * evicted
+		 * @evict.list: &list_head storing &drm_gpuvm_bos currently
+		 * being evicted
 		 */
 		struct list_head list;
 
 		/**
-		 * @local_list: pointer to the local list temporarily storing
-		 * entries from the evicted object list
+		 * @evict.local_list: pointer to the local list temporarily
+		 * storing entries from the evicted object list
 		 */
 		struct list_head *local_list;
 
 		/**
-		 * @lock: spinlock to protect the evict list
+		 * @evict.lock: spinlock to protect the evict list
 		 */
 		spinlock_t lock;
 	} evict;
@@ -344,6 +346,8 @@ void drm_gpuvm_init(struct drm_gpuvm *gpuvm, const char *name,
  *
  * This function acquires an additional reference to @gpuvm. It is illegal to
  * call this without already holding a reference. No locks required.
+ *
+ * Returns: the &struct drm_gpuvm pointer
  */
 static inline struct drm_gpuvm *
 drm_gpuvm_get(struct drm_gpuvm *gpuvm)
@@ -533,12 +537,13 @@ struct drm_gpuvm_exec {
 	 */
 	struct {
 		/**
-		 * @fn: The driver callback to lock additional &drm_gem_objects.
+		 * @extra.fn: The driver callback to lock additional
+		 * &drm_gem_objects.
 		 */
 		int (*fn)(struct drm_gpuvm_exec *vm_exec);
 
 		/**
-		 * @priv: driver private data for the @fn callback
+		 * @extra.priv: driver private data for the @fn callback
 		 */
 		void *priv;
 	} extra;
@@ -589,7 +594,7 @@ void drm_gpuvm_resv_add_fence(struct drm_gpuvm *gpuvm,
 			      enum dma_resv_usage extobj_usage);
 
 /**
- * drm_gpuvm_exec_resv_add_fence()
+ * drm_gpuvm_exec_resv_add_fence() - add fence to private and all extobj
  * @vm_exec: the &drm_gpuvm_exec wrapper
  * @fence: fence to add
  * @private_usage: private dma-resv usage
@@ -608,10 +613,12 @@ drm_gpuvm_exec_resv_add_fence(struct drm_gpuvm_exec *vm_exec,
 }
 
 /**
- * drm_gpuvm_exec_validate()
+ * drm_gpuvm_exec_validate() - validate all BOs marked as evicted
  * @vm_exec: the &drm_gpuvm_exec wrapper
  *
  * See drm_gpuvm_validate().
+ *
+ * Returns: 0 on success, negative error code on failure.
  */
 static inline int
 drm_gpuvm_exec_validate(struct drm_gpuvm_exec *vm_exec)
@@ -664,7 +671,7 @@ struct drm_gpuvm_bo {
 	 */
 	struct {
 		/**
-		 * @gpuva: The list of linked &drm_gpuvas.
+		 * @list.gpuva: The list of linked &drm_gpuvas.
 		 *
 		 * It is safe to access entries from this list as long as the
 		 * GEM's gpuva lock is held. See also struct drm_gem_object.
@@ -672,25 +679,25 @@ struct drm_gpuvm_bo {
 		struct list_head gpuva;
 
 		/**
-		 * @entry: Structure containing all &list_heads serving as
+		 * @list.entry: Structure containing all &list_heads serving as
 		 * entry.
 		 */
 		struct {
 			/**
-			 * @gem: List entry to attach to the &drm_gem_objects
-			 * gpuva list.
+			 * @list.entry.gem: List entry to attach to the
+			 * &drm_gem_objects gpuva list.
 			 */
 			struct list_head gem;
 
 			/**
-			 * @evict: List entry to attach to the &drm_gpuvms
-			 * extobj list.
+			 * @list.entry.evict: List entry to attach to the
+			 * &drm_gpuvms extobj list.
 			 */
 			struct list_head extobj;
 
 			/**
-			 * @evict: List entry to attach to the &drm_gpuvms evict
-			 * list.
+			 * @list.entry.evict: List entry to attach to the
+			 * &drm_gpuvms evict list.
 			 */
 			struct list_head evict;
 		} entry;
@@ -713,6 +720,8 @@ drm_gpuvm_bo_obtain_prealloc(struct drm_gpuvm_bo *vm_bo);
  *
  * This function acquires an additional reference to @vm_bo. It is illegal to
  * call this without already holding a reference. No locks required.
+ *
+ * Returns: the &struct vm_bo pointer
  */
 static inline struct drm_gpuvm_bo *
 drm_gpuvm_bo_get(struct drm_gpuvm_bo *vm_bo)
@@ -730,7 +739,8 @@ drm_gpuvm_bo_find(struct drm_gpuvm *gpuvm,
 void drm_gpuvm_bo_evict(struct drm_gpuvm_bo *vm_bo, bool evict);
 
 /**
- * drm_gpuvm_bo_gem_evict()
+ * drm_gpuvm_bo_gem_evict() - add/remove all &drm_gpuvm_bo's in the list
+ * to/from the &drm_gpuvms evicted list
  * @obj: the &drm_gem_object
  * @evict: indicates whether @obj is evicted
  *
@@ -817,12 +827,12 @@ struct drm_gpuva_op_map {
 	 */
 	struct {
 		/**
-		 * @addr: the base address of the new mapping
+		 * @va.addr: the base address of the new mapping
 		 */
 		u64 addr;
 
 		/**
-		 * @range: the range of the new mapping
+		 * @va.range: the range of the new mapping
 		 */
 		u64 range;
 	} va;
@@ -832,12 +842,12 @@ struct drm_gpuva_op_map {
 	 */
 	struct {
 		/**
-		 * @offset: the offset within the &drm_gem_object
+		 * @gem.offset: the offset within the &drm_gem_object
 		 */
 		u64 offset;
 
 		/**
-		 * @obj: the &drm_gem_object to map
+		 * @gem.obj: the &drm_gem_object to map
 		 */
 		struct drm_gem_object *obj;
 	} gem;

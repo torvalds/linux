@@ -193,13 +193,14 @@ struct pvr_device {
 	 * @queues: Queue-related fields.
 	 */
 	struct {
-		/** @active: Active queue list. */
+		/** @queues.active: Active queue list. */
 		struct list_head active;
 
-		/** @idle: Idle queue list. */
+		/** @queues.idle: Idle queue list. */
 		struct list_head idle;
 
-		/** @lock: Lock protecting access to the active/idle lists. */
+		/** @queues.lock: Lock protecting access to the active/idle
+		 *  lists. */
 		struct mutex lock;
 	} queues;
 
@@ -207,18 +208,18 @@ struct pvr_device {
 	 * @watchdog: Watchdog for communications with firmware.
 	 */
 	struct {
-		/** @work: Work item for watchdog callback. */
+		/** @watchdog.work: Work item for watchdog callback. */
 		struct delayed_work work;
 
 		/**
-		 * @old_kccb_cmds_executed: KCCB command execution count at last
-		 * watchdog poll.
+		 * @watchdog.old_kccb_cmds_executed: KCCB command execution
+		 * count at last watchdog poll.
 		 */
 		u32 old_kccb_cmds_executed;
 
 		/**
-		 * @kccb_stall_count: Number of watchdog polls KCCB has been
-		 * stalled for.
+		 * @watchdog.kccb_stall_count: Number of watchdog polls
+		 * KCCB has been stalled for.
 		 */
 		u32 kccb_stall_count;
 	} watchdog;
@@ -227,43 +228,46 @@ struct pvr_device {
 	 * @kccb: Circular buffer for communications with firmware.
 	 */
 	struct {
-		/** @ccb: Kernel CCB. */
+		/** @kccb.ccb: Kernel CCB. */
 		struct pvr_ccb ccb;
 
-		/** @rtn_q: Waitqueue for KCCB command return waiters. */
+		/** @kccb.rtn_q: Waitqueue for KCCB command return waiters. */
 		wait_queue_head_t rtn_q;
 
-		/** @rtn_obj: Object representing KCCB return slots. */
+		/** @kccb.rtn_obj: Object representing KCCB return slots. */
 		struct pvr_fw_object *rtn_obj;
 
 		/**
-		 * @rtn: Pointer to CPU mapping of KCCB return slots. Must be
-		 * accessed by READ_ONCE()/WRITE_ONCE().
+		 * @kccb.rtn: Pointer to CPU mapping of KCCB return slots.
+		 * Must be accessed by READ_ONCE()/WRITE_ONCE().
 		 */
 		u32 *rtn;
 
-		/** @slot_count: Total number of KCCB slots available. */
+		/** @kccb.slot_count: Total number of KCCB slots available. */
 		u32 slot_count;
 
-		/** @reserved_count: Number of KCCB slots reserved for future use. */
+		/** @kccb.reserved_count: Number of KCCB slots reserved for
+		 *  future use. */
 		u32 reserved_count;
 
 		/**
-		 * @waiters: List of KCCB slot waiters.
+		 * @kccb.waiters: List of KCCB slot waiters.
 		 */
 		struct list_head waiters;
 
-		/** @fence_ctx: KCCB fence context. */
+		/** @kccb.fence_ctx: KCCB fence context. */
 		struct {
-			/** @id: KCCB fence context ID allocated with dma_fence_context_alloc(). */
+			/** @kccb.fence_ctx.id: KCCB fence context ID
+			 *  allocated with dma_fence_context_alloc(). */
 			u64 id;
 
-			/** @seqno: Sequence number incremented each time a fence is created. */
+			/** @kccb.fence_ctx.seqno: Sequence number incremented
+			 *  each time a fence is created. */
 			atomic_t seqno;
 
 			/**
-			 * @lock: Lock used to synchronize access to fences allocated by this
-			 * context.
+			 * @kccb.fence_ctx.lock: Lock used to synchronize
+			 * access to fences allocated by this context.
 			 */
 			spinlock_t lock;
 		} fence_ctx;

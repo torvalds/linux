@@ -461,6 +461,7 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 
 		INIT_WORK_ONSTACK(&arg.work, drm_mode_rmfb_work_fn);
 		INIT_LIST_HEAD(&arg.fbs);
+		drm_WARN_ON(dev, !list_empty(&fb->filp_head));
 		list_add_tail(&fb->filp_head, &arg.fbs);
 
 		schedule_work(&arg.work);
@@ -827,6 +828,8 @@ void drm_framebuffer_free(struct kref *kref)
 			container_of(kref, struct drm_framebuffer, base.refcount);
 	struct drm_device *dev = fb->dev;
 
+	drm_WARN_ON(dev, !list_empty(&fb->filp_head));
+
 	/*
 	 * The lookup idr holds a weak reference, which has not necessarily been
 	 * removed at this point. Check for that.
@@ -1119,7 +1122,7 @@ void drm_framebuffer_remove(struct drm_framebuffer *fb)
 
 	dev = fb->dev;
 
-	WARN_ON(!list_empty(&fb->filp_head));
+	drm_WARN_ON(dev, !list_empty(&fb->filp_head));
 
 	/*
 	 * drm ABI mandates that we remove any deleted framebuffers from active

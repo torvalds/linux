@@ -959,12 +959,6 @@ static void vop2_enable(struct vop2 *vop2)
 		return;
 	}
 
-	ret = regmap_reinit_cache(vop2->map, &vop2_regmap_config);
-	if (ret) {
-		drm_err(vop2->drm, "failed to reinit cache: %d\n", ret);
-		return;
-	}
-
 	if (vop2->data->soc_id == 3566)
 		vop2_writel(vop2, RK3568_OTP_WIN_EN, 1);
 
@@ -995,6 +989,8 @@ static void vop2_disable(struct vop2 *vop2)
 	rockchip_drm_dma_detach_device(vop2->drm, vop2->dev);
 
 	pm_runtime_put_sync(vop2->dev);
+
+	regcache_drop_region(vop2->map, 0, vop2_regmap_config.max_register);
 
 	clk_disable_unprepare(vop2->pclk);
 	clk_disable_unprepare(vop2->aclk);
@@ -1705,8 +1701,8 @@ static unsigned long rk3588_calc_cru_cfg(struct vop2_video_port *vp, int id,
 		 * *if_pixclk_div = dclk_rate / if_pixclk_rate;
 		 * *if_dclk_div = dclk_rate / if_dclk_rate;
 		 */
-		 *if_pixclk_div = 2;
-		 *if_dclk_div = 4;
+		*if_pixclk_div = 2;
+		*if_dclk_div = 4;
 	} else if (vop2_output_if_is_edp(id)) {
 		/*
 		 * edp_pixclk = edp_dclk > dclk_core
