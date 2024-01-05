@@ -4551,6 +4551,9 @@ static void rtw89_phy_dig_set_rxb_idx(struct rtw89_dev *rtwdev, u8 rxb_idx)
 static void rtw89_phy_dig_set_igi_cr(struct rtw89_dev *rtwdev,
 				     const struct rtw89_agc_gaincode_set set)
 {
+	if (!rtwdev->hal.support_igi)
+		return;
+
 	rtw89_phy_dig_set_lna_idx(rtwdev, set.lna_idx);
 	rtw89_phy_dig_set_tia_idx(rtwdev, set.tia_idx);
 	rtw89_phy_dig_set_rxb_idx(rtwdev, set.rxb_idx);
@@ -4606,7 +4609,8 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 	s8 cck_cca_th;
 	u32 pd_val = 0;
 
-	under_region += PD_TH_SB_FLTR_CMP_VAL;
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
+		under_region += PD_TH_SB_FLTR_CMP_VAL;
 
 	switch (cbw) {
 	case RTW89_CHANNEL_WIDTH_40:
