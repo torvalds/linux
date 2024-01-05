@@ -1469,11 +1469,9 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 	kfree(rf_reg_info);
 }
 
-static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
+static void rtw89_phy_preinit_rf_nctl_ax(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const struct rtw89_phy_table *nctl_table;
 	u32 val;
 	int ret;
 
@@ -1493,6 +1491,15 @@ static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 				1000, false, rtwdev);
 	if (ret)
 		rtw89_err(rtwdev, "failed to poll nctl block\n");
+}
+
+static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_phy_table *nctl_table;
+
+	rtw89_phy_preinit_rf_nctl(rtwdev);
 
 	nctl_table = elm_info->rf_nctl ? elm_info->rf_nctl : chip->nctl_table;
 	rtw89_phy_init_reg(rtwdev, nctl_table, rtw89_phy_config_bb_reg, NULL);
@@ -5483,6 +5490,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 	.physts = &rtw89_physts_regs_ax,
 	.cfo = &rtw89_cfo_regs_ax,
 	.config_bb_gain = rtw89_phy_config_bb_gain_ax,
+	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_ax,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_ax,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_ax,

@@ -252,6 +252,24 @@ static void rtw89_phy_config_bb_gain_be(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_phy_preinit_rf_nctl_be(struct rtw89_dev *rtwdev)
+{
+	rtw89_phy_write32_mask(rtwdev, R_GOTX_IQKDPK_C0, B_GOTX_IQKDPK, 0x3);
+	rtw89_phy_write32_mask(rtwdev, R_GOTX_IQKDPK_C1, B_GOTX_IQKDPK, 0x3);
+	rtw89_phy_write32_mask(rtwdev, R_IQKDPK_HC, B_IQKDPK_HC, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_CLK_GCK, B_CLK_GCK, 0x00fffff);
+	rtw89_phy_write32_mask(rtwdev, R_IOQ_IQK_DPK, B_IOQ_IQK_DPK_CLKEN, 0x3);
+	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_RST, B_IQK_DPK_RST, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST, B_IQK_DPK_PRST, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST_C1, B_IQK_DPK_PRST, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_TXRFC, B_TXRFC_RST, 0x1);
+
+	if (rtwdev->dbcc_en) {
+		rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_RST_C1, B_IQK_DPK_RST, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_TXRFC_C1, B_TXRFC_RST, 0x1);
+	}
+}
+
 struct rtw89_byr_spec_ent_be {
 	struct rtw89_rate_desc init;
 	u8 num_of_idx;
@@ -819,6 +837,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
+	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,

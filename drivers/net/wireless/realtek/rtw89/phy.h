@@ -513,6 +513,7 @@ struct rtw89_phy_gen_def {
 			       const struct rtw89_reg2_def *reg,
 			       enum rtw89_rf_path rf_path,
 			       void *extra_data);
+	void (*preinit_rf_nctl)(struct rtw89_dev *rtwdev);
 
 	void (*set_txpwr_byrate)(struct rtw89_dev *rtwdev,
 				 const struct rtw89_chan *chan,
@@ -794,6 +795,13 @@ s8 rtw89_phy_read_txpwr_limit(struct rtw89_dev *rtwdev, u8 band,
 			      u8 bw, u8 ntx, u8 rs, u8 bf, u8 ch);
 s8 rtw89_phy_read_txpwr_limit_ru(struct rtw89_dev *rtwdev, u8 band,
 				 u8 ru, u8 ntx, u8 ch);
+
+static inline void rtw89_phy_preinit_rf_nctl(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
+
+	phy->preinit_rf_nctl(rtwdev);
+}
 
 static inline
 void rtw89_phy_set_txpwr_byrate(struct rtw89_dev *rtwdev,
