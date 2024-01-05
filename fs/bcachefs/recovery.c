@@ -696,8 +696,11 @@ static int bch2_run_recovery_passes(struct bch_fs *c)
 
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns)) {
 		if (should_run_recovery_pass(c, c->curr_recovery_pass)) {
+			unsigned pass = c->curr_recovery_pass;
+
 			ret = bch2_run_recovery_pass(c, c->curr_recovery_pass);
-			if (bch2_err_matches(ret, BCH_ERR_restart_recovery))
+			if (bch2_err_matches(ret, BCH_ERR_restart_recovery) ||
+			    (ret && c->curr_recovery_pass < pass))
 				continue;
 			if (ret)
 				break;
