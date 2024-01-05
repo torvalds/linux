@@ -1,0 +1,21 @@
+Scripts placed in this directory get called one at a time by run-parts(8).
+The scripts are expected to perform some sort of sanity checks on the
+finished build. Scripts will be called once for each flavour.
+
+Some environment variables are exported to make life a little easier:
+
+DPKG_ARCH     : The dpkg architecture (e.g. "amd64")
+KERN_ARCH     : The kernel architecture (e.g. "x86_64")
+FLAVOUR       : The specific flavour for this run (e.g. "generic")
+VERSION       : The full version of this build (e.g. 2.6.22-1)
+REVISION      : The exact revision of this build (e.g. 1.3)
+PREV_REVISION : The revision prior to this one
+ABI_NUM       : The specific ABI number for this build (e.g. 2)
+PREV_ABI_NUM  : The previous ABI number. Can be the same as ABI_NUM.
+BUILD_DIR     : The directory where this build took place
+INSTALL_DIR   : The directory where the package is prepared
+SOURCE_DIR    : Where the main kernel source is
+
+Scripts are expected to have a zero exit status when no problems occur,
+and non-zero when an error occurs that should stop the build. Scripts
+should print whatever info they deem needed to deduce the problem.

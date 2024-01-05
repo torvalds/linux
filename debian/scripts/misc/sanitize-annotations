@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+#
+# Try to automatically sanitize an old "annotations" file, dropping all the
+# deprecated flags, arbitrary enforcements rules, etc.
+#
+# Usage:
+#  $ ./sanitize-annotations debian.master/config/annotations
+
+import sys
+import re
+
+
+def remove_flags_and_drop_lines(file_path):
+    # Read the contents of the file
+    with open(file_path, "r", encoding="utf-8") as file:
+        content = file.read()
+
+    # Check if the file has the required headers
+    lines = content.splitlines()
+    if (
+        len(lines) < 2
+        or lines[0].strip() != "# Menu: HEADER"
+        or lines[1].strip() != "# FORMAT: 4"
+    ):
+        print(f"ERROR: {file_path} doesn't have a valid header")
+        print("Fix the headers as explained here: " +
+              "https://docs.google.com/document/d/1NnGC2aknyy2TJWMsoYzhrZMr9rYMA09JQBEvC-LW_Lw/")
+        sys.exit(1)
+
+    # Remove unsupported annotations
+    updated_content = re.sub(r"(flag|mark)<.*?>", "", content)
+
+    # Drop lines with a single word and trailing spaces
+    updated_content = re.sub(r"^\w+\s*$", "", updated_content, flags=re.MULTILINE)
+
+    # Add a space after all caps followed by 'policy'
+    updated_content = re.sub(r"([A-Z]+)(policy)", r"\1 \2", updated_content)
+
+    # Add 'note' if missing
+    updated_content = re.sub(r"(\s+)(<.*?>)", r"\1note\2", updated_content)
+
+    # Write the updated contents back to the file
+    with open(file_path, "w", encoding="utf-8") as file:
+        file.write(updated_content)
+
+
+if __name__ == "__main__":
+    file_path = sys.argv[1]
+    remove_flags_and_drop_lines(file_path)

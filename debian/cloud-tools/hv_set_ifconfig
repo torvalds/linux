@@ -1,0 +1,288 @@
+#!/usr/bin/python3
+#
+# hv_set_ifconfig <config> -- take the hv_kvp_daemon generated configuration
+#                             file and apply it to the Ubuntu configuration.
+#
+
+# CONFIG example:
+# HWADDR=11:22:33:44:55:66
+# DEVICE=foo1
+# DHCP=yes
+
+# CONFIG example:
+# HWADDR=11:22:33:44:55:66
+# DEVICE=foo1
+# IPADDR=192.168.99.10
+# GATEWAY=192.168.99.1
+# DNS1=192.168.88.250
+# IPADDR2=192.168.99.11
+# IPV6ADDR=2001:DB8:99::10
+# IPV6NETMASK=64
+# IPV6_DEFAULTGW=2001:DB8:99::10
+
+# set interfaces in hv_kvp_daemon style
+import fileinput
+import sys
+import errno
+import os
+import shutil
+import tempfile
+import subprocess
+
+if_filename="/etc/network/interfaces"
+
+# Drop our output (XXX?)
+sys.stdout = open(os.devnull, 'w')
+sys.stderr = open(os.devnull, 'w')
+
+# Confirm we can open the network configuration.
+try:
+    if_file=open(if_filename,"r+")
+except IOError as e:
+    exit(e.errno)
+else:
+    if_file.close()
+
+# Usage: hv_set_ifconfig <config>
+if len(sys.argv) != 2 :
+    exit(errno.EINVAL)
+
+#
+# Here is the format of the ip configuration file:
+#
+# HWADDR=macaddr
+# DEVICE=interface name
+# BOOTPROTO=<protocol> (where <protocol> is "dhcp" if DHCP is configured
+#                       or "none" if no boot-time protocol should be used)
+#
+# IPADDR0=ipaddr1
+# IPADDR1=ipaddr2
+# IPADDRx=ipaddry (where y = x + 1)
+#
+# NETMASK0=netmask1
+# NETMASKx=netmasky (where y = x + 1)
+#
+# GATEWAY=ipaddr1
+# GATEWAYx=ipaddry (where y = x + 1)
+#
+# DNSx=ipaddrx (where first DNS address is tagged as DNS1 etc)
+#
+# IPV6 addresses will be tagged as IPV6ADDR, IPV6 gateway will be
+# tagged as IPV6_DEFAULTGW and IPV6 NETMASK will be tagged as
+# IPV6NETMASK.
+#
+
+kvp=dict(line.strip().split("=") for line in fileinput.input())
+
+# Setting the hwaddress to something azure is not expecting is fatal
+# to networking.
+if not "HWADDR" in kvp :
+    exit(errno.EPROTO)
+
+# Confirm we have a device specified.
+if not "DEVICE" in kvp :
+    exit(1)
+
+autolist = []
+output=[]
+basename=kvp["DEVICE"]
+
+# DNS entries will go with the first interface and there can be a max
+# of three.  These will be emitted with the first interface.
+dns = []
+for count in (1, 2, 3):
+    key = "DNS" + str(count)
+    if key in kvp:
+        dns += [kvp[key]]
+dns_emitted = False
+
+# IPV4 may either be dhcp or static.
+if ("DHCP" in kvp and kvp["DHCP"] == "yes") or \
+   ("BOOTPROTO" in kvp and kvp["BOOTPROTO"] == "dhcp"):
+    autolist.append(basename)
+    output += ["iface " + basename  + " inet dhcp"]
+    output += [""]
+else:
+    # Matchup the interface specific lines
+
+    # No real max for the number of interface + aliases ...
+    # only required is the address (but mate everything up that comes in.
+
+    # IPv4 -- ensure we sort by numeric suffixes.
+    v4names = [ int(name[6:]) for name in kvp.keys() if name.startswith("IPADDR") ]
+    v4names.sort()
+
+    for if_count in v4names:
+        ifname = basename
+        which = str(if_count)
+
+        if if_count:
+            ifname += ":" + str(if_count)
+            which_gw = which
+        else:
+            which_gw = ""
+
+        if not ifname in autolist:
+            autolist += [ifname]
+
+        output += [ "iface " + ifname + " inet static" ]
+        output += [ "\t" + "address " + kvp["IPADDR" + which] ]
+        if "NETMASK" + which in kvp:
+            output += [ "\tnetmask " + kvp["NETMASK" + which] ]
+        if "GATEWAY" + which_gw in kvp:
+            output += ["\tgateway " + kvp["GATEWAY" + which_gw]]
+
+        if not dns_emitted:
+            dns_emitted = True
+            output += ["\tdns-nameservers " + ' '.join(dns)]
+        output += [""]
+
+# IPv6 requires a netmask
+# If an ipv6 exists, you'll want to turn off /proc/sys/net/ipv6/conf/all/autoconf with
+# echo 0 > /proc/sys/net/ipv6/conf/all/autoconf
+v6names = [ int(name[8:]) for name in kvp.keys() if name.startswith("IPV6ADDR") ]
+v6names.sort()
+
+for if6_count in v6names:
+    ifname = basename
+    which = str(if6_count)
+
+    if if6_count:
+        ifname += ":" + str(if6_count)
+        which_gw = which
+    else:
+        which_gw = ""
+
+    if not ifname in autolist:
+        autolist += [ifname]
+
+    if "IPV6NETMASK" + which in kvp:
+        output += [ "iface " + ifname + " inet6 static"]
+        output += [ "\taddress " + kvp["IPV6ADDR" + which]]
+        output += [ "\tnetmask " + kvp["IPV6NETMASK" + which]]
+        if "IPV6_DEFAULTGW" + which_gw in kvp:
+            output += [ "\tgateway " + kvp["IPV6_DEFAULTGW" + which_gw] ]
+        if not dns_emitted:
+            dns_emitted = True
+            output += ["\tdns-nameservers " + ' '.join(dns)]
+        output += [""]
+
+# Mark this new interface for automatic up.
+if len(autolist):
+    output = ["auto "+" ".join(autolist)] + output
+
+print("===================================")
+print(output)
+print("===================================")
+
+
+# Time to clean out the existing interface file
+
+# Markers.
+start_mark = "# The following stanza(s) added by hv_set_ifconfig"
+end_mark = "#End of hv_set_ifconfig stanzas"
+
+f=open(if_filename,"r")
+flines=f.readlines()
+f.close()
+newfile=[]
+pitchstanza=0
+inastanza=0
+stanza=[]
+prev_line=None
+for line in flines:
+    if line.startswith("auto"):
+        if inastanza:
+            if not pitchstanza:
+                newfile.extend(stanza)
+            stanza=[]
+        inastanza=0
+        newline=""
+        autoline=line.strip().split(" ")
+        for word in autoline:
+            if (not word == basename) and (not word.startswith(basename+":")):
+                newline+=word + " "
+        newline = newline.strip()
+        if not newline == "auto":
+            newfile += [newline.strip()]
+    elif line.startswith(("iface","mapping","source")):
+        '''Read a stanza'''
+        '''A Stanza can also start with allow- ie allow-hotplug'''
+        if inastanza:
+            if not pitchstanza:
+                newfile.extend(stanza)
+            stanza=[]
+        inastanza=1
+        pitchstanza=0
+        autoline=line.strip().split(" ")
+        for word in autoline:
+            if (word == basename) or (word.startswith(basename+":")):
+                pitchstanza=1
+        if not pitchstanza:
+            stanza+=[line.strip()]
+    elif line.strip() in (start_mark, end_mark):
+        if inastanza:
+            if not pitchstanza:
+                newfile.extend(stanza)
+            stanza=[]
+        inastanza = 0
+        pitchstanza = 0
+        # Deduplicate markers.
+        if line != prev_line:
+            newfile += [line.strip()]
+    else:
+        if inastanza:
+            if not pitchstanza:
+                stanza+=[line.strip()]
+        else:
+            if not pitchstanza:
+                newfile += [line.strip()]
+    prev_line=line
+
+# Include pending stanza if any.
+if inastanza and not pitchstanza:
+    newfile.extend(stanza)
+
+
+def emit(line):
+    print(line)
+    output = line + "\n"
+    os.write(fd, output.encode('utf-8'))
+
+# Insert the new output at the end and inside the existing markers if found.
+emitted = False
+fd, path = tempfile.mkstemp()
+for line in newfile:
+    if line == end_mark:
+        emit("\n".join(output))
+        emitted = True
+    emit(line)
+if not emitted:
+    emit(start_mark)
+    emit("\n".join(output))
+    emit(end_mark)
+os.close(fd)
+
+shutil.copy(path,if_filename)
+os.chmod(if_filename,0o644)
+
+#print("TMPFILE is at: " + path)
+#print("Copied file is at: " + if_filename)
+
+try:
+    retcode = subprocess.call("ifdown "+basename , shell=True)
+    if retcode < 0:
+        print("Child was terminated by signal", -retcode, file=sys.stderr)
+    else:
+        print("Child returned", retcode, file=sys.stderr)
+except OSError as e:
+    print("Execution failed:", e, file=sys.stderr)
+
+try:
+    retcode = subprocess.call("ifup "+basename , shell=True)
+    if retcode < 0:
+        print("Child was terminated by signal", -retcode, file=sys.stderr)
+    else:
+        print("Child returned", retcode, file=sys.stderr)
+except OSError as e:
+    print("Execution failed:", e, file=sys.stderr)

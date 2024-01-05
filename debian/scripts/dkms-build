@@ -1,0 +1,271 @@
+#!/bin/sh
+set -e
+
+dkms_dir="$1"
+abi_flavour="$2"
+sign="$3"
+pkgname="$4"
+pkgdir="$5"
+dbgpkgdir="$6"
+package="$7"
+shift 7
+
+here=$(dirname "$(readlink -f "${0}")")
+
+srcdir=$(pwd)
+cd "$dkms_dir" || exit 1
+
+built_using_record()
+{
+	local subst="$1"
+	local built_using="$2"
+	if [ ! -f "$subst" ]; then
+		touch "$subst"
+	fi
+	if ! grep -q -s "^linux:BuiltUsing=" "$subst"; then
+		echo "linux:BuiltUsing=" >>"$subst"
+	fi
+	sed -i -e "s/^\(linux:BuiltUsing=.*\)/\1$built_using, /" "$subst"
+}
+
+# ABI: returns present in $? and located path in lpackage_path when found.
+package_present()
+{
+	for lpackage_path in "$1"_*.deb
+	do
+		break
+	done
+	[ -f "$lpackage_path" ]
+}
+
+# Download and extract the DKMS package -- note there may be more
+# than one package to install.
+for package_path in "$@"
+do
+	package_file=$(basename "$package_path")
+	echo "II: dkms-build downloading $package ($package_file)"
+	rpackage=$( echo "$package_path" | sed -e 's@.*/@@' -e 's@_.*@@' )
+	lpackage=$( echo "$rpackage" | sed -e 's@=.*@@' )
+
+	while true
+	do
+		if package_present "$lpackage"; then
+			break
+		fi
+		case "$package_path" in
+		pool/*)
+			# Attempt download from the launchpad librarian first.
+			"$here/file-downloader" "https://launchpad.net/ubuntu/+archive/primary/+files/$package_file" || true
+			if package_present "$lpackage"; then
+				break
+			fi
+
+			# Download from the available pools.
+			for pool in $( grep -h '^deb ' /etc/apt/sources.list /etc/apt/sources.list.d/*.list | awk '{print $2}' | sort -u )
+			do
+				if package_present "$lpackage"; then
+					break
+				fi
+				url="$pool/$package_path"
+				"$here/file-downloader" "$url" && break || true
+				# No components in PPAs.
+				url=$(echo "$url" | sed -e 's@/pool/[^/]*/@/pool/main/@')
+				"$here/file-downloader" "$url" && break || true
+			done
+			;;
+		http*:*)
+			"$here/file-downloader" "$package_path"
+			;;
+		*/*)
+			cp -p "$package_path" .
+			;;
+		*)
+			apt-get download "$rpackage"
+			;;
+		esac
+		break
+	done
+	if ! package_present "$lpackage"; then
+		echo "EE: $lpackage not found"
+		exit 1
+	fi
+
+	dpkg -x "$lpackage"_*.deb "$package"
+
+	lversion=$( echo "$lpackage_path" | sed -e 's@.*/@@' -e 's@_[^_]*$@@' -e 's@.*_@@')
+	#built_using_record "$srcdir/debian/$pkgname.substvars" "$built_using$lpackage (= $lversion)"
+done
+
+# Pick out the package/version from the dkms.conf.
+for dkms_conf in "$package/usr/src"/*/"dkms.conf"
+do
+	break
+done
+
+# It seems some packages have a # in the name which works fine if the
+# package is installed directly, but not so much if we build it out
+# of the normal location.
+sed -i -e '/^PACKAGE_NAME=/ s/#//g' "$dkms_conf"
+
+# Run any dkms-package specfic configuration steps
+dkms_config_specific="$srcdir/$0-configure--$package"
+dkms_config_generic=$(echo "$dkms_config_specific" | sed -e 's/-[0-9][0-9]*$/-N/')
+for dkms_config in "$dkms_config_specific" "$dkms_config_generic"
+do
+	if [ -z "$dkms_config" -o ! -e "$dkms_config" ]; then
+		continue
+	fi
+	echo "II: dkms-build-configure $(basename "$dkms_config") found, executing"
+	"$dkms_config" \
+		"$srcdir" \
+		"$dkms_conf" \
+		"$dkms_dir" \
+		"$abi_flavour" \
+		"$sign" \
+		"$pkgname" \
+		"$pkgdir" \
+		"$dbgpkgdir" \
+		"$package" \
+		"$@" || exit 1
+	break
+done
+
+cat - <<'EOF' >>"$dkms_conf"
+POST_BUILD="ubuntu-save-objects ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/build ${dkms_tree}/${PACKAGE_NAME}/${PACKAGE_VERSION}/objects $POST_BUILD"
+EOF
+ubuntu_script="$(dirname "$dkms_conf")/ubuntu-save-objects"
+cat - <<'EOF' >"$ubuntu_script"
+#!/bin/sh
+from="$1"
+to="$2"
+script="$3"
+shift 2
+
+# Copy the objects.
+echo "II: copying objects to '$to'"
+mkdir -p "$to"
+(cd "$from" && find -name \*.o -o -name \*.o.ur-\* -o -name \*.mod | cpio -Lpd "$to")
+
+# Call the original post_install script if there is one.
+[ "$script" = '' ] && exit 0
+
+shift
+exec "$(dirname "$0")/$script" "$@"
+EOF
+chmod +x "$ubuntu_script"
+dkms_package=$( sed -ne 's/PACKAGE_NAME="\(.*\)"/\1/p' "$dkms_conf" )
+dkms_version=$( sed -ne 's/PACKAGE_VERSION="\(.*\)"/\1/p' "$dkms_conf" )
+
+# Build the DKMS binaries.
+echo "II: dkms-build building $package"
+fakeroot=""
+[ $(id -u) -ne 0 ] && fakeroot="/usr/bin/fakeroot"
+rc=0
+$fakeroot /usr/sbin/dkms build --no-prepare-kernel --no-clean-kernel \
+	-k "$abi_flavour" ${ARCH:+-a $ARCH} \
+	--sourcetree "$dkms_dir/source" \
+	--dkmstree "$dkms_dir/build" \
+	--kernelsourcedir "$dkms_dir/headers/linux-headers-$abi_flavour" \
+	"$dkms_conf" || rc=$?
+
+# Find the log and add it to our own.
+for log in "$dkms_dir/build/$dkms_package/$dkms_version/$abi_flavour"/*/"log/make.log" "$dkms_dir/build/$dkms_package/$dkms_version/build/make.log"
+do
+	if [ -f "$log" ]; then
+		sed -e "s@$dkms_dir@<<DKMSDIR>>@g" <"$log"
+		break
+	fi
+done
+
+# If this build failed then exit here.
+[ "$rc" != 0 ] && exit "$rc"
+
+# Install the modules with debug symbols we possibly built,
+# and strip the original modules for the next install step.
+if [ -n "$dbgpkgdir" ]; then
+	dbgpkgdir="$dbgpkgdir/$package"
+	echo "II: dkms-build installing $package into $dbgpkgdir (debug symbols)"
+	install -d "$dbgpkgdir"
+	find "$dkms_dir/build/$dkms_package/$dkms_version/$abi_version" -name \*.ko |
+	while read module; do
+		vmodule=$( basename "$module" )
+
+		# Check for '.debug_info' section in order to copy module.
+		# Useful if debug symbols are requested but not built for
+		# any reason (including not yet supported by DKMS package).
+		# Strip module just in case even if section isn't present.
+		if ${CROSS_COMPILE}objdump -h -j '.debug_info' "$module" >/dev/null 2>&1
+		then
+			echo "copying $vmodule"
+			cp "$module" "$dbgpkgdir"
+		else
+			echo "ignoring $vmodule (missing debug symbols)"
+		fi
+
+		# Just 'strip -g' as '/usr/sbin/dkms' does.
+		echo "stripping $vmodule"
+		strip -g "$module"
+	done
+fi
+
+# Install and optionally sign the modules we have built.
+pkgdir="$pkgdir/$package"
+echo "II: dkms-build installing $package into $pkgdir"
+install -d "$pkgdir"
+find "$dkms_dir/build/$dkms_package/$dkms_version/$abi_version" -name \*.ko |
+while read module; do
+	vmodule=$( basename "$module" )
+	case "$sign" in
+	--*)
+		echo "copying $vmodule"
+		cp "$module" "$pkgdir"
+		;;
+	*)
+		echo "signing $vmodule"
+		$sign "$module" "$pkgdir/$vmodule"
+		;;
+	esac
+done
+
+find "$dkms_dir/build/$dkms_package/$dkms_version/objects" -name \*.o -print | \
+while read object
+do
+	"$srcdir/debian/scripts/fix-filenames" "$object" "$dkms_dir"
+done
+
+# This assumes that .mod files are in the top level build tree
+# If there are ever .mod files in sub-directories, the dirname of objectlist needs to be stripped as well
+find "$dkms_dir/build/$dkms_package/$dkms_version/objects" -name \*.mod -print | \
+while read objectlist
+do
+	sed "s|^$dkms_dir/build/$dkms_package/$dkms_version/build/||" -i $objectlist
+done
+
+# Finally see if there is a dkms-package specific post processor present.  Hand
+# it the original source directory, destination package directory, the objects
+# as squirreled away, and the log in case it is useful.  Finally pass a formed
+# signing command line in case we need to do that.
+dkms_build_specific="$srcdir/$0--$package"
+dkms_build_generic=$(echo "$dkms_build_specific" | sed -n -e 's/-[0-9][0-9]*[a-z]*$/-N/p')
+for dkms_build in "$dkms_build_specific" "$dkms_build_generic"
+do
+	if [ -z "$dkms_build" -o ! -e "$dkms_build" ]; then
+		continue
+	fi
+	echo "II: dkms-build override $(basename "$dkms_build") found, executing"
+	"$dkms_build" \
+		"$srcdir" \
+		"$dkms_dir/build/$dkms_package/$dkms_version/objects" \
+		"$log" \
+		"$dkms_dir" \
+		"$abi_flavour" \
+		"$sign" \
+		"$pkgname" \
+		"$pkgdir" \
+		"$dbgpkgdir" \
+		"$package" \
+		"$@" || exit 1
+	break
+done
+
+echo "II: dkms-build build $package complete"

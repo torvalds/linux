@@ -1,0 +1,104 @@
+#!/bin/bash
+
+#
+# Build a new directory of modules based on an inclusion list.
+# The includsion list format must be a bash regular expression.
+#
+# usage: $0 ROOT INCLUSION_LIST
+# example: $0 \
+#       debian/build/build-virtual-ALL debian/build/build-virtual \
+#	debian.master/control.d/virtual.inclusion-list \
+#	virtual.depmap
+master=0
+if [ "$1" = "--master" ]; then
+	master=1
+	shift
+fi
+
+ROOT=$1
+NROOT=$2
+ILIST=$3
+DEPMAP=$4
+
+tmp="/tmp/module-inclusion.$$"
+
+#
+# Prep a destination directory.
+#
+mkdir -p ${NROOT}
+
+{
+	# Copy over the framework into the master package.
+	if  [ "$master" -eq 1 ]; then
+		(cd ${ROOT}; find . ! -name "*.ko" -type f)
+	fi
+
+	# Copy over modules by name or pattern.
+	while read -r i
+	do
+		#
+		# 'find' blurts a warning if it cannot find any ko files.
+		#
+		case "$i" in
+		\!*)
+			(cd ${ROOT}; ${i#!} || true)
+			;;
+		*\**)
+			(cd ${ROOT}; eval find "${i}" -name "*.ko" || true)
+			;;
+		*)
+			echo "$i"
+			;;
+		esac
+	done <"${ILIST}"
+} >"$tmp"
+
+# Copy over the listed modules.
+while read i
+do
+	# If this is already moved over, all is good.
+	if [ -f "${NROOT}/$i" ]; then
+		:
+
+	# If present in the source, moved it over.
+	elif [ -f "${ROOT}/$i" ]; then
+		mkdir -p "${NROOT}/`dirname $i`"
+		mv "${ROOT}/$i" "${NROOT}/$i"
+
+	# Otherwise, it is missing.
+	else
+		echo "Warning: Could not find ${ROOT}/$i" 1>&2
+	fi
+done <"$tmp"
+
+# Copy over any dependancies, note if those are missing
+# we know they are in a pre-requisite package as they must
+# have existed at depmap generation time, and can only have
+# moved into a package.
+let n=0 || true
+while [ -s "$tmp" ]
+do
+	let n="$n+1" || true
+	[ "$n" = "20" ] && break || true
+
+	echo "NOTE: pass $n: dependency scan" 1>&2
+
+	while read i
+	do
+		grep "^$i " "$DEPMAP" | \
+		while read m d
+		do
+			if [ -f "${ROOT}/$d" ]; then
+				echo "NOTE: pass $n: ${i} pulls in ${d}" 1>&2
+				echo "$d"
+				mkdir -p "${NROOT}/`dirname $d`"
+				mv "${ROOT}/$d" "${NROOT}/$d"
+			fi
+		done
+	done <"$tmp" >"$tmp.new"
+	mv -f "$tmp.new" "$tmp"
+done
+
+rm -f "$tmp"
+
+exit 0

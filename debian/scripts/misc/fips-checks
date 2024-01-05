@@ -1,0 +1,139 @@
+#!/bin/bash -eu
+export LC_ALL=C.UTF-8
+
+usage() {
+	cat << EOF
+Usage: ${P:-$(basename "$0")} [-h|--help]
+
+Check if there are any FIPS relevant changes since the last
+release. Any change that is identified should have a justification in
+the justifications file or the check will fail.
+
+Optional arguments:
+  -h, --help            Show this help message and exit.
+  -p, --previous        Version to use as the previous base version.
+  -c, --current         Version to use as the current base version.
+
+EOF
+}
+
+prev_base_version=
+curr_base_version=
+crypto_files=( crypto arch/x86/crypto drivers/char/random.c arch/s390/crypto arch/arm64/crypto lib/crypto/sha1.c lib/crypto/aes.c )
+
+c_red='\033[0;31m'
+c_green='\033[0;32m'
+c_off='\033[0m'
+
+# Parse arguments
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		-p|--previous)
+			shift
+			prev_base_version="$1"
+			;;
+		-c|--current)
+			shift
+			curr_base_version="$1"
+			;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+	shift
+done
+
+DEBIAN=
+# shellcheck disable=SC1091
+. debian/debian.env
+
+# Check if the "$DEBIAN" directory exists.
+if [ ! -d "$DEBIAN" ]; then
+	echo "You must run this script from the top directory of this repository."
+	exit 1
+fi
+
+CONF="$DEBIAN/etc/update.conf"
+if [ ! -f "$CONF" ]; then
+	echo "Missing file: $CONF"
+	exit 1
+fi
+# shellcheck disable=SC1090
+. "$CONF"
+
+if [ "$DEBIAN_MASTER" = "" ]; then
+	echo "DEBIAN_MASTER should be defined either in $DEBIAN/etc/update.conf or the environment"
+	exit 1
+fi
+
+# Find the base kernel version used by the previous version
+if [ -z "$prev_base_version" ]; then
+	offset=1
+	# Loop through each entry of the current changelog, searching for an
+	# entry that refers to the master version used as base (ie a line
+	# containing "[ Ubuntu: 4.15.0-39.42 ]"):
+	while true; do
+		changes=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SChanges -c1 -o"$offset")
+		if ! [ "$changes" ]; then
+			echo "Failed to retrieve base master version from changelog file: $DEBIAN/changelog"
+			exit 1
+		fi
+		prev_base_version=$(echo "$changes" | sed -n -r -e '/^\s.*\[ Ubuntu: ([~0-9.-]*) \]$/{s//\1/p;q}')
+		[ "$prev_base_version" ] && break
+		offset=$(( offset + 1 ))
+	done
+	if [ -z "${prev_base_version}" ]; then
+		echo "Failed to retrieve base version from previous version from changelog: $DEBIAN/changelog"
+		exit 1
+	fi
+fi
+
+# Find the current base kernel version
+if [ -z "$curr_base_version" ]; then
+	curr_base_version=$(dpkg-parsechangelog -l"${DEBIAN_MASTER}/changelog" -SVersion)
+	if ! [ "$curr_base_version" ]; then
+		echo "Failed to retrieve current master version from changelog: $DEBIAN_MASTER/changelog"
+		exit 1
+	fi
+fi
+
+# Check base kernel tags
+package=$(dpkg-parsechangelog -l"${DEBIAN_MASTER}/changelog" -SSource)
+tag_prefix="Ubuntu${package#linux}-"
+prev_tag="${tag_prefix}${prev_base_version}"
+curr_tag="${tag_prefix}${curr_base_version}"
+for tag in "$prev_tag" "$curr_tag"; do
+	if ! git rev-parse --verify "$tag" &> /dev/null; then
+		echo "Missing tag \"$tag\". Please fetch tags from base kernel."
+		exit 1
+	fi
+done
+
+# Check all the changes
+fails=0
+justifications_file="$DEBIAN/fips.justifications"
+justifications=$(grep -P '^[^#\s]' "$justifications_file" 2> /dev/null || true)
+while read -r id; do
+	short_msg=$(git log --format=%s --max-count=1 "$id")
+	if echo "$justifications" | grep -q -x -F "$short_msg"; then
+		echo -e "${c_green}OK${c_off}   | ${id::12} ${short_msg}"
+		continue
+	fi
+	echo -e "${c_red}FAIL${c_off} | ${id::12} ${short_msg}"
+	fails=$(( fails + 1 ))
+done < <(git rev-list "${prev_tag}..${curr_tag}" -- "${crypto_files[@]}")
+
+echo
+if [ "$fails" -gt 0 ]; then
+	echo "FIPS relevant changes were found without justification: ${fails} change(s)."
+	echo "Please, check the commits above and update the file \"${justifications_file}\"."
+	exit 1
+fi
+
+echo "Check completed without errors."
+exit 0

@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+
+if ($#ARGV != 2) {
+	warn "Usage: $0 <changelog> <to> <range>\n";
+	die  "       $0 debian.master/changelog v3.2.3 v3.2.2..v3.2.3\n";
+}
+my ($changelog, $to, $range) = @ARGV;
+
+my @changes = ();
+
+push(@changes, "\n");
+push(@changes, "  [ Upstream Kernel Changes ]\n\n");
+push(@changes, "  * rebase to $to\n");
+
+open(LOG, "git log '$range'|") || die "$0: git log failed: - $!\n";
+while (<LOG>) {
+	if (m@BugLink: .*launchpad.net/.*/([0-9]+)\s$@) {
+		push(@changes, "    - LP: #$1\n");
+	}
+}
+close(LOG);
+
+open(CHANGELOG, "< $changelog") or die "Cannot open changelog";
+open(NEW, "> $changelog.new") or die "Cannot open new changelog";
+
+$printed = 3;
+while (<CHANGELOG>) {
+	if (/^  CHANGELOG: /) {
+		$printed--;
+		print NEW;
+		if ($printed == 0) {
+			print NEW @changes;
+		}
+		next;
+	}
+	print NEW;
+}
+
+close(NEW);
+close(CHANGELOG);
+
+rename("$changelog.new", "$changelog");

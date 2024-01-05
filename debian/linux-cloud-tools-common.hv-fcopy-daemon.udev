@@ -1,0 +1,1 @@
+SUBSYSTEM=="misc", KERNEL=="vmbus/hv_fcopy", TAG+="systemd", ENV{SYSTEMD_WANTS}+="hv-fcopy-daemon.service"

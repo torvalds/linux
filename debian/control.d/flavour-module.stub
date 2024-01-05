@@ -1,0 +1,19 @@
+
+Package: linux-modules-MODULE-PKGVER-ABINUM-FLAVOUR
+Build-Profiles: <!stage1>
+Architecture: ARCH
+Section: kernel
+Priority: optional
+Depends:
+ ${misc:Depends},
+ linux-image-PKGVER-ABINUM-FLAVOUR | linux-image-unsigned-PKGVER-ABINUM-FLAVOUR,
+Built-Using: ${linux:BuiltUsing}
+Description: Linux kernel MODULE modules for version PKGVER-ABINUM
+ This package provides the Linux kernel MODULE modules for version
+ PKGVER-ABINUM.
+ .
+ You likely do not want to install this package directly. Instead, install the
+ one of the linux-modules-MODULE-FLAVOUR* meta-packages,
+ which will ensure that upgrades work correctly, and that supporting packages are
+ also installed.
+

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+version=@abiname@@localversion@
+image_path=/boot/@image-stem@-$version
+
+if [ "$1" != configure ]; then
+    exit 0
+fi
+
+depmod -a -F /boot/System.map-$version $version || true
+if [ -d /etc/kernel/postinst.d ]; then
+    cat - >/usr/lib/linux/triggers/$version <<EOF
+DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \
+	    --arg="$image_path" /etc/kernel/postinst.d
+EOF
+    dpkg-trigger --no-await linux-update-$version
+fi
+
+exit 0

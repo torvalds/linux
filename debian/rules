@@ -1,0 +1,245 @@
+#!/usr/bin/make -f
+#
+# $(DEBIAN)/rules for Ubuntu linux
+#
+# Use this however you want, just give credit where credit is due.
+#
+# Copyright (c) 2007 Ben Collins <bcollins@ubuntu.com>
+#
+
+# Do not use make's built-in rules and variables
+# (this increases performance and avoids hard-to-debug behaviour)
+MAKEFLAGS += -rR
+
+.NOTPARALLEL:
+
+DEBIAN=$(shell awk -F= '($$1 == "DEBIAN") { print $$2 }' <debian/debian.env)
+
+# dpkg-buildpackage passes options that are incomptatible
+# with the kernel build.
+unexport CFLAGS
+unexport LDFLAGS
+
+export LC_ALL=C
+export SHELL=/bin/bash -e
+
+# Where do we find the common configuration.
+export DROOT=debian
+
+# Temporary workaround to fix build issues if only python2 runtime is installed
+# (without python3-dev).
+export PYTHON=python3
+
+# Common variables for all architectures
+include $(DROOT)/rules.d/0-common-vars.mk
+
+# Pull in some arch specific stuff
+-include $(DEBIAN)/rules.d/$(arch).mk
+
+# Pull in some branch specific stuff. Used by LTS backport
+# branches to override master branch settings such as do_tools_common.
+-include $(DEBIAN)/rules.d/hooks.mk
+
+# Maintainer targets
+include $(DROOT)/rules.d/1-maintainer.mk
+
+do_linux_tools=$(sort $(filter-out false,$(do_tools_usbip) $(do_tools_cpupower) $(do_tools_perf) $(do_tools_bpftool) $(do_tools_x86)))
+do_cloud_tools=$(sort $(filter-out false,$(do_tools_hyperv)))
+do_tools_common?=true
+do_tools_host?=false
+do_tools_perf_jvmti?=false
+do_enforce_all?=false
+
+# Default settings for DKMS modules.
+$(foreach _m,$(all_dkms_modules), \
+  $(eval do_$(_m) ?= $(if $(filter $(_m),$(filter-out $(dkms_exclude),$(dkms_include) $(subst any,$(_m),$(subst $(arch),$(_m),$(dkms_$(_m)_archs))))),true,false)) \
+)
+
+# Don't build tools in a cross compile environment.
+ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
+	do_tools=false
+endif
+
+# Are any of the kernel signing options enabled.
+any_signed=$(sort $(filter-out false,$(uefi_signed) $(opal_signed) $(sipl_signed)))
+ifeq ($(any_signed),true)
+bin_pkg_name=$(bin_pkg_name_unsigned)
+else
+bin_pkg_name=$(bin_pkg_name_signed)
+endif
+
+# Stages -- support both DEB_STAGE=stage1 and DEB_BUILD_PROFILE=bootstrap
+ifeq ($(DEB_STAGE),stage1)
+    DEB_BUILD_PROFILES=stage1
+endif
+ifneq ($(DEB_BUILD_PROFILE),)
+    DEB_BUILD_PROFILES=$(DEB_BUILD_PROFILE)
+endif
+ifneq ($(filter stage1,$(DEB_BUILD_PROFILES)),)
+    do_tools=false
+    do_doc_package=false
+    do_source_package=false
+    do_flavour_image_package=false
+    do_flavour_header_package=false
+endif
+
+# autopkgtest -- rebuild support
+#  - only build the first flavour on the assumption it is representative
+#  - disable dkms builds as the versions used may have been deleted
+ifneq ($(filter autopkgtest,$(DEB_BUILD_PROFILES)),)
+	flavours := $(firstword $(flavours))
+$(foreach _m,$(all_dkms_modules),$(eval do_$(_m) = false))
+endif
+
+# Being used to build a mainline build -- turn off things which do not work.
+ifeq ($(do_mainline_build),true)
+	do_extras_package=false
+	do_tools=false
+	no_dumpfile=1
+$(foreach _m,$(all_dkms_modules),$(eval do_$(_m) = false))
+	do_skip_checks=true
+endif
+
+# Disable tools build and packaging if do_tools != true
+ifneq ($(do_tools),true)
+	do_linux_tools=
+	do_cloud_tools=
+	do_tools_common=
+	do_tools_host=
+endif
+
+$(foreach _m,$(all_built-in_dkms_modules), \
+  $(if $(filter true,$(do_$(_m))),, \
+    $(eval do_$(_m)_disable := $$(shell for m in $$$$(cat $(DROOT)/$(_m)-modules.ignore); do grep -qxF $$$$m $(prev_abidir)/../modules.ignore 2>/dev/null || echo $$$$m >> $(prev_abidir)/../modules.ignore; done)) \
+  ) \
+)
+
+# Either tools package needs the common source preparation
+do_any_tools=$(sort $(filter-out false,$(do_linux_tools) $(do_cloud_tools)))
+
+# NVIDIA DKMS package gross series split into desktop and server.
+nvidia_desktop_series=$(shell sed -n -e 's/^nvidia-graphics-drivers-\([0-9][0-9]*\) .*/\1/p' debian/dkms-versions)
+nvidia_server_series=$(shell sed -n -e 's/^nvidia-graphics-drivers-\([0-9][0-9]*-server\) .*/\1/p' debian/dkms-versions)
+
+# Debian Build System targets
+.PHONY: binary
+binary: binary-indep binary-arch
+
+.PHONY: build
+build: build-arch build-indep
+
+.PHONY: clean
+clean: debian/control debian/canonical-certs.pem debian/canonical-revoked-certs.pem
+	dh_testdir
+	dh_testroot
+	dh_clean
+
+	# normal build junk
+	rm -rf $(DEBIAN)/abi/$(release)-$(revision)
+	rm -rf $(builddir)
+	rm -f $(stampdir)/stamp-*
+	rm -rf debian/linux-*/
+
+	cp $(DEBIAN)/changelog debian/changelog
+
+	# Install the copyright information.
+	cp $(DEBIAN)/copyright debian/copyright
+
+	# Install the retpoline extractor.
+	cp $(DROOT)/scripts/retpoline-extract-one scripts/ubuntu-retpoline-extract-one
+
+	# If we have a reconstruct script use it.
+	[ -f $(DEBIAN)/reconstruct ] && bash $(DEBIAN)/reconstruct || true
+
+	# Remove generated intermediate files
+	rm -f $(DROOT)/control.stub $(DEBIAN)/control.stub
+	rm -f $(DROOT)/scripts/fix-filenames
+
+.PHONY: distclean
+distclean: clean
+	rm -rf $(DROOT)/control debian/changelog \
+		debian/control debian/control.stub debian/copyright \
+		scripts/ubuntu-retpoline-extract-one
+
+# Builds the image, arch headers and debug packages
+include $(DROOT)/rules.d/2-binary-arch.mk
+
+# Builds the source, doc and linux-headers indep packages
+include $(DROOT)/rules.d/3-binary-indep.mk
+
+# Various checks to be performed on builds
+include $(DROOT)/rules.d/4-checks.mk
+
+control_files := $(DEBIAN)/control.stub.in
+ifeq ($(do_libc_dev_package),true)
+ifneq (,$(wildcard $(DEBIAN)/control.d/linux-libc-dev.stub))
+	control_files += $(DEBIAN)/control.d/linux-libc-dev.stub
+endif
+endif
+ifeq ($(do_doc_package),true)
+ifneq (,$(wildcard $(DEBIAN)/control.d/linux-doc.stub))
+	control_files += $(DEBIAN)/control.d/linux-doc.stub
+endif
+endif
+
+# Calculate Ubuntu Compatible Signing levels
+UBUNTU_COMPATIBLE_SIGNING=$(shell grep -qx ' *Subject: C = GB, ST = Isle of Man, O = Canonical Ltd., OU = Secure Boot, CN = Canonical Ltd. Secure Boot Signing (2021 v3)' debian/canonical-revoked-certs.pem && echo ubuntu/4 pro/3)
+
+# Misc stuff
+.PHONY: $(DEBIAN)/control.stub
+$(DEBIAN)/control.stub: 				\
+		$(DROOT)/scripts/control-create		\
+		$(control_files)			\
+		debian/canonical-revoked-certs.pem	\
+		$(DROOT)/control.d/flavour-module.stub	\
+		$(DEBIAN)/changelog			\
+		$(wildcard $(DEBIAN)/control.d/* $(DEBIAN)/sub-flavours/*.vars)
+	for i in $(control_files); do                                           \
+	  cat $$i;                                                              \
+	  echo "";                                                              \
+	done | sed -e 's/PKGVER/$(release)/g'                                   \
+	        -e 's/ABINUM/$(abinum)/g'                                       \
+		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \
+		-e 's/=HUMAN=/$(human_arch)/g'                                  \
+		-e 's/=SERIES=/$(series)/g'                                     \
+		-e 's|\(^Maintainer:.*\)|\1\nXSC-Ubuntu-Compatible-Signing: $(UBUNTU_COMPATIBLE_SIGNING)|g' \
+		-e 's/\(^Build-Depends:$$\)/\1\n$(GCC_BUILD_DEPENDS)/g'         \
+	  > $(DEBIAN)/control.stub;
+	flavours="$(sort $(wildcard $(DEBIAN)/control.d/vars.* $(DEBIAN)/sub-flavours/*.vars))";\
+	for i in $$flavours; do							\
+	  $(SHELL) $(DROOT)/scripts/control-create $$i "$(any_signed)" |	\
+		sed -e 's/PKGVER/$(release)/g'                                  \
+		-e 's/ABINUM/$(abinum)/g'                                       \
+		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \
+		-e 's/=HUMAN=/$(human_arch)/g'                                  \
+		-e 's/=SERIES=/$(series)/g'                                     \
+		>> $(DEBIAN)/control.stub;                                      \
+	done
+
+.PHONY: debian/control
+debian/control: $(DEBIAN)/control.stub
+	cp $(DEBIAN)/control.stub debian/control
+
+debian/canonical-certs.pem: $(wildcard $(DROOT)/certs/*-all.pem) $(wildcard $(DROOT)/certs/*-$(arch).pem) $(wildcard $(DEBIAN)/certs/*-all.pem) $(wildcard $(DEBIAN)/certs/*-$(arch).pem)
+	for cert in $(sort $(notdir $^));					\
+	do									\
+		for dir in $(DEBIAN) $(DROOT);					\
+		do								\
+			if [ -f "$$dir/certs/$$cert" ]; then			\
+				cat "$$dir/certs/$$cert";			\
+				break;						\
+			fi;							\
+		done;								\
+	done >"$@"
+
+debian/canonical-revoked-certs.pem: $(wildcard $(DROOT)/revoked-certs/*-all.pem) $(wildcard $(DROOT)/revoked-certs/*-$(arch).pem) $(wildcard $(DEBIAN)/revoked-certs/*-all.pem) $(wildcard $(DEBIAN)/revoked-certs/*-$(arch).pem)
+	for cert in $(sort $(notdir $^));					\
+	do									\
+		for dir in $(DEBIAN) $(DROOT);					\
+		do								\
+			if [ -f "$$dir/revoked-certs/$$cert" ]; then		\
+				cat "$$dir/revoked-certs/$$cert";		\
+				break;						\
+			fi;							\
+		done;								\
+	done >"$@"

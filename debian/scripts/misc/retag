@@ -1,0 +1,34 @@
+#!/usr/bin/perl -w
+
+open(TAGS, "git tag -l |") or die "Could not get list of tags";
+@tags = <TAGS>;
+close(TAGS);
+
+open(LOGS, "git log --pretty=short |") or die "ERROR: Calling git log";
+my $commit = "";
+
+while (<LOGS>) {
+	my $origtag;
+
+	if (m|^commit (.*)$|) {
+		$commit = $1;
+		next;
+	}
+
+	m|\s*UBUNTU: (Ubuntu-2\.6\..*)| or next;
+
+	$tag = $1;
+
+	($origtag) = grep(/^$tag.orig$/, @tags);
+
+	if (!defined($origtag)) {
+		print "I: Adding original tag for $tag\n";
+		system("git tag -m $tag $tag.orig $tag");
+	}
+
+	print "I: Tagging $tag => $commit\n";
+
+	system("git tag -f -m $tag $tag $commit");
+}
+
+close(LOGS);

@@ -1,0 +1,14 @@
+# On Azure/Hyper-V systems start the hv_vss_daemon
+#
+# author "Andy Whitcroft <apw@canonical.com>"
+[Unit]
+Description=Hyper-V VSS Protocol Daemon
+ConditionVirtualization=microsoft
+ConditionPathExists=/dev/vmbus/hv_vss
+BindsTo=sys-devices-virtual-misc-vmbus\x21hv_vss.device
+
+[Service]
+ExecStart=/usr/sbin/hv_vss_daemon -n
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,40 @@
+#!/bin/sh
+set -e
+
+version=@abiname@@localversion@
+image_path=/boot/@image-stem@-$version
+
+rm -f /lib/modules/$version/.fresh-install
+
+if [ "$1" != upgrade ] && command -v linux-update-symlinks >/dev/null; then
+    linux-update-symlinks remove $version $image_path
+fi
+
+if [ -d /etc/kernel/postrm.d ]; then
+    # We cannot trigger ourselves as at the end of this we will no longer
+    # exist and can no longer respond to the trigger.  The trigger would
+    # then become lost.  Therefore we clear any pending trigger and apply
+    # postrm directly.
+    if [ -f /usr/lib/linux/triggers/$version ]; then
+	echo "$0 ... removing pending trigger"
+	rm -f /usr/lib/linux/triggers/$version
+    fi
+    DEB_MAINT_PARAMS="$*" run-parts --report --exit-on-error --arg=$version \
+	      --arg=$image_path /etc/kernel/postrm.d
+fi
+
+if [ "$1" = purge ]; then
+    for extra_file in modules.dep modules.isapnpmap modules.pcimap \
+                      modules.usbmap modules.parportmap \
+                      modules.generic_string modules.ieee1394map \
+                      modules.ieee1394map modules.pnpbiosmap \
+                      modules.alias modules.ccwmap modules.inputmap \
+                      modules.symbols modules.ofmap \
+                      modules.seriomap modules.\*.bin \
+		      modules.softdep modules.devname; do
+	eval rm -f /lib/modules/$version/$extra_file
+    done
+    rmdir /lib/modules/$version || true
+fi
+
+exit 0

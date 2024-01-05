@@ -1,0 +1,23 @@
+#!/bin/bash
+
+cd "$1" || exit 1
+
+# Find all valid retpoline information, collate the detected and
+# safe information together.  Join the result to find the detected
+# but non-safe elements.  These are our concern.
+ur_detected=$(mktemp --tmpdir "retpoline-check-XXXXXX.ur-detected")
+ur_safe=$(mktemp --tmpdir "retpoline-check-XXXXXX.ur-safe")
+
+find "." -path './drivers/firmware/efi/libstub' -prune -o \
+	 -path './arch/x86/boot' -prune -o \
+	 -path './arch/x86/purgatory' -prune -o \
+	 -name \*.ur-detected -print0 | xargs -0 cat | \
+	sed -e "s@^$1@@" -e "s@ $2/@ @" -e "s@^/@@" | \
+	sort -k 1b,1 >"$ur_detected"
+find "." -name \*.ur-safe -print0 | xargs -0 cat | \
+	sed -e "s@^$1@@" -e "s@^/@@" | \
+	sort -k 1b,1 >"$ur_safe"
+
+join -v 1 -j 1 "$ur_detected" "$ur_safe" | sed -s 's/[^ ]*  *//'
+
+rm -f "$ur_detected" "$ur_safe"

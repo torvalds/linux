@@ -1,0 +1,7 @@
+Tests: rebuild
+Depends: @builddeps@, fakeroot
+Restrictions: allow-stderr, skippable
+
+Tests: ubuntu-regression-suite
+Depends: build-essential, gcc-multilib [amd64 armhf i386], gdb, git, python3
+Restrictions: allow-stderr, isolation-machine, breaks-testbed, skippable

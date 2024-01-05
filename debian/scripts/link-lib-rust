@@ -1,0 +1,17 @@
+#!/bin/bash -e
+
+. debian/debian.env
+
+hdrdir="$1"
+symdir="$2"
+flavour="$3"
+
+echo "Symlinking and copying Rust files for $flavour..."
+
+# Symlink Rust folder
+item=rust
+relpath=$(echo $symdir | sed s/headers/lib-rust/)-$flavour/$item
+echo ln -s ../$relpath $hdrdir/$item
+ln -s ../$relpath $hdrdir/$item
+
+exit

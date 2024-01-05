@@ -1,0 +1,24 @@
+#!/bin/sh
+set -e
+
+srcdir="$1"
+dkms_conf="$2"
+shift 2
+
+dkms_dir="$1"
+abi_flavour="$2"
+sign="$3"
+pkgname="$4"
+pkgdir="$5"
+dbgpkgdir="$6"
+package="$7"
+shift 7
+
+# ZFS debug symbols are enabled in dkms.conf via PACKAGE_CONFIG file.
+if [ -n "$dbgpkgdir" ]; then
+	echo "enable zfs debug symbols"
+	pkg_cfg="$(dirname "$dkms_conf")/pkg_cfg"
+	echo 'ZFS_DKMS_ENABLE_DEBUGINFO=yes' >"$pkg_cfg"
+	echo 'ZFS_DKMS_DISABLE_STRIP=yes'   >>"$pkg_cfg"
+	sed -i "s,^\(PACKAGE_CONFIG=\).*,\1$pkg_cfg," $dkms_conf
+fi

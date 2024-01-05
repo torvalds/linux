@@ -1,0 +1,31 @@
+#!/bin/sh
+set -e
+
+version=@abiname@@localversion@
+image_path=/boot/@image-stem@-$version
+
+if [ "$1" != remove ]; then
+    exit 0
+fi
+
+depmod -a -F /boot/System.map-$version $version 2>/dev/null || true
+#
+# We should be rebuilding the initramfs here on removal to pare down the
+# initramfs if it contains any of the objects we just removed.  But people
+# commonly remove kernels in order to free space in /boot, and rebuilding the
+# initramfs now risks ENOSPC when we are trying to make space.  The files we
+# leave lying about could be confusing, but we trade that against safety on
+# removal.
+#
+#if [ -d /etc/kernel/postinst.d ]; then
+#    # We want to behave as if linux-image (without us) was installed, therefore
+#    # we do not want the postinst support to know we are being removed, claim
+#    # this is an installation event.
+#    cat - >/usr/lib/linux/triggers/$version <<EOF
+#DEB_MAINT_PARAMS="configure" run-parts --report --exit-on-error --arg=$version \
+#	--arg="$image_path" /etc/kernel/postinst.d
+#EOF
+#    dpkg-trigger --no-await linux-update-$version
+#fi
+
+exit 0

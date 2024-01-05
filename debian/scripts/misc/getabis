@@ -1,0 +1,222 @@
+#!/bin/bash
+
+export LC_ALL=C.UTF-8
+
+if [ "$#" = "1" ]; then
+	set - $(echo "$1" | sed -e 's/-/ /')
+fi
+if [ "$#" != "2" ]; then
+	echo "Usage: $0 <version>" 1>&2
+	echo "Usage: $0 <release> <revision>" 1>&2
+	exit 1
+fi
+
+if [ "$DEBIAN" = "" ]; then
+	. debian/debian.env
+fi
+
+ver=$1
+revision=$2
+abi=${revision%%.*}
+
+verabi=$ver-$abi
+verfull=$ver-$revision
+
+WGET="wget --tries=1 --timeout=10 --quiet -c"
+
+# Check if we use a flat (unversioned) ABI directory
+if [ -f "${DEBIAN}/abi/version" ] || \
+   grep -qP '^abidir\s+.*/__abi.current/' debian/rules.d/0-common-vars.mk ; then
+	echo "Using flat ABI directory"
+	flat_abi=1
+	abidir=$(pwd)/${DEBIAN}/abi
+else
+	echo "Using versioned ABI directory"
+	flat_abi=0
+	abidir=$(pwd)/${DEBIAN}/abi/${verfull}
+fi
+
+tmpdir="`pwd`/abi-tmp-$verfull"
+origdir="`pwd`"
+fwinfo=$abidir/fwinfo
+
+test -d $tmpdir || mkdir $tmpdir
+
+package_prefixes() {
+	: # no longer used ...
+}
+
+getall() {
+	arch=$1
+	shift
+
+	mkdir -p $abidir/$arch
+
+	for sub in $@; do
+		if [ -f $abidir/$arch/$sub ]; then
+			echo "Existing $sub($arch)..."
+			continue
+		fi
+		echo "Fetching $sub($arch)..."
+		getall_set "linux-buildinfo" "$arch" "$sub" || \
+		getall_set "linux-image-unsigned linux-modules linux-modules-extra" "$arch" "$sub" || \
+		getall_set "linux-image-unsigned linux-modules" "$arch" "$sub" || \
+		getall_set "linux-image linux-modules linux-modules-extra" "$arch" "$sub" || \
+		getall_set "linux-image linux-modules" "$arch" "$sub" || \
+		getall_set "linux-image linux-image-extra" "$arch" "$sub" || \
+		getall_set "linux-image" "$arch" "$sub" || \
+		{ echo "FAILED"; exit 1; }
+	done
+}
+getall_set()
+{
+	prefixes="$1"
+	arch="$2"
+	sub="$3"
+	(
+		echo -n "  set:"
+		filenames=""
+		cd $tmpdir
+		found=1
+		for prefix in $prefixes
+		do
+			echo -n " $prefix="
+			if [ "$found" = 0 ]; then
+				echo -n "-"
+				continue
+			fi
+			filename=${prefix}-${verabi}-${sub}_${verfull}_${arch}.deb
+			for r in "${repo_list[@]}"
+			do
+				if ! [ -f $filename ]; then
+					$WGET $r/$filename
+					rc="$?"
+					# If this was not successful or a valid error
+					# return from the server all bets are off, bail.
+					[ "$rc" != 0 -a "$rc" != 8 ] && return 2
+				fi
+				if [ -f $filename ]; then
+					echo -n "y"
+					filenames="$filenames $filename"
+					break
+				fi
+			done
+			if [ ! -f "$filename" ]; then
+				echo -n "n"
+				found=0
+			fi
+		done
+		echo ""
+		if [ "$found" = 0 ]; then
+			return 1
+		fi
+		echo "  extracting..."
+		for filename in $filenames
+		do
+			dpkg-deb --extract $filename tmp
+		done
+		# FORM 1: linux-image et al extracted here.
+		if [ -d tmp/boot ]; then
+			echo "  images..."
+			find tmp -name "*.ko" | while read f; do
+				modinfo $f | grep ^firmware >> $fwinfo
+			done
+			if [ -f tmp/boot/abi-* ]; then
+				mv tmp/boot/abi-* $abidir/$arch/$sub
+			else
+				echo "    NO ABI FILE"
+			fi
+			if [ -f tmp/boot/retpoline-* ]; then
+				mv tmp/boot/retpoline-* $abidir/$arch/$sub.retpoline
+			else
+				echo "    NO RETPOLINE FILE"
+			fi
+			(cd tmp; find lib/modules/$verabi-$sub/kernel -name '*.ko') | \
+				sed -e 's/.*\/\([^\/]*\)\.ko/\1/' | sort > \
+				$abidir/$arch/$sub.modules
+			(
+				cd tmp;
+				# Prevent exposing some errors when called by python scripts. SIGPIPE seems to get
+				# exposed when using the `find ...` form of the command.
+				ko=$(find lib/modules/$verabi-$sub/kernel \
+					-name '*.ko' | head -1)
+				readelf -p .comment "$ko" | gawk '
+					($1 == "[") {
+						printf("%s", $3);
+						for (n=4; n<=NF; n++) {
+							printf(" %s", $n);
+						}
+						print ""
+					}' | sort -u >$abidir/$arch/$sub.compiler
+				version=`cat $abidir/$arch/$sub.compiler`
+				echo "    $version"
+			)
+		# FORM 2: moduleinfo packages
+		# cranky fix -- modinfo supported
+		else
+			echo "  buildinfo..."
+			base="tmp/usr/lib/linux/${verabi}-${sub}"
+			mv "$base/abi" "$abidir/$arch/$sub"
+			for comp in 'modules' 'retpoline' 'compiler'
+			do
+				mv "$base/$comp" "$abidir/$arch/$sub.$comp"
+			done
+			if [ -e "${base}"/modules.builtin ] ; then
+				mv "${base}"/modules.builtin "${abidir}/${arch}/${sub}".modules.builtin
+			fi
+			cat "$base/fwinfo" >>"$fwinfo"
+			if [ -e "${base}"/fwinfo.builtin ] ; then
+				cat "${base}"/fwinfo.builtin >> "${fwinfo}".builtin
+			fi
+		fi
+		rm -rf tmp $filenames
+		echo "  done"
+	)
+	rc="$?"
+	if [ "$rc" = 2 ]; then
+		echo "ERROR: downloads are reporting network failures" 1>&2
+		exit 1
+	fi
+	return "$rc"
+}
+
+# MAIN
+
+# Setup abi directory
+rm -rf "${abidir}"
+mkdir -p $abidir
+echo $abi > $abidir/abiname
+if [ ${flat_abi} -eq 1 ] ; then
+	echo "${verfull}" > "${abidir}"/version
+fi
+
+# NOTE: The flavours are hardcoded, because they may have changed from the
+# current build.
+
+. $DEBIAN/etc/getabis
+
+# Extract compiler source package version from e.g.:
+#   GCC: (Ubuntu/Linaro 4.8.2-19ubuntu1) 4.8.2
+compilers=`sed 's/^.*(.* \(.*\)).*$/\1/' $abidir/*/*.compiler | sort -u | wc -l`
+if [ "$compilers" != 1 ]; then
+	echo "WARNING: inconsistent compiler versions detected:" 1>&2
+	sort -u $abidir/*/*.compiler | sed 's/^/WARNING:    /' 1>&2
+fi
+
+# Sort fwinfo files
+sort < $fwinfo | uniq > fwinfo.tmp
+mv fwinfo.tmp $fwinfo
+if [ -e  "${fwinfo}".builtin ] ; then
+	sort <  "${fwinfo}".builtin | uniq > fwinfo.tmp
+	mv fwinfo.tmp  "${fwinfo}".builtin
+fi
+
+rmdir $tmpdir
+
+# If this is running in a git repo, add the new ABI directory, remove the old
+if [ -d ".git" ]; then
+	git add "${abidir}"
+	if [ ${flat_abi} -eq 0 ] ; then
+		find "$DEBIAN"/abi/* -maxdepth 0 -type d | grep -v "$verfull" | while read f; do git rm -rf "$f"; done
+	fi
+fi

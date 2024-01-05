@@ -1,0 +1,195 @@
+#!/bin/bash -eu
+export LC_ALL=C.UTF-8
+
+usage() {
+	cat << EOF
+Usage: ${P:-$(basename "$0")} [-h|--help] [-d|--dry-run] [-c|--include-config] [-s|--skip-master] [-b BASE_VERSION]
+
+Prepare the closing release commit. Include all the changelog entries
+in the current release, including the changes from the base
+kernel. Also close the changelog entry and check for config changes.
+
+Optional arguments:
+  -d, --dry-run         Perform a trial run with no changes made
+                        printing the commands instead.
+  -c, --include-config  Include config changes in the closing commit.
+  -s, --skip-master     Skip master kernel changelog entries (used when
+                        bootstraping new kernels).
+  -b BASE_VERSION       For derivatives and backports, force the changelog
+                        entries to have the base version as provided (used
+                        when changing the base derivative version of a
+                        backport).
+  -h, --help            Show this help message and exit.
+
+Examples:
+  Simply close a release:
+    \$ cranky close
+
+  Also include any config changes to the closing commit:
+    \$ cranky close -c
+
+EOF
+}
+
+dry_run=0
+commit_configs=0
+skip_master_entries=0
+base_version=
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		-d|--dry-run)
+			dry_run=1
+			;;
+		-c|--include-config)
+			commit_configs=1
+			;;
+		-s|--skip-master)
+			skip_master_entries=1
+			;;
+		-b)
+			shift
+			base_version="$1"
+			;;
+		*)
+			usage
+			exit 1
+			;;
+	esac
+	shift
+done
+
+hl() { echo -e "\e[1m$*\e[0m"; }
+
+run() {
+	# Quote args for echo or eval
+	local quoted=()
+	for token; do
+		quoted+=( "$(printf '%q' "$token")" )
+	done
+	# Run
+	if [ "$dry_run" -eq 1 ]; then
+		hl "DRY RUN: ${quoted[*]}"
+	else
+		hl "${quoted[*]}"
+		"$@"
+		echo
+	fi
+}
+
+# Trick shellcheck so it doesn't complain every time it's necessary to
+# use `run $CHROOT`. Use `chroot_run` instead.
+shopt -s expand_aliases
+alias chroot_run='run ${CHROOT:-}'
+
+DEBIAN=
+# shellcheck disable=SC1091
+. debian/debian.env
+
+# Check if the "$DEBIAN" directory exists.
+if [ ! -d "$DEBIAN" ]; then
+	echo "You must run this script from the top directory of this repository."
+	exit 1
+fi
+
+CONF="$DEBIAN/etc/update.conf"
+if [ -f "$CONF" ]; then
+	# shellcheck disable=SC1090
+	. "$CONF"
+fi
+
+# Check if changelog is open
+series=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SDistribution)
+if [ "$series" != 'UNRELEASED' ]; then
+	echo "The last entry of the changelog is already released."
+	exit 1
+fi
+
+# Update configs
+if [ -d "$DEBIAN/config" ]; then
+	chroot_run fakeroot debian/rules clean updateconfigs
+	changes=$(git diff HEAD -- "./$DEBIAN/config/")
+	if [ "$commit_configs" -eq 0 ] && [ -n "$changes" ]; then
+		echo "Config has changed! please, review it and commit."
+		exit 1
+	fi
+fi
+
+# For normal trees the fact that the update.conf file exists means that they are rebase
+# kernels. There are some special trees which started with uc20-efi, which have that
+# file because they logically depend on another source but do not have the directory
+# which DEBIAN_MASTER points to.
+# Skip inserting parent source entries if this is not a rebase tree.
+if [ ! -f "$DEBIAN/etc/update.conf" ]; then
+	skip_master_entries=1
+elif [ "$DEBIAN_MASTER" != "" -a ! -d "$DEBIAN_MASTER" ]; then
+	skip_master_entries=1
+fi
+if [ $skip_master_entries == 0 ]; then
+	if [ "$DEBIAN_MASTER" = "" ]; then
+		echo "DEBIAN_MASTER should be defined either in $DEBIAN/etc/update.conf or the environment"
+		exit 1
+	fi
+
+	if [ -z "${base_version}" ]; then
+		offset=0
+		# If not provided as an option, loop through each entry of the current changelog,
+		# searching for an entry that refers to the master version used as base
+		# (ie a line containing "[ Ubuntu: 4.15.0-39.42 ]"):
+		while true; do
+			changes=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SChanges -c1 -o"$offset")
+			if ! [ "$changes" ]; then
+				echo "Failed to retrieve base master version from changelog file: $DEBIAN/changelog"
+				exit 1
+			fi
+			base_version=$(echo "$changes" | sed -n -r -e '/^\s.*\[ Ubuntu: ([~0-9.-]*) \]$/{s//\1/p;q}')
+			[ "$base_version" ] && break
+			offset=$(( offset + 1 ))
+		done
+	fi
+
+	master_version=$(dpkg-parsechangelog -l${DEBIAN_MASTER}/changelog -SVersion)
+	if ! [ "$master_version" ]; then
+		echo "Failed to retrieve current master version from changelog: $DEBIAN/changelog"
+		exit 1
+	fi
+	run ./debian/scripts/misc/insert-ubuntu-changes "$DEBIAN/changelog" "$base_version" "$master_version" \
+		"$DEBIAN_MASTER/changelog"
+fi
+
+# Insert local changes
+run fakeroot debian/rules insertchanges
+
+# This should be the last step. If there were no changes to the
+# changelog, there is nothing to release, so nothing to commit.
+changes=$(git diff HEAD)
+if [ -z "$changes" ] && [ "$dry_run" -eq 0 ]; then
+	hl "No changes to commit."
+	exit 1
+fi
+
+# Find the current series from previous changelog entries:
+series=''
+offset=0
+while true; do
+	series=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SDistribution -c1 -o"$offset")
+	if [ "$series" ] && [ "$series" != 'UNRELEASED' ]; then
+		break
+	fi
+	offset=$(( offset + 1 ))
+done
+if ! [ "$series" ]; then
+	echo "Failed to retrieve the package series from changelog: $DEBIAN/changelog"
+	exit 1
+fi
+# Close the changelog
+run dch --nomultimaint -c "$DEBIAN/changelog" -r -D "$series" ''
+
+# Commit changes
+package=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SSource)
+prefix="Ubuntu$(echo "$package" | sed -r -e 's/linux(-?)/\1/')-"
+version=$(dpkg-parsechangelog -l"$DEBIAN/changelog" -SVersion)
+run git commit -sam "UBUNTU: $prefix$version"

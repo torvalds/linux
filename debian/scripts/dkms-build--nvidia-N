@@ -1,0 +1,113 @@
+#!/bin/sh
+set -e
+
+srcdir="$1"
+objects="$2"
+log="$3"
+shift 3
+
+dkms_dir="$1"
+abi_flavour="$2"
+sign="$3"
+pkgname="$4"
+pkgdir="$5"
+dbgpkgdir="$6"
+package="$7"
+shift 7
+
+build="$( dirname "$objects" )/build"
+
+# Copy over the objects ready for reconstruction.  The objects copy contains
+# the *.o files and the *.o-ur* retpoline files to allow the kernel to track
+# any retpoline sequences therein.  For our purposes we only want the *.o
+# files, elide the rest. And .mod files for ld linking in recentish kernels.
+mkdir -p "$pkgdir/bits/scripts"
+(
+	gcc_variant1=$(gcc --version | head -1 | sed -e 's/^gcc/GCC:/')
+	gcc_variant2=$(gcc --version | head -1 | sed -e 's/^\(gcc\) \((.*)\) \(.*\)$/\1 version \3 \2/')
+	cd "$objects" || exit 1
+	find -name \*.o -o -name \*.mod | \
+	while read file
+	do
+		cp --parents "$file" "$pkgdir/bits"
+		"$srcdir/debian/scripts/fix-filenames" "$pkgdir/bits/$file" "$gcc_variant1"
+		"$srcdir/debian/scripts/fix-filenames" "$pkgdir/bits/$file" "$gcc_variant2"
+	done
+)
+
+# Install the support files we need.
+echo "II: copying support files ..."
+for lds_src in \
+	"$dkms_dir/headers/linux-headers-$abi_flavour/scripts/module.lds" \
+	"/usr/src/linux-headers-$abi_flavour/scripts/module.lds" \
+	"$dkms_dir/headers/linux-headers-$abi_flavour/scripts/module-common.lds" \
+	"/usr/src/linux-headers-$abi_flavour/scripts/module-common.lds"
+do
+	[ ! -f "$lds_src" ] && continue
+	echo "II: copying support files ... found $lds_src"
+	cp "$lds_src" "$pkgdir/bits/scripts"
+	break
+done
+
+# Build helper scripts.
+cat - <<'EOL' >"$pkgdir/bits/BUILD"
+[ "$1" = "unsigned" ] && { signed_only=:; shift; }
+[ "$1" = "nocheck" ] && { check_only=:; shift; }
+EOL
+grep /usr/bin/ld.bfd "$log" | grep -v scripts/genksyms/genksyms | grep -v "warning:\|NOTE:" | sed -e "s@$build/@@g" >>"$pkgdir/bits/BUILD"
+sed -e 's/.*-o  *\([^ ]*\) .*/rm -f \1/g' <"$pkgdir/bits/BUILD" >"$pkgdir/bits/CLEAN"
+
+# As the builds contain the absolute filenames as used.  Use RECONSTRUCT to
+# rebuild the .ko's, sign them, pull off the signatures and then finally clean
+# up again.
+(
+	cd "$pkgdir/bits"
+
+	# Add checksum check.
+	echo "\$check_only sha256sum -c SHA256SUMS || exit 1" >>"$pkgdir/bits/BUILD"
+
+	# Add .ko handling to the CLEAN/BUILD dance.
+	for ko in "$pkgdir"/*.ko
+	do
+		ko=$(basename "$ko")
+		echo "\$signed_only cat '$ko' '$ko.sig' >'../$ko'" >>"$pkgdir/bits/BUILD"
+		echo "\$signed_only rm -f '$ko'" >>"$pkgdir/bits/BUILD"
+		echo "rm -f '../$ko'" >>"$pkgdir/bits/CLEAN"
+	done
+
+	# Clear out anything we are not going to distribute and build unsigned .kos.
+	sh ./CLEAN
+	sh ./BUILD unsigned nocheck
+
+	if [ "$sign" = "--custom" ]; then
+		# We are building for and archive custom signing upload.  Keep everything.
+		:
+	elif [ "$sign" = "--lrm" ]; then
+		# We are in the LRM build; grab sha256 checksums and clean up.
+		sha256sum -b *.ko >"SHA256SUMS"
+		sh ./CLEAN
+
+	else
+		# We are in the main kernel, put the .kos together as we will
+		# on the users machine, sign them, and keep just the signature.
+		: >"SHA256SUMS"
+		for ko in *.ko
+		do
+			echo "detached-signature $ko"
+			$sign "$ko" "$ko.signed"
+			length=$( stat --format %s "$ko" )
+			dd if="$ko.signed" of="$ko.sig" bs=1 skip="$length" 2>/dev/null
+
+			rm -f "$ko.signed"
+			# Keep a checksum of the pre-signed object so we can check it is
+			# built correctly in LRM.
+			sha256sum -b "$ko" >>"SHA256SUMS"
+		done
+
+		# Clean out anything which not a signature.
+		mv "$pkgdir/bits/"*.sig "$pkgdir"
+		mv "$pkgdir/bits/SHA256SUMS" "$pkgdir"
+		find "$pkgdir" -name \*.sig -prune -o -name SHA256SUMS -prune -o -type f -print | xargs rm -f
+		find "$pkgdir" -depth -type d -print | xargs rmdir --ignore-fail-on-non-empty
+	fi
+)
