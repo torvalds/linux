@@ -127,7 +127,7 @@ static int v9fs_dir_readdir(struct file *file, struct dir_context *ctx)
 			}
 
 			over = !dir_emit(ctx, st.name, strlen(st.name),
-					 v9fs_qid2ino(&st.qid), dt_type(&st));
+					QID2INO(&st.qid), dt_type(&st));
 			p9stat_free(&st);
 			if (over)
 				return 0;
@@ -184,7 +184,7 @@ static int v9fs_dir_readdir_dotl(struct file *file, struct dir_context *ctx)
 
 			if (!dir_emit(ctx, curdirent.d_name,
 				      strlen(curdirent.d_name),
-				      v9fs_qid2ino(&curdirent.qid),
+				      QID2INO(&curdirent.qid),
 				      curdirent.d_type))
 				return 0;
 
