@@ -688,7 +688,7 @@ static void process_subtest(struct test_loader *tester,
 		++nr_progs;
 
 	specs = calloc(nr_progs, sizeof(struct test_spec));
-	if (!ASSERT_OK_PTR(specs, "Can't alloc specs array"))
+	if (!ASSERT_OK_PTR(specs, "specs_alloc"))
 		return;
 
 	i = 0;
