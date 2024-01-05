@@ -20,6 +20,7 @@
 #include <net/cfg80211.h>
 #include <net/cfg80211-wext.h>
 #include <net/iw_handler.h>
+#include <kunit/visibility.h>
 #include "core.h"
 #include "nl80211.h"
 #include "wext-compat.h"
@@ -303,9 +304,10 @@ static size_t cfg80211_copy_elem_with_frags(const struct element *elem,
 	return *pos - buf;
 }
 
-static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
-				  const u8 *subie, size_t subie_len,
-				  u8 *new_ie, size_t new_ie_len)
+VISIBLE_IF_CFG80211_KUNIT size_t
+cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
+		    const u8 *subie, size_t subie_len,
+		    u8 *new_ie, size_t new_ie_len)
 {
 	const struct element *non_inherit_elem, *parent, *sub;
 	u8 *pos = new_ie;
@@ -413,6 +415,7 @@ static size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 
 	return pos - new_ie;
 }
+EXPORT_SYMBOL_IF_CFG80211_KUNIT(cfg80211_gen_new_ie);
 
 static bool is_bss(struct cfg80211_bss *a, const u8 *bssid,
 		   const u8 *ssid, size_t ssid_len)
@@ -1864,7 +1867,7 @@ __cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 					 &hidden->hidden_list);
 				hidden->refcount++;
 
-				ies = (void *)rcu_dereference(new->pub.beacon_ies);
+				ies = (void *)rcu_access_pointer(new->pub.beacon_ies);
 				rcu_assign_pointer(new->pub.beacon_ies,
 						   hidden->pub.beacon_ies);
 				if (ies)
@@ -2614,10 +2617,12 @@ cfg80211_tbtt_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
 	return 0;
 }
 
-static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
-				       struct cfg80211_inform_single_bss_data *tx_data,
-				       struct cfg80211_bss *source_bss,
-				       gfp_t gfp)
+static void
+cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
+				struct cfg80211_inform_single_bss_data *tx_data,
+				struct cfg80211_bss *source_bss,
+				const struct element *elem,
+				gfp_t gfp)
 {
 	struct cfg80211_inform_single_bss_data data = {
 		.drv_data = tx_data->drv_data,
@@ -2626,7 +2631,6 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 		.bss_source = BSS_SOURCE_STA_PROFILE,
 	};
 	struct ieee80211_multi_link_elem *ml_elem;
-	const struct element *elem;
 	struct cfg80211_mle *mle;
 	u16 control;
 	u8 ml_common_len;
@@ -2637,15 +2641,7 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 	const u8 *pos;
 	u8 i;
 
-	if (!source_bss)
-		return;
-
-	if (tx_data->ftype != CFG80211_BSS_FTYPE_PRESP)
-		return;
-
-	elem = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_MULTI_LINK,
-				      tx_data->ie, tx_data->ielen);
-	if (!elem || !ieee80211_mle_size_ok(elem->data + 1, elem->datalen - 1))
+	if (!ieee80211_mle_size_ok(elem->data + 1, elem->datalen - 1))
 		return;
 
 	ml_elem = (void *)elem->data + 1;
@@ -2673,8 +2669,11 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 	/* MLD capabilities and operations */
 	pos += 2;
 
-	/* Not included when the (nontransmitted) AP is responding itself,
-	 * but defined to zero then (Draft P802.11be_D3.0, 9.4.2.170.2)
+	/*
+	 * The MLD ID of the reporting AP is always zero. It is set if the AP
+	 * is part of an MBSSID set and will be non-zero for ML Elements
+	 * relating to a nontransmitted BSS (matching the Multi-BSSID Index,
+	 * Draft P802.11be_D3.2, 35.3.4.2)
 	 */
 	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_MLD_ID)) {
 		mld_id = *pos;
@@ -2815,6 +2814,25 @@ static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
 out:
 	kfree(new_ie);
 	kfree(mle);
+}
+
+static void cfg80211_parse_ml_sta_data(struct wiphy *wiphy,
+				       struct cfg80211_inform_single_bss_data *tx_data,
+				       struct cfg80211_bss *source_bss,
+				       gfp_t gfp)
+{
+	const struct element *elem;
+
+	if (!source_bss)
+		return;
+
+	if (tx_data->ftype != CFG80211_BSS_FTYPE_PRESP)
+		return;
+
+	for_each_element_extid(elem, WLAN_EID_EXT_EHT_MULTI_LINK,
+			       tx_data->ie, tx_data->ielen)
+		cfg80211_parse_ml_elem_sta_data(wiphy, tx_data, source_bss,
+						elem, gfp);
 }
 
 struct cfg80211_bss *

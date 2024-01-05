@@ -16,7 +16,7 @@
 #include "sta_info.h"
 #include "driver-ops.h"
 
-/* sta attributtes */
+/* sta attributes */
 
 #define STA_READ(name, field, format_string)				\
 static ssize_t sta_ ##name## _read(struct file *file,			\

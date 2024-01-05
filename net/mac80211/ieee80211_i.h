@@ -2608,4 +2608,14 @@ void ieee80211_check_wbrf_support(struct ieee80211_local *local);
 void ieee80211_add_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 void ieee80211_remove_wbrf(struct ieee80211_local *local, struct cfg80211_chan_def *chandef);
 
+#if IS_ENABLED(CONFIG_MAC80211_KUNIT_TEST)
+#define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)
+#define VISIBLE_IF_MAC80211_KUNIT
+ieee80211_rx_result
+ieee80211_drop_unencrypted_mgmt(struct ieee80211_rx_data *rx);
+#else
+#define EXPORT_SYMBOL_IF_MAC80211_KUNIT(sym)
+#define VISIBLE_IF_MAC80211_KUNIT static
+#endif
+
 #endif /* IEEE80211_I_H */

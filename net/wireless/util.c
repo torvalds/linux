@@ -980,7 +980,63 @@ unsigned int cfg80211_classify8021d(struct sk_buff *skb,
 		}
 	}
 
+	/* The default mapping as defined Section 2.3 in RFC8325: The three
+	 * Most Significant Bits (MSBs) of the DSCP are used as the
+	 * corresponding L2 markings.
+	 */
 	ret = dscp >> 5;
+
+	/* Handle specific DSCP values for which the default mapping (as
+	 * described above) doesn't adhere to the intended usage of the DSCP
+	 * value. See section 4 in RFC8325. Specifically, for the following
+	 * Diffserv Service Classes no update is needed:
+	 * - Standard: DF
+	 * - Low Priority Data: CS1
+	 * - Multimedia Streaming: AF31, AF32, AF33
+	 * - Multimedia Conferencing: AF41, AF42, AF43
+	 * - Network Control Traffic: CS7
+	 * - Real-Time Interactive: CS4
+	 */
+	switch (dscp >> 2) {
+	case 10:
+	case 12:
+	case 14:
+		/* High throughput data: AF11, AF12, AF13 */
+		ret = 0;
+		break;
+	case 16:
+		/* Operations, Administration, and Maintenance and Provisioning:
+		 * CS2
+		 */
+		ret = 0;
+		break;
+	case 18:
+	case 20:
+	case 22:
+		/* Low latency data: AF21, AF22, AF23 */
+		ret = 3;
+		break;
+	case 24:
+		/* Broadcasting video: CS3 */
+		ret = 4;
+		break;
+	case 40:
+		/* Signaling: CS5 */
+		ret = 5;
+		break;
+	case 44:
+		/* Voice Admit: VA */
+		ret = 6;
+		break;
+	case 46:
+		/* Telephony traffic: EF */
+		ret = 6;
+		break;
+	case 48:
+		/* Network Control Traffic: CS6 */
+		ret = 7;
+		break;
+	}
 out:
 	return array_index_nospec(ret, IEEE80211_NUM_TIDS);
 }
