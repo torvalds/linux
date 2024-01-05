@@ -20058,7 +20058,6 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 	state->first_insn_idx = env->subprog_info[subprog].start;
 	state->last_insn_idx = -1;
 
-
 	regs = state->frame[state->curframe]->regs;
 	if (subprog || env->prog->type == BPF_PROG_TYPE_EXT) {
 		const char *sub_name = subprog_name(env, subprog);
