@@ -10652,13 +10652,6 @@ S:	Supported
 F:	drivers/infiniband/hw/irdma/
 F:	include/uapi/rdma/irdma-abi.h
 
-INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
-M:	Maik Broemme <mbroemme@libmpq.org>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	Documentation/fb/intelfb.rst
-F:	drivers/video/fbdev/intelfb/
-
 INTEL GPIO DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>
 L:	linux-gpio@vger.kernel.org
