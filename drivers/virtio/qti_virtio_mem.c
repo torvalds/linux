@@ -71,10 +71,13 @@ static int qti_virtio_mem_hint_update(struct qti_virtio_mem_hint *hint,
 static void qti_virtio_mem_hint_kref_release(struct kref *kref)
 {
 	struct qti_virtio_mem_hint *hint;
+	int rc;
 
 	mutex_lock(&qvm_lock);
 	hint = container_of(kref, struct qti_virtio_mem_hint, kref);
-	WARN_ON(qti_virtio_mem_hint_update(hint, 0, false));
+	rc = qti_virtio_mem_hint_update(hint, 0, true);
+	if (rc)
+		pr_err("Possible permanent plug of memory to vm\n");
 
 	list_del(&hint->list);
 	mutex_unlock(&qvm_lock);
