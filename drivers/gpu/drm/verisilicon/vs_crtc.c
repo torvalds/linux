@@ -191,8 +191,10 @@ static int vs_crtc_late_register(struct drm_crtc *crtc)
 static int vs_crtc_enable_vblank(struct drm_crtc *crtc)
 {
 	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
+	u32 ctrc_mask = 0;
 
-	vs_crtc->funcs->enable_vblank(vs_crtc->dev, true);
+	ctrc_mask = drm_crtc_mask(crtc);
+	vs_crtc->funcs->enable_vblank(vs_crtc->dev, true, ctrc_mask);
 
 	return 0;
 }
@@ -200,8 +202,9 @@ static int vs_crtc_enable_vblank(struct drm_crtc *crtc)
 static void vs_crtc_disable_vblank(struct drm_crtc *crtc)
 {
 	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
-
-	vs_crtc->funcs->enable_vblank(vs_crtc->dev, false);
+	u32 ctrc_mask = 0;
+	ctrc_mask = drm_crtc_mask(crtc);
+	vs_crtc->funcs->enable_vblank(vs_crtc->dev, false, ctrc_mask);
 }
 
 static const struct drm_crtc_funcs vs_crtc_funcs = {

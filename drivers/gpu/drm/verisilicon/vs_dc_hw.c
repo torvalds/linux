@@ -1161,6 +1161,16 @@ static inline void hi_write(struct dc_hw *hw, u32 reg, u32 value)
 	writel(value, hw->hi_base + reg);
 }
 
+static inline void dc_high_set_clear(struct dc_hw *hw, u32 reg, u32 set, u32 clear)
+{
+	u32 value = hi_read(hw, reg);
+
+	value &= ~clear;
+	value |= set;
+	hi_write(hw, reg, value);
+}
+
+
 static inline void dc_write(struct dc_hw *hw, u32 reg, u32 value)
 {
 	writel(value, hw->reg_base + reg - DC_REG_BASE);
@@ -1486,16 +1496,12 @@ void dc_hw_setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 	hw->func->display(hw, display);
 }
 
-void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable)
+void dc_hw_enable_interrupt(struct dc_hw *hw, bool enable, u32 ctrc_mask)
 {
-	if (enable) {
-		if (hw->out[1] == OUT_DPI)
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
-
-		hi_write(hw, AQ_INTR_ENBL, 0xFFFFFFFF);
-	} else {
-		;//hi_write(hw, AQ_INTR_ENBL, 0);
-	}
+    if (enable)
+        dc_high_set_clear(hw, AQ_INTR_ENBL, ctrc_mask, 0);
+    else
+        dc_high_set_clear(hw, AQ_INTR_ENBL, 0, ctrc_mask);
 }
 
 u32 dc_hw_get_interrupt(struct dc_hw *hw)
@@ -1943,29 +1949,20 @@ static void setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 			dc_write(hw, DC_DISPLAY_DITHER_CONFIG + offset, 0);
 		}
 
-		dc_set_clear(hw, DC_DISPLAY_PANEL_CONFIG + offset, BIT(12), 0);
-		if (hw->display[id].sync_enable)
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(2) | BIT(3), 0);
-		else if (id == 0)
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(0), BIT(3));
-		else
-			if (hw->out[id] != OUT_DPI)
-				dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
-	} else {
-		dc_set_clear(hw, DC_DISPLAY_PANEL_CONFIG + offset, 0, BIT(12));
-		if (id == 0)
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(0) | BIT(2));
-		else
-			dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(1) | BIT(2));
-
-		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0x0, 0x0, BIT(24));
-		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0x4, 0x0, BIT(24));
-		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0x8, 0x0, BIT(24));
-		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0xc, 0x0, BIT(24));
-
-		dc_set_clear(hw, DC_CURSOR_CONFIG + 0x0, BIT(3), 0x03);
-		dc_set_clear(hw, DC_CURSOR_CONFIG + DC_CURSOR_OFFSET, BIT(3), 0x03);
-	}
+        dc_set_clear(hw, DC_DISPLAY_PANEL_CONFIG + offset, BIT(12), 0);
+        if (hw->display[id].sync_enable)
+            dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(2) | BIT(3), 0);
+        else if (id == 0)
+            dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(0), BIT(3));
+        else
+            dc_set_clear(hw, DC_DISPLAY_PANEL_START, BIT(1), BIT(3));
+    } else {
+        dc_set_clear(hw, DC_DISPLAY_PANEL_CONFIG + offset, 0, BIT(12));
+        if (id == 0)
+            dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(0) | BIT(2));
+        else
+            dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(1) | BIT(2));
+    }
 }
 
 static void setup_display_ex(struct dc_hw *hw, struct dc_hw_display *display)

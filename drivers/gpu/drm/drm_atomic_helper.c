@@ -1014,6 +1014,42 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 	struct drm_crtc_state *old_crtc_state, *new_crtc_state;
 	int i;
 
+	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
+		const struct drm_crtc_helper_funcs *funcs;
+		int ret;
+
+		/* Shut down everything that needs a full modeset. */
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		if (!crtc_needs_disable(old_crtc_state, new_crtc_state))
+			continue;
+
+		funcs = crtc->helper_private;
+
+		DRM_DEBUG_ATOMIC("disabling [CRTC:%d:%s]\n",
+				 crtc->base.id, crtc->name);
+
+
+		/* Right function depends upon target state. */
+		if (new_crtc_state->enable && funcs->prepare)
+			funcs->prepare(crtc);
+		else if (funcs->atomic_disable)
+			funcs->atomic_disable(crtc, old_state);
+		else if (funcs->disable)
+			funcs->disable(crtc);
+		else if (funcs->dpms)
+			funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
+
+		if (!drm_dev_has_vblank(dev))
+			continue;
+
+		ret = drm_crtc_vblank_get(crtc);
+		WARN_ONCE(ret != -EINVAL, "driver forgot to call drm_crtc_vblank_off()\n");
+		if (ret == 0)
+			drm_crtc_vblank_put(crtc);
+	}
+
 	for_each_oldnew_connector_in_state(old_state, connector, old_conn_state, new_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
@@ -1072,42 +1108,6 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		}
 
 		drm_atomic_bridge_chain_post_disable(bridge, old_state);
-	}
-
-	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
-		const struct drm_crtc_helper_funcs *funcs;
-		int ret;
-
-		/* Shut down everything that needs a full modeset. */
-		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
-			continue;
-
-		if (!crtc_needs_disable(old_crtc_state, new_crtc_state))
-			continue;
-
-		funcs = crtc->helper_private;
-
-		DRM_DEBUG_ATOMIC("disabling [CRTC:%d:%s]\n",
-				 crtc->base.id, crtc->name);
-
-
-		/* Right function depends upon target state. */
-		if (new_crtc_state->enable && funcs->prepare)
-			funcs->prepare(crtc);
-		else if (funcs->atomic_disable)
-			funcs->atomic_disable(crtc, old_state);
-		else if (funcs->disable)
-			funcs->disable(crtc);
-		else if (funcs->dpms)
-			funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
-
-		if (!drm_dev_has_vblank(dev))
-			continue;
-
-		ret = drm_crtc_vblank_get(crtc);
-		WARN_ONCE(ret != -EINVAL, "driver forgot to call drm_crtc_vblank_off()\n");
-		if (ret == 0)
-			drm_crtc_vblank_put(crtc);
 	}
 }
 
@@ -1344,28 +1344,6 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 	struct drm_connector_state *new_conn_state;
 	int i;
 
-	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
-		const struct drm_crtc_helper_funcs *funcs;
-
-		/* Need to filter out CRTCs where only planes change. */
-		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
-			continue;
-
-		if (!new_crtc_state->active)
-			continue;
-
-		funcs = crtc->helper_private;
-
-		if (new_crtc_state->enable) {
-			DRM_DEBUG_ATOMIC("enabling [CRTC:%d:%s]\n",
-					 crtc->base.id, crtc->name);
-			if (funcs->atomic_enable)
-				funcs->atomic_enable(crtc, old_state);
-			else if (funcs->commit)
-				funcs->commit(crtc);
-		}
-	}
-
 	for_each_new_connector_in_state(old_state, connector, new_conn_state, i) {
 		const struct drm_encoder_helper_funcs *funcs;
 		struct drm_encoder *encoder;
@@ -1401,6 +1379,28 @@ void drm_atomic_helper_commit_modeset_enables(struct drm_device *dev,
 		}
 
 		drm_atomic_bridge_chain_enable(bridge, old_state);
+	}
+
+	for_each_oldnew_crtc_in_state(old_state, crtc, old_crtc_state, new_crtc_state, i) {
+		const struct drm_crtc_helper_funcs *funcs;
+
+		/* Need to filter out CRTCs where only planes change. */
+		if (!drm_atomic_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		if (!new_crtc_state->active)
+			continue;
+
+		funcs = crtc->helper_private;
+
+		if (new_crtc_state->enable) {
+			DRM_DEBUG_ATOMIC("enabling [CRTC:%d:%s]\n",
+					 crtc->base.id, crtc->name);
+			if (funcs->atomic_enable)
+				funcs->atomic_enable(crtc, old_state);
+			else if (funcs->commit)
+				funcs->commit(crtc);
+		}
 	}
 
 	drm_atomic_helper_commit_writebacks(dev, old_state);
@@ -1509,7 +1509,7 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 		ret = wait_event_timeout(dev->vblank[i].queue,
 				old_state->crtcs[i].last_vblank_count !=
 					drm_crtc_vblank_count(crtc),
-				msecs_to_jiffies(100));
+				msecs_to_jiffies(500));
 
 		WARN(!ret, "[CRTC:%d:%s] vblank wait timed out\n",
 		     crtc->base.id, crtc->name);

@@ -267,47 +267,6 @@ static inline u8 to_vs_display_id(struct vs_dc *dc, struct drm_crtc *crtc)
 
 	return 0;
 }
-#if 0
-static int plda_clk_rst_init(struct device *dev)
-{
-	int ret;
-	struct vs_dc *dc = dev_get_drvdata(dev);
-
-	dc->num_clks = devm_clk_bulk_get_all(dev, &dc->clks);
-	if (dc->num_clks < 0) {
-		dev_err(dev, "failed to get vout clocks\n");
-		ret = -ENODEV;
-		goto exit;
-	}
-	ret = clk_bulk_prepare_enable(dc->num_clks, dc->clks);
-	if (ret) {
-		dev_err(dev, "failed to enable clocks\n");
-		goto exit;
-	}
-
-	dc->resets = devm_reset_control_array_get_exclusive(dev);
-	if (IS_ERR(dc->resets)) {
-		ret = PTR_ERR(dc->resets);
-		dev_err(dev, "failed to get pcie resets");
-		goto err_clk_init;
-	}
-	ret = reset_control_deassert(dc->resets);
-	goto exit;
-
-err_clk_init:
-	clk_bulk_disable_unprepare(dc->num_clks, dc->clks);
-exit:
-	return ret;
-}
-
-static void plda_clk_rst_deinit(struct device *dev)
-{
-	struct vs_dc *dc = dev_get_drvdata(dev);
-
-	reset_control_assert(dc->resets);
-	clk_bulk_disable_unprepare(dc->num_clks, dc->clks);
-}
-#endif
 
 static int vs_dc_get_clock(struct device *dev, struct vs_dc *dc)
 {
@@ -473,14 +432,6 @@ static void vs_vout_reset_deassert(struct vs_dc *dc)
 	//reset_control_deassert(dc->noc_disp);//ok
 }
 
-/*
-static void vs_vout_reset_assert(struct vs_dc *dc)
-{
-	reset_control_assert(dc->rst_vout_src);//no!
-	reset_control_assert(dc->noc_disp);//ok
-}
-*/
-
 static void vs_dc8200_reset_get(struct device *dev, struct vs_dc *dc)
 {
 	dc->dc8200_rst_axi = reset_control_get_shared(dev, "rst_axi");
@@ -635,7 +586,7 @@ static void dc_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
 	int ret;
-	dc_hw_enable_interrupt(&dc->hw, 0);
+	dc_hw_enable_interrupt(&dc->hw, 0, 0);
 	dc_hw_deinit(&dc->hw);
 	vs_dc_dc8200_clock_disable(dc);
 	vs_dc_vouttop_clock_disable(dc);
@@ -920,11 +871,11 @@ static void vs_dc_enable_gamma(struct device *dev, struct drm_crtc *crtc,
 	dc_hw_enable_gamma(&dc->hw, id, enable);
 }
 
-static void vs_dc_enable_vblank(struct device *dev, bool enable)
+static void vs_dc_enable_vblank(struct device *dev, bool enable, u32 ctrc_mask)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
 
-	dc_hw_enable_interrupt(&dc->hw, enable);
+	dc_hw_enable_interrupt(&dc->hw, enable, ctrc_mask);
 }
 
 static u32 calc_factor(u32 src, u32 dest)
@@ -1008,11 +959,11 @@ static void update_fb(struct vs_plane *plane, u8 display_id,
 	update_swizzle(drm_fb->format->format, fb);
 	update_watermark(plane_state->watermark, fb);
 
-        sifive_l2_flush64_range(fb->y_address, fb->height * fb->y_stride);
-        if (fb->u_address)
-                sifive_l2_flush64_range(fb->u_address, fb->height * fb->u_stride);
-        if (fb->v_address)
-                sifive_l2_flush64_range(fb->v_address, fb->height * fb->v_stride);
+    sifive_l2_flush64_range(fb->y_address, fb->height * fb->y_stride);
+    if (fb->u_address)
+            sifive_l2_flush64_range(fb->u_address, fb->height * fb->u_stride);
+    if (fb->v_address)
+            sifive_l2_flush64_range(fb->v_address, fb->height * fb->v_stride);
 
 	plane_state->status.tile_mode = fb->tile_mode;
 }
