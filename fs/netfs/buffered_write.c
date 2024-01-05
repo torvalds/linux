@@ -698,6 +698,7 @@ static void netfs_pages_written_back(struct netfs_io_request *wreq)
 	end_wb:
 		if (folio_test_fscache(folio))
 			folio_end_fscache(folio);
+		xas_advance(&xas, folio_next_index(folio) - 1);
 		folio_end_writeback(folio);
 	}
 
