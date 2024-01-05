@@ -5645,7 +5645,6 @@ static void ufshcd_mcq_compl_pending_transfer(struct ufs_hba *hba,
 	struct ufshcd_lrb *lrbp;
 	struct scsi_cmnd *cmd;
 	unsigned long flags;
-	u32 hwq_num, utag;
 	int tag;
 
 	for (tag = 0; tag < hba->nutrs; tag++) {
@@ -5655,9 +5654,7 @@ static void ufshcd_mcq_compl_pending_transfer(struct ufs_hba *hba,
 		    test_bit(SCMD_STATE_COMPLETE, &cmd->state))
 			continue;
 
-		utag = blk_mq_unique_tag(scsi_cmd_to_rq(cmd));
-		hwq_num = blk_mq_unique_tag_to_hwq(utag);
-		hwq = &hba->uhq[hwq_num];
+		hwq = ufshcd_mcq_req_to_hwq(hba, scsi_cmd_to_rq(cmd));
 
 		if (force_compl) {
 			ufshcd_mcq_compl_all_cqes_lock(hba, hwq);
