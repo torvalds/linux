@@ -375,6 +375,17 @@ static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
 	rtw89_phy_bb_wrap_tpu_set_all(rtwdev, mac_idx);
 }
 
+static void rtw89_phy_ch_info_init_be(struct rtw89_dev *rtwdev)
+{
+	rtw89_phy_write32_mask(rtwdev, R_CHINFO_SEG, B_CHINFO_SEG_LEN, 0x0);
+	rtw89_phy_write32_mask(rtwdev, R_CHINFO_SEG, B_CHINFO_SEG, 0xf);
+	rtw89_phy_write32_mask(rtwdev, R_CHINFO_DATA, B_CHINFO_DATA_BITMAP, 0x1);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_ELM_SRC, B_CHINFO_ELM_BITMAP, 0x40303);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_ELM_SRC, B_CHINFO_SRC, 0x0);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_TYPE_SCAL, B_CHINFO_TYPE, 0x3);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_TYPE_SCAL, B_CHINFO_SCAL, 0x0);
+}
+
 struct rtw89_byr_spec_ent_be {
 	struct rtw89_rate_desc init;
 	u8 num_of_idx;
@@ -944,6 +955,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
 	.bb_wrap_init = rtw89_phy_bb_wrap_init_be,
+	.ch_info_init = rtw89_phy_ch_info_init_be,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,
