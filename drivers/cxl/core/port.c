@@ -986,6 +986,15 @@ struct cxl_port *find_cxl_root(struct cxl_port *port)
 }
 EXPORT_SYMBOL_NS_GPL(find_cxl_root, CXL);
 
+void put_cxl_root(struct cxl_root *cxl_root)
+{
+	if (!cxl_root)
+		return;
+
+	put_device(&cxl_root->port.dev);
+}
+EXPORT_SYMBOL_NS_GPL(put_cxl_root, CXL);
+
 static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 {
 	struct cxl_dport *dport;
