@@ -1900,15 +1900,47 @@ static bool pll_enable_wa_needed(struct drm_i915_private *dev_priv)
 		dev_priv->display.cdclk.hw.vco > 0;
 }
 
-static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
-			   const struct intel_cdclk_config *cdclk_config,
-			   enum pipe pipe)
+static u32 bxt_cdclk_ctl(struct drm_i915_private *i915,
+			 const struct intel_cdclk_config *cdclk_config,
+			 enum pipe pipe)
 {
 	int cdclk = cdclk_config->cdclk;
 	int vco = cdclk_config->vco;
 	int unsquashed_cdclk;
 	u16 waveform;
 	u32 val;
+
+	waveform = cdclk_squash_waveform(i915, cdclk);
+
+	unsquashed_cdclk = DIV_ROUND_CLOSEST(cdclk * cdclk_squash_len,
+					     cdclk_squash_divider(waveform));
+
+	val = bxt_cdclk_cd2x_div_sel(i915, unsquashed_cdclk, vco) |
+		bxt_cdclk_cd2x_pipe(i915, pipe);
+
+	/*
+	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
+	 * enable otherwise.
+	 */
+	if ((IS_GEMINILAKE(i915) || IS_BROXTON(i915)) &&
+	    cdclk >= 500000)
+		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
+
+	if (DISPLAY_VER(i915) >= 20)
+		val |= MDCLK_SOURCE_SEL_CDCLK_PLL;
+	else
+		val |= skl_cdclk_decimal(cdclk);
+
+	return val;
+}
+
+static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
+			   const struct intel_cdclk_config *cdclk_config,
+			   enum pipe pipe)
+{
+	int cdclk = cdclk_config->cdclk;
+	int vco = cdclk_config->vco;
+	u16 waveform;
 
 	if (HAS_CDCLK_CRAWL(dev_priv) && dev_priv->display.cdclk.hw.vco > 0 && vco > 0 &&
 	    !cdclk_pll_is_unknown(dev_priv->display.cdclk.hw.vco)) {
@@ -1925,29 +1957,10 @@ static void _bxt_set_cdclk(struct drm_i915_private *dev_priv,
 
 	waveform = cdclk_squash_waveform(dev_priv, cdclk);
 
-	unsquashed_cdclk = DIV_ROUND_CLOSEST(cdclk * cdclk_squash_len,
-					     cdclk_squash_divider(waveform));
-
 	if (HAS_CDCLK_SQUASH(dev_priv))
 		dg2_cdclk_squash_program(dev_priv, waveform);
 
-	val = bxt_cdclk_cd2x_div_sel(dev_priv, unsquashed_cdclk, vco) |
-		bxt_cdclk_cd2x_pipe(dev_priv, pipe);
-
-	/*
-	 * Disable SSA Precharge when CD clock frequency < 500 MHz,
-	 * enable otherwise.
-	 */
-	if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) &&
-	    cdclk >= 500000)
-		val |= BXT_CDCLK_SSA_PRECHARGE_ENABLE;
-
-	if (DISPLAY_VER(dev_priv) >= 20)
-		val |= MDCLK_SOURCE_SEL_CDCLK_PLL;
-	else
-		val |= skl_cdclk_decimal(cdclk);
-
-	intel_de_write(dev_priv, CDCLK_CTL, val);
+	intel_de_write(dev_priv, CDCLK_CTL, bxt_cdclk_ctl(dev_priv, cdclk_config, pipe));
 
 	if (pipe != INVALID_PIPE)
 		intel_crtc_wait_for_next_vblank(intel_crtc_for_pipe(dev_priv, pipe));
