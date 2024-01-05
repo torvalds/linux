@@ -2071,7 +2071,10 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	if (vco != dev_priv->display.cdclk.hw.vco)
 		goto sanitize;
 
-	expected = skl_cdclk_decimal(cdclk);
+	if (DISPLAY_VER(dev_priv) >= 20)
+		expected = MDCLK_SOURCE_SEL_CDCLK_PLL;
+	else
+		expected = skl_cdclk_decimal(cdclk);
 
 	/* Figure out what CD2X divider we should be using for this cdclk */
 	if (HAS_CDCLK_SQUASH(dev_priv))
