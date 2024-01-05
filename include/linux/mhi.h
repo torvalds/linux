@@ -325,7 +325,6 @@ struct mhi_controller_config {
  * @major_version: MHI controller major revision number
  * @minor_version: MHI controller minor revision number
  * @serial_number: MHI controller serial number obtained from BHI
- * @oem_pk_hash: MHI controller OEM PK Hash obtained from BHI
  * @mhi_event: MHI event ring configurations table
  * @mhi_cmd: MHI command ring configurations table
  * @mhi_ctxt: MHI device context, shared memory between host and device
@@ -413,7 +412,6 @@ struct mhi_controller {
 	u32 major_version;
 	u32 minor_version;
 	u32 serial_number;
-	u32 oem_pk_hash[MHI_MAX_OEM_PK_HASH_SEGMENTS];
 
 	struct mhi_event *mhi_event;
 	struct mhi_cmd *mhi_cmd;
