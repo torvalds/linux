@@ -524,7 +524,8 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "at btree ");
 	bch2_btree_pos_to_text(out, c, b);
 
-	prt_printf(out, "\n  node offset %u", b->written);
+	prt_printf(out, "\n  node offset %u/%u",
+		   b->written, btree_ptr_sectors_written(&b->key));
 	if (i)
 		prt_printf(out, " bset u64s %u", le16_to_cpu(i->u64s));
 	prt_str(out, ": ");
@@ -830,6 +831,23 @@ static int bset_key_invalid(struct bch_fs *c, struct btree *b,
 		(rw == WRITE ? bch2_bkey_val_invalid(c, k, READ, err) : 0);
 }
 
+static bool __bkey_valid(struct bch_fs *c, struct btree *b,
+			 struct bset *i, struct bkey_packed *k)
+{
+	if (bkey_p_next(k) > vstruct_last(i))
+		return false;
+
+	if (k->format > KEY_FORMAT_CURRENT)
+		return false;
+
+	struct printbuf buf = PRINTBUF;
+	struct bkey tmp;
+	struct bkey_s u = __bkey_disassemble(b, k, &tmp);
+	bool ret = __bch2_bkey_invalid(c, u.s_c, btree_node_type(b), READ, &buf);
+	printbuf_exit(&buf);
+	return ret;
+}
+
 static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			 struct bset *i, int write,
 			 bool have_retry, bool *saw_error)
@@ -845,6 +863,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 	     k != vstruct_last(i);) {
 		struct bkey_s u;
 		struct bkey tmp;
+		unsigned next_good_key;
 
 		if (btree_err_on(bkey_p_next(k) > vstruct_last(i),
 				 -BCH_ERR_btree_node_read_err_fixable,
@@ -859,12 +878,8 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				 -BCH_ERR_btree_node_read_err_fixable,
 				 c, NULL, b, i,
 				 btree_node_bkey_bad_format,
-				 "invalid bkey format %u", k->format)) {
-			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-			memmove_u64s_down(k, bkey_p_next(k),
-					  (u64 *) vstruct_end(i) - (u64 *) k);
-			continue;
-		}
+				 "invalid bkey format %u", k->format))
+			goto drop_this_key;
 
 		/* XXX: validate k->u64s */
 		if (!write)
@@ -885,11 +900,7 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				  c, NULL, b, i,
 				  btree_node_bad_bkey,
 				  "invalid bkey: %s", buf.buf);
-
-			i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-			memmove_u64s_down(k, bkey_p_next(k),
-					  (u64 *) vstruct_end(i) - (u64 *) k);
-			continue;
+			goto drop_this_key;
 		}
 
 		if (write)
@@ -906,21 +917,45 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 			prt_printf(&buf, " > ");
 			bch2_bkey_to_text(&buf, u.k);
 
-			bch2_dump_bset(c, b, i, 0);
-
 			if (btree_err(-BCH_ERR_btree_node_read_err_fixable,
 				      c, NULL, b, i,
 				      btree_node_bkey_out_of_order,
-				      "%s", buf.buf)) {
-				i->u64s = cpu_to_le16(le16_to_cpu(i->u64s) - k->u64s);
-				memmove_u64s_down(k, bkey_p_next(k),
-						  (u64 *) vstruct_end(i) - (u64 *) k);
-				continue;
-			}
+				      "%s", buf.buf))
+				goto drop_this_key;
 		}
 
 		prev = k;
 		k = bkey_p_next(k);
+		continue;
+drop_this_key:
+		next_good_key = k->u64s;
+
+		if (!next_good_key ||
+		    (BSET_BIG_ENDIAN(i) == CPU_BIG_ENDIAN &&
+		     version >= bcachefs_metadata_version_snapshot)) {
+			/*
+			 * only do scanning if bch2_bkey_compat() has nothing to
+			 * do
+			 */
+
+			if (!__bkey_valid(c, b, i, (void *) ((u64 *) k + next_good_key))) {
+				for (next_good_key = 1;
+				     next_good_key < (u64 *) vstruct_last(i) - (u64 *) k;
+				     next_good_key++)
+					if (__bkey_valid(c, b, i, (void *) ((u64 *) k + next_good_key)))
+						goto got_good_key;
+
+			}
+
+			/*
+			 * didn't find a good key, have to truncate the rest of
+			 * the bset
+			 */
+			next_good_key = (u64 *) vstruct_last(i) - (u64 *) k;
+		}
+got_good_key:
+		le16_add_cpu(&i->u64s, -next_good_key);
+		memmove_u64s_down(k, bkey_p_next(k), (u64 *) vstruct_end(i) - (u64 *) k);
 	}
 fsck_err:
 	printbuf_exit(&buf);
