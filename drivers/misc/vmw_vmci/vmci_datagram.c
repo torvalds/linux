@@ -224,8 +224,8 @@ static int dg_dispatch_as_host(u32 context_id, struct vmci_datagram *dg)
 				return VMCI_ERROR_NO_MEM;
 			}
 
-			dg_info = kmalloc(sizeof(*dg_info) +
-				    (size_t) dg->payload_size, GFP_ATOMIC);
+			dg_info = kmalloc(struct_size(dg_info, msg_payload, dg->payload_size),
+					  GFP_ATOMIC);
 			if (!dg_info) {
 				atomic_dec(&delayed_dg_host_queue_size);
 				vmci_resource_put(resource);
