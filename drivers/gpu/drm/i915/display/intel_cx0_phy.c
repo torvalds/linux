@@ -2096,6 +2096,11 @@ int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
 	return intel_c20pll_calc_state(crtc_state, encoder);
 }
 
+static bool intel_c20phy_use_mpllb(const struct intel_c20pll_state *state)
+{
+	return state->tx[0] & C20_PHY_USE_MPLLB;
+}
+
 static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
 					const struct intel_c20pll_state *pll_state)
 {
@@ -2108,7 +2113,7 @@ static int intel_c20pll_calc_port_clock(struct intel_encoder *encoder,
 	unsigned int tx_rate_mult;
 	unsigned int tx_rate = REG_FIELD_GET(C20_PHY_TX_RATE, pll_state->tx[0]);
 
-	if (pll_state->tx[0] & C20_PHY_USE_MPLLB) {
+	if (intel_c20phy_use_mpllb(pll_state)) {
 		tx_rate_mult = 1;
 		frac_en = REG_FIELD_GET(C20_MPLLB_FRACEN, pll_state->mpllb[6]);
 		frac_quot = pll_state->mpllb[8];
@@ -2174,7 +2179,7 @@ static void intel_c20pll_readout_hw_state(struct intel_encoder *encoder,
 								PHY_C20_A_CMN_CNTX_CFG(i));
 	}
 
-	if (pll_state->tx[0] & C20_PHY_USE_MPLLB) {
+	if (intel_c20phy_use_mpllb(pll_state)) {
 		/* MPLLB configuration */
 		for (i = 0; i < ARRAY_SIZE(pll_state->mpllb); i++) {
 			if (cntx)
@@ -2212,7 +2217,7 @@ void intel_c20pll_dump_hw_state(struct drm_i915_private *i915,
 	drm_dbg_kms(&i915->drm, "cmn[0] = 0x%.4x, cmn[1] = 0x%.4x, cmn[2] = 0x%.4x, cmn[3] = 0x%.4x\n",
 		    hw_state->cmn[0], hw_state->cmn[1], hw_state->cmn[2], hw_state->cmn[3]);
 
-	if (hw_state->tx[0] & C20_PHY_USE_MPLLB) {
+	if (intel_c20phy_use_mpllb(hw_state)) {
 		for (i = 0; i < ARRAY_SIZE(hw_state->mpllb); i++)
 			drm_dbg_kms(&i915->drm, "mpllb[%d] = 0x%.4x\n", i, hw_state->mpllb[i]);
 	} else {
@@ -2364,7 +2369,7 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 	}
 
 	/* 3.3 mpllb or mplla configuration */
-	if (pll_state->tx[0] & C20_PHY_USE_MPLLB) {
+	if (intel_c20phy_use_mpllb(pll_state)) {
 		for (i = 0; i < ARRAY_SIZE(pll_state->mpllb); i++) {
 			if (cntx)
 				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
@@ -3063,8 +3068,8 @@ static void intel_c20pll_state_verify(const struct intel_crtc_state *state,
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_c20pll_state *mpll_sw_state = &state->cx0pll_state.c20;
-	bool sw_use_mpllb = mpll_sw_state->tx[0] & C20_PHY_USE_MPLLB;
-	bool hw_use_mpllb = mpll_hw_state->tx[0] & C20_PHY_USE_MPLLB;
+	bool sw_use_mpllb = intel_c20phy_use_mpllb(mpll_sw_state);
+	bool hw_use_mpllb = intel_c20phy_use_mpllb(mpll_hw_state);
 	int i;
 
 	I915_STATE_WARN(i915, mpll_hw_state->clock != mpll_sw_state->clock,
