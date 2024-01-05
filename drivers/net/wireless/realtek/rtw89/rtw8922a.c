@@ -600,6 +600,189 @@ static int rtw8922a_read_phycap(struct rtw89_dev *rtwdev, u8 *phycap_map)
 	return 0;
 }
 
+struct rtw8922a_bb_gain {
+	u32 gain_g[BB_PATH_NUM_8922A];
+	u32 gain_a[BB_PATH_NUM_8922A];
+	u32 gain_g_mask;
+	u32 gain_a_mask;
+};
+
+static const struct rtw89_reg_def rpl_comp_bw160[RTW89_BW20_SC_160M] = {
+	{ .addr = 0x41E8, .mask = 0xFF00},
+	{ .addr = 0x41E8, .mask = 0xFF0000},
+	{ .addr = 0x41E8, .mask = 0xFF000000},
+	{ .addr = 0x41EC, .mask = 0xFF},
+	{ .addr = 0x41EC, .mask = 0xFF00},
+	{ .addr = 0x41EC, .mask = 0xFF0000},
+	{ .addr = 0x41EC, .mask = 0xFF000000},
+	{ .addr = 0x41F0, .mask = 0xFF}
+};
+
+static const struct rtw89_reg_def rpl_comp_bw80[RTW89_BW20_SC_80M] = {
+	{ .addr = 0x41F4, .mask = 0xFF},
+	{ .addr = 0x41F4, .mask = 0xFF00},
+	{ .addr = 0x41F4, .mask = 0xFF0000},
+	{ .addr = 0x41F4, .mask = 0xFF000000}
+};
+
+static const struct rtw89_reg_def rpl_comp_bw40[RTW89_BW20_SC_40M] = {
+	{ .addr = 0x41F0, .mask = 0xFF0000},
+	{ .addr = 0x41F0, .mask = 0xFF000000}
+};
+
+static const struct rtw89_reg_def rpl_comp_bw20[RTW89_BW20_SC_20M] = {
+	{ .addr = 0x41F0, .mask = 0xFF00}
+};
+
+static const struct rtw8922a_bb_gain bb_gain_lna[LNA_GAIN_NUM] = {
+	{ .gain_g = {0x409c, 0x449c}, .gain_a = {0x406C, 0x446C},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x409c, 0x449c}, .gain_a = {0x406C, 0x446C},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40a0, 0x44a0}, .gain_a = {0x4070, 0x4470},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40a0, 0x44a0}, .gain_a = {0x4070, 0x4470},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40a4, 0x44a4}, .gain_a = {0x4074, 0x4474},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF},
+	{ .gain_g = {0x40a4, 0x44a4}, .gain_a = {0x4074, 0x4474},
+	  .gain_g_mask = 0xFF000000, .gain_a_mask = 0xFF0000},
+	{ .gain_g = {0x40a8, 0x44a8}, .gain_a = {0x4078, 0x4478},
+	  .gain_g_mask = 0xFF00, .gain_a_mask = 0xFF},
+};
+
+static const struct rtw8922a_bb_gain bb_gain_tia[TIA_GAIN_NUM] = {
+	{ .gain_g = {0x4054, 0x4454}, .gain_a = {0x4054, 0x4454},
+	  .gain_g_mask = 0x7FC0000, .gain_a_mask = 0x1FF},
+	{ .gain_g = {0x4058, 0x4458}, .gain_a = {0x4054, 0x4454},
+	  .gain_g_mask = 0x1FF, .gain_a_mask = 0x3FE00 },
+};
+
+struct rtw8922a_bb_gain_bypass {
+	u32 gain_g[BB_PATH_NUM_8922A];
+	u32 gain_a[BB_PATH_NUM_8922A];
+	u32 gain_mask_g;
+	u32 gain_mask_a;
+};
+
+static void rtw8922a_set_rpl_gain(struct rtw89_dev *rtwdev,
+				  const struct rtw89_chan *chan,
+				  enum rtw89_rf_path path,
+				  enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 gain_band = rtw89_subband_to_gain_band_be(chan->subband_type);
+	u32 reg_path_ofst = 0;
+	u32 mask;
+	s32 val;
+	u32 reg;
+	int i;
+
+	if (path == RF_PATH_B)
+		reg_path_ofst = 0x400;
+
+	for (i = 0; i < RTW89_BW20_SC_160M; i++) {
+		reg = rpl_comp_bw160[i].addr | reg_path_ofst;
+		mask = rpl_comp_bw160[i].mask;
+		val = gain->rpl_ofst_160[gain_band][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < RTW89_BW20_SC_80M; i++) {
+		reg = rpl_comp_bw80[i].addr | reg_path_ofst;
+		mask = rpl_comp_bw80[i].mask;
+		val = gain->rpl_ofst_80[gain_band][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < RTW89_BW20_SC_40M; i++) {
+		reg = rpl_comp_bw40[i].addr | reg_path_ofst;
+		mask = rpl_comp_bw40[i].mask;
+		val = gain->rpl_ofst_40[gain_band][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < RTW89_BW20_SC_20M; i++) {
+		reg = rpl_comp_bw20[i].addr | reg_path_ofst;
+		mask = rpl_comp_bw20[i].mask;
+		val = gain->rpl_ofst_20[gain_band][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+}
+
+static void rtw8922a_set_lna_tia_gain(struct rtw89_dev *rtwdev,
+				      const struct rtw89_chan *chan,
+				      enum rtw89_rf_path path,
+				      enum rtw89_phy_idx phy_idx)
+{
+	const struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 gain_band = rtw89_subband_to_gain_band_be(chan->subband_type);
+	enum rtw89_phy_bb_bw_be bw_type;
+	s32 val;
+	u32 reg;
+	u32 mask;
+	int i;
+
+	bw_type = chan->band_width <= RTW89_CHANNEL_WIDTH_40 ?
+		  RTW89_BB_BW_20_40 : RTW89_BB_BW_80_160_320;
+
+	for (i = 0; i < LNA_GAIN_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_gain_lna[i].gain_g[path];
+			mask = bb_gain_lna[i].gain_g_mask;
+		} else {
+			reg = bb_gain_lna[i].gain_a[path];
+			mask = bb_gain_lna[i].gain_a_mask;
+		}
+		val = gain->lna_gain[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+
+	for (i = 0; i < TIA_GAIN_NUM; i++) {
+		if (chan->band_type == RTW89_BAND_2G) {
+			reg = bb_gain_tia[i].gain_g[path];
+			mask = bb_gain_tia[i].gain_g_mask;
+		} else {
+			reg = bb_gain_tia[i].gain_a[path];
+			mask = bb_gain_tia[i].gain_a_mask;
+		}
+		val = gain->tia_gain[gain_band][bw_type][path][i];
+		rtw89_phy_write32_idx(rtwdev, reg, mask, val, phy_idx);
+	}
+}
+
+static void rtw8922a_set_gain(struct rtw89_dev *rtwdev,
+			      const struct rtw89_chan *chan,
+			      enum rtw89_rf_path path,
+			      enum rtw89_phy_idx phy_idx)
+{
+	rtw8922a_set_lna_tia_gain(rtwdev, chan, path, phy_idx);
+	rtw8922a_set_rpl_gain(rtwdev, chan, path, phy_idx);
+}
+
+static void rtw8922a_ctrl_ch(struct rtw89_dev *rtwdev,
+			     const struct rtw89_chan *chan,
+			     enum rtw89_phy_idx phy_idx)
+{
+	rtw8922a_set_gain(rtwdev, chan, RF_PATH_A, phy_idx);
+	rtw8922a_set_gain(rtwdev, chan, RF_PATH_B, phy_idx);
+}
+
+static void rtw8922a_set_channel_bb(struct rtw89_dev *rtwdev,
+				    const struct rtw89_chan *chan,
+				    enum rtw89_phy_idx phy_idx)
+{
+	rtw8922a_ctrl_ch(rtwdev, chan, phy_idx);
+}
+
+static void rtw8922a_set_channel(struct rtw89_dev *rtwdev,
+				 const struct rtw89_chan *chan,
+				 enum rtw89_mac_idx mac_idx,
+				 enum rtw89_phy_idx phy_idx)
+{
+	rtw8922a_set_channel_bb(rtwdev, chan, phy_idx);
+}
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
@@ -610,6 +793,7 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 #endif
 
 static const struct rtw89_chip_ops rtw8922a_chip_ops = {
+	.set_channel		= rtw8922a_set_channel,
 	.read_efuse		= rtw8922a_read_efuse,
 	.read_phycap		= rtw8922a_read_phycap,
 	.pwr_on_func		= rtw8922a_pwr_on_func,
