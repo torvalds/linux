@@ -73,7 +73,7 @@ macro_rules! new_condvar {
 #[pin_data]
 pub struct CondVar {
     #[pin]
-    pub(crate) wait_list: Opaque<bindings::wait_queue_head>,
+    pub(crate) wait_queue_head: Opaque<bindings::wait_queue_head>,
 
     /// A condvar needs to be pinned because it contains a [`struct list_head`] that is
     /// self-referential, so it cannot be safely moved once it is initialised.
@@ -96,7 +96,7 @@ impl CondVar {
             _pin: PhantomPinned,
             // SAFETY: `slot` is valid while the closure is called and both `name` and `key` have
             // static lifetimes so they live indefinitely.
-            wait_list <- Opaque::ffi_init(|slot| unsafe {
+            wait_queue_head <- Opaque::ffi_init(|slot| unsafe {
                 bindings::__init_waitqueue_head(slot, name.as_char_ptr(), key.as_ptr())
             }),
         })
@@ -108,16 +108,20 @@ impl CondVar {
         // SAFETY: `wait` points to valid memory.
         unsafe { bindings::init_wait(wait.get()) };
 
-        // SAFETY: Both `wait` and `wait_list` point to valid memory.
+        // SAFETY: Both `wait` and `wait_queue_head` point to valid memory.
         unsafe {
-            bindings::prepare_to_wait_exclusive(self.wait_list.get(), wait.get(), wait_state as _)
+            bindings::prepare_to_wait_exclusive(
+                self.wait_queue_head.get(),
+                wait.get(),
+                wait_state as _,
+            )
         };
 
         // SAFETY: No arguments, switches to another thread.
         guard.do_unlocked(|| unsafe { bindings::schedule() });
 
-        // SAFETY: Both `wait` and `wait_list` point to valid memory.
-        unsafe { bindings::finish_wait(self.wait_list.get(), wait.get()) };
+        // SAFETY: Both `wait` and `wait_queue_head` point to valid memory.
+        unsafe { bindings::finish_wait(self.wait_queue_head.get(), wait.get()) };
     }
 
     /// Releases the lock and waits for a notification in uninterruptible mode.
@@ -144,10 +148,10 @@ impl CondVar {
 
     /// Calls the kernel function to notify the appropriate number of threads with the given flags.
     fn notify(&self, count: i32, flags: u32) {
-        // SAFETY: `wait_list` points to valid memory.
+        // SAFETY: `wait_queue_head` points to valid memory.
         unsafe {
             bindings::__wake_up(
-                self.wait_list.get(),
+                self.wait_queue_head.get(),
                 bindings::TASK_NORMAL,
                 count,
                 flags as _,
