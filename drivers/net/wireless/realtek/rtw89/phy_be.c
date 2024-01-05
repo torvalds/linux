@@ -270,6 +270,111 @@ static void rtw89_phy_preinit_rf_nctl_be(struct rtw89_dev *rtwdev)
 	}
 }
 
+static
+void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
+{
+	u32 macid_idx, cr, base_macid_lmt, max_macid = 32;
+
+	base_macid_lmt = R_BE_PWR_MACID_LMT_BASE;
+
+	for (macid_idx = 0; macid_idx < 4 * max_macid; macid_idx += 4) {
+		cr = base_macid_lmt + macid_idx;
+		rtw89_write32(rtwdev, cr, 0x03007F7F);
+	}
+}
+
+static
+void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
+{
+	int i, max_macid = 32;
+	u32 cr = R_BE_PWR_MACID_PATH_BASE;
+
+	for (i = 0; i < max_macid; i++, cr += 4)
+		rtw89_write32(rtwdev, cr, 0x03C86000);
+}
+
+static void rtw89_phy_bb_wrap_tpu_set_all(struct rtw89_dev *rtwdev,
+					  enum rtw89_mac_idx mac_idx)
+{
+	u32 addr;
+
+	for (addr = R_BE_PWR_BY_RATE; addr <= R_BE_PWR_BY_RATE_END; addr += 4)
+		rtw89_write32(rtwdev, addr, 0);
+	for (addr = R_BE_PWR_RULMT_START; addr <= R_BE_PWR_RULMT_END; addr += 4)
+		rtw89_write32(rtwdev, addr, 0);
+	for (addr = R_BE_PWR_RATE_OFST_CTRL; addr <= R_BE_PWR_RATE_OFST_END; addr += 4)
+		rtw89_write32(rtwdev, addr, 0);
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_REF_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_LMT_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_LMTBF, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_LMTBF_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_RATE_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_BYRATE_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_RULMT, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_RULMT_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_SW, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_SW_DB, 0);
+}
+
+static
+void rtw89_phy_bb_wrap_listen_path_en_init(struct rtw89_dev *rtwdev)
+{
+	u32 addr;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_1, RTW89_CMAC_SEL);
+	if (ret)
+		return;
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_LISTEN_PATH, RTW89_MAC_1);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_LISTEN_PATH_EN, 0x2);
+}
+
+static void rtw89_phy_bb_wrap_force_cr_init(struct rtw89_dev *rtwdev,
+					    enum rtw89_mac_idx mac_idx)
+{
+	u32 addr;
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FORCE_LMT, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_LMT_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_BOOST, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_RATE_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_RULMT, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_RU_ENON, 0);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_RU_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FORCE_MACID, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_MACID_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_COEX_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_COEX_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_RATE_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_FORCE_PWR_BY_RATE_EN, 0);
+}
+
+static void rtw89_phy_bb_wrap_ftm_init(struct rtw89_dev *rtwdev,
+				       enum rtw89_mac_idx mac_idx)
+{
+	u32 addr;
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FTM, mac_idx);
+	rtw89_write32(rtwdev, addr, 0xE4E431);
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FTM_SS, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, 0x7, 0);
+}
+
+static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_mac_idx mac_idx = RTW89_MAC_0;
+
+	rtw89_phy_bb_wrap_pwr_by_macid_init(rtwdev);
+	rtw89_phy_bb_wrap_tx_path_by_macid_init(rtwdev);
+	rtw89_phy_bb_wrap_listen_path_en_init(rtwdev);
+	rtw89_phy_bb_wrap_force_cr_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_ftm_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_tpu_set_all(rtwdev, mac_idx);
+}
+
 struct rtw89_byr_spec_ent_be {
 	struct rtw89_rate_desc init;
 	u8 num_of_idx;
@@ -838,6 +943,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.cfo = &rtw89_cfo_regs_be,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
+	.bb_wrap_init = rtw89_phy_bb_wrap_init_be,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,
