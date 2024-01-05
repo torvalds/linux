@@ -2060,20 +2060,6 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	    dev_priv->display.cdclk.hw.cdclk == dev_priv->display.cdclk.hw.bypass)
 		goto sanitize;
 
-	/* DPLL okay; verify the cdclock
-	 *
-	 * Some BIOS versions leave an incorrect decimal frequency value and
-	 * set reserved MBZ bits in CDCLK_CTL at least during exiting from S4,
-	 * so sanitize this register.
-	 */
-	cdctl = intel_de_read(dev_priv, CDCLK_CTL);
-	/*
-	 * Let's ignore the pipe field, since BIOS could have configured the
-	 * dividers both synching to an active pipe, or asynchronously
-	 * (PIPE_NONE).
-	 */
-	cdctl &= ~bxt_cdclk_cd2x_pipe(dev_priv, INVALID_PIPE);
-
 	/* Make sure this is a legal cdclk value for the platform */
 	cdclk = bxt_calc_cdclk(dev_priv, dev_priv->display.cdclk.hw.cdclk);
 	if (cdclk != dev_priv->display.cdclk.hw.cdclk)
@@ -2083,6 +2069,20 @@ static void bxt_sanitize_cdclk(struct drm_i915_private *dev_priv)
 	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
 	if (vco != dev_priv->display.cdclk.hw.vco)
 		goto sanitize;
+
+	/*
+	 * Some BIOS versions leave an incorrect decimal frequency value and
+	 * set reserved MBZ bits in CDCLK_CTL at least during exiting from S4,
+	 * so sanitize this register.
+	 */
+	cdctl = intel_de_read(dev_priv, CDCLK_CTL);
+
+	/*
+	 * Let's ignore the pipe field, since BIOS could have configured the
+	 * dividers both synching to an active pipe, or asynchronously
+	 * (PIPE_NONE).
+	 */
+	cdctl &= ~bxt_cdclk_cd2x_pipe(dev_priv, INVALID_PIPE);
 
 	if (DISPLAY_VER(dev_priv) >= 20)
 		expected = MDCLK_SOURCE_SEL_CDCLK_PLL;
