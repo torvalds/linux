@@ -351,6 +351,15 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *, unsigned);
 void bch2_prt_backtrace(struct printbuf *, bch_stacktrace *);
 int bch2_prt_task_backtrace(struct printbuf *, struct task_struct *, unsigned);
 
+static inline void prt_bdevname(struct printbuf *out, struct block_device *bdev)
+{
+#ifdef __KERNEL__
+	prt_printf(out, "%pg", bdev);
+#else
+	prt_str(out, bdev->name);
+#endif
+}
+
 #define NR_QUANTILES	15
 #define QUANTILE_IDX(i)	inorder_to_eytzinger0(i, NR_QUANTILES)
 #define QUANTILE_FIRST	eytzinger0_first(NR_QUANTILES)

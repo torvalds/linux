@@ -1083,17 +1083,22 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 	    fs->sb->write_time != sb->sb->write_time) {
 		struct printbuf buf = PRINTBUF;
 
-		prt_printf(&buf, "Split brain detected between %pg and %pg:",
-			   sb->bdev, fs->bdev);
+		prt_str(&buf, "Split brain detected between ");
+		prt_bdevname(&buf, sb->bdev);
+		prt_str(&buf, " and ");
+		prt_bdevname(&buf, fs->bdev);
+		prt_char(&buf, ':');
 		prt_newline(&buf);
 		prt_printf(&buf, "seq=%llu but write_time different, got", le64_to_cpu(sb->sb->seq));
 		prt_newline(&buf);
 
-		prt_printf(&buf, "%pg ", fs->bdev);
+		prt_bdevname(&buf, fs->bdev);
+		prt_char(&buf, ' ');
 		bch2_prt_datetime(&buf, le64_to_cpu(fs->sb->write_time));;
 		prt_newline(&buf);
 
-		prt_printf(&buf, "%pg ", sb->bdev);
+		prt_bdevname(&buf, sb->bdev);
+		prt_char(&buf, ' ');
 		bch2_prt_datetime(&buf, le64_to_cpu(sb->sb->write_time));;
 		prt_newline(&buf);
 
@@ -1109,13 +1114,26 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 	u64 seq_from_member	= le64_to_cpu(sb->sb->seq);
 
 	if (seq_from_fs && seq_from_fs < seq_from_member) {
-		pr_err("Split brain detected between %pg and %pg:\n"
-		       "%pg believes seq of %pg to be %llu, but %pg has %llu\n"
-		       "Not using %pg",
-		       sb->bdev, fs->bdev,
-		       fs->bdev, sb->bdev, seq_from_fs,
-		       sb->bdev, seq_from_member,
-		       sb->bdev);
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "Split brain detected between ");
+		prt_bdevname(&buf, sb->bdev);
+		prt_str(&buf, " and ");
+		prt_bdevname(&buf, fs->bdev);
+		prt_char(&buf, ':');
+		prt_newline(&buf);
+
+		prt_bdevname(&buf, fs->bdev);
+		prt_str(&buf, "believes seq of ");
+		prt_bdevname(&buf, sb->bdev);
+		prt_printf(&buf, " to be %llu, but ", seq_from_fs);
+		prt_bdevname(&buf, sb->bdev);
+		prt_printf(&buf, " has %llu\n", seq_from_member);
+		prt_str(&buf, "Not using ");
+		prt_bdevname(&buf, sb->bdev);
+
+		pr_err("%s", buf.buf);
+		printbuf_exit(&buf);
 		return -BCH_ERR_device_splitbrain;
 	}
 
@@ -1364,9 +1382,14 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 
 	bch2_dev_sysfs_online(c, ca);
 
+	struct printbuf name = PRINTBUF;
+	prt_bdevname(&name, ca->disk_sb.bdev);
+
 	if (c->sb.nr_devices == 1)
-		snprintf(c->name, sizeof(c->name), "%pg", ca->disk_sb.bdev);
-	snprintf(ca->name, sizeof(ca->name), "%pg", ca->disk_sb.bdev);
+		strlcpy(c->name, name.buf, sizeof(c->name));
+	strlcpy(ca->name, name.buf, sizeof(ca->name));
+
+	printbuf_exit(&name);
 
 	rebalance_wakeup(c);
 	return 0;

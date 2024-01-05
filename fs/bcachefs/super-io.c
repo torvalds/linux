@@ -170,8 +170,12 @@ int bch2_sb_realloc(struct bch_sb_handle *sb, unsigned u64s)
 		u64 max_bytes = 512 << sb->sb->layout.sb_max_size_bits;
 
 		if (new_bytes > max_bytes) {
-			pr_err("%pg: superblock too big: want %zu but have %llu",
-			       sb->bdev, new_bytes, max_bytes);
+			struct printbuf buf = PRINTBUF;
+
+			prt_bdevname(&buf, sb->bdev);
+			prt_printf(&buf, ": superblock too big: want %zu but have %llu", new_bytes, max_bytes);
+			pr_err("%s", buf.buf);
+			printbuf_exit(&buf);
 			return -BCH_ERR_ENOSPC_sb;
 		}
 	}
