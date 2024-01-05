@@ -5510,9 +5510,8 @@ void ext4_discard_preallocations(struct inode *inode)
 	struct rb_node *iter;
 	int err;
 
-	if (!S_ISREG(inode->i_mode)) {
+	if (!S_ISREG(inode->i_mode))
 		return;
-	}
 
 	if (EXT4_SB(sb)->s_mount_state & EXT4_FC_REPLAY)
 		return;
@@ -5520,7 +5519,7 @@ void ext4_discard_preallocations(struct inode *inode)
 	mb_debug(sb, "discard preallocation for inode %lu\n",
 		 inode->i_ino);
 	trace_ext4_discard_preallocations(inode,
-			atomic_read(&ei->i_prealloc_active), 0);
+			atomic_read(&ei->i_prealloc_active));
 
 repeat:
 	/* first, collect all pa's in the inode */
