@@ -37,8 +37,8 @@
 static void ast_post_chip_2300(struct drm_device *dev);
 static void ast_post_chip_2500(struct drm_device *dev);
 
-static const u8 extreginfo[] = { 0x0f, 0x04, 0x1c, 0xff };
-static const u8 extreginfo_ast2300[] = { 0x0f, 0x04, 0x1f, 0xff };
+static const u8 extreginfo[] = { 0x7f, 0x06, 0x1c, 0xff };
+static const u8 extreginfo_ast2300[] = { 0x7f, 0x06, 0x1f, 0xff };
 
 static void
 ast_set_def_ext_reg(struct drm_device *dev)
@@ -334,6 +334,8 @@ void ast_post_gpu(struct drm_device *dev)
 	struct ast_device *ast = to_ast_device(dev);
 
 	ast_set_def_ext_reg(dev);
+	ast_io_write8(ast, AST_IO_MISC_PORT_WRITE, 0x0b);
+	ast_set_index_reg(ast, AST_IO_GR_PORT, 6, 0x05);
 
 	if (IS_AST_GEN7(ast)) {
 		if (ast->tx_chip_types & AST_TX_ASTDP_BIT)
