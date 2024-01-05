@@ -335,13 +335,13 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 	down_write(&vm->lock);
 	err = drm_gpuvm_exec_lock(&vm_exec);
 	if (err)
-		return err;
+		goto out_up_write;
 
 	pfence = xe_preempt_fence_create(q, q->compute.context,
 					 ++q->compute.seqno);
 	if (!pfence) {
 		err = -ENOMEM;
-		goto out_unlock;
+		goto out_fini;
 	}
 
 	list_add(&q->compute.link, &vm->preempt.exec_queues);
@@ -364,8 +364,9 @@ int xe_vm_add_compute_exec_queue(struct xe_vm *vm, struct xe_exec_queue *q)
 
 	up_read(&vm->userptr.notifier_lock);
 
-out_unlock:
+out_fini:
 	drm_exec_fini(exec);
+out_up_write:
 	up_write(&vm->lock);
 
 	return err;
