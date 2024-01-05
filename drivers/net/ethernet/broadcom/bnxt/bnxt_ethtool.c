@@ -1345,25 +1345,26 @@ static int bnxt_srxclsrldel(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 {
 	struct ethtool_rx_flow_spec *fs = &cmd->fs;
 	struct bnxt_filter_base *fltr_base;
+	struct bnxt_ntuple_filter *fltr;
 
 	rcu_read_lock();
 	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->ntp_fltr_hash_tbl,
 					  BNXT_NTP_FLTR_HASH_SIZE,
 					  fs->location);
-	if (fltr_base) {
-		struct bnxt_ntuple_filter *fltr;
-
-		fltr = container_of(fltr_base, struct bnxt_ntuple_filter, base);
+	if (!fltr_base) {
 		rcu_read_unlock();
-		if (!(fltr->base.flags & BNXT_ACT_NO_AGING))
-			return -EINVAL;
-		bnxt_hwrm_cfa_ntuple_filter_free(bp, fltr);
-		bnxt_del_ntp_filter(bp, fltr);
-		return 0;
+		return -ENOENT;
 	}
 
+	fltr = container_of(fltr_base, struct bnxt_ntuple_filter, base);
+	if (!(fltr->base.flags & BNXT_ACT_NO_AGING)) {
+		rcu_read_unlock();
+		return -EINVAL;
+	}
 	rcu_read_unlock();
-	return -ENOENT;
+	bnxt_hwrm_cfa_ntuple_filter_free(bp, fltr);
+	bnxt_del_ntp_filter(bp, fltr);
+	return 0;
 }
 
 static u64 get_ethtool_ipv4_rss(struct bnxt *bp)
