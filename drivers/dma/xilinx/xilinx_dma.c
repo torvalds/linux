@@ -112,7 +112,9 @@
 
 /* Register Direct Mode Registers */
 #define XILINX_DMA_REG_VSIZE			0x0000
+#define XILINX_DMA_VSIZE_MASK			GENMASK(12, 0)
 #define XILINX_DMA_REG_HSIZE			0x0004
+#define XILINX_DMA_HSIZE_MASK			GENMASK(15, 0)
 
 #define XILINX_DMA_REG_FRMDLY_STRIDE		0x0008
 #define XILINX_DMA_FRMDLY_STRIDE_FRMDLY_SHIFT	24
@@ -2048,6 +2050,10 @@ xilinx_vdma_dma_prep_interleaved(struct dma_chan *dchan,
 		return NULL;
 
 	if (!xt->numf || !xt->sgl[0].size)
+		return NULL;
+
+	if (xt->numf & ~XILINX_DMA_VSIZE_MASK ||
+	    xt->sgl[0].size & ~XILINX_DMA_HSIZE_MASK)
 		return NULL;
 
 	if (xt->frame_size != 1)
