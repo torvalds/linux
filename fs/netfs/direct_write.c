@@ -140,6 +140,7 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
 
 	trace_netfs_write_iter(iocb, from);
+	netfs_stat(&netfs_n_rh_dio_write);
 
 	ret = netfs_start_io_direct(inode);
 	if (ret < 0)
