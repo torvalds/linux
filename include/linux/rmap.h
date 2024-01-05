@@ -199,8 +199,15 @@ static inline void __folio_rmap_sanity_checks(struct folio *folio,
 {
 	/* hugetlb folios are handled separately. */
 	VM_WARN_ON_FOLIO(folio_test_hugetlb(folio), folio);
-	VM_WARN_ON_FOLIO(folio_test_large(folio) &&
-			 !folio_test_large_rmappable(folio), folio);
+
+	/*
+	 * TODO: we get driver-allocated folios that have nothing to do with
+	 * the rmap using vm_insert_page(); therefore, we cannot assume that
+	 * folio_test_large_rmappable() holds for large folios. We should
+	 * handle any desired mapcount+stats accounting for these folios in
+	 * VM_MIXEDMAP VMAs separately, and then sanity-check here that
+	 * we really only get rmappable folios.
+	 */
 
 	VM_WARN_ON_ONCE(nr_pages <= 0);
 	VM_WARN_ON_FOLIO(page_folio(page) != folio, folio);
