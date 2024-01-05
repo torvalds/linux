@@ -3750,7 +3750,7 @@ static int ext4_mb_cleanup_pa(struct ext4_group_info *grp)
 	return count;
 }
 
-int ext4_mb_release(struct super_block *sb)
+void ext4_mb_release(struct super_block *sb)
 {
 	ext4_group_t ngroups = ext4_get_groups_count(sb);
 	ext4_group_t i;
@@ -3826,8 +3826,6 @@ int ext4_mb_release(struct super_block *sb)
 	}
 
 	free_percpu(sbi->s_locality_groups);
-
-	return 0;
 }
 
 static inline int ext4_issue_discard(struct super_block *sb,
