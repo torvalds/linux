@@ -459,7 +459,7 @@ static void spi_shutdown(struct device *dev)
 	}
 }
 
-struct bus_type spi_bus_type = {
+const struct bus_type spi_bus_type = {
 	.name		= "spi",
 	.dev_groups	= spi_dev_groups,
 	.match		= spi_match_device,

@@ -36,7 +36,7 @@ struct spi_message;
  * INTERFACES between SPI master-side drivers and SPI slave protocol handlers,
  * and SPI infrastructure.
  */
-extern struct bus_type spi_bus_type;
+extern const struct bus_type spi_bus_type;
 
 /**
  * struct spi_statistics - statistics for spi transfers
