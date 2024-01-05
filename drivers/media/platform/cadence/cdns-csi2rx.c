@@ -114,6 +114,7 @@ static const struct csi2rx_fmt formats[] = {
 	{ .code	= MEDIA_BUS_FMT_SGBRG8_1X8, .bpp = 8, },
 	{ .code	= MEDIA_BUS_FMT_SGRBG8_1X8, .bpp = 8, },
 	{ .code	= MEDIA_BUS_FMT_SRGGB8_1X8, .bpp = 8, },
+	{ .code	= MEDIA_BUS_FMT_Y8_1X8,     .bpp = 8, },
 	{ .code	= MEDIA_BUS_FMT_SBGGR10_1X10, .bpp = 10, },
 	{ .code	= MEDIA_BUS_FMT_SGBRG10_1X10, .bpp = 10, },
 	{ .code	= MEDIA_BUS_FMT_SGRBG10_1X10, .bpp = 10, },
