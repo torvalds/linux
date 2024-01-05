@@ -8,6 +8,7 @@ mem_buf.ko
 qcom_wdt_core.ko
 virtio_mmio.ko
 virtio_blk.ko
+msm_hab.ko
 rename_devices.ko
 gh_msgq.ko
 gh_dbl.ko
