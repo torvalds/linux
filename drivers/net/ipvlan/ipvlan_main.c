@@ -601,7 +601,7 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		port->dev_id_start = 0x1;
 
 	/* Since L2 address is shared among all IPvlan slaves including
-	 * master, use unique 16 bit dev-ids to diffentiate among them.
+	 * master, use unique 16 bit dev-ids to differentiate among them.
 	 * Assign IDs between 0x1 and 0xFFFE (used by the master) to each
 	 * slave link [see addrconf_ifid_eui48()].
 	 */
