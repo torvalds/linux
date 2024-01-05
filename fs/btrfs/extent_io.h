@@ -8,6 +8,7 @@
 #include <linux/fiemap.h>
 #include <linux/btrfs_tree.h>
 #include "compression.h"
+#include "messages.h"
 #include "ulist.h"
 #include "misc.h"
 
@@ -75,7 +76,8 @@ void __cold extent_buffer_free_cachep(void);
 #define INLINE_EXTENT_BUFFER_PAGES     (BTRFS_MAX_METADATA_BLOCKSIZE / PAGE_SIZE)
 struct extent_buffer {
 	u64 start;
-	unsigned long len;
+	u32 len;
+	u32 folio_size;
 	unsigned long bflags;
 	struct btrfs_fs_info *fs_info;
 
@@ -90,6 +92,7 @@ struct extent_buffer {
 	int read_mirror;
 	/* >= 0 if eb belongs to a log tree, -1 otherwise */
 	s8 log_index;
+	u8 folio_shift;
 	struct rcu_head rcu_head;
 
 	struct rw_semaphore lock;
@@ -112,6 +115,13 @@ struct btrfs_eb_write_context {
 	/* Block group @eb resides in. Only used for zoned mode. */
 	struct btrfs_block_group *zoned_bg;
 };
+
+static inline unsigned long offset_in_eb_folio(const struct extent_buffer *eb,
+					       u64 start)
+{
+	ASSERT(eb->folio_size);
+	return start & (eb->folio_size - 1);
+}
 
 /*
  * Get the correct offset inside the page of extent buffer.
@@ -151,13 +161,13 @@ static inline unsigned long get_eb_folio_index(const struct extent_buffer *eb,
 	 *	   the folio_shift would be large enough to always make us
 	 *	   return 0 as index.
 	 *    1.2) Several page sized folios
-	 *         The folio_shift() would be PAGE_SHIFT, giving us the correct
+	 *         The folio_shift would be PAGE_SHIFT, giving us the correct
 	 *         index.
 	 *
 	 * 2) sectorsize < PAGE_SIZE and nodesize < PAGE_SIZE case
 	 *    The folio would only be page sized, and always give us 0 as index.
 	 */
-	return offset >> folio_shift(eb->folios[0]);
+	return offset >> eb->folio_shift;
 }
 
 /*

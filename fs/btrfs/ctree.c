@@ -820,7 +820,7 @@ int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
 	}
 
 	while (low < high) {
-		const int unit_size = folio_size(eb->folios[0]);
+		const int unit_size = eb->folio_size;
 		unsigned long oil;
 		unsigned long offset;
 		struct btrfs_disk_key *tmp;
