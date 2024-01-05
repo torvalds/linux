@@ -1108,10 +1108,10 @@ rtw89_phy_cfg_bb_gain_op1db(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_phy_config_bb_gain(struct rtw89_dev *rtwdev,
-				     const struct rtw89_reg2_def *reg,
-				     enum rtw89_rf_path rf_path,
-				     void *extra_data)
+static void rtw89_phy_config_bb_gain_ax(struct rtw89_dev *rtwdev,
+					const struct rtw89_reg2_def *reg,
+					enum rtw89_rf_path rf_path,
+					void *extra_data)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	union rtw89_phy_bb_gain_arg arg = { .addr = reg->addr };
@@ -1425,7 +1425,7 @@ void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 	bb_gain_table = elm_info->bb_gain ? elm_info->bb_gain : chip->bb_gain_table;
 	if (bb_gain_table)
 		rtw89_phy_init_reg(rtwdev, bb_gain_table,
-				   rtw89_phy_config_bb_gain, NULL);
+				   chip->phy_def->config_bb_gain, NULL);
 	rtw89_phy_bb_reset(rtwdev, RTW89_PHY_0);
 }
 
@@ -5476,6 +5476,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 	.ccx = &rtw89_ccx_regs_ax,
 	.physts = &rtw89_physts_regs_ax,
 	.cfo = &rtw89_cfo_regs_ax,
+	.config_bb_gain = rtw89_phy_config_bb_gain_ax,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_ax,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_ax,

@@ -78,6 +78,180 @@ static const struct rtw89_cfo_regs rtw89_cfo_regs_be = {
 	.valid_0_mask = B_DCFO_OPT_EN_V1,
 };
 
+union rtw89_phy_bb_gain_arg_be {
+	u32 addr;
+	struct {
+		u8 type;
+#define BB_GAIN_TYPE_SUB0_BE GENMASK(3, 0)
+#define BB_GAIN_TYPE_SUB1_BE GENMASK(7, 4)
+		u8 path_bw;
+#define BB_GAIN_PATH_BE GENMASK(3, 0)
+#define BB_GAIN_BW_BE GENMASK(7, 4)
+		u8 gain_band;
+		u8 cfg_type;
+	} __packed;
+} __packed;
+
+static void
+rtw89_phy_cfg_bb_gain_error_be(struct rtw89_dev *rtwdev,
+			       union rtw89_phy_bb_gain_arg_be arg, u32 data)
+{
+	struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 bw_type = u8_get_bits(arg.path_bw, BB_GAIN_BW_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+	u8 gband = arg.gain_band;
+	u8 type = arg.type;
+	int i;
+
+	switch (type) {
+	case 0:
+		for (i = 0; i < 4; i++, data >>= 8)
+			gain->lna_gain[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 1:
+		for (i = 4; i < 7; i++, data >>= 8)
+			gain->lna_gain[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 2:
+		for (i = 0; i < 2; i++, data >>= 8)
+			gain->tia_gain[gband][bw_type][path][i] = data & 0xff;
+		break;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb gain error {0x%x:0x%x} with unknown type: %d\n",
+			   arg.addr, data, type);
+		break;
+	}
+}
+
+static void
+rtw89_phy_cfg_bb_rpl_ofst_be(struct rtw89_dev *rtwdev,
+			     union rtw89_phy_bb_gain_arg_be arg, u32 data)
+{
+	struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 type_sub0 = u8_get_bits(arg.type, BB_GAIN_TYPE_SUB0_BE);
+	u8 type_sub1 = u8_get_bits(arg.type, BB_GAIN_TYPE_SUB1_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+	u8 gband = arg.gain_band;
+	u8 ofst = 0;
+	int i;
+
+	switch (type_sub1) {
+	case RTW89_CMAC_BW_20M:
+		gain->rpl_ofst_20[gband][path][0] = (s8)data;
+		break;
+	case RTW89_CMAC_BW_40M:
+		for (i = 0; i < RTW89_BW20_SC_40M; i++, data >>= 8)
+			gain->rpl_ofst_40[gband][path][i] = data & 0xff;
+		break;
+	case RTW89_CMAC_BW_80M:
+		for (i = 0; i < RTW89_BW20_SC_80M; i++, data >>= 8)
+			gain->rpl_ofst_80[gband][path][i] = data & 0xff;
+		break;
+	case RTW89_CMAC_BW_160M:
+		if (type_sub0 == 0)
+			ofst = 0;
+		else
+			ofst = RTW89_BW20_SC_80M;
+
+		for (i = 0; i < RTW89_BW20_SC_80M; i++, data >>= 8)
+			gain->rpl_ofst_160[gband][path][i + ofst] = data & 0xff;
+		break;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb rpl ofst {0x%x:0x%x} with unknown type_sub1: %d\n",
+			   arg.addr, data, type_sub1);
+		break;
+	}
+}
+
+static void
+rtw89_phy_cfg_bb_gain_op1db_be(struct rtw89_dev *rtwdev,
+			       union rtw89_phy_bb_gain_arg_be arg, u32 data)
+{
+	struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 bw_type = u8_get_bits(arg.path_bw, BB_GAIN_BW_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+	u8 gband = arg.gain_band;
+	u8 type = arg.type;
+	int i;
+
+	switch (type) {
+	case 0:
+		for (i = 0; i < 4; i++, data >>= 8)
+			gain->lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 1:
+		for (i = 4; i < 7; i++, data >>= 8)
+			gain->lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 2:
+		for (i = 0; i < 4; i++, data >>= 8)
+			gain->tia_lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 3:
+		for (i = 4; i < 8; i++, data >>= 8)
+			gain->tia_lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb gain op1db {0x%x:0x%x} with unknown type: %d\n",
+			   arg.addr, data, type);
+		break;
+	}
+}
+
+static void rtw89_phy_config_bb_gain_be(struct rtw89_dev *rtwdev,
+					const struct rtw89_reg2_def *reg,
+					enum rtw89_rf_path rf_path,
+					void *extra_data)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	union rtw89_phy_bb_gain_arg_be arg = { .addr = reg->addr };
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	u8 bw_type = u8_get_bits(arg.path_bw, BB_GAIN_BW_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+
+	if (bw_type >= RTW89_BB_BW_NR_BE)
+		return;
+
+	if (arg.gain_band >= RTW89_BB_GAIN_BAND_NR_BE)
+		return;
+
+	if (path >= chip->rf_path_num)
+		return;
+
+	if (arg.addr >= 0xf9 && arg.addr <= 0xfe) {
+		rtw89_warn(rtwdev, "bb gain table with flow ctrl\n");
+		return;
+	}
+
+	switch (arg.cfg_type) {
+	case 0:
+		rtw89_phy_cfg_bb_gain_error_be(rtwdev, arg, reg->data);
+		break;
+	case 1:
+		rtw89_phy_cfg_bb_rpl_ofst_be(rtwdev, arg, reg->data);
+		break;
+	case 2:
+		/* ignore BB gain bypass */
+		break;
+	case 3:
+		rtw89_phy_cfg_bb_gain_op1db_be(rtwdev, arg, reg->data);
+		break;
+	case 4:
+		/* This cfg_type is only used by rfe_type >= 50 with eFEM */
+		if (efuse->rfe_type < 50)
+			break;
+		fallthrough;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb gain {0x%x:0x%x} with unknown cfg type: %d\n",
+			   arg.addr, reg->data, arg.cfg_type);
+		break;
+	}
+}
+
 struct rtw89_byr_spec_ent_be {
 	struct rtw89_rate_desc init;
 	u8 num_of_idx;
@@ -644,6 +818,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.ccx = &rtw89_ccx_regs_be,
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
+	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,
