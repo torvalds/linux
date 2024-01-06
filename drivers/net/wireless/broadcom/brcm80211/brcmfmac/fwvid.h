@@ -14,6 +14,7 @@ struct brcmf_if;
 struct brcmf_fwvid_ops {
 	void (*feat_attach)(struct brcmf_if *ifp);
 	int (*set_sae_password)(struct brcmf_if *ifp, struct cfg80211_crypto_settings *crypto);
+	int (*alloc_fweh_info)(struct brcmf_pub *drvr);
 };
 
 /* exported functions */
@@ -45,6 +46,14 @@ static inline int brcmf_fwvid_set_sae_password(struct brcmf_if *ifp,
 		return -EOPNOTSUPP;
 
 	return vops->set_sae_password(ifp, crypto);
+}
+
+static inline int brcmf_fwvid_alloc_fweh_info(struct brcmf_pub *drvr)
+{
+	if (!drvr->vops)
+		return -EIO;
+
+	return drvr->vops->alloc_fweh_info(drvr);
 }
 
 #endif /* FWVID_H_ */

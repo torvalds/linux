@@ -11,6 +11,8 @@
 
 #include "vops.h"
 
+#define BRCMF_CYW_E_LAST		197
+
 static int brcmf_cyw_set_sae_pwd(struct brcmf_if *ifp,
 				 struct cfg80211_crypto_settings *crypto)
 {
@@ -37,6 +39,21 @@ static int brcmf_cyw_set_sae_pwd(struct brcmf_if *ifp,
 	return err;
 }
 
+static int brcmf_cyw_alloc_fweh_info(struct brcmf_pub *drvr)
+{
+	struct brcmf_fweh_info *fweh;
+
+	fweh = kzalloc(struct_size(fweh, evt_handler, BRCMF_CYW_E_LAST),
+		       GFP_KERNEL);
+	if (!fweh)
+		return -ENOMEM;
+
+	fweh->num_event_codes = BRCMF_CYW_E_LAST;
+	drvr->fweh = fweh;
+	return 0;
+}
+
 const struct brcmf_fwvid_ops brcmf_cyw_ops = {
 	.set_sae_password = brcmf_cyw_set_sae_pwd,
+	.alloc_fweh_info = brcmf_cyw_alloc_fweh_info,
 };
