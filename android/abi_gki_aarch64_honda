@@ -50,3 +50,24 @@
   tcf_idrinfo_destroy
   tcf_register_action
   tcf_unregister_action
+
+# required by ebtables.ko module
+  __audit_log_nfcfg
+  audit_enabled
+  nf_register_sockopt
+  nf_unregister_sockopt
+  vmalloc_node
+  xt_check_match
+  xt_check_target
+  xt_compat_add_offset
+  xt_compat_calc_jump
+  xt_compat_flush_offsets
+  xt_compat_init_offsets
+  xt_compat_lock
+  xt_compat_match_offset
+  xt_compat_target_offset
+  xt_compat_unlock
+  xt_data_to_user
+  xt_find_match
+  xt_request_find_match
+  xt_request_find_target
