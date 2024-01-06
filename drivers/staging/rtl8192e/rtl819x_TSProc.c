@@ -402,7 +402,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *addr)
 }
 EXPORT_SYMBOL(RemovePeerTS);
 
-void RemoveAllTS(struct rtllib_device *ieee)
+void remove_all_ts(struct rtllib_device *ieee)
 {
 	struct ts_common_info *ts, *pTmpTS;
 

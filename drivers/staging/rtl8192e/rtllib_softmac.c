@@ -2002,7 +2002,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee)
 		rtllib_disassociate(ieee);
 	}
 
-	RemoveAllTS(ieee);
+	remove_all_ts(ieee);
 	ieee->proto_stoppping = 0;
 
 	kfree(ieee->assocreq_ies);
