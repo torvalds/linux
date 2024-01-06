@@ -1374,7 +1374,7 @@ struct rtllib_device {
 
 	/* for PS mode */
 	unsigned long last_rx_ps_time;
-	bool			bAwakePktSent;
+	bool			awake_pkt_sent;
 	u8			LPSDelayCnt;
 
 	/* used if IEEE_SOFTMAC_SINGLE_QUEUE is set */

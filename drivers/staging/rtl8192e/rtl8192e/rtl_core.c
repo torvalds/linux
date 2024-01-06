@@ -1256,7 +1256,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	int   idx;
 	u32 fwinfo_size = 0;
 
-	priv->rtllib->bAwakePktSent = true;
+	priv->rtllib->awake_pkt_sent = true;
 
 	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
 
