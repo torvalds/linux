@@ -360,7 +360,7 @@ static void RemoveTsEntry(struct rtllib_device *ieee,
 	}
 }
 
-void RemovePeerTS(struct rtllib_device *ieee, u8 *addr)
+void remove_peer_ts(struct rtllib_device *ieee, u8 *addr)
 {
 	struct ts_common_info *ts, *pTmpTS;
 
@@ -400,7 +400,7 @@ void RemovePeerTS(struct rtllib_device *ieee, u8 *addr)
 		}
 	}
 }
-EXPORT_SYMBOL(RemovePeerTS);
+EXPORT_SYMBOL(remove_peer_ts);
 
 void remove_all_ts(struct rtllib_device *ieee)
 {

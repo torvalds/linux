@@ -1736,7 +1736,7 @@ rtllib_rx_deauth(struct rtllib_device *ieee, struct sk_buff *skb)
 		ieee->is_roaming = true;
 		ieee->link_detect_info.busy_traffic = false;
 		rtllib_disassociate(ieee);
-		RemovePeerTS(ieee, header->addr2);
+		remove_peer_ts(ieee, header->addr2);
 		if (!(ieee->rtllib_ap_sec_type(ieee) &
 		    (SEC_ALG_CCMP | SEC_ALG_TKIP)))
 			schedule_delayed_work(
@@ -2247,7 +2247,7 @@ static void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib,
 	u8 i;
 	u8	op_mode;
 
-	RemovePeerTS(rtllib, asSta);
+	remove_peer_ts(rtllib, asSta);
 
 	if (memcmp(rtllib->current_network.bssid, asSta, 6) == 0) {
 		rtllib->link_state = MAC80211_NOLINK;
