@@ -777,7 +777,7 @@ jmp_rest:
 			BPF_EMIT_JMP;
 			break;
 
-		/* ldxb 4 * ([14] & 0xf) is remaped into 6 insns. */
+		/* ldxb 4 * ([14] & 0xf) is remapped into 6 insns. */
 		case BPF_LDX | BPF_MSH | BPF_B: {
 			struct sock_filter tmp = {
 				.code	= BPF_LD | BPF_ABS | BPF_B,
@@ -803,7 +803,7 @@ jmp_rest:
 			*insn = BPF_MOV64_REG(BPF_REG_A, BPF_REG_TMP);
 			break;
 		}
-		/* RET_K is remaped into 2 insns. RET_A case doesn't need an
+		/* RET_K is remapped into 2 insns. RET_A case doesn't need an
 		 * extra mov as BPF_REG_0 is already mapped into BPF_REG_A.
 		 */
 		case BPF_RET | BPF_A:
@@ -2967,7 +2967,7 @@ BPF_CALL_4(bpf_msg_pop_data, struct sk_msg *, msg, u32, start,
 	 *
 	 * Then if B is non-zero AND there is no space allocate space and
 	 * compact A, B regions into page. If there is space shift ring to
-	 * the rigth free'ing the next element in ring to place B, leaving
+	 * the right free'ing the next element in ring to place B, leaving
 	 * A untouched except to reduce length.
 	 */
 	if (start != offset) {
@@ -8226,7 +8226,7 @@ xdp_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 #if IS_MODULE(CONFIG_NF_CONNTRACK) && IS_ENABLED(CONFIG_DEBUG_INFO_BTF_MODULES)
 	/* The nf_conn___init type is used in the NF_CONNTRACK kfuncs. The
 	 * kfuncs are defined in two different modules, and we want to be able
-	 * to use them interchangably with the same BTF type ID. Because modules
+	 * to use them interchangeably with the same BTF type ID. Because modules
 	 * can't de-duplicate BTF IDs between each other, we need the type to be
 	 * referenced in the vmlinux BTF or the verifier will get confused about
 	 * the different types. So we add this dummy type reference which will
