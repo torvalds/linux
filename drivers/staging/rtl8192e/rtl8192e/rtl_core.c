@@ -942,7 +942,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	unsigned long flags;
 	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
 					(&priv->rtllib->pwr_save_ctrl);
-	bool bBusyTraffic = false;
+	bool busy_traffic = false;
 	bool	bHigherBusyTraffic = false;
 	bool	bHigherBusyRxTraffic = false;
 	bool bEnterPS = false;
@@ -972,7 +972,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	if ((ieee->link_state == MAC80211_LINKED) && (ieee->iw_mode == IW_MODE_INFRA)) {
 		if (ieee->link_detect_info.num_rx_ok_in_period > 100 ||
 		ieee->link_detect_info.num_tx_ok_in_period > 100)
-			bBusyTraffic = true;
+			busy_traffic = true;
 
 		if (ieee->link_detect_info.num_rx_ok_in_period > 4000 ||
 		    ieee->link_detect_info.num_tx_ok_in_period > 4000) {
@@ -1005,7 +1005,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	ieee->link_detect_info.num_rx_ok_in_period = 0;
 	ieee->link_detect_info.num_tx_ok_in_period = 0;
 	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
-	ieee->link_detect_info.bBusyTraffic = bBusyTraffic;
+	ieee->link_detect_info.busy_traffic = busy_traffic;
 
 	ieee->link_detect_info.bHigherBusyTraffic = bHigherBusyTraffic;
 	ieee->link_detect_info.bHigherBusyRxTraffic = bHigherBusyRxTraffic;
