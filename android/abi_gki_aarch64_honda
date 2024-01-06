@@ -78,3 +78,14 @@
 # required by ebt_log.ko module
   nf_log_packet
   sysctl_nf_log_all_netns
+
+# required by xt_LOG.ko module
+  nf_log_buf_add
+  nf_log_buf_close
+  nf_log_buf_open
+  nf_log_register
+  nf_log_set
+  nf_log_unregister
+  nf_log_unset
+  nf_logger_find_get
+  nf_logger_put
