@@ -5,3 +5,11 @@
   input_device_enabled
   pvclock_gtod_register_notifier
   refcount_dec_if_one
+
+# commonly required by ledtrig-heartbeat.ko modules
+  avenrun
+
+# commonly required by ledtrig-*.ko modules
+  led_blink_set_oneshot
+  led_set_brightness_nosleep
+  led_stop_software_blink
