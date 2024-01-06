@@ -286,7 +286,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 	if (ht_info->iot_action & HT_IOT_ACT_TX_NO_AGGREGATION)
 		return;
 
-	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+	if (!ieee->get_nmode_support_by_sec_cfg(ieee->dev))
 		return;
 	if (ht_info->current_ampdu_enable) {
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)(&ts), hdr->addr1,
