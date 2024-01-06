@@ -8,6 +8,7 @@
  *	Vinayak Holikatti <h.vinayak@samsung.com>
  */
 
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_opp.h>
@@ -213,6 +214,55 @@ static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
 	}
 }
 
+/**
+ * ufshcd_parse_clock_min_max_freq  - Parse MIN and MAX clocks freq
+ * @hba: per adapter instance
+ *
+ * This function parses MIN and MAX frequencies of all clocks required
+ * by the host drivers.
+ *
+ * Returns 0 for success and non-zero for failure
+ */
+static int ufshcd_parse_clock_min_max_freq(struct ufs_hba *hba)
+{
+	struct list_head *head = &hba->clk_list_head;
+	struct ufs_clk_info *clki;
+	struct dev_pm_opp *opp;
+	unsigned long freq;
+	u8 idx = 0;
+
+	list_for_each_entry(clki, head, list) {
+		if (!clki->name)
+			continue;
+
+		clki->clk = devm_clk_get(hba->dev, clki->name);
+		if (IS_ERR(clki->clk))
+			continue;
+
+		/* Find Max Freq */
+		freq = ULONG_MAX;
+		opp = dev_pm_opp_find_freq_floor_indexed(hba->dev, &freq, idx);
+		if (IS_ERR(opp)) {
+			dev_err(hba->dev, "Failed to find OPP for MAX frequency\n");
+			return PTR_ERR(opp);
+		}
+		clki->max_freq = dev_pm_opp_get_freq_indexed(opp, idx);
+		dev_pm_opp_put(opp);
+
+		/* Find Min Freq */
+		freq = 0;
+		opp = dev_pm_opp_find_freq_ceil_indexed(hba->dev, &freq, idx);
+		if (IS_ERR(opp)) {
+			dev_err(hba->dev, "Failed to find OPP for MIN frequency\n");
+			return PTR_ERR(opp);
+		}
+		clki->min_freq = dev_pm_opp_get_freq_indexed(opp, idx++);
+		dev_pm_opp_put(opp);
+	}
+
+	return 0;
+}
+
 static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 {
 	struct device *dev = hba->dev;
@@ -278,6 +328,10 @@ static int ufshcd_parse_operating_points(struct ufs_hba *hba)
 		dev_err(dev, "Failed to add OPP table: %d\n", ret);
 		return ret;
 	}
+
+	ret = ufshcd_parse_clock_min_max_freq(hba);
+	if (ret)
+		return ret;
 
 	hba->use_pm_opp = true;
 

@@ -99,7 +99,7 @@ static void btree_node_interior_verify(struct bch_fs *c, struct btree *b)
 
 /* Calculate ideal packed bkey format for new btree nodes: */
 
-void __bch2_btree_calc_format(struct bkey_format_state *s, struct btree *b)
+static void __bch2_btree_calc_format(struct bkey_format_state *s, struct btree *b)
 {
 	struct bkey_packed *k;
 	struct bset_tree *t;
@@ -125,21 +125,20 @@ static struct bkey_format bch2_btree_calc_format(struct btree *b)
 	return bch2_bkey_format_done(&s);
 }
 
-static size_t btree_node_u64s_with_format(struct btree *b,
+static size_t btree_node_u64s_with_format(struct btree_nr_keys nr,
+					  struct bkey_format *old_f,
 					  struct bkey_format *new_f)
 {
-	struct bkey_format *old_f = &b->format;
-
 	/* stupid integer promotion rules */
 	ssize_t delta =
 	    (((int) new_f->key_u64s - old_f->key_u64s) *
-	     (int) b->nr.packed_keys) +
+	     (int) nr.packed_keys) +
 	    (((int) new_f->key_u64s - BKEY_U64s) *
-	     (int) b->nr.unpacked_keys);
+	     (int) nr.unpacked_keys);
 
-	BUG_ON(delta + b->nr.live_u64s < 0);
+	BUG_ON(delta + nr.live_u64s < 0);
 
-	return b->nr.live_u64s + delta;
+	return nr.live_u64s + delta;
 }
 
 /**
@@ -147,16 +146,18 @@ static size_t btree_node_u64s_with_format(struct btree *b,
  *
  * @c:		filesystem handle
  * @b:		btree node to rewrite
+ * @nr:		number of keys for new node (i.e. b->nr)
  * @new_f:	bkey format to translate keys to
  *
  * Returns: true if all re-packed keys will be able to fit in a new node.
  *
  * Assumes all keys will successfully pack with the new format.
  */
-bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *b,
+static bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *b,
+				 struct btree_nr_keys nr,
 				 struct bkey_format *new_f)
 {
-	size_t u64s = btree_node_u64s_with_format(b, new_f);
+	size_t u64s = btree_node_u64s_with_format(nr, &b->format, new_f);
 
 	return __vstruct_bytes(struct btree_node, u64s) < btree_bytes(c);
 }
@@ -391,7 +392,7 @@ static struct btree *bch2_btree_node_alloc_replacement(struct btree_update *as,
 	 * The keys might expand with the new format - if they wouldn't fit in
 	 * the btree node anymore, use the old format for now:
 	 */
-	if (!bch2_btree_node_format_fits(as->c, b, &format))
+	if (!bch2_btree_node_format_fits(as->c, b, b->nr, &format))
 		format = b->format;
 
 	SET_BTREE_NODE_SEQ(n->data, BTREE_NODE_SEQ(b->data) + 1);
@@ -1345,7 +1346,10 @@ static void __btree_split_node(struct btree_update *as,
 	struct bkey_packed *out[2];
 	struct bkey uk;
 	unsigned u64s, n1_u64s = (b->nr.live_u64s * 3) / 5;
+	struct { unsigned nr_keys, val_u64s; } nr_keys[2];
 	int i;
+
+	memset(&nr_keys, 0, sizeof(nr_keys));
 
 	for (i = 0; i < 2; i++) {
 		BUG_ON(n[i]->nsets != 1);
@@ -1368,6 +1372,9 @@ static void __btree_split_node(struct btree_update *as,
 		if (!i)
 			n1_pos = uk.p;
 		bch2_bkey_format_add_key(&format[i], &uk);
+
+		nr_keys[i].nr_keys++;
+		nr_keys[i].val_u64s += bkeyp_val_u64s(&b->format, k);
 	}
 
 	btree_set_min(n[0], b->data->min_key);
@@ -1380,6 +1387,12 @@ static void __btree_split_node(struct btree_update *as,
 		bch2_bkey_format_add_pos(&format[i], n[i]->data->max_key);
 
 		n[i]->data->format = bch2_bkey_format_done(&format[i]);
+
+		unsigned u64s = nr_keys[i].nr_keys * n[i]->data->format.key_u64s +
+			nr_keys[i].val_u64s;
+		if (__vstruct_bytes(struct btree_node, u64s) > btree_bytes(as->c))
+			n[i]->data->format = b->format;
+
 		btree_node_set_format(n[i], n[i]->data->format);
 	}
 
@@ -1822,8 +1835,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	bch2_bkey_format_add_pos(&new_s, next->data->max_key);
 	new_f = bch2_bkey_format_done(&new_s);
 
-	sib_u64s = btree_node_u64s_with_format(b, &new_f) +
-		btree_node_u64s_with_format(m, &new_f);
+	sib_u64s = btree_node_u64s_with_format(b->nr, &b->format, &new_f) +
+		btree_node_u64s_with_format(m->nr, &m->format, &new_f);
 
 	if (sib_u64s > BTREE_FOREGROUND_MERGE_HYSTERESIS(c)) {
 		sib_u64s -= BTREE_FOREGROUND_MERGE_HYSTERESIS(c);

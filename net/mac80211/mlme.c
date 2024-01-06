@@ -5782,7 +5782,7 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 {
 	const struct ieee80211_multi_link_elem *ml;
 	const struct element *sub;
-	size_t ml_len;
+	ssize_t ml_len;
 	unsigned long removed_links = 0;
 	u16 link_removal_timeout[IEEE80211_MLD_MAX_NUM_LINKS] = {};
 	u8 link_id;
@@ -5798,6 +5798,8 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 					     elems->scratch + elems->scratch_len -
 					     elems->scratch_pos,
 					     WLAN_EID_FRAGMENT);
+	if (ml_len < 0)
+		return;
 
 	elems->ml_reconf = (const void *)elems->scratch_pos;
 	elems->ml_reconf_len = ml_len;

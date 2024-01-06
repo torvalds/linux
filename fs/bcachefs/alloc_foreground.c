@@ -1374,8 +1374,17 @@ retry:
 			goto alloc_done;
 
 		/* Don't retry from all devices if we're out of open buckets: */
-		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
-			goto allocate_blocking;
+		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty)) {
+			int ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
+					      target, erasure_code,
+					      nr_replicas, &nr_effective,
+					      &have_cache, watermark,
+					      flags, cl);
+			if (!ret ||
+			    bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+				goto alloc_done;
+		}
 
 		/*
 		 * Only try to allocate cache (durability = 0 devices) from the
@@ -1389,7 +1398,6 @@ retry:
 					      &have_cache, watermark,
 					      flags, cl);
 	} else {
-allocate_blocking:
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
