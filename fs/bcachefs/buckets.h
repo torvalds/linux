@@ -318,8 +318,6 @@ void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
 int bch2_update_replicas(struct bch_fs *, struct bkey_s_c,
 			 struct bch_replicas_entry_v1 *, s64);
 
-void bch2_fs_usage_initialize(struct bch_fs *);
-
 int bch2_bucket_ref_update(struct btree_trans *, struct bch_dev *,
 			   struct bkey_s_c, const struct bch_extent_ptr *,
 			   s64, enum bch_data_type, u8, u8, u32 *);

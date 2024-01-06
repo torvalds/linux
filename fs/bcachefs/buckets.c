@@ -38,35 +38,6 @@ static inline struct bch_fs_usage *fs_usage_ptr(struct bch_fs *c,
 			    : c->usage[journal_seq & JOURNAL_BUF_MASK]);
 }
 
-void bch2_fs_usage_initialize(struct bch_fs *c)
-{
-	percpu_down_write(&c->mark_lock);
-	struct bch_fs_usage *usage = c->usage_base;
-
-	for (unsigned i = 0; i < ARRAY_SIZE(c->usage); i++)
-		bch2_fs_usage_acc_to_base(c, i);
-
-	for (unsigned i = 0; i < BCH_REPLICAS_MAX; i++)
-		usage->b.reserved += usage->persistent_reserved[i];
-
-	for (unsigned i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry_v1 *e =
-			cpu_replicas_entry(&c->replicas, i);
-
-		fs_usage_data_type_to_base(&usage->b, e->data_type, usage->replicas[i]);
-	}
-
-	for_each_member_device(c, ca) {
-		struct bch_dev_usage dev = bch2_dev_usage_read(ca);
-
-		usage->b.hidden += (dev.d[BCH_DATA_sb].buckets +
-				  dev.d[BCH_DATA_journal].buckets) *
-			ca->mi.bucket_size;
-	}
-
-	percpu_up_write(&c->mark_lock);
-}
-
 void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 {
 	memset(usage, 0, sizeof(*usage));
