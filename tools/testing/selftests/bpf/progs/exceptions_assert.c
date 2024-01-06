@@ -11,51 +11,51 @@
 #define check_assert(type, op, name, value)				\
 	SEC("?tc")							\
 	__log_level(2) __failure					\
-	int check_assert_##op##_##name(void *ctx)			\
+	int check_assert_##name(void *ctx)				\
 	{								\
 		type num = bpf_ktime_get_ns();				\
-		bpf_assert_##op(num, value);				\
+		bpf_assert(bpf_cmp_unlikely(num, op, value));		\
 		return *(u64 *)num;					\
 	}
 
-__msg(": R0_w=0xffffffff80000000 R10=fp0")
-check_assert(s64, eq, int_min, INT_MIN);
-__msg(": R0_w=0x7fffffff R10=fp0")
-check_assert(s64, eq, int_max, INT_MAX);
-__msg(": R0_w=0 R10=fp0")
-check_assert(s64, eq, zero, 0);
-__msg(": R0_w=0x8000000000000000 R1_w=0x8000000000000000 R10=fp0")
-check_assert(s64, eq, llong_min, LLONG_MIN);
-__msg(": R0_w=0x7fffffffffffffff R1_w=0x7fffffffffffffff R10=fp0")
-check_assert(s64, eq, llong_max, LLONG_MAX);
+__msg(": R0_w=0xffffffff80000000")
+check_assert(s64, ==, eq_int_min, INT_MIN);
+__msg(": R0_w=0x7fffffff")
+check_assert(s64, ==, eq_int_max, INT_MAX);
+__msg(": R0_w=0")
+check_assert(s64, ==, eq_zero, 0);
+__msg(": R0_w=0x8000000000000000 R1_w=0x8000000000000000")
+check_assert(s64, ==, eq_llong_min, LLONG_MIN);
+__msg(": R0_w=0x7fffffffffffffff R1_w=0x7fffffffffffffff")
+check_assert(s64, ==, eq_llong_max, LLONG_MAX);
 
-__msg(": R0_w=scalar(smax=0x7ffffffe) R10=fp0")
-check_assert(s64, lt, pos, INT_MAX);
-__msg(": R0_w=scalar(smax=-1,umin=0x8000000000000000,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
-check_assert(s64, lt, zero, 0);
-__msg(": R0_w=scalar(smax=0xffffffff7fffffff,umin=0x8000000000000000,umax=0xffffffff7fffffff,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
-check_assert(s64, lt, neg, INT_MIN);
+__msg(": R0_w=scalar(id=1,smax=0x7ffffffe)")
+check_assert(s64, <, lt_pos, INT_MAX);
+__msg(": R0_w=scalar(id=1,smax=-1,umin=0x8000000000000000,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
+check_assert(s64, <, lt_zero, 0);
+__msg(": R0_w=scalar(id=1,smax=0xffffffff7fffffff")
+check_assert(s64, <, lt_neg, INT_MIN);
 
-__msg(": R0_w=scalar(smax=0x7fffffff) R10=fp0")
-check_assert(s64, le, pos, INT_MAX);
-__msg(": R0_w=scalar(smax=0) R10=fp0")
-check_assert(s64, le, zero, 0);
-__msg(": R0_w=scalar(smax=0xffffffff80000000,umin=0x8000000000000000,umax=0xffffffff80000000,var_off=(0x8000000000000000; 0x7fffffffffffffff))")
-check_assert(s64, le, neg, INT_MIN);
+__msg(": R0_w=scalar(id=1,smax=0x7fffffff)")
+check_assert(s64, <=, le_pos, INT_MAX);
+__msg(": R0_w=scalar(id=1,smax=0)")
+check_assert(s64, <=, le_zero, 0);
+__msg(": R0_w=scalar(id=1,smax=0xffffffff80000000")
+check_assert(s64, <=, le_neg, INT_MIN);
 
-__msg(": R0_w=scalar(smin=umin=0x80000000,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
-check_assert(s64, gt, pos, INT_MAX);
-__msg(": R0_w=scalar(smin=umin=1,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
-check_assert(s64, gt, zero, 0);
-__msg(": R0_w=scalar(smin=0xffffffff80000001) R10=fp0")
-check_assert(s64, gt, neg, INT_MIN);
+__msg(": R0_w=scalar(id=1,smin=umin=0x80000000,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+check_assert(s64, >, gt_pos, INT_MAX);
+__msg(": R0_w=scalar(id=1,smin=umin=1,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+check_assert(s64, >, gt_zero, 0);
+__msg(": R0_w=scalar(id=1,smin=0xffffffff80000001")
+check_assert(s64, >, gt_neg, INT_MIN);
 
-__msg(": R0_w=scalar(smin=umin=0x7fffffff,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
-check_assert(s64, ge, pos, INT_MAX);
-__msg(": R0_w=scalar(smin=0,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff)) R10=fp0")
-check_assert(s64, ge, zero, 0);
-__msg(": R0_w=scalar(smin=0xffffffff80000000) R10=fp0")
-check_assert(s64, ge, neg, INT_MIN);
+__msg(": R0_w=scalar(id=1,smin=umin=0x7fffffff,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+check_assert(s64, >=, ge_pos, INT_MAX);
+__msg(": R0_w=scalar(id=1,smin=0,umax=0x7fffffffffffffff,var_off=(0x0; 0x7fffffffffffffff))")
+check_assert(s64, >=, ge_zero, 0);
+__msg(": R0_w=scalar(id=1,smin=0xffffffff80000000")
+check_assert(s64, >=, ge_neg, INT_MIN);
 
 SEC("?tc")
 __log_level(2) __failure

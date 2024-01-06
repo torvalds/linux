@@ -47,8 +47,6 @@
 #include <linux/errqueue.h>
 #include <linux/uaccess.h>
 
-#include <linux/bpfilter.h>
-
 /*
  *	SOL_IP control messages.
  */
@@ -1411,11 +1409,6 @@ int ip_setsockopt(struct sock *sk, int level, int optname, sockptr_t optval,
 		return -ENOPROTOOPT;
 
 	err = do_ip_setsockopt(sk, level, optname, optval, optlen);
-#if IS_ENABLED(CONFIG_BPFILTER_UMH)
-	if (optname >= BPFILTER_IPT_SO_SET_REPLACE &&
-	    optname < BPFILTER_IPT_SET_MAX)
-		err = bpfilter_ip_set_sockopt(sk, optname, optval, optlen);
-#endif
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IP_HDRINCL &&
@@ -1763,11 +1756,6 @@ int ip_getsockopt(struct sock *sk, int level,
 	err = do_ip_getsockopt(sk, level, optname,
 			       USER_SOCKPTR(optval), USER_SOCKPTR(optlen));
 
-#if IS_ENABLED(CONFIG_BPFILTER_UMH)
-	if (optname >= BPFILTER_IPT_SO_GET_INFO &&
-	    optname < BPFILTER_IPT_GET_MAX)
-		err = bpfilter_ip_get_sockopt(sk, optname, optval, optlen);
-#endif
 #ifdef CONFIG_NETFILTER
 	/* we need to exclude all possible ENOPROTOOPTs except default case */
 	if (err == -ENOPROTOOPT && optname != IP_PKTOPTIONS &&

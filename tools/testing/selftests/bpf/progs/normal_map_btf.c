@@ -36,7 +36,7 @@ int add_to_list_in_array(void *ctx)
 	struct node_data *new;
 	int zero = 0;
 
-	if (done || (u32)bpf_get_current_pid_tgid() != pid)
+	if (done || (int)bpf_get_current_pid_tgid() != pid)
 		return 0;
 
 	value = bpf_map_lookup_elem(&array, &zero);
