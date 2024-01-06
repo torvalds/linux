@@ -635,14 +635,14 @@ static int xilinx_pl_dma_pcie_setup_irq(struct pl_dma_pcie *port)
 	err = devm_request_irq(dev, port->intx_irq, xilinx_pl_dma_pcie_intx_flow,
 			       IRQF_SHARED | IRQF_NO_THREAD, NULL, port);
 	if (err) {
-		dev_err(dev, "Failed to request INTx IRQ %d\n", irq);
+		dev_err(dev, "Failed to request INTx IRQ %d\n", port->intx_irq);
 		return err;
 	}
 
 	err = devm_request_irq(dev, port->irq, xilinx_pl_dma_pcie_event_flow,
 			       IRQF_SHARED | IRQF_NO_THREAD, NULL, port);
 	if (err) {
-		dev_err(dev, "Failed to request event IRQ %d\n", irq);
+		dev_err(dev, "Failed to request event IRQ %d\n", port->irq);
 		return err;
 	}
 
