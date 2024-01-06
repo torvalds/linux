@@ -356,7 +356,7 @@ static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 	if (!ht_info->current_ht_support || !ht_info->enable_ht)
 		return;
 
-	if (tcb_desc->bMulticast || tcb_desc->bBroadcast)
+	if (tcb_desc->multicast || tcb_desc->bBroadcast)
 		return;
 
 	if ((tcb_desc->data_rate & 0x80) == 0)
@@ -378,7 +378,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	tcb_desc->RTSSC				= 0;
 	tcb_desc->bRTSBW			= false;
 
-	if (tcb_desc->bBroadcast || tcb_desc->bMulticast)
+	if (tcb_desc->bBroadcast || tcb_desc->multicast)
 		return;
 
 	if (is_broadcast_ether_addr(skb->data + 16))
@@ -843,11 +843,11 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			tcb_desc->tx_use_drv_assinged_rate = 1;
 		} else {
 			if (is_multicast_ether_addr(header.addr1))
-				tcb_desc->bMulticast = 1;
+				tcb_desc->multicast = 1;
 			if (is_broadcast_ether_addr(header.addr1))
 				tcb_desc->bBroadcast = 1;
 			rtllib_txrate_selectmode(ieee, tcb_desc);
-			if (tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
+			if (tcb_desc->multicast ||  tcb_desc->bBroadcast)
 				tcb_desc->data_rate = ieee->basic_rate;
 			else
 				tcb_desc->data_rate = rtllib_current_rate(ieee);

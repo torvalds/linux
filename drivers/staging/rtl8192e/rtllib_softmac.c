@@ -1816,7 +1816,7 @@ void rtllib_softmac_xmit(struct rtllib_txb *txb, struct rtllib_device *ieee)
 	/* update the tx status */
 	tcb_desc = (struct cb_desc *)(txb->fragments[0]->cb +
 		   MAX_DEV_ADDR_SIZE);
-	if (tcb_desc->bMulticast)
+	if (tcb_desc->multicast)
 		ieee->stats.multicast++;
 
 	/* if xmit available, just xmit it immediately, else just insert it to

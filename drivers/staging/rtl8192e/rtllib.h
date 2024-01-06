@@ -123,7 +123,7 @@ struct cb_desc {
 	u8 bPacketBW:1;
 	u8 bRTSUseShortPreamble:1;
 	u8 bRTSUseShortGI:1;
-	u8 bMulticast:1;
+	u8 multicast:1;
 	u8 bBroadcast:1;
 	u8 drv_agg_enable:1;
 	u8 reserved2:1;
