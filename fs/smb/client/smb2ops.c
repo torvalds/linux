@@ -2947,18 +2947,6 @@ int parse_reparse_point(struct reparse_data_buffer *buf,
 			u32 plen, struct cifs_sb_info *cifs_sb,
 			bool unicode, struct cifs_open_info_data *data)
 {
-	if (plen < sizeof(*buf)) {
-		cifs_dbg(VFS, "%s: reparse buffer is too small. Must be at least 8 bytes but was %d\n",
-			 __func__, plen);
-		return -EIO;
-	}
-
-	if (plen < le16_to_cpu(buf->ReparseDataLength) + sizeof(*buf)) {
-		cifs_dbg(VFS, "%s: invalid reparse buf length: %d\n",
-			 __func__, plen);
-		return -EIO;
-	}
-
 	data->reparse.buf = buf;
 
 	/* See MS-FSCC 2.1.2 */
