@@ -13,3 +13,40 @@
   led_blink_set_oneshot
   led_set_brightness_nosleep
   led_stop_software_blink
+
+# required by cls_flower.ko module
+  flow_rule_alloc
+  idr_get_next_ul
+  radix_tree_tagged
+  skb_flow_dissect_ct
+  skb_flow_dissect_hash
+  skb_flow_dissect_meta
+  skb_flow_dissect_tunnel_info
+  skb_flow_dissector_init
+  tc_setup_cb_call
+  tc_setup_cb_destroy
+  tc_setup_cb_reoffload
+  tc_setup_cb_add
+  tcf_exts_num_actions
+  tcf_exts_terse_dump
+
+# required by act_vlan.ko module
+  jiffies_to_clock_t
+  skb_eth_push
+  skb_eth_pop
+  __skb_vlan_pop
+  skb_vlan_push
+  skb_vlan_pop
+  tcf_action_check_ctrlact
+  tcf_action_set_ctrlact
+  tcf_action_update_stats
+  tcf_chain_put_by_act
+  tcf_generic_walker
+  tcf_idr_check_alloc
+  tcf_idr_cleanup
+  tcf_idr_create_from_flags
+  tcf_idr_release
+  tcf_idr_search
+  tcf_idrinfo_destroy
+  tcf_register_action
+  tcf_unregister_action
