@@ -1648,7 +1648,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	int errcode;
 	u8 *challenge;
 	int chlen = 0;
-	bool support_nmode = true, bHalfSupportNmode = false;
+	bool support_nmode = true, half_support_nmode = false;
 
 	errcode = auth_parse(ieee->dev, skb, &challenge, &chlen);
 
@@ -1667,10 +1667,10 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 			if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
 				if (is_ht_half_nmode_aps(ieee)) {
 					support_nmode = true;
-					bHalfSupportNmode = true;
+					half_support_nmode = true;
 				} else {
 					support_nmode = false;
-					bHalfSupportNmode = false;
+					half_support_nmode = false;
 				}
 			}
 		}
@@ -1684,7 +1684,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 		}
 
 		if ((ieee->current_network.mode == WIRELESS_MODE_N_24G) &&
-		    bHalfSupportNmode) {
+		    half_support_nmode) {
 			netdev_info(ieee->dev, "======>enter half N mode\n");
 			ieee->bHalfWirelessN24GMode = true;
 		} else {
