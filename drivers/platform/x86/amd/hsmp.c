@@ -62,6 +62,8 @@
 #define MSG_ARGOFF_STR		"MsgArgOffset"
 #define MSG_RESPOFF_STR		"MsgRspOffset"
 
+#define MAX_AMD_SOCKETS 8
+
 struct hsmp_mbaddr_info {
 	u32 base_addr;
 	u32 msg_id_off;
@@ -669,10 +671,6 @@ static int hsmp_create_non_acpi_sysfs_if(struct device *dev)
 	struct attribute_group *attr_grp;
 	u16 i;
 
-	/* String formatting is currently limited to u8 sockets */
-	if (WARN_ON(plat_dev.num_sockets > U8_MAX))
-		return -ERANGE;
-
 	hsmp_attr_grps = devm_kzalloc(dev, sizeof(struct attribute_group *) *
 				      (plat_dev.num_sockets + 1), GFP_KERNEL);
 	if (!hsmp_attr_grps)
@@ -922,7 +920,7 @@ static int __init hsmp_plt_init(void)
 	 * if we have N SMN/DF interfaces that ideally means N sockets
 	 */
 	plat_dev.num_sockets = amd_nb_num();
-	if (plat_dev.num_sockets == 0)
+	if (plat_dev.num_sockets == 0 || plat_dev.num_sockets > MAX_AMD_SOCKETS)
 		return ret;
 
 	ret = platform_driver_register(&amd_hsmp_driver);
