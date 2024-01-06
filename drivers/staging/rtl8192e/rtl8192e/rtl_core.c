@@ -172,7 +172,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 					priv->blinked_ingpio = true;
 				else
 					priv->blinked_ingpio = false;
-				rtllib_MgntDisconnect(priv->rtllib,
+				rtllib_mgnt_disconnect(priv->rtllib,
 						      WLAN_REASON_DISASSOC_STA_HAS_LEFT);
 			}
 		}
