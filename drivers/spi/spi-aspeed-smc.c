@@ -734,6 +734,7 @@ static const struct aspeed_spi_data ast2600_fmc_data;
 
 static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 {
+	struct device *dev = aspi->dev;
 	off_t offset = 0;
 	phys_addr_t start;
 	phys_addr_t ltpi_start;
@@ -746,7 +747,7 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 
 	for (cs = 0; cs < aspi->data->max_cs; cs++) {
 		if (aspi->chips[cs].ahb_base)
-			devm_iounmap(aspi->dev, aspi->chips[cs].ahb_base);
+			devm_iounmap(dev, aspi->chips[cs].ahb_base);
 	}
 
 	for (cs = 0; cs < aspi->data->max_cs; cs++) {
@@ -763,43 +764,57 @@ static int aspeed_spi_set_window(struct aspeed_spi *aspi)
 		writel(seg_val, seg_reg);
 
 		if (seg_val != readl(seg_reg)) {
-			dev_warn(aspi->dev, "CE%d invalid window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+			dev_warn(dev, "CE%d expected window [ 0x%.9llx - 0x%.9llx ] %zdMB",
 				 cs, (u64)start, (u64)end - 1, win_sz >> 20);
-			dev_warn(aspi->dev, "seg_val = 0x%x, readl(seg_reg) = 0x%x\n",
+			dev_warn(dev, "seg_val = 0x%x, readl(seg_reg) = 0x%x\n",
 				 seg_val, readl(seg_reg));
 
-			return -EIO;
+			seg_val = readl(seg_reg);
+			dev_warn(dev, "restore to 0x%x\n", seg_val);
+
+			win_sz = aspi->data->segment_end(aspi, seg_val) -
+				 aspi->data->segment_start(aspi, seg_val);
+
+			if (win_sz < 0)
+				return -ERANGE;
+
+			end = start + win_sz;
 		}
 
 		if (win_sz != 0)
-			dev_dbg(aspi->dev, "CE%d new window [ 0x%.9llx - 0x%.9llx ] %zdMB",
+			dev_dbg(dev, "CE%d new window [ 0x%.9llx - 0x%.9llx ] %zdMB",
 				cs, (u64)start, (u64)end - 1,  win_sz >> 20);
 		else
-			dev_dbg(aspi->dev, "CE%d window closed", cs);
+			dev_dbg(dev, "CE%d window closed", cs);
 
 		aspi->chips[cs].ahb_base_phy = start;
 		offset += win_sz;
+
+		if (offset > aspi->ahb_window_sz) {
+			dev_err(dev, "offset value 0x%llx is too large.\n", (u64)offset);
+			return -ENOSPC;
+		}
 
 		if (win_sz == 0)
 			continue;
 
 		if ((aspi->flag & ASPEED_SPI_MIN_WINDOW) != 0) {
-			aspi->chips[cs].ahb_base = devm_ioremap(aspi->dev,
+			aspi->chips[cs].ahb_base = devm_ioremap(dev,
 								start,
 								aspi->data->min_window_sz);
 		} else {
 			if ((aspi->flag & ASPEED_SPI_LTPI_SUPPORT) != 0)
-				aspi->chips[cs].ahb_base = devm_ioremap(aspi->dev,
+				aspi->chips[cs].ahb_base = devm_ioremap(dev,
 									ltpi_start,
 									win_sz);
 			else
-				aspi->chips[cs].ahb_base = devm_ioremap(aspi->dev,
+				aspi->chips[cs].ahb_base = devm_ioremap(dev,
 									start,
 									win_sz);
 		}
 
 		if (!aspi->chips[cs].ahb_base) {
-			dev_err(aspi->dev, "fail to remap window [0x%.9llx - 0x%.9llx]\n",
+			dev_err(dev, "fail to remap window [0x%.9llx - 0x%.9llx]\n",
 				(u64)start, (u64)end - 1);
 			return -ENOMEM;
 		}
