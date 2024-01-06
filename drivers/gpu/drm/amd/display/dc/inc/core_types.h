@@ -333,6 +333,8 @@ struct stream_resource {
 	uint8_t gsl_group;
 
 	struct test_pattern_params test_pattern_params;
+
+	bool left_edge_extra_pixel;
 };
 
 struct plane_resource {

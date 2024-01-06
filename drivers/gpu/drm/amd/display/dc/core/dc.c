@@ -3090,6 +3090,10 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 			if (otg_master && otg_master->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE)
 				resource_build_test_pattern_params(&context->res_ctx, otg_master);
+
+			if (otg_master && (otg_master->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422 ||
+					otg_master->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420))
+				resource_build_subsampling_params(&context->res_ctx, otg_master);
 		}
 	}
 
