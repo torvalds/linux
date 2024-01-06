@@ -440,49 +440,53 @@ static int hsmp_init_metric_tbl_bin_attr(struct bin_attribute **hattrs, u16 sock
 /* One bin sysfs for metrics table*/
 #define NUM_HSMP_ATTRS		1
 
-static int hsmp_create_sysfs_interface(void)
+static int hsmp_create_attr_list(struct attribute_group *attr_grp,
+				 struct device *dev, u16 sock_ind)
+{
+	struct bin_attribute **hsmp_bin_attrs;
+
+	/* Null terminated list of attributes */
+	hsmp_bin_attrs = devm_kzalloc(dev, sizeof(struct bin_attribute *) *
+				      (NUM_HSMP_ATTRS + 1), GFP_KERNEL);
+	if (!hsmp_bin_attrs)
+		return -ENOMEM;
+
+	attr_grp->bin_attrs = hsmp_bin_attrs;
+
+	return hsmp_init_metric_tbl_bin_attr(hsmp_bin_attrs, sock_ind);
+}
+
+static int hsmp_create_sysfs_interface(struct device *dev)
 {
 	const struct attribute_group **hsmp_attr_grps;
-	struct bin_attribute **hsmp_bin_attrs;
 	struct attribute_group *attr_grp;
-	int ret;
 	u16 i;
 
 	/* String formatting is currently limited to u8 sockets */
 	if (WARN_ON(plat_dev.num_sockets > U8_MAX))
 		return -ERANGE;
 
-	hsmp_attr_grps = devm_kzalloc(plat_dev.sock[0].dev, sizeof(struct attribute_group *) *
+	hsmp_attr_grps = devm_kzalloc(dev, sizeof(struct attribute_group *) *
 				      (plat_dev.num_sockets + 1), GFP_KERNEL);
 	if (!hsmp_attr_grps)
 		return -ENOMEM;
 
 	/* Create a sysfs directory for each socket */
 	for (i = 0; i < plat_dev.num_sockets; i++) {
-		attr_grp = devm_kzalloc(plat_dev.sock[i].dev, sizeof(struct attribute_group),
+		attr_grp = devm_kzalloc(dev, sizeof(struct attribute_group),
 					GFP_KERNEL);
 		if (!attr_grp)
 			return -ENOMEM;
 
 		snprintf(plat_dev.sock[i].name, HSMP_ATTR_GRP_NAME_SIZE, "socket%u", (u8)i);
-		attr_grp->name = plat_dev.sock[i].name;
-
-		/* Null terminated list of attributes */
-		hsmp_bin_attrs = devm_kzalloc(plat_dev.sock[i].dev, sizeof(struct bin_attribute *) *
-					      (NUM_HSMP_ATTRS + 1), GFP_KERNEL);
-		if (!hsmp_bin_attrs)
-			return -ENOMEM;
-
-		attr_grp->bin_attrs		= hsmp_bin_attrs;
+		attr_grp->name			= plat_dev.sock[i].name;
 		attr_grp->is_bin_visible	= hsmp_is_sock_attr_visible;
 		hsmp_attr_grps[i]		= attr_grp;
 
-		/* Now create the leaf nodes */
-		ret = hsmp_init_metric_tbl_bin_attr(hsmp_bin_attrs, i);
-		if (ret)
-			return ret;
+		hsmp_create_attr_list(attr_grp, dev, i);
 	}
-	return devm_device_add_groups(plat_dev.sock[0].dev, hsmp_attr_grps);
+
+	return devm_device_add_groups(dev, hsmp_attr_grps);
 }
 
 static int hsmp_cache_proto_ver(void)
@@ -559,7 +563,7 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = hsmp_create_sysfs_interface();
+	ret = hsmp_create_sysfs_interface(&pdev->dev);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to create HSMP sysfs interface\n");
 
