@@ -1161,7 +1161,7 @@ struct rate_adaptive {
 
 #define	NUM_PMKID_CACHE		16
 struct rt_pmkid_list {
-	u8 Bssid[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
 	u8 PMKID[16];
 	u8 SsidBuf[33];
 	u8 used;
