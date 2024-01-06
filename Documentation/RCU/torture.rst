@@ -318,7 +318,7 @@ Suppose that a previous kvm.sh run left its output in this directory::
 
 	tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
 
-Then this run can be re-run without rebuilding as follow:
+Then this run can be re-run without rebuilding as follow::
 
 	kvm-again.sh tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
 
