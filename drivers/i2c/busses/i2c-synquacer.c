@@ -550,17 +550,13 @@ static int synquacer_i2c_probe(struct platform_device *pdev)
 	device_property_read_u32(&pdev->dev, "socionext,pclk-rate",
 				 &i2c->pclkrate);
 
-	i2c->pclk = devm_clk_get(&pdev->dev, "pclk");
-	if (PTR_ERR(i2c->pclk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-	if (!IS_ERR_OR_NULL(i2c->pclk)) {
-		dev_dbg(&pdev->dev, "clock source %p\n", i2c->pclk);
+	i2c->pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
+	if (IS_ERR(i2c->pclk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->pclk),
+				     "failed to get and enable clock\n");
 
-		ret = clk_prepare_enable(i2c->pclk);
-		if (ret)
-			return dev_err_probe(&pdev->dev, ret, "failed to enable clock\n");
-		i2c->pclkrate = clk_get_rate(i2c->pclk);
-	}
+	dev_dbg(&pdev->dev, "clock source %p\n", i2c->pclk);
+	i2c->pclkrate = clk_get_rate(i2c->pclk);
 
 	if (i2c->pclkrate < SYNQUACER_I2C_MIN_CLK_RATE ||
 	    i2c->pclkrate > SYNQUACER_I2C_MAX_CLK_RATE)
@@ -615,8 +611,6 @@ static void synquacer_i2c_remove(struct platform_device *pdev)
 	struct synquacer_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c_del_adapter(&i2c->adapter);
-	if (!IS_ERR(i2c->pclk))
-		clk_disable_unprepare(i2c->pclk);
 };
 
 static const struct of_device_id synquacer_i2c_dt_ids[] __maybe_unused = {
