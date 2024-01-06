@@ -71,3 +71,10 @@
   xt_find_match
   xt_request_find_match
   xt_request_find_target
+
+# required by ebt_arpreply.ko module
+  arp_send
+
+# required by ebt_log.ko module
+  nf_log_packet
+  sysctl_nf_log_all_netns
