@@ -6208,17 +6208,15 @@ static int thermal_get_sensor(int idx, s32 *value)
 
 static int thermal_get_sensors(struct ibm_thermal_sensors_struct *s)
 {
-	int res, i;
-	int n;
-
-	n = 8;
-	i = 0;
+	int res, i, n;
 
 	if (!s)
 		return -EINVAL;
 
 	if (thermal_read_mode == TPACPI_THERMAL_TPEC_16)
 		n = 16;
+	else
+		n = 8;
 
 	for (i = 0 ; i < n; i++) {
 		res = thermal_get_sensor(i, &s->temp[i]);
