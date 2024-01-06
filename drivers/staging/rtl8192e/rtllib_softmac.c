@@ -1072,7 +1072,7 @@ static void rtllib_associate_complete_wq(void *data)
 			    ieee->ht_info->enable_ht);
 		memset(ieee->dot11ht_oper_rate_set, 0, 16);
 	}
-	ieee->link_detect_info.SlotNum = 2 * (1 +
+	ieee->link_detect_info.slot_num = 2 * (1 +
 				       ieee->current_network.beacon_interval /
 				       500);
 	if (ieee->link_detect_info.NumRecvBcnInPeriod == 0 ||
@@ -2073,7 +2073,7 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 		ieee->seq_ctrl[i] = 0;
 
 	ieee->link_detect_info.slot_index = 0;
-	ieee->link_detect_info.SlotNum = 2;
+	ieee->link_detect_info.slot_num = 2;
 	ieee->link_detect_info.NumRecvBcnInPeriod = 0;
 	ieee->link_detect_info.NumRecvDataInPeriod = 0;
 	ieee->link_detect_info.num_tx_ok_in_period = 0;

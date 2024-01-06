@@ -1115,7 +1115,7 @@ struct rt_link_detect {
 
 	u32				RxBcnNum[RT_MAX_LD_SLOT_NUM];
 	u32				RxDataNum[RT_MAX_LD_SLOT_NUM];
-	u16				SlotNum;
+	u16				slot_num;
 	u16				slot_index;
 
 	u32				num_tx_ok_in_period;
