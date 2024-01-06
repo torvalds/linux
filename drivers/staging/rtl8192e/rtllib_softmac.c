@@ -1648,7 +1648,7 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 	int errcode;
 	u8 *challenge;
 	int chlen = 0;
-	bool bSupportNmode = true, bHalfSupportNmode = false;
+	bool support_nmode = true, bHalfSupportNmode = false;
 
 	errcode = auth_parse(ieee->dev, skb, &challenge, &chlen);
 
@@ -1666,16 +1666,16 @@ static void rtllib_rx_auth_resp(struct rtllib_device *ieee, struct sk_buff *skb)
 		if (!(ieee->ht_info->iot_action & HT_IOT_ACT_PURE_N_MODE)) {
 			if (!ieee->GetNmodeSupportBySecCfg(ieee->dev)) {
 				if (is_ht_half_nmode_aps(ieee)) {
-					bSupportNmode = true;
+					support_nmode = true;
 					bHalfSupportNmode = true;
 				} else {
-					bSupportNmode = false;
+					support_nmode = false;
 					bHalfSupportNmode = false;
 				}
 			}
 		}
 		/* Dummy wirless mode setting to avoid encryption issue */
-		if (bSupportNmode) {
+		if (support_nmode) {
 			ieee->set_wireless_mode(ieee->dev,
 					      ieee->current_network.mode);
 		} else {
