@@ -1149,9 +1149,9 @@ static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast,
 {
 	if (unicast) {
 		if (ieee->link_state == MAC80211_LINKED) {
-			if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
+			if (((ieee->link_detect_info.num_rx_unicast_ok_in_period +
 			    ieee->link_detect_info.num_tx_ok_in_period) > 8) ||
-			    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2)) {
+			    (ieee->link_detect_info.num_rx_unicast_ok_in_period > 2)) {
 				ieee->leisure_ps_leave(ieee->dev);
 			}
 		}
@@ -1363,7 +1363,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	else
 		nr_subframes = 1;
 	if (unicast)
-		ieee->link_detect_info.NumRxUnicastOkInPeriod += nr_subframes;
+		ieee->link_detect_info.num_rx_unicast_ok_in_period += nr_subframes;
 	rtllib_rx_check_leave_lps(ieee, unicast, nr_subframes);
 
 	/* Indicate packets to upper layer or Rx Reorder */

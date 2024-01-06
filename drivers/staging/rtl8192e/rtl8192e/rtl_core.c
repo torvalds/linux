@@ -983,9 +983,9 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 				bHigherBusyRxTraffic = false;
 		}
 
-		if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
+		if (((ieee->link_detect_info.num_rx_unicast_ok_in_period +
 		    ieee->link_detect_info.num_tx_ok_in_period) > 8) ||
-		    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2))
+		    (ieee->link_detect_info.num_rx_unicast_ok_in_period > 2))
 			bEnterPS = false;
 		else
 			bEnterPS = true;
@@ -1004,7 +1004,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 	ieee->link_detect_info.num_rx_ok_in_period = 0;
 	ieee->link_detect_info.num_tx_ok_in_period = 0;
-	ieee->link_detect_info.NumRxUnicastOkInPeriod = 0;
+	ieee->link_detect_info.num_rx_unicast_ok_in_period = 0;
 	ieee->link_detect_info.busy_traffic = busy_traffic;
 
 	ieee->link_detect_info.bHigherBusyTraffic = bHigherBusyTraffic;

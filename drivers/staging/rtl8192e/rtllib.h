@@ -1120,7 +1120,7 @@ struct rt_link_detect {
 
 	u32				num_tx_ok_in_period;
 	u32				num_rx_ok_in_period;
-	u32				NumRxUnicastOkInPeriod;
+	u32				num_rx_unicast_ok_in_period;
 	bool				busy_traffic;
 	bool				bHigherBusyTraffic;
 	bool				bHigherBusyRxTraffic;
