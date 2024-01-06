@@ -32,7 +32,7 @@ static int get_fwu_request(struct device *dev, u32 *out)
 		return -ENODEV;
 
 	if (obj->type != ACPI_TYPE_INTEGER) {
-		dev_warn(dev, "wmi_query_block returned invalid value\n");
+		dev_warn(dev, "wmidev_block_query returned invalid value\n");
 		kfree(obj);
 		return -EINVAL;
 	}
@@ -55,7 +55,7 @@ static int set_fwu_request(struct device *dev, u32 in)
 
 	status = wmidev_block_set(to_wmi_device(dev), 0, &input);
 	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "wmi_set_block failed\n");
+		dev_err(dev, "wmidev_block_set failed\n");
 		return -ENODEV;
 	}
 
