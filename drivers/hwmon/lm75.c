@@ -269,8 +269,9 @@ static const struct lm75_params device_params[] = {
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp112] = {
-		.set_mask = 3 << 5,	/* 8 samples / second */
-		.clr_mask = 1 << 7,	/* no one-shot mode*/
+		.config_reg_16bits = true,
+		.set_mask = 0x60C0,	/* 12-bit mode, 8 samples / second */
+		.clr_mask = 1 << 15,	/* no one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 125,
 		.num_sample_times = 4,
