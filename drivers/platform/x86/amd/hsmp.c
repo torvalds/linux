@@ -641,12 +641,12 @@ static int hsmp_init_metric_tbl_bin_attr(struct bin_attribute **hattrs, u16 sock
 	hattrs[0]		= hattr;
 
 	if (plat_dev.proto_ver == HSMP_PROTO_VER6)
-		return (hsmp_get_tbl_dram_base(sock_ind));
+		return hsmp_get_tbl_dram_base(sock_ind);
 	else
 		return 0;
 }
 
-/* One bin sysfs for metrics table*/
+/* One bin sysfs for metrics table */
 #define NUM_HSMP_ATTRS		1
 
 static int hsmp_create_attr_list(struct attribute_group *attr_grp,
