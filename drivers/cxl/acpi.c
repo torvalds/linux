@@ -295,14 +295,12 @@ out:
 	return rc;
 }
 
-static int cxl_acpi_qos_class(struct cxl_port *root_port,
+static int cxl_acpi_qos_class(struct cxl_root *cxl_root,
 			      struct access_coordinate *coord, int entries,
 			      int *qos_class)
 {
+	struct device *dev = cxl_root->port.uport_dev;
 	acpi_handle handle;
-	struct device *dev;
-
-	dev = root_port->uport_dev;
 
 	if (!dev_is_platform(dev))
 		return -ENODEV;
