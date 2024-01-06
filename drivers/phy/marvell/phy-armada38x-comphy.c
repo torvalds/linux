@@ -47,8 +47,13 @@ struct a38x_comphy {
 	struct a38x_comphy_lane lane[MAX_A38X_COMPHY];
 };
 
+/*
+ * Map serdes lanes and gbe ports to serdes mux configuration values:
+ * row index = serdes lane,
+ * column index = gbe port number.
+ */
 static const u8 gbe_mux[MAX_A38X_COMPHY][MAX_A38X_PORTS] = {
-	{ 0, 0, 0 },
+	{ 3, 0, 0 },
 	{ 4, 5, 0 },
 	{ 0, 4, 0 },
 	{ 0, 0, 4 },
