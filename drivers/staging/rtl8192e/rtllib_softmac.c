@@ -1998,7 +1998,7 @@ void rtllib_stop_protocol(struct rtllib_device *ieee)
 
 	if (ieee->link_state == MAC80211_LINKED) {
 		if (ieee->iw_mode == IW_MODE_INFRA)
-			SendDisassociation(ieee, 1, WLAN_REASON_DEAUTH_LEAVING);
+			send_disassociation(ieee, 1, WLAN_REASON_DEAUTH_LEAVING);
 		rtllib_disassociate(ieee);
 	}
 
@@ -2199,7 +2199,7 @@ rtllib_disassociate_skb(struct rtllib_network *beacon,
 	return skb;
 }
 
-void SendDisassociation(struct rtllib_device *ieee, bool deauth, u16 asRsn)
+void send_disassociation(struct rtllib_device *ieee, bool deauth, u16 asRsn)
 {
 	struct rtllib_network *beacon = &ieee->current_network;
 	struct sk_buff *skb;
