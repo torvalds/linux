@@ -1,0 +1,7 @@
+[abi_symbol_list]
+# commonly used by custom vendor modules
+  __bitmap_subset
+  devres_find
+  input_device_enabled
+  pvclock_gtod_register_notifier
+  refcount_dec_if_one
