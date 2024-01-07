@@ -5,6 +5,7 @@
 #include "bcachefs_ioctl.h"
 #include "buckets.h"
 #include "chardev.h"
+#include "disk_accounting.h"
 #include "journal.h"
 #include "move.h"
 #include "recovery_passes.h"
@@ -516,11 +517,11 @@ static long bch2_ioctl_data(struct bch_fs *c,
 static long bch2_ioctl_fs_usage(struct bch_fs *c,
 				struct bch_ioctl_fs_usage __user *user_arg)
 {
-	struct bch_ioctl_fs_usage *arg = NULL;
-	struct bch_replicas_usage *dst_e, *dst_end;
-	struct bch_fs_usage_online *src;
-	u32 replica_entries_bytes;
+	struct bch_ioctl_fs_usage arg;
+	struct bch_fs_usage_online *src = NULL;
+	darray_char replicas = {};
 	unsigned i;
+	u32 replica_entries_bytes;
 	int ret = 0;
 
 	if (!test_bit(BCH_FS_started, &c->flags))
@@ -529,9 +530,16 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 	if (get_user(replica_entries_bytes, &user_arg->replica_entries_bytes))
 		return -EFAULT;
 
-	arg = kzalloc(size_add(sizeof(*arg), replica_entries_bytes), GFP_KERNEL);
-	if (!arg)
-		return -ENOMEM;
+	ret   = bch2_fs_replicas_usage_read(c, &replicas) ?:
+		(replica_entries_bytes < replicas.nr ? -ERANGE : 0) ?:
+		copy_to_user_errcode(&user_arg->replicas, replicas.data, replicas.nr);
+	if (ret)
+		goto err;
+
+	arg.capacity		= c->capacity;
+	arg.used		= bch2_fs_sectors_used(c, src);
+	arg.online_reserved	= src->online_reserved;
+	arg.replica_entries_bytes = replicas.nr;
 
 	src = bch2_fs_usage_read(c);
 	if (!src) {
@@ -539,52 +547,14 @@ static long bch2_ioctl_fs_usage(struct bch_fs *c,
 		goto err;
 	}
 
-	arg->capacity		= c->capacity;
-	arg->used		= bch2_fs_sectors_used(c, src);
-	arg->online_reserved	= src->online_reserved;
-
 	for (i = 0; i < BCH_REPLICAS_MAX; i++)
-		arg->persistent_reserved[i] = src->u.persistent_reserved[i];
-
-	dst_e	= arg->replicas;
-	dst_end = (void *) arg->replicas + replica_entries_bytes;
-
-	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry_v1 *src_e =
-			cpu_replicas_entry(&c->replicas, i);
-
-		/* check that we have enough space for one replicas entry */
-		if (dst_e + 1 > dst_end) {
-			ret = -ERANGE;
-			break;
-		}
-
-		dst_e->sectors		= src->u.replicas[i];
-		dst_e->r		= *src_e;
-
-		/* recheck after setting nr_devs: */
-		if (replicas_usage_next(dst_e) > dst_end) {
-			ret = -ERANGE;
-			break;
-		}
-
-		memcpy(dst_e->r.devs, src_e->devs, src_e->nr_devs);
-
-		dst_e = replicas_usage_next(dst_e);
-	}
-
-	arg->replica_entries_bytes = (void *) dst_e - (void *) arg->replicas;
-
+		arg.persistent_reserved[i] = src->u.persistent_reserved[i];
 	percpu_up_read(&c->mark_lock);
-	kfree(src);
 
-	if (ret)
-		goto err;
-
-	ret = copy_to_user_errcode(user_arg, arg,
-			sizeof(*arg) + arg->replica_entries_bytes);
+	ret = copy_to_user_errcode(user_arg, &arg, sizeof(arg));
 err:
-	kfree(arg);
+	darray_exit(&replicas);
+	kfree(src);
 	return ret;
 }
 
