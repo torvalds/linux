@@ -39,15 +39,10 @@ static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 static void bch2_replicas_entry_v0_to_text(struct printbuf *out,
 					   struct bch_replicas_entry_v0 *e)
 {
-	unsigned i;
-
-	if (e->data_type < BCH_DATA_NR)
-		prt_printf(out, "%s", bch2_data_types[e->data_type]);
-	else
-		prt_printf(out, "(invalid data type %u)", e->data_type);
+	bch2_prt_data_type(out, e->data_type);
 
 	prt_printf(out, ": %u [", e->nr_devs);
-	for (i = 0; i < e->nr_devs; i++)
+	for (unsigned i = 0; i < e->nr_devs; i++)
 		prt_printf(out, i ? " %u" : "%u", e->devs[i]);
 	prt_printf(out, "]");
 }
@@ -55,15 +50,10 @@ static void bch2_replicas_entry_v0_to_text(struct printbuf *out,
 void bch2_replicas_entry_to_text(struct printbuf *out,
 				 struct bch_replicas_entry_v1 *e)
 {
-	unsigned i;
-
-	if (e->data_type < BCH_DATA_NR)
-		prt_printf(out, "%s", bch2_data_types[e->data_type]);
-	else
-		prt_printf(out, "(invalid data type %u)", e->data_type);
+	bch2_prt_data_type(out, e->data_type);
 
 	prt_printf(out, ": %u/%u [", e->nr_required, e->nr_devs);
-	for (i = 0; i < e->nr_devs; i++)
+	for (unsigned i = 0; i < e->nr_devs; i++)
 		prt_printf(out, i ? " %u" : "%u", e->devs[i]);
 	prt_printf(out, "]");
 }

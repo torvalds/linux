@@ -883,7 +883,7 @@ static void dev_io_done_to_text(struct printbuf *out, struct bch_dev *ca)
 
 		for (i = 1; i < BCH_DATA_NR; i++)
 			prt_printf(out, "%-12s:%12llu\n",
-			       bch2_data_types[i],
+			       bch2_data_type_str(i),
 			       percpu_u64_get(&ca->io_done->sectors[rw][i]) << 9);
 	}
 }
@@ -908,7 +908,7 @@ SHOW(bch2_dev)
 	}
 
 	if (attr == &sysfs_has_data) {
-		prt_bitflags(out, bch2_data_types, bch2_dev_has_data(c, ca));
+		prt_bitflags(out, __bch2_data_types, bch2_dev_has_data(c, ca));
 		prt_char(out, '\n');
 	}
 

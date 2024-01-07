@@ -273,7 +273,7 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 		bkey_fsck_err_on(!bch2_bucket_sectors_dirty(*a.v),
 				 c, err, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
-				 bch2_data_types[a.v->data_type]);
+				 bch2_data_type_str(a.v->data_type));
 		break;
 	case BCH_DATA_cached:
 		bkey_fsck_err_on(!a.v->cached_sectors ||
@@ -325,11 +325,8 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "gen %u oldest_gen %u data_type %s",
-	       a->gen, a->oldest_gen,
-	       a->data_type < BCH_DATA_NR
-	       ? bch2_data_types[a->data_type]
-	       : "(invalid data type)");
+	prt_printf(out, "gen %u oldest_gen %u data_type ", a->gen, a->oldest_gen);
+	bch2_prt_data_type(out, a->data_type);
 	prt_newline(out);
 	prt_printf(out, "journal_seq       %llu",	a->journal_seq);
 	prt_newline(out);

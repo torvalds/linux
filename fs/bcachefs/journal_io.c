@@ -683,10 +683,7 @@ static void journal_entry_dev_usage_to_text(struct printbuf *out, struct bch_fs 
 	prt_printf(out, "dev=%u", le32_to_cpu(u->dev));
 
 	for (i = 0; i < nr_types; i++) {
-		if (i < BCH_DATA_NR)
-			prt_printf(out, " %s", bch2_data_types[i]);
-		else
-			prt_printf(out, " (unknown data type %u)", i);
+		bch2_prt_data_type(out, i);
 		prt_printf(out, ": buckets=%llu sectors=%llu fragmented=%llu",
 		       le64_to_cpu(u->d[i].buckets),
 		       le64_to_cpu(u->d[i].sectors),

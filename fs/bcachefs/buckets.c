@@ -284,7 +284,7 @@ void bch2_dev_usage_to_text(struct printbuf *out, struct bch_dev_usage *usage)
 	prt_newline(out);
 
 	for (unsigned i = 0; i < BCH_DATA_NR; i++) {
-		prt_str(out, bch2_data_types[i]);
+		bch2_prt_data_type(out, i);
 		prt_tab(out);
 		prt_u64(out, usage->d[i].buckets);
 		prt_tab_rjust(out);
@@ -523,8 +523,8 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	if (bch2_fs_inconsistent_on(g->data_type &&
 			g->data_type != data_type, c,
 			"different types of data in same bucket: %s, %s",
-			bch2_data_types[g->data_type],
-			bch2_data_types[data_type])) {
+			bch2_data_type_str(g->data_type),
+			bch2_data_type_str(data_type))) {
 		ret = -EIO;
 		goto err;
 	}
@@ -532,7 +532,7 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	if (bch2_fs_inconsistent_on((u64) g->dirty_sectors + sectors > ca->mi.bucket_size, c,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %u > bucket size",
 			ca->dev_idx, b, g->gen,
-			bch2_data_types[g->data_type ?: data_type],
+			bch2_data_type_str(g->data_type ?: data_type),
 			g->dirty_sectors, sectors)) {
 		ret = -EIO;
 		goto err;
@@ -575,7 +575,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
-			bch2_data_types[bucket_data_type ?: ptr_data_type],
+			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
 			ptr->gen,
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 		ret = -EIO;
@@ -588,7 +588,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
-			bch2_data_types[bucket_data_type ?: ptr_data_type],
+			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
 			ptr->gen,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
@@ -603,7 +603,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
 			*bucket_gen(ca, bucket_nr),
-			bch2_data_types[bucket_data_type ?: ptr_data_type],
+			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
 			ptr->gen,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
@@ -624,8 +624,8 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
-			bch2_data_types[bucket_data_type],
-			bch2_data_types[ptr_data_type],
+			bch2_data_type_str(bucket_data_type),
+			bch2_data_type_str(ptr_data_type),
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 		ret = -EIO;
@@ -638,7 +638,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
-			bch2_data_types[bucket_data_type ?: ptr_data_type],
+			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
 			bucket_sectors, sectors,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
@@ -1130,9 +1130,9 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			iter.pos.inode, iter.pos.offset, a->v.gen,
-			bch2_data_types[a->v.data_type],
-			bch2_data_types[type],
-			bch2_data_types[type]);
+			bch2_data_type_str(a->v.data_type),
+			bch2_data_type_str(type),
+			bch2_data_type_str(type));
 		ret = -EIO;
 		goto err;
 	}

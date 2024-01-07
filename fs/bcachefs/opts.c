@@ -72,7 +72,7 @@ const char * const bch2_str_hash_opts[] = {
 	NULL
 };
 
-const char * const bch2_data_types[] = {
+const char * const __bch2_data_types[] = {
 	BCH_DATA_TYPES()
 	NULL
 };

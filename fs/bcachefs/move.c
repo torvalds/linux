@@ -1083,9 +1083,9 @@ int bch2_data_job(struct bch_fs *c,
 
 void bch2_move_stats_to_text(struct printbuf *out, struct bch_move_stats *stats)
 {
-	prt_printf(out, "%s: data type=%s pos=",
-		   stats->name,
-		   bch2_data_types[stats->data_type]);
+	prt_printf(out, "%s: data type==", stats->name);
+	bch2_prt_data_type(out, stats->data_type);
+	prt_str(out, " pos=");
 	bch2_bbpos_to_text(out, stats->pos);
 	prt_newline(out);
 	printbuf_indent_add(out, 2);

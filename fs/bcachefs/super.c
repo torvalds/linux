@@ -1625,7 +1625,7 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	if (data) {
 		struct printbuf data_has = PRINTBUF;
 
-		prt_bitflags(&data_has, bch2_data_types, data);
+		prt_bitflags(&data_has, __bch2_data_types, data);
 		bch_err(ca, "Remove failed, still has data (%s)", data_has.buf);
 		printbuf_exit(&data_has);
 		ret = -EBUSY;
