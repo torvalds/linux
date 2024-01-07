@@ -707,12 +707,17 @@ static int __trigger_extent(struct btree_trans *trans,
 	s64 replicas_sectors = 0;
 	int ret = 0;
 
-	struct disk_accounting_pos acc = {
+	struct disk_accounting_pos acc_replicas_key = {
 		.type			= BCH_DISK_ACCOUNTING_replicas,
 		.replicas.data_type	= data_type,
 		.replicas.nr_devs	= 0,
 		.replicas.nr_required	= 1,
 	};
+
+	struct disk_accounting_pos acct_compression_key = {
+		.type			= BCH_DISK_ACCOUNTING_compression,
+	};
+	u64 compression_acct[3] = { 1, 0, 0 };
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		s64 disk_sectors = 0;
@@ -722,15 +727,16 @@ static int __trigger_extent(struct btree_trans *trans,
 
 		bool stale = ret > 0;
 
+		if (p.ptr.cached && stale)
+			continue;
+
 		if (p.ptr.cached) {
-			if (!stale) {
-				ret = bch2_mod_dev_cached_sectors(trans, p.ptr.dev, disk_sectors, gc);
-				if (ret)
-					return ret;
-			}
+			ret = bch2_mod_dev_cached_sectors(trans, p.ptr.dev, disk_sectors, gc);
+			if (ret)
+				return ret;
 		} else if (!p.has_ec) {
 			replicas_sectors       += disk_sectors;
-			acc.replicas.devs[acc.replicas.nr_devs++] = p.ptr.dev;
+			acc_replicas_key.replicas.devs[acc_replicas_key.replicas.nr_devs++] = p.ptr.dev;
 		} else {
 			ret = bch2_trigger_stripe_ptr(trans, k, p, data_type, disk_sectors, flags);
 			if (ret)
@@ -741,12 +747,43 @@ static int __trigger_extent(struct btree_trans *trans,
 			 * if so they're not required for mounting if we have an
 			 * erasure coded pointer in this extent:
 			 */
-			acc.replicas.nr_required = 0;
+			acc_replicas_key.replicas.nr_required = 0;
+		}
+
+		if (acct_compression_key.compression.type &&
+		    acct_compression_key.compression.type != p.crc.compression_type) {
+			if (flags & BTREE_TRIGGER_overwrite)
+				bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));
+
+			ret = bch2_disk_accounting_mod(trans, &acct_compression_key, compression_acct,
+						       ARRAY_SIZE(compression_acct), gc);
+			if (ret)
+				return ret;
+
+			compression_acct[0] = 1;
+			compression_acct[1] = 0;
+			compression_acct[2] = 0;
+		}
+
+		acct_compression_key.compression.type = p.crc.compression_type;
+		if (p.crc.compression_type) {
+			compression_acct[1] += p.crc.uncompressed_size;
+			compression_acct[2] += p.crc.compressed_size;
 		}
 	}
 
-	if (acc.replicas.nr_devs) {
-		ret = bch2_disk_accounting_mod(trans, &acc, &replicas_sectors, 1, gc);
+	if (acc_replicas_key.replicas.nr_devs) {
+		ret = bch2_disk_accounting_mod(trans, &acc_replicas_key, &replicas_sectors, 1, gc);
+		if (ret)
+			return ret;
+	}
+
+	if (acct_compression_key.compression.type) {
+		if (flags & BTREE_TRIGGER_overwrite)
+			bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));
+
+		ret = bch2_disk_accounting_mod(trans, &acct_compression_key, compression_acct,
+					       ARRAY_SIZE(compression_acct), gc);
 		if (ret)
 			return ret;
 	}
