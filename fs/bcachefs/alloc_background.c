@@ -321,7 +321,6 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 {
 	struct bch_alloc_v4 _a;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
-	unsigned i;
 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
@@ -353,23 +352,6 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "fragmentation     %llu",	a->fragmentation_lru);
 	prt_newline(out);
 	prt_printf(out, "bp_start          %llu", BCH_ALLOC_V4_BACKPOINTERS_START(a));
-	prt_newline(out);
-
-	if (BCH_ALLOC_V4_NR_BACKPOINTERS(a)) {
-		struct bkey_s_c_alloc_v4 a_raw = bkey_s_c_to_alloc_v4(k);
-		const struct bch_backpointer *bps = alloc_v4_backpointers_c(a_raw.v);
-
-		prt_printf(out, "backpointers:     %llu", BCH_ALLOC_V4_NR_BACKPOINTERS(a_raw.v));
-		printbuf_indent_add(out, 2);
-
-		for (i = 0; i < BCH_ALLOC_V4_NR_BACKPOINTERS(a_raw.v); i++) {
-			prt_newline(out);
-			bch2_backpointer_to_text(out, &bps[i]);
-		}
-
-		printbuf_indent_sub(out, 2);
-	}
-
 	printbuf_indent_sub(out, 2);
 }
 
