@@ -568,10 +568,9 @@ static struct fsl_qdma_queue
 					      status_size,
 					      &status_head->bus_addr,
 					      GFP_KERNEL);
-	if (!status_head->cq) {
-		devm_kfree(&pdev->dev, status_head);
+	if (!status_head->cq)
 		return NULL;
-	}
+
 	status_head->n_cq = status_size;
 	status_head->virt_head = status_head->cq;
 	status_head->virt_tail = status_head->cq;
