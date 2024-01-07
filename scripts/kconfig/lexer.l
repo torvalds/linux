@@ -391,9 +391,6 @@ void zconf_initscan(const char *name)
 		exit(1);
 	}
 
-	current_buf = xmalloc(sizeof(*current_buf));
-	memset(current_buf, 0, sizeof(*current_buf));
-
 	current_file = file_lookup(name);
 	yylineno = 1;
 }
@@ -403,9 +400,10 @@ void zconf_nextfile(const char *name)
 	struct file *iter;
 	struct file *file = file_lookup(name);
 	struct buffer *buf = xmalloc(sizeof(*buf));
-	memset(buf, 0, sizeof(*buf));
 
-	current_buf->state = YY_CURRENT_BUFFER;
+	buf->state = YY_CURRENT_BUFFER;
+	buf->parent = current_buf;
+	current_buf = buf;
 	yyin = zconf_fopen(file->name);
 	if (!yyin) {
 		fprintf(stderr, "%s:%d: can't open file \"%s\"\n",
@@ -413,8 +411,6 @@ void zconf_nextfile(const char *name)
 		exit(1);
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
-	buf->parent = current_buf;
-	current_buf = buf;
 
 	current_file->lineno = yylineno;
 	file->parent = current_file;
@@ -441,20 +437,21 @@ void zconf_nextfile(const char *name)
 
 static void zconf_endfile(void)
 {
-	struct buffer *parent;
+	struct buffer *tmp;
 
 	current_file = current_file->parent;
 	if (current_file)
 		yylineno = current_file->lineno;
 
-	parent = current_buf->parent;
-	if (parent) {
-		fclose(yyin);
-		yy_delete_buffer(YY_CURRENT_BUFFER);
-		yy_switch_to_buffer(parent->state);
-	}
-	free(current_buf);
-	current_buf = parent;
+	if (!current_buf)
+		return;
+
+	fclose(yyin);
+	yy_delete_buffer(YY_CURRENT_BUFFER);
+	yy_switch_to_buffer(current_buf->state);
+	tmp = current_buf;
+	current_buf = current_buf->parent;
+	free(tmp);
 }
 
 int zconf_lineno(void)
