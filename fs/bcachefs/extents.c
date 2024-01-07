@@ -1018,12 +1018,12 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bch_extent_crc_unpacked crc =
 				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress %s",
+			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress ",
 			       crc.compressed_size,
 			       crc.uncompressed_size,
 			       crc.offset, crc.nonce,
-			       bch2_csum_types[crc.csum_type],
-			       bch2_compression_types[crc.compression_type]);
+			       bch2_csum_types[crc.csum_type]);
+			bch2_prt_compression_type(out, crc.compression_type);
 			break;
 		}
 		case BCH_EXTENT_ENTRY_stripe_ptr: {

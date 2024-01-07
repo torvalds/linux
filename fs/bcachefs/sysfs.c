@@ -21,6 +21,7 @@
 #include "btree_gc.h"
 #include "buckets.h"
 #include "clock.h"
+#include "compress.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "inode.h"
@@ -330,7 +331,7 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	prt_newline(out);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(s); i++) {
-		prt_str(out, bch2_compression_types[i]);
+		bch2_prt_compression_type(out, i);
 		prt_tab(out);
 
 		prt_human_readable_u64(out, s[i].sectors_compressed << 9);

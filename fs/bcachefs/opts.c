@@ -52,7 +52,7 @@ const char * const bch2_csum_opts[] = {
 	NULL
 };
 
-const char * const bch2_compression_types[] = {
+const char * const __bch2_compression_types[] = {
 	BCH_COMPRESSION_TYPES()
 	NULL
 };
