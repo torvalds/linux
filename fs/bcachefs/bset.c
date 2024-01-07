@@ -720,7 +720,7 @@ static noinline void __build_ro_aux_tree(struct btree *b, struct bset_tree *t)
 {
 	struct bkey_packed *prev = NULL, *k = btree_bkey_first(b, t);
 	struct bkey_i min_key, max_key;
-	unsigned j, cacheline = 1;
+	unsigned cacheline = 1;
 
 	t->size = min(bkey_to_cacheline(b, t, btree_bkey_last(b, t)),
 		      bset_ro_tree_capacity(b, t));
