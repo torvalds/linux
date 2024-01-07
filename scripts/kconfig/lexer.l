@@ -33,6 +33,7 @@ static int text_size, text_asize;
 struct buffer {
 	struct buffer *parent;
 	YY_BUFFER_STATE state;
+	int yylineno;
 };
 
 static struct buffer *current_buf;
@@ -402,6 +403,7 @@ void zconf_nextfile(const char *name)
 	struct buffer *buf = xmalloc(sizeof(*buf));
 
 	buf->state = YY_CURRENT_BUFFER;
+	buf->yylineno = yylineno;
 	buf->parent = current_buf;
 	current_buf = buf;
 	yyin = zconf_fopen(file->name);
@@ -412,7 +414,7 @@ void zconf_nextfile(const char *name)
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
 
-	current_file->lineno = yylineno;
+	current_file->lineno = zconf_lineno();
 	file->parent = current_file;
 
 	for (iter = current_file; iter; iter = iter->parent) {
@@ -425,7 +427,7 @@ void zconf_nextfile(const char *name)
 			do {
 				iter = iter->parent;
 				fprintf(stderr, "  included from: %s:%d\n",
-					iter->name, iter->lineno - 1);
+					iter->name, iter->lineno);
 			} while (strcmp(iter->name, file->name));
 			exit(1);
 		}
@@ -440,8 +442,6 @@ static void zconf_endfile(void)
 	struct buffer *tmp;
 
 	current_file = current_file->parent;
-	if (current_file)
-		yylineno = current_file->lineno;
 
 	if (!current_buf)
 		return;
@@ -449,6 +449,7 @@ static void zconf_endfile(void)
 	fclose(yyin);
 	yy_delete_buffer(YY_CURRENT_BUFFER);
 	yy_switch_to_buffer(current_buf->state);
+	yylineno = current_buf->yylineno;
 	tmp = current_buf;
 	current_buf = current_buf->parent;
 	free(tmp);
