@@ -347,7 +347,7 @@ static bool ctl_value_index_valid(struct ctl_data *ctl,
 		}
 
 		if (int_val >= snd_ctl_elem_info_get_items(ctl->info)) {
-			ksft_print_msg("%s.%d value %ld more than item count %ld\n",
+			ksft_print_msg("%s.%d value %ld more than item count %u\n",
 				       ctl->name, index, int_val,
 				       snd_ctl_elem_info_get_items(ctl->info));
 			return false;
