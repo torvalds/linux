@@ -639,7 +639,7 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 	return result;
 }
 
-static bool dml2_validate_only(const struct dc_state *context)
+static bool dml2_validate_only(struct dc_state *context)
 {
 	struct dml2_context *dml2 = context->bw_ctx.dml2;
 	unsigned int result = 0;

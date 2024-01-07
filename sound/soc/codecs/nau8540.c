@@ -530,12 +530,61 @@ static int nau8540_set_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int nau8540_dai_trigger(struct snd_pcm_substream *substream,
+			       int cmd, struct snd_soc_dai *dai)
+{
+	struct snd_soc_component *component = dai->component;
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
+	struct regmap *regmap = nau8540->regmap;
+	unsigned int val;
+	int ret = 0;
+
+	/* Reading the peak data to detect abnormal data in the ADC channel.
+	 * If abnormal data happens, the driver takes recovery actions to
+	 * refresh the ADC channel.
+	 */
+	switch (cmd) {
+	case SNDRV_PCM_TRIGGER_START:
+		regmap_update_bits(regmap, NAU8540_REG_CLOCK_CTRL,
+				   NAU8540_CLK_AGC_EN, NAU8540_CLK_AGC_EN);
+		regmap_update_bits(regmap, NAU8540_REG_ALC_CONTROL_3,
+				   NAU8540_ALC_CH_ALL_EN, NAU8540_ALC_CH_ALL_EN);
+
+		regmap_read(regmap, NAU8540_REG_PEAK_CH1, &val);
+		dev_dbg(nau8540->dev, "1.ADC CH1 peak data %x", val);
+		if (!val) {
+			regmap_update_bits(regmap, NAU8540_REG_MUTE,
+					   NAU8540_PGA_CH_ALL_MUTE, NAU8540_PGA_CH_ALL_MUTE);
+			regmap_update_bits(regmap, NAU8540_REG_MUTE,
+					   NAU8540_PGA_CH_ALL_MUTE, 0);
+			regmap_write(regmap, NAU8540_REG_RST, 0x1);
+			regmap_write(regmap, NAU8540_REG_RST, 0);
+			regmap_read(regmap, NAU8540_REG_PEAK_CH1, &val);
+			dev_dbg(nau8540->dev, "2.ADC CH1 peak data %x", val);
+			if (!val) {
+				dev_err(nau8540->dev, "Channel recovery failed!!");
+				ret = -EIO;
+			}
+		}
+		regmap_update_bits(regmap, NAU8540_REG_CLOCK_CTRL,
+				   NAU8540_CLK_AGC_EN, 0);
+		regmap_update_bits(regmap, NAU8540_REG_ALC_CONTROL_3,
+				   NAU8540_ALC_CH_ALL_EN, 0);
+		break;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
 
 static const struct snd_soc_dai_ops nau8540_dai_ops = {
 	.startup = nau8540_dai_startup,
 	.hw_params = nau8540_hw_params,
 	.set_fmt = nau8540_set_fmt,
 	.set_tdm_slot = nau8540_set_tdm_slot,
+	.trigger = nau8540_dai_trigger,
 };
 
 #define NAU8540_RATES SNDRV_PCM_RATE_8000_48000

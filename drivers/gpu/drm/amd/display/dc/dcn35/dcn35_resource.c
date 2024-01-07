@@ -610,7 +610,23 @@ static struct dce_hwseq_registers hwseq_reg;
 	HWS_SF(, DMU_CLK_CNTL, LONO_FGCG_REP_DIS, mask_sh),\
 	HWS_SF(, DMU_CLK_CNTL, LONO_DISPCLK_GATE_DISABLE, mask_sh),\
 	HWS_SF(, DMU_CLK_CNTL, LONO_SOCCLK_GATE_DISABLE, mask_sh),\
-	HWS_SF(, DMU_CLK_CNTL, LONO_DMCUBCLK_GATE_DISABLE, mask_sh)
+	HWS_SF(, DMU_CLK_CNTL, LONO_DMCUBCLK_GATE_DISABLE, mask_sh),\
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKA_FE_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKB_FE_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKC_FE_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKD_FE_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKE_FE_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, HDMICHARCLK0_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKA_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKB_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKC_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKD_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, SYMCLKE_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYASYMCLK_ROOT_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYBSYMCLK_ROOT_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYCSYMCLK_ROOT_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYDSYMCLK_ROOT_GATE_DISABLE, mask_sh), \
+	HWS_SF(, DCCG_GATE_DISABLE_CNTL2, PHYESYMCLK_ROOT_GATE_DISABLE, mask_sh)
 
 static const struct dce_hwseq_shift hwseq_shift = {
 		HWSEQ_DCN35_MASK_SH_LIST(__SHIFT)
@@ -708,7 +724,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 			.i2c = true,
 			.dmcu = false, // This is previously known to cause hang on S3 cycles if enabled
 			.dscl = true,
-			.cm = true,
+			.cm = false,
 			.mpc = true,
 			.optc = true,
 			.vpg = true,
@@ -719,14 +735,14 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.bits = {
 			.dpp = true,
 			.dsc = true,/*dscclk and dsc pg*/
-			.hdmistream = false,
-			.hdmichar = false,
-			.dpstream = false,
-			.symclk32_se = false,
-			.symclk32_le = false,
-			.symclk_fe = false,
-			.physymclk = false,
-			.dpiasymclk = false,
+			.hdmistream = true,
+			.hdmichar = true,
+			.dpstream = true,
+			.symclk32_se = true,
+			.symclk32_le = true,
+			.symclk_fe = true,
+			.physymclk = true,
+			.dpiasymclk = true,
 		}
 	},
 	.seamless_boot_odm_combine = DML_FAIL_SOURCE_PIXEL_FORMAT,
@@ -741,7 +757,6 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_boot_optimizations = false,
 	.disable_unbounded_requesting = false,
 	.disable_mem_low_power = false,
-	.enable_hpo_pg_support = false,
 	//must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions
 	.enable_double_buffered_dsc_pg_support = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
@@ -1697,6 +1712,13 @@ static bool dcn35_validate_bandwidth(struct dc *dc,
 
 	out = dml2_validate(dc, context, fast_validate);
 
+	if (fast_validate)
+		return out;
+
+	DC_FP_START();
+	dcn35_decide_zstate_support(dc, context);
+	DC_FP_END();
+
 	return out;
 }
 
@@ -1842,7 +1864,7 @@ static bool dcn35_resource_construct(
 
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
-	dc->config.use_default_clock_table = false;
+
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {

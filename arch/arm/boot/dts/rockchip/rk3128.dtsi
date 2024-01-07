@@ -848,7 +848,7 @@
 			};
 
 			sdmmc_pwren: sdmmc-pwren {
-				rockchip,pins = <1 RK_PB6 1 &pcfg_pull_default>;
+				rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_default>;
 			};
 
 			sdmmc_bus4: sdmmc-bus4 {

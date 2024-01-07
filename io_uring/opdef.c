@@ -66,7 +66,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
 		.vectored		= 1,
-		.prep			= io_prep_rw,
+		.prep			= io_prep_rwv,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITEV] = {
@@ -80,7 +80,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
 		.vectored		= 1,
-		.prep			= io_prep_rw,
+		.prep			= io_prep_rwv,
 		.issue			= io_write,
 	},
 	[IORING_OP_FSYNC] = {
@@ -98,7 +98,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw,
+		.prep			= io_prep_rw_fixed,
 		.issue			= io_read,
 	},
 	[IORING_OP_WRITE_FIXED] = {
@@ -111,7 +111,7 @@ const struct io_issue_def io_issue_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.iopoll_queue		= 1,
-		.prep			= io_prep_rw,
+		.prep			= io_prep_rw_fixed,
 		.issue			= io_write,
 	},
 	[IORING_OP_POLL_ADD] = {

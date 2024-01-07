@@ -15,7 +15,7 @@
 /* Enums */
 static const char * const devlink_op_strmap[] = {
 	[3] = "get",
-	[7] = "port-get",
+	// skip "port-get", duplicate reply value
 	[DEVLINK_CMD_PORT_NEW] = "port-new",
 	[13] = "sb-get",
 	[17] = "sb-pool-get",
@@ -2399,6 +2399,7 @@ void devlink_port_set_req_free(struct devlink_port_set_req *req)
 
 int devlink_port_set(struct ynl_sock *ys, struct devlink_port_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2416,7 +2417,7 @@ int devlink_port_set(struct ynl_sock *ys, struct devlink_port_set_req *req)
 	if (req->_present.port_function)
 		devlink_dl_port_function_put(nlh, DEVLINK_ATTR_PORT_FUNCTION, &req->port_function);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2537,6 +2538,7 @@ void devlink_port_del_req_free(struct devlink_port_del_req *req)
 
 int devlink_port_del(struct ynl_sock *ys, struct devlink_port_del_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2550,7 +2552,7 @@ int devlink_port_del(struct ynl_sock *ys, struct devlink_port_del_req *req)
 	if (req->_present.port_index)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_PORT_INDEX, req->port_index);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2568,6 +2570,7 @@ void devlink_port_split_req_free(struct devlink_port_split_req *req)
 
 int devlink_port_split(struct ynl_sock *ys, struct devlink_port_split_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2583,7 +2586,7 @@ int devlink_port_split(struct ynl_sock *ys, struct devlink_port_split_req *req)
 	if (req->_present.port_split_count)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_PORT_SPLIT_COUNT, req->port_split_count);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2602,6 +2605,7 @@ void devlink_port_unsplit_req_free(struct devlink_port_unsplit_req *req)
 int devlink_port_unsplit(struct ynl_sock *ys,
 			 struct devlink_port_unsplit_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2615,7 +2619,7 @@ int devlink_port_unsplit(struct ynl_sock *ys,
 	if (req->_present.port_index)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_PORT_INDEX, req->port_index);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -2926,6 +2930,7 @@ void devlink_sb_pool_set_req_free(struct devlink_sb_pool_set_req *req)
 int devlink_sb_pool_set(struct ynl_sock *ys,
 			struct devlink_sb_pool_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -2945,7 +2950,7 @@ int devlink_sb_pool_set(struct ynl_sock *ys,
 	if (req->_present.sb_pool_size)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_SB_POOL_SIZE, req->sb_pool_size);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3126,6 +3131,7 @@ devlink_sb_port_pool_set_req_free(struct devlink_sb_port_pool_set_req *req)
 int devlink_sb_port_pool_set(struct ynl_sock *ys,
 			     struct devlink_sb_port_pool_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3145,7 +3151,7 @@ int devlink_sb_port_pool_set(struct ynl_sock *ys,
 	if (req->_present.sb_threshold)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_SB_THRESHOLD, req->sb_threshold);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3334,6 +3340,7 @@ devlink_sb_tc_pool_bind_set_req_free(struct devlink_sb_tc_pool_bind_set_req *req
 int devlink_sb_tc_pool_bind_set(struct ynl_sock *ys,
 				struct devlink_sb_tc_pool_bind_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3357,7 +3364,7 @@ int devlink_sb_tc_pool_bind_set(struct ynl_sock *ys,
 	if (req->_present.sb_threshold)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_SB_THRESHOLD, req->sb_threshold);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3376,6 +3383,7 @@ void devlink_sb_occ_snapshot_req_free(struct devlink_sb_occ_snapshot_req *req)
 int devlink_sb_occ_snapshot(struct ynl_sock *ys,
 			    struct devlink_sb_occ_snapshot_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3389,7 +3397,7 @@ int devlink_sb_occ_snapshot(struct ynl_sock *ys,
 	if (req->_present.sb_index)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_SB_INDEX, req->sb_index);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3409,6 +3417,7 @@ devlink_sb_occ_max_clear_req_free(struct devlink_sb_occ_max_clear_req *req)
 int devlink_sb_occ_max_clear(struct ynl_sock *ys,
 			     struct devlink_sb_occ_max_clear_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3422,7 +3431,7 @@ int devlink_sb_occ_max_clear(struct ynl_sock *ys,
 	if (req->_present.sb_index)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_SB_INDEX, req->sb_index);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3544,6 +3553,7 @@ void devlink_eswitch_set_req_free(struct devlink_eswitch_set_req *req)
 int devlink_eswitch_set(struct ynl_sock *ys,
 			struct devlink_eswitch_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3561,7 +3571,7 @@ int devlink_eswitch_set(struct ynl_sock *ys,
 	if (req->_present.eswitch_encap_mode)
 		mnl_attr_put_u8(nlh, DEVLINK_ATTR_ESWITCH_ENCAP_MODE, req->eswitch_encap_mode);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3895,6 +3905,7 @@ devlink_dpipe_table_counters_set_req_free(struct devlink_dpipe_table_counters_se
 int devlink_dpipe_table_counters_set(struct ynl_sock *ys,
 				     struct devlink_dpipe_table_counters_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3910,7 +3921,7 @@ int devlink_dpipe_table_counters_set(struct ynl_sock *ys,
 	if (req->_present.dpipe_table_counters_enabled)
 		mnl_attr_put_u8(nlh, DEVLINK_ATTR_DPIPE_TABLE_COUNTERS_ENABLED, req->dpipe_table_counters_enabled);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -3929,6 +3940,7 @@ void devlink_resource_set_req_free(struct devlink_resource_set_req *req)
 int devlink_resource_set(struct ynl_sock *ys,
 			 struct devlink_resource_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -3944,7 +3956,7 @@ int devlink_resource_set(struct ynl_sock *ys,
 	if (req->_present.resource_size)
 		mnl_attr_put_u64(nlh, DEVLINK_ATTR_RESOURCE_SIZE, req->resource_size);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4319,6 +4331,7 @@ void devlink_param_set_req_free(struct devlink_param_set_req *req)
 
 int devlink_param_set(struct ynl_sock *ys, struct devlink_param_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4336,7 +4349,7 @@ int devlink_param_set(struct ynl_sock *ys, struct devlink_param_set_req *req)
 	if (req->_present.param_value_cmode)
 		mnl_attr_put_u8(nlh, DEVLINK_ATTR_PARAM_VALUE_CMODE, req->param_value_cmode);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4631,6 +4644,7 @@ void devlink_region_del_req_free(struct devlink_region_del_req *req)
 
 int devlink_region_del(struct ynl_sock *ys, struct devlink_region_del_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4648,7 +4662,7 @@ int devlink_region_del(struct ynl_sock *ys, struct devlink_region_del_req *req)
 	if (req->_present.region_snapshot_id)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_REGION_SNAPSHOT_ID, req->region_snapshot_id);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -4922,6 +4936,7 @@ void devlink_port_param_set_req_free(struct devlink_port_param_set_req *req)
 int devlink_port_param_set(struct ynl_sock *ys,
 			   struct devlink_port_param_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -4935,7 +4950,7 @@ int devlink_port_param_set(struct ynl_sock *ys,
 	if (req->_present.port_index)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_PORT_INDEX, req->port_index);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5360,6 +5375,7 @@ devlink_health_reporter_set_req_free(struct devlink_health_reporter_set_req *req
 int devlink_health_reporter_set(struct ynl_sock *ys,
 				struct devlink_health_reporter_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5381,7 +5397,7 @@ int devlink_health_reporter_set(struct ynl_sock *ys,
 	if (req->_present.health_reporter_auto_dump)
 		mnl_attr_put_u8(nlh, DEVLINK_ATTR_HEALTH_REPORTER_AUTO_DUMP, req->health_reporter_auto_dump);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5402,6 +5418,7 @@ devlink_health_reporter_recover_req_free(struct devlink_health_reporter_recover_
 int devlink_health_reporter_recover(struct ynl_sock *ys,
 				    struct devlink_health_reporter_recover_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5417,7 +5434,7 @@ int devlink_health_reporter_recover(struct ynl_sock *ys,
 	if (req->_present.health_reporter_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_HEALTH_REPORTER_NAME, req->health_reporter_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5438,6 +5455,7 @@ devlink_health_reporter_diagnose_req_free(struct devlink_health_reporter_diagnos
 int devlink_health_reporter_diagnose(struct ynl_sock *ys,
 				     struct devlink_health_reporter_diagnose_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5453,7 +5471,7 @@ int devlink_health_reporter_diagnose(struct ynl_sock *ys,
 	if (req->_present.health_reporter_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_HEALTH_REPORTER_NAME, req->health_reporter_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5556,6 +5574,7 @@ devlink_health_reporter_dump_clear_req_free(struct devlink_health_reporter_dump_
 int devlink_health_reporter_dump_clear(struct ynl_sock *ys,
 				       struct devlink_health_reporter_dump_clear_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5571,7 +5590,7 @@ int devlink_health_reporter_dump_clear(struct ynl_sock *ys,
 	if (req->_present.health_reporter_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_HEALTH_REPORTER_NAME, req->health_reporter_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5592,6 +5611,7 @@ void devlink_flash_update_req_free(struct devlink_flash_update_req *req)
 int devlink_flash_update(struct ynl_sock *ys,
 			 struct devlink_flash_update_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5609,7 +5629,7 @@ int devlink_flash_update(struct ynl_sock *ys,
 	if (req->_present.flash_update_overwrite_mask)
 		mnl_attr_put(nlh, DEVLINK_ATTR_FLASH_UPDATE_OVERWRITE_MASK, sizeof(struct nla_bitfield32), &req->flash_update_overwrite_mask);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5780,6 +5800,7 @@ void devlink_trap_set_req_free(struct devlink_trap_set_req *req)
 
 int devlink_trap_set(struct ynl_sock *ys, struct devlink_trap_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5795,7 +5816,7 @@ int devlink_trap_set(struct ynl_sock *ys, struct devlink_trap_set_req *req)
 	if (req->_present.trap_action)
 		mnl_attr_put_u8(nlh, DEVLINK_ATTR_TRAP_ACTION, req->trap_action);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -5968,6 +5989,7 @@ void devlink_trap_group_set_req_free(struct devlink_trap_group_set_req *req)
 int devlink_trap_group_set(struct ynl_sock *ys,
 			   struct devlink_trap_group_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -5985,7 +6007,7 @@ int devlink_trap_group_set(struct ynl_sock *ys,
 	if (req->_present.trap_policer_id)
 		mnl_attr_put_u32(nlh, DEVLINK_ATTR_TRAP_POLICER_ID, req->trap_policer_id);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6152,6 +6174,7 @@ devlink_trap_policer_set_req_free(struct devlink_trap_policer_set_req *req)
 int devlink_trap_policer_set(struct ynl_sock *ys,
 			     struct devlink_trap_policer_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6169,7 +6192,7 @@ int devlink_trap_policer_set(struct ynl_sock *ys,
 	if (req->_present.trap_policer_burst)
 		mnl_attr_put_u64(nlh, DEVLINK_ATTR_TRAP_POLICER_BURST, req->trap_policer_burst);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6190,6 +6213,7 @@ devlink_health_reporter_test_req_free(struct devlink_health_reporter_test_req *r
 int devlink_health_reporter_test(struct ynl_sock *ys,
 				 struct devlink_health_reporter_test_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6205,7 +6229,7 @@ int devlink_health_reporter_test(struct ynl_sock *ys,
 	if (req->_present.health_reporter_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_HEALTH_REPORTER_NAME, req->health_reporter_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6384,6 +6408,7 @@ void devlink_rate_set_req_free(struct devlink_rate_set_req *req)
 
 int devlink_rate_set(struct ynl_sock *ys, struct devlink_rate_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6407,7 +6432,7 @@ int devlink_rate_set(struct ynl_sock *ys, struct devlink_rate_set_req *req)
 	if (req->_present.rate_parent_node_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_RATE_PARENT_NODE_NAME, req->rate_parent_node_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6427,6 +6452,7 @@ void devlink_rate_new_req_free(struct devlink_rate_new_req *req)
 
 int devlink_rate_new(struct ynl_sock *ys, struct devlink_rate_new_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6450,7 +6476,7 @@ int devlink_rate_new(struct ynl_sock *ys, struct devlink_rate_new_req *req)
 	if (req->_present.rate_parent_node_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_RATE_PARENT_NODE_NAME, req->rate_parent_node_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6469,6 +6495,7 @@ void devlink_rate_del_req_free(struct devlink_rate_del_req *req)
 
 int devlink_rate_del(struct ynl_sock *ys, struct devlink_rate_del_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6482,7 +6509,7 @@ int devlink_rate_del(struct ynl_sock *ys, struct devlink_rate_del_req *req)
 	if (req->_present.rate_node_name_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_RATE_NODE_NAME, req->rate_node_name);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6645,6 +6672,7 @@ void devlink_linecard_set_req_free(struct devlink_linecard_set_req *req)
 int devlink_linecard_set(struct ynl_sock *ys,
 			 struct devlink_linecard_set_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6660,7 +6688,7 @@ int devlink_linecard_set(struct ynl_sock *ys,
 	if (req->_present.linecard_type_len)
 		mnl_attr_put_strz(nlh, DEVLINK_ATTR_LINECARD_TYPE, req->linecard_type);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 
@@ -6810,6 +6838,7 @@ void devlink_selftests_run_req_free(struct devlink_selftests_run_req *req)
 int devlink_selftests_run(struct ynl_sock *ys,
 			  struct devlink_selftests_run_req *req)
 {
+	struct ynl_req_state yrs = { .yarg = { .ys = ys, }, };
 	struct nlmsghdr *nlh;
 	int err;
 
@@ -6823,7 +6852,7 @@ int devlink_selftests_run(struct ynl_sock *ys,
 	if (req->_present.selftests)
 		devlink_dl_selftest_id_put(nlh, DEVLINK_ATTR_SELFTESTS, &req->selftests);
 
-	err = ynl_exec(ys, nlh, NULL);
+	err = ynl_exec(ys, nlh, &yrs);
 	if (err < 0)
 		return -1;
 

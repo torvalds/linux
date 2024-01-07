@@ -121,6 +121,14 @@ int bch2_trans_mark_reflink_v(struct btree_trans *trans,
 {
 	check_indirect_extent_deleting(new, &flags);
 
+	if (old.k->type == KEY_TYPE_reflink_v &&
+	    new->k.type == KEY_TYPE_reflink_v &&
+	    old.k->u64s == new->k.u64s &&
+	    !memcmp(bkey_s_c_to_reflink_v(old).v->start,
+		    bkey_i_to_reflink_v(new)->v.start,
+		    bkey_val_bytes(&new->k) - 8))
+		return 0;
+
 	return bch2_trans_mark_extent(trans, btree_id, level, old, new, flags);
 }
 

@@ -1735,8 +1735,8 @@ void iavf_add_fdir_filter(struct iavf_adapter *adapter)
  **/
 void iavf_del_fdir_filter(struct iavf_adapter *adapter)
 {
+	struct virtchnl_fdir_del f = {};
 	struct iavf_fdir_fltr *fdir;
-	struct virtchnl_fdir_del f;
 	bool process_fltr = false;
 	int len;
 
@@ -1753,10 +1753,15 @@ void iavf_del_fdir_filter(struct iavf_adapter *adapter)
 	list_for_each_entry(fdir, &adapter->fdir_list_head, list) {
 		if (fdir->state == IAVF_FDIR_FLTR_DEL_REQUEST) {
 			process_fltr = true;
-			memset(&f, 0, len);
 			f.vsi_id = fdir->vc_add_msg.vsi_id;
 			f.flow_id = fdir->flow_id;
 			fdir->state = IAVF_FDIR_FLTR_DEL_PENDING;
+			break;
+		} else if (fdir->state == IAVF_FDIR_FLTR_DIS_REQUEST) {
+			process_fltr = true;
+			f.vsi_id = fdir->vc_add_msg.vsi_id;
+			f.flow_id = fdir->flow_id;
+			fdir->state = IAVF_FDIR_FLTR_DIS_PENDING;
 			break;
 		}
 	}
@@ -1899,6 +1904,48 @@ static void iavf_netdev_features_vlan_strip_set(struct net_device *netdev,
 		netdev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 	else
 		netdev->features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+}
+
+/**
+ * iavf_activate_fdir_filters - Reactivate all FDIR filters after a reset
+ * @adapter: private adapter structure
+ *
+ * Called after a reset to re-add all FDIR filters and delete some of them
+ * if they were pending to be deleted.
+ */
+static void iavf_activate_fdir_filters(struct iavf_adapter *adapter)
+{
+	struct iavf_fdir_fltr *f, *ftmp;
+	bool add_filters = false;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	list_for_each_entry_safe(f, ftmp, &adapter->fdir_list_head, list) {
+		if (f->state == IAVF_FDIR_FLTR_ADD_REQUEST ||
+		    f->state == IAVF_FDIR_FLTR_ADD_PENDING ||
+		    f->state == IAVF_FDIR_FLTR_ACTIVE) {
+			/* All filters and requests have been removed in PF,
+			 * restore them
+			 */
+			f->state = IAVF_FDIR_FLTR_ADD_REQUEST;
+			add_filters = true;
+		} else if (f->state == IAVF_FDIR_FLTR_DIS_REQUEST ||
+			   f->state == IAVF_FDIR_FLTR_DIS_PENDING) {
+			/* Link down state, leave filters as inactive */
+			f->state = IAVF_FDIR_FLTR_INACTIVE;
+		} else if (f->state == IAVF_FDIR_FLTR_DEL_REQUEST ||
+			   f->state == IAVF_FDIR_FLTR_DEL_PENDING) {
+			/* Delete filters that were pending to be deleted, the
+			 * list on PF is already cleared after a reset
+			 */
+			list_del(&f->list);
+			kfree(f);
+			adapter->fdir_active_fltr--;
+		}
+	}
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+
+	if (add_filters)
+		adapter->aq_required |= IAVF_FLAG_AQ_ADD_FDIR_FILTER;
 }
 
 /**
@@ -2078,7 +2125,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 			spin_lock_bh(&adapter->fdir_fltr_lock);
 			list_for_each_entry(fdir, &adapter->fdir_list_head,
 					    list) {
-				if (fdir->state == IAVF_FDIR_FLTR_DEL_PENDING) {
+				if (fdir->state == IAVF_FDIR_FLTR_DEL_PENDING ||
+				    fdir->state == IAVF_FDIR_FLTR_DIS_PENDING) {
 					fdir->state = IAVF_FDIR_FLTR_ACTIVE;
 					dev_info(&adapter->pdev->dev, "Failed to del Flow Director filter, error %s\n",
 						 iavf_stat_str(&adapter->hw,
@@ -2213,6 +2261,8 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		}
 
 		spin_unlock_bh(&adapter->mac_vlan_list_lock);
+
+		iavf_activate_fdir_filters(adapter);
 
 		iavf_parse_vf_resource_msg(adapter);
 
@@ -2390,7 +2440,9 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 		list_for_each_entry_safe(fdir, fdir_tmp, &adapter->fdir_list_head,
 					 list) {
 			if (fdir->state == IAVF_FDIR_FLTR_DEL_PENDING) {
-				if (del_fltr->status == VIRTCHNL_FDIR_SUCCESS) {
+				if (del_fltr->status == VIRTCHNL_FDIR_SUCCESS ||
+				    del_fltr->status ==
+				    VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST) {
 					dev_info(&adapter->pdev->dev, "Flow Director filter with location %u is deleted\n",
 						 fdir->loc);
 					list_del(&fdir->list);
@@ -2399,6 +2451,17 @@ void iavf_virtchnl_completion(struct iavf_adapter *adapter,
 				} else {
 					fdir->state = IAVF_FDIR_FLTR_ACTIVE;
 					dev_info(&adapter->pdev->dev, "Failed to delete Flow Director filter with status: %d\n",
+						 del_fltr->status);
+					iavf_print_fdir_fltr(adapter, fdir);
+				}
+			} else if (fdir->state == IAVF_FDIR_FLTR_DIS_PENDING) {
+				if (del_fltr->status == VIRTCHNL_FDIR_SUCCESS ||
+				    del_fltr->status ==
+				    VIRTCHNL_FDIR_FAILURE_RULE_NONEXIST) {
+					fdir->state = IAVF_FDIR_FLTR_INACTIVE;
+				} else {
+					fdir->state = IAVF_FDIR_FLTR_ACTIVE;
+					dev_info(&adapter->pdev->dev, "Failed to disable Flow Director filter with status: %d\n",
 						 del_fltr->status);
 					iavf_print_fdir_fltr(adapter, fdir);
 				}

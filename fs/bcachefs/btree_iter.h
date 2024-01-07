@@ -938,6 +938,7 @@ unsigned bch2_trans_get_fn_idx(const char *);
 void bch2_btree_trans_to_text(struct printbuf *, struct btree_trans *);
 
 void bch2_fs_btree_iter_exit(struct bch_fs *);
+void bch2_fs_btree_iter_init_early(struct bch_fs *);
 int bch2_fs_btree_iter_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_ITER_H */

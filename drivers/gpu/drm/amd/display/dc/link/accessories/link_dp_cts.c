@@ -53,6 +53,7 @@ static enum dc_link_rate get_link_rate_from_test_link_rate(uint8_t test_rate)
 		return LINK_RATE_UHBR10;
 	case DP_TEST_LINK_RATE_UHBR20:
 		return LINK_RATE_UHBR20;
+	case DP_TEST_LINK_RATE_UHBR13_5_LEGACY:
 	case DP_TEST_LINK_RATE_UHBR13_5:
 		return LINK_RATE_UHBR13_5;
 	default:
@@ -118,6 +119,11 @@ static void dp_test_send_link_training(struct dc_link *link)
 			&test_rate,
 			1);
 	link_settings.link_rate = get_link_rate_from_test_link_rate(test_rate);
+
+	if (link_settings.link_rate == LINK_RATE_UNKNOWN) {
+		DC_LOG_ERROR("%s: Invalid test link rate.", __func__);
+		ASSERT(0);
+	}
 
 	/* Set preferred link settings */
 	link->verified_link_cap.lane_count = link_settings.lane_count;
@@ -457,7 +463,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			controller_color_space = pipe_ctx->stream_res.test_pattern_params.color_space;
 
 			if (controller_color_space == CONTROLLER_DP_COLOR_SPACE_UDEFINED) {
-				DC_LOG_WARNING("%s: Color space must be defined for test pattern", __func__);
+				DC_LOG_ERROR("%s: Color space must be defined for test pattern", __func__);
 				ASSERT(0);
 			}
 
@@ -592,6 +598,7 @@ bool dp_set_test_pattern(
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size)
 {
+	const struct link_hwss *link_hwss;
 	struct pipe_ctx *pipes = link->dc->current_state->res_ctx.pipe_ctx;
 	struct pipe_ctx *pipe_ctx = NULL;
 	unsigned int lane;
@@ -828,11 +835,9 @@ bool dp_set_test_pattern(
 
 		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 		/* update MSA to requested color space */
-		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(pipe_ctx->stream_res.stream_enc,
-				&pipe_ctx->stream->timing,
-				color_space,
-				pipe_ctx->stream->use_vsc_sdp_for_colorimetry,
-				link->dpcd_caps.dprx_feature.bits.SST_SPLIT_SDP_CAP);
+		link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
+		pipe_ctx->stream->output_color_space = color_space;
+		link_hwss->setup_stream_attribute(pipe_ctx);
 
 		if (pipe_ctx->stream->use_vsc_sdp_for_colorimetry) {
 			if (test_pattern == DP_TEST_PATTERN_COLOR_SQUARES_CEA)

@@ -36,6 +36,7 @@ int pagemap_fd;
 int uffd;
 int page_size;
 int hpage_size;
+const char *progname;
 
 #define LEN(region)	((region.end - region.start)/page_size)
 
@@ -94,19 +95,19 @@ int init_uffd(void)
 
 	uffd = syscall(__NR_userfaultfd, O_CLOEXEC | O_NONBLOCK | UFFD_USER_MODE_ONLY);
 	if (uffd == -1)
-		ksft_exit_fail_msg("uffd syscall failed\n");
+		return uffd;
 
 	uffdio_api.api = UFFD_API;
 	uffdio_api.features = UFFD_FEATURE_WP_UNPOPULATED | UFFD_FEATURE_WP_ASYNC |
 			      UFFD_FEATURE_WP_HUGETLBFS_SHMEM;
 	if (ioctl(uffd, UFFDIO_API, &uffdio_api))
-		ksft_exit_fail_msg("UFFDIO_API\n");
+		return -1;
 
 	if (!(uffdio_api.api & UFFDIO_REGISTER_MODE_WP) ||
 	    !(uffdio_api.features & UFFD_FEATURE_WP_UNPOPULATED) ||
 	    !(uffdio_api.features & UFFD_FEATURE_WP_ASYNC) ||
 	    !(uffdio_api.features & UFFD_FEATURE_WP_HUGETLBFS_SHMEM))
-		ksft_exit_fail_msg("UFFDIO_API error %llu\n", uffdio_api.api);
+		return -1;
 
 	return 0;
 }
@@ -1149,17 +1150,17 @@ int sanity_tests(void)
 	munmap(mem, mem_size);
 
 	/* 9. Memory mapped file */
-	fd = open(__FILE__, O_RDONLY);
+	fd = open(progname, O_RDONLY);
 	if (fd < 0)
-		ksft_exit_fail_msg("%s Memory mapped file\n");
+		ksft_exit_fail_msg("%s Memory mapped file\n", __func__);
 
-	ret = stat(__FILE__, &sbuf);
+	ret = stat(progname, &sbuf);
 	if (ret < 0)
 		ksft_exit_fail_msg("error %d %d %s\n", ret, errno, strerror(errno));
 
 	fmem = mmap(NULL, sbuf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	if (fmem == MAP_FAILED)
-		ksft_exit_fail_msg("error nomem %ld %s\n", errno, strerror(errno));
+		ksft_exit_fail_msg("error nomem %d %s\n", errno, strerror(errno));
 
 	tmp_buf = malloc(sbuf.st_size);
 	memcpy(tmp_buf, fmem, sbuf.st_size);
@@ -1189,7 +1190,7 @@ int sanity_tests(void)
 
 	fmem = mmap(NULL, buf_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (fmem == MAP_FAILED)
-		ksft_exit_fail_msg("error nomem %ld %s\n", errno, strerror(errno));
+		ksft_exit_fail_msg("error nomem %d %s\n", errno, strerror(errno));
 
 	wp_init(fmem, buf_size);
 	wp_addr_range(fmem, buf_size);
@@ -1472,13 +1473,19 @@ static void transact_test(int page_size)
 			      extra_thread_faults);
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
 	int mem_size, shmid, buf_size, fd, i, ret;
 	char *mem, *map, *fmem;
 	struct stat sbuf;
 
+	progname = argv[0];
+
 	ksft_print_header();
+
+	if (init_uffd())
+		return ksft_exit_pass();
+
 	ksft_set_plan(115);
 
 	page_size = getpagesize();
@@ -1487,9 +1494,6 @@ int main(void)
 	pagemap_fd = open(PAGEMAP, O_RDONLY);
 	if (pagemap_fd < 0)
 		return -EINVAL;
-
-	if (init_uffd())
-		ksft_exit_fail_msg("uffd init failed\n");
 
 	/* 1. Sanity testing */
 	sanity_tests_sd();
@@ -1595,7 +1599,7 @@ int main(void)
 
 	fmem = mmap(NULL, sbuf.st_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (fmem == MAP_FAILED)
-		ksft_exit_fail_msg("error nomem %ld %s\n", errno, strerror(errno));
+		ksft_exit_fail_msg("error nomem %d %s\n", errno, strerror(errno));
 
 	wp_init(fmem, sbuf.st_size);
 	wp_addr_range(fmem, sbuf.st_size);
@@ -1623,7 +1627,7 @@ int main(void)
 
 	fmem = mmap(NULL, buf_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (fmem == MAP_FAILED)
-		ksft_exit_fail_msg("error nomem %ld %s\n", errno, strerror(errno));
+		ksft_exit_fail_msg("error nomem %d %s\n", errno, strerror(errno));
 
 	wp_init(fmem, buf_size);
 	wp_addr_range(fmem, buf_size);

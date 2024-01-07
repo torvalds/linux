@@ -854,8 +854,12 @@ static int __mark_pointer(struct btree_trans *trans,
 		return ret;
 
 	*dst_sectors += sectors;
-	*bucket_data_type = *dirty_sectors || *cached_sectors
-		? ptr_data_type : 0;
+
+	if (!*dirty_sectors && !*cached_sectors)
+		*bucket_data_type = 0;
+	else if (*bucket_data_type != BCH_DATA_stripe)
+		*bucket_data_type = ptr_data_type;
+
 	return 0;
 }
 
@@ -2090,8 +2094,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	bucket_gens->first_bucket = ca->mi.first_bucket;
 	bucket_gens->nbuckets	= nbuckets;
-
-	bch2_copygc_stop(c);
 
 	if (resize) {
 		down_write(&c->gc_lock);

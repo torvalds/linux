@@ -132,6 +132,9 @@ static void smb2_query_server_interfaces(struct work_struct *work)
 	free_xid(xid);
 
 	if (rc) {
+		if (rc == -EOPNOTSUPP)
+			return;
+
 		cifs_dbg(FYI, "%s: failed to query server interfaces: %d\n",
 				__func__, rc);
 	}
@@ -173,8 +176,12 @@ cifs_signal_cifsd_for_reconnect(struct TCP_Server_Info *server,
 	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
 		spin_lock(&ses->chan_lock);
 		for (i = 0; i < ses->chan_count; i++) {
+			if (!ses->chans[i].server)
+				continue;
+
 			spin_lock(&ses->chans[i].server->srv_lock);
-			ses->chans[i].server->tcpStatus = CifsNeedReconnect;
+			if (ses->chans[i].server->tcpStatus != CifsExiting)
+				ses->chans[i].server->tcpStatus = CifsNeedReconnect;
 			spin_unlock(&ses->chans[i].server->srv_lock);
 		}
 		spin_unlock(&ses->chan_lock);
@@ -209,14 +216,29 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 	/* If server is a channel, select the primary channel */
 	pserver = SERVER_IS_CHAN(server) ? server->primary_server : server;
 
+	/*
+	 * if the server has been marked for termination, there is a
+	 * chance that the remaining channels all need reconnect. To be
+	 * on the safer side, mark the session and trees for reconnect
+	 * for this scenario. This might cause a few redundant session
+	 * setup and tree connect requests, but it is better than not doing
+	 * a tree connect when needed, and all following requests failing
+	 */
+	if (server->terminate) {
+		mark_smb_session = true;
+		server = pserver;
+	}
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry_safe(ses, nses, &pserver->smb_ses_list, smb_ses_list) {
 		/* check if iface is still active */
-		if (!cifs_chan_is_iface_active(ses, server))
-			cifs_chan_update_iface(ses, server);
-
 		spin_lock(&ses->chan_lock);
+		if (!cifs_chan_is_iface_active(ses, server)) {
+			spin_unlock(&ses->chan_lock);
+			cifs_chan_update_iface(ses, server);
+			spin_lock(&ses->chan_lock);
+		}
+
 		if (!mark_smb_session && cifs_chan_needs_reconnect(ses, server)) {
 			spin_unlock(&ses->chan_lock);
 			continue;
@@ -246,6 +268,8 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 			spin_lock(&tcon->tc_lock);
 			tcon->status = TID_NEED_RECON;
 			spin_unlock(&tcon->tc_lock);
+
+			cancel_delayed_work(&tcon->query_interfaces);
 		}
 		if (ses->tcon_ipc) {
 			ses->tcon_ipc->need_reconnect = true;
@@ -1184,7 +1208,12 @@ next_pdu:
 		server->total_read += length;
 
 		if (server->ops->next_header) {
-			next_offset = server->ops->next_header(buf);
+			if (server->ops->next_header(server, buf, &next_offset)) {
+				cifs_dbg(VFS, "%s: malformed response (next_offset=%u)\n",
+					 __func__, next_offset);
+				cifs_reconnect(server, true);
+				continue;
+			}
 			if (next_offset)
 				server->pdu_size = next_offset;
 		}
@@ -1591,10 +1620,6 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 	list_del_init(&server->tcp_ses_list);
 	spin_unlock(&cifs_tcp_ses_lock);
 
-	/* For secondary channels, we pick up ref-count on the primary server */
-	if (SERVER_IS_CHAN(server))
-		cifs_put_tcp_session(server->primary_server, from_reconnect);
-
 	cancel_delayed_work_sync(&server->echo);
 
 	if (from_reconnect)
@@ -1607,6 +1632,10 @@ cifs_put_tcp_session(struct TCP_Server_Info *server, int from_reconnect)
 		cancel_delayed_work(&server->reconnect);
 	else
 		cancel_delayed_work_sync(&server->reconnect);
+
+	/* For secondary channels, we pick up ref-count on the primary server */
+	if (SERVER_IS_CHAN(server))
+		cifs_put_tcp_session(server->primary_server, from_reconnect);
 
 	spin_lock(&server->srv_lock);
 	server->tcpStatus = CifsExiting;
@@ -2031,6 +2060,12 @@ void __cifs_put_smb_ses(struct cifs_ses *ses)
 		}
 		cifs_put_tcp_session(ses->chans[i].server, 0);
 		ses->chans[i].server = NULL;
+	}
+
+	/* we now account for primary channel in iface->refcount */
+	if (ses->chans[0].iface) {
+		kref_put(&ses->chans[0].iface->refcount, release_iface);
+		ses->chans[0].server = NULL;
 	}
 
 	sesInfoFree(ses);
@@ -3560,7 +3595,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	ctx->prepath = NULL;
 
 out:
-	cifs_try_adding_channels(cifs_sb, mnt_ctx.ses);
+	cifs_try_adding_channels(mnt_ctx.ses);
 	rc = mount_setup_tlink(cifs_sb, mnt_ctx.ses, mnt_ctx.tcon);
 	if (rc)
 		goto error;

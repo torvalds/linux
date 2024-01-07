@@ -80,6 +80,8 @@ struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *c, enum btree_id btree
 	struct journal_keys *keys = &c->journal_keys;
 	unsigned iters = 0;
 	struct journal_key *k;
+
+	BUG_ON(*idx > keys->nr);
 search:
 	if (!*idx)
 		*idx = __bch2_journal_key_search(keys, btree_id, level, pos);
@@ -189,10 +191,12 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 		/* Since @keys was full, there was no gap: */
 		memcpy(new_keys.d, keys->d, sizeof(keys->d[0]) * keys->nr);
 		kvfree(keys->d);
-		*keys = new_keys;
+		keys->d		= new_keys.d;
+		keys->nr	= new_keys.nr;
+		keys->size	= new_keys.size;
 
 		/* And now the gap is at the end: */
-		keys->gap = keys->nr;
+		keys->gap	= keys->nr;
 	}
 
 	journal_iters_move_gap(c, keys->gap, idx);
@@ -415,9 +419,15 @@ static int journal_sort_key_cmp(const void *_l, const void *_r)
 		cmp_int(l->journal_offset, r->journal_offset);
 }
 
-void bch2_journal_keys_free(struct journal_keys *keys)
+void bch2_journal_keys_put(struct bch_fs *c)
 {
+	struct journal_keys *keys = &c->journal_keys;
 	struct journal_key *i;
+
+	BUG_ON(atomic_read(&keys->ref) <= 0);
+
+	if (!atomic_dec_and_test(&keys->ref))
+		return;
 
 	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
 	keys->gap = keys->nr;
@@ -429,6 +439,8 @@ void bch2_journal_keys_free(struct journal_keys *keys)
 	kvfree(keys->d);
 	keys->d = NULL;
 	keys->nr = keys->gap = keys->size = 0;
+
+	bch2_journal_entries_free(c);
 }
 
 static void __journal_keys_sort(struct journal_keys *keys)

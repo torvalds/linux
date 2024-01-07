@@ -318,6 +318,7 @@ enum pp_xgmi_plpd_mode {
 #define MAX_GFX_CLKS 8
 #define MAX_CLKS 4
 #define NUM_VCN 4
+#define NUM_JPEG_ENG 32
 
 struct seq_file;
 enum amd_pp_clock_type;
@@ -444,6 +445,7 @@ struct amd_pm_funcs {
 				   struct dpm_clocks *clock_table);
 	int (*get_smu_prv_buf_details)(void *handle, void **addr, size_t *size);
 	void (*pm_compute_clocks)(void *handle);
+	int (*notify_rlc_state)(void *handle, bool en);
 };
 
 struct metrics_table_header {
@@ -773,6 +775,85 @@ struct gpu_metrics_v1_4 {
 	uint16_t			padding;
 };
 
+struct gpu_metrics_v1_5 {
+	struct metrics_table_header	common_header;
+
+	/* Temperature (Celsius) */
+	uint16_t			temperature_hotspot;
+	uint16_t			temperature_mem;
+	uint16_t			temperature_vrsoc;
+
+	/* Power (Watts) */
+	uint16_t			curr_socket_power;
+
+	/* Utilization (%) */
+	uint16_t			average_gfx_activity;
+	uint16_t			average_umc_activity; // memory controller
+	uint16_t			vcn_activity[NUM_VCN];
+	uint16_t			jpeg_activity[NUM_JPEG_ENG];
+
+	/* Energy (15.259uJ (2^-16) units) */
+	uint64_t			energy_accumulator;
+
+	/* Driver attached timestamp (in ns) */
+	uint64_t			system_clock_counter;
+
+	/* Throttle status */
+	uint32_t			throttle_status;
+
+	/* Clock Lock Status. Each bit corresponds to clock instance */
+	uint32_t			gfxclk_lock_status;
+
+	/* Link width (number of lanes) and speed (in 0.1 GT/s) */
+	uint16_t			pcie_link_width;
+	uint16_t			pcie_link_speed;
+
+	/* XGMI bus width and bitrate (in Gbps) */
+	uint16_t			xgmi_link_width;
+	uint16_t			xgmi_link_speed;
+
+	/* Utilization Accumulated (%) */
+	uint32_t			gfx_activity_acc;
+	uint32_t			mem_activity_acc;
+
+	/*PCIE accumulated bandwidth (GB/sec) */
+	uint64_t			pcie_bandwidth_acc;
+
+	/*PCIE instantaneous bandwidth (GB/sec) */
+	uint64_t			pcie_bandwidth_inst;
+
+	/* PCIE L0 to recovery state transition accumulated count */
+	uint64_t			pcie_l0_to_recov_count_acc;
+
+	/* PCIE replay accumulated count */
+	uint64_t			pcie_replay_count_acc;
+
+	/* PCIE replay rollover accumulated count */
+	uint64_t			pcie_replay_rover_count_acc;
+
+	/* PCIE NAK sent  accumulated count */
+	uint32_t			pcie_nak_sent_count_acc;
+
+	/* PCIE NAK received accumulated count */
+	uint32_t			pcie_nak_rcvd_count_acc;
+
+	/* XGMI accumulated data transfer size(KiloBytes) */
+	uint64_t			xgmi_read_data_acc[NUM_XGMI_LINKS];
+	uint64_t			xgmi_write_data_acc[NUM_XGMI_LINKS];
+
+	/* PMFW attached timestamp (10ns resolution) */
+	uint64_t			firmware_timestamp;
+
+	/* Current clocks (Mhz) */
+	uint16_t			current_gfxclk[MAX_GFX_CLKS];
+	uint16_t			current_socclk[MAX_CLKS];
+	uint16_t			current_vclk0[MAX_CLKS];
+	uint16_t			current_dclk0[MAX_CLKS];
+	uint16_t			current_uclk;
+
+	uint16_t			padding;
+};
+
 /*
  * gpu_metrics_v2_0 is not recommended as it's not naturally aligned.
  * Use gpu_metrics_v2_1 or later instead.
@@ -1084,6 +1165,10 @@ struct gpu_metrics_v3_0 {
 	uint16_t			average_dram_reads;
 	/* time filtered DRAM write bandwidth [MB/sec] */
 	uint16_t			average_dram_writes;
+	/* time filtered IPU read bandwidth [MB/sec] */
+	uint16_t			average_ipu_reads;
+	/* time filtered IPU write bandwidth [MB/sec] */
+	uint16_t			average_ipu_writes;
 
 	/* Driver attached timestamp (in ns) */
 	uint64_t			system_clock_counter;
@@ -1103,6 +1188,8 @@ struct gpu_metrics_v3_0 {
 	uint32_t			average_all_core_power;
 	/* calculated core power [mW] */
 	uint16_t			average_core_power[16];
+	/* time filtered total system power [mW] */
+	uint16_t			average_sys_power;
 	/* maximum IRM defined STAPM power limit [mW] */
 	uint16_t			stapm_power_limit;
 	/* time filtered STAPM power limit [mW] */
@@ -1115,6 +1202,8 @@ struct gpu_metrics_v3_0 {
 	uint16_t			average_ipuclk_frequency;
 	uint16_t			average_fclk_frequency;
 	uint16_t			average_vclk_frequency;
+	uint16_t			average_uclk_frequency;
+	uint16_t			average_mpipu_frequency;
 
 	/* Current clocks */
 	/* target core frequency [MHz] */
@@ -1123,6 +1212,15 @@ struct gpu_metrics_v3_0 {
 	uint16_t			current_core_maxfreq;
 	/* GFXCLK frequency limit enforced on GFX [MHz] */
 	uint16_t			current_gfx_maxfreq;
+
+	/* Throttle Residency (ASIC dependent) */
+	uint32_t			throttle_residency_prochot;
+	uint32_t			throttle_residency_spl;
+	uint32_t			throttle_residency_fppt;
+	uint32_t			throttle_residency_sppt;
+	uint32_t			throttle_residency_thm_core;
+	uint32_t			throttle_residency_thm_gfx;
+	uint32_t			throttle_residency_thm_soc;
 
 	/* Metrics table alpha filter time constant [us] */
 	uint32_t			time_filter_alphavalue;

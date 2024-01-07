@@ -59,8 +59,7 @@ static bool virtio_transport_can_zcopy(const struct virtio_transport *t_ops,
 	t_ops = virtio_transport_get_ops(info->vsk);
 
 	if (t_ops->can_msgzerocopy) {
-		int pages_in_iov = iov_iter_npages(iov_iter, MAX_SKB_FRAGS);
-		int pages_to_send = min(pages_in_iov, MAX_SKB_FRAGS);
+		int pages_to_send = iov_iter_npages(iov_iter, MAX_SKB_FRAGS);
 
 		/* +1 is for packet header. */
 		return t_ops->can_msgzerocopy(pages_to_send + 1);
@@ -844,7 +843,7 @@ static s64 virtio_transport_has_space(struct vsock_sock *vsk)
 	struct virtio_vsock_sock *vvs = vsk->trans;
 	s64 bytes;
 
-	bytes = vvs->peer_buf_alloc - (vvs->tx_cnt - vvs->peer_fwd_cnt);
+	bytes = (s64)vvs->peer_buf_alloc - (vvs->tx_cnt - vvs->peer_fwd_cnt);
 	if (bytes < 0)
 		bytes = 0;
 

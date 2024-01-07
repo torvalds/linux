@@ -5,6 +5,8 @@
 #include <linux/bug.h>
 #include <linux/ceph/types.h>
 
+struct ceph_mds_client;
+
 /*
  * mds map - describe servers in the mds cluster.
  *
@@ -65,7 +67,8 @@ static inline bool ceph_mdsmap_is_laggy(struct ceph_mdsmap *m, int w)
 }
 
 extern int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m);
-struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2);
+struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
+				       void *end, bool msgr2);
 extern void ceph_mdsmap_destroy(struct ceph_mdsmap *m);
 extern bool ceph_mdsmap_is_cluster_available(struct ceph_mdsmap *m);
 

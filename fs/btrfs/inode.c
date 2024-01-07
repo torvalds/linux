@@ -688,7 +688,7 @@ out:
 	 * And at reserve time, it's always aligned to page size, so
 	 * just free one page here.
 	 */
-	btrfs_qgroup_free_data(inode, NULL, 0, PAGE_SIZE);
+	btrfs_qgroup_free_data(inode, NULL, 0, PAGE_SIZE, NULL);
 	btrfs_free_path(path);
 	btrfs_end_transaction(trans);
 	return ret;
@@ -5132,7 +5132,7 @@ static void evict_inode_truncate_pages(struct inode *inode)
 		 */
 		if (state_flags & EXTENT_DELALLOC)
 			btrfs_qgroup_free_data(BTRFS_I(inode), NULL, start,
-					       end - start + 1);
+					       end - start + 1, NULL);
 
 		clear_extent_bit(io_tree, start, end,
 				 EXTENT_CLEAR_ALL_BITS | EXTENT_DO_ACCOUNTING,
@@ -6983,8 +6983,15 @@ static struct extent_map *btrfs_new_extent_direct(struct btrfs_inode *inode,
 	int ret;
 
 	alloc_hint = get_extent_allocation_hint(inode, start, len);
+again:
 	ret = btrfs_reserve_extent(root, len, len, fs_info->sectorsize,
 				   0, alloc_hint, &ins, 1, 1);
+	if (ret == -EAGAIN) {
+		ASSERT(btrfs_is_zoned(fs_info));
+		wait_on_bit_io(&inode->root->fs_info->flags, BTRFS_FS_NEED_ZONE_FINISH,
+			       TASK_UNINTERRUPTIBLE);
+		goto again;
+	}
 	if (ret)
 		return ERR_PTR(ret);
 
@@ -8052,7 +8059,7 @@ next:
 		 *    reserved data space.
 		 *    Since the IO will never happen for this page.
 		 */
-		btrfs_qgroup_free_data(inode, NULL, cur, range_end + 1 - cur);
+		btrfs_qgroup_free_data(inode, NULL, cur, range_end + 1 - cur, NULL);
 		if (!inode_evicting) {
 			clear_extent_bit(tree, cur, range_end, EXTENT_LOCKED |
 				 EXTENT_DELALLOC | EXTENT_UPTODATE |
@@ -9484,7 +9491,7 @@ static struct btrfs_trans_handle *insert_prealloc_file_extent(
 	struct btrfs_path *path;
 	u64 start = ins->objectid;
 	u64 len = ins->offset;
-	int qgroup_released;
+	u64 qgroup_released = 0;
 	int ret;
 
 	memset(&stack_fi, 0, sizeof(stack_fi));
@@ -9497,9 +9504,9 @@ static struct btrfs_trans_handle *insert_prealloc_file_extent(
 	btrfs_set_stack_file_extent_compression(&stack_fi, BTRFS_COMPRESS_NONE);
 	/* Encryption and other encoding is reserved and all 0 */
 
-	qgroup_released = btrfs_qgroup_release_data(inode, file_offset, len);
-	if (qgroup_released < 0)
-		return ERR_PTR(qgroup_released);
+	ret = btrfs_qgroup_release_data(inode, file_offset, len, &qgroup_released);
+	if (ret < 0)
+		return ERR_PTR(ret);
 
 	if (trans) {
 		ret = insert_reserved_file_extent(trans, inode,
@@ -10394,7 +10401,7 @@ out_delalloc_release:
 	btrfs_delalloc_release_metadata(inode, disk_num_bytes, ret < 0);
 out_qgroup_free_data:
 	if (ret < 0)
-		btrfs_qgroup_free_data(inode, data_reserved, start, num_bytes);
+		btrfs_qgroup_free_data(inode, data_reserved, start, num_bytes, NULL);
 out_free_data_space:
 	/*
 	 * If btrfs_reserve_extent() succeeded, then we already decremented

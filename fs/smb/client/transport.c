@@ -1023,7 +1023,7 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 	spin_lock(&ses->chan_lock);
 	for (i = 0; i < ses->chan_count; i++) {
 		server = ses->chans[i].server;
-		if (!server)
+		if (!server || server->terminate)
 			continue;
 
 		/*

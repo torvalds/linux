@@ -196,10 +196,9 @@ DEFINE_EVENT(bio, journal_write,
 TRACE_EVENT(journal_reclaim_start,
 	TP_PROTO(struct bch_fs *c, bool direct, bool kicked,
 		 u64 min_nr, u64 min_key_cache,
-		 u64 prereserved, u64 prereserved_total,
 		 u64 btree_cache_dirty, u64 btree_cache_total,
 		 u64 btree_key_cache_dirty, u64 btree_key_cache_total),
-	TP_ARGS(c, direct, kicked, min_nr, min_key_cache, prereserved, prereserved_total,
+	TP_ARGS(c, direct, kicked, min_nr, min_key_cache,
 		btree_cache_dirty, btree_cache_total,
 		btree_key_cache_dirty, btree_key_cache_total),
 
@@ -209,8 +208,6 @@ TRACE_EVENT(journal_reclaim_start,
 		__field(bool,		kicked			)
 		__field(u64,		min_nr			)
 		__field(u64,		min_key_cache		)
-		__field(u64,		prereserved		)
-		__field(u64,		prereserved_total	)
 		__field(u64,		btree_cache_dirty	)
 		__field(u64,		btree_cache_total	)
 		__field(u64,		btree_key_cache_dirty	)
@@ -223,22 +220,18 @@ TRACE_EVENT(journal_reclaim_start,
 		__entry->kicked			= kicked;
 		__entry->min_nr			= min_nr;
 		__entry->min_key_cache		= min_key_cache;
-		__entry->prereserved		= prereserved;
-		__entry->prereserved_total	= prereserved_total;
 		__entry->btree_cache_dirty	= btree_cache_dirty;
 		__entry->btree_cache_total	= btree_cache_total;
 		__entry->btree_key_cache_dirty	= btree_key_cache_dirty;
 		__entry->btree_key_cache_total	= btree_key_cache_total;
 	),
 
-	TP_printk("%d,%d direct %u kicked %u min %llu key cache %llu prereserved %llu/%llu btree cache %llu/%llu key cache %llu/%llu",
+	TP_printk("%d,%d direct %u kicked %u min %llu key cache %llu btree cache %llu/%llu key cache %llu/%llu",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->direct,
 		  __entry->kicked,
 		  __entry->min_nr,
 		  __entry->min_key_cache,
-		  __entry->prereserved,
-		  __entry->prereserved_total,
 		  __entry->btree_cache_dirty,
 		  __entry->btree_cache_total,
 		  __entry->btree_key_cache_dirty,
@@ -761,9 +754,9 @@ TRACE_EVENT(move_extent_fail,
 	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
 );
 
-DEFINE_EVENT(bkey, move_extent_alloc_mem_fail,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+DEFINE_EVENT(bkey, move_extent_start_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 TRACE_EVENT(move_data,

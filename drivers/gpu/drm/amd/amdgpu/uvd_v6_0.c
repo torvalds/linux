@@ -432,8 +432,6 @@ static int uvd_v6_0_sw_init(void *handle)
 		}
 	}
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 

@@ -383,7 +383,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 	char cpu_name[60], *p;
 
 	/* strip PA path from CPU name to not confuse lscpu */
-	strlcpy(cpu_name, per_cpu(cpu_data, 0).dev->name, sizeof(cpu_name));
+	strscpy(cpu_name, per_cpu(cpu_data, 0).dev->name, sizeof(cpu_name));
 	p = strrchr(cpu_name, '[');
 	if (p)
 		*(--p) = 0;

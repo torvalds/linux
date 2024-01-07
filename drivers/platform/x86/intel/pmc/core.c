@@ -460,7 +460,7 @@ out_unlock:
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_pll);
 
-int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value)
+int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value, int ignore)
 {
 	struct pmc *pmc;
 	const struct pmc_reg_map *map;
@@ -472,7 +472,7 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value)
 	 * is based on the contiguous indexes from ltr_show output.
 	 * pmc index and ltr index needs to be calculated from it.
 	 */
-	for (pmc_index = 0; pmc_index < ARRAY_SIZE(pmcdev->pmcs) && ltr_index > 0; pmc_index++) {
+	for (pmc_index = 0; pmc_index < ARRAY_SIZE(pmcdev->pmcs) && ltr_index >= 0; pmc_index++) {
 		pmc = pmcdev->pmcs[pmc_index];
 
 		if (!pmc)
@@ -498,7 +498,10 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value)
 	mutex_lock(&pmcdev->lock);
 
 	reg = pmc_core_reg_read(pmc, map->ltr_ignore_offset);
-	reg |= BIT(ltr_index);
+	if (ignore)
+		reg |= BIT(ltr_index);
+	else
+		reg &= ~BIT(ltr_index);
 	pmc_core_reg_write(pmc, map->ltr_ignore_offset, reg);
 
 	mutex_unlock(&pmcdev->lock);
@@ -521,7 +524,7 @@ static ssize_t pmc_core_ltr_ignore_write(struct file *file,
 	if (err)
 		return err;
 
-	err = pmc_core_send_ltr_ignore(pmcdev, value);
+	err = pmc_core_send_ltr_ignore(pmcdev, value, 1);
 
 	return err == 0 ? count : err;
 }
@@ -1278,6 +1281,9 @@ static __maybe_unused int pmc_core_suspend(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+
+	if (pmcdev->suspend)
+		pmcdev->suspend(pmcdev);
 
 	/* Check if the syspend will actually use S0ix */
 	if (pm_suspend_via_firmware())

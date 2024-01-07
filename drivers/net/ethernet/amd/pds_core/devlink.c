@@ -104,7 +104,7 @@ int pdsc_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	struct pds_core_fw_list_info fw_list;
 	struct pdsc *pdsc = devlink_priv(dl);
 	union pds_core_dev_comp comp;
-	char buf[16];
+	char buf[32];
 	int listlen;
 	int err;
 	int i;

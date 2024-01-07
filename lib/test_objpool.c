@@ -311,7 +311,7 @@ static void ot_fini_sync(struct ot_context *sop)
 	ot_kfree(sop->test, sop, sizeof(*sop));
 }
 
-struct {
+static struct {
 	struct ot_context * (*init)(struct ot_test *oc);
 	void (*fini)(struct ot_context *sop);
 } g_ot_sync_ops[] = {
@@ -475,7 +475,7 @@ static struct ot_context *ot_init_async_m0(struct ot_test *test)
 	return sop;
 }
 
-struct {
+static struct {
 	struct ot_context * (*init)(struct ot_test *oc);
 	void (*fini)(struct ot_context *sop);
 } g_ot_async_ops[] = {
@@ -632,7 +632,7 @@ static int ot_start_async(struct ot_test *test)
 #define NODE_COMPACT sizeof(struct ot_node)
 #define NODE_VMALLOC (512)
 
-struct ot_test g_testcases[] = {
+static struct ot_test g_testcases[] = {
 
 	/* sync & normal */
 	{0, 0, NODE_COMPACT, 1000, 0,  1,  0,  0, "sync: percpu objpool"},

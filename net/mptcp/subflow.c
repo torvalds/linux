@@ -419,22 +419,28 @@ static bool subflow_use_different_dport(struct mptcp_sock *msk, const struct soc
 	return inet_sk(sk)->inet_dport != inet_sk((struct sock *)msk)->inet_dport;
 }
 
-void __mptcp_set_connected(struct sock *sk)
+void __mptcp_sync_state(struct sock *sk, int state)
 {
-	__mptcp_propagate_sndbuf(sk, mptcp_sk(sk)->first);
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
+	__mptcp_propagate_sndbuf(sk, msk->first);
 	if (sk->sk_state == TCP_SYN_SENT) {
-		inet_sk_state_store(sk, TCP_ESTABLISHED);
+		inet_sk_state_store(sk, state);
 		sk->sk_state_change(sk);
 	}
 }
 
-static void mptcp_set_connected(struct sock *sk)
+static void mptcp_propagate_state(struct sock *sk, struct sock *ssk)
 {
+	struct mptcp_sock *msk = mptcp_sk(sk);
+
 	mptcp_data_lock(sk);
-	if (!sock_owned_by_user(sk))
-		__mptcp_set_connected(sk);
-	else
-		__set_bit(MPTCP_CONNECTED, &mptcp_sk(sk)->cb_flags);
+	if (!sock_owned_by_user(sk)) {
+		__mptcp_sync_state(sk, ssk->sk_state);
+	} else {
+		msk->pending_state = ssk->sk_state;
+		__set_bit(MPTCP_SYNC_STATE, &msk->cb_flags);
+	}
 	mptcp_data_unlock(sk);
 }
 
@@ -496,7 +502,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 		subflow_set_remote_key(msk, subflow, &mp_opt);
 		MPTCP_INC_STATS(sock_net(sk), MPTCP_MIB_MPCAPABLEACTIVEACK);
 		mptcp_finish_connect(sk);
-		mptcp_set_connected(parent);
+		mptcp_propagate_state(parent, sk);
 	} else if (subflow->request_join) {
 		u8 hmac[SHA256_DIGEST_SIZE];
 
@@ -540,7 +546,7 @@ static void subflow_finish_connect(struct sock *sk, const struct sk_buff *skb)
 	} else if (mptcp_check_fallback(sk)) {
 fallback:
 		mptcp_rcv_space_init(msk, sk);
-		mptcp_set_connected(parent);
+		mptcp_propagate_state(parent, sk);
 	}
 	return;
 
@@ -1740,7 +1746,7 @@ static void subflow_state_change(struct sock *sk)
 		mptcp_rcv_space_init(msk, sk);
 		pr_fallback(msk);
 		subflow->conn_finished = 1;
-		mptcp_set_connected(parent);
+		mptcp_propagate_state(parent, sk);
 	}
 
 	/* as recvmsg() does not acquire the subflow socket for ssk selection
@@ -1976,6 +1982,17 @@ static void tcp_release_cb_override(struct sock *ssk)
 	tcp_release_cb(ssk);
 }
 
+static int tcp_abort_override(struct sock *ssk, int err)
+{
+	/* closing a listener subflow requires a great deal of care.
+	 * keep it simple and just prevent such operation
+	 */
+	if (inet_sk_state_load(ssk) == TCP_LISTEN)
+		return -EINVAL;
+
+	return tcp_abort(ssk, err);
+}
+
 static struct tcp_ulp_ops subflow_ulp_ops __read_mostly = {
 	.name		= "mptcp",
 	.owner		= THIS_MODULE,
@@ -2020,6 +2037,7 @@ void __init mptcp_subflow_init(void)
 
 	tcp_prot_override = tcp_prot;
 	tcp_prot_override.release_cb = tcp_release_cb_override;
+	tcp_prot_override.diag_destroy = tcp_abort_override;
 
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 	/* In struct mptcp_subflow_request_sock, we assume the TCP request sock
@@ -2055,6 +2073,7 @@ void __init mptcp_subflow_init(void)
 
 	tcpv6_prot_override = tcpv6_prot;
 	tcpv6_prot_override.release_cb = tcp_release_cb_override;
+	tcpv6_prot_override.diag_destroy = tcp_abort_override;
 #endif
 
 	mptcp_diag_subflow_init(&subflow_ulp_ops);

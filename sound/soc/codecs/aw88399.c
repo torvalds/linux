@@ -438,7 +438,7 @@ static int aw_dev_set_vcalb(struct aw88399 *aw88399)
 	if (ret)
 		return ret;
 
-	vsense_select = vsense_select & (~AW88399_VDSEL_MASK);
+	vsense_select = vsense_value & (~AW88399_VDSEL_MASK);
 
 	ret = aw88399_dev_get_icalk(aw88399, &icalk);
 	if (ret) {
@@ -486,8 +486,8 @@ static int aw_dev_update_cali_re(struct aw_cali_desc *cali_desc)
 	u32 cali_re;
 	int ret;
 
-	if ((aw_dev->cali_desc.cali_re <= AW88399_CALI_RE_MAX) ||
-			(aw_dev->cali_desc.cali_re >= AW88399_CALI_RE_MIN))
+	if ((aw_dev->cali_desc.cali_re >= AW88399_CALI_RE_MAX) ||
+			(aw_dev->cali_desc.cali_re <= AW88399_CALI_RE_MIN))
 		return -EINVAL;
 
 	cali_re = AW88399_SHOW_RE_TO_DSP_RE((aw_dev->cali_desc.cali_re +
@@ -1710,7 +1710,7 @@ static const struct snd_kcontrol_new aw88399_controls[] = {
 		aw88399_get_fade_in_time, aw88399_set_fade_in_time),
 	SOC_SINGLE_EXT("Volume Ramp Down Step", 0, 0, FADE_TIME_MAX, FADE_TIME_MIN,
 		aw88399_get_fade_out_time, aw88399_set_fade_out_time),
-	SOC_SINGLE_EXT("Calib", 0, 0, 100, 0,
+	SOC_SINGLE_EXT("Calib", 0, 0, AW88399_CALI_RE_MAX, 0,
 		aw88399_re_get, aw88399_re_set),
 	AW88399_PROFILE_EXT("AW88399 Profile Set", aw88399_profile_info,
 		aw88399_profile_get, aw88399_profile_set),

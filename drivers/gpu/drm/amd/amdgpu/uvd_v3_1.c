@@ -577,8 +577,6 @@ static int uvd_v3_1_sw_init(void *handle)
 	ptr += ucode_len;
 	memcpy(&adev->uvd.keyselect, ptr, 4);
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 

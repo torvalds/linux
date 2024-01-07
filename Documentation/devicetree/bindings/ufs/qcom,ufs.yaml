@@ -36,6 +36,7 @@ properties:
           - qcom,sm8350-ufshc
           - qcom,sm8450-ufshc
           - qcom,sm8550-ufshc
+          - qcom,sm8650-ufshc
       - const: qcom,ufshc
       - const: jedec,ufs-2.0
 
@@ -122,6 +123,7 @@ allOf:
               - qcom,sm8350-ufshc
               - qcom,sm8450-ufshc
               - qcom,sm8550-ufshc
+              - qcom,sm8650-ufshc
     then:
       properties:
         clocks:

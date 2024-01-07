@@ -375,6 +375,7 @@ static int mt7921_load_clc(struct mt792x_dev *dev, const char *fw_name)
 	int ret, i, len, offset = 0;
 	u8 *clc_base = NULL, hw_encap = 0;
 
+	dev->phy.clc_chan_conf = 0xff;
 	if (mt7921_disable_clc ||
 	    mt76_is_usb(&dev->mt76))
 		return 0;

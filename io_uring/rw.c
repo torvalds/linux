@@ -83,18 +83,6 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	/* used for fixed read/write too - just read unconditionally */
 	req->buf_index = READ_ONCE(sqe->buf_index);
 
-	if (req->opcode == IORING_OP_READ_FIXED ||
-	    req->opcode == IORING_OP_WRITE_FIXED) {
-		struct io_ring_ctx *ctx = req->ctx;
-		u16 index;
-
-		if (unlikely(req->buf_index >= ctx->nr_user_bufs))
-			return -EFAULT;
-		index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
-		req->imu = ctx->user_bufs[index];
-		io_req_set_rsrc_node(req, ctx, 0);
-	}
-
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {
 		ret = ioprio_check_cap(ioprio);
@@ -110,16 +98,42 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	rw->addr = READ_ONCE(sqe->addr);
 	rw->len = READ_ONCE(sqe->len);
 	rw->flags = READ_ONCE(sqe->rw_flags);
+	return 0;
+}
 
-	/* Have to do this validation here, as this is in io_read() rw->len might
-	 * have chanaged due to buffer selection
+int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * Have to do this validation here, as this is in io_read() rw->len
+	 * might have chanaged due to buffer selection
 	 */
-	if (req->opcode == IORING_OP_READV && req->flags & REQ_F_BUFFER_SELECT) {
-		ret = io_iov_buffer_select_prep(req);
-		if (ret)
-			return ret;
-	}
+	if (req->flags & REQ_F_BUFFER_SELECT)
+		return io_iov_buffer_select_prep(req);
 
+	return 0;
+}
+
+int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	u16 index;
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	if (unlikely(req->buf_index >= ctx->nr_user_bufs))
+		return -EFAULT;
+	index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
+	req->imu = ctx->user_bufs[index];
+	io_req_set_rsrc_node(req, ctx, 0);
 	return 0;
 }
 
@@ -129,11 +143,19 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
  */
 int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	int ret;
+
+	/* must be used with provided buffers */
+	if (!(req->flags & REQ_F_BUFFER_SELECT))
+		return -EINVAL;
 
 	ret = io_prep_rw(req, sqe);
 	if (unlikely(ret))
 		return ret;
+
+	if (rw->addr || rw->len)
+		return -EINVAL;
 
 	req->flags |= REQ_F_APOLL_MULTISHOT;
 	return 0;
@@ -542,6 +564,9 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 {
 	if (!force && !io_cold_defs[req->opcode].prep_async)
 		return 0;
+	/* opcode type doesn't need async data */
+	if (!io_cold_defs[req->opcode].async_size)
+		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;
 
@@ -887,6 +912,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	unsigned int cflags = 0;
 	int ret;
 
@@ -903,7 +929,12 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 	 * handling arm it.
 	 */
 	if (ret == -EAGAIN) {
-		io_kbuf_recycle(req, issue_flags);
+		/*
+		 * Reset rw->len to 0 again to avoid clamping future mshot
+		 * reads, in case the buffer size varies.
+		 */
+		if (io_kbuf_recycle(req, issue_flags))
+			rw->len = 0;
 		return -EAGAIN;
 	}
 
@@ -916,6 +947,7 @@ int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
 		 * jump to the termination path. This request is then done.
 		 */
 		cflags = io_put_kbuf(req, issue_flags);
+		rw->len = 0; /* similarly to above, reset len to 0 */
 
 		if (io_fill_cqe_req_aux(req,
 					issue_flags & IO_URING_F_COMPLETE_DEFER,

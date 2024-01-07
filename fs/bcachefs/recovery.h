@@ -4,12 +4,18 @@
 
 extern const char * const bch2_recovery_passes[];
 
+u64 bch2_recovery_passes_to_stable(u64 v);
+u64 bch2_recovery_passes_from_stable(u64 v);
+
 /*
  * For when we need to rewind recovery passes and run a pass we skipped:
  */
 static inline int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 						  enum bch_recovery_pass pass)
 {
+	if (c->recovery_passes_explicit & BIT_ULL(pass))
+		return 0;
+
 	bch_info(c, "running explicit recovery pass %s (%u), currently at %s (%u)",
 		 bch2_recovery_passes[pass], pass,
 		 bch2_recovery_passes[c->curr_recovery_pass], c->curr_recovery_pass);

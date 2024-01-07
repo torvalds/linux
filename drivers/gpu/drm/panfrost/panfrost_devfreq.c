@@ -29,14 +29,20 @@ static void panfrost_devfreq_update_utilization(struct panfrost_devfreq *pfdevfr
 static int panfrost_devfreq_target(struct device *dev, unsigned long *freq,
 				   u32 flags)
 {
+	struct panfrost_device *ptdev = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
+	int err;
 
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp))
 		return PTR_ERR(opp);
 	dev_pm_opp_put(opp);
 
-	return dev_pm_opp_set_rate(dev, *freq);
+	err =  dev_pm_opp_set_rate(dev, *freq);
+	if (!err)
+		ptdev->pfdevfreq.current_frequency = *freq;
+
+	return err;
 }
 
 static void panfrost_devfreq_reset(struct panfrost_devfreq *pfdevfreq)
@@ -58,7 +64,6 @@ static int panfrost_devfreq_get_dev_status(struct device *dev,
 	spin_lock_irqsave(&pfdevfreq->lock, irqflags);
 
 	panfrost_devfreq_update_utilization(pfdevfreq);
-	pfdevfreq->current_frequency = status->current_frequency;
 
 	status->total_time = ktime_to_ns(ktime_add(pfdevfreq->busy_time,
 						   pfdevfreq->idle_time));
@@ -163,6 +168,14 @@ int panfrost_devfreq_init(struct panfrost_device *pfdev)
 		return PTR_ERR(opp);
 
 	panfrost_devfreq_profile.initial_freq = cur_freq;
+
+	/*
+	 * We could wait until panfrost_devfreq_target() to set this value, but
+	 * since the simple_ondemand governor works asynchronously, there's a
+	 * chance by the time someone opens the device's fdinfo file, current
+	 * frequency hasn't been updated yet, so let's just do an early set.
+	 */
+	pfdevfreq->current_frequency = cur_freq;
 
 	/*
 	 * Set the recommend OPP this will enable and configure the regulator

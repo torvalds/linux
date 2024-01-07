@@ -261,6 +261,7 @@ void pg_cntl35_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl;
+	uint32_t power_forceon;
 	bool block_enabled;
 
 	if (pg_cntl->ctx->dc->debug.ignore_pg ||
@@ -276,6 +277,10 @@ void pg_cntl35_hpo_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 		if (!block_enabled)
 			return;
 	}
+
+	REG_GET(DOMAIN25_PG_CONFIG, DOMAIN_POWER_FORCEON, &power_forceon);
+	if (power_forceon)
+		return;
 
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
@@ -304,6 +309,7 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	uint32_t power_gate = power_on ? 0 : 1;
 	uint32_t pwr_status = power_on ? 0 : 2;
 	uint32_t org_ip_request_cntl;
+	uint32_t power_forceon;
 	bool block_enabled;
 
 	if (pg_cntl->ctx->dc->debug.ignore_pg ||
@@ -319,6 +325,10 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 			return;
 	}
 
+	REG_GET(DOMAIN22_PG_CONFIG, DOMAIN_POWER_FORCEON, &power_forceon);
+	if (power_forceon)
+		return;
+
 	REG_GET(DC_IP_REQUEST_CNTL, IP_REQUEST_EN, &org_ip_request_cntl);
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 1);
@@ -330,6 +340,13 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	pg_cntl->pg_res_enable[PG_DCCG] = power_on;
 	pg_cntl->pg_res_enable[PG_DIO] = power_on;
 	pg_cntl->pg_res_enable[PG_DCIO] = power_on;
+}
+
+void pg_cntl35_set_force_poweron_domain22(struct pg_cntl *pg_cntl, bool power_on)
+{
+	struct dcn_pg_cntl *pg_cntl_dcn = TO_DCN_PG_CNTL(pg_cntl);
+
+	REG_UPDATE(DOMAIN22_PG_CONFIG, DOMAIN_POWER_FORCEON, power_on ? 1 : 0);
 }
 
 static bool pg_cntl35_plane_otg_status(struct pg_cntl *pg_cntl)
@@ -501,7 +518,8 @@ static const struct pg_cntl_funcs pg_cntl35_funcs = {
 	.mpcc_pg_control = pg_cntl35_mpcc_pg_control,
 	.opp_pg_control = pg_cntl35_opp_pg_control,
 	.optc_pg_control = pg_cntl35_optc_pg_control,
-	.dwb_pg_control = pg_cntl35_dwb_pg_control
+	.dwb_pg_control = pg_cntl35_dwb_pg_control,
+	.set_force_poweron_domain22 = pg_cntl35_set_force_poweron_domain22
 };
 
 struct pg_cntl *pg_cntl35_create(

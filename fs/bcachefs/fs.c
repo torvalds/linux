@@ -258,7 +258,8 @@ __bch2_create(struct mnt_idmap *idmap,
 retry:
 	bch2_trans_begin(trans);
 
-	ret   = bch2_create_trans(trans,
+	ret   = bch2_subvol_is_ro_trans(trans, dir->ei_subvol) ?:
+		bch2_create_trans(trans,
 				  inode_inum(dir), &dir_u, &inode_u,
 				  !(flags & BCH_CREATE_TMPFILE)
 				  ? &dentry->d_name : NULL,
@@ -430,7 +431,9 @@ static int bch2_link(struct dentry *old_dentry, struct inode *vdir,
 
 	lockdep_assert_held(&inode->v.i_rwsem);
 
-	ret = __bch2_link(c, inode, dir, dentry);
+	ret   = bch2_subvol_is_ro(c, dir->ei_subvol) ?:
+		bch2_subvol_is_ro(c, inode->ei_subvol) ?:
+		__bch2_link(c, inode, dir, dentry);
 	if (unlikely(ret))
 		return ret;
 
@@ -481,7 +484,11 @@ err:
 
 static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 {
-	return __bch2_unlink(vdir, dentry, false);
+	struct bch_inode_info *dir= to_bch_ei(vdir);
+	struct bch_fs *c = dir->v.i_sb->s_fs_info;
+
+	return bch2_subvol_is_ro(c, dir->ei_subvol) ?:
+		__bch2_unlink(vdir, dentry, false);
 }
 
 static int bch2_symlink(struct mnt_idmap *idmap,
@@ -561,6 +568,11 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			 dst_dir,
 			 src_inode,
 			 dst_inode);
+
+	ret   = bch2_subvol_is_ro_trans(trans, src_dir->ei_subvol) ?:
+		bch2_subvol_is_ro_trans(trans, dst_dir->ei_subvol);
+	if (ret)
+		goto err;
 
 	if (inode_attr_changing(dst_dir, src_inode, Inode_opt_project)) {
 		ret = bch2_fs_quota_transfer(c, src_inode,
@@ -783,11 +795,13 @@ static int bch2_setattr(struct mnt_idmap *idmap,
 			struct dentry *dentry, struct iattr *iattr)
 {
 	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	int ret;
 
 	lockdep_assert_held(&inode->v.i_rwsem);
 
-	ret = setattr_prepare(idmap, dentry, iattr);
+	ret   = bch2_subvol_is_ro(c, inode->ei_subvol) ?:
+		setattr_prepare(idmap, dentry, iattr);
 	if (ret)
 		return ret;
 
@@ -1010,12 +1024,26 @@ static int bch2_vfs_readdir(struct file *file, struct dir_context *ctx)
 	return bch2_err_class(ret);
 }
 
+static int bch2_open(struct inode *vinode, struct file *file)
+{
+	if (file->f_flags & (O_WRONLY|O_RDWR)) {
+		struct bch_inode_info *inode = to_bch_ei(vinode);
+		struct bch_fs *c = inode->v.i_sb->s_fs_info;
+
+		int ret = bch2_subvol_is_ro(c, inode->ei_subvol);
+		if (ret)
+			return ret;
+	}
+
+	return generic_file_open(vinode, file);
+}
+
 static const struct file_operations bch_file_operations = {
+	.open		= bch2_open,
 	.llseek		= bch2_llseek,
 	.read_iter	= bch2_read_iter,
 	.write_iter	= bch2_write_iter,
 	.mmap		= bch2_mmap,
-	.open		= generic_file_open,
 	.fsync		= bch2_fsync,
 	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
@@ -1143,24 +1171,33 @@ static int bch2_encode_fh(struct inode *vinode, u32 *fh, int *len,
 {
 	struct bch_inode_info *inode	= to_bch_ei(vinode);
 	struct bch_inode_info *dir	= to_bch_ei(vdir);
-
-	if (*len < sizeof(struct bcachefs_fid_with_parent) / sizeof(u32))
-		return FILEID_INVALID;
+	int min_len;
 
 	if (!S_ISDIR(inode->v.i_mode) && dir) {
 		struct bcachefs_fid_with_parent *fid = (void *) fh;
 
+		min_len = sizeof(*fid) / sizeof(u32);
+		if (*len < min_len) {
+			*len = min_len;
+			return FILEID_INVALID;
+		}
+
 		fid->fid = bch2_inode_to_fid(inode);
 		fid->dir = bch2_inode_to_fid(dir);
 
-		*len = sizeof(*fid) / sizeof(u32);
+		*len = min_len;
 		return FILEID_BCACHEFS_WITH_PARENT;
 	} else {
 		struct bcachefs_fid *fid = (void *) fh;
 
+		min_len = sizeof(*fid) / sizeof(u32);
+		if (*len < min_len) {
+			*len = min_len;
+			return FILEID_INVALID;
+		}
 		*fid = bch2_inode_to_fid(inode);
 
-		*len = sizeof(*fid) / sizeof(u32);
+		*len = min_len;
 		return FILEID_BCACHEFS_WITHOUT_PARENT;
 	}
 }
@@ -1667,8 +1704,7 @@ static int bch2_show_devname(struct seq_file *seq, struct dentry *root)
 		if (!first)
 			seq_putc(seq, ':');
 		first = false;
-		seq_puts(seq, "/dev/");
-		seq_puts(seq, ca->name);
+		seq_puts(seq, ca->disk_sb.sb_name);
 	}
 
 	return 0;
@@ -1733,6 +1769,9 @@ static int bch2_unfreeze(struct super_block *sb)
 {
 	struct bch_fs *c = sb->s_fs_info;
 	int ret;
+
+	if (test_bit(BCH_FS_EMERGENCY_RO, &c->flags))
+		return 0;
 
 	down_write(&c->state_lock);
 	ret = bch2_fs_read_write(c);
@@ -1922,10 +1961,7 @@ out:
 	return dget(sb->s_root);
 
 err_put_super:
-	sb->s_fs_info = NULL;
-	c->vfs_sb = NULL;
 	deactivate_locked_super(sb);
-	bch2_fs_stop(c);
 	return ERR_PTR(bch2_err_class(ret));
 }
 
@@ -1933,11 +1969,8 @@ static void bch2_kill_sb(struct super_block *sb)
 {
 	struct bch_fs *c = sb->s_fs_info;
 
-	if (c)
-		c->vfs_sb = NULL;
 	generic_shutdown_super(sb);
-	if (c)
-		bch2_fs_free(c);
+	bch2_fs_free(c);
 }
 
 static struct file_system_type bcache_fs_type = {

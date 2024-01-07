@@ -176,7 +176,7 @@ int sof_register_clients(struct snd_sof_dev *sdev)
 		goto err_kernel_injector;
 	}
 
-	/* Platform depndent client device registration */
+	/* Platform dependent client device registration */
 
 	if (sof_ops(sdev) && sof_ops(sdev)->register_ipc_clients)
 		ret = sof_ops(sdev)->register_ipc_clients(sdev);

@@ -277,27 +277,6 @@ void iavf_free_virt_mem(struct iavf_hw *hw, struct iavf_virt_mem *mem)
 }
 
 /**
- * iavf_lock_timeout - try to lock mutex but give up after timeout
- * @lock: mutex that should be locked
- * @msecs: timeout in msecs
- *
- * Returns 0 on success, negative on failure
- **/
-static int iavf_lock_timeout(struct mutex *lock, unsigned int msecs)
-{
-	unsigned int wait, delay = 10;
-
-	for (wait = 0; wait < msecs; wait += delay) {
-		if (mutex_trylock(lock))
-			return 0;
-
-		msleep(delay);
-	}
-
-	return -1;
-}
-
-/**
  * iavf_schedule_reset - Set the flags and schedule a reset event
  * @adapter: board private structure
  * @flags: IAVF_FLAG_RESET_PENDING or IAVF_FLAG_RESET_NEEDED
@@ -1353,18 +1332,20 @@ static void iavf_clear_cloud_filters(struct iavf_adapter *adapter)
  **/
 static void iavf_clear_fdir_filters(struct iavf_adapter *adapter)
 {
-	struct iavf_fdir_fltr *fdir, *fdirtmp;
+	struct iavf_fdir_fltr *fdir;
 
 	/* remove all Flow Director filters */
 	spin_lock_bh(&adapter->fdir_fltr_lock);
-	list_for_each_entry_safe(fdir, fdirtmp, &adapter->fdir_list_head,
-				 list) {
+	list_for_each_entry(fdir, &adapter->fdir_list_head, list) {
 		if (fdir->state == IAVF_FDIR_FLTR_ADD_REQUEST) {
-			list_del(&fdir->list);
-			kfree(fdir);
-			adapter->fdir_active_fltr--;
-		} else {
-			fdir->state = IAVF_FDIR_FLTR_DEL_REQUEST;
+			/* Cancel a request, keep filter as inactive */
+			fdir->state = IAVF_FDIR_FLTR_INACTIVE;
+		} else if (fdir->state == IAVF_FDIR_FLTR_ADD_PENDING ||
+			 fdir->state == IAVF_FDIR_FLTR_ACTIVE) {
+			/* Disable filters which are active or have a pending
+			 * request to PF to be added
+			 */
+			fdir->state = IAVF_FDIR_FLTR_DIS_REQUEST;
 		}
 	}
 	spin_unlock_bh(&adapter->fdir_fltr_lock);
@@ -4113,6 +4094,33 @@ static int iavf_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 }
 
 /**
+ * iavf_restore_fdir_filters
+ * @adapter: board private structure
+ *
+ * Restore existing FDIR filters when VF netdev comes back up.
+ **/
+static void iavf_restore_fdir_filters(struct iavf_adapter *adapter)
+{
+	struct iavf_fdir_fltr *f;
+
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	list_for_each_entry(f, &adapter->fdir_list_head, list) {
+		if (f->state == IAVF_FDIR_FLTR_DIS_REQUEST) {
+			/* Cancel a request, keep filter as active */
+			f->state = IAVF_FDIR_FLTR_ACTIVE;
+		} else if (f->state == IAVF_FDIR_FLTR_DIS_PENDING ||
+			   f->state == IAVF_FDIR_FLTR_INACTIVE) {
+			/* Add filters which are inactive or have a pending
+			 * request to PF to be deleted
+			 */
+			f->state = IAVF_FDIR_FLTR_ADD_REQUEST;
+			adapter->aq_required |= IAVF_FLAG_AQ_ADD_FDIR_FILTER;
+		}
+	}
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+}
+
+/**
  * iavf_open - Called when a network interface is made active
  * @netdev: network interface device structure
  *
@@ -4179,8 +4187,9 @@ static int iavf_open(struct net_device *netdev)
 
 	spin_unlock_bh(&adapter->mac_vlan_list_lock);
 
-	/* Restore VLAN filters that were removed with IFF_DOWN */
+	/* Restore filters that were removed with IFF_DOWN */
 	iavf_restore_filters(adapter);
+	iavf_restore_fdir_filters(adapter);
 
 	iavf_configure(adapter);
 
@@ -4311,6 +4320,49 @@ static int iavf_change_mtu(struct net_device *netdev, int new_mtu)
 	return ret;
 }
 
+/**
+ * iavf_disable_fdir - disable Flow Director and clear existing filters
+ * @adapter: board private structure
+ **/
+static void iavf_disable_fdir(struct iavf_adapter *adapter)
+{
+	struct iavf_fdir_fltr *fdir, *fdirtmp;
+	bool del_filters = false;
+
+	adapter->flags &= ~IAVF_FLAG_FDIR_ENABLED;
+
+	/* remove all Flow Director filters */
+	spin_lock_bh(&adapter->fdir_fltr_lock);
+	list_for_each_entry_safe(fdir, fdirtmp, &adapter->fdir_list_head,
+				 list) {
+		if (fdir->state == IAVF_FDIR_FLTR_ADD_REQUEST ||
+		    fdir->state == IAVF_FDIR_FLTR_INACTIVE) {
+			/* Delete filters not registered in PF */
+			list_del(&fdir->list);
+			kfree(fdir);
+			adapter->fdir_active_fltr--;
+		} else if (fdir->state == IAVF_FDIR_FLTR_ADD_PENDING ||
+			   fdir->state == IAVF_FDIR_FLTR_DIS_REQUEST ||
+			   fdir->state == IAVF_FDIR_FLTR_ACTIVE) {
+			/* Filters registered in PF, schedule their deletion */
+			fdir->state = IAVF_FDIR_FLTR_DEL_REQUEST;
+			del_filters = true;
+		} else if (fdir->state == IAVF_FDIR_FLTR_DIS_PENDING) {
+			/* Request to delete filter already sent to PF, change
+			 * state to DEL_PENDING to delete filter after PF's
+			 * response, not set as INACTIVE
+			 */
+			fdir->state = IAVF_FDIR_FLTR_DEL_PENDING;
+		}
+	}
+	spin_unlock_bh(&adapter->fdir_fltr_lock);
+
+	if (del_filters) {
+		adapter->aq_required |= IAVF_FLAG_AQ_DEL_FDIR_FILTER;
+		mod_delayed_work(adapter->wq, &adapter->watchdog_task, 0);
+	}
+}
+
 #define NETIF_VLAN_OFFLOAD_FEATURES	(NETIF_F_HW_VLAN_CTAG_RX | \
 					 NETIF_F_HW_VLAN_CTAG_TX | \
 					 NETIF_F_HW_VLAN_STAG_RX | \
@@ -4335,6 +4387,13 @@ static int iavf_set_features(struct net_device *netdev,
 	if (CRC_OFFLOAD_ALLOWED(adapter) &&
 	    ((netdev->features & NETIF_F_RXFCS) ^ (features & NETIF_F_RXFCS)))
 		iavf_schedule_reset(adapter, IAVF_FLAG_RESET_NEEDED);
+
+	if ((netdev->features & NETIF_F_NTUPLE) ^ (features & NETIF_F_NTUPLE)) {
+		if (features & NETIF_F_NTUPLE)
+			adapter->flags |= IAVF_FLAG_FDIR_ENABLED;
+		else
+			iavf_disable_fdir(adapter);
+	}
 
 	return 0;
 }
@@ -4685,6 +4744,9 @@ static netdev_features_t iavf_fix_features(struct net_device *netdev,
 
 	features = iavf_fix_netdev_vlan_features(adapter, features);
 
+	if (!FDIR_FLTR_SUPPORT(adapter))
+		features &= ~NETIF_F_NTUPLE;
+
 	return iavf_fix_strip_features(adapter, features);
 }
 
@@ -4802,6 +4864,12 @@ int iavf_process_config(struct iavf_adapter *adapter)
 	if (vfres->vf_cap_flags & VIRTCHNL_VF_OFFLOAD_VLAN)
 		netdev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 
+	if (FDIR_FLTR_SUPPORT(adapter)) {
+		netdev->hw_features |= NETIF_F_NTUPLE;
+		netdev->features |= NETIF_F_NTUPLE;
+		adapter->flags |= IAVF_FLAG_FDIR_ENABLED;
+	}
+
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 
 	/* Do not turn on offloads when they are requested to be turned off.
@@ -4823,34 +4891,6 @@ int iavf_process_config(struct iavf_adapter *adapter)
 	}
 
 	return 0;
-}
-
-/**
- * iavf_shutdown - Shutdown the device in preparation for a reboot
- * @pdev: pci device structure
- **/
-static void iavf_shutdown(struct pci_dev *pdev)
-{
-	struct iavf_adapter *adapter = iavf_pdev_to_adapter(pdev);
-	struct net_device *netdev = adapter->netdev;
-
-	netif_device_detach(netdev);
-
-	if (netif_running(netdev))
-		iavf_close(netdev);
-
-	if (iavf_lock_timeout(&adapter->crit_lock, 5000))
-		dev_warn(&adapter->pdev->dev, "%s: failed to acquire crit_lock\n", __func__);
-	/* Prevent the watchdog from running. */
-	iavf_change_state(adapter, __IAVF_REMOVE);
-	adapter->aq_required = 0;
-	mutex_unlock(&adapter->crit_lock);
-
-#ifdef CONFIG_PM
-	pci_save_state(pdev);
-
-#endif
-	pci_disable_device(pdev);
 }
 
 /**
@@ -5063,16 +5103,21 @@ static int __maybe_unused iavf_resume(struct device *dev_d)
  **/
 static void iavf_remove(struct pci_dev *pdev)
 {
-	struct iavf_adapter *adapter = iavf_pdev_to_adapter(pdev);
 	struct iavf_fdir_fltr *fdir, *fdirtmp;
 	struct iavf_vlan_filter *vlf, *vlftmp;
 	struct iavf_cloud_filter *cf, *cftmp;
 	struct iavf_adv_rss *rss, *rsstmp;
 	struct iavf_mac_filter *f, *ftmp;
+	struct iavf_adapter *adapter;
 	struct net_device *netdev;
 	struct iavf_hw *hw;
 
-	netdev = adapter->netdev;
+	/* Don't proceed with remove if netdev is already freed */
+	netdev = pci_get_drvdata(pdev);
+	if (!netdev)
+		return;
+
+	adapter = iavf_pdev_to_adapter(pdev);
 	hw = &adapter->hw;
 
 	if (test_and_set_bit(__IAVF_IN_REMOVE_TASK, &adapter->crit_section))
@@ -5184,9 +5229,23 @@ static void iavf_remove(struct pci_dev *pdev)
 
 	destroy_workqueue(adapter->wq);
 
+	pci_set_drvdata(pdev, NULL);
+
 	free_netdev(netdev);
 
 	pci_disable_device(pdev);
+}
+
+/**
+ * iavf_shutdown - Shutdown the device in preparation for a reboot
+ * @pdev: pci device structure
+ **/
+static void iavf_shutdown(struct pci_dev *pdev)
+{
+	iavf_remove(pdev);
+
+	if (system_state == SYSTEM_POWER_OFF)
+		pci_set_power_state(pdev, PCI_D3hot);
 }
 
 static SIMPLE_DEV_PM_OPS(iavf_pm_ops, iavf_suspend, iavf_resume);

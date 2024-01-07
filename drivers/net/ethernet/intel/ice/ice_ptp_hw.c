@@ -3961,3 +3961,57 @@ int ice_get_cgu_rclk_pin_info(struct ice_hw *hw, u8 *base_idx, u8 *pin_num)
 
 	return ret;
 }
+
+/**
+ * ice_cgu_get_output_pin_state_caps - get output pin state capabilities
+ * @hw: pointer to the hw struct
+ * @pin_id: id of a pin
+ * @caps: capabilities to modify
+ *
+ * Return:
+ * * 0 - success, state capabilities were modified
+ * * negative - failure, capabilities were not modified
+ */
+int ice_cgu_get_output_pin_state_caps(struct ice_hw *hw, u8 pin_id,
+				      unsigned long *caps)
+{
+	bool can_change = true;
+
+	switch (hw->device_id) {
+	case ICE_DEV_ID_E810C_SFP:
+		if (pin_id == ZL_OUT2 || pin_id == ZL_OUT3)
+			can_change = false;
+		break;
+	case ICE_DEV_ID_E810C_QSFP:
+		if (pin_id == ZL_OUT2 || pin_id == ZL_OUT3 || pin_id == ZL_OUT4)
+			can_change = false;
+		break;
+	case ICE_DEV_ID_E823L_10G_BASE_T:
+	case ICE_DEV_ID_E823L_1GBE:
+	case ICE_DEV_ID_E823L_BACKPLANE:
+	case ICE_DEV_ID_E823L_QSFP:
+	case ICE_DEV_ID_E823L_SFP:
+	case ICE_DEV_ID_E823C_10G_BASE_T:
+	case ICE_DEV_ID_E823C_BACKPLANE:
+	case ICE_DEV_ID_E823C_QSFP:
+	case ICE_DEV_ID_E823C_SFP:
+	case ICE_DEV_ID_E823C_SGMII:
+		if (hw->cgu_part_number ==
+		    ICE_AQC_GET_LINK_TOPO_NODE_NR_ZL30632_80032 &&
+		    pin_id == ZL_OUT2)
+			can_change = false;
+		else if (hw->cgu_part_number ==
+			 ICE_AQC_GET_LINK_TOPO_NODE_NR_SI5383_5384 &&
+			 pin_id == SI_OUT1)
+			can_change = false;
+		break;
+	default:
+		return -EINVAL;
+	}
+	if (can_change)
+		*caps |= DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+	else
+		*caps &= ~DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+
+	return 0;
+}

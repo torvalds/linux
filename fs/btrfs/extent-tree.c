@@ -102,7 +102,8 @@ int btrfs_lookup_data_extent(struct btrfs_fs_info *fs_info, u64 start, u64 len)
  */
 int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info, u64 bytenr,
-			     u64 offset, int metadata, u64 *refs, u64 *flags)
+			     u64 offset, int metadata, u64 *refs, u64 *flags,
+			     u64 *owning_root)
 {
 	struct btrfs_root *extent_root;
 	struct btrfs_delayed_ref_head *head;
@@ -114,6 +115,7 @@ int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
 	u32 item_size;
 	u64 num_refs;
 	u64 extent_flags;
+	u64 owner = 0;
 	int ret;
 
 	/*
@@ -167,6 +169,8 @@ search_again:
 					    struct btrfs_extent_item);
 			num_refs = btrfs_extent_refs(leaf, ei);
 			extent_flags = btrfs_extent_flags(leaf, ei);
+			owner = btrfs_get_extent_owner_root(fs_info, leaf,
+							    path->slots[0]);
 		} else {
 			ret = -EUCLEAN;
 			btrfs_err(fs_info,
@@ -226,6 +230,8 @@ out:
 		*refs = num_refs;
 	if (flags)
 		*flags = extent_flags;
+	if (owning_root)
+		*owning_root = owner;
 out_free:
 	btrfs_free_path(path);
 	return ret;
@@ -1541,6 +1547,23 @@ out:
 	return ret;
 }
 
+static void free_head_ref_squota_rsv(struct btrfs_fs_info *fs_info,
+				     struct btrfs_delayed_ref_head *href)
+{
+	u64 root = href->owning_root;
+
+	/*
+	 * Don't check must_insert_reserved, as this is called from contexts
+	 * where it has already been unset.
+	 */
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE ||
+	    !href->is_data || !is_fstree(root))
+		return;
+
+	btrfs_qgroup_free_refroot(fs_info, root, href->reserved_bytes,
+				  BTRFS_QGROUP_RSV_DATA);
+}
+
 static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_delayed_ref_head *href,
 				struct btrfs_delayed_ref_node *node,
@@ -1563,7 +1586,6 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = href->owning_root,
 			.num_bytes = node->num_bytes,
-			.rsv_bytes = href->reserved_bytes,
 			.is_data = true,
 			.is_inc	= true,
 			.generation = trans->transid,
@@ -1580,11 +1602,9 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 						 flags, ref->objectid,
 						 ref->offset, &key,
 						 node->ref_mod, href->owning_root);
+		free_head_ref_squota_rsv(trans->fs_info, href);
 		if (!ret)
 			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
-		else
-			btrfs_qgroup_free_refroot(trans->fs_info, delta.root,
-						  delta.rsv_bytes, BTRFS_QGROUP_RSV_DATA);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, parent, ref->root,
 					     ref->objectid, ref->offset,
@@ -1736,7 +1756,6 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = href->owning_root,
 			.num_bytes = fs_info->nodesize,
-			.rsv_bytes = 0,
 			.is_data = false,
 			.is_inc = true,
 			.generation = trans->transid,
@@ -1768,8 +1787,10 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	if (TRANS_ABORTED(trans)) {
-		if (insert_reserved)
+		if (insert_reserved) {
 			btrfs_pin_extent(trans, node->bytenr, node->num_bytes, 1);
+			free_head_ref_squota_rsv(trans->fs_info, href);
+		}
 		return 0;
 	}
 
@@ -1865,6 +1886,8 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head)
 {
+	u64 ret = 0;
+
 	/*
 	 * We had csum deletions accounted for in our delayed refs rsv, we need
 	 * to drop the csum leaves for this update from our delayed_refs_rsv.
@@ -1879,14 +1902,13 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 
 		btrfs_delayed_refs_rsv_release(fs_info, 0, nr_csums);
 
-		return btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
+		ret = btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
 	}
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE &&
-	    head->must_insert_reserved && head->is_data)
-		btrfs_qgroup_free_refroot(fs_info, head->owning_root,
-					  head->reserved_bytes, BTRFS_QGROUP_RSV_DATA);
+	/* must_insert_reserved can be set only if we didn't run the head ref. */
+	if (head->must_insert_reserved)
+		free_head_ref_squota_rsv(fs_info, head);
 
-	return 0;
+	return ret;
 }
 
 static int cleanup_ref_head(struct btrfs_trans_handle *trans,
@@ -2027,6 +2049,12 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 		 * spin lock.
 		 */
 		must_insert_reserved = locked_ref->must_insert_reserved;
+		/*
+		 * Unsetting this on the head ref relinquishes ownership of
+		 * the rsv_bytes, so it is critical that every possible code
+		 * path from here forward frees all reserves including qgroup
+		 * reserve.
+		 */
 		locked_ref->must_insert_reserved = false;
 
 		extent_op = locked_ref->extent_op;
@@ -3286,7 +3314,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = delayed_ref_root,
 			.num_bytes = num_bytes,
-			.rsv_bytes = 0,
 			.is_data = is_data,
 			.is_inc = false,
 			.generation = btrfs_extent_generation(leaf, ei),
@@ -4931,7 +4958,6 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 		.root = root_objectid,
 		.num_bytes = ins->offset,
 		.generation = trans->transid,
-		.rsv_bytes = 0,
 		.is_data = true,
 		.is_inc = true,
 	};
@@ -5234,7 +5260,7 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 		/* We don't lock the tree block, it's OK to be racy here */
 		ret = btrfs_lookup_extent_info(trans, fs_info, bytenr,
 					       wc->level - 1, 1, &refs,
-					       &flags);
+					       &flags, NULL);
 		/* We don't care about errors in readahead. */
 		if (ret < 0)
 			continue;
@@ -5301,7 +5327,8 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 		ret = btrfs_lookup_extent_info(trans, fs_info,
 					       eb->start, level, 1,
 					       &wc->refs[level],
-					       &wc->flags[level]);
+					       &wc->flags[level],
+					       NULL);
 		BUG_ON(ret == -ENOMEM);
 		if (ret)
 			return ret;
@@ -5391,6 +5418,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 parent;
+	u64 owner_root = 0;
 	struct btrfs_tree_parent_check check = { 0 };
 	struct btrfs_key key;
 	struct btrfs_ref ref = { 0 };
@@ -5434,7 +5462,8 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_lookup_extent_info(trans, fs_info, bytenr, level - 1, 1,
 				       &wc->refs[level - 1],
-				       &wc->flags[level - 1]);
+				       &wc->flags[level - 1],
+				       &owner_root);
 	if (ret < 0)
 		goto out_unlock;
 
@@ -5567,8 +5596,7 @@ skip:
 		find_next_key(path, level, &wc->drop_progress);
 
 		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, bytenr,
-				       fs_info->nodesize, parent,
-				       btrfs_header_owner(next));
+				       fs_info->nodesize, parent, owner_root);
 		btrfs_init_tree_ref(&ref, level - 1, root->root_key.objectid,
 				    0, false);
 		ret = btrfs_free_extent(trans, &ref);
@@ -5635,7 +5663,8 @@ static noinline int walk_up_proc(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_extent_info(trans, fs_info,
 						       eb->start, level, 1,
 						       &wc->refs[level],
-						       &wc->flags[level]);
+						       &wc->flags[level],
+						       NULL);
 			if (ret < 0) {
 				btrfs_tree_unlock_rw(eb, path->locks[level]);
 				path->locks[level] = 0;
@@ -5880,7 +5909,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref, int for_reloc)
 			ret = btrfs_lookup_extent_info(trans, fs_info,
 						path->nodes[level]->start,
 						level, 1, &wc->refs[level],
-						&wc->flags[level]);
+						&wc->flags[level], NULL);
 			if (ret < 0) {
 				err = ret;
 				goto out_end_trans;

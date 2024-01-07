@@ -341,7 +341,6 @@ int nvme_auth_augmented_challenge(u8 hmac_id, u8 *skey, size_t skey_len,
 		u8 *challenge, u8 *aug, size_t hlen)
 {
 	struct crypto_shash *tfm;
-	struct shash_desc *desc;
 	u8 *hashed_key;
 	const char *hmac_name;
 	int ret;
@@ -369,29 +368,11 @@ int nvme_auth_augmented_challenge(u8 hmac_id, u8 *skey, size_t skey_len,
 		goto out_free_key;
 	}
 
-	desc = kmalloc(sizeof(struct shash_desc) + crypto_shash_descsize(tfm),
-		       GFP_KERNEL);
-	if (!desc) {
-		ret = -ENOMEM;
-		goto out_free_hash;
-	}
-	desc->tfm = tfm;
-
 	ret = crypto_shash_setkey(tfm, hashed_key, hlen);
 	if (ret)
-		goto out_free_desc;
+		goto out_free_hash;
 
-	ret = crypto_shash_init(desc);
-	if (ret)
-		goto out_free_desc;
-
-	ret = crypto_shash_update(desc, challenge, hlen);
-	if (ret)
-		goto out_free_desc;
-
-	ret = crypto_shash_final(desc, aug);
-out_free_desc:
-	kfree_sensitive(desc);
+	ret = crypto_shash_tfm_digest(tfm, challenge, hlen, aug);
 out_free_hash:
 	crypto_free_shash(tfm);
 out_free_key:

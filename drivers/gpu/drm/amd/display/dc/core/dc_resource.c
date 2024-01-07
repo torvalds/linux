@@ -5190,6 +5190,9 @@ bool dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy(
 	sec_next = sec_pipe->next_odm_pipe;
 	sec_prev = sec_pipe->prev_odm_pipe;
 
+	if (pri_pipe == NULL)
+		return false;
+
 	*sec_pipe = *pri_pipe;
 
 	sec_pipe->top_pipe = sec_top;

@@ -1710,7 +1710,18 @@ static int smu_disable_dpms(struct smu_context *smu)
 		}
 	}
 
+	/* Notify SMU RLC is going to be off, stop RLC and SMU interaction.
+	 * otherwise SMU will hang while interacting with RLC if RLC is halted
+	 * this is a WA for Vangogh asic which fix the SMU hang issue.
+	 */
+	ret = smu_notify_rlc_state(smu, false);
+	if (ret) {
+		dev_err(adev->dev, "Fail to notify rlc status!\n");
+		return ret;
+	}
+
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 4, 2) &&
+	    !((adev->flags & AMD_IS_APU) && adev->gfx.imu.funcs) &&
 	    !amdgpu_sriov_vf(adev) && adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
 
@@ -2747,7 +2758,7 @@ unlock:
 
 static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 	struct smu_context *smu = handle;
 
 	if (smu->ppt_funcs && smu->ppt_funcs->get_apu_thermal_limit)
@@ -2758,7 +2769,7 @@ static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
 
 static int smu_set_apu_thermal_limit(void *handle, uint32_t limit)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 	struct smu_context *smu = handle;
 
 	if (smu->ppt_funcs && smu->ppt_funcs->set_apu_thermal_limit)

@@ -1312,12 +1312,14 @@ re_check:
 	prev = prev_badblocks(bb, &bad, hint);
 
 	/* start after all badblocks */
-	if ((prev + 1) >= bb->count && !overlap_front(bb, prev, &bad)) {
+	if ((prev >= 0) &&
+	    ((prev + 1) >= bb->count) && !overlap_front(bb, prev, &bad)) {
 		len = sectors;
 		goto update_sectors;
 	}
 
-	if (overlap_front(bb, prev, &bad)) {
+	/* Overlapped with front badblocks record */
+	if ((prev >= 0) && overlap_front(bb, prev, &bad)) {
 		if (BB_ACK(p[prev]))
 			acked_badblocks++;
 		else

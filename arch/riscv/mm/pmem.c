@@ -17,7 +17,7 @@ void arch_wb_cache_pmem(void *addr, size_t size)
 		return;
 	}
 #endif
-	ALT_CMO_OP(clean, addr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(CLEAN, addr, size, riscv_cbom_block_size);
 }
 EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
@@ -29,6 +29,6 @@ void arch_invalidate_pmem(void *addr, size_t size)
 		return;
 	}
 #endif
-	ALT_CMO_OP(inval, addr, size, riscv_cbom_block_size);
+	ALT_CMO_OP(INVAL, addr, size, riscv_cbom_block_size);
 }
 EXPORT_SYMBOL_GPL(arch_invalidate_pmem);

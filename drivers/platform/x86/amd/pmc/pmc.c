@@ -91,16 +91,6 @@
 #define SMU_MSG_LOG_RESET		0x07
 #define SMU_MSG_LOG_DUMP_DATA		0x08
 #define SMU_MSG_GET_SUP_CONSTRAINTS	0x09
-/* List of supported CPU ids */
-#define AMD_CPU_ID_RV			0x15D0
-#define AMD_CPU_ID_RN			0x1630
-#define AMD_CPU_ID_PCO			AMD_CPU_ID_RV
-#define AMD_CPU_ID_CZN			AMD_CPU_ID_RN
-#define AMD_CPU_ID_YC			0x14B5
-#define AMD_CPU_ID_CB			0x14D8
-#define AMD_CPU_ID_PS			0x14E8
-#define AMD_CPU_ID_SP			0x14A4
-#define PCI_DEVICE_ID_AMD_1AH_M20H_ROOT 0x1507
 
 #define PMC_MSG_DELAY_MIN_US		50
 #define RESPONSE_REGISTER_LOOP_MAX	20000
@@ -766,19 +756,22 @@ static int amd_pmc_get_os_hint(struct amd_pmc_dev *dev)
 	return -EINVAL;
 }
 
-static int amd_pmc_czn_wa_irq1(struct amd_pmc_dev *pdev)
+static int amd_pmc_wa_irq1(struct amd_pmc_dev *pdev)
 {
 	struct device *d;
 	int rc;
 
-	if (!pdev->major) {
-		rc = amd_pmc_get_smu_version(pdev);
-		if (rc)
-			return rc;
-	}
+	/* cezanne platform firmware has a fix in 64.66.0 */
+	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
+		if (!pdev->major) {
+			rc = amd_pmc_get_smu_version(pdev);
+			if (rc)
+				return rc;
+		}
 
-	if (pdev->major > 64 || (pdev->major == 64 && pdev->minor > 65))
-		return 0;
+		if (pdev->major > 64 || (pdev->major == 64 && pdev->minor > 65))
+			return 0;
+	}
 
 	d = bus_find_device_by_name(&serio_bus, NULL, "serio0");
 	if (!d)
@@ -937,8 +930,8 @@ static int amd_pmc_suspend_handler(struct device *dev)
 {
 	struct amd_pmc_dev *pdev = dev_get_drvdata(dev);
 
-	if (pdev->cpu_id == AMD_CPU_ID_CZN && !disable_workarounds) {
-		int rc = amd_pmc_czn_wa_irq1(pdev);
+	if (pdev->disable_8042_wakeup && !disable_workarounds) {
+		int rc = amd_pmc_wa_irq1(pdev);
 
 		if (rc) {
 			dev_err(pdev->dev, "failed to adjust keyboard wakeup: %d\n", rc);
@@ -964,33 +957,6 @@ static const struct pci_device_id pmc_pci_ids[] = {
 	{ }
 };
 
-static int amd_pmc_get_dram_size(struct amd_pmc_dev *dev)
-{
-	int ret;
-
-	switch (dev->cpu_id) {
-	case AMD_CPU_ID_YC:
-		if (!(dev->major > 90 || (dev->major == 90 && dev->minor > 39))) {
-			ret = -EINVAL;
-			goto err_dram_size;
-		}
-		break;
-	default:
-		ret = -EINVAL;
-		goto err_dram_size;
-	}
-
-	ret = amd_pmc_send_cmd(dev, S2D_DRAM_SIZE, &dev->dram_size, dev->s2d_msg_id, true);
-	if (ret || !dev->dram_size)
-		goto err_dram_size;
-
-	return 0;
-
-err_dram_size:
-	dev_err(dev->dev, "DRAM size command not supported for this platform\n");
-	return ret;
-}
-
 static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 {
 	u32 phys_addr_low, phys_addr_hi;
@@ -1009,8 +975,8 @@ static int amd_pmc_s2d_init(struct amd_pmc_dev *dev)
 		return -EIO;
 
 	/* Get DRAM size */
-	ret = amd_pmc_get_dram_size(dev);
-	if (ret)
+	ret = amd_pmc_send_cmd(dev, S2D_DRAM_SIZE, &dev->dram_size, dev->s2d_msg_id, true);
+	if (ret || !dev->dram_size)
 		dev->dram_size = S2D_TELEMETRY_DRAMBYTES_MAX;
 
 	/* Get STB DRAM address */

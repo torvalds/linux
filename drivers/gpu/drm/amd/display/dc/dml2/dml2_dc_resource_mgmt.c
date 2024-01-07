@@ -55,10 +55,11 @@ struct dc_pipe_mapping_scratch {
 	struct dc_plane_pipe_pool pipe_pool;
 };
 
-static bool get_plane_id(const struct dc_state *state, const struct dc_plane_state *plane,
-	unsigned int stream_id, unsigned int *plane_id)
+static bool get_plane_id(struct dml2_context *dml2, const struct dc_state *state, const struct dc_plane_state *plane,
+	unsigned int stream_id, unsigned int plane_index, unsigned int *plane_id)
 {
 	int i, j;
+	bool is_plane_duplicate = dml2->v20.scratch.plane_duplicate_exists;
 
 	if (!plane_id)
 		return false;
@@ -66,7 +67,8 @@ static bool get_plane_id(const struct dc_state *state, const struct dc_plane_sta
 	for (i = 0; i < state->stream_count; i++) {
 		if (state->streams[i]->stream_id == stream_id) {
 			for (j = 0; j < state->stream_status[i].plane_count; j++) {
-				if (state->stream_status[i].plane_states[j] == plane) {
+				if (state->stream_status[i].plane_states[j] == plane &&
+					(!is_plane_duplicate || (is_plane_duplicate && (j == plane_index)))) {
 					*plane_id = (i << 16) | j;
 					return true;
 				}
@@ -123,8 +125,9 @@ static struct pipe_ctx *find_master_pipe_of_plane(struct dml2_context *ctx,
 	unsigned int plane_id_assigned_to_pipe;
 
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
-		if (state->res_ctx.pipe_ctx[i].plane_state && get_plane_id(state, state->res_ctx.pipe_ctx[i].plane_state,
-			state->res_ctx.pipe_ctx[i].stream->stream_id, &plane_id_assigned_to_pipe)) {
+		if (state->res_ctx.pipe_ctx[i].plane_state && get_plane_id(ctx, state, state->res_ctx.pipe_ctx[i].plane_state,
+			state->res_ctx.pipe_ctx[i].stream->stream_id,
+			ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_index[state->res_ctx.pipe_ctx[i].pipe_idx], &plane_id_assigned_to_pipe)) {
 			if (plane_id_assigned_to_pipe == plane_id)
 				return &state->res_ctx.pipe_ctx[i];
 		}
@@ -141,8 +144,9 @@ static unsigned int find_pipes_assigned_to_plane(struct dml2_context *ctx,
 	unsigned int plane_id_assigned_to_pipe;
 
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
-		if (state->res_ctx.pipe_ctx[i].plane_state && get_plane_id(state, state->res_ctx.pipe_ctx[i].plane_state,
-			state->res_ctx.pipe_ctx[i].stream->stream_id, &plane_id_assigned_to_pipe)) {
+		if (state->res_ctx.pipe_ctx[i].plane_state && get_plane_id(ctx, state, state->res_ctx.pipe_ctx[i].plane_state,
+			state->res_ctx.pipe_ctx[i].stream->stream_id,
+			ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_index[state->res_ctx.pipe_ctx[i].pipe_idx], &plane_id_assigned_to_pipe)) {
 			if (plane_id_assigned_to_pipe == plane_id)
 				pipes[num_found++] = i;
 		}
@@ -609,6 +613,7 @@ static struct pipe_ctx *assign_pipes_to_plane(struct dml2_context *ctx, struct d
 		const struct dc_plane_state *plane,
 		int odm_factor,
 		int mpc_factor,
+		int plane_index,
 		struct dc_plane_pipe_pool *pipe_pool,
 		const struct dc_state *existing_state)
 {
@@ -620,7 +625,7 @@ static struct pipe_ctx *assign_pipes_to_plane(struct dml2_context *ctx, struct d
 	unsigned int next_pipe_to_assign;
 	int odm_slice, mpc_slice;
 
-	if (!get_plane_id(state, plane, stream->stream_id, &plane_id)) {
+	if (!get_plane_id(ctx, state, plane, stream->stream_id, plane_index, &plane_id)) {
 		ASSERT(false);
 		return master_pipe;
 	}
@@ -667,12 +672,16 @@ static void free_pipe(struct pipe_ctx *pipe)
 }
 
 static void free_unused_pipes_for_plane(struct dml2_context *ctx, struct dc_state *state,
-	const struct dc_plane_state *plane, const struct dc_plane_pipe_pool *pool, unsigned int stream_id)
+	const struct dc_plane_state *plane, const struct dc_plane_pipe_pool *pool, unsigned int stream_id, int plane_index)
 {
 	int i;
+	bool is_plane_duplicate = ctx->v20.scratch.plane_duplicate_exists;
+
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		if (state->res_ctx.pipe_ctx[i].plane_state == plane &&
 			state->res_ctx.pipe_ctx[i].stream->stream_id == stream_id &&
+			(!is_plane_duplicate || (is_plane_duplicate &&
+			ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_index[state->res_ctx.pipe_ctx[i].pipe_idx] == plane_index)) &&
 			!is_pipe_used(pool, state->res_ctx.pipe_ctx[i].pipe_idx)) {
 			free_pipe(&state->res_ctx.pipe_ctx[i]);
 		}
@@ -717,19 +726,20 @@ static void map_pipes_for_stream(struct dml2_context *ctx, struct dc_state *stat
 }
 
 static void map_pipes_for_plane(struct dml2_context *ctx, struct dc_state *state, const struct dc_stream_state *stream, const struct dc_plane_state *plane,
-		struct dc_pipe_mapping_scratch *scratch, const struct dc_state *existing_state)
+		int plane_index, struct dc_pipe_mapping_scratch *scratch, const struct dc_state *existing_state)
 {
 	int odm_slice_index;
 	unsigned int plane_id;
 	struct pipe_ctx *master_pipe = NULL;
 	int i;
 
-	if (!get_plane_id(state, plane, stream->stream_id, &plane_id)) {
+	if (!get_plane_id(ctx, state, plane, stream->stream_id, plane_index, &plane_id)) {
 		ASSERT(false);
 		return;
 	}
 
-	master_pipe = assign_pipes_to_plane(ctx, state, stream, plane, scratch->odm_info.odm_factor, scratch->mpc_info.mpc_factor, &scratch->pipe_pool, existing_state);
+	master_pipe = assign_pipes_to_plane(ctx, state, stream, plane, scratch->odm_info.odm_factor,
+			scratch->mpc_info.mpc_factor, plane_index, &scratch->pipe_pool, existing_state);
 	sort_pipes_for_splitting(&scratch->pipe_pool);
 
 	for (odm_slice_index = 0; odm_slice_index < scratch->odm_info.odm_factor; odm_slice_index++) {
@@ -755,7 +765,7 @@ static void map_pipes_for_plane(struct dml2_context *ctx, struct dc_state *state
 		}
 	}
 
-	free_unused_pipes_for_plane(ctx, state, plane, &scratch->pipe_pool, stream->stream_id);
+	free_unused_pipes_for_plane(ctx, state, plane, &scratch->pipe_pool, stream->stream_id, plane_index);
 }
 
 static unsigned int get_mpc_factor(struct dml2_context *ctx,
@@ -768,7 +778,7 @@ static unsigned int get_mpc_factor(struct dml2_context *ctx,
 	unsigned int plane_id;
 	unsigned int cfg_idx;
 
-	get_plane_id(state, status->plane_states[plane_idx], stream_id, &plane_id);
+	get_plane_id(ctx, state, status->plane_states[plane_idx], stream_id, plane_idx, &plane_id);
 	cfg_idx = find_disp_cfg_idx_by_plane_id(mapping, plane_id);
 	if (ctx->architecture == dml2_architecture_20)
 		return (unsigned int)disp_cfg->hw.DPPPerSurface[cfg_idx];
@@ -911,26 +921,14 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 	unsigned int stream_id;
 
 	const unsigned int *ODMMode, *DPPPerSurface;
-	unsigned int odm_mode_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0}, dpp_per_surface_array[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	struct dc_pipe_mapping_scratch scratch;
 
 	if (ctx->config.map_dc_pipes_with_callbacks)
 		return map_dc_pipes_with_callbacks(
 				ctx, state, disp_cfg, mapping, existing_state);
 
-	if (ctx->architecture == dml2_architecture_21) {
-		/*
-		 * Extract ODM and DPP outputs from DML2.1 and map them in an array as required for pipe mapping in dml2_map_dc_pipes.
-		 * As data cannot be directly extracted in const pointers, assign these arrays to const pointers before proceeding to
-		 * maximize the reuse of existing code. Const pointers are required because dml2.0 dml_display_cfg_st is const.
-		 *
-		 */
-		ODMMode = (const unsigned int *)odm_mode_array;
-		DPPPerSurface = (const unsigned int *)dpp_per_surface_array;
-	} else {
-		ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
-		DPPPerSurface = disp_cfg->hw.DPPPerSurface;
-	}
+	ODMMode = (unsigned int *)disp_cfg->hw.ODMMode;
+	DPPPerSurface = disp_cfg->hw.DPPPerSurface;
 
 	for (stream_index = 0; stream_index < state->stream_count; stream_index++) {
 		memset(&scratch, 0, sizeof(struct dc_pipe_mapping_scratch));
@@ -958,8 +956,8 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 
 		for (plane_index = 0; plane_index < state->stream_status[stream_index].plane_count; plane_index++) {
 			// Planes are ordered top to bottom.
-			if (get_plane_id(state, state->stream_status[stream_index].plane_states[plane_index],
-				stream_id, &plane_id)) {
+			if (get_plane_id(ctx, state, state->stream_status[stream_index].plane_states[plane_index],
+				stream_id, plane_index, &plane_id)) {
 				plane_disp_cfg_index = find_disp_cfg_idx_by_plane_id(mapping, plane_id);
 
 				// Setup mpc_info for this plane
@@ -983,7 +981,8 @@ bool dml2_map_dc_pipes(struct dml2_context *ctx, struct dc_state *state, const s
 				// Clear the pool assignment scratch (which is per plane)
 				memset(&scratch.pipe_pool, 0, sizeof(struct dc_plane_pipe_pool));
 
-				map_pipes_for_plane(ctx, state, state->streams[stream_index], state->stream_status[stream_index].plane_states[plane_index], &scratch, existing_state);
+				map_pipes_for_plane(ctx, state, state->streams[stream_index],
+					state->stream_status[stream_index].plane_states[plane_index], plane_index, &scratch, existing_state);
 			} else {
 				// Plane ID cannot be generated, therefore no DML mapping can be performed.
 				ASSERT(false);

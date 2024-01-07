@@ -38,6 +38,25 @@ struct moving_context {
 	wait_queue_head_t	wait;
 };
 
+#define move_ctxt_wait_event_timeout(_ctxt, _cond, _timeout)			\
+({										\
+	int _ret = 0;								\
+	while (true) {								\
+		bool cond_finished = false;					\
+		bch2_moving_ctxt_do_pending_writes(_ctxt);			\
+										\
+		if (_cond)							\
+			break;							\
+		bch2_trans_unlock_long((_ctxt)->trans);				\
+		_ret = __wait_event_timeout((_ctxt)->wait,			\
+			     bch2_moving_ctxt_next_pending_write(_ctxt) ||	\
+			     (cond_finished = (_cond)), _timeout);		\
+		if (_ret || ( cond_finished))					\
+			break;							\
+	}									\
+	_ret;									\
+})
+
 #define move_ctxt_wait_event(_ctxt, _cond)				\
 do {									\
 	bool cond_finished = false;					\

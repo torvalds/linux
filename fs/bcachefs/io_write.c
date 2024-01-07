@@ -580,9 +580,9 @@ static inline void wp_update_state(struct write_point *wp, bool running)
 	__wp_update_state(wp, state);
 }
 
-static void bch2_write_index(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_write_index)
 {
-	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	closure_type(op, struct bch_write_op, cl);
 	struct write_point *wp = op->wp;
 	struct workqueue_struct *wq = index_update_wq(op);
 	unsigned long flags;
@@ -795,7 +795,7 @@ static int bch2_write_decrypt(struct bch_write_op *op)
 	 * checksum:
 	 */
 	csum = bch2_checksum_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
-	if (bch2_crc_cmp(op->crc.csum, csum))
+	if (bch2_crc_cmp(op->crc.csum, csum) && !c->opts.no_data_io)
 		return -EIO;
 
 	ret = bch2_encrypt_bio(c, op->crc.csum_type, nonce, &op->wbio.bio);
@@ -1208,13 +1208,19 @@ static void __bch2_nocow_write_done(struct bch_write_op *op)
 		bch2_nocow_write_convert_unwritten(op);
 }
 
-static void bch2_nocow_write_done(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_nocow_write_done)
 {
-	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	closure_type(op, struct bch_write_op, cl);
 
 	__bch2_nocow_write_done(op);
 	bch2_write_done(cl);
 }
+
+struct bucket_to_lock {
+	struct bpos		b;
+	unsigned		gen;
+	struct nocow_lock_bucket *l;
+};
 
 static void bch2_nocow_write(struct bch_write_op *op)
 {
@@ -1224,18 +1230,16 @@ static void bch2_nocow_write(struct bch_write_op *op)
 	struct bkey_s_c k;
 	struct bkey_ptrs_c ptrs;
 	const struct bch_extent_ptr *ptr;
-	struct {
-		struct bpos	b;
-		unsigned	gen;
-		struct nocow_lock_bucket *l;
-	} buckets[BCH_REPLICAS_MAX];
-	unsigned nr_buckets = 0;
+	DARRAY_PREALLOCATED(struct bucket_to_lock, 3) buckets;
+	struct bucket_to_lock *i;
 	u32 snapshot;
-	int ret, i;
+	struct bucket_to_lock *stale_at;
+	int ret;
 
 	if (op->flags & BCH_WRITE_MOVE)
 		return;
 
+	darray_init(&buckets);
 	trans = bch2_trans_get(c);
 retry:
 	bch2_trans_begin(trans);
@@ -1250,7 +1254,7 @@ retry:
 	while (1) {
 		struct bio *bio = &op->wbio.bio;
 
-		nr_buckets = 0;
+		buckets.nr = 0;
 
 		k = bch2_btree_iter_peek_slot(&iter);
 		ret = bkey_err(k);
@@ -1263,26 +1267,26 @@ retry:
 			break;
 
 		if (bch2_keylist_realloc(&op->insert_keys,
-					op->inline_keys,
-					ARRAY_SIZE(op->inline_keys),
-					k.k->u64s))
+					 op->inline_keys,
+					 ARRAY_SIZE(op->inline_keys),
+					 k.k->u64s))
 			break;
 
 		/* Get iorefs before dropping btree locks: */
 		ptrs = bch2_bkey_ptrs_c(k);
 		bkey_for_each_ptr(ptrs, ptr) {
-			buckets[nr_buckets].b = PTR_BUCKET_POS(c, ptr);
-			buckets[nr_buckets].gen = ptr->gen;
-			buckets[nr_buckets].l =
-				bucket_nocow_lock(&c->nocow_locks,
-						  bucket_to_u64(buckets[nr_buckets].b));
-
-			prefetch(buckets[nr_buckets].l);
+			struct bpos b = PTR_BUCKET_POS(c, ptr);
+			struct nocow_lock_bucket *l =
+				bucket_nocow_lock(&c->nocow_locks, bucket_to_u64(b));
+			prefetch(l);
 
 			if (unlikely(!bch2_dev_get_ioref(bch_dev_bkey_exists(c, ptr->dev), WRITE)))
 				goto err_get_ioref;
 
-			nr_buckets++;
+			/* XXX allocating memory with btree locks held - rare */
+			darray_push_gfp(&buckets, ((struct bucket_to_lock) {
+						   .b = b, .gen = ptr->gen, .l = l,
+						   }), GFP_KERNEL|__GFP_NOFAIL);
 
 			if (ptr->unwritten)
 				op->flags |= BCH_WRITE_CONVERT_UNWRITTEN;
@@ -1296,21 +1300,21 @@ retry:
 		if (op->flags & BCH_WRITE_CONVERT_UNWRITTEN)
 			bch2_cut_back(POS(op->pos.inode, op->pos.offset + bio_sectors(bio)), op->insert_keys.top);
 
-		for (i = 0; i < nr_buckets; i++) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, buckets[i].b.inode);
-			struct nocow_lock_bucket *l = buckets[i].l;
-			bool stale;
+		darray_for_each(buckets, i) {
+			struct bch_dev *ca = bch_dev_bkey_exists(c, i->b.inode);
 
-			__bch2_bucket_nocow_lock(&c->nocow_locks, l,
-						 bucket_to_u64(buckets[i].b),
+			__bch2_bucket_nocow_lock(&c->nocow_locks, i->l,
+						 bucket_to_u64(i->b),
 						 BUCKET_NOCOW_LOCK_UPDATE);
 
 			rcu_read_lock();
-			stale = gen_after(*bucket_gen(ca, buckets[i].b.offset), buckets[i].gen);
+			bool stale = gen_after(*bucket_gen(ca, i->b.offset), i->gen);
 			rcu_read_unlock();
 
-			if (unlikely(stale))
+			if (unlikely(stale)) {
+				stale_at = i;
 				goto err_bucket_stale;
+			}
 		}
 
 		bio = &op->wbio.bio;
@@ -1346,15 +1350,14 @@ err:
 
 	if (ret) {
 		bch_err_inum_offset_ratelimited(c,
-				op->pos.inode,
-				op->pos.offset << 9,
-				"%s: btree lookup error %s",
-				__func__, bch2_err_str(ret));
+			op->pos.inode, op->pos.offset << 9,
+			"%s: btree lookup error %s", __func__, bch2_err_str(ret));
 		op->error = ret;
 		op->flags |= BCH_WRITE_DONE;
 	}
 
 	bch2_trans_put(trans);
+	darray_exit(&buckets);
 
 	/* fallback to cow write path? */
 	if (!(op->flags & BCH_WRITE_DONE)) {
@@ -1363,7 +1366,7 @@ err:
 		op->insert_keys.top = op->insert_keys.keys;
 	} else if (op->flags & BCH_WRITE_SYNC) {
 		closure_sync(&op->cl);
-		bch2_nocow_write_done(&op->cl);
+		bch2_nocow_write_done(&op->cl.work);
 	} else {
 		/*
 		 * XXX
@@ -1374,24 +1377,21 @@ err:
 	}
 	return;
 err_get_ioref:
-	for (i = 0; i < nr_buckets; i++)
-		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
+	darray_for_each(buckets, i)
+		percpu_ref_put(&bch_dev_bkey_exists(c, i->b.inode)->io_ref);
 
 	/* Fall back to COW path: */
 	goto out;
 err_bucket_stale:
-	while (i >= 0) {
-		bch2_bucket_nocow_unlock(&c->nocow_locks,
-					 buckets[i].b,
-					 BUCKET_NOCOW_LOCK_UPDATE);
-		--i;
+	darray_for_each(buckets, i) {
+		bch2_bucket_nocow_unlock(&c->nocow_locks, i->b, BUCKET_NOCOW_LOCK_UPDATE);
+		if (i == stale_at)
+			break;
 	}
-	for (i = 0; i < nr_buckets; i++)
-		percpu_ref_put(&bch_dev_bkey_exists(c, buckets[i].b.inode)->io_ref);
 
 	/* We can retry this: */
 	ret = -BCH_ERR_transaction_restart;
-	goto out;
+	goto err_get_ioref;
 }
 
 static void __bch2_write(struct bch_write_op *op)
@@ -1566,9 +1566,9 @@ err:
  * If op->discard is true, instead of inserting the data it invalidates the
  * region of the cache represented by op->bio and op->inode.
  */
-void bch2_write(struct closure *cl)
+CLOSURE_CALLBACK(bch2_write)
 {
-	struct bch_write_op *op = container_of(cl, struct bch_write_op, cl);
+	closure_type(op, struct bch_write_op, cl);
 	struct bio *bio = &op->wbio.bio;
 	struct bch_fs *c = op->c;
 	unsigned data_len;

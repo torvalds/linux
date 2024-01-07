@@ -1514,15 +1514,20 @@ static inline int tcp_full_space(const struct sock *sk)
 	return tcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf));
 }
 
-static inline void tcp_adjust_rcv_ssthresh(struct sock *sk)
+static inline void __tcp_adjust_rcv_ssthresh(struct sock *sk, u32 new_ssthresh)
 {
 	int unused_mem = sk_unused_reserved_mem(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 
-	tp->rcv_ssthresh = min(tp->rcv_ssthresh, 4U * tp->advmss);
+	tp->rcv_ssthresh = min(tp->rcv_ssthresh, new_ssthresh);
 	if (unused_mem)
 		tp->rcv_ssthresh = max_t(u32, tp->rcv_ssthresh,
 					 tcp_win_from_space(sk, unused_mem));
+}
+
+static inline void tcp_adjust_rcv_ssthresh(struct sock *sk)
+{
+	__tcp_adjust_rcv_ssthresh(sk, 4U * tcp_sk(sk)->advmss);
 }
 
 void tcp_cleanup_rbuf(struct sock *sk, int copied);
@@ -1783,8 +1788,6 @@ struct tcp_md5sig_key *tcp_v4_md5_lookup(const struct sock *sk,
 					 const struct sock *addr_sk);
 
 #ifdef CONFIG_TCP_MD5SIG
-#include <linux/jump_label.h>
-extern struct static_key_false_deferred tcp_md5_needed;
 struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk, int l3index,
 					   const union tcp_md5_addr *addr,
 					   int family, bool any_l3index);

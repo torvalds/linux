@@ -1297,6 +1297,30 @@ out:
 	return wp;
 }
 
+static noinline void
+deallocate_extra_replicas(struct bch_fs *c,
+			  struct open_buckets *ptrs,
+			  struct open_buckets *ptrs_no_use,
+			  unsigned extra_replicas)
+{
+	struct open_buckets ptrs2 = { 0 };
+	struct open_bucket *ob;
+	unsigned i;
+
+	open_bucket_for_each(c, ptrs, ob, i) {
+		unsigned d = bch_dev_bkey_exists(c, ob->dev)->mi.durability;
+
+		if (d && d <= extra_replicas) {
+			extra_replicas -= d;
+			ob_push(c, ptrs_no_use, ob);
+		} else {
+			ob_push(c, &ptrs2, ob);
+		}
+	}
+
+	*ptrs = ptrs2;
+}
+
 /*
  * Get us an open_bucket we can allocate from, return with it locked:
  */
@@ -1320,6 +1344,9 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 	bool have_cache;
 	int ret;
 	int i;
+
+	if (!IS_ENABLED(CONFIG_BCACHEFS_ERASURE_CODING))
+		erasure_code = false;
 
 	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
 
@@ -1347,8 +1374,17 @@ retry:
 			goto alloc_done;
 
 		/* Don't retry from all devices if we're out of open buckets: */
-		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
-			goto allocate_blocking;
+		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty)) {
+			int ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
+					      target, erasure_code,
+					      nr_replicas, &nr_effective,
+					      &have_cache, watermark,
+					      flags, cl);
+			if (!ret ||
+			    bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+				goto alloc_done;
+		}
 
 		/*
 		 * Only try to allocate cache (durability = 0 devices) from the
@@ -1362,7 +1398,6 @@ retry:
 					      &have_cache, watermark,
 					      flags, cl);
 	} else {
-allocate_blocking:
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
@@ -1381,6 +1416,9 @@ alloc_done:
 
 	if (ret)
 		goto err;
+
+	if (nr_effective > nr_replicas)
+		deallocate_extra_replicas(c, &ptrs, &wp->ptrs, nr_effective - nr_replicas);
 
 	/* Free buckets we didn't use: */
 	open_bucket_for_each(c, &wp->ptrs, ob, i)

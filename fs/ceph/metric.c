@@ -31,6 +31,7 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 	struct ceph_client_metric *m = &mdsc->metric;
 	u64 nr_caps = atomic64_read(&m->total_caps);
 	u32 header_len = sizeof(struct ceph_metric_header);
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_msg *msg;
 	s64 sum;
 	s32 items = 0;
@@ -51,8 +52,8 @@ static bool ceph_mdsc_send_metrics(struct ceph_mds_client *mdsc,
 
 	msg = ceph_msg_new(CEPH_MSG_CLIENT_METRICS, len, GFP_NOFS, true);
 	if (!msg) {
-		pr_err("send metrics to mds%d, failed to allocate message\n",
-		       s->s_mds);
+		pr_err_client(cl, "to mds%d, failed to allocate message\n",
+			      s->s_mds);
 		return false;
 	}
 

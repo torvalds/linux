@@ -9,7 +9,7 @@ title: NXP S32G2 pin controller
 
 maintainers:
   - Ghennadi Procopciuc <Ghennadi.Procopciuc@oss.nxp.com>
-  - Chester Lin <clin@suse.com>
+  - Chester Lin <chester62515@gmail.com>
 
 description: |
   S32G2 pinmux is implemented in SIUL2 (System Integration Unit Lite2),

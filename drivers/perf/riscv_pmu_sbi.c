@@ -22,7 +22,7 @@
 
 #include <asm/errata_list.h>
 #include <asm/sbi.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 
 #define SYSCTL_NO_USER_ACCESS	0
 #define SYSCTL_USER_ACCESS	1
@@ -543,8 +543,7 @@ static void pmu_sbi_ctr_start(struct perf_event *event, u64 ival)
 
 	if ((hwc->flags & PERF_EVENT_FLAG_USER_ACCESS) &&
 	    (hwc->flags & PERF_EVENT_FLAG_USER_READ_CNT))
-		on_each_cpu_mask(mm_cpumask(event->owner->mm),
-				 pmu_sbi_set_scounteren, (void *)event, 1);
+		pmu_sbi_set_scounteren((void *)event);
 }
 
 static void pmu_sbi_ctr_stop(struct perf_event *event, unsigned long flag)
@@ -554,8 +553,7 @@ static void pmu_sbi_ctr_stop(struct perf_event *event, unsigned long flag)
 
 	if ((hwc->flags & PERF_EVENT_FLAG_USER_ACCESS) &&
 	    (hwc->flags & PERF_EVENT_FLAG_USER_READ_CNT))
-		on_each_cpu_mask(mm_cpumask(event->owner->mm),
-				 pmu_sbi_reset_scounteren, (void *)event, 1);
+		pmu_sbi_reset_scounteren((void *)event);
 
 	ret = sbi_ecall(SBI_EXT_PMU, SBI_EXT_PMU_COUNTER_STOP, hwc->idx, 1, flag, 0, 0, 0);
 	if (ret.error && (ret.error != SBI_ERR_ALREADY_STOPPED) &&
@@ -689,6 +687,11 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 
 	/* Firmware counter don't support overflow yet */
 	fidx = find_first_bit(cpu_hw_evt->used_hw_ctrs, RISCV_MAX_COUNTERS);
+	if (fidx == RISCV_MAX_COUNTERS) {
+		csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));
+		return IRQ_NONE;
+	}
+
 	event = cpu_hw_evt->events[fidx];
 	if (!event) {
 		csr_clear(CSR_SIP, BIT(riscv_pmu_irq_num));

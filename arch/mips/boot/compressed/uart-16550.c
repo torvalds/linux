@@ -13,11 +13,6 @@
 #define PORT(offset) (CKSEG1ADDR(UART_BASE) + (offset))
 #endif
 
-#ifdef CONFIG_AR7
-#include <ar7.h>
-#define PORT(offset) (CKSEG1ADDR(AR7_REGS_UART0) + (4 * offset))
-#endif
-
 #ifdef CONFIG_MACH_INGENIC
 #define INGENIC_UART_BASE_ADDR	(0x10030000 + 0x1000 * CONFIG_ZBOOT_INGENIC_UART)
 #define PORT(offset) (CKSEG1ADDR(INGENIC_UART_BASE_ADDR) + (4 * offset))

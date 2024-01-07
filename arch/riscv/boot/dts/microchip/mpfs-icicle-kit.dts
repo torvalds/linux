@@ -8,9 +8,6 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/leds/common.h>
 
-/* Clock frequency (in Hz) of the rtcclk */
-#define RTCCLK_FREQ		1000000
-
 / {
 	model = "Microchip PolarFire-SoC Icicle Kit";
 	compatible = "microchip,mpfs-icicle-reference-rtlv2210", "microchip,mpfs-icicle-kit",
@@ -27,10 +24,6 @@
 
 	chosen {
 		stdout-path = "serial1:115200n8";
-	};
-
-	cpus {
-		timebase-frequency = <RTCCLK_FREQ>;
 	};
 
 	leds {

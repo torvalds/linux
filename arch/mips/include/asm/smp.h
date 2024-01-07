@@ -93,7 +93,7 @@ static inline void __cpu_die(unsigned int cpu)
 extern void __noreturn play_dead(void);
 #endif
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 static inline void kexec_nonboot_cpu(void)
 {
 	extern const struct plat_smp_ops *mp_ops;	/* private */

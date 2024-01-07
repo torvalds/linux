@@ -142,7 +142,8 @@ enum dp_test_link_rate {
 	DP_TEST_LINK_RATE_HBR3		= 0x1E,
 	DP_TEST_LINK_RATE_UHBR10	= 0x01,
 	DP_TEST_LINK_RATE_UHBR20	= 0x02,
-	DP_TEST_LINK_RATE_UHBR13_5	= 0x03,
+	DP_TEST_LINK_RATE_UHBR13_5_LEGACY	= 0x03, /* For backward compatibility*/
+	DP_TEST_LINK_RATE_UHBR13_5	= 0x04,
 };
 
 struct dc_link_settings {

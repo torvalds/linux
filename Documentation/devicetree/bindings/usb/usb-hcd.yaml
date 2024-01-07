@@ -41,7 +41,7 @@ examples:
   - |
     usb {
         phys = <&usb2_phy1>, <&usb3_phy1>;
-        phy-names = "usb";
+        phy-names = "usb2", "usb3";
         #address-cells = <1>;
         #size-cells = <0>;
 

@@ -1416,8 +1416,13 @@ bool kfd_process_xnack_mode(struct kfd_process *p, bool supported)
 		 * per-process XNACK mode selection. But let the dev->noretry
 		 * setting still influence the default XNACK mode.
 		 */
-		if (supported && KFD_SUPPORT_XNACK_PER_PROCESS(dev))
+		if (supported && KFD_SUPPORT_XNACK_PER_PROCESS(dev)) {
+			if (!amdgpu_sriov_xnack_support(dev->kfd->adev)) {
+				pr_debug("SRIOV platform xnack not supported\n");
+				return false;
+			}
 			continue;
+		}
 
 		/* GFXv10 and later GPUs do not support shader preemption
 		 * during page faults. This can lead to poor QoS for queue

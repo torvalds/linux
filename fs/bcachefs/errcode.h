@@ -95,6 +95,7 @@
 	x(ENOSPC,			ENOSPC_sb_members)			\
 	x(ENOSPC,			ENOSPC_sb_members_v2)			\
 	x(ENOSPC,			ENOSPC_sb_crypt)			\
+	x(ENOSPC,			ENOSPC_sb_downgrade)			\
 	x(ENOSPC,			ENOSPC_btree_slot)			\
 	x(ENOSPC,			ENOSPC_snapshot_tree)			\
 	x(ENOENT,			ENOENT_bkey_type_mismatch)		\
@@ -162,7 +163,7 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(0,				restart_recovery)			\
-	x(0,				unwritten_extent_update)		\
+	x(0,				data_update_done)			\
 	x(EINVAL,			device_state_not_allowed)		\
 	x(EINVAL,			member_info_missing)			\
 	x(EINVAL,			mismatched_block_size)			\
@@ -210,6 +211,7 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_replicas)			\
+	x(BCH_ERR_invalid_sb,		invalid_replicas_entry)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal_seq_blacklist)	\
 	x(BCH_ERR_invalid_sb,		invalid_sb_crypt)			\
@@ -217,6 +219,8 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_quota)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_errors)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_opt_compression)		\
+	x(BCH_ERR_invalid_sb,		invalid_sb_ext)				\
+	x(BCH_ERR_invalid_sb,		invalid_sb_downgrade)			\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				btree_node_read_err)			\

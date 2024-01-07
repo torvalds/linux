@@ -249,7 +249,7 @@ static bool journal_entry_want_write(struct journal *j)
 	return ret;
 }
 
-static bool journal_entry_close(struct journal *j)
+bool bch2_journal_entry_close(struct journal *j)
 {
 	bool ret;
 
@@ -321,6 +321,8 @@ static int journal_entry_open(struct journal *j)
 	atomic64_inc(&j->seq);
 	journal_pin_list_init(fifo_push_ref(&j->pin), 1);
 
+	BUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
+
 	BUG_ON(j->buf + (journal_cur_seq(j) & JOURNAL_BUF_MASK) != buf);
 
 	bkey_extent_init(&buf->key);
@@ -381,7 +383,7 @@ static bool journal_quiesced(struct journal *j)
 	bool ret = atomic64_read(&j->seq) == j->seq_ondisk;
 
 	if (!ret)
-		journal_entry_close(j);
+		bch2_journal_entry_close(j);
 	return ret;
 }
 
@@ -434,7 +436,7 @@ retry:
 
 	/*
 	 * Recheck after taking the lock, so we don't race with another thread
-	 * that just did journal_entry_open() and call journal_entry_close()
+	 * that just did journal_entry_open() and call bch2_journal_entry_close()
 	 * unnecessarily
 	 */
 	if (journal_res_get_fast(j, res, flags)) {
@@ -523,36 +525,6 @@ int bch2_journal_res_get_slowpath(struct journal *j, struct journal_res *res,
 	closure_wait_event(&j->async_wait,
 		   (ret = __journal_res_get(j, res, flags)) != -BCH_ERR_journal_res_get_blocked ||
 		   (flags & JOURNAL_RES_GET_NONBLOCK));
-	return ret;
-}
-
-/* journal_preres: */
-
-static bool journal_preres_available(struct journal *j,
-				     struct journal_preres *res,
-				     unsigned new_u64s,
-				     unsigned flags)
-{
-	bool ret = bch2_journal_preres_get_fast(j, res, new_u64s, flags, true);
-
-	if (!ret && mutex_trylock(&j->reclaim_lock)) {
-		bch2_journal_reclaim(j);
-		mutex_unlock(&j->reclaim_lock);
-	}
-
-	return ret;
-}
-
-int __bch2_journal_preres_get(struct journal *j,
-			      struct journal_preres *res,
-			      unsigned new_u64s,
-			      unsigned flags)
-{
-	int ret;
-
-	closure_wait_event(&j->preres_wait,
-		   (ret = bch2_journal_error(j)) ||
-		   journal_preres_available(j, res, new_u64s, flags));
 	return ret;
 }
 
@@ -1069,7 +1041,7 @@ void bch2_fs_journal_stop(struct journal *j)
 	bch2_journal_reclaim_stop(j);
 	bch2_journal_flush_all_pins(j);
 
-	wait_event(j->wait, journal_entry_close(j));
+	wait_event(j->wait, bch2_journal_entry_close(j));
 
 	/*
 	 * Always write a new journal entry, to make sure the clock hands are up
@@ -1306,7 +1278,6 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	prt_printf(out, "last_seq:\t\t%llu\n",		journal_last_seq(j));
 	prt_printf(out, "last_seq_ondisk:\t%llu\n",		j->last_seq_ondisk);
 	prt_printf(out, "flushed_seq_ondisk:\t%llu\n",	j->flushed_seq_ondisk);
-	prt_printf(out, "prereserved:\t\t%u/%u\n",		j->prereserved.reserved, j->prereserved.remaining);
 	prt_printf(out, "watermark:\t\t%s\n",		bch2_watermarks[j->watermark]);
 	prt_printf(out, "each entry reserved:\t%u\n",	j->entry_u64s_reserved);
 	prt_printf(out, "nr flush writes:\t%llu\n",		j->nr_flush_writes);

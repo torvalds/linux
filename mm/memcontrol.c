@@ -2936,7 +2936,8 @@ void mem_cgroup_commit_charge(struct folio *folio, struct mem_cgroup *memcg)
  * Moreover, it should not come from DMA buffer and is not readily
  * reclaimable. So those GFP bits should be masked off.
  */
-#define OBJCGS_CLEAR_MASK	(__GFP_DMA | __GFP_RECLAIMABLE | __GFP_ACCOUNT)
+#define OBJCGS_CLEAR_MASK	(__GFP_DMA | __GFP_RECLAIMABLE | \
+				 __GFP_ACCOUNT | __GFP_NOFAIL)
 
 /*
  * mod_objcg_mlstate() may be called with irq enabled, so
@@ -3165,6 +3166,7 @@ __always_inline struct obj_cgroup *current_obj_cgroup(void)
 	return NULL;
 
 from_memcg:
+	objcg = NULL;
 	for (; !mem_cgroup_is_root(memcg); memcg = parent_mem_cgroup(memcg)) {
 		/*
 		 * Memcg pointer is protected by scope (see set_active_memcg())
@@ -3175,7 +3177,6 @@ from_memcg:
 		objcg = rcu_dereference_check(memcg->objcg, 1);
 		if (likely(objcg))
 			break;
-		objcg = NULL;
 	}
 
 	return objcg;
@@ -7542,6 +7543,17 @@ void mem_cgroup_migrate(struct folio *old, struct folio *new)
 
 	/* Transfer the charge and the css ref */
 	commit_charge(new, memcg);
+	/*
+	 * If the old folio is a large folio and is in the split queue, it needs
+	 * to be removed from the split queue now, in case getting an incorrect
+	 * split queue in destroy_large_folio() after the memcg of the old folio
+	 * is cleared.
+	 *
+	 * In addition, the old folio is about to be freed after migration, so
+	 * removing from the split queue a bit earlier seems reasonable.
+	 */
+	if (folio_test_large(old) && folio_test_large_rmappable(old))
+		folio_undo_large_rmappable(old);
 	old->memcg_data = 0;
 }
 

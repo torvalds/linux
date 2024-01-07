@@ -1855,6 +1855,10 @@ D: Fedora kernel maintenance (2003-2014).
 D: 'Trinity' and similar fuzz testing work.
 D: Misc/Other.
 
+N: Tom Joseph
+E: tjoseph@cadence.com
+D: Cadence PCIe driver
+
 N: Martin Josfsson
 E: gandalf@wlug.westbo.se
 P: 1024D/F6B6D3B1 7610 7CED 5C34 4AA6 DBA2  8BE1 5A6D AF95 F6B6 D3B1
@@ -2125,6 +2129,10 @@ D: Various other kernel patches, cleanups and fixes
 S: 2213 La Terrace Circle
 S: San Jose, CA 95123
 S: USA
+
+N: Mike Kravetz
+E: mike.kravetz@oracle.com
+D: Maintenance and development of the hugetlb subsystem
 
 N: Andreas S. Krebs
 E: akrebs@altavista.net
@@ -2943,6 +2951,14 @@ D: IPX development and support
 
 N: Venkatesh Pallipadi (Venki)
 D: x86/HPET
+
+N: Antti Palosaari
+E: crope@iki.fi
+D: Various DVB drivers
+W: https://palosaari.fi/linux/
+S: Yliopistokatu 1 D 513
+S: FI-90570 Oulu
+S: FINLAND
 
 N: Kyungmin Park
 E: kyungmin.park@samsung.com

@@ -314,16 +314,13 @@ int adl_core_init(struct pmc_dev *pmcdev)
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
+	pmcdev->suspend = cnl_suspend;
+	pmcdev->resume = cnl_resume;
+
 	pmc->map = &adl_reg_map;
 	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
-
-	/* Due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
 
 	return 0;
 }

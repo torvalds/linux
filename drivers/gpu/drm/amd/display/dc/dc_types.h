@@ -177,6 +177,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
+	unsigned int remove_sink_ext_caps;
 };
 
 struct dc_edid_caps {
@@ -990,10 +991,6 @@ struct link_mst_stream_allocation_table {
 	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
 };
 
-struct backlight_settings {
-	uint32_t backlight_millinits;
-};
-
 /* PSR feature flags */
 struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
@@ -1037,7 +1034,9 @@ struct replay_config {
 	bool replay_smu_opt_supported;                  // SMU optimization is supported
 	unsigned int replay_enable_option;              // Replay enablement option
 	uint32_t debug_flags;                           // Replay debug flags
-	bool replay_timing_sync_supported;             // Replay desync is supported
+	bool replay_timing_sync_supported; // Replay desync is supported
+	bool force_disable_desync_error_check;             // Replay desync is supported
+	bool received_desync_error_hpd; //Replay Received Desync Error HPD.
 	union replay_error_status replay_error_status; // Replay error status
 };
 
