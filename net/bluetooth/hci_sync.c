@@ -5403,27 +5403,33 @@ static int hci_power_off_sync(struct hci_dev *hdev)
 	if (!test_bit(HCI_UP, &hdev->flags))
 		return 0;
 
+	hci_dev_set_flag(hdev, HCI_POWERING_DOWN);
+
 	if (test_bit(HCI_ISCAN, &hdev->flags) ||
 	    test_bit(HCI_PSCAN, &hdev->flags)) {
 		err = hci_write_scan_enable_sync(hdev, 0x00);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = hci_clear_adv_sync(hdev, NULL, false);
 	if (err)
-		return err;
+		goto out;
 
 	err = hci_stop_discovery_sync(hdev);
 	if (err)
-		return err;
+		goto out;
 
 	/* Terminated due to Power Off */
 	err = hci_disconnect_all_sync(hdev, HCI_ERROR_REMOTE_POWER_OFF);
 	if (err)
-		return err;
+		goto out;
 
-	return hci_dev_close_sync(hdev);
+	err = hci_dev_close_sync(hdev);
+
+out:
+	hci_dev_clear_flag(hdev, HCI_POWERING_DOWN);
+	return err;
 }
 
 int hci_set_powered_sync(struct hci_dev *hdev, u8 val)
