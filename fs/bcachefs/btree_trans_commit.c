@@ -448,9 +448,6 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 	if (unlikely(flags & BTREE_TRIGGER_NORUN))
 		return 0;
 
-	if (!btree_node_type_needs_gc(__btree_node_type(i->level, i->btree_id)))
-		return 0;
-
 	if (old_ops->trigger == new_ops->trigger) {
 		ret   = bch2_key_trigger(trans, i->btree_id, i->level,
 				old, bkey_i_to_s(new),
@@ -586,9 +583,6 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 
 static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 {
-	struct bch_fs *c = trans->c;
-	int ret = 0;
-
 	trans_for_each_update(trans, i) {
 		/*
 		 * XXX: synchronization of cached update triggers with gc
@@ -596,14 +590,15 @@ static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 		 */
 		BUG_ON(i->cached || i->level);
 
-		if (gc_visited(c, gc_pos_btree_node(insert_l(trans, i)->b))) {
-			ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_GC);
+		if (btree_node_type_needs_gc(__btree_node_type(i->level, i->btree_id)) &&
+		    gc_visited(trans->c, gc_pos_btree_node(insert_l(trans, i)->b))) {
+			int ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_GC);
 			if (ret)
-				break;
+				return ret;
 		}
 	}
 
-	return ret;
+	return 0;
 }
 
 static inline int
@@ -689,8 +684,8 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 	}
 
 	trans_for_each_update(trans, i)
-		if (BTREE_NODE_TYPE_HAS_MEM_TRIGGERS & (1U << i->bkey_type)) {
-			ret = run_one_mem_trigger(trans, i, i->flags);
+		if (BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS & (1U << i->bkey_type)) {
+			ret = run_one_mem_trigger(trans, i, BTREE_TRIGGER_ATOMIC|i->flags);
 			if (ret)
 				goto fatal_err;
 		}

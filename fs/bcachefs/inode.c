@@ -587,7 +587,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		}
 	}
 
-	if (!(flags & BTREE_TRIGGER_TRANSACTIONAL) && (flags & BTREE_TRIGGER_INSERT)) {
+	if ((flags & BTREE_TRIGGER_ATOMIC) && (flags & BTREE_TRIGGER_INSERT)) {
 		BUG_ON(!trans->journal_res.seq);
 
 		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);

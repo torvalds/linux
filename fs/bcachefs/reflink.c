@@ -292,10 +292,10 @@ static inline void check_indirect_extent_deleting(struct bkey_s new, unsigned *f
 	}
 }
 
-int bch2_trans_mark_reflink_v(struct btree_trans *trans,
-			      enum btree_id btree_id, unsigned level,
-			      struct bkey_s_c old, struct bkey_s new,
-			      unsigned flags)
+int bch2_trigger_reflink_v(struct btree_trans *trans,
+			   enum btree_id btree_id, unsigned level,
+			   struct bkey_s_c old, struct bkey_s new,
+			   unsigned flags)
 {
 	if ((flags & BTREE_TRIGGER_TRANSACTIONAL) &&
 	    (flags & BTREE_TRIGGER_INSERT))
@@ -324,7 +324,7 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 	       min(datalen, 32U), d.v->data);
 }
 
-int bch2_trans_mark_indirect_inline_data(struct btree_trans *trans,
+int bch2_trigger_indirect_inline_data(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old, struct bkey_s new,
 			      unsigned flags)

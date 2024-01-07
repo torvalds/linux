@@ -367,7 +367,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		}
 	}
 
-	if (!(flags & (BTREE_TRIGGER_TRANSACTIONAL|BTREE_TRIGGER_GC))) {
+	if (flags & BTREE_TRIGGER_ATOMIC) {
 		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
 		if (!m) {
