@@ -2425,9 +2425,9 @@ static enum blk_eh_timer_return nvme_tcp_timeout(struct request *rq)
 	int qid = nvme_tcp_queue_id(req->queue);
 
 	dev_warn(ctrl->device,
-		"queue %d: timeout cid %#x type %d opcode %#x (%s)\n",
-		nvme_tcp_queue_id(req->queue), nvme_cid(rq), pdu->hdr.type,
-		opc, nvme_opcode_str(qid, opc, fctype));
+		 "I/O tag %d (%04x) type %d opcode %#x (%s) QID %d timeout\n",
+		 rq->tag, nvme_cid(rq), pdu->hdr.type, opc,
+		 nvme_opcode_str(qid, opc, fctype), qid);
 
 	if (ctrl->state != NVME_CTRL_LIVE) {
 		/*
