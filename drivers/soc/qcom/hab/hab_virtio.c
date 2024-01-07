@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/virtio.h>
@@ -889,7 +889,8 @@ static struct page *cma_pgs;
 int hab_hypervisor_register(void)
 {
 #ifdef HAB_DESKTOP
-	c = dev_get_cma_area(hab_driver.dev);
+	/* Just need a device for memory allocation */
+	c = dev_get_cma_area(hab_driver.dev[0]);
 	cma_pgs = cma_alloc(c, (16 * 1024 * 1024) >> PAGE_SHIFT, 0
 	, false
 	); /* better from cmdline parsing */

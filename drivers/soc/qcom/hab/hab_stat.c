@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
@@ -93,11 +93,12 @@ int hab_stat_show_ctx(struct hab_driver *driver,
 					driver->ctx_cnt);
 	list_for_each_entry(ctx, &hab_driver.uctx_list, node) {
 		ret = hab_stat_buffer_print(buf, size,
-		"ctx %d K %d close %d vc %d exp %d imp %d open %d ref %d\n",
+		"ctx %d K %d close %d vc %d exp %d imp %d open %d ref %d grp %s\n",
 			ctx->owner, ctx->kernel, ctx->closing,
 			ctx->vcnt, ctx->export_total,
 			ctx->import_total, ctx->pending_cnt,
-			get_refcnt(ctx->refcount));
+			get_refcnt(ctx->refcount),
+			ctx->kernel ? "" : HAB_MMID_MAP_NODE(ctx->mmid_grp_index * 100));
 	}
 	spin_unlock_bh(&hab_driver.drvlock);
 
@@ -208,7 +209,6 @@ int hab_stat_show_expimp(struct hab_driver *driver,
 						break;
 				}
 			}
-			break;
 		}
 	}
 	spin_unlock_bh(&hab_driver.drvlock);
@@ -322,6 +322,6 @@ void dump_hab(int mmid)
 			dump_hab_buf(str, 8); /* separator */
 		}
 	}
-	dev_coredumpv(hab_driver.dev, filp, pipedump_idx, GFP_KERNEL);
+	dev_coredumpv(hab_driver.dev[mmid / 100], filp, pipedump_idx, GFP_KERNEL);
 	dump_hab_close();
 }

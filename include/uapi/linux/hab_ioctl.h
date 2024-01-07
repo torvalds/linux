@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2016-2018, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _HAB_IOCTL_H
 #define _HAB_IOCTL_H
@@ -106,5 +106,68 @@ struct vhost_hab_config {
 
 #define IOCTL_HAB_VC_QUERY \
 	_IOWR(HAB_IOC_TYPE, 0xA, struct hab_info)
+
+#define HAB_MMID_MAP_NODE(mmid) ( \
+{\
+		const char *__mptr = NULL;\
+		int __mmid = (mmid) / 100;\
+		switch (__mmid) {\
+		case 0:\
+			__mptr = "hab";\
+			break;\
+		case 1:\
+			__mptr = "hab-aud";\
+			break;\
+		case 2:\
+			__mptr = "hab-cam";\
+			break;\
+		case 3:\
+			__mptr = "hab-disp";\
+			break;\
+		case 4:\
+			__mptr = "hab-ogles";\
+			break;\
+		case 5:\
+			__mptr = "hab-vid";\
+			break;\
+		case 6:\
+			__mptr = "hab-misc";\
+			break;\
+		case 7:\
+			__mptr = "hab-qcpe";\
+			break;\
+		case 8:\
+			__mptr = "hab-clock";\
+			break;\
+		case 9:\
+			__mptr = "hab-fde";\
+			break;\
+		case 10:\
+			__mptr = "hab-bufferq";\
+			break;\
+		case 11:\
+			__mptr = "hab-network";\
+			break;\
+		case 12:\
+			__mptr = "hab-hsi2s";\
+			break;\
+		case 13:\
+			__mptr = "hab-xvm";\
+			break;\
+		case 14:\
+			__mptr = "hab-vnw";\
+			break;\
+		case 15:\
+			__mptr = "hab-ext";\
+			break;\
+		case 16:\
+			__mptr = "hab-gpce";\
+			break;\
+		default:\
+			__mptr = NULL;\
+		} \
+		__mptr;\
+} \
+)
 
 #endif /* _HAB_IOCTL_H */

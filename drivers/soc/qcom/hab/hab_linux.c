@@ -59,6 +59,8 @@ static int hab_open(struct inode *inodep, struct file *filep)
 	}
 
 	ctx->owner = task_pid_nr(current);
+	ctx->mmid_grp_index = MINOR(inodep->i_rdev);
+
 	filep->private_data = ctx;
 	pr_debug("ctx owner %d refcnt %d\n", ctx->owner,
 			get_refcnt(ctx->refcount));
@@ -175,6 +177,7 @@ static long hab_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	unsigned char data[256] = { 0 };
 	long ret = 0;
 	char names[30] = { 0 };
+	int mmid_grp_index = ctx->mmid_grp_index;
 
 	if (_IOC_SIZE(cmd) && (cmd & IOC_IN)) {
 		if (_IOC_SIZE(cmd) > sizeof(data))
@@ -190,6 +193,18 @@ static long hab_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case IOCTL_HAB_VC_OPEN:
 		open_param = (struct hab_open *)data;
+		/*
+		 * each hab group node(/dev/hab-*) only serves mmid(s) of the corresponding group
+		 * but the super node /dev/hab(mmid_grp_index is 0) serves all mmids.
+		 */
+		if (mmid_grp_index &&
+			(mmid_grp_index != (HAB_MMID_GET_MAJOR(open_param->mmid) / 100))) {
+			pr_err("current node is %s, not for mmid %d (major %d)\n",
+				HAB_MMID_MAP_NODE(mmid_grp_index * 100),
+				open_param->mmid,
+				HAB_MMID_GET_MAJOR(open_param->mmid));
+			return -EINVAL;
+		}
 		ret = hab_vchan_open(ctx, open_param->mmid,
 			&open_param->vcid,
 			open_param->timeout,
@@ -384,48 +399,91 @@ static void reclaim_cleanup(struct work_struct *reclaim_work)
 	}
 }
 
+/* create one more char device for /dev/hab */
+#define CDEV_NUM_MAX (MM_ID_MAX / 100 + 1)
+
+int hab_create_cdev_node(int mmid_grp_index)
+{
+	int result;
+	const char *node_name;
+	dev_t dev_no;
+
+	node_name = HAB_MMID_MAP_NODE(mmid_grp_index * 100);
+	if (!node_name) {
+		pr_err("err hab group id %d\n", mmid_grp_index);
+		return -ENOENT;
+	}
+
+	cdev_init(&(hab_driver.cdev[mmid_grp_index]), &hab_fops);
+	hab_driver.cdev[mmid_grp_index].owner = THIS_MODULE;
+
+	dev_no = MKDEV(hab_driver.major, mmid_grp_index);
+
+	result = cdev_add(&(hab_driver.cdev[mmid_grp_index]), dev_no, 1);
+	if (result) {
+		pr_err("cdev_add failed: %d\n", result);
+		return result;
+	}
+
+	hab_driver.dev[mmid_grp_index] = device_create(hab_driver.class, NULL,
+					dev_no, &hab_driver, node_name);
+
+	if (IS_ERR_OR_NULL(hab_driver.dev[mmid_grp_index])) {
+		result = PTR_ERR(hab_driver.dev[mmid_grp_index]);
+		pr_err("mmid_grp_index %d device_create %s failed: %d\n",
+				mmid_grp_index, node_name, result);
+		cdev_del(&hab_driver.cdev[mmid_grp_index]);
+		hab_driver.dev[mmid_grp_index] = NULL;
+		return result;
+	}
+
+	/* First, try to configure system dma_ops */
+	result = dma_coerce_mask_and_coherent(
+			hab_driver.dev[mmid_grp_index],
+			DMA_BIT_MASK(64));
+	/* System dma_ops failed, fallback to dma_ops of hab */
+	if (result) {
+		pr_warn("config system dma_ops failed %d, fallback to hab\n",
+				result);
+		hab_driver.dev[mmid_grp_index]->bus = NULL;
+		set_dma_ops(hab_driver.dev[mmid_grp_index], &hab_dma_ops);
+	}
+
+	pr_debug("create char device for /dev/%s successful\n", node_name);
+	return 0;
+}
+
 static int __init hab_init(void)
 {
 	int result;
-	dev_t dev;
+	dev_t dev_no;
 
 	pr_debug("init start, ver %X\n", HAB_API_VER);
 
-	result = alloc_chrdev_region(&hab_driver.major, 0, 1, "hab");
+	/* prepare resources for creating hab char devices */
+	result = alloc_chrdev_region(&dev_no, 0, CDEV_NUM_MAX, "habdev");
 
 	if (result < 0) {
 		pr_err("alloc_chrdev_region failed: %d\n", result);
 		return result;
 	}
 
-	cdev_init(&hab_driver.cdev, &hab_fops);
-	hab_driver.cdev.owner = THIS_MODULE;
-	hab_driver.cdev.ops = &hab_fops;
-	dev = MKDEV(MAJOR(hab_driver.major), 0);
+	hab_driver.major = MAJOR(dev_no);
 
-	result = cdev_add(&hab_driver.cdev, dev, 1);
+	hab_driver.dev = kzalloc(sizeof(struct device *) * CDEV_NUM_MAX, GFP_KERNEL);
+	if (!hab_driver.dev)
+		goto dev_alloc_fail;
 
-	if (result < 0) {
-		unregister_chrdev_region(dev, 1);
-		pr_err("cdev_add failed: %d\n", result);
-		return result;
-	}
+	hab_driver.cdev = kzalloc(sizeof(struct cdev) * CDEV_NUM_MAX, GFP_KERNEL);
+	if (!hab_driver.cdev)
+		goto cdev_alloc_fail;
 
-	hab_driver.class = class_create(THIS_MODULE, "hab");
+	hab_driver.class = class_create(THIS_MODULE, "habdev");
 
 	if (IS_ERR(hab_driver.class)) {
 		result = PTR_ERR(hab_driver.class);
 		pr_err("class_create failed: %d\n", result);
-		goto err;
-	}
-
-	hab_driver.dev = device_create(hab_driver.class, NULL,
-					dev, &hab_driver, "hab");
-
-	if (IS_ERR(hab_driver.dev)) {
-		result = PTR_ERR(hab_driver.dev);
-		pr_err("device_create failed: %d\n", result);
-		goto err;
+		goto err_class_create;
 	}
 
 	result = register_reboot_notifier(&hab_reboot_notifier);
@@ -438,27 +496,20 @@ static int __init hab_init(void)
 	result = do_hab_parse();
 
 	if (result)
-		goto err;
+		goto err_hab_parse;
 
 	hab_driver.kctx = hab_ctx_alloc(1);
 	if (!hab_driver.kctx) {
 		pr_err("hab_ctx_alloc failed\n");
 		result = -ENOMEM;
-		hab_hypervisor_unregister();
-		goto err;
+		goto err_hab_parse;
 	}
-	/* First, try to configure system dma_ops */
-	result = dma_coerce_mask_and_coherent(
-			hab_driver.dev,
-			DMA_BIT_MASK(64));
 
-	/* System dma_ops failed, fallback to dma_ops of hab */
-	if (result) {
-		pr_warn("config system dma_ops failed %d, fallback to hab\n",
-				result);
-		hab_driver.dev->bus = NULL;
-		set_dma_ops(hab_driver.dev, &hab_dma_ops);
-	}
+	/* create the super char device node /dev/hab */
+	result = hab_create_cdev_node(0);
+	if (result)
+		goto err;
+
 	hab_hypervisor_register_post();
 	hab_stat_init(&hab_driver);
 
@@ -469,12 +520,16 @@ static int __init hab_init(void)
 	return 0;
 
 err:
-	if (!IS_ERR_OR_NULL(hab_driver.dev))
-		device_destroy(hab_driver.class, dev);
+	hab_ctx_put(hab_driver.kctx);
+err_hab_parse:
 	if (!IS_ERR_OR_NULL(hab_driver.class))
 		class_destroy(hab_driver.class);
-	cdev_del(&hab_driver.cdev);
-	unregister_chrdev_region(dev, 1);
+err_class_create:
+	kfree(hab_driver.cdev);
+cdev_alloc_fail:
+	kfree(hab_driver.dev);
+dev_alloc_fail:
+	unregister_chrdev_region(hab_driver.major, CDEV_NUM_MAX);
 
 	pr_err("Error in hab init, result %d\n", result);
 	return result;
@@ -482,16 +537,20 @@ err:
 
 static void __exit hab_exit(void)
 {
-	dev_t dev;
+	int i;
 
 	hab_hypervisor_unregister();
 	hab_stat_deinit(&hab_driver);
 	hab_ctx_put(hab_driver.kctx);
-	dev = MKDEV(MAJOR(hab_driver.major), 0);
-	device_destroy(hab_driver.class, dev);
+	for (i = 0; i < CDEV_NUM_MAX; i++) {
+		if (!IS_ERR_OR_NULL(hab_driver.dev[i])) {
+			device_destroy(hab_driver.class, MKDEV(hab_driver.major, i));
+			cdev_del(&hab_driver.cdev[i]);
+		}
+	}
 	class_destroy(hab_driver.class);
-	cdev_del(&hab_driver.cdev);
-	unregister_chrdev_region(dev, 1);
+	unregister_chrdev_region(hab_driver.major, CDEV_NUM_MAX);
+
 	unregister_reboot_notifier(&hab_reboot_notifier);
 	pr_debug("hab exit called\n");
 }

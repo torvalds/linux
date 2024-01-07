@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include <linux/rtc.h>
@@ -330,7 +330,6 @@ static ssize_t expimp_store(struct kobject *kobj, struct kobj_attribute *attr,
 					struct virtual_channel, node);
 				if (vchan) {
 					dump_hab_wq(vchan->pchan); /* user context */
-					break;
 				}
 			}
 		}
