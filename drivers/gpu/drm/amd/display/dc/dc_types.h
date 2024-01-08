@@ -1034,6 +1034,7 @@ enum replay_FW_Message_type {
 	Replay_Msg_Not_Support = -1,
 	Replay_Set_Timing_Sync_Supported,
 	Replay_Set_Residency_Frameupdate_Timer,
+	Replay_Set_Pseudo_VTotal,
 };
 
 union replay_error_status {
@@ -1089,6 +1090,10 @@ struct replay_settings {
 	uint16_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
 	/* Maximum link off frame count */
 	enum replay_link_off_frame_count_level link_off_frame_count_level;
+	/* Replay pseudo vtotal for abm + ips on full screen video which can improve ips residency */
+	uint16_t abm_with_ips_on_full_screen_video_pseudo_vtotal;
+	/* Replay last pseudo vtotal set to DMUB */
+	uint16_t last_pseudo_vtotal;
 };
 
 /* To split out "global" and "per-panel" config settings.
