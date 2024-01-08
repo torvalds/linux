@@ -903,7 +903,8 @@ static int ast2700_i3c_target_bus_init(struct i3c_master_controller *m)
 	reg = ast_inhouse_read(ASPEED_I3C_SLV_CAP_CTRL);
 	/* Make slave will sned the ibi when bus idle */
 	ast_inhouse_write(ASPEED_I3C_SLV_CAP_CTRL,
-			  reg | ASPEED_I3C_SLV_CAP_CTRL_IBI_WAIT);
+			  reg | ASPEED_I3C_SLV_CAP_CTRL_IBI_WAIT |
+				  ASPEED_I3C_SLV_CAP_CTRL_HJ_WAIT);
 
 	ast_inhouse_write(ASPEED_I3C_CTRL,
 			  ASPEED_I3C_CTRL_INIT |
@@ -996,6 +997,37 @@ static int ast2700_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *d
 	return 0;
 }
 
+static int ast2700_i3c_target_hj_req(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct i3c_hci *hci = to_i3c_hci(m);
+	u32 reg;
+	int ret;
+
+	DBG("");
+
+	reg = ast_inhouse_read(ASPEED_I3C_STS);
+	if ((reg & ASPEED_I3C_STS_SLV_DYNAMIC_ADDRESS_VALID))
+		return -EINVAL;
+
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
+	if (!(reg & ASPEED_I3C_SLV_STS1_HJ_EN))
+		return -EINVAL;
+
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_CAP_CTRL);
+	ast_inhouse_write(ASPEED_I3C_SLV_CAP_CTRL,
+			  reg | ASPEED_I3C_SLV_CAP_CTRL_HJ_REQ);
+	ret = readx_poll_timeout(ast_inhouse_read, ASPEED_I3C_SLV_CAP_CTRL, reg,
+				 !(reg & ASPEED_I3C_SLV_CAP_CTRL_HJ_REQ), 0,
+				 1000000);
+	if (ret) {
+		pr_warn("timeout waiting for completion\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int
 ast2700_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
 				       struct i3c_priv_xfer *pending_read,
@@ -1029,13 +1061,25 @@ static bool ast2700_i3c_target_is_ibi_enabled(struct i3c_dev_desc *dev)
 	return !!(reg & ASPEED_I3C_SLV_STS1_IBI_EN);
 }
 
+static bool ast2700_i3c_target_is_hj_enabled(struct i3c_dev_desc *dev)
+{
+	struct i3c_master_controller *m = i3c_dev_get_master(dev);
+	struct i3c_hci *hci = to_i3c_hci(m);
+	u32 reg;
+
+	reg = ast_inhouse_read(ASPEED_I3C_SLV_STS1);
+	return !!(reg & ASPEED_I3C_SLV_STS1_HJ_EN);
+}
+
 static const struct i3c_target_ops ast2700_i3c_target_ops = {
 	.bus_init = ast2700_i3c_target_bus_init,
 	.bus_cleanup = ast2700_i3c_target_bus_cleanup,
+	.hj_req = ast2700_i3c_target_hj_req,
 	.priv_xfers = ast2700_i3c_target_priv_xfers,
 	.generate_ibi = ast2700_i3c_target_generate_ibi,
 	.pending_read_notify = ast2700_i3c_target_pending_read_notify,
 	.is_ibi_enabled = ast2700_i3c_target_is_ibi_enabled,
+	.is_hj_enabled = ast2700_i3c_target_is_hj_enabled,
 };
 
 static irqreturn_t i3c_hci_irq_handler(int irq, void *dev_id)
