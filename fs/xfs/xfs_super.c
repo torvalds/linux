@@ -366,8 +366,9 @@ xfs_blkdev_get(
 {
 	int			error = 0;
 
-	*handlep = bdev_open_by_path(name, BLK_OPEN_READ | BLK_OPEN_WRITE,
-				     mp->m_super, &fs_holder_ops);
+	*handlep = bdev_open_by_path(name,
+		BLK_OPEN_READ | BLK_OPEN_WRITE | BLK_OPEN_RESTRICT_WRITES,
+		mp->m_super, &fs_holder_ops);
 	if (IS_ERR(*handlep)) {
 		error = PTR_ERR(*handlep);
 		*handlep = NULL;
@@ -439,18 +440,12 @@ xfs_open_devices(
 	int			error;
 
 	/*
-	 * blkdev_put() can't be called under s_umount, see the comment
-	 * in get_tree_bdev() for more details
-	 */
-	up_write(&sb->s_umount);
-
-	/*
 	 * Open real time and log devices - order is important.
 	 */
 	if (mp->m_logname) {
 		error = xfs_blkdev_get(mp, mp->m_logname, &logdev_handle);
 		if (error)
-			goto out_relock;
+			return error;
 	}
 
 	if (mp->m_rtname) {
@@ -493,10 +488,7 @@ xfs_open_devices(
 			bdev_release(logdev_handle);
 	}
 
-	error = 0;
-out_relock:
-	down_write(&sb->s_umount);
-	return error;
+	return 0;
 
  out_free_rtdev_targ:
 	if (mp->m_rtdev_targp)
@@ -509,7 +501,7 @@ out_relock:
  out_close_logdev:
 	if (logdev_handle)
 		bdev_release(logdev_handle);
-	goto out_relock;
+	return error;
 }
 
 /*
@@ -759,10 +751,6 @@ static void
 xfs_mount_free(
 	struct xfs_mount	*mp)
 {
-	/*
-	 * Free the buftargs here because blkdev_put needs to be called outside
-	 * of sb->s_umount, which is held around the call to ->put_super.
-	 */
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_free_buftarg(mp->m_logdev_targp);
 	if (mp->m_rtdev_targp)
