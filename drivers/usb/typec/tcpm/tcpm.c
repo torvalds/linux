@@ -1556,7 +1556,7 @@ static void tcpm_queue_vdm(struct tcpm_port *port, const u32 header,
 }
 
 static void tcpm_queue_vdm_unlocked(struct tcpm_port *port, const u32 header,
-				    const u32 *data, int cnt)
+				    const u32 *data, int cnt, enum tcpm_transmit_type tx_sop_type)
 {
 	mutex_lock(&port->lock);
 	tcpm_queue_vdm(port, header, data, cnt, TCPC_TX_SOP);
@@ -2144,14 +2144,28 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 			}
 			break;
 		case CMD_ENTER_MODE:
-			if (adev && pdev)
-				*adev_action = ADEV_QUEUE_VDM_SEND_EXIT_MODE_ON_FAIL;
+			*response_tx_sop_type = rx_sop_type;
+			if (rx_sop_type == TCPC_TX_SOP) {
+				if (adev && pdev) {
+					typec_altmode_update_active(pdev, true);
+					*adev_action = ADEV_QUEUE_VDM_SEND_EXIT_MODE_ON_FAIL;
+				}
+			} else if (rx_sop_type == TCPC_TX_SOP_PRIME) {
+				if (adev && pdev_prime) {
+					typec_altmode_update_active(pdev_prime, true);
+					*adev_action = ADEV_QUEUE_VDM_SEND_EXIT_MODE_ON_FAIL;
+				}
+			}
 			return 0;
 		case CMD_EXIT_MODE:
-			if (adev && pdev) {
-				/* Back to USB Operation */
-				*adev_action = ADEV_NOTIFY_USB_AND_QUEUE_VDM;
-				return 0;
+			*response_tx_sop_type = rx_sop_type;
+			if (rx_sop_type == TCPC_TX_SOP) {
+				if (adev && pdev) {
+					typec_altmode_update_active(pdev, false);
+					/* Back to USB Operation */
+					*adev_action = ADEV_NOTIFY_USB_AND_QUEUE_VDM;
+					return 0;
+				}
 			}
 			break;
 		case VDO_CMD_VENDOR(0) ... VDO_CMD_VENDOR(15):
@@ -2284,19 +2298,37 @@ static void tcpm_handle_vdm_request(struct tcpm_port *port,
 			typec_altmode_vdm(adev, p[0], &p[1], cnt);
 			break;
 		case ADEV_QUEUE_VDM:
-			typec_altmode_vdm(adev, p[0], &p[1], cnt);
+			if (response_tx_sop_type == TCPC_TX_SOP_PRIME)
+				typec_cable_altmode_vdm(adev, TYPEC_PLUG_SOP_P, p[0], &p[1], cnt);
+			else
+				typec_altmode_vdm(adev, p[0], &p[1], cnt);
 			break;
 		case ADEV_QUEUE_VDM_SEND_EXIT_MODE_ON_FAIL:
-			if (typec_altmode_vdm(adev, p[0], &p[1], cnt)) {
-				int svdm_version = typec_get_negotiated_svdm_version(
-									port->typec_port);
-				if (svdm_version < 0)
-					break;
+			if (response_tx_sop_type == TCPC_TX_SOP_PRIME) {
+				if (typec_cable_altmode_vdm(adev, TYPEC_PLUG_SOP_P,
+							    p[0], &p[1], cnt)) {
+					int svdm_version = typec_get_cable_svdm_version(
+										port->typec_port);
+					if (svdm_version < 0)
+						break;
 
-				response[0] = VDO(adev->svid, 1, svdm_version,
-						  CMD_EXIT_MODE);
-				response[0] |= VDO_OPOS(adev->mode);
-				rlen = 1;
+					response[0] = VDO(adev->svid, 1, svdm_version,
+							CMD_EXIT_MODE);
+					response[0] |= VDO_OPOS(adev->mode);
+					rlen = 1;
+				}
+			} else {
+				if (typec_altmode_vdm(adev, p[0], &p[1], cnt)) {
+					int svdm_version = typec_get_negotiated_svdm_version(
+										port->typec_port);
+					if (svdm_version < 0)
+						break;
+
+					response[0] = VDO(adev->svid, 1, svdm_version,
+							CMD_EXIT_MODE);
+					response[0] |= VDO_OPOS(adev->mode);
+					rlen = 1;
+				}
 			}
 			break;
 		case ADEV_ATTENTION:
@@ -2731,7 +2763,7 @@ static int tcpm_altmode_enter(struct typec_altmode *altmode, u32 *vdo)
 	header = VDO(altmode->svid, vdo ? 2 : 1, svdm_version, CMD_ENTER_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
-	tcpm_queue_vdm_unlocked(port, header, vdo, vdo ? 1 : 0);
+	tcpm_queue_vdm_unlocked(port, header, vdo, vdo ? 1 : 0, TCPC_TX_SOP);
 	return 0;
 }
 
@@ -2748,7 +2780,7 @@ static int tcpm_altmode_exit(struct typec_altmode *altmode)
 	header = VDO(altmode->svid, 1, svdm_version, CMD_EXIT_MODE);
 	header |= VDO_OPOS(altmode->mode);
 
-	tcpm_queue_vdm_unlocked(port, header, NULL, 0);
+	tcpm_queue_vdm_unlocked(port, header, NULL, 0, TCPC_TX_SOP);
 	return 0;
 }
 
@@ -2757,7 +2789,7 @@ static int tcpm_altmode_vdm(struct typec_altmode *altmode,
 {
 	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
 
-	tcpm_queue_vdm_unlocked(port, header, data, count - 1);
+	tcpm_queue_vdm_unlocked(port, header, data, count - 1, TCPC_TX_SOP);
 
 	return 0;
 }
@@ -2766,6 +2798,58 @@ static const struct typec_altmode_ops tcpm_altmode_ops = {
 	.enter = tcpm_altmode_enter,
 	.exit = tcpm_altmode_exit,
 	.vdm = tcpm_altmode_vdm,
+};
+
+
+static int tcpm_cable_altmode_enter(struct typec_altmode *altmode, enum typec_plug_index sop,
+				    u32 *vdo)
+{
+	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
+	int svdm_version;
+	u32 header;
+
+	svdm_version = typec_get_cable_svdm_version(port->typec_port);
+	if (svdm_version < 0)
+		return svdm_version;
+
+	header = VDO(altmode->svid, vdo ? 2 : 1, svdm_version, CMD_ENTER_MODE);
+	header |= VDO_OPOS(altmode->mode);
+
+	tcpm_queue_vdm_unlocked(port, header, vdo, vdo ? 1 : 0, TCPC_TX_SOP_PRIME);
+	return 0;
+}
+
+static int tcpm_cable_altmode_exit(struct typec_altmode *altmode, enum typec_plug_index sop)
+{
+	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
+	int svdm_version;
+	u32 header;
+
+	svdm_version = typec_get_cable_svdm_version(port->typec_port);
+	if (svdm_version < 0)
+		return svdm_version;
+
+	header = VDO(altmode->svid, 1, svdm_version, CMD_EXIT_MODE);
+	header |= VDO_OPOS(altmode->mode);
+
+	tcpm_queue_vdm_unlocked(port, header, NULL, 0, TCPC_TX_SOP_PRIME);
+	return 0;
+}
+
+static int tcpm_cable_altmode_vdm(struct typec_altmode *altmode, enum typec_plug_index sop,
+				  u32 header, const u32 *data, int count)
+{
+	struct tcpm_port *port = typec_altmode_get_drvdata(altmode);
+
+	tcpm_queue_vdm_unlocked(port, header, data, count - 1, TCPC_TX_SOP_PRIME);
+
+	return 0;
+}
+
+static const struct typec_cable_ops tcpm_cable_ops = {
+	.enter = tcpm_cable_altmode_enter,
+	.exit = tcpm_cable_altmode_exit,
+	.vdm = tcpm_cable_altmode_vdm,
 };
 
 /*
@@ -7507,6 +7591,8 @@ struct tcpm_port *tcpm_register_port(struct device *dev, struct tcpc_dev *tcpc)
 	typec_port_register_altmodes(port->typec_port,
 				     &tcpm_altmode_ops, port,
 				     port->port_altmode, ALTMODE_DISCOVERY_MAX);
+	typec_port_register_cable_ops(port->port_altmode, ARRAY_SIZE(port->port_altmode),
+				      &tcpm_cable_ops);
 	port->registered = true;
 
 	mutex_lock(&port->lock);
