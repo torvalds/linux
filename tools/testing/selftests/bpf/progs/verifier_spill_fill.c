@@ -735,4 +735,35 @@ __naked void stack_load_preserves_const_precision_subreg(void)
 	: __clobber_common);
 }
 
+SEC("xdp")
+__description("32-bit spilled reg range should be tracked")
+__success __retval(0)
+__naked void spill_32bit_range_track(void)
+{
+	asm volatile("					\
+	call %[bpf_ktime_get_ns];			\
+	/* Make r0 bounded. */				\
+	r0 &= 65535;					\
+	/* Assign an ID to r0. */			\
+	r1 = r0;					\
+	/* 32-bit spill r0 to stack. */			\
+	*(u32*)(r10 - 8) = r0;				\
+	/* Boundary check on r0. */			\
+	if r0 < 1 goto l0_%=;				\
+	/* 32-bit fill r1 from stack. */		\
+	r1 = *(u32*)(r10 - 8);				\
+	/* r1 == r0 => r1 >= 1 always. */		\
+	if r1 >= 1 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it.   \
+	 * Do an invalid memory access if the verifier	\
+	 * follows it.					\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
