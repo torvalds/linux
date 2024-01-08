@@ -919,6 +919,10 @@ __SYSCALL(__NR_futex_wake, sys_futex_wake)
 __SYSCALL(__NR_futex_wait, sys_futex_wait)
 #define __NR_futex_requeue 456
 __SYSCALL(__NR_futex_requeue, sys_futex_requeue)
+#define __NR_statmount 457
+__SYSCALL(__NR_statmount, sys_statmount)
+#define __NR_listmount 458
+__SYSCALL(__NR_listmount, sys_listmount)
 
 /*
  * Please add new compat syscalls above this comment and update

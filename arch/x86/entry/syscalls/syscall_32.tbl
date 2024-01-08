@@ -461,3 +461,5 @@
 454	i386	futex_wake		sys_futex_wake
 455	i386	futex_wait		sys_futex_wait
 456	i386	futex_requeue		sys_futex_requeue
+457	i386	statmount		sys_statmount
+458	i386	listmount		sys_listmount
