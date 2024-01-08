@@ -15,6 +15,11 @@ I. For patch submitters
 
        "dt-bindings: <binding dir>: ..."
 
+     Few subsystems, like ASoC, media, regulators and SPI, expect reverse order
+     of the prefixes::
+
+       "<binding dir>: dt-bindings: ..."
+
      The 80 characters of the subject are precious. It is recommended to not
      use "Documentation" or "doc" because that is implied. All bindings are
      docs. Repeating "binding" again should also be avoided.
