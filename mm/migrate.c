@@ -753,7 +753,7 @@ static int __buffer_migrate_folio(struct address_space *mapping,
 
 recheck_buffers:
 		busy = false;
-		spin_lock(&mapping->private_lock);
+		spin_lock(&mapping->i_private_lock);
 		bh = head;
 		do {
 			if (atomic_read(&bh->b_count)) {
@@ -767,7 +767,7 @@ recheck_buffers:
 				rc = -EAGAIN;
 				goto unlock_buffers;
 			}
-			spin_unlock(&mapping->private_lock);
+			spin_unlock(&mapping->i_private_lock);
 			invalidate_bh_lrus();
 			invalidated = true;
 			goto recheck_buffers;
@@ -794,7 +794,7 @@ recheck_buffers:
 	rc = MIGRATEPAGE_SUCCESS;
 unlock_buffers:
 	if (check_refs)
-		spin_unlock(&mapping->private_lock);
+		spin_unlock(&mapping->i_private_lock);
 	bh = head;
 	do {
 		unlock_buffer(bh);

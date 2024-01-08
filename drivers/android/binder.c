@@ -1921,7 +1921,7 @@ static void binder_deferred_fd_close(int fd)
 	if (!twcb)
 		return;
 	init_task_work(&twcb->twork, binder_do_fd_close);
-	twcb->file = close_fd_get_file(fd);
+	twcb->file = file_close_fd(fd);
 	if (twcb->file) {
 		// pin it until binder_do_fd_close(); see comments there
 		get_file(twcb->file);

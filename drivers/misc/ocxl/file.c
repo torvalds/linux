@@ -184,7 +184,7 @@ static irqreturn_t irq_handler(void *private)
 {
 	struct eventfd_ctx *ev_ctx = private;
 
-	eventfd_signal(ev_ctx, 1);
+	eventfd_signal(ev_ctx);
 	return IRQ_HANDLED;
 }
 

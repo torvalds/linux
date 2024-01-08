@@ -200,7 +200,7 @@ void btrfs_page_inc_eb_refs(const struct btrfs_fs_info *fs_info,
 		return;
 
 	ASSERT(PagePrivate(page) && page->mapping);
-	lockdep_assert_held(&page->mapping->private_lock);
+	lockdep_assert_held(&page->mapping->i_private_lock);
 
 	subpage = (struct btrfs_subpage *)page->private;
 	atomic_inc(&subpage->eb_refs);
@@ -215,7 +215,7 @@ void btrfs_page_dec_eb_refs(const struct btrfs_fs_info *fs_info,
 		return;
 
 	ASSERT(PagePrivate(page) && page->mapping);
-	lockdep_assert_held(&page->mapping->private_lock);
+	lockdep_assert_held(&page->mapping->i_private_lock);
 
 	subpage = (struct btrfs_subpage *)page->private;
 	ASSERT(atomic_read(&subpage->eb_refs));

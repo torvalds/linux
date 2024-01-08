@@ -1690,7 +1690,7 @@ const struct address_space_operations ntfs_mst_aops = {
  *
  * If the page does not have buffers, we create them and set them uptodate.
  * The page may not be locked which is why we need to handle the buffers under
- * the mapping->private_lock.  Once the buffers are marked dirty we no longer
+ * the mapping->i_private_lock.  Once the buffers are marked dirty we no longer
  * need the lock since try_to_free_buffers() does not free dirty buffers.
  */
 void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
@@ -1702,11 +1702,11 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 	BUG_ON(!PageUptodate(page));
 	end = ofs + ni->itype.index.block_size;
 	bh_size = VFS_I(ni)->i_sb->s_blocksize;
-	spin_lock(&mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	if (unlikely(!page_has_buffers(page))) {
-		spin_unlock(&mapping->private_lock);
+		spin_unlock(&mapping->i_private_lock);
 		bh = head = alloc_page_buffers(page, bh_size, true);
-		spin_lock(&mapping->private_lock);
+		spin_lock(&mapping->i_private_lock);
 		if (likely(!page_has_buffers(page))) {
 			struct buffer_head *tail;
 
@@ -1730,7 +1730,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 			break;
 		set_buffer_dirty(bh);
 	} while ((bh = bh->b_this_page) != head);
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 	filemap_dirty_folio(mapping, page_folio(page));
 	if (unlikely(buffers_to_free)) {
 		do {

@@ -214,7 +214,7 @@ static bool nilfs_dirty_folio(struct address_space *mapping,
 	/*
 	 * The page may not be locked, eg if called from try_to_unmap_one()
 	 */
-	spin_lock(&mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	head = folio_buffers(folio);
 	if (head) {
 		struct buffer_head *bh = head;
@@ -230,7 +230,7 @@ static bool nilfs_dirty_folio(struct address_space *mapping,
 	} else if (ret) {
 		nr_dirty = 1 << (folio_shift(folio) - inode->i_blkbits);
 	}
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 
 	if (nr_dirty)
 		nilfs_set_file_dirty(inode, nr_dirty);

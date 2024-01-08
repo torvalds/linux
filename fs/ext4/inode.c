@@ -1261,7 +1261,7 @@ static int write_end_fn(handle_t *handle, struct inode *inode,
  * We need to pick up the new inode size which generic_commit_write gave us
  * `file' can be NULL - eg, when called from page_symlink().
  *
- * ext4 never places buffers on inode->i_mapping->private_list.  metadata
+ * ext4 never places buffers on inode->i_mapping->i_private_list.  metadata
  * buffers are managed internally.
  */
 static int ext4_write_end(struct file *file,
@@ -3213,7 +3213,7 @@ static bool ext4_inode_datasync_dirty(struct inode *inode)
 	}
 
 	/* Any metadata buffers to write? */
-	if (!list_empty(&inode->i_mapping->private_list))
+	if (!list_empty(&inode->i_mapping->i_private_list))
 		return true;
 	return inode->i_state & I_DIRTY_DATASYNC;
 }

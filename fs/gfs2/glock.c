@@ -1213,7 +1213,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		mapping->host = s->s_bdev->bd_inode;
 		mapping->flags = 0;
 		mapping_set_gfp_mask(mapping, GFP_NOFS);
-		mapping->private_data = NULL;
+		mapping->i_private_data = NULL;
 		mapping->writeback_index = 0;
 	}
 
