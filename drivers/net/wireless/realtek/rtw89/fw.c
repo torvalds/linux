@@ -1556,6 +1556,7 @@ fail:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_fw_h2c_ba_cam);
 
 static int rtw89_fw_h2c_init_ba_cam_v0_ext(struct rtw89_dev *rtwdev,
 					   u8 entry_idx, u8 uid)
@@ -1682,6 +1683,7 @@ fail:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_fw_h2c_ba_cam_v1);
 
 int rtw89_fw_h2c_init_ba_cam_users(struct rtw89_dev *rtwdev, u8 users,
 				   u8 offset, u8 mac_idx)
