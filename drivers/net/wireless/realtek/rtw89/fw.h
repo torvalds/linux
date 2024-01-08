@@ -1796,6 +1796,23 @@ static inline void SET_BA_CAM_ENTRY_IDX_V1(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(31, 28));
 }
 
+struct rtw89_h2c_ba_cam_v1 {
+	__le32 w0;
+	__le32 w1;
+} __packed;
+
+#define RTW89_H2C_BA_CAM_V1_W0_VALID BIT(0)
+#define RTW89_H2C_BA_CAM_V1_W0_INIT_REQ BIT(1)
+#define RTW89_H2C_BA_CAM_V1_W0_TID_MASK GENMASK(7, 4)
+#define RTW89_H2C_BA_CAM_V1_W0_MACID_MASK GENMASK(15, 8)
+#define RTW89_H2C_BA_CAM_V1_W0_BMAP_SIZE_MASK GENMASK(19, 16)
+#define RTW89_H2C_BA_CAM_V1_W0_SSN_MASK GENMASK(31, 20)
+#define RTW89_H2C_BA_CAM_V1_W1_UID_VALUE_MASK GENMASK(7, 0)
+#define RTW89_H2C_BA_CAM_V1_W1_STD_ENTRY_EN BIT(8)
+#define RTW89_H2C_BA_CAM_V1_W1_BAND_SEL BIT(9)
+#define RTW89_H2C_BA_CAM_V1_W1_MLD_EN BIT(10)
+#define RTW89_H2C_BA_CAM_V1_W1_ENTRY_IDX_MASK GENMASK(31, 24)
+
 static inline void SET_LPS_PARM_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -3690,6 +3707,7 @@ enum rtw89_fw_ofld_h2c_func {
 /* CLASS 12 - BA CAM */
 #define H2C_CL_BA_CAM			0xc
 #define H2C_FUNC_MAC_BA_CAM		0x0
+#define H2C_FUNC_MAC_BA_CAM_V1		0x1
 
 /* CLASS 14 - MCC */
 #define H2C_CL_MCC			0xe
@@ -3898,6 +3916,8 @@ void rtw89_fw_release_general_pkt_list_vif(struct rtw89_dev *rtwdev,
 void rtw89_fw_release_general_pkt_list(struct rtw89_dev *rtwdev, bool notify_fw);
 int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			bool valid, struct ieee80211_ampdu_params *params);
+int rtw89_fw_h2c_ba_cam_v1(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
+			   bool valid, struct ieee80211_ampdu_params *params);
 void rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(struct rtw89_dev *rtwdev);
 
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
