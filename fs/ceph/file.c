@@ -12,6 +12,7 @@
 #include <linux/falloc.h>
 #include <linux/iversion.h>
 #include <linux/ktime.h>
+#include <linux/splice.h>
 
 #include "super.h"
 #include "mds_client.h"
@@ -3010,8 +3011,8 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 		 * {read,write}_iter, which will get caps again.
 		 */
 		put_rd_wr_caps(src_ci, src_got, dst_ci, dst_got);
-		ret = do_splice_direct(src_file, &src_off, dst_file,
-				       &dst_off, src_objlen, flags);
+		ret = splice_file_range(src_file, &src_off, dst_file, &dst_off,
+					src_objlen);
 		/* Abort on short copies or on error */
 		if (ret < (long)src_objlen) {
 			doutc(cl, "Failed partial copy (%zd)\n", ret);
@@ -3065,8 +3066,8 @@ out_caps:
 	 */
 	if (len && (len < src_ci->i_layout.object_size)) {
 		doutc(cl, "Final partial copy of %zu bytes\n", len);
-		bytes = do_splice_direct(src_file, &src_off, dst_file,
-					 &dst_off, len, flags);
+		bytes = splice_file_range(src_file, &src_off, dst_file,
+					  &dst_off, len);
 		if (bytes > 0)
 			ret += bytes;
 		else
@@ -3089,8 +3090,8 @@ static ssize_t ceph_copy_file_range(struct file *src_file, loff_t src_off,
 				     len, flags);
 
 	if (ret == -EOPNOTSUPP || ret == -EXDEV)
-		ret = generic_copy_file_range(src_file, src_off, dst_file,
-					      dst_off, len, flags);
+		ret = splice_copy_file_range(src_file, src_off, dst_file,
+					     dst_off, len);
 	return ret;
 }
 

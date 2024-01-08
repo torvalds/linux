@@ -51,7 +51,7 @@ int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 	struct file *out = sp->file_out;
 	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
 	struct file *in;
-	long ret = 0;
+	ssize_t ret = 0;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 
@@ -92,7 +92,7 @@ int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
 	loff_t *poff_in, *poff_out;
 	struct file *in;
-	long ret = 0;
+	ssize_t ret = 0;
 
 	WARN_ON_ONCE(issue_flags & IO_URING_F_NONBLOCK);
 

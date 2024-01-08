@@ -1039,7 +1039,10 @@ __be32 nfsd_splice_read(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	ssize_t host_err;
 
 	trace_nfsd_read_splice(rqstp, fhp, offset, *count);
-	host_err = splice_direct_to_actor(file, &sd, nfsd_direct_splice_actor);
+	host_err = rw_verify_area(READ, file, &offset, *count);
+	if (!host_err)
+		host_err = splice_direct_to_actor(file, &sd,
+						  nfsd_direct_splice_actor);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, eof, host_err);
 }
 
@@ -1176,9 +1179,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct nfsd_file *nf,
 	since = READ_ONCE(file->f_wb_err);
 	if (verf)
 		nfsd_copy_write_verifier(verf, nn);
-	file_start_write(file);
 	host_err = vfs_iter_write(file, &iter, &pos, flags);
-	file_end_write(file);
 	if (host_err < 0) {
 		commit_reset_write_verifier(nn, rqstp, host_err);
 		goto out_nfserr;

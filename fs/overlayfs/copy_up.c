@@ -230,6 +230,19 @@ static int ovl_copy_fileattr(struct inode *inode, const struct path *old,
 	return ovl_real_fileattr_set(new, &newfa);
 }
 
+static int ovl_verify_area(loff_t pos, loff_t pos2, loff_t len, loff_t totlen)
+{
+	loff_t tmp;
+
+	if (WARN_ON_ONCE(pos != pos2))
+		return -EIO;
+	if (WARN_ON_ONCE(pos < 0 || len < 0 || totlen < 0))
+		return -EIO;
+	if (WARN_ON_ONCE(check_add_overflow(pos, len, &tmp)))
+		return -EIO;
+	return 0;
+}
+
 static int ovl_copy_up_file(struct ovl_fs *ofs, struct dentry *dentry,
 			    struct file *new_file, loff_t len)
 {
@@ -244,12 +257,19 @@ static int ovl_copy_up_file(struct ovl_fs *ofs, struct dentry *dentry,
 	int error = 0;
 
 	ovl_path_lowerdata(dentry, &datapath);
-	if (WARN_ON(datapath.dentry == NULL))
+	if (WARN_ON_ONCE(datapath.dentry == NULL) ||
+	    WARN_ON_ONCE(len < 0))
 		return -EIO;
 
 	old_file = ovl_path_open(&datapath, O_LARGEFILE | O_RDONLY);
 	if (IS_ERR(old_file))
 		return PTR_ERR(old_file);
+
+	error = rw_verify_area(READ, old_file, &old_pos, len);
+	if (!error)
+		error = rw_verify_area(WRITE, new_file, &new_pos, len);
+	if (error)
+		goto out_fput;
 
 	/* Try to use clone_file_range to clone up within the same fs */
 	ovl_start_write(dentry);
@@ -265,7 +285,7 @@ static int ovl_copy_up_file(struct ovl_fs *ofs, struct dentry *dentry,
 
 	while (len) {
 		size_t this_len = OVL_COPY_UP_CHUNK_SIZE;
-		long bytes;
+		ssize_t bytes;
 
 		if (len < this_len)
 			this_len = len;
@@ -309,11 +329,13 @@ static int ovl_copy_up_file(struct ovl_fs *ofs, struct dentry *dentry,
 			}
 		}
 
-		ovl_start_write(dentry);
+		error = ovl_verify_area(old_pos, new_pos, this_len, len);
+		if (error)
+			break;
+
 		bytes = do_splice_direct(old_file, &old_pos,
 					 new_file, &new_pos,
 					 this_len, SPLICE_F_MOVE);
-		ovl_end_write(dentry);
 		if (bytes <= 0) {
 			error = bytes;
 			break;

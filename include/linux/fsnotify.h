@@ -100,29 +100,49 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 }
 
-/* Simple call site for access decisions */
-static inline int fsnotify_perm(struct file *file, int mask)
+/*
+ * fsnotify_file_area_perm - permission hook before access to file range
+ */
+static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
+					  const loff_t *ppos, size_t count)
 {
-	int ret;
-	__u32 fsnotify_mask = 0;
+	__u32 fsnotify_mask = FS_ACCESS_PERM;
 
-	if (!(mask & (MAY_READ | MAY_OPEN)))
+	/*
+	 * filesystem may be modified in the context of permission events
+	 * (e.g. by HSM filling a file on access), so sb freeze protection
+	 * must not be held.
+	 */
+	lockdep_assert_once(file_write_not_started(file));
+
+	if (!(perm_mask & MAY_READ))
 		return 0;
 
-	if (mask & MAY_OPEN) {
-		fsnotify_mask = FS_OPEN_PERM;
+	return fsnotify_file(file, fsnotify_mask);
+}
 
-		if (file->f_flags & __FMODE_EXEC) {
-			ret = fsnotify_file(file, FS_OPEN_EXEC_PERM);
+/*
+ * fsnotify_file_perm - permission hook before file access
+ */
+static inline int fsnotify_file_perm(struct file *file, int perm_mask)
+{
+	return fsnotify_file_area_perm(file, perm_mask, NULL, 0);
+}
 
-			if (ret)
-				return ret;
-		}
-	} else if (mask & MAY_READ) {
-		fsnotify_mask = FS_ACCESS_PERM;
+/*
+ * fsnotify_open_perm - permission hook before file open
+ */
+static inline int fsnotify_open_perm(struct file *file)
+{
+	int ret;
+
+	if (file->f_flags & __FMODE_EXEC) {
+		ret = fsnotify_file(file, FS_OPEN_EXEC_PERM);
+		if (ret)
+			return ret;
 	}
 
-	return fsnotify_file(file, fsnotify_mask);
+	return fsnotify_file(file, FS_OPEN_PERM);
 }
 
 /*

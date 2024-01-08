@@ -1648,9 +1648,70 @@ static inline bool __sb_start_write_trylock(struct super_block *sb, int level)
 #define __sb_writers_release(sb, lev)	\
 	percpu_rwsem_release(&(sb)->s_writers.rw_sem[(lev)-1], 1, _THIS_IP_)
 
+/**
+ * __sb_write_started - check if sb freeze level is held
+ * @sb: the super we write to
+ * @level: the freeze level
+ *
+ * * > 0 - sb freeze level is held
+ * *   0 - sb freeze level is not held
+ * * < 0 - !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN
+ */
+static inline int __sb_write_started(const struct super_block *sb, int level)
+{
+	return lockdep_is_held_type(sb->s_writers.rw_sem + level - 1, 1);
+}
+
+/**
+ * sb_write_started - check if SB_FREEZE_WRITE is held
+ * @sb: the super we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ */
 static inline bool sb_write_started(const struct super_block *sb)
 {
-	return lockdep_is_held_type(sb->s_writers.rw_sem + SB_FREEZE_WRITE - 1, 1);
+	return __sb_write_started(sb, SB_FREEZE_WRITE);
+}
+
+/**
+ * sb_write_not_started - check if SB_FREEZE_WRITE is not held
+ * @sb: the super we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ */
+static inline bool sb_write_not_started(const struct super_block *sb)
+{
+	return __sb_write_started(sb, SB_FREEZE_WRITE) <= 0;
+}
+
+/**
+ * file_write_started - check if SB_FREEZE_WRITE is held
+ * @file: the file we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !S_ISREG, because file_start_write() has
+ * no effect on !S_ISREG.
+ */
+static inline bool file_write_started(const struct file *file)
+{
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return true;
+	return sb_write_started(file_inode(file)->i_sb);
+}
+
+/**
+ * file_write_not_started - check if SB_FREEZE_WRITE is not held
+ * @file: the file we write to
+ *
+ * May be false positive with !CONFIG_LOCKDEP/LOCK_STATE_UNKNOWN.
+ * May be false positive with !S_ISREG, because file_start_write() has
+ * no effect on !S_ISREG.
+ */
+static inline bool file_write_not_started(const struct file *file)
+{
+	if (!S_ISREG(file_inode(file)->i_mode))
+		return true;
+	return sb_write_not_started(file_inode(file)->i_sb);
 }
 
 /**
@@ -2032,9 +2093,6 @@ extern ssize_t vfs_read(struct file *, char __user *, size_t, loff_t *);
 extern ssize_t vfs_write(struct file *, const char __user *, size_t, loff_t *);
 extern ssize_t vfs_copy_file_range(struct file *, loff_t , struct file *,
 				   loff_t, size_t, unsigned int);
-extern ssize_t generic_copy_file_range(struct file *file_in, loff_t pos_in,
-				       struct file *file_out, loff_t pos_out,
-				       size_t len, unsigned int flags);
 int __generic_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 				    struct file *file_out, loff_t pos_out,
 				    loff_t *len, unsigned int remap_flags,
@@ -2535,9 +2593,6 @@ struct file *dentry_open(const struct path *path, int flags,
 			 const struct cred *creds);
 struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 			   const struct cred *cred);
-struct file *backing_file_open(const struct path *user_path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred);
 struct path *backing_file_user_path(struct file *f);
 
 /*
@@ -3017,8 +3072,6 @@ ssize_t copy_splice_read(struct file *in, loff_t *ppos,
 			 size_t len, unsigned int flags);
 extern ssize_t iter_file_splice_write(struct pipe_inode_info *,
 		struct file *, loff_t *, size_t, unsigned int);
-extern long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
-		loff_t *opos, size_t len, unsigned int flags);
 
 
 extern void
