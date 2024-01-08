@@ -24,6 +24,13 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
+	options {
+		u-boot {
+			compatible = "u-boot,config";
+			bootscr-address = /bits/ 64 <0x20000000>;
+		};
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
