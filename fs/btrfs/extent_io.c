@@ -596,11 +596,6 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
 	struct bio *bio = &bbio->bio;
 	struct processed_extent processed = { 0 };
 	struct folio_iter fi;
-	/*
-	 * The offset to the beginning of a bio, since one bio can never be
-	 * larger than UINT_MAX, u32 here is enough.
-	 */
-	u32 bio_offset = 0;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_folio_all(fi, &bbio->bio) {
@@ -667,10 +662,6 @@ static void end_bbio_data_read(struct btrfs_bio *bbio)
 		end_page_read(folio_page(folio, 0), uptodate, start, len);
 		endio_readpage_release_extent(&processed, BTRFS_I(inode),
 					      start, end, uptodate);
-
-		ASSERT(bio_offset + len > bio_offset);
-		bio_offset += len;
-
 	}
 	/* Release the last extent */
 	endio_readpage_release_extent(&processed, NULL, 0, 0, false);
