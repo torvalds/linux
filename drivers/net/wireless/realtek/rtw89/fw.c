@@ -1683,6 +1683,45 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_init_ba_cam_users(struct rtw89_dev *rtwdev, u8 users,
+				   u8 offset, u8 mac_idx)
+{
+	struct rtw89_h2c_ba_cam_init *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c ba cam init\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_ba_cam_init *)skb->data;
+
+	h2c->w0 = le32_encode_bits(users, RTW89_H2C_BA_CAM_INIT_USERS_MASK) |
+		  le32_encode_bits(offset, RTW89_H2C_BA_CAM_INIT_OFFSET_MASK) |
+		  le32_encode_bits(mac_idx, RTW89_H2C_BA_CAM_INIT_BAND_SEL);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_BA_CAM,
+			      H2C_FUNC_MAC_BA_CAM_INIT, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 #define H2C_LOG_CFG_LEN 12
 int rtw89_fw_h2c_fw_log(struct rtw89_dev *rtwdev, bool enable)
 {

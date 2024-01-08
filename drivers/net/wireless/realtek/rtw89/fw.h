@@ -1813,6 +1813,14 @@ struct rtw89_h2c_ba_cam_v1 {
 #define RTW89_H2C_BA_CAM_V1_W1_MLD_EN BIT(10)
 #define RTW89_H2C_BA_CAM_V1_W1_ENTRY_IDX_MASK GENMASK(31, 24)
 
+struct rtw89_h2c_ba_cam_init {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_BA_CAM_INIT_USERS_MASK GENMASK(7, 0)
+#define RTW89_H2C_BA_CAM_INIT_OFFSET_MASK GENMASK(19, 12)
+#define RTW89_H2C_BA_CAM_INIT_BAND_SEL BIT(24)
+
 static inline void SET_LPS_PARM_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -3708,6 +3716,7 @@ enum rtw89_fw_ofld_h2c_func {
 #define H2C_CL_BA_CAM			0xc
 #define H2C_FUNC_MAC_BA_CAM		0x0
 #define H2C_FUNC_MAC_BA_CAM_V1		0x1
+#define H2C_FUNC_MAC_BA_CAM_INIT	0x2
 
 /* CLASS 14 - MCC */
 #define H2C_CL_MCC			0xe
@@ -3919,6 +3928,8 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 int rtw89_fw_h2c_ba_cam_v1(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			   bool valid, struct ieee80211_ampdu_params *params);
 void rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_init_ba_cam_users(struct rtw89_dev *rtwdev, u8 users,
+				   u8 offset, u8 mac_idx);
 
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);

@@ -3676,6 +3676,28 @@ static int trx_init_ax(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_mac_feat_init(struct rtw89_dev *rtwdev)
+{
+#define BACAM_1024BMP_OCC_ENTRY 4
+#define BACAM_MAX_RU_SUPPORT_B0_STA 1
+#define BACAM_MAX_RU_SUPPORT_B1_STA 1
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 users, offset;
+
+	if (chip->bacam_ver != RTW89_BACAM_V1)
+		return 0;
+
+	offset = 0;
+	users = BACAM_MAX_RU_SUPPORT_B0_STA;
+	rtw89_fw_h2c_init_ba_cam_users(rtwdev, users, offset, RTW89_MAC_0);
+
+	offset += users * BACAM_1024BMP_OCC_ENTRY;
+	users = BACAM_MAX_RU_SUPPORT_B1_STA;
+	rtw89_fw_h2c_init_ba_cam_users(rtwdev, users, offset, RTW89_MAC_1);
+
+	return 0;
+}
+
 static void rtw89_disable_fw_watchdog(struct rtw89_dev *rtwdev)
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
@@ -3907,6 +3929,10 @@ int rtw89_mac_init(struct rtw89_dev *rtwdev)
 		goto fail;
 
 	ret = mac->trx_init(rtwdev);
+	if (ret)
+		goto fail;
+
+	ret = rtw89_mac_feat_init(rtwdev);
 	if (ret)
 		goto fail;
 
