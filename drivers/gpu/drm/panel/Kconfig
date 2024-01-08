@@ -449,6 +449,16 @@ config DRM_PANEL_NOVATEK_NT36672A
 	  around the Novatek NT36672A display controller, such as some
 	  Tianma panels used in a few Xiaomi Poco F1 mobile phones.
 
+config DRM_PANEL_NOVATEK_NT36672E
+	tristate "Novatek NT36672E DSI panel"
+	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
+	help
+	  Say Y here if you want to enable support for Novatek NT36672E DSI Video Mode
+	  LCD panel module. The panel has a resolution of 1080x2408 and uses 24 bit
+	  RGB per pixel.
+
 config DRM_PANEL_NOVATEK_NT39016
 	tristate "Novatek NT39016 RGB/SPI panel"
 	depends on OF && SPI
