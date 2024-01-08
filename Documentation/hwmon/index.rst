@@ -46,6 +46,7 @@ Hardware Monitoring Kernel Drivers
    asc7621
    aspeed-pwm-tacho
    asus_ec_sensors
+   asus_rog_ryujin
    asus_wmi_sensors
    bcm54140
    bel-pfe
