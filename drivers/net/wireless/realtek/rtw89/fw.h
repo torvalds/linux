@@ -1536,6 +1536,54 @@ struct rtw89_h2c_bcn_upd {
 #define RTW89_H2C_BCN_UPD_W2_PATH_ANTSEL_D BIT(16)
 #define RTW89_H2C_BCN_UPD_W2_CSA_OFST GENMASK(31, 17)
 
+struct rtw89_h2c_bcn_upd_be {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+	__le32 w8;
+	__le32 w9;
+	__le32 w10;
+	__le32 w11;
+} __packed;
+
+#define RTW89_H2C_BCN_UPD_BE_W0_PORT GENMASK(7, 0)
+#define RTW89_H2C_BCN_UPD_BE_W0_MBSSID GENMASK(15, 8)
+#define RTW89_H2C_BCN_UPD_BE_W0_BAND GENMASK(23, 16)
+#define RTW89_H2C_BCN_UPD_BE_W0_GRP_IE_OFST GENMASK(31, 24)
+#define RTW89_H2C_BCN_UPD_BE_W1_MACID GENMASK(7, 0)
+#define RTW89_H2C_BCN_UPD_BE_W1_SSN_SEL GENMASK(9, 8)
+#define RTW89_H2C_BCN_UPD_BE_W1_SSN_MODE GENMASK(11, 10)
+#define RTW89_H2C_BCN_UPD_BE_W1_RATE GENMASK(20, 12)
+#define RTW89_H2C_BCN_UPD_BE_W1_TXPWR GENMASK(23, 21)
+#define RTW89_H2C_BCN_UPD_BE_W1_MACID_EXT GENMASK(31, 24)
+#define RTW89_H2C_BCN_UPD_BE_W2_TXINFO_CTRL_EN BIT(0)
+#define RTW89_H2C_BCN_UPD_BE_W2_NTX_PATH_EN GENMASK(4, 1)
+#define RTW89_H2C_BCN_UPD_BE_W2_PATH_MAP_A GENMASK(6, 5)
+#define RTW89_H2C_BCN_UPD_BE_W2_PATH_MAP_B GENMASK(8, 7)
+#define RTW89_H2C_BCN_UPD_BE_W2_PATH_MAP_C GENMASK(10, 9)
+#define RTW89_H2C_BCN_UPD_BE_W2_PATH_MAP_D GENMASK(12, 11)
+#define RTW89_H2C_BCN_UPD_BE_W2_ANTSEL_A BIT(13)
+#define RTW89_H2C_BCN_UPD_BE_W2_ANTSEL_B BIT(14)
+#define RTW89_H2C_BCN_UPD_BE_W2_ANTSEL_C BIT(15)
+#define RTW89_H2C_BCN_UPD_BE_W2_ANTSEL_D BIT(16)
+#define RTW89_H2C_BCN_UPD_BE_W2_CSA_OFST GENMASK(31, 17)
+#define RTW89_H2C_BCN_UPD_BE_W3_MLIE_CSA_OFST GENMASK(15, 0)
+#define RTW89_H2C_BCN_UPD_BE_W3_CRITICAL_UPD_FLAG_OFST GENMASK(31, 16)
+#define RTW89_H2C_BCN_UPD_BE_W4_VAP1_DTIM_CNT_OFST GENMASK(15, 0)
+#define RTW89_H2C_BCN_UPD_BE_W4_VAP2_DTIM_CNT_OFST GENMASK(31, 16)
+#define RTW89_H2C_BCN_UPD_BE_W5_VAP3_DTIM_CNT_OFST GENMASK(15, 0)
+#define RTW89_H2C_BCN_UPD_BE_W5_VAP4_DTIM_CNT_OFST GENMASK(31, 16)
+#define RTW89_H2C_BCN_UPD_BE_W6_VAP5_DTIM_CNT_OFST GENMASK(15, 0)
+#define RTW89_H2C_BCN_UPD_BE_W6_VAP6_DTIM_CNT_OFST GENMASK(31, 16)
+#define RTW89_H2C_BCN_UPD_BE_W7_VAP7_DTIM_CNT_OFST GENMASK(15, 0)
+#define RTW89_H2C_BCN_UPD_BE_W7_ECSA_OFST GENMASK(30, 16)
+#define RTW89_H2C_BCN_UPD_BE_W7_PROTECTION_KEY_ID BIT(31)
+
 static inline void SET_FWROLE_MAINTAIN_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -3570,6 +3618,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_FUNC_MAC_BCN_UPD		0x5
 #define H2C_FUNC_MAC_DCTLINFO_UD_V1	0x9
 #define H2C_FUNC_MAC_CCTLINFO_UD_V1	0xa
+#define H2C_FUNC_MAC_BCN_UPD_BE		0xd
 
 /* CLASS 6 - Address CAM */
 #define H2C_CL_MAC_ADDR_CAM_UPDATE	0x6
@@ -3766,6 +3815,8 @@ int rtw89_fw_h2c_txpath_cmac_tbl(struct rtw89_dev *rtwdev,
 				 struct rtw89_sta *rtwsta);
 int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif *rtwvif);
+int rtw89_fw_h2c_update_beacon_be(struct rtw89_dev *rtwdev,
+				  struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_cam(struct rtw89_dev *rtwdev, struct rtw89_vif *vif,
 		     struct rtw89_sta *rtwsta, const u8 *scan_mac_addr);
 int rtw89_fw_h2c_dctl_sec_cam_v1(struct rtw89_dev *rtwdev,
