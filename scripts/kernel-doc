@@ -1907,7 +1907,7 @@ sub process_proto_function($$) {
 
     $x =~ s@\/\/.*$@@gos; # strip C99-style comments to end of line
 
-    if ($x =~ m#\s*/\*\s+MACDOC\s*#io || ($x =~ /^#/ && $x !~ /^#\s*define/)) {
+    if ($x =~ /^#/ && $x !~ /^#\s*define/) {
 	# do nothing
     }
     elsif ($x =~ /([^\{]*)/) {
