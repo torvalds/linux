@@ -3183,6 +3183,40 @@ static int i3c_target_check_ops(const struct i3c_target_ops *ops)
 	return 0;
 }
 
+static ssize_t hotjoin_req_store(struct device *dev,
+				 struct device_attribute *da, const char *buf,
+				 size_t count)
+{
+	struct i3c_master_controller *master;
+	ssize_t ret = count;
+
+	master = dev_to_i3cmaster(dev);
+	if (!master->target_ops->is_hj_enabled)
+		return -EOPNOTSUPP;
+	if (!master->target_ops->is_hj_enabled(master->this))
+		return -EACCES;
+
+	if (!master->target_ops->hj_req)
+		return -EOPNOTSUPP;
+	ret = master->target_ops->hj_req(master->this);
+	if (ret)
+		return ret;
+
+	return count;
+}
+static DEVICE_ATTR_WO(hotjoin_req);
+
+static struct attribute *i3c_targetdev_attrs[] = {
+	&dev_attr_hotjoin_req.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(i3c_targetdev);
+
+const struct device_type i3c_targetdev_type = {
+	.groups	= i3c_targetdev_groups,
+};
+EXPORT_SYMBOL_GPL(i3c_targetdev_type);
+
 int i3c_target_register(struct i3c_master_controller *master, struct device *parent,
 			const struct i3c_target_ops *ops)
 {
@@ -3197,6 +3231,7 @@ int i3c_target_register(struct i3c_master_controller *master, struct device *par
 	master->dev.parent = parent;
 	master->dev.of_node = of_node_get(parent->of_node);
 	master->dev.bus = &i3c_bus_type;
+	master->dev.type = &i3c_targetdev_type;
 	master->dev.release = i3c_targetdev_release;
 	master->target_ops = ops;
 	i3cbus->mode = I3C_BUS_MODE_PURE;

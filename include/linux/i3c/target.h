@@ -12,12 +12,14 @@ struct i3c_master_controller;
 struct i3c_target_ops {
 	int (*bus_init)(struct i3c_master_controller *master);
 	void (*bus_cleanup)(struct i3c_master_controller *master);
+	int (*hj_req)(struct i3c_dev_desc *dev);
 	int (*priv_xfers)(struct i3c_dev_desc *dev, struct i3c_priv_xfer *xfers, int nxfers);
 	int (*generate_ibi)(struct i3c_dev_desc *dev, const u8 *data, int len);
 	int (*pending_read_notify)(struct i3c_dev_desc *dev,
 				   struct i3c_priv_xfer *pending_read,
 				   struct i3c_priv_xfer *ibi_notify);
 	bool (*is_ibi_enabled)(struct i3c_dev_desc *dev);
+	bool (*is_hj_enabled)(struct i3c_dev_desc *dev);
 };
 
 int i3c_target_register(struct i3c_master_controller *master, struct device *parent,
