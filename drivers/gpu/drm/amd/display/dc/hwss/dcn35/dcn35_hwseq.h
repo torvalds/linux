@@ -57,7 +57,7 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context);
 void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn35_enable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context);
-void dcn35_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn35_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx);
 
 void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	struct pg_block_update *update_state);
@@ -86,4 +86,8 @@ void dcn35_dsc_pg_control(
 
 void dcn35_set_idle_state(const struct dc *dc, bool allow_idle);
 uint32_t dcn35_get_idle_state(const struct dc *dc);
+
+void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
+		int num_pipes, struct dc_crtc_timing_adjust adjust);
+
 #endif /* __DC_HWSS_DCN35_H__ */

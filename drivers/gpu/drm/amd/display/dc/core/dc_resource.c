@@ -42,6 +42,7 @@
 #include "link_enc_cfg.h"
 #include "link.h"
 #include "clk_mgr.h"
+#include "dc_state_priv.h"
 #include "virtual/virtual_link_hwss.h"
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
@@ -2459,6 +2460,9 @@ void resource_remove_otg_master_for_stream_output(struct dc_state *context,
 	struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(
 			&context->res_ctx, stream);
 
+	if (!otg_master)
+		return;
+
 	ASSERT(resource_get_odm_slice_count(otg_master) == 1);
 	ASSERT(otg_master->plane_state == NULL);
 	ASSERT(otg_master->stream_res.stream_enc);
@@ -2993,189 +2997,6 @@ bool resource_update_pipes_for_plane_with_slice_count(
 	return result;
 }
 
-bool dc_add_plane_to_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context)
-{
-	struct resource_pool *pool = dc->res_pool;
-	struct pipe_ctx *otg_master_pipe;
-	struct dc_stream_status *stream_status = NULL;
-	bool added = false;
-
-	stream_status = dc_stream_get_status_from_state(context, stream);
-	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to attach surface!\n");
-		goto out;
-	} else if (stream_status->plane_count == MAX_SURFACE_NUM) {
-		dm_error("Surface: can not attach plane_state %p! Maximum is: %d\n",
-				plane_state, MAX_SURFACE_NUM);
-		goto out;
-	}
-
-	otg_master_pipe = resource_get_otg_master_for_stream(
-			&context->res_ctx, stream);
-	added = resource_append_dpp_pipes_for_plane_composition(context,
-			dc->current_state, pool, otg_master_pipe, plane_state);
-
-	if (added) {
-		stream_status->plane_states[stream_status->plane_count] =
-				plane_state;
-		stream_status->plane_count++;
-		dc_plane_state_retain(plane_state);
-	}
-
-out:
-	return added;
-}
-
-bool dc_remove_plane_from_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context)
-{
-	int i;
-	struct dc_stream_status *stream_status = NULL;
-	struct resource_pool *pool = dc->res_pool;
-
-	if (!plane_state)
-		return true;
-
-	for (i = 0; i < context->stream_count; i++)
-		if (context->streams[i] == stream) {
-			stream_status = &context->stream_status[i];
-			break;
-		}
-
-	if (stream_status == NULL) {
-		dm_error("Existing stream not found; failed to remove plane.\n");
-		return false;
-	}
-
-	resource_remove_dpp_pipes_for_plane_composition(
-			context, pool, plane_state);
-
-	for (i = 0; i < stream_status->plane_count; i++) {
-		if (stream_status->plane_states[i] == plane_state) {
-			dc_plane_state_release(stream_status->plane_states[i]);
-			break;
-		}
-	}
-
-	if (i == stream_status->plane_count) {
-		dm_error("Existing plane_state not found; failed to detach it!\n");
-		return false;
-	}
-
-	stream_status->plane_count--;
-
-	/* Start at the plane we've just released, and move all the planes one index forward to "trim" the array */
-	for (; i < stream_status->plane_count; i++)
-		stream_status->plane_states[i] = stream_status->plane_states[i + 1];
-
-	stream_status->plane_states[stream_status->plane_count] = NULL;
-
-	if (stream_status->plane_count == 0 && dc->config.enable_windowed_mpo_odm)
-		/* ODM combine could prevent us from supporting more planes
-		 * we will reset ODM slice count back to 1 when all planes have
-		 * been removed to maximize the amount of planes supported when
-		 * new planes are added.
-		 */
-		resource_update_pipes_for_stream_with_slice_count(
-				context, dc->current_state, dc->res_pool, stream, 1);
-
-	return true;
-}
-
-/**
- * dc_rem_all_planes_for_stream - Remove planes attached to the target stream.
- *
- * @dc: Current dc state.
- * @stream: Target stream, which we want to remove the attached plans.
- * @context: New context.
- *
- * Return:
- * Return true if DC was able to remove all planes from the target
- * stream, otherwise, return false.
- */
-bool dc_rem_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_state *context)
-{
-	int i, old_plane_count;
-	struct dc_stream_status *stream_status = NULL;
-	struct dc_plane_state *del_planes[MAX_SURFACE_NUM] = { 0 };
-
-	for (i = 0; i < context->stream_count; i++)
-			if (context->streams[i] == stream) {
-				stream_status = &context->stream_status[i];
-				break;
-			}
-
-	if (stream_status == NULL) {
-		dm_error("Existing stream %p not found!\n", stream);
-		return false;
-	}
-
-	old_plane_count = stream_status->plane_count;
-
-	for (i = 0; i < old_plane_count; i++)
-		del_planes[i] = stream_status->plane_states[i];
-
-	for (i = 0; i < old_plane_count; i++)
-		if (!dc_remove_plane_from_context(dc, stream, del_planes[i], context))
-			return false;
-
-	return true;
-}
-
-static bool add_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		const struct dc_validation_set set[],
-		int set_count,
-		struct dc_state *context)
-{
-	int i, j;
-
-	for (i = 0; i < set_count; i++)
-		if (set[i].stream == stream)
-			break;
-
-	if (i == set_count) {
-		dm_error("Stream %p not found in set!\n", stream);
-		return false;
-	}
-
-	for (j = 0; j < set[i].plane_count; j++)
-		if (!dc_add_plane_to_context(dc, stream, set[i].plane_states[j], context))
-			return false;
-
-	return true;
-}
-
-bool dc_add_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state * const *plane_states,
-		int plane_count,
-		struct dc_state *context)
-{
-	struct dc_validation_set set;
-	int i;
-
-	set.stream = stream;
-	set.plane_count = plane_count;
-
-	for (i = 0; i < plane_count; i++)
-		set.plane_states[i] = plane_states[i];
-
-	return add_all_planes_for_stream(dc, stream, &set, 1, context);
-}
-
 bool dc_is_timing_changed(struct dc_stream_state *cur_stream,
 		       struct dc_stream_state *new_stream)
 {
@@ -3325,84 +3146,6 @@ static struct audio *find_first_free_audio(
 		}
 	}
 	return NULL;
-}
-
-/*
- * dc_add_stream_to_ctx() - Add a new dc_stream_state to a dc_state.
- */
-enum dc_status dc_add_stream_to_ctx(
-		struct dc *dc,
-		struct dc_state *new_ctx,
-		struct dc_stream_state *stream)
-{
-	enum dc_status res;
-	DC_LOGGER_INIT(dc->ctx->logger);
-
-	if (new_ctx->stream_count >= dc->res_pool->timing_generator_count) {
-		DC_LOG_WARNING("Max streams reached, can't add stream %p !\n", stream);
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	new_ctx->streams[new_ctx->stream_count] = stream;
-	dc_stream_retain(stream);
-	new_ctx->stream_count++;
-
-	res = resource_add_otg_master_for_stream_output(
-			new_ctx, dc->res_pool, stream);
-	if (res != DC_OK)
-		DC_LOG_WARNING("Adding stream %p to context failed with err %d!\n", stream, res);
-
-	return res;
-}
-
-/*
- * dc_remove_stream_from_ctx() - Remove a stream from a dc_state.
- */
-enum dc_status dc_remove_stream_from_ctx(
-			struct dc *dc,
-			struct dc_state *new_ctx,
-			struct dc_stream_state *stream)
-{
-	int i;
-	struct dc_context *dc_ctx = dc->ctx;
-	struct pipe_ctx *del_pipe = resource_get_otg_master_for_stream(
-			&new_ctx->res_ctx, stream);
-
-	if (!del_pipe) {
-		DC_ERROR("Pipe not found for stream %p !\n", stream);
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	resource_update_pipes_for_stream_with_slice_count(new_ctx,
-			dc->current_state, dc->res_pool, stream, 1);
-	resource_remove_otg_master_for_stream_output(
-			new_ctx, dc->res_pool, stream);
-
-	for (i = 0; i < new_ctx->stream_count; i++)
-		if (new_ctx->streams[i] == stream)
-			break;
-
-	if (new_ctx->streams[i] != stream) {
-		DC_ERROR("Context doesn't have stream %p !\n", stream);
-		return DC_ERROR_UNEXPECTED;
-	}
-
-	dc_stream_release(new_ctx->streams[i]);
-	new_ctx->stream_count--;
-
-	/* Trim back arrays */
-	for (; i < new_ctx->stream_count; i++) {
-		new_ctx->streams[i] = new_ctx->streams[i + 1];
-		new_ctx->stream_status[i] = new_ctx->stream_status[i + 1];
-	}
-
-	new_ctx->streams[new_ctx->stream_count] = NULL;
-	memset(
-			&new_ctx->stream_status[new_ctx->stream_count],
-			0,
-			sizeof(new_ctx->stream_status[0]));
-
-	return DC_OK;
 }
 
 static struct dc_stream_state *find_pll_sharable_stream(
@@ -3784,34 +3527,6 @@ enum dc_status resource_map_pool_resources(
 	return DC_ERROR_UNEXPECTED;
 }
 
-/**
- * dc_resource_state_copy_construct_current() - Creates a new dc_state from existing state
- *
- * @dc: copy out of dc->current_state
- * @dst_ctx: copy into this
- *
- * This function makes a shallow copy of the current DC state and increments
- * refcounts on existing streams and planes.
- */
-void dc_resource_state_copy_construct_current(
-		const struct dc *dc,
-		struct dc_state *dst_ctx)
-{
-	dc_resource_state_copy_construct(dc->current_state, dst_ctx);
-}
-
-
-void dc_resource_state_construct(
-		const struct dc *dc,
-		struct dc_state *dst_ctx)
-{
-	dst_ctx->clk_mgr = dc->clk_mgr;
-
-	/* Initialise DIG link encoder resource tracking variables. */
-	link_enc_cfg_init(dc, dst_ctx);
-}
-
-
 bool dc_resource_is_dsc_encoding_supported(const struct dc *dc)
 {
 	if (dc->res_pool == NULL)
@@ -3853,6 +3568,31 @@ static bool planes_changed_for_existing_stream(struct dc_state *context,
 			return true;
 
 	return false;
+}
+
+static bool add_all_planes_for_stream(
+		const struct dc *dc,
+		struct dc_stream_state *stream,
+		const struct dc_validation_set set[],
+		int set_count,
+		struct dc_state *state)
+{
+	int i, j;
+
+	for (i = 0; i < set_count; i++)
+		if (set[i].stream == stream)
+			break;
+
+	if (i == set_count) {
+		dm_error("Stream %p not found in set!\n", stream);
+		return false;
+	}
+
+	for (j = 0; j < set[i].plane_count; j++)
+		if (!dc_state_add_plane(dc, stream, set[i].plane_states[j], state))
+			return false;
+
+	return true;
 }
 
 /**
@@ -3960,7 +3700,8 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 						       unchanged_streams[i],
 						       set,
 						       set_count)) {
-			if (!dc_rem_all_planes_for_stream(dc,
+
+			if (!dc_state_rem_all_planes_for_stream(dc,
 							  unchanged_streams[i],
 							  context)) {
 				res = DC_FAIL_DETACH_SURFACES;
@@ -3982,12 +3723,24 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 			}
 		}
 
-		if (!dc_rem_all_planes_for_stream(dc, del_streams[i], context)) {
-			res = DC_FAIL_DETACH_SURFACES;
-			goto fail;
+		if (dc_state_get_stream_subvp_type(context, del_streams[i]) == SUBVP_PHANTOM) {
+			/* remove phantoms specifically */
+			if (!dc_state_rem_all_phantom_planes_for_stream(dc, del_streams[i], context, true)) {
+				res = DC_FAIL_DETACH_SURFACES;
+				goto fail;
+			}
+
+			res = dc_state_remove_phantom_stream(dc, context, del_streams[i]);
+			dc_state_release_phantom_stream(dc, context, del_streams[i]);
+		} else {
+			if (!dc_state_rem_all_planes_for_stream(dc, del_streams[i], context)) {
+				res = DC_FAIL_DETACH_SURFACES;
+				goto fail;
+			}
+
+			res = dc_state_remove_stream(dc, context, del_streams[i]);
 		}
 
-		res = dc_remove_stream_from_ctx(dc, context, del_streams[i]);
 		if (res != DC_OK)
 			goto fail;
 	}
@@ -4010,7 +3763,7 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 	/* Add new streams and then add all planes for the new stream */
 	for (i = 0; i < add_streams_count; i++) {
 		calculate_phy_pix_clks(add_streams[i]);
-		res = dc_add_stream_to_ctx(dc, context, add_streams[i]);
+		res = dc_state_add_stream(dc, context, add_streams[i]);
 		if (res != DC_OK)
 			goto fail;
 
@@ -4514,84 +4267,6 @@ static void set_vtem_info_packet(
 		return;
 
 	*info_packet = stream->vtem_infopacket;
-}
-
-void dc_resource_state_destruct(struct dc_state *context)
-{
-	int i, j;
-
-	for (i = 0; i < context->stream_count; i++) {
-		for (j = 0; j < context->stream_status[i].plane_count; j++)
-			dc_plane_state_release(
-				context->stream_status[i].plane_states[j]);
-
-		context->stream_status[i].plane_count = 0;
-		dc_stream_release(context->streams[i]);
-		context->streams[i] = NULL;
-	}
-	context->stream_count = 0;
-	context->stream_mask = 0;
-	memset(&context->res_ctx, 0, sizeof(context->res_ctx));
-	memset(&context->pp_display_cfg, 0, sizeof(context->pp_display_cfg));
-	memset(&context->dcn_bw_vars, 0, sizeof(context->dcn_bw_vars));
-	context->clk_mgr = NULL;
-	memset(&context->bw_ctx.bw, 0, sizeof(context->bw_ctx.bw));
-	memset(context->block_sequence, 0, sizeof(context->block_sequence));
-	context->block_sequence_steps = 0;
-	memset(context->dc_dmub_cmd, 0, sizeof(context->dc_dmub_cmd));
-	context->dmub_cmd_count = 0;
-	memset(&context->perf_params, 0, sizeof(context->perf_params));
-	memset(&context->scratch, 0, sizeof(context->scratch));
-}
-
-void dc_resource_state_copy_construct(
-		const struct dc_state *src_ctx,
-		struct dc_state *dst_ctx)
-{
-	int i, j;
-	struct kref refcount = dst_ctx->refcount;
-#ifdef CONFIG_DRM_AMD_DC_FP
-	struct dml2_context *dml2 = NULL;
-
-	// Need to preserve allocated dml2 context
-	if (src_ctx->clk_mgr && src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
-		dml2 = dst_ctx->bw_ctx.dml2;
-#endif
-
-	*dst_ctx = *src_ctx;
-
-#ifdef CONFIG_DRM_AMD_DC_FP
-	// Preserve allocated dml2 context
-	if (src_ctx->clk_mgr && src_ctx->clk_mgr->ctx->dc->debug.using_dml2)
-		dst_ctx->bw_ctx.dml2 = dml2;
-#endif
-
-	for (i = 0; i < MAX_PIPES; i++) {
-		struct pipe_ctx *cur_pipe = &dst_ctx->res_ctx.pipe_ctx[i];
-
-		if (cur_pipe->top_pipe)
-			cur_pipe->top_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->top_pipe->pipe_idx];
-
-		if (cur_pipe->bottom_pipe)
-			cur_pipe->bottom_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->bottom_pipe->pipe_idx];
-
-		if (cur_pipe->next_odm_pipe)
-			cur_pipe->next_odm_pipe =  &dst_ctx->res_ctx.pipe_ctx[cur_pipe->next_odm_pipe->pipe_idx];
-
-		if (cur_pipe->prev_odm_pipe)
-			cur_pipe->prev_odm_pipe = &dst_ctx->res_ctx.pipe_ctx[cur_pipe->prev_odm_pipe->pipe_idx];
-	}
-
-	for (i = 0; i < dst_ctx->stream_count; i++) {
-		dc_stream_retain(dst_ctx->streams[i]);
-		for (j = 0; j < dst_ctx->stream_status[i].plane_count; j++)
-			dc_plane_state_retain(
-				dst_ctx->stream_status[i].plane_states[j]);
-	}
-
-	/* context refcount should not be overridden */
-	dst_ctx->refcount = refcount;
-
 }
 
 struct clock_source *dc_resource_find_first_free_pll(
@@ -5309,6 +4984,20 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 	}
 
 	return DC_OK;
+}
+
+bool resource_subvp_in_use(struct dc *dc,
+		struct dc_state *context)
+{
+	uint32_t i;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (dc_state_get_pipe_subvp_type(context, pipe) != SUBVP_NONE)
+			return true;
+	}
+	return false;
 }
 
 bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream)

@@ -529,6 +529,9 @@ bool edp_set_backlight_level(const struct dc_link *link,
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		struct pipe_ctx *pipe_ctx = get_pipe_from_link(link);
 
+		if (link->panel_cntl)
+			link->panel_cntl->stored_backlight_registers.USER_LEVEL = backlight_pwm_u16_16;
+
 		if (pipe_ctx) {
 			/* Disable brightness ramping when the display is blanked
 			 * as it can hang the DMCU
@@ -1061,6 +1064,33 @@ bool edp_replay_residency(const struct dc_link *link,
 		replay->funcs->replay_residency(replay, panel_inst, residency, is_start, is_alpm);
 	else
 		*residency = 0;
+
+	return true;
+}
+
+bool edp_set_replay_power_opt_and_coasting_vtotal(struct dc_link *link,
+	const unsigned int *power_opts, uint16_t coasting_vtotal)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	/* Only both power and coasting vtotal changed, this func could return true */
+	if (power_opts && link->replay_settings.replay_power_opt_active != *power_opts &&
+		coasting_vtotal && link->replay_settings.coasting_vtotal != coasting_vtotal) {
+		if (link->replay_settings.replay_feature_enabled &&
+			replay->funcs->replay_set_power_opt_and_coasting_vtotal) {
+			replay->funcs->replay_set_power_opt_and_coasting_vtotal(replay,
+				*power_opts, panel_inst, coasting_vtotal);
+			link->replay_settings.replay_power_opt_active = *power_opts;
+			link->replay_settings.coasting_vtotal = coasting_vtotal;
+		} else
+			return false;
+	} else
+		return false;
 
 	return true;
 }

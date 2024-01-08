@@ -23,9 +23,7 @@
 #
 #
 
-DCN30 := \
-	dcn30_init.o \
-	dcn30_hubbub.o \
+DCN30 := dcn30_hubbub.o \
 	dcn30_hubp.o \
 	dcn30_dpp.o \
 	dcn30_dccg.o \

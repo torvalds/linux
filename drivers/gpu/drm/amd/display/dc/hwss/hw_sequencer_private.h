@@ -79,6 +79,7 @@ struct hwseq_private_funcs {
 	void (*update_plane_addr)(const struct dc *dc,
 			struct pipe_ctx *pipe_ctx);
 	void (*plane_atomic_disconnect)(struct dc *dc,
+			struct dc_state *state,
 			struct pipe_ctx *pipe_ctx);
 	void (*update_mpcc)(struct dc *dc, struct pipe_ctx *pipe_ctx);
 	bool (*set_input_transfer_func)(struct dc *dc,

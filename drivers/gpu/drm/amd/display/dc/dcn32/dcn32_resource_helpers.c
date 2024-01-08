@@ -28,6 +28,7 @@
 #include "dcn20/dcn20_resource.h"
 #include "dml/dcn32/display_mode_vba_util_32.h"
 #include "dml/dcn32/dcn32_fpu.h"
+#include "dc_state_priv.h"
 
 static bool is_dual_plane(enum surface_pixel_format format)
 {
@@ -182,20 +183,6 @@ bool dcn32_all_pipes_have_stream_and_plane(struct dc *dc,
 	return true;
 }
 
-bool dcn32_subvp_in_use(struct dc *dc,
-		struct dc_state *context)
-{
-	uint32_t i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_NONE)
-			return true;
-	}
-	return false;
-}
-
 bool dcn32_mpo_in_use(struct dc_state *context)
 {
 	uint32_t i;
@@ -264,18 +251,17 @@ static void override_det_for_subvp(struct dc *dc, struct dc_state *context, uint
 
 	// Do not override if a stream has multiple planes
 	for (i = 0; i < context->stream_count; i++) {
-		if (context->stream_status[i].plane_count > 1) {
+		if (context->stream_status[i].plane_count > 1)
 			return;
-		}
-		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM) {
+
+		if (dc_state_get_stream_subvp_type(context, context->streams[i]) != SUBVP_PHANTOM)
 			stream_count++;
-		}
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->stream && pipe_ctx->plane_state && pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+		if (pipe_ctx->stream && pipe_ctx->plane_state && dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
 			if (dcn32_allow_subvp_high_refresh_rate(dc, context, pipe_ctx)) {
 
 				if (pipe_ctx->stream->timing.v_addressable == 1080 && pipe_ctx->stream->timing.h_addressable == 1920) {
@@ -290,7 +276,7 @@ static void override_det_for_subvp(struct dc *dc, struct dc_state *context, uint
 		for (i = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-			if (pipe_ctx->stream && pipe_ctx->plane_state && pipe_ctx->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			if (pipe_ctx->stream && pipe_ctx->plane_state && dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
 				if (pipe_ctx->stream->timing.v_addressable == 1080 && pipe_ctx->stream->timing.h_addressable == 1920) {
 					if (pipe_segments[i] > 4)
 						pipe_segments[i] = 4;
@@ -337,14 +323,14 @@ void dcn32_determine_det_override(struct dc *dc,
 
 	for (i = 0; i < context->stream_count; i++) {
 		/* Don't count SubVP streams for DET allocation */
-		if (context->streams[i]->mall_stream_config.type != SUBVP_PHANTOM)
+		if (dc_state_get_stream_subvp_type(context, context->streams[i]) != SUBVP_PHANTOM)
 			stream_count++;
 	}
 
 	if (stream_count > 0) {
 		stream_segments = 18 / stream_count;
 		for (i = 0; i < context->stream_count; i++) {
-			if (context->streams[i]->mall_stream_config.type == SUBVP_PHANTOM)
+			if (dc_state_get_stream_subvp_type(context, context->streams[i]) == SUBVP_PHANTOM)
 				continue;
 
 			if (context->stream_status[i].plane_count > 0)
@@ -428,71 +414,6 @@ void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 		}
 	} else
 		dcn32_determine_det_override(dc, context, pipes);
-}
-
-/**
- * dcn32_save_mall_state(): Save MALL (SubVP) state for fast validation cases
- *
- * This function saves the MALL (SubVP) case for fast validation cases. For fast validation,
- * there are situations where a shallow copy of the dc->current_state is created for the
- * validation. In this case we want to save and restore the mall config because we always
- * teardown subvp at the beginning of validation (and don't attempt to add it back if it's
- * fast validation). If we don't restore the subvp config in cases of fast validation +
- * shallow copy of the dc->current_state, the dc->current_state will have a partially
- * removed subvp state when we did not intend to remove it.
- *
- * NOTE: This function ONLY works if the streams are not moved to a different pipe in the
- *       validation. We don't expect this to happen in fast_validation=1 cases.
- *
- * @dc: Current DC state
- * @context: New DC state to be programmed
- * @temp_config: struct used to cache the existing MALL state
- *
- * Return: void
- */
-void dcn32_save_mall_state(struct dc *dc,
-		struct dc_state *context,
-		struct mall_temp_config *temp_config)
-{
-	uint32_t i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe->stream)
-			temp_config->mall_stream_config[i] = pipe->stream->mall_stream_config;
-
-		if (pipe->plane_state)
-			temp_config->is_phantom_plane[i] = pipe->plane_state->is_phantom;
-	}
-}
-
-/**
- * dcn32_restore_mall_state(): Restore MALL (SubVP) state for fast validation cases
- *
- * Restore the MALL state based on the previously saved state from dcn32_save_mall_state
- *
- * @dc: Current DC state
- * @context: New DC state to be programmed, restore MALL state into here
- * @temp_config: struct that has the cached MALL state
- *
- * Return: void
- */
-void dcn32_restore_mall_state(struct dc *dc,
-		struct dc_state *context,
-		struct mall_temp_config *temp_config)
-{
-	uint32_t i;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe->stream)
-			pipe->stream->mall_stream_config = temp_config->mall_stream_config[i];
-
-		if (pipe->plane_state)
-			pipe->plane_state->is_phantom = temp_config->is_phantom_plane[i];
-	}
 }
 
 #define MAX_STRETCHED_V_BLANK 1000 // in micro-seconds (must ensure to match value in FW)
@@ -589,13 +510,14 @@ static int get_refresh_rate(struct dc_stream_state *fpo_candidate_stream)
  *
  * Return: Pointer to FPO stream candidate if config can support FPO, otherwise NULL
  */
-struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, const struct dc_state *context)
+struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context)
 {
 	int refresh_rate = 0;
 	const int minimum_refreshrate_supported = 120;
 	struct dc_stream_state *fpo_candidate_stream = NULL;
 	bool is_fpo_vactive = false;
 	uint32_t fpo_vactive_margin_us = 0;
+	struct dc_stream_status *fpo_stream_status = NULL;
 
 	if (context == NULL)
 		return NULL;
@@ -618,16 +540,28 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 		DC_FP_START();
 		dcn32_assign_fpo_vactive_candidate(dc, context, &fpo_candidate_stream);
 		DC_FP_END();
-
+		if (fpo_candidate_stream)
+			fpo_stream_status = dc_state_get_stream_status(context, fpo_candidate_stream);
 		DC_FP_START();
 		is_fpo_vactive = dcn32_find_vactive_pipe(dc, context, dc->debug.fpo_vactive_min_active_margin_us);
 		DC_FP_END();
 		if (!is_fpo_vactive || dc->debug.disable_fpo_vactive)
 			return NULL;
-	} else
+	} else {
 		fpo_candidate_stream = context->streams[0];
+		if (fpo_candidate_stream)
+			fpo_stream_status = dc_state_get_stream_status(context, fpo_candidate_stream);
+	}
 
-	if (!fpo_candidate_stream)
+	/* In DCN32/321, FPO uses per-pipe P-State force.
+	 * If there's no planes, HUBP is power gated and
+	 * therefore programming UCLK_PSTATE_FORCE does
+	 * nothing (P-State will always be asserted naturally
+	 * on a pipe that has HUBP power gated. Therefore we
+	 * only want to enable FPO if the FPO pipe has both
+	 * a stream and a plane.
+	 */
+	if (!fpo_candidate_stream || !fpo_stream_status || fpo_stream_status->plane_count == 0)
 		return NULL;
 
 	if (fpo_candidate_stream->sink->edid_caps.panel_patch.disable_fams)
@@ -716,10 +650,11 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		enum mall_stream_type pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 
 		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
 				resource_is_pipe_type(pipe, DPP_PIPE)) {
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			if (pipe_mall_type == SUBVP_MAIN) {
 				subvp_count++;
 
 				subvp_disallow |= disallow_subvp_in_active_plus_blank(pipe);
@@ -728,7 +663,7 @@ bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context)
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 			}
-			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+			if (pipe_mall_type == SUBVP_NONE) {
 				non_subvp_pipes++;
 				drr_psr_capable = (drr_psr_capable || dcn32_is_psr_capable(pipe));
 				if (pipe->stream->ignore_msa_timing_param &&
@@ -776,10 +711,11 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		enum mall_stream_type pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 
 		if (resource_is_pipe_type(pipe, OPP_HEAD) &&
 				resource_is_pipe_type(pipe, DPP_PIPE)) {
-			if (pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			if (pipe_mall_type == SUBVP_MAIN) {
 				subvp_count++;
 
 				subvp_disallow |= disallow_subvp_in_active_plus_blank(pipe);
@@ -788,7 +724,7 @@ bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int 
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.v_total);
 				refresh_rate = div_u64(refresh_rate, pipe->stream->timing.h_total);
 			}
-			if (pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+			if (pipe_mall_type == SUBVP_NONE) {
 				non_subvp_pipes++;
 				vblank_psr_capable = (vblank_psr_capable || dcn32_is_psr_capable(pipe));
 				if (pipe->stream->ignore_msa_timing_param &&

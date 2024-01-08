@@ -1,4 +1,3 @@
-/* SPDX-License-Identifier: MIT */
 /*
  * Copyright 2023 Advanced Micro Devices, Inc.
  *
@@ -34,9 +33,9 @@
 #include "dcn32/dcn32_hwseq.h"
 #include "dcn35/dcn35_hwseq.h"
 
-#include "dcn35_init.h"
+#include "dcn351_init.h"
 
-static const struct hw_sequencer_funcs dcn35_funcs = {
+static const struct hw_sequencer_funcs dcn351_funcs = {
 	.program_gamut_remap = dcn30_program_gamut_remap,
 	.init_hw = dcn35_init_hw,
 	.power_down_on_boot = dcn35_power_down_on_boot,
@@ -125,7 +124,7 @@ static const struct hw_sequencer_funcs dcn35_funcs = {
 	.get_idle_state = dcn35_get_idle_state
 };
 
-static const struct hwseq_private_funcs dcn35_private_funcs = {
+static const struct hwseq_private_funcs dcn351_private_funcs = {
 	.init_pipes = dcn35_init_pipes,
 	.update_plane_addr = dcn20_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
@@ -164,9 +163,9 @@ static const struct hwseq_private_funcs dcn35_private_funcs = {
 	.enable_plane = dcn35_enable_plane,
 };
 
-void dcn35_hw_sequencer_construct(struct dc *dc)
+void dcn351_hw_sequencer_construct(struct dc *dc)
 {
-	dc->hwss = dcn35_funcs;
-	dc->hwseq->funcs = dcn35_private_funcs;
+	dc->hwss = dcn351_funcs;
+	dc->hwseq->funcs = dcn351_private_funcs;
 
 }

@@ -85,6 +85,18 @@ void amdgpu_dm_init_color_mod(void)
 	setup_x_points_distribution();
 }
 
+static inline struct fixed31_32 amdgpu_dm_fixpt_from_s3132(__u64 x)
+{
+	struct fixed31_32 val;
+
+	/* If negative, convert to 2's complement. */
+	if (x & (1ULL << 63))
+		x = -(x & ~(1ULL << 63));
+
+	val.value = x;
+	return val;
+}
+
 #ifdef AMD_PRIVATE_COLOR
 /* Pre-defined Transfer Functions (TF)
  *
@@ -430,7 +442,7 @@ static void __drm_ctm_to_dc_matrix(const struct drm_color_ctm *ctm,
 		}
 
 		/* gamut_remap_matrix[i] = ctm[i - floor(i/4)] */
-		matrix[i] = dc_fixpt_from_s3132(ctm->matrix[i - (i / 4)]);
+		matrix[i] = amdgpu_dm_fixpt_from_s3132(ctm->matrix[i - (i / 4)]);
 	}
 }
 
@@ -452,7 +464,7 @@ static void __drm_ctm_3x4_to_dc_matrix(const struct drm_color_ctm_3x4 *ctm,
 	 */
 	for (i = 0; i < 12; i++) {
 		/* gamut_remap_matrix[i] = ctm[i - floor(i/4)] */
-		matrix[i] = dc_fixpt_from_s3132(ctm->matrix[i]);
+		matrix[i] = amdgpu_dm_fixpt_from_s3132(ctm->matrix[i]);
 	}
 }
 
@@ -630,8 +642,7 @@ static int __set_input_tf(struct dc_color_caps *caps, struct dc_transfer_func *f
 static enum dc_transfer_func_predefined
 amdgpu_tf_to_dc_tf(enum amdgpu_transfer_function tf)
 {
-	switch (tf)
-	{
+	switch (tf) {
 	default:
 	case AMDGPU_TRANSFER_FUNCTION_DEFAULT:
 	case AMDGPU_TRANSFER_FUNCTION_IDENTITY:
@@ -1137,7 +1148,7 @@ amdgpu_dm_plane_set_color_properties(struct drm_plane_state *plane_state,
 	uint32_t shaper_size, lut3d_size, blend_size;
 	int ret;
 
-	dc_plane_state->hdr_mult = dc_fixpt_from_s3132(dm_plane_state->hdr_mult);
+	dc_plane_state->hdr_mult = amdgpu_dm_fixpt_from_s3132(dm_plane_state->hdr_mult);
 
 	shaper_lut = __extract_blob_lut(dm_plane_state->shaper_lut, &shaper_size);
 	shaper_size = shaper_lut != NULL ? shaper_size : 0;
@@ -1225,7 +1236,7 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 	 * plane and CRTC degamma at the same time. Explicitly reject atomic
 	 * updates when userspace sets both plane and CRTC degamma properties.
 	 */
-	if (has_crtc_cm_degamma && ret != -EINVAL){
+	if (has_crtc_cm_degamma && ret != -EINVAL) {
 		drm_dbg_kms(crtc->base.crtc->dev,
 			    "doesn't support plane and CRTC degamma at the same time\n");
 			return -EINVAL;

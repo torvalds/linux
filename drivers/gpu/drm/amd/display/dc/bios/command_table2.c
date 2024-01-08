@@ -123,7 +123,7 @@ static void encoder_control_dmcub(
 		sizeof(cmd.digx_encoder_control.header);
 	cmd.digx_encoder_control.encoder_control.dig.stream_param = *dig;
 
-	dm_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static enum bp_result encoder_control_digx_v1_5(
@@ -259,7 +259,7 @@ static void transmitter_control_dmcub(
 		sizeof(cmd.dig1_transmitter_control.header);
 	cmd.dig1_transmitter_control.transmitter_control.dig = *dig;
 
-	dm_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static enum bp_result transmitter_control_v1_6(
@@ -321,7 +321,7 @@ static void transmitter_control_dmcub_v1_7(
 		sizeof(cmd.dig1_transmitter_control.header);
 	cmd.dig1_transmitter_control.transmitter_control.dig_v1_7 = *dig;
 
-	dm_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static enum bp_result transmitter_control_v1_7(
@@ -429,7 +429,7 @@ static void set_pixel_clock_dmcub(
 		sizeof(cmd.set_pixel_clock.header);
 	cmd.set_pixel_clock.pixel_clock.clk = *clk;
 
-	dm_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static enum bp_result set_pixel_clock_v7(
@@ -796,7 +796,7 @@ static void enable_disp_power_gating_dmcub(
 		sizeof(cmd.enable_disp_power_gating.header);
 	cmd.enable_disp_power_gating.power_gating.pwr = *pwr;
 
-	dm_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static enum bp_result enable_disp_power_gating_v2_1(
@@ -1006,7 +1006,7 @@ static void enable_lvtma_control_dmcub(
 			pwrseq_instance;
 	cmd.lvtma_control.data.bypass_panel_control_wait =
 			bypass_panel_control_wait;
-	dm_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dmcub->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static enum bp_result enable_lvtma_control(

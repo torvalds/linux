@@ -117,8 +117,12 @@
 		(pa) |= (UMC_V12_0_CHANNEL_HASH_CH6(channel_idx, pa) << UMC_V12_0_PA_CH6_BIT); \
 	} while (0)
 
-bool umc_v12_0_is_uncorrectable_error(uint64_t mc_umc_status);
-bool umc_v12_0_is_correctable_error(uint64_t mc_umc_status);
+#define MCA_IPID_LO_2_UMC_CH(_ipid_lo) (((((_ipid_lo) >> 20) & 0x1) * 4) + \
+			(((_ipid_lo) >> 12) & 0xF))
+#define MCA_IPID_LO_2_UMC_INST(_ipid_lo) (((_ipid_lo) >> 21) & 0x7)
+
+bool umc_v12_0_is_uncorrectable_error(struct amdgpu_device *adev, uint64_t mc_umc_status);
+bool umc_v12_0_is_correctable_error(struct amdgpu_device *adev, uint64_t mc_umc_status);
 
 extern const uint32_t
 	umc_v12_0_channel_idx_tbl[]

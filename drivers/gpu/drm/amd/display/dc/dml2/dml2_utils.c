@@ -155,11 +155,19 @@ unsigned int dml2_util_get_maximum_odm_combine_for_output(bool force_odm_4to1, e
 
 bool is_dp2p0_output_encoder(const struct pipe_ctx *pipe_ctx)
 {
+	if (pipe_ctx == NULL || pipe_ctx->stream == NULL)
+		return false;
+
 	/* If this assert is hit then we have a link encoder dynamic management issue */
 	ASSERT(pipe_ctx->stream_res.hpo_dp_stream_enc ? pipe_ctx->link_res.hpo_dp_link_enc != NULL : true);
 
-	if (pipe_ctx->stream == NULL)
-		return false;
+	/* Count MST hubs once by treating only 1st remote sink in topology as an encoder */
+	if (pipe_ctx->stream->link && pipe_ctx->stream->link->remote_sinks[0]) {
+		return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
+			pipe_ctx->link_res.hpo_dp_link_enc &&
+			dc_is_dp_signal(pipe_ctx->stream->signal) &&
+			(pipe_ctx->stream->link->remote_sinks[0]->sink_id == pipe_ctx->stream->sink->sink_id));
+	}
 
 	return (pipe_ctx->stream_res.hpo_dp_stream_enc &&
 		pipe_ctx->link_res.hpo_dp_link_enc &&
@@ -279,6 +287,7 @@ static void populate_pipe_ctx_dlg_params_from_dml(struct pipe_ctx *pipe_ctx, str
 void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *context, struct resource_context *out_new_hw_state, struct dml2_context *in_ctx, unsigned int pipe_cnt)
 {
 	unsigned int dc_pipe_ctx_index, dml_pipe_idx, plane_id;
+	enum mall_stream_type pipe_mall_type;
 	bool unbounded_req_enabled = false;
 	struct dml2_calculate_rq_and_dlg_params_scratch *s = &in_ctx->v20.scratch.calculate_rq_and_dlg_params_scratch;
 
@@ -326,7 +335,8 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 		 */
 		populate_pipe_ctx_dlg_params_from_dml(&context->res_ctx.pipe_ctx[dc_pipe_ctx_index], &context->bw_ctx.dml2->v20.dml_core_ctx, dml_pipe_idx);
 
-		if (context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		pipe_mall_type = dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[dc_pipe_ctx_index]);
+		if (pipe_mall_type == SUBVP_PHANTOM) {
 			// Phantom pipe requires that DET_SIZE = 0 and no unbounded requests
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].det_buffer_size_kb = 0;
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].unbounded_req = false;
@@ -353,7 +363,7 @@ void dml2_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *cont
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].plane_state != context->res_ctx.pipe_ctx[dc_pipe_ctx_index].top_pipe->plane_state) &&
 			context->res_ctx.pipe_ctx[dc_pipe_ctx_index].prev_odm_pipe == NULL) {
 			/* SS: all active surfaces stored in MALL */
-			if (context->res_ctx.pipe_ctx[dc_pipe_ctx_index].stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			if (pipe_mall_type != SUBVP_PHANTOM) {
 				context->bw_ctx.bw.dcn.mall_ss_size_bytes += context->res_ctx.pipe_ctx[dc_pipe_ctx_index].surface_size_in_mall_bytes;
 			} else {
 				/* SUBVP: phantom surfaces only stored in MALL */

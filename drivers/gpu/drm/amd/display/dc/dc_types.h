@@ -1151,6 +1151,8 @@ struct dc_dpia_bw_alloc {
 	int bw_granularity;    // BW Granularity
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
 	bool response_ready;   // Response ready from the CM side
+	uint8_t nrd_max_lane_count; // Non-reduced max lane count
+	uint8_t nrd_max_link_rate; // Non-reduced max link rate
 };
 
 #define MAX_SINKS_PER_LINK 4
@@ -1161,4 +1163,9 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum mall_stream_type {
+	SUBVP_NONE, // subvp not in use
+	SUBVP_MAIN, // subvp in use, this stream is main stream
+	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
+};
 #endif /* DC_TYPES_H_ */

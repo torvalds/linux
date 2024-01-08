@@ -31,6 +31,8 @@
 #include "ipp.h"
 #include "timing_generator.h"
 #include "dc_dmub_srv.h"
+#include "dc_state_priv.h"
+#include "dc_stream_priv.h"
 
 #define DC_LOGGER dc->ctx->logger
 
@@ -54,7 +56,7 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink)
 	}
 }
 
-static bool dc_stream_construct(struct dc_stream_state *stream,
+bool dc_stream_construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -121,19 +123,25 @@ static bool dc_stream_construct(struct dc_stream_state *stream,
 	}
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
 
-	stream->stream_id = stream->ctx->dc_stream_id_count;
-	stream->ctx->dc_stream_id_count++;
+	dc_stream_assign_stream_id(stream);
 
 	return true;
 }
 
-static void dc_stream_destruct(struct dc_stream_state *stream)
+void dc_stream_destruct(struct dc_stream_state *stream)
 {
 	dc_sink_release(stream->sink);
 	if (stream->out_transfer_func != NULL) {
 		dc_transfer_func_release(stream->out_transfer_func);
 		stream->out_transfer_func = NULL;
 	}
+}
+
+void dc_stream_assign_stream_id(struct dc_stream_state *stream)
+{
+	/* MSB is reserved to indicate phantoms */
+	stream->stream_id = stream->ctx->dc_stream_id_count;
+	stream->ctx->dc_stream_id_count++;
 }
 
 void dc_stream_retain(struct dc_stream_state *stream)
@@ -196,8 +204,7 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	if (new_stream->out_transfer_func)
 		dc_transfer_func_retain(new_stream->out_transfer_func);
 
-	new_stream->stream_id = new_stream->ctx->dc_stream_id_count;
-	new_stream->ctx->dc_stream_id_count++;
+	dc_stream_assign_stream_id(new_stream);
 
 	/* If using dynamic encoder assignment, wait till stream committed to assign encoder. */
 	if (new_stream->ctx->dc->res_pool->funcs->link_encs_assign)
@@ -206,31 +213,6 @@ struct dc_stream_state *dc_copy_stream(const struct dc_stream_state *stream)
 	kref_init(&new_stream->refcount);
 
 	return new_stream;
-}
-
-/**
- * dc_stream_get_status_from_state - Get stream status from given dc state
- * @state: DC state to find the stream status in
- * @stream: The stream to get the stream status for
- *
- * The given stream is expected to exist in the given dc state. Otherwise, NULL
- * will be returned.
- */
-struct dc_stream_status *dc_stream_get_status_from_state(
-	struct dc_state *state,
-	struct dc_stream_state *stream)
-{
-	uint8_t i;
-
-	if (state == NULL)
-		return NULL;
-
-	for (i = 0; i < state->stream_count; i++) {
-		if (stream == state->streams[i])
-			return &state->stream_status[i];
-	}
-
-	return NULL;
 }
 
 /**
@@ -244,7 +226,7 @@ struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *stream)
 {
 	struct dc *dc = stream->ctx->dc;
-	return dc_stream_get_status_from_state(dc->current_state, stream);
+	return dc_state_get_stream_status(dc->current_state, stream);
 }
 
 static void program_cursor_attributes(
@@ -465,7 +447,8 @@ bool dc_stream_add_writeback(struct dc *dc,
 	if (dc->hwss.enable_writeback) {
 		struct dc_stream_status *stream_status = dc_stream_get_status(stream);
 		struct dwbc *dwb = dc->res_pool->dwbc[wb_info->dwb_pipe_inst];
-		dwb->otg_inst = stream_status->primary_otg_inst;
+		if (stream_status)
+			dwb->otg_inst = stream_status->primary_otg_inst;
 	}
 
 	if (!dc->hwss.update_bandwidth(dc, dc->current_state)) {

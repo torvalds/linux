@@ -96,11 +96,14 @@
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
 #include "dce/dmub_psr.h"
+#include "dce/dmub_replay.h"
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 #include "dml/dcn31/display_mode_vba_31.h" /*temp*/
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
+
+#include "dc_state_priv.h"
 
 #include "link_enc_cfg.h"
 #define DC_LOGGER_INIT(logger)
@@ -766,7 +769,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.enable_hpo_pg_support = false,
 	.enable_legacy_fast_update = true,
 	.enable_single_display_2to1_odm_policy = false,
-	.disable_idle_power_optimizations = true,
+	.disable_idle_power_optimizations = false,
 	.dmcub_emulation = false,
 	.disable_boot_optimizations = false,
 	.disable_unbounded_requesting = false,
@@ -778,13 +781,15 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
 	.ips2_eval_delay_us = 200,
-	.ips2_entry_delay_us = 400
+	.ips2_entry_delay_us = 400,
+	.static_screen_wait_frames = 2,
 };
 
 static const struct dc_panel_config panel_config_defaults = {
 	.psr = {
 		.disable_psr = false,
 		.disallow_psrsu = false,
+		.disallow_replay = false,
 	},
 	.ilr = {
 		.optimize_edp_link_rate = true,
@@ -1543,6 +1548,9 @@ static void dcn35_resource_destruct(struct dcn35_resource_pool *pool)
 	if (pool->base.psr != NULL)
 		dmub_psr_destroy(&pool->base.psr);
 
+	if (pool->base.replay != NULL)
+		dmub_replay_destroy(&pool->base.replay);
+
 	if (pool->base.pg_cntl != NULL)
 		dcn_pg_cntl_destroy(&pool->base.pg_cntl);
 
@@ -2023,6 +2031,14 @@ static bool dcn35_resource_construct(
 	pool->base.psr = dmub_psr_create(ctx);
 	if (pool->base.psr == NULL) {
 		dm_error("DC: failed to create psr obj!\n");
+		BREAK_TO_DEBUGGER();
+		goto create_fail;
+	}
+
+	/* Replay */
+	pool->base.replay = dmub_replay_create(ctx);
+	if (pool->base.replay == NULL) {
+		dm_error("DC: failed to create replay obj!\n");
 		BREAK_TO_DEBUGGER();
 		goto create_fail;
 	}

@@ -50,6 +50,8 @@ struct dc_dmub_srv {
 
 	struct dc_context *ctx;
 	void *dm;
+
+	bool idle_allowed;
 };
 
 void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv);
@@ -100,8 +102,59 @@ void dc_dmub_srv_enable_dpia_trace(const struct dc *dc);
 void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, const struct dc_plane_address *addr, uint8_t subvp_index);
 
 bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait);
-void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle);
-void dc_dmub_srv_exit_low_power_state(const struct dc *dc);
+
+void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_idle);
 
 void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState);
+
+/**
+ * dc_wake_and_execute_dmub_cmd() - Wrapper for DMUB command execution.
+ *
+ * Refer to dc_wake_and_execute_dmub_cmd_list() for usage and limitations,
+ * This function is a convenience wrapper for a single command execution.
+ *
+ * @ctx: DC context
+ * @cmd: The command to send/receive
+ * @wait_type: The wait behavior for the execution
+ *
+ * Return: true on command submission success, false otherwise
+ */
+bool dc_wake_and_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd,
+				  enum dm_dmub_wait_type wait_type);
+
+/**
+ * dc_wake_and_execute_dmub_cmd_list() - Wrapper for DMUB command list execution.
+ *
+ * If the DMCUB hardware was asleep then it wakes the DMUB before
+ * executing the command and attempts to re-enter if the command
+ * submission was successful.
+ *
+ * This should be the preferred command submission interface provided
+ * the DC lock is acquired.
+ *
+ * Entry/exit out of idle power optimizations would need to be
+ * manually performed otherwise through dc_allow_idle_optimizations().
+ *
+ * @ctx: DC context
+ * @count: Number of commands to send/receive
+ * @cmd: Array of commands to send
+ * @wait_type: The wait behavior for the execution
+ *
+ * Return: true on command submission success, false otherwise
+ */
+bool dc_wake_and_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count,
+				       union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type);
+
+/**
+ * dc_wake_and_execute_gpint()
+ *
+ * @ctx: DC context
+ * @command_code: The command ID to send to DMCUB
+ * @param: The parameter to message DMCUB
+ * @response: Optional response out value - may be NULL.
+ * @wait_type: The wait behavior for the execution
+ */
+bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_command command_code,
+			       uint16_t param, uint32_t *response, enum dm_dmub_wait_type wait_type);
+
 #endif /* _DMUB_DC_SRV_H_ */

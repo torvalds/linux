@@ -29,6 +29,7 @@
 #include "dc_types.h"
 #include "dccg.h"
 #include "clk_mgr_internal.h"
+#include "dc_state_priv.h"
 #include "link.h"
 
 #include "dce100/dce_clk_mgr.h"
@@ -63,7 +64,7 @@ int clk_mgr_helper_get_active_display_cnt(
 		/* Don't count SubVP phantom pipes as part of active
 		 * display count
 		 */
-		if (stream->mall_stream_config.type == SUBVP_PHANTOM)
+		if (dc_state_get_stream_subvp_type(context, stream) == SUBVP_PHANTOM)
 			continue;
 
 		/*

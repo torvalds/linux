@@ -91,12 +91,6 @@ bool dcn32_release_post_bldn_3dlut(
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
 
-bool dcn32_remove_phantom_pipes(struct dc *dc,
-		struct dc_state *context, bool fast_update);
-
-void dcn32_retain_phantom_pipes(struct dc *dc,
-		struct dc_state *context);
-
 void dcn32_add_phantom_pipes(struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -137,9 +131,6 @@ void dcn32_merge_pipes_for_subvp(struct dc *dc,
 bool dcn32_all_pipes_have_stream_and_plane(struct dc *dc,
 		struct dc_state *context);
 
-bool dcn32_subvp_in_use(struct dc *dc,
-		struct dc_state *context);
-
 bool dcn32_mpo_in_use(struct dc_state *context);
 
 bool dcn32_any_surfaces_rotated(struct dc *dc, struct dc_state *context);
@@ -169,15 +160,7 @@ void dcn32_determine_det_override(struct dc *dc,
 void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes);
 
-void dcn32_save_mall_state(struct dc *dc,
-		struct dc_state *context,
-		struct mall_temp_config *temp_config);
-
-void dcn32_restore_mall_state(struct dc *dc,
-		struct dc_state *context,
-		struct mall_temp_config *temp_config);
-
-struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, const struct dc_state *context);
+struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
 
 bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
 

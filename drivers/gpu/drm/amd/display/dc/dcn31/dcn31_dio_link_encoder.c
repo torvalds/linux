@@ -125,7 +125,7 @@ static bool query_dp_alt_from_dmub(struct link_encoder *enc,
 	cmd->query_dp_alt.header.payload_bytes = sizeof(cmd->query_dp_alt.data);
 	cmd->query_dp_alt.data.phy_id = phy_id_from_transmitter(enc10->base.transmitter);
 
-	if (!dm_execute_dmub_cmd(enc->ctx, cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
+	if (!dc_wake_and_execute_dmub_cmd(enc->ctx, cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 		return false;
 
 	return true;
@@ -436,7 +436,7 @@ static bool link_dpia_control(struct dc_context *dc_ctx,
 
 	cmd.dig1_dpia_control.dpia_control = *dpia_control;
 
-	dm_execute_dmub_cmd(dc_ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc_ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }

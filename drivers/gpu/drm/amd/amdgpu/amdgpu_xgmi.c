@@ -1313,10 +1313,10 @@ static void __xgmi_v6_4_0_query_error_count(struct amdgpu_device *adev, struct a
 
 	switch (xgmi_v6_4_0_pcs_mca_get_error_type(adev, status)) {
 	case AMDGPU_MCA_ERROR_TYPE_UE:
-		amdgpu_ras_error_statistic_ue_count(err_data, mcm_info, 1ULL);
+		amdgpu_ras_error_statistic_ue_count(err_data, mcm_info, NULL, 1ULL);
 		break;
 	case AMDGPU_MCA_ERROR_TYPE_CE:
-		amdgpu_ras_error_statistic_ce_count(err_data, mcm_info, 1ULL);
+		amdgpu_ras_error_statistic_ce_count(err_data, mcm_info, NULL, 1ULL);
 		break;
 	default:
 		break;

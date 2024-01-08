@@ -747,7 +747,7 @@ enum amdgpu_transfer_function {
 	AMDGPU_TRANSFER_FUNCTION_GAMMA22_INV_EOTF,
 	AMDGPU_TRANSFER_FUNCTION_GAMMA24_INV_EOTF,
 	AMDGPU_TRANSFER_FUNCTION_GAMMA26_INV_EOTF,
-        AMDGPU_TRANSFER_FUNCTION_COUNT
+	AMDGPU_TRANSFER_FUNCTION_COUNT
 };
 
 struct dm_plane_state {
@@ -844,7 +844,7 @@ struct dm_crtc_state {
 
 	int abm_level;
 
-        /**
+	/**
 	 * @regamma_tf:
 	 *
 	 * Pre-defined transfer function for converting internal FB -> wire

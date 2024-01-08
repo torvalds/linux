@@ -158,13 +158,12 @@ svm_is_valid_dma_mapping_addr(struct device *dev, dma_addr_t dma_addr)
 static int
 svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 		      unsigned long offset, unsigned long npages,
-		      unsigned long *hmm_pfns, uint32_t gpuidx, uint64_t *vram_pages)
+		      unsigned long *hmm_pfns, uint32_t gpuidx)
 {
 	enum dma_data_direction dir = DMA_BIDIRECTIONAL;
 	dma_addr_t *addr = prange->dma_addr[gpuidx];
 	struct device *dev = adev->dev;
 	struct page *page;
-	uint64_t vram_pages_dev;
 	int i, r;
 
 	if (!addr) {
@@ -174,7 +173,6 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 		prange->dma_addr[gpuidx] = addr;
 	}
 
-	vram_pages_dev = 0;
 	addr += offset;
 	for (i = 0; i < npages; i++) {
 		if (svm_is_valid_dma_mapping_addr(dev, addr[i]))
@@ -184,7 +182,6 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 		if (is_zone_device_page(page)) {
 			struct amdgpu_device *bo_adev = prange->svm_bo->node->adev;
 
-			vram_pages_dev++;
 			addr[i] = (hmm_pfns[i] << PAGE_SHIFT) +
 				   bo_adev->vm_manager.vram_base_offset -
 				   bo_adev->kfd.pgmap.range.start;
@@ -201,14 +198,14 @@ svm_range_dma_map_dev(struct amdgpu_device *adev, struct svm_range *prange,
 		pr_debug_ratelimited("dma mapping 0x%llx for page addr 0x%lx\n",
 				     addr[i] >> PAGE_SHIFT, page_to_pfn(page));
 	}
-	*vram_pages = vram_pages_dev;
+
 	return 0;
 }
 
 static int
 svm_range_dma_map(struct svm_range *prange, unsigned long *bitmap,
 		  unsigned long offset, unsigned long npages,
-		  unsigned long *hmm_pfns, uint64_t *vram_pages)
+		  unsigned long *hmm_pfns)
 {
 	struct kfd_process *p;
 	uint32_t gpuidx;
@@ -227,7 +224,7 @@ svm_range_dma_map(struct svm_range *prange, unsigned long *bitmap,
 		}
 
 		r = svm_range_dma_map_dev(pdd->dev->adev, prange, offset, npages,
-					  hmm_pfns, gpuidx, vram_pages);
+					  hmm_pfns, gpuidx);
 		if (r)
 			break;
 	}
@@ -885,14 +882,29 @@ static void svm_range_debug_dump(struct svm_range_list *svms)
 
 static void *
 svm_range_copy_array(void *psrc, size_t size, uint64_t num_elements,
-		     uint64_t offset)
+		     uint64_t offset, uint64_t *vram_pages)
 {
+	unsigned char *src = (unsigned char *)psrc + offset;
 	unsigned char *dst;
+	uint64_t i;
 
 	dst = kvmalloc_array(num_elements, size, GFP_KERNEL);
 	if (!dst)
 		return NULL;
-	memcpy(dst, (unsigned char *)psrc + offset, num_elements * size);
+
+	if (!vram_pages) {
+		memcpy(dst, src, num_elements * size);
+		return (void *)dst;
+	}
+
+	*vram_pages = 0;
+	for (i = 0; i < num_elements; i++) {
+		dma_addr_t *temp;
+		temp = (dma_addr_t *)dst + i;
+		*temp = *((dma_addr_t *)src + i);
+		if (*temp&SVM_RANGE_VRAM_DOMAIN)
+			(*vram_pages)++;
+	}
 
 	return (void *)dst;
 }
@@ -906,7 +918,7 @@ svm_range_copy_dma_addrs(struct svm_range *dst, struct svm_range *src)
 		if (!src->dma_addr[i])
 			continue;
 		dst->dma_addr[i] = svm_range_copy_array(src->dma_addr[i],
-					sizeof(*src->dma_addr[i]), src->npages, 0);
+					sizeof(*src->dma_addr[i]), src->npages, 0, NULL);
 		if (!dst->dma_addr[i])
 			return -ENOMEM;
 	}
@@ -917,7 +929,7 @@ svm_range_copy_dma_addrs(struct svm_range *dst, struct svm_range *src)
 static int
 svm_range_split_array(void *ppnew, void *ppold, size_t size,
 		      uint64_t old_start, uint64_t old_n,
-		      uint64_t new_start, uint64_t new_n)
+		      uint64_t new_start, uint64_t new_n, uint64_t *new_vram_pages)
 {
 	unsigned char *new, *old, *pold;
 	uint64_t d;
@@ -929,11 +941,12 @@ svm_range_split_array(void *ppnew, void *ppold, size_t size,
 		return 0;
 
 	d = (new_start - old_start) * size;
-	new = svm_range_copy_array(pold, size, new_n, d);
+	/* get dma addr array for new range and calculte its vram page number */
+	new = svm_range_copy_array(pold, size, new_n, d, new_vram_pages);
 	if (!new)
 		return -ENOMEM;
 	d = (new_start == old_start) ? new_n * size : 0;
-	old = svm_range_copy_array(pold, size, old_n, d);
+	old = svm_range_copy_array(pold, size, old_n, d, NULL);
 	if (!old) {
 		kvfree(new);
 		return -ENOMEM;
@@ -955,10 +968,13 @@ svm_range_split_pages(struct svm_range *new, struct svm_range *old,
 	for (i = 0; i < MAX_GPU_INSTANCE; i++) {
 		r = svm_range_split_array(&new->dma_addr[i], &old->dma_addr[i],
 					  sizeof(*old->dma_addr[i]), old->start,
-					  npages, new->start, new->npages);
+					  npages, new->start, new->npages,
+					  old->actual_loc ? &new->vram_pages : NULL);
 		if (r)
 			return r;
 	}
+	if (old->actual_loc)
+		old->vram_pages -= new->vram_pages;
 
 	return 0;
 }
@@ -981,11 +997,6 @@ svm_range_split_nodes(struct svm_range *new, struct svm_range *old,
 
 	new->svm_bo = svm_range_bo_ref(old->svm_bo);
 	new->ttm_res = old->ttm_res;
-
-	/* set new's vram_pages as old range's now, the acurate vram_pages
-	 * will be updated during mapping
-	 */
-	new->vram_pages = min(old->vram_pages, new->npages);
 
 	spin_lock(&new->svm_bo->list_lock);
 	list_add(&new->svm_bo_list, &new->svm_bo->range_list);
@@ -1109,7 +1120,7 @@ static int
 svm_range_split_tail(struct svm_range *prange, uint64_t new_last,
 		     struct list_head *insert_list, struct list_head *remap_list)
 {
-	struct svm_range *tail;
+	struct svm_range *tail = NULL;
 	int r = svm_range_split(prange, prange->start, new_last, &tail);
 
 	if (!r) {
@@ -1124,7 +1135,7 @@ static int
 svm_range_split_head(struct svm_range *prange, uint64_t new_start,
 		     struct list_head *insert_list, struct list_head *remap_list)
 {
-	struct svm_range *head;
+	struct svm_range *head = NULL;
 	int r = svm_range_split(prange, new_start, prange->last, &head);
 
 	if (!r) {
@@ -1573,7 +1584,6 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 	struct svm_validate_context *ctx;
 	unsigned long start, end, addr;
 	struct kfd_process *p;
-	uint64_t vram_pages;
 	void *owner;
 	int32_t idx;
 	int r = 0;
@@ -1648,15 +1658,13 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		}
 	}
 
-	vram_pages = 0;
-	start = prange->start << PAGE_SHIFT;
-	end = (prange->last + 1) << PAGE_SHIFT;
+	start = map_start << PAGE_SHIFT;
+	end = (map_last + 1) << PAGE_SHIFT;
 	for (addr = start; !r && addr < end; ) {
 		struct hmm_range *hmm_range;
 		unsigned long map_start_vma;
 		unsigned long map_last_vma;
 		struct vm_area_struct *vma;
-		uint64_t vram_pages_vma;
 		unsigned long next = 0;
 		unsigned long offset;
 		unsigned long npages;
@@ -1683,13 +1691,11 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		}
 
 		if (!r) {
-			offset = (addr - start) >> PAGE_SHIFT;
+			offset = (addr >> PAGE_SHIFT) - prange->start;
 			r = svm_range_dma_map(prange, ctx->bitmap, offset, npages,
-					      hmm_range->hmm_pfns, &vram_pages_vma);
+					      hmm_range->hmm_pfns);
 			if (r)
 				pr_debug("failed %d to dma map range\n", r);
-			else
-				vram_pages += vram_pages_vma;
 		}
 
 		svm_range_lock(prange);
@@ -1720,19 +1726,6 @@ static int svm_range_validate_and_map(struct mm_struct *mm,
 		svm_range_unlock(prange);
 
 		addr = next;
-	}
-
-	if (addr == end) {
-		prange->vram_pages = vram_pages;
-
-		/* if prange does not include any vram page and it
-		 * has not released svm_bo drop its svm_bo reference
-		 * and set its actaul_loc to sys ram
-		 */
-		if (!vram_pages && prange->ttm_res) {
-			prange->actual_loc = 0;
-			svm_range_vram_node_free(prange);
-		}
 	}
 
 	svm_range_unreserve_bos(ctx);

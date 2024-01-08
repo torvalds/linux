@@ -56,6 +56,7 @@
 #include "dcn30/dcn30_cm_common.h"
 #include "dcn31/dcn31_hwseq.h"
 #include "dcn20/dcn20_hwseq.h"
+#include "dc_state_priv.h"
 
 #define DC_LOGGER_INIT(logger) \
 	struct dal_logger *dc_logger = logger
@@ -133,6 +134,7 @@ void dcn35_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
+	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	int i;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -279,13 +281,15 @@ void dcn35_init_hw(struct dc *dc)
 	for (i = 0; i < dc->link_count; i++) {
 		struct dc_link *link = dc->links[i];
 
-		if (link->panel_cntl)
+		if (link->panel_cntl) {
 			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
+			user_level = link->panel_cntl->stored_backlight_registers.USER_LEVEL;
+		}
 	}
 	if (dc->ctx->dmub_srv) {
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (abms[i] != NULL && abms[i]->funcs != NULL)
-			abms[i]->funcs->abm_init(abms[i], backlight);
+			abms[i]->funcs->abm_init(abms[i], backlight, user_level);
 		}
 	}
 
@@ -687,11 +691,7 @@ bool dcn35_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	}
 
 	// TODO: review other cases when idle optimization is allowed
-
-	if (!enable)
-		dc_dmub_srv_exit_low_power_state(dc);
-	else
-		dc_dmub_srv_notify_idle(dc, enable);
+	dc_dmub_srv_apply_idle_power_optimizations(dc, enable);
 
 	return true;
 }
@@ -701,7 +701,7 @@ void dcn35_z10_restore(const struct dc *dc)
 	if (dc->debug.disable_z10)
 		return;
 
-	dc_dmub_srv_exit_low_power_state(dc);
+	dc_dmub_srv_apply_idle_power_optimizations(dc, false);
 
 	dcn31_z10_restore(dc);
 }
@@ -817,12 +817,12 @@ void dcn35_init_pipes(struct dc *dc, struct dc_state *context)
 		dc->res_pool->opps[i]->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 		pipe_ctx->stream_res.opp = dc->res_pool->opps[i];
 
-		hws->funcs.plane_atomic_disconnect(dc, pipe_ctx);
+		hws->funcs.plane_atomic_disconnect(dc, context, pipe_ctx);
 
 		if (tg->funcs->is_tg_enabled(tg))
 			tg->funcs->unlock(tg);
 
-		dc->hwss.disable_plane(dc, pipe_ctx);
+		dc->hwss.disable_plane(dc, context, pipe_ctx);
 
 		pipe_ctx->stream_res.tg = NULL;
 		pipe_ctx->plane_res.hubp = NULL;
@@ -949,10 +949,10 @@ void dcn35_plane_atomic_disable(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_state = NULL;
 }
 
-void dcn35_disable_plane(struct dc *dc, struct pipe_ctx *pipe_ctx)
+void dcn35_disable_plane(struct dc *dc, struct dc_state *state, struct pipe_ctx *pipe_ctx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	bool is_phantom = pipe_ctx->plane_state && pipe_ctx->plane_state->is_phantom;
+	bool is_phantom = dc_state_get_pipe_subvp_type(state, pipe_ctx) == SUBVP_PHANTOM;
 	struct timing_generator *tg = is_phantom ? pipe_ctx->stream_res.tg : NULL;
 
 	DC_LOGGER_INIT(dc->ctx->logger);
@@ -1123,21 +1123,28 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 		update_state->pg_res_update[PG_HPO] = true;
 
 }
+
 /**
-	 * power down sequence
-	 * ONO Region 3, DCPG 25: hpo - SKIPPED
-	 * ONO Region 4, DCPG 0: dchubp0, dpp0
-	 * ONO Region 6, DCPG 1: dchubp1, dpp1
-	 * ONO Region 8, DCPG 2: dchubp2, dpp2
-	 * ONO Region 10, DCPG 3: dchubp3, dpp3
-	 * ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will pwr dwn at IPS2 entry
-	 * ONO Region 5, DCPG 16: dsc0
-	 * ONO Region 7, DCPG 17: dsc1
-	 * ONO Region 9, DCPG 18: dsc2
-	 * ONO Region 11, DCPG 19: dsc3
-	 * ONO Region 2, DCPG 24: mpc opp optc dwb
-	 * ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED. will be pwr dwn after lono timer is armed
-*/
+ * dcn35_hw_block_power_down() - power down sequence
+ *
+ * The following sequence describes the ON-OFF (ONO) for power down:
+ *
+ *	ONO Region 3, DCPG 25: hpo - SKIPPED
+ *	ONO Region 4, DCPG 0: dchubp0, dpp0
+ *	ONO Region 6, DCPG 1: dchubp1, dpp1
+ *	ONO Region 8, DCPG 2: dchubp2, dpp2
+ *	ONO Region 10, DCPG 3: dchubp3, dpp3
+ *	ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will pwr dwn at IPS2 entry
+ *	ONO Region 5, DCPG 16: dsc0
+ *	ONO Region 7, DCPG 17: dsc1
+ *	ONO Region 9, DCPG 18: dsc2
+ *	ONO Region 11, DCPG 19: dsc3
+ *	ONO Region 2, DCPG 24: mpc opp optc dwb
+ *	ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED. will be pwr dwn after lono timer is armed
+ *
+ * @dc: Current DC state
+ * @update_state: update PG sequence states for HW block
+ */
 void dcn35_hw_block_power_down(struct dc *dc,
 	struct pg_block_update *update_state)
 {
@@ -1175,20 +1182,27 @@ void dcn35_hw_block_power_down(struct dc *dc,
 	//domain22, 23, 25 currently always on.
 
 }
+
 /**
-	 * power up sequence
-	 * ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED
-	 * ONO Region 2, DCPG 24: mpc opp optc dwb
-	 * ONO Region 5, DCPG 16: dsc0
-	 * ONO Region 7, DCPG 17: dsc1
-	 * ONO Region 9, DCPG 18: dsc2
-	 * ONO Region 11, DCPG 19: dsc3
-	 * ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will power up at IPS2 exit
-	 * ONO Region 4, DCPG 0: dchubp0, dpp0
-	 * ONO Region 6, DCPG 1: dchubp1, dpp1
-	 * ONO Region 8, DCPG 2: dchubp2, dpp2
-	 * ONO Region 10, DCPG 3: dchubp3, dpp3
-	 * ONO Region 3, DCPG 25: hpo - SKIPPED
+ * dcn35_hw_block_power_up() - power up sequence
+ *
+ * The following sequence describes the ON-OFF (ONO) for power up:
+ *
+ *	ONO Region 0, DCPG 22: dccg dio dcio - SKIPPED
+ *	ONO Region 2, DCPG 24: mpc opp optc dwb
+ *	ONO Region 5, DCPG 16: dsc0
+ *	ONO Region 7, DCPG 17: dsc1
+ *	ONO Region 9, DCPG 18: dsc2
+ *	ONO Region 11, DCPG 19: dsc3
+ *	ONO Region 1, DCPG 23: dchubbub dchvm dchubbubmem - SKIPPED. PMFW will power up at IPS2 exit
+ *	ONO Region 4, DCPG 0: dchubp0, dpp0
+ *	ONO Region 6, DCPG 1: dchubp1, dpp1
+ *	ONO Region 8, DCPG 2: dchubp2, dpp2
+ *	ONO Region 10, DCPG 3: dchubp3, dpp3
+ *	ONO Region 3, DCPG 25: hpo - SKIPPED
+ *
+ * @dc: Current DC state
+ * @update_state: update PG sequence states for HW block
  */
 void dcn35_hw_block_power_up(struct dc *dc,
 	struct pg_block_update *update_state)
@@ -1314,4 +1328,45 @@ uint32_t dcn35_get_idle_state(const struct dc *dc)
 		return dc->clk_mgr->funcs->get_idle_state(dc->clk_mgr);
 
 	return 0;
+}
+
+void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
+		int num_pipes, struct dc_crtc_timing_adjust adjust)
+{
+	int i = 0;
+	struct drr_params params = {0};
+	// DRR set trigger event mapped to OTG_TRIG_A (bit 11) for manual control flow
+	unsigned int event_triggers = 0x800;
+	// Note DRR trigger events are generated regardless of whether num frames met.
+	unsigned int num_frames = 2;
+
+	params.vertical_total_max = adjust.v_total_max;
+	params.vertical_total_min = adjust.v_total_min;
+	params.vertical_total_mid = adjust.v_total_mid;
+	params.vertical_total_mid_frame_num = adjust.v_total_mid_frame_num;
+
+	for (i = 0; i < num_pipes; i++) {
+		if ((pipe_ctx[i]->stream_res.tg != NULL) && pipe_ctx[i]->stream_res.tg->funcs) {
+			struct dc_crtc_timing *timing = &pipe_ctx[i]->stream->timing;
+			struct dc *dc = pipe_ctx[i]->stream->ctx->dc;
+
+			if (dc->debug.static_screen_wait_frames) {
+				unsigned int frame_rate = timing->pix_clk_100hz / (timing->h_total * timing->v_total);
+
+				if (frame_rate >= 120 && dc->caps.ips_support &&
+					dc->config.disable_ips != DMUB_IPS_DISABLE_ALL) {
+					/*ips enable case*/
+					num_frames = 2 * (frame_rate % 60);
+				}
+			}
+			if (pipe_ctx[i]->stream_res.tg->funcs->set_drr)
+				pipe_ctx[i]->stream_res.tg->funcs->set_drr(
+					pipe_ctx[i]->stream_res.tg, &params);
+			if (adjust.v_total_max != 0 && adjust.v_total_min != 0)
+				if (pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control)
+					pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(
+						pipe_ctx[i]->stream_res.tg,
+						event_triggers, num_frames);
+		}
+	}
 }
