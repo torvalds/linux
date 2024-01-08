@@ -1111,7 +1111,6 @@ static int scmi_raw_mode_setup(struct scmi_raw_mode_info *raw,
 		int i;
 
 		for (i = 0; i < num_chans; i++) {
-			void *xret;
 			struct scmi_raw_queue *q;
 
 			q = scmi_raw_queue_init(raw);
@@ -1120,13 +1119,12 @@ static int scmi_raw_mode_setup(struct scmi_raw_mode_info *raw,
 				goto err_xa;
 			}
 
-			xret = xa_store(&raw->chans_q, channels[i], q,
+			ret = xa_insert(&raw->chans_q, channels[i], q,
 					GFP_KERNEL);
-			if (xa_err(xret)) {
+			if (ret) {
 				dev_err(dev,
 					"Fail to allocate Raw queue 0x%02X\n",
 					channels[i]);
-				ret = xa_err(xret);
 				goto err_xa;
 			}
 		}
@@ -1322,6 +1320,12 @@ void scmi_raw_message_report(void *r, struct scmi_xfer *xfer,
 	dev = raw->handle->dev;
 	q = scmi_raw_queue_select(raw, idx,
 				  SCMI_XFER_IS_CHAN_SET(xfer) ? chan_id : 0);
+	if (!q) {
+		dev_warn(dev,
+			 "RAW[%d] - NO queue for chan 0x%X. Dropping report.\n",
+			 idx, chan_id);
+		return;
+	}
 
 	/*
 	 * Grab the msg_q_lock upfront to avoid a possible race between
