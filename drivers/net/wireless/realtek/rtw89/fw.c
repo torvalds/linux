@@ -2489,20 +2489,23 @@ fail:
 int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 			     bool pause)
 {
-	struct rtw89_fw_macid_pause_grp h2c = {{0}};
-	u8 len = sizeof(struct rtw89_fw_macid_pause_grp);
+	struct rtw89_fw_macid_pause_grp *h2c;
+	__le32 set = cpu_to_le32(BIT(sh));
+	u8 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_JOIN_INFO_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
-		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
+		rtw89_err(rtwdev, "failed to alloc skb for h2c macid pause\n");
 		return -ENOMEM;
 	}
-	h2c.mask_grp[grp] = cpu_to_le32(BIT(sh));
+	skb_put(skb, len);
+	h2c = (struct rtw89_fw_macid_pause_grp *)skb->data;
+
+	h2c->mask_grp[grp] = set;
 	if (pause)
-		h2c.pause_grp[grp] = cpu_to_le32(BIT(sh));
-	skb_put_data(skb, &h2c, len);
+		h2c->pause_grp[grp] = set;
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
