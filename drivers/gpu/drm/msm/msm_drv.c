@@ -288,8 +288,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	if (ret)
 		goto err_msm_uninit;
 
-	drm_kms_helper_poll_init(ddev);
-
 	if (priv->kms_init) {
 		drm_kms_helper_poll_init(ddev);
 		msm_fbdev_setup(ddev);

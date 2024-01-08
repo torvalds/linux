@@ -1115,7 +1115,7 @@ struct privcmd_kernel_ioreq {
 	spinlock_t lock; /* Protects ioeventfds list */
 	struct list_head ioeventfds;
 	struct list_head list;
-	struct ioreq_port ports[0];
+	struct ioreq_port ports[] __counted_by(vcpus);
 };
 
 static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)

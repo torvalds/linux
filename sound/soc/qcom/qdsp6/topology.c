@@ -545,6 +545,7 @@ static struct audioreach_module *audioreach_parse_common_tokens(struct q6apm *ap
 
 	if (mod) {
 		int pn, id = 0;
+
 		mod->module_id = module_id;
 		mod->max_ip_port = max_ip_port;
 		mod->max_op_port = max_op_port;
@@ -1271,7 +1272,7 @@ int audioreach_tplg_init(struct snd_soc_component *component)
 
 	ret = request_firmware(&fw, tplg_fw_name, dev);
 	if (ret < 0) {
-		dev_err(dev, "tplg firmware loading %s failed %d \n", tplg_fw_name, ret);
+		dev_err(dev, "tplg firmware loading %s failed %d\n", tplg_fw_name, ret);
 		goto err;
 	}
 
