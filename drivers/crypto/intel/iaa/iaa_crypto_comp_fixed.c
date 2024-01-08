@@ -78,7 +78,6 @@ int iaa_aecs_init_fixed(void)
 				       sizeof(fixed_ll_sym),
 				       fixed_d_sym,
 				       sizeof(fixed_d_sym),
-				       NULL, 0, 0,
 				       init_fixed_mode, NULL);
 	if (!ret)
 		pr_debug("IAA fixed compression mode initialized\n");
