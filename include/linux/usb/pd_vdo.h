@@ -86,12 +86,15 @@
  *
  * Request is simply properly formatted SVDM header
  *
- * Response is 4 data objects:
+ * Response is 4 data objects for Power Delivery 2.0 and Passive Cables for
+ * Power Delivery 3.0. Active Cables in Power Delivery 3.0 have 5 data objects.
  * [0] :: SVDM header
  * [1] :: Identitiy header
  * [2] :: Cert Stat VDO
  * [3] :: (Product | Cable) VDO
+ * [4] :: Cable VDO 1
  * [4] :: AMA VDO
+ * [5] :: Cable VDO 2
  *
  */
 #define VDO_INDEX_HDR		0
@@ -100,6 +103,8 @@
 #define VDO_INDEX_CABLE		3
 #define VDO_INDEX_PRODUCT	3
 #define VDO_INDEX_AMA		4
+#define VDO_INDEX_CABLE_1	4
+#define VDO_INDEX_CABLE_2	5
 
 /*
  * SVDM Identity Header
@@ -150,6 +155,7 @@
 #define PD_IDH_MODAL_SUPP(vdo)	((vdo) & (1 << 26))
 #define PD_IDH_DFP_PTYPE(vdo)	(((vdo) >> 23) & 0x7)
 #define PD_IDH_CONN_TYPE(vdo)	(((vdo) >> 21) & 0x3)
+#define PD_IDH_HOST_SUPP(vdo)  ((vdo) & (1 << 31))
 
 /*
  * Cert Stat VDO
