@@ -1494,7 +1494,7 @@ static void rtw89_mcc_handle_beacon_noa(struct rtw89_dev *rtwdev, bool enable)
 	if (!rtwvif_go->chanctx_assigned)
 		return;
 
-	rtw89_fw_h2c_update_beacon(rtwdev, rtwvif_go);
+	rtw89_chip_h2c_update_beacon(rtwdev, rtwvif_go);
 }
 
 static void rtw89_mcc_start_beacon_noa(struct rtw89_dev *rtwdev)

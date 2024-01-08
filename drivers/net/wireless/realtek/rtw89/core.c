@@ -3879,7 +3879,7 @@ void rtw89_core_update_beacon_work(struct work_struct *work)
 
 	rtwdev = rtwvif->rtwdev;
 	mutex_lock(&rtwdev->mutex);
-	rtw89_fw_h2c_update_beacon(rtwdev, rtwvif);
+	rtw89_chip_h2c_update_beacon(rtwdev, rtwvif);
 	mutex_unlock(&rtwdev->mutex);
 }
 
