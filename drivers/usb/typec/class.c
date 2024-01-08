@@ -2281,6 +2281,25 @@ void typec_port_register_altmodes(struct typec_port *port,
 EXPORT_SYMBOL_GPL(typec_port_register_altmodes);
 
 /**
+ * typec_port_register_cable_ops - Register typec_cable_ops to port altmodes
+ * @altmodes: USB Type-C Port's altmode vector
+ * @max_altmodes: The maximum number of alt modes supported by the port
+ * @ops: Cable alternate mode vector
+ */
+void typec_port_register_cable_ops(struct typec_altmode **altmodes, int max_altmodes,
+				   const struct typec_cable_ops *ops)
+{
+	int i;
+
+	for (i = 0; i < max_altmodes; i++) {
+		if (!altmodes[i])
+			return;
+		altmodes[i]->cable_ops = ops;
+	}
+}
+EXPORT_SYMBOL_GPL(typec_port_register_cable_ops);
+
+/**
  * typec_register_port - Register a USB Type-C Port
  * @parent: Parent device
  * @cap: Description of the port
