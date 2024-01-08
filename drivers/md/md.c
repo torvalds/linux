@@ -82,6 +82,14 @@ static struct module *md_cluster_mod;
 
 static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
 static struct workqueue_struct *md_wq;
+
+/*
+ * This workqueue is used for sync_work to register new sync_thread, and for
+ * del_work to remove rdev, and for event_work that is only set by dm-raid.
+ *
+ * Noted that sync_work will grab reconfig_mutex, hence never flush this
+ * workqueue whith reconfig_mutex grabbed.
+ */
 static struct workqueue_struct *md_misc_wq;
 struct workqueue_struct *md_bitmap_wq;
 
@@ -6330,9 +6338,6 @@ static void __md_stop(struct mddev *mddev)
 	struct md_personality *pers = mddev->pers;
 	md_bitmap_destroy(mddev);
 	mddev_detach(mddev);
-	/* Ensure ->event_work is done */
-	if (mddev->event_work.func)
-		flush_workqueue(md_misc_wq);
 	spin_lock(&mddev->lock);
 	mddev->pers = NULL;
 	spin_unlock(&mddev->lock);
