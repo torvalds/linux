@@ -43,6 +43,8 @@ int main(void)
 	uint64_t *outval;
 	struct ucall uc;
 
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_CPUID));
+
 	/* Verify if extended hypercalls are supported */
 	if (!kvm_cpuid_has(kvm_get_supported_hv_cpuid(),
 			   HV_ENABLE_EXTENDED_HYPERCALLS)) {

@@ -138,6 +138,20 @@ config KVM_SMM
 
 	  If unsure, say Y.
 
+config KVM_HYPERV
+	bool "Support for Microsoft Hyper-V emulation"
+	depends on KVM
+	default y
+	help
+	  Provides KVM support for emulating Microsoft Hyper-V.  This allows KVM
+	  to expose a subset of the paravirtualized interfaces defined in the
+	  Hyper-V Hypervisor Top-Level Functional Specification (TLFS):
+	  https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/reference/tlfs
+	  These interfaces are required for the correct and performant functioning
+	  of Windows and Hyper-V guests on KVM.
+
+	  If unsure, say "Y".
+
 config KVM_XEN
 	bool "Support for Xen hypercall interface"
 	depends on KVM

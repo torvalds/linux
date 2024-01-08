@@ -690,6 +690,8 @@ static void guest_test_hcalls_access(void)
 
 int main(void)
 {
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_ENFORCE_CPUID));
+
 	pr_info("Testing access to Hyper-V specific MSRs\n");
 	guest_test_msrs_access();
 
