@@ -350,6 +350,18 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_frameupdate_timer.data.frameupdate_count =
 						cmd_element->timer_data.frameupdate_count;
 		break;
+	case Replay_Set_Pseudo_VTotal:
+		//Header
+		cmd.replay_set_pseudo_vtotal.header.sub_type =
+			DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL;
+		cmd.replay_set_pseudo_vtotal.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_pseudo_vtotal);
+		//Cmd Body
+		cmd.replay_set_pseudo_vtotal.data.panel_inst =
+			cmd_element->pseudo_vtotal_data.panel_inst;
+		cmd.replay_set_pseudo_vtotal.data.vtotal =
+			cmd_element->pseudo_vtotal_data.vtotal;
+		break;
 	case Replay_Msg_Not_Support:
 	default:
 		return;
