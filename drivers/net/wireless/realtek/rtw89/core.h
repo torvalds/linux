@@ -2876,7 +2876,7 @@ struct rtw89_ba_cam_entry {
 #define RTW89_MAX_ADDR_CAM_NUM		128
 #define RTW89_MAX_BSSID_CAM_NUM		20
 #define RTW89_MAX_SEC_CAM_NUM		128
-#define RTW89_MAX_BA_CAM_NUM		8
+#define RTW89_MAX_BA_CAM_NUM		24
 #define RTW89_SEC_CAM_IN_ADDR_CAM	7
 
 struct rtw89_addr_cam_entry {
