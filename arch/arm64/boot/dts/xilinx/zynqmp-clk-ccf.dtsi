@@ -230,10 +230,12 @@
 
 &uart0 {
 	clocks = <&zynqmp_clk UART0_REF>, <&zynqmp_clk LPD_LSBUS>;
+	assigned-clocks = <&zynqmp_clk UART0_REF>;
 };
 
 &uart1 {
 	clocks = <&zynqmp_clk UART1_REF>, <&zynqmp_clk LPD_LSBUS>;
+	assigned-clocks = <&zynqmp_clk UART1_REF>;
 };
 
 &dwc3_0 {
