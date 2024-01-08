@@ -112,6 +112,7 @@ struct ffa_drv_info {
 };
 
 static struct ffa_drv_info *drv_info;
+static void ffa_partitions_cleanup(void);
 
 /*
  * The driver must be able to support all the versions from the earliest
@@ -1195,7 +1196,7 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 	kfree(pbuf);
 }
 
-static void ffa_setup_partitions(void)
+static int ffa_setup_partitions(void)
 {
 	int count, idx, ret;
 	uuid_t uuid;
@@ -1206,7 +1207,7 @@ static void ffa_setup_partitions(void)
 	count = ffa_partition_probe(&uuid_null, &pbuf);
 	if (count <= 0) {
 		pr_info("%s: No partitions found, error %d\n", __func__, count);
-		return;
+		return -EINVAL;
 	}
 
 	xa_init(&drv_info->partition_info);
@@ -1250,8 +1251,14 @@ static void ffa_setup_partitions(void)
 
 	/* Allocate for the host */
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return;
+	if (!info) {
+		pr_err("%s: failed to alloc Host partition ID 0x%x. Abort.\n",
+		       __func__, drv_info->vm_id);
+		/* Already registered devices are freed on bus_exit */
+		ffa_partitions_cleanup();
+		return -ENOMEM;
+	}
+
 	rwlock_init(&info->rw_lock);
 	ret = xa_insert(&drv_info->partition_info, drv_info->vm_id,
 			info, GFP_KERNEL);
@@ -1259,7 +1266,11 @@ static void ffa_setup_partitions(void)
 		pr_err("%s: failed to save Host partition ID 0x%x - ret:%d. Abort.\n",
 		       __func__, drv_info->vm_id, ret);
 		kfree(info);
+		/* Already registered devices are freed on bus_exit */
+		ffa_partitions_cleanup();
 	}
+
+	return ret;
 }
 
 static void ffa_partitions_cleanup(void)
@@ -1520,7 +1531,11 @@ static int __init ffa_init(void)
 
 	ffa_notifications_setup();
 
-	ffa_setup_partitions();
+	ret = ffa_setup_partitions();
+	if (ret) {
+		pr_err("failed to setup partitions\n");
+		goto cleanup_notifs;
+	}
 
 	ret = ffa_sched_recv_cb_update(drv_info->vm_id, ffa_self_notif_handle,
 				       drv_info, true);
@@ -1528,6 +1543,9 @@ static int __init ffa_init(void)
 		pr_info("Failed to register driver sched callback %d\n", ret);
 
 	return 0;
+
+cleanup_notifs:
+	ffa_notifications_cleanup();
 free_pages:
 	if (drv_info->tx_buffer)
 		free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
