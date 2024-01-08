@@ -815,12 +815,6 @@ ice_dpll_input_prio_set(const struct dpll_pin *pin, void *pin_priv,
 	struct ice_pf *pf = d->pf;
 	int ret;
 
-	if (prio > ICE_DPLL_PRIO_MAX) {
-		NL_SET_ERR_MSG_FMT(extack, "prio out of supported range 0-%d",
-				   ICE_DPLL_PRIO_MAX);
-		return -EINVAL;
-	}
-
 	mutex_lock(&pf->dplls.lock);
 	ret = ice_dpll_hw_input_prio_set(pf, d, p, prio, extack);
 	mutex_unlock(&pf->dplls.lock);
@@ -1756,6 +1750,7 @@ ice_dpll_init_dpll(struct ice_pf *pf, struct ice_dpll *d, bool cgu,
 	}
 	d->pf = pf;
 	if (cgu) {
+		ice_dpll_update_state(pf, d, true);
 		ret = dpll_device_register(d->dpll, type, &ice_dpll_ops, d);
 		if (ret) {
 			dpll_device_put(d->dpll);
@@ -1796,8 +1791,6 @@ static int ice_dpll_init_worker(struct ice_pf *pf)
 	struct ice_dplls *d = &pf->dplls;
 	struct kthread_worker *kworker;
 
-	ice_dpll_update_state(pf, &d->eec, true);
-	ice_dpll_update_state(pf, &d->pps, true);
 	kthread_init_delayed_work(&d->work, ice_dpll_periodic_work);
 	kworker = kthread_create_worker(0, "ice-dplls-%s",
 					dev_name(ice_pf_to_dev(pf)));
@@ -1830,6 +1823,7 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 	int num_pins, i, ret = -EINVAL;
 	struct ice_hw *hw = &pf->hw;
 	struct ice_dpll_pin *pins;
+	unsigned long caps;
 	u8 freq_supp_num;
 	bool input;
 
@@ -1849,6 +1843,7 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 	}
 
 	for (i = 0; i < num_pins; i++) {
+		caps = 0;
 		pins[i].idx = i;
 		pins[i].prop.board_label = ice_cgu_get_pin_name(hw, i, input);
 		pins[i].prop.type = ice_cgu_get_pin_type(hw, i, input);
@@ -1861,8 +1856,8 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 						      &dp->input_prio[i]);
 			if (ret)
 				return ret;
-			pins[i].prop.capabilities |=
-				DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE;
+			caps |= (DPLL_PIN_CAPABILITIES_PRIORITY_CAN_CHANGE |
+				 DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE);
 			pins[i].prop.phase_range.min =
 				pf->dplls.input_phase_adj_max;
 			pins[i].prop.phase_range.max =
@@ -1872,9 +1867,11 @@ ice_dpll_init_info_direct_pins(struct ice_pf *pf,
 				pf->dplls.output_phase_adj_max;
 			pins[i].prop.phase_range.max =
 				-pf->dplls.output_phase_adj_max;
+			ret = ice_cgu_get_output_pin_state_caps(hw, i, &caps);
+			if (ret)
+				return ret;
 		}
-		pins[i].prop.capabilities |=
-			DPLL_PIN_CAPABILITIES_STATE_CAN_CHANGE;
+		pins[i].prop.capabilities = caps;
 		ret = ice_dpll_pin_state_update(pf, &pins[i], pin_type, NULL);
 		if (ret)
 			return ret;

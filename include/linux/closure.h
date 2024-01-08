@@ -104,7 +104,7 @@
 
 struct closure;
 struct closure_syncer;
-typedef void (closure_fn) (struct closure *);
+typedef void (closure_fn) (struct work_struct *);
 extern struct dentry *bcache_debug;
 
 struct closure_waitlist {
@@ -154,6 +154,7 @@ struct closure {
 	struct closure		*parent;
 
 	atomic_t		remaining;
+	bool			closure_get_happened;
 
 #ifdef CONFIG_DEBUG_CLOSURES
 #define CLOSURE_MAGIC_DEAD	0xc054dead
@@ -185,7 +186,11 @@ static inline unsigned closure_nr_remaining(struct closure *cl)
  */
 static inline void closure_sync(struct closure *cl)
 {
-	if (closure_nr_remaining(cl) != 1)
+#ifdef CONFIG_DEBUG_CLOSURES
+	BUG_ON(closure_nr_remaining(cl) != 1 && !cl->closure_get_happened);
+#endif
+
+	if (cl->closure_get_happened)
 		__closure_sync(cl);
 }
 
@@ -233,8 +238,6 @@ static inline void set_closure_fn(struct closure *cl, closure_fn *fn,
 	closure_set_ip(cl);
 	cl->fn = fn;
 	cl->wq = wq;
-	/* between atomic_dec() in closure_put() */
-	smp_mb__before_atomic();
 }
 
 static inline void closure_queue(struct closure *cl)
@@ -251,7 +254,7 @@ static inline void closure_queue(struct closure *cl)
 		INIT_WORK(&cl->work, cl->work.func);
 		BUG_ON(!queue_work(wq, &cl->work));
 	} else
-		cl->fn(cl);
+		cl->fn(&cl->work);
 }
 
 /**
@@ -259,6 +262,8 @@ static inline void closure_queue(struct closure *cl)
  */
 static inline void closure_get(struct closure *cl)
 {
+	cl->closure_get_happened = true;
+
 #ifdef CONFIG_DEBUG_CLOSURES
 	BUG_ON((atomic_inc_return(&cl->remaining) &
 		CLOSURE_REMAINING_MASK) <= 1);
@@ -281,6 +286,7 @@ static inline void closure_init(struct closure *cl, struct closure *parent)
 		closure_get(parent);
 
 	atomic_set(&cl->remaining, CLOSURE_REMAINING_INITIALIZER);
+	cl->closure_get_happened = false;
 
 	closure_debug_create(cl);
 	closure_set_ip(cl);
@@ -302,6 +308,11 @@ static inline void closure_wake_up(struct closure_waitlist *list)
 	smp_mb();
 	__closure_wake_up(list);
 }
+
+#define CLOSURE_CALLBACK(name)	void name(struct work_struct *ws)
+#define closure_type(name, type, member)				\
+	struct closure *cl = container_of(ws, struct closure, work);	\
+	type *name = container_of(cl, type, member)
 
 /**
  * continue_at - jump to another function with barrier

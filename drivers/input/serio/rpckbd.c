@@ -133,20 +133,18 @@ static int rpckbd_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int rpckbd_remove(struct platform_device *dev)
+static void rpckbd_remove(struct platform_device *dev)
 {
 	struct serio *serio = platform_get_drvdata(dev);
 	struct rpckbd_data *rpckbd = serio->port_data;
 
 	serio_unregister_port(serio);
 	kfree(rpckbd);
-
-	return 0;
 }
 
 static struct platform_driver rpckbd_driver = {
 	.probe		= rpckbd_probe,
-	.remove		= rpckbd_remove,
+	.remove_new	= rpckbd_remove,
 	.driver		= {
 		.name	= "kart",
 	},

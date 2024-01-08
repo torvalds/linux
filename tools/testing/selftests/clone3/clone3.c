@@ -138,6 +138,18 @@ static bool not_root(void)
 	return false;
 }
 
+static bool no_timenamespace(void)
+{
+	if (not_root())
+		return true;
+
+	if (!access("/proc/self/ns/time", F_OK))
+		return false;
+
+	ksft_print_msg("Time namespaces are not supported\n");
+	return true;
+}
+
 static size_t page_size_plus_8(void)
 {
 	return getpagesize() + 8;
@@ -282,6 +294,7 @@ static const struct test tests[] = {
 		.size = 0,
 		.expected = 0,
 		.test_mode = CLONE3_ARGS_NO_TEST,
+		.filter = no_timenamespace,
 	},
 	{
 		.name = "exit signal (SIGCHLD) in flags",

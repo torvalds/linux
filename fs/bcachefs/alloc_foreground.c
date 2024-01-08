@@ -399,12 +399,23 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 			struct bucket_alloc_state *s,
 			struct closure *cl)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
+	struct btree_iter iter, citer;
+	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
-	u64 alloc_start = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
-	u64 alloc_cursor = max(alloc_start, READ_ONCE(ca->alloc_cursor));
+	u64 first_bucket = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
+	u64 alloc_start = max(first_bucket, READ_ONCE(ca->alloc_cursor));
+	u64 alloc_cursor = alloc_start;
 	int ret;
+
+	/*
+	 * Scan with an uncached iterator to avoid polluting the key cache. An
+	 * uncached iter will return a cached key if one exists, but if not
+	 * there is no other underlying protection for the associated key cache
+	 * slot. To avoid racing bucket allocations, look up the cached key slot
+	 * of any likely allocation candidate before attempting to proceed with
+	 * the allocation. This provides proper exclusion on the associated
+	 * bucket.
+	 */
 again:
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
 			   BTREE_ITER_SLOTS, k, ret) {
@@ -419,25 +430,38 @@ again:
 			continue;
 
 		a = bch2_alloc_to_v4(k, &a_convert);
-
 		if (a->data_type != BCH_DATA_free)
 			continue;
+
+		/* now check the cached key to serialize concurrent allocs of the bucket */
+		ck = bch2_bkey_get_iter(trans, &citer, BTREE_ID_alloc, k.k->p, BTREE_ITER_CACHED);
+		ret = bkey_err(ck);
+		if (ret)
+			break;
+
+		a = bch2_alloc_to_v4(ck, &a_convert);
+		if (a->data_type != BCH_DATA_free)
+			goto next;
 
 		s->buckets_seen++;
 
 		ob = __try_alloc_bucket(trans->c, ca, k.k->p.offset, watermark, a, s, cl);
+next:
+		citer.path->preserve = false;
+		bch2_trans_iter_exit(trans, &citer);
 		if (ob)
 			break;
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
+	alloc_cursor = iter.pos.offset;
 	ca->alloc_cursor = alloc_cursor;
 
 	if (!ob && ret)
 		ob = ERR_PTR(ret);
 
-	if (!ob && alloc_cursor > alloc_start) {
-		alloc_cursor = alloc_start;
+	if (!ob && alloc_start > first_bucket) {
+		alloc_cursor = alloc_start = first_bucket;
 		goto again;
 	}
 
@@ -1273,6 +1297,30 @@ out:
 	return wp;
 }
 
+static noinline void
+deallocate_extra_replicas(struct bch_fs *c,
+			  struct open_buckets *ptrs,
+			  struct open_buckets *ptrs_no_use,
+			  unsigned extra_replicas)
+{
+	struct open_buckets ptrs2 = { 0 };
+	struct open_bucket *ob;
+	unsigned i;
+
+	open_bucket_for_each(c, ptrs, ob, i) {
+		unsigned d = bch_dev_bkey_exists(c, ob->dev)->mi.durability;
+
+		if (d && d <= extra_replicas) {
+			extra_replicas -= d;
+			ob_push(c, ptrs_no_use, ob);
+		} else {
+			ob_push(c, &ptrs2, ob);
+		}
+	}
+
+	*ptrs = ptrs2;
+}
+
 /*
  * Get us an open_bucket we can allocate from, return with it locked:
  */
@@ -1296,6 +1344,9 @@ int bch2_alloc_sectors_start_trans(struct btree_trans *trans,
 	bool have_cache;
 	int ret;
 	int i;
+
+	if (!IS_ENABLED(CONFIG_BCACHEFS_ERASURE_CODING))
+		erasure_code = false;
 
 	BUG_ON(flags & BCH_WRITE_ONLY_SPECIFIED_DEVS);
 
@@ -1357,6 +1408,9 @@ alloc_done:
 
 	if (ret)
 		goto err;
+
+	if (nr_effective > nr_replicas)
+		deallocate_extra_replicas(c, &ptrs, &wp->ptrs, nr_effective - nr_replicas);
 
 	/* Free buckets we didn't use: */
 	open_bucket_for_each(c, &wp->ptrs, ob, i)

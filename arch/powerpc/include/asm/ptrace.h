@@ -397,6 +397,23 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 		return 0;
 }
 
+/**
+ * regs_get_kernel_argument() - get Nth function argument in kernel
+ * @regs:	pt_regs of that context
+ * @n:		function argument number (start from 0)
+ *
+ * We support up to 8 arguments and assume they are sent in through the GPRs.
+ * This will fail for fp/vector arguments, but those aren't usually found in
+ * kernel code. This is expected to be called from kprobes or ftrace with regs.
+ */
+static inline unsigned long regs_get_kernel_argument(struct pt_regs *regs, unsigned int n)
+{
+#define NR_REG_ARGUMENTS 8
+	if (n < NR_REG_ARGUMENTS)
+		return regs_get_register(regs, offsetof(struct pt_regs, gpr[3 + n]));
+	return 0;
+}
+
 #endif /* __ASSEMBLY__ */
 
 #ifndef __powerpc64__

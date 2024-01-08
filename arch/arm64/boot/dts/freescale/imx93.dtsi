@@ -417,7 +417,7 @@
 					compatible = "fsl,imx93-src-slice";
 					reg = <0x44462400 0x400>, <0x44465800 0x400>;
 					#power-domain-cells = <0>;
-					clocks = <&clk IMX93_CLK_MEDIA_AXI>,
+					clocks = <&clk IMX93_CLK_NIC_MEDIA_GATE>,
 						 <&clk IMX93_CLK_MEDIA_APB>;
 				};
 			};
@@ -957,7 +957,7 @@
 			};
 		};
 
-		gpio2: gpio@43810080 {
+		gpio2: gpio@43810000 {
 			compatible = "fsl,imx93-gpio", "fsl,imx8ulp-gpio";
 			reg = <0x43810000 0x1000>;
 			gpio-controller;
@@ -972,7 +972,7 @@
 			gpio-ranges = <&iomuxc 0 4 30>;
 		};
 
-		gpio3: gpio@43820080 {
+		gpio3: gpio@43820000 {
 			compatible = "fsl,imx93-gpio", "fsl,imx8ulp-gpio";
 			reg = <0x43820000 0x1000>;
 			gpio-controller;
@@ -988,7 +988,7 @@
 				      <&iomuxc 26 34 2>, <&iomuxc 28 0 4>;
 		};
 
-		gpio4: gpio@43830080 {
+		gpio4: gpio@43830000 {
 			compatible = "fsl,imx93-gpio", "fsl,imx8ulp-gpio";
 			reg = <0x43830000 0x1000>;
 			gpio-controller;
@@ -1003,7 +1003,7 @@
 			gpio-ranges = <&iomuxc 0 38 28>, <&iomuxc 28 36 2>;
 		};
 
-		gpio1: gpio@47400080 {
+		gpio1: gpio@47400000 {
 			compatible = "fsl,imx93-gpio", "fsl,imx8ulp-gpio";
 			reg = <0x47400000 0x1000>;
 			gpio-controller;

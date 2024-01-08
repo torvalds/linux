@@ -108,8 +108,10 @@ static int hisi_ptt_process_auxtrace_event(struct perf_session *session,
 		data_offset = 0;
 	} else {
 		data_offset = lseek(fd, 0, SEEK_CUR);
-		if (data_offset == -1)
+		if (data_offset == -1) {
+			free(data);
 			return -errno;
+		}
 	}
 
 	err = readn(fd, data, size);

@@ -669,10 +669,11 @@ static int mock_decoder_commit(struct cxl_decoder *cxld)
 		return 0;
 
 	dev_dbg(&port->dev, "%s commit\n", dev_name(&cxld->dev));
-	if (port->commit_end + 1 != id) {
+	if (cxl_num_decoders_committed(port) != id) {
 		dev_dbg(&port->dev,
 			"%s: out of order commit, expected decoder%d.%d\n",
-			dev_name(&cxld->dev), port->id, port->commit_end + 1);
+			dev_name(&cxld->dev), port->id,
+			cxl_num_decoders_committed(port));
 		return -EBUSY;
 	}
 
@@ -831,7 +832,7 @@ static void mock_init_hdm_decoder(struct cxl_decoder *cxld)
 			cxld->interleave_ways = 2;
 		else
 			cxld->interleave_ways = 1;
-		cxld->interleave_granularity = 256;
+		cxld->interleave_granularity = 4096;
 		cxld->hpa_range = (struct range) {
 			.start = base,
 			.end = base + size - 1,

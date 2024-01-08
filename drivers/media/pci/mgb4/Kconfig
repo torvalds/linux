@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_MGB4
+	tristate "Digiteq Automotive MGB4 support"
+	depends on VIDEO_DEV && PCI && I2C && DMADEVICES && SPI && MTD && IIO
+	depends on COMMON_CLK
+	select VIDEOBUF2_DMA_SG
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select I2C_XILINX
+	select SPI_XILINX
+	select MTD_SPI_NOR
+	select XILINX_XDMA
+	help
+	  This is a video4linux driver for Digiteq Automotive MGB4 grabber
+	  cards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mgb4.

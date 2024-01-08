@@ -653,6 +653,7 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 
 static int connector_bind(struct device *dev, struct device *connector, void *data)
 {
+	struct usb_port *port_dev = to_usb_port(dev);
 	int ret;
 
 	ret = sysfs_create_link(&dev->kobj, &connector->kobj, "connector");
@@ -660,16 +661,30 @@ static int connector_bind(struct device *dev, struct device *connector, void *da
 		return ret;
 
 	ret = sysfs_create_link(&connector->kobj, &dev->kobj, dev_name(dev));
-	if (ret)
+	if (ret) {
 		sysfs_remove_link(&dev->kobj, "connector");
+		return ret;
+	}
 
-	return ret;
+	port_dev->connector = data;
+
+	/*
+	 * If there is already USB device connected to the port, letting the
+	 * Type-C connector know about it immediately.
+	 */
+	if (port_dev->child)
+		typec_attach(port_dev->connector, &port_dev->child->dev);
+
+	return 0;
 }
 
 static void connector_unbind(struct device *dev, struct device *connector, void *data)
 {
+	struct usb_port *port_dev = to_usb_port(dev);
+
 	sysfs_remove_link(&connector->kobj, dev_name(dev));
 	sysfs_remove_link(&dev->kobj, "connector");
+	port_dev->connector = NULL;
 }
 
 static const struct component_ops connector_ops = {
@@ -698,6 +713,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	set_bit(port1, hub->power_bits);
 	port_dev->dev.parent = hub->intfdev;
 	if (hub_is_superspeed(hdev)) {
+		port_dev->is_superspeed = 1;
 		port_dev->usb3_lpm_u1_permit = 1;
 		port_dev->usb3_lpm_u2_permit = 1;
 		port_dev->dev.groups = port_dev_usb3_group;
@@ -705,8 +721,6 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
 	port_dev->dev.driver = &usb_port_driver;
-	if (hub_is_superspeed(hub->hdev))
-		port_dev->is_superspeed = 1;
 	dev_set_name(&port_dev->dev, "%s-port%d", dev_name(&hub->hdev->dev),
 			port1);
 	mutex_init(&port_dev->status_lock);

@@ -868,7 +868,7 @@ static struct gfs2_leaf *new_leaf(struct inode *inode, struct buffer_head **pbh,
 	struct gfs2_dirent *dent;
 	struct timespec64 tv = current_time(inode);
 
-	error = gfs2_alloc_blocks(ip, &bn, &n, 0, NULL);
+	error = gfs2_alloc_blocks(ip, &bn, &n, 0);
 	if (error)
 		return NULL;
 	bh = gfs2_meta_new(ip->i_gl, bn);

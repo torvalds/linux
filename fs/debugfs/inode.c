@@ -236,17 +236,25 @@ static const struct super_operations debugfs_super_operations = {
 
 static void debugfs_release_dentry(struct dentry *dentry)
 {
-	void *fsd = dentry->d_fsdata;
+	struct debugfs_fsdata *fsd = dentry->d_fsdata;
 
-	if (!((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT))
-		kfree(dentry->d_fsdata);
+	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
+		return;
+
+	/* check it wasn't a dir (no fsdata) or automount (no real_fops) */
+	if (fsd && fsd->real_fops) {
+		WARN_ON(!list_empty(&fsd->cancellations));
+		mutex_destroy(&fsd->cancellations_mtx);
+	}
+
+	kfree(fsd);
 }
 
 static struct vfsmount *debugfs_automount(struct path *path)
 {
-	debugfs_automount_t f;
-	f = (debugfs_automount_t)path->dentry->d_fsdata;
-	return f(path->dentry, d_inode(path->dentry)->i_private);
+	struct debugfs_fsdata *fsd = path->dentry->d_fsdata;
+
+	return fsd->automount(path->dentry, d_inode(path->dentry)->i_private);
 }
 
 static const struct dentry_operations debugfs_dops = {
@@ -634,13 +642,23 @@ struct dentry *debugfs_create_automount(const char *name,
 					void *data)
 {
 	struct dentry *dentry = start_creating(name, parent);
+	struct debugfs_fsdata *fsd;
 	struct inode *inode;
 
 	if (IS_ERR(dentry))
 		return dentry;
 
+	fsd = kzalloc(sizeof(*fsd), GFP_KERNEL);
+	if (!fsd) {
+		failed_creating(dentry);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	fsd->automount = f;
+
 	if (!(debugfs_allow & DEBUGFS_ALLOW_API)) {
 		failed_creating(dentry);
+		kfree(fsd);
 		return ERR_PTR(-EPERM);
 	}
 
@@ -648,13 +666,14 @@ struct dentry *debugfs_create_automount(const char *name,
 	if (unlikely(!inode)) {
 		pr_err("out of free dentries, can not create automount '%s'\n",
 		       name);
+		kfree(fsd);
 		return failed_creating(dentry);
 	}
 
 	make_empty_dir_inode(inode);
 	inode->i_flags |= S_AUTOMOUNT;
 	inode->i_private = data;
-	dentry->d_fsdata = (void *)f;
+	dentry->d_fsdata = fsd;
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
 	d_instantiate(dentry, inode);
@@ -731,8 +750,37 @@ static void __debugfs_file_removed(struct dentry *dentry)
 	fsd = READ_ONCE(dentry->d_fsdata);
 	if ((unsigned long)fsd & DEBUGFS_FSDATA_IS_REAL_FOPS_BIT)
 		return;
-	if (!refcount_dec_and_test(&fsd->active_users))
+
+	/* if we hit zero, just wait for all to finish */
+	if (!refcount_dec_and_test(&fsd->active_users)) {
 		wait_for_completion(&fsd->active_users_drained);
+		return;
+	}
+
+	/* if we didn't hit zero, try to cancel any we can */
+	while (refcount_read(&fsd->active_users)) {
+		struct debugfs_cancellation *c;
+
+		/*
+		 * Lock the cancellations. Note that the cancellations
+		 * structs are meant to be on the stack, so we need to
+		 * ensure we either use them here or don't touch them,
+		 * and debugfs_leave_cancellation() will wait for this
+		 * to be finished processing before exiting one. It may
+		 * of course win and remove the cancellation, but then
+		 * chances are we never even got into this bit, we only
+		 * do if the refcount isn't zero already.
+		 */
+		mutex_lock(&fsd->cancellations_mtx);
+		while ((c = list_first_entry_or_null(&fsd->cancellations,
+						     typeof(*c), list))) {
+			list_del_init(&c->list);
+			c->cancel(dentry, c->cancel_data);
+		}
+		mutex_unlock(&fsd->cancellations_mtx);
+
+		wait_for_completion(&fsd->active_users_drained);
+	}
 }
 
 static void remove_one(struct dentry *victim)

@@ -1335,6 +1335,7 @@
 			earlyprintk=dbgp[debugController#]
 			earlyprintk=pciserial[,force],bus:device.function[,baudrate]
 			earlyprintk=xdbc[xhciController#]
+			earlyprintk=bios
 
 			earlyprintk is useful when the kernel crashes before
 			the normal console is initialized. It is not enabled by
@@ -1364,6 +1365,8 @@
 			The xen option can only be used in Xen domains.
 
 			The sclp output can only be used on s390.
+
+			The bios output can only be used on SuperH.
 
 			The optional "force" to "pciserial" enables use of a
 			PCI device even when its classcode is not of the
@@ -2224,7 +2227,7 @@
 			  forcing Dual Address Cycle for PCI cards supporting
 			  greater than 32-bit addressing.
 
-	iommu.strict=	[ARM64, X86] Configure TLB invalidation behaviour
+	iommu.strict=	[ARM64, X86, S390] Configure TLB invalidation behaviour
 			Format: { "0" | "1" }
 			0 - Lazy mode.
 			  Request that DMA unmap operations use deferred
@@ -3330,6 +3333,11 @@
 
 	mga=		[HW,DRM]
 
+	microcode.force_minrev=	[X86]
+			Format: <bool>
+			Enable or disable the microcode minimal revision
+			enforcement for the runtime microcode loader.
+
 	min_addr=nn[KMG]	[KNL,BOOT,IA-64] All physical memory below this
 			physical address is ignored.
 
@@ -3587,6 +3595,13 @@
 	nfs.callback_tcpport=
 			[NFS] set the TCP port on which the NFSv4 callback
 			channel should listen.
+
+	nfs.delay_retrans=
+			[NFS] specifies the number of times the NFSv4 client
+			retries the request before returning an EAGAIN error,
+			after a reply of NFS4ERR_DELAY from the server.
+			Only applies if the softerr mount option is enabled,
+			and the specified value is >= 0.
 
 	nfs.enable_ino64=
 			[NFS] enable 64-bit inode numbers.
@@ -5679,9 +5694,10 @@
 	s390_iommu=	[HW,S390]
 			Set s390 IOTLB flushing mode
 		strict
-			With strict flushing every unmap operation will result in
-			an IOTLB flush. Default is lazy flushing before reuse,
-			which is faster.
+			With strict flushing every unmap operation will result
+			in an IOTLB flush. Default is lazy flushing before
+			reuse, which is faster. Deprecated, equivalent to
+			iommu.strict=1.
 
 	s390_iommu_aperture=	[KNL,S390]
 			Specifies the size of the per device DMA address space

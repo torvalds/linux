@@ -24,7 +24,6 @@ config BCACHEFS_FS
 	select XXHASH
 	select SRCU
 	select SYMBOLIC_ERRNAME
-	select MEAN_AND_VARIANCE
 	help
 	The bcachefs filesystem - a modern, copy on write filesystem, with
 	support for multiple devices, compression, checksumming, etc.
@@ -34,6 +33,18 @@ config BCACHEFS_QUOTA
 	depends on BCACHEFS_FS
 	select QUOTACTL
 
+config BCACHEFS_ERASURE_CODING
+	bool "bcachefs erasure coding (RAID5/6) support (EXPERIMENTAL)"
+	depends on BCACHEFS_FS
+	select QUOTACTL
+	help
+	This enables the "erasure_code" filesysystem and inode option, which
+	organizes data into reed-solomon stripes instead of ordinary
+	replication.
+
+	WARNING: this feature is still undergoing on disk format changes, and
+	should only be enabled for testing purposes.
+
 config BCACHEFS_POSIX_ACL
 	bool "bcachefs POSIX ACL support"
 	depends on BCACHEFS_FS
@@ -42,7 +53,6 @@ config BCACHEFS_POSIX_ACL
 config BCACHEFS_DEBUG_TRANSACTIONS
 	bool "bcachefs runtime info"
 	depends on BCACHEFS_FS
-	default y
 	help
 	This makes the list of running btree transactions available in debugfs.
 
@@ -78,7 +88,7 @@ config BCACHEFS_NO_LATENCY_ACCT
 config MEAN_AND_VARIANCE_UNIT_TEST
 	tristate "mean_and_variance unit tests" if !KUNIT_ALL_TESTS
 	depends on KUNIT
-	select MEAN_AND_VARIANCE
+	depends on BCACHEFS_FS
 	default KUNIT_ALL_TESTS
 	help
 	  This option enables the kunit tests for mean_and_variance module.

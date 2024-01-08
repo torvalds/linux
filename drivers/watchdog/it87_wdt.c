@@ -13,9 +13,9 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8607, IT8620, IT8622, IT8625, IT8628, IT8655, IT8665, IT8686,
- *	IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726, IT8728,
- *	IT8772, IT8783 and IT8784.
+ *	IT8607, IT8613, IT8620, IT8622, IT8625, IT8628, IT8655, IT8665,
+ *	IT8686, IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726,
+ *	IT8728, IT8772, IT8783 and IT8784.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -50,6 +50,7 @@
 /* Chip Id numbers */
 #define NO_DEV_ID	0xffff
 #define IT8607_ID	0x8607
+#define IT8613_ID	0x8613
 #define IT8620_ID	0x8620
 #define IT8622_ID	0x8622
 #define IT8625_ID	0x8625
@@ -277,6 +278,7 @@ static int __init it87_wdt_init(void)
 		max_units = 65535;
 		break;
 	case IT8607_ID:
+	case IT8613_ID:
 	case IT8620_ID:
 	case IT8622_ID:
 	case IT8625_ID:

@@ -418,21 +418,21 @@ static struct workqueue_attrs *ordered_wq_attrs[NR_STD_WORKER_POOLS];
  * process context while holding a pool lock. Bounce to a dedicated kthread
  * worker to avoid A-A deadlocks.
  */
-static struct kthread_worker *pwq_release_worker;
+static struct kthread_worker *pwq_release_worker __ro_after_init;
 
-struct workqueue_struct *system_wq __read_mostly;
+struct workqueue_struct *system_wq __ro_after_init;
 EXPORT_SYMBOL(system_wq);
-struct workqueue_struct *system_highpri_wq __read_mostly;
+struct workqueue_struct *system_highpri_wq __ro_after_init;
 EXPORT_SYMBOL_GPL(system_highpri_wq);
-struct workqueue_struct *system_long_wq __read_mostly;
+struct workqueue_struct *system_long_wq __ro_after_init;
 EXPORT_SYMBOL_GPL(system_long_wq);
-struct workqueue_struct *system_unbound_wq __read_mostly;
+struct workqueue_struct *system_unbound_wq __ro_after_init;
 EXPORT_SYMBOL_GPL(system_unbound_wq);
-struct workqueue_struct *system_freezable_wq __read_mostly;
+struct workqueue_struct *system_freezable_wq __ro_after_init;
 EXPORT_SYMBOL_GPL(system_freezable_wq);
-struct workqueue_struct *system_power_efficient_wq __read_mostly;
+struct workqueue_struct *system_power_efficient_wq __ro_after_init;
 EXPORT_SYMBOL_GPL(system_power_efficient_wq);
-struct workqueue_struct *system_freezable_power_efficient_wq __read_mostly;
+struct workqueue_struct *system_freezable_power_efficient_wq __ro_after_init;
 EXPORT_SYMBOL_GPL(system_freezable_power_efficient_wq);
 
 static int worker_thread(void *__worker);
@@ -1683,9 +1683,6 @@ static int wq_select_unbound_cpu(int cpu)
 	} else {
 		pr_warn_once("workqueue: round-robin CPU selection forced, expect performance impact\n");
 	}
-
-	if (cpumask_empty(wq_unbound_cpumask))
-		return cpu;
 
 	new_cpu = __this_cpu_read(wq_rr_cpu_last);
 	new_cpu = cpumask_next_and(new_cpu, wq_unbound_cpumask, cpu_online_mask);
@@ -6515,6 +6512,17 @@ static inline void wq_watchdog_init(void) { }
 
 #endif	/* CONFIG_WQ_WATCHDOG */
 
+static void __init restrict_unbound_cpumask(const char *name, const struct cpumask *mask)
+{
+	if (!cpumask_intersects(wq_unbound_cpumask, mask)) {
+		pr_warn("workqueue: Restricting unbound_cpumask (%*pb) with %s (%*pb) leaves no CPU, ignoring\n",
+			cpumask_pr_args(wq_unbound_cpumask), name, cpumask_pr_args(mask));
+		return;
+	}
+
+	cpumask_and(wq_unbound_cpumask, wq_unbound_cpumask, mask);
+}
+
 /**
  * workqueue_init_early - early init for workqueue subsystem
  *
@@ -6534,11 +6542,11 @@ void __init workqueue_init_early(void)
 	BUILD_BUG_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
 
 	BUG_ON(!alloc_cpumask_var(&wq_unbound_cpumask, GFP_KERNEL));
-	cpumask_copy(wq_unbound_cpumask, housekeeping_cpumask(HK_TYPE_WQ));
-	cpumask_and(wq_unbound_cpumask, wq_unbound_cpumask, housekeeping_cpumask(HK_TYPE_DOMAIN));
-
+	cpumask_copy(wq_unbound_cpumask, cpu_possible_mask);
+	restrict_unbound_cpumask("HK_TYPE_WQ", housekeeping_cpumask(HK_TYPE_WQ));
+	restrict_unbound_cpumask("HK_TYPE_DOMAIN", housekeeping_cpumask(HK_TYPE_DOMAIN));
 	if (!cpumask_empty(&wq_cmdline_cpumask))
-		cpumask_and(wq_unbound_cpumask, wq_unbound_cpumask, &wq_cmdline_cpumask);
+		restrict_unbound_cpumask("workqueue.unbound_cpus", &wq_cmdline_cpumask);
 
 	pwq_cache = KMEM_CACHE(pool_workqueue, SLAB_PANIC);
 

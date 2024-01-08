@@ -2588,7 +2588,7 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
 
 
 /**
- * vc_sanitize_unicode -- Replace invalid Unicode code points with U+FFFD
+ * vc_sanitize_unicode - Replace invalid Unicode code points with U+FFFD
  * @c: the received character, or U+FFFD for invalid sequences.
  */
 static inline int vc_sanitize_unicode(const int c)
@@ -2600,7 +2600,7 @@ static inline int vc_sanitize_unicode(const int c)
 }
 
 /**
- * vc_translate_unicode -- Combine UTF-8 into Unicode in @vc_utf_char
+ * vc_translate_unicode - Combine UTF-8 into Unicode in @vc_utf_char
  * @vc: virtual console
  * @c: character to translate
  * @rescan: we return true if we need more (continuation) data
@@ -3155,9 +3155,13 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 
 	switch (type) {
 	case TIOCL_SETSEL:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 		return set_selection_user((struct tiocl_selection
 					 __user *)(p+1), tty);
 	case TIOCL_PASTESEL:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 		return paste_selection(tty);
 	case TIOCL_UNBLANKSCREEN:
 		console_lock();
@@ -3165,6 +3169,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		console_unlock();
 		break;
 	case TIOCL_SELLOADLUT:
+		if (!capable(CAP_SYS_ADMIN))
+			return -EPERM;
 		console_lock();
 		ret = sel_loadlut(p);
 		console_unlock();
@@ -3565,7 +3571,9 @@ int __init vty_init(const struct file_operations *console_fops)
 	return 0;
 }
 
-static struct class *vtconsole_class;
+static const struct class vtconsole_class = {
+	.name = "vtconsole",
+};
 
 static int do_bind_con_driver(const struct consw *csw, int first, int last,
 			   int deflt)
@@ -4092,7 +4100,7 @@ static int do_register_con_driver(const struct consw *csw, int first, int last)
 		goto err;
 
 	con_driver->dev =
-		device_create_with_groups(vtconsole_class, NULL,
+		device_create_with_groups(&vtconsole_class, NULL,
 					  MKDEV(0, con_driver->node),
 					  con_driver, con_dev_groups,
 					  "vtcon%i", con_driver->node);
@@ -4173,7 +4181,7 @@ static void con_driver_unregister_callback(struct work_struct *ignored)
 		console_unlock();
 
 		vtconsole_deinit_device(con_driver);
-		device_destroy(vtconsole_class, MKDEV(0, con_driver->node));
+		device_destroy(&vtconsole_class, MKDEV(0, con_driver->node));
 
 		console_lock();
 
@@ -4234,12 +4242,9 @@ static int __init vtconsole_class_init(void)
 {
 	int i;
 
-	vtconsole_class = class_create("vtconsole");
-	if (IS_ERR(vtconsole_class)) {
-		pr_warn("Unable to create vt console class; errno = %ld\n",
-			PTR_ERR(vtconsole_class));
-		vtconsole_class = NULL;
-	}
+	i = class_register(&vtconsole_class);
+	if (i)
+		pr_warn("Unable to create vt console class; errno = %d\n", i);
 
 	/* Add system drivers to sysfs */
 	for (i = 0; i < MAX_NR_CON_DRIVER; i++) {
@@ -4247,7 +4252,7 @@ static int __init vtconsole_class_init(void)
 
 		if (con->con && !con->dev) {
 			con->dev =
-				device_create_with_groups(vtconsole_class, NULL,
+				device_create_with_groups(&vtconsole_class, NULL,
 							  MKDEV(0, con->node),
 							  con, con_dev_groups,
 							  "vtcon%i", con->node);

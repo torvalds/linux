@@ -78,3 +78,4 @@ module_exit(exit_rc_map_genius_tvgo_a11mce)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Genius TVGO A11MCE remote controller keytable");

@@ -2,8 +2,16 @@
 #ifndef _BCACHEFS_SB_MEMBERS_H
 #define _BCACHEFS_SB_MEMBERS_H
 
-int bch2_members_v2_init(struct bch_fs *c);
-int bch_members_cpy_v2_v1(struct bch_sb_handle *disk_sb);
+extern char * const bch2_member_error_strs[];
+
+static inline struct bch_member *
+__bch2_members_v2_get_mut(struct bch_sb_field_members_v2 *mi, unsigned i)
+{
+	return (void *) mi->_members + (i * le16_to_cpu(mi->member_bytes));
+}
+
+int bch2_sb_members_v2_init(struct bch_fs *c);
+int bch2_sb_members_cpy_v2_v1(struct bch_sb_handle *disk_sb);
 struct bch_member *bch2_members_v2_get_mut(struct bch_sb *sb, int i);
 struct bch_member bch2_sb_member_get(struct bch_sb *sb, int i);
 
@@ -178,5 +186,42 @@ static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
 
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v1;
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v2;
+
+static inline bool bch2_member_exists(struct bch_member *m)
+{
+	return !bch2_is_zero(&m->uuid, sizeof(m->uuid));
+}
+
+static inline bool bch2_dev_exists(struct bch_sb *sb, unsigned dev)
+{
+	if (dev < sb->nr_devices) {
+		struct bch_member m = bch2_sb_member_get(sb, dev);
+		return bch2_member_exists(&m);
+	}
+	return false;
+}
+
+static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
+{
+	return (struct bch_member_cpu) {
+		.nbuckets	= le64_to_cpu(mi->nbuckets),
+		.first_bucket	= le16_to_cpu(mi->first_bucket),
+		.bucket_size	= le16_to_cpu(mi->bucket_size),
+		.group		= BCH_MEMBER_GROUP(mi),
+		.state		= BCH_MEMBER_STATE(mi),
+		.discard	= BCH_MEMBER_DISCARD(mi),
+		.data_allowed	= BCH_MEMBER_DATA_ALLOWED(mi),
+		.durability	= BCH_MEMBER_DURABILITY(mi)
+			? BCH_MEMBER_DURABILITY(mi) - 1
+			: 1,
+		.freespace_initialized = BCH_MEMBER_FREESPACE_INITIALIZED(mi),
+		.valid		= bch2_member_exists(mi),
+	};
+}
+
+void bch2_sb_members_from_cpu(struct bch_fs *);
+
+void bch2_dev_io_errors_to_text(struct printbuf *, struct bch_dev *);
+void bch2_dev_errors_reset(struct bch_dev *);
 
 #endif /* _BCACHEFS_SB_MEMBERS_H */

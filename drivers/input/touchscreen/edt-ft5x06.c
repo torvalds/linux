@@ -580,10 +580,7 @@ static struct attribute *edt_ft5x06_attrs[] = {
 	&dev_attr_crc_errors.attr,
 	NULL
 };
-
-static const struct attribute_group edt_ft5x06_attr_group = {
-	.attrs = edt_ft5x06_attrs,
-};
+ATTRIBUTE_GROUPS(edt_ft5x06);
 
 static void edt_ft5x06_restore_reg_parameters(struct edt_ft5x06_ts_data *tsdata)
 {
@@ -1330,10 +1327,6 @@ static int edt_ft5x06_ts_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &edt_ft5x06_attr_group);
-	if (error)
-		return error;
-
 	error = input_register_device(input);
 	if (error)
 		return error;
@@ -1502,6 +1495,7 @@ MODULE_DEVICE_TABLE(of, edt_ft5x06_of_match);
 static struct i2c_driver edt_ft5x06_ts_driver = {
 	.driver = {
 		.name = "edt_ft5x06",
+		.dev_groups = edt_ft5x06_groups,
 		.of_match_table = edt_ft5x06_of_match,
 		.pm = pm_sleep_ptr(&edt_ft5x06_ts_pm_ops),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

@@ -353,11 +353,12 @@ static void test_stream_msg_peek_server(const struct test_opts *opts)
 }
 
 #define SOCK_BUF_SIZE (2 * 1024 * 1024)
-#define MAX_MSG_SIZE (32 * 1024)
+#define MAX_MSG_PAGES 4
 
 static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 {
 	unsigned long curr_hash;
+	size_t max_msg_size;
 	int page_size;
 	int msg_count;
 	int fd;
@@ -373,7 +374,8 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 
 	curr_hash = 0;
 	page_size = getpagesize();
-	msg_count = SOCK_BUF_SIZE / MAX_MSG_SIZE;
+	max_msg_size = MAX_MSG_PAGES * page_size;
+	msg_count = SOCK_BUF_SIZE / max_msg_size;
 
 	for (int i = 0; i < msg_count; i++) {
 		size_t buf_size;
@@ -383,7 +385,7 @@ static void test_seqpacket_msg_bounds_client(const struct test_opts *opts)
 		/* Use "small" buffers and "big" buffers. */
 		if (i & 1)
 			buf_size = page_size +
-					(rand() % (MAX_MSG_SIZE - page_size));
+					(rand() % (max_msg_size - page_size));
 		else
 			buf_size = 1 + (rand() % page_size);
 
@@ -429,7 +431,6 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 	unsigned long remote_hash;
 	unsigned long curr_hash;
 	int fd;
-	char buf[MAX_MSG_SIZE];
 	struct msghdr msg = {0};
 	struct iovec iov = {0};
 
@@ -457,8 +458,13 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 	control_writeln("SRVREADY");
 	/* Wait, until peer sends whole data. */
 	control_expectln("SENDDONE");
-	iov.iov_base = buf;
-	iov.iov_len = sizeof(buf);
+	iov.iov_len = MAX_MSG_PAGES * getpagesize();
+	iov.iov_base = malloc(iov.iov_len);
+	if (!iov.iov_base) {
+		perror("malloc");
+		exit(EXIT_FAILURE);
+	}
+
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 
@@ -483,6 +489,7 @@ static void test_seqpacket_msg_bounds_server(const struct test_opts *opts)
 		curr_hash += hash_djb2(msg.msg_iov[0].iov_base, recv_size);
 	}
 
+	free(iov.iov_base);
 	close(fd);
 	remote_hash = control_readulong();
 
@@ -1180,6 +1187,51 @@ static void test_stream_shutrd_server(const struct test_opts *opts)
 	close(fd);
 }
 
+static void test_double_bind_connect_server(const struct test_opts *opts)
+{
+	int listen_fd, client_fd, i;
+	struct sockaddr_vm sa_client;
+	socklen_t socklen_client = sizeof(sa_client);
+
+	listen_fd = vsock_stream_listen(VMADDR_CID_ANY, 1234);
+
+	for (i = 0; i < 2; i++) {
+		control_writeln("LISTENING");
+
+		timeout_begin(TIMEOUT);
+		do {
+			client_fd = accept(listen_fd, (struct sockaddr *)&sa_client,
+					   &socklen_client);
+			timeout_check("accept");
+		} while (client_fd < 0 && errno == EINTR);
+		timeout_end();
+
+		if (client_fd < 0) {
+			perror("accept");
+			exit(EXIT_FAILURE);
+		}
+
+		/* Waiting for remote peer to close connection */
+		vsock_wait_remote_close(client_fd);
+	}
+
+	close(listen_fd);
+}
+
+static void test_double_bind_connect_client(const struct test_opts *opts)
+{
+	int i, client_fd;
+
+	for (i = 0; i < 2; i++) {
+		/* Wait until server is ready to accept a new connection */
+		control_expectln("LISTENING");
+
+		client_fd = vsock_bind_connect(opts->peer_cid, 1234, 4321, SOCK_STREAM);
+
+		close(client_fd);
+	}
+}
+
 static struct test_case test_cases[] = {
 	{
 		.name = "SOCK_STREAM connection reset",
@@ -1284,6 +1336,11 @@ static struct test_case test_cases[] = {
 		.name = "SOCK_STREAM MSG_ZEROCOPY empty MSG_ERRQUEUE",
 		.run_client = test_stream_msgzcopy_empty_errq_client,
 		.run_server = test_stream_msgzcopy_empty_errq_server,
+	},
+	{
+		.name = "SOCK_STREAM double bind connect",
+		.run_client = test_double_bind_connect_client,
+		.run_server = test_double_bind_connect_server,
 	},
 	{},
 };

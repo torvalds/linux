@@ -344,10 +344,11 @@ escaping the colons with a single backslash.  For example:
 
   mount -t overlay overlay -olowerdir=/a\:lower\:\:dir /merged
 
-Since kernel version v6.5, directory names containing colons can also
-be provided as lower layer using the fsconfig syscall from new mount api:
+Since kernel version v6.8, directory names containing colons can also
+be configured as lower layer using the "lowerdir+" mount options and the
+fsconfig syscall from new mount api.  For example:
 
-  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir", "/a:lower::dir", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/a:lower::dir", 0);
 
 In the latter case, colons in lower layer directory names will be escaped
 as an octal characters (\072) when displayed in /proc/self/mountinfo.
@@ -415,6 +416,16 @@ in the "data-only" lower layers are not visible in overlayfs inodes.
 Only the data of the files in the "data-only" lower layers may be visible
 when a "metacopy" file in one of the lower layers above it, has a "redirect"
 to the absolute path of the "lower data" file in the "data-only" lower layer.
+
+Since kernel version v6.8, "data-only" lower layers can also be added using
+the "datadir+" mount options and the fsconfig syscall from new mount api.
+For example:
+
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l1", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l2", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "lowerdir+", "/l3", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do1", 0);
+  fsconfig(fs_fd, FSCONFIG_SET_STRING, "datadir+", "/do2", 0);
 
 
 fs-verity support
@@ -504,6 +515,29 @@ directory tree on the same or different underlying filesystem, and even
 to a different machine.  With the "inodes index" feature, trying to mount
 the copied layers will fail the verification of the lower root file handle.
 
+Nesting overlayfs mounts
+------------------------
+
+It is possible to use a lower directory that is stored on an overlayfs
+mount. For regular files this does not need any special care. However, files
+that have overlayfs attributes, such as whiteouts or "overlay.*" xattrs will be
+interpreted by the underlying overlayfs mount and stripped out. In order to
+allow the second overlayfs mount to see the attributes they must be escaped.
+
+Overlayfs specific xattrs are escaped by using a special prefix of
+"overlay.overlay.". So, a file with a "trusted.overlay.overlay.metacopy" xattr
+in the lower dir will be exposed as a regular file with a
+"trusted.overlay.metacopy" xattr in the overlayfs mount. This can be nested by
+repeating the prefix multiple time, as each instance only removes one prefix.
+
+A lower dir with a regular whiteout will always be handled by the overlayfs
+mount, so to support storing an effective whiteout file in an overlayfs mount an
+alternative form of whiteout is supported. This form is a regular, zero-size
+file with the "overlay.whiteout" xattr set, inside a directory with the
+"overlay.whiteouts" xattr set. Such whiteouts are never created by overlayfs,
+but can be used by userspace tools (like containers) that generate lower layers.
+These alternative whiteouts can be escaped using the standard xattr escape
+mechanism in order to properly nest to any depth.
 
 Non-standard behavior
 ---------------------

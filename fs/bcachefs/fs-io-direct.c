@@ -35,9 +35,9 @@ static void bio_check_or_release(struct bio *bio, bool check_dirty)
 	}
 }
 
-static void bch2_dio_read_complete(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_dio_read_complete)
 {
-	struct dio_read *dio = container_of(cl, struct dio_read, cl);
+	closure_type(dio, struct dio_read, cl);
 
 	dio->req->ki_complete(dio->req, dio->ret);
 	bio_check_or_release(&dio->rbio.bio, dio->should_dirty);
@@ -113,6 +113,7 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 	} else {
 		atomic_set(&dio->cl.remaining,
 			   CLOSURE_REMAINING_INITIALIZER + 1);
+		dio->cl.closure_get_happened = true;
 	}
 
 	dio->req	= req;
@@ -324,9 +325,9 @@ static noinline int bch2_dio_write_copy_iov(struct dio_write *dio)
 	return 0;
 }
 
-static void bch2_dio_write_flush_done(struct closure *cl)
+static CLOSURE_CALLBACK(bch2_dio_write_flush_done)
 {
-	struct dio_write *dio = container_of(cl, struct dio_write, op.cl);
+	closure_type(dio, struct dio_write, op.cl);
 	struct bch_fs *c = dio->op.c;
 
 	closure_debug_destroy(cl);

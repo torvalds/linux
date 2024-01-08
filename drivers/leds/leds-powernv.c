@@ -309,7 +309,7 @@ out:
 }
 
 /* Platform driver remove */
-static int powernv_led_remove(struct platform_device *pdev)
+static void powernv_led_remove(struct platform_device *pdev)
 {
 	struct powernv_led_common *powernv_led_common;
 
@@ -321,7 +321,6 @@ static int powernv_led_remove(struct platform_device *pdev)
 	mutex_destroy(&powernv_led_common->lock);
 
 	dev_info(&pdev->dev, "PowerNV led module unregistered\n");
-	return 0;
 }
 
 /* Platform driver property match */
@@ -335,7 +334,7 @@ MODULE_DEVICE_TABLE(of, powernv_led_match);
 
 static struct platform_driver powernv_led_driver = {
 	.probe	= powernv_led_probe,
-	.remove = powernv_led_remove,
+	.remove_new = powernv_led_remove,
 	.driver = {
 		.name = "powernv-led-driver",
 		.of_match_table = powernv_led_match,

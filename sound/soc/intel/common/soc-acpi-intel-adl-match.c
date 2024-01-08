@@ -492,6 +492,11 @@ static const struct snd_soc_acpi_codecs adl_nau8318_amp = {
 	.codecs = {"NVTN2012"}
 };
 
+static struct snd_soc_acpi_codecs adl_rt5650_amp = {
+	.num_codecs = 1,
+	.codecs = {"10EC5650"}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	{
 		.comp_ids = &adl_rt5682_rt5682s_hp,
@@ -601,6 +606,20 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "adl_rt5650",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &adl_rt5650_amp,
+		.sof_tplg_filename = "sof-adl-rt5650.tplg",
+	},
+	{
+		.id = "DLGS7219",
+		.drv_name = "adl_mx98360_da7219",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &adl_max98360a_amp,
+		.sof_tplg_filename = "sof-adl-max98360a-da7219.tplg",
 	},
 	/* place amp-only boards in the end of table */
 	{

@@ -167,8 +167,8 @@ static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
  */
 static DEFINE_SPINLOCK(blocked_lock_lock);
 
-static struct kmem_cache *flctx_cache __read_mostly;
-static struct kmem_cache *filelock_cache __read_mostly;
+static struct kmem_cache *flctx_cache __ro_after_init;
+static struct kmem_cache *filelock_cache __ro_after_init;
 
 static struct file_lock_context *
 locks_get_lock_context(struct inode *inode, int type)

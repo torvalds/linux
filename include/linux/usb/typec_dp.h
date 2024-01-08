@@ -67,8 +67,10 @@ enum {
 #define   DP_CAP_UFP_D			1
 #define   DP_CAP_DFP_D			2
 #define   DP_CAP_DFP_D_AND_UFP_D	3
-#define DP_CAP_DP_SIGNALING		BIT(2) /* Always set */
-#define DP_CAP_GEN2			BIT(3) /* Reserved after v1.0b */
+#define DP_CAP_DP_SIGNALLING(_cap_)	(((_cap_) & GENMASK(5, 2)) >> 2)
+#define   DP_CAP_SIGNALLING_HBR3	1
+#define   DP_CAP_SIGNALLING_UHBR10	2
+#define   DP_CAP_SIGNALLING_UHBR20	3
 #define DP_CAP_RECEPTACLE		BIT(6)
 #define DP_CAP_USB			BIT(7)
 #define DP_CAP_DFP_D_PIN_ASSIGN(_cap_)	(((_cap_) & GENMASK(15, 8)) >> 8)
@@ -78,6 +80,13 @@ enum {
 			DP_CAP_UFP_D_PIN_ASSIGN(_cap_) : DP_CAP_DFP_D_PIN_ASSIGN(_cap_))
 #define DP_CAP_PIN_ASSIGN_DFP_D(_cap_) ((_cap_ & DP_CAP_RECEPTACLE) ? \
 			DP_CAP_DFP_D_PIN_ASSIGN(_cap_) : DP_CAP_UFP_D_PIN_ASSIGN(_cap_))
+#define DP_CAP_UHBR_13_5_SUPPORT	BIT(26)
+#define DP_CAP_CABLE_TYPE(_cap_)	(((_cap_) & GENMASK(29, 28)) >> 28)
+#define   DP_CAP_CABLE_TYPE_PASSIVE	0
+#define   DP_CAP_CABLE_TYPE_RE_TIMER	1
+#define   DP_CAP_CABLE_TYPE_RE_DRIVER	2
+#define   DP_CAP_CABLE_TYPE_OPTICAL	3
+#define DP_CAP_DPAM_VERSION		BIT(30)
 
 /* DisplayPort Status Update VDO bits */
 #define DP_STATUS_CONNECTION(_status_)	((_status_) & 3)
@@ -97,13 +106,24 @@ enum {
 #define DP_CONF_CURRENTLY(_conf_)	((_conf_) & 3)
 #define DP_CONF_UFP_U_AS_DFP_D		BIT(0)
 #define DP_CONF_UFP_U_AS_UFP_D		BIT(1)
-#define DP_CONF_SIGNALING_DP		BIT(2)
-#define DP_CONF_SIGNALING_GEN_2		BIT(3) /* Reserved after v1.0b */
+#define DP_CONF_SIGNALLING_MASK		GENMASK(5, 2)
+#define DP_CONF_SIGNALLING_SHIFT	2
+#define   DP_CONF_SIGNALLING_HBR3	1
+#define   DP_CONF_SIGNALLING_UHBR10	2
+#define   DP_CONF_SIGNALLING_UHBR20	3
 #define DP_CONF_PIN_ASSIGNEMENT_SHIFT	8
 #define DP_CONF_PIN_ASSIGNEMENT_MASK	GENMASK(15, 8)
 
 /* Helper for setting/getting the pin assignment value to the configuration */
 #define DP_CONF_SET_PIN_ASSIGN(_a_)	((_a_) << 8)
 #define DP_CONF_GET_PIN_ASSIGN(_conf_)	(((_conf_) & GENMASK(15, 8)) >> 8)
+#define DP_CONF_UHBR13_5_SUPPORT	BIT(26)
+#define DP_CONF_CABLE_TYPE_MASK		GENMASK(29, 28)
+#define DP_CONF_CABLE_TYPE_SHIFT	28
+#define   DP_CONF_CABLE_TYPE_PASSIVE	0
+#define   DP_CONF_CABLE_TYPE_RE_TIMER	1
+#define   DP_CONF_CABLE_TYPE_RE_DRIVER	2
+#define   DP_CONF_CABLE_TYPE_OPTICAL	3
+#define DP_CONF_DPAM_VERSION		BIT(30)
 
 #endif /* __USB_TYPEC_DP_H */

@@ -87,8 +87,8 @@ static struct task_struct *prune_thread;
  * that makes a difference.  Some.
  */
 
-static struct fsnotify_group *audit_tree_group;
-static struct kmem_cache *audit_tree_mark_cachep __read_mostly;
+static struct fsnotify_group *audit_tree_group __ro_after_init;
+static struct kmem_cache *audit_tree_mark_cachep __ro_after_init;
 
 static struct audit_tree *alloc_tree(const char *s)
 {

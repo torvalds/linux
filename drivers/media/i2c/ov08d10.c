@@ -536,9 +536,6 @@ struct ov08d10 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* lanes index */
 	u8 nlanes;
 
@@ -1103,9 +1100,6 @@ static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (ov08d10->streaming == enable)
-		return 0;
-
 	mutex_lock(&ov08d10->mutex);
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -1125,8 +1119,6 @@ static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov08d10->streaming = enable;
-
 	/* vflip and hflip cannot change during streaming */
 	__v4l2_ctrl_grab(ov08d10->vflip, enable);
 	__v4l2_ctrl_grab(ov08d10->hflip, enable);
@@ -1134,45 +1126,6 @@ static int ov08d10_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_unlock(&ov08d10->mutex);
 
 	return ret;
-}
-
-static int __maybe_unused ov08d10_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov08d10 *ov08d10 = to_ov08d10(sd);
-
-	mutex_lock(&ov08d10->mutex);
-	if (ov08d10->streaming)
-		ov08d10_stop_streaming(ov08d10);
-
-	mutex_unlock(&ov08d10->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused ov08d10_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov08d10 *ov08d10 = to_ov08d10(sd);
-	int ret;
-
-	mutex_lock(&ov08d10->mutex);
-
-	if (ov08d10->streaming) {
-		ret = ov08d10_start_streaming(ov08d10);
-		if (ret) {
-			ov08d10->streaming = false;
-			ov08d10_stop_streaming(ov08d10);
-			mutex_unlock(&ov08d10->mutex);
-			return ret;
-		}
-	}
-
-	mutex_unlock(&ov08d10->mutex);
-
-	return 0;
 }
 
 static int ov08d10_set_format(struct v4l2_subdev *sd,
@@ -1501,10 +1454,6 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static const struct dev_pm_ops ov08d10_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov08d10_suspend, ov08d10_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov08d10_acpi_ids[] = {
 	{ "OVTI08D1" },
@@ -1517,7 +1466,6 @@ MODULE_DEVICE_TABLE(acpi, ov08d10_acpi_ids);
 static struct i2c_driver ov08d10_i2c_driver = {
 	.driver = {
 		.name = "ov08d10",
-		.pm = &ov08d10_pm_ops,
 		.acpi_match_table = ACPI_PTR(ov08d10_acpi_ids),
 	},
 	.probe = ov08d10_probe,

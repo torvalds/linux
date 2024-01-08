@@ -677,4 +677,5 @@ static void __exit gate_cleanup_module(void)
 
 module_init(gate_init_module);
 module_exit(gate_cleanup_module);
+MODULE_DESCRIPTION("TC gate action");
 MODULE_LICENSE("GPL v2");

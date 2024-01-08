@@ -245,10 +245,9 @@ static void adiantum_hash_header(struct skcipher_request *req)
 
 /* Hash the left-hand part (the "bulk") of the message using NHPoly1305 */
 static int adiantum_hash_message(struct skcipher_request *req,
-				 struct scatterlist *sgl, le128 *digest)
+				 struct scatterlist *sgl, unsigned int nents,
+				 le128 *digest)
 {
-	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
-	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
 	struct shash_desc *hash_desc = &rctx->u.hash_desc;
@@ -256,14 +255,11 @@ static int adiantum_hash_message(struct skcipher_request *req,
 	unsigned int i, n;
 	int err;
 
-	hash_desc->tfm = tctx->hash;
-
 	err = crypto_shash_init(hash_desc);
 	if (err)
 		return err;
 
-	sg_miter_start(&miter, sgl, sg_nents(sgl),
-		       SG_MITER_FROM_SG | SG_MITER_ATOMIC);
+	sg_miter_start(&miter, sgl, nents, SG_MITER_FROM_SG | SG_MITER_ATOMIC);
 	for (i = 0; i < bulk_len; i += n) {
 		sg_miter_next(&miter);
 		n = min_t(unsigned int, miter.length, bulk_len - i);
@@ -285,6 +281,8 @@ static int adiantum_finish(struct skcipher_request *req)
 	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
+	struct scatterlist *dst = req->dst;
+	const unsigned int dst_nents = sg_nents(dst);
 	le128 digest;
 	int err;
 
@@ -298,13 +296,32 @@ static int adiantum_finish(struct skcipher_request *req)
 	 *	enc: C_R = C_M - H_{K_H}(T, C_L)
 	 *	dec: P_R = P_M - H_{K_H}(T, P_L)
 	 */
-	err = adiantum_hash_message(req, req->dst, &digest);
-	if (err)
-		return err;
-	le128_add(&digest, &digest, &rctx->header_hash);
-	le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
-	scatterwalk_map_and_copy(&rctx->rbuf.bignum, req->dst,
-				 bulk_len, BLOCKCIPHER_BLOCK_SIZE, 1);
+	rctx->u.hash_desc.tfm = tctx->hash;
+	le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
+	if (dst_nents == 1 && dst->offset + req->cryptlen <= PAGE_SIZE) {
+		/* Fast path for single-page destination */
+		struct page *page = sg_page(dst);
+		void *virt = kmap_local_page(page) + dst->offset;
+
+		err = crypto_shash_digest(&rctx->u.hash_desc, virt, bulk_len,
+					  (u8 *)&digest);
+		if (err) {
+			kunmap_local(virt);
+			return err;
+		}
+		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
+		memcpy(virt + bulk_len, &rctx->rbuf.bignum, sizeof(le128));
+		flush_dcache_page(page);
+		kunmap_local(virt);
+	} else {
+		/* Slow path that works for any destination scatterlist */
+		err = adiantum_hash_message(req, dst, dst_nents, &digest);
+		if (err)
+			return err;
+		le128_sub(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
+		scatterwalk_map_and_copy(&rctx->rbuf.bignum, dst,
+					 bulk_len, sizeof(le128), 1);
+	}
 	return 0;
 }
 
@@ -324,6 +341,8 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	const struct adiantum_tfm_ctx *tctx = crypto_skcipher_ctx(tfm);
 	struct adiantum_request_ctx *rctx = skcipher_request_ctx(req);
 	const unsigned int bulk_len = req->cryptlen - BLOCKCIPHER_BLOCK_SIZE;
+	struct scatterlist *src = req->src;
+	const unsigned int src_nents = sg_nents(src);
 	unsigned int stream_len;
 	le128 digest;
 	int err;
@@ -339,12 +358,24 @@ static int adiantum_crypt(struct skcipher_request *req, bool enc)
 	 *	dec: C_M = C_R + H_{K_H}(T, C_L)
 	 */
 	adiantum_hash_header(req);
-	err = adiantum_hash_message(req, req->src, &digest);
+	rctx->u.hash_desc.tfm = tctx->hash;
+	if (src_nents == 1 && src->offset + req->cryptlen <= PAGE_SIZE) {
+		/* Fast path for single-page source */
+		void *virt = kmap_local_page(sg_page(src)) + src->offset;
+
+		err = crypto_shash_digest(&rctx->u.hash_desc, virt, bulk_len,
+					  (u8 *)&digest);
+		memcpy(&rctx->rbuf.bignum, virt + bulk_len, sizeof(le128));
+		kunmap_local(virt);
+	} else {
+		/* Slow path that works for any source scatterlist */
+		err = adiantum_hash_message(req, src, src_nents, &digest);
+		scatterwalk_map_and_copy(&rctx->rbuf.bignum, src,
+					 bulk_len, sizeof(le128), 0);
+	}
 	if (err)
 		return err;
-	le128_add(&digest, &digest, &rctx->header_hash);
-	scatterwalk_map_and_copy(&rctx->rbuf.bignum, req->src,
-				 bulk_len, BLOCKCIPHER_BLOCK_SIZE, 0);
+	le128_add(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &rctx->header_hash);
 	le128_add(&rctx->rbuf.bignum, &rctx->rbuf.bignum, &digest);
 
 	/* If encrypting, encrypt P_M with the block cipher to get C_M */
@@ -468,7 +499,7 @@ static void adiantum_free_instance(struct skcipher_instance *inst)
  * Check for a supported set of inner algorithms.
  * See the comment at the beginning of this file.
  */
-static bool adiantum_supported_algorithms(struct skcipher_alg *streamcipher_alg,
+static bool adiantum_supported_algorithms(struct skcipher_alg_common *streamcipher_alg,
 					  struct crypto_alg *blockcipher_alg,
 					  struct shash_alg *hash_alg)
 {
@@ -494,7 +525,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	const char *nhpoly1305_name;
 	struct skcipher_instance *inst;
 	struct adiantum_instance_ctx *ictx;
-	struct skcipher_alg *streamcipher_alg;
+	struct skcipher_alg_common *streamcipher_alg;
 	struct crypto_alg *blockcipher_alg;
 	struct shash_alg *hash_alg;
 	int err;
@@ -514,7 +545,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 				   crypto_attr_alg_name(tb[1]), 0, mask);
 	if (err)
 		goto err_free_inst;
-	streamcipher_alg = crypto_spawn_skcipher_alg(&ictx->streamcipher_spawn);
+	streamcipher_alg = crypto_spawn_skcipher_alg_common(&ictx->streamcipher_spawn);
 
 	/* Block cipher, e.g. "aes" */
 	err = crypto_grab_cipher(&ictx->blockcipher_spawn,
@@ -561,8 +592,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	inst->alg.base.cra_blocksize = BLOCKCIPHER_BLOCK_SIZE;
 	inst->alg.base.cra_ctxsize = sizeof(struct adiantum_tfm_ctx);
-	inst->alg.base.cra_alignmask = streamcipher_alg->base.cra_alignmask |
-				       hash_alg->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = streamcipher_alg->base.cra_alignmask;
 	/*
 	 * The block cipher is only invoked once per message, so for long
 	 * messages (e.g. sectors for disk encryption) its performance doesn't
@@ -578,8 +608,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	inst->alg.decrypt = adiantum_decrypt;
 	inst->alg.init = adiantum_init_tfm;
 	inst->alg.exit = adiantum_exit_tfm;
-	inst->alg.min_keysize = crypto_skcipher_alg_min_keysize(streamcipher_alg);
-	inst->alg.max_keysize = crypto_skcipher_alg_max_keysize(streamcipher_alg);
+	inst->alg.min_keysize = streamcipher_alg->min_keysize;
+	inst->alg.max_keysize = streamcipher_alg->max_keysize;
 	inst->alg.ivsize = TWEAK_SIZE;
 
 	inst->free = adiantum_free_instance;

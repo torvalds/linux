@@ -43,7 +43,8 @@ patternProperties:
   "-state$":
     oneOf:
       - $ref: "#/$defs/qcom-mdm9607-tlmm-state"
-      - patternProperties:
+      - additionalProperties: false
+        patternProperties:
           ".*":
             $ref: "#/$defs/qcom-mdm9607-tlmm-state"
 

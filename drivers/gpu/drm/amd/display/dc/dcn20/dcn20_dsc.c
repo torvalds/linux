@@ -137,7 +137,15 @@ void dsc2_get_enc_caps(struct dsc_enc_caps *dsc_enc_caps, int pixel_clock_100Hz)
 		dsc_enc_caps->max_total_throughput_mps = DCN20_MAX_DISPLAY_CLOCK_Mhz * 2;
 	}
 
-	// TODO DSC: This is actually image width limitation, not a slice width. This should be added to the criteria to use ODM.
+	/* For pixel clock bigger than a single-pipe limit needing four engines ODM 4:1, which then quardruples our
+	 * throughput and number of slices
+	 */
+	if (pixel_clock_100Hz > DCN20_MAX_PIXEL_CLOCK_Mhz*10000*2) {
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_12 = 1;
+		dsc_enc_caps->slice_caps.bits.NUM_SLICES_16 = 1;
+		dsc_enc_caps->max_total_throughput_mps = DCN20_MAX_DISPLAY_CLOCK_Mhz * 4;
+	}
+
 	dsc_enc_caps->max_slice_width = 5184; /* (including 64 overlap pixels for eDP MSO mode) */
 	dsc_enc_caps->bpp_increment_div = 16; /* 1/16th of a bit */
 }

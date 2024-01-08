@@ -8,13 +8,13 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: October 2022
+:Date: October 2023
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
-filesystem access) for a set of processes.  Because Landlock is a stackable
-LSM, it makes possible to create safe security sandboxes as new security layers
-in addition to the existing system-wide access-controls. This kind of sandbox
-is expected to help mitigate the security impact of bugs or
+filesystem or network access) for a set of processes.  Because Landlock
+is a stackable LSM, it makes possible to create safe security sandboxes as new
+security layers in addition to the existing system-wide access-controls. This
+kind of sandbox is expected to help mitigate the security impact of bugs or
 unexpected/malicious behaviors in user space applications.  Landlock empowers
 any process, including unprivileged ones, to securely restrict themselves.
 
@@ -28,20 +28,34 @@ appropriately <kernel_support>`.
 Landlock rules
 ==============
 
-A Landlock rule describes an action on an object.  An object is currently a
-file hierarchy, and the related filesystem actions are defined with `access
-rights`_.  A set of rules is aggregated in a ruleset, which can then restrict
+A Landlock rule describes an action on an object which the process intends to
+perform.  A set of rules is aggregated in a ruleset, which can then restrict
 the thread enforcing it, and its future children.
+
+The two existing types of rules are:
+
+Filesystem rules
+    For these rules, the object is a file hierarchy,
+    and the related filesystem actions are defined with
+    `filesystem access rights`.
+
+Network rules (since ABI v4)
+    For these rules, the object is a TCP port,
+    and the related actions are defined with `network access rights`.
 
 Defining and enforcing a security policy
 ----------------------------------------
 
-We first need to define the ruleset that will contain our rules.  For this
-example, the ruleset will contain rules that only allow read actions, but write
-actions will be denied.  The ruleset then needs to handle both of these kind of
-actions.  This is required for backward and forward compatibility (i.e. the
-kernel and user space may not know each other's supported restrictions), hence
-the need to be explicit about the denied-by-default access rights.
+We first need to define the ruleset that will contain our rules.
+
+For this example, the ruleset will contain rules that only allow filesystem
+read actions and establish a specific TCP connection. Filesystem write
+actions and other TCP actions will be denied.
+
+The ruleset then needs to handle both these kinds of actions.  This is
+required for backward and forward compatibility (i.e. the kernel and user
+space may not know each other's supported restrictions), hence the need
+to be explicit about the denied-by-default access rights.
 
 .. code-block:: c
 
@@ -62,6 +76,9 @@ the need to be explicit about the denied-by-default access rights.
             LANDLOCK_ACCESS_FS_MAKE_SYM |
             LANDLOCK_ACCESS_FS_REFER |
             LANDLOCK_ACCESS_FS_TRUNCATE,
+        .handled_access_net =
+            LANDLOCK_ACCESS_NET_BIND_TCP |
+            LANDLOCK_ACCESS_NET_CONNECT_TCP,
     };
 
 Because we may not know on which kernel version an application will be
@@ -70,9 +87,7 @@ should try to protect users as much as possible whatever the kernel they are
 using.  To avoid binary enforcement (i.e. either all security features or
 none), we can leverage a dedicated Landlock command to get the current version
 of the Landlock ABI and adapt the handled accesses.  Let's check if we should
-remove the ``LANDLOCK_ACCESS_FS_REFER`` or ``LANDLOCK_ACCESS_FS_TRUNCATE``
-access rights, which are only supported starting with the second and third
-version of the ABI.
+remove access rights which are only supported in higher versions of the ABI.
 
 .. code-block:: c
 
@@ -92,6 +107,12 @@ version of the ABI.
     case 2:
         /* Removes LANDLOCK_ACCESS_FS_TRUNCATE for ABI < 3 */
         ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_TRUNCATE;
+        __attribute__((fallthrough));
+    case 3:
+        /* Removes network support for ABI < 4 */
+        ruleset_attr.handled_access_net &=
+            ~(LANDLOCK_ACCESS_NET_BIND_TCP |
+              LANDLOCK_ACCESS_NET_CONNECT_TCP);
     }
 
 This enables to create an inclusive ruleset that will contain our rules.
@@ -143,10 +164,23 @@ for the ruleset creation, by filtering access rights according to the Landlock
 ABI version.  In this example, this is not required because all of the requested
 ``allowed_access`` rights are already available in ABI 1.
 
-We now have a ruleset with one rule allowing read access to ``/usr`` while
-denying all other handled accesses for the filesystem.  The next step is to
-restrict the current thread from gaining more privileges (e.g. thanks to a SUID
-binary).
+For network access-control, we can add a set of rules that allow to use a port
+number for a specific action: HTTPS connections.
+
+.. code-block:: c
+
+    struct landlock_net_port_attr net_port = {
+        .allowed_access = LANDLOCK_ACCESS_NET_CONNECT_TCP,
+        .port = 443,
+    };
+
+    err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
+                            &net_port, 0);
+
+The next step is to restrict the current thread from gaining more privileges
+(e.g. through a SUID binary).  We now have a ruleset with the first rule
+allowing read access to ``/usr`` while denying all other handled accesses for
+the filesystem, and a second rule allowing HTTPS connections.
 
 .. code-block:: c
 
@@ -355,7 +389,7 @@ Access rights
 -------------
 
 .. kernel-doc:: include/uapi/linux/landlock.h
-    :identifiers: fs_access
+    :identifiers: fs_access net_access
 
 Creating a new ruleset
 ----------------------
@@ -374,6 +408,7 @@ Extending a ruleset
 
 .. kernel-doc:: include/uapi/linux/landlock.h
     :identifiers: landlock_rule_type landlock_path_beneath_attr
+                  landlock_net_port_attr
 
 Enforcing a ruleset
 -------------------
@@ -387,9 +422,9 @@ Current limitations
 Filesystem topology modification
 --------------------------------
 
-As for file renaming and linking, a sandboxed thread cannot modify its
-filesystem topology, whether via :manpage:`mount(2)` or
-:manpage:`pivot_root(2)`.  However, :manpage:`chroot(2)` calls are not denied.
+Threads sandboxed with filesystem restrictions cannot modify filesystem
+topology, whether via :manpage:`mount(2)` or :manpage:`pivot_root(2)`.
+However, :manpage:`chroot(2)` calls are not denied.
 
 Special filesystems
 -------------------
@@ -451,6 +486,14 @@ always allowed when using a kernel that only supports the first or second ABI.
 Starting with the Landlock ABI version 3, it is now possible to securely control
 truncation thanks to the new ``LANDLOCK_ACCESS_FS_TRUNCATE`` access right.
 
+Network support (ABI < 4)
+-------------------------
+
+Starting with the Landlock ABI version 4, it is now possible to restrict TCP
+bind and connect actions to only a set of allowed ports thanks to the new
+``LANDLOCK_ACCESS_NET_BIND_TCP`` and ``LANDLOCK_ACCESS_NET_CONNECT_TCP``
+access rights.
+
 .. _kernel_support:
 
 Kernel support
@@ -468,6 +511,12 @@ If the running kernel does not have ``landlock`` in ``CONFIG_LSM``, then we can
 still enable it by adding ``lsm=landlock,[...]`` to
 Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
 configuration.
+
+To be able to explicitly allow TCP operations (e.g., adding a network rule with
+``LANDLOCK_ACCESS_NET_BIND_TCP``), the kernel must support TCP
+(``CONFIG_INET=y``).  Otherwise, sys_landlock_add_rule() returns an
+``EAFNOSUPPORT`` error, which can safely be ignored because this kind of TCP
+operation is already not possible.
 
 Questions and answers
 =====================

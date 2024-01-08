@@ -621,7 +621,7 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 
 	u8         reserved_at_140[0x8];
 	u8         bth_dst_qp[0x18];
-	u8	   reserved_at_160[0x20];
+	u8	   inner_esp_spi[0x20];
 	u8	   outer_esp_spi[0x20];
 	u8         reserved_at_1a0[0x60];
 };
@@ -1232,7 +1232,13 @@ struct mlx5_ifc_virtio_emulation_cap_bits {
 	u8         max_emulated_devices[0x8];
 	u8         max_num_virtio_queues[0x18];
 
-	u8         reserved_at_a0[0x60];
+	u8         reserved_at_a0[0x20];
+
+	u8	   reserved_at_c0[0x13];
+	u8         desc_group_mkey_supported[0x1];
+	u8         reserved_at_d4[0xc];
+
+	u8         reserved_at_e0[0x20];
 
 	u8         umem_1_buffer_param_a[0x20];
 
@@ -11993,6 +11999,13 @@ enum {
 	MLX5_IPSEC_ASO_MODE              = 0x0,
 	MLX5_IPSEC_ASO_REPLAY_PROTECTION = 0x1,
 	MLX5_IPSEC_ASO_INC_SN            = 0x2,
+};
+
+enum {
+	MLX5_IPSEC_ASO_REPLAY_WIN_32BIT  = 0x0,
+	MLX5_IPSEC_ASO_REPLAY_WIN_64BIT  = 0x1,
+	MLX5_IPSEC_ASO_REPLAY_WIN_128BIT = 0x2,
+	MLX5_IPSEC_ASO_REPLAY_WIN_256BIT = 0x3,
 };
 
 struct mlx5_ifc_ipsec_aso_bits {

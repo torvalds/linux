@@ -262,15 +262,9 @@ static struct asymmetric_key_parser x509_key_parser = {
 /*
  * Module stuff
  */
-extern int __init certs_selftest(void);
 static int __init x509_key_init(void)
 {
-	int ret;
-
-	ret = register_asymmetric_key_parser(&x509_key_parser);
-	if (ret < 0)
-		return ret;
-	return fips_signature_selftest();
+	return register_asymmetric_key_parser(&x509_key_parser);
 }
 
 static void __exit x509_key_exit(void)

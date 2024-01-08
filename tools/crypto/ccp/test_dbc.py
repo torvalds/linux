@@ -4,6 +4,12 @@ import unittest
 import os
 import time
 import glob
+import fcntl
+try:
+    import ioctl_opt as ioctl
+except ImportError:
+    ioctl = None
+    pass
 from dbc import *
 
 # Artificial delay between set commands
@@ -27,8 +33,8 @@ def system_is_secured() -> bool:
 class DynamicBoostControlTest(unittest.TestCase):
     def __init__(self, data) -> None:
         self.d = None
-        self.signature = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
-        self.uid = "1111111111111111"
+        self.signature = b"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"
+        self.uid = b"1111111111111111"
         super().__init__(data)
 
     def setUp(self) -> None:
@@ -64,13 +70,16 @@ class TestInvalidIoctls(DynamicBoostControlTest):
     def setUp(self) -> None:
         if not os.path.exists(DEVICE_NODE):
             self.skipTest("system is unsupported")
+        if not ioctl:
+            self.skipTest("unable to test IOCTLs without ioctl_opt")
+
         return super().setUp()
 
     def test_invalid_nonce_ioctl(self) -> None:
         """tries to call get_nonce ioctl with invalid data structures"""
 
         # 0x1 (get nonce), and invalid data
-        INVALID1 = IOWR(ord("D"), 0x01, invalid_param)
+        INVALID1 = ioctl.IOWR(ord("D"), 0x01, invalid_param)
         with self.assertRaises(OSError) as error:
             fcntl.ioctl(self.d, INVALID1, self.data, True)
         self.assertEqual(error.exception.errno, 22)
@@ -79,7 +88,7 @@ class TestInvalidIoctls(DynamicBoostControlTest):
         """tries to call set_uid ioctl with invalid data structures"""
 
         # 0x2 (set uid), and invalid data
-        INVALID2 = IOW(ord("D"), 0x02, invalid_param)
+        INVALID2 = ioctl.IOW(ord("D"), 0x02, invalid_param)
         with self.assertRaises(OSError) as error:
             fcntl.ioctl(self.d, INVALID2, self.data, True)
         self.assertEqual(error.exception.errno, 22)
@@ -88,7 +97,7 @@ class TestInvalidIoctls(DynamicBoostControlTest):
         """tries to call set_uid ioctl with invalid data structures"""
 
         # 0x2 as RW (set uid), and invalid data
-        INVALID3 = IOWR(ord("D"), 0x02, invalid_param)
+        INVALID3 = ioctl.IOWR(ord("D"), 0x02, invalid_param)
         with self.assertRaises(OSError) as error:
             fcntl.ioctl(self.d, INVALID3, self.data, True)
         self.assertEqual(error.exception.errno, 22)
@@ -96,7 +105,7 @@ class TestInvalidIoctls(DynamicBoostControlTest):
     def test_invalid_param_ioctl(self) -> None:
         """tries to call param ioctl with invalid data structures"""
         # 0x3 (param), and invalid data
-        INVALID4 = IOWR(ord("D"), 0x03, invalid_param)
+        INVALID4 = ioctl.IOWR(ord("D"), 0x03, invalid_param)
         with self.assertRaises(OSError) as error:
             fcntl.ioctl(self.d, INVALID4, self.data, True)
         self.assertEqual(error.exception.errno, 22)
@@ -104,7 +113,7 @@ class TestInvalidIoctls(DynamicBoostControlTest):
     def test_invalid_call_ioctl(self) -> None:
         """tries to call the DBC ioctl with invalid data structures"""
         # 0x4, and invalid data
-        INVALID5 = IOWR(ord("D"), 0x04, invalid_param)
+        INVALID5 = ioctl.IOWR(ord("D"), 0x04, invalid_param)
         with self.assertRaises(OSError) as error:
             fcntl.ioctl(self.d, INVALID5, self.data, True)
         self.assertEqual(error.exception.errno, 22)
@@ -183,12 +192,12 @@ class TestUnFusedSystem(DynamicBoostControlTest):
         # SOC power
         soc_power_max = process_param(self.d, PARAM_GET_SOC_PWR_MAX, self.signature)
         soc_power_min = process_param(self.d, PARAM_GET_SOC_PWR_MIN, self.signature)
-        self.assertGreater(soc_power_max.parameter, soc_power_min.parameter)
+        self.assertGreater(soc_power_max[0], soc_power_min[0])
 
         # fmax
         fmax_max = process_param(self.d, PARAM_GET_FMAX_MAX, self.signature)
         fmax_min = process_param(self.d, PARAM_GET_FMAX_MIN, self.signature)
-        self.assertGreater(fmax_max.parameter, fmax_min.parameter)
+        self.assertGreater(fmax_max[0], fmax_min[0])
 
         # cap values
         keys = {
@@ -199,7 +208,7 @@ class TestUnFusedSystem(DynamicBoostControlTest):
         }
         for k in keys:
             result = process_param(self.d, keys[k], self.signature)
-            self.assertGreater(result.parameter, 0)
+            self.assertGreater(result[0], 0)
 
     def test_get_invalid_param(self) -> None:
         """fetch an invalid parameter"""
@@ -217,17 +226,17 @@ class TestUnFusedSystem(DynamicBoostControlTest):
         original = process_param(self.d, PARAM_GET_FMAX_CAP, self.signature)
 
         # set the fmax
-        target = original.parameter - 100
+        target = original[0] - 100
         process_param(self.d, PARAM_SET_FMAX_CAP, self.signature, target)
         time.sleep(SET_DELAY)
         new = process_param(self.d, PARAM_GET_FMAX_CAP, self.signature)
-        self.assertEqual(new.parameter, target)
+        self.assertEqual(new[0], target)
 
         # revert back to current
-        process_param(self.d, PARAM_SET_FMAX_CAP, self.signature, original.parameter)
+        process_param(self.d, PARAM_SET_FMAX_CAP, self.signature, original[0])
         time.sleep(SET_DELAY)
         cur = process_param(self.d, PARAM_GET_FMAX_CAP, self.signature)
-        self.assertEqual(cur.parameter, original.parameter)
+        self.assertEqual(cur[0], original[0])
 
     def test_set_power_cap(self) -> None:
         """get/set power cap limit"""
@@ -235,17 +244,17 @@ class TestUnFusedSystem(DynamicBoostControlTest):
         original = process_param(self.d, PARAM_GET_PWR_CAP, self.signature)
 
         # set the fmax
-        target = original.parameter - 10
+        target = original[0] - 10
         process_param(self.d, PARAM_SET_PWR_CAP, self.signature, target)
         time.sleep(SET_DELAY)
         new = process_param(self.d, PARAM_GET_PWR_CAP, self.signature)
-        self.assertEqual(new.parameter, target)
+        self.assertEqual(new[0], target)
 
         # revert back to current
-        process_param(self.d, PARAM_SET_PWR_CAP, self.signature, original.parameter)
+        process_param(self.d, PARAM_SET_PWR_CAP, self.signature, original[0])
         time.sleep(SET_DELAY)
         cur = process_param(self.d, PARAM_GET_PWR_CAP, self.signature)
-        self.assertEqual(cur.parameter, original.parameter)
+        self.assertEqual(cur[0], original[0])
 
     def test_set_3d_graphics_mode(self) -> None:
         """set/get 3d graphics mode"""

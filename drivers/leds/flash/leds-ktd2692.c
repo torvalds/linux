@@ -386,15 +386,13 @@ static int ktd2692_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ktd2692_remove(struct platform_device *pdev)
+static void ktd2692_remove(struct platform_device *pdev)
 {
 	struct ktd2692_context *led = platform_get_drvdata(pdev);
 
 	led_classdev_flash_unregister(&led->fled_cdev);
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct of_device_id ktd2692_match[] = {
@@ -409,7 +407,7 @@ static struct platform_driver ktd2692_driver = {
 		.of_match_table = ktd2692_match,
 	},
 	.probe  = ktd2692_probe,
-	.remove = ktd2692_remove,
+	.remove_new = ktd2692_remove,
 };
 
 module_platform_driver(ktd2692_driver);

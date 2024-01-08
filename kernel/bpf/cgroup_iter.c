@@ -282,7 +282,7 @@ static struct bpf_iter_reg bpf_cgroup_reg_info = {
 	.ctx_arg_info_size	= 1,
 	.ctx_arg_info		= {
 		{ offsetof(struct bpf_iter__cgroup, cgroup),
-		  PTR_TO_BTF_ID_OR_NULL },
+		  PTR_TO_BTF_ID_OR_NULL | PTR_TRUSTED },
 	},
 	.seq_info		= &cgroup_iter_seq_info,
 };
@@ -305,9 +305,7 @@ struct bpf_iter_css_kern {
 	unsigned int flags;
 } __attribute__((aligned(8)));
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		"Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
 
 __bpf_kfunc int bpf_iter_css_new(struct bpf_iter_css *it,
 		struct cgroup_subsys_state *start, unsigned int flags)
@@ -358,4 +356,4 @@ __bpf_kfunc void bpf_iter_css_destroy(struct bpf_iter_css *it)
 {
 }
 
-__diag_pop();
+__bpf_kfunc_end_defs();

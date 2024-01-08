@@ -4,6 +4,7 @@
 
 #include <linux/list.h>
 #include <linux/printk.h>
+#include "sb-errors.h"
 
 struct bch_dev;
 struct bch_fs;
@@ -101,18 +102,26 @@ struct fsck_err_state {
 	char			*last_msg;
 };
 
-#define FSCK_CAN_FIX		(1 << 0)
-#define FSCK_CAN_IGNORE		(1 << 1)
-#define FSCK_NEED_FSCK		(1 << 2)
-#define FSCK_NO_RATELIMIT	(1 << 3)
+enum bch_fsck_flags {
+	FSCK_CAN_FIX		= 1 << 0,
+	FSCK_CAN_IGNORE		= 1 << 1,
+	FSCK_NEED_FSCK		= 1 << 2,
+	FSCK_NO_RATELIMIT	= 1 << 3,
+};
 
-__printf(3, 4) __cold
-int bch2_fsck_err(struct bch_fs *, unsigned, const char *, ...);
+#define fsck_err_count(_c, _err)	bch2_sb_err_count(_c, BCH_FSCK_ERR_##_err)
+
+__printf(4, 5) __cold
+int bch2_fsck_err(struct bch_fs *,
+		  enum bch_fsck_flags,
+		  enum bch_sb_error_id,
+		  const char *, ...);
 void bch2_flush_fsck_errs(struct bch_fs *);
 
-#define __fsck_err(c, _flags, msg, ...)					\
+#define __fsck_err(c, _flags, _err_type, ...)				\
 ({									\
-	int _ret = bch2_fsck_err(c, _flags, msg, ##__VA_ARGS__);	\
+	int _ret = bch2_fsck_err(c, _flags, BCH_FSCK_ERR_##_err_type,	\
+				 __VA_ARGS__);				\
 									\
 	if (_ret != -BCH_ERR_fsck_fix &&				\
 	    _ret != -BCH_ERR_fsck_ignore) {				\
@@ -127,26 +136,53 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 
 /* XXX: mark in superblock that filesystem contains errors, if we ignore: */
 
-#define __fsck_err_on(cond, c, _flags, ...)				\
-	(unlikely(cond) ? __fsck_err(c, _flags,	##__VA_ARGS__) : false)
+#define __fsck_err_on(cond, c, _flags, _err_type, ...)			\
+	(unlikely(cond) ? __fsck_err(c, _flags, _err_type, __VA_ARGS__) : false)
 
-#define need_fsck_err_on(cond, c, ...)					\
-	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, ##__VA_ARGS__)
+#define need_fsck_err_on(cond, c, _err_type, ...)				\
+	__fsck_err_on(cond, c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
 
-#define need_fsck_err(c, ...)						\
-	__fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, ##__VA_ARGS__)
+#define need_fsck_err(c, _err_type, ...)				\
+	__fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK, _err_type, __VA_ARGS__)
 
-#define mustfix_fsck_err(c, ...)					\
-	__fsck_err(c, FSCK_CAN_FIX, ##__VA_ARGS__)
+#define mustfix_fsck_err(c, _err_type, ...)				\
+	__fsck_err(c, FSCK_CAN_FIX, _err_type, __VA_ARGS__)
 
-#define mustfix_fsck_err_on(cond, c, ...)				\
-	__fsck_err_on(cond, c, FSCK_CAN_FIX, ##__VA_ARGS__)
+#define mustfix_fsck_err_on(cond, c, _err_type, ...)			\
+	__fsck_err_on(cond, c, FSCK_CAN_FIX, _err_type, __VA_ARGS__)
 
-#define fsck_err(c, ...)						\
-	__fsck_err(c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, ##__VA_ARGS__)
+#define fsck_err(c, _err_type, ...)					\
+	__fsck_err(c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
-#define fsck_err_on(cond, c, ...)					\
-	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, ##__VA_ARGS__)
+#define fsck_err_on(cond, c, _err_type, ...)				\
+	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
+
+static inline void bch2_bkey_fsck_err(struct bch_fs *c,
+				     struct printbuf *err_msg,
+				     enum bch_sb_error_id err_type,
+				     const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	prt_vprintf(err_msg, fmt, args);
+	va_end(args);
+
+}
+
+#define bkey_fsck_err(c, _err_msg, _err_type, ...)			\
+do {									\
+	prt_printf(_err_msg, __VA_ARGS__);				\
+	bch2_sb_error_count(c, BCH_FSCK_ERR_##_err_type);		\
+	ret = -BCH_ERR_invalid_bkey;					\
+	goto fsck_err;							\
+} while (0)
+
+#define bkey_fsck_err_on(cond, ...)					\
+do {									\
+	if (unlikely(cond))						\
+		bkey_fsck_err(__VA_ARGS__);				\
+} while (0)
 
 /*
  * Fatal errors: these don't indicate a bug, but we can't continue running in RW
@@ -179,26 +215,26 @@ do {									\
 void bch2_io_error_work(struct work_struct *);
 
 /* Does the error handling without logging a message */
-void bch2_io_error(struct bch_dev *);
+void bch2_io_error(struct bch_dev *, enum bch_member_error_type);
 
-#define bch2_dev_io_err_on(cond, ca, ...)				\
+#define bch2_dev_io_err_on(cond, ca, _type, ...)			\
 ({									\
 	bool _ret = (cond);						\
 									\
 	if (_ret) {							\
 		bch_err_dev_ratelimited(ca, __VA_ARGS__);		\
-		bch2_io_error(ca);					\
+		bch2_io_error(ca, _type);				\
 	}								\
 	_ret;								\
 })
 
-#define bch2_dev_inum_io_err_on(cond, ca, ...)				\
+#define bch2_dev_inum_io_err_on(cond, ca, _type, ...)			\
 ({									\
 	bool _ret = (cond);						\
 									\
 	if (_ret) {							\
 		bch_err_inum_offset_ratelimited(ca, __VA_ARGS__);	\
-		bch2_io_error(ca);					\
+		bch2_io_error(ca, _type);				\
 	}								\
 	_ret;								\
 })

@@ -91,8 +91,6 @@
 
 #define MAX_TX_QUEUE				9
 
-#define MAX_RX_QUEUE				1
-
 #define MAX_RX_COUNT				64
 #define MAX_TX_QUEUE_COUNT			9
 
@@ -132,7 +130,6 @@ enum rt_customer_id {
 
 enum reset_type {
 	RESET_TYPE_NORESET = 0x00,
-	RESET_TYPE_NORMAL = 0x01,
 	RESET_TYPE_SILENT = 0x02
 };
 
@@ -233,10 +230,10 @@ struct r8192_priv {
 
 	u8 (*rf_set_chan)(struct net_device *dev, u8 ch);
 
-	struct rx_desc *rx_ring[MAX_RX_QUEUE];
-	struct sk_buff	*rx_buf[MAX_RX_QUEUE][MAX_RX_COUNT];
-	dma_addr_t	rx_ring_dma[MAX_RX_QUEUE];
-	unsigned int	rx_idx[MAX_RX_QUEUE];
+	struct rx_desc *rx_ring;
+	struct sk_buff	*rx_buf[MAX_RX_COUNT];
+	dma_addr_t	rx_ring_dma;
+	unsigned int	rx_idx;
 	int		rxringcount;
 	u16		rxbuffersize;
 
@@ -264,7 +261,6 @@ struct r8192_priv {
 	short	promisc;
 
 	short	chan;
-	bool ps_force;
 
 	u32 irq_mask[2];
 
@@ -345,7 +341,6 @@ struct r8192_priv {
 	u8		rfa_txpowertrackingindex;
 	u8		rfa_txpowertrackingindex_real;
 	u8		rfa_txpowertracking_default;
-	u8		rfc_txpowertrackingindex;
 	bool		btxpower_tracking;
 	bool		bcck_in_ch14;
 
@@ -369,14 +364,9 @@ struct r8192_priv {
 	u32		continue_diff_count;
 	bool		bswitch_fsync;
 	u8		framesync;
-	u32		reset_count;
 
-	enum reset_type rst_progress;
 	u16		tx_counter;
 	u16		rx_ctr;
-	bool		reset_in_progress;
-	bool		force_reset;
-	bool		force_lps;
 };
 
 extern const struct ethtool_ops rtl819x_ethtool_ops;

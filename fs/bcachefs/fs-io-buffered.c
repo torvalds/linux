@@ -389,6 +389,21 @@ static inline struct bch_writepage_state bch_writepage_state_init(struct bch_fs 
 	return ret;
 }
 
+/*
+ * Determine when a writepage io is full. We have to limit writepage bios to a
+ * single page per bvec (i.e. 1MB with 4k pages) because that is the limit to
+ * what the bounce path in bch2_write_extent() can handle. In theory we could
+ * loosen this restriction for non-bounce I/O, but we don't have that context
+ * here. Ideally, we can up this limit and make it configurable in the future
+ * when the bounce path can be enhanced to accommodate larger source bios.
+ */
+static inline bool bch_io_full(struct bch_writepage_io *io, unsigned len)
+{
+	struct bio *bio = &io->op.wbio.bio;
+	return bio_full(bio, len) ||
+		(bio->bi_iter.bi_size + len > BIO_MAX_VECS * PAGE_SIZE);
+}
+
 static void bch2_writepage_io_done(struct bch_write_op *op)
 {
 	struct bch_writepage_io *io =
@@ -606,9 +621,7 @@ do_io:
 
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
-		     bio_full(&w->io->op.wbio.bio, sectors << 9) ||
-		     w->io->op.wbio.bio.bi_iter.bi_size + (sectors << 9) >=
-		     (BIO_MAX_VECS * PAGE_SIZE) ||
+		     bch_io_full(w->io, sectors << 9) ||
 		     bio_end_sector(&w->io->op.wbio.bio) != sector))
 			bch2_writepage_do_io(w);
 

@@ -278,14 +278,12 @@ exit_pdev_unregister:
 	return ret;
 }
 
-static int imx8ulp_remove(struct snd_sof_dev *sdev)
+static void imx8ulp_remove(struct snd_sof_dev *sdev)
 {
 	struct imx8ulp_priv *priv = sdev->pdata->hw_pdata;
 
 	imx8_disable_clocks(sdev, priv->clks);
 	platform_device_unregister(priv->ipc_dev);
-
-	return 0;
 }
 
 /* on i.MX8 there is 1 to 1 match between type and BAR idx */
@@ -478,16 +476,16 @@ static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 };
 
 static struct sof_dev_desc sof_of_imx8ulp_desc = {
-	.ipc_supported_mask     = BIT(SOF_IPC),
-	.ipc_default            = SOF_IPC,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_3),
+	.ipc_default            = SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "imx/sof",
+		[SOF_IPC_TYPE_3] = "imx/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "imx/sof-tplg",
+		[SOF_IPC_TYPE_3] = "imx/sof-tplg",
 	},
 	.default_fw_filename = {
-		[SOF_IPC] = "sof-imx8ulp.ri",
+		[SOF_IPC_TYPE_3] = "sof-imx8ulp.ri",
 	},
 	.nocodec_tplg_filename = "sof-imx8ulp-nocodec.tplg",
 	.ops = &sof_imx8ulp_ops,
@@ -502,7 +500,7 @@ MODULE_DEVICE_TABLE(of, sof_of_imx8ulp_ids);
 /* DT driver definition */
 static struct platform_driver snd_sof_of_imx8ulp_driver = {
 	.probe = sof_of_probe,
-	.remove = sof_of_remove,
+	.remove_new = sof_of_remove,
 	.driver = {
 		.name = "sof-audio-of-imx8ulp",
 		.pm = &sof_of_pm,

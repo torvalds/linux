@@ -44,7 +44,7 @@ struct input_led {
 struct input_leds {
 	struct input_handle handle;
 	unsigned int num_leds;
-	struct input_led leds[];
+	struct input_led leds[] __counted_by(num_leds);
 };
 
 static enum led_brightness input_leds_brightness_get(struct led_classdev *cdev)

@@ -98,9 +98,10 @@ enum upiu_response_transaction {
 	UPIU_TRANSACTION_REJECT_UPIU	= 0x3F,
 };
 
-/* UPIU Read/Write flags */
+/* UPIU Read/Write flags. See also table "UPIU Flags" in the UFS standard. */
 enum {
 	UPIU_CMD_FLAGS_NONE	= 0x00,
+	UPIU_CMD_FLAGS_CP	= 0x04,
 	UPIU_CMD_FLAGS_WRITE	= 0x20,
 	UPIU_CMD_FLAGS_READ	= 0x40,
 };

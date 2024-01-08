@@ -52,7 +52,7 @@ static ssize_t online_show(struct device *dev,
 {
 	struct zcrypt_card *zc = dev_get_drvdata(dev);
 	struct ap_card *ac = to_ap_card(dev);
-	int online = ac->config && zc->online ? 1 : 0;
+	int online = ac->config && !ac->chkstop && zc->online ? 1 : 0;
 
 	return sysfs_emit(buf, "%d\n", online);
 }
@@ -70,7 +70,7 @@ static ssize_t online_store(struct device *dev,
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
 
-	if (online && !ac->config)
+	if (online && (!ac->config || ac->chkstop))
 		return -ENODEV;
 
 	zc->online = online;

@@ -272,12 +272,9 @@ static void notrace start_secondary(void *unused)
 	cpu_init_exception_handling();
 
 	/*
-	 * 32-bit systems load the microcode from the ASM startup code for
-	 * historical reasons.
-	 *
-	 * On 64-bit systems load it before reaching the AP alive
-	 * synchronization point below so it is not part of the full per
-	 * CPU serialized bringup part when "parallel" bringup is enabled.
+	 * Load the microcode before reaching the AP alive synchronization
+	 * point below so it is not part of the full per CPU serialized
+	 * bringup part when "parallel" bringup is enabled.
 	 *
 	 * That's even safe when hyperthreading is enabled in the CPU as
 	 * the core code starts the primary threads first and leaves the
@@ -290,8 +287,7 @@ static void notrace start_secondary(void *unused)
 	 * CPUID, MSRs etc. must be strictly serialized to maintain
 	 * software state correctness.
 	 */
-	if (IS_ENABLED(CONFIG_X86_64))
-		load_ucode_ap();
+	load_ucode_ap();
 
 	/*
 	 * Synchronization point with the hotplug core. Sets this CPUs

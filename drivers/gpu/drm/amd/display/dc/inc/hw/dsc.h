@@ -76,6 +76,8 @@ union dsc_enc_slice_caps {
 		uint8_t NUM_SLICES_3 : 1; /* This one is not per DSC spec, but our encoder supports it */
 		uint8_t NUM_SLICES_4 : 1;
 		uint8_t NUM_SLICES_8 : 1;
+		uint8_t NUM_SLICES_12 : 1;
+		uint8_t NUM_SLICES_16 : 1;
 	} bits;
 	uint8_t raw;
 };

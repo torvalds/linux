@@ -1920,8 +1920,7 @@ static void m88ds3103_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
-	if (dev->dt_client)
-		i2c_unregister_device(dev->dt_client);
+	i2c_unregister_device(dev->dt_client);
 
 	i2c_mux_del_adapters(dev->muxc);
 

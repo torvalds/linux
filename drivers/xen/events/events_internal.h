@@ -33,7 +33,6 @@ struct evtchn_ops {
 
 extern const struct evtchn_ops *evtchn_ops;
 
-int get_evtchn_to_irq(evtchn_port_t evtchn);
 void handle_irq_for_port(evtchn_port_t port, struct evtchn_loop_ctrl *ctrl);
 
 unsigned int cpu_from_evtchn(evtchn_port_t evtchn);

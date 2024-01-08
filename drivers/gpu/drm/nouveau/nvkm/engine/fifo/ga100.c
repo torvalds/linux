@@ -27,6 +27,7 @@
 #include "runq.h"
 
 #include <core/gpuobj.h>
+#include <subdev/gsp.h>
 #include <subdev/top.h>
 #include <subdev/vfn.h>
 
@@ -607,5 +608,8 @@ int
 ga100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_fifo_new(&ga100_fifo, device, type, inst, pfifo);
+
 	return nvkm_fifo_new_(&ga100_fifo, device, type, inst, pfifo);
 }

@@ -488,12 +488,8 @@ static const struct vb2_ops isc_vb2_ops = {
 static int isc_querycap(struct file *file, void *priv,
 			 struct v4l2_capability *cap)
 {
-	struct isc_device *isc = video_drvdata(file);
-
 	strscpy(cap->driver, "microchip-isc", sizeof(cap->driver));
 	strscpy(cap->card, "Atmel Image Sensor Controller", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", isc->v4l2_dev.name);
 
 	return 0;
 }

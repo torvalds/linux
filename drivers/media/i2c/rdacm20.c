@@ -625,8 +625,7 @@ error_free_ctrls:
 	v4l2_ctrl_handler_free(&dev->ctrls);
 error:
 	media_entity_cleanup(&dev->sd.entity);
-	if (dev->sensor)
-		i2c_unregister_device(dev->sensor);
+	i2c_unregister_device(dev->sensor);
 
 	dev_err(&client->dev, "probe failed\n");
 

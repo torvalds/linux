@@ -20,23 +20,33 @@ struct clk;
 struct device;
 struct drm_device;
 
+struct shmob_drm_config {
+	enum shmob_drm_clk_source clk_source;
+	unsigned int clk_div;
+};
+
 struct shmob_drm_device {
 	struct device *dev;
 	const struct shmob_drm_platform_data *pdata;
+	struct shmob_drm_config config;
 
 	void __iomem *mmio;
 	struct clk *clock;
 	u32 lddckr;
-	u32 ldmt1r;
 
 	unsigned int irq;
 	spinlock_t irq_lock;		/* Protects hardware LDINTR register */
 
-	struct drm_device *ddev;
+	struct drm_device ddev;
 
 	struct shmob_drm_crtc crtc;
-	struct shmob_drm_encoder encoder;
-	struct shmob_drm_connector connector;
+	struct drm_encoder encoder;
+	struct drm_connector *connector;
 };
+
+static inline struct shmob_drm_device *to_shmob_device(struct drm_device *dev)
+{
+	return container_of(dev, struct shmob_drm_device, ddev);
+}
 
 #endif /* __SHMOB_DRM_DRV_H__ */

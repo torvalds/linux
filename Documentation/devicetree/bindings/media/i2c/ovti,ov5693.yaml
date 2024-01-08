@@ -8,7 +8,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Omnivision OV5693/OV5695 CMOS Sensors
 
 maintainers:
-  - Tommaso Merciai <tommaso.merciai@amarulasolutions.com>
+  - Tommaso Merciai <tomm.merciai@gmail.com>
 
 description: |
   The Omnivision OV5693/OV5695 are high performance, 1/4-inch, 5 megapixel, CMOS

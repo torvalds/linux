@@ -381,7 +381,7 @@ struct trace_array {
 	struct dentry		*dir;
 	struct dentry		*options;
 	struct dentry		*percpu_dir;
-	struct dentry		*event_dir;
+	struct eventfs_inode	*event_dir;
 	struct trace_options	*topts;
 	struct list_head	systems;
 	struct list_head	events;
@@ -410,6 +410,11 @@ struct trace_array {
 	struct cond_snapshot	*cond_snapshot;
 #endif
 	struct trace_func_repeats	__percpu *last_func_repeats;
+	/*
+	 * On boot up, the ring buffer is set to the minimum size, so that
+	 * we do not waste memory on systems that are not using tracing.
+	 */
+	bool ring_buffer_expanded;
 };
 
 enum {
@@ -612,6 +617,7 @@ int tracing_open_generic(struct inode *inode, struct file *filp);
 int tracing_open_generic_tr(struct inode *inode, struct file *filp);
 int tracing_open_file_tr(struct inode *inode, struct file *filp);
 int tracing_release_file_tr(struct inode *inode, struct file *filp);
+int tracing_single_release_file_tr(struct inode *inode, struct file *filp);
 bool tracing_is_disabled(void);
 bool tracer_tracing_is_on(struct trace_array *tr);
 void tracer_tracing_on(struct trace_array *tr);
@@ -761,7 +767,7 @@ extern int DYN_FTRACE_TEST_NAME(void);
 #define DYN_FTRACE_TEST_NAME2 trace_selftest_dynamic_test_func2
 extern int DYN_FTRACE_TEST_NAME2(void);
 
-extern bool ring_buffer_expanded;
+extern void trace_set_ring_buffer_expanded(struct trace_array *tr);
 extern bool tracing_selftest_disabled;
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
@@ -1305,7 +1311,7 @@ static inline void trace_branch_disable(void)
 #endif /* CONFIG_BRANCH_TRACER */
 
 /* set ring buffers to default size if not already done so */
-int tracing_update_buffers(void);
+int tracing_update_buffers(struct trace_array *tr);
 
 union trace_synth_field {
 	u8				as_u8;
@@ -1344,7 +1350,7 @@ struct trace_subsystem_dir {
 	struct list_head		list;
 	struct event_subsystem		*subsystem;
 	struct trace_array		*tr;
-	struct eventfs_file             *ef;
+	struct eventfs_inode		*ei;
 	int				ref_count;
 	int				nr_events;
 };
@@ -1663,6 +1669,9 @@ extern void event_trigger_unregister(struct event_command *cmd_ops,
 				     struct trace_event_file *file,
 				     char *glob,
 				     struct event_trigger_data *trigger_data);
+
+extern void event_file_get(struct trace_event_file *file);
+extern void event_file_put(struct trace_event_file *file);
 
 /**
  * struct event_trigger_ops - callbacks for trace event triggers

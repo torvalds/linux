@@ -1588,10 +1588,10 @@ static void am65_cpsw_nuss_mac_link_up(struct phylink_config *config, struct phy
 
 	/* rx_pause/tx_pause */
 	if (rx_pause)
-		mac_control |= CPSW_SL_CTL_RX_FLOW_EN;
+		mac_control |= CPSW_SL_CTL_TX_FLOW_EN;
 
 	if (tx_pause)
-		mac_control |= CPSW_SL_CTL_TX_FLOW_EN;
+		mac_control |= CPSW_SL_CTL_RX_FLOW_EN;
 
 	cpsw_sl_ctl_set(port->slave.mac_sl, mac_control);
 

@@ -50,10 +50,6 @@ void __iomem *ioremap_prot(phys_addr_t addr, size_t size, unsigned long flags)
 	if (pte_write(pte))
 		pte = pte_mkdirty(pte);
 
-	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
-	pte = pte_exprotect(pte);
-	pte = pte_mkprivileged(pte);
-
 	if (iowa_is_active())
 		return iowa_ioremap(addr, size, pte_pgprot(pte), caller);
 	return __ioremap_caller(addr, size, pte_pgprot(pte), caller);
@@ -66,7 +62,7 @@ int early_ioremap_range(unsigned long ea, phys_addr_t pa,
 	unsigned long i;
 
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		int err = map_kernel_page(ea + i, pa + i, prot);
+		int err = map_kernel_page(ea + i, pa + i, pgprot_nx(prot));
 
 		if (WARN_ON_ONCE(err))  /* Should clean up */
 			return err;

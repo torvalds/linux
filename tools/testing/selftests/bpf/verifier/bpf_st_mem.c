@@ -65,3 +65,35 @@
 	.expected_attach_type = BPF_SK_LOOKUP,
 	.runs = -1,
 },
+{
+	"BPF_ST_MEM stack imm sign",
+	/* Check if verifier correctly reasons about sign of an
+	 * immediate spilled to stack by BPF_ST instruction.
+	 *
+	 *   fp[-8] = -44;
+	 *   r0 = fp[-8];
+	 *   if r0 s< 0 goto ret0;
+	 *   r0 = -1;
+	 *   exit;
+	 * ret0:
+	 *   r0 = 0;
+	 *   exit;
+	 */
+	.insns = {
+	BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, -44),
+	BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+	BPF_JMP_IMM(BPF_JSLT, BPF_REG_0, 0, 2),
+	BPF_MOV64_IMM(BPF_REG_0, -1),
+	BPF_EXIT_INSN(),
+	BPF_MOV64_IMM(BPF_REG_0, 0),
+	BPF_EXIT_INSN(),
+	},
+	/* Use prog type that requires return value in range [0, 1] */
+	.prog_type = BPF_PROG_TYPE_SK_LOOKUP,
+	.expected_attach_type = BPF_SK_LOOKUP,
+	.result = VERBOSE_ACCEPT,
+	.runs = -1,
+	.errstr = "0: (7a) *(u64 *)(r10 -8) = -44        ; R10=fp0 fp-8_w=-44\
+	2: (c5) if r0 s< 0x0 goto pc+2\
+	R0_w=-44",
+},

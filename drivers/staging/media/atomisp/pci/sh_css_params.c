@@ -3720,10 +3720,47 @@ struct ia_css_shading_table *ia_css_get_shading_table(struct ia_css_stream
 
 ia_css_ptr sh_css_store_sp_group_to_ddr(void)
 {
+	u8 *write_buf;
+	u8 *buf_ptr;
+
 	IA_CSS_ENTER_LEAVE_PRIVATE("void");
+
+	write_buf = kzalloc(sizeof(u8) * 8192, GFP_KERNEL);
+	if (!write_buf)
+		return 0;
+
+	buf_ptr = write_buf;
+	if (IS_ISP2401) {
+		memcpy(buf_ptr, &sh_css_sp_group.config, 3);
+		buf_ptr += 3;
+		*buf_ptr++ = sh_css_sp_group.config.enable_isys_event_queue;
+		*buf_ptr++ = sh_css_sp_group.config.disable_cont_vf;
+		memset(buf_ptr, 0, 3);
+		buf_ptr += 3; /* Padding 3 bytes for struct sh_css_sp_config*/
+	} else {
+		memcpy(buf_ptr, &sh_css_sp_group.config, sizeof(sh_css_sp_group.config));
+		buf_ptr += sizeof(sh_css_sp_group.config);
+	}
+
+	memcpy(buf_ptr, &sh_css_sp_group.pipe, sizeof(sh_css_sp_group.pipe));
+	buf_ptr += sizeof(sh_css_sp_group.pipe);
+
+	if (IS_ISP2401) {
+		memcpy(buf_ptr, &sh_css_sp_group.pipe_io, sizeof(sh_css_sp_group.pipe_io));
+		buf_ptr += sizeof(sh_css_sp_group.pipe_io);
+		memcpy(buf_ptr, &sh_css_sp_group.pipe_io_status,
+		       sizeof(sh_css_sp_group.pipe_io_status));
+		buf_ptr += sizeof(sh_css_sp_group.pipe_io_status);
+	}
+
+	memcpy(buf_ptr, &sh_css_sp_group.debug, sizeof(sh_css_sp_group.debug));
+	buf_ptr += sizeof(sh_css_sp_group.debug);
+
 	hmm_store(xmem_sp_group_ptrs,
-		   &sh_css_sp_group,
-		   sizeof(struct sh_css_sp_group));
+		  write_buf,
+		  buf_ptr - write_buf);
+
+	kfree(write_buf);
 	return xmem_sp_group_ptrs;
 }
 

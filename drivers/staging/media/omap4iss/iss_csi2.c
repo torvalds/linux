@@ -1260,7 +1260,7 @@ static int csi2_init_entities(struct iss_csi2_device *csi2, const char *subname)
 	struct media_pad *pads = csi2->pads;
 	struct media_entity *me = &sd->entity;
 	int ret;
-	char name[V4L2_SUBDEV_NAME_SIZE];
+	char name[32];
 
 	v4l2_subdev_init(sd, &csi2_ops);
 	sd->internal_ops = &csi2_internal_ops;

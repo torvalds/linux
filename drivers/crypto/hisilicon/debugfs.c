@@ -137,8 +137,8 @@ static void dump_show(struct hisi_qm *qm, void *info,
 static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_sqc *sqc, *sqc_curr;
-	dma_addr_t sqc_dma;
+	struct qm_sqc *sqc_curr;
+	struct qm_sqc sqc;
 	u32 qp_id;
 	int ret;
 
@@ -151,35 +151,29 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 		return -EINVAL;
 	}
 
-	sqc = hisi_qm_ctx_alloc(qm, sizeof(*sqc), &sqc_dma);
-	if (IS_ERR(sqc))
-		return PTR_ERR(sqc);
+	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_SQC, &sqc, qp_id, 1);
+	if (!ret) {
+		dump_show(qm, &sqc, sizeof(struct qm_sqc), name);
 
-	ret = hisi_qm_mb(qm, QM_MB_CMD_SQC, sqc_dma, qp_id, 1);
-	if (ret) {
-		down_read(&qm->qps_lock);
-		if (qm->sqc) {
-			sqc_curr = qm->sqc + qp_id;
-
-			dump_show(qm, sqc_curr, sizeof(*sqc), "SOFT SQC");
-		}
-		up_read(&qm->qps_lock);
-
-		goto free_ctx;
+		return 0;
 	}
 
-	dump_show(qm, sqc, sizeof(*sqc), name);
+	down_read(&qm->qps_lock);
+	if (qm->sqc) {
+		sqc_curr = qm->sqc + qp_id;
 
-free_ctx:
-	hisi_qm_ctx_free(qm, sizeof(*sqc), sqc, &sqc_dma);
+		dump_show(qm, sqc_curr, sizeof(*sqc_curr), "SOFT SQC");
+	}
+	up_read(&qm->qps_lock);
+
 	return 0;
 }
 
 static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_cqc *cqc, *cqc_curr;
-	dma_addr_t cqc_dma;
+	struct qm_cqc *cqc_curr;
+	struct qm_cqc cqc;
 	u32 qp_id;
 	int ret;
 
@@ -192,34 +186,29 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 		return -EINVAL;
 	}
 
-	cqc = hisi_qm_ctx_alloc(qm, sizeof(*cqc), &cqc_dma);
-	if (IS_ERR(cqc))
-		return PTR_ERR(cqc);
+	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_CQC, &cqc, qp_id, 1);
+	if (!ret) {
+		dump_show(qm, &cqc, sizeof(struct qm_cqc), name);
 
-	ret = hisi_qm_mb(qm, QM_MB_CMD_CQC, cqc_dma, qp_id, 1);
-	if (ret) {
-		down_read(&qm->qps_lock);
-		if (qm->cqc) {
-			cqc_curr = qm->cqc + qp_id;
-
-			dump_show(qm, cqc_curr, sizeof(*cqc), "SOFT CQC");
-		}
-		up_read(&qm->qps_lock);
-
-		goto free_ctx;
+		return 0;
 	}
 
-	dump_show(qm, cqc, sizeof(*cqc), name);
+	down_read(&qm->qps_lock);
+	if (qm->cqc) {
+		cqc_curr = qm->cqc + qp_id;
 
-free_ctx:
-	hisi_qm_ctx_free(qm, sizeof(*cqc), cqc, &cqc_dma);
+		dump_show(qm, cqc_curr, sizeof(*cqc_curr), "SOFT CQC");
+	}
+	up_read(&qm->qps_lock);
+
 	return 0;
 }
 
 static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	dma_addr_t xeqc_dma;
+	struct qm_aeqc aeqc;
+	struct qm_eqc eqc;
 	size_t size;
 	void *xeqc;
 	int ret;
@@ -233,23 +222,19 @@ static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 	if (!strcmp(name, "EQC")) {
 		cmd = QM_MB_CMD_EQC;
 		size = sizeof(struct qm_eqc);
+		xeqc = &eqc;
 	} else {
 		cmd = QM_MB_CMD_AEQC;
 		size = sizeof(struct qm_aeqc);
+		xeqc = &aeqc;
 	}
 
-	xeqc = hisi_qm_ctx_alloc(qm, size, &xeqc_dma);
-	if (IS_ERR(xeqc))
-		return PTR_ERR(xeqc);
-
-	ret = hisi_qm_mb(qm, cmd, xeqc_dma, 0, 1);
+	ret = qm_set_and_get_xqc(qm, cmd, xeqc, 0, 1);
 	if (ret)
-		goto err_free_ctx;
+		return ret;
 
 	dump_show(qm, xeqc, size, name);
 
-err_free_ctx:
-	hisi_qm_ctx_free(qm, size, xeqc, &xeqc_dma);
 	return ret;
 }
 

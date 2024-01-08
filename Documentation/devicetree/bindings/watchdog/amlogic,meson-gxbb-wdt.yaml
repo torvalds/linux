@@ -15,9 +15,15 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - amlogic,meson-gxbb-wdt
-      - amlogic,t7-wdt
+    oneOf:
+      - enum:
+          - amlogic,meson-gxbb-wdt
+          - amlogic,t7-wdt
+      - items:
+          - enum:
+              - amlogic,c3-wdt
+              - amlogic,s4-wdt
+          - const: amlogic,t7-wdt
 
   reg:
     maxItems: 1

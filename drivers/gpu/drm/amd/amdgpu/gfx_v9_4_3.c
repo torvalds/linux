@@ -297,8 +297,8 @@ static int gfx_v9_4_3_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	gpu_addr = adev->wb.gpu_addr + (index * 4);
 	adev->wb.wb[index] = cpu_to_le32(0xCAFEDEAD);
 	memset(&ib, 0, sizeof(ib));
-	r = amdgpu_ib_get(adev, NULL, 16,
-			  AMDGPU_IB_POOL_DIRECT, &ib);
+
+	r = amdgpu_ib_get(adev, NULL, 20, AMDGPU_IB_POOL_DIRECT, &ib);
 	if (r)
 		goto err1;
 
@@ -1102,6 +1102,7 @@ static void gfx_v9_4_3_init_rlcg_reg_access_ctrl(struct amdgpu_device *adev)
 		reg_access_ctrl->grbm_idx = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regGRBM_GFX_INDEX);
 		reg_access_ctrl->spare_int = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_SPARE_INT);
 	}
+	adev->gfx.rlc.rlcg_reg_access_supported = true;
 }
 
 static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
@@ -2738,16 +2739,16 @@ static void gfx_v9_4_3_xcc_set_compute_eop_interrupt_state(
 
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
-		mec_int_cntl = RREG32(mec_int_cntl_reg);
+		mec_int_cntl = RREG32_XCC(mec_int_cntl_reg, xcc_id);
 		mec_int_cntl = REG_SET_FIELD(mec_int_cntl, CP_ME1_PIPE0_INT_CNTL,
 					     TIME_STAMP_INT_ENABLE, 0);
-		WREG32(mec_int_cntl_reg, mec_int_cntl);
+		WREG32_XCC(mec_int_cntl_reg, mec_int_cntl, xcc_id);
 		break;
 	case AMDGPU_IRQ_STATE_ENABLE:
-		mec_int_cntl = RREG32(mec_int_cntl_reg);
+		mec_int_cntl = RREG32_XCC(mec_int_cntl_reg, xcc_id);
 		mec_int_cntl = REG_SET_FIELD(mec_int_cntl, CP_ME1_PIPE0_INT_CNTL,
 					     TIME_STAMP_INT_ENABLE, 1);
-		WREG32(mec_int_cntl_reg, mec_int_cntl);
+		WREG32_XCC(mec_int_cntl_reg, mec_int_cntl, xcc_id);
 		break;
 	default:
 		break;
@@ -3799,6 +3800,27 @@ static void gfx_v9_4_3_inst_query_ras_err_count(struct amdgpu_device *adev,
 		}
 	}
 
+	/* handle extra register entries of UE */
+	for (; i < ARRAY_SIZE(gfx_v9_4_3_ue_reg_list); i++) {
+		for (j = 0; j < gfx_v9_4_3_ue_reg_list[i].se_num; j++) {
+			for (k = 0; k < gfx_v9_4_3_ue_reg_list[i].reg_entry.reg_inst; k++) {
+				/* no need to select if instance number is 1 */
+				if (gfx_v9_4_3_ue_reg_list[i].se_num > 1 ||
+					gfx_v9_4_3_ue_reg_list[i].reg_entry.reg_inst > 1)
+					gfx_v9_4_3_xcc_select_se_sh(adev, j, 0, k, xcc_id);
+
+				amdgpu_ras_inst_query_ras_error_count(adev,
+					&(gfx_v9_4_3_ue_reg_list[i].reg_entry),
+					1,
+					gfx_v9_4_3_ras_mem_list_array[gfx_v9_4_3_ue_reg_list[i].mem_id_type].mem_id_ent,
+					gfx_v9_4_3_ras_mem_list_array[gfx_v9_4_3_ue_reg_list[i].mem_id_type].size,
+					GET_INST(GC, xcc_id),
+					AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE,
+					&ue_count);
+			}
+		}
+	}
+
 	gfx_v9_4_3_xcc_select_se_sh(adev, 0xffffffff, 0xffffffff, 0xffffffff,
 			xcc_id);
 	mutex_unlock(&adev->grbm_idx_mutex);
@@ -3829,6 +3851,23 @@ static void gfx_v9_4_3_inst_reset_ras_err_count(struct amdgpu_device *adev,
 					&(gfx_v9_4_3_ce_reg_list[i].reg_entry),
 					1,
 					GET_INST(GC, xcc_id));
+
+				amdgpu_ras_inst_reset_ras_error_count(adev,
+					&(gfx_v9_4_3_ue_reg_list[i].reg_entry),
+					1,
+					GET_INST(GC, xcc_id));
+			}
+		}
+	}
+
+	/* handle extra register entries of UE */
+	for (; i < ARRAY_SIZE(gfx_v9_4_3_ue_reg_list); i++) {
+		for (j = 0; j < gfx_v9_4_3_ue_reg_list[i].se_num; j++) {
+			for (k = 0; k < gfx_v9_4_3_ue_reg_list[i].reg_entry.reg_inst; k++) {
+				/* no need to select if instance number is 1 */
+				if (gfx_v9_4_3_ue_reg_list[i].se_num > 1 ||
+					gfx_v9_4_3_ue_reg_list[i].reg_entry.reg_inst > 1)
+					gfx_v9_4_3_xcc_select_se_sh(adev, j, 0, k, xcc_id);
 
 				amdgpu_ras_inst_reset_ras_error_count(adev,
 					&(gfx_v9_4_3_ue_reg_list[i].reg_entry),
@@ -4300,7 +4339,7 @@ const struct amdgpu_ip_block_version gfx_v9_4_3_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_GFX,
 	.major = 9,
 	.minor = 4,
-	.rev = 0,
+	.rev = 3,
 	.funcs = &gfx_v9_4_3_ip_funcs,
 };
 

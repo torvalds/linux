@@ -4,20 +4,26 @@
 $id: http://devicetree.org/schemas/iio/amplifiers/adi,hmc425a.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: HMC425A 6-bit Digital Step Attenuator
+title: Analog Devices HMC425A and similar Digital Step Attenuators
 
 maintainers:
   - Michael Hennerich <michael.hennerich@analog.com>
 
 description: |
-  Digital Step Attenuator IIO device with gpio interface.
+  Digital Step Attenuator IIO devices with gpio interface.
+  Offer various frequency and attenuation ranges.
   HMC425A 0.5 dB LSB GaAs MMIC 6-BIT DIGITAL POSITIVE CONTROL ATTENUATOR, 2.2 - 8.0 GHz
-  https://www.analog.com/media/en/technical-documentation/data-sheets/hmc425A.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/hmc425A.pdf
+
+  HMC540S 1 dB LSB Silicon MMIC 4-Bit Digital Positive Control Attenuator, 0.1 - 8 GHz
+    https://www.analog.com/media/en/technical-documentation/data-sheets/hmc540s.pdf
+
 
 properties:
   compatible:
     enum:
       - adi,hmc425a
+      - adi,hmc540s
 
   vcc-supply: true
 

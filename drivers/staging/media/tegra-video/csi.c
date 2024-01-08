@@ -607,10 +607,10 @@ static int tegra_csi_channel_init(struct tegra_csi_channel *chan)
 	v4l2_subdev_init(subdev, &tegra_csi_ops);
 	subdev->dev = csi->dev;
 	if (IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
-		snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s-%d", "tpg",
+		snprintf(subdev->name, sizeof(subdev->name), "%s-%d", "tpg",
 			 chan->csi_port_nums[0]);
 	else
-		snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "%s",
+		snprintf(subdev->name, sizeof(subdev->name), "%s",
 			 kbasename(chan->of_node->full_name));
 
 	v4l2_set_subdevdata(subdev, chan);

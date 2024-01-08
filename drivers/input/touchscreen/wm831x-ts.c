@@ -374,14 +374,12 @@ err_alloc:
 	return error;
 }
 
-static int wm831x_ts_remove(struct platform_device *pdev)
+static void wm831x_ts_remove(struct platform_device *pdev)
 {
 	struct wm831x_ts *wm831x_ts = platform_get_drvdata(pdev);
 
 	free_irq(wm831x_ts->pd_irq, wm831x_ts);
 	free_irq(wm831x_ts->data_irq, wm831x_ts);
-
-	return 0;
 }
 
 static struct platform_driver wm831x_ts_driver = {
@@ -389,7 +387,7 @@ static struct platform_driver wm831x_ts_driver = {
 		.name = "wm831x-touch",
 	},
 	.probe = wm831x_ts_probe,
-	.remove = wm831x_ts_remove,
+	.remove_new = wm831x_ts_remove,
 };
 module_platform_driver(wm831x_ts_driver);
 

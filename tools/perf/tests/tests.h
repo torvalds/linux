@@ -145,6 +145,7 @@ DECLARE_SUITE(dlfilter);
 DECLARE_SUITE(sigtrap);
 DECLARE_SUITE(event_groups);
 DECLARE_SUITE(symbols);
+DECLARE_SUITE(util);
 
 /*
  * PowerPC and S390 do not support creation of instruction breakpoints using the

@@ -325,7 +325,6 @@ static int sun4i_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops sun4i_pwm_ops = {
 	.apply = sun4i_pwm_apply,
 	.get_state = sun4i_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct sun4i_pwm_data sun4i_pwm_dual_nobypass = {

@@ -149,13 +149,13 @@ struct bkey_i_alloc_v4 *bch2_alloc_to_v4_mut(struct btree_trans *, struct bkey_s
 
 int bch2_bucket_io_time_reset(struct btree_trans *, unsigned, size_t, int);
 
-int bch2_alloc_v1_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v1_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int bch2_alloc_v2_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v2_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int bch2_alloc_v3_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v3_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
-int bch2_alloc_v4_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_alloc_v4_invalid(struct bch_fs *, struct bkey_s_c,
 			  enum bkey_invalid_flags, struct printbuf *);
 void bch2_alloc_v4_swab(struct bkey_s);
 void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
@@ -193,7 +193,7 @@ void bch2_alloc_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 	.min_val_size	= 48,				\
 })
 
-int bch2_bucket_gens_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_bucket_gens_invalid(struct bch_fs *, struct bkey_s_c,
 			     enum bkey_invalid_flags, struct printbuf *);
 void bch2_bucket_gens_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
@@ -249,6 +249,7 @@ int bch2_dev_freespace_init(struct bch_fs *, struct bch_dev *, u64, u64);
 int bch2_fs_freespace_init(struct bch_fs *);
 
 void bch2_recalc_capacity(struct bch_fs *);
+u64 bch2_min_rw_member_capacity(struct bch_fs *);
 
 void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);

@@ -89,6 +89,18 @@ static inline void __extent_entry_insert(struct bkey_i *k,
 	memcpy_u64s_small(dst, new, extent_entry_u64s(new));
 }
 
+static inline void extent_entry_drop(struct bkey_s k, union bch_extent_entry *entry)
+{
+	union bch_extent_entry *next = extent_entry_next(entry);
+
+	/* stripes have ptrs, but their layout doesn't work with this code */
+	BUG_ON(k.k->type == KEY_TYPE_stripe);
+
+	memmove_u64s_down(entry, next,
+			  (u64 *) bkey_val_end(k) - (u64 *) next);
+	k.k->u64s -= (u64 *) next - (u64 *) entry;
+}
+
 static inline bool extent_entry_is_ptr(const union bch_extent_entry *e)
 {
 	return extent_entry_type(e) == BCH_EXTENT_ENTRY_ptr;
@@ -188,6 +200,11 @@ static inline bool crc_is_compressed(struct bch_extent_crc_unpacked crc)
 {
 	return (crc.compression_type != BCH_COMPRESSION_TYPE_none &&
 		crc.compression_type != BCH_COMPRESSION_TYPE_incompressible);
+}
+
+static inline bool crc_is_encoded(struct bch_extent_crc_unpacked crc)
+{
+	return crc.csum_type != BCH_CSUM_none || crc_is_compressed(crc);
 }
 
 /* bkey_ptrs: generically over any key type that has ptrs */
@@ -383,12 +400,12 @@ int bch2_bkey_pick_read_device(struct bch_fs *, struct bkey_s_c,
 
 /* KEY_TYPE_btree_ptr: */
 
-int bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_btree_ptr_invalid(struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 void bch2_btree_ptr_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 
-int bch2_btree_ptr_v2_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_btree_ptr_v2_invalid(struct bch_fs *, struct bkey_s_c,
 			      enum bkey_invalid_flags, struct printbuf *);
 void bch2_btree_ptr_v2_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_v2_compat(enum btree_id, unsigned, unsigned,
@@ -428,7 +445,7 @@ bool bch2_extent_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
 
 /* KEY_TYPE_reservation: */
 
-int bch2_reservation_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_reservation_invalid(struct bch_fs *, struct bkey_s_c,
 			     enum bkey_invalid_flags, struct printbuf *);
 void bch2_reservation_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 bool bch2_reservation_merge(struct bch_fs *, struct bkey_s, struct bkey_s_c);
@@ -688,10 +705,18 @@ void bch2_extent_ptr_set_cached(struct bkey_s, struct bch_extent_ptr *);
 bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
 void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
-int bch2_bkey_ptrs_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_bkey_ptrs_invalid(struct bch_fs *, struct bkey_s_c,
 			   enum bkey_invalid_flags, struct printbuf *);
 
 void bch2_ptr_swab(struct bkey_s);
+
+const struct bch_extent_rebalance *bch2_bkey_rebalance_opts(struct bkey_s_c);
+unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
+				       unsigned, unsigned);
+bool bch2_bkey_needs_rebalance(struct bch_fs *, struct bkey_s_c);
+
+int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bkey_i *,
+				  unsigned, unsigned);
 
 /* Generic extent code: */
 
@@ -735,24 +760,6 @@ static inline void bch2_key_resize(struct bkey *k, unsigned new_size)
 	k->p.offset -= k->size;
 	k->p.offset += new_size;
 	k->size = new_size;
-}
-
-/*
- * In extent_sort_fix_overlapping(), insert_fixup_extent(),
- * extent_merge_inline() - we're modifying keys in place that are packed. To do
- * that we have to unpack the key, modify the unpacked key - then this
- * copies/repacks the unpacked to the original as necessary.
- */
-static inline void extent_save(struct btree *b, struct bkey_packed *dst,
-			       struct bkey *src)
-{
-	struct bkey_format *f = &b->format;
-	struct bkey_i *dst_unpacked;
-
-	if ((dst_unpacked = packed_to_bkey(dst)))
-		dst_unpacked->k = *src;
-	else
-		BUG_ON(!bch2_bkey_pack_key(dst, src, f));
 }
 
 #endif /* _BCACHEFS_EXTENTS_H */

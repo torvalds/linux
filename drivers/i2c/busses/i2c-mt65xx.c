@@ -1442,15 +1442,19 @@ static int mtk_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(i2c->clocks[I2C_MT65XX_CLK_ARB].clk))
 		return PTR_ERR(i2c->clocks[I2C_MT65XX_CLK_ARB].clk);
 
+	i2c->clocks[I2C_MT65XX_CLK_PMIC].clk = devm_clk_get_optional(&pdev->dev, "pmic");
+	if (IS_ERR(i2c->clocks[I2C_MT65XX_CLK_PMIC].clk)) {
+		dev_err(&pdev->dev, "cannot get pmic clock\n");
+		return PTR_ERR(i2c->clocks[I2C_MT65XX_CLK_PMIC].clk);
+	}
+
 	if (i2c->have_pmic) {
-		i2c->clocks[I2C_MT65XX_CLK_PMIC].clk = devm_clk_get(&pdev->dev, "pmic");
-		if (IS_ERR(i2c->clocks[I2C_MT65XX_CLK_PMIC].clk)) {
+		if (!i2c->clocks[I2C_MT65XX_CLK_PMIC].clk) {
 			dev_err(&pdev->dev, "cannot get pmic clock\n");
-			return PTR_ERR(i2c->clocks[I2C_MT65XX_CLK_PMIC].clk);
+			return -ENODEV;
 		}
 		speed_clk = I2C_MT65XX_CLK_PMIC;
 	} else {
-		i2c->clocks[I2C_MT65XX_CLK_PMIC].clk = NULL;
 		speed_clk = I2C_MT65XX_CLK_MAIN;
 	}
 

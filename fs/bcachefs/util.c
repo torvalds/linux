@@ -467,6 +467,24 @@ static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
 	prt_printf(out, "%s", u->name);
 }
 
+#ifndef __KERNEL__
+#include <time.h>
+void bch2_prt_datetime(struct printbuf *out, time64_t sec)
+{
+	time_t t = sec;
+	char buf[64];
+	ctime_r(&t, buf);
+	prt_str(out, buf);
+}
+#else
+void bch2_prt_datetime(struct printbuf *out, time64_t sec)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf), "%ptT", &sec);
+	prt_u64(out, sec);
+}
+#endif
+
 #define TABSTOP_SIZE 12
 
 static inline void pr_name_and_units(struct printbuf *out, const char *name, u64 ns)

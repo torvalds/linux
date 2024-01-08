@@ -19,14 +19,7 @@
 
 #define SYSFS_ROOT "/sys"
 
-struct card_data {
-	int card;
-	snd_config_t *config;
-	const char *filename;
-	struct card_data *next;
-};
-
-static struct card_data *conf_cards;
+struct card_cfg_data *conf_cards;
 
 static const char *alsa_config =
 "ctl.hw {\n"
@@ -97,9 +90,9 @@ snd_config_t *get_alsalib_config(void)
 	return config;
 }
 
-static struct card_data *conf_data_by_card(int card, bool msg)
+static struct card_cfg_data *conf_data_by_card(int card, bool msg)
 {
-	struct card_data *conf;
+	struct card_cfg_data *conf;
 
 	for (conf = conf_cards; conf; conf = conf->next) {
 		if (conf->card == card) {
@@ -229,55 +222,31 @@ static bool sysfs_match(const char *sysfs_root, snd_config_t *config)
 	return iter > 0;
 }
 
-static bool test_filename1(int card, const char *filename, const char *sysfs_card_root)
+static void assign_card_config(int card, const char *sysfs_card_root)
 {
-	struct card_data *data, *data2;
-	snd_config_t *config, *sysfs_config, *card_config, *sysfs_card_config, *node;
-	snd_config_iterator_t i, next;
+	struct card_cfg_data *data;
+	snd_config_t *sysfs_card_config;
 
-	config = conf_load_from_file(filename);
-	if (snd_config_search(config, "sysfs", &sysfs_config) ||
-	    snd_config_get_type(sysfs_config) != SND_CONFIG_TYPE_COMPOUND)
-		ksft_exit_fail_msg("Missing global sysfs block in filename %s\n", filename);
-	if (snd_config_search(config, "card", &card_config) ||
-	    snd_config_get_type(card_config) != SND_CONFIG_TYPE_COMPOUND)
-		ksft_exit_fail_msg("Missing global card block in filename %s\n", filename);
-	if (!sysfs_match(SYSFS_ROOT, sysfs_config))
-		return false;
-	snd_config_for_each(i, next, card_config) {
-		node = snd_config_iterator_entry(i);
-		if (snd_config_search(node, "sysfs", &sysfs_card_config) ||
-		    snd_config_get_type(sysfs_card_config) != SND_CONFIG_TYPE_COMPOUND)
-			ksft_exit_fail_msg("Missing card sysfs block in filename %s\n", filename);
+	for (data = conf_cards; data; data = data->next) {
+		snd_config_search(data->config, "sysfs", &sysfs_card_config);
 		if (!sysfs_match(sysfs_card_root, sysfs_card_config))
 			continue;
-		data = malloc(sizeof(*data));
-		if (!data)
-			ksft_exit_fail_msg("Out of memory\n");
-		data2 = conf_data_by_card(card, false);
-		if (data2)
-			ksft_exit_fail_msg("Duplicate card '%s' <-> '%s'\n", filename, data2->filename);
+
 		data->card = card;
-		data->filename = filename;
-		data->config = node;
-		data->next = conf_cards;
-		conf_cards = data;
-		return true;
+		break;
 	}
-	return false;
 }
 
-static bool test_filename(const char *filename)
+static void assign_card_configs(void)
 {
 	char fn[128];
 	int card;
 
 	for (card = 0; card < 32; card++) {
 		snprintf(fn, sizeof(fn), "%s/class/sound/card%d", SYSFS_ROOT, card);
-		if (access(fn, R_OK) == 0 && test_filename1(card, filename, fn))
-			return true;
+		if (access(fn, R_OK) == 0)
+			assign_card_config(card, fn);
 	}
-	return false;
 }
 
 static int filename_filter(const struct dirent *dirent)
@@ -296,6 +265,41 @@ static int filename_filter(const struct dirent *dirent)
 	return 0;
 }
 
+static bool match_config(const char *filename)
+{
+	struct card_cfg_data *data;
+	snd_config_t *config, *sysfs_config, *card_config, *sysfs_card_config, *node;
+	snd_config_iterator_t i, next;
+
+	config = conf_load_from_file(filename);
+	if (snd_config_search(config, "sysfs", &sysfs_config) ||
+	    snd_config_get_type(sysfs_config) != SND_CONFIG_TYPE_COMPOUND)
+		ksft_exit_fail_msg("Missing global sysfs block in filename %s\n", filename);
+	if (snd_config_search(config, "card", &card_config) ||
+	    snd_config_get_type(card_config) != SND_CONFIG_TYPE_COMPOUND)
+		ksft_exit_fail_msg("Missing global card block in filename %s\n", filename);
+	if (!sysfs_match(SYSFS_ROOT, sysfs_config))
+		return false;
+	snd_config_for_each(i, next, card_config) {
+		node = snd_config_iterator_entry(i);
+		if (snd_config_search(node, "sysfs", &sysfs_card_config) ||
+		    snd_config_get_type(sysfs_card_config) != SND_CONFIG_TYPE_COMPOUND)
+			ksft_exit_fail_msg("Missing card sysfs block in filename %s\n", filename);
+
+		data = malloc(sizeof(*data));
+		if (!data)
+			ksft_exit_fail_msg("Out of memory\n");
+		data->filename = filename;
+		data->config = node;
+		data->card = -1;
+		if (snd_config_get_id(node, &data->config_id))
+			ksft_exit_fail_msg("snd_config_get_id failed for card\n");
+		data->next = conf_cards;
+		conf_cards = data;
+	}
+	return true;
+}
+
 void conf_load(void)
 {
 	const char *fn = "conf.d";
@@ -311,17 +315,19 @@ void conf_load(void)
 		if (filename == NULL)
 			ksft_exit_fail_msg("Out of memory\n");
 		sprintf(filename, "%s/%s", fn, namelist[j]->d_name);
-		if (test_filename(filename))
+		if (match_config(filename))
 			filename = NULL;
 		free(filename);
 		free(namelist[j]);
 	}
 	free(namelist);
+
+	assign_card_configs();
 }
 
 void conf_free(void)
 {
-	struct card_data *conf;
+	struct card_cfg_data *conf;
 
 	while (conf_cards) {
 		conf = conf_cards;
@@ -332,7 +338,7 @@ void conf_free(void)
 
 snd_config_t *conf_by_card(int card)
 {
-	struct card_data *conf;
+	struct card_cfg_data *conf;
 
 	conf = conf_data_by_card(card, true);
 	if (conf)

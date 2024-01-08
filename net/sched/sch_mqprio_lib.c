@@ -129,3 +129,4 @@ void mqprio_fp_to_offload(u32 fp[TC_QOPT_MAX_QUEUE],
 EXPORT_SYMBOL_GPL(mqprio_fp_to_offload);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Shared mqprio qdisc code currently between taprio and mqprio");

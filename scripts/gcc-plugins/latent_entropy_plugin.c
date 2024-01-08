@@ -17,7 +17,7 @@
  *	if (argc <= 1)
  *		printf("%s: no command arguments :(\n", *argv);
  *	else
- *		printf("%s: %d command arguments!\n", *argv, args - 1);
+ *		printf("%s: %d command arguments!\n", *argv, argc - 1);
  * }
  *
  * after:
@@ -47,7 +47,7 @@
  *		// perturb_local_entropy()
  *	} else {
  *		local_entropy ^= 3896280633962944730;
- *		printf("%s: %d command arguments!\n", *argv, args - 1);
+ *		printf("%s: %d command arguments!\n", *argv, argc - 1);
  *	}
  *
  *	// latent_entropy_execute() 4.

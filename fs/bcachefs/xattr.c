@@ -70,46 +70,38 @@ const struct bch_hash_desc bch2_xattr_hash_desc = {
 	.cmp_bkey	= xattr_cmp_bkey,
 };
 
-int bch2_xattr_invalid(const struct bch_fs *c, struct bkey_s_c k,
+int bch2_xattr_invalid(struct bch_fs *c, struct bkey_s_c k,
 		       enum bkey_invalid_flags flags,
 		       struct printbuf *err)
 {
-	const struct xattr_handler *handler;
 	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
+	unsigned val_u64s = xattr_val_u64s(xattr.v->x_name_len,
+					   le16_to_cpu(xattr.v->x_val_len));
+	int ret = 0;
 
-	if (bkey_val_u64s(k.k) <
-	    xattr_val_u64s(xattr.v->x_name_len,
-			   le16_to_cpu(xattr.v->x_val_len))) {
-		prt_printf(err, "value too small (%zu < %u)",
-		       bkey_val_u64s(k.k),
-		       xattr_val_u64s(xattr.v->x_name_len,
-				      le16_to_cpu(xattr.v->x_val_len)));
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(bkey_val_u64s(k.k) < val_u64s, c, err,
+			 xattr_val_size_too_small,
+			 "value too small (%zu < %u)",
+			 bkey_val_u64s(k.k), val_u64s);
 
 	/* XXX why +4 ? */
-	if (bkey_val_u64s(k.k) >
-	    xattr_val_u64s(xattr.v->x_name_len,
-			   le16_to_cpu(xattr.v->x_val_len) + 4)) {
-		prt_printf(err, "value too big (%zu > %u)",
-		       bkey_val_u64s(k.k),
-		       xattr_val_u64s(xattr.v->x_name_len,
-				      le16_to_cpu(xattr.v->x_val_len) + 4));
-		return -BCH_ERR_invalid_bkey;
-	}
+	val_u64s = xattr_val_u64s(xattr.v->x_name_len,
+				  le16_to_cpu(xattr.v->x_val_len) + 4);
 
-	handler = bch2_xattr_type_to_handler(xattr.v->x_type);
-	if (!handler) {
-		prt_printf(err, "invalid type (%u)", xattr.v->x_type);
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > val_u64s, c, err,
+			 xattr_val_size_too_big,
+			 "value too big (%zu > %u)",
+			 bkey_val_u64s(k.k), val_u64s);
 
-	if (memchr(xattr.v->x_name, '\0', xattr.v->x_name_len)) {
-		prt_printf(err, "xattr name has invalid characters");
-		return -BCH_ERR_invalid_bkey;
-	}
+	bkey_fsck_err_on(!bch2_xattr_type_to_handler(xattr.v->x_type), c, err,
+			 xattr_invalid_type,
+			 "invalid type (%u)", xattr.v->x_type);
 
-	return 0;
+	bkey_fsck_err_on(memchr(xattr.v->x_name, '\0', xattr.v->x_name_len), c, err,
+			 xattr_name_invalid_chars,
+			 "xattr name has invalid characters");
+fsck_err:
+	return ret;
 }
 
 void bch2_xattr_to_text(struct printbuf *out, struct bch_fs *c,
@@ -560,6 +552,14 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		s.v = v + 1;
 		s.defined = true;
 	} else {
+		/*
+		 * Check if this option was set on the parent - if so, switched
+		 * back to inheriting from the parent:
+		 *
+		 * rename() also has to deal with keeping inherited options up
+		 * to date - see bch2_reinherit_attrs()
+		 */
+		spin_lock(&dentry->d_lock);
 		if (!IS_ROOT(dentry)) {
 			struct bch_inode_info *dir =
 				to_bch_ei(d_inode(dentry->d_parent));
@@ -568,6 +568,7 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 		} else {
 			s.v = 0;
 		}
+		spin_unlock(&dentry->d_lock);
 
 		s.defined = false;
 	}
@@ -590,7 +591,7 @@ err:
 	if (value &&
 	    (opt_id == Opt_background_compression ||
 	     opt_id == Opt_background_target))
-		bch2_rebalance_add_work(c, inode->v.i_blocks);
+		bch2_set_rebalance_needs_scan(c, inode->ei_inode.bi_inum);
 
 	return bch2_err_class(ret);
 }

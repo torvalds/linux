@@ -75,7 +75,7 @@ properties:
         unevaluatedProperties: false
 
       db8500_varm:
-        description: The voltage for the ARM Cortex A-9 CPU.
+        description: The voltage for the ARM Cortex-A9 CPU.
         type: object
         $ref: ../regulator/regulator.yaml#
         unevaluatedProperties: false

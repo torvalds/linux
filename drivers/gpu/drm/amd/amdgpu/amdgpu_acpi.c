@@ -1494,6 +1494,9 @@ bool amdgpu_acpi_is_s0ix_active(struct amdgpu_device *adev)
 	if (adev->asic_type < CHIP_RAVEN)
 		return false;
 
+	if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
+		return false;
+
 	/*
 	 * If ACPI_FADT_LOW_POWER_S0 is not set in the FADT, it is generally
 	 * risky to do any special firmware-related preparations for entering

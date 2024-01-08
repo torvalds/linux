@@ -1424,6 +1424,24 @@ I2C_PFC_MUX(i2c3_b,	SDA3_B,			SCL3_B);
 I2C_PFC_PIN(i2c3_c,	RCAR_GP_PIN(1, 22),	RCAR_GP_PIN(1, 23));
 I2C_PFC_MUX(i2c3_c,	SDA3_C,			SCL3_C);
 
+/* - LBSC ------------------------------------------------------------------- */
+SH_PFC_PINS(lbsc_cs0,		PIN_CS0);
+SH_PFC_MUX1(lbsc_cs0,		CS0);
+SH_PFC_PINS(lbsc_cs1,		PIN_CS1_A26);
+SH_PFC_MUX1(lbsc_cs1,		CS1_A26);
+SH_PFC_PINS(lbsc_ex_cs0,	RCAR_GP_PIN(1, 3));
+SH_PFC_MUX1(lbsc_ex_cs0,	EX_CS0);
+SH_PFC_PINS(lbsc_ex_cs1,	RCAR_GP_PIN(1, 4));
+SH_PFC_MUX1(lbsc_ex_cs1,	EX_CS1);
+SH_PFC_PINS(lbsc_ex_cs2,	RCAR_GP_PIN(1, 5));
+SH_PFC_MUX1(lbsc_ex_cs2,	EX_CS2);
+SH_PFC_PINS(lbsc_ex_cs3,	RCAR_GP_PIN(1, 6));
+SH_PFC_MUX1(lbsc_ex_cs3,	EX_CS3);
+SH_PFC_PINS(lbsc_ex_cs4,	RCAR_GP_PIN(1, 7));
+SH_PFC_MUX1(lbsc_ex_cs4,	EX_CS4);
+SH_PFC_PINS(lbsc_ex_cs5,	RCAR_GP_PIN(1, 8));
+SH_PFC_MUX1(lbsc_ex_cs5,	EX_CS5);
+
 /* - MMC macro -------------------------------------------------------------- */
 #define MMC_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
 #define MMC_PFC_CTRL(name, clk, cmd)		SH_PFC_MUX2(name, clk, cmd)
@@ -1724,6 +1742,14 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(i2c3_a),
 	SH_PFC_PIN_GROUP(i2c3_b),
 	SH_PFC_PIN_GROUP(i2c3_c),
+	SH_PFC_PIN_GROUP(lbsc_cs0),
+	SH_PFC_PIN_GROUP(lbsc_cs1),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs0),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs1),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs2),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs3),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs4),
+	SH_PFC_PIN_GROUP(lbsc_ex_cs5),
 	SH_PFC_PIN_GROUP(mmc_ctrl),
 	BUS_DATA_PIN_GROUP(mmc_data, 1),
 	BUS_DATA_PIN_GROUP(mmc_data, 4),
@@ -1897,6 +1923,17 @@ static const char * const i2c3_groups[] = {
 	"i2c3_c",
 };
 
+static const char * const lbsc_groups[] = {
+	"lbsc_cs0",
+	"lbsc_cs1",
+	"lbsc_ex_cs0",
+	"lbsc_ex_cs1",
+	"lbsc_ex_cs2",
+	"lbsc_ex_cs3",
+	"lbsc_ex_cs4",
+	"lbsc_ex_cs5",
+};
+
 static const char * const mmc_groups[] = {
 	"mmc_ctrl",
 	"mmc_data1",
@@ -2049,6 +2086,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(i2c1),
 	SH_PFC_FUNCTION(i2c2),
 	SH_PFC_FUNCTION(i2c3),
+	SH_PFC_FUNCTION(lbsc),
 	SH_PFC_FUNCTION(mmc),
 	SH_PFC_FUNCTION(scif_clk),
 	SH_PFC_FUNCTION(scif0),

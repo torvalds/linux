@@ -203,7 +203,6 @@ static const struct pwm_ops pwm_sifive_ops = {
 	.free = pwm_sifive_free,
 	.get_state = pwm_sifive_get_state,
 	.apply = pwm_sifive_apply,
-	.owner = THIS_MODULE,
 };
 
 static int pwm_sifive_clock_notifier(struct notifier_block *nb,

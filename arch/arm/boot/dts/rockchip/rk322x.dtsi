@@ -215,9 +215,9 @@
 
 			power-domain@RK3228_PD_VOP {
 				reg = <RK3228_PD_VOP>;
-				clocks =<&cru ACLK_VOP>,
-					<&cru DCLK_VOP>,
-					<&cru HCLK_VOP>;
+				clocks = <&cru ACLK_VOP>,
+					 <&cru DCLK_VOP>,
+					 <&cru HCLK_VOP>;
 				pm_qos = <&qos_vop>;
 				#power-domain-cells = <0>;
 			};

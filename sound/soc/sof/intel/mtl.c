@@ -18,6 +18,7 @@
 #include "hda-ipc.h"
 #include "../sof-audio.h"
 #include "mtl.h"
+#include "telemetry.h"
 
 static const struct snd_sof_debugfs_map mtl_dsp_debugfs[] = {
 	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
@@ -320,6 +321,8 @@ void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	romdbgsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY + 0x8 * 3);
 	dev_printk(level, sdev->dev, "ROM feature bit%s enabled\n",
 		   romdbgsts & BIT(24) ? "" : " not");
+
+	sof_ipc4_intel_dump_telemetry_state(sdev, flags);
 }
 
 static bool mtl_dsp_primary_core_is_enabled(struct snd_sof_dev *sdev)

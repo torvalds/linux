@@ -811,6 +811,7 @@ static int ntfs_nfs_commit_metadata(struct inode *inode)
 }
 
 static const struct export_operations ntfs_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.fh_to_dentry = ntfs_fh_to_dentry,
 	.fh_to_parent = ntfs_fh_to_parent,
 	.get_parent = ntfs3_get_parent,

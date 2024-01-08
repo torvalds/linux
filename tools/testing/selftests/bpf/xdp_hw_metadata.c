@@ -430,7 +430,7 @@ static void print_usage(void)
 
 static void read_args(int argc, char *argv[])
 {
-	char opt;
+	int opt;
 
 	while ((opt = getopt(argc, argv, "mh")) != -1) {
 		switch (opt) {

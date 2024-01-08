@@ -77,6 +77,11 @@ struct tasdev_blk {
 	unsigned int nr_cmds;
 	unsigned int blk_size;
 	unsigned int nr_subblocks;
+	/* fixed m68k compiling issue, storing the dev_idx as a member of block
+	 * can reduce unnecessary timeand system resource comsumption of
+	 * dev_idx mapping every time the block data writing to the dsp.
+	 */
+	unsigned char dev_idx;
 	unsigned char *data;
 };
 

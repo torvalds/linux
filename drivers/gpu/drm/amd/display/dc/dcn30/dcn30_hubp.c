@@ -316,7 +316,7 @@ bool hubp3_program_surface_flip_and_addr(
 	return true;
 }
 
-static void hubp3_program_tiling(
+void hubp3_program_tiling(
 	struct dcn20_hubp *hubp2,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)

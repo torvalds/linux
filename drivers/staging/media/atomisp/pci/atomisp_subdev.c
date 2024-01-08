@@ -663,52 +663,6 @@ static const struct media_entity_operations isp_subdev_media_ops = {
 	/*	 .set_power = v4l2_subdev_set_power,	*/
 };
 
-static int __atomisp_update_run_mode(struct atomisp_sub_device *asd)
-{
-	struct atomisp_device *isp = asd->isp;
-	struct v4l2_ctrl *ctrl = asd->run_mode;
-	struct v4l2_ctrl *c;
-	s32 mode;
-
-	mode = ctrl->val;
-
-	c = v4l2_ctrl_find(
-		isp->inputs[asd->input_curr].camera->ctrl_handler,
-		V4L2_CID_RUN_MODE);
-
-	if (c)
-		return v4l2_ctrl_s_ctrl(c, mode);
-
-	return 0;
-}
-
-int atomisp_update_run_mode(struct atomisp_sub_device *asd)
-{
-	int rval;
-
-	mutex_lock(asd->ctrl_handler.lock);
-	rval = __atomisp_update_run_mode(asd);
-	mutex_unlock(asd->ctrl_handler.lock);
-
-	return rval;
-}
-
-static int s_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct atomisp_sub_device *asd = container_of(
-					     ctrl->handler, struct atomisp_sub_device, ctrl_handler);
-	switch (ctrl->id) {
-	case V4L2_CID_RUN_MODE:
-		return __atomisp_update_run_mode(asd);
-	}
-
-	return 0;
-}
-
-static const struct v4l2_ctrl_ops ctrl_ops = {
-	.s_ctrl = &s_ctrl,
-};
-
 static const char *const ctrl_run_mode_menu[] = {
 	[ATOMISP_RUN_MODE_VIDEO]		= "Video",
 	[ATOMISP_RUN_MODE_STILL_CAPTURE]	= "Still capture",
@@ -716,7 +670,6 @@ static const char *const ctrl_run_mode_menu[] = {
 };
 
 static const struct v4l2_ctrl_config ctrl_run_mode = {
-	.ops = &ctrl_ops,
 	.id = V4L2_CID_RUN_MODE,
 	.name = "Atomisp run mode",
 	.type = V4L2_CTRL_TYPE_MENU,
@@ -754,7 +707,6 @@ static const struct v4l2_ctrl_config ctrl_vfpp = {
  * the CSS subsystem.
  */
 static const struct v4l2_ctrl_config ctrl_continuous_raw_buffer_size = {
-	.ops = &ctrl_ops,
 	.id = V4L2_CID_ATOMISP_CONTINUOUS_RAW_BUFFER_SIZE,
 	.type = V4L2_CTRL_TYPE_INTEGER,
 	.name = "Continuous raw ringbuffer size",

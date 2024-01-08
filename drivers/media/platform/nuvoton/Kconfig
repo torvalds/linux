@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Nuvoton media platform drivers"
+
+config VIDEO_NPCM_VCD_ECE
+	tristate "Nuvoton NPCM Video Capture/Encode Engine driver"
+	depends on V4L_PLATFORM_DRIVERS && VIDEO_DEV
+	depends on ARCH_NPCM || COMPILE_TEST
+	select VIDEOBUF2_DMA_CONTIG
+	help
+	  Support for the Video Capture/Differentiation Engine (VCD) and
+	  Encoding Compression Engine (ECE) present on Nuvoton NPCM SoCs.
+	  The VCD can capture a frame from digital video input and compare
+	  two frames in memory, and then the ECE can compress the frame
+	  data into HEXTILE format.

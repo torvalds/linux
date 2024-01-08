@@ -209,6 +209,7 @@
 #include "nocow_locking_types.h"
 #include "opts.h"
 #include "recovery_types.h"
+#include "sb-errors_types.h"
 #include "seqmutex.h"
 #include "util.h"
 
@@ -418,6 +419,7 @@ enum bch_time_stats {
 #include "buckets_types.h"
 #include "buckets_waiting_for_journal_types.h"
 #include "clock_types.h"
+#include "disk_groups_types.h"
 #include "ec_types.h"
 #include "journal_types.h"
 #include "keylist_types.h"
@@ -463,6 +465,7 @@ enum gc_phase {
 	GC_PHASE_BTREE_snapshot_trees,
 	GC_PHASE_BTREE_deleted_inodes,
 	GC_PHASE_BTREE_logged_ops,
+	GC_PHASE_BTREE_rebalance_work,
 
 	GC_PHASE_PENDING_DELETE,
 };
@@ -500,6 +503,8 @@ struct bch_dev {
 	 * Committed by bch2_write_super() -> bch_fs_mi_update()
 	 */
 	struct bch_member_cpu	mi;
+	atomic64_t		errors[BCH_MEMBER_ERROR_NR];
+
 	__uuid_t		uuid;
 	char			name[BDEVNAME_SIZE];
 
@@ -578,7 +583,7 @@ enum {
 	BCH_FS_INITIAL_GC_UNFIXED,	/* kill when we enumerate fsck errors */
 	BCH_FS_NEED_ANOTHER_GC,
 
-	BCH_FS_HAVE_DELETED_SNAPSHOTS,
+	BCH_FS_NEED_DELETE_DEAD_SNAPSHOTS,
 
 	/* errors: */
 	BCH_FS_ERROR,
@@ -612,7 +617,7 @@ struct journal_seq_blacklist_table {
 		u64		start;
 		u64		end;
 		bool		dirty;
-	}			entries[0];
+	}			entries[];
 };
 
 struct journal_keys {
@@ -633,6 +638,8 @@ struct journal_keys {
 	size_t			gap;
 	size_t			nr;
 	size_t			size;
+	atomic_t		ref;
+	bool			initial_ref_held;
 };
 
 struct btree_trans_buf {
@@ -924,7 +931,7 @@ struct bch_fs {
 	mempool_t		compression_bounce[2];
 	mempool_t		compress_workspace[BCH_COMPRESSION_TYPE_NR];
 	mempool_t		decompress_workspace;
-	ZSTD_parameters		zstd_params;
+	size_t			zstd_workspace_size;
 
 	struct crypto_shash	*sha256;
 	struct crypto_sync_skcipher *chacha20;
@@ -937,9 +944,6 @@ struct bch_fs {
 	/* MOVE.C */
 	struct list_head	moving_context_list;
 	struct mutex		moving_context_lock;
-
-	struct list_head	data_progress_list;
-	struct mutex		data_progress_lock;
 
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
@@ -991,11 +995,6 @@ struct bch_fs {
 	struct bio_set		dio_read_bioset;
 	struct bio_set		nocow_flush_bioset;
 
-	/* ERRORS */
-	struct list_head	fsck_errors;
-	struct mutex		fsck_error_lock;
-	bool			fsck_alloc_err;
-
 	/* QUOTAS */
 	struct bch_memquota_type quotas[QTYP_NR];
 
@@ -1044,6 +1043,14 @@ struct bch_fs {
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
 
 	struct btree_transaction_stats btree_transaction_stats[BCH_TRANSACTIONS_NR];
+
+	/* ERRORS */
+	struct list_head	fsck_error_msgs;
+	struct mutex		fsck_error_msgs_lock;
+	bool			fsck_alloc_msgs_err;
+
+	bch_sb_errors_cpu	fsck_error_counts;
+	struct mutex		fsck_error_counts_lock;
 };
 
 extern struct wait_queue_head bch2_read_only_wait;

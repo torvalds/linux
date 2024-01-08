@@ -309,9 +309,7 @@ static int autofs_fill_super(struct super_block *s, struct fs_context *fc)
 	struct autofs_fs_context *ctx = fc->fs_private;
 	struct autofs_sb_info *sbi = s->s_fs_info;
 	struct inode *root_inode;
-	struct dentry *root;
 	struct autofs_info *ino;
-	int ret = -ENOMEM;
 
 	pr_debug("starting up, sbi = %p\n", sbi);
 
@@ -328,56 +326,44 @@ static int autofs_fill_super(struct super_block *s, struct fs_context *fc)
 	 */
 	ino = autofs_new_ino(sbi);
 	if (!ino)
-		goto fail;
+		return -ENOMEM;
 
 	root_inode = autofs_get_inode(s, S_IFDIR | 0755);
+	if (!root_inode)
+		return -ENOMEM;
+
 	root_inode->i_uid = ctx->uid;
 	root_inode->i_gid = ctx->gid;
+	root_inode->i_fop = &autofs_root_operations;
+	root_inode->i_op = &autofs_dir_inode_operations;
 
-	root = d_make_root(root_inode);
-	if (!root)
-		goto fail_ino;
-
-	root->d_fsdata = ino;
+	s->s_root = d_make_root(root_inode);
+	if (unlikely(!s->s_root)) {
+		autofs_free_ino(ino);
+		return -ENOMEM;
+	}
+	s->s_root->d_fsdata = ino;
 
 	if (ctx->pgrp_set) {
 		sbi->oz_pgrp = find_get_pid(ctx->pgrp);
-		if (!sbi->oz_pgrp) {
-			ret = invalf(fc, "Could not find process group %d",
-				     ctx->pgrp);
-			goto fail_dput;
-		}
-	} else {
+		if (!sbi->oz_pgrp)
+			return invalf(fc, "Could not find process group %d",
+				      ctx->pgrp);
+	} else
 		sbi->oz_pgrp = get_task_pid(current, PIDTYPE_PGID);
-	}
 
 	if (autofs_type_trigger(sbi->type))
-		__managed_dentry_set_managed(root);
-
-	root_inode->i_fop = &autofs_root_operations;
-	root_inode->i_op = &autofs_dir_inode_operations;
+		/* s->s_root won't be contended so there's little to
+		 * be gained by not taking the d_lock when setting
+		 * d_flags, even when a lot mounts are being done.
+		 */
+		managed_dentry_set_managed(s->s_root);
 
 	pr_debug("pipe fd = %d, pgrp = %u\n",
 		 sbi->pipefd, pid_nr(sbi->oz_pgrp));
 
 	sbi->flags &= ~AUTOFS_SBI_CATATONIC;
-
-	/*
-	 * Success! Install the root dentry now to indicate completion.
-	 */
-	s->s_root = root;
 	return 0;
-
-	/*
-	 * Failure ... clean up.
-	 */
-fail_dput:
-	dput(root);
-	goto fail;
-fail_ino:
-	autofs_free_ino(ino);
-fail:
-	return ret;
 }
 
 /*

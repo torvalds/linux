@@ -60,9 +60,6 @@ TODO
 
 2. Items which SHOULD also be fixed eventually:
 
-* Remove VIDEO_ATOMISP_ISP2401, making the driver to auto-detect the
-  register address differences between ISP2400 and ISP2401
-
 * The driver is intended to drive the PCI exposed versions of the device.
   It will not detect those devices enumerated via ACPI as a field of the
   i915 GPU driver (only a problem on BYT).

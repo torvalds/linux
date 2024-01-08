@@ -1,4 +1,4 @@
-What:		/sys/kernel/debug/qat_<device>_<BDF>/qat/fw_counters
+What:		/sys/kernel/debug/qat_<device>_<BDF>/fw_counters
 Date:		November 2023
 KernelVersion:	6.6
 Contact:	qat-linux@intel.com
@@ -59,3 +59,25 @@ Description:	(RO) Read returns the device health status.
 
 		The driver does not monitor for Heartbeat. It is left for a user
 		to poll the status periodically.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/pm_status
+Date:		January 2024
+KernelVersion:	6.7
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns power management information specific to the
+		QAT device.
+
+		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/kernel/debug/qat_<device>_<BDF>/cnv_errors
+Date:		January 2024
+KernelVersion:	6.7
+Contact:	qat-linux@intel.com
+Description:	(RO) Read returns, for each Acceleration Engine (AE), the number
+		of errors and the type of the last error detected by the device
+		when performing verified compression.
+		Reported counters::
+
+			<N>: Number of Compress and Verify (CnV) errors and type
+			     of the last CnV error detected by Acceleration
+			     Engine N.

@@ -209,7 +209,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	bio = &op->write.op.wbio.bio;
 	bio_init(bio, NULL, bio->bi_inline_vecs, pages, 0);
 
-	ret = bch2_data_update_init(trans, NULL, &op->write,
+	ret = bch2_data_update_init(trans, NULL, NULL, &op->write,
 			writepoint_hashed((unsigned long) current),
 			opts,
 			(struct data_update_opts) {
@@ -643,7 +643,7 @@ csum_err:
 		"data checksum error: expected %0llx:%0llx got %0llx:%0llx (type %s)",
 		rbio->pick.crc.csum.hi, rbio->pick.crc.csum.lo,
 		csum.hi, csum.lo, bch2_csum_types[crc.csum_type]);
-	bch2_io_error(ca);
+	bch2_io_error(ca, BCH_MEMBER_ERROR_checksum);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	goto out;
 decompression_err:
@@ -677,7 +677,7 @@ static void bch2_read_endio(struct bio *bio)
 	if (!rbio->split)
 		rbio->bio.bi_end_io = rbio->end_io;
 
-	if (bch2_dev_inum_io_err_on(bio->bi_status, ca,
+	if (bch2_dev_inum_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_read,
 				    rbio->read_pos.inode,
 				    rbio->read_pos.offset,
 				    "data read error: %s",
@@ -1025,7 +1025,7 @@ get_bio:
 		trans->notrace_relock_fail = true;
 	} else {
 		/* Attempting reconstruct read: */
-		if (bch2_ec_read_extent(c, rbio)) {
+		if (bch2_ec_read_extent(trans, rbio)) {
 			bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 			goto out;
 		}

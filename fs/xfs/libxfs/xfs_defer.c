@@ -245,26 +245,33 @@ xfs_defer_create_intents(
 	return ret;
 }
 
+STATIC void
+xfs_defer_pending_abort(
+	struct xfs_mount		*mp,
+	struct list_head		*dop_list)
+{
+	struct xfs_defer_pending	*dfp;
+	const struct xfs_defer_op_type	*ops;
+
+	/* Abort intent items that don't have a done item. */
+	list_for_each_entry(dfp, dop_list, dfp_list) {
+		ops = defer_op_types[dfp->dfp_type];
+		trace_xfs_defer_pending_abort(mp, dfp);
+		if (dfp->dfp_intent && !dfp->dfp_done) {
+			ops->abort_intent(dfp->dfp_intent);
+			dfp->dfp_intent = NULL;
+		}
+	}
+}
+
 /* Abort all the intents that were committed. */
 STATIC void
 xfs_defer_trans_abort(
 	struct xfs_trans		*tp,
 	struct list_head		*dop_pending)
 {
-	struct xfs_defer_pending	*dfp;
-	const struct xfs_defer_op_type	*ops;
-
 	trace_xfs_defer_trans_abort(tp, _RET_IP_);
-
-	/* Abort intent items that don't have a done item. */
-	list_for_each_entry(dfp, dop_pending, dfp_list) {
-		ops = defer_op_types[dfp->dfp_type];
-		trace_xfs_defer_pending_abort(tp->t_mountp, dfp);
-		if (dfp->dfp_intent && !dfp->dfp_done) {
-			ops->abort_intent(dfp->dfp_intent);
-			dfp->dfp_intent = NULL;
-		}
-	}
+	xfs_defer_pending_abort(tp->t_mountp, dop_pending);
 }
 
 /*
@@ -756,12 +763,13 @@ xfs_defer_ops_capture(
 
 /* Release all resources that we used to capture deferred ops. */
 void
-xfs_defer_ops_capture_free(
+xfs_defer_ops_capture_abort(
 	struct xfs_mount		*mp,
 	struct xfs_defer_capture	*dfc)
 {
 	unsigned short			i;
 
+	xfs_defer_pending_abort(mp, &dfc->dfc_dfops);
 	xfs_defer_cancel_list(mp, &dfc->dfc_dfops);
 
 	for (i = 0; i < dfc->dfc_held.dr_bufs; i++)
@@ -802,7 +810,7 @@ xfs_defer_ops_capture_and_commit(
 	/* Commit the transaction and add the capture structure to the list. */
 	error = xfs_trans_commit(tp);
 	if (error) {
-		xfs_defer_ops_capture_free(mp, dfc);
+		xfs_defer_ops_capture_abort(mp, dfc);
 		return error;
 	}
 

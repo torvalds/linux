@@ -513,7 +513,7 @@ static u8 _rtl92e_phy_set_sw_chnl_cmd_array(struct net_device *dev,
 {
 	struct sw_chnl_cmd *pCmd;
 
-	if (CmdTable == NULL) {
+	if (!CmdTable) {
 		netdev_err(dev, "%s(): CmdTable cannot be NULL.\n", __func__);
 		return false;
 	}
@@ -920,9 +920,6 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 		case IG_Backup:
 			initial_gain = SCAN_RX_INITIAL_GAIN;
 			BitMask = bMaskByte0;
-			if (dm_digtable.dig_algorithm ==
-			    DIG_ALGO_BY_FALSE_ALARM)
-				rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
 			priv->initgain_backup.xaagccore1 =
 				 rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1,
 						   BitMask);
@@ -947,10 +944,6 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 			break;
 		case IG_Restore:
 			BitMask = 0x7f;
-			if (dm_digtable.dig_algorithm ==
-			    DIG_ALGO_BY_FALSE_ALARM)
-				rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
-
 			rtl92e_set_bb_reg(dev, rOFDM0_XAAGCCore1, BitMask,
 					 (u32)priv->initgain_backup.xaagccore1);
 			rtl92e_set_bb_reg(dev, rOFDM0_XBAGCCore1, BitMask,
@@ -965,10 +958,6 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 
 			rtl92e_set_tx_power(dev,
 					 priv->rtllib->current_network.channel);
-
-			if (dm_digtable.dig_algorithm ==
-			    DIG_ALGO_BY_FALSE_ALARM)
-				rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x1);
 			break;
 		}
 	}
@@ -976,7 +965,7 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 
 void rtl92e_set_rf_off(struct net_device *dev)
 {
-	rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);
+	rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE, BIT(4), 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4, 0x300, 0x0);
 	rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1, 0x18, 0x0);
 	rtl92e_set_bb_reg(dev, rOFDM0_TRxPathEnable, 0xf, 0x0);
@@ -1027,7 +1016,7 @@ static bool _rtl92e_set_rf_power_state(struct net_device *dev,
 					 0x4, 0x1);
 			priv->hw_rf_off_action = 0;
 			rtl92e_set_bb_reg(dev, rFPGA0_XA_RFInterfaceOE,
-					  BIT4, 0x1);
+					  BIT(4), 0x1);
 			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter4,
 					  0x300, 0x3);
 			rtl92e_set_bb_reg(dev, rFPGA0_AnalogParameter1,

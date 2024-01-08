@@ -1004,6 +1004,9 @@ void smu_cmn_init_soft_gpu_metrics(void *table, uint8_t frev, uint8_t crev)
 	case METRICS_VERSION(2, 4):
 		structure_size = sizeof(struct gpu_metrics_v2_4);
 		break;
+	case METRICS_VERSION(3, 0):
+		structure_size = sizeof(struct gpu_metrics_v3_0);
+		break;
 	default:
 		return;
 	}

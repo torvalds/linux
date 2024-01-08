@@ -1817,18 +1817,12 @@ static const struct clk_ops ad4130_int_clk_ops = {
 	.unprepare = ad4130_int_clk_unprepare,
 };
 
-static void ad4130_clk_del_provider(void *of_node)
-{
-	of_clk_del_provider(of_node);
-}
-
 static int ad4130_setup_int_clk(struct ad4130_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct device_node *of_node = dev_of_node(dev);
 	struct clk_init_data init;
 	const char *clk_name;
-	struct clk *clk;
 	int ret;
 
 	if (st->int_pin_sel == AD4130_INT_PIN_CLK ||
@@ -1845,15 +1839,12 @@ static int ad4130_setup_int_clk(struct ad4130_state *st)
 	init.ops = &ad4130_int_clk_ops;
 
 	st->int_clk_hw.init = &init;
-	clk = devm_clk_register(dev, &st->int_clk_hw);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
-
-	ret = of_clk_add_provider(of_node, of_clk_src_simple_get, clk);
+	ret = devm_clk_hw_register(dev, &st->int_clk_hw);
 	if (ret)
 		return ret;
 
-	return devm_add_action_or_reset(dev, ad4130_clk_del_provider, of_node);
+	return devm_of_clk_add_hw_provider(dev, of_clk_hw_simple_get,
+					   &st->int_clk_hw);
 }
 
 static int ad4130_setup(struct iio_dev *indio_dev)

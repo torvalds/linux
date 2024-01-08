@@ -664,7 +664,6 @@ static void hvcs_return_index(int index)
 static void hvcs_destruct_port(struct tty_port *p)
 {
 	struct hvcs_struct *hvcsd = container_of(p, struct hvcs_struct, port);
-	struct vio_dev *vdev;
 	struct completion *comp;
 	unsigned long flags;
 
@@ -686,7 +685,6 @@ static void hvcs_destruct_port(struct tty_port *p)
 	printk(KERN_INFO "HVCS: Destroyed hvcs_struct for vty-server@%X.\n",
 			hvcsd->vdev->unit_address);
 
-	vdev = hvcsd->vdev;
 	hvcsd->vdev = NULL;
 
 	hvcsd->p_unit_address = 0;

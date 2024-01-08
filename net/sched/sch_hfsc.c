@@ -1693,5 +1693,6 @@ hfsc_cleanup(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Hierarchical Fair Service Curve scheduler");
 module_init(hfsc_init);
 module_exit(hfsc_cleanup);

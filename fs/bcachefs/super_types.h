@@ -5,6 +5,7 @@
 struct bch_sb_handle {
 	struct bch_sb		*sb;
 	struct block_device	*bdev;
+	char			*sb_name;
 	struct bio		*bio;
 	void			*holder;
 	size_t			buffer_size;
@@ -35,18 +36,6 @@ struct bch_member_cpu {
 	u8			durability;
 	u8			freespace_initialized;
 	u8			valid;
-};
-
-struct bch_disk_group_cpu {
-	bool				deleted;
-	u16				parent;
-	struct bch_devs_mask		devs;
-};
-
-struct bch_disk_groups_cpu {
-	struct rcu_head			rcu;
-	unsigned			nr;
-	struct bch_disk_group_cpu	entries[] __counted_by(nr);
 };
 
 #endif /* _BCACHEFS_SUPER_TYPES_H */

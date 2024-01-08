@@ -38,6 +38,13 @@ properties:
       - const: sclk
       - const: pclk
 
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
 allOf:
   - $ref: serial.yaml#
 
@@ -52,13 +59,6 @@ allOf:
           minItems: 2
         clock-names:
           minItems: 2
-
-required:
-  - compatible
-  - reg
-  - interrupts
-  - clocks
-  - clock-names
 
 unevaluatedProperties: false
 

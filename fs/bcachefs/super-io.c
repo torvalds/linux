@@ -13,6 +13,7 @@
 #include "replicas.h"
 #include "quota.h"
 #include "sb-clean.h"
+#include "sb-errors.h"
 #include "sb-members.h"
 #include "super-io.h"
 #include "super.h"
@@ -165,6 +166,7 @@ void bch2_free_super(struct bch_sb_handle *sb)
 	if (!IS_ERR_OR_NULL(sb->bdev))
 		blkdev_put(sb->bdev, sb->holder);
 	kfree(sb->holder);
+	kfree(sb->sb_name);
 
 	kfree(sb->sb);
 	memset(sb, 0, sizeof(*sb));
@@ -674,6 +676,10 @@ retry:
 	if (!sb->holder)
 		return -ENOMEM;
 
+	sb->sb_name = kstrdup(path, GFP_KERNEL);
+	if (!sb->sb_name)
+		return -ENOMEM;
+
 #ifndef __KERNEL__
 	if (opt_get(*opts, direct_io) == false)
 		sb->mode |= BLK_OPEN_BUFFERED;
@@ -720,7 +726,7 @@ retry:
 	if (opt_defined(*opts, sb))
 		goto err;
 
-	printk(KERN_ERR "bcachefs (%s): error reading default superblock: %s",
+	printk(KERN_ERR "bcachefs (%s): error reading default superblock: %s\n",
 	       path, err.buf);
 	printbuf_reset(&err);
 
@@ -782,7 +788,7 @@ got_super:
 
 	ret = bch2_sb_validate(sb, &err, READ);
 	if (ret) {
-		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s",
+		printk(KERN_ERR "bcachefs (%s): error validating superblock: %s\n",
 		       path, err.buf);
 		goto err_no_print;
 	}
@@ -790,7 +796,7 @@ out:
 	printbuf_exit(&err);
 	return ret;
 err:
-	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s",
+	printk(KERN_ERR "bcachefs (%s): error reading superblock: %s\n",
 	       path, err.buf);
 err_no_print:
 	bch2_free_super(sb);
@@ -805,7 +811,12 @@ static void write_super_endio(struct bio *bio)
 
 	/* XXX: return errors directly */
 
-	if (bch2_dev_io_err_on(bio->bi_status, ca, "superblock write error: %s",
+	if (bch2_dev_io_err_on(bio->bi_status, ca,
+			       bio_data_dir(bio)
+			       ? BCH_MEMBER_ERROR_write
+			       : BCH_MEMBER_ERROR_read,
+			       "superblock %s error: %s",
+			       bio_data_dir(bio) ? "write" : "read",
 			       bch2_blk_status_to_str(bio->bi_status)))
 		ca->sb_write_error = 1;
 
@@ -892,7 +903,9 @@ int bch2_write_super(struct bch_fs *c)
 	SET_BCH_SB_BIG_ENDIAN(c->disk_sb.sb, CPU_BIG_ENDIAN);
 
 	bch2_sb_counters_from_cpu(c);
-	bch_members_cpy_v2_v1(&c->disk_sb);
+	bch2_sb_members_from_cpu(c);
+	bch2_sb_members_cpy_v2_v1(&c->disk_sb);
+	bch2_sb_errors_from_cpu(c);
 
 	for_each_online_member(ca, c, i)
 		bch2_sb_from_fs(c, ca);
@@ -1175,7 +1188,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	prt_printf(out, "Created:");
 	prt_tab(out);
 	if (sb->time_base_lo)
-		pr_time(out, div_u64(le64_to_cpu(sb->time_base_lo), NSEC_PER_SEC));
+		bch2_prt_datetime(out, div_u64(le64_to_cpu(sb->time_base_lo), NSEC_PER_SEC));
 	else
 		prt_printf(out, "(not set)");
 	prt_newline(out);

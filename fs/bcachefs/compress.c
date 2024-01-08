@@ -354,8 +354,7 @@ static int attempt_compress(struct bch_fs *c,
 		 */
 		unsigned level = min((compression.level * 3) / 2, zstd_max_clevel());
 		ZSTD_parameters params = zstd_get_params(level, c->opts.encoded_extent_max);
-		ZSTD_CCtx *ctx = zstd_init_cctx(workspace,
-			zstd_cctx_workspace_bound(&params.cParams));
+		ZSTD_CCtx *ctx = zstd_init_cctx(workspace, c->zstd_workspace_size);
 
 		/*
 		 * ZSTD requires that when we decompress we pass in the exact
@@ -371,7 +370,7 @@ static int attempt_compress(struct bch_fs *c,
 		size_t len = zstd_compress_cctx(ctx,
 				dst + 4,	dst_len - 4 - 7,
 				src,		src_len,
-				&c->zstd_params);
+				&params);
 		if (zstd_is_error(len))
 			return 0;
 
@@ -572,6 +571,13 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 	size_t decompress_workspace_size = 0;
 	ZSTD_parameters params = zstd_get_params(zstd_max_clevel(),
 						 c->opts.encoded_extent_max);
+
+	/*
+	 * ZSTD is lying: if we allocate the size of the workspace it says it
+	 * requires, it returns memory allocation errors
+	 */
+	c->zstd_workspace_size = zstd_cctx_workspace_bound(&params.cParams);
+
 	struct {
 		unsigned			feature;
 		enum bch_compression_type	type;
@@ -585,12 +591,10 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 			zlib_deflate_workspacesize(MAX_WBITS, DEF_MEM_LEVEL),
 			zlib_inflate_workspacesize(), },
 		{ BCH_FEATURE_zstd, BCH_COMPRESSION_TYPE_zstd,
-			zstd_cctx_workspace_bound(&params.cParams),
+			c->zstd_workspace_size,
 			zstd_dctx_workspace_bound() },
 	}, *i;
 	bool have_compressed = false;
-
-	c->zstd_params = params;
 
 	for (i = compression_types;
 	     i < compression_types + ARRAY_SIZE(compression_types);
@@ -697,14 +701,32 @@ err:
 	return ret;
 }
 
+void bch2_compression_opt_to_text(struct printbuf *out, u64 v)
+{
+	struct bch_compression_opt opt = bch2_compression_decode(v);
+
+	if (opt.type < BCH_COMPRESSION_OPT_NR)
+		prt_str(out, bch2_compression_opts[opt.type]);
+	else
+		prt_printf(out, "(unknown compression opt %u)", opt.type);
+	if (opt.level)
+		prt_printf(out, ":%u", opt.level);
+}
+
 void bch2_opt_compression_to_text(struct printbuf *out,
 				  struct bch_fs *c,
 				  struct bch_sb *sb,
 				  u64 v)
 {
-	struct bch_compression_opt opt = bch2_compression_decode(v);
+	return bch2_compression_opt_to_text(out, v);
+}
 
-	prt_str(out, bch2_compression_opts[opt.type]);
-	if (opt.level)
-		prt_printf(out, ":%u", opt.level);
+int bch2_opt_compression_validate(u64 v, struct printbuf *err)
+{
+	if (!bch2_compression_opt_valid(v)) {
+		prt_printf(err, "invalid compression opt %llu", v);
+		return -BCH_ERR_invalid_sb_opt_compression;
+	}
+
+	return 0;
 }

@@ -38,7 +38,7 @@ void __init paging_init(void)
 	pgd_t *pg_dir;
 	pte_t *pg_table;
 	unsigned long address, size;
-	unsigned long next_pgtable, bootmem_end;
+	unsigned long next_pgtable;
 	unsigned long max_zone_pfn[MAX_NR_ZONES] = { 0 };
 	int i;
 
@@ -57,7 +57,6 @@ void __init paging_init(void)
 		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
 		      __func__, size, PAGE_SIZE);
 
-	bootmem_end = (next_pgtable + size + PAGE_SIZE) & PAGE_MASK;
 	pg_dir += PAGE_OFFSET >> PGDIR_SHIFT;
 
 	address = PAGE_OFFSET;

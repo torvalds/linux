@@ -251,7 +251,10 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		err = -EREMOTE;
 		goto out_err;
 	}
-	if (ovl_is_whiteout(this)) {
+
+	path.dentry = this;
+	path.mnt = d->mnt;
+	if (ovl_path_is_whiteout(OVL_FS(d->sb), &path)) {
 		d->stop = d->opaque = true;
 		goto put_and_out;
 	}
@@ -264,8 +267,6 @@ static int ovl_lookup_single(struct dentry *base, struct ovl_lookup_data *d,
 		goto put_and_out;
 	}
 
-	path.dentry = this;
-	path.mnt = d->mnt;
 	if (!d_can_lookup(this)) {
 		if (d->is_dir || !last_element) {
 			d->stop = true;
@@ -438,7 +439,7 @@ int ovl_check_origin_fh(struct ovl_fs *ofs, struct ovl_fh *fh, bool connected,
 	else if (IS_ERR(origin))
 		return PTR_ERR(origin);
 
-	if (upperdentry && !ovl_is_whiteout(upperdentry) &&
+	if (upperdentry && !ovl_upper_is_whiteout(ofs, upperdentry) &&
 	    inode_wrong_type(d_inode(upperdentry), d_inode(origin)->i_mode))
 		goto invalid;
 
@@ -507,6 +508,19 @@ static int ovl_verify_fh(struct ovl_fs *ofs, struct dentry *dentry,
 	return err;
 }
 
+int ovl_verify_set_fh(struct ovl_fs *ofs, struct dentry *dentry,
+		      enum ovl_xattr ox, const struct ovl_fh *fh,
+		      bool is_upper, bool set)
+{
+	int err;
+
+	err = ovl_verify_fh(ofs, dentry, ox, fh);
+	if (set && err == -ENODATA)
+		err = ovl_setxattr(ofs, dentry, ox, fh->buf, fh->fb.len);
+
+	return err;
+}
+
 /*
  * Verify that @real dentry matches the file handle stored in xattr @name.
  *
@@ -515,9 +529,9 @@ static int ovl_verify_fh(struct ovl_fs *ofs, struct dentry *dentry,
  *
  * Return 0 on match, -ESTALE on mismatch, -ENODATA on no xattr, < 0 on error.
  */
-int ovl_verify_set_fh(struct ovl_fs *ofs, struct dentry *dentry,
-		      enum ovl_xattr ox, struct dentry *real, bool is_upper,
-		      bool set)
+int ovl_verify_origin_xattr(struct ovl_fs *ofs, struct dentry *dentry,
+			    enum ovl_xattr ox, struct dentry *real,
+			    bool is_upper, bool set)
 {
 	struct inode *inode;
 	struct ovl_fh *fh;
@@ -530,9 +544,7 @@ int ovl_verify_set_fh(struct ovl_fs *ofs, struct dentry *dentry,
 		goto fail;
 	}
 
-	err = ovl_verify_fh(ofs, dentry, ox, fh);
-	if (set && err == -ENODATA)
-		err = ovl_setxattr(ofs, dentry, ox, fh->buf, fh->fb.len);
+	err = ovl_verify_set_fh(ofs, dentry, ox, fh, is_upper, set);
 	if (err)
 		goto fail;
 
@@ -547,6 +559,7 @@ fail:
 			    inode ? inode->i_ino : 0, err);
 	goto out;
 }
+
 
 /* Get upper dentry from index */
 struct dentry *ovl_index_upper(struct ovl_fs *ofs, struct dentry *index,
@@ -684,7 +697,7 @@ orphan:
 	goto out;
 }
 
-static int ovl_get_index_name_fh(struct ovl_fh *fh, struct qstr *name)
+int ovl_get_index_name_fh(const struct ovl_fh *fh, struct qstr *name)
 {
 	char *n, *s;
 
@@ -873,20 +886,27 @@ int ovl_path_next(int idx, struct dentry *dentry, struct path *path)
 static int ovl_fix_origin(struct ovl_fs *ofs, struct dentry *dentry,
 			  struct dentry *lower, struct dentry *upper)
 {
+	const struct ovl_fh *fh;
 	int err;
 
 	if (ovl_check_origin_xattr(ofs, upper))
 		return 0;
 
+	fh = ovl_get_origin_fh(ofs, lower);
+	if (IS_ERR(fh))
+		return PTR_ERR(fh);
+
 	err = ovl_want_write(dentry);
 	if (err)
-		return err;
+		goto out;
 
-	err = ovl_set_origin(ofs, lower, upper);
+	err = ovl_set_origin_fh(ofs, fh, upper);
 	if (!err)
 		err = ovl_set_impure(dentry->d_parent, upper->d_parent);
 
 	ovl_drop_write(dentry);
+out:
+	kfree(fh);
 	return err;
 }
 
@@ -1383,7 +1403,11 @@ bool ovl_lower_positive(struct dentry *dentry)
 				break;
 			}
 		} else {
-			positive = !ovl_is_whiteout(this);
+			struct path path = {
+				.dentry = this,
+				.mnt = parentpath->layer->mnt,
+			};
+			positive = !ovl_path_is_whiteout(OVL_FS(dentry->d_sb), &path);
 			done = true;
 			dput(this);
 		}

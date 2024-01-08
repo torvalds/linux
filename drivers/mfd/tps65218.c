@@ -127,7 +127,7 @@ static const struct regmap_access_table tps65218_volatile_table = {
 static const struct regmap_config tps65218_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65218_volatile_table,
 };
 

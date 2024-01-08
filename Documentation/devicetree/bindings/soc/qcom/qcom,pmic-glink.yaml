@@ -35,6 +35,12 @@ properties:
   '#size-cells':
     const: 0
 
+  orientation-gpios:
+    description: Array of input gpios for the Type-C connector orientation indication.
+      The GPIO indication is used to detect the orientation of the Type-C connector.
+      The array should contain a gpio entry for each PMIC Glink connector, in reg order.
+      It is defined that GPIO active level means "CC2" or Reversed/Flipped orientation.
+
 patternProperties:
   '^connector@\d$':
     $ref: /schemas/connector/usb-connector.yaml#
@@ -43,6 +49,19 @@ patternProperties:
 
 required:
   - compatible
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - qcom,sm8450-pmic-glink
+                - qcom,sm8550-pmic-glink
+    then:
+      properties:
+        orientation-gpios: false
 
 additionalProperties: false
 

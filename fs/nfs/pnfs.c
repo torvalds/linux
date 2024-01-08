@@ -1980,7 +1980,9 @@ pnfs_update_layout(struct inode *ino,
 	struct pnfs_layout_segment *lseg = NULL;
 	struct nfs4_layoutget *lgp;
 	nfs4_stateid stateid;
-	long timeout = 0;
+	struct nfs4_exception exception = {
+		.inode = ino,
+	};
 	unsigned long giveup = jiffies + (clp->cl_lease_time << 1);
 	bool first;
 
@@ -2144,7 +2146,7 @@ lookup_again:
 	lgp->lo = lo;
 	pnfs_get_layout_hdr(lo);
 
-	lseg = nfs4_proc_layoutget(lgp, &timeout);
+	lseg = nfs4_proc_layoutget(lgp, &exception);
 	trace_pnfs_update_layout(ino, pos, count, iomode, lo, lseg,
 				 PNFS_UPDATE_LAYOUT_SEND_LAYOUTGET);
 	nfs_layoutget_end(lo);
@@ -2171,6 +2173,8 @@ lookup_again:
 			goto out_put_layout_hdr;
 		}
 		if (lseg) {
+			if (!exception.retry)
+				goto out_put_layout_hdr;
 			if (first)
 				pnfs_clear_first_layoutget(lo);
 			trace_pnfs_update_layout(ino, pos, count,

@@ -175,6 +175,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 
 		dst->deleted	= BCH_GROUP_DELETED(src);
 		dst->parent	= BCH_GROUP_PARENT(src);
+		memcpy(dst->label, src->label, sizeof(dst->label));
 	}
 
 	for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
@@ -382,7 +383,57 @@ int bch2_disk_path_find_or_create(struct bch_sb_handle *sb, const char *name)
 	return v;
 }
 
-void bch2_disk_path_to_text(struct printbuf *out, struct bch_sb *sb, unsigned v)
+void bch2_disk_path_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
+{
+	struct bch_disk_groups_cpu *groups;
+	struct bch_disk_group_cpu *g;
+	unsigned nr = 0;
+	u16 path[32];
+
+	out->atomic++;
+	rcu_read_lock();
+	groups = rcu_dereference(c->disk_groups);
+	if (!groups)
+		goto invalid;
+
+	while (1) {
+		if (nr == ARRAY_SIZE(path))
+			goto invalid;
+
+		if (v >= groups->nr)
+			goto invalid;
+
+		g = groups->entries + v;
+
+		if (g->deleted)
+			goto invalid;
+
+		path[nr++] = v;
+
+		if (!g->parent)
+			break;
+
+		v = g->parent - 1;
+	}
+
+	while (nr) {
+		v = path[--nr];
+		g = groups->entries + v;
+
+		prt_printf(out, "%.*s", (int) sizeof(g->label), g->label);
+		if (nr)
+			prt_printf(out, ".");
+	}
+out:
+	rcu_read_unlock();
+	out->atomic--;
+	return;
+invalid:
+	prt_printf(out, "invalid label %u", v);
+	goto out;
+}
+
+void bch2_disk_path_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsigned v)
 {
 	struct bch_sb_field_disk_groups *groups =
 		bch2_sb_field_get(sb, disk_groups);
@@ -493,10 +544,7 @@ int bch2_opt_target_parse(struct bch_fs *c, const char *val, u64 *res,
 	return -EINVAL;
 }
 
-void bch2_opt_target_to_text(struct printbuf *out,
-			     struct bch_fs *c,
-			     struct bch_sb *sb,
-			     u64 v)
+void bch2_target_to_text(struct printbuf *out, struct bch_fs *c, unsigned v)
 {
 	struct target t = target_decode(v);
 
@@ -504,47 +552,71 @@ void bch2_opt_target_to_text(struct printbuf *out,
 	case TARGET_NULL:
 		prt_printf(out, "none");
 		break;
-	case TARGET_DEV:
-		if (c) {
-			struct bch_dev *ca;
+	case TARGET_DEV: {
+		struct bch_dev *ca;
 
-			rcu_read_lock();
-			ca = t.dev < c->sb.nr_devices
-				? rcu_dereference(c->devs[t.dev])
-				: NULL;
+		out->atomic++;
+		rcu_read_lock();
+		ca = t.dev < c->sb.nr_devices
+			? rcu_dereference(c->devs[t.dev])
+			: NULL;
 
-			if (ca && percpu_ref_tryget(&ca->io_ref)) {
-				prt_printf(out, "/dev/%pg", ca->disk_sb.bdev);
-				percpu_ref_put(&ca->io_ref);
-			} else if (ca) {
-				prt_printf(out, "offline device %u", t.dev);
-			} else {
-				prt_printf(out, "invalid device %u", t.dev);
-			}
-
-			rcu_read_unlock();
+		if (ca && percpu_ref_tryget(&ca->io_ref)) {
+			prt_printf(out, "/dev/%pg", ca->disk_sb.bdev);
+			percpu_ref_put(&ca->io_ref);
+		} else if (ca) {
+			prt_printf(out, "offline device %u", t.dev);
 		} else {
-			struct bch_member m = bch2_sb_member_get(sb, t.dev);
-
-			if (bch2_dev_exists(sb, t.dev)) {
-				prt_printf(out, "Device ");
-				pr_uuid(out, m.uuid.b);
-				prt_printf(out, " (%u)", t.dev);
-			} else {
-				prt_printf(out, "Bad device %u", t.dev);
-			}
+			prt_printf(out, "invalid device %u", t.dev);
 		}
+
+		rcu_read_unlock();
+		out->atomic--;
 		break;
+	}
 	case TARGET_GROUP:
-		if (c) {
-			mutex_lock(&c->sb_lock);
-			bch2_disk_path_to_text(out, c->disk_sb.sb, t.group);
-			mutex_unlock(&c->sb_lock);
-		} else {
-			bch2_disk_path_to_text(out, sb, t.group);
-		}
+		bch2_disk_path_to_text(out, c, t.group);
 		break;
 	default:
 		BUG();
 	}
+}
+
+static void bch2_target_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsigned v)
+{
+	struct target t = target_decode(v);
+
+	switch (t.type) {
+	case TARGET_NULL:
+		prt_printf(out, "none");
+		break;
+	case TARGET_DEV: {
+		struct bch_member m = bch2_sb_member_get(sb, t.dev);
+
+		if (bch2_dev_exists(sb, t.dev)) {
+			prt_printf(out, "Device ");
+			pr_uuid(out, m.uuid.b);
+			prt_printf(out, " (%u)", t.dev);
+		} else {
+			prt_printf(out, "Bad device %u", t.dev);
+		}
+		break;
+	}
+	case TARGET_GROUP:
+		bch2_disk_path_to_text_sb(out, sb, t.group);
+		break;
+	default:
+		BUG();
+	}
+}
+
+void bch2_opt_target_to_text(struct printbuf *out,
+			     struct bch_fs *c,
+			     struct bch_sb *sb,
+			     u64 v)
+{
+	if (c)
+		bch2_target_to_text(out, c, v);
+	else
+		bch2_target_to_text_sb(out, sb, v);
 }

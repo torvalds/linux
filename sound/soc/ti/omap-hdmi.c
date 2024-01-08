@@ -370,7 +370,7 @@ static int omap_hdmi_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	card->dai_link->cpus		= compnent;
 	card->dai_link->num_cpus	= 1;
-	card->dai_link->codecs		= &asoc_dummy_dlc;
+	card->dai_link->codecs		= &snd_soc_dummy_dlc;
 	card->dai_link->num_codecs	= 1;
 
 	card->dai_link->name = card->name;

@@ -1052,3 +1052,12 @@ kill_anon_super(), or kill_block_super() helpers.
 
 Lock ordering has been changed so that s_umount ranks above open_mutex again.
 All places where s_umount was taken under open_mutex have been fixed up.
+
+---
+
+**mandatory**
+
+export_operations ->encode_fh() no longer has a default implementation to
+encode FILEID_INO32_GEN* file handles.
+Filesystems that used the default implementation may use the generic helper
+generic_encode_ino32_fh() explicitly.

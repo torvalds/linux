@@ -203,7 +203,7 @@ static irqreturn_t linflex_txint(int irq, void *dev_id)
 	struct circ_buf *xmit = &sport->state->xmit;
 	unsigned long flags;
 
-	spin_lock_irqsave(&sport->lock, flags);
+	uart_port_lock_irqsave(sport, &flags);
 
 	if (sport->x_char) {
 		linflex_put_char(sport, sport->x_char);
@@ -217,7 +217,7 @@ static irqreturn_t linflex_txint(int irq, void *dev_id)
 
 	linflex_transmit_buffer(sport);
 out:
-	spin_unlock_irqrestore(&sport->lock, flags);
+	uart_port_unlock_irqrestore(sport, flags);
 	return IRQ_HANDLED;
 }
 
@@ -230,7 +230,7 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 	unsigned char rx;
 	bool brk;
 
-	spin_lock_irqsave(&sport->lock, flags);
+	uart_port_lock_irqsave(sport, &flags);
 
 	status = readl(sport->membase + UARTSR);
 	while (status & LINFLEXD_UARTSR_RMB) {
@@ -266,7 +266,7 @@ static irqreturn_t linflex_rxint(int irq, void *dev_id)
 		}
 	}
 
-	spin_unlock_irqrestore(&sport->lock, flags);
+	uart_port_unlock_irqrestore(sport, flags);
 
 	tty_flip_buffer_push(port);
 
@@ -369,11 +369,11 @@ static int linflex_startup(struct uart_port *port)
 	int ret = 0;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	linflex_setup_watermark(port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	ret = devm_request_irq(port->dev, port->irq, linflex_int, 0,
 			       DRIVER_NAME, port);
@@ -386,14 +386,14 @@ static void linflex_shutdown(struct uart_port *port)
 	unsigned long ier;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* disable interrupts */
 	ier = readl(port->membase + LINIER);
 	ier &= ~(LINFLEXD_LINIER_DRIE | LINFLEXD_LINIER_DTIE);
 	writel(ier, port->membase + LINIER);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	devm_free_irq(port->dev, port->irq, port);
 }
@@ -474,7 +474,7 @@ linflex_set_termios(struct uart_port *port, struct ktermios *termios,
 		cr &= ~LINFLEXD_UARTCR_PCE;
 	}
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	port->read_status_mask = 0;
 
@@ -507,7 +507,7 @@ linflex_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	writel(cr1, port->membase + LINCR1);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *linflex_type(struct uart_port *port)
@@ -646,14 +646,14 @@ linflex_console_write(struct console *co, const char *s, unsigned int count)
 	if (sport->sysrq)
 		locked = 0;
 	else if (oops_in_progress)
-		locked = spin_trylock_irqsave(&sport->lock, flags);
+		locked = uart_port_trylock_irqsave(sport, &flags);
 	else
-		spin_lock_irqsave(&sport->lock, flags);
+		uart_port_lock_irqsave(sport, &flags);
 
 	linflex_string_write(sport, s, count);
 
 	if (locked)
-		spin_unlock_irqrestore(&sport->lock, flags);
+		uart_port_unlock_irqrestore(sport, flags);
 }
 
 /*
@@ -832,10 +832,14 @@ static int linflex_probe(struct platform_device *pdev)
 		return PTR_ERR(sport->membase);
 	sport->mapbase = res->start;
 
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+
 	sport->dev = &pdev->dev;
 	sport->type = PORT_LINFLEXUART;
 	sport->iotype = UPIO_MEM;
-	sport->irq = platform_get_irq(pdev, 0);
+	sport->irq = ret;
 	sport->ops = &linflex_pops;
 	sport->flags = UPF_BOOT_AUTOCONF;
 	sport->has_sysrq = IS_ENABLED(CONFIG_SERIAL_FSL_LINFLEXUART_CONSOLE);

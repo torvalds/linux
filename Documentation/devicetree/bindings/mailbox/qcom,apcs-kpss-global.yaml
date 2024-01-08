@@ -125,10 +125,12 @@ allOf:
           items:
             - description: primary pll parent of the clock driver
             - description: XO clock
+            - description: GCC GPLL0 clock source
         clock-names:
           items:
             - const: pll
             - const: xo
+            - const: gpll0
 
   - if:
       properties:

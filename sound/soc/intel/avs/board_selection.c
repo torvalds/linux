@@ -136,6 +136,15 @@ static struct snd_soc_acpi_mach avs_kbl_i2s_machines[] = {
 		.tplg_filename = "max98927-tplg.bin",
 	},
 	{
+		.id = "10EC5514",
+		.drv_name = "avs_rt5514",
+		.mach_params = {
+			.i2s_link_mask = AVS_SSP(0),
+		},
+		.pdata = (unsigned long[]){ 0x2, 0, 0, 0, 0, 0 }, /* SSP0 TDMs */
+		.tplg_filename = "rt5514-tplg.bin",
+	},
+	{
 		.id = "10EC5663",
 		.drv_name = "avs_rt5663",
 		.mach_params = {
@@ -193,7 +202,7 @@ static struct snd_soc_acpi_mach avs_apl_i2s_machines[] = {
 		.mach_params = {
 			.i2s_link_mask = AVS_SSP_RANGE(0, 5),
 		},
-		.pdata = (unsigned long[]){ 0, 0, 0x14, 0, 0, 0 }, /* SSP2 TDMs */
+		.pdata = (unsigned long[]){ 0x1, 0x1, 0x14, 0x1, 0x1, 0x1 }, /* SSP2 TDMs */
 		.tplg_filename = "tdf8532-tplg.bin",
 	},
 	{

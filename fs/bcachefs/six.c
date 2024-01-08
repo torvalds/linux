@@ -11,6 +11,8 @@
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 
+#include <trace/events/lock.h>
+
 #include "six.h"
 
 #ifdef DEBUG
@@ -161,8 +163,11 @@ static int __do_six_trylock(struct six_lock *lock, enum six_lock_type type,
 		this_cpu_sub(*lock->readers, !ret);
 		preempt_enable();
 
-		if (!ret && (old & SIX_LOCK_WAITING_write))
-			ret = -1 - SIX_LOCK_write;
+		if (!ret) {
+			smp_mb();
+			if (atomic_read(&lock->state) & SIX_LOCK_WAITING_write)
+				ret = -1 - SIX_LOCK_write;
+		}
 	} else if (type == SIX_LOCK_write && lock->readers) {
 		if (try) {
 			atomic_add(SIX_LOCK_HELD_write, &lock->state);
@@ -462,10 +467,11 @@ static int six_lock_slowpath(struct six_lock *lock, enum six_lock_type type,
 		smp_mb__after_atomic();
 	}
 
+	trace_contention_begin(lock, 0);
+	lock_contended(&lock->dep_map, ip);
+
 	if (six_optimistic_spin(lock, type))
 		goto out;
-
-	lock_contended(&lock->dep_map, ip);
 
 	wait->task		= current;
 	wait->lock_want		= type;
@@ -546,6 +552,7 @@ out:
 		six_clear_bitmask(lock, SIX_LOCK_HELD_write);
 		six_lock_wakeup(lock, atomic_read(&lock->state), SIX_LOCK_read);
 	}
+	trace_contention_end(lock, 0);
 
 	return ret;
 }

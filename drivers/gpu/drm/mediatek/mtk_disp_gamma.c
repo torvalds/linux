@@ -203,7 +203,7 @@ void mtk_gamma_set(struct device *dev, struct drm_crtc_state *state)
 	/* Disable RELAY mode to pass the processed image */
 	cfg_val &= ~GAMMA_RELAY_MODE;
 
-	cfg_val = readl(gamma->regs + DISP_GAMMA_CFG);
+	writel(cfg_val, gamma->regs + DISP_GAMMA_CFG);
 }
 
 void mtk_gamma_config(struct device *dev, unsigned int w,

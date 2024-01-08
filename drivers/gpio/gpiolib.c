@@ -1092,28 +1092,6 @@ void gpiochip_remove(struct gpio_chip *gc)
 }
 EXPORT_SYMBOL_GPL(gpiochip_remove);
 
-/*
- * FIXME: This will be removed soon.
- *
- * This function is depracated, don't use.
- */
-struct gpio_chip *gpiochip_find(void *data,
-				int (*match)(struct gpio_chip *gc,
-					     void *data))
-{
-	struct gpio_device *gdev;
-	struct gpio_chip *gc = NULL;
-
-	gdev = gpio_device_find(data, match);
-	if (gdev) {
-		gc = gdev->chip;
-		gpio_device_put(gdev);
-	}
-
-	return gc;
-}
-EXPORT_SYMBOL_GPL(gpiochip_find);
-
 /**
  * gpio_device_find() - find a specific GPIO device
  * @data: data to pass to match function
@@ -2036,7 +2014,7 @@ int gpiochip_generic_request(struct gpio_chip *gc, unsigned int offset)
 		return 0;
 #endif
 
-	return pinctrl_gpio_request(gc->gpiodev->base + offset);
+	return pinctrl_gpio_request(gc, offset);
 }
 EXPORT_SYMBOL_GPL(gpiochip_generic_request);
 
@@ -2052,7 +2030,7 @@ void gpiochip_generic_free(struct gpio_chip *gc, unsigned int offset)
 		return;
 #endif
 
-	pinctrl_gpio_free(gc->gpiodev->base + offset);
+	pinctrl_gpio_free(gc, offset);
 }
 EXPORT_SYMBOL_GPL(gpiochip_generic_free);
 
@@ -2065,7 +2043,7 @@ EXPORT_SYMBOL_GPL(gpiochip_generic_free);
 int gpiochip_generic_config(struct gpio_chip *gc, unsigned int offset,
 			    unsigned long config)
 {
-	return pinctrl_gpio_set_config(gc->gpiodev->base + offset, config);
+	return pinctrl_gpio_set_config(gc, offset, config);
 }
 EXPORT_SYMBOL_GPL(gpiochip_generic_config);
 

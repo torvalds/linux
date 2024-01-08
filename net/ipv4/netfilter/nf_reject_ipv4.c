@@ -336,3 +336,4 @@ void nf_send_unreach(struct sk_buff *skb_in, int code, int hook)
 EXPORT_SYMBOL_GPL(nf_send_unreach);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("IPv4 packet rejection core");

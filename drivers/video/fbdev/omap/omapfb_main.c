@@ -1643,17 +1643,16 @@ static int omapfb_do_probe(struct platform_device *pdev,
 		r = -ENOMEM;
 		goto cleanup;
 	}
-	fbdev->int_irq = platform_get_irq(pdev, 0);
-	if (fbdev->int_irq < 0) {
-		r = -ENXIO;
-		goto cleanup;
-	}
 
-	fbdev->ext_irq = platform_get_irq(pdev, 1);
-	if (fbdev->ext_irq < 0) {
-		r = -ENXIO;
+	r = platform_get_irq(pdev, 0);
+	if (r < 0)
 		goto cleanup;
-	}
+	fbdev->int_irq = r;
+
+	r = platform_get_irq(pdev, 1);
+	if (r < 0)
+		goto cleanup;
+	fbdev->ext_irq = r;
 
 	init_state++;
 
@@ -1857,19 +1856,12 @@ static int __init omapfb_setup(char *options)
 		if (!strncmp(this_opt, "accel", 5))
 			def_accel = 1;
 		else if (!strncmp(this_opt, "vram:", 5)) {
+			unsigned long long vram;
 			char *suffix;
-			unsigned long vram;
-			vram = (simple_strtoul(this_opt + 5, &suffix, 0));
+
+			vram = memparse(this_opt + 5, &suffix);
 			switch (suffix[0]) {
 			case '\0':
-				break;
-			case 'm':
-			case 'M':
-				vram *= 1024;
-				fallthrough;
-			case 'k':
-			case 'K':
-				vram *= 1024;
 				break;
 			default:
 				pr_debug("omapfb: invalid vram suffix %c\n",

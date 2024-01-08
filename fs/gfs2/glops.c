@@ -615,18 +615,6 @@ static int freeze_go_xmote_bh(struct gfs2_glock *gl)
 }
 
 /**
- * freeze_go_demote_ok
- * @gl: the glock
- *
- * Always returns 0
- */
-
-static int freeze_go_demote_ok(const struct gfs2_glock *gl)
-{
-	return 0;
-}
-
-/**
  * iopen_go_callback - schedule the dcache entry for the inode to be deleted
  * @gl: the glock
  * @remote: true if this came from a different cluster node
@@ -745,7 +733,6 @@ const struct gfs2_glock_operations gfs2_rgrp_glops = {
 
 const struct gfs2_glock_operations gfs2_freeze_glops = {
 	.go_xmote_bh = freeze_go_xmote_bh,
-	.go_demote_ok = freeze_go_demote_ok,
 	.go_callback = freeze_go_callback,
 	.go_type = LM_TYPE_NONDISK,
 	.go_flags = GLOF_NONDISK,

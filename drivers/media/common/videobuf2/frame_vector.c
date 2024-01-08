@@ -159,7 +159,7 @@ EXPORT_SYMBOL(frame_vector_to_pfns);
 struct frame_vector *frame_vector_create(unsigned int nr_frames)
 {
 	struct frame_vector *vec;
-	int size = sizeof(struct frame_vector) + sizeof(void *) * nr_frames;
+	int size = struct_size(vec, ptrs, nr_frames);
 
 	if (WARN_ON_ONCE(nr_frames == 0))
 		return NULL;

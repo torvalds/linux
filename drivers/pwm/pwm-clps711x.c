@@ -72,7 +72,6 @@ static int clps711x_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops clps711x_pwm_ops = {
 	.request = clps711x_pwm_request,
 	.apply = clps711x_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static struct pwm_device *clps711x_pwm_xlate(struct pwm_chip *chip,

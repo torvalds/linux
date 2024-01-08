@@ -513,8 +513,6 @@ static void bch2_btree_update_free(struct btree_update *as, struct btree_trans *
 		up_read(&c->gc_lock);
 	as->took_gc_lock = false;
 
-	bch2_journal_preres_put(&c->journal, &as->journal_preres);
-
 	bch2_journal_pin_drop(&c->journal, &as->journal);
 	bch2_journal_pin_flush(&c->journal, &as->journal);
 	bch2_disk_reservation_put(c, &as->disk_res);
@@ -734,8 +732,6 @@ err:
 
 	bch2_journal_pin_drop(&c->journal, &as->journal);
 
-	bch2_journal_preres_put(&c->journal, &as->journal_preres);
-
 	mutex_lock(&c->btree_interior_update_lock);
 	for (i = 0; i < as->nr_new_nodes; i++) {
 		b = as->new_nodes[i];
@@ -782,9 +778,9 @@ static void btree_interior_update_work(struct work_struct *work)
 	}
 }
 
-static void btree_update_set_nodes_written(struct closure *cl)
+static CLOSURE_CALLBACK(btree_update_set_nodes_written)
 {
-	struct btree_update *as = container_of(cl, struct btree_update, cl);
+	closure_type(as, struct btree_update, cl);
 	struct bch_fs *c = as->c;
 
 	mutex_lock(&c->btree_interior_update_lock);
@@ -1047,7 +1043,6 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	unsigned nr_nodes[2] = { 0, 0 };
 	unsigned update_level = level;
 	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
-	unsigned journal_flags = 0;
 	int ret = 0;
 	u32 restart_count = trans->restart_count;
 
@@ -1061,9 +1056,16 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	flags &= ~BCH_WATERMARK_MASK;
 	flags |= watermark;
 
-	if (flags & BTREE_INSERT_JOURNAL_RECLAIM)
-		journal_flags |= JOURNAL_RES_GET_NONBLOCK;
-	journal_flags |= watermark;
+	if (!(flags & BTREE_INSERT_JOURNAL_RECLAIM) &&
+	    watermark < c->journal.watermark) {
+		struct journal_res res = { 0 };
+
+		ret = drop_locks_do(trans,
+			bch2_journal_res_get(&c->journal, &res, 1,
+					     watermark|JOURNAL_RES_GET_CHECK));
+		if (ret)
+			return ERR_PTR(ret);
+	}
 
 	while (1) {
 		nr_nodes[!!update_level] += 1 + split;
@@ -1080,8 +1082,12 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 			break;
 		}
 
+		/*
+		 * Always check for space for two keys, even if we won't have to
+		 * split at prior level - it might have been a merge instead:
+		 */
 		if (bch2_btree_node_insert_fits(c, path->l[update_level].b,
-					BKEY_BTREE_PTR_U64s_MAX * (1 + split)))
+						BKEY_BTREE_PTR_U64s_MAX * 2))
 			break;
 
 		split = path->l[update_level].b->nr.live_u64s > BTREE_SPLIT_THRESHOLD(c);
@@ -1128,27 +1134,6 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	ret = bch2_journal_error(&c->journal);
 	if (ret)
 		goto err;
-
-	ret = bch2_journal_preres_get(&c->journal, &as->journal_preres,
-				      BTREE_UPDATE_JOURNAL_RES,
-				      journal_flags|JOURNAL_RES_GET_NONBLOCK);
-	if (ret) {
-		if (flags & BTREE_INSERT_JOURNAL_RECLAIM) {
-			ret = -BCH_ERR_journal_reclaim_would_deadlock;
-			goto err;
-		}
-
-		ret = drop_locks_do(trans,
-			bch2_journal_preres_get(&c->journal, &as->journal_preres,
-					      BTREE_UPDATE_JOURNAL_RES,
-					      journal_flags));
-		if (ret == -BCH_ERR_journal_preres_get_blocked) {
-			trace_and_count(c, trans_restart_journal_preres_get, trans, _RET_IP_, journal_flags);
-			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_journal_preres_get);
-		}
-		if (ret)
-			goto err;
-	}
 
 	ret = bch2_disk_reservation_get(c, &as->disk_res,
 			(nr_nodes[0] + nr_nodes[1]) * btree_sectors(c),
@@ -1274,14 +1259,14 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as,
 
 	if (bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 			      btree_node_type(b), WRITE, &buf) ?:
-	    bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert), &buf)) {
+	    bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), &buf)) {
 		printbuf_reset(&buf);
 		prt_printf(&buf, "inserting invalid bkey\n  ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(insert));
 		prt_printf(&buf, "\n  ");
 		bch2_bkey_invalid(c, bkey_i_to_s_c(insert),
 				  btree_node_type(b), WRITE, &buf);
-		bch2_bkey_in_btree_node(b, bkey_i_to_s_c(insert), &buf);
+		bch2_bkey_in_btree_node(c, b, bkey_i_to_s_c(insert), &buf);
 
 		bch2_fs_inconsistent(c, "%s", buf.buf);
 		dump_stack();
@@ -1987,7 +1972,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 out:
 	if (new_path)
 		bch2_path_put(trans, new_path, true);
-	bch2_btree_path_downgrade(trans, iter->path);
+	bch2_trans_downgrade(trans);
 	return ret;
 err:
 	bch2_btree_node_free_never_used(as, trans, n);
@@ -2296,6 +2281,10 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *trans,
 
 	BUG_ON(!btree_node_hashed(b));
 
+	struct bch_extent_ptr *ptr;
+	bch2_bkey_drop_ptrs(bkey_i_to_s(new_key), ptr,
+			    !bch2_bkey_has_device(bkey_i_to_s(&b->key), ptr->dev));
+
 	ret = bch2_btree_node_update_key(trans, &iter, b, new_key,
 					 commit_flags, skip_triggers);
 out:
@@ -2411,30 +2400,24 @@ void bch2_journal_entry_to_btree_root(struct bch_fs *c, struct jset_entry *entry
 
 	r->level = entry->level;
 	r->alive = true;
-	bkey_copy(&r->key, &entry->start[0]);
+	bkey_copy(&r->key, (struct bkey_i *) entry->start);
 
 	mutex_unlock(&c->btree_root_lock);
 }
 
 struct jset_entry *
 bch2_btree_roots_to_journal_entries(struct bch_fs *c,
-				    struct jset_entry *start,
-				    struct jset_entry *end)
+				    struct jset_entry *end,
+				    unsigned long skip)
 {
-	struct jset_entry *entry;
-	unsigned long have = 0;
 	unsigned i;
-
-	for (entry = start; entry < end; entry = vstruct_next(entry))
-		if (entry->type == BCH_JSET_ENTRY_btree_root)
-			__set_bit(entry->btree_id, &have);
 
 	mutex_lock(&c->btree_root_lock);
 
 	for (i = 0; i < btree_id_nr_alive(c); i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
-		if (r->alive && !test_bit(i, &have)) {
+		if (r->alive && !test_bit(i, &skip)) {
 			journal_entry_set(end, BCH_JSET_ENTRY_btree_root,
 					  i, r->level, &r->key, r->key.k.u64s);
 			end = vstruct_next(end);

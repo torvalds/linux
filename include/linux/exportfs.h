@@ -99,6 +99,17 @@ enum fid_type {
 	FILEID_FAT_WITH_PARENT = 0x72,
 
 	/*
+	 * 64 bit inode number, 32 bit generation number.
+	 */
+	FILEID_INO64_GEN = 0x81,
+
+	/*
+	 * 64 bit inode number, 32 bit generation number,
+	 * 64 bit parent inode number, 32 bit parent generation.
+	 */
+	FILEID_INO64_GEN_PARENT = 0x82,
+
+	/*
 	 * 128 bit child FID (struct lu_fid)
 	 * 128 bit parent FID (struct lu_fid)
 	 */
@@ -129,7 +140,11 @@ struct fid {
 			u32 parent_ino;
 			u32 parent_gen;
 		} i32;
- 		struct {
+		struct {
+			u64 ino;
+			u32 gen;
+		} __packed i64;
+		struct {
  			u32 block;
  			u16 partref;
  			u16 parent_partref;
@@ -253,6 +268,33 @@ extern int exportfs_encode_inode_fh(struct inode *inode, struct fid *fid,
 extern int exportfs_encode_fh(struct dentry *dentry, struct fid *fid,
 			      int *max_len, int flags);
 
+static inline bool exportfs_can_encode_fid(const struct export_operations *nop)
+{
+	return !nop || nop->encode_fh;
+}
+
+static inline bool exportfs_can_decode_fh(const struct export_operations *nop)
+{
+	return nop && nop->fh_to_dentry;
+}
+
+static inline bool exportfs_can_encode_fh(const struct export_operations *nop,
+					  int fh_flags)
+{
+	/*
+	 * If a non-decodeable file handle was requested, we only need to make
+	 * sure that filesystem did not opt-out of encoding fid.
+	 */
+	if (fh_flags & EXPORT_FH_FID)
+		return exportfs_can_encode_fid(nop);
+
+	/*
+	 * If a decodeable file handle was requested, we need to make sure that
+	 * filesystem can also decode file handles.
+	 */
+	return exportfs_can_decode_fh(nop);
+}
+
 static inline int exportfs_encode_fid(struct inode *inode, struct fid *fid,
 				      int *max_len)
 {
@@ -272,10 +314,12 @@ extern struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 /*
  * Generic helpers for filesystems.
  */
-extern struct dentry *generic_fh_to_dentry(struct super_block *sb,
+int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
+			    struct inode *parent);
+struct dentry *generic_fh_to_dentry(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
 	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
-extern struct dentry *generic_fh_to_parent(struct super_block *sb,
+struct dentry *generic_fh_to_parent(struct super_block *sb,
 	struct fid *fid, int fh_len, int fh_type,
 	struct inode *(*get_inode) (struct super_block *sb, u64 ino, u32 gen));
 

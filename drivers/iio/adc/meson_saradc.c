@@ -1045,8 +1045,10 @@ static int meson_sar_adc_hw_enable(struct iio_dev *indio_dev)
 	u32 regval;
 
 	ret = meson_sar_adc_lock(indio_dev);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "failed to lock adc\n");
 		goto err_lock;
+	}
 
 	ret = regulator_enable(priv->vref);
 	if (ret < 0) {
@@ -1354,15 +1356,15 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 
 	priv->regmap = devm_regmap_init_mmio(dev, base, priv->param->regmap_config);
 	if (IS_ERR(priv->regmap))
-		return PTR_ERR(priv->regmap);
+		return dev_err_probe(dev, PTR_ERR(priv->regmap), "failed to init regmap\n");
 
 	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq)
-		return -EINVAL;
+		return dev_err_probe(dev, -EINVAL, "failed to get irq\n");
 
 	ret = devm_request_irq(dev, irq, meson_sar_adc_irq, IRQF_SHARED, dev_name(dev), indio_dev);
 	if (ret)
-		return ret;
+		return dev_err_probe(dev, ret, "failed to request irq\n");
 
 	priv->clkin = devm_clk_get(dev, "clkin");
 	if (IS_ERR(priv->clkin))
@@ -1384,7 +1386,7 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	if (!priv->adc_clk) {
 		ret = meson_sar_adc_clk_init(indio_dev, base);
 		if (ret)
-			return ret;
+			return dev_err_probe(dev, ret, "failed to init internal clk\n");
 	}
 
 	priv->vref = devm_regulator_get(dev, "vref");
@@ -1426,8 +1428,10 @@ static int meson_sar_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	ret = iio_device_register(indio_dev);
-	if (ret)
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to register iio device\n");
 		goto err_hw;
+	}
 
 	return 0;
 
@@ -1437,15 +1441,13 @@ err:
 	return ret;
 }
 
-static int meson_sar_adc_remove(struct platform_device *pdev)
+static void meson_sar_adc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 
 	iio_device_unregister(indio_dev);
 
 	meson_sar_adc_hw_disable(indio_dev);
-
-	return 0;
 }
 
 static int meson_sar_adc_suspend(struct device *dev)
@@ -1480,7 +1482,7 @@ static DEFINE_SIMPLE_DEV_PM_OPS(meson_sar_adc_pm_ops,
 
 static struct platform_driver meson_sar_adc_driver = {
 	.probe		= meson_sar_adc_probe,
-	.remove		= meson_sar_adc_remove,
+	.remove_new	= meson_sar_adc_remove,
 	.driver		= {
 		.name	= "meson-saradc",
 		.of_match_table = meson_sar_adc_of_match,

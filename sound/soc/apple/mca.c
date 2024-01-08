@@ -161,7 +161,7 @@ struct mca_data {
 	struct mutex port_mutex;
 
 	int nclusters;
-	struct mca_cluster clusters[];
+	struct mca_cluster clusters[] __counted_by(nclusters);
 };
 
 static void mca_modify(struct mca_cluster *cl, int regoffset, u32 mask, u32 val)
@@ -546,7 +546,7 @@ static int mca_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 
 static int mca_fe_get_port(struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *fe = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *fe = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_pcm_runtime *be;
 	struct snd_soc_dpcm *dpcm;
 
@@ -559,7 +559,7 @@ static int mca_fe_get_port(struct snd_pcm_substream *substream)
 	if (!be)
 		return -EINVAL;
 
-	return mca_dai_to_cluster(asoc_rtd_to_cpu(be, 0))->no;
+	return mca_dai_to_cluster(snd_soc_rtd_to_cpu(be, 0))->no;
 }
 
 static int mca_fe_hw_params(struct snd_pcm_substream *substream,
@@ -700,7 +700,7 @@ static bool mca_be_started(struct mca_cluster *cl)
 static int mca_be_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *be = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *be = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_pcm_runtime *fe;
 	struct mca_cluster *cl = mca_dai_to_cluster(dai);
 	struct mca_cluster *fe_cl;
@@ -721,7 +721,7 @@ static int mca_be_startup(struct snd_pcm_substream *substream,
 	if (!fe)
 		return -EINVAL;
 
-	fe_cl = mca_dai_to_cluster(asoc_rtd_to_cpu(fe, 0));
+	fe_cl = mca_dai_to_cluster(snd_soc_rtd_to_cpu(fe, 0));
 
 	if (mca_be_started(cl)) {
 		/*
@@ -811,8 +811,8 @@ static int mca_set_runtime_hwparams(struct snd_soc_component *component,
 static int mca_pcm_open(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct mca_cluster *cl = mca_dai_to_cluster(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct mca_cluster *cl = mca_dai_to_cluster(snd_soc_rtd_to_cpu(rtd, 0));
 	struct dma_chan *chan = cl->dma_chans[substream->stream];
 	int ret;
 
@@ -830,7 +830,7 @@ static int mca_hw_params(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
 	struct dma_slave_config slave_config;
 	int ret;
@@ -857,7 +857,7 @@ static int mca_hw_params(struct snd_soc_component *component,
 static int mca_close(struct snd_soc_component *component,
 		     struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	if (rtd->dai_link->no_pcm)
 		return 0;
@@ -868,7 +868,7 @@ static int mca_close(struct snd_soc_component *component,
 static int mca_trigger(struct snd_soc_component *component,
 		       struct snd_pcm_substream *substream, int cmd)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	if (rtd->dai_link->no_pcm)
 		return 0;
@@ -877,7 +877,7 @@ static int mca_trigger(struct snd_soc_component *component,
 	 * Before we do the PCM trigger proper, insert an opportunity
 	 * to reset the frontend's SERDES.
 	 */
-	mca_fe_early_trigger(substream, cmd, asoc_rtd_to_cpu(rtd, 0));
+	mca_fe_early_trigger(substream, cmd, snd_soc_rtd_to_cpu(rtd, 0));
 
 	return snd_dmaengine_pcm_trigger(substream, cmd);
 }
@@ -885,7 +885,7 @@ static int mca_trigger(struct snd_soc_component *component,
 static snd_pcm_uframes_t mca_pointer(struct snd_soc_component *component,
 				     struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 
 	if (rtd->dai_link->no_pcm)
 		return -ENOTSUPP;
@@ -911,7 +911,7 @@ static void mca_pcm_free(struct snd_soc_component *component,
 			 struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_chip(pcm);
-	struct mca_cluster *cl = mca_dai_to_cluster(asoc_rtd_to_cpu(rtd, 0));
+	struct mca_cluster *cl = mca_dai_to_cluster(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int i;
 
 	if (rtd->dai_link->no_pcm)
@@ -933,7 +933,7 @@ static void mca_pcm_free(struct snd_soc_component *component,
 static int mca_pcm_new(struct snd_soc_component *component,
 		       struct snd_soc_pcm_runtime *rtd)
 {
-	struct mca_cluster *cl = mca_dai_to_cluster(asoc_rtd_to_cpu(rtd, 0));
+	struct mca_cluster *cl = mca_dai_to_cluster(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int i;
 
 	if (rtd->dai_link->no_pcm)

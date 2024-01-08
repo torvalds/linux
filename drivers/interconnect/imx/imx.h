@@ -10,8 +10,13 @@
 #ifndef __DRIVERS_INTERCONNECT_IMX_H
 #define __DRIVERS_INTERCONNECT_IMX_H
 
+#include <linux/args.h>
+#include <linux/bits.h>
+#include <linux/types.h>
+
 #include <linux/interconnect-provider.h>
-#include <linux/kernel.h>
+
+struct platform_device;
 
 #define IMX_ICC_MAX_LINKS	4
 
@@ -89,7 +94,7 @@ struct imx_icc_noc_setting {
 		.id = _id,						\
 		.name = _name,						\
 		.adj = _adj,						\
-		.num_links = ARRAY_SIZE(((int[]){ __VA_ARGS__ })),	\
+		.num_links = COUNT_ARGS(__VA_ARGS__),			\
 		.links = { __VA_ARGS__ },				\
 	}
 

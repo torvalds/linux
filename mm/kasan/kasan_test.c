@@ -5,7 +5,7 @@
  * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
  */
 
-#define pr_fmt(fmt) "kasan_test: " fmt
+#define pr_fmt(fmt) "kasan: test: " fmt
 
 #include <kunit/test.h>
 #include <linux/bitops.h>
@@ -91,10 +91,11 @@ static void kasan_test_exit(struct kunit *test)
 }
 
 /**
- * KUNIT_EXPECT_KASAN_FAIL() - check that the executed expression produces a
- * KASAN report; causes a test failure otherwise. This relies on a KUnit
- * resource named "kasan_status". Do not use this name for KUnit resources
- * outside of KASAN tests.
+ * KUNIT_EXPECT_KASAN_FAIL - check that the executed expression produces a
+ * KASAN report; causes a KUnit test failure otherwise.
+ *
+ * @test: Currently executing KUnit test.
+ * @expression: Expression that must produce a KASAN report.
  *
  * For hardware tag-based KASAN, when a synchronous tag fault happens, tag
  * checking is auto-disabled. When this happens, this test handler reenables
@@ -1097,11 +1098,9 @@ static void kasan_bitops_test_and_modify(struct kunit *test, int nr, void *addr)
 	KUNIT_EXPECT_KASAN_FAIL(test, test_and_change_bit(nr, addr));
 	KUNIT_EXPECT_KASAN_FAIL(test, __test_and_change_bit(nr, addr));
 	KUNIT_EXPECT_KASAN_FAIL(test, kasan_int_result = test_bit(nr, addr));
-
-#if defined(clear_bit_unlock_is_negative_byte)
-	KUNIT_EXPECT_KASAN_FAIL(test, kasan_int_result =
-				clear_bit_unlock_is_negative_byte(nr, addr));
-#endif
+	if (nr < 7)
+		KUNIT_EXPECT_KASAN_FAIL(test, kasan_int_result =
+				xor_unlock_is_negative_byte(1 << nr, addr));
 }
 
 static void kasan_bitops_generic(struct kunit *test)

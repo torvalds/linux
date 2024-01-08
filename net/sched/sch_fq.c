@@ -919,14 +919,8 @@ static const struct nla_policy fq_policy[TCA_FQ_MAX + 1] = {
 	[TCA_FQ_TIMER_SLACK]		= { .type = NLA_U32 },
 	[TCA_FQ_HORIZON]		= { .type = NLA_U32 },
 	[TCA_FQ_HORIZON_DROP]		= { .type = NLA_U8 },
-	[TCA_FQ_PRIOMAP]		= {
-			.type = NLA_BINARY,
-			.len = sizeof(struct tc_prio_qopt),
-		},
-	[TCA_FQ_WEIGHTS]		= {
-			.type = NLA_BINARY,
-			.len = FQ_BANDS * sizeof(s32),
-		},
+	[TCA_FQ_PRIOMAP]		= NLA_POLICY_EXACT_LEN(sizeof(struct tc_prio_qopt)),
+	[TCA_FQ_WEIGHTS]		= NLA_POLICY_EXACT_LEN(FQ_BANDS * sizeof(s32)),
 };
 
 /* compress a u8 array with all elems <= 3 to an array of 2-bit fields */

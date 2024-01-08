@@ -999,6 +999,37 @@ static void init_32bit_cpu_features(struct cpuinfo_32bit *info)
 	init_cpu_ftr_reg(SYS_MVFR2_EL1, info->reg_mvfr2);
 }
 
+#ifdef CONFIG_ARM64_PSEUDO_NMI
+static bool enable_pseudo_nmi;
+
+static int __init early_enable_pseudo_nmi(char *p)
+{
+	return kstrtobool(p, &enable_pseudo_nmi);
+}
+early_param("irqchip.gicv3_pseudo_nmi", early_enable_pseudo_nmi);
+
+static __init void detect_system_supports_pseudo_nmi(void)
+{
+	struct device_node *np;
+
+	if (!enable_pseudo_nmi)
+		return;
+
+	/*
+	 * Detect broken MediaTek firmware that doesn't properly save and
+	 * restore GIC priorities.
+	 */
+	np = of_find_compatible_node(NULL, NULL, "arm,gic-v3");
+	if (np && of_property_read_bool(np, "mediatek,broken-save-restore-fw")) {
+		pr_info("Pseudo-NMI disabled due to MediaTek Chromebook GICR save problem\n");
+		enable_pseudo_nmi = false;
+	}
+	of_node_put(np);
+}
+#else /* CONFIG_ARM64_PSEUDO_NMI */
+static inline void detect_system_supports_pseudo_nmi(void) { }
+#endif
+
 void __init init_cpu_features(struct cpuinfo_arm64 *info)
 {
 	/* Before we start using the tables, make sure it is sorted */
@@ -1056,6 +1087,13 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 	 * handle the boot CPU below.
 	 */
 	init_cpucap_indirect_list();
+
+	/*
+	 * Detect broken pseudo-NMI. Must be called _before_ the call to
+	 * setup_boot_cpu_capabilities() since it interacts with
+	 * can_use_gic_priorities().
+	 */
+	detect_system_supports_pseudo_nmi();
 
 	/*
 	 * Detect and enable early CPU capabilities based on the boot CPU,
@@ -1801,6 +1839,10 @@ static int __init __kpti_install_ng_mappings(void *__unused)
 
 static void __init kpti_install_ng_mappings(void)
 {
+	/* Check whether KPTI is going to be used */
+	if (!cpus_have_cap(ARM64_UNMAP_KERNEL_AT_EL0))
+		return;
+
 	/*
 	 * We don't need to rewrite the page-tables if either we've done
 	 * it already or we have KASLR enabled and therefore have not
@@ -2085,14 +2127,6 @@ static void cpu_enable_e0pd(struct arm64_cpu_capabilities const *cap)
 #endif /* CONFIG_ARM64_E0PD */
 
 #ifdef CONFIG_ARM64_PSEUDO_NMI
-static bool enable_pseudo_nmi;
-
-static int __init early_enable_pseudo_nmi(char *p)
-{
-	return kstrtobool(p, &enable_pseudo_nmi);
-}
-early_param("irqchip.gicv3_pseudo_nmi", early_enable_pseudo_nmi);
-
 static bool can_use_gic_priorities(const struct arm64_cpu_capabilities *entry,
 				   int scope)
 {

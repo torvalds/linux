@@ -1658,6 +1658,7 @@ static inline int __tcf_classify(struct sk_buff *skb,
 				 int act_index,
 				 u32 *last_executed_chain)
 {
+	u32 orig_reason = res->drop_reason;
 #ifdef CONFIG_NET_CLS_ACT
 	const int max_reclassify_loop = 16;
 	const struct tcf_proto *first_tp;
@@ -1712,8 +1713,14 @@ reclassify:
 			goto reset;
 		}
 #endif
-		if (err >= 0)
+		if (err >= 0) {
+			/* Policy drop or drop reason is over-written by
+			 * classifiers with a bogus value(0) */
+			if (err == TC_ACT_SHOT &&
+			    res->drop_reason == SKB_NOT_DROPPED_YET)
+				tcf_set_drop_reason(res, orig_reason);
 			return err;
+		}
 	}
 
 	if (unlikely(n)) {

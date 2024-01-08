@@ -55,7 +55,6 @@ struct btree_update {
 	unsigned			update_level;
 
 	struct disk_reservation		disk_res;
-	struct journal_preres		journal_preres;
 
 	/*
 	 * BTREE_INTERIOR_UPDATING_NODE:
@@ -271,7 +270,7 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 	struct btree_node_entry *bne = max(write_block(b),
 			(void *) btree_bkey_last(b, bset_tree_last(b)));
 	ssize_t remaining_space =
-		__bch_btree_u64s_remaining(c, b, &bne->keys.start[0]);
+		__bch_btree_u64s_remaining(c, b, bne->keys.start);
 
 	if (unlikely(bset_written(b, bset(b, t)))) {
 		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))
@@ -303,7 +302,7 @@ static inline void push_whiteout(struct bch_fs *c, struct btree *b,
 	k.needs_whiteout = true;
 
 	b->whiteout_u64s += k.u64s;
-	bkey_copy(unwritten_whiteouts_start(c, b), &k);
+	bkey_p_copy(unwritten_whiteouts_start(c, b), &k);
 }
 
 /*
@@ -325,7 +324,7 @@ bool bch2_btree_interior_updates_flush(struct bch_fs *);
 
 void bch2_journal_entry_to_btree_root(struct bch_fs *, struct jset_entry *);
 struct jset_entry *bch2_btree_roots_to_journal_entries(struct bch_fs *,
-					struct jset_entry *, struct jset_entry *);
+					struct jset_entry *, unsigned long);
 
 void bch2_do_pending_node_rewrites(struct bch_fs *);
 void bch2_free_pending_node_rewrites(struct bch_fs *);

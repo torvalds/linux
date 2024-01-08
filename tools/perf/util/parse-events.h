@@ -44,7 +44,6 @@ static inline int parse_events(struct evlist *evlist, const char *str,
 
 int parse_event(struct evlist *evlist, const char *str);
 
-int parse_events_terms(struct list_head *terms, const char *str, FILE *input);
 int parse_filter(const struct option *opt, const char *str, int unset);
 int exclude_perf(const struct option *opt, const char *arg, int unset);
 
@@ -140,6 +139,11 @@ struct parse_events_error {
 	char *first_help;
 };
 
+/* A wrapper around a list of terms for the sake of better type safety. */
+struct parse_events_terms {
+	struct list_head terms;
+};
+
 struct parse_events_state {
 	/* The list parsed events are placed on. */
 	struct list_head	   list;
@@ -148,7 +152,7 @@ struct parse_events_state {
 	/* Error information. */
 	struct parse_events_error *error;
 	/* Holds returned terms for term parsing. */
-	struct list_head	  *terms;
+	struct parse_events_terms *terms;
 	/* Start token. */
 	int			   stoken;
 	/* Special fake PMU marker for testing. */
@@ -181,35 +185,38 @@ int parse_events_term__term(struct parse_events_term **term,
 int parse_events_term__clone(struct parse_events_term **new,
 			     struct parse_events_term *term);
 void parse_events_term__delete(struct parse_events_term *term);
-void parse_events_terms__delete(struct list_head *terms);
-void parse_events_terms__purge(struct list_head *terms);
-int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb);
+
+void parse_events_terms__delete(struct parse_events_terms *terms);
+void parse_events_terms__init(struct parse_events_terms *terms);
+void parse_events_terms__exit(struct parse_events_terms *terms);
+int parse_events_terms(struct parse_events_terms *terms, const char *str, FILE *input);
+int parse_events_terms__to_strbuf(const struct parse_events_terms *terms, struct strbuf *sb);
 int parse_events__modifier_event(struct list_head *list, char *str, bool add);
 int parse_events__modifier_group(struct list_head *list, char *event_mod);
 int parse_events_name(struct list_head *list, const char *name);
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				const char *sys, const char *event,
 				struct parse_events_error *error,
-				struct list_head *head_config, void *loc);
+				struct parse_events_terms *head_config, void *loc);
 int parse_events_add_numeric(struct parse_events_state *parse_state,
 			     struct list_head *list,
 			     u32 type, u64 config,
-			     struct list_head *head_config,
+			     struct parse_events_terms *head_config,
 			     bool wildcard);
 int parse_events_add_tool(struct parse_events_state *parse_state,
 			  struct list_head *list,
 			  int tool_event);
 int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 			   struct parse_events_state *parse_state,
-			   struct list_head *head_config);
+			   struct parse_events_terms *head_config);
 int parse_events__decode_legacy_cache(const char *name, int pmu_type, __u64 *config);
 int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 				struct list_head *list,
 				u64 addr, char *type, u64 len,
-				struct list_head *head_config);
+				struct parse_events_terms *head_config);
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, const char *name,
-			 struct list_head *head_config,
+			 const struct parse_events_terms *const_parsed_terms,
 			bool auto_merge_stats, void *loc);
 
 struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
@@ -217,12 +224,9 @@ struct evsel *parse_events__add_event(int idx, struct perf_event_attr *attr,
 				      struct perf_pmu *pmu);
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
-			       char *str,
-			       struct list_head *head_config,
+			       const char *event_name,
+			       const struct parse_events_terms *const_parsed_terms,
 			       struct list_head **listp, void *loc);
-
-int parse_events_copy_term_list(struct list_head *old,
-				 struct list_head **new);
 
 void parse_events__set_leader(char *name, struct list_head *list);
 void parse_events_update_lists(struct list_head *list_event,

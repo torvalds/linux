@@ -508,9 +508,8 @@ static void __ccs_update_exposure_limits(struct ccs_sensor *sensor)
 	struct v4l2_ctrl *ctrl = sensor->exposure;
 	int max;
 
-	max = sensor->pixel_array->crop[CCS_PA_PAD_SRC].height
-		+ sensor->vblank->val
-		- CCS_LIM(sensor, COARSE_INTEGRATION_TIME_MAX_MARGIN);
+	max = sensor->pa_src.height + sensor->vblank->val -
+		CCS_LIM(sensor, COARSE_INTEGRATION_TIME_MAX_MARGIN);
 
 	__v4l2_ctrl_modify_range(ctrl, ctrl->minimum, max, ctrl->step, max);
 }
@@ -728,15 +727,12 @@ static int ccs_set_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_VBLANK:
 		rval = ccs_write(sensor, FRAME_LENGTH_LINES,
-				 sensor->pixel_array->crop[
-					 CCS_PA_PAD_SRC].height
-				 + ctrl->val);
+				 sensor->pa_src.height + ctrl->val);
 
 		break;
 	case V4L2_CID_HBLANK:
 		rval = ccs_write(sensor, LINE_LENGTH_PCK,
-				 sensor->pixel_array->crop[CCS_PA_PAD_SRC].width
-				 + ctrl->val);
+				 sensor->pa_src.width + ctrl->val);
 
 		break;
 	case V4L2_CID_TEST_PATTERN:
@@ -1214,15 +1210,13 @@ static void ccs_update_blanking(struct ccs_sensor *sensor)
 
 	min = max_t(int,
 		    CCS_LIM(sensor, MIN_FRAME_BLANKING_LINES),
-		    min_fll - sensor->pixel_array->crop[CCS_PA_PAD_SRC].height);
-	max = max_fll -	sensor->pixel_array->crop[CCS_PA_PAD_SRC].height;
+		    min_fll - sensor->pa_src.height);
+	max = max_fll -	sensor->pa_src.height;
 
 	__v4l2_ctrl_modify_range(vblank, min, max, vblank->step, min);
 
-	min = max_t(int,
-		    min_llp - sensor->pixel_array->crop[CCS_PA_PAD_SRC].width,
-		    min_lbp);
-	max = max_llp - sensor->pixel_array->crop[CCS_PA_PAD_SRC].width;
+	min = max_t(int, min_llp - sensor->pa_src.width, min_lbp);
+	max = max_llp - sensor->pa_src.width;
 
 	__v4l2_ctrl_modify_range(hblank, min, max, hblank->step, min);
 
@@ -1246,10 +1240,8 @@ static int ccs_pll_blanking_update(struct ccs_sensor *sensor)
 
 	dev_dbg(&client->dev, "real timeperframe\t100/%d\n",
 		sensor->pll.pixel_rate_pixel_array /
-		((sensor->pixel_array->crop[CCS_PA_PAD_SRC].width
-		  + sensor->hblank->val) *
-		 (sensor->pixel_array->crop[CCS_PA_PAD_SRC].height
-		  + sensor->vblank->val) / 100));
+		((sensor->pa_src.width + sensor->hblank->val) *
+		 (sensor->pa_src.height + sensor->vblank->val) / 100));
 
 	return 0;
 }
@@ -1756,28 +1748,22 @@ static int ccs_start_streaming(struct ccs_sensor *sensor)
 		goto out;
 
 	/* Analog crop start coordinates */
-	rval = ccs_write(sensor, X_ADDR_START,
-			 sensor->pixel_array->crop[CCS_PA_PAD_SRC].left);
+	rval = ccs_write(sensor, X_ADDR_START, sensor->pa_src.left);
 	if (rval < 0)
 		goto out;
 
-	rval = ccs_write(sensor, Y_ADDR_START,
-			 sensor->pixel_array->crop[CCS_PA_PAD_SRC].top);
+	rval = ccs_write(sensor, Y_ADDR_START, sensor->pa_src.top);
 	if (rval < 0)
 		goto out;
 
 	/* Analog crop end coordinates */
-	rval = ccs_write(
-		sensor, X_ADDR_END,
-		sensor->pixel_array->crop[CCS_PA_PAD_SRC].left
-		+ sensor->pixel_array->crop[CCS_PA_PAD_SRC].width - 1);
+	rval = ccs_write(sensor, X_ADDR_END,
+			 sensor->pa_src.left + sensor->pa_src.width - 1);
 	if (rval < 0)
 		goto out;
 
-	rval = ccs_write(
-		sensor, Y_ADDR_END,
-		sensor->pixel_array->crop[CCS_PA_PAD_SRC].top
-		+ sensor->pixel_array->crop[CCS_PA_PAD_SRC].height - 1);
+	rval = ccs_write(sensor, Y_ADDR_END,
+			 sensor->pa_src.top + sensor->pa_src.height - 1);
 	if (rval < 0)
 		goto out;
 
@@ -1789,27 +1775,23 @@ static int ccs_start_streaming(struct ccs_sensor *sensor)
 	/* Digital crop */
 	if (CCS_LIM(sensor, DIGITAL_CROP_CAPABILITY)
 	    == CCS_DIGITAL_CROP_CAPABILITY_INPUT_CROP) {
-		rval = ccs_write(
-			sensor, DIGITAL_CROP_X_OFFSET,
-			sensor->scaler->crop[CCS_PAD_SINK].left);
+		rval = ccs_write(sensor, DIGITAL_CROP_X_OFFSET,
+				 sensor->scaler_sink.left);
 		if (rval < 0)
 			goto out;
 
-		rval = ccs_write(
-			sensor, DIGITAL_CROP_Y_OFFSET,
-			sensor->scaler->crop[CCS_PAD_SINK].top);
+		rval = ccs_write(sensor, DIGITAL_CROP_Y_OFFSET,
+				 sensor->scaler_sink.top);
 		if (rval < 0)
 			goto out;
 
-		rval = ccs_write(
-			sensor, DIGITAL_CROP_IMAGE_WIDTH,
-			sensor->scaler->crop[CCS_PAD_SINK].width);
+		rval = ccs_write(sensor, DIGITAL_CROP_IMAGE_WIDTH,
+				 sensor->scaler_sink.width);
 		if (rval < 0)
 			goto out;
 
-		rval = ccs_write(
-			sensor, DIGITAL_CROP_IMAGE_HEIGHT,
-			sensor->scaler->crop[CCS_PAD_SINK].height);
+		rval = ccs_write(sensor, DIGITAL_CROP_IMAGE_HEIGHT,
+				 sensor->scaler_sink.height);
 		if (rval < 0)
 			goto out;
 	}
@@ -1827,12 +1809,10 @@ static int ccs_start_streaming(struct ccs_sensor *sensor)
 	}
 
 	/* Output size from sensor */
-	rval = ccs_write(sensor, X_OUTPUT_SIZE,
-			 sensor->src->crop[CCS_PAD_SRC].width);
+	rval = ccs_write(sensor, X_OUTPUT_SIZE, sensor->src_src.width);
 	if (rval < 0)
 		goto out;
-	rval = ccs_write(sensor, Y_OUTPUT_SIZE,
-			 sensor->src->crop[CCS_PAD_SRC].height);
+	rval = ccs_write(sensor, Y_OUTPUT_SIZE, sensor->src_src.height);
 	if (rval < 0)
 		goto out;
 
@@ -1922,9 +1902,6 @@ static int ccs_set_stream(struct v4l2_subdev *subdev, int enable)
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	int rval;
-
-	if (sensor->streaming == enable)
-		return 0;
 
 	if (!enable) {
 		ccs_stop_streaming(sensor);
@@ -2053,24 +2030,8 @@ static int __ccs_get_format(struct v4l2_subdev *subdev,
 			    struct v4l2_subdev_state *sd_state,
 			    struct v4l2_subdev_format *fmt)
 {
-	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
-
-	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(subdev, sd_state,
-							  fmt->pad);
-	} else {
-		struct v4l2_rect *r;
-
-		if (fmt->pad == ssd->source_pad)
-			r = &ssd->crop[ssd->source_pad];
-		else
-			r = &ssd->sink_fmt;
-
-		fmt->format.code = __ccs_get_mbus_code(subdev, fmt->pad);
-		fmt->format.width = r->width;
-		fmt->format.height = r->height;
-		fmt->format.field = V4L2_FIELD_NONE;
-	}
+	fmt->format = *v4l2_subdev_get_pad_format(subdev, sd_state, fmt->pad);
+	fmt->format.code = __ccs_get_mbus_code(subdev, fmt->pad);
 
 	return 0;
 }
@@ -2092,28 +2053,18 @@ static int ccs_get_format(struct v4l2_subdev *subdev,
 static void ccs_get_crop_compose(struct v4l2_subdev *subdev,
 				 struct v4l2_subdev_state *sd_state,
 				 struct v4l2_rect **crops,
-				 struct v4l2_rect **comps, int which)
+				 struct v4l2_rect **comps)
 {
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
 	unsigned int i;
 
-	if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		if (crops)
-			for (i = 0; i < subdev->entity.num_pads; i++)
-				crops[i] = &ssd->crop[i];
-		if (comps)
-			*comps = &ssd->compose;
-	} else {
-		if (crops) {
-			for (i = 0; i < subdev->entity.num_pads; i++)
-				crops[i] = v4l2_subdev_get_try_crop(subdev,
-								    sd_state,
-								    i);
-		}
-		if (comps)
-			*comps = v4l2_subdev_get_try_compose(subdev, sd_state,
-							     CCS_PAD_SINK);
-	}
+	if (crops)
+		for (i = 0; i < subdev->entity.num_pads; i++)
+			crops[i] =
+				v4l2_subdev_get_pad_crop(subdev, sd_state, i);
+	if (comps)
+		*comps = v4l2_subdev_get_pad_compose(subdev, sd_state,
+						     ssd->sink_pad);
 }
 
 /* Changes require propagation only on sink pad. */
@@ -2124,8 +2075,9 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
 	struct v4l2_rect *comp, *crops[CCS_PADS];
+	struct v4l2_mbus_framefmt *fmt;
 
-	ccs_get_crop_compose(subdev, sd_state, crops, &comp, which);
+	ccs_get_crop_compose(subdev, sd_state, crops, &comp);
 
 	switch (target) {
 	case V4L2_SEL_TGT_CROP:
@@ -2136,6 +2088,7 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 				sensor->scale_m = CCS_LIM(sensor, SCALER_N_MIN);
 				sensor->scaling_mode =
 					CCS_SCALING_MODE_NO_SCALING;
+				sensor->scaler_sink = *comp;
 			} else if (ssd == sensor->binner) {
 				sensor->binning_horizontal = 1;
 				sensor->binning_vertical = 1;
@@ -2144,6 +2097,11 @@ static void ccs_propagate(struct v4l2_subdev *subdev,
 		fallthrough;
 	case V4L2_SEL_TGT_COMPOSE:
 		*crops[CCS_PAD_SRC] = *comp;
+		fmt = v4l2_subdev_get_pad_format(subdev, sd_state, CCS_PAD_SRC);
+		fmt->width = comp->width;
+		fmt->height = comp->height;
+		if (which == V4L2_SUBDEV_FORMAT_ACTIVE && ssd == sensor->src)
+			sensor->src_src = *crops[CCS_PAD_SRC];
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -2252,14 +2210,12 @@ static int ccs_set_format(struct v4l2_subdev *subdev,
 		      CCS_LIM(sensor, MIN_Y_OUTPUT_SIZE),
 		      CCS_LIM(sensor, MAX_Y_OUTPUT_SIZE));
 
-	ccs_get_crop_compose(subdev, sd_state, crops, NULL, fmt->which);
+	ccs_get_crop_compose(subdev, sd_state, crops, NULL);
 
 	crops[ssd->sink_pad]->left = 0;
 	crops[ssd->sink_pad]->top = 0;
 	crops[ssd->sink_pad]->width = fmt->format.width;
 	crops[ssd->sink_pad]->height = fmt->format.height;
-	if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		ssd->sink_fmt = *crops[ssd->sink_pad];
 	ccs_propagate(subdev, sd_state, fmt->which, V4L2_SEL_TGT_CROP);
 
 	mutex_unlock(&sensor->mutex);
@@ -2482,7 +2438,7 @@ static int ccs_set_compose(struct v4l2_subdev *subdev,
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
 	struct v4l2_rect *comp, *crops[CCS_PADS];
 
-	ccs_get_crop_compose(subdev, sd_state, crops, &comp, sel->which);
+	ccs_get_crop_compose(subdev, sd_state, crops, &comp);
 
 	sel->r.top = 0;
 	sel->r.left = 0;
@@ -2501,8 +2457,8 @@ static int ccs_set_compose(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int __ccs_sel_supported(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_selection *sel)
+static int ccs_sel_supported(struct v4l2_subdev *subdev,
+			     struct v4l2_subdev_selection *sel)
 {
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
@@ -2545,33 +2501,18 @@ static int ccs_set_crop(struct v4l2_subdev *subdev,
 {
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
-	struct v4l2_rect *src_size, *crops[CCS_PADS];
-	struct v4l2_rect _r;
+	struct v4l2_rect src_size = { 0 }, *crops[CCS_PADS], *comp;
 
-	ccs_get_crop_compose(subdev, sd_state, crops, NULL, sel->which);
+	ccs_get_crop_compose(subdev, sd_state, crops, &comp);
 
-	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		if (sel->pad == ssd->sink_pad)
-			src_size = &ssd->sink_fmt;
-		else
-			src_size = &ssd->compose;
+	if (sel->pad == ssd->sink_pad) {
+		struct v4l2_mbus_framefmt *mfmt =
+			v4l2_subdev_get_pad_format(subdev, sd_state, sel->pad);
+
+		src_size.width = mfmt->width;
+		src_size.height = mfmt->height;
 	} else {
-		if (sel->pad == ssd->sink_pad) {
-			_r.left = 0;
-			_r.top = 0;
-			_r.width = v4l2_subdev_get_try_format(subdev,
-							      sd_state,
-							      sel->pad)
-				->width;
-			_r.height = v4l2_subdev_get_try_format(subdev,
-							       sd_state,
-							       sel->pad)
-				->height;
-			src_size = &_r;
-		} else {
-			src_size = v4l2_subdev_get_try_compose(
-				subdev, sd_state, ssd->sink_pad);
-		}
+		src_size = *comp;
 	}
 
 	if (ssd == sensor->src && sel->pad == CCS_PAD_SRC) {
@@ -2579,16 +2520,19 @@ static int ccs_set_crop(struct v4l2_subdev *subdev,
 		sel->r.top = 0;
 	}
 
-	sel->r.width = min(sel->r.width, src_size->width);
-	sel->r.height = min(sel->r.height, src_size->height);
+	sel->r.width = min(sel->r.width, src_size.width);
+	sel->r.height = min(sel->r.height, src_size.height);
 
-	sel->r.left = min_t(int, sel->r.left, src_size->width - sel->r.width);
-	sel->r.top = min_t(int, sel->r.top, src_size->height - sel->r.height);
+	sel->r.left = min_t(int, sel->r.left, src_size.width - sel->r.width);
+	sel->r.top = min_t(int, sel->r.top, src_size.height - sel->r.height);
 
 	*crops[sel->pad] = sel->r;
 
 	if (ssd != sensor->pixel_array && sel->pad == CCS_PAD_SINK)
 		ccs_propagate(subdev, sd_state, sel->which, V4L2_SEL_TGT_CROP);
+	else if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE &&
+		 ssd == sensor->pixel_array)
+		sensor->pa_src = sel->r;
 
 	return 0;
 }
@@ -2601,44 +2545,36 @@ static void ccs_get_native_size(struct ccs_subdev *ssd, struct v4l2_rect *r)
 	r->height = CCS_LIM(ssd->sensor, Y_ADDR_MAX) + 1;
 }
 
-static int __ccs_get_selection(struct v4l2_subdev *subdev,
-			       struct v4l2_subdev_state *sd_state,
-			       struct v4l2_subdev_selection *sel)
+static int ccs_get_selection(struct v4l2_subdev *subdev,
+			     struct v4l2_subdev_state *sd_state,
+			     struct v4l2_subdev_selection *sel)
 {
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	struct ccs_subdev *ssd = to_ccs_subdev(subdev);
 	struct v4l2_rect *comp, *crops[CCS_PADS];
-	struct v4l2_rect sink_fmt;
 	int ret;
 
-	ret = __ccs_sel_supported(subdev, sel);
+	ret = ccs_sel_supported(subdev, sel);
 	if (ret)
 		return ret;
 
-	ccs_get_crop_compose(subdev, sd_state, crops, &comp, sel->which);
-
-	if (sel->which == V4L2_SUBDEV_FORMAT_ACTIVE) {
-		sink_fmt = ssd->sink_fmt;
-	} else {
-		struct v4l2_mbus_framefmt *fmt =
-			v4l2_subdev_get_try_format(subdev, sd_state,
-						   ssd->sink_pad);
-
-		sink_fmt.left = 0;
-		sink_fmt.top = 0;
-		sink_fmt.width = fmt->width;
-		sink_fmt.height = fmt->height;
-	}
+	ccs_get_crop_compose(subdev, sd_state, crops, &comp);
 
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_NATIVE_SIZE:
-		if (ssd == sensor->pixel_array)
+		if (ssd == sensor->pixel_array) {
 			ccs_get_native_size(ssd, &sel->r);
-		else if (sel->pad == ssd->sink_pad)
-			sel->r = sink_fmt;
-		else
+		} else if (sel->pad == ssd->sink_pad) {
+			struct v4l2_mbus_framefmt *sink_fmt =
+				v4l2_subdev_get_pad_format(subdev, sd_state,
+							   ssd->sink_pad);
+			sel->r.top = sel->r.left = 0;
+			sel->r.width = sink_fmt->width;
+			sel->r.height = sink_fmt->height;
+		} else {
 			sel->r = *comp;
+		}
 		break;
 	case V4L2_SEL_TGT_CROP:
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
@@ -2652,20 +2588,6 @@ static int __ccs_get_selection(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int ccs_get_selection(struct v4l2_subdev *subdev,
-			     struct v4l2_subdev_state *sd_state,
-			     struct v4l2_subdev_selection *sel)
-{
-	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
-	int rval;
-
-	mutex_lock(&sensor->mutex);
-	rval = __ccs_get_selection(subdev, sd_state, sel);
-	mutex_unlock(&sensor->mutex);
-
-	return rval;
-}
-
 static int ccs_set_selection(struct v4l2_subdev *subdev,
 			     struct v4l2_subdev_state *sd_state,
 			     struct v4l2_subdev_selection *sel)
@@ -2673,7 +2595,7 @@ static int ccs_set_selection(struct v4l2_subdev *subdev,
 	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
 	int ret;
 
-	ret = __ccs_sel_supported(subdev, sel);
+	ret = ccs_sel_supported(subdev, sel);
 	if (ret)
 		return ret;
 
@@ -2945,7 +2867,6 @@ static int ccs_identify_module(struct ccs_sensor *sensor)
 }
 
 static const struct v4l2_subdev_ops ccs_ops;
-static const struct v4l2_subdev_internal_ops ccs_internal_ops;
 static const struct media_entity_operations ccs_entity_ops;
 
 static int ccs_register_subdev(struct ccs_sensor *sensor,
@@ -2958,12 +2879,6 @@ static int ccs_register_subdev(struct ccs_sensor *sensor,
 
 	if (!sink_ssd)
 		return 0;
-
-	rval = media_entity_pads_init(&ssd->sd.entity, ssd->npads, ssd->pads);
-	if (rval) {
-		dev_err(&client->dev, "media_entity_pads_init failed\n");
-		return rval;
-	}
 
 	rval = v4l2_device_register_subdev(sensor->src->sd.v4l2_dev, &ssd->sd);
 	if (rval) {
@@ -3025,6 +2940,12 @@ out_err:
 static void ccs_cleanup(struct ccs_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned int i;
+
+	for (i = 0; i < sensor->ssds_used; i++) {
+		v4l2_subdev_cleanup(&sensor->ssds[2].sd);
+		media_entity_cleanup(&sensor->ssds[i].sd.entity);
+	}
 
 	device_remove_file(&client->dev, &dev_attr_nvm);
 	device_remove_file(&client->dev, &dev_attr_ident);
@@ -3032,14 +2953,17 @@ static void ccs_cleanup(struct ccs_sensor *sensor)
 	ccs_free_controls(sensor);
 }
 
-static void ccs_create_subdev(struct ccs_sensor *sensor,
-			      struct ccs_subdev *ssd, const char *name,
-			      unsigned short num_pads, u32 function)
+static int ccs_init_subdev(struct ccs_sensor *sensor,
+			   struct ccs_subdev *ssd, const char *name,
+			   unsigned short num_pads, u32 function,
+			   const char *lock_name,
+			   struct lock_class_key *lock_key)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	int rval;
 
 	if (!ssd)
-		return;
+		return 0;
 
 	if (ssd != sensor->src)
 		v4l2_subdev_init(&ssd->sd, &ccs_ops);
@@ -3053,56 +2977,69 @@ static void ccs_create_subdev(struct ccs_sensor *sensor,
 
 	v4l2_i2c_subdev_set_name(&ssd->sd, client, sensor->minfo.name, name);
 
-	ccs_get_native_size(ssd, &ssd->sink_fmt);
-
-	ssd->compose.width = ssd->sink_fmt.width;
-	ssd->compose.height = ssd->sink_fmt.height;
-	ssd->crop[ssd->source_pad] = ssd->compose;
 	ssd->pads[ssd->source_pad].flags = MEDIA_PAD_FL_SOURCE;
-	if (ssd != sensor->pixel_array) {
-		ssd->crop[ssd->sink_pad] = ssd->compose;
+	if (ssd != sensor->pixel_array)
 		ssd->pads[ssd->sink_pad].flags = MEDIA_PAD_FL_SINK;
-	}
 
 	ssd->sd.entity.ops = &ccs_entity_ops;
 
-	if (ssd == sensor->src)
-		return;
+	if (ssd != sensor->src) {
+		ssd->sd.owner = THIS_MODULE;
+		ssd->sd.dev = &client->dev;
+		v4l2_set_subdevdata(&ssd->sd, client);
+	}
 
-	ssd->sd.internal_ops = &ccs_internal_ops;
-	ssd->sd.owner = THIS_MODULE;
-	ssd->sd.dev = &client->dev;
-	v4l2_set_subdevdata(&ssd->sd, client);
+	rval = media_entity_pads_init(&ssd->sd.entity, ssd->npads, ssd->pads);
+	if (rval) {
+		dev_err(&client->dev, "media_entity_pads_init failed\n");
+		return rval;
+	}
+
+	rval = __v4l2_subdev_init_finalize(&ssd->sd, lock_name, lock_key);
+	if (rval) {
+		media_entity_cleanup(&ssd->sd.entity);
+		return rval;
+	}
+
+	return 0;
 }
 
-static int ccs_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
+static int ccs_init_cfg(struct v4l2_subdev *sd,
+			struct v4l2_subdev_state *sd_state)
 {
 	struct ccs_subdev *ssd = to_ccs_subdev(sd);
 	struct ccs_sensor *sensor = ssd->sensor;
-	unsigned int i;
+	unsigned int pad = ssd == sensor->pixel_array ?
+		CCS_PA_PAD_SRC : CCS_PAD_SINK;
+	struct v4l2_mbus_framefmt *fmt =
+		v4l2_subdev_get_pad_format(sd, sd_state, pad);
+	struct v4l2_rect *crop =
+		v4l2_subdev_get_pad_crop(sd, sd_state, pad);
+	bool is_active = !sd->active_state || sd->active_state == sd_state;
 
 	mutex_lock(&sensor->mutex);
 
-	for (i = 0; i < ssd->npads; i++) {
-		struct v4l2_mbus_framefmt *try_fmt =
-			v4l2_subdev_get_try_format(sd, fh->state, i);
-		struct v4l2_rect *try_crop =
-			v4l2_subdev_get_try_crop(sd, fh->state, i);
-		struct v4l2_rect *try_comp;
+	ccs_get_native_size(ssd, crop);
 
-		ccs_get_native_size(ssd, try_crop);
+	fmt->width = crop->width;
+	fmt->height = crop->height;
+	fmt->code = sensor->internal_csi_format->code;
+	fmt->field = V4L2_FIELD_NONE;
 
-		try_fmt->width = try_crop->width;
-		try_fmt->height = try_crop->height;
-		try_fmt->code = sensor->internal_csi_format->code;
-		try_fmt->field = V4L2_FIELD_NONE;
+	if (ssd == sensor->pixel_array) {
+		if (is_active)
+			sensor->pa_src = *crop;
 
-		if (ssd != sensor->pixel_array)
-			continue;
-
-		try_comp = v4l2_subdev_get_try_compose(sd, fh->state, i);
-		*try_comp = *try_crop;
+		mutex_unlock(&sensor->mutex);
+		return 0;
 	}
+
+	fmt = v4l2_subdev_get_pad_format(sd, sd_state, CCS_PAD_SRC);
+	fmt->code = ssd == sensor->src ?
+		sensor->csi_format->code : sensor->internal_csi_format->code;
+	fmt->field = V4L2_FIELD_NONE;
+
+	ccs_propagate(sd, sd_state, is_active, V4L2_SEL_TGT_CROP);
 
 	mutex_unlock(&sensor->mutex);
 
@@ -3116,6 +3053,7 @@ static const struct v4l2_subdev_video_ops ccs_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ccs_pad_ops = {
+	.init_cfg = ccs_init_cfg,
 	.enum_mbus_code = ccs_enum_mbus_code,
 	.get_fmt = ccs_get_format,
 	.set_fmt = ccs_set_format,
@@ -3141,52 +3079,11 @@ static const struct media_entity_operations ccs_entity_ops = {
 static const struct v4l2_subdev_internal_ops ccs_internal_src_ops = {
 	.registered = ccs_registered,
 	.unregistered = ccs_unregistered,
-	.open = ccs_open,
-};
-
-static const struct v4l2_subdev_internal_ops ccs_internal_ops = {
-	.open = ccs_open,
 };
 
 /* -----------------------------------------------------------------------------
  * I2C Driver
  */
-
-static int __maybe_unused ccs_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
-	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
-	bool streaming = sensor->streaming;
-	int rval;
-
-	rval = pm_runtime_resume_and_get(dev);
-	if (rval < 0)
-		return rval;
-
-	if (sensor->streaming)
-		ccs_stop_streaming(sensor);
-
-	/* save state for resume */
-	sensor->streaming = streaming;
-
-	return 0;
-}
-
-static int __maybe_unused ccs_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *subdev = i2c_get_clientdata(client);
-	struct ccs_sensor *sensor = to_ccs_sensor(subdev);
-	int rval = 0;
-
-	pm_runtime_put(dev);
-
-	if (sensor->streaming)
-		rval = ccs_start_streaming(sensor);
-
-	return rval;
-}
 
 static int ccs_get_hwconfig(struct ccs_sensor *sensor, struct device *dev)
 {
@@ -3311,6 +3208,8 @@ static int ccs_firmware_name(struct i2c_client *client,
 
 static int ccs_probe(struct i2c_client *client)
 {
+	static struct lock_class_key pixel_array_lock_key, binner_lock_key,
+		scaler_lock_key;
 	const struct ccs_device *ccsdev = device_get_match_data(&client->dev);
 	struct ccs_sensor *sensor;
 	const struct firmware *fw;
@@ -3587,12 +3486,27 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->pll.ext_clk_freq_hz = sensor->hwcfg.ext_clk;
 	sensor->pll.scale_n = CCS_LIM(sensor, SCALER_N_MIN);
 
-	ccs_create_subdev(sensor, sensor->scaler, " scaler", 2,
-			  MEDIA_ENT_F_PROC_VIDEO_SCALER);
-	ccs_create_subdev(sensor, sensor->binner, " binner", 2,
-			  MEDIA_ENT_F_PROC_VIDEO_SCALER);
-	ccs_create_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
-			  MEDIA_ENT_F_CAM_SENSOR);
+	rval = ccs_get_mbus_formats(sensor);
+	if (rval) {
+		rval = -ENODEV;
+		goto out_cleanup;
+	}
+
+	rval = ccs_init_subdev(sensor, sensor->scaler, " scaler", 2,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER,
+			       "ccs scaler mutex", &scaler_lock_key);
+	if (rval)
+		goto out_cleanup;
+	rval = ccs_init_subdev(sensor, sensor->binner, " binner", 2,
+			       MEDIA_ENT_F_PROC_VIDEO_SCALER,
+			       "ccs binner mutex", &binner_lock_key);
+	if (rval)
+		goto out_cleanup;
+	rval = ccs_init_subdev(sensor, sensor->pixel_array, " pixel_array", 1,
+			       MEDIA_ENT_F_CAM_SENSOR, "ccs pixel array mutex",
+			       &pixel_array_lock_key);
+	if (rval)
+		goto out_cleanup;
 
 	rval = ccs_init_controls(sensor);
 	if (rval < 0)
@@ -3601,12 +3515,6 @@ static int ccs_probe(struct i2c_client *client)
 	rval = ccs_call_quirk(sensor, init);
 	if (rval)
 		goto out_cleanup;
-
-	rval = ccs_get_mbus_formats(sensor);
-	if (rval) {
-		rval = -ENODEV;
-		goto out_cleanup;
-	}
 
 	rval = ccs_init_late_controls(sensor);
 	if (rval) {
@@ -3625,14 +3533,9 @@ static int ccs_probe(struct i2c_client *client)
 	sensor->streaming = false;
 	sensor->dev_init_done = true;
 
-	rval = media_entity_pads_init(&sensor->src->sd.entity, 2,
-				 sensor->src->pads);
-	if (rval < 0)
-		goto out_media_entity_cleanup;
-
 	rval = ccs_write_msr_regs(sensor);
 	if (rval)
-		goto out_media_entity_cleanup;
+		goto out_cleanup;
 
 	pm_runtime_set_active(&client->dev);
 	pm_runtime_get_noresume(&client->dev);
@@ -3651,9 +3554,6 @@ static int ccs_probe(struct i2c_client *client)
 out_disable_runtime_pm:
 	pm_runtime_put_noidle(&client->dev);
 	pm_runtime_disable(&client->dev);
-
-out_media_entity_cleanup:
-	media_entity_cleanup(&sensor->src->sd.entity);
 
 out_cleanup:
 	ccs_cleanup(sensor);
@@ -3687,10 +3587,8 @@ static void ccs_remove(struct i2c_client *client)
 		ccs_power_off(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	for (i = 0; i < sensor->ssds_used; i++) {
+	for (i = 0; i < sensor->ssds_used; i++)
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
-		media_entity_cleanup(&sensor->ssds[i].sd.entity);
-	}
 	ccs_cleanup(sensor);
 	mutex_destroy(&sensor->mutex);
 	kfree(sensor->ccs_limits);
@@ -3720,7 +3618,6 @@ static const struct of_device_id ccs_of_table[] = {
 MODULE_DEVICE_TABLE(of, ccs_of_table);
 
 static const struct dev_pm_ops ccs_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ccs_suspend, ccs_resume)
 	SET_RUNTIME_PM_OPS(ccs_power_off, ccs_power_on, NULL)
 };
 

@@ -33,6 +33,11 @@ static inline bool ap_q_supports_assoc(struct ap_queue *aq)
 	return ap_test_bit(&aq->card->functions, AP_FUNC_EP11);
 }
 
+static inline bool ap_q_needs_bind(struct ap_queue *aq)
+{
+	return ap_q_supports_bind(aq) && ap_sb_available();
+}
+
 /**
  * ap_queue_enable_irq(): Enable interrupt support on this AP queue.
  * @aq: The AP queue
@@ -195,13 +200,13 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 			return AP_SM_WAIT_AGAIN;
 		}
 		aq->sm_state = AP_SM_STATE_IDLE;
-		return AP_SM_WAIT_NONE;
+		break;
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (aq->queue_count > 0)
-			return aq->interrupt ?
+			return status.irq_enabled ?
 				AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 		aq->sm_state = AP_SM_STATE_IDLE;
-		return AP_SM_WAIT_NONE;
+		break;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
 		aq->last_err_rc = status.response_code;
@@ -210,6 +215,16 @@ static enum ap_sm_wait ap_sm_read(struct ap_queue *aq)
 			    AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return AP_SM_WAIT_NONE;
 	}
+	/* Check and maybe enable irq support (again) on this queue */
+	if (!status.irq_enabled && status.queue_empty) {
+		void *lsi_ptr = ap_airq_ptr();
+
+		if (lsi_ptr && ap_queue_enable_irq(aq, lsi_ptr) == 0) {
+			aq->sm_state = AP_SM_STATE_SETIRQ_WAIT;
+			return AP_SM_WAIT_AGAIN;
+		}
+	}
+	return AP_SM_WAIT_NONE;
 }
 
 /**
@@ -249,7 +264,7 @@ static enum ap_sm_wait ap_sm_write(struct ap_queue *aq)
 		fallthrough;
 	case AP_RESPONSE_Q_FULL:
 		aq->sm_state = AP_SM_STATE_QUEUE_FULL;
-		return aq->interrupt ?
+		return status.irq_enabled ?
 			AP_SM_WAIT_INTERRUPT : AP_SM_WAIT_HIGH_TIMEOUT;
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
@@ -302,8 +317,8 @@ static enum ap_sm_wait ap_sm_reset(struct ap_queue *aq)
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 		aq->sm_state = AP_SM_STATE_RESET_WAIT;
-		aq->interrupt = false;
 		aq->rapq_fbit = 0;
+		aq->se_bound = false;
 		return AP_SM_WAIT_LOW_TIMEOUT;
 	default:
 		aq->dev_state = AP_DEV_STATE_ERROR;
@@ -377,7 +392,6 @@ static enum ap_sm_wait ap_sm_setirq_wait(struct ap_queue *aq)
 
 	if (status.irq_enabled == 1) {
 		/* Irqs are now enabled */
-		aq->interrupt = true;
 		aq->sm_state = (aq->queue_count > 0) ?
 			AP_SM_STATE_WORKING : AP_SM_STATE_IDLE;
 	}
@@ -620,16 +634,21 @@ static ssize_t interrupt_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
+	struct ap_queue_status status;
 	int rc = 0;
 
 	spin_lock_bh(&aq->lock);
-	if (aq->sm_state == AP_SM_STATE_SETIRQ_WAIT)
+	if (aq->sm_state == AP_SM_STATE_SETIRQ_WAIT) {
 		rc = sysfs_emit(buf, "Enable Interrupt pending.\n");
-	else if (aq->interrupt)
-		rc = sysfs_emit(buf, "Interrupts enabled.\n");
-	else
-		rc = sysfs_emit(buf, "Interrupts disabled.\n");
+	} else {
+		status = ap_tapq(aq->qid, NULL);
+		if (status.irq_enabled)
+			rc = sysfs_emit(buf, "Interrupts enabled.\n");
+		else
+			rc = sysfs_emit(buf, "Interrupts disabled.\n");
+	}
 	spin_unlock_bh(&aq->lock);
+
 	return rc;
 }
 
@@ -868,7 +887,12 @@ static ssize_t se_bind_store(struct device *dev,
 		}
 		status = ap_bapq(aq->qid);
 		spin_unlock_bh(&aq->lock);
-		if (status.response_code) {
+		if (!status.response_code) {
+			aq->se_bound = true;
+			AP_DBF_INFO("%s bapq(0x%02x.%04x) success\n", __func__,
+				    AP_QID_CARD(aq->qid),
+				    AP_QID_QUEUE(aq->qid));
+		} else {
 			AP_DBF_WARN("%s RC 0x%02x on bapq(0x%02x.%04x)\n",
 				    __func__, status.response_code,
 				    AP_QID_CARD(aq->qid),
@@ -1021,7 +1045,6 @@ struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type)
 	if (ap_sb_available() && is_prot_virt_guest())
 		aq->ap_dev.device.groups = ap_queue_dev_sb_attr_groups;
 	aq->qid = qid;
-	aq->interrupt = false;
 	spin_lock_init(&aq->lock);
 	INIT_LIST_HEAD(&aq->pendingq);
 	INIT_LIST_HEAD(&aq->requestq);
@@ -1072,6 +1095,42 @@ int ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg)
 	return rc;
 }
 EXPORT_SYMBOL(ap_queue_message);
+
+/**
+ * ap_queue_usable(): Check if queue is usable just now.
+ * @aq: The AP queue device to test for usability.
+ * This function is intended for the scheduler to query if it makes
+ * sense to enqueue a message into this AP queue device by calling
+ * ap_queue_message(). The perspective is very short-term as the
+ * state machine and device state(s) may change at any time.
+ */
+bool ap_queue_usable(struct ap_queue *aq)
+{
+	bool rc = true;
+
+	spin_lock_bh(&aq->lock);
+
+	/* check for not configured or checkstopped */
+	if (!aq->config || aq->chkstop) {
+		rc = false;
+		goto unlock_and_out;
+	}
+
+	/* device state needs to be ok */
+	if (aq->dev_state != AP_DEV_STATE_OPERATING) {
+		rc = false;
+		goto unlock_and_out;
+	}
+
+	/* SE guest's queues additionally need to be bound */
+	if (ap_q_needs_bind(aq) && !aq->se_bound)
+		rc = false;
+
+unlock_and_out:
+	spin_unlock_bh(&aq->lock);
+	return rc;
+}
+EXPORT_SYMBOL(ap_queue_usable);
 
 /**
  * ap_cancel_message(): Cancel a crypto request.
@@ -1160,14 +1219,19 @@ void ap_queue_remove(struct ap_queue *aq)
 	spin_unlock_bh(&aq->lock);
 }
 
-void ap_queue_init_state(struct ap_queue *aq)
+void _ap_queue_init_state(struct ap_queue *aq)
 {
-	spin_lock_bh(&aq->lock);
 	aq->dev_state = AP_DEV_STATE_OPERATING;
 	aq->sm_state = AP_SM_STATE_RESET_START;
 	aq->last_err_rc = 0;
 	aq->assoc_idx = ASSOC_IDX_INVALID;
 	ap_wait(ap_sm_event(aq, AP_SM_EVENT_POLL));
+}
+
+void ap_queue_init_state(struct ap_queue *aq)
+{
+	spin_lock_bh(&aq->lock);
+	_ap_queue_init_state(aq);
 	spin_unlock_bh(&aq->lock);
 }
 EXPORT_SYMBOL(ap_queue_init_state);

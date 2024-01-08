@@ -719,11 +719,9 @@ static int threaded_migrate(struct intel_migrate *migrate,
 		if (IS_ERR_OR_NULL(tsk))
 			continue;
 
-		status = kthread_stop(tsk);
+		status = kthread_stop_put(tsk);
 		if (status && !err)
 			err = status;
-
-		put_task_struct(tsk);
 	}
 
 	kfree(thread);

@@ -489,6 +489,7 @@ ap_i2c_audio: &i2c8 {
 		#address-cells = <3>;
 		#size-cells = <2>;
 		ranges;
+		device_type = "pci";
 	};
 };
 

@@ -9,6 +9,12 @@
 #	Patched for non-x86 by Opencon (L) 2002 <opencon@rio.skydome.net>
 #
 
+output=$1
+
+mkdir -p "$(dirname "${output}")"
+
+exec >"${output}"
+
 if grep -q CONFIG_MODULES=y include/config/auto.conf; then
 echo '%define with_devel %{?_without_devel: 0} %{?!_without_devel: 1}'
 else

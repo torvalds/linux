@@ -117,6 +117,9 @@
 		(pa) |= (UMC_V12_0_CHANNEL_HASH_CH6(channel_idx, pa) << UMC_V12_0_PA_CH6_BIT); \
 	} while (0)
 
+bool umc_v12_0_is_uncorrectable_error(uint64_t mc_umc_status);
+bool umc_v12_0_is_correctable_error(uint64_t mc_umc_status);
+
 extern const uint32_t
 	umc_v12_0_channel_idx_tbl[]
 			[UMC_V12_0_UMC_INSTANCE_NUM]

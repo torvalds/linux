@@ -923,7 +923,7 @@ fail:
  *
  * Return: Always '0'
  */
-static int msgdma_remove(struct platform_device *pdev)
+static void msgdma_remove(struct platform_device *pdev)
 {
 	struct msgdma_device *mdev = platform_get_drvdata(pdev);
 
@@ -933,8 +933,6 @@ static int msgdma_remove(struct platform_device *pdev)
 	msgdma_dev_remove(mdev);
 
 	dev_notice(&pdev->dev, "Altera mSGDMA driver removed\n");
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -952,7 +950,7 @@ static struct platform_driver msgdma_driver = {
 		.of_match_table = of_match_ptr(msgdma_match),
 	},
 	.probe = msgdma_probe,
-	.remove = msgdma_remove,
+	.remove_new = msgdma_remove,
 };
 
 module_platform_driver(msgdma_driver);

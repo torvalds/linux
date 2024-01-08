@@ -733,7 +733,7 @@ static int smu_early_init(void *handle)
 	smu->adev = adev;
 	smu->pm_enabled = !!amdgpu_dpm;
 	smu->is_apu = false;
-	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
+	smu->smu_baco.state = SMU_BACO_STATE_NONE;
 	smu->smu_baco.platform_support = false;
 	smu->user_dpm_profile.fan_mode = -1;
 
@@ -1710,7 +1710,18 @@ static int smu_disable_dpms(struct smu_context *smu)
 		}
 	}
 
+	/* Notify SMU RLC is going to be off, stop RLC and SMU interaction.
+	 * otherwise SMU will hang while interacting with RLC if RLC is halted
+	 * this is a WA for Vangogh asic which fix the SMU hang issue.
+	 */
+	ret = smu_notify_rlc_state(smu, false);
+	if (ret) {
+		dev_err(adev->dev, "Fail to notify rlc status!\n");
+		return ret;
+	}
+
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(9, 4, 2) &&
+	    !((adev->flags & AMD_IS_APU) && adev->gfx.imu.funcs) &&
 	    !amdgpu_sriov_vf(adev) && adev->gfx.rlc.funcs->stop)
 		adev->gfx.rlc.funcs->stop(adev);
 
@@ -1742,10 +1753,31 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_reset_mp1_state(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	if ((!adev->in_runpm) && (!adev->in_suspend) &&
+		(!amdgpu_in_reset(adev)))
+		switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
+		case IP_VERSION(13, 0, 0):
+		case IP_VERSION(13, 0, 7):
+		case IP_VERSION(13, 0, 10):
+			ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
+			break;
+		default:
+			break;
+		}
+
+	return ret;
+}
+
 static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
 
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
@@ -1763,7 +1795,15 @@ static int smu_hw_fini(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	return smu_smc_hw_cleanup(smu);
+	ret = smu_smc_hw_cleanup(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_reset_mp1_state(smu);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static void smu_late_fini(void *handle)
@@ -2718,7 +2758,7 @@ unlock:
 
 static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 	struct smu_context *smu = handle;
 
 	if (smu->ppt_funcs && smu->ppt_funcs->get_apu_thermal_limit)
@@ -2729,7 +2769,7 @@ static int smu_get_apu_thermal_limit(void *handle, uint32_t *limit)
 
 static int smu_set_apu_thermal_limit(void *handle, uint32_t limit)
 {
-	int ret = -EINVAL;
+	int ret = -EOPNOTSUPP;
 	struct smu_context *smu = handle;
 
 	if (smu->ppt_funcs && smu->ppt_funcs->set_apu_thermal_limit)

@@ -13,47 +13,10 @@
  * more details.
  */
 
-#ifndef __INPUT_SYSTEM_PUBLIC_H_INCLUDED__
-#define __INPUT_SYSTEM_PUBLIC_H_INCLUDED__
+#ifndef __INPUT_SYSTEM_2400_PUBLIC_H_INCLUDED__
+#define __INPUT_SYSTEM_2400_PUBLIC_H_INCLUDED__
 
 #include <type_support.h>
-#ifdef ISP2401
-#include "isys_public.h"
-#else
-
-typedef struct input_system_state_s		input_system_state_t;
-typedef struct receiver_state_s			receiver_state_t;
-
-/*! Read the state of INPUT_SYSTEM[ID]
-
- \param	ID[in]				INPUT_SYSTEM identifier
- \param	state[out]			input system state structure
-
- \return none, state = INPUT_SYSTEM[ID].state
- */
-void input_system_get_state(
-    const input_system_ID_t		ID,
-    input_system_state_t		*state);
-
-/*! Read the state of RECEIVER[ID]
-
- \param	ID[in]				RECEIVER identifier
- \param	state[out]			receiver state structure
-
- \return none, state = RECEIVER[ID].state
- */
-void receiver_get_state(
-    const rx_ID_t				ID,
-    receiver_state_t			*state);
-
-/*! Flag whether a MIPI format is YUV420
-
- \param	mipi_format[in]		MIPI format
-
- \return mipi_format == YUV420
- */
-bool is_mipi_format_yuv420(
-    const mipi_format_t			mipi_format);
 
 /*! Set compression parameters for cfg[cfg_ID] of RECEIVER[ID]
 
@@ -365,6 +328,5 @@ input_system_err_t	input_system_gpfifo_channel_cfg(
     u32		nof_frames,
     target_cfg2400_t	target
 );
-#endif /* #ifdef ISP2401 */
 
 #endif /* __INPUT_SYSTEM_PUBLIC_H_INCLUDED__ */

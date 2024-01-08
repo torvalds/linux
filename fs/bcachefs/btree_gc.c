@@ -95,15 +95,15 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			bch2_bkey_val_to_text(&buf2, c, bkey_i_to_s_c(cur.k));
 
 			if (__fsck_err(c,
-				  FSCK_CAN_FIX|
-				  FSCK_CAN_IGNORE|
-				  FSCK_NO_RATELIMIT,
-				  "btree node with incorrect min_key at btree %s level %u:\n"
-				  "  prev %s\n"
-				  "  cur %s",
-				  bch2_btree_ids[b->c.btree_id], b->c.level,
-				  buf1.buf, buf2.buf) &&
-			    should_restart_for_topology_repair(c)) {
+				       FSCK_CAN_FIX|
+				       FSCK_CAN_IGNORE|
+				       FSCK_NO_RATELIMIT,
+				       btree_node_topology_bad_min_key,
+				       "btree node with incorrect min_key at btree %s level %u:\n"
+				       "  prev %s\n"
+				       "  cur %s",
+				       bch2_btree_id_str(b->c.btree_id), b->c.level,
+				       buf1.buf, buf2.buf) && should_restart_for_topology_repair(c)) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
 				ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
 				goto err;
@@ -122,14 +122,12 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 		bch2_bkey_val_to_text(&buf1, c, bkey_i_to_s_c(cur.k));
 		bch2_bpos_to_text(&buf2, node_end);
 
-		if (__fsck_err(c,
-			  FSCK_CAN_FIX|
-			  FSCK_CAN_IGNORE|
-			  FSCK_NO_RATELIMIT,
+		if (__fsck_err(c, FSCK_CAN_FIX|FSCK_CAN_IGNORE|FSCK_NO_RATELIMIT,
+			  btree_node_topology_bad_max_key,
 			  "btree node with incorrect max_key at btree %s level %u:\n"
 			  "  %s\n"
 			  "  expected %s",
-			  bch2_btree_ids[b->c.btree_id], b->c.level,
+			  bch2_btree_id_str(b->c.btree_id), b->c.level,
 			  buf1.buf, buf2.buf) &&
 		    should_restart_for_topology_repair(c)) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
@@ -287,10 +285,11 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 
 		if (mustfix_fsck_err_on(bpos_ge(prev->data->min_key,
 						cur->data->min_key), c,
+				btree_node_topology_overwritten_by_next_node,
 				"btree node overwritten by next node at btree %s level %u:\n"
 				"  node %s\n"
 				"  next %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf)) {
 			ret = DROP_PREV_NODE;
 			goto out;
@@ -298,10 +297,11 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 
 		if (mustfix_fsck_err_on(!bpos_eq(prev->key.k.p,
 						 bpos_predecessor(cur->data->min_key)), c,
+				btree_node_topology_bad_max_key,
 				"btree node with incorrect max_key at btree %s level %u:\n"
 				"  node %s\n"
 				"  next %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf))
 			ret = set_node_max(c, prev,
 					   bpos_predecessor(cur->data->min_key));
@@ -310,20 +310,22 @@ static int btree_repair_node_boundaries(struct bch_fs *c, struct btree *b,
 
 		if (mustfix_fsck_err_on(bpos_ge(expected_start,
 						cur->data->max_key), c,
+				btree_node_topology_overwritten_by_prev_node,
 				"btree node overwritten by prev node at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf)) {
 			ret = DROP_THIS_NODE;
 			goto out;
 		}
 
 		if (mustfix_fsck_err_on(!bpos_eq(expected_start, cur->data->min_key), c,
+				btree_node_topology_bad_min_key,
 				"btree node with incorrect min_key at btree %s level %u:\n"
 				"  prev %s\n"
 				"  node %s",
-				bch2_btree_ids[b->c.btree_id], b->c.level,
+				bch2_btree_id_str(b->c.btree_id), b->c.level,
 				buf1.buf, buf2.buf))
 			ret = set_node_min(c, cur, expected_start);
 	}
@@ -344,10 +346,11 @@ static int btree_repair_node_end(struct bch_fs *c, struct btree *b,
 	bch2_bpos_to_text(&buf2, b->key.k.p);
 
 	if (mustfix_fsck_err_on(!bpos_eq(child->key.k.p, b->key.k.p), c,
+				btree_node_topology_bad_max_key,
 			"btree node with incorrect max_key at btree %s level %u:\n"
 			"  %s\n"
 			"  expected %s",
-			bch2_btree_ids[b->c.btree_id], b->c.level,
+			bch2_btree_id_str(b->c.btree_id), b->c.level,
 			buf1.buf, buf2.buf)) {
 		ret = set_node_max(c, child, b->key.k.p);
 		if (ret)
@@ -396,9 +399,10 @@ again:
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
 		if (mustfix_fsck_err_on(ret == -EIO, c,
+				btree_node_unreadable,
 				"Topology repair: unreadable btree node at btree %s level %u:\n"
 				"  %s",
-				bch2_btree_ids[b->c.btree_id],
+				bch2_btree_id_str(b->c.btree_id),
 				b->c.level - 1,
 				buf.buf)) {
 			bch2_btree_node_evict(trans, cur_k.k);
@@ -504,9 +508,10 @@ again:
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
 	if (mustfix_fsck_err_on(!have_child, c,
+			btree_node_topology_interior_node_empty,
 			"empty interior btree node at btree %s level %u\n"
 			"  %s",
-			bch2_btree_ids[b->c.btree_id],
+			bch2_btree_id_str(b->c.btree_id),
 			b->c.level, buf.buf))
 		ret = DROP_THIS_NODE;
 err:
@@ -582,7 +587,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		if (!g->gen_valid &&
 		    (c->opts.reconstruct_alloc ||
-		     fsck_err(c, "bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
+		     fsck_err(c, ptr_to_missing_alloc_key,
+			      "bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
@@ -599,7 +605,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		if (gen_cmp(p.ptr.gen, g->gen) > 0 &&
 		    (c->opts.reconstruct_alloc ||
-		     fsck_err(c, "bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
+		     fsck_err(c, ptr_gen_newer_than_bucket_gen,
+			      "bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
@@ -620,7 +627,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		if (gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX &&
 		    (c->opts.reconstruct_alloc ||
-		     fsck_err(c, "bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
+		     fsck_err(c, ptr_gen_newer_than_bucket_gen,
+			      "bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
 			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
@@ -631,7 +639,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		if (!p.ptr.cached && gen_cmp(p.ptr.gen, g->gen) < 0 &&
 		    (c->opts.reconstruct_alloc ||
-		     fsck_err(c, "bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
+		     fsck_err(c, stale_dirty_ptr,
+			      "bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
 			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
@@ -645,6 +654,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		if (fsck_err_on(bucket_data_type(g->data_type) &&
 				bucket_data_type(g->data_type) != data_type, c,
+				ptr_bucket_data_type_mismatch,
 				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
 				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
@@ -664,6 +674,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			struct gc_stripe *m = genradix_ptr(&c->gc_stripes, p.ec.idx);
 
 			if (fsck_err_on(!m || !m->alive, c,
+					ptr_to_missing_stripe,
 					"pointer to nonexistent stripe %llu\n"
 					"while marking %s",
 					(u64) p.ec.idx,
@@ -672,6 +683,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 				do_update = true;
 
 			if (fsck_err_on(m && m->alive && !bch2_ptr_matches_stripe_m(m, p), c,
+					ptr_to_incorrect_stripe,
 					"pointer does not match stripe %llu\n"
 					"while marking %s",
 					(u64) p.ec.idx,
@@ -811,6 +823,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 			goto err;
 
 		if (fsck_err_on(k->k->version.lo > atomic64_read(&c->key_version), c,
+				bkey_version_in_future,
 				"key version number higher than recorded: %llu > %llu",
 				k->k->version.lo,
 				atomic64_read(&c->key_version)))
@@ -968,9 +981,10 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					  FSCK_CAN_FIX|
 					  FSCK_CAN_IGNORE|
 					  FSCK_NO_RATELIMIT,
+					  btree_node_read_error,
 					  "Unreadable btree node at btree %s level %u:\n"
 					  "  %s",
-					  bch2_btree_ids[b->c.btree_id],
+					  bch2_btree_id_str(b->c.btree_id),
 					  b->c.level - 1,
 					  (printbuf_reset(&buf),
 					   bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur.k)), buf.buf)) &&
@@ -1025,6 +1039,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	printbuf_reset(&buf);
 	bch2_bpos_to_text(&buf, b->data->min_key);
 	if (mustfix_fsck_err_on(!bpos_eq(b->data->min_key, POS_MIN), c,
+				btree_root_bad_min_key,
 			"btree root with incorrect min_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
 		ret = -BCH_ERR_fsck_repair_unimplemented;
@@ -1034,6 +1049,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	printbuf_reset(&buf);
 	bch2_bpos_to_text(&buf, b->data->max_key);
 	if (mustfix_fsck_err_on(!bpos_eq(b->data->max_key, SPOS_MAX), c,
+				btree_root_bad_max_key,
 			"btree root with incorrect max_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
 		ret = -BCH_ERR_fsck_repair_unimplemented;
@@ -1207,16 +1223,16 @@ static int bch2_gc_done(struct bch_fs *c,
 
 	percpu_down_write(&c->mark_lock);
 
-#define copy_field(_f, _msg, ...)					\
+#define copy_field(_err, _f, _msg, ...)					\
 	if (dst->_f != src->_f &&					\
 	    (!verify ||							\
-	     fsck_err(c, _msg ": got %llu, should be %llu"		\
+	     fsck_err(c, _err, _msg ": got %llu, should be %llu"	\
 		      , ##__VA_ARGS__, dst->_f, src->_f)))		\
 		dst->_f = src->_f
-#define copy_dev_field(_f, _msg, ...)					\
-	copy_field(_f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
-#define copy_fs_field(_f, _msg, ...)					\
-	copy_field(_f, "fs has wrong " _msg, ##__VA_ARGS__)
+#define copy_dev_field(_err, _f, _msg, ...)				\
+	copy_field(_err, _f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
+#define copy_fs_field(_err, _f, _msg, ...)				\
+	copy_field(_err, _f, "fs has wrong " _msg, ##__VA_ARGS__)
 
 	for (i = 0; i < ARRAY_SIZE(c->usage); i++)
 		bch2_fs_usage_acc_to_base(c, i);
@@ -1227,13 +1243,17 @@ static int bch2_gc_done(struct bch_fs *c,
 			bch2_acc_percpu_u64s((u64 __percpu *) ca->usage_gc,
 					     dev_usage_u64s());
 
-		copy_dev_field(buckets_ec,		"buckets_ec");
-
 		for (i = 0; i < BCH_DATA_NR; i++) {
-			copy_dev_field(d[i].buckets,	"%s buckets", bch2_data_types[i]);
-			copy_dev_field(d[i].sectors,	"%s sectors", bch2_data_types[i]);
-			copy_dev_field(d[i].fragmented,	"%s fragmented", bch2_data_types[i]);
+			copy_dev_field(dev_usage_buckets_wrong,
+				       d[i].buckets,	"%s buckets", bch2_data_types[i]);
+			copy_dev_field(dev_usage_sectors_wrong,
+				       d[i].sectors,	"%s sectors", bch2_data_types[i]);
+			copy_dev_field(dev_usage_fragmented_wrong,
+				       d[i].fragmented,	"%s fragmented", bch2_data_types[i]);
 		}
+
+		copy_dev_field(dev_usage_buckets_ec_wrong,
+			       buckets_ec,		"buckets_ec");
 	}
 
 	{
@@ -1242,17 +1262,24 @@ static int bch2_gc_done(struct bch_fs *c,
 		struct bch_fs_usage *src = (void *)
 			bch2_acc_percpu_u64s((u64 __percpu *) c->usage_gc, nr);
 
-		copy_fs_field(hidden,		"hidden");
-		copy_fs_field(btree,		"btree");
+		copy_fs_field(fs_usage_hidden_wrong,
+			      hidden,		"hidden");
+		copy_fs_field(fs_usage_btree_wrong,
+			      btree,		"btree");
 
 		if (!metadata_only) {
-			copy_fs_field(data,	"data");
-			copy_fs_field(cached,	"cached");
-			copy_fs_field(reserved,	"reserved");
-			copy_fs_field(nr_inodes,"nr_inodes");
+			copy_fs_field(fs_usage_data_wrong,
+				      data,	"data");
+			copy_fs_field(fs_usage_cached_wrong,
+				      cached,	"cached");
+			copy_fs_field(fs_usage_reserved_wrong,
+				      reserved,	"reserved");
+			copy_fs_field(fs_usage_nr_inodes_wrong,
+				      nr_inodes,"nr_inodes");
 
 			for (i = 0; i < BCH_REPLICAS_MAX; i++)
-				copy_fs_field(persistent_reserved[i],
+				copy_fs_field(fs_usage_persistent_reserved_wrong,
+					      persistent_reserved[i],
 					      "persistent_reserved[%i]", i);
 		}
 
@@ -1268,7 +1295,8 @@ static int bch2_gc_done(struct bch_fs *c,
 			printbuf_reset(&buf);
 			bch2_replicas_entry_to_text(&buf, e);
 
-			copy_fs_field(replicas[i], "%s", buf.buf);
+			copy_fs_field(fs_usage_replicas_wrong,
+				      replicas[i], "%s", buf.buf);
 		}
 	}
 
@@ -1404,6 +1432,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 
 	if (c->opts.reconstruct_alloc ||
 	    fsck_err_on(new.data_type != gc.data_type, c,
+			alloc_key_data_type_wrong,
 			"bucket %llu:%llu gen %u has wrong data_type"
 			": got %s, should be %s",
 			iter->pos.inode, iter->pos.offset,
@@ -1412,9 +1441,9 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 			bch2_data_types[gc.data_type]))
 		new.data_type = gc.data_type;
 
-#define copy_bucket_field(_f)						\
+#define copy_bucket_field(_errtype, _f)					\
 	if (c->opts.reconstruct_alloc ||				\
-	    fsck_err_on(new._f != gc._f, c,				\
+	    fsck_err_on(new._f != gc._f, c, _errtype,			\
 			"bucket %llu:%llu gen %u data type %s has wrong " #_f	\
 			": got %u, should be %u",			\
 			iter->pos.inode, iter->pos.offset,		\
@@ -1423,11 +1452,16 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 			new._f, gc._f))					\
 		new._f = gc._f;						\
 
-	copy_bucket_field(gen);
-	copy_bucket_field(dirty_sectors);
-	copy_bucket_field(cached_sectors);
-	copy_bucket_field(stripe_redundancy);
-	copy_bucket_field(stripe);
+	copy_bucket_field(alloc_key_gen_wrong,
+			  gen);
+	copy_bucket_field(alloc_key_dirty_sectors_wrong,
+			  dirty_sectors);
+	copy_bucket_field(alloc_key_cached_sectors_wrong,
+			  cached_sectors);
+	copy_bucket_field(alloc_key_stripe_wrong,
+			  stripe);
+	copy_bucket_field(alloc_key_stripe_redundancy_wrong,
+			  stripe_redundancy);
 #undef copy_bucket_field
 
 	if (!bch2_alloc_v4_cmp(*old, new))
@@ -1507,8 +1541,8 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 		rcu_assign_pointer(ca->buckets_gc, buckets);
 	}
 
-	for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
+	ret = for_each_btree_key2(trans, iter, BTREE_ID_alloc, POS_MIN,
+				  BTREE_ITER_PREFETCH, k, ({
 		ca = bch_dev_bkey_exists(c, k.k->p.inode);
 		g = gc_bucket(ca, k.k->p.offset);
 
@@ -1527,8 +1561,9 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 			g->stripe		= a->stripe;
 			g->stripe_redundancy	= a->stripe_redundancy;
 		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
+
+		0;
+	}));
 err:
 	bch2_trans_put(trans);
 	if (ret)
@@ -1584,6 +1619,7 @@ static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 	}
 
 	if (fsck_err_on(r->refcount != le64_to_cpu(*refcount), c,
+			reflink_v_refcount_wrong,
 			"reflink key has wrong refcount:\n"
 			"  %s\n"
 			"  should be %u",
@@ -1709,7 +1745,8 @@ static int bch2_gc_write_stripes_key(struct btree_trans *trans,
 	if (bad)
 		bch2_bkey_val_to_text(&buf, c, k);
 
-	if (fsck_err_on(bad, c, "%s", buf.buf)) {
+	if (fsck_err_on(bad, c, stripe_sector_count_wrong,
+			"%s", buf.buf)) {
 		struct bkey_i_stripe *new;
 
 		new = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
@@ -1954,18 +1991,16 @@ int bch2_gc_gens(struct bch_fs *c)
 	trans = bch2_trans_get(c);
 
 	for_each_member_device(ca, c, i) {
-		struct bucket_gens *gens;
+		struct bucket_gens *gens = bucket_gens(ca);
 
 		BUG_ON(ca->oldest_gen);
 
-		ca->oldest_gen = kvmalloc(ca->mi.nbuckets, GFP_KERNEL);
+		ca->oldest_gen = kvmalloc(gens->nbuckets, GFP_KERNEL);
 		if (!ca->oldest_gen) {
 			percpu_ref_put(&ca->ref);
 			ret = -BCH_ERR_ENOMEM_gc_gens;
 			goto err;
 		}
-
-		gens = bucket_gens(ca);
 
 		for (b = gens->first_bucket;
 		     b < gens->nbuckets; b++)

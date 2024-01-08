@@ -286,10 +286,7 @@ static struct attribute *s6sy761_sysfs_attrs[] = {
 	&dev_attr_devid.attr,
 	NULL
 };
-
-static struct attribute_group s6sy761_attribute_group = {
-	.attrs = s6sy761_sysfs_attrs
-};
+ATTRIBUTE_GROUPS(s6sy761_sysfs);
 
 static int s6sy761_power_on(struct s6sy761_data *sdata)
 {
@@ -465,10 +462,6 @@ static int s6sy761_probe(struct i2c_client *client)
 	if (err)
 		return err;
 
-	err = devm_device_add_group(&client->dev, &s6sy761_attribute_group);
-	if (err)
-		return err;
-
 	pm_runtime_enable(&client->dev);
 
 	return 0;
@@ -535,6 +528,7 @@ MODULE_DEVICE_TABLE(i2c, s6sy761_id);
 static struct i2c_driver s6sy761_driver = {
 	.driver = {
 		.name = S6SY761_DEV_NAME,
+		.dev_groups = s6sy761_sysfs_groups,
 		.of_match_table = of_match_ptr(s6sy761_of_match),
 		.pm = pm_ptr(&s6sy761_pm_ops),
 	},

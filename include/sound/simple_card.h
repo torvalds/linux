@@ -12,15 +12,15 @@
 #include <sound/soc.h>
 #include <sound/simple_card_utils.h>
 
-struct asoc_simple_card_info {
+struct simple_util_info {
 	const char *name;
 	const char *card;
 	const char *codec;
 	const char *platform;
 
 	unsigned int daifmt;
-	struct asoc_simple_dai cpu_dai;
-	struct asoc_simple_dai codec_dai;
+	struct simple_util_dai cpu_dai;
+	struct simple_util_dai codec_dai;
 };
 
 #endif /* __SIMPLE_CARD_H */

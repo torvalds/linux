@@ -173,8 +173,8 @@ config PWM_CLPS711X
 	  will be called pwm-clps711x.
 
 config PWM_CRC
-	bool "Intel Crystalcove (CRC) PWM support"
-	depends on X86 && INTEL_SOC_PMIC
+	tristate "Intel Crystalcove (CRC) PWM support"
+	depends on INTEL_SOC_PMIC
 	help
 	  Generic PWM framework driver for Crystalcove (CRC) PMIC based PWM
 	  control.
@@ -186,9 +186,19 @@ config PWM_CROS_EC
 	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
 	  Controller.
 
+config PWM_DWC_CORE
+	tristate
+	depends on HAS_IOMEM
+	help
+	  PWM driver for Synopsys DWC PWM Controller.
+
+	  To compile this driver as a module, build the dependecies as
+	  modules, this will be called pwm-dwc-core.
+
 config PWM_DWC
-	tristate "DesignWare PWM Controller"
-	depends on PCI
+	tristate "DesignWare PWM Controller (PCI bus)"
+	depends on HAS_IOMEM && PCI
+	select PWM_DWC_CORE
 	help
 	  PWM driver for Synopsys DWC PWM Controller attached to a PCI bus.
 
@@ -407,7 +417,7 @@ config PWM_MEDIATEK
 
 config PWM_MICROCHIP_CORE
 	tristate "Microchip corePWM PWM support"
-	depends on SOC_MICROCHIP_POLARFIRE || COMPILE_TEST
+	depends on ARCH_MICROCHIP_POLARFIRE || COMPILE_TEST
 	depends on HAS_IOMEM && OF
 	help
 	  PWM driver for Microchip FPGA soft IP core.

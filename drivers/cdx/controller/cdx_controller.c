@@ -33,6 +33,16 @@ static const struct cdx_mcdi_ops mcdi_ops = {
 	.mcdi_request = cdx_mcdi_request,
 };
 
+static int cdx_bus_enable(struct cdx_controller *cdx, u8 bus_num)
+{
+	return cdx_mcdi_bus_enable(cdx->priv, bus_num);
+}
+
+static int cdx_bus_disable(struct cdx_controller *cdx, u8 bus_num)
+{
+	return cdx_mcdi_bus_disable(cdx->priv, bus_num);
+}
+
 void cdx_rpmsg_post_probe(struct cdx_controller *cdx)
 {
 	/* Register CDX controller with CDX bus driver */
@@ -83,7 +93,13 @@ static int cdx_scan_devices(struct cdx_controller *cdx)
 	num_cdx_bus = (u8)ret;
 
 	for (bus_num = 0; bus_num < num_cdx_bus; bus_num++) {
+		struct device *bus_dev;
 		u8 num_cdx_dev;
+
+		/* Add the bus on cdx subsystem */
+		bus_dev = cdx_bus_add(cdx, bus_num);
+		if (!bus_dev)
+			continue;
 
 		/* MCDI FW Read: Fetch the number of devices present */
 		ret = cdx_mcdi_get_num_devs(cdx_mcdi, bus_num);
@@ -107,6 +123,7 @@ static int cdx_scan_devices(struct cdx_controller *cdx)
 				continue;
 			}
 			dev_params.cdx = cdx;
+			dev_params.parent = bus_dev;
 
 			/* Add the device to the cdx bus */
 			ret = cdx_device_add(&dev_params);
@@ -125,6 +142,8 @@ static int cdx_scan_devices(struct cdx_controller *cdx)
 }
 
 static struct cdx_ops cdx_ops = {
+	.bus_enable		= cdx_bus_enable,
+	.bus_disable	= cdx_bus_disable,
 	.scan		= cdx_scan_devices,
 	.dev_configure	= cdx_configure_device,
 };
@@ -233,3 +252,4 @@ module_exit(cdx_controller_exit);
 MODULE_AUTHOR("AMD Inc.");
 MODULE_DESCRIPTION("CDX controller for AMD devices");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(CDX_BUS_CONTROLLER);

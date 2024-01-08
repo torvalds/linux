@@ -16,13 +16,14 @@
 #include "io_misc.h"
 #include "io_write.h"
 #include "logged_ops.h"
+#include "rebalance.h"
 #include "subvolume.h"
 
 /* Overwrites whatever was present with zeroes: */
 int bch2_extent_fallocate(struct btree_trans *trans,
 			  subvol_inum inum,
 			  struct btree_iter *iter,
-			  unsigned sectors,
+			  u64 sectors,
 			  struct bch_io_opts opts,
 			  s64 *i_sectors_delta,
 			  struct write_point_specifier write_point)
@@ -104,7 +105,7 @@ int bch2_extent_fallocate(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		sectors = min(sectors, wp->sectors_free);
+		sectors = min_t(u64, sectors, wp->sectors_free);
 		sectors_allocated = sectors;
 
 		bch2_key_resize(&e->k, sectors);
@@ -355,6 +356,7 @@ static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_i_logged_op_finsert *op = bkey_i_to_logged_op_finsert(op_k);
 	subvol_inum inum = { le32_to_cpu(op->v.subvol), le64_to_cpu(op->v.inum) };
+	struct bch_io_opts opts;
 	u64 dst_offset = le64_to_cpu(op->v.dst_offset);
 	u64 src_offset = le64_to_cpu(op->v.src_offset);
 	s64 shift = dst_offset - src_offset;
@@ -362,6 +364,10 @@ static int __bch2_resume_logged_op_finsert(struct btree_trans *trans,
 	u64 pos = le64_to_cpu(op->v.pos);
 	bool insert = shift > 0;
 	int ret = 0;
+
+	ret = bch2_inum_opts_get(trans, inum, &opts);
+	if (ret)
+		return ret;
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(inum.inum, 0),
@@ -443,7 +449,10 @@ case LOGGED_OP_FINSERT_shift_extents:
 
 		op->v.pos = cpu_to_le64(insert ? bkey_start_offset(&delete.k) : delete.k.p.offset);
 
-		ret =   bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, copy,
+					opts.background_target,
+					opts.background_compression) ?:
+			bch2_btree_insert_trans(trans, BTREE_ID_extents, &delete, 0) ?:
 			bch2_btree_insert_trans(trans, BTREE_ID_extents, copy, 0) ?:
 			bch2_logged_op_update(trans, &op->k_i) ?:
 			bch2_trans_commit(trans, &disk_res, NULL, BTREE_INSERT_NOFAIL);

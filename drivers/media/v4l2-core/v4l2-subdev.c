@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/overflow.h>
 #include <linux/slab.h>
+#include <linux/string.h>
 #include <linux/types.h>
 #include <linux/version.h>
 #include <linux/videodev2.h>
@@ -306,6 +307,42 @@ static int call_set_selection(struct v4l2_subdev *sd,
 	       sd->ops->pad->set_selection(sd, state, sel);
 }
 
+static int call_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
+			       struct v4l2_mbus_frame_desc *fd)
+{
+	unsigned int i;
+	int ret;
+
+	memset(fd, 0, sizeof(*fd));
+
+	ret = sd->ops->pad->get_frame_desc(sd, pad, fd);
+	if (ret)
+		return ret;
+
+	dev_dbg(sd->dev, "Frame descriptor on pad %u, type %s\n", pad,
+		fd->type == V4L2_MBUS_FRAME_DESC_TYPE_PARALLEL ? "parallel" :
+		fd->type == V4L2_MBUS_FRAME_DESC_TYPE_CSI2 ? "CSI-2" :
+		"unknown");
+
+	for (i = 0; i < fd->num_entries; i++) {
+		struct v4l2_mbus_frame_desc_entry *entry = &fd->entry[i];
+		char buf[20] = "";
+
+		if (fd->type == V4L2_MBUS_FRAME_DESC_TYPE_CSI2)
+			WARN_ON(snprintf(buf, sizeof(buf),
+					 ", vc %u, dt 0x%02x",
+					 entry->bus.csi2.vc,
+					 entry->bus.csi2.dt) >= sizeof(buf));
+
+		dev_dbg(sd->dev,
+			"\tstream %u, code 0x%04x, length %u, flags 0x%04x%s\n",
+			entry->stream, entry->pixelcode, entry->length,
+			entry->flags, buf);
+	}
+
+	return 0;
+}
+
 static inline int check_edid(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_edid *edid)
 {
@@ -359,6 +396,18 @@ static int call_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	int ret;
 
+	/*
+	 * The .s_stream() operation must never be called to start or stop an
+	 * already started or stopped subdev. Catch offenders but don't return
+	 * an error yet to avoid regressions.
+	 *
+	 * As .s_stream() is mutually exclusive with the .enable_streams() and
+	 * .disable_streams() operation, we can use the enabled_streams field
+	 * to store the subdev streaming state.
+	 */
+	if (WARN_ON(!!sd->enabled_streams == !!enable))
+		return 0;
+
 #if IS_REACHABLE(CONFIG_LEDS_CLASS)
 	if (!IS_ERR_OR_NULL(sd->privacy_led)) {
 		if (enable)
@@ -372,8 +421,11 @@ static int call_s_stream(struct v4l2_subdev *sd, int enable)
 
 	if (!enable && ret < 0) {
 		dev_warn(sd->dev, "disabling streaming failed (%d)\n", ret);
-		return 0;
+		ret = 0;
 	}
+
+	if (!ret)
+		sd->enabled_streams = enable ? BIT(0) : 0;
 
 	return ret;
 }
@@ -431,6 +483,7 @@ static const struct v4l2_subdev_pad_ops v4l2_subdev_call_pad_wrappers = {
 	.set_edid		= call_set_edid,
 	.dv_timings_cap		= call_dv_timings_cap,
 	.enum_dv_timings	= call_enum_dv_timings,
+	.get_frame_desc		= call_get_frame_desc,
 	.get_mbus_config	= call_get_mbus_config,
 };
 

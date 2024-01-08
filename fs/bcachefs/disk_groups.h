@@ -2,6 +2,8 @@
 #ifndef _BCACHEFS_DISK_GROUPS_H
 #define _BCACHEFS_DISK_GROUPS_H
 
+#include "disk_groups_types.h"
+
 extern const struct bch_sb_field_ops bch_sb_field_ops_disk_groups;
 
 static inline unsigned disk_groups_nr(struct bch_sb_field_disk_groups *groups)
@@ -83,7 +85,10 @@ int bch2_disk_path_find(struct bch_sb_handle *, const char *);
 /* Exported for userspace bcachefs-tools: */
 int bch2_disk_path_find_or_create(struct bch_sb_handle *, const char *);
 
-void bch2_disk_path_to_text(struct printbuf *, struct bch_sb *, unsigned);
+void bch2_disk_path_to_text(struct printbuf *, struct bch_fs *, unsigned);
+void bch2_disk_path_to_text_sb(struct printbuf *, struct bch_sb *, unsigned);
+
+void bch2_target_to_text(struct printbuf *out, struct bch_fs *, unsigned);
 
 int bch2_opt_target_parse(struct bch_fs *, const char *, u64 *, struct printbuf *);
 void bch2_opt_target_to_text(struct printbuf *, struct bch_fs *, struct bch_sb *, u64);

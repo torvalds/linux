@@ -49,9 +49,7 @@ MODULE_PARM_DESC(debug, "Debug level (0-2)");
 
 struct mt9v011 {
 	struct v4l2_subdev sd;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
-#endif
 	struct v4l2_ctrl_handler ctrls;
 	unsigned width, height;
 	unsigned xtal;
@@ -483,9 +481,7 @@ static int mt9v011_probe(struct i2c_client *c)
 	u16 version;
 	struct mt9v011 *core;
 	struct v4l2_subdev *sd;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	int ret;
-#endif
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(c->adapter,
@@ -499,14 +495,12 @@ static int mt9v011_probe(struct i2c_client *c)
 	sd = &core->sd;
 	v4l2_i2c_subdev_init(sd, c, &mt9v011_ops);
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	core->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 
 	ret = media_entity_pads_init(&sd->entity, 1, &core->pad);
 	if (ret < 0)
 		return ret;
-#endif
 
 	/* Check if the sensor is really a MT9V011 */
 	version = mt9v011_read(sd, R00_MT9V011_CHIP_VERSION);

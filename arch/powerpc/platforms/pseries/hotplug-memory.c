@@ -55,7 +55,8 @@ static bool find_aa_index(struct device_node *dr_node,
 			 struct property *ala_prop,
 			 const u32 *lmb_assoc, u32 *aa_index)
 {
-	u32 *assoc_arrays, new_prop_size;
+	__be32 *assoc_arrays;
+	u32 new_prop_size;
 	struct property *new_prop;
 	int aa_arrays, aa_array_entries, aa_array_sz;
 	int i, index;

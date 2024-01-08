@@ -309,6 +309,7 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 {
 	struct psp_device *psp = psp_master;
 	struct sev_device *sev;
+	unsigned int cmdbuff_hi, cmdbuff_lo;
 	unsigned int phys_lsb, phys_msb;
 	unsigned int reg, ret = 0;
 	int buf_len;
@@ -371,6 +372,19 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	if (FIELD_GET(PSP_CMDRESP_STS, reg)) {
 		dev_dbg(sev->dev, "sev command %#x failed (%#010lx)\n",
 			cmd, FIELD_GET(PSP_CMDRESP_STS, reg));
+
+		/*
+		 * PSP firmware may report additional error information in the
+		 * command buffer registers on error. Print contents of command
+		 * buffer registers if they changed.
+		 */
+		cmdbuff_hi = ioread32(sev->io_regs + sev->vdata->cmdbuff_addr_hi_reg);
+		cmdbuff_lo = ioread32(sev->io_regs + sev->vdata->cmdbuff_addr_lo_reg);
+		if (cmdbuff_hi != phys_msb || cmdbuff_lo != phys_lsb) {
+			dev_dbg(sev->dev, "Additional error information reported in cmdbuff:");
+			dev_dbg(sev->dev, "  cmdbuff hi: %#010x\n", cmdbuff_hi);
+			dev_dbg(sev->dev, "  cmdbuff lo: %#010x\n", cmdbuff_lo);
+		}
 		ret = -EIO;
 	} else {
 		ret = sev_write_init_ex_file_if_required(cmd);

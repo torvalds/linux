@@ -885,7 +885,7 @@ err_unregister:
 	return err;
 }
 
-static int mtk_cqdma_remove(struct platform_device *pdev)
+static void mtk_cqdma_remove(struct platform_device *pdev)
 {
 	struct mtk_cqdma_device *cqdma = platform_get_drvdata(pdev);
 	struct mtk_cqdma_vchan *vc;
@@ -918,13 +918,11 @@ static int mtk_cqdma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&cqdma->ddev);
 	of_dma_controller_free(pdev->dev.of_node);
-
-	return 0;
 }
 
 static struct platform_driver mtk_cqdma_driver = {
 	.probe = mtk_cqdma_probe,
-	.remove = mtk_cqdma_remove,
+	.remove_new = mtk_cqdma_remove,
 	.driver = {
 		.name           = KBUILD_MODNAME,
 		.of_match_table = mtk_cqdma_match,

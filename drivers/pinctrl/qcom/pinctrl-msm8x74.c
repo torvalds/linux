@@ -1045,6 +1045,16 @@ static const struct msm_pingroup msm8x74_groups[] = {
 
 #define NUM_GPIO_PINGROUPS 146
 
+static const struct msm_gpio_wakeirq_map msm8x74_mpm_map[] = {
+	{ 1, 4 }, { 5, 5 }, { 9, 6 }, { 18, 7 }, { 20, 8 }, { 24, 9 },
+	{ 27, 10 }, { 28, 11 }, { 34, 12 }, { 35, 13 }, { 37, 14 }, { 42, 15 },
+	{ 44, 16 }, { 46, 17 }, { 50, 18 }, { 54, 19 }, { 59, 20 }, { 61, 21 },
+	{ 62, 22 }, { 64, 23 }, { 65, 24 }, { 66, 25 }, { 67, 26 }, { 68, 27 },
+	{ 71, 28 }, { 72, 29 }, { 73, 30 }, { 74, 31 }, { 75, 32 }, { 77, 33 },
+	{ 79, 34 }, { 80, 35 }, { 82, 36 }, { 86, 37 }, { 92, 38 }, { 93, 39 },
+	{ 95, 40 }, { 102, 3 }, { 144, 41 },
+};
+
 static const struct msm_pinctrl_soc_data msm8x74_pinctrl = {
 	.pins = msm8x74_pins,
 	.npins = ARRAY_SIZE(msm8x74_pins),
@@ -1053,6 +1063,8 @@ static const struct msm_pinctrl_soc_data msm8x74_pinctrl = {
 	.groups = msm8x74_groups,
 	.ngroups = ARRAY_SIZE(msm8x74_groups),
 	.ngpios = NUM_GPIO_PINGROUPS,
+	.wakeirq_map = msm8x74_mpm_map,
+	.nwakeirq_map = ARRAY_SIZE(msm8x74_mpm_map),
 };
 
 static int msm8x74_pinctrl_probe(struct platform_device *pdev)
@@ -1071,7 +1083,7 @@ static struct platform_driver msm8x74_pinctrl_driver = {
 		.of_match_table = msm8x74_pinctrl_of_match,
 	},
 	.probe = msm8x74_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init msm8x74_pinctrl_init(void)

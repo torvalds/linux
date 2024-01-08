@@ -305,12 +305,11 @@ static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
  *
  * Return: 0 (success).
  */
-static int cdns_ufs_pltfrm_remove(struct platform_device *pdev)
+static void cdns_ufs_pltfrm_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 
 	ufshcd_remove(hba);
-	return 0;
 }
 
 static const struct dev_pm_ops cdns_ufs_dev_pm_ops = {
@@ -322,7 +321,7 @@ static const struct dev_pm_ops cdns_ufs_dev_pm_ops = {
 
 static struct platform_driver cdns_ufs_pltfrm_driver = {
 	.probe	= cdns_ufs_pltfrm_probe,
-	.remove	= cdns_ufs_pltfrm_remove,
+	.remove_new = cdns_ufs_pltfrm_remove,
 	.driver	= {
 		.name   = "cdns-ufshcd",
 		.pm     = &cdns_ufs_dev_pm_ops,

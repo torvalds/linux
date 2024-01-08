@@ -127,7 +127,7 @@ err_free_mem:
 	return error;
 }
 
-static int da9052_onkey_remove(struct platform_device *pdev)
+static void da9052_onkey_remove(struct platform_device *pdev)
 {
 	struct da9052_onkey *onkey = platform_get_drvdata(pdev);
 
@@ -136,13 +136,11 @@ static int da9052_onkey_remove(struct platform_device *pdev)
 
 	input_unregister_device(onkey->input);
 	kfree(onkey);
-
-	return 0;
 }
 
 static struct platform_driver da9052_onkey_driver = {
 	.probe	= da9052_onkey_probe,
-	.remove	= da9052_onkey_remove,
+	.remove_new = da9052_onkey_remove,
 	.driver = {
 		.name	= "da9052-onkey",
 	},

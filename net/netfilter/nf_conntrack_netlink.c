@@ -57,6 +57,7 @@
 #include "nf_internals.h"
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("List and change connection tracking table");
 
 struct ctnetlink_list_dump_ctx {
 	struct nf_conn *last;

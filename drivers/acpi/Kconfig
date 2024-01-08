@@ -12,6 +12,7 @@ menuconfig ACPI
 	select PNP
 	select NLS
 	select CRC32
+	select FIRMWARE_TABLE
 	default y if X86
 	help
 	  Advanced Configuration and Power Interface (ACPI) support for 

@@ -125,8 +125,6 @@ static int uvd_v5_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 

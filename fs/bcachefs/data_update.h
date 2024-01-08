@@ -23,6 +23,7 @@ struct data_update {
 	struct bkey_buf		k;
 	struct data_update_opts	data_opts;
 	struct moving_context	*ctxt;
+	struct bch_move_stats	*stats;
 	struct bch_write_op	op;
 };
 
@@ -31,9 +32,14 @@ int bch2_data_update_index_update(struct bch_write_op *);
 void bch2_data_update_read_done(struct data_update *,
 				struct bch_extent_crc_unpacked);
 
+int bch2_extent_drop_ptrs(struct btree_trans *,
+			  struct btree_iter *,
+			  struct bkey_s_c,
+			  struct data_update_opts);
+
 void bch2_data_update_exit(struct data_update *);
-void bch2_update_unwritten_extent(struct btree_trans *, struct data_update *);
-int bch2_data_update_init(struct btree_trans *, struct moving_context *,
+int bch2_data_update_init(struct btree_trans *, struct btree_iter *,
+			  struct moving_context *,
 			  struct data_update *,
 			  struct write_point_specifier,
 			  struct bch_io_opts, struct data_update_opts,

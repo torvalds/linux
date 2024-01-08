@@ -26,6 +26,7 @@ powerpc
     isa-versions
     kaslr-booke32
     mpc52xx
+    kvm-nested
     papr_hcalls
     pci_iov_resource_on_powernv
     pmu-ebb

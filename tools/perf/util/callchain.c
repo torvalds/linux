@@ -586,7 +586,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		call = zalloc(sizeof(*call));
 		if (!call) {
 			perror("not enough memory for the code path tree");
-			return -1;
+			return -ENOMEM;
 		}
 		call->ip = cursor_node->ip;
 		call->ms = cursor_node->ms;
@@ -602,7 +602,15 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 				 * branch_from is set with value somewhere else
 				 * to imply it's "to" of a branch.
 				 */
-				call->brtype_stat.branch_to = true;
+				if (!call->brtype_stat) {
+					call->brtype_stat = zalloc(sizeof(*call->brtype_stat));
+					if (!call->brtype_stat) {
+						perror("not enough memory for the code path branch statistics");
+						free(call->brtype_stat);
+						return -ENOMEM;
+					}
+				}
+				call->brtype_stat->branch_to = true;
 
 				if (cursor_node->branch_flags.predicted)
 					call->predicted_count = 1;
@@ -610,7 +618,7 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 				if (cursor_node->branch_flags.abort)
 					call->abort_count = 1;
 
-				branch_type_count(&call->brtype_stat,
+				branch_type_count(call->brtype_stat,
 						  &cursor_node->branch_flags,
 						  cursor_node->branch_from,
 						  cursor_node->ip);
@@ -618,7 +626,8 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 				/*
 				 * It's "from" of a branch
 				 */
-				call->brtype_stat.branch_to = false;
+				if (call->brtype_stat && call->brtype_stat->branch_to)
+					call->brtype_stat->branch_to = false;
 				call->cycles_count =
 					cursor_node->branch_flags.cycles;
 				call->iter_count = cursor_node->nr_loop_iter;
@@ -650,8 +659,8 @@ add_child(struct callchain_node *parent,
 
 		list_for_each_entry_safe(call, tmp, &new->val, list) {
 			list_del_init(&call->list);
-			map__zput(call->ms.map);
-			maps__zput(call->ms.maps);
+			map_symbol__exit(&call->ms);
+			zfree(&call->brtype_stat);
 			free(call);
 		}
 		free(new);
@@ -762,7 +771,14 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 			/*
 			 * It's "to" of a branch
 			 */
-			cnode->brtype_stat.branch_to = true;
+			if (!cnode->brtype_stat) {
+				cnode->brtype_stat = zalloc(sizeof(*cnode->brtype_stat));
+				if (!cnode->brtype_stat) {
+					perror("not enough memory for the code path branch statistics");
+					return MATCH_ERROR;
+				}
+			}
+			cnode->brtype_stat->branch_to = true;
 
 			if (node->branch_flags.predicted)
 				cnode->predicted_count++;
@@ -770,7 +786,7 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 			if (node->branch_flags.abort)
 				cnode->abort_count++;
 
-			branch_type_count(&cnode->brtype_stat,
+			branch_type_count(cnode->brtype_stat,
 					  &node->branch_flags,
 					  node->branch_from,
 					  node->ip);
@@ -778,7 +794,8 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 			/*
 			 * It's "from" of a branch
 			 */
-			cnode->brtype_stat.branch_to = false;
+			if (cnode->brtype_stat && cnode->brtype_stat->branch_to)
+				cnode->brtype_stat->branch_to = false;
 			cnode->cycles_count += node->branch_flags.cycles;
 			cnode->iter_count += node->nr_loop_iter;
 			cnode->iter_cycles += node->iter_cycles;
@@ -1022,10 +1039,9 @@ merge_chain_branch(struct callchain_cursor *cursor,
 		};
 		callchain_cursor_append(cursor, list->ip, &ms, false, NULL, 0, 0, 0, list->srcline);
 		list_del_init(&list->list);
-		map__zput(ms.map);
-		maps__zput(ms.maps);
-		map__zput(list->ms.map);
-		maps__zput(list->ms.maps);
+		map_symbol__exit(&ms);
+		map_symbol__exit(&list->ms);
+		zfree(&list->brtype_stat);
 		free(list);
 	}
 
@@ -1077,8 +1093,7 @@ int callchain_cursor_append(struct callchain_cursor *cursor,
 	}
 
 	node->ip = ip;
-	maps__zput(node->ms.maps);
-	map__zput(node->ms.map);
+	map_symbol__exit(&node->ms);
 	node->ms = *ms;
 	node->ms.maps = maps__get(ms->maps);
 	node->ms.map = map__get(ms->map);
@@ -1142,7 +1157,7 @@ int fill_callchain_info(struct addr_location *al, struct callchain_cursor_node *
 		if (al->map == NULL)
 			goto out;
 	}
-	if (RC_CHK_ACCESS(al->maps) == RC_CHK_ACCESS(machine__kernel_maps(machine))) {
+	if (RC_CHK_EQUAL(al->maps, machine__kernel_maps(machine))) {
 		if (machine__is_host(machine)) {
 			al->cpumode = PERF_RECORD_MISC_KERNEL;
 			al->level = 'k';
@@ -1339,7 +1354,7 @@ static int count_float_printf(int idx, const char *str, float value,
 static int branch_to_str(char *bf, int bfsize,
 			 u64 branch_count, u64 predicted_count,
 			 u64 abort_count,
-			 struct branch_type_stat *brtype_stat)
+			 const struct branch_type_stat *brtype_stat)
 {
 	int printed, i = 0;
 
@@ -1403,7 +1418,7 @@ static int counts_str_build(char *bf, int bfsize,
 			     u64 abort_count, u64 cycles_count,
 			     u64 iter_count, u64 iter_cycles,
 			     u64 from_count,
-			     struct branch_type_stat *brtype_stat)
+			     const struct branch_type_stat *brtype_stat)
 {
 	int printed;
 
@@ -1430,7 +1445,7 @@ static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
 				   u64 abort_count, u64 cycles_count,
 				   u64 iter_count, u64 iter_cycles,
 				   u64 from_count,
-				   struct branch_type_stat *brtype_stat)
+				   const struct branch_type_stat *brtype_stat)
 {
 	char str[256];
 
@@ -1447,11 +1462,14 @@ static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
 int callchain_list_counts__printf_value(struct callchain_list *clist,
 					FILE *fp, char *bf, int bfsize)
 {
+	static const struct branch_type_stat empty_brtype_stat = {};
+	const struct branch_type_stat *brtype_stat;
 	u64 branch_count, predicted_count;
 	u64 abort_count, cycles_count;
 	u64 iter_count, iter_cycles;
 	u64 from_count;
 
+	brtype_stat = clist->brtype_stat ?: &empty_brtype_stat;
 	branch_count = clist->branch_count;
 	predicted_count = clist->predicted_count;
 	abort_count = clist->abort_count;
@@ -1463,7 +1481,7 @@ int callchain_list_counts__printf_value(struct callchain_list *clist,
 	return callchain_counts_printf(fp, bf, bfsize, branch_count,
 				       predicted_count, abort_count,
 				       cycles_count, iter_count, iter_cycles,
-				       from_count, &clist->brtype_stat);
+				       from_count, brtype_stat);
 }
 
 static void free_callchain_node(struct callchain_node *node)
@@ -1474,15 +1492,15 @@ static void free_callchain_node(struct callchain_node *node)
 
 	list_for_each_entry_safe(list, tmp, &node->parent_val, list) {
 		list_del_init(&list->list);
-		map__zput(list->ms.map);
-		maps__zput(list->ms.maps);
+		map_symbol__exit(&list->ms);
+		zfree(&list->brtype_stat);
 		free(list);
 	}
 
 	list_for_each_entry_safe(list, tmp, &node->val, list) {
 		list_del_init(&list->list);
-		map__zput(list->ms.map);
-		maps__zput(list->ms.maps);
+		map_symbol__exit(&list->ms);
+		zfree(&list->brtype_stat);
 		free(list);
 	}
 
@@ -1567,8 +1585,8 @@ int callchain_node__make_parent_list(struct callchain_node *node)
 out:
 	list_for_each_entry_safe(chain, new, &head, list) {
 		list_del_init(&chain->list);
-		map__zput(chain->ms.map);
-		maps__zput(chain->ms.maps);
+		map_symbol__exit(&chain->ms);
+		zfree(&chain->brtype_stat);
 		free(chain);
 	}
 	return -ENOMEM;
@@ -1651,10 +1669,8 @@ void callchain_cursor_reset(struct callchain_cursor *cursor)
 	cursor->nr = 0;
 	cursor->last = &cursor->first;
 
-	for (node = cursor->first; node != NULL; node = node->next) {
-		map__zput(node->ms.map);
-		maps__zput(node->ms.maps);
-	}
+	for (node = cursor->first; node != NULL; node = node->next)
+		map_symbol__exit(&node->ms);
 }
 
 void callchain_param_setup(u64 sample_type, const char *arch)

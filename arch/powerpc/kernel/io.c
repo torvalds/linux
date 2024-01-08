@@ -33,7 +33,7 @@ void _insb(const volatile u8 __iomem *port, void *buf, long count)
 		return;
 	asm volatile("sync");
 	do {
-		tmp = *port;
+		tmp = *(const volatile u8 __force *)port;
 		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
@@ -49,7 +49,7 @@ void _outsb(volatile u8 __iomem *port, const void *buf, long count)
 		return;
 	asm volatile("sync");
 	do {
-		*port = *tbuf++;
+		*(volatile u8 __force *)port = *tbuf++;
 	} while (--count != 0);
 	asm volatile("sync");
 }
@@ -64,7 +64,7 @@ void _insw_ns(const volatile u16 __iomem *port, void *buf, long count)
 		return;
 	asm volatile("sync");
 	do {
-		tmp = *port;
+		tmp = *(const volatile u16 __force *)port;
 		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
@@ -80,7 +80,7 @@ void _outsw_ns(volatile u16 __iomem *port, const void *buf, long count)
 		return;
 	asm volatile("sync");
 	do {
-		*port = *tbuf++;
+		*(volatile u16 __force *)port = *tbuf++;
 	} while (--count != 0);
 	asm volatile("sync");
 }
@@ -95,7 +95,7 @@ void _insl_ns(const volatile u32 __iomem *port, void *buf, long count)
 		return;
 	asm volatile("sync");
 	do {
-		tmp = *port;
+		tmp = *(const volatile u32 __force *)port;
 		eieio();
 		*tbuf++ = tmp;
 	} while (--count != 0);
@@ -111,7 +111,7 @@ void _outsl_ns(volatile u32 __iomem *port, const void *buf, long count)
 		return;
 	asm volatile("sync");
 	do {
-		*port = *tbuf++;
+		*(volatile u32 __force *)port = *tbuf++;
 	} while (--count != 0);
 	asm volatile("sync");
 }

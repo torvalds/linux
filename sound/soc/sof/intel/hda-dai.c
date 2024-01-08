@@ -316,7 +316,7 @@ static int __maybe_unused hda_dai_trigger(struct snd_pcm_substream *substream, i
 
 static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int stream = substream->stream;
 
 	return hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, dai);
@@ -408,7 +408,7 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 static int non_hda_dai_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	int stream = substream->stream;
 
 	return non_hda_dai_hw_params(substream, &rtd->dpcm[stream].hw_params, cpu_dai);
@@ -526,8 +526,8 @@ static int hda_dai_suspend(struct hdac_bus *bus)
 			struct snd_sof_dev *sdev;
 			struct snd_sof_dai *sdai;
 
-			rtd = asoc_substream_to_rtd(hext_stream->link_substream);
-			cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+			rtd = snd_soc_substream_to_rtd(hext_stream->link_substream);
+			cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
 			w = snd_soc_dai_get_widget(cpu_dai, hdac_stream(hext_stream)->direction);
 			swidget = w->dobj.private;
 			sdev = widget_to_sdev(w);
@@ -607,7 +607,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 	ssp_set_dai_drv_ops(sdev, ops);
 	dmic_set_dai_drv_ops(sdev, ops);
 
-	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4 && !hda_use_tplg_nhlt) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4 && !hda_use_tplg_nhlt) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 
 		ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
@@ -616,7 +616,7 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 
 void hda_ops_free(struct snd_sof_dev *sdev)
 {
-	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+	if (sdev->pdata->ipc_type == SOF_IPC_TYPE_4) {
 		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 
 		if (!hda_use_tplg_nhlt)

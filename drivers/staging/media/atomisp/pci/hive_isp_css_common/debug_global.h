@@ -36,13 +36,6 @@
 #define DEBUG_BUFFER_ISP_DMEM_ADDR       0x0
 
 /*
- * Enable HAS_WATCHDOG_SP_THREAD_DEBUG for additional SP thread and
- * pipe information on watchdog output
- * #undef HAS_WATCHDOG_SP_THREAD_DEBUG
- * #define HAS_WATCHDOG_SP_THREAD_DEBUG
- */
-
-/*
  * The linear buffer mode will accept data until the first
  * overflow and then stop accepting new data
  * The circular buffer mode will accept if there is place

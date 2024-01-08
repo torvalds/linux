@@ -71,7 +71,7 @@ static char version[] =
 		BNXT_RE_DESC "\n";
 
 MODULE_AUTHOR("Eddie Wai <eddie.wai@broadcom.com>");
-MODULE_DESCRIPTION(BNXT_RE_DESC " Driver");
+MODULE_DESCRIPTION(BNXT_RE_DESC);
 MODULE_LICENSE("Dual BSD/GPL");
 
 /* globals */
@@ -970,6 +970,9 @@ static int bnxt_re_handle_unaffi_async_event(struct creq_func_event
 static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 					 struct bnxt_re_qp *qp)
 {
+	struct bnxt_re_srq *srq = container_of(qp->qplib_qp.srq, struct bnxt_re_srq,
+					       qplib_srq);
+	struct creq_qp_error_notification *err_event;
 	struct ib_event event = {};
 	unsigned int flags;
 
@@ -980,14 +983,147 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 		bnxt_re_unlock_cqs(qp, flags);
 	}
 
-	if (qp->qplib_qp.srq) {
-		event.device = &qp->rdev->ibdev;
-		event.element.qp = &qp->ib_qp;
-		event.event = IB_EVENT_QP_LAST_WQE_REACHED;
+	event.device = &qp->rdev->ibdev;
+	event.element.qp = &qp->ib_qp;
+	event.event = IB_EVENT_QP_FATAL;
+
+	err_event = (struct creq_qp_error_notification *)qp_event;
+
+	switch (err_event->req_err_state_reason) {
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_OPCODE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TIMEOUT_RETRY_LIMIT:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RNR_TIMEOUT_RETRY_LIMIT:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_2:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_3:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_READ_RESP:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_BIND:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_FAST_REG:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ILLEGAL_INVALIDATE:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RETRAN_LOCAL_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_AV_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_PROD_WQE_MSMTCH_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_PSN_RANGE_CHECK_ERROR:
+		event.event = IB_EVENT_QP_ACCESS_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_1:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_NAK_ARRIVAL_4:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_READ_RESP_LENGTH:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_WQE_FORMAT_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_ORRQ_FORMAT_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_AVID_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_SERV_TYPE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_INVALID_OP_ERROR:
+		event.event = IB_EVENT_QP_REQ_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_MEMORY_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_MEMORY_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_CMP_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_CQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_TX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_REQ_ERR_STATE_REASON_REQ_RETX_SETUP_ERROR:
+		event.event = IB_EVENT_QP_FATAL;
+		break;
+
+	default:
+		break;
 	}
 
-	if (event.device && qp->ib_qp.event_handler)
+	switch (err_event->res_err_state_reason) {
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_EXCEED_MAX:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PAYLOAD_LENGTH_MISMATCH:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PSN_SEQ_ERROR_RETRY_LIMIT:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_INVALID_R_KEY:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_NO_PERMISSION:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_RANGE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_INVALID_R_KEY:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_DOMAIN_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_NO_PERMISSION:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_RANGE_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_UNALIGN_ATOMIC:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_PSN_NOT_FOUND:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_INVALID_DUP_RKEY:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_FORMAT_ERROR:
+		event.event = IB_EVENT_QP_ACCESS_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_EXCEEDS_WQE:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_WQE_FORMAT_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_UNSUPPORTED_OPCODE:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_REM_INVALIDATE:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_OPCODE_ERROR:
+		event.event = IB_EVENT_QP_REQ_ERR;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_IRRQ_OFLOW:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_CMP_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_CQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_TX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_RX_PCI_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_MEMORY_ERROR:
+		event.event = IB_EVENT_QP_FATAL;
+		break;
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_LOAD_ERROR:
+	case CREQ_QP_ERROR_NOTIFICATION_RES_ERR_STATE_REASON_RES_SRQ_ERROR:
+		if (srq)
+			event.event = IB_EVENT_SRQ_ERR;
+		break;
+	default:
+		break;
+	}
+
+	if (err_event->res_err_state_reason || err_event->req_err_state_reason) {
+		ibdev_dbg(&qp->rdev->ibdev,
+			  "%s %s qp_id: %d cons (%d %d) req (%d %d) res (%d %d)\n",
+			   __func__, rdma_is_kernel_res(&qp->ib_qp.res) ? "kernel" : "user",
+			   qp->qplib_qp.id,
+			   err_event->sq_cons_idx,
+			   err_event->rq_cons_idx,
+			   err_event->req_slow_path_state,
+			   err_event->req_err_state_reason,
+			   err_event->res_slow_path_state,
+			   err_event->res_err_state_reason);
+	} else {
+		if (srq)
+			event.event = IB_EVENT_QP_LAST_WQE_REACHED;
+	}
+
+	if (event.event == IB_EVENT_SRQ_ERR && srq->ib_srq.event_handler)  {
+		(*srq->ib_srq.event_handler)(&event,
+				srq->ib_srq.srq_context);
+	} else if (event.device && qp->ib_qp.event_handler) {
 		qp->ib_qp.event_handler(&event, qp->ib_qp.qp_context);
+	}
+
+	return 0;
+}
+
+static int bnxt_re_handle_cq_async_error(void *event, struct bnxt_re_cq *cq)
+{
+	struct creq_cq_error_notification *cqerr;
+	struct ib_event ibevent = {};
+
+	cqerr = event;
+	switch (cqerr->cq_err_reason) {
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_INVALID_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_OVERFLOW_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_REQ_CQ_LOAD_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_INVALID_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_OVERFLOW_ERROR:
+	case CREQ_CQ_ERROR_NOTIFICATION_CQ_ERR_REASON_RES_CQ_LOAD_ERROR:
+		ibevent.event = IB_EVENT_CQ_ERR;
+		break;
+	default:
+		break;
+	}
+
+	if (ibevent.event == IB_EVENT_CQ_ERR && cq->ib_cq.event_handler) {
+		ibevent.element.cq = &cq->ib_cq;
+		ibevent.device = &cq->rdev->ibdev;
+
+		ibdev_dbg(&cq->rdev->ibdev,
+			  "%s err reason %d\n", __func__, cqerr->cq_err_reason);
+		cq->ib_cq.event_handler(&ibevent, cq->ib_cq.cq_context);
+	}
 
 	return 0;
 }
@@ -995,6 +1131,10 @@ static int bnxt_re_handle_qp_async_event(struct creq_qp_event *qp_event,
 static int bnxt_re_handle_affi_async_event(struct creq_qp_event *affi_async,
 					   void *obj)
 {
+	struct bnxt_qplib_qp *lib_qp;
+	struct bnxt_qplib_cq *lib_cq;
+	struct bnxt_re_qp *qp;
+	struct bnxt_re_cq *cq;
 	int rc = 0;
 	u8 event;
 
@@ -1002,11 +1142,19 @@ static int bnxt_re_handle_affi_async_event(struct creq_qp_event *affi_async,
 		return rc; /* QP was already dead, still return success */
 
 	event = affi_async->event;
-	if (event == CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION) {
-		struct bnxt_qplib_qp *lib_qp = obj;
-		struct bnxt_re_qp *qp = container_of(lib_qp, struct bnxt_re_qp,
-						     qplib_qp);
+	switch (event) {
+	case CREQ_QP_EVENT_EVENT_QP_ERROR_NOTIFICATION:
+		lib_qp = obj;
+		qp = container_of(lib_qp, struct bnxt_re_qp, qplib_qp);
 		rc = bnxt_re_handle_qp_async_event(affi_async, qp);
+		break;
+	case CREQ_QP_EVENT_EVENT_CQ_ERROR_NOTIFICATION:
+		lib_cq = obj;
+		cq = container_of(lib_cq, struct bnxt_re_cq, qplib_cq);
+		rc = bnxt_re_handle_cq_async_error(affi_async, cq);
+		break;
+	default:
+		rc = -EINVAL;
 	}
 	return rc;
 }
@@ -1040,13 +1188,10 @@ static int bnxt_re_srqn_handler(struct bnxt_qplib_nq *nq,
 
 	ib_event.device = &srq->rdev->ibdev;
 	ib_event.element.srq = &srq->ib_srq;
-	if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
-		ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
-	else
-		ib_event.event = IB_EVENT_SRQ_ERR;
 
 	if (srq->ib_srq.event_handler) {
-		/* Lock event_handler? */
+		if (event == NQ_SRQ_EVENT_EVENT_SRQ_THRESHOLD_EVENT)
+			ib_event.event = IB_EVENT_SRQ_LIMIT_REACHED;
 		(*srq->ib_srq.event_handler)(&ib_event,
 					     srq->ib_srq.srq_context);
 	}

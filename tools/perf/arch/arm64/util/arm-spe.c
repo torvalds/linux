@@ -113,6 +113,25 @@ arm_spe_snapshot_resolve_auxtrace_defaults(struct record_opts *opts,
 	}
 }
 
+static __u64 arm_spe_pmu__sample_period(const struct perf_pmu *arm_spe_pmu)
+{
+	static __u64 sample_period;
+
+	if (sample_period)
+		return sample_period;
+
+	/*
+	 * If kernel driver doesn't advertise a minimum,
+	 * use max allowable by PMSIDR_EL1.INTERVAL
+	 */
+	if (perf_pmu__scan_file(arm_spe_pmu, "caps/min_interval", "%llu",
+				&sample_period) != 1) {
+		pr_debug("arm_spe driver doesn't advertise a min. interval. Using 4096\n");
+		sample_period = 4096;
+	}
+	return sample_period;
+}
+
 static int arm_spe_recording_options(struct auxtrace_record *itr,
 				     struct evlist *evlist,
 				     struct record_opts *opts)
@@ -136,7 +155,7 @@ static int arm_spe_recording_options(struct auxtrace_record *itr,
 				return -EINVAL;
 			}
 			evsel->core.attr.freq = 0;
-			evsel->core.attr.sample_period = arm_spe_pmu->default_config->sample_period;
+			evsel->core.attr.sample_period = arm_spe_pmu__sample_period(arm_spe_pmu);
 			evsel->needs_auxtrace_mmap = true;
 			arm_spe_evsel = evsel;
 			opts->full_auxtrace = true;
@@ -495,29 +514,8 @@ struct auxtrace_record *arm_spe_recording_init(int *err,
 	return &sper->itr;
 }
 
-struct perf_event_attr
-*arm_spe_pmu_default_config(struct perf_pmu *arm_spe_pmu)
+void
+arm_spe_pmu_default_config(const struct perf_pmu *arm_spe_pmu, struct perf_event_attr *attr)
 {
-	struct perf_event_attr *attr;
-
-	attr = zalloc(sizeof(struct perf_event_attr));
-	if (!attr) {
-		pr_err("arm_spe default config cannot allocate a perf_event_attr\n");
-		return NULL;
-	}
-
-	/*
-	 * If kernel driver doesn't advertise a minimum,
-	 * use max allowable by PMSIDR_EL1.INTERVAL
-	 */
-	if (perf_pmu__scan_file(arm_spe_pmu, "caps/min_interval", "%llu",
-				  &attr->sample_period) != 1) {
-		pr_debug("arm_spe driver doesn't advertise a min. interval. Using 4096\n");
-		attr->sample_period = 4096;
-	}
-
-	arm_spe_pmu->selectable = true;
-	arm_spe_pmu->is_uncore = false;
-
-	return attr;
+	attr->sample_period = arm_spe_pmu__sample_period(arm_spe_pmu);
 }

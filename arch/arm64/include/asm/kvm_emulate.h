@@ -54,6 +54,11 @@ void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu);
 int kvm_inject_nested_sync(struct kvm_vcpu *vcpu, u64 esr_el2);
 int kvm_inject_nested_irq(struct kvm_vcpu *vcpu);
 
+static inline bool vcpu_has_feature(const struct kvm_vcpu *vcpu, int feature)
+{
+	return test_bit(feature, vcpu->kvm->arch.vcpu_features);
+}
+
 #if defined(__KVM_VHE_HYPERVISOR__) || defined(__KVM_NVHE_HYPERVISOR__)
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
@@ -62,7 +67,7 @@ static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 #else
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
 {
-	return test_bit(KVM_ARM_VCPU_EL1_32BIT, vcpu->arch.features);
+	return vcpu_has_feature(vcpu, KVM_ARM_VCPU_EL1_32BIT);
 }
 #endif
 
@@ -465,7 +470,7 @@ static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 
 static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
-	return vcpu_read_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
+	return __vcpu_sys_reg(vcpu, MPIDR_EL1) & MPIDR_HWID_BITMASK;
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
@@ -564,12 +569,6 @@ static __always_inline void kvm_incr_pc(struct kvm_vcpu *vcpu)
 		vcpu_set_flag((v), PENDING_EXCEPTION);			\
 		vcpu_set_flag((v), e);					\
 	} while (0)
-
-
-static inline bool vcpu_has_feature(struct kvm_vcpu *vcpu, int feature)
-{
-	return test_bit(feature, vcpu->arch.features);
-}
 
 static __always_inline void kvm_write_cptr_el2(u64 val)
 {

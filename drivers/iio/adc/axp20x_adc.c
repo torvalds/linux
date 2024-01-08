@@ -745,7 +745,7 @@ fail_map:
 	return ret;
 }
 
-static int axp20x_remove(struct platform_device *pdev)
+static void axp20x_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct axp20x_adc_iio *info = iio_priv(indio_dev);
@@ -757,8 +757,6 @@ static int axp20x_remove(struct platform_device *pdev)
 
 	if (info->data->adc_en2_mask)
 		regmap_write(info->regmap, AXP20X_ADC_EN2, 0);
-
-	return 0;
 }
 
 static struct platform_driver axp20x_adc_driver = {
@@ -768,7 +766,7 @@ static struct platform_driver axp20x_adc_driver = {
 	},
 	.id_table = axp20x_adc_id_match,
 	.probe = axp20x_probe,
-	.remove = axp20x_remove,
+	.remove_new = axp20x_remove,
 };
 
 module_platform_driver(axp20x_adc_driver);

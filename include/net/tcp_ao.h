@@ -62,9 +62,15 @@ static inline int tcp_ao_maclen(const struct tcp_ao_key *key)
 	return key->maclen;
 }
 
+/* Use tcp_ao_len_aligned() for TCP header calculations */
 static inline int tcp_ao_len(const struct tcp_ao_key *key)
 {
 	return tcp_ao_maclen(key) + sizeof(struct tcp_ao_hdr);
+}
+
+static inline int tcp_ao_len_aligned(const struct tcp_ao_key *key)
+{
+	return round_up(tcp_ao_len(key), 4);
 }
 
 static inline unsigned int tcp_ao_digest_size(struct tcp_ao_key *key)
@@ -124,7 +130,7 @@ struct tcp_ao_info {
 #define tcp_hash_fail(msg, family, skb, fmt, ...)			\
 do {									\
 	const struct tcphdr *th = tcp_hdr(skb);				\
-	char hdr_flags[5] = {};						\
+	char hdr_flags[6];						\
 	char *f = hdr_flags;						\
 									\
 	if (th->fin)							\
@@ -133,17 +139,18 @@ do {									\
 		*f++ = 'S';						\
 	if (th->rst)							\
 		*f++ = 'R';						\
+	if (th->psh)							\
+		*f++ = 'P';						\
 	if (th->ack)							\
-		*f++ = 'A';						\
-	if (f != hdr_flags)						\
-		*f = ' ';						\
+		*f++ = '.';						\
+	*f = 0;								\
 	if ((family) == AF_INET) {					\
-		net_info_ratelimited("%s for (%pI4, %d)->(%pI4, %d) %s" fmt "\n", \
+		net_info_ratelimited("%s for %pI4.%d->%pI4.%d [%s] " fmt "\n", \
 				msg, &ip_hdr(skb)->saddr, ntohs(th->source), \
 				&ip_hdr(skb)->daddr, ntohs(th->dest),	\
 				hdr_flags, ##__VA_ARGS__);		\
 	} else {							\
-		net_info_ratelimited("%s for [%pI6c]:%u->[%pI6c]:%u %s" fmt "\n", \
+		net_info_ratelimited("%s for [%pI6c].%d->[%pI6c].%d [%s]" fmt "\n", \
 				msg, &ipv6_hdr(skb)->saddr, ntohs(th->source), \
 				&ipv6_hdr(skb)->daddr, ntohs(th->dest),	\
 				hdr_flags, ##__VA_ARGS__);		\

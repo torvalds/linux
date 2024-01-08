@@ -3,6 +3,8 @@
 #define _BCACHEFS_ERRCODE_H
 
 #define BCH_ERRCODES()								\
+	x(ERANGE,			ERANGE_option_too_small)		\
+	x(ERANGE,			ERANGE_option_too_big)			\
 	x(ENOMEM,			ENOMEM_stripe_buf)			\
 	x(ENOMEM,			ENOMEM_replicas_table)			\
 	x(ENOMEM,			ENOMEM_cpu_replicas)			\
@@ -160,7 +162,7 @@
 	x(BCH_ERR_fsck,			fsck_repair_unimplemented)		\
 	x(BCH_ERR_fsck,			fsck_repair_impossible)			\
 	x(0,				restart_recovery)			\
-	x(0,				unwritten_extent_update)		\
+	x(0,				data_update_done)			\
 	x(EINVAL,			device_state_not_allowed)		\
 	x(EINVAL,			member_info_missing)			\
 	x(EINVAL,			mismatched_block_size)			\
@@ -208,11 +210,14 @@
 	x(BCH_ERR_invalid_sb,		invalid_sb_members)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_disk_groups)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_replicas)			\
+	x(BCH_ERR_invalid_sb,		invalid_replicas_entry)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_journal_seq_blacklist)	\
 	x(BCH_ERR_invalid_sb,		invalid_sb_crypt)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_clean)			\
 	x(BCH_ERR_invalid_sb,		invalid_sb_quota)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_errors)			\
+	x(BCH_ERR_invalid_sb,		invalid_sb_opt_compression)		\
 	x(BCH_ERR_invalid,		invalid_bkey)				\
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				btree_node_read_err)			\

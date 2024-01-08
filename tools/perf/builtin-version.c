@@ -81,6 +81,7 @@ static void library_status(void)
 	STATUS(HAVE_ZSTD_SUPPORT, zstd);
 	STATUS(HAVE_LIBPFM, libpfm4);
 	STATUS(HAVE_LIBTRACEEVENT, libtraceevent);
+	STATUS(HAVE_BPF_SKEL, bpf_skeletons);
 }
 
 int cmd_version(int argc, const char **argv)

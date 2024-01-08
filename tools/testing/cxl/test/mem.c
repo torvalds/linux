@@ -89,6 +89,12 @@ static struct cxl_cel_entry mock_cel[] = {
 		.effect = cpu_to_le16(EFFECT(CONF_CHANGE_COLD_RESET) |
 				      EFFECT(CONF_CHANGE_IMMEDIATE)),
 	},
+	{
+		.opcode = cpu_to_le16(CXL_MBOX_OP_SANITIZE),
+		.effect = cpu_to_le16(EFFECT(DATA_CHANGE_IMMEDIATE) |
+				      EFFECT(SECURITY_CHANGE_IMMEDIATE) |
+				      EFFECT(BACKGROUND_OP)),
+	},
 };
 
 /* See CXL 2.0 Table 181 Get Health Info Output Payload */
@@ -133,7 +139,6 @@ struct mock_event_log {
 };
 
 struct mock_event_store {
-	struct cxl_memdev_state *mds;
 	struct mock_event_log mock_logs[CXL_EVENT_TYPE_MAX];
 	u32 ev_status;
 };
@@ -150,8 +155,10 @@ struct cxl_mockmem_data {
 	int user_limit;
 	int master_limit;
 	struct mock_event_store mes;
+	struct cxl_memdev_state *mds;
 	u8 event_buf[SZ_4K];
 	u64 timestamp;
+	unsigned long sanitize_timeout;
 };
 
 static struct mock_event_log *event_find_log(struct device *dev, int log_type)
@@ -326,7 +333,7 @@ static void cxl_mock_event_trigger(struct device *dev)
 			event_reset_log(log);
 	}
 
-	cxl_mem_get_event_records(mes->mds, mes->ev_status);
+	cxl_mem_get_event_records(mdata->mds, mes->ev_status);
 }
 
 struct cxl_event_record_raw maint_needed = {
@@ -567,9 +574,26 @@ static int mock_partition_info(struct cxl_mbox_cmd *cmd)
 	return 0;
 }
 
+void cxl_mockmem_sanitize_work(struct work_struct *work)
+{
+	struct cxl_memdev_state *mds =
+		container_of(work, typeof(*mds), security.poll_dwork.work);
+
+	mutex_lock(&mds->mbox_mutex);
+	if (mds->security.sanitize_node)
+		sysfs_notify_dirent(mds->security.sanitize_node);
+	mds->security.sanitize_active = false;
+	mutex_unlock(&mds->mbox_mutex);
+
+	dev_dbg(mds->cxlds.dev, "sanitize complete\n");
+}
+
 static int mock_sanitize(struct cxl_mockmem_data *mdata,
 			 struct cxl_mbox_cmd *cmd)
 {
+	struct cxl_memdev_state *mds = mdata->mds;
+	int rc = 0;
+
 	if (cmd->size_in != 0)
 		return -EINVAL;
 
@@ -585,7 +609,16 @@ static int mock_sanitize(struct cxl_mockmem_data *mdata,
 		return -ENXIO;
 	}
 
-	return 0; /* assume less than 2 secs, no bg */
+	mutex_lock(&mds->mbox_mutex);
+	if (schedule_delayed_work(&mds->security.poll_dwork,
+				  msecs_to_jiffies(mdata->sanitize_timeout))) {
+		mds->security.sanitize_active = true;
+		dev_dbg(mds->cxlds.dev, "sanitize issued\n");
+	} else
+		rc = -EBUSY;
+	mutex_unlock(&mds->mbox_mutex);
+
+	return rc;
 }
 
 static int mock_secure_erase(struct cxl_mockmem_data *mdata,
@@ -1237,6 +1270,7 @@ static int mock_transfer_fw(struct cxl_mockmem_data *mdata,
 	}
 
 	memcpy(fw + offset, transfer->data, length);
+	usleep_range(1500, 2000);
 	return 0;
 }
 
@@ -1415,16 +1449,16 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (IS_ERR(mds))
 		return PTR_ERR(mds);
 
+	mdata->mds = mds;
 	mds->mbox_send = cxl_mock_mbox_send;
 	mds->payload_size = SZ_4K;
 	mds->event.buf = (struct cxl_get_event_payload *) mdata->event_buf;
+	INIT_DELAYED_WORK(&mds->security.poll_dwork, cxl_mockmem_sanitize_work);
 
 	cxlds = &mds->cxlds;
 	cxlds->serial = pdev->id;
-	if (is_rcd(pdev)) {
+	if (is_rcd(pdev))
 		cxlds->rcd = true;
-		cxlds->component_reg_phys = CXL_RESOURCE_NONE;
-	}
 
 	rc = cxl_enumerate_cmds(mds);
 	if (rc)
@@ -1447,14 +1481,17 @@ static int cxl_mock_mem_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	mdata->mes.mds = mds;
 	cxl_mock_add_event_logs(&mdata->mes);
 
-	cxlmd = devm_cxl_add_memdev(cxlds);
+	cxlmd = devm_cxl_add_memdev(&pdev->dev, cxlds);
 	if (IS_ERR(cxlmd))
 		return PTR_ERR(cxlmd);
 
-	rc = cxl_memdev_setup_fw_upload(mds);
+	rc = devm_cxl_setup_fw_upload(&pdev->dev, mds);
+	if (rc)
+		return rc;
+
+	rc = devm_cxl_sanitize_setup_notifier(&pdev->dev, cxlmd);
 	if (rc)
 		return rc;
 
@@ -1526,10 +1563,38 @@ static ssize_t fw_buf_checksum_show(struct device *dev,
 
 static DEVICE_ATTR_RO(fw_buf_checksum);
 
+static ssize_t sanitize_timeout_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(dev);
+
+	return sysfs_emit(buf, "%lu\n", mdata->sanitize_timeout);
+}
+
+static ssize_t sanitize_timeout_store(struct device *dev,
+				      struct device_attribute *attr,
+				      const char *buf, size_t count)
+{
+	struct cxl_mockmem_data *mdata = dev_get_drvdata(dev);
+	unsigned long val;
+	int rc;
+
+	rc = kstrtoul(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	mdata->sanitize_timeout = val;
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(sanitize_timeout);
+
 static struct attribute *cxl_mock_mem_attrs[] = {
 	&dev_attr_security_lock.attr,
 	&dev_attr_event_trigger.attr,
 	&dev_attr_fw_buf_checksum.attr,
+	&dev_attr_sanitize_timeout.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(cxl_mock_mem);

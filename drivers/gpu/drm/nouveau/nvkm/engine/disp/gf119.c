@@ -1154,7 +1154,7 @@ gf119_disp_intr(struct nvkm_disp *disp)
 }
 
 void
-gf119_disp_fini(struct nvkm_disp *disp)
+gf119_disp_fini(struct nvkm_disp *disp, bool suspend)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	/* disable all interrupts */

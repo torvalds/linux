@@ -199,7 +199,7 @@ void btrfs_free_reserved_data_space(struct btrfs_inode *inode,
 	start = round_down(start, fs_info->sectorsize);
 
 	btrfs_free_reserved_data_space_noquota(fs_info, len);
-	btrfs_qgroup_free_data(inode, reserved, start, len);
+	btrfs_qgroup_free_data(inode, reserved, start, len, NULL);
 }
 
 /*

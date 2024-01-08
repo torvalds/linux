@@ -22,7 +22,7 @@ struct gpiomux {
 	struct gpio_desc **gpios;
 };
 
-static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned val)
+static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned int val)
 {
 	DECLARE_BITMAP(values, BITS_PER_TYPE(val));
 
@@ -58,7 +58,7 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	struct device_node *adapter_np;
 	struct i2c_adapter *adapter = NULL;
 	struct fwnode_handle *child;
-	unsigned *values;
+	unsigned int *values;
 	int rc, i = 0;
 
 	if (is_of_node(fwnode)) {
@@ -101,7 +101,6 @@ static int i2c_mux_gpio_probe_fw(struct gpiomux *mux,
 	device_for_each_child_node(dev, child) {
 		if (is_of_node(child)) {
 			fwnode_property_read_u32(child, "reg", values + i);
-
 		} else if (is_acpi_node(child)) {
 			rc = acpi_get_local_address(ACPI_HANDLE_FWNODE(child), values + i);
 			if (rc) {
@@ -126,7 +125,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	struct gpiomux *mux;
 	struct i2c_adapter *parent;
 	struct i2c_adapter *root;
-	unsigned initial_state;
+	unsigned int initial_state;
 	int i, ngpios, ret;
 
 	mux = devm_kzalloc(&pdev->dev, sizeof(*mux), GFP_KERNEL);

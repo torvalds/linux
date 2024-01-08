@@ -240,7 +240,7 @@ examples:
 
         pinctrl_uart1: uart1-pins {
           function = "uart1";
-          group = "uart1_grp";
+          pins = "uart1_grp";
         };
       };
     };

@@ -332,8 +332,8 @@ static ssize_t bch2_data_job_read(struct file *file, char __user *buf,
 	struct bch_ioctl_data_event e = {
 		.type			= BCH_DATA_EVENT_PROGRESS,
 		.p.data_type		= ctx->stats.data_type,
-		.p.btree_id		= ctx->stats.btree_id,
-		.p.pos			= ctx->stats.pos,
+		.p.btree_id		= ctx->stats.pos.btree,
+		.p.pos			= ctx->stats.pos.pos,
 		.p.sectors_done		= atomic64_read(&ctx->stats.sectors_seen),
 		.p.sectors_total	= bch2_fs_usage_read_short(c).used,
 	};

@@ -21,13 +21,47 @@ const char *nfsd_op_str(int op);
 /* Common nested types */
 /* ============== NFSD_CMD_RPC_STATUS_GET ============== */
 /* NFSD_CMD_RPC_STATUS_GET - dump */
-struct nfsd_rpc_status_get_list {
-	struct nfsd_rpc_status_get_list *next;
-	struct nfsd_rpc_status_get_rsp obj __attribute__ ((aligned (8)));
+struct nfsd_rpc_status_get_rsp_dump {
+	struct {
+		__u32 xid:1;
+		__u32 flags:1;
+		__u32 prog:1;
+		__u32 version:1;
+		__u32 proc:1;
+		__u32 service_time:1;
+		__u32 saddr4:1;
+		__u32 daddr4:1;
+		__u32 saddr6_len;
+		__u32 daddr6_len;
+		__u32 sport:1;
+		__u32 dport:1;
+	} _present;
+
+	__u32 xid /* big-endian */;
+	__u32 flags;
+	__u32 prog;
+	__u8 version;
+	__u32 proc;
+	__s64 service_time;
+	__u32 saddr4 /* big-endian */;
+	__u32 daddr4 /* big-endian */;
+	void *saddr6;
+	void *daddr6;
+	__u16 sport /* big-endian */;
+	__u16 dport /* big-endian */;
+	unsigned int n_compound_ops;
+	__u32 *compound_ops;
 };
 
-void nfsd_rpc_status_get_list_free(struct nfsd_rpc_status_get_list *rsp);
+struct nfsd_rpc_status_get_rsp_list {
+	struct nfsd_rpc_status_get_rsp_list *next;
+	struct nfsd_rpc_status_get_rsp_dump obj __attribute__((aligned(8)));
+};
 
-struct nfsd_rpc_status_get_list *nfsd_rpc_status_get_dump(struct ynl_sock *ys);
+void
+nfsd_rpc_status_get_rsp_list_free(struct nfsd_rpc_status_get_rsp_list *rsp);
+
+struct nfsd_rpc_status_get_rsp_list *
+nfsd_rpc_status_get_dump(struct ynl_sock *ys);
 
 #endif /* _LINUX_NFSD_GEN_H */

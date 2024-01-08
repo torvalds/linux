@@ -141,7 +141,7 @@ static s32 cpm_muram_alloc_common(unsigned long size,
  *
  * This function returns a non-negative offset into the muram area, or
  * a negative errno on failure.
- * Use cpm_dpram_addr() to get the virtual address of the area.
+ * Use cpm_muram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */
 s32 cpm_muram_alloc(unsigned long size, unsigned long align)
@@ -193,7 +193,7 @@ EXPORT_SYMBOL(cpm_muram_free);
  * @size: number of bytes to allocate
  * This function returns @offset if the area was available, a negative
  * errno otherwise.
- * Use cpm_dpram_addr() to get the virtual address of the area.
+ * Use cpm_muram_addr() to get the virtual address of the area.
  * Use cpm_muram_free() to free the allocation.
  */
 s32 cpm_muram_alloc_fixed(unsigned long offset, unsigned long size)

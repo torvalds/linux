@@ -42,6 +42,7 @@ struct auxtrace_record *intel_pt_recording_init(int *err);
 int intel_pt_process_auxtrace_info(union perf_event *event,
 				   struct perf_session *session);
 
-struct perf_event_attr *intel_pt_pmu_default_config(struct perf_pmu *pmu);
+void intel_pt_pmu_default_config(const struct perf_pmu *intel_pt_pmu,
+				 struct perf_event_attr *attr);
 
 #endif

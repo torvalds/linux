@@ -7,7 +7,16 @@
 #include "buckets.h"
 #include "super.h"
 
-int bch2_backpointer_invalid(const struct bch_fs *, struct bkey_s_c k,
+static inline u64 swab40(u64 x)
+{
+	return (((x & 0x00000000ffULL) << 32)|
+		((x & 0x000000ff00ULL) << 16)|
+		((x & 0x0000ff0000ULL) >>  0)|
+		((x & 0x00ff000000ULL) >> 16)|
+		((x & 0xff00000000ULL) >> 32));
+}
+
+int bch2_backpointer_invalid(struct bch_fs *, struct bkey_s_c k,
 			     enum bkey_invalid_flags, struct printbuf *);
 void bch2_backpointer_to_text(struct printbuf *, const struct bch_backpointer *);
 void bch2_backpointer_k_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);

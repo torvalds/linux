@@ -40,6 +40,11 @@ struct sprd_pwm_chip {
 	struct sprd_pwm_chn chn[SPRD_PWM_CHN_NUM];
 };
 
+static inline struct sprd_pwm_chip* sprd_pwm_from_chip(struct pwm_chip *chip)
+{
+	return container_of(chip, struct sprd_pwm_chip, chip);
+}
+
 /*
  * The list of clocks required by PWM channels, and each channel has 2 clocks:
  * enable clock and pwm clock.
@@ -69,8 +74,7 @@ static void sprd_pwm_write(struct sprd_pwm_chip *spc, u32 hwid,
 static int sprd_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 			      struct pwm_state *state)
 {
-	struct sprd_pwm_chip *spc =
-		container_of(chip, struct sprd_pwm_chip, chip);
+	struct sprd_pwm_chip *spc = sprd_pwm_from_chip(chip);
 	struct sprd_pwm_chn *chn = &spc->chn[pwm->hwpwm];
 	u32 val, duty, prescale;
 	u64 tmp;
@@ -162,8 +166,7 @@ static int sprd_pwm_config(struct sprd_pwm_chip *spc, struct pwm_device *pwm,
 static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			  const struct pwm_state *state)
 {
-	struct sprd_pwm_chip *spc =
-		container_of(chip, struct sprd_pwm_chip, chip);
+	struct sprd_pwm_chip *spc = sprd_pwm_from_chip(chip);
 	struct sprd_pwm_chn *chn = &spc->chn[pwm->hwpwm];
 	struct pwm_state *cstate = &pwm->state;
 	int ret;
@@ -210,7 +213,6 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops sprd_pwm_ops = {
 	.apply = sprd_pwm_apply,
 	.get_state = sprd_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
@@ -240,10 +242,8 @@ static int sprd_pwm_clk_init(struct sprd_pwm_chip *spc)
 		chn->clk_rate = clk_get_rate(clk_pwm);
 	}
 
-	if (!i) {
-		dev_err(spc->dev, "no available PWM channels\n");
-		return -ENODEV;
-	}
+	if (!i)
+		return dev_err_probe(spc->dev, -ENODEV, "no available PWM channels\n");
 
 	spc->num_pwms = i;
 
@@ -264,7 +264,6 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(spc->base);
 
 	spc->dev = &pdev->dev;
-	platform_set_drvdata(pdev, spc);
 
 	ret = sprd_pwm_clk_init(spc);
 	if (ret)
@@ -274,18 +273,11 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 	spc->chip.ops = &sprd_pwm_ops;
 	spc->chip.npwm = spc->num_pwms;
 
-	ret = pwmchip_add(&spc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, &spc->chip);
 	if (ret)
 		dev_err(&pdev->dev, "failed to add PWM chip\n");
 
 	return ret;
-}
-
-static void sprd_pwm_remove(struct platform_device *pdev)
-{
-	struct sprd_pwm_chip *spc = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&spc->chip);
 }
 
 static const struct of_device_id sprd_pwm_of_match[] = {
@@ -300,7 +292,6 @@ static struct platform_driver sprd_pwm_driver = {
 		.of_match_table = sprd_pwm_of_match,
 	},
 	.probe = sprd_pwm_probe,
-	.remove_new = sprd_pwm_remove,
 };
 
 module_platform_driver(sprd_pwm_driver);

@@ -14,6 +14,8 @@
 	x(snapshots_read,		PASS_ALWAYS)						\
 	x(check_topology,		0)							\
 	x(check_allocations,		PASS_FSCK)						\
+	x(trans_mark_dev_sbs,		PASS_ALWAYS|PASS_SILENT)				\
+	x(fs_journal_alloc,		PASS_ALWAYS|PASS_SILENT)				\
 	x(set_may_go_rw,		PASS_ALWAYS|PASS_SILENT)				\
 	x(journal_replay,		PASS_ALWAYS)						\
 	x(check_alloc_info,		PASS_FSCK)						\
@@ -27,11 +29,12 @@
 	x(check_snapshot_trees,		PASS_FSCK)						\
 	x(check_snapshots,		PASS_FSCK)						\
 	x(check_subvols,		PASS_FSCK)						\
-	x(delete_dead_snapshots,	PASS_FSCK|PASS_UNCLEAN)					\
+	x(delete_dead_snapshots,	PASS_FSCK)						\
 	x(fs_upgrade_for_subvolumes,	0)							\
 	x(resume_logged_ops,		PASS_ALWAYS)						\
 	x(check_inodes,			PASS_FSCK)						\
 	x(check_extents,		PASS_FSCK)						\
+	x(check_indirect_extents,	PASS_FSCK)						\
 	x(check_dirents,		PASS_FSCK)						\
 	x(check_xattrs,			PASS_FSCK)						\
 	x(check_root,			PASS_FSCK)						\
@@ -39,6 +42,7 @@
 	x(check_nlinks,			PASS_FSCK)						\
 	x(delete_dead_inodes,		PASS_FSCK|PASS_UNCLEAN)					\
 	x(fix_reflink_p,		0)							\
+	x(set_fs_needs_rebalance,	0)							\
 
 enum bch_recovery_pass {
 #define x(n, when)	BCH_RECOVERY_PASS_##n,

@@ -89,10 +89,13 @@ static void bkey_cached_free(struct btree_key_cache *bc,
 	ck->btree_trans_barrier_seq =
 		start_poll_synchronize_srcu(&c->btree_trans_barrier);
 
-	if (ck->c.lock.readers)
+	if (ck->c.lock.readers) {
 		list_move_tail(&ck->list, &bc->freed_pcpu);
-	else
+		bc->nr_freed_pcpu++;
+	} else {
 		list_move_tail(&ck->list, &bc->freed_nonpcpu);
+		bc->nr_freed_nonpcpu++;
+	}
 	atomic_long_inc(&bc->nr_freed);
 
 	kfree(ck->k);
@@ -108,6 +111,8 @@ static void __bkey_cached_move_to_freelist_ordered(struct btree_key_cache *bc,
 						   struct bkey_cached *ck)
 {
 	struct bkey_cached *pos;
+
+	bc->nr_freed_nonpcpu++;
 
 	list_for_each_entry_reverse(pos, &bc->freed_nonpcpu, list) {
 		if (ULONG_CMP_GE(ck->btree_trans_barrier_seq,
@@ -158,6 +163,7 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 #else
 		mutex_lock(&bc->lock);
 		list_move_tail(&ck->list, &bc->freed_nonpcpu);
+		bc->nr_freed_nonpcpu++;
 		mutex_unlock(&bc->lock);
 #endif
 	} else {
@@ -217,6 +223,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 			       f->nr < ARRAY_SIZE(f->objs) / 2) {
 				ck = list_last_entry(&bc->freed_nonpcpu, struct bkey_cached, list);
 				list_del_init(&ck->list);
+				bc->nr_freed_nonpcpu--;
 				f->objs[f->nr++] = ck;
 			}
 
@@ -229,6 +236,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		if (!list_empty(&bc->freed_nonpcpu)) {
 			ck = list_last_entry(&bc->freed_nonpcpu, struct bkey_cached, list);
 			list_del_init(&ck->list);
+			bc->nr_freed_nonpcpu--;
 		}
 		mutex_unlock(&bc->lock);
 #endif
@@ -324,7 +332,7 @@ btree_key_cache_create(struct btree_trans *trans, struct btree_path *path)
 		ck = bkey_cached_reuse(bc);
 		if (unlikely(!ck)) {
 			bch_err(c, "error allocating memory for key cache item, btree %s",
-				bch2_btree_ids[path->btree_id]);
+				bch2_btree_id_str(path->btree_id));
 			return ERR_PTR(-BCH_ERR_ENOMEM_btree_key_cache_create);
 		}
 
@@ -407,7 +415,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 			new_k = kmalloc(new_u64s * sizeof(u64), GFP_KERNEL);
 			if (!new_k) {
 				bch_err(trans->c, "error allocating memory for key cache key, btree %s u64s %u",
-					bch2_btree_ids[ck->key.btree_id], new_u64s);
+					bch2_btree_id_str(ck->key.btree_id), new_u64s);
 				ret = -BCH_ERR_ENOMEM_btree_key_cache_fill;
 				goto err;
 			}
@@ -509,7 +517,7 @@ fill:
 		 * path->uptodate yet:
 		 */
 		if (!path->locks_want &&
-		    !__bch2_btree_path_upgrade(trans, path, 1)) {
+		    !__bch2_btree_path_upgrade(trans, path, 1, NULL)) {
 			trace_and_count(trans->c, trans_restart_key_cache_upgrade, trans, _THIS_IP_);
 			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
 			goto err;
@@ -664,7 +672,6 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		goto out;
 
 	bch2_journal_pin_drop(j, &ck->journal);
-	bch2_journal_preres_put(j, &ck->res);
 
 	BUG_ON(!btree_node_locked(c_iter.path, 0));
 
@@ -762,18 +769,6 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 
 	BUG_ON(insert->k.u64s > ck->u64s);
 
-	if (likely(!(flags & BTREE_INSERT_JOURNAL_REPLAY))) {
-		int difference;
-
-		BUG_ON(jset_u64s(insert->k.u64s) > trans->journal_preres.u64s);
-
-		difference = jset_u64s(insert->k.u64s) - ck->res.u64s;
-		if (difference > 0) {
-			trans->journal_preres.u64s	-= difference;
-			ck->res.u64s			+= difference;
-		}
-	}
-
 	bkey_copy(ck->k, insert);
 	ck->valid = true;
 
@@ -834,8 +829,7 @@ void bch2_btree_key_cache_drop(struct btree_trans *trans,
 static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 					   struct shrink_control *sc)
 {
-	struct bch_fs *c = container_of(shrink, struct bch_fs,
-					btree_key_cache.shrink);
+	struct bch_fs *c = shrink->private_data;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	struct bucket_table *tbl;
 	struct bkey_cached *ck, *t;
@@ -851,6 +845,8 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 	 * Newest freed entries are at the end of the list - once we hit one
 	 * that's too new to be freed, we can bail out:
 	 */
+	scanned += bc->nr_freed_nonpcpu;
+
 	list_for_each_entry_safe(ck, t, &bc->freed_nonpcpu, list) {
 		if (!poll_state_synchronize_srcu(&c->btree_trans_barrier,
 						 ck->btree_trans_barrier_seq))
@@ -860,12 +856,14 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		scanned++;
 		freed++;
+		bc->nr_freed_nonpcpu--;
 	}
 
 	if (scanned >= nr)
 		goto out;
+
+	scanned += bc->nr_freed_pcpu;
 
 	list_for_each_entry_safe(ck, t, &bc->freed_pcpu, list) {
 		if (!poll_state_synchronize_srcu(&c->btree_trans_barrier,
@@ -876,8 +874,8 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		six_lock_exit(&ck->c.lock);
 		kmem_cache_free(bch2_key_cache, ck);
 		atomic_long_dec(&bc->nr_freed);
-		scanned++;
 		freed++;
+		bc->nr_freed_pcpu--;
 	}
 
 	if (scanned >= nr)
@@ -932,8 +930,7 @@ out:
 static unsigned long bch2_btree_key_cache_count(struct shrinker *shrink,
 					    struct shrink_control *sc)
 {
-	struct bch_fs *c = container_of(shrink, struct bch_fs,
-					btree_key_cache.shrink);
+	struct bch_fs *c = shrink->private_data;
 	struct btree_key_cache *bc = &c->btree_key_cache;
 	long nr = atomic_long_read(&bc->nr_keys) -
 		atomic_long_read(&bc->nr_dirty);
@@ -953,7 +950,7 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	int cpu;
 #endif
 
-	unregister_shrinker(&bc->shrink);
+	shrinker_free(bc->shrink);
 
 	mutex_lock(&bc->lock);
 
@@ -984,6 +981,9 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 	}
 #endif
 
+	BUG_ON(list_count_nodes(&bc->freed_pcpu) != bc->nr_freed_pcpu);
+	BUG_ON(list_count_nodes(&bc->freed_nonpcpu) != bc->nr_freed_nonpcpu);
+
 	list_splice(&bc->freed_pcpu,	&items);
 	list_splice(&bc->freed_nonpcpu,	&items);
 
@@ -991,9 +991,6 @@ void bch2_fs_btree_key_cache_exit(struct btree_key_cache *bc)
 
 	list_for_each_entry_safe(ck, n, &items, list) {
 		cond_resched();
-
-		bch2_journal_pin_drop(&c->journal, &ck->journal);
-		bch2_journal_preres_put(&c->journal, &ck->res);
 
 		list_del(&ck->list);
 		kfree(ck->k);
@@ -1027,6 +1024,7 @@ void bch2_fs_btree_key_cache_init_early(struct btree_key_cache *c)
 int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 {
 	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
+	struct shrinker *shrink;
 
 #ifdef __KERNEL__
 	bc->pcpu_freed = alloc_percpu(struct btree_key_cache_freelist);
@@ -1039,11 +1037,15 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 
 	bc->table_init_done = true;
 
-	bc->shrink.seeks		= 0;
-	bc->shrink.count_objects	= bch2_btree_key_cache_count;
-	bc->shrink.scan_objects		= bch2_btree_key_cache_scan;
-	if (register_shrinker(&bc->shrink, "%s/btree_key_cache", c->name))
+	shrink = shrinker_alloc(0, "%s-btree_key_cache", c->name);
+	if (!shrink)
 		return -BCH_ERR_ENOMEM_fs_btree_cache_init;
+	bc->shrink = shrink;
+	shrink->seeks		= 0;
+	shrink->count_objects	= bch2_btree_key_cache_count;
+	shrink->scan_objects	= bch2_btree_key_cache_scan;
+	shrink->private_data	= c;
+	shrinker_register(shrink);
 	return 0;
 }
 

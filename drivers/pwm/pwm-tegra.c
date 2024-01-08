@@ -268,7 +268,6 @@ static int tegra_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops tegra_pwm_ops = {
 	.apply = tegra_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int tegra_pwm_probe(struct platform_device *pdev)

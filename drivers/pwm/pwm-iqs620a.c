@@ -166,7 +166,6 @@ static int iqs620_pwm_notifier(struct notifier_block *notifier,
 static const struct pwm_ops iqs620_pwm_ops = {
 	.apply = iqs620_pwm_apply,
 	.get_state = iqs620_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static void iqs620_pwm_notifier_unregister(void *context)

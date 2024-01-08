@@ -1816,7 +1816,7 @@ static struct platform_driver msm8953_pinctrl_driver = {
 		.of_match_table = msm8953_pinctrl_of_match,
 	},
 	.probe = msm8953_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init msm8953_pinctrl_init(void)

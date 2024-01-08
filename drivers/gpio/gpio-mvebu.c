@@ -346,7 +346,7 @@ static int mvebu_gpio_direction_input(struct gpio_chip *chip, unsigned int pin)
 	 * Check with the pinctrl driver whether this pin is usable as
 	 * an input GPIO
 	 */
-	ret = pinctrl_gpio_direction_input(chip->base + pin);
+	ret = pinctrl_gpio_direction_input(chip, pin);
 	if (ret)
 		return ret;
 
@@ -366,7 +366,7 @@ static int mvebu_gpio_direction_output(struct gpio_chip *chip, unsigned int pin,
 	 * Check with the pinctrl driver whether this pin is usable as
 	 * an output GPIO
 	 */
-	ret = pinctrl_gpio_direction_output(chip->base + pin);
+	ret = pinctrl_gpio_direction_output(chip, pin);
 	if (ret)
 		return ret;
 
@@ -757,7 +757,6 @@ static const struct pwm_ops mvebu_pwm_ops = {
 	.free = mvebu_pwm_free,
 	.get_state = mvebu_pwm_get_state,
 	.apply = mvebu_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static void __maybe_unused mvebu_pwm_suspend(struct mvebu_gpio_chip *mvchip)

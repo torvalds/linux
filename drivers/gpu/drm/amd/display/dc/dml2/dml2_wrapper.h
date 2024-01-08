@@ -139,6 +139,8 @@ struct dml2_soc_bbox_overrides {
 	double urgent_latency_us;
 	double sr_exit_latency_us;
 	double sr_enter_plus_exit_latency_us;
+	double sr_exit_z8_time_us;
+	double sr_enter_plus_exit_z8_time_us;
 	double dram_clock_change_latency_us;
 	double fclk_change_latency_us;
 	unsigned int dram_num_chan;

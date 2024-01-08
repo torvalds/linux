@@ -70,29 +70,29 @@ static inline void gfs2_ordered_add_inode(struct gfs2_inode *ip)
 	}
 }
 
-extern void gfs2_ordered_del_inode(struct gfs2_inode *ip);
-extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
-extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
-extern bool gfs2_log_is_empty(struct gfs2_sbd *sdp);
-extern void gfs2_log_release_revokes(struct gfs2_sbd *sdp, unsigned int revokes);
-extern void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
-extern bool gfs2_log_try_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
-				 unsigned int *extra_revokes);
-extern void gfs2_log_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
-			     unsigned int *extra_revokes);
-extern void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
-				  u64 seq, u32 tail, u32 lblock, u32 flags,
-				  blk_opf_t op_flags);
-extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
-			   u32 type);
-extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
-extern void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc);
-extern void log_flush_wait(struct gfs2_sbd *sdp);
+void gfs2_ordered_del_inode(struct gfs2_inode *ip);
+unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct);
+void gfs2_remove_from_ail(struct gfs2_bufdata *bd);
+bool gfs2_log_is_empty(struct gfs2_sbd *sdp);
+void gfs2_log_release_revokes(struct gfs2_sbd *sdp, unsigned int revokes);
+void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks);
+bool gfs2_log_try_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+			  unsigned int *extra_revokes);
+void gfs2_log_reserve(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+		      unsigned int *extra_revokes);
+void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
+			   u64 seq, u32 tail, u32 lblock, u32 flags,
+			   blk_opf_t op_flags);
+void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl,
+		    u32 type);
+void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
+void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc);
+void log_flush_wait(struct gfs2_sbd *sdp);
 
-extern int gfs2_logd(void *data);
-extern void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
-extern void gfs2_glock_remove_revoke(struct gfs2_glock *gl);
-extern void gfs2_flush_revokes(struct gfs2_sbd *sdp);
-extern void gfs2_ail_drain(struct gfs2_sbd *sdp);
+int gfs2_logd(void *data);
+void gfs2_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
+void gfs2_glock_remove_revoke(struct gfs2_glock *gl);
+void gfs2_flush_revokes(struct gfs2_sbd *sdp);
+void gfs2_ail_drain(struct gfs2_sbd *sdp);
 
 #endif /* __LOG_DOT_H__ */

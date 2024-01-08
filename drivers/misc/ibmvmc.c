@@ -1249,9 +1249,7 @@ static long ibmvmc_ioctl_sethmcid(struct ibmvmc_file_session *session,
 		return -EIO;
 	}
 
-	/* Make sure buffer is NULL terminated before trying to print it */
-	memset(print_buffer, 0, HMC_ID_LEN + 1);
-	strncpy(print_buffer, hmc->hmc_id, HMC_ID_LEN);
+	strscpy(print_buffer, hmc->hmc_id, sizeof(print_buffer));
 	pr_info("ibmvmc: sethmcid: Set HMC ID: \"%s\"\n", print_buffer);
 
 	memcpy(buffer->real_addr_local, hmc->hmc_id, HMC_ID_LEN);

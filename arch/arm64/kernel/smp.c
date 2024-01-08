@@ -965,10 +965,7 @@ static void smp_cross_call(const struct cpumask *target, unsigned int ipinr)
 
 static bool ipi_should_be_nmi(enum ipi_msg_type ipi)
 {
-	DECLARE_STATIC_KEY_FALSE(supports_pseudo_nmis);
-
-	if (!system_uses_irq_prio_masking() ||
-	    !static_branch_likely(&supports_pseudo_nmis))
+	if (!system_uses_irq_prio_masking())
 		return false;
 
 	switch (ipi) {

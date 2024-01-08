@@ -126,7 +126,6 @@ static int ntxec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm_dev,
 }
 
 static const struct pwm_ops ntxec_pwm_ops = {
-	.owner = THIS_MODULE,
 	.apply = ntxec_pwm_apply,
 	/*
 	 * No .get_state callback, because the current state cannot be read

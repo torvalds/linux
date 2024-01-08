@@ -18,19 +18,6 @@
 
 #include "system_local.h"
 
-typedef struct dma_state_s		dma_state_t;
-
-/*! Read the control registers of DMA[ID]
-
- \param	ID[in]				DMA identifier
- \param	state[out]			input formatter state structure
-
- \return none, state = DMA[ID].state
- */
-void dma_get_state(
-    const dma_ID_t		ID,
-    dma_state_t			*state);
-
 /*! Write to a control register of DMA[ID]
 
  \param	ID[in]				DMA identifier

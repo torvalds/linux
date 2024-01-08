@@ -782,9 +782,7 @@ struct bpf_iter_num_kern {
 	int end; /* final value, exclusive */
 } __aligned(8);
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
 
 __bpf_kfunc int bpf_iter_num_new(struct bpf_iter_num *it, int start, int end)
 {
@@ -843,4 +841,4 @@ __bpf_kfunc void bpf_iter_num_destroy(struct bpf_iter_num *it)
 	s->cur = s->end = 0;
 }
 
-__diag_pop();
+__bpf_kfunc_end_defs();

@@ -71,7 +71,7 @@ static void __init *early_alloc_pgtable(unsigned long size)
  * map_kernel_page adds an entry to the ioremap page table
  * and adds an entry to the HPT, possibly bolting it
  */
-int __ref map_kernel_page(unsigned long ea, unsigned long pa, pgprot_t prot)
+int __ref map_kernel_page(unsigned long ea, phys_addr_t pa, pgprot_t prot)
 {
 	pgd_t *pgdp;
 	p4d_t *p4dp;

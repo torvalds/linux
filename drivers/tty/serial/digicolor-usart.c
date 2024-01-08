@@ -133,7 +133,7 @@ static void digicolor_uart_rx(struct uart_port *port)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	while (1) {
 		u8 status, ch, ch_flag;
@@ -172,7 +172,7 @@ static void digicolor_uart_rx(struct uart_port *port)
 				 ch_flag);
 	}
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	tty_flip_buffer_push(&port->state->port);
 }
@@ -185,7 +185,7 @@ static void digicolor_uart_tx(struct uart_port *port)
 	if (digicolor_uart_tx_full(port))
 		return;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (port->x_char) {
 		writeb_relaxed(port->x_char, port->membase + UA_EMI_REC);
@@ -211,7 +211,7 @@ static void digicolor_uart_tx(struct uart_port *port)
 		uart_write_wakeup(port);
 
 out:
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static irqreturn_t digicolor_uart_int(int irq, void *dev_id)
@@ -333,7 +333,7 @@ static void digicolor_uart_set_termios(struct uart_port *port,
 		port->ignore_status_mask |= UA_STATUS_OVERRUN_ERR
 			| UA_STATUS_PARITY_ERR | UA_STATUS_FRAME_ERR;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 
@@ -341,7 +341,7 @@ static void digicolor_uart_set_termios(struct uart_port *port,
 	writeb_relaxed(divisor & 0xff, port->membase + UA_HBAUD_LO);
 	writeb_relaxed(divisor >> 8, port->membase + UA_HBAUD_HI);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *digicolor_uart_type(struct uart_port *port)
@@ -398,14 +398,14 @@ static void digicolor_uart_console_write(struct console *co, const char *c,
 	int locked = 1;
 
 	if (oops_in_progress)
-		locked = spin_trylock_irqsave(&port->lock, flags);
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 
 	uart_console_write(port, c, n, digicolor_uart_console_putchar);
 
 	if (locked)
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 
 	/* Wait for transmitter to become empty */
 	do {

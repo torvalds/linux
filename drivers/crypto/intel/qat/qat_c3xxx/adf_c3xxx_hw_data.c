@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2014 - 2021 Intel Corporation */
 #include <adf_accel_devices.h>
+#include <adf_admin.h>
 #include <adf_clock.h>
 #include <adf_common_drv.h>
 #include <adf_gen2_config.h>

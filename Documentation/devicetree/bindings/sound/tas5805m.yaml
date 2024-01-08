@@ -37,6 +37,8 @@ properties:
       generated from TI's PPC3 tool.
     $ref: /schemas/types.yaml#/definitions/string
 
+additionalProperties: false
+
 examples:
   - |
     i2c {
@@ -52,5 +54,4 @@ examples:
                 ti,dsp-config-name = "mono_pbtl_48khz";
         };
     };
-
-additionalProperties: true
+...

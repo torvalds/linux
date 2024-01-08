@@ -83,6 +83,9 @@ mlx5e_tc_post_act_offload(struct mlx5e_post_act *post_act,
 	struct mlx5_flow_spec *spec;
 	int err;
 
+	if (IS_ERR(post_act))
+		return PTR_ERR(post_act);
+
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
 		return -ENOMEM;
@@ -110,6 +113,9 @@ mlx5e_tc_post_act_add(struct mlx5e_post_act *post_act, struct mlx5_flow_attr *po
 {
 	struct mlx5e_post_act_handle *handle;
 	int err;
+
+	if (IS_ERR(post_act))
+		return ERR_CAST(post_act);
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)

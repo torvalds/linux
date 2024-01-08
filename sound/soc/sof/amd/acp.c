@@ -575,7 +575,7 @@ unregister_dev:
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_probe, SND_SOC_SOF_AMD_COMMON);
 
-int amd_sof_acp_remove(struct snd_sof_dev *sdev)
+void amd_sof_acp_remove(struct snd_sof_dev *sdev)
 {
 	struct acp_dev_data *adata = sdev->pdata->hw_pdata;
 
@@ -588,7 +588,7 @@ int amd_sof_acp_remove(struct snd_sof_dev *sdev)
 	if (adata->dmic_dev)
 		platform_device_unregister(adata->dmic_dev);
 
-	return acp_reset(sdev);
+	acp_reset(sdev);
 }
 EXPORT_SYMBOL_NS(amd_sof_acp_remove, SND_SOC_SOF_AMD_COMMON);
 

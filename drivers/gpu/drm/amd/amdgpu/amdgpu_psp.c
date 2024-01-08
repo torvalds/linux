@@ -1473,6 +1473,11 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 				topology->nodes[i].num_links = (requires_reflection && topology->nodes[i].num_links) ?
 								topology->nodes[i].num_links : node_num_links;
 			}
+			/* popluate the connected port num info if supported and available */
+			if (ta_port_num_support && topology->nodes[i].num_links) {
+				memcpy(topology->nodes[i].port_num, link_extend_info_output->nodes[i].port_num,
+				       sizeof(struct xgmi_connected_port_num) * TA_XGMI__MAX_PORT_NUM);
+			}
 
 			/* reflect the topology information for bi-directionality */
 			if (requires_reflection && topology->nodes[i].num_hops)
@@ -2116,6 +2121,21 @@ int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev)
 
 	if (!amdgpu_sriov_vf(adev) && psp->funcs && psp->funcs->wait_for_bootloader != NULL)
 		ret = psp->funcs->wait_for_bootloader(psp);
+
+	return ret;
+}
+
+int amdgpu_psp_query_boot_status(struct amdgpu_device *adev)
+{
+	struct psp_context *psp = &adev->psp;
+	int ret = 0;
+
+	if (amdgpu_sriov_vf(adev) || (adev->flags & AMD_IS_APU))
+		return 0;
+
+	if (psp->funcs &&
+	    psp->funcs->query_boot_status)
+		ret = psp->funcs->query_boot_status(psp);
 
 	return ret;
 }

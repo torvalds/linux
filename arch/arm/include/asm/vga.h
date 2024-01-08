@@ -5,6 +5,7 @@
 #include <linux/io.h>
 
 extern unsigned long vga_base;
+extern struct screen_info vgacon_screen_info;
 
 #define VGA_MAP_MEM(x,s)	(vga_base + (x))
 

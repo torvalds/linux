@@ -1823,7 +1823,7 @@ static int __init iucv_init(void)
 		rc = -EPROTONOSUPPORT;
 		goto out;
 	}
-	ctl_set_bit(0, 1);
+	system_ctl_set_bit(0, CR0_IUCV_BIT);
 	rc = iucv_query_maxconn();
 	if (rc)
 		goto out_ctl;
@@ -1871,7 +1871,7 @@ out_dev:
 out_int:
 	unregister_external_irq(EXT_IRQ_IUCV, iucv_external_interrupt);
 out_ctl:
-	ctl_clear_bit(0, 1);
+	system_ctl_clear_bit(0, 1);
 out:
 	return rc;
 }

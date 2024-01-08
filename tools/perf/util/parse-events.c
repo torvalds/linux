@@ -34,8 +34,9 @@
 #ifdef PARSER_DEBUG
 extern int parse_events_debug;
 #endif
-static int get_config_terms(struct list_head *head_config,
-			    struct list_head *head_terms __maybe_unused);
+static int get_config_terms(struct parse_events_terms *head_config, struct list_head *head_terms);
+static int parse_events_terms__copy(const struct parse_events_terms *src,
+				    struct parse_events_terms *dest);
 
 struct event_symbol event_symbols_hw[PERF_COUNT_HW_MAX] = {
 	[PERF_COUNT_HW_CPU_CYCLES] = {
@@ -153,26 +154,27 @@ const char *event_type(int type)
 	return "unknown";
 }
 
-static char *get_config_str(struct list_head *head_terms, enum parse_events__term_type type_term)
+static char *get_config_str(struct parse_events_terms *head_terms,
+			    enum parse_events__term_type type_term)
 {
 	struct parse_events_term *term;
 
 	if (!head_terms)
 		return NULL;
 
-	list_for_each_entry(term, head_terms, list)
+	list_for_each_entry(term, &head_terms->terms, list)
 		if (term->type_term == type_term)
 			return term->val.str;
 
 	return NULL;
 }
 
-static char *get_config_metric_id(struct list_head *head_terms)
+static char *get_config_metric_id(struct parse_events_terms *head_terms)
 {
 	return get_config_str(head_terms, PARSE_EVENTS__TERM_TYPE_METRIC_ID);
 }
 
-static char *get_config_name(struct list_head *head_terms)
+static char *get_config_name(struct parse_events_terms *head_terms)
 {
 	return get_config_str(head_terms, PARSE_EVENTS__TERM_TYPE_NAME);
 }
@@ -188,11 +190,11 @@ static char *get_config_name(struct list_head *head_terms)
  * @config_terms: the list of terms that may contain a raw term.
  * @pmu: the PMU to scan for events from.
  */
-static void fix_raw(struct list_head *config_terms, struct perf_pmu *pmu)
+static void fix_raw(struct parse_events_terms *config_terms, struct perf_pmu *pmu)
 {
 	struct parse_events_term *term;
 
-	list_for_each_entry(term, config_terms, list) {
+	list_for_each_entry(term, &config_terms->terms, list) {
 		u64 num;
 
 		if (term->type_term != PARSE_EVENTS__TERM_TYPE_RAW)
@@ -356,7 +358,7 @@ static int config_term_common(struct perf_event_attr *attr,
 			      struct parse_events_term *term,
 			      struct parse_events_error *err);
 static int config_attr(struct perf_event_attr *attr,
-		       struct list_head *head,
+		       struct parse_events_terms *head,
 		       struct parse_events_error *err,
 		       config_term_func_t config_term);
 
@@ -442,7 +444,7 @@ bool parse_events__filter_pmu(const struct parse_events_state *parse_state,
 
 int parse_events_add_cache(struct list_head *list, int *idx, const char *name,
 			   struct parse_events_state *parse_state,
-			   struct list_head *head_config)
+			   struct parse_events_terms *head_config)
 {
 	struct perf_pmu *pmu = NULL;
 	bool found_supported = false;
@@ -520,7 +522,7 @@ static void tracepoint_error(struct parse_events_error *e, int err,
 static int add_tracepoint(struct list_head *list, int *idx,
 			  const char *sys_name, const char *evt_name,
 			  struct parse_events_error *err,
-			  struct list_head *head_config, void *loc_)
+			  struct parse_events_terms *head_config, void *loc_)
 {
 	YYLTYPE *loc = loc_;
 	struct evsel *evsel = evsel__newtp_idx(sys_name, evt_name, (*idx)++);
@@ -545,7 +547,7 @@ static int add_tracepoint(struct list_head *list, int *idx,
 static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 				      const char *sys_name, const char *evt_name,
 				      struct parse_events_error *err,
-				      struct list_head *head_config, YYLTYPE *loc)
+				      struct parse_events_terms *head_config, YYLTYPE *loc)
 {
 	char *evt_path;
 	struct dirent *evt_ent;
@@ -593,7 +595,7 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 static int add_tracepoint_event(struct list_head *list, int *idx,
 				const char *sys_name, const char *evt_name,
 				struct parse_events_error *err,
-				struct list_head *head_config, YYLTYPE *loc)
+				struct parse_events_terms *head_config, YYLTYPE *loc)
 {
 	return strpbrk(evt_name, "*?") ?
 		add_tracepoint_multi_event(list, idx, sys_name, evt_name,
@@ -605,7 +607,7 @@ static int add_tracepoint_event(struct list_head *list, int *idx,
 static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 				    const char *sys_name, const char *evt_name,
 				    struct parse_events_error *err,
-				    struct list_head *head_config, YYLTYPE *loc)
+				    struct parse_events_terms *head_config, YYLTYPE *loc)
 {
 	struct dirent *events_ent;
 	DIR *events_dir;
@@ -680,7 +682,7 @@ do {					\
 int parse_events_add_breakpoint(struct parse_events_state *parse_state,
 				struct list_head *list,
 				u64 addr, char *type, u64 len,
-				struct list_head *head_config __maybe_unused)
+				struct parse_events_terms *head_config)
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
@@ -1066,21 +1068,20 @@ static int config_term_tracepoint(struct perf_event_attr *attr,
 #endif
 
 static int config_attr(struct perf_event_attr *attr,
-		       struct list_head *head,
+		       struct parse_events_terms *head,
 		       struct parse_events_error *err,
 		       config_term_func_t config_term)
 {
 	struct parse_events_term *term;
 
-	list_for_each_entry(term, head, list)
+	list_for_each_entry(term, &head->terms, list)
 		if (config_term(attr, term, err))
 			return -EINVAL;
 
 	return 0;
 }
 
-static int get_config_terms(struct list_head *head_config,
-			    struct list_head *head_terms __maybe_unused)
+static int get_config_terms(struct parse_events_terms *head_config, struct list_head *head_terms)
 {
 #define ADD_CONFIG_TERM(__type, __weak)				\
 	struct evsel_config_term *__t;			\
@@ -1113,7 +1114,7 @@ do {								\
 
 	struct parse_events_term *term;
 
-	list_for_each_entry(term, head_config, list) {
+	list_for_each_entry(term, &head_config->terms, list) {
 		switch (term->type_term) {
 		case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
 			ADD_CONFIG_TERM_VAL(PERIOD, period, term->val.num, term->weak);
@@ -1194,14 +1195,14 @@ do {								\
  * Add EVSEL__CONFIG_TERM_CFG_CHG where cfg_chg will have a bit set for
  * each bit of attr->config that the user has changed.
  */
-static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
+static int get_config_chgs(struct perf_pmu *pmu, struct parse_events_terms *head_config,
 			   struct list_head *head_terms)
 {
 	struct parse_events_term *term;
 	u64 bits = 0;
 	int type;
 
-	list_for_each_entry(term, head_config, list) {
+	list_for_each_entry(term, &head_config->terms, list) {
 		switch (term->type_term) {
 		case PARSE_EVENTS__TERM_TYPE_USER:
 			type = perf_pmu__format_type(pmu, term->config);
@@ -1251,7 +1252,7 @@ static int get_config_chgs(struct perf_pmu *pmu, struct list_head *head_config,
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				const char *sys, const char *event,
 				struct parse_events_error *err,
-				struct list_head *head_config, void *loc_)
+				struct parse_events_terms *head_config, void *loc_)
 {
 	YYLTYPE *loc = loc_;
 #ifdef HAVE_LIBTRACEEVENT
@@ -1284,7 +1285,7 @@ int parse_events_add_tracepoint(struct list_head *list, int *idx,
 static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 				struct list_head *list,
 				struct perf_pmu *pmu, u32 type, u32 extended_type,
-				u64 config, struct list_head *head_config)
+				u64 config, struct parse_events_terms *head_config)
 {
 	struct perf_event_attr attr;
 	LIST_HEAD(config_terms);
@@ -1320,7 +1321,7 @@ static int __parse_events_add_numeric(struct parse_events_state *parse_state,
 int parse_events_add_numeric(struct parse_events_state *parse_state,
 			     struct list_head *list,
 			     u32 type, u64 config,
-			     struct list_head *head_config,
+			     struct parse_events_terms *head_config,
 			     bool wildcard)
 {
 	struct perf_pmu *pmu = NULL;
@@ -1369,7 +1370,7 @@ static bool config_term_percore(struct list_head *config_terms)
 
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, const char *name,
-			 struct list_head *head_config,
+			 const struct parse_events_terms *const_parsed_terms,
 			 bool auto_merge_stats, void *loc_)
 {
 	struct perf_event_attr attr;
@@ -1379,6 +1380,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	struct parse_events_error *err = parse_state->error;
 	YYLTYPE *loc = loc_;
 	LIST_HEAD(config_terms);
+	struct parse_events_terms parsed_terms;
 
 	pmu = parse_state->fake_pmu ?: perf_pmus__find(name);
 
@@ -1392,32 +1394,37 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return -EINVAL;
 	}
 
+	parse_events_terms__init(&parsed_terms);
+	if (const_parsed_terms) {
+		int ret = parse_events_terms__copy(const_parsed_terms, &parsed_terms);
+
+		if (ret)
+			return ret;
+	}
+
 	if (verbose > 1) {
 		struct strbuf sb;
 
 		strbuf_init(&sb, /*hint=*/ 0);
-		if (pmu->selectable && !head_config) {
+		if (pmu->selectable && list_empty(&parsed_terms.terms)) {
 			strbuf_addf(&sb, "%s//", name);
 		} else {
 			strbuf_addf(&sb, "%s/", name);
-			parse_events_term__to_strbuf(head_config, &sb);
+			parse_events_terms__to_strbuf(&parsed_terms, &sb);
 			strbuf_addch(&sb, '/');
 		}
 		fprintf(stderr, "Attempt to add: %s\n", sb.buf);
 		strbuf_release(&sb);
 	}
-	if (head_config)
-		fix_raw(head_config, pmu);
+	fix_raw(&parsed_terms, pmu);
 
-	if (pmu->default_config) {
-		memcpy(&attr, pmu->default_config,
-		       sizeof(struct perf_event_attr));
-	} else {
-		memset(&attr, 0, sizeof(attr));
-	}
+	memset(&attr, 0, sizeof(attr));
+	if (pmu->perf_event_attr_init_default)
+		pmu->perf_event_attr_init_default(pmu, &attr);
+
 	attr.type = pmu->type;
 
-	if (!head_config) {
+	if (list_empty(&parsed_terms.terms)) {
 		evsel = __add_event(list, &parse_state->idx, &attr,
 				    /*init_attr=*/true, /*name=*/NULL,
 				    /*metric_id=*/NULL, pmu,
@@ -1426,14 +1433,16 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return evsel ? 0 : -ENOMEM;
 	}
 
-	if (!parse_state->fake_pmu && perf_pmu__check_alias(pmu, head_config, &info, err))
+	if (!parse_state->fake_pmu && perf_pmu__check_alias(pmu, &parsed_terms, &info, err)) {
+		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
+	}
 
 	if (verbose > 1) {
 		struct strbuf sb;
 
 		strbuf_init(&sb, /*hint=*/ 0);
-		parse_events_term__to_strbuf(head_config, &sb);
+		parse_events_terms__to_strbuf(&parsed_terms, &sb);
 		fprintf(stderr, "..after resolving event: %s/%s/\n", name, sb.buf);
 		strbuf_release(&sb);
 	}
@@ -1442,39 +1451,53 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	 * Configure hardcoded terms first, no need to check
 	 * return value when called with fail == 0 ;)
 	 */
-	if (config_attr(&attr, head_config, parse_state->error, config_term_pmu))
+	if (config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
+		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
+	}
 
-	if (get_config_terms(head_config, &config_terms))
+	if (get_config_terms(&parsed_terms, &config_terms)) {
+		parse_events_terms__exit(&parsed_terms);
 		return -ENOMEM;
+	}
 
 	/*
 	 * When using default config, record which bits of attr->config were
 	 * changed by the user.
 	 */
-	if (pmu->default_config && get_config_chgs(pmu, head_config, &config_terms))
+	if (pmu->perf_event_attr_init_default &&
+	    get_config_chgs(pmu, &parsed_terms, &config_terms)) {
+		parse_events_terms__exit(&parsed_terms);
 		return -ENOMEM;
+	}
 
-	if (!parse_state->fake_pmu && perf_pmu__config(pmu, &attr, head_config, parse_state->error)) {
+	if (!parse_state->fake_pmu &&
+	    perf_pmu__config(pmu, &attr, &parsed_terms, parse_state->error)) {
 		free_config_terms(&config_terms);
+		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
 	}
 
 	evsel = __add_event(list, &parse_state->idx, &attr, /*init_attr=*/true,
-			    get_config_name(head_config),
-			    get_config_metric_id(head_config), pmu,
+			    get_config_name(&parsed_terms),
+			    get_config_metric_id(&parsed_terms), pmu,
 			    &config_terms, auto_merge_stats, /*cpu_list=*/NULL);
-	if (!evsel)
+	if (!evsel) {
+		parse_events_terms__exit(&parsed_terms);
 		return -ENOMEM;
+	}
 
 	if (evsel->name)
 		evsel->use_config_name = true;
 
 	evsel->percore = config_term_percore(&evsel->config_terms);
 
-	if (parse_state->fake_pmu)
+	if (parse_state->fake_pmu) {
+		parse_events_terms__exit(&parsed_terms);
 		return 0;
+	}
 
+	parse_events_terms__exit(&parsed_terms);
 	free((char *)evsel->unit);
 	evsel->unit = strdup(info.unit);
 	evsel->scale = info.scale;
@@ -1484,27 +1507,29 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 }
 
 int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
-			       char *str, struct list_head *head,
+			       const char *event_name,
+			       const struct parse_events_terms *const_parsed_terms,
 			       struct list_head **listp, void *loc_)
 {
 	struct parse_events_term *term;
 	struct list_head *list = NULL;
-	struct list_head *orig_head = NULL;
 	struct perf_pmu *pmu = NULL;
 	YYLTYPE *loc = loc_;
 	int ok = 0;
 	const char *config;
+	struct parse_events_terms parsed_terms;
 
 	*listp = NULL;
 
-	if (!head) {
-		head = malloc(sizeof(struct list_head));
-		if (!head)
-			goto out_err;
+	parse_events_terms__init(&parsed_terms);
+	if (const_parsed_terms) {
+		int ret = parse_events_terms__copy(const_parsed_terms, &parsed_terms);
 
-		INIT_LIST_HEAD(head);
+		if (ret)
+			return ret;
 	}
-	config = strdup(str);
+
+	config = strdup(event_name);
 	if (!config)
 		goto out_err;
 
@@ -1515,7 +1540,7 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 		zfree(&config);
 		goto out_err;
 	}
-	list_add_tail(&term->list, head);
+	list_add_tail(&term->list, &parsed_terms.terms);
 
 	/* Add it for all PMUs that support the alias */
 	list = malloc(sizeof(struct list_head));
@@ -1530,44 +1555,42 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 		if (parse_events__filter_pmu(parse_state, pmu))
 			continue;
 
-		if (!perf_pmu__have_event(pmu, str))
+		if (!perf_pmu__have_event(pmu, event_name))
 			continue;
 
 		auto_merge_stats = perf_pmu__auto_merge_stats(pmu);
-		parse_events_copy_term_list(head, &orig_head);
 		if (!parse_events_add_pmu(parse_state, list, pmu->name,
-					  orig_head, auto_merge_stats, loc)) {
+					  &parsed_terms, auto_merge_stats, loc)) {
 			struct strbuf sb;
 
 			strbuf_init(&sb, /*hint=*/ 0);
-			parse_events_term__to_strbuf(orig_head, &sb);
-			pr_debug("%s -> %s/%s/\n", str, pmu->name, sb.buf);
+			parse_events_terms__to_strbuf(&parsed_terms, &sb);
+			pr_debug("%s -> %s/%s/\n", event_name, pmu->name, sb.buf);
 			strbuf_release(&sb);
 			ok++;
 		}
-		parse_events_terms__delete(orig_head);
 	}
 
 	if (parse_state->fake_pmu) {
-		if (!parse_events_add_pmu(parse_state, list, str, head,
+		if (!parse_events_add_pmu(parse_state, list, event_name, &parsed_terms,
 					  /*auto_merge_stats=*/true, loc)) {
 			struct strbuf sb;
 
 			strbuf_init(&sb, /*hint=*/ 0);
-			parse_events_term__to_strbuf(head, &sb);
-			pr_debug("%s -> %s/%s/\n", str, "fake_pmu", sb.buf);
+			parse_events_terms__to_strbuf(&parsed_terms, &sb);
+			pr_debug("%s -> %s/%s/\n", event_name, "fake_pmu", sb.buf);
 			strbuf_release(&sb);
 			ok++;
 		}
 	}
 
 out_err:
+	parse_events_terms__exit(&parsed_terms);
 	if (ok)
 		*listp = list;
 	else
 		free(list);
 
-	parse_events_terms__delete(head);
 	return ok ? 0 : -1;
 }
 
@@ -1832,7 +1855,7 @@ static int parse_events__scanner(const char *str,
 /*
  * parse event config string, return a list of event terms.
  */
-int parse_events_terms(struct list_head *terms, const char *str, FILE *input)
+int parse_events_terms(struct parse_events_terms *terms, const char *str, FILE *input)
 {
 	struct parse_events_state parse_state = {
 		.terms  = NULL,
@@ -1841,14 +1864,10 @@ int parse_events_terms(struct list_head *terms, const char *str, FILE *input)
 	int ret;
 
 	ret = parse_events__scanner(str, input, &parse_state);
+	if (!ret)
+		list_splice(&parse_state.terms->terms, &terms->terms);
 
-	if (!ret) {
-		list_splice(parse_state.terms, terms);
-		zfree(&parse_state.terms);
-		return 0;
-	}
-
-	parse_events_terms__delete(parse_state.terms);
+	zfree(&parse_state.terms);
 	return ret;
 }
 
@@ -2530,8 +2549,10 @@ int parse_events_term__clone(struct parse_events_term **new,
 		return new_term(new, &temp, /*str=*/NULL, term->val.num);
 
 	str = strdup(term->val.str);
-	if (!str)
+	if (!str) {
+		zfree(&temp.config);
 		return -ENOMEM;
+	}
 	return new_term(new, &temp, str, /*num=*/0);
 }
 
@@ -2544,58 +2565,56 @@ void parse_events_term__delete(struct parse_events_term *term)
 	free(term);
 }
 
-int parse_events_copy_term_list(struct list_head *old,
-				 struct list_head **new)
+static int parse_events_terms__copy(const struct parse_events_terms *src,
+				    struct parse_events_terms *dest)
 {
-	struct parse_events_term *term, *n;
-	int ret;
+	struct parse_events_term *term;
 
-	if (!old) {
-		*new = NULL;
-		return 0;
-	}
+	list_for_each_entry (term, &src->terms, list) {
+		struct parse_events_term *n;
+		int ret;
 
-	*new = malloc(sizeof(struct list_head));
-	if (!*new)
-		return -ENOMEM;
-	INIT_LIST_HEAD(*new);
-
-	list_for_each_entry (term, old, list) {
 		ret = parse_events_term__clone(&n, term);
 		if (ret)
 			return ret;
-		list_add_tail(&n->list, *new);
+
+		list_add_tail(&n->list, &dest->terms);
 	}
 	return 0;
 }
 
-void parse_events_terms__purge(struct list_head *terms)
+void parse_events_terms__init(struct parse_events_terms *terms)
+{
+	INIT_LIST_HEAD(&terms->terms);
+}
+
+void parse_events_terms__exit(struct parse_events_terms *terms)
 {
 	struct parse_events_term *term, *h;
 
-	list_for_each_entry_safe(term, h, terms, list) {
+	list_for_each_entry_safe(term, h, &terms->terms, list) {
 		list_del_init(&term->list);
 		parse_events_term__delete(term);
 	}
 }
 
-void parse_events_terms__delete(struct list_head *terms)
+void parse_events_terms__delete(struct parse_events_terms *terms)
 {
 	if (!terms)
 		return;
-	parse_events_terms__purge(terms);
+	parse_events_terms__exit(terms);
 	free(terms);
 }
 
-int parse_events_term__to_strbuf(struct list_head *term_list, struct strbuf *sb)
+int parse_events_terms__to_strbuf(const struct parse_events_terms *terms, struct strbuf *sb)
 {
 	struct parse_events_term *term;
 	bool first = true;
 
-	if (!term_list)
+	if (!terms)
 		return 0;
 
-	list_for_each_entry(term, term_list, list) {
+	list_for_each_entry(term, &terms->terms, list) {
 		int ret;
 
 		if (!first) {

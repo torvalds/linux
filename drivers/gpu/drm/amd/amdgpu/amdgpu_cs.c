@@ -207,7 +207,7 @@ static int amdgpu_cs_pass1(struct amdgpu_cs_parser *p,
 	}
 
 	for (i = 0; i < p->nchunks; i++) {
-		struct drm_amdgpu_cs_chunk __user **chunk_ptr = NULL;
+		struct drm_amdgpu_cs_chunk __user *chunk_ptr = NULL;
 		struct drm_amdgpu_cs_chunk user_chunk;
 		uint32_t __user *cdata;
 
@@ -1117,6 +1117,11 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			return r;
 	}
 
+	/* FIXME: In theory this loop shouldn't be needed any more when
+	 * amdgpu_vm_handle_moved handles all moved BOs that are reserved
+	 * with p->ticket. But removing it caused test regressions, so I'm
+	 * leaving it here for now.
+	 */
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
 		bo_va = e->bo_va;
 		if (bo_va == NULL)
@@ -1131,7 +1136,7 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 			return r;
 	}
 
-	r = amdgpu_vm_handle_moved(adev, vm);
+	r = amdgpu_vm_handle_moved(adev, vm, &p->exec.ticket);
 	if (r)
 		return r;
 
@@ -1410,7 +1415,7 @@ int amdgpu_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		if (r == -ENOMEM)
 			DRM_ERROR("Not enough memory for command submission!\n");
 		else if (r != -ERESTARTSYS && r != -EAGAIN)
-			DRM_ERROR("Failed to process the buffer list %d!\n", r);
+			DRM_DEBUG("Failed to process the buffer list %d!\n", r);
 		goto error_fini;
 	}
 

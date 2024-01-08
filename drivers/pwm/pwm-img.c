@@ -208,7 +208,6 @@ static int img_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops img_pwm_ops = {
 	.apply = img_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct img_pwm_soc_data pistachio_pwm = {

@@ -265,7 +265,9 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	if (ret)
 		goto err_deinit_vram;
 
-	msm_gem_shrinker_init(ddev);
+	ret = msm_gem_shrinker_init(ddev);
+	if (ret)
+		goto err_msm_uninit;
 
 	if (priv->kms_init) {
 		ret = msm_drm_kms_init(dev, drv);
@@ -285,8 +287,6 @@ static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 	ret = msm_debugfs_late_init(ddev);
 	if (ret)
 		goto err_msm_uninit;
-
-	drm_kms_helper_poll_init(ddev);
 
 	if (priv->kms_init) {
 		drm_kms_helper_poll_init(ddev);

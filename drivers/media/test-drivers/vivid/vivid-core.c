@@ -240,7 +240,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(cap->driver, "vivid", sizeof(cap->driver));
 	strscpy(cap->card, "vivid", sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
-			"platform:%s", dev->v4l2_dev.name);
+		 "platform:%s-%03d", VIVID_MODULE_NAME, dev->inst);
 
 	cap->capabilities = dev->vid_cap_caps | dev->vid_out_caps |
 		dev->vbi_cap_caps | dev->vbi_out_caps |

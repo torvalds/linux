@@ -7,7 +7,7 @@
 enum bkey_invalid_flags;
 extern const struct bch_hash_desc bch2_dirent_hash_desc;
 
-int bch2_dirent_invalid(const struct bch_fs *, struct bkey_s_c,
+int bch2_dirent_invalid(struct bch_fs *, struct bkey_s_c,
 			enum bkey_invalid_flags, struct printbuf *);
 void bch2_dirent_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
@@ -64,6 +64,7 @@ u64 bch2_dirent_lookup(struct bch_fs *, subvol_inum,
 		       const struct bch_hash_info *,
 		       const struct qstr *, subvol_inum *);
 
+int bch2_empty_dir_snapshot(struct btree_trans *, u64, u32);
 int bch2_empty_dir_trans(struct btree_trans *, subvol_inum);
 int bch2_readdir(struct bch_fs *, subvol_inum, struct dir_context *);
 

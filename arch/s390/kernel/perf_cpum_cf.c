@@ -1193,7 +1193,7 @@ static int __init cpumf_pmu_init(void)
 	 * Clear bit 15 of cr0 to unauthorize problem-state to
 	 * extract measurement counters
 	 */
-	ctl_clear_bit(0, 48);
+	system_ctl_clear_bit(0, CR0_CPUMF_EXTRACTION_AUTH_BIT);
 
 	/* register handler for measurement-alert interruptions */
 	rc = register_external_irq(EXT_IRQ_MEASURE_ALERT,

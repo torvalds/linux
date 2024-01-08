@@ -86,7 +86,7 @@ void iommufd_test_syz_conv_iova_id(struct iommufd_ucmd *ucmd,
 	if (IS_ERR(ioas))
 		return;
 	*iova = iommufd_test_syz_conv_iova(&ioas->iopt, iova);
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 }
 
 struct mock_iommu_domain {
@@ -123,10 +123,6 @@ struct selftest_obj {
 	};
 };
 
-static void mock_domain_blocking_free(struct iommu_domain *domain)
-{
-}
-
 static int mock_domain_nop_attach(struct iommu_domain *domain,
 				  struct device *dev)
 {
@@ -139,7 +135,6 @@ static int mock_domain_nop_attach(struct iommu_domain *domain,
 }
 
 static const struct iommu_domain_ops mock_blocking_ops = {
-	.free = mock_domain_blocking_free,
 	.attach_dev = mock_domain_nop_attach,
 };
 
@@ -256,15 +251,6 @@ __mock_domain_alloc_nested(struct mock_iommu_domain *mock_parent,
 	for (i = 0; i < MOCK_NESTED_DOMAIN_IOTLB_NUM; i++)
 		mock_nested->iotlb[i] = user_cfg->iotlb;
 	return &mock_nested->domain;
-}
-
-static struct iommu_domain *mock_domain_alloc(unsigned int iommu_domain_type)
-{
-	if (iommu_domain_type == IOMMU_DOMAIN_BLOCKED)
-		return &mock_blocking_domain;
-	if (iommu_domain_type == IOMMU_DOMAIN_UNMANAGED)
-		return mock_domain_alloc_paging(NULL);
-	return NULL;
 }
 
 static struct iommu_domain *
@@ -446,14 +432,6 @@ static bool mock_domain_capable(struct device *dev, enum iommu_cap cap)
 	return false;
 }
 
-static void mock_domain_set_plaform_dma_ops(struct device *dev)
-{
-	/*
-	 * mock doesn't setup default domains because we can't hook into the
-	 * normal probe path
-	 */
-}
-
 static struct iommu_device mock_iommu_device = {
 };
 
@@ -463,13 +441,18 @@ static struct iommu_device *mock_probe_device(struct device *dev)
 }
 
 static const struct iommu_ops mock_ops = {
+	/*
+	 * IOMMU_DOMAIN_BLOCKED cannot be returned from def_domain_type()
+	 * because it is zero.
+	 */
+	.default_domain = &mock_blocking_domain,
+	.blocked_domain = &mock_blocking_domain,
 	.owner = THIS_MODULE,
 	.pgsize_bitmap = MOCK_IO_PAGE_SIZE,
 	.hw_info = mock_domain_hw_info,
-	.domain_alloc = mock_domain_alloc,
+	.domain_alloc_paging = mock_domain_alloc_paging,
 	.domain_alloc_user = mock_domain_alloc_user,
 	.capable = mock_domain_capable,
-	.set_platform_dma_ops = mock_domain_set_plaform_dma_ops,
 	.device_group = generic_device_group,
 	.probe_device = mock_probe_device,
 	.default_domain_ops =
@@ -517,7 +500,7 @@ get_md_pagetable(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 		return hwpt;
 	if (hwpt->domain->type != IOMMU_DOMAIN_UNMANAGED ||
 	    hwpt->domain->ops != mock_ops.default_domain_ops) {
-		iommufd_put_object(&hwpt->obj);
+		iommufd_put_object(ucmd->ictx, &hwpt->obj);
 		return ERR_PTR(-EINVAL);
 	}
 	*mock = container_of(hwpt->domain, struct mock_iommu_domain, domain);
@@ -535,7 +518,7 @@ get_md_pagetable_nested(struct iommufd_ucmd *ucmd, u32 mockpt_id,
 		return hwpt;
 	if (hwpt->domain->type != IOMMU_DOMAIN_NESTED ||
 	    hwpt->domain->ops != &domain_nested_ops) {
-		iommufd_put_object(&hwpt->obj);
+		iommufd_put_object(ucmd->ictx, &hwpt->obj);
 		return ERR_PTR(-EINVAL);
 	}
 	*mock_nested = container_of(hwpt->domain,
@@ -698,7 +681,7 @@ static int iommufd_test_mock_domain_replace(struct iommufd_ucmd *ucmd,
 	rc = iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 
 out_dev_obj:
-	iommufd_put_object(dev_obj);
+	iommufd_put_object(ucmd->ictx, dev_obj);
 	return rc;
 }
 
@@ -716,7 +699,7 @@ static int iommufd_test_add_reserved(struct iommufd_ucmd *ucmd,
 	down_write(&ioas->iopt.iova_rwsem);
 	rc = iopt_reserve_iova(&ioas->iopt, start, start + length - 1, NULL);
 	up_write(&ioas->iopt.iova_rwsem);
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ucmd->ictx, &ioas->obj);
 	return rc;
 }
 
@@ -771,7 +754,7 @@ static int iommufd_test_md_check_pa(struct iommufd_ucmd *ucmd,
 	rc = 0;
 
 out_put:
-	iommufd_put_object(&hwpt->obj);
+	iommufd_put_object(ucmd->ictx, &hwpt->obj);
 	return rc;
 }
 
@@ -1250,7 +1233,7 @@ static int iommufd_test_dirty(struct iommufd_ucmd *ucmd, unsigned int mockpt_id,
 out_free:
 	kvfree(tmp);
 out_put:
-	iommufd_put_object(&hwpt->obj);
+	iommufd_put_object(ucmd->ictx, &hwpt->obj);
 	return rc;
 }
 

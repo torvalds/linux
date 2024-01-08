@@ -404,8 +404,6 @@ cmd_to_domain_dev(struct scsi_cmnd *cmd)
 	return sdev_to_domain_dev(cmd->device);
 }
 
-void sas_hash_addr(u8 *hashed, const u8 *sas_addr);
-
 /* Before calling a notify event, LLDD should use this function
  * when the link is severed (possibly from its tasklet).
  * The idea is that the Class only reads those, while the LLDD,
@@ -681,7 +679,6 @@ extern void sas_resume_ha(struct sas_ha_struct *sas_ha);
 extern void sas_resume_ha_no_sync(struct sas_ha_struct *sas_ha);
 extern void sas_suspend_ha(struct sas_ha_struct *sas_ha);
 
-int sas_set_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates);
 int sas_phy_reset(struct sas_phy *phy, int hard_reset);
 int sas_phy_enable(struct sas_phy *phy, int enable);
 extern int sas_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
@@ -698,20 +695,6 @@ int sas_execute_internal_abort_dev(struct domain_device *device,
 extern struct scsi_transport_template *
 sas_domain_attach_transport(struct sas_domain_function_template *);
 extern struct device_attribute dev_attr_phy_event_threshold;
-
-int  sas_discover_root_expander(struct domain_device *);
-
-int  sas_ex_revalidate_domain(struct domain_device *);
-
-void sas_unregister_domain_devices(struct asd_sas_port *port, int gone);
-void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *);
-void sas_discover_event(struct asd_sas_port *, enum discover_event ev);
-
-int  sas_discover_end_dev(struct domain_device *);
-
-void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *);
-
-void sas_init_dev(struct domain_device *);
 
 void sas_task_abort(struct sas_task *);
 int sas_eh_abort_handler(struct scsi_cmnd *cmd);

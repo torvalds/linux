@@ -185,35 +185,6 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	return err;
 }
 
-/*
- * Check if a source port or TPG/PRBS ID is valid
- */
-
-#if !defined(ISP2401)
-int
-ia_css_mipi_frame_enable_check_on_size(const enum mipi_port_id port,
-				       const unsigned int	size_mem_words)
-{
-	u32 idx;
-
-	int err = -EBUSY;
-
-	OP___assert(port < N_CSI_PORTS);
-	OP___assert(size_mem_words != 0);
-
-	for (idx = 0; idx < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT &&
-	     my_css.mipi_sizes_for_check[port][idx] != 0;
-	     idx++) { /* do nothing */
-	}
-	if (idx < IA_CSS_MIPI_SIZE_CHECK_MAX_NOF_ENTRIES_PER_PORT) {
-		my_css.mipi_sizes_for_check[port][idx] = size_mem_words;
-		err = 0;
-	}
-
-	return err;
-}
-#endif
-
 void
 mipi_init(void)
 {

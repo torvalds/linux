@@ -289,6 +289,7 @@ class JsonEvent:
           'cpu_core': 'cpu_core',
           'cpu_atom': 'cpu_atom',
           'ali_drw': 'ali_drw',
+          'arm_cmn': 'arm_cmn',
       }
       return table[unit] if unit in table else f'uncore_{unit.lower()}'
 
@@ -298,6 +299,7 @@ class JsonEvent:
     if 'ExtSel' in jd:
       eventcode |= int(jd['ExtSel']) << 8
     configcode = int(jd['ConfigCode'], 0) if 'ConfigCode' in jd else None
+    eventidcode = int(jd['EventidCode'], 0) if 'EventidCode' in jd else None
     self.name = jd['EventName'].lower() if 'EventName' in jd else None
     self.topic = ''
     self.compat = jd.get('Compat')
@@ -335,7 +337,13 @@ class JsonEvent:
     if precise and self.desc and '(Precise Event)' not in self.desc:
       extra_desc += ' (Must be precise)' if precise == '2' else (' (Precise '
                                                                  'event)')
-    event = f'config={llx(configcode)}' if configcode is not None else f'event={llx(eventcode)}'
+    event = None
+    if configcode is not None:
+      event = f'config={llx(configcode)}'
+    elif eventidcode is not None:
+      event = f'eventid={llx(eventidcode)}'
+    else:
+      event = f'event={llx(eventcode)}'
     event_fields = [
         ('AnyThread', 'any='),
         ('PortMask', 'ch_mask='),
@@ -345,6 +353,7 @@ class JsonEvent:
         ('Invert', 'inv='),
         ('SampleAfterValue', 'period='),
         ('UMask', 'umask='),
+        ('NodeType', 'type='),
     ]
     for key, value in event_fields:
       if key in jd and jd[key] != '0':
@@ -764,8 +773,8 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
       continue
     _args.output_file.write(f"""\t{{
 \t\t.metric_table = {{
-\t\t\t.entries = {tblname},
-\t\t\t.length = ARRAY_SIZE({tblname})
+\t\t\t.pmus = {tblname},
+\t\t\t.num_pmus = ARRAY_SIZE({tblname})
 \t\t}},
 \t\t.name = \"{tblname}\",
 \t}},
@@ -967,68 +976,99 @@ int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table,
         return 0;
 }
 
-const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
+static const struct pmu_events_map *map_for_pmu(struct perf_pmu *pmu)
 {
-        const struct pmu_events_table *table = NULL;
-        char *cpuid = perf_pmu__getcpuid(pmu);
+        static struct {
+                const struct pmu_events_map *map;
+                struct perf_pmu *pmu;
+        } last_result;
+        static struct {
+                const struct pmu_events_map *map;
+                char *cpuid;
+        } last_map_search;
+        static bool has_last_result, has_last_map_search;
+        const struct pmu_events_map *map = NULL;
+        char *cpuid = NULL;
         size_t i;
 
-        /* on some platforms which uses cpus map, cpuid can be NULL for
+        if (has_last_result && last_result.pmu == pmu)
+                return last_result.map;
+
+        cpuid = perf_pmu__getcpuid(pmu);
+
+        /*
+         * On some platforms which uses cpus map, cpuid can be NULL for
          * PMUs other than CORE PMUs.
          */
         if (!cpuid)
+                goto out_update_last_result;
+
+        if (has_last_map_search && !strcmp(last_map_search.cpuid, cpuid)) {
+                map = last_map_search.map;
+                free(cpuid);
+        } else {
+                i = 0;
+                for (;;) {
+                        map = &pmu_events_map[i++];
+
+                        if (!map->arch) {
+                                map = NULL;
+                                break;
+                        }
+
+                        if (!strcmp_cpuid_str(map->cpuid, cpuid))
+                                break;
+               }
+               free(last_map_search.cpuid);
+               last_map_search.cpuid = cpuid;
+               last_map_search.map = map;
+               has_last_map_search = true;
+        }
+out_update_last_result:
+        last_result.pmu = pmu;
+        last_result.map = map;
+        has_last_result = true;
+        return map;
+}
+
+const struct pmu_events_table *perf_pmu__find_events_table(struct perf_pmu *pmu)
+{
+        const struct pmu_events_map *map = map_for_pmu(pmu);
+
+        if (!map)
                 return NULL;
 
-        i = 0;
-        for (;;) {
-                const struct pmu_events_map *map = &pmu_events_map[i++];
-                if (!map->arch)
-                        break;
+        if (!pmu)
+                return &map->event_table;
 
-                if (!strcmp_cpuid_str(map->cpuid, cpuid)) {
-                        table = &map->event_table;
-                        break;
-                }
-        }
-        free(cpuid);
-        if (!pmu || !table)
-                return table;
-
-        for (i = 0; i < table->num_pmus; i++) {
-                const struct pmu_table_entry *table_pmu = &table->pmus[i];
+        for (size_t i = 0; i < map->event_table.num_pmus; i++) {
+                const struct pmu_table_entry *table_pmu = &map->event_table.pmus[i];
                 const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
 
                 if (pmu__name_match(pmu, pmu_name))
-                        return table;
+                         return &map->event_table;
         }
         return NULL;
 }
 
 const struct pmu_metrics_table *perf_pmu__find_metrics_table(struct perf_pmu *pmu)
 {
-        const struct pmu_metrics_table *table = NULL;
-        char *cpuid = perf_pmu__getcpuid(pmu);
-        int i;
+        const struct pmu_events_map *map = map_for_pmu(pmu);
 
-        /* on some platforms which uses cpus map, cpuid can be NULL for
-         * PMUs other than CORE PMUs.
-         */
-        if (!cpuid)
+        if (!map)
                 return NULL;
 
-        i = 0;
-        for (;;) {
-                const struct pmu_events_map *map = &pmu_events_map[i++];
-                if (!map->arch)
-                        break;
+        if (!pmu)
+                return &map->metric_table;
 
-                if (!strcmp_cpuid_str(map->cpuid, cpuid)) {
-                        table = &map->metric_table;
-                        break;
-                }
+        for (size_t i = 0; i < map->metric_table.num_pmus; i++) {
+                const struct pmu_table_entry *table_pmu = &map->metric_table.pmus[i];
+                const char *pmu_name = &big_c_string[table_pmu->pmu_name.offset];
+
+                if (pmu__name_match(pmu, pmu_name))
+                           return &map->metric_table;
         }
-        free(cpuid);
-        return table;
+        return NULL;
 }
 
 const struct pmu_events_table *find_core_events_table(const char *arch, const char *cpuid)

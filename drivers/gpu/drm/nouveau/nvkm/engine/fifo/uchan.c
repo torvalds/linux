@@ -317,6 +317,15 @@ nvkm_uchan = {
 	.uevent = nvkm_uchan_uevent,
 };
 
+struct nvkm_chan *
+nvkm_uchan_chan(struct nvkm_object *object)
+{
+	if (WARN_ON(object->func != &nvkm_uchan))
+		return NULL;
+
+	return nvkm_uchan(object)->chan;
+}
+
 int
 nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm_oclass *oclass,
 	       void *argv, u32 argc, struct nvkm_object **pobject)

@@ -8,6 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/kstrtox.h>
 #include <linux/types.h>
+#include "adf_admin.h"
 #include "adf_cfg.h"
 #include "adf_common_drv.h"
 #include "adf_heartbeat.h"

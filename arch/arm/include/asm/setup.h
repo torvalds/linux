@@ -11,6 +11,7 @@
 #ifndef __ASMARM_SETUP_H
 #define __ASMARM_SETUP_H
 
+#include <linux/screen_info.h>
 #include <uapi/asm/setup.h>
 
 
@@ -34,5 +35,9 @@ void paging_init(const struct machine_desc *desc);
 void early_mm_init(const struct machine_desc *);
 void adjust_lowmem_bounds(void);
 void setup_dma_zone(const struct machine_desc *desc);
+
+#ifdef CONFIG_VGA_CONSOLE
+extern struct screen_info vgacon_screen_info;
+#endif
 
 #endif

@@ -513,9 +513,6 @@ struct ov5675 {
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* True if the device has been identified */
 	bool identified;
 };
@@ -949,9 +946,6 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (ov5675->streaming == enable)
-		return 0;
-
 	mutex_lock(&ov5675->mutex);
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -971,7 +965,6 @@ static int ov5675_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov5675->streaming = enable;
 	mutex_unlock(&ov5675->mutex);
 
 	return ret;
@@ -1023,42 +1016,6 @@ static int ov5675_power_on(struct device *dev)
 
 	/* 8192 xvclk cycles prior to the first SCCB transation */
 	usleep_range(delay_us, delay_us * 2);
-
-	return 0;
-}
-
-static int __maybe_unused ov5675_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5675 *ov5675 = to_ov5675(sd);
-
-	mutex_lock(&ov5675->mutex);
-	if (ov5675->streaming)
-		ov5675_stop_streaming(ov5675);
-
-	mutex_unlock(&ov5675->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused ov5675_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov5675 *ov5675 = to_ov5675(sd);
-	int ret;
-
-	mutex_lock(&ov5675->mutex);
-	if (ov5675->streaming) {
-		ret = ov5675_start_streaming(ov5675);
-		if (ret) {
-			ov5675->streaming = false;
-			ov5675_stop_streaming(ov5675);
-			mutex_unlock(&ov5675->mutex);
-			return ret;
-		}
-	}
-
-	mutex_unlock(&ov5675->mutex);
 
 	return 0;
 }
@@ -1409,7 +1366,6 @@ probe_power_off:
 }
 
 static const struct dev_pm_ops ov5675_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov5675_suspend, ov5675_resume)
 	SET_RUNTIME_PM_OPS(ov5675_power_off, ov5675_power_on, NULL)
 };
 

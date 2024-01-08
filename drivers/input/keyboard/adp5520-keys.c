@@ -168,14 +168,12 @@ static int adp5520_keys_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int adp5520_keys_remove(struct platform_device *pdev)
+static void adp5520_keys_remove(struct platform_device *pdev)
 {
 	struct adp5520_keys *dev = platform_get_drvdata(pdev);
 
 	adp5520_unregister_notifier(dev->master, &dev->notifier,
 				ADP5520_KP_IEN | ADP5520_KR_IEN);
-
-	return 0;
 }
 
 static struct platform_driver adp5520_keys_driver = {
@@ -183,7 +181,7 @@ static struct platform_driver adp5520_keys_driver = {
 		.name	= "adp5520-keys",
 	},
 	.probe		= adp5520_keys_probe,
-	.remove		= adp5520_keys_remove,
+	.remove_new	= adp5520_keys_remove,
 };
 module_platform_driver(adp5520_keys_driver);
 

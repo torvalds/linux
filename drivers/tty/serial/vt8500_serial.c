@@ -227,7 +227,7 @@ static irqreturn_t vt8500_irq(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned long isr;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 	isr = vt8500_read(port, VT8500_URISR);
 
 	/* Acknowledge active status bits */
@@ -240,7 +240,7 @@ static irqreturn_t vt8500_irq(int irq, void *dev_id)
 	if (isr & TCTS)
 		handle_delta_cts(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -342,7 +342,7 @@ static void vt8500_set_termios(struct uart_port *port,
 	unsigned int baud, lcr;
 	unsigned int loops = 1000;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* calculate and set baud rate */
 	baud = uart_get_baud_rate(port, termios, old, 900, 921600);
@@ -410,7 +410,7 @@ static void vt8500_set_termios(struct uart_port *port,
 	vt8500_write(&vt8500_port->uart, 0x881, VT8500_URFCR);
 	vt8500_write(&vt8500_port->uart, vt8500_port->ier, VT8500_URIER);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *vt8500_type(struct uart_port *port)

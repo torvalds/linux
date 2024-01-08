@@ -6,7 +6,7 @@
  * Purpose: Provide functions to setup NIC operation mode
  * Functions:
  *      s_vSafeResetTx - Rest Tx
- *      CARDvSetRSPINF - Set RSPINF
+ *      card_set_rspinf - Set RSPINF
  *      CARDvUpdateBasicTopRate - Update BasicTopRate
  *      CARDbAddBasicRate - Add to BasicRateSet
  *      CARDbIsOFDMinBasicRate - Check if any OFDM rate is in BasicRateSet
@@ -50,7 +50,7 @@
 
 /*---------------------  Static Variables  --------------------------*/
 
-static const unsigned short cwRXBCNTSFOff[MAX_RATE] = {
+static const unsigned short rx_bcn_tsf_off[MAX_RATE] = {
 	17, 17, 17, 17, 34, 23, 17, 11, 8, 5, 4, 3};
 
 /*---------------------  Static Functions  --------------------------*/
@@ -75,95 +75,95 @@ static void vt6655_mac_set_bb_type(void __iomem *iobase, u32 mask)
  *      wRate           - Tx Rate
  *      byPktType       - Tx Packet type
  *  Out:
- *      pbyTxRate       - pointer to RSPINF TxRate field
- *      pbyRsvTime      - pointer to RSPINF RsvTime field
+ *      tx_rate         - pointer to RSPINF TxRate field
+ *      rsv_time        - pointer to RSPINF RsvTime field
  *
  * Return Value: none
  */
-static void s_vCalculateOFDMRParameter(unsigned char rate,
+static void calculate_ofdmr_parameter(unsigned char rate,
 				       u8 bb_type,
-				       unsigned char *pbyTxRate,
-				       unsigned char *pbyRsvTime)
+				       unsigned char *tx_rate,
+				       unsigned char *rsv_time)
 {
 	switch (rate) {
 	case RATE_6M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9B;
-			*pbyRsvTime = 44;
+			*tx_rate = 0x9B;
+			*rsv_time = 44;
 		} else {
-			*pbyTxRate = 0x8B;
-			*pbyRsvTime = 50;
+			*tx_rate = 0x8B;
+			*rsv_time = 50;
 		}
 		break;
 
 	case RATE_9M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9F;
-			*pbyRsvTime = 36;
+			*tx_rate = 0x9F;
+			*rsv_time = 36;
 		} else {
-			*pbyTxRate = 0x8F;
-			*pbyRsvTime = 42;
+			*tx_rate = 0x8F;
+			*rsv_time = 42;
 		}
 		break;
 
 	case RATE_12M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9A;
-			*pbyRsvTime = 32;
+			*tx_rate = 0x9A;
+			*rsv_time = 32;
 		} else {
-			*pbyTxRate = 0x8A;
-			*pbyRsvTime = 38;
+			*tx_rate = 0x8A;
+			*rsv_time = 38;
 		}
 		break;
 
 	case RATE_18M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9E;
-			*pbyRsvTime = 28;
+			*tx_rate = 0x9E;
+			*rsv_time = 28;
 		} else {
-			*pbyTxRate = 0x8E;
-			*pbyRsvTime = 34;
+			*tx_rate = 0x8E;
+			*rsv_time = 34;
 		}
 		break;
 
 	case RATE_36M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9D;
-			*pbyRsvTime = 24;
+			*tx_rate = 0x9D;
+			*rsv_time = 24;
 		} else {
-			*pbyTxRate = 0x8D;
-			*pbyRsvTime = 30;
+			*tx_rate = 0x8D;
+			*rsv_time = 30;
 		}
 		break;
 
 	case RATE_48M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x98;
-			*pbyRsvTime = 24;
+			*tx_rate = 0x98;
+			*rsv_time = 24;
 		} else {
-			*pbyTxRate = 0x88;
-			*pbyRsvTime = 30;
+			*tx_rate = 0x88;
+			*rsv_time = 30;
 		}
 		break;
 
 	case RATE_54M:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x9C;
-			*pbyRsvTime = 24;
+			*tx_rate = 0x9C;
+			*rsv_time = 24;
 		} else {
-			*pbyTxRate = 0x8C;
-			*pbyRsvTime = 30;
+			*tx_rate = 0x8C;
+			*rsv_time = 30;
 		}
 		break;
 
 	case RATE_24M:
 	default:
 		if (bb_type == BB_TYPE_11A) { /* 5GHZ */
-			*pbyTxRate = 0x99;
-			*pbyRsvTime = 28;
+			*tx_rate = 0x99;
+			*rsv_time = 28;
 		} else {
-			*pbyTxRate = 0x89;
-			*pbyRsvTime = 34;
+			*tx_rate = 0x89;
+			*rsv_time = 34;
 		}
 		break;
 	}
@@ -182,59 +182,59 @@ static void s_vCalculateOFDMRParameter(unsigned char rate,
  *
  * Return Value: None.
  */
-bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
+bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type)
 {
-	unsigned char byCWMaxMin = 0;
-	unsigned char bySlot = 0;
-	unsigned char bySIFS = 0;
-	unsigned char byDIFS = 0;
+	unsigned char cw_max_min = 0;
+	unsigned char slot = 0;
+	unsigned char sifs = 0;
+	unsigned char difs = 0;
 	int i;
 
 	/* Set SIFS, DIFS, EIFS, SlotTime, CwMin */
 	if (bb_type == BB_TYPE_11A) {
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11A);
 		bb_write_embedded(priv, 0x88, 0x03);
-		bySlot = C_SLOT_SHORT;
-		bySIFS = C_SIFS_A;
-		byDIFS = C_SIFS_A + 2 * C_SLOT_SHORT;
-		byCWMaxMin = 0xA4;
+		slot = C_SLOT_SHORT;
+		sifs = C_SIFS_A;
+		difs = C_SIFS_A + 2 * C_SLOT_SHORT;
+		cw_max_min = 0xA4;
 	} else if (bb_type == BB_TYPE_11B) {
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11B);
 		bb_write_embedded(priv, 0x88, 0x02);
-		bySlot = C_SLOT_LONG;
-		bySIFS = C_SIFS_BG;
-		byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
-		byCWMaxMin = 0xA5;
+		slot = C_SLOT_LONG;
+		sifs = C_SIFS_BG;
+		difs = C_SIFS_BG + 2 * C_SLOT_LONG;
+		cw_max_min = 0xA5;
 	} else { /* PK_TYPE_11GA & PK_TYPE_11GB */
 		vt6655_mac_set_bb_type(priv->port_offset, BB_TYPE_11G);
 		bb_write_embedded(priv, 0x88, 0x08);
-		bySIFS = C_SIFS_BG;
+		sifs = C_SIFS_BG;
 
 		if (priv->short_slot_time) {
-			bySlot = C_SLOT_SHORT;
-			byDIFS = C_SIFS_BG + 2 * C_SLOT_SHORT;
+			slot = C_SLOT_SHORT;
+			difs = C_SIFS_BG + 2 * C_SLOT_SHORT;
 		} else {
-			bySlot = C_SLOT_LONG;
-			byDIFS = C_SIFS_BG + 2 * C_SLOT_LONG;
+			slot = C_SLOT_LONG;
+			difs = C_SIFS_BG + 2 * C_SLOT_LONG;
 		}
 
-		byCWMaxMin = 0xa4;
+		cw_max_min = 0xa4;
 
 		for (i = RATE_54M; i >= RATE_6M; i--) {
 			if (priv->basic_rates & ((u32)(0x1 << i))) {
-				byCWMaxMin |= 0x1;
+				cw_max_min |= 0x1;
 				break;
 			}
 		}
 	}
 
-	if (priv->byRFType == RF_RFMD2959) {
+	if (priv->rf_type == RF_RFMD2959) {
 		/*
 		 * bcs TX_PE will reserve 3 us hardware's processing
 		 * time here is 2 us.
 		 */
-		bySIFS -= 3;
-		byDIFS -= 3;
+		sifs -= 3;
+		difs -= 3;
 		/*
 		 * TX_PE will reserve 3 us for MAX2829 A mode only, it is for
 		 * better TX throughput; MAC will need 2 us to process, so the
@@ -242,32 +242,32 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
 		 */
 	}
 
-	if (priv->bySIFS != bySIFS) {
-		priv->bySIFS = bySIFS;
-		iowrite8(priv->bySIFS, priv->port_offset + MAC_REG_SIFS);
+	if (priv->sifs != sifs) {
+		priv->sifs = sifs;
+		iowrite8(priv->sifs, priv->port_offset + MAC_REG_SIFS);
 	}
-	if (priv->byDIFS != byDIFS) {
-		priv->byDIFS = byDIFS;
-		iowrite8(priv->byDIFS, priv->port_offset + MAC_REG_DIFS);
+	if (priv->difs != difs) {
+		priv->difs = difs;
+		iowrite8(priv->difs, priv->port_offset + MAC_REG_DIFS);
 	}
-	if (priv->byEIFS != C_EIFS) {
-		priv->byEIFS = C_EIFS;
-		iowrite8(priv->byEIFS, priv->port_offset + MAC_REG_EIFS);
+	if (priv->eifs != C_EIFS) {
+		priv->eifs = C_EIFS;
+		iowrite8(priv->eifs, priv->port_offset + MAC_REG_EIFS);
 	}
-	if (priv->bySlot != bySlot) {
-		priv->bySlot = bySlot;
-		iowrite8(priv->bySlot, priv->port_offset + MAC_REG_SLOT);
+	if (priv->slot != slot) {
+		priv->slot = slot;
+		iowrite8(priv->slot, priv->port_offset + MAC_REG_SLOT);
 
 		bb_set_short_slot_time(priv);
 	}
-	if (priv->byCWMaxMin != byCWMaxMin) {
-		priv->byCWMaxMin = byCWMaxMin;
-		iowrite8(priv->byCWMaxMin, priv->port_offset + MAC_REG_CWMAXMIN0);
+	if (priv->cw_max_min != cw_max_min) {
+		priv->cw_max_min = cw_max_min;
+		iowrite8(priv->cw_max_min, priv->port_offset + MAC_REG_CWMAXMIN0);
 	}
 
-	priv->byPacketType = CARDbyGetPktType(priv);
+	priv->packet_type = card_get_pkt_type(priv);
 
-	CARDvSetRSPINF(priv, bb_type);
+	card_set_rspinf(priv, bb_type);
 
 	return true;
 }
@@ -278,8 +278,8 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
  *
  * Parameters:
  *  In:
- *      priv         - The adapter to be sync.
- *      byRxRate        - data rate of receive beacon
+ *      priv            - The adapter to be sync.
+ *      rx_rate         - data rate of receive beacon
  *      qwBSSTimestamp  - Rx BCN's TSF
  *      qwLocalTSF      - Local TSF
  *  Out:
@@ -287,7 +287,7 @@ bool CARDbSetPhyParameter(struct vnt_private *priv, u8 bb_type)
  *
  * Return Value: none
  */
-bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
+bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
 		    u64 qwBSSTimestamp)
 {
 	u64 local_tsf;
@@ -296,7 +296,7 @@ bool CARDbUpdateTSF(struct vnt_private *priv, unsigned char byRxRate,
 	local_tsf = vt6655_get_current_tsf(priv);
 
 	if (qwBSSTimestamp != local_tsf) {
-		qwTSFOffset = CARDqGetTSFOffset(byRxRate, qwBSSTimestamp,
+		qwTSFOffset = CARDqGetTSFOffset(rx_rate, qwBSSTimestamp,
 						local_tsf);
 		/* adjust TSF, HW's TSF add TSF Offset reg */
 		qwTSFOffset =  le64_to_cpu(qwTSFOffset);
@@ -356,7 +356,7 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 	if (priv->radio_off)
 		return;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_RFMD2959:
 		vt6655_mac_word_reg_bits_off(priv->port_offset, MAC_REG_SOFTPWRCTL,
 					     SOFTPWRCTL_TXPEINV);
@@ -536,7 +536,7 @@ static unsigned short CARDwGetOFDMControlRate(struct vnt_private *priv,
  *
  * Return Value: None.
  */
-void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
+void card_set_rspinf(struct vnt_private *priv, u8 bb_type)
 {
 	union vnt_phy_field_swap phy;
 	unsigned char byTxRate, byRsvTime;      /* For OFDM */
@@ -585,58 +585,58 @@ void CARDvSetRSPINF(struct vnt_private *priv, u8 bb_type)
 	iowrite32(phy.field_write, priv->port_offset + MAC_REG_RSPINF_B_11);
 
 	/* RSPINF_a_6 */
-	s_vCalculateOFDMRParameter(RATE_6M,
+	calculate_ofdmr_parameter(RATE_6M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_6);
 	/* RSPINF_a_9 */
-	s_vCalculateOFDMRParameter(RATE_9M,
+	calculate_ofdmr_parameter(RATE_9M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_9);
 	/* RSPINF_a_12 */
-	s_vCalculateOFDMRParameter(RATE_12M,
+	calculate_ofdmr_parameter(RATE_12M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_12);
 	/* RSPINF_a_18 */
-	s_vCalculateOFDMRParameter(RATE_18M,
+	calculate_ofdmr_parameter(RATE_18M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_18);
 	/* RSPINF_a_24 */
-	s_vCalculateOFDMRParameter(RATE_24M,
+	calculate_ofdmr_parameter(RATE_24M,
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_24);
 	/* RSPINF_a_36 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_36M),
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_36);
 	/* RSPINF_a_48 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_48M),
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_48);
 	/* RSPINF_a_54 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_54M),
 				   bb_type,
 				   &byTxRate,
 				   &byRsvTime);
 	iowrite16(MAKEWORD(byTxRate, byRsvTime), priv->port_offset + MAC_REG_RSPINF_A_54);
 	/* RSPINF_a_72 */
-	s_vCalculateOFDMRParameter(CARDwGetOFDMControlRate((void *)priv,
+	calculate_ofdmr_parameter(CARDwGetOFDMControlRate((void *)priv,
 							   RATE_54M),
 				   bb_type,
 				   &byTxRate,
@@ -684,7 +684,7 @@ bool CARDbIsOFDMinBasicRate(struct vnt_private *priv)
 	return false;
 }
 
-unsigned char CARDbyGetPktType(struct vnt_private *priv)
+unsigned char card_get_pkt_type(struct vnt_private *priv)
 {
 	if (priv->byBBType == BB_TYPE_11A || priv->byBBType == BB_TYPE_11B)
 		return (unsigned char)priv->byBBType;
@@ -708,11 +708,11 @@ unsigned char CARDbyGetPktType(struct vnt_private *priv)
  *
  * Return Value: TSF Offset value
  */
-u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
+u64 CARDqGetTSFOffset(unsigned char rx_rate, u64 qwTSF1, u64 qwTSF2)
 {
 	unsigned short wRxBcnTSFOffst;
 
-	wRxBcnTSFOffst = cwRXBCNTSFOff[byRxRate % MAX_RATE];
+	wRxBcnTSFOffst = rx_bcn_tsf_off[rx_rate % MAX_RATE];
 
 	qwTSF2 += (u64)wRxBcnTSFOffst;
 

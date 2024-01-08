@@ -49,6 +49,7 @@ perf-y += dso.o
 perf-y += dsos.o
 perf-y += symbol.o
 perf-y += symbol_fprintf.o
+perf-y += map_symbol.o
 perf-y += color.o
 perf-y += color_config.o
 perf-y += metricgroup.o
@@ -165,6 +166,7 @@ endif
 
 ifeq ($(CONFIG_LIBTRACEEVENT),y)
   perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork.o
+  perf-$(CONFIG_PERF_BPF_SKEL) += bpf_kwork_top.o
 endif
 
 perf-$(CONFIG_LIBELF) += symbol-elf.o
@@ -345,7 +347,7 @@ CFLAGS_rbtree.o        += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ET
 CFLAGS_libstring.o     += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_hweight.o       += -Wno-unused-parameter -DETC_PERFCONFIG="BUILD_STR($(ETC_PERFCONFIG_SQ))"
 CFLAGS_header.o        += -include $(OUTPUT)PERF-VERSION-FILE
-CFLAGS_arm-spe.o       += -I$(srctree)/tools/arch/arm64/include/
+CFLAGS_arm-spe.o       += -I$(srctree)/tools/arch/arm64/include/ -I$(OUTPUT)arch/arm64/include/generated/
 
 $(OUTPUT)util/argv_split.o: ../lib/argv_split.c FORCE
 	$(call rule_mkdir)

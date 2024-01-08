@@ -67,7 +67,6 @@ static void machine__threads_init(struct machine *machine)
 		threads->entries = RB_ROOT_CACHED;
 		init_rwsem(&threads->lock);
 		threads->nr = 0;
-		INIT_LIST_HEAD(&threads->dead);
 		threads->last_match = NULL;
 	}
 }
@@ -969,7 +968,7 @@ static int machine__process_ksymbol_unregister(struct machine *machine,
 	if (!map)
 		return 0;
 
-	if (RC_CHK_ACCESS(map) != RC_CHK_ACCESS(machine->vmlinux_map))
+	if (!RC_CHK_EQUAL(map, machine->vmlinux_map))
 		maps__remove(machine__kernel_maps(machine), map);
 	else {
 		struct dso *dso = map__dso(map);
@@ -2058,7 +2057,7 @@ static void __machine__remove_thread(struct machine *machine, struct thread_rb_n
 	if (!nd)
 		nd = thread_rb_node__find(th, &threads->entries.rb_root);
 
-	if (threads->last_match && RC_CHK_ACCESS(threads->last_match) == RC_CHK_ACCESS(th))
+	if (threads->last_match && RC_CHK_EQUAL(threads->last_match, th))
 		threads__set_last_match(threads, NULL);
 
 	if (lock)
@@ -2213,9 +2212,7 @@ int machine__process_event(struct machine *machine, union perf_event *event,
 
 static bool symbol__match_regex(struct symbol *sym, regex_t *regex)
 {
-	if (!regexec(regex, sym->name, 0, NULL, 0))
-		return true;
-	return false;
+	return regexec(regex, sym->name, 0, NULL, 0) == 0;
 }
 
 static void ip__resolve_ams(struct thread *thread,
@@ -2392,8 +2389,7 @@ static int add_callchain_ip(struct thread *thread,
 				      iter_cycles, branch_from, srcline);
 out:
 	addr_location__exit(&al);
-	maps__put(ms.maps);
-	map__put(ms.map);
+	map_symbol__exit(&ms);
 	return err;
 }
 
@@ -2624,16 +2620,18 @@ static int lbr_callchain_add_lbr_ip(struct thread *thread,
 		save_lbr_cursor_node(thread, cursor, i);
 	}
 
-	/* Add LBR ip from first entries.to */
-	ip = entries[0].to;
-	flags = &entries[0].flags;
-	*branch_from = entries[0].from;
-	err = add_callchain_ip(thread, cursor, parent,
-			       root_al, &cpumode, ip,
-			       true, flags, NULL,
-			       *branch_from);
-	if (err)
-		return err;
+	if (lbr_nr > 0) {
+		/* Add LBR ip from first entries.to */
+		ip = entries[0].to;
+		flags = &entries[0].flags;
+		*branch_from = entries[0].from;
+		err = add_callchain_ip(thread, cursor, parent,
+				root_al, &cpumode, ip,
+				true, flags, NULL,
+				*branch_from);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -3117,8 +3115,7 @@ static int append_inlines(struct callchain_cursor *cursor, struct map_symbol *ms
 		if (ret != 0)
 			return ret;
 	}
-	map__put(ilist_ms.map);
-	maps__put(ilist_ms.maps);
+	map_symbol__exit(&ilist_ms);
 
 	return ret;
 }

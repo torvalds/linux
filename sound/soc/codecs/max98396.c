@@ -7,7 +7,6 @@
 #include <sound/pcm_params.h>
 #include <linux/regulator/consumer.h>
 #include <sound/soc.h>
-#include <linux/gpio.h>
 #include <sound/tlv.h>
 #include "max98396.h"
 

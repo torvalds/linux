@@ -89,3 +89,4 @@ module_exit(exit_rc_map_mecool_kii_pro)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com");
+MODULE_DESCRIPTION("Mecool Kii Pro remote controller keytable");

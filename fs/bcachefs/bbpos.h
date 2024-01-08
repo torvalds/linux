@@ -2,20 +2,9 @@
 #ifndef _BCACHEFS_BBPOS_H
 #define _BCACHEFS_BBPOS_H
 
+#include "bbpos_types.h"
 #include "bkey_methods.h"
-
-struct bbpos {
-	enum btree_id		btree;
-	struct bpos		pos;
-};
-
-static inline struct bbpos BBPOS(enum btree_id btree, struct bpos pos)
-{
-	return (struct bbpos) { btree, pos };
-}
-
-#define BBPOS_MIN	BBPOS(0, POS_MIN)
-#define BBPOS_MAX	BBPOS(BTREE_ID_NR - 1, POS_MAX)
+#include "btree_cache.h"
 
 static inline int bbpos_cmp(struct bbpos l, struct bbpos r)
 {
@@ -40,7 +29,7 @@ static inline struct bbpos bbpos_successor(struct bbpos pos)
 
 static inline void bch2_bbpos_to_text(struct printbuf *out, struct bbpos pos)
 {
-	prt_str(out, bch2_btree_ids[pos.btree]);
+	prt_str(out, bch2_btree_id_str(pos.btree));
 	prt_char(out, ':');
 	bch2_bpos_to_text(out, pos.pos);
 }

@@ -337,9 +337,6 @@ struct ov9734 {
 
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 };
 
 static inline struct ov9734 *to_ov9734(struct v4l2_subdev *subdev)
@@ -660,10 +657,6 @@ static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov9734->mutex);
-	if (ov9734->streaming == enable) {
-		mutex_unlock(&ov9734->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -683,46 +676,8 @@ static int ov9734_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov9734->streaming = enable;
 	mutex_unlock(&ov9734->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused ov9734_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov9734 *ov9734 = to_ov9734(sd);
-
-	mutex_lock(&ov9734->mutex);
-	if (ov9734->streaming)
-		ov9734_stop_streaming(ov9734);
-
-	mutex_unlock(&ov9734->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused ov9734_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct ov9734 *ov9734 = to_ov9734(sd);
-	int ret = 0;
-
-	mutex_lock(&ov9734->mutex);
-	if (!ov9734->streaming)
-		goto exit;
-
-	ret = ov9734_start_streaming(ov9734);
-	if (ret) {
-		ov9734->streaming = false;
-		ov9734_stop_streaming(ov9734);
-	}
-
-exit:
-	mutex_unlock(&ov9734->mutex);
 	return ret;
 }
 
@@ -1011,10 +966,6 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static const struct dev_pm_ops ov9734_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov9734_suspend, ov9734_resume)
-};
-
 static const struct acpi_device_id ov9734_acpi_ids[] = {
 	{ "OVTI9734", },
 	{}
@@ -1025,7 +976,6 @@ MODULE_DEVICE_TABLE(acpi, ov9734_acpi_ids);
 static struct i2c_driver ov9734_i2c_driver = {
 	.driver = {
 		.name = "ov9734",
-		.pm = &ov9734_pm_ops,
 		.acpi_match_table = ov9734_acpi_ids,
 	},
 	.probe = ov9734_probe,

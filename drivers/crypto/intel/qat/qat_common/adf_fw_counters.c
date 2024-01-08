@@ -9,6 +9,7 @@
 #include <linux/types.h>
 
 #include "adf_accel_devices.h"
+#include "adf_admin.h"
 #include "adf_common_drv.h"
 #include "adf_fw_counters.h"
 
@@ -34,7 +35,7 @@ struct adf_ae_counters {
 
 struct adf_fw_counters {
 	u16 ae_count;
-	struct adf_ae_counters ae_counters[];
+	struct adf_ae_counters ae_counters[] __counted_by(ae_count);
 };
 
 static void adf_fw_counters_parse_ae_values(struct adf_ae_counters *ae_counters, u32 ae,

@@ -577,6 +577,7 @@ DEF_CONFIGFS_ATTRIB_SHOW(unmap_granularity_alignment);
 DEF_CONFIGFS_ATTRIB_SHOW(unmap_zeroes_data);
 DEF_CONFIGFS_ATTRIB_SHOW(max_write_same_len);
 DEF_CONFIGFS_ATTRIB_SHOW(emulate_rsoc);
+DEF_CONFIGFS_ATTRIB_SHOW(submit_type);
 
 #define DEF_CONFIGFS_ATTRIB_STORE_U32(_name)				\
 static ssize_t _name##_store(struct config_item *item, const char *page,\
@@ -1231,6 +1232,24 @@ static ssize_t emulate_rsoc_store(struct config_item *item,
 	return count;
 }
 
+static ssize_t submit_type_store(struct config_item *item, const char *page,
+				 size_t count)
+{
+	struct se_dev_attrib *da = to_attrib(item);
+	int ret;
+	u8 val;
+
+	ret = kstrtou8(page, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	if (val > TARGET_QUEUE_SUBMIT)
+		return -EINVAL;
+
+	da->submit_type = val;
+	return count;
+}
+
 CONFIGFS_ATTR(, emulate_model_alias);
 CONFIGFS_ATTR(, emulate_dpo);
 CONFIGFS_ATTR(, emulate_fua_write);
@@ -1266,6 +1285,7 @@ CONFIGFS_ATTR(, unmap_zeroes_data);
 CONFIGFS_ATTR(, max_write_same_len);
 CONFIGFS_ATTR(, alua_support);
 CONFIGFS_ATTR(, pgr_support);
+CONFIGFS_ATTR(, submit_type);
 
 /*
  * dev_attrib attributes for devices using the target core SBC/SPC
@@ -1308,6 +1328,7 @@ struct configfs_attribute *sbc_attrib_attrs[] = {
 	&attr_alua_support,
 	&attr_pgr_support,
 	&attr_emulate_rsoc,
+	&attr_submit_type,
 	NULL,
 };
 EXPORT_SYMBOL(sbc_attrib_attrs);
@@ -1325,6 +1346,7 @@ struct configfs_attribute *passthrough_attrib_attrs[] = {
 	&attr_emulate_pr,
 	&attr_alua_support,
 	&attr_pgr_support,
+	&attr_submit_type,
 	NULL,
 };
 EXPORT_SYMBOL(passthrough_attrib_attrs);

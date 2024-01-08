@@ -16,6 +16,7 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,sc7180-adsp-pas
       - qcom,sc7180-mpss-pas
       - qcom,sc7280-mpss-pas
 
@@ -29,26 +30,6 @@ properties:
   clock-names:
     items:
       - const: xo
-
-  interrupts:
-    minItems: 6
-
-  interrupt-names:
-    minItems: 6
-
-  power-domains:
-    minItems: 2
-    items:
-      - description: CX power domain
-      - description: MX power domain
-      - description: MSS power domain
-
-  power-domain-names:
-    minItems: 2
-    items:
-      - const: cx
-      - const: mx
-      - const: mss
 
   memory-region:
     maxItems: 1
@@ -75,19 +56,69 @@ allOf:
       properties:
         compatible:
           enum:
+            - qcom,sc7180-adsp-pas
+    then:
+      properties:
+        interrupts:
+          maxItems: 5
+        interrupt-names:
+          maxItems: 5
+    else:
+      properties:
+        interrupts:
+          minItems: 6
+        interrupt-names:
+          minItems: 6
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sc7180-adsp-pas
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: LCX power domain
+            - description: LMX power domain
+        power-domain-names:
+          items:
+            - const: lcx
+            - const: lmx
+
+  - if:
+      properties:
+        compatible:
+          enum:
             - qcom,sc7180-mpss-pas
     then:
       properties:
         power-domains:
-          minItems: 3
+          items:
+            - description: CX power domain
+            - description: MX power domain
+            - description: MSS power domain
         power-domain-names:
-          minItems: 3
-    else:
+          items:
+            - const: cx
+            - const: mx
+            - const: mss
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sc7280-mpss-pas
+    then:
       properties:
         power-domains:
-          maxItems: 2
+          items:
+            - description: CX power domain
+            - description: MX power domain
         power-domain-names:
-          maxItems: 2
+          items:
+            - const: cx
+            - const: mx
 
 unevaluatedProperties: false
 

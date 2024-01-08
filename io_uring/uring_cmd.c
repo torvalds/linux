@@ -7,7 +7,7 @@
 #include <linux/nospec.h>
 
 #include <uapi/linux/io_uring.h>
-#include <uapi/asm-generic/ioctls.h>
+#include <asm/ioctls.h>
 
 #include "io_uring.h"
 #include "rsrc.h"

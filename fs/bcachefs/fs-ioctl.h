@@ -6,28 +6,28 @@
 
 /* bcachefs inode flags -> vfs inode flags: */
 static const __maybe_unused unsigned bch_flags_to_vfs[] = {
-	[__BCH_INODE_SYNC]	= S_SYNC,
-	[__BCH_INODE_IMMUTABLE]	= S_IMMUTABLE,
-	[__BCH_INODE_APPEND]	= S_APPEND,
-	[__BCH_INODE_NOATIME]	= S_NOATIME,
+	[__BCH_INODE_sync]	= S_SYNC,
+	[__BCH_INODE_immutable]	= S_IMMUTABLE,
+	[__BCH_INODE_append]	= S_APPEND,
+	[__BCH_INODE_noatime]	= S_NOATIME,
 };
 
 /* bcachefs inode flags -> FS_IOC_GETFLAGS: */
 static const __maybe_unused unsigned bch_flags_to_uflags[] = {
-	[__BCH_INODE_SYNC]	= FS_SYNC_FL,
-	[__BCH_INODE_IMMUTABLE]	= FS_IMMUTABLE_FL,
-	[__BCH_INODE_APPEND]	= FS_APPEND_FL,
-	[__BCH_INODE_NODUMP]	= FS_NODUMP_FL,
-	[__BCH_INODE_NOATIME]	= FS_NOATIME_FL,
+	[__BCH_INODE_sync]	= FS_SYNC_FL,
+	[__BCH_INODE_immutable]	= FS_IMMUTABLE_FL,
+	[__BCH_INODE_append]	= FS_APPEND_FL,
+	[__BCH_INODE_nodump]	= FS_NODUMP_FL,
+	[__BCH_INODE_noatime]	= FS_NOATIME_FL,
 };
 
 /* bcachefs inode flags -> FS_IOC_FSGETXATTR: */
 static const __maybe_unused unsigned bch_flags_to_xflags[] = {
-	[__BCH_INODE_SYNC]	= FS_XFLAG_SYNC,
-	[__BCH_INODE_IMMUTABLE]	= FS_XFLAG_IMMUTABLE,
-	[__BCH_INODE_APPEND]	= FS_XFLAG_APPEND,
-	[__BCH_INODE_NODUMP]	= FS_XFLAG_NODUMP,
-	[__BCH_INODE_NOATIME]	= FS_XFLAG_NOATIME,
+	[__BCH_INODE_sync]	= FS_XFLAG_SYNC,
+	[__BCH_INODE_immutable]	= FS_XFLAG_IMMUTABLE,
+	[__BCH_INODE_append]	= FS_XFLAG_APPEND,
+	[__BCH_INODE_nodump]	= FS_XFLAG_NODUMP,
+	[__BCH_INODE_noatime]	= FS_XFLAG_NOATIME,
 	//[__BCH_INODE_PROJINHERIT] = FS_XFLAG_PROJINHERIT;
 };
 
