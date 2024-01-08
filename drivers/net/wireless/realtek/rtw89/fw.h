@@ -1741,60 +1741,22 @@ static inline void SET_LOG_CFG_COMP_EXT(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)(h2c) + 2, val, GENMASK(31, 0));
 }
 
-static inline void SET_BA_CAM_VALID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(0));
-}
+struct rtw89_h2c_ba_cam {
+	__le32 w0;
+	__le32 w1;
+} __packed;
 
-static inline void SET_BA_CAM_INIT_REQ(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(1));
-}
-
-static inline void SET_BA_CAM_ENTRY_IDX(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(3, 2));
-}
-
-static inline void SET_BA_CAM_TID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 4));
-}
-
-static inline void SET_BA_CAM_MACID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
-}
-
-static inline void SET_BA_CAM_BMAP_SIZE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(19, 16));
-}
-
-static inline void SET_BA_CAM_SSN(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 20));
-}
-
-static inline void SET_BA_CAM_UID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(7, 0));
-}
-
-static inline void SET_BA_CAM_STD_EN(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 1, val, BIT(8));
-}
-
-static inline void SET_BA_CAM_BAND(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 1, val, BIT(9));
-}
-
-static inline void SET_BA_CAM_ENTRY_IDX_V1(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c + 1, val, GENMASK(31, 28));
-}
+#define RTW89_H2C_BA_CAM_W0_VALID BIT(0)
+#define RTW89_H2C_BA_CAM_W0_INIT_REQ BIT(1)
+#define RTW89_H2C_BA_CAM_W0_ENTRY_IDX GENMASK(3, 2)
+#define RTW89_H2C_BA_CAM_W0_TID GENMASK(7, 4)
+#define RTW89_H2C_BA_CAM_W0_MACID GENMASK(15, 8)
+#define RTW89_H2C_BA_CAM_W0_BMAP_SIZE GENMASK(19, 16)
+#define RTW89_H2C_BA_CAM_W0_SSN GENMASK(31, 20)
+#define RTW89_H2C_BA_CAM_W1_UID GENMASK(7, 0)
+#define RTW89_H2C_BA_CAM_W1_STD_EN BIT(8)
+#define RTW89_H2C_BA_CAM_W1_BAND BIT(9)
+#define RTW89_H2C_BA_CAM_W1_ENTRY_IDX_V1 GENMASK(31, 28)
 
 struct rtw89_h2c_ba_cam_v1 {
 	__le32 w0;

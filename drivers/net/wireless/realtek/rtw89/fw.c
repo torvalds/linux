@@ -1485,13 +1485,14 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_dctl_sec_cam_v1);
 
-#define H2C_BA_CAM_LEN 8
 int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			bool valid, struct ieee80211_ampdu_params *params)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_vif *rtwvif = rtwsta->rtwvif;
+	struct rtw89_h2c_ba_cam *h2c;
 	u8 macid = rtwsta->mac_id;
+	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	u8 entry_idx;
 	int ret;
@@ -1509,32 +1510,34 @@ int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 		return 0;
 	}
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_BA_CAM_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c ba cam\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_BA_CAM_LEN);
-	SET_BA_CAM_MACID(skb->data, macid);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_ba_cam *)skb->data;
+
+	h2c->w0 = le32_encode_bits(macid, RTW89_H2C_BA_CAM_W0_MACID);
 	if (chip->bacam_ver == RTW89_BACAM_V0_EXT)
-		SET_BA_CAM_ENTRY_IDX_V1(skb->data, entry_idx);
+		h2c->w1 |= le32_encode_bits(entry_idx, RTW89_H2C_BA_CAM_W1_ENTRY_IDX_V1);
 	else
-		SET_BA_CAM_ENTRY_IDX(skb->data, entry_idx);
+		h2c->w0 |= le32_encode_bits(entry_idx, RTW89_H2C_BA_CAM_W0_ENTRY_IDX);
 	if (!valid)
 		goto end;
-	SET_BA_CAM_VALID(skb->data, valid);
-	SET_BA_CAM_TID(skb->data, params->tid);
+	h2c->w0 |= le32_encode_bits(valid, RTW89_H2C_BA_CAM_W0_VALID) |
+		   le32_encode_bits(params->tid, RTW89_H2C_BA_CAM_W0_TID);
 	if (params->buf_size > 64)
-		SET_BA_CAM_BMAP_SIZE(skb->data, 4);
+		h2c->w0 |= le32_encode_bits(4, RTW89_H2C_BA_CAM_W0_BMAP_SIZE);
 	else
-		SET_BA_CAM_BMAP_SIZE(skb->data, 0);
+		h2c->w0 |= le32_encode_bits(0, RTW89_H2C_BA_CAM_W0_BMAP_SIZE);
 	/* If init req is set, hw will set the ssn */
-	SET_BA_CAM_INIT_REQ(skb->data, 1);
-	SET_BA_CAM_SSN(skb->data, params->ssn);
+	h2c->w0 |= le32_encode_bits(1, RTW89_H2C_BA_CAM_W0_INIT_REQ) |
+		   le32_encode_bits(params->ssn, RTW89_H2C_BA_CAM_W0_SSN);
 
 	if (chip->bacam_ver == RTW89_BACAM_V0_EXT) {
-		SET_BA_CAM_STD_EN(skb->data, 1);
-		SET_BA_CAM_BAND(skb->data, rtwvif->mac_idx);
+		h2c->w1 |= le32_encode_bits(1, RTW89_H2C_BA_CAM_W1_STD_EN) |
+			   le32_encode_bits(rtwvif->mac_idx, RTW89_H2C_BA_CAM_W1_BAND);
 	}
 
 end:
@@ -1542,7 +1545,7 @@ end:
 			      H2C_CAT_MAC,
 			      H2C_CL_BA_CAM,
 			      H2C_FUNC_MAC_BA_CAM, 0, 1,
-			      H2C_BA_CAM_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
@@ -1561,27 +1564,30 @@ EXPORT_SYMBOL(rtw89_fw_h2c_ba_cam);
 static int rtw89_fw_h2c_init_ba_cam_v0_ext(struct rtw89_dev *rtwdev,
 					   u8 entry_idx, u8 uid)
 {
+	struct rtw89_h2c_ba_cam *h2c;
+	u32 len = sizeof(*h2c);
 	struct sk_buff *skb;
 	int ret;
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_BA_CAM_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for dynamic h2c ba cam\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_BA_CAM_LEN);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_ba_cam *)skb->data;
 
-	SET_BA_CAM_VALID(skb->data, 1);
-	SET_BA_CAM_ENTRY_IDX_V1(skb->data, entry_idx);
-	SET_BA_CAM_UID(skb->data, uid);
-	SET_BA_CAM_BAND(skb->data, 0);
-	SET_BA_CAM_STD_EN(skb->data, 0);
+	h2c->w0 = le32_encode_bits(1, RTW89_H2C_BA_CAM_W0_VALID);
+	h2c->w1 = le32_encode_bits(entry_idx, RTW89_H2C_BA_CAM_W1_ENTRY_IDX_V1) |
+		  le32_encode_bits(uid, RTW89_H2C_BA_CAM_W1_UID) |
+		  le32_encode_bits(0, RTW89_H2C_BA_CAM_W1_BAND) |
+		  le32_encode_bits(0, RTW89_H2C_BA_CAM_W1_STD_EN);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC,
 			      H2C_CL_BA_CAM,
 			      H2C_FUNC_MAC_BA_CAM, 0, 1,
-			      H2C_BA_CAM_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
