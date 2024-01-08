@@ -78,10 +78,49 @@
 			#interrupt-cells = <3>;
 		};
 
-		watchdog@1001c000 {
+		clock-controller@10001000 {
+			compatible = "mediatek,mt7988-infracfg", "syscon";
+			reg = <0 0x10001000 0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		clock-controller@1001b000 {
+			compatible = "mediatek,mt7988-topckgen", "syscon";
+			reg = <0 0x1001b000 0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		watchdog: watchdog@1001c000 {
 			compatible = "mediatek,mt7988-wdt";
 			reg = <0 0x1001c000 0 0x1000>;
 			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			#reset-cells = <1>;
+		};
+
+		clock-controller@1001e000 {
+			compatible = "mediatek,mt7988-apmixedsys";
+			reg = <0 0x1001e000 0 0x1000>;
+			#clock-cells = <1>;
+		};
+
+		clock-controller@11f40000 {
+			compatible = "mediatek,mt7988-xfi-pll";
+			reg = <0 0x11f40000 0 0x1000>;
+			resets = <&watchdog 16>;
+			#clock-cells = <1>;
+		};
+
+		clock-controller@15000000 {
+			compatible = "mediatek,mt7988-ethsys", "syscon";
+			reg = <0 0x15000000 0 0x1000>;
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+
+		clock-controller@15031000 {
+			compatible = "mediatek,mt7988-ethwarp";
+			reg = <0 0x15031000 0 0x1000>;
+			#clock-cells = <1>;
 			#reset-cells = <1>;
 		};
 	};
