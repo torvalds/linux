@@ -47,6 +47,48 @@
 
 static const struct amd_ip_funcs soc24_common_ip_funcs;
 
+static const struct amdgpu_video_codec_info vcn_5_0_0_video_codecs_encode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 3840, 2160, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 7680, 4320, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 7680, 4320, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_0_0_video_codecs_encode_vcn0 = {
+	.codec_count = ARRAY_SIZE(vcn_5_0_0_video_codecs_encode_array_vcn0),
+	.codec_array = vcn_5_0_0_video_codecs_encode_array_vcn0,
+};
+
+static const struct amdgpu_video_codec_info vcn_5_0_0_video_codecs_decode_array_vcn0[] = {
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_MPEG4_AVC, 4096, 2160, 52)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_HEVC, 8192, 4320, 183)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_JPEG, 4096, 4096, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_VP9, 8192, 4352, 0)},
+	{codec_info_build(AMDGPU_INFO_VIDEO_CAPS_CODEC_IDX_AV1, 8192, 4352, 0)},
+};
+
+static const struct amdgpu_video_codecs vcn_5_0_0_video_codecs_decode_vcn0 = {
+	.codec_count = ARRAY_SIZE(vcn_5_0_0_video_codecs_decode_array_vcn0),
+	.codec_array = vcn_5_0_0_video_codecs_decode_array_vcn0,
+};
+
+static int soc24_query_video_codecs(struct amdgpu_device *adev, bool encode,
+				 const struct amdgpu_video_codecs **codecs)
+{
+	if (adev->vcn.num_vcn_inst == hweight8(adev->vcn.harvest_config))
+		return -EINVAL;
+
+	switch (amdgpu_ip_version(adev, UVD_HWIP, 0)) {
+	case IP_VERSION(5, 0, 0):
+		if (encode)
+			*codecs = &vcn_5_0_0_video_codecs_encode_vcn0;
+		else
+			*codecs = &vcn_5_0_0_video_codecs_decode_vcn0;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static u32 soc24_get_config_memsize(struct amdgpu_device *adev)
 {
 	return adev->nbio.funcs->get_memsize(adev);
@@ -323,6 +365,7 @@ static const struct amdgpu_asic_funcs soc24_asic_funcs = {
 	.get_pcie_replay_count = &soc24_get_pcie_replay_count,
 	.supports_baco = &amdgpu_dpm_is_baco_supported,
 	.pre_asic_init = &soc24_pre_asic_init,
+	.query_video_codecs = &soc24_query_video_codecs,
 	.update_umd_stable_pstate = &soc24_update_umd_stable_pstate,
 };
 
