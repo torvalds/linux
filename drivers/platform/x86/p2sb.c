@@ -65,7 +65,7 @@ static bool p2sb_valid_resource(struct resource *res)
 /* Copy resource from the first BAR of the device in question */
 static void p2sb_read_bar0(struct pci_dev *pdev, struct resource *mem)
 {
-	struct resource *bar0 = &pdev->resource[0];
+	struct resource *bar0 = pci_resource_n(pdev, 0);
 
 	/* Make sure we have no dangling pointers in the output */
 	memset(mem, 0, sizeof(*mem));
