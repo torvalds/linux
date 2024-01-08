@@ -62,13 +62,13 @@ config KVM
 
 config KVM_WERROR
 	bool "Compile KVM with -Werror"
-	# KASAN may cause the build to fail due to larger frames
-	default y if X86_64 && !KASAN
-	# We use the dependency on !COMPILE_TEST to not be enabled
-	# blindly in allmodconfig or allyesconfig configurations
-	depends on KVM
-	depends on (X86_64 && !KASAN) || !COMPILE_TEST
-	depends on EXPERT
+	# Disallow KVM's -Werror if KASAN is enabled, e.g. to guard against
+	# randomized configs from selecting KVM_WERROR=y, which doesn't play
+	# nice with KASAN.  KASAN builds generates warnings for the default
+	# FRAME_WARN, i.e. KVM_WERROR=y with KASAN=y requires special tuning.
+	# Building KVM with -Werror and KASAN is still doable via enabling
+	# the kernel-wide WERROR=y.
+	depends on KVM && EXPERT && !KASAN
 	help
 	  Add -Werror to the build flags for KVM.
 
