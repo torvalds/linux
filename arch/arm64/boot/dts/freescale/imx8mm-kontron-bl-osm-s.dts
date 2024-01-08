@@ -30,18 +30,18 @@
 
 		led1 {
 			label = "led1";
-			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio1 5 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "heartbeat";
 		};
 
 		led2 {
 			label = "led2";
-			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio3 8 GPIO_ACTIVE_LOW>;
 		};
 
 		led3 {
 			label = "led3";
-			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio3 7 GPIO_ACTIVE_LOW>;
 		};
 	};
 
@@ -54,7 +54,7 @@
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usb_eth2>;
-		gpio = <&gpio3 2 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio1 1 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		regulator-always-on;
 		regulator-name = "rst-usb-eth2";
@@ -91,7 +91,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_can>;
 		clocks = <&osc_can>;
-		interrupts-extended = <&gpio4 28 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&gpio5 1 IRQ_TYPE_LEVEL_LOW>;
 		/*
 		 * Limit the SPI clock to 15 MHz to prevent issues
 		 * with corrupted data due to chip errata.
@@ -118,7 +118,7 @@
 &fec1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-connection-type = "rgmii-rxid";
+	phy-connection-type = "rgmii-id";
 	phy-handle = <&ethphy>;
 	status = "okay";
 
@@ -127,10 +127,11 @@
 		#size-cells = <0>;
 
 		ethphy: ethernet-phy@0 {
+			compatible = "ethernet-phy-id4f51.e91b",
+				     "ethernet-phy-ieee802.3-c22";
 			reg = <0>;
-			reset-assert-us = <1>;
-			reset-deassert-us = <15000>;
-			reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -153,11 +154,24 @@
 			  "", "", "", "", "", "", "", "";
 };
 
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c3>;
+	status = "okay";
+
+	usb-hub@2c {
+		compatible = "microchip,usb2514b";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb_hub>;
+		reg = <0x2c>;
+		non-removable-ports = <0>, <3>;
+		reset-gpios = <&gpio5 2 GPIO_ACTIVE_LOW>;
+	};
+};
+
 &i2c4 {
-	clock-frequency = <100000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c4>;
-	status = "okay";
 };
 
 &pwm2 {
@@ -196,13 +210,13 @@
 	status = "okay";
 
 	usb1@1 {
-		compatible = "usb424,9514";
+		compatible = "usb424,2514";
 		reg = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 
 		usbnet: ethernet@1 {
-			compatible = "usb424,ec00";
+			compatible = "usbb95,772b";
 			reg = <1>;
 			local-mac-address = [ 00 00 00 00 00 00 ];
 		};
@@ -223,7 +237,7 @@
 &iomuxc {
 	pinctrl_can: cangrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_SAI3_RXFS_GPIO4_IO28		0x19
+			MX8MM_IOMUXC_SAI3_TXD_GPIO5_IO1			0x19
 		>;
 	};
 
@@ -261,27 +275,24 @@
 			MX8MM_IOMUXC_ENET_RXC_ENET1_RGMII_RXC		0x91
 			MX8MM_IOMUXC_ENET_RX_CTL_ENET1_RGMII_RX_CTL	0x91
 			MX8MM_IOMUXC_ENET_TX_CTL_ENET1_RGMII_TX_CTL	0x1f
-			MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1		0x19 /* PHY RST */
-			MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5		0x19 /* ETH IRQ */
+			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x19 /* PHY RST */
 		>;
 	};
 
 	pinctrl_gpio_led: gpioledgrp {
 		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO12_GPIO1_IO12		0x19
-			MX8MM_IOMUXC_GPIO1_IO13_GPIO1_IO13		0x19
-			MX8MM_IOMUXC_GPIO1_IO14_GPIO1_IO14		0x19
+			MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5		0x19
+			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19
+			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8		0x19
 		>;
 	};
 
 	pinctrl_gpio1: gpio1grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_GPIO1_IO03_GPIO1_IO3		0x19
-			MX8MM_IOMUXC_GPIO1_IO07_GPIO1_IO7		0x19
+			MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1		0x19
 			MX8MM_IOMUXC_GPIO1_IO09_GPIO1_IO9		0x19
 			MX8MM_IOMUXC_GPIO1_IO11_GPIO1_IO11		0x19
 			MX8MM_IOMUXC_GPIO1_IO06_GPIO1_IO6		0x19
-			MX8MM_IOMUXC_GPIO1_IO08_GPIO1_IO8		0x19
 			MX8MM_IOMUXC_GPIO1_IO10_GPIO1_IO10		0x19
 		>;
 	};
@@ -289,6 +300,13 @@
 	pinctrl_gpio5: gpio5grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI3_MCLK_GPIO5_IO2		0x19
+		>;
+	};
+
+	pinctrl_i2c3: i2c3grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_I2C3_SCL_I2C3_SCL			0x40000083
+			MX8MM_IOMUXC_I2C3_SDA_I2C3_SDA			0x40000083
 		>;
 	};
 
@@ -331,7 +349,7 @@
 
 	pinctrl_usb_eth2: usbeth2grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_NAND_CE1_B_GPIO3_IO2		0x19
+			MX8MM_IOMUXC_GPIO1_IO01_GPIO1_IO1		0x19
 		>;
 	};
 
