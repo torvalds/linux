@@ -5,10 +5,23 @@
 //! C header: [`include/linux/sched.h`](srctree/include/linux/sched.h).
 
 use crate::{bindings, types::Opaque};
-use core::{ffi::c_long, marker::PhantomData, ops::Deref, ptr};
+use core::{
+    ffi::{c_int, c_long, c_uint},
+    marker::PhantomData,
+    ops::Deref,
+    ptr,
+};
 
 /// A sentinel value used for infinite timeouts.
 pub const MAX_SCHEDULE_TIMEOUT: c_long = c_long::MAX;
+
+/// Bitmask for tasks that are sleeping in an interruptible state.
+pub const TASK_INTERRUPTIBLE: c_int = bindings::TASK_INTERRUPTIBLE as c_int;
+/// Bitmask for tasks that are sleeping in an uninterruptible state.
+pub const TASK_UNINTERRUPTIBLE: c_int = bindings::TASK_UNINTERRUPTIBLE as c_int;
+/// Convenience constant for waking up tasks regardless of whether they are in interruptible or
+/// uninterruptible sleep.
+pub const TASK_NORMAL: c_uint = bindings::TASK_NORMAL as c_uint;
 
 /// Returns the currently running task.
 #[macro_export]
