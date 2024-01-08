@@ -232,6 +232,8 @@ static int hci_pio_init(struct i3c_hci *hci)
 		 */
 		pio_reg_write(INTR_SIGNAL_ENABLE, STAT_RESP_READY);
 		pio->enabled_irqs |= STAT_RESP_READY;
+	} else {
+		mipi_i3c_hci_hj_ctrl(hci, false);
 	}
 
 	return 0;
@@ -891,6 +893,8 @@ static bool hci_pio_prep_new_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 	struct i3c_hci_dev_data *dev_data;
 	struct hci_pio_dev_ibi_data *dev_ibi;
 	u32 ibi_status;
+	unsigned int ibi_addr;
+	bool ibi_rnw;
 
 	/*
 	 * We have a new IBI. Try to set up its payload retrieval.
@@ -902,10 +906,17 @@ static bool hci_pio_prep_new_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 
 	ibi_status = pio_reg_read(IBI_PORT);
 	DBG("status = %#x", ibi_status);
-	ibi->addr = FIELD_GET(IBI_TARGET_ADDR, ibi_status);
-	if (ibi_status & IBI_ERROR) {
-		dev_err(&hci->master.dev, "IBI error from %#x\n", ibi->addr);
+	ibi_addr = FIELD_GET(IBI_TARGET_ADDR, ibi_status);
+	ibi_rnw = FIELD_GET(IBI_TARGET_RNW, ibi_status);
+	if (IBI_TYPE_HJ(ibi_addr, ibi_rnw)) {
+		queue_work(hci->master.wq, &hci->hj_work);
 		return false;
+	} else {
+		ibi->addr = FIELD_GET(IBI_TARGET_ADDR, ibi_status);
+		if (ibi_status & IBI_ERROR) {
+			dev_err(&hci->master.dev, "IBI error from %#x\n", ibi->addr);
+			return false;
+		}
 	}
 
 	ibi->last_seg = ibi_status & IBI_LAST_STATUS;
@@ -1043,6 +1054,19 @@ static int hci_pio_request_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 	return 0;
 }
 
+static int hci_pio_request_hj(struct i3c_hci *hci)
+{
+	struct hci_pio_data *pio = hci->io_data;
+
+	pio->enabled_irqs |= STAT_IBI_STATUS_THLD;
+	pio_reg_write(INTR_SIGNAL_ENABLE, pio->enabled_irqs);
+	return 0;
+}
+
+static void hci_pio_free_hj(struct i3c_hci *hci)
+{
+}
+
 static void hci_pio_free_ibi(struct i3c_hci *hci, struct i3c_dev_desc *dev)
 {
 	struct i3c_hci_dev_data *dev_data = i3c_dev_get_master_data(dev);
@@ -1126,4 +1150,6 @@ const struct hci_io_ops mipi_i3c_hci_pio = {
 	.request_ibi		= hci_pio_request_ibi,
 	.free_ibi		= hci_pio_free_ibi,
 	.recycle_ibi_slot	= hci_pio_recycle_ibi_slot,
+	.request_hj		= hci_pio_request_hj,
+	.free_hj		= hci_pio_free_hj,
 };

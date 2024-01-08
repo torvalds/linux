@@ -591,10 +591,15 @@ static int i3c_set_hotjoin(struct i3c_master_controller *master, bool enable)
 
 	i3c_bus_normaluse_lock(&master->bus);
 
-	if (enable)
+	if (enable) {
 		ret = master->ops->enable_hotjoin(master);
-	else
+		i3c_master_enec_locked(master, I3C_BROADCAST_ADDR,
+				       I3C_CCC_EVENT_HJ);
+	} else {
 		ret = master->ops->disable_hotjoin(master);
+		i3c_master_disec_locked(master, I3C_BROADCAST_ADDR,
+					I3C_CCC_EVENT_HJ);
+	}
 
 	master->hotjoin = enable;
 

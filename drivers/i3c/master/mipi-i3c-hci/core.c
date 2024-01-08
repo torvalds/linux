@@ -465,6 +465,14 @@ static void i3c_hci_bus_cleanup(struct i3c_master_controller *m)
 		mipi_i3c_hci_dat_v1.cleanup(hci);
 }
 
+void mipi_i3c_hci_hj_ctrl(struct i3c_hci *hci, bool ack_nack)
+{
+	DBG("%s Hot-join requeset\n", ack_nack ? "ACK" : "NACK");
+	reg_write(HC_CONTROL,
+		  ack_nack ? reg_read(HC_CONTROL) & ~HC_CONTROL_HOT_JOIN_CTRL :
+			     reg_read(HC_CONTROL) | HC_CONTROL_HOT_JOIN_CTRL);
+}
+
 void mipi_i3c_hci_resume(struct i3c_hci *hci)
 {
 	reg_set(HC_CONTROL, HC_CONTROL_RESUME);
@@ -480,6 +488,26 @@ void mipi_i3c_hci_pio_reset(struct i3c_hci *hci)
 void mipi_i3c_hci_dct_index_reset(struct i3c_hci *hci)
 {
 	reg_write(DCT_SECTION, FIELD_PREP(DCT_TABLE_INDEX, 0));
+}
+
+static int i3c_hci_enable_hotjoin(struct i3c_master_controller *m)
+{
+	struct i3c_hci *hci = to_i3c_hci(m);
+	int ret;
+
+	ret = hci->io->request_hj(hci);
+	mipi_i3c_hci_hj_ctrl(hci, true);
+
+	return ret;
+}
+
+static int i3c_hci_disable_hotjoin(struct i3c_master_controller *m)
+{
+	struct i3c_hci *hci = to_i3c_hci(m);
+
+	hci->io->free_hj(hci);
+	mipi_i3c_hci_hj_ctrl(hci, false);
+	return 0;
 }
 
 static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
@@ -845,6 +873,8 @@ static const struct i3c_master_controller_ops i3c_hci_ops = {
 	.enable_ibi		= i3c_hci_enable_ibi,
 	.disable_ibi		= i3c_hci_disable_ibi,
 	.recycle_ibi_slot	= i3c_hci_recycle_ibi_slot,
+	.enable_hotjoin		= i3c_hci_enable_hotjoin,
+	.disable_hotjoin	= i3c_hci_disable_hotjoin,
 };
 
 static int ast2700_i3c_target_bus_init(struct i3c_master_controller *m)
@@ -1347,6 +1377,14 @@ static int aspeed_i3c_of_populate_bus_timing(struct i3c_hci *hci,
 }
 #endif
 
+static void i3c_hci_hj_work(struct work_struct *work)
+{
+	struct i3c_hci *hci;
+
+	hci = container_of(work, struct i3c_hci, hj_work);
+	i3c_master_do_daa(&hci->master);
+}
+
 static int i3c_hci_probe(struct platform_device *pdev)
 {
 	struct i3c_hci *hci;
@@ -1400,6 +1438,7 @@ static int i3c_hci_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
+	INIT_WORK(&hci->hj_work, i3c_hci_hj_work);
 	ret = i3c_register(&hci->master, &pdev->dev, &i3c_hci_ops,
 			   &ast2700_i3c_target_ops, false);
 	if (ret)

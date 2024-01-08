@@ -25,6 +25,8 @@
 #define IBI_TARGET_RNW			BIT(8)
 #define IBI_DATA_LENGTH			GENMASK(7, 0)
 
+#define IBI_TYPE_HJ(a, rnw) (((a) == I3C_HOT_JOIN_ADDR) && !(rnw))
+
 /*  handy helpers */
 static inline struct i3c_dev_desc *
 i3c_hci_addr_to_dev(struct i3c_hci *hci, unsigned int addr)

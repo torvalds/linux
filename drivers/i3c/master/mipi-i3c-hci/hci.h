@@ -64,6 +64,7 @@ struct i3c_hci {
 	u32 vendor_product_id;
 	void *vendor_data;
 	struct completion ibi_comp;
+	struct work_struct hj_work;
 
 	/* Used for handling private write */
 	struct {
@@ -127,6 +128,8 @@ struct hci_io_ops {
 	int (*request_ibi)(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 			   const struct i3c_ibi_setup *req);
 	void (*free_ibi)(struct i3c_hci *hci, struct i3c_dev_desc *dev);
+	int (*request_hj)(struct i3c_hci *hci);
+	void (*free_hj)(struct i3c_hci *hci);
 	void (*recycle_ibi_slot)(struct i3c_hci *hci, struct i3c_dev_desc *dev,
 				struct i3c_ibi_slot *slot);
 	int (*init)(struct i3c_hci *hci);
@@ -152,5 +155,6 @@ struct i3c_hci_dev_data {
 void mipi_i3c_hci_resume(struct i3c_hci *hci);
 void mipi_i3c_hci_pio_reset(struct i3c_hci *hci);
 void mipi_i3c_hci_dct_index_reset(struct i3c_hci *hci);
+void mipi_i3c_hci_hj_ctrl(struct i3c_hci *hci, bool ack_nack);
 
 #endif
