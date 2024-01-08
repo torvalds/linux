@@ -332,10 +332,10 @@ cifs_disable_secondary_channels(struct cifs_ses *ses)
 
 		if (iface) {
 			spin_lock(&ses->iface_lock);
-			kref_put(&iface->refcount, release_iface);
 			iface->num_channels--;
 			if (iface->weight_fulfilled)
 				iface->weight_fulfilled--;
+			kref_put(&iface->refcount, release_iface);
 			spin_unlock(&ses->iface_lock);
 		}
 

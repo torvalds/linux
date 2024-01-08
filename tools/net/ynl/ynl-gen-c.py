@@ -1505,6 +1505,12 @@ def put_op_name(family, cw):
     cw.block_start(line=f"static const char * const {map_name}[] =")
     for op_name, op in family.msgs.items():
         if op.rsp_value:
+            # Make sure we don't add duplicated entries, if multiple commands
+            # produce the same response in legacy families.
+            if family.rsp_by_value[op.rsp_value] != op:
+                cw.p(f'// skip "{op_name}", duplicate reply value')
+                continue
+
             if op.req_value == op.rsp_value:
                 cw.p(f'[{op.enum_name}] = "{op_name}",')
             else:

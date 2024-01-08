@@ -1854,6 +1854,8 @@ static int nvmet_tcp_tls_handshake(struct nvmet_tcp_queue *queue)
 	}
 	return ret;
 }
+#else
+static void nvmet_tcp_tls_handshake_timeout(struct work_struct *w) {}
 #endif
 
 static void nvmet_tcp_alloc_queue(struct nvmet_tcp_port *port,
@@ -1911,9 +1913,9 @@ static void nvmet_tcp_alloc_queue(struct nvmet_tcp_port *port,
 	list_add_tail(&queue->queue_list, &nvmet_tcp_queue_list);
 	mutex_unlock(&nvmet_tcp_queue_mutex);
 
-#ifdef CONFIG_NVME_TARGET_TCP_TLS
 	INIT_DELAYED_WORK(&queue->tls_handshake_tmo_work,
 			  nvmet_tcp_tls_handshake_timeout);
+#ifdef CONFIG_NVME_TARGET_TCP_TLS
 	if (queue->state == NVMET_TCP_Q_TLS_HANDSHAKE) {
 		struct sock *sk = queue->sock->sk;
 

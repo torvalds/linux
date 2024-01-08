@@ -502,6 +502,16 @@ static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
 	return ret;
 }
 
+static int ivpu_boot_pwr_domain_disable(struct ivpu_device *vdev)
+{
+	ivpu_boot_dpu_active_drive(vdev, false);
+	ivpu_boot_pwr_island_isolation_drive(vdev, true);
+	ivpu_boot_pwr_island_trickle_drive(vdev, false);
+	ivpu_boot_pwr_island_drive(vdev, false);
+
+	return ivpu_boot_wait_for_pwr_island_status(vdev, 0x0);
+}
+
 static void ivpu_boot_no_snoop_enable(struct ivpu_device *vdev)
 {
 	u32 val = REGV_RD32(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES);
@@ -600,25 +610,17 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 
 static int ivpu_hw_37xx_reset(struct ivpu_device *vdev)
 {
-	int ret;
-	u32 val;
+	int ret = 0;
 
-	if (IVPU_WA(punit_disabled))
-		return 0;
-
-	ret = REGB_POLL_FLD(VPU_37XX_BUTTRESS_VPU_IP_RESET, TRIGGER, 0, TIMEOUT_US);
-	if (ret) {
-		ivpu_err(vdev, "Timed out waiting for TRIGGER bit\n");
-		return ret;
+	if (ivpu_boot_pwr_domain_disable(vdev)) {
+		ivpu_err(vdev, "Failed to disable power domain\n");
+		ret = -EIO;
 	}
 
-	val = REGB_RD32(VPU_37XX_BUTTRESS_VPU_IP_RESET);
-	val = REG_SET_FLD(VPU_37XX_BUTTRESS_VPU_IP_RESET, TRIGGER, val);
-	REGB_WR32(VPU_37XX_BUTTRESS_VPU_IP_RESET, val);
-
-	ret = REGB_POLL_FLD(VPU_37XX_BUTTRESS_VPU_IP_RESET, TRIGGER, 0, TIMEOUT_US);
-	if (ret)
-		ivpu_err(vdev, "Timed out waiting for RESET completion\n");
+	if (ivpu_pll_disable(vdev)) {
+		ivpu_err(vdev, "Failed to disable PLL\n");
+		ret = -EIO;
+	}
 
 	return ret;
 }
@@ -650,10 +652,6 @@ static int ivpu_hw_37xx_d0i3_disable(struct ivpu_device *vdev)
 static int ivpu_hw_37xx_power_up(struct ivpu_device *vdev)
 {
 	int ret;
-
-	ret = ivpu_hw_37xx_reset(vdev);
-	if (ret)
-		ivpu_warn(vdev, "Failed to reset HW: %d\n", ret);
 
 	ret = ivpu_hw_37xx_d0i3_disable(vdev);
 	if (ret)
@@ -722,11 +720,11 @@ static int ivpu_hw_37xx_power_down(struct ivpu_device *vdev)
 {
 	int ret = 0;
 
-	if (!ivpu_hw_37xx_is_idle(vdev) && ivpu_hw_37xx_reset(vdev))
-		ivpu_err(vdev, "Failed to reset the VPU\n");
+	if (!ivpu_hw_37xx_is_idle(vdev))
+		ivpu_warn(vdev, "VPU not idle during power down\n");
 
-	if (ivpu_pll_disable(vdev)) {
-		ivpu_err(vdev, "Failed to disable PLL\n");
+	if (ivpu_hw_37xx_reset(vdev)) {
+		ivpu_err(vdev, "Failed to reset VPU\n");
 		ret = -EIO;
 	}
 

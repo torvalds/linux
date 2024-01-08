@@ -85,7 +85,7 @@ int main(int argc, char **argv)
 	 */
 	ret = open("/proc/sys/abi/sme_default_vector_length", O_RDONLY, 0);
 	if (ret >= 0) {
-		ksft_test_result(fork_test(), "fork_test");
+		ksft_test_result(fork_test(), "fork_test\n");
 
 	} else {
 		ksft_print_msg("SME not supported\n");
