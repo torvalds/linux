@@ -458,6 +458,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 40, 0, CRASH_TRIGGER),
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 56, 10, BEACON_FILTER),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 30, 0, CRASH_TRIGGER),
+	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 11, 0, MACID_PAUSE_SLEEP),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -2489,11 +2490,21 @@ fail:
 int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 			     bool pause)
 {
+	struct rtw89_fw_macid_pause_sleep_grp *h2c_new;
 	struct rtw89_fw_macid_pause_grp *h2c;
 	__le32 set = cpu_to_le32(BIT(sh));
-	u8 len = sizeof(*h2c);
+	u8 h2c_macid_pause_id;
 	struct sk_buff *skb;
+	u32 len;
 	int ret;
+
+	if (RTW89_CHK_FW_FEATURE(MACID_PAUSE_SLEEP, &rtwdev->fw)) {
+		h2c_macid_pause_id = H2C_FUNC_MAC_MACID_PAUSE_SLEEP;
+		len = sizeof(*h2c_new);
+	} else {
+		h2c_macid_pause_id = H2C_FUNC_MAC_MACID_PAUSE;
+		len = sizeof(*h2c);
+	}
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
@@ -2501,15 +2512,27 @@ int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 		return -ENOMEM;
 	}
 	skb_put(skb, len);
-	h2c = (struct rtw89_fw_macid_pause_grp *)skb->data;
 
-	h2c->mask_grp[grp] = set;
-	if (pause)
-		h2c->pause_grp[grp] = set;
+	if (h2c_macid_pause_id == H2C_FUNC_MAC_MACID_PAUSE_SLEEP) {
+		h2c_new = (struct rtw89_fw_macid_pause_sleep_grp *)skb->data;
+
+		h2c_new->n[0].pause_mask_grp[grp] = set;
+		h2c_new->n[0].sleep_mask_grp[grp] = set;
+		if (pause) {
+			h2c_new->n[0].pause_grp[grp] = set;
+			h2c_new->n[0].sleep_grp[grp] = set;
+		}
+	} else {
+		h2c = (struct rtw89_fw_macid_pause_grp *)skb->data;
+
+		h2c->mask_grp[grp] = set;
+		if (pause)
+			h2c->pause_grp[grp] = set;
+	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
-			      H2C_FUNC_MAC_MACID_PAUSE, 1, 0,
+			      h2c_macid_pause_id, 1, 0,
 			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);

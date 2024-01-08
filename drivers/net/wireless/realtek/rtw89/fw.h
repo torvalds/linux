@@ -231,6 +231,15 @@ struct rtw89_fw_macid_pause_grp {
 	__le32 mask_grp[4];
 } __packed;
 
+struct rtw89_fw_macid_pause_sleep_grp {
+	struct {
+		__le32 pause_grp[4];
+		__le32 pause_mask_grp[4];
+		__le32 sleep_grp[4];
+		__le32 sleep_mask_grp[4];
+	} __packed n[4];
+} __packed;
+
 #define RTW89_H2C_MAX_SIZE 2048
 #define RTW89_CHANNEL_TIME 45
 #define RTW89_CHANNEL_TIME_6G 20
@@ -3659,6 +3668,7 @@ enum rtw89_fw_ofld_h2c_func {
 	H2C_FUNC_CFG_BCNFLTR		= 0x1e,
 	H2C_FUNC_OFLD_RSSI		= 0x1f,
 	H2C_FUNC_OFLD_TP		= 0x20,
+	H2C_FUNC_MAC_MACID_PAUSE_SLEEP	= 0x28,
 
 	NUM_OF_RTW89_FW_OFLD_H2C_FUNC,
 };
