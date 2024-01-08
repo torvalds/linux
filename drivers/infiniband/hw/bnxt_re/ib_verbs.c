@@ -2944,9 +2944,9 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct bnxt_qplib_dev_attr *dev_attr = &rdev->dev_attr;
 	struct bnxt_qplib_chip_ctx *cctx;
 	struct bnxt_qplib_nq *nq = NULL;
-	int rc = -ENOMEM, entries;
 	unsigned int nq_alloc_cnt;
 	int cqe = attr->cqe;
+	int rc, entries;
 	u32 active_cqs;
 
 	if (attr->flags)
@@ -3027,8 +3027,10 @@ int bnxt_re_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 			hash_add(rdev->cq_hash, &cq->hash_entry, cq->qplib_cq.id);
 			/* Allocate a page */
 			cq->uctx_cq_page = (void *)get_zeroed_page(GFP_KERNEL);
-			if (!cq->uctx_cq_page)
+			if (!cq->uctx_cq_page) {
+				rc = -ENOMEM;
 				goto c2fail;
+			}
 			resp.comp_mask |= BNXT_RE_CQ_TOGGLE_PAGE_SUPPORT;
 		}
 		resp.cqid = cq->qplib_cq.id;
