@@ -95,6 +95,16 @@ int typec_cable_altmode_exit(struct typec_altmode *altmode, enum typec_plug_inde
 int typec_cable_altmode_vdm(struct typec_altmode *altmode, enum typec_plug_index sop,
 			    const u32 header, const u32 *vdo, int count);
 
+/**
+ * typec_altmode_get_cable_svdm_version - Get negotiated SVDM version for cable plug
+ * @altmode: Handle to the alternate mode
+ */
+static inline int
+typec_altmode_get_cable_svdm_version(struct typec_altmode *altmode)
+{
+	return typec_get_cable_svdm_version(typec_altmode2port(altmode));
+}
+
 /*
  * These are the connector states (USB, Safe and Alt Mode) defined in USB Type-C
  * Specification. SVID specific connector states are expected to follow and

@@ -337,6 +337,9 @@ void typec_partner_set_svdm_version(struct typec_partner *partner,
 				    enum usb_pd_svdm_ver svdm_version);
 int typec_get_negotiated_svdm_version(struct typec_port *port);
 
+int typec_get_cable_svdm_version(struct typec_port *port);
+void typec_cable_set_svdm_version(struct typec_cable *cable, enum usb_pd_svdm_ver svdm_version);
+
 struct usb_power_delivery *typec_partner_usb_power_delivery_register(struct typec_partner *partner,
 							struct usb_power_delivery_desc *desc);
 
