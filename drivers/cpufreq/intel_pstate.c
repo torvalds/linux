@@ -1692,13 +1692,6 @@ static void intel_pstate_update_epp_defaults(struct cpudata *cpudata)
 	cpudata->epp_default = intel_pstate_get_epp(cpudata, 0);
 
 	/*
-	 * If this CPU gen doesn't call for change in balance_perf
-	 * EPP return.
-	 */
-	if (epp_values[EPP_INDEX_BALANCE_PERFORMANCE] == HWP_EPP_BALANCE_PERFORMANCE)
-		return;
-
-	/*
 	 * If the EPP is set by firmware, which means that firmware enabled HWP
 	 * - Is equal or less than 0x80 (default balance_perf EPP)
 	 * - But less performance oriented than performance EPP
@@ -1709,6 +1702,13 @@ static void intel_pstate_update_epp_defaults(struct cpudata *cpudata)
 		epp_values[EPP_INDEX_BALANCE_PERFORMANCE] = cpudata->epp_default;
 		return;
 	}
+
+	/*
+	 * If this CPU gen doesn't call for change in balance_perf
+	 * EPP return.
+	 */
+	if (epp_values[EPP_INDEX_BALANCE_PERFORMANCE] == HWP_EPP_BALANCE_PERFORMANCE)
+		return;
 
 	/*
 	 * Use hard coded value per gen to update the balance_perf
@@ -2406,6 +2406,7 @@ static const struct x86_cpu_id intel_pstate_cpu_ids[] = {
 	X86_MATCH(ICELAKE_X,		core_funcs),
 	X86_MATCH(TIGERLAKE,		core_funcs),
 	X86_MATCH(SAPPHIRERAPIDS_X,	core_funcs),
+	X86_MATCH(EMERALDRAPIDS_X,      core_funcs),
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, intel_pstate_cpu_ids);
