@@ -204,7 +204,7 @@ static int qcom_icc_qos_set(struct icc_node *node)
 	}
 }
 
-static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 *bw)
+static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 *bw, u64 *applied_bw)
 {
 	int ret, rpm_ctx = 0;
 	u64 bw_bps;
@@ -213,6 +213,9 @@ static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 *bw)
 		return 0;
 
 	for (rpm_ctx = 0; rpm_ctx < QCOM_SMD_RPM_STATE_NUM; rpm_ctx++) {
+		if (bw[rpm_ctx] == applied_bw[rpm_ctx])
+			continue;
+
 		bw_bps = icc_units_to_bps(bw[rpm_ctx]);
 
 		if (qn->mas_rpm_id != -1) {
@@ -238,6 +241,8 @@ static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 *bw)
 				return ret;
 			}
 		}
+
+		applied_bw[rpm_ctx] = bw[rpm_ctx];
 	}
 
 	return 0;
@@ -249,14 +254,19 @@ static int qcom_icc_rpm_set(struct qcom_icc_node *qn, u64 *bw)
  */
 static void qcom_icc_pre_bw_aggregate(struct icc_node *node)
 {
+	struct qcom_icc_provider *qp;
 	struct qcom_icc_node *qn;
 	size_t i;
 
 	qn = node->data;
+	qp = to_qcom_provider(node->provider);
+
 	for (i = 0; i < QCOM_SMD_RPM_STATE_NUM; i++) {
 		qn->sum_avg[i] = 0;
 		qn->max_peak[i] = 0;
 	}
+
+	qp->nodes_changed = true;
 }
 
 /**
@@ -342,38 +352,25 @@ static void qcom_icc_bus_aggregate(struct icc_provider *provider, u64 *agg_clk_r
 	}
 }
 
-static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
+static int qcom_icc_update_provider(struct icc_provider *provider)
 {
-	struct qcom_icc_node *src_qn = NULL, *dst_qn = NULL;
 	u64 agg_clk_rate[QCOM_SMD_RPM_STATE_NUM] = { 0 };
-	struct icc_provider *provider;
 	struct qcom_icc_provider *qp;
 	u64 active_rate, sleep_rate;
 	int ret;
 
-	src_qn = src->data;
-	if (dst)
-		dst_qn = dst->data;
-	provider = src->provider;
 	qp = to_qcom_provider(provider);
-
-	qcom_icc_bus_aggregate(provider, agg_clk_rate);
-	active_rate = agg_clk_rate[QCOM_SMD_RPM_ACTIVE_STATE];
-	sleep_rate = agg_clk_rate[QCOM_SMD_RPM_SLEEP_STATE];
-
-	ret = qcom_icc_rpm_set(src_qn, src_qn->sum_avg);
-	if (ret)
-		return ret;
-
-	if (dst_qn) {
-		ret = qcom_icc_rpm_set(dst_qn, dst_qn->sum_avg);
-		if (ret)
-			return ret;
-	}
 
 	/* Some providers don't have a bus clock to scale */
 	if (!qp->bus_clk_desc && !qp->bus_clk)
 		return 0;
+
+	if (!qp->nodes_changed)
+		return 0;
+
+	qcom_icc_bus_aggregate(provider, agg_clk_rate);
+	active_rate = agg_clk_rate[QCOM_SMD_RPM_ACTIVE_STATE];
+	sleep_rate = agg_clk_rate[QCOM_SMD_RPM_SLEEP_STATE];
 
 	/*
 	 * Downstream checks whether the requested rate is zero, but it makes little sense
@@ -413,6 +410,49 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 		/* Cache the rate after we've successfully commited it to RPM */
 		qp->bus_clk_rate[QCOM_SMD_RPM_SLEEP_STATE] = sleep_rate;
 	}
+
+	qp->nodes_changed = false;
+	return 0;
+}
+
+static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
+{
+	struct qcom_icc_node *src_qn = NULL, *dst_qn = NULL;
+	struct icc_provider *provider;
+	struct qcom_icc_provider *qp;
+	u64 active_rate, sleep_rate;
+	int ret;
+
+	src_qn = src->data;
+	if (dst)
+		dst_qn = dst->data;
+	provider = src->provider;
+	qp = to_qcom_provider(provider);
+
+	ret = qcom_icc_rpm_set(src_qn, src_qn->sum_avg,
+			       src_qn->app_sum_avg);
+	if (ret)
+		return ret;
+
+	if (dst) {
+		dst_qn = dst->data;
+
+		ret = qcom_icc_rpm_set(dst_qn, dst_qn->sum_avg,
+				       dst_qn->app_sum_avg);
+		if (ret)
+			return ret;
+	}
+
+	ret = qcom_icc_update_provider(src->provider);
+	if (ret)
+		return ret;
+
+	if (dst && dst->provider != src->provider) {
+		ret = qcom_icc_update_provider(dst->provider);
+		if (ret)
+			return ret;
+	}
+
 
 	/* Handle the node-specific clock */
 	if (!src_qn->bus_clk_desc)
