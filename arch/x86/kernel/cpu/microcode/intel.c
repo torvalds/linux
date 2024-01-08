@@ -370,13 +370,13 @@ static __init struct microcode_intel *get_microcode_blob(struct ucode_cpu_info *
 {
 	struct cpio_data cp;
 
+	intel_collect_cpu_info(&uci->cpu_sig);
+
 	if (!load_builtin_intel_microcode(&cp))
 		cp = find_microcode_in_initrd(ucode_path);
 
 	if (!(cp.data && cp.size))
 		return NULL;
-
-	intel_collect_cpu_info(&uci->cpu_sig);
 
 	return scan_microcode(cp.data, cp.size, uci, save);
 }
@@ -410,13 +410,13 @@ void __init load_ucode_intel_bsp(struct early_load_data *ed)
 {
 	struct ucode_cpu_info uci;
 
-	ed->old_rev = intel_get_microcode_revision();
-
 	uci.mc = get_microcode_blob(&uci, false);
-	if (uci.mc && apply_microcode_early(&uci) == UCODE_UPDATED)
-		ucode_patch_va = UCODE_BSP_LOADED;
+	ed->old_rev = uci.cpu_sig.rev;
 
-	ed->new_rev = uci.cpu_sig.rev;
+	if (uci.mc && apply_microcode_early(&uci) == UCODE_UPDATED) {
+		ucode_patch_va = UCODE_BSP_LOADED;
+		ed->new_rev = uci.cpu_sig.rev;
+	}
 }
 
 void load_ucode_intel_ap(void)
@@ -456,12 +456,6 @@ static enum ucode_state apply_microcode_late(int cpu)
 	ret = __apply_microcode(uci, mc, &cur_rev);
 	if (ret != UCODE_UPDATED && ret != UCODE_OK)
 		return ret;
-
-	if (!cpu && uci->cpu_sig.rev != cur_rev) {
-		pr_info("Updated to revision 0x%x, date = %04x-%02x-%02x\n",
-			uci->cpu_sig.rev, mc->hdr.date & 0xffff, mc->hdr.date >> 24,
-			(mc->hdr.date >> 16) & 0xff);
-	}
 
 	cpu_data(cpu).microcode	 = uci->cpu_sig.rev;
 	if (!cpu)
