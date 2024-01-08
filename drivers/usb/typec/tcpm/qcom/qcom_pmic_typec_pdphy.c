@@ -299,7 +299,7 @@ done:
 
 	if (!ret) {
 		dev_vdbg(dev, "pd_receive: handing %d bytes to tcpm\n", size);
-		tcpm_pd_receive(pmic_typec_pdphy->tcpm_port, &msg);
+		tcpm_pd_receive(pmic_typec_pdphy->tcpm_port, &msg, TCPC_TX_SOP);
 	}
 }
 
