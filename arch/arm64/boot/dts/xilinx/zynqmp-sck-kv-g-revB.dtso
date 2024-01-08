@@ -152,6 +152,25 @@
 &pinctrl0 {
 	status = "okay";
 
+	pinctrl_gpio0_default: gpio0-default {
+		conf {
+			groups = "gpio0_38_grp";
+			bias-pull-up;
+			power-source = <IO_STANDARD_LVCMOS18>;
+		};
+
+		mux {
+			groups = "gpio0_38_grp";
+			function = "gpio0";
+		};
+
+		conf-tx {
+			pins = "MIO38";
+			bias-disable;
+			output-enable;
+		};
+	};
+
 	pinctrl_uart1_default: uart1-default {
 		conf {
 			groups = "uart1_9_grp";
@@ -305,6 +324,12 @@
 			function = "sdio1";
 		};
 	};
+};
+
+&gpio {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_gpio0_default>;
 };
 
 &uart1 {
