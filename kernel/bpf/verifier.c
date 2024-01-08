@@ -4403,6 +4403,18 @@ static bool __is_pointer_value(bool allow_ptr_leaks,
 	return reg->type != SCALAR_VALUE;
 }
 
+static void assign_scalar_id_before_mov(struct bpf_verifier_env *env,
+					struct bpf_reg_state *src_reg)
+{
+	if (src_reg->type == SCALAR_VALUE && !src_reg->id &&
+	    !tnum_is_const(src_reg->var_off))
+		/* Ensure that src_reg has a valid ID that will be copied to
+		 * dst_reg and then will be used by find_equal_scalars() to
+		 * propagate min/max range.
+		 */
+		src_reg->id = ++env->id_gen;
+}
+
 /* Copy src state preserving dst->parent and dst->live fields */
 static void copy_register_state(struct bpf_reg_state *dst, const struct bpf_reg_state *src)
 {
@@ -13905,20 +13917,13 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		if (BPF_SRC(insn->code) == BPF_X) {
 			struct bpf_reg_state *src_reg = regs + insn->src_reg;
 			struct bpf_reg_state *dst_reg = regs + insn->dst_reg;
-			bool need_id = src_reg->type == SCALAR_VALUE && !src_reg->id &&
-				       !tnum_is_const(src_reg->var_off);
 
 			if (BPF_CLASS(insn->code) == BPF_ALU64) {
 				if (insn->off == 0) {
 					/* case: R1 = R2
 					 * copy register state to dest reg
 					 */
-					if (need_id)
-						/* Assign src and dst registers the same ID
-						 * that will be used by find_equal_scalars()
-						 * to propagate min/max range.
-						 */
-						src_reg->id = ++env->id_gen;
+					assign_scalar_id_before_mov(env, src_reg);
 					copy_register_state(dst_reg, src_reg);
 					dst_reg->live |= REG_LIVE_WRITTEN;
 					dst_reg->subreg_def = DEF_NOT_SUBREG;
@@ -13933,8 +13938,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 						bool no_sext;
 
 						no_sext = src_reg->umax_value < (1ULL << (insn->off - 1));
-						if (no_sext && need_id)
-							src_reg->id = ++env->id_gen;
+						if (no_sext)
+							assign_scalar_id_before_mov(env, src_reg);
 						copy_register_state(dst_reg, src_reg);
 						if (!no_sext)
 							dst_reg->id = 0;
@@ -13956,8 +13961,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 					if (insn->off == 0) {
 						bool is_src_reg_u32 = src_reg->umax_value <= U32_MAX;
 
-						if (is_src_reg_u32 && need_id)
-							src_reg->id = ++env->id_gen;
+						if (is_src_reg_u32)
+							assign_scalar_id_before_mov(env, src_reg);
 						copy_register_state(dst_reg, src_reg);
 						/* Make sure ID is cleared if src_reg is not in u32
 						 * range otherwise dst_reg min/max could be incorrectly
@@ -13971,8 +13976,8 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 						/* case: W1 = (s8, s16)W2 */
 						bool no_sext = src_reg->umax_value < (1ULL << (insn->off - 1));
 
-						if (no_sext && need_id)
-							src_reg->id = ++env->id_gen;
+						if (no_sext)
+							assign_scalar_id_before_mov(env, src_reg);
 						copy_register_state(dst_reg, src_reg);
 						if (!no_sext)
 							dst_reg->id = 0;
