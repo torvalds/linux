@@ -107,7 +107,6 @@ struct ffa_drv_info {
 	struct work_struct notif_pcpu_work;
 	struct work_struct irq_work;
 	struct xarray partition_info;
-	unsigned int partition_count;
 	DECLARE_HASHTABLE(notifier_hash, ilog2(FFA_MAX_NOTIFICATIONS));
 	struct mutex notify_lock; /* lock to protect notifier hashtable  */
 };
@@ -1239,7 +1238,6 @@ static void ffa_setup_partitions(void)
 		rwlock_init(&info->rw_lock);
 		xa_store(&drv_info->partition_info, tpbuf->id, info, GFP_KERNEL);
 	}
-	drv_info->partition_count = count;
 
 	kfree(pbuf);
 
@@ -1249,29 +1247,18 @@ static void ffa_setup_partitions(void)
 		return;
 	rwlock_init(&info->rw_lock);
 	xa_store(&drv_info->partition_info, drv_info->vm_id, info, GFP_KERNEL);
-	drv_info->partition_count++;
 }
 
 static void ffa_partitions_cleanup(void)
 {
-	struct ffa_dev_part_info **info;
-	int idx, count = drv_info->partition_count;
+	struct ffa_dev_part_info *info;
+	unsigned long idx;
 
-	if (!count)
-		return;
+	xa_for_each(&drv_info->partition_info, idx, info) {
+		xa_erase(&drv_info->partition_info, idx);
+		kfree(info);
+	}
 
-	info = kcalloc(count, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return;
-
-	xa_extract(&drv_info->partition_info, (void **)info, 0, VM_ID_MASK,
-		   count, XA_PRESENT);
-
-	for (idx = 0; idx < count; idx++)
-		kfree(info[idx]);
-	kfree(info);
-
-	drv_info->partition_count = 0;
 	xa_destroy(&drv_info->partition_info);
 }
 
@@ -1547,7 +1534,6 @@ static void __exit ffa_exit(void)
 	ffa_rxtx_unmap(drv_info->vm_id);
 	free_pages_exact(drv_info->tx_buffer, RXTX_BUFFER_SIZE);
 	free_pages_exact(drv_info->rx_buffer, RXTX_BUFFER_SIZE);
-	xa_destroy(&drv_info->partition_info);
 	kfree(drv_info);
 	arm_ffa_bus_exit();
 }
