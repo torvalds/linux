@@ -2191,10 +2191,13 @@ void __init sev_hardware_setup(void)
 	/*
 	 * SEV must obviously be supported in hardware.  Sanity check that the
 	 * CPU supports decode assists, which is mandatory for SEV guests to
-	 * support instruction emulation.
+	 * support instruction emulation.  Ditto for flushing by ASID, as SEV
+	 * guests are bound to a single ASID, i.e. KVM can't rotate to a new
+	 * ASID to effect a TLB flush.
 	 */
 	if (!boot_cpu_has(X86_FEATURE_SEV) ||
-	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_DECODEASSISTS)))
+	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_DECODEASSISTS)) ||
+	    WARN_ON_ONCE(!boot_cpu_has(X86_FEATURE_FLUSHBYASID)))
 		goto out;
 
 	/* Retrieve SEV CPUID information */
