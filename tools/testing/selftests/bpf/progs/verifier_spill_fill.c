@@ -766,4 +766,137 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
+SEC("xdp")
+__description("64-bit spill of 64-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_64bit_of_64bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x80000000;				\
+	r0 <<= 32;					\
+	/* 64-bit spill r0 to stack - should assign an ID. */\
+	*(u64*)(r10 - 8) = r0;				\
+	/* 64-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u64*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit spill of 32-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_32bit_of_32bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	w0 &= 0x80000000;				\
+	/* 32-bit spill r0 to stack - should assign an ID. */\
+	*(u32*)(r10 - 8) = r0;				\
+	/* 32-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u32*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("16-bit spill of 16-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_16bit_of_16bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x8000;					\
+	/* 16-bit spill r0 to stack - should assign an ID. */\
+	*(u16*)(r10 - 8) = r0;				\
+	/* 16-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u16*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("8-bit spill of 8-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_8bit_of_8bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x80;					\
+	/* 8-bit spill r0 to stack - should assign an ID. */\
+	*(u8*)(r10 - 8) = r0;				\
+	/* 8-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u8*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
