@@ -122,6 +122,14 @@ enum tcpm_transmit_type {
  * @cable_comm_capable
  *		Optional; Returns whether cable communication over SOP' is supported
  *		by the tcpc
+ * @attempt_vconn_swap_discovery:
+ *		Optional; The callback is called by the TCPM when the result of
+ *		a Discover Identity request indicates that the port partner is
+ *		a receptacle capable of modal operation. Chip level TCPCI drivers
+ *		can implement their own policy to determine if and when a Vconn
+ *		swap following Discover Identity on SOP' occurs.
+ *		Return true when the TCPM is allowed to request a Vconn swap
+ *		after Discovery Identity on SOP.
  */
 struct tcpc_dev {
 	struct fwnode_handle *fwnode;
@@ -158,6 +166,7 @@ struct tcpc_dev {
 	void (*set_partner_usb_comm_capable)(struct tcpc_dev *dev, bool enable);
 	void (*check_contaminant)(struct tcpc_dev *dev);
 	bool (*cable_comm_capable)(struct tcpc_dev *dev);
+	bool (*attempt_vconn_swap_discovery)(struct tcpc_dev *dev);
 };
 
 struct tcpm_port;

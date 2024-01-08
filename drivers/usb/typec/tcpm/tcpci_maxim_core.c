@@ -323,8 +323,10 @@ static irqreturn_t _max_tcpci_irq(struct max_tcpci_chip *chip, u16 status)
 		if (ret < 0)
 			return ret;
 
-		if (reg_status & TCPC_FAULT_STATUS_VCONN_OC)
+		if (reg_status & TCPC_FAULT_STATUS_VCONN_OC) {
+			chip->veto_vconn_swap = true;
 			tcpm_port_error_recovery(chip->port);
+		}
 	}
 
 	if (status & TCPC_ALERT_EXTND) {
@@ -458,6 +460,18 @@ static void max_tcpci_check_contaminant(struct tcpci *tcpci, struct tcpci_data *
 		tcpm_port_clean(chip->port);
 }
 
+static bool max_tcpci_attempt_vconn_swap_discovery(struct tcpci *tcpci, struct tcpci_data *tdata)
+{
+	struct max_tcpci_chip *chip = tdata_to_max_tcpci(tdata);
+
+	if (chip->veto_vconn_swap) {
+		chip->veto_vconn_swap = false;
+		return false;
+	}
+
+	return true;
+}
+
 static int max_tcpci_probe(struct i2c_client *client)
 {
 	int ret;
@@ -493,6 +507,7 @@ static int max_tcpci_probe(struct i2c_client *client)
 	chip->data.set_partner_usb_comm_capable = max_tcpci_set_partner_usb_comm_capable;
 	chip->data.check_contaminant = max_tcpci_check_contaminant;
 	chip->data.cable_comm_capable = true;
+	chip->data.attempt_vconn_swap_discovery = max_tcpci_attempt_vconn_swap_discovery;
 
 	max_tcpci_init_regs(chip);
 	chip->tcpci = tcpci_register_port(chip->dev, &chip->data);
