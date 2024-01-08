@@ -1509,105 +1509,32 @@ static inline void SET_DCTL_SEC_ENT6_V1(void *table, u32 val)
 			   GENMASK(31, 24));
 }
 
-static inline void SET_BCN_UPD_PORT(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
-}
+struct rtw89_h2c_bcn_upd {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+} __packed;
 
-static inline void SET_BCN_UPD_MBSSID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 8));
-}
-
-static inline void SET_BCN_UPD_BAND(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(23, 16));
-}
-
-static inline void SET_BCN_UPD_GRP_IE_OFST(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, (val - 24) | BIT(7), GENMASK(31, 24));
-}
-
-static inline void SET_BCN_UPD_MACID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(7, 0));
-}
-
-static inline void SET_BCN_UPD_SSN_SEL(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(9, 8));
-}
-
-static inline void SET_BCN_UPD_SSN_MODE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(11, 10));
-}
-
-static inline void SET_BCN_UPD_RATE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(20, 12));
-}
-
-static inline void SET_BCN_UPD_TXPWR(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(23, 21));
-}
-
-static inline void SET_BCN_UPD_TXINFO_CTRL_EN(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val, BIT(0));
-}
-
-static inline void SET_BCN_UPD_NTX_PATH_EN(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(4, 1));
-}
-
-static inline void SET_BCN_UPD_PATH_MAP_A(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(6, 5));
-}
-
-static inline void SET_BCN_UPD_PATH_MAP_B(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(8, 7));
-}
-
-static inline void SET_BCN_UPD_PATH_MAP_C(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(10, 9));
-}
-
-static inline void SET_BCN_UPD_PATH_MAP_D(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(12, 11));
-}
-
-static inline void SET_BCN_UPD_PATH_ANTSEL_A(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(13));
-}
-
-static inline void SET_BCN_UPD_PATH_ANTSEL_B(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(14));
-}
-
-static inline void SET_BCN_UPD_PATH_ANTSEL_C(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(15));
-}
-
-static inline void SET_BCN_UPD_PATH_ANTSEL_D(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  BIT(16));
-}
-
-static inline void SET_BCN_UPD_CSA_OFST(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)(h2c) + 2, val,  GENMASK(31, 17));
-}
+#define RTW89_H2C_BCN_UPD_W0_PORT GENMASK(7, 0)
+#define RTW89_H2C_BCN_UPD_W0_MBSSID GENMASK(15, 8)
+#define RTW89_H2C_BCN_UPD_W0_BAND GENMASK(23, 16)
+#define RTW89_H2C_BCN_UPD_W0_GRP_IE_OFST GENMASK(31, 24)
+#define RTW89_H2C_BCN_UPD_W1_MACID GENMASK(7, 0)
+#define RTW89_H2C_BCN_UPD_W1_SSN_SEL GENMASK(9, 8)
+#define RTW89_H2C_BCN_UPD_W1_SSN_MODE GENMASK(11, 10)
+#define RTW89_H2C_BCN_UPD_W1_RATE GENMASK(20, 12)
+#define RTW89_H2C_BCN_UPD_W1_TXPWR GENMASK(23, 21)
+#define RTW89_H2C_BCN_UPD_W2_TXINFO_CTRL_EN BIT(0)
+#define RTW89_H2C_BCN_UPD_W2_NTX_PATH_EN GENMASK(4, 1)
+#define RTW89_H2C_BCN_UPD_W2_PATH_MAP_A GENMASK(6, 5)
+#define RTW89_H2C_BCN_UPD_W2_PATH_MAP_B GENMASK(8, 7)
+#define RTW89_H2C_BCN_UPD_W2_PATH_MAP_C GENMASK(10, 9)
+#define RTW89_H2C_BCN_UPD_W2_PATH_MAP_D GENMASK(12, 11)
+#define RTW89_H2C_BCN_UPD_W2_PATH_ANTSEL_A BIT(13)
+#define RTW89_H2C_BCN_UPD_W2_PATH_ANTSEL_B BIT(14)
+#define RTW89_H2C_BCN_UPD_W2_PATH_ANTSEL_C BIT(15)
+#define RTW89_H2C_BCN_UPD_W2_PATH_ANTSEL_D BIT(16)
+#define RTW89_H2C_BCN_UPD_W2_CSA_OFST GENMASK(31, 17)
 
 static inline void SET_FWROLE_MAINTAIN_MACID(void *h2c, u32 val)
 {

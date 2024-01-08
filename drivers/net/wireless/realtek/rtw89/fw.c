@@ -2277,18 +2277,20 @@ fail:
 	return ret;
 }
 
-#define H2C_BCN_BASE_LEN 12
 int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 			       struct rtw89_vif *rtwvif)
 {
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
 						       rtwvif->sub_entity_idx);
-	struct sk_buff *skb;
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+	struct rtw89_h2c_bcn_upd *h2c;
 	struct sk_buff *skb_beacon;
-	u16 tim_offset;
+	struct ieee80211_hdr *hdr;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
 	int bcn_total_len;
 	u16 beacon_rate;
+	u16 tim_offset;
 	void *noa_data;
 	u8 noa_len;
 	int ret;
@@ -2314,23 +2316,27 @@ int rtw89_fw_h2c_update_beacon(struct rtw89_dev *rtwdev,
 		skb_put_data(skb_beacon, noa_data, noa_len);
 	}
 
-	bcn_total_len = H2C_BCN_BASE_LEN + skb_beacon->len;
+	hdr = (struct ieee80211_hdr *)skb_beacon;
+	tim_offset -= ieee80211_hdrlen(hdr->frame_control);
+
+	bcn_total_len = len + skb_beacon->len;
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, bcn_total_len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for fw dl\n");
 		dev_kfree_skb_any(skb_beacon);
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_BCN_BASE_LEN);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_bcn_upd *)skb->data;
 
-	SET_BCN_UPD_PORT(skb->data, rtwvif->port);
-	SET_BCN_UPD_MBSSID(skb->data, 0);
-	SET_BCN_UPD_BAND(skb->data, rtwvif->mac_idx);
-	SET_BCN_UPD_GRP_IE_OFST(skb->data, tim_offset);
-	SET_BCN_UPD_MACID(skb->data, rtwvif->mac_id);
-	SET_BCN_UPD_SSN_SEL(skb->data, RTW89_MGMT_HW_SSN_SEL);
-	SET_BCN_UPD_SSN_MODE(skb->data, RTW89_MGMT_HW_SEQ_MODE);
-	SET_BCN_UPD_RATE(skb->data, beacon_rate);
+	h2c->w0 = le32_encode_bits(rtwvif->port, RTW89_H2C_BCN_UPD_W0_PORT) |
+		  le32_encode_bits(0, RTW89_H2C_BCN_UPD_W0_MBSSID) |
+		  le32_encode_bits(rtwvif->mac_idx, RTW89_H2C_BCN_UPD_W0_BAND) |
+		  le32_encode_bits(tim_offset | BIT(7), RTW89_H2C_BCN_UPD_W0_GRP_IE_OFST);
+	h2c->w1 = le32_encode_bits(rtwvif->mac_id, RTW89_H2C_BCN_UPD_W1_MACID) |
+		  le32_encode_bits(RTW89_MGMT_HW_SSN_SEL, RTW89_H2C_BCN_UPD_W1_SSN_SEL) |
+		  le32_encode_bits(RTW89_MGMT_HW_SEQ_MODE, RTW89_H2C_BCN_UPD_W1_SSN_MODE) |
+		  le32_encode_bits(beacon_rate, RTW89_H2C_BCN_UPD_W1_RATE);
 
 	skb_put_data(skb, skb_beacon->data, skb_beacon->len);
 	dev_kfree_skb_any(skb_beacon);
