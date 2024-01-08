@@ -5,7 +5,10 @@
 //! C header: [`include/linux/sched.h`](srctree/include/linux/sched.h).
 
 use crate::{bindings, types::Opaque};
-use core::{marker::PhantomData, ops::Deref, ptr};
+use core::{ffi::c_long, marker::PhantomData, ops::Deref, ptr};
+
+/// A sentinel value used for infinite timeouts.
+pub const MAX_SCHEDULE_TIMEOUT: c_long = c_long::MAX;
 
 /// Returns the currently running task.
 #[macro_export]
