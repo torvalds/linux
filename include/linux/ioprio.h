@@ -59,13 +59,13 @@ static inline int __get_task_ioprio(struct task_struct *p)
 	struct io_context *ioc = p->io_context;
 	int prio;
 
+	if (!ioc)
+		return IOPRIO_DEFAULT;
+
 	if (p != current)
 		lockdep_assert_held(&p->alloc_lock);
-	if (ioc)
-		prio = ioc->ioprio;
-	else
-		prio = IOPRIO_DEFAULT;
 
+	prio = ioc->ioprio;
 	if (IOPRIO_PRIO_CLASS(prio) == IOPRIO_CLASS_NONE)
 		prio = IOPRIO_PRIO_VALUE(task_nice_ioclass(p),
 					 task_nice_ioprio(p));
