@@ -1849,7 +1849,6 @@ static int receive_fallback_to_copy(struct sock *sk,
 {
 	unsigned long copy_address = (unsigned long)zc->copybuf_address;
 	struct msghdr msg = {};
-	struct iovec iov;
 	int err;
 
 	zc->length = 0;
@@ -1858,8 +1857,8 @@ static int receive_fallback_to_copy(struct sock *sk,
 	if (copy_address != zc->copybuf_address)
 		return -EINVAL;
 
-	err = import_single_range(ITER_DEST, (void __user *)copy_address,
-				  inq, &iov, &msg.msg_iter);
+	err = import_ubuf(ITER_DEST, (void __user *)copy_address, inq,
+			  &msg.msg_iter);
 	if (err)
 		return err;
 
@@ -1886,14 +1885,13 @@ static int tcp_copy_straggler_data(struct tcp_zerocopy_receive *zc,
 {
 	unsigned long copy_address = (unsigned long)zc->copybuf_address;
 	struct msghdr msg = {};
-	struct iovec iov;
 	int err;
 
 	if (copy_address != zc->copybuf_address)
 		return -EINVAL;
 
-	err = import_single_range(ITER_DEST, (void __user *)copy_address,
-				  copylen, &iov, &msg.msg_iter);
+	err = import_ubuf(ITER_DEST, (void __user *)copy_address, copylen,
+			  &msg.msg_iter);
 	if (err)
 		return err;
 	err = skb_copy_datagram_msg(skb, *offset, &msg, copylen);

@@ -2163,10 +2163,9 @@ int __sys_sendto(int fd, void __user *buff, size_t len, unsigned int flags,
 	struct sockaddr_storage address;
 	int err;
 	struct msghdr msg;
-	struct iovec iov;
 	int fput_needed;
 
-	err = import_single_range(ITER_SOURCE, buff, len, &iov, &msg.msg_iter);
+	err = import_ubuf(ITER_SOURCE, buff, len, &msg.msg_iter);
 	if (unlikely(err))
 		return err;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
@@ -2228,11 +2227,10 @@ int __sys_recvfrom(int fd, void __user *ubuf, size_t size, unsigned int flags,
 		.msg_name = addr ? (struct sockaddr *)&address : NULL,
 	};
 	struct socket *sock;
-	struct iovec iov;
 	int err, err2;
 	int fput_needed;
 
-	err = import_single_range(ITER_DEST, ubuf, size, &iov, &msg.msg_iter);
+	err = import_ubuf(ITER_DEST, ubuf, size, &msg.msg_iter);
 	if (unlikely(err))
 		return err;
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
