@@ -464,7 +464,7 @@ EXPORT_SYMBOL(mark_buffer_async_write);
  * a successful fsync().  For example, ext2 indirect blocks need to be
  * written back and waited upon before fsync() returns.
  *
- * The functions mark_buffer_inode_dirty(), fsync_inode_buffers(),
+ * The functions mark_buffer_dirty_inode(), fsync_inode_buffers(),
  * inode_has_buffers() and invalidate_inode_buffers() are provided for the
  * management of a list of dependent buffers at ->i_mapping->i_private_list.
  *
