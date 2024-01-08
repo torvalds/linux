@@ -909,7 +909,7 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         Ensure that the confidence bit being set to false should not result in a touch event.
         """
         uhdev = self.uhdev
-        evdev = uhdev.get_evdev()
+        _evdev = uhdev.get_evdev()
 
         t0 = test_multitouch.Touch(1, 50, 100)
         t0.confidence = False
@@ -917,6 +917,6 @@ class TestDTH2452Tablet(test_multitouch.BaseTest.TestMultitouch, TouchTabletTest
         events = uhdev.next_sync_events()
         self.debug_reports(r, uhdev, events)
 
-        slot = self.get_slot(uhdev, t0, 0)
+        _slot = self.get_slot(uhdev, t0, 0)
 
         assert not events
