@@ -1197,7 +1197,7 @@ void ffa_device_match_uuid(struct ffa_device *ffa_dev, const uuid_t *uuid)
 
 static void ffa_setup_partitions(void)
 {
-	int count, idx;
+	int count, idx, ret;
 	uuid_t uuid;
 	struct ffa_device *ffa_dev;
 	struct ffa_dev_part_info *info;
@@ -1236,7 +1236,14 @@ static void ffa_setup_partitions(void)
 			continue;
 		}
 		rwlock_init(&info->rw_lock);
-		xa_store(&drv_info->partition_info, tpbuf->id, info, GFP_KERNEL);
+		ret = xa_insert(&drv_info->partition_info, tpbuf->id,
+				info, GFP_KERNEL);
+		if (ret) {
+			pr_err("%s: failed to save partition ID 0x%x - ret:%d\n",
+			       __func__, tpbuf->id, ret);
+			ffa_device_unregister(ffa_dev);
+			kfree(info);
+		}
 	}
 
 	kfree(pbuf);
@@ -1246,7 +1253,13 @@ static void ffa_setup_partitions(void)
 	if (!info)
 		return;
 	rwlock_init(&info->rw_lock);
-	xa_store(&drv_info->partition_info, drv_info->vm_id, info, GFP_KERNEL);
+	ret = xa_insert(&drv_info->partition_info, drv_info->vm_id,
+			info, GFP_KERNEL);
+	if (ret) {
+		pr_err("%s: failed to save Host partition ID 0x%x - ret:%d. Abort.\n",
+		       __func__, drv_info->vm_id, ret);
+		kfree(info);
+	}
 }
 
 static void ffa_partitions_cleanup(void)
