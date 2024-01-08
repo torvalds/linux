@@ -227,7 +227,7 @@
 		};
 	};
 
-	pinctrl_i2c1_gpio: i2c1-gpio {
+	pinctrl_i2c1_gpio: i2c1-gpio-grp {
 		conf {
 			groups = "gpio0_24_grp", "gpio0_25_grp";
 			slew-rate = <SLEW_RATE_SLOW>;
