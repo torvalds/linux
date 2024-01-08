@@ -303,6 +303,9 @@ struct i3c_ccc_getmxds {
  */
 struct i3c_ccc_gethdrcap {
 	u8 modes;
+	u8 caps;
+	u8 sup;
+	u8 reserved;
 } __packed;
 
 /**

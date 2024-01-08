@@ -1364,7 +1364,7 @@ static int i3c_master_gethdrcap_locked(struct i3c_master_controller *master,
 	if (ret)
 		goto out;
 
-	if (dest.payload.len != 1) {
+	if (dest.payload.len < 1 || dest.payload.len > 4) {
 		ret = -EIO;
 		goto out;
 	}
