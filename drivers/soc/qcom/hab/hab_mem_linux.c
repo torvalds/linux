@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include <linux/fdtable.h>
@@ -339,7 +339,13 @@ static int habmem_compress_pfns(
 	if (IS_ERR_OR_NULL(dmabuf) || !pfns || !data_size)
 		return -EINVAL;
 
-	pr_debug("page_count %d\n", page_count);
+	pr_debug("dmabuf size: %u, page_count: %d\n", dmabuf->size, page_count);
+
+	if (dmabuf->size < (page_count * PAGE_SIZE)) {
+		pr_err("given dmabuf size %u less than expected, page cnt %d\n",
+			dmabuf->size, page_count);
+		return -EINVAL;
+	}
 
 	/* DMA buffer from fd */
 	if (dmabuf->ops != &dma_buf_ops) {
