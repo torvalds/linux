@@ -712,9 +712,12 @@ static int rv8803_probe(struct i2c_client *client)
 			if (err)
 				dev_err(&client->dev, "failed to set wake IRQ\n");
 		}
+	} else {
+		if (device_property_read_bool(&client->dev, "wakeup-source"))
+			device_init_wakeup(&client->dev, true);
+		else
+			clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 	}
-	if (!client->irq)
-		clear_bit(RTC_FEATURE_ALARM, rv8803->rtc->features);
 
 	if (of_property_read_bool(client->dev.of_node, "epson,vdet-disable"))
 		rv8803->backup |= RX8900_FLAG_VDETOFF;
