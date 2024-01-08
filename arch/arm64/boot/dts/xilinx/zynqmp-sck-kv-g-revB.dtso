@@ -94,6 +94,7 @@
 	pinctrl-0 = <&pinctrl_usb0_default>;
 	phy-names = "usb3-phy";
 	phys = <&psgtr 2 PHY_TYPE_USB3 0 1>;
+	assigned-clock-rates = <250000000>, <20000000>;
 };
 
 &dwc3_0 {
