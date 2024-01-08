@@ -911,6 +911,11 @@ static bool hci_pio_prep_new_ibi(struct i3c_hci *hci, struct hci_pio_data *pio)
 	if (IBI_TYPE_HJ(ibi_addr, ibi_rnw)) {
 		queue_work(hci->master.wq, &hci->hj_work);
 		return false;
+	} else if (IBI_TYPE_CR(ibi_addr, ibi_rnw)) {
+		dev_info(&hci->master.dev,
+			 "get control role requeset from %02lx\n",
+			 FIELD_GET(IBI_TARGET_ADDR, ibi_status));
+		return false;
 	} else {
 		ibi->addr = FIELD_GET(IBI_TARGET_ADDR, ibi_status);
 		if (ibi_status & IBI_ERROR) {
