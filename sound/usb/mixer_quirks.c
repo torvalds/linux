@@ -3447,6 +3447,9 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 	case USB_ID(0x1235, 0x8213): /* Focusrite Scarlett 8i6 3rd Gen */
 	case USB_ID(0x1235, 0x8214): /* Focusrite Scarlett 18i8 3rd Gen */
 	case USB_ID(0x1235, 0x8215): /* Focusrite Scarlett 18i20 3rd Gen */
+	case USB_ID(0x1235, 0x8218): /* Focusrite Scarlett Solo 4th Gen */
+	case USB_ID(0x1235, 0x8219): /* Focusrite Scarlett 2i2 4th Gen */
+	case USB_ID(0x1235, 0x821a): /* Focusrite Scarlett 4i4 4th Gen */
 	case USB_ID(0x1235, 0x8206): /* Focusrite Clarett 2Pre USB */
 	case USB_ID(0x1235, 0x8207): /* Focusrite Clarett 4Pre USB */
 	case USB_ID(0x1235, 0x8208): /* Focusrite Clarett 8Pre USB */
