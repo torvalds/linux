@@ -401,23 +401,26 @@ int fuse_lseek_backing(struct fuse_bpf_args *fa, struct file *file, loff_t offse
 	struct file *backing_file = fuse_file->backing_file;
 	loff_t ret;
 
-	/* TODO: Handle changing of the file handle */
 	if (offset == 0) {
 		if (whence == SEEK_CUR) {
 			flo->offset = file->f_pos;
-			return flo->offset;
+			return 0;
 		}
 
 		if (whence == SEEK_SET) {
 			flo->offset = vfs_setpos(file, 0, 0);
-			return flo->offset;
+			return 0;
 		}
 	}
 
 	inode_lock(file->f_inode);
 	backing_file->f_pos = file->f_pos;
 	ret = vfs_llseek(backing_file, fli->offset, fli->whence);
-	flo->offset = ret;
+
+	if (!IS_ERR(ERR_PTR(ret))) {
+		flo->offset = ret;
+		ret = 0;
+	}
 	inode_unlock(file->f_inode);
 	return ret;
 }
