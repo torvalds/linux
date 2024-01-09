@@ -442,7 +442,7 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 
 		if (vram->mapping &&
 		    mem->placement & TTM_PL_FLAG_CONTIGUOUS)
-			mem->bus.addr = (u8 *)vram->mapping +
+			mem->bus.addr = (u8 __force *)vram->mapping +
 				mem->bus.offset;
 
 		mem->bus.offset += vram->io_start;
@@ -734,7 +734,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 			/* Create a new VMAP once kernel BO back in VRAM */
 			if (!ret && resource_is_vram(new_mem)) {
 				struct xe_mem_region *vram = res_to_mem_region(new_mem);
-				void *new_addr = vram->mapping +
+				void __iomem *new_addr = vram->mapping +
 					(new_mem->start << PAGE_SHIFT);
 
 				if (XE_WARN_ON(new_mem->start == XE_BO_INVALID_OFFSET)) {
