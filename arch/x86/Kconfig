@@ -1415,7 +1415,7 @@ config HIGHMEM4G
 
 config HIGHMEM64G
 	bool "64GB"
-	depends on !M486SX && !M486 && !M586 && !M586TSC && !M586MMX && !MGEODE_LX && !MGEODEGX1 && !MCYRIXIII && !MELAN && !MWINCHIPC6 && !MWINCHIP3D && !MK6
+	depends on X86_HAVE_PAE
 	select X86_PAE
 	help
 	  Select this if you have a 32-bit processor and more than 4
@@ -1472,7 +1472,7 @@ config HIGHMEM
 
 config X86_PAE
 	bool "PAE (Physical Address Extension) Support"
-	depends on X86_32 && !HIGHMEM4G
+	depends on X86_32 && X86_HAVE_PAE
 	select PHYS_ADDR_T_64BIT
 	select SWIOTLB
 	help
