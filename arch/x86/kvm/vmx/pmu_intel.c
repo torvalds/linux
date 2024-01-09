@@ -20,6 +20,15 @@
 #include "nested.h"
 #include "pmu.h"
 
+/*
+ * Perf's "BASE" is wildly misleading, architectural PMUs use bits 31:16 of ECX
+ * to encode the "type" of counter to read, i.e. this is not a "base".  And to
+ * further confuse things, non-architectural PMUs use bit 31 as a flag for
+ * "fast" reads, whereas the "type" is an explicit value.
+ */
+#define INTEL_RDPMC_FIXED	INTEL_PMC_FIXED_RDPMC_BASE
+#define INTEL_RDPMC_FAST	BIT(31)
+
 #define MSR_PMC_FULL_WIDTH_BIT      (MSR_IA32_PMC0 - MSR_IA32_PERFCTR0)
 
 static void reprogram_fixed_counters(struct kvm_pmu *pmu, u64 data)
@@ -59,11 +68,14 @@ static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 					    unsigned int idx, u64 *mask)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	bool fixed = idx & (1u << 30);
+	bool fixed = idx & INTEL_RDPMC_FIXED;
 	struct kvm_pmc *counters;
 	unsigned int num_counters;
 
-	idx &= ~(3u << 30);
+	if (idx & INTEL_RDPMC_FAST)
+		*mask &= GENMASK_ULL(31, 0);
+
+	idx &= ~(INTEL_RDPMC_FIXED | INTEL_RDPMC_FAST);
 	if (fixed) {
 		counters = pmu->fixed_counters;
 		num_counters = pmu->nr_arch_fixed_counters;
