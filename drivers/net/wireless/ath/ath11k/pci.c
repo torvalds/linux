@@ -29,6 +29,8 @@
 #define QCN9074_DEVICE_ID		0x1104
 #define WCN6855_DEVICE_ID		0x1103
 
+#define TCSR_SOC_HW_SUB_VER	0x1910010
+
 static const struct pci_device_id ath11k_pci_id_table[] = {
 	{ PCI_VDEVICE(QCOM, QCA6390_DEVICE_ID) },
 	{ PCI_VDEVICE(QCOM, WCN6855_DEVICE_ID) },
@@ -743,6 +745,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	struct ath11k_pci *ab_pci;
 	u32 soc_hw_version_major, soc_hw_version_minor, addr;
 	int ret;
+	u32 sub_version;
 
 	ab = ath11k_core_alloc(&pdev->dev, sizeof(*ab_pci), ATH11K_BUS_PCI);
 
@@ -833,7 +836,19 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 				break;
 			case 0x10:
 			case 0x11:
-				ab->hw_rev = ATH11K_HW_WCN6855_HW21;
+				sub_version = ath11k_pcic_read32(ab, TCSR_SOC_HW_SUB_VER);
+				ath11k_dbg(ab, ATH11K_DBG_PCI, "sub_version 0x%x\n",
+					   sub_version);
+				switch (sub_version) {
+				case 0x1019A0E1:
+				case 0x1019B0E1:
+				case 0x1019C0E1:
+				case 0x1019D0E1:
+					ab->hw_rev = ATH11K_HW_QCA2066_HW21;
+					break;
+				default:
+					ab->hw_rev = ATH11K_HW_WCN6855_HW21;
+				}
 				break;
 			default:
 				goto unsupported_wcn6855_soc;
