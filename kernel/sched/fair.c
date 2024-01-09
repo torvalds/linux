@@ -551,7 +551,11 @@ static inline u64 min_vruntime(u64 min_vruntime, u64 vruntime)
 static inline bool entity_before(const struct sched_entity *a,
 				 const struct sched_entity *b)
 {
-	return (s64)(a->vruntime - b->vruntime) < 0;
+	/*
+	 * Tiebreak on vruntime seems unnecessary since it can
+	 * hardly happen.
+	 */
+	return (s64)(a->deadline - b->deadline) < 0;
 }
 
 static inline s64 entity_key(struct cfs_rq *cfs_rq, struct sched_entity *se)
@@ -720,7 +724,7 @@ static void update_entity_lag(struct cfs_rq *cfs_rq, struct sched_entity *se)
  * Note: using 'avg_vruntime() > se->vruntime' is inacurate due
  *       to the loss in precision caused by the division.
  */
-int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se)
+static int vruntime_eligible(struct cfs_rq *cfs_rq, u64 vruntime)
 {
 	struct sched_entity *curr = cfs_rq->curr;
 	s64 avg = cfs_rq->avg_vruntime;
@@ -733,7 +737,12 @@ int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		load += weight;
 	}
 
-	return avg >= entity_key(cfs_rq, se) * load;
+	return avg >= (s64)(vruntime - cfs_rq->min_vruntime) * load;
+}
+
+int entity_eligible(struct cfs_rq *cfs_rq, struct sched_entity *se)
+{
+	return vruntime_eligible(cfs_rq, se->vruntime);
 }
 
 static u64 __update_min_vruntime(struct cfs_rq *cfs_rq, u64 vruntime)
@@ -752,9 +761,8 @@ static u64 __update_min_vruntime(struct cfs_rq *cfs_rq, u64 vruntime)
 
 static void update_min_vruntime(struct cfs_rq *cfs_rq)
 {
-	struct sched_entity *se = __pick_first_entity(cfs_rq);
+	struct sched_entity *se = __pick_root_entity(cfs_rq);
 	struct sched_entity *curr = cfs_rq->curr;
-
 	u64 vruntime = cfs_rq->min_vruntime;
 
 	if (curr) {
@@ -766,9 +774,9 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 
 	if (se) {
 		if (!curr)
-			vruntime = se->vruntime;
+			vruntime = se->min_vruntime;
 		else
-			vruntime = min_vruntime(vruntime, se->vruntime);
+			vruntime = min_vruntime(vruntime, se->min_vruntime);
 	}
 
 	/* ensure we never gain time by being placed backwards. */
@@ -781,34 +789,34 @@ static inline bool __entity_less(struct rb_node *a, const struct rb_node *b)
 	return entity_before(__node_2_se(a), __node_2_se(b));
 }
 
-#define deadline_gt(field, lse, rse) ({ (s64)((lse)->field - (rse)->field) > 0; })
+#define vruntime_gt(field, lse, rse) ({ (s64)((lse)->field - (rse)->field) > 0; })
 
-static inline void __update_min_deadline(struct sched_entity *se, struct rb_node *node)
+static inline void __min_vruntime_update(struct sched_entity *se, struct rb_node *node)
 {
 	if (node) {
 		struct sched_entity *rse = __node_2_se(node);
-		if (deadline_gt(min_deadline, se, rse))
-			se->min_deadline = rse->min_deadline;
+		if (vruntime_gt(min_vruntime, se, rse))
+			se->min_vruntime = rse->min_vruntime;
 	}
 }
 
 /*
- * se->min_deadline = min(se->deadline, left->min_deadline, right->min_deadline)
+ * se->min_vruntime = min(se->vruntime, {left,right}->min_vruntime)
  */
-static inline bool min_deadline_update(struct sched_entity *se, bool exit)
+static inline bool min_vruntime_update(struct sched_entity *se, bool exit)
 {
-	u64 old_min_deadline = se->min_deadline;
+	u64 old_min_vruntime = se->min_vruntime;
 	struct rb_node *node = &se->run_node;
 
-	se->min_deadline = se->deadline;
-	__update_min_deadline(se, node->rb_right);
-	__update_min_deadline(se, node->rb_left);
+	se->min_vruntime = se->vruntime;
+	__min_vruntime_update(se, node->rb_right);
+	__min_vruntime_update(se, node->rb_left);
 
-	return se->min_deadline == old_min_deadline;
+	return se->min_vruntime == old_min_vruntime;
 }
 
-RB_DECLARE_CALLBACKS(static, min_deadline_cb, struct sched_entity,
-		     run_node, min_deadline, min_deadline_update);
+RB_DECLARE_CALLBACKS(static, min_vruntime_cb, struct sched_entity,
+		     run_node, min_vruntime, min_vruntime_update);
 
 /*
  * Enqueue an entity into the rb-tree:
@@ -816,16 +824,26 @@ RB_DECLARE_CALLBACKS(static, min_deadline_cb, struct sched_entity,
 static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	avg_vruntime_add(cfs_rq, se);
-	se->min_deadline = se->deadline;
+	se->min_vruntime = se->vruntime;
 	rb_add_augmented_cached(&se->run_node, &cfs_rq->tasks_timeline,
-				__entity_less, &min_deadline_cb);
+				__entity_less, &min_vruntime_cb);
 }
 
 static void __dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
 	rb_erase_augmented_cached(&se->run_node, &cfs_rq->tasks_timeline,
-				  &min_deadline_cb);
+				  &min_vruntime_cb);
 	avg_vruntime_sub(cfs_rq, se);
+}
+
+struct sched_entity *__pick_root_entity(struct cfs_rq *cfs_rq)
+{
+	struct rb_node *root = cfs_rq->tasks_timeline.rb_root.rb_node;
+
+	if (!root)
+		return NULL;
+
+	return __node_2_se(root);
 }
 
 struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
@@ -850,23 +868,29 @@ struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq)
  *     with the earliest virtual deadline.
  *
  * We can do this in O(log n) time due to an augmented RB-tree. The
- * tree keeps the entries sorted on service, but also functions as a
- * heap based on the deadline by keeping:
+ * tree keeps the entries sorted on deadline, but also functions as a
+ * heap based on the vruntime by keeping:
  *
- *  se->min_deadline = min(se->deadline, se->{left,right}->min_deadline)
+ *  se->min_vruntime = min(se->vruntime, se->{left,right}->min_vruntime)
  *
- * Which allows an EDF like search on (sub)trees.
+ * Which allows tree pruning through eligibility.
  */
-static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq)
+static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq)
 {
 	struct rb_node *node = cfs_rq->tasks_timeline.rb_root.rb_node;
+	struct sched_entity *se = __pick_first_entity(cfs_rq);
 	struct sched_entity *curr = cfs_rq->curr;
 	struct sched_entity *best = NULL;
-	struct sched_entity *best_left = NULL;
+
+	/*
+	 * We can safely skip eligibility check if there is only one entity
+	 * in this cfs_rq, saving some cycles.
+	 */
+	if (cfs_rq->nr_running == 1)
+		return curr && curr->on_rq ? curr : se;
 
 	if (curr && (!curr->on_rq || !entity_eligible(cfs_rq, curr)))
 		curr = NULL;
-	best = curr;
 
 	/*
 	 * Once selected, run a task until it either becomes non-eligible or
@@ -875,95 +899,45 @@ static struct sched_entity *__pick_eevdf(struct cfs_rq *cfs_rq)
 	if (sched_feat(RUN_TO_PARITY) && curr && curr->vlag == curr->deadline)
 		return curr;
 
+	/* Pick the leftmost entity if it's eligible */
+	if (se && entity_eligible(cfs_rq, se)) {
+		best = se;
+		goto found;
+	}
+
+	/* Heap search for the EEVD entity */
 	while (node) {
-		struct sched_entity *se = __node_2_se(node);
+		struct rb_node *left = node->rb_left;
 
 		/*
-		 * If this entity is not eligible, try the left subtree.
+		 * Eligible entities in left subtree are always better
+		 * choices, since they have earlier deadlines.
 		 */
-		if (!entity_eligible(cfs_rq, se)) {
-			node = node->rb_left;
+		if (left && vruntime_eligible(cfs_rq,
+					__node_2_se(left)->min_vruntime)) {
+			node = left;
 			continue;
 		}
 
+		se = __node_2_se(node);
+
 		/*
-		 * Now we heap search eligible trees for the best (min_)deadline
+		 * The left subtree either is empty or has no eligible
+		 * entity, so check the current node since it is the one
+		 * with earliest deadline that might be eligible.
 		 */
-		if (!best || deadline_gt(deadline, best, se))
+		if (entity_eligible(cfs_rq, se)) {
 			best = se;
-
-		/*
-		 * Every se in a left branch is eligible, keep track of the
-		 * branch with the best min_deadline
-		 */
-		if (node->rb_left) {
-			struct sched_entity *left = __node_2_se(node->rb_left);
-
-			if (!best_left || deadline_gt(min_deadline, best_left, left))
-				best_left = left;
-
-			/*
-			 * min_deadline is in the left branch. rb_left and all
-			 * descendants are eligible, so immediately switch to the second
-			 * loop.
-			 */
-			if (left->min_deadline == se->min_deadline)
-				break;
-		}
-
-		/* min_deadline is at this node, no need to look right */
-		if (se->deadline == se->min_deadline)
 			break;
-
-		/* else min_deadline is in the right branch. */
-		node = node->rb_right;
-	}
-
-	/*
-	 * We ran into an eligible node which is itself the best.
-	 * (Or nr_running == 0 and both are NULL)
-	 */
-	if (!best_left || (s64)(best_left->min_deadline - best->deadline) > 0)
-		return best;
-
-	/*
-	 * Now best_left and all of its children are eligible, and we are just
-	 * looking for deadline == min_deadline
-	 */
-	node = &best_left->run_node;
-	while (node) {
-		struct sched_entity *se = __node_2_se(node);
-
-		/* min_deadline is the current node */
-		if (se->deadline == se->min_deadline)
-			return se;
-
-		/* min_deadline is in the left branch */
-		if (node->rb_left &&
-		    __node_2_se(node->rb_left)->min_deadline == se->min_deadline) {
-			node = node->rb_left;
-			continue;
 		}
 
-		/* else min_deadline is in the right branch */
 		node = node->rb_right;
 	}
-	return NULL;
-}
+found:
+	if (!best || (curr && entity_before(curr, best)))
+		best = curr;
 
-static struct sched_entity *pick_eevdf(struct cfs_rq *cfs_rq)
-{
-	struct sched_entity *se = __pick_eevdf(cfs_rq);
-
-	if (!se) {
-		struct sched_entity *left = __pick_first_entity(cfs_rq);
-		if (left) {
-			pr_err("EEVDF scheduling fail, picking leftmost\n");
-			return left;
-		}
-	}
-
-	return se;
+	return best;
 }
 
 #ifdef CONFIG_SCHED_DEBUG
@@ -1129,23 +1103,17 @@ static void update_tg_load_avg(struct cfs_rq *cfs_rq)
 }
 #endif /* CONFIG_SMP */
 
-/*
- * Update the current task's runtime statistics.
- */
-static void update_curr(struct cfs_rq *cfs_rq)
+static s64 update_curr_se(struct rq *rq, struct sched_entity *curr)
 {
-	struct sched_entity *curr = cfs_rq->curr;
-	u64 now = rq_clock_task(rq_of(cfs_rq));
-	u64 delta_exec;
-
-	if (unlikely(!curr))
-		return;
+	u64 now = rq_clock_task(rq);
+	s64 delta_exec;
 
 	delta_exec = now - curr->exec_start;
-	if (unlikely((s64)delta_exec <= 0))
-		return;
+	if (unlikely(delta_exec <= 0))
+		return delta_exec;
 
 	curr->exec_start = now;
+	curr->sum_exec_runtime += delta_exec;
 
 	if (schedstat_enabled()) {
 		struct sched_statistics *stats;
@@ -1155,20 +1123,54 @@ static void update_curr(struct cfs_rq *cfs_rq)
 				max(delta_exec, stats->exec_max));
 	}
 
-	curr->sum_exec_runtime += delta_exec;
-	schedstat_add(cfs_rq->exec_clock, delta_exec);
+	return delta_exec;
+}
+
+static inline void update_curr_task(struct task_struct *p, s64 delta_exec)
+{
+	trace_sched_stat_runtime(p, delta_exec);
+	account_group_exec_runtime(p, delta_exec);
+	cgroup_account_cputime(p, delta_exec);
+	if (p->dl_server)
+		dl_server_update(p->dl_server, delta_exec);
+}
+
+/*
+ * Used by other classes to account runtime.
+ */
+s64 update_curr_common(struct rq *rq)
+{
+	struct task_struct *curr = rq->curr;
+	s64 delta_exec;
+
+	delta_exec = update_curr_se(rq, &curr->se);
+	if (likely(delta_exec > 0))
+		update_curr_task(curr, delta_exec);
+
+	return delta_exec;
+}
+
+/*
+ * Update the current task's runtime statistics.
+ */
+static void update_curr(struct cfs_rq *cfs_rq)
+{
+	struct sched_entity *curr = cfs_rq->curr;
+	s64 delta_exec;
+
+	if (unlikely(!curr))
+		return;
+
+	delta_exec = update_curr_se(rq_of(cfs_rq), curr);
+	if (unlikely(delta_exec <= 0))
+		return;
 
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
 	update_deadline(cfs_rq, curr);
 	update_min_vruntime(cfs_rq);
 
-	if (entity_is_task(curr)) {
-		struct task_struct *curtask = task_of(curr);
-
-		trace_sched_stat_runtime(curtask, delta_exec, curr->vruntime);
-		cgroup_account_cputime(curtask, delta_exec);
-		account_group_exec_runtime(curtask, delta_exec);
-	}
+	if (entity_is_task(curr))
+		update_curr_task(task_of(curr), delta_exec);
 
 	account_cfs_rq_runtime(cfs_rq, delta_exec);
 }
@@ -3164,7 +3166,7 @@ static bool vma_is_accessed(struct mm_struct *mm, struct vm_area_struct *vma)
 	 * This is also done to avoid any side effect of task scanning
 	 * amplifying the unfairness of disjoint set of VMAs' access.
 	 */
-	if (READ_ONCE(current->mm->numa_scan_seq) < 2)
+	if ((READ_ONCE(current->mm->numa_scan_seq) - vma->numab_state->start_scan_seq) < 2)
 		return true;
 
 	pids = vma->numab_state->pids_active[0] | vma->numab_state->pids_active[1];
@@ -3306,6 +3308,8 @@ retry_pids:
 				GFP_KERNEL);
 			if (!vma->numab_state)
 				continue;
+
+			vma->numab_state->start_scan_seq = mm->numa_scan_seq;
 
 			vma->numab_state->next_scan = now +
 				msecs_to_jiffies(sysctl_numa_balancing_scan_delay);
@@ -3811,17 +3815,17 @@ static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
 	enqueue_load_avg(cfs_rq, se);
 	if (se->on_rq) {
 		update_load_add(&cfs_rq->load, se->load.weight);
-		if (!curr) {
-			/*
-			 * The entity's vruntime has been adjusted, so let's check
-			 * whether the rq-wide min_vruntime needs updated too. Since
-			 * the calculations above require stable min_vruntime rather
-			 * than up-to-date one, we do the update at the end of the
-			 * reweight process.
-			 */
+		if (!curr)
 			__enqueue_entity(cfs_rq, se);
-			update_min_vruntime(cfs_rq);
-		}
+
+		/*
+		 * The entity's vruntime has been adjusted, so let's check
+		 * whether the rq-wide min_vruntime needs updated too. Since
+		 * the calculations above require stable min_vruntime rather
+		 * than up-to-date one, we do the update at the end of the
+		 * reweight process.
+		 */
+		update_min_vruntime(cfs_rq);
 	}
 }
 
@@ -4096,6 +4100,10 @@ static inline void update_tg_load_avg(struct cfs_rq *cfs_rq)
 	if (cfs_rq->tg == &root_task_group)
 		return;
 
+	/* rq has been offline and doesn't contribute to the share anymore: */
+	if (!cpu_active(cpu_of(rq_of(cfs_rq))))
+		return;
+
 	/*
 	 * For migration heavy workloads, access to tg->load_avg can be
 	 * unbound. Limit the update rate to at most once per ms.
@@ -4110,6 +4118,49 @@ static inline void update_tg_load_avg(struct cfs_rq *cfs_rq)
 		cfs_rq->tg_load_avg_contrib = cfs_rq->avg.load_avg;
 		cfs_rq->last_update_tg_load_avg = now;
 	}
+}
+
+static inline void clear_tg_load_avg(struct cfs_rq *cfs_rq)
+{
+	long delta;
+	u64 now;
+
+	/*
+	 * No need to update load_avg for root_task_group, as it is not used.
+	 */
+	if (cfs_rq->tg == &root_task_group)
+		return;
+
+	now = sched_clock_cpu(cpu_of(rq_of(cfs_rq)));
+	delta = 0 - cfs_rq->tg_load_avg_contrib;
+	atomic_long_add(delta, &cfs_rq->tg->load_avg);
+	cfs_rq->tg_load_avg_contrib = 0;
+	cfs_rq->last_update_tg_load_avg = now;
+}
+
+/* CPU offline callback: */
+static void __maybe_unused clear_tg_offline_cfs_rqs(struct rq *rq)
+{
+	struct task_group *tg;
+
+	lockdep_assert_rq_held(rq);
+
+	/*
+	 * The rq clock has already been updated in
+	 * set_rq_offline(), so we should skip updating
+	 * the rq clock again in unthrottle_cfs_rq().
+	 */
+	rq_clock_start_loop_update(rq);
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(tg, &task_groups, list) {
+		struct cfs_rq *cfs_rq = tg->cfs_rq[cpu_of(rq)];
+
+		clear_tg_load_avg(cfs_rq);
+	}
+	rcu_read_unlock();
+
+	rq_clock_stop_loop_update(rq);
 }
 
 /*
@@ -4407,6 +4458,8 @@ static inline bool skip_blocked_update(struct sched_entity *se)
 #else /* CONFIG_FAIR_GROUP_SCHED */
 
 static inline void update_tg_load_avg(struct cfs_rq *cfs_rq) {}
+
+static inline void clear_tg_offline_cfs_rqs(struct rq *rq) {}
 
 static inline int propagate_entity_load_avg(struct sched_entity *se)
 {
@@ -4770,11 +4823,14 @@ static inline unsigned long task_util(struct task_struct *p)
 	return READ_ONCE(p->se.avg.util_avg);
 }
 
+static inline unsigned long task_runnable(struct task_struct *p)
+{
+	return READ_ONCE(p->se.avg.runnable_avg);
+}
+
 static inline unsigned long _task_util_est(struct task_struct *p)
 {
-	struct util_est ue = READ_ONCE(p->se.avg.util_est);
-
-	return max(ue.ewma, (ue.enqueued & ~UTIL_AVG_UNCHANGED));
+	return READ_ONCE(p->se.avg.util_est) & ~UTIL_AVG_UNCHANGED;
 }
 
 static inline unsigned long task_util_est(struct task_struct *p)
@@ -4791,9 +4847,9 @@ static inline void util_est_enqueue(struct cfs_rq *cfs_rq,
 		return;
 
 	/* Update root cfs_rq's estimated utilization */
-	enqueued  = cfs_rq->avg.util_est.enqueued;
+	enqueued  = cfs_rq->avg.util_est;
 	enqueued += _task_util_est(p);
-	WRITE_ONCE(cfs_rq->avg.util_est.enqueued, enqueued);
+	WRITE_ONCE(cfs_rq->avg.util_est, enqueued);
 
 	trace_sched_util_est_cfs_tp(cfs_rq);
 }
@@ -4807,34 +4863,20 @@ static inline void util_est_dequeue(struct cfs_rq *cfs_rq,
 		return;
 
 	/* Update root cfs_rq's estimated utilization */
-	enqueued  = cfs_rq->avg.util_est.enqueued;
+	enqueued  = cfs_rq->avg.util_est;
 	enqueued -= min_t(unsigned int, enqueued, _task_util_est(p));
-	WRITE_ONCE(cfs_rq->avg.util_est.enqueued, enqueued);
+	WRITE_ONCE(cfs_rq->avg.util_est, enqueued);
 
 	trace_sched_util_est_cfs_tp(cfs_rq);
 }
 
 #define UTIL_EST_MARGIN (SCHED_CAPACITY_SCALE / 100)
 
-/*
- * Check if a (signed) value is within a specified (unsigned) margin,
- * based on the observation that:
- *
- *     abs(x) < y := (unsigned)(x + y - 1) < (2 * y - 1)
- *
- * NOTE: this only works when value + margin < INT_MAX.
- */
-static inline bool within_margin(int value, int margin)
-{
-	return ((unsigned int)(value + margin - 1) < (2 * margin - 1));
-}
-
 static inline void util_est_update(struct cfs_rq *cfs_rq,
 				   struct task_struct *p,
 				   bool task_sleep)
 {
-	long last_ewma_diff, last_enqueued_diff;
-	struct util_est ue;
+	unsigned int ewma, dequeued, last_ewma_diff;
 
 	if (!sched_feat(UTIL_EST))
 		return;
@@ -4846,71 +4888,73 @@ static inline void util_est_update(struct cfs_rq *cfs_rq,
 	if (!task_sleep)
 		return;
 
+	/* Get current estimate of utilization */
+	ewma = READ_ONCE(p->se.avg.util_est);
+
 	/*
 	 * If the PELT values haven't changed since enqueue time,
 	 * skip the util_est update.
 	 */
-	ue = p->se.avg.util_est;
-	if (ue.enqueued & UTIL_AVG_UNCHANGED)
+	if (ewma & UTIL_AVG_UNCHANGED)
 		return;
 
-	last_enqueued_diff = ue.enqueued;
+	/* Get utilization at dequeue */
+	dequeued = task_util(p);
 
 	/*
 	 * Reset EWMA on utilization increases, the moving average is used only
 	 * to smooth utilization decreases.
 	 */
-	ue.enqueued = task_util(p);
-	if (sched_feat(UTIL_EST_FASTUP)) {
-		if (ue.ewma < ue.enqueued) {
-			ue.ewma = ue.enqueued;
-			goto done;
-		}
+	if (ewma <= dequeued) {
+		ewma = dequeued;
+		goto done;
 	}
 
 	/*
 	 * Skip update of task's estimated utilization when its members are
 	 * already ~1% close to its last activation value.
 	 */
-	last_ewma_diff = ue.enqueued - ue.ewma;
-	last_enqueued_diff -= ue.enqueued;
-	if (within_margin(last_ewma_diff, UTIL_EST_MARGIN)) {
-		if (!within_margin(last_enqueued_diff, UTIL_EST_MARGIN))
-			goto done;
-
-		return;
-	}
+	last_ewma_diff = ewma - dequeued;
+	if (last_ewma_diff < UTIL_EST_MARGIN)
+		goto done;
 
 	/*
 	 * To avoid overestimation of actual task utilization, skip updates if
 	 * we cannot grant there is idle time in this CPU.
 	 */
-	if (task_util(p) > arch_scale_cpu_capacity(cpu_of(rq_of(cfs_rq))))
+	if (dequeued > arch_scale_cpu_capacity(cpu_of(rq_of(cfs_rq))))
 		return;
+
+	/*
+	 * To avoid underestimate of task utilization, skip updates of EWMA if
+	 * we cannot grant that thread got all CPU time it wanted.
+	 */
+	if ((dequeued + UTIL_EST_MARGIN) < task_runnable(p))
+		goto done;
+
 
 	/*
 	 * Update Task's estimated utilization
 	 *
 	 * When *p completes an activation we can consolidate another sample
-	 * of the task size. This is done by storing the current PELT value
-	 * as ue.enqueued and by using this value to update the Exponential
-	 * Weighted Moving Average (EWMA):
+	 * of the task size. This is done by using this value to update the
+	 * Exponential Weighted Moving Average (EWMA):
 	 *
 	 *  ewma(t) = w *  task_util(p) + (1-w) * ewma(t-1)
 	 *          = w *  task_util(p) +         ewma(t-1)  - w * ewma(t-1)
 	 *          = w * (task_util(p) -         ewma(t-1)) +     ewma(t-1)
-	 *          = w * (      last_ewma_diff            ) +     ewma(t-1)
-	 *          = w * (last_ewma_diff  +  ewma(t-1) / w)
+	 *          = w * (      -last_ewma_diff           ) +     ewma(t-1)
+	 *          = w * (-last_ewma_diff +  ewma(t-1) / w)
 	 *
 	 * Where 'w' is the weight of new samples, which is configured to be
 	 * 0.25, thus making w=1/4 ( >>= UTIL_EST_WEIGHT_SHIFT)
 	 */
-	ue.ewma <<= UTIL_EST_WEIGHT_SHIFT;
-	ue.ewma  += last_ewma_diff;
-	ue.ewma >>= UTIL_EST_WEIGHT_SHIFT;
+	ewma <<= UTIL_EST_WEIGHT_SHIFT;
+	ewma  -= last_ewma_diff;
+	ewma >>= UTIL_EST_WEIGHT_SHIFT;
 done:
-	ue.enqueued |= UTIL_AVG_UNCHANGED;
-	WRITE_ONCE(p->se.avg.util_est, ue);
+	ewma |= UTIL_AVG_UNCHANGED;
+	WRITE_ONCE(p->se.avg.util_est, ewma);
 
 	trace_sched_util_est_se_tp(&p->se);
 }
@@ -7638,16 +7682,16 @@ cpu_util(int cpu, struct task_struct *p, int dst_cpu, int boost)
 	if (sched_feat(UTIL_EST)) {
 		unsigned long util_est;
 
-		util_est = READ_ONCE(cfs_rq->avg.util_est.enqueued);
+		util_est = READ_ONCE(cfs_rq->avg.util_est);
 
 		/*
 		 * During wake-up @p isn't enqueued yet and doesn't contribute
-		 * to any cpu_rq(cpu)->cfs.avg.util_est.enqueued.
+		 * to any cpu_rq(cpu)->cfs.avg.util_est.
 		 * If @dst_cpu == @cpu add it to "simulate" cpu_util after @p
 		 * has been enqueued.
 		 *
 		 * During exec (@dst_cpu = -1) @p is enqueued and does
-		 * contribute to cpu_rq(cpu)->cfs.util_est.enqueued.
+		 * contribute to cpu_rq(cpu)->cfs.util_est.
 		 * Remove it to "simulate" cpu_util without @p's contribution.
 		 *
 		 * Despite the task_on_rq_queued(@p) check there is still a
@@ -7776,7 +7820,7 @@ static inline void eenv_pd_busy_time(struct energy_env *eenv,
 	for_each_cpu(cpu, pd_cpus) {
 		unsigned long util = cpu_util(cpu, p, -1, 0);
 
-		busy_time += effective_cpu_util(cpu, util, ENERGY_UTIL, NULL);
+		busy_time += effective_cpu_util(cpu, util, NULL, NULL);
 	}
 
 	eenv->pd_busy_time = min(eenv->pd_cap, busy_time);
@@ -7799,7 +7843,7 @@ eenv_pd_max_util(struct energy_env *eenv, struct cpumask *pd_cpus,
 	for_each_cpu(cpu, pd_cpus) {
 		struct task_struct *tsk = (cpu == dst_cpu) ? p : NULL;
 		unsigned long util = cpu_util(cpu, p, dst_cpu, 1);
-		unsigned long eff_util;
+		unsigned long eff_util, min, max;
 
 		/*
 		 * Performance domain frequency: utilization clamping
@@ -7808,7 +7852,23 @@ eenv_pd_max_util(struct energy_env *eenv, struct cpumask *pd_cpus,
 		 * NOTE: in case RT tasks are running, by default the
 		 * FREQUENCY_UTIL's utilization can be max OPP.
 		 */
-		eff_util = effective_cpu_util(cpu, util, FREQUENCY_UTIL, tsk);
+		eff_util = effective_cpu_util(cpu, util, &min, &max);
+
+		/* Task's uclamp can modify min and max value */
+		if (tsk && uclamp_is_used()) {
+			min = max(min, uclamp_eff_value(p, UCLAMP_MIN));
+
+			/*
+			 * If there is no active max uclamp constraint,
+			 * directly use task's one, otherwise keep max.
+			 */
+			if (uclamp_rq_is_idle(cpu_rq(cpu)))
+				max = uclamp_eff_value(p, UCLAMP_MAX);
+			else
+				max = max(max, uclamp_eff_value(p, UCLAMP_MAX));
+		}
+
+		eff_util = sugov_effective_cpu_perf(cpu, eff_util, min, max);
 		max_util = max(max_util, eff_util);
 	}
 
@@ -8210,7 +8270,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se, *pse = &p->se;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
-	int next_buddy_marked = 0;
 	int cse_is_idle, pse_is_idle;
 
 	if (unlikely(se == pse))
@@ -8227,7 +8286,6 @@ static void check_preempt_wakeup_fair(struct rq *rq, struct task_struct *p, int 
 
 	if (sched_feat(NEXT_BUDDY) && !(wake_flags & WF_FORK)) {
 		set_next_buddy(pse);
-		next_buddy_marked = 1;
 	}
 
 	/*
@@ -9060,7 +9118,7 @@ static int detach_tasks(struct lb_env *env)
 		case migrate_util:
 			util = task_util_est(p);
 
-			if (util > env->imbalance)
+			if (shr_bound(util, env->sd->nr_balance_failed) > env->imbalance)
 				goto next;
 
 			env->imbalance -= util;
@@ -12413,6 +12471,9 @@ static void rq_offline_fair(struct rq *rq)
 
 	/* Ensure any throttled groups are reachable by pick_next_task */
 	unthrottle_offline_cfs_rqs(rq);
+
+	/* Ensure that we remove rq contribution to group share: */
+	clear_tg_offline_cfs_rqs(rq);
 }
 
 #endif /* CONFIG_SMP */
