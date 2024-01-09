@@ -424,8 +424,8 @@ static const struct snd_kcontrol_new tas2781_dsp_conf_ctrl = {
 
 static void tas2563_apply_calib(struct tasdevice_priv *tas_priv)
 {
-	unsigned int data;
 	int offset = 0;
+	__be32 data;
 	int ret;
 
 	for (int i = 0; i < tas_priv->ndev; i++) {
