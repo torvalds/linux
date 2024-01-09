@@ -181,7 +181,7 @@ static int parse_test_spec(struct test_loader *tester,
 	memset(spec, 0, sizeof(*spec));
 
 	spec->prog_name = bpf_program__name(prog);
-	spec->prog_flags = BPF_F_TEST_REG_INVARIANTS; /* by default be strict */
+	spec->prog_flags = testing_prog_flags();
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {

@@ -51,5 +51,6 @@ struct bpf_insn;
  * e.g. verifier.c:convert_ctx_access() is done.
  */
 int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt);
+int testing_prog_flags(void);
 
 #endif /* __TESTING_HELPERS_H */

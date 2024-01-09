@@ -252,6 +252,34 @@ __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
 
 int extra_prog_load_log_flags = 0;
 
+int testing_prog_flags(void)
+{
+	static int cached_flags = -1;
+	static int prog_flags[] = { BPF_F_TEST_RND_HI32, BPF_F_TEST_REG_INVARIANTS };
+	static struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int insn_cnt = ARRAY_SIZE(insns), i, fd, flags = 0;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
+
+	if (cached_flags >= 0)
+		return cached_flags;
+
+	for (i = 0; i < ARRAY_SIZE(prog_flags); i++) {
+		opts.prog_flags = prog_flags[i];
+		fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "flag-test", "GPL",
+				   insns, insn_cnt, &opts);
+		if (fd >= 0) {
+			flags |= prog_flags[i];
+			close(fd);
+		}
+	}
+
+	cached_flags = flags;
+	return cached_flags;
+}
+
 int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 		       struct bpf_object **pobj, int *prog_fd)
 {
@@ -276,7 +304,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 	if (type != BPF_PROG_TYPE_UNSPEC && bpf_program__type(prog) != type)
 		bpf_program__set_type(prog, type);
 
-	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32 | BPF_F_TEST_REG_INVARIANTS;
+	flags = bpf_program__flags(prog) | testing_prog_flags();
 	bpf_program__set_flags(prog, flags);
 
 	err = bpf_object__load(obj);
@@ -299,7 +327,7 @@ int bpf_test_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, opts,
 		.kern_version = kern_version,
-		.prog_flags = BPF_F_TEST_RND_HI32 | BPF_F_TEST_REG_INVARIANTS,
+		.prog_flags = testing_prog_flags(),
 		.log_level = extra_prog_load_log_flags,
 		.log_buf = log_buf,
 		.log_size = log_buf_sz,
