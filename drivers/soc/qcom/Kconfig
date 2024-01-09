@@ -892,6 +892,15 @@ config QCOM_MINIDUMP_RM
 	  say yes to enable minidump feature.
 	  If unsure, say no.
 
+config QCOM_MINIDUMP_VIRTIO
+	bool "QCOM Minidump based on VIRTIO Support"
+	depends on QCOM_MINIDUMP && VIRTIO
+	help
+	  This enables VirtIO minidump transport layer.
+	  If minidump and VirtIO are enabled,
+	  say yes to enable minidump feature.
+	  If unsure, say no.
+
 config QCOM_VA_MINIDUMP
 	tristate "QCOM VA Minidump Support"
 	depends on QCOM_MINIDUMP
