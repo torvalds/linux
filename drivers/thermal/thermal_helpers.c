@@ -156,7 +156,7 @@ static int thermal_cdev_set_cur_state(struct thermal_cooling_device *cdev, int s
 	 */
 	ret = cdev->ops->set_cur_state(cdev, state);
 	if (!ret) {
-		thermal_notify_cdev_state_update(cdev->id, state);
+		thermal_notify_cdev_state_update(cdev, state);
 		thermal_cooling_device_stats_update(cdev, state);
 		thermal_debug_cdev_state_update(cdev, state);
 	}

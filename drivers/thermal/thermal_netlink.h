@@ -12,6 +12,7 @@ struct thermal_genl_cpu_caps {
 
 struct thermal_zone_device;
 struct thermal_trip;
+struct thermal_cooling_device;
 
 /* Netlink notification function */
 #ifdef CONFIG_THERMAL_NETLINK
@@ -27,9 +28,10 @@ int thermal_notify_tz_trip_up(const struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip);
 int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
 				  const struct thermal_trip *trip);
-int thermal_notify_cdev_state_update(int cdev_id, int state);
-int thermal_notify_cdev_add(int cdev_id, const char *name, int max_state);
-int thermal_notify_cdev_delete(int cdev_id);
+int thermal_notify_cdev_state_update(const struct thermal_cooling_device *cdev,
+				     int state);
+int thermal_notify_cdev_add(const struct thermal_cooling_device *cdev);
+int thermal_notify_cdev_delete(const struct thermal_cooling_device *cdev);
 int thermal_notify_tz_gov_change(const struct thermal_zone_device *tz,
 				 const char *name);
 int thermal_genl_sampling_temp(int id, int temp);
@@ -79,18 +81,18 @@ static inline int thermal_notify_tz_trip_change(const struct thermal_zone_device
 	return 0;
 }
 
-static inline int thermal_notify_cdev_state_update(int cdev_id, int state)
+static inline int thermal_notify_cdev_state_update(const struct thermal_cooling_device *cdev,
+						   int state)
 {
 	return 0;
 }
 
-static inline int thermal_notify_cdev_add(int cdev_id, const char *name,
-					  int max_state)
+static inline int thermal_notify_cdev_add(const struct thermal_cooling_device *cdev)
 {
 	return 0;
 }
 
-static inline int thermal_notify_cdev_delete(int cdev_id)
+static inline int thermal_notify_cdev_delete(const struct thermal_cooling_device *cdev)
 {
 	return 0;
 }

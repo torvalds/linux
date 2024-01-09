@@ -364,24 +364,25 @@ int thermal_notify_tz_trip_change(const struct thermal_zone_device *tz,
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_TZ_TRIP_CHANGE, &p);
 }
 
-int thermal_notify_cdev_state_update(int cdev_id, int cdev_state)
+int thermal_notify_cdev_state_update(const struct thermal_cooling_device *cdev,
+				     int state)
 {
-	struct param p = { .cdev_id = cdev_id, .cdev_state = cdev_state };
+	struct param p = { .cdev_id = cdev->id, .cdev_state = state };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_STATE_UPDATE, &p);
 }
 
-int thermal_notify_cdev_add(int cdev_id, const char *name, int cdev_max_state)
+int thermal_notify_cdev_add(const struct thermal_cooling_device *cdev)
 {
-	struct param p = { .cdev_id = cdev_id, .name = name,
-			   .cdev_max_state = cdev_max_state };
+	struct param p = { .cdev_id = cdev->id, .name = cdev->type,
+			   .cdev_max_state = cdev->max_state };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_ADD, &p);
 }
 
-int thermal_notify_cdev_delete(int cdev_id)
+int thermal_notify_cdev_delete(const struct thermal_cooling_device *cdev)
 {
-	struct param p = { .cdev_id = cdev_id };
+	struct param p = { .cdev_id = cdev->id };
 
 	return thermal_genl_send_event(THERMAL_GENL_EVENT_CDEV_DELETE, &p);
 }
