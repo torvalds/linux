@@ -3339,13 +3339,17 @@ M:	Eric Paris <eparis@redhat.com>
 L:	audit@vger.kernel.org
 S:	Supported
 W:	https://github.com/linux-audit
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/audit.git
+Q:	https://patchwork.kernel.org/project/audit/list
+B:	mailto:audit@vger.kernel.org
+P:	https://github.com/linux-audit/audit-kernel/blob/main/README.md
+T:	git https://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/audit.git
 F:	include/asm-generic/audit_*.h
 F:	include/linux/audit.h
 F:	include/linux/audit_arch.h
 F:	include/uapi/linux/audit.h
 F:	kernel/audit*
 F:	lib/*audit.c
+K:	\baudit_[a-z_0-9]\+\b
 
 AUXILIARY BUS DRIVER
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
