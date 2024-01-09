@@ -128,6 +128,7 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_VM = BIT(0),
 	AMDGPU_DEBUG_LARGEBAR = BIT(1),
 	AMDGPU_DEBUG_DISABLE_GPU_SOFT_RECOVERY = BIT(2),
+	AMDGPU_DEBUG_USE_VRAM_FW_BUF = BIT(3),
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -2116,6 +2117,11 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 	if (amdgpu_debug_mask & AMDGPU_DEBUG_DISABLE_GPU_SOFT_RECOVERY) {
 		pr_info("debug: soft reset for GPU recovery disabled\n");
 		adev->debug_disable_soft_recovery = true;
+	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_USE_VRAM_FW_BUF) {
+		pr_info("debug: place fw in vram for frontdoor loading\n");
+		adev->debug_use_vram_fw_buf = true;
 	}
 }
 

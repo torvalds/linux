@@ -1144,6 +1144,7 @@ struct amdgpu_device {
 	bool                            debug_vm;
 	bool                            debug_largebar;
 	bool                            debug_disable_soft_recovery;
+	bool                            debug_use_vram_fw_buf;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,
