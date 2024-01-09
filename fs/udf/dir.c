@@ -67,7 +67,7 @@ static int udf_readdir(struct file *file, struct dir_context *ctx)
 		pos_valid = true;
 	}
 
-	fname = kmalloc(UDF_NAME_LEN, GFP_NOFS);
+	fname = kmalloc(UDF_NAME_LEN, GFP_KERNEL);
 	if (!fname) {
 		ret = -ENOMEM;
 		goto out;
