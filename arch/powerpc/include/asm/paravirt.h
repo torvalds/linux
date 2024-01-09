@@ -76,6 +76,17 @@ static inline bool is_vcpu_idle(int vcpu)
 {
 	return lppaca_of(vcpu).idle;
 }
+
+static inline bool vcpu_is_dispatched(int vcpu)
+{
+	/*
+	 * This is the yield_count.  An "odd" value (low bit on) means that
+	 * the processor is yielded (either because of an OS yield or a
+	 * hypervisor preempt).  An even value implies that the processor is
+	 * currently executing.
+	 */
+	return (!(yield_count_of(vcpu) & 1));
+}
 #else
 static inline bool is_shared_processor(void)
 {
@@ -109,6 +120,10 @@ static inline bool is_vcpu_idle(int vcpu)
 {
 	return false;
 }
+static inline bool vcpu_is_dispatched(int vcpu)
+{
+	return true;
+}
 #endif
 
 #define vcpu_is_preempted vcpu_is_preempted
@@ -134,12 +149,12 @@ static inline bool vcpu_is_preempted(int cpu)
 	 * If the hypervisor has dispatched the target CPU on a physical
 	 * processor, then the target CPU is definitely not preempted.
 	 */
-	if (!(yield_count_of(cpu) & 1))
+	if (vcpu_is_dispatched(cpu))
 		return false;
 
 	/*
-	 * If the target CPU has yielded to Hypervisor but OS has not
-	 * requested idle then the target CPU is definitely preempted.
+	 * if the target CPU is not dispatched and the guest OS
+	 * has not marked the CPU idle, then it is hypervisor preempted.
 	 */
 	if (!is_vcpu_idle(cpu))
 		return true;
@@ -166,7 +181,7 @@ static inline bool vcpu_is_preempted(int cpu)
 
 		/*
 		 * The PowerVM hypervisor dispatches VMs on a whole core
-		 * basis. So we know that a thread sibling of the local CPU
+		 * basis. So we know that a thread sibling of the executing CPU
 		 * cannot have been preempted by the hypervisor, even if it
 		 * has called H_CONFER, which will set the yield bit.
 		 */
@@ -174,15 +189,17 @@ static inline bool vcpu_is_preempted(int cpu)
 			return false;
 
 		/*
-		 * If any of the threads of the target CPU's core are not
-		 * preempted or ceded, then consider target CPU to be
-		 * non-preempted.
+		 * The specific target CPU was marked by guest OS as idle, but
+		 * then also check all other cpus in the core for PowerVM
+		 * because it does core scheduling and one of the vcpu
+		 * of the core getting preempted by hypervisor implies
+		 * other vcpus can also be considered preempted.
 		 */
 		first_cpu = cpu_first_thread_sibling(cpu);
 		for (i = first_cpu; i < first_cpu + threads_per_core; i++) {
 			if (i == cpu)
 				continue;
-			if (!(yield_count_of(i) & 1))
+			if (vcpu_is_dispatched(i))
 				return false;
 			if (!is_vcpu_idle(i))
 				return true;

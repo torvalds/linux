@@ -856,6 +856,35 @@ free_gsb:
 EXPORT_SYMBOL_GPL(kvmhv_nestedv2_set_ptbl_entry);
 
 /**
+ * kvmhv_nestedv2_set_vpa() - register L2 VPA with L0
+ * @vcpu: vcpu
+ * @vpa: L1 logical real address
+ */
+int kvmhv_nestedv2_set_vpa(struct kvm_vcpu *vcpu, unsigned long vpa)
+{
+	struct kvmhv_nestedv2_io *io;
+	struct kvmppc_gs_buff *gsb;
+	int rc = 0;
+
+	io = &vcpu->arch.nestedv2_io;
+	gsb = io->vcpu_run_input;
+
+	kvmppc_gsb_reset(gsb);
+	rc = kvmppc_gse_put_u64(gsb, KVMPPC_GSID_VPA, vpa);
+	if (rc < 0)
+		goto out;
+
+	rc = kvmppc_gsb_send(gsb, 0);
+	if (rc < 0)
+		pr_err("KVM-NESTEDv2: couldn't register the L2 VPA (rc=%d)\n", rc);
+
+out:
+	kvmppc_gsb_reset(gsb);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(kvmhv_nestedv2_set_vpa);
+
+/**
  * kvmhv_nestedv2_parse_output() - receive values from H_GUEST_RUN_VCPU output
  * @vcpu: vcpu
  *
