@@ -275,8 +275,6 @@ int __init iaa_crypto_debugfs_init(void)
 		return -ENODEV;
 
 	iaa_crypto_debugfs_root = debugfs_create_dir("iaa_crypto", NULL);
-	if (!iaa_crypto_debugfs_root)
-		return -ENOMEM;
 
 	debugfs_create_u64("max_comp_delay_ns", 0644,
 			   iaa_crypto_debugfs_root, &max_comp_delay_ns);
