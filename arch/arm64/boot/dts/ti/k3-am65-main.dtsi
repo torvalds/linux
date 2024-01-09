@@ -1050,6 +1050,13 @@
 		};
 	};
 
+	gpu: gpu@7000000 {
+		compatible = "ti,am6548-gpu", "img,powervr-sgx544";
+		reg = <0x0 0x7000000 0x0 0x10000>;
+		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&k3_pds 65 TI_SCI_PD_EXCLUSIVE>;
+	};
+
 	ehrpwm0: pwm@3000000 {
 		compatible = "ti,am654-ehrpwm", "ti,am3352-ehrpwm";
 		#pwm-cells = <3>;
