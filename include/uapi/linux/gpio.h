@@ -490,7 +490,8 @@ struct gpioevent_request {
 /**
  * struct gpioevent_data - The actual event being pushed to userspace
  * @timestamp: best estimate of time of event occurrence, in nanoseconds
- * @id: event identifier
+ * @id: event identifier, one of %GPIOEVENT_EVENT_RISING_EDGE or
+ *  %GPIOEVENT_EVENT_FALLING_EDGE
  *
  * Note: This struct is part of ABI v1 and is deprecated.
  * Use &struct gpio_v2_line_event instead.
