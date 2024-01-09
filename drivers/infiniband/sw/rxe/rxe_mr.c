@@ -34,7 +34,7 @@ int mr_check_range(struct rxe_mr *mr, u64 iova, size_t length)
 	case IB_MR_TYPE_MEM_REG:
 		if (iova < mr->ibmr.iova ||
 		    iova + length > mr->ibmr.iova + mr->ibmr.length) {
-			rxe_dbg_mr(mr, "iova/length out of range");
+			rxe_dbg_mr(mr, "iova/length out of range\n");
 			return -EINVAL;
 		}
 		return 0;
@@ -319,7 +319,7 @@ int rxe_mr_copy(struct rxe_mr *mr, u64 iova, void *addr,
 
 	err = mr_check_range(mr, iova, length);
 	if (unlikely(err)) {
-		rxe_dbg_mr(mr, "iova out of range");
+		rxe_dbg_mr(mr, "iova out of range\n");
 		return err;
 	}
 
@@ -477,7 +477,7 @@ int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	u64 *va;
 
 	if (unlikely(mr->state != RXE_MR_STATE_VALID)) {
-		rxe_dbg_mr(mr, "mr not in valid state");
+		rxe_dbg_mr(mr, "mr not in valid state\n");
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
@@ -490,7 +490,7 @@ int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 
 		err = mr_check_range(mr, iova, sizeof(value));
 		if (err) {
-			rxe_dbg_mr(mr, "iova out of range");
+			rxe_dbg_mr(mr, "iova out of range\n");
 			return RESPST_ERR_RKEY_VIOLATION;
 		}
 		page_offset = rxe_mr_iova_to_page_offset(mr, iova);
@@ -501,7 +501,7 @@ int rxe_mr_do_atomic_op(struct rxe_mr *mr, u64 iova, int opcode,
 	}
 
 	if (unlikely(page_offset & 0x7)) {
-		rxe_dbg_mr(mr, "iova not aligned");
+		rxe_dbg_mr(mr, "iova not aligned\n");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
 
@@ -534,7 +534,7 @@ int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 
 	/* See IBA oA19-28 */
 	if (unlikely(mr->state != RXE_MR_STATE_VALID)) {
-		rxe_dbg_mr(mr, "mr not in valid state");
+		rxe_dbg_mr(mr, "mr not in valid state\n");
 		return RESPST_ERR_RKEY_VIOLATION;
 	}
 
@@ -548,7 +548,7 @@ int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 		/* See IBA oA19-28 */
 		err = mr_check_range(mr, iova, sizeof(value));
 		if (unlikely(err)) {
-			rxe_dbg_mr(mr, "iova out of range");
+			rxe_dbg_mr(mr, "iova out of range\n");
 			return RESPST_ERR_RKEY_VIOLATION;
 		}
 		page_offset = rxe_mr_iova_to_page_offset(mr, iova);
@@ -560,7 +560,7 @@ int rxe_mr_do_atomic_write(struct rxe_mr *mr, u64 iova, u64 value)
 
 	/* See IBA A19.4.2 */
 	if (unlikely(page_offset & 0x7)) {
-		rxe_dbg_mr(mr, "misaligned address");
+		rxe_dbg_mr(mr, "misaligned address\n");
 		return RESPST_ERR_MISALIGNED_ATOMIC;
 	}
 
