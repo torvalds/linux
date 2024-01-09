@@ -107,8 +107,8 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 {
 	struct pwm_device *pwm;
 
-	/* flags in the third cell are optional */
-	if (args->args_count < 2)
+	/* period in the second cell and flags in the third cell are optional */
+	if (args->args_count < 1)
 		return ERR_PTR(-EINVAL);
 
 	if (args->args[0] >= chip->npwm)
@@ -118,9 +118,10 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 	if (IS_ERR(pwm))
 		return pwm;
 
-	pwm->args.period = args->args[1];
-	pwm->args.polarity = PWM_POLARITY_NORMAL;
+	if (args->args_count > 1)
+		pwm->args.period = args->args[1];
 
+	pwm->args.polarity = PWM_POLARITY_NORMAL;
 	if (args->args_count > 2 && args->args[2] & PWM_POLARITY_INVERTED)
 		pwm->args.polarity = PWM_POLARITY_INVERSED;
 
@@ -133,18 +134,15 @@ of_pwm_single_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 {
 	struct pwm_device *pwm;
 
-	/* validate that one cell is specified, optionally with flags */
-	if (args->args_count != 1 && args->args_count != 2)
-		return ERR_PTR(-EINVAL);
-
 	pwm = pwm_request_from_chip(chip, 0, NULL);
 	if (IS_ERR(pwm))
 		return pwm;
 
-	pwm->args.period = args->args[0];
-	pwm->args.polarity = PWM_POLARITY_NORMAL;
+	if (args->args_count > 1)
+		pwm->args.period = args->args[0];
 
-	if (args->args_count == 2 && args->args[1] & PWM_POLARITY_INVERTED)
+	pwm->args.polarity = PWM_POLARITY_NORMAL;
+	if (args->args_count > 1 && args->args[1] & PWM_POLARITY_INVERTED)
 		pwm->args.polarity = PWM_POLARITY_INVERSED;
 
 	return pwm;
