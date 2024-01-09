@@ -10,7 +10,19 @@
 
 static int aspeed_gfx_get_modes(struct drm_connector *connector)
 {
-	return drm_add_modes_noedid(connector, 800, 600);
+	struct aspeed_gfx *priv = container_of(connector, struct aspeed_gfx, connector);
+	int mode_count = 0;
+
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
+		mode_count = drm_add_modes_noedid(connector, 1024, 768);
+		break;
+	default:
+		mode_count = drm_add_modes_noedid(connector, 800, 600);
+		break;
+	}
+
+	return mode_count;
 }
 
 static const struct

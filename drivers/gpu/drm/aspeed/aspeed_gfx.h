@@ -8,14 +8,23 @@ struct aspeed_gfx {
 	struct drm_device		drm;
 	void __iomem			*base;
 	struct clk			*clk;
-	struct reset_control		*rst;
+	struct reset_control		*rst_crt;
+	struct reset_control		*rst_engine;
 	struct regmap			*scu;
+	struct regmap			*dp;
+	struct regmap			*dpmcu;
+	struct regmap			*pcie_ep;
+	u8				dp_support;
+	u8				pcie_advance;
+	u8				pcie_active;
 
 	u32				dac_reg;
 	u32				int_clr_reg;
 	u32				vga_scratch_reg;
 	u32				throd_val;
 	u32				scan_line_max;
+	u32				flags;
+	u32				pcie_int_reg;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
@@ -106,3 +115,48 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 /* CRT_THROD */
 #define CRT_THROD_LOW(x)		(x)
 #define CRT_THROD_HIGH(x)		((x) << 8)
+
+/* SCU control */
+#define G4_DISABLE_D2_PLL		BIT(4)
+#define G4_40_CLK			0x46314
+#define G6_CLK_SOURCE			0x300
+#define G6_CLK_SOURCE_MASK		(BIT(8) | BIT(9) | BIT(10))
+#define G6_CLK_SOURCE_HPLL		(BIT(8) | BIT(9) | BIT(10))
+#define G6_CLK_SOURCE_USB		BIT(9)
+#define G6_CLK_SEL3			0x308
+#define G6_CLK_DIV_MASK			0x3F000
+#define G6_CLK_DIV_16			(BIT(16) | BIT(15) | BIT(13) | BIT(12))
+#define G6_USB_40_CLK			BIT(9)
+#define CRT_FROM_SOC			BIT(16)
+#define DP_FROM_SOC			BIT(18)
+
+/* GFX FLAGS */
+#define RESET_MASK			BIT(0)
+#define RESET_G6			BIT(0)
+#define CLK_MASK			(BIT(4) | BIT(5))
+#define CLK_G4				BIT(4)
+#define CLK_G6				BIT(5)
+
+/* PCIE interrupt */
+#define PCIE_PERST_L_T_H		BIT(18)
+#define PCIE_PERST_H_T_L		BIT(19)
+#define STS_PERST_STATUS		(PCIE_PERST_L_T_H | PCIE_PERST_H_T_L)
+
+/* PCIE end pointer define */
+#define PCIE_LINK_REG		0xD0
+#define PCIE_LINK_STATUS	BIT(20)
+
+/* Adaptor function define */
+/* AST2600: DP adaptor define */
+#define DP_CP_NAME			"aspeed,ast2600-displayport"
+#define DP_MCU_CP_NAME			"aspeed,ast2600-displayport-mcu"
+/* AST2600 */
+#define SCU_DP_STATUS			0x100 /* SCU100 VGA function handshake */
+#define DP_EXECUTE			0x2E /* DP Status */
+/* AST2600 DP */
+#define DP_SOURCE			0xb8  /* DPB8 dp source */
+#define DP_CONTROL_FROM_SOC		(BIT(24) | BIT(28))
+/* AST2600 DP MCU */
+#define DP_RESOLUTION			0xde0  /* DPMCUDE0 dp resolution */
+#define DP_800				0x01050020 /* 800 x 600 60Hz */
+#define DP_1024				0x010a0020 /* 1024 x 768 70Hz */

@@ -63,6 +63,8 @@ struct aspeed_gfx_config {
 	u32 vga_scratch_reg;	/* VGA scratch register in SCU */
 	u32 throd_val;		/* Default Threshold Seting */
 	u32 scan_line_max;	/* Max memory size of one scan line */
+	u32 gfx_flags;		/* Flags for gfx chip caps */
+	u32 pcie_int_reg;	/* pcie interrupt */
 };
 
 static const struct aspeed_gfx_config ast2400_config = {
@@ -71,6 +73,8 @@ static const struct aspeed_gfx_config ast2400_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x1e) | CRT_THROD_HIGH(0x12),
 	.scan_line_max = 64,
+	.gfx_flags = CLK_G4,
+	.pcie_int_reg = 0x18,
 };
 
 static const struct aspeed_gfx_config ast2500_config = {
@@ -79,6 +83,8 @@ static const struct aspeed_gfx_config ast2500_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x24) | CRT_THROD_HIGH(0x3c),
 	.scan_line_max = 128,
+	.gfx_flags = 0,
+	.pcie_int_reg = 0x18,
 };
 
 static const struct aspeed_gfx_config ast2600_config = {
@@ -87,6 +93,8 @@ static const struct aspeed_gfx_config ast2600_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
 	.scan_line_max = 128,
+	.gfx_flags = RESET_G6 | CLK_G6,
+	.pcie_int_reg = 0x560,
 };
 
 static const struct of_device_id aspeed_gfx_match[] = {
@@ -105,6 +113,7 @@ static const struct drm_mode_config_funcs aspeed_gfx_mode_config_funcs = {
 
 static int aspeed_gfx_setup_mode_config(struct drm_device *drm)
 {
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
 	int ret;
 
 	ret = drmm_mode_config_init(drm);
@@ -113,11 +122,61 @@ static int aspeed_gfx_setup_mode_config(struct drm_device *drm)
 
 	drm->mode_config.min_width = 0;
 	drm->mode_config.min_height = 0;
-	drm->mode_config.max_width = 800;
-	drm->mode_config.max_height = 600;
+
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
+		drm->mode_config.max_width = 1024;
+		drm->mode_config.max_height = 768;
+		break;
+	default:
+		drm->mode_config.max_width = 800;
+		drm->mode_config.max_height = 600;
+		break;
+	}
+
 	drm->mode_config.funcs = &aspeed_gfx_mode_config_funcs;
 
 	return ret;
+}
+
+static irqreturn_t aspeed_host_irq_handler(int irq, void *data)
+{
+	struct drm_device *drm = data;
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+	u32 reg;
+
+	regmap_read(priv->scu, priv->pcie_int_reg, &reg);
+
+	if (reg & STS_PERST_STATUS) {
+		if (reg & PCIE_PERST_L_T_H) {
+			dev_dbg(drm->dev, "pcie active.\n");
+			/*Change the DP back to host*/
+			if (priv->dp_support) {
+				/*Change the DP back to host*/
+				regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
+				dev_dbg(drm->dev, "dp set at 0 int L_T_H.\n");
+				regmap_update_bits(priv->scu, priv->dac_reg, DP_FROM_SOC, 0);
+			}
+
+			/*Change the CRT back to host*/
+			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, 0);
+		} else if (reg & PCIE_PERST_H_T_L) {
+			dev_dbg(drm->dev, "pcie de-active.\n");
+			/*Change the DP into host*/
+			if (priv->dp_support) {
+				/*Change the DP back to soc*/
+				regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+				dev_dbg(drm->dev, "dp set at 11 int H_T_L.\n");
+				regmap_update_bits(priv->scu, priv->dac_reg, DP_FROM_SOC, DP_FROM_SOC);
+			}
+
+			/*Change the CRT into soc*/
+			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
+		}
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
 }
 
 static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
@@ -135,6 +194,110 @@ static irqreturn_t aspeed_gfx_irq_handler(int irq, void *data)
 	}
 
 	return IRQ_NONE;
+}
+
+static int aspeed_pcie_active_detect(struct drm_device *drm)
+{
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+	u32 reg = 0;
+
+	/* map pcie ep resource */
+	priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2500-pcie-ep");
+	if (IS_ERR(priv->pcie_ep)) {
+		priv->pcie_ep = syscon_regmap_lookup_by_compatible("aspeed,ast2600-pcie-phy");
+		if (IS_ERR(priv->pcie_ep)) {
+			dev_err(drm->dev, "failed to find pcie_ep regmap\n");
+			return PTR_ERR(priv->pcie_ep);
+		}
+	}
+
+	/* check pcie rst status */
+	regmap_read(priv->pcie_ep, PCIE_LINK_REG, &reg);
+	dev_dbg(drm->dev, "g6 drv link reg v %x\n", reg);
+
+	/* host vga is on or not */
+	if (reg & PCIE_LINK_STATUS)
+		priv->pcie_active = 0x1;
+	else
+		priv->pcie_active = 0x0;
+
+	return 0;
+}
+
+static int aspeed_adaptor_detect(struct drm_device *drm)
+{
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+	u32 reg = 0;
+
+	switch (priv->flags & CLK_MASK) {
+	case CLK_G6:
+		/* check AST DP is executed or not*/
+		regmap_read(priv->scu, SCU_DP_STATUS, &reg);
+		if (((reg >> 8) & DP_EXECUTE) == DP_EXECUTE) {
+			priv->dp_support = 0x1;
+
+			priv->dp = syscon_regmap_lookup_by_compatible(DP_CP_NAME);
+			if (IS_ERR(priv->dp)) {
+				dev_err(drm->dev, "failed to find DP regmap\n");
+				return PTR_ERR(priv->dp);
+			}
+
+			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_MCU_CP_NAME);
+			if (IS_ERR(priv->dpmcu)) {
+				dev_err(drm->dev, "failed to find DP MCU regmap\n");
+				return PTR_ERR(priv->dpmcu);
+			}
+
+			/* change the dp setting is coming from soc display */
+			if (!priv->pcie_active)
+				regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+		}
+		break;
+	default:
+		priv->dp_support = 0x0;
+		priv->dp = NULL;
+		priv->dpmcu = NULL;
+		break;
+	}
+	return 0;
+}
+
+static int aspeed_gfx_reset(struct drm_device *drm)
+{
+	struct platform_device *pdev = to_platform_device(drm->dev);
+	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
+
+	switch (priv->flags & RESET_MASK) {
+	case RESET_G6:
+		priv->rst_crt = devm_reset_control_get(&pdev->dev, "crt");
+		if (IS_ERR(priv->rst_crt)) {
+			dev_err(&pdev->dev,
+				"missing or invalid crt reset controller device tree entry");
+			return PTR_ERR(priv->rst_crt);
+		}
+		reset_control_deassert(priv->rst_crt);
+
+		priv->rst_engine = devm_reset_control_get(&pdev->dev, "engine");
+		if (IS_ERR(priv->rst_engine)) {
+			dev_err(&pdev->dev,
+				"missing or invalid engine reset controller device tree entry");
+			return PTR_ERR(priv->rst_engine);
+		}
+		reset_control_deassert(priv->rst_engine);
+		break;
+
+	default:
+		priv->rst_crt = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(priv->rst_crt)) {
+			dev_err(&pdev->dev,
+				"missing or invalid reset controller device tree entry");
+			return PTR_ERR(priv->rst_crt);
+		}
+		reset_control_deassert(priv->rst_crt);
+		break;
+	}
+
+	return 0;
 }
 
 static int aspeed_gfx_load(struct drm_device *drm)
@@ -162,13 +325,25 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->vga_scratch_reg = config->vga_scratch_reg;
 	priv->throd_val = config->throd_val;
 	priv->scan_line_max = config->scan_line_max;
+	priv->flags = config->gfx_flags;
+	priv->pcie_int_reg = config->pcie_int_reg;
+
+	/* add pcie detect after ast2400 */
+	if (priv->flags != CLK_G4)
+		priv->pcie_advance = 1;
 
 	priv->scu = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->scu)) {
-		priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+		priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2400-scu");
 		if (IS_ERR(priv->scu)) {
-			dev_err(&pdev->dev, "failed to find SCU regmap\n");
-			return PTR_ERR(priv->scu);
+			priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2500-scu");
+			if (IS_ERR(priv->scu)) {
+				priv->scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
+				if (IS_ERR(priv->scu)) {
+					dev_err(&pdev->dev, "failed to find SCU regmap\n");
+					return PTR_ERR(priv->scu);
+				}
+			}
 		}
 	}
 
@@ -185,13 +360,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
-	priv->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(priv->rst)) {
+	ret = aspeed_gfx_reset(drm);
+	if (ret) {
 		dev_err(&pdev->dev,
 			"missing or invalid reset controller device tree entry");
-		return PTR_ERR(priv->rst);
+		return ret;
 	}
-	reset_control_deassert(priv->rst);
 
 	priv->clk = devm_clk_get(drm->dev, NULL);
 	if (IS_ERR(priv->clk)) {
@@ -200,6 +374,22 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return PTR_ERR(priv->clk);
 	}
 	clk_prepare_enable(priv->clk);
+
+	if (priv->pcie_advance) {
+		ret = aspeed_pcie_active_detect(drm);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"missing or invalid pcie-ep controller device tree entry");
+			return ret;
+		}
+	}
+
+	ret = aspeed_adaptor_detect(drm);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"missing or invalid adaptor controller device tree entry");
+		return ret;
+	}
 
 	/* Sanitize control registers */
 	writel(0, priv->base + CRT_CTRL1);
@@ -234,6 +424,23 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
+	/* install pcie reset detect */
+	if (of_property_read_bool(np, "pcie-reset-detect") && priv->pcie_advance) {
+		dev_dbg(drm->dev, "hook pcie reset.\n");
+
+		/* Special watch the host power up / down */
+		ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 1), aspeed_host_irq_handler, IRQF_SHARED, "aspeed host active", drm);
+		if (ret < 0) {
+			dev_err(drm->dev, "Failed to install HOST active handler\n");
+			return ret;
+		}
+		ret = devm_request_irq(drm->dev, platform_get_irq(pdev, 2), aspeed_host_irq_handler, IRQF_SHARED, "aspeed host deactivate", drm);
+		if (ret < 0) {
+			dev_err(drm->dev, "Failed to install HOST de-active handler\n");
+			return ret;
+		}
+	}
+
 	drm_mode_config_reset(drm);
 
 	return 0;
@@ -241,6 +448,12 @@ static int aspeed_gfx_load(struct drm_device *drm)
 
 static void aspeed_gfx_unload(struct drm_device *drm)
 {
+	struct aspeed_gfx *priv = drm->dev_private;
+
+	/* change the dp setting is coming from host side */
+	if (priv->dp_support)
+		regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
+
 	drm_kms_helper_poll_fini(drm);
 }
 
