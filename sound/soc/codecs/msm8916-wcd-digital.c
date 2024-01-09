@@ -827,16 +827,14 @@ static int msm8916_wcd_digital_get_clks(struct platform_device *pdev,
 	struct device *dev = &pdev->dev;
 
 	priv->ahbclk = devm_clk_get(dev, "ahbix-clk");
-	if (IS_ERR(priv->ahbclk)) {
-		dev_err(dev, "failed to get ahbix clk\n");
-		return PTR_ERR(priv->ahbclk);
-	}
+	if (IS_ERR(priv->ahbclk))
+		return dev_err_probe(dev, PTR_ERR(priv->ahbclk),
+			      "failed to get ahbix clk\n");
 
 	priv->mclk = devm_clk_get(dev, "mclk");
-	if (IS_ERR(priv->mclk)) {
-		dev_err(dev, "failed to get mclk\n");
-		return PTR_ERR(priv->mclk);
-	}
+	if (IS_ERR(priv->mclk))
+		return dev_err_probe(dev, PTR_ERR(priv->mclk),
+				     "failed to get mclk\n");
 
 	return 0;
 }
