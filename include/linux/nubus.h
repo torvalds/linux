@@ -89,8 +89,6 @@ struct nubus_driver {
 	void (*remove)(struct nubus_board *board);
 };
 
-extern struct bus_type nubus_bus_type;
-
 /* Generic NuBus interface functions, modelled after the PCI interface */
 #ifdef CONFIG_PROC_FS
 extern bool nubus_populate_procfs;
