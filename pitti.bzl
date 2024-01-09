@@ -140,6 +140,7 @@ def define_pitti():
         "drivers/virt/gunyah/gunyah_loader.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
+        "sound/usb/snd-usb-audio-qmi.ko",
     ]
 
     _pitti_consolidate_in_tree_modules = _pitti_in_tree_modules + [
