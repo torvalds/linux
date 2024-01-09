@@ -45,6 +45,11 @@ else
 obj-y		:= $(filter-out %/, $(obj-y))
 endif
 
+ifdef need-dtbslist
+dtb-y		+= $(addsuffix /dtbs-list, $(subdir-ym))
+always-y	+= dtbs-list
+endif
+
 # Expand $(foo-objs) $(foo-y) etc. by replacing their individuals
 suffix-search = $(strip $(foreach s, $3, $($(1:%$(strip $2)=%$s))))
 # List composite targets that are constructed by combining other targets
@@ -99,6 +104,7 @@ lib-y		:= $(addprefix $(obj)/,$(lib-y))
 real-obj-y	:= $(addprefix $(obj)/,$(real-obj-y))
 real-obj-m	:= $(addprefix $(obj)/,$(real-obj-m))
 multi-obj-m	:= $(addprefix $(obj)/, $(multi-obj-m))
+dtb-y		:= $(addprefix $(obj)/, $(dtb-y))
 multi-dtb-y	:= $(addprefix $(obj)/, $(multi-dtb-y))
 real-dtb-y	:= $(addprefix $(obj)/, $(real-dtb-y))
 subdir-ym	:= $(addprefix $(obj)/,$(subdir-ym))
