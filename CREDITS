@@ -3049,6 +3049,10 @@ S: Demonstratsii 8-382
 S: Tula 300000
 S: Russia
 
+N: Thomas Petazzoni
+E: thomas.petazzoni@bootlin.com
+D: Driver for the Marvell Armada 370/XP network unit.
+
 N: Gordon Peters
 E: GordPeters@smarttech.com
 D: Isochronous receive for IEEE 1394 driver (OHCI module).
