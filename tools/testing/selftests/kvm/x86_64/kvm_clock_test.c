@@ -143,7 +143,7 @@ int main(void)
 	flags = kvm_check_cap(KVM_CAP_ADJUST_CLOCK);
 	TEST_REQUIRE(flags & KVM_CLOCK_REALTIME);
 
-	TEST_REQUIRE(sys_clocksource_is_tsc());
+	TEST_REQUIRE(sys_clocksource_is_based_on_tsc());
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 

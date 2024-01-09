@@ -1300,10 +1300,11 @@ void kvm_selftest_arch_init(void)
 	host_cpu_is_amd = this_cpu_is_amd();
 }
 
-bool sys_clocksource_is_tsc(void)
+bool sys_clocksource_is_based_on_tsc(void)
 {
 	char *clk_name = sys_get_cur_clocksource();
-	bool ret = !strcmp(clk_name, "tsc\n");
+	bool ret = !strcmp(clk_name, "tsc\n") ||
+		   !strcmp(clk_name, "hyperv_clocksource_tsc_page\n");
 
 	free(clk_name);
 

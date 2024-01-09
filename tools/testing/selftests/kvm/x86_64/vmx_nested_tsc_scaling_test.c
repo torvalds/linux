@@ -131,7 +131,7 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_TSC_CONTROL));
-	TEST_REQUIRE(sys_clocksource_is_tsc());
+	TEST_REQUIRE(sys_clocksource_is_based_on_tsc());
 
 	/*
 	 * We set L1's scale factor to be a random number from 2 to 10.
