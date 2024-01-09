@@ -27,5 +27,6 @@ extern unsigned long ebase;
 extern unsigned int hwrena;
 extern void per_cpu_trap_init(bool);
 extern void cpu_cache_init(void);
+extern void tlb_init(void);
 
 #endif /* __SETUP_H */

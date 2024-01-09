@@ -43,10 +43,12 @@ static inline void __user *get_trap_ip(struct pt_regs *regs)
 	return (void __user *) (address - (regs->int_code >> 16));
 }
 
+#ifdef CONFIG_GENERIC_BUG
 int is_valid_bugaddr(unsigned long addr)
 {
 	return 1;
 }
+#endif
 
 void do_report_trap(struct pt_regs *regs, int si_signo, int si_code, char *str)
 {
