@@ -434,7 +434,7 @@ static struct bio *clone_bio(struct dm_target *ti, struct flakey_c *fc, struct b
 
 	remaining_size = size;
 
-	order = MAX_ORDER;
+	order = MAX_PAGE_ORDER;
 	while (remaining_size) {
 		struct page *pages;
 		unsigned size_to_add, to_copy;

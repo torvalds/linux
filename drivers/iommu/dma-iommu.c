@@ -884,7 +884,7 @@ static struct page **__iommu_dma_alloc_pages(struct device *dev,
 	struct page **pages;
 	unsigned int i = 0, nid = dev_to_node(dev);
 
-	order_mask &= GENMASK(MAX_ORDER, 0);
+	order_mask &= GENMASK(MAX_PAGE_ORDER, 0);
 	if (!order_mask)
 		return NULL;
 

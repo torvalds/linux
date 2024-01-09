@@ -1470,6 +1470,14 @@ config DYNAMIC_SIGFRAME
 config HAVE_ARCH_NODE_DEV_GROUP
 	bool
 
+config ARCH_HAS_HW_PTE_YOUNG
+	bool
+	help
+	  Architectures that select this option are capable of setting the
+	  accessed bit in PTE entries when using them as part of linear address
+	  translations. Architectures that require runtime check should select
+	  this option and override arch_has_hw_pte_young().
+
 config ARCH_HAS_NONLEAF_PMD_YOUNG
 	bool
 	help

@@ -65,15 +65,41 @@
 #define KERNEL_END		_end
 
 /*
- * Generic and tag-based KASAN require 1/8th and 1/16th of the kernel virtual
- * address space for the shadow region respectively. They can bloat the stack
- * significantly, so double the (minimum) stack size when they are in use.
+ * Generic and Software Tag-Based KASAN modes require 1/8th and 1/16th of the
+ * kernel virtual address space for storing the shadow memory respectively.
+ *
+ * The mapping between a virtual memory address and its corresponding shadow
+ * memory address is defined based on the formula:
+ *
+ *     shadow_addr = (addr >> KASAN_SHADOW_SCALE_SHIFT) + KASAN_SHADOW_OFFSET
+ *
+ * where KASAN_SHADOW_SCALE_SHIFT is the order of the number of bits that map
+ * to a single shadow byte and KASAN_SHADOW_OFFSET is a constant that offsets
+ * the mapping. Note that KASAN_SHADOW_OFFSET does not point to the start of
+ * the shadow memory region.
+ *
+ * Based on this mapping, we define two constants:
+ *
+ *     KASAN_SHADOW_START: the start of the shadow memory region;
+ *     KASAN_SHADOW_END: the end of the shadow memory region.
+ *
+ * KASAN_SHADOW_END is defined first as the shadow address that corresponds to
+ * the upper bound of possible virtual kernel memory addresses UL(1) << 64
+ * according to the mapping formula.
+ *
+ * KASAN_SHADOW_START is defined second based on KASAN_SHADOW_END. The shadow
+ * memory start must map to the lowest possible kernel virtual memory address
+ * and thus it depends on the actual bitness of the address space.
+ *
+ * As KASAN inserts redzones between stack variables, this increases the stack
+ * memory usage significantly. Thus, we double the (minimum) stack size.
  */
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 #define KASAN_SHADOW_OFFSET	_AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
-#define KASAN_SHADOW_END	((UL(1) << (64 - KASAN_SHADOW_SCALE_SHIFT)) \
-					+ KASAN_SHADOW_OFFSET)
-#define PAGE_END		(KASAN_SHADOW_END - (1UL << (vabits_actual - KASAN_SHADOW_SCALE_SHIFT)))
+#define KASAN_SHADOW_END	((UL(1) << (64 - KASAN_SHADOW_SCALE_SHIFT)) + KASAN_SHADOW_OFFSET)
+#define _KASAN_SHADOW_START(va)	(KASAN_SHADOW_END - (UL(1) << ((va) - KASAN_SHADOW_SCALE_SHIFT)))
+#define KASAN_SHADOW_START	_KASAN_SHADOW_START(vabits_actual)
+#define PAGE_END		KASAN_SHADOW_START
 #define KASAN_THREAD_SHIFT	1
 #else
 #define KASAN_THREAD_SHIFT	0

@@ -61,6 +61,20 @@ config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
 	  The cost is that if the page was never dirtied and needs to be
 	  swapped out again, it will be re-compressed.
 
+config ZSWAP_SHRINKER_DEFAULT_ON
+	bool "Shrink the zswap pool on memory pressure"
+	depends on ZSWAP
+	default n
+	help
+	  If selected, the zswap shrinker will be enabled, and the pages
+	  stored in the zswap pool will become available for reclaim (i.e
+	  written back to the backing swap device) on memory pressure.
+
+	  This means that zswap writeback could happen even if the pool is
+	  not yet full, or the cgroup zswap limit has not been reached,
+	  reducing the chance that cold pages will reside in the zswap pool
+	  and consume memory indefinitely.
+
 choice
 	prompt "Default compressor"
 	depends on ZSWAP
@@ -329,7 +343,7 @@ config SHUFFLE_PAGE_ALLOCATOR
 	  the presence of a memory-side-cache. There are also incidental
 	  security benefits as it reduces the predictability of page
 	  allocations to compliment SLAB_FREELIST_RANDOM, but the
-	  default granularity of shuffling on the MAX_ORDER i.e, 10th
+	  default granularity of shuffling on the MAX_PAGE_ORDER i.e, 10th
 	  order of pages is selected based on cache utilization benefits
 	  on x86.
 
@@ -661,8 +675,8 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
 	  on a platform.
 
-	  Note that the pageblock_order cannot exceed MAX_ORDER and will be
-	  clamped down to MAX_ORDER.
+	  Note that the pageblock_order cannot exceed MAX_PAGE_ORDER and will be
+	  clamped down to MAX_PAGE_ORDER.
 
 config CONTIG_ALLOC
 	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
@@ -718,7 +732,7 @@ config DEFAULT_MMAP_MIN_ADDR
 	  from userspace allocation.  Keeping a user from writing to low pages
 	  can help reduce the impact of kernel NULL pointer bugs.
 
-	  For most ia64, ppc64 and x86 users with lots of address space
+	  For most ppc64 and x86 users with lots of address space
 	  a value of 65536 is reasonable and should cause no problems.
 	  On arm and other archs it should not be higher than 32768.
 	  Programs which use vm86 functionality or have some need to map
@@ -821,6 +835,12 @@ choice
 	  madvise(MADV_HUGEPAGE) but it won't risk to increase the
 	  memory footprint of applications without a guaranteed
 	  benefit.
+
+	config TRANSPARENT_HUGEPAGE_NEVER
+		bool "never"
+	help
+	  Disable Transparent Hugepage by default. It can still be
+	  enabled at runtime via sysfs.
 endchoice
 
 config THP_SWAP
@@ -1216,6 +1236,10 @@ config LRU_GEN_STATS
 	  from evicted generations for debugging purpose.
 
 	  This option has a per-memcg and per-node memory overhead.
+
+config LRU_GEN_WALKS_MMU
+	def_bool y
+	depends on LRU_GEN && ARCH_HAS_HW_PTE_YOUNG
 # }
 
 config ARCH_SUPPORTS_PER_VMA_LOCK

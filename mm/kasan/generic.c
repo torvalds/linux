@@ -25,6 +25,8 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/stackdepot.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
 #include <linux/types.h>
@@ -361,6 +363,8 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 {
 	unsigned int ok_size;
 	unsigned int optimal_size;
+	unsigned int rem_free_meta_size;
+	unsigned int orig_alloc_meta_offset;
 
 	if (!kasan_requires_meta())
 		return;
@@ -378,49 +382,77 @@ void kasan_cache_create(struct kmem_cache *cache, unsigned int *size,
 
 	ok_size = *size;
 
-	/* Add alloc meta into redzone. */
+	/* Add alloc meta into the redzone. */
 	cache->kasan_info.alloc_meta_offset = *size;
 	*size += sizeof(struct kasan_alloc_meta);
 
-	/*
-	 * If alloc meta doesn't fit, don't add it.
-	 * This can only happen with SLAB, as it has KMALLOC_MAX_SIZE equal
-	 * to KMALLOC_MAX_CACHE_SIZE and doesn't fall back to page_alloc for
-	 * larger sizes.
-	 */
+	/* If alloc meta doesn't fit, don't add it. */
 	if (*size > KMALLOC_MAX_SIZE) {
 		cache->kasan_info.alloc_meta_offset = 0;
 		*size = ok_size;
 		/* Continue, since free meta might still fit. */
 	}
 
+	ok_size = *size;
+	orig_alloc_meta_offset = cache->kasan_info.alloc_meta_offset;
+
 	/*
-	 * Add free meta into redzone when it's not possible to store
+	 * Store free meta in the redzone when it's not possible to store
 	 * it in the object. This is the case when:
 	 * 1. Object is SLAB_TYPESAFE_BY_RCU, which means that it can
 	 *    be touched after it was freed, or
 	 * 2. Object has a constructor, which means it's expected to
-	 *    retain its content until the next allocation, or
-	 * 3. Object is too small.
-	 * Otherwise cache->kasan_info.free_meta_offset = 0 is implied.
+	 *    retain its content until the next allocation.
 	 */
-	if ((cache->flags & SLAB_TYPESAFE_BY_RCU) || cache->ctor ||
-	    cache->object_size < sizeof(struct kasan_free_meta)) {
-		ok_size = *size;
-
+	if ((cache->flags & SLAB_TYPESAFE_BY_RCU) || cache->ctor) {
 		cache->kasan_info.free_meta_offset = *size;
 		*size += sizeof(struct kasan_free_meta);
+		goto free_meta_added;
+	}
 
-		/* If free meta doesn't fit, don't add it. */
-		if (*size > KMALLOC_MAX_SIZE) {
-			cache->kasan_info.free_meta_offset = KASAN_NO_FREE_META;
-			*size = ok_size;
-		}
+	/*
+	 * Otherwise, if the object is large enough to contain free meta,
+	 * store it within the object.
+	 */
+	if (sizeof(struct kasan_free_meta) <= cache->object_size) {
+		/* cache->kasan_info.free_meta_offset = 0 is implied. */
+		goto free_meta_added;
+	}
+
+	/*
+	 * For smaller objects, store the beginning of free meta within the
+	 * object and the end in the redzone. And thus shift the location of
+	 * alloc meta to free up space for free meta.
+	 * This is only possible when slub_debug is disabled, as otherwise
+	 * the end of free meta will overlap with slub_debug metadata.
+	 */
+	if (!__slub_debug_enabled()) {
+		rem_free_meta_size = sizeof(struct kasan_free_meta) -
+							cache->object_size;
+		*size += rem_free_meta_size;
+		if (cache->kasan_info.alloc_meta_offset != 0)
+			cache->kasan_info.alloc_meta_offset += rem_free_meta_size;
+		goto free_meta_added;
+	}
+
+	/*
+	 * If the object is small and slub_debug is enabled, store free meta
+	 * in the redzone after alloc meta.
+	 */
+	cache->kasan_info.free_meta_offset = *size;
+	*size += sizeof(struct kasan_free_meta);
+
+free_meta_added:
+	/* If free meta doesn't fit, don't add it. */
+	if (*size > KMALLOC_MAX_SIZE) {
+		cache->kasan_info.free_meta_offset = KASAN_NO_FREE_META;
+		cache->kasan_info.alloc_meta_offset = orig_alloc_meta_offset;
+		*size = ok_size;
 	}
 
 	/* Calculate size with optimal redzone. */
 	optimal_size = cache->object_size + optimal_redzone(cache->object_size);
-	/* Limit it with KMALLOC_MAX_SIZE (relevant for SLAB only). */
+	/* Limit it with KMALLOC_MAX_SIZE. */
 	if (optimal_size > KMALLOC_MAX_SIZE)
 		optimal_size = KMALLOC_MAX_SIZE;
 	/* Use optimal size if the size with added metas is not large enough. */
@@ -450,8 +482,63 @@ void kasan_init_object_meta(struct kmem_cache *cache, const void *object)
 	struct kasan_alloc_meta *alloc_meta;
 
 	alloc_meta = kasan_get_alloc_meta(cache, object);
-	if (alloc_meta)
+	if (alloc_meta) {
+		/* Zero out alloc meta to mark it as invalid. */
 		__memset(alloc_meta, 0, sizeof(*alloc_meta));
+
+		/*
+		 * Temporarily disable KASAN bug reporting to allow instrumented
+		 * raw_spin_lock_init to access aux_lock, which resides inside
+		 * of a redzone.
+		 */
+		kasan_disable_current();
+		raw_spin_lock_init(&alloc_meta->aux_lock);
+		kasan_enable_current();
+	}
+
+	/*
+	 * Explicitly marking free meta as invalid is not required: the shadow
+	 * value for the first 8 bytes of a newly allocated object is not
+	 * KASAN_SLAB_FREE_META.
+	 */
+}
+
+static void release_alloc_meta(struct kasan_alloc_meta *meta)
+{
+	/* Evict the stack traces from stack depot. */
+	stack_depot_put(meta->alloc_track.stack);
+	stack_depot_put(meta->aux_stack[0]);
+	stack_depot_put(meta->aux_stack[1]);
+
+	/* Zero out alloc meta to mark it as invalid. */
+	__memset(meta, 0, sizeof(*meta));
+}
+
+static void release_free_meta(const void *object, struct kasan_free_meta *meta)
+{
+	/* Check if free meta is valid. */
+	if (*(u8 *)kasan_mem_to_shadow(object) != KASAN_SLAB_FREE_META)
+		return;
+
+	/* Evict the stack trace from the stack depot. */
+	stack_depot_put(meta->free_track.stack);
+
+	/* Mark free meta as invalid. */
+	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREE;
+}
+
+void kasan_release_object_meta(struct kmem_cache *cache, const void *object)
+{
+	struct kasan_alloc_meta *alloc_meta;
+	struct kasan_free_meta *free_meta;
+
+	alloc_meta = kasan_get_alloc_meta(cache, object);
+	if (alloc_meta)
+		release_alloc_meta(alloc_meta);
+
+	free_meta = kasan_get_free_meta(cache, object);
+	if (free_meta)
+		release_free_meta(object, free_meta);
 }
 
 size_t kasan_metadata_size(struct kmem_cache *cache, bool in_object)
@@ -472,12 +559,14 @@ size_t kasan_metadata_size(struct kmem_cache *cache, bool in_object)
 			sizeof(struct kasan_free_meta) : 0);
 }
 
-static void __kasan_record_aux_stack(void *addr, bool can_alloc)
+static void __kasan_record_aux_stack(void *addr, depot_flags_t depot_flags)
 {
 	struct slab *slab = kasan_addr_to_slab(addr);
 	struct kmem_cache *cache;
 	struct kasan_alloc_meta *alloc_meta;
 	void *object;
+	depot_stack_handle_t new_handle, old_handle;
+	unsigned long flags;
 
 	if (is_kfence_address(addr) || !slab)
 		return;
@@ -488,18 +577,33 @@ static void __kasan_record_aux_stack(void *addr, bool can_alloc)
 	if (!alloc_meta)
 		return;
 
+	new_handle = kasan_save_stack(0, depot_flags);
+
+	/*
+	 * Temporarily disable KASAN bug reporting to allow instrumented
+	 * spinlock functions to access aux_lock, which resides inside of a
+	 * redzone.
+	 */
+	kasan_disable_current();
+	raw_spin_lock_irqsave(&alloc_meta->aux_lock, flags);
+	old_handle = alloc_meta->aux_stack[1];
 	alloc_meta->aux_stack[1] = alloc_meta->aux_stack[0];
-	alloc_meta->aux_stack[0] = kasan_save_stack(0, can_alloc);
+	alloc_meta->aux_stack[0] = new_handle;
+	raw_spin_unlock_irqrestore(&alloc_meta->aux_lock, flags);
+	kasan_enable_current();
+
+	stack_depot_put(old_handle);
 }
 
 void kasan_record_aux_stack(void *addr)
 {
-	return __kasan_record_aux_stack(addr, true);
+	return __kasan_record_aux_stack(addr,
+			STACK_DEPOT_FLAG_CAN_ALLOC | STACK_DEPOT_FLAG_GET);
 }
 
 void kasan_record_aux_stack_noalloc(void *addr)
 {
-	return __kasan_record_aux_stack(addr, false);
+	return __kasan_record_aux_stack(addr, STACK_DEPOT_FLAG_GET);
 }
 
 void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags)
@@ -507,8 +611,13 @@ void kasan_save_alloc_info(struct kmem_cache *cache, void *object, gfp_t flags)
 	struct kasan_alloc_meta *alloc_meta;
 
 	alloc_meta = kasan_get_alloc_meta(cache, object);
-	if (alloc_meta)
-		kasan_set_track(&alloc_meta->alloc_track, flags);
+	if (!alloc_meta)
+		return;
+
+	/* Evict previous stack traces (might exist for krealloc or mempool). */
+	release_alloc_meta(alloc_meta);
+
+	kasan_save_track(&alloc_meta->alloc_track, flags);
 }
 
 void kasan_save_free_info(struct kmem_cache *cache, void *object)
@@ -519,7 +628,11 @@ void kasan_save_free_info(struct kmem_cache *cache, void *object)
 	if (!free_meta)
 		return;
 
-	kasan_set_track(&free_meta->free_track, 0);
-	/* The object was freed and has free track set. */
-	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREETRACK;
+	/* Evict previous stack trace (might exist for mempool). */
+	release_free_meta(object, free_meta);
+
+	kasan_save_track(&free_meta->free_track, 0);
+
+	/* Mark free meta as valid. */
+	*(u8 *)kasan_mem_to_shadow(object) = KASAN_SLAB_FREE_META;
 }

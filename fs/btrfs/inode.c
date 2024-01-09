@@ -10930,7 +10930,7 @@ static const struct address_space_operations btrfs_aops = {
 	.release_folio	= btrfs_release_folio,
 	.migrate_folio	= btrfs_migrate_folio,
 	.dirty_folio	= filemap_dirty_folio,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 	.swap_activate	= btrfs_swap_activate,
 	.swap_deactivate = btrfs_swap_deactivate,
 };

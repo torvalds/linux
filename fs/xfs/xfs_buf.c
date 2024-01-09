@@ -169,7 +169,7 @@ xfs_buf_stale(
 
 	atomic_set(&bp->b_lru_ref, 0);
 	if (!(bp->b_state & XFS_BSTATE_DISPOSE) &&
-	    (list_lru_del(&bp->b_target->bt_lru, &bp->b_lru)))
+	    (list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru)))
 		atomic_dec(&bp->b_hold);
 
 	ASSERT(atomic_read(&bp->b_hold) >= 1);
@@ -1047,7 +1047,7 @@ xfs_buf_rele(
 		 * buffer for the LRU and clear the (now stale) dispose list
 		 * state flag
 		 */
-		if (list_lru_add(&bp->b_target->bt_lru, &bp->b_lru)) {
+		if (list_lru_add_obj(&bp->b_target->bt_lru, &bp->b_lru)) {
 			bp->b_state &= ~XFS_BSTATE_DISPOSE;
 			atomic_inc(&bp->b_hold);
 		}
@@ -1060,7 +1060,7 @@ xfs_buf_rele(
 		 * was on was the disposal list
 		 */
 		if (!(bp->b_state & XFS_BSTATE_DISPOSE)) {
-			list_lru_del(&bp->b_target->bt_lru, &bp->b_lru);
+			list_lru_del_obj(&bp->b_target->bt_lru, &bp->b_lru);
 		} else {
 			ASSERT(list_empty(&bp->b_lru));
 		}

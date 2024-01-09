@@ -197,7 +197,7 @@ static int vmlfb_alloc_vram(struct vml_info *vinfo,
 		va = &vinfo->vram[i];
 		order = 0;
 
-		while (requested > (PAGE_SIZE << order) && order <= MAX_ORDER)
+		while (requested > (PAGE_SIZE << order) && order <= MAX_PAGE_ORDER)
 			order++;
 
 		err = vmlfb_alloc_vram_area(va, order, 0);

@@ -184,6 +184,13 @@ static inline int pmd_young(pmd_t pmd)
 }
 #endif
 
+#ifndef pmd_dirty
+static inline int pmd_dirty(pmd_t pmd)
+{
+	return 0;
+}
+#endif
+
 /*
  * A facility to provide lazy MMU batching.  This allows PTE updates and
  * page invalidations to be delayed until a call to leave lazy MMU mode
@@ -375,7 +382,7 @@ static inline bool arch_has_hw_nonleaf_pmd_young(void)
  */
 static inline bool arch_has_hw_pte_young(void)
 {
-	return false;
+	return IS_ENABLED(CONFIG_ARCH_HAS_HW_PTE_YOUNG);
 }
 #endif
 

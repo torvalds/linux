@@ -428,7 +428,8 @@ static void d_lru_add(struct dentry *dentry)
 	this_cpu_inc(nr_dentry_unused);
 	if (d_is_negative(dentry))
 		this_cpu_inc(nr_dentry_negative);
-	WARN_ON_ONCE(!list_lru_add(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
+	WARN_ON_ONCE(!list_lru_add_obj(
+			&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
 }
 
 static void d_lru_del(struct dentry *dentry)
@@ -438,7 +439,8 @@ static void d_lru_del(struct dentry *dentry)
 	this_cpu_dec(nr_dentry_unused);
 	if (d_is_negative(dentry))
 		this_cpu_dec(nr_dentry_negative);
-	WARN_ON_ONCE(!list_lru_del(&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
+	WARN_ON_ONCE(!list_lru_del_obj(
+			&dentry->d_sb->s_dentry_lru, &dentry->d_lru));
 }
 
 static void d_shrink_del(struct dentry *dentry)
@@ -1240,7 +1242,7 @@ static enum lru_status dentry_lru_isolate(struct list_head *item,
 		 *
 		 * This is guaranteed by the fact that all LRU management
 		 * functions are intermediated by the LRU API calls like
-		 * list_lru_add and list_lru_del. List movement in this file
+		 * list_lru_add_obj and list_lru_del_obj. List movement in this file
 		 * only ever occur through this functions or through callbacks
 		 * like this one, that are called from the LRU API.
 		 *
