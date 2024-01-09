@@ -272,6 +272,7 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 {
 	u32 v_blank_start, v_blank_end, h_position, v_position;
 	struct amdgpu_crtc *acrtc = NULL;
+	struct dc *dc = adev->dm.dc;
 
 	if ((crtc < 0) || (crtc >= adev->mode_info.num_crtc))
 		return -EINVAL;
@@ -283,6 +284,9 @@ static int dm_crtc_get_scanoutpos(struct amdgpu_device *adev, int crtc,
 			  crtc);
 		return 0;
 	}
+
+	if (dc && dc->caps.ips_support && dc->idle_optimizations_allowed)
+		dc_allow_idle_optimizations(dc, false);
 
 	/*
 	 * TODO rework base driver to use values directly.
@@ -8978,16 +8982,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 	trace_amdgpu_dm_atomic_commit_tail_begin(state);
 
-	if (dm->dc->caps.ips_support) {
-		for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
-			if (new_con_state->crtc &&
-				new_con_state->crtc->state->active &&
-				drm_atomic_crtc_needs_modeset(new_con_state->crtc->state)) {
-				dc_dmub_srv_apply_idle_power_optimizations(dm->dc, false);
-				break;
-			}
-		}
-	}
+	if (dm->dc->caps.ips_support && dm->dc->idle_optimizations_allowed)
+		dc_allow_idle_optimizations(dm->dc, false);
 
 	drm_atomic_helper_update_legacy_modeset_state(dev, state);
 	drm_dp_mst_atomic_wait_for_dependencies(state);
