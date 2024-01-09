@@ -98,7 +98,7 @@ struct xe_mem_region {
 	 */
 	resource_size_t actual_physical_size;
 	/** @mapping: pointer to VRAM mappable space */
-	void *__iomem mapping;
+	void __iomem *mapping;
 };
 
 /**
