@@ -67,7 +67,7 @@ struct gpiochip_info {
  * @GPIO_V2_LINE_FLAG_BIAS_DISABLED: line has bias disabled
  * @GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME: line events contain REALTIME timestamps
  * @GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE: line events contain timestamps from
- * hardware timestamp engine
+ * the hardware timestamping engine (HTE) subsystem
  */
 enum gpio_v2_line_flag {
 	GPIO_V2_LINE_FLAG_USED			= _BITULL(0),
@@ -288,6 +288,10 @@ enum gpio_v2_line_event_id {
  *
  * If the %GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME flag is set then the
  * @timestamp_ns is read from %CLOCK_REALTIME.
+ *
+ * If the %GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE flag is set then the
+ * @timestamp_ns is provided by the hardware timestamping engine (HTE)
+ * subsystem.
  */
 struct gpio_v2_line_event {
 	__aligned_u64 timestamp_ns;
