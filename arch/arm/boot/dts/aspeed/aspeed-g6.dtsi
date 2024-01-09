@@ -574,15 +574,31 @@
 				status = "disabled";
 			};
 
+			display_port: dp@1e6eb000 {
+				compatible = "aspeed,ast2600-displayport", "syscon";
+				reg = <0x1e6eb000 0x200>;
+				status = "disabled";
+			};
+
+			display_port_mcu: dpmcu@18000000 {
+				compatible = "aspeed,ast2600-displayport-mcu", "syscon";
+				reg = <0x18000000 0xF00>;
+				status = "disabled";
+			};
+
 			gfx: display@1e6e6000 {
 				compatible = "aspeed,ast2600-gfx", "syscon";
 				reg = <0x1e6e6000 0x1000>;
 				reg-io-width = <4>;
 				clocks = <&syscon ASPEED_CLK_GATE_D1CLK>;
-				resets = <&syscon ASPEED_RESET_GRAPHICS>;
+				resets = <&syscon ASPEED_RESET_CRT>,
+				<&syscon ASPEED_RESET_GRAPHICS>;
+				reset-names = "crt", "engine";
 				syscon = <&syscon>;
+				interrupts-extended = <&gic GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>,
+				<&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_LO_TO_HI>,
+				<&scu_ic0 ASPEED_AST2600_SCU_IC0_PCIE_PERST_HI_TO_LO>;
 				status = "disabled";
-				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
 			xdma: xdma@1e6e7000 {
