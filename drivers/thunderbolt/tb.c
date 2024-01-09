@@ -17,6 +17,7 @@
 #include "tunnel.h"
 
 #define TB_TIMEOUT		100	/* ms */
+#define TB_RELEASE_BW_TIMEOUT	10000	/* ms */
 
 /*
  * Minimum bandwidth (in Mb/s) that is needed in the single transmitter/receiver
@@ -547,6 +548,10 @@ static int tb_consumed_usb3_pcie_bandwidth(struct tb *tb,
  * Calculates consumed DP bandwidth at @port between path from @src_port
  * to @dst_port. Does not take tunnel starting from @src_port and ending
  * from @src_port into account.
+ *
+ * If there is bandwidth reserved for any of the groups between
+ * @src_port and @dst_port (but not yet used) that is also taken into
+ * account in the returned consumed bandwidth.
  */
 static int tb_consumed_dp_bandwidth(struct tb *tb,
 				    struct tb_port *src_port,
@@ -555,9 +560,11 @@ static int tb_consumed_dp_bandwidth(struct tb *tb,
 				    int *consumed_up,
 				    int *consumed_down)
 {
+	int group_reserved[MAX_GROUPS] = {};
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_tunnel *tunnel;
-	int ret;
+	bool downstream;
+	int i, ret;
 
 	*consumed_up = *consumed_down = 0;
 
@@ -566,6 +573,7 @@ static int tb_consumed_dp_bandwidth(struct tb *tb,
 	 * their consumed bandwidth from the available.
 	 */
 	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		const struct tb_bandwidth_group *group;
 		int dp_consumed_up, dp_consumed_down;
 
 		if (tb_tunnel_is_invalid(tunnel))
@@ -576,6 +584,15 @@ static int tb_consumed_dp_bandwidth(struct tb *tb,
 
 		if (!tb_tunnel_port_on_path(tunnel, port))
 			continue;
+
+		/*
+		 * Calculate what is reserved for groups crossing the
+		 * same ports only once (as that is reserved for all the
+		 * tunnels in the group).
+		 */
+		group = tunnel->src_port->group;
+		if (group && group->reserved && !group_reserved[group->index])
+			group_reserved[group->index] = group->reserved;
 
 		/*
 		 * Ignore the DP tunnel between src_port and dst_port
@@ -593,6 +610,14 @@ static int tb_consumed_dp_bandwidth(struct tb *tb,
 
 		*consumed_up += dp_consumed_up;
 		*consumed_down += dp_consumed_down;
+	}
+
+	downstream = tb_port_path_direction_downstream(src_port, dst_port);
+	for (i = 0; i < ARRAY_SIZE(group_reserved); i++) {
+		if (downstream)
+			*consumed_down += group_reserved[i];
+		else
+			*consumed_up += group_reserved[i];
 	}
 
 	return 0;
@@ -1047,8 +1072,6 @@ static int tb_configure_asym(struct tb *tb, struct tb_port *src_port,
  * @tb: Domain structure
  * @src_port: Source adapter to start the transition
  * @dst_port: Destination adapter
- * @requested_up: New lower bandwidth request upstream (Mb/s)
- * @requested_down: New lower bandwidth request downstream (Mb/s)
  * @keep_asym: Keep asymmetric link if preferred
  *
  * Goes over each link from @src_port to @dst_port and tries to
@@ -1056,8 +1079,7 @@ static int tb_configure_asym(struct tb *tb, struct tb_port *src_port,
  * allows and link asymmetric preference is ignored (if @keep_asym is %false).
  */
 static int tb_configure_sym(struct tb *tb, struct tb_port *src_port,
-			    struct tb_port *dst_port, int requested_up,
-			    int requested_down, bool keep_asym)
+			    struct tb_port *dst_port, bool keep_asym)
 {
 	bool clx = false, clx_disabled = false, downstream;
 	struct tb_switch *sw;
@@ -1096,10 +1118,10 @@ static int tb_configure_sym(struct tb *tb, struct tb_port *src_port,
 			 * guard band 10%) as the link was configured asymmetric
 			 * already.
 			 */
-			if (consumed_down + requested_down >= asym_threshold)
+			if (consumed_down >= asym_threshold)
 				continue;
 		} else {
-			if (consumed_up + requested_up >= asym_threshold)
+			if (consumed_up >= asym_threshold)
 				continue;
 		}
 
@@ -1172,7 +1194,7 @@ static void tb_configure_link(struct tb_port *down, struct tb_port *up,
 		struct tb_port *host_port;
 
 		host_port = tb_port_at(tb_route(sw), tb->root_switch);
-		tb_configure_sym(tb, host_port, up, 0, 0, false);
+		tb_configure_sym(tb, host_port, up, false);
 	}
 
 	/* Set the link configured */
@@ -1392,7 +1414,17 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		else
 			estimated_bw = estimated_up;
 
-		if (usb4_dp_port_set_estimated_bandwidth(in, estimated_bw))
+		/*
+		 * If there is reserved bandwidth for the group that is
+		 * not yet released we report that too.
+		 */
+		tb_tunnel_dbg(tunnel,
+			      "re-calculated estimated bandwidth %u (+ %u reserved) = %u Mb/s\n",
+			      estimated_bw, group->reserved,
+			      estimated_bw + group->reserved);
+
+		if (usb4_dp_port_set_estimated_bandwidth(in,
+				estimated_bw + group->reserved))
 			tb_tunnel_warn(tunnel,
 				       "failed to update estimated bandwidth\n");
 	}
@@ -1421,6 +1453,54 @@ static void tb_recalc_estimated_bandwidth(struct tb *tb)
 	tb_dbg(tb, "bandwidth re-calculation done\n");
 }
 
+static bool __release_group_bandwidth(struct tb_bandwidth_group *group)
+{
+	if (group->reserved) {
+		tb_dbg(group->tb, "group %d released total %d Mb/s\n", group->index,
+			group->reserved);
+		group->reserved = 0;
+		return true;
+	}
+	return false;
+}
+
+static void __configure_group_sym(struct tb_bandwidth_group *group)
+{
+	struct tb_tunnel *tunnel;
+	struct tb_port *in;
+
+	if (list_empty(&group->ports))
+		return;
+
+	/*
+	 * All the tunnels in the group go through the same USB4 links
+	 * so we find the first one here and pass the IN and OUT
+	 * adapters to tb_configure_sym() which now transitions the
+	 * links back to symmetric if bandwidth requirement < asym_threshold.
+	 *
+	 * We do this here to avoid unnecessary transitions (for example
+	 * if the graphics released bandwidth for other tunnel in the
+	 * same group).
+	 */
+	in = list_first_entry(&group->ports, struct tb_port, group_list);
+	tunnel = tb_find_tunnel(group->tb, TB_TUNNEL_DP, in, NULL);
+	if (tunnel)
+		tb_configure_sym(group->tb, in, tunnel->dst_port, true);
+}
+
+static void tb_bandwidth_group_release_work(struct work_struct *work)
+{
+	struct tb_bandwidth_group *group =
+		container_of(work, typeof(*group), release_work.work);
+	struct tb *tb = group->tb;
+
+	mutex_lock(&tb->lock);
+	if (__release_group_bandwidth(group))
+		tb_recalc_estimated_bandwidth(tb);
+	__configure_group_sym(group);
+	mutex_unlock(&tb->lock);
+}
+
 static void tb_init_bandwidth_groups(struct tb_cm *tcm)
 {
 	int i;
@@ -1431,6 +1511,8 @@ static void tb_init_bandwidth_groups(struct tb_cm *tcm)
 		group->tb = tcm_to_tb(tcm);
 		group->index = i + 1;
 		INIT_LIST_HEAD(&group->ports);
+		INIT_DELAYED_WORK(&group->release_work,
+				  tb_bandwidth_group_release_work);
 	}
 }
 
@@ -1524,6 +1606,12 @@ static void tb_detach_bandwidth_group(struct tb_port *in)
 		list_del_init(&in->group_list);
 
 		tb_port_dbg(in, "detached from bandwidth group %d\n", group->index);
+
+		/* No more tunnels so release the reserved bandwidth if any */
+		if (list_empty(&group->ports)) {
+			cancel_delayed_work(&group->release_work);
+			__release_group_bandwidth(group);
+		}
 	}
 }
 
@@ -1582,7 +1670,7 @@ static void tb_deactivate_and_free_tunnel(struct tb_tunnel *tunnel)
 		 * If bandwidth on a link is < asym_threshold
 		 * transition the link to symmetric.
 		 */
-		tb_configure_sym(tb, src_port, dst_port, 0, 0, true);
+		tb_configure_sym(tb, src_port, dst_port, true);
 		/* Now we can allow the domain to runtime suspend again */
 		pm_runtime_mark_last_busy(&dst_port->sw->dev);
 		pm_runtime_put_autosuspend(&dst_port->sw->dev);
@@ -2239,8 +2327,10 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 	int allocated_up, allocated_down, available_up, available_down, ret;
 	int requested_up_corrected, requested_down_corrected, granularity;
 	int max_up, max_down, max_up_rounded, max_down_rounded;
+	struct tb_bandwidth_group *group;
 	struct tb *tb = tunnel->tb;
 	struct tb_port *in, *out;
+	bool downstream;
 
 	ret = tb_tunnel_allocated_bandwidth(tunnel, &allocated_up, &allocated_down);
 	if (ret)
@@ -2304,21 +2394,44 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 		goto fail;
 	}
 
+	downstream = tb_tunnel_direction_downstream(tunnel);
+	group = in->group;
+
 	if ((*requested_up >= 0 && requested_up_corrected <= allocated_up) ||
 	    (*requested_down >= 0 && requested_down_corrected <= allocated_down)) {
-		/*
-		 * If bandwidth on a link is < asym_threshold transition
-		 * the link to symmetric.
-		 */
-		tb_configure_sym(tb, in, out, *requested_up, *requested_down, true);
-		/*
-		 * If requested bandwidth is less or equal than what is
-		 * currently allocated to that tunnel we simply change
-		 * the reservation of the tunnel. Since all the tunnels
-		 * going out from the same USB4 port are in the same
-		 * group the released bandwidth will be taken into
-		 * account for the other tunnels automatically below.
-		 */
+		if (tunnel->bw_mode) {
+			int reserved;
+			/*
+			 * If requested bandwidth is less or equal than
+			 * what is currently allocated to that tunnel we
+			 * simply change the reservation of the tunnel
+			 * and add the released bandwidth for the group
+			 * for the next 10s. Then we release it for
+			 * others to use.
+			 */
+			if (downstream)
+				reserved = allocated_down - *requested_down;
+			else
+				reserved = allocated_up - *requested_up;
+
+			if (reserved > 0) {
+				group->reserved += reserved;
+				tb_dbg(tb, "group %d reserved %d total %d Mb/s\n",
+				       group->index, reserved, group->reserved);
+
+				/*
+				 * If it was not already pending,
+				 * schedule release now. If it is then
+				 * postpone it for the next 10s (unless
+				 * it is already running in which case
+				 * the 10s already expired and we should
+				 * give the reserved back to others).
+				 */
+				mod_delayed_work(system_wq, &group->release_work,
+					msecs_to_jiffies(TB_RELEASE_BW_TIMEOUT));
+			}
+		}
+
 		return tb_tunnel_alloc_bandwidth(tunnel, requested_up,
 						 requested_down);
 	}
@@ -2341,11 +2454,15 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 	if (ret)
 		goto reclaim;
 
-	tb_tunnel_dbg(tunnel, "bandwidth available for allocation %d/%d Mb/s\n",
-		      available_up, available_down);
+	tb_tunnel_dbg(tunnel, "bandwidth available for allocation %d/%d (+ %u reserved) Mb/s\n",
+		      available_up, available_down, group->reserved);
 
-	if ((*requested_up >= 0 && available_up >= requested_up_corrected) ||
-	    (*requested_down >= 0 && available_down >= requested_down_corrected)) {
+	if ((*requested_up >= 0 &&
+		available_up + group->reserved >= requested_up_corrected) ||
+	    (*requested_down >= 0 &&
+		available_down + group->reserved >= requested_down_corrected)) {
+		int released = 0;
+
 		/*
 		 * If bandwidth on a link is >= asym_threshold
 		 * transition the link to asymmetric.
@@ -2353,7 +2470,7 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 		ret = tb_configure_asym(tb, in, out, *requested_up,
 					*requested_down);
 		if (ret) {
-			tb_configure_sym(tb, in, out, 0, 0, true);
+			tb_configure_sym(tb, in, out, true);
 			goto fail;
 		}
 
@@ -2361,7 +2478,20 @@ static int tb_alloc_dp_bandwidth(struct tb_tunnel *tunnel, int *requested_up,
 						requested_down);
 		if (ret) {
 			tb_tunnel_warn(tunnel, "failed to allocate bandwidth\n");
-			tb_configure_sym(tb, in, out, 0, 0, true);
+			tb_configure_sym(tb, in, out, true);
+		}
+
+		if (downstream) {
+			if (*requested_down > available_down)
+				released = *requested_down - available_down;
+		} else {
+			if (*requested_up > available_up)
+				released = *requested_up - available_up;
+		}
+		if (released) {
+			group->reserved -= released;
+			tb_dbg(tb, "group %d released %d total %d Mb/s\n",
+			       group->index, released, group->reserved);
 		}
 	} else {
 		ret = -ENOBUFS;
@@ -2583,6 +2713,16 @@ static void tb_stop(struct tb *tb)
 	}
 	tb_switch_remove(tb->root_switch);
 	tcm->hotplug_active = false; /* signal tb_handle_hotplug to quit */
+}
+
+static void tb_deinit(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	int i;
+
+	/* Cancel all the release bandwidth workers */
+	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++)
+		cancel_delayed_work_sync(&tcm->groups[i].release_work);
 }
 
 static int tb_scan_finalize_switch(struct device *dev, void *data)
@@ -2893,6 +3033,7 @@ static int tb_runtime_resume(struct tb *tb)
 static const struct tb_cm_ops tb_cm_ops = {
 	.start = tb_start,
 	.stop = tb_stop,
+	.deinit = tb_deinit,
 	.suspend_noirq = tb_suspend_noirq,
 	.resume_noirq = tb_resume_noirq,
 	.freeze_noirq = tb_freeze_noirq,

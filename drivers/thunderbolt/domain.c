@@ -506,6 +506,10 @@ void tb_domain_remove(struct tb *tb)
 	mutex_unlock(&tb->lock);
 
 	flush_workqueue(tb->wq);
+
+	if (tb->cm_ops->deinit)
+		tb->cm_ops->deinit(tb);
+
 	device_unregister(&tb->dev);
 }
 

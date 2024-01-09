@@ -217,6 +217,11 @@ struct tb_switch {
  * @tb: Pointer to the domain the group belongs to
  * @index: Index of the group (aka Group_ID). Valid values %1-%7
  * @ports: DP IN adapters belonging to this group are linked here
+ * @reserved: Bandwidth released by one tunnel in the group, available
+ *	      to others. This is reported as part of estimated_bw for
+ *	      the group.
+ * @release_work: Worker to release the @reserved if it is not used by
+ *		  any of the tunnels.
  *
  * Any tunnel that requires isochronous bandwidth (that's DP for now) is
  * attached to a bandwidth group. All tunnels going through the same
@@ -227,6 +232,8 @@ struct tb_bandwidth_group {
 	struct tb *tb;
 	int index;
 	struct list_head ports;
+	int reserved;
+	struct delayed_work release_work;
 };
 
 /**
@@ -452,6 +459,8 @@ struct tb_path {
  *		  ICM to send driver ready message to the firmware.
  * @start: Starts the domain
  * @stop: Stops the domain
+ * @deinit: Perform any cleanup after the domain is stopped but before
+ *	     it is unregistered. Called without @tb->lock taken. Optional.
  * @suspend_noirq: Connection manager specific suspend_noirq
  * @resume_noirq: Connection manager specific resume_noirq
  * @suspend: Connection manager specific suspend
@@ -485,6 +494,7 @@ struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
 	int (*start)(struct tb *tb, bool reset);
 	void (*stop)(struct tb *tb);
+	void (*deinit)(struct tb *tb);
 	int (*suspend_noirq)(struct tb *tb);
 	int (*resume_noirq)(struct tb *tb);
 	int (*suspend)(struct tb *tb);
