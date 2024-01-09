@@ -26,6 +26,7 @@
  * further confuse things, non-architectural PMUs use bit 31 as a flag for
  * "fast" reads, whereas the "type" is an explicit value.
  */
+#define INTEL_RDPMC_GP		0
 #define INTEL_RDPMC_FIXED	INTEL_PMC_FIXED_RDPMC_BASE
 
 #define INTEL_RDPMC_TYPE_MASK	GENMASK(31, 16)
@@ -89,21 +90,29 @@ static struct kvm_pmc *intel_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 		return NULL;
 
 	/*
-	 * Fixed PMCs are supported on all architectural PMUs.  Note, KVM only
-	 * emulates fixed PMCs for PMU v2+, but the flag itself is still valid,
-	 * i.e. let RDPMC fail due to accessing a non-existent counter.
+	 * General Purpose (GP) PMCs are supported on all PMUs, and fixed PMCs
+	 * are supported on all architectural PMUs, i.e. on all virtual PMUs
+	 * supported by KVM.  Note, KVM only emulates fixed PMCs for PMU v2+,
+	 * but the type itself is still valid, i.e. let RDPMC fail due to
+	 * accessing a non-existent counter.  Reject attempts to read all other
+	 * types, which are unknown/unsupported.
 	 */
-	idx &= ~INTEL_RDPMC_FIXED;
-	if (type == INTEL_RDPMC_FIXED) {
+	switch (type) {
+	case INTEL_RDPMC_FIXED:
 		counters = pmu->fixed_counters;
 		num_counters = pmu->nr_arch_fixed_counters;
 		bitmask = pmu->counter_bitmask[KVM_PMC_FIXED];
-	} else {
+		break;
+	case INTEL_RDPMC_GP:
 		counters = pmu->gp_counters;
 		num_counters = pmu->nr_arch_gp_counters;
 		bitmask = pmu->counter_bitmask[KVM_PMC_GP];
+		break;
+	default:
+		return NULL;
 	}
 
+	idx &= INTEL_RDPMC_INDEX_MASK;
 	if (idx >= num_counters)
 		return NULL;
 
