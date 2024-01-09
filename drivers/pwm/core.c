@@ -111,9 +111,6 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 	if (args->args_count < 1)
 		return ERR_PTR(-EINVAL);
 
-	if (args->args[0] >= chip->npwm)
-		return ERR_PTR(-EINVAL);
-
 	pwm = pwm_request_from_chip(chip, args->args[0], NULL);
 	if (IS_ERR(pwm))
 		return pwm;
