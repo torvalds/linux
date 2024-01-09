@@ -146,19 +146,24 @@ static unsigned int find_pipes_assigned_to_plane(struct dml2_context *ctx,
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &state->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
+		if (!pipe->plane_state || !pipe->stream)
 			continue;
 
 		get_plane_id(ctx, state, pipe->plane_state, pipe->stream->stream_id,
 					ctx->v20.scratch.dml_to_dc_pipe_mapping.dml_pipe_idx_to_plane_index[pipe->pipe_idx],
 					&plane_id_assigned_to_pipe);
-		if (pipe->plane_state && plane_id_assigned_to_pipe == plane_id && !pipe->top_pipe && !pipe->prev_odm_pipe) {
+		if (plane_id_assigned_to_pipe == plane_id && !pipe->prev_odm_pipe
+				&& (!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state)) {
 			while (pipe) {
-				struct pipe_ctx *mpo_pipe = pipe;
+				struct pipe_ctx *mpc_pipe = pipe;
 
-				while (mpo_pipe) {
-					pipes[num_found++] = mpo_pipe->pipe_idx;
-					mpo_pipe = mpo_pipe->bottom_pipe;
+				while (mpc_pipe) {
+					pipes[num_found++] = mpc_pipe->pipe_idx;
+					mpc_pipe = mpc_pipe->bottom_pipe;
+					if (!mpc_pipe)
+						break;
+					if (mpc_pipe->plane_state != pipe->plane_state)
+						mpc_pipe = NULL;
 				}
 				pipe = pipe->next_odm_pipe;
 			}
