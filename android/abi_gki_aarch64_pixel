@@ -543,6 +543,7 @@
   dmaengine_unmap_put
   dma_fence_add_callback
   dma_fence_array_create
+  dma_fence_array_ops
   dma_fence_context_alloc
   dma_fence_default_wait
   dma_fence_enable_sw_signaling
