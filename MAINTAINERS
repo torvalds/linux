@@ -24141,11 +24141,13 @@ N:	zstd
 K:	zstd
 
 ZSWAP COMPRESSED SWAP CACHING
-M:	Seth Jennings <sjenning@redhat.com>
-M:	Dan Streetman <ddstreet@ieee.org>
-M:	Vitaly Wool <vitaly.wool@konsulko.com>
+M:	Johannes Weiner <hannes@cmpxchg.org>
+M:	Yosry Ahmed <yosryahmed@google.com>
+M:	Nhat Pham <nphamcs@gmail.com>
 L:	linux-mm@kvack.org
 S:	Maintained
+F:	Documentation/admin-guide/mm/zswap.rst
+F:	include/linux/zswap.h
 F:	mm/zswap.c
 
 THE REST
