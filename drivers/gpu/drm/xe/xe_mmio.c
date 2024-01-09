@@ -303,7 +303,7 @@ void xe_mmio_probe_tiles(struct xe_device *xe)
 	u8 id, tile_count = xe->info.tile_count;
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 	struct xe_tile *tile;
-	void *regs;
+	void __iomem *regs;
 	u32 mtcfg;
 
 	if (tile_count == 1)
