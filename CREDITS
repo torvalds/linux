@@ -814,6 +814,10 @@ D: Support for Xircom PGSDB9 (firmware and host driver)
 S: Bucharest
 S: Romania
 
+N: John Crispin
+E: john@phrozen.org
+D: MediaTek MT7623 Gigabit ethernet support
+
 N: Laurence Culhane
 E: loz@holmes.demon.co.uk
 D: Wrote the initial alpha SLIP code
