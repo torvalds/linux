@@ -2143,7 +2143,7 @@ static void save_args(const struct btf_func_model *m, u8 **prog,
 		} else {
 			/* Only copy the arguments on-stack to current
 			 * 'stack_size' and ignore the regs, used to
-			 * prepare the arguments on-stack for orign call.
+			 * prepare the arguments on-stack for origin call.
 			 */
 			if (for_call_origin) {
 				nr_regs += arg_regs;

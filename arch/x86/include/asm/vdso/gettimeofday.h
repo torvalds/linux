@@ -321,7 +321,7 @@ static __always_inline
 u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
 {
 	/*
-	 * Due to the MSB/Sign-bit being used as invald marker (see
+	 * Due to the MSB/Sign-bit being used as invalid marker (see
 	 * arch_vdso_cycles_valid() above), the effective mask is S64_MAX.
 	 */
 	u64 delta = (cycles - last) & S64_MAX;

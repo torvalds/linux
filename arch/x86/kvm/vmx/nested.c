@@ -6561,7 +6561,7 @@ static int vmx_set_nested_state(struct kvm_vcpu *vcpu,
 		 * code was changed such that flag signals vmcs12 should
 		 * be copied into eVMCS in guest memory.
 		 *
-		 * To preserve backwards compatability, allow user
+		 * To preserve backwards compatibility, allow user
 		 * to set this flag even when there is no VMXON region.
 		 */
 		if (kvm_state->flags & ~KVM_STATE_NESTED_EVMCS)

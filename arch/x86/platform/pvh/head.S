@@ -42,7 +42,7 @@
  *             Bit 8 (TF) must be cleared. Other bits are all unspecified.
  *
  * All other processor registers and flag bits are unspecified. The OS is in
- * charge of setting up it's own stack, GDT and IDT.
+ * charge of setting up its own stack, GDT and IDT.
  */
 
 #define PVH_GDT_ENTRY_CS	1

@@ -204,7 +204,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	/* Enable PAE mode, PSE, PGE and LA57 */
 	orl	$(X86_CR4_PAE | X86_CR4_PSE | X86_CR4_PGE), %ecx
 #ifdef CONFIG_X86_5LEVEL
-	testl	$1, __pgtable_l5_enabled(%rip)
+	testb	$1, __pgtable_l5_enabled(%rip)
 	jz	1f
 	orl	$X86_CR4_LA57, %ecx
 1:
@@ -218,9 +218,9 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	 * Switch to new page-table
 	 *
 	 * For the boot CPU this switches to early_top_pgt which still has the
-	 * indentity mappings present. The secondary CPUs will switch to the
+	 * identity mappings present. The secondary CPUs will switch to the
 	 * init_top_pgt here, away from the trampoline_pgd and unmap the
-	 * indentity mapped ranges.
+	 * identity mapped ranges.
 	 */
 	movq	%rax, %cr3
 

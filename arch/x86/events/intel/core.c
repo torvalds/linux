@@ -4027,7 +4027,7 @@ static int intel_pmu_hw_config(struct perf_event *event)
 
 /*
  * Currently, the only caller of this function is the atomic_switch_perf_msrs().
- * The host perf conext helps to prepare the values of the real hardware for
+ * The host perf context helps to prepare the values of the real hardware for
  * a set of msrs that need to be switched atomically in a vmx transaction.
  *
  * For example, the pseudocode needed to add a new msr should look like:

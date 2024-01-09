@@ -8,7 +8,7 @@
 
 /*
  * accept_memory() and process_unaccepted_memory() called from EFI stub which
- * runs before decompresser and its early_tdx_detect().
+ * runs before decompressor and its early_tdx_detect().
  *
  * Enumerate TDX directly from the early users.
  */
