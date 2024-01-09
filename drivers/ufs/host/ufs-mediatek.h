@@ -188,6 +188,9 @@ struct ufs_mtk_host {
 	struct ufs_mtk_mcq_intr_info mcq_intr_info[UFSHCD_MAX_Q_NR];
 };
 
+/* MTK delay of autosuspend: 500 ms */
+#define MTK_RPM_AUTOSUSPEND_DELAY_MS 500
+
 /*
  * Multi-VCC by Numbering
  */
