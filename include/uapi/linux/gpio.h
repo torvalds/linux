@@ -189,9 +189,8 @@ struct gpio_v2_line_config {
  * buffer. If this field is zero then the buffer size defaults to a minimum
  * of @num_lines * 16.
  * @padding: reserved for future use and must be zero filled
- * @fd: if successful this field will contain a valid anonymous file handle
- * after a %GPIO_GET_LINE_IOCTL operation, zero or negative value means
- * error
+ * @fd: after a successful %GPIO_V2_GET_LINE_IOCTL operation, contains
+ * a valid anonymous file descriptor representing the request
  */
 struct gpio_v2_line_request {
 	__u32 offsets[GPIO_V2_LINES_MAX];
@@ -402,9 +401,8 @@ struct gpioline_info_changed {
  * such as "my-bitbanged-relay"
  * @lines: number of lines requested in this request, i.e. the number of
  * valid fields in the above arrays, set to 1 to request a single line
- * @fd: if successful this field will contain a valid anonymous file handle
- * after a %GPIO_GET_LINEHANDLE_IOCTL operation, zero or negative value
- * means error
+ * @fd: after a successful %GPIO_GET_LINEHANDLE_IOCTL operation, contains
+ * a valid anonymous file descriptor representing the request
  *
  * Note: This struct is part of ABI v1 and is deprecated.
  * Use &struct gpio_v2_line_request instead.
@@ -465,9 +463,8 @@ struct gpiohandle_data {
  * %GPIOEVENT_REQUEST_RISING_EDGE or %GPIOEVENT_REQUEST_FALLING_EDGE
  * @consumer_label: a desired consumer label for the selected GPIO line(s)
  * such as "my-listener"
- * @fd: if successful this field will contain a valid anonymous file handle
- * after a %GPIO_GET_LINEEVENT_IOCTL operation, zero or negative value
- * means error
+ * @fd: after a successful %GPIO_GET_LINEEVENT_IOCTL operation, contains a
+ * valid anonymous file descriptor representing the request
  *
  * Note: This struct is part of ABI v1 and is deprecated.
  * Use &struct gpio_v2_line_request instead.
