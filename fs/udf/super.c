@@ -864,7 +864,7 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 	int ret;
 	struct timestamp *ts;
 
-	outstr = kmalloc(128, GFP_NOFS);
+	outstr = kmalloc(128, GFP_KERNEL);
 	if (!outstr)
 		return -ENOMEM;
 
