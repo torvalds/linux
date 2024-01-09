@@ -1826,9 +1826,6 @@ static int exec_binprm(struct linux_binprm *bprm)
 	return 0;
 }
 
-/*
- * sys_execve() executes a new program.
- */
 static int bprm_execve(struct linux_binprm *bprm)
 {
 	int retval;
