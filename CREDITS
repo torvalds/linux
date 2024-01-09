@@ -1542,6 +1542,10 @@ N: Andrew Haylett
 E: ajh@primag.co.uk
 D: Selection mechanism
 
+N: Johan Hedberg
+E: johan.hedberg@gmail.com
+D: Bluetooth subsystem maintainer
+
 N: Andre Hedrick
 E: andre@linux-ide.org
 E: andre@linuxdiskcert.org
