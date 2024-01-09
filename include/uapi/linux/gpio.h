@@ -333,7 +333,7 @@ struct gpio_v2_line_event {
  * also be empty if the consumer doesn't set this up
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_info instead.
+ * Use ABI v2 and &struct gpio_v2_line_info instead.
  */
 struct gpioline_info {
 	__u32 line_offset;
@@ -368,7 +368,7 @@ enum {
  * at the end of the structure on 64-bit architectures.
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_info_changed instead.
+ * Use ABI v2 and &struct gpio_v2_line_info_changed instead.
  */
 struct gpioline_info_changed {
 	struct gpioline_info info;
@@ -409,7 +409,7 @@ struct gpioline_info_changed {
  * a valid anonymous file descriptor representing the request
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_request instead.
+ * Use ABI v2 and &struct gpio_v2_line_request instead.
  */
 struct gpiohandle_request {
 	__u32 lineoffsets[GPIOHANDLES_MAX];
@@ -431,7 +431,7 @@ struct gpiohandle_request {
  * @padding: reserved for future use and should be zero filled
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_config instead.
+ * Use ABI v2 and &struct gpio_v2_line_config instead.
  */
 struct gpiohandle_config {
 	__u32 flags;
@@ -446,7 +446,7 @@ struct gpiohandle_config {
  * the desired target state
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_values instead.
+ * Use ABI v2 and &struct gpio_v2_line_values instead.
  */
 struct gpiohandle_data {
 	__u8 values[GPIOHANDLES_MAX];
@@ -471,7 +471,7 @@ struct gpiohandle_data {
  * valid anonymous file descriptor representing the request
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_request instead.
+ * Use ABI v2 and &struct gpio_v2_line_request instead.
  */
 struct gpioevent_request {
 	__u32 lineoffset;
@@ -494,7 +494,7 @@ struct gpioevent_request {
  *  %GPIOEVENT_EVENT_FALLING_EDGE
  *
  * Note: This struct is part of ABI v1 and is deprecated.
- * Use &struct gpio_v2_line_event instead.
+ * Use ABI v2 and &struct gpio_v2_line_event instead.
  */
 struct gpioevent_data {
 	__u64 timestamp;
