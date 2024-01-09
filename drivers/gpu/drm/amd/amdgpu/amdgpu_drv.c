@@ -2234,6 +2234,8 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, ddev);
 
+	amdgpu_init_debug_options(adev);
+
 	ret = amdgpu_driver_load_kms(adev, flags);
 	if (ret)
 		goto err_pci;
@@ -2313,8 +2315,6 @@ retry_init:
 		    (adev->asic_type >= CHIP_NAVI10))
 			amdgpu_get_secondary_funcs(adev);
 	}
-
-	amdgpu_init_debug_options(adev);
 
 	return 0;
 
