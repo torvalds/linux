@@ -1387,7 +1387,7 @@ tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
 		 *  - available bandwidth along the path
 		 *  - bandwidth allocated for USB 3.x but not used.
 		 */
-		if (tb_port_path_direction_downstream(in, out))
+		if (tb_tunnel_direction_downstream(tunnel))
 			estimated_bw = estimated_down;
 		else
 			estimated_bw = estimated_up;
@@ -2388,11 +2388,11 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 {
 	struct tb_hotplug_event *ev = container_of(work, typeof(*ev), work);
 	int requested_bw, requested_up, requested_down, ret;
-	struct tb_port *in, *out;
 	struct tb_tunnel *tunnel;
 	struct tb *tb = ev->tb;
 	struct tb_cm *tcm = tb_priv(tb);
 	struct tb_switch *sw;
+	struct tb_port *in;
 
 	pm_runtime_get_sync(&tb->dev);
 
@@ -2456,10 +2456,7 @@ static void tb_handle_dp_bandwidth_request(struct work_struct *work)
 
 	tb_port_dbg(in, "requested bandwidth %d Mb/s\n", requested_bw);
 
-
-	out = tunnel->dst_port;
-
-	if (tb_port_path_direction_downstream(in, out)) {
+	if (tb_tunnel_direction_downstream(tunnel)) {
 		requested_up = -1;
 		requested_down = requested_bw;
 	} else {

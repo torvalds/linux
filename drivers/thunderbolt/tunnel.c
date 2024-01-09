@@ -706,7 +706,7 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 		      "DP OUT maximum supported bandwidth %u Mb/s x%u = %u Mb/s\n",
 		      out_rate, out_lanes, bw);
 
-	if (tb_port_path_direction_downstream(in, out))
+	if (tb_tunnel_direction_downstream(tunnel))
 		max_bw = tunnel->max_down;
 	else
 		max_bw = tunnel->max_up;
@@ -831,7 +831,7 @@ static int tb_dp_bandwidth_alloc_mode_enable(struct tb_tunnel *tunnel)
 	 * max_up/down fields. For discovery we just read what the
 	 * estimation was set to.
 	 */
-	if (tb_port_path_direction_downstream(in, out))
+	if (tb_tunnel_direction_downstream(tunnel))
 		estimated_bw = tunnel->max_down;
 	else
 		estimated_bw = tunnel->max_up;
@@ -971,7 +971,6 @@ static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
 						   int *consumed_up,
 						   int *consumed_down)
 {
-	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
 	int ret, allocated_bw, max_bw_rounded;
 
@@ -993,7 +992,7 @@ static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
 	if (allocated_bw == max_bw_rounded)
 		allocated_bw = ret;
 
-	if (tb_port_path_direction_downstream(in, out)) {
+	if (tb_tunnel_direction_downstream(tunnel)) {
 		*consumed_up = 0;
 		*consumed_down = allocated_bw;
 	} else {
@@ -1007,7 +1006,6 @@ static int tb_dp_bandwidth_mode_consumed_bandwidth(struct tb_tunnel *tunnel,
 static int tb_dp_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up,
 				     int *allocated_down)
 {
-	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
 
 	/*
@@ -1029,7 +1027,7 @@ static int tb_dp_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up
 		if (allocated_bw == max_bw_rounded)
 			allocated_bw = ret;
 
-		if (tb_port_path_direction_downstream(in, out)) {
+		if (tb_tunnel_direction_downstream(tunnel)) {
 			*allocated_up = 0;
 			*allocated_down = allocated_bw;
 		} else {
@@ -1046,7 +1044,6 @@ static int tb_dp_allocated_bandwidth(struct tb_tunnel *tunnel, int *allocated_up
 static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 				 int *alloc_down)
 {
-	struct tb_port *out = tunnel->dst_port;
 	struct tb_port *in = tunnel->src_port;
 	int max_bw_rounded, ret, tmp;
 
@@ -1057,7 +1054,7 @@ static int tb_dp_alloc_bandwidth(struct tb_tunnel *tunnel, int *alloc_up,
 	if (ret < 0)
 		return ret;
 
-	if (tb_port_path_direction_downstream(in, out)) {
+	if (tb_tunnel_direction_downstream(tunnel)) {
 		tmp = min(*alloc_down, max_bw_rounded);
 		ret = usb4_dp_port_allocate_bandwidth(in, tmp);
 		if (ret)
@@ -1143,17 +1140,16 @@ static int tb_dp_read_cap(struct tb_tunnel *tunnel, unsigned int cap, u32 *rate,
 static int tb_dp_maximum_bandwidth(struct tb_tunnel *tunnel, int *max_up,
 				   int *max_down)
 {
-	struct tb_port *in = tunnel->src_port;
 	int ret;
 
-	if (!usb4_dp_port_bandwidth_mode_enabled(in))
+	if (!usb4_dp_port_bandwidth_mode_enabled(tunnel->src_port))
 		return -EOPNOTSUPP;
 
 	ret = tb_dp_bandwidth_mode_maximum_bandwidth(tunnel, NULL);
 	if (ret < 0)
 		return ret;
 
-	if (tb_port_path_direction_downstream(in, tunnel->dst_port)) {
+	if (tb_tunnel_direction_downstream(tunnel)) {
 		*max_up = 0;
 		*max_down = ret;
 	} else {
@@ -1167,8 +1163,7 @@ static int tb_dp_maximum_bandwidth(struct tb_tunnel *tunnel, int *max_up,
 static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 				    int *consumed_down)
 {
-	struct tb_port *in = tunnel->src_port;
-	const struct tb_switch *sw = in->sw;
+	const struct tb_switch *sw = tunnel->src_port->sw;
 	u32 rate = 0, lanes = 0;
 	int ret;
 
@@ -1214,7 +1209,7 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 		return 0;
 	}
 
-	if (tb_port_path_direction_downstream(in, tunnel->dst_port)) {
+	if (tb_tunnel_direction_downstream(tunnel)) {
 		*consumed_up = 0;
 		*consumed_down = tb_dp_bandwidth(rate, lanes);
 	} else {
