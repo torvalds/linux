@@ -498,3 +498,6 @@
 566	common	futex_requeue			sys_futex_requeue
 567	common	statmount			sys_statmount
 568	common	listmount			sys_listmount
+569	common	lsm_get_self_attr		sys_lsm_get_self_attr
+570	common	lsm_set_self_attr		sys_lsm_set_self_attr
+571	common	lsm_list_modules		sys_lsm_list_modules
