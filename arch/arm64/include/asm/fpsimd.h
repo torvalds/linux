@@ -21,7 +21,6 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
-#ifdef CONFIG_COMPAT
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
 #define VFP_FPSCR_STAT_MASK	0xf800009f
 #define VFP_FPSCR_CTRL_MASK	0x07f79f00
@@ -30,7 +29,6 @@
  * control/status register.
  */
 #define VFP_STATE_SIZE		((32 * 8) + 4)
-#endif
 
 static inline unsigned long cpacr_save_enable_kernel_sve(void)
 {
