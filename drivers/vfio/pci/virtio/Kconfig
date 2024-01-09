@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config VIRTIO_VFIO_PCI
         tristate "VFIO support for VIRTIO NET PCI devices"
-        depends on VIRTIO_PCI_ADMIN_LEGACY
+        depends on VIRTIO_PCI && VIRTIO_PCI_ADMIN_LEGACY
         select VFIO_PCI_CORE
         help
           This provides support for exposing VIRTIO NET VF devices which support
