@@ -419,6 +419,15 @@ struct vba_vars_st {
 	double MinPixelChunkSizeBytes;
 	unsigned int DCCMetaBufferSizeBytes;
 	// Pipe/Plane Parameters
+
+	/** @VoltageLevel:
+	 * Every ASIC has a fixed number of DPM states, and some devices might
+	 * have some particular voltage configuration that does not map
+	 * directly to the DPM states. This field tells how many states the
+	 * target device supports; even though this field combines the DPM and
+	 * special SOC voltages, it mostly matches the total number of DPM
+	 * states.
+	 */
 	int VoltageLevel;
 	double FabricClock;
 	double DRAMSpeed;

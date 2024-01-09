@@ -1453,7 +1453,6 @@ static const struct media_device_ops camss_media_ops = {
 static int camss_configure_pd(struct camss *camss)
 {
 	struct device *dev = camss->dev;
-	int last_pm_domain = 0;
 	int i;
 	int ret;
 
@@ -1484,32 +1483,34 @@ static int camss_configure_pd(struct camss *camss)
 	if (!camss->genpd_link)
 		return -ENOMEM;
 
+	/*
+	 * VFE power domains are in the beginning of the list, and while all
+	 * power domains should be attached, only if TITAN_TOP power domain is
+	 * found in the list, it should be linked over here.
+	 */
 	for (i = 0; i < camss->genpd_num; i++) {
 		camss->genpd[i] = dev_pm_domain_attach_by_id(camss->dev, i);
 		if (IS_ERR(camss->genpd[i])) {
 			ret = PTR_ERR(camss->genpd[i]);
 			goto fail_pm;
 		}
+	}
 
-		camss->genpd_link[i] = device_link_add(camss->dev, camss->genpd[i],
-						       DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME |
-						       DL_FLAG_RPM_ACTIVE);
-		if (!camss->genpd_link[i]) {
-			dev_pm_domain_detach(camss->genpd[i], true);
+	if (i > camss->vfe_num) {
+		camss->genpd_link[i - 1] = device_link_add(camss->dev, camss->genpd[i - 1],
+							   DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME |
+							   DL_FLAG_RPM_ACTIVE);
+		if (!camss->genpd_link[i - 1]) {
 			ret = -EINVAL;
 			goto fail_pm;
 		}
-
-		last_pm_domain = i;
 	}
 
 	return 0;
 
 fail_pm:
-	for (i = 0; i < last_pm_domain; i++) {
-		device_link_del(camss->genpd_link[i]);
+	for (--i ; i >= 0; i--)
 		dev_pm_domain_detach(camss->genpd[i], true);
-	}
 
 	return ret;
 }
@@ -1535,6 +1536,20 @@ static int camss_icc_get(struct camss *camss)
 	}
 
 	return 0;
+}
+
+static void camss_genpd_cleanup(struct camss *camss)
+{
+	int i;
+
+	if (camss->genpd_num == 1)
+		return;
+
+	if (camss->genpd_num > camss->vfe_num)
+		device_link_del(camss->genpd_link[camss->genpd_num - 1]);
+
+	for (i = 0; i < camss->genpd_num; i++)
+		dev_pm_domain_detach(camss->genpd[i], true);
 }
 
 /*
@@ -1612,25 +1627,23 @@ static int camss_probe(struct platform_device *pdev)
 	if (!camss->vfe)
 		return -ENOMEM;
 
-	v4l2_async_nf_init(&camss->notifier);
-
-	num_subdevs = camss_of_parse_ports(camss);
-	if (num_subdevs < 0) {
-		ret = num_subdevs;
-		goto err_cleanup;
-	}
-
 	ret = camss_icc_get(camss);
 	if (ret < 0)
-		goto err_cleanup;
+		return ret;
+
+	ret = camss_configure_pd(camss);
+	if (ret < 0) {
+		dev_err(dev, "Failed to configure power domains: %d\n", ret);
+		return ret;
+	}
 
 	ret = camss_init_subdevices(camss);
 	if (ret < 0)
-		goto err_cleanup;
+		goto err_genpd_cleanup;
 
 	ret = dma_set_mask_and_coherent(dev, 0xffffffff);
 	if (ret)
-		goto err_cleanup;
+		goto err_genpd_cleanup;
 
 	camss->media_dev.dev = camss->dev;
 	strscpy(camss->media_dev.model, "Qualcomm Camera Subsystem",
@@ -1642,12 +1655,20 @@ static int camss_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(camss->dev, &camss->v4l2_dev);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register V4L2 device: %d\n", ret);
-		goto err_cleanup;
+		goto err_genpd_cleanup;
+	}
+
+	v4l2_async_nf_init(&camss->notifier);
+
+	num_subdevs = camss_of_parse_ports(camss);
+	if (num_subdevs < 0) {
+		ret = num_subdevs;
+		goto err_v4l2_device_unregister;
 	}
 
 	ret = camss_register_entities(camss);
 	if (ret < 0)
-		goto err_register_entities;
+		goto err_v4l2_device_unregister;
 
 	if (num_subdevs) {
 		camss->notifier.ops = &camss_subdev_notifier_ops;
@@ -1676,43 +1697,28 @@ static int camss_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = camss_configure_pd(camss);
-	if (ret < 0) {
-		dev_err(dev, "Failed to configure power domains: %d\n", ret);
-		return ret;
-	}
-
 	pm_runtime_enable(dev);
 
 	return 0;
 
 err_register_subdevs:
 	camss_unregister_entities(camss);
-err_register_entities:
+err_v4l2_device_unregister:
 	v4l2_device_unregister(&camss->v4l2_dev);
-err_cleanup:
 	v4l2_async_nf_cleanup(&camss->notifier);
+err_genpd_cleanup:
+	camss_genpd_cleanup(camss);
 
 	return ret;
 }
 
 void camss_delete(struct camss *camss)
 {
-	int i;
-
 	v4l2_device_unregister(&camss->v4l2_dev);
 	media_device_unregister(&camss->media_dev);
 	media_device_cleanup(&camss->media_dev);
 
 	pm_runtime_disable(camss->dev);
-
-	if (camss->genpd_num == 1)
-		return;
-
-	for (i = 0; i < camss->genpd_num; i++) {
-		device_link_del(camss->genpd_link[i]);
-		dev_pm_domain_detach(camss->genpd[i], true);
-	}
 }
 
 /*
@@ -1721,7 +1727,7 @@ void camss_delete(struct camss *camss)
  *
  * Always returns 0.
  */
-static int camss_remove(struct platform_device *pdev)
+static void camss_remove(struct platform_device *pdev)
 {
 	struct camss *camss = platform_get_drvdata(pdev);
 
@@ -1732,7 +1738,7 @@ static int camss_remove(struct platform_device *pdev)
 	if (atomic_read(&camss->ref_count) == 0)
 		camss_delete(camss);
 
-	return 0;
+	camss_genpd_cleanup(camss);
 }
 
 static const struct of_device_id camss_dt_match[] = {
@@ -1794,7 +1800,7 @@ static const struct dev_pm_ops camss_pm_ops = {
 
 static struct platform_driver qcom_camss_driver = {
 	.probe = camss_probe,
-	.remove = camss_remove,
+	.remove_new = camss_remove,
 	.driver = {
 		.name = "qcom-camss",
 		.of_match_table = camss_dt_match,

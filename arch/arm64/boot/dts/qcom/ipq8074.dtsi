@@ -90,7 +90,7 @@
 			reg = <0x0 0x4ab00000 0x0 0x00100000>;
 			no-map;
 
-			hwlocks = <&tcsr_mutex 0>;
+			hwlocks = <&tcsr_mutex 3>;
 		};
 
 		memory@4ac00000 {

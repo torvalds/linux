@@ -2502,6 +2502,22 @@ struct timespec64 current_time(struct inode *inode)
 EXPORT_SYMBOL(current_time);
 
 /**
+ * inode_set_ctime_current - set the ctime to current_time
+ * @inode: inode
+ *
+ * Set the inode->i_ctime to the current value for the inode. Returns
+ * the current value that was assigned to i_ctime.
+ */
+struct timespec64 inode_set_ctime_current(struct inode *inode)
+{
+	struct timespec64 now = current_time(inode);
+
+	inode_set_ctime(inode, now.tv_sec, now.tv_nsec);
+	return now;
+}
+EXPORT_SYMBOL(inode_set_ctime_current);
+
+/**
  * in_group_or_capable - check whether caller is CAP_FSETID privileged
  * @mnt_userns: user namespace of the mount @inode was found from
  * @inode:	inode to check

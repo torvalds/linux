@@ -23,6 +23,7 @@ config SOC_STARFIVE
 	select PINCTRL
 	select RESET_CONTROLLER
 	select SIFIVE_PLIC
+	select ARM_AMBA
 	help
 	  This enables support for StarFive SoC platform hardware.
 
