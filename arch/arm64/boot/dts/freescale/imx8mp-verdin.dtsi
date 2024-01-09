@@ -552,7 +552,7 @@
 				regulator-name = "On-module +V3.3_ADC (LDO4)";
 			};
 
-			LDO5 {
+			reg_vdd_sdio: LDO5 {
 				regulator-max-microvolt = <3300000>;
 				regulator-min-microvolt = <1800000>;
 				regulator-name = "On-module +V3.3_1.8_SD (LDO5)";
@@ -885,6 +885,7 @@
 	pinctrl-2 = <&pinctrl_usdhc2_200mhz>, <&pinctrl_usdhc2_cd>;
 	pinctrl-3 = <&pinctrl_usdhc2_sleep>, <&pinctrl_usdhc2_cd_sleep>;
 	vmmc-supply = <&reg_usdhc2_vmmc>;
+	vqmmc-supply = <&reg_vdd_sdio>;
 };
 
 /* On-module eMMC */
