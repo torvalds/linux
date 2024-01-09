@@ -103,7 +103,6 @@ static int clps711x_pwm_probe(struct platform_device *pdev)
 	priv->chip.dev = &pdev->dev;
 	priv->chip.npwm = 2;
 	priv->chip.of_xlate = clps711x_pwm_xlate;
-	priv->chip.of_pwm_n_cells = 1;
 
 	spin_lock_init(&priv->lock);
 

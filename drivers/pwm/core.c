@@ -107,9 +107,6 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 {
 	struct pwm_device *pwm;
 
-	if (chip->of_pwm_n_cells < 2)
-		return ERR_PTR(-EINVAL);
-
 	/* flags in the third cell are optional */
 	if (args->args_count < 2)
 		return ERR_PTR(-EINVAL);
@@ -124,10 +121,8 @@ of_pwm_xlate_with_flags(struct pwm_chip *chip, const struct of_phandle_args *arg
 	pwm->args.period = args->args[1];
 	pwm->args.polarity = PWM_POLARITY_NORMAL;
 
-	if (chip->of_pwm_n_cells >= 3) {
-		if (args->args_count > 2 && args->args[2] & PWM_POLARITY_INVERTED)
-			pwm->args.polarity = PWM_POLARITY_INVERSED;
-	}
+	if (args->args_count > 2 && args->args[2] & PWM_POLARITY_INVERTED)
+		pwm->args.polarity = PWM_POLARITY_INVERSED;
 
 	return pwm;
 }
@@ -137,9 +132,6 @@ struct pwm_device *
 of_pwm_single_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 {
 	struct pwm_device *pwm;
-
-	if (chip->of_pwm_n_cells < 1)
-		return ERR_PTR(-EINVAL);
 
 	/* validate that one cell is specified, optionally with flags */
 	if (args->args_count != 1 && args->args_count != 2)
@@ -164,16 +156,8 @@ static void of_pwmchip_add(struct pwm_chip *chip)
 	if (!chip->dev || !chip->dev->of_node)
 		return;
 
-	if (!chip->of_xlate) {
-		u32 pwm_cells;
-
-		if (of_property_read_u32(chip->dev->of_node, "#pwm-cells",
-					 &pwm_cells))
-			pwm_cells = 2;
-
+	if (!chip->of_xlate)
 		chip->of_xlate = of_pwm_xlate_with_flags;
-		chip->of_pwm_n_cells = pwm_cells;
-	}
 
 	of_node_get(chip->dev->of_node);
 }

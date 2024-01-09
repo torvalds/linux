@@ -271,7 +271,6 @@ struct pwm_ops {
  * @id: unique number of this PWM chip
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
- * @of_pwm_n_cells: number of cells expected in the device tree PWM specifier
  * @atomic: can the driver's ->apply() be called in atomic context
  * @pwms: array of PWM devices allocated by the framework
  */
@@ -284,7 +283,6 @@ struct pwm_chip {
 
 	struct pwm_device * (*of_xlate)(struct pwm_chip *chip,
 					const struct of_phandle_args *args);
-	unsigned int of_pwm_n_cells;
 	bool atomic;
 
 	/* only used internally by the PWM framework */
