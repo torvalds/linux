@@ -475,7 +475,6 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	bool defaultadapter = true;
 	u8 *qc = ieee80211_get_qos_ctl(hdr);
 	u8 tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
 	u16 seq_number;
@@ -587,8 +586,6 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	      ppsc->fwctrl_lps) {
 		set_tx_desc_hwseq_en(txdesc, 1);
 		set_tx_desc_pkt_id(txdesc, 8);
-		if (!defaultadapter)
-			set_tx_desc_qos(txdesc, 1);
 	}
 	if (ieee80211_has_morefrags(fc))
 		set_tx_desc_more_frag(txdesc, 1);
