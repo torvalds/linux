@@ -88,10 +88,10 @@ enum gpio_v2_line_flag {
 /**
  * struct gpio_v2_line_values - Values of GPIO lines
  * @bits: a bitmap containing the value of the lines, set to 1 for active
- * and 0 for inactive.
+ * and 0 for inactive
  * @mask: a bitmap identifying the lines to get or set, with each bit
  * number corresponding to the index into &struct
- * gpio_v2_line_request.offsets.
+ * gpio_v2_line_request.offsets
  */
 struct gpio_v2_line_values {
 	__aligned_u64 bits;
@@ -123,7 +123,7 @@ enum gpio_v2_line_attr_id {
  * @values: if id is %GPIO_V2_LINE_ATTR_ID_OUTPUT_VALUES, a bitmap
  * containing the values to which the lines will be set, with each bit
  * number corresponding to the index into &struct
- * gpio_v2_line_request.offsets.
+ * gpio_v2_line_request.offsets
  * @debounce_period_us: if id is %GPIO_V2_LINE_ATTR_ID_DEBOUNCE, the
  * desired debounce period, in microseconds
  */
@@ -143,7 +143,7 @@ struct gpio_v2_line_attribute {
  * @attr: the configurable attribute
  * @mask: a bitmap identifying the lines to which the attribute applies,
  * with each bit number corresponding to the index into &struct
- * gpio_v2_line_request.offsets.
+ * gpio_v2_line_request.offsets
  */
 struct gpio_v2_line_config_attribute {
 	struct gpio_v2_line_attribute attr;
@@ -178,7 +178,7 @@ struct gpio_v2_line_config {
  * associated GPIO chip
  * @consumer: a desired consumer label for the selected GPIO lines such as
  * "my-bitbanged-relay"
- * @config: requested configuration for the lines.
+ * @config: requested configuration for the lines
  * @num_lines: number of lines requested in this request, i.e. the number
  * of valid fields in the %GPIO_V2_LINES_MAX sized arrays, set to 1 to
  * request a single line
@@ -216,7 +216,7 @@ struct gpio_v2_line_request {
  * @num_attrs: the number of attributes in @attrs
  * @flags: flags for this GPIO line, with values from &enum
  * gpio_v2_line_flag, such as %GPIO_V2_LINE_FLAG_ACTIVE_LOW,
- * %GPIO_V2_LINE_FLAG_OUTPUT etc, added together.
+ * %GPIO_V2_LINE_FLAG_OUTPUT etc, added together
  * @attrs: the configuration attributes associated with the line
  * @padding: reserved for future use
  */
@@ -273,7 +273,7 @@ enum gpio_v2_line_event_id {
 
 /**
  * struct gpio_v2_line_event - The actual event being pushed to userspace
- * @timestamp_ns: best estimate of time of event occurrence, in nanoseconds.
+ * @timestamp_ns: best estimate of time of event occurrence, in nanoseconds
  * @id: event identifier with value from &enum gpio_v2_line_event_id
  * @offset: the offset of the line that triggered the event
  * @seqno: the sequence number for this event in the sequence of events for
