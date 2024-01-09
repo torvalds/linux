@@ -9,6 +9,7 @@
 
 #include "xe_tile.h"
 #include "xe_tile_sysfs.h"
+#include "xe_vram_freq.h"
 
 static void xe_tile_sysfs_kobj_release(struct kobject *kobj)
 {
@@ -49,6 +50,8 @@ void xe_tile_sysfs_init(struct xe_tile *tile)
 	}
 
 	tile->sysfs = &kt->base;
+
+	xe_vram_freq_sysfs_init(tile);
 
 	err = drmm_add_action_or_reset(&xe->drm, tile_sysfs_fini, tile);
 	if (err)
