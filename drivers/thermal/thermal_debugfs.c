@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2023 Linaro Limited
@@ -14,8 +13,11 @@
 #include <linux/mutex.h>
 #include <linux/thermal.h>
 
+#include "thermal_core.h"
+
 static struct dentry *d_root;
 static struct dentry *d_cdev;
+static struct dentry *d_tz;
 
 /*
  * Length of the string containing the thermal zone id or the cooling
@@ -60,7 +62,7 @@ struct cdev_debugfs {
 };
 
 /**
- * struct cdev_value - Common structure for cooling device entry
+ * struct cdev_record - Common structure for cooling device entry
  *
  * The following common structure allows to store the information
  * related to the transitions and to the state residencies. They are
@@ -82,21 +84,88 @@ struct cdev_record {
 };
 
 /**
+ * struct trip_stats - Thermal trip statistics
+ *
+ * The trip_stats structure has the relevant information to show the
+ * statistics related to temperature going above a trip point.
+ *
+ * @timestamp: the trip crossing timestamp
+ * @duration: total time when the zone temperature was above the trip point
+ * @count: the number of times the zone temperature was above the trip point
+ * @max: maximum recorded temperature above the trip point
+ * @min: minimum recorded temperature above the trip point
+ * @avg: average temperature above the trip point
+ */
+struct trip_stats {
+	ktime_t timestamp;
+	ktime_t duration;
+	int count;
+	int max;
+	int min;
+	int avg;
+};
+
+/**
+ * struct tz_episode - A mitigation episode information
+ *
+ * The tz_episode structure describes a mitigation episode. A
+ * mitigation episode begins the trip point with the lower temperature
+ * is crossed the way up and ends when it is crossed the way
+ * down. During this episode we can have multiple trip points crossed
+ * the way up and down if there are multiple trip described in the
+ * firmware after the lowest temperature trip point.
+ *
+ * @timestamp: first trip point crossed the way up
+ * @duration: total duration of the mitigation episode
+ * @node: a list element to be added to the list of tz events
+ * @trip_stats: per trip point statistics, flexible array
+ */
+struct tz_episode {
+	ktime_t timestamp;
+	ktime_t duration;
+	struct list_head node;
+	struct trip_stats trip_stats[];
+};
+
+/**
+ * struct tz_debugfs - Store all mitigation episodes for a thermal zone
+ *
+ * The tz_debugfs structure contains the list of the mitigation
+ * episodes and has to track which trip point has been crossed in
+ * order to handle correctly nested trip point mitigation episodes.
+ *
+ * We keep the history of the trip point crossed in an array and as we
+ * can go back and forth inside this history, eg. trip 0,1,2,1,2,1,0,
+ * we keep track of the current position in the history array.
+ *
+ * @tz_episodes: a list of thermal mitigation episodes
+ * @trips_crossed: an array of trip points crossed by id
+ * @nr_trips: the number of trip points currently being crossed
+ */
+struct tz_debugfs {
+	struct list_head tz_episodes;
+	int *trips_crossed;
+	int nr_trips;
+};
+
+/**
  * struct thermal_debugfs - High level structure for a thermal object in debugfs
  *
  * The thermal_debugfs structure is the common structure used by the
- * cooling device to compute the statistics.
+ * cooling device or the thermal zone to store the statistics.
  *
  * @d_top: top directory of the thermal object directory
  * @lock: per object lock to protect the internals
  *
- * @cdev: a cooling device debug structure
+ * @cdev_dbg: a cooling device debug structure
+ * @tz_dbg: a thermal zone debug structure
  */
 struct thermal_debugfs {
 	struct dentry *d_top;
 	struct mutex lock;
 	union {
 		struct cdev_debugfs cdev_dbg;
+		struct tz_debugfs tz_dbg;
 	};
 };
 
@@ -107,6 +176,10 @@ void thermal_debug_init(void)
 		return;
 
 	d_cdev = debugfs_create_dir("cooling_devices", d_root);
+	if (!d_cdev)
+		return;
+
+	d_tz = debugfs_create_dir("thermal_zones", d_root);
 }
 
 static struct thermal_debugfs *thermal_debugfs_add_id(struct dentry *d, int id)
@@ -439,6 +512,325 @@ void thermal_debug_cdev_remove(struct thermal_cooling_device *cdev)
 
 	thermal_debugfs_cdev_clear(&thermal_dbg->cdev_dbg);
 	cdev->debugfs = NULL;
+
+	mutex_unlock(&thermal_dbg->lock);
+
+	thermal_debugfs_remove_id(thermal_dbg);
+}
+
+static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_device *tz,
+							ktime_t now)
+{
+	struct tz_episode *tze;
+	int i;
+
+	tze = kzalloc(struct_size(tze, trip_stats, tz->num_trips), GFP_KERNEL);
+	if (!tze)
+		return NULL;
+
+	INIT_LIST_HEAD(&tze->node);
+	tze->timestamp = now;
+
+	for (i = 0; i < tz->num_trips; i++) {
+		tze->trip_stats[i].min = INT_MAX;
+		tze->trip_stats[i].max = INT_MIN;
+	}
+
+	return tze;
+}
+
+void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
+			      const struct thermal_trip *trip)
+{
+	struct tz_episode *tze;
+	struct tz_debugfs *tz_dbg;
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	int temperature = tz->temperature;
+	int trip_id = thermal_zone_trip_id(tz, trip);
+	ktime_t now = ktime_get();
+
+	if (!thermal_dbg)
+		return;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	tz_dbg = &thermal_dbg->tz_dbg;
+
+	/*
+	 * The mitigation is starting. A mitigation can contain
+	 * several episodes where each of them is related to a
+	 * temperature crossing a trip point. The episodes are
+	 * nested. That means when the temperature is crossing the
+	 * first trip point, the duration begins to be measured. If
+	 * the temperature continues to increase and reaches the
+	 * second trip point, the duration of the first trip must be
+	 * also accumulated.
+	 *
+	 * eg.
+	 *
+	 * temp
+	 *   ^
+	 *   |             --------
+	 * trip 2         /        \         ------
+	 *   |           /|        |\      /|      |\
+	 * trip 1       / |        | `----  |      | \
+	 *   |         /| |        |        |      | |\
+	 * trip 0     / | |        |        |      | | \
+	 *   |       /| | |        |        |      | | |\
+	 *   |      / | | |        |        |      | | | `--
+	 *   |     /  | | |        |        |      | | |
+	 *   |-----   | | |        |        |      | | |
+	 *   |        | | |        |        |      | | |
+	 *    --------|-|-|--------|--------|------|-|-|------------------> time
+	 *            | | |<--t2-->|        |<-t2'>| | |
+	 *            | |                            | |
+	 *            | |<------------t1------------>| |
+	 *            |                                |
+	 *            |<-------------t0--------------->|
+	 *
+	 */
+	if (!tz_dbg->nr_trips) {
+		tze = thermal_debugfs_tz_event_alloc(tz, now);
+		if (!tze)
+			return;
+
+		list_add(&tze->node, &tz_dbg->tz_episodes);
+	}
+
+	/*
+	 * Each time a trip point is crossed the way up, the trip_id
+	 * is stored in the trip_crossed array and the nr_trips is
+	 * incremented. A nr_trips equal to zero means we are entering
+	 * a mitigation episode.
+	 *
+	 * The trip ids may not be in the ascending order but the
+	 * result in the array trips_crossed will be in the ascending
+	 * temperature order. The function detecting when a trip point
+	 * is crossed the way down will handle the very rare case when
+	 * the trip points may have been reordered during this
+	 * mitigation episode.
+	 */
+	tz_dbg->trips_crossed[tz_dbg->nr_trips++] = trip_id;
+
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+	tze->trip_stats[trip_id].timestamp = now;
+	tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, temperature);
+	tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, temperature);
+	tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
+		(temperature - tze->trip_stats[trip_id].avg) /
+		tze->trip_stats[trip_id].count;
+
+	mutex_unlock(&thermal_dbg->lock);
+}
+
+void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
+				const struct thermal_trip *trip)
+{
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct tz_episode *tze;
+	struct tz_debugfs *tz_dbg;
+	ktime_t delta, now = ktime_get();
+	int trip_id = thermal_zone_trip_id(tz, trip);
+	int i;
+
+	if (!thermal_dbg)
+		return;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	tz_dbg = &thermal_dbg->tz_dbg;
+
+	/*
+	 * The temperature crosses the way down but there was not
+	 * mitigation detected before. That may happen when the
+	 * temperature is greater than a trip point when registering a
+	 * thermal zone, which is a common use case as the kernel has
+	 * no mitigation mechanism yet at boot time.
+	 */
+	if (!tz_dbg->nr_trips)
+		goto out;
+
+	for (i = tz_dbg->nr_trips - 1; i >= 0; i--) {
+		if (tz_dbg->trips_crossed[i] == trip_id)
+			break;
+	}
+
+	if (i < 0)
+		goto out;
+
+	tz_dbg->nr_trips--;
+
+	if (i < tz_dbg->nr_trips)
+		tz_dbg->trips_crossed[i] = tz_dbg->trips_crossed[tz_dbg->nr_trips];
+
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+
+	delta = ktime_sub(now, tze->trip_stats[trip_id].timestamp);
+
+	tze->trip_stats[trip_id].duration =
+		ktime_add(delta, tze->trip_stats[trip_id].duration);
+
+	/*
+	 * This event closes the mitigation as we are crossing the
+	 * last trip point the way down.
+	 */
+	if (!tz_dbg->nr_trips)
+		tze->duration = ktime_sub(now, tze->timestamp);
+
+out:
+	mutex_unlock(&thermal_dbg->lock);
+}
+
+void thermal_debug_update_temp(struct thermal_zone_device *tz)
+{
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct tz_episode *tze;
+	struct tz_debugfs *tz_dbg;
+	int trip_id, i;
+
+	if (!thermal_dbg)
+		return;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	tz_dbg = &thermal_dbg->tz_dbg;
+
+	if (!tz_dbg->nr_trips)
+		goto out;
+
+	for (i = 0; i < tz_dbg->nr_trips; i++) {
+		trip_id = tz_dbg->trips_crossed[i];
+		tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+		tze->trip_stats[trip_id].count++;
+		tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, tz->temperature);
+		tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, tz->temperature);
+		tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
+			(tz->temperature - tze->trip_stats[trip_id].avg) /
+			tze->trip_stats[trip_id].count;
+	}
+out:
+	mutex_unlock(&thermal_dbg->lock);
+}
+
+static void *tze_seq_start(struct seq_file *s, loff_t *pos)
+{
+	struct thermal_zone_device *tz = s->private;
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct tz_debugfs *tz_dbg = &thermal_dbg->tz_dbg;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	return seq_list_start(&tz_dbg->tz_episodes, *pos);
+}
+
+static void *tze_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	struct thermal_zone_device *tz = s->private;
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct tz_debugfs *tz_dbg = &thermal_dbg->tz_dbg;
+
+	return seq_list_next(v, &tz_dbg->tz_episodes, pos);
+}
+
+static void tze_seq_stop(struct seq_file *s, void *v)
+{
+	struct thermal_zone_device *tz = s->private;
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+
+	mutex_unlock(&thermal_dbg->lock);
+}
+
+static int tze_seq_show(struct seq_file *s, void *v)
+{
+	struct thermal_zone_device *tz = s->private;
+	struct thermal_trip *trip;
+	struct tz_episode *tze;
+	const char *type;
+	int trip_id;
+
+	tze = list_entry((struct list_head *)v, struct tz_episode, node);
+
+	seq_printf(s, ",-Mitigation at %lluus, duration=%llums\n",
+		   ktime_to_us(tze->timestamp),
+		   ktime_to_ms(tze->duration));
+
+	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration  |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
+
+	for_each_trip(tz, trip) {
+		/*
+		 * There is no possible mitigation happening at the
+		 * critical trip point, so the stats will be always
+		 * zero, skip this trip point
+		 */
+		if (trip->type == THERMAL_TRIP_CRITICAL)
+			continue;
+
+		if (trip->type == THERMAL_TRIP_PASSIVE)
+			type = "passive";
+		else if (trip->type == THERMAL_TRIP_ACTIVE)
+			type = "active";
+		else
+			type = "hot";
+
+		trip_id = thermal_zone_trip_id(tz, trip);
+
+		seq_printf(s, "| %*d | %*s | %*d | %*d | %*lld | %*d | %*d | %*d |\n",
+			   4 , trip_id,
+			   8, type,
+			   9, trip->temperature,
+			   9, trip->hysteresis,
+			   10, ktime_to_ms(tze->trip_stats[trip_id].duration),
+			   9, tze->trip_stats[trip_id].avg,
+			   9, tze->trip_stats[trip_id].min,
+			   9, tze->trip_stats[trip_id].max);
+	}
+
+	return 0;
+}
+
+static const struct seq_operations tze_sops = {
+	.start = tze_seq_start,
+	.next = tze_seq_next,
+	.stop = tze_seq_stop,
+	.show = tze_seq_show,
+};
+
+DEFINE_SEQ_ATTRIBUTE(tze);
+
+void thermal_debug_tz_add(struct thermal_zone_device *tz)
+{
+	struct thermal_debugfs *thermal_dbg;
+	struct tz_debugfs *tz_dbg;
+
+	thermal_dbg = thermal_debugfs_add_id(d_tz, tz->id);
+	if (!thermal_dbg)
+		return;
+
+	tz_dbg = &thermal_dbg->tz_dbg;
+
+	tz_dbg->trips_crossed = kzalloc(sizeof(int) * tz->num_trips, GFP_KERNEL);
+	if (!tz_dbg->trips_crossed) {
+		thermal_debugfs_remove_id(thermal_dbg);
+		return;
+	}
+
+	INIT_LIST_HEAD(&tz_dbg->tz_episodes);
+
+	debugfs_create_file("mitigations", 0400, thermal_dbg->d_top, tz, &tze_fops);
+
+	tz->debugfs = thermal_dbg;
+}
+
+void thermal_debug_tz_remove(struct thermal_zone_device *tz)
+{
+	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+
+	if (!thermal_dbg)
+		return;
+
+	mutex_lock(&thermal_dbg->lock);
+
+	tz->debugfs = NULL;
 
 	mutex_unlock(&thermal_dbg->lock);
 
