@@ -37,27 +37,12 @@
 
 
 /*
- * If KASLR is enabled, then an offset K is added to the kernel address
- * space. The bottom 21 bits of this offset are zero to guarantee 2MB
- * alignment for PA and VA.
- *
- * For each pagetable level of the swapper, we know that the shift will
- * be larger than 21 (for the 4KB granule case we use section maps thus
- * the smallest shift is actually 30) thus there is the possibility that
- * KASLR can increase the number of pagetable entries by 1, so we make
- * room for this extra entry.
- *
- * Note KASLR cannot increase the number of required entries for a level
- * by more than one because it increments both the virtual start and end
- * addresses equally (the extra entry comes from the case where the end
- * address is just pushed over a boundary and the start address isn't).
+ * A relocatable kernel may execute from an address that differs from the one at
+ * which it was linked. In the worst case, its runtime placement may intersect
+ * with two adjacent PGDIR entries, which means that an additional page table
+ * may be needed at each subordinate level.
  */
-
-#ifdef CONFIG_RANDOMIZE_BASE
-#define EARLY_KASLR	(1)
-#else
-#define EARLY_KASLR	(0)
-#endif
+#define EXTRA_PAGE	__is_defined(CONFIG_RELOCATABLE)
 
 #define SPAN_NR_ENTRIES(vstart, vend, shift) \
 	((((vend) - 1) >> (shift)) - ((vstart) >> (shift)) + 1)
@@ -83,7 +68,7 @@
 			+ EARLY_PGDS((vstart), (vend), add) 	/* each PGDIR needs a next level page table */	\
 			+ EARLY_PUDS((vstart), (vend), add)	/* each PUD needs a next level page table */	\
 			+ EARLY_PMDS((vstart), (vend), add))	/* each PMD needs a next level page table */
-#define INIT_DIR_SIZE (PAGE_SIZE * EARLY_PAGES(KIMAGE_VADDR, _end, EARLY_KASLR))
+#define INIT_DIR_SIZE (PAGE_SIZE * EARLY_PAGES(KIMAGE_VADDR, _end, EXTRA_PAGE))
 
 /* the initial ID map may need two extra pages if it needs to be extended */
 #if VA_BITS < 48
