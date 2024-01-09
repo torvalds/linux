@@ -279,8 +279,7 @@ int devm_iio_dmaengine_buffer_setup(struct device *dev,
 {
 	struct iio_buffer *buffer;
 
-	buffer = devm_iio_dmaengine_buffer_alloc(indio_dev->dev.parent,
-						 channel);
+	buffer = devm_iio_dmaengine_buffer_alloc(dev, channel);
 	if (IS_ERR(buffer))
 		return PTR_ERR(buffer);
 
