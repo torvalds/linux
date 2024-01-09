@@ -153,10 +153,6 @@ void __kasan_poison_object_data(struct kmem_cache *cache, void *object)
  * 2. A cache might be SLAB_TYPESAFE_BY_RCU, which means objects can be
  *    accessed after being freed. We preassign tags for objects in these
  *    caches as well.
- * 3. For SLAB allocator we can't preassign tags randomly since the freelist
- *    is stored as an array of indexes instead of a linked list. Assign tags
- *    based on objects indexes, so that objects that are next to each other
- *    get different tags.
  */
 static inline u8 assign_tag(struct kmem_cache *cache,
 					const void *object, bool init)
@@ -171,17 +167,12 @@ static inline u8 assign_tag(struct kmem_cache *cache,
 	if (!cache->ctor && !(cache->flags & SLAB_TYPESAFE_BY_RCU))
 		return init ? KASAN_TAG_KERNEL : kasan_random_tag();
 
-	/* For caches that either have a constructor or SLAB_TYPESAFE_BY_RCU: */
-#ifdef CONFIG_SLAB
-	/* For SLAB assign tags based on the object index in the freelist. */
-	return (u8)obj_to_index(cache, virt_to_slab(object), (void *)object);
-#else
 	/*
-	 * For SLUB assign a random tag during slab creation, otherwise reuse
+	 * For caches that either have a constructor or SLAB_TYPESAFE_BY_RCU,
+	 * assign a random tag during slab creation, otherwise reuse
 	 * the already assigned tag.
 	 */
 	return init ? kasan_random_tag() : get_tag(object);
-#endif
 }
 
 void * __must_check __kasan_init_slab_obj(struct kmem_cache *cache,
