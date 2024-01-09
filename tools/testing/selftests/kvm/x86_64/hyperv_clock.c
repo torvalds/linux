@@ -212,6 +212,7 @@ int main(void)
 	int stage;
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_TIME));
+	TEST_REQUIRE(sys_clocksource_is_based_on_tsc());
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 
