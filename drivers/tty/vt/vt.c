@@ -2637,7 +2637,7 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
  */
 static inline int vc_sanitize_unicode(const int c)
 {
-	if ((c >= 0xd800 && c <= 0xdfff) || c == 0xfffe || c == 0xffff)
+	if (c >= 0xd800 && c <= 0xdfff)
 		return 0xfffd;
 
 	return c;
@@ -2656,10 +2656,7 @@ static inline int vc_sanitize_unicode(const int c)
  */
 static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 {
-	static const u32 utf8_length_changes[] = {
-		0x0000007f, 0x000007ff, 0x0000ffff,
-		0x001fffff, 0x03ffffff, 0x7fffffff
-	};
+	static const u32 utf8_length_changes[] = {0x7f, 0x7ff, 0xffff, 0x10ffff};
 
 	/* Continuation byte received */
 	if ((c & 0xc0) == 0x80) {
@@ -2705,14 +2702,7 @@ static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 	} else if ((c & 0xf8) == 0xf0) {
 		vc->vc_utf_count = 3;
 		vc->vc_utf_char = (c & 0x07);
-	} else if ((c & 0xfc) == 0xf8) {
-		vc->vc_utf_count = 4;
-		vc->vc_utf_char = (c & 0x03);
-	} else if ((c & 0xfe) == 0xfc) {
-		vc->vc_utf_count = 5;
-		vc->vc_utf_char = (c & 0x01);
 	} else {
-		/* 254 and 255 are invalid */
 		return 0xfffd;
 	}
 
