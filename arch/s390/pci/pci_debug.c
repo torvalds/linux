@@ -91,9 +91,9 @@ static int pci_perf_show(struct seq_file *m, void *v)
 	if (!zdev)
 		return 0;
 
-	mutex_lock(&zdev->lock);
+	mutex_lock(&zdev->fmb_lock);
 	if (!zdev->fmb) {
-		mutex_unlock(&zdev->lock);
+		mutex_unlock(&zdev->fmb_lock);
 		seq_puts(m, "FMB statistics disabled\n");
 		return 0;
 	}
@@ -130,7 +130,7 @@ static int pci_perf_show(struct seq_file *m, void *v)
 	}
 
 	pci_sw_counter_show(m);
-	mutex_unlock(&zdev->lock);
+	mutex_unlock(&zdev->fmb_lock);
 	return 0;
 }
 
@@ -148,7 +148,7 @@ static ssize_t pci_perf_seq_write(struct file *file, const char __user *ubuf,
 	if (rc)
 		return rc;
 
-	mutex_lock(&zdev->lock);
+	mutex_lock(&zdev->fmb_lock);
 	switch (val) {
 	case 0:
 		rc = zpci_fmb_disable_device(zdev);
@@ -157,7 +157,7 @@ static ssize_t pci_perf_seq_write(struct file *file, const char __user *ubuf,
 		rc = zpci_fmb_enable_device(zdev);
 		break;
 	}
-	mutex_unlock(&zdev->lock);
+	mutex_unlock(&zdev->fmb_lock);
 	return rc ? rc : count;
 }
 
