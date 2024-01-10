@@ -83,13 +83,14 @@ static void async_pf_execute(struct work_struct *work)
 	apf->vcpu = NULL;
 	spin_unlock(&vcpu->async_pf.lock);
 
+	/*
+	 * The apf struct may be freed by kvm_check_async_pf_completion() as
+	 * soon as the lock is dropped.  Nullify it to prevent improper usage.
+	 */
+	apf = NULL;
+
 	if (!IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC) && first)
 		kvm_arch_async_page_present_queued(vcpu);
-
-	/*
-	 * apf may be freed by kvm_check_async_pf_completion() after
-	 * this point
-	 */
 
 	trace_kvm_async_pf_completed(addr, cr2_or_gpa);
 
