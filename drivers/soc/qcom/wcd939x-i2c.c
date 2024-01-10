@@ -13,7 +13,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/nvmem-consumer.h>
 #include "wcd-usbss-priv.h"
-#include "wcd-usbss-registers.h"
 #include "wcd-usbss-reg-masks.h"
 #include "wcd-usbss-reg-shifts.h"
 
@@ -271,6 +270,19 @@ int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
 	return ret;
 }
 EXPORT_SYMBOL(wcd_usbss_set_linearizer_sw_tap);
+
+static bool wcd_usbss_readable_register(struct device *dev, unsigned int reg)
+{
+	if (reg <= (WCD_USBSS_BASE + 1))
+		return false;
+
+	if ((wcd_usbss_ctxt_ && wcd_usbss_ctxt_->version == WCD_USBSS_1_X) &&
+			(reg >= WCD_USBSS_EFUSE_CTL &&
+			reg <= WCD_USBSS_ANA_CSR_DBG_CTL))
+		return false;
+
+	return wcd_usbss_reg_access[WCD_USBSS_REG(reg)] & RD_REG;
+}
 
 /*
  * wcd_usbss_register_update() - Write or read multiple USB-SS registers.
@@ -1713,6 +1725,7 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 				__func__);
 		rc = 0;
 	}
+	wcd_usbss_regmap_config.readable_reg = wcd_usbss_readable_register;
 	priv->regmap = wcd_usbss_regmap_init(priv->dev, &wcd_usbss_regmap_config);
 	if (IS_ERR_OR_NULL(priv->regmap)) {
 		rc = PTR_ERR(priv->regmap);

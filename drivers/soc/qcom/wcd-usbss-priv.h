@@ -16,6 +16,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/sched.h>
 #include <linux/soc/qcom/wcd939x-i2c.h>
+#include "wcd-usbss-registers.h"
 
 #define WCD_USBSS_SUPPLY_MAX 4
 
@@ -55,4 +56,5 @@ struct wcd_usbss_ctxt {
 extern struct regmap *wcd_usbss_regmap_init(struct device *dev,
 				   const struct regmap_config *config);
 extern struct regmap_config wcd_usbss_regmap_config;
+extern const u8 wcd_usbss_reg_access[WCD_USBSS_NUM_REGISTERS];
 #endif /* WCD_USBSS_PRIV_H */
