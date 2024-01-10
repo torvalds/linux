@@ -493,14 +493,14 @@ char single_byte_buf[1] SEC(".data.single_byte_buf");
 SEC("raw_tp")
 __log_level(2)
 __success
-/* make sure fp-8 is all STACK_ZERO */
-__msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8_w=00000000")
+/* fp-8 is spilled IMPRECISE value zero (represented by a zero value fake reg) */
+__msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8_w=0")
 /* but fp-16 is spilled IMPRECISE zero const reg */
 __msg("4: (7b) *(u64 *)(r10 -16) = r0        ; R0_w=0 R10=fp0 fp-16_w=0")
-/* validate that assigning R2 from STACK_ZERO doesn't mark register
+/* validate that assigning R2 from STACK_SPILL with zero value  doesn't mark register
  * precise immediately; if necessary, it will be marked precise later
  */
-__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8_w=00000000")
+__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8_w=0")
 /* similarly, when R2 is assigned from spilled register, it is initially
  * imprecise, but will be marked precise later once it is used in precise context
  */
@@ -518,14 +518,14 @@ __msg("mark_precise: frame0: regs=r0 stack= before 3: (b7) r0 = 0")
 __naked void partial_stack_load_preserves_zeros(void)
 {
 	asm volatile (
-		/* fp-8 is all STACK_ZERO */
+		/* fp-8 is value zero (represented by a zero value fake reg) */
 		".8byte %[fp8_st_zero];" /* LLVM-18+: *(u64 *)(r10 -8) = 0; */
 
 		/* fp-16 is const zero register */
 		"r0 = 0;"
 		"*(u64 *)(r10 -16) = r0;"
 
-		/* load single U8 from non-aligned STACK_ZERO slot */
+		/* load single U8 from non-aligned spilled value zero slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u8 *)(r10 -1);"
 		"r1 += r2;"
@@ -537,7 +537,7 @@ __naked void partial_stack_load_preserves_zeros(void)
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U16 from non-aligned STACK_ZERO slot */
+		/* load single U16 from non-aligned spilled value zero slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u16 *)(r10 -2);"
 		"r1 += r2;"
@@ -549,7 +549,7 @@ __naked void partial_stack_load_preserves_zeros(void)
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U32 from non-aligned STACK_ZERO slot */
+		/* load single U32 from non-aligned spilled value zero slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u32 *)(r10 -4);"
 		"r1 += r2;"

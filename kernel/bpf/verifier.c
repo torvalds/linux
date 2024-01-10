@@ -4516,7 +4516,7 @@ static int check_stack_write_fixed_off(struct bpf_verifier_env *env,
 		if (!reg_value_fits)
 			state->stack[spi].spilled_ptr.id = 0;
 	} else if (!reg && !(off % BPF_REG_SIZE) && is_bpf_st_mem(insn) &&
-		   insn->imm != 0 && env->bpf_capable) {
+		   env->bpf_capable) {
 		struct bpf_reg_state fake_reg = {};
 
 		__mark_reg_known(&fake_reg, insn->imm);
@@ -4663,7 +4663,20 @@ static int check_stack_write_var_off(struct bpf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		/* Erase all spilled pointers. */
+		/* If writing_zero and the spi slot contains a spill of value 0,
+		 * maintain the spill type.
+		 */
+		if (writing_zero && *stype == STACK_SPILL &&
+		    is_spilled_scalar_reg(&state->stack[spi])) {
+			struct bpf_reg_state *spill_reg = &state->stack[spi].spilled_ptr;
+
+			if (tnum_is_const(spill_reg->var_off) && spill_reg->var_off.value == 0) {
+				zero_used = true;
+				continue;
+			}
+		}
+
+		/* Erase all other spilled pointers. */
 		state->stack[spi].spilled_ptr.type = NOT_INIT;
 
 		/* Update the slot type. */
