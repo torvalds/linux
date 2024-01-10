@@ -13054,6 +13054,11 @@ bool kvm_arch_dy_has_pending_interrupt(struct kvm_vcpu *vcpu)
 	return false;
 }
 
+bool kvm_arch_vcpu_preempted_in_kernel(struct kvm_vcpu *vcpu)
+{
+	return kvm_arch_vcpu_in_kernel(vcpu);
+}
+
 bool kvm_arch_dy_runnable(struct kvm_vcpu *vcpu)
 {
 	if (READ_ONCE(vcpu->arch.pv.pv_unhalted))

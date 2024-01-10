@@ -4042,6 +4042,18 @@ static bool vcpu_dy_runnable(struct kvm_vcpu *vcpu)
 	return false;
 }
 
+/*
+ * By default, simply query the target vCPU's current mode when checking if a
+ * vCPU was preempted in kernel mode.  All architectures except x86 (or more
+ * specifical, except VMX) allow querying whether or not a vCPU is in kernel
+ * mode even if the vCPU is NOT loaded, i.e. using kvm_arch_vcpu_in_kernel()
+ * directly for cross-vCPU checks is functionally correct and accurate.
+ */
+bool __weak kvm_arch_vcpu_preempted_in_kernel(struct kvm_vcpu *vcpu)
+{
+	return kvm_arch_vcpu_in_kernel(vcpu);
+}
+
 bool __weak kvm_arch_dy_has_pending_interrupt(struct kvm_vcpu *vcpu)
 {
 	return false;
@@ -4080,7 +4092,7 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 				continue;
 			if (READ_ONCE(vcpu->preempted) && yield_to_kernel_mode &&
 			    !kvm_arch_dy_has_pending_interrupt(vcpu) &&
-			    !kvm_arch_vcpu_in_kernel(vcpu))
+			    !kvm_arch_vcpu_preempted_in_kernel(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;
