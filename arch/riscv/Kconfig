@@ -905,12 +905,12 @@ config RISCV_ISA_FALLBACK
 	  on the replacement properties, "riscv,isa-base" and
 	  "riscv,isa-extensions".
 
-endmenu # "Boot options"
-
 config BUILTIN_DTB
-	bool
+	bool "Built-in device tree"
 	depends on OF && NONPORTABLE
 	default y if XIP_KERNEL
+
+endmenu # "Boot options"
 
 config PORTABLE
 	bool
