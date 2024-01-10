@@ -1902,6 +1902,28 @@
 			compatible = "aspeed,ast2700-wdt";
 			reg = <0x0 0x14c37000 0x0 0x40>;
 		};
+
+		fsim0: fsi@21800000 {
+			compatible = "aspeed,ast2700-fsi-master", "fsi-master";
+			reg = <0x0 0x21800000 0x0 0x94>;
+			interrupts-extended = <&intc5 6>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fsi0_default>;
+			clocks = <&syscon1 AST2700_SOC1_CLK_GATE_FSICLK>;
+			resets = <&syscon1 ASPEED_RESET_FSI>;
+			status = "disabled";
+		};
+
+		fsim1: fsi@23800000 {
+			compatible = "aspeed,ast2700-fsi-master", "fsi-master";
+			reg = <0x0 0x23800000 0x0 0x94>;
+			interrupts-extended = <&intc5 7>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_fsi1_default>;
+			clocks = <&syscon1 AST2700_SOC1_CLK_GATE_FSICLK>;
+			resets = <&syscon1 ASPEED_RESET_FSI>;
+			status = "disabled";
+		};
 	};
 };
 
