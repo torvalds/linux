@@ -116,7 +116,7 @@
 };
 
 &adsp {
-	firmware-name = "qcom/sm7225/fairphone4/adsp.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/adsp.mbn";
 	status = "okay";
 };
 
@@ -361,7 +361,7 @@
 };
 
 &cdsp {
-	firmware-name = "qcom/sm7225/fairphone4/cdsp.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/cdsp.mbn";
 	status = "okay";
 };
 
@@ -400,12 +400,12 @@
 &ipa {
 	qcom,gsi-loader = "self";
 	memory-region = <&pil_ipa_fw_mem>;
-	firmware-name = "qcom/sm7225/fairphone4/ipa_fws.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/ipa_fws.mbn";
 	status = "okay";
 };
 
 &mpss {
-	firmware-name = "qcom/sm7225/fairphone4/modem.mdt";
+	firmware-name = "qcom/sm7225/fairphone4/modem.mbn";
 	status = "okay";
 };
 
