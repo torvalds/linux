@@ -259,15 +259,61 @@ static int rxrpc_listen(struct socket *sock, int backlog)
 }
 
 /**
+ * rxrpc_kernel_lookup_peer - Obtain remote transport endpoint for an address
+ * @sock: The socket through which it will be accessed
+ * @srx: The network address
+ * @gfp: Allocation flags
+ *
+ * Lookup or create a remote transport endpoint record for the specified
+ * address and return it with a ref held.
+ */
+struct rxrpc_peer *rxrpc_kernel_lookup_peer(struct socket *sock,
+					    struct sockaddr_rxrpc *srx, gfp_t gfp)
+{
+	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
+	int ret;
+
+	ret = rxrpc_validate_address(rx, srx, sizeof(*srx));
+	if (ret < 0)
+		return ERR_PTR(ret);
+
+	return rxrpc_lookup_peer(rx->local, srx, gfp);
+}
+EXPORT_SYMBOL(rxrpc_kernel_lookup_peer);
+
+/**
+ * rxrpc_kernel_get_peer - Get a reference on a peer
+ * @peer: The peer to get a reference on.
+ *
+ * Get a record for the remote peer in a call.
+ */
+struct rxrpc_peer *rxrpc_kernel_get_peer(struct rxrpc_peer *peer)
+{
+	return peer ? rxrpc_get_peer(peer, rxrpc_peer_get_application) : NULL;
+}
+EXPORT_SYMBOL(rxrpc_kernel_get_peer);
+
+/**
+ * rxrpc_kernel_put_peer - Allow a kernel app to drop a peer reference
+ * @peer: The peer to drop a ref on
+ */
+void rxrpc_kernel_put_peer(struct rxrpc_peer *peer)
+{
+	rxrpc_put_peer(peer, rxrpc_peer_put_application);
+}
+EXPORT_SYMBOL(rxrpc_kernel_put_peer);
+
+/**
  * rxrpc_kernel_begin_call - Allow a kernel service to begin a call
  * @sock: The socket on which to make the call
- * @srx: The address of the peer to contact
+ * @peer: The peer to contact
  * @key: The security context to use (defaults to socket setting)
  * @user_call_ID: The ID to use
  * @tx_total_len: Total length of data to transmit during the call (or -1)
  * @hard_timeout: The maximum lifespan of the call in sec
  * @gfp: The allocation constraints
  * @notify_rx: Where to send notifications instead of socket queue
+ * @service_id: The ID of the service to contact
  * @upgrade: Request service upgrade for call
  * @interruptibility: The call is interruptible, or can be canceled.
  * @debug_id: The debug ID for tracing to be assigned to the call
@@ -280,13 +326,14 @@ static int rxrpc_listen(struct socket *sock, int backlog)
  * supplying @srx and @key.
  */
 struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
-					   struct sockaddr_rxrpc *srx,
+					   struct rxrpc_peer *peer,
 					   struct key *key,
 					   unsigned long user_call_ID,
 					   s64 tx_total_len,
 					   u32 hard_timeout,
 					   gfp_t gfp,
 					   rxrpc_notify_rx_t notify_rx,
+					   u16 service_id,
 					   bool upgrade,
 					   enum rxrpc_interruptibility interruptibility,
 					   unsigned int debug_id)
@@ -295,13 +342,11 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	struct rxrpc_call_params p;
 	struct rxrpc_call *call;
 	struct rxrpc_sock *rx = rxrpc_sk(sock->sk);
-	int ret;
 
 	_enter(",,%x,%lx", key_serial(key), user_call_ID);
 
-	ret = rxrpc_validate_address(rx, srx, sizeof(*srx));
-	if (ret < 0)
-		return ERR_PTR(ret);
+	if (WARN_ON_ONCE(peer->local != rx->local))
+		return ERR_PTR(-EIO);
 
 	lock_sock(&rx->sk);
 
@@ -319,12 +364,13 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
+	cp.peer			= peer;
 	cp.key			= key;
 	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= false;
 	cp.upgrade		= upgrade;
-	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, &p, gfp, debug_id);
+	cp.service_id		= service_id;
+	call = rxrpc_new_client_call(rx, &cp, &p, gfp, debug_id);
 	/* The socket has been unlocked. */
 	if (!IS_ERR(call)) {
 		call->notify_rx = notify_rx;

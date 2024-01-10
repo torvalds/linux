@@ -366,7 +366,7 @@ static void afs_store_data_success(struct afs_operation *op)
 
 	op->ctime = op->file[0].scb.status.mtime_client;
 	afs_vnode_commit_status(op, &op->file[0]);
-	if (op->error == 0) {
+	if (!afs_op_error(op)) {
 		if (!op->store.laundering)
 			afs_pages_written_back(vnode, op->store.pos, op->store.size);
 		afs_stat_v(vnode, n_stores);
@@ -428,7 +428,7 @@ try_next_key:
 
 	afs_wait_for_operation(op);
 
-	switch (op->error) {
+	switch (afs_op_error(op)) {
 	case -EACCES:
 	case -EPERM:
 	case -ENOKEY:
@@ -447,7 +447,7 @@ try_next_key:
 	}
 
 	afs_put_wb_key(wbk);
-	_leave(" = %d", op->error);
+	_leave(" = %d", afs_op_error(op));
 	return afs_put_operation(op);
 }
 

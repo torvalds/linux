@@ -178,7 +178,9 @@
 #define rxrpc_peer_traces \
 	EM(rxrpc_peer_free,			"FREE        ") \
 	EM(rxrpc_peer_get_accept,		"GET accept  ") \
+	EM(rxrpc_peer_get_application,		"GET app     ") \
 	EM(rxrpc_peer_get_bundle,		"GET bundle  ") \
+	EM(rxrpc_peer_get_call,			"GET call    ") \
 	EM(rxrpc_peer_get_client_conn,		"GET cln-conn") \
 	EM(rxrpc_peer_get_input,		"GET input   ") \
 	EM(rxrpc_peer_get_input_error,		"GET inpt-err") \
@@ -187,6 +189,7 @@
 	EM(rxrpc_peer_get_service_conn,		"GET srv-conn") \
 	EM(rxrpc_peer_new_client,		"NEW client  ") \
 	EM(rxrpc_peer_new_prealloc,		"NEW prealloc") \
+	EM(rxrpc_peer_put_application,		"PUT app     ") \
 	EM(rxrpc_peer_put_bundle,		"PUT bundle  ") \
 	EM(rxrpc_peer_put_call,			"PUT call    ") \
 	EM(rxrpc_peer_put_conn,			"PUT conn    ") \
