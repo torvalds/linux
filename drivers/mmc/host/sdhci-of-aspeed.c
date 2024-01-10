@@ -339,14 +339,15 @@ static void aspeed_sdhci_reset(struct sdhci_host *host, u8 mask)
 	struct sdhci_pltfm_host *pltfm_priv;
 	struct aspeed_sdhci *aspeed_sdhci;
 	struct aspeed_sdc *aspeed_sdc;
-	u32 save_array[7];
+	u32 save_array[8];
 	u32 reg_array[] = {SDHCI_DMA_ADDRESS,
 			SDHCI_BLOCK_SIZE,
 			SDHCI_ARGUMENT,
 			SDHCI_HOST_CONTROL,
 			SDHCI_CLOCK_CONTROL,
 			SDHCI_INT_ENABLE,
-			SDHCI_SIGNAL_ENABLE};
+			SDHCI_SIGNAL_ENABLE,
+			SDHCI_AUTO_CMD_STATUS};
 	int i;
 	u16 tran_mode;
 	u32 mmc8_mode;
