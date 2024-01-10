@@ -16,6 +16,7 @@ intel_qat-objs := adf_cfg.o \
 	adf_sysfs_ras_counters.o \
 	adf_gen2_hw_data.o \
 	adf_gen2_config.o \
+	adf_gen4_config.o \
 	adf_gen4_hw_data.o \
 	adf_gen4_pm.o \
 	adf_gen2_dc.o \
@@ -40,9 +41,12 @@ intel_qat-$(CONFIG_DEBUG_FS) += adf_transport_debug.o \
 				adf_fw_counters.o \
 				adf_cnv_dbgfs.o \
 				adf_gen4_pm_debugfs.o \
+				adf_gen4_tl.o \
 				adf_heartbeat.o \
 				adf_heartbeat_dbgfs.o \
 				adf_pm_dbgfs.o \
+				adf_telemetry.o \
+				adf_tl_debugfs.o \
 				adf_dbgfs.o
 
 intel_qat-$(CONFIG_PCI_IOV) += adf_sriov.o adf_vf_isr.o adf_pfvf_utils.o \

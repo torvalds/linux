@@ -781,7 +781,7 @@ out:
 	return err;
 }
 
-static int n2rng_remove(struct platform_device *op)
+static void n2rng_remove(struct platform_device *op)
 {
 	struct n2rng *np = platform_get_drvdata(op);
 
@@ -790,8 +790,6 @@ static int n2rng_remove(struct platform_device *op)
 	cancel_delayed_work_sync(&np->work);
 
 	sun4v_hvapi_unregister(HV_GRP_RNG);
-
-	return 0;
 }
 
 static struct n2rng_template n2_template = {
@@ -860,7 +858,7 @@ static struct platform_driver n2rng_driver = {
 		.of_match_table = n2rng_match,
 	},
 	.probe		= n2rng_probe,
-	.remove		= n2rng_remove,
+	.remove_new	= n2rng_remove,
 };
 
 module_platform_driver(n2rng_driver);

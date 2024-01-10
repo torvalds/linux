@@ -306,6 +306,7 @@ config CRYPTO_DEV_SAHARA
 	select CRYPTO_SKCIPHER
 	select CRYPTO_AES
 	select CRYPTO_ECB
+	select CRYPTO_ENGINE
 	help
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.

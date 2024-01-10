@@ -121,10 +121,10 @@ struct hisi_acc_sgl_pool *hisi_acc_create_sgl_pool(struct device *dev,
 	return pool;
 
 err_free_mem:
-	for (j = 0; j < i; j++) {
+	for (j = 0; j < i; j++)
 		dma_free_coherent(dev, block_size, block[j].sgl,
 				  block[j].sgl_dma);
-	}
+
 	kfree_sensitive(pool);
 	return ERR_PTR(-ENOMEM);
 }
@@ -140,7 +140,7 @@ EXPORT_SYMBOL_GPL(hisi_acc_create_sgl_pool);
 void hisi_acc_free_sgl_pool(struct device *dev, struct hisi_acc_sgl_pool *pool)
 {
 	struct mem_block *block;
-	int i;
+	u32 i;
 
 	if (!dev || !pool)
 		return;
@@ -196,9 +196,10 @@ static void update_hw_sgl_sum_sge(struct hisi_acc_hw_sgl *hw_sgl, u16 sum)
 static void clear_hw_sgl_sge(struct hisi_acc_hw_sgl *hw_sgl)
 {
 	struct acc_hw_sge *hw_sge = hw_sgl->sge_entries;
+	u16 entry_sum = le16_to_cpu(hw_sgl->entry_sum_in_sgl);
 	int i;
 
-	for (i = 0; i < le16_to_cpu(hw_sgl->entry_sum_in_sgl); i++) {
+	for (i = 0; i < entry_sum; i++) {
 		hw_sge[i].page_ctrl = NULL;
 		hw_sge[i].buf = 0;
 		hw_sge[i].len = 0;
@@ -223,10 +224,11 @@ hisi_acc_sg_buf_map_to_hw_sgl(struct device *dev,
 			      u32 index, dma_addr_t *hw_sgl_dma)
 {
 	struct hisi_acc_hw_sgl *curr_hw_sgl;
+	unsigned int i, sg_n_mapped;
 	dma_addr_t curr_sgl_dma = 0;
 	struct acc_hw_sge *curr_hw_sge;
 	struct scatterlist *sg;
-	int i, sg_n, sg_n_mapped;
+	int sg_n;
 
 	if (!dev || !sgl || !pool || !hw_sgl_dma)
 		return ERR_PTR(-EINVAL);

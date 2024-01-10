@@ -116,6 +116,7 @@ available subsections can be seen below.
    wmi
    dpll
    wbrf
+   crypto/index
 
 .. only::  subproject and html
 

@@ -2096,16 +2096,6 @@ static inline int hifn_encrypt_aes_cbc(struct skcipher_request *req)
 	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
 			ACRYPTO_TYPE_AES_128, ACRYPTO_MODE_CBC);
 }
-static inline int hifn_encrypt_aes_cfb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
-			ACRYPTO_TYPE_AES_128, ACRYPTO_MODE_CFB);
-}
-static inline int hifn_encrypt_aes_ofb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
-			ACRYPTO_TYPE_AES_128, ACRYPTO_MODE_OFB);
-}
 
 /*
  * AES decryption functions.
@@ -2119,16 +2109,6 @@ static inline int hifn_decrypt_aes_cbc(struct skcipher_request *req)
 {
 	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
 			ACRYPTO_TYPE_AES_128, ACRYPTO_MODE_CBC);
-}
-static inline int hifn_decrypt_aes_cfb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
-			ACRYPTO_TYPE_AES_128, ACRYPTO_MODE_CFB);
-}
-static inline int hifn_decrypt_aes_ofb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
-			ACRYPTO_TYPE_AES_128, ACRYPTO_MODE_OFB);
 }
 
 /*
@@ -2144,16 +2124,6 @@ static inline int hifn_encrypt_des_cbc(struct skcipher_request *req)
 	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
 			ACRYPTO_TYPE_DES, ACRYPTO_MODE_CBC);
 }
-static inline int hifn_encrypt_des_cfb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
-			ACRYPTO_TYPE_DES, ACRYPTO_MODE_CFB);
-}
-static inline int hifn_encrypt_des_ofb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
-			ACRYPTO_TYPE_DES, ACRYPTO_MODE_OFB);
-}
 
 /*
  * DES decryption functions.
@@ -2167,16 +2137,6 @@ static inline int hifn_decrypt_des_cbc(struct skcipher_request *req)
 {
 	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
 			ACRYPTO_TYPE_DES, ACRYPTO_MODE_CBC);
-}
-static inline int hifn_decrypt_des_cfb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
-			ACRYPTO_TYPE_DES, ACRYPTO_MODE_CFB);
-}
-static inline int hifn_decrypt_des_ofb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
-			ACRYPTO_TYPE_DES, ACRYPTO_MODE_OFB);
 }
 
 /*
@@ -2192,16 +2152,6 @@ static inline int hifn_encrypt_3des_cbc(struct skcipher_request *req)
 	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
 			ACRYPTO_TYPE_3DES, ACRYPTO_MODE_CBC);
 }
-static inline int hifn_encrypt_3des_cfb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
-			ACRYPTO_TYPE_3DES, ACRYPTO_MODE_CFB);
-}
-static inline int hifn_encrypt_3des_ofb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_ENCRYPT,
-			ACRYPTO_TYPE_3DES, ACRYPTO_MODE_OFB);
-}
 
 /* 3DES decryption functions. */
 static inline int hifn_decrypt_3des_ecb(struct skcipher_request *req)
@@ -2214,16 +2164,6 @@ static inline int hifn_decrypt_3des_cbc(struct skcipher_request *req)
 	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
 			ACRYPTO_TYPE_3DES, ACRYPTO_MODE_CBC);
 }
-static inline int hifn_decrypt_3des_cfb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
-			ACRYPTO_TYPE_3DES, ACRYPTO_MODE_CFB);
-}
-static inline int hifn_decrypt_3des_ofb(struct skcipher_request *req)
-{
-	return hifn_setup_crypto(req, ACRYPTO_OP_DECRYPT,
-			ACRYPTO_TYPE_3DES, ACRYPTO_MODE_OFB);
-}
 
 struct hifn_alg_template {
 	char name[CRYPTO_MAX_ALG_NAME];
@@ -2234,28 +2174,8 @@ struct hifn_alg_template {
 
 static const struct hifn_alg_template hifn_alg_templates[] = {
 	/*
-	 * 3DES ECB, CBC, CFB and OFB modes.
+	 * 3DES ECB and CBC modes.
 	 */
-	{
-		.name = "cfb(des3_ede)", .drv_name = "cfb-3des", .bsize = 8,
-		.skcipher = {
-			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.setkey		=	hifn_des3_setkey,
-			.encrypt	=	hifn_encrypt_3des_cfb,
-			.decrypt	=	hifn_decrypt_3des_cfb,
-		},
-	},
-	{
-		.name = "ofb(des3_ede)", .drv_name = "ofb-3des", .bsize = 8,
-		.skcipher = {
-			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.setkey		=	hifn_des3_setkey,
-			.encrypt	=	hifn_encrypt_3des_ofb,
-			.decrypt	=	hifn_decrypt_3des_ofb,
-		},
-	},
 	{
 		.name = "cbc(des3_ede)", .drv_name = "cbc-3des", .bsize = 8,
 		.skcipher = {
@@ -2279,28 +2199,8 @@ static const struct hifn_alg_template hifn_alg_templates[] = {
 	},
 
 	/*
-	 * DES ECB, CBC, CFB and OFB modes.
+	 * DES ECB and CBC modes.
 	 */
-	{
-		.name = "cfb(des)", .drv_name = "cfb-des", .bsize = 8,
-		.skcipher = {
-			.min_keysize	=	HIFN_DES_KEY_LENGTH,
-			.max_keysize	=	HIFN_DES_KEY_LENGTH,
-			.setkey		=	hifn_setkey,
-			.encrypt	=	hifn_encrypt_des_cfb,
-			.decrypt	=	hifn_decrypt_des_cfb,
-		},
-	},
-	{
-		.name = "ofb(des)", .drv_name = "ofb-des", .bsize = 8,
-		.skcipher = {
-			.min_keysize	=	HIFN_DES_KEY_LENGTH,
-			.max_keysize	=	HIFN_DES_KEY_LENGTH,
-			.setkey		=	hifn_setkey,
-			.encrypt	=	hifn_encrypt_des_ofb,
-			.decrypt	=	hifn_decrypt_des_ofb,
-		},
-	},
 	{
 		.name = "cbc(des)", .drv_name = "cbc-des", .bsize = 8,
 		.skcipher = {
@@ -2324,7 +2224,7 @@ static const struct hifn_alg_template hifn_alg_templates[] = {
 	},
 
 	/*
-	 * AES ECB, CBC, CFB and OFB modes.
+	 * AES ECB and CBC modes.
 	 */
 	{
 		.name = "ecb(aes)", .drv_name = "ecb-aes", .bsize = 16,
@@ -2345,26 +2245,6 @@ static const struct hifn_alg_template hifn_alg_templates[] = {
 			.setkey		=	hifn_setkey,
 			.encrypt	=	hifn_encrypt_aes_cbc,
 			.decrypt	=	hifn_decrypt_aes_cbc,
-		},
-	},
-	{
-		.name = "cfb(aes)", .drv_name = "cfb-aes", .bsize = 16,
-		.skcipher = {
-			.min_keysize	=	AES_MIN_KEY_SIZE,
-			.max_keysize	=	AES_MAX_KEY_SIZE,
-			.setkey		=	hifn_setkey,
-			.encrypt	=	hifn_encrypt_aes_cfb,
-			.decrypt	=	hifn_decrypt_aes_cfb,
-		},
-	},
-	{
-		.name = "ofb(aes)", .drv_name = "ofb-aes", .bsize = 16,
-		.skcipher = {
-			.min_keysize	=	AES_MIN_KEY_SIZE,
-			.max_keysize	=	AES_MAX_KEY_SIZE,
-			.setkey		=	hifn_setkey,
-			.encrypt	=	hifn_encrypt_aes_ofb,
-			.decrypt	=	hifn_decrypt_aes_ofb,
 		},
 	},
 };

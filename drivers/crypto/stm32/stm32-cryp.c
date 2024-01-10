@@ -838,7 +838,7 @@ static int stm32_cryp_aead_one_req(struct crypto_engine *engine, void *areq);
 
 static int stm32_cryp_aes_aead_init(struct crypto_aead *tfm)
 {
-	tfm->reqsize = sizeof(struct stm32_cryp_reqctx);
+	crypto_aead_set_reqsize(tfm, sizeof(struct stm32_cryp_reqctx));
 
 	return 0;
 }

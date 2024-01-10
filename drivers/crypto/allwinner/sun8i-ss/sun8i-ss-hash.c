@@ -30,33 +30,16 @@ static int sun8i_ss_hashkey(struct sun8i_ss_hash_tfm_ctx *tfmctx, const u8 *key,
 			    unsigned int keylen)
 {
 	struct crypto_shash *xtfm;
-	struct shash_desc *sdesc;
-	size_t len;
-	int ret = 0;
+	int ret;
 
 	xtfm = crypto_alloc_shash("sha1", 0, CRYPTO_ALG_NEED_FALLBACK);
 	if (IS_ERR(xtfm))
 		return PTR_ERR(xtfm);
 
-	len = sizeof(*sdesc) + crypto_shash_descsize(xtfm);
-	sdesc = kmalloc(len, GFP_KERNEL);
-	if (!sdesc) {
-		ret = -ENOMEM;
-		goto err_hashkey_sdesc;
-	}
-	sdesc->tfm = xtfm;
-
-	ret = crypto_shash_init(sdesc);
-	if (ret) {
-		dev_err(tfmctx->ss->dev, "shash init error ret=%d\n", ret);
-		goto err_hashkey;
-	}
-	ret = crypto_shash_finup(sdesc, key, keylen, tfmctx->key);
+	ret = crypto_shash_tfm_digest(xtfm, key, keylen, tfmctx->key);
 	if (ret)
-		dev_err(tfmctx->ss->dev, "shash finup error\n");
-err_hashkey:
-	kfree(sdesc);
-err_hashkey_sdesc:
+		dev_err(tfmctx->ss->dev, "shash digest error ret=%d\n", ret);
+
 	crypto_free_shash(xtfm);
 	return ret;
 }
