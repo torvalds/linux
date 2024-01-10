@@ -74,7 +74,7 @@ static const struct aspeed_gfx_config ast2400_config = {
 	.throd_val = CRT_THROD_LOW(0x1e) | CRT_THROD_HIGH(0x12),
 	.scan_line_max = 64,
 	.gfx_flags = CLK_G4,
-	.pcie_int_reg = 0x18,
+	.pcie_int_reg = 0x0,
 };
 
 static const struct aspeed_gfx_config ast2500_config = {
@@ -97,10 +97,21 @@ static const struct aspeed_gfx_config ast2600_config = {
 	.pcie_int_reg = 0x560,
 };
 
+static const struct aspeed_gfx_config ast2700_config = {
+	.dac_reg = 0xc0,
+	.int_clear_reg = 0x68,
+	.vga_scratch_reg = 0x50,
+	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
+	.scan_line_max = 128,
+	.gfx_flags = CLK_G7,
+	.pcie_int_reg = 0x0,
+};
+
 static const struct of_device_id aspeed_gfx_match[] = {
 	{ .compatible = "aspeed,ast2400-gfx", .data = &ast2400_config },
 	{ .compatible = "aspeed,ast2500-gfx", .data = &ast2500_config },
 	{ .compatible = "aspeed,ast2600-gfx", .data = &ast2600_config },
+	{ .compatible = "aspeed,ast2700-gfx", .data = &ast2700_config },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, aspeed_gfx_match);
@@ -328,9 +339,11 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->flags = config->gfx_flags;
 	priv->pcie_int_reg = config->pcie_int_reg;
 
-	/* add pcie detect after ast2400 */
-	if (priv->flags != CLK_G4)
+	/* Add pcie auto detect if the register has been assigned */
+	if (priv->pcie_int_reg != 0x0)
 		priv->pcie_advance = 1;
+	else
+		priv->pcie_advance = 0;
 
 	priv->scu = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->scu)) {
