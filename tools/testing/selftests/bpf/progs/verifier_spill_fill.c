@@ -581,6 +581,47 @@ __naked void partial_stack_load_preserves_zeros(void)
 	: __clobber_common);
 }
 
+SEC("raw_tp")
+__log_level(2)
+__success
+/* fp-4 is STACK_ZERO */
+__msg("2: (62) *(u32 *)(r10 -4) = 0          ; R10=fp0 fp-8=0000????")
+__msg("4: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8=0000????")
+__msg("5: (0f) r1 += r2")
+__msg("mark_precise: frame0: last_idx 5 first_idx 0 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r2 stack= before 4: (71) r2 = *(u8 *)(r10 -1)")
+__naked void partial_stack_load_preserves_partial_zeros(void)
+{
+	asm volatile (
+		/* fp-4 is value zero */
+		".8byte %[fp4_st_zero];" /* LLVM-18+: *(u32 *)(r10 -4) = 0; */
+
+		/* load single U8 from non-aligned stack zero slot */
+		"r1 = %[single_byte_buf];"
+		"r2 = *(u8 *)(r10 -1);"
+		"r1 += r2;"
+		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
+
+		/* load single U16 from non-aligned stack zero slot */
+		"r1 = %[single_byte_buf];"
+		"r2 = *(u16 *)(r10 -2);"
+		"r1 += r2;"
+		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
+
+		/* load single U32 from non-aligned stack zero slot */
+		"r1 = %[single_byte_buf];"
+		"r2 = *(u32 *)(r10 -4);"
+		"r1 += r2;"
+		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
+
+		"r0 = 0;"
+		"exit;"
+	:
+	: __imm_ptr(single_byte_buf),
+	  __imm_insn(fp4_st_zero, BPF_ST_MEM(BPF_W, BPF_REG_FP, -4, 0))
+	: __clobber_common);
+}
+
 char two_byte_buf[2] SEC(".data.two_byte_buf");
 
 SEC("raw_tp")
