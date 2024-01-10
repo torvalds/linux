@@ -88,11 +88,7 @@ static bool create_and_enter_ns(uid_t inner_uid)
 	outer_uid = getuid();
 	outer_gid = getgid();
 
-	/*
-	 * TODO: If we're already root, we could skip creating the userns.
-	 */
-
-	if (unshare(CLONE_NEWNS) == 0) {
+	if (outer_uid == 0 && unshare(CLONE_NEWNS) == 0) {
 		ksft_print_msg("[NOTE]\tUsing global UIDs for tests\n");
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) != 0)
 			ksft_exit_fail_msg("PR_SET_KEEPCAPS - %s\n",
