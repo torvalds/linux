@@ -44,6 +44,8 @@ mem_buf.ko
 qcom_dma_heaps.ko
 qcom-pmu-lib.ko
 qcom-dcvs.ko
+dcc_v2.ko
+memory_dump_v2.ko
 msm_dma_iommu_mapping.ko
 gcc-pitti.ko
 icc-debug.ko
