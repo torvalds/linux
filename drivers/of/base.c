@@ -466,6 +466,20 @@ static bool __of_device_is_available(const struct device_node *device)
 }
 
 /**
+ *  __of_device_is_reserved - check if a device is reserved
+ *
+ *  @device: Node to check for availability, with locks already held
+ *
+ *  Return: True if the status property is set to "reserved", false otherwise
+ */
+static bool __of_device_is_reserved(const struct device_node *device)
+{
+	static const char * const reserved[] = {"reserved", NULL};
+
+	return __of_device_is_status(device, reserved);
+}
+
+/**
  *  of_device_is_available - check if a device is available for use
  *
  *  @device: Node to check for availability
@@ -649,6 +663,21 @@ struct device_node *of_get_next_available_child(const struct device_node *node,
 	return of_get_next_status_child(node, prev, __of_device_is_available);
 }
 EXPORT_SYMBOL(of_get_next_available_child);
+
+/**
+ * of_get_next_reserved_child - Find the next reserved child node
+ * @node:	parent node
+ * @prev:	previous child of the parent node, or NULL to get first
+ *
+ * This function is like of_get_next_child(), except that it
+ * automatically skips any disabled nodes (i.e. status = "disabled").
+ */
+struct device_node *of_get_next_reserved_child(const struct device_node *node,
+						struct device_node *prev)
+{
+	return of_get_next_status_child(node, prev, __of_device_is_reserved);
+}
+EXPORT_SYMBOL(of_get_next_reserved_child);
 
 /**
  * of_get_next_cpu_node - Iterate on cpu nodes
