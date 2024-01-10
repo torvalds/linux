@@ -564,9 +564,9 @@ static bool get_acc(struct acc_queue *acc_queue, struct acc *acc)
 	bool ret = false;
 
 	spin_lock(&acc_queue->lock);
-	if (acc_queue->head != acc_queue->tail) {
+	if (acc_queue->tail != acc_queue->head) {
 		desc = (const struct xe_guc_acc_desc *)
-			(acc_queue->data + acc_queue->head);
+			(acc_queue->data + acc_queue->tail);
 
 		acc->granularity = FIELD_GET(ACC_GRANULARITY, desc->dw2);
 		acc->sub_granularity = FIELD_GET(ACC_SUBG_HI, desc->dw1) << 31 |
@@ -579,7 +579,7 @@ static bool get_acc(struct acc_queue *acc_queue, struct acc *acc)
 		acc->va_range_base = make_u64(desc->dw3 & ACC_VIRTUAL_ADDR_RANGE_HI,
 					      desc->dw2 & ACC_VIRTUAL_ADDR_RANGE_LO);
 
-		acc_queue->head = (acc_queue->head + ACC_MSG_LEN_DW) %
+		acc_queue->tail = (acc_queue->tail + ACC_MSG_LEN_DW) %
 				  ACC_QUEUE_NUM_DW;
 		ret = true;
 	}
@@ -607,7 +607,7 @@ static void acc_queue_work_func(struct work_struct *w)
 		}
 
 		if (time_after(jiffies, threshold) &&
-		    acc_queue->head != acc_queue->tail) {
+		    acc_queue->tail != acc_queue->head) {
 			queue_work(gt->usm.acc_wq, w);
 			break;
 		}
@@ -618,7 +618,7 @@ static bool acc_queue_full(struct acc_queue *acc_queue)
 {
 	lockdep_assert_held(&acc_queue->lock);
 
-	return CIRC_SPACE(acc_queue->tail, acc_queue->head, ACC_QUEUE_NUM_DW) <=
+	return CIRC_SPACE(acc_queue->head, acc_queue->tail, ACC_QUEUE_NUM_DW) <=
 		ACC_MSG_LEN_DW;
 }
 
@@ -643,9 +643,9 @@ int xe_guc_access_counter_notify_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	spin_lock(&acc_queue->lock);
 	full = acc_queue_full(acc_queue);
 	if (!full) {
-		memcpy(acc_queue->data + acc_queue->tail, msg,
+		memcpy(acc_queue->data + acc_queue->head, msg,
 		       len * sizeof(u32));
-		acc_queue->tail = (acc_queue->tail + len) % ACC_QUEUE_NUM_DW;
+		acc_queue->head = (acc_queue->head + len) % ACC_QUEUE_NUM_DW;
 		queue_work(gt->usm.acc_wq, &acc_queue->worker);
 	} else {
 		drm_warn(&gt_to_xe(gt)->drm, "ACC Queue full, dropping ACC");
