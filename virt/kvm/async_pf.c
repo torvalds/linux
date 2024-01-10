@@ -46,8 +46,8 @@ static void async_pf_execute(struct work_struct *work)
 {
 	struct kvm_async_pf *apf =
 		container_of(work, struct kvm_async_pf, work);
-	struct mm_struct *mm = apf->mm;
 	struct kvm_vcpu *vcpu = apf->vcpu;
+	struct mm_struct *mm = vcpu->kvm->mm;
 	unsigned long addr = apf->addr;
 	gpa_t cr2_or_gpa = apf->cr2_or_gpa;
 	int locked = 1;
@@ -56,16 +56,24 @@ static void async_pf_execute(struct work_struct *work)
 	might_sleep();
 
 	/*
-	 * This work is run asynchronously to the task which owns
-	 * mm and might be done in another context, so we must
-	 * access remotely.
+	 * Attempt to pin the VM's host address space, and simply skip gup() if
+	 * acquiring a pin fail, i.e. if the process is exiting.  Note, KVM
+	 * holds a reference to its associated mm_struct until the very end of
+	 * kvm_destroy_vm(), i.e. the struct itself won't be freed before this
+	 * work item is fully processed.
 	 */
-	mmap_read_lock(mm);
-	get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, &locked);
-	if (locked)
-		mmap_read_unlock(mm);
-	mmput(mm);
+	if (mmget_not_zero(mm)) {
+		mmap_read_lock(mm);
+		get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, &locked);
+		if (locked)
+			mmap_read_unlock(mm);
+		mmput(mm);
+	}
 
+	/*
+	 * Notify and kick the vCPU even if faulting in the page failed, e.g.
+	 * so that the vCPU can retry the fault synchronously.
+	 */
 	if (IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC))
 		kvm_arch_async_page_present(vcpu, apf);
 
@@ -131,10 +139,8 @@ void kvm_clear_async_pf_completion_queue(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_KVM_ASYNC_PF_SYNC
 		flush_work(&work->work);
 #else
-		if (cancel_work_sync(&work->work)) {
-			mmput(work->mm);
+		if (cancel_work_sync(&work->work))
 			kmem_cache_free(async_pf_cache, work);
-		}
 #endif
 		spin_lock(&vcpu->async_pf.lock);
 	}
@@ -205,8 +211,6 @@ bool kvm_setup_async_pf(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	work->cr2_or_gpa = cr2_or_gpa;
 	work->addr = hva;
 	work->arch = *arch;
-	work->mm = current->mm;
-	mmget(work->mm);
 
 	INIT_WORK(&work->work, async_pf_execute);
 
