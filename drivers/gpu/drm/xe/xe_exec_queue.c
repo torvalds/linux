@@ -65,6 +65,8 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
 	q->sched_props.preempt_timeout_us =
 				hwe->eclass->sched_props.preempt_timeout_us;
+	q->sched_props.job_timeout_ms =
+				hwe->eclass->sched_props.job_timeout_ms;
 	if (q->flags & EXEC_QUEUE_FLAG_KERNEL &&
 	    q->flags & EXEC_QUEUE_FLAG_HIGH_PRIORITY)
 		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
