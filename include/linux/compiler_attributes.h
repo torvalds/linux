@@ -95,7 +95,7 @@
 #endif
 
 /*
- * Optional: only supported since gcc >= 14
+ * Optional: only supported since gcc >= 15
  * Optional: only supported since clang >= 18
  *
  *   gcc: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108896
