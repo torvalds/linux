@@ -3,9 +3,6 @@
 # Makefile for the linux kernel.
 #
 
-ifdef CONFIG_PPC64
-CFLAGS_prom_init.o	+= $(NO_MINIMAL_TOC)
-endif
 ifdef CONFIG_PPC32
 CFLAGS_prom_init.o      += -fPIC
 CFLAGS_btext.o		+= -fPIC
