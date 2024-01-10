@@ -137,7 +137,7 @@ i3cdev_do_priv_xfer(struct i3c_device *dev, struct i3c_ioc_priv_xfer *xfers,
 {
 	struct i3c_priv_xfer *k_xfers;
 	u8 **data_ptrs;
-	int i, ret = 0;
+	int i, j, ret = 0;
 
 	/* Since we have nxfers we may allocate k_xfer + *data_ptrs together */
 	k_xfers = kcalloc(nxfers, sizeof(*k_xfers) + sizeof(*data_ptrs),
@@ -167,10 +167,8 @@ i3cdev_do_priv_xfer(struct i3c_device *dev, struct i3c_ioc_priv_xfer *xfers,
 		}
 	}
 
-	if (ret < 0) {
-		i--;
+	if (ret < 0)
 		goto err_free_mem;
-	}
 
 	ret = i3c_device_do_priv_xfers(dev, k_xfers, nxfers);
 	if (ret)
@@ -185,8 +183,8 @@ i3cdev_do_priv_xfer(struct i3c_device *dev, struct i3c_ioc_priv_xfer *xfers,
 	}
 
 err_free_mem:
-	for (; i >= 0; i--)
-		kfree(data_ptrs[i]);
+	for (j = 0; j < i; j++)
+		kfree(data_ptrs[j]);
 	kfree(k_xfers);
 	return ret;
 }
