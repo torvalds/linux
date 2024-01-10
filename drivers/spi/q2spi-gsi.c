@@ -686,8 +686,7 @@ void q2spi_gsi_ch_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb, void *
 		break;
 	case MSM_GPI_QUP_CR_HEADER:
 		q2spi_cr_hdr_event = &cb->q2spi_cr_header_event;
-		if (q2spi_cr_hdr_event->cr_hdr_0 == CR_ADDR_LESS_RD)
-			atomic_inc(&q2spi->doorbell_pending);
+		atomic_inc(&q2spi->doorbell_pending);
 		Q2SPI_DEBUG(q2spi, "%s GSI doorbell event\n", __func__);
 		q2spi_parse_cr_header(q2spi, cb);
 		break;
