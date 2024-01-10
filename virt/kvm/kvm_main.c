@@ -4090,6 +4090,13 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 				continue;
 			if (kvm_vcpu_is_blocking(vcpu) && !vcpu_dy_runnable(vcpu))
 				continue;
+
+			/*
+			 * Treat the target vCPU as being in-kernel if it has a
+			 * pending interrupt, as the vCPU trying to yield may
+			 * be spinning waiting on IPI delivery, i.e. the target
+			 * vCPU is in-kernel for the purposes of directed yield.
+			 */
 			if (READ_ONCE(vcpu->preempted) && yield_to_kernel_mode &&
 			    !kvm_arch_dy_has_pending_interrupt(vcpu) &&
 			    !kvm_arch_vcpu_preempted_in_kernel(vcpu))
