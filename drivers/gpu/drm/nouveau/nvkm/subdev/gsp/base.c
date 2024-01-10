@@ -25,12 +25,8 @@ int
 nvkm_gsp_intr_nonstall(struct nvkm_gsp *gsp, enum nvkm_subdev_type type, int inst)
 {
 	for (int i = 0; i < gsp->intr_nr; i++) {
-		if (gsp->intr[i].type == type && gsp->intr[i].inst == inst) {
-			if (gsp->intr[i].nonstall != ~0)
-				return gsp->intr[i].nonstall;
-
-			return -EINVAL;
-		}
+		if (gsp->intr[i].type == type && gsp->intr[i].inst == inst)
+			return gsp->intr[i].nonstall;
 	}
 
 	return -ENOENT;
