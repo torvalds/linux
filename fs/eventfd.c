@@ -383,6 +383,7 @@ static int do_eventfd(unsigned int count, int flags)
 	/* Check the EFD_* constants for consistency.  */
 	BUILD_BUG_ON(EFD_CLOEXEC != O_CLOEXEC);
 	BUILD_BUG_ON(EFD_NONBLOCK != O_NONBLOCK);
+	BUILD_BUG_ON(EFD_SEMAPHORE != (1 << 0));
 
 	if (flags & ~EFD_FLAGS_SET)
 		return -EINVAL;
