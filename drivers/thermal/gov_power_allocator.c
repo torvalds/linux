@@ -715,7 +715,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip_id)
 
 	ret = __thermal_zone_get_trip(tz, params->trip_switch_on, &trip);
 	if (!ret && (tz->temperature < trip.temperature)) {
-		update = (tz->last_temperature >= trip.temperature);
+		update = tz->passive;
 		tz->passive = 0;
 		reset_pid_controller(params);
 		allow_maximum_power(tz, update);
