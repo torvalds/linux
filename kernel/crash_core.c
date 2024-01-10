@@ -877,7 +877,7 @@ subsys_initcall(crash_notes_memory_init);
  * regions are online. So mutex lock  __crash_hotplug_lock is used to
  * serialize the crash hotplug handling specifically.
  */
-DEFINE_MUTEX(__crash_hotplug_lock);
+static DEFINE_MUTEX(__crash_hotplug_lock);
 #define crash_hotplug_lock() mutex_lock(&__crash_hotplug_lock)
 #define crash_hotplug_unlock() mutex_unlock(&__crash_hotplug_lock)
 
