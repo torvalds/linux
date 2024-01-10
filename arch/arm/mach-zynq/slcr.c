@@ -10,7 +10,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
-#include <linux/clk/zynq.h>
 #include "common.h"
 
 /* register offsets */
