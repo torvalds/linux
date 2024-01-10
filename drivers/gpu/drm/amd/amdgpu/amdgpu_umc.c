@@ -93,6 +93,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 	int ret = 0;
+	unsigned long err_count;
 
 	kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
 	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
@@ -147,16 +148,13 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	}
 
 	/* only uncorrectable error needs gpu reset */
-	if (err_data->ue_count) {
-		dev_info(adev->dev, "%ld uncorrectable hardware errors "
-				"detected in UMC block\n",
-				err_data->ue_count);
-
+	if (err_data->ue_count || err_data->de_count) {
+		err_count = err_data->ue_count + err_data->de_count;
 		if ((amdgpu_bad_page_threshold != 0) &&
 			err_data->err_addr_cnt) {
 			amdgpu_ras_add_bad_pages(adev, err_data->err_addr,
 						err_data->err_addr_cnt);
-			amdgpu_ras_save_bad_pages(adev, &(err_data->ue_count));
+			amdgpu_ras_save_bad_pages(adev, &err_count);
 
 			amdgpu_dpm_send_hbm_bad_pages_num(adev, con->eeprom_control.ras_num_recs);
 
