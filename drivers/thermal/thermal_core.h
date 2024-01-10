@@ -114,16 +114,19 @@ int thermal_zone_device_set_policy(struct thermal_zone_device *, char *);
 int thermal_build_list_of_policies(char *buf);
 void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event);
+void thermal_zone_device_critical_reboot(struct thermal_zone_device *tz);
+void thermal_governor_update_tz(struct thermal_zone_device *tz,
+				enum thermal_notify_event reason);
 
 /* Helpers */
 #define for_each_trip(__tz, __trip)	\
 	for (__trip = __tz->trips; __trip - __tz->trips < __tz->num_trips; __trip++)
 
 void __thermal_zone_set_trips(struct thermal_zone_device *tz);
-int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
-			    struct thermal_trip *trip);
-int thermal_zone_trip_id(struct thermal_zone_device *tz,
+int thermal_zone_trip_id(const struct thermal_zone_device *tz,
 			 const struct thermal_trip *trip);
+void thermal_zone_trip_updated(struct thermal_zone_device *tz,
+			       const struct thermal_trip *trip);
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 
 /* sysfs I/F */

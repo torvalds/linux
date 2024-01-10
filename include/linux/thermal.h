@@ -51,18 +51,23 @@ enum thermal_notify_event {
 	THERMAL_DEVICE_POWER_CAPABILITY_CHANGED, /* power capability changed */
 	THERMAL_TABLE_CHANGED, /* Thermal table(s) changed */
 	THERMAL_EVENT_KEEP_ALIVE, /* Request for user space handler to respond */
+	THERMAL_TZ_BIND_CDEV, /* Cooling dev is bind to the thermal zone */
+	THERMAL_TZ_UNBIND_CDEV, /* Cooling dev is unbind from the thermal zone */
+	THERMAL_INSTANCE_WEIGHT_CHANGED, /* Thermal instance weight changed */
 };
 
 /**
  * struct thermal_trip - representation of a point in temperature domain
  * @temperature: temperature value in miliCelsius
  * @hysteresis: relative hysteresis in miliCelsius
+ * @threshold: trip crossing notification threshold miliCelsius
  * @type: trip point type
  * @priv: pointer to driver data associated with this trip
  */
 struct thermal_trip {
 	int temperature;
 	int hysteresis;
+	int threshold;
 	enum thermal_trip_type type;
 	void *priv;
 };
@@ -115,6 +120,7 @@ struct thermal_cooling_device {
  * @id:		unique id number for each thermal zone
  * @type:	the thermal zone device type
  * @device:	&struct device for this thermal zone
+ * @removal:	removal completion
  * @trip_temp_attrs:	attributes for trip points for sysfs: trip temperature
  * @trip_type_attrs:	attributes for trip points for sysfs: trip type
  * @trip_hyst_attrs:	attributes for trip points for sysfs: trip hysteresis
@@ -149,11 +155,13 @@ struct thermal_cooling_device {
  * @node:	node in thermal_tz_list (in thermal_core.c)
  * @poll_queue:	delayed work for polling
  * @notify_event: Last notification event
+ * @suspended: thermal zone suspend indicator
  */
 struct thermal_zone_device {
 	int id;
 	char type[THERMAL_NAME_LENGTH];
 	struct device device;
+	struct completion removal;
 	struct attribute_group trips_attribute_group;
 	struct thermal_attr *trip_temp_attrs;
 	struct thermal_attr *trip_type_attrs;
@@ -181,6 +189,7 @@ struct thermal_zone_device {
 	struct list_head node;
 	struct delayed_work poll_queue;
 	enum thermal_notify_event notify_event;
+	bool suspended;
 };
 
 /**
@@ -193,6 +202,8 @@ struct thermal_zone_device {
  *			thermal zone.
  * @throttle:	callback called for every trip point even if temperature is
  *		below the trip point temperature
+ * @update_tz:	callback called when thermal zone internals have changed, e.g.
+ *		thermal cooling instance was added/removed
  * @governor_list:	node in thermal_governor_list (in thermal_core.c)
  */
 struct thermal_governor {
@@ -201,6 +212,8 @@ struct thermal_governor {
 	void (*unbind_from_tz)(struct thermal_zone_device *tz);
 	int (*throttle)(struct thermal_zone_device *tz,
 			const struct thermal_trip *trip);
+	void (*update_tz)(struct thermal_zone_device *tz,
+			  enum thermal_notify_event reason);
 	struct list_head	governor_list;
 };
 
@@ -280,10 +293,6 @@ int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip);
 int thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			  struct thermal_trip *trip);
-
-int thermal_zone_set_trip(struct thermal_zone_device *tz, int trip_id,
-			  const struct thermal_trip *trip);
-
 int for_each_thermal_trip(struct thermal_zone_device *tz,
 			  int (*cb)(struct thermal_trip *, void *),
 			  void *data);
@@ -291,6 +300,8 @@ int thermal_zone_for_each_trip(struct thermal_zone_device *tz,
 			       int (*cb)(struct thermal_trip *, void *),
 			       void *data);
 int thermal_zone_get_num_trips(struct thermal_zone_device *tz);
+void thermal_zone_set_trip_temp(struct thermal_zone_device *tz,
+				struct thermal_trip *trip, int temp);
 
 int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp);
 

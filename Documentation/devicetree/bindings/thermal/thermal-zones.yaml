@@ -75,6 +75,22 @@ patternProperties:
           framework and assumes that the thermal sensors in this zone
           support interrupts.
 
+      critical-action:
+        $ref: /schemas/types.yaml#/definitions/string
+        description: |
+          The action the OS should perform after the critical temperature is reached.
+          By default the system will shutdown as a safe action to prevent damage
+          to the hardware, if the property is not set.
+          The shutdown action should be always the default and preferred one.
+          Choose 'reboot' with care, as the hardware may be in thermal stress,
+          thus leading to infinite reboots that may cause damage to the hardware.
+          Make sure the firmware/bootloader will act as the last resort and take
+          over the thermal control.
+
+        enum:
+          - shutdown
+          - reboot
+
       thermal-sensors:
         $ref: /schemas/types.yaml#/definitions/phandle-array
         maxItems: 1

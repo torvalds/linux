@@ -8,19 +8,14 @@
 #include <linux/tracepoint.h>
 
 TRACE_EVENT(thermal_power_allocator,
-	TP_PROTO(struct thermal_zone_device *tz, u32 *req_power,
-		 u32 total_req_power, u32 *granted_power,
-		 u32 total_granted_power, size_t num_actors,
-		 u32 power_range, u32 max_allocatable_power,
-		 int current_temp, s32 delta_temp),
-	TP_ARGS(tz, req_power, total_req_power, granted_power,
-		total_granted_power, num_actors, power_range,
-		max_allocatable_power, current_temp, delta_temp),
+	TP_PROTO(struct thermal_zone_device *tz, u32 total_req_power,
+		 u32 total_granted_power, int num_actors, u32 power_range,
+		 u32 max_allocatable_power, int current_temp, s32 delta_temp),
+	TP_ARGS(tz, total_req_power, total_granted_power, num_actors,
+		power_range, max_allocatable_power, current_temp, delta_temp),
 	TP_STRUCT__entry(
 		__field(int,           tz_id          )
-		__dynamic_array(u32,   req_power, num_actors    )
 		__field(u32,           total_req_power          )
-		__dynamic_array(u32,   granted_power, num_actors)
 		__field(u32,           total_granted_power      )
 		__field(size_t,        num_actors               )
 		__field(u32,           power_range              )
@@ -30,11 +25,7 @@ TRACE_EVENT(thermal_power_allocator,
 	),
 	TP_fast_assign(
 		__entry->tz_id = tz->id;
-		memcpy(__get_dynamic_array(req_power), req_power,
-			num_actors * sizeof(*req_power));
 		__entry->total_req_power = total_req_power;
-		memcpy(__get_dynamic_array(granted_power), granted_power,
-			num_actors * sizeof(*granted_power));
 		__entry->total_granted_power = total_granted_power;
 		__entry->num_actors = num_actors;
 		__entry->power_range = power_range;
@@ -43,16 +34,33 @@ TRACE_EVENT(thermal_power_allocator,
 		__entry->delta_temp = delta_temp;
 	),
 
-	TP_printk("thermal_zone_id=%d req_power={%s} total_req_power=%u granted_power={%s} total_granted_power=%u power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d",
-		__entry->tz_id,
-		__print_array(__get_dynamic_array(req_power),
-                              __entry->num_actors, 4),
-		__entry->total_req_power,
-		__print_array(__get_dynamic_array(granted_power),
-                              __entry->num_actors, 4),
+	TP_printk("thermal_zone_id=%d total_req_power=%u total_granted_power=%u power_range=%u max_allocatable_power=%u current_temperature=%d delta_temperature=%d",
+		__entry->tz_id,	__entry->total_req_power,
 		__entry->total_granted_power, __entry->power_range,
 		__entry->max_allocatable_power, __entry->current_temp,
 		__entry->delta_temp)
+);
+
+TRACE_EVENT(thermal_power_actor,
+	TP_PROTO(struct thermal_zone_device *tz, int actor_id, u32 req_power,
+		 u32 granted_power),
+	TP_ARGS(tz, actor_id, req_power, granted_power),
+	TP_STRUCT__entry(
+		__field(int, tz_id)
+		__field(int, actor_id)
+		__field(u32, req_power)
+		__field(u32, granted_power)
+	),
+	TP_fast_assign(
+		__entry->tz_id = tz->id;
+		__entry->actor_id = actor_id;
+		__entry->req_power = req_power;
+		__entry->granted_power = granted_power;
+	),
+
+	TP_printk("thermal_zone_id=%d actor_id=%d req_power=%u granted_power=%u",
+		__entry->tz_id,	__entry->actor_id, __entry->req_power,
+		__entry->granted_power)
 );
 
 TRACE_EVENT(thermal_power_allocator_pid,
