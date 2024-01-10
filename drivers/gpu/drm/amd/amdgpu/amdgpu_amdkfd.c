@@ -138,6 +138,9 @@ static void amdgpu_amdkfd_reset_work(struct work_struct *work)
 	amdgpu_device_gpu_recover(adev, NULL, &reset_context);
 }
 
+static const struct drm_client_funcs kfd_client_funcs = {
+	.unregister	= drm_client_release,
+};
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 {
 	int i;
@@ -161,7 +164,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			.enable_mes = adev->enable_mes,
 		};
 
-		ret = drm_client_init(&adev->ddev, &adev->kfd.client, "kfd", NULL);
+		ret = drm_client_init(&adev->ddev, &adev->kfd.client, "kfd", &kfd_client_funcs);
 		if (ret) {
 			dev_err(adev->dev, "Failed to init DRM client: %d\n", ret);
 			return;
