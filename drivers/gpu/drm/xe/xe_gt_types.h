@@ -226,15 +226,15 @@ struct xe_gt {
 			/** @data: data in the page fault queue */
 			u32 data[PF_QUEUE_NUM_DW];
 			/**
-			 * @head: head pointer in DWs for page fault queue,
-			 * moved by worker which processes faults.
-			 */
-			u16 head;
-			/**
 			 * @tail: tail pointer in DWs for page fault queue,
-			 * moved by G2H handler.
+			 * moved by worker which processes faults (consumer).
 			 */
 			u16 tail;
+			/**
+			 * @head: head pointer in DWs for page fault queue,
+			 * moved by G2H handler (producer).
+			 */
+			u16 head;
 			/** @lock: protects page fault queue */
 			spinlock_t lock;
 			/** @worker: to process page faults */

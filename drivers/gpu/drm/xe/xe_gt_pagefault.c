@@ -282,9 +282,9 @@ static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 	bool ret = false;
 
 	spin_lock_irq(&pf_queue->lock);
-	if (pf_queue->head != pf_queue->tail) {
+	if (pf_queue->tail != pf_queue->head) {
 		desc = (const struct xe_guc_pagefault_desc *)
-			(pf_queue->data + pf_queue->head);
+			(pf_queue->data + pf_queue->tail);
 
 		pf->fault_level = FIELD_GET(PFD_FAULT_LEVEL, desc->dw0);
 		pf->trva_fault = FIELD_GET(XE2_PFD_TRVA_FAULT, desc->dw0);
@@ -302,7 +302,7 @@ static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 		pf->page_addr |= FIELD_GET(PFD_VIRTUAL_ADDR_LO, desc->dw2) <<
 			PFD_VIRTUAL_ADDR_LO_SHIFT;
 
-		pf_queue->head = (pf_queue->head + PF_MSG_LEN_DW) %
+		pf_queue->tail = (pf_queue->tail + PF_MSG_LEN_DW) %
 			PF_QUEUE_NUM_DW;
 		ret = true;
 	}
@@ -315,7 +315,7 @@ static bool pf_queue_full(struct pf_queue *pf_queue)
 {
 	lockdep_assert_held(&pf_queue->lock);
 
-	return CIRC_SPACE(pf_queue->tail, pf_queue->head, PF_QUEUE_NUM_DW) <=
+	return CIRC_SPACE(pf_queue->head, pf_queue->tail, PF_QUEUE_NUM_DW) <=
 		PF_MSG_LEN_DW;
 }
 
@@ -342,8 +342,8 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	spin_lock_irqsave(&pf_queue->lock, flags);
 	full = pf_queue_full(pf_queue);
 	if (!full) {
-		memcpy(pf_queue->data + pf_queue->tail, msg, len * sizeof(u32));
-		pf_queue->tail = (pf_queue->tail + len) % PF_QUEUE_NUM_DW;
+		memcpy(pf_queue->data + pf_queue->head, msg, len * sizeof(u32));
+		pf_queue->head = (pf_queue->head + len) % PF_QUEUE_NUM_DW;
 		queue_work(gt->usm.pf_wq, &pf_queue->worker);
 	} else {
 		drm_warn(&xe->drm, "PF Queue full, shouldn't be possible");
@@ -389,7 +389,7 @@ static void pf_queue_work_func(struct work_struct *w)
 		send_pagefault_reply(&gt->uc.guc, &reply);
 
 		if (time_after(jiffies, threshold) &&
-		    pf_queue->head != pf_queue->tail) {
+		    pf_queue->tail != pf_queue->head) {
 			queue_work(gt->usm.pf_wq, w);
 			break;
 		}
