@@ -235,7 +235,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			return -ENOMEM;
 
 		q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance), 1,
-					 hwe, EXEC_QUEUE_FLAG_KERNEL);
+					 hwe, EXEC_QUEUE_FLAG_KERNEL, 0);
 		if (IS_ERR(q)) {
 			err = PTR_ERR(q);
 			xe_gt_err(gt, "hwe %s: xe_exec_queue_create failed (%pe)\n",
@@ -252,7 +252,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		}
 
 		nop_q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance),
-					     1, hwe, EXEC_QUEUE_FLAG_KERNEL);
+					     1, hwe, EXEC_QUEUE_FLAG_KERNEL, 0);
 		if (IS_ERR(nop_q)) {
 			err = PTR_ERR(nop_q);
 			xe_gt_err(gt, "hwe %s: nop xe_exec_queue_create failed (%pe)\n",
