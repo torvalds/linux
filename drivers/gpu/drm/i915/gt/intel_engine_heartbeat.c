@@ -290,6 +290,9 @@ static int __intel_engine_pulse(struct intel_engine_cs *engine)
 	heartbeat_commit(rq, &attr);
 	GEM_BUG_ON(rq->sched.attr.priority < I915_PRIORITY_BARRIER);
 
+	/* Ensure the forced pulse gets a full period to execute */
+	next_heartbeat(engine);
+
 	return 0;
 }
 
