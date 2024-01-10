@@ -4615,7 +4615,7 @@ fail_platform:
 	return err;
 }
 
-static int asus_wmi_remove(struct platform_device *device)
+static void asus_wmi_remove(struct platform_device *device)
 {
 	struct asus_wmi *asus;
 
@@ -4638,7 +4638,6 @@ static int asus_wmi_remove(struct platform_device *device)
 		platform_profile_remove();
 
 	kfree(asus);
-	return 0;
 }
 
 /* Platform driver - hibernate/resume callbacks *******************************/
@@ -4799,7 +4798,7 @@ int __init_or_module asus_wmi_register_driver(struct asus_wmi_driver *driver)
 		return -EBUSY;
 
 	platform_driver = &driver->platform_driver;
-	platform_driver->remove = asus_wmi_remove;
+	platform_driver->remove_new = asus_wmi_remove;
 	platform_driver->driver.owner = driver->owner;
 	platform_driver->driver.name = driver->name;
 	platform_driver->driver.pm = &asus_pm_ops;
