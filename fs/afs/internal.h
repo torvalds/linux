@@ -1213,7 +1213,7 @@ extern void afs_fs_inline_bulk_status(struct afs_operation *);
 
 struct afs_acl {
 	u32	size;
-	u8	data[];
+	u8	data[] __counted_by(size);
 };
 
 extern void afs_fs_fetch_acl(struct afs_operation *);
