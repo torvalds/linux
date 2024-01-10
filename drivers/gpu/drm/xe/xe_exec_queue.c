@@ -30,16 +30,14 @@ enum xe_exec_queue_sched_prop {
 	XE_EXEC_QUEUE_SCHED_PROP_MAX = 3,
 };
 
-static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
-						    struct xe_vm *vm,
-						    u32 logical_mask,
-						    u16 width, struct xe_hw_engine *hwe,
-						    u32 flags)
+static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
+						   struct xe_vm *vm,
+						   u32 logical_mask,
+						   u16 width, struct xe_hw_engine *hwe,
+						   u32 flags)
 {
 	struct xe_exec_queue *q;
 	struct xe_gt *gt = hwe->gt;
-	int err;
-	int i;
 
 	/* only kernel queues can be permanent */
 	XE_WARN_ON((flags & EXEC_QUEUE_FLAG_PERMANENT) && !(flags & EXEC_QUEUE_FLAG_KERNEL));
@@ -82,8 +80,23 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 		q->bind.fence_seqno = XE_FENCE_INITIAL_SEQNO;
 	}
 
-	for (i = 0; i < width; ++i) {
-		err = xe_lrc_init(q->lrc + i, hwe, q, vm, SZ_16K);
+	return q;
+}
+
+static void __xe_exec_queue_free(struct xe_exec_queue *q)
+{
+	if (q->vm)
+		xe_vm_put(q->vm);
+	kfree(q);
+}
+
+static int __xe_exec_queue_init(struct xe_exec_queue *q)
+{
+	struct xe_device *xe = gt_to_xe(q->gt);
+	int i, err;
+
+	for (i = 0; i < q->width; ++i) {
+		err = xe_lrc_init(q->lrc + i, q->hwe, q, q->vm, SZ_16K);
 		if (err)
 			goto err_lrc;
 	}
@@ -100,16 +113,15 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	 * can perform GuC CT actions when needed. Caller is expected to have
 	 * already grabbed the rpm ref outside any sensitive locks.
 	 */
-	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !vm))
+	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !q->vm))
 		drm_WARN_ON(&xe->drm, !xe_device_mem_access_get_if_ongoing(xe));
 
-	return q;
+	return 0;
 
 err_lrc:
 	for (i = i - 1; i >= 0; --i)
 		xe_lrc_finish(q->lrc + i);
-	kfree(q);
-	return ERR_PTR(err);
+	return err;
 }
 
 struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *vm,
@@ -119,16 +131,27 @@ struct xe_exec_queue *xe_exec_queue_create(struct xe_device *xe, struct xe_vm *v
 	struct xe_exec_queue *q;
 	int err;
 
+	q = __xe_exec_queue_alloc(xe, vm, logical_mask, width, hwe, flags);
+	if (IS_ERR(q))
+		return q;
+
 	if (vm) {
 		err = xe_vm_lock(vm, true);
 		if (err)
-			return ERR_PTR(err);
+			goto err_post_alloc;
 	}
-	q = __xe_exec_queue_create(xe, vm, logical_mask, width, hwe, flags);
+
+	err = __xe_exec_queue_init(q);
 	if (vm)
 		xe_vm_unlock(vm);
+	if (err)
+		goto err_post_alloc;
 
 	return q;
+
+err_post_alloc:
+	__xe_exec_queue_free(q);
+	return ERR_PTR(err);
 }
 
 struct xe_exec_queue *xe_exec_queue_create_class(struct xe_device *xe, struct xe_gt *gt,
@@ -179,10 +202,7 @@ void xe_exec_queue_fini(struct xe_exec_queue *q)
 		xe_lrc_finish(q->lrc + i);
 	if (!(q->flags & EXEC_QUEUE_FLAG_PERMANENT) && (q->flags & EXEC_QUEUE_FLAG_VM || !q->vm))
 		xe_device_mem_access_put(gt_to_xe(q->gt));
-	if (q->vm)
-		xe_vm_put(q->vm);
-
-	kfree(q);
+	__xe_exec_queue_free(q);
 }
 
 void xe_exec_queue_assign_name(struct xe_exec_queue *q, u32 instance)
