@@ -10,5 +10,5 @@
 
 .. _tw_features:
 
-.. kernel-feat:: $srctree/Documentation/features mips
+.. kernel-feat:: features mips
 
