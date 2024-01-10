@@ -112,11 +112,6 @@
 #define SLAVE_GEM_NOC_CNOC			12
 #define SLAVE_LLCC				13
 #define SLAVE_MEM_NOC_PCIE_SNOC			14
-#define MASTER_MNOC_HF_MEM_NOC_DISP		15
-#define MASTER_ANOC_PCIE_GEM_NOC_DISP		16
-#define SLAVE_LLCC_DISP				17
-#define MASTER_ANOC_PCIE_GEM_NOC_PCIE		18
-#define SLAVE_LLCC_PCIE				19
 
 #define MASTER_LPIAON_NOC			0
 #define SLAVE_LPASS_GEM_NOC			1
@@ -129,10 +124,6 @@
 
 #define MASTER_LLCC				0
 #define SLAVE_EBI1				1
-#define MASTER_LLCC_DISP			2
-#define SLAVE_EBI1_DISP				3
-#define MASTER_LLCC_PCIE			4
-#define SLAVE_EBI1_PCIE				5
 
 #define MASTER_AV1_ENC				0
 #define MASTER_CAMNOC_HF			1
@@ -147,8 +138,6 @@
 #define SLAVE_MNOC_HF_MEM_NOC			10
 #define SLAVE_MNOC_SF_MEM_NOC			11
 #define SLAVE_SERVICE_MNOC			12
-#define MASTER_MDP_DISP				13
-#define SLAVE_MNOC_HF_MEM_NOC_DISP		14
 
 #define MASTER_CDSP_PROC			0
 #define SLAVE_CDSP_MEM_NOC			1
@@ -156,18 +145,11 @@
 #define MASTER_PCIE_NORTH			0
 #define MASTER_PCIE_SOUTH			1
 #define SLAVE_ANOC_PCIE_GEM_NOC			2
-#define MASTER_PCIE_NORTH_PCIE			3
-#define MASTER_PCIE_SOUTH_PCIE			4
-#define SLAVE_ANOC_PCIE_GEM_NOC_PCIE		5
 
 #define MASTER_PCIE_3				0
 #define MASTER_PCIE_4				1
 #define MASTER_PCIE_5				2
 #define SLAVE_PCIE_NORTH			3
-#define MASTER_PCIE_3_PCIE			4
-#define MASTER_PCIE_4_PCIE			5
-#define MASTER_PCIE_5_PCIE			6
-#define SLAVE_PCIE_NORTH_PCIE			7
 
 #define MASTER_PCIE_0				0
 #define MASTER_PCIE_1				1
@@ -175,12 +157,6 @@
 #define MASTER_PCIE_6A				3
 #define MASTER_PCIE_6B				4
 #define SLAVE_PCIE_SOUTH			5
-#define MASTER_PCIE_0_PCIE			6
-#define MASTER_PCIE_1_PCIE			7
-#define MASTER_PCIE_2_PCIE			8
-#define MASTER_PCIE_6A_PCIE			9
-#define MASTER_PCIE_6B_PCIE			10
-#define SLAVE_PCIE_SOUTH_PCIE			11
 
 #define MASTER_A1NOC_SNOC			0
 #define MASTER_A2NOC_SNOC			1
