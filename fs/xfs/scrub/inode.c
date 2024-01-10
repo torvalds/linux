@@ -25,6 +25,7 @@
 #include "scrub/common.h"
 #include "scrub/btree.h"
 #include "scrub/trace.h"
+#include "scrub/repair.h"
 
 /* Prepare the attached inode for scrubbing. */
 static inline int
@@ -36,6 +37,10 @@ xchk_prepare_iscrub(
 	xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
 	error = xchk_trans_alloc(sc, 0);
+	if (error)
+		return error;
+
+	error = xchk_ino_dqattach(sc);
 	if (error)
 		return error;
 
@@ -95,8 +100,8 @@ xchk_setup_inode(
 	if (!xfs_verify_ino(sc->mp, sc->sm->sm_ino))
 		return -ENOENT;
 
-	/* Try a regular untrusted iget. */
-	error = xchk_iget(sc, sc->sm->sm_ino, &ip);
+	/* Try a safe untrusted iget. */
+	error = xchk_iget_safe(sc, sc->sm->sm_ino, &ip);
 	if (!error)
 		return xchk_install_handle_iscrub(sc, ip);
 	if (error == -ENOENT)
@@ -181,8 +186,11 @@ xchk_setup_inode(
 	 * saying the inode is allocated and the icache being unable to load
 	 * the inode until we can flag the corruption in xchk_inode.  The
 	 * scrub function has to note the corruption, since we're not really
-	 * supposed to do that from the setup function.
+	 * supposed to do that from the setup function.  Save the mapping to
+	 * make repairs to the ondisk inode buffer.
 	 */
+	if (xchk_could_repair(sc))
+		xrep_setup_inode(sc, &imap);
 	return 0;
 
 out_cancel:
@@ -336,6 +344,10 @@ xchk_inode_flags2(
 
 	/* no bigtime iflag without the bigtime feature */
 	if (xfs_dinode_has_bigtime(dip) && !xfs_has_bigtime(mp))
+		goto bad;
+
+	/* no large extent counts without the filesystem feature */
+	if ((flags2 & XFS_DIFLAG2_NREXT64) && !xfs_has_large_extent_counts(mp))
 		goto bad;
 
 	return;
@@ -548,7 +560,7 @@ xchk_dinode(
 	}
 
 	/* di_forkoff */
-	if (XFS_DFORK_APTR(dip) >= (char *)dip + mp->m_sb.sb_inodesize)
+	if (XFS_DFORK_BOFF(dip) >= mp->m_sb.sb_inodesize)
 		xchk_ino_set_corrupt(sc, ino);
 	if (naextents != 0 && dip->di_forkoff == 0)
 		xchk_ino_set_corrupt(sc, ino);

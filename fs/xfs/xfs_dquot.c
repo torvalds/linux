@@ -172,14 +172,14 @@ xfs_qm_adjust_dqtimers(
 /*
  * initialize a buffer full of dquots and log the whole thing
  */
-STATIC void
+void
 xfs_qm_init_dquot_blk(
 	struct xfs_trans	*tp,
-	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
 	xfs_dqtype_t		type,
 	struct xfs_buf		*bp)
 {
+	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
 	struct xfs_dqblk	*d;
 	xfs_dqid_t		curid;
@@ -353,7 +353,7 @@ xfs_dquot_disk_alloc(
 	 * Make a chunk of dquots out of this buffer and log
 	 * the entire thing.
 	 */
-	xfs_qm_init_dquot_blk(tp, mp, dqp->q_id, qtype, bp);
+	xfs_qm_init_dquot_blk(tp, dqp->q_id, qtype, bp);
 	xfs_buf_set_ref(bp, XFS_DQUOT_REF);
 
 	/*
@@ -1361,35 +1361,4 @@ xfs_qm_exit(void)
 {
 	kmem_cache_destroy(xfs_dqtrx_cache);
 	kmem_cache_destroy(xfs_dquot_cache);
-}
-
-/*
- * Iterate every dquot of a particular type.  The caller must ensure that the
- * particular quota type is active.  iter_fn can return negative error codes,
- * or -ECANCELED to indicate that it wants to stop iterating.
- */
-int
-xfs_qm_dqiterate(
-	struct xfs_mount	*mp,
-	xfs_dqtype_t		type,
-	xfs_qm_dqiterate_fn	iter_fn,
-	void			*priv)
-{
-	struct xfs_dquot	*dq;
-	xfs_dqid_t		id = 0;
-	int			error;
-
-	do {
-		error = xfs_qm_dqget_next(mp, id, type, &dq);
-		if (error == -ENOENT)
-			return 0;
-		if (error)
-			return error;
-
-		error = iter_fn(dq, type, priv);
-		id = dq->q_id + 1;
-		xfs_qm_dqput(dq);
-	} while (error == 0 && id != 0);
-
-	return error;
 }
