@@ -32,6 +32,4 @@ static inline unsigned long efi_get_kimg_min_align(void)
 
 #define EFI_KIMG_PREFERRED_ADDRESS	PHYSADDR(VMLINUX_LOAD_ADDRESS)
 
-unsigned long kernel_entry_address(unsigned long kernel_addr);
-
 #endif /* _ASM_LOONGARCH_EFI_H */
