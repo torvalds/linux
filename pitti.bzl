@@ -117,6 +117,7 @@ def define_pitti():
         "drivers/thermal/qcom/qcom-spmi-adc-tm5.ko",
         "drivers/thermal/qcom/qcom-spmi-temp-alarm.ko",
         "drivers/ufs/host/ufs_qcom.ko",
+        "drivers/uio/msm_sharedmem/msm_sharedmem.ko",
         "drivers/usb/dwc3/dwc3-msm.ko",
         "drivers/usb/gadget/function/usb_f_ccid.ko",
         "drivers/usb/gadget/function/usb_f_cdev.ko",
