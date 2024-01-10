@@ -222,7 +222,7 @@ struct scan_req_tlv {
 	__le16 channel_dwell_time; /* channel Dwell interval */
 	__le16 timeout_value;
 	__le16 probe_delay_time;
-	u8 func_mask_ext;
+	__le32 func_mask_ext;
 };
 
 struct scan_ssid_tlv {
