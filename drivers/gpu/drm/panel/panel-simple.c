@@ -2754,21 +2754,21 @@ static const struct panel_desc lemaker_bl035_rgb_002 = {
 	.bus_flags = DRM_BUS_FLAG_DE_LOW,
 };
 
-static const struct drm_display_mode lg_lb070wv8_mode = {
-	.clock = 33246,
-	.hdisplay = 800,
-	.hsync_start = 800 + 88,
-	.hsync_end = 800 + 88 + 80,
-	.htotal = 800 + 88 + 80 + 88,
-	.vdisplay = 480,
-	.vsync_start = 480 + 10,
-	.vsync_end = 480 + 10 + 25,
-	.vtotal = 480 + 10 + 25 + 10,
+static const struct display_timing lg_lb070wv8_timing = {
+	.pixelclock = { 31950000, 33260000, 34600000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 88, 88, 88 },
+	.hback_porch = { 88, 88, 88 },
+	.hsync_len = { 80, 80, 80 },
+	.vactive = { 480, 480, 480 },
+	.vfront_porch = { 10, 10, 10 },
+	.vback_porch = { 10, 10, 10 },
+	.vsync_len = { 25, 25, 25 },
 };
 
 static const struct panel_desc lg_lb070wv8 = {
-	.modes = &lg_lb070wv8_mode,
-	.num_modes = 1,
+	.timings = &lg_lb070wv8_timing,
+	.num_timings = 1,
 	.bpc = 8,
 	.size = {
 		.width = 151,
