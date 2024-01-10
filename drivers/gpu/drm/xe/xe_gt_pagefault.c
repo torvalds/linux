@@ -328,6 +328,11 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	u32 asid;
 	bool full;
 
+	/*
+	 * The below logic doesn't work unless PF_QUEUE_NUM_DW % PF_MSG_LEN_DW == 0
+	 */
+	BUILD_BUG_ON(PF_QUEUE_NUM_DW % PF_MSG_LEN_DW);
+
 	if (unlikely(len != PF_MSG_LEN_DW))
 		return -EPROTO;
 
