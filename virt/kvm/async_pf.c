@@ -64,6 +64,7 @@ static void async_pf_execute(struct work_struct *work)
 	get_user_pages_remote(mm, addr, 1, FOLL_WRITE, NULL, &locked);
 	if (locked)
 		mmap_read_unlock(mm);
+	mmput(mm);
 
 	if (IS_ENABLED(CONFIG_KVM_ASYNC_PF_SYNC))
 		kvm_arch_async_page_present(vcpu, apf);
@@ -85,8 +86,6 @@ static void async_pf_execute(struct work_struct *work)
 	trace_kvm_async_pf_completed(addr, cr2_or_gpa);
 
 	__kvm_vcpu_wake_up(vcpu);
-
-	mmput(mm);
 }
 
 static void kvm_flush_and_free_async_pf_work(struct kvm_async_pf *work)
