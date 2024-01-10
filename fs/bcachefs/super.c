@@ -1386,8 +1386,8 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	prt_bdevname(&name, ca->disk_sb.bdev);
 
 	if (c->sb.nr_devices == 1)
-		strlcpy(c->name, name.buf, sizeof(c->name));
-	strlcpy(ca->name, name.buf, sizeof(ca->name));
+		strscpy(c->name, name.buf, sizeof(c->name));
+	strscpy(ca->name, name.buf, sizeof(ca->name));
 
 	printbuf_exit(&name);
 
