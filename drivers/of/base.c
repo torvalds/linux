@@ -612,6 +612,29 @@ struct device_node *of_get_next_child(const struct device_node *node,
 }
 EXPORT_SYMBOL(of_get_next_child);
 
+static struct device_node *of_get_next_status_child(const struct device_node *node,
+						    struct device_node *prev,
+						    bool (*checker)(const struct device_node *))
+{
+	struct device_node *next;
+	unsigned long flags;
+
+	if (!node)
+		return NULL;
+
+	raw_spin_lock_irqsave(&devtree_lock, flags);
+	next = prev ? prev->sibling : node->child;
+	for (; next; next = next->sibling) {
+		if (!checker(next))
+			continue;
+		if (of_node_get(next))
+			break;
+	}
+	of_node_put(prev);
+	raw_spin_unlock_irqrestore(&devtree_lock, flags);
+	return next;
+}
+
 /**
  * of_get_next_available_child - Find the next available child node
  * @node:	parent node
@@ -623,23 +646,7 @@ EXPORT_SYMBOL(of_get_next_child);
 struct device_node *of_get_next_available_child(const struct device_node *node,
 	struct device_node *prev)
 {
-	struct device_node *next;
-	unsigned long flags;
-
-	if (!node)
-		return NULL;
-
-	raw_spin_lock_irqsave(&devtree_lock, flags);
-	next = prev ? prev->sibling : node->child;
-	for (; next; next = next->sibling) {
-		if (!__of_device_is_available(next))
-			continue;
-		if (of_node_get(next))
-			break;
-	}
-	of_node_put(prev);
-	raw_spin_unlock_irqrestore(&devtree_lock, flags);
-	return next;
+	return of_get_next_status_child(node, prev, __of_device_is_available);
 }
 EXPORT_SYMBOL(of_get_next_available_child);
 
