@@ -370,33 +370,41 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 /*
  * check if the tree block can be shared by multiple trees
  */
-int btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct extent_buffer *buf)
+bool btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *buf)
 {
+	const u64 buf_gen = btrfs_header_generation(buf);
+
 	/*
 	 * Tree blocks not in shareable trees and tree roots are never shared.
 	 * If a block was allocated after the last snapshot and the block was
 	 * not allocated by tree relocation, we know the block is not shared.
 	 */
-	if (test_bit(BTRFS_ROOT_SHAREABLE, &root->state) &&
-	    buf != root->node &&
-	    (btrfs_header_generation(buf) <=
-	     btrfs_root_last_snapshot(&root->root_item) ||
-	     btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC))) {
-		if (buf != root->commit_root)
-			return 1;
-		/*
-		 * An extent buffer that used to be the commit root may still be
-		 * shared because the tree height may have increased and it
-		 * became a child of a higher level root. This can happen when
-		 * snapshotting a subvolume created in the current transaction.
-		 */
-		if (btrfs_header_generation(buf) == trans->transid)
-			return 1;
-	}
 
-	return 0;
+	if (!test_bit(BTRFS_ROOT_SHAREABLE, &root->state))
+		return false;
+
+	if (buf == root->node)
+		return false;
+
+	if (buf_gen > btrfs_root_last_snapshot(&root->root_item) &&
+	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_RELOC))
+		return false;
+
+	if (buf != root->commit_root)
+		return true;
+
+	/*
+	 * An extent buffer that used to be the commit root may still be shared
+	 * because the tree height may have increased and it became a child of a
+	 * higher level root. This can happen when snapshotting a subvolume
+	 * created in the current transaction.
+	 */
+	if (buf_gen == trans->transid)
+		return true;
+
+	return false;
 }
 
 static noinline int update_ref_for_cow(struct btrfs_trans_handle *trans,
@@ -812,7 +820,8 @@ int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
 	}
 
 	while (low < high) {
-		unsigned long oip;
+		const int unit_size = folio_size(eb->folios[0]);
+		unsigned long oil;
 		unsigned long offset;
 		struct btrfs_disk_key *tmp;
 		struct btrfs_disk_key unaligned;
@@ -820,14 +829,14 @@ int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
 
 		mid = (low + high) / 2;
 		offset = p + mid * item_size;
-		oip = offset_in_page(offset);
+		oil = get_eb_offset_in_folio(eb, offset);
 
-		if (oip + key_size <= PAGE_SIZE) {
-			const unsigned long idx = get_eb_page_index(offset);
-			char *kaddr = page_address(eb->pages[idx]);
+		if (oil + key_size <= unit_size) {
+			const unsigned long idx = get_eb_folio_index(eb, offset);
+			char *kaddr = folio_address(eb->folios[idx]);
 
-			oip = get_eb_offset_in_page(eb, offset);
-			tmp = (struct btrfs_disk_key *)(kaddr + oip);
+			oil = get_eb_offset_in_folio(eb, offset);
+			tmp = (struct btrfs_disk_key *)(kaddr + oil);
 		} else {
 			read_extent_buffer(eb, &unaligned, offset, key_size);
 			tmp = &unaligned;

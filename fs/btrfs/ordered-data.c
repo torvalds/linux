@@ -323,9 +323,10 @@ static bool can_finish_ordered_extent(struct btrfs_ordered_extent *ordered,
 		 *
 		 * If there's no such bit, we need to skip to next range.
 		 */
-		if (!btrfs_page_test_ordered(fs_info, page, file_offset, len))
+		if (!btrfs_folio_test_ordered(fs_info, page_folio(page),
+					      file_offset, len))
 			return false;
-		btrfs_page_clear_ordered(fs_info, page, file_offset, len);
+		btrfs_folio_clear_ordered(fs_info, page_folio(page), file_offset, len);
 	}
 
 	/* Now we're fine to update the accounting. */
