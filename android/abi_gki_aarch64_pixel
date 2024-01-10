@@ -813,6 +813,7 @@
   drm_writeback_signal_completion
   dump_backtrace
   dump_stack
+  dump_tasks
   dw_handle_msi_irq
   dw_pcie_find_capability
   dw_pcie_host_init
