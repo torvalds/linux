@@ -953,6 +953,13 @@ static int ovl_do_copy_up(struct ovl_copy_up_ctx *c)
 		goto out_free_fh;
 	} else {
 		/*
+		 * c->dentry->d_name is stabilzed by ovl_copy_up_start(),
+		 * because if we got here, it means that c->dentry has no upper
+		 * alias and changing ->d_name means going through ovl_rename()
+		 * that will call ovl_copy_up() on source and target dentry.
+		 */
+		c->destname = c->dentry->d_name;
+		/*
 		 * Mark parent "impure" because it may now contain non-pure
 		 * upper
 		 */
@@ -1132,7 +1139,6 @@ static int ovl_copy_up_one(struct dentry *parent, struct dentry *dentry,
 	if (parent) {
 		ovl_path_upper(parent, &parentpath);
 		ctx.destdir = parentpath.dentry;
-		ctx.destname = dentry->d_name;
 
 		err = vfs_getattr(&parentpath, &ctx.pstat,
 				  STATX_ATIME | STATX_MTIME,
