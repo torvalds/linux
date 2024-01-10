@@ -260,6 +260,27 @@
 				<&adc1 0>, <&adc1 1>, <&adc1 2>, <&adc1 3>,
 				<&adc1 4>, <&adc1 5>, <&adc1 6>, <&adc1 7>;
 	};
+
+	vcc_sdhci0: regulator-vcc-sdhci0 {
+		compatible = "regulator-fixed";
+		regulator-name = "SDHCI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 ASPEED_GPIO(H, 0) GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vccq_sdhci0: regulator-vccq-sdhci0 {
+		compatible = "regulator-gpio";
+		regulator-name = "SDHCI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&gpio0 ASPEED_GPIO(G, 7) GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1>,
+			 <1800000 0>;
+	};
+
 };
 
 &pwm_tach {
@@ -871,14 +892,16 @@
 	status = "okay";
 	bus-width = <4>;
 	max-frequency = <200000000>;
-	sdhci-drive-type = /bits/ 8 <3>;
-	/* SDR104/DDR50 bits in CAPA2 are not supported */
+	/* DDR50 bits in CAPA2 are not supported */
 	sdhci-caps-mask = <0x6 0x0>;
+	sdhci-drive-type = /bits/ 8 <3>;
 	sdhci,wp-inverted;
-	//    vmmc-supply = <&vcc_sdhci0>;
-	//    vqmmc-supply = <&vccq_sdhci0>;
-	/* <0 (MHz * 1.296)>, <1 (MHz * 2.376)> */
-	clk-phase-uhs-sdr50 = <0 130>, <0 238>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sd_default>;
+	vmmc-supply = <&vcc_sdhci0>;
+	vqmmc-supply = <&vccq_sdhci0>;
+	sd-uhs-sdr104;
+	clk-phase-uhs-sdr104 = <0 200>, <1 190>;
 };
 
 #endif
