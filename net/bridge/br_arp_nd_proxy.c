@@ -192,7 +192,7 @@ void br_do_proxy_suppress_arp(struct sk_buff *skb, struct net_bridge *br,
 	if (n) {
 		struct net_bridge_fdb_entry *f;
 
-		if (!(n->nud_state & NUD_VALID)) {
+		if (!(READ_ONCE(n->nud_state) & NUD_VALID)) {
 			neigh_release(n);
 			return;
 		}
@@ -452,7 +452,7 @@ void br_do_suppress_nd(struct sk_buff *skb, struct net_bridge *br,
 	if (n) {
 		struct net_bridge_fdb_entry *f;
 
-		if (!(n->nud_state & NUD_VALID)) {
+		if (!(READ_ONCE(n->nud_state) & NUD_VALID)) {
 			neigh_release(n);
 			return;
 		}

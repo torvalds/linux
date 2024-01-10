@@ -66,14 +66,14 @@
 	leds {
 		compatible = "gpio-leds";
 
-		green {
+		led-green {
 			label = "led1";
 			gpios = <&gpio3 16 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "gpio";
 			default-state = "off";
 		};
 
-		red {
+		led-red {
 			label = "led0";
 			gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "gpio";

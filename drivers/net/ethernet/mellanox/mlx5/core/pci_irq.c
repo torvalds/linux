@@ -123,18 +123,32 @@ out:
 	return ret;
 }
 
-static void irq_release(struct mlx5_irq *irq)
+/* mlx5_system_free_irq - Free an IRQ
+ * @irq: IRQ to free
+ *
+ * Free the IRQ and other resources such as rmap from the system.
+ * BUT doesn't free or remove reference from mlx5.
+ * This function is very important for the shutdown flow, where we need to
+ * cleanup system resoruces but keep mlx5 objects alive,
+ * see mlx5_irq_table_free_irqs().
+ */
+static void mlx5_system_free_irq(struct mlx5_irq *irq)
 {
-	struct mlx5_irq_pool *pool = irq->pool;
-
-	xa_erase(&pool->irqs, irq->index);
 	/* free_irq requires that affinity_hint and rmap will be cleared
 	 * before calling it. This is why there is asymmetry with set_rmap
 	 * which should be called after alloc_irq but before request_irq.
 	 */
 	irq_update_affinity_hint(irq->irqn, NULL);
-	free_cpumask_var(irq->mask);
 	free_irq(irq->irqn, &irq->nh);
+}
+
+static void irq_release(struct mlx5_irq *irq)
+{
+	struct mlx5_irq_pool *pool = irq->pool;
+
+	xa_erase(&pool->irqs, irq->index);
+	mlx5_system_free_irq(irq);
+	free_cpumask_var(irq->mask);
 	kfree(irq);
 }
 
@@ -591,6 +605,24 @@ static void irq_pools_destroy(struct mlx5_irq_table *table)
 	irq_pool_free(table->pf_pool);
 }
 
+static void mlx5_irq_pool_free_irqs(struct mlx5_irq_pool *pool)
+{
+	struct mlx5_irq *irq;
+	unsigned long index;
+
+	xa_for_each(&pool->irqs, index, irq)
+		mlx5_system_free_irq(irq);
+}
+
+static void mlx5_irq_pools_free_irqs(struct mlx5_irq_table *table)
+{
+	if (table->sf_ctrl_pool) {
+		mlx5_irq_pool_free_irqs(table->sf_comp_pool);
+		mlx5_irq_pool_free_irqs(table->sf_ctrl_pool);
+	}
+	mlx5_irq_pool_free_irqs(table->pf_pool);
+}
+
 /* irq_table API */
 
 int mlx5_irq_table_init(struct mlx5_core_dev *dev)
@@ -667,6 +699,17 @@ void mlx5_irq_table_destroy(struct mlx5_core_dev *dev)
 	 * to here. Hence, making sure all the irqs are released.
 	 */
 	irq_pools_destroy(table);
+	pci_free_irq_vectors(dev->pdev);
+}
+
+void mlx5_irq_table_free_irqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_irq_table *table = dev->priv.irq_table;
+
+	if (mlx5_core_is_sf(dev))
+		return;
+
+	mlx5_irq_pools_free_irqs(table);
 	pci_free_irq_vectors(dev->pdev);
 }
 

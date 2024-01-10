@@ -2471,8 +2471,8 @@ destroy_res:
 	mlx5_steering_anchor_destroy_res(ft_prio);
 put_flow_table:
 	put_flow_table(dev, ft_prio, true);
-	mutex_unlock(&dev->flow_db->lock);
 free_obj:
+	mutex_unlock(&dev->flow_db->lock);
 	kfree(obj);
 
 	return err;

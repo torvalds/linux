@@ -130,7 +130,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_leds>;
 
-		red {
+		led-red {
 			gpios = <&gpio1 2 0>;
 			default-state = "on";
 		};

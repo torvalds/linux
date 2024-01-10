@@ -705,20 +705,65 @@ struct atom_gpio_pin_lut_v2_1
 };
 
 
-/* 
-  ***************************************************************************
-    Data Table vram_usagebyfirmware  structure
-  ***************************************************************************
-*/
+/*
+ * VBIOS/PRE-OS always reserve a FB region at the top of frame buffer. driver should not write
+ * access that region. driver can allocate their own reservation region as long as it does not
+ * overlap firwmare's reservation region.
+ * if (pre-NV1X) atom data table firmwareInfoTable version < 3.3:
+ * in this case, atom data table vram_usagebyfirmwareTable version always <= 2.1
+ *   if VBIOS/UEFI GOP is posted:
+ *     VBIOS/UEFIGOP update used_by_firmware_in_kb = total reserved size by VBIOS
+ *     update start_address_in_kb = total_mem_size_in_kb - used_by_firmware_in_kb;
+ *     ( total_mem_size_in_kb = reg(CONFIG_MEMSIZE)<<10)
+ *     driver can allocate driver reservation region under firmware reservation,
+ *     used_by_driver_in_kb = driver reservation size
+ *     driver reservation start address =  (start_address_in_kb - used_by_driver_in_kb)
+ *     Comment1[hchan]: There is only one reservation at the beginning of the FB reserved by
+ *     host driver. Host driver would overwrite the table with the following
+ *     used_by_firmware_in_kb = total reserved size for pf-vf info exchange and
+ *     set SRIOV_MSG_SHARE_RESERVATION mask start_address_in_kb = 0
+ *   else there is no VBIOS reservation region:
+ *     driver must allocate driver reservation region at top of FB.
+ *     driver set used_by_driver_in_kb = driver reservation size
+ *     driver reservation start address =  (total_mem_size_in_kb - used_by_driver_in_kb)
+ *     same as Comment1
+ * else (NV1X and after):
+ *   if VBIOS/UEFI GOP is posted:
+ *     VBIOS/UEFIGOP update:
+ *       used_by_firmware_in_kb = atom_firmware_Info_v3_3.fw_reserved_size_in_kb;
+ *       start_address_in_kb = total_mem_size_in_kb - used_by_firmware_in_kb;
+ *       (total_mem_size_in_kb = reg(CONFIG_MEMSIZE)<<10)
+ *   if vram_usagebyfirmwareTable version <= 2.1:
+ *     driver can allocate driver reservation region under firmware reservation,
+ *     driver set used_by_driver_in_kb = driver reservation size
+ *     driver reservation start address = start_address_in_kb - used_by_driver_in_kb
+ *     same as Comment1
+ *   else driver can:
+ *     allocate it reservation any place as long as it does overlap pre-OS FW reservation area
+ *     set used_by_driver_region0_in_kb = driver reservation size
+ *     set driver_region0_start_address_in_kb =  driver reservation region start address
+ *     Comment2[hchan]: Host driver can set used_by_firmware_in_kb and start_address_in_kb to
+ *     zero as the reservation for VF as it doesn’t exist.  And Host driver should also
+ *     update atom_firmware_Info table to remove the same VBIOS reservation as well.
+ */
 
 struct vram_usagebyfirmware_v2_1
 {
-  struct  atom_common_table_header  table_header;
-  uint32_t  start_address_in_kb;
-  uint16_t  used_by_firmware_in_kb;
-  uint16_t  used_by_driver_in_kb; 
+	struct  atom_common_table_header  table_header;
+	uint32_t  start_address_in_kb;
+	uint16_t  used_by_firmware_in_kb;
+	uint16_t  used_by_driver_in_kb;
 };
 
+struct vram_usagebyfirmware_v2_2 {
+	struct  atom_common_table_header  table_header;
+	uint32_t  fw_region_start_address_in_kb;
+	uint16_t  used_by_firmware_in_kb;
+	uint16_t  reserved;
+	uint32_t  driver_region0_start_address_in_kb;
+	uint32_t  used_by_driver_region0_in_kb;
+	uint32_t  reserved32[7];
+};
 
 /* 
   ***************************************************************************

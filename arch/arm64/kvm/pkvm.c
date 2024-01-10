@@ -14,12 +14,16 @@
 #include <linux/of_fdt.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/sort.h>
+#include <linux/stat.h>
 
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_pkvm.h>
 #include <asm/kvm_pkvm_module.h>
 #include <asm/setup.h>
+
+#include <uapi/linux/mount.h>
+#include <linux/init_syscalls.h>
 
 #include "hyp_constants.h"
 
@@ -682,7 +686,11 @@ int __init pkvm_load_early_modules(void)
 {
 	char *token, *buf = early_pkvm_modules;
 	char *module_path = CONFIG_PKVM_MODULE_PATH;
-	int err;
+	int err = init_mount("proc", "/proc", "proc",
+			     MS_SILENT | MS_NOEXEC | MS_NOSUID, NULL);
+
+	if (err)
+		return err;
 
 	while (true) {
 		token = strsep(&buf, ",");

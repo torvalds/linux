@@ -68,7 +68,8 @@ struct fscrypt_context_v2 {
 	u8 contents_encryption_mode;
 	u8 filenames_encryption_mode;
 	u8 flags;
-	u8 __reserved[4];
+	u8 log2_data_unit_size;
+	u8 __reserved[3];
 	u8 master_key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
 	u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
 };
@@ -186,6 +187,26 @@ fscrypt_policy_flags(const union fscrypt_policy *policy)
 	BUG();
 }
 
+static inline int
+fscrypt_policy_v2_du_bits(const struct fscrypt_policy_v2 *policy,
+			  const struct inode *inode)
+{
+	return policy->log2_data_unit_size ?: inode->i_blkbits;
+}
+
+static inline int
+fscrypt_policy_du_bits(const union fscrypt_policy *policy,
+		       const struct inode *inode)
+{
+	switch (policy->version) {
+	case FSCRYPT_POLICY_V1:
+		return inode->i_blkbits;
+	case FSCRYPT_POLICY_V2:
+		return fscrypt_policy_v2_du_bits(&policy->v2, inode);
+	}
+	BUG();
+}
+
 /*
  * For encrypted symlinks, the ciphertext length is stored at the beginning
  * of the string in little-endian format.
@@ -231,6 +252,16 @@ struct fscrypt_info {
 	 */
 	bool ci_inlinecrypt;
 #endif
+
+	/*
+	 * log2 of the data unit size (granularity of contents encryption) of
+	 * this file.  This is computable from ci_policy and ci_inode but is
+	 * cached here for efficiency.  Only used for regular files.
+	 */
+	u8 ci_data_unit_bits;
+
+	/* Cached value: log2 of number of data units per FS block */
+	u8 ci_data_units_per_block_bits;
 
 	/*
 	 * Encryption mode used for this inode.  It corresponds to either the
@@ -286,10 +317,11 @@ typedef enum {
 /* crypto.c */
 extern struct kmem_cache *fscrypt_info_cachep;
 int fscrypt_initialize(struct super_block *sb);
-int fscrypt_crypt_block(const struct inode *inode, fscrypt_direction_t rw,
-			u64 lblk_num, struct page *src_page,
-			struct page *dest_page, unsigned int len,
-			unsigned int offs, gfp_t gfp_flags);
+int fscrypt_crypt_data_unit(const struct fscrypt_info *ci,
+			    fscrypt_direction_t rw, u64 index,
+			    struct page *src_page, struct page *dest_page,
+			    unsigned int len, unsigned int offs,
+			    gfp_t gfp_flags);
 struct page *fscrypt_alloc_bounce_page(gfp_t gfp_flags);
 
 void __printf(3, 4) __cold
@@ -304,8 +336,8 @@ fscrypt_msg(const struct inode *inode, const char *level, const char *fmt, ...);
 
 union fscrypt_iv {
 	struct {
-		/* logical block number within the file */
-		__le64 lblk_num;
+		/* zero-based index of data unit within the file */
+		__le64 index;
 
 		/* per-file nonce; only set in DIRECT_KEY mode */
 		u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
@@ -314,8 +346,18 @@ union fscrypt_iv {
 	__le64 dun[FSCRYPT_MAX_IV_SIZE / sizeof(__le64)];
 };
 
-void fscrypt_generate_iv(union fscrypt_iv *iv, u64 lblk_num,
+void fscrypt_generate_iv(union fscrypt_iv *iv, u64 index,
 			 const struct fscrypt_info *ci);
+
+/*
+ * Return the number of bits used by the maximum file data unit index that is
+ * possible on the given filesystem, using the given log2 data unit size.
+ */
+static inline int
+fscrypt_max_file_dun_bits(const struct super_block *sb, int du_bits)
+{
+	return fls64(sb->s_maxbytes - 1) - du_bits;
+}
 
 /* fname.c */
 bool __fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,

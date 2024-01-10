@@ -1227,6 +1227,7 @@ drivers/media/usb/uvc/uvc_status.c
 drivers/media/usb/uvc/uvc_v4l2.c
 drivers/media/usb/uvc/uvc_video.c
 drivers/media/usb/uvc/uvcvideo.h
+drivers/media/v4l2-core/v4l2-async.c
 drivers/media/v4l2-core/v4l2-common.c
 drivers/media/v4l2-core/v4l2-compat-ioctl32.c
 drivers/media/v4l2-core/v4l2-ctrls-api.c
@@ -1239,6 +1240,7 @@ drivers/media/v4l2-core/v4l2-device.c
 drivers/media/v4l2-core/v4l2-dv-timings.c
 drivers/media/v4l2-core/v4l2-event.c
 drivers/media/v4l2-core/v4l2-fh.c
+drivers/media/v4l2-core/v4l2-fwnode.c
 drivers/media/v4l2-core/v4l2-i2c.c
 drivers/media/v4l2-core/v4l2-ioctl.c
 drivers/media/v4l2-core/v4l2-mc.c
@@ -2348,7 +2350,6 @@ include/asm-generic/bitops/non-instrumented-non-atomic.h
 include/asm-generic/bitops/sched.h
 include/asm-generic/bitsperlong.h
 include/asm-generic/bug.h
-include/asm-generic/bugs.h
 include/asm-generic/cacheflush.h
 include/asm-generic/checksum.h
 include/asm-generic/compat.h
@@ -5682,7 +5683,6 @@ net/core/dev.c
 net/core/dev.h
 net/core/dev_addr_lists.c
 net/core/dev_ioctl.c
-net/core/devlink.c
 net/core/dst.c
 net/core/dst_cache.c
 net/core/fib_notifier.c
@@ -5723,6 +5723,7 @@ net/core/sysctl_net_core.c
 net/core/tso.c
 net/core/utils.c
 net/core/xdp.c
+net/devlink/leftover.c
 net/devres.c
 net/ethernet/eth.c
 net/ethtool/bitset.c

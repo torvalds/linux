@@ -73,13 +73,13 @@
 			default-state = "off";
 		};
 
-		en-usb-5v {
+		en-usb-5v-led {
 			label = "en-usb-5v";
 			gpios = <&gpio2 22 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};
 
-		sel_dc_usb {
+		sel-dc-usb-led {
 			label = "sel_dc_usb";
 			gpios = <&gpio5 17 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
