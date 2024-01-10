@@ -76,7 +76,9 @@ static ssize_t write_maxconn(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
 static ssize_t write_gracetime(struct file *file, char *buf, size_t size);
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
+#endif
 static ssize_t write_v4_end_grace(struct file *file, char *buf, size_t size);
 #endif
 
@@ -93,7 +95,9 @@ static ssize_t (*const write_op[])(struct file *, char *, size_t) = {
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
 	[NFSD_Gracetime] = write_gracetime,
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 	[NFSD_RecoveryDir] = write_recoverydir,
+#endif
 	[NFSD_V4EndGrace] = write_v4_end_grace,
 #endif
 };
@@ -179,7 +183,7 @@ static const struct file_operations pool_stats_operations = {
 	.open		= nfsd_pool_stats_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= nfsd_pool_stats_release,
+	.release	= seq_release,
 };
 
 DEFINE_SHOW_ATTRIBUTE(nfsd_reply_cache_stats);
@@ -707,12 +711,9 @@ static ssize_t __write_ports_addfd(char *buf, struct net *net, const struct cred
 	serv = nn->nfsd_serv;
 	err = svc_addsock(serv, net, fd, buf, SIMPLE_TRANSACTION_LIMIT, cred);
 
-	if (err < 0 && !serv->sv_nrthreads && !nn->keep_active)
-		nfsd_last_thread(net);
-	else if (err >= 0 && !serv->sv_nrthreads && !xchg(&nn->keep_active, 1))
-		svc_get(serv);
+	if (!serv->sv_nrthreads && list_empty(&nn->nfsd_serv->sv_permsocks))
+		nfsd_destroy_serv(net);
 
-	svc_put(serv);
 	return err;
 }
 
@@ -750,10 +751,6 @@ static ssize_t __write_ports_addxprt(char *buf, struct net *net, const struct cr
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_close;
 
-	if (!serv->sv_nrthreads && !xchg(&nn->keep_active, 1))
-		svc_get(serv);
-
-	svc_put(serv);
 	return 0;
 out_close:
 	xprt = svc_find_xprt(serv, transport, net, PF_INET, port);
@@ -762,10 +759,9 @@ out_close:
 		svc_xprt_put(xprt);
 	}
 out_err:
-	if (!serv->sv_nrthreads && !nn->keep_active)
-		nfsd_last_thread(net);
+	if (!serv->sv_nrthreads && list_empty(&nn->nfsd_serv->sv_permsocks))
+		nfsd_destroy_serv(net);
 
-	svc_put(serv);
 	return err;
 }
 
@@ -1021,6 +1017,7 @@ static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
 	return nfsd4_write_time(file, buf, size, &nn->nfsd4_grace, nn);
 }
 
+#ifdef CONFIG_NFSD_LEGACY_CLIENT_TRACKING
 static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size,
 				   struct nfsd_net *nn)
 {
@@ -1081,6 +1078,7 @@ static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
 	mutex_unlock(&nfsd_mutex);
 	return rv;
 }
+#endif
 
 /*
  * write_v4_end_grace - release grace period for nfsd's v4.x lock manager
