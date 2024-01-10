@@ -655,7 +655,7 @@ static int imx_ldb_probe(struct platform_device *pdev)
 	for (i = 0; i < 4; i++) {
 		char clkname[16];
 
-		sprintf(clkname, "di%d_sel", i);
+		snprintf(clkname, sizeof(clkname), "di%d_sel", i);
 		imx_ldb->clk_sel[i] = devm_clk_get(imx_ldb->dev, clkname);
 		if (IS_ERR(imx_ldb->clk_sel[i])) {
 			ret = PTR_ERR(imx_ldb->clk_sel[i]);
