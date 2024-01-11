@@ -36,6 +36,7 @@
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
 #include <stdbool.h>
+#include <assert.h>
 
 #define UNUSED(x) (void)(x)
 
@@ -265,6 +266,7 @@ unsigned int has_hwp_epp;	/* IA32_HWP_REQUEST[bits 31:24] */
 unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
 unsigned int first_counter_read = 1;
 int ignore_stdin;
+bool no_msr;
 
 int get_msr(int cpu, off_t offset, unsigned long long *msr);
 
@@ -1282,11 +1284,34 @@ int get_msr_fd(int cpu)
 	sprintf(pathname, "/dev/cpu/%d/msr", cpu);
 	fd = open(pathname, O_RDONLY);
 	if (fd < 0)
-		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, or run as root", pathname);
+		err(-1, "%s open failed, try chown or chmod +r /dev/cpu/*/msr, "
+		    "or run with --no-msr, or run as root", pathname);
 
 	fd_percpu[cpu] = fd;
 
 	return fd;
+}
+
+static void bic_disable_msr_access(void)
+{
+	const unsigned long bic_msrs =
+	    BIC_Avg_MHz |
+	    BIC_Busy |
+	    BIC_Bzy_MHz |
+	    BIC_SMI |
+	    BIC_CPU_c1 |
+	    BIC_CPU_c3 |
+	    BIC_CPU_c6 |
+	    BIC_CPU_c7 |
+	    BIC_Mod_c6 |
+	    BIC_CoreTmp |
+	    BIC_Totl_c0 |
+	    BIC_Any_c0 |
+	    BIC_GFX_c0 |
+	    BIC_CPUGFX |
+	    BIC_Pkgpc2 | BIC_Pkgpc3 | BIC_Pkgpc6 | BIC_Pkgpc7 | BIC_Pkgpc8 | BIC_Pkgpc9 | BIC_Pkgpc10 | BIC_PkgTmp;
+
+	bic_enabled &= ~bic_msrs;
 }
 
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
@@ -1327,6 +1352,8 @@ int get_instr_count_fd(int cpu)
 int get_msr(int cpu, off_t offset, unsigned long long *msr)
 {
 	ssize_t retval;
+
+	assert(!no_msr);
 
 	retval = pread(get_msr_fd(cpu), msr, sizeof(*msr), offset);
 
@@ -1371,6 +1398,7 @@ void help(void)
 		"		Override default 5-second measurement interval\n"
 		"  -J, --Joules	displays energy in Joules instead of Watts\n"
 		"  -l, --list	list column headers only\n"
+		"  -M, --no-msr Disable all uses of the MSR driver\n"
 		"  -n, --num_iterations num\n"
 		"		number of the measurement iterations\n"
 		"  -N, --header_iterations num\n"
@@ -2597,6 +2625,7 @@ unsigned long long snapshot_sysfs_counter(char *path)
 int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 {
 	if (mp->msr_num != 0) {
+		assert(!no_msr);
 		if (get_msr(cpu, mp->msr_num, counterp))
 			return -1;
 	} else {
@@ -2646,6 +2675,9 @@ int get_epb(int cpu)
 	return epb;
 
 msr_fallback:
+	if (no_msr)
+		return -1;
+
 	get_msr(cpu, MSR_IA32_ENERGY_PERF_BIAS, &msr);
 
 	return msr & 0xf;
@@ -2865,7 +2897,7 @@ retry:
 	if (DO_BIC(BIC_CORE_THROT_CNT))
 		get_core_throt_cnt(cpu, &c->core_throt_cnt);
 
-	if (platform->rapl_msrs & RAPL_AMD_F17H) {
+	if ((platform->rapl_msrs & RAPL_AMD_F17H) && !no_msr) {
 		if (get_msr(cpu, MSR_CORE_ENERGY_STAT, &msr))
 			return -14;
 		c->core_energy = msr & 0xFFFFFFFF;
@@ -2930,41 +2962,44 @@ retry:
 	if (DO_BIC(BIC_SYS_LPI))
 		p->sys_lpi = cpuidle_cur_sys_lpi_us;
 
-	if (platform->rapl_msrs & RAPL_PKG) {
-		if (get_msr_sum(cpu, MSR_PKG_ENERGY_STATUS, &msr))
-			return -13;
-		p->energy_pkg = msr;
+	if (!no_msr) {
+		if (platform->rapl_msrs & RAPL_PKG) {
+			if (get_msr_sum(cpu, MSR_PKG_ENERGY_STATUS, &msr))
+				return -13;
+			p->energy_pkg = msr;
+		}
+		if (platform->rapl_msrs & RAPL_CORE_ENERGY_STATUS) {
+			if (get_msr_sum(cpu, MSR_PP0_ENERGY_STATUS, &msr))
+				return -14;
+			p->energy_cores = msr;
+		}
+		if (platform->rapl_msrs & RAPL_DRAM) {
+			if (get_msr_sum(cpu, MSR_DRAM_ENERGY_STATUS, &msr))
+				return -15;
+			p->energy_dram = msr;
+		}
+		if (platform->rapl_msrs & RAPL_GFX) {
+			if (get_msr_sum(cpu, MSR_PP1_ENERGY_STATUS, &msr))
+				return -16;
+			p->energy_gfx = msr;
+		}
+		if (platform->rapl_msrs & RAPL_PKG_PERF_STATUS) {
+			if (get_msr_sum(cpu, MSR_PKG_PERF_STATUS, &msr))
+				return -16;
+			p->rapl_pkg_perf_status = msr;
+		}
+		if (platform->rapl_msrs & RAPL_DRAM_PERF_STATUS) {
+			if (get_msr_sum(cpu, MSR_DRAM_PERF_STATUS, &msr))
+				return -16;
+			p->rapl_dram_perf_status = msr;
+		}
+		if (platform->rapl_msrs & RAPL_AMD_F17H) {
+			if (get_msr_sum(cpu, MSR_PKG_ENERGY_STAT, &msr))
+				return -13;
+			p->energy_pkg = msr;
+		}
 	}
-	if (platform->rapl_msrs & RAPL_CORE_ENERGY_STATUS) {
-		if (get_msr_sum(cpu, MSR_PP0_ENERGY_STATUS, &msr))
-			return -14;
-		p->energy_cores = msr;
-	}
-	if (platform->rapl_msrs & RAPL_DRAM) {
-		if (get_msr_sum(cpu, MSR_DRAM_ENERGY_STATUS, &msr))
-			return -15;
-		p->energy_dram = msr;
-	}
-	if (platform->rapl_msrs & RAPL_GFX) {
-		if (get_msr_sum(cpu, MSR_PP1_ENERGY_STATUS, &msr))
-			return -16;
-		p->energy_gfx = msr;
-	}
-	if (platform->rapl_msrs & RAPL_PKG_PERF_STATUS) {
-		if (get_msr_sum(cpu, MSR_PKG_PERF_STATUS, &msr))
-			return -16;
-		p->rapl_pkg_perf_status = msr;
-	}
-	if (platform->rapl_msrs & RAPL_DRAM_PERF_STATUS) {
-		if (get_msr_sum(cpu, MSR_DRAM_PERF_STATUS, &msr))
-			return -16;
-		p->rapl_dram_perf_status = msr;
-	}
-	if (platform->rapl_msrs & RAPL_AMD_F17H) {
-		if (get_msr_sum(cpu, MSR_PKG_ENERGY_STAT, &msr))
-			return -13;
-		p->energy_pkg = msr;
-	}
+
 	if (DO_BIC(BIC_PkgTmp)) {
 		if (get_msr(cpu, MSR_IA32_PACKAGE_THERM_STATUS, &msr))
 			return -17;
@@ -3072,7 +3107,7 @@ void probe_cst_limit(void)
 	unsigned long long msr;
 	int *pkg_cstate_limits;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	switch (platform->cst_limit) {
@@ -3116,7 +3151,7 @@ static void dump_platform_info(void)
 	unsigned long long msr;
 	unsigned int ratio;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	get_msr(base_cpu, MSR_PLATFORM_INFO, &msr);
@@ -3134,7 +3169,7 @@ static void dump_power_ctl(void)
 {
 	unsigned long long msr;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	get_msr(base_cpu, MSR_IA32_POWER_CTL, &msr);
@@ -3340,7 +3375,7 @@ static void dump_cst_cfg(void)
 {
 	unsigned long long msr;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	get_msr(base_cpu, MSR_PKG_CST_CONFIG_CONTROL, &msr);
@@ -3412,7 +3447,7 @@ void print_irtl(void)
 {
 	unsigned long long msr;
 
-	if (!platform->has_irtl_msrs)
+	if (!platform->has_irtl_msrs || no_msr)
 		return;
 
 	if (platform->supported_cstates & PC3) {
@@ -4193,6 +4228,8 @@ int get_msr_sum(int cpu, off_t offset, unsigned long long *msr)
 	int ret, idx;
 	unsigned long long msr_cur, msr_last;
 
+	assert(!no_msr);
+
 	if (!per_cpu_msr_sum)
 		return 1;
 
@@ -4220,6 +4257,8 @@ static int update_msr_sum(struct thread_data *t, struct core_data *c, struct pkg
 
 	UNUSED(c);
 	UNUSED(p);
+
+	assert(!no_msr);
 
 	for (i = IDX_PKG_ENERGY; i < IDX_COUNT; i++) {
 		unsigned long long msr_cur, msr_last;
@@ -4465,7 +4504,7 @@ void check_permissions(void)
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 	if (euidaccess(pathname, R_OK)) {
 		do_exit++;
-		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr");
+		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr, or run with --no-msr");
 	}
 
 	/* if all else fails, thell them to be root */
@@ -4482,7 +4521,7 @@ void probe_bclk(void)
 	unsigned long long msr;
 	unsigned int base_ratio;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	if (platform->bclk_freq == BCLK_100MHZ)
@@ -4522,7 +4561,7 @@ static void dump_turbo_ratio_info(void)
 	if (!has_turbo)
 		return;
 
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		return;
 
 	if (platform->trl_msrs & TRL_LIMIT2)
@@ -4845,6 +4884,9 @@ int print_hwp(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	UNUSED(c);
 	UNUSED(p);
 
+	if (no_msr)
+		return 0;
+
 	if (!has_hwp)
 		return 0;
 
@@ -4930,6 +4972,9 @@ int print_perf_limit(struct thread_data *t, struct core_data *c, struct pkg_data
 
 	UNUSED(c);
 	UNUSED(p);
+
+	if (no_msr)
+		return 0;
 
 	cpu = t->cpu_id;
 
@@ -5264,7 +5309,7 @@ int print_rapl(struct thread_data *t, struct core_data *c, struct pkg_data *p)
  */
 void probe_rapl(void)
 {
-	if (!platform->rapl_msrs)
+	if (!platform->rapl_msrs || no_msr)
 		return;
 
 	if (genuine_intel)
@@ -5320,7 +5365,7 @@ int set_temperature_target(struct thread_data *t, struct core_data *c, struct pk
 	}
 
 	/* Temperature Target MSR is Nehalem and newer only */
-	if (!platform->has_nhm_msrs)
+	if (!platform->has_nhm_msrs || no_msr)
 		goto guess;
 
 	if (get_msr(base_cpu, MSR_IA32_TEMPERATURE_TARGET, &msr))
@@ -5366,6 +5411,9 @@ int print_thermal(struct thread_data *t, struct core_data *c, struct pkg_data *p
 
 	UNUSED(c);
 	UNUSED(p);
+
+	if (no_msr)
+		return 0;
 
 	if (!(do_dts || do_ptm))
 		return 0;
@@ -5464,6 +5512,9 @@ void decode_feature_control_msr(void)
 {
 	unsigned long long msr;
 
+	if (no_msr)
+		return;
+
 	if (!get_msr(base_cpu, MSR_IA32_FEAT_CTL, &msr))
 		fprintf(outf, "cpu%d: MSR_IA32_FEATURE_CONTROL: 0x%08llx (%sLocked %s)\n",
 			base_cpu, msr, msr & FEAT_CTL_LOCKED ? "" : "UN-", msr & (1 << 18) ? "SGX" : "");
@@ -5472,6 +5523,9 @@ void decode_feature_control_msr(void)
 void decode_misc_enable_msr(void)
 {
 	unsigned long long msr;
+
+	if (no_msr)
+		return;
 
 	if (!genuine_intel)
 		return;
@@ -5489,6 +5543,9 @@ void decode_misc_enable_msr(void)
 void decode_misc_feature_control(void)
 {
 	unsigned long long msr;
+
+	if (no_msr)
+		return;
 
 	if (!platform->has_msr_misc_feature_control)
 		return;
@@ -5511,6 +5568,9 @@ void decode_misc_pwr_mgmt_msr(void)
 {
 	unsigned long long msr;
 
+	if (no_msr)
+		return;
+
 	if (!platform->has_msr_misc_pwr_mgmt)
 		return;
 
@@ -5529,6 +5589,9 @@ void decode_misc_pwr_mgmt_msr(void)
 void decode_c6_demotion_policy_msr(void)
 {
 	unsigned long long msr;
+
+	if (no_msr)
+		return;
 
 	if (!platform->has_msr_c6_demotion_policy_config)
 		return;
@@ -5626,7 +5689,7 @@ void probe_cstates(void)
 	if (platform->has_msr_module_c6_res_ms)
 		BIC_PRESENT(BIC_Mod_c6);
 
-	if (platform->has_ext_cst_msrs) {
+	if (platform->has_ext_cst_msrs && !no_msr) {
 		BIC_PRESENT(BIC_Totl_c0);
 		BIC_PRESENT(BIC_Any_c0);
 		BIC_PRESENT(BIC_GFX_c0);
@@ -5714,10 +5777,12 @@ void process_cpuid()
 	ecx_flags = ecx;
 	edx_flags = edx;
 
-	if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
-		warnx("get_msr(UCODE)");
-	else
-		ucode_patch_valid = true;
+	if (!no_msr) {
+		if (get_msr(sched_getcpu(), MSR_IA32_UCODE_REV, &ucode_patch))
+			warnx("get_msr(UCODE)");
+		else
+			ucode_patch_valid = true;
+	}
 
 	/*
 	 * check max extended function levels of CPUID.
@@ -5892,7 +5957,7 @@ void probe_pm_features(void)
 
 	probe_thermal();
 
-	if (platform->has_nhm_msrs)
+	if (platform->has_nhm_msrs && !no_msr)
 		BIC_PRESENT(BIC_SMI);
 
 	if (!quiet)
@@ -6252,8 +6317,10 @@ void turbostat_init()
 {
 	setup_all_buffers(true);
 	set_base_cpu();
-	check_dev_msr();
-	check_permissions();
+	if (!no_msr) {
+		check_dev_msr();
+		check_permissions();
+	}
 	process_cpuid();
 	probe_pm_features();
 	linux_perf_init();
@@ -6369,6 +6436,9 @@ int add_counter(unsigned int msr_num, char *path, char *name,
 		enum counter_type type, enum counter_format format, int flags)
 {
 	struct msr_counter *msrp;
+
+	if (no_msr && msr_num)
+		errx(1, "Requested MSR counter 0x%x, but in --no-msr mode", msr_num);
 
 	msrp = calloc(1, sizeof(struct msr_counter));
 	if (msrp == NULL) {
@@ -6674,6 +6744,7 @@ void cmdline(int argc, char **argv)
 		{ "list", no_argument, 0, 'l' },
 		{ "out", required_argument, 0, 'o' },
 		{ "quiet", no_argument, 0, 'q' },
+		{ "no-msr", no_argument, 0, 'M' },
 		{ "show", required_argument, 0, 's' },
 		{ "Summary", no_argument, 0, 'S' },
 		{ "TCC", required_argument, 0, 'T' },
@@ -6683,7 +6754,22 @@ void cmdline(int argc, char **argv)
 
 	progname = argv[0];
 
-	while ((opt = getopt_long_only(argc, argv, "+C:c:Dde:hi:Jn:o:qST:v", long_options, &option_index)) != -1) {
+	/*
+	 * Parse some options early, because they may make other options invalid,
+	 * like adding the MSR counter with --add and at the same time using --no-msr.
+	 */
+	while ((opt = getopt_long_only(argc, argv, "M", long_options, &option_index)) != -1) {
+		switch (opt) {
+		case 'M':
+			no_msr = 1;
+			break;
+		default:
+			break;
+		}
+	}
+	optind = 0;
+
+	while ((opt = getopt_long_only(argc, argv, "+C:c:Dde:hi:Jn:o:qMST:v", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'a':
 			parse_add_command(optarg);
@@ -6740,6 +6826,9 @@ void cmdline(int argc, char **argv)
 			break;
 		case 'q':
 			quiet = 1;
+			break;
+		case 'M':
+			/* Parsed earlier */
 			break;
 		case 'n':
 			num_iterations = strtod(optarg, NULL);
@@ -6817,6 +6906,9 @@ skip_cgroup_setting:
 	outf = stderr;
 	cmdline(argc, argv);
 
+	if (no_msr)
+		bic_disable_msr_access();
+
 	if (!quiet) {
 		print_version();
 		print_bootcmd();
@@ -6829,7 +6921,8 @@ skip_cgroup_setting:
 
 	turbostat_init();
 
-	msr_sum_record();
+	if (!no_msr)
+		msr_sum_record();
 
 	/* dump counters and exit */
 	if (dump_only)
