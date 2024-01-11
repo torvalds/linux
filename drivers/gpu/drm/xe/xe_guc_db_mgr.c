@@ -46,6 +46,8 @@ static struct xe_device *dbm_to_xe(struct xe_guc_db_mgr *dbm)
 #define dbm_assert(_dbm, _cond)		xe_gt_assert(dbm_to_gt(_dbm), _cond)
 #define dbm_mutex(_dbm)			(&dbm_to_guc(_dbm)->submission_state.lock)
 
+static void dbm_print_locked(struct xe_guc_db_mgr *dbm, struct drm_printer *p, int indent);
+
 static void __fini_dbm(struct drm_device *drm, void *arg)
 {
 	struct xe_guc_db_mgr *dbm = arg;
@@ -59,7 +61,7 @@ static void __fini_dbm(struct drm_device *drm, void *arg)
 
 		xe_gt_err(dbm_to_gt(dbm), "GuC doorbells manager unclean (%u/%u)\n",
 			  weight, dbm->count);
-		xe_guc_db_mgr_print(dbm, &p, 1);
+		dbm_print_locked(dbm, &p, 1);
 	}
 
 	bitmap_free(dbm->bitmap);
@@ -219,14 +221,7 @@ void xe_guc_db_mgr_release_range(struct xe_guc_db_mgr *dbm,
 	mutex_unlock(dbm_mutex(dbm));
 }
 
-/**
- * xe_guc_db_mgr_print() - Print status of GuC Doorbells Manager.
- * @dbm: the &xe_guc_db_mgr to print
- * @p: the &drm_printer to print to
- * @indent: tab indentation level
- */
-void xe_guc_db_mgr_print(struct xe_guc_db_mgr *dbm,
-			 struct drm_printer *p, int indent)
+static void dbm_print_locked(struct xe_guc_db_mgr *dbm, struct drm_printer *p, int indent)
 {
 	unsigned int rs, re;
 	unsigned int total;
@@ -234,8 +229,6 @@ void xe_guc_db_mgr_print(struct xe_guc_db_mgr *dbm,
 	drm_printf_indent(p, indent, "count: %u\n", dbm->count);
 	if (!dbm->bitmap)
 		return;
-
-	mutex_lock(dbm_mutex(dbm));
 
 	total = 0;
 	for_each_clear_bitrange(rs, re, dbm->bitmap, dbm->count) {
@@ -252,7 +245,19 @@ void xe_guc_db_mgr_print(struct xe_guc_db_mgr *dbm,
 		total += re - rs;
 	}
 	drm_printf_indent(p, indent, "reserved total: %u\n", total);
+}
 
+/**
+ * xe_guc_db_mgr_print() - Print status of GuC Doorbells Manager.
+ * @dbm: the &xe_guc_db_mgr to print
+ * @p: the &drm_printer to print to
+ * @indent: tab indentation level
+ */
+void xe_guc_db_mgr_print(struct xe_guc_db_mgr *dbm,
+			 struct drm_printer *p, int indent)
+{
+	mutex_lock(dbm_mutex(dbm));
+	dbm_print_locked(dbm, p, indent);
 	mutex_unlock(dbm_mutex(dbm));
 }
 
