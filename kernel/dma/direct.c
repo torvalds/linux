@@ -677,7 +677,6 @@ int dma_direct_set_offset(struct device *dev, phys_addr_t cpu_start,
 		return -ENOMEM;
 	map[0].cpu_start = cpu_start;
 	map[0].dma_start = dma_start;
-	map[0].offset = offset;
 	map[0].size = size;
 	dev->dma_range_map = map;
 	return 0;
