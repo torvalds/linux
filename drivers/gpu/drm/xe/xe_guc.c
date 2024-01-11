@@ -731,8 +731,12 @@ timeout:
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
 			     GUC_HXG_ORIGIN_GUC))
 			goto proto;
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) !=
+			    GUC_HXG_TYPE_NO_RESPONSE_BUSY)
+				goto proto;
 			goto timeout;
+		}
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
