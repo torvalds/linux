@@ -46,26 +46,33 @@
 
 #include <linux/preempt.h>
 #include <asm/asm-extable.h>
+#include <asm/fpu/internal.h>
 
 void save_fpu_regs(void);
 void load_fpu_regs(void);
 void __load_fpu_regs(void);
 
-static inline int test_fp_ctl(u32 fpc)
+/**
+ * sfpc_safe - Set floating point control register safely.
+ * @fpc: new value for floating point control register
+ *
+ * Set floating point control register. This may lead to an exception,
+ * since a saved value may have been modified by user space (ptrace,
+ * signal return, kvm registers) to an invalid value. In such a case
+ * set the floating point control register to zero.
+ */
+static inline void sfpc_safe(u32 fpc)
 {
-	u32 orig_fpc;
-	int rc;
-
-	asm volatile(
-		"	efpc    %1\n"
-		"	sfpc	%2\n"
-		"0:	sfpc	%1\n"
-		"	la	%0,0\n"
-		"1:\n"
-		EX_TABLE(0b,1b)
-		: "=d" (rc), "=&d" (orig_fpc)
-		: "d" (fpc), "0" (-EINVAL));
-	return rc;
+	asm volatile("\n"
+		"0:	sfpc	%[fpc]\n"
+		"1:	nopr	%%r7\n"
+		".pushsection .fixup, \"ax\"\n"
+		"2:	lghi	%[fpc],0\n"
+		"	jg	0b\n"
+		".popsection\n"
+		EX_TABLE(1b, 2b)
+		: [fpc] "+d" (fpc)
+		: : "memory");
 }
 
 #define KERNEL_FPC		1
