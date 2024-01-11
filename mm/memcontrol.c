@@ -5965,23 +5965,22 @@ static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
 }
 
 /**
- * mem_cgroup_move_account - move account of the page
- * @page: the page
+ * mem_cgroup_move_account - move account of the folio
+ * @folio: The folio.
  * @compound: charge the page as compound or small page
- * @from: mem_cgroup which the page is moved from.
- * @to:	mem_cgroup which the page is moved to. @from != @to.
+ * @from: mem_cgroup which the folio is moved from.
+ * @to:	mem_cgroup which the folio is moved to. @from != @to.
  *
- * The page must be locked and not on the LRU.
+ * The folio must be locked and not on the LRU.
  *
  * This function doesn't do "charge" to new cgroup and doesn't do "uncharge"
  * from old cgroup.
  */
-static int mem_cgroup_move_account(struct page *page,
+static int mem_cgroup_move_account(struct folio *folio,
 				   bool compound,
 				   struct mem_cgroup *from,
 				   struct mem_cgroup *to)
 {
-	struct folio *folio = page_folio(page);
 	struct lruvec *from_vec, *to_vec;
 	struct pglist_data *pgdat;
 	unsigned int nr_pages = compound ? folio_nr_pages(folio) : 1;
@@ -6431,7 +6430,7 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 	spinlock_t *ptl;
 	enum mc_target_type target_type;
 	union mc_target target;
-	struct page *page;
+	struct folio *folio;
 
 	ptl = pmd_trans_huge_lock(pmd, vma);
 	if (ptl) {
@@ -6441,26 +6440,26 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
 		}
 		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
 		if (target_type == MC_TARGET_PAGE) {
-			page = target.page;
-			if (isolate_lru_page(page)) {
-				if (!mem_cgroup_move_account(page, true,
+			folio = page_folio(target.page);
+			if (folio_isolate_lru(folio)) {
+				if (!mem_cgroup_move_account(folio, true,
 							     mc.from, mc.to)) {
 					mc.precharge -= HPAGE_PMD_NR;
 					mc.moved_charge += HPAGE_PMD_NR;
 				}
-				putback_lru_page(page);
+				folio_putback_lru(folio);
 			}
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 		} else if (target_type == MC_TARGET_DEVICE) {
-			page = target.page;
-			if (!mem_cgroup_move_account(page, true,
+			folio = page_folio(target.page);
+			if (!mem_cgroup_move_account(folio, true,
 						     mc.from, mc.to)) {
 				mc.precharge -= HPAGE_PMD_NR;
 				mc.moved_charge += HPAGE_PMD_NR;
 			}
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 		spin_unlock(ptl);
 		return 0;
@@ -6483,28 +6482,28 @@ retry:
 			device = true;
 			fallthrough;
 		case MC_TARGET_PAGE:
-			page = target.page;
+			folio = page_folio(target.page);
 			/*
 			 * We can have a part of the split pmd here. Moving it
 			 * can be done but it would be too convoluted so simply
 			 * ignore such a partial THP and keep it in original
 			 * memcg. There should be somebody mapping the head.
 			 */
-			if (PageTransCompound(page))
+			if (folio_test_large(folio))
 				goto put;
-			if (!device && !isolate_lru_page(page))
+			if (!device && !folio_isolate_lru(folio))
 				goto put;
-			if (!mem_cgroup_move_account(page, false,
+			if (!mem_cgroup_move_account(folio, false,
 						mc.from, mc.to)) {
 				mc.precharge--;
 				/* we uncharge from mc.from later. */
 				mc.moved_charge++;
 			}
 			if (!device)
-				putback_lru_page(page);
+				folio_putback_lru(folio);
 put:			/* get_mctgt_type() gets & locks the page */
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 			break;
 		case MC_TARGET_SWAP:
 			ent = target.ent;
