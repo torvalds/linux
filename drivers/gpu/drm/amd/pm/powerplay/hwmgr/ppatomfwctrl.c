@@ -258,7 +258,7 @@ int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
 	idx = GetIndexIntoMasterCmdTable(computegpuclockparam);
 
 	if (amdgpu_atom_execute_table(
-		adev->mode_info.atom_context, idx, (uint32_t *)&pll_parameters))
+		adev->mode_info.atom_context, idx, (uint32_t *)&pll_parameters, sizeof(pll_parameters)))
 		return -EINVAL;
 
 	pll_output = (struct compute_gpu_clock_output_parameter_v1_8 *)
@@ -505,7 +505,7 @@ int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
 	ix = GetIndexIntoMasterCmdTable(getsmuclockinfo);
 
 	if (amdgpu_atom_execute_table(
-		adev->mode_info.atom_context, ix, (uint32_t *)&parameters))
+		adev->mode_info.atom_context, ix, (uint32_t *)&parameters, sizeof(parameters)))
 		return -EINVAL;
 
 	output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&parameters;
