@@ -83,8 +83,8 @@ static void aspeed_rsa_sg_copy_to_buffer(struct aspeed_rsss_dev *rsss_dev,
 					 void __iomem *buf, struct scatterlist *src,
 					 size_t nbytes)
 {
-	static u8 data[SRAM_BLOCK_SIZE];
-	static u8 data_rev[SRAM_BLOCK_SIZE];
+	static u8 data[SRAM_BLOCK_SIZE] = {0};
+	static u8 data_rev[SRAM_BLOCK_SIZE] = {0};
 
 	RSSS_DBG(rsss_dev, "src len:%zu\n", nbytes);
 
@@ -93,7 +93,8 @@ static void aspeed_rsa_sg_copy_to_buffer(struct aspeed_rsss_dev *rsss_dev,
 	for (int i = 0; i < nbytes; i++)
 		data_rev[nbytes - i - 1] = data[i];
 
-	memcpy_toio(buf, data_rev, nbytes);
+	/* align 8 bytes */
+	memcpy_toio(buf, data_rev, (nbytes + 7) & ~(8 - 1));
 }
 
 /*
@@ -107,7 +108,7 @@ static int aspeed_rsa_ctx_copy(struct aspeed_rsss_dev *rsss_dev, void __iomem *d
 			       const u8 *src, size_t nbytes,
 			       enum aspeed_rsa_key_mode mode)
 {
-	static u8 data[SRAM_BLOCK_SIZE];
+	static u8 data[SRAM_BLOCK_SIZE] = {0};
 
 	RSSS_DBG(rsss_dev, "nbytes:%zu, mode:%d\n", nbytes, mode);
 
