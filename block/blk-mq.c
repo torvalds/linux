@@ -2900,8 +2900,11 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	return NULL;
 }
 
-/* return true if this @rq can be used for @bio */
-static bool blk_mq_can_use_cached_rq(struct request *rq, struct blk_plug *plug,
+/*
+ * Check if we can use the passed on request for submitting the passed in bio,
+ * and remove it from the request list if it can be used.
+ */
+static bool blk_mq_use_cached_rq(struct request *rq, struct blk_plug *plug,
 		struct bio *bio)
 {
 	enum hctx_type type = blk_mq_get_hctx_type(bio->bi_opf);
@@ -2979,7 +2982,7 @@ void blk_mq_submit_bio(struct bio *bio)
 			return;
 		if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
 			return;
-		if (blk_mq_can_use_cached_rq(rq, plug, bio))
+		if (blk_mq_use_cached_rq(rq, plug, bio))
 			goto done;
 		percpu_ref_get(&q->q_usage_counter);
 	} else {
