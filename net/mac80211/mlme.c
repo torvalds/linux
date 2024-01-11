@@ -7869,10 +7869,10 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	if (err)
 		goto err_clear;
 
-	if (req->link_id > 0)
+	if (req->link_id >= 0)
 		link = sdata_dereference(sdata->link[req->link_id], sdata);
 	else
-		link = sdata_dereference(sdata->link[0], sdata);
+		link = &sdata->deflink;
 
 	if (WARN_ON(!link)) {
 		err = -ENOLINK;
