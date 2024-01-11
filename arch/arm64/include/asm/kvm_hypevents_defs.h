@@ -15,10 +15,10 @@ struct hyp_entry_hdr {
 /*
  * Hyp events definitions common to the hyp and the host
  */
-#define HYP_EVENT_FORMAT(__name, __struct)	\
-	struct trace_hyp_format_##__name {	\
-		struct hyp_entry_hdr hdr;	\
-		__struct			\
+#define HYP_EVENT_FORMAT(__name, __struct)		\
+	struct __packed trace_hyp_format_##__name {	\
+		struct hyp_entry_hdr hdr;		\
+		__struct				\
 	}
 
 #define HE_PROTO(args...)	args

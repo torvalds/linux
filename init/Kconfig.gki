@@ -202,6 +202,7 @@ config GKI_HIDDEN_NET_CONFIGS
 	select PAGE_POOL
 	select NET_PTP_CLASSIFY
 	select NET_DEVLINK
+	select NETFILTER_FAMILY_BRIDGE
 	help
 	  Dummy config option used to enable the networking hidden
 	  config, required by various SoC platforms.

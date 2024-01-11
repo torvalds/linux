@@ -243,7 +243,7 @@ static int nf_hook_bridge_pre(struct sk_buff *skb, struct sk_buff **pskb)
 		goto frame_finish;
 #endif
 
-	e = rcu_dereference(net->nf.hooks_bridge[NF_BR_PRE_ROUTING]);
+	e = rcu_dereference(get_nf_hooks_bridge(net)[NF_BR_PRE_ROUTING]);
 	if (!e)
 		goto frame_finish;
 

@@ -53,7 +53,7 @@ HYP_EVENT(host_smc,
 		__entry->id = id;
 		__entry->forwarded = forwarded;
 	),
-	HE_PRINTK("id=%llu invalid=%u",
+	HE_PRINTK("id=%llu forwarded=%u",
 		  __entry->id, __entry->forwarded)
 );
 

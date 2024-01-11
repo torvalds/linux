@@ -340,6 +340,7 @@
   desc_to_gpio
   destroy_workqueue
   dev_addr_mod
+  _dev_alert
   dev_alloc_name
   __dev_change_net_namespace
   dev_close
@@ -542,6 +543,7 @@
   dmaengine_unmap_put
   dma_fence_add_callback
   dma_fence_array_create
+  dma_fence_array_ops
   dma_fence_context_alloc
   dma_fence_default_wait
   dma_fence_enable_sw_signaling
@@ -738,6 +740,7 @@
   drm_kms_helper_poll_fini
   drm_kms_helper_poll_init
   drm_match_cea_mode
+  __drmm_crtc_alloc_with_planes
   drmm_kmalloc
   drmm_mode_config_init
   drm_mode_config_reset
@@ -810,6 +813,7 @@
   drm_writeback_signal_completion
   dump_backtrace
   dump_stack
+  dump_tasks
   dw_handle_msi_irq
   dw_pcie_find_capability
   dw_pcie_host_init
@@ -2089,7 +2093,9 @@
   synchronize_rcu
   syscon_regmap_lookup_by_phandle
   sysctl_sched_features
+  sysctl_sched_idle_min_granularity
   sysctl_sched_latency
+  sysctl_sched_min_granularity
   sysfs_add_file_to_group
   sysfs_add_link_to_group
   sysfs_create_file_ns

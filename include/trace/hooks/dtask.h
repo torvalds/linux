@@ -42,6 +42,9 @@ DECLARE_HOOK(android_vh_rtmutex_wait_start,
 DECLARE_HOOK(android_vh_rtmutex_wait_finish,
 	TP_PROTO(struct rt_mutex_base *lock),
 	TP_ARGS(lock));
+DECLARE_HOOK(android_vh_rt_mutex_steal,
+	TP_PROTO(int waiter_prio, int top_waiter_prio, bool *ret),
+	TP_ARGS(waiter_prio, top_waiter_prio, ret));
 
 DECLARE_HOOK(android_vh_rwsem_read_wait_start,
 	TP_PROTO(struct rw_semaphore *sem),

@@ -291,14 +291,19 @@ static int erofs_fill_inode(struct inode *inode)
 	}
 
 	if (erofs_inode_is_data_compressed(vi->datalayout)) {
-		if (!erofs_is_fscache_mode(inode->i_sb) &&
-		    inode->i_sb->s_blocksize_bits == PAGE_SHIFT)
+		if (!erofs_is_fscache_mode(inode->i_sb)) {
+			DO_ONCE_LITE_IF(inode->i_sb->s_blocksize != PAGE_SIZE,
+				  erofs_info, inode->i_sb,
+				  "EXPERIMENTAL EROFS subpage compressed block support in use. Use at your own risk!");
 			err = z_erofs_fill_inode(inode);
+                }
 		else
 			err = -EOPNOTSUPP;
 		goto out_unlock;
 	}
 	inode->i_mapping->a_ops = &erofs_raw_access_aops;
+	if (!erofs_is_fscache_mode(inode->i_sb))
+		mapping_set_large_folios(inode->i_mapping);
 #ifdef CONFIG_EROFS_FS_ONDEMAND
 	if (erofs_is_fscache_mode(inode->i_sb))
 		inode->i_mapping->a_ops = &erofs_fscache_access_aops;

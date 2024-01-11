@@ -394,6 +394,29 @@ int s_rename(struct s oldpathname, struct s newpathname)
 	return res;
 }
 
+int s_mount(struct s source, struct s target, struct s filesystem,
+	    unsigned long mountflags, struct s data)
+{
+	int res;
+
+	res = mount(source.s, target.s, filesystem.s, mountflags, data.s);
+	free(source.s);
+	free(target.s);
+	free(filesystem.s);
+	free(data.s);
+
+	return res;
+}
+
+int s_umount(struct s target)
+{
+	int res;
+
+	res = umount(target.s);
+	free(target.s);
+	return res;
+}
+
 int s_fuse_attr(struct s pathname, struct fuse_attr *fuse_attr_out)
 {
 
@@ -574,7 +597,10 @@ static int mount_fuse_maybe_init(const char *mount_dir, int bpf_fd, int dir_fd,
 		}));
 	}
 
-	*fuse_dev_ptr = fuse_dev;
+	if (fuse_dev_ptr)
+		*fuse_dev_ptr = fuse_dev;
+	else
+		TESTSYSCALL(close(fuse_dev));
 	fuse_dev = -1;
 	result = TEST_SUCCESS;
 out:

@@ -1025,6 +1025,7 @@
   iio_trigger_poll_chained
   iio_trigger_register
   iio_trigger_unregister
+  iio_trigger_using_own
   import_iovec
   in4_pton
   inet_csk_get_port
