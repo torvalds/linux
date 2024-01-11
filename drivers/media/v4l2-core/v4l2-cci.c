@@ -32,7 +32,7 @@ int cci_read(struct regmap *map, u32 reg, u64 *val, int *err)
 
 	ret = regmap_bulk_read(map, reg, buf, len);
 	if (ret) {
-		dev_err(regmap_get_device(map), "Error reading reg 0x%4x: %d\n",
+		dev_err(regmap_get_device(map), "Error reading reg 0x%04x: %d\n",
 			reg, ret);
 		goto out;
 	}
@@ -131,7 +131,7 @@ int cci_write(struct regmap *map, u32 reg, u64 val, int *err)
 
 	ret = regmap_bulk_write(map, reg, buf, len);
 	if (ret)
-		dev_err(regmap_get_device(map), "Error writing reg 0x%4x: %d\n",
+		dev_err(regmap_get_device(map), "Error writing reg 0x%04x: %d\n",
 			reg, ret);
 
 out:
