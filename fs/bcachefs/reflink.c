@@ -486,6 +486,13 @@ s64 bch2_remap_range(struct bch_fs *c,
 
 		bch2_btree_iter_set_snapshot(&dst_iter, dst_snapshot);
 
+		if (dst_inum.inum < src_inum.inum) {
+			/* Avoid some lock cycle transaction restarts */
+			ret = bch2_btree_iter_traverse(&dst_iter);
+			if (ret)
+				continue;
+		}
+
 		dst_done = dst_iter.pos.offset - dst_start.offset;
 		src_want = POS(src_start.inode, src_start.offset + dst_done);
 		bch2_btree_iter_set_pos(&src_iter, src_want);
