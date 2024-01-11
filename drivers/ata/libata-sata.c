@@ -784,7 +784,7 @@ bool sata_lpm_ignore_phy_events(struct ata_link *link)
 EXPORT_SYMBOL_GPL(sata_lpm_ignore_phy_events);
 
 static const char *ata_lpm_policy_names[] = {
-	[ATA_LPM_UNKNOWN]		= "max_performance",
+	[ATA_LPM_UNKNOWN]		= "keep_firmware_settings",
 	[ATA_LPM_MAX_POWER]		= "max_performance",
 	[ATA_LPM_MED_POWER]		= "medium_power",
 	[ATA_LPM_MED_POWER_WITH_DIPM]	= "med_power_with_dipm",
