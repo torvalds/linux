@@ -632,6 +632,11 @@ static void asle_work(struct work_struct *work)
 	asle->aslc = aslc_stat;
 }
 
+bool intel_opregion_asle_present(struct drm_i915_private *i915)
+{
+	return i915->display.opregion.asle;
+}
+
 void intel_opregion_asle_intr(struct drm_i915_private *dev_priv)
 {
 	if (dev_priv->display.opregion.asle)

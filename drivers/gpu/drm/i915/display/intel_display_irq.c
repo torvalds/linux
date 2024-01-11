@@ -266,12 +266,12 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 	intel_uncore_posting_read(&dev_priv->uncore, reg);
 }
 
-static bool i915_has_asle(struct drm_i915_private *dev_priv)
+static bool i915_has_asle(struct drm_i915_private *i915)
 {
-	if (!dev_priv->display.opregion.asle)
+	if (!IS_PINEVIEW(i915) && !IS_MOBILE(i915))
 		return false;
 
-	return IS_PINEVIEW(dev_priv) || IS_MOBILE(dev_priv);
+	return intel_opregion_asle_present(i915);
 }
 
 /**
