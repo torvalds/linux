@@ -26,23 +26,12 @@
 #ifndef DMUB_CMD_H
 #define DMUB_CMD_H
 
-#if defined(_TEST_HARNESS) || defined(FPGA_USB4)
-#include "dmub_fw_types.h"
-#include "include_legacy/atomfirmware.h"
-
-#if defined(_TEST_HARNESS)
-#include <string.h>
-#endif
-#else
-
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 
 #include "atomfirmware.h"
-
-#endif // defined(_TEST_HARNESS) || defined(FPGA_USB4)
 
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
