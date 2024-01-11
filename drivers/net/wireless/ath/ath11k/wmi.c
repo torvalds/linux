@@ -4749,6 +4749,14 @@ static int ath11k_wmi_tlv_ext_soc_hal_reg_caps_parse(struct ath11k_base *soc,
 		soc->pdevs[0].pdev_id = 0;
 	}
 
+	if (!soc->reg_info_store) {
+		soc->reg_info_store = kcalloc(soc->num_radios,
+					      sizeof(*soc->reg_info_store),
+					      GFP_ATOMIC);
+		if (!soc->reg_info_store)
+			return -ENOMEM;
+	}
+
 	return 0;
 }
 
@@ -7060,32 +7068,15 @@ static void ath11k_wmi_htc_tx_complete(struct ath11k_base *ab,
 		wake_up(&wmi->tx_ce_desc_wq);
 }
 
-static bool ath11k_reg_is_world_alpha(char *alpha)
-{
-	if (alpha[0] == '0' && alpha[1] == '0')
-		return true;
-
-	if (alpha[0] == 'n' && alpha[1] == 'a')
-		return true;
-
-	return false;
-}
-
-static int ath11k_reg_chan_list_event(struct ath11k_base *ab,
-				      struct sk_buff *skb,
+static int ath11k_reg_chan_list_event(struct ath11k_base *ab, struct sk_buff *skb,
 				      enum wmi_reg_chan_list_cmd_type id)
 {
-	struct cur_regulatory_info *reg_info = NULL;
-	struct ieee80211_regdomain *regd = NULL;
-	bool intersect = false;
-	int ret = 0, pdev_idx, i, j;
-	struct ath11k *ar;
+	struct cur_regulatory_info *reg_info;
+	int ret;
 
 	reg_info = kzalloc(sizeof(*reg_info), GFP_ATOMIC);
-	if (!reg_info) {
-		ret = -ENOMEM;
-		goto fallback;
-	}
+	if (!reg_info)
+		return -ENOMEM;
 
 	if (id == WMI_REG_CHAN_LIST_CC_ID)
 		ret = ath11k_pull_reg_chan_list_update_ev(ab, skb, reg_info);
@@ -7093,119 +7084,22 @@ static int ath11k_reg_chan_list_event(struct ath11k_base *ab,
 		ret = ath11k_pull_reg_chan_list_ext_update_ev(ab, skb, reg_info);
 
 	if (ret) {
-		ath11k_warn(ab, "failed to extract regulatory info from received event\n");
-		goto fallback;
-	}
-
-	ath11k_dbg(ab, ATH11K_DBG_WMI, "event reg chan list id %d", id);
-
-	if (reg_info->status_code != REG_SET_CC_STATUS_PASS) {
-		/* In case of failure to set the requested ctry,
-		 * fw retains the current regd. We print a failure info
-		 * and return from here.
-		 */
-		ath11k_warn(ab, "Failed to set the requested Country regulatory setting\n");
+		ath11k_warn(ab, "failed to extract regulatory info\n");
 		goto mem_free;
 	}
 
-	pdev_idx = reg_info->phy_id;
-
-	/* Avoid default reg rule updates sent during FW recovery if
-	 * it is already available
-	 */
-	spin_lock(&ab->base_lock);
-	if (test_bit(ATH11K_FLAG_RECOVERY, &ab->dev_flags) &&
-	    ab->default_regd[pdev_idx]) {
-		spin_unlock(&ab->base_lock);
+	ret = ath11k_reg_handle_chan_list(ab, reg_info, IEEE80211_REG_UNSET_AP);
+	if (ret) {
+		ath11k_warn(ab, "failed to process regulatory info %d\n", ret);
 		goto mem_free;
 	}
-	spin_unlock(&ab->base_lock);
 
-	if (pdev_idx >= ab->num_radios) {
-		/* Process the event for phy0 only if single_pdev_only
-		 * is true. If pdev_idx is valid but not 0, discard the
-		 * event. Otherwise, it goes to fallback.
-		 */
-		if (ab->hw_params.single_pdev_only &&
-		    pdev_idx < ab->hw_params.num_rxmda_per_pdev)
-			goto mem_free;
-		else
-			goto fallback;
-	}
+	kfree(reg_info);
+	return 0;
 
-	/* Avoid multiple overwrites to default regd, during core
-	 * stop-start after mac registration.
-	 */
-	if (ab->default_regd[pdev_idx] && !ab->new_regd[pdev_idx] &&
-	    !memcmp((char *)ab->default_regd[pdev_idx]->alpha2,
-		    (char *)reg_info->alpha2, 2))
-		goto mem_free;
-
-	/* Intersect new rules with default regd if a new country setting was
-	 * requested, i.e a default regd was already set during initialization
-	 * and the regd coming from this event has a valid country info.
-	 */
-	if (ab->default_regd[pdev_idx] &&
-	    !ath11k_reg_is_world_alpha((char *)
-		ab->default_regd[pdev_idx]->alpha2) &&
-	    !ath11k_reg_is_world_alpha((char *)reg_info->alpha2))
-		intersect = true;
-
-	regd = ath11k_reg_build_regd(ab, reg_info, intersect,
-				     WMI_VDEV_TYPE_AP, IEEE80211_REG_LPI_AP);
-	if (!regd) {
-		ath11k_warn(ab, "failed to build regd from reg_info\n");
-		goto fallback;
-	}
-
-	spin_lock(&ab->base_lock);
-	if (ab->default_regd[pdev_idx]) {
-		/* The initial rules from FW after WMI Init is to build
-		 * the default regd. From then on, any rules updated for
-		 * the pdev could be due to user reg changes.
-		 * Free previously built regd before assigning the newly
-		 * generated regd to ar. NULL pointer handling will be
-		 * taken care by kfree itself.
-		 */
-		ar = ab->pdevs[pdev_idx].ar;
-		kfree(ab->new_regd[pdev_idx]);
-		ab->new_regd[pdev_idx] = regd;
-		queue_work(ab->workqueue, &ar->regd_update_work);
-	} else {
-		/* This regd would be applied during mac registration and is
-		 * held constant throughout for regd intersection purpose
-		 */
-		ab->default_regd[pdev_idx] = regd;
-	}
-	ab->dfs_region = reg_info->dfs_region;
-	spin_unlock(&ab->base_lock);
-
-	goto mem_free;
-
-fallback:
-	/* Fallback to older reg (by sending previous country setting
-	 * again if fw has succeeded and we failed to process here.
-	 * The Regdomain should be uniform across driver and fw. Since the
-	 * FW has processed the command and sent a success status, we expect
-	 * this function to succeed as well. If it doesn't, CTRY needs to be
-	 * reverted at the fw and the old SCAN_CHAN_LIST cmd needs to be sent.
-	 */
-	/* TODO: This is rare, but still should also be handled */
-	WARN_ON(1);
 mem_free:
-	if (reg_info) {
-		kfree(reg_info->reg_rules_2ghz_ptr);
-		kfree(reg_info->reg_rules_5ghz_ptr);
-		if (reg_info->is_ext_reg_event) {
-			for (i = 0; i < WMI_REG_CURRENT_MAX_AP_TYPE; i++)
-				kfree(reg_info->reg_rules_6ghz_ap_ptr[i]);
-
-			for (j = 0; j < WMI_REG_CURRENT_MAX_AP_TYPE; j++)
-				for (i = 0; i < WMI_REG_MAX_CLIENT_TYPE; i++)
-					kfree(reg_info->reg_rules_6ghz_client_ptr[j][i]);
-		}
-		kfree(reg_info);
-	}
+	ath11k_reg_reset_info(reg_info);
+	kfree(reg_info);
 	return ret;
 }
 
