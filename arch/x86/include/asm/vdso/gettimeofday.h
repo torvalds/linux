@@ -337,8 +337,6 @@ u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
 }
 #define vdso_calc_delta vdso_calc_delta
 
-int __vdso_clock_gettime64(clockid_t clock, struct __kernel_timespec *ts);
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_VDSO_GETTIMEOFDAY_H */

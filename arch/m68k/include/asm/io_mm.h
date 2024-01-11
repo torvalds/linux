@@ -389,12 +389,6 @@ static inline void isa_delay(void)
 
 #define __ARCH_HAS_NO_PAGE_ZERO_MAPPED		1
 
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-
 #define readb_relaxed(addr)	readb(addr)
 #define readw_relaxed(addr)	readw(addr)
 #define readl_relaxed(addr)	readl(addr)

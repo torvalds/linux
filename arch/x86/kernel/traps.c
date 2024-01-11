@@ -37,6 +37,7 @@
 #include <linux/nmi.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
+#include <linux/cpu.h>
 #include <linux/io.h>
 #include <linux/hardirq.h>
 #include <linux/atomic.h>
