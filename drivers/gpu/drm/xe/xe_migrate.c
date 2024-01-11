@@ -72,6 +72,15 @@ struct xe_migrate {
 #define NUM_PT_SLOTS 32
 #define LEVEL0_PAGE_TABLE_ENCODE_SIZE SZ_2M
 
+/*
+ * Although MI_STORE_DATA_IMM's "length" field is 10-bits, 0x3FE is the largest
+ * legal value accepted.  Since that instruction field is always stored in
+ * (val-2) format, this translates to 0x400 dwords for the true maximum length
+ * of the instruction.  Subtracting the instruction header (1 dword) and
+ * address (2 dwords), that leaves 0x3FD dwords (0x1FE qwords) for PTE values.
+ */
+#define MAX_PTE_PER_SDI 0x1FE
+
 /**
  * xe_tile_migrate_engine() - Get this tile's migrate engine.
  * @tile: The tile.
@@ -444,7 +453,7 @@ static u32 pte_update_size(struct xe_migrate *m,
 		*L0_ofs = xe_migrate_vm_addr(pt_ofs, 0);
 
 		/* MI_STORE_DATA_IMM */
-		cmds += 3 * DIV_ROUND_UP(num_4k_pages, 0x1ff);
+		cmds += 3 * DIV_ROUND_UP(num_4k_pages, MAX_PTE_PER_SDI);
 
 		/* PDE qwords */
 		cmds += num_4k_pages * 2;
@@ -479,7 +488,7 @@ static void emit_pte(struct xe_migrate *m,
 	ptes = DIV_ROUND_UP(size, XE_PAGE_SIZE);
 
 	while (ptes) {
-		u32 chunk = min(0x1ffU, ptes);
+		u32 chunk = min(MAX_PTE_PER_SDI, ptes);
 
 		bb->cs[bb->len++] = MI_STORE_DATA_IMM | MI_SDI_NUM_QW(chunk);
 		bb->cs[bb->len++] = ofs;
@@ -1098,7 +1107,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 	 * This shouldn't be possible in practice.. might change when 16K
 	 * pages are used. Hence the assert.
 	 */
-	xe_tile_assert(tile, update->qwords <= 0x1ff);
+	xe_tile_assert(tile, update->qwords <= MAX_PTE_PER_SDI);
 	if (!ppgtt_ofs)
 		ppgtt_ofs = xe_migrate_vram_ofs(tile_to_xe(tile),
 						xe_bo_addr(update->pt_bo, 0,
@@ -1107,7 +1116,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 	do {
 		u64 addr = ppgtt_ofs + ofs * 8;
 
-		chunk = min(update->qwords, 0x1ffU);
+		chunk = min(update->qwords, MAX_PTE_PER_SDI);
 
 		/* Ensure populatefn can do memset64 by aligning bb->cs */
 		if (!(bb->len & 1))
@@ -1283,7 +1292,7 @@ xe_migrate_update_pgtables(struct xe_migrate *m,
 		batch_size = 6 + num_updates * 2;
 
 	for (i = 0; i < num_updates; i++) {
-		u32 num_cmds = DIV_ROUND_UP(updates[i].qwords, 0x1ff);
+		u32 num_cmds = DIV_ROUND_UP(updates[i].qwords, MAX_PTE_PER_SDI);
 
 		/* align noop + MI_STORE_DATA_IMM cmd prefix */
 		batch_size += 4 * num_cmds + updates[i].qwords * 2;
