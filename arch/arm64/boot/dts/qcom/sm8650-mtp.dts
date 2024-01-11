@@ -622,7 +622,7 @@
 
 &tlmm {
 	/* Reserved I/Os for NFC */
-	gpio-reserved-ranges = <32 8>;
+	gpio-reserved-ranges = <32 8>, <74 1>;
 
 	disp0_reset_n_active: disp0-reset-n-active-state {
 		pins = "gpio133";
