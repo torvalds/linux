@@ -796,9 +796,20 @@ int xe_guc_ct_send_recv_no_fail(struct xe_guc_ct *ct, const u32 *action,
 	return guc_ct_send_recv(ct, action, len, response_buffer, true);
 }
 
+static u32 *msg_to_hxg(u32 *msg)
+{
+	return msg + GUC_CTB_MSG_MIN_LEN;
+}
+
+static u32 msg_len_to_hxg_len(u32 len)
+{
+	return len - GUC_CTB_MSG_MIN_LEN;
+}
+
 static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
-	u32 action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1]);
+	u32 *hxg = msg_to_hxg(msg);
+	u32 action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, hxg[0]);
 
 	lockdep_assert_held(&ct->lock);
 
@@ -817,9 +828,10 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_gt *gt =  ct_to_gt(ct);
 	struct xe_device *xe = gt_to_xe(gt);
-	u32 response_len = len - GUC_CTB_MSG_MIN_LEN;
+	u32 *hxg = msg_to_hxg(msg);
+	u32 hxg_len = msg_len_to_hxg_len(len);
 	u32 fence = FIELD_GET(GUC_CTB_MSG_0_FENCE, msg[0]);
-	u32 type = FIELD_GET(GUC_HXG_MSG_0_TYPE, msg[1]);
+	u32 type = FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]);
 	struct g2h_fence *g2h_fence;
 
 	lockdep_assert_held(&ct->lock);
@@ -836,8 +848,8 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		if (type == GUC_HXG_TYPE_RESPONSE_FAILURE)
 			xe_gt_err(gt, "FAST_REQ H2G fence 0x%x failed! e=0x%x, h=%u\n",
 				  fence,
-				  FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, msg[1]),
-				  FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, msg[1]));
+				  FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, hxg[0]),
+				  FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, hxg[0]));
 		else
 			xe_gt_err(gt, "unexpected response %u for FAST_REQ H2G fence 0x%x!\n",
 				  type, fence);
@@ -857,18 +869,14 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 
 	if (type == GUC_HXG_TYPE_RESPONSE_FAILURE) {
 		g2h_fence->fail = true;
-		g2h_fence->error =
-			FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, msg[1]);
-		g2h_fence->hint =
-			FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, msg[1]);
+		g2h_fence->error = FIELD_GET(GUC_HXG_FAILURE_MSG_0_ERROR, hxg[0]);
+		g2h_fence->hint = FIELD_GET(GUC_HXG_FAILURE_MSG_0_HINT, hxg[0]);
 	} else if (type == GUC_HXG_TYPE_NO_RESPONSE_RETRY) {
 		g2h_fence->retry = true;
-		g2h_fence->reason =
-			FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, msg[1]);
+		g2h_fence->reason = FIELD_GET(GUC_HXG_RETRY_MSG_0_REASON, hxg[0]);
 	} else if (g2h_fence->response_buffer) {
-		g2h_fence->response_len = response_len;
-		memcpy(g2h_fence->response_buffer, msg + GUC_CTB_MSG_MIN_LEN,
-		       response_len * sizeof(u32));
+		g2h_fence->response_len = hxg_len;
+		memcpy(g2h_fence->response_buffer, hxg, hxg_len * sizeof(u32));
 	}
 
 	g2h_release_space(ct, GUC_CTB_HXG_MSG_MAX_LEN);
@@ -884,14 +892,13 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 static int parse_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_device *xe = ct_to_xe(ct);
-	u32 hxg, origin, type;
+	u32 *hxg = msg_to_hxg(msg);
+	u32 origin, type;
 	int ret;
 
 	lockdep_assert_held(&ct->lock);
 
-	hxg = msg[1];
-
-	origin = FIELD_GET(GUC_HXG_MSG_0_ORIGIN, hxg);
+	origin = FIELD_GET(GUC_HXG_MSG_0_ORIGIN, hxg[0]);
 	if (unlikely(origin != GUC_HXG_ORIGIN_GUC)) {
 		drm_err(&xe->drm,
 			"G2H channel broken on read, origin=%d, reset required\n",
@@ -901,7 +908,7 @@ static int parse_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		return -EPROTO;
 	}
 
-	type = FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg);
+	type = FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]);
 	switch (type) {
 	case GUC_HXG_TYPE_EVENT:
 		ret = parse_g2h_event(ct, msg, len);
@@ -927,13 +934,18 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	struct xe_guc *guc = ct_to_guc(ct);
-	u32 action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1]);
-	u32 *payload = msg + GUC_CTB_HXG_MSG_MIN_LEN;
-	u32 adj_len = len - GUC_CTB_HXG_MSG_MIN_LEN;
+	u32 hxg_len = msg_len_to_hxg_len(len);
+	u32 *hxg = msg_to_hxg(msg);
+	u32 action, adj_len;
+	u32 *payload;
 	int ret = 0;
 
-	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, msg[1]) != GUC_HXG_TYPE_EVENT)
+	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]) != GUC_HXG_TYPE_EVENT)
 		return 0;
+
+	action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, hxg[0]);
+	payload = hxg + GUC_HXG_EVENT_MSG_MIN_LEN;
+	adj_len = hxg_len - GUC_HXG_EVENT_MSG_MIN_LEN;
 
 	switch (action) {
 	case XE_GUC_ACTION_SCHED_CONTEXT_MODE_DONE:
@@ -995,6 +1007,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	u32 tail, head, len;
 	s32 avail;
 	u32 action;
+	u32 *hxg;
 
 	lockdep_assert_held(&ct->fast_lock);
 
@@ -1045,10 +1058,11 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 				   avail * sizeof(u32));
 	}
 
-	action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1]);
+	hxg = msg_to_hxg(msg);
+	action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, hxg[0]);
 
 	if (fast_path) {
-		if (FIELD_GET(GUC_HXG_MSG_0_TYPE, msg[1]) != GUC_HXG_TYPE_EVENT)
+		if (FIELD_GET(GUC_HXG_MSG_0_TYPE, hxg[0]) != GUC_HXG_TYPE_EVENT)
 			return 0;
 
 		switch (action) {
@@ -1074,9 +1088,11 @@ static void g2h_fast_path(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	struct xe_guc *guc = ct_to_guc(ct);
-	u32 action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, msg[1]);
-	u32 *payload = msg + GUC_CTB_HXG_MSG_MIN_LEN;
-	u32 adj_len = len - GUC_CTB_HXG_MSG_MIN_LEN;
+	u32 hxg_len = msg_len_to_hxg_len(len);
+	u32 *hxg = msg_to_hxg(msg);
+	u32 action = FIELD_GET(GUC_HXG_EVENT_MSG_0_ACTION, hxg[0]);
+	u32 *payload = hxg + GUC_HXG_MSG_MIN_LEN;
+	u32 adj_len = hxg_len - GUC_HXG_MSG_MIN_LEN;
 	int ret = 0;
 
 	switch (action) {
