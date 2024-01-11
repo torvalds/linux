@@ -1384,13 +1384,6 @@ struct kvm_enc_region {
 #define KVM_GET_SREGS2             _IOR(KVMIO,  0xcc, struct kvm_sregs2)
 #define KVM_SET_SREGS2             _IOW(KVMIO,  0xcd, struct kvm_sregs2)
 
-/* Available with KVM_CAP_ARM_USER_IRQ */
-
-/* Bits for run->s.regs.device_irq_level */
-#define KVM_ARM_DEV_EL1_VTIMER		(1 << 0)
-#define KVM_ARM_DEV_EL1_PTIMER		(1 << 1)
-#define KVM_ARM_DEV_PMU			(1 << 2)
-
 #define KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE    (1 << 0)
 #define KVM_DIRTY_LOG_INITIALLY_SET            (1 << 1)
 
