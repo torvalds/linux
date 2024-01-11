@@ -112,6 +112,7 @@ def define_pitti():
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/qti_battery_debug.ko",
         "drivers/soc/qcom/rpm_master_stat.ko",
+        "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/smp2p.ko",
         "drivers/soc/qcom/smp2p_sleepstate.ko",
