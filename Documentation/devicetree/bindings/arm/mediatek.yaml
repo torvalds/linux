@@ -84,6 +84,10 @@ properties:
           - const: mediatek,mt7629
       - items:
           - enum:
+              - xiaomi,ax3000t
+          - const: mediatek,mt7981b
+      - items:
+          - enum:
               - bananapi,bpi-r3
               - mediatek,mt7986a-rfb
           - const: mediatek,mt7986a
