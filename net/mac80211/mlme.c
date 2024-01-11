@@ -3081,6 +3081,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	memset(ifmgd->tx_tspec, 0, sizeof(ifmgd->tx_tspec));
 	wiphy_delayed_work_cancel(local->hw.wiphy, &ifmgd->tx_tspec_wk);
 
+	sdata->vif.bss_conf.power_type = IEEE80211_REG_UNSET_AP;
 	sdata->vif.bss_conf.pwr_reduction = 0;
 	sdata->vif.bss_conf.tx_pwr_env_num = 0;
 	memset(sdata->vif.bss_conf.tx_pwr_env, 0,
@@ -4236,11 +4237,37 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 
 	if (elems->he_operation && !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    elems->he_cap) {
+		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
+
 		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
 						  elems->he_cap,
 						  elems->he_cap_len,
 						  elems->he_6ghz_capa,
 						  link_sta);
+
+		he_6ghz_oper = ieee80211_he_6ghz_oper(elems->he_operation);
+
+		if (is_6ghz && he_6ghz_oper) {
+			switch (u8_get_bits(he_6ghz_oper->control,
+					    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+			case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+				bss_conf->power_type = IEEE80211_REG_LPI_AP;
+				break;
+			case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+				bss_conf->power_type = IEEE80211_REG_SP_AP;
+				break;
+			case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
+				bss_conf->power_type = IEEE80211_REG_VLP_AP;
+				break;
+			default:
+				bss_conf->power_type = IEEE80211_REG_UNSET_AP;
+				break;
+			}
+		} else if (is_6ghz) {
+			link_info(link,
+				  "HE 6 GHz operation missing (on %d MHz), expect issues\n",
+				  bss_conf->chandef.chan->center_freq);
+		}
 
 		bss_conf->he_support = link_sta->pub->he_cap.has_he;
 		if (elems->rsnx && elems->rsnx_len &&
