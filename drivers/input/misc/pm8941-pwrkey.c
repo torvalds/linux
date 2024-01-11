@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
 #include <linux/regmap.h>
+#include <linux/suspend.h>
 
 #define PON_REV2			0x01
 
@@ -268,9 +269,48 @@ static int pm8941_pwrkey_hw_init(struct pm8941_pwrkey *pwrkey)
 	return 0;
 }
 
-static int __maybe_unused pm8941_pwrkey_suspend(struct device *dev)
+static int pm8941_pwrkey_freeze(struct device *dev)
 {
 	struct pm8941_pwrkey *pwrkey = dev_get_drvdata(dev);
+
+	if (pwrkey->irq > 0) {
+		pr_debug("Disabling and freeing pwrkey interrupts\n");
+		disable_irq(pwrkey->irq);
+		devm_free_irq(dev, pwrkey->irq, pwrkey);
+	}
+
+	return 0;
+}
+
+static int pm8941_pwrkey_restore(struct device *dev)
+{
+	struct pm8941_pwrkey *pwrkey = dev_get_drvdata(dev);
+	int error = 0;
+
+	error = pm8941_pwrkey_hw_init(pwrkey);
+	if (error) {
+		dev_err(dev, "Failed to initialize H/W error :%d\n", error);
+		return error;
+	}
+
+	error = devm_request_threaded_irq(dev, pwrkey->irq,
+				NULL, pm8941_pwrkey_irq,
+				IRQF_ONESHOT,
+				pwrkey->data->name, pwrkey);
+	if (error) {
+		dev_err(dev, "failed requesting IRQ: %d\n", error);
+		return error;
+	}
+
+	return 0;
+}
+
+static int pm8941_pwrkey_suspend(struct device *dev)
+{
+	struct pm8941_pwrkey *pwrkey = dev_get_drvdata(dev);
+
+	if (pm_suspend_via_firmware())
+		return pm8941_pwrkey_freeze(dev);
 
 	if (device_may_wakeup(dev))
 		enable_irq_wake(pwrkey->irq);
@@ -278,9 +318,12 @@ static int __maybe_unused pm8941_pwrkey_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused pm8941_pwrkey_resume(struct device *dev)
+static int pm8941_pwrkey_resume(struct device *dev)
 {
 	struct pm8941_pwrkey *pwrkey = dev_get_drvdata(dev);
+
+	if (pm_suspend_via_firmware())
+		return pm8941_pwrkey_restore(dev);
 
 	if (device_may_wakeup(dev))
 		disable_irq_wake(pwrkey->irq);
@@ -288,8 +331,12 @@ static int __maybe_unused pm8941_pwrkey_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(pm8941_pwr_key_pm_ops,
-			 pm8941_pwrkey_suspend, pm8941_pwrkey_resume);
+static const struct dev_pm_ops pm8941_pwr_key_pm_ops = {
+	.freeze = pm8941_pwrkey_freeze,
+	.restore = pm8941_pwrkey_restore,
+	.suspend = pm8941_pwrkey_suspend,
+	.resume = pm8941_pwrkey_resume,
+};
 
 static int pm8941_pwrkey_probe(struct platform_device *pdev)
 {
@@ -392,7 +439,6 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 
 	pwrkey->input->name = pwrkey->data->name;
 	pwrkey->input->phys = pwrkey->data->phys;
-
 
 	error = pm8941_pwrkey_hw_init(pwrkey);
 	if (error) {
