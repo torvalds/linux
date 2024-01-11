@@ -1103,6 +1103,7 @@ static void __init at91_pm_secure_init(void)
 	if (res.a0 == 0) {
 		pr_info("AT91: Secure PM: suspend mode set to %s\n",
 			pm_modes[suspend_mode].pattern);
+		soc_pm.data.mode = suspend_mode;
 		return;
 	}
 
@@ -1112,6 +1113,7 @@ static void __init at91_pm_secure_init(void)
 	res = sam_smccc_call(SAMA5_SMC_SIP_GET_SUSPEND_MODE, 0, 0);
 	if (res.a0 == 0) {
 		pr_warn("AT91: Secure PM: failed to get default mode\n");
+		soc_pm.data.mode = -1;
 		return;
 	}
 
@@ -1119,6 +1121,7 @@ static void __init at91_pm_secure_init(void)
 		pm_modes[suspend_mode].pattern);
 
 	soc_pm.data.suspend_mode = res.a1;
+	soc_pm.data.mode = soc_pm.data.suspend_mode;
 }
 static const struct of_device_id atmel_shdwc_ids[] = {
 	{ .compatible = "atmel,sama5d2-shdwc" },
