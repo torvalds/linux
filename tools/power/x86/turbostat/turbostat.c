@@ -267,6 +267,7 @@ unsigned int has_hwp_pkg;	/* IA32_HWP_REQUEST_PKG */
 unsigned int first_counter_read = 1;
 int ignore_stdin;
 bool no_msr;
+bool no_perf;
 
 int get_msr(int cpu, off_t offset, unsigned long long *msr);
 
@@ -1314,8 +1315,17 @@ static void bic_disable_msr_access(void)
 	bic_enabled &= ~bic_msrs;
 }
 
+static void bic_disable_perf_access(void)
+{
+	const unsigned long bic_perf = BIC_IPC;
+
+	bic_enabled &= ~bic_perf;
+}
+
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
 {
+	assert(!no_perf);
+
 	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
@@ -1332,8 +1342,8 @@ static int perf_instr_count_open(int cpu_num)
 	/* counter for cpu_num, including user + kernel and all processes */
 	fd = perf_event_open(&pea, -1, cpu_num, -1, 0);
 	if (fd == -1) {
-		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\"", progname);
-		BIC_NOT_PRESENT(BIC_IPC);
+		warnx("capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\" or use --no-perf", progname);
+		bic_disable_perf_access();
 	}
 
 	return fd;
@@ -1399,6 +1409,7 @@ void help(void)
 		"  -J, --Joules	displays energy in Joules instead of Watts\n"
 		"  -l, --list	list column headers only\n"
 		"  -M, --no-msr Disable all uses of the MSR driver\n"
+		"  -P, --no-perf Disable all uses of the perf API\n"
 		"  -n, --num_iterations num\n"
 		"		number of the measurement iterations\n"
 		"  -N, --header_iterations num\n"
@@ -6745,6 +6756,7 @@ void cmdline(int argc, char **argv)
 		{ "out", required_argument, 0, 'o' },
 		{ "quiet", no_argument, 0, 'q' },
 		{ "no-msr", no_argument, 0, 'M' },
+		{ "no-perf", no_argument, 0, 'P' },
 		{ "show", required_argument, 0, 's' },
 		{ "Summary", no_argument, 0, 'S' },
 		{ "TCC", required_argument, 0, 'T' },
@@ -6758,10 +6770,13 @@ void cmdline(int argc, char **argv)
 	 * Parse some options early, because they may make other options invalid,
 	 * like adding the MSR counter with --add and at the same time using --no-msr.
 	 */
-	while ((opt = getopt_long_only(argc, argv, "M", long_options, &option_index)) != -1) {
+	while ((opt = getopt_long_only(argc, argv, "MP", long_options, &option_index)) != -1) {
 		switch (opt) {
 		case 'M':
 			no_msr = 1;
+			break;
+		case 'P':
+			no_perf = 1;
 			break;
 		default:
 			break;
@@ -6828,6 +6843,7 @@ void cmdline(int argc, char **argv)
 			quiet = 1;
 			break;
 		case 'M':
+		case 'P':
 			/* Parsed earlier */
 			break;
 		case 'n':
@@ -6908,6 +6924,9 @@ skip_cgroup_setting:
 
 	if (no_msr)
 		bic_disable_msr_access();
+
+	if (no_perf)
+		bic_disable_perf_access();
 
 	if (!quiet) {
 		print_version();
