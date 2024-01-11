@@ -83,6 +83,7 @@ def define_niobe():
         "drivers/soc/qcom/tmecom/tmecom-intf.ko",
         "drivers/ufs/host/ufs_qcom.ko",
         "drivers/usb/dwc3/dwc3-msm.ko",
+        "drivers/usb/gadget/function/usb_f_qdss.ko",
         "drivers/usb/phy/phy-generic.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
         "kernel/trace/qcom_ipc_logging.ko",
