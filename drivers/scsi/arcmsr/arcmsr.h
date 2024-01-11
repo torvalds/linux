@@ -50,7 +50,7 @@ struct device_attribute;
 #define ARCMSR_MAX_OUTSTANDING_CMD	1024
 #define ARCMSR_DEFAULT_OUTSTANDING_CMD	128
 #define ARCMSR_MIN_OUTSTANDING_CMD	32
-#define ARCMSR_DRIVER_VERSION		"v1.50.00.13-20230206"
+#define ARCMSR_DRIVER_VERSION		"v1.51.00.14-20230915"
 #define ARCMSR_SCSI_INITIATOR_ID	255
 #define ARCMSR_MAX_XFER_SECTORS		512
 #define ARCMSR_MAX_XFER_SECTORS_B	4096
@@ -78,9 +78,13 @@ struct device_attribute;
 #ifndef PCI_DEVICE_ID_ARECA_1203
 #define PCI_DEVICE_ID_ARECA_1203	0x1203
 #endif
+#ifndef PCI_DEVICE_ID_ARECA_1883
+#define PCI_DEVICE_ID_ARECA_1883	0x1883
+#endif
 #ifndef PCI_DEVICE_ID_ARECA_1884
 #define PCI_DEVICE_ID_ARECA_1884	0x1884
 #endif
+#define PCI_DEVICE_ID_ARECA_1886_0	0x1886
 #define PCI_DEVICE_ID_ARECA_1886	0x188A
 #define	ARCMSR_HOURS			(1000 * 60 * 60 * 4)
 #define	ARCMSR_MINUTES			(1000 * 60 * 60)
@@ -818,6 +822,23 @@ typedef struct deliver_completeQ {
 	uint16_t	cmdLMID;        // reserved (0)
 	uint16_t	cmdFlag2;       // reserved (0)
 } DeliverQ, CompletionQ, *pDeliver_Q, *pCompletion_Q;
+
+#define ARCMSR_XOR_SEG_SIZE	(1024 * 1024)
+struct HostRamBuf {
+	uint32_t	hrbSignature;	// must be "HRBS"
+	uint32_t	hrbSize;	// total sg size, be multiples of MB
+	uint32_t	hrbRes[2];	// reserved, must be set to 0
+};
+struct	Xor_sg {
+	dma_addr_t	xorPhys;
+	uint64_t	xorBufLen;
+};
+struct	XorHandle {
+	dma_addr_t	xorPhys;
+	uint64_t	xorBufLen;
+	void		*xorVirt;
+};
+
 /*
 *******************************************************************************
 **                 Adapter Control Block
@@ -929,6 +950,7 @@ struct AdapterControlBlock
 	char			firm_model[12];
 	char			firm_version[20];
 	char			device_map[20];			/*21,84-99*/
+	uint32_t		firm_PicStatus;
 	struct work_struct 	arcmsr_do_message_isr_bh;
 	struct timer_list	eternal_timer;
 	unsigned short		fw_flag;
@@ -937,6 +959,7 @@ struct AdapterControlBlock
 #define	FW_DEADLOCK			0x0010
 	uint32_t		maxOutstanding;
 	int			vector_count;
+	int			xor_mega;
 	uint32_t		maxFreeCCB;
 	struct timer_list	refresh_timer;
 	uint32_t		doneq_index;
@@ -946,6 +969,10 @@ struct AdapterControlBlock
 	uint32_t		completionQ_entry;
 	pCompletion_Q		pCompletionQ;
 	uint32_t		completeQ_size;
+	void			*xorVirt;
+	dma_addr_t		xorPhys;
+	unsigned int		init2cfg_size;
+	unsigned int		xorVirtOffset;
 };/* HW_DEVICE_EXTENSION */
 /*
 *******************************************************************************
