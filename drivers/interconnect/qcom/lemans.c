@@ -2624,6 +2624,7 @@ static struct qcom_icc_bcm bcm_nsb1 = {
 static struct qcom_icc_bcm bcm_pci0 = {
 	.name = "PCI0",
 	.voter_idx = VOTER_IDX_HLOS,
+	.keepalive = true,
 	.num_nodes = 1,
 	.nodes = { &qns_pcie_mem_noc },
 };
