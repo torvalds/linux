@@ -73,6 +73,7 @@ config KVM_COMPAT
 
 config HAVE_KVM_IRQ_BYPASS
        bool
+       select IRQ_BYPASS_MANAGER
 
 config HAVE_KVM_VCPU_ASYNC_IOCTL
        bool
