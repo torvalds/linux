@@ -2130,6 +2130,7 @@ static bool dcn35_resource_construct(
 	dc->dml2_options.dcn_pipe_count = pool->base.pipe_count;
 	dc->dml2_options.use_native_pstate_optimization = true;
 	dc->dml2_options.use_native_soc_bb_construction = true;
+	dc->dml2_options.minimize_dispclk_using_odm = false;
 	if (dc->config.EnableMinDispClkODM)
 		dc->dml2_options.minimize_dispclk_using_odm = true;
 	dc->dml2_options.enable_windowed_mpo_odm = dc->config.enable_windowed_mpo_odm;
