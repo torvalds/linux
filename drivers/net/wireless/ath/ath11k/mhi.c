@@ -19,6 +19,7 @@
 
 #define MHI_TIMEOUT_DEFAULT_MS	20000
 #define RDDM_DUMP_SIZE	0x420000
+#define MHI_CB_INVALID	0xff
 
 static const struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 	{
@@ -268,6 +269,7 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 				    enum mhi_callback cb)
 {
 	struct ath11k_base *ab = dev_get_drvdata(mhi_cntrl->cntrl_dev);
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
 	ath11k_dbg(ab, ATH11K_DBG_BOOT, "notify status reason %s\n",
 		   ath11k_mhi_op_callback_to_str(cb));
@@ -278,12 +280,21 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 		break;
 	case MHI_CB_EE_RDDM:
 		ath11k_warn(ab, "firmware crashed: MHI_CB_EE_RDDM\n");
+		if (ab_pci->mhi_pre_cb == MHI_CB_EE_RDDM) {
+			ath11k_dbg(ab, ATH11K_DBG_BOOT,
+				   "do not queue again for consecutive RDDM event\n");
+			break;
+		}
+
 		if (!(test_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags)))
 			queue_work(ab->workqueue_aux, &ab->reset_work);
+
 		break;
 	default:
 		break;
 	}
+
+	ab_pci->mhi_pre_cb = cb;
 }
 
 static int ath11k_mhi_op_read_reg(struct mhi_controller *mhi_cntrl,
@@ -396,6 +407,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 		goto free_controller;
 	}
 
+	ab_pci->mhi_pre_cb = MHI_CB_INVALID;
 	ret = mhi_register_controller(mhi_ctrl, ath11k_mhi_config);
 	if (ret) {
 		ath11k_err(ab, "failed to register to mhi bus, err = %d\n", ret);
