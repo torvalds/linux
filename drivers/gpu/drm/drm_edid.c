@@ -3610,7 +3610,8 @@ static bool mode_in_range(const struct drm_display_mode *mode,
 	if (!mode_in_vsync_range(mode, edid, t))
 		return false;
 
-	if ((max_clock = range_pixel_clock(edid, t)))
+	max_clock = range_pixel_clock(edid, t);
+	if (max_clock)
 		if (mode->clock > max_clock)
 			return false;
 
