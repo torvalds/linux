@@ -65,6 +65,7 @@
 #define AST2600_I2CC_SDA_DRIVE_1T_EN		BIT(8)
 #define AST2600_I2CC_M_SDA_DRIVE_1T_EN		BIT(7)
 #define AST2600_I2CC_M_HIGH_SPEED_EN		BIT(6)
+#define AST2600_I2CC_4T_DEBOUNCE			GENMASK(5, 4)
 /* reserver 5 : 2 */
 #define AST2600_I2CC_SLAVE_EN			BIT(1)
 #define AST2600_I2CC_MASTER_EN			BIT(0)
@@ -1365,7 +1366,7 @@ master_out:
 static void ast2600_i2c_init(struct ast2600_i2c_bus *i2c_bus)
 {
 	struct platform_device *pdev = to_platform_device(i2c_bus->dev);
-	u32 fun_ctrl = AST2600_I2CC_BUS_AUTO_RELEASE | AST2600_I2CC_MASTER_EN;
+	u32 fun_ctrl = AST2600_I2CC_BUS_AUTO_RELEASE | AST2600_I2CC_MASTER_EN | AST2600_I2CC_4T_DEBOUNCE;
 
 	/* I2C Reset */
 	writel(0, i2c_bus->reg_base + AST2600_I2CC_FUN_CTRL);
