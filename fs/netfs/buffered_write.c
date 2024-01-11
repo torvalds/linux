@@ -80,10 +80,19 @@ static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
 		return NETFS_WHOLE_FOLIO_MODIFY;
 
 	if (file->f_mode & FMODE_READ)
-		return NETFS_JUST_PREFETCH;
+		goto no_write_streaming;
+	if (test_bit(NETFS_ICTX_NO_WRITE_STREAMING, &ctx->flags))
+		goto no_write_streaming;
 
-	if (netfs_is_cache_enabled(ctx))
-		return NETFS_JUST_PREFETCH;
+	if (netfs_is_cache_enabled(ctx)) {
+		/* We don't want to get a streaming write on a file that loses
+		 * caching service temporarily because the backing store got
+		 * culled.
+		 */
+		if (!test_bit(NETFS_ICTX_NO_WRITE_STREAMING, &ctx->flags))
+			set_bit(NETFS_ICTX_NO_WRITE_STREAMING, &ctx->flags);
+		goto no_write_streaming;
+	}
 
 	if (!finfo)
 		return NETFS_STREAMING_WRITE;
@@ -95,6 +104,13 @@ static enum netfs_how_to_modify netfs_how_to_modify(struct netfs_inode *ctx,
 	if (offset == finfo->dirty_offset + finfo->dirty_len)
 		return NETFS_STREAMING_WRITE_CONT;
 	return NETFS_FLUSH_CONTENT;
+
+no_write_streaming:
+	if (finfo) {
+		netfs_stat(&netfs_n_wh_wstream_conflict);
+		return NETFS_FLUSH_CONTENT;
+	}
+	return NETFS_JUST_PREFETCH;
 }
 
 /*
@@ -682,6 +698,7 @@ static void netfs_pages_written_back(struct netfs_io_request *wreq)
 	end_wb:
 		if (folio_test_fscache(folio))
 			folio_end_fscache(folio);
+		xas_advance(&xas, folio_next_index(folio) - 1);
 		folio_end_writeback(folio);
 	}
 
@@ -1059,7 +1076,7 @@ lock_again:
 		folio_unlock(folio);
 		if (wbc->sync_mode != WB_SYNC_NONE) {
 			folio_wait_writeback(folio);
-#ifdef CONFIG_NETFS_FSCACHE
+#ifdef CONFIG_FSCACHE
 			folio_wait_fscache(folio);
 #endif
 			goto lock_again;

@@ -522,18 +522,18 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 			       bool no_space_allocated_yet)
 {
 	struct cachefiles_cache *cache = object->volume->cache;
-	unsigned long long start = *_start, pos;
+	loff_t start = *_start, pos;
 	size_t len = *_len;
 	int ret;
 
 	/* Round to DIO size */
 	start = round_down(*_start, PAGE_SIZE);
-	if (start != *_start) {
-		kleave(" = -ENOBUFS [down]");
-		return -ENOBUFS;
-	}
-	if (*_len > upper_len) {
-		kleave(" = -ENOBUFS [up]");
+	if (start != *_start || *_len > upper_len) {
+		/* Probably asked to cache a streaming write written into the
+		 * pagecache when the cookie was temporarily out of service to
+		 * culling.
+		 */
+		fscache_count_dio_misfit();
 		return -ENOBUFS;
 	}
 
@@ -556,7 +556,7 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 					  cachefiles_trace_seek_error);
 		return pos;
 	}
-	if (pos >= start + *_len)
+	if ((u64)pos >= (u64)start + *_len)
 		goto check_space; /* Unallocated region */
 
 	/* We have a block that's at least partially filled - if we're low on
@@ -575,7 +575,7 @@ int __cachefiles_prepare_write(struct cachefiles_object *object,
 					  cachefiles_trace_seek_error);
 		return pos;
 	}
-	if (pos >= start + *_len)
+	if ((u64)pos >= (u64)start + *_len)
 		return 0; /* Fully allocated */
 
 	/* Partially allocated, but insufficient space: cull. */
