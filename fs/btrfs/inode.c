@@ -4695,7 +4695,7 @@ int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
 	u32 blocksize = fs_info->sectorsize;
 	pgoff_t index = from >> PAGE_SHIFT;
 	unsigned offset = from & (blocksize - 1);
-	struct page *page;
+	struct folio *folio;
 	gfp_t mask = btrfs_alloc_write_mask(mapping);
 	size_t write_bytes = blocksize;
 	int ret = 0;
@@ -4727,8 +4727,9 @@ int btrfs_truncate_block(struct btrfs_inode *inode, loff_t from, loff_t len,
 		goto out;
 	}
 again:
-	page = find_or_create_page(mapping, index, mask);
-	if (!page) {
+	folio = __filemap_get_folio(mapping, index,
+				    FGP_LOCK | FGP_ACCESSED | FGP_CREAT, mask);
+	if (IS_ERR(folio)) {
 		btrfs_delalloc_release_space(inode, data_reserved, block_start,
 					     blocksize, true);
 		btrfs_delalloc_release_extents(inode, blocksize);
@@ -4736,15 +4737,15 @@ again:
 		goto out;
 	}
 
-	if (!PageUptodate(page)) {
-		ret = btrfs_read_folio(NULL, page_folio(page));
-		lock_page(page);
-		if (page->mapping != mapping) {
-			unlock_page(page);
-			put_page(page);
+	if (!folio_test_uptodate(folio)) {
+		ret = btrfs_read_folio(NULL, folio);
+		folio_lock(folio);
+		if (folio->mapping != mapping) {
+			folio_unlock(folio);
+			folio_put(folio);
 			goto again;
 		}
-		if (!PageUptodate(page)) {
+		if (!folio_test_uptodate(folio)) {
 			ret = -EIO;
 			goto out_unlock;
 		}
@@ -4756,19 +4757,19 @@ again:
 	 * folio private, but left the page in the mapping.  Set the page mapped
 	 * here to make sure it's properly set for the subpage stuff.
 	 */
-	ret = set_page_extent_mapped(page);
+	ret = set_folio_extent_mapped(folio);
 	if (ret < 0)
 		goto out_unlock;
 
-	wait_on_page_writeback(page);
+	folio_wait_writeback(folio);
 
 	lock_extent(io_tree, block_start, block_end, &cached_state);
 
 	ordered = btrfs_lookup_ordered_extent(inode, block_start);
 	if (ordered) {
 		unlock_extent(io_tree, block_start, block_end, &cached_state);
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		btrfs_start_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 		goto again;
@@ -4789,15 +4790,16 @@ again:
 		if (!len)
 			len = blocksize - offset;
 		if (front)
-			memzero_page(page, (block_start - page_offset(page)),
-				     offset);
+			folio_zero_range(folio, block_start - folio_pos(folio),
+					 offset);
 		else
-			memzero_page(page, (block_start - page_offset(page)) + offset,
-				     len);
+			folio_zero_range(folio,
+					 (block_start - folio_pos(folio)) + offset,
+					 len);
 	}
-	btrfs_folio_clear_checked(fs_info, page_folio(page), block_start,
+	btrfs_folio_clear_checked(fs_info, folio, block_start,
 				  block_end + 1 - block_start);
-	btrfs_folio_set_dirty(fs_info, page_folio(page), block_start,
+	btrfs_folio_set_dirty(fs_info, folio, block_start,
 			      block_end + 1 - block_start);
 	unlock_extent(io_tree, block_start, block_end, &cached_state);
 
@@ -4814,8 +4816,8 @@ out_unlock:
 					block_start, blocksize, true);
 	}
 	btrfs_delalloc_release_extents(inode, blocksize);
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 out:
 	if (only_release_metadata)
 		btrfs_check_nocow_unlock(inode);
