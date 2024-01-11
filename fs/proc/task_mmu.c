@@ -1807,7 +1807,7 @@ static unsigned long pagemap_page_category(struct pagemap_scan_private *p,
 		if (p->masks_of_interest & PAGE_IS_FILE) {
 			swp = pte_to_swp_entry(pte);
 			if (is_pfn_swap_entry(swp) &&
-			    !PageAnon(pfn_swap_entry_to_page(swp)))
+			    !folio_test_anon(pfn_swap_entry_folio(swp)))
 				categories |= PAGE_IS_FILE;
 		}
 		if (pte_swp_soft_dirty(pte))
@@ -1873,7 +1873,7 @@ static unsigned long pagemap_thp_category(struct pagemap_scan_private *p,
 		if (p->masks_of_interest & PAGE_IS_FILE) {
 			swp = pmd_to_swp_entry(pmd);
 			if (is_pfn_swap_entry(swp) &&
-			    !PageAnon(pfn_swap_entry_to_page(swp)))
+			    !folio_test_anon(pfn_swap_entry_folio(swp)))
 				categories |= PAGE_IS_FILE;
 		}
 	}
