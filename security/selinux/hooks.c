@@ -92,7 +92,7 @@
 #include <uapi/linux/mount.h>
 #include <linux/fsnotify.h>
 #include <linux/fanotify.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <uapi/linux/lsm.h>
 
 #include "avc.h"
