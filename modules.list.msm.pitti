@@ -42,6 +42,8 @@ mem-hooks.ko
 mem_buf_dev.ko
 mem_buf.ko
 qcom_dma_heaps.ko
+qcom-pmu-lib.ko
+qcom-dcvs.ko
 msm_dma_iommu_mapping.ko
 gcc-pitti.ko
 icc-debug.ko
