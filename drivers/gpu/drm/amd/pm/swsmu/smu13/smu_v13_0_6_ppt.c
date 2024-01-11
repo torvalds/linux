@@ -970,7 +970,9 @@ static int smu_v13_0_6_print_clks(struct smu_context *smu, char *buf, int size,
 			if (i < (clocks.num_levels - 1))
 				clk2 = clocks.data[i + 1].clocks_in_khz / 1000;
 
-			if (curr_clk >= clk1 && curr_clk < clk2) {
+			if (curr_clk == clk1) {
+				level = i;
+			} else if (curr_clk >= clk1 && curr_clk < clk2) {
 				level = (curr_clk - clk1) <= (clk2 - curr_clk) ?
 						i :
 						i + 1;
