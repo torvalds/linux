@@ -79,6 +79,8 @@ const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector
 
 bool intel_opregion_headless_sku(struct drm_i915_private *i915);
 
+void intel_opregion_debugfs_register(struct drm_i915_private *i915);
+
 #else /* CONFIG_ACPI*/
 
 static inline int intel_opregion_setup(struct drm_i915_private *dev_priv)
@@ -137,6 +139,10 @@ intel_opregion_get_edid(struct intel_connector *connector)
 static inline bool intel_opregion_headless_sku(struct drm_i915_private *i915)
 {
 	return false;
+}
+
+static inline void intel_opregion_debugfs_register(struct drm_i915_private *i915)
+{
 }
 
 #endif /* CONFIG_ACPI */

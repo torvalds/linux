@@ -1265,3 +1265,24 @@ void intel_opregion_cleanup(struct drm_i915_private *i915)
 	opregion->vbt = NULL;
 	opregion->lid_state = NULL;
 }
+
+static int intel_opregion_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	if (opregion->header)
+		seq_write(m, opregion->header, OPREGION_SIZE);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_opregion);
+
+void intel_opregion_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_opregion", 0444, minor->debugfs_root,
+			    i915, &intel_opregion_fops);
+}
