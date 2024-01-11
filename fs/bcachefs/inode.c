@@ -561,64 +561,46 @@ static inline bool bkey_is_deleted_inode(struct bkey_s_c k)
 	return bkey_inode_flags(k) & BCH_INODE_unlinked;
 }
 
-int bch2_trans_mark_inode(struct btree_trans *trans,
-			  enum btree_id btree_id, unsigned level,
-			  struct bkey_s_c old,
-			  struct bkey_i *new,
-			  unsigned flags)
+int bch2_trigger_inode(struct btree_trans *trans,
+		       enum btree_id btree_id, unsigned level,
+		       struct bkey_s_c old,
+		       struct bkey_s new,
+		       unsigned flags)
 {
-	int nr = bkey_is_inode(&new->k) - bkey_is_inode(old.k);
-	bool old_deleted = bkey_is_deleted_inode(old);
-	bool new_deleted = bkey_is_deleted_inode(bkey_i_to_s_c(new));
+	s64 nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
 
-	if (nr) {
-		int ret = bch2_replicas_deltas_realloc(trans, 0);
-		struct replicas_delta_list *d = trans->fs_usage_deltas;
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		if (nr) {
+			int ret = bch2_replicas_deltas_realloc(trans, 0);
+			if (ret)
+				return ret;
 
-		if (ret)
-			return ret;
+			trans->fs_usage_deltas->nr_inodes += nr;
+		}
 
-		d->nr_inodes += nr;
+		bool old_deleted = bkey_is_deleted_inode(old);
+		bool new_deleted = bkey_is_deleted_inode(new.s_c);
+		if (old_deleted != new_deleted) {
+			int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new.k->p, new_deleted);
+			if (ret)
+				return ret;
+		}
 	}
 
-	if (old_deleted != new_deleted) {
-		int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new->k.p, new_deleted);
-		if (ret)
-			return ret;
-	}
+	if (!(flags & BTREE_TRIGGER_TRANSACTIONAL) && (flags & BTREE_TRIGGER_INSERT)) {
+		BUG_ON(!trans->journal_res.seq);
 
-	return 0;
-}
-
-int bch2_mark_inode(struct btree_trans *trans,
-		    enum btree_id btree_id, unsigned level,
-		    struct bkey_s_c old, struct bkey_s_c new,
-		    unsigned flags)
-{
-	struct bch_fs *c = trans->c;
-	struct bch_fs_usage *fs_usage;
-	u64 journal_seq = trans->journal_res.seq;
-
-	if (flags & BTREE_TRIGGER_INSERT) {
-		struct bch_inode_v3 *v = (struct bch_inode_v3 *) new.v;
-
-		BUG_ON(!journal_seq);
-		BUG_ON(new.k->type != KEY_TYPE_inode_v3);
-
-		v->bi_journal_seq = cpu_to_le64(journal_seq);
+		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);
 	}
 
 	if (flags & BTREE_TRIGGER_GC) {
+		struct bch_fs *c = trans->c;
+
 		percpu_down_read(&c->mark_lock);
-		preempt_disable();
-
-		fs_usage = fs_usage_ptr(c, journal_seq, flags & BTREE_TRIGGER_GC);
-		fs_usage->nr_inodes += bkey_is_inode(new.k);
-		fs_usage->nr_inodes -= bkey_is_inode(old.k);
-
-		preempt_enable();
+		this_cpu_add(c->usage_gc->nr_inodes, nr);
 		percpu_up_read(&c->mark_lock);
 	}
+
 	return 0;
 }
 
@@ -831,7 +813,7 @@ static int bch2_inode_delete_keys(struct btree_trans *trans,
 
 		ret = bch2_trans_update(trans, &iter, &delete, 0) ?:
 		      bch2_trans_commit(trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL);
+					BCH_TRANS_COMMIT_no_enospc);
 err:
 		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			break;
@@ -894,7 +876,7 @@ retry:
 
 	ret   = bch2_trans_update(trans, &iter, &delete.k_i, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL);
+				BCH_TRANS_COMMIT_no_enospc);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -1058,7 +1040,7 @@ retry:
 
 	ret   = bch2_trans_update(trans, &iter, &delete.k_i, 0) ?:
 		bch2_trans_commit(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL);
+				BCH_TRANS_COMMIT_no_enospc);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -1155,16 +1137,10 @@ delete:
 int bch2_delete_dead_inodes(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	bool need_another_pass;
 	int ret;
 again:
 	need_another_pass = false;
-
-	ret = bch2_btree_write_buffer_flush_sync(trans);
-	if (ret)
-		goto err;
 
 	/*
 	 * Weird transaction restart handling here because on successful delete,
@@ -1172,34 +1148,37 @@ again:
 	 * but we can't retry because the btree write buffer won't have been
 	 * flushed and we'd spin:
 	 */
-	for_each_btree_key(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
-			   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		ret = commit_do(trans, NULL, NULL,
-				BTREE_INSERT_NOFAIL|
-				BTREE_INSERT_LAZY_RW,
-			may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass));
-		if (ret < 0)
-			break;
-
-		if (ret) {
-			if (!test_bit(BCH_FS_RW, &c->flags)) {
-				bch2_trans_unlock(trans);
-				bch2_fs_lazy_rw(c);
-			}
-
+	ret = for_each_btree_key_commit(trans, iter, BTREE_ID_deleted_inodes, POS_MIN,
+					BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+					NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
+		ret = may_delete_deleted_inode(trans, &iter, k.k->p, &need_another_pass);
+		if (ret > 0) {
 			bch_verbose(c, "deleting unlinked inode %llu:%u", k.k->p.offset, k.k->p.snapshot);
 
 			ret = bch2_inode_rm_snapshot(trans, k.k->p.offset, k.k->p.snapshot);
-			if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				break;
+			/*
+			 * We don't want to loop here: a transaction restart
+			 * error here means we handled a transaction restart and
+			 * we're actually done, but if we loop we'll retry the
+			 * same key because the write buffer hasn't been flushed
+			 * yet
+			 */
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+				ret = 0;
+				continue;
+			}
 		}
-	}
-	bch2_trans_iter_exit(trans, &iter);
 
-	if (!ret && need_another_pass)
+		ret;
+	}));
+
+	if (!ret && need_another_pass) {
+		ret = bch2_btree_write_buffer_flush_sync(trans);
+		if (ret)
+			goto err;
 		goto again;
+	}
 err:
 	bch2_trans_put(trans);
-
 	return ret;
 }

@@ -2,12 +2,13 @@
 #include "bcachefs.h"
 #include "error.h"
 #include "super.h"
+#include "thread_with_file.h"
 
 #define FSCK_ERR_RATELIMIT_NR	10
 
 bool bch2_inconsistent_error(struct bch_fs *c)
 {
-	set_bit(BCH_FS_ERROR, &c->flags);
+	set_bit(BCH_FS_error, &c->flags);
 
 	switch (c->opts.errors) {
 	case BCH_ON_ERROR_continue:
@@ -26,8 +27,8 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 
 void bch2_topology_error(struct bch_fs *c)
 {
-	set_bit(BCH_FS_TOPOLOGY_ERROR, &c->flags);
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
+	set_bit(BCH_FS_topology_error, &c->flags);
+	if (!test_bit(BCH_FS_fsck_running, &c->flags))
 		bch2_inconsistent_error(c);
 }
 
@@ -69,29 +70,11 @@ enum ask_yn {
 	YN_ALLYES,
 };
 
-#ifdef __KERNEL__
-#define bch2_fsck_ask_yn()	YN_NO
-#else
-
-#include "tools-util.h"
-
-enum ask_yn bch2_fsck_ask_yn(void)
+static enum ask_yn parse_yn_response(char *buf)
 {
-	char *buf = NULL;
-	size_t buflen = 0;
-	bool ret;
+	buf = strim(buf);
 
-	while (true) {
-		fputs(" (y,n, or Y,N for all errors of this type) ", stdout);
-		fflush(stdout);
-
-		if (getline(&buf, &buflen, stdin) < 0)
-			die("error reading from standard input");
-
-		strim(buf);
-		if (strlen(buf) != 1)
-			continue;
-
+	if (strlen(buf) == 1)
 		switch (buf[0]) {
 		case 'n':
 			return YN_NO;
@@ -102,7 +85,51 @@ enum ask_yn bch2_fsck_ask_yn(void)
 		case 'Y':
 			return YN_ALLYES;
 		}
-	}
+	return -1;
+}
+
+#ifdef __KERNEL__
+static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
+{
+	struct stdio_redirect *stdio = c->stdio;
+
+	if (c->stdio_filter && c->stdio_filter != current)
+		stdio = NULL;
+
+	if (!stdio)
+		return YN_NO;
+
+	char buf[100];
+	int ret;
+
+	do {
+		bch2_print(c, " (y,n, or Y,N for all errors of this type) ");
+
+		int r = bch2_stdio_redirect_readline(stdio, buf, sizeof(buf) - 1);
+		if (r < 0)
+			return YN_NO;
+		buf[r] = '\0';
+	} while ((ret = parse_yn_response(buf)) < 0);
+
+	return ret;
+}
+#else
+
+#include "tools-util.h"
+
+static enum ask_yn bch2_fsck_ask_yn(struct bch_fs *c)
+{
+	char *buf = NULL;
+	size_t buflen = 0;
+	int ret;
+
+	do {
+		fputs(" (y,n, or Y,N for all errors of this type) ", stdout);
+		fflush(stdout);
+
+		if (getline(&buf, &buflen, stdin) < 0)
+			die("error reading from standard input");
+	} while ((ret = parse_yn_response(buf)) < 0);
 
 	free(buf);
 	return ret;
@@ -114,7 +141,7 @@ static struct fsck_err_state *fsck_err_get(struct bch_fs *c, const char *fmt)
 {
 	struct fsck_err_state *s;
 
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags))
+	if (!test_bit(BCH_FS_fsck_running, &c->flags))
 		return NULL;
 
 	list_for_each_entry(s, &c->fsck_error_msgs, list)
@@ -152,7 +179,8 @@ int bch2_fsck_err(struct bch_fs *c,
 	struct printbuf buf = PRINTBUF, *out = &buf;
 	int ret = -BCH_ERR_fsck_ignore;
 
-	if (test_bit(err, c->sb.errors_silent))
+	if ((flags & FSCK_CAN_FIX) &&
+	    test_bit(err, c->sb.errors_silent))
 		return -BCH_ERR_fsck_fix;
 
 	bch2_sb_error_count(c, err);
@@ -196,7 +224,7 @@ int bch2_fsck_err(struct bch_fs *c,
 		prt_printf(out, bch2_log_msg(c, ""));
 #endif
 
-	if (test_bit(BCH_FS_FSCK_DONE, &c->flags)) {
+	if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		if (c->opts.errors != BCH_ON_ERROR_continue ||
 		    !(flags & (FSCK_CAN_FIX|FSCK_CAN_IGNORE))) {
 			prt_str(out, ", shutting down");
@@ -221,10 +249,13 @@ int bch2_fsck_err(struct bch_fs *c,
 			int ask;
 
 			prt_str(out, ": fix?");
-			bch2_print_string_as_lines(KERN_ERR, out->buf);
+			if (bch2_fs_stdio_redirect(c))
+				bch2_print(c, "%s", out->buf);
+			else
+				bch2_print_string_as_lines(KERN_ERR, out->buf);
 			print = false;
 
-			ask = bch2_fsck_ask_yn();
+			ask = bch2_fsck_ask_yn(c);
 
 			if (ask >= YN_ALLNO && s)
 				s->fix = ask == YN_ALLNO
@@ -253,10 +284,14 @@ int bch2_fsck_err(struct bch_fs *c,
 	     !(flags & FSCK_CAN_IGNORE)))
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 
-	if (print)
-		bch2_print_string_as_lines(KERN_ERR, out->buf);
+	if (print) {
+		if (bch2_fs_stdio_redirect(c))
+			bch2_print(c, "%s\n", out->buf);
+		else
+			bch2_print_string_as_lines(KERN_ERR, out->buf);
+	}
 
-	if (!test_bit(BCH_FS_FSCK_DONE, &c->flags) &&
+	if (test_bit(BCH_FS_fsck_running, &c->flags) &&
 	    (ret != -BCH_ERR_fsck_fix &&
 	     ret != -BCH_ERR_fsck_ignore))
 		bch_err(c, "Unable to continue, halting");
@@ -274,10 +309,10 @@ int bch2_fsck_err(struct bch_fs *c,
 		bch2_inconsistent_error(c);
 
 	if (ret == -BCH_ERR_fsck_fix) {
-		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
+		set_bit(BCH_FS_errors_fixed, &c->flags);
 	} else {
-		set_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags);
-		set_bit(BCH_FS_ERROR, &c->flags);
+		set_bit(BCH_FS_errors_not_fixed, &c->flags);
+		set_bit(BCH_FS_error, &c->flags);
 	}
 
 	return ret;

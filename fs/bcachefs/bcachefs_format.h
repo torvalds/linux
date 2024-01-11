@@ -307,6 +307,13 @@ struct bkey_i {
 	struct bch_val	v;
 };
 
+#define POS_KEY(_pos)							\
+((struct bkey) {							\
+	.u64s		= BKEY_U64s,					\
+	.format		= KEY_FORMAT_CURRENT,				\
+	.p		= _pos,						\
+})
+
 #define KEY(_inode, _offset, _size)					\
 ((struct bkey) {							\
 	.u64s		= BKEY_U64s,					\
@@ -1296,6 +1303,7 @@ struct bch_member {
 	__le64			errors[BCH_MEMBER_ERROR_NR];
 	__le64			errors_at_reset[BCH_MEMBER_ERROR_NR];
 	__le64			errors_reset_time;
+	__le64			seq;
 };
 
 #define BCH_MEMBER_V1_BYTES	56
@@ -1442,7 +1450,7 @@ struct bch_sb_field_replicas_v0 {
 	struct bch_replicas_entry_v0 entries[];
 } __packed __aligned(8);
 
-struct bch_replicas_entry {
+struct bch_replicas_entry_v1 {
 	__u8			data_type;
 	__u8			nr_devs;
 	__u8			nr_required;
@@ -1454,7 +1462,7 @@ struct bch_replicas_entry {
 
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
-	struct bch_replicas_entry entries[];
+	struct bch_replicas_entry_v1 entries[];
 } __packed __aligned(8);
 
 /* BCH_SB_FIELD_quota: */
@@ -1571,7 +1579,9 @@ struct bch_sb_field_disk_groups {
 	x(write_super,					73)	\
 	x(trans_restart_would_deadlock_recursion_limit,	74)	\
 	x(trans_restart_write_buffer_flush,		75)	\
-	x(trans_restart_split_race,			76)
+	x(trans_restart_split_race,			76)	\
+	x(write_buffer_flush_slowpath,			77)	\
+	x(write_buffer_flush_sync,			78)
 
 enum bch_persistent_counters {
 #define x(t, n, ...) BCH_COUNTER_##t,
@@ -1662,69 +1672,41 @@ struct bch_sb_field_downgrade {
 #define BCH_VERSION_MINOR(_v)		((__u16) ((_v) & ~(~0U << 10)))
 #define BCH_VERSION(_major, _minor)	(((_major) << 10)|(_minor) << 0)
 
-#define RECOVERY_PASS_ALL_FSCK		(1ULL << 63)
-
 /*
  * field 1:		version name
  * field 2:		BCH_VERSION(major, minor)
  * field 3:		recovery passess required on upgrade
  */
 #define BCH_METADATA_VERSIONS()						\
-	x(bkey_renumber,		BCH_VERSION(0, 10),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(inode_btree_change,		BCH_VERSION(0, 11),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(snapshot,			BCH_VERSION(0, 12),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(inode_backpointers,		BCH_VERSION(0, 13),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(btree_ptr_sectors_written,	BCH_VERSION(0, 14),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(snapshot_2,			BCH_VERSION(0, 15),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_fs_upgrade_for_subvolumes)|		\
-	  BIT_ULL(BCH_RECOVERY_PASS_initialize_subvolumes)|		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(reflink_p_fix,		BCH_VERSION(0, 16),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_fix_reflink_p))			\
-	x(subvol_dirent,		BCH_VERSION(0, 17),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(inode_v2,			BCH_VERSION(0, 18),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(freespace,			BCH_VERSION(0, 19),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(alloc_v4,			BCH_VERSION(0, 20),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(new_data_types,		BCH_VERSION(0, 21),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(backpointers,			BCH_VERSION(0, 22),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(inode_v3,			BCH_VERSION(0, 23),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(unwritten_extents,		BCH_VERSION(0, 24),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(bucket_gens,			BCH_VERSION(0, 25),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_bucket_gens_init)|			\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(lru_v2,			BCH_VERSION(0, 26),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(fragmentation_lru,		BCH_VERSION(0, 27),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(no_bps_in_alloc_keys,		BCH_VERSION(0, 28),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(snapshot_trees,		BCH_VERSION(0, 29),		\
-	  RECOVERY_PASS_ALL_FSCK)					\
-	x(major_minor,			BCH_VERSION(1,  0),		\
-	  0)								\
-	x(snapshot_skiplists,		BCH_VERSION(1,  1),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots))			\
-	x(deleted_inodes,		BCH_VERSION(1,  2),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes))			\
-	x(rebalance_work,		BCH_VERSION(1,  3),		\
-	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))
+	x(bkey_renumber,		BCH_VERSION(0, 10))		\
+	x(inode_btree_change,		BCH_VERSION(0, 11))		\
+	x(snapshot,			BCH_VERSION(0, 12))		\
+	x(inode_backpointers,		BCH_VERSION(0, 13))		\
+	x(btree_ptr_sectors_written,	BCH_VERSION(0, 14))		\
+	x(snapshot_2,			BCH_VERSION(0, 15))		\
+	x(reflink_p_fix,		BCH_VERSION(0, 16))		\
+	x(subvol_dirent,		BCH_VERSION(0, 17))		\
+	x(inode_v2,			BCH_VERSION(0, 18))		\
+	x(freespace,			BCH_VERSION(0, 19))		\
+	x(alloc_v4,			BCH_VERSION(0, 20))		\
+	x(new_data_types,		BCH_VERSION(0, 21))		\
+	x(backpointers,			BCH_VERSION(0, 22))		\
+	x(inode_v3,			BCH_VERSION(0, 23))		\
+	x(unwritten_extents,		BCH_VERSION(0, 24))		\
+	x(bucket_gens,			BCH_VERSION(0, 25))		\
+	x(lru_v2,			BCH_VERSION(0, 26))		\
+	x(fragmentation_lru,		BCH_VERSION(0, 27))		\
+	x(no_bps_in_alloc_keys,		BCH_VERSION(0, 28))		\
+	x(snapshot_trees,		BCH_VERSION(0, 29))		\
+	x(major_minor,			BCH_VERSION(1,  0))		\
+	x(snapshot_skiplists,		BCH_VERSION(1,  1))		\
+	x(deleted_inodes,		BCH_VERSION(1,  2))		\
+	x(rebalance_work,		BCH_VERSION(1,  3))		\
+	x(member_seq,			BCH_VERSION(1,  4))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
-#define x(t, n, upgrade_passes)	bcachefs_metadata_version_##t = n,
+#define x(t, n)	bcachefs_metadata_version_##t = n,
 	BCH_METADATA_VERSIONS()
 #undef x
 	bcachefs_metadata_version_max
@@ -1786,7 +1768,8 @@ struct bch_sb {
 	__le32			time_base_hi;
 	__le32			time_precision;
 
-	__le64			flags[8];
+	__le64			flags[7];
+	__le64			write_time;
 	__le64			features[2];
 	__le64			compat[2];
 
@@ -2153,7 +2136,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(clock,		7)		\
 	x(dev_usage,		8)		\
 	x(log,			9)		\
-	x(overwrite,		10)
+	x(overwrite,		10)		\
+	x(write_buffer_keys,	11)
 
 enum {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
@@ -2161,6 +2145,19 @@ enum {
 #undef x
 	BCH_JSET_ENTRY_NR
 };
+
+static inline bool jset_entry_is_key(struct jset_entry *e)
+{
+	switch (e->type) {
+	case BCH_JSET_ENTRY_btree_keys:
+	case BCH_JSET_ENTRY_btree_root:
+	case BCH_JSET_ENTRY_overwrite:
+	case BCH_JSET_ENTRY_write_buffer_keys:
+		return true;
+	}
+
+	return false;
+}
 
 /*
  * Journal sequence numbers can be blacklisted: bsets record the max sequence
@@ -2203,7 +2200,7 @@ struct jset_entry_usage {
 struct jset_entry_data_usage {
 	struct jset_entry	entry;
 	__le64			v;
-	struct bch_replicas_entry r;
+	struct bch_replicas_entry_v1 r;
 } __packed;
 
 struct jset_entry_clock {
@@ -2224,8 +2221,8 @@ struct jset_entry_dev_usage {
 	__le32			dev;
 	__u32			pad;
 
-	__le64			buckets_ec;
-	__le64			_buckets_unavailable; /* No longer used */
+	__le64			_buckets_ec;		/* No longer used */
+	__le64			_buckets_unavailable;	/* No longer used */
 
 	struct jset_entry_dev_usage_type d[];
 };
@@ -2239,7 +2236,7 @@ static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage
 struct jset_entry_log {
 	struct jset_entry	entry;
 	u8			d[];
-} __packed;
+} __packed __aligned(8);
 
 /*
  * On disk format for a journal entry:

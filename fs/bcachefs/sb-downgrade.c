@@ -12,33 +12,105 @@
 #include "sb-errors.h"
 #include "super-io.h"
 
+#define RECOVERY_PASS_ALL_FSCK		BIT_ULL(63)
+
 /*
- * Downgrade table:
- * When dowgrading past certain versions, we need to run certain recovery passes
- * and fix certain errors:
+ * Upgrade, downgrade tables - run certain recovery passes, fix certain errors
  *
  * x(version, recovery_passes, errors...)
  */
+#define UPGRADE_TABLE()						\
+	x(backpointers,						\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(inode_v3,						\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(unwritten_extents,					\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(bucket_gens,						\
+	  BIT_ULL(BCH_RECOVERY_PASS_bucket_gens_init)|		\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(lru_v2,						\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(fragmentation_lru,					\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(no_bps_in_alloc_keys,					\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(snapshot_trees,					\
+	  RECOVERY_PASS_ALL_FSCK)				\
+	x(snapshot_skiplists,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_snapshots),		\
+	  BCH_FSCK_ERR_snapshot_bad_depth,			\
+	  BCH_FSCK_ERR_snapshot_bad_skiplist)			\
+	x(deleted_inodes,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
+	  BCH_FSCK_ERR_unlinked_inode_not_on_deleted_list)	\
+	x(rebalance_work,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))
 
 #define DOWNGRADE_TABLE()
 
-struct downgrade_entry {
+struct upgrade_downgrade_entry {
 	u64		recovery_passes;
 	u16		version;
 	u16		nr_errors;
 	const u16	*errors;
 };
 
-#define x(ver, passes, ...) static const u16 ver_##errors[] = { __VA_ARGS__ };
-DOWNGRADE_TABLE()
+#define x(ver, passes, ...) static const u16 upgrade_##ver##_errors[] = { __VA_ARGS__ };
+UPGRADE_TABLE()
 #undef x
 
-static const struct downgrade_entry downgrade_table[] = {
+static const struct upgrade_downgrade_entry upgrade_table[] = {
 #define x(ver, passes, ...) {					\
 	.recovery_passes	= passes,			\
 	.version		= bcachefs_metadata_version_##ver,\
-	.nr_errors		= ARRAY_SIZE(ver_##errors),	\
-	.errors			= ver_##errors,			\
+	.nr_errors		= ARRAY_SIZE(upgrade_##ver##_errors),	\
+	.errors			= upgrade_##ver##_errors,	\
+},
+UPGRADE_TABLE()
+#undef x
+};
+
+void bch2_sb_set_upgrade(struct bch_fs *c,
+			 unsigned old_version,
+			 unsigned new_version)
+{
+	lockdep_assert_held(&c->sb_lock);
+
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+
+	for (const struct upgrade_downgrade_entry *i = upgrade_table;
+	     i < upgrade_table + ARRAY_SIZE(upgrade_table);
+	     i++)
+		if (i->version > old_version && i->version <= new_version) {
+			u64 passes = i->recovery_passes;
+
+			if (passes & RECOVERY_PASS_ALL_FSCK)
+				passes |= bch2_fsck_recovery_passes();
+			passes &= ~RECOVERY_PASS_ALL_FSCK;
+
+			ext->recovery_passes_required[0] |=
+				cpu_to_le64(bch2_recovery_passes_to_stable(passes));
+
+			for (const u16 *e = i->errors;
+			     e < i->errors + i->nr_errors;
+			     e++) {
+				__set_bit(*e, c->sb.errors_silent);
+				ext->errors_silent[*e / 64] |= cpu_to_le64(BIT_ULL(*e % 64));
+			}
+		}
+}
+
+#define x(ver, passes, ...) static const u16 downgrade_ver_##errors[] = { __VA_ARGS__ };
+DOWNGRADE_TABLE()
+#undef x
+
+static const struct upgrade_downgrade_entry downgrade_table[] = {
+#define x(ver, passes, ...) {					\
+	.recovery_passes	= passes,			\
+	.version		= bcachefs_metadata_version_##ver,\
+	.nr_errors		= ARRAY_SIZE(downgrade_##ver##_errors),	\
+	.errors			= downgrade_##ver##_errors,	\
 },
 DOWNGRADE_TABLE()
 #undef x
@@ -118,7 +190,7 @@ int bch2_sb_downgrade_update(struct bch_fs *c)
 	darray_char table = {};
 	int ret = 0;
 
-	for (const struct downgrade_entry *src = downgrade_table;
+	for (const struct upgrade_downgrade_entry *src = downgrade_table;
 	     src < downgrade_table + ARRAY_SIZE(downgrade_table);
 	     src++) {
 		if (BCH_VERSION_MAJOR(src->version) != BCH_VERSION_MAJOR(le16_to_cpu(c->disk_sb.sb->version)))

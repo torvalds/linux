@@ -261,11 +261,11 @@ static inline ssize_t eytzinger0_find_le(void *base, size_t nr, size_t size,
 
 #define eytzinger0_find(base, nr, size, _cmp, search)			\
 ({									\
-	void *_base	= (base);					\
-	void *_search	= (search);					\
-	size_t _nr	= (nr);						\
-	size_t _size	= (size);					\
-	size_t _i	= 0;						\
+	void *_base		= (base);				\
+	const void *_search	= (search);				\
+	size_t _nr		= (nr);					\
+	size_t _size		= (size);				\
+	size_t _i		= 0;					\
 	int _res;							\
 									\
 	while (_i < _nr &&						\

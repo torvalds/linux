@@ -145,6 +145,7 @@ rw_attribute(gc_gens_pos);
 
 read_attribute(uuid);
 read_attribute(minor);
+read_attribute(flags);
 read_attribute(bucket_size);
 read_attribute(first_bucket);
 read_attribute(nbuckets);
@@ -255,19 +256,18 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_trans *trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
 	enum btree_id id;
-	u64 nr_uncompressed_extents = 0,
-	    nr_compressed_extents = 0,
-	    nr_incompressible_extents = 0,
-	    uncompressed_sectors = 0,
-	    incompressible_sectors = 0,
-	    compressed_sectors_compressed = 0,
-	    compressed_sectors_uncompressed = 0;
+	struct compression_type_stats {
+		u64		nr_extents;
+		u64		sectors_compressed;
+		u64		sectors_uncompressed;
+	} s[BCH_COMPRESSION_TYPE_NR];
+	u64 compressed_incompressible = 0;
 	int ret = 0;
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	memset(s, 0, sizeof(s));
+
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EPERM;
 
 	trans = bch2_trans_get(c);
@@ -276,39 +276,33 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 		if (!btree_type_has_ptrs(id))
 			continue;
 
-		ret = for_each_btree_key2(trans, iter, id, POS_MIN,
-					  BTREE_ITER_ALL_SNAPSHOTS, k, ({
+		ret = for_each_btree_key(trans, iter, id, POS_MIN,
+					 BTREE_ITER_ALL_SNAPSHOTS, k, ({
 			struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
+			struct bch_extent_crc_unpacked crc;
 			const union bch_extent_entry *entry;
-			struct extent_ptr_decoded p;
-			bool compressed = false, uncompressed = false, incompressible = false;
+			bool compressed = false, incompressible = false;
 
-			bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-				switch (p.crc.compression_type) {
-				case BCH_COMPRESSION_TYPE_none:
-					uncompressed = true;
-					uncompressed_sectors += k.k->size;
-					break;
-				case BCH_COMPRESSION_TYPE_incompressible:
-					incompressible = true;
-					incompressible_sectors += k.k->size;
-					break;
-				default:
-					compressed_sectors_compressed +=
-						p.crc.compressed_size;
-					compressed_sectors_uncompressed +=
-						p.crc.uncompressed_size;
-					compressed = true;
-					break;
+			bkey_for_each_crc(k.k, ptrs, crc, entry) {
+				incompressible	|= crc.compression_type == BCH_COMPRESSION_TYPE_incompressible;
+				compressed	|= crc_is_compressed(crc);
+
+				if (crc_is_compressed(crc)) {
+					s[crc.compression_type].nr_extents++;
+					s[crc.compression_type].sectors_compressed += crc.compressed_size;
+					s[crc.compression_type].sectors_uncompressed += crc.uncompressed_size;
 				}
 			}
 
-			if (incompressible)
-				nr_incompressible_extents++;
-			else if (uncompressed)
-				nr_uncompressed_extents++;
-			else if (compressed)
-				nr_compressed_extents++;
+			compressed_incompressible += compressed && incompressible;
+
+			if (!compressed) {
+				unsigned t = incompressible ? BCH_COMPRESSION_TYPE_incompressible : 0;
+
+				s[t].nr_extents++;
+				s[t].sectors_compressed += k.k->size;
+				s[t].sectors_uncompressed += k.k->size;
+			}
 			0;
 		}));
 	}
@@ -318,26 +312,45 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	if (ret)
 		return ret;
 
-	prt_printf(out, "uncompressed:\n");
-	prt_printf(out, "	nr extents:		%llu\n", nr_uncompressed_extents);
-	prt_printf(out, "	size:			");
-	prt_human_readable_u64(out, uncompressed_sectors << 9);
-	prt_printf(out, "\n");
+	prt_str(out, "type");
+	printbuf_tabstop_push(out, 12);
+	prt_tab(out);
 
-	prt_printf(out, "compressed:\n");
-	prt_printf(out, "	nr extents:		%llu\n", nr_compressed_extents);
-	prt_printf(out, "	compressed size:	");
-	prt_human_readable_u64(out, compressed_sectors_compressed << 9);
-	prt_printf(out, "\n");
-	prt_printf(out, "	uncompressed size:	");
-	prt_human_readable_u64(out, compressed_sectors_uncompressed << 9);
-	prt_printf(out, "\n");
+	prt_str(out, "compressed");
+	printbuf_tabstop_push(out, 16);
+	prt_tab_rjust(out);
 
-	prt_printf(out, "incompressible:\n");
-	prt_printf(out, "	nr extents:		%llu\n", nr_incompressible_extents);
-	prt_printf(out, "	size:			");
-	prt_human_readable_u64(out, incompressible_sectors << 9);
-	prt_printf(out, "\n");
+	prt_str(out, "uncompressed");
+	printbuf_tabstop_push(out, 16);
+	prt_tab_rjust(out);
+
+	prt_str(out, "average extent size");
+	printbuf_tabstop_push(out, 24);
+	prt_tab_rjust(out);
+	prt_newline(out);
+
+	for (unsigned i = 0; i < ARRAY_SIZE(s); i++) {
+		prt_str(out, bch2_compression_types[i]);
+		prt_tab(out);
+
+		prt_human_readable_u64(out, s[i].sectors_compressed << 9);
+		prt_tab_rjust(out);
+
+		prt_human_readable_u64(out, s[i].sectors_uncompressed << 9);
+		prt_tab_rjust(out);
+
+		prt_human_readable_u64(out, s[i].nr_extents
+				       ? div_u64(s[i].sectors_uncompressed << 9, s[i].nr_extents)
+				       : 0);
+		prt_tab_rjust(out);
+		prt_newline(out);
+	}
+
+	if (compressed_incompressible) {
+		prt_printf(out, "%llu compressed & incompressible extents", compressed_incompressible);
+		prt_newline(out);
+	}
+
 	return 0;
 }
 
@@ -369,6 +382,9 @@ SHOW(bch2_fs)
 
 	sysfs_print(minor,			c->minor);
 	sysfs_printf(internal_uuid, "%pU",	c->sb.uuid.b);
+
+	if (attr == &sysfs_flags)
+		prt_bitflags(out, bch2_fs_flag_strs, c->flags);
 
 	sysfs_hprint(btree_cache_size,		bch2_btree_cache_size(c));
 
@@ -483,12 +499,12 @@ STORE(bch2_fs)
 
 	/* Debugging: */
 
-	if (!test_bit(BCH_FS_STARTED, &c->flags))
+	if (!test_bit(BCH_FS_started, &c->flags))
 		return -EPERM;
 
 	/* Debugging: */
 
-	if (!test_bit(BCH_FS_RW, &c->flags))
+	if (!test_bit(BCH_FS_rw, &c->flags))
 		return -EROFS;
 
 	if (attr == &sysfs_prune_cache) {
@@ -620,6 +636,7 @@ STORE(bch2_fs_internal)
 SYSFS_OPS(bch2_fs_internal);
 
 struct attribute *bch2_fs_internal_files[] = {
+	&sysfs_flags,
 	&sysfs_journal_debug,
 	&sysfs_btree_updates,
 	&sysfs_btree_cache,
@@ -786,32 +803,7 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);
 
-	prt_tab(out);
-	prt_str(out, "buckets");
-	prt_tab_rjust(out);
-	prt_str(out, "sectors");
-	prt_tab_rjust(out);
-	prt_str(out, "fragmented");
-	prt_tab_rjust(out);
-	prt_newline(out);
-
-	for (i = 0; i < BCH_DATA_NR; i++) {
-		prt_str(out, bch2_data_types[i]);
-		prt_tab(out);
-		prt_u64(out, stats.d[i].buckets);
-		prt_tab_rjust(out);
-		prt_u64(out, stats.d[i].sectors);
-		prt_tab_rjust(out);
-		prt_u64(out, stats.d[i].fragmented);
-		prt_tab_rjust(out);
-		prt_newline(out);
-	}
-
-	prt_str(out, "ec");
-	prt_tab(out);
-	prt_u64(out, stats.buckets_ec);
-	prt_tab_rjust(out);
-	prt_newline(out);
+	bch2_dev_usage_to_text(out, &stats);
 
 	prt_newline(out);
 

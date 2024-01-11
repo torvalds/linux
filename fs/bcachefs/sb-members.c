@@ -235,6 +235,11 @@ static void member_to_text(struct printbuf *out,
 		prt_printf(out, "(never)");
 	prt_newline(out);
 
+	prt_printf(out, "Last superblock write:");
+	prt_tab(out);
+	prt_u64(out, le64_to_cpu(m.seq));
+	prt_newline(out);
+
 	prt_printf(out, "State:");
 	prt_tab(out);
 	prt_printf(out, "%s",
@@ -257,6 +262,11 @@ static void member_to_text(struct printbuf *out,
 		prt_bitflags(out, bch2_data_types, data_have);
 	else
 		prt_printf(out, "(none)");
+	prt_newline(out);
+
+	prt_str(out, "Durability:");
+	prt_tab(out);
+	prt_printf(out, "%llu", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
 	prt_newline(out);
 
 	prt_printf(out, "Discard:");
@@ -353,14 +363,12 @@ const struct bch_sb_field_ops bch_sb_field_ops_members_v2 = {
 void bch2_sb_members_from_cpu(struct bch_fs *c)
 {
 	struct bch_sb_field_members_v2 *mi = bch2_sb_field_get(c->disk_sb.sb, members_v2);
-	struct bch_dev *ca;
-	unsigned i, e;
 
 	rcu_read_lock();
-	for_each_member_device_rcu(ca, c, i, NULL) {
-		struct bch_member *m = __bch2_members_v2_get_mut(mi, i);
+	for_each_member_device_rcu(c, ca, NULL) {
+		struct bch_member *m = __bch2_members_v2_get_mut(mi, ca->dev_idx);
 
-		for (e = 0; e < BCH_MEMBER_ERROR_NR; e++)
+		for (unsigned e = 0; e < BCH_MEMBER_ERROR_NR; e++)
 			m->errors[e] = cpu_to_le64(atomic64_read(&ca->errors[e]));
 	}
 	rcu_read_unlock();

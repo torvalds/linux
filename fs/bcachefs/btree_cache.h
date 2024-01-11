@@ -17,8 +17,8 @@ int __bch2_btree_node_hash_insert(struct btree_cache *, struct btree *);
 int bch2_btree_node_hash_insert(struct btree_cache *, struct btree *,
 				unsigned, enum btree_id);
 
-void bch2_btree_cache_cannibalize_unlock(struct bch_fs *);
-int bch2_btree_cache_cannibalize_lock(struct bch_fs *, struct closure *);
+void bch2_btree_cache_cannibalize_unlock(struct btree_trans *);
+int bch2_btree_cache_cannibalize_lock(struct btree_trans *, struct closure *);
 
 struct btree *__bch2_btree_node_mem_alloc(struct bch_fs *);
 struct btree *bch2_btree_node_mem_alloc(struct btree_trans *, bool);

@@ -19,10 +19,6 @@ static inline bool bch2_version_compatible(u16 version)
 void bch2_version_to_text(struct printbuf *, unsigned);
 unsigned bch2_latest_compatible_version(unsigned);
 
-u64 bch2_upgrade_recovery_passes(struct bch_fs *c,
-				 unsigned,
-				 unsigned);
-
 static inline size_t bch2_sb_field_bytes(struct bch_sb_field *f)
 {
 	return le32_to_cpu(f->u64s) * sizeof(u64);
@@ -84,6 +80,7 @@ void bch2_free_super(struct bch_sb_handle *);
 int bch2_sb_realloc(struct bch_sb_handle *, unsigned);
 
 int bch2_read_super(const char *, struct bch_opts *, struct bch_sb_handle *);
+int bch2_read_super_silent(const char *, struct bch_opts *, struct bch_sb_handle *);
 int bch2_write_super(struct bch_fs *);
 void __bch2_check_set_feature(struct bch_fs *, unsigned);
 
@@ -96,6 +93,8 @@ static inline void bch2_check_set_feature(struct bch_fs *c, unsigned feat)
 bool bch2_check_version_downgrade(struct bch_fs *);
 void bch2_sb_upgrade(struct bch_fs *, unsigned);
 
+void __bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
+			     struct bch_sb_field *);
 void bch2_sb_field_to_text(struct printbuf *, struct bch_sb *,
 			   struct bch_sb_field *);
 void bch2_sb_layout_to_text(struct printbuf *, struct bch_sb_layout *);

@@ -843,7 +843,6 @@ void bch2_bkey_drop_device_noerror(struct bkey_s k, unsigned dev)
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned dev)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr)
 		if (ptr->dev == dev)
@@ -855,7 +854,6 @@ const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned 
 bool bch2_bkey_has_target(struct bch_fs *c, struct bkey_s_c k, unsigned target)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr)
 		if (bch2_dev_in_target(c, ptr->dev, target) &&
@@ -1065,7 +1063,6 @@ static int extent_ptr_invalid(struct bch_fs *c,
 			      struct printbuf *err)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr2;
 	u64 bucket;
 	u32 bucket_offset;
 	struct bch_dev *ca;
@@ -1307,7 +1304,6 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 	}
 incompressible:
 	if (target && bch2_target_accepts_data(c, BCH_DATA_user, target)) {
-		const struct bch_extent_ptr *ptr;
 		unsigned i = 0;
 
 		bkey_for_each_ptr(ptrs, ptr) {
