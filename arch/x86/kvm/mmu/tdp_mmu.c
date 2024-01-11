@@ -223,51 +223,42 @@ static void tdp_mmu_init_child_sp(struct kvm_mmu_page *child_sp,
 	tdp_mmu_init_sp(child_sp, iter->sptep, iter->gfn, role);
 }
 
-static struct kvm_mmu_page *kvm_tdp_mmu_try_get_root(struct kvm_vcpu *vcpu)
-{
-	union kvm_mmu_page_role role = vcpu->arch.mmu->root_role;
-	int as_id = kvm_mmu_role_as_id(role);
-	struct kvm *kvm = vcpu->kvm;
-	struct kvm_mmu_page *root;
-
-	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, as_id) {
-		if (root->role.word == role.word)
-			return root;
-	}
-
-	return NULL;
-}
-
 int kvm_tdp_mmu_alloc_root(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.mmu;
 	union kvm_mmu_page_role role = mmu->root_role;
+	int as_id = kvm_mmu_role_as_id(role);
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_page *root;
 
 	/*
-	 * Check for an existing root while holding mmu_lock for read to avoid
+	 * Check for an existing root before acquiring the pages lock to avoid
 	 * unnecessary serialization if multiple vCPUs are loading a new root.
 	 * E.g. when bringing up secondary vCPUs, KVM will already have created
 	 * a valid root on behalf of the primary vCPU.
 	 */
 	read_lock(&kvm->mmu_lock);
-	root = kvm_tdp_mmu_try_get_root(vcpu);
-	read_unlock(&kvm->mmu_lock);
 
-	if (root)
-		goto out;
+	for_each_valid_tdp_mmu_root_yield_safe(kvm, root, as_id) {
+		if (root->role.word == role.word)
+			goto out_read_unlock;
+	}
 
-	write_lock(&kvm->mmu_lock);
+	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 
 	/*
-	 * Recheck for an existing root after acquiring mmu_lock for write.  It
-	 * is possible a new usable root was created between dropping mmu_lock
-	 * (for read) and acquiring it for write.
+	 * Recheck for an existing root after acquiring the pages lock, another
+	 * vCPU may have raced ahead and created a new usable root.  Manually
+	 * walk the list of roots as the standard macros assume that the pages
+	 * lock is *not* held.  WARN if grabbing a reference to a usable root
+	 * fails, as the last reference to a root can only be put *after* the
+	 * root has been invalidated, which requires holding mmu_lock for write.
 	 */
-	root = kvm_tdp_mmu_try_get_root(vcpu);
-	if (root)
-		goto out_unlock;
+	list_for_each_entry(root, &kvm->arch.tdp_mmu_roots, link) {
+		if (root->role.word == role.word &&
+		    !WARN_ON_ONCE(!kvm_tdp_mmu_get_root(root)))
+			goto out_spin_unlock;
+	}
 
 	root = tdp_mmu_alloc_sp(vcpu);
 	tdp_mmu_init_sp(root, NULL, 0, role);
@@ -280,14 +271,12 @@ int kvm_tdp_mmu_alloc_root(struct kvm_vcpu *vcpu)
 	 * is ultimately put by kvm_tdp_mmu_zap_invalidated_roots().
 	 */
 	refcount_set(&root->tdp_mmu_root_count, 2);
-
-	spin_lock(&kvm->arch.tdp_mmu_pages_lock);
 	list_add_rcu(&root->link, &kvm->arch.tdp_mmu_roots);
-	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
 
-out_unlock:
-	write_unlock(&kvm->mmu_lock);
-out:
+out_spin_unlock:
+	spin_unlock(&kvm->arch.tdp_mmu_pages_lock);
+out_read_unlock:
+	read_unlock(&kvm->mmu_lock);
 	/*
 	 * Note, KVM_REQ_MMU_FREE_OBSOLETE_ROOTS will prevent entering the guest
 	 * and actually consuming the root if it's invalidated after dropping
