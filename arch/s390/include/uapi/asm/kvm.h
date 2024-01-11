@@ -12,7 +12,6 @@
 #include <linux/types.h>
 
 #define __KVM_S390
-#define __KVM_HAVE_GUEST_DEBUG
 
 struct kvm_s390_skeys {
 	__u64 start_gfn;

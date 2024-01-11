@@ -16,6 +16,11 @@
 
 #define KVM_API_VERSION 12
 
+/*
+ * Backwards-compatible definitions.
+ */
+#define __KVM_HAVE_GUEST_DEBUG
+
 /* for KVM_SET_USER_MEMORY_REGION */
 struct kvm_userspace_memory_region {
 	__u32 slot;
@@ -682,9 +687,7 @@ struct kvm_enable_cap {
 /* Bug in KVM_SET_USER_MEMORY_REGION fixed: */
 #define KVM_CAP_DESTROY_MEMORY_REGION_WORKS 21
 #define KVM_CAP_USER_NMI 22
-#ifdef __KVM_HAVE_GUEST_DEBUG
 #define KVM_CAP_SET_GUEST_DEBUG 23
-#endif
 #ifdef __KVM_HAVE_PIT
 #define KVM_CAP_REINJECT_CONTROL 24
 #endif
