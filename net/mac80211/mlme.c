@@ -4962,32 +4962,12 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			(IEEE80211_CONN_DISABLE_HE |
 			 IEEE80211_CONN_DISABLE_EHT)) &&
 	    he_oper) {
-		const struct cfg80211_bss_ies *cbss_ies;
-		const struct element *eht_ml_elem;
-		const u8 *eht_oper_ie;
-
-		cbss_ies = rcu_dereference(cbss->ies);
-		eht_oper_ie = cfg80211_find_ext_ie(WLAN_EID_EXT_EHT_OPERATION,
-						   cbss_ies->data, cbss_ies->len);
-		if (eht_oper_ie && eht_oper_ie[1] >=
-		    1 + sizeof(struct ieee80211_eht_operation))
-			eht_oper = (void *)(eht_oper_ie + 3);
-		else
-			eht_oper = NULL;
+		eht_oper = elems->eht_operation;
 
 		if (!ieee80211_verify_sta_eht_mcs_support(sdata, sband, eht_oper))
 			*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 
-		eht_ml_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_EHT_MULTI_LINK,
-						     cbss_ies->data, cbss_ies->len);
-
-		/* data + 1 / datalen - 1 since it's an extended element */
-		if (!(*conn_flags & IEEE80211_CONN_DISABLE_EHT) &&
-		    eht_ml_elem &&
-		    ieee80211_mle_type_ok(eht_ml_elem->data + 1,
-					  IEEE80211_ML_CONTROL_TYPE_BASIC,
-					  eht_ml_elem->datalen - 1))
-			supports_mlo = true;
+		supports_mlo = elems->ml_basic;
 	}
 
 	/* Allow VHT if at least one channel on the sband supports 80 MHz */
