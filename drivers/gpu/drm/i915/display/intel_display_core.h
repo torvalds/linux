@@ -49,6 +49,7 @@ struct intel_fbdev;
 struct intel_fdi_funcs;
 struct intel_hotplug_funcs;
 struct intel_initial_plane_config;
+struct intel_opregion;
 struct intel_overlay;
 
 /* Amount of SAGV/QGV points, BSpec precisely defines this */
@@ -526,7 +527,7 @@ struct intel_display {
 	struct intel_fbc *fbc[I915_MAX_FBCS];
 	struct intel_frontbuffer_tracking fb_tracking;
 	struct intel_hotplug hotplug;
-	struct intel_opregion opregion;
+	struct intel_opregion *opregion;
 	struct intel_overlay *overlay;
 	struct intel_display_params params;
 	struct intel_vbt_data vbt;
