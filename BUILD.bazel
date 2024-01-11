@@ -198,6 +198,34 @@ copy_to_dist_dir(
     log = "info",
 )
 
+kernel_build(
+    name = "kernel_aarch64_microdroid_16k",
+    srcs = ["//common:kernel_aarch64_sources"],
+    outs = [
+        "Image",
+        "System.map",
+        "modules.builtin",
+        "modules.builtin.modinfo",
+        "vmlinux",
+        "vmlinux.symvers",
+    ],
+    build_config = "build.config.microdroid.aarch64",
+    make_goals = [
+        "Image",
+    ],
+    page_size = "16k",
+)
+
+copy_to_dist_dir(
+    name = "kernel_aarch64_microdroid_16k_dist",
+    data = [
+        ":kernel_aarch64_microdroid_16k",
+    ],
+    dist_dir = "out/kernel_aarch64_microdroid_16k/dist",
+    flat = True,
+    log = "info",
+)
+
 # Microdroid is not a real device. The kernel image is built with special
 #  configs to reduce the size. Hence, not using mixed build.
 kernel_build(
