@@ -6972,7 +6972,7 @@ insert:
 	}
 
 	write_lock(&em_tree->lock);
-	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
+	ret = btrfs_add_extent_mapping(inode, &em, start, len);
 	write_unlock(&em_tree->lock);
 out:
 	btrfs_free_path(path);

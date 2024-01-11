@@ -546,10 +546,9 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 }
 
 /*
- * Add extent mapping into em_tree.
+ * Add extent mapping into an inode's extent map tree.
  *
- * @fs_info:  the filesystem
- * @em_tree:  extent tree into which we want to insert the extent mapping
+ * @inode:    target inode
  * @em_in:    extent we are inserting
  * @start:    start of the logical range btrfs_get_extent() is requesting
  * @len:      length of the logical range btrfs_get_extent() is requesting
@@ -557,8 +556,8 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
  * Note that @em_in's range may be different from [start, start+len),
  * but they must be overlapped.
  *
- * Insert @em_in into @em_tree. In case there is an overlapping range, handle
- * the -EEXIST by either:
+ * Insert @em_in into the inode's extent map tree. In case there is an
+ * overlapping range, handle the -EEXIST by either:
  * a) Returning the existing extent in @em_in if @start is within the
  *    existing em.
  * b) Merge the existing extent with @em_in passed in.
@@ -566,12 +565,13 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
  * Return 0 on success, otherwise -EEXIST.
  *
  */
-int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
-			     struct extent_map_tree *em_tree,
+int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 			     struct extent_map **em_in, u64 start, u64 len)
 {
 	int ret;
 	struct extent_map *em = *em_in;
+	struct extent_map_tree *em_tree = &inode->extent_tree;
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	/*
 	 * Tree-checker should have rejected any inline extent with non-zero
