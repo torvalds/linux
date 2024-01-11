@@ -280,4 +280,6 @@ void intel_bios_for_each_encoder(struct drm_i915_private *i915,
 				 void (*func)(struct drm_i915_private *i915,
 					      const struct intel_bios_encoder_data *devdata));
 
+void intel_bios_debugfs_register(struct drm_i915_private *i915);
+
 #endif /* _INTEL_BIOS_H_ */

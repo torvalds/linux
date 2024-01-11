@@ -3656,3 +3656,28 @@ void intel_bios_for_each_encoder(struct drm_i915_private *i915,
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node)
 		func(i915, devdata);
 }
+
+static int intel_bios_vbt_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	/*
+	 * FIXME: VBT might originate from other places than opregion, and then
+	 * this would be incorrect.
+	 */
+	if (opregion->vbt)
+		seq_write(m, opregion->vbt, opregion->vbt_size);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_bios_vbt);
+
+void intel_bios_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_vbt", 0444, minor->debugfs_root,
+			    i915, &intel_bios_vbt_fops);
+}
