@@ -125,9 +125,9 @@ static struct xe_mem_region *res_to_mem_region(struct ttm_resource *res)
 static void try_add_system(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
-	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
-
 	if (bo_flags & XE_BO_CREATE_SYSTEM_BIT) {
+		xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_TT,
 		};
@@ -144,6 +144,8 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 	struct ttm_place place = { .mem_type = mem_type };
 	struct xe_mem_region *vram;
 	u64 io_size;
+
+	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
 
 	vram = to_xe_ttm_vram_mgr(ttm_manager_type(&xe->ttm, mem_type))->vram;
 	xe_assert(xe, vram && vram->usable_size);
@@ -175,8 +177,6 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
 			 u32 bo_flags, u32 *c)
 {
-	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
-
 	if (bo->props.preferred_gt == XE_GT1) {
 		if (bo_flags & XE_BO_CREATE_VRAM1_BIT)
 			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
@@ -193,9 +193,9 @@ static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
 static void try_add_stolen(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
-	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
-
 	if (bo_flags & XE_BO_CREATE_STOLEN_BIT) {
+		xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_STOLEN,
 			.flags = bo_flags & (XE_BO_CREATE_PINNED_BIT |
