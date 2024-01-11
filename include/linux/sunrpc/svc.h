@@ -231,6 +231,8 @@ struct svc_rqst {
 	struct net		*rq_bc_net;	/* pointer to backchannel's
 						 * net namespace
 						 */
+	unsigned long	bc_to_initval;
+	unsigned int	bc_to_retries;
 	void **			rq_lease_breaker; /* The v4 client breaking a lease */
 	unsigned int		rq_status_counter; /* RPC processing counter */
 };
