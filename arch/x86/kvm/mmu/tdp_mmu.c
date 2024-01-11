@@ -811,7 +811,13 @@ static bool tdp_mmu_zap_leafs(struct kvm *kvm, struct kvm_mmu_page *root,
 			continue;
 
 		tdp_mmu_iter_set_spte(kvm, &iter, 0);
-		flush = true;
+
+		/*
+		 * Zappings SPTEs in invalid roots doesn't require a TLB flush,
+		 * see kvm_tdp_mmu_zap_invalidated_roots() for details.
+		 */
+		if (!root->role.invalid)
+			flush = true;
 	}
 
 	rcu_read_unlock();
