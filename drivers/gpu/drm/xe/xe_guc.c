@@ -243,6 +243,22 @@ static void guc_fini(struct drm_device *drm, void *arg)
 	xe_force_wake_put(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
 }
 
+/**
+ * xe_guc_comm_init_early - early initialization of GuC communication
+ * @guc: the &xe_guc to initialize
+ *
+ * Must be called prior to first MMIO communication with GuC firmware.
+ */
+void xe_guc_comm_init_early(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	if (xe_gt_is_media_type(gt))
+		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
+	else
+		guc->notify_reg = GUC_HOST_INTERRUPT;
+}
+
 int xe_guc_init(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -283,10 +299,7 @@ int xe_guc_init(struct xe_guc *guc)
 
 	guc_init_params(guc);
 
-	if (xe_gt_is_media_type(gt))
-		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
-	else
-		guc->notify_reg = GUC_HOST_INTERRUPT;
+	xe_guc_comm_init_early(guc);
 
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
 
