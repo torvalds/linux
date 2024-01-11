@@ -210,8 +210,7 @@
 	touchscreen@5d {
 		compatible = "goodix,gt9271";
 		reg = <0x5d>;
-		interrupt-parent = <&pio>;
-		interrupts = <132 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&pio 132 IRQ_TYPE_EDGE_RISING>;
 		irq-gpios = <&pio 132 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&pio 133 GPIO_ACTIVE_HIGH>;
 		AVDD28-supply = <&mt6360_ldo1>;
@@ -774,8 +773,7 @@
 };
 
 &pmic {
-	interrupt-parent = <&pio>;
-	interrupts = <222 IRQ_TYPE_LEVEL_HIGH>;
+	interrupts-extended = <&pio 222 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &scp {

@@ -172,7 +172,8 @@
 		ranges = <0x0 0x0 0x0 0x20000000>;
 
 		chipid@10000000 {
-			compatible = "samsung,exynos850-chipid";
+			compatible = "samsung,exynos7885-chipid",
+				     "samsung,exynos850-chipid";
 			reg = <0x10000000 0x24>;
 		};
 
@@ -264,7 +265,8 @@
 			reg = <0x11cb0000 0x1000>;
 
 			wakeup-interrupt-controller {
-				compatible = "samsung,exynos7-wakeup-eint";
+				compatible = "samsung,exynos7885-wakeup-eint",
+					     "samsung,exynos7-wakeup-eint";
 				interrupt-parent = <&gic>;
 				interrupts = <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
 			};
@@ -289,12 +291,14 @@
 		};
 
 		pmu_system_controller: system-controller@11c80000 {
-			compatible = "samsung,exynos7-pmu", "syscon";
+			compatible = "samsung,exynos7885-pmu",
+				     "samsung,exynos7-pmu", "syscon";
 			reg = <0x11c80000 0x10000>;
 		};
 
 		mmc_0: mmc@13500000 {
-			compatible = "samsung,exynos7-dw-mshc-smu";
+			compatible = "samsung,exynos7885-dw-mshc-smu",
+				     "samsung,exynos7-dw-mshc-smu";
 			reg = <0x13500000 0x2000>;
 			interrupts = <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -307,7 +311,8 @@
 		};
 
 		serial_0: serial@13800000 {
-			compatible = "samsung,exynos5433-uart";
+			compatible = "samsung,exynos7885-uart",
+				     "samsung,exynos5433-uart";
 			reg = <0x13800000 0x100>;
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
@@ -320,7 +325,8 @@
 		};
 
 		serial_1: serial@13810000 {
-			compatible = "samsung,exynos5433-uart";
+			compatible = "samsung,exynos7885-uart",
+				     "samsung,exynos5433-uart";
 			reg = <0x13810000 0x100>;
 			interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
@@ -333,7 +339,8 @@
 		};
 
 		serial_2: serial@13820000 {
-			compatible = "samsung,exynos5433-uart";
+			compatible = "samsung,exynos7885-uart",
+				     "samsung,exynos5433-uart";
 			reg = <0x13820000 0x100>;
 			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
@@ -346,7 +353,8 @@
 		};
 
 		i2c_0: i2c@13830000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13830000 0x100>;
 			interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -359,7 +367,8 @@
 		};
 
 		i2c_1: i2c@13840000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13840000 0x100>;
 			interrupts = <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -372,7 +381,8 @@
 		};
 
 		i2c_2: i2c@13850000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13850000 0x100>;
 			interrupts = <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -385,7 +395,8 @@
 		};
 
 		i2c_3: i2c@13860000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13860000 0x100>;
 			interrupts = <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -398,7 +409,8 @@
 		};
 
 		i2c_4: i2c@13870000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13870000 0x100>;
 			interrupts = <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -411,7 +423,8 @@
 		};
 
 		i2c_5: i2c@13880000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13880000 0x100>;
 			interrupts = <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -424,7 +437,8 @@
 		};
 
 		i2c_6: i2c@13890000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x13890000 0x100>;
 			interrupts = <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -437,7 +451,8 @@
 		};
 
 		i2c_7: i2c@11cd0000 {
-			compatible = "samsung,s3c2440-i2c";
+			compatible = "samsung,exynos7885-i2c",
+				     "samsung,s3c2440-i2c";
 			reg = <0x11cd0000 0x100>;
 			interrupts = <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;

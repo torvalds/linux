@@ -99,6 +99,8 @@
 
 			usb-otg-in-supply = <&pm8941_5vs1>;
 
+			status = "disabled";
+
 			chg_otg: otg-vbus { };
 		};
 

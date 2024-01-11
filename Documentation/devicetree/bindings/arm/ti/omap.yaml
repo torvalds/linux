@@ -134,6 +134,8 @@ properties:
               - amazon,omap4-kc1        # Amazon Kindle Fire (first generation)
               - motorola,droid4         # Motorola Droid 4 XT894
               - motorola,droid-bionic   # Motorola Droid Bionic XT875
+              - motorola,xyboard-mz609
+              - motorola,xyboard-mz617
               - ti,omap4-panda
               - ti,omap4-sdp
           - const: ti,omap4430

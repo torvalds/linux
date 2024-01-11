@@ -113,14 +113,14 @@
 			 &gpio2  0 GPIO_ACTIVE_HIGH
 			 &gpio2  1 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       1000 1
-				       1150 2
-				       1350 4
-				       1500 3
-				       1650 5
-				       1750 6
-				       1900 7 >;
+		gpio-fan,speed-map = <   0 0>,
+				     <1000 1>,
+				     <1150 2>,
+				     <1350 4>,
+				     <1500 3>,
+				     <1650 5>,
+				     <1750 6>,
+				     <1900 7>;
 	};
 
 	gpio-leds {

@@ -8,6 +8,21 @@
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 
 / {
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon1>;
+		type = "micro";
+		label = "otg";
+		id-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
+	};
+
 	led-controller {
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
@@ -201,13 +216,10 @@
 	role-switch-default-mode = "peripheral";
 	status = "okay";
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbcon1>;
-		type = "micro";
-		label = "otg";
-		id-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

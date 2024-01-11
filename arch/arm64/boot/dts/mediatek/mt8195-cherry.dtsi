@@ -127,6 +127,77 @@
 		regulator-boot-on;
 	};
 
+	/* Murata NCP03WF104F05RL */
+	tboard_thermistor1: thermal-sensor-t1 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&auxadc 0>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <	(-10000) 1553
+						(-5000) 1485
+						0 1406
+						5000 1317
+						10000 1219
+						15000 1115
+						20000 1007
+						25000 900
+						30000 796
+						35000 697
+						40000 605
+						45000 523
+						50000 449
+						55000 384
+						60000 327
+						65000 279
+						70000 237
+						75000 202
+						80000 172
+						85000 147
+						90000 125
+						95000 107
+						100000 92
+						105000 79
+						110000 68
+						115000 59
+						120000 51
+						125000 44>;
+	};
+
+	tboard_thermistor2: thermal-sensor-t2 {
+		compatible = "generic-adc-thermal";
+		#thermal-sensor-cells = <0>;
+		io-channels = <&auxadc 1>;
+		io-channel-names = "sensor-channel";
+		temperature-lookup-table = <	(-10000) 1553
+						(-5000) 1485
+						0 1406
+						5000 1317
+						10000 1219
+						15000 1115
+						20000 1007
+						25000 900
+						30000 796
+						35000 697
+						40000 605
+						45000 523
+						50000 449
+						55000 384
+						60000 327
+						65000 279
+						70000 237
+						75000 202
+						80000 172
+						85000 147
+						90000 125
+						95000 107
+						100000 92
+						105000 79
+						110000 68
+						115000 59
+						120000 51
+						125000 44>;
+	};
+
 	usb_vbus: regulator-5v0-usb-vbus {
 		compatible = "regulator-fixed";
 		regulator-name = "usb-vbus";
@@ -187,6 +258,10 @@
 	mediatek,etdm-in2-cowork-source = <2>;
 	mediatek,etdm-out2-cowork-source = <0>;
 	memory-region = <&afe_mem>;
+};
+
+&auxadc {
+	status = "okay";
 };
 
 &dp_intf0 {
@@ -401,6 +476,14 @@
 	};
 };
 
+&mfg0 {
+	domain-supply = <&mt6315_7_vbuck1>;
+};
+
+&mfg1 {
+	domain-supply = <&mt6359_vsram_others_ldo_reg>;
+};
+
 &mmc0 {
 	status = "okay";
 
@@ -471,7 +554,6 @@
 
 /* for GPU SRAM */
 &mt6359_vsram_others_ldo_reg {
-	regulator-always-on;
 	regulator-min-microvolt = <750000>;
 	regulator-max-microvolt = <750000>;
 };
@@ -1154,7 +1236,36 @@
 				regulator-enable-ramp-delay = <256>;
 				regulator-ramp-delay = <6250>;
 				regulator-allowed-modes = <0 1 2>;
-				regulator-always-on;
+			};
+		};
+	};
+};
+
+&thermal_zones {
+	soc-area-thermal {
+		polling-delay = <1000>;
+		polling-delay-passive = <250>;
+		thermal-sensors = <&tboard_thermistor1>;
+
+		trips {
+			trip-crit {
+				temperature = <84000>;
+				hysteresis = <1000>;
+				type = "critical";
+			};
+		};
+	};
+
+	pmic-area-thermal {
+		polling-delay = <1000>;
+		polling-delay-passive = <0>;
+		thermal-sensors = <&tboard_thermistor2>;
+
+		trips {
+			trip-crit {
+				temperature = <84000>;
+				hysteresis = <1000>;
+				type = "critical";
 			};
 		};
 	};

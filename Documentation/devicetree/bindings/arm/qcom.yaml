@@ -87,29 +87,18 @@ description: |
         sm8350
         sm8450
         sm8550
+        sm8650
+        x1e80100
 
   The 'board' element must be one of the following strings:
 
         adp
-        ap-al02-c2
-        ap-al02-c6
-        ap-al02-c7
-        ap-al02-c8
-        ap-al02-c9
-        ap-mi01.2
-        ap-mi01.3
-        ap-mi01.6
-        ap-mi01.9
         cdp
-        cp01-c1
         dragonboard
-        hk01
-        hk10-c1
-        hk10-c2
         idp
         liquid
-        rdp432-c2
         mtp
+        qcp
         qrd
         rb2
         ride
@@ -138,7 +127,7 @@ description: |
   There are many devices in the list below that run the standard ChromeOS
   bootloader setup and use the open source depthcharge bootloader to boot the
   OS. These devices do not use the scheme described above. For details, see:
-  https://docs.kernel.org/arm/google/chromebook-boot-flow.html
+  https://docs.kernel.org/arch/arm/google/chromebook-boot-flow.html
 
 properties:
   $nodename:
@@ -186,11 +175,24 @@ properties:
 
       - items:
           - enum:
+              - microsoft,dempsey
+              - microsoft,makepeace
+              - microsoft,moneypenny
               - samsung,s3ve3g
           - const: qcom,msm8226
 
       - items:
           - enum:
+              - htc,memul
+              - microsoft,superman-lte
+              - microsoft,tesla
+              - motorola,peregrine
+          - const: qcom,msm8926
+          - const: qcom,msm8226
+
+      - items:
+          - enum:
+              - huawei,kiwi
               - longcheer,l9100
               - samsung,a7
               - sony,kanuti-tulip
@@ -397,6 +399,8 @@ properties:
       - items:
           - enum:
               - fairphone,fp5
+              - qcom,qcm6490-idp
+              - qcom,qcs6490-rb3gen2
           - const: qcom,qcm6490
 
       - description: Qualcomm Technologies, Inc. Distributed Unit 1000 platform
@@ -1009,6 +1013,7 @@ properties:
               - sony,pdx203-generic
               - sony,pdx206-generic
               - xiaomi,elish
+              - xiaomi,pipa
           - const: qcom,sm8250
 
       - items:
@@ -1033,6 +1038,18 @@ properties:
               - qcom,sm8550-mtp
               - qcom,sm8550-qrd
           - const: qcom,sm8550
+
+      - items:
+          - enum:
+              - qcom,sm8650-mtp
+              - qcom,sm8650-qrd
+          - const: qcom,sm8650
+
+      - items:
+          - enum:
+              - qcom,x1e80100-crd
+              - qcom,x1e80100-qcp
+          - const: qcom,x1e80100
 
   # Board compatibles go above
 

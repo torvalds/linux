@@ -52,10 +52,10 @@
 		states = <3300000 1>, <1800000 0>;
 	};
 
-	keyboard-irq {
+	keypad-0 {
 		compatible = "gpio-keys";
 
-		pinctrl-0 = <&keyboard_irq_pins>;
+		pinctrl-0 = <&keypad0_pins>;
 		pinctrl-names = "default";
 
 		interrupt-parent = <&gpio0>;
@@ -76,11 +76,11 @@
 		};
 	};
 
-	keyboard-gpio {
+	keypad-1 {
 		compatible = "gpio-keys-polled";
 		poll-interval = <50>;
 
-		pinctrl-0 = <&keyboard_gpio_pins>;
+		pinctrl-0 = <&keypad1_pins>;
 		pinctrl-names = "default";
 
 		key-3 {
@@ -193,7 +193,7 @@
 };
 
 &gpio0 {
-	keyboard-irq-hog {
+	keypad0-hog {
 		gpio-hog;
 		gpios = <17 GPIO_ACTIVE_LOW>, <18 GPIO_ACTIVE_LOW>;
 		input;
@@ -215,6 +215,35 @@
 };
 
 &lbsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x0 0x04000000>;
+		pinctrl-0 = <&flash_pins>;
+		pinctrl-names = "default";
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "flash";
+				reg = <0x00080000 0x03f80000>;
+			};
+		};
+	};
+
 	ethernet@18000000 {
 		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
@@ -266,6 +295,11 @@
 		};
 	};
 
+	flash_pins: flash {
+		groups = "lbsc_cs0";
+		function = "lbsc";
+	};
+
 	scif2_pins: scif2 {
 		groups = "scif2_data_c";
 		function = "scif2";
@@ -286,11 +320,11 @@
 		function = "hspi0";
 	};
 
-	keyboard_irq_pins: keyboard-irq {
+	keypad0_pins: keypad-0 {
 		pins = "GP_0_17", "GP_0_18";
 		bias-pull-up;
 	};
-	keyboard_gpio_pins: keyboard-gpio {
+	keypad1_pins: keypad-1 {
 		pins = "GP_0_19", "GP_0_20";
 		bias-pull-up;
 	};

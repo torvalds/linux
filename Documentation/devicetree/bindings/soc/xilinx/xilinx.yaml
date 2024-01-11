@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 %YAML 1.2
 ---
-$id: http://devicetree.org/schemas/arm/xilinx.yaml#
+$id: http://devicetree.org/schemas/soc/xilinx/xilinx.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: Xilinx Zynq Platforms
@@ -131,6 +131,11 @@ properties:
           - const: xlnx,zynqmp-smk-k26-revA
           - const: xlnx,zynqmp-smk-k26
           - const: xlnx,zynqmp
+
+      - description: AMD MicroBlaze V (QEMU)
+        items:
+          - const: qemu,mbv
+          - const: amd,mbv
 
 additionalProperties: true
 

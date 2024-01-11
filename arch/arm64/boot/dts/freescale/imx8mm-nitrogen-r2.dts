@@ -220,7 +220,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		i2c3@0 {
+		i2c@0 {
 			reg = <0>;
 			#address-cells = <1>;
 			#size-cells = <0>;

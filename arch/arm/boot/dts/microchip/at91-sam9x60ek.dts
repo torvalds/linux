@@ -292,6 +292,8 @@
 
 	ethernet-phy@0 {
 		reg = <0x0>;
+		interrupt-parent = <&pioB>;
+		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -465,6 +467,7 @@
 				 AT91_PIOB 5 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB5 periph A */
 				 AT91_PIOB 6 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB6 periph A */
 				 AT91_PIOB 7 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB7 periph A */
+				 AT91_PIOB 8 AT91_PERIPH_GPIO AT91_PINCTRL_NONE	/* PB8 IRQ GPIO */
 				 AT91_PIOB 9 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB9 periph A */
 				 AT91_PIOB 10 AT91_PERIPH_A AT91_PINCTRL_NONE>;	/* PB10 periph A */
 		};
