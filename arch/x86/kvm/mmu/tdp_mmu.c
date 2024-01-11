@@ -734,15 +734,26 @@ static void tdp_mmu_zap_root(struct kvm *kvm, struct kvm_mmu_page *root,
 	rcu_read_lock();
 
 	/*
-	 * To avoid RCU stalls due to recursively removing huge swaths of SPs,
-	 * split the zap into two passes.  On the first pass, zap at the 1gb
-	 * level, and then zap top-level SPs on the second pass.  "1gb" is not
-	 * arbitrary, as KVM must be able to zap a 1gb shadow page without
-	 * inducing a stall to allow in-place replacement with a 1gb hugepage.
+	 * Zap roots in multiple passes of decreasing granularity, i.e. zap at
+	 * 4KiB=>2MiB=>1GiB=>root, in order to better honor need_resched() (all
+	 * preempt models) or mmu_lock contention (full or real-time models).
+	 * Zapping at finer granularity marginally increases the total time of
+	 * the zap, but in most cases the zap itself isn't latency sensitive.
 	 *
-	 * Because zapping a SP recurses on its children, stepping down to
-	 * PG_LEVEL_4K in the iterator itself is unnecessary.
+	 * If KVM is configured to prove the MMU, skip the 4KiB and 2MiB zaps
+	 * in order to mimic the page fault path, which can replace a 1GiB page
+	 * table with an equivalent 1GiB hugepage, i.e. can get saddled with
+	 * zapping a 1GiB region that's fully populated with 4KiB SPTEs.  This
+	 * allows verifying that KVM can safely zap 1GiB regions, e.g. without
+	 * inducing RCU stalls, without relying on a relatively rare event
+	 * (zapping roots is orders of magnitude more common).  Note, because
+	 * zapping a SP recurses on its children, stepping down to PG_LEVEL_4K
+	 * in the iterator itself is unnecessary.
 	 */
+	if (!IS_ENABLED(CONFIG_KVM_PROVE_MMU)) {
+		__tdp_mmu_zap_root(kvm, root, shared, PG_LEVEL_4K);
+		__tdp_mmu_zap_root(kvm, root, shared, PG_LEVEL_2M);
+	}
 	__tdp_mmu_zap_root(kvm, root, shared, PG_LEVEL_1G);
 	__tdp_mmu_zap_root(kvm, root, shared, root->role.level);
 
