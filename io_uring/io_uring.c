@@ -2000,9 +2000,10 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 		goto out;
 	fd = array_index_nospec(fd, ctx->nr_user_files);
 	slot = io_fixed_file_slot(&ctx->file_table, fd);
-	file = io_slot_file(slot);
+	if (!req->rsrc_node)
+		__io_req_set_rsrc_node(req, ctx);
 	req->flags |= io_slot_flags(slot);
-	io_req_set_rsrc_node(req, ctx, 0);
+	file = io_slot_file(slot);
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return file;
