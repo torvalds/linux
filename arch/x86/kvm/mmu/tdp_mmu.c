@@ -171,11 +171,18 @@ static struct kvm_mmu_page *tdp_mmu_next_root(struct kvm *kvm,
  * Holding mmu_lock for write obviates the need for RCU protection as the list
  * is guaranteed to be stable.
  */
-#define for_each_tdp_mmu_root(_kvm, _root, _as_id)				\
+#define __for_each_tdp_mmu_root(_kvm, _root, _as_id, _only_valid)		\
 	list_for_each_entry(_root, &_kvm->arch.tdp_mmu_roots, link)		\
 		if (kvm_lockdep_assert_mmu_lock_held(_kvm, false) &&		\
-		    _as_id >= 0 && kvm_mmu_page_as_id(_root) != _as_id) {	\
+		    ((_as_id >= 0 && kvm_mmu_page_as_id(_root) != _as_id) ||	\
+		     ((_only_valid) && (_root)->role.invalid))) {		\
 		} else
+
+#define for_each_tdp_mmu_root(_kvm, _root, _as_id)			\
+	__for_each_tdp_mmu_root(_kvm, _root, _as_id, false)
+
+#define for_each_valid_tdp_mmu_root(_kvm, _root, _as_id)		\
+	__for_each_tdp_mmu_root(_kvm, _root, _as_id, true)
 
 static struct kvm_mmu_page *tdp_mmu_alloc_sp(struct kvm_vcpu *vcpu)
 {
@@ -224,11 +231,8 @@ hpa_t kvm_tdp_mmu_get_vcpu_root_hpa(struct kvm_vcpu *vcpu)
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
 
-	/*
-	 * Check for an existing root before allocating a new one.  Note, the
-	 * role check prevents consuming an invalid root.
-	 */
-	for_each_tdp_mmu_root(kvm, root, kvm_mmu_role_as_id(role)) {
+	/* Check for an existing root before allocating a new one. */
+	for_each_valid_tdp_mmu_root(kvm, root, kvm_mmu_role_as_id(role)) {
 		if (root->role.word == role.word &&
 		    kvm_tdp_mmu_get_root(root))
 			goto out;
@@ -1639,7 +1643,7 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 {
 	struct kvm_mmu_page *root;
 
-	for_each_tdp_mmu_root(kvm, root, slot->as_id)
+	for_each_valid_tdp_mmu_root(kvm, root, slot->as_id)
 		clear_dirty_pt_masked(kvm, root, gfn, mask, wrprot);
 }
 
@@ -1757,7 +1761,7 @@ bool kvm_tdp_mmu_write_protect_gfn(struct kvm *kvm,
 	bool spte_set = false;
 
 	lockdep_assert_held_write(&kvm->mmu_lock);
-	for_each_tdp_mmu_root(kvm, root, slot->as_id)
+	for_each_valid_tdp_mmu_root(kvm, root, slot->as_id)
 		spte_set |= write_protect_gfn(kvm, root, gfn, min_level);
 
 	return spte_set;
