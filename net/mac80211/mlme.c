@@ -4547,40 +4547,16 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_link_data *link,
 
 static bool
 ieee80211_verify_peer_he_mcs_support(struct ieee80211_sub_if_data *sdata,
-				     const struct cfg80211_bss_ies *ies,
+				     const struct ieee80211_he_cap_elem *he_cap,
 				     const struct ieee80211_he_operation *he_op)
 {
-	const struct element *he_cap_elem;
-	const struct ieee80211_he_cap_elem *he_cap;
 	struct ieee80211_he_mcs_nss_supp *he_mcs_nss_supp;
 	u16 mcs_80_map_tx, mcs_80_map_rx;
 	u16 ap_min_req_set;
-	int mcs_nss_size;
 	int nss;
 
-	he_cap_elem = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_CAPABILITY,
-					     ies->data, ies->len);
-
-	if (!he_cap_elem)
+	if (!he_cap)
 		return false;
-
-	/* invalid HE IE */
-	if (he_cap_elem->datalen < 1 + sizeof(*he_cap)) {
-		sdata_info(sdata,
-			   "Invalid HE elem, Disable HE\n");
-		return false;
-	}
-
-	/* skip one byte ext_tag_id */
-	he_cap = (void *)(he_cap_elem->data + 1);
-	mcs_nss_size = ieee80211_he_mcs_nss_size(he_cap);
-
-	/* invalid HE IE */
-	if (he_cap_elem->datalen < 1 + sizeof(*he_cap) + mcs_nss_size) {
-		sdata_info(sdata,
-			   "Invalid HE elem with nss size, Disable HE\n");
-		return false;
-	}
 
 	/* mcs_nss is right after he_cap info */
 	he_mcs_nss_supp = (void *)(he_cap + 1);
@@ -4946,7 +4922,9 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 			}
 		}
 
-		if (!ieee80211_verify_peer_he_mcs_support(sdata, ies, he_oper) ||
+		if (!ieee80211_verify_peer_he_mcs_support(sdata,
+							  (void *)elems->he_cap,
+							  he_oper) ||
 		    !ieee80211_verify_sta_he_mcs_support(sdata, sband, he_oper))
 			*conn_flags |= IEEE80211_CONN_DISABLE_HE |
 				       IEEE80211_CONN_DISABLE_EHT;
