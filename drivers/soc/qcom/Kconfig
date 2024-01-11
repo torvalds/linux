@@ -77,6 +77,18 @@ config QCOM_PDR_HELPERS
 	select QCOM_QMI_HELPERS
 	depends on NET
 
+config QCOM_PMIC_PDCHARGER_ULOG
+	tristate "Qualcomm PMIC PDCharger ULOG driver"
+	depends on RPMSG
+	depends on EVENT_TRACING
+	help
+	  The Qualcomm PMIC PDCharger ULOG driver provides access to logs of
+	  the ADSP firmware PDCharger module in charge of Battery and Power
+	  Delivery on modern systems.
+
+	  Say yes here to support PDCharger ULOG event tracing on modern
+	  Qualcomm platforms.
+
 config QCOM_PMIC_GLINK
 	tristate "Qualcomm PMIC GLINK driver"
 	depends on RPMSG
@@ -209,6 +221,7 @@ config QCOM_STATS
 	tristate "Qualcomm Technologies, Inc. (QTI) Sleep stats driver"
 	depends on (ARCH_QCOM && DEBUG_FS) || COMPILE_TEST
 	depends on QCOM_SMEM
+	depends on QCOM_AOSS_QMP || QCOM_AOSS_QMP=n
 	help
 	  Qualcomm Technologies, Inc. (QTI) Sleep stats driver to read
 	  the shared memory exported by the remote processor related to
