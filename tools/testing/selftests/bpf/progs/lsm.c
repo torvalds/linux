@@ -92,7 +92,7 @@ int BPF_PROG(test_int_hook, struct vm_area_struct *vma,
 	if (ret != 0)
 		return ret;
 
-	__u32 pid = bpf_get_current_pid_tgid() >> 32;
+	__s32 pid = bpf_get_current_pid_tgid() >> 32;
 	int is_stack = 0;
 
 	is_stack = (vma->vm_start <= vma->vm_mm->start_stack &&

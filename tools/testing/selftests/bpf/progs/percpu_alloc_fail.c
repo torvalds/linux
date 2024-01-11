@@ -17,6 +17,10 @@ struct val_with_rb_root_t {
 	struct bpf_spin_lock lock;
 };
 
+struct val_600b_t {
+	char b[600];
+};
+
 struct elem {
 	long sum;
 	struct val_t __percpu_kptr *pc;
@@ -154,6 +158,20 @@ int BPF_PROG(test_array_map_7)
 	struct val_with_rb_root_t __percpu_kptr *p;
 
 	p = bpf_percpu_obj_new(struct val_with_rb_root_t);
+	if (!p)
+		return 0;
+
+	bpf_percpu_obj_drop(p);
+	return 0;
+}
+
+SEC("?fentry.s/bpf_fentry_test1")
+__failure __msg("bpf_percpu_obj_new type size (600) is greater than 512")
+int BPF_PROG(test_array_map_8)
+{
+	struct val_600b_t __percpu_kptr *p;
+
+	p = bpf_percpu_obj_new(struct val_600b_t);
 	if (!p)
 		return 0;
 

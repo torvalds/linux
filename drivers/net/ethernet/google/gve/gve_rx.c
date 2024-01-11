@@ -211,9 +211,9 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 {
 	struct gve_rx_ring *rx = &priv->rx[idx];
 	struct device *hdev = &priv->pdev->dev;
-	u32 slots, npages;
 	int filled_pages;
 	size_t bytes;
+	u32 slots;
 	int err;
 
 	netif_dbg(priv, drv, priv->dev, "allocating rx ring\n");
@@ -270,12 +270,6 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 
 	/* alloc rx desc ring */
 	bytes = sizeof(struct gve_rx_desc) * priv->rx_desc_cnt;
-	npages = bytes / PAGE_SIZE;
-	if (npages * PAGE_SIZE != bytes) {
-		err = -EIO;
-		goto abort_with_q_resources;
-	}
-
 	rx->desc.desc_ring = dma_alloc_coherent(hdev, bytes, &rx->desc.bus,
 						GFP_KERNEL);
 	if (!rx->desc.desc_ring) {
@@ -289,7 +283,7 @@ static int gve_rx_alloc_ring(struct gve_priv *priv, int idx)
 	/* Allocating half-page buffers allows page-flipping which is faster
 	 * than copying or allocating new pages.
 	 */
-	rx->packet_buffer_size = PAGE_SIZE / 2;
+	rx->packet_buffer_size = GVE_DEFAULT_RX_BUFFER_SIZE;
 	gve_rx_ctx_clear(&rx->ctx);
 	gve_rx_add_to_block(priv, idx);
 
@@ -405,10 +399,10 @@ static struct sk_buff *gve_rx_add_frags(struct napi_struct *napi,
 
 static void gve_rx_flip_buff(struct gve_rx_slot_page_info *page_info, __be64 *slot_addr)
 {
-	const __be64 offset = cpu_to_be64(PAGE_SIZE / 2);
+	const __be64 offset = cpu_to_be64(GVE_DEFAULT_RX_BUFFER_OFFSET);
 
 	/* "flip" to other packet buffer on this page */
-	page_info->page_offset ^= PAGE_SIZE / 2;
+	page_info->page_offset ^= GVE_DEFAULT_RX_BUFFER_OFFSET;
 	*(slot_addr) ^= offset;
 }
 
@@ -513,8 +507,7 @@ static struct sk_buff *gve_rx_copy_to_pool(struct gve_rx_ring *rx,
 		return NULL;
 
 	gve_dec_pagecnt_bias(copy_page_info);
-	copy_page_info->page_offset += rx->packet_buffer_size;
-	copy_page_info->page_offset &= (PAGE_SIZE - 1);
+	copy_page_info->page_offset ^= GVE_DEFAULT_RX_BUFFER_OFFSET;
 
 	if (copy_page_info->can_flip) {
 		/* We have used both halves of this copy page, it

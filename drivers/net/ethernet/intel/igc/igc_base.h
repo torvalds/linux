@@ -37,6 +37,10 @@ struct igc_adv_tx_context_desc {
 #define IGC_ADVTXD_TSTAMP_REG_1	0x00010000 /* Select register 1 for timestamp */
 #define IGC_ADVTXD_TSTAMP_REG_2	0x00020000 /* Select register 2 for timestamp */
 #define IGC_ADVTXD_TSTAMP_REG_3	0x00030000 /* Select register 3 for timestamp */
+#define IGC_ADVTXD_TSTAMP_TIMER_1	0x00010000 /* Select timer 1 for timestamp */
+#define IGC_ADVTXD_TSTAMP_TIMER_2	0x00020000 /* Select timer 2 for timestamp */
+#define IGC_ADVTXD_TSTAMP_TIMER_3	0x00030000 /* Select timer 3 for timestamp */
+
 #define IGC_ADVTXD_DTYP_CTXT	0x00200000 /* Advanced Context Descriptor */
 #define IGC_ADVTXD_DTYP_DATA	0x00300000 /* Advanced Data Descriptor */
 #define IGC_ADVTXD_DCMD_EOP	0x01000000 /* End of Packet */

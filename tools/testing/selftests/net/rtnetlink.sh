@@ -35,8 +35,7 @@ VERBOSE=0
 PAUSE=no
 PAUSE_ON_FAIL=no
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
+source lib.sh
 
 # set global exit status, but never reset nonzero one.
 check_err()
@@ -517,9 +516,8 @@ kci_test_encap_fou()
 # test various encap methods, use netns to avoid unwanted interference
 kci_test_encap()
 {
-	testns="testns"
 	local ret=0
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP encap tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -572,6 +570,10 @@ kci_test_macsec_offload()
 	if [ $? -ne 0 ]; then
 		end_test "SKIP: macsec: iproute2 too old"
 		return $ksft_skip
+	fi
+
+	if ! mount | grep -q debugfs; then
+		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
 	fi
 
 	# setup netdevsim since dummydev doesn't have offload support
@@ -738,6 +740,10 @@ kci_test_ipsec_offload()
 	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
 	probed=false
 
+	if ! mount | grep -q debugfs; then
+		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
+	fi
+
 	# setup netdevsim since dummydev doesn't have offload support
 	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
 		run_cmd modprobe -q netdevsim
@@ -836,11 +842,10 @@ EOF
 
 kci_test_gretap()
 {
-	testns="testns"
 	DEV_NS=gretap00
 	local ret=0
 
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP gretap tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -878,11 +883,10 @@ kci_test_gretap()
 
 kci_test_ip6gretap()
 {
-	testns="testns"
 	DEV_NS=ip6gretap00
 	local ret=0
 
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP ip6gretap tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -920,7 +924,6 @@ kci_test_ip6gretap()
 
 kci_test_erspan()
 {
-	testns="testns"
 	DEV_NS=erspan00
 	local ret=0
 	run_cmd_grep "^Usage:" ip link help erspan
@@ -928,7 +931,7 @@ kci_test_erspan()
 		end_test "SKIP: erspan: iproute2 too old"
 		return $ksft_skip
 	fi
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP erspan tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -970,7 +973,6 @@ kci_test_erspan()
 
 kci_test_ip6erspan()
 {
-	testns="testns"
 	DEV_NS=ip6erspan00
 	local ret=0
 	run_cmd_grep "^Usage:" ip link help ip6erspan
@@ -978,7 +980,7 @@ kci_test_ip6erspan()
 		end_test "SKIP: ip6erspan: iproute2 too old"
 		return $ksft_skip
 	fi
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP ip6erspan tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -1022,8 +1024,6 @@ kci_test_ip6erspan()
 
 kci_test_fdb_get()
 {
-	IP="ip -netns testns"
-	BRIDGE="bridge -netns testns"
 	brdev="test-br0"
 	vxlandev="vxlan10"
 	test_mac=de:ad:be:ef:13:37
@@ -1037,11 +1037,13 @@ kci_test_fdb_get()
 		return $ksft_skip
 	fi
 
-	run_cmd ip netns add testns
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP fdb get tests: cannot add net namespace $testns"
 		return $ksft_skip
 	fi
+	IP="ip -netns $testns"
+	BRIDGE="bridge -netns $testns"
 	run_cmd $IP link add "$vxlandev" type vxlan id 10 local $localip \
                 dstport 4789
 	run_cmd $IP link add name "$brdev" type bridge
@@ -1052,7 +1054,7 @@ kci_test_fdb_get()
 	run_cmd_grep "dev $vxlandev master $brdev" $BRIDGE fdb get $test_mac br "$brdev"
 	run_cmd_grep "dev $vxlandev dst $dstip" $BRIDGE fdb get $test_mac dev "$vxlandev" self
 
-	ip netns del testns &>/dev/null
+	ip netns del $testns &>/dev/null
 
 	if [ $ret -ne 0 ]; then
 		end_test "FAIL: bridge fdb get"

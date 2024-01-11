@@ -87,7 +87,7 @@ static void test_libbpf_bpf_link_type_str(void)
 		const char *link_type_str;
 		char buf[256];
 
-		if (link_type == MAX_BPF_LINK_TYPE)
+		if (link_type == __MAX_BPF_LINK_TYPE)
 			continue;
 
 		link_type_name = btf__str_by_offset(btf, e->name_off);

@@ -342,8 +342,7 @@ int rtnl_unregister(int protocol, int msgtype)
 		return -ENOENT;
 	}
 
-	link = rtnl_dereference(tab[msgindex]);
-	RCU_INIT_POINTER(tab[msgindex], NULL);
+	link = rcu_replace_pointer_rtnl(tab[msgindex], NULL);
 	rtnl_unlock();
 
 	kfree_rcu(link, rcu);
@@ -368,18 +367,13 @@ void rtnl_unregister_all(int protocol)
 	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 
 	rtnl_lock();
-	tab = rtnl_dereference(rtnl_msg_handlers[protocol]);
+	tab = rcu_replace_pointer_rtnl(rtnl_msg_handlers[protocol], NULL);
 	if (!tab) {
 		rtnl_unlock();
 		return;
 	}
-	RCU_INIT_POINTER(rtnl_msg_handlers[protocol], NULL);
 	for (msgindex = 0; msgindex < RTM_NR_MSGTYPES; msgindex++) {
-		link = rtnl_dereference(tab[msgindex]);
-		if (!link)
-			continue;
-
-		RCU_INIT_POINTER(tab[msgindex], NULL);
+		link = rcu_replace_pointer_rtnl(tab[msgindex], NULL);
 		kfree_rcu(link, rcu);
 	}
 	rtnl_unlock();
@@ -3849,9 +3843,17 @@ static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 
 	err = -ENOBUFS;
-	nskb = nlmsg_new(if_nlmsg_size(dev, ext_filter_mask), GFP_KERNEL);
+	nskb = nlmsg_new_large(if_nlmsg_size(dev, ext_filter_mask));
 	if (nskb == NULL)
 		goto out;
+
+	/* Synchronize the carrier state so we don't report a state
+	 * that we're not actually going to honour immediately; if
+	 * the driver just did a carrier off->on transition, we can
+	 * only TX if link watch work has run, but without this we'd
+	 * already report carrier on, even if it doesn't work yet.
+	 */
+	linkwatch_sync_dev(dev);
 
 	err = rtnl_fill_ifinfo(nskb, dev, net,
 			       RTM_NEWLINK, NETLINK_CB(skb).portid,
@@ -6408,17 +6410,64 @@ static int rtnl_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return dev->netdev_ops->ndo_mdb_add(dev, tb, nlh->nlmsg_flags, extack);
 }
 
+static int rtnl_validate_mdb_entry_del_bulk(const struct nlattr *attr,
+					    struct netlink_ext_ack *extack)
+{
+	struct br_mdb_entry *entry = nla_data(attr);
+	struct br_mdb_entry zero_entry = {};
+
+	if (nla_len(attr) != sizeof(struct br_mdb_entry)) {
+		NL_SET_ERR_MSG_ATTR(extack, attr, "Invalid attribute length");
+		return -EINVAL;
+	}
+
+	if (entry->state != MDB_PERMANENT && entry->state != MDB_TEMPORARY) {
+		NL_SET_ERR_MSG(extack, "Unknown entry state");
+		return -EINVAL;
+	}
+
+	if (entry->flags) {
+		NL_SET_ERR_MSG(extack, "Entry flags cannot be set");
+		return -EINVAL;
+	}
+
+	if (entry->vid >= VLAN_N_VID - 1) {
+		NL_SET_ERR_MSG(extack, "Invalid entry VLAN id");
+		return -EINVAL;
+	}
+
+	if (memcmp(&entry->addr, &zero_entry.addr, sizeof(entry->addr))) {
+		NL_SET_ERR_MSG(extack, "Entry address cannot be set");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static const struct nla_policy mdba_del_bulk_policy[MDBA_SET_ENTRY_MAX + 1] = {
+	[MDBA_SET_ENTRY] = NLA_POLICY_VALIDATE_FN(NLA_BINARY,
+						  rtnl_validate_mdb_entry_del_bulk,
+						  sizeof(struct br_mdb_entry)),
+	[MDBA_SET_ENTRY_ATTRS] = { .type = NLA_NESTED },
+};
+
 static int rtnl_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	bool del_bulk = !!(nlh->nlmsg_flags & NLM_F_BULK);
 	struct nlattr *tb[MDBA_SET_ENTRY_MAX + 1];
 	struct net *net = sock_net(skb->sk);
 	struct br_port_msg *bpm;
 	struct net_device *dev;
 	int err;
 
-	err = nlmsg_parse_deprecated(nlh, sizeof(*bpm), tb,
-				     MDBA_SET_ENTRY_MAX, mdba_policy, extack);
+	if (!del_bulk)
+		err = nlmsg_parse_deprecated(nlh, sizeof(*bpm), tb,
+					     MDBA_SET_ENTRY_MAX, mdba_policy,
+					     extack);
+	else
+		err = nlmsg_parse(nlh, sizeof(*bpm), tb, MDBA_SET_ENTRY_MAX,
+				  mdba_del_bulk_policy, extack);
 	if (err)
 		return err;
 
@@ -6437,6 +6486,14 @@ static int rtnl_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (NL_REQ_ATTR_CHECK(extack, NULL, tb, MDBA_SET_ENTRY)) {
 		NL_SET_ERR_MSG(extack, "Missing MDBA_SET_ENTRY attribute");
 		return -EINVAL;
+	}
+
+	if (del_bulk) {
+		if (!dev->netdev_ops->ndo_mdb_del_bulk) {
+			NL_SET_ERR_MSG(extack, "Device does not support MDB bulk deletion");
+			return -EOPNOTSUPP;
+		}
+		return dev->netdev_ops->ndo_mdb_del_bulk(dev, tb, extack);
 	}
 
 	if (!dev->netdev_ops->ndo_mdb_del) {
@@ -6684,5 +6741,6 @@ void __init rtnetlink_init(void)
 
 	rtnl_register(PF_BRIDGE, RTM_GETMDB, rtnl_mdb_get, rtnl_mdb_dump, 0);
 	rtnl_register(PF_BRIDGE, RTM_NEWMDB, rtnl_mdb_add, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_DELMDB, rtnl_mdb_del, NULL, 0);
+	rtnl_register(PF_BRIDGE, RTM_DELMDB, rtnl_mdb_del, NULL,
+		      RTNL_FLAG_BULK_DEL_SUPPORTED);
 }
