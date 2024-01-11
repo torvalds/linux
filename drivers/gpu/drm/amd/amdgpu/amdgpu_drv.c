@@ -366,7 +366,7 @@ module_param_named(aspm, amdgpu_aspm, int, 0444);
  * Setting the value to 0 disables this functionality.
  * Setting the value to -2 is auto enabled with power down when displays are attached.
  */
-MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto, -2 = autowith displays)");
+MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto, -2 = auto with displays)");
 module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 
 /**
