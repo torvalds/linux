@@ -7,50 +7,56 @@
 
 static void should_return_2345_without_errors(struct kunit *test)
 {
-	char *destination = (char *) int2fpstr(2345, 2);
-	int ret = strncmp(destination, "23.45", 5);
+	char *dest = kmalloc(size_alloc(2345), GFP_KERNEL);
+	int2fpstr(2345, 2, dest);
+	int ret = strncmp(dest, "23.45", 5);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	kfree(destination);
+	kfree(dest);
 }
 
 static void should_return_2_without_errors_and_float_point(struct kunit *test)
 {
-	char *destination = (char *) int2fpstr(2, 0);
-	int ret = strncmp(destination, "2", 1);
+	char *dest = kmalloc(size_alloc(2), GFP_KERNEL);
+	int2fpstr(2, 0, dest);
+	int ret = strncmp(dest, "2", 1);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	kfree(destination);
+	kfree(dest);
 }
 
 static void should_return_0_without_errors(struct kunit *test)
 { 
-	char *destination = (char *) int2fpstr(0, 0);
-	int ret = strncmp(destination, "0", 1);
+	char *dest = kmalloc(size_alloc(1), GFP_KERNEL);
+	int2fpstr(0, 0, dest);
+	int ret = strncmp(dest, "0", 1);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	kfree(destination);
+	kfree(dest);
 }
 
 static void should_return_12_without_errors_and_float_point(struct kunit *test)
 {
-	char *destination = (char *) int2fpstr(12, 0);
-	int ret = strncmp(destination, "12", 2);
+	char *dest = kmalloc(size_alloc(12), GFP_KERNEL);
+	int2fpstr(12, 0, dest);
+	int ret = strncmp(dest, "12", 2);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	kfree(destination);
+	kfree(dest);
 }
 
 static void should_return_12_without_errors(struct kunit *test)
 {
-	char *destination = (char *) int2fpstr(-12, 0);
-	int ret = strncmp(destination, "-12", 2);
+	char *dest = kmalloc(size_alloc(12) + 1, GFP_KERNEL);
+	int2fpstr(-12, 0, dest);
+	int ret = strncmp(dest, "-12", 3);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	kfree(destination);
+	kfree(dest);
 }
 
 static void should_return_125_without_errors(struct kunit *test)
 {
-	char *destination = (char *) int2fpstr(-125, 1);
-	int ret = strncmp(destination, "-12.5", 2);
+	char *dest = kmalloc(size_alloc(125), GFP_KERNEL);
+	int2fpstr(-125, 1, dest);
+	int ret = strncmp(dest, "-12.5", 5);
 	KUNIT_EXPECT_EQ(test, 0, ret);
-	kfree(destination);
+	kfree(dest);
 }
 
 static struct kunit_case int_to_fp_str_test_case[] = {
