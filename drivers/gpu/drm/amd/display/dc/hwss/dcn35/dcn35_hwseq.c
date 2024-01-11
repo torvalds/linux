@@ -708,6 +708,8 @@ void dcn35_z10_restore(const struct dc *dc)
 	if (dc->debug.disable_z10)
 		return;
 
+	dc_dmub_srv_apply_idle_power_optimizations(dc, false);
+
 	dcn31_z10_restore(dc);
 }
 
