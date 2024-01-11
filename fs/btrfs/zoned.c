@@ -578,26 +578,12 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 
 	kvfree(zones);
 
-	switch (bdev_zoned_model(bdev)) {
-	case BLK_ZONED_HM:
+	if (bdev_is_zoned(bdev)) {
 		model = "host-managed zoned";
 		emulated = "";
-		break;
-	case BLK_ZONED_HA:
-		model = "host-aware zoned";
-		emulated = "";
-		break;
-	case BLK_ZONED_NONE:
+	} else {
 		model = "regular";
 		emulated = "emulated ";
-		break;
-	default:
-		/* Just in case */
-		btrfs_err_in_rcu(fs_info, "zoned: unsupported model %d on %s",
-				 bdev_zoned_model(bdev),
-				 rcu_str_deref(device->name));
-		ret = -EOPNOTSUPP;
-		goto out_free_zone_info;
 	}
 
 	btrfs_info_in_rcu(fs_info,
@@ -609,9 +595,7 @@ int btrfs_get_dev_zone_info(struct btrfs_device *device, bool populate_cache)
 
 out:
 	kvfree(zones);
-out_free_zone_info:
 	btrfs_destroy_dev_zone_info(device);
-
 	return ret;
 }
 
@@ -688,8 +672,7 @@ static int btrfs_check_for_zoned_device(struct btrfs_fs_info *fs_info)
 	struct btrfs_device *device;
 
 	list_for_each_entry(device, &fs_info->fs_devices->devices, dev_list) {
-		if (device->bdev &&
-		    bdev_zoned_model(device->bdev) == BLK_ZONED_HM) {
+		if (device->bdev && bdev_is_zoned(device->bdev)) {
 			btrfs_err(fs_info,
 				"zoned: mode not enabled but zoned device found: %pg",
 				device->bdev);

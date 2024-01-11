@@ -722,52 +722,15 @@ fail_report:
 	return ret;
 }
 
-static void virtblk_revalidate_zones(struct virtio_blk *vblk)
-{
-	u8 model;
-
-	virtio_cread(vblk->vdev, struct virtio_blk_config,
-		     zoned.model, &model);
-	switch (model) {
-	default:
-		dev_err(&vblk->vdev->dev, "unknown zone model %d\n", model);
-		fallthrough;
-	case VIRTIO_BLK_Z_NONE:
-	case VIRTIO_BLK_Z_HA:
-		disk_set_zoned(vblk->disk, BLK_ZONED_NONE);
-		return;
-	case VIRTIO_BLK_Z_HM:
-		WARN_ON_ONCE(!vblk->zone_sectors);
-		if (!blk_revalidate_disk_zones(vblk->disk, NULL))
-			set_capacity_and_notify(vblk->disk, 0);
-	}
-}
-
 static int virtblk_probe_zoned_device(struct virtio_device *vdev,
 				       struct virtio_blk *vblk,
 				       struct request_queue *q)
 {
 	u32 v, wg;
-	u8 model;
-
-	virtio_cread(vdev, struct virtio_blk_config,
-		     zoned.model, &model);
-
-	switch (model) {
-	case VIRTIO_BLK_Z_NONE:
-	case VIRTIO_BLK_Z_HA:
-		/* Present the host-aware device as non-zoned */
-		return 0;
-	case VIRTIO_BLK_Z_HM:
-		break;
-	default:
-		dev_err(&vdev->dev, "unsupported zone model %d\n", model);
-		return -EINVAL;
-	}
 
 	dev_dbg(&vdev->dev, "probing host-managed zoned device\n");
 
-	disk_set_zoned(vblk->disk, BLK_ZONED_HM);
+	disk_set_zoned(vblk->disk);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
 
 	virtio_cread(vdev, struct virtio_blk_config,
@@ -839,23 +802,12 @@ static int virtblk_probe_zoned_device(struct virtio_device *vdev,
  */
 #define virtblk_report_zones       NULL
 
-static inline void virtblk_revalidate_zones(struct virtio_blk *vblk)
-{
-}
-
 static inline int virtblk_probe_zoned_device(struct virtio_device *vdev,
 			struct virtio_blk *vblk, struct request_queue *q)
 {
-	u8 model;
-
-	virtio_cread(vdev, struct virtio_blk_config, zoned.model, &model);
-	if (model == VIRTIO_BLK_Z_HM) {
-		dev_err(&vdev->dev,
-			"virtio_blk: zoned devices are not supported");
-		return -EOPNOTSUPP;
-	}
-
-	return 0;
+	dev_err(&vdev->dev,
+		"virtio_blk: zoned devices are not supported");
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_BLK_DEV_ZONED */
 
@@ -1005,7 +957,6 @@ static void virtblk_config_changed_work(struct work_struct *work)
 	struct virtio_blk *vblk =
 		container_of(work, struct virtio_blk, config_work);
 
-	virtblk_revalidate_zones(vblk);
 	virtblk_update_capacity(vblk, true);
 }
 
@@ -1570,9 +1521,26 @@ static int virtblk_probe(struct virtio_device *vdev)
 	 * placed after the virtio_device_ready() call above.
 	 */
 	if (virtio_has_feature(vdev, VIRTIO_BLK_F_ZONED)) {
-		err = virtblk_probe_zoned_device(vdev, vblk, q);
-		if (err)
+		u8 model;
+
+		virtio_cread(vdev, struct virtio_blk_config, zoned.model,
+				&model);
+		switch (model) {
+		case VIRTIO_BLK_Z_NONE:
+		case VIRTIO_BLK_Z_HA:
+			/* Present the host-aware device as non-zoned */
+			break;
+		case VIRTIO_BLK_Z_HM:
+			err = virtblk_probe_zoned_device(vdev, vblk, q);
+			if (err)
+				goto out_cleanup_disk;
+			break;
+		default:
+			dev_err(&vdev->dev, "unsupported zone model %d\n",
+				model);
+			err = -EINVAL;
 			goto out_cleanup_disk;
+		}
 	}
 
 	err = device_add_disk(&vdev->dev, vblk->disk, virtblk_attr_groups);

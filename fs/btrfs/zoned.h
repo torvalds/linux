@@ -320,7 +320,7 @@ static inline bool btrfs_check_device_zone_type(const struct btrfs_fs_info *fs_i
 	}
 
 	/* Do not allow Host Managed zoned device. */
-	return bdev_zoned_model(bdev) != BLK_ZONED_HM;
+	return !bdev_is_zoned(bdev);
 }
 
 static inline bool btrfs_check_super_location(struct btrfs_device *device, u64 pos)

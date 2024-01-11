@@ -383,7 +383,8 @@ aoeblk_gdalloc(void *vp)
 	WARN_ON(d->flags & DEVFL_TKILL);
 	WARN_ON(d->gd);
 	WARN_ON(d->flags & DEVFL_UP);
-	blk_queue_max_hw_sectors(gd->queue, BLK_DEF_MAX_SECTORS);
+	/* random number picked from the history block max_sectors cap */
+	blk_queue_max_hw_sectors(gd->queue, 2560u);
 	blk_queue_io_opt(gd->queue, SZ_2M);
 	d->bufpool = mp;
 	d->blkq = gd->queue;

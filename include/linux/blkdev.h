@@ -266,18 +266,6 @@ static inline bool blk_op_is_passthrough(blk_opf_t op)
 }
 
 /*
- * Zoned block device models (zoned limit).
- *
- * Note: This needs to be ordered from the least to the most severe
- * restrictions for the inheritance in blk_stack_limits() to work.
- */
-enum blk_zoned_model {
-	BLK_ZONED_NONE = 0,	/* Regular block device */
-	BLK_ZONED_HA,		/* Host-aware zoned block device */
-	BLK_ZONED_HM,		/* Host-managed zoned block device */
-};
-
-/*
  * BLK_BOUNCE_NONE:	never bounce (default)
  * BLK_BOUNCE_HIGH:	bounce all highmem pages
  */
@@ -318,7 +306,7 @@ struct queue_limits {
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		raid_partial_stripes_expensive;
-	enum blk_zoned_model	zoned;
+	bool			zoned;
 
 	/*
 	 * Drivers that set dma_alignment to less than 511 must be prepared to
@@ -331,24 +319,15 @@ struct queue_limits {
 typedef int (*report_zones_cb)(struct blk_zone *zone, unsigned int idx,
 			       void *data);
 
-void disk_set_zoned(struct gendisk *disk, enum blk_zoned_model model);
+void disk_set_zoned(struct gendisk *disk);
 
-#ifdef CONFIG_BLK_DEV_ZONED
 #define BLK_ALL_ZONES  ((unsigned int)-1)
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
-			unsigned int nr_zones, report_zones_cb cb, void *data);
-unsigned int bdev_nr_zones(struct block_device *bdev);
-extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
-			    sector_t sectors, sector_t nr_sectors,
-			    gfp_t gfp_mask);
+		unsigned int nr_zones, report_zones_cb cb, void *data);
+int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
+		sector_t sectors, sector_t nr_sectors, gfp_t gfp_mask);
 int blk_revalidate_disk_zones(struct gendisk *disk,
-			      void (*update_driver_data)(struct gendisk *disk));
-#else /* CONFIG_BLK_DEV_ZONED */
-static inline unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	return 0;
-}
-#endif /* CONFIG_BLK_DEV_ZONED */
+		void (*update_driver_data)(struct gendisk *disk));
 
 /*
  * Independent access ranges: struct blk_independent_access_range describes
@@ -378,58 +357,50 @@ struct blk_independent_access_ranges {
 };
 
 struct request_queue {
-	struct request		*last_merge;
-	struct elevator_queue	*elevator;
-
-	struct percpu_ref	q_usage_counter;
-
-	struct blk_queue_stats	*stats;
-	struct rq_qos		*rq_qos;
-	struct mutex		rq_qos_mutex;
-
-	const struct blk_mq_ops	*mq_ops;
-
-	/* sw queues */
-	struct blk_mq_ctx __percpu	*queue_ctx;
-
-	unsigned int		queue_depth;
-
-	/* hw dispatch queues */
-	struct xarray		hctx_table;
-	unsigned int		nr_hw_queues;
-
 	/*
 	 * The queue owner gets to use this for whatever they like.
 	 * ll_rw_blk doesn't touch it.
 	 */
 	void			*queuedata;
 
+	struct elevator_queue	*elevator;
+
+	const struct blk_mq_ops	*mq_ops;
+
+	/* sw queues */
+	struct blk_mq_ctx __percpu	*queue_ctx;
+
 	/*
 	 * various queue flags, see QUEUE_* below
 	 */
 	unsigned long		queue_flags;
-	/*
-	 * Number of contexts that have called blk_set_pm_only(). If this
-	 * counter is above zero then only RQF_PM requests are processed.
-	 */
-	atomic_t		pm_only;
 
-	/*
-	 * ida allocated id for this queue.  Used to index queues from
-	 * ioctx.
-	 */
-	int			id;
+	unsigned int		rq_timeout;
+
+	unsigned int		queue_depth;
+
+	refcount_t		refs;
+
+	/* hw dispatch queues */
+	unsigned int		nr_hw_queues;
+	struct xarray		hctx_table;
+
+	struct percpu_ref	q_usage_counter;
+
+	struct request		*last_merge;
 
 	spinlock_t		queue_lock;
 
-	struct gendisk		*disk;
+	int			quiesce_depth;
 
-	refcount_t		refs;
+	struct gendisk		*disk;
 
 	/*
 	 * mq queue kobject
 	 */
 	struct kobject *mq_kobj;
+
+	struct queue_limits	limits;
 
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct blk_integrity integrity;
@@ -441,23 +412,39 @@ struct request_queue {
 #endif
 
 	/*
+	 * Number of contexts that have called blk_set_pm_only(). If this
+	 * counter is above zero then only RQF_PM requests are processed.
+	 */
+	atomic_t		pm_only;
+
+	struct blk_queue_stats	*stats;
+	struct rq_qos		*rq_qos;
+	struct mutex		rq_qos_mutex;
+
+	/*
+	 * ida allocated id for this queue.  Used to index queues from
+	 * ioctx.
+	 */
+	int			id;
+
+	unsigned int		dma_pad_mask;
+
+	/*
 	 * queue settings
 	 */
 	unsigned long		nr_requests;	/* Max # of requests */
-
-	unsigned int		dma_pad_mask;
 
 #ifdef CONFIG_BLK_INLINE_ENCRYPTION
 	struct blk_crypto_profile *crypto_profile;
 	struct kobject *crypto_kobject;
 #endif
 
-	unsigned int		rq_timeout;
-
 	struct timer_list	timeout;
 	struct work_struct	timeout_work;
 
 	atomic_t		nr_active_requests_shared_tags;
+
+	unsigned int		required_elevator_features;
 
 	struct blk_mq_tags	*sched_shared_tags;
 
@@ -469,11 +456,12 @@ struct request_queue {
 	struct mutex		blkcg_mutex;
 #endif
 
-	struct queue_limits	limits;
-
-	unsigned int		required_elevator_features;
-
 	int			node;
+
+	spinlock_t		requeue_lock;
+	struct list_head	requeue_list;
+	struct delayed_work	requeue_work;
+
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	struct blk_trace __rcu	*blk_trace;
 #endif
@@ -482,10 +470,6 @@ struct request_queue {
 	 */
 	struct blk_flush_queue	*fq;
 	struct list_head	flush_list;
-
-	struct list_head	requeue_list;
-	spinlock_t		requeue_lock;
-	struct delayed_work	requeue_work;
 
 	struct mutex		sysfs_lock;
 	struct mutex		sysfs_dir_lock;
@@ -510,8 +494,6 @@ struct request_queue {
 	 * percpu_ref_kill() and percpu_ref_reinit().
 	 */
 	struct mutex		mq_freeze_lock;
-
-	int			quiesce_depth;
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
@@ -625,26 +607,14 @@ static inline enum rpm_status queue_rpm_status(struct request_queue *q)
 }
 #endif
 
-static inline enum blk_zoned_model
-blk_queue_zoned_model(struct request_queue *q)
-{
-	if (IS_ENABLED(CONFIG_BLK_DEV_ZONED))
-		return q->limits.zoned;
-	return BLK_ZONED_NONE;
-}
-
 static inline bool blk_queue_is_zoned(struct request_queue *q)
 {
-	switch (blk_queue_zoned_model(q)) {
-	case BLK_ZONED_HA:
-	case BLK_ZONED_HM:
-		return true;
-	default:
-		return false;
-	}
+	return IS_ENABLED(CONFIG_BLK_DEV_ZONED) && q->limits.zoned;
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED
+unsigned int bdev_nr_zones(struct block_device *bdev);
+
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
 	return blk_queue_is_zoned(disk->queue) ? disk->nr_zones : 0;
@@ -689,6 +659,11 @@ static inline unsigned int bdev_max_active_zones(struct block_device *bdev)
 }
 
 #else /* CONFIG_BLK_DEV_ZONED */
+static inline unsigned int bdev_nr_zones(struct block_device *bdev)
+{
+	return 0;
+}
+
 static inline unsigned int disk_nr_zones(struct gendisk *disk)
 {
 	return 0;
@@ -1082,7 +1057,14 @@ enum blk_default_limits {
 	BLK_SEG_BOUNDARY_MASK	= 0xFFFFFFFFUL,
 };
 
-#define BLK_DEF_MAX_SECTORS 2560u
+/*
+ * Default upper limit for the software max_sectors limit used for
+ * regular file system I/O.  This can be increased through sysfs.
+ *
+ * Not to be confused with the max_hw_sector limit that is entirely
+ * controlled by the driver, usually based on hardware limits.
+ */
+#define BLK_DEF_MAX_SECTORS_CAP	2560u
 
 static inline unsigned long queue_segment_boundary(const struct request_queue *q)
 {
@@ -1259,11 +1241,6 @@ static inline bool bdev_fua(struct block_device *bdev)
 static inline bool bdev_nowait(struct block_device *bdev)
 {
 	return test_bit(QUEUE_FLAG_NOWAIT, &bdev_get_queue(bdev)->queue_flags);
-}
-
-static inline enum blk_zoned_model bdev_zoned_model(struct block_device *bdev)
-{
-	return blk_queue_zoned_model(bdev_get_queue(bdev));
 }
 
 static inline bool bdev_is_zoned(struct block_device *bdev)

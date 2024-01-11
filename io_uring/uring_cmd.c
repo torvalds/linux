@@ -182,7 +182,6 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 			return -EOPNOTSUPP;
 		issue_flags |= IO_URING_F_IOPOLL;
 		req->iopoll_completed = 0;
-		WRITE_ONCE(ioucmd->cookie, NULL);
 	}
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);

@@ -3498,10 +3498,6 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 
 	ctrl->ctrl.opts = opts;
 	ctrl->ctrl.nr_reconnects = 0;
-	if (lport->dev)
-		ctrl->ctrl.numa_node = dev_to_node(lport->dev);
-	else
-		ctrl->ctrl.numa_node = NUMA_NO_NODE;
 	INIT_LIST_HEAD(&ctrl->ctrl_list);
 	ctrl->lport = lport;
 	ctrl->rport = rport;
@@ -3546,6 +3542,8 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	ret = nvme_init_ctrl(&ctrl->ctrl, dev, &nvme_fc_ctrl_ops, 0);
 	if (ret)
 		goto out_free_queues;
+	if (lport->dev)
+		ctrl->ctrl.numa_node = dev_to_node(lport->dev);
 
 	/* at this point, teardown path changes to ref counting on nvme ctrl */
 
