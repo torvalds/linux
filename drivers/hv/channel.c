@@ -322,21 +322,17 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 
 	pagecount = hv_gpadl_size(type, size) >> HV_HYP_PAGE_SHIFT;
 
-	/* do we need a gpadl body msg */
 	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
 		  sizeof(struct vmbus_channel_gpadl_header) -
 		  sizeof(struct gpa_range);
-	pfncount = pfnsize / sizeof(u64);
+	pfncount = umin(pagecount, pfnsize / sizeof(u64));
 
-	if (pagecount > pfncount) {
-		/* we need a gpadl body */
-		/* fill in the header */
 		msgsize = sizeof(struct vmbus_channel_msginfo) +
 			  sizeof(struct vmbus_channel_gpadl_header) +
 			  sizeof(struct gpa_range) + pfncount * sizeof(u64);
 		msgheader =  kzalloc(msgsize, GFP_KERNEL);
 		if (!msgheader)
-			goto nomem;
+			return -ENOMEM;
 
 		INIT_LIST_HEAD(&msgheader->submsglist);
 		msgheader->msgsize = msgsize;
@@ -356,18 +352,17 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 		pfnsum = pfncount;
 		pfnleft = pagecount - pfncount;
 
-		/* how many pfns can we fit */
+		/* how many pfns can we fit in a body message */
 		pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
 			  sizeof(struct vmbus_channel_gpadl_body);
 		pfncount = pfnsize / sizeof(u64);
 
-		/* fill in the body */
+		/*
+		 * If pfnleft is zero, everything fits in the header and no body
+		 * messages are needed
+		 */
 		while (pfnleft) {
-			if (pfnleft > pfncount)
-				pfncurr = pfncount;
-			else
-				pfncurr = pfnleft;
-
+			pfncurr = umin(pfncount, pfnleft);
 			msgsize = sizeof(struct vmbus_channel_msginfo) +
 				  sizeof(struct vmbus_channel_gpadl_body) +
 				  pfncurr * sizeof(u64);
@@ -386,8 +381,8 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 					list_del(&pos->msglistentry);
 					kfree(pos);
 				}
-
-				goto nomem;
+				kfree(msgheader);
+				return -ENOMEM;
 			}
 
 			msgbody->msgsize = msgsize;
@@ -410,37 +405,8 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 			pfnsum += pfncurr;
 			pfnleft -= pfncurr;
 		}
-	} else {
-		/* everything fits in a header */
-		msgsize = sizeof(struct vmbus_channel_msginfo) +
-			  sizeof(struct vmbus_channel_gpadl_header) +
-			  sizeof(struct gpa_range) + pagecount * sizeof(u64);
-		msgheader = kzalloc(msgsize, GFP_KERNEL);
-		if (msgheader == NULL)
-			goto nomem;
-
-		INIT_LIST_HEAD(&msgheader->submsglist);
-		msgheader->msgsize = msgsize;
-
-		gpadl_header = (struct vmbus_channel_gpadl_header *)
-			msgheader->msg;
-		gpadl_header->rangecount = 1;
-		gpadl_header->range_buflen = sizeof(struct gpa_range) +
-					 pagecount * sizeof(u64);
-		gpadl_header->range[0].byte_offset = 0;
-		gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
-		for (i = 0; i < pagecount; i++)
-			gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
-				type, kbuffer, size, send_offset, i);
-
-		*msginfo = msgheader;
-	}
 
 	return 0;
-nomem:
-	kfree(msgheader);
-	kfree(msgbody);
-	return -ENOMEM;
 }
 
 /*
