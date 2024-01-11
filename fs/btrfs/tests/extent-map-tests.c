@@ -11,10 +11,11 @@
 #include "../disk-io.h"
 #include "../block-group.h"
 
-static void free_extent_map_tree(struct extent_map_tree *em_tree)
+static int free_extent_map_tree(struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
 	struct rb_node *node;
+	int ret = 0;
 
 	write_lock(&em_tree->lock);
 	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
@@ -24,6 +25,7 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 
 #ifdef CONFIG_BTRFS_DEBUG
 		if (refcount_read(&em->refs) != 1) {
+			ret = -EINVAL;
 			test_err(
 "em leak: em (start %llu len %llu block_start %llu block_len %llu) refs %d",
 				 em->start, em->len, em->block_start,
@@ -35,6 +37,8 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 		free_extent_map(em);
 	}
 	write_unlock(&em_tree->lock);
+
+	return ret;
 }
 
 /*
@@ -60,6 +64,7 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	u64 start = 0;
 	u64 len = SZ_8K;
 	int ret;
+	int ret2;
 
 	em = alloc_extent_map();
 	if (!em) {
@@ -137,7 +142,9 @@ static int test_case_1(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	}
 	free_extent_map(em);
 out:
-	free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(em_tree);
+	if (ret == 0)
+		ret = ret2;
 
 	return ret;
 }
@@ -153,6 +160,7 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em;
 	int ret;
+	int ret2;
 
 	em = alloc_extent_map();
 	if (!em) {
@@ -229,7 +237,9 @@ static int test_case_2(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	}
 	free_extent_map(em);
 out:
-	free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(em_tree);
+	if (ret == 0)
+		ret = ret2;
 
 	return ret;
 }
@@ -241,6 +251,7 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	struct extent_map *em;
 	u64 len = SZ_4K;
 	int ret;
+	int ret2;
 
 	em = alloc_extent_map();
 	if (!em) {
@@ -302,7 +313,9 @@ static int __test_case_3(struct btrfs_fs_info *fs_info,
 	}
 	free_extent_map(em);
 out:
-	free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(em_tree);
+	if (ret == 0)
+		ret = ret2;
 
 	return ret;
 }
@@ -345,6 +358,7 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	struct extent_map *em;
 	u64 len = SZ_4K;
 	int ret;
+	int ret2;
 
 	em = alloc_extent_map();
 	if (!em) {
@@ -421,7 +435,9 @@ static int __test_case_4(struct btrfs_fs_info *fs_info,
 	}
 	free_extent_map(em);
 out:
-	free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(em_tree);
+	if (ret == 0)
+		ret = ret2;
 
 	return ret;
 }
@@ -592,6 +608,7 @@ static int test_case_5(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 {
 	u64 start, end;
 	int ret;
+	int ret2;
 
 	test_msg("Running btrfs_drop_extent_map_range tests");
 
@@ -662,7 +679,10 @@ static int test_case_5(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	if (ret)
 		goto out;
 out:
-	free_extent_map_tree(&inode->extent_tree);
+	ret2 = free_extent_map_tree(&inode->extent_tree);
+	if (ret == 0)
+		ret = ret2;
+
 	return ret;
 }
 
@@ -676,6 +696,7 @@ static int test_case_6(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct extent_map *em = NULL;
 	int ret;
+	int ret2;
 
 	ret = add_compressed_extent(inode, 0, SZ_4K, 0);
 	if (ret)
@@ -717,7 +738,10 @@ static int test_case_6(struct btrfs_fs_info *fs_info, struct btrfs_inode *inode)
 	ret = 0;
 out:
 	free_extent_map(em);
-	free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(em_tree);
+	if (ret == 0)
+		ret = ret2;
+
 	return ret;
 }
 
@@ -852,7 +876,10 @@ out:
 	ret2 = unpin_extent_cache(inode, 0, SZ_16K, 0);
 	if (ret == 0)
 		ret = ret2;
-	free_extent_map_tree(em_tree);
+	ret2 = free_extent_map_tree(em_tree);
+	if (ret == 0)
+		ret = ret2;
+
 	return ret;
 }
 
