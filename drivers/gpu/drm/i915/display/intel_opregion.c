@@ -1132,6 +1132,19 @@ const struct drm_edid *intel_opregion_get_edid(struct intel_connector *intel_con
 	return drm_edid;
 }
 
+const void *intel_opregion_get_vbt(struct drm_i915_private *i915, size_t *size)
+{
+	struct intel_opregion *opregion = &i915->display.opregion;
+
+	if (!opregion->vbt)
+		return NULL;
+
+	if (size)
+		*size = opregion->vbt_size;
+
+	return opregion->vbt;
+}
+
 bool intel_opregion_headless_sku(struct drm_i915_private *i915)
 {
 	struct intel_opregion *opregion = &i915->display.opregion;

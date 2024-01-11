@@ -3073,7 +3073,7 @@ err_unmap_oprom:
  */
 void intel_bios_init(struct drm_i915_private *i915)
 {
-	const struct vbt_header *vbt = i915->display.opregion.vbt;
+	const struct vbt_header *vbt;
 	struct vbt_header *oprom_vbt = NULL;
 	const struct bdb_header *bdb;
 
@@ -3087,6 +3087,8 @@ void intel_bios_init(struct drm_i915_private *i915)
 	}
 
 	init_vbt_defaults(i915);
+
+	vbt = intel_opregion_get_vbt(i915, NULL);
 
 	/*
 	 * If the OpRegion does not have VBT, look in SPI flash through MMIO or
@@ -3305,7 +3307,7 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
 		 * additional data.  Trust that if the VBT was written into
 		 * the OpRegion then they have validated the LVDS's existence.
 		 */
-		if (i915->display.opregion.vbt)
+		if (intel_opregion_get_vbt(i915, NULL))
 			return true;
 	}
 
@@ -3660,14 +3662,16 @@ void intel_bios_for_each_encoder(struct drm_i915_private *i915,
 static int intel_bios_vbt_show(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = m->private;
-	struct intel_opregion *opregion = &i915->display.opregion;
+	const void *vbt;
+	size_t vbt_size;
 
 	/*
 	 * FIXME: VBT might originate from other places than opregion, and then
 	 * this would be incorrect.
 	 */
-	if (opregion->vbt)
-		seq_write(m, opregion->vbt, opregion->vbt_size);
+	vbt = intel_opregion_get_vbt(i915, &vbt_size);
+	if (vbt)
+		seq_write(m, vbt, vbt_size);
 
 	return 0;
 }

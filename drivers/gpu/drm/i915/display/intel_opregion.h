@@ -77,6 +77,8 @@ int intel_opregion_notify_adapter(struct drm_i915_private *dev_priv,
 int intel_opregion_get_panel_type(struct drm_i915_private *dev_priv);
 const struct drm_edid *intel_opregion_get_edid(struct intel_connector *connector);
 
+const void *intel_opregion_get_vbt(struct drm_i915_private *i915, size_t *size);
+
 bool intel_opregion_headless_sku(struct drm_i915_private *i915);
 
 void intel_opregion_debugfs_register(struct drm_i915_private *i915);
@@ -132,6 +134,12 @@ static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
 
 static inline const struct drm_edid *
 intel_opregion_get_edid(struct intel_connector *connector)
+{
+	return NULL;
+}
+
+static inline const void *
+intel_opregion_get_vbt(struct drm_i915_private *i915, size_t *size)
 {
 	return NULL;
 }
