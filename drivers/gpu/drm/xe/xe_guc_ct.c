@@ -780,7 +780,7 @@ retry_same_fence:
 		ret = -EIO;
 	}
 
-	return ret > 0 ? 0 : ret;
+	return ret > 0 ? response_buffer ? g2h_fence.response_len : 0 : ret;
 }
 
 int xe_guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
