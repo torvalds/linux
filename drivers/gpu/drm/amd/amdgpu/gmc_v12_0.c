@@ -532,6 +532,9 @@ static void gmc_v12_0_get_vm_pte(struct amdgpu_device *adev,
 	is_system = (bo->tbo.resource->mem_type == TTM_PL_TT) ||
 		(bo->tbo.resource->mem_type == AMDGPU_PL_PREEMPT);
 
+	if (bo && bo->flags & AMDGPU_GEM_CREATE_GFX12_DCC)
+		*flags |= AMDGPU_PTE_DCC;
+
 	/* WA for HW bug */
 	if (is_system || ((bo_adev != adev) && coherent))
 		*flags = AMDGPU_PTE_MTYPE_GFX12(*flags, MTYPE_NC);

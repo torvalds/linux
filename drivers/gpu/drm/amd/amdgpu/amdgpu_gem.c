@@ -334,11 +334,17 @@ int amdgpu_gem_create_ioctl(struct drm_device *dev, void *data,
 		      AMDGPU_GEM_CREATE_VM_ALWAYS_VALID |
 		      AMDGPU_GEM_CREATE_EXPLICIT_SYNC |
 		      AMDGPU_GEM_CREATE_ENCRYPTED |
+		      AMDGPU_GEM_CREATE_GFX12_DCC |
 		      AMDGPU_GEM_CREATE_DISCARDABLE))
 		return -EINVAL;
 
 	/* reject invalid gem domains */
 	if (args->in.domains & ~AMDGPU_GEM_DOMAIN_MASK)
+		return -EINVAL;
+
+	if ((flags & AMDGPU_GEM_CREATE_GFX12_DCC) &&
+	    ((amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(12, 0, 0)) ||
+	     !(args->in.domains & AMDGPU_GEM_DOMAIN_VRAM)))
 		return -EINVAL;
 
 	if (!amdgpu_is_tmz(adev) && (flags & AMDGPU_GEM_CREATE_ENCRYPTED)) {
