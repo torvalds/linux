@@ -489,15 +489,15 @@ out:
 }
 
 static int ieee80211_config_bw(struct ieee80211_link_data *link,
-			       const struct ieee80211_ht_cap *ht_cap,
-			       const struct ieee80211_vht_cap *vht_cap,
-			       const struct ieee80211_ht_operation *ht_oper,
-			       const struct ieee80211_vht_operation *vht_oper,
-			       const struct ieee80211_he_operation *he_oper,
-			       const struct ieee80211_eht_operation *eht_oper,
-			       const struct ieee80211_s1g_oper_ie *s1g_oper,
+			       struct ieee802_11_elems *elems,
 			       const u8 *bssid, u64 *changed)
 {
+	const struct ieee80211_vht_cap *vht_cap = elems->vht_cap_elem;
+	const struct ieee80211_ht_operation *ht_oper = elems->ht_operation;
+	const struct ieee80211_vht_operation *vht_oper = elems->vht_operation;
+	const struct ieee80211_he_operation *he_oper = elems->he_operation;
+	const struct ieee80211_eht_operation *eht_oper = elems->eht_operation;
+	const struct ieee80211_s1g_oper_ie *s1g_oper = elems->s1g_oper;
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -6433,11 +6433,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	changed |= ieee80211_recalc_twt_req(sdata, sband, link, link_sta, elems);
 
-	if (ieee80211_config_bw(link, elems->ht_cap_elem,
-				elems->vht_cap_elem, elems->ht_operation,
-				elems->vht_operation, elems->he_operation,
-				elems->eht_operation,
-				elems->s1g_oper, bssid, &changed)) {
+	if (ieee80211_config_bw(link, elems, bssid, &changed)) {
 		sdata_info(sdata,
 			   "failed to follow AP %pM bandwidth change, disconnect\n",
 			   bssid);
