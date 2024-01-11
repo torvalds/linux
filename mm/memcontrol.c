@@ -6194,6 +6194,7 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
 		unsigned long addr, pmd_t pmd, union mc_target *target)
 {
 	struct page *page = NULL;
+	struct folio *folio;
 	enum mc_target_type ret = MC_TARGET_NONE;
 
 	if (unlikely(is_swap_pmd(pmd))) {
@@ -6203,17 +6204,18 @@ static enum mc_target_type get_mctgt_type_thp(struct vm_area_struct *vma,
 	}
 	page = pmd_page(pmd);
 	VM_BUG_ON_PAGE(!page || !PageHead(page), page);
+	folio = page_folio(page);
 	if (!(mc.flags & MOVE_ANON))
 		return ret;
-	if (page_memcg(page) == mc.from) {
+	if (folio_memcg(folio) == mc.from) {
 		ret = MC_TARGET_PAGE;
 		if (target) {
-			get_page(page);
-			if (!trylock_page(page)) {
-				put_page(page);
+			folio_get(folio);
+			if (!folio_trylock(folio)) {
+				folio_put(folio);
 				return MC_TARGET_NONE;
 			}
-			target->folio = page_folio(page);
+			target->folio = folio;
 		}
 	}
 	return ret;
