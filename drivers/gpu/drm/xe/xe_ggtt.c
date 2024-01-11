@@ -11,9 +11,12 @@
 #include <drm/i915_drm.h>
 
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_regs.h"
+#include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_gt.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
@@ -310,6 +313,74 @@ void xe_ggtt_printk(struct xe_ggtt *ggtt, const char *prefix)
 		printk("%s    ggtt[0x%08x] = 0x%016llx",
 		       prefix, (u32)addr, ggtt->gsm[i]);
 	}
+}
+
+static void xe_ggtt_dump_node(struct xe_ggtt *ggtt,
+			      const struct drm_mm_node *node, const char *description)
+{
+	char buf[10];
+
+	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
+		string_get_size(node->size, 1, STRING_UNITS_2, buf, sizeof(buf));
+		xe_gt_dbg(ggtt->tile->primary_gt, "GGTT %#llx-%#llx (%s) %s\n",
+			  node->start, node->start + node->size, buf, description);
+	}
+}
+
+/**
+ * xe_ggtt_balloon - prevent allocation of specified GGTT addresses
+ * @ggtt: the &xe_ggtt where we want to make reservation
+ * @start: the starting GGTT address of the reserved region
+ * @end: then end GGTT address of the reserved region
+ * @node: the &drm_mm_node to hold reserved GGTT node
+ *
+ * Use xe_ggtt_deballoon() to release a reserved GGTT node.
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_ggtt_balloon(struct xe_ggtt *ggtt, u64 start, u64 end, struct drm_mm_node *node)
+{
+	int err;
+
+	xe_tile_assert(ggtt->tile, start < end);
+	xe_tile_assert(ggtt->tile, IS_ALIGNED(start, XE_PAGE_SIZE));
+	xe_tile_assert(ggtt->tile, IS_ALIGNED(end, XE_PAGE_SIZE));
+	xe_tile_assert(ggtt->tile, !drm_mm_node_allocated(node));
+
+	node->color = 0;
+	node->start = start;
+	node->size = end - start;
+
+	mutex_lock(&ggtt->lock);
+	err = drm_mm_reserve_node(&ggtt->mm, node);
+	mutex_unlock(&ggtt->lock);
+
+	if (xe_gt_WARN(ggtt->tile->primary_gt, err,
+		       "Failed to balloon GGTT %#llx-%#llx (%pe)\n",
+		       node->start, node->start + node->size, ERR_PTR(err)))
+		return err;
+
+	xe_ggtt_dump_node(ggtt, node, "balloon");
+	return 0;
+}
+
+/**
+ * xe_ggtt_deballoon - release a reserved GGTT region
+ * @ggtt: the &xe_ggtt where reserved node belongs
+ * @node: the &drm_mm_node with reserved GGTT region
+ *
+ * See xe_ggtt_balloon() for details.
+ */
+void xe_ggtt_deballoon(struct xe_ggtt *ggtt, struct drm_mm_node *node)
+{
+	if (!drm_mm_node_allocated(node))
+		return;
+
+	xe_ggtt_dump_node(ggtt, node, "deballoon");
+
+	mutex_lock(&ggtt->lock);
+	drm_mm_remove_node(node);
+	mutex_unlock(&ggtt->lock);
 }
 
 int xe_ggtt_insert_special_node_locked(struct xe_ggtt *ggtt, struct drm_mm_node *node,
