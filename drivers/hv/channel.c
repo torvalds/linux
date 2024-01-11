@@ -327,84 +327,82 @@ static int create_gpadl_header(enum hv_gpadl_type type, void *kbuffer,
 		  sizeof(struct gpa_range);
 	pfncount = umin(pagecount, pfnsize / sizeof(u64));
 
+	msgsize = sizeof(struct vmbus_channel_msginfo) +
+		  sizeof(struct vmbus_channel_gpadl_header) +
+		  sizeof(struct gpa_range) + pfncount * sizeof(u64);
+	msgheader =  kzalloc(msgsize, GFP_KERNEL);
+	if (!msgheader)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&msgheader->submsglist);
+	msgheader->msgsize = msgsize;
+
+	gpadl_header = (struct vmbus_channel_gpadl_header *)
+		msgheader->msg;
+	gpadl_header->rangecount = 1;
+	gpadl_header->range_buflen = sizeof(struct gpa_range) +
+				 pagecount * sizeof(u64);
+	gpadl_header->range[0].byte_offset = 0;
+	gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
+	for (i = 0; i < pfncount; i++)
+		gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
+			type, kbuffer, size, send_offset, i);
+	*msginfo = msgheader;
+
+	pfnsum = pfncount;
+	pfnleft = pagecount - pfncount;
+
+	/* how many pfns can we fit in a body message */
+	pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
+		  sizeof(struct vmbus_channel_gpadl_body);
+	pfncount = pfnsize / sizeof(u64);
+
+	/*
+	 * If pfnleft is zero, everything fits in the header and no body
+	 * messages are needed
+	 */
+	while (pfnleft) {
+		pfncurr = umin(pfncount, pfnleft);
 		msgsize = sizeof(struct vmbus_channel_msginfo) +
-			  sizeof(struct vmbus_channel_gpadl_header) +
-			  sizeof(struct gpa_range) + pfncount * sizeof(u64);
-		msgheader =  kzalloc(msgsize, GFP_KERNEL);
-		if (!msgheader)
+			  sizeof(struct vmbus_channel_gpadl_body) +
+			  pfncurr * sizeof(u64);
+		msgbody = kzalloc(msgsize, GFP_KERNEL);
+
+		if (!msgbody) {
+			struct vmbus_channel_msginfo *pos = NULL;
+			struct vmbus_channel_msginfo *tmp = NULL;
+			/*
+			 * Free up all the allocated messages.
+			 */
+			list_for_each_entry_safe(pos, tmp,
+				&msgheader->submsglist,
+				msglistentry) {
+
+				list_del(&pos->msglistentry);
+				kfree(pos);
+			}
+			kfree(msgheader);
 			return -ENOMEM;
+		}
 
-		INIT_LIST_HEAD(&msgheader->submsglist);
-		msgheader->msgsize = msgsize;
-
-		gpadl_header = (struct vmbus_channel_gpadl_header *)
-			msgheader->msg;
-		gpadl_header->rangecount = 1;
-		gpadl_header->range_buflen = sizeof(struct gpa_range) +
-					 pagecount * sizeof(u64);
-		gpadl_header->range[0].byte_offset = 0;
-		gpadl_header->range[0].byte_count = hv_gpadl_size(type, size);
-		for (i = 0; i < pfncount; i++)
-			gpadl_header->range[0].pfn_array[i] = hv_gpadl_hvpfn(
-				type, kbuffer, size, send_offset, i);
-		*msginfo = msgheader;
-
-		pfnsum = pfncount;
-		pfnleft = pagecount - pfncount;
-
-		/* how many pfns can we fit in a body message */
-		pfnsize = MAX_SIZE_CHANNEL_MESSAGE -
-			  sizeof(struct vmbus_channel_gpadl_body);
-		pfncount = pfnsize / sizeof(u64);
+		msgbody->msgsize = msgsize;
+		gpadl_body = (struct vmbus_channel_gpadl_body *)msgbody->msg;
 
 		/*
-		 * If pfnleft is zero, everything fits in the header and no body
-		 * messages are needed
+		 * Gpadl is u32 and we are using a pointer which could
+		 * be 64-bit
+		 * This is governed by the guest/host protocol and
+		 * so the hypervisor guarantees that this is ok.
 		 */
-		while (pfnleft) {
-			pfncurr = umin(pfncount, pfnleft);
-			msgsize = sizeof(struct vmbus_channel_msginfo) +
-				  sizeof(struct vmbus_channel_gpadl_body) +
-				  pfncurr * sizeof(u64);
-			msgbody = kzalloc(msgsize, GFP_KERNEL);
+		for (i = 0; i < pfncurr; i++)
+			gpadl_body->pfn[i] = hv_gpadl_hvpfn(type,
+				kbuffer, size, send_offset, pfnsum + i);
 
-			if (!msgbody) {
-				struct vmbus_channel_msginfo *pos = NULL;
-				struct vmbus_channel_msginfo *tmp = NULL;
-				/*
-				 * Free up all the allocated messages.
-				 */
-				list_for_each_entry_safe(pos, tmp,
-					&msgheader->submsglist,
-					msglistentry) {
-
-					list_del(&pos->msglistentry);
-					kfree(pos);
-				}
-				kfree(msgheader);
-				return -ENOMEM;
-			}
-
-			msgbody->msgsize = msgsize;
-			gpadl_body =
-				(struct vmbus_channel_gpadl_body *)msgbody->msg;
-
-			/*
-			 * Gpadl is u32 and we are using a pointer which could
-			 * be 64-bit
-			 * This is governed by the guest/host protocol and
-			 * so the hypervisor guarantees that this is ok.
-			 */
-			for (i = 0; i < pfncurr; i++)
-				gpadl_body->pfn[i] = hv_gpadl_hvpfn(type,
-					kbuffer, size, send_offset, pfnsum + i);
-
-			/* add to msg header */
-			list_add_tail(&msgbody->msglistentry,
-				      &msgheader->submsglist);
-			pfnsum += pfncurr;
-			pfnleft -= pfncurr;
-		}
+		/* add to msg header */
+		list_add_tail(&msgbody->msglistentry, &msgheader->submsglist);
+		pfnsum += pfncurr;
+		pfnleft -= pfncurr;
+	}
 
 	return 0;
 }
