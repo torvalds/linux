@@ -353,11 +353,15 @@ static u8
 mt792x_acpi_get_mtcl_map(int row, int column, struct mt792x_asar_cl *cl)
 {
 	u8 config = 0;
+	u8 mode_6g, mode_5g9;
 
-	if (cl->cl6g[row] & BIT(column))
-		config |= (cl->mode_6g & 0x3) << 2;
+	mode_6g = (cl->mode_6g > 0x02) ? 0 : cl->mode_6g;
+	mode_5g9 = (cl->mode_5g9 > 0x01) ? 0 : cl->mode_5g9;
+
+	if ((cl->cl6g[row] & BIT(column)) || cl->mode_6g == 0x02)
+		config |= (mode_6g & 0x3) << 2;
 	if (cl->version > 1 && cl->cl5g9[row] & BIT(column))
-		config |= (cl->mode_5g9 & 0x3);
+		config |= (mode_5g9 & 0x3);
 
 	return config;
 }
