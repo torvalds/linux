@@ -7,6 +7,8 @@
  * functionality:
  */
 
+#include <linux/rcupdate.h>
+#include <linux/refcount.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 

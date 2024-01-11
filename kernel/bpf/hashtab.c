@@ -7,6 +7,7 @@
 #include <linux/jhash.h>
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/random.h>
 #include <uapi/linux/btf.h>
 #include <linux/rcupdate_trace.h>

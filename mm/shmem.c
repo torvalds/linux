@@ -79,6 +79,7 @@ static struct vfsmount *shm_mnt __ro_after_init;
 #include <linux/rmap.h>
 #include <linux/uuid.h>
 #include <linux/quotaops.h>
+#include <linux/rcupdate_wait.h>
 
 #include <linux/uaccess.h>
 

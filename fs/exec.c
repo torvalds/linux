@@ -66,6 +66,7 @@
 #include <linux/coredump.h>
 #include <linux/time_namespace.h>
 #include <linux/user_events.h>
+#include <linux/rseq.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>

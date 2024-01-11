@@ -20,6 +20,7 @@
 #include <linux/iommu.h>
 #include <linux/file.h>
 #include <linux/mm.h>
+#include <linux/rcupdate_wait.h>
 
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>

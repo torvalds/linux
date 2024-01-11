@@ -14,12 +14,7 @@
 #include <linux/atomic.h>
 #include <linux/cpumask.h>
 #include <linux/rcupdate.h>
-
-struct workqueue_struct;
-
-struct work_struct;
-typedef void (*work_func_t)(struct work_struct *work);
-void delayed_work_timer_fn(struct timer_list *t);
+#include <linux/workqueue_types.h>
 
 /*
  * The first word is the work queue pointer and the flags rolled into
@@ -94,15 +89,6 @@ enum {
 
 #define WORK_STRUCT_FLAG_MASK    ((1ul << WORK_STRUCT_FLAG_BITS) - 1)
 #define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
-
-struct work_struct {
-	atomic_long_t data;
-	struct list_head entry;
-	work_func_t func;
-#ifdef CONFIG_LOCKDEP
-	struct lockdep_map lockdep_map;
-#endif
-};
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT((unsigned long)WORK_STRUCT_NO_POOL)
 #define WORK_DATA_STATIC_INIT()	\

@@ -37,6 +37,7 @@
 #include <linux/personality.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
+#include <uapi/linux/shm.h>
 #include <linux/binfmts.h>
 #include <linux/parser.h>
 #include <linux/fs_context.h>

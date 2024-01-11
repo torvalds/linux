@@ -69,8 +69,10 @@
 #include <linux/rethook.h>
 #include <linux/sysfs.h>
 #include <linux/user_events.h>
-
 #include <linux/uaccess.h>
+
+#include <uapi/linux/wait.h>
+
 #include <asm/unistd.h>
 #include <asm/mmu_context.h>
 
