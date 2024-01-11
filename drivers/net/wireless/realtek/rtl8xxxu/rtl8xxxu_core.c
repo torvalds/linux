@@ -4605,7 +4605,7 @@ static int rtl8xxxu_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 
-	schedule_work(&priv->update_beacon_work);
+	schedule_delayed_work(&priv->update_beacon_work, 0);
 
 	return 0;
 }
@@ -5107,7 +5107,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changed & BSS_CHANGED_BEACON)
-		schedule_work(&priv->update_beacon_work);
+		schedule_delayed_work(&priv->update_beacon_work, 0);
 
 error:
 	return;
@@ -5726,7 +5726,7 @@ static void rtl8xxxu_send_beacon_frame(struct ieee80211_hw *hw,
 static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 {
 	struct rtl8xxxu_priv *priv =
-		container_of(work, struct rtl8xxxu_priv, update_beacon_work);
+		container_of(work, struct rtl8xxxu_priv, update_beacon_work.work);
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_vif *vif = priv->vifs[0];
 
@@ -5735,6 +5735,14 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 		return;
 	}
 
+	if (vif->bss_conf.csa_active) {
+		if (ieee80211_beacon_cntdwn_is_complete(vif)) {
+			ieee80211_csa_finish(vif);
+			return;
+		}
+		schedule_delayed_work(&priv->update_beacon_work,
+				      msecs_to_jiffies(vif->bss_conf.beacon_int));
+	}
 	rtl8xxxu_send_beacon_frame(hw, vif);
 }
 
@@ -7482,6 +7490,7 @@ static void rtl8xxxu_stop(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&priv->c2hcmd_work);
 	cancel_delayed_work_sync(&priv->ra_watchdog);
+	cancel_delayed_work_sync(&priv->update_beacon_work);
 
 	rtl8xxxu_free_rx_resources(priv);
 	rtl8xxxu_free_tx_resources(priv);
@@ -7764,7 +7773,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	spin_lock_init(&priv->rx_urb_lock);
 	INIT_WORK(&priv->rx_urb_wq, rtl8xxxu_rx_urb_work);
 	INIT_DELAYED_WORK(&priv->ra_watchdog, rtl8xxxu_watchdog_callback);
-	INIT_WORK(&priv->update_beacon_work, rtl8xxxu_update_beacon_work_callback);
+	INIT_DELAYED_WORK(&priv->update_beacon_work, rtl8xxxu_update_beacon_work_callback);
 	skb_queue_head_init(&priv->c2hcmd_queue);
 
 	usb_set_intfdata(interface, hw);
@@ -7824,6 +7833,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	if (priv->fops->supports_ap)
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
 	hw->queues = 4;
+
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	if (priv->fops->supports_concurrent) {
 		hw->wiphy->iface_combinations = rtl8xxxu_combinations;
