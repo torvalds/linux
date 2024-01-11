@@ -182,6 +182,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 		inode->i_mode = fattr->cf_mode;
 
 	cifs_i->cifsAttrs = fattr->cf_cifsattrs;
+	cifs_i->reparse_tag = fattr->cf_cifstag;
 
 	if (fattr->cf_flags & CIFS_FATTR_NEED_REVAL)
 		cifs_i->time = 0;
@@ -209,7 +210,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 		inode->i_blocks = (512 - 1 + fattr->cf_bytes) >> 9;
 	}
 
-	if (S_ISLNK(fattr->cf_mode)) {
+	if (S_ISLNK(fattr->cf_mode) && fattr->cf_symlink_target) {
 		kfree(cifs_i->symlink_target);
 		cifs_i->symlink_target = fattr->cf_symlink_target;
 		fattr->cf_symlink_target = NULL;
@@ -691,29 +692,36 @@ static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 		fattr->cf_mtime.tv_sec += tcon->ses->server->timeAdj;
 	}
 
+	/*
+	 * The srv fs device id is overridden on network mount so setting
+	 * @fattr->cf_rdev isn't needed here.
+	 */
 	fattr->cf_eof = le64_to_cpu(info->EndOfFile);
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
-
 	fattr->cf_nlink = le32_to_cpu(info->HardLinks);
 	fattr->cf_mode = (umode_t) le32_to_cpu(info->Mode);
-	/* The srv fs device id is overridden on network mount so setting rdev isn't needed here */
-	/* fattr->cf_rdev = le32_to_cpu(info->DeviceId); */
 
-	if (data->symlink) {
-		fattr->cf_mode |= S_IFLNK;
-		fattr->cf_dtype = DT_LNK;
-		fattr->cf_symlink_target = data->symlink_target;
-		data->symlink_target = NULL;
-	} else if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
+	if (cifs_open_data_reparse(data) &&
+	    cifs_reparse_point_to_fattr(cifs_sb, fattr, data))
+		goto out_reparse;
+
+	fattr->cf_mode &= ~S_IFMT;
+	if (fattr->cf_cifsattrs & ATTR_DIRECTORY) {
 		fattr->cf_mode |= S_IFDIR;
 		fattr->cf_dtype = DT_DIR;
 	} else { /* file */
 		fattr->cf_mode |= S_IFREG;
 		fattr->cf_dtype = DT_REG;
 	}
-	/* else if reparse point ... TODO: add support for FIFO and blk dev; special file types */
 
+out_reparse:
+	if (S_ISLNK(fattr->cf_mode)) {
+		if (likely(data->symlink_target))
+			fattr->cf_eof = strnlen(data->symlink_target, PATH_MAX);
+		fattr->cf_symlink_target = data->symlink_target;
+		data->symlink_target = NULL;
+	}
 	sid_to_id(cifs_sb, owner, fattr, SIDOWNER);
 	sid_to_id(cifs_sb, group, fattr, SIDGROUP);
 
@@ -738,25 +746,25 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	if (tag == IO_REPARSE_TAG_NFS && buf) {
 		switch (le64_to_cpu(buf->InodeType)) {
 		case NFS_SPECFILE_CHR:
-			fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFCHR;
 			fattr->cf_dtype = DT_CHR;
 			fattr->cf_rdev = nfs_mkdev(buf);
 			break;
 		case NFS_SPECFILE_BLK:
-			fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFBLK;
 			fattr->cf_dtype = DT_BLK;
 			fattr->cf_rdev = nfs_mkdev(buf);
 			break;
 		case NFS_SPECFILE_FIFO:
-			fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFIFO;
 			fattr->cf_dtype = DT_FIFO;
 			break;
 		case NFS_SPECFILE_SOCK:
-			fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFSOCK;
 			fattr->cf_dtype = DT_SOCK;
 			break;
 		case NFS_SPECFILE_LNK:
-			fattr->cf_mode = S_IFLNK | cifs_sb->ctx->file_mode;
+			fattr->cf_mode |= S_IFLNK;
 			fattr->cf_dtype = DT_LNK;
 			break;
 		default:
@@ -768,29 +776,29 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 
 	switch (tag) {
 	case IO_REPARSE_TAG_LX_SYMLINK:
-		fattr->cf_mode |= S_IFLNK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 		break;
 	case IO_REPARSE_TAG_LX_FIFO:
-		fattr->cf_mode |= S_IFIFO | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFIFO;
 		fattr->cf_dtype = DT_FIFO;
 		break;
 	case IO_REPARSE_TAG_AF_UNIX:
-		fattr->cf_mode |= S_IFSOCK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFSOCK;
 		fattr->cf_dtype = DT_SOCK;
 		break;
 	case IO_REPARSE_TAG_LX_CHR:
-		fattr->cf_mode |= S_IFCHR | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFCHR;
 		fattr->cf_dtype = DT_CHR;
 		break;
 	case IO_REPARSE_TAG_LX_BLK:
-		fattr->cf_mode |= S_IFBLK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFBLK;
 		fattr->cf_dtype = DT_BLK;
 		break;
 	case 0: /* SMB1 symlink */
 	case IO_REPARSE_TAG_SYMLINK:
 	case IO_REPARSE_TAG_NFS:
-		fattr->cf_mode = S_IFLNK | cifs_sb->ctx->file_mode;
+		fattr->cf_mode |= S_IFLNK;
 		fattr->cf_dtype = DT_LNK;
 		break;
 	default:
@@ -830,6 +838,7 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr,
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
 
+	fattr->cf_mode = cifs_sb->ctx->file_mode;
 	if (cifs_open_data_reparse(data) &&
 	    cifs_reparse_point_to_fattr(cifs_sb, fattr, data))
 		goto out_reparse;
@@ -1061,7 +1070,9 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 				 const unsigned int xid,
 				 struct cifs_tcon *tcon,
 				 const char *full_path,
-				 struct cifs_fattr *fattr)
+				 struct cifs_fattr *fattr,
+				 struct cifs_sid *owner,
+				 struct cifs_sid *group)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -1076,6 +1087,9 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 						      &rsp_iov, &rsp_buftype);
 		if (!rc)
 			iov = &rsp_iov;
+	} else if (data->reparse.io.buftype != CIFS_NO_BUFFER &&
+		   data->reparse.io.iov.iov_base) {
+		iov = &data->reparse.io.iov;
 	}
 
 	rc = -EOPNOTSUPP;
@@ -1092,17 +1106,22 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 		rc = 0;
 		goto out;
 	default:
-		if (data->symlink_target) {
+		/* Check for cached reparse point data */
+		if (data->symlink_target || data->reparse.buf) {
 			rc = 0;
-		} else if (server->ops->parse_reparse_point) {
+		} else if (iov && server->ops->parse_reparse_point) {
 			rc = server->ops->parse_reparse_point(cifs_sb,
 							      iov, data);
 		}
 		break;
 	}
 
-	cifs_open_info_to_fattr(fattr, data, sb);
+	if (tcon->posix_extensions)
+		smb311_posix_info_to_fattr(fattr, data, owner, group, sb);
+	else
+		cifs_open_info_to_fattr(fattr, data, sb);
 out:
+	fattr->cf_cifstag = data->reparse.tag;
 	free_rsp_buf(rsp_buftype, rsp_iov.iov_base);
 	return rc;
 }
@@ -1152,7 +1171,8 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 		 */
 		if (cifs_open_data_reparse(data)) {
 			rc = reparse_info_to_fattr(data, sb, xid, tcon,
-						   full_path, fattr);
+						   full_path, fattr,
+						   NULL, NULL);
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
 		}
@@ -1290,18 +1310,19 @@ out:
 	return rc;
 }
 
-static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
+static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
+				  struct cifs_fattr *fattr,
 				  const char *full_path,
 				  struct super_block *sb,
 				  const unsigned int xid)
 {
-	struct cifs_open_info_data data = {};
+	struct cifs_open_info_data tmp_data = {};
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
 	struct cifs_sid owner, group;
 	int tmprc;
-	int rc;
+	int rc = 0;
 
 	tlink = cifs_sb_tlink(cifs_sb);
 	if (IS_ERR(tlink))
@@ -1309,12 +1330,14 @@ static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
 	tcon = tlink_tcon(tlink);
 
 	/*
-	 * 1. Fetch file metadata
+	 * 1. Fetch file metadata if not provided (data)
 	 */
-
-	rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
-					  full_path, &data,
-					  &owner, &group);
+	if (!data) {
+		rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
+						  full_path, &tmp_data,
+						  &owner, &group);
+		data = &tmp_data;
+	}
 
 	/*
 	 * 2. Convert it to internal cifs metadata (fattr)
@@ -1322,7 +1345,14 @@ static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
 
 	switch (rc) {
 	case 0:
-		smb311_posix_info_to_fattr(fattr, &data, &owner, &group, sb);
+		if (cifs_open_data_reparse(data)) {
+			rc = reparse_info_to_fattr(data, sb, xid, tcon,
+						   full_path, fattr,
+						   &owner, &group);
+		} else {
+			smb311_posix_info_to_fattr(fattr, data,
+						   &owner, &group, sb);
+		}
 		break;
 	case -EREMOTE:
 		/* DFS link, no metadata available on this server */
@@ -1353,12 +1383,15 @@ static int smb311_posix_get_fattr(struct cifs_fattr *fattr,
 
 out:
 	cifs_put_tlink(tlink);
-	cifs_free_open_info(&data);
+	cifs_free_open_info(data);
 	return rc;
 }
 
-int smb311_posix_get_inode_info(struct inode **inode, const char *full_path,
-				struct super_block *sb, const unsigned int xid)
+int smb311_posix_get_inode_info(struct inode **inode,
+				const char *full_path,
+				struct cifs_open_info_data *data,
+				struct super_block *sb,
+				const unsigned int xid)
 {
 	struct cifs_fattr fattr = {};
 	int rc;
@@ -1368,7 +1401,7 @@ int smb311_posix_get_inode_info(struct inode **inode, const char *full_path,
 		return 0;
 	}
 
-	rc = smb311_posix_get_fattr(&fattr, full_path, sb, xid);
+	rc = smb311_posix_get_fattr(data, &fattr, full_path, sb, xid);
 	if (rc)
 		goto out;
 
@@ -1516,7 +1549,7 @@ struct inode *cifs_root_iget(struct super_block *sb)
 
 	convert_delimiter(path, CIFS_DIR_SEP(cifs_sb));
 	if (tcon->posix_extensions)
-		rc = smb311_posix_get_fattr(&fattr, path, sb, xid);
+		rc = smb311_posix_get_fattr(NULL, &fattr, path, sb, xid);
 	else
 		rc = cifs_get_fattr(NULL, sb, xid, NULL, &fattr, &inode, path);
 
@@ -1889,16 +1922,18 @@ cifs_mkdir_qinfo(struct inode *parent, struct dentry *dentry, umode_t mode,
 	int rc = 0;
 	struct inode *inode = NULL;
 
-	if (tcon->posix_extensions)
-		rc = smb311_posix_get_inode_info(&inode, full_path, parent->i_sb, xid);
+	if (tcon->posix_extensions) {
+		rc = smb311_posix_get_inode_info(&inode, full_path,
+						 NULL, parent->i_sb, xid);
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
-	else if (tcon->unix_ext)
+	} else if (tcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&inode, full_path, parent->i_sb,
 					      xid);
 #endif /* CONFIG_CIFS_ALLOW_INSECURE_LEGACY */
-	else
+	} else {
 		rc = cifs_get_inode_info(&inode, full_path, NULL, parent->i_sb,
 					 xid, NULL);
+	}
 
 	if (rc)
 		return rc;
@@ -2219,7 +2254,8 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 		return -ENOSYS;
 
 	/* try path-based rename first */
-	rc = server->ops->rename(xid, tcon, from_path, to_path, cifs_sb);
+	rc = server->ops->rename(xid, tcon, from_dentry,
+				 from_path, to_path, cifs_sb);
 
 	/*
 	 * Don't bother with rename by filehandle unless file is busy and
@@ -2579,13 +2615,15 @@ int cifs_revalidate_dentry_attr(struct dentry *dentry)
 		 dentry, cifs_get_time(dentry), jiffies);
 
 again:
-	if (cifs_sb_master_tcon(CIFS_SB(sb))->posix_extensions)
-		rc = smb311_posix_get_inode_info(&inode, full_path, sb, xid);
-	else if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext)
+	if (cifs_sb_master_tcon(CIFS_SB(sb))->posix_extensions) {
+		rc = smb311_posix_get_inode_info(&inode, full_path,
+						 NULL, sb, xid);
+	} else if (cifs_sb_master_tcon(CIFS_SB(sb))->unix_ext) {
 		rc = cifs_get_inode_info_unix(&inode, full_path, sb, xid);
-	else
+	} else {
 		rc = cifs_get_inode_info(&inode, full_path, NULL, sb,
 					 xid, NULL);
+	}
 	if (rc == -EAGAIN && count++ < 10)
 		goto again;
 out:

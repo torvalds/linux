@@ -5347,18 +5347,18 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 int
 SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
-	     u64 volatile_fid, u32 pid, __le64 *eof)
+	     u64 volatile_fid, u32 pid, loff_t new_eof)
 {
 	struct smb2_file_eof_info info;
 	void *data;
 	unsigned int size;
 
-	info.EndOfFile = *eof;
+	info.EndOfFile = cpu_to_le64(new_eof);
 
 	data = &info;
 	size = sizeof(struct smb2_file_eof_info);
 
-	trace_smb3_set_eof(xid, persistent_fid, tcon->tid, tcon->ses->Suid, le64_to_cpu(*eof));
+	trace_smb3_set_eof(xid, persistent_fid, tcon->tid, tcon->ses->Suid, new_eof);
 
 	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
 			pid, FILE_END_OF_FILE_INFORMATION, SMB2_O_INFO_FILE,
