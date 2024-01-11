@@ -2235,16 +2235,17 @@ static int smu_v13_0_6_mode2_reset(struct smu_context *smu)
 			continue;
 		}
 
-		if (ret) {
-			dev_err(adev->dev,
-				"failed to send mode2 message \tparam: 0x%08x error code %d\n",
-				SMU_RESET_MODE_2, ret);
+		if (ret)
 			goto out;
-		}
+
 	} while (ret == -ETIME && timeout);
 
 out:
 	mutex_unlock(&smu->message_lock);
+
+	if (ret)
+		dev_err(adev->dev, "failed to send mode2 reset, error code %d",
+			ret);
 
 	return ret;
 }
