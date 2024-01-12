@@ -3718,7 +3718,7 @@ struct rtw89_chip_info {
 	u32 rf_base_addr[2];
 	u8 support_chanctx_num;
 	u8 support_bands;
-	bool support_bw160;
+	u16 support_bandwidths;
 	bool support_unii4;
 	bool ul_tb_waveform_ctrl;
 	bool ul_tb_pwr_diff;

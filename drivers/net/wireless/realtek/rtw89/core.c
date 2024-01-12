@@ -3611,7 +3611,8 @@ static void rtw89_init_vht_cap(struct rtw89_dev *rtwdev,
 		cpu_to_le16(867), cpu_to_le16(1733), cpu_to_le16(2600), cpu_to_le16(3467),
 	};
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const __le16 *highest = chip->support_bw160 ? highest_bw160 : highest_bw80;
+	const __le16 *highest = chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160) ?
+				highest_bw160 : highest_bw80;
 	struct rtw89_hal *hal = &rtwdev->hal;
 	u16 tx_mcs_map = 0, rx_mcs_map = 0;
 	u8 sts_cap = 3;
@@ -3640,7 +3641,7 @@ static void rtw89_init_vht_cap(struct rtw89_dev *rtwdev,
 	vht_cap->cap |= IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE |
 			IEEE80211_VHT_CAP_SU_BEAMFORMEE_CAPABLE;
 	vht_cap->cap |= sts_cap << IEEE80211_VHT_CAP_BEAMFORMEE_STS_SHIFT;
-	if (chip->support_bw160)
+	if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160))
 		vht_cap->cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ |
 				IEEE80211_VHT_CAP_SHORT_GI_160;
 	vht_cap->vht_mcs.rx_mcs_map = cpu_to_le16(rx_mcs_map);
@@ -3695,7 +3696,7 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 	} else {
 		phy_cap_info[0] =
 			IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G;
-		if (chip->support_bw160)
+		if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160))
 			phy_cap_info[0] |= IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
 	}
 	phy_cap_info[1] = IEEE80211_HE_PHY_CAP1_DEVICE_CLASS_A |
@@ -3713,7 +3714,7 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 		phy_cap_info[3] |= IEEE80211_HE_PHY_CAP3_RX_PARTIAL_BW_SU_IN_20MHZ_MU;
 	phy_cap_info[4] = IEEE80211_HE_PHY_CAP4_SU_BEAMFORMEE |
 			  IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_UNDER_80MHZ_4;
-	if (chip->support_bw160)
+	if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160))
 		phy_cap_info[4] |= IEEE80211_HE_PHY_CAP4_BEAMFORMEE_MAX_STS_ABOVE_80MHZ_4;
 	phy_cap_info[5] = no_ng16 ? 0 :
 			  IEEE80211_HE_PHY_CAP5_NG16_SU_FEEDBACK |
@@ -3728,7 +3729,7 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 	phy_cap_info[8] = IEEE80211_HE_PHY_CAP8_HE_ER_SU_PPDU_4XLTF_AND_08_US_GI |
 			  IEEE80211_HE_PHY_CAP8_HE_ER_SU_1XLTF_AND_08_US_GI |
 			  IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_996;
-	if (chip->support_bw160)
+	if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160))
 		phy_cap_info[8] |= IEEE80211_HE_PHY_CAP8_20MHZ_IN_160MHZ_HE_PPDU |
 				   IEEE80211_HE_PHY_CAP8_80MHZ_IN_160MHZ_HE_PPDU;
 	phy_cap_info[9] = IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM |
@@ -3741,7 +3742,7 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 		phy_cap_info[9] |= IEEE80211_HE_PHY_CAP9_TX_1024_QAM_LESS_THAN_242_TONE_RU;
 	he_cap->he_mcs_nss_supp.rx_mcs_80 = cpu_to_le16(mcs_map);
 	he_cap->he_mcs_nss_supp.tx_mcs_80 = cpu_to_le16(mcs_map);
-	if (chip->support_bw160) {
+	if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160)) {
 		he_cap->he_mcs_nss_supp.rx_mcs_160 = cpu_to_le16(mcs_map);
 		he_cap->he_mcs_nss_supp.tx_mcs_160 = cpu_to_le16(mcs_map);
 	}
