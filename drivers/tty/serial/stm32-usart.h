@@ -20,6 +20,7 @@ struct stm32_usart_offsets {
 	u8 icr;
 	u8 rdr;
 	u8 tdr;
+	u8 presc;
 };
 
 struct stm32_usart_config {
@@ -71,6 +72,7 @@ struct stm32_usart_info {
 #define USART_BRR_DIV_M_MASK	GENMASK(15, 4)
 #define USART_BRR_DIV_M_SHIFT	4
 #define USART_BRR_04_R_SHIFT	1
+#define USART_BRR_MASK		(USART_BRR_DIV_M_MASK | USART_BRR_DIV_F_MASK)
 
 /* USART_CR1 */
 #define USART_CR1_SBK		BIT(0)
@@ -175,6 +177,10 @@ struct stm32_usart_info {
 #define USART_ICR_EOBCF		BIT(12)		/* F7 */
 #define USART_ICR_CMCF		BIT(17)		/* F7 */
 #define USART_ICR_WUCF		BIT(20)		/* H7 */
+
+/* USART_PRESC */
+#define USART_PRESC		GENMASK(3, 0)	/* H7 */
+#define USART_PRESC_MAX		0b1011
 
 #define STM32_SERIAL_NAME "ttySTM"
 #define STM32_MAX_PORTS 8
