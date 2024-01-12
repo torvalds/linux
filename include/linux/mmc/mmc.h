@@ -257,8 +257,6 @@ static inline bool mmc_ready_for_data(u32 status)
 #define EXT_CSD_FLUSH_CACHE		32      /* W */
 #define EXT_CSD_CACHE_CTRL		33      /* R/W */
 #define EXT_CSD_POWER_OFF_NOTIFICATION	34	/* R/W */
-#define EXT_CSD_PACKED_FAILURE_INDEX	35	/* RO */
-#define EXT_CSD_PACKED_CMD_STATUS	36	/* RO */
 #define EXT_CSD_EXP_EVENTS_STATUS	54	/* RO, 2 bytes */
 #define EXT_CSD_EXP_EVENTS_CTRL		56	/* R/W, 2 bytes */
 #define EXT_CSD_DATA_SECTOR_SIZE	61	/* R */
@@ -321,8 +319,6 @@ static inline bool mmc_ready_for_data(u32 status)
 #define EXT_CSD_SUPPORTED_MODE		493	/* RO */
 #define EXT_CSD_TAG_UNIT_SIZE		498	/* RO */
 #define EXT_CSD_DATA_TAG_SUPPORT	499	/* RO */
-#define EXT_CSD_MAX_PACKED_WRITES	500	/* RO */
-#define EXT_CSD_MAX_PACKED_READS	501	/* RO */
 #define EXT_CSD_BKOPS_SUPPORT		502	/* RO */
 #define EXT_CSD_HPI_FEATURES		503	/* RO */
 
@@ -402,18 +398,12 @@ static inline bool mmc_ready_for_data(u32 status)
 #define EXT_CSD_PWR_CL_8BIT_SHIFT	4
 #define EXT_CSD_PWR_CL_4BIT_SHIFT	0
 
-#define EXT_CSD_PACKED_EVENT_EN	BIT(3)
-
 /*
  * EXCEPTION_EVENT_STATUS field
  */
 #define EXT_CSD_URGENT_BKOPS		BIT(0)
 #define EXT_CSD_DYNCAP_NEEDED		BIT(1)
 #define EXT_CSD_SYSPOOL_EXHAUSTED	BIT(2)
-#define EXT_CSD_PACKED_FAILURE		BIT(3)
-
-#define EXT_CSD_PACKED_GENERIC_ERROR	BIT(0)
-#define EXT_CSD_PACKED_INDEXED_ERROR	BIT(1)
 
 /*
  * BKOPS status level
