@@ -414,7 +414,7 @@ asmlinkage long sys_statmount(const struct mnt_id_req __user *req,
 			      struct statmount __user *buf, size_t bufsize,
 			      unsigned int flags);
 asmlinkage long sys_listmount(const struct mnt_id_req __user *req,
-			      u64 __user *buf, size_t bufsize,
+			      u64 __user *mnt_ids, size_t nr_mnt_ids,
 			      unsigned int flags);
 asmlinkage long sys_truncate(const char __user *path, long length);
 asmlinkage long sys_ftruncate(unsigned int fd, unsigned long length);
