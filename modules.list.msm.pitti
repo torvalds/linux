@@ -58,6 +58,7 @@ mdt_loader.ko
 nvmem_qfprom.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
+phy-qcom-ufs-qmp-v4-waipio.ko
 sdhci-msm-scaling.ko
 ufs_qcom.ko
 dispcc-pitti.ko
