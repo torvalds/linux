@@ -202,12 +202,14 @@ static u32 starfive_wdt_ticks_to_sec(struct starfive_wdt *wdt, u32 ticks)
 
 /* Write unlock-key to unlock. Write other value to lock. */
 static void starfive_wdt_unlock(struct starfive_wdt *wdt)
+	__acquires(&wdt->lock)
 {
 	spin_lock(&wdt->lock);
 	writel(wdt->variant->unlock_key, wdt->base + wdt->variant->unlock);
 }
 
 static void starfive_wdt_lock(struct starfive_wdt *wdt)
+	__releases(&wdt->lock)
 {
 	writel(~wdt->variant->unlock_key, wdt->base + wdt->variant->unlock);
 	spin_unlock(&wdt->lock);
@@ -504,7 +506,7 @@ err_exit:
 	return ret;
 }
 
-static int starfive_wdt_remove(struct platform_device *pdev)
+static void starfive_wdt_remove(struct platform_device *pdev)
 {
 	struct starfive_wdt *wdt = platform_get_drvdata(pdev);
 
@@ -516,8 +518,6 @@ static int starfive_wdt_remove(struct platform_device *pdev)
 	else
 		/* disable clock without PM */
 		starfive_wdt_disable_clock(wdt);
-
-	return 0;
 }
 
 static void starfive_wdt_shutdown(struct platform_device *pdev)
@@ -587,7 +587,7 @@ MODULE_DEVICE_TABLE(of, starfive_wdt_match);
 
 static struct platform_driver starfive_wdt_driver = {
 	.probe = starfive_wdt_probe,
-	.remove = starfive_wdt_remove,
+	.remove_new = starfive_wdt_remove,
 	.shutdown = starfive_wdt_shutdown,
 	.driver = {
 		.name = "starfive-wdt",
