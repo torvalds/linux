@@ -749,7 +749,6 @@ struct xe_hw_engine_snapshot *
 xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 {
 	struct xe_hw_engine_snapshot *snapshot;
-	int len;
 
 	if (!xe_hw_engine_is_valid(hwe))
 		return NULL;
@@ -759,11 +758,7 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	if (!snapshot)
 		return NULL;
 
-	len = strlen(hwe->name) + 1;
-	snapshot->name = kzalloc(len, GFP_ATOMIC);
-	if (snapshot->name)
-		strscpy(snapshot->name, hwe->name, len);
-
+	snapshot->name = kstrdup(hwe->name, GFP_ATOMIC);
 	snapshot->class = hwe->class;
 	snapshot->logical_instance = hwe->logical_instance;
 	snapshot->forcewake.domain = hwe->domain;
