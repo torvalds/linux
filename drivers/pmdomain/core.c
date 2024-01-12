@@ -23,8 +23,6 @@
 #include <linux/cpu.h>
 #include <linux/debugfs.h>
 
-#include "power.h"
-
 #define GENPD_RETRY_MAX_MS	250		/* Approximate */
 
 #define GENPD_DEV_CALLBACK(genpd, type, callback, dev)		\
@@ -3041,38 +3039,6 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
-
-/**
- * pm_genpd_opp_to_performance_state - Gets performance state of the genpd from its OPP node.
- *
- * @genpd_dev: Genpd's device for which the performance-state needs to be found.
- * @opp: struct dev_pm_opp of the OPP for which we need to find performance
- *	state.
- *
- * Returns performance state encoded in the OPP of the genpd. This calls
- * platform specific genpd->opp_to_performance_state() callback to translate
- * power domain OPP to performance state.
- *
- * Returns performance state on success and 0 on failure.
- */
-unsigned int pm_genpd_opp_to_performance_state(struct device *genpd_dev,
-					       struct dev_pm_opp *opp)
-{
-	struct generic_pm_domain *genpd = NULL;
-	int state;
-
-	genpd = container_of(genpd_dev, struct generic_pm_domain, dev);
-
-	if (unlikely(!genpd->opp_to_performance_state))
-		return 0;
-
-	genpd_lock(genpd);
-	state = genpd->opp_to_performance_state(genpd, opp);
-	genpd_unlock(genpd);
-
-	return state;
-}
-EXPORT_SYMBOL_GPL(pm_genpd_opp_to_performance_state);
 
 static int __init genpd_bus_init(void)
 {

@@ -49,6 +49,8 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 /**
  * default_suspend_ok - Default PM domain governor routine to suspend devices.
  * @dev: Device to check.
+ *
+ * Returns: true if OK to suspend, false if not OK to suspend
  */
 static bool default_suspend_ok(struct device *dev)
 {
@@ -261,6 +263,8 @@ static bool __default_power_down_ok(struct dev_pm_domain *pd,
  * @now: current ktime.
  *
  * This routine must be executed under the PM domain's lock.
+ *
+ * Returns: true if OK to power down, false if not OK to power down
  */
 static bool _default_power_down_ok(struct dev_pm_domain *pd, ktime_t now)
 {
@@ -406,8 +410,8 @@ struct dev_power_governor simple_qos_governor = {
 	.power_down_ok = default_power_down_ok,
 };
 
-/**
- * pm_genpd_gov_always_on - A governor implementing an always-on policy
+/*
+ * pm_domain_always_on_gov - A governor implementing an always-on policy
  */
 struct dev_power_governor pm_domain_always_on_gov = {
 	.suspend_ok = default_suspend_ok,
