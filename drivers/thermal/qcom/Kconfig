@@ -261,3 +261,14 @@ config QTI_DEVFREQ_VDD_COOLING_DEVICE
 	  on a particular devfreq device. This mitigation device will be used by
 	  low temperature reliability rules to mitigate a devfreq device at
 	  minimum operating level.
+
+config QTI_GPU_DUMP_SKIP_COOLING_DEVICE
+	tristate "QTI GPU Dump Skip Cooling device"
+	depends on THERMAL
+	help
+	  This enables the QTI GPU Dump Skip cooling device. This driver will
+	  register with thermal framework as a cooling device. This will enable
+	  the feature to update a PMIC SDAM and a SOC cookie which will be checked in
+	  SDI path to disable GFX rail and skip GPU Scan dump when ambient temperature
+	  is more than the recommended threshold.
+
