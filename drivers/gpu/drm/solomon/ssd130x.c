@@ -319,7 +319,7 @@ static int ssd130x_pwm_enable(struct ssd130x_device *ssd130x)
 
 	pwm_init_state(ssd130x->pwm, &pwmstate);
 	pwm_set_relative_duty_cycle(&pwmstate, 50, 100);
-	pwm_apply_state(ssd130x->pwm, &pwmstate);
+	pwm_apply_might_sleep(ssd130x->pwm, &pwmstate);
 
 	/* Enable the PWM */
 	pwm_enable(ssd130x->pwm);
