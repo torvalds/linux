@@ -85,10 +85,8 @@ int hgsl_sysfs_client_init(struct hgsl_priv *priv)
 			hgsl->clients_sysfs,
 			name);
 
-	if (unlikely(ret != 0)) {
-		kobject_put(&priv->sysfs_client);
+	if (unlikely(ret != 0))
 		pr_warn("Create sysfs proc node failed.\n");
-	}
 
 	return ret;
 }

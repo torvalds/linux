@@ -128,6 +128,7 @@ struct qcom_hgsl {
 	struct hgsl_hyp_priv_t global_hyp;
 	bool global_hyp_inited;
 	struct mutex mutex;
+	struct list_head active_list;
 	struct list_head release_list;
 	struct workqueue_struct *release_wq;
 	struct work_struct release_work;
@@ -183,6 +184,7 @@ struct hgsl_priv {
 	struct mutex lock;
 	struct list_head mem_mapped;
 	struct list_head mem_allocated;
+	int open_count;
 
 	atomic64_t total_mem_size;
 
