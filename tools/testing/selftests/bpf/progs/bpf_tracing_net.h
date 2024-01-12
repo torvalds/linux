@@ -72,6 +72,8 @@
 #define inet_rcv_saddr		sk.__sk_common.skc_rcv_saddr
 #define inet_dport		sk.__sk_common.skc_dport
 
+#define udp_portaddr_hash	inet.sk.__sk_common.skc_u16hashes[1]
+
 #define ir_loc_addr		req.__req_common.skc_rcv_saddr
 #define ir_num			req.__req_common.skc_num
 #define ir_rmt_addr		req.__req_common.skc_daddr
@@ -85,6 +87,7 @@
 #define sk_rmem_alloc		sk_backlog.rmem_alloc
 #define sk_refcnt		__sk_common.skc_refcnt
 #define sk_state		__sk_common.skc_state
+#define sk_net			__sk_common.skc_net
 #define sk_v6_daddr		__sk_common.skc_v6_daddr
 #define sk_v6_rcv_saddr		__sk_common.skc_v6_rcv_saddr
 #define sk_flags		__sk_common.skc_flags
