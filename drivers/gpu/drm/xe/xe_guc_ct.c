@@ -785,6 +785,24 @@ retry_same_fence:
 	return ret > 0 ? response_buffer ? g2h_fence.response_len : g2h_fence.response_data : ret;
 }
 
+/**
+ * xe_guc_ct_send_recv - Send and receive HXG to the GuC
+ * @ct: the &xe_guc_ct
+ * @action: the dword array with `HXG Request`_ message (can't be NULL)
+ * @len: length of the `HXG Request`_ message (in dwords, can't be 0)
+ * @response_buffer: placeholder for the `HXG Response`_ message (can be NULL)
+ *
+ * Send a `HXG Request`_ message to the GuC over CT communication channel and
+ * blocks until GuC replies with a `HXG Response`_ message.
+ *
+ * For non-blocking communication with GuC use xe_guc_ct_send().
+ *
+ * Note: The size of &response_buffer must be at least GUC_CTB_MAX_DWORDS_.
+ *
+ * Return: response length (in dwords) if &response_buffer was not NULL, or
+ *         DATA0 from `HXG Response`_ if &response_buffer was NULL, or
+ *         a negative error code on failure.
+ */
 int xe_guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
 			u32 *response_buffer)
 {
