@@ -513,7 +513,8 @@ struct smb_version_operations {
 				 struct mid_q_entry **, char **, int *);
 	enum securityEnum (*select_sectype)(struct TCP_Server_Info *,
 			    enum securityEnum);
-	int (*next_header)(char *);
+	int (*next_header)(struct TCP_Server_Info *server, char *buf,
+			   unsigned int *noff);
 	/* ioctl passthrough for query_info */
 	int (*ioctl_query_info)(const unsigned int xid,
 				struct cifs_tcon *tcon,
