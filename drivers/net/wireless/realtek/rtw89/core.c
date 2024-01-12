@@ -3760,6 +3760,95 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw89_init_eht_cap(struct rtw89_dev *rtwdev,
+			       enum nl80211_band band,
+			       enum nl80211_iftype iftype,
+			       struct ieee80211_sband_iftype_data *iftype_data)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	struct ieee80211_eht_cap_elem_fixed *eht_cap_elem;
+	struct ieee80211_eht_mcs_nss_supp *eht_nss;
+	struct ieee80211_sta_eht_cap *eht_cap;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	bool support_320mhz = false;
+	int sts = 3;
+	u8 val;
+
+	if (chip->chip_gen == RTW89_CHIP_AX)
+		return;
+
+	if (band == NL80211_BAND_6GHZ &&
+	    chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_320))
+		support_320mhz = true;
+
+	eht_cap = &iftype_data->eht_cap;
+	eht_cap_elem = &eht_cap->eht_cap_elem;
+	eht_nss = &eht_cap->eht_mcs_nss_supp;
+
+	eht_cap->has_eht = true;
+
+	eht_cap_elem->mac_cap_info[0] =
+		u8_encode_bits(IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991,
+			       IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK);
+	eht_cap_elem->mac_cap_info[1] = 0;
+
+	eht_cap_elem->phy_cap_info[0] =
+		IEEE80211_EHT_PHY_CAP0_NDP_4_EHT_LFT_32_GI |
+		IEEE80211_EHT_PHY_CAP0_SU_BEAMFORMEE;
+	if (support_320mhz)
+		eht_cap_elem->phy_cap_info[0] |=
+			IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
+
+	eht_cap_elem->phy_cap_info[0] |=
+		u8_encode_bits(u8_get_bits(sts - 1, BIT(0)),
+			       IEEE80211_EHT_PHY_CAP0_BEAMFORMEE_SS_80MHZ_MASK);
+	eht_cap_elem->phy_cap_info[1] =
+		u8_encode_bits(u8_get_bits(sts - 1, GENMASK(2, 1)),
+			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_80MHZ_MASK) |
+		u8_encode_bits(sts - 1,
+			       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_160MHZ_MASK);
+	if (support_320mhz)
+		eht_cap_elem->phy_cap_info[1] |=
+			u8_encode_bits(sts - 1,
+				       IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_320MHZ_MASK);
+
+	eht_cap_elem->phy_cap_info[2] = 0;
+
+	eht_cap_elem->phy_cap_info[3] =
+		IEEE80211_EHT_PHY_CAP3_NG_16_SU_FEEDBACK |
+		IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
+		IEEE80211_EHT_PHY_CAP3_CODEBOOK_4_2_SU_FDBK |
+		IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK |
+		IEEE80211_EHT_PHY_CAP3_TRIG_CQI_FDBK;
+
+	eht_cap_elem->phy_cap_info[4] =
+		IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP |
+		u8_encode_bits(1, IEEE80211_EHT_PHY_CAP4_MAX_NC_MASK);
+
+	eht_cap_elem->phy_cap_info[5] =
+		IEEE80211_EHT_PHY_CAP5_NON_TRIG_CQI_FEEDBACK |
+		u8_encode_bits(IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_20US,
+			       IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_MASK);
+
+	eht_cap_elem->phy_cap_info[6] = 0;
+	eht_cap_elem->phy_cap_info[7] = 0;
+	eht_cap_elem->phy_cap_info[8] = 0;
+
+	val = u8_encode_bits(hal->rx_nss, IEEE80211_EHT_MCS_NSS_RX) |
+	      u8_encode_bits(hal->tx_nss, IEEE80211_EHT_MCS_NSS_TX);
+	eht_nss->bw._80.rx_tx_mcs9_max_nss = val;
+	eht_nss->bw._80.rx_tx_mcs11_max_nss = val;
+	eht_nss->bw._80.rx_tx_mcs13_max_nss = val;
+	eht_nss->bw._160.rx_tx_mcs9_max_nss = val;
+	eht_nss->bw._160.rx_tx_mcs11_max_nss = val;
+	eht_nss->bw._160.rx_tx_mcs13_max_nss = val;
+	if (support_320mhz) {
+		eht_nss->bw._320.rx_tx_mcs9_max_nss = val;
+		eht_nss->bw._320.rx_tx_mcs11_max_nss = val;
+		eht_nss->bw._320.rx_tx_mcs13_max_nss = val;
+	}
+}
+
 #define RTW89_SBAND_IFTYPES_NR 2
 
 static void rtw89_init_he_eht_cap(struct rtw89_dev *rtwdev,
@@ -3791,6 +3880,7 @@ static void rtw89_init_he_eht_cap(struct rtw89_dev *rtwdev,
 		iftype_data[idx].types_mask = BIT(iftype);
 
 		rtw89_init_he_cap(rtwdev, band, iftype, &iftype_data[idx]);
+		rtw89_init_eht_cap(rtwdev, band, iftype, &iftype_data[idx]);
 
 		idx++;
 	}
