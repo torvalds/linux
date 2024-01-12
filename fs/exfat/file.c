@@ -29,7 +29,7 @@ static int exfat_cont_expand(struct inode *inode, loff_t size)
 	if (ret)
 		return ret;
 
-	num_clusters = EXFAT_B_TO_CLU_ROUND_UP(ei->i_size_ondisk, sbi);
+	num_clusters = EXFAT_B_TO_CLU(exfat_ondisk_size(inode), sbi);
 	new_num_clusters = EXFAT_B_TO_CLU_ROUND_UP(size, sbi);
 
 	if (new_num_clusters == num_clusters)
@@ -75,7 +75,6 @@ out:
 	i_size_write(inode, size);
 
 	ei->i_size_aligned = round_up(size, sb->s_blocksize);
-	ei->i_size_ondisk = ei->i_size_aligned;
 	inode->i_blocks = round_up(size, sbi->cluster_size) >> 9;
 	mark_inode_dirty(inode);
 
@@ -159,7 +158,7 @@ int __exfat_truncate(struct inode *inode)
 	exfat_set_volume_dirty(sb);
 
 	num_clusters_new = EXFAT_B_TO_CLU_ROUND_UP(i_size_read(inode), sbi);
-	num_clusters_phys = EXFAT_B_TO_CLU_ROUND_UP(ei->i_size_ondisk, sbi);
+	num_clusters_phys = EXFAT_B_TO_CLU(exfat_ondisk_size(inode), sbi);
 
 	exfat_chain_set(&clu, ei->start_clu, num_clusters_phys, ei->flags);
 
@@ -269,9 +268,6 @@ write_size:
 		aligned_size |= (blocksize - 1);
 		aligned_size++;
 	}
-
-	if (ei->i_size_ondisk > i_size_read(inode))
-		ei->i_size_ondisk = aligned_size;
 
 	if (ei->i_size_aligned > i_size_read(inode))
 		ei->i_size_aligned = aligned_size;

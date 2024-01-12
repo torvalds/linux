@@ -309,11 +309,6 @@ struct exfat_inode_info {
 	/* for avoiding the race between alloc and free */
 	unsigned int cache_valid_id;
 
-	/*
-	 * NOTE: i_size_ondisk is 64bits, so must hold ->inode_lock to access.
-	 * physically allocated size.
-	 */
-	loff_t i_size_ondisk;
 	/* block-aligned i_size (used in cont_write_begin) */
 	loff_t i_size_aligned;
 	/* on-disk position of directory entry or 0 */
@@ -415,6 +410,11 @@ static inline bool is_valid_cluster(struct exfat_sb_info *sbi,
 		unsigned int clus)
 {
 	return clus >= EXFAT_FIRST_CLUSTER && clus < sbi->num_clusters;
+}
+
+static inline loff_t exfat_ondisk_size(const struct inode *inode)
+{
+	return ((loff_t)inode->i_blocks) << 9;
 }
 
 /* super.c */
