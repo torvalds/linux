@@ -33,6 +33,7 @@
 struct g2h_fence {
 	u32 *response_buffer;
 	u32 seqno;
+	u32 response_data;
 	u16 response_len;
 	u16 error;
 	u16 hint;
@@ -45,6 +46,7 @@ struct g2h_fence {
 static void g2h_fence_init(struct g2h_fence *g2h_fence, u32 *response_buffer)
 {
 	g2h_fence->response_buffer = response_buffer;
+	g2h_fence->response_data = 0;
 	g2h_fence->response_len = 0;
 	g2h_fence->fail = false;
 	g2h_fence->retry = false;
@@ -780,7 +782,7 @@ retry_same_fence:
 		ret = -EIO;
 	}
 
-	return ret > 0 ? response_buffer ? g2h_fence.response_len : 0 : ret;
+	return ret > 0 ? response_buffer ? g2h_fence.response_len : g2h_fence.response_data : ret;
 }
 
 int xe_guc_ct_send_recv(struct xe_guc_ct *ct, const u32 *action, u32 len,
@@ -877,6 +879,8 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 	} else if (g2h_fence->response_buffer) {
 		g2h_fence->response_len = hxg_len;
 		memcpy(g2h_fence->response_buffer, hxg, hxg_len * sizeof(u32));
+	} else {
+		g2h_fence->response_data = FIELD_GET(GUC_HXG_RESPONSE_MSG_0_DATA0, hxg[0]);
 	}
 
 	g2h_release_space(ct, GUC_CTB_HXG_MSG_MAX_LEN);
