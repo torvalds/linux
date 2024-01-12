@@ -744,7 +744,7 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	struct inode *inode;
 	struct inode *udir = d_inode(c->destdir), *wdir = d_inode(c->workdir);
 	struct path path = { .mnt = ovl_upper_mnt(ofs) };
-	struct dentry *temp, *upper;
+	struct dentry *temp, *upper, *trap;
 	struct ovl_cu_creds cc;
 	int err;
 	struct ovl_cattr cattr = {
@@ -781,11 +781,13 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 	 * temp wasn't moved before copy up completion or cleanup.
 	 */
 	ovl_start_write(c->dentry);
-	if (lock_rename(c->workdir, c->destdir) != NULL ||
-	    temp->d_parent != c->workdir) {
+	trap = lock_rename(c->workdir, c->destdir);
+	if (trap || temp->d_parent != c->workdir) {
 		/* temp or workdir moved underneath us? abort without cleanup */
 		dput(temp);
 		err = -EIO;
+		if (IS_ERR(trap))
+			goto out;
 		goto unlock;
 	} else if (err) {
 		goto cleanup;
@@ -826,6 +828,7 @@ static int ovl_copy_up_workdir(struct ovl_copy_up_ctx *c)
 		ovl_set_flag(OVL_WHITEOUTS, inode);
 unlock:
 	unlock_rename(c->workdir, c->destdir);
+out:
 	ovl_end_write(c->dentry);
 
 	return err;

@@ -1831,6 +1831,10 @@ retry:
 	}
 
 	trap = lock_rename(tdentry, fdentry);
+	if (IS_ERR(trap)) {
+		err = (rqstp->rq_vers == 2) ? nfserr_acces : nfserr_xdev;
+		goto out;
+	}
 	err = fh_fill_pre_attrs(ffhp);
 	if (err != nfs_ok)
 		goto out_unlock;

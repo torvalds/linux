@@ -715,6 +715,10 @@ retry:
 		goto out2;
 
 	trap = lock_rename_child(old_child, new_path.dentry);
+	if (IS_ERR(trap)) {
+		err = PTR_ERR(trap);
+		goto out_drop_write;
+	}
 
 	old_parent = dget(old_child->d_parent);
 	if (d_unhashed(old_child)) {
@@ -777,6 +781,7 @@ out4:
 out3:
 	dput(old_parent);
 	unlock_rename(old_parent, new_path.dentry);
+out_drop_write:
 	mnt_drop_write(old_path->mnt);
 out2:
 	path_put(&new_path);
