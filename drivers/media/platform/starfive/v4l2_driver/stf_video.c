@@ -216,6 +216,11 @@ static int __video_try_fmt(struct stfcamss_video *video,
 				pix->height, fi->bpp[0]);
 		st_info(ST_VIDEO, "i = %d, s = 0x%x\n", i, pix->sizeimage);
 	}
+
+	if (stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC)
+		== STF_ISP_PAD_SRC_SCD_Y)
+		pix->sizeimage = ISP_SCD_Y_BUFFER_SIZE;
+
 	return 0;
 }
 
@@ -284,11 +289,6 @@ static int video_queue_setup(struct vb2_queue *q,
 		sizes[0] = format->sizeimage;
 		if (!sizes[0])
 			st_err(ST_VIDEO, "%s: error size is zero!!!\n", __func__);
-	}
-	if ((stf_vin_map_isp_pad(video->id, STF_ISP_PAD_SRC)
-		== STF_ISP_PAD_SRC_SCD_Y) &&
-		sizes[0] < ISP_SCD_Y_BUFFER_SIZE) {
-		sizes[0] = ISP_SCD_Y_BUFFER_SIZE;
 	}
 
 	st_info(ST_VIDEO, "%s, planes = %d, size = %d\n",
