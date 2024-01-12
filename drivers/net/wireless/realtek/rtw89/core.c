@@ -3648,6 +3648,10 @@ static void rtw89_init_vht_cap(struct rtw89_dev *rtwdev,
 	vht_cap->vht_mcs.tx_mcs_map = cpu_to_le16(tx_mcs_map);
 	vht_cap->vht_mcs.rx_highest = highest[hal->rx_nss - 1];
 	vht_cap->vht_mcs.tx_highest = highest[hal->tx_nss - 1];
+
+	if (ieee80211_hw_check(rtwdev->hw, SUPPORTS_VHT_EXT_NSS_BW))
+		vht_cap->vht_mcs.tx_highest |=
+			cpu_to_le16(IEEE80211_VHT_EXT_NSS_BW_CAPABLE);
 }
 
 static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
@@ -4391,6 +4395,7 @@ EXPORT_SYMBOL(rtw89_chip_info_setup);
 
 static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw89_hal *hal = &rtwdev->hal;
@@ -4427,6 +4432,9 @@ static int rtw89_core_register_hw(struct rtw89_dev *rtwdev)
 
 	/* ref: description of rtw89_mcc_get_tbtt_ofst() in chan.c */
 	ieee80211_hw_set(hw, TIMING_BEACON_ONLY);
+
+	if (chip->support_bandwidths & BIT(NL80211_CHAN_WIDTH_160))
+		ieee80211_hw_set(hw, SUPPORTS_VHT_EXT_NSS_BW);
 
 	if (RTW89_CHK_FW_FEATURE(BEACON_FILTER, &rtwdev->fw))
 		ieee80211_hw_set(hw, CONNECTION_MONITOR);
