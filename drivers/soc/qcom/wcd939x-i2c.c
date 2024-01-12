@@ -23,6 +23,8 @@
 #define NUM_RCO_MISC2_READ 10
 #define MIN_SURGE_TIMER_PERIOD_SEC 3
 #define MAX_SURGE_TIMER_PERIOD_SEC 20
+#define PM_RUNTIME_RESUME_CNT 5
+#define PM_RUNTIME_RESUME_WAIT_US_MIN  5000
 
 enum {
 	WCD_USBSS_AUDIO_MANUAL,
@@ -94,6 +96,67 @@ static struct kobj_attribute wcd_usbss_surge_period_attribute =
 static struct kobj_attribute wcd_usbss_standby_enable_attribute =
 	__ATTR(standby_mode, 0220, NULL, wcd_usbss_standby_store);
 
+
+static int acquire_runtime_env(struct wcd_usbss_ctxt *priv)
+{
+	int rc = 0, retry = 0;
+
+	mutex_lock(&priv->runtime_env_counter_lock);
+
+	priv->runtime_env_counter++;
+	if (priv->runtime_env_counter == 1) {
+		pm_stay_awake(priv->dev);
+
+		do {
+			rc = pm_runtime_resume_and_get(priv->dev);
+			if (rc >= 0)
+				break;
+
+			if (rc == -EACCES) {
+				usleep_range(PM_RUNTIME_RESUME_WAIT_US_MIN,
+					PM_RUNTIME_RESUME_WAIT_US_MIN + 500);
+			} else {
+				dev_err(priv->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+						__func__, rc);
+			}
+		} while (++retry < PM_RUNTIME_RESUME_CNT);
+
+		if (rc == -EACCES)
+			dev_err(priv->dev, "%s: pm runtime in disabled state\n", __func__);
+
+		if (rc < 0) {
+			pm_relax(priv->dev);
+			priv->runtime_env_counter--;
+		}
+	} else if (priv->runtime_env_counter <= 0) {
+		dev_err(priv->dev, "%s: priv->runtime_env_counter %d underrun\n", __func__,
+				priv->runtime_env_counter);
+		priv->runtime_env_counter = 0;
+	}
+
+	mutex_unlock(&priv->runtime_env_counter_lock);
+
+	return rc;
+}
+
+static void release_runtime_env(struct wcd_usbss_ctxt *priv)
+{
+	mutex_lock(&priv->runtime_env_counter_lock);
+
+	priv->runtime_env_counter--;
+	if (priv->runtime_env_counter == 0) {
+		pm_runtime_mark_last_busy(priv->dev);
+		pm_runtime_put_autosuspend(priv->dev);
+		pm_relax(priv->dev);
+	} else if (priv->runtime_env_counter < 0) {
+		dev_err(priv->dev, "%s: priv->runtime_env_counter %d underrun\n", __func__,
+				priv->runtime_env_counter);
+		priv->runtime_env_counter = 0;
+	}
+
+	mutex_unlock(&priv->runtime_env_counter_lock);
+}
+
 /**
  * wcd_usbss_sbu_switch_orientation() - Determine SBU switch orientation based on switch settings.
  *
@@ -116,16 +179,15 @@ enum wcd_usbss_sbu_switch_orientation wcd_usbss_get_sbu_switch_orientation(void)
 	if (!wcd_usbss_ctxt_->regmap)
 		return INVALID_ORIENTATION;
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 			__func__, ret);
 		return ret;
 	}
 
 	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SELECT0, &read_val);
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 	if ((read_val & 0x3) == 0x1)
 		return GND_SBU1_ORIENTATION_B;
 	if ((read_val & 0x3) == 0x2)
@@ -159,17 +221,16 @@ int wcd_usbss_set_switch_settings_enable(enum wcd_usbss_switch_type switch_type,
 	    (switch_state != USBSS_SWITCH_DISABLE && switch_state != USBSS_SWITCH_ENABLE))
 		return -EINVAL;
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 					__func__, ret);
 		return ret;
 	}
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SWITCH_SETTINGS_ENABLE,
 			   1 << switch_type, switch_state << switch_type);
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return ret;
 }
@@ -196,17 +257,16 @@ int wcd_usbss_linearizer_rdac_cal_code_select(enum linearizer_rdac_cal_code_sele
 					   source != LINEARIZER_SOURCE_SW))
 		return -EINVAL;
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 					__func__, ret);
 		return ret;
 	}
 
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_FUNCTION_ENABLE, 0x4, source << 2);
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return 0;
 }
@@ -236,9 +296,9 @@ int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
 	if ((!wcd_usbss_ctxt_->regmap) || aud_tap > 0x3FF || gnd_tap > 0x3FF)
 		return -EINVAL;
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 					__func__, ret);
 		return ret;
 	}
@@ -264,8 +324,7 @@ int wcd_usbss_set_linearizer_sw_tap(uint32_t aud_tap, uint32_t gnd_tap)
 	regmap_update_bits(wcd_usbss_ctxt_->regmap, WCD_USBSS_SW_TAP_GND_R_MSB, 0x3,
 			   gnd_tap >> msb_shift);
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return ret;
 }
@@ -313,9 +372,9 @@ int wcd_usbss_register_update(uint32_t reg_arr[][2], bool write, size_t arr_size
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
-	rc = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	rc = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (rc < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 					__func__, rc);
 		return rc;
 	}
@@ -341,8 +400,7 @@ int wcd_usbss_register_update(uint32_t reg_arr[][2], bool write, size_t arr_size
 		}
 	}
 err:
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return 0;
 }
@@ -367,20 +425,6 @@ static bool wcd_usbss_is_in_reset_state(void)
 	int i = 0;
 	int rc = 0;
 	unsigned int read_val = 0;
-	struct device *i2c_bus_dev = wcd_usbss_ctxt_->client->adapter->dev.parent;
-	bool disable_rpm = false;
-
-	rc = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
-	if (rc < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
-				__func__, rc);
-		goto done;
-	}
-
-	if (!pm_runtime_enabled(i2c_bus_dev)) {
-		pm_runtime_enable(i2c_bus_dev);
-		disable_rpm = true;
-	}
 
 	/* Check 1: Read WCD_USBSS_CPLDO_CTL2 */
 	rc = regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_CPLDO_CTL2, &read_val);
@@ -434,13 +478,7 @@ static bool wcd_usbss_is_in_reset_state(void)
 	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
 
 done:
-	if (disable_rpm)
-		pm_runtime_disable(i2c_bus_dev);
-
 	/* All checks passed, so a negative surge ESD event has not occurred */
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
-
 	return ret;
 }
 
@@ -451,22 +489,6 @@ done:
  */
 static int wcd_usbss_reset_routine(void)
 {
-	int ret = 0;
-	struct device *i2c_bus_dev = wcd_usbss_ctxt_->client->adapter->dev.parent;
-	bool disable_rpm = false;
-
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
-	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
-				__func__, ret);
-		return ret;
-	}
-
-	if (!pm_runtime_enabled(i2c_bus_dev)) {
-		pm_runtime_enable(i2c_bus_dev);
-		disable_rpm = true;
-	}
-
 	/* Mark the cache as dirty to force a flush */
 	regcache_mark_dirty(wcd_usbss_ctxt_->regmap);
 	regcache_sync(wcd_usbss_ctxt_->regmap);
@@ -484,12 +506,6 @@ static int wcd_usbss_reset_routine(void)
 					       BIT(WCD_USBSS_GND_MIC_SWAP_HSJ))))
 		blocking_notifier_call_chain(&wcd_usbss_ctxt_->wcd_usbss_notifier,
 				WCD_USBSS_SURGE_RESET_EVENT, NULL);
-
-	if (disable_rpm)
-		pm_runtime_disable(i2c_bus_dev);
-
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
 
 	return 0;
 }
@@ -516,8 +532,6 @@ static void wcd_usbss_standby_control_locked(bool enter_standby)
 
 static int wcd_usbss_standby_control(bool enter_standby)
 {
-	struct device *i2c_bus_dev = wcd_usbss_ctxt_->client->adapter->dev.parent;
-	bool disable_rpm = false;
 	int ret = 0;
 
 	if (!wcd_usbss_ctxt_->standby_enable)
@@ -525,30 +539,20 @@ static int wcd_usbss_standby_control(bool enter_standby)
 
 	mutex_lock(&wcd_usbss_ctxt_->switch_update_lock);
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 				__func__, ret);
-		mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
-		return ret;
-	}
-
-	if (!pm_runtime_enabled(i2c_bus_dev)) {
-		pm_runtime_enable(i2c_bus_dev);
-		disable_rpm = true;
+		goto done;
 	}
 
 	wcd_usbss_standby_control_locked(enter_standby);
+	release_runtime_env(wcd_usbss_ctxt_);
 
-	if (disable_rpm)
-		pm_runtime_disable(i2c_bus_dev);
-
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
-
+done:
 	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
 
-	return 0;
+	return ret;
 }
 
 static ssize_t wcd_usbss_surge_enable_store(struct kobject *kobj,
@@ -625,9 +629,14 @@ static ssize_t wcd_usbss_standby_store(struct kobject *kobj,
 static int wcd_usbss_surge_kthread_fn(void *p)
 {
 	while (!kthread_should_stop()) {
-		if (wcd_usbss_ctxt_->surge_enable &&
-			wcd_usbss_is_in_reset_state())
-			wcd_usbss_reset_routine();
+		if (acquire_runtime_env(wcd_usbss_ctxt_) >= 0) {
+
+			if (wcd_usbss_ctxt_->surge_enable &&
+					wcd_usbss_is_in_reset_state())
+				wcd_usbss_reset_routine();
+
+			release_runtime_env(wcd_usbss_ctxt_);
+		}
 
 		msleep_interruptible(wcd_usbss_ctxt_->surge_timer_period_ms);
 	}
@@ -976,9 +985,9 @@ int wcd_usbss_dpdm_switch_update(bool sw_en, bool eq_en)
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 				__func__, ret);
 		return ret;
 	}
@@ -993,8 +1002,7 @@ int wcd_usbss_dpdm_switch_update(bool sw_en, bool eq_en)
 	if (ret)
 		pr_err("%s(): Failed to write equalizer1_en ret:%d\n", __func__, ret);
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return ret;
 }
@@ -1015,8 +1023,6 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 {
 
 	int rc = 0;
-	struct device *i2c_bus_dev = wcd_usbss_ctxt_->client->adapter->dev.parent;
-	bool disable_rpm = false;
 	unsigned int current_power_mode;
 
 	/* check if driver is probed and private context is init'ed */
@@ -1035,16 +1041,11 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 					       BIT(WCD_USBSS_GND_MIC_SWAP_HSJ))))
 		return 0;
 
-	rc = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	rc = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (rc < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 				__func__, rc);
 		return rc;
-	}
-
-	if (!pm_runtime_enabled(i2c_bus_dev)) {
-		pm_runtime_enable(i2c_bus_dev);
-		disable_rpm = true;
 	}
 
 	regmap_read(wcd_usbss_ctxt_->regmap, WCD_USBSS_USB_SS_CNTL, &current_power_mode);
@@ -1083,10 +1084,7 @@ int wcd_usbss_audio_config(bool enable, enum wcd_usbss_config_type config_type,
 	}
 
 exit:
-	if (disable_rpm)
-		pm_runtime_disable(i2c_bus_dev);
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return rc;
 }
@@ -1120,9 +1118,9 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 	pr_info("%s: ctype = %d, connect_status = %d\n",
 		__func__, ctype, connect_status);
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 				__func__, ret);
 		mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
 		return ret;
@@ -1359,8 +1357,7 @@ int wcd_usbss_switch_update(enum wcd_usbss_cable_types ctype,
 		}
 	}
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
 	return ret;
@@ -1452,9 +1449,9 @@ int wcd_usbss_update_default_trim(void)
 	if (!wcd_usbss_ctxt_->regmap)
 		return -EINVAL;
 
-	ret = pm_runtime_resume_and_get(wcd_usbss_ctxt_->dev);
+	ret = acquire_runtime_env(wcd_usbss_ctxt_);
 	if (ret < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 				__func__, ret);
 		return ret;
 	}
@@ -1463,8 +1460,7 @@ int wcd_usbss_update_default_trim(void)
 	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_2, 0x00);
 	regmap_write(wcd_usbss_ctxt_->regmap, WCD_USBSS_DC_TRIMCODE_3, 0x00);
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 
 	return ret;
 }
@@ -1585,8 +1581,6 @@ static irqreturn_t wcd_usbss_sdam_notifier_handler(int irq, void *data)
 	u8 *buf;
 	size_t len = 0;
 	int rc = 0;
-	struct device *i2c_bus_dev = priv->client->adapter->dev.parent;
-	bool disable_rpm = false;
 
 	buf = nvmem_cell_read(priv->nvmem_cell, &len);
 	if (IS_ERR(buf)) {
@@ -1598,25 +1592,17 @@ static irqreturn_t wcd_usbss_sdam_notifier_handler(int irq, void *data)
 	dev_dbg(priv->dev, "sdam notifier request:%d\n", buf[0]);
 
 	mutex_lock(&wcd_usbss_ctxt_->switch_update_lock);
-	wcd_usbss_ctxt_->req_state = buf[0];
 	if (buf[0] == priv->wcd_standby_status) {
 		dev_info(priv->dev, "%s: wcd already in %s mode:\n", __func__,
 				status_to_str(priv->wcd_standby_status));
-		mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
-		goto exit;
+		goto unlock_mutex;
 	}
 
-	if (wcd_usbss_ctxt_->suspended) {
-		wcd_usbss_ctxt_->defer_writes = true;
-		dev_dbg(priv->dev, "i2c in suspend, deferring %s transition to resume\n",
-				status_to_str(wcd_usbss_ctxt_->req_state));
-		mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
-		goto exit;
-	}
-
-	if (!pm_runtime_enabled(i2c_bus_dev)) {
-		pm_runtime_enable(i2c_bus_dev);
-		disable_rpm = true;
+	rc = acquire_runtime_env(wcd_usbss_ctxt_);
+	if (rc < 0) {
+		dev_err(priv->dev, "%s: acquire_runtime_env failed: %d\n",
+				__func__, rc);
+		goto unlock_mutex;
 	}
 
 	dev_dbg(priv->dev, "executing wcd state transition from %s to %s\n",
@@ -1629,11 +1615,9 @@ static irqreturn_t wcd_usbss_sdam_notifier_handler(int irq, void *data)
 				status_to_str(priv->wcd_standby_status));
 	}
 
-	if (disable_rpm)
-		pm_runtime_disable(i2c_bus_dev);
-
+	release_runtime_env(wcd_usbss_ctxt_);
+unlock_mutex:
 	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
-exit:
 	kfree(buf);
 	return IRQ_HANDLED;
 }
@@ -1684,16 +1668,19 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 
 	priv->dev = &i2c->dev;
 	priv->client = i2c;
+	priv->runtime_env_counter = 0;
 	mutex_init(&priv->io_lock);
 	mutex_init(&priv->switch_update_lock);
+	mutex_init(&priv->runtime_env_counter_lock);
 	i2c_set_clientdata(i2c, priv);
 
 	pm_runtime_enable(dev);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_set_autosuspend_delay(dev, 600);
-	rc = pm_runtime_resume_and_get(priv->dev);
+	device_init_wakeup(priv->dev, true);
+	rc = acquire_runtime_env(priv);
 	if (rc < 0) {
-		dev_err(wcd_usbss_ctxt_->dev, "%s: pm_runtime_resume_and_get failed: %i\n",
+		dev_err(wcd_usbss_ctxt_->dev, "%s: acquire_runtime_env failed: %i\n",
 				__func__, rc);
 		goto err_data;
 	}
@@ -1701,7 +1688,8 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 	if (ARRAY_SIZE(supply_names) >= WCD_USBSS_SUPPLY_MAX) {
 		dev_err(priv->dev, "Unsupported number of supplies: %d\n",
 				ARRAY_SIZE(supply_names));
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_data;
 	}
 	for (i = 0; i < ARRAY_SIZE(supply_names); ++i)
 		priv->supplies[i].supply = supply_names[i];
@@ -1710,13 +1698,13 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 			priv->supplies);
 	if (rc < 0) {
 		dev_err(priv->dev, "Failed to get supplies: %d\n", rc);
-		return rc;
+		goto err_data;
 	}
 
 	rc = regulator_bulk_enable(ARRAY_SIZE(supply_names), priv->supplies);
 	if (rc) {
 		dev_err(priv->dev, "Failed to enable supplies: %d\n", rc);
-		return rc;
+		goto err_data;
 	}
 
 	rc = wcd_usbss_init_optional_reset_pins(priv);
@@ -1790,11 +1778,11 @@ static int wcd_usbss_probe(struct i2c_client *i2c)
 		wcd_usbss_enable_surge_kthread();
 	}
 
-	pm_runtime_mark_last_busy(wcd_usbss_ctxt_->dev);
-	pm_runtime_put_autosuspend(wcd_usbss_ctxt_->dev);
+	release_runtime_env(wcd_usbss_ctxt_);
 	dev_info(priv->dev, "Probe completed!\n");
 	return 0;
 err_data:
+	device_init_wakeup(priv->dev, false);
 	pm_runtime_dont_use_autosuspend(wcd_usbss_ctxt_->dev);
 	pm_runtime_disable(wcd_usbss_ctxt_->dev);
 	return rc;
@@ -1825,6 +1813,7 @@ static void wcd_usbss_remove(struct i2c_client *i2c)
 		pm_runtime_put_sync(priv->dev);
 	pm_runtime_dont_use_autosuspend(priv->dev);
 	pm_runtime_disable(priv->dev);
+	device_init_wakeup(priv->dev, false);
 	dev_set_drvdata(&i2c->dev, NULL);
 	wcd_usbss_ctxt_ = NULL;
 }
@@ -1841,23 +1830,9 @@ static int wcd_usbss_pm_suspend(struct device *dev)
 
 static int wcd_usbss_pm_resume(struct device *dev)
 {
-	int rc = 0;
-
 	if (!wcd_usbss_ctxt_)
 		return 0;
 
-	mutex_lock(&wcd_usbss_ctxt_->switch_update_lock);
-	if (wcd_usbss_ctxt_->defer_writes) {
-		dev_dbg(wcd_usbss_ctxt_->dev, "wcd defer writes in progress");
-		rc = wcd_usbss_sdam_handle_events_locked(wcd_usbss_ctxt_->req_state);
-		wcd_usbss_ctxt_->defer_writes = false;
-		if (rc == 0) {
-			wcd_usbss_ctxt_->wcd_standby_status = wcd_usbss_ctxt_->req_state;
-			dev_dbg(wcd_usbss_ctxt_->dev, "wcd state transition to %s complete\n",
-					status_to_str(wcd_usbss_ctxt_->wcd_standby_status));
-		}
-	}
-	mutex_unlock(&wcd_usbss_ctxt_->switch_update_lock);
 	wcd_usbss_ctxt_->suspended = false;
 	dev_dbg(wcd_usbss_ctxt_->dev, "wcd usbss pm resume completed");
 	return 0;
