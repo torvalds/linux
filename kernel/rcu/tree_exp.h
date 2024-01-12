@@ -432,9 +432,9 @@ static inline bool rcu_exp_worker_started(void)
 	return !!READ_ONCE(rcu_exp_gp_kworker);
 }
 
-static inline bool rcu_exp_par_worker_started(void)
+static inline bool rcu_exp_par_worker_started(struct rcu_node *rnp)
 {
-	return !!READ_ONCE(rcu_exp_par_gp_kworker);
+	return !!READ_ONCE(rnp->exp_kworker);
 }
 
 static inline void sync_rcu_exp_select_cpus_queue_work(struct rcu_node *rnp)
@@ -445,7 +445,7 @@ static inline void sync_rcu_exp_select_cpus_queue_work(struct rcu_node *rnp)
 	 * another work item on the same kthread worker can result in
 	 * deadlock.
 	 */
-	kthread_queue_work(rcu_exp_par_gp_kworker, &rnp->rew.rew_work);
+	kthread_queue_work(READ_ONCE(rnp->exp_kworker), &rnp->rew.rew_work);
 }
 
 static inline void sync_rcu_exp_select_cpus_flush_work(struct rcu_node *rnp)
@@ -487,7 +487,7 @@ static inline bool rcu_exp_worker_started(void)
 	return !!READ_ONCE(rcu_gp_wq);
 }
 
-static inline bool rcu_exp_par_worker_started(void)
+static inline bool rcu_exp_par_worker_started(struct rcu_node *rnp)
 {
 	return !!READ_ONCE(rcu_par_gp_wq);
 }
@@ -550,7 +550,7 @@ static void sync_rcu_exp_select_cpus(void)
 		rnp->exp_need_flush = false;
 		if (!READ_ONCE(rnp->expmask))
 			continue; /* Avoid early boot non-existent wq. */
-		if (!rcu_exp_par_worker_started() ||
+		if (!rcu_exp_par_worker_started(rnp) ||
 		    rcu_scheduler_active != RCU_SCHEDULER_RUNNING ||
 		    rcu_is_last_leaf_node(rnp)) {
 			/* No worker started yet or last leaf, do direct call. */
