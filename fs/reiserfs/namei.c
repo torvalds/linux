@@ -451,13 +451,6 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	/* cannot allow items to be added into a busy deleted directory */
-	if (!namelen)
-		return -EINVAL;
-
-	if (namelen > REISERFS_MAX_NAME(dir->i_sb->s_blocksize))
-		return -ENAMETOOLONG;
-
 	/* each entry has unique key. compose it */
 	make_cpu_key(&entry_key, dir,
 		     get_third_component(dir->i_sb, name, namelen),

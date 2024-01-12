@@ -441,7 +441,6 @@ out:
 static struct dentry *nilfs_get_parent(struct dentry *child)
 {
 	unsigned long ino;
-	struct inode *inode;
 	struct nilfs_root *root;
 
 	ino = nilfs_inode_by_name(d_inode(child), &dotdot_name);
@@ -450,11 +449,7 @@ static struct dentry *nilfs_get_parent(struct dentry *child)
 
 	root = NILFS_I(d_inode(child))->i_root;
 
-	inode = nilfs_iget(child->d_sb, root, ino);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-
-	return d_obtain_alias(inode);
+	return d_obtain_alias(nilfs_iget(child->d_sb, root, ino));
 }
 
 static struct dentry *nilfs_get_dentry(struct super_block *sb, u64 cno,
