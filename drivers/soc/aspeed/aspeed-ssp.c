@@ -17,7 +17,7 @@
 #include <linux/of_irq.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
-#include <linux/dma-mapping.h>
+#include <linux/dma-direct.h>
 
 #define SSP_FILE_NAME			"ast2600_ssp.bin"
 #define AST2600_CVIC_TRIGGER		0x28
@@ -113,24 +113,29 @@ static int ast_ssp_probe(struct platform_device *pdev)
 	struct device_node *np, *mnode = dev_of_node(&pdev->dev);
 	const struct firmware *firmware;
 	struct ast2600_ssp *priv;
+	struct reserved_mem *rmem;
 	int i, ret;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
+	if (!priv) {
+		ret = -ENOMEM;
+		goto finish;
+	}
 
 	priv->dev = &pdev->dev;
 	priv->scu = syscon_regmap_lookup_by_phandle(priv->dev->of_node, "aspeed,scu");
 	if (IS_ERR(priv->scu)) {
 		dev_err(priv->dev, "failed to find SCU regmap\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto finish;
 	}
 	platform_set_drvdata(pdev, priv);
 
 	ret = misc_register(&ast_ssp_misc);
 	if (ret) {
 		pr_err("can't misc_register :(\n");
-		return -EIO;
+		ret = -EIO;
+		goto finish;
 	}
 	dev_set_drvdata(ast_ssp_misc.this_device, pdev);
 
@@ -138,30 +143,41 @@ static int ast_ssp_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(priv->dev,
 			"failed to initialize reserved mem: %d\n", ret);
-	}
-	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	priv->ssp_mem_vir_addr = dma_alloc_coherent(priv->dev, SSP_TOTAL_MEM_SZ,
-						    &priv->ssp_mem_phy_addr,
-						    GFP_KERNEL);
-
-	if (!priv->ssp_mem_vir_addr) {
-		dev_err(priv->dev, "can't create reserved memory.\n");
-		return -ENOMEM;
-	} else {
-		dev_info(priv->dev, "Reserved memory created.\n");
-		dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x\n",
-			 (uint32_t)priv->ssp_mem_vir_addr, priv->ssp_mem_phy_addr);
+		ret = -ENOMEM;
+		goto finish;
 	}
 
 	np = of_parse_phandle(priv->dev->of_node, "memory-region", 0);
 	if (!np) {
 		dev_err(priv->dev, "can't find memory-region node\n");
-		return -EINVAL;
+		ret = -ENOMEM;
+		goto finish;
+	}
+
+	rmem = of_reserved_mem_lookup(np);
+	of_node_put(np);
+	if (!rmem) {
+		dev_err(priv->dev, "can't find reserved memory.\n");
+		ret = -ENOMEM;
+		goto finish;
+	} else {
+		priv->ssp_mem_phy_addr = rmem->base;
+		priv->ssp_mem_vir_addr = devm_ioremap(priv->dev, priv->ssp_mem_phy_addr, SSP_TOTAL_MEM_SZ);
+		if (!priv->ssp_mem_vir_addr) {
+			dev_err(priv->dev, "can't create reserved memory.\n");
+			ret = -ENOMEM;
+			goto finish;
+		} else {
+			dev_info(priv->dev, "Reserved memory created.\n");
+			dev_info(priv->dev, "Virtual addr = 0x%08x, PHY addr = 0x%08x\n",
+				 (uint32_t)priv->ssp_mem_vir_addr, priv->ssp_mem_phy_addr);
+		}
 	}
 
 	if (of_property_read_u32(np, "shm-size", &priv->ssp_shared_mem_size)) {
 		dev_err(priv->dev, "can't find shm-size property\n");
-		return -EINVAL;
+		ret = -ENOMEM;
+		goto finish;
 	}
 	priv->ssp_shared_mem_vir_addr = priv->ssp_mem_vir_addr + SSP_TOTAL_MEM_SZ
 				    - priv->ssp_shared_mem_size;
@@ -176,7 +192,8 @@ static int ast_ssp_probe(struct platform_device *pdev)
 	if (request_firmware(&firmware, SSP_FILE_NAME, priv->dev) < 0) {
 		dev_err(priv->dev, "don't have %s\n", SSP_FILE_NAME);
 		release_firmware(firmware);
-		return 0;
+		ret = -EINVAL;
+		goto finish;
 	}
 
 	memcpy(priv->ssp_mem_vir_addr, (void *)firmware->data, firmware->size);
@@ -185,13 +202,15 @@ static int ast_ssp_probe(struct platform_device *pdev)
 	np = of_parse_phandle(mnode, "aspeed,cvic", 0);
 	if (!np) {
 		dev_err(priv->dev, "can't find CVIC\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto finish;
 	}
 
 	priv->cvic = devm_of_iomap(priv->dev, np, 0, NULL);
 	if (IS_ERR(priv->cvic)) {
 		dev_err(priv->dev, "can't map CVIC\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto finish;
 	}
 
 	i = 0;
@@ -216,8 +235,11 @@ static int ast_ssp_probe(struct platform_device *pdev)
 	regmap_write(priv->scu, SSP_CTRL_REG, 0);
 	mdelay(1);
 	regmap_write(priv->scu, SSP_CTRL_REG, SSP_CTRL_EN);
+
 	dev_info(priv->dev, "Init successful\n");
-	return 0;
+	ret = 0;
+finish:
+	return ret;
 }
 
 static int ast_ssp_remove(struct platform_device *pdev)
@@ -230,7 +252,6 @@ static int ast_ssp_remove(struct platform_device *pdev)
 	for (i = 0; i < priv->n_irq; i++)
 		free_irq(priv->irq[i], priv);
 
-	dma_free_coherent(priv->dev, SSP_TOTAL_MEM_SZ, priv->ssp_mem_vir_addr, priv->ssp_mem_phy_addr);
 	kfree(priv);
 
 	misc_deregister((struct miscdevice *)&ast_ssp_misc);
