@@ -1398,7 +1398,7 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 		goto error_fini;
 	}
 
-	ctx_data.meta_data_gpu_addr = AMDGPU_VA_RESERVED_SIZE;
+	ctx_data.meta_data_gpu_addr = AMDGPU_VA_RESERVED_BOTTOM;
 	r = amdgpu_mes_ctx_map_meta_data(adev, vm, &ctx_data);
 	if (r) {
 		DRM_ERROR("failed to map ctx meta data\n");
