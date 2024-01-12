@@ -12,6 +12,7 @@ struct ivpu_device;
 
 struct ivpu_pm_info {
 	struct ivpu_device *vdev;
+	struct delayed_work job_timeout_work;
 	struct work_struct recovery_work;
 	atomic_t in_reset;
 	atomic_t reset_counter;
@@ -37,5 +38,7 @@ int __must_check ivpu_rpm_get_if_active(struct ivpu_device *vdev);
 void ivpu_rpm_put(struct ivpu_device *vdev);
 
 void ivpu_pm_schedule_recovery(struct ivpu_device *vdev);
+void ivpu_start_job_timeout_detection(struct ivpu_device *vdev);
+void ivpu_stop_job_timeout_detection(struct ivpu_device *vdev);
 
 #endif /* __IVPU_PM_H__ */

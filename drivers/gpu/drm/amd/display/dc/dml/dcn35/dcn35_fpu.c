@@ -326,6 +326,25 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 		dcn3_5_soc.dram_clock_change_latency_us =
 			dc->debug.dram_clock_change_latency_ns / 1000.0;
 	}
+
+	if (dc->bb_overrides.dram_clock_change_latency_ns > 0)
+		dcn3_5_soc.dram_clock_change_latency_us =
+			dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_exit_time_ns > 0)
+		dcn3_5_soc.sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_enter_plus_exit_time_ns > 0)
+		dcn3_5_soc.sr_enter_plus_exit_time_us =
+			dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_exit_z8_time_ns > 0)
+		dcn3_5_soc.sr_exit_z8_time_us = dc->bb_overrides.sr_exit_z8_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_enter_plus_exit_z8_time_ns > 0)
+		dcn3_5_soc.sr_enter_plus_exit_z8_time_us =
+			dc->bb_overrides.sr_enter_plus_exit_z8_time_ns / 1000.0;
+
 	/*temp till dml2 fully work without dml1*/
 	dml_init_instance(&dc->dml, &dcn3_5_soc, &dcn3_5_ip,
 				DML_PROJECT_DCN31);

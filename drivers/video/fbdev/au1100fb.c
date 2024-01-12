@@ -342,6 +342,8 @@ int au1100fb_fb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	pgprot_val(vma->vm_page_prot) |= (6 << 9); //CCA=6
 
 	return dma_mmap_coherent(fbdev->dev, vma, fbdev->fb_mem, fbdev->fb_phys,

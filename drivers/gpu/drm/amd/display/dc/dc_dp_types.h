@@ -1377,6 +1377,12 @@ struct dp_trace {
 #ifndef DP_TUNNELING_STATUS
 #define DP_TUNNELING_STATUS				0xE0025 /* 1.4a */
 #endif
+#ifndef DP_TUNNELING_MAX_LINK_RATE
+#define DP_TUNNELING_MAX_LINK_RATE			0xE0028 /* 1.4a */
+#endif
+#ifndef DP_TUNNELING_MAX_LANE_COUNT
+#define DP_TUNNELING_MAX_LANE_COUNT			0xE0029 /* 1.4a */
+#endif
 #ifndef DPTX_BW_ALLOCATION_MODE_CONTROL
 #define DPTX_BW_ALLOCATION_MODE_CONTROL			0xE0030 /* 1.4a */
 #endif

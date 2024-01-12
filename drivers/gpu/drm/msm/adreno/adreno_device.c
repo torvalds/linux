@@ -464,7 +464,7 @@ static const struct adreno_info gpulist[] = {
 			{ 190, 1 },
 		),
 	}, {
-		.chip_ids = ADRENO_CHIP_IDS(0x06080000),
+		.chip_ids = ADRENO_CHIP_IDS(0x06080001),
 		.family = ADRENO_6XX_GEN2,
 		.revn = 680,
 		.fw = {
@@ -841,7 +841,8 @@ static void suspend_scheduler(struct msm_gpu *gpu)
 	 */
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct drm_gpu_scheduler *sched = &gpu->rb[i]->sched;
-		kthread_park(sched->thread);
+
+		drm_sched_wqueue_stop(sched);
 	}
 }
 
@@ -851,7 +852,8 @@ static void resume_scheduler(struct msm_gpu *gpu)
 
 	for (i = 0; i < gpu->nr_rings; i++) {
 		struct drm_gpu_scheduler *sched = &gpu->rb[i]->sched;
-		kthread_unpark(sched->thread);
+
+		drm_sched_wqueue_start(sched);
 	}
 }
 

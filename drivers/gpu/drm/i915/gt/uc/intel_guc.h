@@ -297,6 +297,10 @@ struct intel_guc {
 	 * @number_guc_id_stolen: The number of guc_ids that have been stolen
 	 */
 	int number_guc_id_stolen;
+	/**
+	 * @fast_response_selftest: Backdoor to CT handler for fast response selftest
+	 */
+	u32 fast_response_selftest;
 #endif
 };
 

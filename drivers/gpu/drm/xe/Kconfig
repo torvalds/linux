@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_XE
+	tristate "Intel Xe Graphics"
+	depends on DRM && PCI && MMU && (m || (y && KUNIT=y)) && 64BIT
+	select INTERVAL_TREE
+	# we need shmfs for the swappable backing store, and in particular
+	# the shmem_readpage() which depends upon tmpfs
+	select SHMEM
+	select TMPFS
+	select DRM_BUDDY
+	select DRM_EXEC
+	select DRM_KMS_HELPER
+	select DRM_PANEL
+	select DRM_SUBALLOC_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
+	select DRM_MIPI_DSI
+	select RELAY
+	select IRQ_WORK
+	# xe depends on ACPI_VIDEO when ACPI is enabled
+	# but for select to work, need to select ACPI_VIDEO's dependencies, ick
+	select BACKLIGHT_CLASS_DEVICE if ACPI
+	select INPUT if ACPI
+	select ACPI_VIDEO if X86 && ACPI
+	select ACPI_BUTTON if ACPI
+	select ACPI_WMI if X86 && ACPI
+	select SYNC_FILE
+	select IOSF_MBI
+	select CRC32
+	select SND_HDA_I915 if SND_HDA_CORE
+	select CEC_CORE if CEC_NOTIFIER
+	select VMAP_PFN
+	select DRM_TTM
+	select DRM_TTM_HELPER
+	select DRM_EXEC
+	select DRM_GPUVM
+	select DRM_SCHED
+	select MMU_NOTIFIER
+	select WANT_DEV_COREDUMP
+	select AUXILIARY_BUS
+	help
+	  Experimental driver for Intel Xe series GPUs
+
+	  If "M" is selected, the module will be called xe.
+
+config DRM_XE_DISPLAY
+	bool "Enable display support"
+	depends on DRM_XE && EXPERT && DRM_XE=m
+	select FB_IOMEM_HELPERS
+	select I2C
+	select I2C_ALGOBIT
+	default y
+	help
+	  Disable this option only if you want to compile out display support.
+
+config DRM_XE_FORCE_PROBE
+	string "Force probe xe for selected Intel hardware IDs"
+	depends on DRM_XE
+	help
+	  This is the default value for the xe.force_probe module
+	  parameter. Using the module parameter overrides this option.
+
+	  Force probe the xe for Intel graphics devices that are
+	  recognized but not properly supported by this kernel version. It is
+	  recommended to upgrade to a kernel version with proper support as soon
+	  as it is available.
+
+	  It can also be used to block the probe of recognized and fully
+	  supported devices.
+
+	  Use "" to disable force probe. If in doubt, use this.
+
+	  Use "<pci-id>[,<pci-id>,...]" to force probe the xe for listed
+	  devices. For example, "4500" or "4500,4571".
+
+	  Use "*" to force probe the driver for all known devices.
+
+	  Use "!" right before the ID to block the probe of the device. For
+	  example, "4500,!4571" forces the probe of 4500 and blocks the probe of
+	  4571.
+
+	  Use "!*" to block the probe of the driver for all known devices.
+
+menu "drm/Xe Debugging"
+depends on DRM_XE
+depends on EXPERT
+source "drivers/gpu/drm/xe/Kconfig.debug"
+endmenu
+
+menu "drm/xe Profile Guided Optimisation"
+	visible if EXPERT
+	depends on DRM_XE
+	source "drivers/gpu/drm/xe/Kconfig.profile"
+endmenu

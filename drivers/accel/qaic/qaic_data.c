@@ -51,6 +51,7 @@
 		})
 #define NUM_EVENTS	128
 #define NUM_DELAYS	10
+#define fifo_at(base, offset) ((base) + (offset) * get_dbc_req_elem_size())
 
 static unsigned int wait_exec_default_timeout_ms = 5000; /* 5 sec default */
 module_param(wait_exec_default_timeout_ms, uint, 0600);
@@ -451,7 +452,7 @@ static int create_sgt(struct qaic_device *qdev, struct sg_table **sgt_out, u64 s
 		 * later
 		 */
 		buf_extra = (PAGE_SIZE - size % PAGE_SIZE) % PAGE_SIZE;
-		max_order = min(MAX_PAGE_ORDER - 1, get_order(size));
+		max_order = min(MAX_PAGE_ORDER, get_order(size));
 	} else {
 		/* allocate a single page for book keeping */
 		nr_pages = 1;
@@ -689,7 +690,7 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}
@@ -748,7 +749,7 @@ int qaic_mmap_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}
@@ -967,7 +968,7 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}
@@ -1056,6 +1057,16 @@ unlock_usr_srcu:
 	return ret;
 }
 
+static inline u32 fifo_space_avail(u32 head, u32 tail, u32 q_size)
+{
+	u32 avail = head - tail - 1;
+
+	if (head <= tail)
+		avail += q_size;
+
+	return avail;
+}
+
 static inline int copy_exec_reqs(struct qaic_device *qdev, struct bo_slice *slice, u32 dbc_id,
 				 u32 head, u32 *ptail)
 {
@@ -1064,27 +1075,20 @@ static inline int copy_exec_reqs(struct qaic_device *qdev, struct bo_slice *slic
 	u32 tail = *ptail;
 	u32 avail;
 
-	avail = head - tail;
-	if (head <= tail)
-		avail += dbc->nelem;
-
-	--avail;
-
+	avail = fifo_space_avail(head, tail, dbc->nelem);
 	if (avail < slice->nents)
 		return -EAGAIN;
 
 	if (tail + slice->nents > dbc->nelem) {
 		avail = dbc->nelem - tail;
 		avail = min_t(u32, avail, slice->nents);
-		memcpy(dbc->req_q_base + tail * get_dbc_req_elem_size(), reqs,
-		       sizeof(*reqs) * avail);
+		memcpy(fifo_at(dbc->req_q_base, tail), reqs, sizeof(*reqs) * avail);
 		reqs += avail;
 		avail = slice->nents - avail;
 		if (avail)
 			memcpy(dbc->req_q_base, reqs, sizeof(*reqs) * avail);
 	} else {
-		memcpy(dbc->req_q_base + tail * get_dbc_req_elem_size(), reqs,
-		       sizeof(*reqs) * slice->nents);
+		memcpy(fifo_at(dbc->req_q_base, tail), reqs, sizeof(*reqs) * slice->nents);
 	}
 
 	*ptail = (tail + slice->nents) % dbc->nelem;
@@ -1092,46 +1096,31 @@ static inline int copy_exec_reqs(struct qaic_device *qdev, struct bo_slice *slic
 	return 0;
 }
 
-/*
- * Based on the value of resize we may only need to transmit first_n
- * entries and the last entry, with last_bytes to send from the last entry.
- * Note that first_n could be 0.
- */
 static inline int copy_partial_exec_reqs(struct qaic_device *qdev, struct bo_slice *slice,
-					 u64 resize, u32 dbc_id, u32 head, u32 *ptail)
+					 u64 resize, struct dma_bridge_chan *dbc, u32 head,
+					 u32 *ptail)
 {
-	struct dma_bridge_chan *dbc = &qdev->dbc[dbc_id];
 	struct dbc_req *reqs = slice->reqs;
 	struct dbc_req *last_req;
 	u32 tail = *ptail;
-	u64 total_bytes;
 	u64 last_bytes;
 	u32 first_n;
 	u32 avail;
-	int ret;
-	int i;
 
-	avail = head - tail;
-	if (head <= tail)
-		avail += dbc->nelem;
+	avail = fifo_space_avail(head, tail, dbc->nelem);
 
-	--avail;
-
-	total_bytes = 0;
-	for (i = 0; i < slice->nents; i++) {
-		total_bytes += le32_to_cpu(reqs[i].len);
-		if (total_bytes >= resize)
+	/*
+	 * After this for loop is complete, first_n represents the index
+	 * of the last DMA request of this slice that needs to be
+	 * transferred after resizing and last_bytes represents DMA size
+	 * of that request.
+	 */
+	last_bytes = resize;
+	for (first_n = 0; first_n < slice->nents; first_n++)
+		if (last_bytes > le32_to_cpu(reqs[first_n].len))
+			last_bytes -= le32_to_cpu(reqs[first_n].len);
+		else
 			break;
-	}
-
-	if (total_bytes < resize) {
-		/* User space should have used the full buffer path. */
-		ret = -EINVAL;
-		return ret;
-	}
-
-	first_n = i;
-	last_bytes = i ? resize + le32_to_cpu(reqs[i].len) - total_bytes : resize;
 
 	if (avail < (first_n + 1))
 		return -EAGAIN;
@@ -1140,22 +1129,21 @@ static inline int copy_partial_exec_reqs(struct qaic_device *qdev, struct bo_sli
 		if (tail + first_n > dbc->nelem) {
 			avail = dbc->nelem - tail;
 			avail = min_t(u32, avail, first_n);
-			memcpy(dbc->req_q_base + tail * get_dbc_req_elem_size(), reqs,
-			       sizeof(*reqs) * avail);
+			memcpy(fifo_at(dbc->req_q_base, tail), reqs, sizeof(*reqs) * avail);
 			last_req = reqs + avail;
 			avail = first_n - avail;
 			if (avail)
 				memcpy(dbc->req_q_base, last_req, sizeof(*reqs) * avail);
 		} else {
-			memcpy(dbc->req_q_base + tail * get_dbc_req_elem_size(), reqs,
-			       sizeof(*reqs) * first_n);
+			memcpy(fifo_at(dbc->req_q_base, tail), reqs, sizeof(*reqs) * first_n);
 		}
 	}
 
-	/* Copy over the last entry. Here we need to adjust len to the left over
+	/*
+	 * Copy over the last entry. Here we need to adjust len to the left over
 	 * size, and set src and dst to the entry it is copied to.
 	 */
-	last_req = dbc->req_q_base + (tail + first_n) % dbc->nelem * get_dbc_req_elem_size();
+	last_req = fifo_at(dbc->req_q_base, (tail + first_n) % dbc->nelem);
 	memcpy(last_req, reqs + slice->nents - 1, sizeof(*reqs));
 
 	/*
@@ -1166,6 +1154,9 @@ static inline int copy_partial_exec_reqs(struct qaic_device *qdev, struct bo_sli
 	last_req->len = cpu_to_le32((u32)last_bytes);
 	last_req->src_addr = reqs[first_n].src_addr;
 	last_req->dest_addr = reqs[first_n].dest_addr;
+	if (!last_bytes)
+		/* Disable DMA transfer */
+		last_req->cmd = GENMASK(7, 2) & reqs[first_n].cmd;
 
 	*ptail = (tail + first_n + 1) % dbc->nelem;
 
@@ -1225,26 +1216,17 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 		bo->req_id = dbc->next_req_id++;
 
 		list_for_each_entry(slice, &bo->slices, slice) {
-			/*
-			 * If this slice does not fall under the given
-			 * resize then skip this slice and continue the loop
-			 */
-			if (is_partial && pexec[i].resize && pexec[i].resize <= slice->offset)
-				continue;
-
 			for (j = 0; j < slice->nents; j++)
 				slice->reqs[j].req_id = cpu_to_le16(bo->req_id);
 
-			/*
-			 * If it is a partial execute ioctl call then check if
-			 * resize has cut this slice short then do a partial copy
-			 * else do complete copy
-			 */
-			if (is_partial && pexec[i].resize &&
-			    pexec[i].resize < slice->offset + slice->size)
+			if (is_partial && (!pexec[i].resize || pexec[i].resize <= slice->offset))
+				/* Configure the slice for no DMA transfer */
+				ret = copy_partial_exec_reqs(qdev, slice, 0, dbc, head, tail);
+			else if (is_partial && pexec[i].resize < slice->offset + slice->size)
+				/* Configure the slice to be partially DMA transferred */
 				ret = copy_partial_exec_reqs(qdev, slice,
-							     pexec[i].resize - slice->offset,
-							     dbc->id, head, tail);
+							     pexec[i].resize - slice->offset, dbc,
+							     head, tail);
 			else
 				ret = copy_exec_reqs(qdev, slice, dbc->id, head, tail);
 			if (ret) {
@@ -1357,7 +1339,7 @@ static int __qaic_execute_bo_ioctl(struct drm_device *dev, void *data, struct dr
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}
@@ -1464,6 +1446,16 @@ irqreturn_t dbc_irq_handler(int irq, void *data)
 
 	rcu_id = srcu_read_lock(&dbc->ch_lock);
 
+	if (datapath_polling) {
+		srcu_read_unlock(&dbc->ch_lock, rcu_id);
+		/*
+		 * Normally datapath_polling will not have irqs enabled, but
+		 * when running with only one MSI the interrupt is shared with
+		 * MHI so it cannot be disabled. Return ASAP instead.
+		 */
+		return IRQ_HANDLED;
+	}
+
 	if (!dbc->usr) {
 		srcu_read_unlock(&dbc->ch_lock, rcu_id);
 		return IRQ_HANDLED;
@@ -1486,7 +1478,8 @@ irqreturn_t dbc_irq_handler(int irq, void *data)
 		return IRQ_NONE;
 	}
 
-	disable_irq_nosync(irq);
+	if (!dbc->qdev->single_msi)
+		disable_irq_nosync(irq);
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
 	return IRQ_WAKE_THREAD;
 }
@@ -1502,7 +1495,7 @@ void irq_polling_work(struct work_struct *work)
 	rcu_id = srcu_read_lock(&dbc->ch_lock);
 
 	while (1) {
-		if (dbc->qdev->in_reset) {
+		if (dbc->qdev->dev_state != QAIC_ONLINE) {
 			srcu_read_unlock(&dbc->ch_lock, rcu_id);
 			return;
 		}
@@ -1557,12 +1550,12 @@ irqreturn_t dbc_irq_threaded_fn(int irq, void *data)
 	u32 tail;
 
 	rcu_id = srcu_read_lock(&dbc->ch_lock);
+	qdev = dbc->qdev;
 
 	head = readl(dbc->dbc_base + RSPHP_OFF);
 	if (head == U32_MAX) /* PCI link error */
 		goto error_out;
 
-	qdev = dbc->qdev;
 read_fifo:
 
 	if (!event_count) {
@@ -1643,14 +1636,14 @@ read_fifo:
 	goto read_fifo;
 
 normal_out:
-	if (likely(!datapath_polling))
+	if (!qdev->single_msi && likely(!datapath_polling))
 		enable_irq(irq);
-	else
+	else if (unlikely(datapath_polling))
 		schedule_work(&dbc->poll_work);
 	/* checking the fifo and enabling irqs is a race, missed event check */
 	tail = readl(dbc->dbc_base + RSPTP_OFF);
 	if (tail != U32_MAX && head != tail) {
-		if (likely(!datapath_polling))
+		if (!qdev->single_msi && likely(!datapath_polling))
 			disable_irq_nosync(irq);
 		goto read_fifo;
 	}
@@ -1659,9 +1652,9 @@ normal_out:
 
 error_out:
 	srcu_read_unlock(&dbc->ch_lock, rcu_id);
-	if (likely(!datapath_polling))
+	if (!qdev->single_msi && likely(!datapath_polling))
 		enable_irq(irq);
-	else
+	else if (unlikely(datapath_polling))
 		schedule_work(&dbc->poll_work);
 
 	return IRQ_HANDLED;
@@ -1692,7 +1685,7 @@ int qaic_wait_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}
@@ -1761,7 +1754,7 @@ int qaic_perf_stats_bo_ioctl(struct drm_device *dev, void *data, struct drm_file
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}
@@ -1852,7 +1845,7 @@ int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	qdev = usr->qddev->qdev;
 	qdev_rcu_id = srcu_read_lock(&qdev->dev_lock);
-	if (qdev->in_reset) {
+	if (qdev->dev_state != QAIC_ONLINE) {
 		ret = -ENODEV;
 		goto unlock_dev_srcu;
 	}

@@ -1156,8 +1156,10 @@ static void amdgpu_rasmgr_error_data_statistic_update(struct ras_manager *obj, s
 		for_each_ras_error(err_node, err_data) {
 			err_info = &err_node->err_info;
 
-			amdgpu_ras_error_statistic_ce_count(&obj->err_data, &err_info->mcm_info, err_info->ce_count);
-			amdgpu_ras_error_statistic_ue_count(&obj->err_data, &err_info->mcm_info, err_info->ue_count);
+			amdgpu_ras_error_statistic_ce_count(&obj->err_data,
+					&err_info->mcm_info, NULL, err_info->ce_count);
+			amdgpu_ras_error_statistic_ue_count(&obj->err_data,
+					&err_info->mcm_info, NULL, err_info->ue_count);
 		}
 	} else {
 		/* for legacy asic path which doesn't has error source info */
@@ -1173,6 +1175,9 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 {
 	enum amdgpu_ras_block blk = info ? info->head.block : AMDGPU_RAS_BLOCK_COUNT;
 	struct amdgpu_ras_block_object *block_obj = NULL;
+
+	if (blk == AMDGPU_RAS_BLOCK_COUNT)
+		return -EINVAL;
 
 	if (error_query_mode == AMDGPU_RAS_INVALID_ERROR_QUERY)
 		return -EINVAL;
@@ -2538,7 +2543,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		return 0;
 
 	data = &con->eh_data;
-	*data = kmalloc(sizeof(**data), GFP_KERNEL | __GFP_ZERO);
+	*data = kzalloc(sizeof(**data), GFP_KERNEL);
 	if (!*data) {
 		ret = -ENOMEM;
 		goto out;
@@ -2825,10 +2830,10 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	if (con)
 		return 0;
 
-	con = kmalloc(sizeof(struct amdgpu_ras) +
+	con = kzalloc(sizeof(*con) +
 			sizeof(struct ras_manager) * AMDGPU_RAS_BLOCK_COUNT +
 			sizeof(struct ras_manager) * AMDGPU_RAS_MCA_BLOCK_COUNT,
-			GFP_KERNEL|__GFP_ZERO);
+			GFP_KERNEL);
 	if (!con)
 		return -ENOMEM;
 
@@ -3133,6 +3138,8 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	amdgpu_ras_set_mca_debug_mode(adev, false);
+
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		if (!node->ras_obj) {
 			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
@@ -3406,12 +3413,18 @@ int amdgpu_ras_reset_gpu(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_ras_set_mca_debug_mode(struct amdgpu_device *adev, bool enable)
+int amdgpu_ras_set_mca_debug_mode(struct amdgpu_device *adev, bool enable)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	int ret = 0;
 
-	if (con)
-		con->is_mca_debug_mode = enable;
+	if (con) {
+		ret = amdgpu_mca_smu_set_debug_mode(adev, enable);
+		if (!ret)
+			con->is_mca_debug_mode = enable;
+	}
+
+	return ret;
 }
 
 bool amdgpu_ras_get_mca_debug_mode(struct amdgpu_device *adev)
@@ -3682,7 +3695,8 @@ static int ras_err_info_cmp(void *priv, const struct list_head *a, const struct 
 }
 
 static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_data,
-						      struct amdgpu_smuio_mcm_config_info *mcm_info)
+				struct amdgpu_smuio_mcm_config_info *mcm_info,
+				struct ras_err_addr *err_addr)
 {
 	struct ras_err_node *err_node;
 
@@ -3696,6 +3710,9 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 
 	memcpy(&err_node->err_info.mcm_info, mcm_info, sizeof(*mcm_info));
 
+	if (err_addr)
+		memcpy(&err_node->err_info.err_addr, err_addr, sizeof(*err_addr));
+
 	err_data->err_list_count++;
 	list_add_tail(&err_node->node, &err_data->err_node_list);
 	list_sort(NULL, &err_data->err_node_list, ras_err_info_cmp);
@@ -3704,7 +3721,8 @@ static struct ras_err_info *amdgpu_ras_error_get_info(struct ras_err_data *err_d
 }
 
 int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
-					struct amdgpu_smuio_mcm_config_info *mcm_info, u64 count)
+		struct amdgpu_smuio_mcm_config_info *mcm_info,
+		struct ras_err_addr *err_addr, u64 count)
 {
 	struct ras_err_info *err_info;
 
@@ -3714,7 +3732,7 @@ int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
 	if (!count)
 		return 0;
 
-	err_info = amdgpu_ras_error_get_info(err_data, mcm_info);
+	err_info = amdgpu_ras_error_get_info(err_data, mcm_info, err_addr);
 	if (!err_info)
 		return -EINVAL;
 
@@ -3725,7 +3743,8 @@ int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
 }
 
 int amdgpu_ras_error_statistic_ce_count(struct ras_err_data *err_data,
-					struct amdgpu_smuio_mcm_config_info *mcm_info, u64 count)
+		struct amdgpu_smuio_mcm_config_info *mcm_info,
+		struct ras_err_addr *err_addr, u64 count)
 {
 	struct ras_err_info *err_info;
 
@@ -3735,7 +3754,7 @@ int amdgpu_ras_error_statistic_ce_count(struct ras_err_data *err_data,
 	if (!count)
 		return 0;
 
-	err_info = amdgpu_ras_error_get_info(err_data, mcm_info);
+	err_info = amdgpu_ras_error_get_info(err_data, mcm_info, err_addr);
 	if (!err_info)
 		return -EINVAL;
 

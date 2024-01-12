@@ -640,16 +640,14 @@ static int etnaviv_pdev_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &etnaviv_master_ops, match);
 }
 
-static int etnaviv_pdev_remove(struct platform_device *pdev)
+static void etnaviv_pdev_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &etnaviv_master_ops);
-
-	return 0;
 }
 
 static struct platform_driver etnaviv_platform_driver = {
 	.probe      = etnaviv_pdev_probe,
-	.remove     = etnaviv_pdev_remove,
+	.remove_new = etnaviv_pdev_remove,
 	.driver     = {
 		.name   = "etnaviv",
 	},

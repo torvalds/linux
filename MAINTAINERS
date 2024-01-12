@@ -6484,8 +6484,7 @@ T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/sun4i/sun8i*
 
 DRM DRIVER FOR ARM PL111 CLCD
-M:	Emma Anholt <emma@anholt.net>
-S:	Supported
+S:	Orphan
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	drivers/gpu/drm/pl111/
 
@@ -6600,8 +6599,7 @@ F:	Documentation/devicetree/bindings/display/panel/himax,hx8394.yaml
 F:	drivers/gpu/drm/panel/panel-himax-hx8394.c
 
 DRM DRIVER FOR HX8357D PANELS
-M:	Emma Anholt <emma@anholt.net>
-S:	Maintained
+S:	Orphan
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/himax,hx8357d.txt
 F:	drivers/gpu/drm/tiny/hx8357d.c
@@ -6627,6 +6625,12 @@ S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/ilitek,ili9486.yaml
 F:	drivers/gpu/drm/tiny/ili9486.c
+
+DRM DRIVER FOR ILITEK ILI9805 PANELS
+M:	Michael Trimarchi <michael@amarulasolutions.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/display/panel/ilitek,ili9805.yaml
+F:	drivers/gpu/drm/panel/panel-ilitek-ili9805.c
 
 DRM DRIVER FOR JADARD JD9365DA-H3 MIPI-DSI LCD PANELS
 M:	Jagan Teki <jagan@edgeble.ai>
@@ -6855,6 +6859,12 @@ S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/display/ste,mcde.yaml
 F:	drivers/gpu/drm/mcde/
+
+DRM DRIVER FOR SYNAPTICS R63353 PANELS
+M:	Michael Trimarchi <michael@amarulasolutions.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/display/panel/synaptics,r63353.yaml
+F:	drivers/gpu/drm/panel/panel-synaptics-r63353.c
 
 DRM DRIVER FOR TI DLPC3433 MIPI DSI TO DMD BRIDGE
 M:	Jagan Teki <jagan@amarulasolutions.com>
@@ -7140,6 +7150,7 @@ F:	include/linux/platform_data/shmob_drm.h
 DRM DRIVERS FOR ROCKCHIP
 M:	Sandy Huang <hjc@rock-chips.com>
 M:	Heiko Stübner <heiko@sntech.de>
+M:	Andy Yan <andy.yan@rock-chips.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 T:	git git://anongit.freedesktop.org/drm/drm-misc
@@ -7194,8 +7205,8 @@ F:	Documentation/devicetree/bindings/display/ti/
 F:	drivers/gpu/drm/omapdrm/
 
 DRM DRIVERS FOR V3D
-M:	Emma Anholt <emma@anholt.net>
 M:	Melissa Wen <mwen@igalia.com>
+M:	Maíra Canal <mcanal@igalia.com>
 S:	Supported
 T:	git git://anongit.freedesktop.org/drm/drm-misc
 F:	Documentation/devicetree/bindings/gpu/brcm,bcm-v3d.yaml
@@ -7203,7 +7214,6 @@ F:	drivers/gpu/drm/v3d/
 F:	include/uapi/drm/v3d_drm.h
 
 DRM DRIVERS FOR VC4
-M:	Emma Anholt <emma@anholt.net>
 M:	Maxime Ripard <mripard@kernel.org>
 S:	Supported
 T:	git git://github.com/anholt/linux
@@ -10370,6 +10380,17 @@ IMGTEC IR DECODER DRIVER
 S:	Orphan
 F:	drivers/media/rc/img-ir/
 
+IMGTEC POWERVR DRM DRIVER
+M:	Frank Binns <frank.binns@imgtec.com>
+M:	Donald Robson <donald.robson@imgtec.com>
+M:	Matt Coster <matt.coster@imgtec.com>
+S:	Supported
+T:	git git://anongit.freedesktop.org/drm/drm-misc
+F:	Documentation/devicetree/bindings/gpu/img,powervr.yaml
+F:	Documentation/gpu/imagination/
+F:	drivers/gpu/drm/imagination/
+F:	include/uapi/drm/pvr_drm.h
+
 IMON SOUNDGRAPH USB IR RECEIVER
 M:	Sean Young <sean@mess.org>
 L:	linux-media@vger.kernel.org
@@ -10609,16 +10630,26 @@ L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	arch/x86/include/asm/intel-family.h
 
-INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
+INTEL DRM DISPLAY FOR XE AND I915 DRIVERS
+M:	Jani Nikula <jani.nikula@linux.intel.com>
+M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
+L:	intel-gfx@lists.freedesktop.org
+L:	intel-xe@lists.freedesktop.org
+S:	Supported
+F:	drivers/gpu/drm/i915/display/
+F:	drivers/gpu/drm/xe/display/
+F:	drivers/gpu/drm/xe/compat-i915-headers
+
+INTEL DRM I915 DRIVER (Meteor Lake, DG2 and older excluding Poulsbo, Moorestown and derivative)
 M:	Jani Nikula <jani.nikula@linux.intel.com>
 M:	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
 M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
 M:	Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>
 L:	intel-gfx@lists.freedesktop.org
 S:	Supported
-W:	https://01.org/linuxgraphics/
+W:	https://drm.pages.freedesktop.org/intel-docs/
 Q:	http://patchwork.freedesktop.org/project/intel-gfx/
-B:	https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs
+B:	https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html
 C:	irc://irc.oftc.net/intel-gfx
 T:	git git://anongit.freedesktop.org/drm-intel
 F:	Documentation/ABI/testing/sysfs-driver-intel-i915-hwmon
@@ -10627,6 +10658,23 @@ F:	drivers/gpu/drm/ci/xfails/i915*
 F:	drivers/gpu/drm/i915/
 F:	include/drm/i915*
 F:	include/uapi/drm/i915_drm.h
+
+INTEL DRM XE DRIVER (Lunar Lake and newer)
+M:	Lucas De Marchi <lucas.demarchi@intel.com>
+M:	Oded Gabbay <ogabbay@kernel.org>
+M:	Thomas Hellström <thomas.hellstrom@linux.intel.com>
+L:	intel-xe@lists.freedesktop.org
+S:	Supported
+W:	https://drm.pages.freedesktop.org/intel-docs/
+Q:	http://patchwork.freedesktop.org/project/intel-xe/
+B:	https://gitlab.freedesktop.org/drm/xe/kernel/-/issues
+C:	irc://irc.oftc.net/xe
+T:	git https://gitlab.freedesktop.org/drm/xe/kernel.git
+F:	Documentation/ABI/testing/sysfs-driver-intel-xe-hwmon
+F:	Documentation/gpu/xe/
+F:	drivers/gpu/drm/xe/
+F:	include/drm/xe*
+F:	include/uapi/drm/xe_drm.h
 
 INTEL ETHERNET DRIVERS
 M:	Jesse Brandeburg <jesse.brandeburg@intel.com>

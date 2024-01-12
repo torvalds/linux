@@ -561,6 +561,12 @@ static void glk_dsi_clear_device_ready(struct intel_encoder *encoder)
 	glk_dsi_disable_mipi_io(encoder);
 }
 
+static i915_reg_t port_ctrl_reg(struct drm_i915_private *i915, enum port port)
+{
+	return IS_GEMINILAKE(i915) || IS_BROXTON(i915) ?
+		BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
+}
+
 static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -570,7 +576,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	drm_dbg_kms(&dev_priv->drm, "\n");
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
-		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
+		i915_reg_t port_ctrl = IS_BROXTON(dev_priv) ?
 			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
 
 		intel_de_write(dev_priv, MIPI_DEVICE_READY(port),
@@ -589,7 +595,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 		 * On VLV/CHV, wait till Clock lanes are in LP-00 state for MIPI
 		 * Port A only. MIPI Port C has no similar bit for checking.
 		 */
-		if ((IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) || port == PORT_A) &&
+		if ((IS_BROXTON(dev_priv) || port == PORT_A) &&
 		    intel_de_wait_for_clear(dev_priv, port_ctrl,
 					    AFE_LATCHOUT, 30))
 			drm_err(&dev_priv->drm, "DSI LP not going Low\n");
@@ -627,8 +633,7 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
-			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
+		i915_reg_t port_ctrl = port_ctrl_reg(dev_priv, port);
 		u32 temp;
 
 		temp = intel_de_read(dev_priv, port_ctrl);
@@ -664,8 +669,7 @@ static void intel_dsi_port_disable(struct intel_encoder *encoder)
 	enum port port;
 
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t port_ctrl = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
-			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
+		i915_reg_t port_ctrl = port_ctrl_reg(dev_priv, port);
 
 		/* de-assert ip_tg_enable signal */
 		intel_de_rmw(dev_priv, port_ctrl, DPI_ENABLE, 0);
@@ -955,9 +959,8 @@ static bool intel_dsi_get_hw_state(struct intel_encoder *encoder,
 
 	/* XXX: this only works for one DSI output */
 	for_each_dsi_port(port, intel_dsi->ports) {
-		i915_reg_t ctrl_reg = IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv) ?
-			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
-		bool enabled = intel_de_read(dev_priv, ctrl_reg) & DPI_ENABLE;
+		i915_reg_t port_ctrl = port_ctrl_reg(dev_priv, port);
+		bool enabled = intel_de_read(dev_priv, port_ctrl) & DPI_ENABLE;
 
 		/*
 		 * Due to some hardware limitations on VLV/CHV, the DPI enable
@@ -1529,16 +1532,8 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
 	}
 }
 
-static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(encoder));
-
-	intel_dsi_vbt_gpio_cleanup(intel_dsi);
-	intel_encoder_destroy(encoder);
-}
-
 static const struct drm_encoder_funcs intel_dsi_funcs = {
-	.destroy = intel_dsi_encoder_destroy,
+	.destroy = intel_encoder_destroy,
 };
 
 static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,

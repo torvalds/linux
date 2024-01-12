@@ -829,6 +829,8 @@ static int clcdfb_of_dma_setup(struct clcd_fb *fb)
 
 static int clcdfb_of_dma_mmap(struct clcd_fb *fb, struct vm_area_struct *vma)
 {
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	return dma_mmap_wc(&fb->dev->dev, vma, fb->fb.screen_base,
 			   fb->fb.fix.smem_start, fb->fb.fix.smem_len);
 }

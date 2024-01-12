@@ -335,77 +335,6 @@ static void disable_event_handler(struct drm_i915_private *i915,
 	intel_de_write(i915, htp_reg, 0);
 }
 
-static void
-disable_flip_queue_event(struct drm_i915_private *i915,
-			 i915_reg_t ctl_reg, i915_reg_t htp_reg)
-{
-	u32 event_ctl;
-	u32 event_htp;
-
-	event_ctl = intel_de_read(i915, ctl_reg);
-	event_htp = intel_de_read(i915, htp_reg);
-	if (event_ctl != (DMC_EVT_CTL_ENABLE |
-			  DMC_EVT_CTL_RECURRING |
-			  REG_FIELD_PREP(DMC_EVT_CTL_TYPE_MASK,
-					 DMC_EVT_CTL_TYPE_EDGE_0_1) |
-			  REG_FIELD_PREP(DMC_EVT_CTL_EVENT_ID_MASK,
-					 DMC_EVT_CTL_EVENT_ID_CLK_MSEC)) ||
-	    !event_htp) {
-		drm_dbg_kms(&i915->drm,
-			    "Unexpected DMC event configuration (control %08x htp %08x)\n",
-			    event_ctl, event_htp);
-		return;
-	}
-
-	disable_event_handler(i915, ctl_reg, htp_reg);
-}
-
-static bool
-get_flip_queue_event_regs(struct drm_i915_private *i915, enum intel_dmc_id dmc_id,
-			  i915_reg_t *ctl_reg, i915_reg_t *htp_reg)
-{
-	if (dmc_id == DMC_FW_MAIN) {
-		if (DISPLAY_VER(i915) == 12) {
-			*ctl_reg = DMC_EVT_CTL(i915, dmc_id, 3);
-			*htp_reg = DMC_EVT_HTP(i915, dmc_id, 3);
-
-			return true;
-		}
-	} else if (dmc_id >= DMC_FW_PIPEA && dmc_id <= DMC_FW_PIPED) {
-		if (IS_DG2(i915)) {
-			*ctl_reg = DMC_EVT_CTL(i915, dmc_id, 2);
-			*htp_reg = DMC_EVT_HTP(i915, dmc_id, 2);
-
-			return true;
-		}
-	}
-
-	return false;
-}
-
-static void
-disable_all_flip_queue_events(struct drm_i915_private *i915)
-{
-	enum intel_dmc_id dmc_id;
-
-	/* TODO: check if the following applies to all D13+ platforms. */
-	if (!IS_TIGERLAKE(i915))
-		return;
-
-	for_each_dmc_id(dmc_id) {
-		i915_reg_t ctl_reg;
-		i915_reg_t htp_reg;
-
-		if (!has_dmc_id_fw(i915, dmc_id))
-			continue;
-
-		if (!get_flip_queue_event_regs(i915, dmc_id, &ctl_reg, &htp_reg))
-			continue;
-
-		disable_flip_queue_event(i915, ctl_reg, htp_reg);
-	}
-}
-
 static void disable_all_event_handlers(struct drm_i915_private *i915)
 {
 	enum intel_dmc_id dmc_id;
@@ -503,6 +432,16 @@ static bool is_dmc_evt_ctl_reg(struct drm_i915_private *i915,
 	return offset >= start && offset < end;
 }
 
+static bool is_dmc_evt_htp_reg(struct drm_i915_private *i915,
+			       enum intel_dmc_id dmc_id, i915_reg_t reg)
+{
+	u32 offset = i915_mmio_reg_offset(reg);
+	u32 start = i915_mmio_reg_offset(DMC_EVT_HTP(i915, dmc_id, 0));
+	u32 end = i915_mmio_reg_offset(DMC_EVT_HTP(i915, dmc_id, DMC_EVENT_HANDLER_COUNT_GEN12));
+
+	return offset >= start && offset < end;
+}
+
 static bool disable_dmc_evt(struct drm_i915_private *i915,
 			    enum intel_dmc_id dmc_id,
 			    i915_reg_t reg, u32 data)
@@ -512,6 +451,16 @@ static bool disable_dmc_evt(struct drm_i915_private *i915,
 
 	/* keep all pipe DMC events disabled by default */
 	if (dmc_id != DMC_FW_MAIN)
+		return true;
+
+	/* also disable the flip queue event on the main DMC on TGL */
+	if (IS_TIGERLAKE(i915) &&
+	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_CLK_MSEC)
+		return true;
+
+	/* also disable the HRR event on the main DMC on TGL/ADLS */
+	if ((IS_TIGERLAKE(i915) || IS_ALDERLAKE_S(i915)) &&
+	    REG_FIELD_GET(DMC_EVT_CTL_EVENT_ID_MASK, data) == DMC_EVT_CTL_EVENT_ID_VBLANK_A)
 		return true;
 
 	return false;
@@ -578,13 +527,6 @@ void intel_dmc_load_program(struct drm_i915_private *i915)
 	power_domains->dc_state = 0;
 
 	gen9_set_dc_state_debugmask(i915);
-
-	/*
-	 * Flip queue events need to be disabled before enabling DC5/6.
-	 * i915 doesn't use the flip queue feature, so disable it already
-	 * here.
-	 */
-	disable_all_flip_queue_events(i915);
 
 	pipedmc_clock_gating_wa(i915, false);
 }
@@ -781,9 +723,17 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 		return 0;
 	}
 
+	drm_dbg_kms(&i915->drm, "DMC %d:\n", dmc_id);
 	for (i = 0; i < mmio_count; i++) {
 		dmc_info->mmioaddr[i] = _MMIO(mmioaddr[i]);
 		dmc_info->mmiodata[i] = mmiodata[i];
+
+		drm_dbg_kms(&i915->drm, " mmio[%d]: 0x%x = 0x%x%s%s\n",
+			    i, mmioaddr[i], mmiodata[i],
+			    is_dmc_evt_ctl_reg(i915, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_CTL)" :
+			    is_dmc_evt_htp_reg(i915, dmc_id, dmc_info->mmioaddr[i]) ? " (EVT_HTP)" : "",
+			    disable_dmc_evt(i915, dmc_id, dmc_info->mmioaddr[i],
+					    dmc_info->mmiodata[i]) ? " (disabling)" : "");
 	}
 	dmc_info->mmio_count = mmio_count;
 	dmc_info->start_mmioaddr = start_mmioaddr;

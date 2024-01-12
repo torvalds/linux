@@ -6,8 +6,8 @@
 
 #include <drm/drm_print.h>
 
-#include "i915_drv.h" /* for_each_engine! */
 #include "intel_engine.h"
+#include "intel_gt.h"
 #include "intel_gt_debugfs.h"
 #include "intel_gt_engines_debugfs.h"
 

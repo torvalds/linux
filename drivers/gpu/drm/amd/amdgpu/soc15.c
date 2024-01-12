@@ -902,6 +902,7 @@ static const struct amdgpu_asic_funcs aqua_vanjaram_asic_funcs =
 	.pre_asic_init = &soc15_pre_asic_init,
 	.query_video_codecs = &soc15_query_video_codecs,
 	.encode_ext_smn_addressing = &aqua_vanjaram_encode_ext_smn_addressing,
+	.get_reg_state = &aqua_vanjaram_get_reg_state,
 };
 
 static int soc15_common_early_init(void *handle)

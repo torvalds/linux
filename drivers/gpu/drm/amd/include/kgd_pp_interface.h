@@ -422,7 +422,7 @@ struct amd_pm_funcs {
 	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
 	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
-	int (*get_asic_baco_capability)(void *handle, bool *cap);
+	bool (*get_asic_baco_capability)(void *handle);
 	int (*get_asic_baco_state)(void *handle, int *state);
 	int (*set_asic_baco_state)(void *handle, int state);
 	int (*get_ppfeature_status)(void *handle, char *buf);
@@ -432,6 +432,7 @@ struct amd_pm_funcs {
 	int (*set_df_cstate)(void *handle, enum pp_df_cstate state);
 	int (*set_xgmi_pstate)(void *handle, uint32_t pstate);
 	ssize_t (*get_gpu_metrics)(void *handle, void **table);
+	ssize_t (*get_pm_metrics)(void *handle, void *pmmetrics, size_t size);
 	int (*set_watermarks_for_clock_ranges)(void *handle,
 					       struct pp_smu_wm_range_sets *ranges);
 	int (*display_disable_memory_clock_switch)(void *handle,
@@ -1225,4 +1226,19 @@ struct gpu_metrics_v3_0 {
 	/* Metrics table alpha filter time constant [us] */
 	uint32_t			time_filter_alphavalue;
 };
+
+struct amdgpu_pmmetrics_header {
+	uint16_t structure_size;
+	uint16_t pad;
+	uint32_t mp1_ip_discovery_version;
+	uint32_t pmfw_version;
+	uint32_t pmmetrics_version;
+};
+
+struct amdgpu_pm_metrics {
+	struct amdgpu_pmmetrics_header common_header;
+
+	uint8_t data[];
+};
+
 #endif

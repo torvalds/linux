@@ -342,13 +342,6 @@ void pg_cntl35_io_clk_pg_control(struct pg_cntl *pg_cntl, bool power_on)
 	pg_cntl->pg_res_enable[PG_DCIO] = power_on;
 }
 
-void pg_cntl35_set_force_poweron_domain22(struct pg_cntl *pg_cntl, bool power_on)
-{
-	struct dcn_pg_cntl *pg_cntl_dcn = TO_DCN_PG_CNTL(pg_cntl);
-
-	REG_UPDATE(DOMAIN22_PG_CONFIG, DOMAIN_POWER_FORCEON, power_on ? 1 : 0);
-}
-
 static bool pg_cntl35_plane_otg_status(struct pg_cntl *pg_cntl)
 {
 	struct dcn_pg_cntl *pg_cntl_dcn = TO_DCN_PG_CNTL(pg_cntl);
@@ -518,8 +511,7 @@ static const struct pg_cntl_funcs pg_cntl35_funcs = {
 	.mpcc_pg_control = pg_cntl35_mpcc_pg_control,
 	.opp_pg_control = pg_cntl35_opp_pg_control,
 	.optc_pg_control = pg_cntl35_optc_pg_control,
-	.dwb_pg_control = pg_cntl35_dwb_pg_control,
-	.set_force_poweron_domain22 = pg_cntl35_set_force_poweron_domain22
+	.dwb_pg_control = pg_cntl35_dwb_pg_control
 };
 
 struct pg_cntl *pg_cntl35_create(

@@ -31,6 +31,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_fixed.h>
 
 #include "dm_services.h"
 #include "amdgpu.h"
@@ -216,7 +217,7 @@ static void dm_helpers_construct_old_payload(
 			struct drm_dp_mst_atomic_payload *old_payload)
 {
 	struct drm_dp_mst_atomic_payload *pos;
-	int pbn_per_slot = mst_state->pbn_div;
+	int pbn_per_slot = dfixed_trunc(mst_state->pbn_div);
 	u8 next_payload_vc_start = mgr->next_start_slot;
 	u8 payload_vc_start = new_payload->vc_start_slot;
 	u8 allocated_time_slots;
@@ -339,15 +340,14 @@ enum act_return_status dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 	return ACT_SUCCESS;
 }
 
-bool dm_helpers_dp_mst_send_payload_allocation(
+void dm_helpers_dp_mst_send_payload_allocation(
 		struct dc_context *ctx,
-		const struct dc_stream_state *stream,
-		bool enable)
+		const struct dc_stream_state *stream)
 {
 	struct amdgpu_dm_connector *aconnector;
 	struct drm_dp_mst_topology_state *mst_state;
 	struct drm_dp_mst_topology_mgr *mst_mgr;
-	struct drm_dp_mst_atomic_payload *new_payload, old_payload;
+	struct drm_dp_mst_atomic_payload *new_payload;
 	enum mst_progress_status set_flag = MST_ALLOCATE_NEW_PAYLOAD;
 	enum mst_progress_status clr_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
 	int ret = 0;
@@ -355,25 +355,13 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
 
 	if (!aconnector || !aconnector->mst_root)
-		return false;
+		return;
 
 	mst_mgr = &aconnector->mst_root->mst_mgr;
 	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
-
 	new_payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
 
-	if (!enable) {
-		set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
-		clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
-	}
-
-	if (enable) {
-		ret = drm_dp_add_payload_part2(mst_mgr, mst_state->base.state, new_payload);
-	} else {
-		dm_helpers_construct_old_payload(mst_mgr, mst_state,
-						 new_payload, &old_payload);
-		drm_dp_remove_payload_part2(mst_mgr, mst_state, &old_payload, new_payload);
-	}
+	ret = drm_dp_add_payload_part2(mst_mgr, mst_state->base.state, new_payload);
 
 	if (ret) {
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
@@ -384,9 +372,35 @@ bool dm_helpers_dp_mst_send_payload_allocation(
 		amdgpu_dm_set_mst_status(&aconnector->mst_status,
 			clr_flag, false);
 	}
-
-	return true;
 }
+
+void dm_helpers_dp_mst_update_mst_mgr_for_deallocation(
+		struct dc_context *ctx,
+		const struct dc_stream_state *stream)
+{
+	struct amdgpu_dm_connector *aconnector;
+	struct drm_dp_mst_topology_state *mst_state;
+	struct drm_dp_mst_topology_mgr *mst_mgr;
+	struct drm_dp_mst_atomic_payload *new_payload, old_payload;
+	enum mst_progress_status set_flag = MST_CLEAR_ALLOCATED_PAYLOAD;
+	enum mst_progress_status clr_flag = MST_ALLOCATE_NEW_PAYLOAD;
+
+	aconnector = (struct amdgpu_dm_connector *)stream->dm_stream_context;
+
+	if (!aconnector || !aconnector->mst_root)
+		return;
+
+	mst_mgr = &aconnector->mst_root->mst_mgr;
+	mst_state = to_drm_dp_mst_topology_state(mst_mgr->base.state);
+	new_payload = drm_atomic_get_mst_payload_state(mst_state, aconnector->mst_output_port);
+	dm_helpers_construct_old_payload(mst_mgr, mst_state,
+					 new_payload, &old_payload);
+
+	drm_dp_remove_payload_part2(mst_mgr, mst_state, &old_payload, new_payload);
+
+	amdgpu_dm_set_mst_status(&aconnector->mst_status, set_flag, true);
+	amdgpu_dm_set_mst_status(&aconnector->mst_status, clr_flag, false);
+ }
 
 void dm_dtn_log_begin(struct dc_context *ctx,
 	struct dc_log_buffer_ctx *log_ctx)

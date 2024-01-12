@@ -90,7 +90,8 @@ bool dpia_query_hpd_status(struct dc_link *link)
 	cmd.query_hpd.data.ch_type = AUX_CHANNEL_DPIA;
 
 	/* Return HPD status reported by DMUB if query successfully executed. */
-	if (dm_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) && cmd.query_hpd.data.status == AUX_RET_SUCCESS)
+	if (dc_wake_and_execute_dmub_cmd(dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
+	    cmd.query_hpd.data.status == AUX_RET_SUCCESS)
 		is_hpd_high = cmd.query_hpd.data.result;
 
 	DC_LOG_DEBUG("%s: link(%d) dpia(%d) cmd_status(%d) result(%d)\n",

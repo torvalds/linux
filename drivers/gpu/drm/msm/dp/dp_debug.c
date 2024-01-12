@@ -19,13 +19,9 @@
 #define DEBUG_NAME "msm_dp"
 
 struct dp_debug_private {
-	struct dentry *root;
-
 	struct dp_link *link;
 	struct dp_panel *panel;
 	struct drm_connector *connector;
-	struct device *dev;
-	struct drm_device *drm_dev;
 
 	struct dp_debug dp_debug;
 };
@@ -204,35 +200,33 @@ static const struct file_operations test_active_fops = {
 	.write = dp_test_active_write
 };
 
-static void dp_debug_init(struct dp_debug *dp_debug, struct drm_minor *minor)
+static void dp_debug_init(struct dp_debug *dp_debug, struct dentry *root, bool is_edp)
 {
-	char path[64];
 	struct dp_debug_private *debug = container_of(dp_debug,
 			struct dp_debug_private, dp_debug);
 
-	snprintf(path, sizeof(path), "msm_dp-%s", debug->connector->name);
-
-	debug->root = debugfs_create_dir(path, minor->debugfs_root);
-
-	debugfs_create_file("dp_debug", 0444, debug->root,
+	debugfs_create_file("dp_debug", 0444, root,
 			debug, &dp_debug_fops);
 
-	debugfs_create_file("msm_dp_test_active", 0444,
-			debug->root,
-			debug, &test_active_fops);
+	if (!is_edp) {
+		debugfs_create_file("msm_dp_test_active", 0444,
+				    root,
+				    debug, &test_active_fops);
 
-	debugfs_create_file("msm_dp_test_data", 0444,
-			debug->root,
-			debug, &dp_test_data_fops);
+		debugfs_create_file("msm_dp_test_data", 0444,
+				    root,
+				    debug, &dp_test_data_fops);
 
-	debugfs_create_file("msm_dp_test_type", 0444,
-			debug->root,
-			debug, &dp_test_type_fops);
+		debugfs_create_file("msm_dp_test_type", 0444,
+				    root,
+				    debug, &dp_test_type_fops);
+	}
 }
 
 struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 		struct dp_link *link,
-		struct drm_connector *connector, struct drm_minor *minor)
+		struct drm_connector *connector,
+		struct dentry *root, bool is_edp)
 {
 	struct dp_debug_private *debug;
 	struct dp_debug *dp_debug;
@@ -253,46 +247,15 @@ struct dp_debug *dp_debug_get(struct device *dev, struct dp_panel *panel,
 	debug->dp_debug.debug_en = false;
 	debug->link = link;
 	debug->panel = panel;
-	debug->dev = dev;
-	debug->drm_dev = minor->dev;
-	debug->connector = connector;
 
 	dp_debug = &debug->dp_debug;
 	dp_debug->vdisplay = 0;
 	dp_debug->hdisplay = 0;
 	dp_debug->vrefresh = 0;
 
-	dp_debug_init(dp_debug, minor);
+	dp_debug_init(dp_debug, root, is_edp);
 
 	return dp_debug;
  error:
 	return ERR_PTR(rc);
-}
-
-static int dp_debug_deinit(struct dp_debug *dp_debug)
-{
-	struct dp_debug_private *debug;
-
-	if (!dp_debug)
-		return -EINVAL;
-
-	debug = container_of(dp_debug, struct dp_debug_private, dp_debug);
-
-	debugfs_remove_recursive(debug->root);
-
-	return 0;
-}
-
-void dp_debug_put(struct dp_debug *dp_debug)
-{
-	struct dp_debug_private *debug;
-
-	if (!dp_debug)
-		return;
-
-	debug = container_of(dp_debug, struct dp_debug_private, dp_debug);
-
-	dp_debug_deinit(dp_debug);
-
-	devm_kfree(debug->dev, debug);
 }

@@ -998,6 +998,8 @@ static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	int ret;
 	unsigned long prot;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	ret = vmlfb_vram_offset(vinfo, offset);
 	if (ret)
 		return -EINVAL;
