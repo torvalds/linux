@@ -886,8 +886,10 @@ struct clk_hw *__imx_clk_gpr_scu(const char *name, const char * const *parent_na
 		return ERR_PTR(-EINVAL);
 	}
 
-	if (!imx_clk_is_resource_owned(rsrc_id))
+	if (!imx_clk_is_resource_owned(rsrc_id)) {
+		kfree(clk_node);
 		return NULL;
+	}
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
 	if (!clk) {
