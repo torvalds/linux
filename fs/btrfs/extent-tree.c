@@ -6171,14 +6171,13 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
-				   u64 start, u64 end)
+/*
+ * Unpin the extent range in an error context and don't add the space back.
+ * Errors are not propagated further.
+ */
+void btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info, u64 start, u64 end)
 {
-	int ret;
-
-	ret = unpin_extent_range(fs_info, start, end, false);
-	BUG_ON(ret);
-	return ret;
+	unpin_extent_range(fs_info, start, end, false);
 }
 
 /*
