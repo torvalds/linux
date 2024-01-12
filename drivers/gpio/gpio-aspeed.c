@@ -1118,6 +1118,14 @@ static int aspeed_gpio_request(struct gpio_chip *chip, unsigned int offset)
 	return pinctrl_gpio_request(chip->base + offset);
 }
 
+static int aspeed_g7_gpio_request(struct gpio_chip *chip, unsigned int offset)
+{
+	if (!have_gpio_g7(gpiochip_get_data(chip), offset))
+		return -ENODEV;
+
+	return pinctrl_gpio_request(chip->base + offset);
+}
+
 static void aspeed_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	pinctrl_gpio_free(chip->base + offset);
@@ -1706,18 +1714,18 @@ MODULE_DEVICE_TABLE(of, aspeed_gpio_of_table);
 static const struct aspeed_bank_props ast2700_bank_props[] = {
 	/*     input	  output   */
 	{ 1, 0x0fffffff, 0x0fffffff }, /* E/F/G/H, 4-GPIO hole */
-	{ 6, 0x00ffffff, 0x00ffffff }, /* Y/Z/AA */
+	{ 7, 0x000fffff, 0x000fffff }, /* AC/AD/AE */
 	{ },
 };
 
 static const struct aspeed_gpio_config ast2700_config =
 	/*
-	 * ast2700 has two controllers one with 212 GPIOs and one with 16 GPIOs.
-	 * 216 for simplicity, actual number is 212 (4-GPIO hole in GPIOH)
+	 * ast2700 has two controllers one with 240 GPIOs and one with 16 GPIOs.
+	 * 244 for simplicity, actual number is 240 (4-GPIO hole in GPIOH)
 	 * We expect ngpio being set in the device tree and this is a fallback
 	 * option.
 	 */
-	{ .nr_gpios = 216, .props = ast2700_bank_props, };
+	{ .nr_gpios = 244, .props = ast2700_bank_props, };
 
 static const struct of_device_id aspeed_g7_gpio_of_table[] = {
 	{ .compatible = "aspeed,ast2700-gpio", .data = &ast2700_config, },
@@ -1865,7 +1873,7 @@ static int __init aspeed_g7_gpio_probe(struct platform_device *pdev)
 	gpio->chip.direction_input = aspeed_g7_gpio_dir_in;
 	gpio->chip.direction_output = aspeed_g7_gpio_dir_out;
 	gpio->chip.get_direction = aspeed_g7_gpio_get_direction;
-	gpio->chip.request = aspeed_gpio_request;
+	gpio->chip.request = aspeed_g7_gpio_request;
 	gpio->chip.free = aspeed_gpio_free;
 	gpio->chip.get = aspeed_g7_gpio_get;
 	gpio->chip.set = aspeed_g7_gpio_set;

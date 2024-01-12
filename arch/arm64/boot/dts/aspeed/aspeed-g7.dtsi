@@ -1273,7 +1273,7 @@
 			reg = <0x0 0x14c0b000 0x0 0x1000>;
 			interrupts-extended = <&intc2 18>;
 			gpio-ranges = <&pinctrl1 0 0 216>;
-			ngpios = <216>;
+			ngpios = <244>;
 			clocks = <&syscon1 AST2700_SOC1_CLK_AHB>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
