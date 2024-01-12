@@ -62,11 +62,12 @@ int hab_stat_show_vchan(struct hab_driver *driver,
 			read_lock(&pchan->vchans_lock);
 			list_for_each_entry(vc, &pchan->vchannels, pnode) {
 				ret = hab_stat_buffer_print(buf, size,
-					"%08X(%d:%d:%lu:%lu:%d) ", vc->id,
+					"%08X(%d:%d:%d:%ld:%ld:%d) ", vc->id,
 					get_refcnt(vc->refcount),
 					vc->otherend_closed,
-					(unsigned long)vc->tx_cnt,
-					(unsigned long)vc->rx_cnt,
+					vc->closed,
+					atomic64_read(&vc->tx_cnt),
+					atomic64_read(&vc->rx_cnt),
 					vc->rx_inflight);
 			}
 			ret = hab_stat_buffer_print(buf, size, "\n");

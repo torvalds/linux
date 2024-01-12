@@ -29,13 +29,17 @@ int physical_channel_read(struct physical_channel *pchan,
 
 int physical_channel_send(struct physical_channel *pchan,
 		struct hab_header *header,
-		void *payload)
+		void *payload,
+		unsigned int flags)
 {
 	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
 	struct ghs_vdev *dev  = (struct ghs_vdev *)pchan->hyp_data;
 	GIPC_Result result;
 	uint8_t *msg;
 	int irqs_disabled;
+
+	/* Only used in virtio arch */
+	(void)flags;
 
 	if (!dev) {
 		pr_err("no send pchan %s has been de-alloced msg for %zd bytes\n",

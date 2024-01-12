@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 
@@ -88,12 +88,15 @@ int lb_kthread(void *d)
 
 int physical_channel_send(struct physical_channel *pchan,
 			struct hab_header *header,
-			void *payload)
+			void *payload, unsigned int flags)
 {
 	int size = HAB_HEADER_GET_SIZE(*header); /* payload size */
 	struct timespec64 ts = {0};
 	struct loopback_msg *msg = NULL;
 	struct loopback_dev *dev = pchan->hyp_data;
+
+	/* Only used in virtio arch */
+	(void)flags;
 
 	msg = kmalloc(size + sizeof(*msg), GFP_KERNEL);
 	if (!msg)

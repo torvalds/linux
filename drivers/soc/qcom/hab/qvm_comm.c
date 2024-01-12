@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_qvm.h"
@@ -52,13 +52,17 @@ int physical_channel_read(struct physical_channel *pchan,
 
 int physical_channel_send(struct physical_channel *pchan,
 		struct hab_header *header,
-		void *payload)
+		void *payload,
+		unsigned int flags)
 {
 	size_t sizebytes = HAB_HEADER_GET_SIZE(*header);
 	struct qvm_channel *dev  = (struct qvm_channel *)pchan->hyp_data;
 	size_t total_size = sizeof(*header) + sizebytes;
 	uint32_t buf_size = PIPE_SHMEM_SIZE;
 	int irqs_disabled = irqs_disabled();
+
+	/* Only used in virtio arch */
+	(void)flags;
 
 	if (total_size > buf_size)
 		return -EINVAL; /* too much data for ring */
@@ -190,6 +194,9 @@ void physical_channel_rx_dispatch(unsigned long data)
 		} else if (ret != sizeof(header))
 			break; /* no data available */
 
+		if (pchan->sequence_rx + 1 != header.sequence)
+			pr_err("%s: expected sequence_rx is %u, received is %u\n",
+				pchan->name, pchan->sequence_rx, header.sequence);
 		pchan->sequence_rx = header.sequence;
 
 		/* log msg recv timestamp: enter pchan dispatcher */
