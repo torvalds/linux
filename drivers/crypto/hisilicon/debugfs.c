@@ -24,6 +24,8 @@
 #define QM_DFX_QN_SHIFT			16
 #define QM_DFX_CNT_CLR_CE		0x100118
 #define QM_DBG_WRITE_LEN		1024
+#define QM_IN_IDLE_ST_REG		0x1040e4
+#define QM_IN_IDLE_STATE		0x1
 
 static const char * const qm_debug_file_name[] = {
 	[CURRENT_QM]   = "current_qm",
@@ -1001,6 +1003,30 @@ static int qm_diff_regs_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(qm_diff_regs);
 
+static int qm_state_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+	u32 val;
+	int ret;
+
+	/* If device is in suspended, directly return the idle state. */
+	ret = hisi_qm_get_dfx_access(qm);
+	if (!ret) {
+		val = readl(qm->io_base + QM_IN_IDLE_ST_REG);
+		hisi_qm_put_dfx_access(qm);
+	} else if (ret == -EAGAIN) {
+		val = QM_IN_IDLE_STATE;
+	} else {
+		return ret;
+	}
+
+	seq_printf(s, "%u\n", val);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(qm_state);
+
 static ssize_t qm_status_read(struct file *filp, char __user *buffer,
 			      size_t count, loff_t *pos)
 {
@@ -1072,6 +1098,9 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 
 	/* only show this in PF */
 	if (qm->fun_type == QM_HW_PF) {
+		debugfs_create_file("qm_state", 0444, qm->debug.qm_d,
+					qm, &qm_state_fops);
+
 		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
 		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
 			qm_create_debugfs_file(qm, qm->debug.qm_d, i);
