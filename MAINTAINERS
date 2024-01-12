@@ -1693,11 +1693,6 @@ S:	Odd Fixes
 F:	drivers/amba/
 F:	include/linux/amba/bus.h
 
-ARM PRIMECELL CLCD PL110 DRIVER
-M:	Russell King <linux@armlinux.org.uk>
-S:	Odd Fixes
-F:	drivers/video/fbdev/amba-clcd.*
-
 ARM PRIMECELL KMI PL050 DRIVER
 M:	Russell King <linux@armlinux.org.uk>
 S:	Odd Fixes
@@ -10731,13 +10726,6 @@ L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/irdma/
 F:	include/uapi/rdma/irdma-abi.h
-
-INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
-M:	Maik Broemme <mbroemme@libmpq.org>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	Documentation/fb/intelfb.rst
-F:	drivers/video/fbdev/intelfb/
 
 INTEL GPIO DRIVERS
 M:	Andy Shevchenko <andy@kernel.org>

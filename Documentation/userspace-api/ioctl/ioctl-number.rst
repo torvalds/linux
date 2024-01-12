@@ -128,7 +128,6 @@ Code  Seq#    Include File                                           Comments
 'F'   all    linux/fb.h                                              conflict!
 'F'   01-02  drivers/scsi/pmcraid.h                                  conflict!
 'F'   20     drivers/video/fsl-diu-fb.h                              conflict!
-'F'   20     drivers/video/intelfb/intelfb.h                         conflict!
 'F'   20     linux/ivtvfb.h                                          conflict!
 'F'   20     linux/matroxfb.h                                        conflict!
 'F'   20     drivers/video/aty/atyfb_base.c                          conflict!
