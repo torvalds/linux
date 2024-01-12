@@ -1572,7 +1572,19 @@ struct dc_link {
 	enum engine_id dpia_preferred_eng_id;
 
 	bool test_pattern_enabled;
+	/* Pending/Current test pattern are only used to perform and track
+	 * FIXED_VS retimer test pattern/lane adjustment override state.
+	 * Pending allows link HWSS to differentiate PHY vs non-PHY pattern,
+	 * to perform specific lane adjust overrides before setting certain
+	 * PHY test patterns. In cases when lane adjust and set test pattern
+	 * calls are not performed atomically (i.e. performing link training),
+	 * pending_test_pattern will be invalid or contain a non-PHY test pattern
+	 * and current_test_pattern will contain required context for any future
+	 * set pattern/set lane adjust to transition between override state(s).
+	 * */
 	enum dp_test_pattern current_test_pattern;
+	enum dp_test_pattern pending_test_pattern;
+
 	union compliance_test_state compliance_test_state;
 
 	void *priv;
