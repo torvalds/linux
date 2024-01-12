@@ -755,9 +755,8 @@ static int ov13b10_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	const struct ov13b10_mode *default_mode = &supported_modes[0];
 	struct ov13b10 *ov13b = to_ov13b10(sd);
-	struct v4l2_mbus_framefmt *try_fmt = v4l2_subdev_get_try_format(sd,
-									fh->state,
-									0);
+	struct v4l2_mbus_framefmt *try_fmt = v4l2_subdev_state_get_format(fh->state,
+									  0);
 
 	mutex_lock(&ov13b->mutex);
 
@@ -1002,10 +1001,9 @@ static int ov13b10_do_get_pad_format(struct ov13b10 *ov13b,
 				     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
-	struct v4l2_subdev *sd = &ov13b->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		ov13b10_update_pad_format(ov13b->cur_mode, fmt);
@@ -1054,7 +1052,7 @@ ov13b10_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov13b10_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ov13b->cur_mode = mode;
@@ -1556,24 +1554,27 @@ static int ov13b10_probe(struct i2c_client *client)
 		goto error_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&ov13b->sd);
-	if (ret < 0)
-		goto error_media_entity;
 
 	/*
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
 	 */
-
 	/* Set the device's state to active if it's in D0 state. */
 	if (full_power)
 		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
+	ret = v4l2_async_register_subdev_sensor(&ov13b->sd);
+	if (ret < 0)
+		goto error_media_entity_runtime_pm;
+
 	return 0;
 
-error_media_entity:
+error_media_entity_runtime_pm:
+	pm_runtime_disable(&client->dev);
+	if (full_power)
+		pm_runtime_set_suspended(&client->dev);
 	media_entity_cleanup(&ov13b->sd.entity);
 
 error_handler_free:
@@ -1596,6 +1597,7 @@ static void ov13b10_remove(struct i2c_client *client)
 	ov13b10_free_controls(ov13b);
 
 	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(ov13b10_pm_ops, ov13b10_suspend,

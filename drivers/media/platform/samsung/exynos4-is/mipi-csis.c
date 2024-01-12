@@ -569,8 +569,7 @@ static struct v4l2_mbus_framefmt *__s5pcsis_get_format(
 		enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return sd_state ? v4l2_subdev_get_try_format(&state->sd,
-							     sd_state, 0) : NULL;
+		return sd_state ? v4l2_subdev_state_get_format(sd_state, 0) : NULL;
 
 	return &state->format;
 }

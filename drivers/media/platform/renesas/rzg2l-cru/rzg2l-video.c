@@ -767,7 +767,7 @@ int rzg2l_cru_dma_register(struct rzg2l_cru_dev *cru)
 	q->ops = &rzg2l_cru_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 4;
+	q->min_queued_buffers = 4;
 	q->dev = cru->dev;
 
 	ret = vb2_queue_init(q);

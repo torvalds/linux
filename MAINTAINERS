@@ -699,6 +699,15 @@ S:	Maintained
 F:	Documentation/devicetree/bindings/media/allegro,al5e.yaml
 F:	drivers/media/platform/allegro-dvt/
 
+ALLIED VISION ALVIUM CAMERA DRIVER
+M:	Tommaso Merciai <tomm.merciai@gmail.com>
+M:	Martin Hecht <martin.hecht@avnet.eu>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/alliedvision,alvium-csi2.yaml
+F:	drivers/media/i2c/alvium-csi2.c
+F:	drivers/media/i2c/alvium-csi2.h
+
 ALLWINNER A10 CSI DRIVER
 M:	Maxime Ripard <mripard@kernel.org>
 L:	linux-media@vger.kernel.org
@@ -5160,7 +5169,7 @@ M:	Philipp Zabel <p.zabel@pengutronix.de>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/coda.yaml
-F:	drivers/media/platform/chips-media/
+F:	drivers/media/platform/chips-media/coda
 
 CODE OF CONDUCT
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
@@ -8756,6 +8765,21 @@ F:	include/uapi/linux/futex.h
 F:	kernel/futex/*
 F:	tools/perf/bench/futex*
 F:	tools/testing/selftests/futex/
+
+GALAXYCORE GC0308 CAMERA SENSOR DRIVER
+M:	Sebastian Reichel <sre@kernel.org>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/galaxycore,gc0308.yaml
+F:	drivers/media/i2c/gc0308.c
+
+GALAXYCORE GC2145 SENSOR DRIVER
+M:	Alain Volmat <alain.volmat@foss.st.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/devicetree/bindings/media/i2c/galaxycore,gc2145.yaml
+F:	drivers/media/i2c/gc2145.c
 
 GATEWORKS SYSTEM CONTROLLER (GSC) DRIVER
 M:	Tim Harvey <tharvey@gateworks.com>
@@ -13087,6 +13111,7 @@ MAX96712 QUAD GMSL2 DESERIALIZER DRIVER
 M:	Niklas Söderlund <niklas.soderlund@ragnatech.se>
 L:	linux-media@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/media/i2c/maxim,max96712.yaml
 F:	drivers/staging/media/max96712/max96712.c
 
 MAX9860 MONO AUDIO VOICE CODEC DRIVER
@@ -13507,13 +13532,16 @@ W:	https://linuxtv.org
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/dvb-frontends/stv6111*
 
-MEDIA DRIVERS FOR STM32 - DCMI
+MEDIA DRIVERS FOR STM32 - DCMI / DCMIPP
 M:	Hugues Fruchet <hugues.fruchet@foss.st.com>
+M:	Alain Volmat <alain.volmat@foss.st.com>
 L:	linux-media@vger.kernel.org
 S:	Supported
 T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/devicetree/bindings/media/st,stm32-dcmi.yaml
+F:	Documentation/devicetree/bindings/media/st,stm32-dcmipp.yaml
 F:	drivers/media/platform/st/stm32/stm32-dcmi.c
+F:	drivers/media/platform/st/stm32/stm32-dcmipp/*
 
 MEDIA INPUT INFRASTRUCTURE (V4L/DVB)
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
@@ -16089,6 +16117,14 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/i2c/ov5695.c
+
+OMNIVISION OV64A40 SENSOR DRIVER
+M:	Jacopo Mondi <jacopo.mondi@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/devicetree/bindings/media/i2c/ovti,ov64a40.yaml
+F:	drivers/media/i2c/ov64a40.c
 
 OMNIVISION OV7670 SENSOR DRIVER
 L:	linux-media@vger.kernel.org
@@ -20681,6 +20717,15 @@ M:	Ion Badulescu <ionut@badula.org>
 S:	Odd Fixes
 F:	drivers/net/ethernet/adaptec/starfire*
 
+STARFIVE CAMERA SUBSYSTEM DRIVER
+M:	Jack Zhu <jack.zhu@starfivetech.com>
+M:	Changhuang Liang <changhuang.liang@starfivetech.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/admin-guide/media/starfive_camss.rst
+F:	Documentation/devicetree/bindings/media/starfive,jh7110-camss.yaml
+F:	drivers/staging/media/starfive/camss
+
 STARFIVE CRYPTO DRIVER
 M:	Jia Jie Ho <jiajie.ho@starfivetech.com>
 M:	William Qiu <william.qiu@starfivetech.com>
@@ -21381,6 +21426,12 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/rc/ttusbir.c
 
+TECHWELL TW9900 VIDEO DECODER
+M:	Mehdi Djait <mehdi.djait@bootlin.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	drivers/media/i2c/tw9900.c
+
 TECHWELL TW9910 VIDEO DECODER
 L:	linux-media@vger.kernel.org
 S:	Orphan
@@ -21688,6 +21739,17 @@ L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-firmware-attributes
 F:	drivers/platform/x86/think-lmi.?
+
+THP7312 ISP DRIVER
+M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+M:	Paul Elder <paul.elder@ideasonboard.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+T:	git git://linuxtv.org/media_tree.git
+F:	Documentation/devicetree/bindings/media/i2c/thine,thp7312.yaml
+F:	Documentation/userspace-api/media/drivers/thp7312.rst
+F:	drivers/media/i2c/thp7312.c
+F:	include/uapi/linux/thp7312.h
 
 THUNDERBOLT DMA TRAFFIC TEST DRIVER
 M:	Isaac Hazan <isaac.hazan@intel.com>
@@ -22834,6 +22896,7 @@ S:	Maintained
 F:	Documentation/driver-api/media/camera-sensor.rst
 F:	Documentation/driver-api/media/tx-rx.rst
 F:	drivers/media/i2c/ar*
+F:	drivers/media/i2c/gc*
 F:	drivers/media/i2c/hi*
 F:	drivers/media/i2c/imx*
 F:	drivers/media/i2c/mt*
@@ -23475,6 +23538,14 @@ F:	drivers/watchdog/
 F:	include/linux/watchdog.h
 F:	include/trace/events/watchdog.h
 F:	include/uapi/linux/watchdog.h
+
+WAVE5 VPU CODEC DRIVER
+M:	Nas Chung <nas.chung@chipsnmedia.com>
+M:	Jackson Lee <jackson.lee@chipsnmedia.com>
+L:	linux-media@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/media/cnm,wave521c.yaml
+F:	drivers/media/platform/chips-media/wave5/
 
 WHISKEYCOVE PMIC GPIO DRIVER
 M:	Kuppuswamy Sathyanarayanan <sathyanarayanan.kuppuswamy@linux.intel.com>

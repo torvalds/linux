@@ -820,7 +820,7 @@ static int ov5695_set_fmt(struct v4l2_subdev *sd,
 	fmt->format.height = mode->height;
 	fmt->format.field = V4L2_FIELD_NONE;
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov5695->cur_mode = mode;
 		h_blank = mode->hts_def - mode->width;
@@ -846,8 +846,8 @@ static int ov5695_get_fmt(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov5695->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	} else {
 		fmt->format.width = mode->width;
 		fmt->format.height = mode->height;
@@ -1039,7 +1039,7 @@ static int ov5695_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct ov5695 *ov5695 = to_ov5695(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 	const struct ov5695_mode *def_mode = &supported_modes[0];
 
 	mutex_lock(&ov5695->mutex);

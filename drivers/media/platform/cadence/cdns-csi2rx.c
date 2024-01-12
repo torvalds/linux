@@ -406,20 +406,20 @@ static int csi2rx_set_fmt(struct v4l2_subdev *subdev,
 	format->format.field = V4L2_FIELD_NONE;
 
 	/* Set sink format */
-	fmt = v4l2_subdev_get_pad_format(subdev, state, format->pad);
+	fmt = v4l2_subdev_state_get_format(state, format->pad);
 	*fmt = format->format;
 
 	/* Propagate to source formats */
 	for (i = CSI2RX_PAD_SOURCE_STREAM0; i < CSI2RX_PAD_MAX; i++) {
-		fmt = v4l2_subdev_get_pad_format(subdev, state, i);
+		fmt = v4l2_subdev_state_get_format(state, i);
 		*fmt = format->format;
 	}
 
 	return 0;
 }
 
-static int csi2rx_init_cfg(struct v4l2_subdev *subdev,
-			   struct v4l2_subdev_state *state)
+static int csi2rx_init_state(struct v4l2_subdev *subdev,
+			     struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_format format = {
 		.pad = CSI2RX_PAD_SINK,
@@ -441,7 +441,6 @@ static int csi2rx_init_cfg(struct v4l2_subdev *subdev,
 static const struct v4l2_subdev_pad_ops csi2rx_pad_ops = {
 	.get_fmt	= v4l2_subdev_get_fmt,
 	.set_fmt	= csi2rx_set_fmt,
-	.init_cfg	= csi2rx_init_cfg,
 };
 
 static const struct v4l2_subdev_video_ops csi2rx_video_ops = {
@@ -451,6 +450,10 @@ static const struct v4l2_subdev_video_ops csi2rx_video_ops = {
 static const struct v4l2_subdev_ops csi2rx_subdev_ops = {
 	.video		= &csi2rx_video_ops,
 	.pad		= &csi2rx_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops csi2rx_internal_ops = {
+	.init_state	= csi2rx_init_state,
 };
 
 static const struct media_entity_operations csi2rx_media_ops = {
@@ -663,6 +666,7 @@ static int csi2rx_probe(struct platform_device *pdev)
 	csi2rx->subdev.owner = THIS_MODULE;
 	csi2rx->subdev.dev = &pdev->dev;
 	v4l2_subdev_init(&csi2rx->subdev, &csi2rx_subdev_ops);
+	csi2rx->subdev.internal_ops = &csi2rx_internal_ops;
 	v4l2_set_subdevdata(&csi2rx->subdev, &pdev->dev);
 	snprintf(csi2rx->subdev.name, sizeof(csi2rx->subdev.name),
 		 "%s.%s", KBUILD_MODNAME, dev_name(&pdev->dev));
