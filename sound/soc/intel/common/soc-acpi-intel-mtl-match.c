@@ -40,6 +40,11 @@ static const struct snd_soc_acpi_codecs mtl_lt6911_hdmi = {
 	.codecs = {"INTC10B0"}
 };
 
+static const struct snd_soc_acpi_codecs mtl_rt5650_amp = {
+	.num_codecs = 1,
+	.codecs = {"10EC5650"}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_machines[] = {
 	{
 		.comp_ids = &mtl_rt5682_rt5682s_hp,
@@ -76,6 +81,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "mtl_rt5650",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &mtl_rt5650_amp,
+		.sof_tplg_filename = "sof-mtl-rt5650.tplg",
 	},
 	/* place amp-only boards in the end of table */
 	{
@@ -123,6 +135,31 @@ static const struct snd_soc_acpi_endpoint rt712_endpoints[] = {
 	},
 };
 
+/*
+ * RT722 is a multi-function codec, three endpoints are created for
+ * its headset, amp and dmic functions.
+ */
+static const struct snd_soc_acpi_endpoint rt722_endpoints[] = {
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{
+		.num = 2,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
 static const struct snd_soc_acpi_endpoint spk_2_endpoint = {
 	.num = 0,
 	.aggregated = 1,
@@ -161,6 +198,15 @@ static const struct snd_soc_acpi_adr_device rt1712_3_single_adr[] = {
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt712-dmic"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt722_0_single_adr[] = {
+	{
+		.adr = 0x000030025d072201ull,
+		.num_endpoints = ARRAY_SIZE(rt722_endpoints),
+		.endpoints = rt722_endpoints,
+		.name_prefix = "rt722"
 	}
 };
 
@@ -355,6 +401,15 @@ static const struct snd_soc_acpi_link_adr mtl_rvp[] = {
 	{}
 };
 
+static const struct snd_soc_acpi_link_adr mtl_rt722_only[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt722_0_single_adr),
+		.adr_d = rt722_0_single_adr,
+	},
+	{}
+};
+
 static const struct snd_soc_acpi_link_adr mtl_3_in_1_sdca[] = {
 	{
 		.mask = BIT(0),
@@ -418,6 +473,25 @@ static const struct snd_soc_acpi_link_adr mtl_rt713_l0_rt1316_l12_rt1713_l3[] = 
 		.mask = BIT(3),
 		.num_adr = ARRAY_SIZE(rt1713_3_single_adr),
 		.adr_d = rt1713_3_single_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr mtl_rt713_l0_rt1316_l12[] = {
+	{
+		.mask = BIT(0),
+		.num_adr = ARRAY_SIZE(rt713_0_single_adr),
+		.adr_d = rt713_0_single_adr,
+	},
+	{
+		.mask = BIT(1),
+		.num_adr = ARRAY_SIZE(rt1316_1_group2_adr),
+		.adr_d = rt1316_1_group2_adr,
+	},
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt1316_2_group2_adr),
+		.adr_d = rt1316_2_group2_adr,
 	},
 	{}
 };
@@ -508,6 +582,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-mtl-rt713-l0-rt1316-l12-rt1713-l3.tplg",
 	},
 	{
+		.link_mask = GENMASK(2, 0),
+		.links = mtl_rt713_l0_rt1316_l12,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-rt713-l0-rt1316-l12.tplg",
+	},
+	{
 		.link_mask = BIT(3) | BIT(0),
 		.links = mtl_712_only,
 		.drv_name = "sof_sdw",
@@ -530,6 +610,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_sdw_machines[] = {
 		.links = mtl_3_in_1_sdca,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-mtl-rt711-l0-rt1316-l23-rt714-l1.tplg",
+	},
+	{
+		.link_mask = BIT(0),
+		.links = mtl_rt722_only,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-mtl-rt722-l0.tplg",
 	},
 	{
 		.link_mask = BIT(0),

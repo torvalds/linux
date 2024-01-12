@@ -275,6 +275,7 @@ enum sof_tokens {
 	SOF_GAIN_TOKENS,
 	SOF_ACPDMIC_TOKENS,
 	SOF_ACPI2S_TOKENS,
+	SOF_MICFIL_TOKENS,
 
 	/* this should be the last */
 	SOF_TOKEN_COUNT,

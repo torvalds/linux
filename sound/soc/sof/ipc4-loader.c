@@ -391,6 +391,9 @@ int sof_ipc4_query_fw_configuration(struct snd_sof_dev *sdev)
 				goto out;
 			}
 			break;
+		case SOF_IPC4_FW_CONTEXT_SAVE:
+			ipc4_data->fw_context_save = *tuple->value;
+			break;
 		default:
 			break;
 		}

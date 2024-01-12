@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc.
+// Copyright(c) 2021, 2023 Advanced Micro Devices, Inc.
 //
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
 //
@@ -18,6 +18,8 @@
 
 #include "../sof/amd/acp.h"
 #include "mach-config.h"
+
+#define ACP_7_0_REV	0x70
 
 static int acp_quirk_data;
 
@@ -48,6 +50,19 @@ static const struct config_entry config_table[] = {
 		},
 	},
 	{
+		.flags = FLAG_AMD_LEGACY,
+		.device = ACP_PCI_DEV_ID,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Valve"),
+					DMI_MATCH(DMI_PRODUCT_NAME, "Jupiter"),
+				},
+			},
+			{}
+		},
+	},
+	{
 		.flags = FLAG_AMD_SOF,
 		.device = ACP_PCI_DEV_ID,
 		.dmi_table = (const struct dmi_system_id []) {
@@ -55,7 +70,6 @@ static const struct config_entry config_table[] = {
 				.matches = {
 					DMI_MATCH(DMI_SYS_VENDOR, "Valve"),
 					DMI_MATCH(DMI_PRODUCT_NAME, "Galileo"),
-					DMI_MATCH(DMI_PRODUCT_FAMILY, "Sephiroth"),
 				},
 			},
 			{}
@@ -147,15 +161,33 @@ static const struct config_entry config_table[] = {
 	},
 };
 
+static int snd_amd_acp_acpi_find_config(struct pci_dev *pci)
+{
+	const union acpi_object *obj;
+	int acp_flag = FLAG_AMD_LEGACY_ONLY_DMIC;
+
+	if (!acpi_dev_get_property(ACPI_COMPANION(&pci->dev), "acp-audio-config-flag",
+				   ACPI_TYPE_INTEGER, &obj))
+		acp_flag = obj->integer.value;
+
+	return acp_flag;
+}
+
 int snd_amd_acp_find_config(struct pci_dev *pci)
 {
 	const struct config_entry *table = config_table;
 	u16 device = pci->device;
 	int i;
 
-	/* Do not enable FLAGS on older platforms with Rev id zero */
+	/* Do not enable FLAGS on older platforms with Rev Id zero
+	 * For platforms which has ACP 7.0 or higher, read the acp
+	 * config flag from BIOS ACPI table and for older platforms
+	 * read it from DMI tables.
+	 */
 	if (!pci->revision)
 		return 0;
+	else if (pci->revision >= ACP_7_0_REV)
+		return snd_amd_acp_acpi_find_config(pci);
 
 	for (i = 0; i < ARRAY_SIZE(config_table); i++, table++) {
 		if (table->device != device)
@@ -289,4 +321,5 @@ struct snd_soc_acpi_mach snd_soc_acpi_amd_acp63_sof_machines[] = {
 };
 EXPORT_SYMBOL(snd_soc_acpi_amd_acp63_sof_machines);
 
+MODULE_DESCRIPTION("AMD ACP Machine Configuration Module");
 MODULE_LICENSE("Dual BSD/GPL");

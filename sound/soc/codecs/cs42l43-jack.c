@@ -507,7 +507,7 @@ static void cs42l43_start_load_detect(struct cs42l43_codec *priv)
 
 	priv->load_detect_running = true;
 
-	if (priv->hp_ena) {
+	if (priv->hp_ena && !priv->hp_ilimited) {
 		unsigned long time_left;
 
 		reinit_completion(&priv->hp_shutdown);
@@ -572,7 +572,7 @@ static void cs42l43_stop_load_detect(struct cs42l43_codec *priv)
 			   CS42L43_ADC1_EN_MASK | CS42L43_ADC2_EN_MASK,
 			   priv->adc_ena);
 
-	if (priv->hp_ena) {
+	if (priv->hp_ena && !priv->hp_ilimited) {
 		unsigned long time_left;
 
 		reinit_completion(&priv->hp_startup);
