@@ -163,8 +163,11 @@
 #define AST2600_I2CS_ISR			0x24
 
 #define AST2600_I2CS_ADDR_INDICATE_MASK	GENMASK(31, 30)
+#ifdef CONFIG_MACH_ASPEED_G7
+#define AST2600_I2CS_SLAVE_PENDING			GENMASK(29, 28)
+#else
 #define AST2600_I2CS_SLAVE_PENDING			BIT(29)
-
+#endif
 #define AST2600_I2CS_WAIT_TX_DMA			BIT(25)
 #define AST2600_I2CS_WAIT_RX_DMA			BIT(24)
 
@@ -423,6 +426,11 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 	sts &= ~(AST2600_I2CS_PKT_DONE | AST2600_I2CS_PKT_ERROR);
 
 	switch (sts) {
+	/* AST2700 workaround */
+	case 0:
+	case AST2600_I2CS_SLAVE_MATCH:
+		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+		break;
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE | AST2600_I2CS_WAIT_RX_DMA:
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_WAIT_RX_DMA:
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
@@ -510,11 +518,9 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 		cmd = SLAVE_TRIGGER_CMD | AST2600_I2CS_RX_DMA_EN;
 		break;
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE:
-		cmd = 0;
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 		break;
 	case AST2600_I2CS_STOP:
-		cmd = 0;
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
 		break;
 	default:
