@@ -134,8 +134,6 @@ endif
 obj-$(CONFIG_TEST_FPU) += test_fpu.o
 CFLAGS_test_fpu.o += $(FPU_CFLAGS)
 
-obj-$(CONFIG_TEST_LIVEPATCH) += livepatch/
-
 # Some KUnit files (hooks.o) need to be built-in even when KUnit is a module,
 # so we can't just use obj-$(CONFIG_KUNIT).
 ifdef CONFIG_KUNIT
