@@ -592,7 +592,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	if (!tz_dbg->nr_trips) {
 		tze = thermal_debugfs_tz_event_alloc(tz, now);
 		if (!tze)
-			return;
+			goto unlock;
 
 		list_add(&tze->node, &tz_dbg->tz_episodes);
 	}
@@ -620,6 +620,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 		(temperature - tze->trip_stats[trip_id].avg) /
 		tze->trip_stats[trip_id].count;
 
+unlock:
 	mutex_unlock(&thermal_dbg->lock);
 }
 
