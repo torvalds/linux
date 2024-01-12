@@ -79,6 +79,7 @@ struct dw_i3c_master {
 		u32 i3c_pp_scl_low;
 		u32 i3c_pp_scl_high;
 	} timing;
+	struct work_struct hj_work;
 };
 
 struct dw_i3c_platform_ops {
