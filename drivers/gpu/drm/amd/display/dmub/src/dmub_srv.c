@@ -791,11 +791,20 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 
 bool dmub_srv_is_hw_pwr_up(struct dmub_srv *dmub)
 {
+	union dmub_fw_boot_status status;
+
 	if (!dmub->hw_funcs.is_hw_powered_up)
 		return true;
 
-	return dmub->hw_funcs.is_hw_powered_up(dmub) &&
-		dmub->hw_funcs.is_hw_init(dmub);
+	if (!dmub->hw_funcs.is_hw_powered_up(dmub))
+		return false;
+
+	if (!dmub->hw_funcs.is_hw_init(dmub))
+		return false;
+
+	status = dmub->hw_funcs.get_fw_status(dmub);
+
+	return status.bits.dal_fw && status.bits.mailbox_rdy;
 }
 
 enum dmub_status dmub_srv_wait_for_hw_pwr_up(struct dmub_srv *dmub,
