@@ -20,6 +20,7 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/sysfb.h>
 
 #include "of_private.h"
 
@@ -621,8 +622,21 @@ static int __init of_platform_default_populate_init(void)
 		}
 
 		node = of_get_compatible_child(of_chosen, "simple-framebuffer");
-		of_platform_device_create(node, NULL, NULL);
-		of_node_put(node);
+		if (node) {
+			/*
+			 * Since a "simple-framebuffer" device is already added
+			 * here, disable the Generic System Framebuffers (sysfb)
+			 * to prevent it from registering another device for the
+			 * system framebuffer later (e.g: using the screen_info
+			 * data that may had been filled as well).
+			 *
+			 * This can happen for example on DT systems that do EFI
+			 * booting and may provide a GOP handle to the EFI stub.
+			 */
+			sysfb_disable();
+			of_platform_device_create(node, NULL, NULL);
+			of_node_put(node);
+		}
 
 		/* Populate everything else. */
 		of_platform_default_populate(NULL, NULL, NULL);
@@ -668,7 +682,7 @@ EXPORT_SYMBOL_GPL(of_platform_device_destroy);
  * @parent: device which children will be removed
  *
  * Complementary to of_platform_populate(), this function removes children
- * of the given device (and, recurrently, their children) that have been
+ * of the given device (and, recursively, their children) that have been
  * created from their respective device tree nodes (and only those,
  * leaving others - eg. manually created - unharmed).
  */
@@ -737,7 +751,7 @@ static int devm_of_platform_match(struct device *dev, void *res, void *data)
  * @dev: device that requested to depopulate from device tree data
  *
  * Complementary to devm_of_platform_populate(), this function removes children
- * of the given device (and, recurrently, their children) that have been
+ * of the given device (and, recursively, their children) that have been
  * created from their respective device tree nodes (and only those,
  * leaving others - eg. manually created - unharmed).
  */

@@ -50,7 +50,9 @@ properties:
 
   iommu-names:
     minItems: 1
-    maxItems: 2
+    items:
+      - const: left
+      - const: right
 
   power-domains:
     maxItems: 1
@@ -85,7 +87,7 @@ allOf:
             - const: sclk_mfc
         iommus:
           maxItems: 1
-        iommus-names: false
+        iommu-names: false
 
   - if:
       properties:
@@ -103,11 +105,9 @@ allOf:
             - const: aclk
             - const: aclk_xiu
         iommus:
-          maxItems: 2
-        iommus-names:
-          items:
-            - const: left
-            - const: right
+          minItems: 2
+        iommu-names:
+          minItems: 2
 
   - if:
       properties:
@@ -124,11 +124,9 @@ allOf:
             - const: mfc
             - const: sclk_mfc
         iommus:
-          maxItems: 2
-        iommus-names:
-          items:
-            - const: left
-            - const: right
+          minItems: 2
+        iommu-names:
+          minItems: 2
 
   - if:
       properties:
@@ -145,11 +143,9 @@ allOf:
           items:
             - const: mfc
         iommus:
-          maxItems: 2
-        iommus-names:
-          items:
-            - const: left
-            - const: right
+          minItems: 2
+        iommu-names:
+          minItems: 2
 
   - if:
       properties:
@@ -160,9 +156,6 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 1
-          maxItems: 2
-        iommus:
           minItems: 1
           maxItems: 2
 
