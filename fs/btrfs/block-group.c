@@ -1429,7 +1429,7 @@ static bool clean_pinned_extents(struct btrfs_trans_handle *trans,
 	 * group in pinned_extents before we were able to clear the whole block
 	 * group range from pinned_extents. This means that task can lookup for
 	 * the block group after we unpinned it from pinned_extents and removed
-	 * it, leading to a BUG_ON() at unpin_extent_range().
+	 * it, leading to an error at unpin_extent_range().
 	 */
 	mutex_lock(&fs_info->unused_bg_unpin_mutex);
 	if (prev_trans) {

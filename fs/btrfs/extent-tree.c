@@ -2777,6 +2777,7 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 	u64 total_unpinned = 0;
 	u64 empty_cluster = 0;
 	bool readonly;
+	int ret = 0;
 
 	while (start <= end) {
 		readonly = false;
@@ -2786,7 +2787,11 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 				btrfs_put_block_group(cache);
 			total_unpinned = 0;
 			cache = btrfs_lookup_block_group(fs_info, start);
-			BUG_ON(!cache); /* Logic error */
+			if (cache == NULL) {
+				/* Logic error, something removed the block group. */
+				ret = -EUCLEAN;
+				goto out;
+			}
 
 			cluster = fetch_cluster_info(fs_info,
 						     cache->space_info,
@@ -2855,7 +2860,8 @@ static int unpin_extent_range(struct btrfs_fs_info *fs_info,
 
 	if (cache)
 		btrfs_put_block_group(cache);
-	return 0;
+out:
+	return ret;
 }
 
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
@@ -2885,7 +2891,8 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 						   end + 1 - start, NULL);
 
 		clear_extent_dirty(unpin, start, end, &cached_state);
-		unpin_extent_range(fs_info, start, end, true);
+		ret = unpin_extent_range(fs_info, start, end, true);
+		BUG_ON(ret);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		free_extent_state(cached_state);
 		cond_resched();
@@ -6167,7 +6174,11 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
 				   u64 start, u64 end)
 {
-	return unpin_extent_range(fs_info, start, end, false);
+	int ret;
+
+	ret = unpin_extent_range(fs_info, start, end, false);
+	BUG_ON(ret);
+	return ret;
 }
 
 /*
