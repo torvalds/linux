@@ -8,6 +8,9 @@ def define_niobe():
     _niobe_in_tree_modules = [
         # keep sorted
         # TODO: Need to add GKI modules
+        "drivers/bus/mhi/devices/mhi_dev_satellite.ko",
+        "drivers/bus/mhi/devices/mhi_dev_uci.ko",
+        "drivers/bus/mhi/host/mhi.ko",
         "drivers/clk/qcom/camcc-niobe.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
@@ -42,6 +45,7 @@ def define_niobe():
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
+        "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
@@ -76,8 +80,12 @@ def define_niobe():
         "drivers/soc/qcom/mdt_loader.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
         "drivers/soc/qcom/mem_buf/mem_buf_dev.ko",
+        "drivers/soc/qcom/memory_dump_v2.ko",
+        "drivers/soc/qcom/memshare/heap_mem_ext_v01.ko",
+        "drivers/soc/qcom/memshare/msm_memshare.ko",
         "drivers/soc/qcom/qcom_aoss.ko",
         "drivers/soc/qcom/qcom_cpucp.ko",
+        "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/secure_buffer.ko",
@@ -91,8 +99,10 @@ def define_niobe():
         "drivers/usb/phy/phy-generic.ko",
         "drivers/usb/phy/phy-qcom-emu.ko",
         "kernel/trace/qcom_ipc_logging.ko",
+        "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
+        "net/wireless/cfg80211.ko",
     ]
 
     _niobe_consolidate_in_tree_modules = _niobe_in_tree_modules + [
