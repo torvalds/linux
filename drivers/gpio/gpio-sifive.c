@@ -250,7 +250,6 @@ static int sifive_gpio_probe(struct platform_device *pdev)
 	girq->handler = handle_bad_irq;
 	girq->default_type = IRQ_TYPE_NONE;
 
-	platform_set_drvdata(pdev, chip);
 	return gpiochip_add_data(&chip->gc, chip);
 }
 
