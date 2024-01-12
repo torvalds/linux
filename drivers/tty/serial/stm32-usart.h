@@ -21,6 +21,7 @@ struct stm32_usart_offsets {
 	u16 rdr;
 	u16 tdr;
 	u16 presc;
+	u16 hwcfgr1;
 };
 
 struct stm32_usart_config {
@@ -29,7 +30,6 @@ struct stm32_usart_config {
 	bool has_swap;
 	bool has_wakeup;
 	bool has_fifo;
-	int fifosize;
 };
 
 struct stm32_usart_info {
@@ -182,8 +182,12 @@ struct stm32_usart_info {
 #define USART_PRESC		GENMASK(3, 0)	/* H7 */
 #define USART_PRESC_MAX		0b1011
 
+/* USART_HWCFCR1 */
+#define USART_HWCFGR1_CFG8	GENMASK(31, 28)	/* MP1 */
+
 #define STM32_SERIAL_NAME "ttySTM"
 #define STM32_MAX_PORTS 9
+#define STM32H7_USART_FIFO_SIZE 16
 
 #define RX_BUF_L 4096		 /* dma rx buffer length     */
 #define RX_BUF_P (RX_BUF_L / 2)	 /* dma rx buffer period     */
