@@ -1091,6 +1091,40 @@ would need to do so.
 
 ---
 
+**mandatory**
+
+The list of children anchored in parent dentry got turned into hlist now.
+Field names got changed (->d_children/->d_sib instead of ->d_subdirs/->d_child
+for anchor/entries resp.), so any affected places will be immediately caught
+by compiler.
+
+---
+
+**mandatory**
+
+->d_delete() instances are now called for dentries with ->d_lock held
+and refcount equal to 0.  They are not permitted to drop/regain ->d_lock.
+None of in-tree instances did anything of that sort.  Make sure yours do not...
+
+---
+
+**mandatory**
+
+->d_prune() instances are now called without ->d_lock held on the parent.
+->d_lock on dentry itself is still held; if you need per-parent exclusions (none
+of the in-tree instances did), use your own spinlock.
+
+->d_iput() and ->d_release() are called with victim dentry still in the
+list of parent's children.  It is still unhashed, marked killed, etc., just not
+removed from parent's ->d_children yet.
+
+Anyone iterating through the list of children needs to be aware of the
+half-killed dentries that might be seen there; taking ->d_lock on those will
+see them negative, unhashed and with negative refcount, which means that most
+of the in-kernel users would've done the right thing anyway without any adjustment.
+
+---
+
 **recommended**
 
 Block device freezing and thawing have been moved to holder operations.
