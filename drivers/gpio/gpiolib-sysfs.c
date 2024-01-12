@@ -563,7 +563,6 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	struct gpio_device *gdev;
 	struct gpiod_data *data;
 	struct gpio_chip *chip;
-	unsigned long flags;
 	struct device *dev;
 	int status, offset;
 
@@ -578,6 +577,9 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		return -EINVAL;
 	}
 
+	if (!test_and_set_bit(FLAG_EXPORT, &desc->flags))
+		return -EPERM;
+
 	gdev = desc->gdev;
 	chip = gdev->chip;
 
@@ -589,18 +591,11 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		goto err_unlock;
 	}
 
-	spin_lock_irqsave(&gpio_lock, flags);
-	if (!test_bit(FLAG_REQUESTED, &desc->flags) ||
-	     test_bit(FLAG_EXPORT, &desc->flags)) {
-		spin_unlock_irqrestore(&gpio_lock, flags);
-		gpiod_dbg(desc, "%s: unavailable (requested=%d, exported=%d)\n",
-				__func__,
-				test_bit(FLAG_REQUESTED, &desc->flags),
-				test_bit(FLAG_EXPORT, &desc->flags));
+	if (!test_bit(FLAG_REQUESTED, &desc->flags)) {
+		gpiod_dbg(desc, "%s: unavailable (not requested)\n", __func__);
 		status = -EPERM;
 		goto err_unlock;
 	}
-	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data) {
@@ -628,7 +623,6 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 		goto err_free_data;
 	}
 
-	set_bit(FLAG_EXPORT, &desc->flags);
 	mutex_unlock(&sysfs_lock);
 	return 0;
 
@@ -636,6 +630,7 @@ err_free_data:
 	kfree(data);
 err_unlock:
 	mutex_unlock(&sysfs_lock);
+	clear_bit(FLAG_EXPORT, &desc->flags);
 	gpiod_dbg(desc, "%s: status %d\n", __func__, status);
 	return status;
 }

@@ -76,12 +76,6 @@ static const struct bus_type gpio_bus_type = {
  */
 #define FASTPATH_NGPIO CONFIG_GPIOLIB_FASTPATH_LIMIT
 
-/* gpio_lock prevents conflicts during gpio_desc[] table updates.
- * While any GPIO is requested, its gpio_chip is not removable;
- * each GPIO's "requested" flag serves as a lock and refcount.
- */
-DEFINE_SPINLOCK(gpio_lock);
-
 static DEFINE_MUTEX(gpio_lookup_lock);
 static LIST_HEAD(gpio_lookup_list);
 
@@ -123,8 +117,7 @@ static int desc_set_label(struct gpio_desc *desc, const char *label)
 	const char *new = NULL, *old;
 
 	if (label) {
-		/* FIXME: make this GFP_KERNEL once the spinlock is out. */
-		new = kstrdup_const(label, GFP_ATOMIC);
+		new = kstrdup_const(label, GFP_KERNEL);
 		if (!new)
 			return -ENOMEM;
 	}
@@ -1093,7 +1086,6 @@ EXPORT_SYMBOL_GPL(gpiochip_add_data_with_key);
 void gpiochip_remove(struct gpio_chip *gc)
 {
 	struct gpio_device *gdev = gc->gpiodev;
-	unsigned long flags;
 	unsigned int i;
 
 	down_write(&gdev->sem);
@@ -1119,12 +1111,10 @@ void gpiochip_remove(struct gpio_chip *gc)
 	 */
 	gpiochip_set_data(gc, NULL);
 
-	spin_lock_irqsave(&gpio_lock, flags);
 	for (i = 0; i < gdev->ngpio; i++) {
 		if (test_bit(FLAG_REQUESTED, &gdev->descs[i].flags))
 			break;
 	}
-	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	if (i != gdev->ngpio)
 		dev_crit(&gdev->dev,
@@ -2227,9 +2217,11 @@ EXPORT_SYMBOL_GPL(gpiochip_remove_pin_ranges);
 static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 {
 	struct gpio_chip *gc = desc->gdev->chip;
-	unsigned long flags;
 	unsigned int offset;
 	int ret;
+
+	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags))
+		return -EBUSY;
 
 	if (label) {
 		label = kstrdup_const(label, GFP_KERNEL);
@@ -2237,52 +2229,31 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 			return -ENOMEM;
 	}
 
-	spin_lock_irqsave(&gpio_lock, flags);
-
 	/* NOTE:  gpio_request() can be called in early boot,
 	 * before IRQs are enabled, for non-sleeping (SOC) GPIOs.
 	 */
 
-	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags)) {
-		ret = -EBUSY;
-		goto out_free_unlock;
-	}
-
 	if (gc->request) {
-		/* gc->request may sleep */
-		spin_unlock_irqrestore(&gpio_lock, flags);
 		offset = gpio_chip_hwgpio(desc);
 		if (gpiochip_line_is_valid(gc, offset))
 			ret = gc->request(gc, offset);
 		else
 			ret = -EINVAL;
-		spin_lock_irqsave(&gpio_lock, flags);
+		if (ret)
+			goto out_clear_bit;
+	}
 
-		if (ret) {
-			desc_set_label(desc, NULL);
-			clear_bit(FLAG_REQUESTED, &desc->flags);
-			goto out_free_unlock;
-		}
-	}
-	if (gc->get_direction) {
-		/* gc->get_direction may sleep */
-		spin_unlock_irqrestore(&gpio_lock, flags);
+	if (gc->get_direction)
 		gpiod_get_direction(desc);
-		spin_lock_irqsave(&gpio_lock, flags);
-	}
-	spin_unlock_irqrestore(&gpio_lock, flags);
 
 	ret = desc_set_label(desc, label ? : "?");
-	if (ret) {
-		clear_bit(FLAG_REQUESTED, &desc->flags);
-		return ret;
-	}
+	if (ret)
+		goto out_clear_bit;
 
 	return 0;
 
-out_free_unlock:
-	spin_unlock_irqrestore(&gpio_lock, flags);
-	kfree_const(label);
+out_clear_bit:
+	clear_bit(FLAG_REQUESTED, &desc->flags);
 	return ret;
 }
 
@@ -2352,35 +2323,32 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 
 	might_sleep();
 
-	spin_lock_irqsave(&gpio_lock, flags);
-
 	gc = desc->gdev->chip;
-	if (gc && test_bit(FLAG_REQUESTED, &desc->flags)) {
-		if (gc->free) {
-			spin_unlock_irqrestore(&gpio_lock, flags);
-			might_sleep_if(gc->can_sleep);
+	flags = READ_ONCE(desc->flags);
+
+	if (gc && test_bit(FLAG_REQUESTED, &flags)) {
+		if (gc->free)
 			gc->free(gc, gpio_chip_hwgpio(desc));
-			spin_lock_irqsave(&gpio_lock, flags);
-		}
-		clear_bit(FLAG_ACTIVE_LOW, &desc->flags);
-		clear_bit(FLAG_REQUESTED, &desc->flags);
-		clear_bit(FLAG_OPEN_DRAIN, &desc->flags);
-		clear_bit(FLAG_OPEN_SOURCE, &desc->flags);
-		clear_bit(FLAG_PULL_UP, &desc->flags);
-		clear_bit(FLAG_PULL_DOWN, &desc->flags);
-		clear_bit(FLAG_BIAS_DISABLE, &desc->flags);
-		clear_bit(FLAG_EDGE_RISING, &desc->flags);
-		clear_bit(FLAG_EDGE_FALLING, &desc->flags);
-		clear_bit(FLAG_IS_HOGGED, &desc->flags);
+
+		clear_bit(FLAG_ACTIVE_LOW, &flags);
+		clear_bit(FLAG_REQUESTED, &flags);
+		clear_bit(FLAG_OPEN_DRAIN, &flags);
+		clear_bit(FLAG_OPEN_SOURCE, &flags);
+		clear_bit(FLAG_PULL_UP, &flags);
+		clear_bit(FLAG_PULL_DOWN, &flags);
+		clear_bit(FLAG_BIAS_DISABLE, &flags);
+		clear_bit(FLAG_EDGE_RISING, &flags);
+		clear_bit(FLAG_EDGE_FALLING, &flags);
+		clear_bit(FLAG_IS_HOGGED, &flags);
 #ifdef CONFIG_OF_DYNAMIC
 		WRITE_ONCE(desc->hog, NULL);
 #endif
 		ret = true;
-	}
+		desc_set_label(desc, NULL);
+		WRITE_ONCE(desc->flags, flags);
 
-	spin_unlock_irqrestore(&gpio_lock, flags);
-	desc_set_label(desc, NULL);
-	gpiod_line_state_notify(desc, GPIOLINE_CHANGED_RELEASED);
+		gpiod_line_state_notify(desc, GPIOLINE_CHANGED_RELEASED);
+	}
 
 	return ret;
 }
@@ -2422,22 +2390,12 @@ char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset)
 	if (IS_ERR(desc))
 		return NULL;
 
-	guard(spinlock_irqsave)(&gpio_lock);
-
 	if (!test_bit(FLAG_REQUESTED, &desc->flags))
 		return NULL;
 
 	guard(srcu)(&desc->srcu);
 
-	/*
-	 * FIXME: Once we mark gpiod_direction_input/output() and
-	 * gpiod_get_direction() with might_sleep(), we'll be able to protect
-	 * the GPIO descriptors with mutex (while value setting operations will
-	 * become lockless).
-	 *
-	 * Until this happens, this allocation needs to be atomic.
-	 */
-	label = kstrdup(gpiod_get_label(desc), GFP_ATOMIC);
+	label = kstrdup(gpiod_get_label(desc), GFP_KERNEL);
 	if (!label)
 		return ERR_PTR(-ENOMEM);
 
