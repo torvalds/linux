@@ -4394,7 +4394,6 @@ rcu_boot_init_percpu_data(int cpu)
 	rcu_boot_init_nocb_percpu_data(rdp);
 }
 
-#ifdef CONFIG_RCU_EXP_KTHREAD
 struct kthread_worker *rcu_exp_gp_kworker;
 
 static void rcu_spawn_exp_par_gp_kworker(struct rcu_node *rnp)
@@ -4414,7 +4413,9 @@ static void rcu_spawn_exp_par_gp_kworker(struct rcu_node *rnp)
 		return;
 	}
 	WRITE_ONCE(rnp->exp_kworker, kworker);
-	sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
+
+	if (IS_ENABLED(CONFIG_RCU_EXP_KTHREAD))
+		sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
 }
 
 static struct task_struct *rcu_exp_par_gp_task(struct rcu_node *rnp)
@@ -4438,39 +4439,14 @@ static void __init rcu_start_exp_gp_kworker(void)
 		rcu_exp_gp_kworker = NULL;
 		return;
 	}
-	sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_FIFO, &param);
-}
 
-static inline void rcu_alloc_par_gp_wq(void)
-{
+	if (IS_ENABLED(CONFIG_RCU_EXP_KTHREAD))
+		sched_setscheduler_nocheck(rcu_exp_gp_kworker->task, SCHED_FIFO, &param);
 }
-#else /* !CONFIG_RCU_EXP_KTHREAD */
-struct workqueue_struct *rcu_par_gp_wq;
-
-static void rcu_spawn_exp_par_gp_kworker(struct rcu_node *rnp)
-{
-}
-
-static struct task_struct *rcu_exp_par_gp_task(struct rcu_node *rnp)
-{
-	return NULL;
-}
-
-static void __init rcu_start_exp_gp_kworker(void)
-{
-}
-
-static inline void rcu_alloc_par_gp_wq(void)
-{
-	rcu_par_gp_wq = alloc_workqueue("rcu_par_gp", WQ_MEM_RECLAIM, 0);
-	WARN_ON(!rcu_par_gp_wq);
-}
-#endif /* CONFIG_RCU_EXP_KTHREAD */
 
 static void rcu_spawn_rnp_kthreads(struct rcu_node *rnp)
 {
-	if ((IS_ENABLED(CONFIG_RCU_EXP_KTHREAD) ||
-	     IS_ENABLED(CONFIG_RCU_BOOST)) && rcu_scheduler_fully_active) {
+	if (rcu_scheduler_fully_active) {
 		mutex_lock(&rnp->kthread_mutex);
 		rcu_spawn_one_boost_kthread(rnp);
 		rcu_spawn_exp_par_gp_kworker(rnp);
@@ -4553,9 +4529,6 @@ static void rcutree_affinity_setting(unsigned int cpu, int outgoingcpu)
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 	struct task_struct *task_boost, *task_exp;
-
-	if (!IS_ENABLED(CONFIG_RCU_EXP_KTHREAD) && !IS_ENABLED(CONFIG_RCU_BOOST))
-		return;
 
 	rdp = per_cpu_ptr(&rcu_data, cpu);
 	rnp = rdp->mynode;
@@ -5245,7 +5218,6 @@ void __init rcu_init(void)
 	/* Create workqueue for Tree SRCU and for expedited GPs. */
 	rcu_gp_wq = alloc_workqueue("rcu_gp", WQ_MEM_RECLAIM, 0);
 	WARN_ON(!rcu_gp_wq);
-	rcu_alloc_par_gp_wq();
 
 	/* Fill in default value for rcutree.qovld boot parameter. */
 	/* -After- the rcu_node ->lock fields are initialized! */

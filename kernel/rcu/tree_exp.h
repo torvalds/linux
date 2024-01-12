@@ -418,7 +418,6 @@ retry_ipi:
 
 static void rcu_exp_sel_wait_wake(unsigned long s);
 
-#ifdef CONFIG_RCU_EXP_KTHREAD
 static void sync_rcu_exp_select_node_cpus(struct kthread_work *wp)
 {
 	struct rcu_exp_work *rewp =
@@ -469,69 +468,6 @@ static inline void synchronize_rcu_expedited_queue_work(struct rcu_exp_work *rew
 	kthread_init_work(&rew->rew_work, wait_rcu_exp_gp);
 	kthread_queue_work(rcu_exp_gp_kworker, &rew->rew_work);
 }
-
-static inline void synchronize_rcu_expedited_destroy_work(struct rcu_exp_work *rew)
-{
-}
-#else /* !CONFIG_RCU_EXP_KTHREAD */
-static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
-{
-	struct rcu_exp_work *rewp =
-		container_of(wp, struct rcu_exp_work, rew_work);
-
-	__sync_rcu_exp_select_node_cpus(rewp);
-}
-
-static inline bool rcu_exp_worker_started(void)
-{
-	return !!READ_ONCE(rcu_gp_wq);
-}
-
-static inline bool rcu_exp_par_worker_started(struct rcu_node *rnp)
-{
-	return !!READ_ONCE(rcu_par_gp_wq);
-}
-
-static inline void sync_rcu_exp_select_cpus_queue_work(struct rcu_node *rnp)
-{
-	int cpu = find_next_bit(&rnp->ffmask, BITS_PER_LONG, -1);
-
-	INIT_WORK(&rnp->rew.rew_work, sync_rcu_exp_select_node_cpus);
-	/* If all offline, queue the work on an unbound CPU. */
-	if (unlikely(cpu > rnp->grphi - rnp->grplo))
-		cpu = WORK_CPU_UNBOUND;
-	else
-		cpu += rnp->grplo;
-	queue_work_on(cpu, rcu_par_gp_wq, &rnp->rew.rew_work);
-}
-
-static inline void sync_rcu_exp_select_cpus_flush_work(struct rcu_node *rnp)
-{
-	flush_work(&rnp->rew.rew_work);
-}
-
-/*
- * Work-queue handler to drive an expedited grace period forward.
- */
-static void wait_rcu_exp_gp(struct work_struct *wp)
-{
-	struct rcu_exp_work *rewp;
-
-	rewp = container_of(wp, struct rcu_exp_work, rew_work);
-	rcu_exp_sel_wait_wake(rewp->rew_s);
-}
-
-static inline void synchronize_rcu_expedited_queue_work(struct rcu_exp_work *rew)
-{
-	INIT_WORK_ONSTACK(&rew->rew_work, wait_rcu_exp_gp);
-	queue_work(rcu_gp_wq, &rew->rew_work);
-}
-
-static inline void synchronize_rcu_expedited_destroy_work(struct rcu_exp_work *rew)
-{
-	destroy_work_on_stack(&rew->rew_work);
-}
-#endif /* CONFIG_RCU_EXP_KTHREAD */
 
 /*
  * Select the nodes that the upcoming expedited grace period needs
@@ -965,7 +901,6 @@ static void rcu_exp_print_detail_task_stall_rnp(struct rcu_node *rnp)
  */
 void synchronize_rcu_expedited(void)
 {
-	bool use_worker;
 	unsigned long flags;
 	struct rcu_exp_work rew;
 	struct rcu_node *rnp;
@@ -975,9 +910,6 @@ void synchronize_rcu_expedited(void)
 			 lock_is_held(&rcu_lock_map) ||
 			 lock_is_held(&rcu_sched_lock_map),
 			 "Illegal synchronize_rcu_expedited() in RCU read-side critical section");
-
-	use_worker = (rcu_scheduler_active != RCU_SCHEDULER_INIT) &&
-		      rcu_exp_worker_started();
 
 	/* Is the state is such that the call is a grace period? */
 	if (rcu_blocking_is_gp()) {
@@ -1008,7 +940,7 @@ void synchronize_rcu_expedited(void)
 		return;  /* Someone else did our work for us. */
 
 	/* Ensure that load happens before action based on it. */
-	if (unlikely(!use_worker)) {
+	if (unlikely((rcu_scheduler_active == RCU_SCHEDULER_INIT) || !rcu_exp_worker_started())) {
 		/* Direct call during scheduler init and early_initcalls(). */
 		rcu_exp_sel_wait_wake(s);
 	} else {
@@ -1025,9 +957,6 @@ void synchronize_rcu_expedited(void)
 
 	/* Let the next expedited grace period start. */
 	mutex_unlock(&rcu_state.exp_mutex);
-
-	if (likely(use_worker))
-		synchronize_rcu_expedited_destroy_work(&rew);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
