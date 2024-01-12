@@ -567,7 +567,7 @@ static int fsi_master_aspeed_probe(struct platform_device *pdev)
 		goto err_free_aspeed;
 	}
 
-	aspeed->rst = devm_reset_control_get_optional_exclusive(&pdev->dev, NULL);
+	aspeed->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(aspeed->rst))
 		dev_warn(aspeed->dev, "couldn't get reset\n");
 	else
