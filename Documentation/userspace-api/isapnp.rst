@@ -1,11 +1,11 @@
-==========================================================
-ISA Plug & Play support by Jaroslav Kysela <perex@suse.cz>
-==========================================================
+=======================
+ISA Plug & Play support
+=======================
 
 Interface /proc/isapnp
 ======================
 
-The interface has been removed. See pnp.txt for more details.
+The interface was removed in kernel 2.5.53. See pnp.rst for more details.
 
 Interface /proc/bus/isapnp
 ==========================

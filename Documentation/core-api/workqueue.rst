@@ -379,7 +379,7 @@ Workqueue currently supports the following affinity scopes.
   cases. This is the default affinity scope.
 
 ``numa``
-  CPUs are grouped according to NUMA bounaries.
+  CPUs are grouped according to NUMA boundaries.
 
 ``system``
   All CPUs are put in the same group. Workqueue makes no effort to process a

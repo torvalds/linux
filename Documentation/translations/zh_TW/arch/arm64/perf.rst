@@ -5,7 +5,7 @@
 :Original: :ref:`Documentation/arch/arm64/perf.rst <perf_index>`
 
 Translator: Bailu Lin <bailu.lin@vivo.com>
-            Hu Haowen <src.res.211@gmail.com>
+            Hu Haowen <2023002089@link.tyut.edu.cn>
 
 =============
 Perf 事件屬性

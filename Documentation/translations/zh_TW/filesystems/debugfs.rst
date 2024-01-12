@@ -14,7 +14,7 @@ Debugfs
 	中文版維護者： 羅楚成 Chucheng Luo <luochucheng@vivo.com>
 	中文版翻譯者： 羅楚成 Chucheng Luo <luochucheng@vivo.com>
 	中文版校譯者:  羅楚成 Chucheng Luo <luochucheng@vivo.com>
-	繁體中文版校譯者: 胡皓文 Hu Haowen <src.res.211@gmail.com>
+	繁體中文版校譯者: 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 
 

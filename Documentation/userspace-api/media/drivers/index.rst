@@ -21,13 +21,8 @@ more details.
 
 For more details see the file COPYING in the source distribution of Linux.
 
-.. only:: html
-
-   .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+	:caption: Table of Contents
 	:maxdepth: 5
 	:numbered:
 
