@@ -14,6 +14,7 @@ struct aspeed_gfx {
 	struct regmap			*dp;
 	struct regmap			*dpmcu;
 	struct regmap			*pcie_ep;
+
 	u8				dp_support;
 	u8				pcie_advance;
 	u8				pcie_active;
@@ -25,6 +26,7 @@ struct aspeed_gfx {
 	u32				scan_line_max;
 	u32				flags;
 	u32				pcie_int_reg;
+	u64				dma_mask;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
