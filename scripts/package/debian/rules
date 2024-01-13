@@ -16,6 +16,8 @@ endif
 ifeq ($(origin KBUILD_VERBOSE),undefined)
     ifeq (,$(filter terse,$(DEB_BUILD_OPTIONS)))
         export KBUILD_VERBOSE := 1
+    else
+        Q := @
     endif
 endif
 
@@ -27,20 +29,20 @@ make-opts = ARCH=$(ARCH) KERNELRELEASE=$(KERNELRELEASE) KBUILD_BUILD_VERSION=$(r
 binary: binary-arch binary-indep
 binary-indep: build-indep
 binary-arch: build-arch
-	$(MAKE) $(make-opts) \
+	$(Q)$(MAKE) $(make-opts) \
 	run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb'
 
 .PHONY: build build-indep build-arch
 build: build-arch build-indep
 build-indep:
 build-arch:
-	$(MAKE) $(make-opts) olddefconfig
-	$(MAKE) $(make-opts) $(if $(filter um,$(ARCH)),,headers) all
+	$(Q)$(MAKE) $(make-opts) olddefconfig
+	$(Q)$(MAKE) $(make-opts) $(if $(filter um,$(ARCH)),,headers) all
 
 .PHONY: clean
 clean:
-	rm -rf debian/files debian/linux-* debian/deb-env.vars*
-	$(MAKE) ARCH=$(ARCH) clean
+	$(Q)rm -rf debian/files debian/linux-* debian/deb-env.vars*
+	$(Q)$(MAKE) ARCH=$(ARCH) clean
 
 # If DEB_HOST_ARCH is empty, it is likely that debian/rules was executed
 # directly. Run 'dpkg-architecture --print-set --print-format=make' to
@@ -49,6 +51,6 @@ ifndef DEB_HOST_ARCH
 include debian/deb-env.vars
 
 debian/deb-env.vars:
-	dpkg-architecture -a$$(cat debian/arch) --print-set --print-format=make > $@.tmp
-	mv $@.tmp $@
+	$(Q)dpkg-architecture -a$$(cat debian/arch) --print-set --print-format=make > $@.tmp
+	$(Q)mv $@.tmp $@
 endif
