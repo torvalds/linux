@@ -18,6 +18,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <linux/usb/typec.h>
+#include <linux/usb/typec_mux.h>
 
 #include "phy-qcom-qmp.h"
 #include "phy-qcom-qmp-pcs-misc-v3.h"
@@ -374,11 +376,17 @@ struct qmp_usbc {
 	struct reset_control_bulk_data *resets;
 	struct regulator_bulk_data *vregs;
 
+	struct mutex phy_mutex;
+
 	enum phy_mode mode;
+	unsigned int usb_init_count;
 
 	struct phy *phy;
 
 	struct clk_fixed_rate pipe_clk_fixed;
+
+	struct typec_switch_dev *sw;
+	enum typec_orientation orientation;
 };
 
 static inline void qphy_setbits(void __iomem *base, u32 offset, u32 val)
@@ -497,6 +505,7 @@ static int qmp_usbc_init(struct phy *phy)
 	struct qmp_usbc *qmp = phy_get_drvdata(phy);
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	void __iomem *pcs = qmp->pcs;
+	u32 val = 0;
 	int ret;
 
 	ret = regulator_bulk_enable(cfg->num_vregs, qmp->vregs);
@@ -522,6 +531,14 @@ static int qmp_usbc_init(struct phy *phy)
 		goto err_assert_reset;
 
 	qphy_setbits(pcs, cfg->regs[QPHY_PCS_POWER_DOWN_CONTROL], SW_PWRDN);
+
+#define SW_PORTSELECT_VAL			BIT(0)
+#define SW_PORTSELECT_MUX			BIT(1)
+	/* Use software based port select and switch on typec orientation */
+	val = SW_PORTSELECT_MUX;
+	if (qmp->orientation == TYPEC_ORIENTATION_REVERSE)
+		val |= SW_PORTSELECT_VAL;
+	writel(val, qmp->pcs_misc);
 
 	return 0;
 
@@ -620,23 +637,34 @@ static int qmp_usbc_power_off(struct phy *phy)
 
 static int qmp_usbc_enable(struct phy *phy)
 {
+	struct qmp_usbc *qmp = phy_get_drvdata(phy);
 	int ret;
+
+	mutex_lock(&qmp->phy_mutex);
 
 	ret = qmp_usbc_init(phy);
 	if (ret)
-		return ret;
+		goto out_unlock;
 
 	ret = qmp_usbc_power_on(phy);
-	if (ret)
+	if (ret) {
 		qmp_usbc_exit(phy);
+		goto out_unlock;
+	}
+
+	qmp->usb_init_count++;
+out_unlock:
+	mutex_unlock(&qmp->phy_mutex);
 
 	return ret;
 }
 
 static int qmp_usbc_disable(struct phy *phy)
 {
+	struct qmp_usbc *qmp = phy_get_drvdata(phy);
 	int ret;
 
+	qmp->usb_init_count--;
 	ret = qmp_usbc_power_off(phy);
 	if (ret)
 		return ret;
@@ -874,6 +902,61 @@ static int phy_pipe_clk_register(struct qmp_usbc *qmp, struct device_node *np)
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
+#if IS_ENABLED(CONFIG_TYPEC)
+static int qmp_usbc_typec_switch_set(struct typec_switch_dev *sw,
+				      enum typec_orientation orientation)
+{
+	struct qmp_usbc *qmp = typec_switch_get_drvdata(sw);
+
+	if (orientation == qmp->orientation || orientation == TYPEC_ORIENTATION_NONE)
+		return 0;
+
+	mutex_lock(&qmp->phy_mutex);
+	qmp->orientation = orientation;
+
+	if (qmp->usb_init_count) {
+		qmp_usbc_power_off(qmp->phy);
+		qmp_usbc_exit(qmp->phy);
+
+		qmp_usbc_init(qmp->phy);
+		qmp_usbc_power_on(qmp->phy);
+	}
+
+	mutex_unlock(&qmp->phy_mutex);
+
+	return 0;
+}
+
+static void qmp_usbc_typec_unregister(void *data)
+{
+	struct qmp_usbc *qmp = data;
+
+	typec_switch_unregister(qmp->sw);
+}
+
+static int qmp_usbc_typec_switch_register(struct qmp_usbc *qmp)
+{
+	struct typec_switch_desc sw_desc = {};
+	struct device *dev = qmp->dev;
+
+	sw_desc.drvdata = qmp;
+	sw_desc.fwnode = dev->fwnode;
+	sw_desc.set = qmp_usbc_typec_switch_set;
+	qmp->sw = typec_switch_register(dev, &sw_desc);
+	if (IS_ERR(qmp->sw)) {
+		dev_err(dev, "Unable to register typec switch: %pe\n", qmp->sw);
+		return PTR_ERR(qmp->sw);
+	}
+
+	return devm_add_action_or_reset(dev, qmp_usbc_typec_unregister, qmp);
+}
+#else
+static int qmp_usbc_typec_switch_register(struct qmp_usbc *qmp)
+{
+	return 0;
+}
+#endif
+
 static int qmp_usbc_parse_dt_legacy(struct qmp_usbc *qmp, struct device_node *np)
 {
 	struct platform_device *pdev = to_platform_device(qmp->dev);
@@ -994,16 +1077,24 @@ static int qmp_usbc_probe(struct platform_device *pdev)
 
 	qmp->dev = dev;
 
+	qmp->orientation = TYPEC_ORIENTATION_NORMAL;
+
 	qmp->cfg = of_device_get_match_data(dev);
 	if (!qmp->cfg)
 		return -EINVAL;
+
+	mutex_init(&qmp->phy_mutex);
 
 	ret = qmp_usbc_vreg_init(qmp);
 	if (ret)
 		return ret;
 
+	ret = qmp_usbc_typec_switch_register(qmp);
+	if (ret)
+		return ret;
+
 	/* Check for legacy binding with child node. */
-	np = of_get_next_available_child(dev->of_node, NULL);
+	np = of_get_child_by_name(dev->of_node, "phy");
 	if (np) {
 		ret = qmp_usbc_parse_dt_legacy(qmp, np);
 	} else {
