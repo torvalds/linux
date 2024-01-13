@@ -403,17 +403,12 @@ union replay_debug_flags {
 
 		/**
 		 * 0x400 (bit 10)
-		 * @force_disable_ips1: Force disable IPS1 state
+		 * @enable_ips_visual_confirm: Enable IPS visual confirm when entering IPS
+		 * If we enter IPS2, the Visual confirm bar will change to yellow
 		 */
-		uint32_t force_disable_ips1 : 1;
+		uint32_t enable_ips_visual_confirm : 1;
 
-		/**
-		 * 0x800 (bit 11)
-		 * @force_disable_ips2: Force disable IPS2 state
-		 */
-		uint32_t force_disable_ips2 : 1;
-
-		uint32_t reserved : 20;
+		uint32_t reserved : 21;
 	} bitfields;
 
 	uint32_t u32All;
