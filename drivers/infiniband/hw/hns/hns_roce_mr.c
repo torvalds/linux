@@ -695,7 +695,7 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		mtr->umem = NULL;
 		mtr->kmem = hns_roce_buf_alloc(hr_dev, total_size,
 					       buf_attr->page_shift,
-					       mtr->hem_cfg.is_direct ?
+					       !mtr_has_mtt(buf_attr) ?
 					       HNS_ROCE_BUF_DIRECT : 0);
 		if (IS_ERR(mtr->kmem)) {
 			ibdev_err(ibdev, "failed to alloc kmem, ret = %ld.\n",
@@ -1054,19 +1054,9 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			unsigned int ba_page_shift, struct ib_udata *udata,
 			unsigned long user_addr)
 {
+	u64 pgoff = udata ? user_addr & ~PAGE_MASK : 0;
 	struct ib_device *ibdev = &hr_dev->ib_dev;
 	int ret;
-
-	ret = mtr_init_buf_cfg(hr_dev, buf_attr, &mtr->hem_cfg,
-			       udata ? user_addr & ~PAGE_MASK : 0);
-	if (ret)
-		return ret;
-
-	ret = mtr_alloc_mtt(hr_dev, mtr, ba_page_shift);
-	if (ret) {
-		ibdev_err(ibdev, "failed to alloc mtr mtt, ret = %d.\n", ret);
-		return ret;
-	}
 
 	/* The caller has its own buffer list and invokes the hns_roce_mtr_map()
 	 * to finish the MTT configuration.
@@ -1074,25 +1064,42 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	if (buf_attr->mtt_only) {
 		mtr->umem = NULL;
 		mtr->kmem = NULL;
-		return 0;
+	} else {
+		ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr);
+		if (ret) {
+			ibdev_err(ibdev,
+				  "failed to alloc mtr bufs, ret = %d.\n", ret);
+			return ret;
+		}
 	}
 
-	ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr);
+	ret = mtr_init_buf_cfg(hr_dev, buf_attr, &mtr->hem_cfg, pgoff);
+	if (ret)
+		goto err_init_buf;
+
+	ret = mtr_alloc_mtt(hr_dev, mtr, ba_page_shift);
 	if (ret) {
-		ibdev_err(ibdev, "failed to alloc mtr bufs, ret = %d.\n", ret);
-		goto err_alloc_mtt;
+		ibdev_err(ibdev, "failed to alloc mtr mtt, ret = %d.\n", ret);
+		goto err_init_buf;
 	}
+
+	if (buf_attr->mtt_only)
+		return 0;
 
 	/* Write buffer's dma address to MTT */
 	ret = mtr_map_bufs(hr_dev, mtr);
-	if (ret)
+	if (ret) {
 		ibdev_err(ibdev, "failed to map mtr bufs, ret = %d.\n", ret);
-	else
-		return 0;
+		goto err_alloc_mtt;
+	}
 
-	mtr_free_bufs(hr_dev, mtr);
+	return 0;
+
 err_alloc_mtt:
 	mtr_free_mtt(hr_dev, mtr);
+err_init_buf:
+	mtr_free_bufs(hr_dev, mtr);
+
 	return ret;
 }
 
