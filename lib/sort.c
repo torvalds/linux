@@ -262,7 +262,7 @@ void sort_r(void *base, size_t num, size_t size,
 		 * average, 3/4 worst-case.)
 		 */
 		for (b = a; c = 2*b + size, (d = c + size) < n;)
-			b = do_cmp(base + c, base + d, cmp_func, priv) >= 0 ? c : d;
+			b = do_cmp(base + c, base + d, cmp_func, priv) > 0 ? c : d;
 		if (d == n)	/* Special case last leaf with no sibling */
 			b = c;
 
