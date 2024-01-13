@@ -354,7 +354,8 @@ int qcom_pmic_typec_pdphy_set_pd_rx(struct pmic_typec_pdphy *pmic_typec_pdphy, b
 }
 
 int qcom_pmic_typec_pdphy_set_roles(struct pmic_typec_pdphy *pmic_typec_pdphy,
-				    bool data_role_host, bool power_role_src)
+				    enum typec_role power_role,
+				    enum typec_data_role data_role)
 {
 	struct device *dev = pmic_typec_pdphy->dev;
 	unsigned long flags;
@@ -366,12 +367,13 @@ int qcom_pmic_typec_pdphy_set_roles(struct pmic_typec_pdphy *pmic_typec_pdphy,
 				 pmic_typec_pdphy->base + USB_PDPHY_MSG_CONFIG_REG,
 				 MSG_CONFIG_PORT_DATA_ROLE |
 				 MSG_CONFIG_PORT_POWER_ROLE,
-				 data_role_host << 3 | power_role_src << 2);
+				 (data_role == TYPEC_HOST ? MSG_CONFIG_PORT_DATA_ROLE : 0) |
+				 (power_role == TYPEC_SOURCE ? MSG_CONFIG_PORT_POWER_ROLE : 0));
 
 	spin_unlock_irqrestore(&pmic_typec_pdphy->lock, flags);
 
 	dev_dbg(dev, "pdphy_set_roles: data_role_host=%d power_role_src=%d\n",
-		data_role_host, power_role_src);
+		data_role, power_role);
 
 	return ret;
 }

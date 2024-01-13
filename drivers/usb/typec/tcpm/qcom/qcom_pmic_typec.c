@@ -123,7 +123,7 @@ static int qcom_pmic_typec_set_roles(struct tcpc_dev *tcpc, bool attached,
 	struct pmic_typec *tcpm = tcpc_to_tcpm(tcpc);
 
 	return qcom_pmic_typec_pdphy_set_roles(tcpm->pmic_typec_pdphy,
-					       data_role, power_role);
+					       power_role, data_role);
 }
 
 static int qcom_pmic_typec_set_pd_rx(struct tcpc_dev *tcpc, bool on)
