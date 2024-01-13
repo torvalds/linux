@@ -24,18 +24,6 @@ if_enabled_echo() {
 	fi
 }
 
-create_package() {
-	export DH_OPTIONS="-p${1}"
-
-	dh_installdocs
-	dh_installchangelogs
-	dh_compress
-	dh_fixperms
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb -- ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS}
-}
-
 install_linux_image () {
 	pname=$1
 	pdir=debian/$1
@@ -161,21 +149,15 @@ install_libc_headers () {
 	mv "$pdir/usr/include/asm" "$pdir/usr/include/${DEB_HOST_MULTIARCH}"
 }
 
-rm -f debian/files
+package=$1
 
-packages_enabled=$(dh_listpackages)
-
-for package in ${packages_enabled}
-do
-	case ${package} in
-	*-dbg)
-		install_linux_image_dbg "${package}";;
-	linux-image-*|user-mode-linux-*)
-		install_linux_image "${package}";;
-	linux-libc-dev)
-		install_libc_headers "${package}";;
-	linux-headers-*)
-		install_kernel_headers "${package}";;
-	esac
-	create_package "${package}"
-done
+case "${package}" in
+*-dbg)
+	install_linux_image_dbg "${package}";;
+linux-image-*|user-mode-linux-*)
+	install_linux_image "${package}";;
+linux-libc-dev)
+	install_libc_headers "${package}";;
+linux-headers-*)
+	install_kernel_headers "${package}";;
+esac
