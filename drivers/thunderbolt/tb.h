@@ -483,7 +483,7 @@ struct tb_path {
  */
 struct tb_cm_ops {
 	int (*driver_ready)(struct tb *tb);
-	int (*start)(struct tb *tb);
+	int (*start)(struct tb *tb, bool reset);
 	void (*stop)(struct tb *tb);
 	int (*suspend_noirq)(struct tb *tb);
 	int (*resume_noirq)(struct tb *tb);
@@ -746,7 +746,7 @@ int tb_xdomain_init(void);
 void tb_xdomain_exit(void);
 
 struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize);
-int tb_domain_add(struct tb *tb);
+int tb_domain_add(struct tb *tb, bool reset);
 void tb_domain_remove(struct tb *tb);
 int tb_domain_suspend_noirq(struct tb *tb);
 int tb_domain_resume_noirq(struct tb *tb);

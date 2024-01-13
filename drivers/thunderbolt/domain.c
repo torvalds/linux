@@ -423,6 +423,7 @@ err_free:
 /**
  * tb_domain_add() - Add domain to the system
  * @tb: Domain to add
+ * @reset: Issue reset to the host router
  *
  * Starts the domain and adds it to the system. Hotplugging devices will
  * work after this has been returned successfully. In order to remove
@@ -431,7 +432,7 @@ err_free:
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_domain_add(struct tb *tb)
+int tb_domain_add(struct tb *tb, bool reset)
 {
 	int ret;
 
@@ -460,7 +461,7 @@ int tb_domain_add(struct tb *tb)
 
 	/* Start the domain */
 	if (tb->cm_ops->start) {
-		ret = tb->cm_ops->start(tb);
+		ret = tb->cm_ops->start(tb, reset);
 		if (ret)
 			goto err_domain_del;
 	}

@@ -2581,7 +2581,7 @@ static int tb_scan_finalize_switch(struct device *dev, void *data)
 	return 0;
 }
 
-static int tb_start(struct tb *tb)
+static int tb_start(struct tb *tb, bool reset)
 {
 	struct tb_cm *tcm = tb_priv(tb);
 	int ret;
@@ -2622,12 +2622,24 @@ static int tb_start(struct tb *tb)
 	tb_switch_tmu_configure(tb->root_switch, TB_SWITCH_TMU_MODE_LOWRES);
 	/* Enable TMU if it is off */
 	tb_switch_tmu_enable(tb->root_switch);
-	/* Full scan to discover devices added before the driver was loaded. */
-	tb_scan_switch(tb->root_switch);
-	/* Find out tunnels created by the boot firmware */
-	tb_discover_tunnels(tb);
-	/* Add DP resources from the DP tunnels created by the boot firmware */
-	tb_discover_dp_resources(tb);
+
+	/*
+	 * Boot firmware might have created tunnels of its own. Since we
+	 * cannot be sure they are usable for us, tear them down and
+	 * reset the ports to handle it as new hotplug for USB4 v1
+	 * routers (for USB4 v2 and beyond we already do host reset).
+	 */
+	if (reset && usb4_switch_version(tb->root_switch) == 1) {
+		tb_switch_reset(tb->root_switch);
+	} else {
+		/* Full scan to discover devices added before the driver was loaded. */
+		tb_scan_switch(tb->root_switch);
+		/* Find out tunnels created by the boot firmware */
+		tb_discover_tunnels(tb);
+		/* Add DP resources from the DP tunnels created by the boot firmware */
+		tb_discover_dp_resources(tb);
+	}
+
 	/*
 	 * If the boot firmware did not create USB 3.x tunnels create them
 	 * now for the whole topology.
