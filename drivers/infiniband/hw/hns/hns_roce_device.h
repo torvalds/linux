@@ -1152,8 +1152,13 @@ void hns_roce_cmd_use_polling(struct hns_roce_dev *hr_dev);
 
 /* hns roce hw need current block and next block addr from mtt */
 #define MTT_MIN_COUNT	 2
+static inline dma_addr_t hns_roce_get_mtr_ba(struct hns_roce_mtr *mtr)
+{
+	return mtr->hem_cfg.root_ba;
+}
+
 int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr);
+		      u32 offset, u64 *mtt_buf, int mtt_max);
 int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			struct hns_roce_buf_attr *buf_attr,
 			unsigned int page_shift, struct ib_udata *udata,

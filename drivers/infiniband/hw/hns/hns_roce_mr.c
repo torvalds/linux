@@ -809,47 +809,53 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	return ret;
 }
 
-int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
+static int hns_roce_get_direct_addr_mtt(struct hns_roce_hem_cfg *cfg,
+					u32 start_index, u64 *mtt_buf,
+					int mtt_cnt)
 {
-	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
-	int mtt_count, left;
-	u32 start_index;
+	int mtt_count;
 	int total = 0;
-	__le64 *mtts;
 	u32 npage;
 	u64 addr;
 
-	if (!mtt_buf || mtt_max < 1)
-		goto done;
+	if (mtt_cnt > cfg->region_count)
+		return -EINVAL;
 
-	/* no mtt memory in direct mode, so just return the buffer address */
-	if (cfg->is_direct) {
-		start_index = offset >> HNS_HW_PAGE_SHIFT;
-		for (mtt_count = 0; mtt_count < cfg->region_count &&
-		     total < mtt_max; mtt_count++) {
-			npage = cfg->region[mtt_count].offset;
-			if (npage < start_index)
-				continue;
+	for (mtt_count = 0; mtt_count < cfg->region_count && total < mtt_cnt;
+	     mtt_count++) {
+		npage = cfg->region[mtt_count].offset;
+		if (npage < start_index)
+			continue;
 
-			addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
-			mtt_buf[total] = addr;
+		addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
+		mtt_buf[total] = addr;
 
-			total++;
-		}
-
-		goto done;
+		total++;
 	}
 
-	start_index = offset >> cfg->buf_pg_shift;
-	left = mtt_max;
+	if (!total)
+		return -ENOENT;
+
+	return 0;
+}
+
+static int hns_roce_get_mhop_mtt(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_mtr *mtr, u32 start_index,
+				 u64 *mtt_buf, int mtt_cnt)
+{
+	int left = mtt_cnt;
+	int total = 0;
+	int mtt_count;
+	__le64 *mtts;
+	u32 npage;
+
 	while (left > 0) {
 		mtt_count = 0;
 		mtts = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
 						  start_index + total,
 						  &mtt_count);
 		if (!mtts || !mtt_count)
-			goto done;
+			break;
 
 		npage = min(mtt_count, left);
 		left -= npage;
@@ -857,11 +863,33 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			mtt_buf[total++] = le64_to_cpu(mtts[mtt_count]);
 	}
 
-done:
-	if (base_addr)
-		*base_addr = cfg->root_ba;
+	if (!total)
+		return -ENOENT;
 
-	return total;
+	return 0;
+}
+
+int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		      u32 offset, u64 *mtt_buf, int mtt_max)
+{
+	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	u32 start_index;
+	int ret;
+
+	if (!mtt_buf || mtt_max < 1)
+		return -EINVAL;
+
+	/* no mtt memory in direct mode, so just return the buffer address */
+	if (cfg->is_direct) {
+		start_index = offset >> HNS_HW_PAGE_SHIFT;
+		ret = hns_roce_get_direct_addr_mtt(cfg, start_index,
+						   mtt_buf, mtt_max);
+	} else {
+		start_index = offset >> cfg->buf_pg_shift;
+		ret = hns_roce_get_mhop_mtt(hr_dev, mtr, start_index,
+					    mtt_buf, mtt_max);
+	}
+	return ret;
 }
 
 static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
