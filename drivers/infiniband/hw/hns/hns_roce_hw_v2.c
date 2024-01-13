@@ -4058,7 +4058,6 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_hem_table *table, int obj,
 			       u32 step_idx)
 {
-	struct hns_roce_hem_iter iter;
 	struct hns_roce_hem_mhop mhop;
 	struct hns_roce_hem *hem;
 	unsigned long mhop_obj = obj;
@@ -4095,12 +4094,8 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 
 	if (check_whether_last_step(hop_num, step_idx)) {
 		hem = table->hem[hem_idx];
-		for (hns_roce_hem_first(hem, &iter);
-		     !hns_roce_hem_last(&iter); hns_roce_hem_next(&iter)) {
-			bt_ba = hns_roce_hem_addr(&iter);
-			ret = set_hem_to_hw(hr_dev, obj, bt_ba, table->type,
-					    step_idx);
-		}
+
+		ret = set_hem_to_hw(hr_dev, obj, hem->dma, table->type, step_idx);
 	} else {
 		if (step_idx == 0)
 			bt_ba = table->bt_l0_dma_addr[i];
