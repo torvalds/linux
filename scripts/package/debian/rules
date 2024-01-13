@@ -42,6 +42,9 @@ package = $($(@:binary-%=%-package))
 DH_OPTIONS = -p$(package)
 
 define binary
+	$(Q)dh_testdir $(DH_OPTIONS)
+	$(Q)dh_testroot $(DH_OPTIONS)
+	$(Q)dh_prep $(DH_OPTIONS)
 	$(Q)+$(MAKE) $(make-opts) run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb $(package)'
 	$(Q)dh_installdocs $(DH_OPTIONS)
 	$(Q)dh_installchangelogs $(DH_OPTIONS)
@@ -72,7 +75,8 @@ build-arch:
 
 .PHONY: clean
 clean:
-	$(Q)rm -rf debian/files debian/linux-* debian/deb-env.vars* debian/*.files
+	$(Q)dh_clean
+	$(Q)rm -rf debian/deb-env.vars* debian/*.files
 	$(Q)$(MAKE) ARCH=$(ARCH) clean
 
 # If DEB_HOST_ARCH is empty, it is likely that debian/rules was executed
