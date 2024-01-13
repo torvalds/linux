@@ -11,6 +11,14 @@ ifneq (,$(filter-out parallel=1,$(filter parallel=%,$(DEB_BUILD_OPTIONS))))
     MAKEFLAGS += -j$(NUMJOBS)
 endif
 
+# When KBUILD_VERBOSE is undefined (presumably you are directly working with
+# the debianized tree), show verbose logs unless DEB_BUILD_OPTION=terse is set.
+ifeq ($(origin KBUILD_VERBOSE),undefined)
+    ifeq (,$(filter terse,$(DEB_BUILD_OPTIONS)))
+        export KBUILD_VERBOSE := 1
+    endif
+endif
+
 revision = $(lastword $(subst -, ,$(shell dpkg-parsechangelog -S Version)))
 CROSS_COMPILE ?= $(filter-out $(DEB_BUILD_GNU_TYPE)-, $(DEB_HOST_GNU_TYPE)-)
 make-opts = ARCH=$(ARCH) KERNELRELEASE=$(KERNELRELEASE) KBUILD_BUILD_VERSION=$(revision) $(addprefix CROSS_COMPILE=,$(CROSS_COMPILE))
