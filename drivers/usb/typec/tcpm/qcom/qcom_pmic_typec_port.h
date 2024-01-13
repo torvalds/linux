@@ -3,8 +3,8 @@
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
  * Copyright (c) 2023, Linaro Ltd. All rights reserved.
  */
-#ifndef __QCOM_PMIC_TYPEC_H__
-#define __QCOM_PMIC_TYPEC_H__
+#ifndef __QCOM_PMIC_TYPEC_PORT_H__
+#define __QCOM_PMIC_TYPEC_PORT_H__
 
 #include <linux/platform_device.h>
 #include <linux/usb/tcpm.h>

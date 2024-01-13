@@ -20,25 +20,14 @@
 
 #include <drm/bridge/aux-bridge.h>
 
+#include "qcom_pmic_typec.h"
 #include "qcom_pmic_typec_pdphy.h"
 #include "qcom_pmic_typec_port.h"
 
 struct pmic_typec_resources {
-	struct pmic_typec_pdphy_resources	*pdphy_res;
+	const struct pmic_typec_pdphy_resources	*pdphy_res;
 	struct pmic_typec_port_resources	*port_res;
 };
-
-struct pmic_typec {
-	struct device		*dev;
-	struct tcpm_port	*tcpm_port;
-	struct tcpc_dev		tcpc;
-	struct pmic_typec_pdphy	*pmic_typec_pdphy;
-	struct pmic_typec_port	*pmic_typec_port;
-	bool			vbus_enabled;
-	struct mutex		lock;		/* VBUS state serialization */
-};
-
-#define tcpc_to_tcpm(_tcpc_) container_of(_tcpc_, struct pmic_typec, tcpc)
 
 static int qcom_pmic_typec_get_vbus(struct tcpc_dev *tcpc)
 {
@@ -116,34 +105,6 @@ static int qcom_pmic_typec_start_toggling(struct tcpc_dev *tcpc,
 						   port_type, cc);
 }
 
-static int qcom_pmic_typec_set_roles(struct tcpc_dev *tcpc, bool attached,
-				     enum typec_role power_role,
-				     enum typec_data_role data_role)
-{
-	struct pmic_typec *tcpm = tcpc_to_tcpm(tcpc);
-
-	return qcom_pmic_typec_pdphy_set_roles(tcpm->pmic_typec_pdphy,
-					       power_role, data_role);
-}
-
-static int qcom_pmic_typec_set_pd_rx(struct tcpc_dev *tcpc, bool on)
-{
-	struct pmic_typec *tcpm = tcpc_to_tcpm(tcpc);
-
-	return qcom_pmic_typec_pdphy_set_pd_rx(tcpm->pmic_typec_pdphy, on);
-}
-
-static int qcom_pmic_typec_pd_transmit(struct tcpc_dev *tcpc,
-				       enum tcpm_transmit_type type,
-				       const struct pd_message *msg,
-				       unsigned int negotiated_rev)
-{
-	struct pmic_typec *tcpm = tcpc_to_tcpm(tcpc);
-
-	return qcom_pmic_typec_pdphy_pd_transmit(tcpm->pmic_typec_pdphy, type,
-						 msg, negotiated_rev);
-}
-
 static int qcom_pmic_typec_init(struct tcpc_dev *tcpc)
 {
 	return 0;
@@ -177,9 +138,6 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 	tcpm->tcpc.set_polarity = qcom_pmic_typec_set_polarity;
 	tcpm->tcpc.set_vconn = qcom_pmic_typec_set_vconn;
 	tcpm->tcpc.start_toggling = qcom_pmic_typec_start_toggling;
-	tcpm->tcpc.set_pd_rx = qcom_pmic_typec_set_pd_rx;
-	tcpm->tcpc.set_roles = qcom_pmic_typec_set_roles;
-	tcpm->tcpc.pd_transmit = qcom_pmic_typec_pd_transmit;
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap) {
@@ -195,16 +153,12 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 	if (IS_ERR(tcpm->pmic_typec_port))
 		return PTR_ERR(tcpm->pmic_typec_port);
 
-	tcpm->pmic_typec_pdphy = qcom_pmic_typec_pdphy_alloc(dev);
-	if (IS_ERR(tcpm->pmic_typec_pdphy))
-		return PTR_ERR(tcpm->pmic_typec_pdphy);
-
 	ret = qcom_pmic_typec_port_probe(pdev, tcpm->pmic_typec_port,
 					 res->port_res, regmap, base[0]);
 	if (ret)
 		return ret;
 
-	ret = qcom_pmic_typec_pdphy_probe(pdev, tcpm->pmic_typec_pdphy,
+	ret = qcom_pmic_typec_pdphy_probe(pdev, tcpm,
 					  res->pdphy_res, regmap, base[1]);
 	if (ret)
 		return ret;
@@ -231,8 +185,7 @@ static int qcom_pmic_typec_probe(struct platform_device *pdev)
 	if (ret)
 		goto fwnode_remove;
 
-	ret = qcom_pmic_typec_pdphy_start(tcpm->pmic_typec_pdphy,
-					  tcpm->tcpm_port);
+	ret = tcpm->pdphy_start(tcpm, tcpm->tcpm_port);
 	if (ret)
 		goto fwnode_remove;
 
@@ -248,45 +201,11 @@ static void qcom_pmic_typec_remove(struct platform_device *pdev)
 {
 	struct pmic_typec *tcpm = platform_get_drvdata(pdev);
 
-	qcom_pmic_typec_pdphy_stop(tcpm->pmic_typec_pdphy);
+	tcpm->pdphy_stop(tcpm);
 	qcom_pmic_typec_port_stop(tcpm->pmic_typec_port);
 	tcpm_unregister_port(tcpm->tcpm_port);
 	fwnode_remove_software_node(tcpm->tcpc.fwnode);
 }
-
-static struct pmic_typec_pdphy_resources pm8150b_pdphy_res = {
-	.irq_params = {
-		{
-			.virq = PMIC_PDPHY_SIG_TX_IRQ,
-			.irq_name = "sig-tx",
-		},
-		{
-			.virq = PMIC_PDPHY_SIG_RX_IRQ,
-			.irq_name = "sig-rx",
-		},
-		{
-			.virq = PMIC_PDPHY_MSG_TX_IRQ,
-			.irq_name = "msg-tx",
-		},
-		{
-			.virq = PMIC_PDPHY_MSG_RX_IRQ,
-			.irq_name = "msg-rx",
-		},
-		{
-			.virq = PMIC_PDPHY_MSG_TX_FAIL_IRQ,
-			.irq_name = "msg-tx-failed",
-		},
-		{
-			.virq = PMIC_PDPHY_MSG_TX_DISCARD_IRQ,
-			.irq_name = "msg-tx-discarded",
-		},
-		{
-			.virq = PMIC_PDPHY_MSG_RX_DISCARD_IRQ,
-			.irq_name = "msg-rx-discarded",
-		},
-	},
-	.nr_irqs = 7,
-};
 
 static struct pmic_typec_port_resources pm8150b_port_res = {
 	.irq_params = {
