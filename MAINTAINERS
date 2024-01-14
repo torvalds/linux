@@ -5958,7 +5958,6 @@ S:	Maintained
 F:	drivers/platform/x86/dell/dell-wmi-descriptor.c
 
 DELL WMI HARDWARE PRIVACY SUPPORT
-M:	Perry Yuan <Perry.Yuan@dell.com>
 L:	Dell.Client.Kernel@dell.com
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
