@@ -62,7 +62,8 @@ enum map_err_types {
  * @pfn: page frame of the start address
  * @offset: offset of mapping relative to pfn
  * @map_err_type: track whether dma_mapping_error() was checked
- * @stacktrace: support backtraces when a violation is detected
+ * @stack_len: number of backtrace entries in @stack_entries
+ * @stack_entries: stack of backtrace history
  */
 struct dma_debug_entry {
 	struct list_head list;
