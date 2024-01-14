@@ -5276,13 +5276,10 @@ int ath12k_mac_rfkill_enable_radio(struct ath12k *ar, bool enable)
 	return 0;
 }
 
-static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
+static void ath12k_mac_stop(struct ath12k *ar)
 {
-	struct ath12k *ar = hw->priv;
 	struct htt_ppdu_stats_info *ppdu_stats, *tmp;
 	int ret;
-
-	ath12k_mac_drain_tx(ar);
 
 	mutex_lock(&ar->conf_mutex);
 	ret = ath12k_mac_config_mon_status_default(ar, false);
@@ -5310,6 +5307,15 @@ static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
 	synchronize_rcu();
 
 	atomic_set(&ar->num_pending_mgmt_tx, 0);
+}
+
+static void ath12k_mac_op_stop(struct ieee80211_hw *hw)
+{
+	struct ath12k *ar = hw->priv;
+
+	ath12k_mac_drain_tx(ar);
+
+	ath12k_mac_stop(ar);
 }
 
 static u8
