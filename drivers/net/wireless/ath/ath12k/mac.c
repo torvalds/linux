@@ -5831,19 +5831,15 @@ err_vdev_del:
 	FIF_PROBE_REQ |				\
 	FIF_FCSFAIL)
 
-static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
-					   unsigned int changed_flags,
-					   unsigned int *total_flags,
-					   u64 multicast)
+static void ath12k_mac_configure_filter(struct ath12k *ar,
+					unsigned int total_flags)
 {
-	struct ath12k *ar = hw->priv;
 	bool reset_flag;
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_held(&ar->conf_mutex);
 
-	*total_flags &= SUPPORTED_FILTERS;
-	ar->filter_flags = *total_flags;
+	ar->filter_flags = total_flags;
 
 	/* For monitor mode */
 	reset_flag = !(ar->filter_flags & FIF_BCN_PRBRESP_PROMISC);
@@ -5858,9 +5854,23 @@ static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
 		ath12k_warn(ar->ab,
 			    "fail to set monitor filter: %d\n", ret);
 	}
+
 	ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
 		   "total_flags:0x%x, reset_flag:%d\n",
-		   *total_flags, reset_flag);
+		   total_flags, reset_flag);
+}
+
+static void ath12k_mac_op_configure_filter(struct ieee80211_hw *hw,
+					   unsigned int changed_flags,
+					   unsigned int *total_flags,
+					   u64 multicast)
+{
+	struct ath12k *ar = hw->priv;
+
+	mutex_lock(&ar->conf_mutex);
+
+	*total_flags &= SUPPORTED_FILTERS;
+	ath12k_mac_configure_filter(ar, *total_flags);
 
 	mutex_unlock(&ar->conf_mutex);
 }
