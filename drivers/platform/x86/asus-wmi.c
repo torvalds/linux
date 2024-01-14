@@ -1620,7 +1620,6 @@ static int asus_wmi_led_init(struct asus_wmi *asus)
 	if (asus_wmi_dev_is_present(asus, ASUS_WMI_DEVID_MICMUTE_LED)) {
 		asus->micmute_led.name = "platform::micmute";
 		asus->micmute_led.max_brightness = 1;
-		asus->micmute_led.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
 		asus->micmute_led.brightness_set_blocking = micmute_led_set;
 		asus->micmute_led.default_trigger = "audio-micmute";
 

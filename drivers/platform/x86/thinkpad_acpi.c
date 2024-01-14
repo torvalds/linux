@@ -9283,7 +9283,6 @@ static int mute_led_init(struct ibm_init_struct *iibm)
 			continue;
 		}
 
-		mute_led_cdev[i].brightness = ledtrig_audio_get(i);
 		err = led_classdev_register(&tpacpi_pdev->dev, &mute_led_cdev[i]);
 		if (err < 0) {
 			while (i--)

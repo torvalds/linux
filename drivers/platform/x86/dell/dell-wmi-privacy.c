@@ -288,7 +288,6 @@ static int dell_privacy_leds_setup(struct device *dev)
 	priv->cdev.max_brightness = 1;
 	priv->cdev.brightness_set_blocking = dell_privacy_micmute_led_set;
 	priv->cdev.default_trigger = "audio-micmute";
-	priv->cdev.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
 	return devm_led_classdev_register(dev, &priv->cdev);
 }
 
