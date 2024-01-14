@@ -714,8 +714,6 @@ static int ath12k_core_start(struct ath12k_base *ab,
 
 	ath12k_dp_cc_config(ab);
 
-	ath12k_dp_pdev_pre_alloc(ab);
-
 	ret = ath12k_dp_rx_pdev_reo_setup(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to initialize reo destination rings: %d\n", ret);

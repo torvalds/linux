@@ -7667,6 +7667,8 @@ int ath12k_mac_allocate(struct ath12k_base *ab)
 		clear_bit(ATH12K_FLAG_MONITOR_ENABLED, &ar->monitor_flags);
 	}
 
+	ath12k_dp_pdev_pre_alloc(ab);
+
 	return 0;
 
 err_free_mac:
