@@ -6644,14 +6644,9 @@ static int ath12k_mac_op_set_frag_threshold(struct ieee80211_hw *hw, u32 value)
 	return -EOPNOTSUPP;
 }
 
-static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-				u32 queues, bool drop)
+static void ath12k_mac_flush(struct ath12k *ar)
 {
-	struct ath12k *ar = hw->priv;
 	long time_left;
-
-	if (drop)
-		return;
 
 	time_left = wait_event_timeout(ar->dp.tx_empty_waitq,
 				       (atomic_read(&ar->dp.num_tx_pending) == 0),
@@ -6665,6 +6660,17 @@ static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *v
 	if (time_left == 0)
 		ath12k_warn(ar->ab, "failed to flush mgmt transmit queue %ld\n",
 			    time_left);
+}
+
+static void ath12k_mac_op_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+				u32 queues, bool drop)
+{
+	struct ath12k *ar = hw->priv;
+
+	if (drop)
+		return;
+
+	ath12k_mac_flush(ar);
 }
 
 static int
