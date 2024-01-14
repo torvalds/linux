@@ -2215,11 +2215,10 @@ static int new_guc_id(struct intel_guc *guc, struct intel_context *ce)
 					      order_base_2(ce->parallel.number_children
 							   + 1));
 	else
-		ret = ida_simple_get(&guc->submission_state.guc_ids,
-				     NUMBER_MULTI_LRC_GUC_ID(guc),
-				     guc->submission_state.num_guc_ids,
-				     GFP_KERNEL | __GFP_RETRY_MAYFAIL |
-				     __GFP_NOWARN);
+		ret = ida_alloc_range(&guc->submission_state.guc_ids,
+				      NUMBER_MULTI_LRC_GUC_ID(guc),
+				      guc->submission_state.num_guc_ids - 1,
+				      GFP_KERNEL | __GFP_RETRY_MAYFAIL | __GFP_NOWARN);
 	if (unlikely(ret < 0))
 		return ret;
 
@@ -2242,8 +2241,8 @@ static void __release_guc_id(struct intel_guc *guc, struct intel_context *ce)
 							   + 1));
 		} else {
 			--guc->submission_state.guc_ids_in_use;
-			ida_simple_remove(&guc->submission_state.guc_ids,
-					  ce->guc_id.id);
+			ida_free(&guc->submission_state.guc_ids,
+				 ce->guc_id.id);
 		}
 		clr_ctx_id_mapping(guc, ce->guc_id.id);
 		set_context_guc_id_invalid(ce);
