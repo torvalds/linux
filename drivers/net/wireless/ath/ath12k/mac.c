@@ -7607,16 +7607,70 @@ err_cleanup:
 	return ret;
 }
 
-int ath12k_mac_allocate(struct ath12k_base *ab)
+static void ath12k_mac_setup(struct ath12k *ar)
+{
+	struct ath12k_base *ab = ar->ab;
+	struct ath12k_pdev *pdev = ar->pdev;
+	u8 pdev_idx = ar->pdev_idx;
+
+	ar->lmac_id = ath12k_hw_get_mac_from_pdev_id(ab->hw_params, pdev_idx);
+
+	ar->wmi = &ab->wmi_ab.wmi[pdev_idx];
+	/* FIXME: wmi[0] is already initialized during attach,
+	 * Should we do this again?
+	 */
+	ath12k_wmi_pdev_attach(ab, pdev_idx);
+
+	ar->cfg_tx_chainmask = pdev->cap.tx_chain_mask;
+	ar->cfg_rx_chainmask = pdev->cap.rx_chain_mask;
+	ar->num_tx_chains = hweight32(pdev->cap.tx_chain_mask);
+	ar->num_rx_chains = hweight32(pdev->cap.rx_chain_mask);
+
+	spin_lock_init(&ar->data_lock);
+	INIT_LIST_HEAD(&ar->arvifs);
+	INIT_LIST_HEAD(&ar->ppdu_stats_info);
+	mutex_init(&ar->conf_mutex);
+	init_completion(&ar->vdev_setup_done);
+	init_completion(&ar->vdev_delete_done);
+	init_completion(&ar->peer_assoc_done);
+	init_completion(&ar->peer_delete_done);
+	init_completion(&ar->install_key_done);
+	init_completion(&ar->bss_survey_done);
+	init_completion(&ar->scan.started);
+	init_completion(&ar->scan.completed);
+
+	INIT_DELAYED_WORK(&ar->scan.timeout, ath12k_scan_timeout_work);
+	INIT_WORK(&ar->regd_update_work, ath12k_regd_update_work);
+
+	INIT_WORK(&ar->wmi_mgmt_tx_work, ath12k_mgmt_over_wmi_tx_work);
+	skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
+	clear_bit(ATH12K_FLAG_MONITOR_ENABLED, &ar->monitor_flags);
+}
+
+static void ath12k_mac_hw_destroy(struct ath12k_base *ab)
+{
+	struct ath12k *ar;
+	struct ath12k_pdev *pdev;
+	int i;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		pdev = &ab->pdevs[i];
+		ar = pdev->ar;
+		if (!ar)
+			continue;
+
+		ieee80211_free_hw(ar->hw);
+		pdev->ar = NULL;
+	}
+}
+
+static int ath12k_mac_hw_allocate(struct ath12k_base *ab)
 {
 	struct ieee80211_hw *hw;
 	struct ath12k *ar;
 	struct ath12k_pdev *pdev;
 	int ret;
 	int i;
-
-	if (test_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags))
-		return 0;
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
@@ -7632,64 +7686,36 @@ int ath12k_mac_allocate(struct ath12k_base *ab)
 		ar->ab = ab;
 		ar->pdev = pdev;
 		ar->pdev_idx = i;
-		ar->lmac_id = ath12k_hw_get_mac_from_pdev_id(ab->hw_params, i);
-
-		ar->wmi = &ab->wmi_ab.wmi[i];
-		/* FIXME: wmi[0] is already initialized during attach,
-		 * Should we do this again?
-		 */
-		ath12k_wmi_pdev_attach(ab, i);
-
-		ar->cfg_tx_chainmask = pdev->cap.tx_chain_mask;
-		ar->cfg_rx_chainmask = pdev->cap.rx_chain_mask;
-		ar->num_tx_chains = hweight32(pdev->cap.tx_chain_mask);
-		ar->num_rx_chains = hweight32(pdev->cap.rx_chain_mask);
-
 		pdev->ar = ar;
-		spin_lock_init(&ar->data_lock);
-		INIT_LIST_HEAD(&ar->arvifs);
-		INIT_LIST_HEAD(&ar->ppdu_stats_info);
-		mutex_init(&ar->conf_mutex);
-		init_completion(&ar->vdev_setup_done);
-		init_completion(&ar->vdev_delete_done);
-		init_completion(&ar->peer_assoc_done);
-		init_completion(&ar->peer_delete_done);
-		init_completion(&ar->install_key_done);
-		init_completion(&ar->bss_survey_done);
-		init_completion(&ar->scan.started);
-		init_completion(&ar->scan.completed);
 
-		INIT_DELAYED_WORK(&ar->scan.timeout, ath12k_scan_timeout_work);
-		INIT_WORK(&ar->regd_update_work, ath12k_regd_update_work);
-
-		INIT_WORK(&ar->wmi_mgmt_tx_work, ath12k_mgmt_over_wmi_tx_work);
-		skb_queue_head_init(&ar->wmi_mgmt_tx_queue);
-		clear_bit(ATH12K_FLAG_MONITOR_ENABLED, &ar->monitor_flags);
+		ath12k_mac_setup(ar);
 	}
-
-	ath12k_dp_pdev_pre_alloc(ab);
 
 	return 0;
 
 err_free_mac:
-	ath12k_mac_destroy(ab);
+	ath12k_mac_hw_destroy(ab);
 
 	return ret;
 }
 
 void ath12k_mac_destroy(struct ath12k_base *ab)
 {
-	struct ath12k *ar;
-	struct ath12k_pdev *pdev;
-	int i;
+	ath12k_mac_hw_destroy(ab);
+}
 
-	for (i = 0; i < ab->num_radios; i++) {
-		pdev = &ab->pdevs[i];
-		ar = pdev->ar;
-		if (!ar)
-			continue;
+int ath12k_mac_allocate(struct ath12k_base *ab)
+{
+	int ret;
 
-		ieee80211_free_hw(ar->hw);
-		pdev->ar = NULL;
-	}
+	if (test_bit(ATH12K_FLAG_REGISTERED, &ab->dev_flags))
+		return 0;
+
+	ret = ath12k_mac_hw_allocate(ab);
+	if (ret)
+		return ret;
+
+	ath12k_dp_pdev_pre_alloc(ab);
+
+	return 0;
 }
