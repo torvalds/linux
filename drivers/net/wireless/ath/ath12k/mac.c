@@ -5901,14 +5901,13 @@ static int ath12k_mac_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx
 	return ret;
 }
 
-static int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_ampdu_params *params)
+static int ath12k_mac_ampdu_action(struct ath12k_vif *arvif,
+				   struct ieee80211_ampdu_params *params)
 {
-	struct ath12k *ar = hw->priv;
+	struct ath12k *ar = arvif->ar;
 	int ret = -EINVAL;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_held(&ar->conf_mutex);
 
 	switch (params->action) {
 	case IEEE80211_AMPDU_RX_START:
@@ -5929,7 +5928,24 @@ static int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
 		break;
 	}
 
+	return ret;
+}
+
+static int ath12k_mac_op_ampdu_action(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      struct ieee80211_ampdu_params *params)
+{
+	struct ath12k *ar = hw->priv;
+	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	int ret = -EINVAL;
+
+	mutex_lock(&ar->conf_mutex);
+	ret = ath12k_mac_ampdu_action(arvif, params);
 	mutex_unlock(&ar->conf_mutex);
+
+	if (ret)
+		ath12k_warn(ar->ab, "pdev idx %d unable to perform ampdu action %d ret %d\n",
+			    ar->pdev_idx, params->action, ret);
 
 	return ret;
 }
