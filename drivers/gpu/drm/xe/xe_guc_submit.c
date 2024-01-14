@@ -312,7 +312,7 @@ static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa
 				      q->guc->id - GUC_ID_START_MLRC,
 				      order_base_2(q->width));
 	else
-		ida_simple_remove(&guc->submission_state.guc_ids, q->guc->id);
+		ida_free(&guc->submission_state.guc_ids, q->guc->id);
 }
 
 static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
@@ -336,8 +336,8 @@ static int alloc_guc_id(struct xe_guc *guc, struct xe_exec_queue *q)
 		ret = bitmap_find_free_region(bitmap, GUC_ID_NUMBER_MLRC,
 					      order_base_2(q->width));
 	} else {
-		ret = ida_simple_get(&guc->submission_state.guc_ids, 0,
-				     GUC_ID_NUMBER_SLRC, GFP_NOWAIT);
+		ret = ida_alloc_max(&guc->submission_state.guc_ids,
+				    GUC_ID_NUMBER_SLRC - 1, GFP_NOWAIT);
 	}
 	if (ret < 0)
 		return ret;
