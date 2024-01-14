@@ -957,6 +957,9 @@ static void __media_entity_remove_link(struct media_entity *entity,
 
 	/* Remove the reverse links for a data link. */
 	if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) == MEDIA_LNK_FL_DATA_LINK) {
+		link->source->num_links--;
+		link->sink->num_links--;
+
 		if (link->source->entity == entity)
 			remote = link->sink->entity;
 		else
@@ -1067,6 +1070,9 @@ media_create_pad_link(struct media_entity *source, u16 source_pad,
 	sink->num_backlinks++;
 	sink->num_links++;
 	source->num_links++;
+
+	link->source->num_links++;
+	link->sink->num_links++;
 
 	return 0;
 }
