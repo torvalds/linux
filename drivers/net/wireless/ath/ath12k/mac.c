@@ -5081,14 +5081,12 @@ static void ath12k_mac_wait_reconfigure(struct ath12k_base *ab)
 				    ATH12K_RECONFIGURE_TIMEOUT_HZ);
 }
 
-static int ath12k_mac_op_start(struct ieee80211_hw *hw)
+static int ath12k_mac_start(struct ath12k *ar)
 {
-	struct ath12k *ar = hw->priv;
 	struct ath12k_base *ab = ar->ab;
 	struct ath12k_pdev *pdev = ar->pdev;
 	int ret;
 
-	ath12k_mac_drain_tx(ar);
 	mutex_lock(&ar->conf_mutex);
 
 	switch (ar->state) {
@@ -5111,14 +5109,14 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 					1, pdev->pdev_id);
 
 	if (ret) {
-		ath12k_err(ar->ab, "failed to enable PMF QOS: (%d\n", ret);
+		ath12k_err(ab, "failed to enable PMF QOS: (%d\n", ret);
 		goto err;
 	}
 
 	ret = ath12k_wmi_pdev_set_param(ar, WMI_PDEV_PARAM_DYNAMIC_BW, 1,
 					pdev->pdev_id);
 	if (ret) {
-		ath12k_err(ar->ab, "failed to enable dynamic bw: %d\n", ret);
+		ath12k_err(ab, "failed to enable dynamic bw: %d\n", ret);
 		goto err;
 	}
 
@@ -5148,7 +5146,7 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 					1, pdev->pdev_id);
 
 	if (ret) {
-		ath12k_err(ar->ab, "failed to enable MESH MCAST ENABLE: (%d\n", ret);
+		ath12k_err(ab, "failed to enable MESH MCAST ENABLE: (%d\n", ret);
 		goto err;
 	}
 
@@ -5174,7 +5172,7 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 	}
 
 	if (ret == -ENOTSUPP)
-		ath12k_dbg(ar->ab, ATH12K_DBG_MAC,
+		ath12k_dbg(ab, ATH12K_DBG_MAC,
 			   "monitor status config is not yet supported");
 
 	/* Configure the hash seed for hash based reo dest ring selection */
@@ -5196,12 +5194,29 @@ static int ath12k_mac_op_start(struct ieee80211_hw *hw)
 			   &ab->pdevs[ar->pdev_idx]);
 
 	return 0;
-
 err:
 	ar->state = ATH12K_STATE_OFF;
 	mutex_unlock(&ar->conf_mutex);
 
 	return ret;
+}
+
+static int ath12k_mac_op_start(struct ieee80211_hw *hw)
+{
+	struct ath12k *ar = hw->priv;
+	struct ath12k_base *ab = ar->ab;
+	int ret;
+
+	ath12k_mac_drain_tx(ar);
+
+	ret = ath12k_mac_start(ar);
+	if (ret) {
+		ath12k_err(ab, "fail to start mac operations in pdev idx %d ret %d\n",
+			   ar->pdev_idx, ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 int ath12k_mac_rfkill_config(struct ath12k *ar)
