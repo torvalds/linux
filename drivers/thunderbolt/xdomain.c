@@ -1791,13 +1791,13 @@ static ssize_t rx_lanes_show(struct device *dev, struct device_attribute *attr,
 
 	switch (xd->link_width) {
 	case TB_LINK_WIDTH_SINGLE:
-	case TB_LINK_WIDTH_ASYM_RX:
+	case TB_LINK_WIDTH_ASYM_TX:
 		width = 1;
 		break;
 	case TB_LINK_WIDTH_DUAL:
 		width = 2;
 		break;
-	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
 		width = 3;
 		break;
 	default:
@@ -1817,13 +1817,13 @@ static ssize_t tx_lanes_show(struct device *dev, struct device_attribute *attr,
 
 	switch (xd->link_width) {
 	case TB_LINK_WIDTH_SINGLE:
-	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
 		width = 1;
 		break;
 	case TB_LINK_WIDTH_DUAL:
 		width = 2;
 		break;
-	case TB_LINK_WIDTH_ASYM_RX:
+	case TB_LINK_WIDTH_ASYM_TX:
 		width = 3;
 		break;
 	default:
