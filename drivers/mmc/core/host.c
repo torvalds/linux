@@ -76,7 +76,7 @@ static void mmc_host_classdev_release(struct device *dev)
 	struct mmc_host *host = cls_dev_to_mmc_host(dev);
 	wakeup_source_unregister(host->ws);
 	if (of_alias_get_id(host->parent->of_node, "mmc") < 0)
-		ida_simple_remove(&mmc_host_ida, host->index);
+		ida_free(&mmc_host_ida, host->index);
 	kfree(host);
 }
 
@@ -538,7 +538,8 @@ struct mmc_host *mmc_alloc_host(int extra, struct device *dev)
 		min_idx = mmc_first_nonreserved_index();
 		max_idx = 0;
 
-		index = ida_simple_get(&mmc_host_ida, min_idx, max_idx, GFP_KERNEL);
+		index = ida_alloc_range(&mmc_host_ida, min_idx, max_idx - 1,
+					GFP_KERNEL);
 		if (index < 0) {
 			kfree(host);
 			return NULL;
