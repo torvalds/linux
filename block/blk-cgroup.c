@@ -300,7 +300,7 @@ static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
  * @disk: gendisk the new blkg is associated with
  * @gfp_mask: allocation mask to use
  *
- * Allocate a new blkg assocating @blkcg and @q.
+ * Allocate a new blkg associating @blkcg and @disk.
  */
 static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct gendisk *disk,
 				   gfp_t gfp_mask)
