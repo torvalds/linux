@@ -241,8 +241,8 @@ static const u32 ath12k_smps_map[] = {
 	[WLAN_HT_CAP_SM_PS_DISABLED] = WMI_PEER_SMPS_PS_NONE,
 };
 
-static int ath12k_start_vdev_delay(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif);
+static int ath12k_start_vdev_delay(struct ath12k *ar,
+				   struct ath12k_vif *arvif);
 
 static const char *ath12k_mac_phymode_str(enum wmi_phy_mode mode)
 {
@@ -3718,7 +3718,7 @@ static int ath12k_mac_station_add(struct ath12k *ar,
 	if (ab->hw_params->vdev_start_delay &&
 	    !arvif->is_started &&
 	    arvif->vdev_type != WMI_VDEV_TYPE_AP) {
-		ret = ath12k_start_vdev_delay(ar->hw, vif);
+		ret = ath12k_start_vdev_delay(ar, arvif);
 		if (ret) {
 			ath12k_warn(ab, "failed to delay vdev start: %d\n", ret);
 			goto free_peer;
@@ -6411,12 +6411,11 @@ unlock:
 	mutex_unlock(&ar->conf_mutex);
 }
 
-static int ath12k_start_vdev_delay(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif)
+static int ath12k_start_vdev_delay(struct ath12k *ar,
+				   struct ath12k_vif *arvif)
 {
-	struct ath12k *ar = hw->priv;
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ieee80211_vif *vif = arvif->vif;
 	int ret;
 
 	if (WARN_ON(arvif->is_started))
