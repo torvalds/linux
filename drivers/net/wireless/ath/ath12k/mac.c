@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <net/mac80211.h>
@@ -1083,9 +1083,9 @@ static int ath12k_mac_monitor_stop(struct ath12k *ar)
 	return ret;
 }
 
-static int ath12k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
+static int ath12k_mac_config(struct ath12k *ar, u32 changed)
 {
-	struct ath12k *ar = hw->priv;
+	struct ieee80211_hw *hw = ar->hw;
 	struct ieee80211_conf *conf = &hw->conf;
 	int ret = 0;
 
@@ -1119,6 +1119,19 @@ exit:
 err_mon_del:
 	ath12k_mac_monitor_vdev_delete(ar);
 	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static int ath12k_mac_op_config(struct ieee80211_hw *hw, u32 changed)
+{
+	struct ath12k *ar = hw->priv;
+	int ret;
+
+	ret = ath12k_mac_config(ar, changed);
+	if (ret)
+		ath12k_warn(ar->ab, "failed to update config pdev idx %d: %d\n",
+			    ar->pdev_idx, ret);
+
 	return ret;
 }
 
