@@ -5434,12 +5434,11 @@ static int ath12k_set_he_mu_sounding_mode(struct ath12k *ar,
 	return ret;
 }
 
-static void ath12k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
-					     struct ieee80211_vif *vif)
+static void ath12k_mac_update_vif_offload(struct ath12k_vif *arvif)
 {
-	struct ath12k *ar = hw->priv;
+	struct ieee80211_vif *vif = arvif->vif;
+	struct ath12k *ar = arvif->ar;
 	struct ath12k_base *ab = ar->ab;
-	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	u32 param_id, param_value;
 	int ret;
 
@@ -5479,6 +5478,14 @@ static void ath12k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
 			    arvif->vdev_id, ret);
 		vif->offload_flags &= ~IEEE80211_OFFLOAD_DECAP_ENABLED;
 	}
+}
+
+static void ath12k_mac_op_update_vif_offload(struct ieee80211_hw *hw,
+					     struct ieee80211_vif *vif)
+{
+	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+
+	ath12k_mac_update_vif_offload(arvif);
 }
 
 static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
@@ -5584,7 +5591,7 @@ static int ath12k_mac_op_add_interface(struct ieee80211_hw *hw,
 	list_add(&arvif->list, &ar->arvifs);
 	spin_unlock_bh(&ar->data_lock);
 
-	ath12k_mac_op_update_vif_offload(hw, vif);
+	ath12k_mac_update_vif_offload(arvif);
 
 	nss = hweight32(ar->cfg_tx_chainmask) ? : 1;
 	ret = ath12k_wmi_vdev_set_param_cmd(ar, arvif->vdev_id,
