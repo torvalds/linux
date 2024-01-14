@@ -3986,10 +3986,10 @@ static void ath12k_mac_op_sta_rc_update(struct ieee80211_hw *hw,
 	ieee80211_queue_work(hw, &arsta->update_wk);
 }
 
-static int ath12k_conf_tx_uapsd(struct ath12k *ar, struct ieee80211_vif *vif,
+static int ath12k_conf_tx_uapsd(struct ath12k_vif *arvif,
 				u16 ac, bool enable)
 {
-	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ath12k *ar = arvif->ar;
 	u32 value;
 	int ret;
 
@@ -4043,17 +4043,16 @@ exit:
 	return ret;
 }
 
-static int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif,
-				 unsigned int link_id, u16 ac,
-				 const struct ieee80211_tx_queue_params *params)
+static int ath12k_mac_conf_tx(struct ath12k_vif *arvif,
+			      unsigned int link_id, u16 ac,
+			      const struct ieee80211_tx_queue_params *params)
 {
-	struct ath12k *ar = hw->priv;
-	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	struct wmi_wmm_params_arg *p = NULL;
+	struct ath12k *ar = arvif->ar;
+	struct ath12k_base *ab = ar->ab;
 	int ret;
 
-	mutex_lock(&ar->conf_mutex);
+	lockdep_assert_held(&ar->conf_mutex);
 
 	switch (ac) {
 	case IEEE80211_AC_VO:
@@ -4083,17 +4082,33 @@ static int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
 	ret = ath12k_wmi_send_wmm_update_cmd(ar, arvif->vdev_id,
 					     &arvif->wmm_params);
 	if (ret) {
-		ath12k_warn(ar->ab, "failed to set wmm params: %d\n", ret);
+		ath12k_warn(ab, "pdev idx %d failed to set wmm params: %d\n",
+			    ar->pdev_idx, ret);
 		goto exit;
 	}
 
-	ret = ath12k_conf_tx_uapsd(ar, vif, ac, params->uapsd);
-
+	ret = ath12k_conf_tx_uapsd(arvif, ac, params->uapsd);
 	if (ret)
-		ath12k_warn(ar->ab, "failed to set sta uapsd: %d\n", ret);
+		ath12k_warn(ab, "pdev idx %d failed to set sta uapsd: %d\n",
+			    ar->pdev_idx, ret);
 
 exit:
+	return ret;
+}
+
+static int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
+				 struct ieee80211_vif *vif,
+				 unsigned int link_id, u16 ac,
+				 const struct ieee80211_tx_queue_params *params)
+{
+	struct ath12k *ar = hw->priv;
+	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+	ret = ath12k_mac_conf_tx(arvif, link_id, ac, params);
 	mutex_unlock(&ar->conf_mutex);
+
 	return ret;
 }
 
