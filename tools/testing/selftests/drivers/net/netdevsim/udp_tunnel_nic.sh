@@ -233,6 +233,7 @@ function print_tables {
 function get_netdev_name {
     local -n old=$1
 
+    udevadm settle
     new=$(ls /sys/class/net)
 
     for netdev in $new; do
