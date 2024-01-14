@@ -78,7 +78,7 @@ void setup_udp_tunnel_sock(struct net *net, struct socket *sock,
 	udp_sk(sk)->gro_receive = cfg->gro_receive;
 	udp_sk(sk)->gro_complete = cfg->gro_complete;
 
-	udp_tunnel_encap_enable(sock);
+	udp_tunnel_encap_enable(sk);
 }
 EXPORT_SYMBOL_GPL(setup_udp_tunnel_sock);
 
