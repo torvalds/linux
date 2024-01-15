@@ -78,7 +78,8 @@ struct pt_regs;
  * following meaning:
  *
  *  - bit 0: indicates whether the in-kernel Vector context is active. The
- *    activation of this state disables the preemption.
+ *    activation of this state disables the preemption. On a non-RT kernel, it
+ *    also disable bh.
  */
 #define RISCV_KERNEL_MODE_V	0x1
 
