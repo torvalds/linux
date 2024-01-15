@@ -400,6 +400,13 @@ int bch2_check_btree_backpointers(struct bch_fs *c)
 	return ret;
 }
 
+static inline bool bkey_and_val_eq(struct bkey_s_c l, struct bkey_s_c r)
+{
+	return bpos_eq(l.k->p, r.k->p) &&
+		bkey_bytes(l.k) == bkey_bytes(r.k) &&
+		!memcmp(l.v, r.v, bkey_val_bytes(l.k));
+}
+
 static int check_bp_exists(struct btree_trans *trans,
 			   struct bpos bucket,
 			   struct bch_backpointer bp,
@@ -433,9 +440,7 @@ static int check_bp_exists(struct btree_trans *trans,
 
 	if (bp_k.k->type != KEY_TYPE_backpointer ||
 	    memcmp(bkey_s_c_to_backpointer(bp_k).v, &bp, sizeof(bp))) {
-		if (!bpos_eq(orig_k.k->p, last_flushed->k->k.p) ||
-		    bkey_bytes(orig_k.k) != bkey_bytes(&last_flushed->k->k) ||
-		    memcmp(orig_k.v, &last_flushed->k->v, bkey_val_bytes(orig_k.k))) {
+		if (!bkey_and_val_eq(orig_k, bkey_i_to_s_c(last_flushed->k))) {
 			bch2_bkey_buf_reassemble(&tmp, c, orig_k);
 
 			if (bp.level) {
