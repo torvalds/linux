@@ -422,6 +422,25 @@ static void umc_v12_0_ecc_info_query_ras_error_address(struct amdgpu_device *ade
 	}
 }
 
+static bool umc_v12_0_check_ecc_err_status(struct amdgpu_device *adev,
+			enum amdgpu_mca_error_type type, void *ras_error_status)
+{
+	uint64_t mc_umc_status = *(uint64_t *)ras_error_status;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+		return umc_v12_0_is_uncorrectable_error(adev, mc_umc_status);
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		return umc_v12_0_is_correctable_error(adev, mc_umc_status);
+	case AMDGPU_MCA_ERROR_TYPE_DE:
+		return umc_v12_0_is_deferred_error(adev, mc_umc_status);
+	default:
+		return false;
+	}
+
+	return false;
+}
+
 static void umc_v12_0_err_cnt_init(struct amdgpu_device *adev)
 {
 	amdgpu_umc_loop_channels(adev,
@@ -507,5 +526,6 @@ struct amdgpu_umc_ras umc_v12_0_ras = {
 	.query_ras_poison_mode = umc_v12_0_query_ras_poison_mode,
 	.ecc_info_query_ras_error_count = umc_v12_0_ecc_info_query_ras_error_count,
 	.ecc_info_query_ras_error_address = umc_v12_0_ecc_info_query_ras_error_address,
+	.check_ecc_err_status = umc_v12_0_check_ecc_err_status,
 };
 

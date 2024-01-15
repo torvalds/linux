@@ -2557,9 +2557,9 @@ static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct 
 		return 0;
 	}
 
-	if ((type == AMDGPU_MCA_ERROR_TYPE_UE && umc_v12_0_is_uncorrectable_error(adev, status0)) ||
-	    (type == AMDGPU_MCA_ERROR_TYPE_CE && (umc_v12_0_is_correctable_error(adev, status0) ||
-	     umc_v12_0_is_deferred_error(adev, status0))))
+	if (umc_v12_0_is_deferred_error(adev, status0) ||
+	    umc_v12_0_is_uncorrectable_error(adev, status0) ||
+	    umc_v12_0_is_correctable_error(adev, status0))
 		*count = 1;
 
 	return 0;

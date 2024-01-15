@@ -27,6 +27,16 @@
 #include "umc/umc_6_7_0_offset.h"
 #include "umc/umc_6_7_0_sh_mask.h"
 
+static bool amdgpu_mca_is_deferred_error(struct amdgpu_device *adev,
+					uint64_t mc_status)
+{
+	if (adev->umc.ras->check_ecc_err_status)
+		return adev->umc.ras->check_ecc_err_status(adev,
+				AMDGPU_MCA_ERROR_TYPE_DE, &mc_status);
+
+	return false;
+}
+
 void amdgpu_mca_query_correctable_error_count(struct amdgpu_device *adev,
 					      uint64_t mc_status_addr,
 					      unsigned long *error_count)
@@ -257,7 +267,7 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 			amdgpu_ras_error_statistic_ue_count(err_data,
 				&mcm_info, &err_addr, (uint64_t)count);
 		else {
-			if (!!(MCA_REG__STATUS__DEFERRED(entry->regs[MCA_REG_IDX_STATUS])))
+			if (amdgpu_mca_is_deferred_error(adev, entry->regs[MCA_REG_IDX_STATUS]))
 				amdgpu_ras_error_statistic_de_count(err_data,
 					&mcm_info, &err_addr, (uint64_t)count);
 			else
