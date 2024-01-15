@@ -263,6 +263,15 @@ fail:
 	return false;
 }
 
+static const u32 bar_test_pattern[] = {
+	0xA0A0A0A0,
+	0xA1A1A1A1,
+	0xA2A2A2A2,
+	0xA3A3A3A3,
+	0xA4A4A4A4,
+	0xA5A5A5A5,
+};
+
 static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 				  enum pci_barno barno)
 {
@@ -280,11 +289,12 @@ static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 		size = 0x4;
 
 	for (j = 0; j < size; j += 4)
-		pci_endpoint_test_bar_writel(test, barno, j, 0xA0A0A0A0);
+		pci_endpoint_test_bar_writel(test, barno, j,
+					     bar_test_pattern[barno]);
 
 	for (j = 0; j < size; j += 4) {
 		val = pci_endpoint_test_bar_readl(test, barno, j);
-		if (val != 0xA0A0A0A0)
+		if (val != bar_test_pattern[barno])
 			return false;
 	}
 

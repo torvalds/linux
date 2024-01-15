@@ -68,7 +68,7 @@ struct pci_epf_ops {
 };
 
 /**
- * struct pci_epf_event_ops - Callbacks for capturing the EPC events
+ * struct pci_epc_event_ops - Callbacks for capturing the EPC events
  * @core_init: Callback for the EPC initialization complete event
  * @link_up: Callback for the EPC link up event
  * @link_down: Callback for the EPC link down event

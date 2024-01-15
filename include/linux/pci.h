@@ -715,6 +715,7 @@ static inline bool pci_is_bridge(struct pci_dev *dev)
 
 /**
  * pci_is_vga - check if the PCI device is a VGA device
+ * @pdev: PCI device
  *
  * The PCI Code and ID Assignment spec, r1.15, secs 1.4 and 1.1, define
  * VGA Base Class and Sub-Classes:
@@ -885,7 +886,6 @@ struct module;
 
 /**
  * struct pci_driver - PCI driver structure
- * @node:	List of driver structures.
  * @name:	Driver name.
  * @id_table:	Pointer to table of device IDs the driver is
  *		interested in.  Most drivers should export this
@@ -940,7 +940,6 @@ struct module;
  *		own I/O address space.
  */
 struct pci_driver {
-	struct list_head	node;
 	const char		*name;
 	const struct pci_device_id *id_table;	/* Must be non-NULL for probe to be called */
 	int  (*probe)(struct pci_dev *dev, const struct pci_device_id *id);	/* New device inserted */
