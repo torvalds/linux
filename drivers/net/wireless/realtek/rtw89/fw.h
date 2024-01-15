@@ -4094,6 +4094,15 @@ static inline int rtw89_chip_h2c_update_beacon(struct rtw89_dev *rtwdev,
 	return chip->ops->h2c_update_beacon(rtwdev, rtwvif);
 }
 
+static inline int rtw89_chip_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
+						struct ieee80211_vif *vif,
+						struct ieee80211_sta *sta)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->h2c_assoc_cmac_tbl(rtwdev, vif, sta);
+}
+
 static inline
 int rtw89_chip_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			  bool valid, struct ieee80211_ampdu_params *params)
