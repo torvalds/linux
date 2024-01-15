@@ -117,7 +117,7 @@ void kernel_vector_end(void)
 	if (WARN_ON(!has_vector()))
 		return;
 
-	riscv_v_vstate_restore(current, task_pt_regs(current));
+	riscv_v_vstate_set_restore(current, task_pt_regs(current));
 
 	riscv_v_disable();
 

@@ -193,6 +193,15 @@ static inline void riscv_v_vstate_restore(struct task_struct *task,
 	}
 }
 
+static inline void riscv_v_vstate_set_restore(struct task_struct *task,
+					      struct pt_regs *regs)
+{
+	if ((regs->status & SR_VS) != SR_VS_OFF) {
+		set_tsk_thread_flag(task, TIF_RISCV_V_DEFER_RESTORE);
+		riscv_v_vstate_on(regs);
+	}
+}
+
 static inline void __switch_to_vector(struct task_struct *prev,
 				      struct task_struct *next)
 {
@@ -200,7 +209,7 @@ static inline void __switch_to_vector(struct task_struct *prev,
 
 	regs = task_pt_regs(prev);
 	riscv_v_vstate_save(prev, regs);
-	riscv_v_vstate_restore(next, task_pt_regs(next));
+	riscv_v_vstate_set_restore(next, task_pt_regs(next));
 }
 
 void riscv_v_vstate_ctrl_init(struct task_struct *tsk);
