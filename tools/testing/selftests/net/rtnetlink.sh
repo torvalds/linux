@@ -1244,21 +1244,19 @@ kci_test_address_proto()
 
 kci_test_enslave_bonding()
 {
-	local testns="testns"
 	local bond="bond123"
-	local dummy="dummy123"
 	local ret=0
 
-	run_cmd ip netns add "$testns"
-	if [ $ret -ne 0 ]; then
+	setup_ns testns
+	if [ $? -ne 0 ]; then
 		end_test "SKIP bonding tests: cannot add net namespace $testns"
 		return $ksft_skip
 	fi
 
 	run_cmd ip -netns $testns link add dev $bond type bond mode balance-rr
-	run_cmd ip -netns $testns link add dev $dummy type dummy
-	run_cmd ip -netns $testns link set dev $dummy up
-	run_cmd ip -netns $testns link set dev $dummy master $bond down
+	run_cmd ip -netns $testns link add dev $devdummy type dummy
+	run_cmd ip -netns $testns link set dev $devdummy up
+	run_cmd ip -netns $testns link set dev $devdummy master $bond down
 	if [ $ret -ne 0 ]; then
 		end_test "FAIL: initially up interface added to a bond and set down"
 		ip netns del "$testns"
