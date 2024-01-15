@@ -1236,7 +1236,7 @@ void hl_mmu_dr_free_pgt_node(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 	struct hl_device *hdev = ctx->hdev;
 
 	gen_pool_free(hdev->mmu_priv.dr.mmu_pgt_pool, pgt_info->phys_addr,
-			hdev->asic_prop.mmu_hop_table_size);
+			hdev->asic_prop.dmmu.hop_table_size);
 	hash_del(&pgt_info->node);
 	kfree((u64 *) (uintptr_t) pgt_info->shadow_addr);
 	kfree(pgt_info);
@@ -1245,18 +1245,18 @@ void hl_mmu_dr_free_pgt_node(struct hl_ctx *ctx, struct pgt_info *pgt_info)
 u64 hl_mmu_dr_get_phys_hop0_addr(struct hl_ctx *ctx)
 {
 	return ctx->hdev->asic_prop.mmu_pgt_addr +
-			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
+			(ctx->asid * ctx->hdev->asic_prop.dmmu.hop_table_size);
 }
 
 u64 hl_mmu_dr_get_hop0_addr(struct hl_ctx *ctx)
 {
 	return (u64) (uintptr_t) ctx->hdev->mmu_priv.dr.mmu_shadow_hop0 +
-			(ctx->asid * ctx->hdev->asic_prop.mmu_hop_table_size);
+			(ctx->asid * ctx->hdev->asic_prop.dmmu.hop_table_size);
 }
 
 u64 hl_mmu_dr_get_phys_addr(struct hl_ctx *ctx, u64 shadow_addr)
 {
-	u64 page_mask = ctx->hdev->asic_prop.mmu_hop_table_size - 1;
+	u64 page_mask = ctx->hdev->asic_prop.dmmu.hop_table_size - 1;
 	u64 shadow_hop_addr = shadow_addr & (~page_mask);
 	u64 pte_offset = shadow_addr & page_mask;
 	u64 phys_hop_addr;
@@ -1326,13 +1326,13 @@ u64 hl_mmu_dr_alloc_hop(struct hl_ctx *ctx)
 		return ULLONG_MAX;
 
 	phys_addr = (u64) gen_pool_alloc(hdev->mmu_priv.dr.mmu_pgt_pool,
-					prop->mmu_hop_table_size);
+					prop->dmmu.hop_table_size);
 	if (!phys_addr) {
 		dev_err(hdev->dev, "failed to allocate page\n");
 		goto pool_add_err;
 	}
 
-	shadow_addr = (u64) (uintptr_t) kzalloc(prop->mmu_hop_table_size,
+	shadow_addr = (u64) (uintptr_t) kzalloc(prop->dmmu.hop_table_size,
 						GFP_KERNEL);
 	if (!shadow_addr)
 		goto shadow_err;
@@ -1347,7 +1347,7 @@ u64 hl_mmu_dr_alloc_hop(struct hl_ctx *ctx)
 
 shadow_err:
 	gen_pool_free(hdev->mmu_priv.dr.mmu_pgt_pool,
-			phys_addr, prop->mmu_hop_table_size);
+			phys_addr, prop->dmmu.hop_table_size);
 pool_add_err:
 	kfree(pgt_info);
 
@@ -1379,7 +1379,7 @@ int hl_mmu_dr_init(struct hl_device *hdev)
 	int rc;
 
 	hdev->mmu_priv.dr.mmu_pgt_pool =
-			gen_pool_create(__ffs(prop->mmu_hop_table_size), -1);
+			gen_pool_create(__ffs(prop->dmmu.hop_table_size), -1);
 
 	if (!hdev->mmu_priv.dr.mmu_pgt_pool) {
 		dev_err(hdev->dev, "Failed to create page gen pool\n");
@@ -1387,8 +1387,8 @@ int hl_mmu_dr_init(struct hl_device *hdev)
 	}
 
 	rc = gen_pool_add(hdev->mmu_priv.dr.mmu_pgt_pool, prop->mmu_pgt_addr +
-			prop->mmu_hop0_tables_total_size,
-			prop->dmmu.pgt_size - prop->mmu_hop0_tables_total_size,
+			prop->dmmu.hop0_tables_total_size,
+			prop->dmmu.pgt_size - prop->dmmu.hop0_tables_total_size,
 			-1);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to add memory to page gen pool\n");
@@ -1396,7 +1396,7 @@ int hl_mmu_dr_init(struct hl_device *hdev)
 	}
 
 	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvcalloc(prop->max_asid,
-						prop->mmu_hop_table_size, GFP_KERNEL);
+						prop->dmmu.hop_table_size, GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.dr.mmu_shadow_hop0)) {
 		rc = -ENOMEM;
 		goto err_pool_add;

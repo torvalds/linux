@@ -2467,8 +2467,6 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->dmmu.pgt_size = HMMU_PAGE_TABLES_SIZE;
 	prop->mmu_pte_size = HL_PTE_SIZE;
-	prop->mmu_hop_table_size = HOP_TABLE_SIZE_512_PTE;
-	prop->mmu_hop0_tables_total_size = HOP_TABLE_SIZE_512_PTE * prop->max_asid;
 
 	prop->dmmu.hop_shifts[MMU_HOP0] = DHOP0_SHIFT;
 	prop->dmmu.hop_shifts[MMU_HOP1] = DHOP1_SHIFT;
@@ -2482,8 +2480,8 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->dmmu.num_hops = MMU_ARCH_4_HOPS;
 	prop->dmmu.last_mask = LAST_MASK;
 	prop->dmmu.host_resident = 0;
-	prop->dmmu.hop_table_size = prop->mmu_hop_table_size;
-	prop->dmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
+	prop->dmmu.hop_table_size = HOP_TABLE_SIZE_512_PTE;
+	prop->dmmu.hop0_tables_total_size = HOP_TABLE_SIZE_512_PTE * prop->max_asid;
 
 	/* As we need to set the pgt address in dram for HMMU init so we cannot
 	 * wait to the fw cpucp info to set the dram props as mmu init comes before
@@ -2500,8 +2498,8 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->pmmu.host_resident = 1;
 	prop->pmmu.num_hops = MMU_ARCH_6_HOPS;
 	prop->pmmu.last_mask = LAST_MASK;
-	prop->pmmu.hop_table_size = prop->mmu_hop_table_size;
-	prop->pmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
+	prop->pmmu.hop_table_size = HOP_TABLE_SIZE_512_PTE;
+	prop->pmmu.hop0_tables_total_size = HOP_TABLE_SIZE_512_PTE * prop->max_asid;
 
 	prop->hints_host_reserved_va_range.start_addr = RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START;
 	prop->hints_host_reserved_va_range.end_addr = RESERVED_VA_RANGE_FOR_ARC_ON_HOST_END;
@@ -5934,7 +5932,7 @@ static int gaudi2_mmu_update_hop0_addr(struct hl_device *hdev, u32 stlb_base,
 		if (host_resident_pgt)
 			hop0_addr = hdev->mmu_priv.hr.mmu_asid_hop0[asid].phys_addr;
 		else
-			hop0_addr = prop->mmu_pgt_addr + (asid * prop->mmu_hop_table_size);
+			hop0_addr = prop->mmu_pgt_addr + (asid * prop->dmmu.hop_table_size);
 
 		rc = gaudi2_mmu_update_asid_hop0_addr(hdev, stlb_base, asid, hop0_addr);
 		if (rc) {

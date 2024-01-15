@@ -594,8 +594,6 @@ struct hl_hints_range {
  *                 we display to the user
  * @mmu_pgt_size: MMU page tables total size.
  * @mmu_pte_size: PTE size in MMU page tables.
- * @mmu_hop_table_size: MMU hop table size.
- * @mmu_hop0_tables_total_size: total size of MMU hop0 tables.
  * @dram_page_size: The DRAM physical page size.
  * @cfg_size: configuration space size on SRAM.
  * @sram_size: total size of SRAM.
@@ -747,8 +745,6 @@ struct asic_fixed_properties {
 	u32				clk_pll_index;
 	u32				mmu_pgt_size;
 	u32				mmu_pte_size;
-	u32				mmu_hop_table_size;
-	u32				mmu_hop0_tables_total_size;
 	u32				dram_page_size;
 	u32				cfg_size;
 	u32				sram_size;
