@@ -325,14 +325,14 @@ xfs_buf_alloc_kmem(
 	struct xfs_buf	*bp,
 	xfs_buf_flags_t	flags)
 {
-	xfs_km_flags_t	kmflag_mask = KM_NOFS;
+	gfp_t		gfp_mask = GFP_NOFS | __GFP_NOFAIL;
 	size_t		size = BBTOB(bp->b_length);
 
 	/* Assure zeroed buffer for non-read cases. */
 	if (!(flags & XBF_READ))
-		kmflag_mask |= KM_ZERO;
+		gfp_mask |= __GFP_ZERO;
 
-	bp->b_addr = kmem_alloc(size, kmflag_mask);
+	bp->b_addr = kmalloc(size, gfp_mask);
 	if (!bp->b_addr)
 		return -ENOMEM;
 

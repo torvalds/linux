@@ -4040,31 +4040,6 @@ TRACE_EVENT(xfs_pwork_init,
 		  __entry->nr_threads, __entry->pid)
 )
 
-DECLARE_EVENT_CLASS(xfs_kmem_class,
-	TP_PROTO(ssize_t size, int flags, unsigned long caller_ip),
-	TP_ARGS(size, flags, caller_ip),
-	TP_STRUCT__entry(
-		__field(ssize_t, size)
-		__field(int, flags)
-		__field(unsigned long, caller_ip)
-	),
-	TP_fast_assign(
-		__entry->size = size;
-		__entry->flags = flags;
-		__entry->caller_ip = caller_ip;
-	),
-	TP_printk("size %zd flags 0x%x caller %pS",
-		  __entry->size,
-		  __entry->flags,
-		  (char *)__entry->caller_ip)
-)
-
-#define DEFINE_KMEM_EVENT(name) \
-DEFINE_EVENT(xfs_kmem_class, name, \
-	TP_PROTO(ssize_t size, int flags, unsigned long caller_ip), \
-	TP_ARGS(size, flags, caller_ip))
-DEFINE_KMEM_EVENT(kmem_alloc);
-
 TRACE_EVENT(xfs_check_new_dalign,
 	TP_PROTO(struct xfs_mount *mp, int new_dalign, xfs_ino_t calc_rootino),
 	TP_ARGS(mp, new_dalign, calc_rootino),

@@ -313,7 +313,7 @@ xfs_filestream_create_association(
 	 * we return a referenced AG, the allocation can still go ahead just
 	 * fine.
 	 */
-	item = kmem_alloc(sizeof(*item), KM_MAYFAIL);
+	item = kmalloc(sizeof(*item), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!item)
 		goto out_put_fstrms;
 

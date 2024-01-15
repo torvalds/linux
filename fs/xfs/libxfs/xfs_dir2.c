@@ -333,7 +333,7 @@ xfs_dir_cilookup_result(
 					!(args->op_flags & XFS_DA_OP_CILOOKUP))
 		return -EEXIST;
 
-	args->value = kmem_alloc(len, KM_NOFS | KM_MAYFAIL);
+	args->value = kmalloc(len, GFP_NOFS | __GFP_RETRY_MAYFAIL);
 	if (!args->value)
 		return -ENOMEM;
 

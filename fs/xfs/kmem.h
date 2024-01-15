@@ -15,48 +15,6 @@
  * General memory allocation interfaces
  */
 
-typedef unsigned __bitwise xfs_km_flags_t;
-#define KM_NOFS		((__force xfs_km_flags_t)0x0004u)
-#define KM_MAYFAIL	((__force xfs_km_flags_t)0x0008u)
-#define KM_ZERO		((__force xfs_km_flags_t)0x0010u)
-#define KM_NOLOCKDEP	((__force xfs_km_flags_t)0x0020u)
-
-/*
- * We use a special process flag to avoid recursive callbacks into
- * the filesystem during transactions.  We will also issue our own
- * warnings, so we explicitly skip any generic ones (silly of us).
- */
-static inline gfp_t
-kmem_flags_convert(xfs_km_flags_t flags)
-{
-	gfp_t	lflags;
-
-	BUG_ON(flags & ~(KM_NOFS | KM_MAYFAIL | KM_ZERO | KM_NOLOCKDEP));
-
-	lflags = GFP_KERNEL | __GFP_NOWARN;
-	if (flags & KM_NOFS)
-		lflags &= ~__GFP_FS;
-
-	/*
-	 * Default page/slab allocator behavior is to retry for ever
-	 * for small allocations. We can override this behavior by using
-	 * __GFP_RETRY_MAYFAIL which will tell the allocator to retry as long
-	 * as it is feasible but rather fail than retry forever for all
-	 * request sizes.
-	 */
-	if (flags & KM_MAYFAIL)
-		lflags |= __GFP_RETRY_MAYFAIL;
-
-	if (flags & KM_ZERO)
-		lflags |= __GFP_ZERO;
-
-	if (flags & KM_NOLOCKDEP)
-		lflags |= __GFP_NOLOCKDEP;
-
-	return lflags;
-}
-
-extern void *kmem_alloc(size_t, xfs_km_flags_t);
 static inline void  kmem_free(const void *ptr)
 {
 	kvfree(ptr);

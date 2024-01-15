@@ -160,7 +160,7 @@ xfs_iwalk_alloc(
 
 	/* Allocate a prefetch buffer for inobt records. */
 	size = iwag->sz_recs * sizeof(struct xfs_inobt_rec_incore);
-	iwag->recs = kmem_alloc(size, KM_MAYFAIL);
+	iwag->recs = kmalloc(size, GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (iwag->recs == NULL)
 		return -ENOMEM;
 

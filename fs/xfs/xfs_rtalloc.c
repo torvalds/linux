@@ -903,7 +903,7 @@ xfs_growfs_rt(
 	/*
 	 * Allocate a new (fake) mount/sb.
 	 */
-	nmp = kmem_alloc(sizeof(*nmp), 0);
+	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL | __GFP_NOFAIL);
 	/*
 	 * Loop over the bitmap blocks.
 	 * We will do everything one bitmap block at a time.

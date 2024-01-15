@@ -1987,7 +1987,7 @@ static int xfs_init_fs_context(
 {
 	struct xfs_mount	*mp;
 
-	mp = kmem_alloc(sizeof(struct xfs_mount), KM_ZERO);
+	mp = kzalloc(sizeof(struct xfs_mount), GFP_KERNEL | __GFP_NOFAIL);
 	if (!mp)
 		return -ENOMEM;
 

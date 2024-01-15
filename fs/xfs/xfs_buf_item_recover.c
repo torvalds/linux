@@ -85,7 +85,7 @@ xlog_add_buffer_cancelled(
 		return false;
 	}
 
-	bcp = kmem_alloc(sizeof(struct xfs_buf_cancel), 0);
+	bcp = kmalloc(sizeof(struct xfs_buf_cancel), GFP_KERNEL | __GFP_NOFAIL);
 	bcp->bc_blkno = blkno;
 	bcp->bc_len = len;
 	bcp->bc_refcount = 1;

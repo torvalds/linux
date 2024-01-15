@@ -997,7 +997,8 @@ xfs_qm_reset_dqcounts_buf(
 	if (qip->i_nblocks == 0)
 		return 0;
 
-	map = kmem_alloc(XFS_DQITER_MAP_SIZE * sizeof(*map), 0);
+	map = kmalloc(XFS_DQITER_MAP_SIZE * sizeof(*map),
+			GFP_KERNEL | __GFP_NOFAIL);
 
 	lblkno = 0;
 	maxlblkcnt = XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
