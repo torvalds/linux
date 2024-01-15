@@ -9,6 +9,12 @@
 static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *,
 					    struct bch_replicas_cpu *);
 
+/* Some (buggy!) compilers don't allow memcmp to be passed as a pointer */
+static int bch2_memcmp(const void *l, const void *r, size_t size)
+{
+	return memcmp(l, r, size);
+}
+
 /* Replicas tracking - in memory: */
 
 static void verify_replicas_entry(struct bch_replicas_entry_v1 *e)
@@ -33,7 +39,7 @@ void bch2_replicas_entry_sort(struct bch_replicas_entry_v1 *e)
 
 static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 {
-	eytzinger0_sort(r->entries, r->nr, r->entry_size, memcmp, NULL);
+	eytzinger0_sort(r->entries, r->nr, r->entry_size, bch2_memcmp, NULL);
 }
 
 static void bch2_replicas_entry_v0_to_text(struct printbuf *out,
@@ -821,7 +827,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 	sort_cmp_size(cpu_r->entries,
 		      cpu_r->nr,
 		      cpu_r->entry_size,
-		      memcmp, NULL);
+		      bch2_memcmp, NULL);
 
 	for (i = 0; i < cpu_r->nr; i++) {
 		struct bch_replicas_entry_v1 *e =
