@@ -6,6 +6,22 @@
 #include <linux/platform_device.h>
 #include "aspeed-rsss.h"
 
+static u8 data_rev[SRAM_BLOCK_SIZE];
+static u8 data[SRAM_BLOCK_SIZE];
+static int dbg;
+
+static void hexdump(char *name, unsigned char *buf, unsigned int len)
+{
+	if (!dbg)
+		return;
+
+#ifdef CONFIG_CRYPTO_DEV_ASPEED_DEBUG
+	pr_info("%s:\n", name);
+	print_hex_dump(KERN_CONT, "", DUMP_PREFIX_OFFSET,
+		       16, 1, buf, len, false);
+#endif
+}
+
 static inline struct akcipher_request *
 	akcipher_request_cast(struct crypto_async_request *req)
 {
@@ -83,13 +99,14 @@ static void aspeed_rsa_sg_copy_to_buffer(struct aspeed_rsss_dev *rsss_dev,
 					 void __iomem *buf, struct scatterlist *src,
 					 size_t nbytes)
 {
-	static u8 data[SRAM_BLOCK_SIZE] = {0};
-	static u8 data_rev[SRAM_BLOCK_SIZE] = {0};
-
 	RSSS_DBG(rsss_dev, "src len:%zu\n", nbytes);
+
+	memset(data_rev, 0, SRAM_BLOCK_SIZE);
+	memset(data, 0, SRAM_BLOCK_SIZE);
 
 	scatterwalk_map_and_copy(data, src, 0, nbytes, 0);
 
+	hexdump("data", data, nbytes);
 	for (int i = 0; i < nbytes; i++)
 		data_rev[nbytes - i - 1] = data[i];
 
@@ -108,8 +125,6 @@ static int aspeed_rsa_ctx_copy(struct aspeed_rsss_dev *rsss_dev, void __iomem *d
 			       const u8 *src, size_t nbytes,
 			       enum aspeed_rsa_key_mode mode)
 {
-	static u8 data[SRAM_BLOCK_SIZE] = {0};
-
 	RSSS_DBG(rsss_dev, "nbytes:%zu, mode:%d\n", nbytes, mode);
 
 	if (nbytes > ASPEED_RSA_MAX_KEY_LEN)
@@ -137,8 +152,8 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 	struct aspeed_engine_rsa *rsa_engine = &rsss_dev->rsa_engine;
 	struct akcipher_request *req = rsa_engine->req;
 	struct scatterlist *out_sg = req->dst;
-	static u8 data[SRAM_BLOCK_SIZE];
 	size_t nbytes = req->dst_len;
+	u8 data[SRAM_BLOCK_SIZE];
 	u32 val;
 
 	RSSS_DBG(rsss_dev, "nbytes:%zu\n", nbytes);
@@ -151,8 +166,6 @@ static int aspeed_rsa_transfer(struct aspeed_rsss_dev *rsss_dev)
 		data[nbytes - i - 1] = readb(rsa_engine->sram_data + i);
 
 	scatterwalk_map_and_copy(data, out_sg, 0, nbytes, 1);
-
-	memset_io(rsa_engine->sram_data, 0, SRAM_BLOCK_SIZE);
 
 	return aspeed_rsa_complete(rsss_dev, 0);
 }
@@ -259,6 +272,10 @@ static int aspeed_rsa_trigger(struct aspeed_rsss_dev *rsss_dev)
 					 ASPEED_RSA_EXP_MODE);
 	}
 
+	hexdump("exp", rsa_engine->sram_exp, ctx->e_sz);
+	hexdump("mod", rsa_engine->sram_mod, ctx->n_sz);
+	hexdump("data", rsa_engine->sram_data, req->src_len);
+
 	rsa_engine->resume = aspeed_rsa_transfer;
 
 	ast_rsss_write(rsss_dev, (ne << 16) + nm,
@@ -357,6 +374,8 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	struct aspeed_rsss_dev *rsss_dev = ctx->rsss_dev;
 	int ret;
 
+	RSSS_DBG(rsss_dev, "\n");
+
 	if (priv)
 		ret = rsa_parse_priv_key(&ctx->key, key, keylen);
 	else
@@ -374,15 +393,18 @@ static int aspeed_rsa_setkey(struct crypto_akcipher *tfm, const void *key,
 	if (ctx->key.n_sz > ASPEED_RSA_MAX_KEY_LEN)
 		return 0;
 
+	hexdump("n", (u8 *)ctx->key.n, ctx->key.n_sz);
 	ret = aspeed_rsa_set_n(ctx, (u8 *)ctx->key.n, ctx->key.n_sz);
 	if (ret)
 		goto err;
 
+	hexdump("e", (u8 *)ctx->key.e, ctx->key.e_sz);
 	ret = aspeed_rsa_set_e(ctx, (u8 *)ctx->key.e, ctx->key.e_sz);
 	if (ret)
 		goto err;
 
 	if (priv) {
+		hexdump("d", (u8 *)ctx->key.d, ctx->key.d_sz);
 		ret = aspeed_rsa_set_d(ctx, (u8 *)ctx->key.d, ctx->key.d_sz);
 		if (ret)
 			goto err;

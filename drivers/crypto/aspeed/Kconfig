@@ -1,7 +1,22 @@
 config CRYPTO_DEV_ASPEED
-	tristate "Support for Aspeed cryptographic engine driver"
+	bool "Support for Aspeed cryptographic engine driver"
 	depends on ARCH_ASPEED || COMPILE_TEST
 	select CRYPTO_ENGINE
+	help
+	  Say Y here to get to see options for Aspeed hardware crypto devices
+
+if CRYPTO_DEV_ASPEED
+
+config CRYPTO_DEV_ASPEED_DEBUG
+	bool "Enable Aspeed crypto debug messages"
+	help
+	  Print Aspeed crypto debugging messages if you use this
+	  option to ask for those messages.
+	  Avoid enabling this option for production build to
+	  minimize driver timing.
+
+config CRYPTO_DEV_ASPEED_HACE
+	tristate "Enable Aspeed Hash & Crypto Engine (HACE) Engine"
 	help
 	  Hash and Crypto Engine (HACE) is designed to accelerate the
 	  throughput of hash data digest, encryption and decryption.
@@ -9,18 +24,9 @@ config CRYPTO_DEV_ASPEED
 	  Select y here to have support for the cryptographic driver
 	  available on Aspeed SoC.
 
-config CRYPTO_DEV_ASPEED_DEBUG
-	bool "Enable Aspeed crypto debug messages"
-	depends on CRYPTO_DEV_ASPEED
-	help
-	  Print Aspeed crypto debugging messages if you use this
-	  option to ask for those messages.
-	  Avoid enabling this option for production build to
-	  minimize driver timing.
-
 config CRYPTO_DEV_ASPEED_HACE_HASH
 	bool "Enable Aspeed Hash & Crypto Engine (HACE) hash"
-	depends on CRYPTO_DEV_ASPEED
+	depends on CRYPTO_DEV_ASPEED_HACE
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
@@ -33,7 +39,7 @@ config CRYPTO_DEV_ASPEED_HACE_HASH
 
 config CRYPTO_DEV_ASPEED_HACE_CRYPTO
 	bool "Enable Aspeed Hash & Crypto Engine (HACE) crypto"
-	depends on CRYPTO_DEV_ASPEED
+	depends on CRYPTO_DEV_ASPEED_HACE
 	select CRYPTO_AES
 	select CRYPTO_DES
 	select CRYPTO_ECB
@@ -48,9 +54,8 @@ config CRYPTO_DEV_ASPEED_HACE_CRYPTO
 	  with ECB/CBC/CFB/OFB/CTR options.
 
 config CRYPTO_DEV_ASPEED_ACRY
-	bool "Enable Aspeed ACRY RSA Engine"
-	depends on CRYPTO_DEV_ASPEED && MACH_ASPEED_G6
-	select CRYPTO_ENGINE
+	tristate "Enable Aspeed ACRY RSA Engine"
+	depends on MACH_ASPEED_G6
 	select CRYPTO_RSA
 	help
 	  Select here to enable Aspeed ECC/RSA Engine (ACRY)
@@ -59,9 +64,8 @@ config CRYPTO_DEV_ASPEED_ACRY
 	  and signature/verification.
 
 config CRYPTO_DEV_ASPEED_RSSS
-	bool "Enable Aspeed RSSS Engine"
-	depends on CRYPTO_DEV_ASPEED && MACH_ASPEED_G7
-	select CRYPTO_ENGINE
+	tristate "Enable Aspeed RSSS Engine"
+	depends on MACH_ASPEED_G7
 	select CRYPTO_RSA
 	select CRYPTO_SHA3
 	select CRYPTO_SM3
@@ -76,9 +80,8 @@ config CRYPTO_DEV_ASPEED_RSSS
 	  layout.
 
 config CRYPTO_DEV_ASPEED_ECDSA
-	bool "Enable Aspeed ECDSA Engine"
-	depends on CRYPTO_DEV_ASPEED && MACH_ASPEED_G7
-	select CRYPTO_ENGINE
+	tristate "Enable Aspeed ECDSA Engine"
+	depends on MACH_ASPEED_G7
 	select CRYPTO_ECC
 	select CRYPTO_ECDSA
 	select CRYPTO_AKCIPHER
@@ -88,3 +91,4 @@ config CRYPTO_DEV_ASPEED_ECDSA
 	  using curves P-256, P-384.
 	  Only signature verification is implemented.
 
+endif #CRYPTO_DEV_ASPEED
