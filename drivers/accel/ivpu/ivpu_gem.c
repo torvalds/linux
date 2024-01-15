@@ -222,6 +222,12 @@ static int ivpu_bo_open(struct drm_gem_object *obj, struct drm_file *file)
 	struct ivpu_bo *bo = to_ivpu_bo(obj);
 	struct ivpu_addr_range *range;
 
+	if (bo->ctx) {
+		ivpu_warn(vdev, "Can't add BO to ctx %u: already in ctx %u\n",
+			  file_priv->ctx.id, bo->ctx->id);
+		return -EALREADY;
+	}
+
 	if (bo->flags & DRM_IVPU_BO_SHAVE_MEM)
 		range = &vdev->hw->ranges.shave;
 	else if (bo->flags & DRM_IVPU_BO_DMA_MEM)
@@ -252,47 +258,9 @@ static void ivpu_bo_free(struct drm_gem_object *obj)
 	drm_gem_shmem_free(&bo->base);
 }
 
-static const struct dma_buf_ops ivpu_bo_dmabuf_ops =  {
-	.cache_sgt_mapping = true,
-	.attach = drm_gem_map_attach,
-	.detach = drm_gem_map_detach,
-	.map_dma_buf = drm_gem_map_dma_buf,
-	.unmap_dma_buf = drm_gem_unmap_dma_buf,
-	.release = drm_gem_dmabuf_release,
-	.mmap = drm_gem_dmabuf_mmap,
-	.vmap = drm_gem_dmabuf_vmap,
-	.vunmap = drm_gem_dmabuf_vunmap,
-};
-
-static struct dma_buf *ivpu_bo_export(struct drm_gem_object *obj, int flags)
-{
-	struct drm_device *dev = obj->dev;
-	struct dma_buf_export_info exp_info = {
-		.exp_name = KBUILD_MODNAME,
-		.owner = dev->driver->fops->owner,
-		.ops = &ivpu_bo_dmabuf_ops,
-		.size = obj->size,
-		.flags = flags,
-		.priv = obj,
-		.resv = obj->resv,
-	};
-	void *sgt;
-
-	/*
-	 * Make sure that pages are allocated and dma-mapped before exporting the bo.
-	 * DMA-mapping is required if the bo will be imported to the same device.
-	 */
-	sgt = drm_gem_shmem_get_pages_sgt(to_drm_gem_shmem_obj(obj));
-	if (IS_ERR(sgt))
-		return sgt;
-
-	return drm_gem_dmabuf_export(dev, &exp_info);
-}
-
 static const struct drm_gem_object_funcs ivpu_gem_funcs = {
 	.free = ivpu_bo_free,
 	.open = ivpu_bo_open,
-	.export = ivpu_bo_export,
 	.print_info = drm_gem_shmem_object_print_info,
 	.pin = drm_gem_shmem_object_pin,
 	.unpin = drm_gem_shmem_object_unpin,
