@@ -2904,7 +2904,6 @@ fail:
 	return ret;
 }
 
-#define H2C_JOIN_INFO_LEN 4
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   struct rtw89_sta *rtwsta, bool dis_conn)
 {
@@ -2912,6 +2911,8 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
 	u8 self_role = rtwvif->self_role;
 	u8 net_type = rtwvif->net_type;
+	struct rtw89_h2c_join *h2c;
+	u32 len = sizeof(*h2c);
 	int ret;
 
 	if (net_type == RTW89_NET_TYPE_AP_MODE && rtwsta) {
@@ -2919,30 +2920,32 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		net_type = dis_conn ? RTW89_NET_TYPE_NO_LINK : net_type;
 	}
 
-	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_JOIN_INFO_LEN);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c join\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_JOIN_INFO_LEN);
-	SET_JOININFO_MACID(skb->data, mac_id);
-	SET_JOININFO_OP(skb->data, dis_conn);
-	SET_JOININFO_BAND(skb->data, rtwvif->mac_idx);
-	SET_JOININFO_WMM(skb->data, rtwvif->wmm);
-	SET_JOININFO_TGR(skb->data, rtwvif->trigger);
-	SET_JOININFO_ISHESTA(skb->data, 0);
-	SET_JOININFO_DLBW(skb->data, 0);
-	SET_JOININFO_TF_MAC_PAD(skb->data, 0);
-	SET_JOININFO_DL_T_PE(skb->data, 0);
-	SET_JOININFO_PORT_ID(skb->data, rtwvif->port);
-	SET_JOININFO_NET_TYPE(skb->data, net_type);
-	SET_JOININFO_WIFI_ROLE(skb->data, rtwvif->wifi_role);
-	SET_JOININFO_SELF_ROLE(skb->data, self_role);
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_join *)skb->data;
+
+	h2c->w0 = le32_encode_bits(mac_id, RTW89_H2C_JOININFO_W0_MACID) |
+		  le32_encode_bits(dis_conn, RTW89_H2C_JOININFO_W0_OP) |
+		  le32_encode_bits(rtwvif->mac_idx, RTW89_H2C_JOININFO_W0_BAND) |
+		  le32_encode_bits(rtwvif->wmm, RTW89_H2C_JOININFO_W0_WMM) |
+		  le32_encode_bits(rtwvif->trigger, RTW89_H2C_JOININFO_W0_TGR) |
+		  le32_encode_bits(0, RTW89_H2C_JOININFO_W0_ISHESTA) |
+		  le32_encode_bits(0, RTW89_H2C_JOININFO_W0_DLBW) |
+		  le32_encode_bits(0, RTW89_H2C_JOININFO_W0_TF_MAC_PAD) |
+		  le32_encode_bits(0, RTW89_H2C_JOININFO_W0_DL_T_PE) |
+		  le32_encode_bits(rtwvif->port, RTW89_H2C_JOININFO_W0_PORT_ID) |
+		  le32_encode_bits(net_type, RTW89_H2C_JOININFO_W0_NET_TYPE) |
+		  le32_encode_bits(rtwvif->wifi_role, RTW89_H2C_JOININFO_W0_WIFI_ROLE) |
+		  le32_encode_bits(self_role, RTW89_H2C_JOININFO_W0_SELF_ROLE);
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
 			      H2C_FUNC_MAC_JOININFO, 0, 1,
-			      H2C_JOIN_INFO_LEN);
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

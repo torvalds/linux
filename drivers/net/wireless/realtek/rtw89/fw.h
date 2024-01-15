@@ -1747,70 +1747,23 @@ static inline void SET_FWROLE_MAINTAIN_WIFI_ROLE(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(16, 13));
 }
 
-static inline void SET_JOININFO_MACID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
-}
+struct rtw89_h2c_join {
+	__le32 w0;
+} __packed;
 
-static inline void SET_JOININFO_OP(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(8));
-}
-
-static inline void SET_JOININFO_BAND(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(9));
-}
-
-static inline void SET_JOININFO_WMM(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(11, 10));
-}
-
-static inline void SET_JOININFO_TGR(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(12));
-}
-
-static inline void SET_JOININFO_ISHESTA(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, BIT(13));
-}
-
-static inline void SET_JOININFO_DLBW(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(15, 14));
-}
-
-static inline void SET_JOININFO_TF_MAC_PAD(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(17, 16));
-}
-
-static inline void SET_JOININFO_DL_T_PE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(20, 18));
-}
-
-static inline void SET_JOININFO_PORT_ID(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(23, 21));
-}
-
-static inline void SET_JOININFO_NET_TYPE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(25, 24));
-}
-
-static inline void SET_JOININFO_WIFI_ROLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(29, 26));
-}
-
-static inline void SET_JOININFO_SELF_ROLE(void *h2c, u32 val)
-{
-	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 30));
-}
+#define RTW89_H2C_JOININFO_W0_MACID GENMASK(7, 0)
+#define RTW89_H2C_JOININFO_W0_OP BIT(8)
+#define RTW89_H2C_JOININFO_W0_BAND BIT(9)
+#define RTW89_H2C_JOININFO_W0_WMM GENMASK(11, 10)
+#define RTW89_H2C_JOININFO_W0_TGR BIT(12)
+#define RTW89_H2C_JOININFO_W0_ISHESTA BIT(13)
+#define RTW89_H2C_JOININFO_W0_DLBW GENMASK(15, 14)
+#define RTW89_H2C_JOININFO_W0_TF_MAC_PAD GENMASK(17, 16)
+#define RTW89_H2C_JOININFO_W0_DL_T_PE GENMASK(20, 18)
+#define RTW89_H2C_JOININFO_W0_PORT_ID GENMASK(23, 21)
+#define RTW89_H2C_JOININFO_W0_NET_TYPE GENMASK(25, 24)
+#define RTW89_H2C_JOININFO_W0_WIFI_ROLE GENMASK(29, 26)
+#define RTW89_H2C_JOININFO_W0_SELF_ROLE GENMASK(31, 30)
 
 struct rtw89_h2c_notify_dbcc {
 	__le32 w0;
