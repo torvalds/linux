@@ -445,7 +445,8 @@ xfs_bui_recover_work(
 	if (error)
 		return ERR_PTR(error);
 
-	bi = kmem_cache_zalloc(xfs_bmap_intent_cache, GFP_NOFS | __GFP_NOFAIL);
+	bi = kmem_cache_zalloc(xfs_bmap_intent_cache,
+			GFP_KERNEL | __GFP_NOFAIL);
 	bi->bi_whichfork = (map->me_flags & XFS_BMAP_EXTENT_ATTR_FORK) ?
 			XFS_ATTR_FORK : XFS_DATA_FORK;
 	bi->bi_type = map->me_flags & XFS_BMAP_EXTENT_TYPE_MASK;

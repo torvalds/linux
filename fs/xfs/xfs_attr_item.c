@@ -513,7 +513,7 @@ xfs_attri_recover_work(
 		return ERR_PTR(error);
 
 	attr = kzalloc(sizeof(struct xfs_attr_intent) +
-			sizeof(struct xfs_da_args), GFP_NOFS | __GFP_NOFAIL);
+			sizeof(struct xfs_da_args), GFP_KERNEL | __GFP_NOFAIL);
 	args = (struct xfs_da_args *)(attr + 1);
 
 	attr->xattri_da_args = args;
