@@ -570,13 +570,14 @@ static void quirk_extend_bar_to_page(struct pci_dev *dev)
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		struct resource *r = &dev->resource[i];
+		const char *r_name = pci_resource_name(dev, i);
 
 		if (r->flags & IORESOURCE_MEM && resource_size(r) < PAGE_SIZE) {
 			r->end = PAGE_SIZE - 1;
 			r->start = 0;
 			r->flags |= IORESOURCE_UNSET;
-			pci_info(dev, "expanded BAR %d to page size: %pR\n",
-				 i, r);
+			pci_info(dev, "%s %pR: expanded to page size\n",
+				 r_name, r);
 		}
 	}
 }
@@ -605,6 +606,7 @@ static void quirk_io(struct pci_dev *dev, int pos, unsigned int size,
 	u32 region;
 	struct pci_bus_region bus_region;
 	struct resource *res = dev->resource + pos;
+	const char *res_name = pci_resource_name(dev, pos);
 
 	pci_read_config_dword(dev, PCI_BASE_ADDRESS_0 + (pos << 2), &region);
 
@@ -622,8 +624,7 @@ static void quirk_io(struct pci_dev *dev, int pos, unsigned int size,
 	bus_region.end = region + size - 1;
 	pcibios_bus_to_resource(dev->bus, res, &bus_region);
 
-	pci_info(dev, FW_BUG "%s quirk: reg 0x%x: %pR\n",
-		 name, PCI_BASE_ADDRESS_0 + (pos << 2), res);
+	pci_info(dev, FW_BUG "%s %pR: %s quirk\n", res_name, res, name);
 }
 
 /*
@@ -670,6 +671,12 @@ static void quirk_io_region(struct pci_dev *dev, int port,
 	bus_region.end = region + size - 1;
 	pcibios_bus_to_resource(dev->bus, res, &bus_region);
 
+	/*
+	 * "res" is typically a bridge window resource that's not being
+	 * used for a bridge window, so it's just a place to stash this
+	 * non-standard resource.  Printing "nr" or pci_resource_name() of
+	 * it doesn't really make sense.
+	 */
 	if (!pci_claim_resource(dev, nr))
 		pci_info(dev, "quirk: %pR claimed by %s\n", res, name);
 }
