@@ -162,7 +162,6 @@ menu "DOS/FAT/EXFAT/NT Filesystems"
 
 source "fs/fat/Kconfig"
 source "fs/exfat/Kconfig"
-source "fs/ntfs/Kconfig"
 source "fs/ntfs3/Kconfig"
 
 endmenu
