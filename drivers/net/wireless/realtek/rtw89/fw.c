@@ -2111,9 +2111,6 @@ static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 	u16 ppe;
 	int i;
 
-	if (!sta->deflink.he_cap.has_he)
-		return;
-
 	ppe_th = FIELD_GET(IEEE80211_HE_PHY_CAP6_PPE_THRESHOLD_PRESENT,
 			   sta->deflink.he_cap.he_cap_elem.phy_cap_info[6]);
 	if (!ppe_th) {
@@ -2172,7 +2169,7 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 	int ret;
 
 	memset(pads, 0, sizeof(pads));
-	if (sta)
+	if (sta && sta->deflink.he_cap.has_he)
 		__get_sta_he_pkt_padding(rtwdev, sta, pads);
 
 	if (vif->p2p)
@@ -2221,6 +2218,176 @@ int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
 			      chip->h2c_cctl_func_id, 0, 1,
 			      H2C_CMC_TBL_LEN);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+static void __get_sta_eht_pkt_padding(struct rtw89_dev *rtwdev,
+				      struct ieee80211_sta *sta, u8 *pads)
+{
+	u8 nss = min(sta->deflink.rx_nss, rtwdev->hal.tx_nss) - 1;
+	u16 ppe_thres_hdr;
+	u8 ppe16, ppe8;
+	u8 n, idx, sh;
+	u8 ru_bitmap;
+	bool ppe_th;
+	u16 ppe;
+	int i;
+
+	ppe_th = !!u8_get_bits(sta->deflink.eht_cap.eht_cap_elem.phy_cap_info[5],
+			       IEEE80211_EHT_PHY_CAP5_PPE_THRESHOLD_PRESENT);
+	if (!ppe_th) {
+		u8 pad;
+
+		pad = u8_get_bits(sta->deflink.eht_cap.eht_cap_elem.phy_cap_info[5],
+				  IEEE80211_EHT_PHY_CAP5_COMMON_NOMINAL_PKT_PAD_MASK);
+
+		for (i = 0; i < RTW89_PPE_BW_NUM; i++)
+			pads[i] = pad;
+
+		return;
+	}
+
+	ppe_thres_hdr = get_unaligned_le16(sta->deflink.eht_cap.eht_ppe_thres);
+	ru_bitmap = u16_get_bits(ppe_thres_hdr,
+				 IEEE80211_EHT_PPE_THRES_RU_INDEX_BITMASK_MASK);
+	n = hweight8(ru_bitmap);
+	n = IEEE80211_EHT_PPE_THRES_INFO_HEADER_SIZE +
+	    (n * IEEE80211_EHT_PPE_THRES_INFO_PPET_SIZE * 2) * nss;
+
+	for (i = 0; i < RTW89_PPE_BW_NUM; i++) {
+		if (!(ru_bitmap & BIT(i))) {
+			pads[i] = 1;
+			continue;
+		}
+
+		idx = n >> 3;
+		sh = n & 7;
+		n += IEEE80211_EHT_PPE_THRES_INFO_PPET_SIZE * 2;
+
+		ppe = get_unaligned_le16(sta->deflink.eht_cap.eht_ppe_thres + idx);
+		ppe16 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
+		sh += IEEE80211_EHT_PPE_THRES_INFO_PPET_SIZE;
+		ppe8 = (ppe >> sh) & IEEE80211_PPE_THRES_NSS_MASK;
+
+		if (ppe16 != 7 && ppe8 == 7)
+			pads[i] = 2;
+		else if (ppe8 != 7)
+			pads[i] = 1;
+		else
+			pads[i] = 0;
+	}
+}
+
+int rtw89_fw_h2c_assoc_cmac_tbl_g7(struct rtw89_dev *rtwdev,
+				   struct ieee80211_vif *vif,
+				   struct ieee80211_sta *sta)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
+	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
+	u8 pads[RTW89_PPE_BW_NUM];
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	u16 lowest_rate;
+	int ret;
+
+	memset(pads, 0, sizeof(pads));
+	if (sta) {
+		if (sta->deflink.eht_cap.has_eht)
+			__get_sta_eht_pkt_padding(rtwdev, sta, pads);
+		else if (sta->deflink.he_cap.has_he)
+			__get_sta_he_pkt_padding(rtwdev, sta, pads);
+	}
+
+	if (vif->p2p)
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+	else if (chan->band_type == RTW89_BAND_2G)
+		lowest_rate = RTW89_HW_RATE_CCK1;
+	else
+		lowest_rate = RTW89_HW_RATE_OFDM6;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for cmac g7\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cctlinfo_ud_g7 *)skb->data;
+
+	h2c->c0 = le32_encode_bits(mac_id, CCTLINFO_G7_C0_MACID) |
+		  le32_encode_bits(1, CCTLINFO_G7_C0_OP);
+
+	h2c->w0 = le32_encode_bits(1, CCTLINFO_G7_W0_DISRTSFB) |
+		  le32_encode_bits(1, CCTLINFO_G7_W0_DISDATAFB);
+	h2c->m0 = cpu_to_le32(CCTLINFO_G7_W0_DISRTSFB |
+			      CCTLINFO_G7_W0_DISDATAFB);
+
+	h2c->w1 = le32_encode_bits(lowest_rate, CCTLINFO_G7_W1_RTS_RTY_LOWEST_RATE);
+	h2c->m1 = cpu_to_le32(CCTLINFO_G7_W1_RTS_RTY_LOWEST_RATE);
+
+	h2c->w2 = le32_encode_bits(0, CCTLINFO_G7_W2_DATA_TXCNT_LMT_SEL);
+	h2c->m2 = cpu_to_le32(CCTLINFO_G7_W2_DATA_TXCNT_LMT_SEL);
+
+	h2c->w3 = le32_encode_bits(0, CCTLINFO_G7_W3_RTS_TXCNT_LMT_SEL);
+	h2c->m3 = cpu_to_le32(CCTLINFO_G7_W3_RTS_TXCNT_LMT_SEL);
+
+	h2c->w4 = le32_encode_bits(rtwvif->port, CCTLINFO_G7_W4_MULTI_PORT_ID);
+	h2c->m4 = cpu_to_le32(CCTLINFO_G7_W4_MULTI_PORT_ID);
+
+	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE) {
+		h2c->w4 |= le32_encode_bits(0, CCTLINFO_G7_W4_DATA_DCM);
+		h2c->m4 |= cpu_to_le32(CCTLINFO_G7_W4_DATA_DCM);
+	}
+
+	if (vif->bss_conf.eht_support) {
+		h2c->w4 |= le32_encode_bits(~vif->bss_conf.eht_puncturing,
+					    CCTLINFO_G7_W4_ACT_SUBCH_CBW);
+		h2c->m4 |= cpu_to_le32(CCTLINFO_G7_W4_ACT_SUBCH_CBW);
+	}
+
+	h2c->w5 = le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_20],
+				   CCTLINFO_G7_W5_NOMINAL_PKT_PADDING0) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_40],
+				   CCTLINFO_G7_W5_NOMINAL_PKT_PADDING1) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_80],
+				   CCTLINFO_G7_W5_NOMINAL_PKT_PADDING2) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_160],
+				   CCTLINFO_G7_W5_NOMINAL_PKT_PADDING3) |
+		  le32_encode_bits(pads[RTW89_CHANNEL_WIDTH_320],
+				   CCTLINFO_G7_W5_NOMINAL_PKT_PADDING4);
+	h2c->m5 = cpu_to_le32(CCTLINFO_G7_W5_NOMINAL_PKT_PADDING0 |
+			      CCTLINFO_G7_W5_NOMINAL_PKT_PADDING1 |
+			      CCTLINFO_G7_W5_NOMINAL_PKT_PADDING2 |
+			      CCTLINFO_G7_W5_NOMINAL_PKT_PADDING3 |
+			      CCTLINFO_G7_W5_NOMINAL_PKT_PADDING4);
+
+	h2c->w6 = le32_encode_bits(vif->type == NL80211_IFTYPE_STATION ? 1 : 0,
+				   CCTLINFO_G7_W6_ULDL);
+	h2c->m6 = cpu_to_le32(CCTLINFO_G7_W6_ULDL);
+
+	if (sta) {
+		h2c->w8 = le32_encode_bits(sta->deflink.he_cap.has_he,
+					   CCTLINFO_G7_W8_BSR_QUEUE_SIZE_FORMAT);
+		h2c->m8 = cpu_to_le32(CCTLINFO_G7_W8_BSR_QUEUE_SIZE_FORMAT);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD_G7, 0, 1,
+			      len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {
