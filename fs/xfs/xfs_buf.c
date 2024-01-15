@@ -2008,7 +2008,7 @@ xfs_alloc_buftarg(
 #if defined(CONFIG_FS_DAX) && defined(CONFIG_MEMORY_FAILURE)
 	ops = &xfs_dax_holder_operations;
 #endif
-	btp = kzalloc(sizeof(*btp), GFP_NOFS | __GFP_NOFAIL);
+	btp = kzalloc(sizeof(*btp), GFP_KERNEL | __GFP_NOFAIL);
 
 	btp->bt_mount = mp;
 	btp->bt_bdev_handle = bdev_handle;
