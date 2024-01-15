@@ -33,7 +33,7 @@ Description
 
 Remove the line from the list of lines being watched on this ``chip_fd``.
 
-This is the opposite of gpio-v2-get-lineinfo-watch-ioctl.rst (v2) and
+This is the reverse of gpio-v2-get-lineinfo-watch-ioctl.rst (v2) and
 gpio-get-lineinfo-watch-ioctl.rst (v1).
 
 Unwatching a line that is not watched is an error (**EBUSY**).

@@ -7,5 +7,6 @@ Obsolete GPIO APIs
 .. toctree::
     :maxdepth: 1
 
+    Character Device Userspace API (v1) <../../userspace-api/gpio/chardev_v1>
     Sysfs Interface <../../userspace-api/gpio/sysfs>
 
