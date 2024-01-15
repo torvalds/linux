@@ -63,8 +63,7 @@ static void fw_req_release(struct kref *kref)
 	 * just hope that it never happens.
 	 */
 	if (!fw_req->timedout)
-		ida_simple_remove(&fw_req->fw_download->id_map,
-				  fw_req->firmware_id);
+		ida_free(&fw_req->fw_download->id_map, fw_req->firmware_id);
 
 	kfree(fw_req);
 }
@@ -171,7 +170,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 		return ERR_PTR(-ENOMEM);
 
 	/* Allocate ids from 1 to 255 (u8-max), 0 is an invalid id */
-	ret = ida_simple_get(&fw_download->id_map, 1, 256, GFP_KERNEL);
+	ret = ida_alloc_range(&fw_download->id_map, 1, 255, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(fw_download->parent,
 			"failed to allocate firmware id (%d)\n", ret);
@@ -212,7 +211,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	return fw_req;
 
 err_free_id:
-	ida_simple_remove(&fw_download->id_map, fw_req->firmware_id);
+	ida_free(&fw_download->id_map, fw_req->firmware_id);
 err_free_req:
 	kfree(fw_req);
 

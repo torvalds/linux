@@ -153,7 +153,7 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	 * there is a "real" device somewhere in the kernel for this, but I
 	 * can't find it at the moment...
 	 */
-	vib->minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
+	vib->minor = ida_alloc(&minors, GFP_KERNEL);
 	if (vib->minor < 0) {
 		retval = vib->minor;
 		goto err_connection_disable;
@@ -173,7 +173,7 @@ static int gb_vibrator_probe(struct gb_bundle *bundle,
 	return 0;
 
 err_ida_remove:
-	ida_simple_remove(&minors, vib->minor);
+	ida_free(&minors, vib->minor);
 err_connection_disable:
 	gb_connection_disable(connection);
 err_connection_destroy:
@@ -197,7 +197,7 @@ static void gb_vibrator_disconnect(struct gb_bundle *bundle)
 		turn_off(vib);
 
 	device_unregister(vib->dev);
-	ida_simple_remove(&minors, vib->minor);
+	ida_free(&minors, vib->minor);
 	gb_connection_disable(vib->connection);
 	gb_connection_destroy(vib->connection);
 	kfree(vib);
