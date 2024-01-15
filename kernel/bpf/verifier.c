@@ -2254,10 +2254,7 @@ static int check_subprogs(struct bpf_verifier_env *env)
 			goto next;
 		if (BPF_OP(code) == BPF_EXIT || BPF_OP(code) == BPF_CALL)
 			goto next;
-		if (code == (BPF_JMP32 | BPF_JA))
-			off = i + insn[i].imm + 1;
-		else
-			off = i + insn[i].off + 1;
+		off = i + insn[i].off + 1;
 		if (off < subprog_start || off >= subprog_end) {
 			verbose(env, "jump out of range from insn %d to %d\n", i, off);
 			return -EINVAL;
@@ -2269,7 +2266,6 @@ next:
 			 * or unconditional jump back
 			 */
 			if (code != (BPF_JMP | BPF_EXIT) &&
-			    code != (BPF_JMP32 | BPF_JA) &&
 			    code != (BPF_JMP | BPF_JA)) {
 				verbose(env, "last insn is not an exit or jmp\n");
 				return -EINVAL;
@@ -11137,7 +11133,7 @@ static int visit_func_call_insn(int t, struct bpf_insn *insns,
 static int visit_insn(int t, struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insns = env->prog->insnsi, *insn = &insns[t];
-	int ret, off;
+	int ret;
 
 	if (bpf_pseudo_func(insn))
 		return visit_func_call_insn(t, insns, env, true);
@@ -11165,19 +11161,14 @@ static int visit_insn(int t, struct bpf_verifier_env *env)
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
 
-		if (BPF_CLASS(insn->code) == BPF_JMP)
-			off = insn->off;
-		else
-			off = insn->imm;
-
 		/* unconditional jump with single edge */
-		ret = push_insn(t, t + off + 1, FALLTHROUGH, env,
+		ret = push_insn(t, t + insn->off + 1, FALLTHROUGH, env,
 				true);
 		if (ret)
 			return ret;
 
-		mark_prune_point(env, t + off + 1);
-		mark_jmp_point(env, t + off + 1);
+		mark_prune_point(env, t + insn->off + 1);
+		mark_jmp_point(env, t + insn->off + 1);
 
 		return ret;
 
@@ -12713,18 +12704,15 @@ static int do_check(struct bpf_verifier_env *env)
 					return err;
 			} else if (opcode == BPF_JA) {
 				if (BPF_SRC(insn->code) != BPF_K ||
+				    insn->imm != 0 ||
 				    insn->src_reg != BPF_REG_0 ||
 				    insn->dst_reg != BPF_REG_0 ||
-				    (class == BPF_JMP && insn->imm != 0) ||
-				    (class == BPF_JMP32 && insn->off != 0)) {
+				    class == BPF_JMP32) {
 					verbose(env, "BPF_JA uses reserved fields\n");
 					return -EINVAL;
 				}
 
-				if (class == BPF_JMP)
-					env->insn_idx += insn->off + 1;
-				else
-					env->insn_idx += insn->imm + 1;
+				env->insn_idx += insn->off + 1;
 				continue;
 
 			} else if (opcode == BPF_EXIT) {
@@ -13550,13 +13538,13 @@ static bool insn_is_cond_jump(u8 code)
 {
 	u8 op;
 
-	op = BPF_OP(code);
 	if (BPF_CLASS(code) == BPF_JMP32)
-		return op != BPF_JA;
+		return true;
 
 	if (BPF_CLASS(code) != BPF_JMP)
 		return false;
 
+	op = BPF_OP(code);
 	return op != BPF_JA && op != BPF_EXIT && op != BPF_CALL;
 }
 
