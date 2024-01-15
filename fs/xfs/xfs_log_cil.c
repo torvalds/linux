@@ -100,7 +100,7 @@ xlog_cil_ctx_alloc(void)
 {
 	struct xfs_cil_ctx	*ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_NOFS | __GFP_NOFAIL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents.extent_list);
 	INIT_LIST_HEAD(&ctx->log_items);
@@ -1116,11 +1116,18 @@ xlog_cil_cleanup_whiteouts(
  * same sequence twice.  If we get a race between multiple pushes for the same
  * sequence they will block on the first one and then abort, hence avoiding
  * needless pushes.
+ *
+ * This runs from a workqueue so it does not inherent any specific memory
+ * allocation context. However, we do not want to block on memory reclaim
+ * recursing back into the filesystem because this push may have been triggered
+ * by memory reclaim itself. Hence we really need to run under full GFP_NOFS
+ * contraints here.
  */
 static void
 xlog_cil_push_work(
 	struct work_struct	*work)
 {
+	unsigned int		nofs_flags = memalloc_nofs_save();
 	struct xfs_cil_ctx	*ctx =
 		container_of(work, struct xfs_cil_ctx, push_work);
 	struct xfs_cil		*cil = ctx->cil;
@@ -1334,12 +1341,14 @@ xlog_cil_push_work(
 	spin_unlock(&log->l_icloglock);
 	xlog_cil_cleanup_whiteouts(&whiteouts);
 	xfs_log_ticket_ungrant(log, ticket);
+	memalloc_nofs_restore(nofs_flags);
 	return;
 
 out_skip:
 	up_write(&cil->xc_ctx_lock);
 	xfs_log_ticket_put(new_ctx->ticket);
 	kfree(new_ctx);
+	memalloc_nofs_restore(nofs_flags);
 	return;
 
 out_abort_free_ticket:
@@ -1348,6 +1357,7 @@ out_abort_free_ticket:
 	if (!ctx->commit_iclog) {
 		xfs_log_ticket_ungrant(log, ctx->ticket);
 		xlog_cil_committed(ctx);
+		memalloc_nofs_restore(nofs_flags);
 		return;
 	}
 	spin_lock(&log->l_icloglock);
@@ -1356,6 +1366,7 @@ out_abort_free_ticket:
 	/* Not safe to reference ctx now! */
 	spin_unlock(&log->l_icloglock);
 	xfs_log_ticket_ungrant(log, ticket);
+	memalloc_nofs_restore(nofs_flags);
 }
 
 /*
