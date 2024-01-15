@@ -973,7 +973,7 @@ static int pci_epf_test_probe(struct pci_epf *epf,
 	return 0;
 }
 
-static struct pci_epf_ops ops = {
+static const struct pci_epf_ops ops = {
 	.unbind	= pci_epf_test_unbind,
 	.bind	= pci_epf_test_bind,
 };
