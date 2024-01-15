@@ -3168,6 +3168,7 @@ F:	drivers/hwmon/asus-ec-sensors.c
 
 ASUS NOTEBOOKS AND EEEPC ACPI/WMI EXTRAS DRIVERS
 M:	Corentin Chary <corentin.chary@gmail.com>
+M:	Luke D. Jones <luke@ljones.dev>
 L:	acpi4asus-user@lists.sourceforge.net
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
