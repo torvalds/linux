@@ -49,6 +49,7 @@
 #define I2C_HID_QUIRK_RESET_ON_RESUME		BIT(2)
 #define I2C_HID_QUIRK_BAD_INPUT_SIZE		BIT(3)
 #define I2C_HID_QUIRK_NO_WAKEUP_AFTER_RESET	BIT(4)
+#define I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND	BIT(5)
 
 /* Command opcodes */
 #define I2C_HID_OPCODE_RESET			0x01
@@ -131,6 +132,8 @@ static const struct i2c_hid_quirks {
 		 I2C_HID_QUIRK_RESET_ON_RESUME },
 	{ USB_VENDOR_ID_ITE, I2C_DEVICE_ID_ITE_LENOVO_LEGION_Y720,
 		I2C_HID_QUIRK_BAD_INPUT_SIZE },
+	{ I2C_VENDOR_ID_CIRQUE, I2C_PRODUCT_ID_CIRQUE_1063,
+		I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND },
 	/*
 	 * Sending the wakeup after reset actually break ELAN touchscreen controller
 	 */
@@ -956,7 +959,8 @@ static int i2c_hid_core_suspend(struct i2c_hid *ihid, bool force_poweroff)
 		return ret;
 
 	/* Save some power */
-	i2c_hid_set_power(ihid, I2C_HID_PWR_SLEEP);
+	if (!(ihid->quirks & I2C_HID_QUIRK_NO_SLEEP_ON_SUSPEND))
+		i2c_hid_set_power(ihid, I2C_HID_PWR_SLEEP);
 
 	disable_irq(client->irq);
 
