@@ -28,10 +28,11 @@ void get_cpu_vector_context(void);
 void put_cpu_vector_context(void);
 void riscv_v_thread_free(struct task_struct *tsk);
 void __init riscv_v_setup_ctx_cache(void);
+void riscv_v_thread_alloc(struct task_struct *tsk);
 
 static inline u32 riscv_v_flags(void)
 {
-	return current->thread.riscv_v_flags;
+	return READ_ONCE(current->thread.riscv_v_flags);
 }
 
 static __always_inline bool has_vector(void)
@@ -200,14 +201,62 @@ static inline void riscv_v_vstate_set_restore(struct task_struct *task,
 	}
 }
 
+#ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
+static inline bool riscv_preempt_v_dirty(struct task_struct *task)
+{
+	return !!(task->thread.riscv_v_flags & RISCV_PREEMPT_V_DIRTY);
+}
+
+static inline bool riscv_preempt_v_restore(struct task_struct *task)
+{
+	return !!(task->thread.riscv_v_flags & RISCV_PREEMPT_V_NEED_RESTORE);
+}
+
+static inline void riscv_preempt_v_clear_dirty(struct task_struct *task)
+{
+	barrier();
+	task->thread.riscv_v_flags &= ~RISCV_PREEMPT_V_DIRTY;
+}
+
+static inline void riscv_preempt_v_set_restore(struct task_struct *task)
+{
+	barrier();
+	task->thread.riscv_v_flags |= RISCV_PREEMPT_V_NEED_RESTORE;
+}
+
+static inline bool riscv_preempt_v_started(struct task_struct *task)
+{
+	return !!(task->thread.riscv_v_flags & RISCV_PREEMPT_V);
+}
+
+#else /* !CONFIG_RISCV_ISA_V_PREEMPTIVE */
+static inline bool riscv_preempt_v_dirty(struct task_struct *task) { return false; }
+static inline bool riscv_preempt_v_restore(struct task_struct *task) { return false; }
+static inline bool riscv_preempt_v_started(struct task_struct *task) { return false; }
+#define riscv_preempt_v_clear_dirty(tsk)	do {} while (0)
+#define riscv_preempt_v_set_restore(tsk)	do {} while (0)
+#endif /* CONFIG_RISCV_ISA_V_PREEMPTIVE */
+
 static inline void __switch_to_vector(struct task_struct *prev,
 				      struct task_struct *next)
 {
 	struct pt_regs *regs;
 
-	regs = task_pt_regs(prev);
-	riscv_v_vstate_save(&prev->thread.vstate, regs);
-	riscv_v_vstate_set_restore(next, task_pt_regs(next));
+	if (riscv_preempt_v_started(prev)) {
+		if (riscv_preempt_v_dirty(prev)) {
+			__riscv_v_vstate_save(&prev->thread.kernel_vstate,
+					      prev->thread.kernel_vstate.datap);
+			riscv_preempt_v_clear_dirty(prev);
+		}
+	} else {
+		regs = task_pt_regs(prev);
+		riscv_v_vstate_save(&prev->thread.vstate, regs);
+	}
+
+	if (riscv_preempt_v_started(next))
+		riscv_preempt_v_set_restore(next);
+	else
+		riscv_v_vstate_set_restore(next, task_pt_regs(next));
 }
 
 void riscv_v_vstate_ctrl_init(struct task_struct *tsk);
@@ -231,6 +280,7 @@ static inline bool riscv_v_vstate_ctrl_user_allowed(void) { return false; }
 #define riscv_v_vstate_on(regs)			do {} while (0)
 #define riscv_v_thread_free(tsk)		do {} while (0)
 #define  riscv_v_setup_ctx_cache()		do {} while (0)
+#define riscv_v_thread_alloc(tsk)		do {} while (0)
 
 #endif /* CONFIG_RISCV_ISA_V */
 

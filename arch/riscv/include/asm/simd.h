@@ -12,6 +12,7 @@
 #include <linux/percpu.h>
 #include <linux/preempt.h>
 #include <linux/types.h>
+#include <linux/thread_info.h>
 
 #include <asm/vector.h>
 
@@ -28,12 +29,27 @@ static __must_check inline bool may_use_simd(void)
 	/*
 	 * RISCV_KERNEL_MODE_V is only set while preemption is disabled,
 	 * and is clear whenever preemption is enabled.
-	 *
-	 * Kernel-mode Vector temporarily disables bh. So we must not return
-	 * true on irq_disabled(). Otherwise we would fail the lockdep check
-	 * calling local_bh_enable()
 	 */
-	return !in_hardirq() && !in_nmi() && !irqs_disabled() && !(riscv_v_flags() & RISCV_KERNEL_MODE_V);
+	if (in_hardirq() || in_nmi())
+		return false;
+
+	/*
+	 * Nesting is acheived in preempt_v by spreading the control for
+	 * preemptible and non-preemptible kernel-mode Vector into two fields.
+	 * Always try to match with prempt_v if kernel V-context exists. Then,
+	 * fallback to check non preempt_v if nesting happens, or if the config
+	 * is not set.
+	 */
+	if (IS_ENABLED(CONFIG_RISCV_ISA_V_PREEMPTIVE) && current->thread.kernel_vstate.datap) {
+		if (!riscv_preempt_v_started(current))
+			return true;
+	}
+	/*
+	 * Non-preemptible kernel-mode Vector temporarily disables bh. So we
+	 * must not return true on irq_disabled(). Otherwise we would fail the
+	 * lockdep check calling local_bh_enable()
+	 */
+	return !irqs_disabled() && !(riscv_v_flags() & RISCV_KERNEL_MODE_V);
 }
 
 #else /* ! CONFIG_RISCV_ISA_V */

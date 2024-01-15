@@ -30,6 +30,11 @@ void xor_regs_5_(unsigned long bytes, unsigned long *__restrict p1,
 		 const unsigned long *__restrict p4,
 		 const unsigned long *__restrict p5);
 
+#ifdef CONFIG_RISCV_ISA_V_PREEMPTIVE
+asmlinkage void riscv_v_context_nesting_start(struct pt_regs *regs);
+asmlinkage void riscv_v_context_nesting_end(struct pt_regs *regs);
+#endif /* CONFIG_RISCV_ISA_V_PREEMPTIVE */
+
 #endif /* CONFIG_RISCV_ISA_V */
 
 #define DECLARE_DO_ERROR_INFO(name)	asmlinkage void name(struct pt_regs *regs)
