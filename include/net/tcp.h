@@ -600,6 +600,20 @@ static inline bool cookie_ecn_ok(const struct net *net, const struct dst_entry *
 }
 
 #if IS_ENABLED(CONFIG_BPF)
+struct bpf_tcp_req_attrs {
+	u32 rcv_tsval;
+	u32 rcv_tsecr;
+	u16 mss;
+	u8 rcv_wscale;
+	u8 snd_wscale;
+	u8 ecn_ok;
+	u8 wscale_ok;
+	u8 sack_ok;
+	u8 tstamp_ok;
+	u8 usec_ts_ok;
+	u8 reserved[3];
+};
+
 static inline bool cookie_bpf_ok(struct sk_buff *skb)
 {
 	return skb->sk;
