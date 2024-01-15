@@ -9,7 +9,6 @@ GPIO
 
     Character Device Userspace API <../../userspace-api/gpio/chardev>
     gpio-aggregator
-    gpio-mockup
     gpio-sim
     Obsolete APIs <obsolete>
 
