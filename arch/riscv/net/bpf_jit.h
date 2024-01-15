@@ -1119,6 +1119,28 @@ static inline void emit_subw(u8 rd, u8 rs1, u8 rs2, struct rv_jit_context *ctx)
 		emit(rv_subw(rd, rs1, rs2), ctx);
 }
 
+static inline void emit_sextb(u8 rd, u8 rs, struct rv_jit_context *ctx)
+{
+	if (rvzbb_enabled()) {
+		emit(rvzbb_sextb(rd, rs), ctx);
+		return;
+	}
+
+	emit_slli(rd, rs, 56, ctx);
+	emit_srai(rd, rd, 56, ctx);
+}
+
+static inline void emit_sexth(u8 rd, u8 rs, struct rv_jit_context *ctx)
+{
+	if (rvzbb_enabled()) {
+		emit(rvzbb_sexth(rd, rs), ctx);
+		return;
+	}
+
+	emit_slli(rd, rs, 48, ctx);
+	emit_srai(rd, rd, 48, ctx);
+}
+
 static inline void emit_sextw(u8 rd, u8 rs, struct rv_jit_context *ctx)
 {
 	emit_addiw(rd, rs, 0, ctx);
