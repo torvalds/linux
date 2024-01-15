@@ -61,7 +61,7 @@ static struct kunit_case drm_managed_tests[] = {
 };
 
 static struct kunit_suite drm_managed_test_suite = {
-	.name = "drm-test-managed",
+	.name = "drm_managed",
 	.test_cases = drm_managed_tests
 };
 
