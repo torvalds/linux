@@ -177,8 +177,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 		prt_str(&buf, "target=");
 		bch2_target_to_text(&buf, c, r->target);
 		prt_str(&buf, " compression=");
-		struct bch_compression_opt opt = __bch2_compression_decode(r->compression);
-		prt_str(&buf, bch2_compression_opts[opt.type]);
+		bch2_compression_opt_to_text(&buf, r->compression);
 		prt_str(&buf, " ");
 		bch2_bkey_val_to_text(&buf, c, k);
 

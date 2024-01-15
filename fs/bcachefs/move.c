@@ -9,6 +9,7 @@
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
+#include "compress.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "errcode.h"
@@ -34,12 +35,46 @@ const char * const bch2_data_ops_strs[] = {
 	NULL
 };
 
-static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k)
+static void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c,
+					  struct bch_io_opts *io_opts,
+					  struct data_update_opts *data_opts)
+{
+	printbuf_tabstop_push(out, 20);
+	prt_str(out, "rewrite ptrs:");
+	prt_tab(out);
+	bch2_prt_u64_base2(out, data_opts->rewrite_ptrs);
+	prt_newline(out);
+
+	prt_str(out, "kill ptrs: ");
+	prt_tab(out);
+	bch2_prt_u64_base2(out, data_opts->kill_ptrs);
+	prt_newline(out);
+
+	prt_str(out, "target: ");
+	prt_tab(out);
+	bch2_target_to_text(out, c, data_opts->target);
+	prt_newline(out);
+
+	prt_str(out, "compression: ");
+	prt_tab(out);
+	bch2_compression_opt_to_text(out, io_opts->background_compression ?: io_opts->compression);
+	prt_newline(out);
+
+	prt_str(out, "extra replicas: ");
+	prt_tab(out);
+	prt_u64(out, data_opts->extra_replicas);
+}
+
+static void trace_move_extent2(struct bch_fs *c, struct bkey_s_c k,
+			       struct bch_io_opts *io_opts,
+			       struct data_update_opts *data_opts)
 {
 	if (trace_move_extent_enabled()) {
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, k);
+		prt_newline(&buf);
+		bch2_data_update_opts_to_text(&buf, c, io_opts, data_opts);
 		trace_move_extent(c, buf.buf);
 		printbuf_exit(&buf);
 	}
@@ -250,9 +285,10 @@ int bch2_move_extent(struct moving_context *ctxt,
 	unsigned sectors = k.k->size, pages;
 	int ret = -ENOMEM;
 
+	trace_move_extent2(c, k, &io_opts, &data_opts);
+
 	if (ctxt->stats)
 		ctxt->stats->pos = BBPOS(iter->btree_id, iter->pos);
-	trace_move_extent2(c, k);
 
 	bch2_data_update_opts_normalize(k, &data_opts);
 

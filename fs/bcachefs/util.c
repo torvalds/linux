@@ -241,10 +241,15 @@ bool bch2_is_zero(const void *_p, size_t n)
 	return true;
 }
 
-void bch2_prt_u64_binary(struct printbuf *out, u64 v, unsigned nr_bits)
+void bch2_prt_u64_base2_nbits(struct printbuf *out, u64 v, unsigned nr_bits)
 {
 	while (nr_bits)
 		prt_char(out, '0' + ((v >> --nr_bits) & 1));
+}
+
+void bch2_prt_u64_base2(struct printbuf *out, u64 v)
+{
+	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines)
