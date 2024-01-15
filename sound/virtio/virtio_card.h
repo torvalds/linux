@@ -32,6 +32,16 @@ struct virtio_snd_queue {
 };
 
 /**
+ * struct virtio_kctl - VirtIO control element.
+ * @kctl: ALSA control element.
+ * @items: Items for the ENUMERATED element type.
+ */
+struct virtio_kctl {
+	struct snd_kcontrol *kctl;
+	struct virtio_snd_ctl_enum_item *items;
+};
+
+/**
  * struct virtio_snd - VirtIO sound card device.
  * @vdev: Underlying virtio device.
  * @queues: Virtqueue wrappers.
@@ -45,6 +55,9 @@ struct virtio_snd_queue {
  * @nsubstreams: Number of PCM substreams.
  * @chmaps: VirtIO channel maps.
  * @nchmaps: Number of channel maps.
+ * @kctl_infos: VirtIO control element information.
+ * @kctls: VirtIO control elements.
+ * @nkctls: Number of control elements.
  */
 struct virtio_snd {
 	struct virtio_device *vdev;
@@ -59,6 +72,9 @@ struct virtio_snd {
 	u32 nsubstreams;
 	struct virtio_snd_chmap_info *chmaps;
 	u32 nchmaps;
+	struct virtio_snd_ctl_info *kctl_infos;
+	struct virtio_kctl *kctls;
+	u32 nkctls;
 };
 
 /* Message completion timeout in milliseconds (module parameter). */
@@ -107,5 +123,11 @@ void virtsnd_jack_event(struct virtio_snd *snd,
 int virtsnd_chmap_parse_cfg(struct virtio_snd *snd);
 
 int virtsnd_chmap_build_devs(struct virtio_snd *snd);
+
+int virtsnd_kctl_parse_cfg(struct virtio_snd *snd);
+
+int virtsnd_kctl_build_devs(struct virtio_snd *snd);
+
+void virtsnd_kctl_event(struct virtio_snd *snd, struct virtio_snd_event *event);
 
 #endif /* VIRTIO_SND_CARD_H */
