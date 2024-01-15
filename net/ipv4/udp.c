@@ -1068,7 +1068,7 @@ int udp_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	__be16 dport;
 	u8  tos;
 	int err, is_udplite = IS_UDPLITE(sk);
-	int corkreq = udp_test_bit(CORK, sk) || msg->msg_flags & MSG_MORE;
+	int corkreq = READ_ONCE(up->corkflag) || msg->msg_flags&MSG_MORE;
 	int (*getfrag)(void *, char *, int, int, int, struct sk_buff *);
 	struct sk_buff *skb;
 	struct ip_options_data opt_copy;
@@ -1337,11 +1337,11 @@ void udp_splice_eof(struct socket *sock)
 	struct sock *sk = sock->sk;
 	struct udp_sock *up = udp_sk(sk);
 
-	if (!up->pending || udp_test_bit(CORK, sk))
+	if (!up->pending || READ_ONCE(up->corkflag))
 		return;
 
 	lock_sock(sk);
-	if (up->pending && !udp_test_bit(CORK, sk))
+	if (up->pending && !READ_ONCE(up->corkflag))
 		udp_push_pending_frames(sk);
 	release_sock(sk);
 }
@@ -2673,9 +2673,9 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 	switch (optname) {
 	case UDP_CORK:
 		if (val != 0) {
-			udp_set_bit(CORK, sk);
+			WRITE_ONCE(up->corkflag, 1);
 		} else {
-			udp_clear_bit(CORK, sk);
+			WRITE_ONCE(up->corkflag, 0);
 			lock_sock(sk);
 			push_pending_frames(sk);
 			release_sock(sk);
@@ -2800,7 +2800,7 @@ int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 
 	switch (optname) {
 	case UDP_CORK:
-		val = udp_test_bit(CORK, sk);
+		val = READ_ONCE(up->corkflag);
 		break;
 
 	case UDP_ENCAP:
