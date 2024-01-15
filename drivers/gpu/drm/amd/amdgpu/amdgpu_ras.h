@@ -480,6 +480,7 @@ struct ras_fs_data {
 };
 
 struct ras_err_addr {
+	struct list_head node;
 	uint64_t err_status;
 	uint64_t err_ipid;
 	uint64_t err_addr;
@@ -490,7 +491,7 @@ struct ras_err_info {
 	u64 ce_count;
 	u64 ue_count;
 	u64 de_count;
-	struct ras_err_addr err_addr;
+	struct list_head err_addr_list;
 };
 
 struct ras_err_node {
@@ -862,4 +863,9 @@ int amdgpu_ras_unbind_aca(struct amdgpu_device *adev, enum amdgpu_ras_block blk)
 ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *attr,
 				  struct aca_handle *handle, char *buf, void *data);
 
+void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info,
+			struct ras_err_addr *err_addr);
+
+void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info,
+		struct ras_err_addr *mca_err_addr);
 #endif

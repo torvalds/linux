@@ -382,42 +382,46 @@ static void umc_v12_0_ecc_info_query_ras_error_address(struct amdgpu_device *ade
 {
 	struct ras_err_node *err_node;
 	uint64_t mc_umc_status;
+	struct ras_err_info *err_info;
+	struct ras_err_addr *mca_err_addr, *tmp;
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 
 	for_each_ras_error(err_node, err_data) {
-		mc_umc_status = err_node->err_info.err_addr.err_status;
-		if (!mc_umc_status)
+		err_info = &err_node->err_info;
+		if (list_empty(&err_info->err_addr_list))
 			continue;
 
-		if (umc_v12_0_is_uncorrectable_error(adev, mc_umc_status) ||
-		    umc_v12_0_is_deferred_error(adev, mc_umc_status)) {
-			uint64_t mca_addr, err_addr, mca_ipid;
-			uint32_t InstanceIdLo;
-			struct amdgpu_smuio_mcm_config_info *mcm_info;
+		list_for_each_entry_safe(mca_err_addr, tmp, &err_info->err_addr_list, node) {
+			mc_umc_status = mca_err_addr->err_status;
+			if (mc_umc_status &&
+				(umc_v12_0_is_uncorrectable_error(adev, mc_umc_status) ||
+				 umc_v12_0_is_deferred_error(adev, mc_umc_status))) {
+				uint64_t mca_addr, err_addr, mca_ipid;
+				uint32_t InstanceIdLo;
 
-			mcm_info = &err_node->err_info.mcm_info;
-			mca_addr = err_node->err_info.err_addr.err_addr;
-			mca_ipid = err_node->err_info.err_addr.err_ipid;
+				mca_addr = mca_err_addr->err_addr;
+				mca_ipid = mca_err_addr->err_ipid;
 
-			err_addr =  REG_GET_FIELD(mca_addr, MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
-			InstanceIdLo = REG_GET_FIELD(mca_ipid, MCMP1_IPIDT0, InstanceIdLo);
+				err_addr = REG_GET_FIELD(mca_addr,
+							MCA_UMC_UMC0_MCUMC_ADDRT0, ErrorAddr);
+				InstanceIdLo = REG_GET_FIELD(mca_ipid, MCMP1_IPIDT0, InstanceIdLo);
 
-			dev_info(adev->dev, "UMC:IPID:0x%llx, aid:%d, inst:%d, ch:%d, err_addr:0x%llx\n",
-				mca_ipid,
-				mcm_info->die_id,
-				MCA_IPID_LO_2_UMC_INST(InstanceIdLo),
-				MCA_IPID_LO_2_UMC_CH(InstanceIdLo),
-				err_addr);
+				dev_info(adev->dev, "UMC:IPID:0x%llx, aid:%d, inst:%d, ch:%d, err_addr:0x%llx\n",
+					mca_ipid,
+					err_info->mcm_info.die_id,
+					MCA_IPID_LO_2_UMC_INST(InstanceIdLo),
+					MCA_IPID_LO_2_UMC_CH(InstanceIdLo),
+					err_addr);
 
-			umc_v12_0_convert_error_address(adev,
-				err_data, err_addr,
-				MCA_IPID_LO_2_UMC_CH(InstanceIdLo),
-				MCA_IPID_LO_2_UMC_INST(InstanceIdLo),
-				mcm_info->die_id);
+				umc_v12_0_convert_error_address(adev,
+					err_data, err_addr,
+					MCA_IPID_LO_2_UMC_CH(InstanceIdLo),
+					MCA_IPID_LO_2_UMC_INST(InstanceIdLo),
+					err_info->mcm_info.die_id);
+			}
 
-			/* Clear umc error address content */
-			memset(&err_node->err_info.err_addr,
-				0, sizeof(err_node->err_info.err_addr));
+			/* Delete error address node from list and free memory */
+			amdgpu_ras_del_mca_err_addr(err_info, mca_err_addr);
 		}
 	}
 }
