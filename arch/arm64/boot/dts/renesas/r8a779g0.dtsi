@@ -161,11 +161,6 @@
 		};
 	};
 
-	psci {
-		compatible = "arm,psci-1.0", "arm,psci-0.2";
-		method = "smc";
-	};
-
 	extal_clk: extal {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -183,6 +178,11 @@
 	pmu_a76 {
 		compatible = "arm,cortex-a76-pmu";
 		interrupts-extended = <&gic GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
+		method = "smc";
 	};
 
 	/* External SCIF clock - to be overridden by boards that provide it */
@@ -1777,6 +1777,37 @@
 			};
 		};
 
+		mmc0: mmc@ee140000 {
+			compatible = "renesas,sdhi-r8a779g0",
+				     "renesas,rcar-gen4-sdhi";
+			reg = <0 0xee140000 0 0x2000>;
+			interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 706>,
+				 <&cpg CPG_CORE R8A779G0_CLK_SD0H>;
+			clock-names = "core", "clkh";
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			resets = <&cpg 706>;
+			max-frequency = <200000000>;
+			iommus = <&ipmmu_ds0 32>;
+			status = "disabled";
+		};
+
+		rpc: spi@ee200000 {
+			compatible = "renesas,r8a779g0-rpc-if",
+				     "renesas,rcar-gen4-rpc-if";
+			reg = <0 0xee200000 0 0x200>,
+			      <0 0x08000000 0 0x04000000>,
+			      <0 0xee208000 0 0x100>;
+			reg-names = "regs", "dirmap", "wbuf";
+			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 629>;
+			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
+			resets = <&cpg 629>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
 		ipmmu_rt0: iommu@ee480000 {
 			compatible = "renesas,ipmmu-r8a779g0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
@@ -1884,37 +1915,6 @@
 				     <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
 			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
 			#iommu-cells = <1>;
-		};
-
-		mmc0: mmc@ee140000 {
-			compatible = "renesas,sdhi-r8a779g0",
-				     "renesas,rcar-gen4-sdhi";
-			reg = <0 0xee140000 0 0x2000>;
-			interrupts = <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 706>,
-				 <&cpg CPG_CORE R8A779G0_CLK_SD0H>;
-			clock-names = "core", "clkh";
-			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 706>;
-			max-frequency = <200000000>;
-			iommus = <&ipmmu_ds0 32>;
-			status = "disabled";
-		};
-
-		rpc: spi@ee200000 {
-			compatible = "renesas,r8a779g0-rpc-if",
-				     "renesas,rcar-gen4-rpc-if";
-			reg = <0 0xee200000 0 0x200>,
-			      <0 0x08000000 0 0x04000000>,
-			      <0 0xee208000 0 0x100>;
-			reg-names = "regs", "dirmap", "wbuf";
-			interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 629>;
-			power-domains = <&sysc R8A779G0_PD_ALWAYS_ON>;
-			resets = <&cpg 629>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			status = "disabled";
 		};
 
 		gic: interrupt-controller@f1000000 {
