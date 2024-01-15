@@ -1528,7 +1528,7 @@ xlog_alloc_log(
 	int			error = -ENOMEM;
 	uint			log2_size = 0;
 
-	log = kmem_zalloc(sizeof(struct xlog), KM_MAYFAIL);
+	log = kzalloc(sizeof(struct xlog), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!log) {
 		xfs_warn(mp, "Log allocation failed: No memory!");
 		goto out;
@@ -1605,7 +1605,8 @@ xlog_alloc_log(
 		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE) *
 				sizeof(struct bio_vec);
 
-		iclog = kmem_zalloc(sizeof(*iclog) + bvec_size, KM_MAYFAIL);
+		iclog = kzalloc(sizeof(*iclog) + bvec_size,
+				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (!iclog)
 			goto out_free_iclog;
 

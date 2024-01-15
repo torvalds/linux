@@ -62,13 +62,6 @@ static inline void  kmem_free(const void *ptr)
 	kvfree(ptr);
 }
 
-
-static inline void *
-kmem_zalloc(size_t size, xfs_km_flags_t flags)
-{
-	return kmem_alloc(size, flags | KM_ZERO);
-}
-
 /*
  * Zone interfaces
  */

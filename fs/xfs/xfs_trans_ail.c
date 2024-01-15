@@ -901,7 +901,8 @@ xfs_trans_ail_init(
 {
 	struct xfs_ail	*ailp;
 
-	ailp = kmem_zalloc(sizeof(struct xfs_ail), KM_MAYFAIL);
+	ailp = kzalloc(sizeof(struct xfs_ail),
+			GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!ailp)
 		return -ENOMEM;
 

@@ -805,8 +805,8 @@ xfs_buf_item_get_format(
 		return;
 	}
 
-	bip->bli_formats = kmem_zalloc(count * sizeof(struct xfs_buf_log_format),
-				0);
+	bip->bli_formats = kzalloc(count * sizeof(struct xfs_buf_log_format),
+				GFP_KERNEL | __GFP_NOFAIL);
 }
 
 STATIC void
