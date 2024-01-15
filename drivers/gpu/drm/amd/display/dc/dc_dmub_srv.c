@@ -1195,6 +1195,9 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	if (dc->debug.dmcub_emulation)
 		return;
 
+	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
+		return;
+
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
 	cmd.idle_opt_notify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE;
@@ -1205,13 +1208,15 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
 
 	if (allow_idle) {
+		dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+
 		if (dc->hwss.set_idle_state)
 			dc->hwss.set_idle_state(dc, true);
 	}
 
 	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
 	/* We also do not perform a wait since DMCUB could enter idle after the notification. */
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dm_execute_dmub_cmd(dc->ctx, &cmd, allow_idle ? DM_DMUB_WAIT_TYPE_NO_WAIT : DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
