@@ -1262,10 +1262,18 @@ static int bch2_tmpfile(struct mnt_idmap *idmap,
 	return finish_open_simple(file, 0);
 }
 
+struct bch_fiemap_extent {
+	struct bkey_buf	kbuf;
+	unsigned	flags;
+};
+
 static int bch2_fill_extent(struct bch_fs *c,
 			    struct fiemap_extent_info *info,
-			    struct bkey_s_c k, unsigned flags)
+			    struct bch_fiemap_extent *fe)
 {
+	struct bkey_s_c k = bkey_i_to_s_c(fe->kbuf.k);
+	unsigned flags = fe->flags;
+
 	if (bkey_extent_is_direct_data(k.k)) {
 		struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 		const union bch_extent_entry *entry;
@@ -1318,6 +1326,36 @@ static int bch2_fill_extent(struct bch_fs *c,
 	}
 }
 
+static int bch2_fiemap_extent(struct btree_trans *trans,
+			      struct btree_iter *iter, struct bkey_s_c k,
+			      struct bch_fiemap_extent *cur)
+{
+	s64 offset_into_extent	= iter->pos.offset - bkey_start_offset(k.k);
+	unsigned sectors	= k.k->size - offset_into_extent;
+
+	bch2_bkey_buf_reassemble(&cur->kbuf, trans->c, k);
+
+	enum btree_id data_btree = BTREE_ID_extents;
+	int ret = bch2_read_indirect_extent(trans, &data_btree, &offset_into_extent,
+					    &cur->kbuf);
+	if (ret)
+		return ret;
+
+	k = bkey_i_to_s_c(cur->kbuf.k);
+	sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
+
+	bch2_cut_front(POS(k.k->p.inode,
+			   bkey_start_offset(k.k) + offset_into_extent),
+		       cur->kbuf.k);
+	bch2_key_resize(&cur->kbuf.k->k, sectors);
+	cur->kbuf.k->k.p = iter->pos;
+	cur->kbuf.k->k.p.offset += cur->kbuf.k->k.size;
+
+	cur->flags = 0;
+
+	return 0;
+}
+
 static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		       u64 start, u64 len)
 {
@@ -1326,7 +1364,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	struct btree_trans *trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_buf cur, prev;
+	struct bch_fiemap_extent cur, prev;
 	bool have_extent = false;
 	int ret = 0;
 
@@ -1340,15 +1378,14 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 	start >>= 9;
 
-	bch2_bkey_buf_init(&cur);
-	bch2_bkey_buf_init(&prev);
+	bch2_bkey_buf_init(&cur.kbuf);
+	bch2_bkey_buf_init(&prev.kbuf);
 	trans = bch2_trans_get(c);
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     POS(ei->v.i_ino, start), 0);
 
 	while (!ret || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-		enum btree_id data_btree = BTREE_ID_extents;
 
 		bch2_trans_begin(trans);
 
@@ -1373,39 +1410,21 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 			continue;
 		}
 
-		s64 offset_into_extent	= iter.pos.offset - bkey_start_offset(k.k);
-		unsigned sectors	= k.k->size - offset_into_extent;
-
-		bch2_bkey_buf_reassemble(&cur, c, k);
-
-		ret = bch2_read_indirect_extent(trans, &data_btree,
-					&offset_into_extent, &cur);
+		ret = bch2_fiemap_extent(trans, &iter, k, &cur);
 		if (ret)
-			continue;
-
-		k = bkey_i_to_s_c(cur.k);
-		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
-
-		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
-		start = iter.pos.offset + sectors;
-
-		bch2_cut_front(POS(k.k->p.inode,
-				   bkey_start_offset(k.k) +
-				   offset_into_extent),
-			       cur.k);
-		bch2_key_resize(&cur.k->k, sectors);
-		cur.k->k.p = iter.pos;
-		cur.k->k.p.offset += cur.k->k.size;
+			break;
+		bch2_bkey_buf_realloc(&prev.kbuf, c, cur.kbuf.k->k.u64s);
+		start = cur.kbuf.k->k.p.offset;
 
 		if (have_extent) {
 			bch2_trans_unlock(trans);
-			ret = bch2_fill_extent(c, info,
-					bkey_i_to_s_c(prev.k), 0);
+			ret = bch2_fill_extent(c, info, &prev);
 			if (ret)
 				break;
 		}
 
-		bkey_copy(prev.k, cur.k);
+		bkey_copy(prev.kbuf.k, cur.kbuf.k);
+		prev.flags = cur.flags;
 		have_extent = true;
 
 		bch2_btree_iter_set_pos(trans, &iter, POS(iter.pos.inode, start));
@@ -1414,13 +1433,13 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 
 	if (!ret && have_extent) {
 		bch2_trans_unlock(trans);
-		ret = bch2_fill_extent(c, info, bkey_i_to_s_c(prev.k),
-				       FIEMAP_EXTENT_LAST);
+		prev.flags |= FIEMAP_EXTENT_LAST;
+		ret = bch2_fill_extent(c, info, &prev);
 	}
 
 	bch2_trans_put(trans);
-	bch2_bkey_buf_exit(&cur, c);
-	bch2_bkey_buf_exit(&prev, c);
+	bch2_bkey_buf_exit(&cur.kbuf, c);
+	bch2_bkey_buf_exit(&prev.kbuf, c);
 	return ret < 0 ? ret : 0;
 }
 
