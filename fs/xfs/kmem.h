@@ -20,15 +20,4 @@ static inline void  kmem_free(const void *ptr)
 	kvfree(ptr);
 }
 
-/*
- * Zone interfaces
- */
-static inline struct page *
-kmem_to_page(void *addr)
-{
-	if (is_vmalloc_addr(addr))
-		return vmalloc_to_page(addr);
-	return virt_to_page(addr);
-}
-
 #endif /* __XFS_SUPPORT_KMEM_H__ */
