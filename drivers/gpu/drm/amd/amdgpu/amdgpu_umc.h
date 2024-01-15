@@ -118,4 +118,7 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data);
+
+int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
+			bool reset, uint32_t timeout_ms);
 #endif

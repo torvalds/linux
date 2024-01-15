@@ -120,6 +120,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 /* typical ECC bad page rate is 1 bad page per 100MB VRAM */
 #define RAS_BAD_PAGE_COVER              (100 * 1024 * 1024ULL)
 
+#define MAX_UMC_POISON_POLLING_TIME_ASYNC  100  //ms
+
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 	AMDGPU_RAS_RETIRE_PAGE_PENDING,
@@ -2674,6 +2676,9 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 			atomic_read(&con->page_retirement_req_cnt));
 
 		atomic_dec(&con->page_retirement_req_cnt);
+
+		amdgpu_umc_bad_page_polling_timeout(adev,
+				false, MAX_UMC_POISON_POLLING_TIME_ASYNC);
 	}
 
 	return 0;
