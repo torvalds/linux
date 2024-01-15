@@ -361,7 +361,9 @@ ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 fla
 	if (ret)
 		goto err_put;
 
+	dma_resv_lock(bo->base.base.resv, NULL);
 	ret = drm_gem_shmem_vmap(&bo->base, &map);
+	dma_resv_unlock(bo->base.base.resv);
 	if (ret)
 		goto err_put;
 
@@ -376,7 +378,10 @@ void ivpu_bo_free_internal(struct ivpu_bo *bo)
 {
 	struct iosys_map map = IOSYS_MAP_INIT_VADDR(bo->base.vaddr);
 
+	dma_resv_lock(bo->base.base.resv, NULL);
 	drm_gem_shmem_vunmap(&bo->base, &map);
+	dma_resv_unlock(bo->base.base.resv);
+
 	drm_gem_object_put(&bo->base.base);
 }
 
