@@ -1525,6 +1525,61 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_dctl_sec_cam_v2);
 
+int rtw89_fw_h2c_default_dmac_tbl_v2(struct rtw89_dev *rtwdev,
+				     struct rtw89_vif *rtwvif,
+				     struct rtw89_sta *rtwsta)
+{
+	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
+	struct rtw89_h2c_dctlinfo_ud_v2 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for dctl v2\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_dctlinfo_ud_v2 *)skb->data;
+
+	h2c->c0 = le32_encode_bits(mac_id, DCTLINFO_V2_C0_MACID) |
+		  le32_encode_bits(1, DCTLINFO_V2_C0_OP);
+
+	h2c->m0 = cpu_to_le32(DCTLINFO_V2_W0_ALL);
+	h2c->m1 = cpu_to_le32(DCTLINFO_V2_W1_ALL);
+	h2c->m2 = cpu_to_le32(DCTLINFO_V2_W2_ALL);
+	h2c->m3 = cpu_to_le32(DCTLINFO_V2_W3_ALL);
+	h2c->m4 = cpu_to_le32(DCTLINFO_V2_W4_ALL);
+	h2c->m5 = cpu_to_le32(DCTLINFO_V2_W5_ALL);
+	h2c->m6 = cpu_to_le32(DCTLINFO_V2_W6_ALL);
+	h2c->m7 = cpu_to_le32(DCTLINFO_V2_W7_ALL);
+	h2c->m8 = cpu_to_le32(DCTLINFO_V2_W8_ALL);
+	h2c->m9 = cpu_to_le32(DCTLINFO_V2_W9_ALL);
+	h2c->m10 = cpu_to_le32(DCTLINFO_V2_W10_ALL);
+	h2c->m11 = cpu_to_le32(DCTLINFO_V2_W11_ALL);
+	h2c->m12 = cpu_to_le32(DCTLINFO_V2_W12_ALL);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_DCTLINFO_UD_V2, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_default_dmac_tbl_v2);
+
 int rtw89_fw_h2c_ba_cam(struct rtw89_dev *rtwdev, struct rtw89_sta *rtwsta,
 			bool valid, struct ieee80211_ampdu_params *params)
 {
