@@ -32,7 +32,6 @@ static inline u32 udp_hashfn(const struct net *net, u32 num, u32 mask)
 
 enum {
 	UDP_FLAGS_CORK,		/* Cork is required */
-	UDP_FLAGS_NO_CHECK6_TX, /* Send zero UDP6 checksums on TX? */
 };
 
 struct udp_sock {
@@ -46,7 +45,8 @@ struct udp_sock {
 
 	int		 pending;	/* Any pending frames ? */
 	__u8		 encap_type;	/* Is this an Encapsulation socket? */
-	unsigned char	 no_check6_rx:1,/* Allow zero UDP6 checksums on RX? */
+	unsigned char	 no_check6_tx:1,/* Send zero UDP6 checksums on TX? */
+			 no_check6_rx:1,/* Allow zero UDP6 checksums on RX? */
 			 encap_enabled:1, /* This socket enabled encap
 					   * processing; UDP tunnels and
 					   * different encapsulation layer set
@@ -112,7 +112,7 @@ static inline struct udp_sock *udp_sk(const struct sock *sk)
 
 static inline void udp_set_no_check6_tx(struct sock *sk, bool val)
 {
-	udp_assign_bit(NO_CHECK6_TX, sk, val);
+	udp_sk(sk)->no_check6_tx = val;
 }
 
 static inline void udp_set_no_check6_rx(struct sock *sk, bool val)
@@ -120,9 +120,9 @@ static inline void udp_set_no_check6_rx(struct sock *sk, bool val)
 	udp_sk(sk)->no_check6_rx = val;
 }
 
-static inline bool udp_get_no_check6_tx(const struct sock *sk)
+static inline bool udp_get_no_check6_tx(struct sock *sk)
 {
-	return udp_test_bit(NO_CHECK6_TX, sk);
+	return udp_sk(sk)->no_check6_tx;
 }
 
 static inline bool udp_get_no_check6_rx(struct sock *sk)
