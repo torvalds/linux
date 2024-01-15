@@ -46,7 +46,7 @@ DECLARE_EVENT_CLASS(fs_str,
 		__assign_str(str, str);
 	),
 
-	TP_printk("%d,%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
+	TP_printk("%d,%d\n%s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(str))
 );
 
 DECLARE_EVENT_CLASS(trans_str,
@@ -273,28 +273,14 @@ DEFINE_EVENT(bch_fs, journal_full,
 	TP_ARGS(c)
 );
 
-DEFINE_EVENT(bch_fs, journal_entry_full,
-	TP_PROTO(struct bch_fs *c),
-	TP_ARGS(c)
+DEFINE_EVENT(fs_str, journal_entry_full,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(journal_entry_close,
-	TP_PROTO(struct bch_fs *c, unsigned bytes),
-	TP_ARGS(c, bytes),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__field(u32,		bytes			)
-	),
-
-	TP_fast_assign(
-		__entry->dev			= c->dev;
-		__entry->bytes			= bytes;
-	),
-
-	TP_printk("%d,%d entry bytes %u",
-		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->bytes)
+DEFINE_EVENT(fs_str, journal_entry_close,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(bio, journal_write,
