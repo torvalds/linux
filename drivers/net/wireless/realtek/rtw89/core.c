@@ -3345,6 +3345,10 @@ int rtw89_core_sta_add(struct rtw89_dev *rtwdev,
 			return ret;
 		}
 
+		ret = rtw89_chip_h2c_default_cmac_tbl(rtwdev, rtwvif, rtwsta);
+		if (ret)
+			return ret;
+
 		rtw89_queue_chanctx_change(rtwdev, RTW89_CHANCTX_REMOTE_STA_CHANGE);
 	}
 

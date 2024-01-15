@@ -1260,10 +1260,12 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W0_DISDATAFB BIT(26)
 #define CCTLINFO_G7_W0_NSTR_EN BIT(27)
 #define CCTLINFO_G7_W0_AMPDU_DENSITY GENMASK(31, 28)
+#define CCTLINFO_G7_W0_ALL (GENMASK(31, 20) | GENMASK(18, 0))
 #define CCTLINFO_G7_W1_DATA_RTY_LOWEST_RATE GENMASK(11, 0)
 #define CCTLINFO_G7_W1_RTS_TXCNT_LMT GENMASK(15, 12)
 #define CCTLINFO_G7_W1_RTSRATE GENMASK(27, 16)
 #define CCTLINFO_G7_W1_RTS_RTY_LOWEST_RATE GENMASK(31, 28)
+#define CCTLINFO_G7_W1_ALL GENMASK(31, 0)
 #define CCTLINFO_G7_W2_DATA_TX_CNT_LMT GENMASK(5, 0)
 #define CCTLINFO_G7_W2_DATA_TXCNT_LMT_SEL BIT(6)
 #define CCTLINFO_G7_W2_MAX_AGG_NUM_SEL BIT(7)
@@ -1276,6 +1278,7 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W2_AMPDU_MAX_LEN GENMASK(26, 16)
 #define CCTLINFO_G7_W2_UL_MU_DIS BIT(27)
 #define CCTLINFO_G7_W2_AMPDU_MAX_TIME GENMASK(31, 28)
+#define CCTLINFO_G7_W2_ALL GENMASK(31, 0)
 #define CCTLINFO_G7_W3_MAX_AGG_NUM GENMASK(7, 0)
 #define CCTLINFO_G7_W3_DATA_BW GENMASK(10, 8)
 #define CCTLINFO_G7_W3_DATA_BW_ER BIT(11)
@@ -1289,6 +1292,7 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W3_AMPDU_LEN_SEL BIT(29)
 #define CCTLINFO_G7_W3_RTS_TXCNT_LMT_SEL BIT(30)
 #define CCTLINFO_G7_W3_LSIG_TXOP_EN BIT(31)
+#define CCTLINFO_G7_W3_ALL GENMASK(31, 0)
 #define CCTLINFO_G7_W4_MULTI_PORT_ID GENMASK(2, 0)
 #define CCTLINFO_G7_W4_BYPASS_PUNC BIT(3)
 #define CCTLINFO_G7_W4_MBSSID GENMASK(7, 4)
@@ -1300,6 +1304,7 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W4_A_CTRL_BSR BIT(14)
 #define CCTLINFO_G7_W4_A_CTRL_CAS BIT(15)
 #define CCTLINFO_G7_W4_ACT_SUBCH_CBW GENMASK(31, 16)
+#define CCTLINFO_G7_W4_ALL (GENMASK(31, 14) | GENMASK(12, 0))
 #define CCTLINFO_G7_W5_NOMINAL_PKT_PADDING0 GENMASK(1, 0)
 #define CCTLINFO_G7_W5_NOMINAL_PKT_PADDING1 GENMASK(3, 2)
 #define CCTLINFO_G7_W5_NOMINAL_PKT_PADDING2 GENMASK(5, 4)
@@ -1308,9 +1313,11 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W5_SR_RATE GENMASK(14, 10)
 #define CCTLINFO_G7_W5_TID_DISABLE GENMASK(23, 16)
 #define CCTLINFO_G7_W5_ADDR_CAM_INDEX GENMASK(31, 24)
+#define CCTLINFO_G7_W5_ALL (GENMASK(31, 16) | GENMASK(14, 0))
 #define CCTLINFO_G7_W6_AID12_PAID GENMASK(11, 0)
 #define CCTLINFO_G7_W6_RESP_REF_RATE GENMASK(23, 12)
 #define CCTLINFO_G7_W6_ULDL BIT(31)
+#define CCTLINFO_G7_W6_ALL (BIT(31) | GENMASK(23, 0))
 #define CCTLINFO_G7_W7_NC GENMASK(2, 0)
 #define CCTLINFO_G7_W7_NR GENMASK(5, 3)
 #define CCTLINFO_G7_W7_NG GENMASK(7, 6)
@@ -1321,6 +1328,7 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W7_CSI_PARA_EN BIT(15)
 #define CCTLINFO_G7_W7_CSI_FIX_RATE GENMASK(27, 16)
 #define CCTLINFO_G7_W7_CSI_BW GENMASK(31, 29)
+#define CCTLINFO_G7_W7_ALL (GENMASK(31, 29) | GENMASK(27, 13) | GENMASK(11, 0))
 #define CCTLINFO_G7_W8_ALL_ACK_SUPPORT BIT(0)
 #define CCTLINFO_G7_W8_BSR_QUEUE_SIZE_FORMAT BIT(1)
 #define CCTLINFO_G7_W8_BSR_OM_UPD_EN BIT(2)
@@ -1331,13 +1339,16 @@ struct rtw89_h2c_cctlinfo_ud_g7 {
 #define CCTLINFO_G7_W8_CTRL_CNT_VLD BIT(7)
 #define CCTLINFO_G7_W8_CTRL_CNT GENMASK(11, 8)
 #define CCTLINFO_G7_W8_RESP_SEC_TYPE GENMASK(15, 12)
+#define CCTLINFO_G7_W8_ALL GENMASK(15, 0)
 /* W9~13 are reserved */
 #define CCTLINFO_G7_W14_VO_CURR_RATE GENMASK(11, 0)
 #define CCTLINFO_G7_W14_VI_CURR_RATE GENMASK(23, 12)
 #define CCTLINFO_G7_W14_BE_CURR_RATE_L GENMASK(31, 24)
+#define CCTLINFO_G7_W14_ALL GENMASK(31, 0)
 #define CCTLINFO_G7_W15_BE_CURR_RATE_H GENMASK(3, 0)
 #define CCTLINFO_G7_W15_BK_CURR_RATE GENMASK(15, 4)
 #define CCTLINFO_G7_W15_MGNT_CURR_RATE GENMASK(27, 16)
+#define CCTLINFO_G7_W15_ALL GENMASK(27, 0)
 
 static inline void SET_DCTL_MACID_V1(void *table, u32 val)
 {
@@ -3939,7 +3950,11 @@ void rtw89_h2c_pkt_set_hdr(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			   u8 type, u8 cat, u8 class, u8 func,
 			   bool rack, bool dack, u32 len);
 int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *rtwvif);
+				  struct rtw89_vif *rtwvif,
+				  struct rtw89_sta *rtwsta);
+int rtw89_fw_h2c_default_cmac_tbl_g7(struct rtw89_dev *rtwdev,
+				     struct rtw89_vif *rtwvif,
+				     struct rtw89_sta *rtwsta);
 int rtw89_fw_h2c_assoc_cmac_tbl(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				struct ieee80211_sta *sta);
@@ -4087,6 +4102,15 @@ static inline void rtw89_fw_h2c_init_ba_cam(struct rtw89_dev *rtwdev)
 
 	if (chip->bacam_ver == RTW89_BACAM_V0_EXT)
 		rtw89_fw_h2c_init_dynamic_ba_cam_v0_ext(rtwdev);
+}
+
+static inline int rtw89_chip_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
+						  struct rtw89_vif *rtwvif,
+						  struct rtw89_sta *rtwsta)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	return chip->ops->h2c_default_cmac_tbl(rtwdev, rtwvif, rtwsta);
 }
 
 static inline int rtw89_chip_h2c_update_beacon(struct rtw89_dev *rtwdev,

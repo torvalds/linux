@@ -2053,11 +2053,12 @@ static void __rtw89_fw_h2c_set_tx_path(struct rtw89_dev *rtwdev,
 
 #define H2C_CMC_TBL_LEN 68
 int rtw89_fw_h2c_default_cmac_tbl(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *rtwvif)
+				  struct rtw89_vif *rtwvif,
+				  struct rtw89_sta *rtwsta)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	u8 macid = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
 	struct sk_buff *skb;
-	u8 macid = rtwvif->mac_id;
 	int ret;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, H2C_CMC_TBL_LEN);
@@ -2098,6 +2099,91 @@ fail:
 
 	return ret;
 }
+EXPORT_SYMBOL(rtw89_fw_h2c_default_cmac_tbl);
+
+int rtw89_fw_h2c_default_cmac_tbl_g7(struct rtw89_dev *rtwdev,
+				     struct rtw89_vif *rtwvif,
+				     struct rtw89_sta *rtwsta)
+{
+	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
+	struct rtw89_h2c_cctlinfo_ud_g7 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for cmac g7\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cctlinfo_ud_g7 *)skb->data;
+
+	h2c->c0 = le32_encode_bits(mac_id, CCTLINFO_G7_C0_MACID) |
+		  le32_encode_bits(1, CCTLINFO_G7_C0_OP);
+
+	h2c->w0 = le32_encode_bits(4, CCTLINFO_G7_W0_DATARATE);
+	h2c->m0 = cpu_to_le32(CCTLINFO_G7_W0_ALL);
+
+	h2c->w1 = le32_encode_bits(4, CCTLINFO_G7_W1_DATA_RTY_LOWEST_RATE) |
+		  le32_encode_bits(0xa, CCTLINFO_G7_W1_RTSRATE) |
+		  le32_encode_bits(4, CCTLINFO_G7_W1_RTS_RTY_LOWEST_RATE);
+	h2c->m1 = cpu_to_le32(CCTLINFO_G7_W1_ALL);
+
+	h2c->m2 = cpu_to_le32(CCTLINFO_G7_W2_ALL);
+
+	h2c->m3 = cpu_to_le32(CCTLINFO_G7_W3_ALL);
+
+	h2c->w4 = le32_encode_bits(0xFFFF, CCTLINFO_G7_W4_ACT_SUBCH_CBW);
+	h2c->m4 = cpu_to_le32(CCTLINFO_G7_W4_ALL);
+
+	h2c->w5 = le32_encode_bits(2, CCTLINFO_G7_W5_NOMINAL_PKT_PADDING0) |
+		  le32_encode_bits(2, CCTLINFO_G7_W5_NOMINAL_PKT_PADDING1) |
+		  le32_encode_bits(2, CCTLINFO_G7_W5_NOMINAL_PKT_PADDING2) |
+		  le32_encode_bits(2, CCTLINFO_G7_W5_NOMINAL_PKT_PADDING3) |
+		  le32_encode_bits(2, CCTLINFO_G7_W5_NOMINAL_PKT_PADDING4);
+	h2c->m5 = cpu_to_le32(CCTLINFO_G7_W5_ALL);
+
+	h2c->w6 = le32_encode_bits(0xb, CCTLINFO_G7_W6_RESP_REF_RATE);
+	h2c->m6 = cpu_to_le32(CCTLINFO_G7_W6_ALL);
+
+	h2c->w7 = le32_encode_bits(1, CCTLINFO_G7_W7_NC) |
+		  le32_encode_bits(1, CCTLINFO_G7_W7_NR) |
+		  le32_encode_bits(1, CCTLINFO_G7_W7_CB) |
+		  le32_encode_bits(0x1, CCTLINFO_G7_W7_CSI_PARA_EN) |
+		  le32_encode_bits(0xb, CCTLINFO_G7_W7_CSI_FIX_RATE);
+	h2c->m7 = cpu_to_le32(CCTLINFO_G7_W7_ALL);
+
+	h2c->m8 = cpu_to_le32(CCTLINFO_G7_W8_ALL);
+
+	h2c->w14 = le32_encode_bits(0, CCTLINFO_G7_W14_VO_CURR_RATE) |
+		   le32_encode_bits(0, CCTLINFO_G7_W14_VI_CURR_RATE) |
+		   le32_encode_bits(0, CCTLINFO_G7_W14_BE_CURR_RATE_L);
+	h2c->m14 = cpu_to_le32(CCTLINFO_G7_W14_ALL);
+
+	h2c->w15 = le32_encode_bits(0, CCTLINFO_G7_W15_BE_CURR_RATE_H) |
+		   le32_encode_bits(0, CCTLINFO_G7_W15_BK_CURR_RATE) |
+		   le32_encode_bits(0, CCTLINFO_G7_W15_MGNT_CURR_RATE);
+	h2c->m15 = cpu_to_le32(CCTLINFO_G7_W15_ALL);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FR_EXCHG,
+			      H2C_FUNC_MAC_CCTLINFO_UD_G7, 0, 1,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+EXPORT_SYMBOL(rtw89_fw_h2c_default_cmac_tbl_g7);
 
 static void __get_sta_he_pkt_padding(struct rtw89_dev *rtwdev,
 				     struct ieee80211_sta *sta, u8 *pads)

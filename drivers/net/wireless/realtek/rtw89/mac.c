@@ -4497,7 +4497,7 @@ int rtw89_mac_vif_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	if (ret)
 		return ret;
 
-	ret = rtw89_fw_h2c_default_cmac_tbl(rtwdev, rtwvif);
+	ret = rtw89_chip_h2c_default_cmac_tbl(rtwdev, rtwvif, NULL);
 	if (ret)
 		return ret;
 
