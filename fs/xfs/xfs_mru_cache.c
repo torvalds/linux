@@ -428,7 +428,7 @@ xfs_mru_cache_insert(
 	if (!mru || !mru->lists)
 		return -EINVAL;
 
-	if (radix_tree_preload(GFP_NOFS))
+	if (radix_tree_preload(GFP_KERNEL))
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&elem->list_node);

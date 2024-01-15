@@ -3518,7 +3518,8 @@ xlog_ticket_alloc(
 	struct xlog_ticket	*tic;
 	int			unit_res;
 
-	tic = kmem_cache_zalloc(xfs_log_ticket_cache, GFP_NOFS | __GFP_NOFAIL);
+	tic = kmem_cache_zalloc(xfs_log_ticket_cache,
+			GFP_KERNEL | __GFP_NOFAIL);
 
 	unit_res = xlog_calc_unit_res(log, unit_bytes, &tic->t_iclog_hdrs);
 

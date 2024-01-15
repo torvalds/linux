@@ -226,7 +226,7 @@ xfs_attri_init(
 {
 	struct xfs_attri_log_item	*attrip;
 
-	attrip = kmem_cache_zalloc(xfs_attri_cache, GFP_NOFS | __GFP_NOFAIL);
+	attrip = kmem_cache_zalloc(xfs_attri_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	/*
 	 * Grab an extra reference to the name/value buffer for this log item.
@@ -666,7 +666,7 @@ xfs_attr_create_done(
 
 	attrip = ATTRI_ITEM(intent);
 
-	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
+	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	xfs_log_item_init(tp->t_mountp, &attrdp->attrd_item, XFS_LI_ATTRD,
 			  &xfs_attrd_item_ops);

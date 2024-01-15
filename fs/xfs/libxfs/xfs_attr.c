@@ -891,7 +891,8 @@ xfs_attr_defer_add(
 
 	struct xfs_attr_intent	*new;
 
-	new = kmem_cache_zalloc(xfs_attr_intent_cache, GFP_NOFS | __GFP_NOFAIL);
+	new = kmem_cache_zalloc(xfs_attr_intent_cache,
+			GFP_KERNEL | __GFP_NOFAIL);
 	new->xattri_op_flags = op_flags;
 	new->xattri_da_args = args;
 

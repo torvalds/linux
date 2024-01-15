@@ -66,7 +66,7 @@ xfs_zero_extent(
 	return blkdev_issue_zeroout(target->bt_bdev,
 		block << (mp->m_super->s_blocksize_bits - 9),
 		count_fsb << (mp->m_super->s_blocksize_bits - 9),
-		GFP_NOFS, 0);
+		GFP_KERNEL, 0);
 }
 
 /*
