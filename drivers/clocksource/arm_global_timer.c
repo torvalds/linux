@@ -88,7 +88,7 @@ static u64 gt_counter_read(void)
 	return _gt_counter_read();
 }
 
-/**
+/*
  * To ensure that updates to comparator value register do not set the
  * Interrupt Status Register proceed as follows:
  * 1. Clear the Comp Enable bit in the Timer Control Register.
