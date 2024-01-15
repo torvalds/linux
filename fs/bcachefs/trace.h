@@ -827,40 +827,28 @@ TRACE_EVENT(bucket_evacuate,
 );
 
 DEFINE_EVENT(fs_str, move_extent,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_read,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_write,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_finish,
-	TP_PROTO(struct bch_fs *c, const char *k),
-	TP_ARGS(c, k)
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
-TRACE_EVENT(move_extent_fail,
-	TP_PROTO(struct bch_fs *c, const char *msg),
-	TP_ARGS(c, msg),
-
-	TP_STRUCT__entry(
-		__field(dev_t,		dev			)
-		__string(msg,		msg			)
-	),
-
-	TP_fast_assign(
-		__entry->dev		= c->dev;
-		__assign_str(msg, msg);
-	),
-
-	TP_printk("%d:%d %s", MAJOR(__entry->dev), MINOR(__entry->dev), __get_str(msg))
+DEFINE_EVENT(fs_str, move_extent_fail,
+	TP_PROTO(struct bch_fs *c, const char *str),
+	TP_ARGS(c, str)
 );
 
 DEFINE_EVENT(fs_str, move_extent_start_fail,

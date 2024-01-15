@@ -111,6 +111,15 @@ static void move_write(struct moving_io *io)
 		return;
 	}
 
+	if (trace_move_extent_write_enabled()) {
+		struct bch_fs *c = io->write.op.c;
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(io->write.k.k));
+		trace_move_extent_write(c, buf.buf);
+		printbuf_exit(&buf);
+	}
+
 	closure_get(&io->write.ctxt->cl);
 	atomic_add(io->write_sectors, &io->write.ctxt->write_sectors);
 	atomic_inc(&io->write.ctxt->write_ios);
