@@ -106,7 +106,6 @@ struct sk_psock {
 	struct mutex			work_mutex;
 	struct sk_psock_work_state	work_state;
 	struct delayed_work		work;
-	struct sock			*sk_pair;
 	struct rcu_work			rwork;
 };
 
