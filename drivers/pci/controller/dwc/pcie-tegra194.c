@@ -1060,7 +1060,7 @@ static const struct dw_pcie_ops tegra_dw_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
-	.host_init = tegra_pcie_dw_host_init,
+	.init = tegra_pcie_dw_host_init,
 };
 
 static void tegra_pcie_disable_phy(struct tegra_pcie_dw *pcie)

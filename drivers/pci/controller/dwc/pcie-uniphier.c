@@ -311,7 +311,7 @@ static int uniphier_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops uniphier_pcie_host_ops = {
-	.host_init = uniphier_pcie_host_init,
+	.init = uniphier_pcie_host_init,
 };
 
 static int uniphier_pcie_host_enable(struct uniphier_pcie *pcie)

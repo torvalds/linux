@@ -1039,8 +1039,8 @@ static void imx6_pcie_host_exit(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops imx6_pcie_host_ops = {
-	.host_init = imx6_pcie_host_init,
-	.host_deinit = imx6_pcie_host_exit,
+	.init = imx6_pcie_host_init,
+	.deinit = imx6_pcie_host_exit,
 };
 
 static const struct dw_pcie_ops dw_pcie_ops = {
@@ -1093,7 +1093,7 @@ imx6_pcie_ep_get_features(struct dw_pcie_ep *ep)
 }
 
 static const struct dw_pcie_ep_ops pcie_ep_ops = {
-	.ep_init = imx6_pcie_ep_init,
+	.init = imx6_pcie_ep_init,
 	.raise_irq = imx6_pcie_ep_raise_irq,
 	.get_features = imx6_pcie_ep_get_features,
 };
