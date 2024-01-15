@@ -1356,6 +1356,87 @@ static int bch2_fiemap_extent(struct btree_trans *trans,
 	return 0;
 }
 
+/*
+ * Scan a range of an inode for data in pagecache.
+ *
+ * Intended to be retryable, so don't modify the output params until success is
+ * imminent.
+ */
+static int
+bch2_fiemap_hole_pagecache(struct inode *vinode, u64 *start, u64 *end,
+			   bool nonblock)
+{
+	loff_t	dstart, dend;
+
+	dstart = bch2_seek_pagecache_data(vinode, *start, *end, 0, nonblock);
+	if (dstart < 0)
+		return dstart;
+	if (dstart >= *end)
+		return -ENOENT;
+
+	dend = bch2_seek_pagecache_hole(vinode, dstart, *end, 0, nonblock);
+	if (dend < 0)
+		return dend;
+
+	*start = dstart;
+	*end = dend;
+	return 0;
+}
+
+/*
+ * Scan a range of pagecache that corresponds to a file mapping hole in the
+ * extent btree. If data is found, fake up an extent key so it looks like a
+ * delalloc extent to the rest of the fiemap processing code.
+ *
+ * Returns 0 if cached data was found, -ENOENT if not.
+ */
+static int
+bch2_fiemap_hole(struct btree_trans *trans, struct inode *vinode, u64 start,
+		 u64 end, struct bch_fiemap_extent *cur)
+{
+	struct bch_fs		*c = vinode->i_sb->s_fs_info;
+	struct bch_inode_info	*ei = to_bch_ei(vinode);
+	struct bkey_i_extent	*delextent;
+	struct bch_extent_ptr	ptr = {};
+	loff_t			dstart = start, dend = end;
+	int			ret;
+
+	/*
+	 * We hold btree locks here so we cannot block on folio locks without
+	 * dropping trans locks first. Run a nonblocking scan for the common
+	 * case of no folios over holes and fall back on failure.
+	 *
+	 * Note that dropping locks like this is technically racy against
+	 * writeback inserting to the extent tree, but a non-sync fiemap scan is
+	 * fundamentally racy with writeback anyways. Therefore, just report the
+	 * range as delalloc regardless of whether we have to cycle trans locks.
+	 */
+	ret = bch2_fiemap_hole_pagecache(vinode, &dstart, &dend, true);
+	if (ret == -EAGAIN) {
+		/* open coded drop_locks_do() to relock even on error */
+		bch2_trans_unlock(trans);
+		ret = bch2_fiemap_hole_pagecache(vinode, &dstart, &dend, false);
+		bch2_trans_relock(trans);
+	}
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Create a fake extent key in the buffer. We have to add a dummy extent
+	 * pointer for the fill code to add an extent entry. It's explicitly
+	 * zeroed to reflect delayed allocation (i.e. phys offset 0).
+	 */
+	bch2_bkey_buf_realloc(&cur->kbuf, c, sizeof(*delextent) / sizeof(u64));
+	delextent = bkey_extent_init(cur->kbuf.k);
+	delextent->k.p = POS(ei->v.i_ino, dstart >> 9);
+	bch2_key_resize(&delextent->k, (dend - dstart) >> 9);
+	bch2_bkey_append_ptr(&delextent->k_i, ptr);
+
+	cur->flags = FIEMAP_EXTENT_DELALLOC;
+
+	return 0;
+}
+
 static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		       u64 start, u64 len)
 {
@@ -1386,6 +1467,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 			     POS(ei->v.i_ino, start), 0);
 
 	while (!ret || bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+		bool have_delalloc = false;
 
 		bch2_trans_begin(trans);
 
@@ -1404,15 +1486,38 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		if (!k.k)
 			break;
 
-		if (!bkey_extent_is_data(k.k) &&
-		    k.k->type != KEY_TYPE_reservation) {
-			bch2_btree_iter_advance(trans, &iter);
-			continue;
+		/*
+		 * If a hole exists before the start of the extent key, scan the
+		 * range for pagecache data that might be pending writeback and
+		 * thus not yet exist in the extent tree.
+		 */
+		if (iter.pos.offset > start) {
+			ret = bch2_fiemap_hole(trans, vinode, start << 9,
+					       iter.pos.offset << 9, &cur);
+			if (!ret)
+				have_delalloc = true;
+			else if (ret != -ENOENT)
+				break;
 		}
 
-		ret = bch2_fiemap_extent(trans, &iter, k, &cur);
-		if (ret)
-			break;
+		 /* process the current key if there's no delalloc to report */
+		if (!have_delalloc) {
+			if (!bkey_extent_is_data(k.k) &&
+			    k.k->type != KEY_TYPE_reservation) {
+				start = bkey_start_offset(k.k) + k.k->size;
+				bch2_btree_iter_advance(trans, &iter);
+				continue;
+			}
+
+			ret = bch2_fiemap_extent(trans, &iter, k, &cur);
+			if (ret)
+				break;
+		}
+
+		/*
+		 * Store the current extent in prev so we can flag the last
+		 * extent on the way out.
+		 */
 		bch2_bkey_buf_realloc(&prev.kbuf, c, cur.kbuf.k->k.u64s);
 		start = cur.kbuf.k->k.p.offset;
 
