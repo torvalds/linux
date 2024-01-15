@@ -416,7 +416,7 @@ static int wilc_init_fw_config(struct net_device *dev, struct wilc_vif *vif)
 
 	b = 1;
 	if (!wilc_wlan_cfg_set(vif, 0, WID_11N_IMMEDIATE_BA_ENABLED, &b, 1,
-			       1, 1))
+			       1, 0))
 		goto fail;
 
 	return 0;
