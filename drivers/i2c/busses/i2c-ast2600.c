@@ -407,6 +407,9 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 {
 	int slave_rx_len;
 	u32 cmd = 0;
+#ifdef CONFIG_MACH_ASPEED_G7
+	u32 fsm;
+#endif
 	u8 value;
 	int i;
 
@@ -428,6 +431,7 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 	switch (sts) {
 	/* AST2700 workaround */
 	case 0:
+		break;
 	case AST2600_I2CS_SLAVE_MATCH:
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 		break;
@@ -534,7 +538,17 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 		writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
 	}
 	writel(AST2600_I2CS_PKT_DONE, i2c_bus->reg_base + AST2600_I2CS_ISR);
+#ifdef CONFIG_MACH_ASPEED_G7
+	//ast2700 workaround
+	fsm = (readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF) & GENMASK(22, 19)) >> 19;
+	// Check if the FSM is idle or Master not operate
+	if (!fsm || !(fsm & BIT(3))) {
+		if (!(readl(i2c_bus->reg_base + AST2600_I2CS_ISR) & AST2600_I2CS_SLAVE_MATCH))
+			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+	}
+#else
 	readl(i2c_bus->reg_base + AST2600_I2CS_ISR);
+#endif
 }
 
 static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u32 sts)
