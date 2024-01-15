@@ -30,4 +30,164 @@
 		function = "I2C5";
 		groups = "I2C5";
 	};
+
+	pinctrl_ltpi0_pwm0_default: ltpi0_pwm0_default {
+		function = "PWM0";
+		groups = "PWM0";
+	};
+
+	pinctrl_ltpi0_pwm1_default: ltpi0_pwm1_default {
+		function = "PWM1";
+		groups = "PWM1";
+	};
+
+	pinctrl_ltpi0_pwm2_default: ltpi0_pwm2_default {
+		function = "PWM2";
+		groups = "PWM2";
+	};
+
+	pinctrl_ltpi0_pwm3_default: ltpi0_pwm3_default {
+		function = "PWM3";
+		groups = "PWM3";
+	};
+
+	pinctrl_ltpi0_pwm4_default: ltpi0_pwm4_default {
+		function = "PWM4";
+		groups = "PWM4";
+	};
+
+	pinctrl_ltpi0_pwm5_default: ltpi0_pwm5_default {
+		function = "PWM5";
+		groups = "PWM5";
+	};
+
+	pinctrl_ltpi0_pwm6_default: ltpi0_pwm6_default {
+		function = "PWM6";
+		groups = "PWM6";
+	};
+
+	pinctrl_ltpi0_pwm7_default: ltpi0_pwm7_default {
+		function = "PWM7";
+		groups = "PWM7";
+	};
+
+	pinctrl_ltpi0_pwm8_default: ltpi0_pwm8_default {
+		function = "PWM8";
+		groups = "PWM8";
+	};
+
+	pinctrl_ltpi0_pwm9_default: ltpi0_pwm9_default {
+		function = "PWM9";
+		groups = "PWM9";
+	};
+
+	pinctrl_ltpi0_pwm10_default: ltpi0_pwm10_default {
+		function = "PWM10";
+		groups = "PWM10";
+	};
+
+	pinctrl_ltpi0_pwm11_default: ltpi0_pwm11_default {
+		function = "PWM11";
+		groups = "PWM11";
+	};
+
+	pinctrl_ltpi0_pwm12_default: ltpi0_pwm12_default {
+		function = "PWM12";
+		groups = "PWM12";
+	};
+
+	pinctrl_ltpi0_pwm13_default: ltpi0_pwm13_default {
+		function = "PWM13";
+		groups = "PWM13";
+	};
+
+	pinctrl_ltpi0_pwm14_default: ltpi0_pwm14_default {
+		function = "PWM14";
+		groups = "PWM14";
+	};
+
+	pinctrl_ltpi0_pwm15_default: ltpi0_pwm15_default {
+		function = "PWM15";
+		groups = "PWM15";
+	};
+
+	pinctrl_ltpi0_tach0_default: ltpi0_tach0_default {
+		function = "TACH0";
+		groups = "TACH0";
+	};
+
+	pinctrl_ltpi0_tach1_default: ltpi0_tach1_default {
+		function = "TACH1";
+		groups = "TACH1";
+	};
+
+	pinctrl_ltpi0_tach2_default: ltpi0_tach2_default {
+		function = "TACH2";
+		groups = "TACH2";
+	};
+
+	pinctrl_ltpi0_tach3_default: ltpi0_tach3_default {
+		function = "TACH3";
+		groups = "TACH3";
+	};
+
+	pinctrl_ltpi0_tach4_default: ltpi0_tach4_default {
+		function = "TACH4";
+		groups = "TACH4";
+	};
+
+	pinctrl_ltpi0_tach5_default: ltpi0_tach5_default {
+		function = "TACH5";
+		groups = "TACH5";
+	};
+
+	pinctrl_ltpi0_tach6_default: ltpi0_tach6_default {
+		function = "TACH6";
+		groups = "TACH6";
+	};
+
+	pinctrl_ltpi0_tach7_default: ltpi0_tach7_default {
+		function = "TACH7";
+		groups = "TACH7";
+	};
+
+	pinctrl_ltpi0_tach8_default: ltpi0_tach8_default {
+		function = "TACH8";
+		groups = "TACH8";
+	};
+
+	pinctrl_ltpi0_tach9_default: ltpi0_tach9_default {
+		function = "TACH9";
+		groups = "TACH9";
+	};
+
+	pinctrl_ltpi0_tach10_default: ltpi0_tach10_default {
+		function = "TACH10";
+		groups = "TACH10";
+	};
+
+	pinctrl_ltpi0_tach11_default: ltpi0_tach11_default {
+		function = "TACH11";
+		groups = "TACH11";
+	};
+
+	pinctrl_ltpi0_tach12_default: ltpi0_tach12_default {
+		function = "TACH12";
+		groups = "TACH12";
+	};
+
+	pinctrl_ltpi0_tach13_default: ltpi0_tach13_default {
+		function = "TACH13";
+		groups = "TACH13";
+	};
+
+	pinctrl_ltpi0_tach14_default: ltpi0_tach14_default {
+		function = "TACH14";
+		groups = "TACH14";
+	};
+
+	pinctrl_ltpi0_tach15_default: ltpi0_tach15_default {
+		function = "TACH15";
+		groups = "TACH15";
+	};
 };

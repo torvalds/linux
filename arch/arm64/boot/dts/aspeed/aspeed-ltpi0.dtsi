@@ -43,6 +43,15 @@
 			status = "disabled";
 		};
 
+		ltpi0_pwm_tach: pwm-tach-controller@300c0000 {
+			compatible = "aspeed,ast2700-pwm-tach";
+			reg = <0x0 0x300c0000 0 0x100>;
+			clocks = <&ltpi0_syscon AST1700_CLK_AHB>;
+			resets = <&ltpi0_syscon AST1700_RESET_PWM>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		ltpi0_i2c: bus@30c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;

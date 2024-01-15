@@ -5,6 +5,17 @@
 #include "ast2700-evb.dts"
 #include "aspeed-ltpi0.dtsi"
 
+/ {
+	/delete-node/ fan0;
+	/delete-node/ fan1;
+	/delete-node/ fan2;
+	/delete-node/ fan3;
+	/delete-node/ fan4;
+	/delete-node/ fan5;
+	/delete-node/ fan6;
+	/delete-node/ fan7;
+};
+
 &ltpi0 {
 	status = "okay";
 };
@@ -19,6 +30,30 @@
 	/delete-property/ pinctrl-names;
 	/delete-property/ pinctrl-0;
 	status = "okay";
+};
+
+&pwm_tach {
+	pinctrl-0 = <&pinctrl_pwm8_default &pinctrl_pwm9_default
+		     &pinctrl_pwm10_default &pinctrl_pwm11_default
+		     &pinctrl_pwm12_default &pinctrl_pwm13_default
+		     &pinctrl_pwm14_default &pinctrl_pwm15_default>;
+
+	/delete-node/fan-0;
+	/delete-node/fan-1;
+	/delete-node/fan-2;
+	/delete-node/fan-3;
+	/delete-node/fan-4;
+	/delete-node/fan-5;
+	/delete-node/fan-6;
+	/delete-node/fan-7;
+	/delete-node/fan-8;
+	/delete-node/fan-9;
+	/delete-node/fan-10;
+	/delete-node/fan-11;
+	/delete-node/fan-12;
+	/delete-node/fan-13;
+	/delete-node/fan-14;
+	/delete-node/fan-15;
 };
 
 &i2c0 {
