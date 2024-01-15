@@ -2715,7 +2715,7 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case UDP_NO_CHECK6_RX:
-		udp_set_no_check6_rx(sk, valbool);
+		up->no_check6_rx = valbool;
 		break;
 
 	case UDP_SEGMENT:
@@ -2812,7 +2812,7 @@ int udp_lib_getsockopt(struct sock *sk, int level, int optname,
 		break;
 
 	case UDP_NO_CHECK6_RX:
-		val = udp_get_no_check6_rx(sk);
+		val = up->no_check6_rx;
 		break;
 
 	case UDP_SEGMENT:
