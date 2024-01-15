@@ -336,7 +336,7 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 		return -EINVAL;
 	if (!test_and_set_bit(SDF_DEMOTE, &sdp->sd_flags))
 		fs_info(sdp, "demote interface used\n");
-	rv = gfs2_glock_get(sdp, glnum, glops, 0, &gl);
+	rv = gfs2_glock_get(sdp, glnum, glops, NO_CREATE, &gl);
 	if (rv)
 		return rv;
 	gfs2_glock_cb(gl, glmode);
