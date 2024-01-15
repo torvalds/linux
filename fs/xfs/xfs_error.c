@@ -248,7 +248,7 @@ xfs_errortag_init(
 	ret = xfs_sysfs_init(&mp->m_errortag_kobj, &xfs_errortag_ktype,
 				&mp->m_kobj, "errortag");
 	if (ret)
-		kmem_free(mp->m_errortag);
+		kfree(mp->m_errortag);
 	return ret;
 }
 
@@ -257,7 +257,7 @@ xfs_errortag_del(
 	struct xfs_mount	*mp)
 {
 	xfs_sysfs_del(&mp->m_errortag_kobj);
-	kmem_free(mp->m_errortag);
+	kfree(mp->m_errortag);
 }
 
 static bool

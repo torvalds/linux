@@ -703,7 +703,7 @@ xlog_cil_free_logvec(
 	while (!list_empty(lv_chain)) {
 		lv = list_first_entry(lv_chain, struct xfs_log_vec, lv_list);
 		list_del_init(&lv->lv_list);
-		kmem_free(lv);
+		kfree(lv);
 	}
 }
 
@@ -753,7 +753,7 @@ xlog_cil_committed(
 		return;
 	}
 
-	kmem_free(ctx);
+	kfree(ctx);
 }
 
 void
@@ -1339,7 +1339,7 @@ xlog_cil_push_work(
 out_skip:
 	up_write(&cil->xc_ctx_lock);
 	xfs_log_ticket_put(new_ctx->ticket);
-	kmem_free(new_ctx);
+	kfree(new_ctx);
 	return;
 
 out_abort_free_ticket:
@@ -1533,7 +1533,7 @@ xlog_cil_process_intents(
 		set_bit(XFS_LI_WHITEOUT, &ilip->li_flags);
 		trace_xfs_cil_whiteout_mark(ilip);
 		len += ilip->li_lv->lv_bytes;
-		kmem_free(ilip->li_lv);
+		kfree(ilip->li_lv);
 		ilip->li_lv = NULL;
 
 		xfs_trans_del_item(lip);
@@ -1786,7 +1786,7 @@ xlog_cil_init(
 out_destroy_wq:
 	destroy_workqueue(cil->xc_push_wq);
 out_destroy_cil:
-	kmem_free(cil);
+	kfree(cil);
 	return -ENOMEM;
 }
 
@@ -1799,12 +1799,12 @@ xlog_cil_destroy(
 	if (cil->xc_ctx) {
 		if (cil->xc_ctx->ticket)
 			xfs_log_ticket_put(cil->xc_ctx->ticket);
-		kmem_free(cil->xc_ctx);
+		kfree(cil->xc_ctx);
 	}
 
 	ASSERT(test_bit(XLOG_CIL_EMPTY, &cil->xc_flags));
 	free_percpu(cil->xc_pcp);
 	destroy_workqueue(cil->xc_push_wq);
-	kmem_free(cil);
+	kfree(cil);
 }
 

@@ -241,7 +241,7 @@ __xfs_free_perag(
 	struct xfs_perag *pag = container_of(head, struct xfs_perag, rcu_head);
 
 	ASSERT(!delayed_work_pending(&pag->pag_blockgc_work));
-	kmem_free(pag);
+	kfree(pag);
 }
 
 /*
@@ -353,7 +353,7 @@ xfs_free_unused_perag_range(
 			break;
 		xfs_buf_hash_destroy(pag);
 		xfs_defer_drain_free(&pag->pag_intents_drain);
-		kmem_free(pag);
+		kfree(pag);
 	}
 }
 
@@ -453,7 +453,7 @@ out_remove_pag:
 	radix_tree_delete(&mp->m_perag_tree, index);
 	spin_unlock(&mp->m_perag_lock);
 out_free_pag:
-	kmem_free(pag);
+	kfree(pag);
 out_unwind_new_pags:
 	/* unwind any prior newly initialized pags */
 	xfs_free_unused_perag_range(mp, first_initialised, agcount);

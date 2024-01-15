@@ -20,8 +20,6 @@ typedef __u32			xfs_dev_t;
 typedef __u32			xfs_nlink_t;
 
 #include "xfs_types.h"
-
-#include "kmem.h"
 #include "mrlock.h"
 
 #include <linux/semaphore.h>
@@ -30,6 +28,7 @@ typedef __u32			xfs_nlink_t;
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <linux/crc32c.h>
 #include <linux/module.h>
 #include <linux/mutex.h>

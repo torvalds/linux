@@ -42,7 +42,7 @@ xfs_efi_item_free(
 {
 	kvfree(efip->efi_item.li_lv_shadow);
 	if (efip->efi_format.efi_nextents > XFS_EFI_MAX_FAST_EXTENTS)
-		kmem_free(efip);
+		kfree(efip);
 	else
 		kmem_cache_free(xfs_efi_cache, efip);
 }
@@ -231,7 +231,7 @@ xfs_efd_item_free(struct xfs_efd_log_item *efdp)
 {
 	kvfree(efdp->efd_item.li_lv_shadow);
 	if (efdp->efd_format.efd_nextents > XFS_EFD_MAX_FAST_EXTENTS)
-		kmem_free(efdp);
+		kfree(efdp);
 	else
 		kmem_cache_free(xfs_efd_cache, efdp);
 }

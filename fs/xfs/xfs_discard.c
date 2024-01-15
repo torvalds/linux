@@ -79,7 +79,7 @@ xfs_discard_endio_work(
 		container_of(work, struct xfs_busy_extents, endio_work);
 
 	xfs_extent_busy_clear(extents->mount, &extents->extent_list, false);
-	kmem_free(extents->owner);
+	kfree(extents->owner);
 }
 
 /*

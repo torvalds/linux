@@ -1253,7 +1253,7 @@ xfs_dir2_sf_to_block(
 			sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 	}
 	/* Done with the temporary buffer */
-	kmem_free(sfp);
+	kfree(sfp);
 	/*
 	 * Sort the leaf entries by hash value.
 	 */
@@ -1268,6 +1268,6 @@ xfs_dir2_sf_to_block(
 	xfs_dir3_data_check(dp, bp);
 	return 0;
 out_free:
-	kmem_free(sfp);
+	kfree(sfp);
 	return error;
 }

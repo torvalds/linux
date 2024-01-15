@@ -346,7 +346,7 @@ xfs_vn_ci_lookup(
 	dname.name = ci_name.name;
 	dname.len = ci_name.len;
 	dentry = d_add_ci(dentry, VFS_I(ip), &dname);
-	kmem_free(ci_name.name);
+	kfree(ci_name.name);
 	return dentry;
 }
 

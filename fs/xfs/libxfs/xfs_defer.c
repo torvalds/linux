@@ -1038,7 +1038,7 @@ xfs_defer_ops_capture_abort(
 	for (i = 0; i < dfc->dfc_held.dr_inos; i++)
 		xfs_irele(dfc->dfc_held.dr_ip[i]);
 
-	kmem_free(dfc);
+	kfree(dfc);
 }
 
 /*
@@ -1114,7 +1114,7 @@ xfs_defer_ops_continue(
 	list_splice_init(&dfc->dfc_dfops, &tp->t_dfops);
 	tp->t_flags |= dfc->dfc_tpflags;
 
-	kmem_free(dfc);
+	kfree(dfc);
 }
 
 /* Release the resources captured and continued during recovery. */

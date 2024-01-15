@@ -124,7 +124,7 @@ xfs_attr_shortform_list(
 					     XFS_ERRLEVEL_LOW,
 					     context->dp->i_mount, sfe,
 					     sizeof(*sfe));
-			kmem_free(sbuf);
+			kfree(sbuf);
 			return -EFSCORRUPTED;
 		}
 
@@ -188,7 +188,7 @@ xfs_attr_shortform_list(
 		cursor->offset++;
 	}
 out:
-	kmem_free(sbuf);
+	kfree(sbuf);
 	return error;
 }
 

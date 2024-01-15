@@ -171,7 +171,7 @@ xfs_btree_commit_afakeroot(
 
 	trace_xfs_btree_commit_afakeroot(cur);
 
-	kmem_free((void *)cur->bc_ops);
+	kfree((void *)cur->bc_ops);
 	cur->bc_ag.agbp = agbp;
 	cur->bc_ops = ops;
 	cur->bc_flags &= ~XFS_BTREE_STAGING;
@@ -254,7 +254,7 @@ xfs_btree_commit_ifakeroot(
 
 	trace_xfs_btree_commit_ifakeroot(cur);
 
-	kmem_free((void *)cur->bc_ops);
+	kfree((void *)cur->bc_ops);
 	cur->bc_ino.ifake = NULL;
 	cur->bc_ino.whichfork = whichfork;
 	cur->bc_ops = ops;

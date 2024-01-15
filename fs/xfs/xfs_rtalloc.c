@@ -1050,7 +1050,7 @@ out_free:
 	/*
 	 * Free the fake mp structure.
 	 */
-	kmem_free(nmp);
+	kfree(nmp);
 
 	/*
 	 * If we had to allocate a new rsum_cache, we either need to free the

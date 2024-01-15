@@ -44,7 +44,7 @@ xfs_fstrm_free_func(
 	atomic_dec(&pag->pagf_fstrms);
 	xfs_perag_rele(pag);
 
-	kmem_free(item);
+	kfree(item);
 }
 
 /*
@@ -326,7 +326,7 @@ xfs_filestream_create_association(
 
 out_free_item:
 	xfs_perag_rele(item->pag);
-	kmem_free(item);
+	kfree(item);
 out_put_fstrms:
 	atomic_dec(&args->pag->pagf_fstrms);
 	return 0;

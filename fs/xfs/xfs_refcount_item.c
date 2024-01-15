@@ -38,7 +38,7 @@ xfs_cui_item_free(
 {
 	kvfree(cuip->cui_item.li_lv_shadow);
 	if (cuip->cui_format.cui_nextents > XFS_CUI_MAX_FAST_EXTENTS)
-		kmem_free(cuip);
+		kfree(cuip);
 	else
 		kmem_cache_free(xfs_cui_cache, cuip);
 }

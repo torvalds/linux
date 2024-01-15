@@ -531,7 +531,7 @@ xfs_extent_busy_clear_one(
 	}
 
 	list_del_init(&busyp->list);
-	kmem_free(busyp);
+	kfree(busyp);
 }
 
 static void

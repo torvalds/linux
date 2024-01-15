@@ -2229,11 +2229,11 @@ xlog_recover_free_trans(
 		for (i = 0; i < item->ri_cnt; i++)
 			kvfree(item->ri_buf[i].i_addr);
 		/* Free the item itself */
-		kmem_free(item->ri_buf);
-		kmem_free(item);
+		kfree(item->ri_buf);
+		kfree(item);
 	}
 	/* Free the transaction recover structure */
-	kmem_free(trans);
+	kfree(trans);
 }
 
 /*

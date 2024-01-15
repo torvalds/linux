@@ -922,7 +922,7 @@ xfs_trans_ail_init(
 	return 0;
 
 out_free_ailp:
-	kmem_free(ailp);
+	kfree(ailp);
 	return -ENOMEM;
 }
 
@@ -933,5 +933,5 @@ xfs_trans_ail_destroy(
 	struct xfs_ail	*ailp = mp->m_ail;
 
 	kthread_stop(ailp->ail_task);
-	kmem_free(ailp);
+	kfree(ailp);
 }

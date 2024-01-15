@@ -554,7 +554,7 @@ out_release:
 	xfs_buf_relse(bp);
 error:
 	if (need_free)
-		kmem_free(in_f);
+		kfree(in_f);
 	return error;
 }
 

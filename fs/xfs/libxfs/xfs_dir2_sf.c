@@ -350,7 +350,7 @@ xfs_dir2_block_to_sf(
 	xfs_dir2_sf_check(args);
 out:
 	xfs_trans_log_inode(args->trans, dp, logflags);
-	kmem_free(sfp);
+	kfree(sfp);
 	return error;
 }
 
@@ -576,7 +576,7 @@ xfs_dir2_sf_addname_hard(
 		sfep = xfs_dir2_sf_nextentry(mp, sfp, sfep);
 		memcpy(sfep, oldsfep, old_isize - nbytes);
 	}
-	kmem_free(buf);
+	kfree(buf);
 	dp->i_disk_size = new_isize;
 	xfs_dir2_sf_check(args);
 }
@@ -1190,7 +1190,7 @@ xfs_dir2_sf_toino4(
 	/*
 	 * Clean up the inode.
 	 */
-	kmem_free(buf);
+	kfree(buf);
 	dp->i_disk_size = newsize;
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_DDATA);
 }
@@ -1262,7 +1262,7 @@ xfs_dir2_sf_toino8(
 	/*
 	 * Clean up the inode.
 	 */
-	kmem_free(buf);
+	kfree(buf);
 	dp->i_disk_size = newsize;
 	xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE | XFS_ILOG_DDATA);
 }

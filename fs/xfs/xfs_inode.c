@@ -671,7 +671,7 @@ xfs_lookup(
 
 out_free_name:
 	if (ci_name)
-		kmem_free(ci_name->name);
+		kfree(ci_name->name);
 out_unlock:
 	*ipp = NULL;
 	return error;
@@ -2378,7 +2378,7 @@ xfs_ifree(
 	 * already been freed by xfs_attr_inactive.
 	 */
 	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		kmem_free(ip->i_df.if_data);
+		kfree(ip->i_df.if_data);
 		ip->i_df.if_data = NULL;
 		ip->i_df.if_bytes = 0;
 	}

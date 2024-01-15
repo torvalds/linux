@@ -38,7 +38,7 @@ xfs_rui_item_free(
 {
 	kvfree(ruip->rui_item.li_lv_shadow);
 	if (ruip->rui_format.rui_nextents > XFS_RUI_MAX_FAST_EXTENTS)
-		kmem_free(ruip);
+		kfree(ruip);
 	else
 		kmem_cache_free(xfs_rui_cache, ruip);
 }

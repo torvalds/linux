@@ -435,7 +435,7 @@ xfs_ioc_attr_list(
 	    copy_to_user(ucursor, &context.cursor, sizeof(context.cursor)))
 		error = -EFAULT;
 out_free:
-	kmem_free(buffer);
+	kfree(buffer);
 	return error;
 }
 
@@ -1506,7 +1506,7 @@ xfs_ioc_getbmap(
 
 	error = 0;
 out_free_buf:
-	kmem_free(buf);
+	kfree(buf);
 	return error;
 }
 
@@ -1636,7 +1636,7 @@ xfs_ioc_getfsmap(
 	}
 
 out_free:
-	kmem_free(recs);
+	kfree(recs);
 	return error;
 }
 

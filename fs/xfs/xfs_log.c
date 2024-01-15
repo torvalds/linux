@@ -1663,12 +1663,12 @@ out_free_iclog:
 	for (iclog = log->l_iclog; iclog; iclog = prev_iclog) {
 		prev_iclog = iclog->ic_next;
 		kvfree(iclog->ic_data);
-		kmem_free(iclog);
+		kfree(iclog);
 		if (prev_iclog == log->l_iclog)
 			break;
 	}
 out_free_log:
-	kmem_free(log);
+	kfree(log);
 out:
 	return ERR_PTR(error);
 }	/* xlog_alloc_log */
@@ -2120,13 +2120,13 @@ xlog_dealloc_log(
 	for (i = 0; i < log->l_iclog_bufs; i++) {
 		next_iclog = iclog->ic_next;
 		kvfree(iclog->ic_data);
-		kmem_free(iclog);
+		kfree(iclog);
 		iclog = next_iclog;
 	}
 
 	log->l_mp->m_log = NULL;
 	destroy_workqueue(log->l_ioend_workqueue);
-	kmem_free(log);
+	kfree(log);
 }
 
 /*

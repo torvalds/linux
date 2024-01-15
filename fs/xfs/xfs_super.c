@@ -761,7 +761,7 @@ xfs_mount_free(
 	debugfs_remove(mp->m_debugfs);
 	kfree(mp->m_rtname);
 	kfree(mp->m_logname);
-	kmem_free(mp);
+	kfree(mp);
 }
 
 STATIC int

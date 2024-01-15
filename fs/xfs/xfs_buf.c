@@ -204,7 +204,7 @@ xfs_buf_free_maps(
 	struct xfs_buf	*bp)
 {
 	if (bp->b_maps != &bp->__b_map) {
-		kmem_free(bp->b_maps);
+		kfree(bp->b_maps);
 		bp->b_maps = NULL;
 	}
 }
@@ -289,7 +289,7 @@ xfs_buf_free_pages(
 	mm_account_reclaimed_pages(bp->b_page_count);
 
 	if (bp->b_pages != bp->b_page_array)
-		kmem_free(bp->b_pages);
+		kfree(bp->b_pages);
 	bp->b_pages = NULL;
 	bp->b_flags &= ~_XBF_PAGES;
 }
@@ -315,7 +315,7 @@ xfs_buf_free(
 	if (bp->b_flags & _XBF_PAGES)
 		xfs_buf_free_pages(bp);
 	else if (bp->b_flags & _XBF_KMEM)
-		kmem_free(bp->b_addr);
+		kfree(bp->b_addr);
 
 	call_rcu(&bp->b_rcu, xfs_buf_free_callback);
 }
@@ -339,7 +339,7 @@ xfs_buf_alloc_kmem(
 	if (((unsigned long)(bp->b_addr + size - 1) & PAGE_MASK) !=
 	    ((unsigned long)bp->b_addr & PAGE_MASK)) {
 		/* b_addr spans two pages - use alloc_page instead */
-		kmem_free(bp->b_addr);
+		kfree(bp->b_addr);
 		bp->b_addr = NULL;
 		return -ENOMEM;
 	}
@@ -1953,7 +1953,7 @@ xfs_free_buftarg(
 	if (btp->bt_bdev != btp->bt_mount->m_super->s_bdev)
 		bdev_release(btp->bt_bdev_handle);
 
-	kmem_free(btp);
+	kfree(btp);
 }
 
 int
@@ -2045,7 +2045,7 @@ error_pcpu:
 error_lru:
 	list_lru_destroy(&btp->bt_lru);
 error_free:
-	kmem_free(btp);
+	kfree(btp);
 	return NULL;
 }
 

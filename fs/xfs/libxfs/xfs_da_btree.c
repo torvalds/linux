@@ -2220,7 +2220,7 @@ xfs_da_grow_inode_int(
 
 out_free_map:
 	if (mapp != &map)
-		kmem_free(mapp);
+		kfree(mapp);
 	return error;
 }
 
@@ -2559,7 +2559,7 @@ xfs_dabuf_map(
 	*nmaps = nirecs;
 out_free_irecs:
 	if (irecs != &irec)
-		kmem_free(irecs);
+		kfree(irecs);
 	return error;
 
 invalid_mapping:
@@ -2615,7 +2615,7 @@ xfs_da_get_buf(
 
 out_free:
 	if (mapp != &map)
-		kmem_free(mapp);
+		kfree(mapp);
 
 	return error;
 }
@@ -2656,7 +2656,7 @@ xfs_da_read_buf(
 	*bpp = bp;
 out_free:
 	if (mapp != &map)
-		kmem_free(mapp);
+		kfree(mapp);
 
 	return error;
 }
@@ -2687,7 +2687,7 @@ xfs_da_reada_buf(
 
 out_free:
 	if (mapp != &map)
-		kmem_free(mapp);
+		kfree(mapp);
 
 	return error;
 }
