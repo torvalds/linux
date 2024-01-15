@@ -371,6 +371,7 @@ static int do_rebalance(struct moving_context *ctxt)
 	    !kthread_should_stop() &&
 	    !atomic64_read(&r->work_stats.sectors_seen) &&
 	    !atomic64_read(&r->scan_stats.sectors_seen)) {
+		bch2_moving_ctxt_flush_all(ctxt);
 		bch2_trans_unlock_long(trans);
 		rebalance_wait(c);
 	}
