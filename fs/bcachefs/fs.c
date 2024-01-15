@@ -1387,6 +1387,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		bch2_bkey_buf_realloc(&prev, c, k.k->u64s);
 
 		sectors = min_t(unsigned, sectors, k.k->size - offset_into_extent);
+		start = iter.pos.offset + sectors;
 
 		bch2_cut_front(POS(k.k->p.inode,
 				   bkey_start_offset(k.k) +
@@ -1407,8 +1408,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 		bkey_copy(prev.k, cur.k);
 		have_extent = true;
 
-		bch2_btree_iter_set_pos(trans, &iter,
-			POS(iter.pos.inode, iter.pos.offset + sectors));
+		bch2_btree_iter_set_pos(trans, &iter, POS(iter.pos.inode, start));
 	}
 	bch2_trans_iter_exit(trans, &iter);
 
