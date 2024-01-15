@@ -2904,16 +2904,50 @@ fail:
 	return ret;
 }
 
+static enum rtw89_fw_sta_type
+rtw89_fw_get_sta_type(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
+		      struct rtw89_sta *rtwsta)
+{
+	struct ieee80211_sta *sta = rtwsta_to_sta_safe(rtwsta);
+	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
+
+	if (!sta)
+		goto by_vif;
+
+	if (sta->deflink.eht_cap.has_eht)
+		return RTW89_FW_BE_STA;
+	else if (sta->deflink.he_cap.has_he)
+		return RTW89_FW_AX_STA;
+	else
+		return RTW89_FW_N_AC_STA;
+
+by_vif:
+	if (vif->bss_conf.eht_support)
+		return RTW89_FW_BE_STA;
+	else if (vif->bss_conf.he_support)
+		return RTW89_FW_AX_STA;
+	else
+		return RTW89_FW_N_AC_STA;
+}
+
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   struct rtw89_sta *rtwsta, bool dis_conn)
 {
 	struct sk_buff *skb;
 	u8 mac_id = rtwsta ? rtwsta->mac_id : rtwvif->mac_id;
 	u8 self_role = rtwvif->self_role;
+	enum rtw89_fw_sta_type sta_type;
 	u8 net_type = rtwvif->net_type;
+	struct rtw89_h2c_join_v1 *h2c_v1;
 	struct rtw89_h2c_join *h2c;
 	u32 len = sizeof(*h2c);
+	bool format_v1 = false;
 	int ret;
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+		len = sizeof(*h2c_v1);
+		format_v1 = true;
+	}
 
 	if (net_type == RTW89_NET_TYPE_AP_MODE && rtwsta) {
 		self_role = RTW89_SELF_ROLE_AP_CLIENT;
@@ -2942,6 +2976,17 @@ int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 		  le32_encode_bits(rtwvif->wifi_role, RTW89_H2C_JOININFO_W0_WIFI_ROLE) |
 		  le32_encode_bits(self_role, RTW89_H2C_JOININFO_W0_SELF_ROLE);
 
+	if (!format_v1)
+		goto done;
+
+	h2c_v1 = (struct rtw89_h2c_join_v1 *)skb->data;
+
+	sta_type = rtw89_fw_get_sta_type(rtwdev, rtwvif, rtwsta);
+
+	h2c_v1->w1 = le32_encode_bits(sta_type, RTW89_H2C_JOININFO_W1_STA_TYPE);
+	h2c_v1->w2 = 0;
+
+done:
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
 			      H2C_CAT_MAC, H2C_CL_MAC_MEDIA_RPT,
 			      H2C_FUNC_MAC_JOININFO, 0, 1,
