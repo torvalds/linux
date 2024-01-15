@@ -4,6 +4,7 @@
 
 #include <linux/blk-crypto.h>
 #include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
+#include <linux/timekeeping.h>
 #include <xen/xen.h>
 #include "blk-crypto-internal.h"
 
@@ -516,6 +517,16 @@ static inline int req_ref_read(struct request *req)
 	return atomic_read(&req->ref);
 }
 
+static inline u64 blk_time_get_ns(void)
+{
+	return ktime_get_ns();
+}
+
+static inline ktime_t blk_time_get(void)
+{
+	return ns_to_ktime(blk_time_get_ns());
+}
+
 /*
  * From most significant bit:
  * 1 bit: reserved for other usage, see below
@@ -554,7 +565,7 @@ static inline void bio_issue_init(struct bio_issue *issue,
 {
 	size &= (1ULL << BIO_ISSUE_SIZE_BITS) - 1;
 	issue->value = ((issue->value & BIO_ISSUE_RES_MASK) |
-			(ktime_get_ns() & BIO_ISSUE_TIME_MASK) |
+			(blk_time_get_ns() & BIO_ISSUE_TIME_MASK) |
 			((u64)size << BIO_ISSUE_SIZE_SHIFT));
 }
 
