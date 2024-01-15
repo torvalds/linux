@@ -11,6 +11,10 @@ long long __ashlti3(long long a, int b);
 
 #ifdef CONFIG_RISCV_ISA_V
 
+#ifdef CONFIG_MMU
+asmlinkage int enter_vector_usercopy(void *dst, void *src, size_t n);
+#endif /* CONFIG_MMU  */
+
 void xor_regs_2_(unsigned long bytes, unsigned long *__restrict p1,
 		 const unsigned long *__restrict p2);
 void xor_regs_3_(unsigned long bytes, unsigned long *__restrict p1,
