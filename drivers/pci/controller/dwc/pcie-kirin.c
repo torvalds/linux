@@ -738,15 +738,13 @@ err:
 	return ret;
 }
 
-static int kirin_pcie_remove(struct platform_device *pdev)
+static void kirin_pcie_remove(struct platform_device *pdev)
 {
 	struct kirin_pcie *kirin_pcie = platform_get_drvdata(pdev);
 
 	dw_pcie_host_deinit(&kirin_pcie->pci->pp);
 
 	kirin_pcie_power_off(kirin_pcie);
-
-	return 0;
 }
 
 struct kirin_pcie_data {
@@ -815,7 +813,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 static struct platform_driver kirin_pcie_driver = {
 	.probe			= kirin_pcie_probe,
-	.remove	        	= kirin_pcie_remove,
+	.remove_new		= kirin_pcie_remove,
 	.driver			= {
 		.name			= "kirin-pcie",
 		.of_match_table		= kirin_pcie_match,

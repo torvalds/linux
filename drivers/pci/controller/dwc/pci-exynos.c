@@ -375,7 +375,7 @@ fail_probe:
 	return ret;
 }
 
-static int exynos_pcie_remove(struct platform_device *pdev)
+static void exynos_pcie_remove(struct platform_device *pdev)
 {
 	struct exynos_pcie *ep = platform_get_drvdata(pdev);
 
@@ -385,8 +385,6 @@ static int exynos_pcie_remove(struct platform_device *pdev)
 	phy_exit(ep->phy);
 	exynos_pcie_deinit_clk_resources(ep);
 	regulator_bulk_disable(ARRAY_SIZE(ep->supplies), ep->supplies);
-
-	return 0;
 }
 
 static int exynos_pcie_suspend_noirq(struct device *dev)
@@ -431,7 +429,7 @@ static const struct of_device_id exynos_pcie_of_match[] = {
 
 static struct platform_driver exynos_pcie_driver = {
 	.probe		= exynos_pcie_probe,
-	.remove		= exynos_pcie_remove,
+	.remove_new	= exynos_pcie_remove,
 	.driver = {
 		.name	= "exynos-pcie",
 		.of_match_table = exynos_pcie_of_match,
