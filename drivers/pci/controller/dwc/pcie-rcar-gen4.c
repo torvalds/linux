@@ -362,15 +362,14 @@ static void rcar_gen4_pcie_ep_deinit(struct dw_pcie_ep *ep)
 }
 
 static int rcar_gen4_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				       enum pci_epc_irq_type type,
-				       u16 interrupt_num)
+				       unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *dw = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		return dw_pcie_ep_raise_legacy_irq(ep, func_no);
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_INTX:
+		return dw_pcie_ep_raise_intx_irq(ep, func_no);
+	case PCI_IRQ_MSI:
 		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
 	default:
 		dev_err(dw->dev, "Unknown IRQ type\n");

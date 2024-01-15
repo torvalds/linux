@@ -72,7 +72,7 @@ static void rockchip_pcie_writel_apb(struct rockchip_pcie *rockchip,
 	writel_relaxed(val, rockchip->apb_base + reg);
 }
 
-static void rockchip_pcie_legacy_int_handler(struct irq_desc *desc)
+static void rockchip_pcie_intx_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct rockchip_pcie *rockchip = irq_desc_get_handler_data(desc);
@@ -202,7 +202,7 @@ static int rockchip_pcie_host_init(struct dw_pcie_rp *pp)
 	if (ret < 0)
 		dev_err(dev, "failed to init irq domain\n");
 
-	irq_set_chained_handler_and_data(irq, rockchip_pcie_legacy_int_handler,
+	irq_set_chained_handler_and_data(irq, rockchip_pcie_intx_handler,
 					 rockchip);
 
 	/* LTSSM enable control mode */
