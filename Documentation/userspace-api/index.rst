@@ -22,6 +22,7 @@ place where this information is gathered.
    dma-buf-alloc-exchange
    ebpf/index
    ELF
+   gpio/index
    ioctl/index
    iommu
    iommufd
