@@ -1146,10 +1146,79 @@ static inline void emit_sextw(u8 rd, u8 rs, struct rv_jit_context *ctx)
 	emit_addiw(rd, rs, 0, ctx);
 }
 
+static inline void emit_zexth(u8 rd, u8 rs, struct rv_jit_context *ctx)
+{
+	if (rvzbb_enabled()) {
+		emit(rvzbb_zexth(rd, rs), ctx);
+		return;
+	}
+
+	emit_slli(rd, rs, 48, ctx);
+	emit_srli(rd, rd, 48, ctx);
+}
+
 static inline void emit_zextw(u8 rd, u8 rs, struct rv_jit_context *ctx)
 {
 	emit_slli(rd, rs, 32, ctx);
 	emit_srli(rd, rd, 32, ctx);
+}
+
+static inline void emit_bswap(u8 rd, s32 imm, struct rv_jit_context *ctx)
+{
+	if (rvzbb_enabled()) {
+		int bits = 64 - imm;
+
+		emit(rvzbb_rev8(rd, rd), ctx);
+		if (bits)
+			emit_srli(rd, rd, bits, ctx);
+		return;
+	}
+
+	emit_li(RV_REG_T2, 0, ctx);
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+	if (imm == 16)
+		goto out_be;
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+	if (imm == 32)
+		goto out_be;
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+	emit_slli(RV_REG_T2, RV_REG_T2, 8, ctx);
+	emit_srli(rd, rd, 8, ctx);
+out_be:
+	emit_andi(RV_REG_T1, rd, 0xff, ctx);
+	emit_add(RV_REG_T2, RV_REG_T2, RV_REG_T1, ctx);
+
+	emit_mv(rd, RV_REG_T2, ctx);
 }
 
 #endif /* __riscv_xlen == 64 */
