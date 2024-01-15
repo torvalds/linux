@@ -31,5 +31,6 @@ struct vpu_buf {
 
 int wave5_vdi_init(struct device *dev);
 int wave5_vdi_release(struct device *dev);	//this function may be called only at system off.
+void wave5_flush_l2_cache(unsigned long start, unsigned long len);
 
 #endif //#ifndef _VDI_H_

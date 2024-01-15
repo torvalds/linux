@@ -11,6 +11,17 @@
 #include "wave5-regdefine.h"
 #include <linux/delay.h>
 
+extern void sifive_l2_flush64_range(unsigned long start, unsigned long len);
+extern void sifive_ccache_flush_entire(void);
+
+void wave5_flush_l2_cache(unsigned long start, unsigned long len)
+{
+	if (len >= 0x80000)
+		sifive_ccache_flush_entire();
+	else
+		sifive_l2_flush64_range(start, len);
+}
+
 static int wave5_vdi_allocate_common_memory(struct device *dev)
 {
 	struct vpu_device *vpu_dev = dev_get_drvdata(dev);
@@ -89,6 +100,7 @@ int wave5_vdi_clear_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb)
 	}
 
 	memset(vb->vaddr, 0, vb->size);
+	wave5_flush_l2_cache(vb->daddr, vb->size);
 	return vb->size;
 }
 
@@ -106,6 +118,7 @@ int wave5_vdi_write_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb, size_
 	}
 
 	memcpy(vb->vaddr + offset, data, len);
+	wave5_flush_l2_cache(vb->daddr + offset, len);
 
 	return len;
 }
@@ -125,6 +138,8 @@ int wave5_vdi_allocate_dma_memory(struct vpu_device *vpu_dev, struct vpu_buf *vb
 		return -ENOMEM;
 	vb->vaddr = vaddr;
 	vb->daddr = daddr;
+
+	wave5_flush_l2_cache(daddr, vb->size);
 
 	return 0;
 }

@@ -204,6 +204,8 @@ enum query_opt {
 #define W5_CODE_PARAM                           (W5_REG_BASE + 0x0118)
 #define W5_ADDR_TEMP_BASE                       (W5_REG_BASE + 0x011C)
 #define W5_TEMP_SIZE                            (W5_REG_BASE + 0x0120)
+#define W5_ADDR_SEC_AXI                         (W5_REG_BASE + 0x0124)
+#define W5_SEC_AXI_SIZE                         (W5_REG_BASE + 0x0128)
 #define W5_HW_OPTION                            (W5_REG_BASE + 0x012C)
 #define W5_SEC_AXI_PARAM                        (W5_REG_BASE + 0x0180)
 

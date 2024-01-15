@@ -44,6 +44,8 @@ enum vpu_instance_state {
 
 #define MAX_REG_FRAME (WAVE5_MAX_FBS * 2)
 
+#define MAX_TIMESTAMP_CIR_BUF 30
+
 #define WAVE5_DEC_HEVC_BUF_SIZE(_w, _h) (DIV_ROUND_UP(_w, 64) * DIV_ROUND_UP(_h, 64) * 256 + 64)
 #define WAVE5_DEC_AVC_BUF_SIZE(_w, _h) ((((ALIGN(_w, 256) / 16) * (ALIGN(_h, 16) / 16)) + 16) * 80)
 
@@ -366,6 +368,9 @@ struct dec_open_param {
 struct dec_initial_info {
 	u32 pic_width;
 	u32 pic_height;
+	s32 f_rate_numerator; /* the numerator part of frame rate fraction */
+	s32 f_rate_denominator; /* the denominator part of frame rate fraction */
+	u64 ns_per_frame;
 	struct vpu_rect pic_crop_rect;
 	u32 min_frame_buffer_count; /* between 1 to 16 */
 
@@ -754,8 +759,10 @@ struct vpu_device {
 	struct vpu_buf sram_buf;
 	void __iomem *vdb_register;
 	u32 product_code;
+	u32 l2_cache_size;
 	struct ida inst_ida;
 	struct clk_bulk_data *clks;
+	struct reset_control *resets;
 	int num_clks;
 };
 
@@ -763,6 +770,15 @@ struct vpu_instance;
 
 struct vpu_instance_ops {
 	void (*finish_process)(struct vpu_instance *inst);
+};
+
+/* for support GStreamer ver 1.20 over
+ * too old frame, eos sent too early
+ */
+struct timestamp_circ_buf {
+	u64 buf[MAX_TIMESTAMP_CIR_BUF];
+	struct mutex lock;
+	int cnt;
 };
 
 struct vpu_instance {
@@ -800,6 +816,10 @@ struct vpu_instance {
 	struct list_head avail_dst_bufs;
 	struct v4l2_rect conf_win;
 	u64 timestamp;
+	struct timestamp_circ_buf time_stamp;
+	u64 timestamp_cnt;
+	u32 timestamp_zero_cnt;
+	bool monotonic_timestamp;
 	enum frame_buffer_format output_format;
 	bool cbcr_interleave;
 	bool nv21;

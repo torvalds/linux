@@ -11,7 +11,7 @@
 #include "wave5-vpu.h"
 
 #define FMT_TYPES	2
-#define MAX_FMTS	12
+#define MAX_FMTS	6
 
 const char *state_to_str(enum vpu_instance_state state);
 void wave5_cleanup_instance(struct vpu_instance *inst);

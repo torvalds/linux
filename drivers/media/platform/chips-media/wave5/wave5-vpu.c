@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/reset.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include "wave5-vpu.h"
@@ -117,11 +118,17 @@ static int wave5_vpu_load_firmware(struct device *dev, const char *fw_name,
 	return 0;
 }
 
+static const struct of_device_id sifive_l2_ids[] = {
+	{ .compatible = "sifive,fu740-c000-ccache" },
+	{ /* end of table */ },
+};
+
 static int wave5_vpu_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct vpu_device *dev;
 	const struct wave5_match_data *match_data;
+	struct device_node *np;
 	u32 fw_revision;
 
 	match_data = device_get_match_data(&pdev->dev);
@@ -160,28 +167,32 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	}
 	dev->num_clks = ret;
 
+	dev->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dev->resets)) {
+		dev_err(&pdev->dev, "faied to get vpu reset controls\n");
+		return -ENODEV;
+	}
+
+	dev->sram_buf.daddr = VDI_SRAM_BASE_ADDR;
+	dev->sram_buf.size = VDI_WAVE511_SRAM_SIZE;
+
 	ret = clk_bulk_prepare_enable(dev->num_clks, dev->clks);
 	if (ret) {
 		dev_err(&pdev->dev, "Enabling clocks, fail: %d\n", ret);
 		return ret;
 	}
 
-	ret = of_property_read_u32(pdev->dev.of_node, "sram-size",
-				   &dev->sram_size);
+	ret = reset_control_deassert(dev->resets);
 	if (ret) {
-		dev_warn(&pdev->dev, "sram-size not found\n");
-		dev->sram_size = 0;
+		dev_err(&pdev->dev, "Reset deassert, fail: %d\n", ret);
+		goto  err_clk_dis;
 	}
-
-	dev->sram_pool = of_gen_pool_get(pdev->dev.of_node, "sram", 0);
-	if (!dev->sram_pool)
-		dev_warn(&pdev->dev, "sram node not found\n");
 
 	dev->product_code = wave5_vdi_read_register(dev, VPU_PRODUCT_CODE_REGISTER);
 	ret = wave5_vdi_init(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "wave5_vdi_init, fail: %d\n", ret);
-		goto err_clk_dis;
+		goto err_rst_dis;
 	}
 	dev->product = wave5_vpu_get_product_id(dev);
 
@@ -227,11 +238,21 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		goto err_enc_unreg;
 	}
 
-	dev_info(&pdev->dev, "Added wave5 driver with caps: %s %s\n",
+	np = of_find_matching_node(NULL, sifive_l2_ids);
+	if (!np) {
+		dev_err(&pdev->dev, "find cache node, fail\n");
+		goto err_enc_unreg;
+	}
+
+	ret = of_property_read_u32(np, "cache-size", &dev->l2_cache_size);
+	if (ret)
+		dev->l2_cache_size = 0x200000;
+
+	dev_dbg(&pdev->dev, "Added wave5 driver with caps: %s %s\n",
 		 (match_data->flags & WAVE5_IS_ENC) ? "'ENCODE'" : "",
 		 (match_data->flags & WAVE5_IS_DEC) ? "'DECODE'" : "");
-	dev_info(&pdev->dev, "Product Code:      0x%x\n", dev->product_code);
-	dev_info(&pdev->dev, "Firmware Revision: %u\n", fw_revision);
+	dev_dbg(&pdev->dev, "Product Code:      0x%x\n", dev->product_code);
+	dev_dbg(&pdev->dev, "Firmware Revision: %u\n", fw_revision);
 	return 0;
 
 err_enc_unreg:
@@ -244,6 +265,8 @@ err_v4l2_unregister:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_vdi_release:
 	wave5_vdi_release(&pdev->dev);
+err_rst_dis:
+	reset_control_assert(dev->resets);
 err_clk_dis:
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
 
@@ -271,8 +294,14 @@ static const struct wave5_match_data ti_wave521c_data = {
 	.fw_name = "cnm/wave521c_k3_codec_fw.bin",
 };
 
+static const struct wave5_match_data sfdec_match_data = {
+	.flags = WAVE5_IS_DEC,
+	.fw_name = "wave511_dec_fw.bin",
+};
+
 static const struct of_device_id wave5_dt_ids[] = {
 	{ .compatible = "ti,k3-j721s2-wave521c", .data = &ti_wave521c_data },
+	{ .compatible = "starfive,vdec", .data = &sfdec_match_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, wave5_dt_ids);

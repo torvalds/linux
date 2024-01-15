@@ -186,12 +186,13 @@ unsigned int wave5_vpu_get_product_id(struct vpu_device *vpu_dev)
 	u32 val = vpu_read_reg(vpu_dev, W5_PRODUCT_NUMBER);
 
 	switch (val) {
+	case WAVE511_CODE:
+		return PRODUCT_ID_511;
 	case WAVE521C_CODE:
 		return PRODUCT_ID_521;
 	case WAVE521_CODE:
 	case WAVE521C_DUAL_CODE:
 	case WAVE521E1_CODE:
-	case WAVE511_CODE:
 	case WAVE517_CODE:
 	case WAVE537_CODE:
 		dev_err(vpu_dev->dev, "Unsupported product id (%x)\n", val);
@@ -606,6 +607,20 @@ static void wave5_get_dec_seq_result(struct vpu_instance *inst, struct dec_initi
 	reg_val = vpu_read_reg(inst->dev, W5_RET_DEC_CROP_TOP_BOTTOM);
 	info->pic_crop_rect.top = (reg_val >> 16) & 0xffff;
 	info->pic_crop_rect.bottom = reg_val & 0xffff;
+
+	info->f_rate_numerator = vpu_read_reg(inst->dev, W5_RET_DEC_FRAME_RATE_NR);
+	info->f_rate_denominator = vpu_read_reg(inst->dev, W5_RET_DEC_FRAME_RATE_DR);
+
+	if (info->f_rate_numerator > 0 && info->f_rate_denominator >0) {
+		if (inst->std == W_HEVC_DEC)
+			info->ns_per_frame = 1000000000 * (u64)info->f_rate_denominator / (u64)info->f_rate_numerator;
+		else if (inst->std == W_AVC_DEC)
+			info->ns_per_frame = 1000000000 * 2 * (u64)info->f_rate_denominator / (u64)info->f_rate_numerator;
+		else
+			info->ns_per_frame = 1000000000 / 30; //30fps
+	} else {
+		info->ns_per_frame = 1000000000 / 30; //30fps
+	}
 
 	reg_val = vpu_read_reg(inst->dev, W5_RET_DEC_COLOR_SAMPLE_INFO);
 	info->luma_bitdepth = reg_val & 0xf;
