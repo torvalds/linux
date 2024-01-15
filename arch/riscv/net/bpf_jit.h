@@ -18,6 +18,11 @@ static inline bool rvc_enabled(void)
 	return IS_ENABLED(CONFIG_RISCV_ISA_C);
 }
 
+static inline bool rvzbb_enabled(void)
+{
+	return IS_ENABLED(CONFIG_RISCV_ISA_ZBB) && riscv_has_extension_likely(RISCV_ISA_EXT_ZBB);
+}
+
 enum {
 	RV_REG_ZERO =	0,	/* The constant value 0 */
 	RV_REG_RA =	1,	/* Return address */
@@ -728,6 +733,33 @@ static inline u16 rvc_swsp(u32 imm8, u8 rs2)
 
 	imm = (imm8 & 0x3c) | ((imm8 & 0xc0) >> 6);
 	return rv_css_insn(0x6, imm, rs2, 0x2);
+}
+
+/* RVZBB instrutions. */
+static inline u32 rvzbb_sextb(u8 rd, u8 rs1)
+{
+	return rv_i_insn(0x604, rs1, 1, rd, 0x13);
+}
+
+static inline u32 rvzbb_sexth(u8 rd, u8 rs1)
+{
+	return rv_i_insn(0x605, rs1, 1, rd, 0x13);
+}
+
+static inline u32 rvzbb_zexth(u8 rd, u8 rs)
+{
+	if (IS_ENABLED(CONFIG_64BIT))
+		return rv_i_insn(0x80, rs, 4, rd, 0x3b);
+
+	return rv_i_insn(0x80, rs, 4, rd, 0x33);
+}
+
+static inline u32 rvzbb_rev8(u8 rd, u8 rs)
+{
+	if (IS_ENABLED(CONFIG_64BIT))
+		return rv_i_insn(0x6b8, rs, 5, rd, 0x13);
+
+	return rv_i_insn(0x698, rs, 5, rd, 0x13);
 }
 
 /*
