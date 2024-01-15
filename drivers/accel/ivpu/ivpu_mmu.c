@@ -7,6 +7,7 @@
 #include <linux/highmem.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_hw.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
@@ -518,6 +519,7 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 
 		ivpu_err(vdev, "Timed out waiting for MMU consumer: %d, error: %s\n", ret,
 			 ivpu_mmu_cmdq_err_to_str(err));
+		ivpu_hw_diagnose_failure(vdev);
 	}
 
 	return ret;
