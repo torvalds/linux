@@ -898,10 +898,8 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 	 * allocate SVE now in case it is needed for use in streaming
 	 * mode.
 	 */
-	if (system_supports_sve()) {
-		sve_free(task);
-		sve_alloc(task, true);
-	}
+	sve_free(task);
+	sve_alloc(task, true);
 
 	if (free_sme)
 		sme_free(task);
