@@ -1164,21 +1164,3 @@ void dcn30_prepare_bandwidth(struct dc *dc,
 	if (!dc->clk_mgr->clks.fw_based_mclk_switching)
 		dc_dmub_srv_p_state_delegate(dc, false, context);
 }
-
-void dcn30_set_static_screen_control(struct pipe_ctx **pipe_ctx,
-		int num_pipes, const struct dc_static_screen_params *params)
-{
-	unsigned int i;
-	unsigned int triggers = 0;
-
-	if (params->triggers.surface_update)
-		triggers |= 0x100;
-	if (params->triggers.cursor_update)
-		triggers |= 0x8;
-	if (params->triggers.force_trigger)
-		triggers |= 0x1;
-
-	for (i = 0; i < num_pipes; i++)
-		pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(pipe_ctx[i]->stream_res.tg,
-					triggers, params->num_frames);
-}
