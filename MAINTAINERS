@@ -10405,6 +10405,7 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/industrialio-gts-helper.c
 F:	include/linux/iio/iio-gts-helper.h
+F:	drivers/iio/test/iio-test-gts.c
 
 IIO MULTIPLEXER
 M:	Peter Rosin <peda@axentia.se>
