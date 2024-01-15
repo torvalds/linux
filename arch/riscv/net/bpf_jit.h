@@ -1092,6 +1092,12 @@ static inline void emit_sextw(u8 rd, u8 rs, struct rv_jit_context *ctx)
 	emit_addiw(rd, rs, 0, ctx);
 }
 
+static inline void emit_zextw(u8 rd, u8 rs, struct rv_jit_context *ctx)
+{
+	emit_slli(rd, rs, 32, ctx);
+	emit_srli(rd, rd, 32, ctx);
+}
+
 #endif /* __riscv_xlen == 64 */
 
 void bpf_jit_build_prologue(struct rv_jit_context *ctx);
