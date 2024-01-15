@@ -108,7 +108,7 @@ STATIC void
 xfs_attri_item_free(
 	struct xfs_attri_log_item	*attrip)
 {
-	kmem_free(attrip->attri_item.li_lv_shadow);
+	kvfree(attrip->attri_item.li_lv_shadow);
 	xfs_attri_log_nameval_put(attrip->attri_nameval);
 	kmem_cache_free(xfs_attri_cache, attrip);
 }
@@ -251,7 +251,7 @@ static inline struct xfs_attrd_log_item *ATTRD_ITEM(struct xfs_log_item *lip)
 STATIC void
 xfs_attrd_item_free(struct xfs_attrd_log_item *attrdp)
 {
-	kmem_free(attrdp->attrd_item.li_lv_shadow);
+	kvfree(attrdp->attrd_item.li_lv_shadow);
 	kmem_cache_free(xfs_attrd_cache, attrdp);
 }
 

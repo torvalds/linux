@@ -1044,7 +1044,7 @@ xfs_buf_item_free(
 	struct xfs_buf_log_item	*bip)
 {
 	xfs_buf_item_free_format(bip);
-	kmem_free(bip->bli_item.li_lv_shadow);
+	kvfree(bip->bli_item.li_lv_shadow);
 	kmem_cache_free(xfs_buf_item_cache, bip);
 }
 

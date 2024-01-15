@@ -361,7 +361,7 @@ xlog_find_verify_cycle(
 	*new_blk = -1;
 
 out:
-	kmem_free(buffer);
+	kvfree(buffer);
 	return error;
 }
 
@@ -477,7 +477,7 @@ xlog_find_verify_log_record(
 		*last_blk = i;
 
 out:
-	kmem_free(buffer);
+	kvfree(buffer);
 	return error;
 }
 
@@ -731,7 +731,7 @@ validate_head:
 			goto out_free_buffer;
 	}
 
-	kmem_free(buffer);
+	kvfree(buffer);
 	if (head_blk == log_bbnum)
 		*return_head_blk = 0;
 	else
@@ -745,7 +745,7 @@ validate_head:
 	return 0;
 
 out_free_buffer:
-	kmem_free(buffer);
+	kvfree(buffer);
 	if (error)
 		xfs_warn(log->l_mp, "failed to find log head");
 	return error;
@@ -999,7 +999,7 @@ xlog_verify_tail(
 		"Tail block (0x%llx) overwrite detected. Updated to 0x%llx",
 			 orig_tail, *tail_blk);
 out:
-	kmem_free(buffer);
+	kvfree(buffer);
 	return error;
 }
 
@@ -1046,7 +1046,7 @@ xlog_verify_head(
 	error = xlog_rseek_logrec_hdr(log, *head_blk, *tail_blk,
 				      XLOG_MAX_ICLOGS, tmp_buffer,
 				      &tmp_rhead_blk, &tmp_rhead, &tmp_wrapped);
-	kmem_free(tmp_buffer);
+	kvfree(tmp_buffer);
 	if (error < 0)
 		return error;
 
@@ -1365,7 +1365,7 @@ xlog_find_tail(
 		error = xlog_clear_stale_blocks(log, tail_lsn);
 
 done:
-	kmem_free(buffer);
+	kvfree(buffer);
 
 	if (error)
 		xfs_warn(log->l_mp, "failed to locate log tail");
@@ -1399,6 +1399,7 @@ xlog_find_zeroed(
 	xfs_daddr_t	new_blk, last_blk, start_blk;
 	xfs_daddr_t     num_scan_bblks;
 	int	        error, log_bbnum = log->l_logBBsize;
+	int		ret = 1;
 
 	*blk_no = 0;
 
@@ -1413,8 +1414,7 @@ xlog_find_zeroed(
 	first_cycle = xlog_get_cycle(offset);
 	if (first_cycle == 0) {		/* completely zeroed log */
 		*blk_no = 0;
-		kmem_free(buffer);
-		return 1;
+		goto out_free_buffer;
 	}
 
 	/* check partially zeroed log */
@@ -1424,8 +1424,8 @@ xlog_find_zeroed(
 
 	last_cycle = xlog_get_cycle(offset);
 	if (last_cycle != 0) {		/* log completely written to */
-		kmem_free(buffer);
-		return 0;
+		ret = 0;
+		goto out_free_buffer;
 	}
 
 	/* we have a partially zeroed log */
@@ -1471,10 +1471,10 @@ xlog_find_zeroed(
 
 	*blk_no = last_blk;
 out_free_buffer:
-	kmem_free(buffer);
+	kvfree(buffer);
 	if (error)
 		return error;
-	return 1;
+	return ret;
 }
 
 /*
@@ -1583,7 +1583,7 @@ xlog_write_log_records(
 	}
 
 out_free_buffer:
-	kmem_free(buffer);
+	kvfree(buffer);
 	return error;
 }
 
@@ -2183,7 +2183,7 @@ xlog_recover_add_to_trans(
 		"bad number of regions (%d) in inode log format",
 				  in_f->ilf_size);
 			ASSERT(0);
-			kmem_free(ptr);
+			kvfree(ptr);
 			return -EFSCORRUPTED;
 		}
 
@@ -2197,7 +2197,7 @@ xlog_recover_add_to_trans(
 	"log item region count (%d) overflowed size (%d)",
 				item->ri_cnt, item->ri_total);
 		ASSERT(0);
-		kmem_free(ptr);
+		kvfree(ptr);
 		return -EFSCORRUPTED;
 	}
 
@@ -2227,7 +2227,7 @@ xlog_recover_free_trans(
 		/* Free the regions in the item. */
 		list_del(&item->ri_list);
 		for (i = 0; i < item->ri_cnt; i++)
-			kmem_free(item->ri_buf[i].i_addr);
+			kvfree(item->ri_buf[i].i_addr);
 		/* Free the item itself */
 		kmem_free(item->ri_buf);
 		kmem_free(item);
@@ -3024,7 +3024,7 @@ xlog_do_recovery_pass(
 
 		hblks = xlog_logrec_hblks(log, rhead);
 		if (hblks != 1) {
-			kmem_free(hbp);
+			kvfree(hbp);
 			hbp = xlog_alloc_buffer(log, hblks);
 		}
 	} else {
@@ -3038,7 +3038,7 @@ xlog_do_recovery_pass(
 		return -ENOMEM;
 	dbp = xlog_alloc_buffer(log, BTOBB(h_size));
 	if (!dbp) {
-		kmem_free(hbp);
+		kvfree(hbp);
 		return -ENOMEM;
 	}
 
@@ -3199,9 +3199,9 @@ xlog_do_recovery_pass(
 	}
 
  bread_err2:
-	kmem_free(dbp);
+	kvfree(dbp);
  bread_err1:
-	kmem_free(hbp);
+	kvfree(hbp);
 
 	/*
 	 * Submit buffers that have been added from the last record processed,

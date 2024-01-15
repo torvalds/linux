@@ -856,7 +856,7 @@ xfs_inode_item_destroy(
 	ASSERT(iip->ili_item.li_buf == NULL);
 
 	ip->i_itemp = NULL;
-	kmem_free(iip->ili_item.li_lv_shadow);
+	kvfree(iip->ili_item.li_lv_shadow);
 	kmem_cache_free(xfs_ili_cache, iip);
 }
 

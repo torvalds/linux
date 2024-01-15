@@ -339,7 +339,7 @@ xlog_cil_alloc_shadow_bufs(
 			 * the buffer, only the log vector header and the iovec
 			 * storage.
 			 */
-			kmem_free(lip->li_lv_shadow);
+			kvfree(lip->li_lv_shadow);
 			lv = xlog_kvmalloc(buf_size);
 
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));

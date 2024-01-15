@@ -36,7 +36,7 @@ STATIC void
 xfs_rui_item_free(
 	struct xfs_rui_log_item	*ruip)
 {
-	kmem_free(ruip->rui_item.li_lv_shadow);
+	kvfree(ruip->rui_item.li_lv_shadow);
 	if (ruip->rui_format.rui_nextents > XFS_RUI_MAX_FAST_EXTENTS)
 		kmem_free(ruip);
 	else
@@ -206,7 +206,7 @@ xfs_rud_item_release(
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
 	xfs_rui_release(rudp->rud_ruip);
-	kmem_free(rudp->rud_item.li_lv_shadow);
+	kvfree(rudp->rud_item.li_lv_shadow);
 	kmem_cache_free(xfs_rud_cache, rudp);
 }
 

@@ -1059,10 +1059,10 @@ out_free:
 	 */
 	if (rsum_cache != mp->m_rsum_cache) {
 		if (error) {
-			kmem_free(mp->m_rsum_cache);
+			kvfree(mp->m_rsum_cache);
 			mp->m_rsum_cache = rsum_cache;
 		} else {
-			kmem_free(rsum_cache);
+			kvfree(rsum_cache);
 		}
 	}
 
@@ -1233,7 +1233,7 @@ void
 xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
-	kmem_free(mp->m_rsum_cache);
+	kvfree(mp->m_rsum_cache);
 	if (mp->m_rbmip)
 		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)

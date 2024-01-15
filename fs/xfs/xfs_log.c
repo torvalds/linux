@@ -1662,7 +1662,7 @@ out_destroy_workqueue:
 out_free_iclog:
 	for (iclog = log->l_iclog; iclog; iclog = prev_iclog) {
 		prev_iclog = iclog->ic_next;
-		kmem_free(iclog->ic_data);
+		kvfree(iclog->ic_data);
 		kmem_free(iclog);
 		if (prev_iclog == log->l_iclog)
 			break;
@@ -2119,7 +2119,7 @@ xlog_dealloc_log(
 	iclog = log->l_iclog;
 	for (i = 0; i < log->l_iclog_bufs; i++) {
 		next_iclog = iclog->ic_next;
-		kmem_free(iclog->ic_data);
+		kvfree(iclog->ic_data);
 		kmem_free(iclog);
 		iclog = next_iclog;
 	}
