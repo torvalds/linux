@@ -1330,7 +1330,7 @@ static int bch2_fiemap(struct inode *vinode, struct fiemap_extent_info *info,
 	bool have_extent = false;
 	int ret = 0;
 
-	ret = fiemap_prep(&ei->v, info, start, &len, FIEMAP_FLAG_SYNC);
+	ret = fiemap_prep(&ei->v, info, start, &len, 0);
 	if (ret)
 		return ret;
 
