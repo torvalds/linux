@@ -1317,13 +1317,6 @@ static void bic_disable_msr_access(void)
 	bic_enabled &= ~bic_msrs;
 }
 
-static void bic_disable_perf_access(void)
-{
-	const unsigned long bic_perf = BIC_IPC;
-
-	bic_enabled &= ~bic_perf;
-}
-
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
 {
 	assert(!no_perf);
@@ -1331,11 +1324,13 @@ static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu
 	return syscall(__NR_perf_event_open, hw_event, pid, cpu, group_fd, flags);
 }
 
-static long open_perf_counter_or_fail(int cpu, unsigned int type, unsigned int config, int group_fd, __u64 read_format)
+static long open_perf_counter(int cpu, unsigned int type, unsigned int config, int group_fd, __u64 read_format)
 {
 	struct perf_event_attr attr;
 	const pid_t pid = -1;
 	const unsigned long flags = 0;
+
+	assert(!no_perf);
 
 	memset(&attr, 0, sizeof(struct perf_event_attr));
 
@@ -1347,15 +1342,6 @@ static long open_perf_counter_or_fail(int cpu, unsigned int type, unsigned int c
 	attr.read_format = read_format;
 
 	const int fd = perf_event_open(&attr, pid, cpu, group_fd, flags);
-	if (fd == -1) {
-		if (errno == EACCES) {
-			errx(1, "capget(CAP_PERFMON) failed, try \"# setcap cap_sys_admin=ep %s\""
-			     " or use --no-perf or run as root", progname);
-		} else {
-			perror("perf_event_open");
-			errx(1, "use --no-perf or run as root");
-		}
-	}
 
 	return fd;
 }
@@ -1365,8 +1351,7 @@ int get_instr_count_fd(int cpu)
 	if (fd_instr_count_percpu[cpu])
 		return fd_instr_count_percpu[cpu];
 
-	fd_instr_count_percpu[cpu] =
-	    open_perf_counter_or_fail(cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, -1, 0);
+	fd_instr_count_percpu[cpu] = open_perf_counter(cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, -1, 0);
 
 	return fd_instr_count_percpu[cpu];
 }
@@ -2833,8 +2818,8 @@ static struct amperf_group_fd open_amperf_fd(int cpu)
 	const unsigned int mperf_config = read_mperf_config();
 	struct amperf_group_fd fds = {.aperf = -1,.mperf = -1 };
 
-	fds.aperf = open_perf_counter_or_fail(cpu, msr_type, aperf_config, -1, PERF_FORMAT_GROUP);
-	fds.mperf = open_perf_counter_or_fail(cpu, msr_type, mperf_config, fds.aperf, PERF_FORMAT_GROUP);
+	fds.aperf = open_perf_counter(cpu, msr_type, aperf_config, -1, PERF_FORMAT_GROUP);
+	fds.mperf = open_perf_counter(cpu, msr_type, mperf_config, fds.aperf, PERF_FORMAT_GROUP);
 
 	return fds;
 }
@@ -4509,7 +4494,8 @@ release_msr:
 
 /*
  * set_my_sched_priority(pri)
- * return previous
+ * return previous priority on success
+ * return value < -20 on failure
  */
 int set_my_sched_priority(int priority)
 {
@@ -4519,16 +4505,16 @@ int set_my_sched_priority(int priority)
 	errno = 0;
 	original_priority = getpriority(PRIO_PROCESS, 0);
 	if (errno && (original_priority == -1))
-		err(errno, "getpriority");
+		return -21;
 
 	retval = setpriority(PRIO_PROCESS, 0, priority);
 	if (retval)
-		errx(retval, "capget(CAP_SYS_NICE) failed,try \"# setcap cap_sys_nice=ep %s\"", progname);
+		return -21;
 
 	errno = 0;
 	retval = getpriority(PRIO_PROCESS, 0);
 	if (retval != priority)
-		err(retval, "getpriority(%d) != setpriority(%d)", retval, priority);
+		return -21;
 
 	return original_priority;
 }
@@ -4543,6 +4529,9 @@ void turbostat_loop()
 
 	/*
 	 * elevate own priority for interval mode
+	 *
+	 * ignore on error - we probably don't have permission to set it, but
+	 * it's not a big deal
 	 */
 	set_my_sched_priority(-20);
 
@@ -4628,10 +4617,13 @@ void check_dev_msr()
 	struct stat sb;
 	char pathname[32];
 
+	if (no_msr)
+		return;
+
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 	if (stat(pathname, &sb))
 		if (system("/sbin/modprobe msr > /dev/null 2>&1"))
-			err(-5, "no /dev/cpu/0/msr, Try \"# modprobe msr\" ");
+			no_msr = 1;
 }
 
 /*
@@ -4643,47 +4635,51 @@ int check_for_cap_sys_rawio(void)
 {
 	cap_t caps;
 	cap_flag_value_t cap_flag_value;
+	int ret = 0;
 
 	caps = cap_get_proc();
 	if (caps == NULL)
-		err(-6, "cap_get_proc\n");
-
-	if (cap_get_flag(caps, CAP_SYS_RAWIO, CAP_EFFECTIVE, &cap_flag_value))
-		err(-6, "cap_get\n");
-
-	if (cap_flag_value != CAP_SET) {
-		warnx("capget(CAP_SYS_RAWIO) failed," " try \"# setcap cap_sys_rawio=ep %s\"", progname);
 		return 1;
+
+	if (cap_get_flag(caps, CAP_SYS_RAWIO, CAP_EFFECTIVE, &cap_flag_value)) {
+		ret = 1;
+		goto free_and_exit;
 	}
 
+	if (cap_flag_value != CAP_SET) {
+		ret = 1;
+		goto free_and_exit;
+	}
+
+free_and_exit:
 	if (cap_free(caps) == -1)
 		err(-6, "cap_free\n");
 
-	return 0;
+	return ret;
 }
 
-void check_permissions(void)
+void check_msr_permission(void)
 {
-	int do_exit = 0;
+	int failed = 0;
 	char pathname[32];
 
+	if (no_msr)
+		return;
+
 	/* check for CAP_SYS_RAWIO */
-	do_exit += check_for_cap_sys_rawio();
+	failed += check_for_cap_sys_rawio();
 
 	/* test file permissions */
 	sprintf(pathname, "/dev/cpu/%d/msr", base_cpu);
 	if (euidaccess(pathname, R_OK)) {
-		do_exit++;
-		warn("/dev/cpu/0/msr open failed, try chown or chmod +r /dev/cpu/*/msr, or run with --no-msr");
+		failed++;
 	}
 
-	/* if all else fails, thell them to be root */
-	if (do_exit)
-		if (getuid() != 0)
-			warnx("... or simply run as root");
-
-	if (do_exit)
-		exit(-6);
+	if (failed) {
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly", pathname, "--no-msr");
+		no_msr = 1;
+	}
 }
 
 void probe_bclk(void)
@@ -5800,6 +5796,28 @@ void print_dev_latency(void)
 	close(fd);
 }
 
+static int has_instr_count_access(void)
+{
+	int fd;
+	int has_access;
+
+	if (no_perf)
+		return 0;
+
+	fd = open_perf_counter(base_cpu, PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, -1, 0);
+	has_access = fd != -1;
+
+	if (fd != -1)
+		close(fd);
+
+	if (!has_access)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly",
+		      "instructions retired perf counter", "--no-perf");
+
+	return has_access;
+}
+
 /*
  * Linux-perf manages the HW instructions-retired counter
  * by enabling when requested, and hiding rollover
@@ -5826,13 +5844,15 @@ void linux_perf_init(void)
 
 static int has_amperf_access_via_msr(void)
 {
-	const int cpu = sched_getcpu();
 	unsigned long long dummy;
 
-	if (get_msr(cpu, MSR_IA32_APERF, &dummy))
+	if (no_msr)
 		return 0;
 
-	if (get_msr(cpu, MSR_IA32_MPERF, &dummy))
+	if (get_msr(base_cpu, MSR_IA32_APERF, &dummy))
+		return 0;
+
+	if (get_msr(base_cpu, MSR_IA32_MPERF, &dummy))
 		return 0;
 
 	return 1;
@@ -5840,16 +5860,44 @@ static int has_amperf_access_via_msr(void)
 
 static int has_amperf_access_via_perf(void)
 {
-	if (access("/sys/bus/event_source/devices/msr/type", F_OK))
+	struct amperf_group_fd fds;
+
+	/*
+	 * Cache the last result, so we don't warn the user multiple times
+	 *
+	 * Negative means cached, no access
+	 * Zero means not cached
+	 * Positive means cached, has access
+	 */
+	static int has_access_cached;
+
+	if (no_perf)
 		return 0;
 
-	if (access("/sys/bus/event_source/devices/msr/events/aperf", F_OK))
-		return 0;
+	if (has_access_cached != 0)
+		return has_access_cached > 0;
 
-	if (access("/sys/bus/event_source/devices/msr/events/mperf", F_OK))
-		return 0;
+	fds = open_amperf_fd(base_cpu);
+	has_access_cached = (fds.aperf != -1) && (fds.mperf != -1);
 
-	return 1;
+	if (fds.aperf == -1)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly",
+		      "APERF perf counter", "--no-perf");
+	else
+		close(fds.aperf);
+
+	if (fds.mperf == -1)
+		warnx("Failed to access %s. Some of the counters may not be available\n"
+		      "\tRun as root to enable them or use %s to disable the access explicitly",
+		      "MPERF perf counter", "--no-perf");
+	else
+		close(fds.mperf);
+
+	if (has_access_cached == 0)
+		has_access_cached = -1;
+
+	return has_access_cached > 0;
 }
 
 /* Check if we can access APERF and MPERF */
@@ -6542,14 +6590,34 @@ static void set_amperf_source(void)
 	fprintf(outf, "aperf/mperf source preference: %s\n", amperf_source == AMPERF_SOURCE_MSR ? "msr" : "perf");
 }
 
+void check_msr_access(void)
+{
+	check_dev_msr();
+	check_msr_permission();
+
+	if (no_msr)
+		bic_disable_msr_access();
+}
+
+void check_perf_access(void)
+{
+	if (no_perf || !has_instr_count_access())
+		bic_enabled &= ~BIC_IPC;
+
+	if (!has_amperf_access()) {
+		bic_enabled &= ~BIC_Avg_MHz;
+		bic_enabled &= ~BIC_Busy;
+		bic_enabled &= ~BIC_Bzy_MHz;
+		bic_enabled &= ~BIC_IPC;
+	}
+}
+
 void turbostat_init()
 {
 	setup_all_buffers(true);
 	set_base_cpu();
-	if (!no_msr) {
-		check_dev_msr();
-		check_permissions();
-	}
+	check_msr_access();
+	check_perf_access();
 	process_cpuid();
 	probe_pm_features();
 	set_amperf_source();
@@ -7149,12 +7217,6 @@ int main(int argc, char **argv)
 skip_cgroup_setting:
 	outf = stderr;
 	cmdline(argc, argv);
-
-	if (no_msr)
-		bic_disable_msr_access();
-
-	if (no_perf)
-		bic_disable_perf_access();
 
 	if (!quiet) {
 		print_version();
