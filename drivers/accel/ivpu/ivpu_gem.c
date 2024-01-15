@@ -112,8 +112,6 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 
 	ivpu_dbg_bo(vdev, bo, "unbind");
 
-	/* TODO: dma_unmap */
-
 	if (bo->mmu_mapped) {
 		drm_WARN_ON(&vdev->drm, !bo->ctx);
 		drm_WARN_ON(&vdev->drm, !bo->vpu_addr);
@@ -127,6 +125,18 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 		bo->vpu_addr = 0;
 		bo->ctx = NULL;
 	}
+
+	if (bo->base.base.import_attach)
+		return;
+
+	dma_resv_lock(bo->base.base.resv, NULL);
+	if (bo->base.sgt) {
+		dma_unmap_sgtable(vdev->drm.dev, bo->base.sgt, DMA_BIDIRECTIONAL, 0);
+		sg_free_table(bo->base.sgt);
+		kfree(bo->base.sgt);
+		bo->base.sgt = NULL;
+	}
+	dma_resv_unlock(bo->base.base.resv);
 }
 
 static void ivpu_bo_unbind(struct ivpu_bo *bo)
