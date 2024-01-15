@@ -459,6 +459,7 @@
 		interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tuni0", "tuni1", "tuni2";
 		clocks = <&mstp1_clks R8A7740_CLK_TMU0>;
 		clock-names = "fck";
 		power-domains = <&pd_a4r>;
@@ -474,6 +475,7 @@
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "tuni0", "tuni1", "tuni2";
 		clocks = <&mstp1_clks R8A7740_CLK_TMU1>;
 		clock-names = "fck";
 		power-domains = <&pd_a4r>;
