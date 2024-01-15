@@ -659,10 +659,9 @@ xfs_iget_cache_miss(
 	/*
 	 * Preload the radix tree so we can insert safely under the
 	 * write spinlock. Note that we cannot sleep inside the preload
-	 * region. Since we can be called from transaction context, don't
-	 * recurse into the file system.
+	 * region.
 	 */
-	if (radix_tree_preload(GFP_NOFS)) {
+	if (radix_tree_preload(GFP_KERNEL | __GFP_NOLOCKDEP)) {
 		error = -EAGAIN;
 		goto out_destroy;
 	}

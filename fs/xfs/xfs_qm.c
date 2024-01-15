@@ -643,9 +643,9 @@ xfs_qm_init_quotainfo(
 	if (error)
 		goto out_free_lru;
 
-	INIT_RADIX_TREE(&qinf->qi_uquota_tree, GFP_NOFS);
-	INIT_RADIX_TREE(&qinf->qi_gquota_tree, GFP_NOFS);
-	INIT_RADIX_TREE(&qinf->qi_pquota_tree, GFP_NOFS);
+	INIT_RADIX_TREE(&qinf->qi_uquota_tree, GFP_KERNEL);
+	INIT_RADIX_TREE(&qinf->qi_gquota_tree, GFP_KERNEL);
+	INIT_RADIX_TREE(&qinf->qi_pquota_tree, GFP_KERNEL);
 	mutex_init(&qinf->qi_tree_lock);
 
 	/* mutex used to serialize quotaoffs */

@@ -389,7 +389,7 @@ xfs_initialize_perag(
 		pag->pag_agno = index;
 		pag->pag_mount = mp;
 
-		error = radix_tree_preload(GFP_NOFS);
+		error = radix_tree_preload(GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (error)
 			goto out_free_pag;
 

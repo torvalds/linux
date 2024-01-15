@@ -394,12 +394,18 @@ xfs_iext_leaf_key(
 	return leaf->recs[n].lo & XFS_IEXT_STARTOFF_MASK;
 }
 
+static inline void *
+xfs_iext_alloc_node(
+	int	size)
+{
+	return kzalloc(size, GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
+}
+
 static void
 xfs_iext_grow(
 	struct xfs_ifork	*ifp)
 {
-	struct xfs_iext_node	*node = kzalloc(NODE_SIZE,
-						GFP_NOFS | __GFP_NOFAIL);
+	struct xfs_iext_node	*node = xfs_iext_alloc_node(NODE_SIZE);
 	int			i;
 
 	if (ifp->if_height == 1) {
@@ -455,8 +461,7 @@ xfs_iext_split_node(
 	int			*nr_entries)
 {
 	struct xfs_iext_node	*node = *nodep;
-	struct xfs_iext_node	*new = kzalloc(NODE_SIZE,
-						GFP_NOFS | __GFP_NOFAIL);
+	struct xfs_iext_node	*new = xfs_iext_alloc_node(NODE_SIZE);
 	const int		nr_move = KEYS_PER_NODE / 2;
 	int			nr_keep = nr_move + (KEYS_PER_NODE & 1);
 	int			i = 0;
@@ -544,8 +549,7 @@ xfs_iext_split_leaf(
 	int			*nr_entries)
 {
 	struct xfs_iext_leaf	*leaf = cur->leaf;
-	struct xfs_iext_leaf	*new = kzalloc(NODE_SIZE,
-						GFP_NOFS | __GFP_NOFAIL);
+	struct xfs_iext_leaf	*new = xfs_iext_alloc_node(NODE_SIZE);
 	const int		nr_move = RECS_PER_LEAF / 2;
 	int			nr_keep = nr_move + (RECS_PER_LEAF & 1);
 	int			i;
@@ -586,8 +590,7 @@ xfs_iext_alloc_root(
 {
 	ASSERT(ifp->if_bytes == 0);
 
-	ifp->if_data = kzalloc(sizeof(struct xfs_iext_rec),
-					GFP_NOFS | __GFP_NOFAIL);
+	ifp->if_data = xfs_iext_alloc_node(sizeof(struct xfs_iext_rec));
 	ifp->if_height = 1;
 
 	/* now that we have a node step into it */
@@ -607,7 +610,8 @@ xfs_iext_realloc_root(
 	if (new_size / sizeof(struct xfs_iext_rec) == RECS_PER_LEAF)
 		new_size = NODE_SIZE;
 
-	new = krealloc(ifp->if_data, new_size, GFP_NOFS | __GFP_NOFAIL);
+	new = krealloc(ifp->if_data, new_size,
+			GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 	memset(new + ifp->if_bytes, 0, new_size - ifp->if_bytes);
 	ifp->if_data = new;
 	cur->leaf = new;

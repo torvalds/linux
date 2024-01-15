@@ -725,7 +725,9 @@ xfs_btree_alloc_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = kmem_cache_zalloc(cache, GFP_NOFS | __GFP_NOFAIL);
+	/* BMBT allocations can come through from non-transactional context. */
+	cur = kmem_cache_zalloc(cache,
+			GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
 	cur->bc_btnum = btnum;
