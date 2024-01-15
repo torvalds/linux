@@ -1477,7 +1477,7 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 		/* Remember evicted DMABuf imports in compute VMs for later
 		 * validation
 		 */
-		if (vm->is_compute_context && bo_va->base.bo &&
+		if (vm->is_compute_context &&
 		    bo_va->base.bo->tbo.base.import_attach &&
 		    (!bo_va->base.bo->tbo.resource ||
 		     bo_va->base.bo->tbo.resource->mem_type == TTM_PL_SYSTEM))
