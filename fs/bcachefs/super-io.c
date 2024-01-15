@@ -1320,7 +1320,9 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	prt_printf(out, "Superblock size:");
 	prt_tab(out);
-	prt_printf(out, "%zu", vstruct_bytes(sb));
+	prt_units_u64(out, vstruct_bytes(sb));
+	prt_str(out, "/");
+	prt_units_u64(out, 512ULL << sb->layout.sb_max_size_bits);
 	prt_newline(out);
 
 	prt_printf(out, "Clean:");
