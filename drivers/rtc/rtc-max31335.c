@@ -348,26 +348,18 @@ static int max31335_alarm_irq_enable(struct device *dev, unsigned int enabled)
 static irqreturn_t max31335_handle_irq(int irq, void *dev_id)
 {
 	struct max31335_data *max31335 = dev_id;
-	struct mutex *lock = &max31335->rtc->ops_lock;
 	int ret, status;
-
-	mutex_lock(lock);
 
 	ret = regmap_read(max31335->regmap, MAX31335_STATUS1, &status);
 	if (ret)
-		goto exit;
+		return IRQ_HANDLED;
 
 	if (FIELD_GET(MAX31335_STATUS1_A1F, status)) {
-		ret = regmap_update_bits(max31335->regmap, MAX31335_STATUS1,
-					 MAX31335_STATUS1_A1F, 0);
-		if (ret)
-			goto exit;
+		regmap_update_bits(max31335->regmap, MAX31335_STATUS1,
+				   MAX31335_STATUS1_A1F, 0);
 
 		rtc_update_irq(max31335->rtc, 1, RTC_AF | RTC_IRQF);
 	}
-
-exit:
-	mutex_unlock(lock);
 
 	return IRQ_HANDLED;
 }
