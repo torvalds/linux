@@ -91,6 +91,12 @@ enum mpcc_alpha_blend_mode {
  * @global_gain: used when blend mode considers both pixel alpha and plane
  * alpha value and assumes the global alpha value.
  * @global_alpha: plane alpha value
+ * @overlap_only: whether overlapping of different planes is allowed
+ * @bottom_gain_mode: blend mode for bottom gain setting
+ * @background_color_bpc: background color for bpc
+ * @top_gain: top gain setting
+ * @bottom_inside_gain: blend mode for bottom inside
+ * @bottom_outside_gain:  blend mode for bottom outside
  */
 struct mpcc_blnd_cfg {
 	struct tg_color black_color;	/* background color */

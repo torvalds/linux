@@ -112,7 +112,7 @@ struct aw200xx {
 	struct mutex mutex;
 	u32 num_leds;
 	u32 display_rows;
-	struct aw200xx_led leds[];
+	struct aw200xx_led leds[] __counted_by(num_leds);
 };
 
 static ssize_t dim_show(struct device *dev, struct device_attribute *devattr,
@@ -479,7 +479,7 @@ static const struct regmap_config aw200xx_regmap_config = {
 	.num_ranges = ARRAY_SIZE(aw200xx_ranges),
 	.rd_table = &aw200xx_readable_table,
 	.wr_table = &aw200xx_writeable_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int aw200xx_probe(struct i2c_client *client)

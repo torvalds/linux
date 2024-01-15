@@ -848,7 +848,7 @@ static void mlx5_fw_tracer_ownership_change(struct work_struct *work)
 
 	mlx5_core_dbg(tracer->dev, "FWTracer: ownership changed, current=(%d)\n", tracer->owner);
 	if (tracer->owner) {
-		tracer->owner = false;
+		mlx5_fw_tracer_ownership_acquire(tracer);
 		return;
 	}
 
@@ -889,36 +889,16 @@ int mlx5_fw_tracer_trigger_core_dump_general(struct mlx5_core_dev *dev)
 	return 0;
 }
 
-static int
+static void
 mlx5_devlink_fmsg_fill_trace(struct devlink_fmsg *fmsg,
 			     struct mlx5_fw_trace_data *trace_data)
 {
-	int err;
-
-	err = devlink_fmsg_obj_nest_start(fmsg);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u64_pair_put(fmsg, "timestamp", trace_data->timestamp);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_bool_pair_put(fmsg, "lost", trace_data->lost);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_u8_pair_put(fmsg, "event_id", trace_data->event_id);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_string_pair_put(fmsg, "msg", trace_data->msg);
-	if (err)
-		return err;
-
-	err = devlink_fmsg_obj_nest_end(fmsg);
-	if (err)
-		return err;
-	return 0;
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_u64_pair_put(fmsg, "timestamp", trace_data->timestamp);
+	devlink_fmsg_bool_pair_put(fmsg, "lost", trace_data->lost);
+	devlink_fmsg_u8_pair_put(fmsg, "event_id", trace_data->event_id);
+	devlink_fmsg_string_pair_put(fmsg, "msg", trace_data->msg);
+	devlink_fmsg_obj_nest_end(fmsg);
 }
 
 int mlx5_fw_tracer_get_saved_traces_objects(struct mlx5_fw_tracer *tracer,
@@ -927,7 +907,6 @@ int mlx5_fw_tracer_get_saved_traces_objects(struct mlx5_fw_tracer *tracer,
 	struct mlx5_fw_trace_data *straces = tracer->st_arr.straces;
 	u32 index, start_index, end_index;
 	u32 saved_traces_index;
-	int err;
 
 	if (!straces[0].timestamp)
 		return -ENOMSG;
@@ -940,22 +919,18 @@ int mlx5_fw_tracer_get_saved_traces_objects(struct mlx5_fw_tracer *tracer,
 		start_index = 0;
 	end_index = (saved_traces_index - 1) & (SAVED_TRACES_NUM - 1);
 
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "dump fw traces");
-	if (err)
-		goto unlock;
+	devlink_fmsg_arr_pair_nest_start(fmsg, "dump fw traces");
 	index = start_index;
 	while (index != end_index) {
-		err = mlx5_devlink_fmsg_fill_trace(fmsg, &straces[index]);
-		if (err)
-			goto unlock;
+		mlx5_devlink_fmsg_fill_trace(fmsg, &straces[index]);
 
 		index = (index + 1) & (SAVED_TRACES_NUM - 1);
 	}
 
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-unlock:
+	devlink_fmsg_arr_pair_nest_end(fmsg);
 	mutex_unlock(&tracer->st_arr.lock);
-	return err;
+
+	return 0;
 }
 
 static void mlx5_fw_tracer_update_db(struct work_struct *work)

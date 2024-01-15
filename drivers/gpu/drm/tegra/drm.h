@@ -120,9 +120,6 @@ int tegra_drm_unregister_client(struct tegra_drm *tegra,
 int host1x_client_iommu_attach(struct host1x_client *client);
 void host1x_client_iommu_detach(struct host1x_client *client);
 
-int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
-int tegra_drm_exit(struct tegra_drm *tegra);
-
 void *tegra_drm_alloc(struct tegra_drm *tegra, size_t size, dma_addr_t *iova);
 void tegra_drm_free(struct tegra_drm *tegra, size_t size, void *virt,
 		    dma_addr_t iova);

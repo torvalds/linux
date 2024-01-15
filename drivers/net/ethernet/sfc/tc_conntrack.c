@@ -276,10 +276,84 @@ static int efx_tc_ct_parse_match(struct efx_nic *efx, struct flow_rule *fr,
 	return 0;
 }
 
+/**
+ * struct efx_tc_ct_mangler_state - tracks which fields have been pedited
+ *
+ * @ipv4: IP source or destination addr has been set
+ * @tcpudp: TCP/UDP source or destination port has been set
+ */
+struct efx_tc_ct_mangler_state {
+	u8 ipv4:1;
+	u8 tcpudp:1;
+};
+
+static int efx_tc_ct_mangle(struct efx_nic *efx, struct efx_tc_ct_entry *conn,
+			    const struct flow_action_entry *fa,
+			    struct efx_tc_ct_mangler_state *mung)
+{
+	/* Is this the first mangle we've processed for this rule? */
+	bool first = !(mung->ipv4 || mung->tcpudp);
+	bool dnat = false;
+
+	switch (fa->mangle.htype) {
+	case FLOW_ACT_MANGLE_HDR_TYPE_IP4:
+		switch (fa->mangle.offset) {
+		case offsetof(struct iphdr, daddr):
+			dnat = true;
+			fallthrough;
+		case offsetof(struct iphdr, saddr):
+			if (fa->mangle.mask)
+				return -EOPNOTSUPP;
+			conn->nat_ip = htonl(fa->mangle.val);
+			mung->ipv4 = 1;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	case FLOW_ACT_MANGLE_HDR_TYPE_TCP:
+	case FLOW_ACT_MANGLE_HDR_TYPE_UDP:
+		/* Both struct tcphdr and struct udphdr start with
+		 *	__be16 source;
+		 *	__be16 dest;
+		 * so we can use the same code for both.
+		 */
+		switch (fa->mangle.offset) {
+		case offsetof(struct tcphdr, dest):
+			BUILD_BUG_ON(offsetof(struct tcphdr, dest) !=
+				     offsetof(struct udphdr, dest));
+			dnat = true;
+			fallthrough;
+		case offsetof(struct tcphdr, source):
+			BUILD_BUG_ON(offsetof(struct tcphdr, source) !=
+				     offsetof(struct udphdr, source));
+			if (~fa->mangle.mask != 0xffff)
+				return -EOPNOTSUPP;
+			conn->l4_natport = htons(fa->mangle.val);
+			mung->tcpudp = 1;
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	/* first mangle tells us whether this is SNAT or DNAT;
+	 * subsequent mangles must match that
+	 */
+	if (first)
+		conn->dnat = dnat;
+	else if (conn->dnat != dnat)
+		return -EOPNOTSUPP;
+	return 0;
+}
+
 static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 			     struct flow_cls_offload *tc)
 {
 	struct flow_rule *fr = flow_cls_offload_flow_rule(tc);
+	struct efx_tc_ct_mangler_state mung = {};
 	struct efx_tc_ct_entry *conn, *old;
 	struct efx_nic *efx = ct_zone->efx;
 	const struct flow_action_entry *fa;
@@ -298,7 +372,10 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 	old = rhashtable_lookup_get_insert_fast(&efx->tc->ct_ht,
 						&conn->linkage,
 						efx_tc_ct_ht_params);
-	if (old) {
+	if (IS_ERR(old)) {
+		rc = PTR_ERR(old);
+		goto release;
+	} else if (old) {
 		netif_dbg(efx, drv, efx->net_dev,
 			  "Already offloaded conntrack (cookie %lx)\n", tc->cookie);
 		rc = -EEXIST;
@@ -323,6 +400,17 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 				goto release;
 			}
 			break;
+		case FLOW_ACTION_MANGLE:
+			if (conn->eth_proto != htons(ETH_P_IP)) {
+				netif_dbg(efx, drv, efx->net_dev,
+					  "NAT only supported for IPv4\n");
+				rc = -EOPNOTSUPP;
+				goto release;
+			}
+			rc = efx_tc_ct_mangle(efx, conn, fa, &mung);
+			if (rc)
+				goto release;
+			break;
 		default:
 			netif_dbg(efx, drv, efx->net_dev,
 				  "Unhandled action %u for conntrack\n", fa->id);
@@ -332,8 +420,10 @@ static int efx_tc_ct_replace(struct efx_tc_ct_zone *ct_zone,
 	}
 
 	/* fill in defaults for unmangled values */
-	conn->nat_ip = conn->dnat ? conn->dst_ip : conn->src_ip;
-	conn->l4_natport = conn->dnat ? conn->l4_dport : conn->l4_sport;
+	if (!mung.ipv4)
+		conn->nat_ip = conn->dnat ? conn->dst_ip : conn->src_ip;
+	if (!mung.tcpudp)
+		conn->l4_natport = conn->dnat ? conn->l4_dport : conn->l4_sport;
 
 	cnt = efx_tc_flower_allocate_counter(efx, EFX_TC_COUNTER_TYPE_CT);
 	if (IS_ERR(cnt)) {
@@ -482,6 +572,8 @@ struct efx_tc_ct_zone *efx_tc_ct_register_zone(struct efx_nic *efx, u16 zone,
 	if (old) {
 		/* don't need our new entry */
 		kfree(ct_zone);
+		if (IS_ERR(old)) /* oh dear, it's actually an error */
+			return ERR_CAST(old);
 		if (!refcount_inc_not_zero(&old->ref))
 			return ERR_PTR(-EAGAIN);
 		/* existing entry found */

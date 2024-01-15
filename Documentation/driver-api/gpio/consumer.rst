@@ -29,6 +29,10 @@ warnings. These stubs are used for two use cases:
   will use it under other compile-time configurations. In this case the
   consumer must make sure not to call into these functions, or the user will
   be met with console warnings that may be perceived as intimidating.
+  Combining truly optional GPIOLIB usage with calls to
+  ``[devm_]gpiod_get_optional()`` is a *bad idea*, and will result in weird
+  error messages. Use the ordinary getter functions with optional GPIOLIB:
+  some open coding of error handling should be expected when you do this.
 
 All the functions that work with the descriptor-based GPIO interface are
 prefixed with ``gpiod_``. The ``gpio_`` prefix is used for the legacy

@@ -15,8 +15,8 @@ function fatal(msg) {
 /^#/ { next }
 
 BEGIN {
-	print "#ifndef __ASM_CPUCAPS_H"
-	print "#define __ASM_CPUCAPS_H"
+	print "#ifndef __ASM_CPUCAP_DEFS_H"
+	print "#define __ASM_CPUCAP_DEFS_H"
 	print ""
 	print "/* Generated file - do not edit */"
 	cap_num = 0
@@ -31,7 +31,7 @@ BEGIN {
 END {
 	printf("#define ARM64_NCAPS\t\t\t\t\t%d\n", cap_num)
 	print ""
-	print "#endif /* __ASM_CPUCAPS_H */"
+	print "#endif /* __ASM_CPUCAP_DEFS_H */"
 }
 
 # Any lines not handled by previous rules are unexpected

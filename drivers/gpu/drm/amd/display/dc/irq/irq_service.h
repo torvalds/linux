@@ -53,7 +53,7 @@ struct irq_source_info {
 	uint32_t ack_mask;
 	uint32_t ack_value;
 	uint32_t status_reg;
-	const struct irq_source_info_funcs *funcs;
+	struct irq_source_info_funcs *funcs;
 };
 
 struct irq_service_funcs {

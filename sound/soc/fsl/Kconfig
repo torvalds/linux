@@ -360,6 +360,7 @@ config SND_SOC_IMX_HDMI
 config SND_SOC_IMX_RPMSG
 	tristate "SoC Audio support for i.MX boards with rpmsg"
 	depends on RPMSG
+	depends on OF && I2C
 	select SND_SOC_IMX_PCM_RPMSG
 	select SND_SOC_IMX_AUDIO_RPMSG
 	help

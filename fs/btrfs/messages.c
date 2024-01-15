@@ -72,11 +72,11 @@ static void btrfs_state_to_string(const struct btrfs_fs_info *info, char *buf)
  *        over the error.  Each subsequent error that doesn't have any context
  *        of the original error should use EROFS when handling BTRFS_FS_STATE_ERROR.
  */
-const char * __attribute_const__ btrfs_decode_error(int errno)
+const char * __attribute_const__ btrfs_decode_error(int error)
 {
 	char *errstr = "unknown";
 
-	switch (errno) {
+	switch (error) {
 	case -ENOENT:		/* -2 */
 		errstr = "No such entry";
 		break;
@@ -110,12 +110,12 @@ const char * __attribute_const__ btrfs_decode_error(int errno)
 }
 
 /*
- * __btrfs_handle_fs_error decodes expected errors from the caller and
- * invokes the appropriate error response.
+ * Decodes expected errors from the caller and invokes the appropriate error
+ * response.
  */
 __cold
 void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
-		       unsigned int line, int errno, const char *fmt, ...)
+		       unsigned int line, int error, const char *fmt, ...)
 {
 	struct super_block *sb = fs_info->sb;
 #ifdef CONFIG_PRINTK
@@ -132,11 +132,11 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	 * Special case: if the error is EROFS, and we're already under
 	 * SB_RDONLY, then it is safe here.
 	 */
-	if (errno == -EROFS && sb_rdonly(sb))
+	if (error == -EROFS && sb_rdonly(sb))
 		return;
 
 #ifdef CONFIG_PRINTK
-	errstr = btrfs_decode_error(errno);
+	errstr = btrfs_decode_error(error);
 	btrfs_state_to_string(fs_info, statestr);
 	if (fmt) {
 		struct va_format vaf;
@@ -147,11 +147,11 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 		vaf.va = &args;
 
 		pr_crit("BTRFS: error (device %s%s) in %s:%d: errno=%d %s (%pV)\n",
-			sb->s_id, statestr, function, line, errno, errstr, &vaf);
+			sb->s_id, statestr, function, line, error, errstr, &vaf);
 		va_end(args);
 	} else {
 		pr_crit("BTRFS: error (device %s%s) in %s:%d: errno=%d %s\n",
-			sb->s_id, statestr, function, line, errno, errstr);
+			sb->s_id, statestr, function, line, error, errstr);
 	}
 #endif
 
@@ -159,7 +159,7 @@ void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function
 	 * Today we only save the error info to memory.  Long term we'll also
 	 * send it down to the disk.
 	 */
-	WRITE_ONCE(fs_info->fs_error, errno);
+	WRITE_ONCE(fs_info->fs_error, error);
 
 	/* Don't go through full error handling during mount. */
 	if (!(sb->s_flags & SB_BORN))
@@ -283,12 +283,12 @@ void __cold btrfs_err_32bit_limit(struct btrfs_fs_info *fs_info)
 #endif
 
 /*
- * __btrfs_panic decodes unexpected, fatal errors from the caller, issues an
- * alert, and either panics or BUGs, depending on mount options.
+ * Decode unexpected, fatal errors from the caller, issue an alert, and either
+ * panic or BUGs, depending on mount options.
  */
 __cold
 void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
-		   unsigned int line, int errno, const char *fmt, ...)
+		   unsigned int line, int error, const char *fmt, ...)
 {
 	char *s_id = "<unknown>";
 	const char *errstr;
@@ -301,13 +301,13 @@ void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
 	va_start(args, fmt);
 	vaf.va = &args;
 
-	errstr = btrfs_decode_error(errno);
+	errstr = btrfs_decode_error(error);
 	if (fs_info && (btrfs_test_opt(fs_info, PANIC_ON_FATAL_ERROR)))
 		panic(KERN_CRIT "BTRFS panic (device %s) in %s:%d: %pV (errno=%d %s)\n",
-			s_id, function, line, &vaf, errno, errstr);
+			s_id, function, line, &vaf, error, errstr);
 
 	btrfs_crit(fs_info, "panic in %s:%d: %pV (errno=%d %s)",
-		   function, line, &vaf, errno, errstr);
+		   function, line, &vaf, error, errstr);
 	va_end(args);
 	/* Caller calls BUG() */
 }

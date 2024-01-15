@@ -96,7 +96,7 @@ gv100_sor_dp = {
 	.watermark = gv100_sor_dp_watermark,
 };
 
-static void
+void
 gv100_sor_hdmi_infoframe_vsi(struct nvkm_ior *ior, int head, void *data, u32 size)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
@@ -120,7 +120,7 @@ gv100_sor_hdmi_infoframe_vsi(struct nvkm_ior *ior, int head, void *data, u32 siz
 	nvkm_mask(device, 0x6f0100 + hoff, 0x00000001, 0x00000001);
 }
 
-static void
+void
 gv100_sor_hdmi_infoframe_avi(struct nvkm_ior *ior, int head, void *data, u32 size)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
@@ -1115,7 +1115,7 @@ gv100_disp_intr(struct nvkm_disp *disp)
 }
 
 void
-gv100_disp_fini(struct nvkm_disp *disp)
+gv100_disp_fini(struct nvkm_disp *disp, bool suspend)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_wr32(device, 0x611db0, 0x00000000);

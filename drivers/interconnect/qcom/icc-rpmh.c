@@ -253,14 +253,12 @@ err_remove_nodes:
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpmh_probe);
 
-int qcom_icc_rpmh_remove(struct platform_device *pdev)
+void qcom_icc_rpmh_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_provider_deregister(&qp->provider);
 	icc_nodes_remove(&qp->provider);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpmh_remove);
 

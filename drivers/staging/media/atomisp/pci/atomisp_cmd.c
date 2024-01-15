@@ -1248,28 +1248,6 @@ static void atomisp_update_capture_mode(struct atomisp_sub_device *asd)
 		atomisp_css_capture_set_mode(asd, IA_CSS_CAPTURE_MODE_PRIMARY);
 }
 
-/* ISP2401 */
-int atomisp_set_sensor_runmode(struct atomisp_sub_device *asd,
-			       struct atomisp_s_runmode *runmode)
-{
-	struct atomisp_device *isp = asd->isp;
-	struct v4l2_ctrl *c;
-	int ret = 0;
-
-	if (!(runmode && (runmode->mode & RUNMODE_MASK)))
-		return -EINVAL;
-
-	mutex_lock(asd->ctrl_handler.lock);
-	c = v4l2_ctrl_find(isp->inputs[asd->input_curr].camera->ctrl_handler,
-			   V4L2_CID_RUN_MODE);
-
-	if (c)
-		ret = v4l2_ctrl_s_ctrl(c, runmode->mode);
-
-	mutex_unlock(asd->ctrl_handler.lock);
-	return ret;
-}
-
 /*
  * Function to enable/disable lens geometry distortion correction (GDC) and
  * chromatic aberration correction (CAC)
@@ -2793,12 +2771,16 @@ int atomisp_cp_dvs_6axis_config(struct atomisp_sub_device *asd,
 			css_param->dvs_6axis = NULL;
 
 			dvs_6axis_config = ia_css_dvs2_6axis_config_allocate(stream);
-			if (!dvs_6axis_config)
-				return -ENOMEM;
+			if (!dvs_6axis_config) {
+				ret = -ENOMEM;
+				goto error;
+			}
 		} else if (!dvs_6axis_config) {
 			dvs_6axis_config = ia_css_dvs2_6axis_config_allocate(stream);
-			if (!dvs_6axis_config)
-				return -ENOMEM;
+			if (!dvs_6axis_config) {
+				ret = -ENOMEM;
+				goto error;
+			}
 		}
 
 		dvs_6axis_config->exp_id = source_6axis_config->exp_id;
@@ -2896,8 +2878,10 @@ int atomisp_cp_morph_table(struct atomisp_sub_device *asd,
 		morph_table = atomisp_css_morph_table_allocate(
 				source_morph_table->width,
 				source_morph_table->height);
-		if (!morph_table)
-			return -ENOMEM;
+		if (!morph_table) {
+			ret = -ENOMEM;
+			goto error;
+		}
 
 		for (i = 0; i < IA_CSS_MORPH_TABLE_NUM_PLANES; i++) {
 			if (copy_from_compatible(morph_table->coordinates_x[i],
@@ -3807,6 +3791,10 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		if (!fmt)
 			return -EINVAL;
 	}
+
+	/* The preview pipeline does not support width > 1920 */
+	if (asd->run_mode->val == ATOMISP_RUN_MODE_PREVIEW)
+		f->width = min_t(u32, f->width, 1920);
 
 	/*
 	 * atomisp_set_fmt() will set the sensor resolution to the requested

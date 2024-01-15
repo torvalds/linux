@@ -81,7 +81,6 @@ struct trng_regs {
 };
 
 struct ks_sa_rng {
-	struct device	*dev;
 	struct hwrng	rng;
 	struct clk	*clk;
 	struct regmap	*regmap_cfg;
@@ -113,8 +112,7 @@ static unsigned int refill_delay_ns(unsigned long clk_rate)
 static int ks_sa_rng_init(struct hwrng *rng)
 {
 	u32 value;
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
 	unsigned long clk_rate = clk_get_rate(ks_sa_rng->clk);
 
 	/* Enable RNG module */
@@ -153,8 +151,7 @@ static int ks_sa_rng_init(struct hwrng *rng)
 
 static void ks_sa_rng_cleanup(struct hwrng *rng)
 {
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
 
 	/* Disable RNG */
 	writel(0, &ks_sa_rng->reg_rng->control);
@@ -164,8 +161,7 @@ static void ks_sa_rng_cleanup(struct hwrng *rng)
 
 static int ks_sa_rng_data_read(struct hwrng *rng, u32 *data)
 {
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
 
 	/* Read random data */
 	data[0] = readl(&ks_sa_rng->reg_rng->output_l);
@@ -179,8 +175,7 @@ static int ks_sa_rng_data_read(struct hwrng *rng, u32 *data)
 
 static int ks_sa_rng_data_present(struct hwrng *rng, int wait)
 {
-	struct device *dev = (struct device *)rng->priv;
-	struct ks_sa_rng *ks_sa_rng = dev_get_drvdata(dev);
+	struct ks_sa_rng *ks_sa_rng = container_of(rng, struct ks_sa_rng, rng);
 	u64 now = ktime_get_ns();
 
 	u32	ready;
@@ -217,7 +212,6 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	if (!ks_sa_rng)
 		return -ENOMEM;
 
-	ks_sa_rng->dev = dev;
 	ks_sa_rng->rng = (struct hwrng) {
 		.name = "ks_sa_hwrng",
 		.init = ks_sa_rng_init,
@@ -225,7 +219,6 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		.data_present = ks_sa_rng_data_present,
 		.cleanup = ks_sa_rng_cleanup,
 	};
-	ks_sa_rng->rng.priv = (unsigned long)dev;
 
 	ks_sa_rng->reg_rng = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ks_sa_rng->reg_rng))
@@ -235,20 +228,15 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 		syscon_regmap_lookup_by_phandle(dev->of_node,
 						"ti,syscon-sa-cfg");
 
-	if (IS_ERR(ks_sa_rng->regmap_cfg)) {
-		dev_err(dev, "syscon_node_to_regmap failed\n");
-		return -EINVAL;
-	}
+	if (IS_ERR(ks_sa_rng->regmap_cfg))
+		return dev_err_probe(dev, -EINVAL, "syscon_node_to_regmap failed\n");
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_resume_and_get(dev);
 	if (ret < 0) {
-		dev_err(dev, "Failed to enable SA power-domain\n");
 		pm_runtime_disable(dev);
-		return ret;
+		return dev_err_probe(dev, ret, "Failed to enable SA power-domain\n");
 	}
-
-	platform_set_drvdata(pdev, ks_sa_rng);
 
 	return devm_hwrng_register(&pdev->dev, &ks_sa_rng->rng);
 }

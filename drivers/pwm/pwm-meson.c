@@ -335,7 +335,6 @@ static const struct pwm_ops meson_pwm_ops = {
 	.free = meson_pwm_free,
 	.apply = meson_pwm_apply,
 	.get_state = meson_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const char * const pwm_meson8b_parent_names[] = {

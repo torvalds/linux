@@ -2398,7 +2398,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 			       PXA_CAM_DRV_NAME, pcdev);
 	if (err) {
 		dev_err(&pdev->dev, "Camera interrupt register failed\n");
-		goto exit_v4l2_device_unregister;
+		goto exit_deactivate;
 	}
 
 	pcdev->notifier.ops = &pxa_camera_sensor_ops;

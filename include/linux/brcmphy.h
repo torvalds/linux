@@ -11,6 +11,7 @@
 
 #define PHY_ID_BCM50610			0x0143bd60
 #define PHY_ID_BCM50610M		0x0143bd70
+#define PHY_ID_BCM5221			0x004061e0
 #define PHY_ID_BCM5241			0x0143bc30
 #define PHY_ID_BCMAC131			0x0143bc70
 #define PHY_ID_BCM5481			0x0143bca0
@@ -330,6 +331,15 @@
 					 BCM54XX_WOL_DIR)
 
 #define BCM54XX_WOL_INT_STATUS		(MII_BCM54XX_EXP_SEL_WOL + 0x94)
+
+/* BCM5221 Registers */
+#define BCM5221_AEGSR			0x1C
+#define BCM5221_AEGSR_MDIX_STATUS	BIT(13)
+#define BCM5221_AEGSR_MDIX_MAN_SWAP	BIT(12)
+#define BCM5221_AEGSR_MDIX_DIS		BIT(11)
+
+#define BCM5221_SHDW_AM4_EN_CLK_LPM	BIT(2)
+#define BCM5221_SHDW_AM4_FORCE_LPM	BIT(1)
 
 /*****************************************************************************/
 /* Fast Ethernet Transceiver definitions. */

@@ -83,18 +83,6 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	/* used for fixed read/write too - just read unconditionally */
 	req->buf_index = READ_ONCE(sqe->buf_index);
 
-	if (req->opcode == IORING_OP_READ_FIXED ||
-	    req->opcode == IORING_OP_WRITE_FIXED) {
-		struct io_ring_ctx *ctx = req->ctx;
-		u16 index;
-
-		if (unlikely(req->buf_index >= ctx->nr_user_bufs))
-			return -EFAULT;
-		index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
-		req->imu = ctx->user_bufs[index];
-		io_req_set_rsrc_node(req, ctx, 0);
-	}
-
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {
 		ret = ioprio_check_cap(ioprio);
@@ -110,16 +98,66 @@ int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	rw->addr = READ_ONCE(sqe->addr);
 	rw->len = READ_ONCE(sqe->len);
 	rw->flags = READ_ONCE(sqe->rw_flags);
+	return 0;
+}
 
-	/* Have to do this validation here, as this is in io_read() rw->len might
-	 * have chanaged due to buffer selection
+int io_prep_rwv(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	/*
+	 * Have to do this validation here, as this is in io_read() rw->len
+	 * might have chanaged due to buffer selection
 	 */
-	if (req->opcode == IORING_OP_READV && req->flags & REQ_F_BUFFER_SELECT) {
-		ret = io_iov_buffer_select_prep(req);
-		if (ret)
-			return ret;
-	}
+	if (req->flags & REQ_F_BUFFER_SELECT)
+		return io_iov_buffer_select_prep(req);
 
+	return 0;
+}
+
+int io_prep_rw_fixed(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	u16 index;
+	int ret;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	if (unlikely(req->buf_index >= ctx->nr_user_bufs))
+		return -EFAULT;
+	index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
+	req->imu = ctx->user_bufs[index];
+	io_req_set_rsrc_node(req, ctx, 0);
+	return 0;
+}
+
+/*
+ * Multishot read is prepared just like a normal read/write request, only
+ * difference is that we set the MULTISHOT flag.
+ */
+int io_read_mshot_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	int ret;
+
+	/* must be used with provided buffers */
+	if (!(req->flags & REQ_F_BUFFER_SELECT))
+		return -EINVAL;
+
+	ret = io_prep_rw(req, sqe);
+	if (unlikely(ret))
+		return ret;
+
+	if (rw->addr || rw->len)
+		return -EINVAL;
+
+	req->flags |= REQ_F_APOLL_MULTISHOT;
 	return 0;
 }
 
@@ -339,7 +377,7 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	unsigned final_ret = io_fixup_rw_res(req, ret);
 
-	if (req->flags & REQ_F_CUR_POS)
+	if (ret >= 0 && req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = rw->kiocb.ki_pos;
 	if (ret >= 0 && (rw->kiocb.ki_complete == io_complete_rw)) {
 		if (!__io_complete_rw_common(req, ret)) {
@@ -388,8 +426,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 	buf = u64_to_user_ptr(rw->addr);
 	sqe_len = rw->len;
 
-	if (opcode == IORING_OP_READ || opcode == IORING_OP_WRITE ||
-	    (req->flags & REQ_F_BUFFER_SELECT)) {
+	if (!io_issue_defs[opcode].vectored || req->flags & REQ_F_BUFFER_SELECT) {
 		if (io_do_buffer_select(req)) {
 			buf = io_buffer_select(req, &sqe_len, issue_flags);
 			if (!buf)
@@ -526,6 +563,9 @@ static int io_setup_async_rw(struct io_kiocb *req, const struct iovec *iovec,
 			     struct io_rw_state *s, bool force)
 {
 	if (!force && !io_cold_defs[req->opcode].prep_async)
+		return 0;
+	/* opcode type doesn't need async data */
+	if (!io_cold_defs[req->opcode].async_size)
 		return 0;
 	if (!req_has_async_data(req)) {
 		struct io_async_rw *iorw;
@@ -708,7 +748,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	return 0;
 }
 
-int io_read(struct io_kiocb *req, unsigned int issue_flags)
+static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
 	struct io_rw_state __s, *s = &__s;
@@ -776,8 +816,11 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
 		req->flags &= ~REQ_F_REISSUE;
-		/* if we can poll, just do that */
-		if (req->opcode == IORING_OP_READ && file_can_poll(req->file))
+		/*
+		 * If we can poll, just do that. For a vectored read, we'll
+		 * need to copy state first.
+		 */
+		if (file_can_poll(req->file) && !io_issue_defs[req->opcode].vectored)
 			return -EAGAIN;
 		/* IOPOLL retry should happen for io-wq threads */
 		if (!force_nonblock && !(req->ctx->flags & IORING_SETUP_IOPOLL))
@@ -853,7 +896,76 @@ done:
 	/* it's faster to check here then delegate to kfree */
 	if (iovec)
 		kfree(iovec);
-	return kiocb_done(req, ret, issue_flags);
+	return ret;
+}
+
+int io_read(struct io_kiocb *req, unsigned int issue_flags)
+{
+	int ret;
+
+	ret = __io_read(req, issue_flags);
+	if (ret >= 0)
+		return kiocb_done(req, ret, issue_flags);
+
+	return ret;
+}
+
+int io_read_mshot(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_rw *rw = io_kiocb_to_cmd(req, struct io_rw);
+	unsigned int cflags = 0;
+	int ret;
+
+	/*
+	 * Multishot MUST be used on a pollable file
+	 */
+	if (!file_can_poll(req->file))
+		return -EBADFD;
+
+	ret = __io_read(req, issue_flags);
+
+	/*
+	 * If we get -EAGAIN, recycle our buffer and just let normal poll
+	 * handling arm it.
+	 */
+	if (ret == -EAGAIN) {
+		/*
+		 * Reset rw->len to 0 again to avoid clamping future mshot
+		 * reads, in case the buffer size varies.
+		 */
+		if (io_kbuf_recycle(req, issue_flags))
+			rw->len = 0;
+		return -EAGAIN;
+	}
+
+	/*
+	 * Any successful return value will keep the multishot read armed.
+	 */
+	if (ret > 0) {
+		/*
+		 * Put our buffer and post a CQE. If we fail to post a CQE, then
+		 * jump to the termination path. This request is then done.
+		 */
+		cflags = io_put_kbuf(req, issue_flags);
+		rw->len = 0; /* similarly to above, reset len to 0 */
+
+		if (io_fill_cqe_req_aux(req,
+					issue_flags & IO_URING_F_COMPLETE_DEFER,
+					ret, cflags | IORING_CQE_F_MORE)) {
+			if (issue_flags & IO_URING_F_MULTISHOT)
+				return IOU_ISSUE_SKIP_COMPLETE;
+			return -EAGAIN;
+		}
+	}
+
+	/*
+	 * Either an error, or we've hit overflow posting the CQE. For any
+	 * multishot request, hitting overflow will terminate it.
+	 */
+	io_req_set_res(req, ret, cflags);
+	if (issue_flags & IO_URING_F_MULTISHOT)
+		return IOU_STOP_MULTISHOT;
+	return IOU_OK;
 }
 
 int io_write(struct io_kiocb *req, unsigned int issue_flags)
@@ -912,15 +1024,6 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	if (req->flags & REQ_F_ISREG)
 		kiocb_start_write(kiocb);
 	kiocb->ki_flags |= IOCB_WRITE;
-
-	/*
-	 * For non-polled IO, set IOCB_DIO_CALLER_COMP, stating that our handler
-	 * groks deferring the completion to task context. This isn't
-	 * necessary and useful for polled IO as that can always complete
-	 * directly.
-	 */
-	if (!(kiocb->ki_flags & IOCB_HIPRI))
-		kiocb->ki_flags |= IOCB_DIO_CALLER_COMP;
 
 	if (likely(req->file->f_op->write_iter))
 		ret2 = call_write_iter(req->file, kiocb, &s->iter);

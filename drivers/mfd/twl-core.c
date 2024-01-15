@@ -31,6 +31,8 @@
 #include <linux/regulator/machine.h>
 
 #include <linux/i2c.h>
+
+#include <linux/mfd/core.h>
 #include <linux/mfd/twl.h>
 
 /* Register descriptions for audio */
@@ -312,7 +314,7 @@ static const struct regmap_config twl4030_regmap_config[4] = {
 
 		.reg_defaults = twl4030_49_defaults,
 		.num_reg_defaults = ARRAY_SIZE(twl4030_49_defaults),
-		.cache_type = REGCACHE_RBTREE,
+		.cache_type = REGCACHE_MAPLE,
 	},
 	{
 		/* Address 0x4a */
@@ -690,6 +692,10 @@ static struct of_dev_auxdata twl_auxdata_lookup[] = {
 	{ /* sentinel */ },
 };
 
+static const struct mfd_cell twl6032_cells[] = {
+	{ .name = "twl6032-clk" },
+};
+
 /* NOTE: This driver only handles a single twl4030/tps659x0 chip */
 static int
 twl_probe(struct i2c_client *client)
@@ -834,6 +840,16 @@ twl_probe(struct i2c_client *client)
 		temp |= SMARTREFLEX_ENABLE;
 		twl_i2c_write_u8(TWL_MODULE_PM_RECEIVER, temp,
 				 TWL4030_DCDC_GLOBAL_CFG);
+	}
+
+	if (id->driver_data == (TWL6030_CLASS | TWL6032_SUBCLASS)) {
+		status = devm_mfd_add_devices(&client->dev,
+					      PLATFORM_DEVID_NONE,
+					      twl6032_cells,
+					      ARRAY_SIZE(twl6032_cells),
+					      NULL, 0, NULL);
+		if (status < 0)
+			goto free;
 	}
 
 	status = of_platform_populate(node, NULL, twl_auxdata_lookup,

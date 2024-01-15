@@ -117,16 +117,15 @@ int skl_int3472_get_sensor_adev_and_name(struct device *dev,
 					 const char **name_ret);
 
 int skl_int3472_register_gpio_clock(struct int3472_discrete_device *int3472,
-				    struct acpi_resource_gpio *agpio, u32 polarity);
+				    struct gpio_desc *gpio);
 int skl_int3472_register_dsm_clock(struct int3472_discrete_device *int3472);
 void skl_int3472_unregister_clock(struct int3472_discrete_device *int3472);
 
 int skl_int3472_register_regulator(struct int3472_discrete_device *int3472,
-				   struct acpi_resource_gpio *agpio);
+				   struct gpio_desc *gpio);
 void skl_int3472_unregister_regulator(struct int3472_discrete_device *int3472);
 
-int skl_int3472_register_pled(struct int3472_discrete_device *int3472,
-			      struct acpi_resource_gpio *agpio, u32 polarity);
+int skl_int3472_register_pled(struct int3472_discrete_device *int3472, struct gpio_desc *gpio);
 void skl_int3472_unregister_pled(struct int3472_discrete_device *int3472);
 
 #endif

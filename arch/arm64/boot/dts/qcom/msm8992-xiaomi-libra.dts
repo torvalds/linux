@@ -15,6 +15,7 @@
 /delete-node/ &audio_mem;
 /delete-node/ &mpss_mem;
 /delete-node/ &peripheral_region;
+/delete-node/ &res_hyp_mem;
 /delete-node/ &rmtfs_mem;
 
 / {
@@ -107,11 +108,6 @@
 			no-map;
 
 			qcom,client-id = <1>;
-		};
-
-		audio_mem: audio@cb400000 {
-			reg = <0 0xcb000000 0 0x400000>;
-			no-mem;
 		};
 
 		qseecom_mem: qseecom@cb400000 {

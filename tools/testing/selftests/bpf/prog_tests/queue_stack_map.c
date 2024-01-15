@@ -14,7 +14,7 @@ static void test_queue_stack_map_by_type(int type)
 	int i, err, prog_fd, map_in_fd, map_out_fd;
 	char file[32], buf[128];
 	struct bpf_object *obj;
-	struct iphdr iph;
+	struct iphdr iph = {};
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v4,
 		.data_size_in = sizeof(pkt_v4),

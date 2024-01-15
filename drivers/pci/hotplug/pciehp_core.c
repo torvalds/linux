@@ -20,6 +20,7 @@
 #define pr_fmt(fmt) "pciehp: " fmt
 #define dev_fmt pr_fmt
 
+#include <linux/bitfield.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -103,7 +104,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 status)
 	struct pci_dev *pdev = ctrl->pcie->port;
 
 	if (status)
-		status <<= PCI_EXP_SLTCTL_ATTN_IND_SHIFT;
+		status = FIELD_PREP(PCI_EXP_SLTCTL_AIC, status);
 	else
 		status = PCI_EXP_SLTCTL_ATTN_IND_OFF;
 

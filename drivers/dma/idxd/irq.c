@@ -434,8 +434,8 @@ irqreturn_t idxd_misc_thread(int vec, void *data)
 		val |= IDXD_INTC_ERR;
 
 		for (i = 0; i < 4; i++)
-			dev_warn(dev, "err[%d]: %#16.16llx\n",
-				 i, idxd->sw_err.bits[i]);
+			dev_warn_ratelimited(dev, "err[%d]: %#16.16llx\n",
+					     i, idxd->sw_err.bits[i]);
 		err = true;
 	}
 

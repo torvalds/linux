@@ -1216,7 +1216,7 @@ static void imxdma_free_irq(struct platform_device *pdev, struct imxdma_engine *
 	}
 }
 
-static int imxdma_remove(struct platform_device *pdev)
+static void imxdma_remove(struct platform_device *pdev)
 {
 	struct imxdma_engine *imxdma = platform_get_drvdata(pdev);
 
@@ -1229,8 +1229,6 @@ static int imxdma_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(imxdma->dma_ipg);
 	clk_disable_unprepare(imxdma->dma_ahb);
-
-        return 0;
 }
 
 static struct platform_driver imxdma_driver = {
@@ -1238,7 +1236,7 @@ static struct platform_driver imxdma_driver = {
 		.name	= "imx-dma",
 		.of_match_table = imx_dma_of_dev_id,
 	},
-	.remove		= imxdma_remove,
+	.remove_new	= imxdma_remove,
 };
 
 static int __init imxdma_module_init(void)

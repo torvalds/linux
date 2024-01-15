@@ -202,7 +202,7 @@ out:
 	return NET_XMIT_CN;
 }
 
-static struct netlink_range_validation fq_pie_q_range = {
+static const struct netlink_range_validation fq_pie_q_range = {
 	.min = 1,
 	.max = 1 << 20,
 };

@@ -52,11 +52,8 @@
 
    core-api/index
    driver-api/index
+   subsystem-apis
    内核中的锁 <locking/index>
-
-TODOList:
-
-* subsystem-apis
 
 开发工具和流程
 --------------

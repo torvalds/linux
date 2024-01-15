@@ -17,6 +17,7 @@ Video4Linux (V4L) driver-specific documentation
 	imx7
 	ipu3
 	ivtv
+	mgb4
 	omap3isp
 	omap4_camera
 	philips

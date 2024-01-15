@@ -145,7 +145,7 @@ static int avs_probe_compr_set_params(struct snd_compr_stream *cstream,
 	ret = snd_hdac_stream_set_params(hdac_stream(host_stream), format_val);
 	if (ret < 0)
 		return ret;
-	ret = snd_hdac_stream_setup(hdac_stream(host_stream));
+	ret = snd_hdac_stream_setup(hdac_stream(host_stream), false);
 	if (ret < 0)
 		return ret;
 

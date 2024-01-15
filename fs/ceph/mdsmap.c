@@ -7,10 +7,11 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 
-#include <linux/ceph/mdsmap.h>
 #include <linux/ceph/messenger.h>
 #include <linux/ceph/decode.h>
 
+#include "mdsmap.h"
+#include "mds_client.h"
 #include "super.h"
 
 #define CEPH_MDS_IS_READY(i, ignore_laggy) \
@@ -114,8 +115,10 @@ bad:
  * Ignore any fields we don't care about (there are quite a few of
  * them).
  */
-struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
+struct ceph_mdsmap *ceph_mdsmap_decode(struct ceph_mds_client *mdsc, void **p,
+				       void *end, bool msgr2)
 {
+	struct ceph_client *cl = mdsc->fsc->client;
 	struct ceph_mdsmap *m;
 	const void *start = *p;
 	int i, j, n;
@@ -233,20 +236,18 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
 			*p = info_end;
 		}
 
-		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s%s\n",
-		     i+1, n, global_id, mds, inc,
-		     ceph_pr_addr(&addr),
-		     ceph_mds_state_name(state),
-		     laggy ? "(laggy)" : "");
+		doutc(cl, "%d/%d %lld mds%d.%d %s %s%s\n", i+1, n, global_id,
+		      mds, inc, ceph_pr_addr(&addr),
+		      ceph_mds_state_name(state), laggy ? "(laggy)" : "");
 
 		if (mds < 0 || mds >= m->possible_max_rank) {
-			pr_warn("mdsmap_decode got incorrect mds(%d)\n", mds);
+			pr_warn_client(cl, "got incorrect mds(%d)\n", mds);
 			continue;
 		}
 
 		if (state <= 0) {
-			dout("mdsmap_decode got incorrect state(%s)\n",
-			     ceph_mds_state_name(state));
+			doutc(cl, "got incorrect state(%s)\n",
+			      ceph_mds_state_name(state));
 			continue;
 		}
 
@@ -385,16 +386,16 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end, bool msgr2)
 		m->m_max_xattr_size = 0;
 	}
 bad_ext:
-	dout("mdsmap_decode m_enabled: %d, m_damaged: %d, m_num_laggy: %d\n",
-	     !!m->m_enabled, !!m->m_damaged, m->m_num_laggy);
+	doutc(cl, "m_enabled: %d, m_damaged: %d, m_num_laggy: %d\n",
+	      !!m->m_enabled, !!m->m_damaged, m->m_num_laggy);
 	*p = end;
-	dout("mdsmap_decode success epoch %u\n", m->m_epoch);
+	doutc(cl, "success epoch %u\n", m->m_epoch);
 	return m;
 nomem:
 	err = -ENOMEM;
 	goto out_err;
 corrupt:
-	pr_err("corrupt mdsmap\n");
+	pr_err_client(cl, "corrupt mdsmap\n");
 	print_hex_dump(KERN_DEBUG, "mdsmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
 		       start, end - start, true);

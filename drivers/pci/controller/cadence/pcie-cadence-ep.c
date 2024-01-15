@@ -3,6 +3,7 @@
 // Cadence PCIe endpoint controller driver.
 // Author: Cyrille Pitchen <cyrille.pitchen@free-electrons.com>
 
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
@@ -262,7 +263,7 @@ static int cdns_pcie_ep_get_msi(struct pci_epc *epc, u8 fn, u8 vfn)
 	 * Get the Multiple Message Enable bitfield from the Message Control
 	 * register.
 	 */
-	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
+	mme = FIELD_GET(PCI_MSI_FLAGS_QSIZE, flags);
 
 	return mme;
 }
@@ -394,7 +395,7 @@ static int cdns_pcie_ep_send_msi_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 		return -EINVAL;
 
 	/* Get the number of enabled MSIs */
-	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
+	mme = FIELD_GET(PCI_MSI_FLAGS_QSIZE, flags);
 	msi_count = 1 << mme;
 	if (!interrupt_num || interrupt_num > msi_count)
 		return -EINVAL;
@@ -449,7 +450,7 @@ static int cdns_pcie_ep_map_msi_irq(struct pci_epc *epc, u8 fn, u8 vfn,
 		return -EINVAL;
 
 	/* Get the number of enabled MSIs */
-	mme = (flags & PCI_MSI_FLAGS_QSIZE) >> 4;
+	mme = FIELD_GET(PCI_MSI_FLAGS_QSIZE, flags);
 	msi_count = 1 << mme;
 	if (!interrupt_num || interrupt_num > msi_count)
 		return -EINVAL;
@@ -506,7 +507,7 @@ static int cdns_pcie_ep_send_msix_irq(struct cdns_pcie_ep *ep, u8 fn, u8 vfn,
 
 	reg = cap + PCI_MSIX_TABLE;
 	tbl_offset = cdns_pcie_ep_fn_readl(pcie, fn, reg);
-	bir = tbl_offset & PCI_MSIX_TABLE_BIR;
+	bir = FIELD_GET(PCI_MSIX_TABLE_BIR, tbl_offset);
 	tbl_offset &= PCI_MSIX_TABLE_OFFSET;
 
 	msix_tbl = epf->epf_bar[bir]->addr + tbl_offset;

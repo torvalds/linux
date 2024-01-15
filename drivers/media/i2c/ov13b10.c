@@ -31,6 +31,7 @@
 #define OV13B10_REG_VTS			0x380e
 #define OV13B10_VTS_30FPS		0x0c7c
 #define OV13B10_VTS_60FPS		0x063e
+#define OV13B10_VTS_120FPS		0x0320
 #define OV13B10_VTS_MAX			0x7fff
 
 /* HBLANK control - read only */
@@ -468,6 +469,50 @@ static const struct ov13b10_reg mode_2080x1170_regs[] = {
 	{0x5001, 0x0d},
 };
 
+static const struct ov13b10_reg mode_1364x768_120fps_regs[] = {
+	{0x0305, 0xaf},
+	{0x3011, 0x7c},
+	{0x3501, 0x03},
+	{0x3502, 0x00},
+	{0x3662, 0x88},
+	{0x3714, 0x28},
+	{0x3739, 0x10},
+	{0x37c2, 0x14},
+	{0x37d9, 0x06},
+	{0x37e2, 0x0c},
+	{0x37e4, 0x00},
+	{0x3800, 0x02},
+	{0x3801, 0xe4},
+	{0x3802, 0x03},
+	{0x3803, 0x48},
+	{0x3804, 0x0d},
+	{0x3805, 0xab},
+	{0x3806, 0x09},
+	{0x3807, 0x60},
+	{0x3808, 0x05},
+	{0x3809, 0x54},
+	{0x380a, 0x03},
+	{0x380b, 0x00},
+	{0x380c, 0x04},
+	{0x380d, 0x8e},
+	{0x380e, 0x03},
+	{0x380f, 0x20},
+	{0x3811, 0x07},
+	{0x3813, 0x07},
+	{0x3814, 0x03},
+	{0x3816, 0x03},
+	{0x3820, 0x8b},
+	{0x3c8c, 0x18},
+	{0x4008, 0x00},
+	{0x4009, 0x05},
+	{0x4050, 0x00},
+	{0x4051, 0x05},
+	{0x4501, 0x08},
+	{0x4505, 0x04},
+	{0x5000, 0xfd},
+	{0x5001, 0x0d},
+};
+
 static const char * const ov13b10_test_pattern_menu[] = {
 	"Disabled",
 	"Vertical Color Bar Type 1",
@@ -568,7 +613,18 @@ static const struct ov13b10_mode supported_modes[] = {
 			.regs = mode_2080x1170_regs,
 		},
 		.link_freq_index = OV13B10_LINK_FREQ_INDEX_0,
-	}
+	},
+	{
+		.width = 1364,
+		.height = 768,
+		.vts_def = OV13B10_VTS_120FPS,
+		.vts_min = OV13B10_VTS_120FPS,
+		.link_freq_index = OV13B10_LINK_FREQ_INDEX_0,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_1364x768_120fps_regs),
+			.regs = mode_1364x768_120fps_regs,
+		},
+	},
 };
 
 struct ov13b10 {
@@ -593,9 +649,6 @@ struct ov13b10 {
 
 	/* Mutex for serialized access */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 
 	/* True if the device has been identified */
 	bool identified;
@@ -1161,10 +1214,6 @@ static int ov13b10_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov13b->mutex);
-	if (ov13b->streaming == enable) {
-		mutex_unlock(&ov13b->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -1183,7 +1232,6 @@ static int ov13b10_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov13b->streaming = enable;
 	mutex_unlock(&ov13b->mutex);
 
 	return ret;
@@ -1198,12 +1246,6 @@ err_unlock:
 
 static int ov13b10_suspend(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov13b10 *ov13b = to_ov13b10(sd);
-
-	if (ov13b->streaming)
-		ov13b10_stop_streaming(ov13b);
-
 	ov13b10_power_off(dev);
 
 	return 0;
@@ -1211,29 +1253,7 @@ static int ov13b10_suspend(struct device *dev)
 
 static int ov13b10_resume(struct device *dev)
 {
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov13b10 *ov13b = to_ov13b10(sd);
-	int ret;
-
-	ret = ov13b10_power_on(dev);
-	if (ret)
-		goto pm_fail;
-
-	if (ov13b->streaming) {
-		ret = ov13b10_start_streaming(ov13b);
-		if (ret)
-			goto stop_streaming;
-	}
-
-	return 0;
-
-stop_streaming:
-	ov13b10_stop_streaming(ov13b);
-	ov13b10_power_off(dev);
-pm_fail:
-	ov13b->streaming = false;
-
-	return ret;
+	return ov13b10_power_on(dev);
 }
 
 static const struct v4l2_subdev_video_ops ov13b10_video_ops = {
@@ -1501,7 +1521,7 @@ static int ov13b10_probe(struct i2c_client *client)
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
-		ov13b10_power_on(&client->dev);
+		ret = ov13b10_power_on(&client->dev);
 		if (ret) {
 			dev_err(&client->dev, "failed to power on\n");
 			return ret;

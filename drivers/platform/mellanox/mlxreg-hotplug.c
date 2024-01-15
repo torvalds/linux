@@ -786,15 +786,13 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mlxreg_hotplug_remove(struct platform_device *pdev)
+static void mlxreg_hotplug_remove(struct platform_device *pdev)
 {
 	struct mlxreg_hotplug_priv_data *priv = dev_get_drvdata(&pdev->dev);
 
 	/* Clean interrupts setup. */
 	mlxreg_hotplug_unset_irq(priv);
 	devm_free_irq(&pdev->dev, priv->irq, priv);
-
-	return 0;
 }
 
 static struct platform_driver mlxreg_hotplug_driver = {
@@ -802,7 +800,7 @@ static struct platform_driver mlxreg_hotplug_driver = {
 		.name = "mlxreg-hotplug",
 	},
 	.probe = mlxreg_hotplug_probe,
-	.remove = mlxreg_hotplug_remove,
+	.remove_new = mlxreg_hotplug_remove,
 };
 
 module_platform_driver(mlxreg_hotplug_driver);

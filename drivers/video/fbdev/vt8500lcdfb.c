@@ -241,6 +241,7 @@ static int vt8500lcd_blank(int blank, struct fb_info *info)
 
 static const struct fb_ops vt8500lcd_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_DMAMEM_OPS_RDWR,
 	.fb_set_par	= vt8500lcd_set_par,
 	.fb_setcolreg	= vt8500lcd_setcolreg,
 	.fb_fillrect	= wmt_ge_fillrect,
@@ -250,6 +251,7 @@ static const struct fb_ops vt8500lcd_ops = {
 	.fb_ioctl	= vt8500lcd_ioctl,
 	.fb_pan_display	= vt8500lcd_pan_display,
 	.fb_blank	= vt8500lcd_blank,
+	// .fb_mmap needs DMA mmap
 };
 
 static irqreturn_t vt8500lcd_handle_irq(int irq, void *dev_id)
@@ -357,7 +359,7 @@ static int vt8500lcd_probe(struct platform_device *pdev)
 
 	fbi->fb.fix.smem_start	= fb_mem_phys;
 	fbi->fb.fix.smem_len	= fb_mem_len;
-	fbi->fb.screen_base	= fb_mem_virt;
+	fbi->fb.screen_buffer	= fb_mem_virt;
 
 	fbi->palette_size	= PAGE_ALIGN(512);
 	fbi->palette_cpu	= dma_alloc_coherent(&pdev->dev,

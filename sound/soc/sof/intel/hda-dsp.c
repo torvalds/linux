@@ -699,6 +699,9 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 	if (ret < 0)
 		return ret;
 
+	/* make sure that no irq handler is pending before shutdown */
+	synchronize_irq(sdev->ipc_irq);
+
 	hda_codec_jack_wake_enable(sdev, runtime_suspend);
 
 	/* power down all hda links */

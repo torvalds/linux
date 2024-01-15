@@ -35,33 +35,6 @@
 		clock-frequency = <25000000>;
 	};
 
-	connector {
-		compatible = "usb-c-connector";
-		label = "USB-C";
-		data-role = "dual";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				usb_c_0_hs_ep: endpoint {
-					remote-endpoint = <&dwc3_0_hs_ep>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				usb_c_0_ss_ep: endpoint {
-					remote-endpoint = <&ptn5150_in_ep>;
-				};
-			};
-		};
-	};
-
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -202,33 +175,19 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_ptn5150>;
 
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
+				port {
 
-					port@0 {
-						reg = <0>;
-
-						ptn5150_in_ep: endpoint {
-							remote-endpoint = <&usb_c_0_ss_ep>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						ptn5150_out_ep: endpoint {
-							remote-endpoint = <&dwc3_0_ss_ep>;
-						};
+					ptn5150_out_ep: endpoint {
+						remote-endpoint = <&dwc3_0_ep>;
 					};
 				};
 			};
 
 			power-sensor@40 {
-			    compatible = "ti,ina238";
-			    reg = <0x40>;
-			    shunt-resistor = <20000>;	/* 0.02 R */
-			    ti,shunt-gain = <1>;	/* Drop cca. 40mV */
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <20000>;	/* 0.02 R */
+				ti,shunt-gain = <1>;	/* Drop cca. 40mV */
 			};
 
 			eeprom_board: eeprom@54 {
@@ -251,10 +210,6 @@
 			reg = <1>;
 		};
 	};
-};
-
-&ethphy0g {
-	reg = <7>;
 };
 
 &fec {	/* Second ethernet */
@@ -310,16 +265,7 @@
 	usb-role-switch;
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		dwc3_0_hs_ep: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&usb_c_0_hs_ep>;
-		};
-
-		dwc3_0_ss_ep: endpoint@1 {
-			reg = <1>;
+		dwc3_0_ep: endpoint {
 			remote-endpoint = <&ptn5150_out_ep>;
 		};
 	};

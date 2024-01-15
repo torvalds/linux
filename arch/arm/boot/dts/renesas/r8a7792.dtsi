@@ -84,6 +84,13 @@
 		clock-frequency = <0>;
 	};
 
+	lbsc: lbsc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0 0x1c000000>;
+	};
+
 	pmu {
 		compatible = "arm,cortex-a15-pmu";
 		interrupts-extended = <&gic GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>,

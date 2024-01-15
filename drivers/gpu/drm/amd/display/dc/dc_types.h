@@ -163,18 +163,6 @@ struct dc_edid {
 
 #define AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 20
 
-union display_content_support {
-	unsigned int raw;
-	struct {
-		unsigned int valid_content_type :1;
-		unsigned int game_content :1;
-		unsigned int cinema_content :1;
-		unsigned int photo_content :1;
-		unsigned int graphics_content :1;
-		unsigned int reserved :27;
-	} bits;
-};
-
 struct dc_panel_patch {
 	unsigned int dppowerup_delay;
 	unsigned int extra_t12_ms;
@@ -189,6 +177,7 @@ struct dc_panel_patch {
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
 	unsigned int mst_start_top_delay;
+	unsigned int remove_sink_ext_caps;
 };
 
 struct dc_edid_caps {
@@ -206,8 +195,6 @@ struct dc_edid_caps {
 	struct dc_cea_audio_mode audio_modes[DC_MAX_AUDIO_DESC_COUNT];
 	uint32_t audio_latency;
 	uint32_t video_latency;
-
-	union display_content_support content_support;
 
 	uint8_t qs_bit;
 	uint8_t qy_bit;
@@ -787,6 +774,7 @@ struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
+	struct dal_logger *logger;
 	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
@@ -808,6 +796,7 @@ struct dc_context {
 	struct cp_psp cp_psp;
 	uint32_t *dcn_reg_offsets;
 	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
 };
 
 /* DSC DPCD capabilities */
@@ -1002,10 +991,6 @@ struct link_mst_stream_allocation_table {
 	struct link_mst_stream_allocation stream_allocations[MAX_CONTROLLER_NUM];
 };
 
-struct backlight_settings {
-	uint32_t backlight_millinits;
-};
-
 /* PSR feature flags */
 struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
@@ -1033,6 +1018,24 @@ enum replay_coasting_vtotal_type {
 	PR_COASTING_TYPE_NUM,
 };
 
+enum replay_link_off_frame_count_level {
+	PR_LINK_OFF_FRAME_COUNT_FAIL = 0x0,
+	PR_LINK_OFF_FRAME_COUNT_GOOD = 0x2,
+	PR_LINK_OFF_FRAME_COUNT_BEST = 0x6,
+};
+
+/*
+ * This is general Interface for Replay to
+ * set an 32 bit variable to dmub
+ * The Message_type indicates which variable
+ * passed to DMUB.
+ */
+enum replay_FW_Message_type {
+	Replay_Msg_Not_Support = -1,
+	Replay_Set_Timing_Sync_Supported,
+	Replay_Set_Residency_Frameupdate_Timer,
+};
+
 union replay_error_status {
 	struct {
 		unsigned char STATE_TRANSITION_ERROR    :1;
@@ -1044,24 +1047,48 @@ union replay_error_status {
 };
 
 struct replay_config {
-	bool replay_supported;                          // Replay feature is supported
-	unsigned int replay_power_opt_supported;        // Power opt flags that are supported
-	bool replay_smu_opt_supported;                  // SMU optimization is supported
-	unsigned int replay_enable_option;              // Replay enablement option
-	uint32_t debug_flags;                           // Replay debug flags
-	bool replay_timing_sync_supported;             // Replay desync is supported
-	union replay_error_status replay_error_status; // Replay error status
+	/* Replay feature is supported */
+	bool replay_supported;
+	/* Power opt flags that are supported */
+	unsigned int replay_power_opt_supported;
+	/* SMU optimization is supported */
+	bool replay_smu_opt_supported;
+	/* Replay enablement option */
+	unsigned int replay_enable_option;
+	/* Replay debug flags */
+	uint32_t debug_flags;
+	/* Replay sync is supported */
+	bool replay_timing_sync_supported;
+	/* Replay Disable desync error check. */
+	bool force_disable_desync_error_check;
+	/* Replay Received Desync Error HPD. */
+	bool received_desync_error_hpd;
+	/* Replay feature is supported long vblank */
+	bool replay_support_fast_resync_in_ultra_sleep_mode;
+	/* Replay error status */
+	union replay_error_status replay_error_status;
 };
 
-/* Replay feature flags */
+/* Replay feature flags*/
 struct replay_settings {
-	struct replay_config config;            // Replay configuration
-	bool replay_feature_enabled;            // Replay feature is ready for activating
-	bool replay_allow_active;               // Replay is currently active
-	unsigned int replay_power_opt_active;   // Power opt flags that are activated currently
-	bool replay_smu_opt_enable;             // SMU optimization is enabled
-	uint16_t coasting_vtotal;               // Current Coasting vtotal
-	uint16_t coasting_vtotal_table[PR_COASTING_TYPE_NUM]; // Coasting vtotal table
+	/* Replay configuration */
+	struct replay_config config;
+	/* Replay feature is ready for activating */
+	bool replay_feature_enabled;
+	/* Replay is currently active */
+	bool replay_allow_active;
+	/* Replay is currently active */
+	bool replay_allow_long_vblank;
+	/* Power opt flags that are activated currently */
+	unsigned int replay_power_opt_active;
+	/* SMU optimization is enabled */
+	bool replay_smu_opt_enable;
+	/* Current Coasting vtotal */
+	uint16_t coasting_vtotal;
+	/* Coasting vtotal table */
+	uint16_t coasting_vtotal_table[PR_COASTING_TYPE_NUM];
+	/* Maximum link off frame count */
+	enum replay_link_off_frame_count_level link_off_frame_count_level;
 };
 
 /* To split out "global" and "per-panel" config settings.
@@ -1124,6 +1151,8 @@ struct dc_dpia_bw_alloc {
 	int bw_granularity;    // BW Granularity
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
 	bool response_ready;   // Response ready from the CM side
+	uint8_t nrd_max_lane_count; // Non-reduced max lane count
+	uint8_t nrd_max_link_rate; // Non-reduced max link rate
 };
 
 #define MAX_SINKS_PER_LINK 4
@@ -1134,4 +1163,9 @@ enum dc_hpd_enable_select {
 	HPD_EN_FOR_SECONDARY_EDP_ONLY,
 };
 
+enum mall_stream_type {
+	SUBVP_NONE, // subvp not in use
+	SUBVP_MAIN, // subvp in use, this stream is main stream
+	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
+};
 #endif /* DC_TYPES_H_ */

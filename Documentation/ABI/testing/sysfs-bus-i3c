@@ -67,7 +67,7 @@ What:		/sys/bus/i3c/devices/i3c-<bus-id>/pid
 KernelVersion:  5.0
 Contact:	linux-i3c@vger.kernel.org
 Description:
-		PID stands for Provisional ID and is used to uniquely identify
+		PID stands for Provisioned ID and is used to uniquely identify
 		a device on a bus. This PID contains information about the
 		vendor, the part and an instance ID so that several devices of
 		the same type can be connected on the same bus.
@@ -123,7 +123,7 @@ What:		/sys/bus/i3c/devices/i3c-<bus-id>/<bus-id>-<device-pid>/pid
 KernelVersion:  5.0
 Contact:	linux-i3c@vger.kernel.org
 Description:
-		PID stands for Provisional ID and is used to uniquely identify
+		PID stands for Provisioned ID and is used to uniquely identify
 		a device on a bus. This PID contains information about the
 		vendor, the part and an instance ID so that several devices of
 		the same type can be connected on the same bus.

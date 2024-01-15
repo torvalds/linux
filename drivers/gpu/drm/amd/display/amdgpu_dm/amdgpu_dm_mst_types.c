@@ -28,6 +28,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_edid.h>
 #include "dm_services.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
@@ -45,7 +46,7 @@
 #include "amdgpu_dm_debugfs.h"
 #endif
 
-#include "dc/dcn20/dcn20_resource.h"
+#include "dc/resource/dcn20/dcn20_resource.h"
 
 #define PEAK_FACTOR_X1000 1006
 
@@ -174,8 +175,9 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 		if (dc_link->sink_count)
 			dc_link_remove_remote_sink(dc_link, dc_sink);
 
-		DC_LOG_MST("DM_MST: remove remote sink 0x%p, %d remaining\n",
-			dc_sink, dc_link->sink_count);
+		drm_dbg_dp(connector->dev,
+			   "DM_MST: remove remote sink 0x%p, %d remaining\n",
+			   dc_sink, dc_link->sink_count);
 
 		dc_sink_release(dc_sink);
 		aconnector->dc_sink = NULL;
@@ -326,8 +328,10 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 					return 0;
 				}
 
-				DC_LOG_MST("DM_MST: add remote sink 0x%p, %d remaining\n",
-					dc_sink, aconnector->dc_link->sink_count);
+				drm_dbg_dp(connector->dev,
+					   "DM_MST: add remote sink 0x%p, %d remaining\n",
+					   dc_sink,
+					   aconnector->dc_link->sink_count);
 
 				dc_sink->priv = aconnector;
 				aconnector->dc_sink = dc_sink;
@@ -362,8 +366,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 			return 0;
 		}
 
-		DC_LOG_MST("DM_MST: add remote sink 0x%p, %d remaining\n",
-			dc_sink, aconnector->dc_link->sink_count);
+		drm_dbg_dp(connector->dev,
+			   "DM_MST: add remote sink 0x%p, %d remaining\n",
+			   dc_sink, aconnector->dc_link->sink_count);
 
 		dc_sink->priv = aconnector;
 		/* dc_link_add_remote_sink returns a new reference */
@@ -421,8 +426,7 @@ dm_mst_atomic_best_encoder(struct drm_connector *connector,
 {
 	struct drm_connector_state *connector_state = drm_atomic_get_new_connector_state(state,
 											 connector);
-	struct drm_device *dev = connector->dev;
-	struct amdgpu_device *adev = drm_to_adev(dev);
+	struct amdgpu_device *adev = drm_to_adev(connector->dev);
 	struct amdgpu_crtc *acrtc = to_amdgpu_crtc(connector_state->crtc);
 
 	return &adev->dm.mst_encoders[acrtc->crtc_id].base;
@@ -482,8 +486,10 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		if (aconnector->dc_link->sink_count)
 			dc_link_remove_remote_sink(aconnector->dc_link, aconnector->dc_sink);
 
-		DC_LOG_MST("DM_MST: remove remote sink 0x%p, %d remaining\n",
-			aconnector->dc_link, aconnector->dc_link->sink_count);
+		drm_dbg_dp(connector->dev,
+			   "DM_MST: remove remote sink 0x%p, %d remaining\n",
+			   aconnector->dc_link,
+			   aconnector->dc_link->sink_count);
 
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
@@ -1495,14 +1501,16 @@ int pre_validate_dsc(struct drm_atomic_state *state,
 		int ind = find_crtc_index_in_state_by_stream(state, stream);
 
 		if (ind >= 0) {
+			struct drm_connector *connector;
 			struct amdgpu_dm_connector *aconnector;
 			struct drm_connector_state *drm_new_conn_state;
 			struct dm_connector_state *dm_new_conn_state;
 			struct dm_crtc_state *dm_old_crtc_state;
 
-			aconnector =
+			connector =
 				amdgpu_dm_find_first_crtc_matching_connector(state,
 									     state->crtcs[ind].ptr);
+			aconnector = to_amdgpu_dm_connector(connector);
 			drm_new_conn_state =
 				drm_atomic_get_new_connector_state(state,
 								   &aconnector->base);
@@ -1597,48 +1605,55 @@ enum dc_status dm_dp_mst_is_port_support_mode(
 	struct dc_link_settings cur_link_settings;
 	unsigned int end_to_end_bw_in_kbps = 0;
 	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
-	unsigned int max_compressed_bw_in_kbps = 0;
 	struct dc_dsc_bw_range bw_range = {0};
-	struct drm_dp_mst_topology_mgr *mst_mgr;
+	struct dc_dsc_config_options dsc_options = {0};
 
 	/*
-	 * check if the mode could be supported if DSC pass-through is supported
-	 * AND check if there enough bandwidth available to support the mode
-	 * with DSC enabled.
+	 * Consider the case with the depth of the mst topology tree is equal or less than 2
+	 * A. When dsc bitstream can be transmitted along the entire path
+	 *    1. dsc is possible between source and branch/leaf device (common dsc params is possible), AND
+	 *    2. dsc passthrough supported at MST branch, or
+	 *    3. dsc decoding supported at leaf MST device
+	 *    Use maximum dsc compression as bw constraint
+	 * B. When dsc bitstream cannot be transmitted along the entire path
+	 *    Use native bw as bw constraint
 	 */
 	if (is_dsc_common_config_possible(stream, &bw_range) &&
-	    aconnector->mst_output_port->passthrough_aux) {
-		mst_mgr = aconnector->mst_output_port->mgr;
-		mutex_lock(&mst_mgr->lock);
-
+	   (aconnector->mst_output_port->passthrough_aux ||
+	    aconnector->dsc_aux == &aconnector->mst_output_port->aux)) {
 		cur_link_settings = stream->link->verified_link_cap;
-
-		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
-							       &cur_link_settings
-							       );
+		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link, &cur_link_settings);
 		down_link_bw_in_kbps = kbps_from_pbn(aconnector->mst_output_port->full_pbn);
 
-		/* pick the bottleneck */
-		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps,
-					    down_link_bw_in_kbps);
+		/* pick the end to end bw bottleneck */
+		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps, down_link_bw_in_kbps);
 
-		mutex_unlock(&mst_mgr->lock);
-
-		/*
-		 * use the maximum dsc compression bandwidth as the required
-		 * bandwidth for the mode
-		 */
-		max_compressed_bw_in_kbps = bw_range.min_kbps;
-
-		if (end_to_end_bw_in_kbps < max_compressed_bw_in_kbps) {
-			DRM_DEBUG_DRIVER("Mode does not fit into DSC pass-through bandwidth validation\n");
+		if (end_to_end_bw_in_kbps < bw_range.min_kbps) {
+			DRM_DEBUG_DRIVER("maximum dsc compression cannot fit into end-to-end bandwidth\n");
 			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
+
+		if (end_to_end_bw_in_kbps < bw_range.stream_kbps) {
+			dc_dsc_get_default_config_option(stream->link->dc, &dsc_options);
+			dsc_options.max_target_bpp_limit_override_x16 = aconnector->base.display_info.max_dsc_bpp * 16;
+			if (dc_dsc_compute_config(stream->sink->ctx->dc->res_pool->dscs[0],
+					&stream->sink->dsc_caps.dsc_dec_caps,
+					&dsc_options,
+					end_to_end_bw_in_kbps,
+					&stream->timing,
+					dc_link_get_highest_encoding_format(stream->link),
+					&stream->timing.dsc_cfg)) {
+				stream->timing.flags.DSC = 1;
+				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc and dsc config found\n");
+			} else {
+				DRM_DEBUG_DRIVER("end-to-end bandwidth require dsc but dsc config not found\n");
+				return DC_FAIL_BANDWIDTH_VALIDATE;
+			}
 		}
 	} else {
 		/* check if mode could be supported within full_pbn */
 		bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
 		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp << 4);
-
 		if (pbn > aconnector->mst_output_port->full_pbn)
 			return DC_FAIL_BANDWIDTH_VALIDATE;
 	}

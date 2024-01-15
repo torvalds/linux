@@ -521,12 +521,10 @@ err_alloc:
 	return ret;
 }
 
-static int k3_j72xx_bandgap_remove(struct platform_device *pdev)
+static void k3_j72xx_bandgap_remove(struct platform_device *pdev)
 {
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct k3_j72xx_bandgap_data k3_j72xx_bandgap_j721e_data = {
@@ -552,7 +550,7 @@ MODULE_DEVICE_TABLE(of, of_k3_j72xx_bandgap_match);
 
 static struct platform_driver k3_j72xx_bandgap_sensor_driver = {
 	.probe = k3_j72xx_bandgap_probe,
-	.remove = k3_j72xx_bandgap_remove,
+	.remove_new = k3_j72xx_bandgap_remove,
 	.driver = {
 		.name = "k3-j72xx-soc-thermal",
 		.of_match_table	= of_k3_j72xx_bandgap_match,

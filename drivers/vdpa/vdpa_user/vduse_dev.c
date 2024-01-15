@@ -134,7 +134,6 @@ static DEFINE_MUTEX(vduse_lock);
 static DEFINE_IDR(vduse_idr);
 
 static dev_t vduse_major;
-static struct class *vduse_class;
 static struct cdev vduse_ctrl_cdev;
 static struct cdev vduse_cdev;
 static struct workqueue_struct *vduse_irq_wq;
@@ -1528,6 +1527,16 @@ static const struct kobj_type vq_type = {
 	.default_groups	= vq_groups,
 };
 
+static char *vduse_devnode(const struct device *dev, umode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "vduse/%s", dev_name(dev));
+}
+
+static const struct class vduse_class = {
+	.name = "vduse",
+	.devnode = vduse_devnode,
+};
+
 static void vduse_dev_deinit_vqs(struct vduse_dev *dev)
 {
 	int i;
@@ -1638,7 +1647,7 @@ static int vduse_destroy_dev(char *name)
 	mutex_unlock(&dev->lock);
 
 	vduse_dev_reset(dev);
-	device_destroy(vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
+	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
 	idr_remove(&vduse_idr, dev->minor);
 	kvfree(dev->config);
 	vduse_dev_deinit_vqs(dev);
@@ -1805,7 +1814,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 
 	dev->minor = ret;
 	dev->msg_timeout = VDUSE_MSG_DEFAULT_TIMEOUT;
-	dev->dev = device_create_with_groups(vduse_class, NULL,
+	dev->dev = device_create_with_groups(&vduse_class, NULL,
 				MKDEV(MAJOR(vduse_major), dev->minor),
 				dev, vduse_dev_groups, "%s", config->name);
 	if (IS_ERR(dev->dev)) {
@@ -1821,7 +1830,7 @@ static int vduse_create_dev(struct vduse_dev_config *config,
 
 	return 0;
 err_vqs:
-	device_destroy(vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
+	device_destroy(&vduse_class, MKDEV(MAJOR(vduse_major), dev->minor));
 err_dev:
 	idr_remove(&vduse_idr, dev->minor);
 err_idr:
@@ -1933,11 +1942,6 @@ static const struct file_operations vduse_ctrl_fops = {
 	.compat_ioctl	= compat_ptr_ioctl,
 	.llseek		= noop_llseek,
 };
-
-static char *vduse_devnode(const struct device *dev, umode_t *mode)
-{
-	return kasprintf(GFP_KERNEL, "vduse/%s", dev_name(dev));
-}
 
 struct vduse_mgmt_dev {
 	struct vdpa_mgmt_dev mgmt_dev;
@@ -2082,11 +2086,9 @@ static int vduse_init(void)
 	int ret;
 	struct device *dev;
 
-	vduse_class = class_create("vduse");
-	if (IS_ERR(vduse_class))
-		return PTR_ERR(vduse_class);
-
-	vduse_class->devnode = vduse_devnode;
+	ret = class_register(&vduse_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&vduse_major, 0, VDUSE_DEV_MAX, "vduse");
 	if (ret)
@@ -2099,7 +2101,7 @@ static int vduse_init(void)
 	if (ret)
 		goto err_ctrl_cdev;
 
-	dev = device_create(vduse_class, NULL, vduse_major, NULL, "control");
+	dev = device_create(&vduse_class, NULL, vduse_major, NULL, "control");
 	if (IS_ERR(dev)) {
 		ret = PTR_ERR(dev);
 		goto err_device;
@@ -2141,13 +2143,13 @@ err_bound_wq:
 err_wq:
 	cdev_del(&vduse_cdev);
 err_cdev:
-	device_destroy(vduse_class, vduse_major);
+	device_destroy(&vduse_class, vduse_major);
 err_device:
 	cdev_del(&vduse_ctrl_cdev);
 err_ctrl_cdev:
 	unregister_chrdev_region(vduse_major, VDUSE_DEV_MAX);
 err_chardev_region:
-	class_destroy(vduse_class);
+	class_unregister(&vduse_class);
 	return ret;
 }
 module_init(vduse_init);
@@ -2159,10 +2161,10 @@ static void vduse_exit(void)
 	destroy_workqueue(vduse_irq_bound_wq);
 	destroy_workqueue(vduse_irq_wq);
 	cdev_del(&vduse_cdev);
-	device_destroy(vduse_class, vduse_major);
+	device_destroy(&vduse_class, vduse_major);
 	cdev_del(&vduse_ctrl_cdev);
 	unregister_chrdev_region(vduse_major, VDUSE_DEV_MAX);
-	class_destroy(vduse_class);
+	class_unregister(&vduse_class);
 }
 module_exit(vduse_exit);
 

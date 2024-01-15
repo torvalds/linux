@@ -27,12 +27,12 @@ struct nfsd4_layout_ops {
 			struct nfs4_client *clp,
 			struct nfsd4_getdeviceinfo *gdevp);
 	__be32 (*encode_getdeviceinfo)(struct xdr_stream *xdr,
-			struct nfsd4_getdeviceinfo *gdevp);
+			const struct nfsd4_getdeviceinfo *gdevp);
 
 	__be32 (*proc_layoutget)(struct inode *, const struct svc_fh *fhp,
 			struct nfsd4_layoutget *lgp);
-	__be32 (*encode_layoutget)(struct xdr_stream *,
-			struct nfsd4_layoutget *lgp);
+	__be32 (*encode_layoutget)(struct xdr_stream *xdr,
+			const struct nfsd4_layoutget *lgp);
 
 	__be32 (*proc_layoutcommit)(struct inode *inode,
 			struct nfsd4_layoutcommit *lcp);

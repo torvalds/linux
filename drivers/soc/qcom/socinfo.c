@@ -117,6 +117,12 @@ static const char *const pmic_models[] = {
 	[55] = "PM2250",
 	[58] = "PM8450",
 	[65] = "PM8010",
+	[69] = "PM8550VS",
+	[70] = "PM8550VE",
+	[71] = "PM8550B",
+	[72] = "PMR735D",
+	[73] = "PM8550",
+	[74] = "PMK8550",
 };
 
 struct socinfo_params {
@@ -349,6 +355,7 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(SDA439) },
 	{ qcom_board_id(SDA429) },
 	{ qcom_board_id(SM7150) },
+	{ qcom_board_id(SM7150P) },
 	{ qcom_board_id(IPQ8070) },
 	{ qcom_board_id(IPQ8071) },
 	{ qcom_board_id(QM215) },
@@ -359,6 +366,9 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id(SM6125) },
 	{ qcom_board_id(IPQ8070A) },
 	{ qcom_board_id(IPQ8071A) },
+	{ qcom_board_id(IPQ8172) },
+	{ qcom_board_id(IPQ8173) },
+	{ qcom_board_id(IPQ8174) },
 	{ qcom_board_id(IPQ6018) },
 	{ qcom_board_id(IPQ6028) },
 	{ qcom_board_id(SDM429W) },
@@ -389,6 +399,7 @@ static const struct soc_id soc_id[] = {
 	{ qcom_board_id_named(SM8450_3, "SM8450") },
 	{ qcom_board_id(SC7280) },
 	{ qcom_board_id(SC7180P) },
+	{ qcom_board_id(QCM6490) },
 	{ qcom_board_id(IPQ5000) },
 	{ qcom_board_id(IPQ0509) },
 	{ qcom_board_id(IPQ0518) },
@@ -776,20 +787,18 @@ static int qcom_socinfo_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_socinfo_remove(struct platform_device *pdev)
+static void qcom_socinfo_remove(struct platform_device *pdev)
 {
 	struct qcom_socinfo *qs = platform_get_drvdata(pdev);
 
 	soc_device_unregister(qs->soc_dev);
 
 	socinfo_debugfs_exit(qs);
-
-	return 0;
 }
 
 static struct platform_driver qcom_socinfo_driver = {
 	.probe = qcom_socinfo_probe,
-	.remove = qcom_socinfo_remove,
+	.remove_new = qcom_socinfo_remove,
 	.driver  = {
 		.name = "qcom-socinfo",
 	},

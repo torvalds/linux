@@ -81,6 +81,7 @@ fail_alloc_context:
 void mod_freesync_destroy(struct mod_freesync *mod_freesync)
 {
 	struct core_freesync *core_freesync = NULL;
+
 	if (mod_freesync == NULL)
 		return;
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
@@ -278,9 +279,8 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		}
 	} else if (last_render_time_in_us > (max_render_time_in_us + in_out_vrr->btr.margin_in_us / 2)) {
 		/* Enter Below the Range */
-		if (!in_out_vrr->btr.btr_active) {
+		if (!in_out_vrr->btr.btr_active)
 			in_out_vrr->btr.btr_active = true;
-		}
 	}
 
 	/* BTR set to "not active" so disengage */
@@ -626,7 +626,6 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 	unsigned int max_refresh;
 	unsigned int fixed_refresh;
 	unsigned int min_programmed;
-	unsigned int max_programmed;
 
 	/* PB1 = 0x1A (24bit AMD IEEE OUI (0x00001A) - Byte 0) */
 	infopacket->sb[1] = 0x1A;
@@ -672,21 +671,17 @@ static void build_vrr_infopacket_data_v3(const struct mod_vrr_params *vrr,
 			(vrr->state == VRR_STATE_INACTIVE) ? min_refresh :
 			max_refresh; // Non-fs case, program nominal range
 
-	max_programmed = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? fixed_refresh :
-			(vrr->state == VRR_STATE_ACTIVE_VARIABLE) ? max_refresh :
-			max_refresh;// Non-fs case, program nominal range
-
 	/* PB7 = FreeSync Minimum refresh rate (Hz) */
 	infopacket->sb[7] = min_programmed & 0xFF;
 
 	/* PB8 = FreeSync Maximum refresh rate (Hz) */
-	infopacket->sb[8] = max_programmed & 0xFF;
+	infopacket->sb[8] = max_refresh & 0xFF;
 
 	/* PB11 : MSB FreeSync Minimum refresh rate [Hz] - bits 9:8 */
 	infopacket->sb[11] = (min_programmed >> 8) & 0x03;
 
 	/* PB12 : MSB FreeSync Maximum refresh rate [Hz] - bits 9:8 */
-	infopacket->sb[12] = (max_programmed >> 8) & 0x03;
+	infopacket->sb[12] = (max_refresh >> 8) & 0x03;
 
 	/* PB16 : Reserved bits 7:1, FixedRate bit 0 */
 	infopacket->sb[16] = (vrr->state == VRR_STATE_ACTIVE_FIXED) ? 1 : 0;
@@ -698,10 +693,12 @@ static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
-		if (app_tf != TRANSFER_FUNC_PQ2084) {
+		if (app_tf == TRANSFER_FUNC_PQ2084)
+			infopacket->sb[9] |= 0x20; // PB9 = [Bit 5 = PQ EOTF Active]
+		else {
 			infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
 			if (app_tf == TRANSFER_FUNC_GAMMA_22)
-				infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+				infopacket->sb[9] |= 0x04;  // PB9 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
 }

@@ -333,7 +333,7 @@ struct flow_action_entry {
 
 struct flow_action {
 	unsigned int			num_entries;
-	struct flow_action_entry	entries[];
+	struct flow_action_entry	entries[] __counted_by(num_entries);
 };
 
 static inline bool flow_action_has_entries(const struct flow_action *action)

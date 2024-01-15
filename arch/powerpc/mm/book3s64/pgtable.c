@@ -635,12 +635,10 @@ pgprot_t vm_get_page_prot(unsigned long vm_flags)
 	unsigned long prot;
 
 	/* Radix supports execute-only, but protection_map maps X -> RX */
-	if (radix_enabled() && ((vm_flags & VM_ACCESS_FLAGS) == VM_EXEC)) {
-		prot = pgprot_val(PAGE_EXECONLY);
-	} else {
-		prot = pgprot_val(protection_map[vm_flags &
-						 (VM_ACCESS_FLAGS | VM_SHARED)]);
-	}
+	if (!radix_enabled() && ((vm_flags & VM_ACCESS_FLAGS) == VM_EXEC))
+		vm_flags |= VM_READ;
+
+	prot = pgprot_val(protection_map[vm_flags & (VM_ACCESS_FLAGS | VM_SHARED)]);
 
 	if (vm_flags & VM_SAO)
 		prot |= _PAGE_SAO;

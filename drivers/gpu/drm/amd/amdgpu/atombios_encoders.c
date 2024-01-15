@@ -28,6 +28,7 @@
 
 #include <acpi/video.h>
 
+#include <drm/drm_edid.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_connectors.h"
@@ -228,7 +229,6 @@ error:
 register_acpi_backlight:
 	/* Try registering an ACPI video backlight device instead. */
 	acpi_video_register_backlight();
-	return;
 }
 
 void

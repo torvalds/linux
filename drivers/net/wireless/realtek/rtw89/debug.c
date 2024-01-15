@@ -367,7 +367,11 @@ static int rtw89_debug_priv_rf_reg_dump_get(struct seq_file *m, void *v)
 }
 
 struct txpwr_ent {
-	const char *txt;
+	bool nested;
+	union {
+		const char *txt;
+		const struct txpwr_ent *ptr;
+	};
 	u8 len;
 };
 
@@ -378,6 +382,12 @@ struct txpwr_map {
 	u32 addr_to;
 	u32 addr_to_1ss;
 };
+
+#define __GEN_TXPWR_ENT_NESTED(_e) \
+	{ .nested = true, .ptr = __txpwr_ent_##_e, \
+	  .len = ARRAY_SIZE(__txpwr_ent_##_e) }
+
+#define __GEN_TXPWR_ENT0(_t) { .len = 0, .txt = _t }
 
 #define __GEN_TXPWR_ENT2(_t, _e0, _e1) \
 	{ .len = 2, .txt = _t "\t-  " _e0 "  " _e1 }
@@ -390,7 +400,7 @@ struct txpwr_map {
 	  _e0 "  " _e1 "  " _e2 "  " _e3 "  " \
 	  _e4 "  " _e5 "  " _e6 "  " _e7 }
 
-static const struct txpwr_ent __txpwr_ent_byr[] = {
+static const struct txpwr_ent __txpwr_ent_byr_ax[] = {
 	__GEN_TXPWR_ENT4("CCK       ", "1M   ", "2M   ", "5.5M ", "11M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "6M   ", "9M   ", "12M  ", "18M  "),
 	__GEN_TXPWR_ENT4("LEGACY    ", "24M  ", "36M  ", "48M  ", "54M  "),
@@ -406,18 +416,18 @@ static const struct txpwr_ent __txpwr_ent_byr[] = {
 	__GEN_TXPWR_ENT4("HEDCM_2NSS", "MCS0 ", "MCS1 ", "MCS3 ", "MCS4 "),
 };
 
-static_assert((ARRAY_SIZE(__txpwr_ent_byr) * 4) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_byr_ax) * 4) ==
 	(R_AX_PWR_BY_RATE_MAX - R_AX_PWR_BY_RATE + 4));
 
-static const struct txpwr_map __txpwr_map_byr = {
-	.ent = __txpwr_ent_byr,
-	.size = ARRAY_SIZE(__txpwr_ent_byr),
+static const struct txpwr_map __txpwr_map_byr_ax = {
+	.ent = __txpwr_ent_byr_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_byr_ax),
 	.addr_from = R_AX_PWR_BY_RATE,
 	.addr_to = R_AX_PWR_BY_RATE_MAX,
 	.addr_to_1ss = R_AX_PWR_BY_RATE_1SS_MAX,
 };
 
-static const struct txpwr_ent __txpwr_ent_lmt[] = {
+static const struct txpwr_ent __txpwr_ent_lmt_ax[] = {
 	/* 1TX */
 	__GEN_TXPWR_ENT2("CCK_1TX_20M    ", "NON_BF", "BF"),
 	__GEN_TXPWR_ENT2("CCK_1TX_40M    ", "NON_BF", "BF"),
@@ -462,18 +472,18 @@ static const struct txpwr_ent __txpwr_ent_lmt[] = {
 	__GEN_TXPWR_ENT2("MCS_2TX_40M_2p5", "NON_BF", "BF"),
 };
 
-static_assert((ARRAY_SIZE(__txpwr_ent_lmt) * 2) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ax) * 2) ==
 	(R_AX_PWR_LMT_MAX - R_AX_PWR_LMT + 4));
 
-static const struct txpwr_map __txpwr_map_lmt = {
-	.ent = __txpwr_ent_lmt,
-	.size = ARRAY_SIZE(__txpwr_ent_lmt),
+static const struct txpwr_map __txpwr_map_lmt_ax = {
+	.ent = __txpwr_ent_lmt_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ax),
 	.addr_from = R_AX_PWR_LMT,
 	.addr_to = R_AX_PWR_LMT_MAX,
 	.addr_to_1ss = R_AX_PWR_LMT_1SS_MAX,
 };
 
-static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
+static const struct txpwr_ent __txpwr_ent_lmt_ru_ax[] = {
 	/* 1TX */
 	__GEN_TXPWR_ENT8("1TX", "RU26__0", "RU26__1", "RU26__2", "RU26__3",
 			 "RU26__4", "RU26__5", "RU26__6", "RU26__7"),
@@ -490,25 +500,207 @@ static const struct txpwr_ent __txpwr_ent_lmt_ru[] = {
 			 "RU106_4", "RU106_5", "RU106_6", "RU106_7"),
 };
 
-static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru) * 8) ==
+static_assert((ARRAY_SIZE(__txpwr_ent_lmt_ru_ax) * 8) ==
 	(R_AX_PWR_RU_LMT_MAX - R_AX_PWR_RU_LMT + 4));
 
-static const struct txpwr_map __txpwr_map_lmt_ru = {
-	.ent = __txpwr_ent_lmt_ru,
-	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru),
+static const struct txpwr_map __txpwr_map_lmt_ru_ax = {
+	.ent = __txpwr_ent_lmt_ru_ax,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru_ax),
 	.addr_from = R_AX_PWR_RU_LMT,
 	.addr_to = R_AX_PWR_RU_LMT_MAX,
 	.addr_to_1ss = R_AX_PWR_RU_LMT_1SS_MAX,
 };
 
-static u8 __print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
-			    const s8 *buf, const u8 cur)
+static const struct txpwr_ent __txpwr_ent_byr_mcs_be[] = {
+	__GEN_TXPWR_ENT4("MCS_1SS       ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("MCS_1SS       ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("MCS_1SS       ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("MCS_1SS       ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("HEDCM_1SS     ", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_1SS  ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_1SS  ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_1SS  ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("DLRU_MCS_1SS  ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("DLRU_HEDCM_1SS", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+	__GEN_TXPWR_ENT4("MCS_2SS       ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("MCS_2SS       ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("MCS_2SS       ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("MCS_2SS       ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("HEDCM_2SS     ", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_2SS  ", "MCS0  ", "MCS1  ", "MCS2 ", "MCS3 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_2SS  ", "MCS4  ", "MCS5  ", "MCS6 ", "MCS7 "),
+	__GEN_TXPWR_ENT4("DLRU_MCS_2SS  ", "MCS8  ", "MCS9  ", "MCS10", "MCS11"),
+	__GEN_TXPWR_ENT2("DLRU_MCS_2SS  ", "MCS12 ", "MCS13 \t"),
+	__GEN_TXPWR_ENT4("DLRU_HEDCM_2SS", "MCS0  ", "MCS1  ", "MCS3 ", "MCS4 "),
+};
+
+static const struct txpwr_ent __txpwr_ent_byr_be[] = {
+	__GEN_TXPWR_ENT0("BW20"),
+	__GEN_TXPWR_ENT4("CCK       ", "1M    ", "2M    ", "5.5M ", "11M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	__GEN_TXPWR_ENT0("BW40"),
+	__GEN_TXPWR_ENT4("CCK       ", "1M    ", "2M    ", "5.5M ", "11M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	/* there is no CCK section after BW80 */
+	__GEN_TXPWR_ENT0("BW80"),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	__GEN_TXPWR_ENT0("BW160"),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+
+	__GEN_TXPWR_ENT0("BW320"),
+	__GEN_TXPWR_ENT4("LEGACY    ", "6M    ", "9M    ", "12M  ", "18M  "),
+	__GEN_TXPWR_ENT4("LEGACY    ", "24M   ", "36M   ", "48M  ", "54M  "),
+	__GEN_TXPWR_ENT2("EHT       ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT2("DLRU_EHT  ", "MCS14 ", "MCS15 \t"),
+	__GEN_TXPWR_ENT_NESTED(byr_mcs_be),
+};
+
+static const struct txpwr_map __txpwr_map_byr_be = {
+	.ent = __txpwr_ent_byr_be,
+	.size = ARRAY_SIZE(__txpwr_ent_byr_be),
+	.addr_from = R_BE_PWR_BY_RATE,
+	.addr_to = R_BE_PWR_BY_RATE_MAX,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_mcs_be[] = {
+	__GEN_TXPWR_ENT2("MCS_20M_0  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_1  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_2  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_3  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_4  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_5  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_6  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_7  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_8  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_9  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_10 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_11 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_12 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_13 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_14 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_20M_15 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_0  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_1  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_2  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_3  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_4  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_5  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_6  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_7  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_0  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_1  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_2  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_80M_3  ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_160M_0 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_160M_1 ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_320M   ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_0p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_2p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_4p5", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("MCS_40M_6p5", "NON_BF", "BF"),
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_be[] = {
+	__GEN_TXPWR_ENT0("1TX"),
+	__GEN_TXPWR_ENT2("CCK_20M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_40M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM       ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT_NESTED(lmt_mcs_be),
+
+	__GEN_TXPWR_ENT0("2TX"),
+	__GEN_TXPWR_ENT2("CCK_20M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("CCK_40M    ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT2("OFDM       ", "NON_BF", "BF"),
+	__GEN_TXPWR_ENT_NESTED(lmt_mcs_be),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_be = {
+	.ent = __txpwr_ent_lmt_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_be),
+	.addr_from = R_BE_PWR_LMT,
+	.addr_to = R_BE_PWR_LMT_MAX,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_ru_indexes_be[] = {
+	__GEN_TXPWR_ENT8("RU26    ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU26    ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU52    ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU52    ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU106   ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU106   ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU52_26 ", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU52_26 ", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+	__GEN_TXPWR_ENT8("RU106_26", "IDX_0 ", "IDX_1 ", "IDX_2 ", "IDX_3 ",
+			 "IDX_4 ", "IDX_5 ", "IDX_6 ", "IDX_7 "),
+	__GEN_TXPWR_ENT8("RU106_26", "IDX_8 ", "IDX_9 ", "IDX_10", "IDX_11",
+			 "IDX_12", "IDX_13", "IDX_14", "IDX_15"),
+};
+
+static const struct txpwr_ent __txpwr_ent_lmt_ru_be[] = {
+	__GEN_TXPWR_ENT0("1TX"),
+	__GEN_TXPWR_ENT_NESTED(lmt_ru_indexes_be),
+
+	__GEN_TXPWR_ENT0("2TX"),
+	__GEN_TXPWR_ENT_NESTED(lmt_ru_indexes_be),
+};
+
+static const struct txpwr_map __txpwr_map_lmt_ru_be = {
+	.ent = __txpwr_ent_lmt_ru_be,
+	.size = ARRAY_SIZE(__txpwr_ent_lmt_ru_be),
+	.addr_from = R_BE_PWR_RU_LMT,
+	.addr_to = R_BE_PWR_RU_LMT_MAX,
+	.addr_to_1ss = 0, /* not support */
+};
+
+static unsigned int
+__print_txpwr_ent(struct seq_file *m, const struct txpwr_ent *ent,
+		  const s8 *buf, const unsigned int cur)
 {
+	unsigned int cnt, i;
 	char *fmt;
 
+	if (ent->nested) {
+		for (cnt = 0, i = 0; i < ent->len; i++)
+			cnt += __print_txpwr_ent(m, ent->ptr + i, buf,
+						 cur + cnt);
+		return cnt;
+	}
+
 	switch (ent->len) {
+	case 0:
+		seq_printf(m, "\t<< %s >>\n", ent->txt);
+		return 0;
 	case 2:
-		fmt = "%s\t| %3d, %3d,\tdBm\n";
+		fmt = "%s\t| %3d, %3d,\t\tdBm\n";
 		seq_printf(m, fmt, ent->txt, buf[cur], buf[cur + 1]);
 		return 2;
 	case 4:
@@ -532,10 +724,10 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 {
 	u8 fct = rtwdev->chip->txpwr_factor_mac;
 	u8 path_num = rtwdev->chip->rf_path_num;
+	unsigned int cur, i;
 	u32 max_valid_addr;
 	u32 val, addr;
 	s8 *buf, tmp;
-	u8 cur, i;
 	int ret;
 
 	buf = vzalloc(map->addr_to - map->addr_from + 4);
@@ -546,6 +738,9 @@ static int __print_txpwr_map(struct seq_file *m, struct rtw89_dev *rtwdev,
 		max_valid_addr = map->addr_to_1ss;
 	else
 		max_valid_addr = map->addr_to;
+
+	if (max_valid_addr == 0)
+		return -EOPNOTSUPP;
 
 	for (addr = map->addr_from; addr <= max_valid_addr; addr += 4) {
 		ret = rtw89_mac_txpwr_read32(rtwdev, RTW89_PHY_0, addr, &val);
@@ -600,10 +795,35 @@ static void __print_regd(struct seq_file *m, struct rtw89_dev *rtwdev,
 
 #undef case_REGD
 
+struct dbgfs_txpwr_table {
+	const struct txpwr_map *byr;
+	const struct txpwr_map *lmt;
+	const struct txpwr_map *lmt_ru;
+};
+
+static const struct dbgfs_txpwr_table dbgfs_txpwr_table_ax = {
+	.byr = &__txpwr_map_byr_ax,
+	.lmt = &__txpwr_map_lmt_ax,
+	.lmt_ru = &__txpwr_map_lmt_ru_ax,
+};
+
+static const struct dbgfs_txpwr_table dbgfs_txpwr_table_be = {
+	.byr = &__txpwr_map_byr_be,
+	.lmt = &__txpwr_map_lmt_be,
+	.lmt_ru = &__txpwr_map_lmt_ru_be,
+};
+
+static const struct dbgfs_txpwr_table *dbgfs_txpwr_tables[RTW89_CHIP_GEN_NUM] = {
+	[RTW89_CHIP_AX] = &dbgfs_txpwr_table_ax,
+	[RTW89_CHIP_BE] = &dbgfs_txpwr_table_be,
+};
+
 static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 {
 	struct rtw89_debugfs_priv *debugfs_priv = m->private;
 	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	const struct dbgfs_txpwr_table *tbl;
 	const struct rtw89_chan *chan;
 	int ret = 0;
 
@@ -620,18 +840,24 @@ static int rtw89_debug_priv_txpwr_table_get(struct seq_file *m, void *v)
 	seq_puts(m, "[TAS]\n");
 	rtw89_print_tas(m, rtwdev);
 
+	tbl = dbgfs_txpwr_tables[chip_gen];
+	if (!tbl) {
+		ret = -EOPNOTSUPP;
+		goto err;
+	}
+
 	seq_puts(m, "\n[TX power byrate]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_byr);
+	ret = __print_txpwr_map(m, rtwdev, tbl->byr);
 	if (ret)
 		goto err;
 
 	seq_puts(m, "\n[TX power limit]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_lmt);
+	ret = __print_txpwr_map(m, rtwdev, tbl->lmt);
 	if (ret)
 		goto err;
 
 	seq_puts(m, "\n[TX power limit_ru]\n");
-	ret = __print_txpwr_map(m, rtwdev, &__txpwr_map_lmt_ru);
+	ret = __print_txpwr_map(m, rtwdev, tbl->lmt_ru);
 	if (ret)
 		goto err;
 
@@ -3241,6 +3467,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		[NL80211_RATE_INFO_HE_GI_1_6] = "1.6",
 		[NL80211_RATE_INFO_HE_GI_3_2] = "3.2",
 	};
+	static const char * const eht_gi_str[] = {
+		[NL80211_RATE_INFO_EHT_GI_0_8] = "0.8",
+		[NL80211_RATE_INFO_EHT_GI_1_6] = "1.6",
+		[NL80211_RATE_INFO_EHT_GI_3_2] = "3.2",
+	};
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct rate_info *rate = &rtwsta->ra_report.txrate;
 	struct ieee80211_rx_status *status = &rtwsta->rx_status;
@@ -3266,6 +3497,10 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", rate->nss, rate->mcs,
 			   rate->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
 			   he_gi_str[rate->he_gi] : "N/A");
+	else if (rate->flags & RATE_INFO_FLAGS_EHT_MCS)
+		seq_printf(m, "EHT %dSS MCS-%d GI:%s", rate->nss, rate->mcs,
+			   rate->eht_gi < ARRAY_SIZE(eht_gi_str) ?
+			   eht_gi_str[rate->eht_gi] : "N/A");
 	else
 		seq_printf(m, "Legacy %d", rate->legacy);
 	seq_printf(m, "%s", rtwsta->ra_report.might_fallback_legacy ? " FB_G" : "");
@@ -3293,6 +3528,11 @@ static void rtw89_sta_info_get_iter(void *data, struct ieee80211_sta *sta)
 		seq_printf(m, "HE %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
 			   status->he_gi <= NL80211_RATE_INFO_HE_GI_3_2 ?
 			   he_gi_str[rate->he_gi] : "N/A");
+		break;
+	case RX_ENC_EHT:
+		seq_printf(m, "EHT %dSS MCS-%d GI:%s", status->nss, status->rate_idx,
+			   status->eht.gi < ARRAY_SIZE(eht_gi_str) ?
+			   eht_gi_str[status->eht.gi] : "N/A");
 		break;
 	}
 	seq_printf(m, " BW:%u", rtw89_rate_info_bw_to_mhz(status->bw));

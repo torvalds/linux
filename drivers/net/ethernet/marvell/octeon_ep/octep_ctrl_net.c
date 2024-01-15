@@ -26,7 +26,7 @@ static atomic_t ctrl_net_msg_id;
 
 /* Control plane version in which OCTEP_CTRL_NET_H2F_CMD was added */
 static const u32 octep_ctrl_net_h2f_cmd_versions[OCTEP_CTRL_NET_H2F_CMD_MAX] = {
-	[OCTEP_CTRL_NET_H2F_CMD_INVALID ... OCTEP_CTRL_NET_H2F_CMD_LINK_INFO] =
+	[OCTEP_CTRL_NET_H2F_CMD_INVALID ... OCTEP_CTRL_NET_H2F_CMD_GET_INFO] =
 	 OCTEP_CP_VERSION(1, 0, 0)
 };
 
@@ -351,6 +351,28 @@ void octep_ctrl_net_recv_fw_messages(struct octep_device *oct)
 		else if (msg.hdr.s.flags & OCTEP_CTRL_MBOX_MSG_HDR_FLAG_NOTIFY)
 			process_mbox_notify(oct, &msg);
 	}
+}
+
+int octep_ctrl_net_get_info(struct octep_device *oct, int vfid,
+			    struct octep_fw_info *info)
+{
+	struct octep_ctrl_net_wait_data d = {0};
+	struct octep_ctrl_net_h2f_resp *resp;
+	struct octep_ctrl_net_h2f_req *req;
+	int err;
+
+	req = &d.data.req;
+	init_send_req(&d.msg, req, 0, vfid);
+	req->hdr.s.cmd = OCTEP_CTRL_NET_H2F_CMD_GET_INFO;
+	req->link_info.cmd = OCTEP_CTRL_NET_CMD_GET;
+	err = octep_send_mbox_req(oct, &d, true);
+	if (err < 0)
+		return err;
+
+	resp = &d.data.resp;
+	memcpy(info, &resp->info.fw_info, sizeof(struct octep_fw_info));
+
+	return 0;
 }
 
 int octep_ctrl_net_uninit(struct octep_device *oct)

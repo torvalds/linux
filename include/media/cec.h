@@ -275,7 +275,7 @@ struct cec_adapter {
 
 	u32 sequence;
 
-	char input_phys[32];
+	char input_phys[40];
 };
 
 static inline void *cec_get_drvdata(const struct cec_adapter *adap)

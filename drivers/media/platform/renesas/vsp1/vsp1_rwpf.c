@@ -24,7 +24,7 @@ struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Pad Operations
+ * V4L2 Subdevice Operations
  */
 
 static int vsp1_rwpf_enum_mbus_code(struct v4l2_subdev *subdev,
@@ -243,7 +243,7 @@ done:
 	return ret;
 }
 
-const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {
+static const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {
 	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = vsp1_rwpf_enum_mbus_code,
 	.enum_frame_size = vsp1_rwpf_enum_frame_size,
@@ -251,6 +251,10 @@ const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops = {
 	.set_fmt = vsp1_rwpf_set_format,
 	.get_selection = vsp1_rwpf_get_selection,
 	.set_selection = vsp1_rwpf_set_selection,
+};
+
+const struct v4l2_subdev_ops vsp1_rwpf_subdev_ops = {
+	.pad    = &vsp1_rwpf_pad_ops,
 };
 
 /* -----------------------------------------------------------------------------

@@ -120,7 +120,7 @@ static int term(yyscan_t scanner, enum parse_events__term_type type)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 
-	yylval->num = type;
+	yylval->term_type = type;
 	return PE_TERM;
 }
 
@@ -156,8 +156,8 @@ event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
 
 num_dec		[0-9]+
-num_hex		0x[a-fA-F0-9]+
-num_raw_hex	[a-fA-F0-9]+
+num_hex		0x[a-fA-F0-9]{1,16}
+num_raw_hex	[a-fA-F0-9]{1,16}
 name		[a-zA-Z_*?\[\]][a-zA-Z0-9_*?.\[\]!\-]*
 name_tag	[\'][a-zA-Z_*?\[\]][a-zA-Z0-9_*?\-,\.\[\]:=]*[\']
 name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*

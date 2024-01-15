@@ -102,7 +102,7 @@ struct t7xx_fsm_event {
 	struct list_head	entry;
 	enum t7xx_fsm_event_state event_id;
 	unsigned int		length;
-	unsigned char		data[];
+	unsigned char		data[] __counted_by(length);
 };
 
 struct t7xx_fsm_command {

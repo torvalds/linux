@@ -632,6 +632,50 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 	ksz8_w_table(dev, TABLE_VLAN, addr, buf);
 }
 
+/**
+ * ksz8_r_phy_ctrl - Translates and reads from the SMI interface to a MIIM PHY
+ *		     Control register (Reg. 31).
+ * @dev: The KSZ device instance.
+ * @port: The port number to be read.
+ * @val: The value read from the SMI interface.
+ *
+ * This function reads the SMI interface and translates the hardware register
+ * bit values into their corresponding control settings for a MIIM PHY Control
+ * register.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz8_r_phy_ctrl(struct ksz_device *dev, int port, u16 *val)
+{
+	const u16 *regs = dev->info->regs;
+	u8 reg_val;
+	int ret;
+
+	*val = 0;
+
+	ret = ksz_pread8(dev, port, regs[P_LINK_STATUS], &reg_val);
+	if (ret < 0)
+		return ret;
+
+	if (reg_val & PORT_MDIX_STATUS)
+		*val |= KSZ886X_CTRL_MDIX_STAT;
+
+	ret = ksz_pread8(dev, port, REG_PORT_LINK_MD_CTRL, &reg_val);
+	if (ret < 0)
+		return ret;
+
+	if (reg_val & PORT_FORCE_LINK)
+		*val |= KSZ886X_CTRL_FORCE_LINK;
+
+	if (reg_val & PORT_POWER_SAVING)
+		*val |= KSZ886X_CTRL_PWRSAVE;
+
+	if (reg_val & PORT_PHY_REMOTE_LOOPBACK)
+		*val |= KSZ886X_CTRL_REMOTE_LOOPBACK;
+
+	return 0;
+}
+
 int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
 	u8 restart, speed, ctrl, link;
@@ -769,12 +813,10 @@ int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 				FIELD_GET(PORT_CABLE_FAULT_COUNTER_L, val2));
 		break;
 	case PHY_REG_PHY_CTRL:
-		ret = ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
+		ret = ksz8_r_phy_ctrl(dev, p, &data);
 		if (ret)
 			return ret;
 
-		if (link & PORT_MDIX_STATUS)
-			data |= KSZ886X_CTRL_MDIX_STAT;
 		break;
 	default:
 		processed = false;
@@ -784,6 +826,38 @@ int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 		*val = data;
 
 	return 0;
+}
+
+/**
+ * ksz8_w_phy_ctrl - Translates and writes to the SMI interface from a MIIM PHY
+ *		     Control register (Reg. 31).
+ * @dev: The KSZ device instance.
+ * @port: The port number to be configured.
+ * @val: The register value to be written.
+ *
+ * This function translates control settings from a MIIM PHY Control register
+ * into their corresponding hardware register bit values for the SMI
+ * interface.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz8_w_phy_ctrl(struct ksz_device *dev, int port, u16 val)
+{
+	u8 reg_val = 0;
+	int ret;
+
+	if (val & KSZ886X_CTRL_FORCE_LINK)
+		reg_val |= PORT_FORCE_LINK;
+
+	if (val & KSZ886X_CTRL_PWRSAVE)
+		reg_val |= PORT_POWER_SAVING;
+
+	if (val & KSZ886X_CTRL_REMOTE_LOOPBACK)
+		reg_val |= PORT_PHY_REMOTE_LOOPBACK;
+
+	ret = ksz_prmw8(dev, port, REG_PORT_LINK_MD_CTRL, PORT_FORCE_LINK |
+			PORT_POWER_SAVING | PORT_PHY_REMOTE_LOOPBACK, reg_val);
+	return ret;
 }
 
 int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
@@ -925,6 +999,12 @@ int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	case PHY_REG_LINK_MD:
 		if (val & PHY_START_CABLE_DIAG)
 			ksz_port_cfg(dev, p, REG_PORT_LINK_MD_CTRL, PORT_START_CABLE_DIAG, true);
+		break;
+
+	case PHY_REG_PHY_CTRL:
+		ret = ksz8_w_phy_ctrl(dev, p, val);
+		if (ret)
+			return ret;
 		break;
 	default:
 		break;

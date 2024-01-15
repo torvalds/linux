@@ -24,7 +24,7 @@
 		#size-cells = <0>;
 
 		compatible = "simple-scu-audio-card";
-		label = "rcar-sound";
+		label = "snd-ulcb-mix";
 
 		simple-audio-card,prefix  = "ak4613";
 		simple-audio-card,routing = "ak4613 Playback", "DAI0 Playback",
@@ -72,9 +72,13 @@
 };
 
 &rcar_sound {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	#sound-dai-cells = <1>;
 
-	rcar_sound,dai {
+	rcar_sound,dai@0 {
+		reg = <0>;
+
 		/*
 		 * (A) CPU0
 		 */

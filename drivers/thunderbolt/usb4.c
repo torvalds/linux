@@ -1455,6 +1455,112 @@ bool usb4_port_clx_supported(struct tb_port *port)
 }
 
 /**
+ * usb4_port_asym_supported() - If the port supports asymmetric link
+ * @port: USB4 port
+ *
+ * Checks if the port and the cable supports asymmetric link and returns
+ * %true in that case.
+ */
+bool usb4_port_asym_supported(struct tb_port *port)
+{
+	u32 val;
+
+	if (!port->cap_usb4)
+		return false;
+
+	if (tb_port_read(port, &val, TB_CFG_PORT, port->cap_usb4 + PORT_CS_18, 1))
+		return false;
+
+	return !!(val & PORT_CS_18_CSA);
+}
+
+/**
+ * usb4_port_asym_set_link_width() - Set link width to asymmetric or symmetric
+ * @port: USB4 port
+ * @width: Asymmetric width to configure
+ *
+ * Sets USB4 port link width to @width. Can be called for widths where
+ * usb4_port_asym_width_supported() returned @true.
+ */
+int usb4_port_asym_set_link_width(struct tb_port *port, enum tb_link_width width)
+{
+	u32 val;
+	int ret;
+
+	if (!port->cap_phy)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	val &= ~LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK;
+	switch (width) {
+	case TB_LINK_WIDTH_DUAL:
+		val |= FIELD_PREP(LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK,
+				  LANE_ADP_CS_1_TARGET_WIDTH_ASYM_DUAL);
+		break;
+	case TB_LINK_WIDTH_ASYM_TX:
+		val |= FIELD_PREP(LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK,
+				  LANE_ADP_CS_1_TARGET_WIDTH_ASYM_TX);
+		break;
+	case TB_LINK_WIDTH_ASYM_RX:
+		val |= FIELD_PREP(LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK,
+				  LANE_ADP_CS_1_TARGET_WIDTH_ASYM_RX);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+/**
+ * usb4_port_asym_start() - Start symmetry change and wait for completion
+ * @port: USB4 port
+ *
+ * Start symmetry change of the link to asymmetric or symmetric
+ * (according to what was previously set in tb_port_set_link_width().
+ * Wait for completion of the change.
+ *
+ * Returns %0 in case of success, %-ETIMEDOUT if case of timeout or
+ * a negative errno in case of a failure.
+ */
+int usb4_port_asym_start(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	val &= ~PORT_CS_19_START_ASYM;
+	val |= FIELD_PREP(PORT_CS_19_START_ASYM, 1);
+
+	ret = tb_port_write(port, &val, TB_CFG_PORT,
+			    port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	/*
+	 * Wait for PORT_CS_19_START_ASYM to be 0. This means the USB4
+	 * port started the symmetry transition.
+	 */
+	ret = usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_19,
+				     PORT_CS_19_START_ASYM, 0, 1000);
+	if (ret)
+		return ret;
+
+	/* Then wait for the transtion to be completed */
+	return usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_18,
+				      PORT_CS_18_TIP, 0, 5000);
+}
+
+/**
  * usb4_port_margining_caps() - Read USB4 port marginig capabilities
  * @port: USB4 port
  * @caps: Array with at least two elements to hold the results
@@ -1942,35 +2048,6 @@ int usb4_usb3_port_max_link_rate(struct tb_port *port)
 
 	lr = (val & ADP_USB3_CS_4_MSLR_MASK) >> ADP_USB3_CS_4_MSLR_SHIFT;
 	ret = lr == ADP_USB3_CS_4_MSLR_20G ? 20000 : 10000;
-
-	return usb4_usb3_port_max_bandwidth(port, ret);
-}
-
-/**
- * usb4_usb3_port_actual_link_rate() - Established USB3 link rate
- * @port: USB3 adapter port
- *
- * Return actual established link rate of a USB3 adapter in Mb/s. If the
- * link is not up returns %0 and negative errno in case of failure.
- */
-int usb4_usb3_port_actual_link_rate(struct tb_port *port)
-{
-	int ret, lr;
-	u32 val;
-
-	if (!tb_port_is_usb3_down(port) && !tb_port_is_usb3_up(port))
-		return -EINVAL;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_adap + ADP_USB3_CS_4, 1);
-	if (ret)
-		return ret;
-
-	if (!(val & ADP_USB3_CS_4_ULV))
-		return 0;
-
-	lr = val & ADP_USB3_CS_4_ALR_MASK;
-	ret = lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
 
 	return usb4_usb3_port_max_bandwidth(port, ret);
 }

@@ -85,6 +85,7 @@
 
 /* CLOCK_CTRL (0x02) */
 #define NAU8540_CLK_ADC_EN		(0x1 << 15)
+#define NAU8540_CLK_AGC_EN		(0x1 << 3)
 #define NAU8540_CLK_I2S_EN		(0x1 << 1)
 
 /* CLOCK_SRC (0x03) */
@@ -168,6 +169,13 @@
 #define NAU8540_TDM_OFFSET_EN		(0x1 << 14)
 #define NAU8540_TDM_TX_MASK		0xf
 
+/* ALC_CONTROL_3 (0x22) */
+#define NAU8540_ALC_CH1_EN		(0x1 << 12)
+#define NAU8540_ALC_CH2_EN		(0x1 << 13)
+#define NAU8540_ALC_CH3_EN		(0x1 << 14)
+#define NAU8540_ALC_CH4_EN		(0x1 << 15)
+#define NAU8540_ALC_CH_ALL_EN		(0xf << 12)
+
 /* ADC_SAMPLE_RATE (0x3A) */
 #define NAU8540_CH_SYNC		(0x1 << 14)
 #define NAU8540_ADC_OSR_MASK		0x3
@@ -180,6 +188,13 @@
 #define NAU8540_VMID_EN		(1 << 6)
 #define NAU8540_VMID_SEL_SFT		4
 #define NAU8540_VMID_SEL_MASK		(0x3 << NAU8540_VMID_SEL_SFT)
+
+/* MUTE (0x61) */
+#define NAU8540_PGA_CH1_MUTE		0x1
+#define NAU8540_PGA_CH2_MUTE		0x2
+#define NAU8540_PGA_CH3_MUTE		0x4
+#define NAU8540_PGA_CH4_MUTE		0x8
+#define NAU8540_PGA_CH_ALL_MUTE		0xf
 
 /* MIC_BIAS (0x67) */
 #define NAU8540_PU_PRE			(0x1 << 8)

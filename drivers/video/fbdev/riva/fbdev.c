@@ -1670,6 +1670,7 @@ static const struct fb_ops riva_fb_ops = {
 	.owner 		= THIS_MODULE,
 	.fb_open	= rivafb_open,
 	.fb_release	= rivafb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var 	= rivafb_check_var,
 	.fb_set_par 	= rivafb_set_par,
 	.fb_setcolreg 	= rivafb_setcolreg,
@@ -1680,6 +1681,7 @@ static const struct fb_ops riva_fb_ops = {
 	.fb_imageblit 	= rivafb_imageblit,
 	.fb_cursor	= rivafb_cursor,
 	.fb_sync 	= rivafb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int riva_set_fbinfo(struct fb_info *info)

@@ -19,6 +19,7 @@ allOf:
 properties:
   compatible:
     enum:
+      - ti,am642-icssg-prueth  # for AM64x SoC family
       - ti,am654-icssg-prueth  # for AM65x SoC family
 
   sram:
@@ -105,6 +106,13 @@ properties:
             description:
               phandle to system controller node and register offset
               to ICSSG control register for RGMII transmit delay
+
+          ti,half-duplex-capable:
+            type: boolean
+            description:
+              Indicates that the PHY output pin COL is routed to ICSSG GPIO pin
+              (PRGx_PRU0/1_GPIO10) as input so that the ICSSG MII port is
+              capable of half duplex operations.
 
         required:
           - reg

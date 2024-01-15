@@ -267,7 +267,8 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 	struct shash_desc *shash;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	const char *hash_name;
-	u8 *challenge = req->sq->dhchap_c1, *host_response;
+	u8 *challenge = req->sq->dhchap_c1;
+	struct nvme_dhchap_key *transformed_key;
 	u8 buf[4];
 	int ret;
 
@@ -291,14 +292,15 @@ int nvmet_auth_host_hash(struct nvmet_req *req, u8 *response,
 		goto out_free_tfm;
 	}
 
-	host_response = nvme_auth_transform_key(ctrl->host_key, ctrl->hostnqn);
-	if (IS_ERR(host_response)) {
-		ret = PTR_ERR(host_response);
+	transformed_key = nvme_auth_transform_key(ctrl->host_key,
+						  ctrl->hostnqn);
+	if (IS_ERR(transformed_key)) {
+		ret = PTR_ERR(transformed_key);
 		goto out_free_tfm;
 	}
 
-	ret = crypto_shash_setkey(shash_tfm, host_response,
-				  ctrl->host_key->len);
+	ret = crypto_shash_setkey(shash_tfm, transformed_key->key,
+				  transformed_key->len);
 	if (ret)
 		goto out_free_response;
 
@@ -365,7 +367,7 @@ out:
 		kfree(challenge);
 	kfree(shash);
 out_free_response:
-	kfree_sensitive(host_response);
+	nvme_auth_free_key(transformed_key);
 out_free_tfm:
 	crypto_free_shash(shash_tfm);
 	return 0;
@@ -378,7 +380,8 @@ int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 	struct shash_desc *shash;
 	struct nvmet_ctrl *ctrl = req->sq->ctrl;
 	const char *hash_name;
-	u8 *challenge = req->sq->dhchap_c2, *ctrl_response;
+	u8 *challenge = req->sq->dhchap_c2;
+	struct nvme_dhchap_key *transformed_key;
 	u8 buf[4];
 	int ret;
 
@@ -402,15 +405,15 @@ int nvmet_auth_ctrl_hash(struct nvmet_req *req, u8 *response,
 		goto out_free_tfm;
 	}
 
-	ctrl_response = nvme_auth_transform_key(ctrl->ctrl_key,
+	transformed_key = nvme_auth_transform_key(ctrl->ctrl_key,
 						ctrl->subsysnqn);
-	if (IS_ERR(ctrl_response)) {
-		ret = PTR_ERR(ctrl_response);
+	if (IS_ERR(transformed_key)) {
+		ret = PTR_ERR(transformed_key);
 		goto out_free_tfm;
 	}
 
-	ret = crypto_shash_setkey(shash_tfm, ctrl_response,
-				  ctrl->ctrl_key->len);
+	ret = crypto_shash_setkey(shash_tfm, transformed_key->key,
+				  transformed_key->len);
 	if (ret)
 		goto out_free_response;
 
@@ -474,7 +477,7 @@ out:
 		kfree(challenge);
 	kfree(shash);
 out_free_response:
-	kfree_sensitive(ctrl_response);
+	nvme_auth_free_key(transformed_key);
 out_free_tfm:
 	crypto_free_shash(shash_tfm);
 	return 0;

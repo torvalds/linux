@@ -331,8 +331,9 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 		int buff_block_size;
 		int buff_size;
 
-		if (!dsc_buff_block_size_from_dpcd(dpcd_dsc_basic_data[DP_DSC_RC_BUF_BLK_SIZE - DP_DSC_SUPPORT],
-										   &buff_block_size))
+		if (!dsc_buff_block_size_from_dpcd(
+				dpcd_dsc_basic_data[DP_DSC_RC_BUF_BLK_SIZE - DP_DSC_SUPPORT] & 0x03,
+				&buff_block_size))
 			return false;
 
 		buff_size = dpcd_dsc_basic_data[DP_DSC_RC_BUF_SIZE - DP_DSC_SUPPORT] + 1;
@@ -357,10 +358,15 @@ bool dc_dsc_parse_dsc_dpcd(const struct dc *dc,
 
 	{
 		int dpcd_throughput = dpcd_dsc_basic_data[DP_DSC_PEAK_THROUGHPUT - DP_DSC_SUPPORT];
+		int dsc_throughput_granular_delta;
+
+		dsc_throughput_granular_delta = dpcd_dsc_basic_data[DP_DSC_RC_BUF_BLK_SIZE - DP_DSC_SUPPORT] >> 3;
+		dsc_throughput_granular_delta *= 2;
 
 		if (!dsc_throughput_from_dpcd(dpcd_throughput & DP_DSC_THROUGHPUT_MODE_0_MASK,
 									  &dsc_sink_caps->throughput_mode_0_mps))
 			return false;
+		dsc_sink_caps->throughput_mode_0_mps += dsc_throughput_granular_delta;
 
 		dpcd_throughput = (dpcd_throughput & DP_DSC_THROUGHPUT_MODE_1_MASK) >> DP_DSC_THROUGHPUT_MODE_1_SHIFT;
 		if (!dsc_throughput_from_dpcd(dpcd_throughput, &dsc_sink_caps->throughput_mode_1_mps))
@@ -512,6 +518,11 @@ static bool intersect_dsc_caps(
 		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_4 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_4;
 	dsc_common_caps->slice_caps.bits.NUM_SLICES_8 =
 		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_8 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_8;
+	dsc_common_caps->slice_caps.bits.NUM_SLICES_12 =
+		dsc_sink_caps->slice_caps1.bits.NUM_SLICES_12 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_12;
+	dsc_common_caps->slice_caps.bits.NUM_SLICES_16 =
+		dsc_sink_caps->slice_caps2.bits.NUM_SLICES_16 && dsc_enc_caps->slice_caps.bits.NUM_SLICES_16;
+
 	if (!dsc_common_caps->slice_caps.raw)
 		return false;
 
@@ -702,6 +713,12 @@ static int get_available_dsc_slices(union dsc_enc_slice_caps slice_caps, int *av
 
 	if (slice_caps.bits.NUM_SLICES_8)
 		available_slices[idx++] = 8;
+
+	if (slice_caps.bits.NUM_SLICES_12)
+		available_slices[idx++] = 12;
+
+	if (slice_caps.bits.NUM_SLICES_16)
+		available_slices[idx++] = 16;
 
 	return idx;
 }

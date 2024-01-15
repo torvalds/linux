@@ -191,7 +191,7 @@ struct fw_node {
 	/* Upper layer specific data. */
 	void *data;
 
-	struct fw_node *ports[];
+	struct fw_node *ports[] __counted_by(port_count);
 };
 
 static inline struct fw_node *fw_node_get(struct fw_node *node)

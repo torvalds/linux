@@ -163,7 +163,7 @@ struct i915_gem_mm {
 
 	struct notifier_block oom_notifier;
 	struct notifier_block vmap_notifier;
-	struct shrinker shrinker;
+	struct shrinker *shrinker;
 
 #ifdef CONFIG_MMU_NOTIFIER
 	/**
@@ -222,7 +222,22 @@ struct drm_i915_private {
 		bool mchbar_need_disable;
 	} gmch;
 
-	struct rb_root uabi_engines;
+	/*
+	 * Chaining user engines happens in multiple stages, starting with a
+	 * simple lock-less linked list created by intel_engine_add_user(),
+	 * which later gets sorted and converted to an intermediate regular
+	 * list, just to be converted once again to its final rb tree structure
+	 * in intel_engines_driver_register().
+	 *
+	 * Make sure to use the right iterator helper, depending on if the code
+	 * in question runs before or after intel_engines_driver_register() --
+	 * for_each_uabi_engine() can only be used afterwards!
+	 */
+	union {
+		struct llist_head uabi_engines_llist;
+		struct list_head uabi_engines_list;
+		struct rb_root uabi_engines;
+	};
 	unsigned int engine_uabi_class_count[I915_LAST_UABI_ENGINE_CLASS + 1];
 
 	/* protects the irq masks */
@@ -760,6 +775,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_GUC_DEPRIVILEGE(i915) \
 	(INTEL_INFO(i915)->has_guc_deprivilege)
+
+#define HAS_GUC_TLB_INVALIDATION(i915)	(INTEL_INFO(i915)->has_guc_tlb_invalidation)
 
 #define HAS_3D_PIPELINE(i915)	(INTEL_INFO(i915)->has_3d_pipeline)
 

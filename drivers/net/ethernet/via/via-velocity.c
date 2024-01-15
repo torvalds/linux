@@ -2957,11 +2957,9 @@ static int velocity_platform_probe(struct platform_device *pdev)
 	return velocity_probe(&pdev->dev, irq, info, BUS_PLATFORM);
 }
 
-static int velocity_platform_remove(struct platform_device *pdev)
+static void velocity_platform_remove(struct platform_device *pdev)
 {
 	velocity_remove(&pdev->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -3249,7 +3247,7 @@ static struct pci_driver velocity_pci_driver = {
 
 static struct platform_driver velocity_platform_driver = {
 	.probe		= velocity_platform_probe,
-	.remove		= velocity_platform_remove,
+	.remove_new	= velocity_platform_remove,
 	.driver = {
 		.name = "via-velocity",
 		.of_match_table = velocity_of_ids,

@@ -964,7 +964,8 @@ static void stmmac_fpe_link_state_handle(struct stmmac_priv *priv, bool is_up)
 	bool *hs_enable = &fpe_cfg->hs_enable;
 
 	if (is_up && *hs_enable) {
-		stmmac_fpe_send_mpacket(priv, priv->ioaddr, MPACKET_VERIFY);
+		stmmac_fpe_send_mpacket(priv, priv->ioaddr, fpe_cfg,
+					MPACKET_VERIFY);
 	} else {
 		*lo_state = FPE_STATE_OFF;
 		*lp_state = FPE_STATE_OFF;
@@ -1197,6 +1198,17 @@ static int stmmac_init_phy(struct net_device *dev)
 	return ret;
 }
 
+static void stmmac_set_half_duplex(struct stmmac_priv *priv)
+{
+	/* Half-Duplex can only work with single tx queue */
+	if (priv->plat->tx_queues_to_use > 1)
+		priv->phylink_config.mac_capabilities &=
+			~(MAC_10HD | MAC_100HD | MAC_1000HD);
+	else
+		priv->phylink_config.mac_capabilities |=
+			(MAC_10HD | MAC_100HD | MAC_1000HD);
+}
+
 static int stmmac_phy_setup(struct stmmac_priv *priv)
 {
 	struct stmmac_mdio_bus_data *mdio_bus_data;
@@ -1228,10 +1240,7 @@ static int stmmac_phy_setup(struct stmmac_priv *priv)
 						MAC_10FD | MAC_100FD |
 						MAC_1000FD;
 
-	/* Half-Duplex can only work with single queue */
-	if (priv->plat->tx_queues_to_use <= 1)
-		priv->phylink_config.mac_capabilities |= MAC_10HD | MAC_100HD |
-							 MAC_1000HD;
+	stmmac_set_half_duplex(priv);
 
 	/* Get the MAC specific capabilities */
 	stmmac_mac_phylink_get_caps(priv);
@@ -2426,6 +2435,7 @@ static bool stmmac_xdp_xmit_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
 {
 	struct netdev_queue *nq = netdev_get_tx_queue(priv->dev, queue);
 	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
+	struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[queue];
 	struct xsk_buff_pool *pool = tx_q->xsk_pool;
 	unsigned int entry = tx_q->cur_tx;
 	struct dma_desc *tx_desc = NULL;
@@ -2505,9 +2515,9 @@ static bool stmmac_xdp_xmit_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
 		tx_q->cur_tx = STMMAC_GET_ENTRY(tx_q->cur_tx, priv->dma_conf.dma_tx_size);
 		entry = tx_q->cur_tx;
 	}
-	flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-	tx_q->txq_stats.tx_set_ic_bit += tx_set_ic_bit;
-	u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->tx_set_ic_bit += tx_set_ic_bit;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 
 	if (tx_desc) {
 		stmmac_flush_tx_descriptors(priv, queue);
@@ -2542,11 +2552,16 @@ static void stmmac_bump_dma_threshold(struct stmmac_priv *priv, u32 chan)
  * @priv: driver private structure
  * @budget: napi budget limiting this functions packet handling
  * @queue: TX queue index
+ * @pending_packets: signal to arm the TX coal timer
  * Description: it reclaims the transmit resources after transmission completes.
+ * If some packets still needs to be handled, due to TX coalesce, set
+ * pending_packets to true to make NAPI arm the TX coal timer.
  */
-static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
+static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue,
+			   bool *pending_packets)
 {
 	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
+	struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[queue];
 	unsigned int bytes_compl = 0, pkts_compl = 0;
 	unsigned int entry, xmits = 0, count = 0;
 	u32 tx_packets = 0, tx_errors = 0;
@@ -2704,13 +2719,13 @@ static int stmmac_tx_clean(struct stmmac_priv *priv, int budget, u32 queue)
 
 	/* We still have pending packets, let's call for a new scheduling */
 	if (tx_q->dirty_tx != tx_q->cur_tx)
-		stmmac_tx_timer_arm(priv, queue);
+		*pending_packets = true;
 
-	flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-	tx_q->txq_stats.tx_packets += tx_packets;
-	tx_q->txq_stats.tx_pkt_n += tx_packets;
-	tx_q->txq_stats.tx_clean++;
-	u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->tx_packets += tx_packets;
+	txq_stats->tx_pkt_n += tx_packets;
+	txq_stats->tx_clean++;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 
 	priv->xstats.tx_errors += tx_errors;
 
@@ -2994,13 +3009,25 @@ static void stmmac_tx_timer_arm(struct stmmac_priv *priv, u32 queue)
 {
 	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
 	u32 tx_coal_timer = priv->tx_coal_timer[queue];
+	struct stmmac_channel *ch;
+	struct napi_struct *napi;
 
 	if (!tx_coal_timer)
 		return;
 
-	hrtimer_start(&tx_q->txtimer,
-		      STMMAC_COAL_TIMER(tx_coal_timer),
-		      HRTIMER_MODE_REL);
+	ch = &priv->channel[tx_q->queue_index];
+	napi = tx_q->xsk_pool ? &ch->rxtx_napi : &ch->tx_napi;
+
+	/* Arm timer only if napi is not already scheduled.
+	 * Try to cancel any timer if napi is scheduled, timer will be armed
+	 * again in the next scheduled napi.
+	 */
+	if (unlikely(!napi_is_scheduled(napi)))
+		hrtimer_start(&tx_q->txtimer,
+			      STMMAC_COAL_TIMER(tx_coal_timer),
+			      HRTIMER_MODE_REL);
+	else
+		hrtimer_try_to_cancel(&tx_q->txtimer);
 }
 
 /**
@@ -4114,6 +4141,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	u32 queue = skb_get_queue_mapping(skb);
 	unsigned int first_entry, tx_packets;
+	struct stmmac_txq_stats *txq_stats;
 	int tmp_pay_len = 0, first_tx;
 	struct stmmac_tx_queue *tx_q;
 	bool has_vlan, set_ic;
@@ -4124,6 +4152,7 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i;
 
 	tx_q = &priv->dma_conf.tx_queue[queue];
+	txq_stats = &priv->xstats.txq_stats[queue];
 	first_tx = tx_q->cur_tx;
 
 	/* Compute header lengths */
@@ -4282,13 +4311,13 @@ static netdev_tx_t stmmac_tso_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(netdev_get_tx_queue(priv->dev, queue));
 	}
 
-	flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-	tx_q->txq_stats.tx_bytes += skb->len;
-	tx_q->txq_stats.tx_tso_frames++;
-	tx_q->txq_stats.tx_tso_nfrags += nfrags;
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->tx_bytes += skb->len;
+	txq_stats->tx_tso_frames++;
+	txq_stats->tx_tso_nfrags += nfrags;
 	if (set_ic)
-		tx_q->txq_stats.tx_set_ic_bit++;
-	u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+		txq_stats->tx_set_ic_bit++;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 
 	if (priv->sarc_type)
 		stmmac_set_desc_sarc(priv, first, priv->sarc_type);
@@ -4359,6 +4388,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 queue = skb_get_queue_mapping(skb);
 	int nfrags = skb_shinfo(skb)->nr_frags;
 	int gso = skb_shinfo(skb)->gso_type;
+	struct stmmac_txq_stats *txq_stats;
 	struct dma_edesc *tbs_desc = NULL;
 	struct dma_desc *desc, *first;
 	struct stmmac_tx_queue *tx_q;
@@ -4368,6 +4398,7 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_addr_t des;
 
 	tx_q = &priv->dma_conf.tx_queue[queue];
+	txq_stats = &priv->xstats.txq_stats[queue];
 	first_tx = tx_q->cur_tx;
 
 	if (priv->tx_path_in_lpi_mode && priv->eee_sw_timer_en)
@@ -4401,6 +4432,16 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 	WARN_ON(tx_q->tx_skbuff[first_entry]);
 
 	csum_insertion = (skb->ip_summed == CHECKSUM_PARTIAL);
+	/* DWMAC IPs can be synthesized to support tx coe only for a few tx
+	 * queues. In that case, checksum offloading for those queues that don't
+	 * support tx coe needs to fallback to software checksum calculation.
+	 */
+	if (csum_insertion &&
+	    priv->plat->tx_queues_cfg[queue].coe_unsupported) {
+		if (unlikely(skb_checksum_help(skb)))
+			goto dma_map_err;
+		csum_insertion = !csum_insertion;
+	}
 
 	if (likely(priv->extend_desc))
 		desc = (struct dma_desc *)(tx_q->dma_etx + entry);
@@ -4519,11 +4560,11 @@ static netdev_tx_t stmmac_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_tx_stop_queue(netdev_get_tx_queue(priv->dev, queue));
 	}
 
-	flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-	tx_q->txq_stats.tx_bytes += skb->len;
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->tx_bytes += skb->len;
 	if (set_ic)
-		tx_q->txq_stats.tx_set_ic_bit++;
-	u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+		txq_stats->tx_set_ic_bit++;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 
 	if (priv->sarc_type)
 		stmmac_set_desc_sarc(priv, first, priv->sarc_type);
@@ -4730,6 +4771,7 @@ static unsigned int stmmac_rx_buf2_len(struct stmmac_priv *priv,
 static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 				struct xdp_frame *xdpf, bool dma_map)
 {
+	struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[queue];
 	struct stmmac_tx_queue *tx_q = &priv->dma_conf.tx_queue[queue];
 	unsigned int entry = tx_q->cur_tx;
 	struct dma_desc *tx_desc;
@@ -4789,9 +4831,9 @@ static int stmmac_xdp_xmit_xdpf(struct stmmac_priv *priv, int queue,
 		unsigned long flags;
 		tx_q->tx_count_frames = 0;
 		stmmac_set_tx_ic(priv, tx_desc);
-		flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-		tx_q->txq_stats.tx_set_ic_bit++;
-		u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+		flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+		txq_stats->tx_set_ic_bit++;
+		u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 	}
 
 	stmmac_enable_dma_transmission(priv, priv->ioaddr);
@@ -4936,7 +4978,7 @@ static void stmmac_dispatch_skb_zc(struct stmmac_priv *priv, u32 queue,
 				   struct dma_desc *p, struct dma_desc *np,
 				   struct xdp_buff *xdp)
 {
-	struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[queue];
+	struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[queue];
 	struct stmmac_channel *ch = &priv->channel[queue];
 	unsigned int len = xdp->data_end - xdp->data;
 	enum pkt_hash_types hash_type;
@@ -4966,10 +5008,10 @@ static void stmmac_dispatch_skb_zc(struct stmmac_priv *priv, u32 queue,
 	skb_record_rx_queue(skb, queue);
 	napi_gro_receive(&ch->rxtx_napi, skb);
 
-	flags = u64_stats_update_begin_irqsave(&rx_q->rxq_stats.syncp);
-	rx_q->rxq_stats.rx_pkt_n++;
-	rx_q->rxq_stats.rx_bytes += len;
-	u64_stats_update_end_irqrestore(&rx_q->rxq_stats.syncp, flags);
+	flags = u64_stats_update_begin_irqsave(&rxq_stats->syncp);
+	rxq_stats->rx_pkt_n++;
+	rxq_stats->rx_bytes += len;
+	u64_stats_update_end_irqrestore(&rxq_stats->syncp, flags);
 }
 
 static bool stmmac_rx_refill_zc(struct stmmac_priv *priv, u32 queue, u32 budget)
@@ -5042,6 +5084,7 @@ static struct stmmac_xdp_buff *xsk_buff_to_stmmac_ctx(struct xdp_buff *xdp)
 
 static int stmmac_rx_zc(struct stmmac_priv *priv, int limit, u32 queue)
 {
+	struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[queue];
 	struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[queue];
 	unsigned int count = 0, error = 0, len = 0;
 	int dirty = stmmac_rx_dirty(priv, queue);
@@ -5205,9 +5248,9 @@ read_again:
 
 	stmmac_finalize_xdp_rx(priv, xdp_status);
 
-	flags = u64_stats_update_begin_irqsave(&rx_q->rxq_stats.syncp);
-	rx_q->rxq_stats.rx_pkt_n += count;
-	u64_stats_update_end_irqrestore(&rx_q->rxq_stats.syncp, flags);
+	flags = u64_stats_update_begin_irqsave(&rxq_stats->syncp);
+	rxq_stats->rx_pkt_n += count;
+	u64_stats_update_end_irqrestore(&rxq_stats->syncp, flags);
 
 	priv->xstats.rx_dropped += rx_dropped;
 	priv->xstats.rx_errors += rx_errors;
@@ -5235,6 +5278,7 @@ read_again:
 static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 {
 	u32 rx_errors = 0, rx_dropped = 0, rx_bytes = 0, rx_packets = 0;
+	struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[queue];
 	struct stmmac_rx_queue *rx_q = &priv->dma_conf.rx_queue[queue];
 	struct stmmac_channel *ch = &priv->channel[queue];
 	unsigned int count = 0, error = 0, len = 0;
@@ -5250,6 +5294,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 
 	dma_dir = page_pool_get_dma_dir(rx_q->page_pool);
 	buf_sz = DIV_ROUND_UP(priv->dma_conf.dma_buf_sz, PAGE_SIZE) * PAGE_SIZE;
+	limit = min(priv->dma_conf.dma_rx_size - 1, (unsigned int)limit);
 
 	if (netif_msg_rx_status(priv)) {
 		void *rx_head;
@@ -5285,10 +5330,10 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit, u32 queue)
 			len = 0;
 		}
 
+read_again:
 		if (count >= limit)
 			break;
 
-read_again:
 		buf1_len = 0;
 		buf2_len = 0;
 		entry = next_entry;
@@ -5496,11 +5541,11 @@ drain_data:
 
 	stmmac_rx_refill(priv, queue);
 
-	flags = u64_stats_update_begin_irqsave(&rx_q->rxq_stats.syncp);
-	rx_q->rxq_stats.rx_packets += rx_packets;
-	rx_q->rxq_stats.rx_bytes += rx_bytes;
-	rx_q->rxq_stats.rx_pkt_n += count;
-	u64_stats_update_end_irqrestore(&rx_q->rxq_stats.syncp, flags);
+	flags = u64_stats_update_begin_irqsave(&rxq_stats->syncp);
+	rxq_stats->rx_packets += rx_packets;
+	rxq_stats->rx_bytes += rx_bytes;
+	rxq_stats->rx_pkt_n += count;
+	u64_stats_update_end_irqrestore(&rxq_stats->syncp, flags);
 
 	priv->xstats.rx_dropped += rx_dropped;
 	priv->xstats.rx_errors += rx_errors;
@@ -5513,15 +5558,15 @@ static int stmmac_napi_poll_rx(struct napi_struct *napi, int budget)
 	struct stmmac_channel *ch =
 		container_of(napi, struct stmmac_channel, rx_napi);
 	struct stmmac_priv *priv = ch->priv_data;
-	struct stmmac_rx_queue *rx_q;
+	struct stmmac_rxq_stats *rxq_stats;
 	u32 chan = ch->index;
 	unsigned long flags;
 	int work_done;
 
-	rx_q = &priv->dma_conf.rx_queue[chan];
-	flags = u64_stats_update_begin_irqsave(&rx_q->rxq_stats.syncp);
-	rx_q->rxq_stats.napi_poll++;
-	u64_stats_update_end_irqrestore(&rx_q->rxq_stats.syncp, flags);
+	rxq_stats = &priv->xstats.rxq_stats[chan];
+	flags = u64_stats_update_begin_irqsave(&rxq_stats->syncp);
+	rxq_stats->napi_poll++;
+	u64_stats_update_end_irqrestore(&rxq_stats->syncp, flags);
 
 	work_done = stmmac_rx(priv, budget, chan);
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
@@ -5540,17 +5585,18 @@ static int stmmac_napi_poll_tx(struct napi_struct *napi, int budget)
 	struct stmmac_channel *ch =
 		container_of(napi, struct stmmac_channel, tx_napi);
 	struct stmmac_priv *priv = ch->priv_data;
-	struct stmmac_tx_queue *tx_q;
+	struct stmmac_txq_stats *txq_stats;
+	bool pending_packets = false;
 	u32 chan = ch->index;
 	unsigned long flags;
 	int work_done;
 
-	tx_q = &priv->dma_conf.tx_queue[chan];
-	flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-	tx_q->txq_stats.napi_poll++;
-	u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+	txq_stats = &priv->xstats.txq_stats[chan];
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->napi_poll++;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 
-	work_done = stmmac_tx_clean(priv, budget, chan);
+	work_done = stmmac_tx_clean(priv, budget, chan, &pending_packets);
 	work_done = min(work_done, budget);
 
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
@@ -5561,6 +5607,10 @@ static int stmmac_napi_poll_tx(struct napi_struct *napi, int budget)
 		spin_unlock_irqrestore(&ch->lock, flags);
 	}
 
+	/* TX still have packet to handle, check if we need to arm tx timer */
+	if (pending_packets)
+		stmmac_tx_timer_arm(priv, chan);
+
 	return work_done;
 }
 
@@ -5569,23 +5619,24 @@ static int stmmac_napi_poll_rxtx(struct napi_struct *napi, int budget)
 	struct stmmac_channel *ch =
 		container_of(napi, struct stmmac_channel, rxtx_napi);
 	struct stmmac_priv *priv = ch->priv_data;
+	bool tx_pending_packets = false;
 	int rx_done, tx_done, rxtx_done;
-	struct stmmac_rx_queue *rx_q;
-	struct stmmac_tx_queue *tx_q;
+	struct stmmac_rxq_stats *rxq_stats;
+	struct stmmac_txq_stats *txq_stats;
 	u32 chan = ch->index;
 	unsigned long flags;
 
-	rx_q = &priv->dma_conf.rx_queue[chan];
-	flags = u64_stats_update_begin_irqsave(&rx_q->rxq_stats.syncp);
-	rx_q->rxq_stats.napi_poll++;
-	u64_stats_update_end_irqrestore(&rx_q->rxq_stats.syncp, flags);
+	rxq_stats = &priv->xstats.rxq_stats[chan];
+	flags = u64_stats_update_begin_irqsave(&rxq_stats->syncp);
+	rxq_stats->napi_poll++;
+	u64_stats_update_end_irqrestore(&rxq_stats->syncp, flags);
 
-	tx_q = &priv->dma_conf.tx_queue[chan];
-	flags = u64_stats_update_begin_irqsave(&tx_q->txq_stats.syncp);
-	tx_q->txq_stats.napi_poll++;
-	u64_stats_update_end_irqrestore(&tx_q->txq_stats.syncp, flags);
+	txq_stats = &priv->xstats.txq_stats[chan];
+	flags = u64_stats_update_begin_irqsave(&txq_stats->syncp);
+	txq_stats->napi_poll++;
+	u64_stats_update_end_irqrestore(&txq_stats->syncp, flags);
 
-	tx_done = stmmac_tx_clean(priv, budget, chan);
+	tx_done = stmmac_tx_clean(priv, budget, chan, &tx_pending_packets);
 	tx_done = min(tx_done, budget);
 
 	rx_done = stmmac_rx_zc(priv, budget, chan);
@@ -5609,6 +5660,10 @@ static int stmmac_napi_poll_rxtx(struct napi_struct *napi, int budget)
 		stmmac_enable_dma_irq(priv, priv->ioaddr, chan, 1, 1);
 		spin_unlock_irqrestore(&ch->lock, flags);
 	}
+
+	/* TX still have packet to handle, check if we need to arm tx timer */
+	if (tx_pending_packets)
+		stmmac_tx_timer_arm(priv, chan);
 
 	return min(rxtx_done, budget - 1);
 }
@@ -5785,6 +5840,7 @@ static void stmmac_fpe_event_status(struct stmmac_priv *priv, int status)
 		/* If user has requested FPE enable, quickly response */
 		if (*hs_enable)
 			stmmac_fpe_send_mpacket(priv, priv->ioaddr,
+						fpe_cfg,
 						MPACKET_RESPONSE);
 	}
 
@@ -5992,33 +6048,6 @@ static irqreturn_t stmmac_msi_intr_rx(int irq, void *data)
 
 	return IRQ_HANDLED;
 }
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-/* Polling receive - used by NETCONSOLE and other diagnostic tools
- * to allow network I/O with interrupts disabled.
- */
-static void stmmac_poll_controller(struct net_device *dev)
-{
-	struct stmmac_priv *priv = netdev_priv(dev);
-	int i;
-
-	/* If adapter is down, do nothing */
-	if (test_bit(STMMAC_DOWN, &priv->state))
-		return;
-
-	if (priv->plat->flags & STMMAC_FLAG_MULTI_MSI_EN) {
-		for (i = 0; i < priv->plat->rx_queues_to_use; i++)
-			stmmac_msi_intr_rx(0, &priv->dma_conf.rx_queue[i]);
-
-		for (i = 0; i < priv->plat->tx_queues_to_use; i++)
-			stmmac_msi_intr_tx(0, &priv->dma_conf.tx_queue[i]);
-	} else {
-		disable_irq(dev->irq);
-		stmmac_interrupt(dev->irq, dev);
-		enable_irq(dev->irq);
-	}
-}
-#endif
 
 /**
  *  stmmac_ioctl - Entry point for the Ioctl
@@ -6926,7 +6955,7 @@ static void stmmac_get_stats64(struct net_device *dev, struct rtnl_link_stats64 
 	int q;
 
 	for (q = 0; q < tx_cnt; q++) {
-		struct stmmac_txq_stats *txq_stats = &priv->dma_conf.tx_queue[q].txq_stats;
+		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[q];
 		u64 tx_packets;
 		u64 tx_bytes;
 
@@ -6941,7 +6970,7 @@ static void stmmac_get_stats64(struct net_device *dev, struct rtnl_link_stats64 
 	}
 
 	for (q = 0; q < rx_cnt; q++) {
-		struct stmmac_rxq_stats *rxq_stats = &priv->dma_conf.rx_queue[q].rxq_stats;
+		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[q];
 		u64 rx_packets;
 		u64 rx_bytes;
 
@@ -6980,9 +7009,6 @@ static const struct net_device_ops stmmac_netdev_ops = {
 	.ndo_get_stats64 = stmmac_get_stats64,
 	.ndo_setup_tc = stmmac_setup_tc,
 	.ndo_select_queue = stmmac_select_queue,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = stmmac_poll_controller,
-#endif
 	.ndo_set_mac_address = stmmac_set_mac_address,
 	.ndo_vlan_rx_add_vid = stmmac_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid = stmmac_vlan_rx_kill_vid,
@@ -7193,6 +7219,7 @@ int stmmac_reinit_queues(struct net_device *dev, u32 rx_cnt, u32 tx_cnt)
 			priv->rss.table[i] = ethtool_rxfh_indir_default(i,
 									rx_cnt);
 
+	stmmac_set_half_duplex(priv);
 	stmmac_napi_add(dev);
 
 	if (netif_running(dev))
@@ -7238,6 +7265,7 @@ static void stmmac_fpe_lp_task(struct work_struct *work)
 		if (*lo_state == FPE_STATE_ENTERING_ON &&
 		    *lp_state == FPE_STATE_ENTERING_ON) {
 			stmmac_fpe_configure(priv, priv->ioaddr,
+					     fpe_cfg,
 					     priv->plat->tx_queues_to_use,
 					     priv->plat->rx_queues_to_use,
 					     *enable);
@@ -7256,6 +7284,7 @@ static void stmmac_fpe_lp_task(struct work_struct *work)
 			netdev_info(priv->dev, SEND_VERIFY_MPAKCET_FMT,
 				    *lo_state, *lp_state);
 			stmmac_fpe_send_mpacket(priv, priv->ioaddr,
+						fpe_cfg,
 						MPACKET_VERIFY);
 		}
 		/* Sleep then retry */
@@ -7270,6 +7299,7 @@ void stmmac_fpe_handshake(struct stmmac_priv *priv, bool enable)
 	if (priv->plat->fpe_cfg->hs_enable != enable) {
 		if (enable) {
 			stmmac_fpe_send_mpacket(priv, priv->ioaddr,
+						priv->plat->fpe_cfg,
 						MPACKET_VERIFY);
 		} else {
 			priv->plat->fpe_cfg->lo_fpe_state = FPE_STATE_OFF;
@@ -7342,9 +7372,9 @@ int stmmac_dvr_probe(struct device *device,
 	priv->dev = ndev;
 
 	for (i = 0; i < MTL_MAX_RX_QUEUES; i++)
-		u64_stats_init(&priv->dma_conf.rx_queue[i].rxq_stats.syncp);
+		u64_stats_init(&priv->xstats.rxq_stats[i].syncp);
 	for (i = 0; i < MTL_MAX_TX_QUEUES; i++)
-		u64_stats_init(&priv->dma_conf.tx_queue[i].txq_stats.syncp);
+		u64_stats_init(&priv->xstats.txq_stats[i].syncp);
 
 	stmmac_set_ethtool_ops(ndev);
 	priv->pause = pause;
@@ -7730,6 +7760,7 @@ int stmmac_suspend(struct device *dev)
 	if (priv->dma_cap.fpesel) {
 		/* Disable FPE */
 		stmmac_fpe_configure(priv, priv->ioaddr,
+				     priv->plat->fpe_cfg,
 				     priv->plat->tx_queues_to_use,
 				     priv->plat->rx_queues_to_use, false);
 

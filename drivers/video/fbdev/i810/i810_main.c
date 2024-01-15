@@ -1547,6 +1547,7 @@ static const struct fb_ops i810fb_ops = {
 	.owner =             THIS_MODULE,
 	.fb_open =           i810fb_open,
 	.fb_release =        i810fb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var =      i810fb_check_var,
 	.fb_set_par =        i810fb_set_par,
 	.fb_setcolreg =      i810fb_setcolreg,
@@ -1557,6 +1558,7 @@ static const struct fb_ops i810fb_ops = {
 	.fb_imageblit =      i810fb_imageblit,
 	.fb_cursor =         i810fb_cursor,
 	.fb_sync =           i810fb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /***********************************************************************

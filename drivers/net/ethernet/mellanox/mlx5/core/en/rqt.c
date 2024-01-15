@@ -9,7 +9,7 @@ void mlx5e_rss_params_indir_init_uniform(struct mlx5e_rss_params_indir *indir,
 {
 	unsigned int i;
 
-	for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++)
+	for (i = 0; i < indir->actual_table_size; i++)
 		indir->table[i] = i % num_channels;
 }
 
@@ -45,9 +45,9 @@ static int mlx5e_rqt_init(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 }
 
 int mlx5e_rqt_init_direct(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
-			  bool indir_enabled, u32 init_rqn)
+			  bool indir_enabled, u32 init_rqn, u32 indir_table_size)
 {
-	u16 max_size = indir_enabled ? MLX5E_INDIR_RQT_SIZE : 1;
+	u16 max_size = indir_enabled ? indir_table_size : 1;
 
 	return mlx5e_rqt_init(rqt, mdev, max_size, &init_rqn, 1);
 }
@@ -68,11 +68,11 @@ static int mlx5e_calc_indir_rqns(u32 *rss_rqns, u32 *rqns, unsigned int num_rqns
 {
 	unsigned int i;
 
-	for (i = 0; i < MLX5E_INDIR_RQT_SIZE; i++) {
+	for (i = 0; i < indir->actual_table_size; i++) {
 		unsigned int ix = i;
 
 		if (hfunc == ETH_RSS_HASH_XOR)
-			ix = mlx5e_bits_invert(ix, ilog2(MLX5E_INDIR_RQT_SIZE));
+			ix = mlx5e_bits_invert(ix, ilog2(indir->actual_table_size));
 
 		ix = indir->table[ix];
 
@@ -94,7 +94,7 @@ int mlx5e_rqt_init_indir(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 	u32 *rss_rqns;
 	int err;
 
-	rss_rqns = kvmalloc_array(MLX5E_INDIR_RQT_SIZE, sizeof(*rss_rqns), GFP_KERNEL);
+	rss_rqns = kvmalloc_array(indir->actual_table_size, sizeof(*rss_rqns), GFP_KERNEL);
 	if (!rss_rqns)
 		return -ENOMEM;
 
@@ -102,11 +102,23 @@ int mlx5e_rqt_init_indir(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 	if (err)
 		goto out;
 
-	err = mlx5e_rqt_init(rqt, mdev, MLX5E_INDIR_RQT_SIZE, rss_rqns, MLX5E_INDIR_RQT_SIZE);
+	err = mlx5e_rqt_init(rqt, mdev, indir->max_table_size, rss_rqns,
+			     indir->actual_table_size);
 
 out:
 	kvfree(rss_rqns);
 	return err;
+}
+
+#define MLX5E_UNIFORM_SPREAD_RQT_FACTOR 2
+
+u32 mlx5e_rqt_size(struct mlx5_core_dev *mdev, unsigned int num_channels)
+{
+	u32 rqt_size = max_t(u32, MLX5E_INDIR_MIN_RQT_SIZE,
+			     roundup_pow_of_two(num_channels * MLX5E_UNIFORM_SPREAD_RQT_FACTOR));
+	u32 max_cap_rqt_size = 1 << MLX5_CAP_GEN(mdev, log_max_rqt_size);
+
+	return min_t(u32, rqt_size, max_cap_rqt_size);
 }
 
 void mlx5e_rqt_destroy(struct mlx5e_rqt *rqt)
@@ -151,10 +163,10 @@ int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, unsigned int num_
 	u32 *rss_rqns;
 	int err;
 
-	if (WARN_ON(rqt->size != MLX5E_INDIR_RQT_SIZE))
+	if (WARN_ON(rqt->size != indir->max_table_size))
 		return -EINVAL;
 
-	rss_rqns = kvmalloc_array(MLX5E_INDIR_RQT_SIZE, sizeof(*rss_rqns), GFP_KERNEL);
+	rss_rqns = kvmalloc_array(indir->actual_table_size, sizeof(*rss_rqns), GFP_KERNEL);
 	if (!rss_rqns)
 		return -ENOMEM;
 
@@ -162,7 +174,7 @@ int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, unsigned int num_
 	if (err)
 		goto out;
 
-	err = mlx5e_rqt_redirect(rqt, rss_rqns, MLX5E_INDIR_RQT_SIZE);
+	err = mlx5e_rqt_redirect(rqt, rss_rqns, indir->actual_table_size);
 
 out:
 	kvfree(rss_rqns);

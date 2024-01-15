@@ -1720,7 +1720,7 @@ static struct platform_driver sc8180x_pinctrl_driver = {
 		.acpi_match_table = sc8180x_pinctrl_acpi_match,
 	},
 	.probe = sc8180x_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init sc8180x_pinctrl_init(void)

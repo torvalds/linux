@@ -13,6 +13,7 @@ properties:
   compatible:
     enum:
       - qcom,sc7280-lpass-tx-macro
+      - qcom,sm6115-lpass-tx-macro
       - qcom,sm8250-lpass-tx-macro
       - qcom,sm8450-lpass-tx-macro
       - qcom,sm8550-lpass-tx-macro
@@ -94,6 +95,23 @@ allOf:
             - const: mclk
             - const: npl
             - const: macro
+            - const: dcodec
+            - const: fsgen
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,sm6115-lpass-tx-macro
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: mclk
+            - const: npl
             - const: dcodec
             - const: fsgen
 

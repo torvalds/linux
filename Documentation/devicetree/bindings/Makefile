@@ -6,7 +6,7 @@ DT_MK_SCHEMA ?= dt-mk-schema
 DT_SCHEMA_LINT = $(shell which yamllint || \
   echo "warning: python package 'yamllint' not installed, skipping" >&2)
 
-DT_SCHEMA_MIN_VERSION = 2022.3
+DT_SCHEMA_MIN_VERSION = 2023.9
 
 PHONY += check_dtschema_version
 check_dtschema_version:

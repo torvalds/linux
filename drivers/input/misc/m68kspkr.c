@@ -75,15 +75,13 @@ static int m68kspkr_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int m68kspkr_remove(struct platform_device *dev)
+static void m68kspkr_remove(struct platform_device *dev)
 {
 	struct input_dev *input_dev = platform_get_drvdata(dev);
 
 	input_unregister_device(input_dev);
 	/* turn off the speaker */
 	m68kspkr_event(NULL, EV_SND, SND_BELL, 0);
-
-	return 0;
 }
 
 static void m68kspkr_shutdown(struct platform_device *dev)
@@ -97,7 +95,7 @@ static struct platform_driver m68kspkr_platform_driver = {
 		.name	= "m68kspkr",
 	},
 	.probe		= m68kspkr_probe,
-	.remove		= m68kspkr_remove,
+	.remove_new	= m68kspkr_remove,
 	.shutdown	= m68kspkr_shutdown,
 };
 

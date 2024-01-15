@@ -5,10 +5,10 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 
@@ -32,20 +32,15 @@ MODULE_DEVICE_TABLE(of, kpss_xcc_match_table);
 static int kpss_xcc_driver_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *id;
 	void __iomem *base;
 	struct clk_hw *hw;
 	const char *name;
-
-	id = of_match_device(kpss_xcc_match_table, dev);
-	if (!id)
-		return -ENODEV;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	if (id->data) {
+	if (device_get_match_data(&pdev->dev)) {
 		if (of_property_read_string_index(dev->of_node,
 						  "clock-output-names",
 						  0, &name))

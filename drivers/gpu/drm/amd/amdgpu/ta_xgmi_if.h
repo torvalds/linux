@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Advanced Micro Devices, Inc.
+ * Copyright 2018-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,7 +20,6 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
-
 #ifndef _TA_XGMI_IF_H
 #define _TA_XGMI_IF_H
 
@@ -28,20 +27,31 @@
 #define RSP_ID_MASK (1U << 31)
 #define RSP_ID(cmdId) (((uint32_t)(cmdId)) | RSP_ID_MASK)
 
+#define EXTEND_PEER_LINK_INFO_CMD_FLAG 1
+
 enum ta_command_xgmi {
+	/* Initialize the Context and Session Topology */
 	TA_COMMAND_XGMI__INITIALIZE			= 0x00,
+	/* Gets the current GPU's node ID */
 	TA_COMMAND_XGMI__GET_NODE_ID			= 0x01,
+	/* Gets the current GPU's hive ID */
 	TA_COMMAND_XGMI__GET_HIVE_ID			= 0x02,
-	TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO		= 0x03,
+	/* Gets the Peer's topology Information */
+	TA_COMMAND_XGMI__GET_TOPOLOGY_INFO		= 0x03,
+	/* Sets the Peer's topology Information */
 	TA_COMMAND_XGMI__SET_TOPOLOGY_INFO		= 0x04,
-	TA_COMMAND_XGMI__GET_PEER_LINKS			= 0x0B
+	/* Gets the total links between adjacent peer dies in hive */
+	TA_COMMAND_XGMI__GET_PEER_LINKS			= 0x0B,
+	/* Gets the total links and connected port numbers between adjacent peer dies in hive */
+	TA_COMMAND_XGMI__GET_EXTEND_PEER_LINKS		= 0x0C
 };
 
 /* XGMI related enumerations */
 /**********************************************************/;
-enum ta_xgmi_connected_nodes {
-	TA_XGMI__MAX_CONNECTED_NODES			= 64
-};
+enum { TA_XGMI__MAX_CONNECTED_NODES = 64 };
+enum { TA_XGMI__MAX_INTERNAL_STATE = 32 };
+enum { TA_XGMI__MAX_INTERNAL_STATE_BUFFER = 128 };
+enum { TA_XGMI__MAX_PORT_NUM = 8 };
 
 enum ta_xgmi_status {
 	TA_XGMI_STATUS__SUCCESS				= 0x00,
@@ -81,6 +91,18 @@ struct ta_xgmi_peer_link_info {
 	uint8_t					num_links;
 };
 
+struct xgmi_connected_port_num {
+	uint8_t		dst_xgmi_port_num;
+	uint8_t		src_xgmi_port_num;
+};
+
+/* support both the port num and num_links */
+struct ta_xgmi_extend_peer_link_info {
+	uint64_t				node_id;
+	uint8_t					num_links;
+	struct xgmi_connected_port_num		port_num[TA_XGMI__MAX_PORT_NUM];
+};
+
 struct ta_xgmi_cmd_initialize_output {
 	uint32_t	status;
 };
@@ -103,16 +125,21 @@ struct ta_xgmi_cmd_get_topology_info_output {
 	struct ta_xgmi_node_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
 };
 
-struct ta_xgmi_cmd_get_peer_link_info_output {
-	uint32_t			num_nodes;
-	struct ta_xgmi_peer_link_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
-};
-
 struct ta_xgmi_cmd_set_topology_info_input {
 	uint32_t			num_nodes;
 	struct ta_xgmi_node_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
 };
 
+/* support XGMI TA w/ and w/o port_num both so two similar structs defined */
+struct ta_xgmi_cmd_get_peer_link_info {
+	uint32_t			num_nodes;
+	struct ta_xgmi_peer_link_info	nodes[TA_XGMI__MAX_CONNECTED_NODES];
+};
+
+struct ta_xgmi_cmd_get_extend_peer_link_info {
+	uint32_t				num_nodes;
+	struct ta_xgmi_extend_peer_link_info nodes[TA_XGMI__MAX_CONNECTED_NODES];
+};
 /**********************************************************/
 /* Common input structure for XGMI callbacks */
 union ta_xgmi_cmd_input {
@@ -126,16 +153,23 @@ union ta_xgmi_cmd_output {
 	struct ta_xgmi_cmd_get_node_id_output		get_node_id;
 	struct ta_xgmi_cmd_get_hive_id_output		get_hive_id;
 	struct ta_xgmi_cmd_get_topology_info_output	get_topology_info;
-	struct ta_xgmi_cmd_get_peer_link_info_output	get_link_info;
+	struct ta_xgmi_cmd_get_peer_link_info		get_link_info;
+	struct ta_xgmi_cmd_get_extend_peer_link_info	get_extend_link_info;
 };
-/**********************************************************/
 
 struct ta_xgmi_shared_memory {
 	uint32_t			cmd_id;
 	uint32_t			resp_id;
 	enum ta_xgmi_status		xgmi_status;
+
+	/* if the number of xgmi link record is more than 128, driver will set the
+	 * flag 0 to get the first 128 of the link records and will set to 1, to get
+	 * the second set
+	 */
 	uint8_t				flag_extend_link_record;
-	uint8_t				reserved0[3];
+	/* bit0: port_num info support flag for GET_EXTEND_PEER_LINKS commmand */
+	uint8_t				caps_flag;
+	uint8_t				reserved[2];
 	union ta_xgmi_cmd_input		xgmi_in_message;
 	union ta_xgmi_cmd_output	xgmi_out_message;
 };

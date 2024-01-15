@@ -26,6 +26,8 @@
 #include <asm/page.h>
 #include <asm/processor.h>
 
+#include "ptrace.h"
+
 /*
  * does not yet catch signals sent when the child dies.
  * in exit.c or in signal.c.

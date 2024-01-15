@@ -21,8 +21,9 @@
 
 #include "kernfs-internal.h"
 
-struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
-struct kernfs_global_locks *kernfs_locks;
+struct kmem_cache *kernfs_node_cache __ro_after_init;
+struct kmem_cache *kernfs_iattrs_cache __ro_after_init;
+struct kernfs_global_locks *kernfs_locks __ro_after_init;
 
 static int kernfs_sop_show_options(struct seq_file *sf, struct dentry *dentry)
 {
@@ -265,7 +266,7 @@ static int kernfs_fill_super(struct super_block *sb, struct kernfs_fs_context *k
 	sb->s_time_gran = 1;
 
 	/* sysfs dentries and inodes don't require IO to create */
-	sb->s_shrink.seeks = 0;
+	sb->s_shrink->seeks = 0;
 
 	/* get root inode, initialize and unlock it */
 	down_read(&kf_root->kernfs_rwsem);

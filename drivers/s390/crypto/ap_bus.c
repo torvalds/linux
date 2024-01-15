@@ -352,7 +352,7 @@ EXPORT_SYMBOL(ap_test_config_ctrl_domain);
 /*
  * ap_queue_info(): Check and get AP queue info.
  * Returns: 1 if APQN exists and info is filled,
- *	    0 if APQN seems to exit but there is no info
+ *	    0 if APQN seems to exist but there is no info
  *	      available (eg. caused by an asynch pending error)
  *	   -1 invalid APQN, TAPQ error or AP queue status which
  *	      indicates there is no APQN.
@@ -373,36 +373,33 @@ static int ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 	/* call TAPQ on this APQN */
 	status = ap_test_queue(qid, ap_apft_available(), &tapq_info);
 
-	/* handle pending async error with return 'no info available' */
-	if (status.async)
-		return 0;
-
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
 	case AP_RESPONSE_RESET_IN_PROGRESS:
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
 	case AP_RESPONSE_BUSY:
-		/*
-		 * According to the architecture in all these cases the
-		 * info should be filled. All bits 0 is not possible as
-		 * there is at least one of the mode bits set.
-		 */
-		if (WARN_ON_ONCE(!tapq_info.value))
-			return 0;
-		*q_type = tapq_info.at;
-		*q_fac = tapq_info.fac;
-		*q_depth = tapq_info.qd;
-		*q_ml = tapq_info.ml;
-		*q_decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
-		*q_cstop = status.response_code == AP_RESPONSE_CHECKSTOPPED;
-		return 1;
+		/* For all these RCs the tapq info should be available */
+		break;
 	default:
-		/*
-		 * A response code which indicates, there is no info available.
-		 */
-		return -1;
+		/* On a pending async error the info should be available */
+		if (!status.async)
+			return -1;
+		break;
 	}
+
+	/* There should be at least one of the mode bits set */
+	if (WARN_ON_ONCE(!tapq_info.value))
+		return 0;
+
+	*q_type = tapq_info.at;
+	*q_fac = tapq_info.fac;
+	*q_depth = tapq_info.qd;
+	*q_ml = tapq_info.ml;
+	*q_decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
+	*q_cstop = status.response_code == AP_RESPONSE_CHECKSTOPPED;
+
+	return 1;
 }
 
 void ap_wait(enum ap_sm_wait wait)
@@ -1022,6 +1019,10 @@ EXPORT_SYMBOL(ap_driver_unregister);
 
 void ap_bus_force_rescan(void)
 {
+	/* Only trigger AP bus scans after the initial scan is done */
+	if (atomic64_read(&ap_scan_bus_count) <= 0)
+		return;
+
 	/* processing a asynchronous bus rescan */
 	del_timer(&ap_config_timer);
 	queue_work(system_long_wq, &ap_scan_work);
@@ -1865,15 +1866,18 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			}
 			/* get it and thus adjust reference counter */
 			get_device(dev);
-			if (decfg)
+			if (decfg) {
 				AP_DBF_INFO("%s(%d,%d) new (decfg) queue dev created\n",
 					    __func__, ac->id, dom);
-			else if (chkstop)
+			} else if (chkstop) {
 				AP_DBF_INFO("%s(%d,%d) new (chkstop) queue dev created\n",
 					    __func__, ac->id, dom);
-			else
+			} else {
+				/* nudge the queue's state machine */
+				ap_queue_init_state(aq);
 				AP_DBF_INFO("%s(%d,%d) new queue dev created\n",
 					    __func__, ac->id, dom);
+			}
 			goto put_dev_and_continue;
 		}
 		/* handle state changes on already existing queue device */
@@ -1895,10 +1899,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		} else if (!chkstop && aq->chkstop) {
 			/* checkstop off */
 			aq->chkstop = false;
-			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
-				aq->dev_state = AP_DEV_STATE_OPERATING;
-				aq->sm_state = AP_SM_STATE_RESET_START;
-			}
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_DBG("%s(%d,%d) queue dev checkstop off\n",
 				   __func__, ac->id, dom);
@@ -1922,10 +1924,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		} else if (!decfg && !aq->config) {
 			/* config on this queue device */
 			aq->config = true;
-			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
-				aq->dev_state = AP_DEV_STATE_OPERATING;
-				aq->sm_state = AP_SM_STATE_RESET_START;
-			}
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_DBG("%s(%d,%d) queue dev config on\n",
 				   __func__, ac->id, dom);

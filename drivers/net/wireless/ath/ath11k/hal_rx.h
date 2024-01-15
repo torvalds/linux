@@ -149,7 +149,7 @@ struct hal_rx_mon_ppdu_info {
 	u8 beamformed;
 	u8 rssi_comb;
 	u8 rssi_chain_pri20[HAL_RX_MAX_NSS];
-	u8 tid;
+	u16 tid;
 	u16 ht_flags;
 	u16 vht_flags;
 	u16 he_flags;
@@ -219,11 +219,11 @@ struct hal_rx_ppdu_start {
 #define HAL_RX_PPDU_END_USER_STATS_INFO5_OTHER_MSDU_CNT		GENMASK(15, 0)
 #define HAL_RX_PPDU_END_USER_STATS_INFO5_TCP_ACK_MSDU_CNT	GENMASK(31, 16)
 
-#define HAL_RX_PPDU_END_USER_STATS_INFO6_TID_BITMAP		GENMASK(15, 0)
-#define HAL_RX_PPDU_END_USER_STATS_INFO6_TID_EOSP_BITMAP	GENMASK(31, 16)
+#define HAL_RX_PPDU_END_USER_STATS_INFO7_TID_BITMAP		GENMASK(15, 0)
+#define HAL_RX_PPDU_END_USER_STATS_INFO7_TID_EOSP_BITMAP	GENMASK(31, 16)
 
-#define HAL_RX_PPDU_END_USER_STATS_RSVD2_6_MPDU_OK_BYTE_COUNT	GENMASK(24, 0)
-#define HAL_RX_PPDU_END_USER_STATS_RSVD2_8_MPDU_ERR_BYTE_COUNT	GENMASK(24, 0)
+#define HAL_RX_PPDU_END_USER_STATS_INFO8_MPDU_OK_BYTE_COUNT	GENMASK(24, 0)
+#define HAL_RX_PPDU_END_USER_STATS_INFO9_MPDU_ERR_BYTE_COUNT	GENMASK(24, 0)
 
 struct hal_rx_ppdu_end_user_stats {
 	__le32 rsvd0[2];
@@ -236,7 +236,13 @@ struct hal_rx_ppdu_end_user_stats {
 	__le32 info4;
 	__le32 info5;
 	__le32 info6;
-	__le32 rsvd2[11];
+	__le32 info7;
+	__le32 rsvd2[4];
+	__le32 info8;
+	__le32 rsvd3;
+	__le32 info9;
+	__le32 rsvd4[2];
+	__le32 info10;
 } __packed;
 
 struct hal_rx_ppdu_end_user_stats_ext {

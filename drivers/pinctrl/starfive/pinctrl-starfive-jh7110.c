@@ -545,16 +545,6 @@ static const struct pinconf_ops jh7110_pinconf_ops = {
 	.is_generic		= true,
 };
 
-static int jh7110_gpio_request(struct gpio_chip *gc, unsigned int gpio)
-{
-	return pinctrl_gpio_request(gc->base + gpio);
-}
-
-static void jh7110_gpio_free(struct gpio_chip *gc, unsigned int gpio)
-{
-	pinctrl_gpio_free(gc->base + gpio);
-}
-
 static int jh7110_gpio_get_direction(struct gpio_chip *gc,
 				     unsigned int gpio)
 {
@@ -872,6 +862,13 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	if (!sfp)
 		return -ENOMEM;
 
+#if IS_ENABLED(CONFIG_PM_SLEEP)
+	sfp->saved_regs = devm_kcalloc(dev, info->nsaved_regs,
+				       sizeof(*sfp->saved_regs), GFP_KERNEL);
+	if (!sfp->saved_regs)
+		return -ENOMEM;
+#endif
+
 	sfp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sfp->base))
 		return PTR_ERR(sfp->base);
@@ -933,8 +930,8 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 
 	sfp->gc.label = dev_name(dev);
 	sfp->gc.owner = THIS_MODULE;
-	sfp->gc.request = jh7110_gpio_request;
-	sfp->gc.free = jh7110_gpio_free;
+	sfp->gc.request = pinctrl_gpio_request;
+	sfp->gc.free = pinctrl_gpio_free;
 	sfp->gc.get_direction = jh7110_gpio_get_direction;
 	sfp->gc.direction_input = jh7110_gpio_direction_input;
 	sfp->gc.direction_output = jh7110_gpio_direction_output;
@@ -967,13 +964,44 @@ int jh7110_pinctrl_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "could not register gpiochip\n");
 
-	irq_domain_set_pm_device(sfp->gc.irq.domain, dev);
-
 	dev_info(dev, "StarFive GPIO chip registered %d GPIOs\n", sfp->gc.ngpio);
 
 	return pinctrl_enable(sfp->pctl);
 }
 EXPORT_SYMBOL_GPL(jh7110_pinctrl_probe);
+
+static int jh7110_pinctrl_suspend(struct device *dev)
+{
+	struct jh7110_pinctrl *sfp = dev_get_drvdata(dev);
+	unsigned long flags;
+	unsigned int i;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	for (i = 0 ; i < sfp->info->nsaved_regs ; i++)
+		sfp->saved_regs[i] = readl_relaxed(sfp->base + 4 * i);
+
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+	return 0;
+}
+
+static int jh7110_pinctrl_resume(struct device *dev)
+{
+	struct jh7110_pinctrl *sfp = dev_get_drvdata(dev);
+	unsigned long flags;
+	unsigned int i;
+
+	raw_spin_lock_irqsave(&sfp->lock, flags);
+	for (i = 0 ; i < sfp->info->nsaved_regs ; i++)
+		writel_relaxed(sfp->saved_regs[i], sfp->base + 4 * i);
+
+	raw_spin_unlock_irqrestore(&sfp->lock, flags);
+	return 0;
+}
+
+const struct dev_pm_ops jh7110_pinctrl_pm_ops = {
+	LATE_SYSTEM_SLEEP_PM_OPS(jh7110_pinctrl_suspend, jh7110_pinctrl_resume)
+};
+EXPORT_SYMBOL_GPL(jh7110_pinctrl_pm_ops);
 
 MODULE_DESCRIPTION("Pinctrl driver for the StarFive JH7110 SoC");
 MODULE_AUTHOR("Emil Renner Berthing <kernel@esmil.dk>");

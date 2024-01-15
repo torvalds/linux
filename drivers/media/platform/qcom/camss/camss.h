@@ -41,19 +41,15 @@
 
 #define CAMSS_RES_MAX 17
 
-struct resources {
+struct camss_subdev_resources {
 	char *regulators[CAMSS_RES_MAX];
 	char *clock[CAMSS_RES_MAX];
+	char *clock_for_reset[CAMSS_RES_MAX];
 	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
 	char *interrupt[CAMSS_RES_MAX];
-};
-
-struct resources_ispif {
-	char *clock[CAMSS_RES_MAX];
-	char *clock_for_reset[CAMSS_RES_MAX];
-	char *reg[CAMSS_RES_MAX];
-	char *interrupt;
+	u8 line_num;
+	const void *ops;
 };
 
 struct icc_bw_tbl {
@@ -85,26 +81,36 @@ enum icc_count {
 	ICC_SM8250_COUNT = 4,
 };
 
-struct camss {
+struct camss_resources {
 	enum camss_version version;
+	const struct camss_subdev_resources *csiphy_res;
+	const struct camss_subdev_resources *csid_res;
+	const struct camss_subdev_resources *ispif_res;
+	const struct camss_subdev_resources *vfe_res;
+	const struct resources_icc *icc_res;
+	const unsigned int icc_path_num;
+	const unsigned int csiphy_num;
+	const unsigned int csid_num;
+	const unsigned int vfe_num;
+	const unsigned int vfe_lite_num;
+};
+
+struct camss {
 	struct v4l2_device v4l2_dev;
 	struct v4l2_async_notifier notifier;
 	struct media_device media_dev;
 	struct device *dev;
-	int csiphy_num;
 	struct csiphy_device *csiphy;
-	int csid_num;
 	struct csid_device *csid;
 	struct ispif_device *ispif;
-	int vfe_num;
-	int vfe_lite_num;
 	struct vfe_device *vfe;
 	atomic_t ref_count;
 	int genpd_num;
 	struct device **genpd;
 	struct device_link **genpd_link;
 	struct icc_path *icc_path[ICC_SM8250_COUNT];
-	struct icc_bw_tbl icc_bw_tbl[ICC_SM8250_COUNT];
+	const struct camss_resources *res;
+	unsigned int vfe_total_num;
 };
 
 struct camss_camera_interface {

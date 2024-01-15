@@ -1428,7 +1428,7 @@ abituguru_probe_error:
 	return res;
 }
 
-static int abituguru_remove(struct platform_device *pdev)
+static void abituguru_remove(struct platform_device *pdev)
 {
 	int i;
 	struct abituguru_data *data = platform_get_drvdata(pdev);
@@ -1439,8 +1439,6 @@ static int abituguru_remove(struct platform_device *pdev)
 	for (i = 0; i < ARRAY_SIZE(abituguru_sysfs_attr); i++)
 		device_remove_file(&pdev->dev,
 			&abituguru_sysfs_attr[i].dev_attr);
-
-	return 0;
 }
 
 static struct abituguru_data *abituguru_update_device(struct device *dev)
@@ -1533,7 +1531,7 @@ static struct platform_driver abituguru_driver = {
 		.pm	= pm_sleep_ptr(&abituguru_pm),
 	},
 	.probe		= abituguru_probe,
-	.remove		= abituguru_remove,
+	.remove_new	= abituguru_remove,
 };
 
 static int __init abituguru_detect(void)

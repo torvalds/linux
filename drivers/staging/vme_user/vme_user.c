@@ -37,7 +37,7 @@
 #include "vme.h"
 #include "vme_user.h"
 
-static const char driver_name[] = "vme_user";
+#define DRIVER_NAME "vme_user"
 
 static int bus[VME_USER_BUS_MAX];
 static unsigned int bus_num;
@@ -101,9 +101,11 @@ struct image_desc {
 static struct image_desc image[VME_DEVS];
 
 static struct cdev *vme_user_cdev;		/* Character device */
-static struct class *vme_user_sysfs_class;	/* Sysfs class */
 static struct vme_dev *vme_user_bridge;		/* Pointer to user device */
 
+static const struct class vme_user_sysfs_class = {
+	.name = DRIVER_NAME,
+};
 static const int type[VME_DEVS] = {	MASTER_MINOR,	MASTER_MINOR,
 					MASTER_MINOR,	MASTER_MINOR,
 					SLAVE_MINOR,	SLAVE_MINOR,
@@ -540,8 +542,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 	}
 
 	/* Assign major and minor numbers for the driver */
-	err = register_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS,
-				     driver_name);
+	err = register_chrdev_region(MKDEV(VME_MAJOR, 0), VME_DEVS, DRIVER_NAME);
 	if (err) {
 		dev_warn(&vdev->dev, "Error getting Major Number %d for driver.\n",
 			 VME_MAJOR);
@@ -614,10 +615,9 @@ static int vme_user_probe(struct vme_dev *vdev)
 	}
 
 	/* Create sysfs entries - on udev systems this creates the dev files */
-	vme_user_sysfs_class = class_create(driver_name);
-	if (IS_ERR(vme_user_sysfs_class)) {
+	err = class_register(&vme_user_sysfs_class);
+	if (err) {
 		dev_err(&vdev->dev, "Error creating vme_user class.\n");
-		err = PTR_ERR(vme_user_sysfs_class);
 		goto err_master;
 	}
 
@@ -641,7 +641,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		}
 
 		num = (type[i] == SLAVE_MINOR) ? i - (MASTER_MAX + 1) : i;
-		image[i].device = device_create(vme_user_sysfs_class, NULL,
+		image[i].device = device_create(&vme_user_sysfs_class, NULL,
 						MKDEV(VME_MAJOR, i), NULL,
 						name, num);
 		if (IS_ERR(image[i].device)) {
@@ -656,9 +656,9 @@ static int vme_user_probe(struct vme_dev *vdev)
 err_sysfs:
 	while (i > 0) {
 		i--;
-		device_destroy(vme_user_sysfs_class, MKDEV(VME_MAJOR, i));
+		device_destroy(&vme_user_sysfs_class, MKDEV(VME_MAJOR, i));
 	}
-	class_destroy(vme_user_sysfs_class);
+	class_unregister(&vme_user_sysfs_class);
 
 	/* Ensure counter set correctly to unalloc all master windows */
 	i = MASTER_MAX + 1;
@@ -696,9 +696,9 @@ static void vme_user_remove(struct vme_dev *dev)
 	/* Remove sysfs Entries */
 	for (i = 0; i < VME_DEVS; i++) {
 		mutex_destroy(&image[i].mutex);
-		device_destroy(vme_user_sysfs_class, MKDEV(VME_MAJOR, i));
+		device_destroy(&vme_user_sysfs_class, MKDEV(VME_MAJOR, i));
 	}
-	class_destroy(vme_user_sysfs_class);
+	class_unregister(&vme_user_sysfs_class);
 
 	for (i = MASTER_MINOR; i < (MASTER_MAX + 1); i++) {
 		kfree(image[i].kern_buf);
@@ -720,7 +720,7 @@ static void vme_user_remove(struct vme_dev *dev)
 }
 
 static struct vme_driver vme_user_driver = {
-	.name = driver_name,
+	.name = DRIVER_NAME,
 	.match = vme_user_match,
 	.probe = vme_user_probe,
 	.remove = vme_user_remove,

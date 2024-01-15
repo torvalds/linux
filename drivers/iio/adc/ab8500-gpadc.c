@@ -1179,7 +1179,7 @@ out_dis_pm:
 	return ret;
 }
 
-static int ab8500_gpadc_remove(struct platform_device *pdev)
+static void ab8500_gpadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct ab8500_gpadc *gpadc = iio_priv(indio_dev);
@@ -1188,8 +1188,6 @@ static int ab8500_gpadc_remove(struct platform_device *pdev)
 	pm_runtime_put_noidle(gpadc->dev);
 	pm_runtime_disable(gpadc->dev);
 	regulator_disable(gpadc->vddadc);
-
-	return 0;
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(ab8500_gpadc_pm_ops,
@@ -1198,7 +1196,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(ab8500_gpadc_pm_ops,
 
 static struct platform_driver ab8500_gpadc_driver = {
 	.probe = ab8500_gpadc_probe,
-	.remove = ab8500_gpadc_remove,
+	.remove_new = ab8500_gpadc_remove,
 	.driver = {
 		.name = "ab8500-gpadc",
 		.pm = pm_ptr(&ab8500_gpadc_pm_ops),

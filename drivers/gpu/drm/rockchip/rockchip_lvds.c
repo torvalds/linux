@@ -27,7 +27,6 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include "rockchip_drm_drv.h"
-#include "rockchip_drm_vop.h"
 #include "rockchip_lvds.h"
 
 #define DISPLAY_OUTPUT_RGB		0
@@ -752,6 +751,6 @@ struct platform_driver rockchip_lvds_driver = {
 	.remove_new = rockchip_lvds_remove,
 	.driver = {
 		   .name = "rockchip-lvds",
-		   .of_match_table = of_match_ptr(rockchip_lvds_dt_ids),
+		   .of_match_table = rockchip_lvds_dt_ids,
 	},
 };

@@ -981,7 +981,7 @@ static int phy_check_link_status(struct phy_device *phydev)
  *   If the PHYCONTROL Layer is operating, we change the state to
  *   reflect the beginning of Auto-negotiation or forcing.
  */
-static int _phy_start_aneg(struct phy_device *phydev)
+int _phy_start_aneg(struct phy_device *phydev)
 {
 	int err;
 
@@ -1002,6 +1002,7 @@ static int _phy_start_aneg(struct phy_device *phydev)
 
 	return err;
 }
+EXPORT_SYMBOL(_phy_start_aneg);
 
 /**
  * phy_start_aneg - start auto-negotiation for this PHY device
@@ -1231,9 +1232,7 @@ static void phy_error_precise(struct phy_device *phydev,
 			      const void *func, int err)
 {
 	WARN(1, "%pS: returned: %d\n", func, err);
-	mutex_lock(&phydev->lock);
 	phy_process_error(phydev);
-	mutex_unlock(&phydev->lock);
 }
 
 /**
@@ -1355,6 +1354,113 @@ void phy_free_interrupt(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_free_interrupt);
 
+enum phy_state_work {
+	PHY_STATE_WORK_NONE,
+	PHY_STATE_WORK_ANEG,
+	PHY_STATE_WORK_SUSPEND,
+};
+
+static enum phy_state_work _phy_state_machine(struct phy_device *phydev)
+{
+	enum phy_state_work state_work = PHY_STATE_WORK_NONE;
+	struct net_device *dev = phydev->attached_dev;
+	enum phy_state old_state = phydev->state;
+	const void *func = NULL;
+	bool finished = false;
+	int err = 0;
+
+	switch (phydev->state) {
+	case PHY_DOWN:
+	case PHY_READY:
+		break;
+	case PHY_UP:
+		state_work = PHY_STATE_WORK_ANEG;
+		break;
+	case PHY_NOLINK:
+	case PHY_RUNNING:
+		err = phy_check_link_status(phydev);
+		func = &phy_check_link_status;
+		break;
+	case PHY_CABLETEST:
+		err = phydev->drv->cable_test_get_status(phydev, &finished);
+		if (err) {
+			phy_abort_cable_test(phydev);
+			netif_testing_off(dev);
+			state_work = PHY_STATE_WORK_ANEG;
+			phydev->state = PHY_UP;
+			break;
+		}
+
+		if (finished) {
+			ethnl_cable_test_finished(phydev);
+			netif_testing_off(dev);
+			state_work = PHY_STATE_WORK_ANEG;
+			phydev->state = PHY_UP;
+		}
+		break;
+	case PHY_HALTED:
+	case PHY_ERROR:
+		if (phydev->link) {
+			phydev->link = 0;
+			phy_link_down(phydev);
+		}
+		state_work = PHY_STATE_WORK_SUSPEND;
+		break;
+	}
+
+	if (state_work == PHY_STATE_WORK_ANEG) {
+		err = _phy_start_aneg(phydev);
+		func = &_phy_start_aneg;
+	}
+
+	if (err == -ENODEV)
+		return state_work;
+
+	if (err < 0)
+		phy_error_precise(phydev, func, err);
+
+	phy_process_state_change(phydev, old_state);
+
+	/* Only re-schedule a PHY state machine change if we are polling the
+	 * PHY, if PHY_MAC_INTERRUPT is set, then we will be moving
+	 * between states from phy_mac_interrupt().
+	 *
+	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
+	 * state machine would be pointless and possibly error prone when
+	 * called from phy_disconnect() synchronously.
+	 */
+	if (phy_polling_mode(phydev) && phy_is_started(phydev))
+		phy_queue_state_machine(phydev, PHY_STATE_TIME);
+
+	return state_work;
+}
+
+/* unlocked part of the PHY state machine */
+static void _phy_state_machine_post_work(struct phy_device *phydev,
+					 enum phy_state_work state_work)
+{
+	if (state_work == PHY_STATE_WORK_SUSPEND)
+		phy_suspend(phydev);
+}
+
+/**
+ * phy_state_machine - Handle the state machine
+ * @work: work_struct that describes the work to be done
+ */
+void phy_state_machine(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct phy_device *phydev =
+			container_of(dwork, struct phy_device, state_queue);
+	enum phy_state_work state_work;
+
+	mutex_lock(&phydev->lock);
+	state_work = _phy_state_machine(phydev);
+	mutex_unlock(&phydev->lock);
+
+	_phy_state_machine_post_work(phydev, state_work);
+}
+
 /**
  * phy_stop - Bring down the PHY link, and stop checking the status
  * @phydev: target phy_device struct
@@ -1362,6 +1468,7 @@ EXPORT_SYMBOL(phy_free_interrupt);
 void phy_stop(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;
+	enum phy_state_work state_work;
 	enum phy_state old_state;
 
 	if (!phy_is_started(phydev) && phydev->state != PHY_DOWN &&
@@ -1385,9 +1492,10 @@ void phy_stop(struct phy_device *phydev)
 	phydev->state = PHY_HALTED;
 	phy_process_state_change(phydev, old_state);
 
+	state_work = _phy_state_machine(phydev);
 	mutex_unlock(&phydev->lock);
 
-	phy_state_machine(&phydev->state_queue.work);
+	_phy_state_machine_post_work(phydev, state_work);
 	phy_stop_machine(phydev);
 
 	/* Cannot call flush_scheduled_work() here as desired because
@@ -1430,97 +1538,6 @@ out:
 	mutex_unlock(&phydev->lock);
 }
 EXPORT_SYMBOL(phy_start);
-
-/**
- * phy_state_machine - Handle the state machine
- * @work: work_struct that describes the work to be done
- */
-void phy_state_machine(struct work_struct *work)
-{
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct phy_device *phydev =
-			container_of(dwork, struct phy_device, state_queue);
-	struct net_device *dev = phydev->attached_dev;
-	bool needs_aneg = false, do_suspend = false;
-	enum phy_state old_state;
-	const void *func = NULL;
-	bool finished = false;
-	int err = 0;
-
-	mutex_lock(&phydev->lock);
-
-	old_state = phydev->state;
-
-	switch (phydev->state) {
-	case PHY_DOWN:
-	case PHY_READY:
-		break;
-	case PHY_UP:
-		needs_aneg = true;
-
-		break;
-	case PHY_NOLINK:
-	case PHY_RUNNING:
-		err = phy_check_link_status(phydev);
-		func = &phy_check_link_status;
-		break;
-	case PHY_CABLETEST:
-		err = phydev->drv->cable_test_get_status(phydev, &finished);
-		if (err) {
-			phy_abort_cable_test(phydev);
-			netif_testing_off(dev);
-			needs_aneg = true;
-			phydev->state = PHY_UP;
-			break;
-		}
-
-		if (finished) {
-			ethnl_cable_test_finished(phydev);
-			netif_testing_off(dev);
-			needs_aneg = true;
-			phydev->state = PHY_UP;
-		}
-		break;
-	case PHY_HALTED:
-	case PHY_ERROR:
-		if (phydev->link) {
-			phydev->link = 0;
-			phy_link_down(phydev);
-		}
-		do_suspend = true;
-		break;
-	}
-
-	mutex_unlock(&phydev->lock);
-
-	if (needs_aneg) {
-		err = phy_start_aneg(phydev);
-		func = &phy_start_aneg;
-	} else if (do_suspend) {
-		phy_suspend(phydev);
-	}
-
-	if (err == -ENODEV)
-		return;
-
-	if (err < 0)
-		phy_error_precise(phydev, func, err);
-
-	phy_process_state_change(phydev, old_state);
-
-	/* Only re-schedule a PHY state machine change if we are polling the
-	 * PHY, if PHY_MAC_INTERRUPT is set, then we will be moving
-	 * between states from phy_mac_interrupt().
-	 *
-	 * In state PHY_HALTED the PHY gets suspended, so rescheduling the
-	 * state machine would be pointless and possibly error prone when
-	 * called from phy_disconnect() synchronously.
-	 */
-	mutex_lock(&phydev->lock);
-	if (phy_polling_mode(phydev) && phy_is_started(phydev))
-		phy_queue_state_machine(phydev, PHY_STATE_TIME);
-	mutex_unlock(&phydev->lock);
-}
 
 /**
  * phy_mac_interrupt - MAC says the link has changed

@@ -98,7 +98,7 @@ static struct buffer_head *ext2_xattr_cache_find(struct inode *,
 static void ext2_xattr_rehash(struct ext2_xattr_header *,
 			      struct ext2_xattr_entry *);
 
-static const struct xattr_handler *ext2_xattr_handler_map[] = {
+static const struct xattr_handler * const ext2_xattr_handler_map[] = {
 	[EXT2_XATTR_INDEX_USER]		     = &ext2_xattr_user_handler,
 #ifdef CONFIG_EXT2_FS_POSIX_ACL
 	[EXT2_XATTR_INDEX_POSIX_ACL_ACCESS]  = &nop_posix_acl_access,
@@ -110,7 +110,7 @@ static const struct xattr_handler *ext2_xattr_handler_map[] = {
 #endif
 };
 
-const struct xattr_handler *ext2_xattr_handlers[] = {
+const struct xattr_handler * const ext2_xattr_handlers[] = {
 	&ext2_xattr_user_handler,
 	&ext2_xattr_trusted_handler,
 #ifdef CONFIG_EXT2_FS_SECURITY

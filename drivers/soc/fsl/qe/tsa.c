@@ -706,7 +706,7 @@ static int tsa_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tsa_remove(struct platform_device *pdev)
+static void tsa_remove(struct platform_device *pdev)
 {
 	struct tsa *tsa = platform_get_drvdata(pdev);
 	int i;
@@ -729,7 +729,6 @@ static int tsa_remove(struct platform_device *pdev)
 			clk_put(tsa->tdm[i].l1rclk_clk);
 		}
 	}
-	return 0;
 }
 
 static const struct of_device_id tsa_id_table[] = {
@@ -744,7 +743,7 @@ static struct platform_driver tsa_driver = {
 		.of_match_table = of_match_ptr(tsa_id_table),
 	},
 	.probe = tsa_probe,
-	.remove = tsa_remove,
+	.remove_new = tsa_remove,
 };
 module_platform_driver(tsa_driver);
 

@@ -27,6 +27,7 @@ def main():
                         const=Netlink.NLM_F_CREATE)
     parser.add_argument('--append', dest='flags', action='append_const',
                         const=Netlink.NLM_F_APPEND)
+    parser.add_argument('--process-unknown', action=argparse.BooleanOptionalAction)
     args = parser.parse_args()
 
     if args.no_schema:
@@ -36,7 +37,7 @@ def main():
     if args.json_text:
         attrs = json.loads(args.json_text)
 
-    ynl = YnlFamily(args.spec, args.schema)
+    ynl = YnlFamily(args.spec, args.schema, args.process_unknown)
 
     if args.ntf:
         ynl.ntf_subscribe(args.ntf)

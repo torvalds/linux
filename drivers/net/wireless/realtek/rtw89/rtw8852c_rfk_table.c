@@ -165,11 +165,11 @@ static const struct rtw89_reg5_def rtw8852c_tssi_sys_defs[] = {
 	RTW89_DECL_RFK_WM(0x12bc, 0x000ffff0, 0xb5b5),
 	RTW89_DECL_RFK_WM(0x32bc, 0x000ffff0, 0xb5b5),
 	RTW89_DECL_RFK_WM(0x0300, 0xff000000, 0x16),
-	RTW89_DECL_RFK_WM(0x0304, 0x0000ffff, 0x1f19),
-	RTW89_DECL_RFK_WM(0x0308, 0xff000000, 0x1c),
+	RTW89_DECL_RFK_WM(0x0304, 0x0000ffff, 0x1313),
+	RTW89_DECL_RFK_WM(0x0308, 0xff000000, 0x13),
 	RTW89_DECL_RFK_WM(0x0314, 0xffff0000, 0x2041),
-	RTW89_DECL_RFK_WM(0x0318, 0xffffffff, 0x20012041),
-	RTW89_DECL_RFK_WM(0x0324, 0xffff0000, 0x2001),
+	RTW89_DECL_RFK_WM(0x0318, 0xffffffff, 0x00410041),
+	RTW89_DECL_RFK_WM(0x0324, 0xffff0000, 0x0041),
 	RTW89_DECL_RFK_WM(0x0020, 0x00006000, 0x3),
 	RTW89_DECL_RFK_WM(0x0024, 0x00006000, 0x3),
 	RTW89_DECL_RFK_WM(0x0704, 0xffff0000, 0x601e),
@@ -222,7 +222,7 @@ static const struct rtw89_reg5_def rtw8852c_tssi_txpwr_ctrl_bb_defs_a[] = {
 	RTW89_DECL_RFK_WM(0x5810, 0xffffffff, 0x59010000),
 	RTW89_DECL_RFK_WM(0x5814, 0x01ffffff, 0x026d000),
 	RTW89_DECL_RFK_WM(0x5814, 0xf8000000, 0x00),
-	RTW89_DECL_RFK_WM(0x5818, 0xffffffff, 0x002c1800),
+	RTW89_DECL_RFK_WM(0x5818, 0xffffffff, 0x002c18e8),
 	RTW89_DECL_RFK_WM(0x581c, 0x3fffffff, 0x3dc80280),
 	RTW89_DECL_RFK_WM(0x5820, 0xffffffff, 0x00000080),
 	RTW89_DECL_RFK_WM(0x58e8, 0x0000003f, 0x03),
@@ -251,7 +251,7 @@ static const struct rtw89_reg5_def rtw8852c_tssi_txpwr_ctrl_bb_defs_a[] = {
 	RTW89_DECL_RFK_WM(0x58d4, 0x07fc0000, 0x100),
 	RTW89_DECL_RFK_WM(0x58d8, 0xffffffff, 0x8008016c),
 	RTW89_DECL_RFK_WM(0x58dc, 0x0001ffff, 0x0807f),
-	RTW89_DECL_RFK_WM(0x58dc, 0xfff00000, 0x800),
+	RTW89_DECL_RFK_WM(0x58dc, 0xfff00000, 0xc00),
 	RTW89_DECL_RFK_WM(0x58f0, 0x0003ffff, 0x001ff),
 	RTW89_DECL_RFK_WM(0x58f4, 0x000fffff, 0x000),
 	RTW89_DECL_RFK_WM(0x58f8, 0x000fffff, 0x000),
@@ -260,14 +260,14 @@ static const struct rtw89_reg5_def rtw8852c_tssi_txpwr_ctrl_bb_defs_a[] = {
 RTW89_DECLARE_RFK_TBL(rtw8852c_tssi_txpwr_ctrl_bb_defs_a);
 
 static const struct rtw89_reg5_def rtw8852c_tssi_txpwr_ctrl_bb_defs_b[] = {
-	RTW89_DECL_RFK_WM(0x566c, 0x00001000, 0x0),
+	RTW89_DECL_RFK_WM(0x766c, 0x00001000, 0x0),
 	RTW89_DECL_RFK_WM(0x7800, 0xffffffff, 0x003f807f),
 	RTW89_DECL_RFK_WM(0x780c, 0x0000007f, 0x40),
 	RTW89_DECL_RFK_WM(0x780c, 0x0fffff00, 0x00040),
 	RTW89_DECL_RFK_WM(0x7810, 0xffffffff, 0x59010000),
 	RTW89_DECL_RFK_WM(0x7814, 0x01ffffff, 0x026d000),
 	RTW89_DECL_RFK_WM(0x7814, 0xf8000000, 0x00),
-	RTW89_DECL_RFK_WM(0x7818, 0xffffffff, 0x002c1800),
+	RTW89_DECL_RFK_WM(0x7818, 0xffffffff, 0x002c18e8),
 	RTW89_DECL_RFK_WM(0x781c, 0x3fffffff, 0x3dc80280),
 	RTW89_DECL_RFK_WM(0x7820, 0xffffffff, 0x00000080),
 	RTW89_DECL_RFK_WM(0x78e8, 0x0000003f, 0x03),
@@ -296,7 +296,7 @@ static const struct rtw89_reg5_def rtw8852c_tssi_txpwr_ctrl_bb_defs_b[] = {
 	RTW89_DECL_RFK_WM(0x78d4, 0x07fc0000, 0x100),
 	RTW89_DECL_RFK_WM(0x78d8, 0xffffffff, 0x8008016c),
 	RTW89_DECL_RFK_WM(0x78dc, 0x0001ffff, 0x0807f),
-	RTW89_DECL_RFK_WM(0x78dc, 0xfff00000, 0x800),
+	RTW89_DECL_RFK_WM(0x78dc, 0xfff00000, 0xc00),
 	RTW89_DECL_RFK_WM(0x78f0, 0x0003ffff, 0x001ff),
 	RTW89_DECL_RFK_WM(0x78f4, 0x000fffff, 0x000),
 	RTW89_DECL_RFK_WM(0x78f8, 0x000fffff, 0x000),
@@ -511,9 +511,9 @@ static const struct rtw89_reg5_def rtw8852c_tssi_set_aligk_default_defs_5g_a[] =
 	RTW89_DECL_RFK_WM(0x563c, 0x3fffffff, 0x00000000),
 	RTW89_DECL_RFK_WM(0x5640, 0x000003ff, 0x000),
 	RTW89_DECL_RFK_WM(0x5640, 0x000ffc00, 0x000),
-	RTW89_DECL_RFK_WM(0x5640, 0x3ff00000, 0x000),
-	RTW89_DECL_RFK_WM(0x5644, 0x000003ff, 0x000),
-	RTW89_DECL_RFK_WM(0x5644, 0x000ffc00, 0x000),
+	RTW89_DECL_RFK_WM(0x5640, 0x3ff00000, 0x3e9),
+	RTW89_DECL_RFK_WM(0x5644, 0x000003ff, 0x039),
+	RTW89_DECL_RFK_WM(0x5644, 0x000ffc00, 0x07d),
 };
 
 RTW89_DECLARE_RFK_TBL(rtw8852c_tssi_set_aligk_default_defs_5g_a);
@@ -531,9 +531,9 @@ static const struct rtw89_reg5_def rtw8852c_tssi_set_aligk_default_defs_5g_b[] =
 	RTW89_DECL_RFK_WM(0x763c, 0x3fffffff, 0x00000000),
 	RTW89_DECL_RFK_WM(0x7640, 0x000003ff, 0x000),
 	RTW89_DECL_RFK_WM(0x7640, 0x000ffc00, 0x000),
-	RTW89_DECL_RFK_WM(0x7640, 0x3ff00000, 0x000),
-	RTW89_DECL_RFK_WM(0x7644, 0x000003ff, 0x000),
-	RTW89_DECL_RFK_WM(0x7644, 0x000ffc00, 0x000),
+	RTW89_DECL_RFK_WM(0x7640, 0x3ff00000, 0x3e9),
+	RTW89_DECL_RFK_WM(0x7644, 0x000003ff, 0x039),
+	RTW89_DECL_RFK_WM(0x7644, 0x000ffc00, 0x07d),
 };
 
 RTW89_DECLARE_RFK_TBL(rtw8852c_tssi_set_aligk_default_defs_5g_b);
@@ -551,9 +551,9 @@ static const struct rtw89_reg5_def rtw8852c_tssi_set_aligk_default_defs_6g_a[] =
 	RTW89_DECL_RFK_WM(0x563c, 0x3fffffff, 0x00000000),
 	RTW89_DECL_RFK_WM(0x5640, 0x000003ff, 0x000),
 	RTW89_DECL_RFK_WM(0x5640, 0x000ffc00, 0x000),
-	RTW89_DECL_RFK_WM(0x5640, 0x3ff00000, 0x000),
-	RTW89_DECL_RFK_WM(0x5644, 0x000003ff, 0x000),
-	RTW89_DECL_RFK_WM(0x5644, 0x000ffc00, 0x000),
+	RTW89_DECL_RFK_WM(0x5640, 0x3ff00000, 0x3e9),
+	RTW89_DECL_RFK_WM(0x5644, 0x000003ff, 0x039),
+	RTW89_DECL_RFK_WM(0x5644, 0x000ffc00, 0x080),
 };
 
 RTW89_DECLARE_RFK_TBL(rtw8852c_tssi_set_aligk_default_defs_6g_a);
@@ -571,9 +571,9 @@ static const struct rtw89_reg5_def rtw8852c_tssi_set_aligk_default_defs_6g_b[] =
 	RTW89_DECL_RFK_WM(0x763c, 0x3fffffff, 0x00000000),
 	RTW89_DECL_RFK_WM(0x7640, 0x000003ff, 0x000),
 	RTW89_DECL_RFK_WM(0x7640, 0x000ffc00, 0x000),
-	RTW89_DECL_RFK_WM(0x7640, 0x3ff00000, 0x000),
-	RTW89_DECL_RFK_WM(0x7644, 0x000003ff, 0x000),
-	RTW89_DECL_RFK_WM(0x7644, 0x000ffc00, 0x000),
+	RTW89_DECL_RFK_WM(0x7640, 0x3ff00000, 0x3e9),
+	RTW89_DECL_RFK_WM(0x7644, 0x000003ff, 0x039),
+	RTW89_DECL_RFK_WM(0x7644, 0x000ffc00, 0x080),
 };
 
 RTW89_DECLARE_RFK_TBL(rtw8852c_tssi_set_aligk_default_defs_6g_b);

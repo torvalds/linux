@@ -1114,8 +1114,6 @@ static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	fd->type = V4L2_MBUS_FRAME_DESC_TYPE_PARALLEL;
 	fd->num_entries = 1;
 
-	memset(entry, 0, sizeof(*entry));
-
 	entry->flags = 0;
 	entry->pixelcode = csis_fmt->code;
 	entry->bus.csi2.vc = 0;
@@ -1490,7 +1488,6 @@ err_cleanup:
 	v4l2_async_unregister_subdev(&csis->sd);
 err_disable_clock:
 	mipi_csis_clk_disable(csis);
-	fwnode_handle_put(csis->sd.fwnode);
 
 	return ret;
 }
@@ -1510,7 +1507,6 @@ static void mipi_csis_remove(struct platform_device *pdev)
 	mipi_csis_clk_disable(csis);
 	v4l2_subdev_cleanup(&csis->sd);
 	media_entity_cleanup(&csis->sd.entity);
-	fwnode_handle_put(csis->sd.fwnode);
 	pm_runtime_set_suspended(&pdev->dev);
 }
 

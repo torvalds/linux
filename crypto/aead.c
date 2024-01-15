@@ -269,6 +269,12 @@ struct crypto_aead *crypto_alloc_aead(const char *alg_name, u32 type, u32 mask)
 }
 EXPORT_SYMBOL_GPL(crypto_alloc_aead);
 
+int crypto_has_aead(const char *alg_name, u32 type, u32 mask)
+{
+	return crypto_type_has_alg(alg_name, &crypto_aead_type, type, mask);
+}
+EXPORT_SYMBOL_GPL(crypto_has_aead);
+
 static int aead_prepare_alg(struct aead_alg *alg)
 {
 	struct crypto_istat_aead *istat = aead_get_stat(alg);

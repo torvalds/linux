@@ -7,6 +7,7 @@
 
 &cbass_wakeup {
 	wkup_conf: syscon@43000000 {
+		bootph-all;
 		compatible = "syscon", "simple-mfd";
 		reg = <0x00 0x43000000 0x00 0x20000>;
 		#address-cells = <1>;
@@ -14,6 +15,7 @@
 		ranges = <0x0 0x00 0x43000000 0x20000>;
 
 		chipid: chipid@14 {
+			bootph-all;
 			compatible = "ti,am654-chipid";
 			reg = <0x14 0x4>;
 		};

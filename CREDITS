@@ -2944,6 +2944,14 @@ D: IPX development and support
 N: Venkatesh Pallipadi (Venki)
 D: x86/HPET
 
+N: Antti Palosaari
+E: crope@iki.fi
+D: Various DVB drivers
+W: https://palosaari.fi/linux/
+S: Yliopistokatu 1 D 513
+S: FI-90570 Oulu
+S: FINLAND
+
 N: Kyungmin Park
 E: kyungmin.park@samsung.com
 D: Samsung S5Pv210 and Exynos4210 mobile platforms

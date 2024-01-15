@@ -5,11 +5,11 @@
 #include <asm/unistd.h>
 
 .text
-ENTRY(riscv_hwprobe)
+SYM_FUNC_START(riscv_hwprobe)
 	.cfi_startproc
 	li a7, __NR_riscv_hwprobe
 	ecall
 	ret
 
 	.cfi_endproc
-ENDPROC(riscv_hwprobe)
+SYM_FUNC_END(riscv_hwprobe)

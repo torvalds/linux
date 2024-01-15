@@ -467,7 +467,7 @@ static int risp_probe(struct platform_device *pdev)
 	isp->subdev.dev = &pdev->dev;
 	v4l2_subdev_init(&isp->subdev, &rcar_isp_subdev_ops);
 	v4l2_set_subdevdata(&isp->subdev, &pdev->dev);
-	snprintf(isp->subdev.name, V4L2_SUBDEV_NAME_SIZE, "%s %s",
+	snprintf(isp->subdev.name, sizeof(isp->subdev.name), "%s %s",
 		 KBUILD_MODNAME, dev_name(&pdev->dev));
 	isp->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 

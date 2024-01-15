@@ -469,7 +469,7 @@ static bool _rtl92d_cmd_send_packet(struct ieee80211_hw *hw,
 	pdesc = &ring->desc[idx];
 	/* discard output from call below */
 	rtlpriv->cfg->ops->get_desc(hw, (u8 *)pdesc, true, HW_DESC_OWN);
-	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *) pdesc, 1, 1, skb);
+	rtlpriv->cfg->ops->fill_tx_cmddesc(hw, (u8 *)pdesc, skb);
 	__skb_queue_tail(&ring->queue, skb);
 	spin_unlock_irqrestore(&rtlpriv->locks.irq_th_lock, flags);
 	rtlpriv->cfg->ops->tx_polling(hw, BEACON_QUEUE);

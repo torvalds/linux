@@ -40,10 +40,10 @@ required:
   - interrupts
   - reg
 
-unevaluatedProperties: false
-
 allOf:
   - $ref: /schemas/serial/serial.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

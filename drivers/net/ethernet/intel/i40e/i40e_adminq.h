@@ -4,7 +4,8 @@
 #ifndef _I40E_ADMINQ_H_
 #define _I40E_ADMINQ_H_
 
-#include "i40e_osdep.h"
+#include <linux/mutex.h>
+#include "i40e_alloc.h"
 #include "i40e_adminq_cmd.h"
 
 #define I40E_ADMINQ_DESC(R, i)   \

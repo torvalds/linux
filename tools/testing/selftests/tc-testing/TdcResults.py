@@ -59,7 +59,8 @@ class TestResult:
         return self.steps
 
 class TestSuiteReport():
-    _testsuite = []
+    def __init__(self):
+        self._testsuite = []
 
     def add_resultdata(self, result_data):
         if isinstance(result_data, TestResult):

@@ -293,9 +293,7 @@ struct ov2640_win_size {
 
 struct ov2640_priv {
 	struct v4l2_subdev		subdev;
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	struct media_pad pad;
-#endif
 	struct v4l2_ctrl_handler	hdl;
 	u32	cfmt_code;
 	struct clk			*clk;
@@ -922,13 +920,9 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
 		format->format = *mf;
 		return 0;
-#else
-		return -EINVAL;
-#endif
 	}
 
 	mf->width	= priv->win->width;
@@ -1005,7 +999,6 @@ out:
 static int ov2640_init_cfg(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state)
 {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *try_fmt =
 		v4l2_subdev_get_try_format(sd, sd_state, 0);
 	const struct ov2640_win_size *win =
@@ -1019,7 +1012,7 @@ static int ov2640_init_cfg(struct v4l2_subdev *sd,
 	try_fmt->ycbcr_enc = V4L2_YCBCR_ENC_DEFAULT;
 	try_fmt->quantization = V4L2_QUANTIZATION_DEFAULT;
 	try_fmt->xfer_func = V4L2_XFER_FUNC_DEFAULT;
-#endif
+
 	return 0;
 }
 
@@ -1205,17 +1198,14 @@ static int ov2640_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	if (client->dev.of_node) {
-		priv->clk = devm_clk_get(&client->dev, "xvclk");
+		priv->clk = devm_clk_get_enabled(&client->dev, "xvclk");
 		if (IS_ERR(priv->clk))
 			return PTR_ERR(priv->clk);
-		ret = clk_prepare_enable(priv->clk);
-		if (ret)
-			return ret;
 	}
 
 	ret = ov2640_probe_dt(client, priv);
 	if (ret)
-		goto err_clk;
+		return ret;
 
 	priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
 	priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
@@ -1239,13 +1229,11 @@ static int ov2640_probe(struct i2c_client *client)
 		ret = priv->hdl.error;
 		goto err_hdl;
 	}
-#if defined(CONFIG_MEDIA_CONTROLLER)
 	priv->pad.flags = MEDIA_PAD_FL_SOURCE;
 	priv->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&priv->subdev.entity, 1, &priv->pad);
 	if (ret < 0)
 		goto err_hdl;
-#endif
 
 	ret = ov2640_video_probe(client);
 	if (ret < 0)
@@ -1264,8 +1252,6 @@ err_videoprobe:
 err_hdl:
 	v4l2_ctrl_handler_free(&priv->hdl);
 	mutex_destroy(&priv->lock);
-err_clk:
-	clk_disable_unprepare(priv->clk);
 	return ret;
 }
 
@@ -1278,7 +1264,6 @@ static void ov2640_remove(struct i2c_client *client)
 	mutex_destroy(&priv->lock);
 	media_entity_cleanup(&priv->subdev.entity);
 	v4l2_device_unregister_subdev(&priv->subdev);
-	clk_disable_unprepare(priv->clk);
 }
 
 static const struct i2c_device_id ov2640_id[] = {

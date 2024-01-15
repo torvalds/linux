@@ -338,13 +338,118 @@ int btrfs_run_defrag_inodes(struct btrfs_fs_info *fs_info)
 }
 
 /*
+ * Check if two blocks addresses are close, used by defrag.
+ */
+static bool close_blocks(u64 blocknr, u64 other, u32 blocksize)
+{
+	if (blocknr < other && other - (blocknr + blocksize) < SZ_32K)
+		return true;
+	if (blocknr > other && blocknr - (other + blocksize) < SZ_32K)
+		return true;
+	return false;
+}
+
+/*
+ * Go through all the leaves pointed to by a node and reallocate them so that
+ * disk order is close to key order.
+ */
+static int btrfs_realloc_node(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root,
+			      struct extent_buffer *parent,
+			      int start_slot, u64 *last_ret,
+			      struct btrfs_key *progress)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	const u32 blocksize = fs_info->nodesize;
+	const int end_slot = btrfs_header_nritems(parent) - 1;
+	u64 search_start = *last_ret;
+	u64 last_block = 0;
+	int ret = 0;
+	bool progress_passed = false;
+
+	/*
+	 * COWing must happen through a running transaction, which always
+	 * matches the current fs generation (it's a transaction with a state
+	 * less than TRANS_STATE_UNBLOCKED). If it doesn't, then turn the fs
+	 * into error state to prevent the commit of any transaction.
+	 */
+	if (unlikely(trans->transaction != fs_info->running_transaction ||
+		     trans->transid != fs_info->generation)) {
+		btrfs_abort_transaction(trans, -EUCLEAN);
+		btrfs_crit(fs_info,
+"unexpected transaction when attempting to reallocate parent %llu for root %llu, transaction %llu running transaction %llu fs generation %llu",
+			   parent->start, btrfs_root_id(root), trans->transid,
+			   fs_info->running_transaction->transid,
+			   fs_info->generation);
+		return -EUCLEAN;
+	}
+
+	if (btrfs_header_nritems(parent) <= 1)
+		return 0;
+
+	for (int i = start_slot; i <= end_slot; i++) {
+		struct extent_buffer *cur;
+		struct btrfs_disk_key disk_key;
+		u64 blocknr;
+		u64 other;
+		bool close = true;
+
+		btrfs_node_key(parent, &disk_key, i);
+		if (!progress_passed && btrfs_comp_keys(&disk_key, progress) < 0)
+			continue;
+
+		progress_passed = true;
+		blocknr = btrfs_node_blockptr(parent, i);
+		if (last_block == 0)
+			last_block = blocknr;
+
+		if (i > 0) {
+			other = btrfs_node_blockptr(parent, i - 1);
+			close = close_blocks(blocknr, other, blocksize);
+		}
+		if (!close && i < end_slot) {
+			other = btrfs_node_blockptr(parent, i + 1);
+			close = close_blocks(blocknr, other, blocksize);
+		}
+		if (close) {
+			last_block = blocknr;
+			continue;
+		}
+
+		cur = btrfs_read_node_slot(parent, i);
+		if (IS_ERR(cur))
+			return PTR_ERR(cur);
+		if (search_start == 0)
+			search_start = last_block;
+
+		btrfs_tree_lock(cur);
+		ret = btrfs_force_cow_block(trans, root, cur, parent, i,
+					    &cur, search_start,
+					    min(16 * blocksize,
+						(end_slot - i) * blocksize),
+					    BTRFS_NESTING_COW);
+		if (ret) {
+			btrfs_tree_unlock(cur);
+			free_extent_buffer(cur);
+			break;
+		}
+		search_start = cur->start;
+		last_block = cur->start;
+		*last_ret = search_start;
+		btrfs_tree_unlock(cur);
+		free_extent_buffer(cur);
+	}
+	return ret;
+}
+
+/*
  * Defrag all the leaves in a given btree.
  * Read all the leaves and try to get key order to
  * better reflect disk order
  */
 
-int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
-			struct btrfs_root *root)
+static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root)
 {
 	struct btrfs_path *path = NULL;
 	struct btrfs_key key;
@@ -457,6 +562,45 @@ done:
 		memset(&root->defrag_progress, 0,
 		       sizeof(root->defrag_progress));
 
+	return ret;
+}
+
+/*
+ * Defrag a given btree.  Every leaf in the btree is read and defragmented.
+ */
+int btrfs_defrag_root(struct btrfs_root *root)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	int ret;
+
+	if (test_and_set_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state))
+		return 0;
+
+	while (1) {
+		struct btrfs_trans_handle *trans;
+
+		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans)) {
+			ret = PTR_ERR(trans);
+			break;
+		}
+
+		ret = btrfs_defrag_leaves(trans, root);
+
+		btrfs_end_transaction(trans);
+		btrfs_btree_balance_dirty(fs_info);
+		cond_resched();
+
+		if (btrfs_fs_closing(fs_info) || ret != -EAGAIN)
+			break;
+
+		if (btrfs_defrag_cancelled(fs_info)) {
+			btrfs_debug(fs_info, "defrag_root cancelled");
+			ret = -EAGAIN;
+			break;
+		}
+	}
+	clear_bit(BTRFS_ROOT_DEFRAG_RUNNING, &root->state);
 	return ret;
 }
 
@@ -891,8 +1035,8 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 		 *    very likely resulting in a larger extent after writeback is
 		 *    triggered (except in a case of free space fragmentation).
 		 */
-		if (test_range_bit(&inode->io_tree, cur, cur + range_len - 1,
-				   EXTENT_DELALLOC, 0, NULL))
+		if (test_range_bit_exists(&inode->io_tree, cur, cur + range_len - 1,
+					  EXTENT_DELALLOC))
 			goto next;
 
 		/*

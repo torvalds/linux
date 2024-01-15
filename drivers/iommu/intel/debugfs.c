@@ -111,6 +111,8 @@ static const struct iommu_regset iommu_regs_64[] = {
 	IOMMU_REGSET_ENTRY(VCRSP),
 };
 
+static struct dentry *intel_iommu_debug;
+
 static int iommu_regset_show(struct seq_file *m, void *unused)
 {
 	struct dmar_drhd_unit *drhd;
@@ -311,9 +313,14 @@ static inline unsigned long level_to_directory_size(int level)
 static inline void
 dump_page_info(struct seq_file *m, unsigned long iova, u64 *path)
 {
-	seq_printf(m, "0x%013lx |\t0x%016llx\t0x%016llx\t0x%016llx\t0x%016llx\t0x%016llx\n",
-		   iova >> VTD_PAGE_SHIFT, path[5], path[4],
-		   path[3], path[2], path[1]);
+	seq_printf(m, "0x%013lx |\t0x%016llx\t0x%016llx\t0x%016llx",
+		   iova >> VTD_PAGE_SHIFT, path[5], path[4], path[3]);
+	if (path[2]) {
+		seq_printf(m, "\t0x%016llx", path[2]);
+		if (path[1])
+			seq_printf(m, "\t0x%016llx", path[1]);
+	}
+	seq_putc(m, '\n');
 }
 
 static void pgtable_walk_level(struct seq_file *m, struct dma_pte *pde,
@@ -340,58 +347,140 @@ static void pgtable_walk_level(struct seq_file *m, struct dma_pte *pde,
 	}
 }
 
-static int __show_device_domain_translation(struct device *dev, void *data)
+static int domain_translation_struct_show(struct seq_file *m,
+					  struct device_domain_info *info,
+					  ioasid_t pasid)
 {
-	struct dmar_domain *domain;
-	struct seq_file *m = data;
-	u64 path[6] = { 0 };
+	bool scalable, found = false;
+	struct dmar_drhd_unit *drhd;
+	struct intel_iommu *iommu;
+	u16 devfn, bus, seg;
 
-	domain = to_dmar_domain(iommu_get_domain_for_dev(dev));
-	if (!domain)
-		return 0;
+	bus = info->bus;
+	devfn = info->devfn;
+	seg = info->segment;
 
-	seq_printf(m, "Device %s @0x%llx\n", dev_name(dev),
-		   (u64)virt_to_phys(domain->pgd));
-	seq_puts(m, "IOVA_PFN\t\tPML5E\t\t\tPML4E\t\t\tPDPE\t\t\tPDE\t\t\tPTE\n");
+	rcu_read_lock();
+	for_each_active_iommu(iommu, drhd) {
+		struct context_entry *context;
+		u64 pgd, path[6] = { 0 };
+		u32 sts, agaw;
 
-	pgtable_walk_level(m, domain->pgd, domain->agaw + 2, 0, path);
-	seq_putc(m, '\n');
+		if (seg != iommu->segment)
+			continue;
 
-	/* Don't iterate */
-	return 1;
-}
+		sts = dmar_readl(iommu->reg + DMAR_GSTS_REG);
+		if (!(sts & DMA_GSTS_TES)) {
+			seq_printf(m, "DMA Remapping is not enabled on %s\n",
+				   iommu->name);
+			continue;
+		}
+		if (dmar_readq(iommu->reg + DMAR_RTADDR_REG) & DMA_RTADDR_SMT)
+			scalable = true;
+		else
+			scalable = false;
 
-static int show_device_domain_translation(struct device *dev, void *data)
-{
-	struct iommu_group *group;
-
-	group = iommu_group_get(dev);
-	if (group) {
 		/*
-		 * The group->mutex is held across the callback, which will
-		 * block calls to iommu_attach/detach_group/device. Hence,
+		 * The iommu->lock is held across the callback, which will
+		 * block calls to domain_attach/domain_detach. Hence,
 		 * the domain of the device will not change during traversal.
 		 *
-		 * All devices in an iommu group share a single domain, hence
-		 * we only dump the domain of the first device. Even though,
-		 * this code still possibly races with the iommu_unmap()
+		 * Traversing page table possibly races with the iommu_unmap()
 		 * interface. This could be solved by RCU-freeing the page
 		 * table pages in the iommu_unmap() path.
 		 */
-		iommu_group_for_each_dev(group, data,
-					 __show_device_domain_translation);
-		iommu_group_put(group);
+		spin_lock(&iommu->lock);
+
+		context = iommu_context_addr(iommu, bus, devfn, 0);
+		if (!context || !context_present(context))
+			goto iommu_unlock;
+
+		if (scalable) {	/* scalable mode */
+			struct pasid_entry *pasid_tbl, *pasid_tbl_entry;
+			struct pasid_dir_entry *dir_tbl, *dir_entry;
+			u16 dir_idx, tbl_idx, pgtt;
+			u64 pasid_dir_ptr;
+
+			pasid_dir_ptr = context->lo & VTD_PAGE_MASK;
+
+			/* Dump specified device domain mappings with PASID. */
+			dir_idx = pasid >> PASID_PDE_SHIFT;
+			tbl_idx = pasid & PASID_PTE_MASK;
+
+			dir_tbl = phys_to_virt(pasid_dir_ptr);
+			dir_entry = &dir_tbl[dir_idx];
+
+			pasid_tbl = get_pasid_table_from_pde(dir_entry);
+			if (!pasid_tbl)
+				goto iommu_unlock;
+
+			pasid_tbl_entry = &pasid_tbl[tbl_idx];
+			if (!pasid_pte_is_present(pasid_tbl_entry))
+				goto iommu_unlock;
+
+			/*
+			 * According to PASID Granular Translation Type(PGTT),
+			 * get the page table pointer.
+			 */
+			pgtt = (u16)(pasid_tbl_entry->val[0] & GENMASK_ULL(8, 6)) >> 6;
+			agaw = (u8)(pasid_tbl_entry->val[0] & GENMASK_ULL(4, 2)) >> 2;
+
+			switch (pgtt) {
+			case PASID_ENTRY_PGTT_FL_ONLY:
+				pgd = pasid_tbl_entry->val[2];
+				break;
+			case PASID_ENTRY_PGTT_SL_ONLY:
+			case PASID_ENTRY_PGTT_NESTED:
+				pgd = pasid_tbl_entry->val[0];
+				break;
+			default:
+				goto iommu_unlock;
+			}
+			pgd &= VTD_PAGE_MASK;
+		} else { /* legacy mode */
+			pgd = context->lo & VTD_PAGE_MASK;
+			agaw = context->hi & 7;
+		}
+
+		seq_printf(m, "Device %04x:%02x:%02x.%x ",
+			   iommu->segment, bus, PCI_SLOT(devfn), PCI_FUNC(devfn));
+
+		if (scalable)
+			seq_printf(m, "with pasid %x @0x%llx\n", pasid, pgd);
+		else
+			seq_printf(m, "@0x%llx\n", pgd);
+
+		seq_printf(m, "%-17s\t%-18s\t%-18s\t%-18s\t%-18s\t%-s\n",
+			   "IOVA_PFN", "PML5E", "PML4E", "PDPE", "PDE", "PTE");
+		pgtable_walk_level(m, phys_to_virt(pgd), agaw + 2, 0, path);
+
+		found = true;
+iommu_unlock:
+		spin_unlock(&iommu->lock);
+		if (found)
+			break;
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
 
-static int domain_translation_struct_show(struct seq_file *m, void *unused)
+static int dev_domain_translation_struct_show(struct seq_file *m, void *unused)
 {
-	return bus_for_each_dev(&pci_bus_type, NULL, m,
-				show_device_domain_translation);
+	struct device_domain_info *info = (struct device_domain_info *)m->private;
+
+	return domain_translation_struct_show(m, info, IOMMU_NO_PASID);
 }
-DEFINE_SHOW_ATTRIBUTE(domain_translation_struct);
+DEFINE_SHOW_ATTRIBUTE(dev_domain_translation_struct);
+
+static int pasid_domain_translation_struct_show(struct seq_file *m, void *unused)
+{
+	struct dev_pasid_info *dev_pasid = (struct dev_pasid_info *)m->private;
+	struct device_domain_info *info = dev_iommu_priv_get(dev_pasid->dev);
+
+	return domain_translation_struct_show(m, info, dev_pasid->pasid);
+}
+DEFINE_SHOW_ATTRIBUTE(pasid_domain_translation_struct);
 
 static void invalidation_queue_entry_show(struct seq_file *m,
 					  struct intel_iommu *iommu)
@@ -666,16 +755,12 @@ static const struct file_operations dmar_perf_latency_fops = {
 
 void __init intel_iommu_debugfs_init(void)
 {
-	struct dentry *intel_iommu_debug = debugfs_create_dir("intel",
-						iommu_debugfs_dir);
+	intel_iommu_debug = debugfs_create_dir("intel", iommu_debugfs_dir);
 
 	debugfs_create_file("iommu_regset", 0444, intel_iommu_debug, NULL,
 			    &iommu_regset_fops);
 	debugfs_create_file("dmar_translation_struct", 0444, intel_iommu_debug,
 			    NULL, &dmar_translation_struct_fops);
-	debugfs_create_file("domain_translation_struct", 0444,
-			    intel_iommu_debug, NULL,
-			    &domain_translation_struct_fops);
 	debugfs_create_file("invalidation_queue", 0444, intel_iommu_debug,
 			    NULL, &invalidation_queue_fops);
 #ifdef CONFIG_IRQ_REMAP
@@ -684,4 +769,52 @@ void __init intel_iommu_debugfs_init(void)
 #endif
 	debugfs_create_file("dmar_perf_latency", 0644, intel_iommu_debug,
 			    NULL, &dmar_perf_latency_fops);
+}
+
+/*
+ * Create a debugfs directory for each device, and then create a
+ * debugfs file in this directory for users to dump the page table
+ * of the default domain. e.g.
+ * /sys/kernel/debug/iommu/intel/0000:00:01.0/domain_translation_struct
+ */
+void intel_iommu_debugfs_create_dev(struct device_domain_info *info)
+{
+	info->debugfs_dentry = debugfs_create_dir(dev_name(info->dev), intel_iommu_debug);
+
+	debugfs_create_file("domain_translation_struct", 0444, info->debugfs_dentry,
+			    info, &dev_domain_translation_struct_fops);
+}
+
+/* Remove the device debugfs directory. */
+void intel_iommu_debugfs_remove_dev(struct device_domain_info *info)
+{
+	debugfs_remove_recursive(info->debugfs_dentry);
+}
+
+/*
+ * Create a debugfs directory per pair of {device, pasid}, then create the
+ * corresponding debugfs file in this directory for users to dump its page
+ * table. e.g.
+ * /sys/kernel/debug/iommu/intel/0000:00:01.0/1/domain_translation_struct
+ *
+ * The debugfs only dumps the page tables whose mappings are created and
+ * destroyed by the iommu_map/unmap() interfaces. Check the mapping type
+ * of the domain before creating debugfs directory.
+ */
+void intel_iommu_debugfs_create_dev_pasid(struct dev_pasid_info *dev_pasid)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev_pasid->dev);
+	char dir_name[10];
+
+	sprintf(dir_name, "%x", dev_pasid->pasid);
+	dev_pasid->debugfs_dentry = debugfs_create_dir(dir_name, info->debugfs_dentry);
+
+	debugfs_create_file("domain_translation_struct", 0444, dev_pasid->debugfs_dentry,
+			    dev_pasid, &pasid_domain_translation_struct_fops);
+}
+
+/* Remove the device pasid debugfs directory. */
+void intel_iommu_debugfs_remove_dev_pasid(struct dev_pasid_info *dev_pasid)
+{
+	debugfs_remove_recursive(dev_pasid->debugfs_dentry);
 }

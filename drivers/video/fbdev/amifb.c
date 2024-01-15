@@ -3488,6 +3488,7 @@ static irqreturn_t amifb_interrupt(int irq, void *dev_id)
 
 static const struct fb_ops amifb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= amifb_check_var,
 	.fb_set_par	= amifb_set_par,
 	.fb_setcolreg	= amifb_setcolreg,
@@ -3497,6 +3498,7 @@ static const struct fb_ops amifb_ops = {
 	.fb_copyarea	= amifb_copyarea,
 	.fb_imageblit	= amifb_imageblit,
 	.fb_ioctl	= amifb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 
@@ -3750,7 +3752,7 @@ release:
 }
 
 
-static int __exit amifb_remove(struct platform_device *pdev)
+static void __exit amifb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 
@@ -3763,11 +3765,16 @@ static int __exit amifb_remove(struct platform_device *pdev)
 	chipfree();
 	framebuffer_release(info);
 	amifb_video_off();
-	return 0;
 }
 
-static struct platform_driver amifb_driver = {
-	.remove = __exit_p(amifb_remove),
+/*
+ * amifb_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this ok because they cannot get unboud at
+ * runtime. The driver needs to be marked with __refdata, otherwise modpost
+ * triggers a section mismatch warning.
+ */
+static struct platform_driver amifb_driver __refdata = {
+	.remove_new = __exit_p(amifb_remove),
 	.driver   = {
 		.name	= "amiga-video",
 	},

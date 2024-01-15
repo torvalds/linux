@@ -25,6 +25,7 @@
 #include <linux/kernel.h>
 
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"

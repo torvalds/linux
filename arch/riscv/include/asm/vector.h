@@ -15,7 +15,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <asm/ptrace.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 #include <asm/csr.h>
 #include <asm/asm.h>
 

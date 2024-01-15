@@ -2,8 +2,8 @@
 /* Copyright(c) 2013 - 2021 Intel Corporation. */
 
 #ifdef CONFIG_I40E_DCB
-#include "i40e.h"
 #include <net/dcbnl.h>
+#include "i40e.h"
 
 #define I40E_DCBNL_STATUS_SUCCESS	0
 #define I40E_DCBNL_STATUS_ERROR		1

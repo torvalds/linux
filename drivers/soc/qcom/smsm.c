@@ -613,7 +613,7 @@ out_put:
 	return ret;
 }
 
-static int qcom_smsm_remove(struct platform_device *pdev)
+static void qcom_smsm_remove(struct platform_device *pdev)
 {
 	struct qcom_smsm *smsm = platform_get_drvdata(pdev);
 	unsigned id;
@@ -623,8 +623,6 @@ static int qcom_smsm_remove(struct platform_device *pdev)
 			irq_domain_remove(smsm->entries[id].domain);
 
 	qcom_smem_state_unregister(smsm->state);
-
-	return 0;
 }
 
 static const struct of_device_id qcom_smsm_of_match[] = {
@@ -635,7 +633,7 @@ MODULE_DEVICE_TABLE(of, qcom_smsm_of_match);
 
 static struct platform_driver qcom_smsm_driver = {
 	.probe = qcom_smsm_probe,
-	.remove = qcom_smsm_remove,
+	.remove_new = qcom_smsm_remove,
 	.driver  = {
 		.name  = "qcom-smsm",
 		.of_match_table = qcom_smsm_of_match,

@@ -667,13 +667,6 @@ static void ad5933_reg_disable(void *data)
 	regulator_disable(st->reg);
 }
 
-static void ad5933_clk_disable(void *data)
-{
-	struct ad5933_state *st = data;
-
-	clk_disable_unprepare(st->mclk);
-}
-
 static int ad5933_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
@@ -712,23 +705,12 @@ static int ad5933_probe(struct i2c_client *client)
 
 	st->vref_mv = ret / 1000;
 
-	st->mclk = devm_clk_get(&client->dev, "mclk");
+	st->mclk = devm_clk_get_enabled(&client->dev, "mclk");
 	if (IS_ERR(st->mclk) && PTR_ERR(st->mclk) != -ENOENT)
 		return PTR_ERR(st->mclk);
 
-	if (!IS_ERR(st->mclk)) {
-		ret = clk_prepare_enable(st->mclk);
-		if (ret < 0)
-			return ret;
-
-		ret = devm_add_action_or_reset(&client->dev,
-					       ad5933_clk_disable,
-					       st);
-		if (ret)
-			return ret;
-
+	if (!IS_ERR(st->mclk))
 		ext_clk_hz = clk_get_rate(st->mclk);
-	}
 
 	if (ext_clk_hz) {
 		st->mclk_hz = ext_clk_hz;

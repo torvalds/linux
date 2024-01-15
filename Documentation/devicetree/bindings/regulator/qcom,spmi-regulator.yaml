@@ -17,12 +17,15 @@ properties:
       - qcom,pm660l-regulators
       - qcom,pm8004-regulators
       - qcom,pm8005-regulators
+      - qcom,pm8019-regulators
       - qcom,pm8226-regulators
       - qcom,pm8841-regulators
+      - qcom,pm8909-regulators
       - qcom,pm8916-regulators
       - qcom,pm8941-regulators
       - qcom,pm8950-regulators
       - qcom,pm8994-regulators
+      - qcom,pma8084-regulators
       - qcom,pmi8994-regulators
       - qcom,pmp8074-regulators
       - qcom,pms405-regulators
@@ -32,7 +35,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
 
 patternProperties:
-  "^(5vs[1-2]|(l|s)[1-9][0-9]?|lvs[1-3])$":
+  "^(5vs[1-2]|(l|s)[1-9][0-9]?|lvs[1-4])$":
     description: List of regulators and its properties
     type: object
     $ref: regulator.yaml#
@@ -181,6 +184,25 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pm8019-regulators
+    then:
+      properties:
+        vdd_l1-supply: true
+        vdd_l2_l3-supply: true
+        vdd_l4_l5_l6-supply: true
+        vdd_l7_l8_l11-supply: true
+        vdd_l9-supply: true
+        vdd_l10-supply: true
+        vdd_l12-supply: true
+        vdd_l13_l14-supply: true
+      patternProperties:
+        "^vdd_s[1-4]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - qcom,pm8226-regulators
     then:
       properties:
@@ -205,6 +227,24 @@ allOf:
     then:
       patternProperties:
         "^vdd_s[1-8]-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pm8909-regulators
+    then:
+      properties:
+        vdd_s1-supply: true
+        vdd_s2-supply: true
+        vdd_l1-supply: true
+        vdd_l2_l5-supply: true
+        vdd_l3_l6_l10-supply: true
+        vdd_l4_l7-supply: true
+        vdd_l8_l11_l15_l18-supply: true
+        vdd_l9_l12_l14_l17-supply: true
+        vdd_l13-supply: true
 
   - if:
       properties:
@@ -294,6 +334,32 @@ allOf:
         vdd_lvs_1_2-supply: true
       patternProperties:
         "^vdd_s[1-9][0-2]?-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pma8084-regulators
+    then:
+      properties:
+        vdd_l1_l11-supply: true
+        vdd_l2_l3_l4_l27-supply: true
+        vdd_l5_l7-supply: true
+        vdd_l6_l12_l14_l15_l26-supply: true
+        vdd_l8-supply: true
+        vdd_l9_l10_l13_l20_l23_l24-supply: true
+        vdd_l16_l25-supply: true
+        vdd_l17-supply: true
+        vdd_l18-supply: true
+        vdd_l19-supply: true
+        vdd_l21-supply: true
+        vdd_l22-supply: true
+        vdd_lvs1_2-supply: true
+        vdd_lvs3_4-supply: true
+        vdd_5vs1-supply: true
+      patternProperties:
+        "^vdd_s([1-9]|1[0-2])-supply$": true
 
   - if:
       properties:

@@ -228,3 +228,24 @@ void dev_pm_domain_set(struct device *dev, struct dev_pm_domain *pd)
 	device_pm_check_callbacks(dev);
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_set);
+
+/**
+ * dev_pm_domain_set_performance_state - Request a new performance state.
+ * @dev: The device to make the request for.
+ * @state: Target performance state for the device.
+ *
+ * This function should be called when a new performance state needs to be
+ * requested for a device that is attached to a PM domain. Note that, the
+ * support for performance scaling for PM domains is optional.
+ *
+ * Returns 0 on success and when performance scaling isn't supported, negative
+ * error code on failure.
+ */
+int dev_pm_domain_set_performance_state(struct device *dev, unsigned int state)
+{
+	if (dev->pm_domain && dev->pm_domain->set_performance_state)
+		return dev->pm_domain->set_performance_state(dev, state);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_set_performance_state);

@@ -477,6 +477,50 @@ static const struct hi556_reg mode_1296x972_regs[] = {
 	{0x0958, 0xbb80},
 };
 
+static const struct hi556_reg mode_1296x722_regs[] = {
+	{0x0a00, 0x0000},
+	{0x0b0a, 0x8259},
+	{0x0f30, 0x5b15},
+	{0x0f32, 0x7167},
+	{0x004a, 0x0100},
+	{0x004c, 0x0000},
+	{0x004e, 0x0100},
+	{0x000c, 0x0122},
+	{0x0008, 0x0b00},
+	{0x005a, 0x0404},
+	{0x0012, 0x000c},
+	{0x0018, 0x0a33},
+	{0x0022, 0x0008},
+	{0x0028, 0x0017},
+	{0x0024, 0x0022},
+	{0x002a, 0x002b},
+	{0x0026, 0x012a},
+	{0x002c, 0x06cf},
+	{0x002e, 0x3311},
+	{0x0030, 0x3311},
+	{0x0032, 0x3311},
+	{0x0006, 0x0814},
+	{0x0a22, 0x0000},
+	{0x0a12, 0x0510},
+	{0x0a14, 0x02d2},
+	{0x003e, 0x0000},
+	{0x0074, 0x0812},
+	{0x0070, 0x0409},
+	{0x0804, 0x0308},
+	{0x0806, 0x0100},
+	{0x0a04, 0x016a},
+	{0x090c, 0x09c0},
+	{0x090e, 0x0010},
+	{0x0902, 0x4319},
+	{0x0914, 0xc106},
+	{0x0916, 0x040e},
+	{0x0918, 0x0304},
+	{0x091a, 0x0708},
+	{0x091c, 0x0e06},
+	{0x091e, 0x0300},
+	{0x0958, 0xbb80},
+};
+
 static const char * const hi556_test_pattern_menu[] = {
 	"Disabled",
 	"Solid Colour",
@@ -556,7 +600,25 @@ static const struct hi556_mode supported_modes[] = {
 			.regs = mode_1296x972_regs,
 		},
 		.link_freq_index = HI556_LINK_FREQ_437MHZ_INDEX,
-	}
+	},
+	{
+		.width = 1296,
+		.height = 722,
+		.crop = {
+			.left = HI556_PIXEL_ARRAY_LEFT,
+			.top = 250,
+			.width = HI556_PIXEL_ARRAY_WIDTH,
+			.height = 1444
+		},
+		.fll_def = HI556_FLL_30FPS,
+		.fll_min = HI556_FLL_30FPS_MIN,
+		.llp = 0x0b00,
+		.reg_list = {
+			.num_of_regs = ARRAY_SIZE(mode_1296x722_regs),
+			.regs = mode_1296x722_regs,
+		},
+		.link_freq_index = HI556_LINK_FREQ_437MHZ_INDEX,
+	},
 };
 
 struct hi556 {
@@ -576,9 +638,6 @@ struct hi556 {
 
 	/* To serialize asynchronus callbacks */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 
 	/* True if the device has been identified */
 	bool identified;
@@ -976,9 +1035,6 @@ static int hi556_set_stream(struct v4l2_subdev *sd, int enable)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = 0;
 
-	if (hi556->streaming == enable)
-		return 0;
-
 	mutex_lock(&hi556->mutex);
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -998,47 +1054,8 @@ static int hi556_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	hi556->streaming = enable;
 	mutex_unlock(&hi556->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused hi556_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct hi556 *hi556 = to_hi556(sd);
-
-	mutex_lock(&hi556->mutex);
-	if (hi556->streaming)
-		hi556_stop_streaming(hi556);
-
-	mutex_unlock(&hi556->mutex);
-
-	return 0;
-}
-
-static int __maybe_unused hi556_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct hi556 *hi556 = to_hi556(sd);
-	int ret;
-
-	mutex_lock(&hi556->mutex);
-	if (hi556->streaming) {
-		ret = hi556_start_streaming(hi556);
-		if (ret)
-			goto error;
-	}
-
-	mutex_unlock(&hi556->mutex);
-
-	return 0;
-
-error:
-	hi556_stop_streaming(hi556);
-	hi556->streaming = 0;
-	mutex_unlock(&hi556->mutex);
 	return ret;
 }
 
@@ -1331,10 +1348,6 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static const struct dev_pm_ops hi556_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(hi556_suspend, hi556_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id hi556_acpi_ids[] = {
 	{"INT3537"},
@@ -1347,7 +1360,6 @@ MODULE_DEVICE_TABLE(acpi, hi556_acpi_ids);
 static struct i2c_driver hi556_i2c_driver = {
 	.driver = {
 		.name = "hi556",
-		.pm = &hi556_pm_ops,
 		.acpi_match_table = ACPI_PTR(hi556_acpi_ids),
 	},
 	.probe = hi556_probe,

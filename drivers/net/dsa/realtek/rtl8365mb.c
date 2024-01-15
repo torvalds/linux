@@ -1144,7 +1144,7 @@ static int rtl8365mb_port_change_mtu(struct dsa_switch *ds, int port,
 	int frame_size;
 
 	/* When a new MTU is set, DSA always sets the CPU port's MTU to the
-	 * largest MTU of the slave ports. Because the switch only has a global
+	 * largest MTU of the user ports. Because the switch only has a global
 	 * RX length register, only allowing CPU port here is enough.
 	 */
 	if (!dsa_is_cpu_port(ds, port))
@@ -1303,8 +1303,7 @@ static void rtl8365mb_get_strings(struct dsa_switch *ds, int port, u32 stringset
 
 	for (i = 0; i < RTL8365MB_MIB_END; i++) {
 		struct rtl8365mb_mib_counter *mib = &rtl8365mb_mib_counters[i];
-
-		strncpy(data + i * ETH_GSTRING_LEN, mib->name, ETH_GSTRING_LEN);
+		ethtool_sprintf(&data, "%s", mib->name);
 	}
 }
 

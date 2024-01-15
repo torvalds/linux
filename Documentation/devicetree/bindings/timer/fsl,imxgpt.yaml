@@ -36,7 +36,9 @@ properties:
               - fsl,imxrt1170-gpt
           - const: fsl,imx6dl-gpt
       - items:
-          - const: fsl,imx6ul-gpt
+          - enum:
+              - fsl,imx6ul-gpt
+              - fsl,imx7d-gpt
           - const: fsl,imx6sx-gpt
 
   reg:
@@ -46,14 +48,18 @@ properties:
     maxItems: 1
 
   clocks:
+    minItems: 2
     items:
       - description: SoC GPT ipg clock
       - description: SoC GPT per clock
+      - description: SoC GPT osc per clock
 
   clock-names:
+    minItems: 2
     items:
       - const: ipg
       - const: per
+      - const: osc_per
 
 required:
   - compatible
@@ -61,6 +67,29 @@ required:
   - interrupts
   - clocks
   - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx6dl-gpt
+              - fsl,imx6q-gpt
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 3
+        clock-names:
+          minItems: 2
+          maxItems: 3
+    else:
+      properties:
+        clocks:
+          maxItems: 2
+        clock-names:
+          maxItems: 2
 
 additionalProperties: false
 

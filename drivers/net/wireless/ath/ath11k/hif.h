@@ -9,18 +9,18 @@
 #include "core.h"
 
 struct ath11k_hif_ops {
-	u32 (*read32)(struct ath11k_base *sc, u32 address);
-	void (*write32)(struct ath11k_base *sc, u32 address, u32 data);
+	u32 (*read32)(struct ath11k_base *ab, u32 address);
+	void (*write32)(struct ath11k_base *ab, u32 address, u32 data);
 	int (*read)(struct ath11k_base *ab, void *buf, u32 start, u32 end);
-	void (*irq_enable)(struct ath11k_base *sc);
-	void (*irq_disable)(struct ath11k_base *sc);
-	int (*start)(struct ath11k_base *sc);
-	void (*stop)(struct ath11k_base *sc);
-	int (*power_up)(struct ath11k_base *sc);
-	void (*power_down)(struct ath11k_base *sc);
+	void (*irq_enable)(struct ath11k_base *ab);
+	void (*irq_disable)(struct ath11k_base *ab);
+	int (*start)(struct ath11k_base *ab);
+	void (*stop)(struct ath11k_base *ab);
+	int (*power_up)(struct ath11k_base *ab);
+	void (*power_down)(struct ath11k_base *ab);
 	int (*suspend)(struct ath11k_base *ab);
 	int (*resume)(struct ath11k_base *ab);
-	int (*map_service_to_pipe)(struct ath11k_base *sc, u16 service_id,
+	int (*map_service_to_pipe)(struct ath11k_base *ab, u16 service_id,
 				   u8 *ul_pipe, u8 *dl_pipe);
 	int (*get_user_msi_vector)(struct ath11k_base *ab, char *user_name,
 				   int *num_vectors, u32 *user_base_data,
@@ -44,34 +44,34 @@ static inline void ath11k_hif_ce_irq_disable(struct ath11k_base *ab)
 		ab->hif.ops->ce_irq_disable(ab);
 }
 
-static inline int ath11k_hif_start(struct ath11k_base *sc)
+static inline int ath11k_hif_start(struct ath11k_base *ab)
 {
-	return sc->hif.ops->start(sc);
+	return ab->hif.ops->start(ab);
 }
 
-static inline void ath11k_hif_stop(struct ath11k_base *sc)
+static inline void ath11k_hif_stop(struct ath11k_base *ab)
 {
-	sc->hif.ops->stop(sc);
+	ab->hif.ops->stop(ab);
 }
 
-static inline void ath11k_hif_irq_enable(struct ath11k_base *sc)
+static inline void ath11k_hif_irq_enable(struct ath11k_base *ab)
 {
-	sc->hif.ops->irq_enable(sc);
+	ab->hif.ops->irq_enable(ab);
 }
 
-static inline void ath11k_hif_irq_disable(struct ath11k_base *sc)
+static inline void ath11k_hif_irq_disable(struct ath11k_base *ab)
 {
-	sc->hif.ops->irq_disable(sc);
+	ab->hif.ops->irq_disable(ab);
 }
 
-static inline int ath11k_hif_power_up(struct ath11k_base *sc)
+static inline int ath11k_hif_power_up(struct ath11k_base *ab)
 {
-	return sc->hif.ops->power_up(sc);
+	return ab->hif.ops->power_up(ab);
 }
 
-static inline void ath11k_hif_power_down(struct ath11k_base *sc)
+static inline void ath11k_hif_power_down(struct ath11k_base *ab)
 {
-	sc->hif.ops->power_down(sc);
+	ab->hif.ops->power_down(ab);
 }
 
 static inline int ath11k_hif_suspend(struct ath11k_base *ab)
@@ -90,14 +90,14 @@ static inline int ath11k_hif_resume(struct ath11k_base *ab)
 	return 0;
 }
 
-static inline u32 ath11k_hif_read32(struct ath11k_base *sc, u32 address)
+static inline u32 ath11k_hif_read32(struct ath11k_base *ab, u32 address)
 {
-	return sc->hif.ops->read32(sc, address);
+	return ab->hif.ops->read32(ab, address);
 }
 
-static inline void ath11k_hif_write32(struct ath11k_base *sc, u32 address, u32 data)
+static inline void ath11k_hif_write32(struct ath11k_base *ab, u32 address, u32 data)
 {
-	sc->hif.ops->write32(sc, address, data);
+	ab->hif.ops->write32(ab, address, data);
 }
 
 static inline int ath11k_hif_read(struct ath11k_base *ab, void *buf,
@@ -109,10 +109,10 @@ static inline int ath11k_hif_read(struct ath11k_base *ab, void *buf,
 	return ab->hif.ops->read(ab, buf, start, end);
 }
 
-static inline int ath11k_hif_map_service_to_pipe(struct ath11k_base *sc, u16 service_id,
+static inline int ath11k_hif_map_service_to_pipe(struct ath11k_base *ab, u16 service_id,
 						 u8 *ul_pipe, u8 *dl_pipe)
 {
-	return sc->hif.ops->map_service_to_pipe(sc, service_id, ul_pipe, dl_pipe);
+	return ab->hif.ops->map_service_to_pipe(ab, service_id, ul_pipe, dl_pipe);
 }
 
 static inline int ath11k_get_user_msi_vector(struct ath11k_base *ab, char *user_name,

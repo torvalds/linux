@@ -255,7 +255,7 @@ static void print_subtest_name(int test_num, int subtest_num,
 			       const char *test_name, char *subtest_name,
 			       char *result)
 {
-	char test_num_str[TEST_NUM_WIDTH + 1];
+	char test_num_str[32];
 
 	snprintf(test_num_str, sizeof(test_num_str), "%d/%d", test_num, subtest_num);
 

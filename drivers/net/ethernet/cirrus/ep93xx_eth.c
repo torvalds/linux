@@ -757,7 +757,7 @@ static struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 }
 
 
-static int ep93xx_eth_remove(struct platform_device *pdev)
+static void ep93xx_eth_remove(struct platform_device *pdev)
 {
 	struct net_device *dev;
 	struct ep93xx_priv *ep;
@@ -765,7 +765,7 @@ static int ep93xx_eth_remove(struct platform_device *pdev)
 
 	dev = platform_get_drvdata(pdev);
 	if (dev == NULL)
-		return 0;
+		return;
 
 	ep = netdev_priv(dev);
 
@@ -782,8 +782,6 @@ static int ep93xx_eth_remove(struct platform_device *pdev)
 	}
 
 	free_netdev(dev);
-
-	return 0;
 }
 
 static int ep93xx_eth_probe(struct platform_device *pdev)
@@ -862,7 +860,7 @@ err_out:
 
 static struct platform_driver ep93xx_eth_driver = {
 	.probe		= ep93xx_eth_probe,
-	.remove		= ep93xx_eth_remove,
+	.remove_new	= ep93xx_eth_remove,
 	.driver		= {
 		.name	= "ep93xx-eth",
 	},

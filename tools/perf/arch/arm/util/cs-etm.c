@@ -205,8 +205,17 @@ static int cs_etm_validate_config(struct auxtrace_record *itr,
 	for (i = 0; i < cpu__max_cpu().cpu; i++) {
 		struct perf_cpu cpu = { .cpu = i, };
 
-		if (!perf_cpu_map__has(event_cpus, cpu) ||
-		    !perf_cpu_map__has(online_cpus, cpu))
+		/*
+		 * In per-cpu case, do the validation for CPUs to work with.
+		 * In per-thread case, the CPU map is empty.  Since the traced
+		 * program can run on any CPUs in this case, thus don't skip
+		 * validation.
+		 */
+		if (!perf_cpu_map__empty(event_cpus) &&
+		    !perf_cpu_map__has(event_cpus, cpu))
+			continue;
+
+		if (!perf_cpu_map__has(online_cpus, cpu))
 			continue;
 
 		err = cs_etm_validate_context_id(itr, evsel, i);
@@ -432,6 +441,15 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
 					   "contextid", 1);
 	}
+
+	/*
+	 * When the option '--timestamp' or '-T' is enabled, the PERF_SAMPLE_TIME
+	 * bit is set for all events.  In this case, always enable Arm CoreSight
+	 * timestamp tracing.
+	 */
+	if (opts->sample_time_set)
+		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
+					   "timestamp", 1);
 
 	/* Add dummy event to keep tracking */
 	err = parse_event(evlist, "dummy:u");
@@ -917,16 +935,9 @@ out:
  * (CFG_CHG and evsel__set_config_if_unset()). If no default is set then user
  * changes aren't tracked.
  */
-struct perf_event_attr *
-cs_etm_get_default_config(struct perf_pmu *pmu __maybe_unused)
+void
+cs_etm_get_default_config(const struct perf_pmu *pmu __maybe_unused,
+			  struct perf_event_attr *attr)
 {
-	struct perf_event_attr *attr;
-
-	attr = zalloc(sizeof(struct perf_event_attr));
-	if (!attr)
-		return NULL;
-
 	attr->sample_period = 1;
-
-	return attr;
 }

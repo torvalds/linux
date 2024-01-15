@@ -4,7 +4,7 @@
  *
  * Copyright: (c) 2014 Czech Technical University in Prague
  *            (c) 2014 Volkswagen Group Research
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2023 Intel Corporation
  * Author:    Rostislav Lisovy <rostislav.lisovy@fel.cvut.cz>
  * Funded by: Volkswagen Group Research
  */
@@ -15,14 +15,14 @@
 #include "core.h"
 #include "rdev-ops.h"
 
-int __cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
-			struct net_device *dev,
-			struct ocb_setup *setup)
+int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
+		      struct net_device *dev,
+		      struct ocb_setup *setup)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_OCB)
 		return -EOPNOTSUPP;
@@ -40,27 +40,13 @@ int __cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-int cfg80211_join_ocb(struct cfg80211_registered_device *rdev,
-		      struct net_device *dev,
-		      struct ocb_setup *setup)
+int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	wdev_lock(wdev);
-	err = __cfg80211_join_ocb(rdev, dev, setup);
-	wdev_unlock(wdev);
-
-	return err;
-}
-
-int __cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_OCB)
 		return -EOPNOTSUPP;
@@ -74,19 +60,6 @@ int __cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 	err = rdev_leave_ocb(rdev, dev);
 	if (!err)
 		memset(&wdev->u.ocb.chandef, 0, sizeof(wdev->u.ocb.chandef));
-
-	return err;
-}
-
-int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	wdev_lock(wdev);
-	err = __cfg80211_leave_ocb(rdev, dev);
-	wdev_unlock(wdev);
 
 	return err;
 }

@@ -10,8 +10,6 @@
 #include <asm/io.h>
 #include <asm/pgtable.h>
 
-#define __HAVE_ARCH_SHADOW_MAP
-
 #define KASAN_SHADOW_SCALE_SHIFT 3
 #define KASAN_SHADOW_OFFSET	_AC(CONFIG_KASAN_SHADOW_OFFSET, UL)
 
@@ -62,61 +60,22 @@
 extern bool kasan_early_stage;
 extern unsigned char kasan_early_shadow_page[PAGE_SIZE];
 
+#define kasan_mem_to_shadow kasan_mem_to_shadow
+void *kasan_mem_to_shadow(const void *addr);
+
+#define kasan_shadow_to_mem kasan_shadow_to_mem
+const void *kasan_shadow_to_mem(const void *shadow_addr);
+
 #define kasan_arch_is_ready kasan_arch_is_ready
 static __always_inline bool kasan_arch_is_ready(void)
 {
 	return !kasan_early_stage;
 }
 
-static inline void *kasan_mem_to_shadow(const void *addr)
+#define addr_has_metadata addr_has_metadata
+static __always_inline bool addr_has_metadata(const void *addr)
 {
-	if (!kasan_arch_is_ready()) {
-		return (void *)(kasan_early_shadow_page);
-	} else {
-		unsigned long maddr = (unsigned long)addr;
-		unsigned long xrange = (maddr >> XRANGE_SHIFT) & 0xffff;
-		unsigned long offset = 0;
-
-		maddr &= XRANGE_SHADOW_MASK;
-		switch (xrange) {
-		case XKPRANGE_CC_SEG:
-			offset = XKPRANGE_CC_SHADOW_OFFSET;
-			break;
-		case XKPRANGE_UC_SEG:
-			offset = XKPRANGE_UC_SHADOW_OFFSET;
-			break;
-		case XKVRANGE_VC_SEG:
-			offset = XKVRANGE_VC_SHADOW_OFFSET;
-			break;
-		default:
-			WARN_ON(1);
-			return NULL;
-		}
-
-		return (void *)((maddr >> KASAN_SHADOW_SCALE_SHIFT) + offset);
-	}
-}
-
-static inline const void *kasan_shadow_to_mem(const void *shadow_addr)
-{
-	unsigned long addr = (unsigned long)shadow_addr;
-
-	if (unlikely(addr > KASAN_SHADOW_END) ||
-		unlikely(addr < KASAN_SHADOW_START)) {
-		WARN_ON(1);
-		return NULL;
-	}
-
-	if (addr >= XKVRANGE_VC_SHADOW_OFFSET)
-		return (void *)(((addr - XKVRANGE_VC_SHADOW_OFFSET) << KASAN_SHADOW_SCALE_SHIFT) + XKVRANGE_VC_START);
-	else if (addr >= XKPRANGE_UC_SHADOW_OFFSET)
-		return (void *)(((addr - XKPRANGE_UC_SHADOW_OFFSET) << KASAN_SHADOW_SCALE_SHIFT) + XKPRANGE_UC_START);
-	else if (addr >= XKPRANGE_CC_SHADOW_OFFSET)
-		return (void *)(((addr - XKPRANGE_CC_SHADOW_OFFSET) << KASAN_SHADOW_SCALE_SHIFT) + XKPRANGE_CC_START);
-	else {
-		WARN_ON(1);
-		return NULL;
-	}
+	return (kasan_mem_to_shadow((void *)addr) != NULL);
 }
 
 void kasan_init(void);

@@ -875,6 +875,8 @@ static int npcm7xx_en_pwm_fan(struct device *dev,
 	data->pwm_present[pwm_port] = true;
 	ret = npcm7xx_pwm_config_set(data, pwm_port,
 				     NPCM7XX_PWM_CMR_DEFAULT_NUM);
+	if (ret)
+		return ret;
 
 	ret = of_property_count_u8_elems(child, "cooling-levels");
 	if (ret > 0) {

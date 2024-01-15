@@ -186,8 +186,7 @@ do {						\
 #else
 #define deactivate_mm(tsk, mm)			\
 do {						\
-	if (!tsk->vfork_done)			\
-		shstk_free(tsk);		\
+	shstk_free(tsk);			\
 	load_gs_index(0);			\
 	loadsegment(fs, 0);			\
 } while (0)

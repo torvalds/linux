@@ -4,6 +4,7 @@
 #include <uapi/linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
+#if !defined(__aarch64__)
 struct syscalls_enter_open_args {
 	unsigned long long unused;
 	long syscall_nr;
@@ -11,11 +12,21 @@ struct syscalls_enter_open_args {
 	long flags;
 	long mode;
 };
+#endif
 
 struct syscalls_exit_open_args {
 	unsigned long long unused;
 	long syscall_nr;
 	long ret;
+};
+
+struct syscalls_enter_open_at_args {
+	unsigned long long unused;
+	long syscall_nr;
+	long long dfd;
+	long filename_ptr;
+	long flags;
+	long mode;
 };
 
 struct {
@@ -54,14 +65,14 @@ int trace_enter_open(struct syscalls_enter_open_args *ctx)
 #endif
 
 SEC("tracepoint/syscalls/sys_enter_openat")
-int trace_enter_open_at(struct syscalls_enter_open_args *ctx)
+int trace_enter_open_at(struct syscalls_enter_open_at_args *ctx)
 {
 	count(&enter_open_map);
 	return 0;
 }
 
 SEC("tracepoint/syscalls/sys_enter_openat2")
-int trace_enter_open_at2(struct syscalls_enter_open_args *ctx)
+int trace_enter_open_at2(struct syscalls_enter_open_at_args *ctx)
 {
 	count(&enter_open_map);
 	return 0;

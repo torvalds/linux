@@ -1287,7 +1287,7 @@ config INTEL_MID_WATCHDOG
 
 config ITCO_WDT
 	tristate "Intel TCO Timer/Watchdog"
-	depends on (X86 || IA64) && PCI
+	depends on X86 && PCI
 	select WATCHDOG_CORE
 	depends on I2C || I2C=n
 	depends on MFD_INTEL_PMC_BXT || !MFD_INTEL_PMC_BXT
@@ -1767,12 +1767,6 @@ config SIBYTE_WDOG
 
 	  To compile this driver as a loadable module, choose M here.
 	  The module will be called sb_wdog.
-
-config AR7_WDT
-	tristate "TI AR7 Watchdog Timer"
-	depends on AR7 || (MIPS && 32BIT && COMPILE_TEST)
-	help
-	  Hardware driver for the TI AR7 Watchdog Timer.
 
 config TXX9_WDT
 	tristate "Toshiba TXx9 Watchdog Timer"

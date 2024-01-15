@@ -255,15 +255,13 @@ static int mcf_edma_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mcf_edma_remove(struct platform_device *pdev)
+static void mcf_edma_remove(struct platform_device *pdev)
 {
 	struct fsl_edma_engine *mcf_edma = platform_get_drvdata(pdev);
 
 	mcf_edma_irq_free(pdev, mcf_edma);
 	fsl_edma_cleanup_vchan(&mcf_edma->dma_dev);
 	dma_async_device_unregister(&mcf_edma->dma_dev);
-
-	return 0;
 }
 
 static struct platform_driver mcf_edma_driver = {
@@ -271,7 +269,7 @@ static struct platform_driver mcf_edma_driver = {
 		.name	= "mcf-edma",
 	},
 	.probe		= mcf_edma_probe,
-	.remove		= mcf_edma_remove,
+	.remove_new	= mcf_edma_remove,
 };
 
 bool mcf_edma_filter_fn(struct dma_chan *chan, void *param)

@@ -71,8 +71,6 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_wlf>;
 		wlf,mute-gpios = <&gpio5 21 GPIO_ACTIVE_LOW>;
-		clocks = <&clk IMX8MN_CLK_SAI3_ROOT>;
-		clock-names = "mclk";
 	};
 
 	sound-bt-sco {

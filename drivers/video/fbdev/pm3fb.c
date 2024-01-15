@@ -1203,6 +1203,7 @@ static int pm3fb_blank(int blank_mode, struct fb_info *info)
 
 static const struct fb_ops pm3fb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= pm3fb_check_var,
 	.fb_set_par	= pm3fb_set_par,
 	.fb_setcolreg	= pm3fb_setcolreg,
@@ -1213,6 +1214,7 @@ static const struct fb_ops pm3fb_ops = {
 	.fb_blank	= pm3fb_blank,
 	.fb_sync	= pm3fb_sync,
 	.fb_cursor	= pm3fb_cursor,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /* ------------------------------------------------------------------------- */

@@ -442,10 +442,9 @@ void xsk_clear_xskmap(struct bpf_map *map)
 	bpf_map_delete_elem(map_fd, &index);
 }
 
-int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk)
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk, u32 index)
 {
 	int map_fd, sock_fd;
-	u32 index = 0;
 
 	map_fd = bpf_map__fd(map);
 	sock_fd = xsk_socket__fd(xsk);

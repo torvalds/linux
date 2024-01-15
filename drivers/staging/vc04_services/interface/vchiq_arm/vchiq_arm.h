@@ -76,9 +76,6 @@ struct dump_context {
 	loff_t offset;
 };
 
-extern int vchiq_arm_log_level;
-extern int vchiq_susp_log_level;
-
 extern spinlock_t msg_queue_spinlock;
 extern struct vchiq_state g_state;
 

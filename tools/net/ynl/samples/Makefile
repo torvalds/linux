@@ -19,6 +19,9 @@ include $(wildcard *.d)
 all: $(BINS)
 
 $(BINS): ../lib/ynl.a ../generated/protos.a
+	@echo -e '\tCC sample $@'
+	@$(COMPILE.c) $(CFLAGS_$@) $@.c -o $@.o
+	@$(LINK.c) $@.o -o $@  $(LDLIBS)
 
 clean:
 	rm -f *.o *.d *~

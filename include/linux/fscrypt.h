@@ -31,7 +31,7 @@
 #define FSCRYPT_CONTENTS_ALIGNMENT 16
 
 union fscrypt_policy;
-struct fscrypt_info;
+struct fscrypt_inode_info;
 struct fs_parameter;
 struct seq_file;
 
@@ -59,26 +59,55 @@ struct fscrypt_name {
 
 #ifdef CONFIG_FS_ENCRYPTION
 
-/*
- * If set, the fscrypt bounce page pool won't be allocated (unless another
- * filesystem needs it).  Set this if the filesystem always uses its own bounce
- * pages for writes and therefore won't need the fscrypt bounce page pool.
- */
-#define FS_CFLG_OWN_PAGES (1U << 1)
-
 /* Crypto operations for filesystems */
 struct fscrypt_operations {
 
-	/* Set of optional flags; see above for allowed flags */
-	unsigned int flags;
+	/*
+	 * If set, then fs/crypto/ will allocate a global bounce page pool the
+	 * first time an encryption key is set up for a file.  The bounce page
+	 * pool is required by the following functions:
+	 *
+	 * - fscrypt_encrypt_pagecache_blocks()
+	 * - fscrypt_zeroout_range() for files not using inline crypto
+	 *
+	 * If the filesystem doesn't use those, it doesn't need to set this.
+	 */
+	unsigned int needs_bounce_pages : 1;
 
 	/*
-	 * If set, this is a filesystem-specific key description prefix that
-	 * will be accepted for "logon" keys for v1 fscrypt policies, in
-	 * addition to the generic prefix "fscrypt:".  This functionality is
-	 * deprecated, so new filesystems shouldn't set this field.
+	 * If set, then fs/crypto/ will allow the use of encryption settings
+	 * that assume inode numbers fit in 32 bits (i.e.
+	 * FSCRYPT_POLICY_FLAG_IV_INO_LBLK_{32,64}), provided that the other
+	 * prerequisites for these settings are also met.  This is only useful
+	 * if the filesystem wants to support inline encryption hardware that is
+	 * limited to 32-bit or 64-bit data unit numbers and where programming
+	 * keyslots is very slow.
 	 */
-	const char *key_prefix;
+	unsigned int has_32bit_inodes : 1;
+
+	/*
+	 * If set, then fs/crypto/ will allow users to select a crypto data unit
+	 * size that is less than the filesystem block size.  This is done via
+	 * the log2_data_unit_size field of the fscrypt policy.  This flag is
+	 * not compatible with filesystems that encrypt variable-length blocks
+	 * (i.e. blocks that aren't all equal to filesystem's block size), for
+	 * example as a result of compression.  It's also not compatible with
+	 * the fscrypt_encrypt_block_inplace() and
+	 * fscrypt_decrypt_block_inplace() functions.
+	 */
+	unsigned int supports_subblock_data_units : 1;
+
+	/*
+	 * This field exists only for backwards compatibility reasons and should
+	 * only be set by the filesystems that are setting it already.  It
+	 * contains the filesystem-specific key description prefix that is
+	 * accepted for "logon" keys for v1 fscrypt policies.  This
+	 * functionality is deprecated in favor of the generic prefix
+	 * "fscrypt:", which itself is deprecated in favor of the filesystem
+	 * keyring ioctls such as FS_IOC_ADD_ENCRYPTION_KEY.  Filesystems that
+	 * are newly adding fscrypt support should not set this field.
+	 */
+	const char *legacy_key_prefix;
 
 	/*
 	 * Get the fscrypt context of the given inode.
@@ -146,21 +175,6 @@ struct fscrypt_operations {
 	bool (*has_stable_inodes)(struct super_block *sb);
 
 	/*
-	 * Get the number of bits that the filesystem uses to represent inode
-	 * numbers and file logical block numbers.
-	 *
-	 * By default, both of these are assumed to be 64-bit.  This function
-	 * can be implemented to declare that either or both of these numbers is
-	 * shorter, which may allow the use of the
-	 * FSCRYPT_POLICY_FLAG_IV_INO_LBLK_{32,64} flags and/or the use of
-	 * inline crypto hardware whose maximum DUN length is less than 64 bits
-	 * (e.g., eMMC v5.2 spec compliant hardware).  This function only needs
-	 * to be implemented if support for one of these features is needed.
-	 */
-	void (*get_ino_and_lblk_bits)(struct super_block *sb,
-				      int *ino_bits_ret, int *lblk_bits_ret);
-
-	/*
 	 * Return an array of pointers to the block devices to which the
 	 * filesystem may write encrypted file contents, NULL if the filesystem
 	 * only has a single such block device, or an ERR_PTR() on error.
@@ -178,7 +192,8 @@ struct fscrypt_operations {
 					     unsigned int *num_devs);
 };
 
-static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
+static inline struct fscrypt_inode_info *
+fscrypt_get_inode_info(const struct inode *inode)
 {
 	/*
 	 * Pairs with the cmpxchg_release() in fscrypt_setup_encryption_info().
@@ -390,7 +405,8 @@ static inline void fscrypt_set_ops(struct super_block *sb,
 }
 #else  /* !CONFIG_FS_ENCRYPTION */
 
-static inline struct fscrypt_info *fscrypt_get_info(const struct inode *inode)
+static inline struct fscrypt_inode_info *
+fscrypt_get_inode_info(const struct inode *inode)
 {
 	return NULL;
 }
@@ -868,7 +884,7 @@ static inline bool fscrypt_inode_uses_fs_layer_crypto(const struct inode *inode)
  */
 static inline bool fscrypt_has_encryption_key(const struct inode *inode)
 {
-	return fscrypt_get_info(inode) != NULL;
+	return fscrypt_get_inode_info(inode) != NULL;
 }
 
 /**

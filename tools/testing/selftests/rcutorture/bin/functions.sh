@@ -331,3 +331,32 @@ specify_qemu_net () {
 		echo $1 -net none
 	fi
 }
+
+# Extract the ftrace output from the console log output
+# The ftrace output in the original logs look like:
+# Dumping ftrace buffer:
+# ---------------------------------
+# [...]
+# ---------------------------------
+extract_ftrace_from_console() {
+	awk < "$1" '
+
+	/Dumping ftrace buffer:/ {
+		buffer_count++
+		print "Ftrace dump " buffer_count ":"
+		capture = 1
+		next
+	}
+
+	/---------------------------------/ {
+		if(capture == 1) {
+			capture = 2
+			next
+		} else if(capture == 2) {
+			capture = 0
+			print ""
+		}
+	}
+
+	capture == 2'
+}

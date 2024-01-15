@@ -210,11 +210,6 @@ static u32 __get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 		if (crtc->funcs->get_vblank_counter)
 			return crtc->funcs->get_vblank_counter(crtc);
 	}
-#ifdef CONFIG_DRM_LEGACY
-	else if (dev->driver->get_vblank_counter) {
-		return dev->driver->get_vblank_counter(dev, pipe);
-	}
-#endif
 
 	return drm_vblank_no_hw_counter(dev, pipe);
 }
@@ -433,11 +428,6 @@ static void __disable_vblank(struct drm_device *dev, unsigned int pipe)
 		if (crtc->funcs->disable_vblank)
 			crtc->funcs->disable_vblank(crtc);
 	}
-#ifdef CONFIG_DRM_LEGACY
-	else {
-		dev->driver->disable_vblank(dev, pipe);
-	}
-#endif
 }
 
 /*
@@ -1151,11 +1141,6 @@ static int __enable_vblank(struct drm_device *dev, unsigned int pipe)
 		if (crtc->funcs->enable_vblank)
 			return crtc->funcs->enable_vblank(crtc);
 	}
-#ifdef CONFIG_DRM_LEGACY
-	else if (dev->driver->enable_vblank) {
-		return dev->driver->enable_vblank(dev, pipe);
-	}
-#endif
 
 	return -EINVAL;
 }
@@ -1574,88 +1559,6 @@ void drm_crtc_vblank_restore(struct drm_crtc *crtc)
 }
 EXPORT_SYMBOL(drm_crtc_vblank_restore);
 
-static void drm_legacy_vblank_pre_modeset(struct drm_device *dev,
-					  unsigned int pipe)
-{
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-
-	/* vblank is not initialized (IRQ not installed ?), or has been freed */
-	if (!drm_dev_has_vblank(dev))
-		return;
-
-	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
-		return;
-
-	/*
-	 * To avoid all the problems that might happen if interrupts
-	 * were enabled/disabled around or between these calls, we just
-	 * have the kernel take a reference on the CRTC (just once though
-	 * to avoid corrupting the count if multiple, mismatch calls occur),
-	 * so that interrupts remain enabled in the interim.
-	 */
-	if (!vblank->inmodeset) {
-		vblank->inmodeset = 0x1;
-		if (drm_vblank_get(dev, pipe) == 0)
-			vblank->inmodeset |= 0x2;
-	}
-}
-
-static void drm_legacy_vblank_post_modeset(struct drm_device *dev,
-					   unsigned int pipe)
-{
-	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
-
-	/* vblank is not initialized (IRQ not installed ?), or has been freed */
-	if (!drm_dev_has_vblank(dev))
-		return;
-
-	if (drm_WARN_ON(dev, pipe >= dev->num_crtcs))
-		return;
-
-	if (vblank->inmodeset) {
-		spin_lock_irq(&dev->vbl_lock);
-		drm_reset_vblank_timestamp(dev, pipe);
-		spin_unlock_irq(&dev->vbl_lock);
-
-		if (vblank->inmodeset & 0x2)
-			drm_vblank_put(dev, pipe);
-
-		vblank->inmodeset = 0;
-	}
-}
-
-int drm_legacy_modeset_ctl_ioctl(struct drm_device *dev, void *data,
-				 struct drm_file *file_priv)
-{
-	struct drm_modeset_ctl *modeset = data;
-	unsigned int pipe;
-
-	/* If drm_vblank_init() hasn't been called yet, just no-op */
-	if (!drm_dev_has_vblank(dev))
-		return 0;
-
-	/* KMS drivers handle this internally */
-	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
-		return 0;
-
-	pipe = modeset->crtc;
-	if (pipe >= dev->num_crtcs)
-		return -EINVAL;
-
-	switch (modeset->cmd) {
-	case _DRM_PRE_MODESET:
-		drm_legacy_vblank_pre_modeset(dev, pipe);
-		break;
-	case _DRM_POST_MODESET:
-		drm_legacy_vblank_post_modeset(dev, pipe);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int drm_queue_vblank_event(struct drm_device *dev, unsigned int pipe,
 				  u64 req_seq,
 				  union drm_wait_vblank *vblwait,
@@ -1780,10 +1683,6 @@ static void drm_wait_vblank_reply(struct drm_device *dev, unsigned int pipe,
 
 static bool drm_wait_vblank_supported(struct drm_device *dev)
 {
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
-	if (unlikely(drm_core_check_feature(dev, DRIVER_LEGACY)))
-		return dev->irq_enabled;
-#endif
 	return drm_dev_has_vblank(dev);
 }
 

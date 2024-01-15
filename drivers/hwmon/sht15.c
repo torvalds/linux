@@ -1017,7 +1017,7 @@ err_release_reg:
 	return ret;
 }
 
-static int sht15_remove(struct platform_device *pdev)
+static void sht15_remove(struct platform_device *pdev)
 {
 	struct sht15_data *data = platform_get_drvdata(pdev);
 	int ret;
@@ -1033,8 +1033,6 @@ static int sht15_remove(struct platform_device *pdev)
 		regulator_unregister_notifier(data->reg, &data->nb);
 		regulator_disable(data->reg);
 	}
-
-	return 0;
 }
 
 static const struct platform_device_id sht15_device_ids[] = {
@@ -1053,7 +1051,7 @@ static struct platform_driver sht15_driver = {
 		.of_match_table = of_match_ptr(sht15_dt_match),
 	},
 	.probe = sht15_probe,
-	.remove = sht15_remove,
+	.remove_new = sht15_remove,
 	.id_table = sht15_device_ids,
 };
 module_platform_driver(sht15_driver);

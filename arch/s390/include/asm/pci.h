@@ -159,13 +159,6 @@ struct zpci_dev {
 	unsigned long	*dma_table;
 	int		tlb_refresh;
 
-	spinlock_t	iommu_bitmap_lock;
-	unsigned long	*iommu_bitmap;
-	unsigned long	*lazy_bitmap;
-	unsigned long	iommu_size;
-	unsigned long	iommu_pages;
-	unsigned int	next_bit;
-
 	struct iommu_device iommu_dev;  /* IOMMU core handle */
 
 	char res_name[16];
@@ -180,10 +173,6 @@ struct zpci_dev {
 	struct zpci_fmb *fmb;
 	u16		fmb_update;	/* update interval */
 	u16		fmb_length;
-	/* software counters */
-	atomic64_t allocated_pages;
-	atomic64_t mapped_pages;
-	atomic64_t unmapped_pages;
 
 	u8		version;
 	enum pci_bus_speed max_bus_speed;

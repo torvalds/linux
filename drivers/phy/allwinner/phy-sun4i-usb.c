@@ -782,7 +782,7 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 
 	for (i = 0; i < data->cfg->num_phys; i++) {
 		struct sun4i_usb_phy *phy = data->phys + i;
-		char name[16];
+		char name[32];
 
 		if (data->cfg->missing_phys & BIT(i))
 			continue;

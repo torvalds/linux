@@ -38,6 +38,7 @@
 #include "mcif_wb.h"
 #include "panel_cntl.h"
 #include "dmub/inc/dmub_cmd.h"
+#include "pg_cntl.h"
 
 #define MAX_CLOCK_SOURCES 7
 #define MAX_SVP_PHANTOM_STREAMS 2
@@ -132,6 +133,16 @@ struct resource_funcs {
 			const struct resource_pool *pool,
 			const struct pipe_ctx *opp_head_pipe);
 
+	struct pipe_ctx *(*acquire_free_pipe_as_secondary_opp_head)(
+			const struct dc_state *cur_ctx,
+			struct dc_state *new_ctx,
+			const struct resource_pool *pool,
+			const struct pipe_ctx *otg_master);
+
+	void (*release_pipe)(struct dc_state *context,
+			struct pipe_ctx *pipe,
+			const struct resource_pool *pool);
+
 	enum dc_status (*validate_plane)(
 			const struct dc_plane_state *plane_state,
 			struct dc_caps *caps);
@@ -189,11 +200,8 @@ struct resource_funcs {
 			unsigned int pipe_cnt,
             unsigned int index);
 
-	bool (*remove_phantom_pipes)(struct dc *dc, struct dc_state *context, bool fast_update);
-	void (*retain_phantom_pipes)(struct dc *dc, struct dc_state *context);
 	void (*get_panel_config_defaults)(struct dc_panel_config *panel_config);
-	void (*save_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
-	void (*restore_mall_state)(struct dc *dc, struct dc_state *context, struct mall_temp_config *temp_config);
+	void (*build_pipe_pix_clk_params)(struct pipe_ctx *pipe_ctx);
 };
 
 struct audio_support{
@@ -275,6 +283,7 @@ struct resource_pool {
 	struct audio_support audio_support;
 
 	struct dccg *dccg;
+	struct pg_cntl *pg_cntl;
 	struct irq_service *irqs;
 
 	struct abm *abm;
@@ -296,6 +305,16 @@ struct dcn_fe_bandwidth {
 
 };
 
+/* Parameters needed to call set_disp_pattern_generator */
+struct test_pattern_params {
+	enum controller_dp_test_pattern test_pattern;
+	enum controller_dp_color_space color_space;
+	enum dc_color_depth color_depth;
+	int width;
+	int height;
+	int offset;
+};
+
 struct stream_resource {
 	struct output_pixel_processor *opp;
 	struct display_stream_compressor *dsc;
@@ -312,6 +331,8 @@ struct stream_resource {
 	 * otherwise it's using group number 'gsl_group-1'
 	 */
 	uint8_t gsl_group;
+
+	struct test_pattern_params test_pattern_params;
 };
 
 struct plane_resource {
@@ -355,8 +376,19 @@ union pipe_update_flags {
 		uint32_t plane_changed : 1;
 		uint32_t det_size : 1;
 		uint32_t unbounded_req : 1;
+		uint32_t test_pattern_changed : 1;
 	} bits;
 	uint32_t raw;
+};
+
+enum p_state_switch_method {
+	P_STATE_UNKNOWN						= 0,
+	P_STATE_V_BLANK						= 1,
+	P_STATE_FPO,
+	P_STATE_V_ACTIVE,
+	P_STATE_SUB_VP,
+	P_STATE_DRR_SUB_VP,
+	P_STATE_V_BLANK_SUB_VP
 };
 
 struct pipe_ctx {
@@ -407,8 +439,11 @@ struct pipe_ctx {
 	struct dwbc *dwbc;
 	struct mcif_wb *mcif_wb;
 	union pipe_update_flags update_flags;
+	enum p_state_switch_method p_state_type;
 	struct tg_color visual_confirm_color;
 	bool has_vactive_margin;
+	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
+	uint8_t subvp_index;
 };
 
 /* Data used for dynamic link encoder assignment.
@@ -477,6 +512,7 @@ union bw_output {
 struct bw_context {
 	union bw_output bw;
 	struct display_mode_lib dml;
+	struct dml2_context *dml2;
 };
 
 struct dc_dmub_cmd {
@@ -497,6 +533,14 @@ struct dc_state {
 	 * @stream_status: Planes status on a given stream
 	 */
 	struct dc_stream_status stream_status[MAX_PIPES];
+	/**
+	 * @phantom_streams: Stream state properties for phantoms
+	 */
+	struct dc_stream_state *phantom_streams[MAX_PHANTOM_PIPES];
+	/**
+	 * @phantom_planes: Planes state properties for phantoms
+	 */
+	struct dc_plane_state *phantom_planes[MAX_PHANTOM_PIPES];
 
 	/**
 	 * @stream_count: Total of streams in use
@@ -504,6 +548,14 @@ struct dc_state {
 	uint8_t stream_count;
 	uint8_t stream_mask;
 
+	/**
+	 * @stream_count: Total phantom streams in use
+	 */
+	uint8_t phantom_stream_count;
+	/**
+	 * @stream_count: Total phantom planes in use
+	 */
+	uint8_t phantom_plane_count;
 	/**
 	 * @res_ctx: Persistent state of resources
 	 */
@@ -549,6 +601,17 @@ struct dc_state {
 	struct {
 		unsigned int stutter_period_us;
 	} perf_params;
+
+	struct {
+		/* used to temporarily backup plane states of a stream during
+		 * dc update. The reason is that plane states are overwritten
+		 * with surface updates in dc update. Once they are overwritten
+		 * current state is no longer valid. We want to temporarily
+		 * store current value in plane states so we can still recover
+		 * a valid current state during dc update.
+		 */
+		struct dc_plane_state plane_states[MAX_SURFACE_NUM];
+	} scratch;
 };
 
 struct replay_context {

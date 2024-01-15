@@ -85,7 +85,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 					struct net_device *dev,
 					unsigned int offset)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	u16 queue = skb_get_queue_mapping(skb);
 	u8 *brcm_tag;
 
@@ -96,7 +96,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 	 * (including FCS and tag) because the length verification is done after
 	 * the Broadcom tag is stripped off the ingress packet.
 	 *
-	 * Let dsa_slave_xmit() free the SKB
+	 * Let dsa_user_xmit() free the SKB
 	 */
 	if (__skb_put_padto(skb, ETH_ZLEN + BRCM_TAG_LEN, false))
 		return NULL;
@@ -119,7 +119,7 @@ static struct sk_buff *brcm_tag_xmit_ll(struct sk_buff *skb,
 		brcm_tag[2] = BRCM_IG_DSTMAP2_MASK;
 	brcm_tag[3] = (1 << dp->index) & BRCM_IG_DSTMAP1_MASK;
 
-	/* Now tell the master network device about the desired output queue
+	/* Now tell the conduit network device about the desired output queue
 	 * as well
 	 */
 	skb_set_queue_mapping(skb, BRCM_TAG_SET_PORT_QUEUE(dp->index, queue));
@@ -164,7 +164,7 @@ static struct sk_buff *brcm_tag_rcv_ll(struct sk_buff *skb,
 	/* Locate which port this is coming from */
 	source_port = brcm_tag[3] & BRCM_EG_PID_MASK;
 
-	skb->dev = dsa_master_find_slave(dev, 0, source_port);
+	skb->dev = dsa_conduit_find_user(dev, 0, source_port);
 	if (!skb->dev)
 		return NULL;
 
@@ -216,7 +216,7 @@ MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_BRCM, BRCM_NAME);
 static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 					 struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	u8 *brcm_tag;
 
 	/* The Ethernet switch we are interfaced with needs packets to be at
@@ -226,7 +226,7 @@ static struct sk_buff *brcm_leg_tag_xmit(struct sk_buff *skb,
 	 * (including FCS and tag) because the length verification is done after
 	 * the Broadcom tag is stripped off the ingress packet.
 	 *
-	 * Let dsa_slave_xmit() free the SKB
+	 * Let dsa_user_xmit() free the SKB
 	 */
 	if (__skb_put_padto(skb, ETH_ZLEN + BRCM_LEG_TAG_LEN, false))
 		return NULL;
@@ -264,7 +264,7 @@ static struct sk_buff *brcm_leg_tag_rcv(struct sk_buff *skb,
 
 	source_port = brcm_tag[5] & BRCM_LEG_PORT_ID;
 
-	skb->dev = dsa_master_find_slave(dev, 0, source_port);
+	skb->dev = dsa_conduit_find_user(dev, 0, source_port);
 	if (!skb->dev)
 		return NULL;
 

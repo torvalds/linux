@@ -184,5 +184,8 @@ static struct platform_driver crystalcove_pwm_driver = {
 		.name = "crystal_cove_pwm",
 	},
 };
+module_platform_driver(crystalcove_pwm_driver);
 
-builtin_platform_driver(crystalcove_pwm_driver);
+MODULE_ALIAS("platform:crystal_cove_pwm");
+MODULE_DESCRIPTION("Intel Crystalcove (CRC) PWM support");
+MODULE_LICENSE("GPL");

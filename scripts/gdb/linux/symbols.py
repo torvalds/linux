@@ -111,12 +111,11 @@ lx-symbols command."""
         return "{textaddr} {sections}".format(
             textaddr=textaddr, sections="".join(args))
 
-    def load_module_symbols(self, module, module_file=None):
+    def load_module_symbols(self, module):
         module_name = module['name'].string()
         module_addr = str(module['mem'][constants.LX_MOD_TEXT]['base']).split()[0]
 
-        if not module_file:
-            module_file = self._get_module_file(module_name)
+        module_file = self._get_module_file(module_name)
         if not module_file and not self.module_files_updated:
             self._update_module_files()
             module_file = self._get_module_file(module_name)
@@ -138,19 +137,6 @@ lx-symbols command."""
                 self.loaded_modules.append(module_name)
         else:
             gdb.write("no module object found for '{0}'\n".format(module_name))
-
-    def load_ko_symbols(self, mod_path):
-        self.loaded_modules = []
-        module_list = modules.module_list()
-
-        for module in module_list:
-            module_name = module['name'].string()
-            module_pattern = ".*/{0}\.ko(?:.debug)?$".format(
-                module_name.replace("_", r"[_\-]"))
-            if re.match(module_pattern, mod_path) and os.path.exists(mod_path):
-                self.load_module_symbols(module, mod_path)
-                return
-        raise gdb.GdbError("%s is not a valid .ko\n" % mod_path)
 
     def load_all_symbols(self):
         gdb.write("loading vmlinux\n")
@@ -189,11 +175,6 @@ lx-symbols command."""
         # enforce update
         self.module_files = []
         self.module_files_updated = False
-
-        argv = gdb.string_to_argv(arg)
-        if len(argv) == 1:
-            self.load_ko_symbols(argv[0])
-            return
 
         self.load_all_symbols()
 

@@ -597,10 +597,6 @@ baseboard_eeprom: &sip_eeprom {
 	phy-supply = <&vdd_usb>;
 };
 
-&v3v3_hdmi {
-	/delete-property/regulator-always-on;
-};
-
 &vrefbuf {
 	regulator-min-microvolt = <2500000>;
 	regulator-max-microvolt = <2500000>;

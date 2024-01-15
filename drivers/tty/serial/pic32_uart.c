@@ -243,7 +243,7 @@ static void pic32_uart_break_ctl(struct uart_port *port, int ctl)
 	struct pic32_sport *sport = to_pic32_sport(port);
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	if (ctl)
 		pic32_uart_writel(sport, PIC32_SET(PIC32_UART_STA),
@@ -252,7 +252,7 @@ static void pic32_uart_break_ctl(struct uart_port *port, int ctl)
 		pic32_uart_writel(sport, PIC32_CLR(PIC32_UART_STA),
 					PIC32_UART_STA_UTXBRK);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /* get port type in string format */
@@ -274,7 +274,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 	 */
 	max_count = PIC32_UART_RX_FIFO_DEPTH;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	tty = &port->state->port;
 
@@ -331,7 +331,7 @@ static void pic32_uart_do_rx(struct uart_port *port)
 
 	} while (--max_count);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	tty_flip_buffer_push(tty);
 }
@@ -410,9 +410,9 @@ static irqreturn_t pic32_uart_tx_interrupt(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	pic32_uart_do_tx(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	return IRQ_HANDLED;
 }
@@ -580,9 +580,9 @@ static void pic32_uart_shutdown(struct uart_port *port)
 	unsigned long flags;
 
 	/* disable uart */
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	pic32_uart_dsbl_and_mask(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	clk_disable_unprepare(sport->clk);
 
 	/* free all 3 interrupts for this UART */
@@ -604,7 +604,7 @@ static void pic32_uart_set_termios(struct uart_port *port,
 	unsigned int quot;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* disable uart and mask all interrupts while changing speed */
 	pic32_uart_dsbl_and_mask(port);
@@ -672,7 +672,7 @@ static void pic32_uart_set_termios(struct uart_port *port,
 	/* enable uart */
 	pic32_uart_en_and_unmask(port);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /* serial core request to claim uart iomem */

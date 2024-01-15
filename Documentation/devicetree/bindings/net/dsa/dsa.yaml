@@ -40,17 +40,8 @@ $defs:
 
     patternProperties:
       "^(ethernet-)?ports$":
-        type: object
-        additionalProperties: false
-
-        properties:
-          '#address-cells':
-            const: 1
-          '#size-cells':
-            const: 0
-
         patternProperties:
-          "^(ethernet-)?port@[0-9]+$":
+          "^(ethernet-)?port@[0-9a-f]+$":
             description: Ethernet switch ports
             $ref: dsa-port.yaml#
             unevaluatedProperties: false

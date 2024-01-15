@@ -31,7 +31,7 @@ struct bpf_nf_link {
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4) || IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 static const struct nf_defrag_hook *
 get_proto_defrag_hook(struct bpf_nf_link *link,
-		      const struct nf_defrag_hook __rcu *global_hook,
+		      const struct nf_defrag_hook __rcu **ptr_global_hook,
 		      const char *mod)
 {
 	const struct nf_defrag_hook *hook;
@@ -39,7 +39,7 @@ get_proto_defrag_hook(struct bpf_nf_link *link,
 
 	/* RCU protects us from races against module unloading */
 	rcu_read_lock();
-	hook = rcu_dereference(global_hook);
+	hook = rcu_dereference(*ptr_global_hook);
 	if (!hook) {
 		rcu_read_unlock();
 		err = request_module(mod);
@@ -47,7 +47,7 @@ get_proto_defrag_hook(struct bpf_nf_link *link,
 			return ERR_PTR(err < 0 ? err : -EINVAL);
 
 		rcu_read_lock();
-		hook = rcu_dereference(global_hook);
+		hook = rcu_dereference(*ptr_global_hook);
 	}
 
 	if (hook && try_module_get(hook->owner)) {
@@ -78,7 +78,7 @@ static int bpf_nf_enable_defrag(struct bpf_nf_link *link)
 	switch (link->hook_ops.pf) {
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV4)
 	case NFPROTO_IPV4:
-		hook = get_proto_defrag_hook(link, nf_defrag_v4_hook, "nf_defrag_ipv4");
+		hook = get_proto_defrag_hook(link, &nf_defrag_v4_hook, "nf_defrag_ipv4");
 		if (IS_ERR(hook))
 			return PTR_ERR(hook);
 
@@ -87,7 +87,7 @@ static int bpf_nf_enable_defrag(struct bpf_nf_link *link)
 #endif
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)
 	case NFPROTO_IPV6:
-		hook = get_proto_defrag_hook(link, nf_defrag_v6_hook, "nf_defrag_ipv6");
+		hook = get_proto_defrag_hook(link, &nf_defrag_v6_hook, "nf_defrag_ipv6");
 		if (IS_ERR(hook))
 			return PTR_ERR(hook);
 

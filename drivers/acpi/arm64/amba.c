@@ -101,7 +101,7 @@ static int amba_handler_attach(struct acpi_device *adev,
 	if (parent)
 		dev->dev.parent = acpi_get_first_physical_node(parent);
 
-	ACPI_COMPANION_SET(&dev->dev, adev);
+	device_set_node(&dev->dev, acpi_fwnode_handle(adev));
 
 	ret = amba_device_add(dev, &iomem_resource);
 	if (ret) {

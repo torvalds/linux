@@ -3,14 +3,13 @@
 
 #include <asm/page.h>
 
-struct file;
-
-static inline void fb_pgprotect(struct file *file, struct vm_area_struct *vma,
-				unsigned long off)
+static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
+					  unsigned long vm_start, unsigned long vm_end,
+					  unsigned long offset)
 {
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	return pgprot_noncached(prot);
 }
-#define fb_pgprotect fb_pgprotect
+#define pgprot_framebuffer pgprot_framebuffer
 
 /*
  * MIPS doesn't define __raw_ I/O macros, so the helpers

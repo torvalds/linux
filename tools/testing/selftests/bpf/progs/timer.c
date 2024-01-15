@@ -51,7 +51,7 @@ struct {
 	__uint(max_entries, 1);
 	__type(key, int);
 	__type(value, struct elem);
-} abs_timer SEC(".maps");
+} abs_timer SEC(".maps"), soft_timer_pinned SEC(".maps"), abs_timer_pinned SEC(".maps");
 
 __u64 bss_data;
 __u64 abs_data;
@@ -59,6 +59,8 @@ __u64 err;
 __u64 ok;
 __u64 callback_check = 52;
 __u64 callback2_check = 52;
+__u64 pinned_callback_check;
+__s32 pinned_cpu;
 
 #define ARRAY 1
 #define HTAB 2
@@ -326,6 +328,65 @@ int BPF_PROG2(test3, int, a)
 		bpf_timer_start(timer, bpf_ktime_get_boot_ns() + 1000,
 				BPF_F_TIMER_ABS);
 	}
+
+	return 0;
+}
+
+/* callback for pinned timer */
+static int timer_cb_pinned(void *map, int *key, struct bpf_timer *timer)
+{
+	__s32 cpu = bpf_get_smp_processor_id();
+
+	if (cpu != pinned_cpu)
+		err |= 16384;
+
+	pinned_callback_check++;
+	return 0;
+}
+
+static void test_pinned_timer(bool soft)
+{
+	int key = 0;
+	void *map;
+	struct bpf_timer *timer;
+	__u64 flags = BPF_F_TIMER_CPU_PIN;
+	__u64 start_time;
+
+	if (soft) {
+		map = &soft_timer_pinned;
+		start_time = 0;
+	} else {
+		map = &abs_timer_pinned;
+		start_time = bpf_ktime_get_boot_ns();
+		flags |= BPF_F_TIMER_ABS;
+	}
+
+	timer = bpf_map_lookup_elem(map, &key);
+	if (timer) {
+		if (bpf_timer_init(timer, map, CLOCK_BOOTTIME) != 0)
+			err |= 4096;
+		bpf_timer_set_callback(timer, timer_cb_pinned);
+		pinned_cpu = bpf_get_smp_processor_id();
+		bpf_timer_start(timer, start_time + 1000, flags);
+	} else {
+		err |= 8192;
+	}
+}
+
+SEC("fentry/bpf_fentry_test4")
+int BPF_PROG2(test4, int, a)
+{
+	bpf_printk("test4");
+	test_pinned_timer(true);
+
+	return 0;
+}
+
+SEC("fentry/bpf_fentry_test5")
+int BPF_PROG2(test5, int, a)
+{
+	bpf_printk("test5");
+	test_pinned_timer(false);
 
 	return 0;
 }

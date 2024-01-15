@@ -937,3 +937,4 @@ static void __exit sfq_module_exit(void)
 module_init(sfq_module_init)
 module_exit(sfq_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Stochastic Fairness qdisc");

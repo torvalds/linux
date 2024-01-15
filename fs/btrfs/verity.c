@@ -487,7 +487,7 @@ static int rollback_verity(struct btrfs_inode *inode)
 	}
 	inode->ro_flags &= ~BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, inode);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -554,7 +554,7 @@ static int finish_verity(struct btrfs_inode *inode, const void *desc,
 	}
 	inode->ro_flags |= BTRFS_INODE_RO_VERITY;
 	btrfs_sync_inode_flags_to_i_flags(&inode->vfs_inode);
-	ret = btrfs_update_inode(trans, root, inode);
+	ret = btrfs_update_inode(trans, inode);
 	if (ret)
 		goto end_trans;
 	ret = del_orphan(trans, inode);
@@ -715,7 +715,7 @@ static struct page *btrfs_read_merkle_tree_page(struct inode *inode,
 						pgoff_t index,
 						unsigned long num_ra_pages)
 {
-	struct page *page;
+	struct folio *folio;
 	u64 off = (u64)index << PAGE_SHIFT;
 	loff_t merkle_pos = merkle_file_pos(inode);
 	int ret;
@@ -726,28 +726,35 @@ static struct page *btrfs_read_merkle_tree_page(struct inode *inode,
 		return ERR_PTR(-EFBIG);
 	index += merkle_pos >> PAGE_SHIFT;
 again:
-	page = find_get_page_flags(inode->i_mapping, index, FGP_ACCESSED);
-	if (page) {
-		if (PageUptodate(page))
-			return page;
+	folio = __filemap_get_folio(inode->i_mapping, index, FGP_ACCESSED, 0);
+	if (!IS_ERR(folio)) {
+		if (folio_test_uptodate(folio))
+			goto out;
 
-		lock_page(page);
-		/*
-		 * We only insert uptodate pages, so !Uptodate has to be
-		 * an error
-		 */
-		if (!PageUptodate(page)) {
-			unlock_page(page);
-			put_page(page);
+		folio_lock(folio);
+		/* If it's not uptodate after we have the lock, we got a read error. */
+		if (!folio_test_uptodate(folio)) {
+			folio_unlock(folio);
+			folio_put(folio);
 			return ERR_PTR(-EIO);
 		}
-		unlock_page(page);
-		return page;
+		folio_unlock(folio);
+		goto out;
 	}
 
-	page = __page_cache_alloc(mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS));
-	if (!page)
+	folio = filemap_alloc_folio(mapping_gfp_constraint(inode->i_mapping, ~__GFP_FS),
+				    0);
+	if (!folio)
 		return ERR_PTR(-ENOMEM);
+
+	ret = filemap_add_folio(inode->i_mapping, folio, index, GFP_NOFS);
+	if (ret) {
+		folio_put(folio);
+		/* Did someone else insert a folio here? */
+		if (ret == -EEXIST)
+			goto again;
+		return ERR_PTR(ret);
+	}
 
 	/*
 	 * Merkle item keys are indexed from byte 0 in the merkle tree.
@@ -756,28 +763,19 @@ again:
 	 * [ inode objectid, BTRFS_MERKLE_ITEM_KEY, offset in bytes ]
 	 */
 	ret = read_key_bytes(BTRFS_I(inode), BTRFS_VERITY_MERKLE_ITEM_KEY, off,
-			     page_address(page), PAGE_SIZE, page);
+			     folio_address(folio), PAGE_SIZE, &folio->page);
 	if (ret < 0) {
-		put_page(page);
+		folio_put(folio);
 		return ERR_PTR(ret);
 	}
 	if (ret < PAGE_SIZE)
-		memzero_page(page, ret, PAGE_SIZE - ret);
+		folio_zero_segment(folio, ret, PAGE_SIZE);
 
-	SetPageUptodate(page);
-	ret = add_to_page_cache_lru(page, inode->i_mapping, index, GFP_NOFS);
+	folio_mark_uptodate(folio);
+	folio_unlock(folio);
 
-	if (!ret) {
-		/* Inserted and ready for fsverity */
-		unlock_page(page);
-	} else {
-		put_page(page);
-		/* Did someone race us into inserting this page? */
-		if (ret == -EEXIST)
-			goto again;
-		page = ERR_PTR(ret);
-	}
-	return page;
+out:
+	return folio_file_page(folio, index);
 }
 
 /*

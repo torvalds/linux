@@ -204,10 +204,11 @@ FIXTURE(user) {
 	int data_fd;
 	int enable_fd;
 	int check;
+	bool umount;
 };
 
 FIXTURE_SETUP(user) {
-	USER_EVENT_FIXTURE_SETUP(return);
+	USER_EVENT_FIXTURE_SETUP(return, self->umount);
 
 	self->status_fd = open(status_file, O_RDONLY);
 	ASSERT_NE(-1, self->status_fd);
@@ -219,6 +220,8 @@ FIXTURE_SETUP(user) {
 }
 
 FIXTURE_TEARDOWN(user) {
+	USER_EVENT_FIXTURE_TEARDOWN(self->umount);
+
 	close(self->status_fd);
 	close(self->data_fd);
 

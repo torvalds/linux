@@ -5,10 +5,10 @@
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/of_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <sound/asoundef.h>

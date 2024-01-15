@@ -54,9 +54,9 @@
  *   inode_hash_lock
  */
 
-static unsigned int i_hash_mask __read_mostly;
-static unsigned int i_hash_shift __read_mostly;
-static struct hlist_head *inode_hashtable __read_mostly;
+static unsigned int i_hash_mask __ro_after_init;
+static unsigned int i_hash_shift __ro_after_init;
+static struct hlist_head *inode_hashtable __ro_after_init;
 static __cacheline_aligned_in_smp DEFINE_SPINLOCK(inode_hash_lock);
 
 /*
@@ -70,7 +70,7 @@ EXPORT_SYMBOL(empty_aops);
 static DEFINE_PER_CPU(unsigned long, nr_inodes);
 static DEFINE_PER_CPU(unsigned long, nr_unused);
 
-static struct kmem_cache *inode_cachep __read_mostly;
+static struct kmem_cache *inode_cachep __ro_after_init;
 
 static long get_nr_inodes(void)
 {
@@ -215,6 +215,8 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	lockdep_set_class_and_name(&mapping->invalidate_lock,
 				   &sb->s_type->invalidate_lock_key,
 				   "mapping.invalidate_lock");
+	if (sb->s_iflags & SB_I_STABLE_WRITES)
+		mapping_set_stable_writes(mapping);
 	inode->i_private = NULL;
 	inode->i_mapping = mapping;
 	INIT_HLIST_HEAD(&inode->i_dentry);	/* buggered by rcu freeing */
@@ -1837,27 +1839,29 @@ EXPORT_SYMBOL(bmap);
 static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 			     struct timespec64 now)
 {
-	struct timespec64 ctime;
+	struct timespec64 atime, mtime, ctime;
 
 	if (!(mnt->mnt_flags & MNT_RELATIME))
 		return 1;
 	/*
 	 * Is mtime younger than or equal to atime? If yes, update atime:
 	 */
-	if (timespec64_compare(&inode->i_mtime, &inode->i_atime) >= 0)
+	atime = inode_get_atime(inode);
+	mtime = inode_get_mtime(inode);
+	if (timespec64_compare(&mtime, &atime) >= 0)
 		return 1;
 	/*
 	 * Is ctime younger than or equal to atime? If yes, update atime:
 	 */
 	ctime = inode_get_ctime(inode);
-	if (timespec64_compare(&ctime, &inode->i_atime) >= 0)
+	if (timespec64_compare(&ctime, &atime) >= 0)
 		return 1;
 
 	/*
 	 * Is the previous atime value older than a day? If yes,
 	 * update atime:
 	 */
-	if ((long)(now.tv_sec - inode->i_atime.tv_sec) >= 24*60*60)
+	if ((long)(now.tv_sec - atime.tv_sec) >= 24*60*60)
 		return 1;
 	/*
 	 * Good, we can skip the atime update:
@@ -1888,12 +1892,13 @@ int inode_update_timestamps(struct inode *inode, int flags)
 
 	if (flags & (S_MTIME|S_CTIME|S_VERSION)) {
 		struct timespec64 ctime = inode_get_ctime(inode);
+		struct timespec64 mtime = inode_get_mtime(inode);
 
 		now = inode_set_ctime_current(inode);
 		if (!timespec64_equal(&now, &ctime))
 			updated |= S_CTIME;
-		if (!timespec64_equal(&now, &inode->i_mtime)) {
-			inode->i_mtime = now;
+		if (!timespec64_equal(&now, &mtime)) {
+			inode_set_mtime_to_ts(inode, now);
 			updated |= S_MTIME;
 		}
 		if (IS_I_VERSION(inode) && inode_maybe_inc_iversion(inode, updated))
@@ -1903,8 +1908,10 @@ int inode_update_timestamps(struct inode *inode, int flags)
 	}
 
 	if (flags & S_ATIME) {
-		if (!timespec64_equal(&now, &inode->i_atime)) {
-			inode->i_atime = now;
+		struct timespec64 atime = inode_get_atime(inode);
+
+		if (!timespec64_equal(&now, &atime)) {
+			inode_set_atime_to_ts(inode, now);
 			updated |= S_ATIME;
 		}
 	}
@@ -1963,7 +1970,7 @@ EXPORT_SYMBOL(inode_update_time);
 bool atime_needs_update(const struct path *path, struct inode *inode)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct timespec64 now;
+	struct timespec64 now, atime;
 
 	if (inode->i_flags & S_NOATIME)
 		return false;
@@ -1989,7 +1996,8 @@ bool atime_needs_update(const struct path *path, struct inode *inode)
 	if (!relatime_need_update(mnt, inode, now))
 		return false;
 
-	if (timespec64_equal(&inode->i_atime, &now))
+	atime = inode_get_atime(inode);
+	if (timespec64_equal(&atime, &now))
 		return false;
 
 	return true;
@@ -2006,7 +2014,7 @@ void touch_atime(const struct path *path)
 	if (!sb_start_write_trylock(inode->i_sb))
 		return;
 
-	if (__mnt_want_write(mnt) != 0)
+	if (mnt_get_write_access(mnt) != 0)
 		goto skip_update;
 	/*
 	 * File systems can error out when updating inodes if they need to
@@ -2018,7 +2026,7 @@ void touch_atime(const struct path *path)
 	 * of the fs read only, e.g. subvolumes in Btrfs.
 	 */
 	inode_update_time(inode, S_ATIME);
-	__mnt_drop_write(mnt);
+	mnt_put_write_access(mnt);
 skip_update:
 	sb_end_write(inode->i_sb);
 }
@@ -2102,63 +2110,22 @@ int file_remove_privs(struct file *file)
 }
 EXPORT_SYMBOL(file_remove_privs);
 
-/**
- * current_mgtime - Return FS time (possibly fine-grained)
- * @inode: inode.
- *
- * Return the current time truncated to the time granularity supported by
- * the fs, as suitable for a ctime/mtime change. If the ctime is flagged
- * as having been QUERIED, get a fine-grained timestamp.
- */
-struct timespec64 current_mgtime(struct inode *inode)
-{
-	struct timespec64 now, ctime;
-	atomic_long_t *pnsec = (atomic_long_t *)&inode->__i_ctime.tv_nsec;
-	long nsec = atomic_long_read(pnsec);
-
-	if (nsec & I_CTIME_QUERIED) {
-		ktime_get_real_ts64(&now);
-		return timestamp_truncate(now, inode);
-	}
-
-	ktime_get_coarse_real_ts64(&now);
-	now = timestamp_truncate(now, inode);
-
-	/*
-	 * If we've recently fetched a fine-grained timestamp
-	 * then the coarse-grained one may still be earlier than the
-	 * existing ctime. Just keep the existing value if so.
-	 */
-	ctime = inode_get_ctime(inode);
-	if (timespec64_compare(&ctime, &now) > 0)
-		now = ctime;
-
-	return now;
-}
-EXPORT_SYMBOL(current_mgtime);
-
-static struct timespec64 current_ctime(struct inode *inode)
-{
-	if (is_mgtime(inode))
-		return current_mgtime(inode);
-	return current_time(inode);
-}
-
 static int inode_needs_update_time(struct inode *inode)
 {
 	int sync_it = 0;
-	struct timespec64 now = current_ctime(inode);
-	struct timespec64 ctime;
+	struct timespec64 now = current_time(inode);
+	struct timespec64 ts;
 
 	/* First try to exhaust all avenues to not sync */
 	if (IS_NOCMTIME(inode))
 		return 0;
 
-	if (!timespec64_equal(&inode->i_mtime, &now))
+	ts = inode_get_mtime(inode);
+	if (!timespec64_equal(&ts, &now))
 		sync_it = S_MTIME;
 
-	ctime = inode_get_ctime(inode);
-	if (!timespec64_equal(&ctime, &now))
+	ts = inode_get_ctime(inode);
+	if (!timespec64_equal(&ts, &now))
 		sync_it |= S_CTIME;
 
 	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
@@ -2173,9 +2140,9 @@ static int __file_update_time(struct file *file, int sync_mode)
 	struct inode *inode = file_inode(file);
 
 	/* try to update time settings */
-	if (!__mnt_want_write_file(file)) {
+	if (!mnt_get_write_access_file(file)) {
 		ret = inode_update_time(inode, sync_mode);
-		__mnt_drop_write_file(file);
+		mnt_put_write_access_file(file);
 	}
 
 	return ret;
@@ -2578,43 +2545,9 @@ EXPORT_SYMBOL(current_time);
  */
 struct timespec64 inode_set_ctime_current(struct inode *inode)
 {
-	struct timespec64 now;
-	struct timespec64 ctime;
+	struct timespec64 now = current_time(inode);
 
-	ctime.tv_nsec = READ_ONCE(inode->__i_ctime.tv_nsec);
-	if (!(ctime.tv_nsec & I_CTIME_QUERIED)) {
-		now = current_time(inode);
-
-		/* Just copy it into place if it's not multigrain */
-		if (!is_mgtime(inode)) {
-			inode_set_ctime_to_ts(inode, now);
-			return now;
-		}
-
-		/*
-		 * If we've recently updated with a fine-grained timestamp,
-		 * then the coarse-grained one may still be earlier than the
-		 * existing ctime. Just keep the existing value if so.
-		 */
-		ctime.tv_sec = inode->__i_ctime.tv_sec;
-		if (timespec64_compare(&ctime, &now) > 0)
-			return ctime;
-
-		/*
-		 * Ctime updates are usually protected by the inode_lock, but
-		 * we can still race with someone setting the QUERIED flag.
-		 * Try to swap the new nsec value into place. If it's changed
-		 * in the interim, then just go with a fine-grained timestamp.
-		 */
-		if (cmpxchg(&inode->__i_ctime.tv_nsec, ctime.tv_nsec,
-			    now.tv_nsec) != ctime.tv_nsec)
-			goto fine_grained;
-		inode->__i_ctime.tv_sec = now.tv_sec;
-		return now;
-	}
-fine_grained:
-	ktime_get_real_ts64(&now);
-	inode_set_ctime_to_ts(inode, timestamp_truncate(now, inode));
+	inode_set_ctime(inode, now.tv_sec, now.tv_nsec);
 	return now;
 }
 EXPORT_SYMBOL(inode_set_ctime_current);

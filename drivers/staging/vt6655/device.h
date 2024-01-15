@@ -153,7 +153,7 @@ struct vnt_private {
 
 	/* Version control */
 	unsigned char local_id;
-	unsigned char byRFType;
+	unsigned char rf_type;
 
 	unsigned char max_pwr_level;
 	unsigned char byZoneType;
@@ -181,14 +181,14 @@ struct vnt_private {
 	unsigned int	uCwMin;   /* Current CwMin */
 	unsigned int	uCwMax;   /* CwMax is fixed on 1023. */
 	/* PHY parameter */
-	unsigned char bySIFS;
-	unsigned char byDIFS;
-	unsigned char byEIFS;
-	unsigned char bySlot;
-	unsigned char byCWMaxMin;
+	unsigned char sifs;
+	unsigned char difs;
+	unsigned char eifs;
+	unsigned char slot;
+	unsigned char cw_max_min;
 
 	u8		byBBType; /* 0:11A, 1:11B, 2:11G */
-	u8		byPacketType; /*
+	u8		packet_type; /*
 				       * 0:11a,1:11b,2:11gb (only CCK
 				       * in BasicRate), 3:11ga (OFDM in
 				       * Basic Rate)
@@ -239,21 +239,21 @@ struct vnt_private {
 	bool bIsBeaconBufReadySet;
 	unsigned int	cbBeaconBufReadySetCnt;
 	bool bFixRate;
-	u16 byCurrentCh;
+	u16 current_ch;
 
 	bool bAES;
 
 	unsigned char byAutoFBCtrl;
 
 	/* For Update BaseBand VGA Gain Offset */
-	bool bUpdateBBVGA;
+	bool update_bbvga;
 	unsigned int	uBBVGADiffCount;
-	unsigned char byBBVGANew;
-	unsigned char byBBVGACurrent;
-	unsigned char abyBBVGA[BB_VGA_LEVEL];
+	unsigned char bbvga_new;
+	unsigned char bbvga_current;
+	unsigned char bbvga[BB_VGA_LEVEL];
 	long                    dbm_threshold[BB_VGA_LEVEL];
 
-	unsigned char byBBPreEDRSSI;
+	unsigned char bb_pre_edrssi;
 	unsigned char byBBPreEDIndex;
 
 	unsigned long dwDiagRefCount;
@@ -264,7 +264,7 @@ struct vnt_private {
 	/* For RF Power table */
 	unsigned char byCCKPwr;
 	unsigned char byOFDMPwrG;
-	unsigned char byCurPwr;
+	unsigned char cur_pwr;
 	char	 byCurPwrdBm;
 	unsigned char abyCCKPwrTbl[CB_MAX_CHANNEL_24G + 1];
 	unsigned char abyOFDMPwrTbl[CB_MAX_CHANNEL + 1];

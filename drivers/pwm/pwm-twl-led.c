@@ -189,7 +189,6 @@ static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops twl4030_pwmled_ops = {
 	.apply = twl4030_pwmled_apply,
-	.owner = THIS_MODULE,
 };
 
 static int twl6030_pwmled_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -342,7 +341,6 @@ static const struct pwm_ops twl6030_pwmled_ops = {
 	.apply = twl6030_pwmled_apply,
 	.request = twl6030_pwmled_request,
 	.free = twl6030_pwmled_free,
-	.owner = THIS_MODULE,
 };
 
 static int twl_pwmled_probe(struct platform_device *pdev)

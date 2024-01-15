@@ -308,6 +308,10 @@ static bool setup_engine(
 		     }
 	     }
 
+	if (dce_i2c_hw->masks->DC_I2C_DDC1_CLK_EN)
+		REG_UPDATE_N(SETUP, 1,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN), 1);
+
 	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 

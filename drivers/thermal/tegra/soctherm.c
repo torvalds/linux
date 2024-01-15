@@ -2219,15 +2219,13 @@ disable_clocks:
 	return err;
 }
 
-static int tegra_soctherm_remove(struct platform_device *pdev)
+static void tegra_soctherm_remove(struct platform_device *pdev)
 {
 	struct tegra_soctherm *tegra = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(tegra->debugfs_dir);
 
 	soctherm_clk_enable(pdev, false);
-
-	return 0;
 }
 
 static int __maybe_unused soctherm_suspend(struct device *dev)
@@ -2274,7 +2272,7 @@ static SIMPLE_DEV_PM_OPS(tegra_soctherm_pm, soctherm_suspend, soctherm_resume);
 
 static struct platform_driver tegra_soctherm_driver = {
 	.probe = tegra_soctherm_probe,
-	.remove = tegra_soctherm_remove,
+	.remove_new = tegra_soctherm_remove,
 	.driver = {
 		.name = "tegra_soctherm",
 		.pm = &tegra_soctherm_pm,

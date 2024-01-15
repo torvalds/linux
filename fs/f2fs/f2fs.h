@@ -1234,6 +1234,7 @@ struct f2fs_bio_info {
 #define FDEV(i)				(sbi->devs[i])
 #define RDEV(i)				(raw_super->devs[i])
 struct f2fs_dev_info {
+	struct bdev_handle *bdev_handle;
 	struct block_device *bdev;
 	char path[MAX_PATH_LEN];
 	unsigned int total_segments;
@@ -3317,13 +3318,15 @@ static inline void clear_file(struct inode *inode, int type)
 
 static inline bool f2fs_is_time_consistent(struct inode *inode)
 {
-	struct timespec64 ctime = inode_get_ctime(inode);
+	struct timespec64 ts = inode_get_atime(inode);
 
-	if (!timespec64_equal(F2FS_I(inode)->i_disk_time, &inode->i_atime))
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time, &ts))
 		return false;
-	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 1, &ctime))
+	ts = inode_get_ctime(inode);
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 1, &ts))
 		return false;
-	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 2, &inode->i_mtime))
+	ts = inode_get_mtime(inode);
+	if (!timespec64_equal(F2FS_I(inode)->i_disk_time + 2, &ts))
 		return false;
 	return true;
 }

@@ -44,33 +44,34 @@ static int nft_dynset_expr_setup(const struct nft_dynset *priv,
 	return 0;
 }
 
-static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
-			    struct nft_regs *regs)
+static struct nft_elem_priv *nft_dynset_new(struct nft_set *set,
+					    const struct nft_expr *expr,
+					    struct nft_regs *regs)
 {
 	const struct nft_dynset *priv = nft_expr_priv(expr);
 	struct nft_set_ext *ext;
+	void *elem_priv;
 	u64 timeout;
-	void *elem;
 
 	if (!atomic_add_unless(&set->nelems, 1, set->size))
 		return NULL;
 
 	timeout = priv->timeout ? : set->timeout;
-	elem = nft_set_elem_init(set, &priv->tmpl,
-				 &regs->data[priv->sreg_key], NULL,
-				 &regs->data[priv->sreg_data],
-				 timeout, 0, GFP_ATOMIC);
-	if (IS_ERR(elem))
+	elem_priv = nft_set_elem_init(set, &priv->tmpl,
+				      &regs->data[priv->sreg_key], NULL,
+				      &regs->data[priv->sreg_data],
+				      timeout, 0, GFP_ATOMIC);
+	if (IS_ERR(elem_priv))
 		goto err1;
 
-	ext = nft_set_elem_ext(set, elem);
+	ext = nft_set_elem_ext(set, elem_priv);
 	if (priv->num_exprs && nft_dynset_expr_setup(priv, ext) < 0)
 		goto err2;
 
-	return elem;
+	return elem_priv;
 
 err2:
-	nft_set_elem_destroy(set, elem, false);
+	nft_set_elem_destroy(set, elem_priv, false);
 err1:
 	if (set->size)
 		atomic_dec(&set->nelems);
@@ -279,10 +280,15 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 			priv->expr_array[i] = dynset_expr;
 			priv->num_exprs++;
 
-			if (set->num_exprs &&
-			    dynset_expr->ops != set->exprs[i]->ops) {
-				err = -EOPNOTSUPP;
-				goto err_expr_free;
+			if (set->num_exprs) {
+				if (i >= set->num_exprs) {
+					err = -EINVAL;
+					goto err_expr_free;
+				}
+				if (dynset_expr->ops != set->exprs[i]->ops) {
+					err = -EOPNOTSUPP;
+					goto err_expr_free;
+				}
 			}
 			i++;
 		}

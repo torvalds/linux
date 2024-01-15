@@ -788,12 +788,9 @@ find_and_get_event(const char *system, const char *event_name)
 		name = trace_event_name(tp_event);
 		if (!name || strcmp(event_name, name))
 			continue;
-		if (!trace_event_try_get_ref(tp_event)) {
+		if (!trace_event_try_get_ref(tp_event))
 			return NULL;
-			break;
-		}
 		return tp_event;
-		break;
 	}
 	return NULL;
 }

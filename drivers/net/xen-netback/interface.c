@@ -41,8 +41,6 @@
 #include <asm/xen/hypercall.h>
 #include <xen/balloon.h>
 
-#define XENVIF_QUEUE_LENGTH 32
-
 /* Number of bytes allowed on the internal guest Rx queue. */
 #define XENVIF_RX_QUEUE_BYTES (XEN_NETIF_RX_RING_SIZE/2 * PAGE_SIZE)
 
@@ -254,6 +252,9 @@ xenvif_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (vif->hash.alg == XEN_NETIF_CTRL_HASH_ALGORITHM_NONE)
 		skb_clear_hash(skb);
 
+	/* timestamp packet in software */
+	skb_tx_timestamp(skb);
+
 	if (!xenvif_rx_queue_tail(queue, skb))
 		goto drop;
 
@@ -460,7 +461,7 @@ static void xenvif_get_strings(struct net_device *dev, u32 stringset, u8 * data)
 
 static const struct ethtool_ops xenvif_ethtool_ops = {
 	.get_link	= ethtool_op_get_link,
-
+	.get_ts_info 	= ethtool_op_get_ts_info,
 	.get_sset_count = xenvif_get_sset_count,
 	.get_ethtool_stats = xenvif_get_ethtool_stats,
 	.get_strings = xenvif_get_strings,
@@ -529,8 +530,6 @@ struct xenvif *xenvif_alloc(struct device *parent, domid_t domid,
 		NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_FRAGLIST;
 	dev->features = dev->hw_features | NETIF_F_RXCSUM;
 	dev->ethtool_ops = &xenvif_ethtool_ops;
-
-	dev->tx_queue_len = XENVIF_QUEUE_LENGTH;
 
 	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = ETH_MAX_MTU - VLAN_ETH_HLEN;
@@ -672,8 +671,7 @@ err:
 static void xenvif_disconnect_queue(struct xenvif_queue *queue)
 {
 	if (queue->task) {
-		kthread_stop(queue->task);
-		put_task_struct(queue->task);
+		kthread_stop_put(queue->task);
 		queue->task = NULL;
 	}
 

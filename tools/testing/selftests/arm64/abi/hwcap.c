@@ -81,6 +81,20 @@ static void lrcpc_sigill(void)
 	asm volatile(".inst 0xb8bfc3e0" : : : );
 }
 
+static void lse128_sigill(void)
+{
+	u64 __attribute__ ((aligned (16))) mem[2] = { 10, 20 };
+	register u64 *memp asm ("x0") = mem;
+	register u64 val0 asm ("x1") = 5;
+	register u64 val1 asm ("x2") = 4;
+
+	/* SWPP X1, X2, [X0] */
+	asm volatile(".inst 0x19228001"
+		     : "+r" (memp), "+r" (val0), "+r" (val1)
+		     :
+		     : "cc", "memory");
+}
+
 static void mops_sigill(void)
 {
 	char dst[1], src[1];
@@ -226,6 +240,12 @@ static void sveaes_sigill(void)
 	asm volatile(".inst 0x4522e400" : : : "z0");
 }
 
+static void sveb16b16_sigill(void)
+{
+	/* BFADD ZA.H[W0, 0], {Z0.H-Z1.H} */
+	asm volatile(".inst 0xC1E41C00" : : : );
+}
+
 static void svepmull_sigill(void)
 {
 	/* PMULLB Z0.Q, Z0.D, Z0.D */
@@ -289,6 +309,19 @@ static void uscat_sigbus(void)
 	asm volatile(".inst 0xb820003f" : : : );
 }
 
+static void lrcpc3_sigill(void)
+{
+	int data[2] = { 1, 2 };
+
+	register int *src asm ("x0") = data;
+	register int data0 asm ("w2") = 0;
+	register int data1 asm ("w3") = 0;
+
+	/* LDIAPP w2, w3, [x0] */
+	asm volatile(".inst 0x99431802"
+	              : "=r" (data0), "=r" (data1) : "r" (src) :);
+}
+
 static const struct hwcap_data {
 	const char *name;
 	unsigned long at_hwcap;
@@ -349,6 +382,13 @@ static const struct hwcap_data {
 		.sigill_fn = ilrcpc_sigill,
 	},
 	{
+		.name = "LRCPC3",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_LRCPC3,
+		.cpuinfo = "lrcpc3",
+		.sigill_fn = lrcpc3_sigill,
+	},
+	{
 		.name = "LSE",
 		.at_hwcap = AT_HWCAP,
 		.hwcap_bit = HWCAP_ATOMICS,
@@ -363,6 +403,13 @@ static const struct hwcap_data {
 		.sigill_fn = atomics_sigill,
 		.sigbus_fn = uscat_sigbus,
 		.sigbus_reliable = true,
+	},
+	{
+		.name = "LSE128",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_LSE128,
+		.cpuinfo = "lse128",
+		.sigill_fn = lse128_sigill,
 	},
 	{
 		.name = "MOPS",
@@ -492,6 +539,13 @@ static const struct hwcap_data {
 		.hwcap_bit = HWCAP2_SVEAES,
 		.cpuinfo = "sveaes",
 		.sigill_fn = sveaes_sigill,
+	},
+	{
+		.name = "SVE2 B16B16",
+		.at_hwcap = AT_HWCAP2,
+		.hwcap_bit = HWCAP2_SVE_B16B16,
+		.cpuinfo = "sveb16b16",
+		.sigill_fn = sveb16b16_sigill,
 	},
 	{
 		.name = "SVE2 PMULL",

@@ -366,7 +366,7 @@ static int u32_init(struct tcf_proto *tp)
 	idr_init(&root_ht->handle_idr);
 
 	if (tp_c == NULL) {
-		tp_c = kzalloc(struct_size(tp_c, hlist->ht, 1), GFP_KERNEL);
+		tp_c = kzalloc(sizeof(*tp_c), GFP_KERNEL);
 		if (tp_c == NULL) {
 			kfree(root_ht);
 			return -ENOBUFS;
@@ -1489,4 +1489,5 @@ static void __exit exit_u32(void)
 
 module_init(init_u32)
 module_exit(exit_u32)
+MODULE_DESCRIPTION("Universal 32bit based TC Classifier");
 MODULE_LICENSE("GPL");

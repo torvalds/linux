@@ -1095,6 +1095,8 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	u32 len;
 	int r;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	rg = omapfb_get_mem_region(ofbi->region);
 
 	start = omapfb_get_region_paddr(ofbi);
@@ -1280,10 +1282,9 @@ static const struct fb_ops omapfb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = omapfb_open,
 	.fb_release     = omapfb_release,
-	.fb_fillrect    = cfb_fillrect,
-	.fb_copyarea    = cfb_copyarea,
-	.fb_imageblit   = cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_blank       = omapfb_blank,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_ioctl       = omapfb_ioctl,
 	.fb_check_var   = omapfb_check_var,
 	.fb_set_par     = omapfb_set_par,

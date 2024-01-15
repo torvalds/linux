@@ -26,6 +26,8 @@
 
 #include "amdgpu.h"
 
+#define AMDGPU_RESET_MAX_HANDLERS 5
+
 enum AMDGPU_RESET_FLAGS {
 
 	AMDGPU_NEED_FULL_RESET = 0,
@@ -44,7 +46,6 @@ struct amdgpu_reset_context {
 
 struct amdgpu_reset_handler {
 	enum amd_reset_method reset_method;
-	struct list_head handler_list;
 	int (*prepare_env)(struct amdgpu_reset_control *reset_ctl,
 			   struct amdgpu_reset_context *context);
 	int (*prepare_hwcontext)(struct amdgpu_reset_control *reset_ctl,
@@ -63,7 +64,8 @@ struct amdgpu_reset_control {
 	void *handle;
 	struct work_struct reset_work;
 	struct mutex reset_lock;
-	struct list_head reset_handlers;
+	struct amdgpu_reset_handler *(
+		*reset_handlers)[AMDGPU_RESET_MAX_HANDLERS];
 	atomic_t in_reset;
 	enum amd_reset_method active_reset;
 	struct amdgpu_reset_handler *(*get_reset_handler)(
@@ -87,6 +89,17 @@ struct amdgpu_reset_domain {
 	atomic_t reset_res;
 };
 
+#ifdef CONFIG_DEV_COREDUMP
+
+#define AMDGPU_COREDUMP_VERSION "1"
+
+struct amdgpu_coredump_info {
+	struct amdgpu_device		*adev;
+	struct amdgpu_task_info         reset_task_info;
+	struct timespec64               reset_time;
+	bool                            reset_vram_lost;
+};
+#endif
 
 int amdgpu_reset_init(struct amdgpu_device *adev);
 int amdgpu_reset_fini(struct amdgpu_device *adev);
@@ -97,8 +110,10 @@ int amdgpu_reset_prepare_hwcontext(struct amdgpu_device *adev,
 int amdgpu_reset_perform_reset(struct amdgpu_device *adev,
 			       struct amdgpu_reset_context *reset_context);
 
-int amdgpu_reset_add_handler(struct amdgpu_reset_control *reset_ctl,
-			     struct amdgpu_reset_handler *handler);
+int amdgpu_reset_prepare_env(struct amdgpu_device *adev,
+			     struct amdgpu_reset_context *reset_context);
+int amdgpu_reset_restore_env(struct amdgpu_device *adev,
+			     struct amdgpu_reset_context *reset_context);
 
 struct amdgpu_reset_domain *amdgpu_reset_create_reset_domain(enum amdgpu_reset_domain_type type,
 							     char *wq_name);
@@ -126,4 +141,11 @@ void amdgpu_device_lock_reset_domain(struct amdgpu_reset_domain *reset_domain);
 
 void amdgpu_device_unlock_reset_domain(struct amdgpu_reset_domain *reset_domain);
 
+void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
+		     struct amdgpu_reset_context *reset_context);
+
+#define for_each_handler(i, handler, reset_ctl)                  \
+	for (i = 0; (i < AMDGPU_RESET_MAX_HANDLERS) &&           \
+		    (handler = (*reset_ctl->reset_handlers)[i]); \
+	     ++i)
 #endif

@@ -132,6 +132,7 @@ extern void __init setup_per_cpu_areas(void);
 extern void __percpu *__alloc_percpu_gfp(size_t size, size_t align, gfp_t gfp) __alloc_size(1);
 extern void __percpu *__alloc_percpu(size_t size, size_t align) __alloc_size(1);
 extern void free_percpu(void __percpu *__pdata);
+extern size_t pcpu_alloc_size(void __percpu *__pdata);
 
 DEFINE_FREE(free_percpu, void __percpu *, free_percpu(_T))
 

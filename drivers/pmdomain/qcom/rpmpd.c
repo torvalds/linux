@@ -105,6 +105,24 @@ static struct rpmpd cx_s1a_corner_ao = {
 	.key = KEY_CORNER,
 };
 
+static struct rpmpd cx_s1a_lvl_ao;
+static struct rpmpd cx_s1a_lvl = {
+	.pd = { .name = "cx", },
+	.peer = &cx_s1a_lvl_ao,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd cx_s1a_lvl_ao = {
+	.pd = { .name = "cx_ao", },
+	.peer = &cx_s1a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_LEVEL,
+};
+
 static struct rpmpd cx_s2a_corner_ao;
 static struct rpmpd cx_s2a_corner = {
 	.pd = { .name = "cx", },
@@ -180,6 +198,13 @@ static struct rpmpd cx_s1a_vfc = {
 	.key = KEY_FLOOR_CORNER,
 };
 
+static struct rpmpd cx_s1a_vfl = {
+	.pd = { .name = "cx_vfl", },
+	.res_type = RPMPD_SMPA,
+	.res_id = 1,
+	.key = KEY_FLOOR_LEVEL,
+};
+
 static struct rpmpd cx_s2a_vfc = {
 	.pd = { .name = "cx_vfc", },
 	.res_type = RPMPD_SMPA,
@@ -239,6 +264,24 @@ static struct rpmpd gx_rwgx0_lvl_ao = {
 };
 
 /* MX */
+static struct rpmpd mx_l2a_lvl_ao;
+static struct rpmpd mx_l2a_lvl = {
+	.pd = { .name = "mx", },
+	.peer = &mx_l2a_lvl_ao,
+	.res_type = RPMPD_LDOA,
+	.res_id = 2,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_l2a_lvl_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_l2a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_LDOA,
+	.res_id = 2,
+	.key = KEY_LEVEL,
+};
+
 static struct rpmpd mx_l3a_corner_ao;
 static struct rpmpd mx_l3a_corner = {
 	.pd = { .name = "mx", },
@@ -255,6 +298,24 @@ static struct rpmpd mx_l3a_corner_ao = {
 	.res_type = RPMPD_LDOA,
 	.res_id = 3,
 	.key = KEY_CORNER,
+};
+
+static struct rpmpd mx_l3a_lvl_ao;
+static struct rpmpd mx_l3a_lvl = {
+	.pd = { .name = "mx", },
+	.peer = &mx_l3a_lvl_ao,
+	.res_type = RPMPD_LDOA,
+	.res_id = 3,
+	.key = KEY_LEVEL,
+};
+
+static struct rpmpd mx_l3a_lvl_ao = {
+	.pd = { .name = "mx_ao", },
+	.peer = &mx_l3a_lvl,
+	.active_only = true,
+	.res_type = RPMPD_LDOA,
+	.res_id = 3,
+	.key = KEY_LEVEL,
 };
 
 static struct rpmpd mx_l12a_lvl_ao;
@@ -572,6 +633,20 @@ static const struct rpmpd_desc msm8916_desc = {
 	.max_state = MAX_CORNER_RPMPD_STATE,
 };
 
+static struct rpmpd *msm8917_rpmpds[] = {
+	[MSM8917_VDDCX] =	&cx_s2a_lvl,
+	[MSM8917_VDDCX_AO] =	&cx_s2a_lvl_ao,
+	[MSM8917_VDDCX_VFL] =	&cx_s2a_vfl,
+	[MSM8917_VDDMX] =	&mx_l3a_lvl,
+	[MSM8917_VDDMX_AO] =	&mx_l3a_lvl_ao,
+};
+
+static const struct rpmpd_desc msm8917_desc = {
+	.rpmpds = msm8917_rpmpds,
+	.num_pds = ARRAY_SIZE(msm8917_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO,
+};
+
 static struct rpmpd *msm8953_rpmpds[] = {
 	[MSM8953_VDDMD] =	&md_s1a_lvl,
 	[MSM8953_VDDMD_AO] =	&md_s1a_lvl_ao,
@@ -672,6 +747,20 @@ static const struct rpmpd_desc qcs404_desc = {
 	.max_state = RPM_SMD_LEVEL_BINNING,
 };
 
+static struct rpmpd *qm215_rpmpds[] = {
+	[QM215_VDDCX] =		&cx_s1a_lvl,
+	[QM215_VDDCX_AO] =	&cx_s1a_lvl_ao,
+	[QM215_VDDCX_VFL] =	&cx_s1a_vfl,
+	[QM215_VDDMX] =		&mx_l2a_lvl,
+	[QM215_VDDMX_AO] =	&mx_l2a_lvl_ao,
+};
+
+static const struct rpmpd_desc qm215_desc = {
+	.rpmpds = qm215_rpmpds,
+	.num_pds = ARRAY_SIZE(qm215_rpmpds),
+	.max_state = RPM_SMD_LEVEL_TURBO,
+};
+
 static struct rpmpd *sdm660_rpmpds[] = {
 	[SDM660_VDDCX] =	&cx_rwcx0_lvl,
 	[SDM660_VDDCX_AO] =	&cx_rwcx0_lvl_ao,
@@ -764,6 +853,7 @@ static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,msm8226-rpmpd", .data = &msm8226_desc },
 	{ .compatible = "qcom,msm8909-rpmpd", .data = &msm8916_desc },
 	{ .compatible = "qcom,msm8916-rpmpd", .data = &msm8916_desc },
+	{ .compatible = "qcom,msm8917-rpmpd", .data = &msm8917_desc },
 	{ .compatible = "qcom,msm8939-rpmpd", .data = &msm8939_desc },
 	{ .compatible = "qcom,msm8953-rpmpd", .data = &msm8953_desc },
 	{ .compatible = "qcom,msm8976-rpmpd", .data = &msm8976_desc },
@@ -772,6 +862,7 @@ static const struct of_device_id rpmpd_match_table[] = {
 	{ .compatible = "qcom,msm8998-rpmpd", .data = &msm8998_desc },
 	{ .compatible = "qcom,qcm2290-rpmpd", .data = &qcm2290_desc },
 	{ .compatible = "qcom,qcs404-rpmpd", .data = &qcs404_desc },
+	{ .compatible = "qcom,qm215-rpmpd", .data = &qm215_desc },
 	{ .compatible = "qcom,sdm660-rpmpd", .data = &sdm660_desc },
 	{ .compatible = "qcom,sm6115-rpmpd", .data = &sm6115_desc },
 	{ .compatible = "qcom,sm6125-rpmpd", .data = &sm6125_desc },
@@ -908,12 +999,6 @@ out:
 	return ret;
 }
 
-static unsigned int rpmpd_get_performance(struct generic_pm_domain *genpd,
-					  struct dev_pm_opp *opp)
-{
-	return dev_pm_opp_get_level(opp);
-}
-
 static int rpmpd_probe(struct platform_device *pdev)
 {
 	int i;
@@ -959,7 +1044,7 @@ static int rpmpd_probe(struct platform_device *pdev)
 		rpmpds[i]->pd.power_off = rpmpd_power_off;
 		rpmpds[i]->pd.power_on = rpmpd_power_on;
 		rpmpds[i]->pd.set_performance_state = rpmpd_set_performance;
-		rpmpds[i]->pd.opp_to_performance_state = rpmpd_get_performance;
+		rpmpds[i]->pd.flags = GENPD_FLAG_ACTIVE_WAKEUP;
 		pm_genpd_init(&rpmpds[i]->pd, NULL, true);
 
 		data->domains[i] = &rpmpds[i]->pd;

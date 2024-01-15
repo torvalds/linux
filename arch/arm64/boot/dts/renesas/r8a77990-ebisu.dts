@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the Ebisu board with R-Car E3
+ * Device Tree Source for the Ebisu/Ebisu-4D board with R-Car E3
  *
  * Copyright (C) 2018 Renesas Electronics Corp.
  */

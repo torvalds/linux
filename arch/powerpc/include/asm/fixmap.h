@@ -23,18 +23,6 @@
 #include <asm/kmap_size.h>
 #endif
 
-#ifdef CONFIG_PPC64
-#define FIXADDR_TOP	(IOREMAP_END + FIXADDR_SIZE)
-#else
-#define FIXADDR_SIZE	0
-#ifdef CONFIG_KASAN
-#include <asm/kasan.h>
-#define FIXADDR_TOP	(KASAN_SHADOW_START - PAGE_SIZE)
-#else
-#define FIXADDR_TOP	((unsigned long)(-PAGE_SIZE))
-#endif
-#endif
-
 /*
  * Here we define all the compile-time 'special' virtual
  * addresses. The point is to have a constant address at
@@ -118,6 +106,10 @@ static inline void __set_fixmap(enum fixed_addresses idx,
 }
 
 #define __early_set_fixmap	__set_fixmap
+
+#ifdef CONFIG_PPC_8xx
+#define VIRT_IMMR_BASE (__fix_to_virt(FIX_IMMR_BASE))
+#endif
 
 #endif /* !__ASSEMBLY__ */
 #endif

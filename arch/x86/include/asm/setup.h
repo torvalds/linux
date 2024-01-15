@@ -126,6 +126,7 @@ void clear_bss(void);
 #ifdef __i386__
 
 asmlinkage void __init __noreturn i386_start_kernel(void);
+void __init mk_early_pgtbl_32(void);
 
 #else
 asmlinkage void __init __noreturn x86_64_start_kernel(char *real_mode);

@@ -18,6 +18,7 @@ struct hfpll_data {
 	u32 status_reg;
 	u8  lock_bit;
 
+	u32 l_val;
 	u32 droop_val;
 	u32 config_val;
 	u32 user_val;

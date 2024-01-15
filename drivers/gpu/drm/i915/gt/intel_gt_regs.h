@@ -469,6 +469,9 @@
 #define XEHP_PSS_MODE2				MCR_REG(0x703c)
 #define   SCOREBOARD_STALL_FLUSH_CONTROL	REG_BIT(5)
 
+#define XEHP_PSS_CHICKEN			MCR_REG(0x7044)
+#define   FD_END_COLLECT			REG_BIT(5)
+
 #define GEN7_SC_INSTDONE			_MMIO(0x7100)
 #define GEN12_SC_INSTDONE_EXTRA			_MMIO(0x7104)
 #define GEN12_SC_INSTDONE_EXTRA2		_MMIO(0x7108)
@@ -536,6 +539,9 @@
 
 #define XEHP_SQCM				MCR_REG(0x8724)
 #define   EN_32B_ACCESS				REG_BIT(30)
+
+#define MTL_GSCPSMI_BASEADDR_LSB		_MMIO(0x880c)
+#define MTL_GSCPSMI_BASEADDR_MSB		_MMIO(0x8810)
 
 #define HSW_IDICR				_MMIO(0x9008)
 #define   IDIHASHMSK(x)				(((x) & 0x3f) << 16)
@@ -1084,6 +1090,7 @@
 
 #define GEN12_RING_FAULT_REG			_MMIO(0xcec4)
 #define XEHP_RING_FAULT_REG			MCR_REG(0xcec4)
+#define XELPMP_RING_FAULT_REG			_MMIO(0xcec4)
 #define   GEN8_RING_FAULT_ENGINE_ID(x)		(((x) >> 12) & 0x7)
 #define   RING_FAULT_GTTSEL_MASK		(1 << 11)
 #define   RING_FAULT_SRCID(x)			(((x) >> 3) & 0xff)

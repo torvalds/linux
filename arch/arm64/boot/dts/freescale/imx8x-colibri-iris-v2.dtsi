@@ -23,11 +23,11 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_lvds_converter &pinctrl_gpio_iris>;
 
-	pinctrl_enable_3v3_vmmc: enable_3v3_vmmc {
+	pinctrl_enable_3v3_vmmc: enable-3v3-vmmc-grp {
 		fsl,pins = <IMX8QXP_SAI1_RXFS_LSIO_GPIO0_IO31	0x20>;	/* SODIMM 100 */
 	};
 
-	pinctrl_lvds_converter: lcd-lvds {
+	pinctrl_lvds_converter: lvds-converter-grp {
 		fsl,pins = <IMX8QXP_FLEXCAN1_TX_LSIO_GPIO1_IO18		0x20>,	/* SODIMM  55 */
 			   /* 6B/8B mode. Select LOW - 8B mode (24bit) */
 			   <IMX8QXP_FLEXCAN1_RX_LSIO_GPIO1_IO17		0x20>,	/* SODIMM  63 */

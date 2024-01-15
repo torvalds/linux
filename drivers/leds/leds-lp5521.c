@@ -301,6 +301,8 @@ static int lp5521_post_init_device(struct lp55xx_chip *chip)
 
 	/* Set all PWMs to direct control mode */
 	ret = lp55xx_write(chip, LP5521_REG_OP_MODE, LP5521_CMD_DIRECT);
+	if (ret)
+		return ret;
 
 	/* Update configuration for the clock setting */
 	val = LP5521_DEFAULT_CFG;

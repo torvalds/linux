@@ -158,17 +158,16 @@ static int crc_pwrsrc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int crc_pwrsrc_remove(struct platform_device *pdev)
+static void crc_pwrsrc_remove(struct platform_device *pdev)
 {
 	struct crc_pwrsrc_data *data = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(data->debug_dentry);
-	return 0;
 }
 
 static struct platform_driver crc_pwrsrc_driver = {
 	.probe = crc_pwrsrc_probe,
-	.remove = crc_pwrsrc_remove,
+	.remove_new = crc_pwrsrc_remove,
 	.driver = {
 		.name = "crystal_cove_pwrsrc",
 	},

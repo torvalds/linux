@@ -208,9 +208,9 @@ static void _opp_table_alloc_required_tables(struct opp_table *opp_table,
 		mutex_lock(&opp_table_lock);
 		list_add(&opp_table->lazy, &lazy_opp_tables);
 		mutex_unlock(&opp_table_lock);
-	}
-	else
+	} else {
 		_update_set_required_opps(opp_table);
+	}
 
 	goto put_np;
 
@@ -296,23 +296,40 @@ void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp)
 	of_node_put(opp->np);
 }
 
+static int _link_required_opps(struct dev_pm_opp *opp,
+			       struct opp_table *required_table, int index)
+{
+	struct device_node *np;
+
+	np = of_parse_required_opp(opp->np, index);
+	if (unlikely(!np))
+		return -ENODEV;
+
+	opp->required_opps[index] = _find_opp_of_np(required_table, np);
+	of_node_put(np);
+
+	if (!opp->required_opps[index]) {
+		pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
+		       __func__, opp->np, index);
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 /* Populate all required OPPs which are part of "required-opps" list */
 static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 				       struct dev_pm_opp *opp)
 {
-	struct dev_pm_opp **required_opps;
 	struct opp_table *required_table;
-	struct device_node *np;
 	int i, ret, count = opp_table->required_opp_count;
 
 	if (!count)
 		return 0;
 
-	required_opps = kcalloc(count, sizeof(*required_opps), GFP_KERNEL);
-	if (!required_opps)
+	opp->required_opps = kcalloc(count, sizeof(*opp->required_opps), GFP_KERNEL);
+	if (!opp->required_opps)
 		return -ENOMEM;
-
-	opp->required_opps = required_opps;
 
 	for (i = 0; i < count; i++) {
 		required_table = opp_table->required_opp_tables[i];
@@ -321,21 +338,9 @@ static int _of_opp_alloc_required_opps(struct opp_table *opp_table,
 		if (IS_ERR_OR_NULL(required_table))
 			continue;
 
-		np = of_parse_required_opp(opp->np, i);
-		if (unlikely(!np)) {
-			ret = -ENODEV;
+		ret = _link_required_opps(opp, required_table, i);
+		if (ret)
 			goto free_required_opps;
-		}
-
-		required_opps[i] = _find_opp_of_np(required_table, np);
-		of_node_put(np);
-
-		if (!required_opps[i]) {
-			pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
-			       __func__, opp->np, i);
-			ret = -ENODEV;
-			goto free_required_opps;
-		}
 	}
 
 	return 0;
@@ -350,22 +355,13 @@ free_required_opps:
 static int lazy_link_required_opps(struct opp_table *opp_table,
 				   struct opp_table *new_table, int index)
 {
-	struct device_node *required_np;
 	struct dev_pm_opp *opp;
+	int ret;
 
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
-		required_np = of_parse_required_opp(opp->np, index);
-		if (unlikely(!required_np))
-			return -ENODEV;
-
-		opp->required_opps[index] = _find_opp_of_np(new_table, required_np);
-		of_node_put(required_np);
-
-		if (!opp->required_opps[index]) {
-			pr_err("%s: Unable to find required OPP node: %pOF (%d)\n",
-			       __func__, opp->np, index);
-			return -ENODEV;
-		}
+		ret = _link_required_opps(opp, new_table, index);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -1079,11 +1075,15 @@ static int _of_add_opp_table_v1(struct device *dev, struct opp_table *opp_table)
 	while (nr) {
 		unsigned long freq = be32_to_cpup(val++) * 1000;
 		unsigned long volt = be32_to_cpup(val++);
+		struct dev_pm_opp_data data = {
+			.freq = freq,
+			.u_volt = volt,
+		};
 
-		ret = _opp_add_v1(opp_table, dev, freq, volt, false);
+		ret = _opp_add_v1(opp_table, dev, &data, false);
 		if (ret) {
 			dev_err(dev, "%s: Failed to add OPP %ld (%d)\n",
-				__func__, freq, ret);
+				__func__, data.freq, ret);
 			goto remove_static_opp;
 		}
 		nr -= 2;

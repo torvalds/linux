@@ -77,8 +77,7 @@ struct timer_list {
 		.entry = { .next = TIMER_ENTRY_STATIC },	\
 		.function = (_function),			\
 		.flags = (_flags),				\
-		__TIMER_LOCKDEP_MAP_INITIALIZER(		\
-			__FILE__ ":" __stringify(__LINE__))	\
+		__TIMER_LOCKDEP_MAP_INITIALIZER(FILE_LINE)	\
 	}
 
 #define DEFINE_TIMER(_name, _function)				\

@@ -261,15 +261,13 @@ static int __init mc13xxx_led_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int mc13xxx_led_remove(struct platform_device *pdev)
+static void mc13xxx_led_remove(struct platform_device *pdev)
 {
 	struct mc13xxx_leds *leds = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < leds->num_leds; i++)
 		led_classdev_unregister(&leds->led[i].cdev);
-
-	return 0;
 }
 
 static const struct mc13xxx_led_devtype mc13783_led_devtype = {
@@ -305,7 +303,7 @@ static struct platform_driver mc13xxx_led_driver = {
 	.driver	= {
 		.name	= "mc13xxx-led",
 	},
-	.remove		= mc13xxx_led_remove,
+	.remove_new	= mc13xxx_led_remove,
 	.id_table	= mc13xxx_led_id_table,
 };
 module_platform_driver_probe(mc13xxx_led_driver, mc13xxx_led_probe);

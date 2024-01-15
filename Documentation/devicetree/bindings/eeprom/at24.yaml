@@ -12,6 +12,7 @@ maintainers:
 
 allOf:
   - $ref: /schemas/nvmem/nvmem.yaml
+  - $ref: /schemas/nvmem/nvmem-deprecated-cells.yaml
 
 select:
   properties:
@@ -68,9 +69,13 @@ properties:
               - items:
                   pattern: c32$
               - items:
+                  pattern: c32d-wl$
+              - items:
                   pattern: cs32$
               - items:
                   pattern: c64$
+              - items:
+                  pattern: c64d-wl$
               - items:
                   pattern: cs64$
               - items:

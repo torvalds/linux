@@ -31,7 +31,7 @@
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 #define bswap16_based_on_endian(big_endian, value) \
-	(big_endian) ? cpu_to_be16(value) : cpu_to_le16(value)
+	((big_endian) ? cpu_to_be16(value) : cpu_to_le16(value))
 
 /* Possible Min Reduction config from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
@@ -743,13 +743,13 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
 			config.blRampReduction[i] = params.backlight_ramping_reduction;
 			config.blRampStart[i] = params.backlight_ramping_start;
-			}
-		} else {
-			for (i = 0; i < NUM_AGGR_LEVEL; i++) {
-				config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
-				config.blRampStart[i] = abm_settings[set][i].blRampStart;
-				}
-			}
+		}
+	} else {
+		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+			config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
+			config.blRampStart[i] = abm_settings[set][i].blRampStart;
+		}
+	}
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
@@ -838,6 +838,8 @@ bool is_psr_su_specific_panel(struct dc_link *link)
 			else if (dpcd_caps->dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
 				((dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x08) ||
 				(dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x07)))
+				isPSRSUSupported = false;
+			else if (dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x03)
 				isPSRSUSupported = false;
 			else if (dpcd_caps->psr_info.force_psrsu_cap == 0x1)
 				isPSRSUSupported = true;
@@ -944,11 +946,11 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	uint16_t slice_height;
 
 	config->dsc_slice_height = 0;
-	if ((link->connector_signal & SIGNAL_TYPE_EDP) &&
-	    (!dc->caps.edp_dsc_support ||
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP) ||
+	    !dc->caps.edp_dsc_support ||
 	    link->panel_config.dsc.disable_dsc_edp ||
 	    !link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT ||
-	    !stream->timing.dsc_cfg.num_slices_v))
+	    !stream->timing.dsc_cfg.num_slices_v)
 		return true;
 
 	pic_height = stream->timing.v_addressable +
@@ -969,6 +971,34 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	}
 
 	return true;
+}
+
+void set_replay_coasting_vtotal(struct dc_link *link,
+	enum replay_coasting_vtotal_type type,
+	uint16_t vtotal)
+{
+	link->replay_settings.coasting_vtotal_table[type] = vtotal;
+}
+
+void calculate_replay_link_off_frame_count(struct dc_link *link,
+	uint16_t vtotal, uint16_t htotal)
+{
+	uint8_t max_link_off_frame_count = 0;
+	uint16_t max_deviation_line = 0,  pixel_deviation_per_line = 0;
+
+	max_deviation_line = link->dpcd_caps.pr_info.max_deviation_line;
+	pixel_deviation_per_line = link->dpcd_caps.pr_info.pixel_deviation_per_line;
+
+	if (htotal != 0 && vtotal != 0)
+		max_link_off_frame_count = htotal * max_deviation_line / (pixel_deviation_per_line * vtotal);
+	else
+		ASSERT(0);
+
+	link->replay_settings.link_off_frame_count_level =
+		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_BEST ? PR_LINK_OFF_FRAME_COUNT_BEST :
+		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_GOOD ? PR_LINK_OFF_FRAME_COUNT_GOOD :
+		PR_LINK_OFF_FRAME_COUNT_FAIL;
+
 }
 
 bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_backlight_caps *caps)

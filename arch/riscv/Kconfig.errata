@@ -77,6 +77,7 @@ config ERRATA_THEAD_PBMT
 config ERRATA_THEAD_CMO
 	bool "Apply T-Head cache management errata"
 	depends on ERRATA_THEAD && MMU
+	select DMA_DIRECT_REMAP
 	select RISCV_DMA_NONCOHERENT
 	default y
 	help

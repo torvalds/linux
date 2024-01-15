@@ -1106,10 +1106,10 @@ repack:
 		}
 	}
 
-	/* 
+	/*
 	 * The code below may require additional cluster (to extend attribute list)
-	 * and / or one MFT record 
-	 * It is too complex to undo operations if -ENOSPC occurs deep inside 
+	 * and / or one MFT record
+	 * It is too complex to undo operations if -ENOSPC occurs deep inside
 	 * in 'ni_insert_nonresident'.
 	 * Return in advance -ENOSPC here if there are no free cluster and no free MFT.
 	 */
@@ -1736,10 +1736,8 @@ repack:
 			le_b = NULL;
 			attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL,
 					      0, NULL, &mi_b);
-			if (!attr_b) {
-				err = -ENOENT;
-				goto out;
-			}
+			if (!attr_b)
+				return -ENOENT;
 
 			attr = attr_b;
 			le = le_b;

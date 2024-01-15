@@ -48,10 +48,22 @@ void __rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
 
 #define rtw_dbg(rtwdev, a...) __rtw_dbg(rtwdev, ##a)
 
+static inline bool rtw_dbg_is_enabled(struct rtw_dev *rtwdev,
+				      enum rtw_debug_mask mask)
+{
+	return !!(rtw_debug_mask & mask);
+}
+
 #else
 
 static inline void rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
 			   const char *fmt, ...) {}
+
+static inline bool rtw_dbg_is_enabled(struct rtw_dev *rtwdev,
+				      enum rtw_debug_mask mask)
+{
+	return false;
+}
 
 #endif /* CONFIG_RTW88_DEBUG */
 

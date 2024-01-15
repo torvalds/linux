@@ -209,8 +209,8 @@ int intel_pxp_gsccs_create_session(struct intel_pxp *pxp,
 				   int arb_session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp43_create_arb_in msg_in = {0};
-	struct pxp43_create_arb_out msg_out = {0};
+	struct pxp43_create_arb_in msg_in = {};
+	struct pxp43_create_arb_out msg_out = {};
 	int ret;
 
 	msg_in.header.api_version = PXP_APIVER(4, 3);
@@ -247,8 +247,8 @@ int intel_pxp_gsccs_create_session(struct intel_pxp *pxp,
 void intel_pxp_gsccs_end_arb_fw_session(struct intel_pxp *pxp, u32 session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp42_inv_stream_key_in msg_in = {0};
-	struct pxp42_inv_stream_key_out msg_out = {0};
+	struct pxp42_inv_stream_key_in msg_in = {};
+	struct pxp42_inv_stream_key_out msg_out = {};
 	int ret = 0;
 
 	/*

@@ -50,6 +50,7 @@ description: |
       For PM8550, smps1 - smps6, ldo1 - ldo17, bob1 - bob2
       For PM8998, smps1 - smps13, ldo1 - ldo28, lvs1 - lvs2
       For PMI8998, bob
+      For PMC8380, smps1 - smps8, ldo1 - lodo3
       For PMR735A, smps1 - smps3, ldo1 - ldo7
       For PMX55, smps1 - smps7, ldo1 - ldo16
       For PMX65, smps1 - smps8, ldo1 - ldo21
@@ -78,6 +79,7 @@ properties:
       - qcom,pm8998-rpmh-regulators
       - qcom,pmc8180-rpmh-regulators
       - qcom,pmc8180c-rpmh-regulators
+      - qcom,pmc8380-rpmh-regulators
       - qcom,pmg1110-rpmh-regulators
       - qcom,pmi8998-rpmh-regulators
       - qcom,pmm8155au-rpmh-regulators
@@ -363,6 +365,16 @@ allOf:
         vin-lvs-1-2-supply: true
       patternProperties:
         "^vdd-s([1-9]|1[0-3])-supply$": true
+
+  - if:
+      properties:
+        compatible:
+          enum:
+            - qcom,pmc8380-rpmh-regulators
+    then:
+      patternProperties:
+        "^vdd-l[1-3]-supply$": true
+        "^vdd-s[1-8]-supply$": true
 
   - if:
       properties:

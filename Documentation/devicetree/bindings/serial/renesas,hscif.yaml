@@ -111,8 +111,6 @@ required:
   - clock-names
   - power-domains
 
-unevaluatedProperties: false
-
 if:
   properties:
     compatible:
@@ -124,6 +122,8 @@ if:
 then:
   required:
     - resets
+
+unevaluatedProperties: false
 
 examples:
   - |

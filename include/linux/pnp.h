@@ -291,7 +291,7 @@ static inline void pnp_set_drvdata(struct pnp_dev *pdev, void *data)
 
 struct pnp_fixup {
 	char id[7];
-	void (*quirk_function) (struct pnp_dev * dev);	/* fixup function */
+	void (*quirk_function) (struct pnp_dev *dev);	/* fixup function */
 };
 
 /* config parameters */
@@ -419,8 +419,8 @@ struct pnp_protocol {
 
 	/* protocol specific suspend/resume */
 	bool (*can_wakeup) (struct pnp_dev *dev);
-	int (*suspend) (struct pnp_dev * dev, pm_message_t state);
-	int (*resume) (struct pnp_dev * dev);
+	int (*suspend) (struct pnp_dev *dev, pm_message_t state);
+	int (*resume) (struct pnp_dev *dev);
 
 	/* used by pnp layer only (look but don't touch) */
 	unsigned char number;	/* protocol number */
@@ -492,7 +492,7 @@ static inline int pnp_start_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_stop_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_activate_dev(struct pnp_dev *dev) { return -ENODEV; }
 static inline int pnp_disable_dev(struct pnp_dev *dev) { return -ENODEV; }
-static inline int pnp_range_reserved(resource_size_t start, resource_size_t end) { return 0;}
+static inline int pnp_range_reserved(resource_size_t start, resource_size_t end) { return 0; }
 
 /* protocol helpers */
 static inline int pnp_is_active(struct pnp_dev *dev) { return 0; }

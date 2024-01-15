@@ -63,7 +63,7 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "Non-CISC nacro instructions decoded",
+        "BriefDescription": "Non-CISC macro instructions decoded",
         "EventCode": "0xAA",
         "EventName": "MACRO_INSTS.NON_CISC_DECODED",
         "SampleAfterValue": "2000000",

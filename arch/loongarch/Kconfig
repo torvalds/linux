@@ -129,12 +129,14 @@ config LOONGARCH
 	select HAVE_KPROBES
 	select HAVE_KPROBES_ON_FTRACE
 	select HAVE_KRETPROBES
+	select HAVE_KVM
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_NMI
 	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
+	select HAVE_PREEMPT_DYNAMIC_KEY
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RETHOOK
 	select HAVE_RSEQ
@@ -262,6 +264,9 @@ config AS_HAS_LASX_EXTENSION
 
 config AS_HAS_LBT_EXTENSION
 	def_bool $(as-instr,movscr2gr \$a0$(comma)\$scr0)
+
+config AS_HAS_LVZ_EXTENSION
+	def_bool $(as-instr,hvcl 0)
 
 menu "Kernel type and options"
 
@@ -676,3 +681,5 @@ source "kernel/power/Kconfig"
 source "drivers/acpi/Kconfig"
 
 endmenu
+
+source "arch/loongarch/kvm/Kconfig"

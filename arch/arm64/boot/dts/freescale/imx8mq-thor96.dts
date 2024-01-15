@@ -107,7 +107,7 @@
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_wifi_reg_on>;
-		gpio = <&gpio3 3 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio3 3 GPIO_ACTIVE_HIGH>;
 	};
 };
 

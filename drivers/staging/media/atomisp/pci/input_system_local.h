@@ -138,8 +138,5 @@ struct rx_cfg_s {
 	bool                is_two_ppc;
 };
 
-#ifdef ISP2401
-#  include "isp2401_input_system_local.h"
-#else
-#  include "isp2400_input_system_local.h"
-#endif
+#include "isp2401_input_system_local.h"
+#include "isp2400_input_system_local.h"

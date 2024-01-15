@@ -7500,6 +7500,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 		case 0x8179:
 		case 0xb711:
 		case 0xf192:
+		case 0x2005:
 			untested = 0;
 			break;
 		}
@@ -7800,6 +7801,7 @@ static const struct usb_device_id dev_table[] = {
 /* Asus USB-N13 rev C1 */
 {USB_DEVICE_AND_INTERFACE_INFO(0x0b05, 0x18f1, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192fu_fops},
+/* EDIMAX EW-7722UTn V3 */
 {USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xb722, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192fu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x318b, 0xff, 0xff, 0xff),

@@ -10,8 +10,7 @@
 	_asm_extable	100b, \lbl
 	.endm
 
-ENTRY(__asm_copy_to_user)
-ENTRY(__asm_copy_from_user)
+SYM_FUNC_START(__asm_copy_to_user)
 
 	/* Enable access to user memory */
 	li t6, SR_SUM
@@ -181,13 +180,13 @@ ENTRY(__asm_copy_from_user)
 	csrc CSR_STATUS, t6
 	sub a0, t5, a0
 	ret
-ENDPROC(__asm_copy_to_user)
-ENDPROC(__asm_copy_from_user)
+SYM_FUNC_END(__asm_copy_to_user)
 EXPORT_SYMBOL(__asm_copy_to_user)
+SYM_FUNC_ALIAS(__asm_copy_from_user, __asm_copy_to_user)
 EXPORT_SYMBOL(__asm_copy_from_user)
 
 
-ENTRY(__clear_user)
+SYM_FUNC_START(__clear_user)
 
 	/* Enable access to user memory */
 	li t6, SR_SUM
@@ -233,5 +232,5 @@ ENTRY(__clear_user)
 	csrc CSR_STATUS, t6
 	sub a0, a3, a0
 	ret
-ENDPROC(__clear_user)
+SYM_FUNC_END(__clear_user)
 EXPORT_SYMBOL(__clear_user)

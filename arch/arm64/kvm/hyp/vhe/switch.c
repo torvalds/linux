@@ -39,6 +39,26 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 
 	___activate_traps(vcpu);
 
+	if (has_cntpoff()) {
+		struct timer_map map;
+
+		get_timer_map(vcpu, &map);
+
+		/*
+		 * We're entrering the guest. Reload the correct
+		 * values from memory now that TGE is clear.
+		 */
+		if (map.direct_ptimer == vcpu_ptimer(vcpu))
+			val = __vcpu_sys_reg(vcpu, CNTP_CVAL_EL0);
+		if (map.direct_ptimer == vcpu_hptimer(vcpu))
+			val = __vcpu_sys_reg(vcpu, CNTHP_CVAL_EL2);
+
+		if (map.direct_ptimer) {
+			write_sysreg_el0(val, SYS_CNTP_CVAL);
+			isb();
+		}
+	}
+
 	val = read_sysreg(cpacr_el1);
 	val |= CPACR_ELx_TTA;
 	val &= ~(CPACR_EL1_ZEN_EL0EN | CPACR_EL1_ZEN_EL1EN |
@@ -77,6 +97,30 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 
 	write_sysreg(HCR_HOST_VHE_FLAGS, hcr_el2);
 
+	if (has_cntpoff()) {
+		struct timer_map map;
+		u64 val, offset;
+
+		get_timer_map(vcpu, &map);
+
+		/*
+		 * We're exiting the guest. Save the latest CVAL value
+		 * to memory and apply the offset now that TGE is set.
+		 */
+		val = read_sysreg_el0(SYS_CNTP_CVAL);
+		if (map.direct_ptimer == vcpu_ptimer(vcpu))
+			__vcpu_sys_reg(vcpu, CNTP_CVAL_EL0) = val;
+		if (map.direct_ptimer == vcpu_hptimer(vcpu))
+			__vcpu_sys_reg(vcpu, CNTHP_CVAL_EL2) = val;
+
+		offset = read_sysreg_s(SYS_CNTPOFF_EL2);
+
+		if (map.direct_ptimer && offset) {
+			write_sysreg_el0(val + offset, SYS_CNTP_CVAL);
+			isb();
+		}
+	}
+
 	/*
 	 * ARM errata 1165522 and 1530923 require the actual execution of the
 	 * above before we can switch to the EL2/EL0 translation regime used by
@@ -93,12 +137,12 @@ static void __deactivate_traps(struct kvm_vcpu *vcpu)
 NOKPROBE_SYMBOL(__deactivate_traps);
 
 /*
- * Disable IRQs in {activate,deactivate}_traps_vhe_{load,put}() to
+ * Disable IRQs in __vcpu_{load,put}_{activate,deactivate}_traps() to
  * prevent a race condition between context switching of PMUSERENR_EL0
  * in __{activate,deactivate}_traps_common() and IPIs that attempts to
  * update PMUSERENR_EL0. See also kvm_set_pmuserenr().
  */
-void activate_traps_vhe_load(struct kvm_vcpu *vcpu)
+static void __vcpu_load_activate_traps(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 
@@ -107,13 +151,26 @@ void activate_traps_vhe_load(struct kvm_vcpu *vcpu)
 	local_irq_restore(flags);
 }
 
-void deactivate_traps_vhe_put(struct kvm_vcpu *vcpu)
+static void __vcpu_put_deactivate_traps(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 	__deactivate_traps_common(vcpu);
 	local_irq_restore(flags);
+}
+
+void kvm_vcpu_load_vhe(struct kvm_vcpu *vcpu)
+{
+	__vcpu_load_switch_sysregs(vcpu);
+	__vcpu_load_activate_traps(vcpu);
+	__load_stage2(vcpu->arch.hw_mmu, vcpu->arch.hw_mmu->arch);
+}
+
+void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu)
+{
+	__vcpu_put_deactivate_traps(vcpu);
+	__vcpu_put_switch_sysregs(vcpu);
 }
 
 static const exit_handler_fn hyp_exit_handlers[] = {
@@ -126,6 +183,7 @@ static const exit_handler_fn hyp_exit_handlers[] = {
 	[ESR_ELx_EC_DABT_LOW]		= kvm_hyp_handle_dabt_low,
 	[ESR_ELx_EC_WATCHPT_LOW]	= kvm_hyp_handle_watchpt_low,
 	[ESR_ELx_EC_PAC]		= kvm_hyp_handle_ptrauth,
+	[ESR_ELx_EC_MOPS]		= kvm_hyp_handle_mops,
 };
 
 static const exit_handler_fn *kvm_get_exit_handler_array(struct kvm_vcpu *vcpu)
@@ -170,17 +228,11 @@ static int __kvm_vcpu_run_vhe(struct kvm_vcpu *vcpu)
 	sysreg_save_host_state_vhe(host_ctxt);
 
 	/*
-	 * ARM erratum 1165522 requires us to configure both stage 1 and
-	 * stage 2 translation for the guest context before we clear
-	 * HCR_EL2.TGE.
-	 *
-	 * We have already configured the guest's stage 1 translation in
-	 * kvm_vcpu_load_sysregs_vhe above.  We must now call
-	 * __load_stage2 before __activate_traps, because
-	 * __load_stage2 configures stage 2 translation, and
-	 * __activate_traps clear HCR_EL2.TGE (among other things).
+	 * Note that ARM erratum 1165522 requires us to configure both stage 1
+	 * and stage 2 translation for the guest context before we clear
+	 * HCR_EL2.TGE. The stage 1 and stage 2 guest context has already been
+	 * loaded on the CPU in kvm_vcpu_load_vhe().
 	 */
-	__load_stage2(vcpu->arch.hw_mmu, vcpu->arch.hw_mmu->arch);
 	__activate_traps(vcpu);
 
 	__kvm_adjust_pc(vcpu);

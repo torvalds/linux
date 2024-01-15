@@ -1181,6 +1181,7 @@ static void xs_sock_reset_state_flags(struct rpc_xprt *xprt)
 {
 	struct sock_xprt *transport = container_of(xprt, struct sock_xprt, xprt);
 
+	transport->xprt_err = 0;
 	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	clear_bit(XPRT_SOCK_WAKE_ERROR, &transport->sock_state);
 	clear_bit(XPRT_SOCK_WAKE_WRITE, &transport->sock_state);
@@ -2672,6 +2673,10 @@ static void xs_tcp_tls_setup_socket(struct work_struct *work)
 	rcu_read_lock();
 	lower_xprt = rcu_dereference(lower_clnt->cl_xprt);
 	rcu_read_unlock();
+
+	if (wait_on_bit_lock(&lower_xprt->state, XPRT_LOCKED, TASK_KILLABLE))
+		goto out_unlock;
+
 	status = xs_tls_handshake_sync(lower_xprt, &upper_xprt->xprtsec);
 	if (status) {
 		trace_rpc_tls_not_started(upper_clnt, upper_xprt);
@@ -2681,6 +2686,7 @@ static void xs_tcp_tls_setup_socket(struct work_struct *work)
 	status = xs_tcp_tls_finish_connecting(lower_xprt, upper_transport);
 	if (status)
 		goto out_close;
+	xprt_release_write(lower_xprt, NULL);
 
 	trace_rpc_socket_connect(upper_xprt, upper_transport->sock, 0);
 	if (!xprt_test_and_set_connected(upper_xprt)) {
@@ -2702,6 +2708,7 @@ out_unlock:
 	return;
 
 out_close:
+	xprt_release_write(lower_xprt, NULL);
 	rpc_shutdown_client(lower_clnt);
 
 	/* xprt_force_disconnect() wakes tasks with a fixed tk_status code.
@@ -2766,18 +2773,13 @@ static void xs_wake_error(struct sock_xprt *transport)
 {
 	int sockerr;
 
-	if (!test_bit(XPRT_SOCK_WAKE_ERROR, &transport->sock_state))
-		return;
-	mutex_lock(&transport->recv_mutex);
-	if (transport->sock == NULL)
-		goto out;
 	if (!test_and_clear_bit(XPRT_SOCK_WAKE_ERROR, &transport->sock_state))
-		goto out;
+		return;
 	sockerr = xchg(&transport->xprt_err, 0);
-	if (sockerr < 0)
+	if (sockerr < 0) {
 		xprt_wake_pending_tasks(&transport->xprt, sockerr);
-out:
-	mutex_unlock(&transport->recv_mutex);
+		xs_tcp_force_close(&transport->xprt);
+	}
 }
 
 static void xs_wake_pending(struct sock_xprt *transport)

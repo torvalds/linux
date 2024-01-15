@@ -453,7 +453,7 @@ void __drm_dev_dbg(struct _ddebug *desc, const struct device *dev,
 
 /* Helper for struct drm_device based logging. */
 #define __drm_printk(drm, level, type, fmt, ...)			\
-	dev_##level##type((drm)->dev, "[drm] " fmt, ##__VA_ARGS__)
+	dev_##level##type((drm) ? (drm)->dev : NULL, "[drm] " fmt, ##__VA_ARGS__)
 
 
 #define drm_info(drm, fmt, ...)					\

@@ -16,6 +16,7 @@
 #include <sound/core.h>
 #include <sound/hda_codec.h>
 #include <sound/tlv.h>
+#include "cirrus_scodec.h"
 #include "cs35l56_hda.h"
 #include "hda_component.h"
 #include "hda_cs_dsp_ctl.h"
@@ -105,7 +106,7 @@ static void cs35l56_hda_playback_hook(struct device *dev, int action)
 	}
 }
 
-static int __maybe_unused cs35l56_hda_runtime_suspend(struct device *dev)
+static int cs35l56_hda_runtime_suspend(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
@@ -115,7 +116,7 @@ static int __maybe_unused cs35l56_hda_runtime_suspend(struct device *dev)
 	return cs35l56_runtime_suspend_common(&cs35l56->base);
 }
 
-static int __maybe_unused cs35l56_hda_runtime_resume(struct device *dev)
+static int cs35l56_hda_runtime_resume(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 	int ret;
@@ -218,7 +219,7 @@ static int cs35l56_hda_posture_get(struct snd_kcontrol *kcontrol,
 
 	ucontrol->value.integer.value[0] = pos;
 
-	return ret;
+	return 0;
 }
 
 static int cs35l56_hda_posture_put(struct snd_kcontrol *kcontrol,
@@ -865,14 +866,22 @@ static int cs35l56_hda_read_acpi(struct cs35l56_hda *cs35l56, int id)
 	sub = acpi_get_subsystem_id(ACPI_HANDLE(cs35l56->base.dev));
 
 	if (IS_ERR(sub)) {
-		/* If no ACPI SUB, return 0 and fallback to legacy firmware path, otherwise fail */
-		if (PTR_ERR(sub) == -ENODATA)
-			return 0;
-		else
-			return PTR_ERR(sub);
+		dev_info(cs35l56->base.dev,
+			 "Read ACPI _SUB failed(%ld): fallback to generic firmware\n",
+			 PTR_ERR(sub));
+	} else {
+		ret = cirrus_scodec_get_speaker_id(cs35l56->base.dev, cs35l56->index, nval, -1);
+		if (ret == -ENOENT) {
+			cs35l56->system_name = sub;
+		} else if (ret >= 0) {
+			cs35l56->system_name = kasprintf(GFP_KERNEL, "%s-spkid%d", sub, ret);
+			kfree(sub);
+			if (!cs35l56->system_name)
+				return -ENOMEM;
+		} else {
+			return ret;
+		}
 	}
-
-	cs35l56->system_name = sub;
 
 	cs35l56->base.reset_gpio = devm_gpiod_get_index_optional(cs35l56->base.dev,
 								 "reset",
@@ -1003,6 +1012,7 @@ void cs35l56_hda_remove(struct device *dev)
 {
 	struct cs35l56_hda *cs35l56 = dev_get_drvdata(dev);
 
+	pm_runtime_dont_use_autosuspend(cs35l56->base.dev);
 	pm_runtime_get_sync(cs35l56->base.dev);
 	pm_runtime_disable(cs35l56->base.dev);
 
@@ -1016,7 +1026,7 @@ void cs35l56_hda_remove(struct device *dev)
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_remove, SND_HDA_SCODEC_CS35L56);
 
 const struct dev_pm_ops cs35l56_hda_pm_ops = {
-	SET_RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
+	RUNTIME_PM_OPS(cs35l56_hda_runtime_suspend, cs35l56_hda_runtime_resume, NULL)
 	SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend, cs35l56_hda_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_hda_system_suspend_late,
 				 cs35l56_hda_system_resume_early)
@@ -1025,7 +1035,18 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
 
+#if IS_ENABLED(CONFIG_SND_HDA_SCODEC_CS35L56_KUNIT_TEST)
+/* Hooks to export static function to KUnit test */
+
+int cs35l56_hda_test_hook_get_speaker_id(struct device *dev, int amp_index, int num_amps)
+{
+	return cs35l56_hda_get_speaker_id(dev, amp_index, num_amps);
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_hda_test_hook_get_speaker_id, SND_HDA_SCODEC_CS35L56);
+#endif
+
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
+MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);
 MODULE_IMPORT_NS(SND_HDA_CS_DSP_CONTROLS);
 MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

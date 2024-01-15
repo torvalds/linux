@@ -254,7 +254,7 @@ static void nbio_v7_7_update_medium_grain_clock_gating(struct amdgpu_device *ade
 {
 	uint32_t def, data;
 
-	if (enable && !(adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG))
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG))
 		return;
 
 	def = data = RREG32_SOC15(NBIO, 0, regBIF0_CPM_CONTROL);
@@ -283,7 +283,7 @@ static void nbio_v7_7_update_medium_grain_light_sleep(struct amdgpu_device *adev
 {
 	uint32_t def, data;
 
-	if (enable && !(adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
 		return;
 
 	def = data = RREG32_SOC15(NBIO, 0, regBIF0_PCIE_CNTL2);

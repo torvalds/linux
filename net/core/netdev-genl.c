@@ -5,6 +5,7 @@
 #include <linux/rtnetlink.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
+#include <net/xdp.h>
 
 #include "netdev-genl-gen.h"
 
@@ -12,15 +13,24 @@ static int
 netdev_nl_dev_fill(struct net_device *netdev, struct sk_buff *rsp,
 		   const struct genl_info *info)
 {
+	u64 xdp_rx_meta = 0;
 	void *hdr;
 
 	hdr = genlmsg_iput(rsp, info);
 	if (!hdr)
 		return -EMSGSIZE;
 
+#define XDP_METADATA_KFUNC(_, flag, __, xmo) \
+	if (netdev->xdp_metadata_ops && netdev->xdp_metadata_ops->xmo) \
+		xdp_rx_meta |= flag;
+XDP_METADATA_KFUNC_xxx
+#undef XDP_METADATA_KFUNC
+
 	if (nla_put_u32(rsp, NETDEV_A_DEV_IFINDEX, netdev->ifindex) ||
 	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_FEATURES,
-			      netdev->xdp_features, NETDEV_A_DEV_PAD)) {
+			      netdev->xdp_features, NETDEV_A_DEV_PAD) ||
+	    nla_put_u64_64bit(rsp, NETDEV_A_DEV_XDP_RX_METADATA_FEATURES,
+			      xdp_rx_meta, NETDEV_A_DEV_PAD)) {
 		genlmsg_cancel(rsp, hdr);
 		return -EINVAL;
 	}

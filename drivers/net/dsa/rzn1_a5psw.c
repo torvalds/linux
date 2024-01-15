@@ -1272,19 +1272,17 @@ free_pcs:
 	return ret;
 }
 
-static int a5psw_remove(struct platform_device *pdev)
+static void a5psw_remove(struct platform_device *pdev)
 {
 	struct a5psw *a5psw = platform_get_drvdata(pdev);
 
 	if (!a5psw)
-		return 0;
+		return;
 
 	dsa_unregister_switch(&a5psw->ds);
 	a5psw_pcs_free(a5psw);
 	clk_disable_unprepare(a5psw->hclk);
 	clk_disable_unprepare(a5psw->clk);
-
-	return 0;
 }
 
 static void a5psw_shutdown(struct platform_device *pdev)
@@ -1311,7 +1309,7 @@ static struct platform_driver a5psw_driver = {
 		.of_match_table = a5psw_of_mtable,
 	},
 	.probe = a5psw_probe,
-	.remove = a5psw_remove,
+	.remove_new = a5psw_remove,
 	.shutdown = a5psw_shutdown,
 };
 module_platform_driver(a5psw_driver);

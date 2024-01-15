@@ -1908,6 +1908,19 @@
 				resets = <&reset RESET_SD_EMMC_C>;
 			};
 
+			nfc: nand-controller@7800 {
+				compatible = "amlogic,meson-axg-nfc";
+				reg = <0x0 0x7800 0x0 0x100>,
+				      <0x0 0x7000 0x0 0x800>;
+				reg-names = "nfc", "emmc";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				interrupts = <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>;
+				clocks = <&clkc CLKID_SD_EMMC_C>,
+					 <&clkc CLKID_FCLK_DIV2>;
+				clock-names = "core", "device";
+			};
+
 			usb2_phy1: phy@9020 {
 				compatible = "amlogic,meson-gxl-usb2-phy";
 				#phy-cells = <0>;

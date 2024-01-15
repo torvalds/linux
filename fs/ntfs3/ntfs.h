@@ -847,7 +847,7 @@ struct OBJECT_ID {
 	// Birth Volume Id is the Object Id of the Volume on.
 	// which the Object Id was allocated. It never changes.
 	struct GUID BirthVolumeId; //0x10:
-	
+
 	// Birth Object Id is the first Object Id that was
 	// ever assigned to this MFT Record. I.e. If the Object Id
 	// is changed for some reason, this field will reflect the

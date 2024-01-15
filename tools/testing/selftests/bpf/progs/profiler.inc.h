@@ -609,7 +609,7 @@ out:
 }
 
 SEC("tracepoint/syscalls/sys_enter_kill")
-int tracepoint__syscalls__sys_enter_kill(struct trace_event_raw_sys_enter* ctx)
+int tracepoint__syscalls__sys_enter_kill(struct syscall_trace_enter* ctx)
 {
 	struct bpf_func_stats_ctx stats_ctx;
 

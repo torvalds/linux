@@ -41,6 +41,10 @@
 #define ICSAR	0x1C	/* slave address */
 #define ICMAR	0x20	/* master address */
 #define ICRXTX	0x24	/* data port */
+#define ICCCR2	0x28	/* Clock control 2 */
+#define ICMPR	0x2C	/* SCL mask control */
+#define ICHPR	0x30	/* SCL HIGH control */
+#define ICLPR	0x34	/* SCL LOW control */
 #define ICFBSCR	0x38	/* first bit setup cycle (Gen3) */
 #define ICDMAER	0x3c	/* DMA enable (Gen3) */
 
@@ -84,10 +88,24 @@
 #define RMDMAE	BIT(1)	/* DMA Master Received Enable */
 #define TMDMAE	BIT(0)	/* DMA Master Transmitted Enable */
 
+/* ICCCR2 */
+#define CDFD	BIT(2)	/* CDF Disable */
+#define HLSE	BIT(1)	/* HIGH/LOW Separate Control Enable */
+#define SME	BIT(0)	/* SCL Mask Enable */
+
 /* ICFBSCR */
 #define TCYC17	0x0f		/* 17*Tcyc delay 1st bit between SDA and SCL */
 
 #define RCAR_MIN_DMA_LEN	8
+
+/* SCL low/high ratio 5:4 to meet all I2C timing specs (incl safety margin) */
+#define RCAR_SCLD_RATIO		5
+#define RCAR_SCHD_RATIO		4
+/*
+ * SMD should be smaller than SCLD/SCHD and is always around 20 in the docs.
+ * Thus, we simply use 20 which works for low and high speeds.
+ */
+#define RCAR_DEFAULT_SMD	20
 
 #define RCAR_BUS_PHASE_START	(MDBS | MIE | ESG)
 #define RCAR_BUS_PHASE_DATA	(MDBS | MIE)
@@ -128,6 +146,8 @@ struct rcar_i2c_priv {
 
 	int pos;
 	u32 icccr;
+	u16 schd;
+	u16 scld;
 	u8 recovery_icmcr;	/* protected by adapter lock */
 	enum rcar_i2c_type devtype;
 	struct i2c_client *slave;
@@ -216,11 +236,16 @@ static void rcar_i2c_init(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICMCR, MDBS);
 	rcar_i2c_write(priv, ICMSR, 0);
 	/* start clock */
-	rcar_i2c_write(priv, ICCCR, priv->icccr);
-
-	if (priv->devtype == I2C_RCAR_GEN3)
+	if (priv->devtype < I2C_RCAR_GEN3) {
+		rcar_i2c_write(priv, ICCCR, priv->icccr);
+	} else {
+		rcar_i2c_write(priv, ICCCR2, CDFD | HLSE | SME);
+		rcar_i2c_write(priv, ICCCR, priv->icccr);
+		rcar_i2c_write(priv, ICMPR, RCAR_DEFAULT_SMD);
+		rcar_i2c_write(priv, ICHPR, priv->schd);
+		rcar_i2c_write(priv, ICLPR, priv->scld);
 		rcar_i2c_write(priv, ICFBSCR, TCYC17);
-
+	}
 }
 
 static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
@@ -241,7 +266,7 @@ static int rcar_i2c_bus_barrier(struct rcar_i2c_priv *priv)
 
 static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 {
-	u32 scgd, cdf, round, ick, sum, scl, cdf_width;
+	u32 cdf, round, ick, sum, scl, cdf_width;
 	unsigned long rate;
 	struct device *dev = rcar_i2c_priv_to_dev(priv);
 	struct i2c_timings t = {
@@ -254,26 +279,16 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	/* Fall back to previously used values if not supplied */
 	i2c_parse_fw_timings(dev, &t, false);
 
-	switch (priv->devtype) {
-	case I2C_RCAR_GEN1:
-		cdf_width = 2;
-		break;
-	case I2C_RCAR_GEN2:
-	case I2C_RCAR_GEN3:
-		cdf_width = 3;
-		break;
-	default:
-		dev_err(dev, "device type error\n");
-		return -EIO;
-	}
-
 	/*
 	 * calculate SCL clock
 	 * see
-	 *	ICCCR
+	 *	ICCCR (and ICCCR2 for Gen3+)
 	 *
 	 * ick	= clkp / (1 + CDF)
 	 * SCL	= ick / (20 + SCGD * 8 + F[(ticf + tr + intd) * ick])
+	 *
+	 * for Gen3+:
+	 * SCL	= clkp / (8 + SMD * 2 + SCLD + SCHD +F[(ticf + tr + intd) * clkp])
 	 *
 	 * ick  : I2C internal clock < 20 MHz
 	 * ticf : I2C SCL falling time
@@ -284,52 +299,82 @@ static int rcar_i2c_clock_calculate(struct rcar_i2c_priv *priv)
 	 */
 	rate = clk_get_rate(priv->clk);
 	cdf = rate / 20000000;
-	if (cdf >= 1U << cdf_width) {
-		dev_err(dev, "Input clock %lu too high\n", rate);
-		return -EIO;
-	}
-	ick = rate / (cdf + 1);
+	cdf_width = (priv->devtype == I2C_RCAR_GEN1) ? 2 : 3;
+	if (cdf >= 1U << cdf_width)
+		goto err_no_val;
+
+	/* On Gen3+, we use cdf only for the filters, not as a SCL divider */
+	ick = rate / (priv->devtype < I2C_RCAR_GEN3 ? (cdf + 1) : 1);
 
 	/*
-	 * it is impossible to calculate large scale
-	 * number on u32. separate it
+	 * It is impossible to calculate a large scale number on u32. Separate it.
 	 *
 	 * F[(ticf + tr + intd) * ick] with sum = (ticf + tr + intd)
 	 *  = F[sum * ick / 1000000000]
 	 *  = F[(ick / 1000000) * sum / 1000]
 	 */
 	sum = t.scl_fall_ns + t.scl_rise_ns + t.scl_int_delay_ns;
-	round = (ick + 500000) / 1000000 * sum;
-	round = (round + 500) / 1000;
+	round = DIV_ROUND_CLOSEST(ick, 1000000);
+	round = DIV_ROUND_CLOSEST(round * sum, 1000);
 
-	/*
-	 * SCL	= ick / (20 + SCGD * 8 + F[(ticf + tr + intd) * ick])
-	 *
-	 * Calculation result (= SCL) should be less than
-	 * bus_speed for hardware safety
-	 *
-	 * We could use something along the lines of
-	 *	div = ick / (bus_speed + 1) + 1;
-	 *	scgd = (div - 20 - round + 7) / 8;
-	 *	scl = ick / (20 + (scgd * 8) + round);
-	 * (not fully verified) but that would get pretty involved
-	 */
-	for (scgd = 0; scgd < 0x40; scgd++) {
-		scl = ick / (20 + (scgd * 8) + round);
-		if (scl <= t.bus_freq_hz)
-			goto scgd_find;
+	if (priv->devtype < I2C_RCAR_GEN3) {
+		u32 scgd;
+		/*
+		 * SCL	= ick / (20 + 8 * SCGD + F[(ticf + tr + intd) * ick])
+		 * 20 + 8 * SCGD + F[...] = ick / SCL
+		 * SCGD = ((ick / SCL) - 20 - F[...]) / 8
+		 * Result (= SCL) should be less than bus_speed for hardware safety
+		 */
+		scgd = DIV_ROUND_UP(ick, t.bus_freq_hz ?: 1);
+		scgd = DIV_ROUND_UP(scgd - 20 - round, 8);
+		scl = ick / (20 + 8 * scgd + round);
+
+		if (scgd > 0x3f)
+			goto err_no_val;
+
+		dev_dbg(dev, "clk %u/%u(%lu), round %u, CDF: %u, SCGD: %u\n",
+			scl, t.bus_freq_hz, rate, round, cdf, scgd);
+
+		priv->icccr = scgd << cdf_width | cdf;
+	} else {
+		u32 x, sum_ratio = RCAR_SCHD_RATIO + RCAR_SCLD_RATIO;
+		/*
+		 * SCLD/SCHD ratio and SMD default value are explained above
+		 * where they are defined. With these definitions, we can compute
+		 * x as a base value for the SCLD/SCHD ratio:
+		 *
+		 * SCL = clkp / (8 + 2 * SMD + SCLD + SCHD + F[(ticf + tr + intd) * clkp])
+		 * SCL = clkp / (8 + 2 * RCAR_DEFAULT_SMD + RCAR_SCLD_RATIO * x
+		 *		 + RCAR_SCHD_RATIO * x + F[...])
+		 *
+		 * with: sum_ratio = RCAR_SCLD_RATIO + RCAR_SCHD_RATIO
+		 * and:  smd = RCAR_DEFAULT_SMD
+		 *
+		 * SCL = clkp / (8 + 2 * smd + sum_ratio * x + F[...])
+		 * 8 + 2 * smd + sum_ratio * x + F[...] = clkp / SCL
+		 * x = ((clkp / SCL) - 8 - 2 * smd - F[...]) / sum_ratio
+		 */
+		x = DIV_ROUND_UP(rate, t.bus_freq_hz ?: 1);
+		x = DIV_ROUND_UP(x - 8 - 2 * RCAR_DEFAULT_SMD - round, sum_ratio);
+		scl = rate / (8 + 2 * RCAR_DEFAULT_SMD + sum_ratio * x + round);
+
+		/* Bail out if values don't fit into 16 bit or SMD became too large */
+		if (x * RCAR_SCLD_RATIO > 0xffff || RCAR_DEFAULT_SMD > x * RCAR_SCHD_RATIO)
+			goto err_no_val;
+
+		priv->icccr = cdf;
+		priv->schd = RCAR_SCHD_RATIO * x;
+		priv->scld = RCAR_SCLD_RATIO * x;
+
+		dev_dbg(dev, "clk %u/%u(%lu), round %u, CDF: %u SCHD %u SCLD %u\n",
+			scl, t.bus_freq_hz, rate, round, cdf, priv->schd, priv->scld);
 	}
-	dev_err(dev, "it is impossible to calculate best SCL\n");
-	return -EIO;
-
-scgd_find:
-	dev_dbg(dev, "clk %d/%d(%lu), round %u, CDF:0x%x, SCGD: 0x%x\n",
-		scl, t.bus_freq_hz, rate, round, cdf, scgd);
-
-	/* keep icccr value */
-	priv->icccr = scgd << cdf_width | cdf;
 
 	return 0;
+
+err_no_val:
+	dev_err(dev, "it is impossible to calculate best SCL\n");
+	return -EINVAL;
 }
 
 /*
@@ -843,12 +888,10 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	/* Gen3 needs a reset before allowing RXDMA once */
 	if (priv->devtype == I2C_RCAR_GEN3) {
-		priv->flags |= ID_P_NO_RXDMA;
-		if (!IS_ERR(priv->rstc)) {
-			ret = rcar_i2c_do_reset(priv);
-			if (ret == 0)
-				priv->flags &= ~ID_P_NO_RXDMA;
-		}
+		priv->flags &= ~ID_P_NO_RXDMA;
+		ret = rcar_i2c_do_reset(priv);
+		if (ret)
+			goto out;
 	}
 
 	rcar_i2c_init(priv);
@@ -1099,15 +1142,6 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 		irqhandler = rcar_i2c_gen2_irq;
 	}
 
-	if (priv->devtype == I2C_RCAR_GEN3) {
-		priv->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-		if (!IS_ERR(priv->rstc)) {
-			ret = reset_control_status(priv->rstc);
-			if (ret < 0)
-				priv->rstc = ERR_PTR(-ENOTSUPP);
-		}
-	}
-
 	/* Stay always active when multi-master to keep arbitration working */
 	if (of_property_read_bool(dev->of_node, "multi-master"))
 		priv->flags |= ID_P_PM_BLOCKED;
@@ -1116,6 +1150,18 @@ static int rcar_i2c_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(dev->of_node, "smbus"))
 		priv->flags |= ID_P_HOST_NOTIFY;
+
+	if (priv->devtype == I2C_RCAR_GEN3) {
+		priv->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+		if (IS_ERR(priv->rstc)) {
+			ret = PTR_ERR(priv->rstc);
+			goto out_pm_put;
+		}
+
+		ret = reset_control_status(priv->rstc);
+		if (ret < 0)
+			goto out_pm_put;
+	}
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)

@@ -98,7 +98,7 @@ struct perf_pmu *evsel__find_pmu(const struct evsel *evsel __maybe_unused)
 	return NULL;
 }
 
-int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...)
+int perf_pmu__scan_file(const struct perf_pmu *pmu, const char *name, const char *fmt, ...)
 {
 	return EOF;
 }

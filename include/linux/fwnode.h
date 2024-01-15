@@ -41,6 +41,8 @@ struct device;
 struct fwnode_handle {
 	struct fwnode_handle *secondary;
 	const struct fwnode_operations *ops;
+
+	/* The below is used solely by device links, don't use otherwise */
 	struct device *dev;
 	struct list_head suppliers;
 	struct list_head consumers;

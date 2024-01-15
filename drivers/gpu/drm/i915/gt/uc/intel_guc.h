@@ -79,6 +79,18 @@ struct intel_guc {
 	 */
 	atomic_t outstanding_submission_g2h;
 
+	/** @tlb_lookup: xarray to store all pending TLB invalidation requests */
+	struct xarray tlb_lookup;
+
+	/**
+	 * @serial_slot: id to the initial waiter created in tlb_lookup,
+	 * which is used only when failed to allocate new waiter.
+	 */
+	u32 serial_slot;
+
+	/** @next_seqno: the next id (sequence number) to allocate. */
+	u32 next_seqno;
+
 	/** @interrupts: pointers to GuC interrupt-managing functions. */
 	struct {
 		bool enabled;
@@ -93,61 +105,67 @@ struct intel_guc {
 	 */
 	struct {
 		/**
-		 * @lock: protects everything in submission_state,
-		 * ce->guc_id.id, and ce->guc_id.ref when transitioning in and
-		 * out of zero
+		 * @submission_state.lock: protects everything in
+		 * submission_state, ce->guc_id.id, and ce->guc_id.ref
+		 * when transitioning in and out of zero
 		 */
 		spinlock_t lock;
 		/**
-		 * @guc_ids: used to allocate new guc_ids, single-lrc
+		 * @submission_state.guc_ids: used to allocate new
+		 * guc_ids, single-lrc
 		 */
 		struct ida guc_ids;
 		/**
-		 * @num_guc_ids: Number of guc_ids, selftest feature to be able
-		 * to reduce this number while testing.
+		 * @submission_state.num_guc_ids: Number of guc_ids, selftest
+		 * feature to be able to reduce this number while testing.
 		 */
 		int num_guc_ids;
 		/**
-		 * @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc
+		 * @submission_state.guc_ids_bitmap: used to allocate
+		 * new guc_ids, multi-lrc
 		 */
 		unsigned long *guc_ids_bitmap;
 		/**
-		 * @guc_id_list: list of intel_context with valid guc_ids but no
-		 * refs
+		 * @submission_state.guc_id_list: list of intel_context
+		 * with valid guc_ids but no refs
 		 */
 		struct list_head guc_id_list;
 		/**
-		 * @guc_ids_in_use: Number single-lrc guc_ids in use
+		 * @submission_state.guc_ids_in_use: Number single-lrc
+		 * guc_ids in use
 		 */
 		unsigned int guc_ids_in_use;
 		/**
-		 * @destroyed_contexts: list of contexts waiting to be destroyed
-		 * (deregistered with the GuC)
+		 * @submission_state.destroyed_contexts: list of contexts
+		 * waiting to be destroyed (deregistered with the GuC)
 		 */
 		struct list_head destroyed_contexts;
 		/**
-		 * @destroyed_worker: worker to deregister contexts, need as we
-		 * need to take a GT PM reference and can't from destroy
-		 * function as it might be in an atomic context (no sleeping)
+		 * @submission_state.destroyed_worker: worker to deregister
+		 * contexts, need as we need to take a GT PM reference and
+		 * can't from destroy function as it might be in an atomic
+		 * context (no sleeping)
 		 */
 		struct work_struct destroyed_worker;
 		/**
-		 * @reset_fail_worker: worker to trigger a GT reset after an
-		 * engine reset fails
+		 * @submission_state.reset_fail_worker: worker to trigger
+		 * a GT reset after an engine reset fails
 		 */
 		struct work_struct reset_fail_worker;
 		/**
-		 * @reset_fail_mask: mask of engines that failed to reset
+		 * @submission_state.reset_fail_mask: mask of engines that
+		 * failed to reset
 		 */
 		intel_engine_mask_t reset_fail_mask;
 		/**
-		 * @sched_disable_delay_ms: schedule disable delay, in ms, for
-		 * contexts
+		 * @submission_state.sched_disable_delay_ms: schedule
+		 * disable delay, in ms, for contexts
 		 */
 		unsigned int sched_disable_delay_ms;
 		/**
-		 * @sched_disable_gucid_threshold: threshold of min remaining available
-		 * guc_ids before we start bypassing the schedule disable delay
+		 * @submission_state.sched_disable_gucid_threshold:
+		 * threshold of min remaining available guc_ids before
+		 * we start bypassing the schedule disable delay
 		 */
 		unsigned int sched_disable_gucid_threshold;
 	} submission_state;
@@ -231,37 +249,40 @@ struct intel_guc {
 	 */
 	struct {
 		/**
-		 * @lock: Lock protecting the below fields and the engine stats.
+		 * @timestamp.lock: Lock protecting the below fields and
+		 * the engine stats.
 		 */
 		spinlock_t lock;
 
 		/**
-		 * @gt_stamp: 64 bit extended value of the GT timestamp.
+		 * @timestamp.gt_stamp: 64-bit extended value of the GT
+		 * timestamp.
 		 */
 		u64 gt_stamp;
 
 		/**
-		 * @ping_delay: Period for polling the GT timestamp for
-		 * overflow.
+		 * @timestamp.ping_delay: Period for polling the GT
+		 * timestamp for overflow.
 		 */
 		unsigned long ping_delay;
 
 		/**
-		 * @work: Periodic work to adjust GT timestamp, engine and
-		 * context usage for overflows.
+		 * @timestamp.work: Periodic work to adjust GT timestamp,
+		 * engine and context usage for overflows.
 		 */
 		struct delayed_work work;
 
 		/**
-		 * @shift: Right shift value for the gpm timestamp
+		 * @timestamp.shift: Right shift value for the gpm timestamp
 		 */
 		u32 shift;
 
 		/**
-		 * @last_stat_jiffies: jiffies at last actual stats collection time
-		 * We use this timestamp to ensure we don't oversample the
-		 * stats because runtime power management events can trigger
-		 * stats collection at much higher rates than required.
+		 * @timestamp.last_stat_jiffies: jiffies at last actual
+		 * stats collection time. We use this timestamp to ensure
+		 * we don't oversample the stats because runtime power
+		 * management events can trigger stats collection at much
+		 * higher rates than required.
 		 */
 		unsigned long last_stat_jiffies;
 	} timestamp;
@@ -285,7 +306,16 @@ struct intel_guc {
 	 * @number_guc_id_stolen: The number of guc_ids that have been stolen
 	 */
 	int number_guc_id_stolen;
+	/**
+	 * @fast_response_selftest: Backdoor to CT handler for fast response selftest
+	 */
+	u32 fast_response_selftest;
 #endif
+};
+
+struct intel_guc_tlb_wait {
+	struct wait_queue_head wq;
+	bool busy;
 };
 
 /*
@@ -295,6 +325,7 @@ struct intel_guc {
 #define MAKE_GUC_VER(maj, min, pat)	(((maj) << 16) | ((min) << 8) | (pat))
 #define MAKE_GUC_VER_STRUCT(ver)	MAKE_GUC_VER((ver).major, (ver).minor, (ver).patch)
 #define GUC_SUBMIT_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->submission_version)
+#define GUC_FIRMWARE_VER(guc)		MAKE_GUC_VER_STRUCT((guc)->fw.file_selected.ver)
 
 static inline struct intel_guc *log_to_guc(struct intel_guc_log *log)
 {
@@ -514,4 +545,10 @@ void intel_guc_dump_time_info(struct intel_guc *guc, struct drm_printer *p);
 
 int intel_guc_sched_disable_gucid_threshold_max(struct intel_guc *guc);
 
+bool intel_guc_tlb_invalidation_is_available(struct intel_guc *guc);
+int intel_guc_invalidate_tlb_engines(struct intel_guc *guc);
+int intel_guc_invalidate_tlb_guc(struct intel_guc *guc);
+int intel_guc_tlb_invalidation_done(struct intel_guc *guc,
+				    const u32 *payload, u32 len);
+void wake_up_all_tlb_invalidate(struct intel_guc *guc);
 #endif

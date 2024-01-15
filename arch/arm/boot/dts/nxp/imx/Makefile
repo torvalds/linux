@@ -47,6 +47,8 @@ dtb-$(CONFIG_SOC_IMX53) += \
 	imx53-qsb.dtb \
 	imx53-qsrb.dtb \
 	imx53-sk-imx53.dtb \
+	imx53-sk-imx53-atm0700d4-lvds.dtb \
+	imx53-sk-imx53-atm0700d4-rgb.dtb \
 	imx53-smd.dtb \
 	imx53-tx53-x03x.dtb \
 	imx53-tx53-x13x.dtb \
@@ -244,6 +246,7 @@ dtb-$(CONFIG_SOC_IMX6Q) += \
 	imx6q-udoo.dtb \
 	imx6q-utilite-pro.dtb \
 	imx6q-var-dt6customboard.dtb \
+	imx6q-var-mx6customboard.dtb \
 	imx6q-vicut1.dtb \
 	imx6q-wandboard.dtb \
 	imx6q-wandboard-revb1.dtb \

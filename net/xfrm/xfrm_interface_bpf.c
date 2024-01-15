@@ -27,9 +27,7 @@ struct bpf_xfrm_info {
 	int link;
 };
 
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in xfrm_interface BTF");
+__bpf_kfunc_start_defs();
 
 /* bpf_skb_get_xfrm_info - Get XFRM metadata
  *
@@ -93,7 +91,7 @@ __bpf_kfunc int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx, const struct bp
 	return 0;
 }
 
-__diag_pop()
+__bpf_kfunc_end_defs();
 
 BTF_SET8_START(xfrm_ifc_kfunc_set)
 BTF_ID_FLAGS(func, bpf_skb_get_xfrm_info)

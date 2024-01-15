@@ -37,15 +37,15 @@ IBMPC_MAP       IBM code page 437               ESC ( U
 USER_MAP        User defined                    ESC ( K
 =============== =============================== ================
 
-特別是 ESC ( U 不再是「直通字體」，因爲字體可能與IBM字符集完全不同。
+特別是 ESC ( U 不再是“直通字體”，因爲字體可能與IBM字符集完全不同。
 例如，即使加載了一個Latin-1字體，也允許使用塊圖形（block graphics）。
 
 請注意，儘管這些代碼與ISO 2022類似，但這些代碼及其用途都與ISO 2022不匹配；
 Linux有兩個八位代碼（G0和G1），而ISO 2022有四個七位代碼（G0-G3）。
 
-根據Unicode標準/ISO 10646，U+F000到U+F8FF被保留用於作業系統範圍內的分配
-（Unicode標準將其稱爲「團體區域（Corporate Zone）」，因爲這對於Linux是不準確
-的，所以我們稱之爲「Linux區域」）。選擇U+F000作爲起點，因爲它允許直接映射
+根據Unicode標準/ISO 10646，U+F000到U+F8FF被保留用於操作系統範圍內的分配
+（Unicode標準將其稱爲“團體區域（Corporate Zone）”，因爲這對於Linux是不準確
+的，所以我們稱之爲“Linux區域”）。選擇U+F000作爲起點，因爲它允許直接映射
 區域以2的大倍數開始（以防需要1024或2048個字符的字體）。這就留下U+E000到
 U+EFFF作爲最終用戶區。
 
@@ -87,7 +87,7 @@ U+F813 KEYBOARD SYMBOL SOLID APPLE
 克林貢（Klingon）語支持
 ------------------------
 
-1996年，Linux是世界上第一個添加對人工語言克林貢支持的作業系統，克林貢是由
+1996年，Linux是世界上第一個添加對人工語言克林貢支持的操作系統，克林貢是由
 Marc Okrand爲《星際迷航》電視連續劇創造的。這種編碼後來被徵募Unicode註冊表
 （ConScript Unicode Registry，CSUR）採用，並建議（但最終被拒絕）納入Unicode
 平面一。不過，它仍然是Linux區域中的Linux/CSUR私有分配。

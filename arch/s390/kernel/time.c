@@ -173,10 +173,10 @@ void init_cpu_timer(void)
 	clockevents_register_device(cd);
 
 	/* Enable clock comparator timer interrupt. */
-	__ctl_set_bit(0,11);
+	local_ctl_set_bit(0, CR0_CLOCK_COMPARATOR_SUBMASK_BIT);
 
 	/* Always allow the timing alert external interrupt. */
-	__ctl_set_bit(0, 4);
+	local_ctl_set_bit(0, CR0_ETR_SUBMASK_BIT);
 }
 
 static void clock_comparator_interrupt(struct ext_code ext_code,

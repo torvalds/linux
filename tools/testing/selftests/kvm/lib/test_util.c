@@ -387,7 +387,7 @@ char *strdup_printf(const char *fmt, ...)
 	char *str;
 
 	va_start(ap, fmt);
-	vasprintf(&str, fmt, ap);
+	TEST_ASSERT(vasprintf(&str, fmt, ap) >= 0, "vasprintf() failed");
 	va_end(ap);
 
 	return str;

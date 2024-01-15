@@ -16,34 +16,6 @@
 #include "../kselftest_harness.h"
 #include "../clone3/clone3_selftests.h"
 
-#ifndef __NR_close_range
-	#if defined __alpha__
-		#define __NR_close_range 546
-	#elif defined _MIPS_SIM
-		#if _MIPS_SIM == _MIPS_SIM_ABI32	/* o32 */
-			#define __NR_close_range (436 + 4000)
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_NABI32	/* n32 */
-			#define __NR_close_range (436 + 6000)
-		#endif
-		#if _MIPS_SIM == _MIPS_SIM_ABI64	/* n64 */
-			#define __NR_close_range (436 + 5000)
-		#endif
-	#elif defined __ia64__
-		#define __NR_close_range (436 + 1024)
-	#else
-		#define __NR_close_range 436
-	#endif
-#endif
-
-#ifndef CLOSE_RANGE_UNSHARE
-#define CLOSE_RANGE_UNSHARE	(1U << 1)
-#endif
-
-#ifndef CLOSE_RANGE_CLOEXEC
-#define CLOSE_RANGE_CLOEXEC	(1U << 2)
-#endif
-
 static inline int sys_close_range(unsigned int fd, unsigned int max_fd,
 				  unsigned int flags)
 {

@@ -1018,7 +1018,8 @@ int usbatm_usb_probe(struct usb_interface *intf, const struct usb_device_id *id,
 	size_t size;
 
 	/* instance init */
-	size = struct_size(instance, urbs, num_rcv_urbs + num_snd_urbs);
+	size = struct_size(instance, urbs,
+			   size_add(num_rcv_urbs, num_snd_urbs));
 	instance = kzalloc(size, GFP_KERNEL);
 	if (!instance)
 		return -ENOMEM;

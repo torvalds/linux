@@ -2964,7 +2964,6 @@ static void ath10k_htt_rx_tx_compl_ind(struct ath10k *ar,
 		break;
 	case HTT_DATA_TX_STATUS_DISCARD:
 	case HTT_DATA_TX_STATUS_POSTPONE:
-	case HTT_DATA_TX_STATUS_DOWNLOAD_FAIL:
 		tx_done.status = HTT_TX_COMPL_STATE_DISCARD;
 		break;
 	default:

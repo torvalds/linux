@@ -969,7 +969,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int rz_dmac_remove(struct platform_device *pdev)
+static void rz_dmac_remove(struct platform_device *pdev)
 {
 	struct rz_dmac *dmac = platform_get_drvdata(pdev);
 	unsigned int i;
@@ -987,8 +987,6 @@ static int rz_dmac_remove(struct platform_device *pdev)
 	reset_control_assert(dmac->rstc);
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id of_rz_dmac_match[] = {
@@ -1003,7 +1001,7 @@ static struct platform_driver rz_dmac_driver = {
 		.of_match_table = of_rz_dmac_match,
 	},
 	.probe		= rz_dmac_probe,
-	.remove		= rz_dmac_remove,
+	.remove_new	= rz_dmac_remove,
 };
 
 module_platform_driver(rz_dmac_driver);

@@ -7,18 +7,18 @@
 #include <dt-bindings/clock/imx8-lpcg.h>
 #include <dt-bindings/firmware/imx/rsrc.h>
 
+dma_ipg_clk: clock-dma-ipg {
+	compatible = "fixed-clock";
+	#clock-cells = <0>;
+	clock-frequency = <120000000>;
+	clock-output-names = "dma_ipg_clk";
+};
+
 dma_subsys: bus@5a000000 {
 	compatible = "simple-bus";
 	#address-cells = <1>;
 	#size-cells = <1>;
 	ranges = <0x5a000000 0x0 0x5a000000 0x1000000>;
-
-	dma_ipg_clk: clock-dma-ipg {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <120000000>;
-		clock-output-names = "dma_ipg_clk";
-	};
 
 	lpspi0: spi@5a000000 {
 		compatible = "fsl,imx7ulp-spi";
@@ -86,50 +86,133 @@ dma_subsys: bus@5a000000 {
 
 	lpuart0: serial@5a060000 {
 		reg = <0x5a060000 0x1000>;
-		interrupts = <GIC_SPI 225 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 345 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&uart0_lpcg IMX_LPCG_CLK_4>,
 			 <&uart0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "baud";
 		assigned-clocks = <&clk IMX_SC_R_UART_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_0>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 9 0 0>, <&edma2 8 0 1>;
 		status = "disabled";
 	};
 
 	lpuart1: serial@5a070000 {
 		reg = <0x5a070000 0x1000>;
-		interrupts = <GIC_SPI 226 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 346 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&uart1_lpcg IMX_LPCG_CLK_4>,
 			 <&uart1_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "baud";
 		assigned-clocks = <&clk IMX_SC_R_UART_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_1>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 11 0 0>, <&edma2 10 0 1>;
 		status = "disabled";
 	};
 
 	lpuart2: serial@5a080000 {
 		reg = <0x5a080000 0x1000>;
-		interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&uart2_lpcg IMX_LPCG_CLK_4>,
 			 <&uart2_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "baud";
 		assigned-clocks = <&clk IMX_SC_R_UART_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_2>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 13 0 0>, <&edma2 12 0 1>;
 		status = "disabled";
 	};
 
 	lpuart3: serial@5a090000 {
 		reg = <0x5a090000 0x1000>;
-		interrupts = <GIC_SPI 228 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&uart3_lpcg IMX_LPCG_CLK_4>,
 			 <&uart3_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "baud";
 		assigned-clocks = <&clk IMX_SC_R_UART_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <80000000>;
 		power-domains = <&pd IMX_SC_R_UART_3>;
+		dma-names = "tx","rx";
+		dmas = <&edma2 15 0 0>, <&edma2 14 0 1>;
 		status = "disabled";
+	};
+
+	adma_pwm: pwm@5a190000 {
+		compatible = "fsl,imx8qxp-pwm", "fsl,imx27-pwm";
+		reg = <0x5a190000 0x1000>;
+		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&adma_pwm_lpcg 1>,
+			 <&adma_pwm_lpcg 0>;
+		clock-names = "ipg", "per";
+		assigned-clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		#pwm-cells = <3>;
+		power-domains = <&pd IMX_SC_R_LCD_0_PWM_0>;
+	};
+
+	edma2: dma-controller@5a1f0000 {
+		compatible = "fsl,imx8qm-edma";
+		reg = <0x5a1f0000 0x170000>;
+		#dma-cells = <3>;
+		dma-channels = <16>;
+		interrupts = <GIC_SPI 416 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 417 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 418 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 419 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 422 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 434 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 435 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 437 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 438 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 439 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 440 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 441 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&pd IMX_SC_R_DMA_2_CH0>,
+				<&pd IMX_SC_R_DMA_2_CH1>,
+				<&pd IMX_SC_R_DMA_2_CH2>,
+				<&pd IMX_SC_R_DMA_2_CH3>,
+				<&pd IMX_SC_R_DMA_2_CH4>,
+				<&pd IMX_SC_R_DMA_2_CH5>,
+				<&pd IMX_SC_R_DMA_2_CH6>,
+				<&pd IMX_SC_R_DMA_2_CH7>,
+				<&pd IMX_SC_R_DMA_2_CH8>,
+				<&pd IMX_SC_R_DMA_2_CH9>,
+				<&pd IMX_SC_R_DMA_2_CH10>,
+				<&pd IMX_SC_R_DMA_2_CH11>,
+				<&pd IMX_SC_R_DMA_2_CH12>,
+				<&pd IMX_SC_R_DMA_2_CH13>,
+				<&pd IMX_SC_R_DMA_2_CH14>,
+				<&pd IMX_SC_R_DMA_2_CH15>;
+	};
+
+	edma3: dma-controller@5a9f0000 {
+		compatible = "fsl,imx8qm-edma";
+		reg = <0x5a9f0000 0x90000>;
+		#dma-cells = <3>;
+		dma-channels = <8>;
+		interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>;
+		power-domains = <&pd IMX_SC_R_DMA_3_CH0>,
+				<&pd IMX_SC_R_DMA_3_CH1>,
+				<&pd IMX_SC_R_DMA_3_CH2>,
+				<&pd IMX_SC_R_DMA_3_CH3>,
+				<&pd IMX_SC_R_DMA_3_CH4>,
+				<&pd IMX_SC_R_DMA_3_CH5>,
+				<&pd IMX_SC_R_DMA_3_CH6>,
+				<&pd IMX_SC_R_DMA_3_CH7>;
 	};
 
 	spi0_lpcg: clock-controller@5a400000 {
@@ -226,6 +309,18 @@ dma_subsys: bus@5a000000 {
 		clock-output-names = "uart3_lpcg_baud_clk",
 				     "uart3_lpcg_ipg_clk";
 		power-domains = <&pd IMX_SC_R_UART_3>;
+	};
+
+	adma_pwm_lpcg: clock-controller@5a590000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5a590000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "adma_pwm_lpcg_clk",
+				     "adma_pwm_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_LCD_0_PWM_0>;
 	};
 
 	i2c0: i2c@5a800000 {

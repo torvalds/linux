@@ -1,7 +1,17 @@
-
-# Test ends up reading CRC from frame before cursor update
-# bug
-# sometimes.. tbd if this is a kernel CRC bug or a test
-kms_cursor_crc@.*
-kms_plane_multiple@atomic-pipe-A-tiling-none
-kms_atomic_transition@modeset-transition-nonblocking-fencing,Fail
+kms_color@ctm-0-25
+kms_color@ctm-0-50
+kms_color@ctm-0-75
+kms_color@ctm-blue-to-red
+kms_color@ctm-green-to-red
+kms_color@ctm-negative
+kms_color@ctm-red-to-blue
+kms_color@ctm-signed
+kms_flip@flip-vs-modeset-vs-hang
+kms_flip@flip-vs-panning-vs-hang
+kms_plane@pixel-format
+kms_plane@pixel-format-source-clamping
+kms_plane@plane-position-covered
+kms_plane@plane-position-hole
+kms_plane@plane-position-hole-dpms
+kms_writeback@writeback-fb-id
+kms_writeback@writeback-invalid-parameters

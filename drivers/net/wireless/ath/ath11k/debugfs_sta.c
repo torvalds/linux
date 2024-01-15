@@ -136,7 +136,7 @@ static ssize_t ath11k_dbg_sta_dump_tx_stats(struct file *file,
 					    size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	struct ath11k_htt_data_stats *stats;
 	static const char *str_name[ATH11K_STATS_TYPE_MAX] = {"succ", "fail",
@@ -243,7 +243,7 @@ static ssize_t ath11k_dbg_sta_dump_rx_stats(struct file *file,
 					    size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	struct ath11k_rx_peer_stats *rx_stats = arsta->rx_stats;
 	int len = 0, i, retval = 0;
@@ -340,7 +340,7 @@ static int
 ath11k_dbg_sta_open_htt_peer_stats(struct inode *inode, struct file *file)
 {
 	struct ieee80211_sta *sta = inode->i_private;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	struct debug_htt_stats_req *stats_req;
 	int type = ar->debug.htt_stats.type;
@@ -376,7 +376,7 @@ static int
 ath11k_dbg_sta_release_htt_peer_stats(struct inode *inode, struct file *file)
 {
 	struct ieee80211_sta *sta = inode->i_private;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 
 	mutex_lock(&ar->conf_mutex);
@@ -413,7 +413,7 @@ static ssize_t ath11k_dbg_sta_write_peer_pktlog(struct file *file,
 						size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	int ret, enable;
 
@@ -453,7 +453,7 @@ static ssize_t ath11k_dbg_sta_read_peer_pktlog(struct file *file,
 					       size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	char buf[32] = {0};
 	int len;
@@ -480,7 +480,7 @@ static ssize_t ath11k_dbg_sta_write_delba(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	u32 tid, initiator, reason;
 	int ret;
@@ -531,7 +531,7 @@ static ssize_t ath11k_dbg_sta_write_addba_resp(struct file *file,
 					       size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	u32 tid, status;
 	int ret;
@@ -581,7 +581,7 @@ static ssize_t ath11k_dbg_sta_write_addba(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	u32 tid, buf_size;
 	int ret;
@@ -632,7 +632,7 @@ static ssize_t ath11k_dbg_sta_read_aggr_mode(struct file *file,
 					     size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	char buf[64];
 	int len = 0;
@@ -652,7 +652,7 @@ static ssize_t ath11k_dbg_sta_write_aggr_mode(struct file *file,
 					      size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	u32 aggr_mode;
 	int ret;
@@ -697,7 +697,7 @@ ath11k_write_htt_peer_stats_reset(struct file *file,
 				  size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	struct htt_ext_stats_cfg_params cfg_params = { 0 };
 	int ret;
@@ -756,7 +756,7 @@ static ssize_t ath11k_dbg_sta_read_peer_ps_state(struct file *file,
 						 size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	char buf[20];
 	int len;
@@ -783,7 +783,7 @@ static ssize_t ath11k_dbg_sta_read_current_ps_duration(struct file *file,
 						       loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	u64 time_since_station_in_power_save;
 	char buf[20];
@@ -817,7 +817,7 @@ static ssize_t ath11k_dbg_sta_read_total_ps_duration(struct file *file,
 						     size_t count, loff_t *ppos)
 {
 	struct ieee80211_sta *sta = file->private_data;
-	struct ath11k_sta *arsta = (struct ath11k_sta *)sta->drv_priv;
+	struct ath11k_sta *arsta = ath11k_sta_to_arsta(sta);
 	struct ath11k *ar = arsta->arvif->ar;
 	char buf[20];
 	u64 power_save_duration;

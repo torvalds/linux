@@ -19,7 +19,7 @@
 
 /*
  * This is a hcall, so register convention is as
- * Documentation/powerpc/papr_hcalls.rst.
+ * Documentation/arch/powerpc/papr_hcalls.rst.
  *
  * This may also be a syscall from PR-KVM userspace that is to be
  * reflected to the PR guest kernel, so registers may be set up for

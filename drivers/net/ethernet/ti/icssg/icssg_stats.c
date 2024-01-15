@@ -9,6 +9,9 @@
 #include "icssg_stats.h"
 #include <linux/regmap.h>
 
+#define ICSSG_TX_PACKET_OFFSET	0xA0
+#define ICSSG_TX_BYTE_OFFSET	0xEC
+
 static u32 stats_base[] = {	0x54c,	/* Slice 0 stats start */
 				0xb18,	/* Slice 1 stats start */
 };
@@ -18,6 +21,7 @@ void emac_update_hardware_stats(struct prueth_emac *emac)
 	struct prueth *prueth = emac->prueth;
 	int slice = prueth_emac_slice(emac);
 	u32 base = stats_base[slice];
+	u32 tx_pkt_cnt = 0;
 	u32 val;
 	int i;
 
@@ -29,7 +33,12 @@ void emac_update_hardware_stats(struct prueth_emac *emac)
 			     base + icssg_all_stats[i].offset,
 			     val);
 
+		if (icssg_all_stats[i].offset == ICSSG_TX_PACKET_OFFSET)
+			tx_pkt_cnt = val;
+
 		emac->stats[i] += val;
+		if (icssg_all_stats[i].offset == ICSSG_TX_BYTE_OFFSET)
+			emac->stats[i] -= tx_pkt_cnt * 8;
 	}
 }
 

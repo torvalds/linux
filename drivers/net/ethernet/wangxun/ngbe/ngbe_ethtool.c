@@ -49,6 +49,11 @@ static const struct ethtool_ops ngbe_ethtool_ops = {
 	.nway_reset		= phy_ethtool_nway_reset,
 	.get_wol		= ngbe_get_wol,
 	.set_wol		= ngbe_set_wol,
+	.get_sset_count		= wx_get_sset_count,
+	.get_strings		= wx_get_strings,
+	.get_ethtool_stats	= wx_get_ethtool_stats,
+	.get_eth_mac_stats	= wx_get_mac_stats,
+	.get_pause_stats	= wx_get_pause_stats,
 };
 
 void ngbe_set_ethtool_ops(struct net_device *netdev)

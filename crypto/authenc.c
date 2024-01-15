@@ -141,9 +141,6 @@ static int crypto_authenc_genicv(struct aead_request *req, unsigned int flags)
 	u8 *hash = areq_ctx->tail;
 	int err;
 
-	hash = (u8 *)ALIGN((unsigned long)hash + crypto_ahash_alignmask(auth),
-			   crypto_ahash_alignmask(auth) + 1);
-
 	ahash_request_set_tfm(ahreq, auth);
 	ahash_request_set_crypt(ahreq, req->dst, hash,
 				req->assoclen + req->cryptlen);
@@ -286,9 +283,6 @@ static int crypto_authenc_decrypt(struct aead_request *req)
 	u8 *hash = areq_ctx->tail;
 	int err;
 
-	hash = (u8 *)ALIGN((unsigned long)hash + crypto_ahash_alignmask(auth),
-			   crypto_ahash_alignmask(auth) + 1);
-
 	ahash_request_set_tfm(ahreq, auth);
 	ahash_request_set_crypt(ahreq, req->src, hash,
 				req->assoclen + req->cryptlen - authsize);
@@ -373,9 +367,9 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 	u32 mask;
 	struct aead_instance *inst;
 	struct authenc_instance_ctx *ctx;
+	struct skcipher_alg_common *enc;
 	struct hash_alg_common *auth;
 	struct crypto_alg *auth_base;
-	struct skcipher_alg *enc;
 	int err;
 
 	err = crypto_check_attr_type(tb, CRYPTO_ALG_TYPE_AEAD, &mask);
@@ -398,10 +392,9 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 				   crypto_attr_alg_name(tb[2]), 0, mask);
 	if (err)
 		goto err_free_inst;
-	enc = crypto_spawn_skcipher_alg(&ctx->enc);
+	enc = crypto_spawn_skcipher_alg_common(&ctx->enc);
 
-	ctx->reqoff = ALIGN(2 * auth->digestsize + auth_base->cra_alignmask,
-			    auth_base->cra_alignmask + 1);
+	ctx->reqoff = 2 * auth->digestsize;
 
 	err = -ENAMETOOLONG;
 	if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
@@ -418,12 +411,11 @@ static int crypto_authenc_create(struct crypto_template *tmpl,
 	inst->alg.base.cra_priority = enc->base.cra_priority * 10 +
 				      auth_base->cra_priority;
 	inst->alg.base.cra_blocksize = enc->base.cra_blocksize;
-	inst->alg.base.cra_alignmask = auth_base->cra_alignmask |
-				       enc->base.cra_alignmask;
+	inst->alg.base.cra_alignmask = enc->base.cra_alignmask;
 	inst->alg.base.cra_ctxsize = sizeof(struct crypto_authenc_ctx);
 
-	inst->alg.ivsize = crypto_skcipher_alg_ivsize(enc);
-	inst->alg.chunksize = crypto_skcipher_alg_chunksize(enc);
+	inst->alg.ivsize = enc->ivsize;
+	inst->alg.chunksize = enc->chunksize;
 	inst->alg.maxauthsize = auth->digestsize;
 
 	inst->alg.init = crypto_authenc_init_tfm;

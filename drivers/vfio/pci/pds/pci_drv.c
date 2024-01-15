@@ -55,10 +55,10 @@ static void pds_vfio_recovery(struct pds_vfio_pci_device *pds_vfio)
 	 * VFIO_DEVICE_STATE_RUNNING.
 	 */
 	if (deferred_reset_needed) {
-		spin_lock(&pds_vfio->reset_lock);
+		mutex_lock(&pds_vfio->reset_mutex);
 		pds_vfio->deferred_reset = true;
 		pds_vfio->deferred_reset_state = VFIO_DEVICE_STATE_ERROR;
-		spin_unlock(&pds_vfio->reset_lock);
+		mutex_unlock(&pds_vfio->reset_mutex);
 	}
 }
 
@@ -204,6 +204,7 @@ static struct pci_driver pds_vfio_pci_driver = {
 
 module_pci_driver(pds_vfio_pci_driver);
 
+MODULE_IMPORT_NS(IOMMUFD);
 MODULE_DESCRIPTION(PDS_VFIO_DRV_DESCRIPTION);
 MODULE_AUTHOR("Brett Creeley <brett.creeley@amd.com>");
 MODULE_LICENSE("GPL");

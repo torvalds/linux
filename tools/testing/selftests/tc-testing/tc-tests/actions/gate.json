@@ -6,6 +6,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action gate",
@@ -30,6 +33,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -54,6 +60,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action gate",
@@ -78,6 +87,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action gate",
@@ -102,6 +114,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -132,6 +147,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -162,6 +180,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -192,6 +213,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action gate",
@@ -219,6 +243,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -246,6 +273,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -271,6 +301,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",
@@ -295,6 +328,9 @@
             "actions",
             "gate"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action gate",

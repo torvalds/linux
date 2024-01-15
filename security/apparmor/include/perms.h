@@ -48,6 +48,9 @@
 
 #define AA_LINK_SUBSET		AA_MAY_LOCK	/* overlaid */
 
+#define AA_MAY_CREATE_SQPOLL   AA_MAY_CREATE
+#define AA_MAY_OVERRIDE_CRED   AA_MAY_APPEND
+#define AA_URING_PERM_MASK     (AA_MAY_OVERRIDE_CRED | AA_MAY_CREATE_SQPOLL)
 
 #define PERMS_CHRS_MASK (MAY_READ | MAY_WRITE | AA_MAY_CREATE |		\
 			 AA_MAY_DELETE | AA_MAY_LINK | AA_MAY_LOCK |	\
@@ -212,8 +215,8 @@ void aa_profile_match_label(struct aa_profile *profile,
 			    int type, u32 request, struct aa_perms *perms);
 int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 			  u32 request, int type, u32 *deny,
-			  struct common_audit_data *sa);
+			  struct apparmor_audit_data *ad);
 int aa_check_perms(struct aa_profile *profile, struct aa_perms *perms,
-		   u32 request, struct common_audit_data *sa,
+		   u32 request, struct apparmor_audit_data *ad,
 		   void (*cb)(struct audit_buffer *, void *));
 #endif /* __AA_PERM_H */

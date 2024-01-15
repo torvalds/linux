@@ -149,8 +149,14 @@ static bool inet_bind2_bucket_addr_match(const struct inet_bind2_bucket *tb2,
 					 const struct sock *sk)
 {
 #if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family != tb2->family)
-		return false;
+	if (sk->sk_family != tb2->family) {
+		if (sk->sk_family == AF_INET)
+			return ipv6_addr_v4mapped(&tb2->v6_rcv_saddr) &&
+				tb2->v6_rcv_saddr.s6_addr32[3] == sk->sk_rcv_saddr;
+
+		return ipv6_addr_v4mapped(&sk->sk_v6_rcv_saddr) &&
+			sk->sk_v6_rcv_saddr.s6_addr32[3] == tb2->rcv_saddr;
+	}
 
 	if (sk->sk_family == AF_INET6)
 		return ipv6_addr_equal(&tb2->v6_rcv_saddr,
@@ -745,12 +751,12 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 		if (err)
 			goto unlock;
 	}
+	sock_set_flag(sk, SOCK_RCU_FREE);
 	if (IS_ENABLED(CONFIG_IPV6) && sk->sk_reuseport &&
 		sk->sk_family == AF_INET6)
 		__sk_nulls_add_node_tail_rcu(sk, &ilb2->nulls_head);
 	else
 		__sk_nulls_add_node_rcu(sk, &ilb2->nulls_head);
-	sock_set_flag(sk, SOCK_RCU_FREE);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 unlock:
 	spin_unlock(&ilb2->lock);
@@ -819,19 +825,7 @@ static bool inet_bind2_bucket_match(const struct inet_bind2_bucket *tb,
 	    tb->l3mdev != l3mdev)
 		return false;
 
-#if IS_ENABLED(CONFIG_IPV6)
-	if (sk->sk_family != tb->family) {
-		if (sk->sk_family == AF_INET)
-			return ipv6_addr_v4mapped(&tb->v6_rcv_saddr) &&
-				tb->v6_rcv_saddr.s6_addr32[3] == sk->sk_rcv_saddr;
-
-		return false;
-	}
-
-	if (sk->sk_family == AF_INET6)
-		return ipv6_addr_equal(&tb->v6_rcv_saddr, &sk->sk_v6_rcv_saddr);
-#endif
-	return tb->rcv_saddr == sk->sk_rcv_saddr;
+	return inet_bind2_bucket_addr_match(tb, sk);
 }
 
 bool inet_bind2_bucket_match_addr_any(const struct inet_bind2_bucket *tb, const struct net *net,

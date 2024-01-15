@@ -1124,7 +1124,7 @@ err_sensor:
 	return ret;
 }
 
-static int exynos_tmu_remove(struct platform_device *pdev)
+static void exynos_tmu_remove(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 
@@ -1137,8 +1137,6 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(data->regulator))
 		regulator_disable(data->regulator);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1173,7 +1171,7 @@ static struct platform_driver exynos_tmu_driver = {
 		.of_match_table = exynos_tmu_match,
 	},
 	.probe = exynos_tmu_probe,
-	.remove	= exynos_tmu_remove,
+	.remove_new = exynos_tmu_remove,
 };
 
 module_platform_driver(exynos_tmu_driver);

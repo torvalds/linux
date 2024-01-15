@@ -270,4 +270,5 @@ module_exit(nft_fwd_netdev_module_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Pablo Neira Ayuso <pablo@netfilter.org>");
+MODULE_DESCRIPTION("nftables netdev packet forwarding support");
 MODULE_ALIAS_NFT_AF_EXPR(5, "fwd");

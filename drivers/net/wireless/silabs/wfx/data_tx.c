@@ -208,6 +208,36 @@ static bool wfx_is_action_back(struct ieee80211_hdr *hdr)
 	return true;
 }
 
+struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *tx_info;
+
+	if (!skb)
+		return NULL;
+	tx_info = IEEE80211_SKB_CB(skb);
+	return (struct wfx_tx_priv *)tx_info->rate_driver_data;
+}
+
+struct wfx_hif_req_tx *wfx_skb_txreq(struct sk_buff *skb)
+{
+	struct wfx_hif_msg *hif = (struct wfx_hif_msg *)skb->data;
+	struct wfx_hif_req_tx *req = (struct wfx_hif_req_tx *)hif->body;
+
+	return req;
+}
+
+struct wfx_vif *wfx_skb_wvif(struct wfx_dev *wdev, struct sk_buff *skb)
+{
+	struct wfx_tx_priv *tx_priv = wfx_skb_tx_priv(skb);
+	struct wfx_hif_msg *hif = (struct wfx_hif_msg *)skb->data;
+
+	if (tx_priv->vif_id != hif->interface && hif->interface != 2) {
+		dev_err(wdev->dev, "corrupted skb");
+		return wdev_to_wvif(wdev, hif->interface);
+	}
+	return wdev_to_wvif(wdev, tx_priv->vif_id);
+}
+
 static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 			     struct ieee80211_hdr *hdr)
 {
@@ -226,53 +256,40 @@ static u8 wfx_tx_get_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 
 static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 {
-	int i;
-	bool finished;
+	bool has_rate0 = false;
+	int i, j;
 
-	/* Firmware is not able to mix rates with different flags */
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
-			rates[i].flags |= IEEE80211_TX_RC_SHORT_GI;
-		if (!(rates[0].flags & IEEE80211_TX_RC_SHORT_GI))
+	for (i = 1, j = 1; j < IEEE80211_TX_MAX_RATES; j++) {
+		if (rates[j].idx == -1)
+			break;
+		/* The device use the rates in descending order, whatever the request from minstrel.
+		 * We have to trade off here. Most important is to respect the primary rate
+		 * requested by minstrel. So, we drops the entries with rate higher than the
+		 * previous.
+		 */
+		if (rates[j].idx >= rates[i - 1].idx) {
+			rates[i - 1].count += rates[j].count;
+			rates[i - 1].count = min_t(u16, 15, rates[i - 1].count);
+		} else {
+			memcpy(rates + i, rates + j, sizeof(rates[i]));
+			if (rates[i].idx == 0)
+				has_rate0 = true;
+			/* The device apply Short GI only on the first rate */
 			rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
-		if (!(rates[0].flags & IEEE80211_TX_RC_USE_RTS_CTS))
-			rates[i].flags &= ~IEEE80211_TX_RC_USE_RTS_CTS;
-	}
-
-	/* Sort rates and remove duplicates */
-	do {
-		finished = true;
-		for (i = 0; i < IEEE80211_TX_MAX_RATES - 1; i++) {
-			if (rates[i + 1].idx == rates[i].idx &&
-			    rates[i].idx != -1) {
-				rates[i].count += rates[i + 1].count;
-				if (rates[i].count > 15)
-					rates[i].count = 15;
-				rates[i + 1].idx = -1;
-				rates[i + 1].count = 0;
-
-				finished = false;
-			}
-			if (rates[i + 1].idx > rates[i].idx) {
-				swap(rates[i + 1], rates[i]);
-				finished = false;
-			}
+			i++;
 		}
-	} while (!finished);
+	}
 	/* Ensure that MCS0 or 1Mbps is present at the end of the retry list */
-	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
-		if (rates[i].idx == 0)
-			break;
-		if (rates[i].idx == -1) {
-			rates[i].idx = 0;
-			rates[i].count = 8; /* == hw->max_rate_tries */
-			rates[i].flags = rates[i - 1].flags & IEEE80211_TX_RC_MCS;
-			break;
-		}
+	if (!has_rate0 && i < IEEE80211_TX_MAX_RATES) {
+		rates[i].idx = 0;
+		rates[i].count = 8; /* == hw->max_rate_tries */
+		rates[i].flags = rates[0].flags & IEEE80211_TX_RC_MCS;
+		i++;
 	}
-	/* All retries use long GI */
-	for (i = 1; i < IEEE80211_TX_MAX_RATES; i++)
-		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
+	for (; i < IEEE80211_TX_MAX_RATES; i++) {
+		memset(rates + i, 0, sizeof(rates[i]));
+		rates[i].idx = -1;
+	}
 }
 
 static u8 wfx_tx_get_retry_policy_id(struct wfx_vif *wvif, struct ieee80211_tx_info *tx_info)
@@ -334,6 +351,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	/* Fill tx_priv */
 	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
 	tx_priv->icv_size = wfx_tx_get_icv_len(hw_key);
+	tx_priv->vif_id = wvif->id;
 
 	/* Fill hif_msg */
 	WARN(skb_headroom(skb) < wmsg_len, "not enough space in skb");
@@ -344,7 +362,10 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	hif_msg = (struct wfx_hif_msg *)skb->data;
 	hif_msg->len = cpu_to_le16(skb->len);
 	hif_msg->id = HIF_REQ_ID_TX;
-	hif_msg->interface = wvif->id;
+	if (tx_info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		hif_msg->interface = 2;
+	else
+		hif_msg->interface = wvif->id;
 	if (skb->len > le16_to_cpu(wvif->wdev->hw_caps.size_inp_ch_buf)) {
 		dev_warn(wvif->wdev->dev,
 			 "requested frame size (%d) is larger than maximum supported (%d)\n",
@@ -365,9 +386,15 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	req->fc_offset = offset;
 	/* Queue index are inverted between firmware and Linux */
 	req->queue_id = 3 - queue_id;
-	req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
-	req->retry_policy_index = wfx_tx_get_retry_policy_id(wvif, tx_info);
-	req->frame_format = wfx_tx_get_frame_format(tx_info);
+	if (tx_info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) {
+		req->peer_sta_id = HIF_LINK_ID_NOT_ASSOCIATED;
+		req->retry_policy_index = HIF_TX_RETRY_POLICY_INVALID;
+		req->frame_format = HIF_FRAME_FORMAT_NON_HT;
+	} else {
+		req->peer_sta_id = wfx_tx_get_link_id(wvif, sta, hdr);
+		req->retry_policy_index = wfx_tx_get_retry_policy_id(wvif, tx_info);
+		req->frame_format = wfx_tx_get_frame_format(tx_info);
+	}
 	if (tx_info->driver_rates[0].flags & IEEE80211_TX_RC_SHORT_GI)
 		req->short_gi = 1;
 	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
@@ -483,7 +510,7 @@ void wfx_tx_confirm_cb(struct wfx_dev *wdev, const struct wfx_hif_cnf_tx *arg)
 	}
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_priv = wfx_skb_tx_priv(skb);
-	wvif = wdev_to_wvif(wdev, ((struct wfx_hif_msg *)skb->data)->interface);
+	wvif = wfx_skb_wvif(wdev, skb);
 	WARN_ON(!wvif);
 	if (!wvif)
 		return;
@@ -545,7 +572,6 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u32 queues, b
 	struct wfx_dev *wdev = hw->priv;
 	struct sk_buff_head dropped;
 	struct wfx_vif *wvif;
-	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	skb_queue_head_init(&dropped);
@@ -561,8 +587,7 @@ void wfx_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u32 queues, b
 	if (wdev->chip_frozen)
 		wfx_pending_drop(wdev, &dropped);
 	while ((skb = skb_dequeue(&dropped)) != NULL) {
-		hif = (struct wfx_hif_msg *)skb->data;
-		wvif = wdev_to_wvif(wdev, hif->interface);
+		wvif = wfx_skb_wvif(wdev, skb);
 		ieee80211_tx_info_clear_status(IEEE80211_SKB_CB(skb));
 		wfx_skb_dtor(wvif, skb);
 	}

@@ -131,6 +131,15 @@ lpfc_els_chk_latt(struct lpfc_vport *vport)
 	return 1;
 }
 
+static bool lpfc_is_els_acc_rsp(struct lpfc_dmabuf *buf)
+{
+	struct fc_els_ls_acc *rsp = buf->virt;
+
+	if (rsp && rsp->la_cmd == ELS_LS_ACC)
+		return true;
+	return false;
+}
+
 /**
  * lpfc_prep_els_iocb - Allocate and prepare a lpfc iocb data structure
  * @vport: pointer to a host virtual N_Port data structure.
@@ -1106,6 +1115,8 @@ stop_rr_fcf_flogi:
 	 */
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
 	if (!prsp)
+		goto out;
+	if (!lpfc_is_els_acc_rsp(prsp))
 		goto out;
 	sp = prsp->virt + sizeof(uint32_t);
 
@@ -2119,6 +2130,10 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		/* Good status, call state machine */
 		prsp = list_entry(cmdiocb->cmd_dmabuf->list.next,
 				  struct lpfc_dmabuf, list);
+		if (!prsp)
+			goto out;
+		if (!lpfc_is_els_acc_rsp(prsp))
+			goto out;
 		ndlp = lpfc_plogi_confirm_nport(phba, prsp->virt, ndlp);
 
 		sp = (struct serv_parm *)((u8 *)prsp->virt +
@@ -3445,6 +3460,8 @@ lpfc_cmpl_els_disc_cmd(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		prdf = (struct lpfc_els_rdf_rsp *)prsp->virt;
 		if (!prdf)
 			goto out;
+		if (!lpfc_is_els_acc_rsp(prsp))
+			goto out;
 
 		for (i = 0; i < ELS_RDF_REG_TAG_CNT &&
 			    i < be32_to_cpu(prdf->reg_d1.reg_desc.count); i++)
@@ -4042,6 +4059,9 @@ lpfc_cmpl_els_edc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			"0x%02x, 0x%08x\n",
 			edc_rsp->acc_hdr.la_cmd,
 			be32_to_cpu(edc_rsp->desc_list_len));
+
+	if (!lpfc_is_els_acc_rsp(prsp))
+		goto out;
 
 	/*
 	 * Payload length in bytes is the response descriptor list
@@ -11339,6 +11359,9 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	prsp = list_get_first(&pcmd->list, struct lpfc_dmabuf, list);
 	if (!prsp)
 		goto out;
+	if (!lpfc_is_els_acc_rsp(prsp))
+		goto out;
+
 	sp = prsp->virt + sizeof(uint32_t);
 	fabric_param_changed = lpfc_check_clean_addr_bit(vport, sp);
 	memcpy(&vport->fabric_portname, &sp->portName,

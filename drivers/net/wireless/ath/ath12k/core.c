@@ -19,6 +19,27 @@ unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
 MODULE_PARM_DESC(debug_mask, "Debugging mask");
 
+static int ath12k_core_rfkill_config(struct ath12k_base *ab)
+{
+	struct ath12k *ar;
+	int ret = 0, i;
+
+	if (!(ab->target_caps.sys_cap_info & WMI_SYS_CAP_INFO_RFKILL))
+		return 0;
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+
+		ret = ath12k_mac_rfkill_config(ar);
+		if (ret && ret != -EOPNOTSUPP) {
+			ath12k_warn(ab, "failed to configure rfkill: %d", ret);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
 int ath12k_core_suspend(struct ath12k_base *ab)
 {
 	int ret;
@@ -339,6 +360,7 @@ int ath12k_core_fetch_board_data_api_1(struct ath12k_base *ab,
 int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 {
 	char boardname[BOARD_NAME_SIZE];
+	int bd_api;
 	int ret;
 
 	ret = ath12k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
@@ -347,12 +369,12 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 		return ret;
 	}
 
-	ab->bd_api = 2;
+	bd_api = 2;
 	ret = ath12k_core_fetch_board_data_api_n(ab, bd, boardname);
 	if (!ret)
 		goto success;
 
-	ab->bd_api = 1;
+	bd_api = 1;
 	ret = ath12k_core_fetch_board_data_api_1(ab, bd, ATH12K_DEFAULT_BOARD_FILE);
 	if (ret) {
 		ath12k_err(ab, "failed to fetch board-2.bin or board.bin from %s\n",
@@ -361,7 +383,7 @@ int ath12k_core_fetch_bdf(struct ath12k_base *ab, struct ath12k_board_data *bd)
 	}
 
 success:
-	ath12k_dbg(ab, ATH12K_DBG_BOOT, "using board api %d\n", ab->bd_api);
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "using board api %d\n", bd_api);
 	return 0;
 }
 
@@ -375,6 +397,75 @@ static void ath12k_core_stop(struct ath12k_base *ab)
 	ath12k_dp_rx_pdev_reo_cleanup(ab);
 
 	/* De-Init of components as needed */
+}
+
+static void ath12k_core_check_bdfext(const struct dmi_header *hdr, void *data)
+{
+	struct ath12k_base *ab = data;
+	const char *magic = ATH12K_SMBIOS_BDF_EXT_MAGIC;
+	struct ath12k_smbios_bdf *smbios = (struct ath12k_smbios_bdf *)hdr;
+	ssize_t copied;
+	size_t len;
+	int i;
+
+	if (ab->qmi.target.bdf_ext[0] != '\0')
+		return;
+
+	if (hdr->type != ATH12K_SMBIOS_BDF_EXT_TYPE)
+		return;
+
+	if (hdr->length != ATH12K_SMBIOS_BDF_EXT_LENGTH) {
+		ath12k_dbg(ab, ATH12K_DBG_BOOT,
+			   "wrong smbios bdf ext type length (%d).\n",
+			   hdr->length);
+		return;
+	}
+
+	if (!smbios->bdf_enabled) {
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "bdf variant name not found.\n");
+		return;
+	}
+
+	/* Only one string exists (per spec) */
+	if (memcmp(smbios->bdf_ext, magic, strlen(magic)) != 0) {
+		ath12k_dbg(ab, ATH12K_DBG_BOOT,
+			   "bdf variant magic does not match.\n");
+		return;
+	}
+
+	len = min_t(size_t,
+		    strlen(smbios->bdf_ext), sizeof(ab->qmi.target.bdf_ext));
+	for (i = 0; i < len; i++) {
+		if (!isascii(smbios->bdf_ext[i]) || !isprint(smbios->bdf_ext[i])) {
+			ath12k_dbg(ab, ATH12K_DBG_BOOT,
+				   "bdf variant name contains non ascii chars.\n");
+			return;
+		}
+	}
+
+	/* Copy extension name without magic prefix */
+	copied = strscpy(ab->qmi.target.bdf_ext, smbios->bdf_ext + strlen(magic),
+			 sizeof(ab->qmi.target.bdf_ext));
+	if (copied < 0) {
+		ath12k_dbg(ab, ATH12K_DBG_BOOT,
+			   "bdf variant string is longer than the buffer can accommodate\n");
+		return;
+	}
+
+	ath12k_dbg(ab, ATH12K_DBG_BOOT,
+		   "found and validated bdf variant smbios_type 0x%x bdf %s\n",
+		   ATH12K_SMBIOS_BDF_EXT_TYPE, ab->qmi.target.bdf_ext);
+}
+
+int ath12k_core_check_smbios(struct ath12k_base *ab)
+{
+	ab->qmi.target.bdf_ext[0] = '\0';
+	dmi_walk(ath12k_core_check_bdfext, ab);
+
+	if (ab->qmi.target.bdf_ext[0] == '\0')
+		return -ENODATA;
+
+	return 0;
 }
 
 static int ath12k_core_soc_create(struct ath12k_base *ab)
@@ -603,6 +694,13 @@ int ath12k_core_qmi_firmware_ready(struct ath12k_base *ab)
 		goto err_core_stop;
 	}
 	ath12k_hif_irq_enable(ab);
+
+	ret = ath12k_core_rfkill_config(ab);
+	if (ret && ret != -EOPNOTSUPP) {
+		ath12k_err(ab, "failed to config rfkill: %d\n", ret);
+		goto err_core_stop;
+	}
+
 	mutex_unlock(&ab->core_lock);
 
 	return 0;
@@ -655,6 +753,27 @@ err_hal_srng_deinit:
 	return ret;
 }
 
+static void ath12k_rfkill_work(struct work_struct *work)
+{
+	struct ath12k_base *ab = container_of(work, struct ath12k_base, rfkill_work);
+	struct ath12k *ar;
+	bool rfkill_radio_on;
+	int i;
+
+	spin_lock_bh(&ab->base_lock);
+	rfkill_radio_on = ab->rfkill_radio_on;
+	spin_unlock_bh(&ab->base_lock);
+
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ab->pdevs[i].ar;
+		if (!ar)
+			continue;
+
+		ath12k_mac_rfkill_enable_radio(ar, rfkill_radio_on);
+		wiphy_rfkill_set_hw_state(ar->hw->wiphy, !rfkill_radio_on);
+	}
+}
+
 void ath12k_core_halt(struct ath12k *ar)
 {
 	struct ath12k_base *ab = ar->ab;
@@ -668,6 +787,7 @@ void ath12k_core_halt(struct ath12k *ar)
 	ath12k_mac_peer_cleanup_all(ar);
 	cancel_delayed_work_sync(&ar->scan.timeout);
 	cancel_work_sync(&ar->regd_update_work);
+	cancel_work_sync(&ab->rfkill_work);
 
 	rcu_assign_pointer(ab->pdevs_active[ar->pdev_idx], NULL);
 	synchronize_rcu();
@@ -684,6 +804,9 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 	spin_lock_bh(&ab->base_lock);
 	ab->stats.fw_crash_counter++;
 	spin_unlock_bh(&ab->base_lock);
+
+	if (ab->is_reset)
+		set_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags);
 
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
@@ -823,6 +946,8 @@ static void ath12k_core_reset(struct work_struct *work)
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset starting\n");
 
 	ab->is_reset = true;
+	atomic_set(&ab->recovery_start_count, 0);
+	reinit_completion(&ab->recovery_start);
 	atomic_set(&ab->recovery_count, 0);
 
 	ath12k_core_pre_reconfigure_recovery(ab);
@@ -830,15 +955,13 @@ static void ath12k_core_reset(struct work_struct *work)
 	reinit_completion(&ab->reconfigure_complete);
 	ath12k_core_post_reconfigure_recovery(ab);
 
-	reinit_completion(&ab->recovery_start);
-	atomic_set(&ab->recovery_start_count, 0);
-
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "waiting recovery start...\n");
 
 	time_left = wait_for_completion_timeout(&ab->recovery_start,
 						ATH12K_RECOVER_START_TIMEOUT_HZ);
 
 	ath12k_hif_power_down(ab);
+	ath12k_qmi_free_resource(ab);
 	ath12k_hif_power_up(ab);
 
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset started\n");
@@ -922,6 +1045,8 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	init_waitqueue_head(&ab->wmi_ab.tx_credits_wq);
 	INIT_WORK(&ab->restart_work, ath12k_core_restart);
 	INIT_WORK(&ab->reset_work, ath12k_core_reset);
+	INIT_WORK(&ab->rfkill_work, ath12k_rfkill_work);
+
 	timer_setup(&ab->rx_replenish_retry, ath12k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
 

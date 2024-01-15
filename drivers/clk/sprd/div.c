@@ -25,7 +25,7 @@ unsigned long sprd_div_helper_recalc_rate(struct sprd_clk_common *common,
 	unsigned long val;
 	unsigned int reg;
 
-	regmap_read(common->regmap, common->reg, &reg);
+	regmap_read(common->regmap, common->reg + div->offset, &reg);
 	val = reg >> div->shift;
 	val &= (1 << div->width) - 1;
 
@@ -53,10 +53,10 @@ int sprd_div_helper_set_rate(const struct sprd_clk_common *common,
 	val = divider_get_val(rate, parent_rate, NULL,
 			      div->width, 0);
 
-	regmap_read(common->regmap, common->reg, &reg);
+	regmap_read(common->regmap, common->reg + div->offset, &reg);
 	reg &= ~GENMASK(div->width + div->shift - 1, div->shift);
 
-	regmap_write(common->regmap, common->reg,
+	regmap_write(common->regmap, common->reg + div->offset,
 			  reg | (val << div->shift));
 
 	return 0;

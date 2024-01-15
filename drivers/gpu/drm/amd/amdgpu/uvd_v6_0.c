@@ -432,8 +432,6 @@ static int uvd_v6_0_sw_init(void *handle)
 		}
 	}
 
-	r = amdgpu_uvd_entity_init(adev);
-
 	return r;
 }
 
@@ -540,6 +538,13 @@ static int uvd_v6_0_hw_fini(void *handle)
 		uvd_v6_0_stop(adev);
 
 	return 0;
+}
+
+static int uvd_v6_0_prepare_suspend(void *handle)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	return amdgpu_uvd_prepare_suspend(adev);
 }
 
 static int uvd_v6_0_suspend(void *handle)
@@ -1528,6 +1533,7 @@ static const struct amd_ip_funcs uvd_v6_0_ip_funcs = {
 	.sw_fini = uvd_v6_0_sw_fini,
 	.hw_init = uvd_v6_0_hw_init,
 	.hw_fini = uvd_v6_0_hw_fini,
+	.prepare_suspend = uvd_v6_0_prepare_suspend,
 	.suspend = uvd_v6_0_suspend,
 	.resume = uvd_v6_0_resume,
 	.is_idle = uvd_v6_0_is_idle,

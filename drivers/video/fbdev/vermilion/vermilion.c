@@ -998,6 +998,8 @@ static int vmlfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	int ret;
 	unsigned long prot;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	ret = vmlfb_vram_offset(vinfo, offset);
 	if (ret)
 		return -EINVAL;
@@ -1024,13 +1026,12 @@ static struct fb_ops vmlfb_ops = {
 	.owner = THIS_MODULE,
 	.fb_open = vmlfb_open,
 	.fb_release = vmlfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var = vmlfb_check_var,
 	.fb_set_par = vmlfb_set_par,
 	.fb_blank = vmlfb_blank,
 	.fb_pan_display = vmlfb_pan_display,
-	.fb_fillrect = cfb_fillrect,
-	.fb_copyarea = cfb_copyarea,
-	.fb_imageblit = cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_cursor = vmlfb_cursor,
 	.fb_sync = vmlfb_sync,
 	.fb_mmap = vmlfb_mmap,

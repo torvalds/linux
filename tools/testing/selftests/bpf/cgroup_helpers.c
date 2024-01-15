@@ -49,6 +49,10 @@
 	snprintf(buf, sizeof(buf), "%s%s", NETCLS_MOUNT_PATH,	\
 		 CGROUP_WORK_DIR)
 
+static __thread bool cgroup_workdir_mounted;
+
+static void __cleanup_cgroup_environment(void);
+
 static int __enable_controllers(const char *cgroup_path, const char *controllers)
 {
 	char path[PATH_MAX + 1];
@@ -195,6 +199,11 @@ int setup_cgroup_environment(void)
 
 	format_cgroup_path(cgroup_workdir, "");
 
+	if (mkdir(CGROUP_MOUNT_PATH, 0777) && errno != EEXIST) {
+		log_err("mkdir mount");
+		return 1;
+	}
+
 	if (unshare(CLONE_NEWNS)) {
 		log_err("unshare");
 		return 1;
@@ -209,9 +218,10 @@ int setup_cgroup_environment(void)
 		log_err("mount cgroup2");
 		return 1;
 	}
+	cgroup_workdir_mounted = true;
 
 	/* Cleanup existing failed runs, now that the environment is setup */
-	cleanup_cgroup_environment();
+	__cleanup_cgroup_environment();
 
 	if (mkdir(cgroup_workdir, 0777) && errno != EEXIST) {
 		log_err("mkdir cgroup work dir");
@@ -306,10 +316,25 @@ int join_parent_cgroup(const char *relative_path)
 }
 
 /**
+ * __cleanup_cgroup_environment() - Delete temporary cgroups
+ *
+ * This is a helper for cleanup_cgroup_environment() that is responsible for
+ * deletion of all temporary cgroups that have been created during the test.
+ */
+static void __cleanup_cgroup_environment(void)
+{
+	char cgroup_workdir[PATH_MAX + 1];
+
+	format_cgroup_path(cgroup_workdir, "");
+	join_cgroup_from_top(CGROUP_MOUNT_PATH);
+	nftw(cgroup_workdir, nftwfunc, WALK_FD_LIMIT, FTW_DEPTH | FTW_MOUNT);
+}
+
+/**
  * cleanup_cgroup_environment() - Cleanup Cgroup Testing Environment
  *
  * This is an idempotent function to delete all temporary cgroups that
- * have been created during the test, including the cgroup testing work
+ * have been created during the test and unmount the cgroup testing work
  * directory.
  *
  * At call time, it moves the calling process to the root cgroup, and then
@@ -320,11 +345,10 @@ int join_parent_cgroup(const char *relative_path)
  */
 void cleanup_cgroup_environment(void)
 {
-	char cgroup_workdir[PATH_MAX + 1];
-
-	format_cgroup_path(cgroup_workdir, "");
-	join_cgroup_from_top(CGROUP_MOUNT_PATH);
-	nftw(cgroup_workdir, nftwfunc, WALK_FD_LIMIT, FTW_DEPTH | FTW_MOUNT);
+	__cleanup_cgroup_environment();
+	if (cgroup_workdir_mounted && umount(CGROUP_MOUNT_PATH))
+		log_err("umount cgroup2");
+	cgroup_workdir_mounted = false;
 }
 
 /**

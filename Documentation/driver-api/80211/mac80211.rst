@@ -120,7 +120,7 @@ functions/definitions
 	ieee80211_rx
 	ieee80211_rx_ni
 	ieee80211_rx_irqsafe
-	ieee80211_tx_status
+	ieee80211_tx_status_skb
 	ieee80211_tx_status_ni
 	ieee80211_tx_status_irqsafe
 	ieee80211_rts_get

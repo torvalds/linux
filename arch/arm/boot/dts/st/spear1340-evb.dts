@@ -445,7 +445,6 @@
 					spi-max-frequency = <12000000>;
 					spi-cpol;
 					spi-cpha;
-					pl022,hierarchy = <0>;
 					pl022,interface = <0>;
 					pl022,slave-tx-disable;
 					pl022,com-mode = <0x2>;
@@ -461,7 +460,6 @@
 					spi-max-frequency = <1000000>;
 					spi-cpha;
 					reg = <1>;
-					pl022,hierarchy = <0>;
 					pl022,interface = <0>;
 					pl022,slave-tx-disable;
 					pl022,com-mode = <0>;

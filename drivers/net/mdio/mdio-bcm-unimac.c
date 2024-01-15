@@ -296,15 +296,13 @@ out_clk_disable:
 	return ret;
 }
 
-static int unimac_mdio_remove(struct platform_device *pdev)
+static void unimac_mdio_remove(struct platform_device *pdev)
 {
 	struct unimac_mdio_priv *priv = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(priv->mii_bus);
 	mdiobus_free(priv->mii_bus);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static int __maybe_unused unimac_mdio_suspend(struct device *d)
@@ -353,7 +351,7 @@ static struct platform_driver unimac_mdio_driver = {
 		.pm = &unimac_mdio_pm_ops,
 	},
 	.probe	= unimac_mdio_probe,
-	.remove	= unimac_mdio_remove,
+	.remove_new = unimac_mdio_remove,
 };
 module_platform_driver(unimac_mdio_driver);
 

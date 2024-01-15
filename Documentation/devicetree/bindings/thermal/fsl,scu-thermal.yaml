@@ -18,7 +18,9 @@ allOf:
 properties:
   compatible:
     items:
-      - const: fsl,imx8qxp-sc-thermal
+      - enum:
+          - fsl,imx8dxl-sc-thermal
+          - fsl,imx8qxp-sc-thermal
       - const: fsl,imx-sc-thermal
 
   '#thermal-sensor-cells':

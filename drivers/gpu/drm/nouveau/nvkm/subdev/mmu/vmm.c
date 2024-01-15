@@ -1030,6 +1030,13 @@ nvkm_vmm_dtor(struct nvkm_vmm *vmm)
 	struct nvkm_vma *vma;
 	struct rb_node *node;
 
+	if (vmm->rm.client.gsp) {
+		nvkm_gsp_rm_free(&vmm->rm.object);
+		nvkm_gsp_device_dtor(&vmm->rm.device);
+		nvkm_gsp_client_dtor(&vmm->rm.client);
+		nvkm_vmm_put(vmm, &vmm->rm.rsvd);
+	}
+
 	if (0)
 		nvkm_vmm_dump(vmm);
 

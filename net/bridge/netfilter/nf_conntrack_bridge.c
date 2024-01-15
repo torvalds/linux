@@ -37,7 +37,7 @@ static int nf_br_ip_fragment(struct net *net, struct sock *sk,
 	ktime_t tstamp = skb->tstamp;
 	struct ip_frag_state state;
 	struct iphdr *iph;
-	int err;
+	int err = 0;
 
 	/* for offloaded checksums cleanup checksum before fragmentation */
 	if (skb->ip_summed == CHECKSUM_PARTIAL &&
@@ -416,3 +416,4 @@ module_exit(nf_conntrack_l3proto_bridge_fini);
 
 MODULE_ALIAS("nf_conntrack-" __stringify(AF_BRIDGE));
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Bridge IPv4 and IPv6 connection tracking");

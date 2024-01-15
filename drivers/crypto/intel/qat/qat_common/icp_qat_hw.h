@@ -3,6 +3,8 @@
 #ifndef _ICP_QAT_HW_H_
 #define _ICP_QAT_HW_H_
 
+#include <linux/bits.h>
+
 enum icp_qat_hw_ae_id {
 	ICP_QAT_HW_AE_0 = 0,
 	ICP_QAT_HW_AE_1 = 1,

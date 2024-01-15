@@ -73,7 +73,7 @@ static __always_inline void arm64_apply_bp_hardening(void)
 {
 	struct bp_hardening_data *d;
 
-	if (!cpus_have_const_cap(ARM64_SPECTRE_V2))
+	if (!alternative_has_cap_unlikely(ARM64_SPECTRE_V2))
 		return;
 
 	d = this_cpu_ptr(&bp_hardening_data);

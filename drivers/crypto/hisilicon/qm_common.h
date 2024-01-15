@@ -4,7 +4,6 @@
 #define QM_COMMON_H
 
 #define QM_DBG_READ_LEN		256
-#define QM_RESETTING		2
 
 struct qm_cqe {
 	__le32 rsvd0;
@@ -77,10 +76,7 @@ static const char * const qm_s[] = {
 	"init", "start", "close", "stop",
 };
 
-void *hisi_qm_ctx_alloc(struct hisi_qm *qm, size_t ctx_size,
-			dma_addr_t *dma_addr);
-void hisi_qm_ctx_free(struct hisi_qm *qm, size_t ctx_size,
-		      const void *ctx_addr, dma_addr_t *dma_addr);
+int qm_set_and_get_xqc(struct hisi_qm *qm, u8 cmd, void *xqc, u32 qp_id, bool op);
 void hisi_qm_show_last_dfx_regs(struct hisi_qm *qm);
 void hisi_qm_set_algqos_init(struct hisi_qm *qm);
 

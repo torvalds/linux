@@ -600,7 +600,7 @@ static int mlx90614_probe(struct i2c_client *client)
 	data->client = client;
 	mutex_init(&data->lock);
 	data->wakeup_gpio = mlx90614_probe_wakeup(client);
-	data->chip_info = device_get_match_data(&client->dev);
+	data->chip_info = i2c_get_match_data(client);
 
 	mlx90614_wakeup(data);
 

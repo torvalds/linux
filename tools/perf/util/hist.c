@@ -515,17 +515,16 @@ err_rawdata:
 
 err_infos:
 	if (he->branch_info) {
-		map__put(he->branch_info->from.ms.map);
-		map__put(he->branch_info->to.ms.map);
+		map_symbol__exit(&he->branch_info->from.ms);
+		map_symbol__exit(&he->branch_info->to.ms);
 		zfree(&he->branch_info);
 	}
 	if (he->mem_info) {
-		map__put(he->mem_info->iaddr.ms.map);
-		map__put(he->mem_info->daddr.ms.map);
+		map_symbol__exit(&he->mem_info->iaddr.ms);
+		map_symbol__exit(&he->mem_info->daddr.ms);
 	}
 err:
-	maps__zput(he->ms.maps);
-	map__zput(he->ms.map);
+	map_symbol__exit(&he->ms);
 	zfree(&he->stat_acc);
 	return -ENOMEM;
 }
@@ -1317,20 +1316,19 @@ void hist_entry__delete(struct hist_entry *he)
 	struct hist_entry_ops *ops = he->ops;
 
 	thread__zput(he->thread);
-	maps__zput(he->ms.maps);
-	map__zput(he->ms.map);
+	map_symbol__exit(&he->ms);
 
 	if (he->branch_info) {
-		map__zput(he->branch_info->from.ms.map);
-		map__zput(he->branch_info->to.ms.map);
+		map_symbol__exit(&he->branch_info->from.ms);
+		map_symbol__exit(&he->branch_info->to.ms);
 		zfree_srcline(&he->branch_info->srcline_from);
 		zfree_srcline(&he->branch_info->srcline_to);
 		zfree(&he->branch_info);
 	}
 
 	if (he->mem_info) {
-		map__zput(he->mem_info->iaddr.ms.map);
-		map__zput(he->mem_info->daddr.ms.map);
+		map_symbol__exit(&he->mem_info->iaddr.ms);
+		map_symbol__exit(&he->mem_info->daddr.ms);
 		mem_info__zput(he->mem_info);
 	}
 
@@ -2142,7 +2140,7 @@ static bool hists__filter_entry_by_thread(struct hists *hists,
 					  struct hist_entry *he)
 {
 	if (hists->thread_filter != NULL &&
-	    RC_CHK_ACCESS(he->thread) != RC_CHK_ACCESS(hists->thread_filter)) {
+	    !RC_CHK_EQUAL(he->thread, hists->thread_filter)) {
 		he->filtered |= (1 << HIST_FILTER__THREAD);
 		return true;
 	}
@@ -2676,8 +2674,6 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 
 	/* If we have branch cycles always annotate them. */
 	if (bs && bs->nr && entries[0].flags.cycles) {
-		int i;
-
 		bi = sample__resolve_bstack(sample, al);
 		if (bi) {
 			struct addr_map_symbol *prev = NULL;
@@ -2692,7 +2688,7 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 			 * Note that perf stores branches reversed from
 			 * program order!
 			 */
-			for (i = bs->nr - 1; i >= 0; i--) {
+			for (int i = bs->nr - 1; i >= 0; i--) {
 				addr_map_symbol__account_cycles(&bi[i].from,
 					nonany_branch_mode ? NULL : prev,
 					bi[i].flags.cycles);
@@ -2700,6 +2696,10 @@ void hist__account_cycles(struct branch_stack *bs, struct addr_location *al,
 
 				if (total_cycles)
 					*total_cycles += bi[i].flags.cycles;
+			}
+			for (unsigned int i = 0; i < bs->nr; i++) {
+				map_symbol__exit(&bi[i].to.ms);
+				map_symbol__exit(&bi[i].from.ms);
 			}
 			free(bi);
 		}

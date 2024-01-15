@@ -32,7 +32,8 @@ properties:
 
   spi-cpol: true
 
-  reset-gpios: true
+  reset-gpios:
+    maxItems: 1
 
   interrupts:
     minItems: 1

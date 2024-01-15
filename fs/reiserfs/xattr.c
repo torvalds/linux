@@ -780,7 +780,7 @@ static inline bool reiserfs_posix_acl_list(const char *name,
 }
 
 /* This is the implementation for the xattr plugin infrastructure */
-static inline bool reiserfs_xattr_list(const struct xattr_handler **handlers,
+static inline bool reiserfs_xattr_list(const struct xattr_handler * const *handlers,
 				       const char *name, struct dentry *dentry)
 {
 	if (handlers) {
@@ -911,7 +911,7 @@ static int create_privroot(struct dentry *dentry) { return 0; }
 #endif
 
 /* Actual operations that are exported to VFS-land */
-const struct xattr_handler *reiserfs_xattr_handlers[] = {
+const struct xattr_handler * const reiserfs_xattr_handlers[] = {
 #ifdef CONFIG_REISERFS_FS_XATTR
 	&reiserfs_xattr_user_handler,
 	&reiserfs_xattr_trusted_handler,

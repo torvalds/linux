@@ -48,28 +48,36 @@ static int open_cgroup(const char *name)
 }
 
 #ifdef HAVE_FILE_HANDLE
-int read_cgroup_id(struct cgroup *cgrp)
+static u64 __read_cgroup_id(const char *path)
 {
-	char path[PATH_MAX + 1];
-	char mnt[PATH_MAX + 1];
 	struct {
 		struct file_handle fh;
 		uint64_t cgroup_id;
 	} handle;
 	int mount_id;
 
+	handle.fh.handle_bytes = sizeof(handle.cgroup_id);
+	if (name_to_handle_at(AT_FDCWD, path, &handle.fh, &mount_id, 0) < 0)
+		return -1ULL;
+
+	return handle.cgroup_id;
+}
+
+int read_cgroup_id(struct cgroup *cgrp)
+{
+	char path[PATH_MAX + 1];
+	char mnt[PATH_MAX + 1];
+
 	if (cgroupfs_find_mountpoint(mnt, PATH_MAX + 1, "perf_event"))
 		return -1;
 
 	scnprintf(path, PATH_MAX, "%s/%s", mnt, cgrp->name);
 
-	handle.fh.handle_bytes = sizeof(handle.cgroup_id);
-	if (name_to_handle_at(AT_FDCWD, path, &handle.fh, &mount_id, 0) < 0)
-		return -1;
-
-	cgrp->id = handle.cgroup_id;
+	cgrp->id = __read_cgroup_id(path);
 	return 0;
 }
+#else
+static inline u64 __read_cgroup_id(const char *path __maybe_unused) { return -1ULL; }
 #endif  /* HAVE_FILE_HANDLE */
 
 #ifndef CGROUP2_SUPER_MAGIC
@@ -106,7 +114,7 @@ static struct cgroup *evlist__find_cgroup(struct evlist *evlist, const char *str
 	return NULL;
 }
 
-static struct cgroup *cgroup__new(const char *name, bool do_open)
+struct cgroup *cgroup__new(const char *name, bool do_open)
 {
 	struct cgroup *cgroup = zalloc(sizeof(*cgroup));
 
@@ -562,6 +570,11 @@ struct cgroup *cgroup__findnew(struct perf_env *env, uint64_t id,
 	return cgrp;
 }
 
+struct cgroup *__cgroup__find(struct rb_root *root, uint64_t id)
+{
+	return __cgroup__findnew(root, id, /*create=*/false, /*path=*/NULL);
+}
+
 struct cgroup *cgroup__find(struct perf_env *env, uint64_t id)
 {
 	struct cgroup *cgrp;
@@ -586,4 +599,36 @@ void perf_env__purge_cgroups(struct perf_env *env)
 		cgroup__put(cgrp);
 	}
 	up_write(&env->cgroups.lock);
+}
+
+void read_all_cgroups(struct rb_root *root)
+{
+	char mnt[PATH_MAX];
+	struct cgroup_name *cn;
+	int prefix_len;
+
+	if (cgroupfs_find_mountpoint(mnt, sizeof(mnt), "perf_event"))
+		return;
+
+	/* cgroup_name will have a full path, skip the root directory */
+	prefix_len = strlen(mnt);
+
+	/* collect all cgroups in the cgroup_list */
+	if (nftw(mnt, add_cgroup_name, 20, 0) < 0)
+		return;
+
+	list_for_each_entry(cn, &cgroup_list, list) {
+		const char *name;
+		u64 cgrp_id;
+
+		/* cgroup_name might have a full path, skip the prefix */
+		name = cn->name + prefix_len;
+		if (name[0] == '\0')
+			name = "/";
+
+		cgrp_id = __read_cgroup_id(cn->name);
+		__cgroup__findnew(root, cgrp_id, /*create=*/true, name);
+	}
+
+	release_cgroup_list();
 }

@@ -1124,7 +1124,7 @@ static int intel_fb_offset_to_xy(int *x, int *y,
 		return -EINVAL;
 	}
 
-	height = drm_framebuffer_plane_height(fb->height, fb, color_plane);
+	height = drm_format_info_plane_height(fb->format, fb->height, color_plane);
 	height = ALIGN(height, intel_tile_height(fb, color_plane));
 
 	/* Catch potential overflows early */

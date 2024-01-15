@@ -27,7 +27,7 @@ void __delay(unsigned long cycles)
 {
 	cycles_t start = get_cycles();
 
-	if (cpus_have_const_cap(ARM64_HAS_WFXT)) {
+	if (alternative_has_cap_unlikely(ARM64_HAS_WFXT)) {
 		u64 end = start + cycles;
 
 		/*

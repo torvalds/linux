@@ -9,8 +9,8 @@
 	BPF_MOV64_IMM(BPF_REG_0, 2),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "invalid BPF_LD_IMM insn",
-	.errstr_unpriv = "R1 pointer comparison",
+	.errstr = "jump into the middle of ldimm64 insn 1",
+	.errstr_unpriv = "jump into the middle of ldimm64 insn 1",
 	.result = REJECT,
 },
 {
@@ -23,8 +23,8 @@
 	BPF_LD_IMM64(BPF_REG_0, 1),
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "invalid BPF_LD_IMM insn",
-	.errstr_unpriv = "R1 pointer comparison",
+	.errstr = "jump into the middle of ldimm64 insn 1",
+	.errstr_unpriv = "jump into the middle of ldimm64 insn 1",
 	.result = REJECT,
 },
 {

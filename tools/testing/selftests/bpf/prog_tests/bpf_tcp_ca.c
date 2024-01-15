@@ -185,6 +185,8 @@ static void test_cubic(void)
 
 	do_test("bpf_cubic", NULL);
 
+	ASSERT_EQ(cubic_skel->bss->bpf_cubic_acked_called, 1, "pkts_acked called");
+
 	bpf_link__destroy(link);
 	bpf_cubic__destroy(cubic_skel);
 }

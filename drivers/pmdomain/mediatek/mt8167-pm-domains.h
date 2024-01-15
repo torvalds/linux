@@ -22,9 +22,9 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8167[] = {
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND,
 		.sram_pdn_bits = GENMASK(11, 8),
 		.sram_pdn_ack_bits = GENMASK(12, 12),
-		.bp_infracfg = {
-			BUS_PROT_UPDATE_TOPAXI(MT8167_TOP_AXI_PROT_EN_MM_EMI |
-					       MT8167_TOP_AXI_PROT_EN_MCU_MM),
+		.bp_cfg = {
+			BUS_PROT_INFRA_UPDATE_TOPAXI(MT8167_TOP_AXI_PROT_EN_MM_EMI |
+						     MT8167_TOP_AXI_PROT_EN_MCU_MM),
 		},
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
 	},
@@ -56,9 +56,9 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8167[] = {
 		.pwr_sta2nd_offs = SPM_PWR_STATUS_2ND,
 		.sram_pdn_bits = 0,
 		.sram_pdn_ack_bits = 0,
-		.bp_infracfg = {
-			BUS_PROT_UPDATE_TOPAXI(MT8167_TOP_AXI_PROT_EN_MCU_MFG |
-					       MT8167_TOP_AXI_PROT_EN_MFG_EMI),
+		.bp_cfg = {
+			BUS_PROT_INFRA_UPDATE_TOPAXI(MT8167_TOP_AXI_PROT_EN_MCU_MFG |
+						     MT8167_TOP_AXI_PROT_EN_MFG_EMI),
 		},
 	},
 	[MT8167_POWER_DOMAIN_MFG_2D] = {
@@ -88,10 +88,10 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8167[] = {
 		.sram_pdn_bits = GENMASK(8, 8),
 		.sram_pdn_ack_bits = 0,
 		.caps = MTK_SCPD_ACTIVE_WAKEUP,
-		.bp_infracfg = {
-			BUS_PROT_UPDATE_TOPAXI(MT8167_TOP_AXI_PROT_EN_CONN_EMI |
-					       MT8167_TOP_AXI_PROT_EN_CONN_MCU |
-					       MT8167_TOP_AXI_PROT_EN_MCU_CONN),
+		.bp_cfg = {
+			BUS_PROT_INFRA_UPDATE_TOPAXI(MT8167_TOP_AXI_PROT_EN_CONN_EMI |
+						     MT8167_TOP_AXI_PROT_EN_CONN_MCU |
+						     MT8167_TOP_AXI_PROT_EN_MCU_CONN),
 		},
 	},
 };

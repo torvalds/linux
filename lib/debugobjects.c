@@ -89,7 +89,7 @@ static int			debug_objects_pool_size __read_mostly
 static int			debug_objects_pool_min_level __read_mostly
 				= ODEBUG_POOL_MIN_LEVEL;
 static const struct debug_obj_descr *descr_test  __read_mostly;
-static struct kmem_cache	*obj_cache __read_mostly;
+static struct kmem_cache	*obj_cache __ro_after_init;
 
 /*
  * Track numbers of kmem_cache_alloc()/free() calls done.

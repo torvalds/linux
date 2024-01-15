@@ -1266,7 +1266,7 @@ static void fsl_qdma_cleanup_vchan(struct dma_device *dmadev)
 	}
 }
 
-static int fsl_qdma_remove(struct platform_device *pdev)
+static void fsl_qdma_remove(struct platform_device *pdev)
 {
 	int i;
 	struct fsl_qdma_queue *status;
@@ -1283,7 +1283,6 @@ static int fsl_qdma_remove(struct platform_device *pdev)
 		dma_free_coherent(&pdev->dev, sizeof(struct fsl_qdma_format) *
 				status->n_cq, status->cq, status->bus_addr);
 	}
-	return 0;
 }
 
 static const struct of_device_id fsl_qdma_dt_ids[] = {
@@ -1298,7 +1297,7 @@ static struct platform_driver fsl_qdma_driver = {
 		.of_match_table = fsl_qdma_dt_ids,
 	},
 	.probe          = fsl_qdma_probe,
-	.remove		= fsl_qdma_remove,
+	.remove_new	= fsl_qdma_remove,
 };
 
 module_platform_driver(fsl_qdma_driver);

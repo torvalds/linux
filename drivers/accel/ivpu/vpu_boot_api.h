@@ -11,7 +11,10 @@
  *  The bellow values will be used to construct the version info this way:
  *  fw_bin_header->api_version[VPU_BOOT_API_VER_ID] = (VPU_BOOT_API_VER_MAJOR << 16) |
  *  VPU_BOOT_API_VER_MINOR;
- *  VPU_BOOT_API_VER_PATCH will be ignored. KMD and compatibility is not affected if this changes.
+ *  VPU_BOOT_API_VER_PATCH will be ignored. KMD and compatibility is not affected if this changes
+ *  This information is collected by using vpuip_2/application/vpuFirmware/make_std_fw_image.py
+ *  If a header is missing this info we ignore the header, if a header is missing or contains
+ *  partial info a build error will be generated.
  */
 
 /*
@@ -24,12 +27,12 @@
  * Minor version changes when API backward compatibility is preserved.
  * Resets to 0 if Major version is incremented.
  */
-#define VPU_BOOT_API_VER_MINOR 12
+#define VPU_BOOT_API_VER_MINOR 20
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
  */
-#define VPU_BOOT_API_VER_PATCH 2
+#define VPU_BOOT_API_VER_PATCH 4
 
 /*
  * Index in the API version table
@@ -63,6 +66,12 @@ struct vpu_firmware_header {
 	/* Size of memory require for firmware execution */
 	u32 runtime_size;
 	u32 shave_nn_fw_size;
+	/* Size of primary preemption buffer. */
+	u32 preemption_buffer_1_size;
+	/* Size of secondary preemption buffer. */
+	u32 preemption_buffer_2_size;
+	/* Space reserved for future preemption-related fields. */
+	u32 preemption_reserved[6];
 };
 
 /*
@@ -87,6 +96,14 @@ enum VPU_BOOT_L2_CACHE_CFG_TYPE {
 	VPU_BOOT_L2_CACHE_CFG_UPA = 0,
 	VPU_BOOT_L2_CACHE_CFG_NN = 1,
 	VPU_BOOT_L2_CACHE_CFG_NUM = 2
+};
+
+/** VPU MCA ECC signalling mode. By default, no signalling is used */
+enum VPU_BOOT_MCA_ECC_SIGNAL_TYPE {
+	VPU_BOOT_MCA_ECC_NONE = 0,
+	VPU_BOOT_MCA_ECC_CORR = 1,
+	VPU_BOOT_MCA_ECC_FATAL = 2,
+	VPU_BOOT_MCA_ECC_BOTH = 3
 };
 
 /**
@@ -131,9 +148,11 @@ enum vpu_trace_destination {
 #define VPU_TRACE_PROC_BIT_ACT_SHV_3 22
 #define VPU_TRACE_PROC_NO_OF_HW_DEVS 23
 
-/* KMB HW component IDs are sequential, so define first and last IDs. */
-#define VPU_TRACE_PROC_BIT_KMB_FIRST VPU_TRACE_PROC_BIT_LRT
-#define VPU_TRACE_PROC_BIT_KMB_LAST  VPU_TRACE_PROC_BIT_SHV_15
+/* VPU 30xx HW component IDs are sequential, so define first and last IDs. */
+#define VPU_TRACE_PROC_BIT_30XX_FIRST VPU_TRACE_PROC_BIT_LRT
+#define VPU_TRACE_PROC_BIT_30XX_LAST  VPU_TRACE_PROC_BIT_SHV_15
+#define VPU_TRACE_PROC_BIT_KMB_FIRST  VPU_TRACE_PROC_BIT_30XX_FIRST
+#define VPU_TRACE_PROC_BIT_KMB_LAST   VPU_TRACE_PROC_BIT_30XX_LAST
 
 struct vpu_boot_l2_cache_config {
 	u8 use;
@@ -147,6 +166,25 @@ struct vpu_warm_boot_section {
 	u32 core_id;
 	u32 is_clear_op;
 };
+
+/*
+ * When HW scheduling mode is enabled, a present period is defined.
+ * It will be used by VPU to swap between normal and focus priorities
+ * to prevent starving of normal priority band (when implemented).
+ * Host must provide a valid value at boot time in
+ * `vpu_focus_present_timer_ms`. If the value provided by the host is not within the
+ * defined range a default value will be used. Here we define the min. and max.
+ * allowed values and the and default value of the present period. Units are milliseconds.
+ */
+#define VPU_PRESENT_CALL_PERIOD_MS_DEFAULT 50
+#define VPU_PRESENT_CALL_PERIOD_MS_MIN	   16
+#define VPU_PRESENT_CALL_PERIOD_MS_MAX	   10000
+
+/**
+ * Macros to enable various operation modes within the VPU.
+ * To be defined as part of 32 bit mask.
+ */
+#define VPU_OP_MODE_SURVIVABILITY 0x1
 
 struct vpu_boot_params {
 	u32 magic;
@@ -218,6 +256,7 @@ struct vpu_boot_params {
 	 * the threshold will not be logged); applies to every enabled logging
 	 * destination and loggable HW component. See 'mvLog_t' enum for acceptable
 	 * values.
+	 * TODO: EISW-33556: Move log level definition (mvLog_t) to this file.
 	 */
 	u32 default_trace_level;
 	u32 boot_type;
@@ -249,7 +288,36 @@ struct vpu_boot_params {
 	u32 temp_sensor_period_ms;
 	/** PLL ratio for efficient clock frequency */
 	u32 pn_freq_pll_ratio;
-	u32 pad4[28];
+	/** DVFS Mode: Default: 0, Max Performance: 1, On Demand: 2, Power Save: 3 */
+	u32 dvfs_mode;
+	/**
+	 * Depending on DVFS Mode:
+	 * On-demand: Default if 0.
+	 *    Bit 0-7   - uint8_t: Highest residency percent
+	 *    Bit 8-15  - uint8_t: High residency percent
+	 *    Bit 16-23 - uint8_t: Low residency percent
+	 *    Bit 24-31 - uint8_t: Lowest residency percent
+	 *    Bit 32-35 - unsigned 4b: PLL Ratio increase amount on highest residency
+	 *    Bit 36-39 - unsigned 4b: PLL Ratio increase amount on high residency
+	 *    Bit 40-43 - unsigned 4b: PLL Ratio decrease amount on low residency
+	 *    Bit 44-47 - unsigned 4b: PLL Ratio decrease amount on lowest frequency
+	 *    Bit 48-55 - uint8_t: Period (ms) for residency decisions
+	 *    Bit 56-63 - uint8_t: Averaging windows (as multiples of period. Max: 30 decimal)
+	 * Power Save/Max Performance: Unused
+	 */
+	u64 dvfs_param;
+	/**
+	 * D0i3 delayed entry
+	 * Bit0: Disable CPU state save on D0i2 entry flow.
+	 *       0: Every D0i2 entry saves state. Save state IPC message ignored.
+	 *       1: IPC message required to save state on D0i3 entry flow.
+	 */
+	u32 d0i3_delayed_entry;
+	/* Time spent by VPU in D0i3 state */
+	u64 d0i3_residency_time_us;
+	/* Value of VPU perf counter at the time of entering D0i3 state . */
+	u64 d0i3_entry_vpu_ts;
+	u32 pad4[20];
 	/* Warm boot information: 0x400 - 0x43F */
 	u32 warm_boot_sections_count;
 	u32 warm_boot_start_address_reference;
@@ -274,8 +342,12 @@ struct vpu_boot_params {
 	u32 vpu_scheduling_mode;
 	/* Present call period in milliseconds. */
 	u32 vpu_focus_present_timer_ms;
-	/* Unused/reserved: 0x478 - 0xFFF */
-	u32 pad6[738];
+	/* VPU ECC Signaling */
+	u32 vpu_uses_ecc_mca_signal;
+	/* Values defined by VPU_OP_MODE* macros */
+	u32 vpu_operation_mode;
+	/* Unused/reserved: 0x480 - 0xFFF */
+	u32 pad6[736];
 };
 
 /*

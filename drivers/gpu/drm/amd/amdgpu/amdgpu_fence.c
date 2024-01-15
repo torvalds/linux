@@ -183,6 +183,7 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f, struct amd
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
 			       seq, flags | AMDGPU_FENCE_FLAG_INT);
 	pm_runtime_get_noresume(adev_to_drm(adev)->dev);
+	trace_amdgpu_runpm_reference_dumps(1, __func__);
 	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
 	if (unlikely(rcu_dereference_protected(*ptr, 1))) {
 		struct dma_fence *old;
@@ -310,6 +311,7 @@ bool amdgpu_fence_process(struct amdgpu_ring *ring)
 		dma_fence_put(fence);
 		pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
+		trace_amdgpu_runpm_reference_dumps(0, __func__);
 	} while (last_seq != seq);
 
 	return true;
@@ -570,7 +572,8 @@ static bool amdgpu_fence_need_ring_interrupt_restore(struct amdgpu_ring *ring)
 	switch (ring->funcs->type) {
 	case AMDGPU_RING_TYPE_SDMA:
 	/* SDMA 5.x+ is part of GFX power domain so it's covered by GFXOFF */
-		if (adev->ip_versions[SDMA0_HWIP][0] >= IP_VERSION(5, 0, 0))
+		if (amdgpu_ip_version(adev, SDMA0_HWIP, 0) >=
+		    IP_VERSION(5, 0, 0))
 			is_gfx_power_domain = true;
 		break;
 	case AMDGPU_RING_TYPE_GFX:

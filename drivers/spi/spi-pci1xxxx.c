@@ -77,7 +77,7 @@ struct pci1xxxx_spi {
 	struct pci_dev *dev;
 	u8 total_hw_instances;
 	void __iomem *reg_base;
-	struct pci1xxxx_spi_internal *spi_int[];
+	struct pci1xxxx_spi_internal *spi_int[] __counted_by(total_hw_instances);
 };
 
 static const struct pci_device_id pci1xxxx_spi_pci_id_table[] = {

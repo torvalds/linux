@@ -21,6 +21,8 @@
 #include "intel_pxp_tee.h"
 #include "intel_pxp_types.h"
 
+#define PXP_TRANSPORT_TIMEOUT_MS 5000 /* 5 sec */
+
 static bool
 is_fw_err_platform_config(struct intel_pxp *pxp, u32 type)
 {
@@ -73,13 +75,15 @@ static int intel_pxp_tee_io_message(struct intel_pxp *pxp,
 		goto unlock;
 	}
 
-	ret = pxp_component->ops->send(pxp_component->tee_dev, msg_in, msg_in_size);
+	ret = pxp_component->ops->send(pxp_component->tee_dev, msg_in, msg_in_size,
+				       PXP_TRANSPORT_TIMEOUT_MS);
 	if (ret) {
 		drm_err(&i915->drm, "Failed to send PXP TEE message\n");
 		goto unlock;
 	}
 
-	ret = pxp_component->ops->recv(pxp_component->tee_dev, msg_out, msg_out_max_size);
+	ret = pxp_component->ops->recv(pxp_component->tee_dev, msg_out, msg_out_max_size,
+				       PXP_TRANSPORT_TIMEOUT_MS);
 	if (ret < 0) {
 		drm_err(&i915->drm, "Failed to receive PXP TEE message\n");
 		goto unlock;
@@ -327,8 +331,8 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 					 int arb_session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp42_create_arb_in msg_in = {0};
-	struct pxp42_create_arb_out msg_out = {0};
+	struct pxp42_create_arb_in msg_in = {};
+	struct pxp42_create_arb_out msg_out = {};
 	int ret;
 
 	msg_in.header.api_version = PXP_APIVER(4, 2);
@@ -365,8 +369,8 @@ int intel_pxp_tee_cmd_create_arb_session(struct intel_pxp *pxp,
 void intel_pxp_tee_end_arb_fw_session(struct intel_pxp *pxp, u32 session_id)
 {
 	struct drm_i915_private *i915 = pxp->ctrl_gt->i915;
-	struct pxp42_inv_stream_key_in msg_in = {0};
-	struct pxp42_inv_stream_key_out msg_out = {0};
+	struct pxp42_inv_stream_key_in msg_in = {};
+	struct pxp42_inv_stream_key_out msg_out = {};
 	int ret, trials = 0;
 
 try_again:

@@ -31,6 +31,23 @@
 #include <nvif/if0011.h>
 
 static int
+nvkm_uconn_uevent_gsp(struct nvkm_object *object, u64 token, u32 bits)
+{
+	union nvif_conn_event_args args;
+
+	args.v0.version = 0;
+	args.v0.types = 0;
+	if (bits & NVKM_DPYID_PLUG)
+		args.v0.types |= NVIF_CONN_EVENT_V0_PLUG;
+	if (bits & NVKM_DPYID_UNPLUG)
+		args.v0.types |= NVIF_CONN_EVENT_V0_UNPLUG;
+	if (bits & NVKM_DPYID_IRQ)
+		args.v0.types |= NVIF_CONN_EVENT_V0_IRQ;
+
+	return object->client->event(token, &args, sizeof(args.v0));
+}
+
+static int
 nvkm_uconn_uevent_aux(struct nvkm_object *object, u64 token, u32 bits)
 {
 	union nvif_conn_event_args args;
@@ -62,17 +79,30 @@ nvkm_uconn_uevent_gpio(struct nvkm_object *object, u64 token, u32 bits)
 	return object->client->event(token, &args, sizeof(args.v0));
 }
 
+static bool
+nvkm_connector_is_dp_dms(u8 type)
+{
+	switch (type) {
+	case DCB_CONNECTOR_DMS59_DP0:
+	case DCB_CONNECTOR_DMS59_DP1:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int
 nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
 {
 	struct nvkm_conn *conn = nvkm_uconn(object);
-	struct nvkm_device *device = conn->disp->engine.subdev.device;
+	struct nvkm_disp *disp = conn->disp;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_outp *outp;
 	union nvif_conn_event_args *args = argv;
 	u64 bits = 0;
 
 	if (!uevent) {
-		if (conn->info.hpd == DCB_GPIO_UNUSED)
+		if (!disp->rm.client.gsp && conn->info.hpd == DCB_GPIO_UNUSED)
 			return -ENOSYS;
 		return 0;
 	}
@@ -88,6 +118,15 @@ nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 	if (&outp->head == &conn->disp->outps)
 		return -EINVAL;
 
+	if (disp->rm.client.gsp) {
+		if (args->v0.types & NVIF_CONN_EVENT_V0_PLUG  ) bits |= NVKM_DPYID_PLUG;
+		if (args->v0.types & NVIF_CONN_EVENT_V0_UNPLUG) bits |= NVKM_DPYID_UNPLUG;
+		if (args->v0.types & NVIF_CONN_EVENT_V0_IRQ   ) bits |= NVKM_DPYID_IRQ;
+
+		return nvkm_uevent_add(uevent, &disp->rm.event, outp->index, bits,
+				       nvkm_uconn_uevent_gsp);
+	}
+
 	if (outp->dp.aux && !outp->info.location) {
 		if (args->v0.types & NVIF_CONN_EVENT_V0_PLUG  ) bits |= NVKM_I2C_PLUG;
 		if (args->v0.types & NVIF_CONN_EVENT_V0_UNPLUG) bits |= NVKM_I2C_UNPLUG;
@@ -101,7 +140,7 @@ nvkm_uconn_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 	if (args->v0.types & NVIF_CONN_EVENT_V0_UNPLUG) bits |= NVKM_GPIO_LO;
 	if (args->v0.types & NVIF_CONN_EVENT_V0_IRQ) {
 		/* TODO: support DP IRQ on ANX9805 and remove this hack. */
-		if (!outp->info.location)
+		if (!outp->info.location && !nvkm_connector_is_dp_dms(conn->info.type))
 			return -EINVAL;
 	}
 

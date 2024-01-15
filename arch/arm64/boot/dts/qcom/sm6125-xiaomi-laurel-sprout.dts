@@ -400,15 +400,13 @@
 	vccq2-supply = <&vreg_l11a>;
 	vcc-max-microamp = <600000>;
 	vccq2-max-microamp = <600000>;
+	vdd-hba-supply = <&vreg_l18a>;
 	status = "okay";
 };
 
 &ufs_mem_phy {
 	vdda-phy-supply = <&vreg_l4a>;
 	vdda-pll-supply = <&vreg_l10a>;
-	vdda-phy-max-microamp = <51400>;
-	vdda-pll-max-microamp = <14200>;
-	vddp-ref-clk-supply = <&vreg_l18a>;
 	status = "okay";
 };
 

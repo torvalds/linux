@@ -1588,10 +1588,10 @@ static void am65_cpsw_nuss_mac_link_up(struct phylink_config *config, struct phy
 
 	/* rx_pause/tx_pause */
 	if (rx_pause)
-		mac_control |= CPSW_SL_CTL_RX_FLOW_EN;
+		mac_control |= CPSW_SL_CTL_TX_FLOW_EN;
 
 	if (tx_pause)
-		mac_control |= CPSW_SL_CTL_TX_FLOW_EN;
+		mac_control |= CPSW_SL_CTL_RX_FLOW_EN;
 
 	cpsw_sl_ctl_set(port->slave.mac_sl, mac_control);
 
@@ -1747,9 +1747,10 @@ static int am65_cpsw_nuss_init_tx_chns(struct am65_cpsw_common *common)
 		}
 
 		tx_chn->irq = k3_udma_glue_tx_get_irq(tx_chn->tx_chn);
-		if (tx_chn->irq <= 0) {
+		if (tx_chn->irq < 0) {
 			dev_err(dev, "Failed to get tx dma irq %d\n",
 				tx_chn->irq);
+			ret = tx_chn->irq;
 			goto err;
 		}
 

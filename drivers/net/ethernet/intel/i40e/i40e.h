@@ -4,47 +4,21 @@
 #ifndef _I40E_H_
 #define _I40E_H_
 
-#include <net/tcp.h>
-#include <net/udp.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/netdevice.h>
-#include <linux/ioport.h>
-#include <linux/iommu.h>
-#include <linux/slab.h>
-#include <linux/list.h>
-#include <linux/hashtable.h>
-#include <linux/string.h>
-#include <linux/in.h>
-#include <linux/ip.h>
-#include <linux/sctp.h>
-#include <linux/pkt_sched.h>
-#include <linux/ipv6.h>
-#include <net/checksum.h>
-#include <net/ip6_checksum.h>
-#include <linux/ethtool.h>
-#include <linux/if_vlan.h>
-#include <linux/if_macvlan.h>
-#include <linux/if_bridge.h>
-#include <linux/clocksource.h>
-#include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#include <net/pkt_cls.h>
-#include <net/pkt_sched.h>
-#include <net/tc_act/tc_gact.h>
-#include <net/tc_act/tc_mirred.h>
-#include <net/udp_tunnel.h>
-#include <net/xdp_sock.h>
-#include <linux/bitfield.h>
-#include "i40e_type.h"
-#include "i40e_prototype.h"
-#include <linux/net/intel/i40e_client.h>
+#include <linux/types.h>
 #include <linux/avf/virtchnl.h>
-#include "i40e_virtchnl_pf.h"
-#include "i40e_txrx.h"
+#include <linux/net/intel/i40e_client.h>
+#include <net/devlink.h>
+#include <net/pkt_cls.h>
+#include <net/udp_tunnel.h>
 #include "i40e_dcb.h"
+#include "i40e_debug.h"
+#include "i40e_devlink.h"
+#include "i40e_io.h"
+#include "i40e_prototype.h"
+#include "i40e_register.h"
+#include "i40e_txrx.h"
 
 /* Useful i40e defaults */
 #define I40E_MAX_VEB			16
@@ -75,23 +49,19 @@
 #define I40E_QUEUE_WAIT_RETRY_LIMIT	10
 #define I40E_INT_NAME_STR_LEN		(IFNAMSIZ + 16)
 
-#define I40E_NVM_VERSION_LO_SHIFT	0
-#define I40E_NVM_VERSION_LO_MASK	(0xff << I40E_NVM_VERSION_LO_SHIFT)
-#define I40E_NVM_VERSION_HI_SHIFT	12
-#define I40E_NVM_VERSION_HI_MASK	(0xf << I40E_NVM_VERSION_HI_SHIFT)
-#define I40E_OEM_VER_BUILD_MASK		0xffff
-#define I40E_OEM_VER_PATCH_MASK		0xff
-#define I40E_OEM_VER_BUILD_SHIFT	8
-#define I40E_OEM_VER_SHIFT		24
 #define I40E_PHY_DEBUG_ALL \
 	(I40E_AQ_PHY_DEBUG_DISABLE_LINK_FW | \
 	I40E_AQ_PHY_DEBUG_DISABLE_ALL_LINK_FW)
 
 #define I40E_OEM_EETRACK_ID		0xffffffff
-#define I40E_OEM_GEN_SHIFT		24
-#define I40E_OEM_SNAP_MASK		0x00ff0000
-#define I40E_OEM_SNAP_SHIFT		16
-#define I40E_OEM_RELEASE_MASK		0x0000ffff
+#define I40E_NVM_VERSION_LO_MASK	GENMASK(7, 0)
+#define I40E_NVM_VERSION_HI_MASK	GENMASK(15, 12)
+#define I40E_OEM_VER_BUILD_MASK		GENMASK(23, 8)
+#define I40E_OEM_VER_PATCH_MASK		GENMASK(7, 0)
+#define I40E_OEM_VER_MASK		GENMASK(31, 24)
+#define I40E_OEM_GEN_MASK		GENMASK(31, 24)
+#define I40E_OEM_SNAP_MASK		GENMASK(23, 16)
+#define I40E_OEM_RELEASE_MASK		GENMASK(15, 0)
 
 #define I40E_RX_DESC(R, i)	\
 	(&(((union i40e_rx_desc *)((R)->desc))[i]))
@@ -323,29 +293,6 @@ struct i40e_udp_port_config {
 	u8 filter_index;
 };
 
-#define I40_DDP_FLASH_REGION 100
-#define I40E_PROFILE_INFO_SIZE 48
-#define I40E_MAX_PROFILE_NUM 16
-#define I40E_PROFILE_LIST_SIZE \
-	(I40E_PROFILE_INFO_SIZE * I40E_MAX_PROFILE_NUM + 4)
-#define I40E_DDP_PROFILE_PATH "intel/i40e/ddp/"
-#define I40E_DDP_PROFILE_NAME_MAX 64
-
-int i40e_ddp_load(struct net_device *netdev, const u8 *data, size_t size,
-		  bool is_add);
-int i40e_ddp_flash(struct net_device *netdev, struct ethtool_flash *flash);
-
-struct i40e_ddp_profile_list {
-	u32 p_count;
-	struct i40e_profile_info p_info[];
-};
-
-struct i40e_ddp_old_profile_list {
-	struct list_head list;
-	size_t old_ddp_size;
-	u8 old_ddp_buf[];
-};
-
 /* macros related to FLX_PIT */
 #define I40E_FLEX_SET_FSIZE(fsize) (((fsize) << \
 				    I40E_PRTQF_FLX_PIT_FSIZE_SHIFT) & \
@@ -462,6 +409,7 @@ static inline const u8 *i40e_channel_mac(struct i40e_channel *ch)
 /* struct that defines the Ethernet device */
 struct i40e_pf {
 	struct pci_dev *pdev;
+	struct devlink_port devlink_port;
 	struct i40e_hw hw;
 	DECLARE_BITMAP(state, __I40E_STATE_SIZE__);
 	struct msix_entry *msix_entries;
@@ -580,7 +528,6 @@ struct i40e_pf {
 #define I40E_FLAG_DISABLE_FW_LLDP		BIT(24)
 #define I40E_FLAG_RS_FEC			BIT(25)
 #define I40E_FLAG_BASE_R_FEC			BIT(26)
-#define I40E_FLAG_VF_VLAN_PRUNING		BIT(27)
 /* TOTAL_PORT_SHUTDOWN
  * Allows to physically disable the link on the NIC's port.
  * If enabled, (after link down request from the OS)
@@ -603,6 +550,7 @@ struct i40e_pf {
  *   in abilities field of i40e_aq_set_phy_config structure
  */
 #define I40E_FLAG_TOTAL_PORT_SHUTDOWN_ENABLED	BIT(27)
+#define I40E_FLAG_VF_VLAN_PRUNING		BIT(28)
 
 	struct i40e_client_instance *cinst;
 	bool stat_offsets_loaded;
@@ -1002,43 +950,104 @@ struct i40e_device {
 };
 
 /**
- * i40e_nvm_version_str - format the NVM version strings
+ * i40e_info_nvm_ver - format the NVM version string
  * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ *
+ * Formats NVM version string as:
+ * <gen>.<snap>.<release> when eetrackid == I40E_OEM_EETRACK_ID
+ * <nvm_major>.<nvm_minor> otherwise
  **/
-static inline char *i40e_nvm_version_str(struct i40e_hw *hw)
+static inline void i40e_info_nvm_ver(struct i40e_hw *hw, char *buf, size_t len)
 {
-	static char buf[32];
-	u32 full_ver;
+	struct i40e_nvm_info *nvm = &hw->nvm;
 
-	full_ver = hw->nvm.oem_ver;
-
-	if (hw->nvm.eetrack == I40E_OEM_EETRACK_ID) {
+	if (nvm->eetrack == I40E_OEM_EETRACK_ID) {
+		u32 full_ver = nvm->oem_ver;
 		u8 gen, snap;
 		u16 release;
 
-		gen = (u8)(full_ver >> I40E_OEM_GEN_SHIFT);
-		snap = (u8)((full_ver & I40E_OEM_SNAP_MASK) >>
-			I40E_OEM_SNAP_SHIFT);
-		release = (u16)(full_ver & I40E_OEM_RELEASE_MASK);
-
-		snprintf(buf, sizeof(buf), "%x.%x.%x", gen, snap, release);
+		gen = FIELD_GET(I40E_OEM_GEN_MASK, full_ver);
+		snap = FIELD_GET(I40E_OEM_SNAP_MASK, full_ver);
+		release = FIELD_GET(I40E_OEM_RELEASE_MASK, full_ver);
+		snprintf(buf, len, "%x.%x.%x", gen, snap, release);
 	} else {
-		u8 ver, patch;
+		u8 major, minor;
+
+		major = FIELD_GET(I40E_NVM_VERSION_HI_MASK, nvm->version);
+		minor = FIELD_GET(I40E_NVM_VERSION_LO_MASK, nvm->version);
+		snprintf(buf, len, "%x.%02x", major, minor);
+	}
+}
+
+/**
+ * i40e_info_eetrack - format the EETrackID string
+ * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ *
+ * Returns hexadecimally formated EETrackID if it is
+ * different from I40E_OEM_EETRACK_ID or empty string.
+ **/
+static inline void i40e_info_eetrack(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_nvm_info *nvm = &hw->nvm;
+
+	buf[0] = '\0';
+	if (nvm->eetrack != I40E_OEM_EETRACK_ID)
+		snprintf(buf, len, "0x%08x", nvm->eetrack);
+}
+
+/**
+ * i40e_info_civd_ver - format the NVM version strings
+ * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ *
+ * Returns formated combo image version if adapter's EETrackID is
+ * different from I40E_OEM_EETRACK_ID or empty string.
+ **/
+static inline void i40e_info_civd_ver(struct i40e_hw *hw, char *buf, size_t len)
+{
+	struct i40e_nvm_info *nvm = &hw->nvm;
+
+	buf[0] = '\0';
+	if (nvm->eetrack != I40E_OEM_EETRACK_ID) {
+		u32 full_ver = nvm->oem_ver;
+		u8 major, minor;
 		u16 build;
 
-		ver = (u8)(full_ver >> I40E_OEM_VER_SHIFT);
-		build = (u16)((full_ver >> I40E_OEM_VER_BUILD_SHIFT) &
-			 I40E_OEM_VER_BUILD_MASK);
-		patch = (u8)(full_ver & I40E_OEM_VER_PATCH_MASK);
-
-		snprintf(buf, sizeof(buf),
-			 "%x.%02x 0x%x %d.%d.%d",
-			 (hw->nvm.version & I40E_NVM_VERSION_HI_MASK) >>
-				I40E_NVM_VERSION_HI_SHIFT,
-			 (hw->nvm.version & I40E_NVM_VERSION_LO_MASK) >>
-				I40E_NVM_VERSION_LO_SHIFT,
-			 hw->nvm.eetrack, ver, build, patch);
+		major = FIELD_GET(I40E_OEM_VER_MASK, full_ver);
+		build = FIELD_GET(I40E_OEM_VER_BUILD_MASK, full_ver);
+		minor = FIELD_GET(I40E_OEM_VER_PATCH_MASK, full_ver);
+		snprintf(buf, len, "%d.%d.%d", major, build, minor);
 	}
+}
+
+/**
+ * i40e_nvm_version_str - format the NVM version strings
+ * @hw: ptr to the hardware info
+ * @buf: string buffer to store
+ * @len: buffer size
+ **/
+static inline char *i40e_nvm_version_str(struct i40e_hw *hw, char *buf,
+					 size_t len)
+{
+	char ver[16] = " ";
+
+	/* Get NVM version */
+	i40e_info_nvm_ver(hw, buf, len);
+
+	/* Append EETrackID if provided */
+	i40e_info_eetrack(hw, &ver[1], sizeof(ver) - 1);
+	if (strlen(ver) > 1)
+		strlcat(buf, ver, len);
+
+	/* Append combo image version if provided */
+	i40e_info_civd_ver(hw, &ver[1], sizeof(ver) - 1);
+	if (strlen(ver) > 1)
+		strlcat(buf, ver, len);
 
 	return buf;
 }
@@ -1320,5 +1329,16 @@ static inline u32 i40e_is_tc_mqprio_enabled(struct i40e_pf *pf)
 {
 	return pf->flags & I40E_FLAG_TC_MQPRIO;
 }
+
+/**
+ * i40e_hw_to_pf - get pf pointer from the hardware structure
+ * @hw: pointer to the device HW structure
+ **/
+static inline struct i40e_pf *i40e_hw_to_pf(struct i40e_hw *hw)
+{
+	return container_of(hw, struct i40e_pf, hw);
+}
+
+struct device *i40e_hw_to_dev(struct i40e_hw *hw);
 
 #endif /* _I40E_H_ */

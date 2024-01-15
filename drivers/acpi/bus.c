@@ -556,12 +556,12 @@ static void acpi_device_remove_notify_handler(struct acpi_device *device,
 
 int acpi_dev_install_notify_handler(struct acpi_device *adev,
 				    u32 handler_type,
-				    acpi_notify_handler handler)
+				    acpi_notify_handler handler, void *context)
 {
 	acpi_status status;
 
 	status = acpi_install_notify_handler(adev->handle, handler_type,
-					     handler, adev);
+					     handler, context);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -1410,10 +1410,10 @@ static int __init acpi_init(void)
 	acpi_init_ffh();
 
 	pci_mmcfg_late_init();
-	acpi_arm_init();
 	acpi_viot_early_init();
 	acpi_hest_init();
 	acpi_ghes_init();
+	acpi_arm_init();
 	acpi_scan_init();
 	acpi_ec_init();
 	acpi_debugfs_init();

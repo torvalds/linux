@@ -46,12 +46,12 @@ static inline u32 read_pmuver(void)
 			ID_AA64DFR0_EL1_PMUVer_SHIFT);
 }
 
-static inline void write_pmcr(u32 val)
+static inline void write_pmcr(u64 val)
 {
 	write_sysreg(val, pmcr_el0);
 }
 
-static inline u32 read_pmcr(void)
+static inline u64 read_pmcr(void)
 {
 	return read_sysreg(pmcr_el0);
 }
@@ -69,21 +69,6 @@ static inline void write_pmccntr(u64 val)
 static inline u64 read_pmccntr(void)
 {
 	return read_sysreg(pmccntr_el0);
-}
-
-static inline void write_pmxevcntr(u32 val)
-{
-	write_sysreg(val, pmxevcntr_el0);
-}
-
-static inline u32 read_pmxevcntr(void)
-{
-	return read_sysreg(pmxevcntr_el0);
-}
-
-static inline void write_pmxevtyper(u32 val)
-{
-	write_sysreg(val, pmxevtyper_el0);
 }
 
 static inline void write_pmcntenset(u32 val)
@@ -106,7 +91,7 @@ static inline void write_pmintenclr(u32 val)
 	write_sysreg(val, pmintenclr_el1);
 }
 
-static inline void write_pmccfiltr(u32 val)
+static inline void write_pmccfiltr(u64 val)
 {
 	write_sysreg(val, pmccfiltr_el0);
 }
@@ -126,12 +111,12 @@ static inline void write_pmuserenr(u32 val)
 	write_sysreg(val, pmuserenr_el0);
 }
 
-static inline u32 read_pmceid0(void)
+static inline u64 read_pmceid0(void)
 {
 	return read_sysreg(pmceid0_el0);
 }
 
-static inline u32 read_pmceid1(void)
+static inline u64 read_pmceid1(void)
 {
 	return read_sysreg(pmceid1_el0);
 }

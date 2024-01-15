@@ -691,9 +691,24 @@ static int report__browse_hists(struct report *rep)
 
 static int report__collapse_hists(struct report *rep)
 {
+	struct perf_session *session = rep->session;
+	struct evlist *evlist = session->evlist;
 	struct ui_progress prog;
 	struct evsel *pos;
 	int ret = 0;
+
+	/*
+	 * The pipe data needs to setup hierarchy hpp formats now, because it
+	 * cannot know about evsels in the data before reading the data.  The
+	 * normal file data saves the event (attribute) info in the header
+	 * section, but pipe does not have the luxury.
+	 */
+	if (perf_data__is_pipe(session->data)) {
+		if (perf_hpp__setup_hists_formats(&perf_hpp_list, evlist) < 0) {
+			ui__error("Failed to setup hierarchy output formats\n");
+			return -1;
+		}
+	}
 
 	ui_progress__init(&prog, rep->nr_entries, "Merging related events...");
 

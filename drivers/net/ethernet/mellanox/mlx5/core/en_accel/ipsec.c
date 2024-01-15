@@ -56,7 +56,7 @@ static struct mlx5e_ipsec_pol_entry *to_ipsec_pol_entry(struct xfrm_policy *x)
 	return (struct mlx5e_ipsec_pol_entry *)x->xdo.offload_handle;
 }
 
-static void mlx5e_ipsec_handle_tx_limit(struct work_struct *_work)
+static void mlx5e_ipsec_handle_sw_limits(struct work_struct *_work)
 {
 	struct mlx5e_ipsec_dwork *dwork =
 		container_of(_work, struct mlx5e_ipsec_dwork, dwork.work);
@@ -486,9 +486,15 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 			return -EINVAL;
 		}
 
-		if (x->lft.hard_byte_limit != XFRM_INF ||
-		    x->lft.soft_byte_limit != XFRM_INF) {
-			NL_SET_ERR_MSG_MOD(extack, "Device doesn't support limits in bytes");
+		if (x->lft.soft_byte_limit >= x->lft.hard_byte_limit &&
+		    x->lft.hard_byte_limit != XFRM_INF) {
+			/* XFRM stack doesn't prevent such configuration :(. */
+			NL_SET_ERR_MSG_MOD(extack, "Hard byte limit must be greater than soft one");
+			return -EINVAL;
+		}
+
+		if (!x->lft.soft_byte_limit || !x->lft.hard_byte_limit) {
+			NL_SET_ERR_MSG_MOD(extack, "Soft/hard byte limits can't be 0");
 			return -EINVAL;
 		}
 
@@ -624,11 +630,10 @@ static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (x->xso.type != XFRM_DEV_OFFLOAD_PACKET)
 		return 0;
 
-	if (x->xso.dir != XFRM_DEV_OFFLOAD_OUT)
-		return 0;
-
 	if (x->lft.soft_packet_limit == XFRM_INF &&
-	    x->lft.hard_packet_limit == XFRM_INF)
+	    x->lft.hard_packet_limit == XFRM_INF &&
+	    x->lft.soft_byte_limit == XFRM_INF &&
+	    x->lft.hard_byte_limit == XFRM_INF)
 		return 0;
 
 	dwork = kzalloc(sizeof(*dwork), GFP_KERNEL);
@@ -636,7 +641,7 @@ static int mlx5e_ipsec_create_dwork(struct mlx5e_ipsec_sa_entry *sa_entry)
 		return -ENOMEM;
 
 	dwork->sa_entry = sa_entry;
-	INIT_DELAYED_WORK(&dwork->dwork, mlx5e_ipsec_handle_tx_limit);
+	INIT_DELAYED_WORK(&dwork->dwork, mlx5e_ipsec_handle_sw_limits);
 	sa_entry->dwork = dwork;
 	return 0;
 }
@@ -850,6 +855,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 
 	xa_init_flags(&ipsec->sadb, XA_FLAGS_ALLOC);
 	ipsec->mdev = priv->mdev;
+	init_completion(&ipsec->comp);
 	ipsec->wq = alloc_workqueue("mlx5e_ipsec: %s", WQ_UNBOUND, 0,
 				    priv->netdev->name);
 	if (!ipsec->wq)
@@ -870,7 +876,7 @@ void mlx5e_ipsec_init(struct mlx5e_priv *priv)
 	}
 
 	ipsec->is_uplink_rep = mlx5e_is_uplink_rep(priv);
-	ret = mlx5e_accel_ipsec_fs_init(ipsec);
+	ret = mlx5e_accel_ipsec_fs_init(ipsec, &priv->devcom);
 	if (ret)
 		goto err_fs_init;
 

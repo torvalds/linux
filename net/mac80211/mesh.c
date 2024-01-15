@@ -56,6 +56,8 @@ static void ieee80211_mesh_housekeeping_timer(struct timer_list *t)
  *
  * This function checks if the mesh configuration of a mesh point matches the
  * local mesh configuration, i.e. if both nodes belong to the same mesh network.
+ *
+ * Returns: %true if both nodes belong to the same mesh
  */
 bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie)
@@ -119,6 +121,8 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
  * mesh_peer_accepts_plinks - check if an mp is willing to establish peer links
  *
  * @ie: information elements of a management frame from the mesh peer
+ *
+ * Returns: %true if the mesh peer is willing to establish peer links
  */
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
@@ -858,7 +862,7 @@ bool ieee80211_mesh_xmit_fast(struct ieee80211_sub_if_data *sdata,
  * @meshsa:	source address in the mesh.  Same as TA, as frame is
  *              locally originated.
  *
- * Return the length of the 802.11 (does not include a mesh control header)
+ * Returns: the length of the 802.11 frame header (excludes mesh control header)
  */
 int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
 				  const u8 *meshda, const u8 *meshsa)
@@ -891,7 +895,7 @@ int ieee80211_fill_mesh_addresses(struct ieee80211_hdr *hdr, __le16 *fc,
  * @addr6:	2nd address in the ae header, which corresponds to addr6 of the
  *              mesh frame
  *
- * Return the header length.
+ * Returns: the header length
  */
 unsigned int ieee80211_new_mesh_header(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211s_hdr *meshhdr,
@@ -1175,7 +1179,7 @@ void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 
 	/* if we race with running work, worst case this work becomes a noop */
 	for_each_set_bit(bit, &bits, sizeof(changed) * BITS_PER_BYTE)
-		set_bit(bit, &ifmsh->mbss_changed);
+		set_bit(bit, ifmsh->mbss_changed);
 	set_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags);
 	wiphy_work_queue(sdata->local->hw.wiphy, &sdata->work);
 }
@@ -1257,7 +1261,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 
 	/* clear any mesh work (for next join) we may have accrued */
 	ifmsh->wrkq_flags = 0;
-	ifmsh->mbss_changed = 0;
+	memset(ifmsh->mbss_changed, 0, sizeof(ifmsh->mbss_changed));
 
 	local->fif_other_bss--;
 	atomic_dec(&local->iff_allmultis);
@@ -1291,7 +1295,7 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	ieee80211_conn_flags_t conn_flags = 0;
 	u32 vht_cap_info = 0;
 
-	sdata_assert_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
@@ -1559,7 +1563,7 @@ int ieee80211_mesh_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	struct mesh_csa_settings *tmp_csa_settings;
 	int ret = 0;
 
-	lockdep_assert_held(&sdata->wdev.mtx);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	tmp_csa_settings = kmalloc(sizeof(*tmp_csa_settings),
 				   GFP_ATOMIC);
@@ -1691,11 +1695,11 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	u16 stype;
 
-	sdata_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	/* mesh already went down */
 	if (!sdata->u.mesh.mesh_id_len)
-		goto out;
+		return;
 
 	rx_status = IEEE80211_SKB_RXCB(skb);
 	mgmt = (struct ieee80211_mgmt *) skb->data;
@@ -1714,8 +1718,6 @@ void ieee80211_mesh_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 		ieee80211_mesh_rx_mgmt_action(sdata, mgmt, skb->len, rx_status);
 		break;
 	}
-out:
-	sdata_unlock(sdata);
 }
 
 static void mesh_bss_info_changed(struct ieee80211_sub_if_data *sdata)
@@ -1724,9 +1726,9 @@ static void mesh_bss_info_changed(struct ieee80211_sub_if_data *sdata)
 	u32 bit;
 	u64 changed = 0;
 
-	for_each_set_bit(bit, &ifmsh->mbss_changed,
+	for_each_set_bit(bit, ifmsh->mbss_changed,
 			 sizeof(changed) * BITS_PER_BYTE) {
-		clear_bit(bit, &ifmsh->mbss_changed);
+		clear_bit(bit, ifmsh->mbss_changed);
 		changed |= BIT(bit);
 	}
 
@@ -1745,11 +1747,11 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 
-	sdata_lock(sdata);
+	lockdep_assert_wiphy(sdata->local->hw.wiphy);
 
 	/* mesh already went down */
 	if (!sdata->u.mesh.mesh_id_len)
-		goto out;
+		return;
 
 	if (ifmsh->preq_queue_len &&
 	    time_after(jiffies,
@@ -1767,8 +1769,6 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_MBSS_CHANGED, &ifmsh->wrkq_flags))
 		mesh_bss_info_changed(sdata);
-out:
-	sdata_unlock(sdata);
 }
 
 

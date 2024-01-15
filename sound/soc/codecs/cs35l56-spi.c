@@ -32,6 +32,7 @@ static int cs35l56_spi_probe(struct spi_device *spi)
 	}
 
 	cs35l56->base.dev = &spi->dev;
+	cs35l56->base.can_hibernate = true;
 
 	ret = cs35l56_common_probe(cs35l56);
 	if (ret != 0)
@@ -70,7 +71,7 @@ MODULE_DEVICE_TABLE(acpi, cs35l56_asoc_acpi_match);
 static struct spi_driver cs35l56_spi_driver = {
 	.driver = {
 		.name		= "cs35l56",
-		.pm = &cs35l56_pm_ops_i2c_spi,
+		.pm = pm_ptr(&cs35l56_pm_ops_i2c_spi),
 		.acpi_match_table = ACPI_PTR(cs35l56_asoc_acpi_match),
 	},
 	.id_table	= cs35l56_id_spi,

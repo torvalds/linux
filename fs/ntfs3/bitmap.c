@@ -125,6 +125,7 @@ void wnd_close(struct wnd_bitmap *wnd)
 	struct rb_node *node, *next;
 
 	kfree(wnd->free_bits);
+	wnd->free_bits = NULL;
 	run_close(&wnd->run);
 
 	node = rb_first(&wnd->start_tree);
@@ -659,7 +660,8 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 		wnd->bits_last = wbits;
 
 	wnd->free_bits =
-		kcalloc(wnd->nwnd, sizeof(u16), GFP_NOFS | __GFP_NOWARN);
+		kvmalloc_array(wnd->nwnd, sizeof(u16), GFP_KERNEL | __GFP_ZERO);
+
 	if (!wnd->free_bits)
 		return -ENOMEM;
 

@@ -319,12 +319,18 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 	if (!RCS_MASK(gt))
 		flags |= GUC_WA_RCS_REGS_IN_CCS_REGS_LIST;
 
+	/* Wa_14018913170 */
+	if (GUC_FIRMWARE_VER(guc) >= MAKE_GUC_VER(70, 7, 0)) {
+		if (IS_DG2(gt->i915) || IS_METEORLAKE(gt->i915) || IS_PONTEVECCHIO(gt->i915))
+			flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
+	}
+
 	return flags;
 }
 
 static u32 guc_ctl_devid(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 
 	return (INTEL_DEVID(i915) << 16) | INTEL_REVID(i915);
 }

@@ -55,11 +55,6 @@ static struct irq_ops arch_timer_irq_ops = {
 	.get_input_level = kvm_arch_timer_get_input_level,
 };
 
-static bool has_cntpoff(void)
-{
-	return (has_vhe() && cpus_have_final_cap(ARM64_HAS_ECV_CNTPOFF));
-}
-
 static int nr_timers(struct kvm_vcpu *vcpu)
 {
 	if (!vcpu_has_nv(vcpu))
@@ -180,7 +175,7 @@ u64 kvm_phys_timer_read(void)
 	return timecounter->cc->read(timecounter->cc);
 }
 
-static void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map)
+void get_timer_map(struct kvm_vcpu *vcpu, struct timer_map *map)
 {
 	if (vcpu_has_nv(vcpu)) {
 		if (is_hyp_ctxt(vcpu)) {
@@ -458,7 +453,7 @@ static void kvm_timer_update_irq(struct kvm_vcpu *vcpu, bool new_level,
 				   timer_ctx->irq.level);
 
 	if (!userspace_irqchip(vcpu->kvm)) {
-		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu->vcpu_id,
+		ret = kvm_vgic_inject_irq(vcpu->kvm, vcpu,
 					  timer_irq(timer_ctx),
 					  timer_ctx->irq.level,
 					  timer_ctx);
@@ -548,8 +543,7 @@ static void timer_save_state(struct arch_timer_context *ctx)
 		timer_set_ctl(ctx, read_sysreg_el0(SYS_CNTP_CTL));
 		cval = read_sysreg_el0(SYS_CNTP_CVAL);
 
-		if (!has_cntpoff())
-			cval -= timer_get_offset(ctx);
+		cval -= timer_get_offset(ctx);
 
 		timer_set_cval(ctx, cval);
 
@@ -636,8 +630,7 @@ static void timer_restore_state(struct arch_timer_context *ctx)
 		cval = timer_get_cval(ctx);
 		offset = timer_get_offset(ctx);
 		set_cntpoff(offset);
-		if (!has_cntpoff())
-			cval += offset;
+		cval += offset;
 		write_sysreg_el0(cval, SYS_CNTP_CVAL);
 		isb();
 		write_sysreg_el0(timer_get_ctl(ctx), SYS_CNTP_CTL);
@@ -943,7 +936,7 @@ void kvm_timer_sync_user(struct kvm_vcpu *vcpu)
 		unmask_vtimer_irq_user(vcpu);
 }
 
-int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
+void kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = vcpu_timer(vcpu);
 	struct timer_map map;
@@ -987,8 +980,6 @@ int kvm_timer_vcpu_reset(struct kvm_vcpu *vcpu)
 		soft_timer_cancel(&map.emul_vtimer->hrtimer);
 	if (map.emul_ptimer)
 		soft_timer_cancel(&map.emul_ptimer->hrtimer);
-
-	return 0;
 }
 
 static void timer_context_init(struct kvm_vcpu *vcpu, int timerid)

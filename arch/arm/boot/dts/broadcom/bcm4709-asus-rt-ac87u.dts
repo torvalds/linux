@@ -25,6 +25,12 @@
 		      <0x88000000 0x08000000>;
 	};
 
+	nvram@1c080000 {
+		et1macaddr: et1macaddr {
+			#nvmem-cell-cells = <1>;
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
 
@@ -60,6 +66,11 @@
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&gmac0 {
+	nvmem-cells = <&et1macaddr 0>;
+	nvmem-cell-names = "mac-address";
 };
 
 &usb3_phy {

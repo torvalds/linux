@@ -2,7 +2,6 @@
 # All platforms listed in alphabetic order
 
 platform-$(CONFIG_MIPS_ALCHEMY)		+= alchemy/
-platform-$(CONFIG_AR7)			+= ar7/
 platform-$(CONFIG_ATH25)		+= ath25/
 platform-$(CONFIG_ATH79)		+= ath79/
 platform-$(CONFIG_BCM47XX)		+= bcm47xx/

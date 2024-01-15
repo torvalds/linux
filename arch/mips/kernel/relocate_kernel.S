@@ -66,7 +66,6 @@ copy_word:
 	LONG_ADDIU	s6, s6, -1
 	beq		s6, zero, process_entry
 	b		copy_word
-	b		process_entry
 
 done:
 #ifdef CONFIG_SMP

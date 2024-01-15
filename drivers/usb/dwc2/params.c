@@ -5,7 +5,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/usb/of.h>
 #include <linux/pci_ids.h>
 #include <linux/pci.h>
@@ -968,26 +968,17 @@ typedef void (*set_params_cb)(struct dwc2_hsotg *data);
 
 int dwc2_init_params(struct dwc2_hsotg *hsotg)
 {
-	const struct of_device_id *match;
 	set_params_cb set_params;
 
 	dwc2_set_default_params(hsotg);
 	dwc2_get_device_properties(hsotg);
 
-	match = of_match_device(dwc2_of_match_table, hsotg->dev);
-	if (match && match->data) {
-		set_params = match->data;
+	set_params = device_get_match_data(hsotg->dev);
+	if (set_params) {
 		set_params(hsotg);
-	} else if (!match) {
-		const struct acpi_device_id *amatch;
-		const struct pci_device_id *pmatch = NULL;
-
-		amatch = acpi_match_device(dwc2_acpi_match, hsotg->dev);
-		if (amatch && amatch->driver_data) {
-			set_params = (set_params_cb)amatch->driver_data;
-			set_params(hsotg);
-		} else if (!amatch)
-			pmatch = pci_match_id(dwc2_pci_ids, to_pci_dev(hsotg->dev->parent));
+	} else {
+		const struct pci_device_id *pmatch =
+			pci_match_id(dwc2_pci_ids, to_pci_dev(hsotg->dev->parent));
 
 		if (pmatch && pmatch->driver_data) {
 			set_params = (set_params_cb)pmatch->driver_data;

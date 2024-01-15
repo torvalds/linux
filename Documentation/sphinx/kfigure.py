@@ -309,7 +309,7 @@ def convert_image(img_node, translator, src_fname=None):
     if dst_fname:
         # the builder needs not to copy one more time, so pop it if exists.
         translator.builder.images.pop(img_node['uri'], None)
-        _name = dst_fname[len(translator.builder.outdir) + 1:]
+        _name = dst_fname[len(str(translator.builder.outdir)) + 1:]
 
         if isNewer(dst_fname, src_fname):
             kernellog.verbose(app,

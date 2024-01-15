@@ -67,12 +67,12 @@
 		compatible = "rohm,bd71837";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_pmic>;
+		#clock-cells = <0>;
 		clocks = <&pmic_osc>;
 		clock-names = "osc";
 		clock-output-names = "pmic_clk";
 		interrupt-parent = <&gpio1>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-names = "irq";
 
 		regulators {
 			buck1: BUCK1 {

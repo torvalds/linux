@@ -341,7 +341,6 @@ static const struct pwm_ops lpc18xx_pwm_ops = {
 	.apply = lpc18xx_pwm_apply,
 	.request = lpc18xx_pwm_request,
 	.free = lpc18xx_pwm_free,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id lpc18xx_pwm_of_match[] = {

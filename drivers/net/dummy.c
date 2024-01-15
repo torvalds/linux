@@ -202,4 +202,5 @@ static void __exit dummy_cleanup_module(void)
 module_init(dummy_init_module);
 module_exit(dummy_cleanup_module);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Dummy netdevice driver which discards all packets sent to it");
 MODULE_ALIAS_RTNL_LINK(DRV_NAME);

@@ -197,12 +197,14 @@ EXPORT_SYMBOL(mipi_dbi_command_stackbuf);
  * @fb: The source framebuffer
  * @clip: Clipping rectangle of the area to be copied
  * @swap: When true, swap MSB/LSB of 16-bit values
+ * @fmtcnv_state: Format-conversion state
  *
  * Returns:
  * Zero on success, negative error code on failure.
  */
 int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *fb,
-		      struct drm_rect *clip, bool swap)
+		      struct drm_rect *clip, bool swap,
+		      struct drm_format_conv_state *fmtcnv_state)
 {
 	struct drm_gem_object *gem = drm_gem_fb_get_obj(fb, 0);
 	struct iosys_map dst_map = IOSYS_MAP_INIT_VADDR(dst);
@@ -215,12 +217,13 @@ int mipi_dbi_buf_copy(void *dst, struct iosys_map *src, struct drm_framebuffer *
 	switch (fb->format->format) {
 	case DRM_FORMAT_RGB565:
 		if (swap)
-			drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach);
+			drm_fb_swab(&dst_map, NULL, src, fb, clip, !gem->import_attach,
+				    fmtcnv_state);
 		else
 			drm_fb_memcpy(&dst_map, NULL, src, fb, clip);
 		break;
 	case DRM_FORMAT_XRGB8888:
-		drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, swap);
+		drm_fb_xrgb8888_to_rgb565(&dst_map, NULL, src, fb, clip, fmtcnv_state, swap);
 		break;
 	default:
 		drm_err_once(fb->dev, "Format is not supported: %p4cc\n",
@@ -252,7 +255,7 @@ static void mipi_dbi_set_window_address(struct mipi_dbi_dev *dbidev,
 }
 
 static void mipi_dbi_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
-			      struct drm_rect *rect)
+			      struct drm_rect *rect, struct drm_format_conv_state *fmtcnv_state)
 {
 	struct mipi_dbi_dev *dbidev = drm_to_mipi_dbi_dev(fb->dev);
 	unsigned int height = rect->y2 - rect->y1;
@@ -270,7 +273,7 @@ static void mipi_dbi_fb_dirty(struct iosys_map *src, struct drm_framebuffer *fb,
 	if (!dbi->dc || !full || swap ||
 	    fb->format->format == DRM_FORMAT_XRGB8888) {
 		tr = dbidev->tx_buf;
-		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap);
+		ret = mipi_dbi_buf_copy(tr, src, fb, rect, swap, fmtcnv_state);
 		if (ret)
 			goto err_msg;
 	} else {
@@ -332,7 +335,8 @@ void mipi_dbi_pipe_update(struct drm_simple_display_pipe *pipe,
 		return;
 
 	if (drm_atomic_helper_damage_merged(old_state, state, &rect))
-		mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+		mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+				  &shadow_plane_state->fmtcnv_state);
 
 	drm_dev_exit(idx);
 }
@@ -368,7 +372,8 @@ void mipi_dbi_enable_flush(struct mipi_dbi_dev *dbidev,
 	if (!drm_dev_enter(&dbidev->drm, &idx))
 		return;
 
-	mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect);
+	mipi_dbi_fb_dirty(&shadow_plane_state->data[0], fb, &rect,
+			  &shadow_plane_state->fmtcnv_state);
 	backlight_enable(dbidev->backlight);
 
 	drm_dev_exit(idx);

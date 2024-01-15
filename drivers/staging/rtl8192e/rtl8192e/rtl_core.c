@@ -61,7 +61,7 @@ static short _rtl92e_pci_initdescring(struct net_device *dev);
 static void _rtl92e_irq_tx_tasklet(struct tasklet_struct *t);
 static void _rtl92e_irq_rx_tasklet(struct tasklet_struct *t);
 static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv);
-static int _rtl92e_up(struct net_device *dev, bool is_silent_reset);
+static int _rtl92e_up(struct net_device *dev);
 static int _rtl92e_try_up(struct net_device *dev);
 static int _rtl92e_down(struct net_device *dev, bool shutdownrf);
 static void _rtl92e_restart(void *data);
@@ -165,8 +165,7 @@ bool rtl92e_set_rf_state(struct net_device *dev,
 
 	case rf_off:
 
-		if ((priv->rtllib->iw_mode == IW_MODE_INFRA) ||
-		    (priv->rtllib->iw_mode == IW_MODE_ADHOC)) {
+		if (priv->rtllib->iw_mode == IW_MODE_INFRA) {
 			if ((priv->rtllib->rf_off_reason > RF_CHANGE_BY_IPS) ||
 			    (change_source > RF_CHANGE_BY_IPS)) {
 				if (ieee->link_state == MAC80211_LINKED)
@@ -225,24 +224,6 @@ static void _rtl92e_tx_timeout(struct net_device *dev, unsigned int txqueue)
 
 	schedule_work(&priv->reset_wq);
 	netdev_info(dev, "TXTIMEOUT");
-}
-
-void rtl92e_irq_enable(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	priv->irq_enabled = 1;
-
-	rtl92e_enable_irq(dev);
-}
-
-void rtl92e_irq_disable(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-
-	rtl92e_disable_irq(dev);
-
-	priv->irq_enabled = 0;
 }
 
 static void _rtl92e_set_chan(struct net_device *dev, short ch)
@@ -313,7 +294,7 @@ static void _rtl92e_update_beacon(void *data)
 	struct rtllib_device *ieee = priv->rtllib;
 	struct rtllib_network *net = &ieee->current_network;
 
-	if (ieee->ht_info->bCurrentHTSupport)
+	if (ieee->ht_info->current_ht_support)
 		HT_update_self_and_peer_setting(ieee, net);
 	ieee->ht_info->current_rt2rt_long_slot_time = net->bssht.bd_rt2rt_long_slot_time;
 	ieee->ht_info->RT2RT_HT_Mode = net->bssht.rt2rt_ht_mode;
@@ -477,10 +458,6 @@ static void _rtl92e_prepare_beacon(struct tasklet_struct *t)
 	pdesc->OWN = 1;
 }
 
-static void _rtl92e_stop_beacon(struct net_device *dev)
-{
-}
-
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -611,7 +588,7 @@ void rtl92e_set_wireless_mode(struct net_device *dev, u8 wireless_mode)
 	_rtl92e_refresh_support_rate(priv);
 }
 
-static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
+static int _rtl92e_sta_up(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
@@ -634,7 +611,7 @@ static int _rtl92e_sta_up(struct net_device *dev, bool is_silent_reset)
 		rtl92e_check_rfctrl_gpio_timer(&priv->gpio_polling_timer);
 
 	if (priv->rtllib->link_state != MAC80211_LINKED)
-		rtllib_softmac_start_protocol(priv->rtllib, 0);
+		rtllib_softmac_start_protocol(priv->rtllib);
 	rtllib_reset_queue(priv->rtllib);
 	_rtl92e_watchdog_timer_cb(&priv->watch_dog_timer);
 
@@ -678,7 +655,7 @@ static int _rtl92e_sta_down(struct net_device *dev, bool shutdownrf)
 	_rtl92e_cancel_deferred_work(priv);
 	cancel_delayed_work(&priv->rtllib->hw_wakeup_wq);
 
-	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
+	rtllib_softmac_stop_protocol(priv->rtllib);
 	spin_lock_irqsave(&priv->rf_ps_lock, flags);
 	while (priv->rf_change_in_progress) {
 		spin_unlock_irqrestore(&priv->rf_ps_lock, flags);
@@ -719,9 +696,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->set_bw_mode_handler	= rtl92e_set_bw_mode;
 	priv->rf_set_chan			= rtl92e_set_channel;
 
-	priv->rtllib->start_send_beacons = rtl92e_start_beacon;
-	priv->rtllib->stop_send_beacons = _rtl92e_stop_beacon;
-
 	priv->rtllib->sta_wake_up = rtl92e_hw_wakeup;
 	priv->rtllib->enter_sleep_state = rtl92e_enter_sleep;
 	priv->rtllib->ps_is_queue_empty = _rtl92e_is_tx_queue_empty;
@@ -736,15 +710,6 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->rtllib_ips_leave_wq = rtl92e_rtllib_ips_leave_wq;
 	priv->rtllib->rtllib_ips_leave = rtl92e_rtllib_ips_leave;
 	priv->rtllib->ScanOperationBackupHandler = rtl92e_scan_op_backup;
-}
-
-static void _rtl92e_init_priv_constant(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
-					&priv->rtllib->pwr_save_ctrl;
-
-	psc->reg_max_lps_awake_intvl = 5;
 }
 
 static void _rtl92e_init_priv_variable(struct net_device *dev)
@@ -765,10 +730,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->chan = 1;
 	priv->rtllib->mode = WIRELESS_MODE_AUTO;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
-	priv->rtllib->net_promiscuous_md = false;
-	priv->rtllib->intel_promiscuous_md_info.promiscuous_on = false;
-	priv->rtllib->intel_promiscuous_md_info.fltr_src_sta_frame =
-								 false;
 	priv->rtllib->ieee_up = 0;
 	priv->retry_rts = DEFAULT_RETRY_RTS;
 	priv->retry_data = DEFAULT_RETRY_DATA;
@@ -778,10 +739,7 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 	priv->bcck_in_ch14 = false;
 	priv->cck_present_attn = 0;
 	priv->rfa_txpowertrackingindex = 0;
-	priv->rfc_txpowertrackingindex = 0;
 	priv->cck_pwr_enl = 6;
-	priv->rst_progress = RESET_TYPE_NORESET;
-	priv->force_reset = false;
 	memset(priv->rtllib->swcamtable, 0, sizeof(struct sw_cam_table) * 32);
 	priv->rx_ctr = 0;
 	priv->rtllib->wx_set_enc = 0;
@@ -797,7 +755,6 @@ static void _rtl92e_init_priv_variable(struct net_device *dev)
 
 	priv->rtllib->current_network.beacon_interval = DEFAULT_BEACONINTERVAL;
 	priv->rtllib->iw_mode = IW_MODE_INFRA;
-	priv->rtllib->active_scan = 1;
 	priv->rtllib->be_scan_inprogress = false;
 
 	priv->rtllib->fts = DEFAULT_FRAG_THRESHOLD;
@@ -871,7 +828,6 @@ static short _rtl92e_init(struct net_device *dev)
 	memset(&priv->stats, 0, sizeof(struct rt_stats));
 
 	_rtl92e_init_priv_handler(dev);
-	_rtl92e_init_priv_constant(dev);
 	_rtl92e_init_priv_variable(dev);
 	_rtl92e_init_priv_lock(priv);
 	_rtl92e_init_priv_task(dev);
@@ -984,7 +940,7 @@ static enum reset_type _rtl92e_rx_check_stuck(struct net_device *dev)
 	return RESET_TYPE_NORESET;
 }
 
-static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
+static void _rtl92e_if_check_reset(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	enum reset_type TxResetType = RESET_TYPE_NORESET;
@@ -1001,133 +957,12 @@ static enum reset_type _rtl92e_if_check_reset(struct net_device *dev)
 	    (priv->rtllib->link_state == MAC80211_LINKED))
 		RxResetType = _rtl92e_rx_check_stuck(dev);
 
-	if (TxResetType == RESET_TYPE_NORMAL ||
-	    RxResetType == RESET_TYPE_NORMAL) {
-		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
-			    __func__, TxResetType, RxResetType);
-		return RESET_TYPE_NORMAL;
-	} else if (TxResetType == RESET_TYPE_SILENT ||
+	if (TxResetType == RESET_TYPE_SILENT ||
 		   RxResetType == RESET_TYPE_SILENT) {
 		netdev_info(dev, "%s(): TxResetType is %d, RxResetType is %d\n",
 			    __func__, TxResetType, RxResetType);
-		return RESET_TYPE_SILENT;
-	} else {
-		return RESET_TYPE_NORESET;
 	}
-}
-
-static void _rtl92e_if_silent_reset(struct net_device *dev)
-{
-	struct r8192_priv *priv = rtllib_priv(dev);
-	u8	reset_times = 0;
-	int reset_status = 0;
-	struct rtllib_device *ieee = priv->rtllib;
-	unsigned long flag;
-
-	if (priv->rst_progress == RESET_TYPE_NORESET) {
-		priv->rst_progress = RESET_TYPE_SILENT;
-
-		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		if (priv->rf_change_in_progress) {
-			spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-			goto END;
-		}
-		priv->rf_change_in_progress = true;
-		priv->reset_in_progress = true;
-		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-
-RESET_START:
-
-		mutex_lock(&priv->wx_mutex);
-
-		if (priv->rtllib->link_state == MAC80211_LINKED)
-			rtl92e_leisure_ps_leave(dev);
-
-		if (priv->up) {
-			netdev_info(dev, "%s():the driver is not up.\n",
-				    __func__);
-			mutex_unlock(&priv->wx_mutex);
-			return;
-		}
-		priv->up = 0;
-
-		mdelay(1000);
-
-		if (!netif_queue_stopped(dev))
-			netif_stop_queue(dev);
-
-		rtl92e_irq_disable(dev);
-		del_timer_sync(&priv->watch_dog_timer);
-		_rtl92e_cancel_deferred_work(priv);
-		rtl92e_dm_deinit(dev);
-		rtllib_stop_scan_syncro(ieee);
-
-		if (ieee->link_state == MAC80211_LINKED) {
-			mutex_lock(&ieee->wx_mutex);
-			netdev_info(dev, "ieee->link_state is MAC80211_LINKED\n");
-			rtllib_stop_send_beacons(priv->rtllib);
-			del_timer_sync(&ieee->associate_timer);
-			cancel_delayed_work(&ieee->associate_retry_wq);
-			rtllib_stop_scan(ieee);
-			netif_carrier_off(dev);
-			mutex_unlock(&ieee->wx_mutex);
-		} else {
-			netdev_info(dev, "ieee->link_state is NOT LINKED\n");
-			rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
-		}
-
-		rtl92e_dm_backup_state(dev);
-
-		mutex_unlock(&priv->wx_mutex);
-		reset_status = _rtl92e_up(dev, true);
-
-		if (reset_status == -1) {
-			if (reset_times < 3) {
-				reset_times++;
-				goto RESET_START;
-			} else {
-				netdev_warn(dev, "%s():	Reset Failed\n",
-					    __func__);
-			}
-		}
-
-		ieee->is_silent_reset = 1;
-
-		spin_lock_irqsave(&priv->rf_ps_lock, flag);
-		priv->rf_change_in_progress = false;
-		spin_unlock_irqrestore(&priv->rf_ps_lock, flag);
-
-		rtl92e_enable_hw_security_config(dev);
-
-		if (ieee->link_state == MAC80211_LINKED && ieee->iw_mode ==
-		    IW_MODE_INFRA) {
-			ieee->set_chan(ieee->dev,
-				       ieee->current_network.channel);
-
-			schedule_work(&ieee->associate_complete_wq);
-
-		} else if (ieee->link_state == MAC80211_LINKED && ieee->iw_mode ==
-			   IW_MODE_ADHOC) {
-			ieee->set_chan(ieee->dev,
-				       ieee->current_network.channel);
-			ieee->link_change(ieee->dev);
-
-			notify_wx_assoc_event(ieee);
-
-			rtllib_start_send_beacons(ieee);
-
-			netif_carrier_on(ieee->dev);
-		}
-
-		rtl92e_cam_restore(dev);
-		rtl92e_dm_restore_state(dev);
-END:
-		priv->rst_progress = RESET_TYPE_NORESET;
-		priv->reset_count++;
-		priv->reset_in_progress = false;
-
-		rtl92e_writeb(dev, UFWP, 1);
-	}
+	return;
 }
 
 static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
@@ -1157,7 +992,6 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 				  struct r8192_priv, watch_dog_wq);
 	struct net_device *dev = priv->rtllib->dev;
 	struct rtllib_device *ieee = priv->rtllib;
-	enum reset_type ResetType = RESET_TYPE_NORESET;
 	static u8 check_reset_cnt;
 	unsigned long flags;
 	struct rt_pwr_save_ctrl *psc = (struct rt_pwr_save_ctrl *)
@@ -1184,15 +1018,12 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 		     MAC80211_NOLINK) &&
 		     (ieee->rf_power_state == rf_on) && !ieee->is_set_key &&
 		     (!ieee->proto_stoppping) && !ieee->wx_set_enc) {
-			if ((ieee->pwr_save_ctrl.ReturnPoint ==
-			     IPS_CALLBACK_NONE) &&
-			     (!ieee->net_promiscuous_md)) {
+			if (ieee->pwr_save_ctrl.ReturnPoint == IPS_CALLBACK_NONE) {
 				rtl92e_ips_enter(dev);
 			}
 		}
 	}
-	if ((ieee->link_state == MAC80211_LINKED) && (ieee->iw_mode ==
-	     IW_MODE_INFRA) && (!ieee->net_promiscuous_md)) {
+	if ((ieee->link_state == MAC80211_LINKED) && (ieee->iw_mode == IW_MODE_INFRA)) {
 		if (ieee->link_detect_info.NumRxOkInPeriod > 100 ||
 		ieee->link_detect_info.NumTxOkInPeriod > 100)
 			bBusyTraffic = true;
@@ -1275,20 +1106,10 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 	spin_lock_irqsave(&priv->tx_lock, flags);
 	if ((check_reset_cnt++ >= 3) && (!ieee->is_roaming) &&
 	    (!priv->rf_change_in_progress) && (!psc->bSwRfProcessing)) {
-		ResetType = _rtl92e_if_check_reset(dev);
+		_rtl92e_if_check_reset(dev);
 		check_reset_cnt = 3;
 	}
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
-
-	if (ResetType == RESET_TYPE_NORMAL) {
-		priv->rst_progress = RESET_TYPE_NORMAL;
-		return;
-	}
-
-	if ((priv->force_reset || ResetType == RESET_TYPE_SILENT))
-		_rtl92e_if_silent_reset(dev);
-	priv->force_reset = false;
-	priv->reset_in_progress = false;
 }
 
 static void _rtl92e_watchdog_timer_cb(struct timer_list *t)
@@ -1320,28 +1141,25 @@ void rtl92e_tx_enable(struct net_device *dev)
 static void _rtl92e_free_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	int i, rx_queue_idx;
+	int i;
 
-	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE;
-	     rx_queue_idx++) {
-		for (i = 0; i < priv->rxringcount; i++) {
-			struct sk_buff *skb = priv->rx_buf[rx_queue_idx][i];
+	for (i = 0; i < priv->rxringcount; i++) {
+		struct sk_buff *skb = priv->rx_buf[i];
 
-			if (!skb)
-				continue;
+		if (!skb)
+			continue;
 
-			dma_unmap_single(&priv->pdev->dev,
-					 *((dma_addr_t *)skb->cb),
-					 priv->rxbuffersize, DMA_FROM_DEVICE);
-			kfree_skb(skb);
-		}
-
-		dma_free_coherent(&priv->pdev->dev,
-				  sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-				  priv->rx_ring[rx_queue_idx],
-				  priv->rx_ring_dma[rx_queue_idx]);
-		priv->rx_ring[rx_queue_idx] = NULL;
+		dma_unmap_single(&priv->pdev->dev,
+				 *((dma_addr_t *)skb->cb),
+				 priv->rxbuffersize, DMA_FROM_DEVICE);
+		kfree_skb(skb);
 	}
+
+	dma_free_coherent(&priv->pdev->dev,
+			  sizeof(*priv->rx_ring) * priv->rxringcount,
+			  priv->rx_ring,
+			  priv->rx_ring_dma);
+	priv->rx_ring = NULL;
 }
 
 static void _rtl92e_free_tx_ring(struct net_device *dev, unsigned int prio)
@@ -1374,8 +1192,7 @@ static void _rtl92e_hard_data_xmit(struct sk_buff *skb, struct net_device *dev,
 				    MAX_DEV_ADDR_SIZE);
 	u8 queue_index = tcb_desc->queue_index;
 
-	if ((priv->rtllib->rf_power_state == rf_off) || !priv->up ||
-	     priv->reset_in_progress) {
+	if ((priv->rtllib->rf_power_state == rf_off) || !priv->up) {
 		kfree_skb(skb);
 		return;
 	}
@@ -1408,7 +1225,7 @@ static int _rtl92e_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (queue_index != TXCMD_QUEUE) {
 		if ((priv->rtllib->rf_power_state == rf_off) ||
-		     !priv->up || priv->reset_in_progress) {
+		     !priv->up) {
 			kfree_skb(skb);
 			return 0;
 		}
@@ -1488,7 +1305,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 	struct cb_desc *tcb_desc = (struct cb_desc *)(skb->cb +
 				    MAX_DEV_ADDR_SIZE);
 	struct tx_desc *pdesc = NULL;
-	struct rtllib_hdr_1addr *header = NULL;
+	struct ieee80211_hdr *header = NULL;
 	u8 *pda_addr = NULL;
 	int   idx;
 	u32 fwinfo_size = 0;
@@ -1497,7 +1314,7 @@ static short _rtl92e_tx(struct net_device *dev, struct sk_buff *skb)
 
 	fwinfo_size = sizeof(struct tx_fwinfo_8190pci);
 
-	header = (struct rtllib_hdr_1addr *)(((u8 *)skb->data) + fwinfo_size);
+	header = (struct ieee80211_hdr *)(((u8 *)skb->data) + fwinfo_size);
 	pda_addr = header->addr1;
 
 	if (!is_broadcast_ether_addr(pda_addr) && !is_multicast_ether_addr(pda_addr))
@@ -1533,47 +1350,44 @@ static short _rtl92e_alloc_rx_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rx_desc *entry = NULL;
-	int i, rx_queue_idx;
+	int i;
 
-	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		priv->rx_ring[rx_queue_idx] = dma_alloc_coherent(&priv->pdev->dev,
-								 sizeof(*priv->rx_ring[rx_queue_idx]) * priv->rxringcount,
-								 &priv->rx_ring_dma[rx_queue_idx],
-								 GFP_ATOMIC);
-		if (!priv->rx_ring[rx_queue_idx] ||
-		    (unsigned long)priv->rx_ring[rx_queue_idx] & 0xFF) {
-			netdev_warn(dev, "Cannot allocate RX ring\n");
-			return -ENOMEM;
-		}
-
-		priv->rx_idx[rx_queue_idx] = 0;
-
-		for (i = 0; i < priv->rxringcount; i++) {
-			struct sk_buff *skb = dev_alloc_skb(priv->rxbuffersize);
-			dma_addr_t *mapping;
-
-			entry = &priv->rx_ring[rx_queue_idx][i];
-			if (!skb)
-				return 0;
-			skb->dev = dev;
-			priv->rx_buf[rx_queue_idx][i] = skb;
-			mapping = (dma_addr_t *)skb->cb;
-			*mapping = dma_map_single(&priv->pdev->dev,
-						  skb_tail_pointer(skb),
-						  priv->rxbuffersize, DMA_FROM_DEVICE);
-			if (dma_mapping_error(&priv->pdev->dev, *mapping)) {
-				dev_kfree_skb_any(skb);
-				return -1;
-			}
-			entry->BufferAddress = *mapping;
-
-			entry->Length = priv->rxbuffersize;
-			entry->OWN = 1;
-		}
-
-		if (entry)
-			entry->EOR = 1;
+	priv->rx_ring = dma_alloc_coherent(&priv->pdev->dev,
+					   sizeof(*priv->rx_ring) * priv->rxringcount,
+					   &priv->rx_ring_dma,
+					   GFP_ATOMIC);
+	if (!priv->rx_ring || (unsigned long)priv->rx_ring & 0xFF) {
+		netdev_warn(dev, "Cannot allocate RX ring\n");
+		return -ENOMEM;
 	}
+
+	priv->rx_idx = 0;
+
+	for (i = 0; i < priv->rxringcount; i++) {
+		struct sk_buff *skb = dev_alloc_skb(priv->rxbuffersize);
+		dma_addr_t *mapping;
+
+		entry = &priv->rx_ring[i];
+		if (!skb)
+			return 0;
+		skb->dev = dev;
+		priv->rx_buf[i] = skb;
+		mapping = (dma_addr_t *)skb->cb;
+		*mapping = dma_map_single(&priv->pdev->dev,
+					  skb_tail_pointer(skb),
+					  priv->rxbuffersize, DMA_FROM_DEVICE);
+		if (dma_mapping_error(&priv->pdev->dev, *mapping)) {
+			dev_kfree_skb_any(skb);
+			return -1;
+		}
+		entry->BufferAddress = *mapping;
+
+		entry->Length = priv->rxbuffersize;
+		entry->OWN = 1;
+	}
+
+	if (entry)
+		entry->EOR = 1;
 	return 0;
 }
 
@@ -1635,19 +1449,17 @@ err_free_rings:
 void rtl92e_reset_desc_ring(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	int i, rx_queue_idx;
+	int i;
 	unsigned long flags = 0;
 
-	for (rx_queue_idx = 0; rx_queue_idx < MAX_RX_QUEUE; rx_queue_idx++) {
-		if (priv->rx_ring[rx_queue_idx]) {
-			struct rx_desc *entry = NULL;
+	if (priv->rx_ring) {
+		struct rx_desc *entry = NULL;
 
-			for (i = 0; i < priv->rxringcount; i++) {
-				entry = &priv->rx_ring[rx_queue_idx][i];
-				entry->OWN = 1;
-			}
-			priv->rx_idx[rx_queue_idx] = 0;
+		for (i = 0; i < priv->rxringcount; i++) {
+			entry = &priv->rx_ring[i];
+			entry->OWN = 1;
 		}
+		priv->rx_idx = 0;
 	}
 
 	spin_lock_irqsave(&priv->irq_th_lock, flags);
@@ -1743,10 +1555,9 @@ void rtl92e_copy_mpdu_stats(struct rtllib_rx_stats *psrc_stats,
 static void _rtl92e_rx_normal(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
-	struct rtllib_hdr_1addr *rtllib_hdr = NULL;
+	struct ieee80211_hdr *rtllib_hdr = NULL;
 	bool unicast_packet = false;
 	u32 skb_len = 0;
-	int rx_queue_idx = RX_MPDU_QUEUE;
 
 	struct rtllib_rx_stats stats = {
 		.signal = 0,
@@ -1758,10 +1569,10 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 	stats.nic_type = NIC_8192E;
 
 	while (count--) {
-		struct rx_desc *pdesc = &priv->rx_ring[rx_queue_idx]
-					[priv->rx_idx[rx_queue_idx]];
-		struct sk_buff *skb = priv->rx_buf[rx_queue_idx]
-				      [priv->rx_idx[rx_queue_idx]];
+		struct rx_desc *pdesc = &priv->rx_ring
+					[priv->rx_idx];
+		struct sk_buff *skb = priv->rx_buf
+				      [priv->rx_idx];
 		struct sk_buff *new_skb;
 
 		if (pdesc->OWN)
@@ -1782,7 +1593,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		skb_reserve(skb, stats.RxDrvInfoSize +
 			stats.RxBufShift);
 		skb_trim(skb, skb->len - S_CRC_LEN);
-		rtllib_hdr = (struct rtllib_hdr_1addr *)skb->data;
+		rtllib_hdr = (struct ieee80211_hdr *)skb->data;
 		if (!is_multicast_ether_addr(rtllib_hdr->addr1)) {
 			/* unicast packet */
 			unicast_packet = true;
@@ -1799,8 +1610,7 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 		skb = new_skb;
 		skb->dev = dev;
 
-		priv->rx_buf[rx_queue_idx][priv->rx_idx[rx_queue_idx]] =
-								 skb;
+		priv->rx_buf[priv->rx_idx] = skb;
 		*((dma_addr_t *)skb->cb) = dma_map_single(&priv->pdev->dev,
 							  skb_tail_pointer(skb),
 							  priv->rxbuffersize, DMA_FROM_DEVICE);
@@ -1812,9 +1622,9 @@ done:
 		pdesc->BufferAddress = *((dma_addr_t *)skb->cb);
 		pdesc->OWN = 1;
 		pdesc->Length = priv->rxbuffersize;
-		if (priv->rx_idx[rx_queue_idx] == priv->rxringcount - 1)
+		if (priv->rx_idx == priv->rxringcount - 1)
 			pdesc->EOR = 1;
-		priv->rx_idx[rx_queue_idx] = (priv->rx_idx[rx_queue_idx] + 1) %
+		priv->rx_idx = (priv->rx_idx + 1) %
 					      priv->rxringcount;
 	}
 }
@@ -1865,9 +1675,9 @@ static void _rtl92e_cancel_deferred_work(struct r8192_priv *priv)
 	cancel_work_sync(&priv->qos_activate);
 }
 
-static int _rtl92e_up(struct net_device *dev, bool is_silent_reset)
+static int _rtl92e_up(struct net_device *dev)
 {
-	if (_rtl92e_sta_up(dev, is_silent_reset) == -1)
+	if (_rtl92e_sta_up(dev) == -1)
 		return -1;
 	return 0;
 }
@@ -1889,7 +1699,7 @@ static int _rtl92e_try_up(struct net_device *dev)
 
 	if (priv->up == 1)
 		return -1;
-	return _rtl92e_up(dev, false);
+	return _rtl92e_up(dev);
 }
 
 static int _rtl92e_close(struct net_device *dev)
@@ -1925,10 +1735,10 @@ void rtl92e_commit(struct net_device *dev)
 
 	if (priv->up == 0)
 		return;
-	rtllib_softmac_stop_protocol(priv->rtllib, 0, true);
+	rtllib_softmac_stop_protocol(priv->rtllib);
 	rtl92e_irq_disable(dev);
 	rtl92e_stop_adapter(dev, true);
-	_rtl92e_up(dev, false);
+	_rtl92e_up(dev);
 }
 
 static void _rtl92e_restart(void *data)

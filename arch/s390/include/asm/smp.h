@@ -59,7 +59,6 @@ static inline void smp_cpus_done(unsigned int max_cpus)
 {
 }
 
-extern int smp_reinit_ipl_cpu(void);
 extern int smp_rescan_cpus(void);
 extern void __noreturn cpu_die(void);
 extern void __cpu_die(unsigned int cpu);

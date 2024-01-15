@@ -95,6 +95,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.index = 56,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "goodix_ts_irq",
 		},
 	}, {
 		/* Wacom Digitizer in keyboard half */
@@ -111,6 +112,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.index = 49,
 			.trigger = ACPI_LEVEL_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "wacom_irq",
 		},
 	}, {
 		/* LP8557 Backlight controller */
@@ -136,6 +138,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.index = 77,
 			.trigger = ACPI_LEVEL_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "hideep_ts_irq",
 		},
 	},
 };
@@ -321,6 +324,7 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.index = 2,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_HIGH,
+			.con_id = "bq24292i_irq",
 		},
 	}, {
 		/* BQ27541 fuel-gauge */
@@ -431,7 +435,8 @@ static int __init lenovo_yoga_tab2_830_1050_init_touchscreen(void)
 	int ret;
 
 	/* Use PMIC GPIO 10 bootstrap pin to differentiate 830 vs 1050 */
-	ret = x86_android_tablet_get_gpiod("gpio_crystalcove", 10, &gpiod);
+	ret = x86_android_tablet_get_gpiod("gpio_crystalcove", 10, "yoga_bootstrap",
+					   false, GPIOD_ASIS, &gpiod);
 	if (ret)
 		return ret;
 
@@ -560,7 +565,6 @@ static const struct software_node fg_bq25890_1_supply_node = {
 /* bq25892 charger settings for the flat lipo battery behind the screen */
 static const struct property_entry lenovo_yt3_bq25892_0_props[] = {
 	PROPERTY_ENTRY_STRING_ARRAY("supplied-from", lenovo_yt3_bq25892_0_suppliers),
-	PROPERTY_ENTRY_STRING("linux,power-supply-name", "bq25892-second-chrg"),
 	PROPERTY_ENTRY_U32("linux,iinlim-percentage", 40),
 	PROPERTY_ENTRY_BOOL("linux,skip-reset"),
 	/* Values taken from Android Factory Image */
@@ -615,6 +619,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.index = 5,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "bq25892_0_irq",
 		},
 	}, {
 		/* bq27500 fuel-gauge for the round li-ion cells in the hinge */
@@ -640,6 +645,7 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.index = 77,
 			.trigger = ACPI_LEVEL_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "hideep_ts_irq",
 		},
 	}, {
 		/* LP8557 Backlight controller */
@@ -655,7 +661,6 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 
 static int __init lenovo_yt3_init(void)
 {
-	struct gpio_desc *gpiod;
 	int ret;
 
 	/*
@@ -665,30 +670,22 @@ static int __init lenovo_yt3_init(void)
 	 *
 	 * The bq25890_charger driver controls these through I2C, but this only
 	 * works if not overridden by the pins. Set these pins here:
-	 * 1. Set /CE to 0 to allow charging.
+	 * 1. Set /CE to 1 to allow charging.
 	 * 2. Set OTG to 0 disable V5 boost output since the 5V boost output of
 	 *    the main "bq25892_1" charger is used when necessary.
 	 */
 
 	/* /CE pin */
-	ret = x86_android_tablet_get_gpiod("INT33FF:02", 22, &gpiod);
+	ret = x86_android_tablet_get_gpiod("INT33FF:02", 22, "bq25892_0_ce",
+					   true, GPIOD_OUT_HIGH, NULL);
 	if (ret < 0)
 		return ret;
-
-	/*
-	 * The gpio_desc returned by x86_android_tablet_get_gpiod() is a "raw"
-	 * gpio_desc, that is there is no way to pass lookup-flags like
-	 * GPIO_ACTIVE_LOW. Set the GPIO to 0 here to enable charging since
-	 * the /CE pin is active-low, but not marked as such in the gpio_desc.
-	 */
-	gpiod_set_value(gpiod, 0);
 
 	/* OTG pin */
-	ret = x86_android_tablet_get_gpiod("INT33FF:03", 19, &gpiod);
+	ret = x86_android_tablet_get_gpiod("INT33FF:03", 19, "bq25892_0_otg",
+					   false, GPIOD_OUT_LOW, NULL);
 	if (ret < 0)
 		return ret;
-
-	gpiod_set_value(gpiod, 0);
 
 	/* Enable the regulators used by the touchscreen */
 	intel_soc_pmic_exec_mipi_pmic_seq_element(0x6e, 0x9b, 0x02, 0xff);

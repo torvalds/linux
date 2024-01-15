@@ -25,8 +25,11 @@ properties:
       - description: i.MX23 based Boards
         items:
           - enum:
+              - creative,x-fi3
               - fsl,imx23-evk
+              - fsl,stmp378x-devb
               - olimex,imx23-olinuxino
+              - sandisk,sansa_fuze_plus
           - const: fsl,imx23
 
       - description: i.MX25 Product Development Kit
@@ -383,6 +386,12 @@ properties:
               - toradex,apalis_imx6q-ixora-v1.2 # Apalis iMX6Q/D Module on Ixora V1.2 Carrier Board
               - toradex,apalis_imx6q-eval       # Apalis iMX6Q/D Module on Apalis Evaluation Board
           - const: toradex,apalis_imx6q
+          - const: fsl,imx6q
+
+      - description: i.MX6Q Variscite VAR-SOM-MX6 Boards
+        items:
+          - const: variscite,mx6customboard
+          - const: variscite,var-som-imx6q
           - const: fsl,imx6q
 
       - description: TQ-Systems TQMa6Q SoM (variant A) on MBa6x
@@ -975,7 +984,9 @@ properties:
 
       - description: PHYTEC phyCORE-i.MX8MM SoM based boards
         items:
-          - const: phytec,imx8mm-phyboard-polis-rdk # phyBOARD-Polis RDK
+          - enum:
+              - phytec,imx8mm-phyboard-polis-rdk # phyBOARD-Polis RDK
+              - phytec,imx8mm-phygate-tauri-l    # phyGATE-Tauri-L Gateway
           - const: phytec,imx8mm-phycore-som        # phyCORE-i.MX8MM SoM
           - const: fsl,imx8mm
 
@@ -1389,6 +1400,13 @@ properties:
               - fsl,ls1043a-qds
           - const: fsl,ls1043a
 
+      - description: TQ-Systems LS1043A based Boards
+        items:
+          - enum:
+              - tq,ls1043a-tqmls1043a-mbls10xxa
+          - const: tq,ls1043a-tqmls1043a
+          - const: fsl,ls1043a
+
       - description: LS1046A based Boards
         items:
           - enum:
@@ -1397,11 +1415,25 @@ properties:
               - fsl,ls1046a-rdb
           - const: fsl,ls1046a
 
+      - description: TQ-Systems LS1046A based Boards
+        items:
+          - enum:
+              - tq,ls1046a-tqmls1046a-mbls10xxa
+          - const: tq,ls1046a-tqmls1046a
+          - const: fsl,ls1046a
+
       - description: LS1088A based Boards
         items:
           - enum:
               - fsl,ls1088a-qds
               - fsl,ls1088a-rdb
+          - const: fsl,ls1088a
+
+      - description: TQ-Systems LS1088A based Boards
+        items:
+          - enum:
+              - tq,ls1088a-tqmls1088a-mbls10xxa
+          - const: tq,ls1088a-tqmls1088a
           - const: fsl,ls1088a
 
       - description: LS2080A based Boards
@@ -1429,12 +1461,19 @@ properties:
               - fsl,lx2162a-qds
           - const: fsl,lx2160a
 
-      - description: SolidRun LX2160A based Boards
+      - description: SolidRun LX2160A CEX-7 based Boards
         items:
           - enum:
               - solidrun,clearfog-cx
               - solidrun,honeycomb
           - const: solidrun,lx2160a-cex7
+          - const: fsl,lx2160a
+
+      - description: SolidRun LX2162A SoM based Boards
+        items:
+          - enum:
+              - solidrun,lx2162a-clearfog
+          - const: solidrun,lx2162a-som
           - const: fsl,lx2160a
 
       - description: S32G2 based Boards

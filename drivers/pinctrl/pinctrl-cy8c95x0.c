@@ -143,6 +143,7 @@ static const struct dmi_system_id cy8c95x0_dmi_acpi_irq_info[] = {
  * @pinctrl_desc:   pin controller description
  * @name:           Chip controller name
  * @tpin:           Total number of pins
+ * @gpio_reset:     GPIO line handler that can reset the IC
  */
 struct cy8c95x0_pinctrl {
 	struct regmap *regmap;
@@ -554,7 +555,7 @@ out:
 
 static int cy8c95x0_gpio_direction_input(struct gpio_chip *gc, unsigned int off)
 {
-	return pinctrl_gpio_direction_input(gc->base + off);
+	return pinctrl_gpio_direction_input(gc, off);
 }
 
 static int cy8c95x0_gpio_direction_output(struct gpio_chip *gc,
@@ -571,7 +572,7 @@ static int cy8c95x0_gpio_direction_output(struct gpio_chip *gc,
 	if (ret)
 		return ret;
 
-	return pinctrl_gpio_direction_output(gc->base + off);
+	return pinctrl_gpio_direction_output(gc, off);
 }
 
 static int cy8c95x0_gpio_get_value(struct gpio_chip *gc, unsigned int off)
@@ -1346,9 +1347,7 @@ static int cy8c95x0_probe(struct i2c_client *client)
 	chip->dev = &client->dev;
 
 	/* Set the device type */
-	chip->driver_data = (unsigned long)device_get_match_data(&client->dev);
-	if (!chip->driver_data)
-		chip->driver_data = i2c_match_id(cy8c95x0_id, client)->driver_data;
+	chip->driver_data = (uintptr_t)i2c_get_match_data(client);
 	if (!chip->driver_data)
 		return -ENODEV;
 

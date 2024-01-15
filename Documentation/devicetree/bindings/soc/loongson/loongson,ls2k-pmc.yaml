@@ -11,11 +11,16 @@ maintainers:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - loongson,ls2k0500-pmc
-          - loongson,ls2k1000-pmc
-      - const: syscon
+    oneOf:
+      - items:
+          - const: loongson,ls2k0500-pmc
+          - const: syscon
+      - items:
+          - enum:
+              - loongson,ls2k1000-pmc
+              - loongson,ls2k2000-pmc
+          - const: loongson,ls2k0500-pmc
+          - const: syscon
 
   reg:
     maxItems: 1
@@ -32,6 +37,18 @@ properties:
       addition, the PM need according to it to indicate that current
       SoC whether support Suspend To RAM.
 
+  syscon-poweroff:
+    $ref: /schemas/power/reset/syscon-poweroff.yaml#
+    type: object
+    description:
+      Node for power off method
+
+  syscon-reboot:
+    $ref: /schemas/power/reset/syscon-reboot.yaml#
+    type: object
+    description:
+      Node for reboot method
+
 required:
   - compatible
   - reg
@@ -44,9 +61,23 @@ examples:
     #include <dt-bindings/interrupt-controller/irq.h>
 
     power-management@1fe27000 {
-        compatible = "loongson,ls2k1000-pmc", "syscon";
+        compatible = "loongson,ls2k1000-pmc", "loongson,ls2k0500-pmc", "syscon";
         reg = <0x1fe27000 0x58>;
         interrupt-parent = <&liointc1>;
         interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
         loongson,suspend-address = <0x0 0x1c000500>;
+
+        syscon-reboot {
+            compatible = "syscon-reboot";
+            offset = <0x30>;
+            mask = <0x1>;
+        };
+
+        syscon-poweroff {
+            compatible = "syscon-poweroff";
+            regmap = <&pmc>;
+            offset = <0x14>;
+            mask = <0x3c00>;
+            value = <0x3c00>;
+        };
     };

@@ -107,8 +107,6 @@ EXPORT_SYMBOL(isa_sex);
 
 #define MASK_256K 0xfffc0000
 
-extern void paging_init(void);
-
 static void __init m68k_parse_bootinfo(const struct bi_record *record)
 {
 	const struct bi_record *first_record = record;

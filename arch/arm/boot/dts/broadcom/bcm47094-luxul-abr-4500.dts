@@ -107,5 +107,13 @@
 		port@5 {
 			label = "cpu";
 		};
+
+		port@7 {
+			status = "disabled";
+		};
+
+		port@8 {
+			status = "disabled";
+		};
 	};
 };

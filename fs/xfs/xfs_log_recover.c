@@ -329,7 +329,7 @@ xlog_find_verify_cycle(
 	 * try a smaller size.  We need to be able to read at least
 	 * a log sector, or we're out of luck.
 	 */
-	bufblks = 1 << ffs(nbblks);
+	bufblks = roundup_pow_of_two(nbblks);
 	while (bufblks > log->l_logBBsize)
 		bufblks >>= 1;
 	while (!(buffer = xlog_alloc_buffer(log, bufblks))) {
@@ -1528,7 +1528,7 @@ xlog_write_log_records(
 	 * a smaller size.  We need to be able to write at least a
 	 * log sector, or we're out of luck.
 	 */
-	bufblks = 1 << ffs(blocks);
+	bufblks = roundup_pow_of_two(blocks);
 	while (bufblks > log->l_logBBsize)
 		bufblks >>= 1;
 	while (!(buffer = xlog_alloc_buffer(log, bufblks))) {
@@ -2511,7 +2511,7 @@ xlog_abort_defer_ops(
 
 	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
 		list_del_init(&dfc->dfc_list);
-		xfs_defer_ops_capture_free(mp, dfc);
+		xfs_defer_ops_capture_abort(mp, dfc);
 	}
 }
 

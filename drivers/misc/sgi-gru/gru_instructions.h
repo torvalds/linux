@@ -29,17 +29,7 @@ extern void gru_wait_abort_proc(void *cb);
  * Architecture dependent functions
  */
 
-#if defined(CONFIG_IA64)
-#include <linux/compiler.h>
-#include <asm/intrinsics.h>
-#define __flush_cache(p)		ia64_fc((unsigned long)p)
-/* Use volatile on IA64 to ensure ordering via st4.rel */
-#define gru_ordered_store_ulong(p, v)					\
-		do {							\
-			barrier();					\
-			*((volatile unsigned long *)(p)) = v; /* force st.rel */	\
-		} while (0)
-#elif defined(CONFIG_X86_64)
+#if defined(CONFIG_X86_64)
 #include <asm/cacheflush.h>
 #define __flush_cache(p)		clflush(p)
 #define gru_ordered_store_ulong(p, v)					\

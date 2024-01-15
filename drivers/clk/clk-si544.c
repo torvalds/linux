@@ -56,17 +56,11 @@
 #define DELTA_M_FRAC_NUM	19
 #define DELTA_M_FRAC_DEN	20000
 
-enum si544_speed_grade {
-	si544a,
-	si544b,
-	si544c,
-};
-
 struct clk_si544 {
 	struct clk_hw hw;
 	struct regmap *regmap;
 	struct i2c_client *i2c_client;
-	enum si544_speed_grade speed_grade;
+	unsigned long  max_freq;
 };
 #define to_clk_si544(_hw)	container_of(_hw, struct clk_si544, hw)
 
@@ -196,24 +190,10 @@ static int si544_set_muldiv(struct clk_si544 *data,
 static bool is_valid_frequency(const struct clk_si544 *data,
 	unsigned long frequency)
 {
-	unsigned long max_freq = 0;
-
 	if (frequency < SI544_MIN_FREQ)
 		return false;
 
-	switch (data->speed_grade) {
-	case si544a:
-		max_freq = 1500000000;
-		break;
-	case si544b:
-		max_freq = 800000000;
-		break;
-	case si544c:
-		max_freq = 350000000;
-		break;
-	}
-
-	return frequency <= max_freq;
+	return frequency <= data->max_freq;
 }
 
 /* Calculate divider settings for a given frequency */
@@ -446,24 +426,15 @@ static bool si544_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config si544_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = SI544_REG_PAGE_SELECT,
 	.volatile_reg = si544_regmap_is_volatile,
 };
-
-static const struct i2c_device_id si544_id[] = {
-	{ "si544a", si544a },
-	{ "si544b", si544b },
-	{ "si544c", si544c },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, si544_id);
 
 static int si544_probe(struct i2c_client *client)
 {
 	struct clk_si544 *data;
 	struct clk_init_data init;
-	const struct i2c_device_id *id = i2c_match_id(si544_id, client);
 	int err;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
@@ -475,7 +446,7 @@ static int si544_probe(struct i2c_client *client)
 	init.num_parents = 0;
 	data->hw.init = &init;
 	data->i2c_client = client;
-	data->speed_grade = id->driver_data;
+	data->max_freq = (uintptr_t)i2c_get_match_data(client);
 
 	if (of_property_read_string(client->dev.of_node, "clock-output-names",
 			&init.name))
@@ -507,11 +478,19 @@ static int si544_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id si544_id[] = {
+	{ "si544a", 1500000000 },
+	{ "si544b", 800000000 },
+	{ "si544c", 350000000 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, si544_id);
+
 static const struct of_device_id clk_si544_of_match[] = {
-	{ .compatible = "silabs,si544a" },
-	{ .compatible = "silabs,si544b" },
-	{ .compatible = "silabs,si544c" },
-	{ },
+	{ .compatible = "silabs,si544a", .data = (void *)1500000000 },
+	{ .compatible = "silabs,si544b", .data = (void *)800000000 },
+	{ .compatible = "silabs,si544c", .data = (void *)350000000 },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_si544_of_match);
 

@@ -20,13 +20,12 @@
 / {
 	sound_card: sound {
 		compatible = "audio-graph-card2";
-		label = "rcar-sound";
+		label = "snd-ulcb-mix";
 
 		routing = "ak4613 Playback", "DAI0 Playback",
 			  "ak4613 Playback", "DAI1 Playback",
 			  "DAI0 Capture",    "ak4613 Capture";
 
-		/delete-property/ dais;
 		links = <&fe_a		/* (A) CPU0   */
 			 &fe_b		/* (B) CPU1   */
 			 &be_x		/* (X) ak4613 */
@@ -50,14 +49,12 @@
 			};
 
 			ports@1 {
-				#address-cells = <1>;
-				#size-cells = <0>;
 				reg = <1>;
 				/*
 				 * BE
 				 * (X) ak4613
 				 */
-				be_x: port@0 { reg = <0>; be_x_ep: endpoint { remote-endpoint = <&ak4613_x_ep>; }; };
+				be_x: port { be_x_ep: endpoint { remote-endpoint = <&ak4613_x_ep>; }; };
 			};
 		};
 	};
@@ -78,9 +75,13 @@
 };
 
 &rcar_sound {
-	ports {
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	ports@0 {
 		#address-cells = <1>;
 		#size-cells = <0>;
+		reg = <0>;
 
 		/*
 		 * (A) CPU0

@@ -8,7 +8,7 @@ perf-kwork - Tool to trace/measure kernel work properties (latencies)
 SYNOPSIS
 --------
 [verse]
-'perf kwork' {record}
+'perf kwork' {record|report|latency|timehist|top}
 
 DESCRIPTION
 -----------
@@ -23,6 +23,8 @@ There are several variants of 'perf kwork':
 
   'perf kwork timehist' provides an analysis of kernel work events.
 
+  'perf kwork top' to report the task cpu usage.
+
     Example usage:
         perf kwork record -- sleep 1
         perf kwork report
@@ -30,6 +32,8 @@ There are several variants of 'perf kwork':
         perf kwork latency
         perf kwork latency -b
         perf kwork timehist
+        perf kwork top
+        perf kwork top -b
 
    By default it shows the individual work events such as irq, workqeueu,
    including the run time and delay (time between raise and actually entry):
@@ -66,7 +70,7 @@ OPTIONS
 
 -k::
 --kwork::
-	List of kwork to profile (irq, softirq, workqueue, etc)
+	List of kwork to profile (irq, softirq, workqueue, sched, etc)
 
 -v::
 --verbose::
@@ -167,6 +171,36 @@ OPTIONS for 'perf kwork timehist'
 
 --symfs=<directory>::
     Look for files with symbols relative to this directory.
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
+OPTIONS for 'perf kwork top'
+---------------------------------
+
+-b::
+--use-bpf::
+	Use BPF to measure task cpu usage.
+
+-C::
+--cpu::
+	Only show events for the given CPU(s) (comma separated list).
+
+-i::
+--input::
+	Input file name. (default: perf.data unless stdin is a fifo)
+
+-n::
+--name::
+	Only show events for the given name.
+
+-s::
+--sort::
+	Sort by key(s): rate, runtime, tid
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times

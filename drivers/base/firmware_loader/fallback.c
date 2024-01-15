@@ -46,7 +46,7 @@ static inline int fw_sysfs_wait_timeout(struct fw_priv *fw_priv,  long timeout)
 
 static LIST_HEAD(pending_fw_head);
 
-void kill_pending_fw_fallback_reqs(bool only_kill_custom)
+void kill_pending_fw_fallback_reqs(bool kill_all)
 {
 	struct fw_priv *fw_priv;
 	struct fw_priv *next;
@@ -54,9 +54,13 @@ void kill_pending_fw_fallback_reqs(bool only_kill_custom)
 	mutex_lock(&fw_lock);
 	list_for_each_entry_safe(fw_priv, next, &pending_fw_head,
 				 pending_list) {
-		if (!fw_priv->need_uevent || !only_kill_custom)
+		if (kill_all || !fw_priv->need_uevent)
 			 __fw_load_abort(fw_priv);
 	}
+
+	if (kill_all)
+		fw_load_abort_all = true;
+
 	mutex_unlock(&fw_lock);
 }
 
@@ -86,7 +90,7 @@ static int fw_load_sysfs_fallback(struct fw_sysfs *fw_sysfs, long timeout)
 	}
 
 	mutex_lock(&fw_lock);
-	if (fw_state_is_aborted(fw_priv)) {
+	if (fw_load_abort_all || fw_state_is_aborted(fw_priv)) {
 		mutex_unlock(&fw_lock);
 		retval = -EINTR;
 		goto out;

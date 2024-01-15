@@ -159,6 +159,23 @@
 #define DP83867_LED_DRV_EN(x)	BIT((x) * 4)
 #define DP83867_LED_DRV_VAL(x)	BIT((x) * 4 + 1)
 
+#define DP83867_LED_FN(idx, val)	(((val) & 0xf) << ((idx) * 4))
+#define DP83867_LED_FN_MASK(idx)	(0xf << ((idx) * 4))
+#define DP83867_LED_FN_RX_ERR		0xe /* Receive Error */
+#define DP83867_LED_FN_RX_TX_ERR	0xd /* Receive Error or Transmit Error */
+#define DP83867_LED_FN_LINK_RX_TX	0xb /* Link established, blink for rx or tx activity */
+#define DP83867_LED_FN_FULL_DUPLEX	0xa /* Full duplex */
+#define DP83867_LED_FN_LINK_100_1000_BT	0x9 /* 100/1000BT link established */
+#define DP83867_LED_FN_LINK_10_100_BT	0x8 /* 10/100BT link established */
+#define DP83867_LED_FN_LINK_10_BT	0x7 /* 10BT link established */
+#define DP83867_LED_FN_LINK_100_BTX	0x6 /* 100 BTX link established */
+#define DP83867_LED_FN_LINK_1000_BT	0x5 /* 1000 BT link established */
+#define DP83867_LED_FN_COLLISION	0x4 /* Collision detected */
+#define DP83867_LED_FN_RX		0x3 /* Receive activity */
+#define DP83867_LED_FN_TX		0x2 /* Transmit activity */
+#define DP83867_LED_FN_RX_TX		0x1 /* Receive or Transmit activity */
+#define DP83867_LED_FN_LINK		0x0 /* Link established */
+
 enum {
 	DP83867_PORT_MIRROING_KEEP,
 	DP83867_PORT_MIRROING_EN,
@@ -1018,6 +1035,123 @@ dp83867_led_brightness_set(struct phy_device *phydev,
 			  val);
 }
 
+static int dp83867_led_mode(u8 index, unsigned long rules)
+{
+	if (index >= DP83867_LED_COUNT)
+		return -EINVAL;
+
+	switch (rules) {
+	case BIT(TRIGGER_NETDEV_LINK):
+		return DP83867_LED_FN_LINK;
+	case BIT(TRIGGER_NETDEV_LINK_10):
+		return DP83867_LED_FN_LINK_10_BT;
+	case BIT(TRIGGER_NETDEV_LINK_100):
+		return DP83867_LED_FN_LINK_100_BTX;
+	case BIT(TRIGGER_NETDEV_FULL_DUPLEX):
+		return DP83867_LED_FN_FULL_DUPLEX;
+	case BIT(TRIGGER_NETDEV_TX):
+		return DP83867_LED_FN_TX;
+	case BIT(TRIGGER_NETDEV_RX):
+		return DP83867_LED_FN_RX;
+	case BIT(TRIGGER_NETDEV_LINK_1000):
+		return DP83867_LED_FN_LINK_1000_BT;
+	case BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return DP83867_LED_FN_RX_TX;
+	case BIT(TRIGGER_NETDEV_LINK_100) | BIT(TRIGGER_NETDEV_LINK_1000):
+		return DP83867_LED_FN_LINK_100_1000_BT;
+	case BIT(TRIGGER_NETDEV_LINK_10) | BIT(TRIGGER_NETDEV_LINK_100):
+		return DP83867_LED_FN_LINK_10_100_BT;
+	case BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX):
+		return DP83867_LED_FN_LINK_RX_TX;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dp83867_led_hw_is_supported(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	int ret;
+
+	ret = dp83867_led_mode(index, rules);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int dp83867_led_hw_control_set(struct phy_device *phydev, u8 index,
+				      unsigned long rules)
+{
+	int mode, ret;
+
+	mode = dp83867_led_mode(index, rules);
+	if (mode < 0)
+		return mode;
+
+	ret = phy_modify(phydev, DP83867_LEDCR1, DP83867_LED_FN_MASK(index),
+			 DP83867_LED_FN(index, mode));
+	if (ret)
+		return ret;
+
+	return phy_modify(phydev, DP83867_LEDCR2, DP83867_LED_DRV_EN(index), 0);
+}
+
+static int dp83867_led_hw_control_get(struct phy_device *phydev, u8 index,
+				      unsigned long *rules)
+{
+	int val;
+
+	val = phy_read(phydev, DP83867_LEDCR1);
+	if (val < 0)
+		return val;
+
+	val &= DP83867_LED_FN_MASK(index);
+	val >>= index * 4;
+
+	switch (val) {
+	case DP83867_LED_FN_LINK:
+		*rules = BIT(TRIGGER_NETDEV_LINK);
+		break;
+	case DP83867_LED_FN_LINK_10_BT:
+		*rules = BIT(TRIGGER_NETDEV_LINK_10);
+		break;
+	case DP83867_LED_FN_LINK_100_BTX:
+		*rules = BIT(TRIGGER_NETDEV_LINK_100);
+		break;
+	case DP83867_LED_FN_FULL_DUPLEX:
+		*rules = BIT(TRIGGER_NETDEV_FULL_DUPLEX);
+		break;
+	case DP83867_LED_FN_TX:
+		*rules = BIT(TRIGGER_NETDEV_TX);
+		break;
+	case DP83867_LED_FN_RX:
+		*rules = BIT(TRIGGER_NETDEV_RX);
+		break;
+	case DP83867_LED_FN_LINK_1000_BT:
+		*rules = BIT(TRIGGER_NETDEV_LINK_1000);
+		break;
+	case DP83867_LED_FN_RX_TX:
+		*rules = BIT(TRIGGER_NETDEV_TX) | BIT(TRIGGER_NETDEV_RX);
+		break;
+	case DP83867_LED_FN_LINK_100_1000_BT:
+		*rules = BIT(TRIGGER_NETDEV_LINK_100) | BIT(TRIGGER_NETDEV_LINK_1000);
+		break;
+	case DP83867_LED_FN_LINK_10_100_BT:
+		*rules = BIT(TRIGGER_NETDEV_LINK_10) | BIT(TRIGGER_NETDEV_LINK_100);
+		break;
+	case DP83867_LED_FN_LINK_RX_TX:
+		*rules = BIT(TRIGGER_NETDEV_LINK) | BIT(TRIGGER_NETDEV_TX) |
+			 BIT(TRIGGER_NETDEV_RX);
+		break;
+	default:
+		*rules = 0;
+		break;
+	}
+
+	return 0;
+}
+
 static struct phy_driver dp83867_driver[] = {
 	{
 		.phy_id		= DP83867_PHY_ID,
@@ -1047,6 +1181,9 @@ static struct phy_driver dp83867_driver[] = {
 		.set_loopback	= dp83867_loopback,
 
 		.led_brightness_set = dp83867_led_brightness_set,
+		.led_hw_is_supported = dp83867_led_hw_is_supported,
+		.led_hw_control_set = dp83867_led_hw_control_set,
+		.led_hw_control_get = dp83867_led_hw_control_get,
 	},
 };
 module_phy_driver(dp83867_driver);

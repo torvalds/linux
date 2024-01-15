@@ -84,3 +84,4 @@ module_exit(exit_rc_map_asus_ps3_100)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("Asus My Cinema PS3-100 remote controller keytable");

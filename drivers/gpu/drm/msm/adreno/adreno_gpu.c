@@ -323,7 +323,11 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		*value = adreno_gpu->info->gmem;
 		return 0;
 	case MSM_PARAM_GMEM_BASE:
-		*value = !adreno_is_a650_family(adreno_gpu) ? 0x100000 : 0;
+		if (adreno_is_a650_family(adreno_gpu) ||
+		    adreno_is_a740_family(adreno_gpu))
+			*value = 0;
+		else
+			*value = 0x100000;
 		return 0;
 	case MSM_PARAM_CHIP_ID:
 		*value = adreno_gpu->chip_id;
@@ -368,6 +372,9 @@ int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
 		if (ctx->aspace == gpu->aspace)
 			return -EINVAL;
 		*value = ctx->aspace->va_size;
+		return 0;
+	case MSM_PARAM_HIGHEST_BANK_BIT:
+		*value = adreno_gpu->ubwc_config.highest_bank_bit;
 		return 0;
 	default:
 		DBG("%s: invalid param: %u", gpu->name, param);
@@ -567,6 +574,7 @@ int adreno_hw_init(struct msm_gpu *gpu)
 		ring->cur = ring->start;
 		ring->next = ring->start;
 		ring->memptrs->rptr = 0;
+		ring->memptrs->bv_fence = ring->fctx->completed_fence;
 
 		/* Detect and clean up an impossible fence, ie. if GPU managed
 		 * to scribble something invalid, we don't want that to confuse

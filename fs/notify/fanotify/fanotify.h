@@ -275,9 +275,9 @@ static inline void fanotify_init_event(struct fanotify_event *event,
 
 #define FANOTIFY_INLINE_FH(name, size)					\
 struct {								\
-	struct fanotify_fh (name);					\
+	struct fanotify_fh name;					\
 	/* Space for object_fh.buf[] - access with fanotify_fh_buf() */	\
-	unsigned char _inline_fh_buf[(size)];				\
+	unsigned char _inline_fh_buf[size];				\
 }
 
 struct fanotify_fid_event {

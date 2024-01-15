@@ -92,8 +92,14 @@ static void fsl_edma3_enable_request(struct fsl_edma_chan *fsl_chan)
 
 	edma_writel_chreg(fsl_chan, val, ch_sbr);
 
-	if (flags & FSL_EDMA_DRV_HAS_CHMUX)
-		edma_writel_chreg(fsl_chan, fsl_chan->srcid, ch_mux);
+	if (flags & FSL_EDMA_DRV_HAS_CHMUX) {
+		/*
+		 * ch_mux: With the exception of 0, attempts to write a value
+		 * already in use will be forced to 0.
+		 */
+		if (!edma_readl_chreg(fsl_chan, ch_mux))
+			edma_writel_chreg(fsl_chan, fsl_chan->srcid, ch_mux);
+	}
 
 	val = edma_readl_chreg(fsl_chan, ch_csr);
 	val |= EDMA_V3_CH_CSR_ERQ;
@@ -448,11 +454,24 @@ static void fsl_edma_set_tcd_regs(struct fsl_edma_chan *fsl_chan,
 
 	edma_write_tcdreg(fsl_chan, tcd->dlast_sga, dlast_sga);
 
+	csr = le16_to_cpu(tcd->csr);
+
 	if (fsl_chan->is_sw) {
-		csr = le16_to_cpu(tcd->csr);
 		csr |= EDMA_TCD_CSR_START;
 		tcd->csr = cpu_to_le16(csr);
 	}
+
+	/*
+	 * Must clear CHn_CSR[DONE] bit before enable TCDn_CSR[ESG] at EDMAv3
+	 * eDMAv4 have not such requirement.
+	 * Change MLINK need clear CHn_CSR[DONE] for both eDMAv3 and eDMAv4.
+	 */
+	if (((fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_CLEAR_DONE_E_SG) &&
+		(csr & EDMA_TCD_CSR_E_SG)) ||
+	    ((fsl_edma_drvflags(fsl_chan) & FSL_EDMA_DRV_CLEAR_DONE_E_LINK) &&
+		(csr & EDMA_TCD_CSR_E_LINK)))
+		edma_writel_chreg(fsl_chan, edma_readl_chreg(fsl_chan, ch_csr), ch_csr);
+
 
 	edma_write_tcdreg(fsl_chan, tcd->csr, csr);
 }

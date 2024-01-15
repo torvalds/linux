@@ -26,17 +26,17 @@ struct ath11k_thermal {
 };
 
 #if IS_REACHABLE(CONFIG_THERMAL)
-int ath11k_thermal_register(struct ath11k_base *sc);
-void ath11k_thermal_unregister(struct ath11k_base *sc);
+int ath11k_thermal_register(struct ath11k_base *ab);
+void ath11k_thermal_unregister(struct ath11k_base *ab);
 int ath11k_thermal_set_throttling(struct ath11k *ar, u32 throttle_state);
 void ath11k_thermal_event_temperature(struct ath11k *ar, int temperature);
 #else
-static inline int ath11k_thermal_register(struct ath11k_base *sc)
+static inline int ath11k_thermal_register(struct ath11k_base *ab)
 {
 	return 0;
 }
 
-static inline void ath11k_thermal_unregister(struct ath11k_base *sc)
+static inline void ath11k_thermal_unregister(struct ath11k_base *ab)
 {
 }
 

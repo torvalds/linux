@@ -342,21 +342,21 @@ int au1100fb_fb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	struct au1100fb_device *fbdev = to_au1100fb_device(fbi);
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	pgprot_val(vma->vm_page_prot) |= (6 << 9); //CCA=6
 
 	return dma_mmap_coherent(fbdev->dev, vma, fbdev->fb_mem, fbdev->fb_phys,
 			fbdev->fb_len);
 }
 
-static const struct fb_ops au1100fb_ops =
-{
+static const struct fb_ops au1100fb_ops = {
 	.owner			= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_setcolreg		= au1100fb_fb_setcolreg,
 	.fb_blank		= au1100fb_fb_blank,
 	.fb_pan_display		= au1100fb_fb_pan_display,
-	.fb_fillrect		= cfb_fillrect,
-	.fb_copyarea		= cfb_copyarea,
-	.fb_imageblit		= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_mmap		= au1100fb_fb_mmap,
 };
 

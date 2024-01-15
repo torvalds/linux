@@ -6,6 +6,7 @@ Security Documentation
    :maxdepth: 1
 
    credentials
+   snp-tdx-threat-model
    IMA-templates
    keys/index
    lsm

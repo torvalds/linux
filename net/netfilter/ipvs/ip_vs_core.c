@@ -2450,3 +2450,4 @@ static void __exit ip_vs_cleanup(void)
 module_init(ip_vs_init);
 module_exit(ip_vs_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("IP Virtual Server");
