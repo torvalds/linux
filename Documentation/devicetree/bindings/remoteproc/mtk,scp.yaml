@@ -47,7 +47,7 @@ properties:
     maxItems: 1
 
   firmware-name:
-    $ref: /schemas/types.yaml#/definitions/string
+    maxItems: 1
     description:
       If present, name (or relative path) of the file within the
       firmware search path containing the firmware image used when
@@ -115,7 +115,7 @@ patternProperties:
         maxItems: 1
 
       firmware-name:
-        $ref: /schemas/types.yaml#/definitions/string
+        maxItems: 1
         description:
           If present, name (or relative path) of the file within the
           firmware search path containing the firmware image used when
