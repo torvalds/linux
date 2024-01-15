@@ -13,6 +13,7 @@
 #include "ivpu_drv.h"
 #include "ivpu_hw.h"
 #include "ivpu_fw.h"
+#include "ivpu_fw_log.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
@@ -247,7 +248,8 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 		ivpu_err(vdev, "Failed to set suspend VPU: %d\n", ret);
 
 	if (!hw_is_idle) {
-		ivpu_warn(vdev, "VPU failed to enter idle, force suspended.\n");
+		ivpu_err(vdev, "VPU failed to enter idle, force suspended.\n");
+		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
 		ivpu_pm_prepare_warm_boot(vdev);
