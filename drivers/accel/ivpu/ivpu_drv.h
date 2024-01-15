@@ -146,7 +146,6 @@ struct ivpu_file_priv {
 	struct mutex lock; /* Protects cmdq */
 	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
 	struct ivpu_mmu_context ctx;
-	u32 priority;
 	bool has_mmu_faults;
 };
 

@@ -488,6 +488,9 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	if (params->engine > DRM_IVPU_ENGINE_COPY)
 		return -EINVAL;
 
+	if (params->priority > DRM_IVPU_JOB_PRIORITY_REALTIME)
+		return -EINVAL;
+
 	if (params->buffer_count == 0 || params->buffer_count > JOB_MAX_BUFFER_COUNT)
 		return -EINVAL;
 
