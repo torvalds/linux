@@ -22,6 +22,15 @@
 extern unsigned long riscv_v_vsize;
 int riscv_v_setup_vsize(void);
 bool riscv_v_first_use_handler(struct pt_regs *regs);
+void kernel_vector_begin(void);
+void kernel_vector_end(void);
+void get_cpu_vector_context(void);
+void put_cpu_vector_context(void);
+
+static inline u32 riscv_v_flags(void)
+{
+	return current->thread.riscv_v_flags;
+}
 
 static __always_inline bool has_vector(void)
 {
