@@ -11107,16 +11107,15 @@ static int visit_func_call_insn(int t, struct bpf_insn *insns,
 				struct bpf_verifier_env *env,
 				bool visit_callee)
 {
-	int ret, insn_sz;
+	int ret;
 
-	insn_sz = bpf_is_ldimm64(&insns[t]) ? 2 : 1;
-	ret = push_insn(t, t + insn_sz, FALLTHROUGH, env, false);
+	ret = push_insn(t, t + 1, FALLTHROUGH, env, false);
 	if (ret)
 		return ret;
 
-	mark_prune_point(env, t + insn_sz);
+	mark_prune_point(env, t + 1);
 	/* when we exit from subprog, we need to record non-linear history */
-	mark_jmp_point(env, t + insn_sz);
+	mark_jmp_point(env, t + 1);
 
 	if (visit_callee) {
 		mark_prune_point(env, t);
@@ -11138,17 +11137,15 @@ static int visit_func_call_insn(int t, struct bpf_insn *insns,
 static int visit_insn(int t, struct bpf_verifier_env *env)
 {
 	struct bpf_insn *insns = env->prog->insnsi, *insn = &insns[t];
-	int ret, off, insn_sz;
+	int ret, off;
 
 	if (bpf_pseudo_func(insn))
 		return visit_func_call_insn(t, insns, env, true);
 
 	/* All non-branch instructions have a single fall-through edge. */
 	if (BPF_CLASS(insn->code) != BPF_JMP &&
-	    BPF_CLASS(insn->code) != BPF_JMP32) {
-		insn_sz = bpf_is_ldimm64(insn) ? 2 : 1;
-		return push_insn(t, t + insn_sz, FALLTHROUGH, env, false);
-	}
+	    BPF_CLASS(insn->code) != BPF_JMP32)
+		return push_insn(t, t + 1, FALLTHROUGH, env, false);
 
 	switch (BPF_OP(insn->code)) {
 	case BPF_EXIT:
@@ -11247,20 +11244,10 @@ static int check_cfg(struct bpf_verifier_env *env)
 	}
 
 	for (i = 0; i < insn_cnt; i++) {
-		struct bpf_insn *insn = &env->prog->insnsi[i];
-
 		if (insn_state[i] != EXPLORED) {
 			verbose(env, "unreachable insn %d\n", i);
 			ret = -EINVAL;
 			goto err_free;
-		}
-		if (bpf_is_ldimm64(insn)) {
-			if (insn_state[i + 1] != 0) {
-				verbose(env, "jump into the middle of ldimm64 insn %d\n", i);
-				ret = -EINVAL;
-				goto err_free;
-			}
-			i++; /* skip second half of ldimm64 */
 		}
 	}
 	ret = 0; /* cfg looks good */
