@@ -124,7 +124,7 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	if (engine_sync_barrier(engine)) {
 		struct drm_printer m = drm_err_printer(&engine->i915->drm, "pulse");
 
-		pr_err("%s: no heartbeat pulse?\n", engine->name);
+		drm_printf(&m, "%s: no heartbeat pulse?\n", engine->name);
 		intel_engine_dump(engine, &m, "%s", engine->name);
 
 		err = -ETIME;
@@ -138,8 +138,8 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	if (!i915_active_is_idle(&p->active)) {
 		struct drm_printer m = drm_err_printer(&engine->i915->drm, "pulse");
 
-		pr_err("%s: heartbeat pulse did not flush idle tasks\n",
-		       engine->name);
+		drm_printf(&m, "%s: heartbeat pulse did not flush idle tasks\n",
+			   engine->name);
 		i915_active_print(&p->active, &m);
 
 		err = -EINVAL;

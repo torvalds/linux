@@ -158,7 +158,7 @@ static int live_active_wait(void *arg)
 	if (!READ_ONCE(active->retired)) {
 		struct drm_printer p = drm_err_printer(&i915->drm, __func__);
 
-		pr_err("i915_active not retired after waiting!\n");
+		drm_printf(&p, "i915_active not retired after waiting!\n");
 		i915_active_print(&active->base, &p);
 
 		err = -EINVAL;
@@ -191,7 +191,7 @@ static int live_active_retire(void *arg)
 	if (!READ_ONCE(active->retired)) {
 		struct drm_printer p = drm_err_printer(&i915->drm, __func__);
 
-		pr_err("i915_active not retired after flushing!\n");
+		drm_printf(&p, "i915_active not retired after flushing!\n");
 		i915_active_print(&active->base, &p);
 
 		err = -EINVAL;
