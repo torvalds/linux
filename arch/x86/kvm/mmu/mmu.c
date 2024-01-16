@@ -6997,9 +6997,7 @@ int kvm_mmu_vendor_module_init(void)
 
 	kvm_mmu_reset_all_pte_masks();
 
-	pte_list_desc_cache = kmem_cache_create("pte_list_desc",
-					    sizeof(struct pte_list_desc),
-					    0, SLAB_ACCOUNT, NULL);
+	pte_list_desc_cache = KMEM_CACHE(pte_list_desc, SLAB_ACCOUNT);
 	if (!pte_list_desc_cache)
 		goto out;
 
