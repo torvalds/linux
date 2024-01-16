@@ -71,6 +71,7 @@
 #define DWC3_GUCTL1_L1_SUSP_THRLD_EN_FOR_HOST	BIT(8)
 #define DWC3_GUCTL3_USB20_RETRY_DISABLE	BIT(16)
 #define DWC3_GUSB3PIPECTL_DISRXDETU3	BIT(22)
+#define DWC3_GUCTL_SPRSCTRLTRANSEN	BIT(17)
 
 #define DWC3_LLUCTL	0xd024
 /* Force Gen1 speed on Gen2 link */
@@ -6788,6 +6789,7 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 {
 	int ret = 0;
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	u32 reg;
 
 	if (on) {
 		dev_dbg(mdwc->dev, "%s: turn on host\n", __func__);
@@ -6826,6 +6828,16 @@ static int dwc3_otg_start_host(struct dwc3_msm *mdwc, int on)
 
 		if (mdwc->dis_sending_cm_l1_quirk)
 			mdwc3_dis_sending_cm_l1(mdwc);
+
+		/*
+		 * Some devices are slow in responding to control transfers. Scheduling multiple
+		 * transactions in one microframe/frame can cause these devices to misbehave.
+		 * Enable sparse control so that host controller schedules each phase of a Control
+		 * transfer in different microframes/frames.
+		 */
+		reg = dwc3_msm_read_reg(mdwc->base, DWC3_GUCTL);
+		reg |= DWC3_GUCTL_SPRSCTRLTRANSEN;
+		dwc3_msm_write_reg(mdwc->base, DWC3_GUCTL, reg);
 
 		/*
 		 * Increase Inter-packet delay by 1 UTMI clock cycle (EL_23).
