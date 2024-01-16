@@ -103,6 +103,7 @@ def define_pitti():
         "drivers/rpmsg/qcom_glink_spss.ko",
         "drivers/rpmsg/rpm-smd.ko",
         "drivers/rtc/rtc-pm8xxx.ko",
+        "drivers/scsi/sg.ko",
         "drivers/slimbus/slim-qcom-ngd-ctrl.ko",
         "drivers/slimbus/slimbus.ko",
         "drivers/soc/qcom/altmode-glink.ko",
