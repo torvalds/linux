@@ -4,6 +4,7 @@
  * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#include <linux/clk.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/err.h>
@@ -102,6 +103,11 @@ static const struct parent_map gcc_xo_gpll0_map[] = {
 
 static const struct clk_parent_data gcc_xo_gpll0[] = {
 	{ .fw_name = "xo" },
+	{ .hw = &gpll0.clkr.hw },
+};
+
+static const struct clk_parent_data gcc_xo_gpll0_ao[] = {
+	{ .fw_name = "xo_ao" },
 	{ .hw = &gpll0.clkr.hw },
 };
 
@@ -228,8 +234,6 @@ static const struct clk_parent_data gcc_xo_emac_0_125m[] = {
 
 static const struct freq_tbl ftbl_apss_ahb_clk[] = {
 	F(19200000, P_XO, 1, 0, 0),
-	F(50000000, P_GPLL0, 16, 0, 0),
-	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
 };
 
@@ -240,10 +244,9 @@ static struct clk_rcg2 apss_ahb_clk_src = {
 	.freq_tbl = ftbl_apss_ahb_clk,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "apss_ahb_clk_src",
-		.parent_data = gcc_xo_gpll0,
+		.parent_data = gcc_xo_gpll0_ao,
 		.num_parents = 2,
 		.ops = &clk_rcg2_ops,
-		.flags = CLK_IS_CRITICAL,
 	},
 };
 
@@ -1997,6 +2000,7 @@ MODULE_DEVICE_TABLE(of, gcc_mdm9607_match_table);
 static int gcc_mdm9607_probe(struct platform_device *pdev)
 {
 	struct regmap *regmap;
+	int ret;
 
 	vdd_dig.regulator[0] = devm_regulator_get(&pdev->dev, "vdd_dig");
 	if (IS_ERR(vdd_dig.regulator[0])) {
@@ -2013,7 +2017,12 @@ static int gcc_mdm9607_probe(struct platform_device *pdev)
 	/* Vote for GPLL0 to turn on. Needed by acpuclock. */
 	regmap_update_bits(regmap, 0x45000, BIT(0), BIT(0));
 
-	return qcom_cc_really_probe(pdev, &gcc_mdm9607_desc, regmap);
+	ret =  qcom_cc_really_probe(pdev, &gcc_mdm9607_desc, regmap);
+
+	clk_set_rate(apss_ahb_clk_src.clkr.hw.clk, 19200000);
+	clk_prepare_enable(apss_ahb_clk_src.clkr.hw.clk);
+
+	return ret;
 }
 
 static struct platform_driver gcc_mdm9607_driver = {
