@@ -87,6 +87,10 @@
 #define RESPONSE_ERROR_TRANSF_ABORT	8
 #define RESPONSE_ERROR_I2C_W_NACK_ERR	9
 #define RESPONSE_PORT_TID(x)		(((x) & GENMASK(27, 24)) >> 24)
+#define   TID_TARGET_IBI		0b0001
+#define   TID_TARGET_RD_DATA		0b0010
+#define   TID_TARGET_MASTER_WR_DATA	0b1000
+#define   TID_TARGET_MASTER_DEFSLVS	0b1111
 #define RESPONSE_PORT_DATA_LEN(x)	((x) & GENMASK(15, 0))
 
 #define RX_TX_DATA_PORT			0x14
@@ -126,6 +130,12 @@
 #define RESET_CTRL_RESP_QUEUE		BIT(2)
 #define RESET_CTRL_CMD_QUEUE		BIT(1)
 #define RESET_CTRL_SOFT			BIT(0)
+#define RESET_CTRL_XFER_QUEUES		(RESET_CTRL_RX_FIFO |                 \
+					 RESET_CTRL_TX_FIFO |                 \
+					 RESET_CTRL_RESP_QUEUE |              \
+					 RESET_CTRL_CMD_QUEUE)
+#define RESET_CTRL_QUEUES		(RESET_CTRL_IBI_QUEUE |               \
+					 RESET_CTRL_XFER_QUEUES)
 
 #define SLV_EVENT_CTRL			0x38
 #define   SLV_EVENT_CTRL_MWL_UPD	BIT(7)
@@ -1327,12 +1337,33 @@ static int dw_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, 
 	return 0;
 }
 
+static int dw_i3c_target_reset_queue(struct dw_i3c_master *master)
+{
+	int ret;
+	u32 status;
+
+	dw_i3c_master_disable(master);
+	writel(RESET_CTRL_XFER_QUEUES, master->regs + RESET_CTRL);
+	ret = readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
+					!status, 10, 1000000);
+	if (ret)
+		dev_err(&master->base.dev, "Reset %#x failed: %d\n", status,
+			ret);
+
+	dw_i3c_master_enable(master);
+
+	return ret;
+}
+
 static int dw_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
 					     struct i3c_priv_xfer *pending_read,
 					     struct i3c_priv_xfer *ibi_notify)
 {
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
+	struct dw_i3c_xfer *xfer;
+	struct dw_i3c_cmd *cmd;
+	int ret;
 	u32 reg;
 	u8 mdb;
 
@@ -1343,12 +1374,46 @@ static int dw_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
 	if ((reg & SLV_EVENT_CTRL_SIR_EN) == 0)
 		return -EPERM;
 
+	xfer = dw_i3c_master_alloc_xfer(master, 2);
+	if (!xfer)
+		return -ENOMEM;
+
 	mdb = *(u8 *)ibi_notify->data.out;
 	master->platform_ops->set_ibi_mdb(master, mdb);
 
-	dw_i3c_target_priv_xfers(dev, ibi_notify, 1);
-	dw_i3c_target_priv_xfers(dev, pending_read, 1);
-	dw_i3c_target_generate_ibi(dev, NULL, 0);
+	/* Put IBI command & data into the command & data queues */
+	cmd = &xfer->cmds[0];
+	cmd->tx_buf = ibi_notify->data.out;
+	cmd->tx_len = ibi_notify->len;
+	cmd->cmd_lo = COMMAND_PORT_TID(TID_TARGET_IBI) | (cmd->tx_len << 16);
+	dw_i3c_master_wr_tx_fifo(master, cmd->tx_buf, cmd->tx_len);
+	writel(cmd->cmd_lo, master->regs + COMMAND_QUEUE_PORT);
+
+	/* Put pending-read command & data into the command & data queues */
+	cmd = &xfer->cmds[1];
+	cmd->tx_buf = pending_read->data.out;
+	cmd->tx_len = pending_read->len;
+	cmd->cmd_lo = COMMAND_PORT_TID(TID_TARGET_RD_DATA) |
+		      (cmd->tx_len << 16);
+	dw_i3c_master_wr_tx_fifo(master, cmd->tx_buf, cmd->tx_len);
+	writel(cmd->cmd_lo, master->regs + COMMAND_QUEUE_PORT);
+
+	dw_i3c_master_free_xfer(xfer);
+	init_completion(&master->ibi.target.rdata_comp);
+
+	ret = dw_i3c_target_generate_ibi(dev, NULL, 0);
+	if (ret) {
+		pr_warn("timeout waiting for completion: IBI MDB\n");
+		dw_i3c_target_reset_queue(master);
+		return -EINVAL;
+	}
+
+	if (!wait_for_completion_timeout(&master->ibi.target.rdata_comp,
+					 XFER_TIMEOUT)) {
+		pr_warn("timeout waiting for completion: pending read data\n");
+		dw_i3c_target_reset_queue(master);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1852,6 +1917,7 @@ static void dw_i3c_target_handle_response_ready(struct dw_i3c_master *master)
 	for (i = 0; i < nresp; i++) {
 		u32 resp = readl(master->regs + RESPONSE_QUEUE_PORT);
 		u32 nbytes = RESPONSE_PORT_DATA_LEN(resp);
+		u8 tid = RESPONSE_PORT_TID(resp);
 
 		if (nbytes > master->target_rx.max_len) {
 			dev_warn(&master->base.dev, "private write data length is larger than max\n");
@@ -1860,8 +1926,10 @@ static void dw_i3c_target_handle_response_ready(struct dw_i3c_master *master)
 
 		dw_i3c_master_read_rx_fifo(master, master->target_rx.buf, nbytes);
 
-		if (desc->target_info.read_handler)
+		if (tid == TID_TARGET_MASTER_WR_DATA && desc->target_info.read_handler)
 			desc->target_info.read_handler(desc->dev, master->target_rx.buf, nbytes);
+		else if (tid == TID_TARGET_RD_DATA)
+			complete(&master->ibi.target.rdata_comp);
 	}
 }
 

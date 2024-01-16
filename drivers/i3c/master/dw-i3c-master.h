@@ -59,6 +59,7 @@ struct dw_i3c_master {
 		} master;
 		struct {
 			struct completion comp;
+			struct completion rdata_comp;
 		} target;
 	} ibi;
 
