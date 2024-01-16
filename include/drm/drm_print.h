@@ -35,6 +35,8 @@
 
 #include <drm/drm.h>
 
+struct drm_device;
+
 /* Do *not* use outside of drm_print.[ch]! */
 extern unsigned long __drm_debug;
 
@@ -235,16 +237,19 @@ static inline struct drm_printer drm_debug_printer(const char *prefix)
 }
 
 /**
- * drm_err_printer - construct a &drm_printer that outputs to pr_err()
- * @prefix: debug output prefix
+ * drm_err_printer - construct a &drm_printer that outputs to drm_err()
+ * @drm: the &struct drm_device pointer
+ * @prefix: debug output prefix, or NULL for no prefix
  *
  * RETURNS:
  * The &drm_printer object
  */
-static inline struct drm_printer drm_err_printer(const char *prefix)
+static inline struct drm_printer drm_err_printer(struct drm_device *drm,
+						 const char *prefix)
 {
 	struct drm_printer p = {
 		.printfn = __drm_printfn_err,
+		.arg = drm,
 		.prefix = prefix
 	};
 	return p;

@@ -191,7 +191,12 @@ EXPORT_SYMBOL(__drm_printfn_debug);
 
 void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf)
 {
-	pr_err("*ERROR* %s %pV", p->prefix, vaf);
+	struct drm_device *drm = p->arg;
+
+	if (p->prefix)
+		drm_err(drm, "%s %pV", p->prefix, vaf);
+	else
+		drm_err(drm, "%pV", vaf);
 }
 EXPORT_SYMBOL(__drm_printfn_err);
 
