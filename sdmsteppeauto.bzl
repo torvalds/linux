@@ -137,6 +137,7 @@ def define_sdmsteppeauto():
         "drivers/soc/qcom/qcom_hib.ko",
         "drivers/soc/qcom/qcom_ramdump.ko",
         "drivers/soc/qcom/qcom_rpmh.ko",
+        "drivers/soc/qcom/qcom_secure_hibernation.ko",
         "drivers/soc/qcom/qcom_soc_wdt.ko",
         "drivers/soc/qcom/qcom_stats.ko",
         "drivers/soc/qcom/qcom_wdt_core.ko",
