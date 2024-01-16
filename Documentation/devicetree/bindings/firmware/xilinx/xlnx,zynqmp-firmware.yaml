@@ -26,6 +26,12 @@ properties:
       - description: For implementations complying for Versal.
         const: xlnx,versal-firmware
 
+      - description: For implementations complying for Versal NET.
+        items:
+          - enum:
+              - xlnx,versal-net-firmware
+          - const: xlnx,versal-firmware
+
   method:
     description: |
                  The method of calling the PM-API firmware layer.
