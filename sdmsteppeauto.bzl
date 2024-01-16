@@ -68,6 +68,7 @@ def define_sdmsteppeauto():
         "drivers/iommu/iommu-logger.ko",
         "drivers/iommu/msm_dma_iommu_mapping.ko",
         "drivers/iommu/qcom_iommu_util.ko",
+        "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-pdc.ko",
         "drivers/mailbox/msm_qmp.ko",
         "drivers/mailbox/qcom-apcs-ipc-mailbox.ko",
