@@ -4839,9 +4839,9 @@ union bpf_attr {
  * 		going through the CPU's backlog queue.
  *
  * 		The *flags* argument is reserved and must be 0. The helper is
- * 		currently only supported for tc BPF program types at the ingress
- * 		hook and for veth device types. The peer device must reside in a
- * 		different network namespace.
+ * 		currently only supported for tc BPF program types at the
+ * 		ingress hook and for veth and netkit target device types. The
+ * 		peer device must reside in a different network namespace.
  * 	Return
  * 		The helper returns **TC_ACT_REDIRECT** on success or
  * 		**TC_ACT_SHOT** on error.
