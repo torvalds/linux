@@ -155,7 +155,7 @@
 		#interrupt-cells = <1>;
 		reg = <0x100 0x80>, <0x1a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
-		aspeed,global-regs = <&i2c_global>;
+		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc7 0>;
@@ -171,7 +171,7 @@
 		#interrupt-cells = <1>;
 		reg = <0x200 0x80>, <0x2a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
-		aspeed,global-regs = <&i2c_global>;
+		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc7 1>;
@@ -187,7 +187,7 @@
 		#interrupt-cells = <1>;
 		reg = <0x300 0x80>, <0x3a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
-		aspeed,global-regs = <&i2c_global>;
+		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc7 2>;
@@ -203,7 +203,7 @@
 		#interrupt-cells = <1>;
 		reg = <0x400 0x80>, <0x4a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
-		aspeed,global-regs = <&i2c_global>;
+		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc7 3>;
@@ -219,7 +219,7 @@
 		#interrupt-cells = <1>;
 		reg = <0x500 0x80>, <0x5a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
-		aspeed,global-regs = <&i2c_global>;
+		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		clock-frequency = <100000>;
@@ -235,7 +235,7 @@
 		#interrupt-cells = <1>;
 		reg = <0x600 0x80>, <0x6a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
-		aspeed,global-regs = <&i2c_global>;
+		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc7 5>;
