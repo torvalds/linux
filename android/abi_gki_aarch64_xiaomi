@@ -341,3 +341,7 @@
 #required by zram.ko
   bioset_init
   bioset_exit
+
+#required by mi_asap.ko
+  __traceiter_android_vh_read_pages
+  __tracepoint_android_vh_read_pages
