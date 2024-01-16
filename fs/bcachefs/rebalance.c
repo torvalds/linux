@@ -385,7 +385,6 @@ static int bch2_rebalance_thread(void *arg)
 	struct bch_fs *c = arg;
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct moving_context ctxt;
-	int ret;
 
 	set_freezable();
 
@@ -393,8 +392,7 @@ static int bch2_rebalance_thread(void *arg)
 			      writepoint_ptr(&c->rebalance_write_point),
 			      true);
 
-	while (!kthread_should_stop() &&
-	       !(ret = do_rebalance(&ctxt)))
+	while (!kthread_should_stop() && !do_rebalance(&ctxt))
 		;
 
 	bch2_moving_ctxt_exit(&ctxt);
