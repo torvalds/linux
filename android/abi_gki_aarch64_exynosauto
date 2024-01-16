@@ -34,14 +34,8 @@
   clk_disable
   clk_enable
   clk_get
-  __clk_get_hw
   clk_get_rate
-  clk_hw_get_parent
   clk_prepare
-  clk_register
-  clk_register_clkdev
-  clk_register_fixed_factor
-  clk_register_fixed_rate
   clk_set_rate
   clk_unprepare
   cma_alloc
@@ -90,6 +84,7 @@
   _dev_info
   devm_add_action
   devm_clk_get
+  devm_clk_get_optional
   devm_free_irq
   devm_gen_pool_create
   devm_gpiod_get
@@ -177,8 +172,6 @@
   drm_atomic_helper_connector_destroy_state
   drm_atomic_helper_connector_duplicate_state
   drm_atomic_helper_connector_reset
-  __drm_atomic_helper_private_obj_duplicate_state
-  drm_atomic_private_obj_init
   drm_bridge_add
   drm_bridge_remove
   drm_compat_ioctl
@@ -242,7 +235,6 @@
   drm_modeset_unlock
   drm_mode_vrefresh
   drm_object_attach_property
-  drm_object_property_set_value
   drm_open
   drm_poll
   drm_prime_gem_destroy
@@ -252,14 +244,18 @@
   drm_release
   drm_vblank_init
   dump_stack
+  dw_pcie_ep_init
   dw_pcie_host_init
   dw_pcie_own_conf_map_bus
   dw_pcie_read
+  dw_pcie_read_dbi
   dw_pcie_setup_rc
   dw_pcie_write
+  dw_pcie_write_dbi
   enable_irq
   fd_install
   _find_first_bit
+  _find_first_zero_bit
   _find_next_bit
   finish_wait
   flush_delayed_work
@@ -315,7 +311,9 @@
   __init_waitqueue_head
   iomem_resource
   iommu_get_domain_for_dev
+  iommu_map
   iommu_register_device_fault_handler
+  iommu_unmap
   iommu_unregister_device_fault_handler
   ioremap_prot
   iounmap
@@ -403,6 +401,7 @@
   mipi_dsi_device_unregister
   mipi_dsi_driver_register_full
   mipi_dsi_driver_unregister
+  misc_deregister
   misc_register
   mod_timer
   module_layout
@@ -419,13 +418,12 @@
   netdev_warn
   noop_llseek
   nr_cpu_ids
+  nsecs_to_jiffies
   ns_to_timespec64
   __num_online_cpus
   of_address_to_resource
   of_alias_get_id
-  of_clk_add_provider
   of_clk_get
-  of_clk_src_onecell_get
   of_count_phandle_with_args
   of_device_get_match_data
   of_device_is_available
@@ -467,10 +465,15 @@
   oops_in_progress
   panic
   panic_notifier_list
+  param_ops_bool
   param_ops_int
   param_ops_string
   param_ops_uint
   pcie_get_mps
+  pci_epc_mem_alloc_addr
+  pci_epc_mem_free_addr
+  pci_epc_set_bar
+  pci_epc_unmap_addr
   pcie_set_mps
   pci_find_bus
   pci_generic_config_read
@@ -547,6 +550,7 @@
   __register_chrdev
   register_console
   register_pm_notifier
+  register_reboot_notifier
   register_syscore_ops
   regmap_read
   regmap_update_bits_base
@@ -647,6 +651,7 @@
   ttm_bo_mmap_obj
   __udelay
   __unregister_chrdev
+  unregister_pm_notifier
   up
   up_write
   __usecs_to_jiffies
@@ -687,6 +692,7 @@
   vsnprintf
   vunmap
   vzalloc
+  wait_for_completion
   wait_for_completion_interruptible_timeout
   wait_for_completion_timeout
   __wake_up
@@ -712,9 +718,18 @@
   regmap_bulk_write
   regmap_register_patch
 
+# required by clk_exynosauto.ko
+  __clk_get_hw
+  clk_hw_get_parent
+  clk_register
+  clk_register_clkdev
+  clk_register_fixed_factor
+  clk_register_fixed_rate
+  of_clk_add_provider
+  of_clk_src_onecell_get
+
 # required by cmupmucal.ko
   debugfs_create_x32
-  of_find_node_by_type
 
 # required by dmatest.ko
   __dma_request_channel
@@ -726,7 +741,6 @@
   mempool_free_slab
   param_get_bool
   param_get_string
-  param_ops_bool
   param_set_bool
   param_set_copystring
   set_freezable
@@ -741,7 +755,9 @@
   drm_atomic_get_new_private_obj_state
   drm_atomic_get_old_private_obj_state
   drm_atomic_get_private_obj_state
+  __drm_atomic_helper_private_obj_duplicate_state
   drm_atomic_private_obj_fini
+  drm_atomic_private_obj_init
   drm_crtc_commit_wait
   drm_crtc_wait_one_vblank
   __drm_debug
@@ -750,6 +766,7 @@
   drm_edid_duplicate
   drm_edid_get_monitor_name
   drm_modeset_lock_single_interruptible
+  drm_object_property_set_value
   __drm_printfn_debug
   memchr_inv
   __sw_hweight8
@@ -848,7 +865,6 @@
   typec_set_pwr_role
   typec_unregister_partner
   typec_unregister_port
-  unregister_pm_notifier
   usb_gadget_set_state
   usb_otg_state_string
   wakeup_source_register
@@ -945,7 +961,6 @@
   drm_atomic_helper_update_plane
   drm_atomic_helper_wait_for_vblanks
   drm_bridge_attach
-  drm_connector_set_path_property
   drm_crtc_arm_vblank_event
   drm_crtc_handle_vblank
   drm_crtc_init_with_planes
@@ -963,7 +978,6 @@
   drm_gem_vm_open
   drm_get_connector_status_name
   drm_get_format_info
-  drm_helper_probe_detect
   drm_mode_config_helper_resume
   drm_mode_config_helper_suspend
   drm_mode_config_reset
@@ -982,7 +996,6 @@
   drm_plane_create_zpos_immutable_property
   drm_plane_create_zpos_property
   __drm_printfn_info
-  drm_property_blob_put
   drm_property_create
   drm_property_create_blob
   drm_rotation_simplify
@@ -991,6 +1004,7 @@
   drm_writeback_connector_init
   drm_writeback_queue_job
   drm_writeback_signal_completion
+  flush_signals
   gpiod_to_irq
   mipi_dsi_host_register
   mipi_dsi_host_unregister
@@ -998,7 +1012,6 @@
   of_drm_find_panel
   of_find_i2c_device_by_node
   of_graph_get_endpoint_by_regs
-  of_graph_get_endpoint_count
   of_graph_get_next_endpoint
   of_graph_get_port_by_id
   of_graph_get_remote_port
@@ -1010,15 +1023,16 @@
   platform_find_device_by_driver
   seq_hex_dump
   seq_release
+  strnstr
   synchronize_irq
   vmalloc_to_page
 
 # required by exynos_mfc.ko
   clk_put
+  dma_buf_begin_cpu_access_partial
+  dma_buf_end_cpu_access_partial
   hex_dump_to_buffer
-  iommu_map
   iommu_map_sg
-  iommu_unmap
   __sw_hweight64
   _totalram_pages
 
@@ -1056,10 +1070,12 @@
   strncasecmp
   thermal_cdev_update
 
+# required by exyswd-rng.ko
+  devm_hwrng_register
+
 # required by gpu-sched.ko
   mod_delayed_work_on
   sched_set_fifo_low
-  wait_for_completion
   __xa_alloc
   xa_destroy
   xa_erase
@@ -1112,6 +1128,9 @@
 
 # required by panic-fingerprint.ko
   stack_trace_save
+
+# required by pcie-exynos-dw-ep.ko
+  pci_epc_map_addr
 
 # required by pcs_xpcs.ko
   mdiobus_modify_changed
@@ -1198,6 +1217,12 @@
   __devm_irq_alloc_descs
   handle_nested_irq
 
+# required by s3c2410_wdt.ko
+  watchdog_init_timeout
+  watchdog_register_device
+  watchdog_set_restart_priority
+  watchdog_unregister_device
+
 # required by sam-is.ko
   down
   down_trylock
@@ -1206,9 +1231,9 @@
   kernel_neon_end
   kobject_del
   kthread_flush_worker
+  pfn_is_map_memory
   pm_relax
   pm_stay_awake
-  register_reboot_notifier
   regulator_get_optional
   regulator_get_voltage
   regulator_is_enabled
@@ -1246,7 +1271,6 @@
   dma_heap_get_name
   is_dma_buf_file
   iterate_fd
-  misc_deregister
   remap_pfn_range
   __sg_page_iter_next
   __sg_page_iter_start
@@ -1393,7 +1417,6 @@
   drm_syncobj_get_handle
   drm_syncobj_replace_fence
   __fdget
-  _find_first_zero_bit
   __folio_put
   __get_task_comm
   handle_simple_irq
@@ -1415,7 +1438,6 @@
   memremap
   memunmap
   mmu_notifier_synchronize
-  nsecs_to_jiffies
   page_pinner_inited
   __page_pinner_put_page
   param_ops_charp
@@ -1579,7 +1601,6 @@
   stream_open
 
 # required by stmmac-platform.ko
-  devm_clk_get_optional
   of_get_mac_address
   of_phy_is_fixed_link
 
@@ -1754,9 +1775,9 @@
   current_work
   default_wake_function
   dma_buf_fd
-  dw_pcie_ep_init
-  dw_pcie_read_dbi
-  dw_pcie_write_dbi
+  drm_connector_set_path_property
+  drm_helper_probe_detect
+  drm_property_blob_put
   irq_create_of_mapping
   irq_dispose_mapping
   irq_find_matching_fwspec
@@ -1769,21 +1790,17 @@
   kthread_complete_and_exit
   nonseekable_open
   of_clk_del_provider
+  of_find_node_by_type
+  of_graph_get_endpoint_count
   of_irq_find_parent
   pci_disable_device
   pci_disable_msi
   pci_enable_device
-  pci_epc_map_addr
-  pci_epc_mem_alloc_addr
-  pci_epc_mem_free_addr
-  pci_epc_set_bar
-  pci_epc_unmap_addr
   pci_ioremap_wc_bar
   pci_num_vf
   __pci_register_driver
   pci_request_regions
   pci_unregister_driver
-  pfn_is_map_memory
   __platform_driver_probe
   pm_power_off
   proc_create_data
@@ -1792,12 +1809,9 @@
   remove_proc_entry
   remove_wait_queue
   sigprocmask
-  strnstr
   sysfs_create_bin_file
   sysfs_remove_bin_file
   __task_pid_nr_ns
   thermal_of_zone_register
   thermal_of_zone_unregister
   vprintk
-  watchdog_register_device
-  watchdog_unregister_device
