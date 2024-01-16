@@ -340,14 +340,14 @@ static const struct xe_device_desc lnl_desc = {
 __diag_pop();
 
 /* Map of GMD_ID values to graphics IP */
-static struct gmdid_map graphics_ip_map[] = {
+static const struct gmdid_map graphics_ip_map[] = {
 	{ 1270, &graphics_xelpg },
 	{ 1271, &graphics_xelpg },
 	{ 2004, &graphics_xe2 },
 };
 
 /* Map of GMD_ID values to media IP */
-static struct gmdid_map media_ip_map[] = {
+static const struct gmdid_map media_ip_map[] = {
 	{ 1300, &media_xelpmp },
 	{ 2000, &media_xe2 },
 };
