@@ -469,6 +469,7 @@ properties:
               - prt,prtvt7                # Protonic VT7 board
               - rex,imx6dl-rex-basic      # Rex Basic i.MX6 Dual Lite Board
               - riot,imx6s-riotboard      # RIoTboard i.MX6S
+              - sielaff,imx6dl-board      # Sielaff i.MX6 Solo Board
               - skov,imx6dl-skov-revc-lt2 # SKOV IMX6 CPU SoloCore lt2
               - skov,imx6dl-skov-revc-lt6 # SKOV IMX6 CPU SoloCore lt6
               - solidrun,cubox-i/dl            # SolidRun Cubox-i Solo/DualLite
