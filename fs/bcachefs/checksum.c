@@ -558,7 +558,7 @@ got_key:
 	return 0;
 }
 
-#include "../crypto.h"
+#include "crypto.h"
 #endif
 
 int bch2_request_key(struct bch_sb *sb, struct bch_key *key)
