@@ -1893,8 +1893,16 @@ static const struct qmi_elem_info qmi_wlanfw_fw_ready_ind_msg_v01_ei[] = {
 	},
 };
 
-static void ath12k_host_cap_parse_mlo(struct qmi_wlanfw_host_cap_req_msg_v01 *req)
+static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
+				      struct qmi_wlanfw_host_cap_req_msg_v01 *req)
 {
+	struct wlfw_host_mlo_chip_info_s_v01 *info;
+	u8 hw_link_id = 0;
+	int i;
+
+	if (!ab->hw_params->def_num_link)
+		return;
+
 	req->mlo_capable_valid = 1;
 	req->mlo_capable = 1;
 	req->mlo_chip_id_valid = 1;
@@ -1905,16 +1913,22 @@ static void ath12k_host_cap_parse_mlo(struct qmi_wlanfw_host_cap_req_msg_v01 *re
 	/* Max peer number generally won't change for the same device
 	 * but needs to be synced with host driver.
 	 */
-	req->max_mlo_peer = 32;
+	req->max_mlo_peer = ab->hw_params->max_mlo_peer;
 	req->mlo_num_chips_valid = 1;
 	req->mlo_num_chips = 1;
+
+	info = &req->mlo_chip_info[0];
+	info->chip_id = 0;
+	info->num_local_links = ab->hw_params->def_num_link;
+
+	for (i = 0; i < info->num_local_links; i++) {
+		info->hw_link_id[i] = hw_link_id;
+		info->valid_mlo_link_id[i] = 1;
+
+		hw_link_id++;
+	}
+
 	req->mlo_chip_info_valid = 1;
-	req->mlo_chip_info[0].chip_id = 0;
-	req->mlo_chip_info[0].num_local_links = 2;
-	req->mlo_chip_info[0].hw_link_id[0] = 0;
-	req->mlo_chip_info[0].hw_link_id[1] = 1;
-	req->mlo_chip_info[0].valid_mlo_link_id[0] = 1;
-	req->mlo_chip_info[0].valid_mlo_link_id[1] = 1;
 }
 
 static int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
@@ -1960,9 +1974,9 @@ static int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
 		 */
 		req.nm_modem |= SLEEP_CLOCK_SELECT_INTERNAL_BIT;
 		req.nm_modem |= PLATFORM_CAP_PCIE_GLOBAL_RESET;
-
-		ath12k_host_cap_parse_mlo(&req);
 	}
+
+	ath12k_host_cap_parse_mlo(ab, &req);
 
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
 			   qmi_wlanfw_host_cap_resp_msg_v01_ei, &resp);

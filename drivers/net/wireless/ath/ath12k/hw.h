@@ -192,6 +192,9 @@ struct ath12k_hw_params {
 	u32 rfkill_on_level;
 
 	u32 rddm_size;
+
+	u8 def_num_link;
+	u16 max_mlo_peer;
 };
 
 struct ath12k_hw_ops {
