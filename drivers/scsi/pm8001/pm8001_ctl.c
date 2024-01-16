@@ -880,9 +880,9 @@ static ssize_t pm8001_show_update_fw(struct device *cdev,
 	if (pm8001_ha->fw_status != FLASH_IN_PROGRESS)
 		pm8001_ha->fw_status = FLASH_OK;
 
-	return snprintf(buf, PAGE_SIZE, "status=%x %s\n",
-			flash_error_table[i].err_code,
-			flash_error_table[i].reason);
+	return sysfs_emit(buf, "status=%x %s\n",
+			  flash_error_table[i].err_code,
+			  flash_error_table[i].reason);
 }
 static DEVICE_ATTR(update_fw, S_IRUGO|S_IWUSR|S_IWGRP,
 	pm8001_show_update_fw, pm8001_store_update_fw);
