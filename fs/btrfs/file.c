@@ -3004,7 +3004,7 @@ reserve_space:
 		}
 		ret = btrfs_prealloc_file_range(inode, mode, alloc_start,
 						alloc_end - alloc_start,
-						i_blocksize(inode),
+						fs_info->sectorsize,
 						offset + len, &alloc_hint);
 		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
 			      &cached_state);
@@ -3176,7 +3176,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 		if (!ret) {
 			ret = btrfs_prealloc_file_range(inode, mode,
 					range->start,
-					range->len, i_blocksize(inode),
+					range->len, blocksize,
 					offset + len, &alloc_hint);
 			/*
 			 * btrfs_prealloc_file_range() releases space even
