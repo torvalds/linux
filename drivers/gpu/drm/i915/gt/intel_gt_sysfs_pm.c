@@ -182,7 +182,7 @@ static ssize_t rc6_enable_show(struct kobject *kobj,
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
 
-	return sysfs_emit(buff, "%x\n", gt->rc6.supported);
+	return sysfs_emit(buff, "%x\n", gt->rc6.enabled);
 }
 
 static ssize_t rc6_enable_dev_show(struct device *dev,
@@ -191,7 +191,7 @@ static ssize_t rc6_enable_dev_show(struct device *dev,
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(&dev->kobj, attr->attr.name);
 
-	return sysfs_emit(buff, "%x\n", gt->rc6.supported);
+	return sysfs_emit(buff, "%x\n", gt->rc6.enabled);
 }
 
 static u32 __rc6_residency_ms_show(struct intel_gt *gt)
