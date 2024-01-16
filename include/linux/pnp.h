@@ -435,7 +435,7 @@ struct pnp_protocol {
 #define protocol_for_each_dev(protocol, dev)	\
 	list_for_each_entry(dev, &(protocol)->devices, protocol_list)
 
-extern struct bus_type pnp_bus_type;
+extern const struct bus_type pnp_bus_type;
 
 #if defined(CONFIG_PNP)
 
