@@ -22,6 +22,31 @@ static void hexdump(char *name, unsigned char *buf, unsigned int len)
 #endif
 }
 
+static int aspeed_rsa_self_test(struct aspeed_rsss_dev *rsss_dev)
+{
+	struct aspeed_engine_rsa *rsa_engine;
+	u32 pattern = 0xbeef;
+	u32 val;
+
+	rsa_engine = &rsss_dev->rsa_engine;
+
+	/* Set SRAM access control - CPU */
+	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_CTRL);
+	ast_rsss_write(rsss_dev, val | SRAM_AHB_MODE_CPU, ASPEED_RSSS_CTRL);
+
+	writel(pattern, rsa_engine->sram_exp);
+	val = readl(rsa_engine->sram_exp);
+	if (val != pattern)
+		return -EIO;
+
+	writel(0x0, rsa_engine->sram_exp);
+	val = readl(rsa_engine->sram_exp);
+	if (val)
+		return -EIO;
+
+	return 0;
+}
+
 static inline struct akcipher_request *
 	akcipher_request_cast(struct crypto_async_request *req)
 {
@@ -565,6 +590,11 @@ int aspeed_rsss_rsa_init(struct aspeed_rsss_dev *rsss_dev)
 
 	/* Set SRAM for RSA operation */
 	ast_rsss_write(rsss_dev, RSA_OPERATION, ASPEED_RSSS_CTRL);
+
+	/* Self-test */
+	rc = aspeed_rsa_self_test(rsss_dev);
+	if (rc)
+		goto err_engine_rsa_start;
 
 	/* Enable RSA interrupt */
 	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_INT_EN);

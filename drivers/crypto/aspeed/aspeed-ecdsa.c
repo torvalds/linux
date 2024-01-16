@@ -28,6 +28,23 @@
 
 //#define ASPEED_ECDSA_IRQ_MODE
 
+static int aspeed_ecdsa_self_test(struct aspeed_ecdsa_dev *ecdsa_dev)
+{
+	u32 val;
+
+	ast_write(ecdsa_dev, ECC_EN, ASPEED_ECC_CTRL_REG);
+	val = ast_read(ecdsa_dev, ASPEED_ECC_CTRL_REG);
+	if (val != ECC_EN)
+		return -EIO;
+
+	ast_write(ecdsa_dev, 0x0, ASPEED_ECC_CTRL_REG);
+	val = ast_read(ecdsa_dev, ASPEED_ECC_CTRL_REG);
+	if (val)
+		return -EIO;
+
+	return 0;
+}
+
 static inline struct akcipher_request *
 	akcipher_request_cast(struct crypto_async_request *req)
 {
@@ -689,6 +706,11 @@ static int aspeed_ecdsa_probe(struct platform_device *pdev)
 
 	tasklet_init(&ecdsa_engine->done_task, aspeed_ecdsa_done_task,
 		     (unsigned long)ecdsa_dev);
+
+	/* Self-test */
+	rc = aspeed_ecdsa_self_test(ecdsa_dev);
+	if (rc)
+		goto err_engine_ecdsa_start;
 
 	rc = aspeed_ecdsa_register(ecdsa_dev);
 	if (rc) {
