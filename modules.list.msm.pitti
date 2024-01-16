@@ -62,6 +62,7 @@ phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 phy-qcom-ufs-qmp-v4-waipio.ko
 sdhci-msm-scaling.ko
+crypto-qti.ko
 ufs_qcom.ko
 dispcc-pitti.ko
 qcom-cpufreq-hw.ko
