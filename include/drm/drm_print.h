@@ -70,6 +70,101 @@ extern unsigned long __drm_debug;
  */
 
 /**
+ * enum drm_debug_category - The DRM debug categories
+ *
+ * Each of the DRM debug logging macros use a specific category, and the logging
+ * is filtered by the drm.debug module parameter. This enum specifies the values
+ * for the interface.
+ *
+ * Each DRM_DEBUG_<CATEGORY> macro logs to DRM_UT_<CATEGORY> category, except
+ * DRM_DEBUG() logs to DRM_UT_CORE.
+ *
+ * Enabling verbose debug messages is done through the drm.debug parameter, each
+ * category being enabled by a bit:
+ *
+ *  - drm.debug=0x1 will enable CORE messages
+ *  - drm.debug=0x2 will enable DRIVER messages
+ *  - drm.debug=0x3 will enable CORE and DRIVER messages
+ *  - ...
+ *  - drm.debug=0x1ff will enable all messages
+ *
+ * An interesting feature is that it's possible to enable verbose logging at
+ * run-time by echoing the debug value in its sysfs node::
+ *
+ *   # echo 0xf > /sys/module/drm/parameters/debug
+ *
+ */
+enum drm_debug_category {
+	/* These names must match those in DYNAMIC_DEBUG_CLASSBITS */
+	/**
+	 * @DRM_UT_CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c,
+	 * drm_memory.c, ...
+	 */
+	DRM_UT_CORE,
+	/**
+	 * @DRM_UT_DRIVER: Used in the vendor specific part of the driver: i915,
+	 * radeon, ... macro.
+	 */
+	DRM_UT_DRIVER,
+	/**
+	 * @DRM_UT_KMS: Used in the modesetting code.
+	 */
+	DRM_UT_KMS,
+	/**
+	 * @DRM_UT_PRIME: Used in the prime code.
+	 */
+	DRM_UT_PRIME,
+	/**
+	 * @DRM_UT_ATOMIC: Used in the atomic code.
+	 */
+	DRM_UT_ATOMIC,
+	/**
+	 * @DRM_UT_VBL: Used for verbose debug message in the vblank code.
+	 */
+	DRM_UT_VBL,
+	/**
+	 * @DRM_UT_STATE: Used for verbose atomic state debugging.
+	 */
+	DRM_UT_STATE,
+	/**
+	 * @DRM_UT_LEASE: Used in the lease code.
+	 */
+	DRM_UT_LEASE,
+	/**
+	 * @DRM_UT_DP: Used in the DP code.
+	 */
+	DRM_UT_DP,
+	/**
+	 * @DRM_UT_DRMRES: Used in the drm managed resources code.
+	 */
+	DRM_UT_DRMRES
+};
+
+static inline bool drm_debug_enabled_raw(enum drm_debug_category category)
+{
+	return unlikely(__drm_debug & BIT(category));
+}
+
+#define drm_debug_enabled_instrumented(category)			\
+	({								\
+		pr_debug("todo: is this frequent enough to optimize ?\n"); \
+		drm_debug_enabled_raw(category);			\
+	})
+
+#if defined(CONFIG_DRM_USE_DYNAMIC_DEBUG)
+/*
+ * the drm.debug API uses dyndbg, so each drm_*dbg macro/callsite gets
+ * a descriptor, and only enabled callsites are reachable.  They use
+ * the private macro to avoid re-testing the enable-bit.
+ */
+#define __drm_debug_enabled(category)	true
+#define drm_debug_enabled(category)	drm_debug_enabled_instrumented(category)
+#else
+#define __drm_debug_enabled(category)	drm_debug_enabled_raw(category)
+#define drm_debug_enabled(category)	drm_debug_enabled_raw(category)
+#endif
+
+/**
  * struct drm_printer - drm output "stream"
  *
  * Do not use struct members directly.  Use drm_printer_seq_file(),
@@ -254,101 +349,6 @@ static inline struct drm_printer drm_err_printer(struct drm_device *drm,
 	};
 	return p;
 }
-
-/**
- * enum drm_debug_category - The DRM debug categories
- *
- * Each of the DRM debug logging macros use a specific category, and the logging
- * is filtered by the drm.debug module parameter. This enum specifies the values
- * for the interface.
- *
- * Each DRM_DEBUG_<CATEGORY> macro logs to DRM_UT_<CATEGORY> category, except
- * DRM_DEBUG() logs to DRM_UT_CORE.
- *
- * Enabling verbose debug messages is done through the drm.debug parameter, each
- * category being enabled by a bit:
- *
- *  - drm.debug=0x1 will enable CORE messages
- *  - drm.debug=0x2 will enable DRIVER messages
- *  - drm.debug=0x3 will enable CORE and DRIVER messages
- *  - ...
- *  - drm.debug=0x1ff will enable all messages
- *
- * An interesting feature is that it's possible to enable verbose logging at
- * run-time by echoing the debug value in its sysfs node::
- *
- *   # echo 0xf > /sys/module/drm/parameters/debug
- *
- */
-enum drm_debug_category {
-	/* These names must match those in DYNAMIC_DEBUG_CLASSBITS */
-	/**
-	 * @DRM_UT_CORE: Used in the generic drm code: drm_ioctl.c, drm_mm.c,
-	 * drm_memory.c, ...
-	 */
-	DRM_UT_CORE,
-	/**
-	 * @DRM_UT_DRIVER: Used in the vendor specific part of the driver: i915,
-	 * radeon, ... macro.
-	 */
-	DRM_UT_DRIVER,
-	/**
-	 * @DRM_UT_KMS: Used in the modesetting code.
-	 */
-	DRM_UT_KMS,
-	/**
-	 * @DRM_UT_PRIME: Used in the prime code.
-	 */
-	DRM_UT_PRIME,
-	/**
-	 * @DRM_UT_ATOMIC: Used in the atomic code.
-	 */
-	DRM_UT_ATOMIC,
-	/**
-	 * @DRM_UT_VBL: Used for verbose debug message in the vblank code.
-	 */
-	DRM_UT_VBL,
-	/**
-	 * @DRM_UT_STATE: Used for verbose atomic state debugging.
-	 */
-	DRM_UT_STATE,
-	/**
-	 * @DRM_UT_LEASE: Used in the lease code.
-	 */
-	DRM_UT_LEASE,
-	/**
-	 * @DRM_UT_DP: Used in the DP code.
-	 */
-	DRM_UT_DP,
-	/**
-	 * @DRM_UT_DRMRES: Used in the drm managed resources code.
-	 */
-	DRM_UT_DRMRES
-};
-
-static inline bool drm_debug_enabled_raw(enum drm_debug_category category)
-{
-	return unlikely(__drm_debug & BIT(category));
-}
-
-#define drm_debug_enabled_instrumented(category)			\
-	({								\
-		pr_debug("todo: is this frequent enough to optimize ?\n"); \
-		drm_debug_enabled_raw(category);			\
-	})
-
-#if defined(CONFIG_DRM_USE_DYNAMIC_DEBUG)
-/*
- * the drm.debug API uses dyndbg, so each drm_*dbg macro/callsite gets
- * a descriptor, and only enabled callsites are reachable.  They use
- * the private macro to avoid re-testing the enable-bit.
- */
-#define __drm_debug_enabled(category)	true
-#define drm_debug_enabled(category)	drm_debug_enabled_instrumented(category)
-#else
-#define __drm_debug_enabled(category)	drm_debug_enabled_raw(category)
-#define drm_debug_enabled(category)	drm_debug_enabled_raw(category)
-#endif
 
 /*
  * struct device based logging
