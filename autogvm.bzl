@@ -46,6 +46,7 @@ def define_autogvm():
         "drivers/pci/controller/pci-msm-drv.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-lahaina.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-waipio.ko",
         "drivers/pinctrl/qcom/pinctrl-direwolf.ko",
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
