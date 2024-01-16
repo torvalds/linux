@@ -4652,7 +4652,10 @@ static int init_rescuer(struct workqueue_struct *wq)
 	}
 
 	wq->rescuer = rescuer;
-	kthread_bind_mask(rescuer->task, cpu_possible_mask);
+	if (wq->flags & WQ_UNBOUND)
+		kthread_bind_mask(rescuer->task, wq->unbound_attrs->cpumask);
+	else
+		kthread_bind_mask(rescuer->task, cpu_possible_mask);
 	wake_up_process(rescuer->task);
 
 	return 0;
