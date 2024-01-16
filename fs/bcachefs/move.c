@@ -58,7 +58,7 @@ static void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c
 
 	prt_str(out, "compression: ");
 	prt_tab(out);
-	bch2_compression_opt_to_text(out, io_opts->background_compression ?: io_opts->compression);
+	bch2_compression_opt_to_text(out, background_compression(*io_opts));
 	prt_newline(out);
 
 	prt_str(out, "extra replicas: ");

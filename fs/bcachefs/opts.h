@@ -564,6 +564,11 @@ struct bch_io_opts {
 #undef x
 };
 
+static inline unsigned background_compression(struct bch_io_opts opts)
+{
+	return opts.background_compression ?: opts.compression;
+}
+
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);
 

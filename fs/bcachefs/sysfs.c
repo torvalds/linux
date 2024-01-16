@@ -726,8 +726,10 @@ STORE(bch2_fs_opts_dir)
 	bch2_opt_set_sb(c, opt, v);
 	bch2_opt_set_by_id(&c->opts, id, v);
 
-	if ((id == Opt_background_target ||
-	     id == Opt_background_compression) && v)
+	if (v &&
+	    (id == Opt_background_target ||
+	     id == Opt_background_compression ||
+	     (id == Opt_compression && !c->opts.background_compression)))
 		bch2_set_rebalance_needs_scan(c, 0);
 
 	ret = size;

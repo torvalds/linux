@@ -545,9 +545,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 				min(src_k.k->p.offset - src_want.offset,
 				    dst_end.offset - dst_iter.pos.offset));
 
-		ret =   bch2_bkey_set_needs_rebalance(c, new_dst.k,
-					opts.background_target,
-					opts.background_compression) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, new_dst.k, &opts) ?:
 			bch2_extent_update(trans, dst_inum, &dst_iter,
 					new_dst.k, &disk_res,
 					new_i_size, i_sectors_delta,

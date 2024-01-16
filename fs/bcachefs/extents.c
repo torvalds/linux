@@ -1335,10 +1335,12 @@ bool bch2_bkey_needs_rebalance(struct bch_fs *c, struct bkey_s_c k)
 }
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
-				  unsigned target, unsigned compression)
+				  struct bch_io_opts *opts)
 {
 	struct bkey_s k = bkey_i_to_s(_k);
 	struct bch_extent_rebalance *r;
+	unsigned target = opts->background_target;
+	unsigned compression = background_compression(*opts);
 	bool needs_rebalance;
 
 	if (!bkey_extent_is_direct_data(k.k))
