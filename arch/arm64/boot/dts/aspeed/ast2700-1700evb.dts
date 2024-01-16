@@ -107,3 +107,115 @@
 		spi-rx-bus-width = <2>;
 	};
 };
+
+&i3c0 {
+	status = "disabled";
+};
+
+&i3c1 {
+	status = "disabled";
+};
+
+&i3c2 {
+	status = "disabled";
+};
+
+&i3c3 {
+	status = "disabled";
+};
+
+&i3c4 {
+	status = "disabled";
+};
+
+&i3c5 {
+	status = "disabled";
+};
+
+&i3c6 {
+	status = "disabled";
+};
+
+&i3c7 {
+	status = "disabled";
+};
+
+&i3c8 {
+	status = "disabled";
+};
+
+&i3c9 {
+	status = "disabled";
+};
+
+&i3c10 {
+	status = "disabled";
+};
+
+&i3c11 {
+	status = "disabled";
+};
+
+&i3c12 {
+	status = "disabled";
+};
+
+&i3c13 {
+	status = "disabled";
+};
+
+&i3c14 {
+	status = "disabled";
+};
+
+&i3c15 {
+	status = "disabled";
+};
+
+&ltpi0_i3c4 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c5 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&ltpi0_i3c6 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c7 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&ltpi0_i3c8 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c9 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&ltpi0_i3c10 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c11 {
+	initial-role = "primary";
+	status = "okay";
+};
