@@ -415,6 +415,7 @@ void dcn35_init_clocks(struct clk_mgr *clk_mgr)
 	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
 
 	// Assumption is that boot state always supports pstate
+	clk_mgr->clks.dtbclk_en = true;
 	clk_mgr->clks.ref_dtbclk_khz = ref_dtbclk;	// restore ref_dtbclk
 	clk_mgr->clks.p_state_change_support = true;
 	clk_mgr->clks.prev_p_state_change_support = true;
