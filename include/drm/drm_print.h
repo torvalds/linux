@@ -184,7 +184,6 @@ void __drm_puts_coredump(struct drm_printer *p, const char *str);
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
-void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf);
 
@@ -313,22 +312,6 @@ static inline struct drm_printer drm_info_printer(struct device *dev)
 	struct drm_printer p = {
 		.printfn = __drm_printfn_info,
 		.arg = dev,
-	};
-	return p;
-}
-
-/**
- * drm_debug_printer - construct a &drm_printer that outputs to pr_debug()
- * @prefix: debug output prefix
- *
- * RETURNS:
- * The &drm_printer object
- */
-static inline struct drm_printer drm_debug_printer(const char *prefix)
-{
-	struct drm_printer p = {
-		.printfn = __drm_printfn_debug,
-		.prefix = prefix
 	};
 	return p;
 }

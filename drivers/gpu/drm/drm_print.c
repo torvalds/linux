@@ -182,13 +182,6 @@ void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf)
 }
 EXPORT_SYMBOL(__drm_printfn_info);
 
-void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf)
-{
-	/* pr_debug callsite decorations are unhelpful here */
-	printk(KERN_DEBUG "%s %pV", p->prefix, vaf);
-}
-EXPORT_SYMBOL(__drm_printfn_debug);
-
 void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf)
 {
 	const struct drm_device *drm = p->arg;
