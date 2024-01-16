@@ -370,17 +370,17 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 static int add_extent_mapping(struct extent_map_tree *tree,
 			      struct extent_map *em, int modified)
 {
-	int ret = 0;
+	int ret;
 
 	lockdep_assert_held_write(&tree->lock);
 
 	ret = tree_insert(&tree->map, em);
 	if (ret)
-		goto out;
+		return ret;
 
 	setup_extent_mapping(tree, em, modified);
-out:
-	return ret;
+
+	return 0;
 }
 
 static struct extent_map *
