@@ -3184,7 +3184,6 @@ int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent)
 		btrfs_abort_transaction(trans, ret);
 		goto out;
 	}
-	ret = 0;
 out:
 	clear_extent_bit(&inode->io_tree, start, end, clear_bits,
 			 &cached_state);
