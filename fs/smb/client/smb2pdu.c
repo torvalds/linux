@@ -3918,7 +3918,7 @@ void smb2_reconnect_server(struct work_struct *work)
 	struct cifs_ses *ses, *ses2;
 	struct cifs_tcon *tcon, *tcon2;
 	struct list_head tmp_list, tmp_ses_list;
-	bool tcon_exist = false, ses_exist = false;
+	bool ses_exist = false;
 	bool tcon_selected = false;
 	int rc;
 	bool resched = false;
@@ -3964,7 +3964,7 @@ void smb2_reconnect_server(struct work_struct *work)
 			if (tcon->need_reconnect || tcon->need_reopen_files) {
 				tcon->tc_count++;
 				list_add_tail(&tcon->rlist, &tmp_list);
-				tcon_selected = tcon_exist = true;
+				tcon_selected = true;
 			}
 		}
 		/*
@@ -3973,7 +3973,7 @@ void smb2_reconnect_server(struct work_struct *work)
 		 */
 		if (ses->tcon_ipc && ses->tcon_ipc->need_reconnect) {
 			list_add_tail(&ses->tcon_ipc->rlist, &tmp_list);
-			tcon_selected = tcon_exist = true;
+			tcon_selected = true;
 			cifs_smb_ses_inc_refcount(ses);
 		}
 		/*
