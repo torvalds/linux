@@ -528,7 +528,7 @@ TRACE_EVENT(btree_path_relock_fail,
 		__entry->level			= path->level;
 		TRACE_BPOS_assign(pos, path->pos);
 
-		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level),
+		c = bch2_btree_node_lock_counts(trans, NULL, &path->l[level].b->c, level);
 		__entry->self_read_count	= c.n[SIX_LOCK_read];
 		__entry->self_intent_count	= c.n[SIX_LOCK_intent];
 
@@ -1120,8 +1120,6 @@ DEFINE_EVENT(transaction_restart_iter,	trans_restart_btree_node_split,
 	TP_ARGS(trans, caller_ip, path)
 );
 
-struct get_locks_fail;
-
 TRACE_EVENT(trans_restart_upgrade,
 	TP_PROTO(struct btree_trans *trans,
 		 unsigned long caller_ip,
@@ -1169,11 +1167,9 @@ TRACE_EVENT(trans_restart_upgrade,
 		  __entry->node_seq)
 );
 
-DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock,
-	TP_PROTO(struct btree_trans *trans,
-		 unsigned long caller_ip,
-		 struct btree_path *path),
-	TP_ARGS(trans, caller_ip, path)
+DEFINE_EVENT(trans_str,	trans_restart_relock,
+	TP_PROTO(struct btree_trans *trans, unsigned long caller_ip, const char *str),
+	TP_ARGS(trans, caller_ip, str)
 );
 
 DEFINE_EVENT(transaction_restart_iter,	trans_restart_relock_next_node,
