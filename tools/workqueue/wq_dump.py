@@ -175,3 +175,32 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
     if wq.flags & WQ_UNBOUND:
         print(f' {wq.dfl_pwq.pool.id.value_():{max_pool_id_len}}', end='')
     print('')
+
+print('')
+print('Workqueue -> rescuer')
+print('=====================')
+print(f'wq_unbound_cpumask={cpumask_str(wq_unbound_cpumask)}')
+print('')
+print('[    workqueue     \     type            unbound_cpumask     rescuer                  pid   cpumask]')
+
+for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
+    print(f'{wq.name.string_().decode()[-24:]:24}', end='')
+    if wq.flags & WQ_UNBOUND:
+        if wq.flags & WQ_ORDERED:
+            print(' ordered   ', end='')
+        else:
+            print(' unbound', end='')
+            if wq.unbound_attrs.affn_strict:
+                print(',S ', end='')
+            else:
+                print('   ', end='')
+        print(f' {cpumask_str(wq.unbound_attrs.cpumask):24}', end='')
+    else:
+        print(' percpu    ', end='')
+        print('                         ', end='')
+
+    if wq.flags & WQ_MEM_RECLAIM:
+        print(f' {wq.rescuer.task.comm.string_().decode()[-24:]:24}', end='')
+        print(f' {wq.rescuer.task.pid.value_():5}', end='')
+        print(f' {cpumask_str(wq.rescuer.task.cpus_ptr)}', end='')
+    print('')
