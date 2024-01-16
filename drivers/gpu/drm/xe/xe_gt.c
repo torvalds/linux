@@ -327,7 +327,7 @@ static void dump_pat_on_error(struct xe_gt *gt)
 	char prefix[32];
 
 	snprintf(prefix, sizeof(prefix), "[GT%u Error]", gt->info.id);
-	p = drm_debug_printer(prefix);
+	p = drm_dbg_printer(&gt_to_xe(gt)->drm, DRM_UT_DRIVER, prefix);
 
 	xe_pat_dump(gt, &p);
 }
