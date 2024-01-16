@@ -2095,6 +2095,7 @@ struct rtl8xxxu_fileops rtl8192fu_fops = {
 	.max_aggr_num = 0x1f1f,
 	.supports_ap = 1,
 	.max_macid_num = 128,
+	.max_sec_cam_num = 64,
 	.trxff_boundary = 0x3f3f,
 	.pbp_rx = PBP_PAGE_SIZE_256,
 	.pbp_tx = PBP_PAGE_SIZE_256,
