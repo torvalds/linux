@@ -529,8 +529,10 @@ static inline u64 blk_time_get_ns(void)
 	 * a valid timestamp" separately, just accept that we'll do an extra
 	 * ktime_get_ns() if we just happen to get 0 as the current time.
 	 */
-	if (!plug->cur_ktime)
+	if (!plug->cur_ktime) {
 		plug->cur_ktime = ktime_get_ns();
+		current->flags |= PF_BLOCK_TS;
+	}
 	return plug->cur_ktime;
 }
 

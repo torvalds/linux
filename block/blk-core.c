@@ -1183,6 +1183,8 @@ void __blk_flush_plug(struct blk_plug *plug, bool from_schedule)
 	 */
 	if (unlikely(!rq_list_empty(plug->cached_rq)))
 		blk_mq_free_plug_rqs(plug);
+
+	current->flags &= ~PF_BLOCK_TS;
 }
 
 /**
