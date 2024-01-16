@@ -248,7 +248,7 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 	mutex_lock(&c->btree_cache.lock);
 	list_for_each_entry(b, &c->btree_cache.live, list)
-		ret += btree_bytes(c);
+		ret += btree_buf_bytes(b);
 
 	mutex_unlock(&c->btree_cache.lock);
 	return ret;

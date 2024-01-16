@@ -6,6 +6,7 @@
 #include "backpointers.h"
 #include "bkey_buf.h"
 #include "btree_gc.h"
+#include "btree_io.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_write_buffer.h"
@@ -804,6 +805,8 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 			if (!b)
 				goto next;
 
+			unsigned sectors = btree_ptr_sectors_written(&b->key);
+
 			ret = bch2_btree_node_rewrite(trans, &iter, b, 0);
 			bch2_trans_iter_exit(trans, &iter);
 
@@ -813,11 +816,10 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 				goto err;
 
 			if (ctxt->rate)
-				bch2_ratelimit_increment(ctxt->rate,
-							 c->opts.btree_node_size >> 9);
+				bch2_ratelimit_increment(ctxt->rate, sectors);
 			if (ctxt->stats) {
-				atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_seen);
-				atomic64_add(c->opts.btree_node_size >> 9, &ctxt->stats->sectors_moved);
+				atomic64_add(sectors, &ctxt->stats->sectors_seen);
+				atomic64_add(sectors, &ctxt->stats->sectors_moved);
 			}
 		}
 next:

@@ -883,7 +883,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	    !(c->pcpu = alloc_percpu(struct bch_fs_pcpu)) ||
 	    !(c->online_reserved = alloc_percpu(u64)) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
-					btree_bytes(c)) ||
+					c->opts.btree_node_size) ||
 	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||
 	    !(c->unused_inode_hints = kcalloc(1U << c->inode_shard_bits,
 					      sizeof(u64), GFP_KERNEL))) {

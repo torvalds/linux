@@ -1013,7 +1013,7 @@ TRACE_EVENT(trans_restart_split_race,
 		__entry->level		= b->c.level;
 		__entry->written	= b->written;
 		__entry->blocks		= btree_blocks(trans->c);
-		__entry->u64s_remaining	= bch_btree_keys_u64s_remaining(trans->c, b);
+		__entry->u64s_remaining	= bch2_btree_keys_u64s_remaining(b);
 	),
 
 	TP_printk("%s %pS l=%u written %u/%u u64s remaining %u",

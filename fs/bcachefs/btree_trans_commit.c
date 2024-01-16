@@ -139,8 +139,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 	EBUG_ON(bkey_deleted(&insert->k) && bkey_val_u64s(&insert->k));
 	EBUG_ON(bpos_lt(insert->k.p, b->data->min_key));
 	EBUG_ON(bpos_gt(insert->k.p, b->data->max_key));
-	EBUG_ON(insert->k.u64s >
-		bch_btree_keys_u64s_remaining(trans->c, b));
+	EBUG_ON(insert->k.u64s > bch2_btree_keys_u64s_remaining(b));
 	EBUG_ON(!b->c.level && !bpos_eq(insert->k.p, path->pos));
 
 	k = bch2_btree_node_iter_peek_all(node_iter, b);
@@ -160,7 +159,7 @@ bool bch2_btree_bset_insert_key(struct btree_trans *trans,
 		k->type = KEY_TYPE_deleted;
 
 		if (k->needs_whiteout)
-			push_whiteout(trans->c, b, insert->k.p);
+			push_whiteout(b, insert->k.p);
 		k->needs_whiteout = false;
 
 		if (k >= btree_bset_last(b)->start) {
@@ -348,9 +347,7 @@ static noinline void journal_transaction_name(struct btree_trans *trans)
 static inline int btree_key_can_insert(struct btree_trans *trans,
 				       struct btree *b, unsigned u64s)
 {
-	struct bch_fs *c = trans->c;
-
-	if (!bch2_btree_node_insert_fits(c, b, u64s))
+	if (!bch2_btree_node_insert_fits(b, u64s))
 		return -BCH_ERR_btree_insert_btree_node_full;
 
 	return 0;

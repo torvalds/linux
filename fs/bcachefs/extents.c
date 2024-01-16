@@ -8,6 +8,7 @@
 
 #include "bcachefs.h"
 #include "bkey_methods.h"
+#include "btree_cache.h"
 #include "btree_gc.h"
 #include "btree_io.h"
 #include "btree_iter.h"
