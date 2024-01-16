@@ -442,24 +442,23 @@ alternative_else_nop_endif
 
 .L_skip_tramp_exit_\@:
 #endif
+	.endif
+
 	ldr	lr, [sp, #S_LR]
 	add	sp, sp, #PT_REGS_SIZE		// restore sp
 
+	.if \el == 0
 	/* This must be after the last explicit memory access */
 alternative_if ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
 	tlbi	vale1, xzr
 	dsb	nsh
 alternative_else_nop_endif
-	eret
 	.else
-	ldr	lr, [sp, #S_LR]
-	add	sp, sp, #PT_REGS_SIZE		// restore sp
-
 	/* Ensure any device/NC reads complete */
 	alternative_insn nop, "dmb sy", ARM64_WORKAROUND_1508412
+	.endif
 
 	eret
-	.endif
 	sb
 	.endm
 
