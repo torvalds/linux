@@ -528,6 +528,67 @@ static const struct qmi_elem_info qmi_wlanfw_host_cap_resp_msg_v01_ei[] = {
 	},
 };
 
+static const struct qmi_elem_info qmi_wlanfw_phy_cap_req_msg_v01_ei[] = {
+	{
+		.data_type	= QMI_EOTI,
+		.array_type	= NO_ARRAY,
+		.tlv_type	= QMI_COMMON_TLV_TYPE,
+	},
+};
+
+static const struct qmi_elem_info qmi_wlanfw_phy_cap_resp_msg_v01_ei[] = {
+	{
+		.data_type	= QMI_STRUCT,
+		.elem_len	= 1,
+		.elem_size	= sizeof(struct qmi_response_type_v01),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x02,
+		.offset		= offsetof(struct qmi_wlanfw_phy_cap_resp_msg_v01, resp),
+		.ei_array	= qmi_response_type_v01_ei,
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x10,
+		.offset		= offsetof(struct qmi_wlanfw_phy_cap_resp_msg_v01,
+					   num_phy_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x10,
+		.offset		= offsetof(struct qmi_wlanfw_phy_cap_resp_msg_v01,
+					   num_phy),
+	},
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x11,
+		.offset		= offsetof(struct qmi_wlanfw_phy_cap_resp_msg_v01,
+					   board_id_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_4_BYTE,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u32),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x11,
+		.offset		= offsetof(struct qmi_wlanfw_phy_cap_resp_msg_v01,
+					   board_id),
+	},
+	{
+		.data_type	= QMI_EOTI,
+		.array_type	= NO_ARRAY,
+		.tlv_type	= QMI_COMMON_TLV_TYPE,
+	},
+};
+
 static const struct qmi_elem_info qmi_wlanfw_ind_register_req_msg_v01_ei[] = {
 	{
 		.data_type	= QMI_OPT_FLAG,
@@ -1900,8 +1961,12 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	u8 hw_link_id = 0;
 	int i;
 
-	if (!ab->hw_params->def_num_link)
+	if (!ab->qmi.num_radios || ab->qmi.num_radios == U8_MAX) {
+		ath12k_dbg(ab, ATH12K_DBG_QMI,
+			   "skip QMI MLO cap due to invalid num_radio %d\n",
+			   ab->qmi.num_radios);
 		return;
+	}
 
 	req->mlo_capable_valid = 1;
 	req->mlo_capable = 1;
@@ -1919,7 +1984,7 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 
 	info = &req->mlo_chip_info[0];
 	info->chip_id = 0;
-	info->num_local_links = ab->hw_params->def_num_link;
+	info->num_local_links = ab->qmi.num_radios;
 
 	for (i = 0; i < info->num_local_links; i++) {
 		info->hw_link_id[i] = hw_link_id;
@@ -2006,6 +2071,59 @@ static int ath12k_qmi_host_cap_send(struct ath12k_base *ab)
 
 out:
 	return ret;
+}
+
+static void ath12k_qmi_phy_cap_send(struct ath12k_base *ab)
+{
+	struct qmi_wlanfw_phy_cap_req_msg_v01 req = {};
+	struct qmi_wlanfw_phy_cap_resp_msg_v01 resp = {};
+	struct qmi_txn txn;
+	int ret;
+
+	ret = qmi_txn_init(&ab->qmi.handle, &txn,
+			   qmi_wlanfw_phy_cap_resp_msg_v01_ei, &resp);
+	if (ret < 0)
+		goto out;
+
+	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
+			       QMI_WLANFW_PHY_CAP_REQ_V01,
+			       QMI_WLANFW_PHY_CAP_REQ_MSG_V01_MAX_LEN,
+			       qmi_wlanfw_phy_cap_req_msg_v01_ei, &req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		ath12k_warn(ab, "failed to send phy capability request: %d\n", ret);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, msecs_to_jiffies(ATH12K_QMI_WLANFW_TIMEOUT_MS));
+	if (ret < 0)
+		goto out;
+
+	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+		ret = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (!resp.num_phy_valid) {
+		ret = -ENODATA;
+		goto out;
+	}
+
+	ab->qmi.num_radios = resp.num_phy;
+
+	ath12k_dbg(ab, ATH12K_DBG_QMI, "phy capability resp valid %d num_phy %d valid %d board_id %d\n",
+		   resp.num_phy_valid, resp.num_phy,
+		   resp.board_id_valid, resp.board_id);
+
+	return;
+
+out:
+	/* If PHY capability not advertised then rely on default num link */
+	ab->qmi.num_radios = ab->hw_params->def_num_link;
+
+	ath12k_dbg(ab, ATH12K_DBG_QMI,
+		   "no valid response from PHY capability, choose default num_phy %d\n",
+		   ab->qmi.num_radios);
 }
 
 static int ath12k_qmi_fw_ind_register_send(struct ath12k_base *ab)
@@ -2793,6 +2911,8 @@ static int ath12k_qmi_event_server_arrive(struct ath12k_qmi *qmi)
 {
 	struct ath12k_base *ab = qmi->ab;
 	int ret;
+
+	ath12k_qmi_phy_cap_send(ab);
 
 	ret = ath12k_qmi_fw_ind_register_send(ab);
 	if (ret < 0) {

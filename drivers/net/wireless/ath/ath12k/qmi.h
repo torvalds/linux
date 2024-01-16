@@ -141,6 +141,7 @@ struct ath12k_qmi {
 	u32 target_mem_mode;
 	bool target_mem_delayed;
 	u8 cal_done;
+	u8 num_radios;
 	struct target_info target;
 	struct m3_mem_region m3_mem;
 	unsigned int service_ins_id;
@@ -249,6 +250,22 @@ struct qmi_wlanfw_host_cap_req_msg_v01 {
 
 struct qmi_wlanfw_host_cap_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
+};
+
+#define QMI_WLANFW_PHY_CAP_REQ_MSG_V01_MAX_LEN		0
+#define QMI_WLANFW_PHY_CAP_REQ_V01			0x0057
+#define QMI_WLANFW_PHY_CAP_RESP_MSG_V01_MAX_LEN		18
+#define QMI_WLANFW_PHY_CAP_RESP_V01			0x0057
+
+struct qmi_wlanfw_phy_cap_req_msg_v01 {
+};
+
+struct qmi_wlanfw_phy_cap_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+	u8 num_phy_valid;
+	u8 num_phy;
+	u8 board_id_valid;
+	u32 board_id;
 };
 
 #define QMI_WLANFW_IND_REGISTER_REQ_MSG_V01_MAX_LEN		54
