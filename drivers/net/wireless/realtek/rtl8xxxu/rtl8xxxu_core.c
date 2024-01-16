@@ -5619,7 +5619,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			break;
 		}
 		if (bmc && rtlvif->hw_key_idx != 0xff) {
-			tx_desc->txdw1 |= TXDESC_EN_DESC_ID;
+			tx_desc->txdw1 |= cpu_to_le32(TXDESC_EN_DESC_ID);
 			macid = rtlvif->hw_key_idx;
 		}
 	}
