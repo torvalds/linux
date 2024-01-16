@@ -74,6 +74,8 @@ const char *ras_block_string[] = {
 	"mca",
 	"vcn",
 	"jpeg",
+	"ih",
+	"mpio",
 };
 
 const char *ras_mca_block_string[] = {
@@ -95,7 +97,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 	if (!ras_block)
 		return "NULL";
 
-	if (ras_block->block >= AMDGPU_RAS_BLOCK_COUNT)
+	if (ras_block->block >= AMDGPU_RAS_BLOCK_COUNT ||
+	    ras_block->block >= ARRAY_SIZE(ras_block_string))
 		return "OUT OF RANGE";
 
 	if (ras_block->block == AMDGPU_RAS_BLOCK__MCA)
