@@ -176,6 +176,7 @@ struct drm_printer {
 	void (*puts)(struct drm_printer *p, const char *str);
 	void *arg;
 	const char *prefix;
+	enum drm_debug_category category;
 };
 
 void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf);
@@ -184,6 +185,7 @@ void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
 void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
+void __drm_printfn_dbg(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_err(struct drm_printer *p, struct va_format *vaf);
 
 __printf(2, 3)
@@ -327,6 +329,28 @@ static inline struct drm_printer drm_debug_printer(const char *prefix)
 	struct drm_printer p = {
 		.printfn = __drm_printfn_debug,
 		.prefix = prefix
+	};
+	return p;
+}
+
+/**
+ * drm_dbg_printer - construct a &drm_printer for drm device specific output
+ * @drm: the &struct drm_device pointer, or NULL
+ * @category: the debug category to use
+ * @prefix: debug output prefix, or NULL for no prefix
+ *
+ * RETURNS:
+ * The &drm_printer object
+ */
+static inline struct drm_printer drm_dbg_printer(struct drm_device *drm,
+						 enum drm_debug_category category,
+						 const char *prefix)
+{
+	struct drm_printer p = {
+		.printfn = __drm_printfn_dbg,
+		.arg = drm,
+		.prefix = prefix,
+		.category = category,
 	};
 	return p;
 }
