@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra210-adx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Tegra210 ADX
+
+description: |
+  The Audio Demultiplexer (ADX) block takes an input stream with up to
+  16 channels and demultiplexes it into four output streams of up to 16
+  channels each. A byte RAM helps to form output frames by any combination
+  of bytes from the input frame. Its design is identical to that of byte
+  RAM in the AMX except that the data flow direction is reversed.
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Mohan Kumar <mkumard@nvidia.com>
+  - Sameer Pujar <spujar@nvidia.com>
+
+allOf:
+  - $ref: name-prefix.yaml#
+
+properties:
+  $nodename:
+    pattern: "^adx@[0-9a-f]*$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra210-adx
+      - items:
+          - enum:
+              - nvidia,tegra234-adx
+              - nvidia,tegra194-adx
+              - nvidia,tegra186-adx
+          - const: nvidia,tegra210-adx
+
+  reg:
+    maxItems: 1
+
+  sound-name-prefix:
+    pattern: "^ADX[1-9]$"
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    description: |
+      ADX has one input and four outputs. Accordingly ACIF (Audio Client
+      Interface) port nodes are defined to represent ADX input (port 0)
+      and outputs (ports 1 to 4). These are connected to corresponding
+      ports on AHUB (Audio Hub).
+    properties:
+      port@0:
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: ADX ACIF input port
+    patternProperties:
+      '^port@[1-4]':
+        $ref: audio-graph-port.yaml#
+        unevaluatedProperties: false
+        description: ADX ACIF output ports
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+
+    adx@702d3800 {
+        compatible = "nvidia,tegra210-adx";
+        reg = <0x702d3800 0x100>;
+        sound-name-prefix = "ADX1";
+    };
+
+...

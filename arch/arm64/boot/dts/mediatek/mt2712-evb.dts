@@ -1,0 +1,236 @@
+/*
+ * Copyright (c) 2017 MediaTek Inc.
+ * Author: YT Shen <yt.shen@mediatek.com>
+ *
+ * SPDX-License-Identifier: (GPL-2.0 OR MIT)
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include "mt2712e.dtsi"
+
+/ {
+	model = "MediaTek MT2712 evaluation board";
+	compatible = "mediatek,mt2712-evb", "mediatek,mt2712";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0 0x40000000 0 0x80000000>;
+	};
+
+	chosen {
+		stdout-path = "serial0:921600n8";
+	};
+
+	cpus_fixed_vproc0: regulator-vproc-buck0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vproc_buck0";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+	cpus_fixed_vproc1: regulator-vproc-buck1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vproc_buck1";
+		regulator-min-microvolt = <1000000>;
+		regulator-max-microvolt = <1000000>;
+	};
+
+	extcon_usb: extcon_iddig {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pio 12 GPIO_ACTIVE_HIGH>;
+	};
+
+	extcon_usb1: extcon_iddig1 {
+		compatible = "linux,extcon-usb-gpio";
+		id-gpio = <&pio 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	usb_p0_vbus: regulator-usb-p0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "p0_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 13 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	usb_p1_vbus: regulator-usb-p1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "p1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 15 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	usb_p2_vbus: regulator-usb-p2-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "p2_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 16 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	usb_p3_vbus: regulator-usb-p3-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "p3_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 17 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		regulator-always-on;
+	};
+
+};
+
+&auxadc {
+	status = "okay";
+};
+
+&cpu0 {
+	proc-supply = <&cpus_fixed_vproc0>;
+};
+
+&cpu1 {
+	proc-supply = <&cpus_fixed_vproc0>;
+};
+
+&cpu2 {
+	proc-supply = <&cpus_fixed_vproc1>;
+};
+
+&eth {
+	phy-mode = "rgmii-rxid";
+	phy-handle = <&ethernet_phy0>;
+	mediatek,tx-delay-ps = <1530>;
+	snps,reset-gpio = <&pio 87 GPIO_ACTIVE_LOW>;
+	snps,reset-delays-us = <0 10000 10000>;
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&eth_default>;
+	pinctrl-1 = <&eth_sleep>;
+	status = "okay";
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		ethernet_phy0: ethernet-phy@5 {
+			compatible = "ethernet-phy-id0243.0d90";
+			reg = <0x5>;
+		};
+	};
+};
+
+&pio {
+	eth_default: eth_default {
+		tx_pins {
+			pinmux = <MT2712_PIN_71_GBE_TXD3__FUNC_GBE_TXD3>,
+				 <MT2712_PIN_72_GBE_TXD2__FUNC_GBE_TXD2>,
+				 <MT2712_PIN_73_GBE_TXD1__FUNC_GBE_TXD1>,
+				 <MT2712_PIN_74_GBE_TXD0__FUNC_GBE_TXD0>,
+				 <MT2712_PIN_75_GBE_TXC__FUNC_GBE_TXC>,
+				 <MT2712_PIN_76_GBE_TXEN__FUNC_GBE_TXEN>;
+			drive-strength = <MTK_DRIVE_8mA>;
+		};
+		rx_pins {
+			pinmux = <MT2712_PIN_78_GBE_RXD3__FUNC_GBE_RXD3>,
+				 <MT2712_PIN_79_GBE_RXD2__FUNC_GBE_RXD2>,
+				 <MT2712_PIN_80_GBE_RXD1__FUNC_GBE_RXD1>,
+				 <MT2712_PIN_81_GBE_RXD0__FUNC_GBE_RXD0>,
+				 <MT2712_PIN_82_GBE_RXDV__FUNC_GBE_RXDV>,
+				 <MT2712_PIN_84_GBE_RXC__FUNC_GBE_RXC>;
+			input-enable;
+		};
+		mdio_pins {
+			pinmux = <MT2712_PIN_85_GBE_MDC__FUNC_GBE_MDC>,
+				 <MT2712_PIN_86_GBE_MDIO__FUNC_GBE_MDIO>;
+			drive-strength = <MTK_DRIVE_8mA>;
+			input-enable;
+		};
+	};
+
+	eth_sleep: eth_sleep {
+		tx_pins {
+			pinmux = <MT2712_PIN_71_GBE_TXD3__FUNC_GPIO71>,
+				 <MT2712_PIN_72_GBE_TXD2__FUNC_GPIO72>,
+				 <MT2712_PIN_73_GBE_TXD1__FUNC_GPIO73>,
+				 <MT2712_PIN_74_GBE_TXD0__FUNC_GPIO74>,
+				 <MT2712_PIN_75_GBE_TXC__FUNC_GPIO75>,
+				 <MT2712_PIN_76_GBE_TXEN__FUNC_GPIO76>;
+		};
+		rx_pins {
+			pinmux = <MT2712_PIN_78_GBE_RXD3__FUNC_GPIO78>,
+				 <MT2712_PIN_79_GBE_RXD2__FUNC_GPIO79>,
+				 <MT2712_PIN_80_GBE_RXD1__FUNC_GPIO80>,
+				 <MT2712_PIN_81_GBE_RXD0__FUNC_GPIO81>,
+				 <MT2712_PIN_82_GBE_RXDV__FUNC_GPIO82>,
+				 <MT2712_PIN_84_GBE_RXC__FUNC_GPIO84>;
+			input-disable;
+		};
+		mdio_pins {
+			pinmux = <MT2712_PIN_85_GBE_MDC__FUNC_GPIO85>,
+				 <MT2712_PIN_86_GBE_MDIO__FUNC_GPIO86>;
+			input-disable;
+			bias-disable;
+		};
+	};
+
+	usb0_id_pins_float: usb0_iddig {
+		pins_iddig {
+			pinmux = <MT2712_PIN_12_IDDIG_P0__FUNC_IDDIG_A>;
+			bias-pull-up;
+		};
+	};
+
+	usb1_id_pins_float: usb1_iddig {
+		pins_iddig {
+			pinmux = <MT2712_PIN_14_IDDIG_P1__FUNC_IDDIG_B>;
+			bias-pull-up;
+		};
+	};
+};
+
+&ssusb {
+	vbus-supply = <&usb_p0_vbus>;
+	extcon = <&extcon_usb>;
+	dr_mode = "otg";
+	wakeup-source;
+	mediatek,u3p-dis-msk = <0x1>;
+	//enable-manual-drd;
+	//maximum-speed = "full-speed";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb0_id_pins_float>;
+	status = "okay";
+};
+
+&ssusb1 {
+	vbus-supply = <&usb_p1_vbus>;
+	extcon = <&extcon_usb1>;
+	dr_mode = "otg";
+	//mediatek,u3p-dis-msk = <0x1>;
+	enable-manual-drd;
+	wakeup-source;
+	//maximum-speed = "full-speed";
+	pinctrl-names = "default";
+	pinctrl-0 = <&usb1_id_pins_float>;
+	status = "okay";
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usb_host0 {
+	vbus-supply = <&usb_p2_vbus>;
+	status = "okay";
+};
+
+&usb_host1 {
+	status = "okay";
+};

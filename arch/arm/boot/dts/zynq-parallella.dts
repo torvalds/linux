@@ -1,0 +1,88 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2014 SUSE LINUX Products GmbH
+ *
+ * Derived from zynq-zed.dts:
+ *
+ *  Copyright (C) 2011 Xilinx
+ *  Copyright (C) 2012 National Instruments Corp.
+ *  Copyright (C) 2013 Xilinx
+ */
+/dts-v1/;
+/include/ "zynq-7000.dtsi"
+
+/ {
+	model = "Adapteva Parallella board";
+	compatible = "adapteva,parallella", "xlnx,zynq-7000";
+
+	aliases {
+		ethernet0 = &gem0;
+		serial0 = &uart1;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/mmcblk0p2 rootfstype=ext4 rw rootwait";
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&clkc {
+	fclk-enable = <0xf>;
+	ps-clk-frequency = <33333333>;
+};
+
+&gem0 {
+	status = "okay";
+	phy-mode = "rgmii-id";
+	phy-handle = <&ethernet_phy>;
+
+	ethernet_phy: ethernet-phy@0 {
+		/* Marvell 88E1318 */
+		compatible = "ethernet-phy-id0141.0e90",
+		             "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+		device_type = "ethernet-phy";
+		marvell,reg-init = <0x3 0x10 0xff00 0x1e>,
+		                   <0x3 0x11 0xfff0 0xa>;
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	isl9305: isl9305@68 {
+		compatible = "isil,isl9305";
+		reg = <0x68>;
+
+		regulators {
+			dcd1 {
+				regulator-name = "VDD_DSP";
+				regulator-always-on;
+			};
+			dcd2 {
+				regulator-name = "1P35V";
+				regulator-always-on;
+			};
+			ldo1 {
+				regulator-name = "VDD_ADJ";
+			};
+			ldo2 {
+				regulator-name = "VDD_GPIO";
+				regulator-always-on;
+			};
+		};
+	};
+};
+
+&sdhci1 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};

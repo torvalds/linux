@@ -1,0 +1,29 @@
+* NXP PCA9541 I2C bus master selector
+
+Required Properties:
+
+  - compatible: Must be "nxp,pca9541"
+
+  - reg: The I2C address of the device.
+
+  The following required properties are defined externally:
+
+  - I2C arbitration bus node. See i2c-arb.txt in this directory.
+
+
+Example:
+
+	i2c-arbitrator@74 {
+		compatible = "nxp,pca9541";
+		reg = <0x74>;
+
+		i2c-arb {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			eeprom@54 {
+				compatible = "atmel,24c08";
+				reg = <0x54>;
+			};
+		};
+	};

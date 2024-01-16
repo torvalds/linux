@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/arm,hdlcd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm HDLCD display controller binding
+
+maintainers:
+  - Liviu Dudau <Liviu.Dudau@arm.com>
+  - Andre Przywara <andre.przywara@arm.com>
+
+description:
+  The Arm HDLCD is a display controller found on several development platforms
+  produced by ARM Ltd and in more modern of its Fast Models. The HDLCD is an
+  RGB streamer that reads the data from a framebuffer and sends it to a single
+  digital encoder (DVI or HDMI).
+
+properties:
+  compatible:
+    const: arm,hdlcd
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clock-names:
+    const: pxlclk
+
+  clocks:
+    maxItems: 1
+    description: The input reference for the pixel clock.
+
+  memory-region:
+    maxItems: 1
+    description:
+      Phandle to a node describing memory to be used for the framebuffer.
+      If not present, the framebuffer may be located anywhere in memory.
+
+  iommus:
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    unevaluatedProperties: false
+    description:
+      Output endpoint of the controller, connecting the LCD panel signals.
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - port
+
+examples:
+  - |
+    hdlcd@2b000000 {
+        compatible = "arm,hdlcd";
+        reg = <0x2b000000 0x1000>;
+        interrupts = <0 85 4>;
+        clocks = <&oscclk5>;
+        clock-names = "pxlclk";
+        port {
+            hdlcd_output: endpoint {
+                remote-endpoint = <&hdmi_enc_input>;
+            };
+        };
+    };
+
+    /* HDMI encoder on I2C bus */
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        hdmi-transmitter@70 {
+            compatible = "nxp,tda998x";
+            reg = <0x70>;
+            port {
+                hdmi_enc_input: endpoint {
+                    remote-endpoint = <&hdlcd_output>;
+                };
+            };
+        };
+    };
+...

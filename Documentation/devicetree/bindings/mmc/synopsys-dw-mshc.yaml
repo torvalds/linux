@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/synopsys-dw-mshc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Synopsys Designware Mobile Storage Host Controller Binding
+
+allOf:
+  - $ref: "synopsys-dw-mshc-common.yaml#"
+
+maintainers:
+  - Ulf Hansson <ulf.hansson@linaro.org>
+
+# Everything else is described in the common file
+properties:
+  compatible:
+    enum:
+      - altr,socfpga-dw-mshc
+      - img,pistachio-dw-mshc
+      - snps,dw-mshc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 2
+    description:
+      Handle to "biu" and "ciu" clocks for the
+      bus interface unit clock and the card interface unit clock.
+
+  clock-names:
+    items:
+      - const: biu
+      - const: ciu
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    mmc@12200000 {
+      compatible = "snps,dw-mshc";
+      reg = <0x12200000 0x1000>;
+      interrupts = <0 75 0>;
+      clocks = <&clock 351>, <&clock 132>;
+      clock-names = "biu", "ciu";
+      dmas = <&pdma 12>;
+      dma-names = "rx-tx";
+      resets = <&rst 20>;
+      reset-names = "reset";
+      vmmc-supply = <&buck8>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+      broken-cd;
+      bus-width = <8>;
+      cap-mmc-highspeed;
+      cap-sd-highspeed;
+      card-detect-delay = <200>;
+      max-frequency = <200000000>;
+      clock-frequency = <400000000>;
+      data-addr = <0x200>;
+      fifo-depth = <0x80>;
+      fifo-watermark-aligned;
+    };

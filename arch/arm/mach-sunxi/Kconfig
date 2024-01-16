@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_SUNXI
+	bool "Allwinner SoCs"
+	depends on (CPU_LITTLE_ENDIAN && ARCH_MULTI_V5) || ARCH_MULTI_V7
+	select ARCH_HAS_RESET_CONTROLLER
+	select CLKSRC_MMIO
+	select GPIOLIB
+	select PINCTRL
+	select PM_OPP
+	select SUN4I_TIMER
+	select RESET_CONTROLLER
+	help
+	  Support for Allwinner ARM-based family of processors
+
+if ARCH_SUNXI
+
+if ARCH_MULTI_V7
+
+config MACH_SUN4I
+	bool "Allwinner A10 (sun4i) SoCs support"
+	default ARCH_SUNXI
+	select SUN4I_INTC
+
+config MACH_SUN5I
+	bool "Allwinner A10s / A13 (sun5i) SoCs support"
+	default ARCH_SUNXI
+	select SUN4I_INTC
+	select SUN5I_HSTIMER
+
+config MACH_SUN6I
+	bool "Allwinner A31 (sun6i) SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select MFD_SUN6I_PRCM
+	select SUN5I_HSTIMER
+	select SUN6I_R_INTC
+	select SUNXI_NMI_INTC
+
+config MACH_SUN7I
+	bool "Allwinner A20 (sun7i) SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select ARM_PSCI
+	select HAVE_ARM_ARCH_TIMER
+	select SUN5I_HSTIMER
+	select SUNXI_NMI_INTC
+
+config MACH_SUN8I
+	bool "Allwinner sun8i Family SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select MFD_SUN6I_PRCM
+	select SUN6I_R_INTC
+	select SUNXI_NMI_INTC
+
+config MACH_SUN9I
+	bool "Allwinner (sun9i) SoCs support"
+	default ARCH_SUNXI
+	select ARM_GIC
+	select SUNXI_NMI_INTC
+
+config ARCH_SUNXI_MC_SMP
+	bool
+	depends on SMP
+	default MACH_SUN9I || MACH_SUN8I
+	select ARM_CCI400_PORT_CTRL
+	select ARM_CPU_SUSPEND
+
+endif
+
+if ARCH_MULTI_V5
+
+config MACH_SUNIV
+	bool "Allwinner ARMv5 F-series (suniv) SoCs support"
+	default ARCH_SUNXI
+	select SUN4I_INTC
+	help
+	  Support for Allwinner suniv ARMv5 SoCs.
+	  (F1C100A, F1C100s, F1C200s, F1C500, F1C600)
+
+endif
+
+endif

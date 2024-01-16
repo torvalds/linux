@@ -1,0 +1,15 @@
+88pm860x-backlight bindings
+
+Optional properties:
+  - marvell,88pm860x-iset: Current supplies on backlight device.
+  - marvell,88pm860x-pwm: PWM frequency on backlight device.
+
+Example:
+
+	backlights {
+		backlight-0 {
+			marvell,88pm860x-iset = <4>;
+			marvell,88pm860x-pwm = <3>;
+		};
+		backlight-2 {
+		};

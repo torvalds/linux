@@ -1,0 +1,47 @@
+Raspberry Pi power domain driver
+
+Required properties:
+
+- compatible:		Should be "raspberrypi,bcm2835-power".
+- firmware:		Reference to the RPi firmware device node.
+- #power-domain-cells:	Should be <1>, we providing multiple power domains.
+
+The valid defines for power domain are:
+
+ RPI_POWER_DOMAIN_I2C0
+ RPI_POWER_DOMAIN_I2C1
+ RPI_POWER_DOMAIN_I2C2
+ RPI_POWER_DOMAIN_VIDEO_SCALER
+ RPI_POWER_DOMAIN_VPU1
+ RPI_POWER_DOMAIN_HDMI
+ RPI_POWER_DOMAIN_USB
+ RPI_POWER_DOMAIN_VEC
+ RPI_POWER_DOMAIN_JPEG
+ RPI_POWER_DOMAIN_H264
+ RPI_POWER_DOMAIN_V3D
+ RPI_POWER_DOMAIN_ISP
+ RPI_POWER_DOMAIN_UNICAM0
+ RPI_POWER_DOMAIN_UNICAM1
+ RPI_POWER_DOMAIN_CCP2RX
+ RPI_POWER_DOMAIN_CSI2
+ RPI_POWER_DOMAIN_CPI
+ RPI_POWER_DOMAIN_DSI0
+ RPI_POWER_DOMAIN_DSI1
+ RPI_POWER_DOMAIN_TRANSPOSER
+ RPI_POWER_DOMAIN_CCP2TX
+ RPI_POWER_DOMAIN_CDP
+ RPI_POWER_DOMAIN_ARM
+
+Example:
+
+power: power {
+	compatible = "raspberrypi,bcm2835-power";
+	firmware = <&firmware>;
+	#power-domain-cells = <1>;
+};
+
+Example for using power domain:
+
+&usb {
+       power-domains = <&power RPI_POWER_DOMAIN_USB>;
+};

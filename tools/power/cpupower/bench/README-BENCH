@@ -1,0 +1,124 @@
+This is cpufreq-bench, a microbenchmark for the cpufreq framework.
+
+Purpose
+=======
+
+What is this benchmark for:
+  - Identify worst case performance loss when doing dynamic frequency
+    scaling using Linux kernel governors
+  - Identify average reaction time of a governor to CPU load changes
+  - (Stress) Testing whether a cpufreq low level driver or governor works
+    as expected
+  - Identify cpufreq related performance regressions between kernels
+  - Possibly Real time priority testing? -> what happens if there are
+    processes with a higher prio than the governor's kernel thread
+  - ...
+
+What this benchmark does *not* cover:
+  - Power saving related regressions (In fact as better the performance
+    throughput is, the worse the power savings will be, but the first should
+    mostly count more...)
+  - Real world (workloads)
+
+
+Description
+===========
+
+cpufreq-bench helps to test the condition of a given cpufreq governor.
+For that purpose, it compares the performance governor to a configured
+powersave module.
+
+
+How it works
+============
+You can specify load (100% CPU load) and sleep (0% CPU load) times in us which
+will be run X time in a row (cycles):
+
+         sleep=25000
+         load=25000
+         cycles=20
+
+This part of the configuration file will create 25ms load/sleep turns,
+repeated 20 times.
+
+Adding this:
+         sleep_step=25000
+         load_step=25000
+         rounds=5
+Will increase load and sleep time by 25ms 5 times.
+Together you get following test:
+25ms  load/sleep time repeated 20 times (cycles).
+50ms  load/sleep time repeated 20 times (cycles).
+..
+100ms load/sleep time repeated 20 times (cycles).
+
+First it is calibrated how long a specific CPU intensive calculation
+takes on this machine and needs to be run in a loop using the performance
+governor.
+Then the above test runs are processed using the performance governor
+and the governor to test. The time the calculation really needed
+with the dynamic freq scaling governor is compared with the time needed
+on full performance and you get the overall performance loss.
+
+
+Example of expected results with ondemand governor:
+
+This shows expected results of the first two test run rounds from
+above config, you there have:
+
+100% CPU load (load) | 0 % CPU load (sleep)  | round
+   25 ms             |    25 ms              |   1
+   50 ms             |    50 ms              |   2
+
+For example if ondemand governor is configured to have a 50ms
+sampling rate you get:
+
+In round 1, ondemand should have rather static 50% load and probably
+won't ever switch up (as long as up_threshold is above).
+
+In round 2, if the ondemand sampling times exactly match the load/sleep
+trigger of the cpufreq-bench, you will see no performance loss (compare with
+below possible ondemand sample kick ins (1)):
+
+But if ondemand always kicks in in the middle of the load sleep cycles, it
+will always see 50% loads and you get worst performance impact never
+switching up (compare with below possible ondemand sample kick ins (2))::
+
+      50     50   50   50ms ->time
+load -----|     |-----|     |-----|     |-----|
+          |     |     |     |     |     |     |
+sleep     |-----|     |-----|     |-----|     |----
+    |-----|-----|-----|-----|-----|-----|-----|----  ondemand sampling (1)
+         100    0    100    0    100    0    100     load seen by ondemand(%)
+       |-----|-----|-----|-----|-----|-----|-----|--   ondemand sampling (2)
+      50     50    50    50    50    50    50        load seen by ondemand(%)
+
+You can easily test all kind of load/sleep times and check whether your
+governor in average behaves as expected.
+
+
+ToDo
+====
+
+Provide a gnuplot utility script for easy generation of plots to present
+the outcome nicely.
+
+
+cpufreq-bench Command Usage
+===========================
+-l, --load=<long int>           initial load time in us
+-s, --sleep=<long int>          initial sleep time in us
+-x, --load-step=<long int>      time to be added to load time, in us
+-y, --sleep-step=<long int>     time to be added to sleep time, in us
+-c, --cpu=<unsigned int>        CPU Number to use, starting at 0
+-p, --prio=<priority>           scheduler priority, HIGH, LOW or DEFAULT
+-g, --governor=<governor>       cpufreq governor to test
+-n, --cycles=<int>              load/sleep cycles to get an average value to compare
+-r, --rounds<int>               load/sleep rounds
+-f, --file=<configfile>         config file to use
+-o, --output=<dir>              output dir, must exist
+-v, --verbose                   verbose output on/off
+
+Due to the high priority, the application may not be responsible for some time.
+After the benchmark, the logfile is saved in OUTPUTDIR/benchmark_TIMESTAMP.log
+

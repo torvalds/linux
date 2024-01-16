@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# Phy drivers for Intel platforms
+#
+config PHY_INTEL_KEEMBAY_EMMC
+	tristate "Intel Keem Bay EMMC PHY driver"
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Choose this option if you have an Intel Keem Bay SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-keembay-emmc.ko.
+
+config PHY_INTEL_KEEMBAY_USB
+	tristate "Intel Keem Bay USB PHY driver"
+	depends on ARCH_KEEMBAY || COMPILE_TEST
+	depends on HAS_IOMEM
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Choose this option if you have an Intel Keem Bay SoC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-keembay-usb.ko.
+
+config PHY_INTEL_LGM_COMBO
+	bool "Intel Lightning Mountain ComboPHY driver"
+	depends on X86 || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	select MFD_SYSCON
+	select GENERIC_PHY
+	select REGMAP
+	help
+	  Enable this to support Intel ComboPhy.
+
+	  This driver configures ComboPhy subsystem on Intel gateway
+	  chipsets which provides PHYs for various controllers, EMAC,
+	  SATA and PCIe.
+
+config PHY_INTEL_LGM_EMMC
+	tristate "Intel Lightning Mountain EMMC PHY driver"
+	depends on X86 || COMPILE_TEST
+	select GENERIC_PHY
+	help
+	  Enable this to support the Intel EMMC PHY
+
+config PHY_INTEL_THUNDERBAY_EMMC
+        tristate "Intel Thunder Bay eMMC PHY driver"
+        depends on OF && (ARCH_THUNDERBAY || COMPILE_TEST)
+        select GENERIC_PHY
+        help
+	  This option enables support for Intel Thunder Bay SoC eMMC PHY.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-intel-thunderbay-emmc.ko.

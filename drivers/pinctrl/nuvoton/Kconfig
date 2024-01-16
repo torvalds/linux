@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config PINCTRL_WPCM450
+	tristate "Pinctrl and GPIO driver for Nuvoton WPCM450"
+	depends on ARCH_WPCM450 || COMPILE_TEST
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y or M here to enable pin controller and GPIO support for
+	  the Nuvoton WPCM450 SoC. This is strongly recommended when
+	  building a kernel that will run on this chip.
+
+	  If this driver is compiled as a module, it will be named
+	  pinctrl-wpcm450.
+
+config PINCTRL_NPCM7XX
+	bool "Pinctrl and GPIO driver for Nuvoton NPCM7XX"
+	depends on (ARCH_NPCM7XX || COMPILE_TEST) && OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to enable pin controller and GPIO support
+	  for Nuvoton NPCM750/730/715/705 SoCs.

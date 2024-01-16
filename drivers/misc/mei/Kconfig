@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2003-2019, Intel Corporation. All rights reserved.
+config INTEL_MEI
+	tristate "Intel Management Engine Interface"
+	depends on X86 && PCI
+	help
+	  The Intel Management Engine (Intel ME) provides Manageability,
+	  Security and Media services for system containing Intel chipsets.
+	  if selected /dev/mei misc device will be created.
+
+	  For more information see
+	  <https://software.intel.com/en-us/manageability/>
+
+config INTEL_MEI_ME
+	tristate "ME Enabled Intel Chipsets"
+	select INTEL_MEI
+	depends on X86 && PCI
+	help
+	  MEI support for ME Enabled Intel chipsets.
+
+	  Supported Chipsets are:
+	  7 Series Chipset Family
+	  6 Series Chipset Family
+	  5 Series Chipset Family
+	  4 Series Chipset Family
+	  Mobile 4 Series Chipset Family
+	  ICH9
+	  82946GZ/GL
+	  82G35 Express
+	  82Q963/Q965
+	  82P965/G965
+	  Mobile PM965/GM965
+	  Mobile GME965/GLE960
+	  82Q35 Express
+	  82G33/G31/P35/P31 Express
+	  82Q33 Express
+	  82X38/X48 Express
+
+config INTEL_MEI_TXE
+	tristate "Intel Trusted Execution Environment with ME Interface"
+	select INTEL_MEI
+	depends on X86 && PCI
+	help
+	  MEI Support for Trusted Execution Environment device on Intel SoCs
+
+	  Supported SoCs:
+	  Intel Bay Trail
+
+config INTEL_MEI_GSC
+	tristate "Intel MEI GSC embedded device"
+	depends on INTEL_MEI
+	depends on INTEL_MEI_ME
+	depends on X86 && PCI
+	depends on DRM_I915
+	help
+	  Intel auxiliary driver for GSC devices embedded in Intel graphics devices.
+
+	  An MEI device here called GSC can be embedded in an
+	  Intel graphics devices, to support a range of chassis
+	  tasks such as graphics card firmware update and security
+	  tasks.
+
+source "drivers/misc/mei/hdcp/Kconfig"
+source "drivers/misc/mei/pxp/Kconfig"
+

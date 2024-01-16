@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/microchip,mcp4725.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Microchip mcp4725 and mcp4726 DAC
+
+maintainers:
+  - Tomas Novotny <tomas@novotny.cz>
+
+properties:
+  compatible:
+    enum:
+      - microchip,mcp4725
+      - microchip,mcp4726
+
+  reg:
+    maxItems: 1
+
+  vdd-supply:
+    description: |
+      Provides both power and acts as the reference supply on the mcp4725.
+      For the mcp4726 it will be used as the reference voltage if vref-supply
+      is not provided.
+
+  vref-supply:
+    description:
+      Vref pin is used as a voltage reference when this supply is specified.
+
+  microchip,vref-buffered:
+    type: boolean
+    description: |
+      Enable buffering of the external Vref pin. This boolean is not valid
+      without the vref-supply. Quoting the datasheet: This is offered in
+      cases where the reference voltage does not have the current
+      capability not to drop its voltage when connected to the internal
+      resistor ladder circuit.
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,mcp4725
+    then:
+      properties:
+        vref-supply: false
+      required:
+        - vdd-supply
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: microchip,mcp4726
+    then:
+      anyOf:
+        - required:
+            - vdd-supply
+        - required:
+            - vref-supply
+
+  - if:
+      not:
+        required:
+          - vref-supply
+    then:
+      properties:
+        microchip,vref-buffered: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mcp4725@60 {
+            compatible = "microchip,mcp4725";
+            reg = <0x60>;
+            vdd-supply = <&vdac_vdd>;
+        };
+    };
+...

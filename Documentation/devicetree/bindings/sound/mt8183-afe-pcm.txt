@@ -1,0 +1,42 @@
+Mediatek AFE PCM controller for mt8183
+
+Required properties:
+- compatible = "mediatek,mt68183-audio";
+- reg: register location and size
+- interrupts: should contain AFE interrupt
+- resets: Must contain an entry for each entry in reset-names
+  See ../reset/reset.txt for details.
+- reset-names: should have these reset names:
+		"audiosys";
+- power-domains: should define the power domain
+- clocks: Must contain an entry for each entry in clock-names
+- clock-names: should have these clock names:
+		"infra_sys_audio_clk",
+		"mtkaif_26m_clk",
+		"top_mux_audio",
+		"top_mux_aud_intbus",
+		"top_sys_pll3_d4",
+		"top_clk26m_clk";
+
+Example:
+
+	afe: mt8183-afe-pcm@11220000  {
+		compatible = "mediatek,mt8183-audio";
+		reg = <0 0x11220000 0 0x1000>;
+		interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_LOW>;
+		resets = <&watchdog MT8183_TOPRGU_AUDIO_SW_RST>;
+		reset-names = "audiosys";
+		power-domains = <&scpsys MT8183_POWER_DOMAIN_AUDIO>;
+		clocks = <&infrasys CLK_INFRA_AUDIO>,
+			 <&infrasys CLK_INFRA_AUDIO_26M_BCLK>,
+			 <&topckgen CLK_TOP_MUX_AUDIO>,
+			 <&topckgen CLK_TOP_MUX_AUD_INTBUS>,
+			 <&topckgen CLK_TOP_SYSPLL_D2_D4>,
+			 <&clk26m>;
+		clock-names = "infra_sys_audio_clk",
+			      "mtkaif_26m_clk",
+			      "top_mux_audio",
+			      "top_mux_aud_intbus",
+			      "top_sys_pll_d2_d4",
+			      "top_clk26m_clk";
+	};

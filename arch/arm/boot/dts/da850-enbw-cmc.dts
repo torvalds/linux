@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Device Tree for AM1808 EnBW CMC board
+ *
+ * Copyright 2012 DENX Software Engineering GmbH
+ * Heiko Schocher <hs@denx.de>
+ */
+/dts-v1/;
+#include "da850.dtsi"
+
+/ {
+	compatible = "enbw,cmc", "ti,da850";
+	model = "EnBW CMC";
+
+	soc@1c00000 {
+		serial0: serial@42000 {
+			status = "okay";
+		};
+		serial1: serial@10c000 {
+			status = "okay";
+		};
+		serial2: serial@10d000 {
+			status = "okay";
+		};
+		mdio: mdio@224000 {
+			status = "okay";
+		};
+		eth0: ethernet@220000 {
+			status = "okay";
+		};
+	};
+};
+
+&ref_clk {
+	clock-frequency = <24000000>;
+};
+
+&edma0 {
+	ti,edma-reserved-slot-ranges = <32 50>;
+};
+
+&edma1 {
+	ti,edma-reserved-slot-ranges = <32 90>;
+};

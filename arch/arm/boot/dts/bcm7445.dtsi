@@ -1,0 +1,315 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	model = "Broadcom STB (bcm7445)";
+	compatible = "brcm,bcm7445", "brcm,brcmstb";
+	interrupt-parent = <&gic>;
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "brcm,brahma-b15";
+			device_type = "cpu";
+			enable-method = "brcm,brahma-b15";
+			reg = <0>;
+		};
+
+		cpu@1 {
+			compatible = "brcm,brahma-b15";
+			device_type = "cpu";
+			enable-method = "brcm,brahma-b15";
+			reg = <1>;
+		};
+
+		cpu@2 {
+			compatible = "brcm,brahma-b15";
+			device_type = "cpu";
+			enable-method = "brcm,brahma-b15";
+			reg = <2>;
+		};
+
+		cpu@3 {
+			compatible = "brcm,brahma-b15";
+			device_type = "cpu";
+			enable-method = "brcm,brahma-b15";
+			reg = <3>;
+		};
+	};
+
+	gic: interrupt-controller@ffd00000 {
+		compatible = "brcm,brahma-b15-gic", "arm,cortex-a15-gic";
+		reg = <0x00 0xffd01000 0x00 0x1000>,
+		      <0x00 0xffd02000 0x00 0x2000>,
+		      <0x00 0xffd04000 0x00 0x2000>,
+		      <0x00 0xffd06000 0x00 0x2000>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_RAW(15) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 14 (GIC_CPU_MASK_RAW(15) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 11 (GIC_CPU_MASK_RAW(15) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 10 (GIC_CPU_MASK_RAW(15) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	rdb@f0000000 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges = <0 0x00 0xf0000000 0x1000000>;
+
+		serial@40ab00 {
+			compatible = "ns16550a";
+			reg = <0x40ab00 0x20>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
+			clock-frequency = <81000000>;
+		};
+
+		sun_top_ctrl: syscon@404000 {
+			compatible = "brcm,bcm7445-sun-top-ctrl",
+				     "syscon";
+			reg = <0x404000 0x51c>;
+		};
+
+		hif_cpubiuctrl: syscon@3e2400 {
+			compatible = "brcm,bcm7445-hif-cpubiuctrl",
+				     "syscon";
+			reg = <0x3e2400 0x5b4>;
+		};
+
+		hif_continuation: syscon@452000 {
+			compatible = "brcm,bcm7445-hif-continuation",
+				     "syscon";
+			reg = <0x452000 0x100>;
+		};
+
+		irq0_intc: interrupt-controller@40a780 {
+			compatible = "brcm,bcm7120-l2-intc";
+			interrupt-parent = <&gic>;
+			#interrupt-cells = <1>;
+			reg = <0x40a780 0x8>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 0x45 0x0>,
+				     <GIC_SPI 0x43 0x0>;
+			brcm,int-map-mask = <0x25c>, <0x7000000>;
+			brcm,int-fwd-mask = <0x70000>;
+		};
+
+		irq0_aon_intc: interrupt-controller@417280 {
+			compatible = "brcm,bcm7120-l2-intc";
+			reg = <0x417280 0x8>;
+			interrupt-parent = <&gic>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			interrupts = <GIC_SPI 0x46 0x0>,
+				     <GIC_SPI 0x44 0x0>,
+				     <GIC_SPI 0x49 0x0>;
+			brcm,int-map-mask = <0x1e3 0x18000000 0x100000>;
+			brcm,int-fwd-mask = <0x0>;
+			brcm,irq-can-wake;
+		};
+
+		hif_intr2_intc: interrupt-controller@3e1000 {
+			compatible = "brcm,l2-intc";
+			reg = <0x3e1000 0x30>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupts = <GIC_SPI 0x20 0x0>;
+			interrupt-parent = <&gic>;
+			interrupt-names = "hif";
+		};
+
+                aon_pm_l2_intc: interrupt-controller@410640 {
+			compatible = "brcm,l2-intc";
+			reg = <0x410640 0x30>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			interrupts = <GIC_SPI 0x40 0x0>;
+			interrupt-parent = <&gic>;
+			brcm,irq-can-wake;
+		};
+
+		aon-ctrl@410000 {
+			compatible = "brcm,brcmstb-aon-ctrl";
+			reg = <0x410000 0x200>, <0x410200 0x400>;
+			reg-names = "aon-ctrl", "aon-sram";
+		};
+
+		nand_controller: nand-controller@3e2800 {
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "brcm,brcmnand-v7.1", "brcm,brcmnand";
+			reg-names = "nand", "flash-dma";
+			reg = <0x3e2800 0x600>, <0x3e3000 0x2c>;
+			interrupt-parent = <&hif_intr2_intc>;
+			interrupts = <24>, <4>;
+			interrupt-names = "nand_ctlrdy", "flash_dma_done";
+		};
+
+		sata@45a000 {
+			compatible = "brcm,bcm7445-ahci", "brcm,sata3-ahci";
+			reg-names = "ahci", "top-ctrl";
+			reg = <0x45a000 0xa9c>, <0x458040 0x24>;
+			interrupts = <GIC_SPI 30 0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			sata0: sata-port@0 {
+				reg = <0>;
+				phys = <&sata_phy0>;
+			};
+
+			sata1: sata-port@1 {
+				reg = <1>;
+				phys = <&sata_phy1>;
+			};
+		};
+
+		sata_phy: sata-phy@458100 {
+			compatible = "brcm,bcm7445-sata-phy", "brcm,phy-sata3";
+			reg = <0x458100 0x1f00>;
+			reg-names = "phy";
+			#address-cells = <0x1>;
+			#size-cells = <0x0>;
+
+			sata_phy0: sata-phy@0 {
+				reg = <0>;
+				#phy-cells = <0>;
+			};
+
+			sata_phy1: sata-phy@1 {
+				reg = <1>;
+				#phy-cells = <0>;
+			};
+		};
+
+		upg_gio: gpio@40a700 {
+			compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+			reg = <0x40a700 0x80>;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			interrupt-controller;
+			interrupt-parent = <&irq0_intc>;
+			interrupts = <6>;
+			brcm,gpio-bank-widths = <32 32 32 24>;
+		};
+
+		upg_gio_aon: gpio@4172c0 {
+			compatible = "brcm,bcm7445-gpio", "brcm,brcmstb-gpio";
+			reg = <0x4172c0 0x40>;
+			#gpio-cells = <2>;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			interrupt-controller;
+			interrupts-extended = <&irq0_aon_intc 0x6>,
+					      <&aon_pm_l2_intc 0x5>;
+			wakeup-source;
+			brcm,gpio-bank-widths = <18 4>;
+		};
+
+	};
+
+	memory_controllers@f1100000 {
+		compatible = "simple-bus";
+		ranges = <0x0 0x0 0xf1100000 0x200000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		memc@0 {
+			compatible = "brcm,brcmstb-memc", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x80000>;
+
+			memc-ddr@2000 {
+				compatible = "brcm,brcmstb-memc-ddr";
+				reg = <0x2000 0x800>;
+			};
+
+			ddr-phy@6000 {
+				compatible = "brcm,brcmstb-ddr-phy-v240.1";
+				reg = <0x6000 0x21c>;
+				};
+
+			shimphy@8000 {
+				compatible = "brcm,brcmstb-ddr-shimphy-v1.0";
+				reg = <0x8000 0xe4>;
+			};
+		};
+
+		memc@80000 {
+			compatible = "brcm,brcmstb-memc", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x80000 0x80000>;
+
+			memc-ddr@2000 {
+				compatible = "brcm,brcmstb-memc-ddr";
+				reg = <0x2000 0x800>;
+			};
+
+			ddr-phy@6000 {
+				compatible = "brcm,brcmstb-ddr-phy-v240.1";
+				reg = <0x6000 0x21c>;
+			};
+
+			shimphy@8000 {
+				compatible = "brcm,brcmstb-ddr-shimphy-v1.0";
+				reg = <0x8000 0xe4>;
+			};
+		};
+
+		memc@100000 {
+			compatible = "brcm,brcmstb-memc", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x100000 0x80000>;
+
+			memc-ddr@2000 {
+				compatible = "brcm,brcmstb-memc-ddr";
+				reg = <0x2000 0x800>;
+			};
+
+			ddr-phy@6000 {
+				compatible = "brcm,brcmstb-ddr-phy-v240.1";
+				reg = <0x6000 0x21c>;
+			};
+
+			shimphy@8000 {
+				compatible = "brcm,brcmstb-ddr-shimphy-v1.0";
+				reg = <0x8000 0xe4>;
+			};
+		};
+	};
+
+	sram@ffe00000 {
+		compatible = "brcm,boot-sram", "mmio-sram";
+		reg = <0x0 0xffe00000 0x0 0x10000>;
+	};
+
+	smpboot {
+		compatible = "brcm,brcmstb-smpboot";
+		syscon-cpu = <&hif_cpubiuctrl 0x88 0x178>;
+		syscon-cont = <&hif_continuation>;
+	};
+
+	reboot {
+		compatible = "brcm,brcmstb-reboot";
+		syscon = <&sun_top_ctrl 0x304 0x308>;
+	};
+};

@@ -1,0 +1,8 @@
+perf-y += perf_regs.o
+
+perf-$(CONFIG_DWARF) += dwarf-regs.o
+
+perf-$(CONFIG_LOCAL_LIBUNWIND)    += unwind-libunwind.o
+perf-$(CONFIG_LIBDW_DWARF_UNWIND) += unwind-libdw.o
+
+perf-$(CONFIG_AUXTRACE) += pmu.o auxtrace.o cs-etm.o

@@ -1,0 +1,48 @@
+config CRYPTO_DEV_ASPEED
+	tristate "Support for Aspeed cryptographic engine driver"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select CRYPTO_ENGINE
+	help
+	  Hash and Crypto Engine (HACE) is designed to accelerate the
+	  throughput of hash data digest, encryption and decryption.
+
+	  Select y here to have support for the cryptographic driver
+	  available on Aspeed SoC.
+
+config CRYPTO_DEV_ASPEED_DEBUG
+	bool "Enable Aspeed crypto debug messages"
+	depends on CRYPTO_DEV_ASPEED
+	help
+	  Print Aspeed crypto debugging messages if you use this
+	  option to ask for those messages.
+	  Avoid enabling this option for production build to
+	  minimize driver timing.
+
+config CRYPTO_DEV_ASPEED_HACE_HASH
+	bool "Enable Aspeed Hash & Crypto Engine (HACE) hash"
+	depends on CRYPTO_DEV_ASPEED
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_HMAC
+	help
+	  Select here to enable Aspeed Hash & Crypto Engine (HACE)
+	  hash driver.
+	  Supports multiple message digest standards, including
+	  SHA-1, SHA-224, SHA-256, SHA-384, SHA-512, and so on.
+
+config CRYPTO_DEV_ASPEED_HACE_CRYPTO
+	bool "Enable Aspeed Hash & Crypto Engine (HACE) crypto"
+	depends on CRYPTO_DEV_ASPEED
+	select CRYPTO_AES
+	select CRYPTO_DES
+	select CRYPTO_ECB
+	select CRYPTO_CBC
+	select CRYPTO_CFB
+	select CRYPTO_OFB
+	select CRYPTO_CTR
+	help
+	  Select here to enable Aspeed Hash & Crypto Engine (HACE)
+	  crypto driver.
+	  Supports AES/DES symmetric-key encryption and decryption
+	  with ECB/CBC/CFB/OFB/CTR options.

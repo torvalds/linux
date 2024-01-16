@@ -1,0 +1,219 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config PINCTRL_IMX
+	tristate
+	depends on OF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select REGMAP
+
+config PINCTRL_IMX_SCU
+	tristate
+	depends on IMX_SCU
+	select PINCTRL_IMX
+
+config PINCTRL_IMX1_CORE
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_IMX1
+	bool "IMX1 pinctrl driver"
+	depends on SOC_IMX1
+	select PINCTRL_IMX1_CORE
+	help
+	  Say Y here to enable the imx1 pinctrl driver
+
+config PINCTRL_IMX27
+	bool "IMX27 pinctrl driver"
+	depends on SOC_IMX27
+	select PINCTRL_IMX1_CORE
+	help
+	  Say Y here to enable the imx27 pinctrl driver
+
+
+config PINCTRL_IMX25
+	bool "IMX25 pinctrl driver"
+	depends on OF
+	depends on SOC_IMX25
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx25 pinctrl driver
+
+config PINCTRL_IMX35
+	bool "IMX35 pinctrl driver"
+	depends on SOC_IMX35
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx35 pinctrl driver
+
+config PINCTRL_IMX50
+	bool "IMX50 pinctrl driver"
+	depends on SOC_IMX50
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx50 pinctrl driver
+
+config PINCTRL_IMX51
+	bool "IMX51 pinctrl driver"
+	depends on SOC_IMX51
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx51 pinctrl driver
+
+config PINCTRL_IMX53
+	bool "IMX53 pinctrl driver"
+	depends on SOC_IMX53
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx53 pinctrl driver
+
+config PINCTRL_IMX6Q
+	bool "IMX6Q/DL pinctrl driver"
+	depends on SOC_IMX6Q
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6q/dl pinctrl driver
+
+config PINCTRL_IMX6SL
+	bool "IMX6SL pinctrl driver"
+	depends on SOC_IMX6SL
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sl pinctrl driver
+
+config PINCTRL_IMX6SLL
+	bool "IMX6SLL pinctrl driver"
+	depends on SOC_IMX6SLL
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sll pinctrl driver
+
+config PINCTRL_IMX6SX
+	bool "IMX6SX pinctrl driver"
+	depends on SOC_IMX6SX
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sx pinctrl driver
+
+config PINCTRL_IMX6UL
+	bool "IMX6UL pinctrl driver"
+	depends on SOC_IMX6UL
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6ul pinctrl driver
+
+config PINCTRL_IMX7D
+	bool "IMX7D pinctrl driver"
+	depends on SOC_IMX7D
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx7d pinctrl driver
+
+config PINCTRL_IMX7ULP
+	bool "IMX7ULP pinctrl driver"
+	depends on SOC_IMX7ULP
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx7ulp pinctrl driver
+
+config PINCTRL_IMX8MM
+	tristate "IMX8MM pinctrl driver"
+	depends on OF
+	depends on SOC_IMX8M
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mm pinctrl driver
+
+config PINCTRL_IMX8MN
+	tristate "IMX8MN pinctrl driver"
+	depends on OF
+	depends on SOC_IMX8M
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mn pinctrl driver
+
+config PINCTRL_IMX8MP
+	tristate "IMX8MP pinctrl driver"
+	depends on OF
+	depends on SOC_IMX8M
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mp pinctrl driver
+
+config PINCTRL_IMX8MQ
+	tristate "IMX8MQ pinctrl driver"
+	depends on OF
+	depends on SOC_IMX8M
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8mq pinctrl driver
+
+config PINCTRL_IMX8QM
+	tristate "IMX8QM pinctrl driver"
+	depends on IMX_SCU && ARCH_MXC && ARM64
+	select PINCTRL_IMX_SCU
+	help
+	  Say Y here to enable the imx8qm pinctrl driver
+
+config PINCTRL_IMX8QXP
+	tristate "IMX8QXP pinctrl driver"
+	depends on IMX_SCU && ARCH_MXC && ARM64
+	select PINCTRL_IMX_SCU
+	help
+	  Say Y here to enable the imx8qxp pinctrl driver
+
+config PINCTRL_IMX8DXL
+	tristate "IMX8DXL pinctrl driver"
+	depends on IMX_SCU && ARCH_MXC && ARM64
+	select PINCTRL_IMX_SCU
+	help
+	  Say Y here to enable the imx8dxl pinctrl driver
+
+config PINCTRL_IMX8ULP
+	tristate "IMX8ULP pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx8ulp pinctrl driver
+
+config PINCTRL_IMXRT1050
+	bool "IMXRT1050 pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imxrt1050 pinctrl driver
+
+config PINCTRL_IMX93
+	tristate "IMX93 pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx93 pinctrl driver
+
+config PINCTRL_VF610
+	bool "Freescale Vybrid VF610 pinctrl driver"
+	depends on SOC_VF610
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the Freescale Vybrid VF610 pinctrl driver
+
+config PINCTRL_MXS
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_IMX23
+	bool
+	select PINCTRL_MXS
+
+config PINCTRL_IMX28
+	bool
+	select PINCTRL_MXS
+
+config PINCTRL_IMXRT1170
+	bool "IMXRT1170 pinctrl driver"
+	depends on ARCH_MXC
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imxrt1170 pinctrl driver

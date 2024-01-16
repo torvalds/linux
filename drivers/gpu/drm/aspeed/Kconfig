@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_ASPEED_GFX
+	tristate "ASPEED BMC Display Controller"
+	depends on DRM && OF
+	depends on (COMPILE_TEST || ARCH_ASPEED)
+	depends on MMU
+	select DRM_KMS_HELPER
+	select DRM_GEM_DMA_HELPER
+	select DMA_CMA if HAVE_DMA_CONTIGUOUS
+	select CMA if HAVE_DMA_CONTIGUOUS
+	select MFD_SYSCON
+	help
+	  Chose this option if you have an ASPEED AST2500 SOC Display
+	  Controller (aka GFX).
+
+	  If M is selected this module will be called aspeed_gfx.

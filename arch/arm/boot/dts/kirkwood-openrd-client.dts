@@ -1,0 +1,74 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Marvell OpenRD Client Board Description
+ *
+ * Andrew Lunn <andrew@lunn.ch>
+ *
+ * This file contains the definitions that are specific to OpenRD
+ * client variant of the Marvell Kirkwood Development Board.
+ */
+
+/dts-v1/;
+
+#include "kirkwood-openrd.dtsi"
+
+/ {
+	model = "OpenRD Client";
+	compatible = "marvell,openrd-client", "marvell,openrd", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	ocp@f1000000 {
+		audio-controller@a0000 {
+			status = "okay";
+		};
+		i2c@11000 {
+			status = "okay";
+			clock-frequency = <400000>;
+
+			cs42l51: cs42l51@4a {
+				compatible = "cirrus,cs42l51";
+				reg = <0x4a>;
+				#sound-dai-cells = <0>;
+			};
+		};
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,mclk-fs = <256>;
+
+		simple-audio-card,cpu {
+			sound-dai = <&audio0 0>;
+		};
+
+		simple-audio-card,codec {
+			sound-dai = <&cs42l51>;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy0: ethernet-phy@8 {
+		reg = <8>;
+	};
+	ethphy1: ethernet-phy@24 {
+		reg = <24>;
+	};
+};
+
+&eth0 {
+	status = "okay";
+	ethernet0-port@0 {
+		phy-handle = <&ethphy0>;
+	};
+};
+
+&eth1 {
+	status = "okay";
+	ethernet1-port@0 {
+		phy-handle = <&ethphy1>;
+	};
+};
+

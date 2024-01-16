@@ -1,0 +1,212 @@
+* Clock Block on Freescale QorIQ Platforms
+
+Freescale QorIQ chips take primary clocking input from the external
+SYSCLK signal. The SYSCLK input (frequency) is multiplied using
+multiple phase locked loops (PLL) to create a variety of frequencies
+which can then be passed to a variety of internal logic, including
+cores and peripheral IP blocks.
+Please refer to the Reference Manual for details.
+
+All references to "1.0" and "2.0" refer to the QorIQ chassis version to
+which the chip complies.
+
+Chassis Version		Example Chips
+---------------		-------------
+1.0			p4080, p5020, p5040
+2.0			t4240, b4860
+
+1. Clock Block Binding
+
+Required properties:
+- compatible: Should contain a chip-specific clock block compatible
+	string and (if applicable) may contain a chassis-version clock
+	compatible string.
+
+	Chip-specific strings are of the form "fsl,<chip>-clockgen", such as:
+	* "fsl,p2041-clockgen"
+	* "fsl,p3041-clockgen"
+	* "fsl,p4080-clockgen"
+	* "fsl,p5020-clockgen"
+	* "fsl,p5040-clockgen"
+	* "fsl,t1023-clockgen"
+	* "fsl,t1024-clockgen"
+	* "fsl,t1040-clockgen"
+	* "fsl,t1042-clockgen"
+	* "fsl,t2080-clockgen"
+	* "fsl,t2081-clockgen"
+	* "fsl,t4240-clockgen"
+	* "fsl,b4420-clockgen"
+	* "fsl,b4860-clockgen"
+	* "fsl,ls1012a-clockgen"
+	* "fsl,ls1021a-clockgen"
+	* "fsl,ls1028a-clockgen"
+	* "fsl,ls1043a-clockgen"
+	* "fsl,ls1046a-clockgen"
+	* "fsl,ls1088a-clockgen"
+	* "fsl,ls2080a-clockgen"
+	* "fsl,lx2160a-clockgen"
+	Chassis-version clock strings include:
+	* "fsl,qoriq-clockgen-1.0": for chassis 1.0 clocks
+	* "fsl,qoriq-clockgen-2.0": for chassis 2.0 clocks
+- reg: Describes the address of the device's resources within the
+	address space defined by its parent bus, and resource zero
+	represents the clock register set
+
+Optional properties:
+- ranges: Allows valid translation between child's address space and
+	parent's. Must be present if the device has sub-nodes.
+- #address-cells: Specifies the number of cells used to represent
+	physical base addresses.  Must be present if the device has
+	sub-nodes and set to 1 if present
+- #size-cells: Specifies the number of cells used to represent
+	the size of an address. Must be present if the device has
+	sub-nodes and set to 1 if present
+- clock-frequency: Input system clock frequency (SYSCLK)
+- clocks: If clock-frequency is not specified, sysclk may be provided
+	as an input clock.  Either clock-frequency or clocks must be
+	provided.
+	A second input clock, called "coreclk", may be provided if
+	core PLLs are based on a different input clock from the
+	platform PLL.
+- clock-names: Required if a coreclk is present.  Valid names are
+	"sysclk" and "coreclk".
+
+2. Clock Provider
+
+The clockgen node should act as a clock provider, though in older device
+trees the children of the clockgen node are the clock providers.
+
+When the clockgen node is a clock provider, #clock-cells = <2>.
+The first cell of the clock specifier is the clock type, and the
+second cell is the clock index for the specified type.
+
+	Type#	Name		Index Cell
+	0	sysclk		must be 0
+	1	cmux		index (n in CLKCnCSR)
+	2	hwaccel		index (n in CLKCGnHWACSR)
+	3	fman		0 for fm1, 1 for fm2
+	4	platform pll	n=pll/(n+1). For example, when n=1,
+				that means output_freq=PLL_freq/2.
+	5	coreclk		must be 0
+
+3. Example
+
+	clockgen: global-utilities@e1000 {
+		compatible = "fsl,p5020-clockgen", "fsl,qoriq-clockgen-1.0";
+		clock-frequency = <133333333>;
+		reg = <0xe1000 0x1000>;
+		#clock-cells = <2>;
+	};
+
+	fman@400000 {
+		...
+		clocks = <&clockgen 3 0>;
+		...
+	};
+}
+4. Legacy Child Nodes
+
+NOTE: These nodes are deprecated.  Kernels should continue to support
+device trees with these nodes, but new device trees should not use them.
+
+Most of the bindings are from the common clock binding[1].
+ [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- compatible : Should include one of the following:
+	* "fsl,qoriq-core-pll-1.0" for core PLL clocks (v1.0)
+	* "fsl,qoriq-core-pll-2.0" for core PLL clocks (v2.0)
+	* "fsl,qoriq-core-mux-1.0" for core mux clocks (v1.0)
+	* "fsl,qoriq-core-mux-2.0" for core mux clocks (v2.0)
+	* "fsl,qoriq-sysclk-1.0": for input system clock (v1.0).
+		It takes parent's clock-frequency as its clock.
+	* "fsl,qoriq-sysclk-2.0": for input system clock (v2.0).
+		It takes parent's clock-frequency as its clock.
+	* "fsl,qoriq-platform-pll-1.0" for the platform PLL clock (v1.0)
+	* "fsl,qoriq-platform-pll-2.0" for the platform PLL clock (v2.0)
+- #clock-cells: From common clock binding. The number of cells in a
+	clock-specifier. Should be <0> for "fsl,qoriq-sysclk-[1,2].0"
+	clocks, or <1> for "fsl,qoriq-core-pll-[1,2].0" clocks.
+	For "fsl,qoriq-core-pll-[1,2].0" clocks, the single
+	clock-specifier cell may take the following values:
+	* 0 - equal to the PLL frequency
+	* 1 - equal to the PLL frequency divided by 2
+	* 2 - equal to the PLL frequency divided by 4
+
+Recommended properties:
+- clocks: Should be the phandle of input parent clock
+- clock-names: From common clock binding, indicates the clock name
+- clock-output-names: From common clock binding, indicates the names of
+	output clocks
+- reg: Should be the offset and length of clock block base address.
+	The length should be 4.
+
+Legacy Example:
+/ {
+	clockgen: global-utilities@e1000 {
+		compatible = "fsl,p5020-clockgen", "fsl,qoriq-clockgen-1.0";
+		ranges = <0x0 0xe1000 0x1000>;
+		clock-frequency = <133333333>;
+		reg = <0xe1000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		sysclk: sysclk {
+			#clock-cells = <0>;
+			compatible = "fsl,qoriq-sysclk-1.0";
+			clock-output-names = "sysclk";
+		};
+
+		pll0: pll0@800 {
+			#clock-cells = <1>;
+			reg = <0x800 0x4>;
+			compatible = "fsl,qoriq-core-pll-1.0";
+			clocks = <&sysclk>;
+			clock-output-names = "pll0", "pll0-div2";
+		};
+
+		pll1: pll1@820 {
+			#clock-cells = <1>;
+			reg = <0x820 0x4>;
+			compatible = "fsl,qoriq-core-pll-1.0";
+			clocks = <&sysclk>;
+			clock-output-names = "pll1", "pll1-div2";
+		};
+
+		mux0: mux0@0 {
+			#clock-cells = <0>;
+			reg = <0x0 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux0";
+		};
+
+		mux1: mux1@20 {
+			#clock-cells = <0>;
+			reg = <0x20 0x4>;
+			compatible = "fsl,qoriq-core-mux-1.0";
+			clocks = <&pll0 0>, <&pll0 1>, <&pll1 0>, <&pll1 1>;
+			clock-names = "pll0", "pll0-div2", "pll1", "pll1-div2";
+			clock-output-names = "cmux1";
+		};
+
+		platform-pll: platform-pll@c00 {
+			#clock-cells = <1>;
+			reg = <0xc00 0x4>;
+			compatible = "fsl,qoriq-platform-pll-1.0";
+			clocks = <&sysclk>;
+			clock-output-names = "platform-pll", "platform-pll-div2";
+		};
+	};
+};
+
+Example for legacy clock consumer:
+
+/ {
+	cpu0: PowerPC,e5500@0 {
+		...
+		clocks = <&mux0>;
+		...
+	};
+};

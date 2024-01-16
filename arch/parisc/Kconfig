@@ -1,0 +1,375 @@
+# SPDX-License-Identifier: GPL-2.0
+config PARISC
+	def_bool y
+	select ALTERNATE_USER_ADDRESS_SPACE
+	select ARCH_32BIT_OFF_T if !64BIT
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_GRAPH_TRACER
+	select HAVE_SYSCALL_TRACEPOINTS
+	select ARCH_WANT_FRAME_POINTERS
+	select ARCH_HAS_ELF_RANDOMIZE
+	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
+	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_PTE_SPECIAL
+	select ARCH_NO_SG_CHAIN
+	select ARCH_SUPPORTS_HUGETLBFS if PA20
+	select ARCH_SUPPORTS_MEMORY_FAILURE
+	select ARCH_STACKWALK
+	select ARCH_HAS_DEBUG_VM_PGTABLE
+	select HAVE_RELIABLE_STACKTRACE
+	select DMA_OPS
+	select RTC_CLASS
+	select RTC_DRV_GENERIC
+	select INIT_ALL_POSSIBLE
+	select BUG
+	select BUILDTIME_TABLE_SORT
+	select HAVE_PCI
+	select HAVE_PERF_EVENTS
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZ4
+	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
+	select HAVE_KERNEL_XZ
+	select GENERIC_ATOMIC64 if !64BIT
+	select GENERIC_IRQ_PROBE
+	select GENERIC_PCI_IOMAP
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
+	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_ARCH_TOPOLOGY if SMP
+	select GENERIC_CPU_DEVICES if !SMP
+	select GENERIC_LIB_DEVMEM_IS_ALLOWED
+	select SYSCTL_ARCH_UNALIGN_ALLOW
+	select SYSCTL_EXCEPTION_TRACE
+	select HAVE_MOD_ARCH_SPECIFIC
+	select MODULES_USE_ELF_RELA
+	select CLONE_BACKWARDS
+	select TTY # Needed for pdc_cons.c
+	select HAVE_DEBUG_STACKOVERFLOW
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_HASH
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE
+	select HAVE_ARCH_KFENCE
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_REGS_AND_STACK_ACCESS_API
+	select GENERIC_SCHED_CLOCK
+	select GENERIC_IRQ_MIGRATION if SMP
+	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
+	select LEGACY_TIMER_TICK
+	select CPU_NO_EFFICIENT_FFS
+	select THREAD_INFO_IN_TASK
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
+	select HAVE_ARCH_KGDB
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_DYNAMIC_FTRACE if $(cc-option,-fpatchable-function-entry=1,1)
+	select HAVE_FTRACE_MCOUNT_RECORD if HAVE_DYNAMIC_FTRACE
+	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY if DYNAMIC_FTRACE
+	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
+	select HAVE_SOFTIRQ_ON_OWN_STACK if IRQSTACKS
+	select TRACE_IRQFLAGS_SUPPORT
+	select HAVE_FUNCTION_DESCRIPTORS if 64BIT
+
+	help
+	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
+	  in many of their workstations & servers (HP9000 700 and 800 series,
+	  and later HP3000 series).  The PA-RISC Linux project home page is
+	  at <https://parisc.wiki.kernel.org>.
+
+config CPU_BIG_ENDIAN
+	def_bool y
+
+config MMU
+	def_bool y
+
+config STACK_GROWSUP
+	def_bool y
+
+config GENERIC_LOCKBREAK
+	bool
+	default y
+	depends on SMP && PREEMPTION
+
+config ARCH_HAS_ILOG2_U32
+	bool
+	default n
+
+config ARCH_HAS_ILOG2_U64
+	bool
+	default n
+
+config GENERIC_BUG
+	bool
+	default y
+	depends on BUG
+
+config GENERIC_HWEIGHT
+	bool
+	default y
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config TIME_LOW_RES
+	bool
+	depends on SMP
+	default y
+
+# unless you want to implement ACPI on PA-RISC ... ;-)
+config PM
+	bool
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config ISA_DMA_API
+	bool
+
+config ARCH_MAY_HAVE_PC_FDC
+	bool
+	depends on BROKEN
+	default y
+
+config PGTABLE_LEVELS
+	int
+	default 3 if 64BIT && PARISC_PAGE_SIZE_4KB
+	default 2
+
+menu "Processor type and features"
+
+choice
+	prompt "Processor type"
+	default PA7000 if "$(ARCH)" = "parisc"
+
+config PA7000
+	bool "PA7000/PA7100" if "$(ARCH)" = "parisc"
+	help
+	  This is the processor type of your CPU.  This information is
+	  used for optimizing purposes.  In order to compile a kernel
+	  that can run on all 32-bit PA CPUs (albeit not optimally fast),
+	  you can specify "PA7000" here.
+
+	  Specifying "PA8000" here will allow you to select a 64-bit kernel
+	  which is required on some machines.
+
+config PA7100LC
+	bool "PA7100LC" if "$(ARCH)" = "parisc"
+	help
+	  Select this option for the PCX-L processor, as used in the
+	  712, 715/64, 715/80, 715/100, 715/100XC, 725/100, 743, 748,
+	  D200, D210, D300, D310 and E-class
+
+config PA7200
+	bool "PA7200" if "$(ARCH)" = "parisc"
+	help
+	  Select this option for the PCX-T' processor, as used in the
+	  C100, C110, J100, J110, J210XC, D250, D260, D350, D360,
+	  K100, K200, K210, K220, K400, K410 and K420
+
+config PA7300LC
+	bool "PA7300LC" if "$(ARCH)" = "parisc"
+	help
+	  Select this option for the PCX-L2 processor, as used in the
+	  744, A180, B132L, B160L, B180L, C132L, C160L, C180L,
+	  D220, D230, D320 and D330.
+
+config PA8X00
+	bool "PA8000 and up"
+	help
+	  Select this option for PCX-U to PCX-W2 processors.
+
+endchoice
+
+# Define implied options from the CPU selection here
+
+config PA20
+	def_bool y
+	depends on PA8X00
+
+config PA11
+	def_bool y
+	depends on PA7000 || PA7100LC || PA7200 || PA7300LC
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+
+config PREFETCH
+	def_bool y
+	depends on PA8X00 || PA7200
+
+config PARISC_HUGE_KERNEL
+	def_bool y if !MODULES || UBSAN || FTRACE || COMPILE_TEST
+
+config MLONGCALLS
+	def_bool y if PARISC_HUGE_KERNEL
+	bool "Enable the -mlong-calls compiler option for big kernels" if !PARISC_HUGE_KERNEL
+	depends on PA8X00
+	help
+	  If you configure the kernel to include many drivers built-in instead
+	  as modules, the kernel executable may become too big, so that the
+	  linker will not be able to resolve some long branches and fails to link
+	  your vmlinux kernel. In that case enabling this option will help you
+	  to overcome this limit by using the -mlong-calls compiler option.
+
+	  Usually you want to say N here, unless you e.g. want to build
+	  a kernel which includes all necessary drivers built-in and which can
+	  be used for TFTP booting without the need to have an initrd ramdisk.
+
+	  Enabling this option will probably slow down your kernel.
+
+config 64BIT
+	def_bool y if "$(ARCH)" = "parisc64"
+	bool "64-bit kernel" if "$(ARCH)" = "parisc"
+	depends on PA8X00
+	help
+	  Enable this if you want to support 64bit kernel on PA-RISC platform.
+
+	  At the moment, only people willing to use more than 2GB of RAM,
+	  or having a 64bit-only capable PA-RISC machine should say Y here.
+
+	  Since there is no 64bit userland on PA-RISC, there is no point to
+	  enable this option otherwise. The 64bit kernel is significantly bigger
+	  and slower than the 32bit one.
+
+choice
+	prompt "Kernel page size"
+	default PARISC_PAGE_SIZE_4KB
+
+config PARISC_PAGE_SIZE_4KB
+	bool "4KB"
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance, a page size of 16KB is recommended.  For best
+	  compatibility with 32bit applications, a page size of 4KB should be
+	  selected (the vast majority of 32bit binaries work perfectly fine
+	  with a larger page size).
+
+	  4KB                For best 32bit compatibility
+	  16KB               For best performance
+	  64KB               For best performance, might give more overhead.
+
+	  If you don't know what to do, choose 4KB.
+
+config PARISC_PAGE_SIZE_16KB
+	bool "16KB"
+	depends on PA8X00 && BROKEN && !KFENCE
+
+config PARISC_PAGE_SIZE_64KB
+	bool "64KB"
+	depends on PA8X00 && BROKEN && !KFENCE
+
+endchoice
+
+config SMP
+	bool "Symmetric multi-processing support"
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, say N. If you have a system with more
+	  than one CPU, say Y.
+
+	  If you say N here, the kernel will run on uni- and multiprocessor
+	  machines, but will use only one CPU of a multiprocessor machine.
+	  On a uniprocessor machine, the kernel will run faster if you say N.
+
+	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
+	  available at <https://www.tldp.org/docs.html#howto>.
+
+	  If you don't know what to do here, say N.
+
+config SCHED_MC
+	bool "Multi-core scheduler support"
+	depends on GENERIC_ARCH_TOPOLOGY && PA8X00
+	help
+	  Multi-core scheduler support improves the CPU scheduler's decision
+	  making when dealing with multi-core CPU chips at a cost of slightly
+	  increased overhead in some places. If unsure say N here.
+
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	default y
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
+
+config TLB_PTLOCK
+	bool "Use page table locks in TLB fault handler"
+	depends on SMP
+	default n
+	help
+	  Select this option to enable page table locking in the TLB
+	  fault handler. This ensures that page table entries are
+	  updated consistently on SMP machines at the expense of some
+	  loss in performance.
+
+config HOTPLUG_CPU
+	bool
+	default y if SMP
+
+config ARCH_SELECT_MEMORY_MODEL
+	def_bool y
+	depends on 64BIT
+
+config ARCH_SPARSEMEM_ENABLE
+	def_bool y
+	depends on 64BIT
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config ARCH_SPARSEMEM_DEFAULT
+	def_bool y
+	depends on ARCH_SPARSEMEM_ENABLE
+
+source "kernel/Kconfig.hz"
+
+config COMPAT
+	def_bool y
+	depends on 64BIT
+
+config AUDIT_ARCH
+	def_bool y
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "4" if 64BIT
+	default "16"
+
+config KEXEC
+	bool "Kexec system call"
+	select KEXEC_CORE
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  shutdown, so do not be surprised if this code does not
+	  initially work for you.
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select KEXEC_ELF
+	help
+	  This enables the kexec_file_load() System call. This is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
+
+endmenu
+
+source "drivers/parisc/Kconfig"

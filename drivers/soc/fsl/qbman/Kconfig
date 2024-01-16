@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig FSL_DPAA
+	bool "QorIQ DPAA1 framework support"
+	depends on ((FSL_SOC_BOOKE || ARCH_LAYERSCAPE) && ARCH_DMA_ADDR_T_64BIT)
+	select GENERIC_ALLOCATOR
+	help
+	  The Freescale Data Path Acceleration Architecture (DPAA) is a set of
+	  hardware components on specific QorIQ multicore processors.
+	  This architecture provides the infrastructure to support simplified
+	  sharing of networking interfaces and accelerators by multiple CPUs.
+	  The major h/w blocks composing DPAA are BMan and QMan.
+
+	  The Buffer Manager (BMan) is a hardware buffer pool management block
+	  that allows software and accelerators on the datapath to acquire and
+	  release buffers in order to build frames.
+
+	  The Queue Manager (QMan) is a hardware queue management block
+	  that allows software and accelerators on the datapath to enqueue and
+	  dequeue frames in order to communicate.
+
+if FSL_DPAA
+
+config FSL_DPAA_CHECKING
+	bool "Additional driver checking"
+	help
+	  Compiles in additional checks, to sanity-check the drivers and
+	  any use of the exported API. Not recommended for performance.
+
+config FSL_BMAN_TEST
+	tristate "BMan self-tests"
+	help
+	  Compile the BMan self-test code. These tests will
+	  exercise the BMan APIs to confirm functionality
+	  of both the software drivers and hardware device.
+
+config FSL_BMAN_TEST_API
+	bool "High-level API self-test"
+	depends on FSL_BMAN_TEST
+	default y
+	help
+	  This requires the presence of cpu-affine portals, and performs
+	  high-level API testing with them (whichever portal(s) are affine
+	  to the cpu(s) the test executes on).
+
+config FSL_QMAN_TEST
+	tristate "QMan self-tests"
+	help
+	  Compile self-test code for QMan.
+
+config FSL_QMAN_TEST_API
+	bool "QMan high-level self-test"
+	depends on FSL_QMAN_TEST
+	default y
+	help
+	  This requires the presence of cpu-affine portals, and performs
+	  high-level API testing with them (whichever portal(s) are affine to
+	  the cpu(s) the test executes on).
+
+config FSL_QMAN_TEST_STASH
+	bool "QMan 'hot potato' data-stashing self-test"
+	depends on FSL_QMAN_TEST
+	default y
+	help
+	  This performs a "hot potato" style test enqueuing/dequeuing a frame
+	  across a series of FQs scheduled to different portals (and cpus), with
+	  DQRR, data and context stashing always on.
+
+endif # FSL_DPAA

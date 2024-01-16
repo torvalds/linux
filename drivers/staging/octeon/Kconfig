@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-2.0
+config OCTEON_ETHERNET
+	tristate "Cavium Networks Octeon Ethernet support"
+	depends on CAVIUM_OCTEON_SOC || COMPILE_TEST
+	depends on NETDEVICES
+	select PHYLIB
+	select MDIO_OCTEON
+	help
+	  This driver supports the builtin ethernet ports on Cavium
+	  Networks' products in the Octeon family. This driver supports the
+	  CN3XXX and CN5XXX Octeon processors.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called octeon-ethernet.
+

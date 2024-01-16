@@ -1,0 +1,193 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
+/*
+ * Realtek RTD1395 SoC family
+ *
+ * Copyright (c) 2019 Andreas Färber
+ */
+
+/memreserve/	0x0000000000000000 0x000000000002f000;
+/memreserve/	0x000000000002f000 0x00000000000d1000;
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/realtek,rtd1295.h>
+
+/ {
+	interrupt-parent = <&gic>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		rpc_comm: rpc@2f000 {
+			reg = <0x2f000 0x1000>;
+		};
+
+		rpc_ringbuf: rpc@1ffe000 {
+			reg = <0x1ffe000 0x4000>;
+		};
+
+		tee: tee@10100000 {
+			reg = <0x10100000 0xf00000>;
+			no-map;
+		};
+	};
+
+	arm_pmu: arm-pmu {
+		compatible = "arm,cortex-a53-pmu";
+		interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	osc27M: osc {
+		compatible = "fixed-clock";
+		clock-frequency = <27000000>;
+		#clock-cells = <0>;
+		clock-output-names = "osc27M";
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0x00000000 0x0001f000>, /* boot ROM */
+			 <0x98000000 0x98000000 0x68000000>;
+
+		rbus: bus@98000000 {
+			compatible = "simple-bus";
+			reg = <0x98000000 0x200000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x98000000 0x200000>;
+
+			crt: syscon@0 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x0 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x0 0x1000>;
+			};
+
+			iso: syscon@7000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x7000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x7000 0x1000>;
+			};
+
+			sb2: syscon@1a000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1a000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1a000 0x1000>;
+			};
+
+			misc: syscon@1b000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1b000 0x1000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1b000 0x1000>;
+			};
+
+			scpu_wrapper: syscon@1d000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x1d000 0x2000>;
+				reg-io-width = <4>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x0 0x1d000 0x2000>;
+			};
+		};
+
+		gic: interrupt-controller@ff011000 {
+			compatible = "arm,gic-400";
+			reg = <0xff011000 0x1000>,
+			      <0xff012000 0x2000>,
+			      <0xff014000 0x2000>,
+			      <0xff016000 0x2000>;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+		};
+	};
+};
+
+&crt {
+	reset1: reset-controller@0 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x0 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset2: reset-controller@4 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x4 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset3: reset-controller@8 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x8 0x4>;
+		#reset-cells = <1>;
+	};
+
+	reset4: reset-controller@50 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x50 0x4>;
+		#reset-cells = <1>;
+	};
+};
+
+&iso {
+	iso_reset: reset-controller@88 {
+		compatible = "snps,dw-low-reset";
+		reg = <0x88 0x4>;
+		#reset-cells = <1>;
+	};
+
+	wdt: watchdog@680 {
+		compatible = "realtek,rtd1295-watchdog";
+		reg = <0x680 0x100>;
+		clocks = <&osc27M>;
+	};
+
+	uart0: serial@800 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x800 0x400>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <27000000>;
+		resets = <&iso_reset RTD1295_ISO_RSTN_UR0>;
+		status = "disabled";
+	};
+};
+
+&misc {
+	uart1: serial@200 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x200 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <432000000>;
+		resets = <&reset2 RTD1295_RSTN_UR1>;
+		status = "disabled";
+	};
+
+	uart2: serial@400 {
+		compatible = "snps,dw-apb-uart";
+		reg = <0x400 0x100>;
+		reg-shift = <2>;
+		reg-io-width = <4>;
+		clock-frequency = <432000000>;
+		resets = <&reset2 RTD1295_RSTN_UR2>;
+		status = "disabled";
+	};
+};

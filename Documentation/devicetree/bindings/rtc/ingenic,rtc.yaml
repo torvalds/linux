@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/ingenic,rtc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs Real-Time Clock DT bindings
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+allOf:
+  - $ref: rtc.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ingenic,jz4740-rtc
+          - ingenic,jz4760-rtc
+      - items:
+          - const: ingenic,jz4725b-rtc
+          - const: ingenic,jz4740-rtc
+      - items:
+          - enum:
+              - ingenic,jz4770-rtc
+              - ingenic,jz4780-rtc
+          - const: ingenic,jz4760-rtc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: rtc
+
+  system-power-controller:
+    description: |
+      Indicates that the RTC is responsible for powering OFF
+      the system.
+    type: boolean
+
+  ingenic,reset-pin-assert-time-ms:
+    minimum: 0
+    maximum: 125
+    default: 60
+    description: |
+      Reset pin low-level assertion time after wakeup
+      (assuming RTC clock at 32 kHz)
+
+  ingenic,min-wakeup-pin-assert-time-ms:
+    minimum: 0
+    maximum: 2000
+    default: 100
+    description: |
+      Minimum wakeup pin assertion time
+      (assuming RTC clock at 32 kHz)
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,jz4740-cgu.h>
+    rtc_dev: rtc@10003000 {
+      compatible = "ingenic,jz4740-rtc";
+      reg = <0x10003000 0x40>;
+
+      interrupt-parent = <&intc>;
+      interrupts = <15>;
+
+      clocks = <&cgu JZ4740_CLK_RTC>;
+      clock-names = "rtc";
+    };

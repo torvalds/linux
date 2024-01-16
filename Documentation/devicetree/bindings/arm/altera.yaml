@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/altera.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera's SoCFPGA platform
+
+maintainers:
+  - Dinh Nguyen <dinguyen@kernel.org>
+
+properties:
+  $nodename:
+    const: "/"
+  compatible:
+    oneOf:
+      - description: Arria 5 boards
+        items:
+          - enum:
+              - altr,socfpga-arria5-socdk
+          - const: altr,socfpga-arria5
+          - const: altr,socfpga
+
+      - description: Arria 10 boards
+        items:
+          - enum:
+              - altr,socfpga-arria10-socdk
+          - const: altr,socfpga-arria10
+          - const: altr,socfpga
+
+      - description: Mercury+ AA1 boards
+        items:
+          - enum:
+              - google,chameleon-v3
+          - const: enclustra,mercury-aa1
+          - const: altr,socfpga-arria10
+          - const: altr,socfpga
+
+      - description: Cyclone 5 boards
+        items:
+          - enum:
+              - altr,socfpga-cyclone5-socdk
+              - denx,mcvevk
+              - ebv,socrates
+              - macnica,sodia
+              - novtech,chameleon96
+              - samtec,vining
+              - terasic,de0-atlas
+              - terasic,socfpga-cyclone5-sockit
+          - const: altr,socfpga-cyclone5
+          - const: altr,socfpga
+
+      - description: Stratix 10 boards
+        items:
+          - enum:
+              - altr,socfpga-stratix10-socdk
+              - altr,socfpga-stratix10-swvp
+          - const: altr,socfpga-stratix10
+
+      - description: SoCFPGA VT
+        items:
+          - const: altr,socfpga-vt
+          - const: altr,socfpga
+
+additionalProperties: true
+
+...

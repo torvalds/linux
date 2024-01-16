@@ -1,0 +1,101 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/phy/socionext,uniphier-pcie-phy.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Socionext UniPhier PCIe PHY
+
+description: |
+  This describes the devicetree bindings for PHY interface built into
+  PCIe controller implemented on Socionext UniPhier SoCs.
+
+maintainers:
+  - Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+
+properties:
+  compatible:
+    enum:
+      - socionext,uniphier-pro5-pcie-phy
+      - socionext,uniphier-ld20-pcie-phy
+      - socionext,uniphier-pxs3-pcie-phy
+      - socionext,uniphier-nx1-pcie-phy
+
+  reg:
+    maxItems: 1
+
+  "#phy-cells":
+    const: 0
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names: true
+
+  resets:
+    minItems: 1
+    maxItems: 2
+
+  reset-names: true
+
+  socionext,syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: A phandle to system control to set configurations for phy
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: socionext,uniphier-pro5-pcie-phy
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: gio
+            - const: link
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: gio
+            - const: link
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: link
+        resets:
+          maxItems: 1
+        reset-names:
+          const: link
+
+required:
+  - compatible
+  - reg
+  - "#phy-cells"
+  - clocks
+  - clock-names
+  - resets
+  - reset-names
+
+additionalProperties: false
+
+examples:
+  - |
+    pcie_phy: phy@66038000 {
+        compatible = "socionext,uniphier-ld20-pcie-phy";
+        reg = <0x66038000 0x4000>;
+        #phy-cells = <0>;
+        clock-names = "link";
+        clocks = <&sys_clk 24>;
+        reset-names = "link";
+        resets = <&sys_rst 24>;
+        socionext,syscon = <&soc_glue>;
+    };

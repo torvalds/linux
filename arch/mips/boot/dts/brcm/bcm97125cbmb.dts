@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include "bcm7125.dtsi"
+
+/ {
+	compatible = "brcm,bcm97125cbmb", "brcm,bcm7125";
+	model = "Broadcom BCM97125CBMB";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&uart2 {
+	status = "okay";
+};
+
+&bsca {
+	status = "okay";
+};
+
+&bscb {
+	status = "okay";
+};
+
+&bscc {
+	status = "okay";
+};
+
+&bscd {
+	status = "okay";
+};
+
+&pwma {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};
+
+/* FIXME: USB is wonky; disable it for now */
+&ehci0 {
+	status = "disabled";
+};
+
+&ohci0 {
+	status = "disabled";
+};
+
+&mspi {
+	status = "okay";
+};

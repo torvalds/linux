@@ -1,0 +1,83 @@
+Marvell 8897/8997 (sd8897/sd8997) bluetooth devices (SDIO or USB based)
+------
+The 8997 devices supports multiple interfaces. When used on SDIO interfaces,
+the btmrvl driver is used and when used on USB interface, the btusb driver is
+used.
+
+Required properties:
+
+  - compatible : should be one of the following:
+	* "marvell,sd8897-bt" (for SDIO)
+	* "marvell,sd8997-bt" (for SDIO)
+	* "usb1286,204e"      (for USB)
+
+Optional properties:
+
+  - marvell,cal-data: Calibration data downloaded to the device during
+		      initialization. This is an array of 28 values(u8).
+		      This is only applicable to SDIO devices.
+
+  - marvell,wakeup-pin: It represents wakeup pin number of the bluetooth chip.
+		        firmware will use the pin to wakeup host system (u16).
+  - marvell,wakeup-gap-ms: wakeup gap represents wakeup latency of the host
+		      platform. The value will be configured to firmware. This
+		      is needed to work chip's sleep feature as expected (u16).
+  - interrupt-names: Used only for USB based devices (See below)
+  - interrupts : specifies the interrupt pin number to the cpu. For SDIO, the
+		 driver will use the first interrupt specified in the interrupt
+		 array. For USB based devices, the driver will use the interrupt
+		 named "wakeup" from the interrupt-names and interrupt arrays.
+		 The driver will request an irq based on this interrupt number.
+		 During system suspend, the irq will be enabled so that the
+		 bluetooth chip can wakeup host platform under certain
+		 conditions. During system resume, the irq will be disabled
+		 to make sure unnecessary interrupt is not received.
+
+Example:
+
+IRQ pin 119 is used as system wakeup source interrupt.
+wakeup pin 13 and gap 100ms are configured so that firmware can wakeup host
+using this device side pin and wakeup latency.
+
+Example for SDIO device follows (calibration data is also available in
+below example).
+
+&mmc3 {
+	vmmc-supply = <&wlan_en_reg>;
+	bus-width = <4>;
+	cap-power-off-card;
+	keep-power-in-suspend;
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+	btmrvl: bluetooth@2 {
+		compatible = "marvell,sd8897-bt";
+		reg = <2>;
+		interrupt-parent = <&pio>;
+		interrupts = <119 IRQ_TYPE_LEVEL_LOW>;
+
+		marvell,cal-data = /bits/ 8 <
+			0x37 0x01 0x1c 0x00 0xff 0xff 0xff 0xff 0x01 0x7f 0x04 0x02
+			0x00 0x00 0xba 0xce 0xc0 0xc6 0x2d 0x00 0x00 0x00 0x00 0x00
+			0x00 0x00 0xf0 0x00>;
+		marvell,wakeup-pin = /bits/ 16 <0x0d>;
+		marvell,wakeup-gap-ms = /bits/ 16 <0x64>;
+	};
+};
+
+Example for USB device:
+
+&usb_host1_ohci {
+    #address-cells = <1>;
+    #size-cells = <0>;
+
+    mvl_bt1: bt@1 {
+	compatible = "usb1286,204e";
+	reg = <1>;
+	interrupt-parent = <&gpio0>;
+	interrupt-names = "wakeup";
+	interrupts = <119 IRQ_TYPE_LEVEL_LOW>;
+	marvell,wakeup-pin = /bits/ 16 <0x0d>;
+	marvell,wakeup-gap-ms = /bits/ 16 <0x64>;
+    };
+};

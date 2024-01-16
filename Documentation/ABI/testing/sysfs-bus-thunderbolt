@@ -1,0 +1,370 @@
+What:		/sys/bus/thunderbolt/devices/.../domainX/boot_acl
+Date:		Jun 2018
+KernelVersion:	4.17
+Contact:	thunderbolt-software@lists.01.org
+Description:	Holds a comma separated list of device unique_ids that
+		are allowed to be connected automatically during system
+		startup (e.g boot devices). The list always contains
+		maximum supported number of unique_ids where unused
+		entries are empty. This allows the userspace software
+		to determine how many entries the controller supports.
+		If there are multiple controllers, each controller has
+		its own ACL list and size may be different between the
+		controllers.
+
+		System BIOS may have an option "Preboot ACL" or similar
+		that needs to be selected before this list is taken into
+		consideration.
+
+		Software always updates a full list in each write.
+
+		If a device is authorized automatically during boot its
+		boot attribute is set to 1.
+
+What:		/sys/bus/thunderbolt/devices/.../domainX/deauthorization
+Date:		May 2021
+KernelVersion:	5.12
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute tells whether the system supports
+		de-authorization of devices. Value of 1 means user can
+		de-authorize PCIe tunnel by writing 0 to authorized
+		attribute under each device.
+
+What:		/sys/bus/thunderbolt/devices/.../domainX/iommu_dma_protection
+Date:		Mar 2019
+KernelVersion:	4.21
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute tells whether the system uses IOMMU
+		for DMA protection. Value of 1 means IOMMU is used 0 means
+		it is not (DMA protection is solely based on Thunderbolt
+		security levels).
+
+What:		/sys/bus/thunderbolt/devices/.../domainX/security
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute holds current Thunderbolt security level
+		set by the system BIOS. Possible values are:
+
+		=======  ==================================================
+		none     All devices are automatically authorized
+		user     Devices are only authorized based on writing
+		         appropriate value to the authorized attribute
+		secure   Require devices that support secure connect at
+			 minimum. User needs to authorize each device.
+		dponly   Automatically tunnel Display port (and USB). No
+			 PCIe tunnels are created.
+		usbonly  Automatically tunnel USB controller of the
+			 connected Thunderbolt dock (and Display Port). All
+			 PCIe links downstream of the dock are removed.
+		nopcie   USB4 system where PCIe tunneling is disabled from
+			 the BIOS.
+		=======  ==================================================
+
+What:		/sys/bus/thunderbolt/devices/.../authorized
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute is used to authorize Thunderbolt devices
+		after they have been connected. If the device is not
+		authorized, no PCIe devices are available to the system.
+
+		Contents of this attribute will be 0 when the device is not
+		yet authorized.
+
+		Possible values are supported:
+
+		==  ===================================================
+		0   The device will be de-authorized (only supported if
+		    deauthorization attribute under domain contains 1)
+		1   The device will be authorized and connected
+		==  ===================================================
+
+		When key attribute contains 32 byte hex string the possible
+		values are:
+
+		==  ========================================================
+		0   The device will be de-authorized (only supported if
+		    deauthorization attribute under domain contains 1)
+		1   The 32 byte hex string is added to the device NVM and
+		    the device is authorized.
+		2   Send a challenge based on the 32 byte hex string. If the
+		    challenge response from device is valid, the device is
+		    authorized. In case of failure errno will be ENOKEY if
+		    the device did not contain a key at all, and
+		    EKEYREJECTED if the challenge response did not match.
+		==  ========================================================
+
+What:		/sys/bus/thunderbolt/devices/.../boot
+Date:		Jun 2018
+KernelVersion:	4.17
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains 1 if Thunderbolt device was already
+		authorized on boot and 0 otherwise.
+
+What:		/sys/bus/thunderbolt/devices/.../generation
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Christian Kellner <christian@kellner.me>
+Description:	This attribute contains the generation of the Thunderbolt
+		controller associated with the device. It will contain 4
+		for USB4.
+
+What:		/sys/bus/thunderbolt/devices/.../key
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	When a devices supports Thunderbolt secure connect it will
+		have this attribute. Writing 32 byte hex string changes
+		authorization to use the secure connection method instead.
+		Writing an empty string clears the key and regular connection
+		method can be used again.
+
+What:		/sys/bus/thunderbolt/devices/.../device
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains id of this device extracted from
+		the device DROM.
+
+What:		/sys/bus/thunderbolt/devices/.../device_name
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains name of this device extracted from
+		the device DROM.
+
+What:		/sys/bus/thunderbolt/devices/.../maxhopid
+Date:		Jul 2021
+KernelVersion:	5.13
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Only set for XDomains. The maximum HopID the other host
+		supports as its input HopID.
+
+What:		/sys/bus/thunderbolt/devices/.../rx_speed
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports the device RX speed per lane.
+		All RX lanes run at the same speed.
+
+What:		/sys/bus/thunderbolt/devices/.../rx_lanes
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports number of RX lanes the device is
+		using simultaneously through its upstream port.
+
+What:		/sys/bus/thunderbolt/devices/.../tx_speed
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports the TX speed per lane.
+		All TX lanes run at the same speed.
+
+What:		/sys/bus/thunderbolt/devices/.../tx_lanes
+Date:		Jan 2020
+KernelVersion:	5.5
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	This attribute reports number of TX lanes the device is
+		using simultaneously through its upstream port.
+
+What:		/sys/bus/thunderbolt/devices/.../vendor
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains vendor id of this device extracted
+		from the device DROM.
+
+What:		/sys/bus/thunderbolt/devices/.../vendor_name
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains vendor name of this device extracted
+		from the device DROM.
+
+What:		/sys/bus/thunderbolt/devices/.../unique_id
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains unique_id string of this device.
+		This is either read from hardware registers (UUID on
+		newer hardware) or based on UID from the device DROM.
+		Can be used to uniquely identify particular device.
+
+What:		/sys/bus/thunderbolt/devices/.../nvm_version
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	If the device has upgradeable firmware the version
+		number is available here. Format: %x.%x, major.minor.
+		If the device is in safe mode reading the file returns
+		-ENODATA instead as the NVM version is not available.
+
+What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate
+Date:		Sep 2017
+KernelVersion:	4.13
+Contact:	thunderbolt-software@lists.01.org
+Description:	When new NVM image is written to the non-active NVM
+		area (through non_activeX NVMem device), the
+		authentication procedure is started by writing to
+		this file.
+		If everything goes well, the device is
+		restarted with the new NVM firmware. If the image
+		verification fails an error code is returned instead.
+
+		This file will accept writing values "1", "2" or "3".
+
+		- Writing "1" will flush the image to the storage
+		  area and authenticate the image in one action.
+		- Writing "2" will run some basic validation on the image
+		  and flush it to the storage area.
+		- Writing "3" will authenticate the image that is
+		  currently written in the storage area. This is only
+		  supported with USB4 devices and retimers.
+
+		When read holds status of the last authentication
+		operation if an error occurred during the process. This
+		is directly the status value from the DMA configuration
+		based mailbox before the device is power cycled. Writing
+		0 here clears the status.
+
+What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate_on_disconnect
+Date:		Oct 2020
+KernelVersion:	v5.9
+Contact:	Mario Limonciello <mario.limonciello@outlook.com>
+Description:	For supported devices, automatically authenticate the new Thunderbolt
+		image when the device is disconnected from the host system.
+
+		This file will accept writing values "1" or "2"
+
+		- Writing "1" will flush the image to the storage
+		  area and prepare the device for authentication on disconnect.
+		- Writing "2" will run some basic validation on the image
+		  and flush it to the storage area.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/key
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains name of the property directory the XDomain
+		service exposes. This entry describes the protocol in
+		question. Following directories are already reserved by
+		the Apple XDomain specification:
+
+		========  ===============================================
+		network   IP/ethernet over Thunderbolt
+		targetdm  Target disk mode protocol over Thunderbolt
+		extdisp   External display mode protocol over Thunderbolt
+		========  ===============================================
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/modalias
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	Stores the same MODALIAS value emitted by uevent for
+		the XDomain service. Format: tbtsvc:kSpNvNrN
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcid
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain protocol identifier the XDomain
+		service supports.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcvers
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain protocol version the XDomain
+		service supports.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcrevs
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain software version the XDomain
+		service supports.
+
+What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcstns
+Date:		Jan 2018
+KernelVersion:	4.15
+Contact:	thunderbolt-software@lists.01.org
+Description:	This contains XDomain service specific settings as
+		bitmask. Format: %x
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/connector
+Date:		April 2022
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Symlink to the USB Type-C connector. This link is only
+		created when USB Type-C Connector Class is enabled,
+		and only if the system firmware is capable of
+		describing the connection between a port and its
+		connector.
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/link
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Returns the current link mode. Possible values are
+		"usb4", "tbt" and "none".
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/offline
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Rajmohan Mani <rajmohan.mani@intel.com>
+Description:	Writing 1 to this attribute puts the USB4 port into
+		offline mode. Only allowed when there is nothing
+		connected to the port (link attribute returns "none").
+		Once the port is in offline mode it does not receive any
+		hotplug events. This is used to update NVM firmware of
+		on-board retimers. Writing 0 puts the port back to
+		online mode.
+
+		This attribute is only visible if the platform supports
+		powering on retimers when there is no cable connected.
+
+What:		/sys/bus/thunderbolt/devices/usb4_portX/rescan
+Date:		Sep 2021
+KernelVersion:	v5.14
+Contact:	Rajmohan Mani <rajmohan.mani@intel.com>
+Description:	When the USB4 port is in offline mode writing 1 to this
+		attribute forces rescan of the sideband for on-board
+		retimers. Each retimer appear under the USB4 port as if
+		the USB4 link was up. These retimers act in the same way
+		as if the cable was connected so upgrading their NVM
+		firmware can be done the usual way.
+
+What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/device
+Date:		Oct 2020
+KernelVersion:	v5.9
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Retimer device identifier read from the hardware.
+
+What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/nvm_authenticate
+Date:		Oct 2020
+KernelVersion:	v5.9
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	When new NVM image is written to the non-active NVM
+		area (through non_activeX NVMem device), the
+		authentication procedure is started by writing 1 to
+		this file. If everything goes well, the device is
+		restarted with the new NVM firmware. If the image
+		verification fails an error code is returned instead.
+
+		When read holds status of the last authentication
+		operation if an error occurred during the process.
+		Format: %x.
+
+What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/nvm_version
+Date:		Oct 2020
+KernelVersion:	v5.9
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Holds retimer NVM version number. Format: %x.%x, major.minor.
+
+What:		/sys/bus/thunderbolt/devices/<device>:<port>.<index>/vendor
+Date:		Oct 2020
+KernelVersion:	v5.9
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
+Description:	Retimer vendor identifier read from the hardware.

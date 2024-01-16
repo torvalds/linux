@@ -1,0 +1,89 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/bq24735.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for TI BQ24735 Li-Ion Battery Charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    const: ti,bq24735
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description: AC adapter plug event interrupt
+    maxItems: 1
+
+  ti,ac-detect-gpios:
+    maxItems: 1
+    description: |
+      This GPIO is optionally used to read the AC adapter status. This is a Host GPIO
+      that is configured as an input and connected to the ACOK pin on the bq24735.
+      Note: for backwards compatibility reasons, the GPIO must be active on AC adapter
+      absence despite ACOK being active (high) on AC adapter presence.
+
+  ti,charge-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Used to control and set the charging current.
+      This value must be between 128mA and 8.128A with a 64mA step resolution.
+      The POR value is 0x0000h. This number is in mA (e.g. 8192).
+      See spec for more information about the ChargeCurrent (0x14h) register.
+
+  ti,charge-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Used to control and set the charging voltage.
+      This value must be between 1.024V and 19.2V with a 16mV step resolution.
+      The POR value is 0x0000h. This number is in mV (e.g. 19200).
+      See spec for more information about the ChargeVoltage (0x15h) register.
+
+  ti,input-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Used to control and set the charger input current.
+      This value must be between 128mA and 8.064A with a 128mA step resolution.
+      The POR value is 0x1000h. This number is in mA (e.g. 8064).
+      See the spec for more information about the InputCurrent (0x3fh) register.
+
+  ti,external-control:
+    type: boolean
+    description: |
+      Indicates that the charger is configured externally and that the host should not
+      attempt to enable/disable charging or set the charge voltage/current.
+
+  poll-interval:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      If 'interrupts' is not specified, poll AC adapter presence with this interval (milliseconds).
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@9 {
+        compatible = "ti,bq24735";
+        reg = <0x9>;
+        ti,ac-detect-gpios = <&gpio 72 0x1>;
+      };
+    };

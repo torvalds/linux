@@ -1,0 +1,44 @@
+[
+    {
+        "PublicDescription": "Duration of a translation table walk handled by the MMU",
+        "EventCode": "0xE0",
+        "EventName": "MMU_PTW",
+        "BriefDescription": "Duration of a translation table walk handled by the MMU"
+    },
+    {
+        "PublicDescription": "Duration of a Stage 1 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1",
+        "EventCode": "0xE1",
+        "EventName": "MMU_PTW_ST1",
+        "BriefDescription": "Duration of a Stage 1 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1"
+    },
+    {
+        "PublicDescription": "Duration of a Stage 2 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1",
+        "EventCode": "0xE2",
+        "EventName": "MMU_PTW_ST2",
+        "BriefDescription": "Duration of a Stage 2 translation table walk handled by the MMU. This event is not counted when it is accessible from Non-secure EL0 or EL1"
+    },
+    {
+        "PublicDescription": "Duration of a translation table walk requested by the LSU",
+        "EventCode": "0xE3",
+        "EventName": "MMU_PTW_LSU",
+        "BriefDescription": "Duration of a translation table walk requested by the LSU"
+    },
+    {
+        "PublicDescription": "Duration of a translation table walk requested by the instruction side",
+        "EventCode": "0xE4",
+        "EventName": "MMU_PTW_ISIDE",
+        "BriefDescription": "Duration of a translation table walk requested by the instruction side"
+    },
+    {
+        "PublicDescription": "Duration of a translation table walk requested by a Preload instruction or Prefetch request",
+        "EventCode": "0xE5",
+        "EventName": "MMU_PTW_PLD",
+        "BriefDescription": "Duration of a translation table walk requested by a Preload instruction or Prefetch request"
+    },
+    {
+        "PublicDescription": "Duration of a translation table walk requested by an address translation operation",
+        "EventCode": "0xE6",
+        "EventName": "MMU_PTW_CP15",
+        "BriefDescription": "Duration of a translation table walk requested by an address translation operation"
+    }
+]

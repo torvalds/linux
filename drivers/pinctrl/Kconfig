@@ -1,0 +1,544 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# PINCTRL infrastructure and drivers
+#
+
+menuconfig PINCTRL
+	bool "Pin controllers"
+
+if PINCTRL
+
+config GENERIC_PINCTRL_GROUPS
+	bool
+
+config PINMUX
+	bool "Support pin multiplexing controllers" if COMPILE_TEST
+
+config GENERIC_PINMUX_FUNCTIONS
+	bool
+	select PINMUX
+
+config PINCONF
+	bool "Support pin configuration controllers" if COMPILE_TEST
+
+config GENERIC_PINCONF
+	bool
+	select PINCONF
+
+config DEBUG_PINCTRL
+	bool "Debug PINCTRL calls"
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
+
+config PINCTRL_AMD
+	bool "AMD GPIO pin control"
+	depends on HAS_IOMEM
+	depends on ACPI || COMPILE_TEST
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  The driver for memory mapped GPIO functionality on AMD platforms
+	  (x86 or arm). Most of the pins are usually muxed to some other
+	  functionality by firmware, so only a small amount is available
+	  for GPIO use.
+
+	  Requires ACPI/FDT device enumeration code to set up a platform
+	  device.
+
+config PINCTRL_APPLE_GPIO
+	tristate "Apple SoC GPIO pin controller driver"
+	depends on ARCH_APPLE
+	select PINMUX
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select OF_GPIO
+	help
+	  This is the driver for the GPIO controller found on Apple ARM SoCs,
+	  including M1.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pinctrl-apple-gpio.
+
+config PINCTRL_ARTPEC6
+	bool "Axis ARTPEC-6 pin controller driver"
+	depends on MACH_ARTPEC6
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This is the driver for the Axis ARTPEC-6 pin controller. This driver
+	  supports pin function multiplexing as well as pin bias and drive
+	  strength configuration. Device tree integration instructions can be
+	  found in Documentation/devicetree/bindings/pinctrl/axis,artpec6-pinctrl.txt
+
+config PINCTRL_AS3722
+	tristate "Pinctrl and GPIO driver for ams AS3722 PMIC"
+	depends on MFD_AS3722 && GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  AS3722 device supports the configuration of GPIO pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the GPIO pins of AS3722 devices. It also
+	  supports the GPIO functionality through gpiolib.
+
+config PINCTRL_AT91
+	bool "AT91 pinctrl driver"
+	depends on OF
+	depends on ARCH_AT91
+	select PINMUX
+	select PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
+	help
+	  Say Y here to enable the at91 pinctrl driver
+
+config PINCTRL_AT91PIO4
+	bool "AT91 PIO4 pinctrl driver"
+	depends on OF
+	depends on HAS_IOMEM
+	depends on ARCH_AT91 || COMPILE_TEST
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  Say Y here to enable the at91 pinctrl/gpio driver for Atmel PIO4
+	  controller available on sama5d2 SoC.
+
+config PINCTRL_AXP209
+	tristate "X-Powers AXP209 PMIC pinctrl and GPIO Support"
+	depends on MFD_AXP20X
+	depends on OF
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB
+	help
+	  AXP PMICs provides multiple GPIOs that can be muxed for different
+	  functions. This driver bundles a pinctrl driver to select the function
+	  muxing and a GPIO driver to handle the GPIO when the GPIO function is
+	  selected.
+	  Say Y to enable pinctrl and GPIO support for the AXP209 PMIC.
+
+config PINCTRL_BM1880
+	bool "Bitmain BM1880 Pinctrl driver"
+	depends on OF && (ARCH_BITMAIN || COMPILE_TEST)
+	default ARCH_BITMAIN
+	select PINMUX
+	help
+	  Pinctrl driver for Bitmain BM1880 SoC.
+
+config PINCTRL_CY8C95X0
+	tristate "Cypress CY8C95X0 I2C pinctrl and GPIO driver"
+	depends on I2C
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select REGMAP_I2C
+	help
+	  Support for 20/40/60 pin Cypress Cy8C95x0 pinctrl/gpio I2C expander.
+	  This driver can also be built as a module. If so, the module will be
+	  called pinctrl-cy8c95x0.
+
+config PINCTRL_DA850_PUPD
+	tristate "TI DA850/OMAP-L138/AM18XX pull-up and pull-down groups"
+	depends on OF && (ARCH_DAVINCI_DA850 || COMPILE_TEST)
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  Driver for TI DA850/OMAP-L138/AM18XX pinconf. Used to control
+	  pull-up and pull-down pin groups.
+
+config PINCTRL_DA9062
+	tristate "Dialog Semiconductor DA9062 PMIC pinctrl and GPIO Support"
+	depends on MFD_DA9062
+	select GPIOLIB
+	help
+	  The Dialog DA9062 PMIC provides multiple GPIOs that can be muxed for
+	  different functions. This driver bundles a pinctrl driver to select the
+	  function muxing and a GPIO driver to handle the GPIO when the GPIO
+	  function is selected.
+
+	  Say Y to enable pinctrl and GPIO support for the DA9062 PMIC.
+
+config PINCTRL_DIGICOLOR
+	bool
+	depends on OF && (ARCH_DIGICOLOR || COMPILE_TEST)
+	select PINMUX
+	select GENERIC_PINCONF
+
+config PINCTRL_EQUILIBRIUM
+	tristate "Generic pinctrl and GPIO driver for Intel Lightning Mountain SoC"
+	depends on OF && HAS_IOMEM
+	depends on X86 || COMPILE_TEST
+	select PINMUX
+	select PINCONF
+	select GPIOLIB
+	select GPIO_GENERIC
+	select GPIOLIB_IRQCHIP
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	help
+	  Equilibrium driver is a pinctrl and GPIO driver for Intel Lightning
+	  Mountain network processor SoC that supports both the GPIO and pin
+	  control frameworks. It provides interfaces to setup pin muxing, assign
+	  desired pin functions, configure GPIO attributes for LGM SoC pins.
+	  Pin muxing and pin config settings are retrieved from device tree.
+
+config PINCTRL_GEMINI
+	bool
+	depends on ARCH_GEMINI
+	default ARCH_GEMINI
+	select PINMUX
+	select GENERIC_PINCONF
+	select MFD_SYSCON
+
+config PINCTRL_INGENIC
+	bool "Pinctrl driver for the Ingenic JZ47xx SoCs"
+	default MACH_INGENIC
+	depends on OF
+	depends on MIPS || COMPILE_TEST
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select REGMAP_MMIO
+
+config PINCTRL_K210
+	bool "Pinctrl driver for the Canaan Kendryte K210 SoC"
+	depends on RISCV && SOC_CANAAN && OF
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select REGMAP_MMIO
+	default SOC_CANAAN
+	help
+	  Add support for the Canaan Kendryte K210 RISC-V SOC Field
+	  Programmable IO Array (FPIOA) controller.
+
+config PINCTRL_KEEMBAY
+	tristate "Pinctrl driver for Intel Keem Bay SoC"
+	depends on ARCH_KEEMBAY || (ARM64 && COMPILE_TEST)
+	depends on HAS_IOMEM
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GPIO_GENERIC
+	help
+	  This selects pin control driver for the Intel Keem Bay SoC.
+	  It provides pin config functions such as pull-up, pull-down,
+	  interrupt, drive strength, sec lock, Schmitt trigger, slew
+	  rate control and direction control. This module will be
+	  called as pinctrl-keembay.
+
+config PINCTRL_LANTIQ
+	bool
+	depends on LANTIQ
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_FALCON
+	bool
+	depends on SOC_FALCON
+	depends on PINCTRL_LANTIQ
+
+config PINCTRL_XWAY
+	bool
+	depends on SOC_TYPE_XWAY
+	depends on PINCTRL_LANTIQ
+
+config PINCTRL_LPC18XX
+	bool "NXP LPC18XX/43XX SCU pinctrl driver"
+	depends on OF && (ARCH_LPC18XX || COMPILE_TEST)
+	default ARCH_LPC18XX
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Pinctrl driver for NXP LPC18xx/43xx System Control Unit (SCU).
+
+config PINCTRL_MAX77620
+	tristate "MAX77620/MAX20024 Pincontrol support"
+	depends on MFD_MAX77620 && OF
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Say Y here to enable Pin control support for Maxim MAX77620 PMIC.
+	  This PMIC has 8 GPIO pins that work as GPIO as well as special
+	  function in alternate mode. This driver also configure push-pull,
+	  open drain, FPS slots etc.
+
+config PINCTRL_MCP23S08_I2C
+	tristate
+	select REGMAP_I2C
+
+config PINCTRL_MCP23S08_SPI
+	tristate
+	select REGMAP_SPI
+
+config PINCTRL_MCP23S08
+	tristate "Microchip MCP23xxx I/O expander"
+	depends on SPI_MASTER || I2C
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GENERIC_PINCONF
+	select PINCTRL_MCP23S08_I2C if I2C
+	select PINCTRL_MCP23S08_SPI if SPI_MASTER
+	help
+	  SPI/I2C driver for Microchip MCP23S08 / MCP23S17 / MCP23S18 /
+	  MCP23008 / MCP23017 / MCP23018 I/O expanders.
+	  This provides a GPIO interface supporting inputs and outputs and a
+	  corresponding interrupt-controller.
+
+config PINCTRL_MICROCHIP_SGPIO
+	tristate "Pinctrl driver for Microsemi/Microchip Serial GPIO"
+	depends on OF
+	depends on HAS_IOMEM
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select OF_GPIO
+	help
+	  Support for the serial GPIO interface used on Microsemi and
+	  Microchip SoCs. By using a serial interface, the SIO
+	  controller significantly extends the number of available
+	  GPIOs with a minimum number of additional pins on the
+	  device. The primary purpose of the SIO controller is to
+	  connect control signals from SFP modules and to act as an
+	  LED controller.
+
+	  If compiled as a module, the module name will be
+	  pinctrl-microchip-sgpio.
+
+config PINCTRL_OCELOT
+	tristate "Pinctrl driver for the Microsemi Ocelot and Jaguar2 SoCs"
+	depends on OF
+	depends on HAS_IOMEM
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select OF_GPIO
+	select REGMAP_MMIO
+	help
+	  Support for the internal GPIO interfaces on Microsemi Ocelot and
+	  Jaguar2 SoCs.
+
+	  If conpiled as a module, the module name will be pinctrl-ocelot.
+
+config PINCTRL_OXNAS
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select OF_GPIO
+	select GPIOLIB_IRQCHIP
+	select MFD_SYSCON
+
+config PINCTRL_PALMAS
+	tristate "Pinctrl driver for the PALMAS Series MFD devices"
+	depends on OF && MFD_PALMAS
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  Palmas device supports the configuration of pins for different
+	  functionality. This driver supports the pinmux, push-pull and
+	  open drain configuration for the Palmas series devices like
+	  TPS65913, TPS80036 etc.
+
+config PINCTRL_PIC32
+	bool "Microchip PIC32 pin controller driver"
+	depends on OF
+	depends on MACH_PIC32
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  This is the pin controller and gpio driver for Microchip PIC32
+	  microcontrollers. This option is selected automatically when specific
+	  machine and arch are selected to build.
+
+config PINCTRL_PIC32MZDA
+	def_bool y if PIC32MZDA
+	select PINCTRL_PIC32
+
+config PINCTRL_PISTACHIO
+	bool "IMG Pistachio SoC pinctrl driver"
+	depends on OF && (MIPS || COMPILE_TEST)
+	depends on GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select OF_GPIO
+	help
+	  This support pinctrl and GPIO driver for IMG Pistachio SoC.
+
+config PINCTRL_RK805
+	tristate "Pinctrl and GPIO driver for RK805 PMIC"
+	depends on MFD_RK808
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for RK805.
+
+config PINCTRL_ROCKCHIP
+	tristate "Rockchip gpio and pinctrl driver"
+	depends on ARCH_ROCKCHIP || COMPILE_TEST
+	depends on OF
+	select GPIOLIB
+	select PINMUX
+	select GENERIC_PINCONF
+	select GENERIC_IRQ_CHIP
+	select MFD_SYSCON
+	select OF_GPIO
+	default ARCH_ROCKCHIP
+	help
+          This support pinctrl and GPIO driver for Rockchip SoCs.
+
+config PINCTRL_SINGLE
+	tristate "One-register-per-pin type device tree based pinctrl driver"
+	depends on OF
+	depends on HAS_IOMEM
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GENERIC_PINCONF
+	help
+	  This selects the device tree based generic pinctrl driver.
+
+config PINCTRL_ST
+	bool
+	depends on OF
+	select PINMUX
+	select PINCONF
+	select GPIOLIB_IRQCHIP
+
+config PINCTRL_STMFX
+	tristate "STMicroelectronics STMFX GPIO expander pinctrl driver"
+	depends on I2C
+	depends on OF_GPIO
+	select GENERIC_PINCONF
+	select GPIOLIB_IRQCHIP
+	select MFD_STMFX
+	help
+	  Driver for STMicroelectronics Multi-Function eXpander (STMFX)
+	  GPIO expander.
+	  This provides a GPIO interface supporting inputs and outputs,
+	  and configuring push-pull, open-drain, and can also be used as
+	  interrupt-controller.
+
+config PINCTRL_SX150X
+	bool "Semtech SX150x I2C GPIO expander pinctrl driver"
+	depends on I2C=y
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select REGMAP
+	help
+	  Say Y here to provide support for Semtech SX150x-series I2C
+	  GPIO expanders as pinctrl module.
+	  Compatible models include:
+	  - 8 bits:  sx1508q, sx1502q
+	  - 16 bits: sx1509q, sx1506q
+
+config PINCTRL_TB10X
+	bool
+	depends on OF && ARC_PLAT_TB10X
+	select GPIOLIB
+
+config PINCTRL_THUNDERBAY
+	tristate "Generic pinctrl and GPIO driver for Intel Thunder Bay SoC"
+	depends on ARCH_THUNDERBAY || (ARM64 && COMPILE_TEST)
+	depends on HAS_IOMEM
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GENERIC_PINCTRL_GROUPS
+	select GENERIC_PINMUX_FUNCTIONS
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select GPIO_GENERIC
+	help
+	  This selects pin control driver for the Intel Thunder Bay SoC.
+	  It provides pin config functions such as pull-up, pull-down,
+	  interrupt, drive strength, sec lock, Schmitt trigger, slew
+	  rate control and direction control. This module will be
+	  called as pinctrl-thunderbay.
+
+config PINCTRL_ZYNQ
+	bool "Pinctrl driver for Xilinx Zynq"
+	depends on ARCH_ZYNQ
+	select PINMUX
+	select GENERIC_PINCONF
+	help
+	  This selects the pinctrl driver for Xilinx Zynq.
+
+config PINCTRL_ZYNQMP
+	tristate "Pinctrl driver for Xilinx ZynqMP"
+	depends on ZYNQMP_FIRMWARE
+	select PINMUX
+	select GENERIC_PINCONF
+	default ZYNQMP_FIRMWARE
+	help
+	  This selects the pinctrl driver for Xilinx ZynqMP platform.
+	  This driver will query the pin information from the firmware
+	  and allow configuring the pins.
+	  Configuration can include the mux function to select on those
+	  pin(s)/group(s), and various pin configuration parameters
+	  such as pull-up, slew rate, etc.
+	  This driver can also be built as a module. If so, the module
+	  will be called pinctrl-zynqmp.
+
+source "drivers/pinctrl/actions/Kconfig"
+source "drivers/pinctrl/aspeed/Kconfig"
+source "drivers/pinctrl/bcm/Kconfig"
+source "drivers/pinctrl/berlin/Kconfig"
+source "drivers/pinctrl/cirrus/Kconfig"
+source "drivers/pinctrl/freescale/Kconfig"
+source "drivers/pinctrl/intel/Kconfig"
+source "drivers/pinctrl/mediatek/Kconfig"
+source "drivers/pinctrl/meson/Kconfig"
+source "drivers/pinctrl/mvebu/Kconfig"
+source "drivers/pinctrl/nomadik/Kconfig"
+source "drivers/pinctrl/nuvoton/Kconfig"
+source "drivers/pinctrl/pxa/Kconfig"
+source "drivers/pinctrl/qcom/Kconfig"
+source "drivers/pinctrl/ralink/Kconfig"
+source "drivers/pinctrl/renesas/Kconfig"
+source "drivers/pinctrl/samsung/Kconfig"
+source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/sprd/Kconfig"
+source "drivers/pinctrl/starfive/Kconfig"
+source "drivers/pinctrl/stm32/Kconfig"
+source "drivers/pinctrl/sunplus/Kconfig"
+source "drivers/pinctrl/sunxi/Kconfig"
+source "drivers/pinctrl/tegra/Kconfig"
+source "drivers/pinctrl/ti/Kconfig"
+source "drivers/pinctrl/uniphier/Kconfig"
+source "drivers/pinctrl/visconti/Kconfig"
+source "drivers/pinctrl/vt8500/Kconfig"
+
+endif

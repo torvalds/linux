@@ -1,0 +1,320 @@
+// SPDX-License-Identifier: GPL-2.0
+/* The pxa3xx skeleton simply augments the 2xx version */
+#include "pxa2xx.dtsi"
+
+#define MFP_PIN_PXA300(gpio)				\
+	((gpio <= 2) ? (0x00b4 + 4 * gpio) :		\
+	 (gpio <= 26) ? (0x027c + 4 * (gpio - 3)) :	\
+	 (gpio <= 98) ? (0x0400 + 4 * (gpio - 27)) :	\
+	 (gpio <= 127) ? (0x0600 + 4 * (gpio - 99)) :	\
+	 0)
+#define MFP_PIN_PXA300_2(gpio)				\
+	((gpio <= 1) ? (0x674 + 4 * gpio) :		\
+	 (gpio <= 6) ? (0x2dc + 4 * gpio) :		\
+	 0)
+
+#define MFP_PIN_PXA310(gpio)				\
+	((gpio <= 2) ? (0x00b4 + 4 * gpio) :		\
+	 (gpio <= 26) ? (0x027c + 4 * (gpio - 3)) :	\
+	 (gpio <= 29) ? (0x0400 + 4 * (gpio - 27)) :	\
+	 (gpio <= 98) ? (0x0418 + 4 * (gpio - 30)) :	\
+	 (gpio <= 127) ? (0x0600 + 4 * (gpio - 99)) :	\
+	 (gpio <= 262) ? 0 :				\
+	 (gpio <= 268) ? (0x052c + 4 * (gpio - 263)) :	\
+	 0)
+#define MFP_PIN_PXA310_2(gpio)				\
+	((gpio <= 1) ? (0x674 + 4 * gpio) :		\
+	 (gpio <= 6) ? (0x2dc + 4 * gpio) :		\
+	 (gpio <= 10) ? (0x52c + 4 * gpio) :		\
+	 0)
+
+#define MFP_PIN_PXA320(gpio)				\
+	((gpio <= 4) ? (0x0124 + 4 * gpio) :		\
+	 (gpio <= 9) ? (0x028c + 4 * (gpio - 5)) :	\
+	 (gpio <= 10) ? (0x0458 + 4 * (gpio - 10)) :	\
+	 (gpio <= 26) ? (0x02a0 + 4 * (gpio - 11)) :	\
+	 (gpio <= 48) ? (0x0400 + 4 * (gpio - 27)) :	\
+	 (gpio <= 62) ? (0x045c + 4 * (gpio - 49)) :	\
+	 (gpio <= 73) ? (0x04b4 + 4 * (gpio - 63)) :	\
+	 (gpio <= 98) ? (0x04f0 + 4 * (gpio - 74)) :	\
+	 (gpio <= 127) ? (0x0600 + 4 * (gpio - 99)) :	\
+	 0)
+#define MFP_PIN_PXA320_2(gpio)				\
+	((gpio <= 3) ? (0x674 + 4 * gpio) :		\
+	 (gpio <= 5) ? (0x284 + 4 * gpio) :		\
+	 0)
+
+/*
+ * MFP Alternate functions for pins having a gpio.
+ * Example of use: pinctrl-single,pins = < MFP_PIN_PXA310(21) MFP_AF1 >
+ */
+#define MFP_AF0		(0 << 0)
+#define MFP_AF1		(1 << 0)
+#define MFP_AF2		(2 << 0)
+#define MFP_AF3		(3 << 0)
+#define MFP_AF4		(4 << 0)
+#define MFP_AF5		(5 << 0)
+#define MFP_AF6		(6 << 0)
+
+/*
+ * MFP drive strength functions for pins.
+ * Example of use: pinctrl-single,drive-strength = MFP_DS03X;
+ */
+#define MFP_DSMSK	(0x7 << 10)
+#define MFP_DS01X	< (0x0 << 10) MFP_DSMSK >
+#define MFP_DS02X	< (0x1 << 10) MFP_DSMSK >
+#define MFP_DS03X	< (0x2 << 10) MFP_DSMSK >
+#define MFP_DS04X	< (0x3 << 10) MFP_DSMSK >
+#define MFP_DS06X	< (0x4 << 10) MFP_DSMSK >
+#define MFP_DS08X	< (0x5 << 10) MFP_DSMSK >
+#define MFP_DS10X	< (0x6 << 10) MFP_DSMSK >
+#define MFP_DS13X	< (0x7 << 10) MFP_DSMSK >
+
+/*
+ * MFP bias pull mode for pins.
+ * Example of use: pinctrl-single,bias-pullup = MPF_PULL_UP;
+ */
+#define MPF_PULL_MSK	(0x7 << 13)
+#define MPF_PULL_DOWN	< (0x5 << 13) (0x5 << 13) 0 MPF_PULL_MSK >
+#define MPF_PULL_UP	< (0x6 << 13) (0x6 << 13) 0 MPF_PULL_MSK >
+
+/*
+ * MFP low power mode for pins.
+ * Example of use:
+ *   pinctrl-single,low-power-mode = MFP_LPM(MFP_LPM_PULL_LOW|MFP_LPM_EDGE_FALL);
+ *
+ * Table that determines the low power modes outputs, with actual settings
+ * used in parentheses for don't-care values. Except for the float output,
+ * the configured driven and pulled levels match, so if there is a need for
+ * non-LPM pulled output, the same configuration could probably be used.
+ *
+ * Output value  sleep_oe_n  sleep_data  pullup_en  pulldown_en  pull_sel
+ *                 (bit 7)    (bit 8)    (bit 14)     (bit 13)   (bit 15)
+ *
+ * Input            0          X(0)        X(0)        X(0)       0
+ * Drive 0          0          0           0           X(1)       0
+ * Drive 1          0          1           X(1)        0	  0
+ * Pull hi (1)      1          X(1)        1           0	  0
+ * Pull lo (0)      1          X(0)        0           1	  0
+ * Z (float)        1          X(0)        0           0	  0
+ */
+#define MFP_LPM(x)		< (x) MFP_LPM_MSK >
+
+#define MFP_LPM_MSK		0xe1f0
+#define MFP_LPM_INPUT		0x0000
+#define MFP_LPM_DRIVE_LOW	0x2000
+#define MFP_LPM_DRIVE_HIGH	0x4100
+#define MFP_LPM_PULL_LOW	0x2080
+#define MFP_LPM_PULL_HIGH	0x4180
+#define MFP_LPM_FLOAT		0x0080
+
+#define MFP_LPM_EDGE_NONE	0x0000
+#define MFP_LPM_EDGE_RISE	0x0010
+#define MFP_LPM_EDGE_FALL	0x0020
+#define MFP_LPM_EDGE_BOTH	0x0030
+
+/ {
+	model = "Marvell PXA3xx familiy SoC";
+	compatible = "marvell,pxa3xx";
+
+	pxabus {
+		pdma: dma-controller@40000000 {
+			compatible = "marvell,pdma-1.0";
+			reg = <0x40000000 0x10000>;
+			interrupts = <25>;
+			#dma-cells = <2>;
+			/* For backwards compatibility: */
+			#dma-channels = <32>;
+			dma-channels = <32>;
+			#dma-requests = <100>;
+			dma-requests = <100>;
+			status = "okay";
+		};
+
+		pwri2c: i2c@40f500c0 {
+			compatible = "mrvl,pwri2c";
+			reg = <0x40f500c0 0x30>;
+			interrupts = <6>;
+			clocks = <&clks CLK_PWRI2C>;
+			#address-cells = <0x1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		nand_controller: nand-controller@43100000 {
+			compatible = "marvell,pxa3xx-nand-controller";
+			reg = <0x43100000 90>;
+			interrupts = <45>;
+			clocks = <&clks CLK_NAND>;
+			clock-names = "core";
+			dmas = <&pdma 97 3>;
+			dma-names = "data";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+
+		pxairq: interrupt-controller@40d00000 {
+			marvell,intc-priority;
+			marvell,intc-nr-irqs = <56>;
+		};
+
+		pinctrl: pinctrl@40e10000 {
+			compatible = "pinconf-single";
+			reg = <0x40e10000 0xffff>;
+			#pinctrl-cells = <1>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x7>;
+		};
+
+		gpio: gpio@40e00000 {
+			compatible = "intel,pxa3xx-gpio";
+			reg = <0x40e00000 0x10000>;
+			clocks = <&clks CLK_GPIO>;
+			gpio-ranges = <&pinctrl 0 0 128>;
+			interrupt-names = "gpio0", "gpio1", "gpio_mux";
+			interrupts = <8>, <9>, <10>;
+			gpio-controller;
+			#gpio-cells = <0x2>;
+			interrupt-controller;
+			#interrupt-cells = <0x2>;
+		};
+
+		mmc0: mmc@41100000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x41100000 0x1000>;
+			interrupts = <23>;
+			clocks = <&clks CLK_MMC1>;
+			dmas = <&pdma 21 3
+				&pdma 22 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		mmc1: mmc@42000000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x42000000 0x1000>;
+			interrupts = <41>;
+			clocks = <&clks CLK_MMC2>;
+			dmas = <&pdma 93 3
+				&pdma 94 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		mmc2: mmc@42500000 {
+			compatible = "marvell,pxa-mmc";
+			reg = <0x42500000 0x1000>;
+			interrupts = <55>;
+			clocks = <&clks CLK_MMC3>;
+			dmas = <&pdma 46 3
+				&pdma 47 3>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		usb0: usb@4c000000 {
+			compatible = "marvell,pxa-ohci";
+			reg = <0x4c000000 0x10000>;
+			interrupts = <3>;
+			clocks = <&clks CLK_USBH>;
+			status = "disabled";
+		};
+
+		pwm0: pwm@40b00000 {
+			compatible = "marvell,pxa270-pwm";
+			reg = <0x40b00000 0x10>;
+			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM0>;
+			status = "disabled";
+		};
+
+		pwm1: pwm@40b00010 {
+			compatible = "marvell,pxa270-pwm";
+			reg = <0x40b00010 0x10>;
+			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM1>;
+			status = "disabled";
+		};
+
+		pwm2: pwm@40c00000 {
+			compatible = "marvell,pxa270-pwm";
+			reg = <0x40c00000 0x10>;
+			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM0>;
+			status = "disabled";
+		};
+
+		pwm3: pwm@40c00010 {
+			compatible = "marvell,pxa270-pwm";
+			reg = <0x40c00010 0x10>;
+			#pwm-cells = <1>;
+			clocks = <&clks CLK_PWM1>;
+			status = "disabled";
+		};
+
+		ssp1: ssp@41000000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41000000 0x40>;
+			interrupts = <24>;
+			clocks = <&clks CLK_SSP1>;
+			status = "disabled";
+		};
+
+		ssp2: ssp@41700000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41700000 0x40>;
+			interrupts = <16>;
+			clocks = <&clks CLK_SSP2>;
+			status = "disabled";
+		};
+
+		ssp3: ssp@41900000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41900000 0x40>;
+			interrupts = <0>;
+			clocks = <&clks CLK_SSP3>;
+			status = "disabled";
+		};
+
+		ssp4: ssp@41a00000 {
+			compatible = "mrvl,pxa3xx-ssp";
+			reg = <0x41a00000 0x40>;
+			interrupts = <13>;
+			clocks = <&clks CLK_SSP4>;
+			status = "disabled";
+		};
+
+		timer@40a00000 {
+			compatible = "marvell,pxa-timer";
+			reg = <0x40a00000 0x20>;
+			interrupts = <26>;
+			clocks = <&clks CLK_OSTIMER>;
+			status = "okay";
+		};
+
+		gcu: display-controller@54000000 {
+			compatible = "marvell,pxa300-gcu";
+			reg = <0x54000000 0x1000>;
+			interrupts = <39>;
+			clocks = <&clks CLK_PXA300_GCU>;
+			status = "disabled";
+		};
+	};
+
+	clocks {
+	       /*
+		* The muxing of external clocks/internal dividers for osc* clock
+		* sources has been hidden under the carpet by now.
+		*/
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		clks: clocks {
+			compatible = "marvell,pxa300-clocks";
+			#clock-cells = <1>;
+			status = "okay";
+		};
+	};
+};

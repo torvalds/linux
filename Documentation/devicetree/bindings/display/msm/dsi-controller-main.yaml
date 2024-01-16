@@ -1,0 +1,213 @@
+# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/msm/dsi-controller-main.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Display DSI controller
+
+maintainers:
+  - Krishna Manikandan <quic_mkrishn@quicinc.com>
+
+allOf:
+  - $ref: "../dsi-controller.yaml#"
+
+properties:
+  compatible:
+    enum:
+      - qcom,mdss-dsi-ctrl
+      - qcom,dsi-ctrl-6g-qcm2290
+
+  reg:
+    maxItems: 1
+
+  reg-names:
+    const: dsi_ctrl
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: Display byte clock
+      - description: Display byte interface clock
+      - description: Display pixel clock
+      - description: Display core clock
+      - description: Display AHB clock
+      - description: Display AXI clock
+
+  clock-names:
+    items:
+      - const: byte
+      - const: byte_intf
+      - const: pixel
+      - const: core
+      - const: iface
+      - const: bus
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: dsi
+
+  "#address-cells": true
+
+  "#size-cells": true
+
+  syscon-sfpb:
+    description: A phandle to mmss_sfpb syscon node (only for DSIv2).
+    $ref: "/schemas/types.yaml#/definitions/phandle"
+
+  qcom,dual-dsi-mode:
+    type: boolean
+    description: |
+      Indicates if the DSI controller is driving a panel which needs
+      2 DSI links.
+
+  qcom,master-dsi:
+    type: boolean
+    description: |
+      Indicates if the DSI controller is the master DSI controller when
+      qcom,dual-dsi-mode enabled.
+
+  qcom,sync-dual-dsi:
+    type: boolean
+    description: |
+      Indicates if the DSI controller needs to sync the other DSI controller
+      with MIPI DCS commands when qcom,dual-dsi-mode enabled.
+
+  assigned-clocks:
+    maxItems: 2
+    description: |
+      Parents of "byte" and "pixel" for the given platform.
+
+  assigned-clock-parents:
+    maxItems: 2
+    description: |
+      The Byte clock and Pixel clock PLL outputs provided by a DSI PHY block.
+
+  power-domains:
+    maxItems: 1
+
+  operating-points-v2: true
+
+  ports:
+    $ref: "/schemas/graph.yaml#/properties/ports"
+    description: |
+      Contains DSI controller input and output ports as children, each
+      containing one endpoint subnode.
+
+    properties:
+      port@0:
+        $ref: "/schemas/graph.yaml#/$defs/port-base"
+        unevaluatedProperties: false
+        description: |
+          Input endpoints of the controller.
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+            properties:
+              data-lanes:
+                maxItems: 4
+                minItems: 4
+                items:
+                  enum: [ 0, 1, 2, 3 ]
+
+      port@1:
+        $ref: "/schemas/graph.yaml#/$defs/port-base"
+        unevaluatedProperties: false
+        description: |
+          Output endpoints of the controller.
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+            properties:
+              data-lanes:
+                maxItems: 4
+                minItems: 4
+                items:
+                  enum: [ 0, 1, 2, 3 ]
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - interrupts
+  - clocks
+  - clock-names
+  - phys
+  - phy-names
+  - assigned-clocks
+  - assigned-clock-parents
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+     #include <dt-bindings/interrupt-controller/arm-gic.h>
+     #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
+     #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+     #include <dt-bindings/power/qcom-rpmpd.h>
+
+     dsi@ae94000 {
+           compatible = "qcom,mdss-dsi-ctrl";
+           reg = <0x0ae94000 0x400>;
+           reg-names = "dsi_ctrl";
+
+           #address-cells = <1>;
+           #size-cells = <0>;
+
+           interrupt-parent = <&mdss>;
+           interrupts = <4>;
+
+           clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK>,
+                    <&dispcc DISP_CC_MDSS_BYTE0_INTF_CLK>,
+                    <&dispcc DISP_CC_MDSS_PCLK0_CLK>,
+                    <&dispcc DISP_CC_MDSS_ESC0_CLK>,
+                    <&dispcc DISP_CC_MDSS_AHB_CLK>,
+                    <&dispcc DISP_CC_MDSS_AXI_CLK>;
+           clock-names = "byte",
+                         "byte_intf",
+                         "pixel",
+                         "core",
+                         "iface",
+                         "bus";
+
+           phys = <&dsi0_phy>;
+           phy-names = "dsi";
+
+           assigned-clocks = <&dispcc DISP_CC_MDSS_BYTE0_CLK_SRC>, <&dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
+           assigned-clock-parents = <&dsi_phy 0>, <&dsi_phy 1>;
+
+           power-domains = <&rpmhpd SC7180_CX>;
+           operating-points-v2 = <&dsi_opp_table>;
+
+           ports {
+                  #address-cells = <1>;
+                  #size-cells = <0>;
+
+                  port@0 {
+                          reg = <0>;
+                          dsi0_in: endpoint {
+                                   remote-endpoint = <&dpu_intf1_out>;
+                          };
+                  };
+
+                  port@1 {
+                          reg = <1>;
+                          dsi0_out: endpoint {
+                                   remote-endpoint = <&sn65dsi86_in>;
+                                   data-lanes = <0 1 2 3>;
+                          };
+                  };
+           };
+     };
+...

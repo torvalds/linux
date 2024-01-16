@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * MPC8641 Silicon/SoC Device Tree Source (post include)
+ *
+ * Copyright 2016 Elettra-Sincrotrone Trieste S.C.p.A.
+ */
+
+&lbc {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	compatible = "fsl,mpc8641-localbus", "simple-bus";
+	interrupts = <19 2 0 0>;
+};
+
+&soc {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	device_type = "soc";
+	compatible = "fsl,mpc8641-soc", "simple-bus";
+	bus-frequency = <0>;
+
+	mcm-law@0 {
+		compatible = "fsl,mcm-law";
+		reg = <0x0 0x1000>;
+		fsl,num-laws = <10>;
+	};
+
+	mcm@1000 {
+		compatible = "fsl,mpc8641-mcm", "fsl,mcm";
+		reg = <0x1000 0x1000>;
+		interrupts = <17 2 0 0>;
+	};
+
+/include/ "pq3-i2c-0.dtsi"
+/include/ "pq3-i2c-1.dtsi"
+/include/ "pq3-duart-0.dtsi"
+	serial@4600 {
+		interrupts = <28 2 0 0>;
+	};
+/include/ "pq3-dma-0.dtsi"
+	dma@21300 {
+		compatible = "fsl,mpc8641-dma", "fsl,eloplus-dma";
+	};
+	dma-channel@0 {
+		compatible = "fsl,mpc8641-dma-channel", "fsl,eloplus-dma-channel";
+	};
+	dma-channel@80 {
+		compatible = "fsl,mpc8641-dma-channel", "fsl,eloplus-dma-channel";
+	};
+	dma-channel@100 {
+		compatible = "fsl,mpc8641-dma-channel", "fsl,eloplus-dma-channel";
+	};
+	dma-channel@180 {
+		compatible = "fsl,mpc8641-dma-channel", "fsl,eloplus-dma-channel";
+	};
+
+/include/ "pq3-etsec1-0.dtsi"
+	ethernet@24000 {
+		model = "TSEC";
+	};
+/include/ "pq3-etsec1-1.dtsi"
+	ethernet@25000 {
+		model = "TSEC";
+	};
+/include/ "pq3-etsec1-2.dtsi"
+	ethernet@26000 {
+		model = "TSEC";
+	};
+/include/ "pq3-etsec1-3.dtsi"
+	ethernet@27000 {
+		model = "TSEC";
+	};
+
+/include/ "qoriq-mpic.dtsi"
+	msi@41600 {
+		compatible = "fsl,mpc8641-msi", "fsl,mpic-msi";
+	};
+	msi@41800 {
+		compatible = "fsl,mpc8641-msi", "fsl,mpic-msi";
+	};
+	msi@41a00 {
+		compatible = "fsl,mpc8641-msi", "fsl,mpic-msi";
+	};
+
+	global-utilities@e0000 {
+		compatible = "fsl,mpc8641-guts";
+		reg = <0xe0000 0x1000>;
+		fsl,has-rstcr;
+	};
+};
+
+&pci0 {
+	compatible = "fsl,mpc8641-pcie";
+	device_type = "pci";
+	#interrupt-cells = <1>;
+	#size-cells = <2>;
+	#address-cells = <3>;
+	bus-range = <0x0 0xff>;
+	clock-frequency = <100000000>;
+	interrupts = <24 2 0 0>;
+
+	pcie@0 {
+		reg = <0 0 0 0 0>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		device_type = "pci";
+		interrupts = <24 2 0 0>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			0x0000 0x0 0x0 0x1 &mpic 0x0 0x1 0x0 0x0
+			0x0000 0x0 0x0 0x2 &mpic 0x1 0x1 0x0 0x0
+			0x0000 0x0 0x0 0x3 &mpic 0x2 0x1 0x0 0x0
+			0x0000 0x0 0x0 0x4 &mpic 0x3 0x1 0x0 0x0
+			>;
+	};
+};
+
+&pci1 {
+	compatible = "fsl,mpc8641-pcie";
+	device_type = "pci";
+	#interrupt-cells = <1>;
+	#size-cells = <2>;
+	#address-cells = <3>;
+	bus-range = <0x0 0xff>;
+	clock-frequency = <100000000>;
+	interrupts = <25 2 0 0>;
+
+	pcie@0 {
+		reg = <0 0 0 0 0>;
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		device_type = "pci";
+		interrupts = <25 2 0 0>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		interrupt-map = <
+			0x0000 0x0 0x0 0x1 &mpic 0x4 0x1 0x0 0x0
+			0x0000 0x0 0x0 0x2 &mpic 0x5 0x1 0x0 0x0
+			0x0000 0x0 0x0 0x3 &mpic 0x6 0x1 0x0 0x0
+			0x0000 0x0 0x0 0x4 &mpic 0x7 0x1 0x0 0x0
+			>;
+	};
+};

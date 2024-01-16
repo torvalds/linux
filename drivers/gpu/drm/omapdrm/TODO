@@ -1,0 +1,23 @@
+TODO
+. Where should we do eviction (detatch_pages())?  We aren't necessarily
+  accessing the pages via a GART, so maybe we need some other threshold
+  to put a cap on the # of pages that can be pin'd.
+  . Use mm_shrinker to trigger unpinning pages.
+  . This is mainly theoretical since most of these devices don't actually
+    have swap or harddrive.
+. GEM/shmem backed pages can have existing mappings (kernel linear map,
+  etc..), which isn't really ideal.
+. Revisit GEM sync object infrastructure.. TTM has some framework for this
+  already.  Possibly this could be refactored out and made more common?
+  There should be some way to do this with less wheel-reinvention.
+  . This can be handled by the dma-buf fence/reservation stuff when it
+    lands
+
+Userspace:
+. git://anongit.freedesktop.org/xorg/driver/xf86-video-omap
+
+Currently tested on
+. OMAP3530 beagleboard
+. OMAP4430 pandaboard
+. OMAP4460 pandaboard
+. OMAP5432 uEVM

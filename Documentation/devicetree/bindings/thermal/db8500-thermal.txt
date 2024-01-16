@@ -1,0 +1,44 @@
+* ST-Ericsson DB8500 Thermal
+
+** Thermal node properties:
+
+- compatible : "stericsson,db8500-thermal";
+- reg : address range of the thermal sensor registers;
+- interrupts : interrupts generated from PRCMU;
+- interrupt-names : "IRQ_HOTMON_LOW" and "IRQ_HOTMON_HIGH";
+- num-trips : number of total trip points, this is required, set it 0 if none,
+  if greater than 0, the following properties must be defined;
+- tripN-temp : temperature of trip point N, should be in ascending order;
+- tripN-type : type of trip point N, should be one of "active" "passive" "hot"
+  "critical";
+- tripN-cdev-num : number of the cooling devices which can be bound to trip
+  point N, this is required if trip point N is defined, set it 0 if none,
+  otherwise the following cooling device names must be defined;
+- tripN-cdev-nameM : name of the No. M cooling device of trip point N;
+
+Usually the num-trips and tripN-*** are separated in board related dts files.
+
+Example:
+thermal@801573c0 {
+	compatible = "stericsson,db8500-thermal";
+	reg = <0x801573c0 0x40>;
+	interrupts = <21 0x4>, <22 0x4>;
+	interrupt-names = "IRQ_HOTMON_LOW", "IRQ_HOTMON_HIGH";
+
+	num-trips = <3>;
+
+	trip0-temp = <75000>;
+	trip0-type = "active";
+	trip0-cdev-num = <1>;
+	trip0-cdev-name0 = "thermal-cpufreq-0";
+
+	trip1-temp = <80000>;
+	trip1-type = "active";
+	trip1-cdev-num = <2>;
+	trip1-cdev-name0 = "thermal-cpufreq-0";
+	trip1-cdev-name1 = "thermal-fan";
+
+	trip2-temp = <85000>;
+	trip2-type = "critical";
+	trip2-cdev-num = <0>;
+}

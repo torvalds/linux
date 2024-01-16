@@ -1,0 +1,29 @@
+* Cirrus Logic CLPS711X Timer Counter
+
+Required properties:
+- compatible: Shall contain "cirrus,ep7209-timer".
+- reg       : Address and length of the register set.
+- interrupts: The interrupt number of the timer.
+- clocks    : phandle of timer reference clock.
+
+Note: Each timer should have an alias correctly numbered in "aliases" node.
+
+Example:
+	aliases {
+		timer0 = &timer1;
+		timer1 = &timer2;
+	};
+
+	timer1: timer@80000300 {
+		compatible = "cirrus,ep7312-timer", "cirrus,ep7209-timer";
+		reg = <0x80000300 0x4>;
+		interrupts = <8>;
+		clocks = <&clks 5>;
+	};
+
+	timer2: timer@80000340 {
+		compatible = "cirrus,ep7312-timer", "cirrus,ep7209-timer";
+		reg = <0x80000340 0x4>;
+		interrupts = <9>;
+		clocks = <&clks 6>;
+	};

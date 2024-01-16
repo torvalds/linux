@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/silergy,sy8824x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: silergy sy8824c,sy8824e,sy20276 and sy20278 PMIC
+
+maintainers:
+  - Jisheng Zhang <jszhang@kernel.org>
+
+allOf:
+  - $ref: regulator.yaml#
+
+properties:
+  compatible:
+    enum:
+      - silergy,sy8824c
+      - silergy,sy8824e
+      - silergy,sy20276
+      - silergy,sy20278
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        regulator@60 {
+          compatible = "silergy,sy8824c";
+          regulator-min-microvolt = <800000>;
+          regulator-max-microvolt = <1150000>;
+          reg = <0x60>;
+        };
+    };
+
+...

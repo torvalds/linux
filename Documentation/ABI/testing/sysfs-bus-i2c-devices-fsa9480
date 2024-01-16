@@ -1,0 +1,27 @@
+What:		/sys/bus/i2c/devices/.../device
+Date:		February 2011
+Contact:	Minkyu Kang <mk7.kang@samsung.com>
+Description:
+		show what device is attached
+
+		=======  ======================
+		NONE     no device
+		USB      USB device is attached
+		UART     UART is attached
+		CHARGER  Charger is attaced
+		JIG      JIG is attached
+		=======  ======================
+
+What:		/sys/bus/i2c/devices/.../switch
+Date:		February 2011
+Contact:	Minkyu Kang <mk7.kang@samsung.com>
+Description:
+		show or set the state of manual switch
+
+		=======  ==============================
+		VAUDIO   switch to VAUDIO path
+		UART     switch to UART path
+		AUDIO    switch to AUDIO path
+		DHOST    switch to DHOST path
+		AUTO     switch automatically by device
+		=======  ==============================

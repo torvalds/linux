@@ -1,0 +1,130 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/ingenic,cgu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ingenic SoCs CGU devicetree bindings
+
+description: |
+  The CGU in an Ingenic SoC provides all the clocks generated on-chip. It
+  typically includes a variety of PLLs, multiplexers, dividers & gates in order
+  to provide many different clock signals derived from only 2 external source
+  clocks.
+
+maintainers:
+  - Paul Cercueil <paul@crapouillou.net>
+
+select:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - ingenic,jz4740-cgu
+          - ingenic,jz4725b-cgu
+          - ingenic,jz4760-cgu
+          - ingenic,jz4760b-cgu
+          - ingenic,jz4770-cgu
+          - ingenic,jz4780-cgu
+          - ingenic,x1000-cgu
+          - ingenic,x1830-cgu
+  required:
+    - compatible
+
+properties:
+  $nodename:
+    pattern: "^clock-controller@[0-9a-f]+$"
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  "#clock-cells":
+    const: 1
+
+  ranges: true
+
+  compatible:
+    items:
+      - enum:
+          - ingenic,jz4740-cgu
+          - ingenic,jz4725b-cgu
+          - ingenic,jz4760-cgu
+          - ingenic,jz4760b-cgu
+          - ingenic,jz4770-cgu
+          - ingenic,jz4780-cgu
+          - ingenic,x1000-cgu
+          - ingenic,x1830-cgu
+      - const: simple-mfd
+    minItems: 1
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: External oscillator clock
+      - description: Internal 32 kHz RTC clock
+
+  clock-names:
+    items:
+      - const: ext
+      - enum:
+          - rtc
+          - osc32k # Different name, same clock
+
+  assigned-clocks:
+    minItems: 1
+    maxItems: 64
+
+  assigned-clock-parents:
+    minItems: 1
+    maxItems: 64
+
+  assigned-clock-rates:
+    minItems: 1
+    maxItems: 64
+
+required:
+  - "#clock-cells"
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+
+patternProperties:
+  "^usb-phy@[a-f0-9]+$":
+    allOf: [ $ref: "../phy/ingenic,phy-usb.yaml#" ]
+  "^mac-phy-ctrl@[a-f0-9]+$":
+    allOf: [ $ref: "../net/ingenic,mac.yaml#" ]
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
+    cgu: clock-controller@10000000 {
+      compatible = "ingenic,jz4770-cgu", "simple-mfd";
+      reg = <0x10000000 0x100>;
+      #address-cells = <1>;
+      #size-cells = <1>;
+      ranges = <0x0 0x10000000 0x100>;
+
+      clocks = <&ext>, <&osc32k>;
+      clock-names = "ext", "osc32k";
+
+      #clock-cells = <1>;
+
+      otg_phy: usb-phy@3c {
+        compatible = "ingenic,jz4770-phy";
+        reg = <0x3c 0x10>;
+
+        clocks = <&cgu JZ4770_CLK_OTG_PHY>;
+
+        vcc-supply = <&ldo5>;
+
+        #phy-cells = <0>;
+      };
+    };

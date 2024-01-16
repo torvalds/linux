@@ -1,0 +1,128 @@
+Lemma 1:
+	If ps_tq is scheduled, ps_tq_active is 1.  ps_tq_int() can be called
+	only when ps_tq_active is 1.
+Proof:	All assignments to ps_tq_active and all scheduling of ps_tq happen
+	under ps_spinlock.  There are three places where that can happen:
+	one in ps_set_intr() (A) and two in ps_tq_int() (B and C).
+	Consider the sequnce of these events.  A can not be preceded by
+	anything except B, since it is under if (!ps_tq_active) under
+	ps_spinlock.  C is always preceded by B, since we can't reach it
+	other than through B and we don't drop ps_spinlock between them.
+	IOW, the sequence is A?(BA|BC|B)*.  OTOH, number of B can not exceed
+	the sum of numbers of A and C, since each call of ps_tq_int() is
+	the result of ps_tq execution.  Therefore, the sequence starts with
+	A and each B is preceded by either A or C.  Moments when we enter
+	ps_tq_int() are sandwiched between {A,C} and B in that sequence,
+	since at any time number of B can not exceed the number of these
+	moments which, in turn, can not exceed the number of A and C.
+	In other words, the sequence of events is (A or C set ps_tq_active to
+	1 and schedule ps_tq, ps_tq is executed, ps_tq_int() is entered,
+	B resets ps_tq_active)*.
+
+
+consider the following area:
+	* in do_pd_request1(): to calls of pi_do_claimed() and return in
+	  case when pd_req is NULL.
+	* in next_request(): to call of do_pd_request1()
+	* in do_pd_read(): to call of ps_set_intr()
+	* in do_pd_read_start(): to calls of pi_do_claimed(), next_request()
+and ps_set_intr()
+	* in do_pd_read_drq(): to calls of pi_do_claimed() and next_request()
+	* in do_pd_write(): to call of ps_set_intr()
+	* in do_pd_write_start(): to calls of pi_do_claimed(), next_request()
+and ps_set_intr()
+	* in do_pd_write_done(): to calls of pi_do_claimed() and next_request()
+	* in ps_set_intr(): to check for ps_tq_active and to scheduling
+	  ps_tq if ps_tq_active was 0.
+	* in ps_tq_int(): from the moment when we get ps_spinlock() to the
+	  return, call of con() or scheduling ps_tq.
+	* in pi_schedule_claimed() when called from pi_do_claimed() called from
+	  pd.c, everything until returning 1 or setting or setting ->claim_cont
+	  on the path that returns 0
+	* in pi_do_claimed() when called from pd.c, everything until the call
+	  of pi_do_claimed() plus the everything until the call of cont() if
+	  pi_do_claimed() has returned 1.
+	* in pi_wake_up() called for PIA that belongs to pd.c, everything from
+	  the moment when pi_spinlock has been acquired.
+
+Lemma 2:
+	1) at any time at most one thread of execution can be in that area or
+	be preempted there.
+	2) When there is such a thread, pd_busy is set or pd_lock is held by
+	that thread.
+	3) When there is such a thread, ps_tq_active is 0 or ps_spinlock is
+	held by that thread.
+	4) When there is such a thread, all PIA belonging to pd.c have NULL
+	->claim_cont or pi_spinlock is held by thread in question.
+
+Proof:	consider the first moment when the above is not true.
+
+(1) can become not true if some thread enters that area while another is there.
+	a) do_pd_request1() can be called from next_request() or do_pd_request()
+	   In the first case the thread was already in the area.  In the second,
+	   the thread was holding pd_lock and found pd_busy not set, which would
+	   mean that (2) was already not true.
+	b) ps_set_intr() and pi_schedule_claimed() can be called only from the
+	   area.
+	c) pi_do_claimed() is called by pd.c only from the area.
+	d) ps_tq_int() can enter the area only when the thread is holding
+	   ps_spinlock and ps_tq_active is 1 (due to Lemma 1).  It means that
+	   (3) was already not true.
+	e) do_pd_{read,write}* could be called only from the area.  The only
+	   case that needs consideration is call from pi_wake_up() and there
+	   we would have to be called for the PIA that got ->claimed_cont
+	   from pd.c.  That could happen only if pi_do_claimed() had been
+	   called from pd.c for that PIA, which happens only for PIA belonging
+	   to pd.c.
+	f) pi_wake_up() can enter the area only when the thread is holding
+	   pi_spinlock and ->claimed_cont is non-NULL for PIA belonging to
+	   pd.c.  It means that (4) was already not true.
+
+(2) can become not true only when pd_lock is released by the thread in question.
+	Indeed, pd_busy is reset only in the area and thread that resets
+	it is holding pd_lock.	The only place within the area where we
+	release pd_lock is in pd_next_buf() (called from within the area).
+	But that code does not reset pd_busy, so pd_busy would have to be
+	0 when pd_next_buf() had acquired pd_lock.  If it become 0 while
+	we were acquiring the lock, (1) would be already false, since
+	the thread that had reset it would be in the area simulateously.
+	If it was 0 before we tried to acquire pd_lock, (2) would be
+	already false.
+
+For similar reasons, (3) can become not true only when ps_spinlock is released
+by the thread in question.  However, all such places within the area are right
+after resetting ps_tq_active to 0.
+
+(4) is done the same way - all places where we release pi_spinlock within
+the area are either after resetting ->claimed_cont to NULL while holding
+pi_spinlock, or after not tocuhing ->claimed_cont since acquiring pi_spinlock
+also in the area.  The only place where ->claimed_cont is made non-NULL is
+in the area, under pi_spinlock and we do not release it until after leaving
+the area.
+
+QED.
+
+
+Corollary 1: ps_tq_active can be killed.  Indeed, the only place where we
+check its value is in ps_set_intr() and if it had been non-zero at that
+point, we would have violated either (2.1) (if it was set while ps_set_intr()
+was acquiring ps_spinlock) or (2.3) (if it was set when we started to
+acquire ps_spinlock).
+
+Corollary 2: ps_spinlock can be killed.  Indeed, Lemma 1 and Lemma 2 show
+that the only possible contention is between scheduling ps_tq followed by
+immediate release of spinlock and beginning of execution of ps_tq on
+another CPU.
+
+Corollary 3: assignment to pd_busy in do_pd_read_start() and do_pd_write_start()
+can be killed.  Indeed, we are not holding pd_lock and thus pd_busy is already
+1 here.
+
+Corollary 4: in ps_tq_int() uses of con can be replaced with uses of
+ps_continuation, since the latter is changed only from the area.
+We don't need to reset it to NULL, since we are guaranteed that there
+will be a call of ps_set_intr() before we look at ps_continuation again.
+We can remove the check for ps_continuation being NULL for the same
+reason - the value is guaranteed to be set by the last ps_set_intr() and
+we never pass it NULL.  Assignements in the beginning of ps_set_intr()
+can be taken to callers as long as they remain within the area.

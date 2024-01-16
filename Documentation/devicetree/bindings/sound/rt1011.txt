@@ -1,0 +1,42 @@
+RT1011 Mono Class D Audio Amplifier
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt1011".
+
+- reg : The I2C address of the device. This I2C address decide by
+        two input pins (ASEL1 and ASEL2).
+        -------------------------------------
+        |   ASEL2   |  ASEL1   |  Address   |
+        -------------------------------------
+        |     0     |    0     |   0x38     |
+        -------------------------------------
+        |     0     |    1     |   0x39     |
+        -------------------------------------
+        |     1     |    0     |   0x3a     |
+        -------------------------------------
+        |     1     |    1     |   0x3b     |
+        -------------------------------------
+
+Optional properties:
+
+- realtek,temperature_calib
+  u32. The temperature was measured while doing the calibration. Units: Celsius degree
+
+- realtek,r0_calib
+  u32. This is r0 calibration data which was measured in factory mode.
+
+Pins on the device (for linking into audio routes) for RT1011:
+
+  * SPO
+
+Example:
+
+rt1011: codec@38 {
+	compatible = "realtek,rt1011";
+	reg = <0x38>;
+	realtek,temperature_calib = <25>;
+	realtek,r0_calib = <0x224050>;
+};

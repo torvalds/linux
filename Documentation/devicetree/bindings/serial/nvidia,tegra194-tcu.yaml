@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/serial/nvidia,tegra194-tcu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra Combined UART (TCU)
+
+maintainers:
+  - Thierry Reding <thierry.reding@gmail.com>
+  - Jonathan Hunter <jonathanh@nvidia.com>
+
+description:
+  The TCU is a system for sharing a hardware UART instance among multiple
+  systems within the Tegra SoC. It is implemented through a mailbox-
+  based protocol where each "virtual UART" has a pair of mailboxes, one
+  for transmitting and one for receiving, that is used to communicate
+  with the hardware implementing the TCU.
+
+properties:
+  $nodename:
+    pattern: "^serial(@.*)?$"
+
+  compatible:
+    oneOf:
+      - const: nvidia,tegra194-tcu
+      - items:
+          - enum:
+              - nvidia,tegra234-tcu
+          - const: nvidia,tegra194-tcu
+
+  mbox-names:
+    items:
+      - const: rx
+      - const: tx
+
+  mboxes:
+    description: |
+      List of phandles to mailbox channels used for receiving and
+      transmitting data from and to the hardware UART.
+    items:
+      - description: mailbox for receiving data from hardware UART
+      - description: mailbox for transmitting data to hardware UART
+
+required:
+  - compatible
+  - mbox-names
+  - mboxes
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/mailbox/tegra186-hsp.h>
+
+    tcu: serial {
+        compatible = "nvidia,tegra194-tcu";
+        mboxes = <&hsp_top0 TEGRA_HSP_MBOX_TYPE_SM 0>,
+                 <&hsp_aon TEGRA_HSP_MBOX_TYPE_SM 1>;
+        mbox-names = "rx", "tx";
+    };

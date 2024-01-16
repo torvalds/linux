@@ -1,0 +1,22 @@
+Mediatek ipesys controller
+============================
+
+The Mediatek ipesys controller provides various clocks to the system.
+
+Required Properties:
+
+- compatible: Should be one of:
+	- "mediatek,mt6779-ipesys", "syscon"
+- #clock-cells: Must be 1
+
+The ipesys controller uses the common clk binding from
+Documentation/devicetree/bindings/clock/clock-bindings.txt
+The available clocks are defined in dt-bindings/clock/mt*-clk.h.
+
+Example:
+
+ipesys: clock-controller@1b000000 {
+	compatible = "mediatek,mt6779-ipesys", "syscon";
+	reg = <0 0x1b000000 0 0x1000>;
+	#clock-cells = <1>;
+};

@@ -1,0 +1,61 @@
+NVIDIA Tegra114 SPI controller.
+
+Required properties:
+- compatible : For Tegra114, must contain "nvidia,tegra114-spi".
+  Otherwise, must contain '"nvidia,<chip>-spi", "nvidia,tegra114-spi"' where
+  <chip> is tegra124, tegra132, or tegra210.
+- reg: Should contain SPI registers location and length.
+- interrupts: Should contain SPI interrupts.
+- clock-names : Must include the following entries:
+  - spi
+- resets : Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names : Must include the following entries:
+  - spi
+- dmas : Must contain an entry for each entry in clock-names.
+  See ../dma/dma.txt for details.
+- dma-names : Must include the following entries:
+  - rx
+  - tx
+- clocks : Must contain an entry for each entry in clock-names.
+  See ../clocks/clock-bindings.txt for details.
+
+Recommended properties:
+- spi-max-frequency: Definition as per
+                     Documentation/devicetree/bindings/spi/spi-bus.txt
+Optional properties:
+- nvidia,tx-clk-tap-delay: Delays the clock going out to the external device
+  with this tap value. This property is used to tune the outgoing data from
+  Tegra SPI master with respect to outgoing Tegra SPI master clock.
+  Tap values vary based on the platform design trace lengths from Tegra SPI
+  to corresponding slave devices. Valid tap values are from 0 thru 63.
+- nvidia,rx-clk-tap-delay: Delays the clock coming in from the external device
+  with this tap value. This property is used to adjust the Tegra SPI master
+  clock with respect to the data from the SPI slave device.
+  Tap values vary based on the platform design trace lengths from Tegra SPI
+  to corresponding slave devices. Valid tap values are from 0 thru 63.
+
+Example:
+
+spi@7000d600 {
+	compatible = "nvidia,tegra114-spi";
+	reg = <0x7000d600 0x200>;
+	interrupts = <0 82 0x04>;
+	spi-max-frequency = <25000000>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clocks = <&tegra_car 44>;
+	clock-names = "spi";
+	resets = <&tegra_car 44>;
+	reset-names = "spi";
+	dmas = <&apbdma 16>, <&apbdma 16>;
+	dma-names = "rx", "tx";
+	<spi-client>@<bus_num> {
+		...
+		...
+		nvidia,rx-clk-tap-delay = <0>;
+		nvidia,tx-clk-tap-delay = <16>;
+		...
+	};
+
+};

@@ -1,0 +1,51 @@
+[
+    {
+        "BriefDescription": "Cycles code-fetch stalled due to any reason.",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x86",
+        "EventName": "FETCH_STALL.ALL",
+        "PublicDescription": "Counts cycles that fetch is stalled due to any reason. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes.  This will include cycles due to an ITLB miss, ICache miss and other events.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Cycles code-fetch stalled due to an outstanding ITLB miss.",
+        "CollectPEBSRecord": "1",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x86",
+        "EventName": "FETCH_STALL.ITLB_FILL_PENDING_CYCLES",
+        "PublicDescription": "Counts cycles that fetch is stalled due to an outstanding ITLB miss. That is, the decoder queue is able to accept bytes, but the fetch unit is unable to provide bytes due to an ITLB miss.  Note: this event is not the same as page walk cycles to retrieve an instruction translation.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Cycles hardware interrupts are masked",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCB",
+        "EventName": "HW_INTERRUPTS.MASKED",
+        "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Cycles pending interrupts are masked",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCB",
+        "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
+        "PublicDescription": "Counts core cycles during which there are pending interrupts, but interrupts are masked (EFLAGS.IF = 0).",
+        "SampleAfterValue": "200003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Hardware interrupts received",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xCB",
+        "EventName": "HW_INTERRUPTS.RECEIVED",
+        "PublicDescription": "Counts hardware interrupts received by the processor.",
+        "SampleAfterValue": "203",
+        "UMask": "0x1"
+    }
+]

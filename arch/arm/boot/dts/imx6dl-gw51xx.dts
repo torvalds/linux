@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Gateworks Corporation
+ */
+
+/dts-v1/;
+#include "imx6dl.dtsi"
+#include "imx6qdl-gw51xx.dtsi"
+
+/ {
+	model = "Gateworks Ventana i.MX6 DualLite/Solo GW51XX";
+	compatible = "gw,imx6dl-gw51xx", "gw,ventana", "fsl,imx6dl";
+};

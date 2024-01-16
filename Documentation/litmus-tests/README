@@ -1,0 +1,35 @@
+============
+LITMUS TESTS
+============
+
+Each subdirectory contains litmus tests that are typical to describe the
+semantics of respective kernel APIs.
+For more information about how to "run" a litmus test or how to generate
+a kernel test module based on a litmus test, please see
+tools/memory-model/README.
+
+
+atomic (/atomic derectory)
+--------------------------
+
+Atomic-RMW+mb__after_atomic-is-stronger-than-acquire.litmus
+    Test that an atomic RMW followed by a smp_mb__after_atomic() is
+    stronger than a normal acquire: both the read and write parts of
+    the RMW are ordered before the subsequential memory accesses.
+
+Atomic-RMW-ops-are-atomic-WRT-atomic_set.litmus
+    Test that atomic_set() cannot break the atomicity of atomic RMWs.
+    NOTE: Require herd7 7.56 or later which supports "(void)expr".
+
+
+RCU (/rcu directory)
+--------------------
+
+MP+onceassign+derefonce.litmus (under tools/memory-model/litmus-tests/)
+    Demonstrates the use of rcu_assign_pointer() and rcu_dereference() to
+    ensure that an RCU reader will not see pre-initialization garbage.
+
+RCU+sync+read.litmus
+RCU+sync+free.litmus
+    Both the above litmus tests demonstrate the RCU grace period guarantee
+    that an RCU read-side critical section can never span a grace period.

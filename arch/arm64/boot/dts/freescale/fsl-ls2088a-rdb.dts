@@ -1,0 +1,148 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Freescale LS2088A RDB Board.
+ *
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
+ *
+ * Abhimanyu Saini <abhimanyu.saini@nxp.com>
+ *
+ */
+
+/dts-v1/;
+
+#include "fsl-ls2088a.dtsi"
+#include "fsl-ls208xa-rdb.dtsi"
+
+/ {
+	model = "Freescale Layerscape 2088A RDB Board";
+	compatible = "fsl,ls2088a-rdb", "fsl,ls2088a";
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+};
+
+&dpmac1 {
+	phy-handle = <&mdio1_phy1>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac2 {
+	phy-handle = <&mdio1_phy2>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac3 {
+	phy-handle = <&mdio1_phy3>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac4 {
+	phy-handle = <&mdio1_phy4>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac5 {
+	phy-handle = <&mdio2_phy1>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac6 {
+	phy-handle = <&mdio2_phy2>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac7 {
+	phy-handle = <&mdio2_phy3>;
+	phy-connection-type = "10gbase-r";
+};
+
+&dpmac8 {
+	phy-handle = <&mdio2_phy4>;
+	phy-connection-type = "10gbase-r";
+};
+
+&emdio1 {
+	status = "okay";
+
+	mdio1_phy1: ethernet-phy@10 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x10>;
+	};
+
+	mdio1_phy2: ethernet-phy@11 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x11>;
+	};
+
+	mdio1_phy3: ethernet-phy@12 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x12>;
+	};
+
+	mdio1_phy4: ethernet-phy@13 {
+		compatible = "ethernet-phy-id13e5.1002";
+		reg = <0x13>;
+	};
+};
+
+&emdio2 {
+	status = "okay";
+
+	mdio2_phy1: ethernet-phy@0 {
+		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 1 IRQ_TYPE_LEVEL_LOW>;
+		reg = <0x0>;
+	};
+
+	mdio2_phy2: ethernet-phy@1 {
+		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 2 IRQ_TYPE_LEVEL_LOW>;
+		reg = <0x1>;
+	};
+
+	mdio2_phy3: ethernet-phy@2 {
+		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 4 IRQ_TYPE_LEVEL_LOW>;
+		reg = <0x2>;
+	};
+
+	mdio2_phy4: ethernet-phy@3 {
+		compatible = "ethernet-phy-id03a1.b4b0", "ethernet-phy-ieee802.3-c45";
+		interrupts-extended = <&extirq 5 IRQ_TYPE_LEVEL_LOW>;
+		reg = <0x3>;
+	};
+};
+
+&pcs_mdio1 {
+	status = "okay";
+};
+
+&pcs_mdio2 {
+	status = "okay";
+};
+
+&pcs_mdio3 {
+	status = "okay";
+};
+
+&pcs_mdio4 {
+	status = "okay";
+};
+
+&pcs_mdio5 {
+	status = "okay";
+};
+
+&pcs_mdio6 {
+	status = "okay";
+};
+
+&pcs_mdio7 {
+	status = "okay";
+};
+
+&pcs_mdio8 {
+	status = "okay";
+};

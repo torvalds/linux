@@ -1,0 +1,84 @@
+* ROCKCHIP type-c PHY
+---------------------
+
+Required properties:
+ - compatible : must be "rockchip,rk3399-typec-phy"
+ - reg: Address and length of the usb phy control register set
+ - rockchip,grf : phandle to the syscon managing the "general
+   register files"
+ - clocks : phandle + clock specifier for the phy clocks
+ - clock-names : string, clock name, must be "tcpdcore", "tcpdphy-ref";
+ - assigned-clocks: main clock, should be <&cru SCLK_UPHY0_TCPDCORE> or
+		    <&cru SCLK_UPHY1_TCPDCORE>;
+ - assigned-clock-rates : the phy core clk frequency, shall be: 50000000
+ - resets : a list of phandle + reset specifier pairs
+ - reset-names : string reset name, must be:
+		 "uphy", "uphy-pipe", "uphy-tcphy"
+
+Optional properties:
+ - extcon : extcon specifier for the Power Delivery
+
+Required nodes : a sub-node is required for each port the phy provides.
+		 The sub-node name is used to identify dp or usb3 port,
+		 and shall be the following entries:
+	* "dp-port" : the name of DP port.
+	* "usb3-port" : the name of USB3 port.
+
+Required properties (port (child) node):
+- #phy-cells : must be 0, See ./phy-bindings.txt for details.
+
+Deprecated properties, do not use in new device tree sources, these
+properties are determined by the compatible value:
+ - rockchip,typec-conn-dir
+ - rockchip,usb3tousb2-en
+ - rockchip,external-psm
+ - rockchip,pipe-status
+
+Example:
+	tcphy0: phy@ff7c0000 {
+		compatible = "rockchip,rk3399-typec-phy";
+		reg = <0x0 0xff7c0000 0x0 0x40000>;
+		rockchip,grf = <&grf>;
+		extcon = <&fusb0>;
+		clocks = <&cru SCLK_UPHY0_TCPDCORE>,
+			 <&cru SCLK_UPHY0_TCPDPHY_REF>;
+		clock-names = "tcpdcore", "tcpdphy-ref";
+		assigned-clocks = <&cru SCLK_UPHY0_TCPDCORE>;
+		assigned-clock-rates = <50000000>;
+		resets = <&cru SRST_UPHY0>,
+			 <&cru SRST_UPHY0_PIPE_L00>,
+			 <&cru SRST_P_UPHY0_TCPHY>;
+		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
+
+		tcphy0_dp: dp-port {
+			#phy-cells = <0>;
+		};
+
+		tcphy0_usb3: usb3-port {
+			#phy-cells = <0>;
+		};
+	};
+
+	tcphy1: phy@ff800000 {
+		compatible = "rockchip,rk3399-typec-phy";
+		reg = <0x0 0xff800000 0x0 0x40000>;
+		rockchip,grf = <&grf>;
+		extcon = <&fusb1>;
+		clocks = <&cru SCLK_UPHY1_TCPDCORE>,
+			 <&cru SCLK_UPHY1_TCPDPHY_REF>;
+		clock-names = "tcpdcore", "tcpdphy-ref";
+		assigned-clocks = <&cru SCLK_UPHY1_TCPDCORE>;
+		assigned-clock-rates = <50000000>;
+		resets = <&cru SRST_UPHY1>,
+			 <&cru SRST_UPHY1_PIPE_L00>,
+			 <&cru SRST_P_UPHY1_TCPHY>;
+		reset-names = "uphy", "uphy-pipe", "uphy-tcphy";
+
+		tcphy1_dp: dp-port {
+			#phy-cells = <0>;
+		};
+
+		tcphy1_usb3: usb3-port {
+			#phy-cells = <0>;
+		};
+	};

@@ -1,0 +1,18 @@
+What:           /sys/kernel/debug/pktcdvd/pktcdvd[0-7]
+Date:           Oct. 2006
+KernelVersion:  2.6.20
+Contact:        Thomas Maier <balagi@justmail.de>
+Description:
+
+The pktcdvd module (packet writing driver) creates
+these files in debugfs:
+
+/sys/kernel/debug/pktcdvd/pktcdvd[0-7]/
+
+    ====            ====== ====================================
+    info            0444   Lots of driver statistics and infos.
+    ====            ====== ====================================
+
+Example::
+
+    cat /sys/kernel/debug/pktcdvd/pktcdvd0/info

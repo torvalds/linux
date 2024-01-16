@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CPU_FREQ_CBE
+	tristate "CBE frequency scaling"
+	depends on CBE_RAS && PPC_CELL
+	default m
+	help
+	  This adds the cpufreq driver for Cell BE processors.
+	  For details, take a look at <file:Documentation/cpu-freq/>.
+	  If you don't have such processor, say N
+
+config CPU_FREQ_CBE_PMI
+	bool "CBE frequency scaling using PMI interface"
+	depends on CPU_FREQ_CBE
+	default n
+	help
+	  Select this, if you want to use the PMI interface to switch
+	  frequencies. Using PMI, the processor will not only be able to run at
+	  lower speed, but also at lower core voltage.
+
+config CPU_FREQ_MAPLE
+	bool "Support for Maple 970FX Evaluation Board"
+	depends on PPC_MAPLE
+	help
+	  This adds support for frequency switching on Maple 970FX
+	  Evaluation Board and compatible boards (IBM JS2x blades).
+
+config CPU_FREQ_PMAC
+	bool "Support for Apple PowerBooks"
+	depends on ADB_PMU && PPC32
+	help
+	  This adds support for frequency switching on Apple PowerBooks,
+	  this currently includes some models of iBook & Titanium
+	  PowerBook.
+
+config CPU_FREQ_PMAC64
+	bool "Support for some Apple G5s"
+	depends on PPC_PMAC && PPC64
+	help
+	  This adds support for frequency switching on Apple iMac G5,
+	  and some of the more recent desktop G5 machines as well.
+
+config PPC_PASEMI_CPUFREQ
+	bool "Support for PA Semi PWRficient"
+	depends on PPC_PASEMI
+	default y
+	help
+	  This adds the support for frequency switching on PA Semi
+	  PWRficient processors.
+
+config POWERNV_CPUFREQ
+	tristate "CPU frequency scaling for IBM POWERNV platform"
+	depends on PPC_POWERNV
+	default y
+	help
+	 This adds support for CPU frequency switching on IBM POWERNV
+	 platform

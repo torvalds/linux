@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: GPL-2.0-only
+// Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+
+#include "orion5x.dtsi"
+
+/ {
+	compatible = "marvell,orion5x-88f5182", "marvell,orion5x";
+
+	soc {
+		compatible = "marvell,orion5x-88f5182-mbus", "simple-bus";
+
+		internal-regs {
+			pinctrl: pinctrl@10000 {
+				compatible = "marvell,88f5182-pinctrl";
+				reg = <0x10000 0x8>, <0x10050 0x4>;
+
+				pmx_sata0: pmx-sata0 {
+					marvell,pins = "mpp12", "mpp14";
+					marvell,function = "sata0";
+				};
+
+				pmx_sata1: pmx-sata1 {
+					marvell,pins = "mpp13", "mpp15";
+					marvell,function = "sata1";
+				};
+			};
+
+			core_clk: core-clocks@10030 {
+				compatible = "marvell,mv88f5182-core-clock";
+				reg = <0x10010 0x4>;
+				#clock-cells = <1>;
+			};
+
+			mbusc: mbus-controller@20000 {
+				compatible = "marvell,mbus-controller";
+				reg = <0x20000 0x100>, <0x1500 0x20>;
+			};
+		};
+	};
+};

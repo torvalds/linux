@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: (GPL-2.0-or-later OR BSD-2-Clause)
+/*
+ * Copyright (c) 2017-2019 Andreas Färber
+ */
+
+/dts-v1/;
+
+#include "rtd1293.dtsi"
+
+/ {
+	compatible = "synology,ds418j", "realtek,rtd1293";
+	model = "Synology DiskStation DS418j";
+
+	memory@1f000 {
+		device_type = "memory";
+		reg = <0x1f000 0x3ffe1000>; /* boot ROM to 1 GiB */
+	};
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&uart0 {
+	status = "okay";
+};

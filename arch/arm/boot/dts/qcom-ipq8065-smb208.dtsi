@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include "qcom-ipq8065.dtsi"
+
+&rpm {
+	smb208_regulators: regulators {
+		compatible = "qcom,rpm-smb208-regulators";
+
+		smb208_s1a: s1a {
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1150000>;
+
+			qcom,switch-mode-frequency = <1200000>;
+		};
+
+		smb208_s1b: s1b {
+			regulator-min-microvolt = <1050000>;
+			regulator-max-microvolt = <1150000>;
+
+			qcom,switch-mode-frequency = <1200000>;
+		};
+
+		smb208_s2a: s2a {
+			regulator-min-microvolt = <775000>;
+			regulator-max-microvolt = <1275000>;
+
+			qcom,switch-mode-frequency = <1200000>;
+		};
+
+		smb208_s2b: s2b {
+			regulator-min-microvolt = <775000>;
+			regulator-max-microvolt = <1275000>;
+
+			qcom,switch-mode-frequency = <1200000>;
+		};
+	};
+};

@@ -1,0 +1,522 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mfd/stericsson,ab8500.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: ST-Ericsson Analog Baseband AB8500 and AB8505
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  the AB8500 "Analog Baseband" is the mixed-signals integrated circuit
+  handling power management (regulators), analog-to-digital conversion
+  (ADC), battery charging, fuel gauging of the battery, battery-backed
+  RTC, PWM, USB PHY and some GPIO lines in the ST-Ericsson U8500 platforms
+  in connection with the DB8500 digital baseband. The DB8500 PRCMU
+  communicates directly and autonomously with the AB8500 and thus it
+  appears as a subnode of the DB8500 PRCMU. An altered version called
+  AB8505 also exist, the difference in AB8505 is that some of the USB and
+  USB charging handling has changed, and it has an embedded USB-to-serial
+  converter. Most subblocks takes their interrupts directly from the
+  AB8500 embedded interrupt controller.
+
+properties:
+  $nodename:
+    pattern: '^ab850[05]$'
+
+  compatible:
+    enum:
+      - stericsson,ab8500
+      - stericsson,ab8505
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-controller: true
+
+  '#interrupt-cells':
+    const: 2
+
+  # Some subnodes use a reg, some don't. Those that do use a single cell.
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+  clock-controller:
+    description: Node describing the AB8500 clock controller. This
+      provides the reference clock for the entire U8500 system and
+      the DB8500 counterpart.
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-clk
+
+      '#clock-cells':
+        const: 1
+
+  gpio:
+    description: Node describing the AB8500 GPIO controller. A few
+      GPIO pins available for misc usage.
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        enum:
+          - stericsson,ab8500-gpio
+          - stericsson,ab8505-gpio
+
+      gpio-controller: true
+
+      '#gpio-cells':
+        const: 2
+
+  rtc:
+    description: Node describing the AB8500 battery-backed RTC.
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-rtc
+
+      interrupts:
+        items:
+          - description: 60 second interval alarm interrupt
+          - description: RTC alarm
+
+      interrupt-names:
+        items:
+          - const: 60S
+          - const: ALARM
+
+  adc:
+    description: Node describing the AB8500 general purpose analog to digital
+      converter, GPADC.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-gpadc
+
+      # AB8505 only supports one (software) EOC interrupt
+      interrupts:
+        minItems: 1
+        maxItems: 2
+
+      interrupt-names: true
+
+      vddadc-supply: true
+
+      '#address-cells':
+        const: 1
+
+      '#size-cells':
+        const: 0
+
+      '#io-channel-cells':
+        const: 1
+
+    patternProperties:
+      "^channel@[0-9a-f]+$":
+        type: object
+        $ref: ../iio/adc/adc.yaml#
+        description: Represents each of the external channels which are
+          connected to the ADC.
+
+        properties:
+          reg:
+            items:
+              minimum: 1
+              maximum: 31
+
+        required:
+          - reg
+
+        additionalProperties: false
+
+    required:
+      - compatible
+      - interrupts
+      - interrupt-names
+      - vddadc-supply
+      - '#address-cells'
+      - '#size-cells'
+      - '#io-channel-cells'
+
+    additionalProperties: false
+
+  thermal:
+    description: Node describing the AB8500 thermal control block. All this block
+      really does is to fire an interrupt when the die becomes 130 degrees Celsius
+      in temperature.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,abx500-temp
+
+      interrupts:
+        items:
+          - description: Thermal warm warning interrupt
+
+      interrupt-names:
+        items:
+          - const: ABX500_TEMP_WARM
+
+    required:
+      - compatible
+      - interrupts
+      - interrupt-names
+
+    additionalProperties: false
+
+  ab8500_fg:
+    description: Node describing the AB8500 fuel gauge control block.
+    type: object
+    $ref: ../power/supply/stericsson,ab8500-fg.yaml
+
+  ab8500_btemp:
+    description: Node describing the AB8500 battery temperature control block.
+    type: object
+    $ref: ../power/supply/stericsson,ab8500-btemp.yaml
+
+  ab8500_charger:
+    description: Node describing the AB8500 battery charger control block.
+    type: object
+    $ref: ../power/supply/stericsson,ab8500-charger.yaml
+
+  ab8500_chargalg:
+    description: Node describing the AB8500 battery charger algorithm.
+    type: object
+    $ref: ../power/supply/stericsson,ab8500-chargalg.yaml
+
+  phy:
+    description: Node describing the AB8500 USB PHY control block.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-usb
+
+      interrupts:
+        items:
+          - description: ID wakeup rising IRQ
+          - description: ID wakeup falling IRQ
+          - description: VBUS detection falling IRQ
+          - description: VBUS detection rising IRQ
+          - description: USB link status change IRQ
+          - description: ADP probe plug IRQ
+          - description: ADP probe unplug IRQ
+
+      interrupt-names:
+        items:
+          - const: ID_WAKEUP_R
+          - const: ID_WAKEUP_F
+          - const: VBUS_DET_F
+          - const: VBUS_DET_R
+          - const: USB_LINK_STATUS
+          - const: USB_ADP_PROBE_PLUG
+          - const: USB_ADP_PROBE_UNPLUG
+
+      vddulpivio18-supply: true
+      v-ape-supply: true
+      musb_1v8-supply: true
+
+      clocks:
+        items:
+          - description: PRCMY system clock
+
+      clock-names:
+        items:
+          - const: sysclk
+
+      '#phy-cells':
+        const: 0
+
+    required:
+      - compatible
+      - interrupts
+      - interrupt-names
+      - vddulpivio18-supply
+      - v-ape-supply
+      - musb_1v8-supply
+      - clocks
+      - clock-names
+      - '#phy-cells'
+
+    additionalProperties: false
+
+  key:
+    description: Node describing the AB8500 power-on key control block.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-poweron-key
+
+      interrupts:
+        items:
+          - description: ON key falling IRQ
+          - description: ON key rising IRQ
+
+      interrupt-names:
+        items:
+          - const: ONKEY_DBF
+          - const: ONKEY_DBR
+
+    required:
+      - compatible
+      - interrupts
+      - interrupt-names
+
+    additionalProperties: false
+
+  ab8500-sysctrl:
+    description: Node describing the AB8500 system control block.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-sysctrl
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+  codec:
+    description: Node describing the AB8500 audio codec block.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-codec
+
+      V-AUD-supply: true
+      V-AMIC1-supply: true
+      V-AMIC2-supply: true
+      V-DMIC-supply: true
+
+      clocks:
+        items:
+          - description: Audio system clock
+
+      clock-names:
+        items:
+          - const: audioclk
+
+      stericsson,earpeice-cmv:
+        description: Earpeice voltage
+        $ref: /schemas/types.yaml#/definitions/uint32
+        enum: [ 950, 1100, 1270, 1580 ]
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+  regulator:
+    description: Node describing the AB8500 internal regulators.
+    type: object
+
+    properties:
+      compatible:
+        enum:
+          - stericsson,ab8500-regulator
+          - stericsson,ab8505-regulator
+
+      vin-supply:
+        description: The regulator supplying all of the internal regulators
+          with power.
+
+      ab8500_ldo_aux1:
+        description: The voltage for the auxilary LDO regulator 1
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_aux2:
+        description: The voltage for the auxilary LDO regulator 2
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_aux3:
+        description: The voltage for the auxilary LDO regulator 3
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_aux4:
+        description: The voltage for the auxilary LDO regulator 4
+          only present on AB8505
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_aux5:
+        description: The voltage for the auxilary LDO regulator 5
+          only present on AB8505
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_aux6:
+        description: The voltage for the auxilary LDO regulator 6
+          only present on AB8505
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      # There is never any AUX7 regulator which is confusing
+
+      ab8500_ldo_aux8:
+        description: The voltage for the auxilary LDO regulator 8
+          only present on AB8505
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_intcore:
+        description: The LDO regulator for the internal core voltage
+          of the AB8500
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_adc:
+        description: Analog power regulator for the analog to digital converter
+          ADC, only present on AB8505
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_tvout:
+        description: The voltage for the TV output regulator, incidentally
+          this voltage is also used for other purposes such as measuring
+          the temperature of the NTC thermistor on the battery.
+          Only present on AB8500.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_audio:
+        description: The LDO regulator for the audio codec output
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_anamic1:
+        description: The LDO regulator for the analog microphone 1
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_anamic2:
+        description: The LDO regulator for the analog microphone 2
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_dmic:
+        description: The LDO regulator for the digital microphone
+          only present on AB8500
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ldo_ana:
+        description: Analog power regulator for CSI and DSI interfaces,
+          Camera Serial Interface CSI and Display Serial Interface DSI.
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+
+  regulator-external:
+    description: Node describing the AB8500 external regulators. This
+      concerns the autonomous regulators VSMPS1, VSMPS2 and VSMPS3
+      that are normally controlled by external electronics but also
+      sometimes need to be explicitly controlled by software.
+    type: object
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-ext-regulator
+
+      ab8500_ext1:
+        description: The voltage for the VSMPS1 external regulator
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ext2:
+        description: The voltage for the VSMPS2 external regulator
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+      ab8500_ext3:
+        description: The voltage for the VSMPS3 external regulator
+        type: object
+        $ref: ../regulator/regulator.yaml#
+        unevaluatedProperties: false
+
+    required:
+      - compatible
+
+    additionalProperties: false
+
+patternProperties:
+  "^pwm@[1-9]+?$":
+    type: object
+    $ref: ../pwm/pwm.yaml#
+    unevaluatedProperties: false
+    description: Represents each of the PWM blocks in the AB8500
+
+    properties:
+      compatible:
+        const: stericsson,ab8500-pwm
+
+      reg: true
+
+      clocks:
+        items:
+          - description: internal clock
+
+      clock-names:
+        items:
+          - const: intclk
+
+    required:
+      - compatible
+      - reg
+
+required:
+  - compatible
+  - clock-controller
+  - gpio
+  - rtc
+  - adc
+  - thermal
+  - ab8500_fg
+  - ab8500_btemp
+  - ab8500_charger
+  - ab8500_chargalg
+  - phy
+  - key
+  - regulator
+
+additionalProperties: false

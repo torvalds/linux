@@ -1,0 +1,33 @@
+What:		/sys/class/chromeos/<ec-device-name>/flashinfo
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		Show the EC flash information.
+
+What:		/sys/class/chromeos/<ec-device-name>/kb_wake_angle
+Date:		March 2018
+KernelVersion:	4.17
+Description:
+		Control the keyboard wake lid angle. Values are between
+		0 and 360. This file will also show the keyboard wake lid
+		angle by querying the hardware.
+
+What:		/sys/class/chromeos/<ec-device-name>/reboot
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		Tell the EC to reboot in various ways. Options are:
+
+		- "cancel": Cancel a pending reboot.
+		- "ro": Jump to RO without rebooting.
+		- "rw": Jump to RW without rebooting.
+		- "cold": Cold reboot.
+		- "disable-jump": Disable jump until next reboot.
+		- "hibernate": Hibernate the EC.
+		- "at-shutdown": Reboot after an AP shutdown.
+
+What:		/sys/class/chromeos/<ec-device-name>/version
+Date:		August 2015
+KernelVersion:	4.2
+Description:
+		Show the information about the EC software and hardware.

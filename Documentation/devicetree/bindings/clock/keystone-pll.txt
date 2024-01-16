@@ -1,0 +1,84 @@
+Status: Unstable - ABI compatibility may be broken in the future
+
+Binding for keystone PLLs. The main PLL IP typically has a multiplier,
+a divider and a post divider. The additional PLL IPs like ARMPLL, DDRPLL
+and PAPLL are controlled by the memory mapped register where as the Main
+PLL is controlled by a PLL controller registers along with memory mapped
+registers.
+
+This binding uses the common clock binding[1].
+
+[1] Documentation/devicetree/bindings/clock/clock-bindings.txt
+
+Required properties:
+- #clock-cells : from common clock binding; shall be set to 0.
+- compatible : shall be "ti,keystone,main-pll-clock" or "ti,keystone,pll-clock"
+- clocks : parent clock phandle
+- reg - pll control0 and pll multipler registers
+- reg-names : control, multiplier and post-divider. The multiplier and
+		post-divider registers are applicable only for main pll clock
+- fixed-postdiv : fixed post divider value. If absent, use clkod register bits
+		for postdiv
+
+Example:
+	mainpllclk: mainpllclk@2310110 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,main-pll-clock";
+		clocks = <&refclksys>;
+		reg = <0x02620350 4>, <0x02310110 4>, <0x02310108 4>;
+		reg-names = "control", "multiplier", "post-divider";
+		fixed-postdiv = <2>;
+	};
+
+	papllclk: papllclk@2620358 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,pll-clock";
+		clocks = <&refclkpass>;
+		clock-output-names = "pa-pll-clk";
+		reg = <0x02620358 4>;
+		reg-names = "control";
+	};
+
+Required properties:
+- #clock-cells : from common clock binding; shall be set to 0.
+- compatible : shall be "ti,keystone,pll-mux-clock"
+- clocks : link phandles of parent clocks
+- reg - pll mux register
+- bit-shift : number of bits to shift the bit-mask
+- bit-mask : arbitrary bitmask for programming the mux
+
+Optional properties:
+- clock-output-names : From common clock binding.
+
+Example:
+	mainmuxclk: mainmuxclk@2310108 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,pll-mux-clock";
+		clocks = <&mainpllclk>, <&refclkmain>;
+		reg = <0x02310108 4>;
+		bit-shift = <23>;
+		bit-mask = <1>;
+		clock-output-names = "mainmuxclk";
+	};
+
+Required properties:
+- #clock-cells : from common clock binding; shall be set to 0.
+- compatible : shall be "ti,keystone,pll-divider-clock"
+- clocks : parent clock phandle
+- reg - pll mux register
+- bit-shift : number of bits to shift the bit-mask
+- bit-mask : arbitrary bitmask for programming the divider
+
+Optional properties:
+- clock-output-names : From common clock binding.
+
+Example:
+	gemtraceclk: gemtraceclk@2310120 {
+		#clock-cells = <0>;
+		compatible = "ti,keystone,pll-divider-clock";
+		clocks = <&mainmuxclk>;
+		reg = <0x02310120 4>;
+		bit-shift = <0>;
+		bit-mask = <8>;
+		clock-output-names = "gemtraceclk";
+	};

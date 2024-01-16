@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
+config FB_OLPC_DCON
+	tristate "One Laptop Per Child Display CONtroller support"
+	depends on OLPC && FB && BROKEN
+	depends on I2C
+	depends on GPIO_CS5535 && ACPI
+	select BACKLIGHT_CLASS_DEVICE
+	help
+	  In order to support very low power operation, the XO laptop uses a
+	  secondary Display CONtroller, or DCON.  This secondary controller
+	  is present in the video pipeline between the primary display
+	  controller (integrate into the processor or chipset) and the LCD
+	  panel.  It allows the main processor/display controller to be
+	  completely powered off while still retaining an image on the display.
+	  This controller is only available on OLPC platforms.  Unless you have
+	  one of these platforms, you will want to say 'N'.
+

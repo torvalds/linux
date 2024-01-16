@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: BSD-3-Clause
+/*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+/dts-v1/;
+
+/ {
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&intc>;
+
+	chosen {
+		bootargs = "nokaslr";
+	};
+
+	cpus {
+		#address-cells = <0x2>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,armv8";
+			reg = <0 0>;
+		};
+	};
+
+	intc: interrupt-controller@3FFF0000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <3>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		interrupt-controller;
+		reg = <0 0x3FFF0000 0 0x10000>,
+		      <0 0x3FFD0000 0 0x20000>;
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		always-on;
+		interrupts = <1 13 0x108>,
+			     <1 14 0x108>,
+			     <1 11 0x108>,
+			     <1 10 0x108>;
+		clock-frequency = <19200000>;
+	};
+
+	gunyah-vm-config {
+		image-name = "linux_vm_0";
+
+		memory {
+			#address-cells = <2>;
+			#size-cells = <2>;
+
+			base-address = <0 0x80000000>;
+		};
+
+		interrupts {
+			config = <&intc>;
+		};
+
+		vcpus {
+			affinity-map = < 0 >;
+			sched-priority = < (-1) >;
+			sched-timeslice = < 2000 >;
+		};
+	};
+};

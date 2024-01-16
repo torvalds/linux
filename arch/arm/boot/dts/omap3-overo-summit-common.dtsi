@@ -1,0 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2014 Florian Vaussard, EPFL Mobots group
+ */
+
+/*
+ * Summit expansion board is manufactured by Gumstix Inc.
+ */
+
+#include "omap3-overo-common-peripherals.dtsi"
+#include "omap3-overo-common-dvi.dtsi"
+
+/ {
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 = <&led_pins>;
+		heartbeat {
+			label = "overo:red:gpio21";
+			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;		/* gpio_21 */
+			linux,default-trigger = "heartbeat";
+		};
+	};
+};
+
+&lis33de {
+	status = "disabled";
+};
+

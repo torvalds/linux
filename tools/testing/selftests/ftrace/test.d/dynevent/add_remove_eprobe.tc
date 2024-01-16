@@ -1,0 +1,97 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Generic dynamic event - add/remove eprobe events
+# requires: dynamic_events events/syscalls/sys_enter_openat "<attached-group>.<attached-event> [<args>]":README
+
+echo 0 > events/enable
+
+clear_dynamic_events
+
+SYSTEM="syscalls"
+EVENT="sys_enter_openat"
+FIELD="filename"
+EPROBE="eprobe_open"
+OPTIONS="file=+0(\$filename):ustring"
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+
+grep -q "$EPROBE" dynamic_events
+test -d events/eprobes/$EPROBE
+
+echo 1 > events/eprobes/$EPROBE/enable
+ls
+echo 0 > events/eprobes/$EPROBE/enable
+
+content=`grep '^ *ls-' trace | grep 'file='`
+nocontent=`grep '^ *ls-' trace | grep 'file=' | grep -v -e '"/' -e '"."' -e '(fault)' ` || true
+
+if [ -z "$content" ]; then
+	exit_fail
+fi
+
+if [ ! -z "$nocontent" ]; then
+	exit_fail
+fi
+
+echo "-:$EPROBE" >> dynamic_events
+
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+# test various ways to remove the probe (already tested with just event name)
+
+# With group name
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+grep -q "$EPROBE" dynamic_events
+test -d events/eprobes/$EPROBE
+echo "-:eprobes/$EPROBE" >> dynamic_events
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+# With group name and system/event
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+grep -q "$EPROBE" dynamic_events
+test -d events/eprobes/$EPROBE
+echo "-:eprobes/$EPROBE $SYSTEM/$EVENT" >> dynamic_events
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+# With just event name and system/event
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+grep -q "$EPROBE" dynamic_events
+test -d events/eprobes/$EPROBE
+echo "-:$EPROBE $SYSTEM/$EVENT" >> dynamic_events
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+# With just event name and system/event and options
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+grep -q "$EPROBE" dynamic_events
+test -d events/eprobes/$EPROBE
+echo "-:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+# With group name and system/event and options
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+grep -q "$EPROBE" dynamic_events
+test -d events/eprobes/$EPROBE
+echo "-:eprobes/$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+# Finally make sure what is in the dynamic_events file clears it too
+echo "e:$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+LINE=`sed -e '/$EPROBE/s/^e/-/' < dynamic_events`
+test -d events/eprobes/$EPROBE
+echo "-:eprobes/$EPROBE $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+! grep -q "$EPROBE" dynamic_events
+! test -d events/eprobes/$EPROBE
+
+if grep -q "e\[:\[<group>/]\[<event>]]" README; then
+	echo "e:mygroup/ $SYSTEM/$EVENT $OPTIONS" >> dynamic_events
+	test -d events/mygroup
+	echo "-:mygroup/" >> dynamic_events
+	! test -d events/mygroup
+fi
+
+clear_trace

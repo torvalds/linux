@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2012 Synopsys, Inc. (www.synopsys.com)
+ */
+
+/*
+ * Skeleton device tree; the bare minimum needed to boot; just include and
+ * add a compatible value.
+ */
+
+/ {
+	compatible = "snps,arc";
+	#address-cells = <1>;
+	#size-cells = <1>;
+	chosen { };
+	aliases { };
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "snps,arc770d";
+			reg = <0>;
+			clocks = <&core_clk>;
+		};
+	};
+
+	/* TIMER0 with interrupt for clockevent */
+	timer0 {
+		compatible = "snps,arc-timer";
+		interrupts = <3>;
+		interrupt-parent = <&core_intc>;
+		clocks = <&core_clk>;
+	};
+
+	/* TIMER1 for free running clocksource */
+	timer1 {
+		compatible = "snps,arc-timer";
+		clocks = <&core_clk>;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x80000000 0x10000000>;	/* 256M */
+	};
+};
