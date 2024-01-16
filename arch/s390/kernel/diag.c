@@ -265,6 +265,6 @@ EXPORT_SYMBOL(diag224);
 int diag26c(void *req, void *resp, enum diag26c_sc subcode)
 {
 	diag_stat_inc(DIAG_STAT_X26C);
-	return diag_amode31_ops.diag26c(req, resp, subcode);
+	return diag_amode31_ops.diag26c(virt_to_phys(req), virt_to_phys(resp), subcode);
 }
 EXPORT_SYMBOL(diag26c);

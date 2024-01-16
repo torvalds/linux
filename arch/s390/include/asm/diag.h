@@ -331,7 +331,7 @@ struct hypfs_diag0c_entry;
  */
 struct diag_ops {
 	int (*diag210)(struct diag210 *addr);
-	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
+	int (*diag26c)(unsigned long rx, unsigned long rx1, enum diag26c_sc subcode);
 	int (*diag14)(unsigned long rx, unsigned long ry1, unsigned long subcode);
 	int (*diag8c)(struct diag8c *addr, struct ccw_dev_id *devno, size_t len);
 	void (*diag0c)(struct hypfs_diag0c_entry *entry);
@@ -342,7 +342,7 @@ extern struct diag_ops diag_amode31_ops;
 extern struct diag210 *__diag210_tmp_amode31;
 
 int _diag210_amode31(struct diag210 *addr);
-int _diag26c_amode31(void *req, void *resp, enum diag26c_sc subcode);
+int _diag26c_amode31(unsigned long rx, unsigned long rx1, enum diag26c_sc subcode);
 int _diag14_amode31(unsigned long rx, unsigned long ry1, unsigned long subcode);
 void _diag0c_amode31(struct hypfs_diag0c_entry *entry);
 void _diag308_reset_amode31(void);
