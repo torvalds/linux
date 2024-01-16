@@ -7674,12 +7674,12 @@ static void rtl8xxxu_deinit_led(struct rtl8xxxu_priv *priv)
 	led_classdev_unregister(led);
 }
 
-struct ieee80211_iface_limit rtl8xxxu_limits[] = {
+static const struct ieee80211_iface_limit rtl8xxxu_limits[] = {
 	{ .max = 2, .types = BIT(NL80211_IFTYPE_STATION), },
 	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP), },
 };
 
-struct ieee80211_iface_combination rtl8xxxu_combinations[] = {
+static const struct ieee80211_iface_combination rtl8xxxu_combinations[] = {
 	{
 		.limits = rtl8xxxu_limits,
 		.n_limits = ARRAY_SIZE(rtl8xxxu_limits),
