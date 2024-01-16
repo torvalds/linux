@@ -270,18 +270,20 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 
 	rate = get_dpcd_link_rate(&lt_settings->link_settings);
 
-	/* Vendor specific: Toggle link rate */
-	toggle_rate = (rate == 0x6) ? 0xA : 0x6;
+	if (!link->dpcd_caps.lttpr_caps.main_link_channel_coding.bits.DP_128b_132b_SUPPORTED) {
+		/* Vendor specific: Toggle link rate */
+		toggle_rate = (rate == 0x6) ? 0xA : 0x6;
 
-	if (link->vendor_specific_lttpr_link_rate_wa == rate || link->vendor_specific_lttpr_link_rate_wa == 0) {
-		core_link_write_dpcd(
-				link,
-				DP_LINK_BW_SET,
-				&toggle_rate,
-				1);
+		if (link->vendor_specific_lttpr_link_rate_wa == rate || link->vendor_specific_lttpr_link_rate_wa == 0) {
+			core_link_write_dpcd(
+					link,
+					DP_LINK_BW_SET,
+					&toggle_rate,
+					1);
+		}
+
+		link->vendor_specific_lttpr_link_rate_wa = rate;
 	}
-
-	link->vendor_specific_lttpr_link_rate_wa = rate;
 
 	core_link_write_dpcd(link, DP_LINK_BW_SET, &rate, 1);
 
