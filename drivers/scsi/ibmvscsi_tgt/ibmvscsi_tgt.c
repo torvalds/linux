@@ -3616,13 +3616,13 @@ static void ibmvscsis_remove(struct vio_dev *vdev)
 static ssize_t system_id_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%s\n", system_id);
+	return sysfs_emit(buf, "%s\n", system_id);
 }
 
 static ssize_t partition_number_show(struct device *dev,
 				     struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, "%x\n", partition_number);
+	return sysfs_emit(buf, "%x\n", partition_number);
 }
 
 static ssize_t unit_address_show(struct device *dev,
@@ -3630,7 +3630,7 @@ static ssize_t unit_address_show(struct device *dev,
 {
 	struct scsi_info *vscsi = container_of(dev, struct scsi_info, dev);
 
-	return snprintf(buf, PAGE_SIZE, "%x\n", vscsi->dma_dev->unit_address);
+	return sysfs_emit(buf, "%x\n", vscsi->dma_dev->unit_address);
 }
 
 static int ibmvscsis_get_system_info(void)
