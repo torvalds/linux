@@ -447,6 +447,9 @@ void dcn35_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
 
 void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable)
 {
+	if (!clk_mgr->smu_present)
+		return;
+
 	dcn35_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown,
@@ -457,6 +460,9 @@ void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *cl
 int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
 {
 	int retv;
+
+	if (!clk_mgr->smu_present)
+		return 0;
 
 	retv = dcn35_smu_send_msg_with_param(
 		clk_mgr,
@@ -470,6 +476,9 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 {
 	int retv;
 
+	if (!clk_mgr->smu_present)
+		return 0;
+
 	retv = dcn35_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_QueryIPS2Support,
@@ -481,6 +490,9 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 
 void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t param)
 {
+	if (!clk_mgr->smu_present)
+		return;
+
 	REG_WRITE(MP1_SMN_C2PMSG_71, param);
 	//smu_print("%s: write_ips_scratch = %x\n", __func__, param);
 }
@@ -488,6 +500,9 @@ void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t para
 uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr)
 {
 	uint32_t retv;
+
+	if (!clk_mgr->smu_present)
+		return 0;
 
 	retv = REG_READ(MP1_SMN_C2PMSG_71);
 	//smu_print("%s: dcn35_smu_read_ips_scratch = %x\n",  __func__, retv);
