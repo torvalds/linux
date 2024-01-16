@@ -186,6 +186,8 @@
 			reg = <0x0 0x12010000 0x0 0x820>;
 			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_USB0CLK>;
 			resets = <&syscon0 ASPEED_RESET_P0_PHY3>;
+			ctrl = <0xc12c 0x0c854802>,	/* Set DWC3 GUCTL for ref_clk */
+			       <0xc630 0x0c800020>;	/* Set DWC3 GLADJ for ref_clk */
 			aspeed,scu = <&syscon0>;
 			status = "disabled";
 		};
@@ -218,6 +220,8 @@
 			reg = <0x0 0x12020000 0x0 0x820>;
 			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_USB2CLK>;
 			resets = <&syscon0 ASPEED_RESET_P1_PHY3>;
+			ctrl = <0xc12c 0x0c854802>,	/* Set DWC3 GUCTL for ref_clk */
+			       <0xc630 0x0c800020>;	/* Set DWC3 GLADJ for ref_clk */
 			aspeed,bypass_phy_sram_quirk;
 			aspeed,scu = <&syscon0>;
 			status = "disabled";

@@ -22,10 +22,18 @@
 #define AST_USB_PHY3P04		0x814	/* PHY PCS Protocol Setting #2 */
 #define AST_USB_PHY3P08		0x818	/* PHY PCS Protocol Setting #3 */
 #define AST_USB_PHY3P0C		0x81C	/* PHY PCS Protocol Setting #4	*/
+#define AST_USB_DWC_CMD		0xB80	/* DWC3 Commands base address offest */
 
-#define USB_PHY3_INIT_DONE		BIT(15)	/* BIT15: USB3.1 Phy internal SRAM iniitalization done */
+#define DWC_CRTL_NUM	2
+
+#define USB_PHY3_INIT_DONE	BIT(15)	/* BIT15: USB3.1 Phy internal SRAM iniitalization done */
 #define USB_PHY3_SRAM_BYPASS	BIT(7)	/* USB3.1 Phy SRAM bypass */
 #define USB_PHY3_SRAM_EXT_LOAD	BIT(6)	/* USB3.1 Phy SRAM external load done */
+
+struct usb_dwc3_ctrl {
+	u32 offset;
+	u32 value;
+};
 
 static const struct of_device_id aspeed_usb_phy3_dt_ids[] = {
 	{
@@ -48,6 +56,8 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 	struct reset_control	*rst;
 	int timeout = 100;
 	int rc = 0;
+	struct usb_dwc3_ctrl ctrl_data[DWC_CRTL_NUM];
+	int i, j;
 
 	clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(clk))
@@ -91,6 +101,37 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 		val |= USB_PHY3_SRAM_EXT_LOAD;
 	writel(val, reg_base + AST_USB_PHY3S00);
 
+	rc = of_property_read_u32_array(node, "ctrl", (u32 *)ctrl_data,
+					DWC_CRTL_NUM * 2);
+	if (rc < 0) {
+		dev_info(&pdev->dev, "No ctrl property to set\n");
+		goto done;
+	}
+
+	/* xHCI DWC specific command initially set when PCIe xHCI enable */
+	for (i = 0, j = AST_USB_DWC_CMD; i < DWC_CRTL_NUM; i++) {
+		/* 48-bits Command:
+		 * CMD1: Data -> DWC CMD [31:0], Address -> DWC CMD [47:32]
+		 * CMD2: Data -> DWC CMD [79:48], Address -> DWC CMD [95:80]
+		 * ... and etc.
+		 */
+		if (i % 2 == 0) {
+			writel(ctrl_data[i].value, reg_base + j);
+			j += 4;
+
+			writel(ctrl_data[i].offset & 0xFFFF, reg_base + j);
+		} else {
+			val = readl(reg_base + j) & 0xFFFF;
+			val |= ((ctrl_data[i].value & 0xFFFF) << 16);
+			writel(val, reg_base + j);
+			j += 4;
+
+			val = (ctrl_data[i].offset << 16) | (ctrl_data[i].value >> 16);
+			writel(val, reg_base + j);
+			j += 4;
+		}
+	}
+done:
 	dev_info(&pdev->dev, "Initialized USB PHY3\n");
 
 	return 0;
