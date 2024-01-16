@@ -3121,12 +3121,8 @@ void __init buffer_init(void)
 	unsigned long nrpages;
 	int ret;
 
-	bh_cachep = kmem_cache_create("buffer_head",
-			sizeof(struct buffer_head), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
-				SLAB_MEM_SPREAD),
-				NULL);
-
+	bh_cachep = KMEM_CACHE(buffer_head,
+				SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD);
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL
 	 */
