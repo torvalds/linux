@@ -34,6 +34,7 @@
 #include <trace/events/rproc_qcom.h>
 #include <soc/qcom/qcom_ramdump.h>
 #include <trace/hooks/remoteproc.h>
+#include <linux/iopoll.h>
 
 #include "qcom_common.h"
 #include "qcom_pil_info.h"
@@ -52,6 +53,13 @@ static DEFINE_MUTEX(scm_pas_bw_mutex);
 bool timeout_disabled;
 static bool global_sync_mem_setup;
 static bool recovery_set_cb;
+
+#define to_rproc(d) container_of(d, struct rproc, dev)
+
+#define SOCCP_SLEEP_US  100
+#define SOCCP_TIMEOUT_US  10000
+#define SOCCP_D0  0x02
+#define SOCCP_D3  0x08
 
 struct adsp_data {
 	int crash_reason_smem;
@@ -77,6 +85,7 @@ struct adsp_data {
 	const char *sysmon_name;
 	const char *qmp_name;
 	int ssctl_id;
+	bool check_status_handover;
 };
 
 struct qcom_adsp {
@@ -141,6 +150,15 @@ struct qcom_adsp {
 	phys_addr_t *hyp_assign_phy;
 	size_t *hyp_assign_mem_size;
 	int hyp_assign_mem_cnt;
+
+	struct qcom_smem_state *wake_state;
+	struct qcom_smem_state *sleep_state;
+	struct mutex lock;
+	unsigned int wake_bit;
+	unsigned int sleep_bit;
+	int current_users;
+	void *config_addr;
+	bool check_status_handover;
 };
 
 static ssize_t txn_id_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -785,10 +803,147 @@ exit:
 	return ret;
 }
 
+/**
+ * rproc_config_check() - Check back the config register
+ * @state: new state of the rproc
+ *
+ * Call this function after there has been a request to change of
+ * state of rproc. This function takes in the new state to which the
+ * rproc has transitioned, and poll the WFI status register to check
+ * if the state request change has been accepted successfully by the
+ * rproc. The poll is timed out after 10 milliseconds.
+ *
+ * Return: 0 if the WFI status register reflects the requested state.
+ */
+static int rproc_config_check(struct qcom_adsp *adsp, u32 state)
+{
+	u32 val;
+
+	return readx_poll_timeout(readl, adsp->config_addr, val,
+				val == state, SOCCP_SLEEP_US, SOCCP_TIMEOUT_US);
+}
+
+/**
+ * rproc_find_status_register() - Find the power control regs and INT's
+ *
+ * Call this function to calculated the tcsr config register, which
+ * is the register to be chacked to read the current state of the rproc.
+ *
+ * Return: 0 for success
+ */
+static int rproc_find_status_register(struct qcom_adsp *adsp)
+{
+	struct device_node *tcsr;
+	struct device_node *np = adsp->dev->of_node;
+	u32 offset;
+	int ret;
+	void *tcsr_base;
+
+	tcsr = of_parse_phandle(np, "soccp-config", 0);
+	if (!tcsr) {
+		dev_err(adsp->dev, "Unable to find the soccp config register\n");
+		return -EINVAL;
+	}
+
+	tcsr_base = of_iomap(tcsr, 0);
+	of_node_put(tcsr);
+	if (!tcsr_base) {
+		dev_err(adsp->dev, "Unable to find the tcsr base addr\n");
+		return -ENOMEM;
+	}
+
+	ret = of_property_read_u32_index(np, "soccp-config", 1, &offset);
+	if (ret < 0) {
+		dev_err(adsp->dev, "Unable to find the tcsr offset addr\n");
+		iounmap(tcsr_base);
+		return ret;
+	}
+
+	adsp->config_addr = tcsr_base + offset;
+
+	return 0;
+}
+
+/**
+ * rproc_set_state() - Request the SOCCP to change state
+ * @state: 1 to set state RUNNING
+ *        0 to set state SUSPEND
+ *
+ * Function to request the SOCCP to move to Running/Dormant.
+ * Blocking API, where the MAX timeout is 5 seconds.
+ *
+ * Return : 0 if status is set ,else -ETIMEOUT
+ */
+int rproc_set_state(struct rproc *rproc, bool state)
+{
+	int ret = 0;
+	int users;
+	struct qcom_adsp *adsp = (struct qcom_adsp *)rproc->priv;
+
+	if (!rproc || !adsp)
+		return -EINVAL;
+	if (rproc->state != RPROC_RUNNING)
+		return -EINVAL;
+
+	mutex_lock(&adsp->lock);
+	users = adsp->current_users;
+	if (state) {
+
+		if (users >= 1) {
+			adsp->current_users++;
+			ret = 0;
+			goto soccp_out;
+		}
+
+		adsp->current_users = 1;
+		ret = enable_regulators(adsp);
+		if (ret)
+			goto soccp_out;
+
+		ret = clk_prepare_enable(adsp->xo);
+		if (ret)
+			goto soccp_out;
+
+		ret = qcom_smem_state_update_bits(adsp->wake_state,
+					    BIT(adsp->wake_bit),
+					    BIT(adsp->wake_bit));
+		if (ret)
+			goto soccp_out;
+
+		ret = rproc_config_check(adsp, SOCCP_D0);
+	} else {
+		adsp->current_users--;
+		if (adsp->current_users == 0) {
+
+			ret = qcom_smem_state_update_bits(adsp->sleep_state,
+						    BIT(adsp->sleep_bit),
+						    BIT(adsp->sleep_bit));
+			if (ret)
+				goto soccp_out;
+
+			ret = rproc_config_check(adsp, SOCCP_D3);
+			disable_regulators(adsp);
+			clk_disable_unprepare(adsp->xo);
+		}
+	}
+
+soccp_out:
+	mutex_unlock(&adsp->lock);
+
+	return ret ? -ETIMEDOUT : 0;
+}
+EXPORT_SYMBOL_GPL(rproc_set_state);
+
 static void qcom_pas_handover(struct qcom_q6v5 *q6v5)
 {
 	struct qcom_adsp *adsp = container_of(q6v5, struct qcom_adsp, q6v5);
+	int ret;
 
+	if (adsp->check_status_handover) {
+		ret = rproc_config_check(adsp, SOCCP_D3);
+		if (ret)
+			dev_err(adsp->dev, "state not changed in handover\n");
+	}
 	disable_regulators(adsp);
 	clk_disable_unprepare(adsp->aggre2_clk);
 	clk_disable_unprepare(adsp->xo);
@@ -1353,6 +1508,7 @@ static int adsp_probe(struct platform_device *pdev)
 	adsp->dma_phys_below_32b = desc->dma_phys_below_32b;
 	adsp->both_dumps = desc->both_dumps;
 	adsp->subsys_recovery_disabled = true;
+	adsp->check_status_handover = desc->check_status_handover;
 
 	if (desc->free_after_auth_reset) {
 		adsp->mdata = devm_kzalloc(adsp->dev, sizeof(struct qcom_mdt_metadata), GFP_KERNEL);
@@ -1419,6 +1575,28 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto detach_proxy_pds;
 
+	if (adsp->check_status_handover) {
+		if (rproc_find_status_register(adsp))
+			goto detach_proxy_pds;
+		adsp->wake_state = devm_qcom_smem_state_get(&pdev->dev, "wakeup", &adsp->wake_bit);
+
+		if (IS_ERR(adsp->wake_state)) {
+			dev_err(&pdev->dev, "failed to acquire wake state\n");
+			goto detach_proxy_pds;
+		}
+
+		adsp->sleep_state = devm_qcom_smem_state_get(&pdev->dev, "sleep", &adsp->sleep_bit);
+
+		if (IS_ERR(adsp->sleep_state)) {
+			dev_err(&pdev->dev, "failed to acquire sleep state\n");
+			goto detach_proxy_pds;
+		}
+
+		mutex_init(&adsp->lock);
+
+		adsp->current_users = 0;
+
+	}
 	qcom_q6v5_register_ssr_subdev(&adsp->q6v5, &adsp->ssr_subdev.subdev);
 
 	if (adsp->q6v5.rmb_base &&
@@ -2327,6 +2505,15 @@ static const struct adsp_data monaco_auto_cdsp_resource = {
 	.minidump_id = 19,
 };
 
+static const struct adsp_data niobe_soccp_resource = {
+	.crash_reason_smem = 656,
+	.firmware_name = "soccp.mbn",
+	.pas_id = 51,
+	.ssr_name = "soccp",
+	.sysmon_name = "soccp",
+	.check_status_handover = 1,
+};
+
 static const struct adsp_data monaco_auto_gpdsp_resource = {
 	.crash_reason_smem = 640,
 	.firmware_name = "gpdsp0.mdt",
@@ -2420,6 +2607,7 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,cliffs-wpss-pas", .data = &cliffs_wpss_resource},
 	{ .compatible = "qcom,pitti-adsp-pas", .data = &pitti_adsp_resource},
 	{ .compatible = "qcom,pitti-modem-pas", .data = &pitti_mpss_resource},
+	{ .compatible = "qcom,niobe-soccp-pas", .data = &niobe_soccp_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
