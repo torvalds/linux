@@ -1786,8 +1786,6 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 	spin_lock(&q2spi->cr_queue_lock);
 	list_del(&q2spi_cr_pkt->list);
 	spin_unlock(&q2spi->cr_queue_lock);
-	q2spi_kfree(q2spi, q2spi_cr_pkt->xfer, __LINE__);
-	q2spi_kfree(q2spi, q2spi_cr_pkt, __LINE__);
 	Q2SPI_DEBUG(q2spi, "%s End ret:%d PID=%d", __func__, ret, current->pid);
 	return ret;
 }
