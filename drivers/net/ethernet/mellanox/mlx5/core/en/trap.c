@@ -68,11 +68,13 @@ static int mlx5e_open_trap_rq(struct mlx5e_priv *priv, struct mlx5e_trap *t)
 
 	node = dev_to_node(mdev->device);
 
+	ccp.netdev   = priv->netdev;
+	ccp.wq       = priv->wq;
 	ccp.node     = node;
 	ccp.ch_stats = t->stats;
 	ccp.napi     = &t->napi;
 	ccp.ix       = 0;
-	err = mlx5e_open_cq(priv, trap_moder, &rq_param->cqp, &ccp, &rq->cq);
+	err = mlx5e_open_cq(priv->mdev, trap_moder, &rq_param->cqp, &ccp, &rq->cq);
 	if (err)
 		return err;
 

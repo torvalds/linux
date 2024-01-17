@@ -635,13 +635,16 @@
 
 	pcie@0,0 {
 		reg = <0x0000 0 0 0 0>;
-		#address-cells = <1>;
-		#size-cells = <0>;
+		device_type = "pci";
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
 
-		eth1: pcie@1,0 {
+		eth1: ethernet@0,0 {
 			reg = <0x0000 0 0 0 0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			ranges;
 
 			local-mac-address = [00 00 00 00 00 00];
 		};

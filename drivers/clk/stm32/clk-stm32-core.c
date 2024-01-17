@@ -70,6 +70,7 @@ static int stm32_rcc_clock_init(struct device *dev,
 int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
 		   void __iomem *base)
 {
+	const struct stm32_rcc_match_data *rcc_match_data;
 	const struct of_device_id *match;
 	int err;
 
@@ -79,8 +80,10 @@ int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
 		return -ENODEV;
 	}
 
+	rcc_match_data = match->data;
+
 	/* RCC Reset Configuration */
-	err = stm32_rcc_reset_init(dev, match, base);
+	err = stm32_rcc_reset_init(dev, rcc_match_data->reset_data, base);
 	if (err) {
 		pr_err("stm32 reset failed to initialize\n");
 		return err;

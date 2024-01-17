@@ -15,12 +15,17 @@
 #include "ivpu_fw.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
+#include "ivpu_jsm_msg.h"
 #include "ivpu_mmu.h"
 #include "ivpu_pm.h"
 
 static bool ivpu_disable_recovery;
 module_param_named_unsafe(disable_recovery, ivpu_disable_recovery, bool, 0644);
 MODULE_PARM_DESC(disable_recovery, "Disables recovery when VPU hang is detected");
+
+static unsigned long ivpu_tdr_timeout_ms;
+module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, ulong, 0644);
+MODULE_PARM_DESC(tdr_timeout_ms, "Timeout for device hang detection, in milliseconds, 0 - default");
 
 #define PM_RESCHEDULE_LIMIT     5
 
@@ -69,27 +74,31 @@ retry:
 	ret = ivpu_hw_power_up(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
-		return ret;
+		goto err_power_down;
 	}
 
 	ret = ivpu_mmu_enable(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to resume MMU: %d\n", ret);
-		ivpu_hw_power_down(vdev);
-		return ret;
+		goto err_power_down;
 	}
 
 	ret = ivpu_boot(vdev);
-	if (ret) {
-		ivpu_mmu_disable(vdev);
-		ivpu_hw_power_down(vdev);
-		if (!ivpu_fw_is_cold_boot(vdev)) {
-			ivpu_warn(vdev, "Failed to resume the FW: %d. Retrying cold boot..\n", ret);
-			ivpu_pm_prepare_cold_boot(vdev);
-			goto retry;
-		} else {
-			ivpu_err(vdev, "Failed to resume the FW: %d\n", ret);
-		}
+	if (ret)
+		goto err_mmu_disable;
+
+	return 0;
+
+err_mmu_disable:
+	ivpu_mmu_disable(vdev);
+err_power_down:
+	ivpu_hw_power_down(vdev);
+
+	if (!ivpu_fw_is_cold_boot(vdev)) {
+		ivpu_pm_prepare_cold_boot(vdev);
+		goto retry;
+	} else {
+		ivpu_err(vdev, "Failed to resume the FW: %d\n", ret);
 	}
 
 	return ret;
@@ -136,6 +145,31 @@ void ivpu_pm_schedule_recovery(struct ivpu_device *vdev)
 	}
 }
 
+static void ivpu_job_timeout_work(struct work_struct *work)
+{
+	struct ivpu_pm_info *pm = container_of(work, struct ivpu_pm_info, job_timeout_work.work);
+	struct ivpu_device *vdev = pm->vdev;
+	unsigned long timeout_ms = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
+
+	ivpu_err(vdev, "TDR detected, timeout %lu ms", timeout_ms);
+	ivpu_hw_diagnose_failure(vdev);
+
+	ivpu_pm_schedule_recovery(vdev);
+}
+
+void ivpu_start_job_timeout_detection(struct ivpu_device *vdev)
+{
+	unsigned long timeout_ms = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
+
+	/* No-op if already queued */
+	queue_delayed_work(system_wq, &vdev->pm->job_timeout_work, msecs_to_jiffies(timeout_ms));
+}
+
+void ivpu_stop_job_timeout_detection(struct ivpu_device *vdev)
+{
+	cancel_delayed_work_sync(&vdev->pm->job_timeout_work);
+}
+
 int ivpu_pm_suspend_cb(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
@@ -152,6 +186,8 @@ int ivpu_pm_suspend_cb(struct device *dev)
 			return -EBUSY;
 		}
 	}
+
+	ivpu_jsm_pwr_d0i3_enter(vdev);
 
 	ivpu_suspend(vdev);
 	ivpu_pm_prepare_warm_boot(vdev);
@@ -188,6 +224,7 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 	struct ivpu_device *vdev = to_ivpu_device(drm);
+	bool hw_is_idle = true;
 	int ret;
 
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
@@ -200,11 +237,16 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 		return -EAGAIN;
 	}
 
+	if (!vdev->pm->suspend_reschedule_counter)
+		hw_is_idle = false;
+	else if (ivpu_jsm_pwr_d0i3_enter(vdev))
+		hw_is_idle = false;
+
 	ret = ivpu_suspend(vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to set suspend VPU: %d\n", ret);
 
-	if (!vdev->pm->suspend_reschedule_counter) {
+	if (!hw_is_idle) {
 		ivpu_warn(vdev, "VPU failed to enter idle, force suspended.\n");
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
@@ -304,6 +346,7 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 
 	atomic_set(&pm->in_reset, 0);
 	INIT_WORK(&pm->recovery_work, ivpu_pm_recovery_work);
+	INIT_DELAYED_WORK(&pm->job_timeout_work, ivpu_job_timeout_work);
 
 	if (ivpu_disable_recovery)
 		delay = -1;
@@ -318,6 +361,7 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 
 void ivpu_pm_cancel_recovery(struct ivpu_device *vdev)
 {
+	drm_WARN_ON(&vdev->drm, delayed_work_pending(&vdev->pm->job_timeout_work));
 	cancel_work_sync(&vdev->pm->recovery_work);
 }
 

@@ -1412,6 +1412,139 @@ int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
 	return err;
 }
 
+struct br_mdb_flush_desc {
+	u32 port_ifindex;
+	u16 vid;
+	u8 rt_protocol;
+	u8 state;
+	u8 state_mask;
+};
+
+static const struct nla_policy br_mdbe_attrs_del_bulk_pol[MDBE_ATTR_MAX + 1] = {
+	[MDBE_ATTR_RTPROT] = NLA_POLICY_MIN(NLA_U8, RTPROT_STATIC),
+	[MDBE_ATTR_STATE_MASK] = NLA_POLICY_MASK(NLA_U8, MDB_PERMANENT),
+};
+
+static int br_mdb_flush_desc_init(struct br_mdb_flush_desc *desc,
+				  struct nlattr *tb[],
+				  struct netlink_ext_ack *extack)
+{
+	struct br_mdb_entry *entry = nla_data(tb[MDBA_SET_ENTRY]);
+	struct nlattr *mdbe_attrs[MDBE_ATTR_MAX + 1];
+	int err;
+
+	desc->port_ifindex = entry->ifindex;
+	desc->vid = entry->vid;
+	desc->state = entry->state;
+
+	if (!tb[MDBA_SET_ENTRY_ATTRS])
+		return 0;
+
+	err = nla_parse_nested(mdbe_attrs, MDBE_ATTR_MAX,
+			       tb[MDBA_SET_ENTRY_ATTRS],
+			       br_mdbe_attrs_del_bulk_pol, extack);
+	if (err)
+		return err;
+
+	if (mdbe_attrs[MDBE_ATTR_STATE_MASK])
+		desc->state_mask = nla_get_u8(mdbe_attrs[MDBE_ATTR_STATE_MASK]);
+
+	if (mdbe_attrs[MDBE_ATTR_RTPROT])
+		desc->rt_protocol = nla_get_u8(mdbe_attrs[MDBE_ATTR_RTPROT]);
+
+	return 0;
+}
+
+static void br_mdb_flush_host(struct net_bridge *br,
+			      struct net_bridge_mdb_entry *mp,
+			      const struct br_mdb_flush_desc *desc)
+{
+	u8 state;
+
+	if (desc->port_ifindex && desc->port_ifindex != br->dev->ifindex)
+		return;
+
+	if (desc->rt_protocol)
+		return;
+
+	state = br_group_is_l2(&mp->addr) ? MDB_PERMANENT : 0;
+	if (desc->state_mask && (state & desc->state_mask) != desc->state)
+		return;
+
+	br_multicast_host_leave(mp, true);
+	if (!mp->ports && netif_running(br->dev))
+		mod_timer(&mp->timer, jiffies);
+}
+
+static void br_mdb_flush_pgs(struct net_bridge *br,
+			     struct net_bridge_mdb_entry *mp,
+			     const struct br_mdb_flush_desc *desc)
+{
+	struct net_bridge_port_group __rcu **pp;
+	struct net_bridge_port_group *p;
+
+	for (pp = &mp->ports; (p = mlock_dereference(*pp, br)) != NULL;) {
+		u8 state;
+
+		if (desc->port_ifindex &&
+		    desc->port_ifindex != p->key.port->dev->ifindex) {
+			pp = &p->next;
+			continue;
+		}
+
+		if (desc->rt_protocol && desc->rt_protocol != p->rt_protocol) {
+			pp = &p->next;
+			continue;
+		}
+
+		state = p->flags & MDB_PG_FLAGS_PERMANENT ? MDB_PERMANENT : 0;
+		if (desc->state_mask &&
+		    (state & desc->state_mask) != desc->state) {
+			pp = &p->next;
+			continue;
+		}
+
+		br_multicast_del_pg(mp, p, pp);
+	}
+}
+
+static void br_mdb_flush(struct net_bridge *br,
+			 const struct br_mdb_flush_desc *desc)
+{
+	struct net_bridge_mdb_entry *mp;
+
+	spin_lock_bh(&br->multicast_lock);
+
+	/* Safe variant is not needed because entries are removed from the list
+	 * upon group timer expiration or bridge deletion.
+	 */
+	hlist_for_each_entry(mp, &br->mdb_list, mdb_node) {
+		if (desc->vid && desc->vid != mp->addr.vid)
+			continue;
+
+		br_mdb_flush_host(br, mp, desc);
+		br_mdb_flush_pgs(br, mp, desc);
+	}
+
+	spin_unlock_bh(&br->multicast_lock);
+}
+
+int br_mdb_del_bulk(struct net_device *dev, struct nlattr *tb[],
+		    struct netlink_ext_ack *extack)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct br_mdb_flush_desc desc = {};
+	int err;
+
+	err = br_mdb_flush_desc_init(&desc, tb, extack);
+	if (err)
+		return err;
+
+	br_mdb_flush(br, &desc);
+
+	return 0;
+}
+
 static const struct nla_policy br_mdbe_attrs_get_pol[MDBE_ATTR_MAX + 1] = {
 	[MDBE_ATTR_SOURCE] = NLA_POLICY_RANGE(NLA_BINARY,
 					      sizeof(struct in_addr),

@@ -408,15 +408,15 @@ static void __init setup_lowcore(void)
 
 	lc->restart_psw.mask = PSW_KERNEL_BITS & ~PSW_MASK_DAT;
 	lc->restart_psw.addr = __pa(restart_int_handler);
-	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->external_new_psw.mask = PSW_KERNEL_BITS;
 	lc->external_new_psw.addr = (unsigned long) ext_int_handler;
-	lc->svc_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->svc_new_psw.mask = PSW_KERNEL_BITS;
 	lc->svc_new_psw.addr = (unsigned long) system_call;
-	lc->program_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->program_new_psw.mask = PSW_KERNEL_BITS;
 	lc->program_new_psw.addr = (unsigned long) pgm_check_handler;
 	lc->mcck_new_psw.mask = PSW_KERNEL_BITS;
 	lc->mcck_new_psw.addr = (unsigned long) mcck_int_handler;
-	lc->io_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
+	lc->io_new_psw.mask = PSW_KERNEL_BITS;
 	lc->io_new_psw.addr = (unsigned long) io_int_handler;
 	lc->clock_comparator = clock_comparator_max;
 	lc->current_task = (unsigned long)&init_task;
@@ -820,22 +820,6 @@ static void __init setup_randomness(void)
 }
 
 /*
- * Find the correct size for the task_struct. This depends on
- * the size of the struct fpu at the end of the thread_struct
- * which is embedded in the task_struct.
- */
-static void __init setup_task_size(void)
-{
-	int task_size = sizeof(struct task_struct);
-
-	if (!MACHINE_HAS_VX) {
-		task_size -= sizeof(__vector128) * __NUM_VXRS;
-		task_size += sizeof(freg_t) * __NUM_FPRS;
-	}
-	arch_task_struct_size = task_size;
-}
-
-/*
  * Issue diagnose 318 to set the control program name and
  * version codes.
  */
@@ -927,7 +911,6 @@ void __init setup_arch(char **cmdline_p)
 
 	os_info_init();
 	setup_ipl();
-	setup_task_size();
 	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */

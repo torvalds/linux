@@ -235,13 +235,6 @@ config BACKLIGHT_HP700
 	  If you have an HP Jornada 700 series,
 	  say Y to include backlight control driver.
 
-config BACKLIGHT_CARILLO_RANCH
-	tristate "Intel Carillo Ranch Backlight Driver"
-	depends on LCD_CLASS_DEVICE && PCI && X86 && FB_LE80578
-	help
-	  If you have a Intel LE80578 (Carillo Ranch) say Y to enable the
-	  backlight driver.
-
 config BACKLIGHT_PWM
 	tristate "Generic PWM based Backlight Driver"
 	depends on PWM

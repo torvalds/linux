@@ -33,6 +33,7 @@
 
 #include "link.h"
 #include "dcn20_fpu.h"
+#include "dc_state_priv.h"
 
 #define DC_LOGGER \
 	dc->ctx->logger
@@ -1182,7 +1183,7 @@ void dcn20_calculate_dlg_params(struct dc *dc,
 		pipes[pipe_idx].pipe.dest.vupdate_width = get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 		pipes[pipe_idx].pipe.dest.vready_offset = get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
 
-		if (context->res_ctx.pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		if (dc_state_get_pipe_subvp_type(context, &context->res_ctx.pipe_ctx[i]) == SUBVP_PHANTOM) {
 			// Phantom pipe requires that DET_SIZE = 0 and no unbounded requests
 			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = 0;
 			context->res_ctx.pipe_ctx[i].unbounded_req = false;
@@ -1532,7 +1533,7 @@ int dcn20_populate_dml_pipes_from_context(struct dc *dc,
 		 */
 		if (res_ctx->pipe_ctx[i].plane_state &&
 				(res_ctx->pipe_ctx[i].plane_state->address.type == PLN_ADDR_TYPE_VIDEO_PROGRESSIVE ||
-				 res_ctx->pipe_ctx[i].stream->mall_stream_config.type == SUBVP_PHANTOM))
+				dc_state_get_pipe_subvp_type(context, &res_ctx->pipe_ctx[i]) == SUBVP_PHANTOM))
 			pipes[pipe_cnt].pipe.src.num_cursors = 0;
 		else
 			pipes[pipe_cnt].pipe.src.num_cursors = dc->dml.ip.number_of_cursors;

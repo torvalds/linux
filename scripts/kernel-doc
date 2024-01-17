@@ -23,7 +23,7 @@ kernel-doc - Print formatted kernel documentation to stdout
 
 =head1 SYNOPSIS
 
- kernel-doc [-h] [-v] [-Werror] [-Wall] [-Wreturn] [-Wshort-description] [-Wcontents-before-sections]
+ kernel-doc [-h] [-v] [-Werror] [-Wall] [-Wreturn] [-Wshort-desc[ription]] [-Wcontents-before-sections]
    [ -man |
      -rst [-sphinx-version VERSION] [-enable-lineno] |
      -none
@@ -328,7 +328,7 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	$Werror = 1;
     } elsif ($cmd eq "Wreturn") {
 	$Wreturn = 1;
-    } elsif ($cmd eq "Wshort-desc") {
+    } elsif ($cmd eq "Wshort-desc" or $cmd eq "Wshort-description") {
 	$Wshort_desc = 1;
     } elsif ($cmd eq "Wcontents-before-sections") {
 	$Wcontents_before_sections = 1;
@@ -1143,6 +1143,7 @@ sub dump_struct($$) {
 	# strip attributes
 	$members =~ s/\s*$attribute/ /gi;
 	$members =~ s/\s*__aligned\s*\([^;]*\)/ /gos;
+	$members =~ s/\s*__counted_by\s*\([^;]*\)/ /gos;
 	$members =~ s/\s*__packed\s*/ /gos;
 	$members =~ s/\s*CRYPTO_MINALIGN_ATTR/ /gos;
 	$members =~ s/\s*____cacheline_aligned_in_smp/ /gos;
@@ -1592,6 +1593,11 @@ sub push_parameter($$$$$) {
 		$parameterdescs{$param} = "anonymous\n";
 		$anon_struct_union = 1;
 	}
+	elsif ($param =~ "__cacheline_group" )
+	# handle cache group enforcing variables: they do not need be described in header files
+	{
+		return; # ignore __cacheline_group_begin and __cacheline_group_end
+	}
 
 	# warn if parameter has no description
 	# (but ignore ones starting with # as these are not parameters
@@ -1601,7 +1607,7 @@ sub push_parameter($$$$$) {
 		$parameterdescs{$param} = $undescribed;
 
 	        if (show_warnings($type, $declaration_name) && $param !~ /\./) {
-			emit_warning("${file}:$.", "Function parameter or member '$param' not described in '$declaration_name'\n");
+			emit_warning("${file}:$.", "Function parameter or struct member '$param' not described in '$declaration_name'\n");
 		}
 	}
 
@@ -1651,6 +1657,13 @@ sub check_sections($$$$$) {
 			if ($decl_type eq "function") {
 				emit_warning("${file}:$.",
 					"Excess function parameter " .
+					"'$sects[$sx]' " .
+					"description in '$decl_name'\n");
+			}
+			elsif (($decl_type eq "struct") or
+		       	       ($decl_type eq "union")) {
+				emit_warning("${file}:$.",
+					"Excess $decl_type member " .
 					"'$sects[$sx]' " .
 					"description in '$decl_name'\n");
 			}
@@ -2113,6 +2126,7 @@ sub process_body($$) {
     }
 
     if (/$doc_sect/i) { # case insensitive for supported section names
+	$in_doc_sect = 1;
 	$newsection = $1;
 	$newcontents = $2;
 

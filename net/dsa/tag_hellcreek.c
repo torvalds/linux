@@ -67,6 +67,7 @@ static const struct dsa_device_ops hellcreek_netdev_ops = {
 	.needed_tailroom = HELLCREEK_TAG_LEN,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Hirschmann Hellcreek TSN switches");
 MODULE_LICENSE("Dual MIT/GPL");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_HELLCREEK, HELLCREEK_NAME);
 

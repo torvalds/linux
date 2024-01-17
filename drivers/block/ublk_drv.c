@@ -36,7 +36,7 @@
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
 #include <linux/cdev.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <linux/blk-mq.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -250,7 +250,7 @@ static int ublk_dev_param_zoned_apply(struct ublk_device *ub)
 {
 	const struct ublk_param_zoned *p = &ub->params.zoned;
 
-	disk_set_zoned(ub->ub_disk, BLK_ZONED_HM);
+	disk_set_zoned(ub->ub_disk);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, ub->ub_disk->queue);
 	blk_queue_required_elevator_features(ub->ub_disk->queue,
 					     ELEVATOR_F_ZBD_SEQ_WRITE);

@@ -3397,7 +3397,7 @@ unprepare:
 	return error;
 }
 
-static int sysc_remove(struct platform_device *pdev)
+static void sysc_remove(struct platform_device *pdev)
 {
 	struct sysc *ddata = platform_get_drvdata(pdev);
 	int error;
@@ -3422,8 +3422,6 @@ static int sysc_remove(struct platform_device *pdev)
 
 unprepare:
 	sysc_unprepare(ddata);
-
-	return 0;
 }
 
 static const struct of_device_id sysc_match[] = {
@@ -3449,7 +3447,7 @@ MODULE_DEVICE_TABLE(of, sysc_match);
 
 static struct platform_driver sysc_driver = {
 	.probe		= sysc_probe,
-	.remove		= sysc_remove,
+	.remove_new	= sysc_remove,
 	.driver         = {
 		.name   = "ti-sysc",
 		.of_match_table	= sysc_match,

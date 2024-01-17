@@ -117,16 +117,17 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 						  struct btree *,
 						  struct bkey_format);
 
-int bch2_btree_split_leaf(struct btree_trans *, struct btree_path *, unsigned);
+int bch2_btree_split_leaf(struct btree_trans *, btree_path_idx_t, unsigned);
 
-int __bch2_foreground_maybe_merge(struct btree_trans *, struct btree_path *,
+int __bch2_foreground_maybe_merge(struct btree_trans *, btree_path_idx_t,
 				  unsigned, unsigned, enum btree_node_sibling);
 
 static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
-					struct btree_path *path,
+					btree_path_idx_t path_idx,
 					unsigned level, unsigned flags,
 					enum btree_node_sibling sib)
 {
+	struct btree_path *path = trans->paths + path_idx;
 	struct btree *b;
 
 	EBUG_ON(!btree_node_locked(path, level));
@@ -135,11 +136,11 @@ static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 	if (b->sib_u64s[sib] > trans->c->btree_foreground_merge_threshold)
 		return 0;
 
-	return __bch2_foreground_maybe_merge(trans, path, level, flags, sib);
+	return __bch2_foreground_maybe_merge(trans, path_idx, level, flags, sib);
 }
 
 static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
-					      struct btree_path *path,
+					      btree_path_idx_t path,
 					      unsigned level,
 					      unsigned flags)
 {

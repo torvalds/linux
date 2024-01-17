@@ -51,6 +51,9 @@ static bool link_supports_psrsu(struct dc_link *link)
 	    !link->dpcd_caps.psr_info.psr2_su_y_granularity_cap)
 		return false;
 
+	if (amdgpu_dc_debug_mask & DC_DISABLE_PSR_SU)
+		return false;
+
 	return dc_dmub_check_min_version(dc->ctx->dmub_srv->dmub);
 }
 

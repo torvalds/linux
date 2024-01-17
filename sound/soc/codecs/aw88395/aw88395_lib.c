@@ -11,7 +11,6 @@
 #include <linux/i2c.h>
 #include "aw88395_lib.h"
 #include "aw88395_device.h"
-#include "aw88395_reg.h"
 
 #define AW88395_CRC8_POLYNOMIAL 0x8C
 DECLARE_CRC8_TABLE(aw_crc8_table);
@@ -456,14 +455,6 @@ static int aw_dev_parse_reg_bin_with_hdr(struct aw_device *aw_dev,
 		goto parse_bin_failed;
 	}
 
-	if (aw_dev->chip_id == AW88261_CHIP_ID) {
-		if (aw_bin->header_info[0].valid_data_len % 4) {
-			dev_err(aw_dev->dev, "bin data len get error!");
-			ret = -EINVAL;
-			goto parse_bin_failed;
-		}
-	}
-
 	prof_desc->sec_desc[AW88395_DATA_TYPE_REG].data =
 				data + aw_bin->header_info[0].valid_data_addr;
 	prof_desc->sec_desc[AW88395_DATA_TYPE_REG].len =
@@ -528,7 +519,7 @@ static int aw_dev_parse_dev_type(struct aw_device *aw_dev,
 							cfg_dde[i].dev_profile);
 				return -EINVAL;
 			}
-
+			aw_dev->prof_data_type = cfg_dde[i].data_type;
 			ret = aw_dev_parse_data_by_sec_type(aw_dev, prof_hdr, &cfg_dde[i],
 					&all_prof_info->prof_desc[cfg_dde[i].dev_profile]);
 			if (ret < 0) {
@@ -564,6 +555,7 @@ static int aw_dev_parse_dev_default_type(struct aw_device *aw_dev,
 					cfg_dde[i].dev_profile);
 				return -EINVAL;
 			}
+			aw_dev->prof_data_type = cfg_dde[i].data_type;
 			ret = aw_dev_parse_data_by_sec_type(aw_dev, prof_hdr, &cfg_dde[i],
 					&all_prof_info->prof_desc[cfg_dde[i].dev_profile]);
 			if (ret < 0) {
@@ -582,7 +574,7 @@ static int aw_dev_parse_dev_default_type(struct aw_device *aw_dev,
 	return 0;
 }
 
-static int aw88261_dev_cfg_get_valid_prof(struct aw_device *aw_dev,
+static int aw_dev_cfg_get_reg_valid_prof(struct aw_device *aw_dev,
 				struct aw_all_prof_info *all_prof_info)
 {
 	struct aw_prof_desc *prof_desc = all_prof_info->prof_desc;
@@ -624,7 +616,7 @@ static int aw88261_dev_cfg_get_valid_prof(struct aw_device *aw_dev,
 	return 0;
 }
 
-static int aw88395_dev_cfg_get_valid_prof(struct aw_device *aw_dev,
+static int aw_dev_cfg_get_multiple_valid_prof(struct aw_device *aw_dev,
 				struct aw_all_prof_info *all_prof_info)
 {
 	struct aw_prof_desc *prof_desc = all_prof_info->prof_desc;
@@ -703,26 +695,20 @@ static int aw_dev_load_cfg_by_hdr(struct aw_device *aw_dev,
 			goto exit;
 	}
 
-	switch (aw_dev->chip_id) {
-	case AW88395_CHIP_ID:
-	case AW88399_CHIP_ID:
-		ret = aw88395_dev_cfg_get_valid_prof(aw_dev, all_prof_info);
-		if (ret < 0)
-			goto exit;
+	switch (aw_dev->prof_data_type) {
+	case ACF_SEC_TYPE_MULTIPLE_BIN:
+		ret = aw_dev_cfg_get_multiple_valid_prof(aw_dev, all_prof_info);
 		break;
-	case AW88261_CHIP_ID:
-	case AW87390_CHIP_ID:
-		ret = aw88261_dev_cfg_get_valid_prof(aw_dev, all_prof_info);
-		if (ret < 0)
-			goto exit;
+	case ACF_SEC_TYPE_HDR_REG:
+		ret = aw_dev_cfg_get_reg_valid_prof(aw_dev, all_prof_info);
 		break;
 	default:
-		dev_err(aw_dev->dev, "valid prof unsupported");
+		dev_err(aw_dev->dev, "unsupport data type\n");
 		ret = -EINVAL;
 		break;
 	}
-
-	aw_dev->prof_info.prof_name_list = profile_name;
+	if (!ret)
+		aw_dev->prof_info.prof_name_list = profile_name;
 
 exit:
 	devm_kfree(aw_dev->dev, all_prof_info);
@@ -791,39 +777,23 @@ static int aw_get_dev_scene_count_v1(struct aw_device *aw_dev, struct aw_contain
 	struct aw_cfg_dde_v1 *cfg_dde =
 		(struct aw_cfg_dde_v1 *)(aw_cfg->data + cfg_hdr->hdr_offset);
 	unsigned int i;
-	int ret;
 
-	switch (aw_dev->chip_id) {
-	case AW88395_CHIP_ID:
-	case AW88399_CHIP_ID:
-		for (i = 0; i < cfg_hdr->ddt_num; ++i) {
-			if ((cfg_dde[i].data_type == ACF_SEC_TYPE_MULTIPLE_BIN) &&
-			    (aw_dev->chip_id == cfg_dde[i].chip_id) &&
-			    (aw_dev->i2c->adapter->nr == cfg_dde[i].dev_bus) &&
-			    (aw_dev->i2c->addr == cfg_dde[i].dev_addr))
-				(*scene_num)++;
-		}
-		ret = 0;
-		break;
-	case AW88261_CHIP_ID:
-	case AW87390_CHIP_ID:
-		for (i = 0; i < cfg_hdr->ddt_num; ++i) {
-			if (((cfg_dde[i].data_type == ACF_SEC_TYPE_REG) ||
-			     (cfg_dde[i].data_type == ACF_SEC_TYPE_HDR_REG)) &&
-			    (aw_dev->chip_id == cfg_dde[i].chip_id) &&
-			    (aw_dev->i2c->adapter->nr == cfg_dde[i].dev_bus) &&
-			    (aw_dev->i2c->addr == cfg_dde[i].dev_addr))
-				(*scene_num)++;
-		}
-		ret = 0;
-		break;
-	default:
-		dev_err(aw_dev->dev, "unsupported device");
-		ret = -EINVAL;
-		break;
+	for (i = 0; i < cfg_hdr->ddt_num; ++i) {
+		if (((cfg_dde[i].data_type == ACF_SEC_TYPE_REG) ||
+		     (cfg_dde[i].data_type == ACF_SEC_TYPE_HDR_REG) ||
+		     (cfg_dde[i].data_type == ACF_SEC_TYPE_MULTIPLE_BIN)) &&
+		    (aw_dev->chip_id == cfg_dde[i].chip_id) &&
+		    (aw_dev->i2c->adapter->nr == cfg_dde[i].dev_bus) &&
+		    (aw_dev->i2c->addr == cfg_dde[i].dev_addr))
+			(*scene_num)++;
 	}
 
-	return ret;
+	if ((*scene_num) == 0) {
+		dev_err(aw_dev->dev, "failed to obtain scene, scenu_num = %d\n", (*scene_num));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int aw_get_default_scene_count_v1(struct aw_device *aw_dev,
@@ -834,37 +804,23 @@ static int aw_get_default_scene_count_v1(struct aw_device *aw_dev,
 	struct aw_cfg_dde_v1 *cfg_dde =
 		(struct aw_cfg_dde_v1 *)(aw_cfg->data + cfg_hdr->hdr_offset);
 	unsigned int i;
-	int ret;
 
-	switch (aw_dev->chip_id) {
-	case AW88395_CHIP_ID:
-	case AW88399_CHIP_ID:
-		for (i = 0; i < cfg_hdr->ddt_num; ++i) {
-			if ((cfg_dde[i].data_type == ACF_SEC_TYPE_MULTIPLE_BIN) &&
-			    (aw_dev->chip_id == cfg_dde[i].chip_id) &&
-			    (aw_dev->channel == cfg_dde[i].dev_index))
-				(*scene_num)++;
-		}
-		ret = 0;
-		break;
-	case AW88261_CHIP_ID:
-	case AW87390_CHIP_ID:
-		for (i = 0; i < cfg_hdr->ddt_num; ++i) {
-			if (((cfg_dde[i].data_type == ACF_SEC_TYPE_REG) ||
-			     (cfg_dde[i].data_type == ACF_SEC_TYPE_HDR_REG)) &&
-			    (aw_dev->chip_id == cfg_dde[i].chip_id) &&
-			    (aw_dev->channel == cfg_dde[i].dev_index))
-				(*scene_num)++;
-		}
-		ret = 0;
-		break;
-	default:
-		dev_err(aw_dev->dev, "unsupported device");
-		ret = -EINVAL;
-		break;
+
+	for (i = 0; i < cfg_hdr->ddt_num; ++i) {
+		if (((cfg_dde[i].data_type == ACF_SEC_TYPE_MULTIPLE_BIN) ||
+		     (cfg_dde[i].data_type == ACF_SEC_TYPE_REG) ||
+		     (cfg_dde[i].data_type == ACF_SEC_TYPE_HDR_REG)) &&
+		    (aw_dev->chip_id == cfg_dde[i].chip_id) &&
+		    (aw_dev->channel == cfg_dde[i].dev_index))
+			(*scene_num)++;
 	}
 
-	return ret;
+	if ((*scene_num) == 0) {
+		dev_err(aw_dev->dev, "failed to obtain scene, scenu_num = %d\n", (*scene_num));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int aw_dev_parse_scene_count_v1(struct aw_device *aw_dev,

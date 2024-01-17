@@ -420,15 +420,14 @@ __resizer_get_format(struct iss_resizer_device *resizer,
 		     enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&resizer->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	return &resizer->formats[pad];
 }
 
 /*
  * resizer_try_format - Try video format on a pad
  * @resizer: ISS RESIZER device
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @pad: Pad number
  * @fmt: Format
  */
@@ -489,7 +488,7 @@ resizer_try_format(struct iss_resizer_device *resizer,
 /*
  * resizer_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
@@ -572,7 +571,7 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * resizer_get_format - Retrieve the video format on a pad
  * @sd : ISP RESIZER V4L2 subdevice
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond
@@ -596,7 +595,7 @@ static int resizer_get_format(struct v4l2_subdev *sd,
 /*
  * resizer_set_format - Set the video format on a pad
  * @sd : ISP RESIZER V4L2 subdevice
- * @cfg: V4L2 subdev pad config
+ * @sd_state: V4L2 subdev state
  * @fmt: Format
  *
  * Return 0 on success or -EINVAL if the pad is invalid or doesn't correspond

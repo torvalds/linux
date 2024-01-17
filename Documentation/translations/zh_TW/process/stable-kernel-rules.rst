@@ -15,7 +15,7 @@
         中文版校譯者：
             - 李陽  Li Yang <leoyang.li@nxp.com>
             - Kangkai Yin <e12051@motorola.com>
-            - 胡皓文 Hu Haowen <src.res.211@gmail.com>
+            - 胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 所有你想知道的事情 - 關於linux穩定版發佈
 ========================================

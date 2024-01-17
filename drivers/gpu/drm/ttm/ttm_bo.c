@@ -370,7 +370,13 @@ static void ttm_bo_release(struct kref *kref)
 			spin_unlock(&bo->bdev->lru_lock);
 
 			INIT_WORK(&bo->delayed_delete, ttm_bo_delayed_delete);
-			queue_work(bdev->wq, &bo->delayed_delete);
+
+			/* Schedule the worker on the closest NUMA node. This
+			 * improves performance since system memory might be
+			 * cleared on free and that is best done on a CPU core
+			 * close to it.
+			 */
+			queue_work_node(bdev->pool.nid, bdev->wq, &bo->delayed_delete);
 			return;
 		}
 

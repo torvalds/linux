@@ -211,6 +211,13 @@ mlxsw_core_lag_mode(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_lag_mode);
 
+enum mlxsw_cmd_mbox_config_profile_flood_mode
+mlxsw_core_flood_mode(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->bus->flood_mode(mlxsw_core->bus_priv);
+}
+EXPORT_SYMBOL(mlxsw_core_flood_mode);
+
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_core->driver_priv;

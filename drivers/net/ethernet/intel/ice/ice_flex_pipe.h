@@ -42,7 +42,9 @@ bool ice_hw_ptype_ena(struct ice_hw *hw, u16 ptype);
 int
 ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 	     const struct ice_ptype_attributes *attr, u16 attr_cnt,
-	     struct ice_fv_word *es, u16 *masks);
+	     struct ice_fv_word *es, u16 *masks, bool symm);
+struct ice_prof_map *
+ice_search_prof_id(struct ice_hw *hw, enum ice_block blk, u64 id);
 int
 ice_add_prof_id_flow(struct ice_hw *hw, enum ice_block blk, u16 vsi, u64 hdl);
 int

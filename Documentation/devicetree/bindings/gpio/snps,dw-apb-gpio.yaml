@@ -65,6 +65,8 @@ patternProperties:
         minItems: 1
         maxItems: 32
 
+      gpio-ranges: true
+
       ngpios:
         default: 32
         minimum: 1

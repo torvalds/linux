@@ -43,6 +43,9 @@
 #define IEEE80211_ASSOC_TIMEOUT_SHORT	(HZ / 10)
 #define IEEE80211_ASSOC_MAX_TRIES	3
 
+#define IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS msecs_to_jiffies(100)
+#define IEEE80211_ADV_TTLM_ST_UNDERFLOW 0xff00
+
 static int max_nullfunc_tries = 2;
 module_param(max_nullfunc_tries, int, 0644);
 MODULE_PARM_DESC(max_nullfunc_tries,
@@ -135,6 +138,7 @@ ieee80211_handle_puncturing_bitmap(struct ieee80211_link_data *link,
 				   u16 bitmap, u64 *changed)
 {
 	struct cfg80211_chan_def *chandef = &link->conf->chandef;
+	struct ieee80211_local *local = link->sdata->local;
 	u16 extracted;
 	u64 _changed = 0;
 
@@ -147,7 +151,9 @@ ieee80211_handle_puncturing_bitmap(struct ieee80211_link_data *link,
 							 bitmap);
 
 		if (cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-							     chandef))
+							     chandef) &&
+		    !(bitmap && ieee80211_hw_check(&local->hw,
+						   DISALLOW_PUNCTURING)))
 			break;
 		link->u.mgd.conn_flags |=
 			ieee80211_chandef_downgrade(chandef);
@@ -595,6 +601,7 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 		return ret;
 	}
 
+	cfg80211_schedule_channels_check(&sdata->wdev);
 	return 0;
 }
 
@@ -1382,7 +1389,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info, *ie_start;
 	size_t offset, noffset;
-	u16 capab = WLAN_CAPABILITY_ESS, link_capab;
+	u16 capab = 0, link_capab;
 	__le16 listen_int;
 	struct element *ext_capa = NULL;
 	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
@@ -1528,6 +1535,17 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = assoc_data->ssid_len;
 	memcpy(pos, assoc_data->ssid, assoc_data->ssid_len);
+
+	/*
+	 * This bit is technically reserved, so it shouldn't matter for either
+	 * the AP or us, but it also means we shouldn't set it. However, we've
+	 * always set it in the past, and apparently some EHT APs check that
+	 * we don't set it. To avoid interoperability issues with old APs that
+	 * for some reason check it and want it to be set, set the bit for all
+	 * pre-EHT connections as we used to do.
+	 */
+	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT)
+		capab |= WLAN_CAPABILITY_ESS;
 
 	/* add the elements for the assoc (main) link */
 	link_capab = capab;
@@ -5367,6 +5385,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 			   assoc_data->ap_addr, tu, ms);
 		assoc_data->timeout = jiffies + msecs_to_jiffies(ms);
 		assoc_data->timeout_started = true;
+		assoc_data->comeback = true;
 		if (ms > IEEE80211_ASSOC_TIMEOUT)
 			run_again(sdata, assoc_data->timeout);
 		goto notify_driver;
@@ -5388,33 +5407,24 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (ieee80211_vif_is_mld(&sdata->vif)) {
+			struct ieee80211_mle_basic_common_info *common;
+
 			if (!elems->ml_basic) {
 				sdata_info(sdata,
-					   "MLO association with %pM but no multi-link element in response!\n",
+					   "MLO association with %pM but no (basic) multi-link element in response!\n",
 					   assoc_data->ap_addr);
 				goto abandon_assoc;
 			}
 
-			if (le16_get_bits(elems->ml_basic->control,
-					  IEEE80211_ML_CONTROL_TYPE) !=
-					IEEE80211_ML_CONTROL_TYPE_BASIC) {
+			common = (void *)elems->ml_basic->variable;
+
+			if (memcmp(assoc_data->ap_addr,
+				   common->mld_mac_addr, ETH_ALEN)) {
 				sdata_info(sdata,
-					   "bad multi-link element (control=0x%x)\n",
-					   le16_to_cpu(elems->ml_basic->control));
+					   "AP MLD MAC address mismatch: got %pM expected %pM\n",
+					   common->mld_mac_addr,
+					   assoc_data->ap_addr);
 				goto abandon_assoc;
-			} else {
-				struct ieee80211_mle_basic_common_info *common;
-
-				common = (void *)elems->ml_basic->variable;
-
-				if (memcmp(assoc_data->ap_addr,
-					   common->mld_mac_addr, ETH_ALEN)) {
-					sdata_info(sdata,
-						   "AP MLD MAC address mismatch: got %pM expected %pM\n",
-						   common->mld_mac_addr,
-						   assoc_data->ap_addr);
-					goto abandon_assoc;
-				}
 			}
 		}
 
@@ -5682,6 +5692,7 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 					const struct ieee80211_eht_operation *eht_oper,
 					u64 *changed)
 {
+	struct ieee80211_local *local = link->sdata->local;
 	u16 bitmap = 0, extracted;
 
 	if ((eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT) &&
@@ -5712,6 +5723,9 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 			  link->conf->chandef.width);
 		return false;
 	}
+
+	if (bitmap && ieee80211_hw_check(&local->hw, DISALLOW_PUNCTURING))
+		return false;
 
 	ieee80211_handle_puncturing_bitmap(link, eht_oper, bitmap, changed);
 	return true;
@@ -5946,6 +5960,13 @@ ieee80211_parse_adv_t2l(struct ieee80211_sub_if_data *sdata,
 	pos++;
 
 	ttlm_info->switch_time = get_unaligned_le16(pos);
+
+	/* Since ttlm_info->switch_time == 0 means no switch time, bump it
+	 * by 1.
+	 */
+	if (!ttlm_info->switch_time)
+		ttlm_info->switch_time = 1;
+
 	pos += 2;
 
 	if (control & IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT) {
@@ -6040,25 +6061,46 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
 		}
 
 		if (ttlm_info.switch_time) {
-			u32 st_us, delay = 0;
-			u32 ts_l26 = beacon_ts & GENMASK(25, 0);
+			u16 beacon_ts_tu, st_tu, delay;
+			u32 delay_jiffies;
+			u64 mask;
 
 			/* The t2l map switch time is indicated with a partial
-			 * TSF value, convert it to TSF and calc the delay
-			 * to the start time.
+			 * TSF value (bits 10 to 25), get the partial beacon TS
+			 * as well, and calc the delay to the start time.
 			 */
-			st_us = ieee80211_tu_to_usec(ttlm_info.switch_time);
-			if (st_us > ts_l26)
-				delay = st_us - ts_l26;
+			mask = GENMASK_ULL(25, 10);
+			beacon_ts_tu = (beacon_ts & mask) >> 10;
+			st_tu = ttlm_info.switch_time;
+			delay = st_tu - beacon_ts_tu;
+
+			/*
+			 * If the switch time is far in the future, then it
+			 * could also be the previous switch still being
+			 * announced.
+			 * We can simply ignore it for now, if it is a future
+			 * switch the AP will continue to announce it anyway.
+			 */
+			if (delay > IEEE80211_ADV_TTLM_ST_UNDERFLOW)
+				return;
+
+			delay_jiffies = TU_TO_JIFFIES(delay);
+
+			/* Link switching can take time, so schedule it
+			 * 100ms before to be ready on time
+			 */
+			if (delay_jiffies > IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS)
+				delay_jiffies -=
+					IEEE80211_ADV_TTLM_SAFETY_BUFFER_MS;
 			else
-				continue;
+				delay_jiffies = 0;
 
 			sdata->u.mgd.ttlm_info = ttlm_info;
 			wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
 						  &sdata->u.mgd.ttlm_work);
 			wiphy_delayed_work_queue(sdata->local->hw.wiphy,
 						 &sdata->u.mgd.ttlm_work,
-						 usecs_to_jiffies(delay));
+						 delay_jiffies);
 			return;
 		}
 	}
@@ -6702,8 +6744,18 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 			}
 			ifmgd->auth_data->timeout_started = true;
 		} else if (ifmgd->assoc_data &&
+			   !ifmgd->assoc_data->comeback &&
 			   (ieee80211_is_assoc_req(fc) ||
 			    ieee80211_is_reassoc_req(fc))) {
+			/*
+			 * Update association timeout based on the TX status
+			 * for the (Re)Association Request frame. Skip this if
+			 * we have already processed a (Re)Association Response
+			 * frame that indicated need for association comeback
+			 * at a specific time in the future. This could happen
+			 * if the TX status information is delayed enough for
+			 * the response to be received and processed first.
+			 */
 			if (status_acked) {
 				ifmgd->assoc_data->timeout =
 					jiffies + IEEE80211_ASSOC_TIMEOUT_SHORT;
@@ -7586,7 +7638,8 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 
 			bitmap = get_unaligned_le16(disable_subchannel_bitmap);
 			if (cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-								     &link->conf->chandef))
+								     &link->conf->chandef) &&
+			    !(bitmap && ieee80211_hw_check(&local->hw, DISALLOW_PUNCTURING)))
 				ieee80211_handle_puncturing_bitmap(link,
 								   eht_oper,
 								   bitmap,

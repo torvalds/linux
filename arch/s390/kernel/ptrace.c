@@ -30,6 +30,7 @@
 #include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
 #include <asm/facility.h>
+#include <asm/fpu/api.h>
 
 #include "entry.h"
 
@@ -254,7 +255,7 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - offsetof(struct user, regs.fp_regs.fprs);
-		if (MACHINE_HAS_VX)
+		if (cpu_has_vx())
 			tmp = *(addr_t *)
 			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
@@ -392,8 +393,7 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		/*
 		 * floating point control reg. is in the thread structure
 		 */
-		if ((unsigned int) data != 0 ||
-		    test_fp_ctl(data >> (BITS_PER_LONG - 32)))
+		if ((unsigned int)data != 0)
 			return -EINVAL;
 		child->thread.fpu.fpc = data >> (BITS_PER_LONG - 32);
 
@@ -403,7 +403,7 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - offsetof(struct user, regs.fp_regs.fprs);
-		if (MACHINE_HAS_VX)
+		if (cpu_has_vx())
 			*(addr_t *)((addr_t)
 				child->thread.fpu.vxrs + 2*offset) = data;
 		else
@@ -630,7 +630,7 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - offsetof(struct compat_user, regs.fp_regs.fprs);
-		if (MACHINE_HAS_VX)
+		if (cpu_has_vx())
 			tmp = *(__u32 *)
 			       ((addr_t) child->thread.fpu.vxrs + 2*offset);
 		else
@@ -748,8 +748,6 @@ static int __poke_user_compat(struct task_struct *child,
 		/*
 		 * floating point control reg. is in the thread structure
 		 */
-		if (test_fp_ctl(tmp))
-			return -EINVAL;
 		child->thread.fpu.fpc = data;
 
 	} else if (addr < offsetof(struct compat_user, regs.fp_regs) + sizeof(s390_fp_regs)) {
@@ -758,7 +756,7 @@ static int __poke_user_compat(struct task_struct *child,
 		 * or the child->thread.fpu.vxrs array
 		 */
 		offset = addr - offsetof(struct compat_user, regs.fp_regs.fprs);
-		if (MACHINE_HAS_VX)
+		if (cpu_has_vx())
 			*(__u32 *)((addr_t)
 				child->thread.fpu.vxrs + 2*offset) = tmp;
 		else
@@ -914,7 +912,7 @@ static int s390_fpregs_set(struct task_struct *target,
 	if (target == current)
 		save_fpu_regs();
 
-	if (MACHINE_HAS_VX)
+	if (cpu_has_vx())
 		convert_vx_to_fp(fprs, target->thread.fpu.vxrs);
 	else
 		memcpy(&fprs, target->thread.fpu.fprs, sizeof(fprs));
@@ -926,7 +924,7 @@ static int s390_fpregs_set(struct task_struct *target,
 					0, offsetof(s390_fp_regs, fprs));
 		if (rc)
 			return rc;
-		if (ufpc[1] != 0 || test_fp_ctl(ufpc[0]))
+		if (ufpc[1] != 0)
 			return -EINVAL;
 		target->thread.fpu.fpc = ufpc[0];
 	}
@@ -937,7 +935,7 @@ static int s390_fpregs_set(struct task_struct *target,
 	if (rc)
 		return rc;
 
-	if (MACHINE_HAS_VX)
+	if (cpu_has_vx())
 		convert_fp_to_vx(target->thread.fpu.vxrs, fprs);
 	else
 		memcpy(target->thread.fpu.fprs, &fprs, sizeof(fprs));
@@ -988,7 +986,7 @@ static int s390_vxrs_low_get(struct task_struct *target,
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i;
 
-	if (!MACHINE_HAS_VX)
+	if (!cpu_has_vx())
 		return -ENODEV;
 	if (target == current)
 		save_fpu_regs();
@@ -1005,7 +1003,7 @@ static int s390_vxrs_low_set(struct task_struct *target,
 	__u64 vxrs[__NUM_VXRS_LOW];
 	int i, rc;
 
-	if (!MACHINE_HAS_VX)
+	if (!cpu_has_vx())
 		return -ENODEV;
 	if (target == current)
 		save_fpu_regs();
@@ -1025,7 +1023,7 @@ static int s390_vxrs_high_get(struct task_struct *target,
 			      const struct user_regset *regset,
 			      struct membuf to)
 {
-	if (!MACHINE_HAS_VX)
+	if (!cpu_has_vx())
 		return -ENODEV;
 	if (target == current)
 		save_fpu_regs();
@@ -1040,7 +1038,7 @@ static int s390_vxrs_high_set(struct task_struct *target,
 {
 	int rc;
 
-	if (!MACHINE_HAS_VX)
+	if (!cpu_has_vx())
 		return -ENODEV;
 	if (target == current)
 		save_fpu_regs();

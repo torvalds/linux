@@ -489,6 +489,22 @@ static inline unsigned int fanotify_event_hash_bucket(
 	return event->hash & FANOTIFY_HTABLE_MASK;
 }
 
+struct fanotify_mark {
+	struct fsnotify_mark fsn_mark;
+	__kernel_fsid_t fsid;
+};
+
+static inline struct fanotify_mark *FANOTIFY_MARK(struct fsnotify_mark *mark)
+{
+	return container_of(mark, struct fanotify_mark, fsn_mark);
+}
+
+static inline bool fanotify_fsid_equal(__kernel_fsid_t *fsid1,
+				       __kernel_fsid_t *fsid2)
+{
+	return fsid1->val[0] == fsid2->val[0] && fsid1->val[1] == fsid2->val[1];
+}
+
 static inline unsigned int fanotify_mark_user_flags(struct fsnotify_mark *mark)
 {
 	unsigned int mflags = 0;

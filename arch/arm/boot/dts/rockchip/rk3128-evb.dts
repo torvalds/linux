@@ -12,11 +12,6 @@
 	compatible = "rockchip,rk3128-evb", "rockchip,rk3128";
 
 	aliases {
-		gpio0 = &gpio0;
-		gpio1 = &gpio1;
-		gpio2 = &gpio2;
-		gpio3 = &gpio3;
-		i2c1 = &i2c1;
 		mmc0 = &emmc;
 	};
 

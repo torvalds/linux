@@ -10,10 +10,17 @@
  */
 
 #define AST_IO_MM_OFFSET		(0x380)
+#define AST_IO_MM_LENGTH		(128)
 
 #define AST_IO_VGAARI_W			(0x40)
+
 #define AST_IO_VGAMR_W			(0x42)
+#define AST_IO_VGAMR_R			(0x4c)
+#define AST_IO_VGAMR_IOSEL		BIT(0)
+
 #define AST_IO_VGAER			(0x43)
+#define AST_IO_VGAER_VGA_ENABLE		BIT(0)
+
 #define AST_IO_VGASRI			(0x44)
 #define AST_IO_VGADRR			(0x47)
 #define AST_IO_VGADWR			(0x48)
@@ -21,13 +28,14 @@
 #define AST_IO_VGAGRI			(0x4E)
 
 #define AST_IO_VGACRI			(0x54)
+#define AST_IO_VGACR80_PASSWORD		(0xa8)
+#define AST_IO_VGACRA1_VGAIO_DISABLED	BIT(1)
+#define AST_IO_VGACRA1_MMIO_ENABLED	BIT(2)
 #define AST_IO_VGACRCB_HWC_16BPP	BIT(0) /* set: ARGB4444, cleared: 2bpp palette */
 #define AST_IO_VGACRCB_HWC_ENABLED	BIT(1)
 
 #define AST_IO_VGAIR1_R			(0x5A)
 #define AST_IO_VGAIR1_VREFRESH		BIT(3)
-
-#define AST_IO_VGAMR_R			(0x4C)
 
 /*
  * Display Transmitter Type

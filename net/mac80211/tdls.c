@@ -1001,7 +1001,7 @@ ieee80211_tdls_build_mgmt_packet_data(struct ieee80211_sub_if_data *sdata,
 						 skb);
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
@@ -1071,7 +1071,7 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 		/* any value is ok */
 		break;
 	default:
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 		break;
 	}
 
@@ -1177,7 +1177,7 @@ ieee80211_tdls_mgmt_setup(struct wiphy *wiphy, struct net_device *dev,
 	    smps_mode != IEEE80211_SMPS_OFF) {
 		tdls_dbg(sdata, "Aborting TDLS setup due to SMPS mode %d\n",
 			 smps_mode);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1289,7 +1289,7 @@ int ieee80211_tdls_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	int ret;
 
 	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* make sure we are in managed mode, and associated */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION ||
@@ -1446,7 +1446,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!(wiphy->flags & WIPHY_FLAG_SUPPORTS_TDLS))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EINVAL;
@@ -1459,7 +1459,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 	case NL80211_TDLS_SETUP:
 	case NL80211_TDLS_DISCOVERY_REQ:
 		/* We don't support in-driver setup/teardown/discovery */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	/* protect possible bss_conf changes and avoid concurrency in
@@ -1510,7 +1510,7 @@ int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,
 			return ret;
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if (ether_addr_equal(sdata->u.mgd.tdls_peer, peer)) {
@@ -1673,7 +1673,7 @@ ieee80211_tdls_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	if (!test_sta_flag(sta, WLAN_STA_TDLS_CHAN_SWITCH)) {
 		tdls_dbg(sdata, "TDLS channel switch unsupported by %pM\n",
 			 addr);
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -1993,7 +1993,7 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	if (!sta->sta.deflink.ht_cap.ht_supported && elems->sec_chan_offs &&
 	    elems->sec_chan_offs->sec_chan_offs) {
 		tdls_dbg(sdata, "TDLS chan switch - wide chan unsupported\n");
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 		goto out;
 	}
 

@@ -12,7 +12,7 @@ maintainers:
 
 properties:
   compatible:
-    const: "fsl,dpaa2-console"
+    const: fsl,dpaa2-console
 
   reg:
     maxItems: 1

@@ -17,7 +17,7 @@ struct vmci_handle_arr {
 	u32 max_capacity;
 	u32 size;
 	u32 pad;
-	struct vmci_handle entries[];
+	struct vmci_handle entries[] __counted_by(capacity);
 };
 
 #define VMCI_HANDLE_ARRAY_HEADER_SIZE				\

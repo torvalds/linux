@@ -114,7 +114,6 @@ static int qcom_pdc_reset_probe(struct platform_device *pdev)
 	struct qcom_pdc_reset_data *data;
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
-	struct resource *res;
 
 	desc = device_get_match_data(&pdev->dev);
 	if (!desc)
@@ -125,8 +124,7 @@ static int qcom_pdc_reset_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	data->desc = desc;
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

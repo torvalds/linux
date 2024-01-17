@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/everest,es8328.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Everest ES8328 audio CODEC
+
+description:
+  Everest Audio Codec, which can be connected via I2C or SPI.
+  Pins on the device (for linking into audio routes) are
+  * LOUT1
+  * LOUT2
+  * ROUT1
+  * ROUT2
+  * LINPUT1
+  * RINPUT1
+  * LINPUT2
+  * RINPUT2
+  * Mic Bias
+
+maintainers:
+  - David Yang <yangxiaohua@everest-semi.com>
+
+properties:
+  compatible:
+    enum:
+      - everest,es8328
+      - everest,es8388
+
+  reg:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  clocks:
+    items:
+      - description: A 22.5792 or 11.2896 MHz clock
+
+  DVDD-supply:
+    description: Regulator providing digital core supply voltage 1.8 - 3.6V
+
+  AVDD-supply:
+    description: Regulator providing analog supply voltage 3.3V
+
+  PVDD-supply:
+    description: Regulator providing digital IO supply voltage 1.8 - 3.6V
+
+  HPVDD-supply:
+    description: Regulator providing analog output voltage 3.3V
+
+required:
+  - compatible
+  - clocks
+  - DVDD-supply
+  - AVDD-supply
+  - PVDD-supply
+  - HPVDD-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+      es8328: codec@11 {
+        compatible = "everest,es8328";
+        reg = <0x11>;
+        AVDD-supply = <&reg_3p3v>;
+        DVDD-supply = <&reg_3p3v>;
+        HPVDD-supply = <&reg_3p3v>;
+        PVDD-supply = <&reg_3p3v>;
+        clocks = <&clks 169>;
+      };
+    };

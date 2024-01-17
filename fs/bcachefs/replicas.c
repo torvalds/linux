@@ -11,7 +11,7 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *,
 
 /* Replicas tracking - in memory: */
 
-static void verify_replicas_entry(struct bch_replicas_entry *e)
+static void verify_replicas_entry(struct bch_replicas_entry_v1 *e)
 {
 #ifdef CONFIG_BCACHEFS_DEBUG
 	unsigned i;
@@ -26,7 +26,7 @@ static void verify_replicas_entry(struct bch_replicas_entry *e)
 #endif
 }
 
-void bch2_replicas_entry_sort(struct bch_replicas_entry *e)
+void bch2_replicas_entry_sort(struct bch_replicas_entry_v1 *e)
 {
 	bubble_sort(e->devs, e->nr_devs, u8_cmp);
 }
@@ -53,7 +53,7 @@ static void bch2_replicas_entry_v0_to_text(struct printbuf *out,
 }
 
 void bch2_replicas_entry_to_text(struct printbuf *out,
-				 struct bch_replicas_entry *e)
+				 struct bch_replicas_entry_v1 *e)
 {
 	unsigned i;
 
@@ -68,7 +68,7 @@ void bch2_replicas_entry_to_text(struct printbuf *out,
 	prt_printf(out, "]");
 }
 
-int bch2_replicas_entry_validate(struct bch_replicas_entry *r,
+int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 				 struct bch_sb *sb,
 				 struct printbuf *err)
 {
@@ -98,7 +98,7 @@ bad:
 void bch2_cpu_replicas_to_text(struct printbuf *out,
 			       struct bch_replicas_cpu *r)
 {
-	struct bch_replicas_entry *e;
+	struct bch_replicas_entry_v1 *e;
 	bool first = true;
 
 	for_each_cpu_replicas_entry(r, e) {
@@ -111,7 +111,7 @@ void bch2_cpu_replicas_to_text(struct printbuf *out,
 }
 
 static void extent_to_replicas(struct bkey_s_c k,
-			       struct bch_replicas_entry *r)
+			       struct bch_replicas_entry_v1 *r)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -131,7 +131,7 @@ static void extent_to_replicas(struct bkey_s_c k,
 }
 
 static void stripe_to_replicas(struct bkey_s_c k,
-			       struct bch_replicas_entry *r)
+			       struct bch_replicas_entry_v1 *r)
 {
 	struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
 	const struct bch_extent_ptr *ptr;
@@ -144,7 +144,7 @@ static void stripe_to_replicas(struct bkey_s_c k,
 		r->devs[r->nr_devs++] = ptr->dev;
 }
 
-void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
+void bch2_bkey_to_replicas(struct bch_replicas_entry_v1 *e,
 			   struct bkey_s_c k)
 {
 	e->nr_devs = 0;
@@ -169,12 +169,10 @@ void bch2_bkey_to_replicas(struct bch_replicas_entry *e,
 	bch2_replicas_entry_sort(e);
 }
 
-void bch2_devlist_to_replicas(struct bch_replicas_entry *e,
+void bch2_devlist_to_replicas(struct bch_replicas_entry_v1 *e,
 			      enum bch_data_type data_type,
 			      struct bch_devs_list devs)
 {
-	unsigned i;
-
 	BUG_ON(!data_type ||
 	       data_type == BCH_DATA_sb ||
 	       data_type >= BCH_DATA_NR);
@@ -183,8 +181,8 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry *e,
 	e->nr_devs	= 0;
 	e->nr_required	= 1;
 
-	for (i = 0; i < devs.nr; i++)
-		e->devs[e->nr_devs++] = devs.devs[i];
+	darray_for_each(devs, i)
+		e->devs[e->nr_devs++] = *i;
 
 	bch2_replicas_entry_sort(e);
 }
@@ -192,7 +190,7 @@ void bch2_devlist_to_replicas(struct bch_replicas_entry *e,
 static struct bch_replicas_cpu
 cpu_replicas_add_entry(struct bch_fs *c,
 		       struct bch_replicas_cpu *old,
-		       struct bch_replicas_entry *new_entry)
+		       struct bch_replicas_entry_v1 *new_entry)
 {
 	unsigned i;
 	struct bch_replicas_cpu new = {
@@ -225,7 +223,7 @@ cpu_replicas_add_entry(struct bch_fs *c,
 }
 
 static inline int __replicas_entry_idx(struct bch_replicas_cpu *r,
-				       struct bch_replicas_entry *search)
+				       struct bch_replicas_entry_v1 *search)
 {
 	int idx, entry_size = replicas_entry_bytes(search);
 
@@ -243,7 +241,7 @@ static inline int __replicas_entry_idx(struct bch_replicas_cpu *r,
 }
 
 int bch2_replicas_entry_idx(struct bch_fs *c,
-			    struct bch_replicas_entry *search)
+			    struct bch_replicas_entry_v1 *search)
 {
 	bch2_replicas_entry_sort(search);
 
@@ -251,13 +249,13 @@ int bch2_replicas_entry_idx(struct bch_fs *c,
 }
 
 static bool __replicas_has_entry(struct bch_replicas_cpu *r,
-				 struct bch_replicas_entry *search)
+				 struct bch_replicas_entry_v1 *search)
 {
 	return __replicas_entry_idx(r, search) >= 0;
 }
 
 bool bch2_replicas_marked(struct bch_fs *c,
-			  struct bch_replicas_entry *search)
+			  struct bch_replicas_entry_v1 *search)
 {
 	bool marked;
 
@@ -374,7 +372,7 @@ err:
 static unsigned reserve_journal_replicas(struct bch_fs *c,
 				     struct bch_replicas_cpu *r)
 {
-	struct bch_replicas_entry *e;
+	struct bch_replicas_entry_v1 *e;
 	unsigned journal_res_u64s = 0;
 
 	/* nr_inodes: */
@@ -399,7 +397,7 @@ static unsigned reserve_journal_replicas(struct bch_fs *c,
 
 noinline
 static int bch2_mark_replicas_slowpath(struct bch_fs *c,
-				struct bch_replicas_entry *new_entry)
+				struct bch_replicas_entry_v1 *new_entry)
 {
 	struct bch_replicas_cpu new_r, new_gc;
 	int ret = 0;
@@ -464,7 +462,7 @@ err:
 	goto out;
 }
 
-int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry *r)
+int bch2_mark_replicas(struct bch_fs *c, struct bch_replicas_entry_v1 *r)
 {
 	return likely(bch2_replicas_marked(c, r))
 		? 0 : bch2_mark_replicas_slowpath(c, r);
@@ -515,7 +513,7 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 
 int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 {
-	struct bch_replicas_entry *e;
+	struct bch_replicas_entry_v1 *e;
 	unsigned i = 0;
 
 	lockdep_assert_held(&c->replicas_gc_lock);
@@ -590,7 +588,7 @@ retry:
 	}
 
 	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry *e =
+		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 
 		if (e->data_type == BCH_DATA_journal ||
@@ -621,7 +619,7 @@ retry:
 }
 
 int bch2_replicas_set_usage(struct bch_fs *c,
-			    struct bch_replicas_entry *r,
+			    struct bch_replicas_entry_v1 *r,
 			    u64 sectors)
 {
 	int ret, idx = bch2_replicas_entry_idx(c, r);
@@ -654,7 +652,7 @@ static int
 __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r,
 				   struct bch_replicas_cpu *cpu_r)
 {
-	struct bch_replicas_entry *e, *dst;
+	struct bch_replicas_entry_v1 *e, *dst;
 	unsigned nr = 0, entry_size = 0, idx = 0;
 
 	for_each_replicas_entry(sb_r, e) {
@@ -692,7 +690,7 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
 		nr++;
 	}
 
-	entry_size += sizeof(struct bch_replicas_entry) -
+	entry_size += sizeof(struct bch_replicas_entry_v1) -
 		sizeof(struct bch_replicas_entry_v0);
 
 	cpu_r->entries = kcalloc(nr, entry_size, GFP_KERNEL);
@@ -703,7 +701,7 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
 	cpu_r->entry_size	= entry_size;
 
 	for_each_replicas_entry(sb_r, e) {
-		struct bch_replicas_entry *dst =
+		struct bch_replicas_entry_v1 *dst =
 			cpu_replicas_entry(cpu_r, idx++);
 
 		dst->data_type	= e->data_type;
@@ -747,7 +745,7 @@ static int bch2_cpu_replicas_to_sb_replicas_v0(struct bch_fs *c,
 {
 	struct bch_sb_field_replicas_v0 *sb_r;
 	struct bch_replicas_entry_v0 *dst;
-	struct bch_replicas_entry *src;
+	struct bch_replicas_entry_v1 *src;
 	size_t bytes;
 
 	bytes = sizeof(struct bch_sb_field_replicas);
@@ -785,7 +783,7 @@ static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *c,
 					    struct bch_replicas_cpu *r)
 {
 	struct bch_sb_field_replicas *sb_r;
-	struct bch_replicas_entry *dst, *src;
+	struct bch_replicas_entry_v1 *dst, *src;
 	bool need_v1 = false;
 	size_t bytes;
 
@@ -836,7 +834,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 		      memcmp, NULL);
 
 	for (i = 0; i < cpu_r->nr; i++) {
-		struct bch_replicas_entry *e =
+		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(cpu_r, i);
 
 		int ret = bch2_replicas_entry_validate(e, sb, err);
@@ -844,7 +842,7 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 			return ret;
 
 		if (i + 1 < cpu_r->nr) {
-			struct bch_replicas_entry *n =
+			struct bch_replicas_entry_v1 *n =
 				cpu_replicas_entry(cpu_r, i + 1);
 
 			BUG_ON(memcmp(e, n, cpu_r->entry_size) > 0);
@@ -881,7 +879,7 @@ static void bch2_sb_replicas_to_text(struct printbuf *out,
 				     struct bch_sb_field *f)
 {
 	struct bch_sb_field_replicas *r = field_to_type(f, replicas);
-	struct bch_replicas_entry *e;
+	struct bch_replicas_entry_v1 *e;
 	bool first = true;
 
 	for_each_replicas_entry(r, e) {
@@ -943,7 +941,7 @@ const struct bch_sb_field_ops bch_sb_field_ops_replicas_v0 = {
 bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 			   unsigned flags, bool print)
 {
-	struct bch_replicas_entry *e;
+	struct bch_replicas_entry_v1 *e;
 	bool ret = true;
 
 	percpu_down_read(&c->mark_lock);
@@ -1003,7 +1001,7 @@ unsigned bch2_sb_dev_has_data(struct bch_sb *sb, unsigned dev)
 	replicas_v0 = bch2_sb_field_get(sb, replicas_v0);
 
 	if (replicas) {
-		struct bch_replicas_entry *r;
+		struct bch_replicas_entry_v1 *r;
 
 		for_each_replicas_entry(replicas, r)
 			for (i = 0; i < r->nr_devs; i++)

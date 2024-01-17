@@ -92,6 +92,7 @@ static const char * const allow_duplicates[] = {
 	"8A42EA14-4F2A-FD45-6422-0087F7A7E608",	/* dell-wmi-ddv */
 	"44FADEB1-B204-40F2-8581-394BBDC1B651",	/* intel-wmi-sbl-fw-update */
 	"86CCFD48-205E-4A77-9C48-2021CBEDE341",	/* intel-wmi-thunderbolt */
+	"F1DDEE52-063C-4784-A11E-8A06684B9B01",	/* dell-smm-hwmon */
 	NULL
 };
 

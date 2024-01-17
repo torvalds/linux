@@ -192,6 +192,11 @@ struct cifs_open_info_data {
 		bool symlink;
 	};
 	struct {
+		/* ioctl response buffer */
+		struct {
+			int buftype;
+			struct kvec iov;
+		} io;
 		__u32 tag;
 		union {
 			struct reparse_data_buffer *buf;
@@ -205,13 +210,17 @@ struct cifs_open_info_data {
 	};
 };
 
-#define cifs_open_data_reparse(d) \
-	((d)->reparse_point || \
-	 (le32_to_cpu((d)->fi.Attributes) & ATTR_REPARSE))
-
-static inline void cifs_free_open_info(struct cifs_open_info_data *data)
+static inline bool cifs_open_data_reparse(struct cifs_open_info_data *data)
 {
-	kfree(data->symlink_target);
+	struct smb2_file_all_info *fi = &data->fi;
+	u32 attrs = le32_to_cpu(fi->Attributes);
+	bool ret;
+
+	ret = data->reparse_point || (attrs & ATTR_REPARSE);
+	if (ret)
+		attrs |= ATTR_REPARSE;
+	fi->Attributes = cpu_to_le32(attrs);
+	return ret;
 }
 
 /*
@@ -390,12 +399,17 @@ struct smb_version_operations {
 	int (*rename_pending_delete)(const char *, struct dentry *,
 				     const unsigned int);
 	/* send rename request */
-	int (*rename)(const unsigned int, struct cifs_tcon *, const char *,
-		      const char *, struct cifs_sb_info *);
+	int (*rename)(const unsigned int xid,
+		      struct cifs_tcon *tcon,
+		      struct dentry *source_dentry,
+		      const char *from_name, const char *to_name,
+		      struct cifs_sb_info *cifs_sb);
 	/* send create hardlink request */
-	int (*create_hardlink)(const unsigned int, struct cifs_tcon *,
-			       const char *, const char *,
-			       struct cifs_sb_info *);
+	int (*create_hardlink)(const unsigned int xid,
+			       struct cifs_tcon *tcon,
+			       struct dentry *source_dentry,
+			       const char *from_name, const char *to_name,
+			       struct cifs_sb_info *cifs_sb);
 	/* query symlink target */
 	int (*query_symlink)(const unsigned int xid,
 			     struct cifs_tcon *tcon,
@@ -560,6 +574,12 @@ struct smb_version_operations {
 	int (*parse_reparse_point)(struct cifs_sb_info *cifs_sb,
 				   struct kvec *rsp_iov,
 				   struct cifs_open_info_data *data);
+	int (*create_reparse_symlink)(const unsigned int xid,
+				      struct inode *inode,
+				      struct dentry *dentry,
+				      struct cifs_tcon *tcon,
+				      const char *full_path,
+				      const char *symname);
 };
 
 struct smb_version_values {
@@ -1545,6 +1565,7 @@ struct cifsInodeInfo {
 	spinlock_t deferred_lock; /* protection on deferred list */
 	bool lease_granted; /* Flag to indicate whether lease or oplock is granted. */
 	char *symlink_target;
+	__u32 reparse_tag;
 };
 
 static inline struct cifsInodeInfo *
@@ -2238,8 +2259,8 @@ static inline void cifs_sg_set_buf(struct sg_table *sgtable,
 
 struct smb2_compound_vars {
 	struct cifs_open_parms oparms;
-	struct kvec rsp_iov[3];
-	struct smb_rqst rqst[3];
+	struct kvec rsp_iov[MAX_COMPOUND];
+	struct smb_rqst rqst[MAX_COMPOUND];
 	struct kvec open_iov[SMB2_CREATE_IOV_SIZE];
 	struct kvec qi_iov;
 	struct kvec io_iov[SMB2_IOCTL_IOV_SIZE];

@@ -59,8 +59,8 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 void ivpu_cmdq_release_all(struct ivpu_file_priv *file_priv);
 void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev);
 
-int ivpu_job_done_thread_init(struct ivpu_device *vdev);
-void ivpu_job_done_thread_fini(struct ivpu_device *vdev);
+void ivpu_job_done_consumer_init(struct ivpu_device *vdev);
+void ivpu_job_done_consumer_fini(struct ivpu_device *vdev);
 
 void ivpu_jobs_abort_all(struct ivpu_device *vdev);
 

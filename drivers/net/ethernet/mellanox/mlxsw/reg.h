@@ -1024,6 +1024,8 @@ static inline void mlxsw_reg_spaft_pack(char *payload, u16 local_port,
  * ------------------------------------------
  * The following register controls the association of flooding tables and MIDs
  * to packet types used for flooding.
+ *
+ * Reserved when CONFIG_PROFILE.flood_mode = CFF.
  */
 #define MLXSW_REG_SFGC_ID 0x2011
 #define MLXSW_REG_SFGC_LEN 0x14
@@ -1862,6 +1864,7 @@ MLXSW_ITEM32(reg, sfmr, fid, 0x00, 0, 16);
  * Access: RW
  *
  * Note: Reserved when legacy bridge model is used.
+ * Reserved when CONFIG_PROFILE.flood_mode = CFF.
  */
 MLXSW_ITEM32(reg, sfmr, flood_rsp, 0x08, 31, 1);
 
@@ -1872,6 +1875,7 @@ MLXSW_ITEM32(reg, sfmr, flood_rsp, 0x08, 31, 1);
  * Access: RW
  *
  * Note: Reserved when legacy bridge model is used and when flood_rsp=1.
+ * Reserved when CONFIG_PROFILE.flood_mode = CFF
  */
 MLXSW_ITEM32(reg, sfmr, flood_bridge_type, 0x08, 28, 1);
 
@@ -1880,6 +1884,8 @@ MLXSW_ITEM32(reg, sfmr, flood_bridge_type, 0x08, 28, 1);
  * Used to point into the flooding table selected by SFGC register if
  * the table is of type FID-Offset. Otherwise, this field is reserved.
  * Access: RW
+ *
+ * Note: Reserved when CONFIG_PROFILE.flood_mode = CFF
  */
 MLXSW_ITEM32(reg, sfmr, fid_offset, 0x08, 0, 16);
 
@@ -1938,6 +1944,35 @@ MLXSW_ITEM32(reg, sfmr, irif_v, 0x14, 24, 1);
  */
 MLXSW_ITEM32(reg, sfmr, irif, 0x14, 0, 16);
 
+/* reg_sfmr_cff_mid_base
+ * Pointer to PGT table.
+ * Range: 0..(cap_max_pgt-1)
+ * Access: RW
+ *
+ * Note: Reserved when SwitchX/-2 and Spectrum-1.
+ * Supported when CONFIG_PROFILE.flood_mode = CFF.
+ */
+MLXSW_ITEM32(reg, sfmr, cff_mid_base, 0x20, 0, 16);
+
+/* reg_sfmr_nve_flood_prf_id
+ * FID flooding profile_id for NVE Encap
+ * Range 0..(max_cap_nve_flood_prf-1)
+ * Access: RW
+ *
+ * Note: Reserved when SwitchX/-2 and Spectrum-1
+ */
+MLXSW_ITEM32(reg, sfmr, nve_flood_prf_id, 0x24, 8, 2);
+
+/* reg_sfmr_cff_prf_id
+ * Compressed Fid Flooding profile_id
+ * Range 0..(max_cap_nve_flood_prf-1)
+ * Access: RW
+ *
+ * Note: Reserved when SwitchX/-2 and Spectrum-1
+ * Supported only when CONFIG_PROFLE.flood_mode = CFF.
+ */
+MLXSW_ITEM32(reg, sfmr, cff_prf_id, 0x24, 0, 2);
+
 /* reg_sfmr_smpe_valid
  * SMPE is valid.
  * Access: RW
@@ -1959,18 +1994,11 @@ MLXSW_ITEM32(reg, sfmr, smpe, 0x28, 0, 16);
 
 static inline void mlxsw_reg_sfmr_pack(char *payload,
 				       enum mlxsw_reg_sfmr_op op, u16 fid,
-				       u16 fid_offset, bool flood_rsp,
-				       enum mlxsw_reg_bridge_type bridge_type,
 				       bool smpe_valid, u16 smpe)
 {
 	MLXSW_REG_ZERO(sfmr, payload);
 	mlxsw_reg_sfmr_op_set(payload, op);
 	mlxsw_reg_sfmr_fid_set(payload, fid);
-	mlxsw_reg_sfmr_fid_offset_set(payload, fid_offset);
-	mlxsw_reg_sfmr_vtfp_set(payload, false);
-	mlxsw_reg_sfmr_vv_set(payload, false);
-	mlxsw_reg_sfmr_flood_rsp_set(payload, flood_rsp);
-	mlxsw_reg_sfmr_flood_bridge_type_set(payload, bridge_type);
 	mlxsw_reg_sfmr_smpe_valid_set(payload, smpe_valid);
 	mlxsw_reg_sfmr_smpe_set(payload, smpe);
 }
@@ -2166,6 +2194,50 @@ static inline void mlxsw_reg_spvc_pack(char *payload, u16 local_port, bool et1,
 	mlxsw_reg_spvc_inner_et0_set(payload, 1);
 	mlxsw_reg_spvc_et1_set(payload, et1);
 	mlxsw_reg_spvc_et0_set(payload, et0);
+}
+
+/* SFFP - Switch FID Flooding Profiles Register
+ * --------------------------------------------
+ * The SFFP register populates the fid flooding profile tables used for the NVE
+ * flooding and Compressed-FID Flooding (CFF).
+ *
+ * Reserved on Spectrum-1.
+ */
+#define MLXSW_REG_SFFP_ID 0x2029
+#define MLXSW_REG_SFFP_LEN 0x0C
+
+MLXSW_REG_DEFINE(sffp, MLXSW_REG_SFFP_ID, MLXSW_REG_SFFP_LEN);
+
+/* reg_sffp_profile_id
+ * Profile ID a.k.a. SFMR.nve_flood_prf_id or SFMR.cff_prf_id
+ * Range 0..max_cap_nve_flood_prf-1
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sffp, profile_id, 0x00, 16, 2);
+
+/* reg_sffp_type
+ * The traffic type to reach the flooding table.
+ * Same as SFGC.type
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, sffp, type, 0x00, 0, 4);
+
+/* reg_sffp_flood_offset
+ * Flood offset. Offset to add to SFMR.cff_mid_base to get the final PGT address
+ * for FID flood; or offset to add to SFMR.nve_tunnel_flood_ptr to get KVD
+ * pointer for NVE underlay.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, sffp, flood_offset, 0x04, 0, 3);
+
+static inline void mlxsw_reg_sffp_pack(char *payload, u8 profile_id,
+				       enum mlxsw_reg_sfgc_type type,
+				       u8 flood_offset)
+{
+	MLXSW_REG_ZERO(sffp, payload);
+	mlxsw_reg_sffp_profile_id_set(payload, profile_id);
+	mlxsw_reg_sffp_type_set(payload, type);
+	mlxsw_reg_sffp_flood_offset_set(payload, flood_offset);
 }
 
 /* SPEVET - Switch Port Egress VLAN EtherType
@@ -10122,6 +10194,15 @@ mlxsw_reg_mgir_unpack(char *payload, u32 *hw_rev, char *fw_info_psid,
 
 MLXSW_REG_DEFINE(mrsr, MLXSW_REG_MRSR_ID, MLXSW_REG_MRSR_LEN);
 
+enum mlxsw_reg_mrsr_command {
+	/* Switch soft reset, does not reset PCI firmware. */
+	MLXSW_REG_MRSR_COMMAND_SOFTWARE_RESET = 1,
+	/* Reset will be done when PCI link will be disabled.
+	 * This command will reset PCI firmware also.
+	 */
+	MLXSW_REG_MRSR_COMMAND_RESET_AT_PCI_DISABLE = 6,
+};
+
 /* reg_mrsr_command
  * Reset/shutdown command
  * 0 - do nothing
@@ -10130,10 +10211,11 @@ MLXSW_REG_DEFINE(mrsr, MLXSW_REG_MRSR_ID, MLXSW_REG_MRSR_LEN);
  */
 MLXSW_ITEM32(reg, mrsr, command, 0x00, 0, 4);
 
-static inline void mlxsw_reg_mrsr_pack(char *payload)
+static inline void mlxsw_reg_mrsr_pack(char *payload,
+				       enum mlxsw_reg_mrsr_command command)
 {
 	MLXSW_REG_ZERO(mrsr, payload);
-	mlxsw_reg_mrsr_command_set(payload, 1);
+	mlxsw_reg_mrsr_command_set(payload, command);
 }
 
 /* MLCR - Management LED Control Register
@@ -10584,6 +10666,8 @@ MLXSW_ITEM32(reg, mcam, feature_group, 0x00, 16, 8);
 enum mlxsw_reg_mcam_mng_feature_cap_mask_bits {
 	/* If set, MCIA supports 128 bytes payloads. Otherwise, 48 bytes. */
 	MLXSW_REG_MCAM_MCIA_128B = 34,
+	/* If set, MRSR.command=6 is supported. */
+	MLXSW_REG_MCAM_PCI_RESET = 48,
 };
 
 #define MLXSW_REG_BYTES_PER_DWORD 0x4
@@ -12934,6 +13018,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(spfsr),
 	MLXSW_REG(spvc),
+	MLXSW_REG(sffp),
 	MLXSW_REG(spevet),
 	MLXSW_REG(smpe),
 	MLXSW_REG(smid2),

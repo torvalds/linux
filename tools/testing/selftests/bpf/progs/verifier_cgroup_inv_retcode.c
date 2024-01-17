@@ -7,7 +7,7 @@
 
 SEC("cgroup/sock")
 __description("bpf_exit with invalid return code. test1")
-__failure __msg("R0 has value (0x0; 0xffffffff)")
+__failure __msg("smin=0 smax=4294967295 should have been in [0, 1]")
 __naked void with_invalid_return_code_test1(void)
 {
 	asm volatile ("					\
@@ -30,7 +30,7 @@ __naked void with_invalid_return_code_test2(void)
 
 SEC("cgroup/sock")
 __description("bpf_exit with invalid return code. test3")
-__failure __msg("R0 has value (0x0; 0x3)")
+__failure __msg("smin=0 smax=3 should have been in [0, 1]")
 __naked void with_invalid_return_code_test3(void)
 {
 	asm volatile ("					\
@@ -53,7 +53,7 @@ __naked void with_invalid_return_code_test4(void)
 
 SEC("cgroup/sock")
 __description("bpf_exit with invalid return code. test5")
-__failure __msg("R0 has value (0x2; 0x0)")
+__failure __msg("smin=2 smax=2 should have been in [0, 1]")
 __naked void with_invalid_return_code_test5(void)
 {
 	asm volatile ("					\
@@ -75,7 +75,7 @@ __naked void with_invalid_return_code_test6(void)
 
 SEC("cgroup/sock")
 __description("bpf_exit with invalid return code. test7")
-__failure __msg("R0 has unknown scalar value")
+__failure __msg("R0 has unknown scalar value should have been in [0, 1]")
 __naked void with_invalid_return_code_test7(void)
 {
 	asm volatile ("					\

@@ -846,6 +846,10 @@
 	};
 };
 
+&pmic {
+	interrupts-extended = <&pio 182 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &pwm0 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -890,8 +894,7 @@
 		spi-max-frequency = <1000000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&h1_int_od_l>;
-		interrupt-parent = <&pio>;
-		interrupts = <153 IRQ_TYPE_EDGE_RISING>;
+		interrupts-extended = <&pio 153 IRQ_TYPE_EDGE_RISING>;
 	};
 };
 
@@ -918,8 +921,7 @@
 		compatible = "google,cros-ec-spi";
 		reg = <0>;
 		spi-max-frequency = <3000000>;
-		interrupt-parent = <&pio>;
-		interrupts = <151 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 151 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ec_ap_int_odl>;
 

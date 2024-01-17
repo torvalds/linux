@@ -5,6 +5,9 @@
 
 #include <linux/bitfield.h>
 #include <linux/highmem.h>
+#include <linux/set_memory.h>
+
+#include <drm/drm_cache.h>
 
 #include "ivpu_drv.h"
 #include "ivpu_hw.h"
@@ -39,25 +42,63 @@
 #define IVPU_MMU_ENTRY_MAPPED  (IVPU_MMU_ENTRY_FLAG_AF | IVPU_MMU_ENTRY_FLAG_USER | \
 				IVPU_MMU_ENTRY_FLAG_NG | IVPU_MMU_ENTRY_VALID)
 
+static void *ivpu_pgtable_alloc_page(struct ivpu_device *vdev, dma_addr_t *dma)
+{
+	dma_addr_t dma_addr;
+	struct page *page;
+	void *cpu;
+
+	page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
+	if (!page)
+		return NULL;
+
+	set_pages_array_wc(&page, 1);
+
+	dma_addr = dma_map_page(vdev->drm.dev, page, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(vdev->drm.dev, dma_addr))
+		goto err_free_page;
+
+	cpu = vmap(&page, 1, VM_MAP, pgprot_writecombine(PAGE_KERNEL));
+	if (!cpu)
+		goto err_dma_unmap_page;
+
+
+	*dma = dma_addr;
+	return cpu;
+
+err_dma_unmap_page:
+	dma_unmap_page(vdev->drm.dev, dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
+
+err_free_page:
+	put_page(page);
+	return NULL;
+}
+
+static void ivpu_pgtable_free_page(struct ivpu_device *vdev, u64 *cpu_addr, dma_addr_t dma_addr)
+{
+	struct page *page;
+
+	if (cpu_addr) {
+		page = vmalloc_to_page(cpu_addr);
+		vunmap(cpu_addr);
+		dma_unmap_page(vdev->drm.dev, dma_addr & ~IVPU_MMU_ENTRY_FLAGS_MASK, PAGE_SIZE,
+			       DMA_BIDIRECTIONAL);
+		set_pages_array_wb(&page, 1);
+		put_page(page);
+	}
+}
+
 static int ivpu_mmu_pgtable_init(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable)
 {
 	dma_addr_t pgd_dma;
 
-	pgtable->pgd_dma_ptr = dma_alloc_coherent(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pgd_dma,
-						  GFP_KERNEL);
+	pgtable->pgd_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pgd_dma);
 	if (!pgtable->pgd_dma_ptr)
 		return -ENOMEM;
 
 	pgtable->pgd_dma = pgd_dma;
 
 	return 0;
-}
-
-static void ivpu_mmu_pgtable_free(struct ivpu_device *vdev, u64 *cpu_addr, dma_addr_t dma_addr)
-{
-	if (cpu_addr)
-		dma_free_coherent(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, cpu_addr,
-				  dma_addr & ~IVPU_MMU_ENTRY_FLAGS_MASK);
 }
 
 static void ivpu_mmu_pgtables_free(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable)
@@ -84,19 +125,19 @@ static void ivpu_mmu_pgtables_free(struct ivpu_device *vdev, struct ivpu_mmu_pgt
 				pte_dma_ptr = pgtable->pte_ptrs[pgd_idx][pud_idx][pmd_idx];
 				pte_dma = pgtable->pmd_ptrs[pgd_idx][pud_idx][pmd_idx];
 
-				ivpu_mmu_pgtable_free(vdev, pte_dma_ptr, pte_dma);
+				ivpu_pgtable_free_page(vdev, pte_dma_ptr, pte_dma);
 			}
 
 			kfree(pgtable->pte_ptrs[pgd_idx][pud_idx]);
-			ivpu_mmu_pgtable_free(vdev, pmd_dma_ptr, pmd_dma);
+			ivpu_pgtable_free_page(vdev, pmd_dma_ptr, pmd_dma);
 		}
 
 		kfree(pgtable->pmd_ptrs[pgd_idx]);
 		kfree(pgtable->pte_ptrs[pgd_idx]);
-		ivpu_mmu_pgtable_free(vdev, pud_dma_ptr, pud_dma);
+		ivpu_pgtable_free_page(vdev, pud_dma_ptr, pud_dma);
 	}
 
-	ivpu_mmu_pgtable_free(vdev, pgtable->pgd_dma_ptr, pgtable->pgd_dma);
+	ivpu_pgtable_free_page(vdev, pgtable->pgd_dma_ptr, pgtable->pgd_dma);
 }
 
 static u64*
@@ -108,7 +149,7 @@ ivpu_mmu_ensure_pud(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable, 
 	if (pud_dma_ptr)
 		return pud_dma_ptr;
 
-	pud_dma_ptr = dma_alloc_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pud_dma, GFP_KERNEL);
+	pud_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pud_dma);
 	if (!pud_dma_ptr)
 		return NULL;
 
@@ -131,7 +172,7 @@ err_free_pmd_ptrs:
 	kfree(pgtable->pmd_ptrs[pgd_idx]);
 
 err_free_pud_dma_ptr:
-	ivpu_mmu_pgtable_free(vdev, pud_dma_ptr, pud_dma);
+	ivpu_pgtable_free_page(vdev, pud_dma_ptr, pud_dma);
 	return NULL;
 }
 
@@ -145,7 +186,7 @@ ivpu_mmu_ensure_pmd(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable, 
 	if (pmd_dma_ptr)
 		return pmd_dma_ptr;
 
-	pmd_dma_ptr = dma_alloc_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pmd_dma, GFP_KERNEL);
+	pmd_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pmd_dma);
 	if (!pmd_dma_ptr)
 		return NULL;
 
@@ -160,7 +201,7 @@ ivpu_mmu_ensure_pmd(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable, 
 	return pmd_dma_ptr;
 
 err_free_pmd_dma_ptr:
-	ivpu_mmu_pgtable_free(vdev, pmd_dma_ptr, pmd_dma);
+	ivpu_pgtable_free_page(vdev, pmd_dma_ptr, pmd_dma);
 	return NULL;
 }
 
@@ -174,7 +215,7 @@ ivpu_mmu_ensure_pte(struct ivpu_device *vdev, struct ivpu_mmu_pgtable *pgtable,
 	if (pte_dma_ptr)
 		return pte_dma_ptr;
 
-	pte_dma_ptr = dma_alloc_wc(vdev->drm.dev, IVPU_MMU_PGTABLE_SIZE, &pte_dma, GFP_KERNEL);
+	pte_dma_ptr = ivpu_pgtable_alloc_page(vdev, &pte_dma);
 	if (!pte_dma_ptr)
 		return NULL;
 
@@ -249,38 +290,6 @@ static void ivpu_mmu_context_unmap_page(struct ivpu_mmu_context *ctx, u64 vpu_ad
 	ctx->pgtable.pte_ptrs[pgd_idx][pud_idx][pmd_idx][pte_idx] = IVPU_MMU_ENTRY_INVALID;
 }
 
-static void
-ivpu_mmu_context_flush_page_tables(struct ivpu_mmu_context *ctx, u64 vpu_addr, size_t size)
-{
-	struct ivpu_mmu_pgtable *pgtable = &ctx->pgtable;
-	u64 end_addr = vpu_addr + size;
-
-	/* Align to PMD entry (2 MB) */
-	vpu_addr &= ~(IVPU_MMU_PTE_MAP_SIZE - 1);
-
-	while (vpu_addr < end_addr) {
-		int pgd_idx = FIELD_GET(IVPU_MMU_PGD_INDEX_MASK, vpu_addr);
-		u64 pud_end = (pgd_idx + 1) * (u64)IVPU_MMU_PUD_MAP_SIZE;
-
-		while (vpu_addr < end_addr && vpu_addr < pud_end) {
-			int pud_idx = FIELD_GET(IVPU_MMU_PUD_INDEX_MASK, vpu_addr);
-			u64 pmd_end = (pud_idx + 1) * (u64)IVPU_MMU_PMD_MAP_SIZE;
-
-			while (vpu_addr < end_addr && vpu_addr < pmd_end) {
-				int pmd_idx = FIELD_GET(IVPU_MMU_PMD_INDEX_MASK, vpu_addr);
-
-				clflush_cache_range(pgtable->pte_ptrs[pgd_idx][pud_idx][pmd_idx],
-						    IVPU_MMU_PGTABLE_SIZE);
-				vpu_addr += IVPU_MMU_PTE_MAP_SIZE;
-			}
-			clflush_cache_range(pgtable->pmd_ptrs[pgd_idx][pud_idx],
-					    IVPU_MMU_PGTABLE_SIZE);
-		}
-		clflush_cache_range(pgtable->pud_ptrs[pgd_idx], IVPU_MMU_PGTABLE_SIZE);
-	}
-	clflush_cache_range(pgtable->pgd_dma_ptr, IVPU_MMU_PGTABLE_SIZE);
-}
-
 static int
 ivpu_mmu_context_map_pages(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			   u64 vpu_addr, dma_addr_t dma_addr, size_t size, u64 prot)
@@ -327,6 +336,9 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 	u64 prot;
 	u64 i;
 
+	if (drm_WARN_ON(&vdev->drm, !ctx))
+		return -EINVAL;
+
 	if (!IS_ALIGNED(vpu_addr, IVPU_MMU_PAGE_SIZE))
 		return -EINVAL;
 
@@ -349,10 +361,11 @@ ivpu_mmu_context_map_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx,
 			mutex_unlock(&ctx->lock);
 			return ret;
 		}
-		ivpu_mmu_context_flush_page_tables(ctx, vpu_addr, size);
 		vpu_addr += size;
 	}
 
+	/* Ensure page table modifications are flushed from wc buffers to memory */
+	wmb();
 	mutex_unlock(&ctx->lock);
 
 	ret = ivpu_mmu_invalidate_tlb(vdev, ctx->id);
@@ -369,8 +382,8 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 	int ret;
 	u64 i;
 
-	if (!IS_ALIGNED(vpu_addr, IVPU_MMU_PAGE_SIZE))
-		ivpu_warn(vdev, "Unaligned vpu_addr: 0x%llx\n", vpu_addr);
+	if (drm_WARN_ON(&vdev->drm, !ctx))
+		return;
 
 	mutex_lock(&ctx->lock);
 
@@ -378,10 +391,11 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 		size_t size = sg_dma_len(sg) + sg->offset;
 
 		ivpu_mmu_context_unmap_pages(ctx, vpu_addr, size);
-		ivpu_mmu_context_flush_page_tables(ctx, vpu_addr, size);
 		vpu_addr += size;
 	}
 
+	/* Ensure page table modifications are flushed from wc buffers to memory */
+	wmb();
 	mutex_unlock(&ctx->lock);
 
 	ret = ivpu_mmu_invalidate_tlb(vdev, ctx->id);
@@ -390,28 +404,34 @@ ivpu_mmu_context_unmap_sgt(struct ivpu_device *vdev, struct ivpu_mmu_context *ct
 }
 
 int
-ivpu_mmu_context_insert_node_locked(struct ivpu_mmu_context *ctx,
-				    const struct ivpu_addr_range *range,
-				    u64 size, struct drm_mm_node *node)
+ivpu_mmu_context_insert_node(struct ivpu_mmu_context *ctx, const struct ivpu_addr_range *range,
+			     u64 size, struct drm_mm_node *node)
 {
-	lockdep_assert_held(&ctx->lock);
+	int ret;
 
+	WARN_ON(!range);
+
+	mutex_lock(&ctx->lock);
 	if (!ivpu_disable_mmu_cont_pages && size >= IVPU_MMU_CONT_PAGES_SIZE) {
-		if (!drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
-						 range->start, range->end, DRM_MM_INSERT_BEST))
-			return 0;
+		ret = drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_CONT_PAGES_SIZE, 0,
+						  range->start, range->end, DRM_MM_INSERT_BEST);
+		if (!ret)
+			goto unlock;
 	}
 
-	return drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE, 0,
-					   range->start, range->end, DRM_MM_INSERT_BEST);
+	ret = drm_mm_insert_node_in_range(&ctx->mm, node, size, IVPU_MMU_PAGE_SIZE, 0,
+					  range->start, range->end, DRM_MM_INSERT_BEST);
+unlock:
+	mutex_unlock(&ctx->lock);
+	return ret;
 }
 
 void
-ivpu_mmu_context_remove_node_locked(struct ivpu_mmu_context *ctx, struct drm_mm_node *node)
+ivpu_mmu_context_remove_node(struct ivpu_mmu_context *ctx, struct drm_mm_node *node)
 {
-	lockdep_assert_held(&ctx->lock);
-
+	mutex_lock(&ctx->lock);
 	drm_mm_remove_node(node);
+	mutex_unlock(&ctx->lock);
 }
 
 static int
@@ -421,7 +441,6 @@ ivpu_mmu_context_init(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx, u3
 	int ret;
 
 	mutex_init(&ctx->lock);
-	INIT_LIST_HEAD(&ctx->bo_list);
 
 	ret = ivpu_mmu_pgtable_init(vdev, &ctx->pgtable);
 	if (ret) {

@@ -1439,6 +1439,51 @@ int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 }
 
 /**
+ * amdgpu_vm_flush_compute_tlb - Flush TLB on compute VM
+ *
+ * @adev: amdgpu_device pointer
+ * @vm: requested vm
+ * @flush_type: flush type
+ * @xcc_mask: mask of XCCs that belong to the compute partition in need of a TLB flush.
+ *
+ * Flush TLB if needed for a compute VM.
+ *
+ * Returns:
+ * 0 for success.
+ */
+int amdgpu_vm_flush_compute_tlb(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm,
+				uint32_t flush_type,
+				uint32_t xcc_mask)
+{
+	uint64_t tlb_seq = amdgpu_vm_tlb_seq(vm);
+	bool all_hub = false;
+	int xcc = 0, r = 0;
+
+	WARN_ON_ONCE(!vm->is_compute_context);
+
+	/*
+	 * It can be that we race and lose here, but that is extremely unlikely
+	 * and the worst thing which could happen is that we flush the changes
+	 * into the TLB once more which is harmless.
+	 */
+	if (atomic64_xchg(&vm->kfd_last_flushed_seq, tlb_seq) == tlb_seq)
+		return 0;
+
+	if (adev->family == AMDGPU_FAMILY_AI ||
+	    adev->family == AMDGPU_FAMILY_RV)
+		all_hub = true;
+
+	for_each_inst(xcc, xcc_mask) {
+		r = amdgpu_gmc_flush_gpu_tlb_pasid(adev, vm->pasid, flush_type,
+						   all_hub, xcc);
+		if (r)
+			break;
+	}
+	return r;
+}
+
+/**
  * amdgpu_vm_bo_add - add a bo to a specific vm
  *
  * @adev: amdgpu_device pointer

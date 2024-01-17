@@ -3840,9 +3840,6 @@ end:
 	return ERR_PTR(ret);
 }
 
-#define GRAPH_ROOT_MASK (BPF_LIST_HEAD | BPF_RB_ROOT)
-#define GRAPH_NODE_MASK (BPF_LIST_NODE | BPF_RB_NODE)
-
 int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec)
 {
 	int i;
@@ -3855,13 +3852,13 @@ int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec)
 	 * Hence we only need to ensure that bpf_{list_head,rb_root} ownership
 	 * does not form cycles.
 	 */
-	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & GRAPH_ROOT_MASK))
+	if (IS_ERR_OR_NULL(rec) || !(rec->field_mask & BPF_GRAPH_ROOT))
 		return 0;
 	for (i = 0; i < rec->cnt; i++) {
 		struct btf_struct_meta *meta;
 		u32 btf_id;
 
-		if (!(rec->fields[i].type & GRAPH_ROOT_MASK))
+		if (!(rec->fields[i].type & BPF_GRAPH_ROOT))
 			continue;
 		btf_id = rec->fields[i].graph_root.value_btf_id;
 		meta = btf_find_struct_meta(btf, btf_id);
@@ -3873,7 +3870,7 @@ int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec)
 		 * to check ownership cycle for a type unless it's also a
 		 * node type.
 		 */
-		if (!(rec->field_mask & GRAPH_NODE_MASK))
+		if (!(rec->field_mask & BPF_GRAPH_NODE))
 			continue;
 
 		/* We need to ensure ownership acyclicity among all types. The
@@ -3909,7 +3906,7 @@ int btf_check_and_fixup_fields(const struct btf *btf, struct btf_record *rec)
 		 * - A is both an root and node.
 		 * - B is only an node.
 		 */
-		if (meta->record->field_mask & GRAPH_ROOT_MASK)
+		if (meta->record->field_mask & BPF_GRAPH_ROOT)
 			return -ELOOP;
 	}
 	return 0;
@@ -6768,222 +6765,64 @@ int btf_check_type_match(struct bpf_verifier_log *log, const struct bpf_prog *pr
 	return btf_check_func_type_match(log, btf1, t1, btf2, t2);
 }
 
-static int btf_check_func_arg_match(struct bpf_verifier_env *env,
-				    const struct btf *btf, u32 func_id,
-				    struct bpf_reg_state *regs,
-				    bool ptr_to_mem_ok,
-				    bool processing_call)
+static bool btf_is_dynptr_ptr(const struct btf *btf, const struct btf_type *t)
 {
-	enum bpf_prog_type prog_type = resolve_prog_type(env->prog);
-	struct bpf_verifier_log *log = &env->log;
-	const char *func_name, *ref_tname;
-	const struct btf_type *t, *ref_t;
-	const struct btf_param *args;
-	u32 i, nargs, ref_id;
-	int ret;
+	const char *name;
 
-	t = btf_type_by_id(btf, func_id);
-	if (!t || !btf_type_is_func(t)) {
-		/* These checks were already done by the verifier while loading
-		 * struct bpf_func_info or in add_kfunc_call().
-		 */
-		bpf_log(log, "BTF of func_id %u doesn't point to KIND_FUNC\n",
-			func_id);
-		return -EFAULT;
-	}
-	func_name = btf_name_by_offset(btf, t->name_off);
+	t = btf_type_by_id(btf, t->type); /* skip PTR */
 
-	t = btf_type_by_id(btf, t->type);
-	if (!t || !btf_type_is_func_proto(t)) {
-		bpf_log(log, "Invalid BTF of func %s\n", func_name);
-		return -EFAULT;
-	}
-	args = (const struct btf_param *)(t + 1);
-	nargs = btf_type_vlen(t);
-	if (nargs > MAX_BPF_FUNC_REG_ARGS) {
-		bpf_log(log, "Function %s has %d > %d args\n", func_name, nargs,
-			MAX_BPF_FUNC_REG_ARGS);
-		return -EINVAL;
+	while (btf_type_is_modifier(t))
+		t = btf_type_by_id(btf, t->type);
+
+	/* allow either struct or struct forward declaration */
+	if (btf_type_is_struct(t) ||
+	    (btf_type_is_fwd(t) && btf_type_kflag(t) == 0)) {
+		name = btf_str_by_offset(btf, t->name_off);
+		return name && strcmp(name, "bpf_dynptr") == 0;
 	}
 
-	/* check that BTF function arguments match actual types that the
-	 * verifier sees.
-	 */
-	for (i = 0; i < nargs; i++) {
-		enum bpf_arg_type arg_type = ARG_DONTCARE;
-		u32 regno = i + 1;
-		struct bpf_reg_state *reg = &regs[regno];
-
-		t = btf_type_skip_modifiers(btf, args[i].type, NULL);
-		if (btf_type_is_scalar(t)) {
-			if (reg->type == SCALAR_VALUE)
-				continue;
-			bpf_log(log, "R%d is not a scalar\n", regno);
-			return -EINVAL;
-		}
-
-		if (!btf_type_is_ptr(t)) {
-			bpf_log(log, "Unrecognized arg#%d type %s\n",
-				i, btf_type_str(t));
-			return -EINVAL;
-		}
-
-		ref_t = btf_type_skip_modifiers(btf, t->type, &ref_id);
-		ref_tname = btf_name_by_offset(btf, ref_t->name_off);
-
-		ret = check_func_arg_reg_off(env, reg, regno, arg_type);
-		if (ret < 0)
-			return ret;
-
-		if (btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
-			/* If function expects ctx type in BTF check that caller
-			 * is passing PTR_TO_CTX.
-			 */
-			if (reg->type != PTR_TO_CTX) {
-				bpf_log(log,
-					"arg#%d expected pointer to ctx, but got %s\n",
-					i, btf_type_str(t));
-				return -EINVAL;
-			}
-		} else if (ptr_to_mem_ok && processing_call) {
-			const struct btf_type *resolve_ret;
-			u32 type_size;
-
-			resolve_ret = btf_resolve_size(btf, ref_t, &type_size);
-			if (IS_ERR(resolve_ret)) {
-				bpf_log(log,
-					"arg#%d reference type('%s %s') size cannot be determined: %ld\n",
-					i, btf_type_str(ref_t), ref_tname,
-					PTR_ERR(resolve_ret));
-				return -EINVAL;
-			}
-
-			if (check_mem_reg(env, reg, regno, type_size))
-				return -EINVAL;
-		} else {
-			bpf_log(log, "reg type unsupported for arg#%d function %s#%d\n", i,
-				func_name, func_id);
-			return -EINVAL;
-		}
-	}
-
-	return 0;
+	return false;
 }
 
-/* Compare BTF of a function declaration with given bpf_reg_state.
- * Returns:
- * EFAULT - there is a verifier bug. Abort verification.
- * EINVAL - there is a type mismatch or BTF is not available.
- * 0 - BTF matches with what bpf_reg_state expects.
- * Only PTR_TO_CTX and SCALAR_VALUE states are recognized.
- */
-int btf_check_subprog_arg_match(struct bpf_verifier_env *env, int subprog,
-				struct bpf_reg_state *regs)
-{
-	struct bpf_prog *prog = env->prog;
-	struct btf *btf = prog->aux->btf;
-	bool is_global;
-	u32 btf_id;
-	int err;
-
-	if (!prog->aux->func_info)
-		return -EINVAL;
-
-	btf_id = prog->aux->func_info[subprog].type_id;
-	if (!btf_id)
-		return -EFAULT;
-
-	if (prog->aux->func_info_aux[subprog].unreliable)
-		return -EINVAL;
-
-	is_global = prog->aux->func_info_aux[subprog].linkage == BTF_FUNC_GLOBAL;
-	err = btf_check_func_arg_match(env, btf, btf_id, regs, is_global, false);
-
-	/* Compiler optimizations can remove arguments from static functions
-	 * or mismatched type can be passed into a global function.
-	 * In such cases mark the function as unreliable from BTF point of view.
-	 */
-	if (err)
-		prog->aux->func_info_aux[subprog].unreliable = true;
-	return err;
-}
-
-/* Compare BTF of a function call with given bpf_reg_state.
- * Returns:
- * EFAULT - there is a verifier bug. Abort verification.
- * EINVAL - there is a type mismatch or BTF is not available.
- * 0 - BTF matches with what bpf_reg_state expects.
- * Only PTR_TO_CTX and SCALAR_VALUE states are recognized.
- *
- * NOTE: the code is duplicated from btf_check_subprog_arg_match()
- * because btf_check_func_arg_match() is still doing both. Once that
- * function is split in 2, we can call from here btf_check_subprog_arg_match()
- * first, and then treat the calling part in a new code path.
- */
-int btf_check_subprog_call(struct bpf_verifier_env *env, int subprog,
-			   struct bpf_reg_state *regs)
-{
-	struct bpf_prog *prog = env->prog;
-	struct btf *btf = prog->aux->btf;
-	bool is_global;
-	u32 btf_id;
-	int err;
-
-	if (!prog->aux->func_info)
-		return -EINVAL;
-
-	btf_id = prog->aux->func_info[subprog].type_id;
-	if (!btf_id)
-		return -EFAULT;
-
-	if (prog->aux->func_info_aux[subprog].unreliable)
-		return -EINVAL;
-
-	is_global = prog->aux->func_info_aux[subprog].linkage == BTF_FUNC_GLOBAL;
-	err = btf_check_func_arg_match(env, btf, btf_id, regs, is_global, true);
-
-	/* Compiler optimizations can remove arguments from static functions
-	 * or mismatched type can be passed into a global function.
-	 * In such cases mark the function as unreliable from BTF point of view.
-	 */
-	if (err)
-		prog->aux->func_info_aux[subprog].unreliable = true;
-	return err;
-}
-
-/* Convert BTF of a function into bpf_reg_state if possible
+/* Process BTF of a function to produce high-level expectation of function
+ * arguments (like ARG_PTR_TO_CTX, or ARG_PTR_TO_MEM, etc). This information
+ * is cached in subprog info for reuse.
  * Returns:
  * EFAULT - there is a verifier bug. Abort verification.
  * EINVAL - cannot convert BTF.
- * 0 - Successfully converted BTF into bpf_reg_state
- * (either PTR_TO_CTX or SCALAR_VALUE).
+ * 0 - Successfully processed BTF and constructed argument expectations.
  */
-int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
-			  struct bpf_reg_state *regs, bool is_ex_cb)
+int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 {
+	bool is_global = subprog_aux(env, subprog)->linkage == BTF_FUNC_GLOBAL;
+	struct bpf_subprog_info *sub = subprog_info(env, subprog);
 	struct bpf_verifier_log *log = &env->log;
 	struct bpf_prog *prog = env->prog;
 	enum bpf_prog_type prog_type = prog->type;
 	struct btf *btf = prog->aux->btf;
 	const struct btf_param *args;
-	const struct btf_type *t, *ref_t;
+	const struct btf_type *t, *ref_t, *fn_t;
 	u32 i, nargs, btf_id;
 	const char *tname;
 
-	if (!prog->aux->func_info ||
-	    prog->aux->func_info_aux[subprog].linkage != BTF_FUNC_GLOBAL) {
+	if (sub->args_cached)
+		return 0;
+
+	if (!prog->aux->func_info) {
 		bpf_log(log, "Verifier bug\n");
 		return -EFAULT;
 	}
 
 	btf_id = prog->aux->func_info[subprog].type_id;
 	if (!btf_id) {
+		if (!is_global) /* not fatal for static funcs */
+			return -EINVAL;
 		bpf_log(log, "Global functions need valid BTF\n");
 		return -EFAULT;
 	}
 
-	t = btf_type_by_id(btf, btf_id);
-	if (!t || !btf_type_is_func(t)) {
+	fn_t = btf_type_by_id(btf, btf_id);
+	if (!fn_t || !btf_type_is_func(fn_t)) {
 		/* These checks were already done by the verifier while loading
 		 * struct bpf_func_info
 		 */
@@ -6991,11 +6830,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 			subprog);
 		return -EFAULT;
 	}
-	tname = btf_name_by_offset(btf, t->name_off);
-
-	if (log->level & BPF_LOG_LEVEL)
-		bpf_log(log, "Validating %s() func#%d...\n",
-			tname, subprog);
+	tname = btf_name_by_offset(btf, fn_t->name_off);
 
 	if (prog->aux->func_info_aux[subprog].unreliable) {
 		bpf_log(log, "Verifier bug in function %s()\n", tname);
@@ -7004,7 +6839,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	if (prog_type == BPF_PROG_TYPE_EXT)
 		prog_type = prog->aux->dst_prog->type;
 
-	t = btf_type_by_id(btf, t->type);
+	t = btf_type_by_id(btf, fn_t->type);
 	if (!t || !btf_type_is_func_proto(t)) {
 		bpf_log(log, "Invalid type of function %s()\n", tname);
 		return -EFAULT;
@@ -7030,24 +6865,54 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	 * Only PTR_TO_CTX and SCALAR are supported atm.
 	 */
 	for (i = 0; i < nargs; i++) {
-		struct bpf_reg_state *reg = &regs[i + 1];
+		bool is_nonnull = false;
+		const char *tag;
 
 		t = btf_type_by_id(btf, args[i].type);
+
+		tag = btf_find_decl_tag_value(btf, fn_t, i, "arg:");
+		if (IS_ERR(tag) && PTR_ERR(tag) == -ENOENT) {
+			tag = NULL;
+		} else if (IS_ERR(tag)) {
+			bpf_log(log, "arg#%d type's tag fetching failure: %ld\n", i, PTR_ERR(tag));
+			return PTR_ERR(tag);
+		}
+		/* 'arg:<tag>' decl_tag takes precedence over derivation of
+		 * register type from BTF type itself
+		 */
+		if (tag) {
+			/* disallow arg tags in static subprogs */
+			if (!is_global) {
+				bpf_log(log, "arg#%d type tag is not supported in static functions\n", i);
+				return -EOPNOTSUPP;
+			}
+			if (strcmp(tag, "ctx") == 0) {
+				sub->args[i].arg_type = ARG_PTR_TO_CTX;
+				continue;
+			}
+			if (strcmp(tag, "nonnull") == 0)
+				is_nonnull = true;
+		}
+
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
 		if (btf_type_is_int(t) || btf_is_any_enum(t)) {
-			reg->type = SCALAR_VALUE;
+			sub->args[i].arg_type = ARG_ANYTHING;
 			continue;
 		}
-		if (btf_type_is_ptr(t)) {
-			if (btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
-				reg->type = PTR_TO_CTX;
-				continue;
-			}
+		if (btf_type_is_ptr(t) && btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
+			sub->args[i].arg_type = ARG_PTR_TO_CTX;
+			continue;
+		}
+		if (btf_type_is_ptr(t) && btf_is_dynptr_ptr(btf, t)) {
+			sub->args[i].arg_type = ARG_PTR_TO_DYNPTR | MEM_RDONLY;
+			continue;
+		}
+		if (is_global && btf_type_is_ptr(t)) {
+			u32 mem_size;
 
 			t = btf_type_skip_modifiers(btf, t->type, NULL);
-
-			ref_t = btf_resolve_size(btf, t, &reg->mem_size);
+			ref_t = btf_resolve_size(btf, t, &mem_size);
 			if (IS_ERR(ref_t)) {
 				bpf_log(log,
 				    "arg#%d reference type('%s %s') size cannot be determined: %ld\n",
@@ -7056,23 +6921,22 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 				return -EINVAL;
 			}
 
-			reg->type = PTR_TO_MEM | PTR_MAYBE_NULL;
-			reg->id = ++env->id_gen;
-
+			sub->args[i].arg_type = is_nonnull ? ARG_PTR_TO_MEM : ARG_PTR_TO_MEM_OR_NULL;
+			sub->args[i].mem_size = mem_size;
 			continue;
+		}
+		if (is_nonnull) {
+			bpf_log(log, "arg#%d marked as non-null, but is not a pointer type\n", i);
+			return -EINVAL;
 		}
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
 		return -EINVAL;
 	}
-	/* We have already ensured that the callback returns an integer, just
-	 * like all global subprogs. We need to determine it only has a single
-	 * scalar argument.
-	 */
-	if (is_ex_cb && (nargs != 1 || regs[BPF_REG_1].type != SCALAR_VALUE)) {
-		bpf_log(log, "exception cb only supports single integer argument\n");
-		return -EINVAL;
-	}
+
+	sub->arg_cnt = nargs;
+	sub->args_cached = true;
+
 	return 0;
 }
 

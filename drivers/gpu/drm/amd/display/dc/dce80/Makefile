@@ -25,8 +25,7 @@
 
 CFLAGS_$(AMDDALPATH)/dc/dce80/dce80_resource.o = $(call cc-disable-warning, override-init)
 
-DCE80 = dce80_timing_generator.o \
-	dce80_resource.o
+DCE80 = dce80_timing_generator.o
 
 AMD_DAL_DCE80 = $(addprefix $(AMDDALPATH)/dc/dce80/,$(DCE80))
 

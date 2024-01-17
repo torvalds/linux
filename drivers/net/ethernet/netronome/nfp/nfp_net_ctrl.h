@@ -269,6 +269,8 @@
 #define   NFP_NET_CFG_CTRL_IPSEC	  (0x1 << 1) /* IPsec offload */
 #define   NFP_NET_CFG_CTRL_MCAST_FILTER	  (0x1 << 2) /* Multicast Filter */
 #define   NFP_NET_CFG_CTRL_FREELIST_EN	  (0x1 << 6) /* Freelist enable flag bit */
+#define   NFP_NET_CFG_CTRL_FLOW_STEER	  (0x1 << 8) /* Flow steering */
+#define   NFP_NET_CFG_CTRL_USO		  (0x1 << 16) /* UDP segmentation offload */
 
 #define NFP_NET_CFG_CAP_WORD1		0x00a4
 
@@ -418,6 +420,8 @@
 #define NFP_NET_CFG_MBOX_CMD_MULTICAST_ADD		8
 #define NFP_NET_CFG_MBOX_CMD_MULTICAST_DEL		9
 
+#define NFP_NET_CFG_MBOX_CMD_FLOW_STEER			10
+
 /* VLAN filtering using general use mailbox
  * %NFP_NET_CFG_VLAN_FILTER:		Base address of VLAN filter mailbox
  * %NFP_NET_CFG_VLAN_FILTER_VID:	VLAN ID to filter
@@ -439,6 +443,18 @@
 #define NFP_NET_CFG_MULTICAST_MAC_HI	NFP_NET_CFG_MULTICAST
 #define NFP_NET_CFG_MULTICAST_MAC_LO	(NFP_NET_CFG_MULTICAST + 6)
 #define NFP_NET_CFG_MULTICAST_SZ	0x0006
+
+/* Max size of FS rules in bytes */
+#define NFP_NET_CFG_FS_SZ		0x0054
+/* Sub commands for FS */
+enum {
+	NFP_NET_CFG_MBOX_CMD_FS_ADD_V4,
+	NFP_NET_CFG_MBOX_CMD_FS_DEL_V4,
+	NFP_NET_CFG_MBOX_CMD_FS_ADD_V6,
+	NFP_NET_CFG_MBOX_CMD_FS_DEL_V6,
+	NFP_NET_CFG_MBOX_CMD_FS_ADD_ETHTYPE,
+	NFP_NET_CFG_MBOX_CMD_FS_DEL_ETHTYPE,
+};
 
 /* TLV capabilities
  * %NFP_NET_CFG_TLV_TYPE:	Offset of type within the TLV

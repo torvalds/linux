@@ -190,7 +190,10 @@ struct vop2 {
 	void __iomem *regs;
 	struct regmap *map;
 
-	struct regmap *grf;
+	struct regmap *sys_grf;
+	struct regmap *vop_grf;
+	struct regmap *vo1_grf;
+	struct regmap *sys_pmu;
 
 	/* physical map length of vop2 register */
 	u32 len;
@@ -209,6 +212,7 @@ struct vop2 {
 	unsigned int enable_count;
 	struct clk *hclk;
 	struct clk *aclk;
+	struct clk *pclk;
 
 	/* optional internal rgb encoder */
 	struct rockchip_rgb *rgb;
@@ -216,6 +220,25 @@ struct vop2 {
 	/* must be put at the end of the struct */
 	struct vop2_win win[];
 };
+
+#define vop2_output_if_is_hdmi(x)	((x) == ROCKCHIP_VOP2_EP_HDMI0 || \
+					 (x) == ROCKCHIP_VOP2_EP_HDMI1)
+
+#define vop2_output_if_is_dp(x)		((x) == ROCKCHIP_VOP2_EP_DP0 || \
+					 (x) == ROCKCHIP_VOP2_EP_DP1)
+
+#define vop2_output_if_is_edp(x)	((x) == ROCKCHIP_VOP2_EP_EDP0 || \
+					 (x) == ROCKCHIP_VOP2_EP_EDP1)
+
+#define vop2_output_if_is_mipi(x)	((x) == ROCKCHIP_VOP2_EP_MIPI0 || \
+					 (x) == ROCKCHIP_VOP2_EP_MIPI1)
+
+#define vop2_output_if_is_lvds(x)	((x) == ROCKCHIP_VOP2_EP_LVDS0 || \
+					 (x) == ROCKCHIP_VOP2_EP_LVDS1)
+
+#define vop2_output_if_is_dpi(x)	((x) == ROCKCHIP_VOP2_EP_RGB0)
+
+static const struct regmap_config vop2_regmap_config;
 
 static struct vop2_video_port *to_vop2_video_port(struct drm_crtc *crtc)
 {
@@ -266,12 +289,23 @@ static bool vop2_cluster_window(const struct vop2_win *win)
 	return win->data->feature & WIN_FEATURE_CLUSTER;
 }
 
+/*
+ * Note:
+ * The write mask function is documented but missing on rk3566/8, writes
+ * to these bits have no effect. For newer soc(rk3588 and following) the
+ * write mask is needed for register writes.
+ *
+ * GLB_CFG_DONE_EN has no write mask bit.
+ *
+ */
 static void vop2_cfg_done(struct vop2_video_port *vp)
 {
 	struct vop2 *vop2 = vp->vop2;
+	u32 val = RK3568_REG_CFG_DONE__GLB_CFG_DONE_EN;
 
-	regmap_set_bits(vop2->map, RK3568_REG_CFG_DONE,
-			BIT(vp->id) | RK3568_REG_CFG_DONE__GLB_CFG_DONE_EN);
+	val |= BIT(vp->id) | (BIT(vp->id) << 16);
+
+	regmap_set_bits(vop2->map, RK3568_REG_CFG_DONE, val);
 }
 
 static void vop2_win_disable(struct vop2_win *win)
@@ -325,11 +359,14 @@ static enum vop2_data_format vop2_convert_format(u32 format)
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV61:
 		return VOP2_FMT_YUV422SP;
+	case DRM_FORMAT_NV20:
 	case DRM_FORMAT_Y210:
 		return VOP2_FMT_YUV422SP_10;
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV42:
 		return VOP2_FMT_YUV444SP;
+	case DRM_FORMAT_NV30:
+		return VOP2_FMT_YUV444SP_10;
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 		return VOP2_FMT_VYUY422;
@@ -414,6 +451,8 @@ static bool vop2_win_uv_swap(u32 format)
 	case DRM_FORMAT_NV16:
 	case DRM_FORMAT_NV24:
 	case DRM_FORMAT_NV15:
+	case DRM_FORMAT_NV20:
+	case DRM_FORMAT_NV30:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_UYVY:
 		return true;
@@ -455,6 +494,17 @@ static bool vop2_output_uv_swap(u32 bus_format, u32 output_mode)
 		return true;
 	else
 		return false;
+}
+
+static bool vop2_output_rg_swap(struct vop2 *vop2, u32 bus_format)
+{
+	if (vop2->data->soc_id == 3588) {
+		if (bus_format == MEDIA_BUS_FMT_YUV8_1X24 ||
+		    bus_format == MEDIA_BUS_FMT_YUV10_1X30)
+			return true;
+	}
+
+	return false;
 }
 
 static bool is_yuv_output(u32 bus_format)
@@ -512,6 +562,18 @@ static bool rockchip_vop2_mod_supported(struct drm_plane *plane, u32 format,
 	}
 
 	return vop2_convert_afbc_format(format) >= 0;
+}
+
+/*
+ * 0: Full mode, 16 lines for one tail
+ * 1: half block mode, 8 lines one tail
+ */
+static bool vop2_half_block_enable(struct drm_plane_state *pstate)
+{
+	if (pstate->rotation & (DRM_MODE_ROTATE_270 | DRM_MODE_ROTATE_90))
+		return false;
+	else
+		return true;
 }
 
 static u32 vop2_afbc_transform_offset(struct drm_plane_state *pstate,
@@ -849,11 +911,30 @@ static int vop2_core_clks_prepare_enable(struct vop2 *vop2)
 		goto err;
 	}
 
+	ret = clk_prepare_enable(vop2->pclk);
+	if (ret < 0) {
+		drm_err(vop2->drm, "failed to enable pclk - %d\n", ret);
+		goto err1;
+	}
+
 	return 0;
+err1:
+	clk_disable_unprepare(vop2->aclk);
 err:
 	clk_disable_unprepare(vop2->hclk);
 
 	return ret;
+}
+
+static void rk3588_vop2_power_domain_enable_all(struct vop2 *vop2)
+{
+	u32 pd;
+
+	pd = vop2_readl(vop2, RK3588_SYS_PD_CTRL);
+	pd &= ~(VOP2_PD_CLUSTER0 | VOP2_PD_CLUSTER1 | VOP2_PD_CLUSTER2 |
+		VOP2_PD_CLUSTER3 | VOP2_PD_ESMART);
+
+	vop2_writel(vop2, RK3588_SYS_PD_CTRL, pd);
 }
 
 static void vop2_enable(struct vop2 *vop2)
@@ -878,10 +959,11 @@ static void vop2_enable(struct vop2 *vop2)
 		return;
 	}
 
-	regcache_sync(vop2->map);
-
 	if (vop2->data->soc_id == 3566)
 		vop2_writel(vop2, RK3568_OTP_WIN_EN, 1);
+
+	if (vop2->data->soc_id == 3588)
+		rk3588_vop2_power_domain_enable_all(vop2);
 
 	vop2_writel(vop2, RK3568_REG_CFG_DONE, RK3568_REG_CFG_DONE__GLB_CFG_DONE_EN);
 
@@ -908,8 +990,9 @@ static void vop2_disable(struct vop2 *vop2)
 
 	pm_runtime_put_sync(vop2->dev);
 
-	regcache_mark_dirty(vop2->map);
+	regcache_drop_region(vop2->map, 0, vop2_regmap_config.max_register);
 
+	clk_disable_unprepare(vop2->pclk);
 	clk_disable_unprepare(vop2->aclk);
 	clk_disable_unprepare(vop2->hclk);
 }
@@ -1135,6 +1218,7 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	bool rotate_90 = pstate->rotation & DRM_MODE_ROTATE_90;
 	struct rockchip_gem_object *rk_obj;
 	unsigned long offset;
+	bool half_block_en;
 	bool afbc_en;
 	dma_addr_t yrgb_mst;
 	dma_addr_t uv_mst;
@@ -1227,12 +1311,16 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 	dsp_info = (dsp_h - 1) << 16 | ((dsp_w - 1) & 0xffff);
 
 	format = vop2_convert_format(fb->format->format);
+	half_block_en = vop2_half_block_enable(pstate);
 
 	drm_dbg(vop2->drm, "vp%d update %s[%dx%d->%dx%d@%dx%d] fmt[%p4cc_%s] addr[%pad]\n",
 		vp->id, win->data->name, actual_w, actual_h, dsp_w, dsp_h,
 		dest->x1, dest->y1,
 		&fb->format->format,
 		afbc_en ? "AFBC" : "", &yrgb_mst);
+
+	if (vop2_cluster_window(win))
+		vop2_win_write(win, VOP2_WIN_AFBC_HALF_BLOCK_EN, half_block_en);
 
 	if (afbc_en) {
 		u32 stride;
@@ -1272,15 +1360,21 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 			vop2_win_write(win, VOP2_WIN_AFBC_ENABLE, 1);
 		vop2_win_write(win, VOP2_WIN_AFBC_FORMAT, afbc_format);
 		vop2_win_write(win, VOP2_WIN_AFBC_UV_SWAP, uv_swap);
-		vop2_win_write(win, VOP2_WIN_AFBC_AUTO_GATING_EN, 0);
+		/*
+		 * On rk3566/8, this bit is auto gating enable,
+		 * but this function is not work well so we need
+		 * to disable it for these two platform.
+		 * On rk3588, and the following new soc(rk3528/rk3576),
+		 * this bit is gating disable, we should write 1 to
+		 * disable gating when enable afbc.
+		 */
+		if (vop2->data->soc_id == 3566 || vop2->data->soc_id == 3568)
+			vop2_win_write(win, VOP2_WIN_AFBC_AUTO_GATING_EN, 0);
+		else
+			vop2_win_write(win, VOP2_WIN_AFBC_AUTO_GATING_EN, 1);
+
 		vop2_win_write(win, VOP2_WIN_AFBC_BLOCK_SPLIT_EN, 0);
-		if (pstate->rotation & (DRM_MODE_ROTATE_270 | DRM_MODE_ROTATE_90)) {
-			vop2_win_write(win, VOP2_WIN_AFBC_HALF_BLOCK_EN, 0);
-			transform_offset = vop2_afbc_transform_offset(pstate, false);
-		} else {
-			vop2_win_write(win, VOP2_WIN_AFBC_HALF_BLOCK_EN, 1);
-			transform_offset = vop2_afbc_transform_offset(pstate, true);
-		}
+		transform_offset = vop2_afbc_transform_offset(pstate, half_block_en);
 		vop2_win_write(win, VOP2_WIN_AFBC_HDR_PTR, yrgb_mst);
 		vop2_win_write(win, VOP2_WIN_AFBC_PIC_SIZE, act_info);
 		vop2_win_write(win, VOP2_WIN_AFBC_TRANSFORM_OFFSET, transform_offset);
@@ -1292,6 +1386,11 @@ static void vop2_plane_atomic_update(struct drm_plane *plane,
 		vop2_win_write(win, VOP2_WIN_AFBC_ROTATE_270, rotate_270);
 		vop2_win_write(win, VOP2_WIN_AFBC_ROTATE_90, rotate_90);
 	} else {
+		if (vop2_cluster_window(win)) {
+			vop2_win_write(win, VOP2_WIN_AFBC_ENABLE, 0);
+			vop2_win_write(win, VOP2_WIN_AFBC_TRANSFORM_OFFSET, 0);
+		}
+
 		vop2_win_write(win, VOP2_WIN_YRGB_VIR, DIV_ROUND_UP(fb->pitches[0], 4));
 	}
 
@@ -1424,8 +1523,18 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	u32 top_margin = 100, bottom_margin = 100;
 	u16 hsize = hdisplay * (left_margin + right_margin) / 200;
 	u16 vsize = vdisplay * (top_margin + bottom_margin) / 200;
+	u16 hsync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
 	u16 hact_end, vact_end;
 	u32 val;
+	u32 bg_dly;
+	u32 pre_scan_dly;
+
+	bg_dly = vp->data->pre_scan_max_dly[3];
+	vop2_writel(vp->vop2, RK3568_VP_BG_MIX_CTRL(vp->id),
+		    FIELD_PREP(RK3568_VP_BG_MIX_CTRL__BG_DLY, bg_dly));
+
+	pre_scan_dly = ((bg_dly + (hdisplay >> 1) - 1) << 16) | hsync_len;
+	vop2_vp_write(vp, RK3568_VP_PRE_SCAN_HTIMING, pre_scan_dly);
 
 	vsize = rounddown(vsize, 2);
 	hsize = rounddown(hsize, 2);
@@ -1461,10 +1570,10 @@ static void vop2_post_config(struct drm_crtc *crtc)
 	vop2_vp_write(vp, RK3568_VP_DSP_BG, 0);
 }
 
-static void rk3568_set_intf_mux(struct vop2_video_port *vp, int id,
-				u32 polflags)
+static unsigned long rk3568_set_intf_mux(struct vop2_video_port *vp, int id, u32 polflags)
 {
 	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc *crtc = &vp->crtc;
 	u32 die, dip;
 
 	die = vop2_readl(vop2, RK3568_DSP_IF_EN);
@@ -1478,9 +1587,9 @@ static void rk3568_set_intf_mux(struct vop2_video_port *vp, int id,
 		dip &= ~RK3568_DSP_IF_POL__RGB_LVDS_PIN_POL;
 		dip |= FIELD_PREP(RK3568_DSP_IF_POL__RGB_LVDS_PIN_POL, polflags);
 		if (polflags & POLFLAG_DCLK_INV)
-			regmap_write(vop2->grf, RK3568_GRF_VO_CON1, BIT(3 + 16) | BIT(3));
+			regmap_write(vop2->sys_grf, RK3568_GRF_VO_CON1, BIT(3 + 16) | BIT(3));
 		else
-			regmap_write(vop2->grf, RK3568_GRF_VO_CON1, BIT(3 + 16));
+			regmap_write(vop2->sys_grf, RK3568_GRF_VO_CON1, BIT(3 + 16));
 		break;
 	case ROCKCHIP_VOP2_EP_HDMI0:
 		die &= ~RK3568_SYS_DSP_INFACE_EN_HDMI_MUX;
@@ -1526,13 +1635,281 @@ static void rk3568_set_intf_mux(struct vop2_video_port *vp, int id,
 		break;
 	default:
 		drm_err(vop2->drm, "Invalid interface id %d on vp%d\n", id, vp->id);
-		return;
+		return 0;
 	}
 
 	dip |= RK3568_DSP_IF_POL__CFG_DONE_IMD;
 
 	vop2_writel(vop2, RK3568_DSP_IF_EN, die);
 	vop2_writel(vop2, RK3568_DSP_IF_POL, dip);
+
+	return crtc->state->adjusted_mode.crtc_clock  * 1000LL;
+}
+
+/*
+ * calc the dclk on rk3588
+ * the available div of dclk is 1, 2, 4
+ */
+static unsigned long rk3588_calc_dclk(unsigned long child_clk, unsigned long max_dclk)
+{
+	if (child_clk * 4 <= max_dclk)
+		return child_clk * 4;
+	else if (child_clk * 2 <= max_dclk)
+		return child_clk * 2;
+	else if (child_clk <= max_dclk)
+		return child_clk;
+	else
+		return 0;
+}
+
+/*
+ * 4 pixclk/cycle on rk3588
+ * RGB/eDP/HDMI: if_pixclk >= dclk_core
+ * DP: dp_pixclk = dclk_out <= dclk_core
+ * DSI: mipi_pixclk <= dclk_out <= dclk_core
+ */
+static unsigned long rk3588_calc_cru_cfg(struct vop2_video_port *vp, int id,
+					 int *dclk_core_div, int *dclk_out_div,
+					 int *if_pixclk_div, int *if_dclk_div)
+{
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_crtc *crtc = &vp->crtc;
+	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	int output_mode = vcstate->output_mode;
+	unsigned long v_pixclk = adjusted_mode->crtc_clock * 1000LL; /* video timing pixclk */
+	unsigned long dclk_core_rate = v_pixclk >> 2;
+	unsigned long dclk_rate = v_pixclk;
+	unsigned long dclk_out_rate;
+	unsigned long if_dclk_rate;
+	unsigned long if_pixclk_rate;
+	int K = 1;
+
+	if (vop2_output_if_is_hdmi(id)) {
+		/*
+		 * K = 2: dclk_core = if_pixclk_rate > if_dclk_rate
+		 * K = 1: dclk_core = hdmie_edp_dclk > if_pixclk_rate
+		 */
+		if (output_mode == ROCKCHIP_OUT_MODE_YUV420) {
+			dclk_rate = dclk_rate >> 1;
+			K = 2;
+		}
+
+		if_pixclk_rate = (dclk_core_rate << 1) / K;
+		if_dclk_rate = dclk_core_rate / K;
+		/*
+		 * *if_pixclk_div = dclk_rate / if_pixclk_rate;
+		 * *if_dclk_div = dclk_rate / if_dclk_rate;
+		 */
+		*if_pixclk_div = 2;
+		*if_dclk_div = 4;
+	} else if (vop2_output_if_is_edp(id)) {
+		/*
+		 * edp_pixclk = edp_dclk > dclk_core
+		 */
+		if_pixclk_rate = v_pixclk / K;
+		dclk_rate = if_pixclk_rate * K;
+		/*
+		 * *if_pixclk_div = dclk_rate / if_pixclk_rate;
+		 * *if_dclk_div = *if_pixclk_div;
+		 */
+		*if_pixclk_div = K;
+		*if_dclk_div = K;
+	} else if (vop2_output_if_is_dp(id)) {
+		if (output_mode == ROCKCHIP_OUT_MODE_YUV420)
+			dclk_out_rate = v_pixclk >> 3;
+		else
+			dclk_out_rate = v_pixclk >> 2;
+
+		dclk_rate = rk3588_calc_dclk(dclk_out_rate, 600000);
+		if (!dclk_rate) {
+			drm_err(vop2->drm, "DP dclk_out_rate out of range, dclk_out_rate: %ld KHZ\n",
+				dclk_out_rate);
+			return 0;
+		}
+		*dclk_out_div = dclk_rate / dclk_out_rate;
+	} else if (vop2_output_if_is_mipi(id)) {
+		if_pixclk_rate = dclk_core_rate / K;
+		/*
+		 * dclk_core = dclk_out * K = if_pixclk * K = v_pixclk / 4
+		 */
+		dclk_out_rate = if_pixclk_rate;
+		/*
+		 * dclk_rate = N * dclk_core_rate N = (1,2,4 ),
+		 * we get a little factor here
+		 */
+		dclk_rate = rk3588_calc_dclk(dclk_out_rate, 600000);
+		if (!dclk_rate) {
+			drm_err(vop2->drm, "MIPI dclk out of range, dclk_out_rate: %ld KHZ\n",
+				dclk_out_rate);
+			return 0;
+		}
+		*dclk_out_div = dclk_rate / dclk_out_rate;
+		/*
+		 * mipi pixclk == dclk_out
+		 */
+		*if_pixclk_div = 1;
+	} else if (vop2_output_if_is_dpi(id)) {
+		dclk_rate = v_pixclk;
+	}
+
+	*dclk_core_div = dclk_rate / dclk_core_rate;
+	*if_pixclk_div = ilog2(*if_pixclk_div);
+	*if_dclk_div = ilog2(*if_dclk_div);
+	*dclk_core_div = ilog2(*dclk_core_div);
+	*dclk_out_div = ilog2(*dclk_out_div);
+
+	drm_dbg(vop2->drm, "dclk: %ld, pixclk_div: %d, dclk_div: %d\n",
+		dclk_rate, *if_pixclk_div, *if_dclk_div);
+
+	return dclk_rate;
+}
+
+/*
+ * MIPI port mux on rk3588:
+ * 0: Video Port2
+ * 1: Video Port3
+ * 3: Video Port 1(MIPI1 only)
+ */
+static u32 rk3588_get_mipi_port_mux(int vp_id)
+{
+	if (vp_id == 1)
+		return 3;
+	else if (vp_id == 3)
+		return 1;
+	else
+		return 0;
+}
+
+static u32 rk3588_get_hdmi_pol(u32 flags)
+{
+	u32 val;
+
+	val = (flags & DRM_MODE_FLAG_NHSYNC) ? BIT(HSYNC_POSITIVE) : 0;
+	val |= (flags & DRM_MODE_FLAG_NVSYNC) ? BIT(VSYNC_POSITIVE) : 0;
+
+	return val;
+}
+
+static unsigned long rk3588_set_intf_mux(struct vop2_video_port *vp, int id, u32 polflags)
+{
+	struct vop2 *vop2 = vp->vop2;
+	int dclk_core_div, dclk_out_div, if_pixclk_div, if_dclk_div;
+	unsigned long clock;
+	u32 die, dip, div, vp_clk_div, val;
+
+	clock = rk3588_calc_cru_cfg(vp, id, &dclk_core_div, &dclk_out_div,
+				    &if_pixclk_div, &if_dclk_div);
+	if (!clock)
+		return 0;
+
+	vp_clk_div = FIELD_PREP(RK3588_VP_CLK_CTRL__DCLK_CORE_DIV, dclk_core_div);
+	vp_clk_div |= FIELD_PREP(RK3588_VP_CLK_CTRL__DCLK_OUT_DIV, dclk_out_div);
+
+	die = vop2_readl(vop2, RK3568_DSP_IF_EN);
+	dip = vop2_readl(vop2, RK3568_DSP_IF_POL);
+	div = vop2_readl(vop2, RK3568_DSP_IF_CTRL);
+
+	switch (id) {
+	case ROCKCHIP_VOP2_EP_HDMI0:
+		div &= ~RK3588_DSP_IF_EDP_HDMI0_DCLK_DIV;
+		div &= ~RK3588_DSP_IF_EDP_HDMI0_PCLK_DIV;
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI0_DCLK_DIV, if_dclk_div);
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI0_PCLK_DIV, if_pixclk_div);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_HDMI0 |
+			    FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX, vp->id);
+		val = rk3588_get_hdmi_pol(polflags);
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 1, 1));
+		regmap_write(vop2->vo1_grf, RK3588_GRF_VO1_CON0, HIWORD_UPDATE(val, 6, 5));
+		break;
+	case ROCKCHIP_VOP2_EP_HDMI1:
+		div &= ~RK3588_DSP_IF_EDP_HDMI1_DCLK_DIV;
+		div &= ~RK3588_DSP_IF_EDP_HDMI1_PCLK_DIV;
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI1_DCLK_DIV, if_dclk_div);
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI1_PCLK_DIV, if_pixclk_div);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_HDMI1 |
+			    FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX, vp->id);
+		val = rk3588_get_hdmi_pol(polflags);
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 4, 4));
+		regmap_write(vop2->vo1_grf, RK3588_GRF_VO1_CON0, HIWORD_UPDATE(val, 8, 7));
+		break;
+	case ROCKCHIP_VOP2_EP_EDP0:
+		div &= ~RK3588_DSP_IF_EDP_HDMI0_DCLK_DIV;
+		div &= ~RK3588_DSP_IF_EDP_HDMI0_PCLK_DIV;
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI0_DCLK_DIV, if_dclk_div);
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI0_PCLK_DIV, if_pixclk_div);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_EDP0 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI0_MUX, vp->id);
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 0, 0));
+		break;
+	case ROCKCHIP_VOP2_EP_EDP1:
+		div &= ~RK3588_DSP_IF_EDP_HDMI1_DCLK_DIV;
+		div &= ~RK3588_DSP_IF_EDP_HDMI1_PCLK_DIV;
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI0_DCLK_DIV, if_dclk_div);
+		div |= FIELD_PREP(RK3588_DSP_IF_EDP_HDMI0_PCLK_DIV, if_pixclk_div);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_EDP1 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_EDP_HDMI1_MUX, vp->id);
+		regmap_write(vop2->vop_grf, RK3588_GRF_VOP_CON2, HIWORD_UPDATE(1, 3, 3));
+		break;
+	case ROCKCHIP_VOP2_EP_MIPI0:
+		div &= ~RK3588_DSP_IF_MIPI0_PCLK_DIV;
+		div |= FIELD_PREP(RK3588_DSP_IF_MIPI0_PCLK_DIV, if_pixclk_div);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_MIPI0_MUX;
+		val = rk3588_get_mipi_port_mux(vp->id);
+		die |= RK3588_SYS_DSP_INFACE_EN_MIPI0 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_MIPI0_MUX, !!val);
+		break;
+	case ROCKCHIP_VOP2_EP_MIPI1:
+		div &= ~RK3588_DSP_IF_MIPI1_PCLK_DIV;
+		div |= FIELD_PREP(RK3588_DSP_IF_MIPI1_PCLK_DIV, if_pixclk_div);
+		die &= ~RK3588_SYS_DSP_INFACE_EN_MIPI1_MUX;
+		val = rk3588_get_mipi_port_mux(vp->id);
+		die |= RK3588_SYS_DSP_INFACE_EN_MIPI1 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_MIPI1_MUX, val);
+		break;
+	case ROCKCHIP_VOP2_EP_DP0:
+		die &= ~RK3588_SYS_DSP_INFACE_EN_DP0_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_DP0 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_DP0_MUX, vp->id);
+		dip &= ~RK3588_DSP_IF_POL__DP0_PIN_POL;
+		dip |= FIELD_PREP(RK3588_DSP_IF_POL__DP0_PIN_POL, polflags);
+		break;
+	case ROCKCHIP_VOP2_EP_DP1:
+		die &= ~RK3588_SYS_DSP_INFACE_EN_MIPI1_MUX;
+		die |= RK3588_SYS_DSP_INFACE_EN_MIPI1 |
+			   FIELD_PREP(RK3588_SYS_DSP_INFACE_EN_MIPI1_MUX, vp->id);
+		dip &= ~RK3588_DSP_IF_POL__DP1_PIN_POL;
+		dip |= FIELD_PREP(RK3588_DSP_IF_POL__DP1_PIN_POL, polflags);
+		break;
+	default:
+		drm_err(vop2->drm, "Invalid interface id %d on vp%d\n", id, vp->id);
+		return 0;
+	}
+
+	dip |= RK3568_DSP_IF_POL__CFG_DONE_IMD;
+
+	vop2_vp_write(vp, RK3588_VP_CLK_CTRL, vp_clk_div);
+	vop2_writel(vop2, RK3568_DSP_IF_EN, die);
+	vop2_writel(vop2, RK3568_DSP_IF_CTRL, div);
+	vop2_writel(vop2, RK3568_DSP_IF_POL, dip);
+
+	return clock;
+}
+
+static unsigned long vop2_set_intf_mux(struct vop2_video_port *vp, int ep_id, u32 polflags)
+{
+	struct vop2 *vop2 = vp->vop2;
+
+	if (vop2->data->soc_id == 3566 || vop2->data->soc_id == 3568)
+		return rk3568_set_intf_mux(vp, ep_id, polflags);
+	else if (vop2->data->soc_id == 3588)
+		return rk3588_set_intf_mux(vp, ep_id, polflags);
+	else
+		return 0;
 }
 
 static int us_to_vertical_line(struct drm_display_mode *mode, int us)
@@ -1587,6 +1964,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	vop2->enable_count++;
 
+	vcstate->yuv_overlay = is_yuv_output(vcstate->bus_format);
+
 	vop2_crtc_enable_irq(vp, VP_INT_POST_BUF_EMPTY);
 
 	polflags = 0;
@@ -1600,11 +1979,19 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_for_each_encoder_mask(encoder, crtc->dev, crtc_state->encoder_mask) {
 		struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
 
-		rk3568_set_intf_mux(vp, rkencoder->crtc_endpoint_id, polflags);
+		/*
+		 * for drive a high resolution(4KP120, 8K), vop on rk3588/rk3576 need
+		 * process multi(1/2/4/8) pixels per cycle, so the dclk feed by the
+		 * system cru may be the 1/2 or 1/4 of mode->clock.
+		 */
+		clock = vop2_set_intf_mux(vp, rkencoder->crtc_endpoint_id, polflags);
 	}
 
+	if (!clock)
+		return;
+
 	if (vcstate->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
-	    !(vp_data->feature & VOP_FEATURE_OUTPUT_10BIT))
+	    !(vp_data->feature & VOP2_VP_FEATURE_OUTPUT_10BIT))
 		out_mode = ROCKCHIP_OUT_MODE_P888;
 	else
 		out_mode = vcstate->output_mode;
@@ -1613,8 +2000,10 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	if (vop2_output_uv_swap(vcstate->bus_format, vcstate->output_mode))
 		dsp_ctrl |= RK3568_VP_DSP_CTRL__DSP_RB_SWAP;
+	if (vop2_output_rg_swap(vop2, vcstate->bus_format))
+		dsp_ctrl |= RK3568_VP_DSP_CTRL__DSP_RG_SWAP;
 
-	if (is_yuv_output(vcstate->bus_format))
+	if (vcstate->yuv_overlay)
 		dsp_ctrl |= RK3568_VP_DSP_CTRL__POST_DSP_OUT_R2Y;
 
 	vop2_dither_setup(crtc, &dsp_ctrl);
@@ -1918,28 +2307,22 @@ static void vop2_setup_layer_mixer(struct vop2_video_port *vp)
 	u32 layer_sel = 0;
 	u32 port_sel;
 	unsigned int nlayer, ofs;
-	struct drm_display_mode *adjusted_mode;
-	u16 hsync_len;
-	u16 hdisplay;
-	u32 bg_dly;
-	u32 pre_scan_dly;
+	u32 ovl_ctrl;
 	int i;
 	struct vop2_video_port *vp0 = &vop2->vps[0];
 	struct vop2_video_port *vp1 = &vop2->vps[1];
 	struct vop2_video_port *vp2 = &vop2->vps[2];
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(vp->crtc.state);
 
-	adjusted_mode = &vp->crtc.state->adjusted_mode;
-	hsync_len = adjusted_mode->crtc_hsync_end - adjusted_mode->crtc_hsync_start;
-	hdisplay = adjusted_mode->crtc_hdisplay;
+	ovl_ctrl = vop2_readl(vop2, RK3568_OVL_CTRL);
+	ovl_ctrl |= RK3568_OVL_CTRL__LAYERSEL_REGDONE_IMD;
+	if (vcstate->yuv_overlay)
+		ovl_ctrl |= RK3568_OVL_CTRL__YUV_MODE(vp->id);
+	else
+		ovl_ctrl &= ~RK3568_OVL_CTRL__YUV_MODE(vp->id);
 
-	bg_dly = vp->data->pre_scan_max_dly[3];
-	vop2_writel(vop2, RK3568_VP_BG_MIX_CTRL(vp->id),
-		    FIELD_PREP(RK3568_VP_BG_MIX_CTRL__BG_DLY, bg_dly));
+	vop2_writel(vop2, RK3568_OVL_CTRL, ovl_ctrl);
 
-	pre_scan_dly = ((bg_dly + (hdisplay >> 1) - 1) << 16) | hsync_len;
-	vop2_vp_write(vp, RK3568_VP_PRE_SCAN_HTIMING, pre_scan_dly);
-
-	vop2_writel(vop2, RK3568_OVL_CTRL, 0);
 	port_sel = vop2_readl(vop2, RK3568_OVL_PORT_SEL);
 	port_sel &= RK3568_OVL_PORT_SEL__SEL_PORT;
 
@@ -1980,6 +2363,14 @@ static void vop2_setup_layer_mixer(struct vop2_video_port *vp)
 			port_sel &= ~RK3568_OVL_PORT_SEL__CLUSTER1;
 			port_sel |= FIELD_PREP(RK3568_OVL_PORT_SEL__CLUSTER1, vp->id);
 			break;
+		case ROCKCHIP_VOP2_CLUSTER2:
+			port_sel &= ~RK3588_OVL_PORT_SEL__CLUSTER2;
+			port_sel |= FIELD_PREP(RK3588_OVL_PORT_SEL__CLUSTER2, vp->id);
+			break;
+		case ROCKCHIP_VOP2_CLUSTER3:
+			port_sel &= ~RK3588_OVL_PORT_SEL__CLUSTER3;
+			port_sel |= FIELD_PREP(RK3588_OVL_PORT_SEL__CLUSTER3, vp->id);
+			break;
 		case ROCKCHIP_VOP2_ESMART0:
 			port_sel &= ~RK3568_OVL_PORT_SEL__ESMART0;
 			port_sel |= FIELD_PREP(RK3568_OVL_PORT_SEL__ESMART0, vp->id);
@@ -1987,6 +2378,14 @@ static void vop2_setup_layer_mixer(struct vop2_video_port *vp)
 		case ROCKCHIP_VOP2_ESMART1:
 			port_sel &= ~RK3568_OVL_PORT_SEL__ESMART1;
 			port_sel |= FIELD_PREP(RK3568_OVL_PORT_SEL__ESMART1, vp->id);
+			break;
+		case ROCKCHIP_VOP2_ESMART2:
+			port_sel &= ~RK3588_OVL_PORT_SEL__ESMART2;
+			port_sel |= FIELD_PREP(RK3588_OVL_PORT_SEL__ESMART2, vp->id);
+			break;
+		case ROCKCHIP_VOP2_ESMART3:
+			port_sel &= ~RK3588_OVL_PORT_SEL__ESMART3;
+			port_sel |= FIELD_PREP(RK3588_OVL_PORT_SEL__ESMART3, vp->id);
 			break;
 		case ROCKCHIP_VOP2_SMART0:
 			port_sel &= ~RK3568_OVL_PORT_SEL__SMART0;
@@ -2013,7 +2412,6 @@ static void vop2_setup_layer_mixer(struct vop2_video_port *vp)
 
 	vop2_writel(vop2, RK3568_OVL_LAYER_SEL, layer_sel);
 	vop2_writel(vop2, RK3568_OVL_PORT_SEL, port_sel);
-	vop2_writel(vop2, RK3568_OVL_CTRL, RK3568_OVL_CTRL__LAYERSEL_REGDONE_IMD);
 }
 
 static void vop2_setup_dly_for_windows(struct vop2 *vop2)
@@ -2725,8 +3123,29 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 		if (IS_ERR(vop2->lut_regs))
 			return PTR_ERR(vop2->lut_regs);
 	}
+	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_GRF) {
+		vop2->sys_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+		if (IS_ERR(vop2->sys_grf))
+			return dev_err_probe(dev, PTR_ERR(vop2->sys_grf), "cannot get sys_grf");
+	}
 
-	vop2->grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,grf");
+	if (vop2_data->feature & VOP2_FEATURE_HAS_VOP_GRF) {
+		vop2->vop_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vop-grf");
+		if (IS_ERR(vop2->vop_grf))
+			return dev_err_probe(dev, PTR_ERR(vop2->vop_grf), "cannot get vop_grf");
+	}
+
+	if (vop2_data->feature & VOP2_FEATURE_HAS_VO1_GRF) {
+		vop2->vo1_grf = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,vo1-grf");
+		if (IS_ERR(vop2->vo1_grf))
+			return dev_err_probe(dev, PTR_ERR(vop2->vo1_grf), "cannot get vo1_grf");
+	}
+
+	if (vop2_data->feature & VOP2_FEATURE_HAS_SYS_PMU) {
+		vop2->sys_pmu = syscon_regmap_lookup_by_phandle(dev->of_node, "rockchip,pmu");
+		if (IS_ERR(vop2->sys_pmu))
+			return dev_err_probe(dev, PTR_ERR(vop2->sys_pmu), "cannot get sys_pmu");
+	}
 
 	vop2->hclk = devm_clk_get(vop2->dev, "hclk");
 	if (IS_ERR(vop2->hclk)) {
@@ -2738,6 +3157,12 @@ static int vop2_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(vop2->aclk)) {
 		drm_err(vop2->drm, "failed to get aclk source\n");
 		return PTR_ERR(vop2->aclk);
+	}
+
+	vop2->pclk = devm_clk_get_optional(vop2->dev, "pclk_vop");
+	if (IS_ERR(vop2->pclk)) {
+		drm_err(vop2->drm, "failed to get pclk source\n");
+		return PTR_ERR(vop2->pclk);
 	}
 
 	vop2->irq = platform_get_irq(pdev, 0);

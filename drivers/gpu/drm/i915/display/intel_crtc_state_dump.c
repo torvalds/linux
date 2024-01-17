@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 
 #include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
@@ -261,6 +262,15 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		drm_dbg_kms(&i915->drm, "fec: %s, enhanced framing: %s\n",
 			    str_enabled_disabled(pipe_config->fec_enable),
 			    str_enabled_disabled(pipe_config->enhanced_framing));
+
+		drm_dbg_kms(&i915->drm, "sdp split: %s\n",
+			    str_enabled_disabled(pipe_config->sdp_split_enable));
+
+		drm_dbg_kms(&i915->drm, "psr: %s, psr2: %s, panel replay: %s, selective fetch: %s\n",
+			    str_enabled_disabled(pipe_config->has_psr),
+			    str_enabled_disabled(pipe_config->has_psr2),
+			    str_enabled_disabled(pipe_config->has_panel_replay),
+			    str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
 	}
 
 	drm_dbg_kms(&i915->drm, "framestart delay: %d, MSA timing delay: %d\n",

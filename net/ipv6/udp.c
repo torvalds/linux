@@ -1541,10 +1541,10 @@ do_udp_sendmsg:
 		connected = false;
 
 	if (!fl6->flowi6_oif && ipv6_addr_is_multicast(&fl6->daddr)) {
-		fl6->flowi6_oif = np->mcast_oif;
+		fl6->flowi6_oif = READ_ONCE(np->mcast_oif);
 		connected = false;
 	} else if (!fl6->flowi6_oif)
-		fl6->flowi6_oif = np->ucast_oif;
+		fl6->flowi6_oif = READ_ONCE(np->ucast_oif);
 
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(fl6));
 

@@ -68,6 +68,12 @@ void bch2_dump_bset(struct bch_fs *c, struct btree *b,
 	     _k = _n) {
 		_n = bkey_p_next(_k);
 
+		if (!_k->u64s) {
+			printk(KERN_ERR "block %u key %5zu - u64s 0? aieee!\n", set,
+			       _k->_data - i->_data);
+			break;
+		}
+
 		k = bkey_disassemble(b, _k, &uk);
 
 		printbuf_reset(&buf);

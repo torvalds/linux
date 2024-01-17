@@ -451,7 +451,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 
 		spin_lock_irqsave(&uncore->lock, flags);
 		intel_uncore_posting_read_fw(uncore,
-					     RING_HEAD(RENDER_RING_BASE));
+					     RING_TAIL(RENDER_RING_BASE));
 		spin_unlock_irqrestore(&uncore->lock, flags);
 	}
 }

@@ -72,7 +72,7 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 		est_rst = true;
 		mutex_lock(&priv->plat->est->lock);
 		priv->plat->est->enable = false;
-		stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+		stmmac_est_configure(priv, priv, priv->plat->est,
 				     priv->plat->clk_ptp_rate);
 		mutex_unlock(&priv->plat->est->lock);
 	}
@@ -102,7 +102,7 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 		priv->plat->est->btr[0] = (u32)time.tv_nsec;
 		priv->plat->est->btr[1] = (u32)time.tv_sec;
 		priv->plat->est->enable = true;
-		ret = stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+		ret = stmmac_est_configure(priv, priv, priv->plat->est,
 					   priv->plat->clk_ptp_rate);
 		mutex_unlock(&priv->plat->est->lock);
 		if (ret)

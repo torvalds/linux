@@ -5,7 +5,7 @@
  *
  */
 
-#include<linux/bitfield.h>
+#include <linux/bitfield.h>
 
 #include "rvu.h"
 #include "rvu_reg.h"
@@ -1237,6 +1237,7 @@ enum rvu_af_dl_param_id {
 	RVU_AF_DEVLINK_PARAM_ID_DWRR_MTU,
 	RVU_AF_DEVLINK_PARAM_ID_NPC_EXACT_FEATURE_DISABLE,
 	RVU_AF_DEVLINK_PARAM_ID_NPC_MCAM_ZONE_PERCENT,
+	RVU_AF_DEVLINK_PARAM_ID_NIX_MAXLF,
 };
 
 static int rvu_af_npc_exact_feature_get(struct devlink *devlink, u32 id,
@@ -1354,6 +1355,79 @@ static int rvu_af_dl_npc_mcam_high_zone_percent_validate(struct devlink *devlink
 	return 0;
 }
 
+static int rvu_af_dl_nix_maxlf_get(struct devlink *devlink, u32 id,
+				   struct devlink_param_gset_ctx *ctx)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+
+	ctx->val.vu16 = (u16)rvu_get_nixlf_count(rvu);
+
+	return 0;
+}
+
+static int rvu_af_dl_nix_maxlf_set(struct devlink *devlink, u32 id,
+				   struct devlink_param_gset_ctx *ctx)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	struct rvu_block *block;
+	int blkaddr = 0;
+
+	npc_mcam_rsrcs_deinit(rvu);
+	blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	while (blkaddr) {
+		block = &rvu->hw->block[blkaddr];
+		block->lf.max = ctx->val.vu16;
+		blkaddr = rvu_get_next_nix_blkaddr(rvu, blkaddr);
+	}
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	npc_mcam_rsrcs_init(rvu, blkaddr);
+
+	return 0;
+}
+
+static int rvu_af_dl_nix_maxlf_validate(struct devlink *devlink, u32 id,
+					union devlink_param_value val,
+					struct netlink_ext_ack *extack)
+{
+	struct rvu_devlink *rvu_dl = devlink_priv(devlink);
+	struct rvu *rvu = rvu_dl->rvu;
+	u16 max_nix0_lf, max_nix1_lf;
+	struct npc_mcam *mcam;
+	u64 cfg;
+
+	cfg = rvu_read64(rvu, BLKADDR_NIX0, NIX_AF_CONST2);
+	max_nix0_lf = cfg & 0xFFF;
+	cfg = rvu_read64(rvu, BLKADDR_NIX1, NIX_AF_CONST2);
+	max_nix1_lf = cfg & 0xFFF;
+
+	/* Do not allow user to modify maximum NIX LFs while mcam entries
+	 * have already been assigned.
+	 */
+	mcam = &rvu->hw->mcam;
+	if (mcam->bmap_fcnt < mcam->bmap_entries) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "mcam entries have already been assigned, can't resize");
+		return -EPERM;
+	}
+
+	if (max_nix0_lf && val.vu16 > max_nix0_lf) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "requested nixlf is greater than the max supported nix0_lf");
+		return -EPERM;
+	}
+
+	if (max_nix1_lf && val.vu16 > max_nix1_lf) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "requested nixlf is greater than the max supported nix1_lf");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct devlink_param rvu_af_dl_params[] = {
 	DEVLINK_PARAM_DRIVER(RVU_AF_DEVLINK_PARAM_ID_DWRR_MTU,
 			     "dwrr_mtu", DEVLINK_PARAM_TYPE_U32,
@@ -1375,6 +1449,12 @@ static const struct devlink_param rvu_af_dl_param_exact_match[] = {
 			     rvu_af_dl_npc_mcam_high_zone_percent_get,
 			     rvu_af_dl_npc_mcam_high_zone_percent_set,
 			     rvu_af_dl_npc_mcam_high_zone_percent_validate),
+	DEVLINK_PARAM_DRIVER(RVU_AF_DEVLINK_PARAM_ID_NIX_MAXLF,
+			     "nix_maxlf", DEVLINK_PARAM_TYPE_U16,
+			     BIT(DEVLINK_PARAM_CMODE_RUNTIME),
+			     rvu_af_dl_nix_maxlf_get,
+			     rvu_af_dl_nix_maxlf_set,
+			     rvu_af_dl_nix_maxlf_validate),
 };
 
 /* Devlink switch mode */

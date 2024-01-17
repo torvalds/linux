@@ -475,7 +475,7 @@
 						<&sdma 20 23 1>, <&sdma 21 23 1>, <&sdma 22 23 1>;
 					dma-names = "rxa", "rxb", "rxc",
 							"txa", "txb", "txc";
-					fsl,asrc-rate  = <48000>;
+					fsl,asrc-rate = <48000>;
 					fsl,asrc-width = <16>;
 					status = "okay";
 				};

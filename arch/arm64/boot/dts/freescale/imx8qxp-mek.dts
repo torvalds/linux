@@ -31,7 +31,7 @@
 	};
 
 	gpio-sbu-mux {
-		compatible = "gpio-sbu-mux";
+		compatible = "nxp,cbdtu02043", "gpio-sbu-mux";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_typec_mux>;
 		select-gpios = <&lsio_gpio5 9 GPIO_ACTIVE_HIGH>;
@@ -47,6 +47,10 @@
 };
 
 &dsp {
+	status = "okay";
+};
+
+&dsp_reserved {
 	status = "okay";
 };
 
@@ -152,12 +156,6 @@
 		interrupt-parent = <&lsio_gpio1>;
 		interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
 
-		port {
-			typec_dr_sw: endpoint {
-				remote-endpoint = <&usb3_drd_sw>;
-			};
-		};
-
 		usb_con1: connector {
 			compatible = "usb-c-connector";
 			label = "USB-C";
@@ -169,8 +167,17 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
+				port@0 {
+					reg = <0>;
+
+					typec_dr_sw: endpoint {
+						remote-endpoint = <&usb3_drd_sw>;
+					};
+				};
+
 				port@1 {
 					reg = <1>;
+
 					typec_con_ss: endpoint {
 						remote-endpoint = <&usb3_data_ss>;
 					};

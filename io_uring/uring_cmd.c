@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/file.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <linux/security.h>
 #include <linux/nospec.h>
 
@@ -52,12 +52,6 @@ void io_uring_cmd_mark_cancelable(struct io_uring_cmd *cmd,
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_mark_cancelable);
 
-struct task_struct *io_uring_cmd_get_task(struct io_uring_cmd *cmd)
-{
-	return cmd_to_io_kiocb(cmd)->task;
-}
-EXPORT_SYMBOL_GPL(io_uring_cmd_get_task);
-
 static void io_uring_cmd_work(struct io_kiocb *req, struct io_tw_state *ts)
 {
 	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req, struct io_uring_cmd);
@@ -77,13 +71,6 @@ void __io_uring_cmd_do_in_task(struct io_uring_cmd *ioucmd,
 	__io_req_task_work_add(req, flags);
 }
 EXPORT_SYMBOL_GPL(__io_uring_cmd_do_in_task);
-
-void io_uring_cmd_do_in_task_lazy(struct io_uring_cmd *ioucmd,
-			void (*task_work_cb)(struct io_uring_cmd *, unsigned))
-{
-	__io_uring_cmd_do_in_task(ioucmd, task_work_cb, IOU_F_TWQ_LAZY_WAKE);
-}
-EXPORT_SYMBOL_GPL(io_uring_cmd_do_in_task_lazy);
 
 static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
 					  u64 extra1, u64 extra2)
@@ -182,7 +169,6 @@ int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 			return -EOPNOTSUPP;
 		issue_flags |= IO_URING_F_IOPOLL;
 		req->iopoll_completed = 0;
-		WRITE_ONCE(ioucmd->cookie, NULL);
 	}
 
 	ret = file->f_op->uring_cmd(ioucmd, issue_flags);

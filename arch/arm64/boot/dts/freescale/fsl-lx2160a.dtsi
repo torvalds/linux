@@ -732,9 +732,9 @@
 			fsl,tmu-range = <0x800000e6 0x8001017d>;
 			fsl,tmu-calibration =
 				/* Calibration data group 1 */
-				<0x00000000 0x00000035
+				<0x00000000 0x00000035>,
 				/* Calibration data group 2 */
-				0x00000001 0x00000154>;
+				<0x00000001 0x00000154>;
 			little-endian;
 			#thermal-sensor-cells = <1>;
 		};

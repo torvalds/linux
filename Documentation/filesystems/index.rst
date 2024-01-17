@@ -121,8 +121,5 @@ Documentation for filesystem implementations.
    udf
    virtiofs
    vfat
-   xfs-delayed-logging-design
-   xfs-maintainer-entry-profile
-   xfs-self-describing-metadata
-   xfs-online-fsck-design
+   xfs/index
    zonefs

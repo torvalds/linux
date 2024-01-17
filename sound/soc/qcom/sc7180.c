@@ -6,7 +6,6 @@
 
 #include <dt-bindings/sound/sc7180-lpass.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -578,4 +577,4 @@ static struct platform_driver sc7180_snd_driver = {
 module_platform_driver(sc7180_snd_driver);
 
 MODULE_DESCRIPTION("sc7180 ASoC Machine Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

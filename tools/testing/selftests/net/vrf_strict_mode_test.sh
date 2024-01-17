@@ -3,9 +3,7 @@
 
 # This test is designed for testing the new VRF strict_mode functionality.
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
-
+source lib.sh
 ret=0
 
 # identifies the "init" network namespace which is often called root network
@@ -247,13 +245,12 @@ setup()
 {
 	modprobe vrf
 
-	ip netns add testns
-	ip netns exec testns ip link set lo up
+	setup_ns testns
 }
 
 cleanup()
 {
-	ip netns del testns 2>/dev/null
+	ip netns del $testns 2>/dev/null
 
 	ip link del vrf100 2>/dev/null
 	ip link del vrf101 2>/dev/null
@@ -298,28 +295,28 @@ vrf_strict_mode_tests_testns()
 {
 	log_section "VRF strict_mode test on testns network namespace"
 
-	vrf_strict_mode_check_support testns
+	vrf_strict_mode_check_support $testns
 
-	strict_mode_check_default testns
+	strict_mode_check_default $testns
 
-	enable_strict_mode_and_check testns
+	enable_strict_mode_and_check $testns
 
-	add_vrf_and_check testns vrf100 100
-	config_vrf_and_check testns 10.0.100.1/24 vrf100
+	add_vrf_and_check $testns vrf100 100
+	config_vrf_and_check $testns 10.0.100.1/24 vrf100
 
-	add_vrf_and_check_fail testns vrf101 100
+	add_vrf_and_check_fail $testns vrf101 100
 
-	add_vrf_and_check_fail testns vrf102 100
+	add_vrf_and_check_fail $testns vrf102 100
 
-	add_vrf_and_check testns vrf200 200
+	add_vrf_and_check $testns vrf200 200
 
-	disable_strict_mode_and_check testns
+	disable_strict_mode_and_check $testns
 
-	add_vrf_and_check testns vrf101 100
+	add_vrf_and_check $testns vrf101 100
 
-	add_vrf_and_check testns vrf102 100
+	add_vrf_and_check $testns vrf102 100
 
-	#the strict_mode is disabled in the testns
+	#the strict_mode is disabled in the $testns
 }
 
 vrf_strict_mode_tests_mix()
@@ -328,25 +325,25 @@ vrf_strict_mode_tests_mix()
 
 	read_strict_mode_compare_and_check init 1
 
-	read_strict_mode_compare_and_check testns 0
+	read_strict_mode_compare_and_check $testns 0
 
-	del_vrf_and_check testns vrf101
+	del_vrf_and_check $testns vrf101
 
-	del_vrf_and_check testns vrf102
+	del_vrf_and_check $testns vrf102
 
 	disable_strict_mode_and_check init
 
-	enable_strict_mode_and_check testns
+	enable_strict_mode_and_check $testns
 
 	enable_strict_mode_and_check init
 	enable_strict_mode_and_check init
 
-	disable_strict_mode_and_check testns
-	disable_strict_mode_and_check testns
+	disable_strict_mode_and_check $testns
+	disable_strict_mode_and_check $testns
 
 	read_strict_mode_compare_and_check init 1
 
-	read_strict_mode_compare_and_check testns 0
+	read_strict_mode_compare_and_check $testns 0
 }
 
 ################################################################################

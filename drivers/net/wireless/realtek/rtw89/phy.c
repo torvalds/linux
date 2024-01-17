@@ -2445,6 +2445,298 @@ void (* const rtw89_phy_c2h_ra_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_PHY_C2H_FUNC_TXSTS] = NULL,
 };
 
+static void rtw89_phy_c2h_rfk_rpt_log(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_c2h_rfk_log_func func,
+				      void *content, u16 len)
+{
+	struct rtw89_c2h_rf_txgapk_rpt_log *txgapk;
+	struct rtw89_c2h_rf_rxdck_rpt_log *rxdck;
+	struct rtw89_c2h_rf_dack_rpt_log *dack;
+	struct rtw89_c2h_rf_dpk_rpt_log *dpk;
+
+	switch (func) {
+	case RTW89_PHY_C2H_RFK_LOG_FUNC_DPK:
+		if (len != sizeof(*dpk))
+			goto out;
+
+		dpk = content;
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "DPK ver:%d idx:%2ph band:%2ph bw:%2ph ch:%2ph path:%2ph\n",
+			    dpk->ver, dpk->idx, dpk->band, dpk->bw, dpk->ch, dpk->path_ok);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "DPK txagc:%2ph ther:%2ph gs:%2ph dc_i:%4ph dc_q:%4ph\n",
+			    dpk->txagc, dpk->ther, dpk->gs, dpk->dc_i, dpk->dc_q);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "DPK corr_v:%2ph corr_i:%2ph to:%2ph ov:%2ph\n",
+			    dpk->corr_val, dpk->corr_idx, dpk->is_timeout, dpk->rxbb_ov);
+		return;
+	case RTW89_PHY_C2H_RFK_LOG_FUNC_DACK:
+		if (len != sizeof(*dack))
+			goto out;
+
+		dack = content;
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]ver=0x%x 0x%x\n",
+			    dack->fwdack_ver, dack->fwdack_rpt_ver);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 CDACK ic = [0x%x, 0x%x]\n",
+			    dack->cdack_d[0][0][0], dack->cdack_d[0][0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 CDACK qc = [0x%x, 0x%x]\n",
+			    dack->cdack_d[0][1][0], dack->cdack_d[0][1][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 CDACK ic = [0x%x, 0x%x]\n",
+			    dack->cdack_d[1][0][0], dack->cdack_d[1][0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 CDACK qc = [0x%x, 0x%x]\n",
+			    dack->cdack_d[1][1][0], dack->cdack_d[1][1][1]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 ADC_DCK ic = [0x%x, 0x%x]\n",
+			    dack->addck2_d[0][0][0], dack->addck2_d[0][0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 ADC_DCK qc = [0x%x, 0x%x]\n",
+			    dack->addck2_d[0][1][0], dack->addck2_d[0][1][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 ADC_DCK ic = [0x%x, 0x%x]\n",
+			    dack->addck2_d[1][0][0], dack->addck2_d[1][0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 ADC_DCK qc = [0x%x, 0x%x]\n",
+			    dack->addck2_d[1][1][0], dack->addck2_d[1][1][1]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 ADC_GAINK ic = 0x%x, qc = 0x%x\n",
+			    dack->adgaink_d[0][0], dack->adgaink_d[0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 ADC_GAINK ic = 0x%x, qc = 0x%x\n",
+			    dack->adgaink_d[1][0], dack->adgaink_d[1][1]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 DAC_DCK ic = 0x%x, qc = 0x%x\n",
+			    dack->dadck_d[0][0], dack->dadck_d[0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 DAC_DCK ic = 0x%x, qc = 0x%x\n",
+			    dack->dadck_d[1][0], dack->dadck_d[1][1]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 biask iqc = 0x%x\n",
+			    dack->biask_d[0][0]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 biask iqc = 0x%x\n",
+			    dack->biask_d[1][0]);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 MSBK ic: %*ph\n",
+			    (int)sizeof(dack->msbk_d[0][0]), dack->msbk_d[0][0]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S0 MSBK qc: %*ph\n",
+			    (int)sizeof(dack->msbk_d[0][1]), dack->msbk_d[0][1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 MSBK ic: %*ph\n",
+			    (int)sizeof(dack->msbk_d[1][0]), dack->msbk_d[1][0]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[DACK]S1 MSBK qc: %*ph\n",
+			    (int)sizeof(dack->msbk_d[1][1]), dack->msbk_d[1][1]);
+		return;
+	case RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK:
+		if (len != sizeof(*rxdck))
+			goto out;
+
+		rxdck = content;
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "RXDCK ver:%d band:%2ph bw:%2ph ch:%2ph to:%2ph\n",
+			    rxdck->ver, rxdck->band, rxdck->bw, rxdck->ch,
+			    rxdck->timeout);
+		return;
+	case RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK:
+		if (len != sizeof(*txgapk))
+			goto out;
+
+		txgapk = content;
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[TXGAPK]rpt r0x8010[0]=0x%x, r0x8010[1]=0x%x\n",
+			    le32_to_cpu(txgapk->r0x8010[0]),
+			    le32_to_cpu(txgapk->r0x8010[1]));
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt chk_id = %d\n",
+			    txgapk->chk_id);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt chk_cnt = %d\n",
+			    le32_to_cpu(txgapk->chk_cnt));
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt ver = 0x%x\n",
+			    txgapk->ver);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt rsv1 = %d\n",
+			    txgapk->rsv1);
+
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt track_d[0] = %*ph\n",
+			    (int)sizeof(txgapk->track_d[0]), txgapk->track_d[0]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt power_d[0] = %*ph\n",
+			    (int)sizeof(txgapk->power_d[0]), txgapk->power_d[0]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt track_d[1] = %*ph\n",
+			    (int)sizeof(txgapk->track_d[1]), txgapk->track_d[1]);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK, "[TXGAPK]rpt power_d[1] = %*ph\n",
+			    (int)sizeof(txgapk->power_d[1]), txgapk->power_d[1]);
+		return;
+	default:
+		break;
+	}
+
+out:
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "unexpected RFK func %d report log with length %d\n", func, len);
+}
+
+static bool rtw89_phy_c2h_rfk_run_log(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_c2h_rfk_log_func func,
+				      void *content, u16 len)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_c2h_rf_run_log *log = content;
+	const struct rtw89_fw_element_hdr *elm;
+	u32 fmt_idx;
+	u16 offset;
+
+	if (sizeof(*log) != len)
+		return false;
+
+	if (!elm_info->rfk_log_fmt)
+		return false;
+
+	elm = elm_info->rfk_log_fmt->elm[func];
+	fmt_idx = le32_to_cpu(log->fmt_idx);
+	if (!elm || fmt_idx >= elm->u.rfk_log_fmt.nr)
+		return false;
+
+	offset = le16_to_cpu(elm->u.rfk_log_fmt.offset[fmt_idx]);
+	if (offset == 0)
+		return false;
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, &elm->u.common.contents[offset],
+		    le32_to_cpu(log->arg[0]), le32_to_cpu(log->arg[1]),
+		    le32_to_cpu(log->arg[2]), le32_to_cpu(log->arg[3]));
+
+	return true;
+}
+
+static void rtw89_phy_c2h_rfk_log(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+				  u32 len, enum rtw89_phy_c2h_rfk_log_func func,
+				  const char *rfk_name)
+{
+	struct rtw89_c2h_hdr *c2h_hdr = (struct rtw89_c2h_hdr *)c2h->data;
+	struct rtw89_c2h_rf_log_hdr *log_hdr;
+	void *log_ptr = c2h_hdr;
+	u16 content_len;
+	u16 chunk_len;
+	bool handled;
+
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_RFK))
+		return;
+
+	log_ptr += sizeof(*c2h_hdr);
+	len -= sizeof(*c2h_hdr);
+
+	while (len > sizeof(*log_hdr)) {
+		log_hdr = log_ptr;
+		content_len = le16_to_cpu(log_hdr->len);
+		chunk_len = content_len + sizeof(*log_hdr);
+
+		if (chunk_len > len)
+			break;
+
+		switch (log_hdr->type) {
+		case RTW89_RF_RUN_LOG:
+			handled = rtw89_phy_c2h_rfk_run_log(rtwdev, func,
+							    log_hdr->content, content_len);
+			if (handled)
+				break;
+
+			rtw89_debug(rtwdev, RTW89_DBG_RFK, "%s run: %*ph\n",
+				    rfk_name, content_len, log_hdr->content);
+			break;
+		case RTW89_RF_RPT_LOG:
+			rtw89_phy_c2h_rfk_rpt_log(rtwdev, func,
+						  log_hdr->content, content_len);
+			break;
+		default:
+			return;
+		}
+
+		log_ptr += chunk_len;
+		len -= chunk_len;
+	}
+}
+
+static void
+rtw89_phy_c2h_rfk_log_iqk(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	rtw89_phy_c2h_rfk_log(rtwdev, c2h, len,
+			      RTW89_PHY_C2H_RFK_LOG_FUNC_IQK, "IQK");
+}
+
+static void
+rtw89_phy_c2h_rfk_log_dpk(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	rtw89_phy_c2h_rfk_log(rtwdev, c2h, len,
+			      RTW89_PHY_C2H_RFK_LOG_FUNC_DPK, "DPK");
+}
+
+static void
+rtw89_phy_c2h_rfk_log_dack(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	rtw89_phy_c2h_rfk_log(rtwdev, c2h, len,
+			      RTW89_PHY_C2H_RFK_LOG_FUNC_DACK, "DACK");
+}
+
+static void
+rtw89_phy_c2h_rfk_log_rxdck(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	rtw89_phy_c2h_rfk_log(rtwdev, c2h, len,
+			      RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK, "RX_DCK");
+}
+
+static void
+rtw89_phy_c2h_rfk_log_tssi(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	rtw89_phy_c2h_rfk_log(rtwdev, c2h, len,
+			      RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI, "TSSI");
+}
+
+static void
+rtw89_phy_c2h_rfk_log_txgapk(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	rtw89_phy_c2h_rfk_log(rtwdev, c2h, len,
+			      RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK, "TXGAPK");
+}
+
+static
+void (* const rtw89_phy_c2h_rfk_log_handler[])(struct rtw89_dev *rtwdev,
+					       struct sk_buff *c2h, u32 len) = {
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_IQK] = rtw89_phy_c2h_rfk_log_iqk,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_DPK] = rtw89_phy_c2h_rfk_log_dpk,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_DACK] = rtw89_phy_c2h_rfk_log_dack,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK] = rtw89_phy_c2h_rfk_log_rxdck,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI] = rtw89_phy_c2h_rfk_log_tssi,
+	[RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK] = rtw89_phy_c2h_rfk_log_txgapk,
+};
+
+static void
+rtw89_phy_c2h_rfk_report_state(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+}
+
+static
+void (* const rtw89_phy_c2h_rfk_report_handler[])(struct rtw89_dev *rtwdev,
+						  struct sk_buff *c2h, u32 len) = {
+	[RTW89_PHY_C2H_RFK_REPORT_FUNC_STATE] = rtw89_phy_c2h_rfk_report_state,
+};
+
+bool rtw89_phy_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
+{
+	switch (class) {
+	case RTW89_PHY_C2H_RFK_LOG:
+		switch (func) {
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_IQK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_DPK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_DACK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI:
+		case RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK:
+			return true;
+		default:
+			return false;
+		}
+	case RTW89_PHY_C2H_RFK_REPORT:
+		switch (func) {
+		case RTW89_PHY_C2H_RFK_REPORT_FUNC_STATE:
+			return true;
+		default:
+			return false;
+		}
+	default:
+		return false;
+	}
+}
+
 void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			  u32 len, u8 class, u8 func)
 {
@@ -2455,6 +2747,14 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_PHY_C2H_CLASS_RA:
 		if (func < RTW89_PHY_C2H_FUNC_RA_MAX)
 			handler = rtw89_phy_c2h_ra_handler[func];
+		break;
+	case RTW89_PHY_C2H_RFK_LOG:
+		if (func < ARRAY_SIZE(rtw89_phy_c2h_rfk_log_handler))
+			handler = rtw89_phy_c2h_rfk_log_handler[func];
+		break;
+	case RTW89_PHY_C2H_RFK_REPORT:
+		if (func < ARRAY_SIZE(rtw89_phy_c2h_rfk_report_handler))
+			handler = rtw89_phy_c2h_rfk_report_handler[func];
 		break;
 	case RTW89_PHY_C2H_CLASS_DM:
 		if (func == RTW89_PHY_C2H_DM_FUNC_LOWRT_RTY)
@@ -4620,6 +4920,29 @@ static void rtw89_phy_env_monitor_init(struct rtw89_dev *rtwdev)
 	rtw89_phy_ifs_clm_setting_init(rtwdev);
 }
 
+static void rtw89_phy_edcca_init(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_edcca_regs *edcca_regs = rtwdev->chip->edcca_regs;
+	struct rtw89_edcca_bak *edcca_bak = &rtwdev->hal.edcca_bak;
+
+	memset(edcca_bak, 0, sizeof(*edcca_bak));
+
+	if (rtwdev->chip->chip_id == RTL8922A && rtwdev->hal.cv == CHIP_CAV) {
+		rtw89_phy_set_phy_regs(rtwdev, R_TXGATING, B_TXGATING_EN, 0);
+		rtw89_phy_set_phy_regs(rtwdev, R_CTLTOP, B_CTLTOP_VAL, 2);
+		rtw89_phy_set_phy_regs(rtwdev, R_CTLTOP, B_CTLTOP_ON, 1);
+		rtw89_phy_set_phy_regs(rtwdev, R_SPOOF_CG, B_SPOOF_CG_EN, 0);
+		rtw89_phy_set_phy_regs(rtwdev, R_DFS_FFT_CG, B_DFS_CG_EN, 0);
+		rtw89_phy_set_phy_regs(rtwdev, R_DFS_FFT_CG, B_DFS_FFT_EN, 0);
+		rtw89_phy_set_phy_regs(rtwdev, R_SEGSND, B_SEGSND_EN, 0);
+		rtw89_phy_set_phy_regs(rtwdev, R_SEGSND, B_SEGSND_EN, 1);
+		rtw89_phy_set_phy_regs(rtwdev, R_DFS_FFT_CG, B_DFS_FFT_EN, 1);
+	}
+
+	rtw89_phy_write32_mask(rtwdev, edcca_regs->tx_collision_t2r_st,
+			       edcca_regs->tx_collision_t2r_st_mask, 0x29);
+}
+
 void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 {
 	rtw89_phy_stat_init(rtwdev);
@@ -4630,6 +4953,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_physts_parsing_init(rtwdev);
 	rtw89_phy_dig_init(rtwdev);
 	rtw89_phy_cfo_init(rtwdev);
+	rtw89_phy_edcca_init(rtwdev);
 	rtw89_phy_ul_tb_info_init(rtwdev);
 	rtw89_phy_antdiv_init(rtwdev);
 	rtw89_chip_rfe_gpio(rtwdev);
@@ -4892,23 +5216,188 @@ void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
 }
 EXPORT_SYMBOL(rtw89_decode_chan_idx);
 
-#define EDCCA_DEFAULT 249
 void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan)
 {
-	u32 reg = rtwdev->chip->edcca_lvl_reg;
-	struct rtw89_hal *hal = &rtwdev->hal;
-	u32 val;
+	const struct rtw89_edcca_regs *edcca_regs = rtwdev->chip->edcca_regs;
+	struct rtw89_edcca_bak *edcca_bak = &rtwdev->hal.edcca_bak;
 
 	if (scan) {
-		hal->edcca_bak = rtw89_phy_read32(rtwdev, reg);
-		val = hal->edcca_bak;
-		u32p_replace_bits(&val, EDCCA_DEFAULT, B_SEG0R_EDCCA_LVL_A_MSK);
-		u32p_replace_bits(&val, EDCCA_DEFAULT, B_SEG0R_EDCCA_LVL_P_MSK);
-		u32p_replace_bits(&val, EDCCA_DEFAULT, B_SEG0R_PPDU_LVL_MSK);
-		rtw89_phy_write32(rtwdev, reg, val);
+		edcca_bak->a =
+			rtw89_phy_read32_mask(rtwdev, edcca_regs->edcca_level,
+					      edcca_regs->edcca_mask);
+		edcca_bak->p =
+			rtw89_phy_read32_mask(rtwdev, edcca_regs->edcca_level,
+					      edcca_regs->edcca_p_mask);
+		edcca_bak->ppdu =
+			rtw89_phy_read32_mask(rtwdev, edcca_regs->ppdu_level,
+					      edcca_regs->ppdu_mask);
+
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->edcca_level,
+				       edcca_regs->edcca_mask, EDCCA_MAX);
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->edcca_level,
+				       edcca_regs->edcca_p_mask, EDCCA_MAX);
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->ppdu_level,
+				       edcca_regs->ppdu_mask, EDCCA_MAX);
 	} else {
-		rtw89_phy_write32(rtwdev, reg, hal->edcca_bak);
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->edcca_level,
+				       edcca_regs->edcca_mask,
+				       edcca_bak->a);
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->edcca_level,
+				       edcca_regs->edcca_p_mask,
+				       edcca_bak->p);
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->ppdu_level,
+				       edcca_regs->ppdu_mask,
+				       edcca_bak->ppdu);
 	}
+}
+
+static void rtw89_phy_edcca_log(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_edcca_regs *edcca_regs = rtwdev->chip->edcca_regs;
+	bool flag_fb, flag_p20, flag_s20, flag_s40, flag_s80;
+	s8 pwdb_fb, pwdb_p20, pwdb_s20, pwdb_s40, pwdb_s80;
+	u8 path, per20_bitmap;
+	u8 pwdb[8];
+	u32 tmp;
+
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_EDCCA))
+		return;
+
+	if (rtwdev->chip->chip_id == RTL8922A)
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
+				       edcca_regs->rpt_sel_be_mask, 0);
+
+	rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
+			       edcca_regs->rpt_sel_mask, 0);
+	tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+	path = u32_get_bits(tmp, B_EDCCA_RPT_B_PATH_MASK);
+	flag_s80 = u32_get_bits(tmp, B_EDCCA_RPT_B_S80);
+	flag_s40 = u32_get_bits(tmp, B_EDCCA_RPT_B_S40);
+	flag_s20 = u32_get_bits(tmp, B_EDCCA_RPT_B_S20);
+	flag_p20 = u32_get_bits(tmp, B_EDCCA_RPT_B_P20);
+	flag_fb = u32_get_bits(tmp, B_EDCCA_RPT_B_FB);
+	pwdb_s20 = u32_get_bits(tmp, MASKBYTE1);
+	pwdb_p20 = u32_get_bits(tmp, MASKBYTE2);
+	pwdb_fb = u32_get_bits(tmp, MASKBYTE3);
+
+	rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
+			       edcca_regs->rpt_sel_mask, 4);
+	tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+	pwdb_s80 = u32_get_bits(tmp, MASKBYTE1);
+	pwdb_s40 = u32_get_bits(tmp, MASKBYTE2);
+
+	per20_bitmap = rtw89_phy_read32_mask(rtwdev, edcca_regs->rpt_a,
+					     MASKBYTE0);
+
+	if (rtwdev->chip->chip_id == RTL8922A) {
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
+				       edcca_regs->rpt_sel_be_mask, 4);
+		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+		pwdb[0] = u32_get_bits(tmp, MASKBYTE3);
+		pwdb[1] = u32_get_bits(tmp, MASKBYTE2);
+		pwdb[2] = u32_get_bits(tmp, MASKBYTE1);
+		pwdb[3] = u32_get_bits(tmp, MASKBYTE0);
+
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel_be,
+				       edcca_regs->rpt_sel_be_mask, 5);
+		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_b);
+		pwdb[4] = u32_get_bits(tmp, MASKBYTE3);
+		pwdb[5] = u32_get_bits(tmp, MASKBYTE2);
+		pwdb[6] = u32_get_bits(tmp, MASKBYTE1);
+		pwdb[7] = u32_get_bits(tmp, MASKBYTE0);
+	} else {
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
+				       edcca_regs->rpt_sel_mask, 0);
+		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		pwdb[0] = u32_get_bits(tmp, MASKBYTE3);
+		pwdb[1] = u32_get_bits(tmp, MASKBYTE2);
+
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
+				       edcca_regs->rpt_sel_mask, 1);
+		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		pwdb[2] = u32_get_bits(tmp, MASKBYTE3);
+		pwdb[3] = u32_get_bits(tmp, MASKBYTE2);
+
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
+				       edcca_regs->rpt_sel_mask, 2);
+		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		pwdb[4] = u32_get_bits(tmp, MASKBYTE3);
+		pwdb[5] = u32_get_bits(tmp, MASKBYTE2);
+
+		rtw89_phy_write32_mask(rtwdev, edcca_regs->rpt_sel,
+				       edcca_regs->rpt_sel_mask, 3);
+		tmp = rtw89_phy_read32(rtwdev, edcca_regs->rpt_a);
+		pwdb[6] = u32_get_bits(tmp, MASKBYTE3);
+		pwdb[7] = u32_get_bits(tmp, MASKBYTE2);
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_EDCCA,
+		    "[EDCCA]: edcca_bitmap = %04x\n", per20_bitmap);
+
+	rtw89_debug(rtwdev, RTW89_DBG_EDCCA,
+		    "[EDCCA]: pwdb per20{0,1,2,3,4,5,6,7} = {%d,%d,%d,%d,%d,%d,%d,%d}(dBm)\n",
+		    pwdb[0], pwdb[1], pwdb[2], pwdb[3], pwdb[4], pwdb[5],
+		    pwdb[6], pwdb[7]);
+
+	rtw89_debug(rtwdev, RTW89_DBG_EDCCA,
+		    "[EDCCA]: path=%d, flag {FB,p20,s20,s40,s80} = {%d,%d,%d,%d,%d}\n",
+		    path, flag_fb, flag_p20, flag_s20, flag_s40, flag_s80);
+
+	rtw89_debug(rtwdev, RTW89_DBG_EDCCA,
+		    "[EDCCA]: pwdb {FB,p20,s20,s40,s80} = {%d,%d,%d,%d,%d}(dBm)\n",
+		    pwdb_fb, pwdb_p20, pwdb_s20, pwdb_s40, pwdb_s80);
+}
+
+static u8 rtw89_phy_edcca_get_thre_by_rssi(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_phy_ch_info *ch_info = &rtwdev->ch_info;
+	bool is_linked = rtwdev->total_sta_assoc > 0;
+	u8 rssi_min = ch_info->rssi_min >> 1;
+	u8 edcca_thre;
+
+	if (!is_linked) {
+		edcca_thre = EDCCA_MAX;
+	} else {
+		edcca_thre = rssi_min - RSSI_UNIT_CONVER + EDCCA_UNIT_CONVER -
+			     EDCCA_TH_REF;
+		edcca_thre = max_t(u8, edcca_thre, EDCCA_TH_L2H_LB);
+	}
+
+	return edcca_thre;
+}
+
+void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_edcca_regs *edcca_regs = rtwdev->chip->edcca_regs;
+	struct rtw89_edcca_bak *edcca_bak = &rtwdev->hal.edcca_bak;
+	u8 th;
+
+	th = rtw89_phy_edcca_get_thre_by_rssi(rtwdev);
+	if (th == edcca_bak->th_old)
+		return;
+
+	edcca_bak->th_old = th;
+
+	rtw89_debug(rtwdev, RTW89_DBG_EDCCA,
+		    "[EDCCA]: Normal Mode, EDCCA_th = %d\n", th);
+
+	rtw89_phy_write32_mask(rtwdev, edcca_regs->edcca_level,
+			       edcca_regs->edcca_mask, th);
+	rtw89_phy_write32_mask(rtwdev, edcca_regs->edcca_level,
+			       edcca_regs->edcca_p_mask, th);
+	rtw89_phy_write32_mask(rtwdev, edcca_regs->ppdu_level,
+			       edcca_regs->ppdu_mask, th);
+}
+
+void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+
+	if (hal->disabled_dm_bitmap & BIT(RTW89_DM_DYNAMIC_EDCCA))
+		return;
+
+	rtw89_phy_edcca_thre_calc(rtwdev);
+	rtw89_phy_edcca_log(rtwdev);
 }
 
 static const struct rtw89_ccx_regs rtw89_ccx_regs_ax = {

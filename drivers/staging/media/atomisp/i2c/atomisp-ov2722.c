@@ -671,7 +671,7 @@ static int ov2722_set_fmt(struct v4l2_subdev *sd,
 
 	fmt->code = MEDIA_BUS_FMT_SGRBG10_1X10;
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
 		return 0;
 	}
 
@@ -845,10 +845,18 @@ fail_power_off:
 	return ret;
 }
 
-static int ov2722_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *interval)
+static int ov2722_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *interval)
 {
 	struct ov2722_device *dev = to_ov2722_sensor(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	interval->interval.numerator = 1;
 	interval->interval.denominator = dev->res->fps;
@@ -901,7 +909,6 @@ static const struct v4l2_subdev_sensor_ops ov2722_sensor_ops = {
 
 static const struct v4l2_subdev_video_ops ov2722_video_ops = {
 	.s_stream = ov2722_s_stream,
-	.g_frame_interval = ov2722_g_frame_interval,
 };
 
 static const struct v4l2_subdev_core_ops ov2722_core_ops = {
@@ -914,6 +921,7 @@ static const struct v4l2_subdev_pad_ops ov2722_pad_ops = {
 	.enum_frame_size = ov2722_enum_frame_size,
 	.get_fmt = ov2722_get_fmt,
 	.set_fmt = ov2722_set_fmt,
+	.get_frame_interval = ov2722_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov2722_ops = {

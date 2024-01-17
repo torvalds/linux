@@ -1277,13 +1277,11 @@ err_disable_pm_runtime:
 	return ret;
 }
 
-static int fimd_remove(struct platform_device *pdev)
+static void fimd_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
 	component_del(&pdev->dev, &fimd_component_ops);
-
-	return 0;
 }
 
 static int exynos_fimd_suspend(struct device *dev)
@@ -1325,7 +1323,7 @@ static DEFINE_RUNTIME_DEV_PM_OPS(exynos_fimd_pm_ops, exynos_fimd_suspend,
 
 struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
-	.remove		= fimd_remove,
+	.remove_new	= fimd_remove,
 	.driver		= {
 		.name	= "exynos4-fb",
 		.owner	= THIS_MODULE,

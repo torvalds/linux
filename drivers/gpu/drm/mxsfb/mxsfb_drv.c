@@ -11,9 +11,10 @@
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic_helper.h>
@@ -346,18 +347,13 @@ MODULE_DEVICE_TABLE(of, mxsfb_dt_ids);
 static int mxsfb_probe(struct platform_device *pdev)
 {
 	struct drm_device *drm;
-	const struct of_device_id *of_id =
-			of_match_device(mxsfb_dt_ids, &pdev->dev);
 	int ret;
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	drm = drm_dev_alloc(&mxsfb_driver, &pdev->dev);
 	if (IS_ERR(drm))
 		return PTR_ERR(drm);
 
-	ret = mxsfb_load(drm, of_id->data);
+	ret = mxsfb_load(drm, device_get_match_data(&pdev->dev));
 	if (ret)
 		goto err_free;
 

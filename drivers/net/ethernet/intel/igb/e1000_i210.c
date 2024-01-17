@@ -5,9 +5,9 @@
  * e1000_i211
  */
 
-#include <linux/types.h>
+#include <linux/bitfield.h>
 #include <linux/if_ether.h>
-
+#include <linux/types.h>
 #include "e1000_hw.h"
 #include "e1000_i210.h"
 
@@ -473,7 +473,7 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 		/* Check if we have second version location used */
 		else if ((i == 1) &&
 			 ((*record & E1000_INVM_VER_FIELD_TWO) == 0)) {
-			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			version = FIELD_GET(E1000_INVM_VER_FIELD_ONE, *record);
 			status = 0;
 			break;
 		}
@@ -483,8 +483,8 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 		else if ((((*record & E1000_INVM_VER_FIELD_ONE) == 0) &&
 			 ((*record & 0x3) == 0)) || (((*record & 0x3) != 0) &&
 			 (i != 1))) {
-			version = (*next_record & E1000_INVM_VER_FIELD_TWO)
-				  >> 13;
+			version = FIELD_GET(E1000_INVM_VER_FIELD_TWO,
+					    *next_record);
 			status = 0;
 			break;
 		}
@@ -493,15 +493,15 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 		 */
 		else if (((*record & E1000_INVM_VER_FIELD_TWO) == 0) &&
 			 ((*record & 0x3) == 0)) {
-			version = (*record & E1000_INVM_VER_FIELD_ONE) >> 3;
+			version = FIELD_GET(E1000_INVM_VER_FIELD_ONE, *record);
 			status = 0;
 			break;
 		}
 	}
 
 	if (!status) {
-		invm_ver->invm_major = (version & E1000_INVM_MAJOR_MASK)
-					>> E1000_INVM_MAJOR_SHIFT;
+		invm_ver->invm_major = FIELD_GET(E1000_INVM_MAJOR_MASK,
+						 version);
 		invm_ver->invm_minor = version & E1000_INVM_MINOR_MASK;
 	}
 	/* Read Image Type */
@@ -520,7 +520,8 @@ s32 igb_read_invm_version(struct e1000_hw *hw,
 			 ((*record & E1000_INVM_IMGTYPE_FIELD) == 0)) ||
 			 ((((*record & 0x3) != 0) && (i != 1)))) {
 			invm_ver->invm_img_type =
-				(*next_record & E1000_INVM_IMGTYPE_FIELD) >> 23;
+				FIELD_GET(E1000_INVM_IMGTYPE_FIELD,
+					  *next_record);
 			status = 0;
 			break;
 		}

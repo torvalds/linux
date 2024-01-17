@@ -37,12 +37,13 @@
 #include <linux/personality.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
+#include <uapi/linux/shm.h>
 #include <linux/binfmts.h>
 #include <linux/parser.h>
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/watch_queue.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <uapi/linux/lsm.h>
 #include "smack.h"
 

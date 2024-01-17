@@ -174,6 +174,24 @@
 		};
 	};
 
+	reg_1p8v: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	reg_3p3v: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	vcc_sdhi0: regulator-vcc-sdhi0 {
 		compatible = "regulator-fixed";
 
@@ -340,7 +358,7 @@
 	 * I2C1 is routed to EXIO connector B, pins 64 (SCL) + 66 (SDA).
 	 * A fallback to GPIO is provided.
 	 */
-	i2cexio1: i2c-12 {
+	i2cexio1: i2c-mux1 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c1>, <&gpioi2c1>;
 		i2c-bus-name = "i2c-exio1";
@@ -351,7 +369,7 @@
 	/*
 	 * A fallback to GPIO is provided for I2C2.
 	 */
-	i2chdmi: i2c-13 {
+	i2chdmi: i2c-mux2 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c2>, <&gpioi2c2>;
 		i2c-bus-name = "i2c-hdmi";
@@ -383,6 +401,12 @@
 			interrupts = <29 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&cec_clock>;
 			clock-names = "cec";
+
+			avdd-supply = <&reg_1p8v>;
+			dvdd-supply = <&reg_1p8v>;
+			pvdd-supply = <&reg_1p8v>;
+			dvdd-3v-supply = <&reg_3p3v>;
+			bgvdd-supply = <&reg_1p8v>;
 
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";
@@ -446,7 +470,7 @@
 	 * I2C4 is routed to EXIO connector E, pins 37 (SCL) + 39 (SDA).
 	 * A fallback to GPIO is provided.
 	 */
-	i2cexio4: i2c-14 {
+	i2cexio4: i2c-mux3 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c4>, <&gpioi2c4>;
 		i2c-bus-name = "i2c-exio4";

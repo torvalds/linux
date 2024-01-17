@@ -53,6 +53,7 @@
 #include <linux/seccomp.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
+#include <linux/syscall_user_dispatch.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
@@ -99,6 +100,7 @@
 #include <linux/stackprotector.h>
 #include <linux/user_events.h>
 #include <linux/iommu.h>
+#include <linux/rseq.h>
 
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>

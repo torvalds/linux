@@ -256,7 +256,7 @@ static int tegra_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = tegra_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = tegra_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 

@@ -75,14 +75,12 @@ static u32 idpf_get_rxfh_indir_size(struct net_device *netdev)
 /**
  * idpf_get_rxfh - get the rx flow hash indirection table
  * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function in use
+ * @rxfh: pointer to param struct (indir, key, hfunc)
  *
  * Reads the indirection table directly from the hardware. Always returns 0.
  */
-static int idpf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
-			 u8 *hfunc)
+static int idpf_get_rxfh(struct net_device *netdev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct idpf_netdev_priv *np = netdev_priv(netdev);
 	struct idpf_rss_data *rss_data;
@@ -103,15 +101,14 @@ static int idpf_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 	if (np->state != __IDPF_VPORT_UP)
 		goto unlock_mutex;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
-	if (key)
-		memcpy(key, rss_data->rss_key, rss_data->rss_key_size);
+	if (rxfh->key)
+		memcpy(rxfh->key, rss_data->rss_key, rss_data->rss_key_size);
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < rss_data->rss_lut_size; i++)
-			indir[i] = rss_data->rss_lut[i];
+			rxfh->indir[i] = rss_data->rss_lut[i];
 	}
 
 unlock_mutex:
@@ -123,15 +120,15 @@ unlock_mutex:
 /**
  * idpf_set_rxfh - set the rx flow hash indirection table
  * @netdev: network interface device structure
- * @indir: indirection table
- * @key: hash key
- * @hfunc: hash function to use
+ * @rxfh: pointer to param struct (indir, key, hfunc)
+ * @extack: extended ACK from the Netlink message
  *
  * Returns -EINVAL if the table specifies an invalid queue id, otherwise
  * returns 0 after programming the table.
  */
-static int idpf_set_rxfh(struct net_device *netdev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+static int idpf_set_rxfh(struct net_device *netdev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	struct idpf_netdev_priv *np = netdev_priv(netdev);
 	struct idpf_rss_data *rss_data;
@@ -154,17 +151,18 @@ static int idpf_set_rxfh(struct net_device *netdev, const u32 *indir,
 	if (np->state != __IDPF_VPORT_UP)
 		goto unlock_mutex;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP) {
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP) {
 		err = -EOPNOTSUPP;
 		goto unlock_mutex;
 	}
 
-	if (key)
-		memcpy(rss_data->rss_key, key, rss_data->rss_key_size);
+	if (rxfh->key)
+		memcpy(rss_data->rss_key, rxfh->key, rss_data->rss_key_size);
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (lut = 0; lut < rss_data->rss_lut_size; lut++)
-			rss_data->rss_lut[lut] = indir[lut];
+			rss_data->rss_lut[lut] = rxfh->indir[lut];
 	}
 
 	err = idpf_config_rss(vport);
@@ -320,6 +318,8 @@ static void idpf_get_ringparam(struct net_device *netdev,
 	ring->rx_pending = vport->rxq_desc_count;
 	ring->tx_pending = vport->txq_desc_count;
 
+	kring->tcp_data_split = idpf_vport_get_hsplit(vport);
+
 	idpf_vport_ctrl_unlock(netdev);
 }
 
@@ -378,6 +378,14 @@ static int idpf_set_ringparam(struct net_device *netdev,
 	if (new_tx_count == vport->txq_desc_count &&
 	    new_rx_count == vport->rxq_desc_count)
 		goto unlock_mutex;
+
+	if (!idpf_vport_set_hsplit(vport, kring->tcp_data_split)) {
+		NL_SET_ERR_MSG_MOD(ext_ack,
+				   "setting TCP data split is not supported");
+		err = -EOPNOTSUPP;
+
+		goto unlock_mutex;
+	}
 
 	config_data = &vport->adapter->vport_config[idx]->user_config;
 	config_data->num_req_txq_desc = new_tx_count;
@@ -532,7 +540,7 @@ static void idpf_add_stat_strings(u8 **p, const struct idpf_stats *stats,
 	unsigned int i;
 
 	for (i = 0; i < size; i++)
-		ethtool_sprintf(p, "%s", stats[i].stat_string);
+		ethtool_puts(p, stats[i].stat_string);
 }
 
 /**
@@ -1334,6 +1342,7 @@ static int idpf_get_link_ksettings(struct net_device *netdev,
 static const struct ethtool_ops idpf_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
 				     ETHTOOL_COALESCE_USE_ADAPTIVE,
+	.supported_ring_params	= ETHTOOL_RING_USE_TCP_DATA_SPLIT,
 	.get_msglevel		= idpf_get_msglevel,
 	.set_msglevel		= idpf_set_msglevel,
 	.get_link		= ethtool_op_get_link,

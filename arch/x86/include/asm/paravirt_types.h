@@ -5,6 +5,7 @@
 #ifdef CONFIG_PARAVIRT
 
 #ifndef __ASSEMBLY__
+#include <linux/types.h>
 
 #include <asm/desc_defs.h>
 #include <asm/pgtable_types.h>

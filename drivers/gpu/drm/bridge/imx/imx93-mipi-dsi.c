@@ -226,8 +226,8 @@ dphy_pll_get_configure_from_opts(struct imx93_dsi *dsi,
 	unsigned long fout;
 	unsigned long best_fout = 0;
 	unsigned int fvco_div;
-	unsigned int min_n, max_n, n, best_n;
-	unsigned long m, best_m;
+	unsigned int min_n, max_n, n, best_n = UINT_MAX;
+	unsigned long m, best_m = 0;
 	unsigned long min_delta = ULONG_MAX;
 	unsigned long delta;
 	u64 tmp;

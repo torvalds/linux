@@ -8419,6 +8419,9 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	rif->ops = ops;
 	rif->rif_entries = rif_entries;
 
+	if (ops->setup)
+		ops->setup(rif, params);
+
 	if (ops->fid_get) {
 		fid = ops->fid_get(rif, params, extack);
 		if (IS_ERR(fid)) {
@@ -8427,9 +8430,6 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		}
 		rif->fid = fid;
 	}
-
-	if (ops->setup)
-		ops->setup(rif, params);
 
 	err = ops->configure(rif, extack);
 	if (err)
@@ -8658,6 +8658,20 @@ static struct mlxsw_sp_rif_subport *
 mlxsw_sp_rif_subport_rif(const struct mlxsw_sp_rif *rif)
 {
 	return container_of(rif, struct mlxsw_sp_rif_subport, common);
+}
+
+int mlxsw_sp_rif_subport_port(const struct mlxsw_sp_rif *rif,
+			      u16 *port, bool *is_lag)
+{
+	struct mlxsw_sp_rif_subport *rif_subport;
+
+	if (WARN_ON(rif->ops->type != MLXSW_SP_RIF_TYPE_SUBPORT))
+		return -EINVAL;
+
+	rif_subport = mlxsw_sp_rif_subport_rif(rif);
+	*is_lag = rif_subport->lag;
+	*port = *is_lag ? rif_subport->lag_id : rif_subport->system_port;
+	return 0;
 }
 
 static struct mlxsw_sp_rif *

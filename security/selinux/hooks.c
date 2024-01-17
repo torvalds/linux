@@ -85,13 +85,14 @@
 #include <linux/export.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
+#include <uapi/linux/shm.h>
 #include <linux/bpf.h>
 #include <linux/kernfs.h>
 #include <linux/stringhash.h>	/* for hashlen_string() */
 #include <uapi/linux/mount.h>
 #include <linux/fsnotify.h>
 #include <linux/fanotify.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <uapi/linux/lsm.h>
 
 #include "avc.h"

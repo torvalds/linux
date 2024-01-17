@@ -13,8 +13,8 @@
 	compatible = "xunlong,orangepi-5", "rockchip,rk3588s";
 
 	aliases {
+		ethernet0 = &gmac1;
 		mmc0 = &sdmmc;
-		serial2 = &uart2;
 	};
 
 	chosen {
@@ -314,6 +314,7 @@
 		pinctrl-0 = <&pmic_pins>, <&rk806_dvs1_null>,
 				<&rk806_dvs2_null>, <&rk806_dvs3_null>;
 		spi-max-frequency = <1000000>;
+		system-power-controller;
 
 		vcc1-supply = <&vcc5v0_sys>;
 		vcc2-supply = <&vcc5v0_sys>;
@@ -658,5 +659,9 @@
 };
 
 &usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host2_xhci {
 	status = "okay";
 };

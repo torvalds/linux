@@ -167,6 +167,20 @@ static const struct rtw89_dig_regs rtw8852c_dig_regs = {
 			      B_PATH1_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
 };
 
+static const struct rtw89_edcca_regs rtw8852c_edcca_regs = {
+	.edcca_level			= R_SEG0R_EDCCA_LVL,
+	.edcca_mask			= B_EDCCA_LVL_MSK0,
+	.edcca_p_mask			= B_EDCCA_LVL_MSK1,
+	.ppdu_level			= R_SEG0R_EDCCA_LVL,
+	.ppdu_mask			= B_EDCCA_LVL_MSK3,
+	.rpt_a				= R_EDCCA_RPT_A,
+	.rpt_b				= R_EDCCA_RPT_B,
+	.rpt_sel			= R_EDCCA_RPT_SEL,
+	.rpt_sel_mask			= B_EDCCA_RPT_SEL_MSK,
+	.tx_collision_t2r_st		= R_TX_COLLISION_T2R_ST,
+	.tx_collision_t2r_st_mask	= B_TX_COLLISION_T2R_ST_M,
+};
+
 static void rtw8852c_ctrl_btg_bt_rx(struct rtw89_dev *rtwdev, bool en,
 				    enum rtw89_phy_idx phy_idx);
 
@@ -426,11 +440,36 @@ static void rtw8852c_efuse_parsing_gain_offset(struct rtw89_dev *rtwdev,
 	valid |= _decode_efuse_gain(map->rx_gain_5g_high,
 				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_5G_HIGH],
 				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_5G_HIGH]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_l0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_L0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_L0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_l1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_L1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_L1]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_m0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_M0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_M0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_m1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_M1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_M1]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_h0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_H0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_H0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_h1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_H1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_H1]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_uh0,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_UH0],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_UH0]);
+	valid |= _decode_efuse_gain(map->rx_gain_6g_uh1,
+				    &gain->offset[RF_PATH_A][RTW89_GAIN_OFFSET_6G_UH1],
+				    &gain->offset[RF_PATH_B][RTW89_GAIN_OFFSET_6G_UH1]);
 
 	gain->offset_valid = valid;
 }
 
-static int rtw8852c_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map)
+static int rtw8852c_read_efuse(struct rtw89_dev *rtwdev, u8 *log_map,
+			       enum rtw89_efuse_block block)
 {
 	struct rtw89_efuse *efuse = &rtwdev->efuse;
 	struct rtw8852c_efuse *map;
@@ -2840,8 +2879,8 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.rsvd_ple_ofst		= 0x6f800,
 	.hfc_param_ini		= rtw8852c_hfc_param_ini_pcie,
 	.dle_mem		= rtw8852c_dle_mem_pcie,
-	.wde_qempty_acq_num     = 16,
-	.wde_qempty_mgq_sel     = 16,
+	.wde_qempty_acq_grpnum	= 16,
+	.wde_qempty_mgq_grpsel	= 16,
 	.rf_base_addr		= {0xe000, 0xf000},
 	.pwr_on_seq		= NULL,
 	.pwr_off_seq		= NULL,
@@ -2877,12 +2916,14 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.bacam_num		= 8,
 	.bacam_dynamic_num	= 8,
 	.bacam_ver		= RTW89_BACAM_V0_EXT,
+	.ppdu_max_usr		= 8,
 	.sec_ctrl_efuse_size	= 4,
 	.physical_efuse_size	= 1216,
 	.logical_efuse_size	= 2048,
 	.limit_efuse_size	= 1280,
 	.dav_phy_efuse_size	= 96,
 	.dav_log_efuse_size	= 16,
+	.efuse_blocks		= NULL,
 	.phycap_addr		= 0x590,
 	.phycap_size		= 0x60,
 	.para_ver		= 0x1,
@@ -2923,11 +2964,13 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.dcfo_comp		= &rtw8852c_dcfo_comp,
 	.dcfo_comp_sft		= 12,
 	.imr_info		= &rtw8852c_imr_info,
+	.imr_dmac_table		= NULL,
+	.imr_cmac_table		= NULL,
 	.rrsr_cfgs		= &rtw8852c_rrsr_cfgs,
 	.bss_clr_vld		= {R_BSS_CLR_MAP, B_BSS_CLR_MAP_VLD0},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP,
 	.dma_ch_mask		= 0,
-	.edcca_lvl_reg		= R_SEG0R_EDCCA_LVL,
+	.edcca_regs		= &rtw8852c_edcca_regs,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8852c,
 #endif

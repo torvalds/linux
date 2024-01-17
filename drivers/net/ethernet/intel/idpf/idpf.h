@@ -15,7 +15,7 @@ struct idpf_vport_max_q;
 #include <linux/pci.h>
 #include <linux/bitfield.h>
 #include <linux/sctp.h>
-#include <linux/ethtool.h>
+#include <linux/ethtool_netlink.h>
 #include <net/gro.h>
 #include <linux/dim.h>
 
@@ -418,11 +418,13 @@ struct idpf_vport {
 
 /**
  * enum idpf_user_flags
+ * @__IDPF_USER_FLAG_HSPLIT: header split state
  * @__IDPF_PROMISC_UC: Unicast promiscuous mode
  * @__IDPF_PROMISC_MC: Multicast promiscuous mode
  * @__IDPF_USER_FLAGS_NBITS: Must be last
  */
 enum idpf_user_flags {
+	__IDPF_USER_FLAG_HSPLIT = 0U,
 	__IDPF_PROMISC_UC = 32,
 	__IDPF_PROMISC_MC,
 
@@ -964,5 +966,8 @@ void idpf_vport_intr_write_itr(struct idpf_q_vector *q_vector,
 int idpf_send_map_unmap_queue_vector_msg(struct idpf_vport *vport, bool map);
 int idpf_send_set_sriov_vfs_msg(struct idpf_adapter *adapter, u16 num_vfs);
 int idpf_sriov_configure(struct pci_dev *pdev, int num_vfs);
+
+u8 idpf_vport_get_hsplit(const struct idpf_vport *vport);
+bool idpf_vport_set_hsplit(const struct idpf_vport *vport, u8 val);
 
 #endif /* !_IDPF_H_ */

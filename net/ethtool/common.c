@@ -589,8 +589,8 @@ err_free_info:
 
 int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
 {
+	struct ethtool_rxfh_param rxfh = {};
 	u32 dev_size, current_max = 0;
-	u32 *indir;
 	int ret;
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
@@ -600,21 +600,21 @@ int ethtool_get_max_rxfh_channel(struct net_device *dev, u32 *max)
 	if (dev_size == 0)
 		return -EOPNOTSUPP;
 
-	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
-	if (!indir)
+	rxfh.indir = kcalloc(dev_size, sizeof(rxfh.indir[0]), GFP_USER);
+	if (!rxfh.indir)
 		return -ENOMEM;
 
-	ret = dev->ethtool_ops->get_rxfh(dev, indir, NULL, NULL);
+	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
 	if (ret)
 		goto out;
 
 	while (dev_size--)
-		current_max = max(current_max, indir[dev_size]);
+		current_max = max(current_max, rxfh.indir[dev_size]);
 
 	*max = current_max;
 
 out:
-	kfree(indir);
+	kfree(rxfh.indir);
 	return ret;
 }
 
@@ -660,6 +660,12 @@ int ethtool_get_phc_vclocks(struct net_device *dev, int **vclock_index)
 	return num;
 }
 EXPORT_SYMBOL(ethtool_get_phc_vclocks);
+
+int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info)
+{
+	return __ethtool_get_ts_info(dev, info);
+}
+EXPORT_SYMBOL(ethtool_get_ts_info_by_layer);
 
 const struct ethtool_phy_ops *ethtool_phy_ops;
 

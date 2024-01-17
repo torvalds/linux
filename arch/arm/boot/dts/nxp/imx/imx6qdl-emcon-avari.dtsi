@@ -54,7 +54,7 @@
 	clk_codec: clock-codec {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency  = <12000000>;
+		clock-frequency = <12000000>;
 	};
 
 	sound {

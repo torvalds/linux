@@ -325,7 +325,7 @@ static int mt9m001_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		mf = v4l2_subdev_state_get_format(sd_state, 0);
 		format->format = *mf;
 		return 0;
 	}
@@ -405,7 +405,7 @@ static int mt9m001_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return mt9m001_s_fmt(sd, fmt, mf);
-	sd_state->pads->try_fmt = *mf;
+	*v4l2_subdev_state_get_format(sd_state, 0) = *mf;
 	return 0;
 }
 
@@ -650,13 +650,13 @@ static const struct v4l2_subdev_core_ops mt9m001_subdev_core_ops = {
 #endif
 };
 
-static int mt9m001_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state)
+static int mt9m001_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct mt9m001 *mt9m001 = to_mt9m001(client);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, sd_state, 0);
+		v4l2_subdev_state_get_format(sd_state, 0);
 
 	try_fmt->width		= MT9M001_MAX_WIDTH;
 	try_fmt->height		= MT9M001_MAX_HEIGHT;
@@ -708,7 +708,6 @@ static const struct v4l2_subdev_sensor_ops mt9m001_subdev_sensor_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mt9m001_subdev_pad_ops = {
-	.init_cfg	= mt9m001_init_cfg,
 	.enum_mbus_code = mt9m001_enum_mbus_code,
 	.get_selection	= mt9m001_get_selection,
 	.set_selection	= mt9m001_set_selection,
@@ -722,6 +721,10 @@ static const struct v4l2_subdev_ops mt9m001_subdev_ops = {
 	.video	= &mt9m001_subdev_video_ops,
 	.sensor	= &mt9m001_subdev_sensor_ops,
 	.pad	= &mt9m001_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mt9m001_internal_ops = {
+	.init_state	= mt9m001_init_state,
 };
 
 static int mt9m001_probe(struct i2c_client *client)
@@ -755,6 +758,7 @@ static int mt9m001_probe(struct i2c_client *client)
 		return PTR_ERR(mt9m001->reset_gpio);
 
 	v4l2_i2c_subdev_init(&mt9m001->subdev, client, &mt9m001_subdev_ops);
+	mt9m001->subdev.internal_ops = &mt9m001_internal_ops;
 	mt9m001->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 				 V4L2_SUBDEV_FL_HAS_EVENTS;
 	v4l2_ctrl_handler_init(&mt9m001->hdl, 4);

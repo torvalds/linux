@@ -57,6 +57,7 @@ void _iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 			     enum iwl_fw_ini_time_point tp_id,
 			     union iwl_dbg_tlv_tp_data *tp_data,
 			     bool sync);
+void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt);
 
 static inline void iwl_dbg_tlv_time_point(struct iwl_fw_runtime *fwrt,
 					  enum iwl_fw_ini_time_point tp_id,

@@ -258,13 +258,97 @@ static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
 		*residency = 0;
 }
 
+/**
+ * Set REPLAY power optimization flags and coasting vtotal.
+ */
+static void dmub_replay_set_power_opt_and_coasting_vtotal(struct dmub_replay *dmub,
+		unsigned int power_opt, uint8_t panel_inst, uint16_t coasting_vtotal)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc = dmub->ctx;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.replay_set_power_opt_and_coasting_vtotal.header.type = DMUB_CMD__REPLAY;
+	cmd.replay_set_power_opt_and_coasting_vtotal.header.sub_type =
+		DMUB_CMD__REPLAY_SET_POWER_OPT_AND_COASTING_VTOTAL;
+	cmd.replay_set_power_opt_and_coasting_vtotal.header.payload_bytes =
+		sizeof(struct dmub_rb_cmd_replay_set_power_opt_and_coasting_vtotal);
+	cmd.replay_set_power_opt_and_coasting_vtotal.replay_set_power_opt_data.power_opt = power_opt;
+	cmd.replay_set_power_opt_and_coasting_vtotal.replay_set_power_opt_data.panel_inst = panel_inst;
+	cmd.replay_set_power_opt_and_coasting_vtotal.replay_set_coasting_vtotal_data.coasting_vtotal = coasting_vtotal;
+
+	dc_wake_and_execute_dmub_cmd(dc, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+/**
+ * send Replay general cmd to DMUB.
+ */
+static void dmub_replay_send_cmd(struct dmub_replay *dmub,
+		enum replay_FW_Message_type msg, union dmub_replay_cmd_set *cmd_element)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *ctx = NULL;
+
+	if (dmub == NULL || cmd_element == NULL)
+		return;
+
+	ctx = dmub->ctx;
+	if (ctx != NULL) {
+
+		if (msg != Replay_Msg_Not_Support) {
+			memset(&cmd, 0, sizeof(cmd));
+			//Header
+			cmd.replay_set_timing_sync.header.type = DMUB_CMD__REPLAY;
+		} else
+			return;
+	} else
+		return;
+
+	switch (msg) {
+	case Replay_Set_Timing_Sync_Supported:
+		//Header
+		cmd.replay_set_timing_sync.header.sub_type =
+			DMUB_CMD__REPLAY_SET_TIMING_SYNC_SUPPORTED;
+		cmd.replay_set_timing_sync.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_timing_sync);
+		//Cmd Body
+		cmd.replay_set_timing_sync.replay_set_timing_sync_data.panel_inst =
+						cmd_element->sync_data.panel_inst;
+		cmd.replay_set_timing_sync.replay_set_timing_sync_data.timing_sync_supported =
+						cmd_element->sync_data.timing_sync_supported;
+		break;
+	case Replay_Set_Residency_Frameupdate_Timer:
+		//Header
+		cmd.replay_set_frameupdate_timer.header.sub_type =
+			DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER;
+		cmd.replay_set_frameupdate_timer.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_frameupdate_timer);
+		//Cmd Body
+		cmd.replay_set_frameupdate_timer.data.panel_inst =
+						cmd_element->panel_inst;
+		cmd.replay_set_frameupdate_timer.data.enable =
+						cmd_element->timer_data.enable;
+		cmd.replay_set_frameupdate_timer.data.frameupdate_count =
+						cmd_element->timer_data.frameupdate_count;
+		break;
+	case Replay_Msg_Not_Support:
+	default:
+		return;
+		break;
+	}
+
+	dc_wake_and_execute_dmub_cmd(ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
 static const struct dmub_replay_funcs replay_funcs = {
-	.replay_copy_settings		= dmub_replay_copy_settings,
-	.replay_enable			= dmub_replay_enable,
-	.replay_get_state		= dmub_replay_get_state,
-	.replay_set_power_opt		= dmub_replay_set_power_opt,
-	.replay_set_coasting_vtotal	= dmub_replay_set_coasting_vtotal,
-	.replay_residency		= dmub_replay_residency,
+	.replay_copy_settings				= dmub_replay_copy_settings,
+	.replay_enable					= dmub_replay_enable,
+	.replay_get_state				= dmub_replay_get_state,
+	.replay_set_power_opt				= dmub_replay_set_power_opt,
+	.replay_set_coasting_vtotal			= dmub_replay_set_coasting_vtotal,
+	.replay_residency				= dmub_replay_residency,
+	.replay_set_power_opt_and_coasting_vtotal	= dmub_replay_set_power_opt_and_coasting_vtotal,
+	.replay_send_cmd				= dmub_replay_send_cmd,
 };
 
 /*

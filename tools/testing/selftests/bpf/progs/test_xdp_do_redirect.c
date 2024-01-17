@@ -38,7 +38,7 @@ int xdp_redirect(struct xdp_md *xdp)
 	if (payload + 1 > data_end)
 		return XDP_ABORTED;
 
-	if (xdp->ingress_ifindex != ifindex_in)
+	if (xdp->ingress_ifindex != (__u32)ifindex_in)
 		return XDP_ABORTED;
 
 	if (metadata + 1 > data)

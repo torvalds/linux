@@ -1362,29 +1362,36 @@ int svc_xprt_names(struct svc_serv *serv, char *buf, const int buflen)
 }
 EXPORT_SYMBOL_GPL(svc_xprt_names);
 
-
 /*----------------------------------------------------------------------------*/
 
 static void *svc_pool_stats_start(struct seq_file *m, loff_t *pos)
 {
 	unsigned int pidx = (unsigned int)*pos;
-	struct svc_serv *serv = m->private;
+	struct svc_info *si = m->private;
 
 	dprintk("svc_pool_stats_start, *pidx=%u\n", pidx);
 
+	mutex_lock(si->mutex);
+
 	if (!pidx)
 		return SEQ_START_TOKEN;
-	return (pidx > serv->sv_nrpools ? NULL : &serv->sv_pools[pidx-1]);
+	if (!si->serv)
+		return NULL;
+	return pidx > si->serv->sv_nrpools ? NULL
+		: &si->serv->sv_pools[pidx - 1];
 }
 
 static void *svc_pool_stats_next(struct seq_file *m, void *p, loff_t *pos)
 {
 	struct svc_pool *pool = p;
-	struct svc_serv *serv = m->private;
+	struct svc_info *si = m->private;
+	struct svc_serv *serv = si->serv;
 
 	dprintk("svc_pool_stats_next, *pos=%llu\n", *pos);
 
-	if (p == SEQ_START_TOKEN) {
+	if (!serv) {
+		pool = NULL;
+	} else if (p == SEQ_START_TOKEN) {
 		pool = &serv->sv_pools[0];
 	} else {
 		unsigned int pidx = (pool - &serv->sv_pools[0]);
@@ -1399,6 +1406,9 @@ static void *svc_pool_stats_next(struct seq_file *m, void *p, loff_t *pos)
 
 static void svc_pool_stats_stop(struct seq_file *m, void *p)
 {
+	struct svc_info *si = m->private;
+
+	mutex_unlock(si->mutex);
 }
 
 static int svc_pool_stats_show(struct seq_file *m, void *p)
@@ -1426,14 +1436,18 @@ static const struct seq_operations svc_pool_stats_seq_ops = {
 	.show	= svc_pool_stats_show,
 };
 
-int svc_pool_stats_open(struct svc_serv *serv, struct file *file)
+int svc_pool_stats_open(struct svc_info *info, struct file *file)
 {
+	struct seq_file *seq;
 	int err;
 
 	err = seq_open(file, &svc_pool_stats_seq_ops);
-	if (!err)
-		((struct seq_file *) file->private_data)->private = serv;
-	return err;
+	if (err)
+		return err;
+	seq = file->private_data;
+	seq->private = info;
+
+	return 0;
 }
 EXPORT_SYMBOL(svc_pool_stats_open);
 

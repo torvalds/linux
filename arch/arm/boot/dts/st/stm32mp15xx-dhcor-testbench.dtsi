@@ -168,12 +168,10 @@
 };
 
 &usbh_ehci {
-	phys = <&usbphyc_port0>;
 	status = "okay";
 };
 
 &usbh_ohci {
-	phys = <&usbphyc_port0>;
 	status = "okay";
 };
 

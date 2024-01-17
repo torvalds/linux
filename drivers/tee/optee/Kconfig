@@ -23,4 +23,4 @@ config OPTEE_INSECURE_LOAD_IMAGE
 	  https://trustedfirmware-a.readthedocs.io/en/latest/threat_model/threat_model.html
 
 	  Additional documentation on kernel security risks are at
-	  Documentation/staging/tee.rst.
+	  Documentation/tee/op-tee.rst.

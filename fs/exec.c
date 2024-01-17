@@ -66,6 +66,7 @@
 #include <linux/coredump.h>
 #include <linux/time_namespace.h>
 #include <linux/user_events.h>
+#include <linux/rseq.h>
 
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
@@ -2164,7 +2165,6 @@ static struct ctl_table fs_exec_sysctls[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
 	},
-	{ }
 };
 
 static int __init init_fs_exec_sysctls(void)

@@ -2928,7 +2928,7 @@ DEFINE_EVENT(netdev_evt_only, cfg80211_send_rx_auth,
 
 TRACE_EVENT(cfg80211_send_rx_assoc,
 	TP_PROTO(struct net_device *netdev,
-		 struct cfg80211_rx_assoc_resp_data *data),
+		 const struct cfg80211_rx_assoc_resp_data *data),
 	TP_ARGS(netdev, data),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
@@ -3977,6 +3977,26 @@ TRACE_EVENT(cfg80211_links_removed,
 	),
 	TP_printk(NETDEV_PR_FMT ", link_mask:%u", NETDEV_PR_ARG,
 		  __entry->link_mask)
+);
+
+TRACE_EVENT(rdev_set_ttlm,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_ttlm_params *params),
+	TP_ARGS(wiphy, netdev, params),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__array(u8, dlink, sizeof(u16) * 8)
+		__array(u8, ulink, sizeof(u16) * 8)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		memcpy(__entry->dlink, params->dlink, sizeof(params->dlink));
+		memcpy(__entry->ulink, params->ulink, sizeof(params->ulink));
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG)
 );
 
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */

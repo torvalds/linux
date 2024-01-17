@@ -39,7 +39,7 @@ struct v4l2_mbus_framefmt *rzg2l_cru_ip_get_src_fmt(struct rzg2l_cru_dev *cru)
 	struct v4l2_mbus_framefmt *fmt;
 
 	state = v4l2_subdev_lock_and_get_active_state(&cru->ip.subdev);
-	fmt = v4l2_subdev_get_pad_format(&cru->ip.subdev, state, 1);
+	fmt = v4l2_subdev_state_get_format(state, 1);
 	v4l2_subdev_unlock_state(state);
 
 	return fmt;
@@ -108,13 +108,13 @@ static int rzg2l_cru_ip_set_format(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *src_format;
 	struct v4l2_mbus_framefmt *sink_format;
 
-	src_format = v4l2_subdev_get_pad_format(sd, state, RZG2L_CRU_IP_SOURCE);
+	src_format = v4l2_subdev_state_get_format(state, RZG2L_CRU_IP_SOURCE);
 	if (fmt->pad == RZG2L_CRU_IP_SOURCE) {
 		fmt->format = *src_format;
 		return 0;
 	}
 
-	sink_format = v4l2_subdev_get_pad_format(sd, state, fmt->pad);
+	sink_format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	if (!rzg2l_cru_ip_code_to_fmt(fmt->format.code))
 		sink_format->code = rzg2l_cru_ip_formats[0].code;
@@ -168,8 +168,8 @@ static int rzg2l_cru_ip_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int rzg2l_cru_ip_init_config(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_state *sd_state)
+static int rzg2l_cru_ip_init_state(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = { .pad = RZG2L_CRU_IP_SINK, };
 
@@ -192,7 +192,6 @@ static const struct v4l2_subdev_video_ops rzg2l_cru_ip_video_ops = {
 static const struct v4l2_subdev_pad_ops rzg2l_cru_ip_pad_ops = {
 	.enum_mbus_code = rzg2l_cru_ip_enum_mbus_code,
 	.enum_frame_size = rzg2l_cru_ip_enum_frame_size,
-	.init_cfg = rzg2l_cru_ip_init_config,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = rzg2l_cru_ip_set_format,
 };
@@ -200,6 +199,10 @@ static const struct v4l2_subdev_pad_ops rzg2l_cru_ip_pad_ops = {
 static const struct v4l2_subdev_ops rzg2l_cru_ip_subdev_ops = {
 	.video = &rzg2l_cru_ip_video_ops,
 	.pad = &rzg2l_cru_ip_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops rzg2l_cru_ip_internal_ops = {
+	.init_state = rzg2l_cru_ip_init_state,
 };
 
 static const struct media_entity_operations rzg2l_cru_ip_entity_ops = {
@@ -213,6 +216,7 @@ int rzg2l_cru_ip_subdev_register(struct rzg2l_cru_dev *cru)
 
 	ip->subdev.dev = cru->dev;
 	v4l2_subdev_init(&ip->subdev, &rzg2l_cru_ip_subdev_ops);
+	ip->subdev.internal_ops = &rzg2l_cru_ip_internal_ops;
 	v4l2_set_subdevdata(&ip->subdev, cru);
 	snprintf(ip->subdev.name, sizeof(ip->subdev.name),
 		 "cru-ip-%s", dev_name(cru->dev));

@@ -476,7 +476,7 @@ mt7996_txbf_stat_read_phy(struct mt7996_phy *phy, struct seq_file *s)
 {
 	struct mt76_mib_stats *mib = &phy->mib;
 	static const char * const bw[] = {
-		"BW20", "BW40", "BW80", "BW160"
+		"BW20", "BW40", "BW80", "BW160", "BW320"
 	};
 
 	/* Tx Beamformer monitor */
@@ -489,8 +489,9 @@ mt7996_txbf_stat_read_phy(struct mt7996_phy *phy, struct seq_file *s)
 	/* Tx Beamformer Rx feedback monitor */
 	seq_puts(s, "Tx Beamformer Rx feedback statistics: ");
 
-	seq_printf(s, "All: %d, HE: %d, VHT: %d, HT: %d, ",
+	seq_printf(s, "All: %d, EHT: %d, HE: %d, VHT: %d, HT: %d, ",
 		   mib->tx_bf_rx_fb_all_cnt,
+		   mib->tx_bf_rx_fb_eht_cnt,
 		   mib->tx_bf_rx_fb_he_cnt,
 		   mib->tx_bf_rx_fb_vht_cnt,
 		   mib->tx_bf_rx_fb_ht_cnt);

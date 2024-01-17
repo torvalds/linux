@@ -3,7 +3,7 @@
  * Wireless configuration interface internals.
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -458,6 +458,9 @@ int cfg80211_scan(struct cfg80211_registered_device *rdev);
 
 extern struct work_struct cfg80211_disconnect_work;
 
+#define NL80211_BSS_USE_FOR_ALL	(NL80211_BSS_USE_FOR_NORMAL | \
+				 NL80211_BSS_USE_FOR_MLD_LINK)
+
 void cfg80211_set_dfs_state(struct wiphy *wiphy,
 			    const struct cfg80211_chan_def *chandef,
 			    enum nl80211_dfs_state dfs_state);
@@ -545,5 +548,16 @@ void cfg80211_remove_links(struct wireless_dev *wdev);
 int cfg80211_remove_virtual_intf(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev);
 void cfg80211_wdev_release_link_bsses(struct wireless_dev *wdev, u16 link_mask);
+
+#if IS_ENABLED(CONFIG_CFG80211_KUNIT_TEST)
+#define EXPORT_SYMBOL_IF_CFG80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)
+#define VISIBLE_IF_CFG80211_KUNIT
+size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
+			   const u8 *subie, size_t subie_len,
+			   u8 *new_ie, size_t new_ie_len);
+#else
+#define EXPORT_SYMBOL_IF_CFG80211_KUNIT(sym)
+#define VISIBLE_IF_CFG80211_KUNIT static
+#endif /* IS_ENABLED(CONFIG_CFG80211_KUNIT_TEST) */
 
 #endif /* __NET_WIRELESS_CORE_H */
