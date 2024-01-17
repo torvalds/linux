@@ -1037,7 +1037,7 @@ component_dai_empty:
 	return -EINVAL;
 }
 
-#define MAX_DEFAULT_CH_MAP_SIZE 7
+#define MAX_DEFAULT_CH_MAP_SIZE 8
 static struct snd_soc_dai_link_ch_map default_ch_map_sync[MAX_DEFAULT_CH_MAP_SIZE] = {
 	{ .cpu = 0, .codec = 0 },
 	{ .cpu = 1, .codec = 1 },
@@ -1046,6 +1046,7 @@ static struct snd_soc_dai_link_ch_map default_ch_map_sync[MAX_DEFAULT_CH_MAP_SIZ
 	{ .cpu = 4, .codec = 4 },
 	{ .cpu = 5, .codec = 5 },
 	{ .cpu = 6, .codec = 6 },
+	{ .cpu = 7, .codec = 7 },
 };
 static struct snd_soc_dai_link_ch_map default_ch_map_1cpu[MAX_DEFAULT_CH_MAP_SIZE] = {
 	{ .cpu = 0, .codec = 0 },
@@ -1055,6 +1056,7 @@ static struct snd_soc_dai_link_ch_map default_ch_map_1cpu[MAX_DEFAULT_CH_MAP_SIZ
 	{ .cpu = 0, .codec = 4 },
 	{ .cpu = 0, .codec = 5 },
 	{ .cpu = 0, .codec = 6 },
+	{ .cpu = 0, .codec = 7 },
 };
 static struct snd_soc_dai_link_ch_map default_ch_map_1codec[MAX_DEFAULT_CH_MAP_SIZE] = {
 	{ .cpu = 0, .codec = 0 },
@@ -1064,6 +1066,7 @@ static struct snd_soc_dai_link_ch_map default_ch_map_1codec[MAX_DEFAULT_CH_MAP_S
 	{ .cpu = 4, .codec = 0 },
 	{ .cpu = 5, .codec = 0 },
 	{ .cpu = 6, .codec = 0 },
+	{ .cpu = 7, .codec = 0 },
 };
 static int snd_soc_compensate_channel_connection_map(struct snd_soc_card *card,
 						     struct snd_soc_dai_link *dai_link)
