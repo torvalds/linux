@@ -555,7 +555,7 @@ config EXPOLINE
 	  If unsure, say N.
 
 config EXPOLINE_EXTERN
-	def_bool n
+	def_bool y if EXPOLINE
 	depends on EXPOLINE
 	depends on CC_IS_GCC && GCC_VERSION >= 110200
 	depends on $(success,$(srctree)/arch/s390/tools/gcc-thunk-extern.sh $(CC))

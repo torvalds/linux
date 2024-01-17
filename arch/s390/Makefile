@@ -88,7 +88,6 @@ endif
 
 ifdef CONFIG_EXPOLINE
   ifdef CONFIG_EXPOLINE_EXTERN
-    KBUILD_LDFLAGS_MODULE += arch/s390/lib/expoline/expoline.o
     CC_FLAGS_EXPOLINE := -mindirect-branch=thunk-extern
     CC_FLAGS_EXPOLINE += -mfunction-return=thunk-extern
   else
@@ -167,11 +166,6 @@ vdso_prepare: prepare0
 vdso-install-y			+= arch/s390/kernel/vdso64/vdso64.so.dbg
 vdso-install-$(CONFIG_COMPAT)	+= arch/s390/kernel/vdso32/vdso32.so.dbg
 
-ifdef CONFIG_EXPOLINE_EXTERN
-modules_prepare: expoline_prepare
-expoline_prepare: scripts
-	$(Q)$(MAKE) $(build)=arch/s390/lib/expoline arch/s390/lib/expoline/expoline.o
-endif
 endif
 
 # Don't use tabs in echo arguments
