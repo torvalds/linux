@@ -1450,6 +1450,8 @@ struct rtl_io {
 	void (*write8)(struct rtl_priv *rtlpriv, u32 addr, u8 val);
 	void (*write16)(struct rtl_priv *rtlpriv, u32 addr, u16 val);
 	void (*write32)(struct rtl_priv *rtlpriv, u32 addr, u32 val);
+	void (*write_chunk)(struct rtl_priv *rtlpriv, u32 addr, u32 length,
+			    u8 *data);
 
 	u8 (*read8)(struct rtl_priv *rtlpriv, u32 addr);
 	u16 (*read16)(struct rtl_priv *rtlpriv, u32 addr);
@@ -2960,6 +2962,12 @@ static inline void rtl_write_dword(struct rtl_priv *rtlpriv,
 
 	if (rtlpriv->cfg->write_readback)
 		rtlpriv->io.read32(rtlpriv, addr);
+}
+
+static inline void rtl_write_chunk(struct rtl_priv *rtlpriv,
+				   u32 addr, u32 length, u8 *data)
+{
+	rtlpriv->io.write_chunk(rtlpriv, addr, length, data);
 }
 
 static inline u32 rtl_get_bbreg(struct ieee80211_hw *hw,

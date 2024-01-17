@@ -40,7 +40,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	rtlpriv->dm.thermalvalue = 0;
 
 	/* for firmware buf */
-	rtlpriv->rtlhal.pfirmware = vzalloc(0x4000);
+	rtlpriv->rtlhal.pfirmware = kmalloc(0x4000, GFP_KERNEL);
 	if (!rtlpriv->rtlhal.pfirmware) {
 		pr_err("Can't alloc buffer for fw\n");
 		return 1;
@@ -61,7 +61,7 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 				      fw_name, rtlpriv->io.dev,
 				      GFP_KERNEL, hw, rtl_fw_cb);
 	if (err) {
-		vfree(rtlpriv->rtlhal.pfirmware);
+		kfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 	return err;
@@ -72,7 +72,7 @@ static void rtl92cu_deinit_sw_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
 	if (rtlpriv->rtlhal.pfirmware) {
-		vfree(rtlpriv->rtlhal.pfirmware);
+		kfree(rtlpriv->rtlhal.pfirmware);
 		rtlpriv->rtlhal.pfirmware = NULL;
 	}
 }

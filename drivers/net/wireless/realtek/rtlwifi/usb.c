@@ -125,6 +125,14 @@ static void _usb_write32_sync(struct rtl_priv *rtlpriv, u32 addr, u32 val)
 	_usb_write_sync(rtlpriv, addr, val, 4);
 }
 
+static void _usb_write_chunk_sync(struct rtl_priv *rtlpriv, u32 addr,
+				  u32 length, u8 *data)
+{
+	struct usb_device *udev = to_usb_device(rtlpriv->io.dev);
+
+	_usbctrl_vendorreq_sync(udev, REALTEK_USB_VENQT_WRITE, addr, data, length);
+}
+
 static void _rtl_usb_io_handler_init(struct device *dev,
 				     struct ieee80211_hw *hw)
 {
@@ -135,6 +143,7 @@ static void _rtl_usb_io_handler_init(struct device *dev,
 	rtlpriv->io.write8	= _usb_write8_sync;
 	rtlpriv->io.write16	= _usb_write16_sync;
 	rtlpriv->io.write32	= _usb_write32_sync;
+	rtlpriv->io.write_chunk	= _usb_write_chunk_sync;
 	rtlpriv->io.read8	= _usb_read8_sync;
 	rtlpriv->io.read16	= _usb_read16_sync;
 	rtlpriv->io.read32	= _usb_read32_sync;
