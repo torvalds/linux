@@ -1407,7 +1407,73 @@ Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
 		*offset = data.offset;
 	return result;
 }
-#endif
+#endif /* HAVE_DWARF_GETLOCATIONS_SUPPORT */
+
+#ifdef HAVE_DWARF_CFI_SUPPORT
+static int reg_from_dwarf_op(Dwarf_Op *op)
+{
+	switch (op->atom) {
+	case DW_OP_reg0 ... DW_OP_reg31:
+		return op->atom - DW_OP_reg0;
+	case DW_OP_breg0 ... DW_OP_breg31:
+		return op->atom - DW_OP_breg0;
+	case DW_OP_regx:
+	case DW_OP_bregx:
+		return op->number;
+	default:
+		break;
+	}
+	return -1;
+}
+
+static int offset_from_dwarf_op(Dwarf_Op *op)
+{
+	switch (op->atom) {
+	case DW_OP_reg0 ... DW_OP_reg31:
+	case DW_OP_regx:
+		return 0;
+	case DW_OP_breg0 ... DW_OP_breg31:
+		return op->number;
+	case DW_OP_bregx:
+		return op->number2;
+	default:
+		break;
+	}
+	return -1;
+}
+
+/**
+ * die_get_cfa - Get frame base information
+ * @dwarf: a Dwarf info
+ * @pc: program address
+ * @preg: pointer for saved register
+ * @poffset: pointer for saved offset
+ *
+ * This function gets register and offset for CFA (Canonical Frame Address)
+ * by searching the CIE/FDE info.  The CFA usually points to the start address
+ * of the current stack frame and local variables can be located using an offset
+ * from the CFA.  The @preg and @poffset will be updated if it returns 0.
+ */
+int die_get_cfa(Dwarf *dwarf, u64 pc, int *preg, int *poffset)
+{
+	Dwarf_CFI *cfi;
+	Dwarf_Frame *frame = NULL;
+	Dwarf_Op *ops = NULL;
+	size_t nops;
+
+	cfi = dwarf_getcfi(dwarf);
+	if (cfi == NULL)
+		return -1;
+
+	if (!dwarf_cfi_addrframe(cfi, pc, &frame) &&
+	    !dwarf_frame_cfa(frame, &ops, &nops) && nops == 1) {
+		*preg = reg_from_dwarf_op(ops);
+		*poffset = offset_from_dwarf_op(ops);
+		return 0;
+	}
+	return -1;
+}
+#endif /* HAVE_DWARF_CFI_SUPPORT */
 
 /*
  * die_has_loclist - Check if DW_AT_location of @vr_die is a location list
