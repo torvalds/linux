@@ -3114,7 +3114,8 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	/* Packed socket_id to ras feature mask bits[31:29] */
 	if (adev->smuio.funcs &&
 	    adev->smuio.funcs->get_socket_id)
-		con->features |= ((adev->smuio.funcs->get_socket_id(adev)) << 29);
+		con->features |= ((adev->smuio.funcs->get_socket_id(adev)) <<
+					AMDGPU_RAS_FEATURES_SOCKETID_SHIFT);
 
 	/* Get RAS schema for particular SOC */
 	con->schema = amdgpu_get_ras_schema(adev);
@@ -3320,7 +3321,7 @@ void amdgpu_ras_suspend(struct amdgpu_device *adev)
 
 	amdgpu_ras_disable_all_features(adev, 0);
 	/* Make sure all ras objects are disabled. */
-	if (con->features)
+	if (AMDGPU_RAS_GET_FEATURES(con->features))
 		amdgpu_ras_disable_all_features(adev, 1);
 }
 
@@ -3370,7 +3371,7 @@ int amdgpu_ras_pre_fini(struct amdgpu_device *adev)
 
 
 	/* Need disable ras on all IPs here before ip [hw/sw]fini */
-	if (con->features)
+	if (AMDGPU_RAS_GET_FEATURES(con->features))
 		amdgpu_ras_disable_all_features(adev, 0);
 	amdgpu_ras_recovery_fini(adev);
 	return 0;
@@ -3403,9 +3404,9 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
 
-	WARN(con->features, "Feature mask is not cleared");
+	WARN(AMDGPU_RAS_GET_FEATURES(con->features), "Feature mask is not cleared");
 
-	if (con->features)
+	if (AMDGPU_RAS_GET_FEATURES(con->features))
 		amdgpu_ras_disable_all_features(adev, 1);
 
 	cancel_delayed_work_sync(&con->ras_counte_delay_work);

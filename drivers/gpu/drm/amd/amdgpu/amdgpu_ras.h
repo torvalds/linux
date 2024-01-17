@@ -53,6 +53,12 @@ struct amdgpu_iv_entry;
 #define AMDGPU_RAS_INST_MASK 0xfffff000
 #define AMDGPU_RAS_INST_SHIFT 0xc
 
+#define AMDGPU_RAS_FEATURES_SOCKETID_SHIFT 29
+#define AMDGPU_RAS_FEATURES_SOCKETID_MASK 0xe0000000
+
+/* The high three bits indicates socketid */
+#define AMDGPU_RAS_GET_FEATURES(val)  ((val) & ~AMDGPU_RAS_FEATURES_SOCKETID_MASK)
+
 enum amdgpu_ras_block {
 	AMDGPU_RAS_BLOCK__UMC = 0,
 	AMDGPU_RAS_BLOCK__SDMA,
