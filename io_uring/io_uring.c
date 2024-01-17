@@ -1304,16 +1304,16 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned nr_wait, nr_tw, nr_tw_prev;
-	struct llist_node *first;
+	struct llist_node *head;
 
 	if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
 		flags &= ~IOU_F_TWQ_LAZY_WAKE;
 
-	first = READ_ONCE(ctx->work_llist.first);
+	head = READ_ONCE(ctx->work_llist.first);
 	do {
 		nr_tw_prev = 0;
-		if (first) {
-			struct io_kiocb *first_req = container_of(first,
+		if (head) {
+			struct io_kiocb *first_req = container_of(head,
 							struct io_kiocb,
 							io_task_work.node);
 			/*
@@ -1328,8 +1328,8 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 			nr_tw = INT_MAX;
 
 		req->nr_tw = nr_tw;
-		req->io_task_work.node.next = first;
-	} while (!try_cmpxchg(&ctx->work_llist.first, &first,
+		req->io_task_work.node.next = head;
+	} while (!try_cmpxchg(&ctx->work_llist.first, &head,
 			      &req->io_task_work.node));
 
 	/*
@@ -1340,7 +1340,7 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	 * is similar to the wait/wawke task state sync.
 	 */
 
-	if (!first) {
+	if (!head) {
 		if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
 			atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 		if (ctx->has_evfd)
