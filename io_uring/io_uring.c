@@ -1332,6 +1332,14 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	} while (!try_cmpxchg(&ctx->work_llist.first, &first,
 			      &req->io_task_work.node));
 
+	/*
+	 * cmpxchg implies a full barrier, which pairs with the barrier
+	 * in set_current_state() on the io_cqring_wait() side. It's used
+	 * to ensure that either we see updated ->cq_wait_nr, or waiters
+	 * going to sleep will observe the work added to the list, which
+	 * is similar to the wait/wawke task state sync.
+	 */
+
 	if (!first) {
 		if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
 			atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
@@ -1346,8 +1354,6 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	/* either not enough or the previous add has already woken it up */
 	if (nr_wait > nr_tw || nr_tw_prev >= nr_wait)
 		return;
-	/* pairs with set_current_state() in io_cqring_wait() */
-	smp_mb__after_atomic();
 	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 }
 
