@@ -264,6 +264,10 @@ parisc_cache_init(void)
 	icache_stride = CAFL_STRIDE(cache_info.ic_conf);
 #undef CAFL_STRIDE
 
+	/* stride needs to be non-zero, otherwise cache flushes will not work */
+	WARN_ON(cache_info.dc_size && dcache_stride == 0);
+	WARN_ON(cache_info.ic_size && icache_stride == 0);
+
 	if ((boot_cpu_data.pdc.capabilities & PDC_MODEL_NVA_MASK) ==
 						PDC_MODEL_NVA_UNSUPPORTED) {
 		printk(KERN_WARNING "parisc_cache_init: Only equivalent aliasing supported!\n");
