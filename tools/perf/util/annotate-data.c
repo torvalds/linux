@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <inttypes.h>
 
+#include "annotate.h"
 #include "annotate-data.h"
 #include "debuginfo.h"
 #include "debug.h"
@@ -207,7 +208,8 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 	 * It expects a pointer type for a memory access.
 	 * Convert to a real type it points to.
 	 */
-	if (dwarf_tag(type_die) != DW_TAG_pointer_type ||
+	if ((dwarf_tag(type_die) != DW_TAG_pointer_type &&
+	     dwarf_tag(type_die) != DW_TAG_array_type) ||
 	    die_get_real_type(type_die, type_die) == NULL) {
 		pr_debug("no pointer or no type\n");
 		ann_data_stat.no_typeinfo++;
@@ -233,10 +235,11 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset)
 
 /* The result will be saved in @type_die */
 static int find_data_type_die(struct debuginfo *di, u64 pc,
-			      int reg, int offset, Dwarf_Die *type_die)
+			      struct annotated_op_loc *loc, Dwarf_Die *type_die)
 {
 	Dwarf_Die cu_die, var_die;
 	Dwarf_Die *scopes = NULL;
+	int reg, offset;
 	int ret = -1;
 	int i, nr_scopes;
 
@@ -250,6 +253,10 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 	/* Get a list of nested scopes - i.e. (inlined) functions and blocks. */
 	nr_scopes = die_get_scopes(&cu_die, pc, &scopes);
 
+	reg = loc->reg1;
+	offset = loc->offset;
+
+retry:
 	/* Search from the inner-most scope to the outer */
 	for (i = nr_scopes - 1; i >= 0; i--) {
 		/* Look up variables/parameters in this scope */
@@ -260,6 +267,12 @@ static int find_data_type_die(struct debuginfo *di, u64 pc,
 		ret = check_variable(&var_die, type_die, offset);
 		goto out;
 	}
+
+	if (loc->multi_regs && reg == loc->reg1 && loc->reg1 != loc->reg2) {
+		reg = loc->reg2;
+		goto retry;
+	}
+
 	if (ret < 0)
 		ann_data_stat.no_var++;
 
@@ -272,15 +285,14 @@ out:
  * find_data_type - Return a data type at the location
  * @ms: map and symbol at the location
  * @ip: instruction address of the memory access
- * @reg: register that holds the base address
- * @offset: offset from the base address
+ * @loc: instruction operand location
  *
  * This functions searches the debug information of the binary to get the data
  * type it accesses.  The exact location is expressed by (ip, reg, offset).
  * It return %NULL if not found.
  */
 struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
-					   int reg, int offset)
+					   struct annotated_op_loc *loc)
 {
 	struct annotated_data_type *result = NULL;
 	struct dso *dso = map__dso(ms->map);
@@ -300,7 +312,7 @@ struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 	 * a file address for DWARF processing.
 	 */
 	pc = map__rip_2objdump(ms->map, ip);
-	if (find_data_type_die(di, pc, reg, offset, &type_die) < 0)
+	if (find_data_type_die(di, pc, loc, &type_die) < 0)
 		goto out;
 
 	result = dso__findnew_data_type(dso, &type_die);

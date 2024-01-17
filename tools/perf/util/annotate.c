@@ -3563,8 +3563,22 @@ static int extract_reg_offset(struct arch *arch, const char *str,
 	if (regname == NULL)
 		return -1;
 
-	op_loc->reg = get_dwarf_regnum(regname, 0);
+	op_loc->reg1 = get_dwarf_regnum(regname, 0);
 	free(regname);
+
+	/* Get the second register */
+	if (op_loc->multi_regs) {
+		p = strchr(p + 1, arch->objdump.register_char);
+		if (p == NULL)
+			return -1;
+
+		regname = strdup(p);
+		if (regname == NULL)
+			return -1;
+
+		op_loc->reg2 = get_dwarf_regnum(regname, 0);
+		free(regname);
+	}
 	return 0;
 }
 
@@ -3577,14 +3591,20 @@ static int extract_reg_offset(struct arch *arch, const char *str,
  * Get detailed location info (register and offset) in the instruction.
  * It needs both source and target operand and whether it accesses a
  * memory location.  The offset field is meaningful only when the
- * corresponding mem flag is set.
+ * corresponding mem flag is set.  The reg2 field is meaningful only
+ * when multi_regs flag is set.
  *
  * Some examples on x86:
  *
- *   mov  (%rax), %rcx   # src_reg = rax, src_mem = 1, src_offset = 0
- *                       # dst_reg = rcx, dst_mem = 0
+ *   mov  (%rax), %rcx   # src_reg1 = rax, src_mem = 1, src_offset = 0
+ *                       # dst_reg1 = rcx, dst_mem = 0
  *
- *   mov  0x18, %r8      # src_reg = -1, dst_reg = r8
+ *   mov  0x18, %r8      # src_reg1 = -1, src_mem = 0
+ *                       # dst_reg1 = r8, dst_mem = 0
+ *
+ *   mov  %rsi, 8(%rbx,%rcx,4)  # src_reg1 = rsi, src_mem = 0, dst_multi_regs = 0
+ *                              # dst_reg1 = rbx, dst_reg2 = rcx, dst_mem = 1
+ *                              # dst_multi_regs = 1, dst_offset = 8
  */
 int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 			       struct annotated_insn_loc *loc)
@@ -3605,24 +3625,29 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 
 	for_each_insn_op_loc(loc, i, op_loc) {
 		const char *insn_str = ops->source.raw;
+		bool multi_regs = ops->source.multi_regs;
 
-		if (i == INSN_OP_TARGET)
+		if (i == INSN_OP_TARGET) {
 			insn_str = ops->target.raw;
+			multi_regs = ops->target.multi_regs;
+		}
 
 		/* Invalidate the register by default */
-		op_loc->reg = -1;
+		op_loc->reg1 = -1;
+		op_loc->reg2 = -1;
 
 		if (insn_str == NULL)
 			continue;
 
 		if (strchr(insn_str, arch->objdump.memory_ref_char)) {
 			op_loc->mem_ref = true;
+			op_loc->multi_regs = multi_regs;
 			extract_reg_offset(arch, insn_str, op_loc);
 		} else {
 			char *s = strdup(insn_str);
 
 			if (s) {
-				op_loc->reg = get_dwarf_regnum(s, 0);
+				op_loc->reg1 = get_dwarf_regnum(s, 0);
 				free(s);
 			}
 		}
@@ -3771,7 +3796,7 @@ retry:
 		/* Recalculate IP because of LOCK prefix or insn fusion */
 		ip = ms->sym->start + dl->al.offset;
 
-		mem_type = find_data_type(ms, ip, op_loc->reg, op_loc->offset);
+		mem_type = find_data_type(ms, ip, op_loc);
 		if (mem_type)
 			istat->good++;
 		else

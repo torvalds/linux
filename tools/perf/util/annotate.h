@@ -442,14 +442,18 @@ int annotate_check_args(void);
 
 /**
  * struct annotated_op_loc - Location info of instruction operand
- * @reg: Register in the operand
+ * @reg1: First register in the operand
+ * @reg2: Second register in the operand
  * @offset: Memory access offset in the operand
  * @mem_ref: Whether the operand accesses memory
+ * @multi_regs: Whether the second register is used
  */
 struct annotated_op_loc {
-	int reg;
+	int reg1;
+	int reg2;
 	int offset;
 	bool mem_ref;
+	bool multi_regs;
 };
 
 enum annotated_insn_ops {
