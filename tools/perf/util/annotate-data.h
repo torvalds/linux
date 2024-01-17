@@ -107,7 +107,8 @@ extern struct annotated_data_stat ann_data_stat;
 
 /* Returns data type at the location (ip, reg, offset) */
 struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
-					   struct annotated_op_loc *loc);
+					   struct annotated_op_loc *loc, u64 addr,
+					   const char *var_name);
 
 /* Update type access histogram at the given offset */
 int annotated_data_type__update_samples(struct annotated_data_type *adt,
@@ -121,7 +122,8 @@ void annotated_data_type__tree_delete(struct rb_root *root);
 
 static inline struct annotated_data_type *
 find_data_type(struct map_symbol *ms __maybe_unused, u64 ip __maybe_unused,
-	       struct annotated_op_loc *loc __maybe_unused)
+	       struct annotated_op_loc *loc __maybe_unused,
+	       u64 addr __maybe_unused, const char *var_name __maybe_unused)
 {
 	return NULL;
 }

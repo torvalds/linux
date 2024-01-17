@@ -240,7 +240,8 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
 
 /* The result will be saved in @type_die */
 static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
-			      struct annotated_op_loc *loc, Dwarf_Die *type_die)
+			      const char *var_name, struct annotated_op_loc *loc,
+			      Dwarf_Die *type_die)
 {
 	Dwarf_Die cu_die, var_die;
 	Dwarf_Die *scopes = NULL;
@@ -258,11 +259,21 @@ static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
 	reg = loc->reg1;
 	offset = loc->offset;
 
-	if (reg == DWARF_REG_PC &&
-	    die_find_variable_by_addr(&cu_die, pc, addr, &var_die, &offset)) {
-		ret = check_variable(&var_die, type_die, offset,
-				     /*is_pointer=*/false);
-		goto out;
+	if (reg == DWARF_REG_PC) {
+		if (die_find_variable_by_addr(&cu_die, pc, addr, &var_die, &offset)) {
+			ret = check_variable(&var_die, type_die, offset,
+					     /*is_pointer=*/false);
+			loc->offset = offset;
+			goto out;
+		}
+
+		if (var_name && die_find_variable_at(&cu_die, var_name, pc,
+						     &var_die)) {
+			ret = check_variable(&var_die, type_die, 0,
+					     /*is_pointer=*/false);
+			/* loc->offset will be updated by the caller */
+			goto out;
+		}
 	}
 
 	/* Get a list of nested scopes - i.e. (inlined) functions and blocks. */
@@ -285,6 +296,7 @@ retry:
 		/* Found a variable, see if it's correct */
 		ret = check_variable(&var_die, type_die, offset,
 				     reg != DWARF_REG_PC);
+		loc->offset = offset;
 		goto out;
 	}
 
@@ -306,13 +318,21 @@ out:
  * @ms: map and symbol at the location
  * @ip: instruction address of the memory access
  * @loc: instruction operand location
+ * @addr: data address of the memory access
+ * @var_name: global variable name
  *
  * This functions searches the debug information of the binary to get the data
- * type it accesses.  The exact location is expressed by (ip, reg, offset).
+ * type it accesses.  The exact location is expressed by (@ip, reg, offset)
+ * for pointer variables or (@ip, @addr) for global variables.  Note that global
+ * variables might update the @loc->offset after finding the start of the variable.
+ * If it cannot find a global variable by address, it tried to fine a declaration
+ * of the variable using @var_name.  In that case, @loc->offset won't be updated.
+ *
  * It return %NULL if not found.
  */
 struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
-					   struct annotated_op_loc *loc)
+					   struct annotated_op_loc *loc, u64 addr,
+					   const char *var_name)
 {
 	struct annotated_data_type *result = NULL;
 	struct dso *dso = map__dso(ms->map);
@@ -332,7 +352,7 @@ struct annotated_data_type *find_data_type(struct map_symbol *ms, u64 ip,
 	 * a file address for DWARF processing.
 	 */
 	pc = map__rip_2objdump(ms->map, ip);
-	if (find_data_type_die(di, pc, 0, loc, &type_die) < 0)
+	if (find_data_type_die(di, pc, addr, var_name, loc, &type_die) < 0)
 		goto out;
 
 	result = dso__findnew_data_type(dso, &type_die);

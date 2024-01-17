@@ -37,6 +37,7 @@
 #include "util/sharded_mutex.h"
 #include "arch/common.h"
 #include "namespaces.h"
+#include "thread.h"
 #include <regex.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -3744,6 +3745,30 @@ static bool is_stack_operation(struct arch *arch, struct disasm_line *dl)
 	return false;
 }
 
+u64 annotate_calc_pcrel(struct map_symbol *ms, u64 ip, int offset,
+			struct disasm_line *dl)
+{
+	struct annotation *notes;
+	struct disasm_line *next;
+	u64 addr;
+
+	notes = symbol__annotation(ms->sym);
+	/*
+	 * PC-relative addressing starts from the next instruction address
+	 * But the IP is for the current instruction.  Since disasm_line
+	 * doesn't have the instruction size, calculate it using the next
+	 * disasm_line.  If it's the last one, we can use symbol's end
+	 * address directly.
+	 */
+	if (&dl->al.node == notes->src->source.prev)
+		addr = ms->sym->end + offset;
+	else {
+		next = list_next_entry(dl, al.node);
+		addr = ip + (next->al.offset - dl->al.offset) + offset;
+	}
+	return map__rip_2objdump(ms->map, addr);
+}
+
 /**
  * hist_entry__get_data_type - find data type for given hist entry
  * @he: hist entry
@@ -3763,7 +3788,9 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	struct annotated_op_loc *op_loc;
 	struct annotated_data_type *mem_type;
 	struct annotated_item_stat *istat;
-	u64 ip = he->ip;
+	u64 ip = he->ip, addr = 0;
+	const char *var_name = NULL;
+	int var_offset;
 	int i;
 
 	ann_data_stat.total++;
@@ -3822,11 +3849,37 @@ retry:
 		/* Recalculate IP because of LOCK prefix or insn fusion */
 		ip = ms->sym->start + dl->al.offset;
 
-		mem_type = find_data_type(ms, ip, op_loc);
+		var_offset = op_loc->offset;
+
+		/* PC-relative addressing */
+		if (op_loc->reg1 == DWARF_REG_PC) {
+			struct addr_location al;
+			struct symbol *var;
+			u64 map_addr;
+
+			addr = annotate_calc_pcrel(ms, ip, op_loc->offset, dl);
+			/* Kernel symbols might be relocated */
+			map_addr = addr + map__reloc(ms->map);
+
+			addr_location__init(&al);
+			var = thread__find_symbol_fb(he->thread, he->cpumode,
+						     map_addr, &al);
+			if (var) {
+				var_name = var->name;
+				/* Calculate type offset from the start of variable */
+				var_offset = map_addr - map__unmap_ip(al.map, var->start);
+			}
+			addr_location__exit(&al);
+		}
+
+		mem_type = find_data_type(ms, ip, op_loc, addr, var_name);
 		if (mem_type)
 			istat->good++;
 		else
 			istat->bad++;
+
+		if (mem_type && var_name)
+			op_loc->offset = var_offset;
 
 		if (symbol_conf.annotate_data_sample) {
 			annotated_data_type__update_samples(mem_type, evsel,
