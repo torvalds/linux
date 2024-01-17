@@ -3159,7 +3159,8 @@ static void unhandled_cp_access(struct kvm_vcpu *vcpu,
 /**
  * kvm_handle_cp_64 -- handles a mrrc/mcrr trap on a guest CP14/CP15 access
  * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
+ * @global: &struct sys_reg_desc
+ * @nr_global: size of the @global array
  */
 static int kvm_handle_cp_64(struct kvm_vcpu *vcpu,
 			    const struct sys_reg_desc *global,
@@ -3326,7 +3327,9 @@ static int kvm_emulate_cp15_id_reg(struct kvm_vcpu *vcpu,
 /**
  * kvm_handle_cp_32 -- handles a mrc/mcr trap on a guest CP14/CP15 access
  * @vcpu: The VCPU pointer
- * @run:  The kvm_run struct
+ * @params: &struct sys_reg_params
+ * @global: &struct sys_reg_desc
+ * @nr_global: size of the @global array
  */
 static int kvm_handle_cp_32(struct kvm_vcpu *vcpu,
 			    struct sys_reg_params *params,
