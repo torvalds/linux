@@ -11,7 +11,8 @@
 #include <linux/kvm_host.h>
 #include <linux/types.h>
 
-#define KVM_PGTABLE_MAX_LEVELS		4U
+#define KVM_PGTABLE_FIRST_LEVEL		-1
+#define KVM_PGTABLE_LAST_LEVEL		3
 
 /*
  * The largest supported block sizes for KVM (no 52-bit PA support):
@@ -20,19 +21,29 @@
  *  - 64K (level 2):	512MB
  */
 #ifdef CONFIG_ARM64_4K_PAGES
-#define KVM_PGTABLE_MIN_BLOCK_LEVEL	1U
+#define KVM_PGTABLE_MIN_BLOCK_LEVEL	1
 #else
-#define KVM_PGTABLE_MIN_BLOCK_LEVEL	2U
+#define KVM_PGTABLE_MIN_BLOCK_LEVEL	2
 #endif
 
-#define kvm_lpa2_is_enabled()		false
+#define kvm_lpa2_is_enabled()		system_supports_lpa2()
+
+static inline u64 kvm_get_parange_max(void)
+{
+	if (kvm_lpa2_is_enabled() ||
+	   (IS_ENABLED(CONFIG_ARM64_PA_BITS_52) && PAGE_SHIFT == 16))
+		return ID_AA64MMFR0_EL1_PARANGE_52;
+	else
+		return ID_AA64MMFR0_EL1_PARANGE_48;
+}
 
 static inline u64 kvm_get_parange(u64 mmfr0)
 {
+	u64 parange_max = kvm_get_parange_max();
 	u64 parange = cpuid_feature_extract_unsigned_field(mmfr0,
 				ID_AA64MMFR0_EL1_PARANGE_SHIFT);
-	if (parange > ID_AA64MMFR0_EL1_PARANGE_MAX)
-		parange = ID_AA64MMFR0_EL1_PARANGE_MAX;
+	if (parange > parange_max)
+		parange = parange_max;
 
 	return parange;
 }
@@ -43,6 +54,8 @@ typedef u64 kvm_pte_t;
 
 #define KVM_PTE_ADDR_MASK		GENMASK(47, PAGE_SHIFT)
 #define KVM_PTE_ADDR_51_48		GENMASK(15, 12)
+#define KVM_PTE_ADDR_MASK_LPA2		GENMASK(49, PAGE_SHIFT)
+#define KVM_PTE_ADDR_51_50_LPA2		GENMASK(9, 8)
 
 #define KVM_PHYS_INVALID		(-1ULL)
 
@@ -53,21 +66,34 @@ static inline bool kvm_pte_valid(kvm_pte_t pte)
 
 static inline u64 kvm_pte_to_phys(kvm_pte_t pte)
 {
-	u64 pa = pte & KVM_PTE_ADDR_MASK;
+	u64 pa;
 
-	if (PAGE_SHIFT == 16)
-		pa |= FIELD_GET(KVM_PTE_ADDR_51_48, pte) << 48;
+	if (kvm_lpa2_is_enabled()) {
+		pa = pte & KVM_PTE_ADDR_MASK_LPA2;
+		pa |= FIELD_GET(KVM_PTE_ADDR_51_50_LPA2, pte) << 50;
+	} else {
+		pa = pte & KVM_PTE_ADDR_MASK;
+		if (PAGE_SHIFT == 16)
+			pa |= FIELD_GET(KVM_PTE_ADDR_51_48, pte) << 48;
+	}
 
 	return pa;
 }
 
 static inline kvm_pte_t kvm_phys_to_pte(u64 pa)
 {
-	kvm_pte_t pte = pa & KVM_PTE_ADDR_MASK;
+	kvm_pte_t pte;
 
-	if (PAGE_SHIFT == 16) {
-		pa &= GENMASK(51, 48);
-		pte |= FIELD_PREP(KVM_PTE_ADDR_51_48, pa >> 48);
+	if (kvm_lpa2_is_enabled()) {
+		pte = pa & KVM_PTE_ADDR_MASK_LPA2;
+		pa &= GENMASK(51, 50);
+		pte |= FIELD_PREP(KVM_PTE_ADDR_51_50_LPA2, pa >> 50);
+	} else {
+		pte = pa & KVM_PTE_ADDR_MASK;
+		if (PAGE_SHIFT == 16) {
+			pa &= GENMASK(51, 48);
+			pte |= FIELD_PREP(KVM_PTE_ADDR_51_48, pa >> 48);
+		}
 	}
 
 	return pte;
@@ -78,28 +104,28 @@ static inline kvm_pfn_t kvm_pte_to_pfn(kvm_pte_t pte)
 	return __phys_to_pfn(kvm_pte_to_phys(pte));
 }
 
-static inline u64 kvm_granule_shift(u32 level)
+static inline u64 kvm_granule_shift(s8 level)
 {
-	/* Assumes KVM_PGTABLE_MAX_LEVELS is 4 */
+	/* Assumes KVM_PGTABLE_LAST_LEVEL is 3 */
 	return ARM64_HW_PGTABLE_LEVEL_SHIFT(level);
 }
 
-static inline u64 kvm_granule_size(u32 level)
+static inline u64 kvm_granule_size(s8 level)
 {
 	return BIT(kvm_granule_shift(level));
 }
 
-static inline bool kvm_level_supports_block_mapping(u32 level)
+static inline bool kvm_level_supports_block_mapping(s8 level)
 {
 	return level >= KVM_PGTABLE_MIN_BLOCK_LEVEL;
 }
 
 static inline u32 kvm_supported_block_sizes(void)
 {
-	u32 level = KVM_PGTABLE_MIN_BLOCK_LEVEL;
+	s8 level = KVM_PGTABLE_MIN_BLOCK_LEVEL;
 	u32 r = 0;
 
-	for (; level < KVM_PGTABLE_MAX_LEVELS; level++)
+	for (; level <= KVM_PGTABLE_LAST_LEVEL; level++)
 		r |= BIT(kvm_granule_shift(level));
 
 	return r;
@@ -144,7 +170,7 @@ struct kvm_pgtable_mm_ops {
 	void*		(*zalloc_page)(void *arg);
 	void*		(*zalloc_pages_exact)(size_t size);
 	void		(*free_pages_exact)(void *addr, size_t size);
-	void		(*free_unlinked_table)(void *addr, u32 level);
+	void		(*free_unlinked_table)(void *addr, s8 level);
 	void		(*get_page)(void *addr);
 	void		(*put_page)(void *addr);
 	int		(*page_count)(void *addr);
@@ -240,7 +266,7 @@ struct kvm_pgtable_visit_ctx {
 	u64					start;
 	u64					addr;
 	u64					end;
-	u32					level;
+	s8					level;
 	enum kvm_pgtable_walk_flags		flags;
 };
 
@@ -343,7 +369,7 @@ static inline bool kvm_pgtable_walk_lock_held(void)
  */
 struct kvm_pgtable {
 	u32					ia_bits;
-	u32					start_level;
+	s8					start_level;
 	kvm_pteref_t				pgd;
 	struct kvm_pgtable_mm_ops		*mm_ops;
 
@@ -477,7 +503,7 @@ void kvm_pgtable_stage2_destroy(struct kvm_pgtable *pgt);
  * The page-table is assumed to be unreachable by any hardware walkers prior to
  * freeing and therefore no TLB invalidation is performed.
  */
-void kvm_pgtable_stage2_free_unlinked(struct kvm_pgtable_mm_ops *mm_ops, void *pgtable, u32 level);
+void kvm_pgtable_stage2_free_unlinked(struct kvm_pgtable_mm_ops *mm_ops, void *pgtable, s8 level);
 
 /**
  * kvm_pgtable_stage2_create_unlinked() - Create an unlinked stage-2 paging structure.
@@ -501,7 +527,7 @@ void kvm_pgtable_stage2_free_unlinked(struct kvm_pgtable_mm_ops *mm_ops, void *p
  * an ERR_PTR(error) on failure.
  */
 kvm_pte_t *kvm_pgtable_stage2_create_unlinked(struct kvm_pgtable *pgt,
-					      u64 phys, u32 level,
+					      u64 phys, s8 level,
 					      enum kvm_pgtable_prot prot,
 					      void *mc, bool force_pte);
 
@@ -727,7 +753,7 @@ int kvm_pgtable_walk(struct kvm_pgtable *pgt, u64 addr, u64 size,
  * Return: 0 on success, negative error code on failure.
  */
 int kvm_pgtable_get_leaf(struct kvm_pgtable *pgt, u64 addr,
-			 kvm_pte_t *ptep, u32 *level);
+			 kvm_pte_t *ptep, s8 *level);
 
 /**
  * kvm_pgtable_stage2_pte_prot() - Retrieve the protection attributes of a

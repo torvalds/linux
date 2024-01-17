@@ -27,10 +27,12 @@ do {									\
 									\
 	if (fault_wanted)						\
 		__GUEST_ASSERT((vector) == UD_VECTOR,			\
-			       "Expected #UD on " insn " for testcase '0x%x', got '0x%x'", vector); \
+			       "Expected #UD on " insn " for testcase '0x%x', got '0x%x'", \
+			       testcase, vector);			\
 	else								\
 		__GUEST_ASSERT(!(vector),				\
-			       "Expected success on " insn " for testcase '0x%x', got '0x%x'", vector); \
+			       "Expected success on " insn " for testcase '0x%x', got '0x%x'", \
+			       testcase, vector);			\
 } while (0)
 
 static void guest_monitor_wait(int testcase)

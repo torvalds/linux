@@ -4,13 +4,16 @@
 config HAVE_KVM
        bool
 
+config KVM_COMMON
+       bool
+       select EVENTFD
+       select INTERVAL_TREE
+       select PREEMPT_NOTIFIERS
+
 config HAVE_KVM_PFNCACHE
        bool
 
 config HAVE_KVM_IRQCHIP
-       bool
-
-config HAVE_KVM_IRQFD
        bool
 
 config HAVE_KVM_IRQ_ROUTING
@@ -38,10 +41,6 @@ config HAVE_KVM_DIRTY_RING_ACQ_REL
 config NEED_KVM_DIRTY_RING_WITH_BITMAP
 	bool
 	depends on HAVE_KVM_DIRTY_RING
-
-config HAVE_KVM_EVENTFD
-       bool
-       select EVENTFD
 
 config KVM_MMIO
        bool
@@ -91,4 +90,21 @@ config HAVE_KVM_PM_NOTIFIER
        bool
 
 config KVM_GENERIC_HARDWARE_ENABLING
+       bool
+
+config KVM_GENERIC_MMU_NOTIFIER
+       select MMU_NOTIFIER
+       bool
+
+config KVM_GENERIC_MEMORY_ATTRIBUTES
+       depends on KVM_GENERIC_MMU_NOTIFIER
+       bool
+
+config KVM_PRIVATE_MEM
+       select XARRAY_MULTI
+       bool
+
+config KVM_GENERIC_PRIVATE_MEM
+       select KVM_GENERIC_MEMORY_ATTRIBUTES
+       select KVM_PRIVATE_MEM
        bool

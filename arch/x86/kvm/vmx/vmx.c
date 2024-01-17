@@ -66,6 +66,7 @@
 #include "vmx.h"
 #include "x86.h"
 #include "smm.h"
+#include "vmx_onhyperv.h"
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -523,22 +524,14 @@ module_param(enlightened_vmcs, bool, 0444);
 static int hv_enable_l2_tlb_flush(struct kvm_vcpu *vcpu)
 {
 	struct hv_enlightened_vmcs *evmcs;
-	struct hv_partition_assist_pg **p_hv_pa_pg =
-			&to_kvm_hv(vcpu->kvm)->hv_pa_pg;
-	/*
-	 * Synthetic VM-Exit is not enabled in current code and so All
-	 * evmcs in singe VM shares same assist page.
-	 */
-	if (!*p_hv_pa_pg)
-		*p_hv_pa_pg = kzalloc(PAGE_SIZE, GFP_KERNEL_ACCOUNT);
+	hpa_t partition_assist_page = hv_get_partition_assist_page(vcpu);
 
-	if (!*p_hv_pa_pg)
+	if (partition_assist_page == INVALID_PAGE)
 		return -ENOMEM;
 
 	evmcs = (struct hv_enlightened_vmcs *)to_vmx(vcpu)->loaded_vmcs->vmcs;
 
-	evmcs->partition_assist_page =
-		__pa(*p_hv_pa_pg);
+	evmcs->partition_assist_page = partition_assist_page;
 	evmcs->hv_vm_id = (unsigned long)vcpu->kvm;
 	evmcs->hv_enlightenments_control.nested_flush_hypercall = 1;
 
@@ -2055,6 +2048,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (vmx_get_vmx_msr(&vmx->nested.msrs, msr_info->index,
 				    &msr_info->data))
 			return 1;
+#ifdef CONFIG_KVM_HYPERV
 		/*
 		 * Enlightened VMCS v1 doesn't have certain VMCS fields but
 		 * instead of just ignoring the features, different Hyper-V
@@ -2065,6 +2059,7 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (!msr_info->host_initiated && guest_cpuid_has_evmcs(vcpu))
 			nested_evmcs_filter_control_msr(vcpu, msr_info->index,
 							&msr_info->data);
+#endif
 		break;
 	case MSR_IA32_RTIT_CTL:
 		if (!vmx_pt_mode_is_host_guest())
@@ -3400,7 +3395,8 @@ static void vmx_load_mmu_pgd(struct kvm_vcpu *vcpu, hpa_t root_hpa,
 			update_guest_cr3 = false;
 		vmx_ept_load_pdptrs(vcpu);
 	} else {
-		guest_cr3 = root_hpa | kvm_get_active_pcid(vcpu);
+		guest_cr3 = root_hpa | kvm_get_active_pcid(vcpu) |
+			    kvm_get_active_cr3_lam_bits(vcpu);
 	}
 
 	if (update_guest_cr3)
@@ -4833,7 +4829,10 @@ static void __vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 	vmx->nested.posted_intr_nv = -1;
 	vmx->nested.vmxon_ptr = INVALID_GPA;
 	vmx->nested.current_vmptr = INVALID_GPA;
+
+#ifdef CONFIG_KVM_HYPERV
 	vmx->nested.hv_evmcs_vmptr = EVMPTR_INVALID;
+#endif
 
 	vcpu->arch.microcode_version = 0x100000000ULL;
 	vmx->msr_ia32_feature_control_valid_bits = FEAT_CTL_LOCKED;
@@ -5782,7 +5781,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
 	 * would also use advanced VM-exit information for EPT violations to
 	 * reconstruct the page fault error code.
 	 */
-	if (unlikely(allow_smaller_maxphyaddr && kvm_vcpu_is_illegal_gpa(vcpu, gpa)))
+	if (unlikely(allow_smaller_maxphyaddr && !kvm_vcpu_is_legal_gpa(vcpu, gpa)))
 		return kvm_emulate_instruction(vcpu, 0);
 
 	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
@@ -6757,10 +6756,10 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * Grab the memslot so that the hva lookup for the mmu_notifier retry
-	 * is guaranteed to use the same memslot as the pfn lookup, i.e. rely
-	 * on the pfn lookup's validation of the memslot to ensure a valid hva
-	 * is used for the retry check.
+	 * Explicitly grab the memslot using KVM's internal slot ID to ensure
+	 * KVM doesn't unintentionally grab a userspace memslot.  It _should_
+	 * be impossible for userspace to create a memslot for the APIC when
+	 * APICv is enabled, but paranoia won't hurt in this case.
 	 */
 	slot = id_to_memslot(slots, APIC_ACCESS_PAGE_PRIVATE_MEMSLOT);
 	if (!slot || slot->flags & KVM_MEMSLOT_INVALID)
@@ -6785,8 +6784,7 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
 		return;
 
 	read_lock(&vcpu->kvm->mmu_lock);
-	if (mmu_invalidate_retry_hva(kvm, mmu_seq,
-				     gfn_to_hva_memslot(slot, gfn))) {
+	if (mmu_invalidate_retry_gfn(kvm, mmu_seq, gfn)) {
 		kvm_make_request(KVM_REQ_APIC_PAGE_RELOAD, vcpu);
 		read_unlock(&vcpu->kvm->mmu_lock);
 		goto out;
@@ -7674,6 +7672,9 @@ static void nested_vmx_cr_fixed1_bits_update(struct kvm_vcpu *vcpu)
 	cr4_fixed1_update(X86_CR4_UMIP,       ecx, feature_bit(UMIP));
 	cr4_fixed1_update(X86_CR4_LA57,       ecx, feature_bit(LA57));
 
+	entry = kvm_find_cpuid_entry_index(vcpu, 0x7, 1);
+	cr4_fixed1_update(X86_CR4_LAM_SUP,    eax, feature_bit(LAM));
+
 #undef cr4_fixed1_update
 }
 
@@ -7760,6 +7761,7 @@ static void vmx_vcpu_after_set_cpuid(struct kvm_vcpu *vcpu)
 		kvm_governed_feature_check_and_set(vcpu, X86_FEATURE_XSAVES);
 
 	kvm_governed_feature_check_and_set(vcpu, X86_FEATURE_VMX);
+	kvm_governed_feature_check_and_set(vcpu, X86_FEATURE_LAM);
 
 	vmx_setup_uret_msrs(vmx);
 
@@ -8206,6 +8208,50 @@ static void vmx_vm_destroy(struct kvm *kvm)
 	free_pages((unsigned long)kvm_vmx->pid_table, vmx_get_pid_table_order(kvm));
 }
 
+/*
+ * Note, the SDM states that the linear address is masked *after* the modified
+ * canonicality check, whereas KVM masks (untags) the address and then performs
+ * a "normal" canonicality check.  Functionally, the two methods are identical,
+ * and when the masking occurs relative to the canonicality check isn't visible
+ * to software, i.e. KVM's behavior doesn't violate the SDM.
+ */
+gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags)
+{
+	int lam_bit;
+	unsigned long cr3_bits;
+
+	if (flags & (X86EMUL_F_FETCH | X86EMUL_F_IMPLICIT | X86EMUL_F_INVLPG))
+		return gva;
+
+	if (!is_64_bit_mode(vcpu))
+		return gva;
+
+	/*
+	 * Bit 63 determines if the address should be treated as user address
+	 * or a supervisor address.
+	 */
+	if (!(gva & BIT_ULL(63))) {
+		cr3_bits = kvm_get_active_cr3_lam_bits(vcpu);
+		if (!(cr3_bits & (X86_CR3_LAM_U57 | X86_CR3_LAM_U48)))
+			return gva;
+
+		/* LAM_U48 is ignored if LAM_U57 is set. */
+		lam_bit = cr3_bits & X86_CR3_LAM_U57 ? 56 : 47;
+	} else {
+		if (!kvm_is_cr4_bit_set(vcpu, X86_CR4_LAM_SUP))
+			return gva;
+
+		lam_bit = kvm_is_cr4_bit_set(vcpu, X86_CR4_LA57) ? 56 : 47;
+	}
+
+	/*
+	 * Untag the address by sign-extending the lam_bit, but NOT to bit 63.
+	 * Bit 63 is retained from the raw virtual address so that untagging
+	 * doesn't change a user access to a supervisor access, and vice versa.
+	 */
+	return (sign_extend64(gva, lam_bit) & ~BIT_ULL(63)) | (gva & BIT_ULL(63));
+}
+
 static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.name = KBUILD_MODNAME,
 
@@ -8346,6 +8392,8 @@ static struct kvm_x86_ops vmx_x86_ops __initdata = {
 	.complete_emulated_msr = kvm_complete_insn_gp,
 
 	.vcpu_deliver_sipi_vector = kvm_vcpu_deliver_sipi_vector,
+
+	.get_untagged_addr = vmx_get_untagged_addr,
 };
 
 static unsigned int vmx_handle_intel_pt_intr(void)
