@@ -100,6 +100,7 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 }
 
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 /*
  * fsnotify_file_area_perm - permission hook before access to file range
  */
@@ -144,6 +145,24 @@ static inline int fsnotify_open_perm(struct file *file)
 
 	return fsnotify_file(file, FS_OPEN_PERM);
 }
+
+#else
+static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
+					  const loff_t *ppos, size_t count)
+{
+	return 0;
+}
+
+static inline int fsnotify_file_perm(struct file *file, int perm_mask)
+{
+	return 0;
+}
+
+static inline int fsnotify_open_perm(struct file *file)
+{
+	return 0;
+}
+#endif
 
 /*
  * fsnotify_link_count - inode's link count changed

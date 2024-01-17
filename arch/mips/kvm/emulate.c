@@ -531,7 +531,7 @@ static void kvm_mips_resume_hrtimer(struct kvm_vcpu *vcpu,
  * to be used for a period of time, but the exact ktime corresponding to the
  * final Count that must be restored is not known.
  *
- * It is gauranteed that a timer interrupt immediately after restore will be
+ * It is guaranteed that a timer interrupt immediately after restore will be
  * handled, but not if CP0_Compare is exactly at @count. That case should
  * already be handled when the hardware timer state is saved.
  *

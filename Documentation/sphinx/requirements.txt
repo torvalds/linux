@@ -1,4 +1,6 @@
 # jinja2>=3.1 is not compatible with Sphinx<4.0
 jinja2<3.1
+# alabaster>=0.7.14 is not compatible with Sphinx<=3.3
+alabaster<0.7.14
 Sphinx==2.4.4
 pyyaml

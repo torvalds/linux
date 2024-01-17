@@ -18196,6 +18196,7 @@ F:	drivers/media/cec/usb/rainshadow/
 
 RALINK MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
+M:	Sergio Paracuellos <sergio.paracuellos@gmail.com>
 L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/ralink

@@ -159,7 +159,7 @@ void iounmap(const volatile void __iomem *addr);
  * address is not guaranteed to be usable directly as a virtual
  * address.
  *
- * This version of ioremap ensures that the memory is marked cachable by
+ * This version of ioremap ensures that the memory is marked cacheable by
  * the CPU.  Also enables full write-combining.	 Useful for some
  * memory-like regions on I/O busses.
  */
@@ -177,7 +177,7 @@ void iounmap(const volatile void __iomem *addr);
  * address is not guaranteed to be usable directly as a virtual
  * address.
  *
- * This version of ioremap ensures that the memory is marked uncachable
+ * This version of ioremap ensures that the memory is marked uncacheable
  * but accelerated by means of write-combining feature. It is specifically
  * useful for PCIe prefetchable windows, which may vastly improve a
  * communications performance. If it was determined on boot stage, what

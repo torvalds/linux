@@ -32,6 +32,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - amd,mbv32
               - andestech,ax45mp
               - canaan,k210
               - sifive,bullet0
