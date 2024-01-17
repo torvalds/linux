@@ -783,11 +783,11 @@
 };
 
 &rsss {
-	status = "disabled";
+	status = "okay";
 };
 
 &ecdsa {
-	status = "disabled";
+	status = "okay";
 };
 
 &bmc_dev0 {
