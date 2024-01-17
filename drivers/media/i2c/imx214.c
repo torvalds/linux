@@ -968,7 +968,7 @@ static const struct v4l2_subdev_internal_ops imx214_internal_ops = {
 static const struct regmap_config sensor_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int imx214_get_regulators(struct device *dev, struct imx214 *imx214)
