@@ -196,30 +196,6 @@ struct xe_vm {
 	 */
 	struct xe_range_fence_tree rftree[XE_MAX_TILES_PER_DEVICE];
 
-	/** @async_ops: async VM operations (bind / unbinds) */
-	struct {
-		/** @list: list of pending async VM ops */
-		struct list_head pending;
-		/** @work: worker to execute async VM ops */
-		struct work_struct work;
-		/** @lock: protects list of pending async VM ops and fences */
-		spinlock_t lock;
-		/** @fence: fence state */
-		struct {
-			/** @context: context of async fence */
-			u64 context;
-			/** @seqno: seqno of async fence */
-			u32 seqno;
-		} fence;
-		/** @error: error state for async VM ops */
-		int error;
-		/**
-		 * @munmap_rebind_inflight: an munmap style VM bind is in the
-		 * middle of a set of ops which requires a rebind at the end.
-		 */
-		bool munmap_rebind_inflight;
-	} async_ops;
-
 	const struct xe_pt_ops *pt_ops;
 
 	/** @userptr: user pointer state */
