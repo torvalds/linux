@@ -40,7 +40,6 @@
 # |   + $swp1          $swp3 +                    + $swp4                     |
 # |   | iPOOL1        iPOOL0 |                    | iPOOL2                    |
 # |   | ePOOL4        ePOOL5 |                    | ePOOL4                    |
-# |   |                1Gbps |                    | 1Gbps                     |
 # |   |        PFC:enabled=1 |                    | PFC:enabled=1             |
 # | +-|----------------------|-+                +-|------------------------+  |
 # | | + $swp1.111  $swp3.111 + |                | + $swp4.111              |  |
