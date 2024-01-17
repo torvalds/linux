@@ -737,6 +737,9 @@ static int mt7981_uart1_1_funcs[] = { 2, 2, 2, 2, };
 static int mt7981_uart1_2_pins[] = { 9, 10, };
 static int mt7981_uart1_2_funcs[] = { 2, 2, };
 
+static int mt7981_uart1_3_pins[] = { 26, 27, };
+static int mt7981_uart1_3_funcs[] = { 2, 2, };
+
 /* UART2 */
 static int mt7981_uart2_1_pins[] = { 22, 23, 24, 25, };
 static int mt7981_uart2_1_funcs[] = { 3, 3, 3, 3, };
@@ -871,6 +874,8 @@ static const struct group_desc mt7981_groups[] = {
 	PINCTRL_PIN_GROUP("uart1_1", mt7981_uart1_1),
 	/* @GPIO(9,10): UART1(2) */
 	PINCTRL_PIN_GROUP("uart1_2", mt7981_uart1_2),
+	/* @GPIO(26,27): UART1(2) */
+	PINCTRL_PIN_GROUP("uart1_3", mt7981_uart1_3),
 	/* @GPIO(22,25): UART1(3) */
 	PINCTRL_PIN_GROUP("uart2_1", mt7981_uart2_1),
 	/* @GPIO(22,24) PTA_EXT(4) */
@@ -933,7 +938,7 @@ static const struct group_desc mt7981_groups[] = {
 static const char *mt7981_wa_aice_groups[] = { "wa_aice1", "wa_aice2", "wm_aice1_1",
 	"wa_aice3", "wm_aice1_2", };
 static const char *mt7981_uart_groups[] = { "net_wo0_uart_txd_0", "net_wo0_uart_txd_1",
-	"net_wo0_uart_txd_2", "uart0", "uart1_0", "uart1_1", "uart1_2", "uart2_0",
+	"net_wo0_uart_txd_2", "uart0", "uart1_0", "uart1_1", "uart1_2", "uart1_3", "uart2_0",
 	"uart2_0_tx_rx", "uart2_1", "wm_uart_0", "wm_aurt_1", "wm_aurt_2", };
 static const char *mt7981_dfd_groups[] = { "dfd", "dfd_ntrst", };
 static const char *mt7981_wdt_groups[] = { "watchdog", "watchdog1", };
