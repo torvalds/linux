@@ -639,6 +639,7 @@ TRACE_EVENT(rpc_stats_latency,
 		__field(unsigned long, backlog)
 		__field(unsigned long, rtt)
 		__field(unsigned long, execute)
+		__field(u32, xprt_id)
 	),
 
 	TP_fast_assign(
@@ -651,13 +652,16 @@ TRACE_EVENT(rpc_stats_latency,
 		__entry->backlog = ktime_to_us(backlog);
 		__entry->rtt = ktime_to_us(rtt);
 		__entry->execute = ktime_to_us(execute);
+		__entry->xprt_id = task->tk_xprt->id;
 	),
 
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		  " xid=0x%08x %sv%d %s backlog=%lu rtt=%lu execute=%lu",
+		  " xid=0x%08x %sv%d %s backlog=%lu rtt=%lu execute=%lu"
+		  " xprt_id=%d",
 		__entry->task_id, __entry->client_id, __entry->xid,
 		__get_str(progname), __entry->version, __get_str(procname),
-		__entry->backlog, __entry->rtt, __entry->execute)
+		__entry->backlog, __entry->rtt, __entry->execute,
+		__entry->xprt_id)
 );
 
 TRACE_EVENT(rpc_xdr_overflow,
