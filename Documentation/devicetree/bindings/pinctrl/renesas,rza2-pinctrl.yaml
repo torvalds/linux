@@ -20,7 +20,7 @@ description:
 
 properties:
   compatible:
-    const: "renesas,r7s9210-pinctrl" # RZ/A2M
+    const: renesas,r7s9210-pinctrl # RZ/A2M
 
   reg:
     maxItems: 1

@@ -914,9 +914,8 @@ static int mtk_eint_resume(struct device *device)
 	return mtk_eint_do_resume(pctl->eint);
 }
 
-const struct dev_pm_ops mtk_eint_pm_ops = {
-	.suspend_noirq = mtk_eint_suspend,
-	.resume_noirq = mtk_eint_resume,
+EXPORT_GPL_DEV_SLEEP_PM_OPS(mtk_eint_pm_ops) = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_eint_suspend, mtk_eint_resume)
 };
 
 static int mtk_pctrl_build_state(struct platform_device *pdev)
