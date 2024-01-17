@@ -5935,8 +5935,12 @@ static u16 bnxt_get_max_rss_ring(struct bnxt *bp)
 
 int bnxt_get_nr_rss_ctxs(struct bnxt *bp, int rx_rings)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
-		return DIV_ROUND_UP(rx_rings, BNXT_RSS_TABLE_ENTRIES_P5);
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+		if (!rx_rings)
+			return 0;
+		return bnxt_calc_nr_ring_pages(rx_rings - 1,
+					       BNXT_RSS_TABLE_ENTRIES_P5);
+	}
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
 		return 2;
 	return 1;
@@ -7001,10 +7005,11 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 
 		req->num_rx_rings = cpu_to_le16(rx_rings);
 		if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+			u16 rss_ctx = bnxt_get_nr_rss_ctxs(bp, ring_grps);
+
 			req->num_cmpl_rings = cpu_to_le16(tx_rings + ring_grps);
 			req->num_msix = cpu_to_le16(cp_rings);
-			req->num_rsscos_ctxs =
-				cpu_to_le16(DIV_ROUND_UP(ring_grps, 64));
+			req->num_rsscos_ctxs = cpu_to_le16(rss_ctx);
 		} else {
 			req->num_cmpl_rings = cpu_to_le16(cp_rings);
 			req->num_hw_ring_grps = cpu_to_le16(ring_grps);
@@ -7051,8 +7056,10 @@ __bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, int tx_rings, int rx_rings,
 	req->num_tx_rings = cpu_to_le16(tx_rings);
 	req->num_rx_rings = cpu_to_le16(rx_rings);
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+		u16 rss_ctx = bnxt_get_nr_rss_ctxs(bp, ring_grps);
+
 		req->num_cmpl_rings = cpu_to_le16(tx_rings + ring_grps);
-		req->num_rsscos_ctxs = cpu_to_le16(DIV_ROUND_UP(ring_grps, 64));
+		req->num_rsscos_ctxs = cpu_to_le16(rss_ctx);
 	} else {
 		req->num_cmpl_rings = cpu_to_le16(cp_rings);
 		req->num_hw_ring_grps = cpu_to_le16(ring_grps);
