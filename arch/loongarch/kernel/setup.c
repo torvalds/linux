@@ -295,8 +295,12 @@ static void __init fdt_setup(void)
 	if (acpi_os_get_root_pointer())
 		return;
 
-	/* Look for a device tree configuration table entry */
-	fdt_pointer = efi_fdt_pointer();
+	/* Prefer to use built-in dtb, checking its legality first. */
+	if (!fdt_check_header(__dtb_start))
+		fdt_pointer = __dtb_start;
+	else
+		fdt_pointer = efi_fdt_pointer(); /* Fallback to firmware dtb */
+
 	if (!fdt_pointer || fdt_check_header(fdt_pointer))
 		return;
 
@@ -330,7 +334,9 @@ static void __init bootcmdline_init(char **cmdline_p)
 		if (boot_command_line[0])
 			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
 
-		strlcat(boot_command_line, init_command_line, COMMAND_LINE_SIZE);
+		if (!strstr(boot_command_line, init_command_line))
+			strlcat(boot_command_line, init_command_line, COMMAND_LINE_SIZE);
+
 		goto out;
 	}
 #endif

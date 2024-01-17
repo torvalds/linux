@@ -375,6 +375,24 @@ config CMDLINE_FORCE
 
 endchoice
 
+config BUILTIN_DTB
+	bool "Enable built-in dtb in kernel"
+	depends on OF
+	help
+	  Some existing systems do not provide a canonical device tree to
+	  the kernel at boot time. Let's provide a device tree table in the
+	  kernel, keyed by the dts filename, containing the relevant DTBs.
+
+	  Built-in DTBs are generic enough and can be used as references.
+
+config BUILTIN_DTB_NAME
+	string "Source file for built-in dtb"
+	depends on BUILTIN_DTB
+	help
+	  Base name (without suffix, relative to arch/loongarch/boot/dts/)
+	  for the DTS file that will be used to produce the DTB linked into
+	  the kernel.
+
 config DMI
 	bool "Enable DMI scanning"
 	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
