@@ -542,7 +542,7 @@ struct q2spi_geni {
 struct q2spi_cr_packet {
 	struct q2spi_cr_header cr_hdr[4];
 	struct q2spi_client_dma_pkt var3_pkt; /* 4.2.2.3 Variant 4 T=3 */
-	struct q2spi_client_bulk_access_pkt bulk_pkt; /* 4.2.2.5 Bulk Access Status */
+	struct q2spi_client_bulk_access_pkt bulk_pkt[4]; /* 4.2.2.5 Bulk Access Status */
 	enum cr_var_type vtype;
 	u8 hrf_flow_id;
 	struct list_head list;
