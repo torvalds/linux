@@ -209,7 +209,7 @@ static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
 	/*
 	 * Usually it expects a pointer type for a memory access.
 	 * Convert to a real type it points to.  But global variables
-	 * are accessed directly without a pointer.
+	 * and local variables are accessed directly without a pointer.
 	 */
 	if (is_pointer) {
 		if ((dwarf_tag(type_die) != DW_TAG_pointer_type &&
@@ -248,6 +248,9 @@ static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
 	int reg, offset;
 	int ret = -1;
 	int i, nr_scopes;
+	int fbreg = -1;
+	bool is_fbreg = false;
+	int fb_offset = 0;
 
 	/* Get a compile_unit for this address */
 	if (!find_cu_die(di, pc, &cu_die)) {
@@ -279,7 +282,33 @@ static int find_data_type_die(struct debuginfo *di, u64 pc, u64 addr,
 	/* Get a list of nested scopes - i.e. (inlined) functions and blocks. */
 	nr_scopes = die_get_scopes(&cu_die, pc, &scopes);
 
+	if (reg != DWARF_REG_PC && dwarf_hasattr(&scopes[0], DW_AT_frame_base)) {
+		Dwarf_Attribute attr;
+		Dwarf_Block block;
+
+		/* Check if the 'reg' is assigned as frame base register */
+		if (dwarf_attr(&scopes[0], DW_AT_frame_base, &attr) != NULL &&
+		    dwarf_formblock(&attr, &block) == 0 && block.length == 1) {
+			switch (*block.data) {
+			case DW_OP_reg0 ... DW_OP_reg31:
+				fbreg = *block.data - DW_OP_reg0;
+				break;
+			case DW_OP_call_frame_cfa:
+				if (die_get_cfa(di->dbg, pc, &fbreg,
+						&fb_offset) < 0)
+					fbreg = -1;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+
 retry:
+	is_fbreg = (reg == fbreg);
+	if (is_fbreg)
+		offset = loc->offset - fb_offset;
+
 	/* Search from the inner-most scope to the outer */
 	for (i = nr_scopes - 1; i >= 0; i--) {
 		if (reg == DWARF_REG_PC) {
@@ -289,13 +318,13 @@ retry:
 		} else {
 			/* Look up variables/parameters in this scope */
 			if (!die_find_variable_by_reg(&scopes[i], pc, reg,
-						      &var_die))
+						      &offset, is_fbreg, &var_die))
 				continue;
 		}
 
 		/* Found a variable, see if it's correct */
 		ret = check_variable(&var_die, type_die, offset,
-				     reg != DWARF_REG_PC);
+				     reg != DWARF_REG_PC && !is_fbreg);
 		loc->offset = offset;
 		goto out;
 	}

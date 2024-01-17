@@ -1272,10 +1272,38 @@ struct find_var_data {
 	unsigned reg;
 	/* Access offset, set for global data */
 	int offset;
+	/* True if the current register is the frame base */
+	bool is_fbreg;
 };
 
 /* Max number of registers DW_OP_regN supports */
 #define DWARF_OP_DIRECT_REGS  32
+
+static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
+			     u64 addr_offset, u64 addr_type)
+{
+	Dwarf_Die type_die;
+	Dwarf_Word size;
+
+	if (addr_offset == addr_type) {
+		/* Update offset relative to the start of the variable */
+		data->offset = 0;
+		return true;
+	}
+
+	if (die_get_real_type(die_mem, &type_die) == NULL)
+		return false;
+
+	if (dwarf_aggregate_size(&type_die, &size) < 0)
+		return false;
+
+	if (addr_offset >= addr_type + size)
+		return false;
+
+	/* Update offset relative to the start of the variable */
+	data->offset = addr_offset - addr_type;
+	return true;
+}
 
 /* Only checks direct child DIEs in the given scope. */
 static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
@@ -1301,13 +1329,29 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 		if (start > data->pc)
 			break;
 
+		/* Local variables accessed using frame base register */
+		if (data->is_fbreg && ops->atom == DW_OP_fbreg &&
+		    data->offset >= (int)ops->number &&
+		    match_var_offset(die_mem, data, data->offset, ops->number))
+			return DIE_FIND_CB_END;
+
 		/* Only match with a simple case */
 		if (data->reg < DWARF_OP_DIRECT_REGS) {
 			if (ops->atom == (DW_OP_reg0 + data->reg) && nops == 1)
 				return DIE_FIND_CB_END;
+
+			/* Local variables accessed by a register + offset */
+			if (ops->atom == (DW_OP_breg0 + data->reg) &&
+			    match_var_offset(die_mem, data, data->offset, ops->number))
+				return DIE_FIND_CB_END;
 		} else {
 			if (ops->atom == DW_OP_regx && ops->number == data->reg &&
 			    nops == 1)
+				return DIE_FIND_CB_END;
+
+			/* Local variables accessed by a register + offset */
+			if (ops->atom == DW_OP_bregx && data->reg == ops->number &&
+			    match_var_offset(die_mem, data, data->offset, ops->number2))
 				return DIE_FIND_CB_END;
 		}
 	}
@@ -1319,18 +1363,29 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
  * @sc_die: a scope DIE
  * @pc: the program address to find
  * @reg: the register number to find
+ * @poffset: pointer to offset, will be updated for fbreg case
+ * @is_fbreg: boolean value if the current register is the frame base
  * @die_mem: a buffer to save the resulting DIE
  *
- * Find the variable DIE accessed by the given register.
+ * Find the variable DIE accessed by the given register.  It'll update the @offset
+ * when the variable is in the stack.
  */
 Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
+				    int *poffset, bool is_fbreg,
 				    Dwarf_Die *die_mem)
 {
 	struct find_var_data data = {
 		.pc = pc,
 		.reg = reg,
+		.offset = *poffset,
+		.is_fbreg = is_fbreg,
 	};
-	return die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
+	Dwarf_Die *result;
+
+	result = die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
+	if (result)
+		*poffset = data.offset;
+	return result;
 }
 
 /* Only checks direct child DIEs in the given scope */
@@ -1341,8 +1396,6 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
 	ptrdiff_t off = 0;
 	Dwarf_Attribute attr;
 	Dwarf_Addr base, start, end;
-	Dwarf_Word size;
-	Dwarf_Die type_die;
 	Dwarf_Op *ops;
 	size_t nops;
 
@@ -1359,24 +1412,8 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
 		if (data->addr < ops->number)
 			continue;
 
-		if (data->addr == ops->number) {
-			/* Update offset relative to the start of the variable */
-			data->offset = 0;
+		if (match_var_offset(die_mem, data, data->addr, ops->number))
 			return DIE_FIND_CB_END;
-		}
-
-		if (die_get_real_type(die_mem, &type_die) == NULL)
-			continue;
-
-		if (dwarf_aggregate_size(&type_die, &size) < 0)
-			continue;
-
-		if (data->addr >= ops->number + size)
-			continue;
-
-		/* Update offset relative to the start of the variable */
-		data->offset = data->addr - ops->number;
-		return DIE_FIND_CB_END;
 	}
 	return DIE_FIND_CB_SIBLING;
 }
