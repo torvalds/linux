@@ -1072,6 +1072,11 @@
 			reg = <0x01f60000 0x20000>;
 		};
 
+		tcsr_regs_2: syscon@1fc0000 {
+			compatible = "qcom,msm8998-tcsr", "syscon";
+			reg = <0x01fc0000 0x26000>;
+		};
+
 		tlmm: pinctrl@3400000 {
 			compatible = "qcom,msm8998-pinctrl";
 			reg = <0x03400000 0xc00000>;
@@ -2176,6 +2181,8 @@
 				 <&gcc GCC_USB3PHY_PHY_BCR>;
 			reset-names = "phy",
 				      "phy_phy";
+
+			qcom,tcsr-reg = <&tcsr_regs_2 0xb244>;
 
 			status = "disabled";
 		};
