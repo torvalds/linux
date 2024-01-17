@@ -1646,6 +1646,9 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 {
 	struct btrfs_fs_info *fs_info = stripe->bg->fs_info;
 	struct btrfs_bio *bbio = NULL;
+	unsigned int nr_sectors = min(BTRFS_STRIPE_LEN, stripe->bg->start +
+				      stripe->bg->length - stripe->logical) >>
+				  fs_info->sectorsize_bits;
 	u64 stripe_len = BTRFS_STRIPE_LEN;
 	int mirror = stripe->mirror_num;
 	int i;
@@ -1655,6 +1658,10 @@ static void scrub_submit_extent_sector_read(struct scrub_ctx *sctx,
 	for_each_set_bit(i, &stripe->extent_sector_bitmap, stripe->nr_sectors) {
 		struct page *page = scrub_stripe_get_page(stripe, i);
 		unsigned int pgoff = scrub_stripe_get_page_offset(stripe, i);
+
+		/* We're beyond the chunk boundary, no need to read anymore. */
+		if (i >= nr_sectors)
+			break;
 
 		/* The current sector cannot be merged, submit the bio. */
 		if (bbio &&
