@@ -753,6 +753,7 @@ struct TCP_Server_Info {
 	unsigned int	max_read;
 	unsigned int	max_write;
 	unsigned int	min_offload;
+	unsigned int	retrans;
 	__le16	compress_algorithm;
 	__u16	signing_algorithm;
 	__le16	cipher_type;
