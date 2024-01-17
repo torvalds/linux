@@ -3660,8 +3660,17 @@ static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip)
 	notes = symbol__annotation(sym);
 
 	list_for_each_entry(dl, &notes->src->source, al.node) {
-		if (sym->start + dl->al.offset == ip)
+		if (sym->start + dl->al.offset == ip) {
+			/*
+			 * llvm-objdump places "lock" in a separate line and
+			 * in that case, we want to get the next line.
+			 */
+			if (!strcmp(dl->ins.name, "lock") && *dl->ops.raw == '\0') {
+				ip++;
+				continue;
+			}
 			return dl;
+		}
 	}
 	return NULL;
 }
@@ -3757,6 +3766,9 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 	for_each_insn_op_loc(&loc, i, op_loc) {
 		if (!op_loc->mem_ref)
 			continue;
+
+		/* Recalculate IP since it can be changed due to LOCK prefix */
+		ip = ms->sym->start + dl->al.offset;
 
 		mem_type = find_data_type(ms, ip, op_loc->reg, op_loc->offset);
 		if (mem_type)
