@@ -203,7 +203,7 @@ void vgic_irq_set_phys_active(struct vgic_irq *irq, bool active)
 }
 
 /**
- * kvm_vgic_target_oracle - compute the target vcpu for an irq
+ * vgic_target_oracle - compute the target vcpu for an irq
  *
  * @irq:	The irq to route. Must be already locked.
  *
