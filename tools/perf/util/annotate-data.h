@@ -70,6 +70,7 @@ struct annotated_data_type {
 };
 
 extern struct annotated_data_type unknown_type;
+extern struct annotated_data_type stackop_type;
 
 /**
  * struct annotated_data_stat - Debug statistics
