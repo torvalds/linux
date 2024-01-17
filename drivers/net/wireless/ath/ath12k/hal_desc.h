@@ -2517,6 +2517,12 @@ struct hal_reo_update_rx_queue {
 	__le32 pn[4];
 } __packed;
 
+struct hal_rx_reo_queue_1k {
+	struct hal_desc_header desc_hdr;
+	__le32 rx_bitmap_1023_288[23];
+	__le32 reserved[8];
+} __packed;
+
 #define HAL_REO_UNBLOCK_CACHE_INFO0_UNBLK_CACHE		BIT(0)
 #define HAL_REO_UNBLOCK_CACHE_INFO0_RESOURCE_IDX	GENMASK(2, 1)
 
