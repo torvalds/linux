@@ -632,8 +632,12 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 			dev_warn(obj->adev->dev, "Failed to reset error counter and error status");
 	}
 
-	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
-			  "ce", info.ce_count);
+	if (info.head.block == AMDGPU_RAS_BLOCK__UMC)
+		return sysfs_emit(buf, "%s: %lu\n%s: %lu\n%s: %lu\n", "ue", info.ue_count,
+				"ce", info.ce_count, "de", info.de_count);
+	else
+		return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
+				"ce", info.ce_count);
 }
 
 /* obj begin */
