@@ -568,6 +568,7 @@ EXPORT_SYMBOL_NS_GPL(ad_sd_validate_trigger, IIO_AD_SIGMA_DELTA);
 static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_dev)
 {
 	struct ad_sigma_delta *sigma_delta = iio_device_get_drvdata(indio_dev);
+	unsigned long irq_flags = irq_get_trigger_type(sigma_delta->spi->irq);
 	int ret;
 
 	if (dev != &sigma_delta->spi->dev) {
@@ -588,9 +589,13 @@ static int devm_ad_sd_probe_trigger(struct device *dev, struct iio_dev *indio_de
 	/* the IRQ core clears IRQ_DISABLE_UNLAZY flag when freeing an IRQ */
 	irq_set_status_flags(sigma_delta->spi->irq, IRQ_DISABLE_UNLAZY);
 
+	/* Allow overwriting the flags from firmware */
+	if (!irq_flags)
+		irq_flags = sigma_delta->info->irq_flags;
+
 	ret = devm_request_irq(dev, sigma_delta->spi->irq,
 			       ad_sd_data_rdy_trig_poll,
-			       sigma_delta->info->irq_flags | IRQF_NO_AUTOEN,
+			       irq_flags | IRQF_NO_AUTOEN,
 			       indio_dev->name,
 			       sigma_delta);
 	if (ret)
