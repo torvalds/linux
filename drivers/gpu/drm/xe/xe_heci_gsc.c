@@ -29,7 +29,7 @@ static void heci_gsc_irq_unmask(struct irq_data *d)
 	/* generic irq handling */
 }
 
-static struct irq_chip heci_gsc_irq_chip = {
+static const struct irq_chip heci_gsc_irq_chip = {
 	.name = "gsc_irq_chip",
 	.irq_mask = heci_gsc_irq_mask,
 	.irq_unmask = heci_gsc_irq_unmask,
