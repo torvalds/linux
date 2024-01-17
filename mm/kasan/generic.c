@@ -487,6 +487,7 @@ void kasan_init_object_meta(struct kmem_cache *cache, const void *object)
 		__memset(alloc_meta, 0, sizeof(*alloc_meta));
 
 		/*
+		 * Prepare the lock for saving auxiliary stack traces.
 		 * Temporarily disable KASAN bug reporting to allow instrumented
 		 * raw_spin_lock_init to access aux_lock, which resides inside
 		 * of a redzone.
@@ -510,8 +511,13 @@ static void release_alloc_meta(struct kasan_alloc_meta *meta)
 	stack_depot_put(meta->aux_stack[0]);
 	stack_depot_put(meta->aux_stack[1]);
 
-	/* Zero out alloc meta to mark it as invalid. */
-	__memset(meta, 0, sizeof(*meta));
+	/*
+	 * Zero out alloc meta to mark it as invalid but keep aux_lock
+	 * initialized to avoid having to reinitialize it when another object
+	 * is allocated in the same slot.
+	 */
+	__memset(&meta->alloc_track, 0, sizeof(meta->alloc_track));
+	__memset(meta->aux_stack, 0, sizeof(meta->aux_stack));
 }
 
 static void release_free_meta(const void *object, struct kasan_free_meta *meta)
