@@ -6926,7 +6926,7 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 			if (cp < (rx + tx)) {
 				rc = __bnxt_trim_rings(bp, &rx, &tx, cp, false);
 				if (rc)
-					return rc;
+					goto get_rings_exit;
 				if (bp->flags & BNXT_FLAG_AGG_RINGS)
 					rx <<= 1;
 				hw_resc->resv_rx_rings = rx;
@@ -6938,8 +6938,9 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 		hw_resc->resv_cp_rings = cp;
 		hw_resc->resv_stat_ctxs = stats;
 	}
+get_rings_exit:
 	hwrm_req_drop(bp, req);
-	return 0;
+	return rc;
 }
 
 int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings)
