@@ -1305,6 +1305,34 @@ static bool match_var_offset(Dwarf_Die *die_mem, struct find_var_data *data,
 	return true;
 }
 
+static bool check_allowed_ops(Dwarf_Op *ops, size_t nops)
+{
+	/* The first op is checked separately */
+	ops++;
+	nops--;
+
+	/*
+	 * It needs to make sure if the location expression matches to the given
+	 * register and offset exactly.  Thus it rejects any complex expressions
+	 * and only allows a few of selected operators that doesn't change the
+	 * location.
+	 */
+	while (nops) {
+		switch (ops->atom) {
+		case DW_OP_stack_value:
+		case DW_OP_deref_size:
+		case DW_OP_deref:
+		case DW_OP_piece:
+			break;
+		default:
+			return false;
+		}
+		ops++;
+		nops--;
+	}
+	return true;
+}
+
 /* Only checks direct child DIEs in the given scope. */
 static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 {
@@ -1332,25 +1360,31 @@ static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 		/* Local variables accessed using frame base register */
 		if (data->is_fbreg && ops->atom == DW_OP_fbreg &&
 		    data->offset >= (int)ops->number &&
+		    check_allowed_ops(ops, nops) &&
 		    match_var_offset(die_mem, data, data->offset, ops->number))
 			return DIE_FIND_CB_END;
 
 		/* Only match with a simple case */
 		if (data->reg < DWARF_OP_DIRECT_REGS) {
-			if (ops->atom == (DW_OP_reg0 + data->reg) && nops == 1)
+			/* pointer variables saved in a register 0 to 31 */
+			if (ops->atom == (DW_OP_reg0 + data->reg) &&
+			    check_allowed_ops(ops, nops))
 				return DIE_FIND_CB_END;
 
 			/* Local variables accessed by a register + offset */
 			if (ops->atom == (DW_OP_breg0 + data->reg) &&
+			    check_allowed_ops(ops, nops) &&
 			    match_var_offset(die_mem, data, data->offset, ops->number))
 				return DIE_FIND_CB_END;
 		} else {
+			/* pointer variables saved in a register 32 or above */
 			if (ops->atom == DW_OP_regx && ops->number == data->reg &&
-			    nops == 1)
+			    check_allowed_ops(ops, nops))
 				return DIE_FIND_CB_END;
 
 			/* Local variables accessed by a register + offset */
 			if (ops->atom == DW_OP_bregx && data->reg == ops->number &&
+			    check_allowed_ops(ops, nops) &&
 			    match_var_offset(die_mem, data, data->offset, ops->number2))
 				return DIE_FIND_CB_END;
 		}
@@ -1412,7 +1446,8 @@ static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
 		if (data->addr < ops->number)
 			continue;
 
-		if (match_var_offset(die_mem, data, data->addr, ops->number))
+		if (check_allowed_ops(ops, nops) &&
+		    match_var_offset(die_mem, data, data->addr, ops->number))
 			return DIE_FIND_CB_END;
 	}
 	return DIE_FIND_CB_SIBLING;
@@ -1503,7 +1538,8 @@ int die_get_cfa(Dwarf *dwarf, u64 pc, int *preg, int *poffset)
 		return -1;
 
 	if (!dwarf_cfi_addrframe(cfi, pc, &frame) &&
-	    !dwarf_frame_cfa(frame, &ops, &nops) && nops == 1) {
+	    !dwarf_frame_cfa(frame, &ops, &nops) &&
+	    check_allowed_ops(ops, nops)) {
 		*preg = reg_from_dwarf_op(ops);
 		*poffset = offset_from_dwarf_op(ops);
 		return 0;
