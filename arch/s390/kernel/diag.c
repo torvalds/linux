@@ -147,6 +147,15 @@ void notrace diag_stat_inc_norecursion(enum diag_stat_enum nr)
 EXPORT_SYMBOL(diag_stat_inc_norecursion);
 
 /*
+ * Diagnose 0c: Pseudo Timer
+ */
+void diag0c(struct hypfs_diag0c_entry *data)
+{
+	diag_stat_inc(DIAG_STAT_X00C);
+	diag_amode31_ops.diag0c(virt_to_phys(data));
+}
+
+/*
  * Diagnose 14: Input spool file manipulation
  */
 int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
