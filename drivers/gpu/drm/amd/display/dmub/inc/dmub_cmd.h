@@ -1265,11 +1265,11 @@ struct dmub_cmd_PLAT_54186_wa {
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C; /**< reg value */
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C; /**< reg value */
 	struct {
-		uint8_t hubp_inst : 4; /**< HUBP instance */
-		uint8_t tmz_surface : 1; /**< TMZ enable or disable */
-		uint8_t immediate :1; /**< Immediate flip */
-		uint8_t vmid : 4; /**< VMID */
-		uint8_t grph_stereo : 1; /**< 1 if stereo */
+		uint32_t hubp_inst : 4; /**< HUBP instance */
+		uint32_t tmz_surface : 1; /**< TMZ enable or disable */
+		uint32_t immediate :1; /**< Immediate flip */
+		uint32_t vmid : 4; /**< VMID */
+		uint32_t grph_stereo : 1; /**< 1 if stereo */
 		uint32_t reserved : 21; /**< Reserved */
 	} flip_params; /**< Pageflip parameters */
 	uint32_t reserved[9]; /**< Reserved bits */

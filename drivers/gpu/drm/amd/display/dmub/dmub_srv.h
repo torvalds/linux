@@ -78,10 +78,6 @@ struct dmub_srv_dcn31_regs;
 
 struct dmcub_trace_buf_entry;
 
-struct dmcub_inbox1_buf {
-	union dmub_rb_cmd cmd[DMUB_RB_MAX_ENTRY];
-};
-
 /* enum dmub_window_memory_type - memory location type specification for windows */
 enum dmub_window_memory_type {
 	DMUB_WINDOW_MEMORY_TYPE_FB = 0,
