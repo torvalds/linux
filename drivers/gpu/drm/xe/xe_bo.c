@@ -1041,7 +1041,7 @@ static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
 	}
 }
 
-struct ttm_device_funcs xe_ttm_funcs = {
+const struct ttm_device_funcs xe_ttm_funcs = {
 	.ttm_tt_create = xe_ttm_tt_create,
 	.ttm_tt_populate = xe_ttm_tt_populate,
 	.ttm_tt_unpopulate = xe_ttm_tt_unpopulate,
