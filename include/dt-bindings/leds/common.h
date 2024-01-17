@@ -101,6 +101,9 @@
 #define LED_FUNCTION_USB "usb"
 #define LED_FUNCTION_WAN "wan"
 #define LED_FUNCTION_WLAN "wlan"
+#define LED_FUNCTION_WLAN_2GHZ "wlan-2ghz"
+#define LED_FUNCTION_WLAN_5GHZ "wlan-5ghz"
+#define LED_FUNCTION_WLAN_6GHZ "wlan-6ghz"
 #define LED_FUNCTION_WPS "wps"
 
 #endif /* __DT_BINDINGS_LEDS_H */
