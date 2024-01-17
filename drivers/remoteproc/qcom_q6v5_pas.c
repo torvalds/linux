@@ -902,7 +902,6 @@ int rproc_set_state(struct rproc *rproc, bool state)
 			goto soccp_out;
 		}
 
-		adsp->current_users = 1;
 		ret = enable_regulators(adsp);
 		if (ret) {
 			dev_err(adsp->dev, "failed to enable regulators\n");
@@ -924,10 +923,18 @@ int rproc_set_state(struct rproc *rproc, bool state)
 		}
 
 		ret = rproc_config_check(adsp, SOCCP_D0);
-	} else {
-		adsp->current_users--;
-		if (adsp->current_users == 0) {
+		if (ret) {
+			dev_err(adsp->dev, "failed to change from D3 to D0\n");
+			goto soccp_out;
+		}
 
+		adsp->current_users = 1;
+	} else {
+		if (users > 1) {
+			adsp->current_users--;
+			ret = 0;
+			goto soccp_out;
+		} else if (users == 1) {
 			ret = qcom_smem_state_update_bits(adsp->sleep_state,
 					    SOCCP_STATE_MASK,
 					    BIT(adsp->sleep_bit));
@@ -937,10 +944,13 @@ int rproc_set_state(struct rproc *rproc, bool state)
 			}
 
 			ret = rproc_config_check(adsp, SOCCP_D3);
-			if (ret)
+			if (ret) {
 				dev_err(adsp->dev, "failed to change from D0 to D3\n");
+				goto soccp_out;
+			}
 			disable_regulators(adsp);
 			clk_disable_unprepare(adsp->xo);
+			adsp->current_users = 0;
 		}
 	}
 
