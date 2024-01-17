@@ -151,7 +151,7 @@ struct reg_8 {
 static const struct regmap_config imx274_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /*
