@@ -308,7 +308,7 @@ struct acpi_srat_rintc_affinity {
 	u32 clock_domain;
 };
 
-/* Flags for ACPI_SRAT_RINTC_AFFINITY */
+/* Flags for struct acpi_srat_rintc_affinity */
 
 #define ACPI_SRAT_RINTC_ENABLED     (1)	/* 00: Use affinity structure */
 
