@@ -36,16 +36,14 @@ static void sigill_handler(int sig, siginfo_t *info, void *context)
 	regs[0] += 4;
 }
 
-static void cbo_insn(char *base, int fn)
-{
-	uint32_t insn = MK_CBO(fn);
-
-	asm volatile(
-	"mv	a0, %0\n"
-	"li	a1, %1\n"
-	".4byte	%2\n"
-	: : "r" (base), "i" (fn), "i" (insn) : "a0", "a1", "memory");
-}
+#define cbo_insn(base, fn)							\
+({										\
+	asm volatile(								\
+	"mv	a0, %0\n"							\
+	"li	a1, %1\n"							\
+	".4byte	%2\n"								\
+	: : "r" (base), "i" (fn), "i" (MK_CBO(fn)) : "a0", "a1", "memory");	\
+})
 
 static void cbo_inval(char *base) { cbo_insn(base, 0); }
 static void cbo_clean(char *base) { cbo_insn(base, 1); }
