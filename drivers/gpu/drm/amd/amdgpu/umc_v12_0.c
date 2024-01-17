@@ -305,10 +305,7 @@ static int umc_v12_0_query_error_address(struct amdgpu_device *adev,
 	}
 
 	/* calculate error address if ue error is detected */
-	if (REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, Val) == 1 &&
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, AddrV) == 1 &&
-	    REG_GET_FIELD(mc_umc_status, MCA_UMC_UMC0_MCUMC_STATUST0, UC) == 1) {
-
+	if (umc_v12_0_is_uncorrectable_error(adev, mc_umc_status)) {
 		mc_umc_addrt0 =
 			SOC15_REG_OFFSET(UMC, 0, regMCA_UMC_UMC0_MCUMC_ADDRT0);
 
