@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/io.h>
@@ -18,11 +18,13 @@ static void q2spi_rx_xfer_completion_event(struct msm_gpi_dma_async_tx_cb_param 
 	struct q2spi_dma_transfer *xfer;
 	u32 status = 0;
 
-	if (q2spi_pkt->m_cmd_param == Q2SPI_RX_ONLY)
+	if (q2spi_pkt->m_cmd_param == Q2SPI_RX_ONLY) {
+		Q2SPI_DEBUG(q2spi, "%s for Doorbell\n", __func__);
 		xfer = q2spi->db_xfer;
-	else
+	} else {
 		xfer = q2spi->xfer;
-
+		Q2SPI_DEBUG(q2spi, "%s for Rx Event\n", __func__);
+	}
 	if (!xfer || !xfer->rx_buf) {
 		pr_err("%s rx buf NULL!!!\n", __func__);
 		return;
@@ -39,7 +41,13 @@ static void q2spi_rx_xfer_completion_event(struct msm_gpi_dma_async_tx_cb_param 
 		xfer->rx_len = cb_param->length;
 		q2spi_dump_ipc(q2spi, q2spi->ipc, "rx_xfer_completion_event RX",
 			       (char *)xfer->rx_buf, cb_param->length);
-		complete_all(&q2spi->rx_cb);
+		if (q2spi_pkt->m_cmd_param == Q2SPI_RX_ONLY) {
+			Q2SPI_DEBUG(q2spi, "%s call db_rx_cb\n", __func__);
+			complete_all(&q2spi->db_rx_cb);
+		} else {
+			Q2SPI_DEBUG(q2spi, "%s call rx_cb\n", __func__);
+			complete_all(&q2spi->rx_cb);
+		}
 		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p in_use=%d vtype:%d\n",
 			    __func__, q2spi_pkt, q2spi_pkt->in_use, q2spi_pkt->vtype);
 		if (q2spi_pkt->vtype == VARIANT_1_LRA) {
@@ -420,7 +428,7 @@ int check_gsi_transfer_completion_rx(struct q2spi_geni *q2spi)
 	unsigned long timeout = 0, xfer_timeout = 0;
 
 	xfer_timeout = XFER_TIMEOUT_OFFSET;
-	timeout = wait_for_completion_timeout(&q2spi->rx_cb, msecs_to_jiffies(xfer_timeout));
+	timeout = wait_for_completion_timeout(&q2spi->db_rx_cb, msecs_to_jiffies(xfer_timeout));
 	if (timeout <= 0) {
 		Q2SPI_ERROR(q2spi, "%s Rx[%d] timeout%lu\n", __func__, i, timeout);
 		ret = -ETIMEDOUT;
@@ -573,7 +581,7 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 		return -EINVAL;
 	}
 
-	if (cmd & Q2SPI_RX_ONLY) {
+	if (cmd == Q2SPI_TX_RX) {
 		rx_tre = &q2spi->gsi->rx_dma_tre;
 		rx_tre = setup_dma_tre(rx_tre, xfer->rx_dma, xfer->rx_len, q2spi, 1);
 		if (IS_ERR_OR_NULL(rx_tre)) {
@@ -600,11 +608,42 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 			dmaengine_terminate_all(q2spi->gsi->rx_c);
 			return -EINVAL;
 		}
+	} else if (cmd == Q2SPI_RX_ONLY) {
+		rx_tre = &q2spi->gsi->rx_dma_tre;
+		rx_tre = setup_dma_tre(rx_tre, xfer->rx_dma, xfer->rx_len, q2spi, 1);
+		if (IS_ERR_OR_NULL(rx_tre)) {
+			Q2SPI_ERROR(q2spi, "%s Err setting up rx tre\n", __func__);
+			return -EINVAL;
+		}
+		sg_set_buf(xfer_rx_sg, rx_tre, sizeof(*rx_tre));
+		q2spi->gsi->db_rx_desc = dmaengine_prep_slave_sg(q2spi->gsi->rx_c,
+								 q2spi->gsi->rx_sg,
+								 rx_nent, DMA_DEV_TO_MEM, flags);
+		if (IS_ERR_OR_NULL(q2spi->gsi->db_rx_desc)) {
+			Q2SPI_ERROR(q2spi, "%s db_rx_desc fail\n", __func__);
+			return -EIO;
+		}
+		q2spi->gsi->db_rx_desc->callback = q2spi_gsi_rx_callback;
+		q2spi->gsi->db_rx_desc->callback_param = &q2spi->gsi->db_rx_cb_param;
+		q2spi->gsi->db_rx_cb_param.userdata = q2spi_pkt;
+		q2spi->gsi->num_rx_eot++;
+		q2spi->gsi->rx_cookie = dmaengine_submit(q2spi->gsi->db_rx_desc);
+		Q2SPI_DEBUG(q2spi, "%s DB cb_param:%p\n", __func__,
+			    q2spi->gsi->db_rx_desc->callback_param);
+		if (dma_submit_error(q2spi->gsi->rx_cookie)) {
+			Q2SPI_ERROR(q2spi, "%s Err dmaengine_submit failed (%d)\n",
+				    __func__, q2spi->gsi->rx_cookie);
+			dmaengine_terminate_all(q2spi->gsi->rx_c);
+			return -EINVAL;
+		}
 	}
 	if (cmd & Q2SPI_RX_ONLY) {
 		Q2SPI_DEBUG(q2spi, "%s rx_c dma_async_issue_pending\n", __func__);
 		q2spi_dump_ipc(q2spi, q2spi->ipc, "GSI DMA-RX", (char *)xfer->rx_buf, tx_rx_len);
-		reinit_completion(&q2spi->rx_cb);
+		if (q2spi_pkt->m_cmd_param == Q2SPI_RX_ONLY)
+			reinit_completion(&q2spi->db_rx_cb);
+		else
+			reinit_completion(&q2spi->rx_cb);
 		dma_async_issue_pending(q2spi->gsi->rx_c);
 	}
 

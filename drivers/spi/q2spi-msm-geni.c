@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -28,6 +28,7 @@
 
 static int q2spi_slave_init(struct q2spi_geni *q2spi);
 static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt);
+static struct q2spi_geni *get_q2spi(struct device *dev);
 
 /* FTRACE Logging */
 void q2spi_trace_log(struct device *dev, const char *fmt, ...)
@@ -139,8 +140,7 @@ void q2spi_dump_ipc(struct q2spi_geni *q2spi, void *ipc_ctx, char *prefix,
  */
 static ssize_t max_dump_size_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+	struct q2spi_geni *q2spi = get_q2spi(dev);
 
 	return scnprintf(buf, sizeof(int), "%d\n", q2spi->max_data_dump_size);
 }
@@ -158,8 +158,7 @@ static ssize_t max_dump_size_show(struct device *dev, struct device_attribute *a
 static ssize_t max_dump_size_store(struct device *dev, struct device_attribute *attr,
 				   const char *buf, size_t size)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+	struct q2spi_geni *q2spi = get_q2spi(dev);
 
 	if (kstrtoint(buf, 0, &q2spi->max_data_dump_size)) {
 		dev_err(dev, "%s Invalid input\n", __func__);
@@ -599,6 +598,11 @@ int q2spi_map_doorbell_rx_buf(struct q2spi_geni *q2spi)
 	int ret = 0;
 
 	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d\n", __func__, current->pid);
+
+	if (q2spi->port_release || q2spi->is_suspend) {
+		Q2SPI_DEBUG(q2spi, "%s Port being closed or suspend return\n", __func__);
+		return 0;
+	}
 	if (q2spi->db_xfer->rx_dma) {
 		Q2SPI_DEBUG(q2spi, "%s Doorbell buffer already mapped\n", __func__);
 		return 0;
@@ -1679,8 +1683,8 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 		Q2SPI_ERROR(q2spi, "%s Err Retries failed, check HW state\n", __func__);
 		return -EPIPE;
 	}
-	Q2SPI_DEBUG(q2spi, "%s list_empty_tx_list:%d list_empty_rx_list:%d list_empty_cr_list:%d\n",
-		    __func__, list_empty(&q2spi->tx_queue_list), list_empty(&q2spi->rx_queue_list),
+	Q2SPI_DEBUG(q2spi, "%s list_empty_tx_list:%d list_empty_cr_list:%d\n",
+		    __func__, list_empty(&q2spi->tx_queue_list),
 		    list_empty(&q2spi->cr_queue_list));
 	if (copy_from_user(&cr_request, buf, sizeof(struct q2spi_client_request)) != 0) {
 		Q2SPI_ERROR(q2spi, "%s copy from user failed PID=%d\n", __func__, current->pid);
@@ -1771,8 +1775,8 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 	}
 	ret = (sizeof(struct q2spi_client_request) - ret);
 
-	Q2SPI_DEBUG(q2spi, "%s list_empty tx_list:%d rx_list:%d cr_list:%d\n",
-		    __func__, list_empty(&q2spi->tx_queue_list), list_empty(&q2spi->rx_queue_list),
+	Q2SPI_DEBUG(q2spi, "%s list_empty tx_list:%d cr_list:%d\n",
+		    __func__, list_empty(&q2spi->tx_queue_list),
 		    list_empty(&q2spi->cr_queue_list));
 	Q2SPI_DEBUG(q2spi, "%s q2spi_cr_pkt:%p q2spi_pkt:%p in_use:%d\n", __func__, q2spi_cr_pkt,
 		    q2spi_cr_pkt->q2spi_pkt, q2spi_cr_pkt->q2spi_pkt->in_use);
@@ -1809,17 +1813,15 @@ static __poll_t q2spi_poll(struct file *filp, poll_table *wait)
 	return mask;
 }
 
-static int q2spi_release(struct inode *inode, struct file *filp)
+/**
+ * q2spi_flush_pending_crs - check any pending CRs to consume
+ * @q2spi: pointer to q2spi_geni driver data
+ *
+ * Return: none
+ */
+static void q2spi_flush_pending_crs(struct q2spi_geni *q2spi)
 {
-	struct q2spi_geni *q2spi;
 	struct q2spi_cr_packet *q2spi_cr_pkt = NULL;
-
-	if (!filp || !filp->private_data) {
-		pr_err("%s Err close return\n", __func__);
-		return -EINVAL;
-	}
-	q2spi = filp->private_data;
-	q2spi->port_release = true;
 
 	Q2SPI_DEBUG(q2spi, "%s rx_avail:%d, tx_queue:%d cr_queue:%d\n",
 		    __func__, atomic_read(&q2spi->rx_avail),
@@ -1844,6 +1846,20 @@ static int q2spi_release(struct inode *inode, struct file *filp)
 		}
 		atomic_dec(&q2spi->rx_avail);
 	}
+}
+
+static int q2spi_release(struct inode *inode, struct file *filp)
+{
+	struct q2spi_geni *q2spi;
+
+	if (!filp || !filp->private_data) {
+		pr_err("%s Err close return\n", __func__);
+		return -EINVAL;
+	}
+	q2spi = filp->private_data;
+	q2spi->port_release = true;
+
+	q2spi_flush_pending_crs(q2spi);
 	q2spi->doorbell_setup = false;
 	q2spi_geni_resources_off(q2spi);
 	Q2SPI_DEBUG(q2spi, "%s End PID:%d allocs:%d rx_avail:%d tx_queue:%d cr_queue:%d\n",
@@ -2282,7 +2298,6 @@ q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *
 		    q2spi_pkt, q2spi_pkt->hrf_flow_id, q2spi_cr_pkt->var3_pkt.flow_id);
 	if (q2spi_pkt->hrf_flow_id == q2spi_cr_pkt->var3_pkt.flow_id) {
 		q2spi_pkt->vtype = VARIANT_5;
-		q2spi_kfree(q2spi, q2spi_cr_pkt, __LINE__);
 		ret = q2spi_prep_var5_request(q2spi, q2spi_pkt);
 		if (ret)
 			return ret;
@@ -2368,6 +2383,11 @@ static int __q2spi_send_messages(struct q2spi_geni *q2spi)
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "q2spi_gsi_submit failed: %d\n", ret);
 		return ret;
+	}
+
+	if (q2spi_pkt->vtype == VARIANT_5) {
+		Q2SPI_DEBUG(q2spi, "%s wakeup sma_wait\n", __func__);
+		complete_all(&q2spi->sma_wait);
 	}
 
 	if (q2spi_pkt->vtype == VARIANT_5_HRF) {
@@ -3034,7 +3054,7 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 	unsigned long flags;
 	int ret = 0, i = 0, no_of_crs = 0;
 	u8 *ptr;
-	bool wakeup_hrf = true, map_doorbell_rx_buf = true;
+	bool wakeup_hrf = true, sys_mem_access = false;
 
 	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d q2spi:%p\n", __func__, current->pid, q2spi);
 	ret = q2spi_prepare_cr_pkt(q2spi);
@@ -3117,7 +3137,9 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 					    __func__, q2spi_cr_pkt->var3_pkt.dw_len_part1,
 					    q2spi_cr_pkt->var3_pkt.dw_len_part2,
 					    q2spi_cr_pkt->var3_pkt.dw_len_part3);
+				reinit_completion(&q2spi->sma_wait);
 				q2spi_send_system_mem_access(q2spi, &q2spi_pkt);
+				sys_mem_access = true;
 				q2spi_cr_pkt->q2spi_pkt = q2spi_pkt;
 				Q2SPI_DEBUG(q2spi, "%s q2spi_cr_pkt:%p cr->q2spi_pkt:%p\n",
 					    __func__, q2spi_cr_pkt, q2spi_cr_pkt->q2spi_pkt);
@@ -3146,8 +3168,6 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 				Q2SPI_DEBUG(q2spi, "%s q2spi_cr_pkt:%p cr->q2spi_pkt:%p\n",
 					    __func__, q2spi_cr_pkt, q2spi_cr_pkt->q2spi_pkt);
 				q2spi_notify_data_avail_for_client(q2spi);
-				if (q2spi->port_release)
-					map_doorbell_rx_buf = false;
 			} else {
 				Q2SPI_DEBUG(q2spi, "%s Bulk status with host Flow ID:%d\n",
 					    __func__, q2spi_cr_pkt->bulk_pkt.flow_id);
@@ -3156,21 +3176,30 @@ static void q2spi_handle_doorbell_work(struct work_struct *work)
 					q2spi_kfree(q2spi, q2spi_cr_pkt, __LINE__);
 			}
 		}
-
-		if (map_doorbell_rx_buf) {
-			/*
-			 * get one rx buffer from allocated pool and
-			 * map to gsi to ready for next doorbell.
-			 */
-			ret = q2spi_map_doorbell_rx_buf(q2spi);
-			if (ret) {
-				Q2SPI_DEBUG(q2spi, "failed to alloc RX DMA buf");
+		if (sys_mem_access) {
+			Q2SPI_DEBUG(q2spi, "%s waiting on sma_wait\n", __func__);
+			/* Block on read_wq until sma complete */
+			ret = wait_for_completion_interruptible_timeout
+							(&q2spi->sma_wait,
+							msecs_to_jiffies(XFER_TIMEOUT_OFFSET));
+			if (ret < 0) {
+				Q2SPI_DEBUG(q2spi, "%s Err wait interrupted ret:%d\n",
+					    __func__, ret);
 				return;
 			}
 		}
-		if (atomic_read(&q2spi->doorbell_pending))
-			atomic_dec(&q2spi->doorbell_pending);
 	}
+	/*
+	 * get one rx buffer from allocated pool and
+	 * map to gsi to ready for next doorbell.
+	 */
+	ret = q2spi_map_doorbell_rx_buf(q2spi);
+	if (ret) {
+		Q2SPI_DEBUG(q2spi, "failed to alloc RX DMA buf");
+		return;
+	}
+	if (atomic_read(&q2spi->doorbell_pending))
+		atomic_dec(&q2spi->doorbell_pending);
 	Q2SPI_DEBUG(q2spi, "%s End PID=%d\n", __func__, current->pid);
 }
 
@@ -3318,7 +3347,6 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	init_waitqueue_head(&q2spi->readq);
 	init_waitqueue_head(&q2spi->read_wq);
 	INIT_LIST_HEAD(&q2spi->tx_queue_list);
-	INIT_LIST_HEAD(&q2spi->rx_queue_list);
 	INIT_LIST_HEAD(&q2spi->cr_queue_list);
 	INIT_LIST_HEAD(&q2spi->hc_cr_queue_list);
 	mutex_init(&q2spi->gsi_lock);
@@ -3336,8 +3364,10 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 	kthread_init_work(&q2spi->send_messages, q2spi_send_messages);
 	init_completion(&q2spi->tx_cb);
 	init_completion(&q2spi->rx_cb);
+	init_completion(&q2spi->db_rx_cb);
 	init_completion(&q2spi->doorbell_up);
 	init_completion(&q2spi->sync_wait);
+	init_completion(&q2spi->sma_wait);
 	idr_init(&q2spi->tid_idr);
 
 	/* Pre allocate buffers for transfers */
@@ -3434,6 +3464,20 @@ static int q2spi_geni_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/**
+ * get_q2spi - get q2spi pointer from device
+ * @dev: Device pointer
+ *
+ * Return: return q2spi pointer
+ */
+static struct q2spi_geni *get_q2spi(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct q2spi_geni *q2spi = platform_get_drvdata(pdev);
+
+	return q2spi;
+}
+
 static int q2spi_geni_runtime_suspend(struct device *dev)
 {
 	pr_err("%s PID=%d\n", __func__, current->pid);
@@ -3448,13 +3492,34 @@ static int q2spi_geni_runtime_resume(struct device *dev)
 
 static int q2spi_geni_resume(struct device *dev)
 {
+	struct q2spi_geni *q2spi = get_q2spi(dev);
+	int ret = 0;
+
 	pr_err("%s PID=%d\n", __func__, current->pid);
-	return 0;
+	if (q2spi) {
+		q2spi->is_suspend = false;
+		Q2SPI_INFO(q2spi, "%s: PID=%d\n", __func__, current->pid);
+		if (q2spi_geni_resources_on(q2spi))
+			return -EIO;
+		/* map the RX dma buffer to receive doorbell if not mapped previously */
+		ret = q2spi_map_doorbell_rx_buf(q2spi);
+		if (ret)
+			Q2SPI_ERROR(q2spi, "%s Err failed to alloc RX DMA buf\n", __func__);
+	}
+	return ret;
 }
 
 static int q2spi_geni_suspend(struct device *dev)
 {
+	struct q2spi_geni *q2spi = get_q2spi(dev);
+
 	pr_err("%s PID=%d\n", __func__, current->pid);
+	if (q2spi) {
+		q2spi->is_suspend = true;
+		Q2SPI_INFO(q2spi, "%s: PID=%d\n", __func__, current->pid);
+		q2spi_flush_pending_crs(q2spi);
+		q2spi_geni_resources_off(q2spi);
+	}
 	return 0;
 }
 

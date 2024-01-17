@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _SPI_Q2SPI_MSM_H_
@@ -381,6 +381,7 @@ struct q2spi_dma_transfer {
 
 /**
  * struct q2spi_geni - structure to store Q2SPI GENI information
+ *
  * @wrapper_dev: qupv3 wrapper device pointer
  * @dev: q2spi device pointer
  * @base: pointer to ioremap()'d registers
@@ -392,20 +393,48 @@ struct q2spi_dma_transfer {
  * @geni_gpio_sleep: sleep state pin control
  * q2spi_chrdev: cdev structure
  * @geni_se: stores info parsed from device tree
- * @q2spi_dma_transfer: stores Q2SPI transfer dma information
- * @q2spi_gsi: stores GSI structure information
+ * @gsi: stores GSI structure information
+ * @qup_gsi_err: flahg to set incase of gsi errors
  * @xfer: reference to q2spi_dma_transfer structure
  * @db_xfer: reference to q2spi_dma_transfer structure for doorbell
  * @req: reference to q2spi request structure
  * @c_req: reference to q2spi client request structure
- * @rx_fifo_depth: RX FIFO depth
- * @tx_fifo_depth: TX FIFO depth
- * @tx_fifo_width: TX FIFO width
  * @setup_config0: used to mark config0 setup completion
  * @irq: IRQ of the SE
- * @lock: Lock to protect xfer
+ * @tx_queue_list: list for HC packets
+ * @cr_queue_list: list for CR pakcets
+ * @cr_hc_queue_list: list for CR doorbell received for HC
+ * @kworker: kthread worker to process the q2spi requests
+ * @send_messages: work function to process the q2spi requests
+ * @gsi_lock: lock to protect gsi operations
+ * @txn_lock: lock to protect transfer id allocation and free
+ * @queue_lock: lock to protect HC operations
+ * @cr_queue_lock: lock to protect CR operations
+ * @max_speed_hz: stores maxspeed of the SCLK frequency
+ * @cur_speed_hz: stores maxspeed of the SCLK frequency
+ * @oversampling: stores sampling value based on major and minor version
+ * @xfer_mode: stored mode of transfer
+ * @curr_xfer_mode: stored current  mode of transfer
+ * @gsi_mode: flag for gsi mode
+ * @tx_cb: completion for tx dma
+ * @rx_cb: completion for rx dma
+ * @db_rx_cb: completion for doobell rx dma
+ * @rx_avail: used to notify the client for avaialble rx data
  * @tid_idr: tid id allocator
  * @readq: waitqueue for rx data
+ * @hrf_flow: flag to indicate HRF flow
+ * @doorbell_up: completion for doorbell receive
+ * @var1_buf: virtual pointer for varient1
+ * @var1_dma_buf: physical dma pointer for varient1
+ * @var5_buf: virtual pointer for varient5
+ * @var5_dma_buf: physical dma pointer for varient5
+ * @cr_buf: virtual pointer for CR
+ * @cr_dma_buf: physical dma pointer for CR
+ * @var1_buf_used: pointer to store varient1 buffer used
+ * @var5_buf_used: pointer to store varient5 buffer used
+ * @cr_buf_used: pointer to store CR buffer used
+ * @sync_wait: completion for q2spi_transfer wait
+ * @sma_wait: completion for SMA
  * @hw_state_is_bad: used when HW is in un-recoverable state
  * @max_dump_data_size: max size of data to be dumped as part of dump_ipc function
  * @doorbell_pending: Set when independent doorbell CR received
@@ -413,6 +442,7 @@ struct q2spi_dma_transfer {
  * @alloc_count: reflects count of memory allocations done by q2spi_kzalloc
  * @resources_on: flag which reflects geni resources are turned on/off
  * @port_release: reflects if q2spi port is being closed
+ * @is_suspend: reflects if q2spi driver is in system suspend
  */
 struct q2spi_geni {
 	struct device *wrapper_dev;
@@ -435,7 +465,6 @@ struct q2spi_geni {
 	bool setup_config0;
 	int irq;
 	struct list_head tx_queue_list;
-	struct list_head rx_queue_list;
 	struct list_head cr_queue_list;
 	struct list_head hc_cr_queue_list;
 	struct kthread_worker *kworker;
@@ -454,10 +483,9 @@ struct q2spi_geni {
 	int xfer_mode;
 	int cur_xfer_mode;
 	bool gsi_mode; /* GSI Mode */
-	void *q2spi_buf;
-	bool cmd_done;
 	struct completion tx_cb;
 	struct completion rx_cb;
+	struct completion db_rx_cb;
 	atomic_t rx_avail;
 	struct idr tid_idr;
 	wait_queue_head_t readq;
@@ -479,6 +507,7 @@ struct q2spi_geni {
 	void *bulk_buf_used[Q2SPI_MAX_BUF];
 	dma_addr_t dma_buf;
 	struct completion sync_wait;
+	struct completion sma_wait;
 	void *ipc;
 	struct work_struct q2spi_doorbell_work;
 	struct workqueue_struct *doorbell_wq;
@@ -493,6 +522,7 @@ struct q2spi_geni {
 	atomic_t alloc_count;
 	bool resources_on;
 	bool port_release;
+	bool is_suspend;
 };
 
 /**
