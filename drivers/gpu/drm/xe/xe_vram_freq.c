@@ -95,13 +95,12 @@ static void vram_freq_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
-/*
- * xe_vram_freq_init - Initialize vram frequency component
+/**
+ * xe_vram_freq_sysfs_init - Initialize vram frequency sysfs component
  * @tile: Xe Tile object
  *
  * It needs to be initialized after the main tile component is ready
  */
-
 void xe_vram_freq_sysfs_init(struct xe_tile *tile)
 {
 	struct xe_device *xe = tile_to_xe(tile);
