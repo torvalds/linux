@@ -1337,7 +1337,7 @@ static const struct regmap_config isl7998x_regmap = {
 	.rd_table	= &isl7998x_readable_table,
 	.wr_table	= &isl7998x_writeable_table,
 	.volatile_table	= &isl7998x_volatile_table,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static int isl7998x_mc_init(struct isl7998x *isl7998x)
