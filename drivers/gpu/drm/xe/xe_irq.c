@@ -14,6 +14,7 @@
 #include "xe_device.h"
 #include "xe_display.h"
 #include "xe_drv.h"
+#include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_hw_engine.h"
@@ -131,6 +132,7 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 	u32 ccs_mask, bcs_mask;
 	u32 irqs, dmask, smask;
 	u32 gsc_mask = 0;
+	u32 heci_mask = 0;
 
 	if (xe_device_uc_enabled(xe)) {
 		irqs = GT_RENDER_USER_INTERRUPT |
@@ -180,14 +182,23 @@ void xe_irq_enable_hwe(struct xe_gt *gt)
 		xe_mmio_write32(gt, VCS2_VCS3_INTR_MASK, ~dmask);
 		xe_mmio_write32(gt, VECS0_VECS1_INTR_MASK, ~dmask);
 
-		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER))
+		/*
+		 * the heci2 interrupt is enabled via the same register as the
+		 * GSCCS interrupts, but it has its own mask register.
+		 */
+		if (xe_hw_engine_mask_per_class(gt, XE_ENGINE_CLASS_OTHER)) {
 			gsc_mask = irqs;
-		else if (HAS_HECI_GSCFI(xe))
+			heci_mask = GSC_IRQ_INTF(1);
+		} else if (HAS_HECI_GSCFI(xe)) {
 			gsc_mask = GSC_IRQ_INTF(1);
+		}
+
 		if (gsc_mask) {
-			xe_mmio_write32(gt, GUNIT_GSC_INTR_ENABLE, gsc_mask);
+			xe_mmio_write32(gt, GUNIT_GSC_INTR_ENABLE, gsc_mask | heci_mask);
 			xe_mmio_write32(gt, GUNIT_GSC_INTR_MASK, ~gsc_mask);
 		}
+		if (heci_mask)
+			xe_mmio_write32(gt, HECI2_RSVD_INTR_MASK, ~(heci_mask << 16));
 	}
 }
 
@@ -234,6 +245,8 @@ gt_other_irq_handler(struct xe_gt *gt, const u8 instance, const u16 iir)
 		return xe_guc_irq_handler(&gt->uc.guc, iir);
 	if (instance == OTHER_MEDIA_GUC_INSTANCE && xe_gt_is_media_type(gt))
 		return xe_guc_irq_handler(&gt->uc.guc, iir);
+	if (instance == OTHER_GSC_HECI2_INSTANCE && xe_gt_is_media_type(gt))
+		return xe_gsc_proxy_irq_handler(&gt->uc.gsc, iir);
 
 	if (instance != OTHER_GUC_INSTANCE &&
 	    instance != OTHER_MEDIA_GUC_INSTANCE) {
@@ -251,15 +264,23 @@ static struct xe_gt *pick_engine_gt(struct xe_tile *tile,
 	if (MEDIA_VER(xe) < 13)
 		return tile->primary_gt;
 
-	if (class == XE_ENGINE_CLASS_VIDEO_DECODE ||
-	    class == XE_ENGINE_CLASS_VIDEO_ENHANCE)
+	switch (class) {
+	case XE_ENGINE_CLASS_VIDEO_DECODE:
+	case XE_ENGINE_CLASS_VIDEO_ENHANCE:
 		return tile->media_gt;
-
-	if (class == XE_ENGINE_CLASS_OTHER &&
-	    (instance == OTHER_MEDIA_GUC_INSTANCE || instance == OTHER_GSC_INSTANCE))
-		return tile->media_gt;
-
-	return tile->primary_gt;
+	case XE_ENGINE_CLASS_OTHER:
+		switch (instance) {
+		case OTHER_MEDIA_GUC_INSTANCE:
+		case OTHER_GSC_INSTANCE:
+		case OTHER_GSC_HECI2_INSTANCE:
+			return tile->media_gt;
+		default:
+			break;
+		};
+		fallthrough;
+	default:
+		return tile->primary_gt;
+	}
 }
 
 static void gt_irq_handler(struct xe_tile *tile,
@@ -486,6 +507,7 @@ static void gt_irq_reset(struct xe_tile *tile)
 	    HAS_HECI_GSCFI(tile_to_xe(tile))) {
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_ENABLE, 0);
 		xe_mmio_write32(mmio, GUNIT_GSC_INTR_MASK, ~0);
+		xe_mmio_write32(mmio, HECI2_RSVD_INTR_MASK, ~0);
 	}
 
 	xe_mmio_write32(mmio, GPM_WGBOXPERF_INTR_ENABLE, 0);

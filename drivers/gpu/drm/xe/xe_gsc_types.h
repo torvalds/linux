@@ -8,6 +8,7 @@
 
 #include <linux/iosys-map.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
@@ -38,6 +39,14 @@ struct xe_gsc {
 
 	/** @work: delayed load and proxy handling work */
 	struct work_struct work;
+
+	/** @lock: protects access to the work_actions mask */
+	spinlock_t lock;
+
+	/** @work_actions: mask of actions to be performed in the work */
+	u32 work_actions;
+#define GSC_ACTION_FW_LOAD BIT(0)
+#define GSC_ACTION_SW_PROXY BIT(1)
 
 	/** @proxy: sub-structure containing the SW proxy-related variables */
 	struct {
