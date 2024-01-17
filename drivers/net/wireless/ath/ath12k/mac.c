@@ -5055,7 +5055,7 @@ void ath12k_mac_drain_tx(struct ath12k *ar)
 
 static int ath12k_mac_config_mon_status_default(struct ath12k *ar, bool enable)
 {
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 	/* TODO: Need to support new monitor mode */
 }
 
@@ -5165,13 +5165,13 @@ static int ath12k_mac_start(struct ath12k *ar)
 	 * such as rssi, rx_duration.
 	 */
 	ret = ath12k_mac_config_mon_status_default(ar, true);
-	if (ret && (ret != -ENOTSUPP)) {
+	if (ret && (ret != -EOPNOTSUPP)) {
 		ath12k_err(ab, "failed to configure monitor status ring with default rx_filter: (%d)\n",
 			   ret);
 		goto err;
 	}
 
-	if (ret == -ENOTSUPP)
+	if (ret == -EOPNOTSUPP)
 		ath12k_dbg(ab, ATH12K_DBG_MAC,
 			   "monitor status config is not yet supported");
 
@@ -5283,7 +5283,7 @@ static void ath12k_mac_stop(struct ath12k *ar)
 
 	mutex_lock(&ar->conf_mutex);
 	ret = ath12k_mac_config_mon_status_default(ar, false);
-	if (ret && (ret != -ENOTSUPP))
+	if (ret && (ret != -EOPNOTSUPP))
 		ath12k_err(ar->ab, "failed to clear rx_filter for monitor status ring: (%d)\n",
 			   ret);
 
