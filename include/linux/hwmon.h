@@ -425,12 +425,12 @@ struct hwmon_channel_info {
 	const u32 *config;
 };
 
-#define HWMON_CHANNEL_INFO(stype, ...)	\
-	(&(struct hwmon_channel_info) {	\
-		.type = hwmon_##stype,	\
-		.config = (u32 []) {	\
-			__VA_ARGS__, 0	\
-		}			\
+#define HWMON_CHANNEL_INFO(stype, ...)		\
+	(&(const struct hwmon_channel_info) {	\
+		.type = hwmon_##stype,		\
+		.config = (const u32 []) {	\
+			__VA_ARGS__, 0		\
+		}				\
 	})
 
 /**
