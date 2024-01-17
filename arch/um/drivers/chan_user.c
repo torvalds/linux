@@ -141,7 +141,7 @@ struct winch_data {
 	int pipe_fd;
 };
 
-static int winch_thread(void *arg)
+static __noreturn int winch_thread(void *arg)
 {
 	struct winch_data *data = arg;
 	sigset_t sigs;
@@ -153,8 +153,8 @@ static int winch_thread(void *arg)
 	pipe_fd = data->pipe_fd;
 	count = write(pipe_fd, &c, sizeof(c));
 	if (count != sizeof(c))
-		printk(UM_KERN_ERR "winch_thread : failed to write "
-		       "synchronization byte, err = %d\n", -count);
+		os_info("winch_thread : failed to write synchronization byte, err = %d\n",
+			-count);
 
 	/*
 	 * We are not using SIG_IGN on purpose, so don't fix it as I thought to
@@ -166,29 +166,29 @@ static int winch_thread(void *arg)
 	sigfillset(&sigs);
 	/* Block all signals possible. */
 	if (sigprocmask(SIG_SETMASK, &sigs, NULL) < 0) {
-		printk(UM_KERN_ERR "winch_thread : sigprocmask failed, "
-		       "errno = %d\n", errno);
-		exit(1);
+		os_info("winch_thread : sigprocmask failed, errno = %d\n",
+			errno);
+		goto wait_kill;
 	}
 	/* In sigsuspend(), block anything else than SIGWINCH. */
 	sigdelset(&sigs, SIGWINCH);
 
 	if (setsid() < 0) {
-		printk(UM_KERN_ERR "winch_thread : setsid failed, errno = %d\n",
+		os_info("winch_thread : setsid failed, errno = %d\n",
 		       errno);
-		exit(1);
+		goto wait_kill;
 	}
 
 	if (ioctl(pty_fd, TIOCSCTTY, 0) < 0) {
-		printk(UM_KERN_ERR "winch_thread : TIOCSCTTY failed on "
-		       "fd %d err = %d\n", pty_fd, errno);
-		exit(1);
+		os_info("winch_thread : TIOCSCTTY failed on "
+			"fd %d err = %d\n", pty_fd, errno);
+		goto wait_kill;
 	}
 
 	if (tcsetpgrp(pty_fd, os_getpid()) < 0) {
-		printk(UM_KERN_ERR "winch_thread : tcsetpgrp failed on "
-		       "fd %d err = %d\n", pty_fd, errno);
-		exit(1);
+		os_info("winch_thread : tcsetpgrp failed on fd %d err = %d\n",
+			pty_fd, errno);
+		goto wait_kill;
 	}
 
 	/*
@@ -199,8 +199,8 @@ static int winch_thread(void *arg)
 	 */
 	count = read(pipe_fd, &c, sizeof(c));
 	if (count != sizeof(c))
-		printk(UM_KERN_ERR "winch_thread : failed to read "
-		       "synchronization byte, err = %d\n", errno);
+		os_info("winch_thread : failed to read synchronization byte, err = %d\n",
+			errno);
 
 	while(1) {
 		/*
@@ -211,9 +211,15 @@ static int winch_thread(void *arg)
 
 		count = write(pipe_fd, &c, sizeof(c));
 		if (count != sizeof(c))
-			printk(UM_KERN_ERR "winch_thread : write failed, "
-			       "err = %d\n", errno);
+			os_info("winch_thread : write failed, err = %d\n",
+				errno);
 	}
+
+wait_kill:
+	c = 2;
+	count = write(pipe_fd, &c, sizeof(c));
+	while (1)
+		pause();
 }
 
 static int winch_tramp(int fd, struct tty_port *port, int *fd_out,
