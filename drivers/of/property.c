@@ -665,7 +665,7 @@ struct device_node *of_graph_get_next_endpoint(const struct device_node *parent,
 		of_node_put(node);
 
 		if (!port) {
-			pr_err("graph: no port node found in %pOF\n", parent);
+			pr_debug("graph: no port node found in %pOF\n", parent);
 			return NULL;
 		}
 	} else {
