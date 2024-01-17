@@ -1322,7 +1322,7 @@ static int dw_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, 
 	writel(1, master->regs + SLV_INTR_REQ);
 
 	if (!wait_for_completion_timeout(&master->ibi.target.comp, XFER_TIMEOUT)) {
-		pr_warn("timeout waiting for completion\n");
+		dev_warn(&master->base.dev, "Timeout waiting for completion\n");
 		return -EINVAL;
 	}
 
@@ -1330,7 +1330,7 @@ static int dw_i3c_target_generate_ibi(struct i3c_dev_desc *dev, const u8 *data, 
 	if (SLV_INTR_REQ_IBI_STS(reg) != IBI_STS_ACCEPTED) {
 		reg = readl(master->regs + SLV_EVENT_CTRL);
 		if ((reg & SLV_EVENT_CTRL_SIR_EN) == 0)
-			pr_warn("sir is disabled by master\n");
+			dev_warn(&master->base.dev, "SIR is disabled by master\n");
 		return -EACCES;
 	}
 
@@ -1403,14 +1403,14 @@ static int dw_i3c_target_pending_read_notify(struct i3c_dev_desc *dev,
 
 	ret = dw_i3c_target_generate_ibi(dev, NULL, 0);
 	if (ret) {
-		pr_warn("timeout waiting for completion: IBI MDB\n");
+		dev_warn(&master->base.dev, "Timeout waiting for completion: IBI MDB\n");
 		dw_i3c_target_reset_queue(master);
 		return -EINVAL;
 	}
 
 	if (!wait_for_completion_timeout(&master->ibi.target.rdata_comp,
 					 XFER_TIMEOUT)) {
-		pr_warn("timeout waiting for completion: pending read data\n");
+		dev_warn(&master->base.dev, "Timeout waiting for completion: pending read data\n");
 		dw_i3c_target_reset_queue(master);
 		return -EINVAL;
 	}
