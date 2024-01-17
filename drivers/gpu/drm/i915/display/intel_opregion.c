@@ -266,7 +266,6 @@ struct intel_opregion {
 	void *vbt_firmware;
 	const void *vbt;
 	u32 vbt_size;
-	u32 *lid_state;
 	struct work_struct asle_work;
 	struct notifier_block acpi_notifier;
 };
@@ -958,7 +957,6 @@ int intel_opregion_setup(struct drm_i915_private *dev_priv)
 		goto err_out;
 	}
 	opregion->header = base;
-	opregion->lid_state = base + ACPI_CLID;
 
 	drm_dbg(&dev_priv->drm, "ACPI OpRegion version %u.%u.%u\n",
 		opregion->header->over.major,
