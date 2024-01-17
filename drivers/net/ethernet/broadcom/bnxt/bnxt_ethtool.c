@@ -884,7 +884,7 @@ static void bnxt_get_channels(struct net_device *dev,
 	if (max_tx_sch_inputs)
 		max_tx_rings = min_t(int, max_tx_rings, max_tx_sch_inputs);
 
-	tcs = netdev_get_num_tc(dev);
+	tcs = bp->num_tc;
 	tx_grps = max(tcs, 1);
 	if (bp->tx_nr_rings_xdp)
 		tx_grps++;
@@ -944,7 +944,7 @@ static int bnxt_set_channels(struct net_device *dev,
 	if (channel->combined_count)
 		sh = true;
 
-	tcs = netdev_get_num_tc(dev);
+	tcs = bp->num_tc;
 
 	req_tx_rings = sh ? channel->combined_count : channel->tx_count;
 	req_rx_rings = sh ? channel->combined_count : channel->rx_count;

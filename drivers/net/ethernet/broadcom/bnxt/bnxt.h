@@ -2225,6 +2225,7 @@ struct bnxt {
 	u8			tc_to_qidx[BNXT_MAX_QUEUE];
 	u8			q_ids[BNXT_MAX_QUEUE];
 	u8			max_q;
+	u8			num_tc;
 
 	unsigned int		current_interval;
 #define BNXT_TIMER_INTERVAL	HZ
