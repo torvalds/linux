@@ -402,7 +402,7 @@ static const struct attribute_group *hwmon_groups[] = {
 	NULL
 };
 
-static const struct hwmon_channel_info *hwmon_info[] = {
+static const struct hwmon_channel_info * const hwmon_info[] = {
 	HWMON_CHANNEL_INFO(power, HWMON_P_MAX | HWMON_P_RATED_MAX | HWMON_P_CRIT),
 	HWMON_CHANNEL_INFO(curr, HWMON_C_CRIT),
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT),
