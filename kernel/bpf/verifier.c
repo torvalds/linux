@@ -12862,6 +12862,19 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 	}
 
 	switch (base_type(ptr_reg->type)) {
+	case PTR_TO_CTX:
+	case PTR_TO_MAP_VALUE:
+	case PTR_TO_MAP_KEY:
+	case PTR_TO_STACK:
+	case PTR_TO_PACKET_META:
+	case PTR_TO_PACKET:
+	case PTR_TO_TP_BUFFER:
+	case PTR_TO_BTF_ID:
+	case PTR_TO_MEM:
+	case PTR_TO_BUF:
+	case PTR_TO_FUNC:
+	case CONST_PTR_TO_DYNPTR:
+		break;
 	case PTR_TO_FLOW_KEYS:
 		if (known)
 			break;
@@ -12871,16 +12884,10 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		if (known && smin_val == 0 && opcode == BPF_ADD)
 			break;
 		fallthrough;
-	case PTR_TO_PACKET_END:
-	case PTR_TO_SOCKET:
-	case PTR_TO_SOCK_COMMON:
-	case PTR_TO_TCP_SOCK:
-	case PTR_TO_XDP_SOCK:
+	default:
 		verbose(env, "R%d pointer arithmetic on %s prohibited\n",
 			dst, reg_type_str(env, ptr_reg->type));
 		return -EACCES;
-	default:
-		break;
 	}
 
 	/* In case of 'scalar += pointer', dst_reg inherits pointer type and id.
