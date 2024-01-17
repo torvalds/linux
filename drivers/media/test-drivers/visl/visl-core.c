@@ -88,6 +88,11 @@ module_param(bitstream_trace_nframes, uint, 0444);
 MODULE_PARM_DESC(bitstream_trace_nframes,
 		 " the number of frames to dump the bitstream through debugfs");
 
+bool tpg_verbose;
+module_param(tpg_verbose, bool, 0644);
+MODULE_PARM_DESC(tpg_verbose,
+		 " add more verbose information on the generated output frames");
+
 static const struct visl_ctrl_desc visl_fwht_ctrl_descs[] = {
 	{
 		.cfg.id = V4L2_CID_STATELESS_FWHT_PARAMS,
