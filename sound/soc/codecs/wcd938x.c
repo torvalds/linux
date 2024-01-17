@@ -3587,10 +3587,8 @@ static int wcd938x_probe(struct platform_device *pdev)
 	mutex_init(&wcd938x->micb_lock);
 
 	ret = wcd938x_populate_dt_data(wcd938x, dev);
-	if (ret) {
-		dev_err(dev, "%s: Fail to obtain platform data\n", __func__);
+	if (ret)
 		return ret;
-	}
 
 	ret = wcd938x_add_slave_components(wcd938x, dev, &match);
 	if (ret)
