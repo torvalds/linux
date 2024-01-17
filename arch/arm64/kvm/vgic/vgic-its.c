@@ -158,7 +158,7 @@ struct vgic_translation_cache_entry {
  * @cte_esz: collection table entry size
  * @dte_esz: device table entry size
  * @ite_esz: interrupt translation table entry size
- * @save tables: save the ITS tables into guest RAM
+ * @save_tables: save the ITS tables into guest RAM
  * @restore_tables: restore the ITS internal structs from tables
  *  stored in guest RAM
  * @commit: initialize the registers which expose the ABI settings,
@@ -2139,7 +2139,7 @@ static u32 compute_next_eventid_offset(struct list_head *h, struct its_ite *ite)
 }
 
 /**
- * entry_fn_t - Callback called on a table entry restore path
+ * typedef entry_fn_t - Callback called on a table entry restore path
  * @its: its handle
  * @id: id of the entry
  * @entry: pointer to the entry
