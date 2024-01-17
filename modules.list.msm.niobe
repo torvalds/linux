@@ -23,6 +23,7 @@ arm_smmu.ko
 secure_buffer.ko
 clk-dummy.ko
 clk-qcom.ko
+clk-rpmh.ko
 qcom_cpucp.ko
 qcom_llcc_pmu.ko
 qcom_scmi_client.ko
@@ -40,6 +41,7 @@ phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
 llcc-qcom.ko
 gcc-niobe.ko
+tcsrcc-niobe.ko
 dispcc0-niobe.ko
 dispcc1-niobe.ko
 tmecom-intf.ko
@@ -52,3 +54,4 @@ glink_pkt.ko
 qcom_glink_smem.ko
 qcom_glink.ko
 qcom_glink_spss.ko
+qcom-cpufreq-hw.ko
