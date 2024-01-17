@@ -355,21 +355,22 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 }
 
 /*
- * Add new extent map to the extent tree
+ * Add a new extent map to an inode's extent map tree.
  *
- * @tree:	tree to insert new map in
+ * @inode:	the target inode
  * @em:		map to insert
  * @modified:	indicate whether the given @em should be added to the
  *	        modified list, which indicates the extent needs to be logged
  *
- * Insert @em into @tree or perform a simple forward/backward merge with
- * existing mappings.  The extent_map struct passed in will be inserted
- * into the tree directly, with an additional reference taken, or a
- * reference dropped if the merge attempt was successful.
+ * Insert @em into the @inode's extent map tree or perform a simple
+ * forward/backward merge with existing mappings.  The extent_map struct passed
+ * in will be inserted into the tree directly, with an additional reference
+ * taken, or a reference dropped if the merge attempt was successful.
  */
-static int add_extent_mapping(struct extent_map_tree *tree,
+static int add_extent_mapping(struct btrfs_inode *inode,
 			      struct extent_map *em, int modified)
 {
+	struct extent_map_tree *tree = &inode->extent_tree;
 	int ret;
 
 	lockdep_assert_held_write(&tree->lock);
@@ -508,7 +509,7 @@ static struct extent_map *prev_extent_map(struct extent_map *em)
  * and an extent that you want to insert, deal with overlap and insert
  * the best fitted new extent into the tree.
  */
-static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
+static noinline int merge_extent_mapping(struct btrfs_inode *inode,
 					 struct extent_map *existing,
 					 struct extent_map *em,
 					 u64 map_start)
@@ -542,7 +543,7 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 		em->block_start += start_diff;
 		em->block_len = em->len;
 	}
-	return add_extent_mapping(em_tree, em, 0);
+	return add_extent_mapping(inode, em, 0);
 }
 
 /*
@@ -570,7 +571,6 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 {
 	int ret;
 	struct extent_map *em = *em_in;
-	struct extent_map_tree *em_tree = &inode->extent_tree;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
 	/*
@@ -580,7 +580,7 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 	if (em->block_start == EXTENT_MAP_INLINE)
 		ASSERT(em->start == 0);
 
-	ret = add_extent_mapping(em_tree, em, 0);
+	ret = add_extent_mapping(inode, em, 0);
 	/* it is possible that someone inserted the extent into the tree
 	 * while we had the lock dropped.  It is also possible that
 	 * an overlapping map exists in the tree
@@ -588,7 +588,7 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 	if (ret == -EEXIST) {
 		struct extent_map *existing;
 
-		existing = search_extent_mapping(em_tree, start, len);
+		existing = search_extent_mapping(&inode->extent_tree, start, len);
 
 		trace_btrfs_handle_em_exist(fs_info, existing, em, start, len);
 
@@ -609,8 +609,7 @@ int btrfs_add_extent_mapping(struct btrfs_inode *inode,
 			 * The existing extent map is the one nearest to
 			 * the [start, start + len) range which overlaps
 			 */
-			ret = merge_extent_mapping(em_tree, existing,
-						   em, start);
+			ret = merge_extent_mapping(inode, existing, em, start);
 			if (WARN_ON(ret)) {
 				free_extent_map(em);
 				*em_in = NULL;
@@ -818,8 +817,7 @@ void btrfs_drop_extent_map_range(struct btrfs_inode *inode, u64 start, u64 end,
 			} else {
 				int ret;
 
-				ret = add_extent_mapping(em_tree, split,
-							 modified);
+				ret = add_extent_mapping(inode, split, modified);
 				/* Logic error, shouldn't happen. */
 				ASSERT(ret == 0);
 				if (WARN_ON(ret != 0) && modified)
@@ -909,7 +907,7 @@ int btrfs_replace_extent_map_range(struct btrfs_inode *inode,
 	do {
 		btrfs_drop_extent_map_range(inode, new_em->start, end, false);
 		write_lock(&tree->lock);
-		ret = add_extent_mapping(tree, new_em, modified);
+		ret = add_extent_mapping(inode, new_em, modified);
 		write_unlock(&tree->lock);
 	} while (ret == -EEXIST);
 
@@ -990,7 +988,7 @@ int split_extent_map(struct btrfs_inode *inode, u64 start, u64 len, u64 pre,
 	split_mid->ram_bytes = split_mid->len;
 	split_mid->flags = flags;
 	split_mid->generation = em->generation;
-	add_extent_mapping(em_tree, split_mid, 1);
+	add_extent_mapping(inode, split_mid, 1);
 
 	/* Once for us */
 	free_extent_map(em);
