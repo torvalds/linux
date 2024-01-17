@@ -5,6 +5,8 @@
 
 #include "xe_gsc_submit.h"
 
+#include <linux/poison.h>
+
 #include "abi/gsc_command_header_abi.h"
 #include "xe_bb.h"
 #include "xe_exec_queue.h"
@@ -66,6 +68,17 @@ u32 xe_gsc_emit_header(struct xe_device *xe, struct iosys_map *map, u32 offset,
 	mtl_gsc_header_wr(xe, map, offset, message_size, payload_size + GSC_HDR_SIZE);
 
 	return offset + GSC_HDR_SIZE;
+};
+
+/**
+ * xe_gsc_poison_header - poison the MTL GSC header in memory
+ * @xe: the Xe device
+ * @map: the iosys map to write to
+ * @offset: offset from the start of the map at which the header resides
+ */
+void xe_gsc_poison_header(struct xe_device *xe, struct iosys_map *map, u32 offset)
+{
+	xe_map_memset(xe, map, offset, POISON_FREE, GSC_HDR_SIZE);
 };
 
 /**

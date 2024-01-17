@@ -26,6 +26,7 @@
 #include "xe_exec_queue.h"
 #include "xe_exec.h"
 #include "xe_ggtt.h"
+#include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
 #include "xe_irq.h"
@@ -434,6 +435,7 @@ int xe_device_probe(struct xe_device *xe)
 	struct xe_tile *tile;
 	struct xe_gt *gt;
 	int err;
+	u8 last_gt;
 	u8 id;
 
 	xe_pat_init_early(xe);
@@ -521,16 +523,18 @@ int xe_device_probe(struct xe_device *xe)
 		goto err_irq_shutdown;
 
 	for_each_gt(gt, xe, id) {
+		last_gt = id;
+
 		err = xe_gt_init(gt);
 		if (err)
-			goto err_irq_shutdown;
+			goto err_fini_gt;
 	}
 
 	xe_heci_gsc_init(xe);
 
 	err = xe_display_init(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err_fini_gt;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
@@ -551,6 +555,14 @@ int xe_device_probe(struct xe_device *xe)
 err_fini_display:
 	xe_display_driver_remove(xe);
 
+err_fini_gt:
+	for_each_gt(gt, xe, id) {
+		if (id < last_gt)
+			xe_gt_remove(gt);
+		else
+			break;
+	}
+
 err_irq_shutdown:
 	xe_irq_shutdown(xe);
 err:
@@ -568,11 +580,17 @@ static void xe_device_remove_display(struct xe_device *xe)
 
 void xe_device_remove(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	u8 id;
+
 	xe_device_remove_display(xe);
 
 	xe_display_fini(xe);
 
 	xe_heci_gsc_fini(xe);
+
+	for_each_gt(gt, xe, id)
+		xe_gt_remove(gt);
 
 	xe_irq_shutdown(xe);
 }

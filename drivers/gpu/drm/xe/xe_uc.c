@@ -7,6 +7,7 @@
 
 #include "xe_device.h"
 #include "xe_gsc.h"
+#include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
 #include "xe_guc_db_mgr.h"
@@ -260,4 +261,17 @@ int xe_uc_suspend(struct xe_uc *uc)
 		return ret;
 
 	return xe_guc_suspend(&uc->guc);
+}
+
+/**
+ * xe_uc_remove() - Clean up the UC structures before driver removal
+ * @uc: the UC object
+ *
+ * This function should only act on objects/structures that must be cleaned
+ * before the driver removal callback is complete and therefore can't be
+ * deferred to a drmm action.
+ */
+void xe_uc_remove(struct xe_uc *uc)
+{
+	xe_gsc_remove(&uc->gsc);
 }

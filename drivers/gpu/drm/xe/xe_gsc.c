@@ -13,6 +13,7 @@
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_exec_queue.h"
+#include "xe_gsc_proxy.h"
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
 #include "xe_gt_printk.h"
@@ -242,7 +243,30 @@ static int gsc_upload(struct xe_gsc *gsc)
 	if (err)
 		return err;
 
+	return 0;
+}
+
+static int gsc_upload_and_init(struct xe_gsc *gsc)
+{
+	struct xe_gt *gt = gsc_to_gt(gsc);
+	int ret;
+
+	ret = gsc_upload(gsc);
+	if (ret)
+		return ret;
+
+	xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
 	xe_gt_dbg(gt, "GSC FW async load completed\n");
+
+	/* HuC auth failure is not fatal */
+	if (xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GUC))
+		xe_huc_auth(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC);
+
+	ret = xe_gsc_proxy_start(gsc);
+	if (ret)
+		return ret;
+
+	xe_gt_dbg(gt, "GSC proxy init completed\n");
 
 	return 0;
 }
@@ -257,19 +281,12 @@ static void gsc_work(struct work_struct *work)
 	xe_device_mem_access_get(xe);
 	xe_force_wake_get(gt_to_fw(gt), XE_FW_GSC);
 
-	ret = gsc_upload(gsc);
-	if (ret && ret != -EEXIST) {
+	ret = gsc_upload_and_init(gsc);
+	if (ret && ret != -EEXIST)
 		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_LOAD_FAIL);
-		goto out;
-	}
+	else
+		xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_RUNNING);
 
-	xe_uc_fw_change_status(&gsc->fw, XE_UC_FIRMWARE_TRANSFERRED);
-
-	/* HuC auth failure is not fatal */
-	if (xe_huc_is_authenticated(&gt->uc.huc, XE_HUC_AUTH_VIA_GUC))
-		xe_huc_auth(&gt->uc.huc, XE_HUC_AUTH_VIA_GSC);
-
-out:
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
 	xe_device_mem_access_put(xe);
 }
@@ -300,6 +317,10 @@ int xe_gsc_init(struct xe_gsc *gsc)
 	if (!xe_uc_fw_is_enabled(&gsc->fw))
 		return 0;
 	else if (ret)
+		goto out;
+
+	ret = xe_gsc_proxy_init(gsc);
+	if (ret && ret != -ENODEV)
 		goto out;
 
 	return 0;
@@ -408,6 +429,15 @@ void xe_gsc_wait_for_worker_completion(struct xe_gsc *gsc)
 {
 	if (xe_uc_fw_is_loadable(&gsc->fw) && gsc->wq)
 		flush_work(&gsc->work);
+}
+
+/**
+ * xe_gsc_remove() - Clean up the GSC structures before driver removal
+ * @gsc: the GSC uC
+ */
+void xe_gsc_remove(struct xe_gsc *gsc)
+{
+	xe_gsc_proxy_remove(gsc);
 }
 
 /*
