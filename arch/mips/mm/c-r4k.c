@@ -1650,7 +1650,7 @@ static void coherency_setup(void)
 
 	/*
 	 * c0_status.cu=0 specifies that updates by the sc instruction use
-	 * the coherency mode specified by the TLB; 1 means cachable
+	 * the coherency mode specified by the TLB; 1 means cacheable
 	 * coherent update on write will be used.  Not all processors have
 	 * this bit and; some wire it to zero, others like Toshiba had the
 	 * silly idea of putting something else there ...

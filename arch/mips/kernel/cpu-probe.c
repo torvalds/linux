@@ -1138,7 +1138,7 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 * This processor doesn't have an MMU, so it's not
 		 * "real easy" to run Linux on it. It is left purely
 		 * for documentation.  Commented out because it shares
-		 * it's c0_prid id number with the TX3900.
+		 * its c0_prid id number with the TX3900.
 		 */
 		c->cputype = CPU_R4650;
 		__cpu_name[cpu] = "R4650";

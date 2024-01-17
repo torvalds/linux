@@ -70,7 +70,7 @@ copy_word:
 done:
 #ifdef CONFIG_SMP
 	/* kexec_flag reset is signal to other CPUs what kernel
-	   was moved to it's location. Note - we need relocated address
+	   was moved to its location. Note - we need relocated address
 	   of kexec_flag.  */
 
 	bal		1f
