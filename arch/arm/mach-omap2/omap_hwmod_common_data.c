@@ -20,7 +20,7 @@
 
 #include "omap_hwmod_common_data.h"
 
-/**
+/*
  * struct omap_hwmod_sysc_type1 - TYPE1 sysconfig scheme.
  *
  * To be used by hwmod structure to specify the sysconfig offsets
@@ -36,7 +36,7 @@ struct sysc_regbits omap_hwmod_sysc_type1 = {
 	.autoidle_shift	= SYSC_TYPE1_AUTOIDLE_SHIFT,
 };
 
-/**
+/*
  * struct omap_hwmod_sysc_type2 - TYPE2 sysconfig scheme.
  *
  * To be used by hwmod structure to specify the sysconfig offsets if the
@@ -50,7 +50,7 @@ struct sysc_regbits omap_hwmod_sysc_type2 = {
 	.dmadisable_shift = SYSC_TYPE2_DMADISABLE_SHIFT,
 };
 
-/**
+/*
  * struct omap_hwmod_sysc_type3 - TYPE3 sysconfig scheme.
  * Used by some IPs on AM33xx
  */
