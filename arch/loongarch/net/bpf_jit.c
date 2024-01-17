@@ -201,6 +201,11 @@ bool bpf_jit_supports_kfunc_call(void)
 	return true;
 }
 
+bool bpf_jit_supports_far_kfunc_call(void)
+{
+	return true;
+}
+
 /* initialized on the first pass of build_body() */
 static int out_offset = -1;
 static int emit_bpf_tail_call(struct jit_ctx *ctx)
