@@ -392,6 +392,13 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+
+	gnss {
+		compatible = "u-blox,neo-m8";
+		reset-gpios = <&gpio_exp_75 6 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&reg_3p3v>;
+		current-speed = <9600>;
+	};
 };
 
 &sdhi3 {
