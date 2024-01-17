@@ -1339,7 +1339,7 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 		nr_tw = nr_tw_prev + 1;
 		/* Large enough to fail the nr_wait comparison below */
 		if (!(flags & IOU_F_TWQ_LAZY_WAKE))
-			nr_tw = -1U;
+			nr_tw = INT_MAX;
 
 		req->nr_tw = nr_tw;
 		req->io_task_work.node.next = first;
