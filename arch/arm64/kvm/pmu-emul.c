@@ -419,7 +419,7 @@ void kvm_pmu_sync_hwstate(struct kvm_vcpu *vcpu)
 	kvm_pmu_update_state(vcpu);
 }
 
-/**
+/*
  * When perf interrupt is an NMI, we cannot safely notify the vcpu corresponding
  * to the event.
  * This is why we need a callback to do it once outside of the NMI context.
@@ -490,7 +490,7 @@ static u64 compute_period(struct kvm_pmc *pmc, u64 counter)
 	return val;
 }
 
-/**
+/*
  * When the perf event overflows, set the overflow status and inform the vcpu.
  */
 static void kvm_pmu_perf_overflow(struct perf_event *perf_event,
