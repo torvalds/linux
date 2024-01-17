@@ -137,6 +137,14 @@ struct io_defer_entry {
 #define IO_DISARM_MASK (REQ_F_ARM_LTIMEOUT | REQ_F_LINK_TIMEOUT | REQ_F_FAIL)
 #define IO_REQ_LINK_FLAGS (REQ_F_LINK | REQ_F_HARDLINK)
 
+/*
+ * No waiters. It's larger than any valid value of the tw counter
+ * so that tests against ->cq_wait_nr would fail and skip wake_up().
+ */
+#define IO_CQ_WAKE_INIT		(-1U)
+/* Forced wake up if there is a waiter regardless of ->cq_wait_nr */
+#define IO_CQ_WAKE_FORCE	(IO_CQ_WAKE_INIT >> 1)
+
 static bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
 					 bool cancel_all);
@@ -303,6 +311,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		goto err;
 
 	ctx->flags = p->flags;
+	atomic_set(&ctx->cq_wait_nr, IO_CQ_WAKE_INIT);
 	init_waitqueue_head(&ctx->sqo_sq_wait);
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
@@ -1306,6 +1315,13 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	unsigned nr_wait, nr_tw, nr_tw_prev;
 	struct llist_node *head;
 
+	/* See comment above IO_CQ_WAKE_INIT */
+	BUILD_BUG_ON(IO_CQ_WAKE_FORCE <= IORING_MAX_CQ_ENTRIES);
+
+	/*
+	 * We don't know how many reuqests is there in the link and whether
+	 * they can even be queued lazily, fall back to non-lazy.
+	 */
 	if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
 		flags &= ~IOU_F_TWQ_LAZY_WAKE;
 
@@ -1322,10 +1338,14 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 			 */
 			nr_tw_prev = READ_ONCE(first_req->nr_tw);
 		}
+
+		/*
+		 * Theoretically, it can overflow, but that's fine as one of
+		 * previous adds should've tried to wake the task.
+		 */
 		nr_tw = nr_tw_prev + 1;
-		/* Large enough to fail the nr_wait comparison below */
 		if (!(flags & IOU_F_TWQ_LAZY_WAKE))
-			nr_tw = INT_MAX;
+			nr_tw = IO_CQ_WAKE_FORCE;
 
 		req->nr_tw = nr_tw;
 		req->io_task_work.node.next = head;
@@ -1348,11 +1368,11 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	}
 
 	nr_wait = atomic_read(&ctx->cq_wait_nr);
-	/* no one is waiting */
-	if (!nr_wait)
+	/* not enough or no one is waiting */
+	if (nr_tw < nr_wait)
 		return;
-	/* either not enough or the previous add has already woken it up */
-	if (nr_wait > nr_tw || nr_tw_prev >= nr_wait)
+	/* the previous add has already woken it up */
+	if (nr_tw_prev >= nr_wait)
 		return;
 	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 }
@@ -2620,7 +2640,7 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 		ret = io_cqring_wait_schedule(ctx, &iowq);
 		__set_current_state(TASK_RUNNING);
-		atomic_set(&ctx->cq_wait_nr, 0);
+		atomic_set(&ctx->cq_wait_nr, IO_CQ_WAKE_INIT);
 
 		/*
 		 * Run task_work after scheduling and before io_should_wake().
