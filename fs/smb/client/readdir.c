@@ -645,10 +645,10 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
 static int is_dir_changed(struct file *file)
 {
 	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
+	struct cifsInodeInfo *cifs_inode_info = CIFS_I(inode);
 
-	if (cifsInfo->time == 0)
-		return 1; /* directory was changed, perhaps due to unlink */
+	if (cifs_inode_info->time == 0)
+		return 1; /* directory was changed, e.g. unlink or new file */
 	else
 		return 0;
 
