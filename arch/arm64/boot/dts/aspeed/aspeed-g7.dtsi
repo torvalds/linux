@@ -616,7 +616,7 @@
 
 		display_port: dp@12c0a000 {
 			compatible = "aspeed,ast2700-displayport", "syscon";
-			reg = <0x0 0x12c09000 0x0 0x200>;
+			reg = <0x0 0x12c0a000 0x0 0x200>;
 			status = "disabled";
 		};
 
