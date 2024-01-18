@@ -2668,7 +2668,7 @@ static void genpd_release_dev(struct device *dev)
 	kfree(dev);
 }
 
-static struct bus_type genpd_bus_type = {
+static const struct bus_type genpd_bus_type = {
 	.name		= "genpd",
 };
 

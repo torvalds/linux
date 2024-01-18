@@ -232,7 +232,7 @@ bus_find_device_by_acpi_dev(const struct bus_type *bus, const void *adev)
 
 int bus_for_each_drv(const struct bus_type *bus, struct device_driver *start,
 		     void *data, int (*fn)(struct device_driver *, void *));
-void bus_sort_breadthfirst(struct bus_type *bus,
+void bus_sort_breadthfirst(const struct bus_type *bus,
 			   int (*compare)(const struct device *a,
 					  const struct device *b));
 /*

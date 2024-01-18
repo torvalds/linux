@@ -176,7 +176,7 @@ struct edac_device_ctl_info {
 	struct edac_dev_sysfs_attribute *sysfs_attributes;
 
 	/* pointer to main 'edac' subsys in sysfs */
-	struct bus_type *edac_subsys;
+	const struct bus_type *edac_subsys;
 
 	/* the internal state of this controller instance */
 	int op_state;
