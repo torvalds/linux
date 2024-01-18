@@ -2795,7 +2795,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	hdev->asic_funcs->init_cpu_scrambler_dram(hdev);
 
 	if (!(hdev->fw_components & FW_TYPE_LINUX)) {
-		dev_info(hdev->dev, "Skip loading Linux F/W\n");
+		dev_dbg(hdev->dev, "Skip loading Linux F/W\n");
 		return 0;
 	}
 
