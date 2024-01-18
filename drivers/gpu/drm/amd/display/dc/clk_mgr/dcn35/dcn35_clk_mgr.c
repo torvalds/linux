@@ -830,7 +830,7 @@ static void dcn35_set_low_power_state(struct clk_mgr *clk_mgr_base)
 	}
 }
 
-static void dcn35_set_idle_state(struct clk_mgr *clk_mgr_base, bool allow_idle)
+static void dcn35_set_ips_idle_state(struct clk_mgr *clk_mgr_base, bool allow_idle)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 	struct dc *dc = clk_mgr_base->ctx->dc;
@@ -878,7 +878,7 @@ static bool dcn35_is_ips_supported(struct clk_mgr *clk_mgr_base)
 	return ips_supported;
 }
 
-static uint32_t dcn35_get_idle_state(struct clk_mgr *clk_mgr_base)
+static uint32_t dcn35_get_ips_idle_state(struct clk_mgr *clk_mgr_base)
 {
 	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
 
@@ -972,8 +972,8 @@ static struct clk_mgr_funcs dcn35_funcs = {
 	.set_low_power_state = dcn35_set_low_power_state,
 	.exit_low_power_state = dcn35_exit_low_power_state,
 	.is_ips_supported = dcn35_is_ips_supported,
-	.set_idle_state = dcn35_set_idle_state,
-	.get_idle_state = dcn35_get_idle_state
+	.set_idle_state = dcn35_set_ips_idle_state,
+	.get_idle_state = dcn35_get_ips_idle_state
 };
 
 struct clk_mgr_funcs dcn35_fpga_funcs = {
