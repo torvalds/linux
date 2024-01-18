@@ -14,40 +14,46 @@
 	.text
 	.arch	armv8-a+crypto
 
+	.macro	load_round_keys, rk, nr, tmp
+	sub	w\tmp, \nr, #10
+	add	\tmp, \rk, w\tmp, sxtw #4
+	ld1	{v10.4s-v13.4s}, [\rk]
+	ld1	{v14.4s-v17.4s}, [\tmp], #64
+	ld1	{v18.4s-v21.4s}, [\tmp], #64
+	ld1	{v3.4s-v5.4s}, [\tmp]
+	.endm
+
+	.macro	dround, va, vb, vk
+	aese	\va\().16b, \vk\().16b
+	aesmc	\va\().16b, \va\().16b
+	aese	\vb\().16b, \vk\().16b
+	aesmc	\vb\().16b, \vb\().16b
+	.endm
+
+	.macro	aes_encrypt, va, vb, nr
+	tbz	\nr, #2, .L\@
+	dround	\va, \vb, v10
+	dround	\va, \vb, v11
+	tbz	\nr, #1, .L\@
+	dround	\va, \vb, v12
+	dround	\va, \vb, v13
+.L\@:	.irp	v, v14, v15, v16, v17, v18, v19, v20, v21, v3
+	dround	\va, \vb, \v
+	.endr
+	aese	\va\().16b, v4.16b
+	aese	\vb\().16b, v4.16b
+	.endm
+
 	/*
 	 * void ce_aes_ccm_final(u8 mac[], u8 const ctr[], u8 const rk[],
 	 * 			 u32 rounds);
 	 */
 SYM_FUNC_START(ce_aes_ccm_final)
-	ld1	{v3.4s}, [x2], #16		/* load first round key */
 	ld1	{v0.16b}, [x0]			/* load mac */
-	cmp	w3, #12				/* which key size? */
-	sub	w3, w3, #2			/* modified # of rounds */
 	ld1	{v1.16b}, [x1]			/* load 1st ctriv */
-	bmi	0f
-	bne	3f
-	mov	v5.16b, v3.16b
-	b	2f
-0:	mov	v4.16b, v3.16b
-1:	ld1	{v5.4s}, [x2], #16		/* load next round key */
-	aese	v0.16b, v4.16b
-	aesmc	v0.16b, v0.16b
-	aese	v1.16b, v4.16b
-	aesmc	v1.16b, v1.16b
-2:	ld1	{v3.4s}, [x2], #16		/* load next round key */
-	aese	v0.16b, v5.16b
-	aesmc	v0.16b, v0.16b
-	aese	v1.16b, v5.16b
-	aesmc	v1.16b, v1.16b
-3:	ld1	{v4.4s}, [x2], #16		/* load next round key */
-	subs	w3, w3, #3
-	aese	v0.16b, v3.16b
-	aesmc	v0.16b, v0.16b
-	aese	v1.16b, v3.16b
-	aesmc	v1.16b, v1.16b
-	bpl	1b
-	aese	v0.16b, v4.16b
-	aese	v1.16b, v4.16b
+
+	aes_encrypt	v0, v1, w3
+
 	/* final round key cancels out */
 	eor	v0.16b, v0.16b, v1.16b		/* en-/decrypt the mac */
 	st1	{v0.16b}, [x0]			/* store result */
@@ -55,6 +61,8 @@ SYM_FUNC_START(ce_aes_ccm_final)
 SYM_FUNC_END(ce_aes_ccm_final)
 
 	.macro	aes_ccm_do_crypt,enc
+	load_round_keys	x3, w4, x10
+
 	cbz	x2, 5f
 	ldr	x8, [x6, #8]			/* load lower ctr */
 	ld1	{v0.16b}, [x5]			/* load mac */
@@ -64,37 +72,10 @@ CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
 	prfm	pldl1strm, [x1]
 	add	x8, x8, #1
 	rev	x9, x8
-	cmp	w4, #12				/* which key size? */
-	sub	w7, w4, #2			/* get modified # of rounds */
 	ins	v1.d[1], x9			/* no carry in lower ctr */
-	ld1	{v3.4s}, [x3]			/* load first round key */
-	add	x10, x3, #16
-	bmi	1f
-	bne	4f
-	mov	v5.16b, v3.16b
-	b	3f
-1:	mov	v4.16b, v3.16b
-	ld1	{v5.4s}, [x10], #16		/* load 2nd round key */
-2:	/* inner loop: 3 rounds, 2x interleaved */
-	aese	v0.16b, v4.16b
-	aesmc	v0.16b, v0.16b
-	aese	v1.16b, v4.16b
-	aesmc	v1.16b, v1.16b
-3:	ld1	{v3.4s}, [x10], #16		/* load next round key */
-	aese	v0.16b, v5.16b
-	aesmc	v0.16b, v0.16b
-	aese	v1.16b, v5.16b
-	aesmc	v1.16b, v1.16b
-4:	ld1	{v4.4s}, [x10], #16		/* load next round key */
-	subs	w7, w7, #3
-	aese	v0.16b, v3.16b
-	aesmc	v0.16b, v0.16b
-	aese	v1.16b, v3.16b
-	aesmc	v1.16b, v1.16b
-	ld1	{v5.4s}, [x10], #16		/* load next round key */
-	bpl	2b
-	aese	v0.16b, v4.16b
-	aese	v1.16b, v4.16b
+
+	aes_encrypt	v0, v1, w4
+
 	subs	w2, w2, #16
 	bmi	6f				/* partial block? */
 	ld1	{v2.16b}, [x1], #16		/* load next input block */
