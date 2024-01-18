@@ -179,7 +179,8 @@
 #define MAX310X_FLOWCTRL_GPIADDR_BIT	(1 << 2) /* Enables that GPIO inputs
 						  * are used in conjunction with
 						  * XOFF2 for definition of
-						  * special character */
+						  * special character
+						  */
 #define MAX310X_FLOWCTRL_SWFLOWEN_BIT	(1 << 3) /* Auto SW flow ctrl enable */
 #define MAX310X_FLOWCTRL_SWFLOW0_BIT	(1 << 4) /* SWFLOW bit 0 */
 #define MAX310X_FLOWCTRL_SWFLOW1_BIT	(1 << 5) /* SWFLOW bit 1
@@ -258,7 +259,7 @@ struct max310x_devtype {
 	struct {
 		unsigned short min;
 		unsigned short max;
-	} slave_addr;
+	} slave_addr; /* Relevant only in I2C mode. */
 	int	nr;
 	char	name[9];
 	u8	mode1;
@@ -639,7 +640,8 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 	u8 ch, flag;
 
 	if (port->read_status_mask == MAX310X_LSR_RXOVR_BIT) {
-		/* We are just reading, happily ignoring any error conditions.
+		/*
+		 * We are just reading, happily ignoring any error conditions.
 		 * Break condition, parity checking, framing errors -- they
 		 * are all ignored. That means that we can do a batch-read.
 		 *
@@ -648,7 +650,7 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 		 * that the LSR register applies to the "current" character.
 		 * That's also the reason why we cannot do batched reads when
 		 * asked to check the individual statuses.
-		 * */
+		 */
 
 		sts = max310x_port_read(port, MAX310X_LSR_IRQSTS_REG);
 		max310x_batch_read(port, one->rx_buf, rxlen);
@@ -752,8 +754,10 @@ static void max310x_handle_tx(struct uart_port *port)
 		to_send = (to_send > txlen) ? txlen : to_send;
 
 		if (until_end < to_send) {
-			/* It's a circ buffer -- wrap around.
-			 * We could do that in one SPI transaction, but meh. */
+			/*
+			 * It's a circ buffer -- wrap around.
+			 * We could do that in one SPI transaction, but meh.
+			 */
 			max310x_batch_write(port, xmit->buf + xmit->tail, until_end);
 			max310x_batch_write(port, xmit->buf, to_send - until_end);
 		} else {
@@ -842,7 +846,8 @@ static unsigned int max310x_tx_empty(struct uart_port *port)
 
 static unsigned int max310x_get_mctrl(struct uart_port *port)
 {
-	/* DCD and DSR are not wired and CTS/RTS is handled automatically
+	/*
+	 * DCD and DSR are not wired and CTS/RTS is handled automatically
 	 * so just indicate DSR and CAR asserted
 	 */
 	return TIOCM_DSR | TIOCM_CAR;
@@ -934,7 +939,8 @@ static void max310x_set_termios(struct uart_port *port,
 	max310x_port_write(port, MAX310X_XON1_REG, termios->c_cc[VSTART]);
 	max310x_port_write(port, MAX310X_XOFF1_REG, termios->c_cc[VSTOP]);
 
-	/* Disable transmitter before enabling AutoCTS or auto transmitter
+	/*
+	 * Disable transmitter before enabling AutoCTS or auto transmitter
 	 * flow control
 	 */
 	if (termios->c_cflag & CRTSCTS || termios->c_iflag & IXOFF) {
@@ -961,7 +967,8 @@ static void max310x_set_termios(struct uart_port *port,
 	}
 	max310x_port_write(port, MAX310X_FLOWCTRL_REG, flow);
 
-	/* Enable transmitter after disabling AutoCTS and auto transmitter
+	/*
+	 * Enable transmitter after disabling AutoCTS and auto transmitter
 	 * flow control
 	 */
 	if (!(termios->c_cflag & CRTSCTS) && !(termios->c_iflag & IXOFF)) {
@@ -1052,8 +1059,11 @@ static int max310x_startup(struct uart_port *port)
 					    MAX310X_MODE2_ECHOSUPR_BIT);
 	}
 
-	/* Configure flow control levels */
-	/* Flow control halt level 96, resume level 48 */
+	/*
+	 * Configure flow control levels:
+	 *   resume: 48
+	 *   halt:   96
+	 */
 	max310x_port_write(port, MAX310X_FLOWLVL_REG,
 			   MAX310X_FLOWLVL_RES(48) | MAX310X_FLOWLVL_HALT(96));
 
@@ -1561,10 +1571,10 @@ static unsigned short max310x_i2c_slave_addr(unsigned short addr,
 	 * For MAX14830 and MAX3109, the slave address depends on what the
 	 * A0 and A1 pins are tied to.
 	 * See Table I2C Address Map of the datasheet.
-	 * Based on that table, the following formulas were determined.
-	 * UART1 - UART0 = 0x10
-	 * UART2 - UART1 = 0x20 + 0x10
-	 * UART3 - UART2 = 0x10
+	 * Based on that table, the following formulas were determined:
+	 *   UART1 - UART0 = 0x10
+	 *   UART2 - UART1 = 0x20 + 0x10
+	 *   UART3 - UART2 = 0x10
 	 */
 
 	addr -= nr * 0x10;
