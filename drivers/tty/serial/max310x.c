@@ -1514,9 +1514,9 @@ static int max310x_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	devtype = device_get_match_data(&spi->dev);
+	devtype = spi_get_device_match_data(spi);
 	if (!devtype)
-		devtype = (struct max310x_devtype *)spi_get_device_id(spi)->driver_data;
+		return dev_err_probe(&spi->dev, -ENODEV, "Failed to match device\n");
 
 	for (i = 0; i < devtype->nr; i++) {
 		u8 port_mask = i * 0x20;
