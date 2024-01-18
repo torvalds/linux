@@ -917,7 +917,6 @@ static int s390_fpregs_set(struct task_struct *target,
 	else
 		memcpy(&fprs, target->thread.fpu.fprs, sizeof(fprs));
 
-	/* If setting FPC, must validate it first. */
 	if (count > 0 && pos < offsetof(s390_fp_regs, fprs)) {
 		u32 ufpc[2] = { target->thread.fpu.fpc, 0 };
 		rc = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &ufpc,
