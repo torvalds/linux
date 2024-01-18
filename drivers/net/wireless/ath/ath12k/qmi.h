@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_QMI_H
@@ -573,6 +573,21 @@ struct qmi_wlanfw_wlan_cfg_req_msg_v01 {
 };
 
 struct qmi_wlanfw_wlan_cfg_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define ATH12K_QMI_WLANFW_WLAN_INI_REQ_V01	0x002F
+#define ATH12K_QMI_WLANFW_WLAN_INI_RESP_V01	0x002F
+#define QMI_WLANFW_WLAN_INI_REQ_MSG_V01_MAX_LEN		7
+#define QMI_WLANFW_WLAN_INI_RESP_MSG_V01_MAX_LEN	7
+
+struct qmi_wlanfw_wlan_ini_req_msg_v01 {
+	/* Must be set to true if enable_fwlog is being passed */
+	u8 enable_fwlog_valid;
+	u8 enable_fwlog;
+};
+
+struct qmi_wlanfw_wlan_ini_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
 };
 

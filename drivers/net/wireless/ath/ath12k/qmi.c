@@ -1954,6 +1954,50 @@ static const struct qmi_elem_info qmi_wlanfw_fw_ready_ind_msg_v01_ei[] = {
 	},
 };
 
+static const struct qmi_elem_info qmi_wlanfw_wlan_ini_req_msg_v01_ei[] = {
+	{
+		.data_type	= QMI_OPT_FLAG,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x10,
+		.offset		= offsetof(struct qmi_wlanfw_wlan_ini_req_msg_v01,
+					   enable_fwlog_valid),
+	},
+	{
+		.data_type	= QMI_UNSIGNED_1_BYTE,
+		.elem_len	= 1,
+		.elem_size	= sizeof(u8),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x10,
+		.offset		= offsetof(struct qmi_wlanfw_wlan_ini_req_msg_v01,
+					   enable_fwlog),
+	},
+	{
+		.data_type	= QMI_EOTI,
+		.array_type	= NO_ARRAY,
+		.tlv_type	= QMI_COMMON_TLV_TYPE,
+	},
+};
+
+static const struct qmi_elem_info qmi_wlanfw_wlan_ini_resp_msg_v01_ei[] = {
+	{
+		.data_type	= QMI_STRUCT,
+		.elem_len	= 1,
+		.elem_size	= sizeof(struct qmi_response_type_v01),
+		.array_type	= NO_ARRAY,
+		.tlv_type	= 0x02,
+		.offset		= offsetof(struct qmi_wlanfw_wlan_ini_resp_msg_v01,
+					   resp),
+		.ei_array	= qmi_response_type_v01_ei,
+	},
+	{
+		.data_type	= QMI_EOTI,
+		.array_type	= NO_ARRAY,
+		.tlv_type	= QMI_COMMON_TLV_TYPE,
+	},
+};
+
 static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 				      struct qmi_wlanfw_host_cap_req_msg_v01 *req)
 {
@@ -2853,6 +2897,49 @@ out:
 	return ret;
 }
 
+static int ath12k_qmi_wlanfw_wlan_ini_send(struct ath12k_base *ab)
+{
+	struct qmi_wlanfw_wlan_ini_resp_msg_v01 resp = {};
+	struct qmi_wlanfw_wlan_ini_req_msg_v01 req = {};
+	struct qmi_txn txn;
+	int ret;
+
+	req.enable_fwlog_valid = true;
+	req.enable_fwlog = 1;
+
+	ret = qmi_txn_init(&ab->qmi.handle, &txn,
+			   qmi_wlanfw_wlan_ini_resp_msg_v01_ei, &resp);
+	if (ret < 0)
+		goto out;
+
+	ret = qmi_send_request(&ab->qmi.handle, NULL, &txn,
+			       ATH12K_QMI_WLANFW_WLAN_INI_REQ_V01,
+			       QMI_WLANFW_WLAN_INI_REQ_MSG_V01_MAX_LEN,
+			       qmi_wlanfw_wlan_ini_req_msg_v01_ei, &req);
+	if (ret < 0) {
+		qmi_txn_cancel(&txn);
+		ath12k_warn(ab, "failed to send QMI wlan ini request: %d\n",
+			    ret);
+		goto out;
+	}
+
+	ret = qmi_txn_wait(&txn, msecs_to_jiffies(ATH12K_QMI_WLANFW_TIMEOUT_MS));
+	if (ret < 0) {
+		ath12k_warn(ab, "failed to receive QMI wlan ini request: %d\n", ret);
+		goto out;
+	}
+
+	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
+		ath12k_warn(ab, "QMI wlan ini response failure: %d %d\n",
+			    resp.resp.result, resp.resp.error);
+		ret = -EINVAL;
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
 void ath12k_qmi_firmware_stop(struct ath12k_base *ab)
 {
 	int ret;
@@ -2868,6 +2955,12 @@ int ath12k_qmi_firmware_start(struct ath12k_base *ab,
 			      u32 mode)
 {
 	int ret;
+
+	ret = ath12k_qmi_wlanfw_wlan_ini_send(ab);
+	if (ret < 0) {
+		ath12k_warn(ab, "qmi failed to send wlan fw ini: %d\n", ret);
+		return ret;
+	}
 
 	ret = ath12k_qmi_wlanfw_wlan_cfg_send(ab);
 	if (ret < 0) {

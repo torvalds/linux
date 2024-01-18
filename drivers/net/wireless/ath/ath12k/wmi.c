@@ -6664,6 +6664,12 @@ static void ath12k_rfkill_state_change_event(struct ath12k_base *ab,
 	kfree(tb);
 }
 
+static void
+ath12k_wmi_diag_event(struct ath12k_base *ab, struct sk_buff *skb)
+{
+	trace_ath12k_wmi_diag(ab, skb->data, skb->len);
+}
+
 static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -6773,6 +6779,9 @@ static void ath12k_wmi_op_rx(struct ath12k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_VDEV_DELETE_RESP_EVENTID:
 		ath12k_vdev_delete_resp_event(ab, skb);
+		break;
+	case WMI_DIAG_EVENTID:
+		ath12k_wmi_diag_event(ab, skb);
 		break;
 	/* TODO: Add remaining events */
 	default:
