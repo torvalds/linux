@@ -1608,7 +1608,7 @@ static int max310x_i2c_probe(struct i2c_client *client)
 	unsigned int i;
 	u8 port_addr;
 
-	devtype = device_get_match_data(&client->dev);
+	devtype = i2c_get_match_data(client);
 	if (!devtype)
 		return dev_err_probe(&client->dev, -ENODEV, "Failed to match device\n");
 
