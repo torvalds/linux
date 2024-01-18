@@ -456,7 +456,6 @@ static int guc_wait_ucode(struct xe_guc *guc)
 
 	if (ret) {
 		struct drm_device *drm = &xe->drm;
-		struct drm_printer p = drm_info_printer(drm->dev);
 
 		drm_info(drm, "GuC load failed: status = 0x%08X\n", status);
 		drm_info(drm, "GuC load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
@@ -478,8 +477,6 @@ static int guc_wait_ucode(struct xe_guc *guc)
 						SOFT_SCRATCH(13)));
 			ret = -ENXIO;
 		}
-
-		xe_guc_log_print(&guc->log, &p);
 	} else {
 		drm_dbg(&xe->drm, "GuC successfully loaded");
 	}
