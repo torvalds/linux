@@ -1950,8 +1950,7 @@ static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 
 	ret = iommu_init_device(iommu, dev);
 	if (ret) {
-		if (ret != -ENOTSUPP)
-			dev_err(dev, "Failed to initialize - trying to proceed anyway\n");
+		dev_err(dev, "Failed to initialize - trying to proceed anyway\n");
 		iommu_dev = ERR_PTR(ret);
 		iommu_ignore_device(iommu, dev);
 	} else {
