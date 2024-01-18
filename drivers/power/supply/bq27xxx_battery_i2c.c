@@ -167,6 +167,28 @@ static int bq27xx_parse_dt(struct bq27xxx_device_info *di,
 }
 #endif
 
+static int bq27xxx_restore(struct device *dev)
+{
+	int ret = 0;
+	struct i2c_client *client = to_i2c_client(dev);
+	struct bq27xxx_device_info *di = i2c_get_clientdata(client);
+
+	if (client->irq > 0) {
+		disable_irq_nosync(client->irq);
+		devm_free_irq(dev, client->irq, di);
+		ret = request_threaded_irq(client->irq,
+					   NULL, bq27xxx_battery_irq_handler_thread,
+					   IRQF_ONESHOT,
+					   di->name, di);
+	}
+
+	return ret;
+}
+
+static const struct dev_pm_ops bq27xxx_pm_ops = {
+	.restore = bq27xxx_restore,
+};
+
 static int bq27xxx_battery_i2c_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
@@ -340,6 +362,7 @@ static struct i2c_driver bq27xxx_battery_i2c_driver = {
 	.driver = {
 		.name = "bq27xxx-battery",
 		.of_match_table = of_match_ptr(bq27xxx_battery_i2c_of_match_table),
+		.pm = &bq27xxx_pm_ops,
 	},
 	.probe = bq27xxx_battery_i2c_probe,
 	.remove = bq27xxx_battery_i2c_remove,
