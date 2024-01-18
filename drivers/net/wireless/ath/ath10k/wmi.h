@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _WMI_H_
@@ -3008,8 +3008,11 @@ enum wmi_coex_version {
  * @WMI_10_4_TDLS_UAPSD_SLEEP_STA: TDLS sleep sta support enable/disable
  * @WMI_10_4_TDLS_CONN_TRACKER_IN_HOST_MODE: TDLS connection tracker in host
  *	enable/disable
- * @WMI_10_4_TDLS_EXPLICIT_MODE_ONLY:Explicit TDLS mode enable/disable
+ * @WMI_10_4_TDLS_EXPLICIT_MODE_ONLY: Explicit TDLS mode enable/disable
  * @WMI_10_4_TX_DATA_ACK_RSSI: Enable DATA ACK RSSI if firmware is capable
+ * @WMI_10_4_EXT_PEER_TID_CONFIGS_SUPPORT:  Firmware supports Extended Peer
+ *	TID configuration for QoS related settings
+ * @WMI_10_4_REPORT_AIRTIME: Firmware supports transmit airtime reporting
  */
 enum wmi_10_4_feature_mask {
 	WMI_10_4_LTEU_SUPPORT			= BIT(0),
