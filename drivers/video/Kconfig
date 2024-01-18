@@ -22,10 +22,6 @@ config VIDEO
 	bool
 	default n
 
-config VIDEO_NOMODESET
-	bool
-	default n
-
 source "drivers/auxdisplay/Kconfig"
 
 if HAS_IOMEM
