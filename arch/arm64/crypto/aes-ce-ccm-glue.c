@@ -38,14 +38,11 @@ asmlinkage u32 ce_aes_mac_update(u8 const in[], u32 const rk[], int rounds,
 
 asmlinkage void ce_aes_ccm_encrypt(u8 out[], u8 const in[], u32 cbytes,
 				   u32 const rk[], u32 rounds, u8 mac[],
-				   u8 ctr[]);
+				   u8 ctr[], u8 const final_iv[]);
 
 asmlinkage void ce_aes_ccm_decrypt(u8 out[], u8 const in[], u32 cbytes,
 				   u32 const rk[], u32 rounds, u8 mac[],
-				   u8 ctr[]);
-
-asmlinkage void ce_aes_ccm_final(u8 mac[], u8 const ctr[], u32 const rk[],
-				 u32 rounds);
+				   u8 ctr[], u8 const final_iv[]);
 
 static int ccm_setkey(struct crypto_aead *tfm, const u8 *in_key,
 		      unsigned int key_len)
@@ -210,9 +207,12 @@ static int ccm_encrypt(struct aead_request *req)
 		const u8 *src = walk.src.virt.addr;
 		u8 *dst = walk.dst.virt.addr;
 		u8 buf[AES_BLOCK_SIZE];
+		u8 *final_iv = NULL;
 
-		if (walk.nbytes == walk.total)
+		if (walk.nbytes == walk.total) {
 			tail = 0;
+			final_iv = orig_iv;
+		}
 
 		if (unlikely(walk.nbytes < AES_BLOCK_SIZE))
 			src = dst = memcpy(&buf[sizeof(buf) - walk.nbytes],
@@ -220,13 +220,10 @@ static int ccm_encrypt(struct aead_request *req)
 
 		ce_aes_ccm_encrypt(dst, src, walk.nbytes - tail,
 				   ctx->key_enc, num_rounds(ctx),
-				   mac, walk.iv);
+				   mac, walk.iv, final_iv);
 
 		if (unlikely(walk.nbytes < AES_BLOCK_SIZE))
 			memcpy(walk.dst.virt.addr, dst, walk.nbytes);
-
-		if (walk.nbytes == walk.total)
-			ce_aes_ccm_final(mac, orig_iv, ctx->key_enc, num_rounds(ctx));
 
 		if (walk.nbytes) {
 			err = skcipher_walk_done(&walk, tail);
@@ -277,9 +274,12 @@ static int ccm_decrypt(struct aead_request *req)
 		const u8 *src = walk.src.virt.addr;
 		u8 *dst = walk.dst.virt.addr;
 		u8 buf[AES_BLOCK_SIZE];
+		u8 *final_iv = NULL;
 
-		if (walk.nbytes == walk.total)
+		if (walk.nbytes == walk.total) {
 			tail = 0;
+			final_iv = orig_iv;
+		}
 
 		if (unlikely(walk.nbytes < AES_BLOCK_SIZE))
 			src = dst = memcpy(&buf[sizeof(buf) - walk.nbytes],
@@ -287,13 +287,10 @@ static int ccm_decrypt(struct aead_request *req)
 
 		ce_aes_ccm_decrypt(dst, src, walk.nbytes - tail,
 				   ctx->key_enc, num_rounds(ctx),
-				   mac, walk.iv);
+				   mac, walk.iv, final_iv);
 
 		if (unlikely(walk.nbytes < AES_BLOCK_SIZE))
 			memcpy(walk.dst.virt.addr, dst, walk.nbytes);
-
-		if (walk.nbytes == walk.total)
-			ce_aes_ccm_final(mac, orig_iv, ctx->key_enc, num_rounds(ctx));
 
 		if (walk.nbytes) {
 			err = skcipher_walk_done(&walk, tail);
