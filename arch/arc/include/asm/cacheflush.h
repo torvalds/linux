@@ -40,6 +40,7 @@ void dma_cache_wback(phys_addr_t start, unsigned long sz);
 
 /* TBD: optimize this */
 #define flush_cache_vmap(start, end)		flush_cache_all()
+#define flush_cache_vmap_early(start, end)	do { } while (0)
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
 #define flush_cache_dup_mm(mm)			/* called on fork (VIVT only) */
