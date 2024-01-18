@@ -483,10 +483,8 @@ static bool max310x_reg_writeable(struct device *dev, unsigned int reg)
 	case MAX310X_RXFIFOLVL_REG:
 		return false;
 	default:
-		break;
+		return true;
 	}
-
-	return true;
 }
 
 static bool max310x_reg_volatile(struct device *dev, unsigned int reg)
@@ -505,10 +503,8 @@ static bool max310x_reg_volatile(struct device *dev, unsigned int reg)
 	case MAX310X_REG_1F:
 		return true;
 	default:
-		break;
+		return false;
 	}
-
-	return false;
 }
 
 static bool max310x_reg_precious(struct device *dev, unsigned int reg)
@@ -520,10 +516,8 @@ static bool max310x_reg_precious(struct device *dev, unsigned int reg)
 	case MAX310X_STS_IRQSTS_REG:
 		return true;
 	default:
-		break;
+		return false;
 	}
-
-	return false;
 }
 
 static bool max310x_reg_noinc(struct device *dev, unsigned int reg)
