@@ -77,7 +77,7 @@ CPU_LE(	rev	x8, x8			)	/* keep swabbed ctr in reg */
 	aes_encrypt	v0, v1, w4
 
 	subs	w2, w2, #16
-	bmi	6f				/* partial block? */
+	bmi	ce_aes_ccm_crypt_tail
 	ld1	{v2.16b}, [x1], #16		/* load next input block */
 	.if	\enc == 1
 	eor	v2.16b, v2.16b, v5.16b		/* final round enc+mac */
@@ -93,8 +93,10 @@ CPU_LE(	rev	x8, x8			)
 	st1	{v0.16b}, [x5]			/* store mac */
 	str	x8, [x6, #8]			/* store lsb end of ctr (BE) */
 5:	ret
+	.endm
 
-6:	eor	v0.16b, v0.16b, v5.16b		/* final round mac */
+SYM_FUNC_START_LOCAL(ce_aes_ccm_crypt_tail)
+	eor	v0.16b, v0.16b, v5.16b		/* final round mac */
 	eor	v1.16b, v1.16b, v5.16b		/* final round enc */
 
 	add	x1, x1, w2, sxtw		/* rewind the input pointer (w2 < 0) */
@@ -108,20 +110,16 @@ CPU_LE(	rev	x8, x8			)
 
 	ld1	{v2.16b}, [x1]			/* load a full block of input */
 	tbl	v1.16b, {v1.16b}, v7.16b	/* move keystream to end of register */
-	.if	\enc == 1
-	tbl	v7.16b, {v2.16b}, v9.16b	/* copy plaintext to start of v7 */
-	eor	v2.16b, v2.16b, v1.16b		/* encrypt partial input block */
-	.else
-	eor	v2.16b, v2.16b, v1.16b		/* decrypt partial input block */
-	tbl	v7.16b, {v2.16b}, v9.16b	/* copy plaintext to start of v7 */
-	.endif
-	eor	v0.16b, v0.16b, v7.16b		/* fold plaintext into mac */
-	tbx	v2.16b, {v6.16b}, v8.16b	/* insert output from previous iteration */
+	eor	v7.16b, v2.16b, v1.16b		/* encrypt partial input block */
+	bif	v2.16b, v7.16b, v22.16b		/* select plaintext */
+	tbx	v7.16b, {v6.16b}, v8.16b	/* insert output from previous iteration */
+	tbl	v2.16b, {v2.16b}, v9.16b	/* copy plaintext to start of v2 */
+	eor	v0.16b, v0.16b, v2.16b		/* fold plaintext into mac */
 
 	st1	{v0.16b}, [x5]			/* store mac */
-	st1	{v2.16b}, [x0]			/* store output block */
+	st1	{v7.16b}, [x0]			/* store output block */
 	ret
-	.endm
+SYM_FUNC_END(ce_aes_ccm_crypt_tail)
 
 	/*
 	 * void ce_aes_ccm_encrypt(u8 out[], u8 const in[], u32 cbytes,
@@ -132,10 +130,12 @@ CPU_LE(	rev	x8, x8			)
 	 * 			   u8 ctr[]);
 	 */
 SYM_FUNC_START(ce_aes_ccm_encrypt)
+	movi	v22.16b, #255
 	aes_ccm_do_crypt	1
 SYM_FUNC_END(ce_aes_ccm_encrypt)
 
 SYM_FUNC_START(ce_aes_ccm_decrypt)
+	movi	v22.16b, #0
 	aes_ccm_do_crypt	0
 SYM_FUNC_END(ce_aes_ccm_decrypt)
 
