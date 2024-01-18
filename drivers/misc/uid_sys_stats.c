@@ -684,9 +684,8 @@ static ssize_t uid_procstat_write(struct file *file,
 	 * so that we can unlock_uid during update_io_stats_uid, in order
 	 * to avoid the unnecessary lock-time of uid_lock.
 	 */
-	uid_entry_tmp.uid = uid_entry->uid;
-	memcpy(uid_entry_tmp.io, uid_entry->io,
-				sizeof(struct io_stats) * UID_STATE_SIZE);
+	uid_entry_tmp = *uid_entry;
+
 	unlock_uid(uid);
 	update_io_stats_uid(&uid_entry_tmp);
 
