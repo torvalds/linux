@@ -2660,6 +2660,25 @@ static void amdgpu_ras_validate_threshold(struct amdgpu_device *adev,
 	}
 }
 
+static int amdgpu_ras_page_retirement_thread(void *param)
+{
+	struct amdgpu_device *adev = (struct amdgpu_device *)param;
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+	while (!kthread_should_stop()) {
+
+		wait_event_interruptible(con->page_retirement_wq,
+				atomic_read(&con->page_retirement_req_cnt));
+
+		dev_info(adev->dev, "Start processing page retirement. request:%d\n",
+			atomic_read(&con->page_retirement_req_cnt));
+
+		atomic_dec(&con->page_retirement_req_cnt);
+	}
+
+	return 0;
+}
+
 int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -2723,6 +2742,16 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		}
 	}
 
+	mutex_init(&con->page_retirement_lock);
+	init_waitqueue_head(&con->page_retirement_wq);
+	atomic_set(&con->page_retirement_req_cnt, 0);
+	con->page_retirement_thread =
+		kthread_run(amdgpu_ras_page_retirement_thread, adev, "umc_page_retirement");
+	if (IS_ERR(con->page_retirement_thread)) {
+		con->page_retirement_thread = NULL;
+		dev_warn(adev->dev, "Failed to create umc_page_retirement thread!!!\n");
+	}
+
 #ifdef CONFIG_X86_MCE_AMD
 	if ((adev->asic_type == CHIP_ALDEBARAN) &&
 	    (adev->gmc.xgmi.connected_to_cpu))
@@ -2757,6 +2786,11 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 	/* recovery_init failed to init it, fini is useless */
 	if (!data)
 		return 0;
+
+	if (con->page_retirement_thread)
+		kthread_stop(con->page_retirement_thread);
+
+	atomic_set(&con->page_retirement_req_cnt, 0);
 
 	cancel_work_sync(&con->recovery_work);
 

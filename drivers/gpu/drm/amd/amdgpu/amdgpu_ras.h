@@ -461,6 +461,11 @@ struct amdgpu_ras {
 
 	/* Record special requirements of gpu reset caller */
 	uint32_t  gpu_reset_flags;
+
+	struct task_struct *page_retirement_thread;
+	wait_queue_head_t page_retirement_wq;
+	struct mutex page_retirement_lock;
+	atomic_t page_retirement_req_cnt;
 };
 
 struct ras_fs_data {
