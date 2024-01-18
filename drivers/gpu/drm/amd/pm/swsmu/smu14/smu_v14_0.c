@@ -892,7 +892,7 @@ int smu_v14_0_register_irq_handler(struct smu_context *smu)
 	// TODO: THM related
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
-				0xfe,
+				SMU_IH_INTERRUPT_ID_TO_DRIVER,
 				irq_src);
 	if (ret)
 		return ret;
