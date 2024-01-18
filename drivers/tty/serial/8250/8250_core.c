@@ -883,7 +883,7 @@ static int serial8250_probe(struct platform_device *dev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int serial8250_remove(struct platform_device *dev)
+static void serial8250_remove(struct platform_device *dev)
 {
 	int i;
 
@@ -893,7 +893,6 @@ static int serial8250_remove(struct platform_device *dev)
 		if (up->port.dev == &dev->dev)
 			serial8250_unregister_port(i);
 	}
-	return 0;
 }
 
 static int serial8250_suspend(struct platform_device *dev, pm_message_t state)
@@ -926,7 +925,7 @@ static int serial8250_resume(struct platform_device *dev)
 
 static struct platform_driver serial8250_isa_driver = {
 	.probe		= serial8250_probe,
-	.remove		= serial8250_remove,
+	.remove_new	= serial8250_remove,
 	.suspend	= serial8250_suspend,
 	.resume		= serial8250_resume,
 	.driver		= {

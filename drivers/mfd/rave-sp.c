@@ -471,17 +471,17 @@ static void rave_sp_receive_frame(struct rave_sp *sp,
 		rave_sp_receive_reply(sp, data, length);
 }
 
-static int rave_sp_receive_buf(struct serdev_device *serdev,
-			       const unsigned char *buf, size_t size)
+static ssize_t rave_sp_receive_buf(struct serdev_device *serdev,
+				   const u8 *buf, size_t size)
 {
 	struct device *dev = &serdev->dev;
 	struct rave_sp *sp = dev_get_drvdata(dev);
 	struct rave_sp_deframer *deframer = &sp->deframer;
-	const unsigned char *src = buf;
-	const unsigned char *end = buf + size;
+	const u8 *src = buf;
+	const u8 *end = buf + size;
 
 	while (src < end) {
-		const unsigned char byte = *src++;
+		const u8 byte = *src++;
 
 		switch (deframer->state) {
 		case RAVE_SP_EXPECT_SOF:

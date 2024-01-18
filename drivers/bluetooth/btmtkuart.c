@@ -383,8 +383,8 @@ static void btmtkuart_recv(struct hci_dev *hdev, const u8 *data, size_t count)
 	}
 }
 
-static int btmtkuart_receive_buf(struct serdev_device *serdev, const u8 *data,
-				 size_t count)
+static ssize_t btmtkuart_receive_buf(struct serdev_device *serdev,
+				     const u8 *data, size_t count)
 {
 	struct btmtkuart_dev *bdev = serdev_device_get_drvdata(serdev);
 

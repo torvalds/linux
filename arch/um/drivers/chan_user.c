@@ -19,7 +19,7 @@ void generic_close(int fd, void *unused)
 	close(fd);
 }
 
-int generic_read(int fd, char *c_out, void *unused)
+int generic_read(int fd, __u8 *c_out, void *unused)
 {
 	int n;
 
@@ -35,7 +35,7 @@ int generic_read(int fd, char *c_out, void *unused)
 
 /* XXX Trivial wrapper around write */
 
-int generic_write(int fd, const char *buf, int n, void *unused)
+int generic_write(int fd, const __u8 *buf, size_t n, void *unused)
 {
 	int err;
 

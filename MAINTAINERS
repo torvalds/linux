@@ -23185,7 +23185,6 @@ M:	Amit Shah <amit@kernel.org>
 L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/char/virtio_console.c
-F:	include/linux/virtio_console.h
 F:	include/uapi/linux/virtio_console.h
 
 VIRTIO CORE AND NET DRIVERS

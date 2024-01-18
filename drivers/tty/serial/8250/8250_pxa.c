@@ -146,20 +146,18 @@ static int serial_pxa_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int serial_pxa_remove(struct platform_device *pdev)
+static void serial_pxa_remove(struct platform_device *pdev)
 {
 	struct pxa8250_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 
 	clk_unprepare(data->clk);
-
-	return 0;
 }
 
 static struct platform_driver serial_pxa_driver = {
 	.probe          = serial_pxa_probe,
-	.remove         = serial_pxa_remove,
+	.remove_new     = serial_pxa_remove,
 
 	.driver		= {
 		.name	= "pxa2xx-uart",

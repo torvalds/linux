@@ -37,7 +37,6 @@ struct hvc_struct {
 	spinlock_t lock;
 	int index;
 	int do_wakeup;
-	char *outbuf;
 	int outbuf_size;
 	int n_outbuf;
 	uint32_t vtermno;
@@ -48,12 +47,13 @@ struct hvc_struct {
 	struct work_struct tty_resize;
 	struct list_head next;
 	unsigned long flags;
+	u8 outbuf[] __aligned(sizeof(long));
 };
 
 /* implemented by a low level driver */
 struct hv_ops {
-	int (*get_chars)(uint32_t vtermno, char *buf, int count);
-	int (*put_chars)(uint32_t vtermno, const char *buf, int count);
+	ssize_t (*get_chars)(uint32_t vtermno, u8 *buf, size_t count);
+	ssize_t (*put_chars)(uint32_t vtermno, const u8 *buf, size_t count);
 	int (*flush)(uint32_t vtermno, bool wait);
 
 	/* Callbacks for notification. Called in open, close and hangup */
@@ -77,7 +77,7 @@ extern int hvc_instantiate(uint32_t vtermno, int index,
 extern struct hvc_struct * hvc_alloc(uint32_t vtermno, int data,
 				     const struct hv_ops *ops, int outbuf_size);
 /* remove a vterm from hvc tty operation (module_exit or hotplug remove) */
-extern int hvc_remove(struct hvc_struct *hp);
+extern void hvc_remove(struct hvc_struct *hp);
 
 /* data available */
 int hvc_poll(struct hvc_struct *hp);
