@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt) "qti_virtio_mem: %s: " fmt, __func__
 
@@ -52,13 +52,12 @@ static int qti_virtio_mem_hint_update(struct qti_virtio_mem_hint *hint,
 	int ret;
 	s64 total = 0;
 
-	mutex_lock(&qvm_lock);
+	lockdep_assert_held(&qvm_lock);
 	total = qvm_hint_total + new_size - hint->size;
 	ret = virtio_mem_update_config_size(total, sync);
 	if (ret) {
 		pr_debug("Hint %s: Invalid request %llx would result in %llx\n",
 			hint->name, new_size, total);
-		mutex_unlock(&qvm_lock);
 		return ret;
 	}
 
@@ -66,7 +65,6 @@ static int qti_virtio_mem_hint_update(struct qti_virtio_mem_hint *hint,
 	qvm_hint_total = total;
 	pr_debug("Hint %s: Updated size %llx, new_requested_size %llx\n",
 		hint->name, hint->size, qvm_hint_total);
-	mutex_unlock(&qvm_lock);
 	return ret;
 }
 
@@ -74,10 +72,10 @@ static void qti_virtio_mem_hint_kref_release(struct kref *kref)
 {
 	struct qti_virtio_mem_hint *hint;
 
+	mutex_lock(&qvm_lock);
 	hint = container_of(kref, struct qti_virtio_mem_hint, kref);
 	WARN_ON(qti_virtio_mem_hint_update(hint, 0, false));
 
-	mutex_lock(&qvm_lock);
 	list_del(&hint->list);
 	mutex_unlock(&qvm_lock);
 	kfree(hint);
@@ -87,6 +85,7 @@ static void *qti_virtio_mem_hint_create(char *name, s64 size)
 {
 	struct qti_virtio_mem_hint *hint;
 
+	lockdep_assert_held(&qvm_lock);
 	hint = kzalloc(sizeof(*hint), GFP_KERNEL);
 	if (!hint)
 		return ERR_PTR(-ENOMEM);
@@ -103,9 +102,7 @@ static void *qti_virtio_mem_hint_create(char *name, s64 size)
 		return ERR_PTR(-EINVAL);
 	}
 
-	mutex_lock(&qvm_lock);
 	list_add(&hint->list, &qvm_list);
-	mutex_unlock(&qvm_lock);
 	return hint;
 }
 
@@ -131,7 +128,9 @@ static int qti_virtio_mem_hint_create_fd(char *name, u64 size)
 	struct qti_virtio_mem_hint *hint;
 	int fd;
 
+	mutex_lock(&qvm_lock);
 	hint = qti_virtio_mem_hint_create(name, size);
+	mutex_unlock(&qvm_lock);
 	if (IS_ERR(hint))
 		return PTR_ERR(hint);
 
@@ -329,7 +328,12 @@ static int qvm_oom_notify(struct notifier_block *self,
 			current->comm, totalram_pages(), get_zone_free_pages(ZONE_NORMAL),
 			get_zone_free_pages(ZONE_MOVABLE));
 
+	if (!mutex_trylock(&qvm_lock)) {
+		*freed = 1;
+		return NOTIFY_OK;
+	}
 	hint = qti_virtio_mem_hint_create("qvm_oom_notifier", device_block_size);
+	mutex_unlock(&qvm_lock);
 	if (IS_ERR(hint)) {
 		pr_err("failed to add memory\n");
 		return NOTIFY_OK;
