@@ -50,6 +50,14 @@ static void aspeed_gfx_set_g6_clock_source(struct aspeed_gfx *priv, int mode_wid
 	}
 }
 
+static void aspeed_gfx_set_g7_clock(struct aspeed_gfx *priv)
+{
+	/* apply 800 x 600 @ 60 on ast2700 */
+	regmap_update_bits(priv->scu, 0x288, BIT(14), BIT(14));
+	regmap_write(priv->scu, 0x340, 0x00190002);
+	regmap_update_bits(priv->scu, 0x244, BIT(20), BIT(20));
+}
+
 static int aspeed_gfx_set_pixel_fmt(struct aspeed_gfx *priv, u32 *bpp)
 {
 	struct drm_crtc *crtc = &priv->pipe.crtc;
@@ -123,6 +131,9 @@ static void aspeed_gfx_set_clk(struct aspeed_gfx *priv, int mode_width)
 		break;
 	case CLK_G6:
 		aspeed_gfx_set_g6_clock_source(priv, mode_width);
+		break;
+	case CLK_G7:
+		aspeed_gfx_set_g7_clock(priv);
 		break;
 	default:
 		break;

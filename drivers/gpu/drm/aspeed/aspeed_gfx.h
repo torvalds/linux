@@ -135,7 +135,7 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 /* GFX FLAGS */
 #define RESET_MASK			BIT(0)
 #define RESET_G6			BIT(0)
-#define CLK_MASK			(BIT(4) | BIT(5))
+#define CLK_MASK			(BIT(4) | BIT(5) | BIT(6))
 #define CLK_G4				BIT(4)
 #define CLK_G6				BIT(5)
 #define CLK_G7				BIT(6)
