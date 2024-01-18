@@ -47,6 +47,19 @@ static void subtest_ctx_arg_rewrite(void)
 	struct btf *btf = NULL;
 	__u32 info_len = sizeof(info);
 	int err, fd, i;
+	struct btf *kern_btf = NULL;
+
+	kern_btf = btf__load_vmlinux_btf();
+	if (!ASSERT_OK_PTR(kern_btf, "kern_btf_load"))
+		return;
+
+	/* simple detection of kernel native arg:ctx tag support */
+	if (btf__find_by_name_kind(kern_btf, "bpf_subprog_arg_info", BTF_KIND_STRUCT) > 0) {
+		test__skip();
+		btf__free(kern_btf);
+		return;
+	}
+	btf__free(kern_btf);
 
 	skel = test_global_func_ctx_args__open();
 	if (!ASSERT_OK_PTR(skel, "skel_open"))
