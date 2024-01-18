@@ -208,9 +208,15 @@ static int amdgpu_gem_object_open(struct drm_gem_object *obj,
 	if (!WARN_ON(!vm->process_info->eviction_fence)) {
 		r = amdgpu_amdkfd_bo_validate_and_fence(abo, AMDGPU_GEM_DOMAIN_GTT,
 							&vm->process_info->eviction_fence->base);
-		if (r)
-			dev_warn(adev->dev, "%d: validate_and_fence failed: %d\n",
-				 vm->task_info.pid, r);
+		if (r) {
+			struct amdgpu_task_info *ti = amdgpu_vm_get_task_info_vm(vm);
+
+			dev_warn(adev->dev, "validate_and_fence failed: %d\n", r);
+			if (ti) {
+				dev_warn(adev->dev, "pid %d\n", ti->pid);
+				amdgpu_vm_put_task_info(ti);
+			}
+		}
 	}
 	mutex_unlock(&vm->process_info->lock);
 

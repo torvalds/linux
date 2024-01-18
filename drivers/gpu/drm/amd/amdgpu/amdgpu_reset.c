@@ -230,8 +230,16 @@ void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
 
 	coredump->reset_vram_lost = vram_lost;
 
-	if (reset_context->job && reset_context->job->vm)
-		coredump->reset_task_info = reset_context->job->vm->task_info;
+	if (reset_context->job && reset_context->job->vm) {
+		struct amdgpu_task_info *ti;
+		struct amdgpu_vm *vm = reset_context->job->vm;
+
+		ti = amdgpu_vm_get_task_info_vm(vm);
+		if (ti) {
+			coredump->reset_task_info = *ti;
+			amdgpu_vm_put_task_info(ti);
+		}
+	}
 
 	coredump->adev = adev;
 
