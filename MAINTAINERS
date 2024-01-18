@@ -23407,11 +23407,8 @@ F:	include/linux/vmalloc.h
 F:	mm/vmalloc.c
 
 VME SUBSYSTEM
-M:	Martyn Welch <martyn@welchs.me.uk>
-M:	Manohar Vanga <manohar.vanga@gmail.com>
-M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 L:	linux-kernel@vger.kernel.org
-S:	Odd fixes
+S:	Orphan
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/char-misc.git
 F:	Documentation/driver-api/vme.rst
 F:	drivers/staging/vme_user/

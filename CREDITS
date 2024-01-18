@@ -3950,6 +3950,10 @@ S: 21513 Conradia Ct
 S: Cupertino, CA 95014
 S: USA
 
+N: Manohar Vanga
+E: manohar.vanga@gmail.com
+D: VME subsystem maintainer
+
 N: Thibaut Varène
 E: hacks+kernel@slashdirt.org
 W: http://hacks.slashdirt.org/
@@ -4049,6 +4053,10 @@ D: v2.0 kernel maintainer
 D: Fixes for the NE/2-driver
 D: Miscellaneous MCA-support
 D: Cleanup of the Config-files
+
+N: Martyn Welch
+E: martyn@welchs.me.uk
+D: VME subsystem maintainer
 
 N: Matt Welsh
 E: mdw@metalab.unc.edu
