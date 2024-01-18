@@ -943,6 +943,13 @@
 #endif
 
 #if 0
+&gfx {
+	status = "okay";
+	memory-region = <&gfx_memory>;
+};
+#endif
+
+#if 0
 &ehci0 {
 	status = "okay";
 };
