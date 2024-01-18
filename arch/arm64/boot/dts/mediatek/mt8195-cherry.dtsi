@@ -1294,6 +1294,7 @@
 &xhci0 {
 	status = "okay";
 
+	rx-fifo-depth = <3072>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	vbus-supply = <&usb_vbus>;
 };
@@ -1301,6 +1302,7 @@
 &xhci1 {
 	status = "okay";
 
+	rx-fifo-depth = <3072>;
 	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	vbus-supply = <&usb_vbus>;
 };

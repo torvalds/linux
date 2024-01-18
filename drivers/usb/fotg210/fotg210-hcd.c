@@ -404,9 +404,9 @@ static void qh_lines(struct fotg210_hcd *fotg210, struct fotg210_qh *qh,
 			else if (td->hw_alt_next != list_end)
 				mark = '/';
 		}
-		temp = snprintf(next, size,
-				"\n\t%p%c%s len=%d %08x urb %p",
-				td, mark, ({ char *tmp;
+		temp = scnprintf(next, size,
+				 "\n\t%p%c%s len=%d %08x urb %p",
+				 td, mark, ({ char *tmp;
 				switch ((scratch>>8)&0x03) {
 				case 0:
 					tmp = "out";
@@ -424,15 +424,11 @@ static void qh_lines(struct fotg210_hcd *fotg210, struct fotg210_qh *qh,
 				(scratch >> 16) & 0x7fff,
 				scratch,
 				td->urb);
-		if (size < temp)
-			temp = size;
 		size -= temp;
 		next += temp;
 	}
 
-	temp = snprintf(next, size, "\n");
-	if (size < temp)
-		temp = size;
+	temp = scnprintf(next, size, "\n");
 
 	size -= temp;
 	next += temp;
