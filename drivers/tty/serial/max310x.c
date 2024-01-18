@@ -802,6 +802,7 @@ static irqreturn_t max310x_port_irq(struct max310x_port *s, int portno)
 		if (ists & MAX310X_IRQ_TXEMPTY_BIT)
 			max310x_start_tx(port);
 	} while (1);
+
 	return res;
 }
 
@@ -1598,7 +1599,7 @@ static int max310x_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(&client->dev, -ENODEV, "Failed to match device\n");
 
 	if (client->addr < devtype->slave_addr.min ||
-		client->addr > devtype->slave_addr.max)
+	    client->addr > devtype->slave_addr.max)
 		return dev_err_probe(&client->dev, -EINVAL,
 				     "Slave addr 0x%x outside of range [0x%x, 0x%x]\n",
 				     client->addr, devtype->slave_addr.min,
