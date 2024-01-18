@@ -1639,6 +1639,15 @@ static void max310x_i2c_remove(struct i2c_client *client)
 	max310x_remove(&client->dev);
 }
 
+static const struct i2c_device_id max310x_i2c_id_table[] = {
+	{ "max3107",	(kernel_ulong_t)&max3107_devtype, },
+	{ "max3108",	(kernel_ulong_t)&max3108_devtype, },
+	{ "max3109",	(kernel_ulong_t)&max3109_devtype, },
+	{ "max14830",	(kernel_ulong_t)&max14830_devtype, },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, max310x_i2c_id_table);
+
 static struct i2c_driver max310x_i2c_driver = {
 	.driver = {
 		.name		= MAX310X_NAME,
@@ -1647,6 +1656,7 @@ static struct i2c_driver max310x_i2c_driver = {
 	},
 	.probe		= max310x_i2c_probe,
 	.remove		= max310x_i2c_remove,
+	.id_table	= max310x_i2c_id_table,
 };
 #endif
 
