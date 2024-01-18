@@ -27,7 +27,7 @@ qcom-spmi-pmic.ko
 pinctrl-spmi-gpio.ko
 nvmem_qcom-spmi-sdam.ko
 rtc-pm8xxx.ko
-qcom-reboot-reason.ko
+msm-poweroff.ko
 pmic-pon-log.ko
 qcom-ipcc.ko
 clk-dummy.ko
