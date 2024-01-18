@@ -116,7 +116,7 @@ static int mtk_adsp_ipc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_adsp_ipc_remove(struct platform_device *pdev)
+static void mtk_adsp_ipc_remove(struct platform_device *pdev)
 {
 	struct mtk_adsp_ipc *adsp_ipc = dev_get_drvdata(&pdev->dev);
 	struct mtk_adsp_chan *adsp_chan;
@@ -126,8 +126,6 @@ static int mtk_adsp_ipc_remove(struct platform_device *pdev)
 		adsp_chan = &adsp_ipc->chans[i];
 		mbox_free_channel(adsp_chan->ch);
 	}
-
-	return 0;
 }
 
 static struct platform_driver mtk_adsp_ipc_driver = {
@@ -135,7 +133,7 @@ static struct platform_driver mtk_adsp_ipc_driver = {
 		.name = "mtk-adsp-ipc",
 	},
 	.probe = mtk_adsp_ipc_probe,
-	.remove = mtk_adsp_ipc_remove,
+	.remove_new = mtk_adsp_ipc_remove,
 };
 builtin_platform_driver(mtk_adsp_ipc_driver);
 

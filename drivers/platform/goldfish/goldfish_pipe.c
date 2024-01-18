@@ -915,12 +915,11 @@ static int goldfish_pipe_probe(struct platform_device *pdev)
 	return goldfish_pipe_device_init(pdev, dev);
 }
 
-static int goldfish_pipe_remove(struct platform_device *pdev)
+static void goldfish_pipe_remove(struct platform_device *pdev)
 {
 	struct goldfish_pipe_dev *dev = platform_get_drvdata(pdev);
 
 	goldfish_pipe_device_deinit(pdev, dev);
-	return 0;
 }
 
 static const struct acpi_device_id goldfish_pipe_acpi_match[] = {
@@ -937,7 +936,7 @@ MODULE_DEVICE_TABLE(of, goldfish_pipe_of_match);
 
 static struct platform_driver goldfish_pipe_driver = {
 	.probe = goldfish_pipe_probe,
-	.remove = goldfish_pipe_remove,
+	.remove_new = goldfish_pipe_remove,
 	.driver = {
 		.name = "goldfish_pipe",
 		.of_match_table = goldfish_pipe_of_match,
