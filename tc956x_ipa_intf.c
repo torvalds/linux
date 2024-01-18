@@ -79,8 +79,6 @@
 #define MAC_ADDR_DCS 0x1
 static u8 mac_addr_default[6] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
 
-extern struct pci_dev* port0_pdev;
-
 static DEFINE_SPINLOCK(cm3_tamap_lock);
 
 extern int tc956xmac_rx_parser_configuration(struct tc956xmac_priv *priv);
@@ -599,6 +597,11 @@ struct channel_info* request_channel(struct request_channel_input *channel_input
 	struct tc956xmac_tx_queue *tx_q;
 	struct tc956xmac_rx_queue *rx_q;
 
+	if (!channel_input) {
+		pr_err("%s: ERROR: Invalid channel_input pointer\n", __func__);
+		return NULL;
+	}
+
 	if (!channel_input->ndev) {
 		pr_err("%s: ERROR: Invalid netdevice pointer\n", __func__);
 		return NULL;
@@ -651,7 +654,7 @@ struct channel_info* request_channel(struct request_channel_input *channel_input
 		goto err_buff_dma_mem_alloc;
 	}
 
-	channel->dma_pdev = (struct pci_dev*)priv->device;
+	channel->dma_pdev = (struct pci_dev *)priv->device;
 
 	if (channel->mem_ops) {
 		/*if mem_ops is a valid, memory resrouces will be allocated by IPA */
@@ -939,7 +942,7 @@ EXPORT_SYMBOL_GPL(release_channel);
  * \remarks :
  *	     If this API is invoked for a channel without calling release_event(),
  *	     then the PCIe address and value for that channel will be overwritten
- * 	     Mask = 2 ^ (CM3_TAMAP_ATR_SIZE + 1) - 1
+ *	     Mask = 2 ^ (CM3_TAMAP_ATR_SIZE + 1) - 1
  *	     TRSL_ADDR = DMA_PCIe_ADDR & ~((2 ^ (ATR_SIZE + 1) - 1) = TRSL_ADDR = DMA_PCIe_ADDR & ~Mask
  *	     CM3 Target Address = DMA_PCIe_ADDR & Mask | SRC_ADDR
  */
@@ -1673,6 +1676,12 @@ int set_mac_addr(struct net_device *ndev, struct mac_addr_list *mac_addr, u8 ind
 	if (index == 0) {
 		netdev_err(priv->dev,
 				"%s: ERROR: Do not use index 0\n", __func__);
+		return -EPERM;
+	}
+
+	if (index >= TC956X_MAX_PERFECT_ADDRESSES) {
+		netdev_err(priv->dev,
+				"%s: ERROR: Index out of range\n", __func__);
 		return -EPERM;
 	}
 

@@ -52,7 +52,9 @@ static int dwxgmac2_get_tx_status(struct tc956xmac_priv *priv, void *data,
 		return tx_dma_own;
 	if (likely(!(tdes3 & XGMAC_TDES3_LD)))
 		return tx_not_ls;
-
+#ifdef TC956X_SRIOV_VF
+	priv->sw_stats.tx_frame_count_good_bad++;
+#endif
 	return ret;
 }
 
@@ -61,6 +63,10 @@ static int dwxgmac2_get_rx_status(struct tc956xmac_priv *priv, void *data,
 					struct dma_desc *p)
 {
 	unsigned int rdes3 = le32_to_cpu(p->des3);
+#ifdef TC956X_SRIOV_VF
+	u32 rdes2 = le32_to_cpu(p->des2), l34t_type = 0;
+	u32 error_summary = 0, etlt = 0, tnp = 0;
+#endif
 
 	if (unlikely(rdes3 & XGMAC_RDES3_OWN))
 		return dma_own;
@@ -71,6 +77,120 @@ static int dwxgmac2_get_rx_status(struct tc956xmac_priv *priv, void *data,
 	if (unlikely((rdes3 & XGMAC_RDES3_ES) && (rdes3 & XGMAC_RDES3_LD)))
 		return discard_frame;
 
+#ifdef TC956X_SRIOV_VF
+	l34t_type = (rdes3 & XGMAC_RDES3_L34T) >> XGMAC_RDES3_L34T_SHIFT;
+	error_summary = (rdes3 & XGMAC_RDES3_ES) >> XGMAC_RDES3_ES_SHIFT;
+	etlt = (rdes3 & XGMAC_RDES3_ETLT) >> XGMAC_RDES3_ETLT_SHIFT;
+	tnp = (rdes2 & XGMAC_RDES2_TNP) >> XGMAC_RDES2_TNP_SHIFT;
+
+
+	if (!(rdes3 & XGMAC_RDES3_OWN)) {
+		priv->sw_stats.rx_frame_count_good_bad++;
+		if (l34t_type == XGMAC_L34T_NON_IP) {
+			/* Non IP Packet */
+			priv->sw_stats.rx_non_ip_pkt_count++;
+			if (rdes2 & XGMAC_RDES2_AVTDP)
+				priv->sw_stats.rx_av_tagged_datapacket_count++;
+			else if (rdes2 & XGMAC_RDES2_AVTCP)
+				priv->sw_stats.rx_av_tagged_controlpacket_count++;
+		} else {
+			/* IP Packet */
+			priv->sw_stats.rx_nonav_packet_count++;
+			priv->sw_stats.rx_header_good_octets +=
+				le32_to_cpu(p->des2) & XGMAC_RDES2_HL;
+			if (l34t_type == XGMAC_L34T_IPV4_TCP)
+				priv->sw_stats.rx_ipv4_tcp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV4_UDP)
+				priv->sw_stats.rx_ipv4_udp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV4_ICMP)
+				priv->sw_stats.rx_ipv4_icmp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV4_IGMP)
+				priv->sw_stats.rx_ipv4_igmp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV4_UNKNOWN)
+				priv->sw_stats.rx_ipv4_unkown_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV6_TCP)
+				priv->sw_stats.rx_ipv6_tcp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV6_UDP)
+				priv->sw_stats.rx_ipv6_udp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV6_ICMP)
+				priv->sw_stats.rx_ipv6_icmp_pkt_count++;
+			if (l34t_type == XGMAC_L34T_IPV6_UNKNOWN)
+				priv->sw_stats.rx_ipv6_unkown_pkt_count++;
+		}
+		if (error_summary) {
+			priv->sw_stats.rx_fame_count_bad++;
+			if (etlt == XGMAC_ET_WD_TIMEOUT)
+				priv->sw_stats.rx_err_wd_timeout_count++;
+			if (etlt == XGMAC_ET_INV_GMII)
+				priv->sw_stats.rx_err_gmii_inv_count++;
+			if (etlt == XGMAC_ET_CRC)
+				priv->sw_stats.rx_err_crc_count++;
+			if (etlt == XGMAC_ET_GIANT_PKT)
+				priv->sw_stats.rx_err_giant_count++;
+			if (etlt == XGMAC_ET_IP_HEADER)
+				priv->sw_stats.rx_err_giant_count++;
+			if (etlt == XGMAC_ET_L4_CSUM)
+				priv->sw_stats.rx_err_checksum_count++;
+			if (etlt == XGMAC_ET_OVERFLOW)
+				priv->sw_stats.rx_err_overflow_count++;
+			if (etlt == XGMAC_ET_BUS)
+				priv->sw_stats.rx_err_bus_count++;
+			if (etlt == XGMAC_ET_LENGTH)
+				priv->sw_stats.rx_err_pkt_len_count++;
+			if (etlt == XGMAC_ET_GOOD_RUNT)
+				priv->sw_stats.rx_err_runt_pkt_count++;
+			if (etlt == XGMAC_ET_DRIBBLE)
+				priv->sw_stats.rx_err_dribble_count++;
+			if (tnp) {
+				priv->sw_stats.rx_tunnel_packet_count++;
+				if (etlt == XGMAC_ET_T_OUTER_IP_HEADER)
+					priv->sw_stats.rx_err_t_out_ip_header_count++;
+				if (etlt == XGMAC_ET_T_OUTER_HEADER_PAYLOAD_L4_CSUM)
+					priv->sw_stats.rx_err_t_out_ip_pl_l4_csum_count++;
+				if (etlt == XGMAC_ET_T_INNER_IP_HEADER)
+					priv->sw_stats.rx_err_t_in_ip_header_count++;
+				if (etlt == XGMAC_ET_T_INNER_L4_PAYLOAD)
+					priv->sw_stats.rx_err_t_in_ip_pl_l4_csum_count++;
+				if (etlt == XGMAC_ET_T_INV_VXLAN_HEADER)
+					priv->sw_stats.rx_err_t_invalid_vlan_header++;
+			}
+		} else {
+			priv->sw_stats.rx_frame_count_good++;
+			priv->sw_stats.rx_packet_good_octets +=
+						(rdes3 & XGMAC_RDES3_PL);
+			priv->sw_stats.rx_header_good_octets +=
+				le32_to_cpu(p->des2) & XGMAC_RDES2_HL;
+			if (etlt == XGMAC_LT_LENGTH)
+				priv->sw_stats.rx_l2_len_pkt_count++;
+			if (etlt == XGMAC_LT_MAC_CONTROL)
+				priv->sw_stats.rx_l2_mac_control_pkt_count++;
+			if (etlt == XGMAC_LT_DCB_CONTROL)
+				priv->sw_stats.rx_l2_dcb_control_pkt_count++;
+			if (etlt == XGMAC_LT_ARP_REQ)
+				priv->sw_stats.rx_l2_arp_pkt_count++;
+			if (etlt == XGMAC_LT_OAM)
+				priv->sw_stats.rx_l2_oam_type_pkt_count++;
+			if (etlt == XGMAC_LT_MAC_RX_ETH_TYPE_MATCH)
+				priv->sw_stats.rx_l2_untg_typ_match_pkt_count++;
+			if (etlt == XGMAC_LT_OTH_TYPE)
+				priv->sw_stats.rx_l2_other_type_pkt_count++;
+			if (etlt == XGMAC_LT_SVLAN)
+				priv->sw_stats.rx_l2_single_svlan_pkt_count++;
+			if (etlt == XGMAC_LT_CVLAN)
+				priv->sw_stats.rx_l2_single_cvlan_pkt_count++;
+			if (etlt == XGMAC_LT_D_CVLAN_CVLAN)
+				priv->sw_stats.rx_l2_d_cvlan_cvlan_pkt_count++;
+			if (etlt == XGMAC_LT_D_SVLAN_SVLAN)
+				priv->sw_stats.rx_l2_d_svlan_svlan_pkt_count++;
+			if (etlt == XGMAC_LT_D_SVLAN_CVLAN)
+				priv->sw_stats.rx_l2_d_svlan_cvlan_pkt_count++;
+			if (etlt == XGMAC_LT_D_CVLAN_SVLAN)
+				priv->sw_stats.rx_l2_d_cvlan_svlan_pkt_count++;
+			if (etlt == XGMAC_LT_UNTAG_AV_CONTROL)
+				priv->sw_stats.rx_l2_untg_av_control_pkt_count++;
+		}
+	}
+#endif /* #ifdef TC956X_SRIOV_VF */
 	return good_frame;
 }
 
@@ -112,7 +232,6 @@ static int dwxgmac2_get_rx_frame_len(struct tc956xmac_priv *priv,
 	return (le32_to_cpu(p->des3) & XGMAC_RDES3_PL);
 }
 
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static void dwxgmac2_enable_tx_timestamp(struct tc956xmac_priv *priv,
 						   struct dma_desc *p)
 {
@@ -162,25 +281,70 @@ static int dwxgmac2_rx_check_timestamp(struct tc956xmac_priv *priv, void *desc)
 		return 0;
 	}
 
-	return -EINVAL;
+	/* Timestamp not ready */
+	return 1;
 }
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 
 static int dwxgmac2_get_rx_timestamp_status(struct tc956xmac_priv *priv,
 						void *desc, void *next_desc,
 						u32 ats)
 {
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	struct dma_desc *p = (struct dma_desc *)desc;
 	unsigned int rdes3 = le32_to_cpu(p->des3);
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 	int ret = -EBUSY;
+	unsigned int i = 0;
+#ifdef TC956X_SRIOV_VF
+	u32 message_type;
+#endif
+	if (likely(rdes3 & XGMAC_RDES3_CDA)) {
+		do {
+			ret = dwxgmac2_rx_check_timestamp(priv, next_desc);
+			if (ret < 0)
+				goto exit;
 
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
-	if (likely(rdes3 & XGMAC_RDES3_CDA))
-		ret = dwxgmac2_rx_check_timestamp(priv, next_desc);
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
+			i++;
 
+			if (ret == 1)
+				udelay(1);
+
+		} while ((ret == 1) && (i < 25));
+
+	if (i == 25)
+		ret = -EBUSY;
+	}
+
+#ifdef TC956X_SRIOV_VF
+	/* Read frame type to SW MMC counters from PMT bits in RDES3 */
+	if ((rdes3 & XGMAC_RDES3_OWN) && (rdes3 & XGMAC_RDES3_CTXT)) {
+
+		message_type = (rdes3 &  XGMAC_RDES3_PMT);
+		if (message_type == RDES_PMT_NO_PTP)
+			priv->sw_stats.rx_ptp_no_msg++;
+		else if (message_type == RDES_PMT_SYNC)
+			priv->sw_stats.rx_ptp_msg_type_sync++;
+		else if (message_type == RDES_PMT_FOLLOW_UP)
+			priv->sw_stats.rx_ptp_msg_type_follow_up++;
+		else if (message_type == RDES_PMT_DELAY_REQ)
+			priv->sw_stats.rx_ptp_msg_type_delay_req++;
+		else if (message_type == RDES_PMT_DELAY_RESP)
+			priv->sw_stats.rx_ptp_msg_type_delay_resp++;
+		else if (message_type == RDES_PMT_PDELAY_REQ)
+			priv->sw_stats.rx_ptp_msg_type_pdelay_req++;
+		else if (message_type == RDES_PMT_PDELAY_RESP)
+			priv->sw_stats.rx_ptp_msg_type_pdelay_resp++;
+		else if (message_type == RDES_PMT_PDELAY_FOLLOW_UP)
+			priv->sw_stats.rx_ptp_msg_type_pdelay_follow_up++;
+		else if (message_type == RDES_PMT_PTP_ANNOUNCE)
+			priv->sw_stats.rx_ptp_msg_type_announce++;
+		else if (message_type == RDES_PMT_PTP_MANAGEMENT)
+			priv->sw_stats.rx_ptp_msg_type_management++;
+		else if (message_type == RDES_PMT_PTP_SIGNALING)
+			priv->sw_stats.rx_ptp_msg_pkt_signaling++;
+		else if (message_type == RDES_PMT_PTP_PKT_RESERVED_TYPE)
+			priv->sw_stats.rx_ptp_msg_pkt_reserved_type++;
+	}
+#endif
+exit:
 	return !ret;
 }
 
@@ -334,7 +498,6 @@ static void dwxgmac2_get_addr(struct tc956xmac_priv *priv,
 static void dwxgmac2_set_addr(struct tc956xmac_priv *priv,
 				struct dma_desc *p, dma_addr_t addr)
 {
-	//printk("%s, buff addr = 0x%llx\n",__func__, addr);
 	p->des0 = cpu_to_le32(lower_32_bits(addr));
 #ifdef TC956X
 	/* Set the mask for physical address access  */
@@ -344,7 +507,6 @@ static void dwxgmac2_set_addr(struct tc956xmac_priv *priv,
 	p->des1 = cpu_to_le32(upper_32_bits(addr));
 #endif
 
-	//printk(" pdes0 = 0x%x. pdes1 = 0x%x\n", p->des0, p->des1);
 }
 
 static void dwxgmac2_clear(struct tc956xmac_priv *priv, struct dma_desc *p)
@@ -442,14 +604,15 @@ static void dwxgmac2_set_vlan(struct tc956xmac_priv *priv, struct dma_desc *p,
 	p->des2 |= cpu_to_le32(type & XGMAC_TDES2_VTIR);
 }
 
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static void dwxgmac2_set_tbs(struct tc956xmac_priv *priv, struct dma_edesc *p,
 				u32 sec, u32 nsec, bool lt_valid)
 {
 	p->des4 = 0;
-	if (lt_valid)
+	p->des5 = 0;
+	if (lt_valid) {
 		p->des4 = cpu_to_le32((sec & XGMAC_TDES0_LT) | XGMAC_TDES0_LTV);
-	p->des5 = cpu_to_le32(nsec & XGMAC_TDES1_LT);
+		p->des5 = cpu_to_le32(nsec & XGMAC_TDES1_LT);
+	}
 	p->des6 = 0;
 	p->des7 = 0;
 }
@@ -469,7 +632,6 @@ static void dwxgmac2_set_ostc(struct tc956xmac_priv *priv,
 	/* Set Context Type for Context descriptor */
 	p->des3 |= cpu_to_le32(XGMAC_TDES3_CTXT);
 }
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 
 const struct tc956xmac_desc_ops dwxgmac210_desc_ops = {
 	.tx_status = dwxgmac2_get_tx_status,
@@ -484,14 +646,10 @@ const struct tc956xmac_desc_ops dwxgmac210_desc_ops = {
 	.get_tx_ls = dwxgmac2_get_tx_ls,
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 	.get_rx_frame_len = dwxgmac2_get_rx_frame_len,
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.enable_tx_timestamp = dwxgmac2_enable_tx_timestamp,
 	.get_tx_timestamp_status = dwxgmac2_get_tx_timestamp_status,
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 	.get_rx_timestamp_status = dwxgmac2_get_rx_timestamp_status,
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.get_timestamp = dwxgmac2_get_timestamp,
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 	.set_tx_ic = dwxgmac2_set_tx_ic,
 	.prepare_tx_desc = dwxgmac2_prepare_tx_desc,
 	.prepare_tso_tx_desc = dwxgmac2_prepare_tso_tx_desc,
@@ -510,8 +668,6 @@ const struct tc956xmac_desc_ops dwxgmac210_desc_ops = {
 	.set_sarc = dwxgmac2_set_sarc,
 	.set_vlan_tag = dwxgmac2_set_vlan_tag,
 	.set_vlan = dwxgmac2_set_vlan,
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.set_tbs = dwxgmac2_set_tbs,
 	.set_ostc = dwxgmac2_set_ostc,
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 };

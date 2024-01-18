@@ -45,6 +45,9 @@
  *  29 Apr 2022 : 1. Checking for DMA status update as stop after TX DMA stop
  *  		  2. Checking for Tx MTL Queue Read/Write contollers in idle state after TX DMA stop
  *  VERSION     : 01-00-51
+ *  26 Dec 2023 : 1. Kernel 6.6 Porting changes
+ *  VERSION     : 01-03-59
+ *
  */
 
 #include <linux/iopoll.h>
@@ -211,11 +214,17 @@ static void dwxgmac2_dma_dump_regs(struct tc956xmac_priv *priv,
 {
 	int i;
 
-	for (i = ETH_DMA_DUMP_OFFSET1; i <= ETH_DMA_DUMP_OFFSET1_END; i++)
+	for (i = ETH_DMA_DUMP_OFFSET1; i <= ETH_DMA_DUMP_OFFSET1_END; i++) {
 		reg_space[i] = readl(ioaddr + MAC_OFFSET + (4 * i));
+		KPRINT_DEBUG1("%04x : %08x\n", i*4, reg_space[i]);
+	}
 
-	for (i = ETH_DMA_DUMP_OFFSET2; i < XGMAC_REGSIZE; i++)
+	for (i = ETH_DMA_DUMP_OFFSET2; i < XGMAC_REGSIZE; i++) {
 		reg_space[i] = readl(ioaddr + MAC_OFFSET + (4 * i));
+		KPRINT_DEBUG1("%04x : %08x\n", i*4, reg_space[i]);
+	}
+
+	KPRINT_DEBUG1("**********************************************************************************");
 }
 
 /**
@@ -365,21 +374,31 @@ static void dwxgmac2_dma_start_tx(struct tc956xmac_priv *priv,
 	value |= XGMAC_TXST;
 	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
 
-#ifndef DMA_OFFLOAD_ENABLE
+	/* TE set will enable all the MAC transmisster, PF to configure when
+	 *  starting its channel for tranmission
+	 */
+#ifndef TC956X_SRIOV_VF
+#ifndef TC956X_DMA_OFFLOAD_ENABLE
 	value = readl(ioaddr + XGMAC_TX_CONFIG);
 	value |= XGMAC_CONFIG_TE;
 	writel(value, ioaddr + XGMAC_TX_CONFIG);
+#endif
 #endif
 }
 
 static void dwxgmac2_dma_stop_tx(struct tc956xmac_priv *priv,
 					void __iomem *ioaddr, u32 chan)
 {
-	u32 value, limit;
+	u32 value;
+	int limit;
 
 	value = readl(ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
 	value &= ~XGMAC_TXST;
 	writel(value, ioaddr + XGMAC_DMA_CH_TX_CONTROL(chan));
+
+	/* TE reset will disable the MAC transmisster, it is possible that
+	 * other MAC channels are used by other VF/PF. So donot configure this
+	 */
 
 	/*Check whether Tx DMA is in stop state */
 	limit = 10000;
@@ -423,10 +442,12 @@ static void dwxgmac2_dma_stop_tx(struct tc956xmac_priv *priv,
 
 	DBGPR_FUNC(priv->device, "%s MTL TXQ status after flush: 0x%x, limit [%d]\n", __func__, readl(ioaddr + XGMAC_MTL_TXQ_Debug(chan)), limit);
 
-#ifndef DMA_OFFLOAD_ENABLE
+#ifndef TC956X_SRIOV_VF
+#ifndef TC956X_DMA_OFFLOAD_ENABLE
 	value = readl(ioaddr + XGMAC_TX_CONFIG);
 	value &= ~XGMAC_CONFIG_TE;
 	writel(value, ioaddr + XGMAC_TX_CONFIG);
+#endif
 #endif
 }
 
@@ -439,10 +460,15 @@ static void dwxgmac2_dma_start_rx(struct tc956xmac_priv *priv,
 	value |= XGMAC_RXST;
 	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
 
-#ifndef DMA_OFFLOAD_ENABLE
+	/* RE set will enable all the MAC receiver, PF to configure when
+	 *  starting its channel for reception
+	 */
+#ifndef TC956X_SRIOV_VF
+#ifndef TC956X_DMA_OFFLOAD_ENABLE
 	value = readl(ioaddr + XGMAC_RX_CONFIG);
 	value |= XGMAC_CONFIG_RE;
 	writel(value, ioaddr + XGMAC_RX_CONFIG);
+#endif
 #endif
 }
 
@@ -455,10 +481,12 @@ static void dwxgmac2_dma_stop_rx(struct tc956xmac_priv *priv,
 	value &= ~XGMAC_RXST;
 	writel(value, ioaddr + XGMAC_DMA_CH_RX_CONTROL(chan));
 
-#ifndef DMA_OFFLOAD_ENABLE
+#ifndef TC956X_SRIOV_VF
+#ifndef TC956X_DMA_OFFLOAD_ENABLE
 	value = readl(ioaddr + XGMAC_RX_CONFIG);
 	value &= ~XGMAC_CONFIG_RE;
 	writel(value, ioaddr + XGMAC_RX_CONFIG);
+#endif
 #endif
 }
 
@@ -484,8 +512,6 @@ static int dwxgmac2_dma_interrupt(struct tc956xmac_priv *priv, void __iomem *ioa
 			ret |= tx_hard_error;
 		}
 	}
-
-	//printk("%s 1 status = 0x%x\n", __func__, intr_status);
 
 	/* TX/RX NORMAL interrupts */
 //	if (likely(intr_status & XGMAC_NIS)) {
@@ -594,7 +620,11 @@ static void dwxgmac2_get_hw_feature(struct tc956xmac_priv *priv,
 	dma_cap->dvlan = (hw_cap & XGMAC_HWFEAT_DVLAN) >> 13;
 	dma_cap->frpes = (hw_cap & XGMAC_HWFEAT_FRPES) >> 11;
 	dma_cap->frpbs = (hw_cap & XGMAC_HWFEAT_FRPPB) >> 9;
+#ifndef TC956X_SRIOV_VF
 	dma_cap->frpsel = (hw_cap & XGMAC_HWFEAT_FRPSEL) >> 3;
+#elif (defined TC956X_SRIOV_VF)
+	dma_cap->frpsel = 0; /* VF to not support FRP */
+#endif
 	switch (dma_cap->frpes) {
 	default:
 		dma_cap->frpes = 0;
@@ -618,14 +648,36 @@ static void dwxgmac2_get_hw_feature(struct tc956xmac_priv *priv,
 static void dwxgmac2_rx_watchdog(struct tc956xmac_priv *priv,
 					void __iomem *ioaddr, u32 riwt, u32 nchan)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
+#ifdef TC956X_SRIOV_PF
+	if (priv->plat->rx_ch_in_use[nchan] == TC956X_DISABLE_CHNL)
+		return;
+#elif (defined TC956X_SRIOV_VF)
+	if (priv->plat->ch_in_use[nchan] == NOT_USED)
+		return;
+#else
+	if (priv->plat->rx_dma_ch_owner[nchan] != USE_IN_TC956X_SW)
+		return;
+#endif
+
+	writel(riwt & XGMAC_RWT, ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(nchan));
+#else
 	u32 i;
 
 	for (i = 0; i < nchan; i++) {
+#ifdef TC956X_SRIOV_PF
+		if (priv->plat->rx_ch_in_use[i] == TC956X_DISABLE_CHNL)
+			continue;
+#elif (defined TC956X_SRIOV_VF)
+		if (priv->plat->ch_in_use[i] == NOT_USED)
+			continue;
+#else
 		if (priv->plat->rx_dma_ch_owner[i] != USE_IN_TC956X_SW)
 			continue;
-
+#endif
 		writel(riwt & XGMAC_RWT, ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(i));
 	}
+#endif
 }
 
 static void dwxgmac2_set_rx_ring_len(struct tc956xmac_priv *priv,
@@ -649,9 +701,6 @@ static void dwxgmac2_set_rx_tail_ptr(struct tc956xmac_priv *priv,
 					void __iomem *ioaddr, u32 ptr, u32 chan)
 {
 	writel(ptr, ioaddr + XGMAC_DMA_CH_RxDESC_TAIL_LPTR(chan));
-	//printk("%s, reg 0x%x = 0x%x, input = 0x%x\n", __func__, XGMAC_DMA_CH_RxDESC_TAIL_LPTR(chan),
-	//		readl(ioaddr + XGMAC_DMA_CH_RxDESC_TAIL_LPTR(chan)), ptr);
-
 
 }
 
@@ -659,7 +708,6 @@ static void dwxgmac2_set_tx_tail_ptr(struct tc956xmac_priv *priv,
 					void __iomem *ioaddr, u32 ptr, u32 chan)
 {
 	writel(ptr, ioaddr + XGMAC_DMA_CH_TxDESC_TAIL_LPTR(chan));
-	//printk("%s\n", __func__);
 }
 
 static void dwxgmac2_enable_tso(struct tc956xmac_priv *priv,
@@ -680,21 +728,24 @@ static void dwxgmac2_qmode(struct tc956xmac_priv *priv, void __iomem *ioaddr,
 				u32 channel, u8 qmode)
 {
 	u32 value = readl(ioaddr + XGMAC_MTL_TXQ_OPMODE(channel));
+#ifndef TC956X_SRIOV_VF
 	u32 flow = readl(ioaddr + XGMAC_RX_FLOW_CTRL);
-
+#endif
 	value &= ~XGMAC_TXQEN;
 	if (qmode != MTL_QUEUE_AVB) {
 		value |= 0x2 << XGMAC_TXQEN_SHIFT;
 		//writel(0, ioaddr + XGMAC_MTL_TCx_ETS_CONTROL(channel));
 	} else {
 		value |= 0x1 << XGMAC_TXQEN_SHIFT;
+		/* RFE configuration is handled in PF driver */
+#ifndef TC956X_SRIOV_VF
 		writel(flow & (~XGMAC_RFE), ioaddr + XGMAC_RX_FLOW_CTRL);
+#endif
 	}
 
 	writel(value, ioaddr +  XGMAC_MTL_TXQ_OPMODE(channel));
 }
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
-
 
 static void dwxgmac2_set_bfsize(struct tc956xmac_priv *priv,
 				void __iomem *ioaddr, int bfsize, u32 chan)
@@ -712,10 +763,12 @@ static void dwxgmac2_enable_sph(struct tc956xmac_priv *priv,
 {
 	u32 value = readl(ioaddr + XGMAC_RX_CONFIG);
 
+	/* Common register configuration only done in PF driver */
+#ifndef TC956X_SRIOV_VF
 	value &= ~XGMAC_CONFIG_HDSMS;
 	value |= XGMAC_CONFIG_HDSMS_256; /* Segment max 256 bytes */
 	writel(value, ioaddr + XGMAC_RX_CONFIG);
-
+#endif
 	value = readl(ioaddr + XGMAC_DMA_CH_CONTROL(chan));
 	if (en)
 		value |= XGMAC_SPH;
@@ -742,24 +795,29 @@ static int dwxgmac2_enable_tbs(struct tc956xmac_priv *priv, void __iomem *ioaddr
 	if (en && !value)
 		return -EIO;
 
-	writel((100 < XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
+	/* Below configuration done on common DMA registers
+	 * so PF driver can configure this.
+	 */
+	writel((100 << XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
 		ioaddr + XGMAC_DMA_TBS_CTRL0);
-	writel((100 < XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
+	writel((100 << XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
 		ioaddr + XGMAC_DMA_TBS_CTRL1);
-	writel((100 < XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
+	writel((100 << XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
 		ioaddr + XGMAC_DMA_TBS_CTRL2);
-	writel((100 < XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
+	writel((100 << XGMAC_FTOS_SHIFT) | (1 << XGMAC_FGOS_SHIFT) | XGMAC_FTOV,
 		ioaddr + XGMAC_DMA_TBS_CTRL3);
-
 	return 0;
 }
 
 static void dwxgmac2_desc_stats(struct tc956xmac_priv *priv, void __iomem *ioaddr)
 {
 	u32 chno;
-//printk("%s\n",  __func__);
-	for (chno = 0; chno < priv->plat->tx_queues_to_use; chno++) {
 
+	for (chno = 0; chno < priv->plat->tx_queues_to_use; chno++) {
+#ifdef TC956X_SRIOV_VF
+		if (priv->plat->ch_in_use[chno] == 0)
+			continue;
+#endif
 		priv->xstats.txch_status[chno] =
 			readl(ioaddr + XGMAC_DMA_CH_STATUS(chno));
 		priv->xstats.txch_control[chno] =
@@ -785,7 +843,10 @@ static void dwxgmac2_desc_stats(struct tc956xmac_priv *priv, void __iomem *ioadd
 	}
 
 	for (chno = 0; chno < priv->plat->rx_queues_to_use; chno++) {
-
+#ifdef TC956X_SRIOV_VF
+		if (priv->plat->ch_in_use[chno] == 0)
+			continue;
+#endif
 		priv->xstats.rxch_status[chno] =
 			readl(ioaddr + XGMAC_DMA_CH_STATUS(chno));
 		priv->xstats.rxch_control[chno] =

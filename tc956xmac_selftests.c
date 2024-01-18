@@ -58,6 +58,7 @@ struct tc956xmachdr {
 #define TC956XMAC_LB_TIMEOUT	msecs_to_jiffies(200)
 #define TC956XMAC_PTP_TIMEOUT	msecs_to_jiffies(2000)
 #define MMC_COUNTER_INITIAL_VALUE 0
+/*#define SELFTEST_NOT_SUPPORTED*/
 
 struct tc956xmac_packet_attrs {
 	int vlan;
@@ -244,8 +245,6 @@ static struct sk_buff *tc956xmac_test_get_udp_skb(struct tc956xmac_priv *priv,
 	return skb;
 }
 
-
-
 struct tc956xmac_test_priv {
 	struct tc956xmac_packet_attrs *packet;
 	struct packet_type pt;
@@ -358,6 +357,7 @@ static int __tc956xmac_test_loopback(struct tc956xmac_priv *priv,
 		goto cleanup;
 	}
 
+	attr->queue_mapping = HOST_BEST_EFF_CH;
 	ret = dev_direct_xmit(skb, attr->queue_mapping);
 	if (ret)
 		goto cleanup;
@@ -438,7 +438,66 @@ static int tc956xmac_test_mmc(struct tc956xmac_priv *priv)
 	return 0;
 }
 
+#ifdef SELFTEST_NOT_SUPPORTED
+static int tc956xmac_test_eee(struct tc956xmac_priv *priv)
+{
+	struct tc956xmac_extra_stats *initial, *final;
+	int retries = 10;
+	int ret;
 
+	if (!priv->dma_cap.eee || !priv->eee_active)
+		return -EOPNOTSUPP;
+
+	initial = kzalloc(sizeof(*initial), GFP_KERNEL);
+	if (!initial)
+		return -ENOMEM;
+
+	final = kzalloc(sizeof(*final), GFP_KERNEL);
+	if (!final) {
+		ret = -ENOMEM;
+		goto out_free_initial;
+	}
+
+	memcpy(initial, &priv->xstats, sizeof(*initial));
+
+	ret = tc956xmac_test_mac_loopback(priv);
+	if (ret)
+		goto out_free_final;
+
+	/* We have no traffic in the line so, sooner or later it will go LPI */
+	while (--retries) {
+		memcpy(final, &priv->xstats, sizeof(*final));
+
+		if (final->irq_tx_path_in_lpi_mode_n >
+		    initial->irq_tx_path_in_lpi_mode_n)
+			break;
+		msleep(100);
+	}
+
+	if (!retries) {
+		ret = -ETIMEDOUT;
+		goto out_free_final;
+	}
+
+	if (final->irq_tx_path_in_lpi_mode_n <=
+	    initial->irq_tx_path_in_lpi_mode_n) {
+		ret = -EINVAL;
+		goto out_free_final;
+	}
+
+	if (final->irq_tx_path_exit_lpi_mode_n <=
+	    initial->irq_tx_path_exit_lpi_mode_n) {
+		ret = -EINVAL;
+		goto out_free_final;
+	}
+
+out_free_final:
+	kfree(final);
+out_free_initial:
+	kfree(initial);
+	return ret;
+}
+#endif
 
 static int tc956xmac_filter_check(struct tc956xmac_priv *priv)
 {
@@ -668,7 +727,114 @@ cleanup:
 	return ret;
 }
 
+#ifdef SELFTEST_NOT_SUPPORTED
+static int tc956xmac_test_flowctrl_validate(struct sk_buff *skb,
+					 struct net_device *ndev,
+					 struct packet_type *pt,
+					 struct net_device *orig_ndev)
+{
+	struct tc956xmac_test_priv *tpriv = pt->af_packet_priv;
+	struct ethhdr *ehdr;
 
+	ehdr = (struct ethhdr *)skb_mac_header(skb);
+	if (!ether_addr_equal_unaligned(ehdr->h_source, orig_ndev->dev_addr))
+		goto out;
+	if (ehdr->h_proto != htons(ETH_P_PAUSE))
+		goto out;
+
+	tpriv->ok = true;
+	complete(&tpriv->comp);
+out:
+	kfree_skb(skb);
+	return 0;
+}
+
+static int tc956xmac_test_flowctrl(struct tc956xmac_priv *priv)
+{
+	unsigned char paddr[ETH_ALEN] = {0x01, 0x80, 0xC2, 0x00, 0x00, 0x01};
+	struct phy_device *phydev = priv->dev->phydev;
+	u32 rx_cnt = priv->plat->rx_queues_to_use;
+	struct tc956xmac_test_priv *tpriv;
+	unsigned int pkt_count;
+	int i, ret = 0;
+
+	if (!phydev || (!phydev->pause && !phydev->asym_pause))
+		return -EOPNOTSUPP;
+
+	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
+	if (!tpriv)
+		return -ENOMEM;
+
+	tpriv->ok = false;
+	init_completion(&tpriv->comp);
+	tpriv->pt.type = htons(ETH_P_PAUSE);
+	tpriv->pt.func = tc956xmac_test_flowctrl_validate;
+	tpriv->pt.dev = priv->dev;
+	tpriv->pt.af_packet_priv = tpriv;
+	dev_add_pack(&tpriv->pt);
+
+	/* Compute minimum number of packets to make FIFO full */
+	pkt_count = priv->plat->rx_fifo_size;
+	if (!pkt_count)
+		pkt_count = priv->dma_cap.rx_fifo_size;
+	pkt_count /= 1400;
+	pkt_count *= 2;
+
+	for (i = 0; i < rx_cnt; i++)
+		tc956xmac_stop_rx(priv, priv->ioaddr, i);
+
+	ret = dev_set_promiscuity(priv->dev, 1);
+	if (ret)
+		goto cleanup;
+
+	ret = dev_mc_add(priv->dev, paddr);
+	if (ret)
+		goto cleanup;
+
+	for (i = 0; i < pkt_count; i++) {
+		struct tc956xmac_packet_attrs attr = { };
+
+		attr.dst = priv->dev->dev_addr;
+		attr.dont_wait = true;
+		attr.size = 1400;
+
+		ret = __tc956xmac_test_loopback(priv, &attr);
+		if (ret)
+			goto cleanup;
+		if (tpriv->ok)
+			break;
+	}
+
+	/* Wait for some time in case RX Watchdog is enabled */
+	msleep(200);
+
+	for (i = 0; i < rx_cnt; i++) {
+		struct tc956xmac_channel *ch = &priv->channel[i];
+		u32 tail;
+
+		tail = priv->rx_queue[i].dma_rx_phy +
+			(DMA_RX_SIZE * sizeof(struct dma_desc));
+
+		tc956xmac_set_rx_tail_ptr(priv, priv->ioaddr, tail, i);
+		tc956xmac_start_rx(priv, priv->ioaddr, i);
+
+		local_bh_disable();
+		napi_reschedule(&ch->rx_napi);
+		local_bh_enable();
+	}
+
+	wait_for_completion_timeout(&tpriv->comp, TC956XMAC_LB_TIMEOUT);
+	ret = tpriv->ok ? 0 : -ETIMEDOUT;
+
+cleanup:
+	dev_mc_del(priv->dev, paddr);
+	dev_set_promiscuity(priv->dev, -1);
+	dev_remove_pack(&tpriv->pt);
+	kfree(tpriv);
+	return ret;
+}
+
+#endif
 
 static int tc956xmac_test_vlan_validate(struct sk_buff *skb,
 				     struct net_device *ndev,
@@ -774,7 +940,7 @@ static int __tc956xmac_test_vlanfilt(struct tc956xmac_priv *priv)
 			goto vlan_del;
 		}
 
-		ret = dev_direct_xmit(skb, 0);
+		ret = dev_direct_xmit(skb, HOST_BEST_EFF_CH);
 		if (ret)
 			goto vlan_del;
 
@@ -868,7 +1034,7 @@ static int __tc956xmac_test_dvlanfilt(struct tc956xmac_priv *priv)
 			goto vlan_del;
 		}
 
-		ret = dev_direct_xmit(skb, 0);
+		ret = dev_direct_xmit(skb, HOST_BEST_EFF_CH);
 		if (ret)
 			goto vlan_del;
 
@@ -916,7 +1082,158 @@ static int tc956xmac_test_dvlanfilt_perfect(struct tc956xmac_priv *priv)
 	return ret;
 }
 
+#ifdef TC956X_FRP_ENABLE
+static int tc956xmac_test_rxp(struct tc956xmac_priv *priv)
+{
+	unsigned char addr[ETH_ALEN] = {0xde, 0xad, 0xbe, 0xef, 0x00, 0x00};
+	struct tc_cls_u32_offload cls_u32 = { };
+	struct tc956xmac_packet_attrs attr = { };
+	struct tc_action **actions, *act;
+	struct tc_u32_sel *sel;
+	struct tcf_exts *exts;
+	int ret, i, nk = 1;
 
+	if (!tc_can_offload(priv->dev))
+		return -EOPNOTSUPP;
+	if (!priv->dma_cap.frpsel)
+		return -EOPNOTSUPP;
+
+	sel = kzalloc(sizeof(*sel) + nk * sizeof(struct tc_u32_key), GFP_KERNEL);
+	if (!sel)
+		return -ENOMEM;
+
+	exts = kzalloc(sizeof(*exts), GFP_KERNEL);
+	if (!exts) {
+		ret = -ENOMEM;
+		goto cleanup_sel;
+	}
+
+	actions = kzalloc(nk * sizeof(*actions), GFP_KERNEL);
+	if (!actions) {
+		ret = -ENOMEM;
+		goto cleanup_exts;
+	}
+
+	act = kzalloc(nk * sizeof(*act), GFP_KERNEL);
+	if (!act) {
+		ret = -ENOMEM;
+		goto cleanup_actions;
+	}
+
+	cls_u32.command = TC_CLSU32_NEW_KNODE;
+	cls_u32.common.chain_index = 0;
+	cls_u32.common.protocol = htons(ETH_P_ALL);
+	cls_u32.knode.exts = exts;
+	cls_u32.knode.sel = sel;
+	cls_u32.knode.handle = 0x123;
+
+	exts->nr_actions = nk;
+	exts->actions = actions;
+	for (i = 0; i < nk; i++) {
+		struct tcf_gact *gact = to_gact(&act[i]);
+
+		actions[i] = &act[i];
+		gact->tcf_action = TC_ACT_SHOT;
+	}
+
+	sel->nkeys = nk;
+	sel->offshift = 0;
+	sel->keys[0].off = 6;
+	sel->keys[0].val = htonl(0xdeadbeef);
+	sel->keys[0].mask = ~0x0;
+
+	ret = tc956xmac_tc_setup_cls_u32(priv, &cls_u32);
+	if (ret)
+		goto cleanup_act;
+
+	attr.dst = priv->dev->dev_addr;
+	attr.src = addr;
+
+	ret = __tc956xmac_test_loopback(priv, &attr);
+	ret = ret ? 0 : -EINVAL; /* Shall NOT receive packet */
+
+	cls_u32.command = TC_CLSU32_DELETE_KNODE;
+	tc956xmac_tc_setup_cls_u32(priv, &cls_u32);
+
+cleanup_act:
+	kfree(act);
+cleanup_actions:
+	kfree(actions);
+cleanup_exts:
+	kfree(exts);
+cleanup_sel:
+	kfree(sel);
+	return ret;
+}
+#endif
+
+static int tc956xmac_test_reg_sai(struct tc956xmac_priv *priv)
+{
+	unsigned char src[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	struct tc956xmac_packet_attrs attr = { };
+	int ret;
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	unsigned long flags;
+#endif
+
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
+
+	attr.remove_sa = true;
+	attr.sarc = true;
+	attr.src = src;
+	attr.dst = priv->dev->dev_addr;
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	spin_lock_irqsave(&priv->spn_lock.mac_filter, flags);
+#endif
+
+	tc956xmac_set_umac_addr(priv, priv->hw, priv->dev->dev_addr, 0, PF_DRIVER);
+
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	spin_unlock_irqrestore(&priv->spn_lock.mac_filter, flags);
+#endif
+
+	if (tc956xmac_sarc_configure(priv, priv->ioaddr, 0x2))
+		return -EOPNOTSUPP;
+
+	ret = __tc956xmac_test_loopback(priv, &attr);
+
+	tc956xmac_sarc_configure(priv, priv->ioaddr, 0x0);
+	return ret;
+}
+
+static int tc956xmac_test_reg_sar(struct tc956xmac_priv *priv)
+{
+	unsigned char src[ETH_ALEN] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	struct tc956xmac_packet_attrs attr = { };
+	int ret;
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	unsigned long flags;
+#endif
+	if (!priv->dma_cap.vlins)
+		return -EOPNOTSUPP;
+
+	attr.sarc = true;
+	attr.src = src;
+	attr.dst = priv->dev->dev_addr;
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	spin_lock_irqsave(&priv->spn_lock.mac_filter, flags);
+#endif
+
+	tc956xmac_set_umac_addr(priv, priv->hw, priv->dev->dev_addr, 0, PF_DRIVER);
+
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	spin_unlock_irqrestore(&priv->spn_lock.mac_filter, flags);
+#endif
+
+	if (tc956xmac_sarc_configure(priv, priv->ioaddr, 0x3))
+		return -EOPNOTSUPP;
+
+	ret = __tc956xmac_test_loopback(priv, &attr);
+
+	tc956xmac_sarc_configure(priv, priv->ioaddr, 0x0);
+	return ret;
+}
 
 
 static int tc956xmac_test_vlanoff_common(struct tc956xmac_priv *priv, bool svlan)
@@ -963,7 +1280,7 @@ static int tc956xmac_test_vlanoff_common(struct tc956xmac_priv *priv, bool svlan
 	__vlan_hwaccel_put_tag(skb, htons(proto), tpriv->vlan_id);
 	skb->protocol = htons(proto);
 
-	ret = dev_direct_xmit(skb, 0);
+	ret = dev_direct_xmit(skb, HOST_BEST_EFF_CH);
 	if (ret)
 		goto vlan_del;
 
@@ -1001,8 +1318,139 @@ static int tc956xmac_test_jumbo(struct tc956xmac_priv *priv)
 	return __tc956xmac_test_jumbo(priv, 0);
 }
 
+#ifdef SELFTEST_NOT_SUPPORTED
 
+static int tc956xmac_test_tbs(struct tc956xmac_priv *priv)
+{
+#define TC956XMAC_TBS_LT_OFFSET		(500 * 1000 * 1000) /* 500 ms*/
+	struct tc956xmac_packet_attrs attr = { };
+	struct tc_etf_qopt_offload qopt;
+	u64 start_time, curr_time = 0;
+	unsigned long flags;
+	int ret, i;
 
+	if (!priv->hwts_tx_en)
+		return -EOPNOTSUPP;
+
+	/* Find first TBS enabled Queue, if any */
+	for (i = 0; i < priv->plat->tx_queues_to_use; i++)
+		if (priv->tx_queue[i].tbs & TC956XMAC_TBS_AVAIL)
+			break;
+
+	if (i >= priv->plat->tx_queues_to_use)
+		return -EOPNOTSUPP;
+
+	qopt.enable = true;
+	qopt.queue = i;
+
+	ret = tc956xmac_tc_setup_etf(priv, &qopt);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&priv->ptp_lock, flags);
+	tc956xmac_get_systime(priv, priv->ptpaddr, &curr_time);
+	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	if (!curr_time) {
+		ret = -EOPNOTSUPP;
+		goto fail_disable;
+	}
+
+	start_time = curr_time;
+	curr_time += TC956XMAC_TBS_LT_OFFSET;
+
+	attr.dst = priv->dev->dev_addr;
+	attr.timestamp = curr_time;
+	attr.timeout = nsecs_to_jiffies(2 * TC956XMAC_TBS_LT_OFFSET);
+	attr.queue_mapping = i;
+
+	ret = __tc956xmac_test_loopback(priv, &attr);
+	if (ret)
+		goto fail_disable;
+
+	/* Check if expected time has elapsed */
+	spin_lock_irqsave(&priv->ptp_lock, flags);
+	tc956xmac_get_systime(priv, priv->ptpaddr, &curr_time);
+	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+
+	if ((curr_time - start_time) < TC956XMAC_TBS_LT_OFFSET)
+		ret = -EINVAL;
+
+fail_disable:
+	qopt.enable = false;
+	tc956xmac_tc_setup_etf(priv, &qopt);
+	return ret;
+}
+
+static int tc956xmac_test_ptp_validate(struct sk_buff *skb,
+				    struct net_device *ndev,
+				    struct packet_type *pt,
+				    struct net_device *orig_ndev)
+{
+	unsigned char dst[ETH_ALEN] = { 0x01, 0x1b, 0x19, 0x00, 0x00, 0x00 };
+	struct tc956xmac_test_priv *tpriv = pt->af_packet_priv;
+	struct ethhdr *ehdr;
+
+	ehdr = (struct ethhdr *)skb_mac_header(skb);
+	if (!ether_addr_equal(ehdr->h_source, orig_ndev->dev_addr))
+		goto out;
+	if (!ether_addr_equal(ehdr->h_dest, dst))
+		goto out;
+
+	tpriv->ok = true;
+	complete(&tpriv->comp);
+out:
+	kfree_skb(skb);
+	return 0;
+}
+
+static int tc956xmac_test_ptp_offload(struct tc956xmac_priv *priv)
+{
+#define TC956XMAC_PTP_CNT			10
+	struct tc956xmac_test_priv *tpriv;
+	int ret, i;
+
+	if (!priv->dma_cap.ptoen)
+		return -EOPNOTSUPP;
+	if (!priv->hwts_tx_en)
+		return -EOPNOTSUPP;
+
+	tpriv = kzalloc(sizeof(*tpriv), GFP_KERNEL);
+	if (!tpriv)
+		return -ENOMEM;
+
+	tpriv->ok = false;
+	init_completion(&tpriv->comp);
+
+	tpriv->pt.type = htons(ETH_P_1588);
+	tpriv->pt.func = tc956xmac_test_ptp_validate;
+	tpriv->pt.dev = priv->dev;
+	tpriv->pt.af_packet_priv = tpriv;
+	dev_add_pack(&tpriv->pt);
+
+	ret = dev_set_promiscuity(priv->dev, 1);
+	if (ret)
+		goto cleanup;
+
+	ret = tc956xmac_set_ptp_offload(priv, priv->ioaddr, true);
+	if (ret)
+		goto cleanup;
+
+	for (i = 0; i < TC956XMAC_PTP_CNT; i++) {
+		wait_for_completion_timeout(&tpriv->comp, TC956XMAC_PTP_TIMEOUT);
+		ret = tpriv->ok ? 0 : -ETIMEDOUT;
+		if (ret)
+			goto cleanup;
+	}
+
+cleanup:
+	tc956xmac_set_ptp_offload(priv, priv->ioaddr, false);
+	dev_set_promiscuity(priv->dev, -1);
+	dev_remove_pack(&tpriv->pt);
+	kfree(tpriv);
+	return ret;
+}
+#endif
 
 #define TC956XMAC_LOOPBACK_NONE	0
 #define TC956XMAC_LOOPBACK_MAC	1
@@ -1025,12 +1473,15 @@ static const struct tc956xmac_test {
 		.name = "MMC Counters               ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
 		.fn = tc956xmac_test_mmc,
-	},/* {
-	   *.name = "EEE                        ",			//NOt supported
-	   *.lb = TC956XMAC_LOOPBACK_PHY,
-	   *.fn = tc956xmac_test_eee,
-	}, */
-		{
+	},
+#ifdef SELFTEST_NOT_SUPPORTED
+	{
+		.name = "EEE                        ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_eee,
+	},
+#endif
+	{
 		.name = "Hash Filter MC             ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
 		.fn = tc956xmac_test_hfilt,
@@ -1046,16 +1497,14 @@ static const struct tc956xmac_test {
 		.name = "UC Filter                  ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
 		.fn = tc956xmac_test_ucfilt,
-	},     /* {
-		* .name = "Flow Control               ",				NOt Validated correctly
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_flowctrl,
-		* }, {
-		* .name = "RSS                        ",				not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_rss,
-		* },
-		*/
+	},
+#ifdef SELFTEST_NOT_SUPPORTED
+	{
+		.name = "Flow Control               ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_flowctrl,
+	},
+#endif
 	{
 		.name = "VLAN Filtering             ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
@@ -1072,87 +1521,42 @@ static const struct tc956xmac_test {
 		.name = "Double VLAN Filter (perf)  ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
 		.fn = tc956xmac_test_dvlanfilt_perfect,
-	},     /* {
-		* .name = "Flexible RX Parser         ", //Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_rxp,
-		* },  {
-		* .name = "SA Insertion (desc)        ", //Not validated correctly , This test is covered in IT testing
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_desc_sai,
-		* }, {
-		* .name = "SA Replacement (desc)      ", //Not validated correctly , This test is covered in IT testing
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_desc_sar,
-		* }, {
-		* .name = "SA Insertion (reg)         ", //Not validated correctly , This test is covered in IT testing
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_reg_sai,
-		* }, {
-		* .name = "SA Replacement (reg)       ", //Not validated correctly , This test is covered in IT testing
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_reg_sar,
-	},	*/
+	},
+#ifdef TC956X_FRP_ENABLE
 	{
+		.name = "Flexible RX Parser         ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_rxp,
+	},
+#endif
+	{
+		.name = "SA Insertion (reg)         ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_reg_sai,
+	}, {
+		.name = "SA Replacement (reg)       ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_reg_sar,
+	}, {
 		.name = "VLAN TX Insertion          ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
 		.fn = tc956xmac_test_vlanoff,
-	},     /* {
-		* .name = "SVLAN TX Insertion		",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_svlanoff,
-		* }, {
-		* .name = "L3 DA Filtering            ",	//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_l3filt_da,
-		* }, {
-		* .name = "L3 SA Filtering            ",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_l3filt_sa,
-		* }, {
-		* .name = "L4 DA TCP Filtering        ",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_l4filt_da_tcp,
-		* }, {
-		* .name = "L4 SA TCP Filtering        ",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_l4filt_sa_tcp,
-		* }, {
-		* .name = "L4 DA UDP Filtering        ",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_l4filt_da_udp,
-		* }, {
-		* .name = "L4 SA UDP Filtering        ",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_l4filt_sa_udp,
-		* }, {
-		* .name = "ARP Offload                ",		//Not supported
-		* .lb = TC956XMAC_LOOPBACK_PHY,
-		* .fn = tc956xmac_test_arpoffload,
-		* },
-		*/
-		{
+	}, {
 		.name = "Jumbo Frame                ",
 		.lb = TC956XMAC_LOOPBACK_PHY,
 		.fn = tc956xmac_test_jumbo,
-	},     /* {
-		*.name = "Multichannel Jumbo         ",		//Not supprted
-		*.lb = TC956XMAC_LOOPBACK_PHY,
-		*.fn = tc956xmac_test_mjumbo,
-		*}, {
-		*.name = "Split Header               ",		//not supoorted
-		*.lb = TC956XMAC_LOOPBACK_PHY,
-		*.fn = tc956xmac_test_sph,
-		*}, {
-		*.name = "TBS (ETF Scheduler)        ",		//Validation not done correctly, Tested During IT
-		*.lb = TC956XMAC_LOOPBACK_PHY,
-		*.fn = tc956xmac_test_tbs,
-		*}, {
-		*.name = "PTP Offload                ",		//Validation not done correctly
-		*.lb = TC956XMAC_LOOPBACK_PHY,
-		*.fn = tc956xmac_test_ptp_offload,
-		*},
-		*/
+	},
+#ifdef SELFTEST_NOT_SUPPORTED
+	{
+		.name = "TBS (ETF Scheduler)        ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_tbs,
+	}, {
+		.name = "PTP Offload                ",
+		.lb = TC956XMAC_LOOPBACK_PHY,
+		.fn = tc956xmac_test_ptp_offload,
+	},
+#endif
 };
 
 void tc956xmac_selftest_run(struct net_device *dev,

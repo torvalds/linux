@@ -38,6 +38,7 @@
 #include "common.h"
 #include "tc956xmac_ptp.h"
 
+#ifdef TC956X_SRIOV_PF
 static u32 tc956xmac_get_ptp_subperiod(struct tc956xmac_priv *priv, void __iomem *ioaddr, u32 ptp_clock);
 static u32 tc956xmac_get_ptp_period(struct tc956xmac_priv *priv, void __iomem *ioaddr, u32 ptp_clock);
 
@@ -153,7 +154,6 @@ static int config_addend(struct tc956xmac_priv *priv, void __iomem *ioaddr, u32 
 	return 0;
 }
 
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static int adjust_systime(struct tc956xmac_priv *priv, void __iomem *ioaddr,
 				u32 sec, u32 nsec, int add_sub, int gmac4)
 {
@@ -196,7 +196,7 @@ static int adjust_systime(struct tc956xmac_priv *priv, void __iomem *ioaddr,
 
 	return 0;
 }
-
+#endif
 static void get_systime(struct tc956xmac_priv *priv, void __iomem *ioaddr, u64 *systime)
 {
 
@@ -224,8 +224,7 @@ static void get_systime(struct tc956xmac_priv *priv, void __iomem *ioaddr, u64 *
 		*systime = ns;
 
 }
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
-
+#ifdef TC956X_SRIOV_PF
 static u32 tc956xmac_get_ptp_period(struct tc956xmac_priv *priv, void __iomem *ioaddr, u32 ptp_clock)
 {
 	u32 value = readl(ioaddr + PTP_TCR);
@@ -294,8 +293,17 @@ const struct tc956xmac_hwtimestamp tc956xmac_ptp = {
 	.init_systime = init_systime,
 	.config_sub_second_increment = config_sub_second_increment,
 	.config_addend = config_addend,
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.adjust_systime = adjust_systime,
 	.get_systime = get_systime,
-#endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 };
+#else
+const struct tc956xmac_hwtimestamp tc956xmac_ptp = {
+	.config_hw_tstamping = NULL,
+	.init_systime = NULL,
+	.config_sub_second_increment = NULL,
+	.config_addend = NULL,
+	.adjust_systime = NULL,
+	.get_systime = get_systime,
+};
+#endif
+

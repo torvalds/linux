@@ -79,7 +79,8 @@
 #define STATE_LOGGING_ENABLE_SHIFT				(0U)
 #define FIFO_READ_POINTER_MASK					(0x0000001FU)
 #define FIFO_READ_POINTER_SHIFT					(0U)
-
+#define STOP_STATUS_MASK					(0x00000001U)
+#define STOP_STATUS_SHIFT					(0U)
 
 #define COUNT_LTSSM_REG_STATES					(28U)
 
@@ -121,27 +122,72 @@
 #define MAX_STOP_CNT						(0xFFU)
 #define MAX_FIFO_POINTER					(31U)
 
+#define STATE_LOG_REG_OFFSET					(0x20U)
+#define GLUE_REG_LTSSM_OFFSET					(0x40U)
+
+#define STATE_LOG_STOP						(1U)
+#define MAX_FIFO_READ_POINTER					(0x1F)
+#define INVALID_STATE_LOG					(0x33F7F31FU)
+
+#define LTSSM_TIMEOUT_NOT_OCCURRED				(0U)
+#define LTSSM_TIMEOUT_OCCURRED					(1U)
+#define DL_ACTIVE						(1U)
+#define DL_NOT_ACTIVE						(0U)
+#define ALL_LANES_INACTIVE					(0U)
+#define INACTIVE_L0s						(0U)
+#define EQ_PHASE0						(0U)
+#define INACTIVE_L1						(0U)
+
+#define LTSSM_MAX_VALUE						(0x1A)
+#define LOGSTAT_DUMMY_VALUE					(0xFF)
+#define ACTIVE_SINGLE_LANE_MASK					(1)
+#define ACTIVE_SINGLE_LANE_SHIFT				(1)
+#define ACTIVE_ALL_LANE_MASK					(0xF)
+/* ===================================
+ * Enumeration
+ * ===================================
+ */
+
+/* ===================================
+ * Structure/Union
+ * ===================================
+ */
+union tc956x_logstat_State_Log_Data {
+	struct {
+		unsigned char fifo_read_value0 :5;
+		unsigned char reserved1 :3;
+		unsigned char fifo_read_value1 :2;
+		unsigned char reserved2 :2;
+		unsigned char fifo_read_value2 :2;
+		unsigned char fifo_read_value3 :2;
+		unsigned char fifo_read_value4 :3;
+		unsigned char reserved3 :1;
+		unsigned char fifo_read_value5 :4;
+		unsigned char fifo_read_value6 :2;
+		unsigned char reserved4 :2;
+		unsigned char fifo_read_value7 :1;
+		unsigned char fifo_read_value8 :1;
+		unsigned char reserved5 :2;
+	} bitfield;
+	unsigned int reg_val;
+};
+
 /* ===================================
  * Function Declaration
  * ===================================
  */
-
-int tc956x_logstat_SetConf(void __iomem *pconf_base_addr,
-			enum ports nport,
-			struct tc956x_ltssm_conf *plogstat_conf);
-int tc956x_logstat_GetConf(void __iomem *pconf_base_addr,
-			enum ports nport,
-			struct tc956x_ltssm_conf *plogstat_conf);
-int tc956x_logstat_GetLTSSMLogData(void __iomem *pbase_addr,
-				enum ports nport,
-				struct tc956x_ltssm_log *plogstat_conf);
-
-int tc956x_pcie_ioctl_SetDbgConf(const struct tc956xmac_priv *priv,
-				void __user *data);
-int tc956x_pcie_ioctl_GetDbgConf(const struct tc956xmac_priv *priv,
-				void __user *data);
-int tc956x_pcie_ioctl_GetLTSSMLogD(const struct tc956xmac_priv *priv,
-				void __user *data);
-
+int tc956x_pcie_ioctl_state_log_summary(const struct tc956xmac_priv *priv, void __user *data);
+int tc956x_pcie_ioctl_get_pcie_link_params(const struct tc956xmac_priv *priv, void __user *data);
+int tc956x_pcie_ioctl_state_log_enable(const struct tc956xmac_priv *priv, void __user *data);
+int tc956x_logstat_state_log_summary(void __iomem *pbase_addr, enum ports nport);
+int tc956x_logstat_get_state_log_stop_status(void __iomem *pbase_addr, enum ports nport, uint8_t *pstop_status);
+int tc956x_logstat_set_state_log_fifo_ptr(void __iomem *pbase_addr, enum ports nport, uint8_t fifo_pointer);
+int tc956x_logstat_get_state_log_data(void __iomem *pbase_addr, enum ports nport, uint32_t *pstate_log_data);
+int tc956x_logstat_state_log_analyze(unsigned int cur_state);
+int tc956x_logstat_get_pcie_cur_ltssm(void __iomem *pbase_addr, enum ports nport, uint8_t *pltssm);
+int tc956x_logstat_get_pcie_cur_dll(void __iomem *pbase_addr, enum ports nport, uint8_t *pdll);
+int tc956x_logstat_get_pcie_cur_speed(void __iomem *pbase_addr, enum ports nport, uint8_t *pspeed_val);
+int tc956x_logstat_get_pcie_cur_width(void __iomem *pbase_addr, enum ports nport, uint8_t *plane_width_val);
+int tc956x_logstat_set_state_log_enable(void __iomem *pbase_addr, enum ports nport, enum state_log_enable enable);
 #endif /* #ifdef TC956X_PCIE_LOGSTAT */
 #endif /* __TC956X_PCIE_LOGSTAT_H__ */

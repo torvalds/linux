@@ -39,6 +39,8 @@
  *  VERSION     : 01-00-13
  *  04 Nov 2021 : 1. Added separate control functons for MAC TX and RX start/stop
  *  VERSION     : 01-00-20
+ *  26 Dec 2023 : 1. Added the support for TC commands taprio and flower
+ *  VERSION     : 01-03-59
  */
 
 #ifndef __TC956XMAC_HWIF_H__
@@ -46,6 +48,7 @@
 
 #include <linux/netdevice.h>
 #include "tc956xmac_inc.h"
+#include <linux/version.h>
 
 #define tc956xmac_do_void_callback(__priv, __module, __cname,  __arg0, __args...) \
 ({ \
@@ -63,6 +66,15 @@
 		__result = (__priv)->hw->__module->__cname(__priv, (__arg0), ##__args); \
 	__result; \
 })
+#define tc956xmac_do_void_no_param_callback(__priv, __module, __cname) \
+({ \
+	int __result = -EINVAL; \
+	if ((__priv)->hw->__module && (__priv)->hw->__module->__cname) { \
+		(__priv)->hw->__module->__cname(__priv); \
+		__result = 0; \
+	} \
+	__result; \
+})
 
 struct tc956xmac_priv;
 struct tc956xmac_extra_stats;
@@ -70,6 +82,11 @@ struct tc956xmac_safety_stats;
 struct dma_desc;
 struct dma_extended_desc;
 struct dma_edesc;
+
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+struct fn_id;
+enum mbx_msg_fns;
+#endif
 
 /* Descriptors helpers */
 struct tc956xmac_desc_ops {
@@ -279,8 +296,13 @@ struct tc956xmac_dma_ops {
 	tc956xmac_do_void_callback(__priv, dma, dump_regs, __args)
 #define tc956xmac_dma_rx_mode(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, dma, dma_rx_mode, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_dma_tx_mode(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, dma, dma_tx_mode, __args)
+#elif (defined TC956X_SRIOV_VF)
+#define tc956xmac_dma_tx_mode(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, dma_tx_mode, __args)
+#endif
 #define tc956xmac_dma_diagnostic_fr(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, dma, dma_diagnostic_fr, __args)
 #define tc956xmac_enable_dma_transmission(__priv, __args...) \
@@ -361,7 +383,7 @@ struct tc956xmac_ops {
 	void (*prog_mtl_tx_algorithms)(struct tc956xmac_priv *priv, struct mac_device_info *hw, u32 tx_alg);
 	/* Set MTL TX queues weight */
 	void (*set_mtl_tx_queue_weight)(struct tc956xmac_priv *priv, struct mac_device_info *hw,
-					u32 weight, u32 queue);
+					u32 weight, u32 tc);
 	/* RX MTL queue to RX dma mapping */
 	void (*map_mtl_to_dma)(struct tc956xmac_priv *priv, struct mac_device_info *hw, u32 queue, u32 chan);
 	/* Configure AV Algorithm */
@@ -474,20 +496,56 @@ struct tc956xmac_ops {
 	tc956xmac_do_void_callback(__priv, mac, rx_queue_enable, __args)
 #define tc956xmac_rx_queue_prio(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, rx_queue_prio, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_tx_queue_prio(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, tx_queue_prio, __args)
+#elif (defined TC956X_SRIOV_VF)
+#define tc956xmac_tx_queue_prio(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, tx_queue_prio, __args)
+#endif
 #define tc956xmac_rx_queue_routing(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, rx_queue_routing, __args)
 #define tc956xmac_prog_mtl_rx_algorithms(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, prog_mtl_rx_algorithms, __args)
 #define tc956xmac_prog_mtl_tx_algorithms(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, prog_mtl_tx_algorithms, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_set_mtl_tx_queue_weight(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, set_mtl_tx_queue_weight, __args)
+#elif (defined TC956X_SRIOV_VF)
+#define tc956xmac_set_mtl_tx_queue_weight(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, set_mtl_tx_queue_weight, __args)
+#endif
+
 #define tc956xmac_map_mtl_to_dma(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, map_mtl_to_dma, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_config_cbs(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, config_cbs, __args)
+#elif defined TC956X_SRIOV_VF
+#define tc956xmac_config_cbs(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, config_cbs, __args)
+#endif
+
+#ifdef TC956X_SRIOV_VF
+#define tc956x_phy_link(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, phy_link, __args)
+#define tc956x_setup_mbx_etf(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, setup_mbx_etf, __args)
+#define tc956x_get_drv_cap(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, get_drv_cap, __args)
+#define tc956x_rx_crc(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, rx_crc, __args)
+#define tc956x_rx_dma_ch_tlptr(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, rx_dma_ch_tlptr, __args)
+#define tc956x_rx_dma_err(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, rx_dma_err, __args)
+#define tc956x_rx_csum(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, rx_csum, __args)
+#define tc956x_mbx_flr(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, pf_flr, __args)
+#endif
+
 #define tc956xmac_dump_mac_regs(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, dump_regs, __args)
 #define tc956xmac_host_irq_status(__priv, __args...) \
@@ -500,14 +558,29 @@ struct tc956xmac_ops {
 	tc956xmac_do_void_callback(__priv, mac, flow_ctrl, __args)
 #define tc956xmac_pmt(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, pmt, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_set_umac_addr(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, set_umac_addr, __args)
+#elif (defined TC956X_SRIOV_VF)
+#define tc956xmac_set_umac_addr(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, set_umac_addr, __args)
+#endif
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_get_umac_addr(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, get_umac_addr, __args)
+#elif (defined TC956X_SRIOV_VF)
+#define tc956xmac_get_umac_addr(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, get_umac_addr, __args)
+#endif
 #define tc956xmac_set_eee_mode(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, set_eee_mode, __args)
+#ifdef TC956X_SRIOV_VF
+#define tc956xmac_reset_eee_mode(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, reset_eee_mode, __args)
+#else
 #define tc956xmac_reset_eee_mode(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, reset_eee_mode, __args)
+#endif
 #define tc956xmac_set_eee_timer(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, set_eee_timer, __args)
 #define tc956xmac_set_eee_pls(__priv, __args...) \
@@ -544,8 +617,13 @@ struct tc956xmac_ops {
 	tc956xmac_do_callback(__priv, mac, rss_configure, __args)
 #define tc956xmac_update_vlan_hash(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, update_vlan_hash, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_delete_vlan(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, delete_vlan, __args)
+#else //TC956X_SRIOV_PF
+#define tc956xmac_delete_vlan(__priv, __args...) \
+			tc956xmac_do_void_callback(__priv, mbx_wrapper, delete_vlan, __args)
+#endif
 #define tc956xmac_enable_vlan(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, enable_vlan, __args)
 #ifdef TC956X
@@ -578,7 +656,53 @@ struct tc956xmac_ops {
 	tc956xmac_do_void_callback(__priv, mac, set_ptp_offload, __args)
 #define tc956xmac_jumbo_en(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mac, jumbo_en, __args)
+#ifdef TC956X_SRIOV_VF
+#define tc956xmac_get_speed(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, get_speed, __args)
+#define tc956xmac_get_est(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, get_est, __args)
+#define tc956xmac_set_est(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, set_est, __args)
+#define tc956xmac_get_rxp(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, get_rxp, __args)
+#define tc956xmac_set_rxp(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, set_rxp, __args)
+#define tc956xmac_get_fpe(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, get_fpe, __args)
+#define tc956xmac_set_fpe(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, set_fpe, __args)
+#define tc956xmac_reg_wr(__priv, __args...) \
+			tc956xmac_do_callback(__priv, mbx_wrapper, reg_wr, __args)
 
+#define tc956xmac_get_cbs(__priv, __args...) \
+			tc956xmac_do_callback(__priv, mbx_wrapper, get_cbs, __args)
+
+#define tc956xmac_set_cbs(__priv, __args...) \
+			tc956xmac_do_callback(__priv, mbx_wrapper, set_cbs, __args)
+
+#define tc956xmac_ethtool_get_pauseparam(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, get_pause_param, __args)
+
+#define tc956xmac_ethtool_get_eee(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, get_eee, __args)
+
+
+#define tc956xmac_add_mac(__priv, __args...) \
+			tc956xmac_do_callback(__priv, mbx_wrapper, add_mac, __args)
+
+#define tc956xmac_delete_mac(__priv, __args...) \
+			tc956xmac_do_void_callback(__priv, mbx_wrapper, delete_mac, __args)
+
+#define tc956xmac_add_vlan(__priv, __args...) \
+			tc956xmac_do_void_callback(__priv, mbx_wrapper, add_vlan, __args)
+#endif
+#ifdef TC956X_SRIOV_VF
+#define tc956xmac_get_link_status(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, get_link_status, __args)
+
+#define tc956xmac_vf_reset(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, vf_reset, __args)
+#endif
 /* PTP and HW Timer helpers */
 struct tc956xmac_hwtimestamp {
 	void (*config_hw_tstamping)(struct tc956xmac_priv *priv, void __iomem *ioaddr, u32 data);
@@ -631,11 +755,15 @@ struct tc956xmac_mode_ops {
 #define tc956xmac_clean_desc3(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mode, clean_desc3, __args)
 
+#ifdef TC956X_SRIOV_PF
+struct tc956xmac_priv;
+#endif
 struct tc_cls_u32_offload;
 struct tc_cbs_qopt_offload;
 struct flow_cls_offload;
 struct tc_taprio_qopt_offload;
 struct tc_etf_qopt_offload;
+struct tc_query_caps_base;
 
 struct tc956xmac_tc_ops {
 	int (*init)(struct tc956xmac_priv *priv, void *data);
@@ -649,20 +777,31 @@ struct tc956xmac_tc_ops {
 			    struct tc_taprio_qopt_offload *qopt);
 	int (*setup_etf)(struct tc956xmac_priv *priv,
 			 struct tc_etf_qopt_offload *qopt);
+	int (*query_caps)(struct tc956xmac_priv *priv,
+			 struct tc_query_caps_base *base);
 };
 
 #define tc956xmac_tc_init(__priv, __args...) \
 	tc956xmac_do_callback(__priv, tc, init, __args)
 #define tc956xmac_tc_setup_cls_u32(__priv, __args...) \
 	tc956xmac_do_callback(__priv, tc, setup_cls_u32, __args)
+#ifdef TC956X_SRIOV_PF
 #define tc956xmac_tc_setup_cbs(__priv, __args...) \
 	tc956xmac_do_callback(__priv, tc, setup_cbs, __args)
+#elif (defined TC956X_SRIOV_VF)
+#define tc956xmac_tc_setup_cbs(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx_wrapper, setup_cbs, __args)
+#endif
 #define tc956xmac_tc_setup_cls(__priv, __args...) \
 	tc956xmac_do_callback(__priv, tc, setup_cls, __args)
 #define tc956xmac_tc_setup_taprio(__priv, __args...) \
 	tc956xmac_do_callback(__priv, tc, setup_taprio, __args)
 #define tc956xmac_tc_setup_etf(__priv, __args...) \
 	tc956xmac_do_callback(__priv, tc, setup_etf, __args)
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(6, 2, 16))
+#define tc956xmac_tc_setup_query_cap(__priv, __args...) \
+	tc956xmac_do_callback(__priv, tc, query_caps, __args)
+#endif
 
 struct tc956xmac_counters;
 
@@ -679,9 +818,210 @@ struct tc956xmac_mmc_ops {
 #define tc956xmac_mmc_read(__priv, __args...) \
 	tc956xmac_do_void_callback(__priv, mmc, read, __args)
 
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+struct mac_rsc_mng_ops {
+#ifdef TC956X_SRIOV_VF
+	int (*init)(struct tc956xmac_priv *priv, struct net_device *dev);
+#endif
+	int (*get_fn_id)(struct tc956xmac_priv *priv, void __iomem *reg_pci_bridge_config_addr, struct fn_id *fn_id_info);
+	/*rscs[4] = {PFx_DMA_bit_pattern, VF0_DMA_bit_pattern, VF1_DMA_bit_pattern, VF2_DMA_bit_pattern}*/
+	void (*set_rscs)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *rscs);
+	/*resource allocated rscs - bit pattern [DMA7 bit-7] ... ... ... [DMA0 bit-0]*/
+	void (*get_rscs)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *rscs);
+};
+#endif
+
+#ifdef TC956X_SRIOV_VF
+#define tc956xmac_rsc_mng_init(__priv, __args...) \
+	tc956xmac_do_callback(__priv, rsc, init, __args)
+#endif
+#define tc956xmac_rsc_mng_get_fn_id(__priv, __args...) \
+	tc956xmac_do_callback(__priv, rsc, get_fn_id, __args)
+#define tc956xmac_rsc_mng_set_rscs(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, rsc, set_rscs, __args)
+#define tc956xmac_rsc_mng_get_rscs(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, rsc, get_rscs, __args)
+
+#ifdef TC956X_SRIOV_VF
+/* Specific mailbox helpers */
+struct tc956xmac_mbx_wrapper_ops {
+	void (*dma_tx_mode)(struct tc956xmac_priv *priv, int mode, u32 channel,
+			    int fifosz, u8 qmode);
+	void (*get_umac_addr)(struct tc956xmac_priv *priv, unsigned char *addr,
+			      unsigned int reg_n);
+	int (*set_umac_addr)(struct tc956xmac_priv *priv, unsigned char *addr,
+			      unsigned int reg_n);
+	/* Set MTL TX queues weight */
+	void (*set_mtl_tx_queue_weight)(struct tc956xmac_priv *priv,
+					u32 weight, u32 traffic_class);
+	/* Configure AV Algorithm */
+	void (*config_cbs)(struct tc956xmac_priv *priv, u32 send_slope,
+			   u32 idle_slope, u32 high_credit, u32 low_credit,
+			   u32 queue);
+	int (*setup_cbs)(struct tc956xmac_priv *priv, struct tc_cbs_qopt_offload *qopt);
+	/* TX Queues Priority */
+	void (*tx_queue_prio)(struct tc956xmac_priv *priv, u32 prio, u32 queue);
+	/* Get PF link status */
+	void (*get_link_status)(struct tc956xmac_priv *priv, u32 *link_status,
+				u32 *speed, u32 *duplex);
+	/* PHY Link state change from PF */
+	int (*phy_link)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	int (*setup_mbx_etf)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	/* Get driver Capabilities from PF */
+	void (*get_drv_cap)(struct tc956xmac_priv *priv, struct tc956xmac_priv *priv1);
+	void (*reset_eee_mode)(struct tc956xmac_priv *priv, struct mac_device_info *hw);
+	void (*vf_reset)(struct tc956xmac_priv *priv, u8 vf_status);
+	/* Rx CRC state update from PF */
+	int (*rx_crc)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	int (*rx_dma_ch_tlptr)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	int (*rx_dma_err)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	/* Rx checksum state update from PF */
+	int (*rx_csum)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	int (*pf_flr)(struct tc956xmac_priv *priv, u8 *msg_buf, u8 *ack_msg);
+	int (*get_cbs)(struct tc956xmac_priv *priv, void __user *data);
+	int (*set_cbs)(struct tc956xmac_priv *priv, void __user *data);
+	int (*get_est)(struct tc956xmac_priv *priv,	void __user *data);
+	int (*set_est)(struct tc956xmac_priv *priv,	void __user *data);
+	int (*get_rxp)(struct tc956xmac_priv *priv,	void __user *data);
+	int (*set_rxp)(struct tc956xmac_priv *priv,	void __user *data);
+	int (*get_fpe)(struct tc956xmac_priv *priv, void __user *data);
+	int (*set_fpe)(struct tc956xmac_priv *priv, void __user *data);
+	int (*get_speed)(struct tc956xmac_priv *priv, void __user *data);
+	int (*reg_wr)(struct tc956xmac_priv *priv, void __user *data);
+	int (*get_pause_param)(struct tc956xmac_priv *priv, struct ethtool_pauseparam *pause);
+	int (*get_eee)(struct tc956xmac_priv *priv,  struct ethtool_eee *edata);
+	int (*get_ts_info)(struct tc956xmac_priv *priv, struct ethtool_ts_info *info);
+	int (*add_mac)(struct tc956xmac_priv *priv,  const u8 *mac);
+	void (*delete_mac)(struct tc956xmac_priv *priv, const u8 *mac);
+	void (*delete_vlan)(struct tc956xmac_priv *priv, u16 vid);
+	void (*add_vlan)(struct tc956xmac_priv *priv, u16 vid);
+};
+#endif
+
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+struct mac_mbx_ops {
+	void (*init)(struct tc956xmac_priv *priv, void *data);
+	int (*read)(struct tc956xmac_priv *priv, u8 *msg_buff,
+		enum mbx_msg_fns msg_src, struct fn_id *fn_id_info);
+	int (*write)(struct tc956xmac_priv *priv, u8 *msg_buff,
+		enum mbx_msg_fns msg_dst, struct fn_id *fn_id_info);
+	void (*send_ack)(struct tc956xmac_priv *priv, u8 *msg_buff,
+		enum mbx_msg_fns msg_dst, struct fn_id *fn_id_info);
+	/* normally interrupt method is used.
+	 * But for ACK/NACK checking this can be used.
+	 */
+	int (*poll_for_ack)(struct tc956xmac_priv *priv, enum mbx_msg_fns msg_src);
+};
+
+#define tc956xmac_mbx_init(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx, init, __args)
+#define tc956xmac_mbx_read(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx, read, __args)
+#define tc956xmac_mbx_write(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx, write, __args)
+#define tc956xmac_mbx_send_ack(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, mbx, send_ack, __args)
+#define tc956xmac_mbx_poll_for_ack(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx, poll_for_ack, __args)
+#endif /* #ifdef TC956X_SRIOV_PF/VF */
+
+#ifdef TC956X_SRIOV_PF
+
+struct tc956x_msi_ops {
+	void (*init)(struct tc956xmac_priv *priv, struct net_device *dev);
+	void (*interrupt_en)(struct tc956xmac_priv *priv, struct net_device *dev, u32 en);
+	void (*interrupt_clr)(struct tc956xmac_priv *priv, struct net_device *dev, u32 vector);
+};
+
+#define tc956x_msi_init(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, msi, init, __args)
+#define tc956x_msi_intr_en(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, msi, interrupt_en, __args)
+#define tc956x_msi_intr_clr(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, msi, interrupt_clr, __args)
+
+/* Specific mailbox helpers */
+struct tc956x_mbx_wrapper_ops {
+	void (*phy_link)(struct tc956xmac_priv *priv);
+	int (*set_dma_tx_mode)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*set_mtl_tx_queue_weight)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*config_cbs)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*setup_cbs)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*setup_mbx_etf)(struct tc956xmac_priv *priv, u32 ch, u8 vf);
+	int (*tx_queue_prio)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*vf_get_link_status)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	void (*rx_crc)(struct tc956xmac_priv *priv);
+	void (*rx_csum)(struct tc956xmac_priv *priv);
+	void (*pf_flr)(struct tc956xmac_priv *priv);
+	int (*reset_eee_mode)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*get_umac_addr)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*set_umac_addr)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*vf_reset)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*get_drv_cap)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff);
+	int (*vf_ioctl)(struct tc956xmac_priv *priv, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*vf_ethtool)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *mbx_buff, u8 *ack_buff);
+	int (*add_mac)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*delete_mac)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*add_vlan)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*delete_vlan)(struct tc956xmac_priv *priv, struct net_device *dev, u8 *mbx_buff, u8 *ack_buff, u8 vf_no);
+	int (*rx_dma_ch_tlptr)(struct tc956xmac_priv *priv, u32 ch, u8 vf_no);
+	int (*rx_dma_err)(struct tc956xmac_priv *priv, u8 vf_no);
+};
+
+#define tc956x_mbx_wrap_phy_link(__priv) \
+	tc956xmac_do_void_no_param_callback(__priv, mbx_wrapper, phy_link)
+#define tc956x_mbx_wrap_set_dma_tx_mode(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, set_dma_tx_mode, __args)
+#define tc956x_mbx_wrap_set_mtl_tx_queue_weight(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, set_mtl_tx_queue_weight, __args)
+#define tc956x_mbx_wrap_config_cbs(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, config_cbs, __args)
+#define tc956x_mbx_wrap_setup_cbs(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, setup_cbs, __args)
+#define tc956x_mbx_wrap_setup_etf(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, setup_mbx_etf, __args)
+#define tc956x_mbx_wrap_tx_queue_prior(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, tx_queue_prio, __args)
+#define tc956x_mbx_wrap_get_link_status(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, vf_get_link_status, __args)
+#define tc956x_mbx_wrap_set_rx_crc(__priv, __args...) \
+	tc956xmac_do_void_no_param_callback(__priv, mbx_wrapper, rx_crc)
+#define tc956x_mbx_wrap_set_rx_csum(__priv, __args...) \
+	tc956xmac_do_void_no_param_callback(__priv, mbx_wrapper, rx_csum)
+#define tc956x_mbx_wrap_pf_flr(__priv, __args...) \
+	tc956xmac_do_void_no_param_callback(__priv, mbx_wrapper, pf_flr)
+#define tc956x_mbx_wrap_rx_dma_ch_tlptr(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, rx_dma_ch_tlptr, __args)
+#define tc956x_mbx_wrap_rx_dma_err(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, rx_dma_err, __args)
+#define tc956x_mbx_wrap_reset_eee_mode(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, reset_eee_mode, __args)
+#define tc956x_mbx_wrap_get_umac_addr(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, get_umac_addr, __args)
+#define tc956x_mbx_wrap_set_umac_addr(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, set_umac_addr, __args)
+#define tc956x_mbx_wrap_get_drv_cap(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, get_drv_cap, __args)
+#define tc956x_mbx_wrap_vf_reset(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, vf_reset, __args)
+#define tc956xmac_mbx_ioctl_interface(__priv, __args...) \
+	tc956xmac_do_callback(__priv, mbx_wrapper, vf_ioctl, __args)
+#define tc956xmac_mbx_ethtool_interface(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, vf_ethtool, __args)
+
+#define tc956xmac_mbx_add_mac(__priv, __args...) \
+		tc956xmac_do_callback(__priv, mbx_wrapper, add_mac, __args)
+#define tc956xmac_mbx_delete_mac(__priv, __args...) \
+			tc956xmac_do_callback(__priv, mbx_wrapper, delete_mac, __args)
+#define tc956xmac_mbx_add_vlan(__priv, __args...) \
+			tc956xmac_do_callback(__priv, mbx_wrapper, add_vlan, __args)
+#define tc956xmac_mbx_delete_vlan(__priv, __args...) \
+				tc956xmac_do_callback(__priv, mbx_wrapper, delete_vlan, __args)
+
+#endif /* TC956X_SRIOV_PF */
+
 #ifdef TC956X
 /*PMA module*/
-
 struct tc956xmac_pma_ops {
 	int (*init)(struct tc956xmac_priv *priv, void __iomem *pmaaddr);
 };
@@ -700,6 +1040,21 @@ struct tc956xmac_regs_off {
 #endif
 };
 
+#ifdef TC956X_SRIOV_VF
+struct tc956x_msi_ops {
+	void (*init)(struct tc956xmac_priv *priv, struct net_device *dev, struct fn_id *fn_id_info);
+	void (*interrupt_en)(struct tc956xmac_priv *priv, struct net_device *dev, u32 en, struct fn_id *fn_id_info);
+	void (*interrupt_clr)(struct tc956xmac_priv *priv, struct net_device *dev, u32 vector, struct fn_id *fn_id_info);
+};
+
+#define tc956x_msi_init(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, msi, init, __args)
+#define tc956x_msi_intr_en(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, msi, interrupt_en, __args)
+#define tc956x_msi_intr_clr(__priv, __args...) \
+	tc956xmac_do_void_callback(__priv, msi, interrupt_clr, __args)
+#endif
+
 extern const struct tc956xmac_ops dwmac100_ops;
 extern const struct tc956xmac_dma_ops dwmac100_dma_ops;
 extern const struct tc956xmac_ops dwmac1000_ops;
@@ -717,6 +1072,17 @@ extern const struct tc956xmac_mmc_ops dwmac_mmc_ops;
 extern const struct tc956xmac_mmc_ops dwxgmac_mmc_ops;
 #ifdef TC956X
 extern const struct tc956xmac_pma_ops tc956x_pma_ops;
+#endif
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+extern const struct tc956x_msi_ops tc956x_msigen_ops;
+extern const struct mac_rsc_mng_ops tc956xmac_rsc_mng_ops;
+extern const struct mac_mbx_ops tc956xmac_mbx_ops;
+#endif
+
+#ifdef TC956X_SRIOV_PF
+extern const struct tc956x_mbx_wrapper_ops tc956xmac_mbx_wrapper_ops;
+#elif defined TC956X_SRIOV_VF
+extern const struct tc956xmac_mbx_wrapper_ops tc956xmac_mbx_wrapper_ops;
 #endif
 
 #define GMAC_VERSION		(MAC_OFFSET + 0x00000020)	/* GMAC CORE Version */

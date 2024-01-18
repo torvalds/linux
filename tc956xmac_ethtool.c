@@ -4,7 +4,7 @@
  * tc956xmac_ethtool.c - Ethtool support
  *
  * Copyright (C) 2007-2009  STMicroelectronics Ltd
- * Copyright (C) 2021 Toshiba Electronic Devices & Storage Corporation
+ * Copyright (C) 2023 Toshiba Electronic Devices & Storage Corporation
  *
  * This file has been derived from the STMicro Linux driver,
  * and developed or modified for TC956X.
@@ -52,15 +52,20 @@
  *  VERSION     : 01-00-41
  *  22 Mar 2022 : 1. PCI bus info updated for ethtool get driver version
  *  VERSION     : 01-00-46
+ *  10 Nov 2023 : 1. Kernel 6.1 Porting changes
+ *  VERSION     : 01-02-59
  */
 
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/mii.h>
+#ifndef TC956X_SRIOV_VF
 #include <linux/phylink.h>
+#endif  /* TC956X_SRIOV_VF */
 #include <linux/net_tstamp.h>
 #include <asm/io.h>
+#include <linux/iopoll.h>
 
 #include "tc956xmac.h"
 #include "dwxgmac2.h"
@@ -68,10 +73,23 @@
 #define REG_SPACE_SIZE	11512/*Total Reg Len*/
 #define MAC100_ETHTOOL_NAME	"tc956x_mac100"
 #define GMAC_ETHTOOL_NAME	"tc956x_gmac"
+#ifdef TC956X_SRIOV_PF
 #define XGMAC_ETHTOOL_NAME	TC956X_RESOURCE_NAME
-
+#elif defined TC956X_SRIOV_VF
+#define XGMAC_ETHTOOL_NAME	"tc956x_vf_pcie_eth"
+#endif
 #define ETHTOOL_DMA_OFFSET	55
-
+#ifdef TC956X_SRIOV_DEBUG
+extern void tc956x_filter_debug(struct tc956xmac_priv *priv);
+#endif
+#ifndef TC956X_SRIOV_VF
+void tc956xmac_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *pause);
+int tc956xmac_ethtool_op_get_eee(struct net_device *dev, struct ethtool_eee *edata);
+#endif
+#ifdef TC956X_5_G_2_5_G_EEE_SUPPORT
+#define TC956X_ADVERTISED_2500baseT_Full ETHTOOL_LINK_MODE_2500baseT_Full_BIT
+#define TC956X_ADVERTISED_5000baseT_Full ETHTOOL_LINK_MODE_5000baseT_Full_BIT
+#endif
 struct tc956xmac_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -706,6 +724,18 @@ static const struct tc956xmac_stats tc956xmac_gstrings_stats[] = {
 	TC956XMAC_STAT(m3_rx_pcie_addr_loc_port1[6]),
 	TC956XMAC_STAT(m3_rx_pcie_addr_loc_port1[7]),
 
+#ifdef TC956X_SRIOV_PF
+	TC956XMAC_STAT(mbx_pf_sent_vf[0]),
+	TC956XMAC_STAT(mbx_pf_sent_vf[1]),
+	TC956XMAC_STAT(mbx_pf_sent_vf[2]),
+	TC956XMAC_STAT(mbx_pf_rcvd_vf[0]),
+	TC956XMAC_STAT(mbx_pf_rcvd_vf[1]),
+	TC956XMAC_STAT(mbx_pf_rcvd_vf[2]),
+#else
+	TC956XMAC_STAT(mbx_vf_sent_pf),
+	TC956XMAC_STAT(mbx_vf_rcvd_pf),
+#endif
+
 };
 #define TC956XMAC_STATS_LEN ARRAY_SIZE(tc956xmac_gstrings_stats)
 
@@ -805,6 +835,77 @@ static const struct tc956xmac_stats tc956xmac_mmc[] = {
 };
 #define TC956XMAC_MMC_STATS_LEN ARRAY_SIZE(tc956xmac_mmc)
 
+#ifdef TC956X_SRIOV_VF
+/* SW counters */
+#define TC956X_SW_STAT(m)	\
+	{ #m, sizeof_field(struct tc956x_sw_counters, m),	\
+	offsetof(struct tc956xmac_priv, sw_stats.m)}
+
+static const struct tc956xmac_stats tc956x_sw[] = {
+	TC956X_SW_STAT(tx_frame_count_good_bad),
+	TC956X_SW_STAT(rx_frame_count_good_bad),
+	TC956X_SW_STAT(rx_frame_count_good),
+	TC956X_SW_STAT(rx_fame_count_bad),
+	TC956X_SW_STAT(rx_packet_good_octets),
+	TC956X_SW_STAT(rx_header_good_octets),
+	TC956X_SW_STAT(rx_av_tagged_datapacket_count),
+	TC956X_SW_STAT(rx_av_tagged_controlpacket_count),
+	TC956X_SW_STAT(rx_nonav_packet_count),
+	TC956X_SW_STAT(rx_tunnel_packet_count),
+	TC956X_SW_STAT(rx_non_ip_pkt_count),
+	TC956X_SW_STAT(rx_ipv4_tcp_pkt_count),
+	TC956X_SW_STAT(rx_ipv4_udp_pkt_count),
+	TC956X_SW_STAT(rx_ipv4_icmp_pkt_count),
+	TC956X_SW_STAT(rx_ipv4_igmp_pkt_count),
+	TC956X_SW_STAT(rx_ipv4_unkown_pkt_count),
+	TC956X_SW_STAT(rx_ipv6_tcp_pkt_count),
+	TC956X_SW_STAT(rx_ipv6_udp_pkt_count),
+	TC956X_SW_STAT(rx_ipv6_icmp_pkt_count),
+	TC956X_SW_STAT(rx_ipv6_unkown_pkt_count),
+	TC956X_SW_STAT(rx_err_wd_timeout_count),
+	TC956X_SW_STAT(rx_err_gmii_inv_count),
+	TC956X_SW_STAT(rx_err_crc_count),
+	TC956X_SW_STAT(rx_err_giant_count),
+	TC956X_SW_STAT(rx_err_checksum_count),
+	TC956X_SW_STAT(rx_err_overflow_count),
+	TC956X_SW_STAT(rx_err_bus_count),
+	TC956X_SW_STAT(rx_err_pkt_len_count),
+	TC956X_SW_STAT(rx_err_runt_pkt_count),
+	TC956X_SW_STAT(rx_err_dribble_count),
+	TC956X_SW_STAT(rx_err_t_out_ip_header_count),
+	TC956X_SW_STAT(rx_err_t_out_ip_pl_l4_csum_count),
+	TC956X_SW_STAT(rx_err_t_in_ip_header_count),
+	TC956X_SW_STAT(rx_err_t_in_ip_pl_l4_csum_count),
+	TC956X_SW_STAT(rx_err_t_invalid_vlan_header),
+	TC956X_SW_STAT(rx_l2_len_pkt_count),
+	TC956X_SW_STAT(rx_l2_mac_control_pkt_count),
+	TC956X_SW_STAT(rx_l2_dcb_control_pkt_count),
+	TC956X_SW_STAT(rx_l2_arp_pkt_count),
+	TC956X_SW_STAT(rx_l2_oam_type_pkt_count),
+	TC956X_SW_STAT(rx_l2_untg_typ_match_pkt_count),
+	TC956X_SW_STAT(rx_l2_other_type_pkt_count),
+	TC956X_SW_STAT(rx_l2_single_svlan_pkt_count),
+	TC956X_SW_STAT(rx_l2_single_cvlan_pkt_count),
+	TC956X_SW_STAT(rx_l2_d_cvlan_cvlan_pkt_count),
+	TC956X_SW_STAT(rx_l2_d_svlan_svlan_pkt_count),
+	TC956X_SW_STAT(rx_l2_d_svlan_cvlan_pkt_count),
+	TC956X_SW_STAT(rx_l2_d_cvlan_svlan_pkt_count),
+	TC956X_SW_STAT(rx_l2_untg_av_control_pkt_count),
+	TC956X_SW_STAT(rx_ptp_no_msg),
+	TC956X_SW_STAT(rx_ptp_msg_type_sync),
+	TC956X_SW_STAT(rx_ptp_msg_type_follow_up),
+	TC956X_SW_STAT(rx_ptp_msg_type_delay_req),
+	TC956X_SW_STAT(rx_ptp_msg_type_delay_resp),
+	TC956X_SW_STAT(rx_ptp_msg_type_pdelay_req),
+	TC956X_SW_STAT(rx_ptp_msg_type_pdelay_resp),
+	TC956X_SW_STAT(rx_ptp_msg_type_pdelay_follow_up),
+	TC956X_SW_STAT(rx_ptp_msg_type_announce),
+	TC956X_SW_STAT(rx_ptp_msg_type_management),
+	TC956X_SW_STAT(rx_ptp_msg_pkt_signaling),
+	TC956X_SW_STAT(rx_ptp_msg_pkt_reserved_type),
+};
+#define TC956X_SW_STATS_LEN ARRAY_SIZE(tc956x_sw)
+#endif
 static const char tc956x_priv_flags_strings[][ETH_GSTRING_LEN] = {
 #define TC956XMAC_TX_FCS	BIT(0)
 "tx-fcs",
@@ -845,7 +946,7 @@ static void tc956xmac_ethtool_getdrvinfo(struct net_device *dev,
 
 	info->n_priv_flags = TC956X_PRIV_FLAGS_STR_LEN;
 }
-
+#ifndef TC956X_SRIOV_VF
 static int tc956xmac_ethtool_get_link_ksettings(struct net_device *dev,
 					     struct ethtool_link_ksettings *cmd)
 {
@@ -961,11 +1062,13 @@ tc956xmac_ethtool_set_link_ksettings(struct net_device *dev,
 			ADVERTISED_10baseT_Full);
 
 		mutex_lock(&priv->lock);
+#ifndef TC956X_SRIOV_VF
 #ifdef TC956X
 		tc956x_xpcs_ctrl_ane(priv, 1);
 #else
 		tc956xmac_pcs_ctrl_ane(priv, priv->ioaddr, 1, priv->hw->ps, 0);
 #endif
+#endif /* TC956X_SRIOV_VF */
 		mutex_unlock(&priv->lock);
 
 		return 0;
@@ -980,7 +1083,7 @@ tc956xmac_ethtool_set_link_ksettings(struct net_device *dev,
 		return -ENODEV;
 	return phylink_ethtool_ksettings_set(priv->phylink, cmd);
 }
-
+#endif  /* TC956X_SRIOV_VF */
 static u32 tc956xmac_ethtool_getmsglevel(struct net_device *dev)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
@@ -1012,6 +1115,58 @@ static int tc956xmac_ethtool_get_regs_len(struct net_device *dev)
 	return REG_SPACE_SIZE * sizeof(u32);
 }
 
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_SRIOV_DEBUG
+static u32 rxp_read_frp_stat(struct tc956xmac_priv *priv, void __iomem *ioaddr,
+					    int pos)
+{
+	int ret;
+
+	u32 val;
+
+	/* Wait for ready */
+	ret = readl_poll_timeout(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST,
+			val, !(val & XGMAC_STARTBUSY), 1, 10000);
+	if (ret)
+		return ret;
+
+	/* Write pos */
+	val = pos & XGMAC_ADDR;
+	val |= XGMAC_ACCSEL;
+	writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+	/* Start Read */
+	val |= XGMAC_STARTBUSY;
+	writel(val, ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST);
+
+	/* Wait for done */
+	ret = readl_poll_timeout(ioaddr + XGMAC_MTL_RXP_IACC_CTRL_ST,
+			val, !(val & XGMAC_STARTBUSY), 1, 10000);
+	if (ret) {
+		netdev_err(priv->dev, "timeout error\n");
+		return ret;
+	} else
+		return readl(ioaddr + XGMAC_MTL_RXP_IACC_DATA);
+
+}
+
+static void tc956x_read_frp_stats(struct tc956xmac_priv *priv)
+{
+	u32 ch;
+
+	netdev_info(priv->dev, "For MTL_RXP_Drop_Cnt %d", (0x7FFFFFFF & rxp_read_frp_stat(priv, priv->ioaddr, 0)));
+	netdev_info(priv->dev, "For MTL_RXP_Error_Cnt %d", (0x7FFFFFFF & rxp_read_frp_stat(priv, priv->ioaddr, 1)));
+	netdev_info(priv->dev, "For MTL_RXP_Bypass_Cnt %d", (0x7FFFFFFF & rxp_read_frp_stat(priv, priv->ioaddr, 2)));
+
+	for (ch = 0; ch < TC956XMAC_CH_MAX; ch++) {
+		u32 read_pos = (0x40 + (0x10*ch));
+
+		netdev_info(priv->dev, "For DMA_CH%d_RXP_Accept_Cnt %d", ch, (0x7FFFFFFF & rxp_read_frp_stat(priv, priv->ioaddr, read_pos)));
+	}
+}
+#endif /* TC956X_SRIOV_DEBUG */
+#endif /* TC956X_SRIOV_PF */
+
 static void tc956xmac_ethtool_gregs(struct net_device *dev,
 			  struct ethtool_regs *regs, void *space)
 {
@@ -1020,7 +1175,12 @@ static void tc956xmac_ethtool_gregs(struct net_device *dev,
 
 	tc956xmac_dump_mac_regs(priv, priv->hw, reg_space);
 	tc956xmac_dump_dma_regs(priv, priv->ioaddr, reg_space);
-
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_SRIOV_DEBUG
+	tc956x_read_frp_stats(priv);
+	tc956x_filter_debug(priv);
+#endif
+#endif
 #ifndef TC956X
 	if (!priv->plat->has_xgmac && !priv->plat->has_gmac4) {
 		/* Copy DMA registers to where ethtool expects them */
@@ -1032,15 +1192,28 @@ static void tc956xmac_ethtool_gregs(struct net_device *dev,
 }
 
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
+#ifndef TC956X_SRIOV_VF
 static int tc956xmac_nway_reset(struct net_device *dev)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
 
 	return phylink_ethtool_nway_reset(priv->phylink);
 }
+#endif  /* TC956X_SRIOV_VF */
 #endif
 
+#ifdef TC956X_SRIOV_VF
 static void
+tc956xmac_get_pauseparam(struct net_device *netdev,
+		      struct ethtool_pauseparam *pause)
+{
+	struct tc956xmac_priv *priv = netdev_priv(netdev);
+
+	tc956xmac_ethtool_get_pauseparam(priv, pause);
+}
+#endif
+#ifndef TC956X_SRIOV_VF
+void
 tc956xmac_get_pauseparam(struct net_device *netdev,
 		      struct ethtool_pauseparam *pause)
 {
@@ -1058,6 +1231,7 @@ tc956xmac_get_pauseparam(struct net_device *netdev,
 		pause->tx_pause = (priv->flow_ctrl & FLOW_TX);
 	}
 }
+#endif
 
 static int
 tc956xmac_set_pauseparam(struct net_device *netdev,
@@ -1081,7 +1255,9 @@ tc956xmac_set_pauseparam(struct net_device *netdev,
 			return -EOPNOTSUPP;
 		return 0;
 	} else {
+#ifndef TC956X_SRIOV_VF
 		phylink_ethtool_set_pauseparam(priv->phylink, pause);
+#endif  /* TC956X_SRIOV_VF */
 	}
 	if (pause->rx_pause)
 		new_pause |= FLOW_RX;
@@ -1093,11 +1269,13 @@ tc956xmac_set_pauseparam(struct net_device *netdev,
 				 priv->pause, tx_cnt);
 	return 0;
 }
+
+#ifndef TC956X_SRIOV_VF
 static void tc956xmac_m3fw_stats_read(struct tc956xmac_priv *priv)
 {
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
-	u32 chno, reg_val=0;
+	u32 chno, reg_val = 0;
 
 	for (chno = 0; chno < tx_queues_count; chno++) {
 		/* Tx Underflow count may not match with actual value, as it is 11bit value
@@ -1119,74 +1297,110 @@ static void tc956xmac_m3fw_stats_read(struct tc956xmac_priv *priv)
 			readl(priv->ioaddr + XGMAC_DMA_CH_Rx_WATCHDOG(chno));
 	}
 	/* Reading M3 Debug Counters*/
-	priv->xstats.m3_debug_cnt0 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT0 )));
-	priv->xstats.m3_debug_cnt1 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT1 )));
-	priv->xstats.m3_debug_cnt2 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT2 )));
-	priv->xstats.m3_debug_cnt3 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT3 )));
-	priv->xstats.m3_debug_cnt4 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT4 )));
-	priv->xstats.m3_debug_cnt5 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT5 )));
-	priv->xstats.m3_debug_cnt6 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT6 )));
-	priv->xstats.m3_debug_cnt7 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT7 )));
-	priv->xstats.m3_debug_cnt8 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT8 )));
-	priv->xstats.m3_debug_cnt9 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT9 )));
-	priv->xstats.m3_debug_cnt10 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT10 )));
-	priv->xstats.m3_watchdog_exp_cnt = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT11 )));
-	priv->xstats.m3_watchdog_monitor_cnt = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT12 )));
-	priv->xstats.m3_debug_cnt13 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT13 )));
-	priv->xstats.m3_debug_cnt14 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT14 )));
-	priv->xstats.m3_systick_cnt_upper_value = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT16 )));
-	priv->xstats.m3_systick_cnt_lower_value = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT15 )));
-	priv->xstats.m3_tx_timeout_port0 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT17 )));
-	priv->xstats.m3_tx_timeout_port1 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT18 )));
-	priv->xstats.m3_debug_cnt19 = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT19 )));
+	priv->xstats.m3_debug_cnt0 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT0)));
+	priv->xstats.m3_debug_cnt1 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT1)));
+	priv->xstats.m3_debug_cnt2 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT2)));
+	priv->xstats.m3_debug_cnt3 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT3)));
+	priv->xstats.m3_debug_cnt4 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT4)));
+	priv->xstats.m3_debug_cnt5 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT5)));
+	priv->xstats.m3_debug_cnt6 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT6)));
+	priv->xstats.m3_debug_cnt7 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT7)));
+	priv->xstats.m3_debug_cnt8 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT8)));
+	priv->xstats.m3_debug_cnt9 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT9)));
+	priv->xstats.m3_debug_cnt10 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT10)));
+	priv->xstats.m3_watchdog_exp_cnt = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT11)));
+	priv->xstats.m3_watchdog_monitor_cnt = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT12)));
+	priv->xstats.m3_debug_cnt13 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT13)));
+	priv->xstats.m3_debug_cnt14 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT14)));
+	priv->xstats.m3_systick_cnt_upper_value = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT16)));
+	priv->xstats.m3_systick_cnt_lower_value = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT15)));
+	priv->xstats.m3_tx_timeout_port0 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT17)));
+	priv->xstats.m3_tx_timeout_port1 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT18)));
+	priv->xstats.m3_debug_cnt19 = readl(priv->tc956x_SRAM_pci_base_addr +
+				(TC956X_M3_SRAM_DEBUG_CNTS_OFFSET + (DB_CNT_LEN * DB_CNT19)));
 	for (chno = 0; chno < tx_queues_count; chno++) {
-		priv->xstats.m3_tx_pcie_addr_loc_port0[chno] = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(SRAM_TX_PCIE_ADDR_LOC + (chno * 4 )));
+		priv->xstats.m3_tx_pcie_addr_loc_port0[chno] = readl(priv->tc956x_SRAM_pci_base_addr +
+				(SRAM_TX_PCIE_ADDR_LOC + (chno * 4)));
 	}
 	for (chno = 0; chno < tx_queues_count; chno++) {
-		priv->xstats.m3_tx_pcie_addr_loc_port1[chno] = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(SRAM_TX_PCIE_ADDR_LOC + (TC956XMAC_CH_MAX * 4) + (chno * 4 )));
+		priv->xstats.m3_tx_pcie_addr_loc_port1[chno] = readl(priv->tc956x_SRAM_pci_base_addr +
+				(SRAM_TX_PCIE_ADDR_LOC + (TC956XMAC_CH_MAX * 4) + (chno * 4)));
 	}
 	for (chno = 0; chno < rx_queues_count; chno++) {
-		priv->xstats.m3_rx_pcie_addr_loc_port0[chno] = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(SRAM_RX_PCIE_ADDR_LOC + (chno * 4 )));
+		priv->xstats.m3_rx_pcie_addr_loc_port0[chno] = readl(priv->tc956x_SRAM_pci_base_addr +
+				(SRAM_RX_PCIE_ADDR_LOC + (chno * 4)));
 	}
 	for (chno = 0; chno < rx_queues_count; chno++) {
-		priv->xstats.m3_rx_pcie_addr_loc_port1[chno] = readl(priv->tc956x_SRAM_pci_base_addr + 
-				(SRAM_RX_PCIE_ADDR_LOC + (TC956XMAC_CH_MAX * 4) + (chno * 4 )));
+		priv->xstats.m3_rx_pcie_addr_loc_port1[chno] = readl(priv->tc956x_SRAM_pci_base_addr +
+				(SRAM_RX_PCIE_ADDR_LOC + (TC956XMAC_CH_MAX * 4) + (chno * 4)));
 	}
 
 }
+#endif
 
 static void tc956xmac_get_ethtool_stats(struct net_device *dev,
 				 struct ethtool_stats *dummy, u64 *data)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
+
 	u32 rx_queues_count = priv->plat->rx_queues_to_use;
 	u32 tx_queues_count = priv->plat->tx_queues_to_use;
+#ifndef TC956X_SRIOV_VF
 	unsigned long count;
-	int i, j = 0, ret;
+#endif
+	int i, j = 0;
+#ifndef TC956X_SRIOV_VF
+	int ret;
+#endif
 
+#ifdef TC956X_SRIOV_VF
+
+	/* Copy only the SW stats for VF driver */
+	for (i = 0; i < TC956X_SW_STATS_LEN; i++) {
+		char *p;
+
+		p = (char *)priv + tc956x_sw[i].stat_offset;
+
+		data[j++] = (tc956x_sw[i].sizeof_stat ==
+			     sizeof(u64)) ? (*(u64 *)p) :
+			     (*(u32 *)p);
+	}
+
+	if (priv->synopsys_id >= DWMAC_CORE_3_50 ||
+			priv->synopsys_id == DWXGMAC_CORE_3_01) {
+		tc956xmac_mac_debug(priv, priv->ioaddr,
+				(void *)&priv->xstats,
+				rx_queues_count, tx_queues_count);
+
+		tc956xmac_dma_desc_stats(priv, priv->ioaddr);
+	}
+
+	for (i = 0; i < TC956XMAC_STATS_LEN; i++) {
+		char *p = (char *)priv + tc956xmac_gstrings_stats[i].stat_offset;
+
+		data[j++] = (tc956xmac_gstrings_stats[i].sizeof_stat ==
+			     sizeof(u64)) ? (*(u64 *)p) : (*(u32 *)p);
+	}
+#else
 	if (priv->dma_cap.asp) {
 		for (i = 0; i < TC956XMAC_SAFETY_FEAT_SIZE; i++) {
 			if (!tc956xmac_safety_feat_dump(priv, &priv->sstats, i,
@@ -1213,13 +1427,14 @@ static void tc956xmac_get_ethtool_stats(struct net_device *dev,
 					     (*(u32 *)p);
 			}
 		}
+#ifndef TC956X_SRIOV_VF
 		if (priv->eee_enabled) {
 			int val = phylink_get_eee_err(priv->phylink);
 
 			if (val)
 				priv->xstats.phy_eee_wakeup_error_n = val;
 		}
-
+#endif  /* TC956X_SRIOV_VF */
 		if (priv->synopsys_id >= DWMAC_CORE_3_50 ||
 			priv->synopsys_id == DWXGMAC_CORE_3_01) {
 			tc956xmac_mac_debug(priv, priv->ioaddr,
@@ -1236,15 +1451,23 @@ static void tc956xmac_get_ethtool_stats(struct net_device *dev,
 		data[j++] = (tc956xmac_gstrings_stats[i].sizeof_stat ==
 			     sizeof(u64)) ? (*(u64 *)p) : (*(u32 *)p);
 	}
+#endif
 }
 
 static int tc956xmac_get_sset_count(struct net_device *netdev, int sset)
 {
 	struct tc956xmac_priv *priv = netdev_priv(netdev);
+#ifdef TC956X_SRIOV_VF
+	int len;
+#else
 	int i, len, safety_len = 0;
+#endif
 
 	switch (sset) {
 	case ETH_SS_STATS:
+#ifdef TC956X_SRIOV_VF
+		len = TC956X_SW_STATS_LEN + TC956XMAC_STATS_LEN;
+#else
 		len = TC956XMAC_STATS_LEN;
 
 		if (priv->dma_cap.rmon)
@@ -1259,13 +1482,12 @@ static int tc956xmac_get_sset_count(struct net_device *netdev, int sset)
 
 			len += safety_len;
 		}
-
+#endif
 		return len;
 	case ETH_SS_TEST:
 		return tc956xmac_selftest_get_count(priv);
 	case ETH_SS_PRIV_FLAGS:
 		return TC956X_PRIV_FLAGS_STR_LEN;
-		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1279,6 +1501,13 @@ static void tc956xmac_get_strings(struct net_device *dev, u32 stringset, u8 *dat
 
 	switch (stringset) {
 	case ETH_SS_STATS:
+#ifdef TC956X_SRIOV_VF
+		for (i = 0; i < TC956X_SW_STATS_LEN; i++) {
+			memcpy(p, tc956x_sw[i].stat_string,
+				ETH_GSTRING_LEN);
+			p += ETH_GSTRING_LEN;
+		}
+#else
 		if (priv->dma_cap.asp) {
 			for (i = 0; i < TC956XMAC_SAFETY_FEAT_SIZE; i++) {
 				const char *desc;
@@ -1297,11 +1526,13 @@ static void tc956xmac_get_strings(struct net_device *dev, u32 stringset, u8 *dat
 				       ETH_GSTRING_LEN);
 				p += ETH_GSTRING_LEN;
 			}
+#endif
 		for (i = 0; i < TC956XMAC_STATS_LEN; i++) {
 			memcpy(p, tc956xmac_gstrings_stats[i].stat_string,
 				ETH_GSTRING_LEN);
 			p += ETH_GSTRING_LEN;
 		}
+
 		break;
 	case ETH_SS_TEST:
 		tc956xmac_selftest_get_strings(priv, p);
@@ -1315,6 +1546,8 @@ static void tc956xmac_get_strings(struct net_device *dev, u32 stringset, u8 *dat
 		break;
 	}
 }
+
+#ifndef TC956X_SRIOV_VF
 
 static void tc956xmac_get_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 {
@@ -1359,7 +1592,7 @@ int phy_ethtool_get_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 
 	/* Get Supported EEE */
 	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
-	KPRINT_INFO("%s --- cap: 0x%x\n",__func__,val);
+	KPRINT_INFO("%s --- cap: 0x%x\n", __func__, val);
 	if (val < 0)
 		return val;
 	data->supported = mmd_eee_cap_to_ethtool_sup_t(val);
@@ -1369,8 +1602,8 @@ int phy_ethtool_get_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 	if (val < 0)
 		return val;
 
-	KPRINT_INFO("%s --- adv: 0x%x\n",__func__,val);
-	
+	KPRINT_INFO("%s --- adv: 0x%x\n", __func__, val);
+
 	data->advertised = mmd_eee_adv_to_ethtool_adv_t(val);
 	data->eee_enabled = !!data->advertised;
 
@@ -1378,18 +1611,18 @@ int phy_ethtool_get_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE);
 	if (val < 0)
 		return val;
-	KPRINT_INFO("%s --- lp_adv: 0x%x\n",__func__,val);
-		
+	KPRINT_INFO("%s --- lp_adv: 0x%x\n", __func__, val);
+
 	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(val);
 
-	KPRINT_INFO("%s --- data->advertised: 0x%x\n",__func__,data->advertised);
-	KPRINT_INFO("%s --- data->lp_advertised: 0x%x\n",__func__,data->lp_advertised);
+	KPRINT_INFO("%s --- data->advertised: 0x%x\n", __func__, data->advertised);
+	KPRINT_INFO("%s --- data->lp_advertised: 0x%x\n", __func__, data->lp_advertised);
 
 	data->eee_active = !!(data->advertised & data->lp_advertised);
 
 
-	KPRINT_INFO("%s --- data->eee_enabled: 0x%x\n",__func__,data->eee_enabled);
-	KPRINT_INFO("%s --- data->eee_active: 0x%x\n",__func__,data->eee_active);
+	KPRINT_INFO("%s --- data->eee_enabled: 0x%x\n", __func__, data->eee_enabled);
+	KPRINT_INFO("%s --- data->eee_active: 0x%x\n", __func__, data->eee_active);
 
 	return 0;
 }
@@ -1404,13 +1637,13 @@ int phy_ethtool_set_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 
 	/* Get Supported EEE */
 	cap = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
-	KPRINT_INFO("%s --- cap: 0x%x\n",__func__,cap);
+	KPRINT_INFO("%s --- cap: 0x%x\n", __func__, cap);
 	if (cap < 0)
 		return cap;
 
 
 	old_adv = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
-	KPRINT_INFO("%s --- old_adv:0x%x\n",__func__,old_adv);
+	KPRINT_INFO("%s --- old_adv:0x%x\n", __func__, old_adv);
 	if (old_adv < 0)
 		return old_adv;
 
@@ -1421,7 +1654,7 @@ int phy_ethtool_set_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 		/* Mask prohibited EEE modes */
 		adv &= ~phydev->eee_broken_modes;
 	}
-	KPRINT_INFO("%s --- adv:0x%x\n",__func__,adv);
+	KPRINT_INFO("%s --- adv:0x%x\n", __func__, adv);
 
 	if (old_adv != adv) {
 		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
@@ -1429,7 +1662,7 @@ int phy_ethtool_set_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 			return ret;
 
 		ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV);
-		KPRINT_INFO("%s --- readback adv:0x%x\n",__func__,ret);
+		KPRINT_INFO("%s --- readback adv:0x%x\n", __func__, ret);
 		if (ret < 0)
 			return ret;
 
@@ -1445,12 +1678,12 @@ int phy_ethtool_set_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 	}
 #ifdef TC956X_5_G_2_5_G_EEE_SUPPORT
 	cap2p5 = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE2);
-	KPRINT_INFO("%s --- cap2p5: 0x%x\n",__func__,cap2p5);
+	KPRINT_INFO("%s --- cap2p5: 0x%x\n", __func__, cap2p5);
 	if (cap < 0)
 		return cap;
 
 	old_adv_2p5 = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2);
-	KPRINT_INFO("%s --- old_adv_2p5:0x%x\n",__func__,old_adv_2p5);
+	KPRINT_INFO("%s --- old_adv_2p5:0x%x\n", __func__, old_adv_2p5);
 	if (old_adv_2p5 < 0)
 		return old_adv_2p5;
 
@@ -1460,7 +1693,7 @@ int phy_ethtool_set_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 		/* Mask prohibited EEE modes */
 		adv_2p5 &= ~phydev->eee_broken_modes;
 	}
-	KPRINT_INFO("%s --- adv_2p5:0x%x\n",__func__,adv_2p5);
+	KPRINT_INFO("%s --- adv_2p5:0x%x\n", __func__, adv_2p5);
 
 	if (old_adv_2p5 != adv_2p5) {
 		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2, adv_2p5);
@@ -1483,30 +1716,44 @@ int phy_ethtool_set_eee_local(struct phy_device *phydev, struct ethtool_eee *dat
 #endif
 
 #ifdef TC956X_5_G_2_5_G_EEE_SUPPORT
+
+static inline u16 tc956x_ethtool_adv_to_mmd_eee_adv2_t(u32 adv)
+{
+	u16 reg = 0;
+
+	if (adv & TC956X_ADVERTISED_2500baseT_Full)
+		reg |= MDIO_EEE_2_5GT;
+	if (adv & TC956X_ADVERTISED_5000baseT_Full)
+		reg |= MDIO_EEE_5GT;
+
+	return reg;
+}
+
 int phy_ethtool_set_eee_2p5(struct phy_device *phydev, struct ethtool_eee *data)
 {
 	int ret;
 	int cap2p5, old_adv_2p5, adv_2p5 = 0;
+
 	if (!phydev->drv)
 		return -EIO;
 
 	cap2p5 = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE2);
-	KPRINT_INFO("%s --- cap2p5: 0x%x\n",__func__,cap2p5);
+	KPRINT_INFO("%s --- cap2p5: 0x%x\n", __func__, cap2p5);
 	if (cap2p5 < 0)
 		return cap2p5;
 
 	old_adv_2p5 = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2);
-	KPRINT_INFO("%s --- old_adv_2p5:0x%x\n",__func__,old_adv_2p5);
+	KPRINT_INFO("%s --- old_adv_2p5:0x%x\n", __func__, old_adv_2p5);
 	if (old_adv_2p5 < 0)
 		return old_adv_2p5;
-
+	/* EEE advertise checking API corrected for 2.5G and 5G speeds. */
 	if (data->eee_enabled) {
 		adv_2p5 = !data->advertised ? cap2p5 :
-		      ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap2p5;
+		      tc956x_ethtool_adv_to_mmd_eee_adv2_t(data->advertised) & cap2p5;
 		/* Mask prohibited EEE modes */
 		adv_2p5 &= ~phydev->eee_broken_modes;
 	}
-	KPRINT_INFO("%s --- adv_2p5:0x%x\n",__func__,adv_2p5);
+	KPRINT_INFO("%s --- adv_2p5:0x%x\n", __func__, adv_2p5);
 
 	if (old_adv_2p5 != adv_2p5) {
 		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2, adv_2p5);
@@ -1526,7 +1773,7 @@ int phy_ethtool_set_eee_2p5(struct phy_device *phydev, struct ethtool_eee *data)
 }
 #endif
 
-static int tc956xmac_ethtool_op_get_eee(struct net_device *dev,
+int tc956xmac_ethtool_op_get_eee(struct net_device *dev,
 				     struct ethtool_eee *edata)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
@@ -1542,7 +1789,7 @@ static int tc956xmac_ethtool_op_get_eee(struct net_device *dev,
 	DBGPR_FUNC(priv->device, "1--> %s edata->eee_active: %d\n", __func__, edata->eee_active);
 #ifndef DEBUG_EEE
 	ret = phylink_ethtool_get_eee(priv->phylink, edata);
-#else	
+#else
 	ret = phy_ethtool_get_eee_local(priv->dev->phydev, edata);
 #endif
 
@@ -1555,13 +1802,25 @@ static int tc956xmac_ethtool_op_get_eee(struct net_device *dev,
 
 	return ret;
 }
+#endif
+#ifdef TC956X_SRIOV_VF
+static int tc956xmac_ethtool_op_get_eee(struct net_device *dev,
+				     struct ethtool_eee *edata)
+{
+	struct tc956xmac_priv *priv = netdev_priv(dev);
 
+	tc956xmac_ethtool_get_eee(priv, edata);
+
+	return 0;
+}
+#endif
 static int tc956xmac_ethtool_op_set_eee(struct net_device *dev,
 				     struct ethtool_eee *edata)
 {
 	struct tc956xmac_priv *priv = netdev_priv(dev);
+#ifndef TC956X_SRIOV_VF
 	int ret;
-
+#endif
 	if (!edata->eee_enabled) {
 		DBGPR_FUNC(priv->device, "%s Disable EEE\n", __func__);
 		tc956xmac_disable_eee_mode(priv);
@@ -1584,7 +1843,7 @@ static int tc956xmac_ethtool_op_set_eee(struct net_device *dev,
 		if (!edata->eee_enabled)
 			return -EOPNOTSUPP;
 	}
-
+#ifndef TC956X_SRIOV_VF
 #ifndef DEBUG_EEE
 	ret = phylink_ethtool_set_eee(priv->phylink, edata);
 
@@ -1594,7 +1853,7 @@ static int tc956xmac_ethtool_op_set_eee(struct net_device *dev,
 #endif
 	if (ret)
 		return ret;
-
+#endif  /* TC956X_SRIOV_VF */
 	priv->eee_enabled = edata->eee_enabled;
 	priv->tx_lpi_timer = edata->tx_lpi_timer;
 
@@ -1645,7 +1904,133 @@ static u32 tc956xmac_riwt2usec(u32 riwt, struct tc956xmac_priv *priv)
 
 	return (riwt * mult) / (clk / 1000000);
 }
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
+static int __tc956xmac_get_coalesce(struct net_device *dev,
+				 struct ethtool_coalesce *ec,
+				 int queue)
+{
+	struct tc956xmac_priv *priv = netdev_priv(dev);
+	u32 max_cnt;
+	u32 rx_cnt;
+	u32 tx_cnt;
 
+	rx_cnt = priv->plat->rx_queues_to_use;
+	tx_cnt = priv->plat->tx_queues_to_use;
+	max_cnt = max(rx_cnt, tx_cnt);
+
+	if (queue < 0)
+		queue = 0;
+	else if (queue >= max_cnt)
+		return -EINVAL;
+
+	if (queue < tx_cnt) {
+		ec->tx_coalesce_usecs = priv->tx_coal_timer[queue];
+		ec->tx_max_coalesced_frames = priv->tx_coal_frames[queue];
+	} else {
+		ec->tx_coalesce_usecs = 0;
+		ec->tx_max_coalesced_frames = 0;
+	}
+
+	if (priv->use_riwt && queue < rx_cnt) {
+		ec->rx_max_coalesced_frames = priv->rx_coal_frames[queue];
+		ec->rx_coalesce_usecs = tc956xmac_riwt2usec(priv->rx_riwt[queue],
+							 priv);
+	} else {
+		ec->rx_max_coalesced_frames = 0;
+		ec->rx_coalesce_usecs = 0;
+	}
+
+	return 0;
+}
+
+static int tc956xmac_get_coalesce(struct net_device *dev,
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
+{
+	return __tc956xmac_get_coalesce(dev, ec, -1);
+}
+
+static int __tc956xmac_set_coalesce(struct net_device *dev,
+				 struct ethtool_coalesce *ec,
+				 int queue)
+{
+	struct tc956xmac_priv *priv = netdev_priv(dev);
+	bool all_queues = false;
+	unsigned int rx_riwt;
+	u32 max_cnt;
+	u32 rx_cnt;
+	u32 tx_cnt;
+
+	rx_cnt = priv->plat->rx_queues_to_use;
+	tx_cnt = priv->plat->tx_queues_to_use;
+	max_cnt = max(rx_cnt, tx_cnt);
+
+	if (queue < 0)
+		all_queues = true;
+	else if (queue >= max_cnt)
+		return -EINVAL;
+
+	if (priv->use_riwt && (ec->rx_coalesce_usecs > 0)) {
+		rx_riwt = tc956xmac_usec2riwt(ec->rx_coalesce_usecs, priv);
+
+		if ((rx_riwt > MAX_DMA_RIWT) || (rx_riwt < MIN_DMA_RIWT))
+			return -EINVAL;
+
+		if (all_queues) {
+			int i;
+
+			for (i = 0; i < rx_cnt; i++) {
+				priv->rx_riwt[i] = rx_riwt;
+				tc956xmac_rx_watchdog(priv, priv->ioaddr,
+						   rx_riwt, i);
+				priv->rx_coal_frames[i] =
+					ec->rx_max_coalesced_frames;
+			}
+		} else if (queue < rx_cnt) {
+			priv->rx_riwt[queue] = rx_riwt;
+			tc956xmac_rx_watchdog(priv, priv->ioaddr,
+					   rx_riwt, queue);
+			priv->rx_coal_frames[queue] =
+				ec->rx_max_coalesced_frames;
+		}
+	}
+
+	if ((ec->tx_coalesce_usecs == 0) &&
+	    (ec->tx_max_coalesced_frames == 0))
+		return -EINVAL;
+
+	if ((ec->tx_coalesce_usecs > TC956XMAC_MAX_COAL_TX_TICK) ||
+	    (ec->tx_max_coalesced_frames > TC956XMAC_TX_MAX_FRAMES))
+		return -EINVAL;
+
+	if (all_queues) {
+		int i;
+
+		for (i = 0; i < tx_cnt; i++) {
+			priv->tx_coal_frames[i] =
+				ec->tx_max_coalesced_frames;
+			priv->tx_coal_timer[i] =
+				ec->tx_coalesce_usecs;
+		}
+	} else if (queue < tx_cnt) {
+		priv->tx_coal_frames[queue] =
+			ec->tx_max_coalesced_frames;
+		priv->tx_coal_timer[queue] =
+			ec->tx_coalesce_usecs;
+	}
+
+	return 0;
+}
+
+static int tc956xmac_set_coalesce(struct net_device *dev,
+			       struct ethtool_coalesce *ec,
+			       struct kernel_ethtool_coalesce *kernel_coal,
+			       struct netlink_ext_ack *extack)
+{
+	return __tc956xmac_set_coalesce(dev, ec, -1);
+}
+#else
 static int tc956xmac_get_coalesce(struct net_device *dev,
 			       struct ethtool_coalesce *ec)
 {
@@ -1669,6 +2054,7 @@ static int tc956xmac_set_coalesce(struct net_device *dev,
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int rx_riwt;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 7, 0))
 	/* Check not supported parameters  */
 	if ((ec->rx_coalesce_usecs_irq) ||
 	    (ec->rx_max_coalesced_frames_irq) || (ec->tx_coalesce_usecs_irq) ||
@@ -1682,6 +2068,7 @@ static int tc956xmac_set_coalesce(struct net_device *dev,
 	    (ec->stats_block_coalesce_usecs) ||
 	    (ec->tx_max_coalesced_frames_high) || (ec->rate_sample_interval))
 		return -EOPNOTSUPP;
+#endif
 
 	if (priv->use_riwt && (ec->rx_coalesce_usecs > 0)) {
 		rx_riwt = tc956xmac_usec2riwt(ec->rx_coalesce_usecs, priv);
@@ -1714,7 +2101,7 @@ static int tc956xmac_set_coalesce(struct net_device *dev,
 	priv->rx_coal_frames = ec->rx_max_coalesced_frames;
 	return 0;
 }
-
+#endif
 #ifndef TC956X
 static int tc956xmac_get_rxnfc(struct net_device *dev,
 			    struct ethtool_rxnfc *rxnfc, u32 *rule_locs)
@@ -1793,19 +2180,30 @@ static int tc956xmac_get_ts_info(struct net_device *dev,
 	struct tc956xmac_priv *priv = netdev_priv(dev);
 
 	if ((priv->dma_cap.time_stamp || priv->dma_cap.atime_stamp)) {
-
+#ifdef TC956X_SRIOV_PF
 		info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 					SOF_TIMESTAMPING_TX_HARDWARE |
 					SOF_TIMESTAMPING_RX_SOFTWARE |
 					SOF_TIMESTAMPING_RX_HARDWARE |
 					SOF_TIMESTAMPING_SOFTWARE |
 					SOF_TIMESTAMPING_RAW_HARDWARE;
+#else
+		info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
+					SOF_TIMESTAMPING_RX_SOFTWARE |
+					SOF_TIMESTAMPING_RX_HARDWARE |
+					SOF_TIMESTAMPING_SOFTWARE |
+					SOF_TIMESTAMPING_RAW_HARDWARE;
+#endif
 
 		if (priv->ptp_clock)
 			info->phc_index = ptp_clock_index(priv->ptp_clock);
-
+#ifdef TC956X_SRIOV_PF
 		info->tx_types = (1 << HWTSTAMP_TX_OFF) | (1 << HWTSTAMP_TX_ON);
+#else
+		info->tx_types = (1 << HWTSTAMP_TX_OFF);
+#endif
 
+#ifdef TC956X_SRIOV_PF
 		info->rx_filters = ((1 << HWTSTAMP_FILTER_NONE) |
 				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_EVENT) |
 				    (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
@@ -1817,6 +2215,10 @@ static int tc956xmac_get_ts_info(struct net_device *dev,
 				    (1 << HWTSTAMP_FILTER_PTP_V2_SYNC) |
 				    (1 << HWTSTAMP_FILTER_PTP_V2_DELAY_REQ) |
 				    (1 << HWTSTAMP_FILTER_ALL));
+#else
+		info->rx_filters = (1 << HWTSTAMP_FILTER_ALL);
+#endif
+
 		return 0;
 	} else
 		return ethtool_op_get_ts_info(dev, info);
@@ -1890,6 +2292,10 @@ static u32 tc956x_get_priv_flag(struct net_device *dev)
 #endif
 
 static const struct ethtool_ops tc956xmac_ethtool_ops = {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 7, 0))
+	.supported_coalesce_params = ETHTOOL_COALESCE_USECS |
+	    ETHTOOL_COALESCE_MAX_FRAMES,
+#endif
 	.begin = tc956xmac_check_if_running,
 	.get_drvinfo = tc956xmac_ethtool_getdrvinfo,
 	.get_msglevel = tc956xmac_ethtool_getmsglevel,
@@ -1897,16 +2303,20 @@ static const struct ethtool_ops tc956xmac_ethtool_ops = {
 	.get_regs = tc956xmac_ethtool_gregs,
 	.get_regs_len = tc956xmac_ethtool_get_regs_len,
 	.get_link = ethtool_op_get_link,
+#ifndef TC956X_SRIOV_VF
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.nway_reset = tc956xmac_nway_reset,
 #endif
+#endif  /* TC956X_SRIOV_VF */
 	.get_pauseparam = tc956xmac_get_pauseparam,
 	.set_pauseparam = tc956xmac_set_pauseparam,
 	.self_test = tc956xmac_selftest_run,
 	.get_ethtool_stats = tc956xmac_get_ethtool_stats,
 	.get_strings = tc956xmac_get_strings,
+#ifndef TC956X_SRIOV_VF
 	.get_wol = tc956xmac_get_wol,
 	.set_wol = tc956xmac_set_wol,
+#endif
 	.get_eee = tc956xmac_ethtool_op_get_eee,
 	.set_eee = tc956xmac_ethtool_op_set_eee,
 	.get_sset_count	= tc956xmac_get_sset_count,
@@ -1924,8 +2334,10 @@ static const struct ethtool_ops tc956xmac_ethtool_ops = {
 	.get_tunable = tc956xmac_get_tunable,
 	.set_tunable = tc956xmac_set_tunable,
 #endif
+#ifndef TC956X_SRIOV_VF
 	.get_link_ksettings = tc956xmac_ethtool_get_link_ksettings,
 	.set_link_ksettings = tc956xmac_ethtool_set_link_ksettings,
+#endif  /* TC956X_SRIOV_VF */
 #ifdef TC956X
 	.set_priv_flags = tc956x_set_priv_flag,
 	.get_priv_flags = tc956x_get_priv_flag,

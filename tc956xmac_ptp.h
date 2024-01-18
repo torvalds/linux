@@ -51,10 +51,10 @@
 #define	PTP_STSUR	0x10	/* System Time – Seconds Update Reg */
 #define	PTP_STNSUR	0x14	/* System Time – Nanoseconds Update Reg */
 #define	PTP_TAR		0x18	/* Timestamp Addend Reg */
-#ifdef TC956X
-#define PTP_TS_STATUS   0x20    /* Timestamp status Reg */
-#endif
+#define PTP_TS_STATUS	0x20	/* Timestamp status Reg */
 
+#define PTP_ATS_NSEC	0x48	/* MAC_Auxiliary_Timestamp_Seconds */
+#define PTP_ATS_SEC		0x4C	/* MAC_Auxiliary_Timestamp_Nanoseconds */
 
 #define	PTP_STNSUR_ADDSUB_SHIFT	31
 #define	PTP_DIGITAL_ROLLOVER_MODE	0x3B9ACA00	/* 10e9-1 ns */

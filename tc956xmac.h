@@ -4,7 +4,7 @@
  * tc956xmac.h
  *
  * Copyright (C) 2007-2009  STMicroelectronics Ltd
- * Copyright (C) 2021 Toshiba Electronic Devices & Storage Corporation
+ * Copyright (C) 2023 Toshiba Electronic Devices & Storage Corporation
  *
  * This file has been derived from the STMicro Linux driver,
  * and developed or modified for TC956X.
@@ -172,6 +172,15 @@
  *  VERSION     : 01-00-58
  *  09 May 2023 : 1. Version update 
  *  VERSION     : 01-00-59
+ *  10 Nov 2023 : 1. DSP Cascade related modifications
+ *                2. Kernel 6.1 Porting changes
+ *                3. Version update
+ *  VERSION     : 01-02-59
+ *
+ *  26 Dec 2023 : 1. Kernel 6.6 Porting changes
+ *                2. Added the support for TC commands taprio and flower
+ *                3. Version update
+ *  VERSION     : 01-03-59
  */
 
 #ifndef __TC956XMAC_H__
@@ -181,16 +190,26 @@
 #include <linux/clk.h>
 #include <linux/if_vlan.h>
 #include "tc956xmac_inc.h"
+#ifndef TC956X_SRIOV_VF
 #include <linux/phylink.h>
+#endif
 #include <linux/pci.h>
 #include "common.h"
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/reset.h>
-#include <net/page_pool.h>
 #include <linux/version.h>
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 6, 0))
+#include <net/page_pool.h>
+#else
+#include <net/page_pool/helpers.h>
+#endif
+#ifdef TC956X_SRIOV_PF
+#include "tc956x_pf_rsc_mng.h"
+#endif
+#ifndef TC956X_SRIOV_VF
 //#define TC956X_LOAD_FW_HEADER
+#endif
 #define PF_DRIVER 4
 
 /* Uncomment EEE_MAC_CONTROLLED_MODE macro for MAC controlled EEE Mode & comment for PHY controlled EEE mode */
@@ -201,7 +220,11 @@
 
 #ifdef TC956X
 #define VENDOR_ID 0x1179
+#ifndef TC956X_SRIOV_VF
 #define DEVICE_ID 0x0220	/* PF - 0x0220, VF - 0x0221 */
+#elif (defined TC956X_SRIOV_VF)
+#define DEVICE_ID 0x0221	/* PF - 0x0220, VF - 0x0221 */
+#endif
 #endif
 
 #define SUB_SYS_VENDOR_ID 0x1179
@@ -221,15 +244,21 @@
 #define FIRMWARE_NAME "TC956X_Firmware_PCIeBridge.bin"
 #endif
 
+#define TC956X_TOTAL_VFS 3
+
 #ifdef TC956X
+#ifndef TC956X_SRIOV_VF
 
 #define TC956X_RESOURCE_NAME	"tc956x_pci-eth"
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-59"
+#define DRV_MODULE_VERSION	"V_01-03-59"
 #define TC956X_FW_MAX_SIZE	(64*1024)
-
+#elif (defined TC956X_SRIOV_VF)
+#define TC956X_RESOURCE_NAME	"tc956x_vf_pci-eth"
+#define DRV_MODULE_VERSION	"V_01-01-59"
+#endif
 #define ATR_AXI4_SLV_BASE		0x0800
 #define ATR_AXI4_SLAVE_OFFSET		0x0100
 #define ATR_AXI4_TABLE_OFFSET		0x20
@@ -260,7 +289,7 @@
 							TRSL_MASK_OFFSET2)
 
 #define TC956X_ATR_IMPL 1U
-#define TC956X_ATR_SIZE(size)		((size - 1U) << 1U)
+#define TC956X_ATR_SIZE(size) ((size - 1U) << 1U)
 #define TC956X_ATR_SIZE_MASK		GENMASK(6, 1)
 #define TC956x_ATR_SIZE_SHIFT		1
 #define TC956X_SRC_LO_MASK		GENMASK(31, 12)
@@ -272,9 +301,10 @@
 #define TC956X_AXI4_SLV00_TRSL_ADDR_LO_VAL (0x00000000U)
 #define TC956X_AXI4_SLV00_TRSL_ADDR_HI_VAL (0x00000000U)
 #define TC956X_AXI4_SLV00_TRSL_PARAM_VAL   (0x00000000U)
+#define TC956X_AXI4_SLV00_SRC_ADDR_LO_VAL_DEFAULT  (0x0000007FU)
 
-#ifdef DMA_OFFLOAD_ENABLE
-#define TC956X_AXI4_SLV01_ATR_SIZE	    28U	  /* 28 bit DMA Mask */
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
+#define TC956X_AXI4_SLV01_ATR_SIZE	   28U	  /* 28 bit DMA Mask */
 #define TC956X_AXI4_SLV01_SRC_ADDR_LO_VAL  (0x60000000U)
 #define TC956X_AXI4_SLV01_SRC_ADDR_HI_VAL  (0x00000000U)
 #define TC956X_AXI4_SLV01_TRSL_ADDR_LO_VAL (0x00000000U)
@@ -307,6 +337,21 @@
 #define DB_CNT17	17	/* m3 transmission timeout indication for port0 */
 #define DB_CNT18	18	/* m3 transmission timeout indication for port1 */
 #define DB_CNT19	19	/* reserved19 */
+
+#define SIXTEEN						16
+#define TWENTY						20
+#define TWENTY_FOUR					24
+#define SIXTY_FOUR					64
+#define ONE_TWENTY_EIGHT			128
+#define TWO_FIFTY_SIX				256
+#define FIVE_HUNDRED_TWELVE			512
+#define THOUSAND_TWENTY_FOUR		1024
+
+#define SPD_DIV_10G					10000000
+#define SPD_DIV_5G					5000000
+#define SPD_DIV_2_5G				2500000
+#define SPD_DIV_1G					1000000
+#define SPD_DIV_100M				100000
 
 #define NRSTCTRL0_RST_ASRT 0x1
 #define NRSTCTRL0_RST_DE_ASRT 0x3
@@ -362,6 +407,18 @@
 #define MTL_FPE_AFSZ_128	1
 #define MTL_FPE_AFSZ_192	2
 #define MTL_FPE_AFSZ_256	3
+#ifdef TC956X_SRIOV_PF
+#define TC956X_DISABLE_CHNL 0
+#define TC956X_ENABLE_CHNL 1
+
+#define TC956X_DISABLE_QUEUE 0
+#define TC956X_ENABLE_QUEUE 1
+#endif
+
+#define MMC_XGMAC_TX_FPE_FRAG			0x208
+#define MMC_XGMAC_RX_PKT_ASSEMBLY_OK	0x230
+#define MMC_XGMAC_RX_FPE_FRAG			0x234
+
 #endif
 
 #define MAX_CM3_TAMAP_ENTRIES		3
@@ -374,7 +431,10 @@
 
 #define TC956X_MAX_LINK_DELAY		800
 
-#ifdef DMA_OFFLOAD_ENABLE
+#define XDP_PACKET_HEADROOM 256
+#define TC956X_MAX_RX_BUF_SIZE(num)	(((num) * PAGE_SIZE) - XDP_PACKET_HEADROOM)
+
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 struct tc956xmac_cm3_tamap {
 	u32 trsl_addr_hi;
 	u32 trsl_addr_low;
@@ -388,11 +448,15 @@ struct tc956xmac_cm3_tamap {
 struct tc956xmac_resources {
 
 	void __iomem *addr;
-#ifdef TC956X
+#ifdef TC956X_SRIOV_PF
+#ifdef CONFIG_PCI_IOV
+	u32 sriov_enabled;
+#endif
+#endif
 	void __iomem *tc956x_BRIDGE_CFG_pci_base_addr;
 	void __iomem *tc956x_SRAM_pci_base_addr;
 	void __iomem *tc956x_SFR_pci_base_addr;
-#endif
+
 	const char *mac;
 	int wol_irq;
 	int lpi_irq;
@@ -421,7 +485,11 @@ struct tc956xmac_tx_info {
 struct tc956xmac_tx_queue {
 	u32 tx_count_frames;
 	int tbs;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+	struct hrtimer txtimer;
+#else
 	struct timer_list txtimer;
+#endif
 	u32 queue_index;
 	struct tc956xmac_priv *priv_data;
 	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
@@ -434,7 +502,7 @@ struct tc956xmac_tx_queue {
 	dma_addr_t dma_tx_phy;
 	u32 tx_tail_addr;
 	u32 mss;
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	struct sk_buff **tx_offload_skbuff;
 	dma_addr_t *tx_offload_skbuff_dma;
 	dma_addr_t buff_tx_phy;
@@ -468,7 +536,7 @@ struct tc956xmac_rx_queue {
 		unsigned int len;
 		unsigned int error;
 	} state;
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	struct sk_buff **rx_offload_skbuff;
 	dma_addr_t *rx_offload_skbuff_dma;
 	dma_addr_t buff_rx_phy;
@@ -501,10 +569,12 @@ struct tc956xmac_tc_entry {
 		u8 im:1;
 		u8 nc:1;
 		u8 res1:4;
-		u8 frame_offset;
+		u8 frame_offset:6;
+		u8 res2:2;
 		u8 ok_index;
-		u8 dma_ch_no;
-		u32 res2;
+		u8 res3;
+		u16 dma_ch_no;
+		u16 res4;
 	} __packed val;
 };
 
@@ -535,6 +605,14 @@ struct tc956xmac_flow_entry {
 	int is_l4;
 };
 
+struct tc956xmac_rfs_entry {
+	unsigned long cookie;
+	u16 etype;
+	int in_use;
+	int type;
+	int tc;
+};
+
 struct tc956x_cbs_params {
 	u32 send_slope;
 	u32 idle_slope;
@@ -548,12 +626,54 @@ struct tc956x_gpio_config {
 	u8 out_val; /* 0 or 1 */
 };
 
+struct drv_cap {
+	u8 csum_en;
+	u8 crc_en;
+	u8 tso_en;
+	u8 jumbo_en;
+};
+
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+struct sync_locks {
+	spinlock_t mac_filter;
+	spinlock_t vlan_filter;
+	spinlock_t est;
+	spinlock_t fpe;
+	spinlock_t frp;
+	spinlock_t cbs;
+};
+#endif
+
+#ifdef TC956X_SRIOV_PF
+struct work_queue_param {
+	struct ethtool_pauseparam pause;
+	struct ifreq rq;
+	u16 val_out[MAX_NO_OF_VFS];
+	u32 queue_no;
+	u8 fn_id;
+	u8 vf_no;
+};
+#endif
+
+/* Rx Frame Steering */
+enum tc956x_rfs_type {
+	TC956X_RFS_T_VLAN,
+	TC956X_RFS_T_LLDP,
+	TC956X_RFS_T_1588,
+	TC956X_RFS_T_MAX,
+};
+
 struct tc956xmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
+	u32 tx_coal_frames[MTL_MAX_TX_QUEUES];
+	u32 tx_coal_timer[MTL_MAX_TX_QUEUES];
+	u32 rx_coal_frames[MTL_MAX_TX_QUEUES];
+#else
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
 	u32 rx_coal_frames;
-
+#endif
 	int tx_coalesce;
 	int hwts_tx_en;
 	bool tx_path_in_lpi_mode;
@@ -563,14 +683,27 @@ struct tc956xmac_priv {
 
 	unsigned int dma_buf_sz;
 	unsigned int rx_copybreak;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
+	u32 rx_riwt[MTL_MAX_RX_QUEUES];
+#else
 	u32 rx_riwt;
+#endif
 	int hwts_rx_en;
 
 	void __iomem *ioaddr;
-#ifdef TC956X
+#ifdef TC956X_SRIOV_PF
+#ifdef CONFIG_PCI_IOV
+	s32 sriov_enabled;
+#endif
+#endif
 	void __iomem *tc956x_BRIDGE_CFG_pci_base_addr;
 	void __iomem *tc956x_SRAM_pci_base_addr;
 	void __iomem *tc956x_SFR_pci_base_addr;
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+	void __iomem *tc956x_SRAM_mailbox_base_addr;
+#endif
+#ifdef TC956X_SRIOV_PF
+	unsigned char clear_to_send[MAX_NO_OF_VFS];
 #endif
 	struct net_device *dev;
 	struct device *device;
@@ -597,8 +730,10 @@ struct tc956xmac_priv {
 	/* RX Parser */
 	bool rxp_enabled;
 
-	/* PHY state */
+	/* Phy Link State */
+	u32 link;
 	int speed;
+	u32 duplex;
 	bool oldlink;
 	int oldduplex;
 
@@ -606,15 +741,18 @@ struct tc956xmac_priv {
 	unsigned int pause;
 	struct mii_bus *mii;
 	int mii_irq[PHY_MAX_ADDR];
-
+#ifndef TC956X_SRIOV_VF
 	struct phylink_config phylink_config;
 	struct phylink *phylink;
-
+#endif
 	struct tc956xmac_extra_stats xstats ____cacheline_aligned_in_smp;
 	struct tc956xmac_safety_stats sstats;
 	struct plat_tc956xmacenet_data *plat;
 	struct dma_features dma_cap;
 	struct tc956xmac_counters mmc;
+#ifdef TC956X_SRIOV_VF
+	struct tc956x_sw_counters sw_stats;
+#endif
 	int hw_cap_support;
 	int synopsys_id;
 	u32 msg_enable;
@@ -653,7 +791,17 @@ struct tc956xmac_priv {
 	unsigned long state;
 	struct workqueue_struct *wq;
 	struct work_struct service_task;
-
+#ifdef TC956X_SRIOV_PF
+	struct workqueue_struct *mbx_wq;
+	struct work_struct service_mbx_task;
+	struct work_queue_param mbx_wq_param;
+#endif
+	spinlock_t wq_lock;
+#ifdef TC956X_SRIOV_VF
+	struct workqueue_struct *mbx_wq;
+	struct work_struct mbx_service_task;
+	unsigned char flag;
+#endif
 	/* CBS configurations */
 	struct tc956x_cbs_params cbs_speed100_cfg[8];
 	struct tc956x_cbs_params cbs_speed1000_cfg[8];
@@ -667,19 +815,39 @@ struct tc956xmac_priv {
 	unsigned int flow_entries_max;
 	struct tc956xmac_flow_entry *flow_entries;
 
+	unsigned int rfs_entries_max[TC956X_RFS_T_MAX];
+	unsigned int rfs_entries_cnt[TC956X_RFS_T_MAX];
+	unsigned int rfs_entries_total;
+	struct tc956xmac_rfs_entry *rfs_entries;
+
 	/* Pulse Per Second output */
 	struct tc956xmac_pps_cfg pps[TC956XMAC_PPS_MAX];
 
 	/* Receive Side Scaling */
 	struct tc956xmac_rss rss;
-
+#ifdef TC956X_SRIOV_PF
+	u8 dma_vf_map[TC956XMAC_CH_MAX];
+	u8 pf_queue_dma_map[MTL_MAX_TX_QUEUES];
+	/* Features enabled in PF */
+	struct drv_cap pf_drv_cap;
+#endif
+	/* Function ID information */
+	struct fn_id fn_id_info;
+#ifdef TC956X_SRIOV_VF
+	/* Features enabled in PF */
+	struct drv_cap pf_drv_cap;
+#endif
 	/* Tx Checksum Insertion */
 	u32 csum_insertion;
-
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+	u32 rx_csum_state;
+#endif
 	/* CRC Tx Rx Configuraion */
 	u32 tx_crc_pad_state;
 	u32 rx_crc_pad_state;
-
+#ifdef TC956X_SRIOV_PF
+	u8 rsc_dma_ch_alloc[MAX_FUNCTIONS_PER_PF];
+#endif
 	/* eMAC port number */
 #ifdef TC956X
 	u32 port_num;
@@ -704,7 +872,7 @@ struct tc956xmac_priv {
 
 	/* Private data store for platform layer */
 	void *plat_priv;
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	void *client_priv;
 	struct tc956xmac_cm3_tamap cm3_tamap[MAX_CM3_TAMAP_ENTRIES];
 #endif
@@ -712,15 +880,30 @@ struct tc956xmac_priv {
 	struct work_struct emac_phy_work;
 	u32 pm_saved_emac_rst; /* Save and restore EMAC Resets during suspend-resume sequence */
 	u32 pm_saved_emac_clk; /* Save and restore EMAC Clocks during suspend-resume sequence */
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_MAGIC_PACKET_WOL_CONF
+	bool wol_config_enabled; /* Flag to indicate SerDes configuration for SGMII, 1Gbps for WOL */
+#endif /* #ifdef TC956X_MAGIC_PACKET_WOL_CONF */
 	u32 pm_saved_linkdown_rst; /* Save and restore Resets during link-down sequence */
 	u32 pm_saved_linkdown_clk; /* Save and restore Clocks during link-down sequence */
 	bool port_link_down; /* Flag to save per port link down state */
 	bool port_release; /* Flag to notify appropriate sequence of link down & up */
 	struct mutex port_ld_release_lock; /* Mutex lock to handle (set and clear) flag to notify 
 						appropriate sequence of link down & up */
+
+#endif
 	struct tc956x_gpio_config saved_gpio_config[GPIO_12 + 1]; /* Only GPIO0- GPIO06, GPI010-GPIO12 are used */
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dir; /* debugfs structure pointer for port specific */
+#endif
+
+#ifdef TC956X_ENABLE_MAC2MAC_BRIDGE
+	void *pbridge_buffaddr;
+	dma_addr_t pbridge_handle;
+	size_t pbridge_buffsize;
+#endif
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_SRIOV_LOCK)
+	struct sync_locks spn_lock;
 #endif
 	unsigned long link_state;
 	bool link_down_rst; /* For light-weight release and open during link-down */
@@ -797,11 +980,10 @@ struct tc956x_regs_dma_ch {
 	u32 buf_laddr;
 };
 
-struct tx956x_tx_desc_buf_addrs
-{
+struct tx956x_tx_desc_buf_addrs {
 	dma_addr_t desc_phy_addr;
 	struct dma_desc *desc_va_addr;
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	dma_addr_t buff_phy_addr;
 	void *buff_va_addr;
 #endif
@@ -809,11 +991,10 @@ struct tx956x_tx_desc_buf_addrs
 	struct tc956xmac_tx_info *tx_skbuff_dma;
 };
 
-struct tx956x_rx_desc_buf_addrs
-{
+struct tx956x_rx_desc_buf_addrs {
 	dma_addr_t desc_phy_addr;
 	struct dma_desc *desc_va_addr;
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	dma_addr_t buff_phy_addr;
 	void *buff_va_addr;
 #endif
@@ -995,42 +1176,6 @@ struct tc956x_regs {
 
 int tc956x_dump_regs(struct net_device *net_device, struct tc956x_regs *regs);
 int tc956x_print_debug_regs(struct net_device *net_device, struct tc956x_regs *regs);
-
-/* for PTP offloading configuration */
-#define TC956X_PTP_OFFLOADING_DISABLE			0
-#define TC956X_PTP_OFFLOADING_ENABLE			1
-
-#define TC956X_PTP_ORDINARY_SLAVE			1
-#define TC956X_PTP_ORDINARY_MASTER			2
-#define TC956X_PTP_TRASPARENT_SLAVE			3
-#define TC956X_PTP_TRASPARENT_MASTER			4
-#define TC956X_PTP_PEER_TO_PEER_TRANSPARENT		5
-
-#define TC956X_AUX_SNAPSHOT_0				1
-#define TC956X_AUX_SNAPSHOT_1				2
-#define TC956X_AUX_SNAPSHOT_2				4
-#define TC956X_AUX_SNAPSHOT_3				8
-
-
-struct tc956x_ioctl_aux_snapshot {
-	__u32 cmd;
-	__u32 aux_snapshot_ctrl;
-};
-
-struct tc956x_config_ptpoffloading {
-	__u32 cmd;
-	int en_dis;
-	int mode;
-	int domain_num;
-	int mc_uc;
-	unsigned char mc_uc_addr[ETH_ALEN];
-};
-
-struct tc956x_config_ost {
-	__u32 cmd;
-	int en_dis;
-};
-
 int tc956xmac_mdio_unregister(struct net_device *ndev);
 int tc956xmac_mdio_register(struct net_device *ndev);
 int tc956xmac_mdio_reset(struct mii_bus *mii);
@@ -1038,12 +1183,21 @@ void tc956xmac_set_ethtool_ops(struct net_device *netdev);
 
 void tc956xmac_ptp_register(struct tc956xmac_priv *priv);
 void tc956xmac_ptp_unregister(struct tc956xmac_priv *priv);
+#ifdef TC956X_SRIOV_PF
 int tc956xmac_resume(struct device *dev);
 int tc956xmac_suspend(struct device *dev);
 int tc956xmac_dvr_remove(struct device *dev);
 int tc956xmac_dvr_probe(struct device *device,
 		     struct plat_tc956xmacenet_data *plat_dat,
 		     struct tc956xmac_resources *res);
+#elif defined TC956X_SRIOV_VF
+int tc956xmac_vf_resume(struct device *dev);
+int tc956xmac_vf_suspend(struct device *dev);
+int tc956xmac_vf_dvr_remove(struct device *dev);
+int tc956xmac_vf_dvr_probe(struct device *device,
+		     struct plat_tc956xmacenet_data *plat_dat,
+		     struct tc956xmac_resources *res);
+#endif
 void tc956xmac_disable_eee_mode(struct tc956xmac_priv *priv);
 bool tc956xmac_eee_init(struct tc956xmac_priv *priv);
 
@@ -1071,9 +1225,16 @@ static inline int tc956xmac_selftest_get_count(struct tc956xmac_priv *priv)
 
 /* Function Prototypes */
 
+#ifndef TC956X_SRIOV_VF
 s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res);
-
-int tc956x_set_pci_speed(struct pci_dev *pdev, u32 speed);
+#endif
+extern int tc956xmac_pm_usage_counter;
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+int tc956x_pf_get_fn_idx_from_int_sts(struct tc956xmac_priv *priv,
+					     struct fn_id *fn_id_info);
+void tc956x_pf_parse_mbx(struct tc956xmac_priv *priv,
+				enum mbx_msg_fns msg_src);
+#endif
 
 #ifdef CONFIG_TC956X_PLATFORM_SUPPORT
 int tc956x_platform_probe(struct tc956xmac_priv *priv, struct tc956xmac_resources *res);
@@ -1089,5 +1250,17 @@ static inline int tc956x_platform_resume(struct tc956xmac_priv *priv) { return 0
 
 int tc956x_GPIO_OutputConfigPin(struct tc956xmac_priv *priv, u32 gpio_pin, u8 out_value);
 int tc956x_gpio_restore_configuration(struct tc956xmac_priv *priv);
+
+#ifdef TC956X_SRIOV_VF
+int tc956x_vf_get_fn_idx_from_int_sts(struct tc956xmac_priv *priv,
+					     struct fn_id *fn_id_info);
+void tc956x_vf_parse_mbx(struct tc956xmac_priv *priv,
+				enum mbx_msg_fns msg_src);
+int tc956x_vf_rsc_mng_get_fn_id(struct tc956xmac_priv *priv, void __iomem *reg_pci_bridge_config_addr,
+				       struct fn_id *fn_id_info);
+
+#endif
+int tc956x_set_pci_speed(struct pci_dev *pdev, u32 speed);
 void tc956xmac_link_change_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT_LINK_CHANGE_STATE state);
+
 #endif /* __TC956XMAC_H__ */

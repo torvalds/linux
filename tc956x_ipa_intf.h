@@ -94,7 +94,7 @@ struct rxp_filter_entry {
 	u16 res4;
 };
 
-struct rx_filter_info{
+struct rx_filter_info {
 	u32 nve;	/* Max block entries user want to write */
 	u32 npe;	/* number of parsable entries in the Instruction Table. */
 	struct rxp_filter_entry entries[128];	/* FRP table entries */
@@ -259,7 +259,7 @@ int release_channel(struct net_device *ndev, struct channel_info *channel);
  * \remarks :
  *	     If this API is invoked for a channel without calling release_event(),
  *	     then the PCIe address and value for that channel will be overwritten
- * 	     Mask = 2 ^ (CM3_TAMAP_ATR_SIZE + 1) - 1
+ *	     Mask = 2 ^ (CM3_TAMAP_ATR_SIZE + 1) - 1
  *	     TRSL_ADDR = DMA_PCIe_ADDR & ~((2 ^ (ATR_SIZE + 1) - 1) = TRSL_ADDR = DMA_PCIe_ADDR & ~Mask
  *	     CM3 Target Address = DMA_PCIe_ADDR & Mask | SRC_ADDR
  */

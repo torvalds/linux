@@ -30,12 +30,14 @@
  *
  *  15 Mar 2021 : Base lined
  *  VERSION     : 01-00
+ *
+ *  26 Dec 2023 : 1. Kernel 6.6 Porting changes
+ *  VERSION     : 01-03-59
  */
 
 #include "tc956xmac.h"
 #include "tc956xmac_ptp.h"
 
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 /**
  * tc956xmac_adjust_freq
  *
@@ -44,12 +46,19 @@
  *
  * Description: this function will adjust the frequency of hardware clock.
  */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
 static int tc956xmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
+#else
+static int tc956xmac_adjust_freq(struct ptp_clock_info *ptp, long scaled_ppm)
+#endif
 {
+#ifdef TC956X_SRIOV_PF
 	struct tc956xmac_priv *priv =
 	    container_of(ptp, struct tc956xmac_priv, ptp_clock_ops);
 	unsigned long flags;
-	u32 diff, addend;
+	u32 addend;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
+	u32 diff;
 	int neg_adj = 0;
 	u64 adj;
 
@@ -63,12 +72,17 @@ static int tc956xmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	adj *= ppb;
 	diff = div_u64(adj, 1000000000ULL);
 	addend = neg_adj ? (addend - diff) : (addend + diff);
-
+#else
+	addend = adjust_by_scaled_ppm(priv->default_addend, scaled_ppm);
+#endif
 	spin_lock_irqsave(&priv->ptp_lock, flags);
 	tc956xmac_config_addend(priv, priv->ptpaddr, addend);
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
+#else
+	return -ENOTSUPP;
+#endif
 }
 
 /**
@@ -81,6 +95,7 @@ static int tc956xmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
  */
 static int tc956xmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 {
+#ifdef TC956X_SRIOV_PF
 	struct tc956xmac_priv *priv =
 	    container_of(ptp, struct tc956xmac_priv, ptp_clock_ops);
 	unsigned long flags;
@@ -105,6 +120,9 @@ static int tc956xmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
+#else
+	return -ENOTSUPP;
+#endif
 }
 
 /**
@@ -144,6 +162,7 @@ static int tc956xmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 static int tc956xmac_set_time(struct ptp_clock_info *ptp,
 			   const struct timespec64 *ts)
 {
+#ifdef TC956X_SRIOV_PF
 	struct tc956xmac_priv *priv =
 	    container_of(ptp, struct tc956xmac_priv, ptp_clock_ops);
 	unsigned long flags;
@@ -153,15 +172,21 @@ static int tc956xmac_set_time(struct ptp_clock_info *ptp,
 	spin_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
+#else
+	return -ENOTSUPP;
+#endif
 }
 
+#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static int tc956xmac_enable(struct ptp_clock_info *ptp,
 			 struct ptp_clock_request *rq, int on)
 {
+	int ret = -EOPNOTSUPP;
+
+#ifdef TC956X_SRIOV_PF
 	struct tc956xmac_priv *priv =
 	    container_of(ptp, struct tc956xmac_priv, ptp_clock_ops);
 	struct tc956xmac_pps_cfg *cfg;
-	int ret = -EOPNOTSUPP;
 	unsigned long flags;
 
 	switch (rq->type) {
@@ -187,7 +212,7 @@ static int tc956xmac_enable(struct ptp_clock_info *ptp,
 	default:
 		break;
 	}
-
+#endif
 	return ret;
 }
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
@@ -195,18 +220,26 @@ static int tc956xmac_enable(struct ptp_clock_info *ptp,
 /* structure describing a PTP hardware clock */
 static struct ptp_clock_info tc956xmac_ptp_clock_ops = {
 	.owner = THIS_MODULE,
+#ifdef TC956X_SRIOV_PF
 	.name = "tc956xmac ptp",
+#else
+	.name = "tc956xmac vf ptp",
+#endif
 	.max_adj = 62500000,
 	.n_alarm = 0,
 	.n_ext_ts = 0,
 	.n_per_out = 0, /* will be overwritten in tc956xmac_ptp_register */
 	.n_pins = 0,
 	.pps = 0,
-#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0))
 	.adjfreq = tc956xmac_adjust_freq,
+#else
+	.adjfine = tc956xmac_adjust_freq,
+#endif
 	.adjtime = tc956xmac_adjust_time,
 	.gettime64 = tc956xmac_get_time,
 	.settime64 = tc956xmac_set_time,
+#ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 	.enable = tc956xmac_enable,
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 };
@@ -229,9 +262,9 @@ void tc956xmac_ptp_register(struct tc956xmac_priv *priv)
 
 	if (priv->plat->ptp_max_adj)
 		tc956xmac_ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
-
+#ifdef TC956X_SRIOV_PF
 	tc956xmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
-
+#endif
 	spin_lock_init(&priv->ptp_lock);
 	priv->ptp_clock_ops = tc956xmac_ptp_clock_ops;
 

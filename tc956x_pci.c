@@ -4,7 +4,7 @@
  * tc956x_pci.c
  *
  * Copyright (C) 2011-2012  Vayavya Labs Pvt Ltd
- * Copyright (C) 2021 Toshiba Electronic Devices & Storage Corporation
+ * Copyright (C) 2023 Toshiba Electronic Devices & Storage Corporation
  *
  * This file has been derived from the STMicro and Synopsys Linux driver,
  * and developed or modified for TC956X.
@@ -182,6 +182,15 @@
  *  09 May 2023 : 1. Version update
  *                2. Module parameters to control SW reset (during link change) enabled by default for Port0.
  *  VERSION     : 01-00-59
+ *  10 Nov 2023 : 1. Kernel 6.1 Porting changes
+ *                2. DSP Cascade related modifications.
+ *                3. Version update
+ *  VERSION     : 01-02-59
+ *
+ *  26 Dec 2023 : 1. Kernel 6.6 Porting changes
+ *                2. Added the support for TC commands taprio and flower
+ *                3. Version update
+ *  VERSION     : 01-03-59
  */
 
 #include <linux/clk-provider.h>
@@ -200,13 +209,21 @@
 #ifdef TC956X_LOAD_FW_HEADER
 #include "fw.h"
 #endif
+#ifdef TC956X_SRIOV_VF
+#include "tc956x_vf_rsc_mng.h"
+#endif
 
 #ifdef TC956X_PCIE_LOGSTAT
 #include "tc956x_pcie_logstat.h"
 #endif /* #ifdef TC956X_PCIE_LOGSTAT */
 
+#ifndef TC956X_SRIOV_VF
+#ifdef CONFIG_PCI_IOV
+static int tc956x_no_of_vf;
+#endif
 #ifdef TC956X_PCIE_GEN3_SETTING
 static unsigned int pcie_link_speed = 3;
+#endif
 #endif
 
 unsigned int mac0_force_speed_mode = DISABLE;
@@ -214,6 +231,7 @@ unsigned int mac1_force_speed_mode = DISABLE;
 unsigned int mac0_force_config_speed = 3; /* 1Gbps */
 unsigned int mac1_force_config_speed = 3; /* 1Gbps */
 
+#if defined(TC956X_SRIOV_PF) || defined(TC956X_AUTOMOTIVE_CONFIG)
 static unsigned int mac0_interface = ENABLE_XFI_INTERFACE;
 static unsigned int mac1_interface = ENABLE_SGMII_INTERFACE;
 
@@ -233,7 +251,7 @@ static unsigned int mac0_rxq1_rfd = 24;
 static unsigned int mac0_rxq1_rfa = 24;
 static unsigned int mac0_txq0_size = TX_QUEUE0_SIZE;
 static unsigned int mac0_txq1_size = TX_QUEUE1_SIZE;
- 
+
 static unsigned int mac1_rxq0_size = RX_QUEUE0_SIZE;
 static unsigned int mac1_rxq1_size = RX_QUEUE1_SIZE;
 static unsigned int mac1_rxq0_rfd = 24;
@@ -242,19 +260,32 @@ static unsigned int mac1_rxq1_rfd = 24;
 static unsigned int mac1_rxq1_rfa = 24;
 static unsigned int mac1_txq0_size = TX_QUEUE0_SIZE;
 static unsigned int mac1_txq1_size = TX_QUEUE1_SIZE;
+
+static unsigned int port0_mdc = TC956XMAC_XGMAC_MDC_CSR_12;
+static int port0_c45_state = 1; /* C45 selected by default */
+
+static unsigned int port1_mdc = TC956XMAC_XGMAC_MDC_CSR_62;
+static int port1_c45_state; /* C22 selected by default */
+
+static unsigned int port0_phyaddr;
+static unsigned int port1_phyaddr;
 unsigned int mac0_link_down_macrst = ENABLE;
 unsigned int mac1_link_down_macrst = DISABLE;
+
+#endif
 
 unsigned int mac0_en_lp_pause_frame_cnt = DISABLE;
 unsigned int mac1_en_lp_pause_frame_cnt = DISABLE;
 
 unsigned int mac_power_save_at_link_down = DISABLE;
-
-static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 0, 5, 9};
-
-static int tc956xmac_pm_usage_counter; /* Device Usage Counter */
+static const struct tc956x_version tc956x_drv_version = {0, 1, 0, 3, 5, 9};
+int tc956xmac_pm_usage_counter; /* Device Usage Counter */
 struct mutex tc956x_pm_suspend_lock; /* This mutex is shared between all available EMAC ports. */
-
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_MAGIC_PACKET_WOL_GPIO
+static void tc956x_wol_gpio_trigger(void __iomem *reg_base_addr, bool mode);
+#endif
+#endif
 /*
  * This struct is used to associate PCI Function of MAC controller on a board,
  * discovered via DMI, with the address of PHY connected to the MAC. The
@@ -275,16 +306,22 @@ struct tc956xmac_pci_info {
 	int (*setup)(struct pci_dev *pdev, struct plat_tc956xmacenet_data *plat);
 };
 
-/*By default, route all packets to RxCh0 */
+/* By default, Bypass FRP routing */
+/* User to configure routing for FRP usecase */
 
 static struct tc956xmac_rx_parser_entry snps_rxp_entries[] = {
 #ifdef TC956X
 	{
+#ifdef TC956X_SRIOV_PF
+		.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 1, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 0x0, .res4 = 0, /* FRP Bypass */
+#elif defined TC956X_SRIOV_VF
 		.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,
+#endif
 	},
 #endif
 };
 
+#ifndef TC956X_SRIOV_VF
 static struct tc956xmac_rx_parser_entry snps_rxp_entries_filter_phy_pause_frames[] = {
 /* 0th entry */{.match_data = 0x00000888, .match_en = 0x0000FFFF, .af = 0, .rf = 0, .im = 0, .nc = 1, .res1 = 0, .frame_offset = 3, .res2 = 0, .ok_index = 3, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
 /* Checking SA Address 00:01:02:03:04:05 AQR PHYs SA Address as Ether type Match*/
@@ -294,6 +331,7 @@ static struct tc956xmac_rx_parser_entry snps_rxp_entries_filter_phy_pause_frames
 /* 3rd entry */{.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
 /* 4th entry */{.match_data = 0x00000000, .match_en = 0x00000000, .af = 1, .rf = 0, .im = 0, .nc = 0, .res1 = 0, .frame_offset = 0, .res2 = 0, .ok_index = 0, .res3 = 0, .dma_ch_no = 1, .res4 = 0,},
 };
+#endif
 
 /*!
  * \brief API to save and restore clock and reset during suspend-resume.
@@ -310,6 +348,7 @@ static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT
 {
 	void *nrst_reg = NULL, *nclk_reg = NULL, *commonclk_reg = NULL;
 	u32 nrst_val = 0, nclk_val = 0, commonclk_val = 0;
+
 	KPRINT_INFO("-->%s : Port %d", __func__, priv->port_num);
 	/* Select register address by port */
 	if (priv->port_num == 0) {
@@ -325,7 +364,7 @@ static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT
 		/* Modify register for reset, clock and MSI_OUTEN */
 		nrst_val = readl(nrst_reg);
 		nclk_val = readl(nclk_reg);
-		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
 			nrst_val, nclk_val);
 		/* Save values before Asserting reset and Clock Disable */
 		priv->pm_saved_emac_rst = nrst_val & NRSTCTRL_EMAC_MASK;
@@ -337,12 +376,12 @@ static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT
 		if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 			commonclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
 			commonclk_val = readl(commonclk_reg);
-			KPRINT_INFO("%s : Port %d Common CLK Rd Reg:%x", __func__, priv->port_num, 
+			KPRINT_INFO("%s : Port %d Common CLK Rd Reg:%x", __func__, priv->port_num,
 				commonclk_val);
 			/* Clear Common Clocks only when both port suspends */
 			commonclk_val = commonclk_val & ~NCLKCTRL0_COMMON_EMAC_MASK;
 			writel(commonclk_val, commonclk_reg);
-			KPRINT_INFO("%s : Port %d Common CLK Wr Reg:%x", __func__, priv->port_num, 
+			KPRINT_INFO("%s : Port %d Common CLK Wr Reg:%x", __func__, priv->port_num,
 				commonclk_val);
 		}
 	} else if (state == RESUME) {
@@ -350,17 +389,17 @@ static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT
 		if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 			commonclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
 			commonclk_val = readl(commonclk_reg);
-			KPRINT_INFO("%s : Port %d Common CLK Rd Reg:%x", __func__, priv->port_num, 
+			KPRINT_INFO("%s : Port %d Common CLK Rd Reg:%x", __func__, priv->port_num,
 				commonclk_val);
 			/* Clear Common Clocks only when both port suspends */
 			commonclk_val = commonclk_val | NCLKCTRL0_COMMON_EMAC_MASK;
 			writel(commonclk_val, commonclk_reg);
-			KPRINT_INFO("%s : Port %d Common CLK WR Reg:%x", __func__, priv->port_num, 
+			KPRINT_INFO("%s : Port %d Common CLK WR Reg:%x", __func__, priv->port_num,
 				commonclk_val);
 		}
 		nrst_val = readl(nrst_reg);
 		nclk_val = readl(nclk_reg);
-		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+		KPRINT_INFO("%s : Port %d Rd RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
 			nrst_val, nclk_val);
 		/* Restore values same as before suspend */
 		nrst_val = (nrst_val & ~NRSTCTRL_EMAC_MASK) | priv->pm_saved_emac_rst;
@@ -368,15 +407,12 @@ static void tc956xmac_pm_set_power(struct tc956xmac_priv *priv, enum TC956X_PORT
 		writel(nclk_val, nclk_reg);
 		writel(nrst_val, nrst_reg);
 	}
-	KPRINT_INFO("%s : Port %d priv->pm_saved_emac_rst %x priv->pm_saved_emac_clk %x", __func__, 
+	KPRINT_INFO("%s : Port %d priv->pm_saved_emac_rst %x priv->pm_saved_emac_clk %x", __func__,
 		priv->port_num, priv->pm_saved_emac_rst, priv->pm_saved_emac_clk);
-	KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num, 
+	KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
 		readl(nrst_reg), readl(nclk_reg));
 	KPRINT_INFO("<--%s : Port %d", __func__, priv->port_num);
 }
-#ifdef DMA_OFFLOAD_ENABLE
-struct pci_dev* port0_pdev;
-#endif
 
 #ifdef TC956X_UNSUPPORTED_UNTESTED_FEATURE
 static int tc956xmac_pci_find_phy_addr(struct pci_dev *pdev,
@@ -451,6 +487,7 @@ static int tc956xmac_default_data(struct pci_dev *pdev,
 	plat->dma_cfg->pblx8 = true;
 	/* TODO: AXI */
 
+#if !defined(TC956X_SRIOV_PF) && !defined(TC956X_SRIOV_VF)
 	plat->tx_dma_ch_owner[0] = TX_DMA_CH0_OWNER;
 	plat->tx_dma_ch_owner[1] = TX_DMA_CH1_OWNER;
 	plat->tx_dma_ch_owner[2] = TX_DMA_CH2_OWNER;
@@ -468,7 +505,7 @@ static int tc956xmac_default_data(struct pci_dev *pdev,
 	plat->rx_dma_ch_owner[5] = RX_DMA_CH5_OWNER;
 	plat->rx_dma_ch_owner[6] = RX_DMA_CH6_OWNER;
 	plat->rx_dma_ch_owner[7] = RX_DMA_CH7_OWNER;
-
+#endif
 	KPRINT_INFO("%s  <", __func__);
 	return 0;
 }
@@ -826,9 +863,11 @@ static int snps_gmac5_default_data(struct pci_dev *pdev,
 	plat->est->gcl_size = plat->tx_queues_to_use;
 
 	for (i = 0; i < plat->tx_queues_to_use; i++) {
+#ifndef TC956X
 		u32 value = BIT(24 + i) + 100000;
 
 		plat->est->gcl_unaligned[i] = value;
+#endif
 	}
 
 	return 0;
@@ -845,11 +884,12 @@ static int xgmac3_phy_read(void *priv, int phyaddr, int phyreg)
 {
 	struct tc956xmac_priv *spriv = priv;
 	u32 off, ret;
-
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0))
 	if (!(phyreg & MII_ADDR_C45))
 		return -ENODEV;
 
 	phyreg &= ~MII_ADDR_C45;
+#endif
 	off = (phyreg & GENMASK(7, 0)) << 4;
 
 	writel(phyreg >> 8, spriv->ioaddr + XGMAC3_PHY_ADDR);
@@ -867,10 +907,12 @@ static int xgmac3_phy_write(void *priv, int phyaddr, int phyreg, u16 phydata)
 	struct tc956xmac_priv *spriv = priv;
 	u32 off;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 3, 0))
 	if (!(phyreg & MII_ADDR_C45))
 		return -ENODEV;
 
 	phyreg &= ~MII_ADDR_C45;
+#endif
 	off = (phyreg & GENMASK(7, 0)) << 4;
 
 	writel(phyreg >> 8, spriv->ioaddr + XGMAC3_PHY_ADDR);
@@ -991,7 +1033,7 @@ static void xgmac_default_data(struct plat_tc956xmacenet_data *plat)
 	memcpy(plat->rxp_cfg.entries, snps_rxp_entries,
 			ARRAY_SIZE(snps_rxp_entries) *
 			sizeof(struct tc956xmac_rx_parser_entry));
-
+#ifndef TC956X_SRIOV_VF
 	/* Over writing the Default FRP table with FRP Table for Filtering PHY pause frames */
 	if ((mac0_filter_phy_pause == ENABLE && plat->port_num == RM_PF0_ID) ||
 	   (mac1_filter_phy_pause == ENABLE && plat->port_num == RM_PF1_ID)) {
@@ -1001,19 +1043,77 @@ static void xgmac_default_data(struct plat_tc956xmacenet_data *plat)
 				ARRAY_SIZE(snps_rxp_entries_filter_phy_pause_frames) *
 				sizeof(struct tc956xmac_rx_parser_entry));
 	}
-
+#endif
 }
+
+#ifdef TC956X_SRIOV_VF
+#ifdef TC956X_SRIOV_DEBUG
+static void tc956x_print_vf_mac_config(struct pci_dev *pdev,
+				struct plat_tc956xmacenet_data *plat)
+{
+	u8 ch, k;
+
+	dev_info(&pdev->dev, "******************************************************************\n");
+	dev_info(&pdev->dev, "VF %d - MAC Config Params:\n", (plat->vf_id + 1));
+	dev_info(&pdev->dev, "rx_queues_to_use_actual : %d\n", plat->rx_queues_to_use_actual);
+	dev_info(&pdev->dev, "tx_queues_to_use_actual : %d\n", plat->tx_queues_to_use_actual);
+	dev_info(&pdev->dev, "Ch enabled : \t");
+	for (ch = 0; ch < MTL_MAX_RX_QUEUES; ch++) {
+
+		if (plat->ch_in_use[ch] == 1)
+			dev_info(&pdev->dev, " %d\t", ch);
+	}
+	dev_info(&pdev->dev, "Tx Q in use : \t");
+	for (ch = 0; ch < MTL_MAX_RX_QUEUES; ch++) {
+
+		if (plat->tx_q_in_use[ch] == 1)
+			dev_info(&pdev->dev, "Q: %d Size: %d\t", ch, plat->tx_q_size[ch]);
+	}
+	dev_info(&pdev->dev, "Rx Q in use : \t");
+	for (ch = 0; ch < MTL_MAX_RX_QUEUES; ch++) {
+
+		if (plat->rx_q_in_use[ch] == 1)
+			dev_info(&pdev->dev, " %d\t", ch);
+	}
+	dev_info(&pdev->dev, "Best Ef Ch : %d\n", plat->best_effort_ch_no);
+	dev_info(&pdev->dev, "AVB A Ch : %d\n", plat->avb_class_a_ch_no);
+	dev_info(&pdev->dev, "AVB B Ch : %d\n", plat->avb_class_b_ch_no);
+	dev_info(&pdev->dev, "TSN Ch : %d\n", plat->tsn_ch_no);
+
+
+
+	dev_info(&pdev->dev, "Tx Q config :\n");
+	for (k = 0; k < MTL_MAX_RX_QUEUES; k++) {
+		dev_info(&pdev->dev, "Q%d : weight %d\n", k, plat->tx_queues_cfg[k].weight);
+		dev_info(&pdev->dev, "Q%d : mode_to_use %d\n", k, plat->tx_queues_cfg[k].mode_to_use);
+		dev_info(&pdev->dev, "Q%d : send_slope %d\n", k, plat->tx_queues_cfg[k].send_slope);
+		dev_info(&pdev->dev, "Q%d : idle_slope %d\n", k, plat->tx_queues_cfg[k].idle_slope);
+		dev_info(&pdev->dev, "Q%d : high_credit %d\n", k, plat->tx_queues_cfg[k].high_credit);
+		dev_info(&pdev->dev, "Q%d : low_credit %d\n", k, plat->tx_queues_cfg[k].low_credit);
+		dev_info(&pdev->dev, "Q%d : use_prio %d\n", k, plat->tx_queues_cfg[k].use_prio);
+		dev_info(&pdev->dev, "Q%d : prio %d\n", k, plat->tx_queues_cfg[k].prio);
+		dev_info(&pdev->dev, "Q%d : tbs_en %d\n", k, plat->tx_queues_cfg[k].tbs_en);
+		dev_info(&pdev->dev, "Q%d : tso_en %d\n", k, plat->tx_queues_cfg[k].tso_en);
+		dev_info(&pdev->dev, "\n");
+	}
+	dev_info(&pdev->dev, "******************************************************************\n");
+}
+#endif
+#endif /* TC956X_SRIOV_VF */
 
 static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 				struct plat_tc956xmacenet_data *plat)
 {
+#ifndef TC956X_SRIOV_VF
 	unsigned int queue0_rfd = 0, queue1_rfd = 0, queue0_rfa = 0, queue1_rfa = 0, temp_var = 0;
 	unsigned int rxqueue0_size = 0, rxqueue1_size = 0, txqueue0_size = 0, txqueue1_size = 0;
+#endif
 	unsigned int forced_speed = 3; /* default 1Gbps */
 
 	/* Set common default data first */
 	xgmac_default_data(plat);
 
+	plat->gate_mask = 1; /* 1: tc_to_txq gate mask enabled by default. Traffic control gate event mapped to respective queues in kernel and sent to Driver */
 	plat->bus_id = 1;
 #ifdef TC956X
 	plat->phy_addr = -1;
@@ -1021,6 +1121,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	plat->phy_addr = 0;
 #endif
 	plat->pdev = pdev;
+	plat->pse = 0;
 
 #ifdef TC956X
 	if (plat->port_interface == ENABLE_USXGMII_INTERFACE) {
@@ -1098,12 +1199,27 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 
 #endif
 
-	plat->maxmtu = MAX_SUPPORTED_MTU/*XGMAC_JUMBO_LEN*/;
+	plat->maxmtu = XGMAC_JUMBO_LEN;
 
 	/* Set default number of RX and TX queues to use */
 #ifdef TC956X
 	plat->tx_queues_to_use = MAX_TX_QUEUES_TO_USE;
 	plat->rx_queues_to_use = MAX_RX_QUEUES_TO_USE;
+#ifdef TC956X_SRIOV_VF
+	plat->rx_queues_to_use_actual = tc956xmac_vf[plat->vf_id].rx_queues_to_use_actual;
+	plat->tx_queues_to_use_actual = tc956xmac_vf[plat->vf_id].tx_queues_to_use_actual;
+	memcpy(plat->ch_in_use, tc956xmac_vf[plat->vf_id].ch_in_use, sizeof(plat->ch_in_use));
+	memcpy(plat->tx_q_in_use, tc956xmac_vf[plat->vf_id].tx_q_in_use, sizeof(plat->tx_q_in_use));
+	memcpy(plat->rx_q_in_use, tc956xmac_vf[plat->vf_id].rx_q_in_use, sizeof(plat->rx_q_in_use));
+	memcpy(plat->tx_q_size, tc956xmac_vf[plat->vf_id].tx_q_size, sizeof(plat->tx_q_size));
+	plat->best_effort_ch_no = tc956xmac_vf[plat->vf_id].best_effort_ch_no;
+	plat->gptp_ch_no = tc956xmac_vf[plat->vf_id].gptp_ch_no;
+	plat->avb_class_a_ch_no = tc956xmac_vf[plat->vf_id].avb_class_a_ch_no;
+	plat->avb_class_b_ch_no = tc956xmac_vf[plat->vf_id].avb_class_b_ch_no;
+	plat->tsn_ch_no = tc956xmac_vf[plat->vf_id].tsn_ch_no;
+	plat->tsn_application = tc956xmac_vf[plat->vf_id].tsn_application;
+	plat->avb_application = tc956xmac_vf[plat->vf_id].avb_application;
+#endif
 #else
 	plat->tx_queues_to_use = 1;
 	plat->rx_queues_to_use = 1;
@@ -1111,15 +1227,28 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 
 #ifdef TC956X
 	/* MTL Configuration */
+
+	/*Rx queue configuration for VFs are done in PF driver, so skip setting it here*/
+#ifndef TC956X_SRIOV_VF
 	/* Static Mapping */
+	/* Note : Best Effort, Broadcast/Multicast packet routing based
+	 * on DA filter Channel Mapping
+	 */
 	/* Unicast/Untagged Packets : Consider Jumbo packets */
 	plat->rx_queues_cfg[0].chan = LEG_UNTAGGED_PACKET;
 	/* VLAN Tagged Legacy packets */
 	plat->rx_queues_cfg[1].chan = LEG_TAGGED_PACKET;
 	/* Untagged gPTP packets  */
 	plat->rx_queues_cfg[2].chan = UNTAGGED_GPTP_PACKET;
+
+#if defined(TC956X_AUTOMOTIVE_CONFIG) || defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
 	/* Tagged/Untagged  AV control pkts */
 	plat->rx_queues_cfg[3].chan = UNTAGGED_AVCTRL_PACKET;
+#else
+	/* Filter Failed Unicast, Multicast, Tagged packets */
+	plat->rx_queues_cfg[3].chan = FILTER_FAIL_PACKET;
+#endif
+
 	/* AVB Class B */
 	plat->rx_queues_cfg[4].chan = AVB_CLASS_B_PACKET;
 	/* AVB Class A */
@@ -1142,20 +1271,33 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 
 	plat->rx_sched_algorithm = MTL_RX_ALGORITHM_SP;
 	plat->tx_sched_algorithm = MTL_TX_ALGORITHM_WRR;
+#endif
 
+#ifndef TC956X_SRIOV_VF
 	/* Due to the erratum in XGMAC 3.01a, WRR weights not considered in
 	 * TX DMA read data arbitration. Workaround is at set all weights for Tx Queues with
 	 * WRR arbitration logic to 1
 	 */
-	plat->tx_queues_cfg[0].weight = 1;
-	plat->tx_queues_cfg[1].weight = 1;
-	plat->tx_queues_cfg[2].weight = 1;
-	plat->tx_queues_cfg[3].weight = 1;
-	plat->tx_queues_cfg[4].weight = 1;
-	plat->tx_queues_cfg[5].weight = 1;
-	plat->tx_queues_cfg[6].weight = 1;
-	plat->tx_queues_cfg[7].weight = 1;
 
+	 /* Best Effort weitghts are same as its mapped to TC0 */
+	plat->tx_queues_cfg[0].weight = 0x11;
+	plat->tx_queues_cfg[1].weight = 0x11;
+	plat->tx_queues_cfg[2].weight = 0x11;
+	plat->tx_queues_cfg[3].weight = 0x11;
+	plat->tx_queues_cfg[4].weight = 0x12;
+	plat->tx_queues_cfg[5].weight = 0x13;
+	plat->tx_queues_cfg[6].weight = 0x14;
+	plat->tx_queues_cfg[7].weight = 0x15;
+#else
+	/* Each VF will have different configuration which is initialised in the
+	 * tc956xmac_vf table. Copy all the tx queue configuration for this vf_id
+	 * here
+	 */
+	memcpy(plat->tx_queues_cfg, tc956xmac_vf[plat->vf_id].tx_queues_cfg, sizeof(plat->tx_queues_cfg));
+#endif
+
+	/*Rx queue configuration for VFs are done in PF driver, so skip setting it here*/
+#ifndef TC956X_SRIOV_VF
 	plat->rx_queues_cfg[0].mode_to_use = RX_QUEUE0_MODE;
 	plat->rx_queues_cfg[1].mode_to_use = RX_QUEUE1_MODE;
 	plat->rx_queues_cfg[2].mode_to_use = RX_QUEUE2_MODE;
@@ -1164,7 +1306,9 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	plat->rx_queues_cfg[5].mode_to_use = RX_QUEUE5_MODE;
 	plat->rx_queues_cfg[6].mode_to_use = RX_QUEUE6_MODE;
 	plat->rx_queues_cfg[7].mode_to_use = RX_QUEUE7_MODE;
+#endif
 
+#ifndef TC956X_SRIOV_VF
 	plat->tx_queues_cfg[0].mode_to_use = TX_QUEUE0_MODE;
 	plat->tx_queues_cfg[1].mode_to_use = TX_QUEUE1_MODE;
 	plat->tx_queues_cfg[2].mode_to_use = TX_QUEUE2_MODE;
@@ -1173,10 +1317,16 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	plat->tx_queues_cfg[5].mode_to_use = TX_QUEUE5_MODE;
 	plat->tx_queues_cfg[6].mode_to_use = TX_QUEUE6_MODE;
 	plat->tx_queues_cfg[7].mode_to_use = TX_QUEUE7_MODE;
+#else
+	/*Already all configurations are copied through mem_cpy above*/
+#endif
+
+#ifndef TC956X_SRIOV_VF
+	/* CBS are per TC basis in TC956X (total TC = 5) */
+	/* CBS: queue 5 -> Class B traffic (25% BW) */
+	/* plat->tx_queues_cfg[3].idle_slope = plat->est_cfg.enable ? 0x8e4 : 0x800; */
 
 	/* CBS: queue 5 -> Class B traffic (25% BW) */
-	/* plat->tx_queues_cfg[3].idle_slope = plat->est_cfg.enable ? 0x8e4 : 0x800;
-	*/
 	plat->tx_queues_cfg[5].idle_slope = 0x800;
 	plat->tx_queues_cfg[5].send_slope = 0x1800;
 	plat->tx_queues_cfg[5].high_credit = 0x320000;
@@ -1196,15 +1346,26 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	plat->tx_queues_cfg[7].high_credit = 0x500000;
 	plat->tx_queues_cfg[7].low_credit = 0xff880000;
 
-	/* Disable Priority config by default */
-	plat->tx_queues_cfg[0].use_prio = false;
-	plat->tx_queues_cfg[1].use_prio = false;
-	plat->tx_queues_cfg[2].use_prio = false;
-	plat->tx_queues_cfg[3].use_prio = false;
-	plat->tx_queues_cfg[4].use_prio = false;
-	plat->tx_queues_cfg[5].use_prio = false;
-	plat->tx_queues_cfg[6].use_prio = false;
-	plat->tx_queues_cfg[7].use_prio = false;
+#endif
+#ifndef TC956X_SRIOV_VF
+	/* Tx TC priority */
+	plat->tx_queues_cfg[0].use_prio = TX_QUEUE0_USE_PRIO;
+	plat->tx_queues_cfg[1].use_prio = TX_QUEUE1_USE_PRIO;
+	plat->tx_queues_cfg[2].use_prio = TX_QUEUE2_USE_PRIO;
+	plat->tx_queues_cfg[3].use_prio = TX_QUEUE3_USE_PRIO;
+	plat->tx_queues_cfg[4].use_prio = TX_QUEUE4_USE_PRIO;
+	plat->tx_queues_cfg[5].use_prio = TX_QUEUE5_USE_PRIO;
+	plat->tx_queues_cfg[6].use_prio = TX_QUEUE6_USE_PRIO;
+	plat->tx_queues_cfg[7].use_prio = TX_QUEUE7_USE_PRIO;
+
+	plat->tx_queues_cfg[0].prio = TX_QUEUE0_PRIO;
+	plat->tx_queues_cfg[1].prio = TX_QUEUE1_PRIO;
+	plat->tx_queues_cfg[2].prio = TX_QUEUE2_PRIO;
+	plat->tx_queues_cfg[3].prio = TX_QUEUE3_PRIO;
+	plat->tx_queues_cfg[4].prio = TX_QUEUE4_PRIO;
+	plat->tx_queues_cfg[5].prio = TX_QUEUE5_PRIO;
+	plat->tx_queues_cfg[6].prio = TX_QUEUE6_PRIO;
+	plat->tx_queues_cfg[7].prio = TX_QUEUE7_PRIO;
 
 	/* Enable/Disable TBS */
 	plat->tx_queues_cfg[0].tbs_en = TX_QUEUE0_TBS;
@@ -1259,8 +1420,8 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 
 	plat->rx_queues_cfg[7].use_prio = RX_QUEUE7_USE_PRIO;
 	plat->rx_queues_cfg[7].prio = RX_QUEUE7_PRIO;
-
-#else
+#endif
+#else	/* TC956X */
 	/* Disable Priority config by default */
 	plat->tx_queues_cfg[0].use_prio = false;
 	plat->tx_queues_cfg[0].mode_to_use = MTL_QUEUE_DCB;
@@ -1314,6 +1475,13 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 		memset(plat->est, 0, sizeof(*plat->est));
 	}
 
+#ifdef TC956X_SRIOV_VF
+#ifdef TC956X_SRIOV_DEBUG
+	tc956x_print_vf_mac_config(pdev, plat);
+#endif
+#endif
+
+#if defined(TC956X_SRIOV_PF) && defined(TC956X_DMA_OFFLOAD_ENABLE)
 	plat->tx_dma_ch_owner[0] = TX_DMA_CH0_OWNER;
 	plat->tx_dma_ch_owner[1] = TX_DMA_CH1_OWNER;
 	plat->tx_dma_ch_owner[2] = TX_DMA_CH2_OWNER;
@@ -1331,6 +1499,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	plat->rx_dma_ch_owner[5] = RX_DMA_CH5_OWNER;
 	plat->rx_dma_ch_owner[6] = RX_DMA_CH6_OWNER;
 	plat->rx_dma_ch_owner[7] = RX_DMA_CH7_OWNER;
+#endif
 
 	/* Configuration of PHY operating mode 1(true): for interrupt mode, 0(false): for polling mode */
 	if (plat->port_num == RM_PF0_ID) {
@@ -1349,6 +1518,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 #endif
 	}
 
+#ifndef TC956X_SRIOV_VF
 	/* Rx Queue size and flow control thresholds configuration */
 	if (plat->port_num == RM_PF0_ID) {
 		rxqueue0_size = mac0_rxq0_size;
@@ -1379,7 +1549,7 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 	}
 
 	/* Validation of Queue size and Flow control thresholds and configuring local parameters to update registers*/
-	if((rxqueue0_size + rxqueue1_size) <= MAX_RX_QUEUE_SIZE) {
+	if ((rxqueue0_size + rxqueue1_size) <= MAX_RX_QUEUE_SIZE) {
 		plat->rx_queues_cfg[0].size = rxqueue0_size;
 		plat->rx_queues_cfg[1].size = rxqueue1_size;
 	} else {
@@ -1390,13 +1560,13 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 
 	}
 
-	if((((queue0_rfd * SIZE_512B) + SIZE_1KB) < plat->rx_queues_cfg[0].size) &&
+	if ((((queue0_rfd * SIZE_512B) + SIZE_1KB) < plat->rx_queues_cfg[0].size) &&
 		(((queue0_rfa * SIZE_512B) + SIZE_1KB) < plat->rx_queues_cfg[0].size)) {
 		plat->rx_queues_cfg[0].rfd = queue0_rfd;
 		plat->rx_queues_cfg[0].rfa = queue0_rfa;
 	} else {
 		temp_var = ((plat->rx_queues_cfg[0].size - (((plat->rx_queues_cfg[0].size)*8)/10))/SIZE_512B); /* configuration to 20% of FIFO Size */
-		if(temp_var >= 2) {
+		if (temp_var >= 2) {
 			temp_var = (temp_var - 2);
 		} else {
 			temp_var = 0;
@@ -1407,13 +1577,13 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 			__func__, queue0_rfd, queue0_rfa, plat->rx_queues_cfg[0].rfd, plat->rx_queues_cfg[0].rfa, plat->port_num);
 	}
 
-	if((((queue1_rfd * SIZE_512B) + SIZE_1KB) < plat->rx_queues_cfg[1].size) &&
+	if ((((queue1_rfd * SIZE_512B) + SIZE_1KB) < plat->rx_queues_cfg[1].size) &&
 		(((queue1_rfa * SIZE_512B) + SIZE_1KB) < plat->rx_queues_cfg[1].size)) {
 		plat->rx_queues_cfg[1].rfd = queue1_rfd;
 		plat->rx_queues_cfg[1].rfa = queue1_rfa;
 	} else {
 		temp_var = ((plat->rx_queues_cfg[1].size - (((plat->rx_queues_cfg[1].size)*8)/10))/SIZE_512B); /* configuration to 20% of FIFO Size */
-		if(temp_var >= 2){
+		if (temp_var >= 2) {
 			temp_var = (temp_var - 2);
 		} else {
 			temp_var = 0;
@@ -1424,16 +1594,16 @@ static int tc956xmac_xgmac3_default_data(struct pci_dev *pdev,
 			__func__, queue1_rfd, queue1_rfa, plat->rx_queues_cfg[1].rfd, plat->rx_queues_cfg[1].rfa, plat->port_num);
 	}
 
-	if((txqueue0_size + txqueue1_size) <= MAX_TX_QUEUE_SIZE) {
+	if ((txqueue0_size + txqueue1_size) <= MAX_TX_QUEUE_SIZE) {
 		plat->tx_queues_cfg[0].size = txqueue0_size;
 		plat->tx_queues_cfg[1].size = txqueue1_size;
 	} else {
 		plat->tx_queues_cfg[0].size = TX_QUEUE0_SIZE; /* Default configuration when invalid input given */
 		plat->tx_queues_cfg[1].size = TX_QUEUE1_SIZE;
 		NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid Rx Queue sizes passed txq0_size=%d, txq1_size=%d, Restoring default to txq0_size=%d, txq1_size=%d of port=%d\n",
-			__func__, rxqueue0_size, rxqueue1_size, TX_QUEUE0_SIZE, TX_QUEUE1_SIZE,plat->port_num);
+			__func__, rxqueue0_size, rxqueue1_size, TX_QUEUE0_SIZE, TX_QUEUE1_SIZE, plat->port_num);
 	}
-
+#endif
 	return 0;
 }
 
@@ -1566,9 +1736,11 @@ static int tc956xmac_xgmac3_2_5g_default_data(struct pci_dev *pdev,
 	plat->est->gcl_size = plat->tx_queues_to_use;
 
 	for (i = 0; i < plat->tx_queues_to_use; i++) {
+#ifndef TC956X
 		u32 value = BIT(24 + i) + 100000;
 
 		plat->est->gcl_unaligned[i] = value;
+#endif
 	}
 
 	tc956xmac_config_data(plat);
@@ -1602,6 +1774,7 @@ static const struct tc956xmac_pci_info tc956xmac_xgmac3_2_5g_mdio_pci_info = {
 };
 #endif /* TC956X_UNSUPPORTED_UNTESTED_FEATURE */
 
+#ifndef TC956X_SRIOV_VF
 /*!
  * \brief API to Reset SRAM Region.
  *
@@ -1621,7 +1794,7 @@ static void tc956x_reset_SRAM(struct device *dev, struct tc956xmac_resources *re
 	memset_io((res->tc956x_SRAM_pci_base_addr + 0x40000), 0x0, 0x10000);
 	NMSGPR_INFO(dev,  "Resetting SRAM Region end\n");
 }
- 
+
 /*!
  * \brief API to load firmware for CM3.
  *
@@ -1712,7 +1885,7 @@ s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res)
 	}
 
 	NMSGPR_INFO(dev,  "FW Loading Start...\n");
-	NMSGPR_INFO(dev,  "FW Size = %ld\n", (long int)(pfw->size));
+	NMSGPR_INFO(dev,  "FW Size = %ld\n", (long)(pfw->size));
 
 	/* Assert M3 reset */
 #ifdef TC956X
@@ -1763,8 +1936,8 @@ s32 tc956x_load_firmware(struct device *dev, struct tc956xmac_resources *res)
 
 	return 0;
 }
-
-#ifdef DMA_OFFLOAD_ENABLE
+#endif /*TC956X_SRIOV_VF*/
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 /*
  * brief API to populate the table address map registers.
  *
@@ -1815,6 +1988,7 @@ void tc956x_config_CM3_tamap(struct device *dev,
 }
 #endif
 
+#ifndef TC956X_SRIOV_VF
 /*
  * brief API to populate the table address map registers.
  *
@@ -1828,7 +2002,27 @@ static void tc956x_config_tamap(struct device *dev,
 				void __iomem *reg_pci_base_addr)
 {
 #ifdef TC956X
+	u32 table_entry;
+
 	DBGPR_FUNC(dev, "-->%s\n", __func__);
+
+	/* Set all entries to default */
+	for (table_entry = 0; table_entry <= MAX_CM3_TAMAP_ENTRIES; table_entry++) {
+
+		writel(TC956X_AXI4_SLV00_TRSL_PARAM_VAL, reg_pci_base_addr +
+					TC956X_AXI4_SLV_TRSL_PARAM(0, table_entry));
+		writel(0x0, reg_pci_base_addr +
+					TC956X_AXI4_SLV_TRSL_ADDR_HI(0, table_entry));
+		writel(0x0, reg_pci_base_addr +
+					TC956X_AXI4_SLV_TRSL_ADDR_LO(0, table_entry));
+		writel(0x0, reg_pci_base_addr +
+					TC956X_AXI4_SLV_SRC_ADDR_HI(0, table_entry));
+		writel(TC956X_AXI4_SLV00_SRC_ADDR_LO_VAL_DEFAULT, reg_pci_base_addr +
+					TC956X_AXI4_SLV_SRC_ADDR_LO(0, table_entry));
+
+	}
+
+
 
 	/* AXI4 Slave 0 - Table 0 Entry */
 	/* EDMA address region 0x10 0000 0000 - 0x1F FFFF FFFF is
@@ -1865,6 +2059,48 @@ static void tc956x_config_tamap(struct device *dev,
 #endif
 	DBGPR_FUNC(dev, "<--%s\n", __func__);
 }
+#endif
+
+#ifdef TC956X_SRIOV_VF
+static int tc956x_vf_get_fn_id(void __iomem *reg_pci_bridge_config_addr,
+				       struct fn_id *fn_id_info)
+{
+	void __iomem *ioaddr = reg_pci_bridge_config_addr;
+	u32 rsc_mng_id = readl(ioaddr + RSCMNG_ID_REG);
+
+	fn_id_info->fn_type = (rsc_mng_id & RSC_MNG_FN_TYPE) >> 16;
+	fn_id_info->pf_no = (rsc_mng_id & RSC_MNG_PF_FN_NUM);
+	fn_id_info->vf_no = ((rsc_mng_id & RSC_MNG_VF_FN_NUM) >> 8);
+
+	/** Below error check for VF driver.
+	 * In case of VF driver, function type to be 1
+	 */
+	if (fn_id_info->fn_type == 0)
+		return -1;
+
+	/* VF1,2,3 are supported */
+	if (fn_id_info->vf_no > 3)
+		return -1;
+
+	/* PF 0 and 1 are supported */
+	if (fn_id_info->pf_no > 1)
+		return -1;
+
+	return 0;
+}
+
+static int get_vf_id(struct plat_tc956xmacenet_data *plat_dat,
+		     struct tc956xmac_resources *res)
+{
+	struct fn_id fn_id_info;
+
+	tc956x_vf_get_fn_id(res->tc956x_BRIDGE_CFG_pci_base_addr, &fn_id_info);
+
+	plat_dat->vf_id = fn_id_info.vf_no - 1;
+	return 0;
+
+}
+#endif
 
 #ifdef TC956X
 
@@ -2173,28 +2409,38 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	struct tc956xmac_pci_info *info = (struct tc956xmac_pci_info *)id->driver_data;
 	struct plat_tc956xmacenet_data *plat;
 	struct tc956xmac_resources res;
-#ifdef TC956X_PCIE_LINK_STATE_LATENCY_CTRL
+#if (defined(TC956X_PCIE_DSP_CUT_THROUGH) || defined(TC956X_PCIE_GEN3_SETTING)) && defined(TC956X_SRIOV_PF)
+	u32 val;
+#endif
+#if defined(TC956X_PCIE_LINK_STATE_LATENCY_CTRL) && defined(TC956X_SRIOV_PF)
 	u32 reg_val;
 #endif /* end of TC956X_PCIE_LINK_STATE_LATENCY_CTRL */
 #ifdef TC956X
-	/* use signal from MSPHY */
+#ifndef TC956X_SRIOV_VF
+	/* use signal from EMSPHY */
 	uint8_t SgmSigPol = 0;
-#ifdef TC956X_PCIE_GEN3_SETTING
-	u32 val;
 #endif
 #endif
-
 	int ret;
 	char version_str[32];
-#ifdef TC956X_PCIE_LOGSTAT
-	struct tc956x_ltssm_log ltssm_data;
-#endif/*TC956X_PCIE_LOGSTAT*/
+#if defined(TC956X_PCIE_DSP_CUT_THROUGH) && defined(TC956X_SRIOV_PF)
+	u32 pcie_mode; /* Read Setting A/B */
+#endif
+
 	KPRINT_INFO("%s  >", __func__);
+#ifndef TC956X_SRIOV_VF
 	scnprintf(version_str, sizeof(version_str), "Host Driver Version %d%d-%d%d-%d%d",
 		tc956x_drv_version.rel_dbg,
 		tc956x_drv_version.major, tc956x_drv_version.minor,
 		tc956x_drv_version.sub_minor,
 		tc956x_drv_version.patch_rel_major, tc956x_drv_version.patch_rel_minor);
+#else
+	scnprintf(version_str, sizeof(version_str), "Virtual Function Driver Version %d%d-%d%d-%d%d",
+		tc956x_drv_version.rel_dbg,
+		tc956x_drv_version.major, tc956x_drv_version.minor,
+		tc956x_drv_version.sub_minor,
+		tc956x_drv_version.patch_rel_major, tc956x_drv_version.patch_rel_minor);
+#endif
 	NMSGPR_INFO(&pdev->dev, "%s\n", version_str);
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
@@ -2228,14 +2474,71 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		DBGPR_FUNC(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
 		goto err_out_req_reg_failed;
 	}
+	memset(&res, 0, sizeof(res));
+#if defined(TC956X_SRIOV_PF) && (defined(TC956X_AUTOMOTIVE_CONFIG) || defined(TC956X_ENABLE_MAC2MAC_BRIDGE))
+	if (tc956x_no_of_vf > 0) {
+		tc956x_no_of_vf = 0;
+		NMSGPR_INFO(&(pdev->dev),
+		"Enabling SRIOV not allowed in Automotive configuration\n");
+	}
 
+#endif
+#ifdef TC956X_SRIOV_PF
+#ifdef CONFIG_PCI_IOV
+
+
+	/* Enable SRIOV with the requested no of VFs */
+	if ((tc956x_no_of_vf != 0) && (pdev->is_physfn)) {
+
+		s32 pos = 0;
+
+		pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
+		if (pos) {
+			NDBGPR_L1(&(pdev->dev), "SR-IOV capability found\n");
+
+			/* Validate and Enable the requested No. of VFs value */
+			if (tc956x_no_of_vf <= TC956X_TOTAL_VFS) {
+
+				ret = pci_enable_sriov(pdev, tc956x_no_of_vf);
+				if (ret) {
+
+					NMSGPR_ERR(&(pdev->dev),
+					"%s : SRIOV enable failed.\n",
+					TC956X_RESOURCE_NAME);
+					DBGPR_FUNC(&(pdev->dev),
+					"<--%s: ret: %d\n", __func__, ret);
+					goto err_sriov_vf_en_failed;
+				}
+
+				res.sriov_enabled = 1;
+
+				NMSGPR_INFO(&(pdev->dev),
+				"Total SR-IOV VFs Enabled: %d\n",
+					tc956x_no_of_vf);
+			} else {
+				NMSGPR_ALERT(&(pdev->dev),
+				"%s : VFs Value Out of Range.\n",
+					TC956X_RESOURCE_NAME);
+			}
+		} else {
+			NDBGPR_L1(&(pdev->dev),
+			"SR-IOV capability not found\n");
+		}
+	}
+#endif
+#endif
+	/* From the Kernel version 6.4.0, AER Error reporting is enabled by default.
+	 * It is enabled in pci_device_add() Kernel Space API.
+	 * So not required to enable from EMAC Driver.
+	 */
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(6, 4, 0))
 	/* Enable AER Error reporting, if device capability is detected */
 	if (pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR)) {
 
 		pci_enable_pcie_error_reporting(pdev);
 		NMSGPR_INFO(&(pdev->dev), "AER Capability Enabled\n");
 	}
-
+#endif
 	/* Enable the bus mastering */
 	pci_set_master(pdev);
 
@@ -2252,22 +2555,27 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	dev_info(&(pdev->dev),
 		"BAR4 physical address = 0x%llx\n", (u64)pci_resource_start(pdev, 4));
 
-	memset(&res, 0, sizeof(res));
 #ifdef TC956X
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+	res.tc956x_BRIDGE_CFG_pci_base_addr = ioremap
+		(pci_resource_start(pdev, TC956X_BAR0), pci_resource_len(pdev, TC956X_BAR0));
+#else
 	res.tc956x_BRIDGE_CFG_pci_base_addr = ioremap_nocache
 		(pci_resource_start(pdev, TC956X_BAR0), pci_resource_len(pdev, TC956X_BAR0));
-
+#endif
 	if (((void __iomem *)res.tc956x_BRIDGE_CFG_pci_base_addr == NULL)) {
 		NMSGPR_ERR(&(pdev->dev), "%s: cannot map TC956X BAR0, aborting", pci_name(pdev));
 		ret = -EIO;
 		DBGPR_FUNC(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
 		goto err_out_map_failed;
 	}
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+	res.tc956x_SRAM_pci_base_addr = ioremap
+		(pci_resource_start(pdev, TC956X_BAR2), pci_resource_len(pdev, TC956X_BAR2));
+#else
 	res.tc956x_SRAM_pci_base_addr = ioremap_nocache
 		(pci_resource_start(pdev, TC956X_BAR2), pci_resource_len(pdev, TC956X_BAR2));
-
+#endif
 	if (((void __iomem *)res.tc956x_SRAM_pci_base_addr == NULL)) {
 		pci_iounmap(pdev, (void __iomem *)res.tc956x_BRIDGE_CFG_pci_base_addr);
 		NMSGPR_ERR(&(pdev->dev), "%s: cannot map TC956X BAR2, aborting", pci_name(pdev));
@@ -2275,10 +2583,13 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		DBGPR_FUNC(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
 		goto err_out_map_failed;
 	}
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 6, 0))
+	res.tc956x_SFR_pci_base_addr = ioremap
+		(pci_resource_start(pdev, TC956X_BAR4), pci_resource_len(pdev, TC956X_BAR4));
+#else
 	res.tc956x_SFR_pci_base_addr = ioremap_nocache
 		(pci_resource_start(pdev, TC956X_BAR4), pci_resource_len(pdev, TC956X_BAR4));
-
+#endif
 	if (((void __iomem *)res.tc956x_SFR_pci_base_addr == NULL)) {
 		pci_iounmap(pdev, (void __iomem *)res.tc956x_BRIDGE_CFG_pci_base_addr);
 		pci_iounmap(pdev, (void __iomem *)res.tc956x_SRAM_pci_base_addr);
@@ -2293,6 +2604,37 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	NDBGPR_L1(&(pdev->dev), "BAR4 virtual address = %p\n", res.tc956x_SFR_pci_base_addr);
 
 	res.addr = res.tc956x_SFR_pci_base_addr;
+
+#ifdef TC956X
+	res.port_num = readl(res.tc956x_BRIDGE_CFG_pci_base_addr + RSCMNG_ID_REG); /* Resource Manager ID */
+	res.port_num &= RSCMNG_PFN;
+#endif
+
+#ifndef TC956X_SRIOV_VF
+#ifdef TC956X_PCIE_LOGSTAT
+	if (res.port_num == RM_PF0_ID) {
+#ifdef TC956X_PCIE_LOGSTAT_SUMMARY_ENABLE
+		if ((tc956x_logstat_state_log_summary((void __iomem *)res.addr, UPSTREAM_PORT) < 0)
+		|| (tc956x_logstat_state_log_summary((void __iomem *)res.addr, DOWNSTREAM_PORT1) < 0)
+		|| (tc956x_logstat_state_log_summary((void __iomem *)res.addr, DOWNSTREAM_PORT2) < 0)
+		|| (tc956x_logstat_state_log_summary((void __iomem *)res.addr, INTERNAL_ENDPOINT) < 0)) {
+			ret = -EFAULT; /* The returns returned by above functions are -EFAULT only */
+			DBGPR_FUNC(&(pdev->dev), "<--%s : Error ret: %d\n", __func__, ret);
+			goto err_dvr_logstat;
+		}
+#endif /* #ifdef TC956X_PCIE_LOGSTAT_SUMMARY_ENABLE */
+
+		if ((tc956x_logstat_set_state_log_enable((void __iomem *)res.addr, UPSTREAM_PORT, STATE_LOG_ENABLE) < 0)
+		|| (tc956x_logstat_set_state_log_enable((void __iomem *)res.addr, DOWNSTREAM_PORT1, STATE_LOG_ENABLE) < 0)
+		|| (tc956x_logstat_set_state_log_enable((void __iomem *)res.addr, DOWNSTREAM_PORT2, STATE_LOG_ENABLE) < 0)
+		|| (tc956x_logstat_set_state_log_enable((void __iomem *)res.addr, INTERNAL_ENDPOINT, STATE_LOG_ENABLE) < 0)) {
+			ret = -EFAULT; /* The returns returned by above functions are -EFAULT only */
+			DBGPR_FUNC(&(pdev->dev), "<--%s : Error ret: %d\n", __func__, ret);
+			goto err_dvr_logstat;
+		}
+	}
+#endif /* TC956X_PCIE_LOGSTAT */
+
 #ifdef TC956X_PCIE_GEN3_SETTING
 	val = readl(res.addr + TC956X_GLUE_EFUSE_CTRL);
 	if ((val & 0x10) == 0) {
@@ -2310,7 +2652,9 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	if ((pcie_link_speed >= 1) && (pcie_link_speed <= 3))
 		tc956x_set_pci_speed(pdev, pcie_link_speed);
 #endif
+#endif /*#ifdef TC956X_SRIOV_VF*/
 
+#if defined(TC956X_SRIOV_PF)
 #ifdef TC956X_PCIE_LINK_STATE_LATENCY_CTRL
 	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable for USP Access enable */
 	writel(SW_USP_ENABLE, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
@@ -2333,7 +2677,7 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	/* 0x4002_4970 K_PEXCONF_210_219.aspm_L1_entry_delay in terms of 256ns */
 	writel(DSP2_L1_ENTRY_DELAY, res.addr + TC956X_PCIE_S_L1_ENTRY_LATENCY);
 
-	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable 
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable
 			for VDSP Access enable */
 	writel(SW_VDSP_ENABLE, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
 	/* 0x4002_496C K_PEXCONF_209_205.aspm_l0s_entry_delay in terms of 256ns */
@@ -2349,18 +2693,24 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 
 	/* Updating PCIE EP Capability setting of L0s & L1 entry delays */
 	reg_val |= (((EP_L0s_ENTRY_DELAY << TC956X_PCIE_EP_L0s_ENTRY_SHIFT) &
-				TC956X_PCIE_EP_L0s_ENTRY_MASK) | 
+				TC956X_PCIE_EP_L0s_ENTRY_MASK) |
 			((EP_L1_ENTRY_DELAY << TC956X_PCIE_EP_L1_ENTRY_SHIFT) &
 				TC956X_PCIE_EP_L1_ENTRY_MASK));
 
 	/* 0x4002_00D8 PCIE EP Capability setting L0S & L1 entry delay in terms of 256ns */
 	writel(reg_val, res.addr + TC956X_PCIE_EP_CAPB_SET);
 
-	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable 
+	/* 0x4002_C02C SSREG_GLUE_SW_REG_ACCESS_CTRL.sw_port_reg_access_enable
 			for All Switch Ports Access enable */
 	writel(TC956X_PCIE_S_EN_ALL_PORTS_ACCESS, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
 #endif /* end of TC956X_PCIE_LINK_STATE_LATENCY_CTRL */
+#endif /* TC956X_SRIOV_PF*/
 
+#ifdef TC956X_SRIOV_VF
+	get_vf_id(plat, &res);
+#endif /*#ifdef TC956X_SRIOV_VF*/
+
+#ifndef TC956X_SRIOV_VF
 #ifdef TC956X_PCIE_DISABLE_DSP1
 	tc956x_pcie_disable_dsp1_port(&pdev->dev, res.tc956x_SFR_pci_base_addr);
 #endif
@@ -2376,7 +2726,14 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	res.port_num = readl(res.tc956x_BRIDGE_CFG_pci_base_addr + RSCMNG_ID_REG); /* Resource Manager ID */
 	res.port_num &= RSCMNG_PFN;
 #endif
-
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_MAGIC_PACKET_WOL_GPIO
+	if (res.port_num == RM_PF0_ID) {
+		KPRINT_INFO("%s: Port %d - Configuring GPIO for WOL", __func__, res.port_num);
+		tc956x_wol_gpio_trigger(res.addr, false); /* Set to LOW */
+	}
+#endif
+#endif /* TC956X_SRIOV_PF */
 #ifdef DISABLE_EMAC_PORT1
 #ifdef TC956X
 	if (res.port_num == RM_PF1_ID) {
@@ -2394,59 +2751,65 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	}
 #endif
 #endif
+#endif /*#ifdef TC956X_SRIOV_VF*/
 
 	plat->port_num = res.port_num;
 
+#ifndef TC956X_SRIOV_VF
 	/* User configured/Default Module parameters of TC956x*/
-	NMSGPR_INFO(&pdev->dev, "User Configured/Default Module parameters of TC956x of Port-%d\n",plat->port_num);
+	NMSGPR_INFO(&pdev->dev, "User Configured/Default Module parameters of TC956x of Port-%d\n", plat->port_num);
 	if (plat->port_num == RM_PF0_ID) {
 #ifdef TC956X_PCIE_GEN3_SETTING
-		NMSGPR_INFO(&pdev->dev, "pcie_link_speed = %d \n", pcie_link_speed);
+		NMSGPR_INFO(&pdev->dev, "pcie_link_speed = %d\n", pcie_link_speed);
 #endif
-		NMSGPR_INFO(&pdev->dev, "mac0_force_speed_mode = %d \n", mac0_force_speed_mode);
-		NMSGPR_INFO(&pdev->dev, "mac0_force_config_speed = %d \n", mac0_force_config_speed);
-		NMSGPR_INFO(&pdev->dev, "mac0_interface = %d \n", mac0_interface);
-		NMSGPR_INFO(&pdev->dev, "mac0_eee_enable = %d \n", mac0_eee_enable);
-		NMSGPR_INFO(&pdev->dev, "mac0_lpi_timer = %d \n", mac0_lpi_timer);
-		NMSGPR_INFO(&pdev->dev, "mac0_filter_phy_pause = %d \n", mac0_filter_phy_pause);
-		NMSGPR_INFO(&pdev->dev, "mac0_rxq0_size = %d \n", mac0_rxq0_size);
-		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_size = %d \n", mac0_rxq1_size);
-		NMSGPR_INFO(&pdev->dev, "mac0_rxq0_rfd  = %d \n", mac0_rxq0_rfd);
-		NMSGPR_INFO(&pdev->dev, "mac0_rxq0_rfa  = %d \n", mac0_rxq0_rfa);
-		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_rfd  = %d \n", mac0_rxq1_rfd);
-		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_rfa  = %d \n", mac0_rxq1_rfa);
-		NMSGPR_INFO(&pdev->dev, "mac0_txq0_size = %d \n", mac0_txq0_size);
-		NMSGPR_INFO(&pdev->dev, "mac0_txq1_size = %d \n", mac0_txq1_size);
-		NMSGPR_INFO(&pdev->dev, "mac0_en_lp_pause_frame_cnt = %d \n", mac0_en_lp_pause_frame_cnt);
+		NMSGPR_INFO(&pdev->dev, "mac0_force_speed_mode = %d\n", mac0_force_speed_mode);
+		NMSGPR_INFO(&pdev->dev, "mac0_force_config_speed = %d\n", mac0_force_config_speed);
+		NMSGPR_INFO(&pdev->dev, "mac0_interface = %d\n", mac0_interface);
+		NMSGPR_INFO(&pdev->dev, "mac0_eee_enable = %d\n", mac0_eee_enable);
+		NMSGPR_INFO(&pdev->dev, "mac0_lpi_timer = %d\n", mac0_lpi_timer);
+		NMSGPR_INFO(&pdev->dev, "mac0_filter_phy_pause = %d\n", mac0_filter_phy_pause);
+		NMSGPR_INFO(&pdev->dev, "mac0_rxq0_size = %d\n", mac0_rxq0_size);
+		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_size = %d\n", mac0_rxq1_size);
+		NMSGPR_INFO(&pdev->dev, "mac0_rxq0_rfd  = %d\n", mac0_rxq0_rfd);
+		NMSGPR_INFO(&pdev->dev, "mac0_rxq0_rfa  = %d\n", mac0_rxq0_rfa);
+		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_rfd  = %d\n", mac0_rxq1_rfd);
+		NMSGPR_INFO(&pdev->dev, "mac0_rxq1_rfa  = %d\n", mac0_rxq1_rfa);
+		NMSGPR_INFO(&pdev->dev, "mac0_txq0_size = %d\n", mac0_txq0_size);
+		NMSGPR_INFO(&pdev->dev, "mac0_txq1_size = %d\n", mac0_txq1_size);
+		NMSGPR_INFO(&pdev->dev, "mac0_en_lp_pause_frame_cnt = %d\n", mac0_en_lp_pause_frame_cnt);
 		NMSGPR_INFO(&pdev->dev, "mac_power_save_at_link_down = %d \n", mac_power_save_at_link_down);
 		NMSGPR_INFO(&pdev->dev, "mac0_link_down_macrst = %d \n", mac0_link_down_macrst);
 	} else if (plat->port_num == RM_PF1_ID) {
-		NMSGPR_INFO(&pdev->dev, "mac1_force_speed_mode = %d \n", mac1_force_speed_mode);
-		NMSGPR_INFO(&pdev->dev, "mac1_force_config_speed = %d \n", mac1_force_config_speed);
-		NMSGPR_INFO(&pdev->dev, "mac1_interface = %d \n", mac1_interface);
-		NMSGPR_INFO(&pdev->dev, "mac1_eee_enable = %d \n", mac1_eee_enable);
-		NMSGPR_INFO(&pdev->dev, "mac1_filter_phy_pause = %d \n", mac1_filter_phy_pause);
-		NMSGPR_INFO(&pdev->dev, "mac1_lpi_timer = %d \n", mac1_lpi_timer);
-		NMSGPR_INFO(&pdev->dev, "mac1_rxq0_size = %d \n", mac1_rxq0_size);
-		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_size = %d \n", mac1_rxq1_size);
-		NMSGPR_INFO(&pdev->dev, "mac1_rxq0_rfd  = %d \n", mac1_rxq0_rfd);
-		NMSGPR_INFO(&pdev->dev, "mac1_rxq0_rfa  = %d \n", mac1_rxq0_rfa);
-		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_rfd  = %d \n", mac1_rxq1_rfd);
-		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_rfa  = %d \n", mac1_rxq1_rfa);
-		NMSGPR_INFO(&pdev->dev, "mac1_txq0_size = %d \n", mac1_txq0_size);
-		NMSGPR_INFO(&pdev->dev, "mac1_txq1_size = %d \n", mac1_txq1_size);
-		NMSGPR_INFO(&pdev->dev, "mac1_en_lp_pause_frame_cnt = %d \n", mac1_en_lp_pause_frame_cnt);
+		NMSGPR_INFO(&pdev->dev, "mac1_force_speed_mode = %d\n", mac1_force_speed_mode);
+		NMSGPR_INFO(&pdev->dev, "mac1_force_config_speed = %d\n", mac1_force_config_speed);
+		NMSGPR_INFO(&pdev->dev, "mac1_interface = %d\n", mac1_interface);
+		NMSGPR_INFO(&pdev->dev, "mac1_eee_enable = %d\n", mac1_eee_enable);
+		NMSGPR_INFO(&pdev->dev, "mac1_filter_phy_pause = %d\n", mac1_filter_phy_pause);
+		NMSGPR_INFO(&pdev->dev, "mac1_lpi_timer = %d\n", mac1_lpi_timer);
+		NMSGPR_INFO(&pdev->dev, "mac1_rxq0_size = %d\n", mac1_rxq0_size);
+		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_size = %d\n", mac1_rxq1_size);
+		NMSGPR_INFO(&pdev->dev, "mac1_rxq0_rfd  = %d\n", mac1_rxq0_rfd);
+		NMSGPR_INFO(&pdev->dev, "mac1_rxq0_rfa  = %d\n", mac1_rxq0_rfa);
+		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_rfd  = %d\n", mac1_rxq1_rfd);
+		NMSGPR_INFO(&pdev->dev, "mac1_rxq1_rfa  = %d\n", mac1_rxq1_rfa);
+		NMSGPR_INFO(&pdev->dev, "mac1_txq0_size = %d\n", mac1_txq0_size);
+		NMSGPR_INFO(&pdev->dev, "mac1_txq1_size = %d\n", mac1_txq1_size);
+		NMSGPR_INFO(&pdev->dev, "mac1_en_lp_pause_frame_cnt = %d\n", mac1_en_lp_pause_frame_cnt);
 		NMSGPR_INFO(&pdev->dev, "mac1_link_down_macrst = %d \n", mac1_link_down_macrst);
 	}
+#endif
+#if defined(TC956X_SRIOV_PF) || defined(TC956X_AUTOMOTIVE_CONFIG)
 
 	if (res.port_num == RM_PF0_ID) {
-		plat->mdc_clk = PORT0_MDC;
-		plat->c45_needed = PORT0_C45_STATE;
+		plat->mdc_clk = port0_mdc;
+		plat->c45_needed = port0_c45_state == 1 ? true : false;
+		plat->start_phy_addr = port0_phyaddr;
 	}
 
 	if (res.port_num == RM_PF1_ID) {
-		plat->mdc_clk = PORT1_MDC;
-		plat->c45_needed = PORT1_C45_STATE;
+		plat->mdc_clk = port1_mdc;
+		plat->c45_needed = port1_c45_state == 1 ? true : false;
+		plat->start_phy_addr = port1_phyaddr;
 	}
 
 	if (res.port_num == RM_PF0_ID) {
@@ -2460,10 +2823,9 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 
 	if (res.port_num == RM_PF1_ID) {
 		/* Set the PORT1 interface mode to default, in case of invalid input */
-		if ((mac1_interface <  ENABLE_RGMII_INTERFACE) ||
+		if ((mac1_interface < ENABLE_USXGMII_INTERFACE) ||
 		(mac1_interface >  ENABLE_2500BASE_X_INTERFACE))
 			mac1_interface = ENABLE_SGMII_INTERFACE;
-
 		res.port_interface = mac1_interface;
 	}
 
@@ -2483,18 +2845,18 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 				__func__, mac0_force_config_speed);
 			}
 		}
-		if ((mac0_eee_enable != DISABLE) && 
+		if ((mac0_eee_enable != DISABLE) &&
 		(mac0_eee_enable != ENABLE)) {
 			mac0_eee_enable = DISABLE;
-			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac0_eee_enable parameter passed. Restoring default to %d. Supported Values are 0 and 1.\n", 
-			__func__, mac1_eee_enable);
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac0_eee_enable parameter passed. Restoring default to %d. Supported Values are 0 and 1.\n",
+			__func__, mac0_eee_enable);
 		}
 
-		if ((mac0_eee_enable == ENABLE) && 
+		if ((mac0_eee_enable == ENABLE) &&
 		(mac0_lpi_timer > TC956X_MAX_LPI_AUTO_ENTRY_TIMER)) {
 			mac0_lpi_timer = TC956XMAC_LPIET_600US;
-			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac0_lpi_timer parameter passed. Restoring default to %d. Supported Values between %d and %d.\n", 
-			__func__, mac1_lpi_timer, 
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac0_lpi_timer parameter passed. Restoring default to %d. Supported Values between %d and %d.\n",
+			__func__, mac1_lpi_timer,
 			TC956X_MIN_LPI_AUTO_ENTRY_TIMER, TC956X_MAX_LPI_AUTO_ENTRY_TIMER);
 		}
 		res.eee_enabled = mac0_eee_enable;
@@ -2516,30 +2878,31 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 			}
 		}
 
-		if ((mac1_eee_enable != DISABLE) && 
+		if ((mac1_eee_enable != DISABLE) &&
 		(mac1_eee_enable != ENABLE)) {
 			mac1_eee_enable = DISABLE;
-			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac1_eee_enable parameter passed. Restoring default to %d. Supported Values are 0 and 1.\n", 
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac1_eee_enable parameter passed. Restoring default to %d. Supported Values are 0 and 1.\n",
 			__func__, mac1_eee_enable);
 		}
 
-		if ((mac0_eee_enable == ENABLE) && 
+		if ((mac0_eee_enable == ENABLE) &&
 		(mac1_lpi_timer > TC956X_MAX_LPI_AUTO_ENTRY_TIMER)) {
 			mac1_lpi_timer = TC956XMAC_LPIET_600US;
-			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac1_lpi_timer parameter passed. Restoring default to %d. Supported Values between %d and %d.\n", 
-			__func__, mac1_lpi_timer, 
+			NMSGPR_INFO(&(pdev->dev), "%s: ERROR Invalid mac1_lpi_timer parameter passed. Restoring default to %d. Supported Values between %d and %d.\n",
+			__func__, mac1_lpi_timer,
 			TC956X_MIN_LPI_AUTO_ENTRY_TIMER, TC956X_MAX_LPI_AUTO_ENTRY_TIMER);
 		}
 		res.eee_enabled = mac1_eee_enable;
 		res.tx_lpi_timer = mac1_lpi_timer;
 	}
-
+#endif
 	ret = info->setup(pdev, plat);
 
 	if (ret)
 		return ret;
 
 #ifdef TC956X
+#ifndef TC956X_SRIOV_VF
 	if (res.port_num == RM_PF0_ID) {
 		ret = readl(res.addr + NRSTCTRL0_OFFSET);
 		ret |= (NRSTCTRL0_INTRST);
@@ -2558,10 +2921,37 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		 */
 		tc956x_config_tamap(&pdev->dev, res.tc956x_BRIDGE_CFG_pci_base_addr);
 	}
-
+#endif /*#ifdef TC956X_SRIOV_VF*/
 #endif
-
+#ifdef TC956X_SRIOV_PF
 	NMSGPR_INFO(&(pdev->dev), "Initialising eMAC Port %d\n", res.port_num);
+	/* Enable MSI  and Allocate Vectors */
+	ret = pci_alloc_irq_vectors(pdev, TC956X_TOT_MSI_VEC,
+				TC956X_TOT_MSI_VEC, PCI_IRQ_MSI);
+
+	if (ret < TC956X_TOT_MSI_VEC) {
+		dev_err(&(pdev->dev),
+		"%s:Enable MSI error\n", TC956X_RESOURCE_NAME);
+		DBGPR_FUNC(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
+		goto err_out_msi_failed;
+	}
+
+	DBGPR_FUNC(&(pdev->dev), "%s : Allocated MSI Vectors : %d",
+								__func__, ret);
+#elif defined TC956X_SRIOV_VF
+	/* Enable MSI  and Allocate Vectors */
+	ret = pci_alloc_irq_vectors(pdev, TC956X_MIN_MSI_VEC,
+				TC956X_MAX_MSI_VEC, PCI_IRQ_MSI);
+
+	if (ret < TC956X_MIN_MSI_VEC) {
+		dev_err(&(pdev->dev),
+		"%s:Enable MSI error\n", TC956X_RESOURCE_NAME);
+		DBGPR_FUNC(&(pdev->dev), "<--%s : ret: %d\n", __func__, ret);
+		goto err_out_msi_failed;
+	}
+
+	DBGPR_FUNC(&(pdev->dev), "<--%s : Allocated MSI Vectors : %d", __func__, ret);
+#else
 	/* Enable MSI Operation */
 	ret = pci_enable_msi(pdev);
 	if (ret) {
@@ -2571,9 +2961,10 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 		goto err_out_msi_failed;
 	}
 
+#endif /*#ifdef TC956X_SRIOV_VF*/
 	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_MASK_64, 0);
 
-
+#ifndef TC956X_SRIOV_VF
 #ifdef EEPROM_MAC_ADDR
 
 #ifdef TC956X
@@ -2581,7 +2972,6 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 			TC956X_M3_SRAM_EEPROM_OFFSET_ADDR));
 	iowrite8(EEPROM_MAC_COUNT, (void __iomem *)(res.tc956x_SRAM_pci_base_addr +
 			TC956X_M3_SRAM_EEPROM_MAC_COUNT));
-
 #endif
 
 #endif
@@ -2689,13 +3079,19 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 	}
 #endif
 
+#endif /*#ifdef TC956X_SRIOV_VF*/
+
 	res.wol_irq = pdev->irq;
 	res.irq = pdev->irq;
 	res.lpi_irq = pdev->irq;
 
-	plat->bus_id = res.port_num;
+	plat->bus_id = ((pdev->bus->number<<4) | res.port_num);
 
+#ifdef TC956X_SRIOV_PF
 	ret = tc956xmac_dvr_probe(&pdev->dev, plat, &res);
+#elif defined TC956X_SRIOV_VF
+	ret = tc956xmac_vf_dvr_probe(&pdev->dev, plat, &res);
+#endif
 	if (ret) {
 		if (ret == -ENODEV) {
 			dev_info(&(pdev->dev), "Port%d will be registered as PCIe device only", res.port_num);
@@ -2706,46 +3102,82 @@ static int tc956xmac_pci_probe(struct pci_dev *pdev,
 			goto err_dvr_probe;
 		}
 	}
+
+#ifndef TC956X_SRIOV_VF
 #ifdef TC956X
 	if ((res.port_num == RM_PF1_ID) && (res.port_interface == ENABLE_RGMII_INTERFACE)) {
 		writel(0x00000000, res.addr + 0x1050);
 		writel(0xF300F300, res.addr + 0x107C);
 	}
 #endif
+#endif /*#ifdef TC956X_SRIOV_VF*/
 
-#ifdef TC956X_PCIE_LOGSTAT
-	memset(&ltssm_data, 0, sizeof(ltssm_data));
-	ret = tc956x_logstat_GetLTSSMLogData((void __iomem *)res.addr, UPSTREAM_PORT, &ltssm_data);
-	if (ret == 0) {
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.eq_phase          = %d\n", __func__, ltssm_data.eq_phase);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.rxL0s             = %d\n", __func__, ltssm_data.rxL0s);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.txL0s             = %d\n", __func__, ltssm_data.txL0s);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.substate_L1       = %d\n", __func__, ltssm_data.substate_L1);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.active_lane;      = %d\n", __func__, ltssm_data.active_lane);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.link_speed        = %d\n", __func__, ltssm_data.link_speed);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.dl_active         = %d\n", __func__, ltssm_data.dl_active);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_timeout     = %d\n", __func__, ltssm_data.ltssm_timeout);
-		dev_dbg(&(pdev->dev), "%s : ltssm_data.ltssm_stop_status = %d\n", __func__, ltssm_data.ltssm_stop_status);
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_PCIE_DSP_CUT_THROUGH
+	DBGPR_FUNC(&(pdev->dev), "<--%s : Adding DSP Cut Through Settings", __func__);
+	/* Read mode setting register
+	 * Mode settings values 0:Setting A: x4x1x1, 1:Setting B: x2x2x1
+	 */
+	val = readl(res.addr + NMODESTS_OFFSET);
+	pcie_mode = (val & NMODESTS_MODE2) >> NMODESTS_MODE2_SHIFT;
+
+	switch (pcie_mode) {
+	case TC956X_PCIE_SETTING_A: /* 0:Setting A: x4x1x1 mode */
+		DBGPR_FUNC(&(pdev->dev), "%s : Setting A : Adding DSP Cut Through Settings for DSP1 & DSP2", __func__);
+		/*DSP1 & DSP2 is selected*/
+		val = readl(res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+		val &= ~(SW_DSP1_ENABLE|SW_DSP2_ENABLE);
+		val |= (SW_DSP1_ENABLE|SW_DSP2_ENABLE);
+		writel(val, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+		/*Set 0x0 to Rx Bit enable_cut_through_on_receive_path*/
+		val = readl(res.addr + TC956X_SSREG_K_PCICONF_021_021);
+		val &= ~(ENABLE_CUT_THROUGH_ON_RX_PATH_MASK);
+		writel(val, res.addr + TC956X_SSREG_K_PCICONF_021_021);
+		/*Set 0x00000000 to Tx Bit enable_cut_through_on_transmit_path*/
+		val = readl(res.addr + TC956X_SSREG_K_PCICONF_022_022);
+		val &= ~(ENABLE_CUT_THROUGH_ON_TX_PATH_MASK);
+		writel(val, res.addr + TC956X_SSREG_K_PCICONF_022_022);
+		break;
+	case TC956X_PCIE_SETTING_B: /* 1:Setting B: x2x2x1 mode */
+		DBGPR_FUNC(&(pdev->dev), "%s : Setting B : Adding DSP Cut Through Settings for DSP2", __func__);
+		/*DSP2 is selected*/
+		val = readl(res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+		val &= ~(SW_DSP2_ENABLE);
+		val |= (SW_DSP2_ENABLE);
+		writel(val, res.addr + TC956X_GLUE_SW_REG_ACCESS_CTRL);
+		/*Set 0x0 to Rx Bit enable_cut_through_on_receive_path*/
+		val = readl(res.addr + TC956X_SSREG_K_PCICONF_021_021);
+		val &= ~(ENABLE_CUT_THROUGH_ON_RX_PATH_MASK);
+		writel(val, res.addr + TC956X_SSREG_K_PCICONF_021_021);
+		/*Set 0x0 to Tx Bit enable_cut_through_on_transmit_path*/
+		val = readl(res.addr + TC956X_SSREG_K_PCICONF_022_022);
+		val &= ~(ENABLE_CUT_THROUGH_ON_TX_PATH_MASK);
+		writel(val, res.addr + TC956X_SSREG_K_PCICONF_022_022);
+		break;
 	}
-#endif /* TC956X_PCIE_LOGSTAT */
+#endif /* #ifdef TC956X_PCIE_DSP_CUT_THROUGH */
+#endif /* #ifdef TC956X_SRIOV_PF */
+
 	/* Initialize only once */
 	if (tc956xmac_pm_usage_counter == TC956X_NO_MAC_DEVICE_IN_USE)
 		mutex_init(&tc956x_pm_suspend_lock);
 
-#ifdef DMA_OFFLOAD_ENABLE
-	if (res.port_num == RM_PF0_ID)
-		port0_pdev = pdev;
-#endif
 	mutex_lock(&tc956x_pm_suspend_lock);
 	/* Increment device usage counter */
 	tc956xmac_pm_usage_counter++;
-	DBGPR_FUNC(&(pdev->dev), "%s : (Device Usage Count = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
+	DBGPR_FUNC(&(pdev->dev), "%s : (Device Usage Count = [%d])\n", __func__, tc956xmac_pm_usage_counter);
 	mutex_unlock(&tc956x_pm_suspend_lock);
+
 	return ret;
 
-err_out_msi_failed:
+
 err_dvr_probe:
+err_out_msi_failed:
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+	pci_free_irq_vectors(pdev);
+#else
 	pci_disable_msi(pdev);
+#endif
 #ifdef DISABLE_EMAC_PORT1
 disable_emac_port:
 #endif
@@ -2757,7 +3189,30 @@ disable_emac_port:
 	if (((void __iomem *)res.tc956x_BRIDGE_CFG_pci_base_addr != NULL))
 		pci_iounmap(pdev, (void __iomem *)res.tc956x_BRIDGE_CFG_pci_base_addr);
 #endif
+#ifndef TC956X_SRIOV_VF
+#ifdef TC956X_PCIE_LOGSTAT
+err_dvr_logstat:
+#endif
+#endif
 err_out_map_failed:
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X
+#ifdef CONFIG_PCI_IOV
+	/* Disable SR-IOV */
+
+	if ((res.sriov_enabled != 0) && pdev->is_physfn) {
+		NMSGPR_INFO(&(pdev->dev), "Disabling sriov\n");
+		res.sriov_enabled = 0;
+		pci_disable_sriov(pdev);
+	}
+#endif
+#endif
+#ifdef TC956X
+#ifdef CONFIG_PCI_IOV
+err_sriov_vf_en_failed:
+#endif
+#endif
+#endif
 	pci_release_regions(pdev);
 err_out_req_reg_failed:
 	pci_disable_device(pdev);
@@ -2785,14 +3240,20 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
+#ifdef TC956X_SRIOV_PF
 	void *nrst_reg, *nclk_reg;
 	u32 nrst_val, nclk_val;
-
+#endif
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 
-#ifdef DMA_OFFLOAD_ENABLE
-	if (priv->port_num == RM_PF0_ID)
-		port0_pdev = NULL;
+#ifdef TC956X_SRIOV_PF
+#ifdef CONFIG_PCI_IOV
+	/* Disable SR-IOV */
+	if ((priv->sriov_enabled != 0) && pdev->is_physfn) {
+		NMSGPR_INFO(&(pdev->dev), "Disabling sriov\n");
+		priv->sriov_enabled = 0;
+		pci_disable_sriov(pdev);
+	}
 #endif
 	/* phy_addr == -1 indicates that PHY was not found and
 	 * device is registered as only PCIe device. So skip any
@@ -2805,23 +3266,45 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 	if (priv->port_num == 0) {
 		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
 		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
-		nrst_val = NRSTCTRL0_DEFAULT; 
-		nclk_val = NCLKCTRL0_DEFAULT;
+		nrst_val = readl(nrst_reg);
+		nclk_val = readl(nclk_reg);
+		nrst_val |= NRSTCTRL0_DEFAULT;
+		nclk_val &= ~NCLKCTRL_PORT0_EMAC_MASK;
 	} else {
 		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL1_OFFSET;
 		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL1_OFFSET;
 		nrst_val = NRSTCTRL_EMAC_MASK;
-		nclk_val = 0;		
+		nclk_val = 0;
 	}
 	writel(nrst_val, nrst_reg);
 	writel(nclk_val, nclk_reg);
+	if (tc956xmac_pm_usage_counter == TC956X_SINGLE_MAC_DEVICE_IN_USE) {
+		/* Set reset value for Common CLK control and Common RESET Control registers */
+		nrst_reg = priv->tc956x_SFR_pci_base_addr + NRSTCTRL0_OFFSET;
+		nclk_reg = priv->tc956x_SFR_pci_base_addr + NCLKCTRL0_OFFSET;
+		nrst_val = readl(nrst_reg);
+		nclk_val = readl(nclk_reg);
+		nrst_val |= NRSTCTRL_COMMON;
+		nclk_val |= NCLKCTRL_ENABLE_COMMON_EMAC_MASK;
+		nclk_val &= ~NCLKCTRL_DISABLE_COMMON_EMAC_MASK;
+		writel(nrst_val, nrst_reg);
+		writel(nclk_val, nclk_reg);
+	}
 	KPRINT_INFO("%s : Port %d Wr RST Reg:%x, CLK Reg:%x", __func__, priv->port_num,
 		readl(nrst_reg), readl(nclk_reg));
 
+#elif defined TC956X_SRIOV_VF
+	tc956xmac_vf_dvr_remove(&pdev->dev);
+#endif
 	pdev->irq = 0;
 
-	/* Enable MSI Operation */
+#if defined(TC956X_SRIOV_PF) | defined(TC956X_SRIOV_VF)
+	/* Free allocated interrupt vectors for device */
+	pci_free_irq_vectors(pdev);
+#else
+	/* Disable MSI Operation */
 	pci_disable_msi(pdev);
+#endif
 
 	if (priv->plat->tc956xmac_clk)
 		clk_unregister_fixed_rate(priv->plat->tc956xmac_clk);
@@ -2845,12 +3328,11 @@ static void tc956xmac_pci_remove(struct pci_dev *pdev)
 	mutex_lock(&tc956x_pm_suspend_lock);
 	/* Decrement device usage counter */
 	tc956xmac_pm_usage_counter--;
-	DBGPR_FUNC(&(pdev->dev), "%s : (Device Usage Count = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
+	DBGPR_FUNC(&(pdev->dev), "%s : (Device Usage Count = [%d])\n", __func__, tc956xmac_pm_usage_counter);
 	mutex_unlock(&tc956x_pm_suspend_lock);
 	/* Destroy Mutex only once */
 	if (tc956xmac_pm_usage_counter == TC956X_NO_MAC_DEVICE_IN_USE)
 		mutex_destroy(&tc956x_pm_suspend_lock);
-
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
 }
 
@@ -2922,9 +3404,10 @@ static int tc956x_pcie_pm_enable_pci(struct pci_dev *pdev)
  */
 static int tc956x_pcie_pm_pci(struct pci_dev *pdev, enum TC956X_PORT_PM_STATE state)
 {
-	static struct pci_dev *tc956x_pd = NULL, *tc956x_dsp_ep = NULL, *tc956x_port_pdev[2] = {NULL}; 
+	static struct pci_dev *tc956x_pd = NULL, *tc956x_dsp_ep = NULL, *tc956x_port_pdev[2] = {NULL};
 	struct pci_bus *bus = NULL;
 	int ret = 0, i = 0, p = 0;
+
 	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		tc956x_dsp_ep = pci_upstream_bridge(pdev);
 		bus = tc956x_dsp_ep->subordinate;
@@ -2946,16 +3429,16 @@ static int tc956x_pcie_pm_pci(struct pci_dev *pdev, enum TC956X_PORT_PM_STATE st
 			}
 		}
 	}
-err :
+err:
 	return ret;
 }
 
 /*!
  * \brief Routine to put the device in suspend mode
  *
- * \details This function is called whenever pm_generic_suspend() gets invoked. 
- * This function invokes tc956xmac_suspend() to process MAC related suspend 
- * operations during PORT_WIDE suspend. 
+ * \details This function is called whenever pm_generic_suspend() gets invoked.
+ * This function invokes tc956xmac_suspend() to process MAC related suspend
+ * operations during PORT_WIDE suspend.
  * This function handles PCI state during SYSTEM_WIDE suspend.
  *
  * \param[in] dev \96 pointer to device structure.
@@ -2970,14 +3453,14 @@ static int tc956x_pcie_suspend(struct device *dev)
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
 	int ret = 0;
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	u8 i;
 	u32 val;
 #endif
 
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 	if (priv->tc956x_port_pm_suspend == true) {
-		DBGPR_FUNC(&(pdev->dev), "<--%s : Port %d already Suspended \n", __func__, priv->port_num);
+		DBGPR_FUNC(&(pdev->dev), "<--%s : Port %d already Suspended\n", __func__, priv->port_num);
 		return -1;
 	}
 	/* Set flag to avoid queuing any more work */
@@ -2987,12 +3470,12 @@ static int tc956x_pcie_suspend(struct device *dev)
 
 	/* Decrement device usage counter */
 	tc956xmac_pm_usage_counter--;
-	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Left to Suspend = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
+	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Left to Suspend = [%d])\n", __func__, tc956xmac_pm_usage_counter);
 
 	/* Call tc956xmac_suspend() */
+#ifdef TC956X_SRIOV_PF
 	tc956xmac_suspend(&pdev->dev);
-
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Tamap Configuration", __func__, priv->port_num);
 		/* Since TAMAP is common for Port0 and Port1,
@@ -3017,26 +3500,46 @@ static int tc956x_pcie_suspend(struct device *dev)
 		}
 	}
 #endif
+#elif defined TC956X_SRIOV_VF
+	tc956xmac_vf_suspend(&pdev->dev);
+#endif
 	DBGPR_FUNC(&(pdev->dev), "%s : Port %d - Platform Suspend", __func__, priv->port_num);
-
+#ifdef TC956X_SRIOV_PF
 	ret = tc956x_platform_suspend(priv);
 	if (ret) {
 		NMSGPR_ERR(&(pdev->dev), "%s: error in calling tc956x_platform_suspend", pci_name(pdev));
 		goto err;
 	}
+#endif
 
 	tc956xmac_pm_set_power(priv, SUSPEND);
-
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_MAGIC_PACKET_WOL_GPIO
+	if (priv->port_num == RM_PF0_ID) {
+		KPRINT_INFO("%s: Port %d - Configuring GPIO for WOL", __func__, priv->port_num);
+		tc956x_wol_gpio_trigger(priv->ioaddr, true); /* Set to HIGH */
+	}
+#endif
+#endif
 	ret = tc956x_pcie_pm_pci(pdev, SUSPEND);
 	if (ret < 0)
 		goto err;
-
-err :
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_MAGIC_PACKET_WOL_CONF
+	if (priv->wol_config_enabled == true) {
+		/* Set Flag to configure original interface and speed after resume. */
+		priv->wol_config_enabled = false; /* Note: QC can place this either at end of suspend or beginning of resume */
+		KPRINT_INFO("%s Port %d : Updated flag priv->wol_config_enabled to %d", __func__, priv->port_num, priv->wol_config_enabled);
+	}
+#endif /* #ifdef TC956X_MAGIC_PACKET_WOL_CONF */
+#endif
+err:
 	mutex_unlock(&tc956x_pm_suspend_lock);
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
 	return ret;
 }
 
+#ifndef TC956X_SRIOV_VF
 /*!
  * \brief Routine to configure device during resume
  *
@@ -3060,7 +3563,7 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 	uint8_t SgmSigPol = 0;
 	int ret = 0;
 
-	DBGPR_FUNC(&(pdev->dev), "---> %s", __func__);	
+	DBGPR_FUNC(&(pdev->dev), "---> %s", __func__);
 	/* Skip Config when Port unavailable */
 	if ((priv->plat->phy_addr == -1) || (priv->mii == NULL)) {
 		DBGPR_FUNC(&(pdev->dev), "%s : Invalid PHY Address (%d)\n", __func__, priv->plat->phy_addr);
@@ -3209,7 +3712,9 @@ static int tc956x_pcie_resume_config(struct pci_dev *pdev)
 				ret = readl(priv->ioaddr + NEMAC1CTL_OFFSET);
 		} while ((NEMACCTL_INIT_DONE & ret) != NEMACCTL_INIT_DONE);
 		}
+#ifndef TC956X_SRIOV_VF
 		ret = tc956x_xpcs_init(priv, priv->xpcsaddr);
+#endif
 		if (ret < 0)
 			KPRINT_INFO("XPCS initialization error\n");
 	}
@@ -3219,7 +3724,7 @@ err_phy_addr:
 	return ret;
 }
 #endif
-
+#endif
 /*!
  * \brief Routine to resume device operation
  *
@@ -3239,24 +3744,28 @@ err_phy_addr:
 static int tc956x_pcie_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
+#ifndef TC956X_SRIOV_VF
 	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
 	struct tc956xmac_priv *priv = netdev_priv(ndev);
-	int ret = 0;
-
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 	u8 i;
 #endif
 #ifdef TC956X_PCIE_GEN3_SETTING
 	u32 val;
 #endif
+#endif
+	int ret = 0;
 
+#ifndef TC956X_SRIOV_VF
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 	if (priv->tc956x_port_pm_suspend == false) {
-		DBGPR_FUNC(&(pdev->dev), "%s : Port %d already Resumed \n", __func__, priv->port_num);
+		DBGPR_FUNC(&(pdev->dev), "%s : Port %d already Resumed\n", __func__, priv->port_num);
 		return -1;
 	}
+#endif
 	mutex_lock(&tc956x_pm_suspend_lock);
 
+#ifndef TC956X_SRIOV_VF
 	ret = tc956x_pcie_pm_enable_pci(pdev);
 	if (ret < 0)
 		goto err;
@@ -3275,6 +3784,7 @@ static int tc956x_pcie_resume(struct device *dev)
 		pci_disable_device(pdev);
 		goto err;
 	}
+
 #ifdef TC956X_PCIE_GEN3_SETTING
 	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
 		/* Reset Speed to Gen3 after resume */
@@ -3287,21 +3797,22 @@ static int tc956x_pcie_resume(struct device *dev)
 			/* 0x4002C030 All PHY_COREs are selected */
 			writel(0x0f, priv->ioaddr + TC956X_GLUE_PHY_REG_ACCESS_CTRL);
 			/* 0x40028000 All Lanes are selected */
-			writel(0x0f , priv->ioaddr + TC956X_PHY_CORE0_GL_LANE_ACCESS);
+			writel(0x0f, priv->ioaddr + TC956X_PHY_CORE0_GL_LANE_ACCESS);
 			/* 0x4002B268 PMA_LN_PCS2PMA_PHYMODE_R2.pcs2pma_phymode */
 			writel(0x02, priv->ioaddr + TC956X_PMA_LN_PCS2PMA_PHYMODE_R2);
 		}
-	
+
 		if ((pcie_link_speed >= 1) && (pcie_link_speed <= 3))
 			tc956x_set_pci_speed(pdev, pcie_link_speed);
 	}
 #endif
-
+#endif
+#ifndef TC956X_SRIOV_VF
 	/* Configure TA map registers */
 	if (tc956xmac_pm_usage_counter == TC956X_ALL_MAC_PORT_SUSPENDED) {
-		DBGPR_FUNC(&(pdev->dev),"%s : Tamap Re-configuration", __func__);
+		DBGPR_FUNC(&(pdev->dev), "%s : Tamap Re-configuration", __func__);
 		tc956x_config_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr);
-#ifdef DMA_OFFLOAD_ENABLE
+#ifdef TC956X_DMA_OFFLOAD_ENABLE
 		for (i = 1; i <= MAX_CM3_TAMAP_ENTRIES; i++) {
 			if (priv->cm3_tamap[i-1].valid)
 				tc956x_config_CM3_tamap(&pdev->dev, priv->tc956x_BRIDGE_CFG_pci_base_addr,
@@ -3311,20 +3822,27 @@ static int tc956x_pcie_resume(struct device *dev)
 #endif
 	}
 
+#ifdef TC956X
 	/* Configure EMAC Port */
 	tc956x_pcie_resume_config(pdev);
+#endif
+#endif
 
 	/* Call tc956xmac_resume() */
+#ifdef TC956X_SRIOV_PF
 	tc956xmac_resume(&pdev->dev);
-
 	if ((priv->port_num == RM_PF1_ID) && (priv->port_interface == ENABLE_RGMII_INTERFACE)) {
 		writel(NEMACTXCDLY_DEFAULT, priv->ioaddr + TC9563_CFG_NEMACTXCDLY);
 		writel(NEMACIOCTL_DEFAULT, priv->ioaddr + TC9563_CFG_NEMACIOCTL);
 	}
+#elif defined TC956X_SRIOV_VF
+	tc956xmac_vf_resume(&pdev->dev);
+#endif
 
+#ifndef TC956X_SRIOV_VF
 	/* Increment device usage counter */
 	tc956xmac_pm_usage_counter++;
-	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Resumed = [%d]) \n", __func__, tc956xmac_pm_usage_counter);
+	DBGPR_FUNC(&(pdev->dev), "%s : (Number of Ports Resumed = [%d])\n", __func__, tc956xmac_pm_usage_counter);
 
 	priv->tc956x_port_pm_suspend = false;
 
@@ -3337,12 +3855,99 @@ static int tc956x_pcie_resume(struct device *dev)
 		queue_work(system_wq, &priv->emac_phy_work);
 	}
 
+#ifdef TC956X_MAGIC_PACKET_WOL_GPIO
+	if (priv->port_num == RM_PF0_ID) {
+		KPRINT_INFO("%s: Port %d - Configuring GPIO for WOL", __func__, priv->port_num);
+		tc956x_wol_gpio_trigger(priv->ioaddr, false); /* Set to LOW */
+	}
+#endif
+#ifdef TC956X_PCIE_LOGSTAT
+	if (priv->port_num == RM_PF0_ID) {
+#ifdef TC956X_PCIE_LOGSTAT_SUMMARY_ENABLE
+		if ((tc956x_logstat_state_log_summary((void __iomem *)priv->ioaddr, UPSTREAM_PORT) < 0)
+		|| (tc956x_logstat_state_log_summary((void __iomem *)priv->ioaddr, DOWNSTREAM_PORT1) < 0)
+		|| (tc956x_logstat_state_log_summary((void __iomem *)priv->ioaddr, DOWNSTREAM_PORT2) < 0)
+		|| (tc956x_logstat_state_log_summary((void __iomem *)priv->ioaddr, INTERNAL_ENDPOINT) < 0)) {
+			ret = -EFAULT; /* The returns returned by above function are -EFAULT only */
+			NMSGPR_ERR(&(pdev->dev),
+			"%s: error in calling tc956x_logstat_state_log_summary", pci_name(pdev));
+			DBGPR_FUNC(&(pdev->dev), "<--%s : Error ret: %d\n", __func__, ret);
+			goto err_resume_logstat;
+		}
+#endif /* #ifdef TC956X_PCIE_LOGSTAT_SUMMARY_ENABLE */
+		if ((tc956x_logstat_set_state_log_enable((void __iomem *)priv->ioaddr, UPSTREAM_PORT, STATE_LOG_ENABLE) < 0)
+			|| (tc956x_logstat_set_state_log_enable((void __iomem *)priv->ioaddr, DOWNSTREAM_PORT1, STATE_LOG_ENABLE) < 0)
+			|| (tc956x_logstat_set_state_log_enable((void __iomem *)priv->ioaddr, DOWNSTREAM_PORT2, STATE_LOG_ENABLE) < 0)
+			|| (tc956x_logstat_set_state_log_enable((void __iomem *)priv->ioaddr, INTERNAL_ENDPOINT, STATE_LOG_ENABLE) < 0)) {
+			ret = -EFAULT; /* The returns returned by above function are -EFAULT only */
+			NMSGPR_ERR(&(pdev->dev),
+			"%s: error in calling tc956x_logstat_set_state_log_enable", pci_name(pdev));
+			DBGPR_FUNC(&(pdev->dev), "<--%s : Error ret: %d\n", __func__, ret);
+			goto err_resume_logstat;
+		}
+	}
+#endif /* TC956X_PCIE_LOGSTAT */
+#endif
+	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
+#ifndef TC956X_SRIOV_VF
+#ifdef TC956X_PCIE_LOGSTAT
+err_resume_logstat:
+#endif /* TC956X_PCIE_LOGSTAT */
+#endif /* TC956X_SRIOV_VF */
+#ifndef TC956X_SRIOV_VF
 err:
+#endif
 	mutex_unlock(&tc956x_pm_suspend_lock);
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
+
 	return ret;
 }
 
+#ifdef TC956X_SRIOV_PF
+#ifdef TC956X_MAGIC_PACKET_WOL_GPIO
+/*!
+ * \brief API to signal SUSPEND/RESUME to external Host Triggering Device.
+ *
+ * \details This is a api to configure GPIO04 and set its output value
+ * based on mode to (HIGH/LOW) passed as argument.
+ *
+ * \param[in] reg_base_addr - pointer to BAR 4 base address.
+ * \param[in] mode - true or false
+ */
+static void tc956x_wol_gpio_trigger(void __iomem *reg_base_addr, bool mode)
+{
+	u32 reg;
+
+	KPRINT_INFO("-->%s\n", __func__);
+	/* Set GPIO to Function.0*/
+	reg = readl(reg_base_addr + NFUNCEN4_OFFSET);
+	reg &= (~(BIT(4)));
+	writel(reg, reg_base_addr + NFUNCEN4_OFFSET);
+	KPRINT_INFO("%s: Setting GPIO04 to Function 0 (%x:%x)\n", __func__,
+		NFUNCEN4_OFFSET, readl(reg_base_addr + NFUNCEN4_OFFSET));
+
+	/* GPIO04:OUT Enable*/
+	reg = readl(reg_base_addr + GPIOE0_OFFSET);
+	reg = (reg & ~(BIT(4)));
+	writel(reg, reg_base_addr + GPIOE0_OFFSET);
+	KPRINT_INFO("%s: Setting GPIO04 Direction to Out Enable (%x:%x)\n", __func__,
+		GPIOE0_OFFSET, readl(reg_base_addr + GPIOE0_OFFSET));
+
+	reg = readl(reg_base_addr + GPIOO0_OFFSET);
+	if (!mode) { /* Set GPIO04 to LOW */
+		KPRINT_INFO("%s: Setting GPIO04 to LOW\n", __func__);
+		reg &= (~(BIT(4)));
+	} else { /* Set GPIO04 to HIGH */
+		KPRINT_INFO("%s: Setting GPIO04 to HIGH\n", __func__);
+		reg |= (BIT(4));
+	}
+	writel(reg, reg_base_addr + GPIOO0_OFFSET);
+	KPRINT_INFO("%s: Setting GPIO04 Value (%x:%x)\n", __func__,
+		GPIOO0_OFFSET, readl(reg_base_addr + GPIOO0_OFFSET));
+	KPRINT_INFO("<--%s\n", __func__);
+}
+#endif /* #ifdef TC956X_MAGIC_PACKET_WOL_GPIO */
+#endif /* TC956X_SRIOV_PF */
 /*!
  * \brief API to shutdown the device.
  *
@@ -3353,6 +3958,10 @@ err:
  */
 static void tc956x_pcie_shutdown(struct pci_dev *pdev)
 {
+#ifdef TC956X_SRIOV_VF
+	tc956xmac_vf_dvr_remove(&pdev->dev);
+#endif
+
 	DBGPR_FUNC(&(pdev->dev), "-->%s\n", __func__);
 	NMSGPR_ALERT(&(pdev->dev), "Handle the shutdown\n");
 	DBGPR_FUNC(&(pdev->dev), "<--%s\n", __func__);
@@ -3539,13 +4148,22 @@ module_init(tc956x_init_module);
  * that the entry function registered.
  */
 module_exit(tc956x_exit_module);
+#ifndef TC956X_SRIOV_VF
+#ifdef CONFIG_PCI_IOV
+/* Input parameter for No of virtural functions to Enable per VF.
+ * tc956x_no_of_vf - Valid vlaues are 0 to 3.
+ */
+module_param(tc956x_no_of_vf, int, MOD_PARAM_ACCESS);
+#endif
 
 #ifdef TC956X_PCIE_GEN3_SETTING
 module_param(pcie_link_speed, uint, 0444);
 MODULE_PARM_DESC(pcie_link_speed,
 		 "PCIe speed Gen TC956X - default is 3, [1..3]");
 #endif
+#endif
 
+#if defined(TC956X_SRIOV_PF) || defined(TC956X_AUTOMOTIVE_CONFIG)
 module_param(mac0_interface, uint, 0444);
 MODULE_PARM_DESC(mac0_interface,
 		 "PORT0 interface mode TC956X - default is 1,\
@@ -3554,7 +4172,7 @@ MODULE_PARM_DESC(mac0_interface,
 module_param(mac1_interface, uint, 0444);
 MODULE_PARM_DESC(mac1_interface,
 		 "PORT1 interface mode TC956X - default is 3,\
-		 [0: USXGMII(not supported), 1: XFI(not supported), 2: RGMII, 3: SGMII, 4: 2500Base-X]");
+		 [0: USXGMII, 1: XFI, 2: RGMII, 3: SGMII, 4: 2500Base-X]");
 
 module_param(mac0_filter_phy_pause, uint, 0444);
 MODULE_PARM_DESC(mac0_filter_phy_pause,
@@ -3593,7 +4211,7 @@ MODULE_PARM_DESC(mac0_rxq0_size,
 
 module_param(mac0_rxq1_size, uint, 0444);
 MODULE_PARM_DESC(mac0_rxq1_size,
-		 "Rx Queue-1 size of Port 0 - default is 18432 (bytes),\
+		 "Rx Queue-1 size of Port 0 - default is 4096 (bytes),\
 		 [Range Supported : 3072..44032 (bytes)]");
 
 module_param(mac0_rxq0_rfd, uint, 0444);
@@ -3623,7 +4241,7 @@ MODULE_PARM_DESC(mac0_txq0_size,
 
 module_param(mac0_txq1_size, uint, 0444);
 MODULE_PARM_DESC(mac0_txq1_size,
-		 "Tx Queue-1 size of Port 0 - default is 18432 (bytes),\
+		 "Tx Queue-1 size of Port 0 - default is 14336 (bytes),\
 		 [Range Supported : 3072..44032 (bytes)]");
 
 module_param(mac1_rxq0_size, uint, 0444);
@@ -3633,7 +4251,7 @@ MODULE_PARM_DESC(mac1_rxq0_size,
 
 module_param(mac1_rxq1_size, uint, 0444);
 MODULE_PARM_DESC(mac1_rxq1_size,
-		 "Rx Queue-1 size of Port 1 - default is 18432 (bytes),\
+		 "Rx Queue-1 size of Port 1 - default is 4096 (bytes),\
 		 [Range Supported : 3072..44032 (bytes)]");
 
 module_param(mac1_rxq0_rfd, uint, 0444);
@@ -3663,7 +4281,7 @@ MODULE_PARM_DESC(mac1_txq0_size,
 
 module_param(mac1_txq1_size, uint, 0444);
 MODULE_PARM_DESC(mac1_txq1_size,
-		 "Tx Queue-1 size of Port 1 - default is 18432 (bytes),\
+		 "Tx Queue-1 size of Port 1 - default is 14336 (bytes),\
 		 [Range Supported : 3072..44032 (bytes)]");
 
 module_param(mac0_en_lp_pause_frame_cnt, uint, 0444);
@@ -3701,6 +4319,64 @@ MODULE_PARM_DESC(mac_power_save_at_link_down,
 		 "Enable Power saving during Link down - default is 0,\
 		 [0: DISABLE, 1: ENABLE]");
 
+module_param(port0_mdc, uint, 0444);
+MODULE_PARM_DESC(port0_mdc,
+		 "PORT0 MDC clock setting - default is 0x4,\
+		 select the value based on the following MDIO clock settings:\
+		 [0x0 - clk_csr_i/4,\
+		 0x1 - clk_csr_i/6,\
+		 0x2 - clk_csr_i/8,\
+		 0x3 - clk_csr_i/10,\
+		 0x4 - clk_csr_i/12,\
+		 0x5 - clk_csr_i/14,\
+		 0x6 - clk_csr_i/16,\
+		 0x7 - clk_csr_i/18,\
+		 0x8 - clk_csr_i/62,\
+		 0x9 - clk_csr_i/102,\
+		 0xA - clk_csr_i/122,\
+		 0xB - clk_csr_i/142,\
+		 0xC - clk_csr_i/162,\
+		 0xD - clk_csr_i/202]");
+
+module_param(port0_c45_state, int, 0444);
+MODULE_PARM_DESC(port0_c45_state,
+		 "PORT0 phy driver clause setting - default is 1 (true),\
+		 [1 - true, 0 - false]");
+
+module_param(port1_mdc, uint, 0444);
+MODULE_PARM_DESC(port1_mdc,
+		 "PORT1 MDC clock setting - default is 0x8,\
+		 select the value based on the following MDIO clock settings:\
+		 [0x0 - clk_csr_i/4,\
+		 0x1 - clk_csr_i/6,\
+		 0x2 - clk_csr_i/8,\
+		 0x3 - clk_csr_i/10,\
+		 0x4 - clk_csr_i/12,\
+		 0x5 - clk_csr_i/14,\
+		 0x6 - clk_csr_i/16,\
+		 0x7 - clk_csr_i/18,\
+		 0x8 - clk_csr_i/62,\
+		 0x9 - clk_csr_i/102,\
+		 0xA - clk_csr_i/122,\
+		 0xB - clk_csr_i/142,\
+		 0xC - clk_csr_i/162,\
+		 0xD - clk_csr_i/202]");
+
+module_param(port1_c45_state, int, 0444);
+MODULE_PARM_DESC(port1_c45_state,
+		 "PORT1 phy driver clause setting - default is 0 (false),\
+		 [1 - true, 0 - false]");
+
+module_param(port0_phyaddr, uint, 0444);
+MODULE_PARM_DESC(port0_phyaddr,
+		 "PORT0 Phy device addr for phy detection, default is 0,\
+		 [0 to 31]");
+
+module_param(port1_phyaddr, uint, 0444);
+MODULE_PARM_DESC(port1_phyaddr,
+		 "PORT1 Phy device addr for phy detection, default is 0,\
+		 [0 to 31]");
+
 module_param(mac0_link_down_macrst, uint, 0444);
 MODULE_PARM_DESC(mac0_link_down_macrst,
 		 "MAC0 reset for PHY Clock loss during Link Down - default is 1,\
@@ -3711,6 +4387,7 @@ MODULE_PARM_DESC(mac1_link_down_macrst,
 		 "MAC1 reset for PHY Clock loss during Link Down - default is 0,\
 		 [0: DISABLE, 1: ENABLE]");
 
+#endif
 MODULE_DESCRIPTION("TC956X PCI Express Ethernet Network Driver");
 MODULE_AUTHOR("Toshiba Electronic Devices & Storage Corporation");
 MODULE_LICENSE("GPL v2");

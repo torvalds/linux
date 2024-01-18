@@ -91,6 +91,8 @@
 #include "tc956xmac_inc.h"
 #include <linux/phy.h>
 #include <linux/module.h>
+#include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define TC956XMAC_VLAN_TAG_USED
 #include <linux/if_vlan.h>
@@ -100,18 +102,21 @@
 #include "hwif.h"
 #include "mmc.h"
 #ifdef TC956X
+#ifndef TC956X_SRIOV_VF
 #include "tc956x_xpcs.h"
+#endif
 #include "tc956x_pma.h"
 #endif
 
 /* Enable DMA IPA offload */
-#define DMA_OFFLOAD_ENABLE
+#define TC956X_DMA_OFFLOAD_ENABLE
 //#define TC956X_LPI_INTERRUPT
 /* Indepenedent Suspend/Resume Debug */
 #undef TC956X_PM_DEBUG
 #define TC956X_MAX_PORT			2
-#define TC956X_ALL_MAC_PORT_SUSPENDED 	0 /* All EMAC Port Suspended. To be used just after suspend and before resume. */
+#define TC956X_ALL_MAC_PORT_SUSPENDED	0 /* All EMAC Port Suspended. To be used just after suspend and before resume. */
 #define TC956X_NO_MAC_DEVICE_IN_USE	0 /* No EMAC Port in use. To be used at probe and remove. */
+#define TC956X_SINGLE_MAC_DEVICE_IN_USE	1 /* One of the EMAC Port in use. To be used at remove. */
 #define TC956X_ALL_MAC_PORT_LINK_DOWN	2 /* All ports are Link Down */
 /* Suspend-Resume Arguments */
 enum TC956X_PORT_PM_STATE {
@@ -124,13 +129,14 @@ enum TC956X_PORT_LINK_CHANGE_STATE {
 	LINK_DOWN = 0,
 	LINK_UP,
 };
-
+#if defined(TC956X_SRIOV_PF)
 //#define TC956X_PCIE_LINK_STATE_LATENCY_CTRL
-
-#define DISABLE		0
-#define ENABLE		1
-#define SIZE_512B	512
-#define SIZE_1KB	1024
+#define TC956X_PCIE_DSP_CUT_THROUGH
+#endif
+#define DISABLE		0x0U
+#define ENABLE		0x1U
+#define SIZE_512B	0x200U
+#define SIZE_1KB	0x400U
 
 /* Synopsys Core versions */
 #define DWMAC_CORE_3_40		0x34
@@ -143,20 +149,78 @@ enum TC956X_PORT_LINK_CHANGE_STATE {
 #define DWXGMAC_CORE_3_01	0x30
 
 //#define DISABLE_EMAC_PORT1
+#ifndef TC956X_SRIOV_VF
 #define EEE /* Enable for EEE support */
+#endif
 
-/* Note: Multiple macro definitions for TC956X_PCIE_LOGSTAT.
+#define TC956X_MAC_ADDR_CNT 6
+/* Note: Multiple macro definitions for TC956X_PCIE_LOGSTAT and TC956X_PCIE_LOGSTAT_SUMMARY_ENABLE.
  * Please also define/undefine same macro in tc956xmac_ioctl.h, if changing in this file
  */
 /* #undef TC956X_PCIE_LOGSTAT */
 #define TC956X_PCIE_LOGSTAT
+#ifdef TC956X_PCIE_LOGSTAT
+/* Enable/Disable Logstat Summary Print during probe and resume. */
+#undef TC956X_PCIE_LOGSTAT_SUMMARY_ENABLE
+#endif
 
+/* This macro to be enabled for loading cbs based on speed change */
+// #define TC956X_DYNAMIC_LOAD_CBS
 
+/* This macro to be enabled while running TSN demo Application */
+// #define TSN_DEMO_AUTOMOTIVE
+
+#define TC956X_M3_DMEM_OFFSET	0x40000
+#define MAC2MAC_ETH0_RXDESC_L	0x7800
+#define MAC2MAC_ETH0_RXDESC_H	0x7804
+#define MAC2MAC_ETH1_RXDESC_L	0xB800
+#define MAC2MAC_ETH1_RXDESC_H	0xB804
+
+//#define   TX_LOGGING_TRACE
+//#define   RX_LOGGING_TRACE
 #define TC956XMAC_CHAN0	0  /* Always supported and default for all chips */
+//#define TC956X_SRIOV_PF
+#define TC956X_SRIOV_LOCK
+//#define TC956X_SRIOV_DEBUG
+
+
 #define TC956XMAC_CHA_NO_0	BIT(0)
 #define TC956XMAC_CHA_NO_1	BIT(1)
 #define TC956XMAC_CHA_NO_2	BIT(2)
 #define TC956XMAC_CHA_NO_3	BIT(3)
+
+#ifdef TC956X_SRIOV_PF
+/* VF number for each VF Application */
+#define TC956XMAC_VF_IVI 1
+#define TC956XMAC_VF_TCU 2
+#define TC956XMAC_VF_ADAS 3
+
+#if defined(TC956X_AUTOMOTIVE_CONFIG) || defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+/* Legacy channel for each VF Application */
+#define TC956XMAC_CHA_IVI TC956XMAC_CHA_NO_0
+#define TC956XMAC_CHA_TCU TC956XMAC_CHA_NO_0
+#define TC956XMAC_CHA_ADAS TC956XMAC_CHA_NO_0
+#define TC956XMAC_CHA_PF TC956XMAC_CHA_NO_0
+#if defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+#define TC956XMAC_CHA_M2M TC956XMAC_CHA_NO_2
+#endif
+#else
+/* Legacy channel for each VF Application */
+#define TC956XMAC_CHA_IVI TC956XMAC_CHA_NO_0
+#define TC956XMAC_CHA_TCU TC956XMAC_CHA_NO_1
+#define TC956XMAC_CHA_ADAS TC956XMAC_CHA_NO_2
+#define TC956XMAC_CHA_PF TC956XMAC_CHA_NO_3
+#endif
+#endif
+
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+#define TC956X_TOT_MSI_VEC	2
+#else
+#define TC956X_TOT_MSI_VEC	1
+#endif
+
+#define TC956X_MSI_VECTOR_0	0
+#define TC956X_MSI_VECTOR_1	1
 
 #define ETH_DMA_DUMP_OFFSET1 (0x3000 / 4)
 #define ETH_DMA_DUMP_OFFSET1_END   (0x30A0 / 4)
@@ -193,6 +257,122 @@ void tc956xmac_exit(void);
 
 #endif
 
+#ifdef TC956X_SRIOV_PF
+/* TC956X Semaphore lock/unlock register */
+#define NSEM(reg)			(0x1100 + (reg * 4))
+/* TC956X Semaphore read register */
+#define NSEM_RD(reg)			(0x1140 + (reg * 4))
+
+#define MBX_MSG_OFST		4 /* First 4 bytes for ACK management */
+#define MBX_MSG_SIZE		60 /* Excluding ACK */
+#define MBX_ACK_SIZE		4 /* ACK management */
+#define MBX_TOT_SIZE		(MBX_MSG_SIZE + MBX_ACK_SIZE)
+
+#define ACK			0x01
+#define NACK			0x02
+
+#define MAX_NO_OF_VFS 3
+
+/* Mailbox opcode definitions */
+#define OPCODE_MBX_ADD_MAC_ADDR		0x01
+#define OPCODE_MBX_SET_TX_Q_WEIGHT	0x02
+#define OPCODE_MBX_CFG_CBS		0x03
+#define OPCODE_MBX_SET_TX_Q_PRIOR	0x04
+#define OPCODE_MBX_RESET_EEE_MODE       0x05
+#define OPCODE_MBX_VF_IOCTL		        0x06
+#define OPCODE_MBX_VF_ETHTOOL		    0x07
+#define OPCODE_MBX_VF_ADD_MAC		    0x08
+#define OPCODE_MBX_VF_DELETE_MAC	    0x09
+#define OPCODE_MBX_VF_ADD_VLAN		    0x10
+#define OPCODE_MBX_VF_DELETE_VLAN	    0x11
+#define OPCODE_MBX_SET_DMA_TX_MODE	0x12
+#define OPCODE_MBX_VF_GET_LINK_STATUS	0x13
+#define OPCODE_MBX_PHY_LINK		0x14
+#define OPCODE_MBX_SETUP_CBS		0x15
+#define OPCODE_MBX_RX_CRC		0x16
+#define OPCODE_MBX_RX_CSUM		0x17
+#define OPCODE_MBX_DRV_CAP		0x18
+#define OPCODE_MBX_VF_GET_MII_PHY		0x23
+#define TC956XMAC_GET_PAUSE_PARAM_2		0x24
+#define OPCODE_MBX_GET_UMAC_ADDR        0x25
+#define OPCODE_VF_RESET                 0x26
+#define OPCODE_MBX_DMA_CH_TLPTR		0x29
+#define OPCODE_MBX_SETUP_ETF		    0x30
+#define OPCODE_MBX_FLR					0x33
+#define OPCODE_MBX_DMA_ERR		0x34
+#define OPCODE_MBX_ACK_MSG		0xFF
+
+#define SIZE_MBX_SET_TX_Q_WEIGHT		8
+#define SIZE_MBX_CFG_CBS			20
+#define SIZE_MBX_SETUP_ETF			5
+#define SIZE_MBX_CFG_EST			540 /* 28 + (4*128) */
+#define SIZE_MBX_CFG_FPE			20
+#define SIZE_MBX_SETUP_CBS				21
+#define SIZE_MBX_SET_TX_Q_PRIOR			8
+#define SIZE_MBX_SET_DMA_TX_MODE		13
+#define SIZE_MBX_VF_GET_LINK_STATUS		0
+#define SIZE_MBX_PHY_LINK		12
+#define SIZE_MBX_RX_CRC		4
+#define SIZE_MBX_RX_CSUM		4
+#define SIZE_MBX_DRV_CAP		        4
+#define SIZE_GET_UMAC_ADDR              4
+#define SIZE_SET_UMAC_ADDR              10
+#define SIZE_MBX_VF_MAC				6
+#define SIZE_MBX_VF_VLAN				2
+#define SIZE_MBX_VF_REG_WR			13
+#define SIZE_MBX_VF_SPEED			1
+#define SIZE_MBX_SET_GET_CBS_1			56
+#define SIZE_MBX_SET_GET_RXP_1		56
+#define SIZE_MBX_SET_GET_CBS_2			44
+#define SIZE_MBX_VF_PAUSE_PARAM		1
+#define SIZE_MBX_VF_EEE				1
+#define SIZE_MBX_VF_TS_INFO			1
+#define SIZE_VF_RESET			    1
+#define SIZE_MBX_VF_TIMESTAMP		2
+#define SIZE_MBX_SET_GET_EST_1		56
+#define SIZE_MBX_RX_DMA_TL_PTR		4
+#define SIZE_MBX_SET_GET_FPE_1    20
+#define SIZE_MBX_GET_HW_STMP    12
+
+#define MAX_SIZE_GCL_MSG 14
+#define EST_FIX_MSG_LEN 28
+#define RXP_FIX_MSG_LEN 16
+#define VF_UP         1
+#define VF_DOWN       0
+#define VF_SUSPEND    2
+#define VF_RELEASE    3
+
+#define SCH_WQ_PHY_REG_RD 1
+#define SCH_WQ_RX_DMA_ERR 2
+#define SCH_WQ_GET_PAUSE_PARAM 3
+
+#endif /* #ifdef TC956X_SRIOV_PF */
+
+#ifdef TC956X_SRIOV_VF
+#define TC956X_MIN_MSI_VEC	1
+#define TC956X_MAX_MSI_VEC	1
+
+#define TC956X_MSI_VECTOR_0	0
+#define TC956X_MSI_VECTOR_1	1
+#endif
+
+enum mbx_msg_fns {
+	mcu = 0,
+	pf0 = 1,
+	pf1 = 2,
+	vf0 = 3,
+	vf1 = 4,
+	vf2 = 5
+};
+
+struct fn_id {
+	bool fn_type; /*0 - PF; 1-VF*/
+	u8 pf_no; /* PF number [0-1], In case of VF, this gives information
+		   * about associated PF
+		   */
+	u8 vf_no; /*VF number [1-3]*/
+};
+
 
 /* Packets types */
 enum packets_types {
@@ -204,6 +384,9 @@ enum packets_types {
 #ifdef TC956X
 	PACKET_FPE_RESIDUE = 0x6, /* Frame Pre-emption residue packets */
 #endif
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+	PACKET_FILTER_FAIL = 0x7, /* Filter Fail packets */
+#endif
 };
 
 //#define TX_LOGGING_TRACE
@@ -211,7 +394,8 @@ enum packets_types {
 /*	Dual Port related Macros	*/
 #define RM_PF0_ID		(0)
 #define RM_PF1_ID		(1)
-
+#define RM_IS_PF		(0)
+#define RM_IS_VF		(1)
 #define MAC_PORT_NUM_CHECK	(priv->port_num == RM_PF0_ID)
 
 /* Select the MDC range based on PHY specification.
@@ -246,7 +430,12 @@ enum packets_types {
  */
 #define TC956X_MAX_PERFECT_ADDRESSES	32
 #define TC956X_MAX_PERFECT_VLAN		16
-#define XGMAC_ADDR_ADD_SKIP_OFST		3
+
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+#define XGMAC_ADDR_ADD_SKIP_OFST	6
+#else
+#define XGMAC_ADDR_ADD_SKIP_OFST	3
+#endif
 
 
 #define TC956X_MAC_STATE_VACANT		0x0
@@ -341,6 +530,455 @@ enum packets_types {
 
 #define NFUNCEN4_OFFSET			(0x1528)
 
+#define MAX_RX_QUEUE_SIZE	47104 /* 46KB Maximun RX Queue size */
+#define MAX_TX_QUEUE_SIZE	47104 /* 46KB Maximun TX Queue size */
+
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+
+/************************ TC956X_SRIOV_PF Starts ************************/
+
+#define TC956X_DMA_RX_AIS  BIT(14)
+#define TC956X_DMA_RX_FBE  BIT(12)
+#define TC956X_DMA_RX_RPS  BIT(8)
+#define MAX_TX_QUEUES_TO_USE	8
+#define MAX_RX_QUEUES_TO_USE	8
+
+/* Tx Queue Size*/
+#define TX_QUEUE0_SIZE	4096
+#define TX_QUEUE1_SIZE	4096
+#define TX_QUEUE2_SIZE	18432
+#define TX_QUEUE3_SIZE	4096
+#define TX_QUEUE4_SIZE	1024
+#define TX_QUEUE5_SIZE	4096
+#define TX_QUEUE6_SIZE	4096
+#define TX_QUEUE7_SIZE	4096
+
+/* TX Queue 0: Legacy and Jumbo packets */
+#define TX_QUEUE0_MODE		MTL_QUEUE_DCB
+/* TX Queue 1:Legacy*/
+#define TX_QUEUE1_MODE		MTL_QUEUE_DCB
+/* TX Queue 2: Legacy */
+#define TX_QUEUE2_MODE		MTL_QUEUE_DCB
+/* TX Queue 3: Legacy */
+#define TX_QUEUE3_MODE		MTL_QUEUE_DCB
+/* TX Queue 4: Untagged PTP */
+#define TX_QUEUE4_MODE		MTL_QUEUE_DCB
+/* TX Queue 5: AVB Class B AVTP packet */
+#define TX_QUEUE5_MODE		MTL_QUEUE_AVB
+/* TX Queue 6: AVB Class A AVTP packet */
+#define TX_QUEUE6_MODE		MTL_QUEUE_AVB
+/* TX Queue 7: TSN Class CDT packet */
+#if defined(TSN_DEMO_AUTOMOTIVE)
+#define TX_QUEUE7_MODE		MTL_QUEUE_DCB
+#else
+#define TX_QUEUE7_MODE		MTL_QUEUE_AVB
+#endif
+
+/* Tx Queue TBS Enable/Disable */
+#define TX_QUEUE0_TBS		0
+#define TX_QUEUE1_TBS		0
+#define TX_QUEUE2_TBS		0
+#define TX_QUEUE3_TBS		0
+#define TX_QUEUE4_TBS		0
+#define TX_QUEUE5_TBS		1
+#define TX_QUEUE6_TBS		1
+#define TX_QUEUE7_TBS		1
+
+/* Tx Queue TSO Enable/Disable */
+#define TX_QUEUE0_TSO		1
+#define TX_QUEUE1_TSO		1
+#define TX_QUEUE2_TSO		1
+#define TX_QUEUE3_TSO		1
+#define TX_QUEUE4_TSO		0
+#define TX_QUEUE5_TSO		0
+#define TX_QUEUE6_TSO		0
+#define TX_QUEUE7_TSO		0
+
+/* Configure TxQueue - Traffic Class mapping */
+#define TX_QUEUE0_TC	0x0
+#define TX_QUEUE1_TC	0x0
+#define TX_QUEUE2_TC	0x0
+#define TX_QUEUE3_TC	0x0
+#define TX_QUEUE4_TC	0x1
+#define TX_QUEUE5_TC	0x2
+#define TX_QUEUE6_TC	0x3
+#define TX_QUEUE7_TC	0x4
+
+
+/*
+ * RX Queue 0: Unicast/Untagged Packets - Packets with
+ * unique MAC Address of Host/Guest OS DMA channel selection will be based on
+ * MAC_Address(#i)_High.DCS
+ */
+#define RX_QUEUE0_MODE		MTL_QUEUE_DCB
+/* RX Queue 1: VLAN Tagged Legacy packets- Pkt routing will be based on VLAN */
+#define RX_QUEUE1_MODE		MTL_QUEUE_DCB
+/* RX Queue 2: Untagged gPTP packets */
+#define RX_QUEUE2_MODE		MTL_QUEUE_DCB
+/* RX Queue 3: Filter Fail packet queue */
+#define RX_QUEUE3_MODE		MTL_QUEUE_DCB
+/* RX Queue 4: AVB Class B AVTP packets */
+#define RX_QUEUE4_MODE		MTL_QUEUE_AVB
+/* RX Queue 5: AVB Class A AVTP packets */
+#define RX_QUEUE5_MODE		MTL_QUEUE_AVB
+/* RX Queue 6:TSN  Class CDT packets */
+#define RX_QUEUE6_MODE		MTL_QUEUE_AVB
+/* RX Queue 7: Broadcast/Multicast packets */
+#define RX_QUEUE7_MODE		MTL_QUEUE_DCB
+
+/* Rx Queue Size */
+#define RX_QUEUE0_SIZE	18432
+#define RX_QUEUE1_SIZE	4096
+#define RX_QUEUE2_SIZE	1024
+#define RX_QUEUE3_SIZE	4096
+#define RX_QUEUE4_SIZE	4096
+#define RX_QUEUE5_SIZE	4096
+#define RX_QUEUE6_SIZE	4096
+#define RX_QUEUE7_SIZE	4096
+
+/* Rx Queue Packet Routing */
+#define RX_QUEUE0_PKT_ROUTE	PACKET_UPQ
+#define RX_QUEUE1_PKT_ROUTE	0
+#define RX_QUEUE2_PKT_ROUTE	PACKET_PTPQ
+#define RX_QUEUE3_PKT_ROUTE	PACKET_FILTER_FAIL
+/* Queue 4,5,6 Routed based on Packet Priority Configured in
+ * MAC_RxQ_Ctrl2/MAC_RxQ_Ctrl3
+ */
+#define RX_QUEUE4_PKT_ROUTE	0
+#define RX_QUEUE5_PKT_ROUTE	0
+#define RX_QUEUE6_PKT_ROUTE	0
+#define RX_QUEUE7_PKT_ROUTE	PACKET_MCBCQ
+
+
+#define TC956X_DA_MAP		0xF
+
+/* Unicast/Untagged packet */
+#define LEG_UNTAGGED_PACKET	TC956X_DA_MAP
+/* VLAN tagged packets */
+#define LEG_TAGGED_PACKET	TC956X_DA_MAP
+/* Untagged gPTP packet */
+#define UNTAGGED_GPTP_PACKET	4
+/* Filter Failed Unicast, Multicast, Tagged packets.
+ * Route to PF Best Effort Channel. Used only in SRIOV promiscuous mode
+ */
+#define FILTER_FAIL_PACKET	3
+/* Class B AVB Packet */
+#define AVB_CLASS_B_PACKET	5
+/* Class A AVB Packet */
+#define AVB_CLASS_A_PACKET	6
+/* TSN Class CDT Packet */
+#define TSN_CLASS_CDT_PACKET	7
+/* Broadcast/Multicast packet */
+#define BC_MC_PACKET		TC956X_DA_MAP
+
+#define TX_QUEUE0_USE_PRIO	true
+#define TX_QUEUE1_USE_PRIO	true
+#define TX_QUEUE2_USE_PRIO	true
+#define TX_QUEUE3_USE_PRIO	true
+#define TX_QUEUE4_USE_PRIO	false
+#define TX_QUEUE5_USE_PRIO	false
+#define TX_QUEUE6_USE_PRIO	false
+#define TX_QUEUE7_USE_PRIO	false
+
+#define TX_QUEUE0_PRIO		0xFF	/* TC0 Priority */
+#define TX_QUEUE1_PRIO		0xFF
+#define TX_QUEUE2_PRIO		0xFF
+#define TX_QUEUE3_PRIO		0xFF
+#define TX_QUEUE4_PRIO		0x00
+#define TX_QUEUE5_PRIO		0x00
+#define TX_QUEUE6_PRIO		0x00
+#define TX_QUEUE7_PRIO		0x00
+
+/* Rx Queue Use Priority */
+#define RX_QUEUE0_USE_PRIO		false
+#define RX_QUEUE1_USE_PRIO		true
+#define RX_QUEUE2_USE_PRIO		false
+#define RX_QUEUE3_USE_PRIO		false
+#define RX_QUEUE4_USE_PRIO		true
+#define RX_QUEUE5_USE_PRIO		true
+#define RX_QUEUE6_USE_PRIO		true
+#define RX_QUEUE7_USE_PRIO		false
+
+/* Rx Queue VLAN tagged Priority mapping */
+#define RX_QUEUE0_PRIO		0
+#define RX_QUEUE1_PRIO		0xFF
+#define RX_QUEUE2_PRIO		0
+#define RX_QUEUE3_PRIO		0
+#define RX_QUEUE4_PRIO		(1 << TC956X_AVB_PRIORITY_CLASS_B)
+#define RX_QUEUE5_PRIO		(1 << TC956X_AVB_PRIORITY_CLASS_A)
+#define RX_QUEUE6_PRIO		(1 << TC956X_PRIORITY_CLASS_CDT)
+#define RX_QUEUE7_PRIO		0
+
+#define EEPROM_OFFSET		0
+#define EEPROM_MAC_COUNT	8
+
+/* DMA Ch allocation in tx-rx pairs for PF & VF */
+#define TC956X_PF_CH_ALLOC	0x18	/* PF - Ch 3, 4 */
+#define TC956X_VF0_CH_ALLOC	0x21	/* VF0 - Ch 0, 5 */
+#define TC956X_VF1_CH_ALLOC	0x02	/* VF1 - Ch 1 */
+#define TC956X_VF2_CH_ALLOC	0xC4	/* VF2 - Ch 2, 6, 7 */
+/************************* TC956X_SRIOV_PF Ends *************************/
+
+
+#elif defined(TC956X_SRIOV_PF)
+
+/***************** Automotive and Port Bridge Config Starts *************/
+
+
+#if defined(TC956X_DMA_OFFLOAD_ENABLE)
+#define TX_DMA_CH0_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH1_OWNER NOT_USED
+#define TX_DMA_CH2_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH3_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH4_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH5_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH6_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH7_OWNER USE_IN_TC956X_SW
+
+#define RX_DMA_CH0_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH1_OWNER NOT_USED
+#define RX_DMA_CH2_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH3_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH4_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH5_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH6_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH7_OWNER USE_IN_TC956X_SW
+#endif
+#define TC956X_DMA_RX_AIS  BIT(14)
+#define TC956X_DMA_RX_FBE  BIT(12)
+#define TC956X_DMA_RX_RPS  BIT(8)
+#define MAX_TX_QUEUES_TO_USE	8
+#define MAX_RX_QUEUES_TO_USE	8
+
+/* Tx Queue Size*/
+#ifdef TC956X_ENABLE_MAC2MAC_BRIDGE
+#define TX_QUEUE0_SIZE	18432
+#define TX_QUEUE1_SIZE	0
+#define TX_QUEUE2_SIZE	18432
+#define TX_QUEUE3_SIZE	0
+#define TX_QUEUE4_SIZE	1024
+#define TX_QUEUE5_SIZE	2048
+#define TX_QUEUE6_SIZE	2048
+#define TX_QUEUE7_SIZE	4096
+#else
+#define TX_QUEUE0_SIZE	18432
+#define TX_QUEUE1_SIZE	14336
+#define TX_QUEUE2_SIZE	0
+#define TX_QUEUE3_SIZE	0
+#define TX_QUEUE4_SIZE	1024
+#define TX_QUEUE5_SIZE	4096
+#define TX_QUEUE6_SIZE	4096
+#define TX_QUEUE7_SIZE	4096
+#endif
+
+/* TX Queue 0: Legacy and Jumbo packets */
+#define TX_QUEUE0_MODE		MTL_QUEUE_DCB
+/* TX Queue 1: Legacy */
+#define TX_QUEUE1_MODE		MTL_QUEUE_DCB
+/* TX Queue 2: Legacy */
+#define TX_QUEUE2_MODE		MTL_QUEUE_DISABLE
+/* TX Queue 3: Legacy */
+#define TX_QUEUE3_MODE		MTL_QUEUE_DISABLE
+/* TX Queue 4: Untagged PTP */
+#define TX_QUEUE4_MODE		MTL_QUEUE_DCB
+/* TX Queue 5: AVB Class B AVTP packet */
+#define TX_QUEUE5_MODE		MTL_QUEUE_AVB
+/* TX Queue 6: AVB Class A AVTP packet */
+#define TX_QUEUE6_MODE		MTL_QUEUE_AVB
+/* TX Queue 7: TSN Class CDT packet */
+#if defined(TSN_DEMO_AUTOMOTIVE)
+#define TX_QUEUE7_MODE		MTL_QUEUE_DCB
+#else
+#define TX_QUEUE7_MODE		MTL_QUEUE_AVB
+#endif
+
+/* Tx Queue TBS Enable/Disable */
+#define TX_QUEUE0_TBS		0
+#define TX_QUEUE1_TBS		0
+#define TX_QUEUE2_TBS		0
+#define TX_QUEUE3_TBS		0
+#define TX_QUEUE4_TBS		0
+#define TX_QUEUE5_TBS		1
+#define TX_QUEUE6_TBS		1
+#define TX_QUEUE7_TBS		1
+
+/* Tx Queue TSO Enable/Disable */
+#define TX_QUEUE0_TSO		1
+#define TX_QUEUE1_TSO		1
+#define TX_QUEUE2_TSO		0
+#define TX_QUEUE3_TSO		0
+#define TX_QUEUE4_TSO		0
+#define TX_QUEUE5_TSO		0
+#define TX_QUEUE6_TSO		0
+#define TX_QUEUE7_TSO		0
+
+/* Configure TxQueue - Traffic Class mapping */
+#define TX_QUEUE0_TC	0x0
+#define TX_QUEUE1_TC	0x0
+#define TX_QUEUE2_TC	0x0
+#define TX_QUEUE3_TC	0x0
+#define TX_QUEUE4_TC	0x1
+#define TX_QUEUE5_TC	0x2
+#define TX_QUEUE6_TC	0x3
+#define TX_QUEUE7_TC	0x4
+
+
+/*
+ * RX Queue 0: Unicast/Untagged Packets - Packets with
+ * unique MAC Address of Host/Guest OS DMA channel selection will be based on
+ * MAC_Address(#i)_High.DCS
+ */
+#define RX_QUEUE0_MODE		MTL_QUEUE_DCB
+/* RX Queue 1: VLAN Tagged Legacy packets- Pkt routing will be based on VLAN */
+/* Queue is used for MAC2MAC Usecase */
+#define RX_QUEUE1_MODE		MTL_QUEUE_DCB
+/* RX Queue 2: Untagged gPTP packets */
+#define RX_QUEUE2_MODE		MTL_QUEUE_DCB
+/* RX Queue 3: Untagged AV Control packets */
+#define RX_QUEUE3_MODE		MTL_QUEUE_AVB
+/* RX Queue 4: AVB Class B AVTP packets */
+#define RX_QUEUE4_MODE		MTL_QUEUE_AVB
+/* RX Queue 5: AVB Class A AVTP packets */
+#define RX_QUEUE5_MODE		MTL_QUEUE_AVB
+/* RX Queue 6:TSN  Class CDT packets */
+#define RX_QUEUE6_MODE		MTL_QUEUE_AVB
+/* RX Queue 7: Broadcast/Multicast packets */
+#define RX_QUEUE7_MODE		MTL_QUEUE_DCB
+
+/* Rx Queue Size */
+#ifdef TC956X_ENABLE_MAC2MAC_BRIDGE
+#define RX_QUEUE0_SIZE	18432
+#define RX_QUEUE1_SIZE	18432
+#define RX_QUEUE2_SIZE	1024
+#define RX_QUEUE3_SIZE	1024
+#define RX_QUEUE4_SIZE	2048
+#define RX_QUEUE5_SIZE	1024
+#define RX_QUEUE6_SIZE	1024
+#define RX_QUEUE7_SIZE	4096
+#else
+#define RX_QUEUE0_SIZE	18432
+#define RX_QUEUE1_SIZE	4096
+#define RX_QUEUE2_SIZE	1024
+#define RX_QUEUE3_SIZE	1024
+#define RX_QUEUE4_SIZE	4096
+#define RX_QUEUE5_SIZE	4096
+#define RX_QUEUE6_SIZE	4096
+#define RX_QUEUE7_SIZE	4096
+#endif
+/* Rx Queue Packet Routing */
+#define RX_QUEUE0_PKT_ROUTE	PACKET_UPQ
+#define RX_QUEUE1_PKT_ROUTE	0
+#define RX_QUEUE2_PKT_ROUTE	PACKET_PTPQ
+#define RX_QUEUE3_PKT_ROUTE	PACKET_AVCPQ
+/* Queue 4,5,6 Routed based on Packet Priority Configured in
+ * MAC_RxQ_Ctrl2/MAC_RxQ_Ctrl3
+ */
+#define RX_QUEUE4_PKT_ROUTE	0
+#define RX_QUEUE5_PKT_ROUTE	0
+#define RX_QUEUE6_PKT_ROUTE	0
+#define RX_QUEUE7_PKT_ROUTE	PACKET_MCBCQ
+
+
+#define TC956X_DA_MAP		0xF
+
+/* Unicast/Untagged packet */
+#define LEG_UNTAGGED_PACKET	0
+/* VLAN tagged packets */
+#define LEG_TAGGED_PACKET	0
+/* Untagged gPTP packet */
+#define UNTAGGED_GPTP_PACKET	4
+/* Untagged AV Control Packet */
+#define UNTAGGED_AVCTRL_PACKET	3
+/* Class B AVB Packet */
+#define AVB_CLASS_B_PACKET	5
+/* Class A AVB Packet */
+#define AVB_CLASS_A_PACKET	6
+/* TSN Class CDT Packet */
+#define TSN_CLASS_CDT_PACKET	7
+/* Broadcast/Multicast packet */
+#define BC_MC_PACKET		0
+
+#define TX_QUEUE0_USE_PRIO	true
+#define TX_QUEUE1_USE_PRIO	true
+#define TX_QUEUE2_USE_PRIO	true
+#define TX_QUEUE3_USE_PRIO	true
+#define TX_QUEUE4_USE_PRIO	false
+#define TX_QUEUE5_USE_PRIO	false
+#define TX_QUEUE6_USE_PRIO	false
+#define TX_QUEUE7_USE_PRIO	false
+
+#define TX_QUEUE0_PRIO		0xFF	/* TC0 Priority */
+#define TX_QUEUE1_PRIO		0xFF
+#define TX_QUEUE2_PRIO		0xFF
+#define TX_QUEUE3_PRIO		0xFF
+#define TX_QUEUE4_PRIO		0x00
+#define TX_QUEUE5_PRIO		0x00
+#define TX_QUEUE6_PRIO		0x00
+#define TX_QUEUE7_PRIO		0x00
+
+/* Rx Queue Use Priority */
+#ifdef TC956X_ENABLE_MAC2MAC_BRIDGE
+/* RXQ0 used for Host unicast/untagged and vlan tagged packets
+RXQ1 used for MAC2MAC */
+#define RX_QUEUE0_USE_PRIO		true
+#define RX_QUEUE1_USE_PRIO		false
+#else
+#define RX_QUEUE0_USE_PRIO		false
+#define RX_QUEUE1_USE_PRIO		true
+#endif
+#define RX_QUEUE2_USE_PRIO		false
+#define RX_QUEUE3_USE_PRIO		false
+#define RX_QUEUE4_USE_PRIO		true
+#define RX_QUEUE5_USE_PRIO		true
+#define RX_QUEUE6_USE_PRIO		true
+#define RX_QUEUE7_USE_PRIO		false
+
+/* Rx Queue VLAN tagged Priority mapping */
+#ifdef TC956X_ENABLE_MAC2MAC_BRIDGE
+#define RX_QUEUE0_PRIO		0xFF
+#define RX_QUEUE1_PRIO		0
+#else
+#define RX_QUEUE0_PRIO		0
+#define RX_QUEUE1_PRIO		0xFF
+#endif
+#define RX_QUEUE2_PRIO		0
+#define RX_QUEUE3_PRIO		0
+#define RX_QUEUE4_PRIO		(1 << TC956X_AVB_PRIORITY_CLASS_B)
+#define RX_QUEUE5_PRIO		(1 << TC956X_AVB_PRIORITY_CLASS_A)
+#define RX_QUEUE6_PRIO		(1 << TC956X_PRIORITY_CLASS_CDT)
+#define RX_QUEUE7_PRIO		0
+
+#define EEPROM_OFFSET		0
+#define EEPROM_MAC_COUNT	2
+
+/* DMA Ch allocation in tx-rx pairs for PF & VF */
+#define TC956X_PF_CH_ALLOC	0xFF	/* PF - All Channels */
+#define TC956X_VF0_CH_ALLOC	0x00	/* VF0 - NA */
+#define TC956X_VF1_CH_ALLOC	0x00	/* VF1 - NA */
+#define TC956X_VF2_CH_ALLOC	0x00	/* VF2 - NA */
+
+/***************** Automotive and Port Bridge Config Ends ***************/
+
+#elif defined TC956X_SRIOV_VF
+
+/************************ TC956X_SRIOV_VF Starts ************************/
+#define MAX_TX_QUEUES_TO_USE 8
+#define MAX_RX_QUEUES_TO_USE 8
+
+#define MAX_FUNCS_PER_PF 4
+#define TX_TC_ZERO		0x0
+#define TC956X_DMA_CH0_MASK 0x01
+
+#define EEPROM_PORT_OFFSET	((MAC_PORT_NUM_CHECK) ? \
+					(EEPROM_VF_SLOT_OFST1) : (EEPROM_VF_SLOT_OFST2))
+
+#define EEPROM_VF_SLOT_OFST1	2
+#define EEPROM_VF_SLOT_OFST2	3
+
+/************************** TC956X_SRIOV_VF Ends ************************/
+
+#else /* TC956X_SRIOV_PF */
+
 #ifdef TC956X
 /* CPE usecase Configruations */
 
@@ -414,9 +1052,6 @@ enum packets_types {
 #define RX_QUEUE5_SIZE		0
 #define RX_QUEUE6_SIZE		0
 #define RX_QUEUE7_SIZE		0
-
-#define MAX_RX_QUEUE_SIZE	47104 /* 46KB Maximun RX Queue size */
-#define MAX_TX_QUEUE_SIZE	47104 /* 46KB Maximun TX Queue size */
 
 /*
  * RX Queue 0: Unicast/Untagged Packets - Packets with
@@ -502,23 +1137,24 @@ enum packets_types {
 
 #define TX_DMA_CH0_OWNER USE_IN_TC956X_SW
 #define TX_DMA_CH1_OWNER NOT_USED
-#define TX_DMA_CH2_OWNER NOT_USED
-#define TX_DMA_CH3_OWNER NOT_USED
-#define TX_DMA_CH4_OWNER NOT_USED
-#define TX_DMA_CH5_OWNER NOT_USED
-#define TX_DMA_CH6_OWNER NOT_USED
-#define TX_DMA_CH7_OWNER NOT_USED
+#define TX_DMA_CH2_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH3_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH4_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH5_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH6_OWNER USE_IN_TC956X_SW
+#define TX_DMA_CH7_OWNER USE_IN_TC956X_SW
 
 #define RX_DMA_CH0_OWNER USE_IN_TC956X_SW
 #define RX_DMA_CH1_OWNER NOT_USED
-#define RX_DMA_CH2_OWNER NOT_USED
-#define RX_DMA_CH3_OWNER NOT_USED
-#define RX_DMA_CH4_OWNER NOT_USED
-#define RX_DMA_CH5_OWNER NOT_USED
-#define RX_DMA_CH6_OWNER NOT_USED
-#define RX_DMA_CH7_OWNER NOT_USED
+#define RX_DMA_CH2_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH3_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH4_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH5_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH6_OWNER USE_IN_TC956X_SW
+#define RX_DMA_CH7_OWNER USE_IN_TC956X_SW
 
 #endif /* TC956X */
+#endif /* TC956X_SRIOV_PF */
 
 /* PCI new class code  */
 #define PCI_ETHC_CLASS_CODE		0x020000
@@ -577,6 +1213,13 @@ enum packets_types {
 #define DBGPR_FUNC_ETHTOOL(x...)	do { } while (0)
 #endif
 
+#ifdef TC956X_SRIOV_VF
+/* TC956X Semaphore lock/unlock register */
+#define NSEM(reg)					(0x1100 + (reg * 4))
+/* TC956X Semaphore read register */
+#define NSEM_RD(reg)				(0x1140 + (reg * 4))
+
+#endif
 
 #define TC956X_DBG_FUNC
 #define TC956X_TEST
@@ -674,8 +1317,8 @@ enum packets_types {
 #define SPEED_1GBPS		(1000) /* 1Gbps Interms of MBPS */
 #define SPEED_10GBPS		(10000) /* 10Gbps Interms of MBPS */
 
-#define RSC_MNG_OFFSET		0x2000
-#define RSCMNG_ID_REG		((RSC_MNG_OFFSET) + 0x00000000)
+//#define RSC_MNG_OFFSET		0x2000
+//#define RSCMNG_ID_REG		((RSC_MNG_OFFSET) + 0x00000000)
 #define RSCMNG_PFN		GENMASK(3, 0)
 #define RSCMNG_PFN_SHIFT	0
 
@@ -684,6 +1327,17 @@ enum packets_types {
 #define NMODESTS_OFFSET		(0x0004) /* TC956X current operation mode */
 #define NFUNCEN0_OFFSET		(0x0008) /* TC956X pin mux control */
 #define NPCIEBOOT_OFFSET	(0x0018) /* TC956X PCIE Boot HW Sequence Status and Control */
+
+/* Pinmux for PPS Out PPO01 and PPO11*/
+#define NFUNCEN0_JTAGEN_MASK	0x40000000U
+#define NFUNCEN0_JTAG_MASK	0x000F0000U
+#define NFUNCEN0_JTAG_SHIFT	16U
+#define FUNCTION1		0x1U
+#define FUNCTION2		0x2U
+#define NFUNCEN4_GPIO2_MASK	0x00000F00U
+#define NFUNCEN4_GPIO2_SHIFT	8U
+#define NFUNCEN4_GPIO4_MASK	0x000F0000
+#define NFUNCEN4_GPIO4_SHIFT	16U
 
 #define NSYSDATA0_OFFSET	(0x0100)
 #define NSYSDATA1_OFFSET	(0x0104)
@@ -733,13 +1387,24 @@ enum packets_types {
 				 NCLKCTRL1_MAC1RMCEN | NCLKCTRL0_MAC0ALLCLKEN)
 #define NCLKCTRL0_COMMON_EMAC_MASK     (NCLKCTRL0_POEPLLCEN | NCLKCTRL0_SGMPCIEN | \
 				 NCLKCTRL0_REFCLKOCEN)
-
-#define NRSTCTRL0_DEFAULT	(NRSTCTRL0_MAC0PONRST| NRSTCTRL0_MAC0PMARST | \
-					NRSTCTRL0_MSIGENRST  | NRSTCTRL0_UART0RST | \
-					NRSTCTRL0_MAC0RST | NRSTCTRL0_INTRST | \
-					NRSTCTRL0_MCURST)
-#define NCLKCTRL0_DEFAULT 	(NCLKCTRL0_SRMCEM | NCLKCTRL0_I2SSPIEN | \
+#define NRSTCTRL0_DEFAULT	(NRSTCTRL0_MAC0PONRST | NRSTCTRL0_MAC0PMARST | \
+					NRSTCTRL0_MAC0RST)
+#define NRSTCTRL_COMMON (NRSTCTRL0_MSIGENRST  | NRSTCTRL0_UART0RST | \
+					NRSTCTRL0_INTRST | NRSTCTRL0_MCURST)
+#define NCLKCTRL0_DEFAULT	(NCLKCTRL0_SRMCEM | NCLKCTRL0_I2SSPIEN | \
 					NCLKCTRL0_PCIECEN | NCLKCTRL0_MCUCEN)
+#define NCLKCTRL_ENABLE_COMMON_EMAC_MASK (NCLKCTRL0_SRMCEM | NCLKCTRL0_I2SSPIEN | \
+					NCLKCTRL0_PCIECEN | NCLKCTRL0_MCUCEN)
+#define NCLKCTRL_DISABLE_COMMON_EMAC_MASK (NCLKCTRL0_MAC0ALLCLKEN | NCLKCTRL0_MAC0312CLKEN | \
+								NCLKCTRL0_MAC0125CLKEN | NCLKCTRL0_REFCLKOCEN | \
+								NCLKCTRL0_SGMPCIEN | NCLKCTRL0_POEPLLCEN | \
+								NCLKCTRL0_MSIGENCEN | NCLKCTRL0_UARTOCEN | \
+								NCLKCTRL0_MAC0RXCEN | NCLKCTRL0_MAC0TXCEN | \
+								NCLKCTRL0_INTCEN)
+#define NCLKCTRL_PORT0_EMAC_MASK     (NCLKCTRL0_MAC0TXCEN | NCLKCTRL0_MAC0RXCEN | \
+				 NCLKCTRL0_MAC0125CLKEN | NCLKCTRL0_MAC0312CLKEN | \
+				 NCLKCTRL0_MAC0ALLCLKEN)
+
 #define NBUSCTRL_OFFSET		(0x1014)
 
 #define NRSTCTRL_LINK_DOWN		(NRSTCTRL0_MAC0PMARST | NRSTCTRL0_MAC0PONRST)
@@ -751,6 +1416,12 @@ enum packets_types {
 #define NRSTCTRL_LINK_DOWN_CMN_SAVE		(0x00051213U) /* Save Common Reset Register Bits Between Port 0 and Port 1 */
 #define NCLKCTRL_LINK_DOWN_CMN_SAVE		(0x07053211U) /* Save Common Clock Register Bits Between Port 0 and Port 1 */
 
+#define TC956X_MSIGENCEN	18
+
+/* Interrupts to CM3 to be enabled in FW */
+#define TC956X_INT_MASK0	0xFFFF1FFF/*0x00000000*/
+#define TC956X_INT_MASK1	0xFFFF1F80/*0x00000000*/
+#define TC956X_INT_MASK2	0x00007740/*0x00000000*/
 #endif
 
 #define NSPLLPARAM_OFFSET	(0x1020) /* TC956X System PLL parameters */
@@ -766,6 +1437,113 @@ enum packets_types {
 #ifdef TC956X
 #define NEMAC0CTL_OFFSET	(0x1070) /* eMAC Port-0 Control */
 #endif
+
+#ifdef TC956X_SRIOV_PF
+/* MSIGEN Registers */
+
+#define MSI_INT_TX_CH0		3
+#define MSI_INT_RX_CH0		11
+
+#define MSI_INT_EXT_PHY		20
+
+#define TC956X_MSI_BASE		(0xF000)
+
+#define TC956X_MSI_F_OFFSET		(0x0100)
+#define TC956X_MSI_OUT_EN_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0000))
+#define TC956X_MSI_MASK_SET_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0008))
+#define TC956X_MSI_INT_RAW_STS_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE + \
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0014))
+#define TC956X_MSI_STS_OFFSET(pf_id, vf_id)		(TC956X_MSI_BASE + \
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0018))
+#define TC956X_MSI_MASK_CLR_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x000c))
+#define TC956X_MSI_INT_STS_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0010))
+#define TC956X_MSI_VECT_SET0_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0020))
+#define TC956X_MSI_VECT_SET1_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0024))
+#define TC956X_MSI_VECT_SET2_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0028))
+#define TC956X_MSI_VECT_SET3_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x002C))
+#define TC956X_MSI_VECT_SET4_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0030))
+#define TC956X_MSI_VECT_SET5_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0034))
+#define TC956X_MSI_VECT_SET6_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0038))
+#define TC956X_MSI_VECT_SET7_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x003C))
+#define TC956X_MSI_SW_MSI_CLR(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0054))
+#define TC956X_MSI_EVENT_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0068))
+
+#define TC956X_MSI_CNT0(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0080))
+#define TC956X_MSI_CNT1(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0084))
+#define TC956X_MSI_CNT2(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0088))
+#define TC956X_MSI_CNT3(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x008C))
+#define TC956X_MSI_CNT4(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x0090))
+#define TC956X_MSI_CNT11(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x00AC))
+#define TC956X_MSI_CNT12(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x00B0))
+#define TC956X_MSI_CNT20(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x00D0))
+#define TC956X_MSI_CNT24(pf_id, vf_id)			(TC956X_MSI_BASE +\
+						(vf_id * TC956X_MSI_F_OFFSET) + (pf_id * TC956X_MSI_F_OFFSET) + (0x00E0))
+
+#define TC956X_MSI_OUT_EN_CLR	(0x00000000)
+
+/* Enabled LPI_INT, EVENT_INT, TX_INT[3], TX_INT[4], RX_INT[3], RX_INT[4]
+ * XPCS_INT, PFMAILBOX_INT
+ * INT 6, 7, 14, 15 is allocated to MSI Vector 1.
+ * All other enabled INT to Vector 0.
+ */
+
+#if defined(TC956X_AUTOMOTIVE_CONFIG)
+#ifdef TC956X_LPI_INTERRUPT
+#define TC956X_MSI_OUT_EN (0x0017FFFD)
+#else /* #ifdef TC956X_LPI_INTERRUPT */
+#define TC956X_MSI_OUT_EN (0x0017FFFC)
+#endif /* #ifdef TC956X_LPI_INTERRUPT */
+#else /* #if defined(TC956X_AUTOMOTIVE_CONFIG) */
+#define TC956X_MSI_OUT_EN (0x0037FFFD)
+#endif /* #if defined(TC956X_AUTOMOTIVE_CONFIG) */
+
+#if defined(TC956X_AUTOMOTIVE_CONFIG) || defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+#define TC956X_MSI_MASK_SET	(0xFFFFFFFE)
+#define TC956X_MSI_MASK_CLR	(0x00000001)
+#define TC956X_MSI_SET0		(0x00000000)
+#define TC956X_MSI_SET1		(0x00000000)
+#define TC956X_MSI_SET2		(0x00000000)
+#define TC956X_MSI_SET3		(0x00000000)
+#define TC956X_MSI_SET4		(0x00000000)
+#define TC956X_MSI_SET5		(0x00000000)
+#define TC956X_MSI_SET6		(0x00000000)
+#define TC956X_MSI_SET7		(0x00000000)
+#else
+#define TC956X_MSI_MASK_SET	(0xFFFFFFFC)
+#define TC956X_MSI_MASK_CLR	(0x00000003)
+#define TC956X_MSI_SET0		(0x00010101)
+#define TC956X_MSI_SET1		(0x00000000)
+#define TC956X_MSI_SET2		(0x00000000)
+#define TC956X_MSI_SET3		(0x00000000)
+#define TC956X_MSI_SET4		(0x01000000)
+#define TC956X_MSI_SET5		(0x01010101)
+#define TC956X_MSI_SET6		(0x01010101)
+#define TC956X_MSI_SET7		(0x01010101)
+#endif
+
+#endif /* TC956X_SRIOV_PF */
 
 #define NEMAC1CTL_OFFSET	(0x1074) /* eMAC Port-1 Control */
 #define NEMACSTS_OFFSET		(0x1078) /* eMAC status */
@@ -848,6 +1626,12 @@ enum packets_types {
 #define GPIO_12			(12)
 #define GPIO_32			(32)
 
+#define TRIG00_SHIFT		4
+#define TRIG10_SHIFT		12
+#define TRIG00_MASK			0xF0
+#define TRIG10_MASK			0xF000
+#define TSIE_SHIFT			12
+
 /* PCIe registers */
 #define PCIE_OFFSET				(0x20000)
 #define PCIE_RANGE_UP_OFFSET_RgOffAddr(no)	(PCIE_OFFSET + 0x6200 + (no*0x10))
@@ -896,6 +1680,7 @@ enum packets_types {
 
 
 #ifdef TC956X
+#define TC956X_ETH_XPCS_INT				BIT(19)
 #define TC956X_EXT_PHY_ETH_INT			BIT(20)
 
 #ifdef TC956X_SW_MSI
@@ -917,6 +1702,10 @@ enum packets_types {
 						+ 0x00000850U)
 #define TC956X_SSREG_K_PCICONF_031_016		(TC956X_SSREG_BRREG_REG_BASE \
 						+ 0x00000854U)
+#define TC956X_SSREG_K_PCICONF_021_021		(TC956X_SSREG_BRREG_REG_BASE \
+						+ 0x000009E4U)
+#define TC956X_SSREG_K_PCICONF_022_022		(TC956X_SSREG_BRREG_REG_BASE \
+						+ 0x000009E8U)
 
 #define TC956X_GLUE_EFUSE_CTRL			(TC956X_GLUE_LOGIC_BASE_OFST \
 						+ 0x0000001CU)
@@ -930,6 +1719,8 @@ enum packets_types {
 						+ 0x0000006CU)
 #define TC956X_GLUE_SW_DSP2_TEST_IN_31_00	(TC956X_GLUE_LOGIC_BASE_OFST \
 						+ 0x00000074U)
+#define TC956X_GLUE_SW_USP_TEST_OUT_127_096	(TC956X_GLUE_LOGIC_BASE_OFST \
+						+ 0x00000098U)
 #define TC956X_GLUE_TL_LINK_SPEED_MON		(TC956X_GLUE_LOGIC_BASE_OFST \
 						+ 0x00000244U)
 #define TC956X_GLUE_TL_NUM_LANES_MON		(TC956X_GLUE_LOGIC_BASE_OFST \
@@ -1061,10 +1852,18 @@ entry delay = n * 256 ns */
 #define TC956X_PHY_CORE1_MISC_RW0_R2		(TC956X_PHY_CORE1_REG_BASE \
 						+ 0x000002C8U)
 
+#define TC956X_GLUE_LTSSM_STATE_MASK		(0x0000001FU)
+#define TC956X_GLUE_LTSSM_STATE_SHIFT		(0)
+#define TC956X_GLUE_DLL_MASK			(0x00000020U)
+#define TC956X_GLUE_DLL_SHIFT			(5)
+#define TC956X_GLUE_SPEED_MASK(x)		(0x0000000FU << (8*x))
+#define TC956X_GLUE_SPEED_SHIFT(x)		(8*x)
 
 #define USP_LANE_WIDTH_MASK			(0x0000003F)
 #define DSP1_LANE_WIDTH_MASK			(0x00003F00)
 #define DSP1_LANE_WIDTH_SHIFT			(8)
+#define TC956X_GLUE_LANE_WIDTH_MASK(x)		(0x0000003FU << (8*x))
+#define TC956X_GLUE_LANE_WIDTH_SHIFT(x)		(8*x)
 
 #define USP_LINK_WIDTH_CHANGE_4_TO_1		(0x00000010)
 #define USP_LINK_WIDTH_CHANGE_4_TO_2		(0x00000011)
@@ -1075,6 +1874,7 @@ entry delay = n * 256 ns */
 #define DSP1_LINK_WIDTH_CHANGE_1_TO_2		(0x00110000)
 
 #define SW_PORT_ENABLE_MASK			GENMASK(3, 0)
+#define SW_PORT_ENABLE_SHIFT			0U
 #define SW_USP_ENABLE				(0x00000001)
 #define SW_DSP1_ENABLE				(0x00000002)
 #define SW_DSP2_ENABLE				(0x00000004)
@@ -1098,7 +1898,10 @@ entry delay = n * 256 ns */
 #define POWER_CTL_OVER_ENABLE			0x00000001
 #define PC_DEBUG_P1_TOGGLE			0x00000001
 
+#define ENABLE_CUT_THROUGH_ON_RX_PATH_MASK	0x1U
+#define ENABLE_CUT_THROUGH_ON_TX_PATH_MASK	0x1U
 #endif
+
 /* MSIGEN Registers */
 
 #define MSI_INT_TX_CH0		3
@@ -1109,75 +1912,97 @@ entry delay = n * 256 ns */
 #define MSI_INT_SW_MSI		24
 #endif
 
-#define TC956X_MSI_BASE			(0xF000)
-#define TC956X_MSI_PF0				(0x000)
-#ifdef TC956X
-#define TC956X_MSI_PF1				(0x100)
-#else
-#define TC956X_MSI_PF1				(0x000)
+#ifdef TC956X_SRIOV_VF //VF_DRV related
+#define TC956X_MSIGENCEN	18
+
+/* MSIGEN Registers */
+#define TC956X_MSI_BASE		(0xF000)
+#define TC956X_MSI_PF0		(0x0000)
+#define TC956X_MSI_PF1		(0x0100)
+
+#define TC956X_MSI_OUT_EN_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300)  + (0x0000))
+#define TC956X_MSI_MASK_SET_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0008))
+#define TC956X_MSI_MASK_CLR_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x000c))
+#define TC956X_MSI_VECT_SET0_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0020))
+#define TC956X_MSI_VECT_SET1_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0024))
+#define TC956X_MSI_VECT_SET2_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0028))
+#define TC956X_MSI_VECT_SET3_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x002C))
+#define TC956X_MSI_VECT_SET4_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0030))
+#define TC956X_MSI_VECT_SET5_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0034))
+#define TC956X_MSI_VECT_SET6_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0038))
+#define TC956X_MSI_VECT_SET7_OFFSET(pf_id, vf_id)	(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x003C))
+
+#define TC956X_MSI_EVENT_OFFSET(pf_id, vf_id)		(TC956X_MSI_BASE +\
+						TC956X_MSI_PF1 + (vf_id * 0x100) + (pf_id * 0x300) + (0x0068))
+
+
+#define TC956X_MSI_OUT_EN_CLR	(0x00000000)
+/* Enabled LPI_INT, EVENT_INT, TX_INT[3], TX_INT[4], RX_INT[3], RX_INT[4]
+ * XPCS_INT, PFMAILBOX_INT
+ */
+//#define TC956X_MSI_OUT_EN	(0x0028C0C5)
+#define TC956X_MSI_OUT_EN	(0x0027FFF8)
+
+
+#define TC956X_MSI_MASK_SET	(0xFFFFFFFE)
+#define TC956X_MSI_MASK_CLR	(0x00000001)
+#define TC956X_MSI_SET0		(0x00000000)
+#define TC956X_MSI_SET1		(0x00000000)
+#define TC956X_MSI_SET2		(0x00000000)
+#define TC956X_MSI_SET3		(0x00000000)
+#define TC956X_MSI_SET4		(0x00000000)
+#define TC956X_MSI_SET5		(0x00000000)
+#define TC956X_MSI_SET6		(0x00000000)
+#define TC956X_MSI_SET7		(0x00000000)
+
+#define TC956X_MSI_INT_TXDMA_CH0	(3)
+#define TC956X_MSI_INT_RXDMA_CH0	(11)
+#define TC956X_MSI_INT_MBX		(21)
+
+#endif // #ifdef TC956X_SRIOV_VF
+
+#if defined(TC956X_AUTOMOTIVE_CONFIG)
+#define CLASS_B_CH			5 /* Class B Queue */
+#define CLASS_CDT_CH			7 /* CDT Queue */
 #endif
 
-#ifdef TC956X_LPI_INTERRUPT
-#define ENABLE_MSI_INTR				(0x17FFFD)
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+#define HOST_BEST_EFF_CH		3 /* Best effort traffic Queue*/
+#define UNTAGGED_PTP_CH			4 /* Untagged PTP Queue */
+#define CLASS_B_CH			5 /* Class B Queue */
+#define CLASS_A_CH			6 /* Class A Queue */
+#define CLASS_CDT_CH			7 /* CDT Queue */
+
+#define TC956X_GPTP_TX_CH		UNTAGGED_PTP_CH
+/* All data is redirected to Legacy Channel for SRIOV Usecase */
+#define LEGACY_VLAN_TAGGED_CH		HOST_BEST_EFF_CH
+#define AVB_CLASS_B_TX_CH		HOST_BEST_EFF_CH
+#define AVB_CLASS_A_TX_CH		HOST_BEST_EFF_CH
+#define TSN_CLASS_CDT_TX_CH		HOST_BEST_EFF_CH
+
+#elif defined(TC956X_SRIOV_PF) && (defined(TC956X_AUTOMOTIVE_CONFIG) || defined(TC956X_ENABLE_MAC2MAC_BRIDGE))
+#define HOST_BEST_EFF_CH		0 /* Legacy channel is best effort traffic */
+#define LEGACY_VLAN_TAGGED_CH		0 /* Legacy VLAN tagged queue */
+#define TC956X_GPTP_TX_CH		4 /* gPTP Tx Channel */
+#define AVB_CLASS_B_TX_CH		5 /* AVB Class B Qeuue */
+#define AVB_CLASS_A_TX_CH		6 /* AVB Class A Qeuue */
+#define TSN_CLASS_CDT_TX_CH		7 /* Express Control Traffic */
+
 #else
-#define ENABLE_MSI_INTR				(0x17FFFC)
-#endif
-
-#define TC956X_MSI_OUT_EN_OFFSET(pf_id)	(TC956X_MSI_BASE + \
-						(pf_id * TC956X_MSI_PF1) + (0x0000))
-#define TC956X_MSI_INT_STS_OFFSET(pf_id)	(TC956X_MSI_BASE + \
-						(pf_id * TC956X_MSI_PF1) + (0x0010))
-
-#define TC956X_MSI_INT_RAW_STS_OFFSET(pf_id)	(TC956X_MSI_BASE + \
-						(pf_id * TC956X_MSI_PF1) + (0x0014))
-#define TC956X_MSI_STS_OFFSET(pf_id)		(TC956X_MSI_BASE + \
-						(pf_id * TC956X_MSI_PF1) + (0x0018))
-#define TC956X_MSI_MASK_SET_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0008))
-#define TC956X_MSI_MASK_CLR_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x000c))
-#define TC956X_MSI_VECT_SET0_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0020))
-#define TC956X_MSI_VECT_SET1_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0024))
-#define TC956X_MSI_VECT_SET2_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0028))
-#define TC956X_MSI_VECT_SET3_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x002C))
-#define TC956X_MSI_VECT_SET4_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0030))
-#define TC956X_MSI_VECT_SET5_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0034))
-#define TC956X_MSI_VECT_SET6_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0038))
-#define TC956X_MSI_VECT_SET7_OFFSET(pf_id)	(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x003C))
-#define TC956X_MSI_SW_MSI_SET(pf_id)		(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0050))
-#define TC956X_MSI_SW_MSI_CLR(pf_id)		(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0054))
-#define TC956X_MSI_EVENT_OFFSET(pf_id)		(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0068))
-#define TC956X_MSI_CNT0(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0080))
-#define TC956X_MSI_CNT1(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0084))
-#define TC956X_MSI_CNT2(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0088))
-#define TC956X_MSI_CNT3(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x008C))
-#define TC956X_MSI_CNT4(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x0090))
-#define TC956X_MSI_CNT11(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x00AC))
-#define TC956X_MSI_CNT12(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x00B0))
-#define TC956X_MSI_CNT20(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x00D0))
-#define TC956X_MSI_CNT24(pf_id)			(TC956X_MSI_BASE +\
-						(pf_id * TC956X_MSI_PF1) + (0x00E0))
-
 #ifdef TC956X
+
+#ifndef TC956X_SRIOV_VF
 /* CPE usecase only TxCH 0 is applicable */
 #define HOST_BEST_EFF_CH		0 /* Legacy channel is best effort traffic */
 #define LEGACY_VLAN_TAGGED_CH	0 /* Legacy VLAN tagged queue */
@@ -1186,6 +2011,8 @@ entry delay = n * 256 ns */
 #define AVB_CLASS_A_TX_CH		0 /* AVB Class A Qeuue */
 #define TSN_CLASS_CDT_TX_CH		0 /* Express Control Traffic */
 #endif
+#endif
+#endif
 
 /* Scale factor for the CBS calculus */
 #define AVB_CBS_SCALE	1024
@@ -1193,11 +2020,11 @@ entry delay = n * 256 ns */
 #define TC956X_HOST_PHYSICAL_ADRS_MASK	(0x10) /* bit no 37: (1<<36) */
 
 #define ETHNORMAL_LEN		1500
-/*Max supported MTU limited to 2000, not 'ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN' */
-#define MAX_SUPPORTED_MTU	2000 /*(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)*/
+#define MAX_SUPPORTED_MTU	(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define MIN_SUPPORTED_MTU	(ETH_ZLEN + ETH_FCS_LEN + VLAN_HLEN)
 
 #define HOST_MAC_ADDR_OFFSET 2
+#define HOST_BC_ADDR_OFFSET 0
 
 #endif /* End of TC956X Define */
 
@@ -1206,9 +2033,17 @@ entry delay = n * 256 ns */
 #define DMA_RX_SIZE 512
 #define TC956XMAC_GET_ENTRY(x, size)	((x + 1) & (size - 1))
 
+/* default DMA channel for TC */
+#if defined(TC956X_SRIOV_PF) && !defined(TC956X_AUTOMOTIVE_CONFIG) && !defined(TC956X_ENABLE_MAC2MAC_BRIDGE)
+#define TC956X_TC_DEFAULT_DMA_CH (0x1 << 3)
+#else
+#define TC956X_TC_DEFAULT_DMA_CH (0x1 << 0)
+#endif
+
 #undef FRAME_FILTER_DEBUG
 /* #define FRAME_FILTER_DEBUG */
 
+#define TOTAL_VF 3
 /* Extra statistic and debug information exposed by ethtool */
 struct tc956xmac_extra_stats {
 	/* Transmit errors */
@@ -1364,6 +2199,13 @@ struct tc956xmac_extra_stats {
 	u64 rxch_desc_buf_laddr[TC956XMAC_CH_MAX];
 	u64 rxch_sw_cur_rx[TC956XMAC_CH_MAX];
 	u64 rxch_sw_dirty_rx[TC956XMAC_CH_MAX];
+#ifdef TC956X_SRIOV_PF
+	u64 mbx_pf_sent_vf[TOTAL_VF];
+	u64 mbx_pf_rcvd_vf[TOTAL_VF];
+#else
+	u64 mbx_vf_sent_pf;
+	u64 mbx_vf_rcvd_pf;
+#endif
 
 	/*debug interrupt counters */
 	u64 total_interrupts;
@@ -1416,6 +2258,72 @@ struct tc956xmac_safety_stats {
 	unsigned long mtl_errors[32];
 	unsigned long dma_errors[32];
 };
+
+#ifdef TC956X_SRIOV_VF
+struct tc956x_sw_counters {
+	u64 tx_frame_count_good_bad;
+	u64 rx_frame_count_good_bad;
+	u64 rx_frame_count_good;
+	u64 rx_fame_count_bad;
+	u64 rx_packet_good_octets;
+	u64 rx_header_good_octets;
+	u64 rx_av_tagged_datapacket_count;
+	u64 rx_av_tagged_controlpacket_count;
+	u64 rx_nonav_packet_count;
+	u64 rx_tunnel_packet_count;
+	u64 rx_non_ip_pkt_count;
+	u64 rx_ipv4_tcp_pkt_count;
+	u64 rx_ipv4_udp_pkt_count;
+	u64 rx_ipv4_icmp_pkt_count;
+	u64 rx_ipv4_igmp_pkt_count;
+	u64 rx_ipv4_unkown_pkt_count;
+	u64 rx_ipv6_tcp_pkt_count;
+	u64 rx_ipv6_udp_pkt_count;
+	u64 rx_ipv6_icmp_pkt_count;
+	u64 rx_ipv6_unkown_pkt_count;
+	u64 rx_err_wd_timeout_count;
+	u64 rx_err_gmii_inv_count;
+	u64 rx_err_crc_count;
+	u64 rx_err_giant_count;
+	u64 rx_err_checksum_count;
+	u64 rx_err_overflow_count;
+	u64 rx_err_bus_count;
+	u64 rx_err_pkt_len_count;
+	u64 rx_err_runt_pkt_count;
+	u64 rx_err_dribble_count;
+	u64 rx_err_t_out_ip_header_count;
+	u64 rx_err_t_out_ip_pl_l4_csum_count;
+	u64 rx_err_t_in_ip_header_count;
+	u64 rx_err_t_in_ip_pl_l4_csum_count;
+	u64 rx_err_t_invalid_vlan_header;
+	u64 rx_l2_len_pkt_count;
+	u64 rx_l2_mac_control_pkt_count;
+	u64 rx_l2_dcb_control_pkt_count;
+	u64 rx_l2_arp_pkt_count;
+	u64 rx_l2_oam_type_pkt_count;
+	u64 rx_l2_untg_typ_match_pkt_count;
+	u64 rx_l2_other_type_pkt_count;
+	u64 rx_l2_single_svlan_pkt_count;
+	u64 rx_l2_single_cvlan_pkt_count;
+	u64 rx_l2_d_cvlan_cvlan_pkt_count;
+	u64 rx_l2_d_svlan_svlan_pkt_count;
+	u64 rx_l2_d_svlan_cvlan_pkt_count;
+	u64 rx_l2_d_cvlan_svlan_pkt_count;
+	u64 rx_l2_untg_av_control_pkt_count;
+	u64 rx_ptp_no_msg;
+	u64 rx_ptp_msg_type_sync;
+	u64 rx_ptp_msg_type_follow_up;
+	u64 rx_ptp_msg_type_delay_req;
+	u64 rx_ptp_msg_type_delay_resp;
+	u64 rx_ptp_msg_type_pdelay_req;
+	u64 rx_ptp_msg_type_pdelay_resp;
+	u64 rx_ptp_msg_type_pdelay_follow_up;
+	u64 rx_ptp_msg_type_announce;
+	u64 rx_ptp_msg_type_management;
+	u64 rx_ptp_msg_pkt_signaling;
+	u64 rx_ptp_msg_pkt_reserved_type;
+};
+#endif //#ifdef TC956X_SRIOV_VF
 
 struct tc956x_mac_addr {
 	u8 mac_address[6];
@@ -1541,6 +2449,98 @@ enum dma_irq_status {
 	handle_rx = 0x4,
 	handle_tx = 0x8,
 };
+
+#ifdef TC956X_SRIOV_VF
+
+#define MBX_MSG_OFST		4 /* First 4 bytes for ACK management */
+#define MBX_MSG_SIZE		60 /* Excluding ACK */
+#define MBX_ACK_SIZE		4 /* ACK management */
+#define MBX_TOT_SIZE		(MBX_MSG_SIZE + MBX_ACK_SIZE)
+
+#define ACK			0x01
+#define NACK			0x02
+
+/* Mailbox opcode definitions */
+#define OPCODE_MBX_ADD_MAC_ADDR			0x01
+#define OPCODE_MBX_SET_TX_Q_WEIGHT		0x02
+#define OPCODE_MBX_CFG_CBS				0x03
+#define OPCODE_MBX_SET_TX_Q_PRIOR		0x04
+#define OPCODE_MBX_RESET_EEE_MODE       0x05
+#define OPCODE_MBX_VF_IOCTL				0x06
+#define OPCODE_MBX_VF_ETHTOOL			0x07
+#define OPCODE_MBX_VF_ADD_MAC			0x08
+#define OPCODE_MBX_VF_DELETE_MAC		0x09
+#define OPCODE_MBX_VF_ADD_VLAN			0x10
+#define OPCODE_MBX_VF_DELETE_VLAN		0x11
+#define OPCODE_MBX_SET_DMA_TX_MODE		0x12
+#define OPCODE_MBX_VF_GET_LINK_STATUS	0x13
+#define OPCODE_MBX_PHY_LINK		0x14
+#define OPCODE_MBX_SETUP_CBS		0x15
+#define OPCODE_MBX_RX_CRC		0x16
+#define OPCODE_MBX_RX_CSUM		0x17
+#define OPCODE_MBX_DRV_CAP		0x18
+#define OPCODE_MBX_VF_GET_PAUSE_PARAM	0x19
+#define OPCODE_MBX_VF_GET_EEE			0x20
+#define OPCODE_MBX_VF_GET_TS_INFO		0x22
+#define OPCODE_MBX_VF_GET_MII_PHY		0x23
+#define OPCODE_MBX_VF_GET_PAUSE_PARAM_2 0x24
+#define OPCODE_MBX_GET_UMAC_ADDR        0x25
+#define OPCODE_VF_RESET                 0x26
+#define OPCODE_MBX_DMA_CH_TLPTR			0x29
+#define OPCODE_MBX_SETUP_ETF			0x30
+#define OPCODE_MBX_FLR					0x33
+#define OPCODE_MBX_DMA_ERR		0x34
+#define OPCODE_MBX_ACK_MSG				0xFF
+
+#define SIZE_MBX_SET_TX_Q_WEIGHT		8
+#define SIZE_MBX_CFG_CBS				20
+#define SIZE_MBX_SETUP_ETF				5
+#define SIZE_MBX_SETUP_CBS				21
+#define SIZE_MBX_CFG_EST				56
+#define SIZE_MBX_CFG_FPE				20
+#define SIZE_MBX_SET_TX_Q_PRIOR			8
+#define SIZE_MBX_SET_DMA_TX_MODE		13
+#define SIZE_MBX_VF_GET_LINK_STATUS		0
+#define SIZE_MBX_PHY_LINK			12
+#define SIZE_MBX_RX_CRC		4
+#define SIZE_MBX_RX_CSUM	4
+#define SIZE_MBX_DRV_CAP	            4
+#define SIZE_SET_UMAC_ADDR              10
+#define SIZE_GET_UMAC_ADDR              4
+#define SIZE_MBX_VF_MAC				6
+#define SIZE_MBX_VF_VLAN				2
+#define SIZE_MBX_VF_REG_WR			13
+#define SIZE_MBX_VF_SPEED			1
+#define SIZE_MBX_SET_GET_CBS_1			56
+#define SIZE_MBX_SET_GET_CBS_2			44
+#define SIZE_MBX_SET_GET_EST_1		56
+#define SIZE_MBX_SET_GET_RXP_1		56
+#define SIZE_MBX_SET_GET_FPE_1		20
+#define SIZE_MBX_VF_GET_CBS			2
+#define SIZE_MBX_VF_PAUSE_PARAM		1
+#define SIZE_MBX_VF_EEE				1
+#define SIZE_MBX_VF_TS_INFO			1
+#define SIZE_VF_RESET			    1
+#define SIZE_MBX_VF_TIMESTAMP		2
+#define SIZE_MBX_VF_GET_EST			1
+#define SIZE_MBX_VF_GET_RXP			1
+#define SIZE_MBX_VF_GET_FPE			1
+#define SIZE_MBX_VF_GET_MII_REG		23
+#define SIZE_MBX_RX_DMA_TL_PTR		4
+#define SIZE_MBX_GET_HW_STMP    12
+
+#define MAX_SIZE_GCL_MSG 14
+#define EST_FIX_MSG_LEN 28
+#define RXP_FIX_MSG_LEN 16
+#define VF_UP       1
+#define VF_DOWN     0
+#define VF_SUSPEND  2
+#define VF_RELEASE  3
+
+#define SCH_WQ_PF_FLR 1
+#define SCH_WQ_RX_DMA_ERR 2
+#define SCH_WQ_LINK_STATE_UP 3
+#endif /* #ifdef TC956X_SRIOV_VF */
 
 /* EEE and LPI defines */
 #define	CORE_IRQ_TX_PATH_IN_LPI_MODE	(1 << 0)
@@ -1676,9 +2676,22 @@ struct dma_features {
 #define TC956X_TWO		2
 #define TC956X_THREE		3
 #define TC956X_FOUR		4
+#define TC956X_FIVE		5
+#define TC956X_SIX		6
+#define TC956X_SEVEN		7
 #define TC956X_EIGHT		8
+#define TC956X_NINE		9
+#define TC956X_TEN		10
 #define TC956X_SIXTEEN		16
 #define TC956X_TWENTY_FOUR	24
+#define TC956X_FORTY_EIGHT	48
+#define TC956X_FORTY_NINE	49
+
+/* EEPROM Mac address mask values */
+#define EEPROM_MAC_ADDR_MASK1 0x000000FF
+#define EEPROM_MAC_ADDR_MASK2 0x0000FF00
+#define EEPROM_MAC_ADDR_MASK3 0x00FF0000
+#define EEPROM_MAC_ADDR_MASK4 0xFF000000
 
 #define TC956X_MIN_LPI_AUTO_ENTRY_TIMER		0
 #define TC956X_MAX_LPI_AUTO_ENTRY_TIMER		0xFFFF8 /* LPI Entry timer is in the units of 8 micro second granularity. So mask the last 3 bits. */
@@ -1723,6 +2736,17 @@ struct mac_device_info {
 	const struct tc956xmac_mode_ops *mode;
 	const struct tc956xmac_hwtimestamp *ptp;
 	const struct tc956xmac_tc_ops *tc;
+	const struct tc956x_msi_ops *msi;
+#ifdef TC956X_SRIOV_PF
+	const struct mac_rsc_mng_ops *rsc;
+	const struct mac_mbx_ops *mbx;
+	const struct tc956x_mbx_wrapper_ops *mbx_wrapper;
+#endif
+#ifdef TC956X_SRIOV_VF
+	const struct mac_rsc_mng_ops *rsc;
+	const struct mac_mbx_ops *mbx;
+	const struct tc956xmac_mbx_wrapper_ops *mbx_wrapper;
+#endif
 	const struct tc956xmac_mmc_ops *mmc;
 	const struct tc956xmac_pma_ops *pma;
 	struct mii_regs mii;	/* MII register Addresses */
@@ -1750,12 +2774,20 @@ int dwmac1000_setup(struct tc956xmac_priv *priv);
 int dwmac4_setup(struct tc956xmac_priv *priv);
 int dwxgmac2_setup(struct tc956xmac_priv *priv);
 
+#ifdef TC956X_SRIOV_PF
 void tc956xmac_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 			 unsigned int high, unsigned int low);
 void tc956xmac_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
 			 unsigned int high, unsigned int low);
 void tc956xmac_set_mac(struct tc956xmac_priv *priv, void __iomem *ioaddr, bool enable);
-
+int tc956x_add_mac_addr(struct net_device *dev, const unsigned char *mac);
+#elif defined TC956X_SRIOV_VF
+void tc956xmac_vf_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+			 unsigned int high, unsigned int low);
+void tc956xmac_vf_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
+			 unsigned int high, unsigned int low);
+void tc956xmac_set_mac(struct tc956xmac_priv *priv, void __iomem *ioaddr, bool enable);
+#endif
 void tc956xmac_dwmac4_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
 				unsigned int high, unsigned int low);
 void tc956xmac_dwmac4_get_mac_addr(void __iomem *ioaddr, unsigned char *addr,
@@ -1768,4 +2800,7 @@ extern const struct tc956xmac_mode_ops ring_mode_ops;
 extern const struct tc956xmac_mode_ops chain_mode_ops;
 extern const struct tc956xmac_desc_ops dwmac4_desc_ops;
 
+#ifdef TC956X_SRIOV_VF
+void tc956xmac_mailbox_service_event_schedule(struct tc956xmac_priv *priv);
+#endif
 #endif /* __COMMON_H__ */

@@ -180,6 +180,21 @@
 #define RDES_PTP_SIGNALING		0xa
 #define RDES_PTP_PKT_RESERVED_TYPE	0xf
 
+#ifdef TC956X_SRIOV_VF /* MMC SW counter related */
+/* RDES3 PMT message type definitions */
+#define RDES_PMT_NO_PTP			0x0
+#define RDES_PMT_SYNC			0x1
+#define RDES_PMT_FOLLOW_UP		0x2
+#define RDES_PMT_DELAY_REQ		0x3
+#define RDES_PMT_DELAY_RESP		0x4
+#define RDES_PMT_PDELAY_REQ		0x5
+#define RDES_PMT_PDELAY_RESP		0x6
+#define RDES_PMT_PDELAY_FOLLOW_UP	0x7
+#define RDES_PMT_PTP_ANNOUNCE		0x8
+#define RDES_PMT_PTP_MANAGEMENT		0x9
+#define RDES_PMT_PTP_SIGNALING		0xa
+#define RDES_PMT_PTP_PKT_RESERVED_TYPE	0xf
+#endif
 /* Basic descriptor structure for normal and alternate descriptors */
 struct dma_desc {
 	__le32 des0;

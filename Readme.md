@@ -1,9 +1,9 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 09 May 2023
+Release Date: 26 Dec 2023
 
-Release Version: V_01-00-59 : Limited-tested version
+Release Version: V_01-03-59 : Limited-tested version
 
-TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
+TC956X PCIe EMAC driver is based on "Fedora 39, kernel-6.6.1".
 
 # Compilation & Run: Need to be root user to execute the following steps.
 1.  By default, DMA_OFFLOAD_ENABLE is enabled. Execute following commands:
@@ -565,3 +565,19 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 ## TC956X_Host_Driver_20230509_V_01-00-59:
 1. Module parameters for SW reset (during link change) enabled by default for Port0.
+
+## TC956X_Linux_Host_Driver_20230810_V_01-01-59
+1. Automotive AVB/TSN support
+2. Default Port 0 interface is XFI and Port1 interface is SGMII 
+3. IPA (macro TC956X_DMA_OFFLOAD_ENABLE) enabled by default
+4. Kernel timers are used to process transmitted TX descriptor. Systick timers are not used.
+5. Dynamic change of MTU not supported. Max MTU supported is 9000.
+6. Port 1 supports USXGMII, XFI and 25000Base-X interface also.
+
+## TC956X_Linux_Host_Driver_20231110_V_01-02-59
+1. Kernel 6.1.18 Porting changes
+2. TC956x switch to switch connection support (upto 1 level) over DSP ports
+
+## TC956X_Linux_Host_Driver_20231226_V_01-03-59
+1. Kernel 6.6.1 Porting changes
+2. Added the support for TC commands taprio and flower
