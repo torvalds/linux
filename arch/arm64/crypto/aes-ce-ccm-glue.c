@@ -182,16 +182,15 @@ static int ccm_encrypt(struct aead_request *req)
 		if (walk.nbytes == walk.total)
 			ce_aes_ccm_final(mac, buf, ctx->key_enc, num_rounds(ctx));
 
-		kernel_neon_end();
-
 		if (walk.nbytes) {
 			err = skcipher_walk_done(&walk, tail);
-			if (unlikely(err))
-				return err;
-			if (unlikely(walk.nbytes))
-				kernel_neon_begin();
 		}
 	} while (walk.nbytes);
+
+	kernel_neon_end();
+
+	if (unlikely(err))
+		return err;
 
 	/* copy authtag to end of dst */
 	scatterwalk_map_and_copy(mac, req->dst, req->assoclen + req->cryptlen,
@@ -240,16 +239,15 @@ static int ccm_decrypt(struct aead_request *req)
 		if (walk.nbytes == walk.total)
 			ce_aes_ccm_final(mac, buf, ctx->key_enc, num_rounds(ctx));
 
-		kernel_neon_end();
-
 		if (walk.nbytes) {
 			err = skcipher_walk_done(&walk, tail);
-			if (unlikely(err))
-				return err;
-			if (unlikely(walk.nbytes))
-				kernel_neon_begin();
 		}
 	} while (walk.nbytes);
+
+	kernel_neon_end();
+
+	if (unlikely(err))
+		return err;
 
 	/* compare calculated auth tag with the stored one */
 	scatterwalk_map_and_copy(buf, req->src,
