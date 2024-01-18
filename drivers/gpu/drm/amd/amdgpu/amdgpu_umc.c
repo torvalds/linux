@@ -91,11 +91,16 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	unsigned int error_query_mode;
 	int ret = 0;
 	unsigned long err_count;
+
+	amdgpu_ras_get_error_query_mode(adev, &error_query_mode);
+
 	mutex_lock(&con->page_retirement_lock);
 	ret = amdgpu_dpm_get_ecc_info(adev, (void *)&(con->umc_ecc));
-	if (ret == -EOPNOTSUPP) {
+	if (ret == -EOPNOTSUPP &&
+	    error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY) {
 		if (adev->umc.ras && adev->umc.ras->ras_block.hw_ops &&
 		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count)
 		    adev->umc.ras->ras_block.hw_ops->query_ras_error_count(adev, ras_error_status);
@@ -119,7 +124,8 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			 */
 			adev->umc.ras->ras_block.hw_ops->query_ras_error_address(adev, ras_error_status);
 		}
-	} else if (!ret) {
+	} else if (error_query_mode == AMDGPU_RAS_FIRMWARE_ERROR_QUERY ||
+	    (!ret && error_query_mode == AMDGPU_RAS_DIRECT_ERROR_QUERY)) {
 		if (adev->umc.ras &&
 		    adev->umc.ras->ecc_info_query_ras_error_count)
 		    adev->umc.ras->ecc_info_query_ras_error_count(adev, ras_error_status);
