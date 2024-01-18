@@ -1526,7 +1526,7 @@ int atomctrl_get_leakage_id_from_efuse(struct pp_hwmgr *hwmgr, uint16_t *virtual
 
 	result = amdgpu_atom_execute_table(adev->mode_info.atom_context,
 			GetIndexIntoMasterTable(COMMAND, SetVoltage),
-			(uint32_t *)voltage_parameters, sizeof(voltage_parameters));
+			(uint32_t *)voltage_parameters, sizeof(*voltage_parameters));
 
 	*virtual_voltage_id = voltage_parameters->usVoltageLevel;
 
