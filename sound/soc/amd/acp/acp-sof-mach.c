@@ -48,6 +48,7 @@ static struct acp_card_drvdata sof_rt5682s_rt1019_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
+	.platform = RENOIR,
 	.tdm_mode = false,
 };
 
@@ -58,6 +59,7 @@ static struct acp_card_drvdata sof_rt5682s_max_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
+	.platform = RENOIR,
 	.tdm_mode = false,
 };
 
@@ -68,6 +70,7 @@ static struct acp_card_drvdata sof_nau8825_data = {
 	.hs_codec_id = NAU8825,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
+	.platform = REMBRANDT,
 	.soc_mclk = true,
 	.tdm_mode = false,
 };
@@ -79,6 +82,7 @@ static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
+	.platform = REMBRANDT,
 	.soc_mclk = true,
 	.tdm_mode = false,
 };
