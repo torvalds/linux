@@ -3694,13 +3694,11 @@ u8 amd_iommu_pc_get_max_banks(unsigned int idx)
 
 	return 0;
 }
-EXPORT_SYMBOL(amd_iommu_pc_get_max_banks);
 
 bool amd_iommu_pc_supported(void)
 {
 	return amd_iommu_pc_present;
 }
-EXPORT_SYMBOL(amd_iommu_pc_supported);
 
 u8 amd_iommu_pc_get_max_counters(unsigned int idx)
 {
@@ -3711,7 +3709,6 @@ u8 amd_iommu_pc_get_max_counters(unsigned int idx)
 
 	return 0;
 }
-EXPORT_SYMBOL(amd_iommu_pc_get_max_counters);
 
 static int iommu_pc_get_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr,
 				u8 fxn, u64 *value, bool is_write)
