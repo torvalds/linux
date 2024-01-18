@@ -1275,10 +1275,9 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 
 	/* Alloc port structure */
 	s = devm_kzalloc(dev, struct_size(s, p, devtype->nr), GFP_KERNEL);
-	if (!s) {
-		dev_err(dev, "Error allocating port structure\n");
-		return -ENOMEM;
-	}
+	if (!s)
+		return dev_err_probe(dev, -ENOMEM,
+				     "Error allocating port structure\n");
 
 	/* Always ask for fixed clock rate from a property. */
 	device_property_read_u32(dev, "clock-frequency", &uartclk);
@@ -1299,8 +1298,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 	if (freq == 0)
 		freq = uartclk;
 	if (freq == 0) {
-		dev_err(dev, "Cannot get clock rate\n");
-		ret = -EINVAL;
+		ret = dev_err_probe(dev, -EINVAL, "Cannot get clock rate\n");
 		goto out_clk;
 	}
 
