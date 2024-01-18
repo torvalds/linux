@@ -1091,8 +1091,8 @@ int __init chsc_init(void)
 {
 	int ret;
 
-	sei_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	chsc_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	sei_page = (void *)get_zeroed_page(GFP_KERNEL);
+	chsc_page = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!sei_page || !chsc_page) {
 		ret = -ENOMEM;
 		goto out_err;
