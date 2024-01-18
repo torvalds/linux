@@ -874,7 +874,7 @@ static int ethqos_configure_mac_v3(struct qcom_ethqos *ethqos)
 	return ret;
 }
 
-void qcom_serdes_loopback_v3_1(struct plat_stmmacenet_data *plat, bool on)
+static void qcom_serdes_loopback_v3_1(struct plat_stmmacenet_data *plat, bool on)
 {
 	struct qcom_ethqos *ethqos = plat->bsp_priv;
 
@@ -1473,6 +1473,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 
 	plat_dat->bsp_priv = ethqos;
 	plat_dat->fix_mac_speed = ethqos_fix_mac_speed;
+	plat_dat->serdes_loopback_v3_1 = qcom_serdes_loopback_v3_1;
 	plat_dat->dump_debug_regs = rgmii_dump;
 	plat_dat->has_gmac4 = 1;
 	if (plat_dat->interface == PHY_INTERFACE_MODE_SGMII ||
