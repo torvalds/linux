@@ -787,7 +787,8 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *phantom_pipe = &context->res_ctx.pipe_ctx[j];
 
-		if (phantom_pipe->stream == dc_state_get_paired_subvp_stream(context, subvp_pipe->stream)) {
+		if (resource_is_pipe_type(phantom_pipe, OTG_MASTER) &&
+				phantom_pipe->stream == dc_state_get_paired_subvp_stream(context, subvp_pipe->stream)) {
 			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->stream_res.tg->inst;
 			if (phantom_pipe->bottom_pipe) {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->plane_res.hubp->inst;
