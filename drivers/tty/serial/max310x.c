@@ -161,14 +161,14 @@
 #define MAX310X_IRDA_SIR_BIT		(1 << 1) /* SIR mode enable */
 
 /* Flow control trigger level register masks */
-#define MAX310X_FLOWLVL_HALT_MASK	(0x000f) /* Flow control halt level */
-#define MAX310X_FLOWLVL_RES_MASK	(0x00f0) /* Flow control resume level */
+#define MAX310X_FLOWLVL_HALT_MASK	GENMASK(3, 0) /* Flow control halt level */
+#define MAX310X_FLOWLVL_RES_MASK	GENMASK(7, 4) /* Flow control resume level */
 #define MAX310X_FLOWLVL_HALT(words)	((words / 8) & 0x0f)
 #define MAX310X_FLOWLVL_RES(words)	(((words / 8) & 0x0f) << 4)
 
 /* FIFO interrupt trigger level register masks */
-#define MAX310X_FIFOTRIGLVL_TX_MASK	(0x0f) /* TX FIFO trigger level */
-#define MAX310X_FIFOTRIGLVL_RX_MASK	(0xf0) /* RX FIFO trigger level */
+#define MAX310X_FIFOTRIGLVL_TX_MASK	GENMASK(3, 0) /* TX FIFO trigger level */
+#define MAX310X_FIFOTRIGLVL_RX_MASK	GENMASK(7, 4) /* RX FIFO trigger level */
 #define MAX310X_FIFOTRIGLVL_TX(words)	((words / 8) & 0x0f)
 #define MAX310X_FIFOTRIGLVL_RX(words)	(((words / 8) & 0x0f) << 4)
 
@@ -215,8 +215,8 @@
 						  */
 
 /* PLL configuration register masks */
-#define MAX310X_PLLCFG_PREDIV_MASK	(0x3f) /* PLL predivision value */
-#define MAX310X_PLLCFG_PLLFACTOR_MASK	(0xc0) /* PLL multiplication factor */
+#define MAX310X_PLLCFG_PREDIV_MASK	GENMASK(5, 0) /* PLL predivision value */
+#define MAX310X_PLLCFG_PLLFACTOR_MASK	GENMASK(7, 6) /* PLL multiplication factor */
 
 /* Baud rate generator configuration register bits */
 #define MAX310X_BRGCFG_2XMODE_BIT	(1 << 4) /* Double baud rate */
@@ -235,7 +235,7 @@
 
 /* Misc definitions */
 #define MAX310X_FIFO_SIZE		(128)
-#define MAX310x_REV_MASK		(0xf8)
+#define MAX310x_REV_MASK		GENMASK(7, 3)
 #define MAX310X_WRITE_BIT		0x80
 
 /* MAX3107 specific */
