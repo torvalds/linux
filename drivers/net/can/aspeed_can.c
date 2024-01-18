@@ -322,6 +322,33 @@ void aspeed_can_interrupt_conf(struct net_device *ndev)
 	writel(inte, priv->reg_base + CAN_INTE);
 }
 
+void aspeed_can_loopback_ext_conf(struct net_device *ndev, bool enable)
+{
+	struct aspeed_can_priv *priv = netdev_priv(ndev);
+
+	if (enable)
+		aspeed_can_set_bit(priv, CAN_CTRL, CAN_CTRL_LBMEMOD_BIT);
+	else
+		aspeed_can_clr_bit(priv, CAN_CTRL, CAN_CTRL_LBMEMOD_BIT);
+}
+
+void aspeed_can_loopback_int_conf(struct net_device *ndev, bool enable)
+{
+	struct aspeed_can_priv *priv = netdev_priv(ndev);
+
+	if (enable)
+		aspeed_can_set_bit(priv, CAN_CTRL, CAN_CTRL_LBMIMOD_BIT);
+	else
+		aspeed_can_clr_bit(priv, CAN_CTRL, CAN_CTRL_LBMIMOD_BIT);
+}
+
+void aspeed_can_fd_init(struct net_device *ndev)
+{
+	struct aspeed_can_priv *priv = netdev_priv(ndev);
+
+	aspeed_can_set_bit(priv, CAN_MODE_CONFIG, BIT(0));
+}
+
 static void aspeed_can_reg_dump(struct net_device *ndev)
 {
 	struct aspeed_can_priv *priv = netdev_priv(ndev);
@@ -505,7 +532,7 @@ static int aspeed_can_set_bittiming(struct net_device *ndev)
 		}
 
 		/* Setting Time Segment 1 in BTR Register */
-		btr1 = dbt->prop_seg + dbt->phase_seg1 - 2;
+		btr1 = 1 + dbt->prop_seg + dbt->phase_seg1 - 2;
 
 		/* Setting Time Segment 2 in BTR Register */
 		btr1 |= (dbt->phase_seg2 - 1) << priv->data->btr_ts2_shift;
@@ -515,10 +542,16 @@ static int aspeed_can_set_bittiming(struct net_device *ndev)
 
 		writel(btr1, priv->reg_base + CAN_FD_SEG);
 
-		/* seg_1 + 1  */
-		can_fd_ssp = dbt->prop_seg + dbt->phase_seg1 + 1;
+		/* seg_1 + 1 */
+		can_fd_ssp = 1 + dbt->prop_seg + dbt->phase_seg1 + 1;
 
 		btr0 |= can_fd_ssp << priv->data->btr_fdssp_shift;
+
+		netdev_dbg(ndev, "btr0: 0x%08x, brp: 0x%08x, seg_1: 0x%08x, seg_2: 0x%08x, sjw: %x\n",
+			   btr0, bt->brp, 1 + bt->prop_seg + bt->phase_seg1, bt->phase_seg2, bt->sjw);
+
+		netdev_dbg(ndev, "FD btr1: 0x%08x, seg_1: 0x%08x, seg_2: 0x%08x, sjw: %x, ssp: %x\n",
+			   btr1, dbt->prop_seg + dbt->phase_seg1, dbt->phase_seg2, dbt->sjw, can_fd_ssp);
 	}
 
 	writel(btr0, priv->reg_base + CAN_BITITME);
@@ -540,8 +573,13 @@ static int aspeed_can_chip_start(struct net_device *ndev)
 	if (err < 0)
 		return err;
 
+	aspeed_can_fd_init(ndev);
+
 	aspeed_can_err_init(ndev);
 	aspeed_can_interrupt_conf(ndev);
+
+	aspeed_can_loopback_ext_conf(ndev, false);
+	aspeed_can_loopback_int_conf(ndev, false);
 
 	/* PTB mode */
 	aspeed_can_clr_bit(priv, CAN_CTRL, CAN_CTRL_TBSEL_BIT);
@@ -586,7 +624,7 @@ static void aspeed_can_write_frame(struct net_device *ndev,
 	struct aspeed_can_priv *priv = netdev_priv(ndev);
 	u32 buf_ctrl = 0;
 
-	netdev_dbg(ndev, "can_id = 0x%x\n", cf->can_id);
+	netdev_dbg(ndev, "can_id = 0x%08x\n", cf->can_id);
 	/* Watch carefully on the bit sequence */
 	if (cf->can_id & CAN_EFF_FLAG) {
 		id = (cf->can_id & CAN_EFF_MASK) << CAN_BUF_ID_EFF_BITOFF;
@@ -625,7 +663,7 @@ static void aspeed_can_write_frame(struct net_device *ndev,
 		return;
 
 	for (i = 0; i < (cf->len / 4 + 3) * 4; i += 4) {
-		netdev_dbg(ndev, "data(%d): 0x%x\n", i, *(u32 *)(cf->data + i));
+		netdev_dbg(ndev, "data(%d): 0x%08x\n", i, *(u32 *)(cf->data + i));
 		writel(*(u32 *)(cf->data + i),
 		       priv->reg_base + CAN_TBUF_DATA + i);
 
