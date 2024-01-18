@@ -432,7 +432,7 @@ This function is called by the ``mkdir`` system call. Such a function performs t
 Creating a link
 ---------------
 
-The link creation function (hard link) is indicated by the ``symlink`` field in the ``inode_operations`` structure.
+The link creation function (hard link) is indicated by the ``link`` field in the ``inode_operations`` structure.
 In the minix case, the function is :c:func:`minix_link`.
 This function is called by the ``link`` system call. Such a function performs the following operations:
 
