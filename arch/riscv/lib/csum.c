@@ -156,6 +156,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 	end = (const unsigned long *)(buff + len);
 	csum = do_csum_common(ptr, end, data);
 
+#ifdef CC_HAS_ASM_GOTO_TIED_OUTPUT
 	/*
 	 * Zbb support saves 6 instructions, so not worth checking without
 	 * alternatives if supported
@@ -214,6 +215,7 @@ end:
 		return csum >> 16;
 	}
 no_zbb:
+#endif /* CC_HAS_ASM_GOTO_TIED_OUTPUT */
 #ifndef CONFIG_32BIT
 	csum += ror64(csum, 32);
 	csum >>= 32;
