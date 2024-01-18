@@ -91,12 +91,22 @@ static int tracefs_syscall_mkdir(struct mnt_idmap *idmap,
 				 struct inode *inode, struct dentry *dentry,
 				 umode_t mode)
 {
+	struct tracefs_inode *ti;
 	char *name;
 	int ret;
 
 	name = get_dname(dentry);
 	if (!name)
 		return -ENOMEM;
+
+	/*
+	 * This is a new directory that does not take the default of
+	 * the rootfs. It becomes the default permissions for all the
+	 * files and directories underneath it.
+	 */
+	ti = get_tracefs(inode);
+	ti->flags |= TRACEFS_INSTANCE_INODE;
+	ti->private = inode;
 
 	/*
 	 * The mkdir call can call the generic functions that create
@@ -141,10 +151,76 @@ static int tracefs_syscall_rmdir(struct inode *inode, struct dentry *dentry)
 	return ret;
 }
 
-static const struct inode_operations tracefs_dir_inode_operations = {
+static void set_tracefs_inode_owner(struct inode *inode)
+{
+	struct tracefs_inode *ti = get_tracefs(inode);
+	struct inode *root_inode = ti->private;
+
+	/*
+	 * If this inode has never been referenced, then update
+	 * the permissions to the superblock.
+	 */
+	if (!(ti->flags & TRACEFS_UID_PERM_SET))
+		inode->i_uid = root_inode->i_uid;
+
+	if (!(ti->flags & TRACEFS_GID_PERM_SET))
+		inode->i_gid = root_inode->i_gid;
+}
+
+static int tracefs_permission(struct mnt_idmap *idmap,
+			      struct inode *inode, int mask)
+{
+	set_tracefs_inode_owner(inode);
+	return generic_permission(idmap, inode, mask);
+}
+
+static int tracefs_getattr(struct mnt_idmap *idmap,
+			   const struct path *path, struct kstat *stat,
+			   u32 request_mask, unsigned int flags)
+{
+	struct inode *inode = d_backing_inode(path->dentry);
+
+	set_tracefs_inode_owner(inode);
+	generic_fillattr(idmap, request_mask, inode, stat);
+	return 0;
+}
+
+static int tracefs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+			   struct iattr *attr)
+{
+	unsigned int ia_valid = attr->ia_valid;
+	struct inode *inode = d_inode(dentry);
+	struct tracefs_inode *ti = get_tracefs(inode);
+
+	if (ia_valid & ATTR_UID)
+		ti->flags |= TRACEFS_UID_PERM_SET;
+
+	if (ia_valid & ATTR_GID)
+		ti->flags |= TRACEFS_GID_PERM_SET;
+
+	return simple_setattr(idmap, dentry, attr);
+}
+
+static const struct inode_operations tracefs_instance_dir_inode_operations = {
 	.lookup		= simple_lookup,
 	.mkdir		= tracefs_syscall_mkdir,
 	.rmdir		= tracefs_syscall_rmdir,
+	.permission	= tracefs_permission,
+	.getattr	= tracefs_getattr,
+	.setattr	= tracefs_setattr,
+};
+
+static const struct inode_operations tracefs_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.permission	= tracefs_permission,
+	.getattr	= tracefs_getattr,
+	.setattr	= tracefs_setattr,
+};
+
+static const struct inode_operations tracefs_file_inode_operations = {
+	.permission	= tracefs_permission,
+	.getattr	= tracefs_getattr,
+	.setattr	= tracefs_setattr,
 };
 
 struct inode *tracefs_get_inode(struct super_block *sb)
@@ -182,82 +258,6 @@ static const match_table_t tokens = {
 struct tracefs_fs_info {
 	struct tracefs_mount_opts mount_opts;
 };
-
-static void change_gid(struct dentry *dentry, kgid_t gid)
-{
-	if (!dentry->d_inode)
-		return;
-	dentry->d_inode->i_gid = gid;
-}
-
-/*
- * Taken from d_walk, but without he need for handling renames.
- * Nothing can be renamed while walking the list, as tracefs
- * does not support renames. This is only called when mounting
- * or remounting the file system, to set all the files to
- * the given gid.
- */
-static void set_gid(struct dentry *parent, kgid_t gid)
-{
-	struct dentry *this_parent, *dentry;
-
-	this_parent = parent;
-	spin_lock(&this_parent->d_lock);
-
-	change_gid(this_parent, gid);
-repeat:
-	dentry = d_first_child(this_parent);
-resume:
-	hlist_for_each_entry_from(dentry, d_sib) {
-		struct tracefs_inode *ti;
-
-		/* Note, getdents() can add a cursor dentry with no inode */
-		if (!dentry->d_inode)
-			continue;
-
-		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
-
-		change_gid(dentry, gid);
-
-		/* If this is the events directory, update that too */
-		ti = get_tracefs(dentry->d_inode);
-		if (ti && (ti->flags & TRACEFS_EVENT_INODE))
-			eventfs_update_gid(dentry, gid);
-
-		if (!hlist_empty(&dentry->d_children)) {
-			spin_unlock(&this_parent->d_lock);
-			spin_release(&dentry->d_lock.dep_map, _RET_IP_);
-			this_parent = dentry;
-			spin_acquire(&this_parent->d_lock.dep_map, 0, 1, _RET_IP_);
-			goto repeat;
-		}
-		spin_unlock(&dentry->d_lock);
-	}
-	/*
-	 * All done at this level ... ascend and resume the search.
-	 */
-	rcu_read_lock();
-ascend:
-	if (this_parent != parent) {
-		dentry = this_parent;
-		this_parent = dentry->d_parent;
-
-		spin_unlock(&dentry->d_lock);
-		spin_lock(&this_parent->d_lock);
-
-		/* go into the first sibling still alive */
-		hlist_for_each_entry_continue(dentry, d_sib) {
-			if (likely(!(dentry->d_flags & DCACHE_DENTRY_KILLED))) {
-				rcu_read_unlock();
-				goto resume;
-			}
-		}
-		goto ascend;
-	}
-	rcu_read_unlock();
-	spin_unlock(&this_parent->d_lock);
-	return;
-}
 
 static int tracefs_parse_options(char *data, struct tracefs_mount_opts *opts)
 {
@@ -331,10 +331,8 @@ static int tracefs_apply_options(struct super_block *sb, bool remount)
 	if (!remount || opts->opts & BIT(Opt_uid))
 		inode->i_uid = opts->uid;
 
-	if (!remount || opts->opts & BIT(Opt_gid)) {
-		/* Set all the group ids to the mount option */
-		set_gid(sb->s_root, opts->gid);
-	}
+	if (!remount || opts->opts & BIT(Opt_gid))
+		inode->i_gid = opts->gid;
 
 	return 0;
 }
@@ -568,6 +566,26 @@ struct dentry *eventfs_end_creating(struct dentry *dentry)
 	return dentry;
 }
 
+/* Find the inode that this will use for default */
+static struct inode *instance_inode(struct dentry *parent, struct inode *inode)
+{
+	struct tracefs_inode *ti;
+
+	/* If parent is NULL then use root inode */
+	if (!parent)
+		return d_inode(inode->i_sb->s_root);
+
+	/* Find the inode that is flagged as an instance or the root inode */
+	while (!IS_ROOT(parent)) {
+		ti = get_tracefs(d_inode(parent));
+		if (ti->flags & TRACEFS_INSTANCE_INODE)
+			break;
+		parent = parent->d_parent;
+	}
+
+	return d_inode(parent);
+}
+
 /**
  * tracefs_create_file - create a file in the tracefs filesystem
  * @name: a pointer to a string containing the name of the file to create.
@@ -598,6 +616,7 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
 				   const struct file_operations *fops)
 {
+	struct tracefs_inode *ti;
 	struct dentry *dentry;
 	struct inode *inode;
 
@@ -616,7 +635,11 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 	if (unlikely(!inode))
 		return tracefs_failed_creating(dentry);
 
+	ti = get_tracefs(inode);
+	ti->private = instance_inode(parent, inode);
+
 	inode->i_mode = mode;
+	inode->i_op = &tracefs_file_inode_operations;
 	inode->i_fop = fops ? fops : &tracefs_file_operations;
 	inode->i_private = data;
 	inode->i_uid = d_inode(dentry->d_parent)->i_uid;
@@ -629,6 +652,7 @@ struct dentry *tracefs_create_file(const char *name, umode_t mode,
 static struct dentry *__create_dir(const char *name, struct dentry *parent,
 				   const struct inode_operations *ops)
 {
+	struct tracefs_inode *ti;
 	struct dentry *dentry = tracefs_start_creating(name, parent);
 	struct inode *inode;
 
@@ -645,6 +669,9 @@ static struct dentry *__create_dir(const char *name, struct dentry *parent,
 	inode->i_fop = &simple_dir_operations;
 	inode->i_uid = d_inode(dentry->d_parent)->i_uid;
 	inode->i_gid = d_inode(dentry->d_parent)->i_gid;
+
+	ti = get_tracefs(inode);
+	ti->private = instance_inode(parent, inode);
 
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
@@ -676,7 +703,7 @@ struct dentry *tracefs_create_dir(const char *name, struct dentry *parent)
 	if (security_locked_down(LOCKDOWN_TRACEFS))
 		return NULL;
 
-	return __create_dir(name, parent, &simple_dir_inode_operations);
+	return __create_dir(name, parent, &tracefs_dir_inode_operations);
 }
 
 /**
@@ -707,7 +734,7 @@ __init struct dentry *tracefs_create_instance_dir(const char *name,
 	if (WARN_ON(tracefs_ops.mkdir || tracefs_ops.rmdir))
 		return NULL;
 
-	dentry = __create_dir(name, parent, &tracefs_dir_inode_operations);
+	dentry = __create_dir(name, parent, &tracefs_instance_dir_inode_operations);
 	if (!dentry)
 		return NULL;
 
