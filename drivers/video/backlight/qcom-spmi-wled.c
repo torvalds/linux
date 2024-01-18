@@ -321,7 +321,7 @@ static int wled_module_enable(struct wled *wled, int val)
 		return 0;
 
 	/* Force HFRC off */
-	if (is_wled5(wled)) {
+	if (*wled->version == WLED_PM8150L) {
 		reg = val ? 0 : 3;
 		rc = regmap_write(wled->regmap, wled->ctrl_addr +
 				  WLED5_CTRL_PBUS_WRITE_SYNC_CTL, reg);
@@ -336,7 +336,7 @@ static int wled_module_enable(struct wled *wled, int val)
 		return rc;
 
 	/* Force HFRC off */
-	if (is_wled5(wled) && val) {
+	if ((*wled->version == WLED_PM8150L) && val) {
 		rc = regmap_write(wled->regmap, wled->sink_addr +
 				  WLED5_SINK_FLASH_SHDN_CLR_REG, 0);
 		if (rc < 0)
