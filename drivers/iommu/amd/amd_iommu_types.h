@@ -513,14 +513,6 @@ extern struct kmem_cache *amd_iommu_irq_cache;
 #define for_each_iommu_safe(iommu, next) \
 	list_for_each_entry_safe((iommu), (next), &amd_iommu_list, list)
 
-#define APERTURE_RANGE_SHIFT	27	/* 128 MB */
-#define APERTURE_RANGE_SIZE	(1ULL << APERTURE_RANGE_SHIFT)
-#define APERTURE_RANGE_PAGES	(APERTURE_RANGE_SIZE >> PAGE_SHIFT)
-#define APERTURE_MAX_RANGES	32	/* allows 4GB of DMA address space */
-#define APERTURE_RANGE_INDEX(a)	((a) >> APERTURE_RANGE_SHIFT)
-#define APERTURE_PAGE_INDEX(a)	(((a) >> 21) & 0x3fULL)
-
-
 struct amd_iommu;
 struct iommu_domain;
 struct irq_domain;
