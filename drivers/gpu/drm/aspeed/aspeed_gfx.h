@@ -26,7 +26,8 @@ struct aspeed_gfx {
 	u32				scan_line_max;
 	u32				flags;
 	u32				pcie_int_reg;
-	u64				dma_mask;
+	u32				soc_crt_bit;
+	u32				soc_dp_bit;
 
 	struct drm_simple_display_pipe	pipe;
 	struct drm_connector		connector;
@@ -129,8 +130,6 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define G6_CLK_DIV_MASK			0x3F000
 #define G6_CLK_DIV_16			(BIT(16) | BIT(15) | BIT(13) | BIT(12))
 #define G6_USB_40_CLK			BIT(9)
-#define CRT_FROM_SOC			BIT(16)
-#define DP_FROM_SOC			BIT(18)
 
 /* GFX FLAGS */
 #define RESET_MASK			BIT(0)

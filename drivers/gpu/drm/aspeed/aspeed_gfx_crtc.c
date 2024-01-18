@@ -95,14 +95,10 @@ static void aspeed_gfx_enable_controller(struct aspeed_gfx *priv)
 	u32 ctrl2 = readl(priv->base + CRT_CTRL2);
 
 	/* change the display source is coming from soc display */
-	if (priv->pcie_advance) {
-		if (!priv->pcie_active) {
-			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
-			if (priv->dp_support)
-				regmap_update_bits(priv->scu, priv->dac_reg, DP_FROM_SOC, DP_FROM_SOC);
-		}
-	} else {
-		regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
+	if (!priv->pcie_advance || !priv->pcie_active) {
+		regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_crt_bit, priv->soc_crt_bit);
+		if (priv->dp_support)
+			regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_dp_bit, priv->soc_dp_bit);
 	}
 
 	writel(ctrl1 | CRT_CTRL_EN, priv->base + CRT_CTRL1);
@@ -118,9 +114,9 @@ static void aspeed_gfx_disable_controller(struct aspeed_gfx *priv)
 	writel(ctrl2 & ~CRT_CTRL_DAC_EN, priv->base + CRT_CTRL2);
 
 	/* Set display source for display output to pcie host display */
-	regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, 0);
+	regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_crt_bit, 0);
 	if (priv->dp_support)
-		regmap_update_bits(priv->scu, priv->dac_reg, DP_FROM_SOC, 0);
+		regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_dp_bit, 0);
 }
 
 static void aspeed_gfx_set_clk(struct aspeed_gfx *priv, int mode_width)

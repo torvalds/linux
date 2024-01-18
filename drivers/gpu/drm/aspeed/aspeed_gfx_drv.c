@@ -65,6 +65,8 @@ struct aspeed_gfx_config {
 	u32 scan_line_max;	/* Max memory size of one scan line */
 	u32 gfx_flags;		/* Flags for gfx chip caps */
 	u32 pcie_int_reg;	/* pcie interrupt */
+	u32 soc_crt_bit;	/* soc display crt switch flag*/
+	u32 soc_dp_bit;		/* soc display dp switch flag*/
 };
 
 static const struct aspeed_gfx_config ast2400_config = {
@@ -75,6 +77,8 @@ static const struct aspeed_gfx_config ast2400_config = {
 	.scan_line_max = 64,
 	.gfx_flags = CLK_G4,
 	.pcie_int_reg = 0x0,
+	.soc_crt_bit = BIT(16),
+	.soc_dp_bit = 0x0,
 };
 
 static const struct aspeed_gfx_config ast2500_config = {
@@ -85,6 +89,8 @@ static const struct aspeed_gfx_config ast2500_config = {
 	.scan_line_max = 128,
 	.gfx_flags = 0,
 	.pcie_int_reg = 0x18,
+	.soc_crt_bit = BIT(16),
+	.soc_dp_bit = 0x0,
 };
 
 static const struct aspeed_gfx_config ast2600_config = {
@@ -95,16 +101,20 @@ static const struct aspeed_gfx_config ast2600_config = {
 	.scan_line_max = 128,
 	.gfx_flags = RESET_G6 | CLK_G6,
 	.pcie_int_reg = 0x560,
+	.soc_crt_bit = BIT(16),
+	.soc_dp_bit = BIT(18),
 };
 
 static const struct aspeed_gfx_config ast2700_config = {
-	.dac_reg = 0xc0,
+	.dac_reg = 0x414,
 	.int_clear_reg = 0x68,
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
 	.scan_line_max = 128,
 	.gfx_flags = CLK_G7 | ADDR_64,
 	.pcie_int_reg = 0x0,
+	.soc_crt_bit = BIT(13),
+	.soc_dp_bit = BIT(9),
 };
 
 static const struct of_device_id aspeed_gfx_match[] = {
@@ -166,11 +176,11 @@ static irqreturn_t aspeed_host_irq_handler(int irq, void *data)
 				/*Change the DP back to host*/
 				regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, 0);
 				dev_dbg(drm->dev, "dp set at 0 int L_T_H.\n");
-				regmap_update_bits(priv->scu, priv->dac_reg, DP_FROM_SOC, 0);
+				regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_dp_bit, 0);
 			}
 
 			/*Change the CRT back to host*/
-			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, 0);
+			regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_crt_bit, 0);
 		} else if (reg & PCIE_PERST_H_T_L) {
 			dev_dbg(drm->dev, "pcie de-active.\n");
 			/*Change the DP into host*/
@@ -178,11 +188,11 @@ static irqreturn_t aspeed_host_irq_handler(int irq, void *data)
 				/*Change the DP back to soc*/
 				regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
 				dev_dbg(drm->dev, "dp set at 11 int H_T_L.\n");
-				regmap_update_bits(priv->scu, priv->dac_reg, DP_FROM_SOC, DP_FROM_SOC);
+				regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_dp_bit, priv->soc_dp_bit);
 			}
 
 			/*Change the CRT into soc*/
-			regmap_update_bits(priv->scu, priv->dac_reg, CRT_FROM_SOC, CRT_FROM_SOC);
+			regmap_update_bits(priv->scu, priv->dac_reg, priv->soc_crt_bit, priv->soc_crt_bit);
 		}
 		return IRQ_HANDLED;
 	}
@@ -339,6 +349,8 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->scan_line_max = config->scan_line_max;
 	priv->flags = config->gfx_flags;
 	priv->pcie_int_reg = config->pcie_int_reg;
+	priv->soc_crt_bit = config->soc_crt_bit;
+	priv->soc_dp_bit = config->soc_dp_bit;
 
 	/* Add pcie auto detect if the register has been assigned */
 	if (priv->pcie_int_reg != 0x0)
