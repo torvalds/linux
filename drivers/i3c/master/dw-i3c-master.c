@@ -1758,12 +1758,8 @@ static int dw_i3c_master_disable_ibi(struct i3c_dev_desc *dev)
 	struct dw_i3c_i2c_dev_data *data = i3c_dev_get_master_data(dev);
 	struct i3c_master_controller *m = i3c_dev_get_master(dev);
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
-	int rc;
 
-	rc = i3c_master_disec_locked(m, dev->info.dyn_addr, I3C_CCC_EVENT_SIR);
-	if (rc)
-		return rc;
-
+	i3c_master_disec_locked(m, dev->info.dyn_addr, I3C_CCC_EVENT_SIR);
 	dw_i3c_master_set_sir_enabled(master, dev, data->index, false);
 
 	return 0;
