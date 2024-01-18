@@ -65,7 +65,6 @@ struct aspeed_gfx_config {
 	u32 scan_line_max;	/* Max memory size of one scan line */
 	u32 gfx_flags;		/* Flags for gfx chip caps */
 	u32 pcie_int_reg;	/* pcie interrupt */
-	u64 dma_mask;	/* dma addressing mask */
 };
 
 static const struct aspeed_gfx_config ast2400_config = {
@@ -76,7 +75,6 @@ static const struct aspeed_gfx_config ast2400_config = {
 	.scan_line_max = 64,
 	.gfx_flags = CLK_G4,
 	.pcie_int_reg = 0x0,
-	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static const struct aspeed_gfx_config ast2500_config = {
@@ -87,7 +85,6 @@ static const struct aspeed_gfx_config ast2500_config = {
 	.scan_line_max = 128,
 	.gfx_flags = 0,
 	.pcie_int_reg = 0x18,
-	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static const struct aspeed_gfx_config ast2600_config = {
@@ -98,7 +95,6 @@ static const struct aspeed_gfx_config ast2600_config = {
 	.scan_line_max = 128,
 	.gfx_flags = RESET_G6 | CLK_G6,
 	.pcie_int_reg = 0x560,
-	.dma_mask = DMA_BIT_MASK(32),
 };
 
 static const struct aspeed_gfx_config ast2700_config = {
@@ -107,9 +103,8 @@ static const struct aspeed_gfx_config ast2700_config = {
 	.vga_scratch_reg = 0x50,
 	.throd_val = CRT_THROD_LOW(0x50) | CRT_THROD_HIGH(0x70),
 	.scan_line_max = 128,
-	.gfx_flags = CLK_G7,
+	.gfx_flags = CLK_G7 | ADDR_64,
 	.pcie_int_reg = 0x0,
-	.dma_mask = DMA_BIT_MASK(64),
 };
 
 static const struct of_device_id aspeed_gfx_match[] = {
@@ -324,6 +319,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	const struct aspeed_gfx_config *config;
 	const struct of_device_id *match;
 	struct resource *res;
+	u64 dma_mask = 0;
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -343,13 +339,18 @@ static int aspeed_gfx_load(struct drm_device *drm)
 	priv->scan_line_max = config->scan_line_max;
 	priv->flags = config->gfx_flags;
 	priv->pcie_int_reg = config->pcie_int_reg;
-	priv->dma_mask = config->dma_mask;
 
 	/* Add pcie auto detect if the register has been assigned */
 	if (priv->pcie_int_reg != 0x0)
 		priv->pcie_advance = 1;
 	else
 		priv->pcie_advance = 0;
+
+	/* Set the DMA mask by addr */
+	if (priv->flags & ADDR_64)
+		dma_mask = DMA_BIT_MASK(64);
+	else
+		dma_mask = DMA_BIT_MASK(32);
 
 	priv->scu = syscon_regmap_lookup_by_phandle(np, "syscon");
 	if (IS_ERR(priv->scu)) {
@@ -373,7 +374,7 @@ static int aspeed_gfx_load(struct drm_device *drm)
 		return ret;
 	}
 
-	ret = dma_set_mask_and_coherent(drm->dev, priv->dma_mask);
+	ret = dma_set_mask_and_coherent(drm->dev, dma_mask);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", ret);
 		return ret;

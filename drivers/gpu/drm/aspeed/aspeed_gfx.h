@@ -139,6 +139,7 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 #define CLK_G4				BIT(4)
 #define CLK_G6				BIT(5)
 #define CLK_G7				BIT(6)
+#define ADDR_64				BIT(12)
 
 /* PCIE interrupt */
 #define PCIE_PERST_L_T_H		BIT(18)
