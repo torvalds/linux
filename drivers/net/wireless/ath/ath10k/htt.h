@@ -906,7 +906,7 @@ struct htt_data_tx_completion_ext {
 	__le16 msdus_rssi[];
 } __packed;
 
-/**
+/*
  * @brief target -> host TX completion indication message definition
  *
  * @details
