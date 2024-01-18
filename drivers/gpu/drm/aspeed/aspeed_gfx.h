@@ -151,15 +151,22 @@ int aspeed_gfx_create_output(struct drm_device *drm);
 
 /* Adaptor function define */
 /* AST2600: DP adaptor define */
-#define DP_CP_NAME			"aspeed,ast2600-displayport"
-#define DP_MCU_CP_NAME			"aspeed,ast2600-displayport-mcu"
+#define DP_26_CP_NAME			"aspeed,ast2600-displayport"
+#define DP_26_MCU_CP_NAME		"aspeed,ast2600-displayport-mcu"
 /* AST2600 */
 #define SCU_DP_STATUS			0x100 /* SCU100 VGA function handshake */
+/* AST2700: DP adaptor define */
+#define DP_27_CP_NAME			"aspeed,ast2700-displayport"
+#define DP_27_MCU_CP_NAME		"aspeed,ast2700-displayport-mcu"
+#define SCU_PCIE0_DP_STATUS		0x900 /* SCU900 PCIE0 handshake */
+#define SCU_PCIE1_DP_STATUS		0x910 /* SCU910 PCIE1 handshake */
+#define DP_LOCATE_PCIE1		BIT(8) /* DP located on PCIE1 */
+
+/* AST DP */
 #define DP_EXECUTE			0x2E /* DP Status */
-/* AST2600 DP */
 #define DP_SOURCE			0xb8  /* DPB8 dp source */
 #define DP_CONTROL_FROM_SOC		(BIT(24) | BIT(28))
-/* AST2600 DP MCU */
+/* AST DP MCU */
 #define DP_RESOLUTION			0xde0  /* DPMCUDE0 dp resolution */
 #define DP_800				0x01050020 /* 800 x 600 60Hz */
-#define DP_1024				0x010a0020 /* 1024 x 768 70Hz */
+#define DP_1024			0x010a0020 /* 1024 x 768 70Hz */

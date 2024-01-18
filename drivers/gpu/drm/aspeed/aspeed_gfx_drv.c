@@ -248,7 +248,7 @@ static int aspeed_pcie_active_detect(struct drm_device *drm)
 static int aspeed_adaptor_detect(struct drm_device *drm)
 {
 	struct aspeed_gfx *priv = to_aspeed_gfx(drm);
-	u32 reg = 0;
+	u32 dp_status_offset = 0, reg = 0;
 
 	switch (priv->flags & CLK_MASK) {
 	case CLK_G6:
@@ -257,13 +257,13 @@ static int aspeed_adaptor_detect(struct drm_device *drm)
 		if (((reg >> 8) & DP_EXECUTE) == DP_EXECUTE) {
 			priv->dp_support = 0x1;
 
-			priv->dp = syscon_regmap_lookup_by_compatible(DP_CP_NAME);
+			priv->dp = syscon_regmap_lookup_by_compatible(DP_26_CP_NAME);
 			if (IS_ERR(priv->dp)) {
 				dev_err(drm->dev, "failed to find DP regmap\n");
 				return PTR_ERR(priv->dp);
 			}
 
-			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_MCU_CP_NAME);
+			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_26_MCU_CP_NAME);
 			if (IS_ERR(priv->dpmcu)) {
 				dev_err(drm->dev, "failed to find DP MCU regmap\n");
 				return PTR_ERR(priv->dpmcu);
@@ -273,6 +273,37 @@ static int aspeed_adaptor_detect(struct drm_device *drm)
 			if (!priv->pcie_active)
 				regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
 		}
+		break;
+		case CLK_G7:
+		/* check AST DP is located on PCIE0 or PCIE1 */
+		regmap_read(priv->scu, priv->dac_reg, &reg);
+
+		if (reg & DP_LOCATE_PCIE1)
+			dp_status_offset = SCU_PCIE1_DP_STATUS;
+		else
+			dp_status_offset = SCU_PCIE0_DP_STATUS;
+
+		/* check AST DP is executed or not*/
+		regmap_read(priv->scu, dp_status_offset, &reg);
+		if (((reg >> 8) & DP_EXECUTE) == DP_EXECUTE) {
+			priv->dp_support = 0x1;
+
+			priv->dp = syscon_regmap_lookup_by_compatible(DP_27_CP_NAME);
+			if (IS_ERR(priv->dp)) {
+				dev_err(drm->dev, "failed to find DP regmap\n");
+				return PTR_ERR(priv->dp);
+			}
+
+			priv->dpmcu = syscon_regmap_lookup_by_compatible(DP_27_MCU_CP_NAME);
+			if (IS_ERR(priv->dpmcu)) {
+				dev_err(drm->dev, "failed to find DP MCU regmap\n");
+				return PTR_ERR(priv->dpmcu);
+			}
+
+			/* change the dp setting is coming from soc display */
+			regmap_update_bits(priv->dp, DP_SOURCE, DP_CONTROL_FROM_SOC, DP_CONTROL_FROM_SOC);
+		}
+
 		break;
 	default:
 		priv->dp_support = 0x0;
