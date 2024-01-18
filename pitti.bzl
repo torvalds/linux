@@ -78,6 +78,7 @@ def define_pitti():
         "drivers/pinctrl/qcom/pinctrl-pitti.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
+        "drivers/power/reset/msm-poweroff.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/power/reset/qcom-pon.ko",
         "drivers/power/reset/reboot-mode.ko",
