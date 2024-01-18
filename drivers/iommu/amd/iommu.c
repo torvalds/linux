@@ -45,10 +45,6 @@
 
 #define CMD_SET_TYPE(cmd, t) ((cmd)->data[1] |= ((t) << 28))
 
-/* IO virtual address start page frame number */
-#define IOVA_START_PFN		(1)
-#define IOVA_PFN(addr)		((addr) >> PAGE_SHIFT)
-
 /* Reserved IOVA ranges */
 #define MSI_RANGE_START		(0xfee00000)
 #define MSI_RANGE_END		(0xfeefffff)
