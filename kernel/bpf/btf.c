@@ -5615,21 +5615,46 @@ static u8 bpf_ctx_convert_map[] = {
 #undef BPF_MAP_TYPE
 #undef BPF_LINK_TYPE
 
-const struct btf_member *
+static const struct btf_type *find_canonical_prog_ctx_type(enum bpf_prog_type prog_type)
+{
+	const struct btf_type *conv_struct;
+	const struct btf_member *ctx_type;
+
+	conv_struct = bpf_ctx_convert.t;
+	if (!conv_struct)
+		return NULL;
+	/* prog_type is valid bpf program type. No need for bounds check. */
+	ctx_type = btf_type_member(conv_struct) + bpf_ctx_convert_map[prog_type] * 2;
+	/* ctx_type is a pointer to prog_ctx_type in vmlinux.
+	 * Like 'struct __sk_buff'
+	 */
+	return btf_type_by_id(btf_vmlinux, ctx_type->type);
+}
+
+static int find_kern_ctx_type_id(enum bpf_prog_type prog_type)
+{
+	const struct btf_type *conv_struct;
+	const struct btf_member *ctx_type;
+
+	conv_struct = bpf_ctx_convert.t;
+	if (!conv_struct)
+		return -EFAULT;
+	/* prog_type is valid bpf program type. No need for bounds check. */
+	ctx_type = btf_type_member(conv_struct) + bpf_ctx_convert_map[prog_type] * 2 + 1;
+	/* ctx_type is a pointer to prog_ctx_type in vmlinux.
+	 * Like 'struct sk_buff'
+	 */
+	return ctx_type->type;
+}
+
+const struct btf_type *
 btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 		      const struct btf_type *t, enum bpf_prog_type prog_type,
 		      int arg)
 {
-	const struct btf_type *conv_struct;
-	const struct btf_type *ctx_struct;
-	const struct btf_member *ctx_type;
+	const struct btf_type *ctx_type;
 	const char *tname, *ctx_tname;
 
-	conv_struct = bpf_ctx_convert.t;
-	if (!conv_struct) {
-		bpf_log(log, "btf_vmlinux is malformed\n");
-		return NULL;
-	}
 	t = btf_type_by_id(btf, t->type);
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
@@ -5646,17 +5671,15 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 		bpf_log(log, "arg#%d struct doesn't have a name\n", arg);
 		return NULL;
 	}
-	/* prog_type is valid bpf program type. No need for bounds check. */
-	ctx_type = btf_type_member(conv_struct) + bpf_ctx_convert_map[prog_type] * 2;
-	/* ctx_struct is a pointer to prog_ctx_type in vmlinux.
-	 * Like 'struct __sk_buff'
-	 */
-	ctx_struct = btf_type_by_id(btf_vmlinux, ctx_type->type);
-	if (!ctx_struct)
+
+	ctx_type = find_canonical_prog_ctx_type(prog_type);
+	if (!ctx_type) {
+		bpf_log(log, "btf_vmlinux is malformed\n");
 		/* should not happen */
 		return NULL;
+	}
 again:
-	ctx_tname = btf_name_by_offset(btf_vmlinux, ctx_struct->name_off);
+	ctx_tname = btf_name_by_offset(btf_vmlinux, ctx_type->name_off);
 	if (!ctx_tname) {
 		/* should not happen */
 		bpf_log(log, "Please fix kernel include/linux/bpf_types.h\n");
@@ -5677,10 +5700,10 @@ again:
 		/* bpf_user_pt_regs_t is a typedef, so resolve it to
 		 * underlying struct and check name again
 		 */
-		if (!btf_type_is_modifier(ctx_struct))
+		if (!btf_type_is_modifier(ctx_type))
 			return NULL;
-		while (btf_type_is_modifier(ctx_struct))
-			ctx_struct = btf_type_by_id(btf_vmlinux, ctx_struct->type);
+		while (btf_type_is_modifier(ctx_type))
+			ctx_type = btf_type_by_id(btf_vmlinux, ctx_type->type);
 		goto again;
 	}
 	return ctx_type;
@@ -5692,13 +5715,9 @@ static int btf_translate_to_vmlinux(struct bpf_verifier_log *log,
 				     enum bpf_prog_type prog_type,
 				     int arg)
 {
-	const struct btf_member *prog_ctx_type, *kern_ctx_type;
-
-	prog_ctx_type = btf_get_prog_ctx_type(log, btf, t, prog_type, arg);
-	if (!prog_ctx_type)
+	if (!btf_get_prog_ctx_type(log, btf, t, prog_type, arg))
 		return -ENOENT;
-	kern_ctx_type = prog_ctx_type + 1;
-	return kern_ctx_type->type;
+	return find_kern_ctx_type_id(prog_type);
 }
 
 int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type)
