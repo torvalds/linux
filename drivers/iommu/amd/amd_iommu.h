@@ -77,10 +77,6 @@ static inline int amd_iommu_create_irq_domain(struct amd_iommu *iommu)
 }
 #endif
 
-#define PPR_SUCCESS			0x0
-#define PPR_INVALID			0x1
-#define PPR_FAILURE			0xf
-
 int amd_iommu_complete_ppr(struct pci_dev *pdev, u32 pasid,
 			   int status, int tag);
 
