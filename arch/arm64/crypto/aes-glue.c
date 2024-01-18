@@ -1048,6 +1048,7 @@ unregister_ciphers:
 
 #ifdef USE_V8_CRYPTO_EXTENSIONS
 module_cpu_feature_match(AES, aes_init);
+EXPORT_SYMBOL_NS(ce_aes_mac_update, CRYPTO_INTERNAL);
 #else
 module_init(aes_init);
 EXPORT_SYMBOL(neon_aes_ecb_encrypt);
