@@ -301,6 +301,11 @@ config ARCH_HAS_DMA_CLEAR_UNCACHED
 config ARCH_HAS_CPU_FINALIZE_INIT
 	bool
 
+# The architecture has a per-task state that includes the mm's PASID
+config ARCH_HAS_CPU_PASID
+	bool
+	select IOMMU_MM_DATA
+
 config HAVE_ARCH_THREAD_STRUCT_WHITELIST
 	bool
 	help
