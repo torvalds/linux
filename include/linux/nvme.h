@@ -816,12 +816,6 @@ struct nvme_reservation_status_ext {
 	struct nvme_registered_ctrl_ext regctl_eds[];
 };
 
-enum nvme_async_event_type {
-	NVME_AER_TYPE_ERROR	= 0,
-	NVME_AER_TYPE_SMART	= 1,
-	NVME_AER_TYPE_NOTICE	= 2,
-};
-
 /* I/O commands */
 
 enum nvme_opcode {
