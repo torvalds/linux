@@ -282,7 +282,7 @@ static void get_audio_layout_config(
 			output->layouts_per_sample_denom = 4;
 			output->symbols_per_layout = 40;
 			output->max_layouts_per_audio_sdp = 1;
-		} else if (channel_count == 8) {
+		} else if (channel_count == 8 || channel_count == 6) {
 			output->layouts_per_sample_denom = 1;
 			output->symbols_per_layout = 40;
 			output->max_layouts_per_audio_sdp = 1;
@@ -292,7 +292,7 @@ static void get_audio_layout_config(
 			output->layouts_per_sample_denom = 4;
 			output->symbols_per_layout = 10;
 			output->max_layouts_per_audio_sdp = 1;
-		} else if (channel_count == 8) {
+		} else if (channel_count == 8 || channel_count == 6) {
 			output->layouts_per_sample_denom = 1;
 			output->symbols_per_layout = 10;
 			output->max_layouts_per_audio_sdp = 1;
@@ -489,6 +489,11 @@ static void check_audio_bandwidth_dp(
 	get_audio_layout_config(
 			channel_count, dp_link_info->encoding, &layout_config);
 
+	if (layout_config.max_layouts_per_audio_sdp == 0 ||
+		layout_config.symbols_per_layout == 0 ||
+		layout_config.layouts_per_sample_denom == 0) {
+		return;
+	}
 	if (available_hblank_bw < calculate_required_audio_bw_in_symbols(
 			crtc_info, &layout_config, channel_count, 192000,
 			av_stream_map_lane_count, audio_sdp_overhead))
