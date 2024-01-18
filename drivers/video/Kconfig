@@ -18,8 +18,9 @@ config STI_CORE
 	  STI refers to the HP "Standard Text Interface" which is a set of
 	  BIOS routines contained in a ROM chip in HP PA-RISC based machines.
 
-config VIDEO_CMDLINE
+config VIDEO
 	bool
+	default n
 
 config VIDEO_NOMODESET
 	bool
