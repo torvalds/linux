@@ -205,7 +205,7 @@ static void pci_epf_mhi_raise_irq(struct mhi_ep_cntrl *mhi_cntrl, u32 vector)
 	 * MHI supplies 0 based MSI vectors but the API expects the vector
 	 * number to start from 1, so we need to increment the vector by 1.
 	 */
-	pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no, PCI_EPC_IRQ_MSI,
+	pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no, PCI_IRQ_MSI,
 			  vector + 1);
 }
 
@@ -644,7 +644,7 @@ static void pci_epf_mhi_unbind(struct pci_epf *epf)
 	pci_epc_clear_bar(epc, epf->func_no, epf->vfunc_no, epf_bar);
 }
 
-static struct pci_epc_event_ops pci_epf_mhi_event_ops = {
+static const struct pci_epc_event_ops pci_epf_mhi_event_ops = {
 	.core_init = pci_epf_mhi_core_init,
 	.link_up = pci_epf_mhi_link_up,
 	.link_down = pci_epf_mhi_link_down,
@@ -682,7 +682,7 @@ static const struct pci_epf_device_id pci_epf_mhi_ids[] = {
 	{},
 };
 
-static struct pci_epf_ops pci_epf_mhi_ops = {
+static const struct pci_epf_ops pci_epf_mhi_ops = {
 	.unbind	= pci_epf_mhi_unbind,
 	.bind	= pci_epf_mhi_bind,
 };

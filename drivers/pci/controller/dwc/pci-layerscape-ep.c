@@ -49,7 +49,7 @@ struct ls_pcie_ep {
 	bool				big_endian;
 };
 
-static u32 ls_lut_readl(struct ls_pcie_ep *pcie, u32 offset)
+static u32 ls_pcie_pf_lut_readl(struct ls_pcie_ep *pcie, u32 offset)
 {
 	struct dw_pcie *pci = pcie->pci;
 
@@ -59,7 +59,7 @@ static u32 ls_lut_readl(struct ls_pcie_ep *pcie, u32 offset)
 		return ioread32(pci->dbi_base + offset);
 }
 
-static void ls_lut_writel(struct ls_pcie_ep *pcie, u32 offset, u32 value)
+static void ls_pcie_pf_lut_writel(struct ls_pcie_ep *pcie, u32 offset, u32 value)
 {
 	struct dw_pcie *pci = pcie->pci;
 
@@ -76,8 +76,8 @@ static irqreturn_t ls_pcie_ep_event_handler(int irq, void *dev_id)
 	u32 val, cfg;
 	u8 offset;
 
-	val = ls_lut_readl(pcie, PEX_PF0_PME_MES_DR);
-	ls_lut_writel(pcie, PEX_PF0_PME_MES_DR, val);
+	val = ls_pcie_pf_lut_readl(pcie, PEX_PF0_PME_MES_DR);
+	ls_pcie_pf_lut_writel(pcie, PEX_PF0_PME_MES_DR, val);
 
 	if (!val)
 		return IRQ_NONE;
@@ -96,9 +96,9 @@ static irqreturn_t ls_pcie_ep_event_handler(int irq, void *dev_id)
 		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, pcie->lnkcap);
 		dw_pcie_dbi_ro_wr_dis(pci);
 
-		cfg = ls_lut_readl(pcie, PEX_PF0_CONFIG);
+		cfg = ls_pcie_pf_lut_readl(pcie, PEX_PF0_CONFIG);
 		cfg |= PEX_PF0_CFG_READY;
-		ls_lut_writel(pcie, PEX_PF0_CONFIG, cfg);
+		ls_pcie_pf_lut_writel(pcie, PEX_PF0_CONFIG, cfg);
 		dw_pcie_ep_linkup(&pci->ep);
 
 		dev_dbg(pci->dev, "Link up\n");
@@ -130,10 +130,10 @@ static int ls_pcie_ep_interrupt_init(struct ls_pcie_ep *pcie,
 	}
 
 	/* Enable interrupts */
-	val = ls_lut_readl(pcie, PEX_PF0_PME_MES_IER);
+	val = ls_pcie_pf_lut_readl(pcie, PEX_PF0_PME_MES_IER);
 	val |=  PEX_PF0_PME_MES_IER_LDDIE | PEX_PF0_PME_MES_IER_HRDIE |
 		PEX_PF0_PME_MES_IER_LUDIE;
-	ls_lut_writel(pcie, PEX_PF0_PME_MES_IER, val);
+	ls_pcie_pf_lut_writel(pcie, PEX_PF0_PME_MES_IER, val);
 
 	return 0;
 }
@@ -166,16 +166,16 @@ static void ls_pcie_ep_init(struct dw_pcie_ep *ep)
 }
 
 static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				enum pci_epc_irq_type type, u16 interrupt_num)
+				unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		return dw_pcie_ep_raise_legacy_irq(ep, func_no);
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_INTX:
+		return dw_pcie_ep_raise_intx_irq(ep, func_no);
+	case PCI_IRQ_MSI:
 		return dw_pcie_ep_raise_msi_irq(ep, func_no, interrupt_num);
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		return dw_pcie_ep_raise_msix_irq_doorbell(ep, func_no,
 							  interrupt_num);
 	default:
@@ -184,8 +184,7 @@ static int ls_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
 	}
 }
 
-static unsigned int ls_pcie_ep_func_conf_select(struct dw_pcie_ep *ep,
-						u8 func_no)
+static unsigned int ls_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep, u8 func_no)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct ls_pcie_ep *pcie = to_ls_pcie_ep(pci);
@@ -195,10 +194,10 @@ static unsigned int ls_pcie_ep_func_conf_select(struct dw_pcie_ep *ep,
 }
 
 static const struct dw_pcie_ep_ops ls_pcie_ep_ops = {
-	.ep_init = ls_pcie_ep_init,
+	.init = ls_pcie_ep_init,
 	.raise_irq = ls_pcie_ep_raise_irq,
 	.get_features = ls_pcie_ep_get_features,
-	.func_conf_select = ls_pcie_ep_func_conf_select,
+	.get_dbi_offset = ls_pcie_ep_get_dbi_offset,
 };
 
 static const struct ls_pcie_ep_drvdata ls1_ep_drvdata = {
