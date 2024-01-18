@@ -742,8 +742,10 @@ static int __init paicrypt_init(void)
 	paicrypt_cnt = ib.num_cc;
 	if (paicrypt_cnt == 0)
 		return 0;
-	if (paicrypt_cnt >= PAI_CRYPTO_MAXCTR)
-		paicrypt_cnt = PAI_CRYPTO_MAXCTR - 1;
+	if (paicrypt_cnt >= PAI_CRYPTO_MAXCTR) {
+		pr_err("Too many PMU pai_crypto counters %d\n", paicrypt_cnt);
+		return -1;
+	}
 
 	rc = attr_event_init();		/* Export known PAI crypto events */
 	if (rc) {
