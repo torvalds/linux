@@ -3015,8 +3015,7 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 {
 	struct super_block *sb = pde_data(file_inode(seq->file));
 	ext4_group_t group = (ext4_group_t) ((unsigned long) v);
-	int i;
-	int err, buddy_loaded = 0;
+	int i, err;
 	struct ext4_buddy e4b;
 	struct ext4_group_info *grinfo;
 	unsigned char blocksize_bits = min_t(unsigned char,
@@ -3046,14 +3045,14 @@ static int ext4_mb_seq_groups_show(struct seq_file *seq, void *v)
 			seq_printf(seq, "#%-5u: I/O error\n", group);
 			return 0;
 		}
-		buddy_loaded = 1;
+		ext4_mb_unload_buddy(&e4b);
 	}
 
+	/*
+	 * We care only about free space counters in the group info and
+	 * these are safe to access even after the buddy has been unloaded
+	 */
 	memcpy(&sg, grinfo, i);
-
-	if (buddy_loaded)
-		ext4_mb_unload_buddy(&e4b);
-
 	seq_printf(seq, "#%-5u: %-5u %-5u %-5u [", group, sg.info.bb_free,
 			sg.info.bb_fragments, sg.info.bb_first_free);
 	for (i = 0; i <= 13; i++)
