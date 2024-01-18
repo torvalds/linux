@@ -55,6 +55,12 @@
 	(TDX_RDX | TDX_RBX | TDX_RSI | TDX_RDI | TDX_R8  | TDX_R9  | \
 	 TDX_R10 | TDX_R11 | TDX_R12 | TDX_R13 | TDX_R14 | TDX_R15)
 
+/* TDX supported page sizes from the TDX module ABI. */
+#define TDX_PS_4K	0
+#define TDX_PS_2M	1
+#define TDX_PS_1G	2
+#define TDX_PS_NR	(TDX_PS_1G + 1)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler_attributes.h>
