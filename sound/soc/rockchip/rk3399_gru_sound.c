@@ -446,7 +446,7 @@ static const struct rockchip_sound_route rockchip_routes[] = {
 
 struct dailink_match_data {
 	const char *compatible;
-	struct bus_type *bus_type;
+	const struct bus_type *bus_type;
 };
 
 static const struct dailink_match_data dailink_match[] = {
