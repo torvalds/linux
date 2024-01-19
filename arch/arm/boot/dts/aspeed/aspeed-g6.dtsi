@@ -1548,7 +1548,7 @@
 		reg = <0x0 0x1000>;
 	};
 
-	i3c0: i3c-master@2000 {
+	i3c0: i3c@2000 {
 		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
@@ -1569,7 +1569,7 @@
 		status = "disabled";
 	};
 
-	i3c1: i3c-master@3000 {
+	i3c1: i3c@3000 {
 		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
@@ -1590,7 +1590,7 @@
 		status = "disabled";
 	};
 
-	i3c2: i3c-master@4000 {
+	i3c2: i3c@4000 {
 		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
@@ -1609,7 +1609,7 @@
 		status = "disabled";
 	};
 
-	i3c3: i3c-master@5000 {
+	i3c3: i3c@5000 {
 		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
@@ -1628,7 +1628,7 @@
 		status = "disabled";
 	};
 
-	i3c4: i3c-master@6000 {
+	i3c4: i3c@6000 {
 		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
@@ -1649,7 +1649,7 @@
 		status = "disabled";
 	};
 
-	i3c5: i3c-master@7000 {
+	i3c5: i3c@7000 {
 		#address-cells = <3>;
 		#size-cells = <0>;
 		#interrupt-cells = <1>;
