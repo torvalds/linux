@@ -520,7 +520,7 @@ static int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 	 * keep_locks set and lowest_level is 1, regardless of the value of
 	 * path->slots[1].
 	 */
-	BUG_ON(path->locks[1] == 0);
+	ASSERT(path->locks[1] != 0);
 	ret = btrfs_realloc_node(trans, root,
 				 path->nodes[1], 0,
 				 &last_ret,
