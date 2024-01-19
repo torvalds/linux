@@ -4671,9 +4671,11 @@ static bool rtw89_is_op_chan(struct rtw89_dev *rtwdev, u8 band, u8 channel)
 }
 
 static void
-rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			   u32 len)
 {
+	const struct rtw89_c2h_scanofld *c2h =
+		(const struct rtw89_c2h_scanofld *)skb->data;
 	struct ieee80211_vif *vif = rtwdev->scan_info.scanning_vif;
 	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
 	struct rtw89_chan new;
@@ -4685,12 +4687,12 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 	if (!rtwvif)
 		return;
 
-	tx_fail = RTW89_GET_MAC_C2H_SCANOFLD_TX_FAIL(c2h->data);
-	status = RTW89_GET_MAC_C2H_SCANOFLD_STATUS(c2h->data);
-	chan = RTW89_GET_MAC_C2H_SCANOFLD_PRI_CH(c2h->data);
-	reason = RTW89_GET_MAC_C2H_SCANOFLD_RSP(c2h->data);
-	band = RTW89_GET_MAC_C2H_SCANOFLD_BAND(c2h->data);
-	actual_period = RTW89_GET_MAC_C2H_ACTUAL_PERIOD(c2h->data);
+	tx_fail = le32_get_bits(c2h->w5, RTW89_C2H_SCANOFLD_W5_TX_FAIL);
+	status = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_STATUS);
+	chan = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_PRI_CH);
+	reason = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_RSN);
+	band = le32_get_bits(c2h->w5, RTW89_C2H_SCANOFLD_W5_BAND);
+	actual_period = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_PERIOD);
 
 	if (!(rtwdev->chip->support_bands & BIT(NL80211_BAND_6GHZ)))
 		band = chan > 14 ? RTW89_BAND_5G : RTW89_BAND_2G;

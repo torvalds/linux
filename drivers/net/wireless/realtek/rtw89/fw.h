@@ -169,6 +169,10 @@ enum rtw89_scanofld_notify_reason {
 	RTW89_SCAN_ENTER_CH_NOTIFY,
 	RTW89_SCAN_LEAVE_CH_NOTIFY,
 	RTW89_SCAN_END_SCAN_NOTIFY,
+	RTW89_SCAN_REPORT_NOTIFY,
+	RTW89_SCAN_CHKPT_NOTIFY,
+	RTW89_SCAN_ENTER_OP_NOTIFY,
+	RTW89_SCAN_LEAVE_OP_NOTIFY,
 };
 
 enum rtw89_chan_type {
@@ -3278,20 +3282,24 @@ struct rtw89_c2h_ra_rpt {
 #define RTW89_GET_MAC_C2H_PKTOFLD_LEN(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 16))
 
-#define RTW89_GET_MAC_C2H_SCANOFLD_PRI_CH(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(7, 0))
-#define RTW89_GET_MAC_C2H_SCANOFLD_RSP(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(19, 16))
-#define RTW89_GET_MAC_C2H_SCANOFLD_STATUS(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(23, 20))
-#define RTW89_GET_MAC_C2H_ACTUAL_PERIOD(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(31, 24))
-#define RTW89_GET_MAC_C2H_SCANOFLD_TX_FAIL(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 5), GENMASK(3, 0))
-#define RTW89_GET_MAC_C2H_SCANOFLD_AIR_DENSITY(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 5), GENMASK(7, 4))
-#define RTW89_GET_MAC_C2H_SCANOFLD_BAND(c2h) \
-	le32_get_bits(*((const __le32 *)(c2h) + 5), GENMASK(25, 24))
+struct rtw89_c2h_scanofld {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+} __packed;
+
+#define RTW89_C2H_SCANOFLD_W2_PRI_CH GENMASK(7, 0)
+#define RTW89_C2H_SCANOFLD_W2_RSN GENMASK(19, 16)
+#define RTW89_C2H_SCANOFLD_W2_STATUS GENMASK(23, 20)
+#define RTW89_C2H_SCANOFLD_W2_PERIOD GENMASK(31, 24)
+#define RTW89_C2H_SCANOFLD_W5_TX_FAIL GENMASK(3, 0)
+#define RTW89_C2H_SCANOFLD_W5_AIR_DENSITY GENMASK(7, 4)
+#define RTW89_C2H_SCANOFLD_W5_BAND GENMASK(25, 24)
 
 #define RTW89_GET_MAC_C2H_MCC_RCV_ACK_GROUP(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 2), GENMASK(1, 0))
