@@ -169,7 +169,8 @@ static inline void cmf_activate(void *area, unsigned int onoff)
 		"	lgr	2,%[mbo]\n"
 		"	schm\n"
 		:
-		: [r1] "d" ((unsigned long)onoff), [mbo] "d" (area)
+		: [r1] "d" ((unsigned long)onoff),
+		  [mbo] "d" (virt_to_phys(area))
 		: "1", "2");
 }
 
