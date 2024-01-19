@@ -31,6 +31,7 @@ Documentation/dev-tools/testing-overview.rst
    kselftest
    kunit/index
    ktap
+   checkuapi
 
 
 .. only::  subproject and html
