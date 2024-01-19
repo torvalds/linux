@@ -557,6 +557,19 @@ static int __file_sock_perm(const char *op, const struct cred *subj_cred,
 	return error;
 }
 
+/* wrapper fn to indicate semantics of the check */
+static bool __subj_label_is_cached(struct aa_label *subj_label,
+			    struct aa_label *obj_label)
+{
+	return aa_label_is_subset(obj_label, subj_label);
+}
+
+/* for now separate fn to indicate semantics of the check */
+static bool __file_is_delegated(struct aa_label *obj_label)
+{
+	return unconfined(obj_label);
+}
+
 /**
  * aa_file_perm - do permission revalidation check & audit for @file
  * @op: operation being checked
@@ -594,8 +607,8 @@ int aa_file_perm(const char *op, const struct cred *subj_cred,
 	 *       delegation from unconfined tasks
 	 */
 	denied = request & ~fctx->allow;
-	if (unconfined(label) || unconfined(flabel) ||
-	    (!denied && aa_label_is_subset(flabel, label))) {
+	if (unconfined(label) || __file_is_delegated(flabel) ||
+	    (!denied && __subj_label_is_cached(label, flabel))) {
 		rcu_read_unlock();
 		goto done;
 	}
