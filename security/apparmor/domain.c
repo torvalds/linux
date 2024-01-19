@@ -1311,7 +1311,7 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 	return error;
 }
 
-const char *stack_msg = "change_profile unprivileged unconfined converted to stacking";
+static const char *stack_msg = "change_profile unprivileged unconfined converted to stacking";
 
 /**
  * aa_change_profile - perform a one-way profile transition
