@@ -645,6 +645,7 @@ static bool __label_replace(struct aa_label *old, struct aa_label *new)
 		rb_replace_node(&old->node, &new->node, &ls->root);
 		old->flags &= ~FLAG_IN_TREE;
 		new->flags |= FLAG_IN_TREE;
+		new->flags |= accum_vec_flags(new->vec, new->size);
 		return true;
 	}
 
@@ -705,6 +706,7 @@ static struct aa_label *__label_insert(struct aa_labelset *ls,
 	rb_link_node(&label->node, parent, new);
 	rb_insert_color(&label->node, &ls->root);
 	label->flags |= FLAG_IN_TREE;
+	label->flags |= accum_vec_flags(label->vec, label->size);
 
 	return aa_get_label(label);
 }
@@ -1085,7 +1087,6 @@ static struct aa_label *label_merge_insert(struct aa_label *new,
 		else if (k == b->size)
 			return aa_get_label(b);
 	}
-	new->flags |= accum_vec_flags(new->vec, new->size);
 	ls = labels_set(new);
 	write_lock_irqsave(&ls->lock, flags);
 	label = __label_insert(labels_set(new), new, false);
