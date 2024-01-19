@@ -1140,22 +1140,24 @@ struct dc_panel_config {
 	} ilr;
 };
 
+#define MAX_SINKS_PER_LINK 4
+
 /*
  *  USB4 DPIA BW ALLOCATION STRUCTS
  */
 struct dc_dpia_bw_alloc {
-	int sink_verified_bw;  // The Verified BW that sink can allocated and use that has been verified already
-	int sink_allocated_bw; // The Actual Allocated BW that sink currently allocated
-	int sink_max_bw;       // The Max BW that sink can require/support
+	int remote_sink_req_bw[MAX_SINKS_PER_LINK]; // BW requested by remote sinks
+	int link_verified_bw;  // The Verified BW that link can allocated and use that has been verified already
+	int link_max_bw;       // The Max BW that link can require/support
+	int allocated_bw;      // The Actual Allocated BW for this DPIA
 	int estimated_bw;      // The estimated available BW for this DPIA
 	int bw_granularity;    // BW Granularity
+	int dp_overhead;       // DP overhead in dp tunneling
 	bool bw_alloc_enabled; // The BW Alloc Mode Support is turned ON for all 3:  DP-Tx & Dpia & CM
 	bool response_ready;   // Response ready from the CM side
 	uint8_t nrd_max_lane_count; // Non-reduced max lane count
 	uint8_t nrd_max_link_rate; // Non-reduced max link rate
 };
-
-#define MAX_SINKS_PER_LINK 4
 
 enum dc_hpd_enable_select {
 	HPD_EN_FOR_ALL_EDP = 0,

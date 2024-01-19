@@ -8707,10 +8707,10 @@
 #define regBIF_BX1_MM_CFGREGS_CNTL_BASE_IDX                                                             2
 #define regBIF_BX1_BX_RESET_CNTL                                                                        0x00f0
 #define regBIF_BX1_BX_RESET_CNTL_BASE_IDX                                                               2
-#define regBIF_BX1_INTERRUPT_CNTL                                                                       0x8e11
-#define regBIF_BX1_INTERRUPT_CNTL_BASE_IDX                                                              5
-#define regBIF_BX1_INTERRUPT_CNTL2                                                                      0x8e12
-#define regBIF_BX1_INTERRUPT_CNTL2_BASE_IDX                                                             5
+#define regBIF_BX1_INTERRUPT_CNTL                                                                       0x00f1
+#define regBIF_BX1_INTERRUPT_CNTL_BASE_IDX                                                              2
+#define regBIF_BX1_INTERRUPT_CNTL2                                                                      0x00f2
+#define regBIF_BX1_INTERRUPT_CNTL2_BASE_IDX                                                             2
 #define regBIF_BX1_CLKREQB_PAD_CNTL                                                                     0x00f8
 #define regBIF_BX1_CLKREQB_PAD_CNTL_BASE_IDX                                                            2
 #define regBIF_BX1_BIF_FEATURES_CONTROL_MISC                                                            0x00fb
