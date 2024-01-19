@@ -48,13 +48,15 @@ atomic_t fscache_n_no_create_space;
 EXPORT_SYMBOL(fscache_n_no_create_space);
 atomic_t fscache_n_culled;
 EXPORT_SYMBOL(fscache_n_culled);
+atomic_t fscache_n_dio_misfit;
+EXPORT_SYMBOL(fscache_n_dio_misfit);
 
 /*
  * display the general statistics
  */
-int fscache_stats_show(struct seq_file *m, void *v)
+int fscache_stats_show(struct seq_file *m)
 {
-	seq_puts(m, "FS-Cache statistics\n");
+	seq_puts(m, "-- FS-Cache statistics --\n");
 	seq_printf(m, "Cookies: n=%d v=%d vcol=%u voom=%u\n",
 		   atomic_read(&fscache_n_cookies),
 		   atomic_read(&fscache_n_volumes),
@@ -93,10 +95,9 @@ int fscache_stats_show(struct seq_file *m, void *v)
 		   atomic_read(&fscache_n_no_create_space),
 		   atomic_read(&fscache_n_culled));
 
-	seq_printf(m, "IO     : rd=%u wr=%u\n",
+	seq_printf(m, "IO     : rd=%u wr=%u mis=%u\n",
 		   atomic_read(&fscache_n_read),
-		   atomic_read(&fscache_n_write));
-
-	netfs_stats_show(m);
+		   atomic_read(&fscache_n_write),
+		   atomic_read(&fscache_n_dio_misfit));
 	return 0;
 }
