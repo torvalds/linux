@@ -18,6 +18,8 @@
 #include <asm/ptrace.h>
 #include <asm/tlbdebug.h>
 
+#include "ip32-common.h"
+
 static int ip32_be_handler(struct pt_regs *regs, int is_fixup)
 {
 	int data = regs->cp0_cause & 4;
