@@ -163,11 +163,9 @@
 #define AST2600_I2CS_ISR			0x24
 
 #define AST2600_I2CS_ADDR_INDICATE_MASK	GENMASK(31, 30)
-#ifdef CONFIG_MACH_ASPEED_G7
-#define AST2600_I2CS_SLAVE_PENDING			GENMASK(29, 28)
-#else
 #define AST2600_I2CS_SLAVE_PENDING			BIT(29)
-#endif
+#define AST2600_I2CS_SADDR_PENDING			BIT(28)
+
 #define AST2600_I2CS_WAIT_TX_DMA			BIT(25)
 #define AST2600_I2CS_WAIT_RX_DMA			BIT(24)
 
@@ -253,6 +251,8 @@
 #define AST2600_I2CS_ADDR1_ENABLE			BIT(7)
 #define AST2600_I2CS_ADDR1(x)			(x)
 
+#define I2C_SLAVE_MSG_BUF_SIZE		4096
+
 #define AST2600_I2C_DMA_SIZE		4096
 
 #define MASTER_TRIGGER_LAST_STOP	(AST2600_I2CM_RX_CMD_LAST | AST2600_I2CM_STOP_CMD)
@@ -273,6 +273,7 @@ struct ast2600_i2c_bus {
 	struct regmap			*global_regs;
 	struct reset_control		*rst;
 	int				irq;
+	int				ast2700_workaround;
 	enum xfer_mode			mode;
 	struct clk			*clk;
 	u32				apb_clk;
@@ -405,18 +406,15 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 {
 	int slave_rx_len;
 	u32 cmd = 0;
-#ifdef CONFIG_MACH_ASPEED_G7
-	u32 fsm;
-#endif
 	u8 value;
 	int i;
 
-	sts &= ~(AST2600_I2CS_SLAVE_PENDING);
+	sts &= ~(AST2600_I2CS_SLAVE_PENDING | AST2600_I2CS_SADDR_PENDING);
 	/* Handle i2c slave timeout condition */
 	if (AST2600_I2CS_INACTIVE_TO & sts) {
 		cmd = SLAVE_TRIGGER_CMD;
 		cmd |= AST2600_I2CS_RX_DMA_EN;
-		writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+		writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 		       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 		writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
 		writel(AST2600_I2CS_PKT_DONE, i2c_bus->reg_base + AST2600_I2CS_ISR);
@@ -427,14 +425,21 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 	sts &= ~(AST2600_I2CS_PKT_DONE | AST2600_I2CS_PKT_ERROR);
 
 	switch (sts) {
-	/* AST2700 workaround */
+#ifdef CONFIG_MACH_ASPEED_G7
+	/* AST2700A0 workaround */
 	case 0:
-		break;
+	case AST2600_I2CS_WAIT_RX_DMA:
 	case AST2600_I2CS_SLAVE_MATCH:
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 		break;
-	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE | AST2600_I2CS_WAIT_RX_DMA:
+#endif
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_WAIT_RX_DMA:
+#ifdef CONFIG_MACH_ASPEED_G7
+		/* AST2700A0 workaround */
+		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+		break;
+#endif
+	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE | AST2600_I2CS_WAIT_RX_DMA:
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
 		slave_rx_len = AST2600_I2C_GET_RX_DMA_LEN(readl(i2c_bus->reg_base +
 						      AST2600_I2CS_DMA_LEN_STS));
@@ -442,23 +447,31 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED,
 					&i2c_bus->slave_dma_buf[i]);
 		}
-		writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+		writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 		       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 		cmd = SLAVE_TRIGGER_CMD | AST2600_I2CS_RX_DMA_EN;
 		break;
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_STOP:
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
-		writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+		writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 		       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 		cmd = SLAVE_TRIGGER_CMD | AST2600_I2CS_RX_DMA_EN;
 		break;
+	case AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:
+#ifdef CONFIG_MACH_ASPEED_G7
+		/* AST2700A0 bug workaround miss start */
+		if (i2c_bus->ast2700_workaround) {
+			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+			i2c_bus->ast2700_workaround = 0;
+		}
+		fallthrough;
+#endif
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE_NAK |
 			AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_WAIT_RX_DMA |
 			AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:
 	case AST2600_I2CS_RX_DONE_NAK | AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:
 	case AST2600_I2CS_RX_DONE | AST2600_I2CS_WAIT_RX_DMA | AST2600_I2CS_STOP:
-	case AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:
 	case AST2600_I2CS_RX_DONE | AST2600_I2CS_WAIT_RX_DMA:
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE | AST2600_I2CS_STOP:
 		if (sts & AST2600_I2CS_SLAVE_MATCH)
@@ -470,7 +483,7 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_RECEIVED,
 					&i2c_bus->slave_dma_buf[i]);
 		}
-		writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+		writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 		       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 		if (sts & AST2600_I2CS_STOP)
 			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
@@ -515,7 +528,7 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 	case AST2600_I2CS_TX_NAK | AST2600_I2CS_STOP:
 		/* it just tx complete */
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
-		writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+		writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 		       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 		cmd = SLAVE_TRIGGER_CMD | AST2600_I2CS_RX_DMA_EN;
 		break;
@@ -535,18 +548,10 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 		writel(0, i2c_bus->reg_base + AST2600_I2CS_DMA_LEN_STS);
 		writel(cmd, i2c_bus->reg_base + AST2600_I2CS_CMD_STS);
 	}
+	if (sts & AST2600_I2CS_STOP)
+		i2c_bus->ast2700_workaround = 1;
 	writel(AST2600_I2CS_PKT_DONE, i2c_bus->reg_base + AST2600_I2CS_ISR);
-#ifdef CONFIG_MACH_ASPEED_G7
-	//ast2700 workaround
-	fsm = (readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF) & GENMASK(22, 19)) >> 19;
-	// Check if the FSM is idle or Master not operate
-	if (!fsm || !(fsm & BIT(3))) {
-		if (!(readl(i2c_bus->reg_base + AST2600_I2CS_ISR) & AST2600_I2CS_SLAVE_MATCH))
-			i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
-	}
-#else
 	readl(i2c_bus->reg_base + AST2600_I2CS_ISR);
-#endif
 }
 
 static void ast2600_i2c_slave_packet_buff_irq(struct ast2600_i2c_bus *i2c_bus, u32 sts)
@@ -1342,7 +1347,7 @@ static int ast2600_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg
 				writel(upper_32_bits(i2c_bus->slave_dma_addr),
 				       i2c_bus->reg_base + AST2600_I2CS_TX_DMA_H);
 #endif
-				writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+				writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 				       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 			} else if (i2c_bus->mode == BUFF_MODE) {
 				cmd = SLAVE_TRIGGER_CMD;
@@ -1408,7 +1413,7 @@ static void ast2600_i2c_init(struct ast2600_i2c_bus *i2c_bus)
 	/* for memory buffer initial */
 	if (i2c_bus->mode == DMA_MODE) {
 		i2c_bus->slave_dma_buf =
-			dmam_alloc_coherent(i2c_bus->dev, AST2600_I2C_DMA_SIZE,
+			dmam_alloc_coherent(i2c_bus->dev, I2C_SLAVE_MSG_BUF_SIZE,
 					    &i2c_bus->slave_dma_addr, GFP_KERNEL);
 		if (!i2c_bus->slave_dma_buf)
 			return;
@@ -1455,7 +1460,7 @@ static int ast2600_i2c_reg_slave(struct i2c_client *client)
 		writel(upper_32_bits(i2c_bus->slave_dma_addr),
 		       i2c_bus->reg_base + AST2600_I2CS_TX_DMA_H);
 #endif
-		writel(AST2600_I2CS_SET_RX_DMA_LEN(AST2600_I2C_DMA_SIZE),
+		writel(AST2600_I2CS_SET_RX_DMA_LEN(I2C_SLAVE_MSG_BUF_SIZE),
 		       i2c_bus->reg_base + AST2600_I2CS_DMA_LEN);
 	} else if (i2c_bus->mode == BUFF_MODE) {
 		cmd = SLAVE_TRIGGER_CMD;
@@ -1544,8 +1549,11 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 
 	i2c_bus->slave_operate = 0;
 	i2c_bus->dev = dev;
+#ifdef CONFIG_MACH_ASPEED_G7
+	i2c_bus->mode = DMA_MODE;
+#else
 	i2c_bus->mode = BUFF_MODE;
-
+#endif
 	if (device_property_read_bool(&pdev->dev, "aspeed,enable-dma"))
 		i2c_bus->mode = DMA_MODE;
 
