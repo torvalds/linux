@@ -337,6 +337,7 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	u64 len = subreq->len;
 	bool sparse = IS_ENCRYPTED(inode) || ceph_test_mount_opt(fsc, SPARSEREAD);
 	u64 off = subreq->start;
+	int extent_cnt;
 
 	if (ceph_inode_is_shutdown(inode)) {
 		err = -EIO;
@@ -350,8 +351,8 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout, vino,
 			off, &len, 0, 1, sparse ? CEPH_OSD_OP_SPARSE_READ : CEPH_OSD_OP_READ,
-			CEPH_OSD_FLAG_READ | fsc->client->osdc.client->options->read_from_replica,
-			NULL, ci->i_truncate_seq, ci->i_truncate_size, false);
+			CEPH_OSD_FLAG_READ, NULL, ci->i_truncate_seq,
+			ci->i_truncate_size, false);
 	if (IS_ERR(req)) {
 		err = PTR_ERR(req);
 		req = NULL;
@@ -359,7 +360,8 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	}
 
 	if (sparse) {
-		err = ceph_alloc_sparse_ext_map(&req->r_ops[0]);
+		extent_cnt = __ceph_sparse_read_ext_count(inode, len);
+		err = ceph_alloc_sparse_ext_map(&req->r_ops[0], extent_cnt);
 		if (err)
 			goto out;
 	}
