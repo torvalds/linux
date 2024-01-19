@@ -66,6 +66,22 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 	__must_check_overflow(__builtin_add_overflow(a, b, d))
 
 /**
+ * wrapping_add() - Intentionally perform a wrapping addition
+ * @type: type for result of calculation
+ * @a: first addend
+ * @b: second addend
+ *
+ * Return the potentially wrapped-around addition without
+ * tripping any wrap-around sanitizers that may be enabled.
+ */
+#define wrapping_add(type, a, b)				\
+	({							\
+		type __val;					\
+		__builtin_add_overflow(a, b, &__val);		\
+		__val;						\
+	})
+
+/**
  * check_sub_overflow() - Calculate subtraction with overflow checking
  * @a: minuend; value to subtract from
  * @b: subtrahend; value to subtract from @a
@@ -80,6 +96,22 @@ static inline bool __must_check __must_check_overflow(bool overflow)
 	__must_check_overflow(__builtin_sub_overflow(a, b, d))
 
 /**
+ * wrapping_sub() - Intentionally perform a wrapping subtraction
+ * @type: type for result of calculation
+ * @a: minuend; value to subtract from
+ * @b: subtrahend; value to subtract from @a
+ *
+ * Return the potentially wrapped-around subtraction without
+ * tripping any wrap-around sanitizers that may be enabled.
+ */
+#define wrapping_sub(type, a, b)				\
+	({							\
+		type __val;					\
+		__builtin_sub_overflow(a, b, &__val);		\
+		__val;						\
+	})
+
+/**
  * check_mul_overflow() - Calculate multiplication with overflow checking
  * @a: first factor
  * @b: second factor
@@ -92,6 +124,22 @@ static inline bool __must_check __must_check_overflow(bool overflow)
  */
 #define check_mul_overflow(a, b, d)	\
 	__must_check_overflow(__builtin_mul_overflow(a, b, d))
+
+/**
+ * wrapping_mul() - Intentionally perform a wrapping multiplication
+ * @type: type for result of calculation
+ * @a: first factor
+ * @b: second factor
+ *
+ * Return the potentially wrapped-around multiplication without
+ * tripping any wrap-around sanitizers that may be enabled.
+ */
+#define wrapping_mul(type, a, b)				\
+	({							\
+		type __val;					\
+		__builtin_mul_overflow(a, b, &__val);		\
+		__val;						\
+	})
 
 /**
  * check_shl_overflow() - Calculate a left-shifted value and check overflow
