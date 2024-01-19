@@ -1044,8 +1044,10 @@ static signed long drm_syncobj_array_wait_timeout(struct drm_syncobj **syncobjs,
 	uint32_t signaled_count, i;
 
 	if (flags & (DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT |
-		     DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE))
+		     DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE)) {
+		might_sleep();
 		lockdep_assert_none_held_once();
+	}
 
 	points = kmalloc_array(count, sizeof(*points), GFP_KERNEL);
 	if (points == NULL)
