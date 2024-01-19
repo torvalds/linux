@@ -18,6 +18,7 @@ struct adc_joystick_axis {
 	s32 range[2];
 	s32 fuzz;
 	s32 flat;
+	bool inverted;
 };
 
 struct adc_joystick {
@@ -29,6 +30,15 @@ struct adc_joystick {
 	bool polled;
 };
 
+static int adc_joystick_invert(struct input_dev *dev,
+			       unsigned int axis, int val)
+{
+	int min = input_abs_get_min(dev, axis);
+	int max = input_abs_get_max(dev, axis);
+
+	return (max + min) - val;
+}
+
 static void adc_joystick_poll(struct input_dev *input)
 {
 	struct adc_joystick *joy = input_get_drvdata(input);
@@ -38,6 +48,8 @@ static void adc_joystick_poll(struct input_dev *input)
 		ret = iio_read_channel_raw(&joy->chans[i], &val);
 		if (ret < 0)
 			return;
+		if (joy->axes[i].inverted)
+			val = adc_joystick_invert(input, i, val);
 		input_report_abs(input, joy->axes[i].code, val);
 	}
 	input_sync(input);
@@ -86,6 +98,8 @@ static int adc_joystick_handle(const void *data, void *private)
 			val = sign_extend32(val, msb);
 		else
 			val &= GENMASK(msb, 0);
+		if (joy->axes[i].inverted)
+			val = adc_joystick_invert(joy->input, i, val);
 		input_report_abs(joy->input, joy->axes[i].code, val);
 	}
 
@@ -166,6 +180,12 @@ static int adc_joystick_set_axes(struct device *dev, struct adc_joystick *joy)
 		if (error) {
 			dev_err(dev, "abs-range invalid or missing\n");
 			goto err_fwnode_put;
+		}
+
+		if (axes[i].range[0] > axes[i].range[1]) {
+			dev_dbg(dev, "abs-axis %d inverted\n", i);
+			axes[i].inverted = true;
+			swap(axes[i].range[0], axes[i].range[1]);
 		}
 
 		fwnode_property_read_u32(child, "abs-fuzz", &axes[i].fuzz);
