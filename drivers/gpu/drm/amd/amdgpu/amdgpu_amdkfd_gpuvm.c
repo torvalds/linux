@@ -2802,7 +2802,7 @@ unlock_out:
 	put_task_struct(usertask);
 }
 
-static void replace_eviction_fence(struct dma_fence **ef,
+static void replace_eviction_fence(struct dma_fence __rcu **ef,
 				   struct dma_fence *new_ef)
 {
 	struct dma_fence *old_ef = rcu_replace_pointer(*ef, new_ef, true
@@ -2837,7 +2837,7 @@ static void replace_eviction_fence(struct dma_fence **ef,
  * 7.  Add fence to all PD and PT BOs.
  * 8.  Unreserve all BOs
  */
-int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence **ef)
+int amdgpu_amdkfd_gpuvm_restore_process_bos(void *info, struct dma_fence __rcu **ef)
 {
 	struct amdkfd_process_info *process_info = info;
 	struct amdgpu_vm *peer_vm;

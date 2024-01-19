@@ -484,7 +484,7 @@ int xe_device_probe(struct xe_device *xe)
 
 	err = xe_device_set_has_flat_ccs(xe);
 	if (err)
-		return err;
+		goto err_irq_shutdown;
 
 	err = xe_mmio_probe_vram(xe);
 	if (err)

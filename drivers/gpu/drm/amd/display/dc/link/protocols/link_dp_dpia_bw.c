@@ -54,12 +54,18 @@ static bool get_bw_alloc_proceed_flag(struct dc_link *tmp)
 static void reset_bw_alloc_struct(struct dc_link *link)
 {
 	link->dpia_bw_alloc_config.bw_alloc_enabled = false;
-	link->dpia_bw_alloc_config.sink_verified_bw = 0;
-	link->dpia_bw_alloc_config.sink_max_bw = 0;
+	link->dpia_bw_alloc_config.link_verified_bw = 0;
+	link->dpia_bw_alloc_config.link_max_bw = 0;
+	link->dpia_bw_alloc_config.allocated_bw = 0;
 	link->dpia_bw_alloc_config.estimated_bw = 0;
 	link->dpia_bw_alloc_config.bw_granularity = 0;
+	link->dpia_bw_alloc_config.dp_overhead = 0;
 	link->dpia_bw_alloc_config.response_ready = false;
-	link->dpia_bw_alloc_config.sink_allocated_bw = 0;
+	link->dpia_bw_alloc_config.nrd_max_lane_count = 0;
+	link->dpia_bw_alloc_config.nrd_max_link_rate = 0;
+	for (int i = 0; i < MAX_SINKS_PER_LINK; i++)
+		link->dpia_bw_alloc_config.remote_sink_req_bw[i] = 0;
+	DC_LOG_DEBUG("reset usb4 bw alloc of link(%d)\n", link->link_index);
 }
 
 #define BW_GRANULARITY_0 4 // 0.25 Gbps
@@ -210,8 +216,8 @@ static int get_host_router_total_dp_tunnel_bw(const struct dc *dc, uint8_t hr_in
 				link_dpia_primary->dpia_bw_alloc_config.bw_alloc_enabled) &&
 				(link_dpia_secondary->hpd_status &&
 				link_dpia_secondary->dpia_bw_alloc_config.bw_alloc_enabled)) {
-				total_bw += link_dpia_primary->dpia_bw_alloc_config.estimated_bw +
-					link_dpia_secondary->dpia_bw_alloc_config.sink_allocated_bw;
+					total_bw += link_dpia_primary->dpia_bw_alloc_config.estimated_bw +
+						link_dpia_secondary->dpia_bw_alloc_config.allocated_bw;
 			} else if (link_dpia_primary->hpd_status &&
 					link_dpia_primary->dpia_bw_alloc_config.bw_alloc_enabled) {
 				total_bw = link_dpia_primary->dpia_bw_alloc_config.estimated_bw;
@@ -264,7 +270,7 @@ static void set_usb4_req_bw_req(struct dc_link *link, int req_bw)
 
 	/* Error check whether requested and allocated are equal */
 	req_bw = requested_bw * (Kbps_TO_Gbps / link->dpia_bw_alloc_config.bw_granularity);
-	if (req_bw == link->dpia_bw_alloc_config.sink_allocated_bw) {
+	if (req_bw == link->dpia_bw_alloc_config.allocated_bw) {
 		DC_LOG_ERROR("%s: Request bw equals to allocated bw for link(%d)\n",
 			__func__, link->link_index);
 	}
@@ -387,9 +393,9 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
 		DC_LOG_DEBUG("%s: BW REQ SUCCESS for DP-TX Request for link(%d)\n",
 			__func__, link->link_index);
 		DC_LOG_DEBUG("%s: current allocated_bw(%d), new allocated_bw(%d)\n",
-			__func__, link->dpia_bw_alloc_config.sink_allocated_bw, bw_needed);
+			__func__, link->dpia_bw_alloc_config.allocated_bw, bw_needed);
 
-		link->dpia_bw_alloc_config.sink_allocated_bw = bw_needed;
+		link->dpia_bw_alloc_config.allocated_bw = bw_needed;
 
 		link->dpia_bw_alloc_config.response_ready = true;
 		break;
@@ -427,8 +433,8 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
 	if (link->hpd_status && peak_bw > 0) {
 
 		// If DP over USB4 then we need to check BW allocation
-		link->dpia_bw_alloc_config.sink_max_bw = peak_bw;
-		set_usb4_req_bw_req(link, link->dpia_bw_alloc_config.sink_max_bw);
+		link->dpia_bw_alloc_config.link_max_bw = peak_bw;
+		set_usb4_req_bw_req(link, link->dpia_bw_alloc_config.link_max_bw);
 
 		do {
 			if (timeout > 0)
@@ -440,8 +446,8 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
 
 		if (!timeout)
 			ret = 0;// ERROR TIMEOUT waiting for response for allocating bw
-		else if (link->dpia_bw_alloc_config.sink_allocated_bw > 0)
-			ret = link->dpia_bw_alloc_config.sink_allocated_bw;
+		else if (link->dpia_bw_alloc_config.allocated_bw > 0)
+			ret = link->dpia_bw_alloc_config.allocated_bw;
 	}
 	//2. Cold Unplug
 	else if (!link->hpd_status)
@@ -450,7 +456,6 @@ int dpia_handle_usb4_bandwidth_allocation_for_link(struct dc_link *link, int pea
 out:
 	return ret;
 }
-
 bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw)
 {
 	bool ret = false;
@@ -458,7 +463,7 @@ bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int r
 
 	DC_LOG_DEBUG("%s: ENTER: link(%d), hpd_status(%d), current allocated_bw(%d), req_bw(%d)\n",
 		__func__, link->link_index, link->hpd_status,
-		link->dpia_bw_alloc_config.sink_allocated_bw, req_bw);
+		link->dpia_bw_alloc_config.allocated_bw, req_bw);
 
 	if (!get_bw_alloc_proceed_flag(link))
 		goto out;
@@ -522,4 +527,31 @@ bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed_per_dpia, const
 	}
 
 	return ret;
+}
+
+int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link)
+{
+	int dp_overhead = 0, link_mst_overhead = 0;
+
+	if (!get_bw_alloc_proceed_flag((link)))
+		return dp_overhead;
+
+	/* if its mst link, add MTPH overhead */
+	if ((link->type == dc_connection_mst_branch) &&
+		!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
+		/* For 8b/10b encoding: MTP is 64 time slots long, slot 0 is used for MTPH
+		 * MST overhead is 1/64 of link bandwidth (excluding any overhead)
+		 */
+		const struct dc_link_settings *link_cap =
+			dc_link_get_link_cap(link);
+		uint32_t link_bw_in_kbps = (uint32_t)link_cap->link_rate *
+					   (uint32_t)link_cap->lane_count *
+					   LINK_RATE_REF_FREQ_IN_KHZ * 8;
+		link_mst_overhead = (link_bw_in_kbps / 64) + ((link_bw_in_kbps % 64) ? 1 : 0);
+	}
+
+	/* add all the overheads */
+	dp_overhead = link_mst_overhead;
+
+	return dp_overhead;
 }

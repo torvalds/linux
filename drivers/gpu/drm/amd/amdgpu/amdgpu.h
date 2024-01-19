@@ -254,8 +254,6 @@ extern int amdgpu_agp;
 
 extern int amdgpu_wbrf;
 
-extern int fw_bo_location;
-
 #define AMDGPU_VM_MAX_NUM_CTX			4096
 #define AMDGPU_SG_THRESHOLD			(256*1024*1024)
 #define AMDGPU_WAIT_IDLE_TIMEOUT_IN_MS	        3000
@@ -1146,6 +1144,7 @@ struct amdgpu_device {
 	bool                            debug_vm;
 	bool                            debug_largebar;
 	bool                            debug_disable_soft_recovery;
+	bool                            debug_use_vram_fw_buf;
 };
 
 static inline uint32_t amdgpu_ip_version(const struct amdgpu_device *adev,

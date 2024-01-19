@@ -116,7 +116,7 @@ struct amdgpu_mem_stats;
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
-/* Reserve 4MB VRAM for page tables */
+/* How much VRAM be reserved for page tables */
 #define AMDGPU_VM_RESERVED_VRAM		(8ULL << 20)
 
 /*

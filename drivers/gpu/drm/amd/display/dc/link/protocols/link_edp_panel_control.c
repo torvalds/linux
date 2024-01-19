@@ -930,8 +930,8 @@ bool edp_get_replay_state(const struct dc_link *link, uint64_t *state)
 bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream)
 {
 	/* To-do: Setup Replay */
-	struct dc *dc = link->ctx->dc;
-	struct dmub_replay *replay = dc->res_pool->replay;
+	struct dc *dc;
+	struct dmub_replay *replay;
 	int i;
 	unsigned int panel_inst;
 	struct replay_context replay_context = { 0 };
@@ -946,6 +946,10 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 
 	if (!link)
 		return false;
+
+	dc = link->ctx->dc;
+
+	replay = dc->res_pool->replay;
 
 	if (!replay)
 		return false;
@@ -975,8 +979,7 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 
 	replay_context.line_time_in_ns = lineTimeInNs;
 
-	if (replay)
-		link->replay_settings.replay_feature_enabled =
+	link->replay_settings.replay_feature_enabled =
 			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
 	if (link->replay_settings.replay_feature_enabled) {
 

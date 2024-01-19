@@ -67,6 +67,11 @@ static struct xe_exec_queue *__xe_exec_queue_create(struct xe_device *xe,
 	q->sched_props.timeslice_us = hwe->eclass->sched_props.timeslice_us;
 	q->sched_props.preempt_timeout_us =
 				hwe->eclass->sched_props.preempt_timeout_us;
+	if (q->flags & EXEC_QUEUE_FLAG_KERNEL &&
+	    q->flags & EXEC_QUEUE_FLAG_HIGH_PRIORITY)
+		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_KERNEL;
+	else
+		q->sched_props.priority = XE_EXEC_QUEUE_PRIORITY_NORMAL;
 
 	if (xe_exec_queue_is_parallel(q)) {
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);

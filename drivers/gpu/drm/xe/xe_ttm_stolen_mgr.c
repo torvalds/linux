@@ -31,7 +31,7 @@ struct xe_ttm_stolen_mgr {
 	/* GPU base offset */
 	resource_size_t stolen_base;
 
-	void *__iomem mapping;
+	void __iomem *mapping;
 };
 
 static inline struct xe_ttm_stolen_mgr *
@@ -275,7 +275,7 @@ static int __xe_ttm_stolen_io_mem_reserve_bar2(struct xe_device *xe,
 	drm_WARN_ON(&xe->drm, !(mem->placement & TTM_PL_FLAG_CONTIGUOUS));
 
 	if (mem->placement & TTM_PL_FLAG_CONTIGUOUS && mgr->mapping)
-		mem->bus.addr = (u8 *)mgr->mapping + mem->bus.offset;
+		mem->bus.addr = (u8 __force *)mgr->mapping + mem->bus.offset;
 
 	mem->bus.offset += mgr->io_base;
 	mem->bus.is_iomem = true;
