@@ -26,6 +26,8 @@ gcc)
 llvm)
 	if [ "$SRCARCH" = s390 ]; then
 		echo 15.0.0
+	elif [ "$SRCARCH" = loongarch ]; then
+		echo 18.0.0
 	else
 		echo 11.0.0
 	fi

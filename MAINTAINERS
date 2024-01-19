@@ -3692,6 +3692,13 @@ L:	bpf@vger.kernel.org
 S:	Supported
 F:	arch/arm64/net/
 
+BPF JIT for LOONGARCH
+M:	Tiezhu Yang <yangtiezhu@loongson.cn>
+R:	Hengqi Chen <hengqi.chen@gmail.com>
+L:	bpf@vger.kernel.org
+S:	Maintained
+F:	arch/loongarch/net/
+
 BPF JIT for MIPS (32-BIT AND 64-BIT)
 M:	Johan Almbladh <johan.almbladh@anyfinetworks.com>
 M:	Paul Burton <paulburton@kernel.org>

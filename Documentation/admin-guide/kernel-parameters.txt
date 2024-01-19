@@ -888,9 +888,9 @@
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically.
-			[KNL, X86-64, ARM64, RISCV] Select a region under 4G first, and
-			fall back to reserve region above 4G when '@offset'
-			hasn't been specified.
+			[KNL, X86-64, ARM64, RISCV, LoongArch] Select a region
+			under 4G first, and fall back to reserve region above
+			4G when '@offset' hasn't been specified.
 			See Documentation/admin-guide/kdump/kdump.rst for further details.
 
 	crashkernel=range1:size1[,range2:size2,...][@offset]
@@ -901,25 +901,27 @@
 			Documentation/admin-guide/kdump/kdump.rst for an example.
 
 	crashkernel=size[KMG],high
-			[KNL, X86-64, ARM64, RISCV] range could be above 4G.
+			[KNL, X86-64, ARM64, RISCV, LoongArch] range could be
+			above 4G.
 			Allow kernel to allocate physical memory region from top,
 			so could be above 4G if system have more than 4G ram
 			installed. Otherwise memory region will be allocated
 			below 4G, if available.
 			It will be ignored if crashkernel=X is specified.
 	crashkernel=size[KMG],low
-			[KNL, X86-64, ARM64, RISCV] range under 4G. When crashkernel=X,high
-			is passed, kernel could allocate physical memory region
-			above 4G, that cause second kernel crash on system
-			that require some amount of low memory, e.g. swiotlb
-			requires at least 64M+32K low memory, also enough extra
-			low memory is needed to make sure DMA buffers for 32-bit
-			devices won't run out. Kernel would try to allocate
+			[KNL, X86-64, ARM64, RISCV, LoongArch] range under 4G.
+			When crashkernel=X,high is passed, kernel could allocate
+			physical memory region above 4G, that cause second kernel
+			crash on system that require some amount of low memory,
+			e.g. swiotlb requires at least 64M+32K low memory, also
+			enough extra low memory is needed to make sure DMA buffers
+			for 32-bit devices won't run out. Kernel would try to allocate
 			default	size of memory below 4G automatically. The default
 			size is	platform dependent.
 			  --> x86: max(swiotlb_size_or_default() + 8MiB, 256MiB)
 			  --> arm64: 128MiB
 			  --> riscv: 128MiB
+			  --> loongarch: 128MiB
 			This one lets the user specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.

@@ -1345,6 +1345,14 @@ static Elf_Addr addend_mips_rel(uint32_t *location, unsigned int r_type)
 #define R_LARCH_SUB32		55
 #endif
 
+#ifndef R_LARCH_RELAX
+#define R_LARCH_RELAX		100
+#endif
+
+#ifndef R_LARCH_ALIGN
+#define R_LARCH_ALIGN		102
+#endif
+
 static void get_rel_type_and_sym(struct elf_info *elf, uint64_t r_info,
 				 unsigned int *r_type, unsigned int *r_sym)
 {
@@ -1399,9 +1407,16 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 				continue;
 			break;
 		case EM_LOONGARCH:
-			if (!strcmp("__ex_table", fromsec) &&
-			    r_type == R_LARCH_SUB32)
+			switch (r_type) {
+			case R_LARCH_SUB32:
+				if (!strcmp("__ex_table", fromsec))
+					continue;
+				break;
+			case R_LARCH_RELAX:
+			case R_LARCH_ALIGN:
+				/* These relocs do not refer to symbols */
 				continue;
+			}
 			break;
 		}
 
