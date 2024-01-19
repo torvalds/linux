@@ -780,7 +780,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	} else if (subvp_pipe->next_odm_pipe) {
 		pipe_data->pipe_config.subvp_data.main_split_pipe_index = subvp_pipe->next_odm_pipe->pipe_idx;
 	} else {
-		pipe_data->pipe_config.subvp_data.main_split_pipe_index = 0;
+		pipe_data->pipe_config.subvp_data.main_split_pipe_index = 0xF;
 	}
 
 	// Find phantom pipe index based on phantom stream
@@ -795,7 +795,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			} else if (phantom_pipe->next_odm_pipe) {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->next_odm_pipe->plane_res.hubp->inst;
 			} else {
-				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = 0;
+				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = 0xF;
 			}
 			break;
 		}
