@@ -4623,6 +4623,7 @@ struct rtw89_hw_scan_info {
 	struct ieee80211_vif *scanning_vif;
 	struct list_head pkt_list[NUM_NL80211_BANDS];
 	struct rtw89_chan op_chan;
+	bool abort;
 	u32 last_chan_idx;
 };
 

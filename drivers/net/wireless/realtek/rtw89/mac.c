@@ -4717,7 +4717,7 @@ rtw89_mac_c2h_scanofld_rsp(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 				rtw89_warn(rtwdev, "HW scan failed: %d\n", ret);
 			}
 		} else {
-			rtw89_hw_scan_complete(rtwdev, vif, false);
+			rtw89_hw_scan_complete(rtwdev, vif, rtwdev->scan_info.abort);
 		}
 		break;
 	case RTW89_SCAN_ENTER_CH_NOTIFY:
@@ -4839,8 +4839,10 @@ rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 le
 		default:
 			return;
 		case H2C_FUNC_ADD_SCANOFLD_CH:
+			cond = RTW89_SCANOFLD_WAIT_COND_ADD_CH;
+			break;
 		case H2C_FUNC_SCANOFLD:
-			cond = RTW89_FW_OFLD_WAIT_COND(0, h2c_func);
+			cond = RTW89_SCANOFLD_WAIT_COND_START;
 			break;
 		}
 
@@ -5084,7 +5086,25 @@ void (* const rtw89_mac_c2h_mcc_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_MCC_STATUS_RPT] = rtw89_mac_c2h_mcc_status_rpt,
 };
 
-bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
+static void rtw89_mac_c2h_scanofld_rsp_atomic(struct rtw89_dev *rtwdev,
+					      struct sk_buff *skb)
+{
+	const struct rtw89_c2h_scanofld *c2h =
+		(const struct rtw89_c2h_scanofld *)skb->data;
+	struct rtw89_wait_info *fw_ofld_wait = &rtwdev->mac.fw_ofld_wait;
+	struct rtw89_completion_data data = {};
+	u8 status, reason;
+
+	status = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_STATUS);
+	reason = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_RSN);
+	data.err = status != RTW89_SCAN_STATUS_SUCCESS;
+
+	if (reason == RTW89_SCAN_END_SCAN_NOTIFY)
+		rtw89_complete_cond(fw_ofld_wait, RTW89_SCANOFLD_WAIT_COND_STOP, &data);
+}
+
+bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
+			      u8 class, u8 func)
 {
 	switch (class) {
 	default:
@@ -5100,6 +5120,9 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func)
 	case RTW89_MAC_C2H_CLASS_OFLD:
 		switch (func) {
 		default:
+			return false;
+		case RTW89_MAC_C2H_FUNC_SCANOFLD_RSP:
+			rtw89_mac_c2h_scanofld_rsp_atomic(rtwdev, c2h);
 			return false;
 		case RTW89_MAC_C2H_FUNC_PKT_OFLD_RSP:
 			return true;

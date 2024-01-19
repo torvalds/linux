@@ -4063,7 +4063,7 @@ int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int ch_num,
 			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
 			      H2C_FUNC_ADD_SCANOFLD_CH, 1, 1, skb_len);
 
-	cond = RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_ADD_SCANOFLD_CH);
+	cond = RTW89_SCANOFLD_WAIT_COND_ADD_CH;
 
 	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
@@ -4122,7 +4122,10 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      H2C_FUNC_SCANOFLD, 1, 1,
 			      len);
 
-	cond = RTW89_FW_OFLD_WAIT_COND(0, H2C_FUNC_SCANOFLD);
+	if (option->enable)
+		cond = RTW89_SCANOFLD_WAIT_COND_START;
+	else
+		cond = RTW89_SCANOFLD_WAIT_COND_STOP;
 
 	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 	if (ret) {
@@ -4312,7 +4315,7 @@ static bool rtw89_fw_c2h_chk_atomic(struct rtw89_dev *rtwdev,
 	default:
 		return false;
 	case RTW89_C2H_CAT_MAC:
-		return rtw89_mac_c2h_chk_atomic(rtwdev, class, func);
+		return rtw89_mac_c2h_chk_atomic(rtwdev, c2h, class, func);
 	case RTW89_C2H_CAT_OUTSRC:
 		return rtw89_phy_c2h_chk_atomic(rtwdev, class, func);
 	}
@@ -4866,6 +4869,7 @@ void rtw89_hw_scan_start(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtw89_get_channel(rtwdev, rtwvif, &rtwdev->scan_info.op_chan);
 	rtwdev->scan_info.scanning_vif = vif;
 	rtwdev->scan_info.last_chan_idx = 0;
+	rtwdev->scan_info.abort = false;
 	rtwvif->scan_ies = &scan_req->ies;
 	rtwvif->scan_req = req;
 	ieee80211_stop_queues(rtwdev->hw);
@@ -4917,14 +4921,21 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwvif->scan_ies = NULL;
 	scan_info->last_chan_idx = 0;
 	scan_info->scanning_vif = NULL;
+	scan_info->abort = false;
 
 	rtw89_chanctx_proceed(rtwdev);
 }
 
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif)
 {
-	rtw89_hw_scan_offload(rtwdev, vif, false);
-	rtw89_hw_scan_complete(rtwdev, vif, true);
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	int ret;
+
+	scan_info->abort = true;
+
+	ret = rtw89_hw_scan_offload(rtwdev, vif, false);
+	if (ret)
+		rtw89_hw_scan_complete(rtwdev, vif, true);
 }
 
 static bool rtw89_is_any_vif_connected_or_connecting(struct rtw89_dev *rtwdev)
