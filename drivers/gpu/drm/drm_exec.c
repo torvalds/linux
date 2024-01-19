@@ -72,7 +72,7 @@ static void drm_exec_unlock_all(struct drm_exec *exec)
  *
  * Initialize the object and make sure that we can track locked objects.
  */
-void drm_exec_init(struct drm_exec *exec, uint32_t flags)
+void drm_exec_init(struct drm_exec *exec, u32 flags)
 {
 	exec->flags = flags;
 	exec->objects = kmalloc(PAGE_SIZE, GFP_KERNEL);
