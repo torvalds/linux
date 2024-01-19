@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/syscall.h>
 #include <libelf.h>
 #include "relo_core.h"
 
@@ -555,6 +556,15 @@ static inline int ensure_good_fd(int fd)
 	return fd;
 }
 
+static inline int sys_dup2(int oldfd, int newfd)
+{
+#ifdef __NR_dup2
+	return syscall(__NR_dup2, oldfd, newfd);
+#else
+	return syscall(__NR_dup3, oldfd, newfd, 0);
+#endif
+}
+
 /* Point *fixed_fd* to the same file that *tmp_fd* points to.
  * Regardless of success, *tmp_fd* is closed.
  * Whatever *fixed_fd* pointed to is closed silently.
@@ -563,7 +573,7 @@ static inline int reuse_fd(int fixed_fd, int tmp_fd)
 {
 	int err;
 
-	err = dup2(tmp_fd, fixed_fd);
+	err = sys_dup2(tmp_fd, fixed_fd);
 	err = err < 0 ? -errno : 0;
 	close(tmp_fd); /* clean up temporary FD */
 	return err;
