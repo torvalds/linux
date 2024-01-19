@@ -3493,6 +3493,8 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 			rtw89_warn(rtwdev, "failed to send h2c general packet\n");
 			return ret;
 		}
+
+		rtw89_fw_h2c_set_bcn_fltr_cfg(rtwdev, vif, true);
 	}
 
 	return ret;

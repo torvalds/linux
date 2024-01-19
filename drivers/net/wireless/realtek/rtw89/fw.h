@@ -188,6 +188,9 @@ enum rtw89_p2pps_action {
 	RTW89_P2P_ACT_TERMINATE = 3,
 };
 
+#define RTW89_DEFAULT_CQM_HYST 4
+#define RTW89_DEFAULT_CQM_THOLD -70
+
 enum rtw89_bcn_fltr_offload_mode {
 	RTW89_BCN_FLTR_OFFLOAD_MODE_0 = 0,
 	RTW89_BCN_FLTR_OFFLOAD_MODE_1,
