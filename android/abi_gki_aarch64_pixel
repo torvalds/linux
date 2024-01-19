@@ -2282,6 +2282,9 @@
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_enqueue_task_fair
   __traceiter_android_rvh_find_lowest_rq
+  __traceiter_android_rvh_iommu_alloc_insert_iova
+  __traceiter_android_rvh_iommu_iovad_init_alloc_algo
+  __traceiter_android_rvh_iommu_limit_align_shift
   __traceiter_android_rvh_irqs_disable
   __traceiter_android_rvh_irqs_enable
   __traceiter_android_rvh_post_init_entity_util_avg
@@ -2391,6 +2394,9 @@
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_enqueue_task_fair
   __tracepoint_android_rvh_find_lowest_rq
+  __tracepoint_android_rvh_iommu_alloc_insert_iova
+  __tracepoint_android_rvh_iommu_iovad_init_alloc_algo
+  __tracepoint_android_rvh_iommu_limit_align_shift
   __tracepoint_android_rvh_irqs_disable
   __tracepoint_android_rvh_irqs_enable
   __tracepoint_android_rvh_post_init_entity_util_avg
