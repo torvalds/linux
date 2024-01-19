@@ -3996,55 +3996,60 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 	return 0;
 }
 
-#define H2C_LEN_SCAN_LIST_OFFLOAD 4
-int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int len,
+int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int ch_num,
 				   struct list_head *chan_list)
 {
 	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	struct rtw89_h2c_chinfo_elem *elem;
 	struct rtw89_mac_chinfo *ch_info;
+	struct rtw89_h2c_chinfo *h2c;
 	struct sk_buff *skb;
-	int skb_len = H2C_LEN_SCAN_LIST_OFFLOAD + len * RTW89_MAC_CHINFO_SIZE;
 	unsigned int cond;
-	u8 *cmd;
+	int skb_len;
 	int ret;
 
+	static_assert(sizeof(*elem) == RTW89_MAC_CHINFO_SIZE);
+
+	skb_len = struct_size(h2c, elem, ch_num);
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, skb_len);
 	if (!skb) {
 		rtw89_err(rtwdev, "failed to alloc skb for h2c scan list\n");
 		return -ENOMEM;
 	}
-	skb_put(skb, H2C_LEN_SCAN_LIST_OFFLOAD);
-	cmd = skb->data;
+	skb_put(skb, sizeof(*h2c));
+	h2c = (struct rtw89_h2c_chinfo *)skb->data;
 
-	RTW89_SET_FWCMD_SCANOFLD_CH_NUM(cmd, len);
-	/* in unit of 4 bytes */
-	RTW89_SET_FWCMD_SCANOFLD_CH_SIZE(cmd, RTW89_MAC_CHINFO_SIZE / 4);
+	h2c->ch_num = ch_num;
+	h2c->elem_size = sizeof(*elem) / 4; /* in unit of 4 bytes */
 
 	list_for_each_entry(ch_info, chan_list, list) {
-		cmd = skb_put(skb, RTW89_MAC_CHINFO_SIZE);
+		elem = (struct rtw89_h2c_chinfo_elem *)skb_put(skb, sizeof(*elem));
 
-		RTW89_SET_FWCMD_CHINFO_PERIOD(cmd, ch_info->period);
-		RTW89_SET_FWCMD_CHINFO_DWELL(cmd, ch_info->dwell_time);
-		RTW89_SET_FWCMD_CHINFO_CENTER_CH(cmd, ch_info->central_ch);
-		RTW89_SET_FWCMD_CHINFO_PRI_CH(cmd, ch_info->pri_ch);
-		RTW89_SET_FWCMD_CHINFO_BW(cmd, ch_info->bw);
-		RTW89_SET_FWCMD_CHINFO_ACTION(cmd, ch_info->notify_action);
-		RTW89_SET_FWCMD_CHINFO_NUM_PKT(cmd, ch_info->num_pkt);
-		RTW89_SET_FWCMD_CHINFO_TX(cmd, ch_info->tx_pkt);
-		RTW89_SET_FWCMD_CHINFO_PAUSE_DATA(cmd, ch_info->pause_data);
-		RTW89_SET_FWCMD_CHINFO_BAND(cmd, ch_info->ch_band);
-		RTW89_SET_FWCMD_CHINFO_PKT_ID(cmd, ch_info->probe_id);
-		RTW89_SET_FWCMD_CHINFO_DFS(cmd, ch_info->dfs_ch);
-		RTW89_SET_FWCMD_CHINFO_TX_NULL(cmd, ch_info->tx_null);
-		RTW89_SET_FWCMD_CHINFO_RANDOM(cmd, ch_info->rand_seq_num);
-		RTW89_SET_FWCMD_CHINFO_PKT0(cmd, ch_info->pkt_id[0]);
-		RTW89_SET_FWCMD_CHINFO_PKT1(cmd, ch_info->pkt_id[1]);
-		RTW89_SET_FWCMD_CHINFO_PKT2(cmd, ch_info->pkt_id[2]);
-		RTW89_SET_FWCMD_CHINFO_PKT3(cmd, ch_info->pkt_id[3]);
-		RTW89_SET_FWCMD_CHINFO_PKT4(cmd, ch_info->pkt_id[4]);
-		RTW89_SET_FWCMD_CHINFO_PKT5(cmd, ch_info->pkt_id[5]);
-		RTW89_SET_FWCMD_CHINFO_PKT6(cmd, ch_info->pkt_id[6]);
-		RTW89_SET_FWCMD_CHINFO_PKT7(cmd, ch_info->pkt_id[7]);
+		elem->w0 = le32_encode_bits(ch_info->period, RTW89_H2C_CHINFO_W0_PERIOD) |
+			   le32_encode_bits(ch_info->dwell_time, RTW89_H2C_CHINFO_W0_DWELL) |
+			   le32_encode_bits(ch_info->central_ch, RTW89_H2C_CHINFO_W0_CENTER_CH) |
+			   le32_encode_bits(ch_info->pri_ch, RTW89_H2C_CHINFO_W0_PRI_CH);
+
+		elem->w1 = le32_encode_bits(ch_info->bw, RTW89_H2C_CHINFO_W1_BW) |
+			   le32_encode_bits(ch_info->notify_action, RTW89_H2C_CHINFO_W1_ACTION) |
+			   le32_encode_bits(ch_info->num_pkt, RTW89_H2C_CHINFO_W1_NUM_PKT) |
+			   le32_encode_bits(ch_info->tx_pkt, RTW89_H2C_CHINFO_W1_TX) |
+			   le32_encode_bits(ch_info->pause_data, RTW89_H2C_CHINFO_W1_PAUSE_DATA) |
+			   le32_encode_bits(ch_info->ch_band, RTW89_H2C_CHINFO_W1_BAND) |
+			   le32_encode_bits(ch_info->probe_id, RTW89_H2C_CHINFO_W1_PKT_ID) |
+			   le32_encode_bits(ch_info->dfs_ch, RTW89_H2C_CHINFO_W1_DFS) |
+			   le32_encode_bits(ch_info->tx_null, RTW89_H2C_CHINFO_W1_TX_NULL) |
+			   le32_encode_bits(ch_info->rand_seq_num, RTW89_H2C_CHINFO_W1_RANDOM);
+
+		elem->w2 = le32_encode_bits(ch_info->pkt_id[0], RTW89_H2C_CHINFO_W2_PKT0) |
+			   le32_encode_bits(ch_info->pkt_id[1], RTW89_H2C_CHINFO_W2_PKT1) |
+			   le32_encode_bits(ch_info->pkt_id[2], RTW89_H2C_CHINFO_W2_PKT2) |
+			   le32_encode_bits(ch_info->pkt_id[3], RTW89_H2C_CHINFO_W2_PKT3);
+
+		elem->w3 = le32_encode_bits(ch_info->pkt_id[4], RTW89_H2C_CHINFO_W3_PKT4) |
+			   le32_encode_bits(ch_info->pkt_id[5], RTW89_H2C_CHINFO_W3_PKT5) |
+			   le32_encode_bits(ch_info->pkt_id[6], RTW89_H2C_CHINFO_W3_PKT6) |
+			   le32_encode_bits(ch_info->pkt_id[7], RTW89_H2C_CHINFO_W3_PKT7);
 	}
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
