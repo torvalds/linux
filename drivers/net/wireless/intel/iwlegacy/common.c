@@ -3438,9 +3438,7 @@ il_init_geos(struct il_priv *il)
 	if (!channels)
 		return -ENOMEM;
 
-	rates =
-	    kzalloc((sizeof(struct ieee80211_rate) * RATE_COUNT_LEGACY),
-		    GFP_KERNEL);
+	rates = kcalloc(RATE_COUNT_LEGACY, sizeof(*rates), GFP_KERNEL);
 	if (!rates) {
 		kfree(channels);
 		return -ENOMEM;
