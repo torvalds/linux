@@ -160,7 +160,7 @@
 
 	ltpi0_i2c0: i2c-bus@100 {
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 		#interrupt-cells = <1>;
 		reg = <0x100 0x80>, <0x1a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
@@ -169,14 +169,12 @@
 		resets = <&ltpi0_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc6 0>;
 		clock-frequency = <100000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ltpi0_i2c0_default>;
 		status = "disabled";
 	};
 
 	ltpi0_i2c1: i2c-bus@200 {
 		#address-cells = <1>;
-		#size-cells = <1>;
+		#size-cells = <0>;
 		#interrupt-cells = <1>;
 		reg = <0x200 0x80>, <0x2a0 0x20>;
 		compatible = "aspeed,ast2600-i2cv2";
@@ -185,8 +183,6 @@
 		resets = <&ltpi0_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc6 1>;
 		clock-frequency = <100000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ltpi0_i2c1_default>;
 		status = "disabled";
 	};
 
@@ -201,8 +197,6 @@
 		resets = <&ltpi0_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc6 2>;
 		clock-frequency = <100000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ltpi0_i2c2_default>;
 		status = "disabled";
 	};
 
@@ -217,8 +211,6 @@
 		resets = <&ltpi0_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc6 3>;
 		clock-frequency = <100000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ltpi0_i2c3_default>;
 		status = "disabled";
 	};
 
@@ -233,8 +225,6 @@
 		resets = <&ltpi0_syscon AST1700_RESET_I2C>;
 		clock-frequency = <100000>;
 		interrupts-extended = <&intc6 4>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ltpi0_i2c4_default>;
 		status = "disabled";
 	};
 
@@ -249,8 +239,6 @@
 		resets = <&ltpi0_syscon AST1700_RESET_I2C>;
 		interrupts-extended = <&intc6 5>;
 		clock-frequency = <100000>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ltpi0_i2c5_default>;
 		status = "disabled";
 	};
 };
