@@ -49,7 +49,7 @@
 
 static struct icc_path *scm_perf_client;
 static int scm_pas_bw_count;
-static DEFINE_MUTEX(scm_pas_bw_mutex);
+static DEFINE_MUTEX(q6v5_pas_mutex);
 bool timeout_disabled;
 static bool global_sync_mem_setup;
 static bool recovery_set_cb;
@@ -316,7 +316,7 @@ static int scm_pas_enable_bw(void)
 	if (IS_ERR(scm_perf_client))
 		return -EINVAL;
 
-	mutex_lock(&scm_pas_bw_mutex);
+	mutex_lock(&q6v5_pas_mutex);
 	if (!scm_pas_bw_count) {
 		ret = icc_set_bw(scm_perf_client, PIL_TZ_AVG_BW,
 						PIL_TZ_PEAK_BW);
@@ -325,14 +325,14 @@ static int scm_pas_enable_bw(void)
 	}
 
 	scm_pas_bw_count++;
-	mutex_unlock(&scm_pas_bw_mutex);
+	mutex_unlock(&q6v5_pas_mutex);
 	return ret;
 
 err_bus:
 	pr_err("scm-pas: Bandwidth request failed (%d)\n", ret);
 	icc_set_bw(scm_perf_client, 0, 0);
 
-	mutex_unlock(&scm_pas_bw_mutex);
+	mutex_unlock(&q6v5_pas_mutex);
 	return ret;
 }
 
@@ -341,10 +341,10 @@ static void scm_pas_disable_bw(void)
 	if (IS_ERR(scm_perf_client))
 		return;
 
-	mutex_lock(&scm_pas_bw_mutex);
+	mutex_lock(&q6v5_pas_mutex);
 	if (scm_pas_bw_count-- == 1)
 		icc_set_bw(scm_perf_client, 0, 0);
-	mutex_unlock(&scm_pas_bw_mutex);
+	mutex_unlock(&q6v5_pas_mutex);
 }
 
 static void adsp_add_coredump_segments(struct qcom_adsp *adsp, const struct firmware *fw)
@@ -1628,15 +1628,18 @@ static int adsp_probe(struct platform_device *pdev)
 	if (ret)
 		goto destroy_minidump_dev;
 
+	mutex_lock(&q6v5_pas_mutex);
 	if (!recovery_set_cb) {
 		ret = register_trace_android_vh_rproc_recovery_set(android_vh_rproc_recovery_set,
 											NULL);
 		if (ret) {
 			dev_err(&pdev->dev, "Unable to register with rproc_recovery_set trace hook\n");
+			mutex_unlock(&q6v5_pas_mutex);
 			goto remove_rproc;
 		}
 		recovery_set_cb = true;
 	}
+	mutex_unlock(&q6v5_pas_mutex);
 
 	return 0;
 
