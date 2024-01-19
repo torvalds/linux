@@ -204,6 +204,8 @@ struct cifs_open_info_data {
 		};
 	} reparse;
 	char *symlink_target;
+	struct cifs_sid posix_owner;
+	struct cifs_sid posix_group;
 	union {
 		struct smb2_file_all_info fi;
 		struct smb311_posix_qinfo posix_fi;
