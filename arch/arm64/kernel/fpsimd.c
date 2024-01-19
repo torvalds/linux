@@ -898,10 +898,8 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 	 * allocate SVE now in case it is needed for use in streaming
 	 * mode.
 	 */
-	if (system_supports_sve()) {
-		sve_free(task);
-		sve_alloc(task, true);
-	}
+	sve_free(task);
+	sve_alloc(task, true);
 
 	if (free_sme)
 		sme_free(task);
@@ -1219,8 +1217,10 @@ void fpsimd_release_task(struct task_struct *dead_task)
  */
 void sme_alloc(struct task_struct *task, bool flush)
 {
-	if (task->thread.sme_state && flush) {
-		memset(task->thread.sme_state, 0, sme_state_size(task));
+	if (task->thread.sme_state) {
+		if (flush)
+			memset(task->thread.sme_state, 0,
+			       sme_state_size(task));
 		return;
 	}
 

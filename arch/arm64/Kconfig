@@ -1039,13 +1039,31 @@ config ARM64_ERRATUM_2645198
 
 	  If unsure, say Y.
 
+config ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
+	bool
+
 config ARM64_ERRATUM_2966298
 	bool "Cortex-A520: 2966298: workaround for speculatively executed unprivileged load"
+	select ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
 	default y
 	help
 	  This option adds the workaround for ARM Cortex-A520 erratum 2966298.
 
 	  On an affected Cortex-A520 core, a speculatively executed unprivileged
+	  load might leak data from a privileged level via a cache side channel.
+
+	  Work around this problem by executing a TLBI before returning to EL0.
+
+	  If unsure, say Y.
+
+config ARM64_ERRATUM_3117295
+	bool "Cortex-A510: 3117295: workaround for speculatively executed unprivileged load"
+	select ARM64_WORKAROUND_SPECULATIVE_UNPRIV_LOAD
+	default y
+	help
+	  This option adds the workaround for ARM Cortex-A510 erratum 3117295.
+
+	  On an affected Cortex-A510 core, a speculatively executed unprivileged
 	  load might leak data from a privileged level via a cache side channel.
 
 	  Work around this problem by executing a TLBI before returning to EL0.

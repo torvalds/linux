@@ -1108,12 +1108,13 @@ static int za_set(struct task_struct *target,
 		}
 	}
 
-	/* Allocate/reinit ZA storage */
-	sme_alloc(target, true);
-	if (!target->thread.sme_state) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	/*
+	 * Only flush the storage if PSTATE.ZA was not already set,
+	 * otherwise preserve any existing data.
+	 */
+	sme_alloc(target, !thread_za_enabled(&target->thread));
+	if (!target->thread.sme_state)
+		return -ENOMEM;
 
 	/* If there is no data then disable ZA */
 	if (!count) {
