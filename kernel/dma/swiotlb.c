@@ -1136,6 +1136,9 @@ static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 	int cpu, i;
 	int index;
 
+	if (alloc_size > IO_TLB_SEGSIZE * IO_TLB_SIZE)
+		return -1;
+
 	cpu = raw_smp_processor_id();
 	for (i = 0; i < default_nareas; ++i) {
 		index = swiotlb_search_area(dev, cpu, i, orig_addr, alloc_size,
