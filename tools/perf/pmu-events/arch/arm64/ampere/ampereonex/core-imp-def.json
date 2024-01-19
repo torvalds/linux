@@ -1,0 +1,464 @@
+[
+    {
+        "PublicDescription": "Level 2 prefetch requests, refilled to L2 cache",
+        "EventCode": "0x10A",
+        "EventName": "L2_PREFETCH_REFILL",
+        "BriefDescription": "Level 2 prefetch requests, refilled to L2 cache"
+    },
+    {
+        "PublicDescription": "Level 2 prefetch requests, late",
+        "EventCode": "0x10B",
+        "EventName": "L2_PREFETCH_UPGRADE",
+        "BriefDescription": "Level 2 prefetch requests, late"
+    },
+    {
+        "PublicDescription": "Predictable branch speculatively executed that hit any level of BTB",
+        "EventCode": "0x110",
+        "EventName": "BPU_HIT_BTB",
+        "BriefDescription": "Predictable branch speculatively executed that hit any level of BTB"
+    },
+    {
+        "PublicDescription": "Predictable conditional branch speculatively executed that hit any level of BTB",
+        "EventCode": "0x111",
+        "EventName": "BPU_CONDITIONAL_BRANCH_HIT_BTB",
+        "BriefDescription": "Predictable conditional branch speculatively executed that hit any level of BTB"
+    },
+    {
+        "PublicDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the indirect predictor",
+        "EventCode": "0x112",
+        "EventName": "BPU_HIT_INDIRECT_PREDICTOR",
+        "BriefDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the indirect predictor"
+    },
+    {
+        "PublicDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the return predictor",
+        "EventCode": "0x113",
+        "EventName": "BPU_HIT_RSB",
+        "BriefDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the return predictor"
+    },
+    {
+        "PublicDescription": "Predictable unconditional branch speculatively executed that did not hit any level of BTB",
+        "EventCode": "0x114",
+        "EventName": "BPU_UNCONDITIONAL_BRANCH_MISS_BTB",
+        "BriefDescription": "Predictable unconditional branch speculatively executed that did not hit any level of BTB"
+    },
+    {
+        "PublicDescription": "Predictable branch speculatively executed, unpredicted",
+        "EventCode": "0x115",
+        "EventName": "BPU_BRANCH_NO_HIT",
+        "BriefDescription": "Predictable branch speculatively executed, unpredicted"
+    },
+    {
+        "PublicDescription": "Predictable branch speculatively executed that hit any level of BTB that mispredict",
+        "EventCode": "0x116",
+        "EventName": "BPU_HIT_BTB_AND_MISPREDICT",
+        "BriefDescription": "Predictable branch speculatively executed that hit any level of BTB that mispredict"
+    },
+    {
+        "PublicDescription": "Predictable conditional branch speculatively executed that hit any level of BTB that (direction) mispredict",
+        "EventCode": "0x117",
+        "EventName": "BPU_CONDITIONAL_BRANCH_HIT_BTB_AND_MISPREDICT",
+        "BriefDescription": "Predictable conditional branch speculatively executed that hit any level of BTB that (direction) mispredict"
+    },
+    {
+        "PublicDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the indirect predictor that mispredict",
+        "EventCode": "0x118",
+        "EventName": "BPU_INDIRECT_BRANCH_HIT_BTB_AND_MISPREDICT",
+        "BriefDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the indirect predictor that mispredict"
+    },
+    {
+        "PublicDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the return predictor that mispredict",
+        "EventCode": "0x119",
+        "EventName": "BPU_HIT_RSB_AND_MISPREDICT",
+        "BriefDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the return predictor that mispredict"
+    },
+    {
+        "PublicDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the overflow/underflow return predictor that mispredict",
+        "EventCode": "0x11a",
+        "EventName": "BPU_MISS_RSB_AND_MISPREDICT",
+        "BriefDescription": "Predictable taken branch speculatively executed that hit any level of BTB that access the overflow/underflow return predictor that mispredict"
+    },
+    {
+        "PublicDescription": "Predictable branch speculatively executed, unpredicted, that mispredict",
+        "EventCode": "0x11b",
+        "EventName": "BPU_NO_PREDICTION_MISPREDICT",
+        "BriefDescription": "Predictable branch speculatively executed, unpredicted, that mispredict"
+    },
+    {
+        "PublicDescription": "Preditable branch update the BTB region buffer entry",
+        "EventCode": "0x11c",
+        "EventName": "BPU_BTB_UPDATE",
+        "BriefDescription": "Preditable branch update the BTB region buffer entry"
+    },
+    {
+        "PublicDescription": "Count predict pipe stalls due to speculative return address predictor full",
+        "EventCode": "0x11d",
+        "EventName": "BPU_RSB_FULL_STALL",
+        "BriefDescription": "Count predict pipe stalls due to speculative return address predictor full"
+    },
+    {
+        "PublicDescription": "Macro-ops speculatively decoded",
+        "EventCode": "0x11f",
+        "EventName": "ICF_INST_SPEC_DECODE",
+        "BriefDescription": "Macro-ops speculatively decoded"
+    },
+    {
+        "PublicDescription": "Flushes",
+        "EventCode": "0x120",
+        "EventName": "GPC_FLUSH",
+        "BriefDescription": "Flushes"
+    },
+    {
+        "PublicDescription": "Flushes due to memory hazards",
+        "EventCode": "0x121",
+        "EventName": "GPC_FLUSH_MEM_FAULT",
+        "BriefDescription": "Flushes due to memory hazards"
+    },
+    {
+        "PublicDescription": "ETM extout bit 0",
+        "EventCode": "0x141",
+        "EventName": "MSC_ETM_EXTOUT0",
+        "BriefDescription": "ETM extout bit 0"
+    },
+    {
+        "PublicDescription": "ETM extout bit 1",
+        "EventCode": "0x142",
+        "EventName": "MSC_ETM_EXTOUT1",
+        "BriefDescription": "ETM extout bit 1"
+    },
+    {
+        "PublicDescription": "ETM extout bit 2",
+        "EventCode": "0x143",
+        "EventName": "MSC_ETM_EXTOUT2",
+        "BriefDescription": "ETM extout bit 2"
+    },
+    {
+        "PublicDescription": "ETM extout bit 3",
+        "EventCode": "0x144",
+        "EventName": "MSC_ETM_EXTOUT3",
+        "BriefDescription": "ETM extout bit 3"
+    },
+    {
+        "PublicDescription": "Bus request sn",
+        "EventCode": "0x156",
+        "EventName": "L2C_SNOOP",
+        "BriefDescription": "Bus request sn"
+    },
+    {
+        "PublicDescription": "L2 TXDAT LCRD blocked",
+        "EventCode": "0x169",
+        "EventName": "L2C_DAT_CRD_STALL",
+        "BriefDescription": "L2 TXDAT LCRD blocked"
+    },
+    {
+        "PublicDescription": "L2 TXRSP LCRD blocked",
+        "EventCode": "0x16a",
+        "EventName": "L2C_RSP_CRD_STALL",
+        "BriefDescription": "L2 TXRSP LCRD blocked"
+    },
+    {
+        "PublicDescription": "L2 TXREQ LCRD blocked",
+        "EventCode": "0x16b",
+        "EventName": "L2C_REQ_CRD_STALL",
+        "BriefDescription": "L2 TXREQ LCRD blocked"
+    },
+    {
+        "PublicDescription": "Early mispredict",
+        "EventCode": "0xD100",
+        "EventName": "ICF_EARLY_MIS_PRED",
+        "BriefDescription": "Early mispredict"
+    },
+    {
+        "PublicDescription": "FEQ full cycles",
+        "EventCode": "0xD101",
+        "EventName": "ICF_FEQ_FULL",
+        "BriefDescription": "FEQ full cycles"
+    },
+    {
+        "PublicDescription": "Instruction FIFO Full",
+        "EventCode": "0xD102",
+        "EventName": "ICF_INST_FIFO_FULL",
+        "BriefDescription": "Instruction FIFO Full"
+    },
+    {
+        "PublicDescription": "L1I TLB miss",
+        "EventCode": "0xD103",
+        "EventName": "L1I_TLB_MISS",
+        "BriefDescription": "L1I TLB miss"
+    },
+    {
+        "PublicDescription": "ICF sent 0 instructions to IDR this cycle",
+        "EventCode": "0xD104",
+        "EventName": "ICF_STALL",
+        "BriefDescription": "ICF sent 0 instructions to IDR this cycle"
+    },
+    {
+        "PublicDescription": "PC FIFO Full",
+        "EventCode": "0xD105",
+        "EventName": "ICF_PC_FIFO_FULL",
+        "BriefDescription": "PC FIFO Full"
+    },
+    {
+        "PublicDescription": "Stall due to BOB ID",
+        "EventCode": "0xD200",
+        "EventName": "IDR_STALL_BOB_ID",
+        "BriefDescription": "Stall due to BOB ID"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to LOB entries",
+        "EventCode": "0xD201",
+        "EventName": "IDR_STALL_LOB_ID",
+        "BriefDescription": "Dispatch stall due to LOB entries"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to SOB entries",
+        "EventCode": "0xD202",
+        "EventName": "IDR_STALL_SOB_ID",
+        "BriefDescription": "Dispatch stall due to SOB entries"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to IXU scheduler entries",
+        "EventCode": "0xD203",
+        "EventName": "IDR_STALL_IXU_SCHED",
+        "BriefDescription": "Dispatch stall due to IXU scheduler entries"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to FSU scheduler entries",
+        "EventCode": "0xD204",
+        "EventName": "IDR_STALL_FSU_SCHED",
+        "BriefDescription": "Dispatch stall due to FSU scheduler entries"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to ROB entries",
+        "EventCode": "0xD205",
+        "EventName": "IDR_STALL_ROB_ID",
+        "BriefDescription": "Dispatch stall due to ROB entries"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to flush",
+        "EventCode": "0xD206",
+        "EventName": "IDR_STALL_FLUSH",
+        "BriefDescription": "Dispatch stall due to flush"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to WFI",
+        "EventCode": "0xD207",
+        "EventName": "IDR_STALL_WFI",
+        "BriefDescription": "Dispatch stall due to WFI"
+    },
+    {
+        "PublicDescription": "Number of SWOB drains triggered by timeout",
+        "EventCode": "0xD208",
+        "EventName": "IDR_STALL_SWOB_TIMEOUT",
+        "BriefDescription": "Number of SWOB drains triggered by timeout"
+    },
+    {
+        "PublicDescription": "Number of SWOB drains triggered by system register or special-purpose register read-after-write or specific special-purpose register writes that cause SWOB drain",
+        "EventCode": "0xD209",
+        "EventName": "IDR_STALL_SWOB_RAW",
+        "BriefDescription": "Number of SWOB drains triggered by system register or special-purpose register read-after-write or specific special-purpose register writes that cause SWOB drain"
+    },
+    {
+        "PublicDescription": "Number of SWOB drains triggered by system register write when SWOB full",
+        "EventCode": "0xD20A",
+        "EventName": "IDR_STALL_SWOB_FULL",
+        "BriefDescription": "Number of SWOB drains triggered by system register write when SWOB full"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to L1 instruction cache miss",
+        "EventCode": "0xD20B",
+        "EventName": "STALL_FRONTEND_CACHE",
+        "BriefDescription": "Dispatch stall due to L1 instruction cache miss"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to L1 data cache miss",
+        "EventCode": "0xD20D",
+        "EventName": "STALL_BACKEND_CACHE",
+        "BriefDescription": "Dispatch stall due to L1 data cache miss"
+    },
+    {
+        "PublicDescription": "Dispatch stall due to lack of any core resource",
+        "EventCode": "0xD20F",
+        "EventName": "STALL_BACKEND_RESOURCE",
+        "BriefDescription": "Dispatch stall due to lack of any core resource"
+    },
+    {
+        "PublicDescription": "Instructions issued by the scheduler",
+        "EventCode": "0xD300",
+        "EventName": "IXU_NUM_UOPS_ISSUED",
+        "BriefDescription": "Instructions issued by the scheduler"
+    },
+    {
+        "PublicDescription": "Any uop issued was canceled for any reason",
+        "EventCode": "0xD301",
+        "EventName": "IXU_ISSUE_CANCEL",
+        "BriefDescription": "Any uop issued was canceled for any reason"
+    },
+    {
+        "PublicDescription": "A load wakeup to the scheduler has been canceled",
+        "EventCode": "0xD302",
+        "EventName": "IXU_LOAD_CANCEL",
+        "BriefDescription": "A load wakeup to the scheduler has been canceled"
+    },
+    {
+        "PublicDescription": "The scheduler had to cancel one slow Uop due to resource conflict",
+        "EventCode": "0xD303",
+        "EventName": "IXU_SLOW_CANCEL",
+        "BriefDescription": "The scheduler had to cancel one slow Uop due to resource conflict"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXA",
+        "EventCode": "0xD304",
+        "EventName": "IXU_IXA_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXA"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXA Par 0",
+        "EventCode": "0xD305",
+        "EventName": "IXU_IXA_PAR0_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXA Par 0"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXA Par 1",
+        "EventCode": "0xD306",
+        "EventName": "IXU_IXA_PAR1_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXA Par 1"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXB",
+        "EventCode": "0xD307",
+        "EventName": "IXU_IXB_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXB"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXB Par 0",
+        "EventCode": "0xD308",
+        "EventName": "IXU_IXB_PAR0_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXB Par 0"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXB Par 1",
+        "EventCode": "0xD309",
+        "EventName": "IXU_IXB_PAR1_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXB Par 1"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXC",
+        "EventCode": "0xD30A",
+        "EventName": "IXU_IXC_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXC"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXC Par 0",
+        "EventCode": "0xD30B",
+        "EventName": "IXU_IXC_PAR0_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXC Par 0"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXC Par 1",
+        "EventCode": "0xD30C",
+        "EventName": "IXU_IXC_PAR1_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXC Par 1"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXD",
+        "EventCode": "0xD30D",
+        "EventName": "IXU_IXD_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXD"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXD Par 0",
+        "EventCode": "0xD30E",
+        "EventName": "IXU_IXD_PAR0_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXD Par 0"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on IXD Par 1",
+        "EventCode": "0xD30F",
+        "EventName": "IXU_IXD_PAR1_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on IXD Par 1"
+    },
+    {
+        "PublicDescription": "Uops issued by the FSU scheduler",
+        "EventCode": "0xD400",
+        "EventName": "FSU_ISSUED",
+        "BriefDescription": "Uops issued by the FSU scheduler"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on FSX",
+        "EventCode": "0xD401",
+        "EventName": "FSU_FSX_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on FSX"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on FSY",
+        "EventCode": "0xD402",
+        "EventName": "FSU_FSY_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on FSY"
+    },
+    {
+        "PublicDescription": "Uops issued by the scheduler on FSZ",
+        "EventCode": "0xD403",
+        "EventName": "FSU_FSZ_ISSUED",
+        "BriefDescription": "Uops issued by the scheduler on FSZ"
+    },
+    {
+        "PublicDescription": "Uops canceled (load cancels)",
+        "EventCode": "0xD404",
+        "EventName": "FSU_CANCEL",
+        "BriefDescription": "Uops canceled (load cancels)"
+    },
+    {
+        "PublicDescription": "Count scheduler stalls due to divide/sqrt",
+        "EventCode": "0xD405",
+        "EventName": "FSU_DIV_SQRT_STALL",
+        "BriefDescription": "Count scheduler stalls due to divide/sqrt"
+    },
+    {
+        "PublicDescription": "Number of SWOB drains",
+        "EventCode": "0xD500",
+        "EventName": "GPC_SWOB_DRAIN",
+        "BriefDescription": "Number of SWOB drains"
+    },
+    {
+        "PublicDescription": "GPC detected a Breakpoint instruction match",
+        "EventCode": "0xD501",
+        "EventName": "BREAKPOINT_MATCH",
+        "BriefDescription": "GPC detected a Breakpoint instruction match"
+    },
+    {
+        "PublicDescription": "Core progress monitor triggered",
+        "EventCode": "0xd502",
+        "EventName": "GPC_CPM_TRIGGER",
+        "BriefDescription": "Core progress monitor triggered"
+    },
+    {
+        "PublicDescription": "Fill buffer full",
+        "EventCode": "0xD601",
+        "EventName": "OFB_FULL",
+        "BriefDescription": "Fill buffer full"
+    },
+    {
+        "PublicDescription": "Load satisified from store forwarded data",
+        "EventCode": "0xD605",
+        "EventName": "LD_FROM_ST_FWD",
+        "BriefDescription": "Load satisified from store forwarded data"
+    },
+    {
+        "PublicDescription": "Store retirement pipe stall",
+        "EventCode": "0xD60C",
+        "EventName": "LSU_ST_RETIRE_STALL",
+        "BriefDescription": "Store retirement pipe stall"
+    },
+    {
+        "PublicDescription": "LSU detected a Watchpoint data match",
+        "EventCode": "0xD60D",
+        "EventName": "WATCHPOINT_MATCH",
+        "BriefDescription": "LSU detected a Watchpoint data match"
+    },
+    {
+        "PublicDescription": "Counts cycles that MSC is telling GPC to stall commit due to ETM ISTALL feature",
+        "EventCode": "0xda00",
+        "EventName": "MSC_ETM_COMMIT_STALL",
+        "BriefDescription": "Counts cycles that MSC is telling GPC to stall commit due to ETM ISTALL feature"
+    }
+]

@@ -3346,12 +3346,27 @@ int cs_etm__process_auxtrace_info_full(union perf_event *event,
 	etm->metadata = metadata;
 	etm->auxtrace_type = auxtrace_info->type;
 
-	/* Use virtual timestamps if all ETMs report ts_source = 1 */
-	etm->has_virtual_ts = cs_etm__has_virtual_ts(metadata, num_cpu);
+	if (etm->synth_opts.use_timestamp)
+		/*
+		 * Prior to Armv8.4, Arm CPUs don't support FEAT_TRF feature,
+		 * therefore the decoder cannot know if the timestamp trace is
+		 * same with the kernel time.
+		 *
+		 * If a user has knowledge for the working platform and can
+		 * specify itrace option 'T' to tell decoder to forcely use the
+		 * traced timestamp as the kernel time.
+		 */
+		etm->has_virtual_ts = true;
+	else
+		/* Use virtual timestamps if all ETMs report ts_source = 1 */
+		etm->has_virtual_ts = cs_etm__has_virtual_ts(metadata, num_cpu);
 
 	if (!etm->has_virtual_ts)
 		ui__warning("Virtual timestamps are not enabled, or not supported by the traced system.\n"
-			    "The time field of the samples will not be set accurately.\n\n");
+			    "The time field of the samples will not be set accurately.\n"
+			    "For Arm CPUs prior to Armv8.4 or without support FEAT_TRF,\n"
+			    "you can specify the itrace option 'T' for timestamp decoding\n"
+			    "if the Coresight timestamp on the platform is same with the kernel time.\n\n");
 
 	etm->auxtrace.process_event = cs_etm__process_event;
 	etm->auxtrace.process_auxtrace_event = cs_etm__process_auxtrace_event;

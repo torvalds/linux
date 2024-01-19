@@ -42,3 +42,4 @@
 0x00000000480fd010,v1,hisilicon/hip08,core
 0x00000000500f0000,v1,ampere/emag,core
 0x00000000c00fac30,v1,ampere/ampereone,core
+0x00000000c00fac40,v1,ampere/ampereonex,core

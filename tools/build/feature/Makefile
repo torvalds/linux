@@ -7,6 +7,7 @@ FILES=                                          \
          test-bionic.bin                        \
          test-dwarf.bin                         \
          test-dwarf_getlocations.bin            \
+         test-dwarf_getcfi.bin                  \
          test-eventfd.bin                       \
          test-fortify-source.bin                \
          test-get_current_dir_name.bin          \
@@ -152,6 +153,9 @@ $(OUTPUT)test-dwarf.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-dwarf_getlocations.bin:
+	$(BUILD) $(DWARFLIBS)
+
+$(OUTPUT)test-dwarf_getcfi.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-libelf-getphdrnum.bin:
