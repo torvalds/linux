@@ -538,7 +538,8 @@ static noinline int merge_extent_mapping(struct extent_map_tree *em_tree,
 	u64 end;
 	u64 start_diff;
 
-	BUG_ON(map_start < em->start || map_start >= extent_map_end(em));
+	if (map_start < em->start || map_start >= extent_map_end(em))
+		return -EINVAL;
 
 	if (existing->start > map_start) {
 		next = existing;
@@ -633,9 +634,9 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 				free_extent_map(em);
 				*em_in = NULL;
 				WARN_ONCE(ret,
-"unexpected error %d: merge existing(start %llu len %llu) with em(start %llu len %llu)\n",
-					  ret, existing->start, existing->len,
-					  orig_start, orig_len);
+"extent map merge error existing [%llu, %llu) with em [%llu, %llu) start %llu\n",
+					  existing->start, existing->len,
+					  orig_start, orig_len, start);
 			}
 			free_extent_map(existing);
 		}
