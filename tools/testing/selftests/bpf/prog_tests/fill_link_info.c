@@ -109,6 +109,11 @@ again:
 			      strlen(UPROBE_FILE));
 			ASSERT_EQ(err, 0, "cmp_file_name");
 		break;
+	case BPF_PERF_EVENT_EVENT:
+		ASSERT_EQ(info.perf_event.event.type, PERF_TYPE_SOFTWARE, "event_type");
+		ASSERT_EQ(info.perf_event.event.config, PERF_COUNT_SW_PAGE_FAULTS, "event_config");
+		ASSERT_EQ(info.perf_event.event.cookie, PERF_EVENT_COOKIE, "event_cookie");
+		break;
 	default:
 		err = -1;
 		break;
@@ -187,6 +192,39 @@ static void test_tp_fill_link_info(struct test_fill_link_info *skel)
 	err = verify_perf_link_info(link_fd, BPF_PERF_EVENT_TRACEPOINT, 0, 0, 0);
 	ASSERT_OK(err, "verify_perf_link_info");
 	bpf_link__destroy(link);
+}
+
+static void test_event_fill_link_info(struct test_fill_link_info *skel)
+{
+	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, opts,
+		.bpf_cookie = PERF_EVENT_COOKIE,
+	);
+	struct bpf_link *link;
+	int link_fd, err, pfd;
+	struct perf_event_attr attr = {
+		.type = PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_PAGE_FAULTS,
+		.freq = 1,
+		.sample_freq = 1,
+		.size = sizeof(struct perf_event_attr),
+	};
+
+	pfd = syscall(__NR_perf_event_open, &attr, -1 /* pid */, 0 /* cpu 0 */,
+		      -1 /* group id */, 0 /* flags */);
+	if (!ASSERT_GE(pfd, 0, "perf_event_open"))
+		return;
+
+	link = bpf_program__attach_perf_event_opts(skel->progs.event_run, pfd, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_event"))
+		goto error;
+
+	link_fd = bpf_link__fd(link);
+	err = verify_perf_link_info(link_fd, BPF_PERF_EVENT_EVENT, 0, 0, 0);
+	ASSERT_OK(err, "verify_perf_link_info");
+	bpf_link__destroy(link);
+
+error:
+	close(pfd);
 }
 
 static void test_uprobe_fill_link_info(struct test_fill_link_info *skel,
@@ -549,6 +587,8 @@ void test_fill_link_info(void)
 		test_kprobe_fill_link_info(skel, BPF_PERF_EVENT_KPROBE, true);
 	if (test__start_subtest("tracepoint_link_info"))
 		test_tp_fill_link_info(skel);
+	if (test__start_subtest("event_link_info"))
+		test_event_fill_link_info(skel);
 
 	uprobe_offset = get_uprobe_offset(&uprobe_func);
 	if (test__start_subtest("uprobe_link_info"))
