@@ -593,6 +593,7 @@ static void test_ip_fast_csum(struct kunit *test)
 
 static void test_csum_ipv6_magic(struct kunit *test)
 {
+#if defined(CONFIG_NET)
 	const struct in6_addr *saddr;
 	const struct in6_addr *daddr;
 	unsigned int len;
@@ -616,6 +617,7 @@ static void test_csum_ipv6_magic(struct kunit *test)
 		CHECK_EQ(expected_csum_ipv6_magic[i],
 			 csum_ipv6_magic(saddr, daddr, len, proto, csum));
 	}
+#endif /* !CONFIG_NET */
 }
 
 static struct kunit_case __refdata checksum_test_cases[] = {
