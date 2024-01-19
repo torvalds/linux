@@ -4185,18 +4185,25 @@ static void rtw89_mac_port_cfg_rx_sw(struct rtw89_dev *rtwdev,
 		rtw89_write32_port_clr(rtwdev, rtwvif, p->port_cfg, bit);
 }
 
-static void rtw89_mac_port_cfg_rx_sync(struct rtw89_dev *rtwdev,
-				       struct rtw89_vif *rtwvif)
+void rtw89_mac_port_cfg_rx_sync(struct rtw89_dev *rtwdev,
+				struct rtw89_vif *rtwvif, bool en)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_port_reg *p = mac->port_base;
-	bool en = rtwvif->net_type == RTW89_NET_TYPE_INFRA ||
-		  rtwvif->net_type == RTW89_NET_TYPE_AD_HOC;
 
 	if (en)
 		rtw89_write32_port_set(rtwdev, rtwvif, p->port_cfg, B_AX_TSF_UDT_EN);
 	else
 		rtw89_write32_port_clr(rtwdev, rtwvif, p->port_cfg, B_AX_TSF_UDT_EN);
+}
+
+static void rtw89_mac_port_cfg_rx_sync_by_nettype(struct rtw89_dev *rtwdev,
+						  struct rtw89_vif *rtwvif)
+{
+	bool en = rtwvif->net_type == RTW89_NET_TYPE_INFRA ||
+		  rtwvif->net_type == RTW89_NET_TYPE_AD_HOC;
+
+	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif, en);
 }
 
 static void rtw89_mac_port_cfg_tx_sw(struct rtw89_dev *rtwdev,
@@ -4538,7 +4545,7 @@ int rtw89_mac_port_update(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_mac_port_cfg_net_type(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_bcn_prct(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_rx_sw(rtwdev, rtwvif);
-	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif);
+	rtw89_mac_port_cfg_rx_sync_by_nettype(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_tx_sw_by_nettype(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_bcn_intv(rtwdev, rtwvif);
 	rtw89_mac_port_cfg_hiq_win(rtwdev, rtwvif);

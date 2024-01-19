@@ -4873,6 +4873,7 @@ void rtw89_hw_scan_start(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtwvif->scan_ies = &scan_req->ies;
 	rtwvif->scan_req = req;
 	ieee80211_stop_queues(rtwdev->hw);
+	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif, false);
 
 	if (req->flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
 		get_random_mask_addr(mac_addr, req->mac_addr,
@@ -4897,10 +4898,10 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_vif *rtwvif = vif_to_rtwvif_safe(vif);
 	struct cfg80211_scan_info info = {
 		.aborted = aborted,
 	};
-	struct rtw89_vif *rtwvif;
 
 	if (!vif)
 		return;
@@ -4913,10 +4914,10 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 	rtw89_core_scan_complete(rtwdev, vif, true);
 	ieee80211_scan_completed(rtwdev->hw, &info);
 	ieee80211_wake_queues(rtwdev->hw);
+	rtw89_mac_port_cfg_rx_sync(rtwdev, rtwvif, true);
 	rtw89_mac_enable_beacon_for_ap_vifs(rtwdev, true);
 
 	rtw89_release_pkt_list(rtwdev);
-	rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	rtwvif->scan_req = NULL;
 	rtwvif->scan_ies = NULL;
 	scan_info->last_chan_idx = 0;

@@ -1086,6 +1086,8 @@ void rtw89_mac_port_tsf_sync(struct rtw89_dev *rtwdev,
 			     u16 offset_tu);
 int rtw89_mac_port_get_tsf(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   u64 *tsf);
+void rtw89_mac_port_cfg_rx_sync(struct rtw89_dev *rtwdev,
+				struct rtw89_vif *rtwvif, bool en);
 void rtw89_mac_set_he_obss_narrow_bw_ru(struct rtw89_dev *rtwdev,
 					struct ieee80211_vif *vif);
 void rtw89_mac_stop_ap(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
