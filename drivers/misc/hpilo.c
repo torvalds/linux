@@ -842,7 +842,7 @@ static int ilo_probe(struct pci_dev *pdev,
 	for (minor = 0 ; minor < max_ccb; minor++) {
 		struct device *dev;
 		dev = device_create(&ilo_class, &pdev->dev,
-				    MKDEV(ilo_major, minor), NULL,
+				    MKDEV(ilo_major, start + minor), NULL,
 				    "hpilo!d%dccb%d", devnum, minor);
 		if (IS_ERR(dev))
 			dev_err(&pdev->dev, "Could not create files\n");
