@@ -6638,6 +6638,13 @@ void __init workqueue_init_early(void)
 	wq_update_pod_attrs_buf = alloc_workqueue_attrs();
 	BUG_ON(!wq_update_pod_attrs_buf);
 
+	/*
+	 * If nohz_full is enabled, set power efficient workqueue as unbound.
+	 * This allows workqueue items to be moved to HK CPUs.
+	 */
+	if (housekeeping_enabled(HK_TYPE_TICK))
+		wq_power_efficient = true;
+
 	/* initialize WQ_AFFN_SYSTEM pods */
 	pt->pod_cpus = kcalloc(1, sizeof(pt->pod_cpus[0]), GFP_KERNEL);
 	pt->pod_node = kcalloc(1, sizeof(pt->pod_node[0]), GFP_KERNEL);
