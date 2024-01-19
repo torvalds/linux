@@ -906,7 +906,9 @@ static int btrfs_may_delete(struct mnt_idmap *idmap,
 	if (d_really_is_negative(victim))
 		return -ENOENT;
 
-	BUG_ON(d_inode(victim->d_parent) != dir);
+	/* The @victim is not inside @dir. */
+	if (d_inode(victim->d_parent) != dir)
+		return -EINVAL;
 	audit_inode_child(dir, victim, AUDIT_TYPE_CHILD_DELETE);
 
 	error = inode_permission(idmap, dir, MAY_WRITE | MAY_EXEC);
