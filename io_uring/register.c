@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/nospec.h>
+#include <linux/compat.h>
 #include <linux/io_uring.h>
 #include <linux/io_uring_types.h>
 
@@ -278,13 +279,14 @@ static __cold int io_register_iowq_aff(struct io_ring_ctx *ctx,
 	if (len > cpumask_size())
 		len = cpumask_size();
 
-	if (in_compat_syscall()) {
+#ifdef CONFIG_COMPAT
+	if (in_compat_syscall())
 		ret = compat_get_bitmap(cpumask_bits(new_mask),
 					(const compat_ulong_t __user *)arg,
 					len * 8 /* CHAR_BIT */);
-	} else {
+	else
+#endif
 		ret = copy_from_user(new_mask, arg, len);
-	}
 
 	if (ret) {
 		free_cpumask_var(new_mask);
