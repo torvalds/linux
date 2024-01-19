@@ -71,7 +71,7 @@ EXPORT_SYMBOL_GPL(sysfb_disable);
 
 static __init int sysfb_init(void)
 {
-	const struct screen_info *si = &screen_info;
+	struct screen_info *si = &screen_info;
 	struct simplefb_platform_data mode;
 	const char *name;
 	bool compatible;
@@ -118,18 +118,6 @@ static __init int sysfb_init(void)
 	ret = platform_device_add(pd);
 	if (ret)
 		goto err;
-
-	/*
-	 * The firmware framebuffer is now maintained by the created
-	 * device. Disable screen_info after we've consumed it. Prevents
-	 * invalid access during kexec reboots.
-	 *
-	 * TODO: Vgacon still relies on the global screen_info. Make
-	 *       vgacon work with the platform device, so we can clear
-	 *       the screen_info unconditionally.
-	 */
-	if (strcmp(name, "platform-framebuffer"))
-		screen_info.orig_video_isVGA = 0;
 
 	goto unlock_mutex;
 err:
