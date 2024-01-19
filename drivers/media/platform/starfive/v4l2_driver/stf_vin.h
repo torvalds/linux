@@ -21,6 +21,8 @@
 #define STF_VIN_PAD_SRC    1
 #define STF_VIN_PADS_NUM   2
 
+#define STF_VIN_CRITICAL_CACHE_SIZE 0x80000
+
 struct vin2_format {
 	u32 code;
 	u8 bpp;
@@ -169,6 +171,7 @@ struct stf_vin2_dev {
 };
 
 extern void sifive_l2_flush64_range(unsigned long start, unsigned long len);
+extern void sifive_ccache_flush_entire(void);
 extern int stf_vin_subdev_init(struct stfcamss *stfcamss);
 extern int stf_vin_register(struct stf_vin2_dev *vin_dev,
 		struct v4l2_device *v4l2_dev);
