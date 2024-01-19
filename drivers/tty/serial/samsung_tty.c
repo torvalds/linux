@@ -89,8 +89,7 @@ struct s3c24xx_uart_info {
 	u8			iotype;
 
 	/* uart port features */
-
-	unsigned int		has_divslot:1;
+	bool			has_divslot;
 };
 
 struct s3c24xx_serial_drv_data {
@@ -2400,7 +2399,7 @@ static const struct s3c24xx_serial_drv_data s3c6400_serial_drv_data = {
 		.port_type	= PORT_S3C6400,
 		.iotype		= UPIO_MEM,
 		.fifosize	= 64,
-		.has_divslot	= 1,
+		.has_divslot	= true,
 		.rx_fifomask	= S3C2440_UFSTAT_RXMASK,
 		.rx_fifoshift	= S3C2440_UFSTAT_RXSHIFT,
 		.rx_fifofull	= S3C2440_UFSTAT_RXFULL,
@@ -2429,7 +2428,7 @@ static const struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 		.type		= TYPE_S3C6400,
 		.port_type	= PORT_S3C6400,
 		.iotype		= UPIO_MEM,
-		.has_divslot	= 1,
+		.has_divslot	= true,
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
 		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,
@@ -2459,7 +2458,7 @@ static const struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 		.type		= TYPE_S3C6400,			\
 		.port_type	= PORT_S3C6400,			\
 		.iotype		= UPIO_MEM,			\
-		.has_divslot	= 1,				\
+		.has_divslot	= true,				\
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,	\
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,	\
 		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,	\
@@ -2498,7 +2497,7 @@ static const struct s3c24xx_serial_drv_data gs101_serial_drv_data = {
 		.type		= TYPE_S3C6400,
 		.port_type	= PORT_S3C6400,
 		.iotype		= UPIO_MEM32,
-		.has_divslot	= 1,
+		.has_divslot	= true,
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
 		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,
@@ -2569,7 +2568,7 @@ static const struct s3c24xx_serial_drv_data artpec8_serial_drv_data = {
 		.port_type	= PORT_S3C6400,
 		.iotype		= UPIO_MEM,
 		.fifosize	= 64,
-		.has_divslot	= 1,
+		.has_divslot	= true,
 		.rx_fifomask	= S5PV210_UFSTAT_RXMASK,
 		.rx_fifoshift	= S5PV210_UFSTAT_RXSHIFT,
 		.rx_fifofull	= S5PV210_UFSTAT_RXFULL,
