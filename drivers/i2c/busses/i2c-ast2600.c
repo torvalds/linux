@@ -251,6 +251,10 @@
 #define AST2600_I2CS_ADDR1_ENABLE			BIT(7)
 #define AST2600_I2CS_ADDR1(x)			(x)
 
+/* 0x74 : Slave Device Address Register */
+#define MSIC_CONFIG_ACTIMING1		0x74
+#define MSIC_I2C_SET_TIMEOUT(s, m)		(((s) << 16) | (m))
+
 #define I2C_SLAVE_MSG_BUF_SIZE		4096
 
 #define AST2600_I2C_DMA_SIZE		4096
@@ -344,8 +348,13 @@ static u32 ast2600_select_i2c_clock(struct ast2600_i2c_bus *i2c_bus)
 	scl_high = (divisor - scl_low - 2) & GENMASK(3, 0);
 	data = (scl_high - 1) << 20 | scl_high << 16 | scl_low << 12 | baseclk_idx;
 	if (i2c_bus->timeout) {
+#ifdef CONFIG_MACH_ASPEED_G7
+		writel(MSIC_I2C_SET_TIMEOUT(i2c_bus->timeout, i2c_bus->timeout),
+		       i2c_bus->reg_base + MSIC_CONFIG_ACTIMING1);
+#else
 		data |= AST2600_I2CC_TOUTBASECLK(AST_I2C_TIMEOUT_CLK);
 		data |= AST2600_I2CC_TTIMEOUT(i2c_bus->timeout);
+#endif
 	}
 
 	return data;
