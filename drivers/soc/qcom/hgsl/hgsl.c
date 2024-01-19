@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2022, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <asm/unistd.h>
@@ -2153,7 +2153,7 @@ static int hgsl_ioctl_set_metainfo(struct file *filep, unsigned long arg)
 	int ret = 0;
 	struct hgsl_mem_node *mem_node = NULL;
 	struct hgsl_mem_node *tmp = NULL;
-	char metainfo[HGSL_MEM_META_MAX_SIZE];
+	char metainfo[HGSL_MEM_META_MAX_SIZE] = {0};
 
 	if (copy_from_user(&params, USRPTR(arg), sizeof(params))) {
 		pr_err_ratelimited("failed to copy params from user");
