@@ -2332,6 +2332,7 @@ static struct aa_sfs_entry aa_sfs_entry_attach[] = {
 static struct aa_sfs_entry aa_sfs_entry_domain[] = {
 	AA_SFS_FILE_BOOLEAN("change_hat",	1),
 	AA_SFS_FILE_BOOLEAN("change_hatv",	1),
+	AA_SFS_FILE_BOOLEAN("unconfined_allowed_children",	1),
 	AA_SFS_FILE_BOOLEAN("change_onexec",	1),
 	AA_SFS_FILE_BOOLEAN("change_profile",	1),
 	AA_SFS_FILE_BOOLEAN("stack",		1),

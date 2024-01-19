@@ -1186,10 +1186,24 @@ int aa_change_hat(const char *hats[], int count, u64 token, int flags)
 	if (task_no_new_privs(current) && !unconfined(label) && !ctx->nnp)
 		ctx->nnp = aa_get_label(label);
 
+	/* return -EPERM when unconfined doesn't have children to avoid
+	 * changing the traditional error code for unconfined.
+	 */
 	if (unconfined(label)) {
-		info = "unconfined can not change_hat";
-		error = -EPERM;
-		goto fail;
+		struct label_it i;
+		bool empty = true;
+
+		rcu_read_lock();
+		label_for_each_in_ns(i, labels_ns(label), label, profile) {
+			empty &= list_empty(&profile->base.profiles);
+		}
+		rcu_read_unlock();
+
+		if (empty) {
+			info = "unconfined can not change_hat";
+			error = -EPERM;
+			goto fail;
+		}
 	}
 
 	if (count) {
