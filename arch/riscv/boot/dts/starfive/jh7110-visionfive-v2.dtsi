@@ -957,7 +957,7 @@
     nor_flash: nor-flash@0 {
     compatible = "jedec,spi-nor";
     reg=<0>;
-    cdns,read-delay = <5>;
+    cdns,read-delay = <3>;
     spi-max-frequency = <100000000>;
     cdns,tshsl-ns = <1>;
     cdns,tsd2d-ns = <1>;
