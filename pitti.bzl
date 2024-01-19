@@ -130,7 +130,6 @@ def define_pitti():
         "drivers/soc/qcom/panel_event_notifier.ko",
         "drivers/soc/qcom/pdr_interface.ko",
         "drivers/soc/qcom/pmic-glink-debug.ko",
-        "drivers/soc/qcom/pmic-pon-log.ko",
         "drivers/soc/qcom/pmic_glink.ko",
         "drivers/soc/qcom/qcom_cpu_vendor_hooks.ko",
         "drivers/soc/qcom/qcom_logbuf_boot_log.ko",
