@@ -33,6 +33,7 @@
 #define DEV_CTRL_IBI_PAYLOAD_EN		BIT(9)
 #define DEV_CTRL_HOT_JOIN_NACK		BIT(8)
 #define DEV_CTRL_I2C_SLAVE_PRESENT	BIT(7)
+#define DEV_CTRL_IBA_INCLUDE		BIT(0)
 
 #define DEVICE_ADDR			0x4
 #define DEV_ADDR_DYNAMIC_ADDR_VALID	BIT(31)
@@ -375,6 +376,18 @@ static inline struct dw_i3c_master *
 to_dw_i3c_master(struct i3c_master_controller *master)
 {
 	return container_of(master, struct dw_i3c_master, base);
+}
+
+static void dw_i3c_master_set_iba(struct dw_i3c_master *master, bool enable)
+{
+	u32 reg;
+
+	reg = readl(master->regs + DEVICE_CTRL);
+	reg &= ~DEV_CTRL_IBA_INCLUDE;
+	if (enable)
+		reg |= DEV_CTRL_IBA_INCLUDE;
+
+	writel(reg, master->regs + DEVICE_CTRL);
 }
 
 static void dw_i3c_master_disable(struct dw_i3c_master *master)
@@ -2203,6 +2216,11 @@ int dw_i3c_common_probe(struct dw_i3c_master *master,
 			   &dw_mipi_i3c_target_ops, false);
 	if (ret)
 		goto err_assert_rst;
+
+	if (!master->base.target && master->base.bus.context != I3C_BUS_CONTEXT_JESD403) {
+		dw_i3c_master_set_iba(master, true);
+		dw_i3c_master_enable_hotjoin(&master->base);
+	}
 
 	return 0;
 
