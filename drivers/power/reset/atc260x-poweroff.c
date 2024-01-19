@@ -233,7 +233,7 @@ static int atc260x_pwrc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int atc260x_pwrc_remove(struct platform_device *pdev)
+static void atc260x_pwrc_remove(struct platform_device *pdev)
 {
 	struct atc260x_pwrc *priv = platform_get_drvdata(pdev);
 
@@ -243,13 +243,11 @@ static int atc260x_pwrc_remove(struct platform_device *pdev)
 	}
 
 	unregister_restart_handler(&priv->restart_nb);
-
-	return 0;
 }
 
 static struct platform_driver atc260x_pwrc_driver = {
 	.probe = atc260x_pwrc_probe,
-	.remove = atc260x_pwrc_remove,
+	.remove_new = atc260x_pwrc_remove,
 	.driver = {
 		.name = "atc260x-pwrc",
 	},

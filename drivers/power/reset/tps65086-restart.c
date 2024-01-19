@@ -62,19 +62,21 @@ static int tps65086_restart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tps65086_restart_remove(struct platform_device *pdev)
+static void tps65086_restart_remove(struct platform_device *pdev)
 {
 	struct tps65086_restart *tps65086_restart = platform_get_drvdata(pdev);
 	int ret;
 
 	ret = unregister_restart_handler(&tps65086_restart->handler);
 	if (ret) {
+		/*
+		 * tps65086_restart_probe() registered the restart handler. So
+		 * unregistering should work fine. Checking the error code
+		 * shouldn't be needed, still doing it for completeness.
+		 */
 		dev_err(&pdev->dev, "%s: cannot unregister restart handler: %d\n",
 			__func__, ret);
-		return -ENODEV;
 	}
-
-	return 0;
 }
 
 static const struct platform_device_id tps65086_restart_id_table[] = {
@@ -88,7 +90,7 @@ static struct platform_driver tps65086_restart_driver = {
 		.name = "tps65086-restart",
 	},
 	.probe = tps65086_restart_probe,
-	.remove = tps65086_restart_remove,
+	.remove_new = tps65086_restart_remove,
 	.id_table = tps65086_restart_id_table,
 };
 module_platform_driver(tps65086_restart_driver);
