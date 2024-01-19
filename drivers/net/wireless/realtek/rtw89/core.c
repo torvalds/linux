@@ -1176,7 +1176,8 @@ static __le32 rtw89_build_txwd_info2_v1(struct rtw89_tx_desc_info *desc_info)
 
 static __le32 rtw89_build_txwd_info4(struct rtw89_tx_desc_info *desc_info)
 {
-	u32 dword = FIELD_PREP(RTW89_TXWD_INFO4_RTS_EN, 1) |
+	bool rts_en = !desc_info->is_bmc;
+	u32 dword = FIELD_PREP(RTW89_TXWD_INFO4_RTS_EN, rts_en) |
 		    FIELD_PREP(RTW89_TXWD_INFO4_HW_RTS_EN, 1);
 
 	return cpu_to_le32(dword);
@@ -1329,7 +1330,8 @@ static __le32 rtw89_build_txwd_info2_v2(struct rtw89_tx_desc_info *desc_info)
 
 static __le32 rtw89_build_txwd_info4_v2(struct rtw89_tx_desc_info *desc_info)
 {
-	u32 dword = FIELD_PREP(BE_TXD_INFO4_RTS_EN, 1) |
+	bool rts_en = !desc_info->is_bmc;
+	u32 dword = FIELD_PREP(BE_TXD_INFO4_RTS_EN, rts_en) |
 		    FIELD_PREP(BE_TXD_INFO4_HW_RTS_EN, 1);
 
 	return cpu_to_le32(dword);
