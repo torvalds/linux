@@ -214,7 +214,7 @@ static bool qmp_message_empty(struct qmp *qmp)
  *
  * Return: 0 on success, negative errno on failure
  */
-int qmp_send(struct qmp *qmp, const char *fmt, ...)
+int __printf(2, 3) qmp_send(struct qmp *qmp, const char *fmt, ...)
 {
 	char buf[QMP_MSG_LEN];
 	long time_left;
