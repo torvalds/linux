@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -479,16 +479,18 @@ static int adc5_gen3_poll_wait_hs(struct adc5_chip *adc,
 	return 0;
 }
 
-#define ADC5_GEN3_CONV_TIMEOUT_MS	501
+#define ADC5_GEN3_CONV_TIMEOUT_MS	50
+#define ADC5_GEN3_POLL_ATTEMPTS		10
 
 static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 			struct adc5_channel_prop *prop,
 			u16 *data_volt)
 {
-	int ret;
+	int ret, i;
+	bool poll_eoc = false;
 	unsigned long rc;
 	unsigned int time_pending_ms;
-	u8 val, sdam_index = prop->sdam_index;
+	u8 val, eoc_status, sdam_index = prop->sdam_index;
 
 	/* Reserve channel 0 of first SDAM for immediate conversions */
 	if (prop->adc_tm)
@@ -505,10 +507,29 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 		goto unlock;
 	}
 
-	/* No support for polling mode at present*/
-	rc = wait_for_completion_timeout(&adc->complete,
-					msecs_to_jiffies(ADC5_GEN3_CONV_TIMEOUT_MS));
-	if (!rc) {
+	for (i = 0; i < ADC5_GEN3_POLL_ATTEMPTS; i++) {
+		/* Trying both polling and waiting for interrupt */
+		rc = wait_for_completion_timeout(&adc->complete,
+						msecs_to_jiffies(ADC5_GEN3_CONV_TIMEOUT_MS));
+		if (rc) {
+			pr_debug("Got EOC interrupt after %d polling attempts\n", i);
+			break;
+		}
+
+		/* CHAN0 is the preconfigured channel for immediate conversion */
+		ret = adc5_read(adc, 0, ADC5_GEN3_EOC_STS, &eoc_status, 1);
+		if (ret < 0) {
+			pr_err("adc read eoc status failed with %d\n", ret);
+			goto unlock;
+		}
+
+		if (eoc_status & ADC5_GEN3_EOC_CHAN_0) {
+			poll_eoc = true;
+			break;
+		}
+	}
+
+	if (!rc && !poll_eoc) {
 		pr_err("Reading ADC channel %s timed out\n",
 			prop->datasheet_name);
 		adc5_gen3_dump_regs_debug(adc);
@@ -518,7 +539,7 @@ static int adc5_gen3_do_conversion(struct adc5_chip *adc,
 
 	time_pending_ms = jiffies_to_msecs(rc);
 	pr_debug("ADC channel %s EOC took %u ms\n", prop->datasheet_name,
-		ADC5_GEN3_CONV_TIMEOUT_MS - time_pending_ms);
+		(i + 1) * ADC5_GEN3_CONV_TIMEOUT_MS - time_pending_ms);
 
 	ret = adc5_gen3_read_voltage_data(adc, data_volt, sdam_index);
 	if (ret < 0)
