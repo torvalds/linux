@@ -19,6 +19,7 @@ static const char *kmulti_syms[] = {
 };
 #define KMULTI_CNT ARRAY_SIZE(kmulti_syms)
 static __u64 kmulti_addrs[KMULTI_CNT];
+static __u64 kmulti_cookies[] = { 3, 1, 2 };
 
 #define KPROBE_FUNC "bpf_fentry_test1"
 static __u64 kprobe_addr;
@@ -195,11 +196,11 @@ static void test_uprobe_fill_link_info(struct test_fill_link_info *skel,
 	bpf_link__destroy(link);
 }
 
-static int verify_kmulti_link_info(int fd, bool retprobe)
+static int verify_kmulti_link_info(int fd, bool retprobe, bool has_cookies)
 {
+	__u64 addrs[KMULTI_CNT], cookies[KMULTI_CNT];
 	struct bpf_link_info info;
 	__u32 len = sizeof(info);
-	__u64 addrs[KMULTI_CNT];
 	int flags, i, err;
 
 	memset(&info, 0, sizeof(info));
@@ -221,18 +222,22 @@ again:
 
 	if (!info.kprobe_multi.addrs) {
 		info.kprobe_multi.addrs = ptr_to_u64(addrs);
+		info.kprobe_multi.cookies = ptr_to_u64(cookies);
 		goto again;
 	}
-	for (i = 0; i < KMULTI_CNT; i++)
+	for (i = 0; i < KMULTI_CNT; i++) {
 		ASSERT_EQ(addrs[i], kmulti_addrs[i], "kmulti_addrs");
+		ASSERT_EQ(cookies[i], has_cookies ? kmulti_cookies[i] : 0,
+			  "kmulti_cookies_value");
+	}
 	return 0;
 }
 
 static void verify_kmulti_invalid_user_buffer(int fd)
 {
+	__u64 addrs[KMULTI_CNT], cookies[KMULTI_CNT];
 	struct bpf_link_info info;
 	__u32 len = sizeof(info);
-	__u64 addrs[KMULTI_CNT];
 	int err, i;
 
 	memset(&info, 0, sizeof(info));
@@ -266,7 +271,20 @@ static void verify_kmulti_invalid_user_buffer(int fd)
 	info.kprobe_multi.count = KMULTI_CNT;
 	info.kprobe_multi.addrs = 0x1; /* invalid addr */
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
-	ASSERT_EQ(err, -EFAULT, "invalid_buff");
+	ASSERT_EQ(err, -EFAULT, "invalid_buff_addrs");
+
+	info.kprobe_multi.count = KMULTI_CNT;
+	info.kprobe_multi.addrs = ptr_to_u64(addrs);
+	info.kprobe_multi.cookies = 0x1; /* invalid addr */
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EFAULT, "invalid_buff_cookies");
+
+	/* cookies && !count */
+	info.kprobe_multi.count = 0;
+	info.kprobe_multi.addrs = ptr_to_u64(NULL);
+	info.kprobe_multi.cookies = ptr_to_u64(cookies);
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EINVAL, "invalid_cookies_count");
 }
 
 static int symbols_cmp_r(const void *a, const void *b)
@@ -278,13 +296,15 @@ static int symbols_cmp_r(const void *a, const void *b)
 }
 
 static void test_kprobe_multi_fill_link_info(struct test_fill_link_info *skel,
-					     bool retprobe, bool invalid)
+					     bool retprobe, bool cookies,
+					     bool invalid)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
 	struct bpf_link *link;
 	int link_fd, err;
 
 	opts.syms = kmulti_syms;
+	opts.cookies = cookies ? kmulti_cookies : NULL;
 	opts.cnt = KMULTI_CNT;
 	opts.retprobe = retprobe;
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.kmulti_run, NULL, &opts);
@@ -293,7 +313,7 @@ static void test_kprobe_multi_fill_link_info(struct test_fill_link_info *skel,
 
 	link_fd = bpf_link__fd(link);
 	if (!invalid) {
-		err = verify_kmulti_link_info(link_fd, retprobe);
+		err = verify_kmulti_link_info(link_fd, retprobe, cookies);
 		ASSERT_OK(err, "verify_kmulti_link_info");
 	} else {
 		verify_kmulti_invalid_user_buffer(link_fd);
@@ -523,12 +543,16 @@ void test_fill_link_info(void)
 	qsort(kmulti_syms, KMULTI_CNT, sizeof(kmulti_syms[0]), symbols_cmp_r);
 	for (i = 0; i < KMULTI_CNT; i++)
 		kmulti_addrs[i] = ksym_get_addr(kmulti_syms[i]);
-	if (test__start_subtest("kprobe_multi_link_info"))
-		test_kprobe_multi_fill_link_info(skel, false, false);
-	if (test__start_subtest("kretprobe_multi_link_info"))
-		test_kprobe_multi_fill_link_info(skel, true, false);
+	if (test__start_subtest("kprobe_multi_link_info")) {
+		test_kprobe_multi_fill_link_info(skel, false, false, false);
+		test_kprobe_multi_fill_link_info(skel, false, true, false);
+	}
+	if (test__start_subtest("kretprobe_multi_link_info")) {
+		test_kprobe_multi_fill_link_info(skel, true, false, false);
+		test_kprobe_multi_fill_link_info(skel, true, true, false);
+	}
 	if (test__start_subtest("kprobe_multi_invalid_ubuff"))
-		test_kprobe_multi_fill_link_info(skel, true, true);
+		test_kprobe_multi_fill_link_info(skel, true, true, true);
 
 	if (test__start_subtest("uprobe_multi_link_info"))
 		test_uprobe_multi_fill_link_info(skel, false, false);
