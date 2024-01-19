@@ -28,6 +28,7 @@ ALL_TESTS="
 	kci_test_neigh_get
 	kci_test_bridge_parent_id
 	kci_test_address_proto
+	kci_test_enslave_bonding
 "
 
 devdummy="test-dummy0"
@@ -1239,6 +1240,31 @@ kci_test_address_proto()
 	check_err $?
 
 	return $ret
+}
+
+kci_test_enslave_bonding()
+{
+	local bond="bond123"
+	local ret=0
+
+	setup_ns testns
+	if [ $? -ne 0 ]; then
+		end_test "SKIP bonding tests: cannot add net namespace $testns"
+		return $ksft_skip
+	fi
+
+	run_cmd ip -netns $testns link add dev $bond type bond mode balance-rr
+	run_cmd ip -netns $testns link add dev $devdummy type dummy
+	run_cmd ip -netns $testns link set dev $devdummy up
+	run_cmd ip -netns $testns link set dev $devdummy master $bond down
+	if [ $ret -ne 0 ]; then
+		end_test "FAIL: initially up interface added to a bond and set down"
+		ip netns del "$testns"
+		return 1
+	fi
+
+	end_test "PASS: enslave interface in a bond"
+	ip netns del "$testns"
 }
 
 kci_test_rtnl()

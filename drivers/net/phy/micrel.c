@@ -3338,8 +3338,10 @@ static int lan8814_probe(struct phy_device *phydev)
 #define LAN8841_ADC_CHANNEL_MASK		198
 #define LAN8841_PTP_RX_PARSE_L2_ADDR_EN		370
 #define LAN8841_PTP_RX_PARSE_IP_ADDR_EN		371
+#define LAN8841_PTP_RX_VERSION			374
 #define LAN8841_PTP_TX_PARSE_L2_ADDR_EN		434
 #define LAN8841_PTP_TX_PARSE_IP_ADDR_EN		435
+#define LAN8841_PTP_TX_VERSION			438
 #define LAN8841_PTP_CMD_CTL			256
 #define LAN8841_PTP_CMD_CTL_PTP_ENABLE		BIT(2)
 #define LAN8841_PTP_CMD_CTL_PTP_DISABLE		BIT(1)
@@ -3382,6 +3384,12 @@ static int lan8841_config_init(struct phy_device *phydev)
 		      LAN8841_PTP_TX_PARSE_IP_ADDR_EN, 0);
 	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
 		      LAN8841_PTP_RX_PARSE_IP_ADDR_EN, 0);
+
+	/* Disable checking for minorVersionPTP field */
+	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+		      LAN8841_PTP_RX_VERSION, 0xff00);
+	phy_write_mmd(phydev, KSZ9131RN_MMD_COMMON_CTRL_REG,
+		      LAN8841_PTP_TX_VERSION, 0xff00);
 
 	/* 100BT Clause 40 improvenent errata */
 	phy_write_mmd(phydev, LAN8841_MMD_ANALOG_REG,
@@ -4839,6 +4847,7 @@ static struct phy_driver ksphy_driver[] = {
 	.flags		= PHY_POLL_CABLE_TEST,
 	.driver_data	= &ksz9131_type,
 	.probe		= kszphy_probe,
+	.soft_reset	= genphy_soft_reset,
 	.config_init	= ksz9131_config_init,
 	.config_intr	= kszphy_config_intr,
 	.config_aneg	= ksz9131_config_aneg,

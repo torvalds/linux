@@ -3390,9 +3390,8 @@ F:	Documentation/devicetree/bindings/iio/adc/avia-hx711.yaml
 F:	drivers/iio/adc/hx711.c
 
 AX.25 NETWORK LAYER
-M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-hams@vger.kernel.org
-S:	Maintained
+S:	Orphan
 W:	https://linux-ax25.in-berlin.de
 F:	include/net/ax25.h
 F:	include/uapi/linux/ax25.h
@@ -3631,7 +3630,6 @@ F:	drivers/mtd/devices/block2mtd.c
 
 BLUETOOTH DRIVERS
 M:	Marcel Holtmann <marcel@holtmann.org>
-M:	Johan Hedberg <johan.hedberg@gmail.com>
 M:	Luiz Augusto von Dentz <luiz.dentz@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 S:	Supported
@@ -4726,11 +4724,8 @@ F:	drivers/i2c/busses/i2c-octeon*
 F:	drivers/i2c/busses/i2c-thunderx*
 
 CAVIUM LIQUIDIO NETWORK DRIVER
-M:	Derek Chickles <dchickles@marvell.com>
-M:	Satanand Burla <sburla@marvell.com>
-M:	Felix Manlunas <fmanlunas@marvell.com>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Orphan
 W:	http://www.marvell.com
 F:	drivers/net/ethernet/cavium/liquidio/
 
@@ -10239,7 +10234,6 @@ IBM Power SRIOV Virtual NIC Device Driver
 M:	Haren Myneni <haren@linux.ibm.com>
 M:	Rick Lindsley <ricklind@linux.ibm.com>
 R:	Nick Child <nnac123@linux.ibm.com>
-R:	Dany Madden <danymadden@us.ibm.com>
 R:	Thomas Falcon <tlfalcon@linux.ibm.com>
 L:	netdev@vger.kernel.org
 S:	Supported
@@ -13003,10 +12997,10 @@ S:	Maintained
 F:	drivers/thermal/armada_thermal.c
 
 MARVELL MVNETA ETHERNET DRIVER
-M:	Thomas Petazzoni <thomas.petazzoni@bootlin.com>
+M:	Marcin Wojtas <marcin.s.wojtas@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ethernet/marvell/mvneta.*
+F:	drivers/net/ethernet/marvell/mvneta*
 
 MARVELL MVPP2 ETHERNET DRIVER
 M:	Marcin Wojtas <marcin.s.wojtas@gmail.com>
@@ -13656,7 +13650,6 @@ F:	drivers/dma/mediatek/
 
 MEDIATEK ETHERNET DRIVER
 M:	Felix Fietkau <nbd@nbd.name>
-M:	John Crispin <john@phrozen.org>
 M:	Sean Wang <sean.wang@mediatek.com>
 M:	Mark Lee <Mark-MC.Lee@mediatek.com>
 M:	Lorenzo Bianconi <lorenzo@kernel.org>
@@ -13812,7 +13805,6 @@ F:	include/soc/mediatek/smi.h
 MEDIATEK SWITCH DRIVER
 M:	Arınç ÜNAL <arinc.unal@arinc9.com>
 M:	Daniel Golle <daniel@makrotopia.org>
-M:	Landen Chao <Landen.Chao@mediatek.com>
 M:	DENG Qingfang <dqfext@gmail.com>
 M:	Sean Wang <sean.wang@mediatek.com>
 L:	netdev@vger.kernel.org
