@@ -1312,6 +1312,7 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 				  const unsigned int xid)
 {
 	struct cifs_open_info_data tmp_data = {};
+	struct TCP_Server_Info *server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
@@ -1322,12 +1323,13 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	/*
 	 * 1. Fetch file metadata if not provided (data)
 	 */
 	if (!data) {
-		rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
+		rc = server->ops->query_path_info(xid, tcon, cifs_sb,
 						  full_path, &tmp_data);
 		data = &tmp_data;
 	}

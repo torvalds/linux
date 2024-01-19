@@ -678,7 +678,7 @@ int smb2_query_path_info(const unsigned int xid,
 	struct smb2_hdr *hdr;
 	struct kvec in_iov[2], out_iov[3] = {};
 	int out_buftype[3] = {};
-	int cmds[2] = { SMB2_OP_QUERY_INFO,  };
+	int cmds[2];
 	bool islink;
 	int i, num_cmds;
 	int rc, rc2;
@@ -686,20 +686,36 @@ int smb2_query_path_info(const unsigned int xid,
 	data->adjust_tz = false;
 	data->reparse_point = false;
 
-	if (strcmp(full_path, ""))
-		rc = -ENOENT;
-	else
-		rc = open_cached_dir(xid, tcon, full_path, cifs_sb, false, &cfid);
-	/* If it is a root and its handle is cached then use it */
-	if (!rc) {
-		if (cfid->file_all_info_is_valid) {
-			memcpy(&data->fi, &cfid->file_all_info, sizeof(data->fi));
+	/*
+	 * BB TODO: Add support for using cached root handle in SMB3.1.1 POSIX.
+	 * Create SMB2_query_posix_info worker function to do non-compounded
+	 * query when we already have an open file handle for this. For now this
+	 * is fast enough (always using the compounded version).
+	 */
+	if (!tcon->posix_extensions) {
+		if (*full_path) {
+			rc = -ENOENT;
 		} else {
-			rc = SMB2_query_info(xid, tcon, cfid->fid.persistent_fid,
-					     cfid->fid.volatile_fid, &data->fi);
+			rc = open_cached_dir(xid, tcon, full_path,
+					     cifs_sb, false, &cfid);
 		}
-		close_cached_dir(cfid);
-		return rc;
+		/* If it is a root and its handle is cached then use it */
+		if (!rc) {
+			if (cfid->file_all_info_is_valid) {
+				memcpy(&data->fi, &cfid->file_all_info,
+				       sizeof(data->fi));
+			} else {
+				rc = SMB2_query_info(xid, tcon,
+						     cfid->fid.persistent_fid,
+						     cfid->fid.volatile_fid,
+						     &data->fi);
+			}
+			close_cached_dir(cfid);
+			return rc;
+		}
+		cmds[0] = SMB2_OP_QUERY_INFO;
+	} else {
+		cmds[0] = SMB2_OP_POSIX_QUERY_INFO;
 	}
 
 	in_iov[0].iov_base = data;
@@ -722,6 +738,10 @@ int smb2_query_path_info(const unsigned int xid,
 	switch (rc) {
 	case 0:
 	case -EOPNOTSUPP:
+		/*
+		 * BB TODO: When support for special files added to Samba
+		 * re-verify this path.
+		 */
 		rc = parse_create_response(data, cifs_sb, &out_iov[0]);
 		if (rc || !data->reparse_point)
 			goto out;
@@ -753,75 +773,6 @@ int smb2_query_path_info(const unsigned int xid,
 		}
 		if (islink)
 			rc = -EREMOTE;
-	}
-
-out:
-	for (i = 0; i < ARRAY_SIZE(out_buftype); i++)
-		free_rsp_buf(out_buftype[i], out_iov[i].iov_base);
-	return rc;
-}
-
-int smb311_posix_query_path_info(const unsigned int xid,
-				 struct cifs_tcon *tcon,
-				 struct cifs_sb_info *cifs_sb,
-				 const char *full_path,
-				 struct cifs_open_info_data *data)
-{
-	int rc;
-	__u32 create_options = 0;
-	struct cifsFileInfo *cfile;
-	struct kvec in_iov[2], out_iov[3] = {};
-	int out_buftype[3] = {};
-	int cmds[2] = { SMB2_OP_POSIX_QUERY_INFO,  };
-	int i, num_cmds;
-
-	data->adjust_tz = false;
-	data->reparse_point = false;
-
-	/*
-	 * BB TODO: Add support for using the cached root handle.
-	 * Create SMB2_query_posix_info worker function to do non-compounded query
-	 * when we already have an open file handle for this. For now this is fast enough
-	 * (always using the compounded version).
-	 */
-	in_iov[0].iov_base = data;
-	in_iov[0].iov_len = sizeof(*data);
-	in_iov[1] = in_iov[0];
-
-	cifs_get_readable_path(tcon, full_path, &cfile);
-	rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
-			      FILE_READ_ATTRIBUTES, FILE_OPEN,
-			      create_options, ACL_NO_MODE, in_iov,
-			      cmds, 1, cfile, out_iov, out_buftype);
-	/*
-	 * If first iov is unset, then SMB session was dropped or we've got a
-	 * cached open file (@cfile).
-	 */
-	if (!out_iov[0].iov_base || out_buftype[0] == CIFS_NO_BUFFER)
-		goto out;
-
-	switch (rc) {
-	case 0:
-	case -EOPNOTSUPP:
-		/* BB TODO: When support for special files added to Samba re-verify this path */
-		rc = parse_create_response(data, cifs_sb, &out_iov[0]);
-		if (rc || !data->reparse_point)
-			goto out;
-
-		if (data->reparse.tag == IO_REPARSE_TAG_SYMLINK) {
-			/* symlink already parsed in create response */
-			num_cmds = 1;
-		} else {
-			cmds[1] = SMB2_OP_GET_REPARSE;
-			num_cmds = 2;
-		}
-		create_options |= OPEN_REPARSE_POINT;
-		cifs_get_readable_path(tcon, full_path, &cfile);
-		rc = smb2_compound_op(xid, tcon, cifs_sb, full_path,
-				      FILE_READ_ATTRIBUTES, FILE_OPEN,
-				      create_options, ACL_NO_MODE, in_iov,
-				      cmds, num_cmds, cfile, NULL, NULL);
-		break;
 	}
 
 out:
