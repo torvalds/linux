@@ -106,13 +106,7 @@ Known Bugs
 
 See https://bugzilla.samba.org - search on product "CifsVFS" for
 current bug list.  Also check http://bugzilla.kernel.org (Product = File System, Component = CIFS)
-
-1) existing symbolic links (Windows reparse points) are recognized but
-   can not be created remotely. They are implemented for Samba and those that
-   support the CIFS Unix extensions, although earlier versions of Samba
-   overly restrict the pathnames.
-2) follow_link and readdir code does not follow dfs junctions
-   but recognizes them
+and xfstest results e.g. https://wiki.samba.org/index.php/Xfstest-results-smb3
 
 Misc testing to do
 ==================
