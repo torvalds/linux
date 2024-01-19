@@ -270,15 +270,30 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 					le32_to_cpu(attr->sustained_freq_khz);
 		dom_info->sustained_perf_level =
 					le32_to_cpu(attr->sustained_perf_level);
+		/*
+		 * sustained_freq_khz = mult_factor * sustained_perf_level
+		 * mult_factor must be non zero positive integer(not fraction)
+		 */
 		if (!dom_info->sustained_freq_khz ||
 		    !dom_info->sustained_perf_level ||
-		    dom_info->level_indexing_mode)
+		    dom_info->level_indexing_mode) {
 			/* CPUFreq converts to kHz, hence default 1000 */
 			dom_info->mult_factor =	1000;
-		else
+		} else {
 			dom_info->mult_factor =
 					(dom_info->sustained_freq_khz * 1000UL)
 					/ dom_info->sustained_perf_level;
+			if ((dom_info->sustained_freq_khz * 1000UL) %
+			    dom_info->sustained_perf_level)
+				dev_warn(ph->dev,
+					 "multiplier for domain %d rounded\n",
+					 dom_info->id);
+		}
+		if (!dom_info->mult_factor)
+			dev_warn(ph->dev,
+			         "Wrong sustained perf/frequency(domain %d)\n",
+				 dom_info->id);
+
 		strscpy(dom_info->info.name, attr->name,
 			SCMI_SHORT_NAME_MAX_SIZE);
 	}
