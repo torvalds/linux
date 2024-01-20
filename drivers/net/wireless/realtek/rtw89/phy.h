@@ -7,6 +7,7 @@
 
 #include "core.h"
 
+#define RTW89_BBMCU_ADDR_OFFSET	0x30000
 #define RTW89_RF_ADDR_ADSEL_MASK  BIT(16)
 
 #define get_phy_headline(addr)		FIELD_GET(GENMASK(31, 28), addr)
@@ -609,6 +610,15 @@ static inline u32 rtw89_phy_read32_mask(struct rtw89_dev *rtwdev,
 	const struct rtw89_phy_gen_def *phy = rtwdev->chip->phy_def;
 
 	return rtw89_read32_mask(rtwdev, addr + phy->cr_base, mask);
+}
+
+static inline void rtw89_bbmcu_write32(struct rtw89_dev *rtwdev,
+				       u32 addr, u32 data, enum rtw89_phy_idx phy_idx)
+{
+	if (phy_idx && addr < 0x10000)
+		addr += 0x20000;
+
+	rtw89_write32(rtwdev, addr + RTW89_BBMCU_ADDR_OFFSET, data);
 }
 
 static inline
