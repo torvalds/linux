@@ -43,7 +43,7 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 	/* add hop1 and hop2 */
 	total_hops = num_of_hop3 + 2;
 
-	ctx->dram_default_hops = kzalloc(HL_PTE_SIZE * total_hops,  GFP_KERNEL);
+	ctx->dram_default_hops = kcalloc(total_hops, HL_PTE_SIZE,  GFP_KERNEL);
 	if (!ctx->dram_default_hops)
 		return -ENOMEM;
 
