@@ -12,7 +12,7 @@
 
 /*
  * ok, we cannot use strncmp, as the name is not in our data space.
- * Thus we'll have to use isofs_match. No big problem. Match also makes
+ * Thus we'll have to use isofs_cmp. No big problem. Match also makes
  * some sanity tests.
  */
 static int
