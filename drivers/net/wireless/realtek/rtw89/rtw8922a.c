@@ -807,6 +807,23 @@ static void rtw8922a_set_channel(struct rtw89_dev *rtwdev,
 	rtw8922a_set_channel_bb(rtwdev, chan, phy_idx);
 }
 
+static int rtw8922a_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	rtw89_write8_set(rtwdev, R_BE_FEN_RST_ENABLE,
+			 B_BE_FEN_BBPLAT_RSTB | B_BE_FEN_BB_IP_RSTN);
+	rtw89_write32(rtwdev, R_BE_DMAC_SYS_CR32B, 0x7FF97FF9);
+
+	return 0;
+}
+
+static int rtw8922a_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
+{
+	rtw89_write8_clr(rtwdev, R_BE_FEN_RST_ENABLE,
+			 B_BE_FEN_BBPLAT_RSTB | B_BE_FEN_BB_IP_RSTN);
+
+	return 0;
+}
+
 #ifdef CONFIG_PM
 static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 	.flags = WIPHY_WOWLAN_MAGIC_PKT | WIPHY_WOWLAN_DISCONNECT,
@@ -817,6 +834,8 @@ static const struct wiphy_wowlan_support rtw_wowlan_stub_8922a = {
 #endif
 
 static const struct rtw89_chip_ops rtw8922a_chip_ops = {
+	.enable_bb_rf		= rtw8922a_mac_enable_bb_rf,
+	.disable_bb_rf		= rtw8922a_mac_disable_bb_rf,
 	.set_channel		= rtw8922a_set_channel,
 	.read_efuse		= rtw8922a_read_efuse,
 	.read_phycap		= rtw8922a_read_phycap,
