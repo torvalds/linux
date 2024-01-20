@@ -4191,6 +4191,8 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	rtw89_traffic_stats_init(rtwdev, &rtwdev->stats);
 
 	rtwdev->hal.rx_fltr = DEFAULT_AX_RX_FLTR;
+	rtwdev->dbcc_en = false;
+	rtwdev->mlo_dbcc_mode = MLO_DBCC_NOT_SUPPORT;
 
 	INIT_WORK(&btc->eapol_notify_work, rtw89_btc_ntfy_eapol_packet_work);
 	INIT_WORK(&btc->arp_notify_work, rtw89_btc_ntfy_arp_packet_work);
