@@ -35,6 +35,13 @@
 			reusable;
 		};
 
+		rvas_memory: rvas {
+			size = <0x04000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
 		gfx_memory: framebuffer {
 			size = <0x01000000>;
 			alignment = <0x01000000>;
@@ -750,10 +757,17 @@
 	clk-phase-uhs-sdr50 = <0 130>, <0 130>;
 };
 
+#if 1
 &video {
 	status = "okay";
 	memory-region = <&video_engine_memory>;
 };
+#else
+&rvas {
+	status = "okay";
+	memory-region = <&rvas_memory>;
+};
+#endif
 
 &gfx {
 	status = "okay";

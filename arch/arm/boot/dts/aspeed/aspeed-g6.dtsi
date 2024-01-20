@@ -1262,6 +1262,18 @@
 				interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>;
 			};
 
+			rvas: rvas@1e7c8000 {
+				compatible = "aspeed,ast2600-rvas";
+				reg = <0x1e7c8000 0x800 0x1e6ec000 0x800 0x1e700000 0x1000>;
+				clocks = <&syscon ASPEED_CLK_GATE_RVASCLK>,
+					 <&syscon ASPEED_CLK_GATE_VCLK>,
+					 <&syscon ASPEED_CLK_GATE_ECLK>;
+				clock-names = "rvasclk-gate", "vclk", "eclk";
+				interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&syscon ASPEED_RESET_RVAS>, <&syscon ASPEED_RESET_VIDEO>;
+				status = "disabled";
+			};
+
 			bmc_dev: bmc_dev@1e7e0000 {
 				compatible = "aspeed,ast2600-bmc-device";
 				reg = <0x1e7e0000 0xB000>;
