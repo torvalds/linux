@@ -166,6 +166,7 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_VOL_MUTE		= 0x1017, /* Mixer output mute */
 	TP_HKEY_EV_PRIVACYGUARD_TOGGLE	= 0x130f, /* Toggle priv.guard on/off */
 	TP_HKEY_EV_AMT_TOGGLE		= 0x131a, /* Toggle AMT on/off */
+	TP_HKEY_EV_PROFILE_TOGGLE	= 0x131f, /* Toggle platform profile */
 
 	/* Reasons for waking up from S3/S4 */
 	TP_HKEY_EV_WKUP_S3_UNDOCK	= 0x2304, /* undock requested, S3 */
@@ -3731,6 +3732,7 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 	switch (hkey) {
 	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
 	case TP_HKEY_EV_AMT_TOGGLE:
+	case TP_HKEY_EV_PROFILE_TOGGLE:
 		tpacpi_driver_event(hkey);
 		return true;
 	}
@@ -11115,7 +11117,23 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		else
 			dytc_control_amt(!dytc_amt_active);
 	}
-
+	if (hkey_event == TP_HKEY_EV_PROFILE_TOGGLE) {
+		switch (dytc_current_profile) {
+		case PLATFORM_PROFILE_LOW_POWER:
+			dytc_profile_set(NULL, PLATFORM_PROFILE_BALANCED);
+			break;
+		case PLATFORM_PROFILE_BALANCED:
+			dytc_profile_set(NULL, PLATFORM_PROFILE_PERFORMANCE);
+			break;
+		case PLATFORM_PROFILE_PERFORMANCE:
+			dytc_profile_set(NULL, PLATFORM_PROFILE_LOW_POWER);
+			break;
+		default:
+			pr_warn("Profile HKEY unexpected profile %d", dytc_current_profile);
+		}
+		/* Notify user space the profile changed */
+		platform_profile_notify();
+	}
 }
 
 static void hotkey_driver_event(const unsigned int scancode)
