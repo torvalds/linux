@@ -45,6 +45,82 @@ struct es8326_priv {
 	int jack_remove_retry;
 };
 
+static int es8326_crosstalk1_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+	unsigned int crosstalk_h, crosstalk_l;
+	unsigned int crosstalk;
+
+	regmap_read(es8326->regmap, ES8326_DAC_RAMPRATE, &crosstalk_h);
+	regmap_read(es8326->regmap, ES8326_DAC_CROSSTALK, &crosstalk_l);
+	crosstalk_h &= 0x20;
+	crosstalk_l &= 0xf0;
+	crosstalk = crosstalk_h >> 1 | crosstalk_l >> 4;
+	ucontrol->value.integer.value[0] = crosstalk;
+
+	return 0;
+}
+
+static int es8326_crosstalk1_set(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+	unsigned int crosstalk_h, crosstalk_l;
+	unsigned int crosstalk;
+
+	crosstalk = ucontrol->value.integer.value[0];
+	regmap_read(es8326->regmap, ES8326_DAC_CROSSTALK, &crosstalk_l);
+	crosstalk_h = (crosstalk & 0x10) << 1;
+	crosstalk_l &= 0x0f;
+	crosstalk_l |= (crosstalk & 0x0f) << 4;
+	regmap_update_bits(es8326->regmap, ES8326_DAC_RAMPRATE,
+			0x20, crosstalk_h);
+	regmap_write(es8326->regmap, ES8326_DAC_CROSSTALK, crosstalk_l);
+
+	return 0;
+}
+
+static int es8326_crosstalk2_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+	unsigned int crosstalk_h, crosstalk_l;
+	unsigned int crosstalk;
+
+	regmap_read(es8326->regmap, ES8326_DAC_RAMPRATE, &crosstalk_h);
+	regmap_read(es8326->regmap, ES8326_DAC_CROSSTALK, &crosstalk_l);
+	crosstalk_h &= 0x10;
+	crosstalk_l &= 0x0f;
+	crosstalk = crosstalk_h  | crosstalk_l;
+	ucontrol->value.integer.value[0] = crosstalk;
+
+	return 0;
+}
+
+static int es8326_crosstalk2_set(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
+	struct es8326_priv *es8326 = snd_soc_component_get_drvdata(component);
+	unsigned int crosstalk_h, crosstalk_l;
+	unsigned int crosstalk;
+
+	crosstalk = ucontrol->value.integer.value[0];
+	regmap_read(es8326->regmap, ES8326_DAC_CROSSTALK, &crosstalk_l);
+	crosstalk_h = crosstalk & 0x10;
+	crosstalk_l &= 0xf0;
+	crosstalk_l |= crosstalk & 0x0f;
+	regmap_update_bits(es8326->regmap, ES8326_DAC_RAMPRATE,
+			0x10, crosstalk_h);
+	regmap_write(es8326->regmap, ES8326_DAC_CROSSTALK, crosstalk_l);
+
+	return 0;
+}
+
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(dac_vol_tlv, -9550, 50, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_vol_tlv, -9550, 50, 0);
 static const SNDRV_CTL_TLVD_DECLARE_DB_SCALE(adc_analog_pga_tlv, 0, 300, 0);
@@ -102,6 +178,10 @@ static const struct snd_kcontrol_new es8326_snd_controls[] = {
 	SOC_SINGLE_TLV("ALC Capture Target Level", ES8326_ALC_LEVEL,
 			0, 0x0f, 0, drc_target_tlv),
 
+	SOC_SINGLE_EXT("CROSSTALK1", SND_SOC_NOPM, 0, 31, 0,
+			es8326_crosstalk1_get, es8326_crosstalk1_set),
+	SOC_SINGLE_EXT("CROSSTALK2", SND_SOC_NOPM, 0, 31, 0,
+			es8326_crosstalk2_get, es8326_crosstalk2_set),
 };
 
 static const struct snd_soc_dapm_widget es8326_dapm_widgets[] = {
@@ -844,6 +924,8 @@ static int es8326_resume(struct snd_soc_component *component)
 	regmap_write(es8326->regmap, ES8326_CLK_CAL_TIME, 0x00);
 	/* calibrate for B version */
 	es8326_calibrate(component);
+	regmap_write(es8326->regmap, ES8326_DAC_CROSSTALK, 0xaa);
+	regmap_write(es8326->regmap, ES8326_DAC_RAMPRATE, 0x00);
 	/* turn off headphone out */
 	regmap_write(es8326->regmap, ES8326_HP_CAL, 0x00);
 	/* set ADC and DAC in low power mode */
