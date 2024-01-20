@@ -1063,7 +1063,9 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 	bool remove_rsv = false;
 
 	block_group = btrfs_lookup_block_group(fs_info, map->start);
-	BUG_ON(!block_group);
+	if (!block_group)
+		return -ENOENT;
+
 	BUG_ON(!block_group->ro);
 
 	trace_btrfs_remove_block_group(block_group);
