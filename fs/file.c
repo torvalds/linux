@@ -920,13 +920,8 @@ struct file *get_file_rcu(struct file __rcu **f)
 		struct file __rcu *file;
 
 		file = __get_file_rcu(f);
-		if (unlikely(!file))
-			return NULL;
-
-		if (unlikely(IS_ERR(file)))
-			continue;
-
-		return file;
+		if (!IS_ERR(file))
+			return file;
 	}
 }
 EXPORT_SYMBOL_GPL(get_file_rcu);
