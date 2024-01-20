@@ -34,15 +34,10 @@ expression BUF, SZ, FORMAT, STR;
 ssize_t show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	<...
-(
 	return
--		snprintf(BUF, SZ, FORMAT, STR);
-+		sysfs_emit(BUF, FORMAT, STR);
-|
-	return
--		snprintf(BUF, SZ, STR);
-+		sysfs_emit(BUF, STR);
-)
+-		snprintf(BUF, SZ, FORMAT
++		sysfs_emit(BUF, FORMAT
+				,...);
 	...>
 }
 
