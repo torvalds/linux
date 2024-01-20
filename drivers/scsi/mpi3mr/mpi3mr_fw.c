@@ -475,7 +475,7 @@ int mpi3mr_process_admin_reply_q(struct mpi3mr_ioc *mrioc)
  * @op_reply_q: op_reply_qinfo object
  * @reply_ci: operational reply descriptor's queue consumer index
  *
- * Returns reply descriptor frame address
+ * Returns: reply descriptor frame address
  */
 static inline struct mpi3_default_reply_descriptor *
 mpi3mr_get_reply_desc(struct op_reply_qinfo *op_reply_q, u32 reply_ci)
@@ -1063,7 +1063,6 @@ enum mpi3mr_iocstate mpi3mr_get_iocstate(struct mpi3mr_ioc *mrioc)
  * @mrioc: Adapter instance reference
  *
  * Free the DMA memory allocated for IOCTL handling purpose.
-
  *
  * Return: None
  */
@@ -1106,7 +1105,6 @@ static void mpi3mr_free_ioctl_dma_memory(struct mpi3mr_ioc *mrioc)
 /**
  * mpi3mr_alloc_ioctl_dma_memory - Alloc memory for ioctl dma
  * @mrioc: Adapter instance reference
-
  *
  * This function allocates dmaable memory required to handle the
  * application issued MPI3 IOCTL requests.
@@ -1241,7 +1239,7 @@ static int mpi3mr_issue_and_process_mur(struct mpi3mr_ioc *mrioc,
  * during reset/resume
  * @mrioc: Adapter instance reference
  *
- * Return zero if the new IOCFacts parameters value is compatible with
+ * Return: zero if the new IOCFacts parameters value is compatible with
  * older values else return -EPERM
  */
 static int
