@@ -197,12 +197,6 @@ static const struct snd_soc_dapm_widget es8326_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("I2S OUT", "I2S1 Capture", 0, SND_SOC_NOPM, 0, 0),
 	SND_SOC_DAPM_AIF_IN("I2S IN", "I2S1 Playback", 0, SND_SOC_NOPM, 0, 0),
 
-	/* ADC Digital Mute */
-	SND_SOC_DAPM_PGA("ADC L1", ES8326_ADC_MUTE, 0, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC R1", ES8326_ADC_MUTE, 1, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC L2", ES8326_ADC_MUTE, 2, 1, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC R2", ES8326_ADC_MUTE, 3, 1, NULL, 0),
-
 	/* Analog Power Supply*/
 	SND_SOC_DAPM_DAC("Right DAC", NULL, ES8326_ANA_PDN, 0, 1),
 	SND_SOC_DAPM_DAC("Left DAC", NULL, ES8326_ANA_PDN, 1, 1),
@@ -222,15 +216,10 @@ static const struct snd_soc_dapm_widget es8326_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route es8326_dapm_routes[] = {
-	{"ADC L1", NULL, "MIC1"},
-	{"ADC R1", NULL, "MIC2"},
-	{"ADC L2", NULL, "MIC3"},
-	{"ADC R2", NULL, "MIC4"},
-
-	{"ADC L", NULL, "ADC L1"},
-	{"ADC R", NULL, "ADC R1"},
-	{"ADC L", NULL, "ADC L2"},
-	{"ADC R", NULL, "ADC R2"},
+	{"ADC L", NULL, "MIC1"},
+	{"ADC R", NULL, "MIC2"},
+	{"ADC L", NULL, "MIC3"},
+	{"ADC R", NULL, "MIC4"},
 
 	{"I2S OUT", NULL, "ADC L"},
 	{"I2S OUT", NULL, "ADC R"},
@@ -520,11 +509,16 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 	unsigned int offset_l, offset_r;
 
 	if (mute) {
-		regmap_write(es8326->regmap, ES8326_HP_CAL, ES8326_HP_OFF);
-		regmap_update_bits(es8326->regmap, ES8326_DAC_MUTE,
-				ES8326_MUTE_MASK, ES8326_MUTE);
-		regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF,
-				0x30, 0x00);
+		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
+			regmap_write(es8326->regmap, ES8326_HP_CAL, ES8326_HP_OFF);
+			regmap_update_bits(es8326->regmap, ES8326_DAC_MUTE,
+					ES8326_MUTE_MASK, ES8326_MUTE);
+			regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF,
+					0x30, 0x00);
+		} else {
+			regmap_update_bits(es8326->regmap,  ES8326_ADC_MUTE,
+					0x0F, 0x0F);
+		}
 	} else {
 		if (!es8326->calibrated) {
 			regmap_write(es8326->regmap, ES8326_HP_CAL, ES8326_HP_FORCE_CAL);
@@ -537,16 +531,22 @@ static int es8326_mute(struct snd_soc_dai *dai, int mute, int direction)
 			regmap_write(es8326->regmap, ES8326_HPR_OFFSET_INI, offset_r);
 			es8326->calibrated = true;
 		}
-		regmap_update_bits(es8326->regmap, ES8326_DAC_DSM, 0x01, 0x01);
-		usleep_range(1000, 5000);
-		regmap_update_bits(es8326->regmap, ES8326_DAC_DSM, 0x01, 0x00);
-		usleep_range(1000, 5000);
-		regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF, 0x30, 0x20);
-		regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF, 0x30, 0x30);
-		regmap_write(es8326->regmap, ES8326_HP_DRIVER, 0xa1);
-		regmap_write(es8326->regmap, ES8326_HP_CAL, ES8326_HP_ON);
-		regmap_update_bits(es8326->regmap, ES8326_DAC_MUTE,
-				ES8326_MUTE_MASK, ~(ES8326_MUTE));
+		if (direction == SNDRV_PCM_STREAM_PLAYBACK) {
+			regmap_update_bits(es8326->regmap, ES8326_DAC_DSM, 0x01, 0x01);
+			usleep_range(1000, 5000);
+			regmap_update_bits(es8326->regmap, ES8326_DAC_DSM, 0x01, 0x00);
+			usleep_range(1000, 5000);
+			regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF, 0x30, 0x20);
+			regmap_update_bits(es8326->regmap, ES8326_HP_DRIVER_REF, 0x30, 0x30);
+			regmap_write(es8326->regmap, ES8326_HP_DRIVER, 0xa1);
+			regmap_write(es8326->regmap, ES8326_HP_CAL, ES8326_HP_ON);
+			regmap_update_bits(es8326->regmap, ES8326_DAC_MUTE,
+					ES8326_MUTE_MASK, ~(ES8326_MUTE));
+		} else {
+			msleep(300);
+			regmap_update_bits(es8326->regmap,  ES8326_ADC_MUTE,
+					0x0F, 0x00);
+		}
 	}
 	return 0;
 }
@@ -596,7 +596,7 @@ static const struct snd_soc_dai_ops es8326_ops = {
 	.set_fmt = es8326_set_dai_fmt,
 	.set_sysclk = es8326_set_dai_sysclk,
 	.mute_stream = es8326_mute,
-	.no_capture_mute = 1,
+	.no_capture_mute = 0,
 };
 
 static struct snd_soc_dai_driver es8326_dai = {
@@ -968,6 +968,7 @@ static int es8326_resume(struct snd_soc_component *component)
 	regmap_update_bits(es8326->regmap, ES8326_DAC_MUTE, ES8326_MUTE_MASK,
 			   ES8326_MUTE);
 
+	regmap_write(es8326->regmap, ES8326_ADC_MUTE, 0x0f);
 
 	es8326->jack_remove_retry = 0;
 	es8326->hp = 0;
