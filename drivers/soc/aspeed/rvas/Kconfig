@@ -1,0 +1,9 @@
+menu "ASPEED RVAS drivers"
+
+config ASPEED_RVAS
+	tristate "ASPEED RVAS driver"
+	default n
+	help
+	  Driver for ASPEED RVAS Engine
+
+endmenu

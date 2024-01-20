@@ -149,6 +149,8 @@ config ASPEED_OTP
 	tristate "Aspeed OTP Driver"
 	depends on MACH_ASPEED_G6
 
+source "drivers/soc/aspeed/rvas/Kconfig"
+
 endmenu
 
 endif
