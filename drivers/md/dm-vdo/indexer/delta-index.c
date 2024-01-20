@@ -35,7 +35,7 @@
  *
  * Each delta list is stored as a bit stream. Within the delta list encoding, bits and bytes are
  * numbered in little endian order. Within a byte, bit 0 is the least significant bit (0x1), and
- * bit 7 is the most significant bit (0x80). Within a bit stream, bit 7 is the most signficant bit
+ * bit 7 is the most significant bit (0x80). Within a bit stream, bit 7 is the most significant bit
  * of byte 0, and bit 8 is the least significant bit of byte 1. Within a byte array, a byte's
  * number corresponds to its index in the array.
  *

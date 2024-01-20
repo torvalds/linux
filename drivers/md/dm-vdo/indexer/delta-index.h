@@ -141,7 +141,7 @@ struct delta_index_page {
  *     record at the end of the list.
  *
  * (5) If at_end is false and is_collision is true, the delta_list entry fields refer to a
- *     collision entry in the list, and the delta_list entry can be used a a reference to this
+ *     collision entry in the list, and the delta_list entry can be used as a reference to this
  *     entry.
  *
  * (6) If at_end is false and is_collision is false, the delta_list entry fields refer to a
