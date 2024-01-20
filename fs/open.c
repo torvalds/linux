@@ -1155,7 +1155,6 @@ EXPORT_SYMBOL(dentry_create);
  * kernel_file_open - open a file for kernel internal use
  * @path:	path of the file to open
  * @flags:	open flags
- * @inode:	the inode
  * @cred:	credentials for open
  *
  * Open a file for use by in-kernel consumers. The file is not accounted
@@ -1165,7 +1164,7 @@ EXPORT_SYMBOL(dentry_create);
  * Return: Opened file on success, an error pointer on failure.
  */
 struct file *kernel_file_open(const struct path *path, int flags,
-				struct inode *inode, const struct cred *cred)
+				const struct cred *cred)
 {
 	struct file *f;
 	int error;
@@ -1175,7 +1174,7 @@ struct file *kernel_file_open(const struct path *path, int flags,
 		return f;
 
 	f->f_path = *path;
-	error = do_dentry_open(f, inode, NULL);
+	error = do_dentry_open(f, d_inode(path->dentry), NULL);
 	if (error) {
 		fput(f);
 		f = ERR_PTR(error);
