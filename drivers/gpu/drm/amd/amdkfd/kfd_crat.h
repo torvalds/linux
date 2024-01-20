@@ -303,6 +303,7 @@ struct kfd_node;
 struct kfd_gpu_cache_info {
 	uint32_t	cache_size;
 	uint32_t	cache_level;
+	uint32_t	cache_line_size;
 	uint32_t	flags;
 	/* Indicates how many Compute Units share this cache
 	 * within a SA. Value = 1 indicates the cache is not shared
