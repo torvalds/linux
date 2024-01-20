@@ -63,6 +63,31 @@ static const struct rtw89_dle_mem rtw8922a_dle_mem_pcie[] = {
 			       NULL},
 };
 
+static const u32 rtw8922a_h2c_regs[RTW89_H2CREG_MAX] = {
+	R_BE_H2CREG_DATA0, R_BE_H2CREG_DATA1, R_BE_H2CREG_DATA2,
+	R_BE_H2CREG_DATA3
+};
+
+static const u32 rtw8922a_c2h_regs[RTW89_H2CREG_MAX] = {
+	R_BE_C2HREG_DATA0, R_BE_C2HREG_DATA1, R_BE_C2HREG_DATA2,
+	R_BE_C2HREG_DATA3
+};
+
+static const struct rtw89_page_regs rtw8922a_page_regs = {
+	.hci_fc_ctrl	= R_BE_HCI_FC_CTRL,
+	.ch_page_ctrl	= R_BE_CH_PAGE_CTRL,
+	.ach_page_ctrl	= R_BE_CH0_PAGE_CTRL,
+	.ach_page_info	= R_BE_CH0_PAGE_INFO,
+	.pub_page_info3	= R_BE_PUB_PAGE_INFO3,
+	.pub_page_ctrl1	= R_BE_PUB_PAGE_CTRL1,
+	.pub_page_ctrl2	= R_BE_PUB_PAGE_CTRL2,
+	.pub_page_info1	= R_BE_PUB_PAGE_INFO1,
+	.pub_page_info2 = R_BE_PUB_PAGE_INFO2,
+	.wp_page_ctrl1	= R_BE_WP_PAGE_CTRL1,
+	.wp_page_ctrl2	= R_BE_WP_PAGE_CTRL2,
+	.wp_page_info1	= R_BE_WP_PAGE_INFO1,
+};
+
 static const struct rtw89_reg_imr rtw8922a_imr_dmac_regs[] = {
 	{R_BE_DISP_HOST_IMR, B_BE_DISP_HOST_IMR_CLR, B_BE_DISP_HOST_IMR_SET},
 	{R_BE_DISP_CPU_IMR, B_BE_DISP_CPU_IMR_CLR, B_BE_DISP_CPU_IMR_SET},
@@ -119,6 +144,11 @@ static const struct rtw89_imr_table rtw8922a_imr_cmac_table = {
 	.n_regs = ARRAY_SIZE(rtw8922a_imr_cmac_regs),
 };
 
+static const struct rtw89_rrsr_cfgs rtw8922a_rrsr_cfgs = {
+	.ref_rate = {R_BE_TRXPTCL_RESP_1, B_BE_WMAC_RESP_REF_RATE_SEL, 0},
+	.rsc = {R_BE_PTCL_RRSR1, B_BE_RSC_MASK, 2},
+};
+
 static const struct rtw89_dig_regs rtw8922a_dig_regs = {
 	.seg0_pd_reg = R_SEG0R_PD_V2,
 	.pd_lower_bound_mask = B_SEG0R_PD_LOWER_BOUND_MSK,
@@ -141,6 +171,22 @@ static const struct rtw89_dig_regs rtw8922a_dig_regs = {
 			      B_PATH1_P20_FOLLOW_BY_PAGCUGC_EN_MSK},
 	.p1_s20_pagcugc_en = {R_PATH1_S20_FOLLOW_BY_PAGCUGC_V3,
 			      B_PATH1_S20_FOLLOW_BY_PAGCUGC_EN_MSK},
+};
+
+static const struct rtw89_edcca_regs rtw8922a_edcca_regs = {
+	.edcca_level			= R_SEG0R_EDCCA_LVL_BE,
+	.edcca_mask			= B_EDCCA_LVL_MSK0,
+	.edcca_p_mask			= B_EDCCA_LVL_MSK1,
+	.ppdu_level			= R_SEG0R_PPDU_LVL_BE,
+	.ppdu_mask			= B_EDCCA_LVL_MSK1,
+	.rpt_a				= R_EDCCA_RPT_A_BE,
+	.rpt_b				= R_EDCCA_RPT_B_BE,
+	.rpt_sel			= R_EDCCA_RPT_SEL_BE,
+	.rpt_sel_mask			= B_EDCCA_RPT_SEL_MSK,
+	.rpt_sel_be			= R_EDCCA_RPTREG_SEL_BE,
+	.rpt_sel_be_mask		= B_EDCCA_RPTREG_SEL_BE_MSK,
+	.tx_collision_t2r_st		= R_TX_COLLISION_T2R_ST_BE,
+	.tx_collision_t2r_st_mask	= B_TX_COLLISION_T2R_ST_BE_M,
 };
 
 static const struct rtw89_efuse_block_cfg rtw8922a_efuse_blocks[] = {
@@ -1121,6 +1167,13 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.h2c_desc_size		= sizeof(struct rtw89_rxdesc_short_v2),
 	.txwd_body_size		= sizeof(struct rtw89_txwd_body_v2),
 	.txwd_info_size		= sizeof(struct rtw89_txwd_info_v2),
+	.h2c_ctrl_reg		= R_BE_H2CREG_CTRL,
+	.h2c_counter_reg	= {R_BE_UDM1 + 1, B_BE_UDM1_HALMAC_H2C_DEQ_CNT_MASK >> 8},
+	.h2c_regs		= rtw8922a_h2c_regs,
+	.c2h_ctrl_reg		= R_BE_C2HREG_CTRL,
+	.c2h_counter_reg	= {R_BE_UDM1 + 1, B_BE_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
+	.c2h_regs		= rtw8922a_c2h_regs,
+	.page_regs		= &rtw8922a_page_regs,
 	.cfo_src_fd		= true,
 	.cfo_hw_comp            = true,
 	.dcfo_comp		= NULL,
@@ -1128,9 +1181,11 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.imr_info		= NULL,
 	.imr_dmac_table		= &rtw8922a_imr_dmac_table,
 	.imr_cmac_table		= &rtw8922a_imr_cmac_table,
+	.rrsr_cfgs		= &rtw8922a_rrsr_cfgs,
 	.bss_clr_vld		= {R_BSS_CLR_VLD_V2, B_BSS_CLR_VLD0_V2},
 	.bss_clr_map_reg	= R_BSS_CLR_MAP_V2,
 	.dma_ch_mask		= 0,
+	.edcca_regs		= &rtw8922a_edcca_regs,
 #ifdef CONFIG_PM
 	.wowlan_stub		= &rtw_wowlan_stub_8922a,
 #endif
