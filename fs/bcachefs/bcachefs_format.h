@@ -805,39 +805,6 @@ LE32_BITMASK(BCH_SUBVOLUME_RO,		struct bch_subvolume, flags,  0,  1)
 LE32_BITMASK(BCH_SUBVOLUME_SNAP,	struct bch_subvolume, flags,  1,  2)
 LE32_BITMASK(BCH_SUBVOLUME_UNLINKED,	struct bch_subvolume, flags,  2,  3)
 
-/* Snapshots */
-
-struct bch_snapshot {
-	struct bch_val		v;
-	__le32			flags;
-	__le32			parent;
-	__le32			children[2];
-	__le32			subvol;
-	/* corresponds to a bch_snapshot_tree in BTREE_ID_snapshot_trees */
-	__le32			tree;
-	__le32			depth;
-	__le32			skip[3];
-	bch_le128		btime;
-};
-
-LE32_BITMASK(BCH_SNAPSHOT_DELETED,	struct bch_snapshot, flags,  0,  1)
-
-/* True if a subvolume points to this snapshot node: */
-LE32_BITMASK(BCH_SNAPSHOT_SUBVOL,	struct bch_snapshot, flags,  1,  2)
-
-/*
- * Snapshot trees:
- *
- * The snapshot_trees btree gives us persistent indentifier for each tree of
- * bch_snapshot nodes, and allow us to record and easily find the root/master
- * subvolume that other snapshots were created from:
- */
-struct bch_snapshot_tree {
-	struct bch_val		v;
-	__le32			master_subvol;
-	__le32			root_snapshot;
-};
-
 /* LRU btree: */
 
 struct bch_lru {
@@ -904,6 +871,7 @@ struct bch_sb_field {
 #include "dirent_format.h"
 #include "xattr_format.h"
 #include "quota_format.h"
+#include "snapshot_format.h"
 #include "sb-counters_format.h"
 
 enum bch_sb_field_type {
