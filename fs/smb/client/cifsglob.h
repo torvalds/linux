@@ -50,6 +50,11 @@
 #define CIFS_DEF_ACTIMEO (1 * HZ)
 
 /*
+ * max sleep time before retry to server
+ */
+#define CIFS_MAX_SLEEP 2000
+
+/*
  * max attribute cache timeout (jiffies) - 2^30
  */
 #define CIFS_MAX_ACTIMEO (1 << 30)
