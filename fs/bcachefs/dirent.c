@@ -144,19 +144,21 @@ fsck_err:
 	return ret;
 }
 
-void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c,
-			 struct bkey_s_c k)
+void bch2_dirent_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
 {
 	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 	struct qstr d_name = bch2_dirent_get_name(d);
 
-	prt_printf(out, "%.*s -> %llu type %s",
-	       d_name.len,
-	       d_name.name,
-	       d.v->d_type != DT_SUBVOL
-	       ? le64_to_cpu(d.v->d_inum)
-	       : le32_to_cpu(d.v->d_child_subvol),
-	       bch2_d_type_str(d.v->d_type));
+	prt_printf(out, "%.*s -> ", d_name.len, d_name.name);
+
+	if (d.v->d_type != DT_SUBVOL)
+		prt_printf(out, "%llu", le64_to_cpu(d.v->d_inum));
+	else
+		prt_printf(out, "%u -> %u",
+			   le32_to_cpu(d.v->d_parent_subvol),
+			   le32_to_cpu(d.v->d_child_subvol));
+
+	prt_printf(out, " type %s", bch2_d_type_str(d.v->d_type));
 }
 
 static struct bkey_i_dirent *dirent_create_key(struct btree_trans *trans,
