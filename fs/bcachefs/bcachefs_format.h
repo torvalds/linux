@@ -710,21 +710,6 @@ struct bch_reservation {
 #define BKEY_BTREE_PTR_U64s_MAX					\
 	(BKEY_U64s + BKEY_BTREE_PTR_VAL_U64s_MAX)
 
-/* Xattrs */
-
-#define KEY_TYPE_XATTR_INDEX_USER			0
-#define KEY_TYPE_XATTR_INDEX_POSIX_ACL_ACCESS	1
-#define KEY_TYPE_XATTR_INDEX_POSIX_ACL_DEFAULT	2
-#define KEY_TYPE_XATTR_INDEX_TRUSTED			3
-#define KEY_TYPE_XATTR_INDEX_SECURITY	        4
-
-struct bch_xattr {
-	struct bch_val		v;
-	__u8			x_type;
-	__u8			x_name_len;
-	__le16			x_val_len;
-	__u8			x_name[];
-} __packed __aligned(8);
 
 /* Bucket/allocation information: */
 
@@ -1008,6 +993,7 @@ struct bch_sb_field {
 
 #include "dirent_format.h"
 #include "inode_format.h"
+#include "xattr_format.h"
 #include "quota_format.h"
 #include "sb-counters_format.h"
 
