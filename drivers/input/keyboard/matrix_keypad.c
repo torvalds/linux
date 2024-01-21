@@ -27,6 +27,7 @@ struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;
 	struct input_dev *input_dev;
 	unsigned int row_shift;
+	unsigned int row_irqs[MATRIX_MAX_ROWS];
 
 	DECLARE_BITMAP(disabled_gpios, MATRIX_MAX_ROWS);
 
@@ -92,7 +93,7 @@ static void enable_row_irqs(struct matrix_keypad *keypad)
 		enable_irq(pdata->clustered_irq);
 	else {
 		for (i = 0; i < pdata->num_row_gpios; i++)
-			enable_irq(gpio_to_irq(pdata->row_gpios[i]));
+			enable_irq(keypad->row_irqs[i]);
 	}
 }
 
@@ -105,7 +106,7 @@ static void disable_row_irqs(struct matrix_keypad *keypad)
 		disable_irq_nosync(pdata->clustered_irq);
 	else {
 		for (i = 0; i < pdata->num_row_gpios; i++)
-			disable_irq_nosync(gpio_to_irq(pdata->row_gpios[i]));
+			disable_irq_nosync(keypad->row_irqs[i]);
 	}
 }
 
@@ -233,7 +234,6 @@ static void matrix_keypad_stop(struct input_dev *dev)
 static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	unsigned int gpio;
 	int i;
 
 	if (pdata->clustered_irq > 0) {
@@ -241,21 +241,16 @@ static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 			keypad->gpio_all_disabled = true;
 	} else {
 
-		for (i = 0; i < pdata->num_row_gpios; i++) {
-			if (!test_bit(i, keypad->disabled_gpios)) {
-				gpio = pdata->row_gpios[i];
-
-				if (enable_irq_wake(gpio_to_irq(gpio)) == 0)
+		for (i = 0; i < pdata->num_row_gpios; i++)
+			if (!test_bit(i, keypad->disabled_gpios))
+				if (enable_irq_wake(keypad->row_irqs[i]) == 0)
 					__set_bit(i, keypad->disabled_gpios);
-			}
-		}
 	}
 }
 
 static void matrix_keypad_disable_wakeup(struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	unsigned int gpio;
 	int i;
 
 	if (pdata->clustered_irq > 0) {
@@ -264,12 +259,9 @@ static void matrix_keypad_disable_wakeup(struct matrix_keypad *keypad)
 			keypad->gpio_all_disabled = false;
 		}
 	} else {
-		for (i = 0; i < pdata->num_row_gpios; i++) {
-			if (test_and_clear_bit(i, keypad->disabled_gpios)) {
-				gpio = pdata->row_gpios[i];
-				disable_irq_wake(gpio_to_irq(gpio));
-			}
-		}
+		for (i = 0; i < pdata->num_row_gpios; i++)
+			if (test_and_clear_bit(i, keypad->disabled_gpios))
+				disable_irq_wake(keypad->row_irqs[i]);
 	}
 }
 
@@ -306,7 +298,7 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 				   struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	int i, err;
+	int i, irq, err;
 
 	/* initialized strobe lines as outputs, activated */
 	for (i = 0; i < pdata->num_col_gpios; i++) {
@@ -345,11 +337,19 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 		}
 	} else {
 		for (i = 0; i < pdata->num_row_gpios; i++) {
-			err = request_any_context_irq(
-					gpio_to_irq(pdata->row_gpios[i]),
+			irq = gpio_to_irq(pdata->row_gpios[i]);
+			if (irq < 0) {
+				err = irq;
+				dev_err(&pdev->dev,
+					"Unable to convert GPIO line %i to irq: %d\n",
+					pdata->row_gpios[i], err);
+				goto err_free_irqs;
+			}
+
+			err = request_any_context_irq(irq,
 					matrix_keypad_interrupt,
 					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING,
+						IRQF_TRIGGER_FALLING,
 					"matrix-keypad", keypad);
 			if (err < 0) {
 				dev_err(&pdev->dev,
@@ -357,6 +357,8 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 					pdata->row_gpios[i]);
 				goto err_free_irqs;
 			}
+
+			keypad->row_irqs[i] = irq;
 		}
 	}
 
@@ -366,7 +368,7 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 
 err_free_irqs:
 	while (--i >= 0)
-		free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
+		free_irq(keypad->row_irqs[i], keypad);
 	i = pdata->num_row_gpios;
 err_free_rows:
 	while (--i >= 0)
@@ -388,7 +390,7 @@ static void matrix_keypad_free_gpio(struct matrix_keypad *keypad)
 		free_irq(pdata->clustered_irq, keypad);
 	} else {
 		for (i = 0; i < pdata->num_row_gpios; i++)
-			free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
+			free_irq(keypad->row_irqs[i], keypad);
 	}
 
 	for (i = 0; i < pdata->num_row_gpios; i++)
