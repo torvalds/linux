@@ -272,7 +272,7 @@ static int adf_isr_alloc_msix_vectors_data(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->pf.vf_info)
 		msix_num_entries += hw_data->num_banks;
 
-	irqs = kzalloc_node(msix_num_entries * sizeof(*irqs),
+	irqs = kcalloc_node(msix_num_entries, sizeof(*irqs),
 			    GFP_KERNEL, dev_to_node(&GET_DEV(accel_dev)));
 	if (!irqs)
 		return -ENOMEM;
