@@ -1030,31 +1030,6 @@ struct bch_bucket_gens {
 	u8			gens[KEY_TYPE_BUCKET_GENS_NR];
 } __packed __aligned(8);
 
-/* Quotas: */
-
-enum quota_types {
-	QTYP_USR		= 0,
-	QTYP_GRP		= 1,
-	QTYP_PRJ		= 2,
-	QTYP_NR			= 3,
-};
-
-enum quota_counters {
-	Q_SPC			= 0,
-	Q_INO			= 1,
-	Q_COUNTERS		= 2,
-};
-
-struct bch_quota_counter {
-	__le64			hardlimit;
-	__le64			softlimit;
-};
-
-struct bch_quota {
-	struct bch_val		v;
-	struct bch_quota_counter c[Q_COUNTERS];
-} __packed __aligned(8);
-
 /* Erasure coding */
 
 struct bch_stripe {
@@ -1234,6 +1209,7 @@ struct bch_sb_field {
 	x(ext,				13)	\
 	x(downgrade,			14)
 
+#include "quota_format.h"
 #include "sb-counters_format.h"
 
 enum bch_sb_field_type {
@@ -1469,23 +1445,6 @@ struct bch_replicas_entry_v1 {
 struct bch_sb_field_replicas {
 	struct bch_sb_field	field;
 	struct bch_replicas_entry_v1 entries[];
-} __packed __aligned(8);
-
-/* BCH_SB_FIELD_quota: */
-
-struct bch_sb_quota_counter {
-	__le32				timelimit;
-	__le32				warnlimit;
-};
-
-struct bch_sb_quota_type {
-	__le64				flags;
-	struct bch_sb_quota_counter	c[Q_COUNTERS];
-};
-
-struct bch_sb_field_quota {
-	struct bch_sb_field		field;
-	struct bch_sb_quota_type	q[QTYP_NR];
 } __packed __aligned(8);
 
 /* BCH_SB_FIELD_disk_groups: */
