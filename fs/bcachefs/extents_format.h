@@ -279,4 +279,17 @@ struct bch_extent {
 #define BKEY_BTREE_PTR_U64s_MAX					\
 	(BKEY_U64s + BKEY_BTREE_PTR_VAL_U64s_MAX)
 
+struct bch_reservation {
+	struct bch_val		v;
+
+	__le32			generation;
+	__u8			nr_replicas;
+	__u8			pad[3];
+} __packed __aligned(8);
+
+struct bch_inline_data {
+	struct bch_val		v;
+	u8			data[];
+};
+
 #endif /* _BCACHEFS_EXTENTS_FORMAT_H */

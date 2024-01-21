@@ -423,14 +423,6 @@ struct bch_csum {
 	__le64			hi;
 } __packed __aligned(8);
 
-struct bch_reservation {
-	struct bch_val		v;
-
-	__le32			generation;
-	__u8			nr_replicas;
-	__u8			pad[3];
-} __packed __aligned(8);
-
 struct bch_backpointer {
 	struct bch_val		v;
 	__u8			btree_id;
@@ -440,45 +432,6 @@ struct bch_backpointer {
 	__u32			bucket_len;
 	struct bpos		pos;
 } __packed __aligned(8);
-
-#include "extents_format.h"
-
-/* Reflink: */
-
-struct bch_reflink_p {
-	struct bch_val		v;
-	__le64			idx;
-	/*
-	 * A reflink pointer might point to an indirect extent which is then
-	 * later split (by copygc or rebalance). If we only pointed to part of
-	 * the original indirect extent, and then one of the fragments is
-	 * outside the range we point to, we'd leak a refcount: so when creating
-	 * reflink pointers, we need to store pad values to remember the full
-	 * range we were taking a reference on.
-	 */
-	__le32			front_pad;
-	__le32			back_pad;
-} __packed __aligned(8);
-
-struct bch_reflink_v {
-	struct bch_val		v;
-	__le64			refcount;
-	union bch_extent_entry	start[0];
-	__u64			_data[];
-} __packed __aligned(8);
-
-struct bch_indirect_inline_data {
-	struct bch_val		v;
-	__le64			refcount;
-	u8			data[];
-};
-
-/* Inline data */
-
-struct bch_inline_data {
-	struct bch_val		v;
-	u8			data[];
-};
 
 /* LRU btree: */
 
@@ -542,6 +495,8 @@ struct bch_sb_field {
 	x(downgrade,			14)
 
 #include "alloc_background_format.h"
+#include "extents_format.h"
+#include "reflink_format.h"
 #include "ec_format.h"
 #include "inode_format.h"
 #include "dirent_format.h"
