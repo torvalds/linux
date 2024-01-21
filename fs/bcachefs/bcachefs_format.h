@@ -720,22 +720,6 @@ struct bch_backpointer {
 	struct bpos		pos;
 } __packed __aligned(8);
 
-/* Erasure coding */
-
-struct bch_stripe {
-	struct bch_val		v;
-	__le16			sectors;
-	__u8			algorithm;
-	__u8			nr_blocks;
-	__u8			nr_redundant;
-
-	__u8			csum_granularity_bits;
-	__u8			csum_type;
-	__u8			pad;
-
-	struct bch_extent_ptr	ptrs[];
-} __packed __aligned(8);
-
 /* Reflink: */
 
 struct bch_reflink_p {
@@ -835,6 +819,7 @@ struct bch_sb_field {
 	x(downgrade,			14)
 
 #include "alloc_background_format.h"
+#include "ec_format.h"
 #include "inode_format.h"
 #include "dirent_format.h"
 #include "xattr_format.h"
