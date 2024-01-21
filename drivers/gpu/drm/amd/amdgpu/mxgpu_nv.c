@@ -170,6 +170,10 @@ send_request:
 	case IDH_REQ_GPU_INIT_DATA:
 		event = IDH_REQ_GPU_INIT_DATA_READY;
 		break;
+	case IDH_RAS_POISON:
+		if (data1 != 0)
+			event = IDH_RAS_POISON_READY;
+		break;
 	default:
 		break;
 	}
@@ -437,8 +441,10 @@ static void xgpu_nv_ras_poison_handler(struct amdgpu_device *adev,
 	if (amdgpu_ip_version(adev, UMC_HWIP, 0) < IP_VERSION(12, 0, 0)) {
 		xgpu_nv_send_access_requests(adev, IDH_RAS_POISON);
 	} else {
+		amdgpu_virt_fini_data_exchange(adev);
 		xgpu_nv_send_access_requests_with_param(adev,
 					IDH_RAS_POISON,	block, 0, 0);
+		amdgpu_virt_init_data_exchange(adev);
 	}
 }
 
