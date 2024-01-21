@@ -293,11 +293,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	struct bkey_i_dirent *new_src = NULL, *new_dst = NULL;
 	struct bpos dst_pos =
 		POS(dst_dir.inum, bch2_dirent_hash(dst_hash, dst_name));
-	unsigned src_type = 0, dst_type = 0, src_update_flags = 0;
+	unsigned src_update_flags = 0;
+	bool delete_src, delete_dst;
 	int ret = 0;
-
-	if (src_dir.subvol != dst_dir.subvol)
-		return -EXDEV;
 
 	memset(src_inum, 0, sizeof(*src_inum));
 	memset(dst_inum, 0, sizeof(*dst_inum));
@@ -318,12 +316,6 @@ int bch2_dirent_rename(struct btree_trans *trans,
 			bkey_s_c_to_dirent(old_src), src_inum);
 	if (ret)
 		goto out;
-
-	src_type = bkey_s_c_to_dirent(old_src).v->d_type;
-
-	if (src_type == DT_SUBVOL && mode == BCH_RENAME_EXCHANGE)
-		return -EOPNOTSUPP;
-
 
 	/* Lookup dst: */
 	if (mode == BCH_RENAME) {
@@ -352,11 +344,6 @@ int bch2_dirent_rename(struct btree_trans *trans,
 				bkey_s_c_to_dirent(old_dst), dst_inum);
 		if (ret)
 			goto out;
-
-		dst_type = bkey_s_c_to_dirent(old_dst).v->d_type;
-
-		if (dst_type == DT_SUBVOL)
-			return -EOPNOTSUPP;
 	}
 
 	if (mode != BCH_RENAME_EXCHANGE)
@@ -426,28 +413,55 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		}
 	}
 
+	if (new_dst->v.d_type == DT_SUBVOL)
+		new_dst->v.d_parent_subvol = cpu_to_le32(dst_dir.subvol);
+
+	if ((mode == BCH_RENAME_EXCHANGE) &&
+	    new_src->v.d_type == DT_SUBVOL)
+		new_src->v.d_parent_subvol = cpu_to_le32(src_dir.subvol);
+
 	ret = bch2_trans_update(trans, &dst_iter, &new_dst->k_i, 0);
 	if (ret)
 		goto out;
 out_set_src:
-
 	/*
-	 * If we're deleting a subvolume, we need to really delete the dirent,
-	 * not just emit a whiteout in the current snapshot:
+	 * If we're deleting a subvolume we need to really delete the dirent,
+	 * not just emit a whiteout in the current snapshot - there can only be
+	 * single dirent that points to a given subvolume.
+	 *
+	 * IOW, we don't maintain multiple versions in different snapshots of
+	 * dirents that point to subvolumes - dirents that point to subvolumes
+	 * are only visible in one particular subvolume so it's not necessary,
+	 * and it would be particularly confusing for fsck to have to deal with.
 	 */
-	if (src_type == DT_SUBVOL) {
-		bch2_btree_iter_set_snapshot(&src_iter, old_src.k->p.snapshot);
-		ret = bch2_btree_iter_traverse(&src_iter);
+	delete_src = bkey_s_c_to_dirent(old_src).v->d_type == DT_SUBVOL &&
+		new_src->k.p.snapshot != old_src.k->p.snapshot;
+
+	delete_dst = old_dst.k &&
+		bkey_s_c_to_dirent(old_dst).v->d_type == DT_SUBVOL &&
+		new_dst->k.p.snapshot != old_dst.k->p.snapshot;
+
+	if (!delete_src || !bkey_deleted(&new_src->k)) {
+		ret = bch2_trans_update(trans, &src_iter, &new_src->k_i, src_update_flags);
 		if (ret)
 			goto out;
-
-		new_src->k.p = src_iter.pos;
-		src_update_flags |= BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE;
 	}
 
-	ret = bch2_trans_update(trans, &src_iter, &new_src->k_i, src_update_flags);
-	if (ret)
-		goto out;
+	if (delete_src) {
+		bch2_btree_iter_set_snapshot(&src_iter, old_src.k->p.snapshot);
+		ret =   bch2_btree_iter_traverse(&src_iter) ?:
+			bch2_btree_delete_at(trans, &src_iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+		if (ret)
+			goto out;
+	}
+
+	if (delete_dst) {
+		bch2_btree_iter_set_snapshot(&dst_iter, old_dst.k->p.snapshot);
+		ret =   bch2_btree_iter_traverse(&dst_iter) ?:
+			bch2_btree_delete_at(trans, &dst_iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+		if (ret)
+			goto out;
+	}
 
 	if (mode == BCH_RENAME_EXCHANGE)
 		*src_offset = new_src->k.p.offset;

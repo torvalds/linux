@@ -410,6 +410,21 @@ int bch2_rename_trans(struct btree_trans *trans,
 			goto err;
 	}
 
+	/* Can't move across subvolumes, unless it's a subvolume root: */
+	if (src_dir.subvol != dst_dir.subvol &&
+	    (!src_inode_u->bi_subvol ||
+	     (dst_inum.inum && !dst_inode_u->bi_subvol))) {
+		ret = -EXDEV;
+		goto err;
+	}
+
+	if (src_inode_u->bi_parent_subvol)
+		src_inode_u->bi_parent_subvol = dst_dir.subvol;
+
+	if ((mode == BCH_RENAME_EXCHANGE) &&
+	    dst_inode_u->bi_parent_subvol)
+		dst_inode_u->bi_parent_subvol = src_dir.subvol;
+
 	src_inode_u->bi_dir		= dst_dir_u->bi_inum;
 	src_inode_u->bi_dir_offset	= dst_offset;
 
