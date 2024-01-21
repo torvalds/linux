@@ -27,9 +27,10 @@ struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;
 	struct input_dev *input_dev;
 	unsigned int row_shift;
-	unsigned int row_irqs[MATRIX_MAX_ROWS];
 
-	DECLARE_BITMAP(disabled_gpios, MATRIX_MAX_ROWS);
+	unsigned int row_irqs[MATRIX_MAX_ROWS];
+	unsigned int num_row_irqs;
+	DECLARE_BITMAP(wakeup_enabled_irqs, MATRIX_MAX_ROWS);
 
 	uint32_t last_key_state[MATRIX_MAX_COLS];
 	struct delayed_work work;
@@ -86,28 +87,18 @@ static bool row_asserted(const struct matrix_keypad_platform_data *pdata,
 
 static void enable_row_irqs(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0)
-		enable_irq(pdata->clustered_irq);
-	else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			enable_irq(keypad->row_irqs[i]);
-	}
+	for (i = 0; i < keypad->num_row_irqs; i++)
+		enable_irq(keypad->row_irqs[i]);
 }
 
 static void disable_row_irqs(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0)
-		disable_irq_nosync(pdata->clustered_irq);
-	else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			disable_irq_nosync(keypad->row_irqs[i]);
-	}
+	for (i = 0; i < keypad->num_row_irqs; i++)
+		disable_irq_nosync(keypad->row_irqs[i]);
 }
 
 /*
@@ -233,35 +224,20 @@ static void matrix_keypad_stop(struct input_dev *dev)
 
 static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0) {
-		if (enable_irq_wake(pdata->clustered_irq) == 0)
-			keypad->gpio_all_disabled = true;
-	} else {
-
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			if (!test_bit(i, keypad->disabled_gpios))
-				if (enable_irq_wake(keypad->row_irqs[i]) == 0)
-					__set_bit(i, keypad->disabled_gpios);
-	}
+	for_each_clear_bit(i, keypad->wakeup_enabled_irqs, keypad->num_row_irqs)
+		if (enable_irq_wake(keypad->row_irqs[i]) == 0)
+			__set_bit(i, keypad->wakeup_enabled_irqs);
 }
 
 static void matrix_keypad_disable_wakeup(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0) {
-		if (keypad->gpio_all_disabled) {
-			disable_irq_wake(pdata->clustered_irq);
-			keypad->gpio_all_disabled = false;
-		}
-	} else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			if (test_and_clear_bit(i, keypad->disabled_gpios))
-				disable_irq_wake(keypad->row_irqs[i]);
+	for_each_set_bit(i, keypad->wakeup_enabled_irqs, keypad->num_row_irqs) {
+		disable_irq_wake(keypad->row_irqs[i]);
+		__clear_bit(i, keypad->wakeup_enabled_irqs);
 	}
 }
 
@@ -335,6 +311,9 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 				"Unable to acquire clustered interrupt\n");
 			goto err_free_rows;
 		}
+
+		keypad->row_irqs[0] = pdata->clustered_irq;
+		keypad->num_row_irqs = 1;
 	} else {
 		for (i = 0; i < pdata->num_row_gpios; i++) {
 			irq = gpio_to_irq(pdata->row_gpios[i]);
@@ -360,6 +339,8 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 
 			keypad->row_irqs[i] = irq;
 		}
+
+		keypad->num_row_irqs = pdata->num_row_gpios;
 	}
 
 	/* initialized as disabled - enabled by input->open */
@@ -386,12 +367,8 @@ static void matrix_keypad_free_gpio(struct matrix_keypad *keypad)
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0) {
-		free_irq(pdata->clustered_irq, keypad);
-	} else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			free_irq(keypad->row_irqs[i], keypad);
-	}
+	for (i = 0; i < keypad->num_row_irqs; i++)
+		free_irq(keypad->row_irqs[i], keypad);
 
 	for (i = 0; i < pdata->num_row_gpios; i++)
 		gpio_free(pdata->row_gpios[i]);
