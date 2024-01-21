@@ -2,7 +2,6 @@
 
 #include "bcachefs.h"
 #include "checksum.h"
-#include "counters.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
@@ -13,6 +12,7 @@
 #include "replicas.h"
 #include "quota.h"
 #include "sb-clean.h"
+#include "sb-counters.h"
 #include "sb-downgrade.h"
 #include "sb-errors.h"
 #include "sb-members.h"
@@ -1321,7 +1321,9 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 
 	prt_printf(out, "Superblock size:");
 	prt_tab(out);
-	prt_printf(out, "%zu", vstruct_bytes(sb));
+	prt_units_u64(out, vstruct_bytes(sb));
+	prt_str(out, "/");
+	prt_units_u64(out, 512ULL << sb->layout.sb_max_size_bits);
 	prt_newline(out);
 
 	prt_printf(out, "Clean:");

@@ -1337,7 +1337,7 @@ void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool in
 
 	if (path->should_be_locked &&
 	    !trans->restarted &&
-	    (!dup || !bch2_btree_path_relock_norestart(trans, dup, _THIS_IP_)))
+	    (!dup || !bch2_btree_path_relock_norestart(trans, dup)))
 		return;
 
 	if (dup) {

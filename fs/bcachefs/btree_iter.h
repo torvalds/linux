@@ -819,6 +819,11 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 #define for_each_btree_key_continue_norestart(_iter, _flags, _k, _ret)	\
 	for_each_btree_key_upto_continue_norestart(_iter, SPOS_MAX, _flags, _k, _ret)
 
+/*
+ * This should not be used in a fastpath, without first trying _do in
+ * nonblocking mode - it will cause excessive transaction restarts and
+ * potentially livelocking:
+ */
 #define drop_locks_do(_trans, _do)					\
 ({									\
 	bch2_trans_unlock(_trans);					\

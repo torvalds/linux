@@ -27,6 +27,47 @@ static const char * const bch2_journal_errors[] = {
 	NULL
 };
 
+static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u64 seq)
+{
+	union journal_res_state s = READ_ONCE(j->reservations);
+	unsigned i = seq & JOURNAL_BUF_MASK;
+	struct journal_buf *buf = j->buf + i;
+
+	prt_printf(out, "seq:");
+	prt_tab(out);
+	prt_printf(out, "%llu", seq);
+	prt_newline(out);
+	printbuf_indent_add(out, 2);
+
+	prt_printf(out, "refcount:");
+	prt_tab(out);
+	prt_printf(out, "%u", journal_state_count(s, i));
+	prt_newline(out);
+
+	prt_printf(out, "size:");
+	prt_tab(out);
+	prt_human_readable_u64(out, vstruct_bytes(buf->data));
+	prt_newline(out);
+
+	prt_printf(out, "expires");
+	prt_tab(out);
+	prt_printf(out, "%li jiffies", buf->expires - jiffies);
+	prt_newline(out);
+
+	printbuf_indent_sub(out, 2);
+}
+
+static void bch2_journal_bufs_to_text(struct printbuf *out, struct journal *j)
+{
+	if (!out->nr_tabstops)
+		printbuf_tabstop_push(out, 24);
+
+	for (u64 seq = journal_last_unwritten_seq(j);
+	     seq <= journal_cur_seq(j);
+	     seq++)
+		bch2_journal_buf_to_text(out, j, seq);
+}
+
 static inline bool journal_seq_unwritten(struct journal *j, u64 seq)
 {
 	return seq > j->seq_ondisk;
@@ -156,7 +197,7 @@ void bch2_journal_buf_put_final(struct journal *j, u64 seq, bool write)
  * We don't close a journal_buf until the next journal_buf is finished writing,
  * and can be opened again - this also initializes the next journal_buf:
  */
-static void __journal_entry_close(struct journal *j, unsigned closed_val)
+static void __journal_entry_close(struct journal *j, unsigned closed_val, bool trace)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct journal_buf *buf = journal_cur_buf(j);
@@ -185,7 +226,17 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val)
 	/* Close out old buffer: */
 	buf->data->u64s		= cpu_to_le32(old.cur_entry_offset);
 
-	trace_journal_entry_close(c, vstruct_bytes(buf->data));
+	if (trace_journal_entry_close_enabled() && trace) {
+		struct printbuf pbuf = PRINTBUF;
+		pbuf.atomic++;
+
+		prt_str(&pbuf, "entry size: ");
+		prt_human_readable_u64(&pbuf, vstruct_bytes(buf->data));
+		prt_newline(&pbuf);
+		bch2_prt_task_backtrace(&pbuf, current, 1);
+		trace_journal_entry_close(c, pbuf.buf);
+		printbuf_exit(&pbuf);
+	}
 
 	sectors = vstruct_blocks_plus(buf->data, c->block_bits,
 				      buf->u64s_reserved) << c->block_bits;
@@ -225,7 +276,7 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val)
 void bch2_journal_halt(struct journal *j)
 {
 	spin_lock(&j->lock);
-	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL);
+	__journal_entry_close(j, JOURNAL_ENTRY_ERROR_VAL, true);
 	if (!j->err_seq)
 		j->err_seq = journal_cur_seq(j);
 	journal_wake(j);
@@ -239,7 +290,7 @@ static bool journal_entry_want_write(struct journal *j)
 
 	/* Don't close it yet if we already have a write in flight: */
 	if (ret)
-		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
 	else if (nr_unwritten_journal_entries(j)) {
 		struct journal_buf *buf = journal_cur_buf(j);
 
@@ -406,7 +457,7 @@ static void journal_write_work(struct work_struct *work)
 	if (delta > 0)
 		mod_delayed_work(c->io_complete_wq, &j->write_work, delta);
 	else
-		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
 unlock:
 	spin_unlock(&j->lock);
 }
@@ -463,13 +514,21 @@ retry:
 	    buf->buf_size < JOURNAL_ENTRY_SIZE_MAX)
 		j->buf_size_want = max(j->buf_size_want, buf->buf_size << 1);
 
-	__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+	__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, false);
 	ret = journal_entry_open(j);
 
 	if (ret == JOURNAL_ERR_max_in_flight) {
 		track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
 				   &j->max_in_flight_start, true);
-		trace_and_count(c, journal_entry_full, c);
+		if (trace_journal_entry_full_enabled()) {
+			struct printbuf buf = PRINTBUF;
+			buf.atomic++;
+
+			bch2_journal_bufs_to_text(&buf, j);
+			trace_journal_entry_full(c, buf.buf);
+			printbuf_exit(&buf);
+		}
+		count_event(c, journal_entry_full);
 	}
 unlock:
 	can_discard = j->can_discard;
@@ -549,7 +608,7 @@ void bch2_journal_entry_res_resize(struct journal *j,
 		/*
 		 * Not enough room in current journal entry, have to flush it:
 		 */
-		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
 	} else {
 		journal_cur_buf(j)->u64s_reserved += d;
 	}
@@ -606,7 +665,7 @@ recheck_need_open:
 		struct journal_res res = { 0 };
 
 		if (journal_entry_is_open(j))
-			__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+			__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
 
 		spin_unlock(&j->lock);
 
@@ -786,7 +845,7 @@ static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct jou
 
 		if (buf->need_flush_to_write_buffer) {
 			if (seq == journal_cur_seq(j))
-				__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL);
+				__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
 
 			union journal_res_state s;
 			s.v = atomic64_read_acquire(&j->reservations.counter);
@@ -1339,35 +1398,9 @@ void __bch2_journal_debug_to_text(struct printbuf *out, struct journal *j)
 	}
 
 	prt_newline(out);
-
-	for (u64 seq = journal_cur_seq(j);
-	     seq >= journal_last_unwritten_seq(j);
-	     --seq) {
-		unsigned i = seq & JOURNAL_BUF_MASK;
-
-		prt_printf(out, "unwritten entry:");
-		prt_tab(out);
-		prt_printf(out, "%llu", seq);
-		prt_newline(out);
-		printbuf_indent_add(out, 2);
-
-		prt_printf(out, "refcount:");
-		prt_tab(out);
-		prt_printf(out, "%u", journal_state_count(s, i));
-		prt_newline(out);
-
-		prt_printf(out, "sectors:");
-		prt_tab(out);
-		prt_printf(out, "%u", j->buf[i].sectors);
-		prt_newline(out);
-
-		prt_printf(out, "expires");
-		prt_tab(out);
-		prt_printf(out, "%li jiffies", j->buf[i].expires - jiffies);
-		prt_newline(out);
-
-		printbuf_indent_sub(out, 2);
-	}
+	prt_printf(out, "unwritten entries:");
+	prt_newline(out);
+	bch2_journal_bufs_to_text(out, j);
 
 	prt_printf(out,
 	       "replay done:\t\t%i\n",

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "super-io.h"
-#include "counters.h"
+#include "sb-counters.h"
 
 /* BCH_SB_FIELD_counters */
 

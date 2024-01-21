@@ -1053,6 +1053,8 @@ static int create_snapids(struct btree_trans *trans, u32 parent, u32 tree,
 		n->v.subvol	= cpu_to_le32(snapshot_subvols[i]);
 		n->v.tree	= cpu_to_le32(tree);
 		n->v.depth	= cpu_to_le32(depth);
+		n->v.btime.lo	= cpu_to_le64(bch2_current_time(c));
+		n->v.btime.hi	= 0;
 
 		for (j = 0; j < ARRAY_SIZE(n->v.skip); j++)
 			n->v.skip[j] = cpu_to_le32(bch2_snapshot_skiplist_get(c, parent));
@@ -1681,5 +1683,5 @@ int bch2_snapshots_read(struct bch_fs *c)
 
 void bch2_fs_snapshots_exit(struct bch_fs *c)
 {
-	kfree(rcu_dereference_protected(c->snapshots, true));
+	kvfree(rcu_dereference_protected(c->snapshots, true));
 }

@@ -241,10 +241,15 @@ bool bch2_is_zero(const void *_p, size_t n)
 	return true;
 }
 
-void bch2_prt_u64_binary(struct printbuf *out, u64 v, unsigned nr_bits)
+void bch2_prt_u64_base2_nbits(struct printbuf *out, u64 v, unsigned nr_bits)
 {
 	while (nr_bits)
 		prt_char(out, '0' + ((v >> --nr_bits) & 1));
+}
+
+void bch2_prt_u64_base2(struct printbuf *out, u64 v)
+{
+	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines)
@@ -1186,7 +1191,9 @@ int bch2_split_devs(const char *_dev_name, darray_str *ret)
 {
 	darray_init(ret);
 
-	char *dev_name = kstrdup(_dev_name, GFP_KERNEL), *s = dev_name;
+	char *dev_name, *s, *orig;
+
+	dev_name = orig = kstrdup(_dev_name, GFP_KERNEL);
 	if (!dev_name)
 		return -ENOMEM;
 
@@ -1201,10 +1208,10 @@ int bch2_split_devs(const char *_dev_name, darray_str *ret)
 		}
 	}
 
-	kfree(dev_name);
+	kfree(orig);
 	return 0;
 err:
 	bch2_darray_str_exit(ret);
-	kfree(dev_name);
+	kfree(orig);
 	return -ENOMEM;
 }

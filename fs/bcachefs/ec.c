@@ -190,7 +190,7 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 					       a->v.stripe_redundancy, trans,
 				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: multiple stripes using same bucket (%u, %llu)",
 				iter.pos.inode, iter.pos.offset, a->v.gen,
-				bch2_data_types[a->v.data_type],
+				bch2_data_type_str(a->v.data_type),
 				a->v.dirty_sectors,
 				a->v.stripe, s.k->p.offset)) {
 			ret = -EIO;
@@ -200,7 +200,7 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 		if (bch2_trans_inconsistent_on(data_type && a->v.dirty_sectors, trans,
 				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: data already in stripe bucket %llu",
 				iter.pos.inode, iter.pos.offset, a->v.gen,
-				bch2_data_types[a->v.data_type],
+				bch2_data_type_str(a->v.data_type),
 				a->v.dirty_sectors,
 				s.k->p.offset)) {
 			ret = -EIO;
@@ -367,7 +367,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		}
 	}
 
-	if (!(flags & (BTREE_TRIGGER_TRANSACTIONAL|BTREE_TRIGGER_GC))) {
+	if (flags & BTREE_TRIGGER_ATOMIC) {
 		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
 		if (!m) {

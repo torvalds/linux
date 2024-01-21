@@ -251,7 +251,7 @@ static void member_to_text(struct printbuf *out,
 	prt_printf(out, "Data allowed:");
 	prt_tab(out);
 	if (BCH_MEMBER_DATA_ALLOWED(&m))
-		prt_bitflags(out, bch2_data_types, BCH_MEMBER_DATA_ALLOWED(&m));
+		prt_bitflags(out, __bch2_data_types, BCH_MEMBER_DATA_ALLOWED(&m));
 	else
 		prt_printf(out, "(none)");
 	prt_newline(out);
@@ -259,7 +259,7 @@ static void member_to_text(struct printbuf *out,
 	prt_printf(out, "Has data:");
 	prt_tab(out);
 	if (data_have)
-		prt_bitflags(out, bch2_data_types, data_have);
+		prt_bitflags(out, __bch2_data_types, data_have);
 	else
 		prt_printf(out, "(none)");
 	prt_newline(out);
