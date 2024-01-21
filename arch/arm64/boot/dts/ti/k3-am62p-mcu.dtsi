@@ -187,6 +187,8 @@
 		ranges = <0x79000000 0x00 0x79000000 0x8000>,
 			 <0x79020000 0x00 0x79020000 0x8000>;
 		power-domains = <&k3_pds 7 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+
 		mcu_r5fss0_core0: r5f@79000000 {
 			compatible = "ti,am62-r5f";
 			reg = <0x79000000 0x00008000>,
