@@ -222,7 +222,7 @@ struct atdma_sg {
  * @vd: pointer to the virtual dma descriptor.
  * @atchan: pointer to the atmel dma channel.
  * @total_len: total transaction byte count
- * @sg_len: number of sg entries.
+ * @sglen: number of sg entries.
  * @sg: array of sgs.
  */
 struct at_desc {
@@ -245,7 +245,7 @@ struct at_desc {
 /*--  Channels  --------------------------------------------------------*/
 
 /**
- * atc_status - information bits stored in channel status flag
+ * enum atc_status - information bits stored in channel status flag
  *
  * Manipulated with atomic operations.
  */
@@ -328,8 +328,7 @@ static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
 /**
  * struct at_dma - internal representation of an Atmel HDMA Controller
  * @dma_device: dmaengine dma_device object members
- * @atdma_devtype: identifier of DMA controller compatibility
- * @ch_regs: memory mapped register base
+ * @regs: memory mapped register base
  * @clk: dma controller clock
  * @save_imr: interrupt mask register that is saved on suspend/resume cycle
  * @all_chan_mask: all channels availlable in a mask
@@ -626,6 +625,9 @@ static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
 
 /**
  * atc_get_llis_residue - Get residue for a hardware linked list transfer
+ * @atchan: pointer to an atmel hdmac channel.
+ * @desc: pointer to the descriptor for which the residue is calculated.
+ * @residue: residue to be set to dma_tx_state.
  *
  * Calculate the residue by removing the length of the Linked List Item (LLI)
  * already transferred from the total length. To get the current LLI we can use
@@ -661,10 +663,8 @@ static inline u32 atc_calc_bytes_left(u32 current_len, u32 ctrla)
  * two DSCR values are different, we read again the CTRLA then the DSCR till two
  * consecutive read values from DSCR are equal or till the maximum trials is
  * reach. This algorithm is very unlikely not to find a stable value for DSCR.
- * @atchan: pointer to an atmel hdmac channel.
- * @desc: pointer to the descriptor for which the residue is calculated.
- * @residue: residue to be set to dma_tx_state.
- * Returns 0 on success, -errno otherwise.
+ *
+ * Returns: %0 on success, -errno otherwise.
  */
 static int atc_get_llis_residue(struct at_dma_chan *atchan,
 				struct at_desc *desc, u32 *residue)
@@ -731,7 +731,8 @@ static int atc_get_llis_residue(struct at_dma_chan *atchan,
  * @chan: DMA channel
  * @cookie: transaction identifier to check status of
  * @residue: residue to be updated.
- * Return 0 on success, -errono otherwise.
+ *
+ * Return: %0 on success, -errno otherwise.
  */
 static int atc_get_residue(struct dma_chan *chan, dma_cookie_t cookie,
 			   u32 *residue)
@@ -1710,7 +1711,7 @@ static void atc_issue_pending(struct dma_chan *chan)
  * atc_alloc_chan_resources - allocate resources for DMA channel
  * @chan: allocate descriptor resources for this channel
  *
- * return - the number of allocated descriptors
+ * Return: the number of allocated descriptors
  */
 static int atc_alloc_chan_resources(struct dma_chan *chan)
 {
