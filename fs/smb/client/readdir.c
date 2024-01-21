@@ -133,14 +133,14 @@ retry:
 				 * Query dir responses don't provide enough
 				 * information about reparse points other than
 				 * their reparse tags.  Save an invalidation by
-				 * not clobbering the existing mode, size and
-				 * symlink target (if any) when reparse tag and
-				 * ctime haven't changed.
+				 * not clobbering some existing attributes when
+				 * reparse tag and ctime haven't changed.
 				 */
 				rc = 0;
 				if (fattr->cf_cifsattrs & ATTR_REPARSE) {
 					if (likely(reparse_inode_match(inode, fattr))) {
 						fattr->cf_mode = inode->i_mode;
+						fattr->cf_rdev = inode->i_rdev;
 						fattr->cf_eof = CIFS_I(inode)->server_eof;
 						fattr->cf_symlink_target = NULL;
 					} else {
@@ -645,10 +645,10 @@ static int cifs_entry_is_dot(struct cifs_dirent *de, bool is_unicode)
 static int is_dir_changed(struct file *file)
 {
 	struct inode *inode = file_inode(file);
-	struct cifsInodeInfo *cifsInfo = CIFS_I(inode);
+	struct cifsInodeInfo *cifs_inode_info = CIFS_I(inode);
 
-	if (cifsInfo->time == 0)
-		return 1; /* directory was changed, perhaps due to unlink */
+	if (cifs_inode_info->time == 0)
+		return 1; /* directory was changed, e.g. unlink or new file */
 	else
 		return 0;
 

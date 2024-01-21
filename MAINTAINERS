@@ -5236,7 +5236,7 @@ X:	drivers/clk/clkdev.c
 COMMON INTERNET FILE SYSTEM CLIENT (CIFS and SMB3)
 M:	Steve French <sfrench@samba.org>
 R:	Paulo Alcantara <pc@manguebit.com> (DFS, global name space)
-R:	Ronnie Sahlberg <lsahlber@redhat.com> (directory leases, sparse files)
+R:	Ronnie Sahlberg <ronniesahlberg@gmail.com> (directory leases, sparse files)
 R:	Shyam Prasad N <sprasad@microsoft.com> (multichannel)
 R:	Tom Talpey <tom@talpey.com> (RDMA, smbdirect)
 L:	linux-cifs@vger.kernel.org
