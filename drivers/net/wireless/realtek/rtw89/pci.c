@@ -705,7 +705,7 @@ void rtw89_pci_recognize_intrs_v2(struct rtw89_dev *rtwdev,
 			      rtw89_read32(rtwdev, R_BE_HISR0) & rtwpci->halt_c2h_intrs : 0;
 	isrs->isrs[0] = isrs->ind_isrs & B_BE_HCI_AXIDMA_INT ?
 			rtw89_read32(rtwdev, R_BE_HAXI_HISR00) & rtwpci->intrs[0] : 0;
-	isrs->isrs[1] = rtw89_read32(rtwdev, R_BE_PCIE_DMA_ISR);
+	isrs->isrs[1] = rtw89_read32(rtwdev, R_BE_PCIE_DMA_ISR) & rtwpci->intrs[1];
 
 	if (isrs->halt_c2h_isrs)
 		rtw89_write32(rtwdev, R_BE_HISR0, isrs->halt_c2h_isrs);
@@ -3452,8 +3452,7 @@ static void rtw89_pci_recovery_intr_mask_v2(struct rtw89_dev *rtwdev)
 	rtwpci->ind_intrs = B_BE_HS0_IND_INT_EN0;
 	rtwpci->halt_c2h_intrs = B_BE_HALT_C2H_INT_EN | B_BE_WDT_TIMEOUT_INT_EN;
 	rtwpci->intrs[0] = 0;
-	rtwpci->intrs[1] = B_BE_PCIE_RX_RX0P2_IMR0_V1 |
-			   B_BE_PCIE_RX_RPQ0_IMR0_V1;
+	rtwpci->intrs[1] = 0;
 }
 
 static void rtw89_pci_default_intr_mask_v2(struct rtw89_dev *rtwdev)
