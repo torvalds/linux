@@ -2803,6 +2803,8 @@ compare_mount_options(struct super_block *sb, struct cifs_mnt_data *mnt_data)
 		return 0;
 	if (old->ctx->closetimeo != new->ctx->closetimeo)
 		return 0;
+	if (old->ctx->reparse_type != new->ctx->reparse_type)
+		return 0;
 
 	return 1;
 }
