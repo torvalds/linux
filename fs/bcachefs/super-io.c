@@ -2,7 +2,6 @@
 
 #include "bcachefs.h"
 #include "checksum.h"
-#include "counters.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "error.h"
@@ -13,6 +12,7 @@
 #include "replicas.h"
 #include "quota.h"
 #include "sb-clean.h"
+#include "sb-counters.h"
 #include "sb-downgrade.h"
 #include "sb-errors.h"
 #include "sb-members.h"
