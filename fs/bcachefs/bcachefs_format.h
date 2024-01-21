@@ -442,33 +442,6 @@ struct bch_lru {
 
 #define LRU_ID_STRIPES		(1U << 16)
 
-/* Logged operations btree: */
-
-struct bch_logged_op_truncate {
-	struct bch_val		v;
-	__le32			subvol;
-	__le32			pad;
-	__le64			inum;
-	__le64			new_i_size;
-};
-
-enum logged_op_finsert_state {
-	LOGGED_OP_FINSERT_start,
-	LOGGED_OP_FINSERT_shift_extents,
-	LOGGED_OP_FINSERT_finish,
-};
-
-struct bch_logged_op_finsert {
-	struct bch_val		v;
-	__u8			state;
-	__u8			pad[3];
-	__le32			subvol;
-	__le64			inum;
-	__le64			dst_offset;
-	__le64			src_offset;
-	__le64			pos;
-};
-
 /* Optional/variable size superblock sections: */
 
 struct bch_sb_field {
@@ -502,6 +475,7 @@ struct bch_sb_field {
 #include "dirent_format.h"
 #include "xattr_format.h"
 #include "quota_format.h"
+#include "logged_ops_format.h"
 #include "snapshot_format.h"
 #include "subvolume_format.h"
 #include "sb-counters_format.h"
