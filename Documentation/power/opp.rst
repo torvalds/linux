@@ -305,7 +305,7 @@ dev_pm_opp_get_opp_count
 	 {
 		/* Do things */
 		num_available = dev_pm_opp_get_opp_count(dev);
-		speeds = kzalloc(sizeof(u32) * num_available, GFP_KERNEL);
+		speeds = kcalloc(num_available, sizeof(u32), GFP_KERNEL);
 		/* populate the table in increasing order */
 		freq = 0;
 		while (!IS_ERR(opp = dev_pm_opp_find_freq_ceil(dev, &freq))) {
