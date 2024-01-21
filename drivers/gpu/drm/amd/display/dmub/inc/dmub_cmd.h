@@ -408,7 +408,13 @@ union replay_debug_flags {
 		 */
 		uint32_t enable_ips_visual_confirm : 1;
 
-		uint32_t reserved : 21;
+		/**
+		 * 0x800 (bit 11)
+		 * @enable_ips_residency_profiling: Enable IPS residency profiling
+		 */
+		uint32_t enable_ips_residency_profiling : 1;
+
+		uint32_t reserved : 20;
 	} bitfields;
 
 	uint32_t u32All;
