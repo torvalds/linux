@@ -105,6 +105,10 @@ static void rtw89_pci_ctrl_trxdma_pcie_be(struct rtw89_dev *rtwdev,
 		val |= B_BE_STOP_AXI_MST;
 
 	rtw89_write32(rtwdev, R_BE_HAXI_INIT_CFG1, val);
+
+	if (io_en == MAC_AX_PCIE_ENABLE)
+		rtw89_write32_mask(rtwdev, R_BE_HAXI_MST_WDT_TIMEOUT_SEL_V1,
+				   B_BE_HAXI_MST_WDT_TIMEOUT_SEL_MASK, 4);
 }
 
 static void rtw89_pci_clr_idx_all_be(struct rtw89_dev *rtwdev)
@@ -257,6 +261,7 @@ static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BE_PL1_DBG_INFO, 0x0);
 	rtw89_write32_set(rtwdev, R_BE_FWS1IMR, B_BE_PCIE_SER_TIMEOUT_INDIC_EN);
 	rtw89_write32_set(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_SER_PL1_EN);
+	rtw89_write32_mask(rtwdev, R_BE_SER_PL1_CTRL, B_BE_PL1_TIMER_UNIT_MASK, 1);
 
 	val32 = rtw89_read32(rtwdev, R_BE_REG_PL1_MASK);
 	val32 |= B_BE_SER_PMU_IMR | B_BE_SER_L1SUB_IMR | B_BE_SER_PM_MASTER_IMR |
