@@ -1149,6 +1149,7 @@ struct bch_snapshot {
 	__le32			tree;
 	__le32			depth;
 	__le32			skip[3];
+	bch_le128		btime;
 };
 
 LE32_BITMASK(BCH_SNAPSHOT_DELETED,	struct bch_snapshot, flags,  0,  1)
