@@ -654,6 +654,7 @@ const char *bch2_btree_node_type_str(enum btree_node_type);
 	 BIT_ULL(BKEY_TYPE_inodes)|			\
 	 BIT_ULL(BKEY_TYPE_stripes)|			\
 	 BIT_ULL(BKEY_TYPE_reflink)|			\
+	 BIT_ULL(BKEY_TYPE_subvolumes)|			\
 	 BIT_ULL(BKEY_TYPE_btree))
 
 #define BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS		\

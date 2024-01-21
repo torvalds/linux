@@ -34,6 +34,7 @@
 	x(check_snapshot_trees,			18, PASS_ONLINE|PASS_FSCK)	\
 	x(check_snapshots,			19, PASS_ONLINE|PASS_FSCK)	\
 	x(check_subvols,			20, PASS_ONLINE|PASS_FSCK)	\
+	x(check_subvol_children,		35, PASS_ONLINE|PASS_FSCK)	\
 	x(delete_dead_snapshots,		21, PASS_ONLINE|PASS_FSCK)	\
 	x(fs_upgrade_for_subvolumes,		22, 0)				\
 	x(resume_logged_ops,			23, PASS_ALWAYS)		\

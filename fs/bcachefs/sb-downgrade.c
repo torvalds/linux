@@ -48,7 +48,10 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))	\
 	x(subvolume_fs_parent,					\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_dirents),		\
-	  BCH_FSCK_ERR_subvol_fs_path_parent_wrong)
+	  BCH_FSCK_ERR_subvol_fs_path_parent_wrong)		\
+	x(btree_subvolume_children,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_subvols),		\
+	  BCH_FSCK_ERR_subvol_children_not_set)
 
 #define DOWNGRADE_TABLE()
 

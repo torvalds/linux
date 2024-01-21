@@ -13,12 +13,24 @@
 
 static int bch2_subvolume_delete(struct btree_trans *, u32);
 
+static struct bpos subvolume_children_pos(struct bkey_s_c k)
+{
+	if (k.k->type != KEY_TYPE_subvolume)
+		return POS_MIN;
+
+	struct bkey_s_c_subvolume s = bkey_s_c_to_subvolume(k);
+	if (!s.v->fs_path_parent)
+		return POS_MIN;
+	return POS(le32_to_cpu(s.v->fs_path_parent), s.k->p.offset);
+}
+
 static int check_subvol(struct btree_trans *trans,
 			struct btree_iter *iter,
 			struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c_subvolume subvol;
+	struct btree_iter subvol_children_iter = {};
 	struct bch_snapshot snapshot;
 	struct printbuf buf = PRINTBUF;
 	unsigned snapid;
@@ -55,6 +67,28 @@ static int check_subvol(struct btree_trans *trans,
 			goto err;
 
 		n->v.fs_path_parent = 0;
+	}
+
+	if (subvol.v->fs_path_parent) {
+		struct bpos pos = subvolume_children_pos(k);
+
+		struct bkey_s_c subvol_children_k =
+			bch2_bkey_get_iter(trans, &subvol_children_iter,
+					   BTREE_ID_subvolume_children, pos, 0);
+		ret = bkey_err(subvol_children_k);
+		if (ret)
+			goto err;
+
+		if (fsck_err_on(subvol_children_k.k->type != KEY_TYPE_set,
+				c, subvol_children_not_set,
+				"subvolume not set in subvolume_children btree at %llu:%llu\n%s",
+				pos.inode, pos.offset,
+				(printbuf_reset(&buf),
+				 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+			ret = bch2_btree_bit_mod(trans, BTREE_ID_subvolume_children, pos, true);
+			if (ret)
+				goto err;
+		}
 	}
 
 	struct bch_inode_unpacked inode;
@@ -119,6 +153,7 @@ static int check_subvol(struct btree_trans *trans,
 	}
 err:
 fsck_err:
+	bch2_trans_iter_exit(trans, &subvol_children_iter);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -132,6 +167,42 @@ int bch2_check_subvols(struct bch_fs *c)
 			check_subvol(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
+}
+
+static int check_subvol_child(struct btree_trans *trans,
+			      struct btree_iter *child_iter,
+			      struct bkey_s_c child_k)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_subvolume s;
+	int ret = bch2_bkey_get_val_typed(trans, BTREE_ID_subvolumes, POS(0, child_k.k->p.offset),
+					  0, subvolume, &s);
+	if (ret && !bch2_err_matches(ret, ENOENT))
+		return ret;
+
+	if (fsck_err_on(ret ||
+			le32_to_cpu(s.fs_path_parent) != child_k.k->p.inode,
+			c, subvol_children_bad,
+			"incorrect entry in subvolume_children btree %llu:%llu",
+			child_k.k->p.inode, child_k.k->p.offset)) {
+		ret = bch2_btree_delete_at(trans, child_iter, 0);
+		if (ret)
+			goto err;
+	}
+err:
+fsck_err:
+	return ret;
+}
+
+int bch2_check_subvol_children(struct bch_fs *c)
+{
+	int ret = bch2_trans_run(c,
+		for_each_btree_key_commit(trans, iter,
+				BTREE_ID_subvolume_children, POS_MIN, BTREE_ITER_PREFETCH, k,
+				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			check_subvol_child(trans, &iter, k)));
+	bch_err_fn(c, ret);
+	return 0;
 }
 
 /* Subvolumes: */
@@ -162,6 +233,33 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 		prt_printf(out, " creation_parent %u", le32_to_cpu(s.v->creation_parent));
 		prt_printf(out, " fs_parent %u", le32_to_cpu(s.v->fs_path_parent));
 	}
+}
+
+static int subvolume_children_mod(struct btree_trans *trans, struct bpos pos, bool set)
+{
+	return !bpos_eq(pos, POS_MIN)
+		? bch2_btree_bit_mod(trans, BTREE_ID_subvolume_children, pos, set)
+		: 0;
+}
+
+int bch2_subvolume_trigger(struct btree_trans *trans,
+			   enum btree_id btree_id, unsigned level,
+			   struct bkey_s_c old, struct bkey_s new,
+			   unsigned flags)
+{
+	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+		struct bpos children_pos_old = subvolume_children_pos(old);
+		struct bpos children_pos_new = subvolume_children_pos(new.s_c);
+
+		if (!bpos_eq(children_pos_old, children_pos_new)) {
+			int ret = subvolume_children_mod(trans, children_pos_old, false) ?:
+				  subvolume_children_mod(trans, children_pos_new, true);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
 }
 
 static __always_inline int

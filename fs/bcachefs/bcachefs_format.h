@@ -841,7 +841,8 @@ struct bch_sb_field_downgrade {
 	x(deleted_inodes,		BCH_VERSION(1,  2))		\
 	x(rebalance_work,		BCH_VERSION(1,  3))		\
 	x(member_seq,			BCH_VERSION(1,  4))		\
-	x(subvolume_fs_parent,		BCH_VERSION(1,  5))
+	x(subvolume_fs_parent,		BCH_VERSION(1,  5))		\
+	x(btree_subvolume_children,	BCH_VERSION(1,  6))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1489,7 +1490,9 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
 	  BIT_ULL(KEY_TYPE_logged_op_finsert))					\
 	x(rebalance_work,	18,	BTREE_ID_SNAPSHOT_FIELD,		\
-	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))
+	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))			\
+	x(subvolume_children,	19,	0,					\
+	  BIT_ULL(KEY_TYPE_set))
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,

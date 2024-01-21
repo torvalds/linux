@@ -504,6 +504,7 @@ enum gc_phase {
 	GC_PHASE_BTREE_deleted_inodes,
 	GC_PHASE_BTREE_logged_ops,
 	GC_PHASE_BTREE_rebalance_work,
+	GC_PHASE_BTREE_subvolume_children,
 
 	GC_PHASE_PENDING_DELETE,
 };
