@@ -97,10 +97,6 @@ struct consw {
 			bool blink, bool underline, bool reverse, bool italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
 	/*
-	 * Flush the video console driver's scrollback buffer
-	 */
-	void	(*con_flush_scrollback)(struct vc_data *vc);
-	/*
 	 * Prepare the console for the debugger.  This includes, but is not
 	 * limited to, unblanking the console, loading an appropriate
 	 * palette, and allowing debugger generated output.
