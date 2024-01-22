@@ -51,8 +51,8 @@ static const struct s3fwrn5_phy_ops uart_phy_ops = {
 	.write = s3fwrn82_uart_write,
 };
 
-static ssize_t s3fwrn82_uart_read(struct serdev_device *serdev,
-				  const u8 *data, size_t count)
+static size_t s3fwrn82_uart_read(struct serdev_device *serdev,
+				 const u8 *data, size_t count)
 {
 	struct s3fwrn82_uart_phy *phy = serdev_device_get_drvdata(serdev);
 	size_t i;

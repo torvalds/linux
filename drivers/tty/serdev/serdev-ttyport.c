@@ -27,19 +27,17 @@ static size_t ttyport_receive_buf(struct tty_port *port, const u8 *cp,
 {
 	struct serdev_controller *ctrl = port->client_data;
 	struct serport *serport = serdev_controller_get_drvdata(ctrl);
-	int ret;
+	size_t ret;
 
 	if (!test_bit(SERPORT_ACTIVE, &serport->flags))
 		return 0;
 
 	ret = serdev_controller_receive_buf(ctrl, cp, count);
 
-	dev_WARN_ONCE(&ctrl->dev, ret < 0 || ret > count,
-				"receive_buf returns %d (count = %zu)\n",
+	dev_WARN_ONCE(&ctrl->dev, ret > count,
+				"receive_buf returns %zu (count = %zu)\n",
 				ret, count);
-	if (ret < 0)
-		return 0;
-	else if (ret > count)
+	if (ret > count)
 		return count;
 
 	return ret;
