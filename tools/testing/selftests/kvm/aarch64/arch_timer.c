@@ -42,10 +42,10 @@
 #define TIMER_TEST_MIGRATION_FREQ_MS	2
 
 struct test_args {
-	int nr_vcpus;
-	int nr_iter;
-	int timer_period_ms;
-	int migration_freq_ms;
+	uint32_t nr_vcpus;
+	uint32_t nr_iter;
+	uint32_t timer_period_ms;
+	uint32_t migration_freq_ms;
 	struct kvm_arm_counter_offset offset;
 };
 
@@ -57,7 +57,7 @@ static struct test_args test_args = {
 	.offset = { .reserved = 1 },
 };
 
-#define msecs_to_usecs(msec)		((msec) * 1000LL)
+#define msecs_to_usecs(msec)		((msec) * 1000ULL)
 
 #define GICD_BASE_GPA			0x8000000ULL
 #define GICR_BASE_GPA			0x80A0000ULL
@@ -72,7 +72,7 @@ enum guest_stage {
 
 /* Shared variables between host and guest */
 struct test_vcpu_shared_data {
-	int nr_iter;
+	uint32_t nr_iter;
 	enum guest_stage guest_stage;
 	uint64_t xcnt;
 };
