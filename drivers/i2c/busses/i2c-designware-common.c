@@ -33,7 +33,7 @@
 
 #include "i2c-designware-core.h"
 
-static char *abort_sources[] = {
+static const char *const abort_sources[] = {
 	[ABRT_7B_ADDR_NOACK] =
 		"slave address not acknowledged (7bit mode)",
 	[ABRT_10ADDR1_NOACK] =
