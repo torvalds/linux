@@ -459,7 +459,7 @@ static void newport_cursor(struct vc_data *vc, bool enable)
 	newport_vc2_set(npregs, VC2_IREG_CURSY, ycurs);
 }
 
-static int newport_switch(struct vc_data *vc)
+static bool newport_switch(struct vc_data *vc)
 {
 	static int logo_drawn = 0;
 
@@ -473,7 +473,7 @@ static int newport_switch(struct vc_data *vc)
 		}
 	}
 
-	return 1;
+	return true;
 }
 
 static int newport_blank(struct vc_data *c, int blank, int mode_switch)
