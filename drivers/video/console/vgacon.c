@@ -800,10 +800,10 @@ static void vga_pal_blank(struct vgastate *state)
 static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
 {
 	switch (blank) {
-	case 0:		/* Unblank */
+	case VESA_NO_BLANKING:		/* Unblank */
 		if (vga_vesa_blanked) {
 			vga_vesa_unblank(&vgastate);
-			vga_vesa_blanked = 0;
+			vga_vesa_blanked = VESA_NO_BLANKING;
 		}
 		if (vga_palette_blanked) {
 			vga_set_palette(c, color_table);
@@ -813,7 +813,7 @@ static int vgacon_blank(struct vc_data *c, int blank, int mode_switch)
 		vga_is_gfx = false;
 		/* Tell console.c that it has to restore the screen itself */
 		return 1;
-	case 1:		/* Normal blanking */
+	case VESA_VSYNC_SUSPEND:	/* Normal blanking */
 		if (!mode_switch && vga_video_type == VIDEO_TYPE_VGAC) {
 			vga_pal_blank(&vgastate);
 			vga_palette_blanked = true;

@@ -480,7 +480,7 @@ static int newport_blank(struct vc_data *c, int blank, int mode_switch)
 {
 	unsigned short treg;
 
-	if (blank == 0) {
+	if (blank == VESA_NO_BLANKING) {
 		/* unblank console */
 		treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
 		newport_vc2_set(npregs, VC2_IREG_CONTROL,

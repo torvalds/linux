@@ -300,7 +300,7 @@ static bool sticon_switch(struct vc_data *conp)
 
 static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
 {
-    if (blank == 0) {
+    if (blank == VESA_NO_BLANKING) {
 	if (mode_switch)
 	    vga_is_gfx = 0;
 	return 1;
