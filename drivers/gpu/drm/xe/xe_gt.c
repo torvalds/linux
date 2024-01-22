@@ -638,11 +638,11 @@ static int gt_reset(struct xe_gt *gt)
 	if (err)
 		goto err_out;
 
+	xe_gt_tlb_invalidation_reset(gt);
+
 	err = do_gt_reset(gt);
 	if (err)
 		goto err_out;
-
-	xe_gt_tlb_invalidation_reset(gt);
 
 	err = do_gt_restart(gt);
 	if (err)
