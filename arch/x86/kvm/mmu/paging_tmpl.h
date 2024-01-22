@@ -933,13 +933,13 @@ static int FNAME(sync_spte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp, int 
 		return 0;
 
 	/*
-	 * Drop the SPTE if the new protections would result in a RWX=0
-	 * SPTE or if the gfn is changing.  The RWX=0 case only affects
-	 * EPT with execute-only support, i.e. EPT without an effective
-	 * "present" bit, as all other paging modes will create a
-	 * read-only SPTE if pte_access is zero.
+	 * Drop the SPTE if the new protections result in no effective
+	 * "present" bit or if the gfn is changing.  The former case
+	 * only affects EPT with execute-only support with pte_access==0;
+	 * all other paging modes will create a read-only SPTE if
+	 * pte_access is zero.
 	 */
-	if ((!pte_access && !shadow_present_mask) ||
+	if ((pte_access | shadow_present_mask) == SHADOW_NONPRESENT_VALUE ||
 	    gfn != kvm_mmu_page_get_gfn(sp, i)) {
 		drop_spte(vcpu->kvm, &sp->spt[i]);
 		return 1;
