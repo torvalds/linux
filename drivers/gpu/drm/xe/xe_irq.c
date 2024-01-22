@@ -9,10 +9,10 @@
 
 #include <drm/drm_managed.h>
 
+#include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_device.h"
-#include "xe_display.h"
 #include "xe_drv.h"
 #include "xe_gsc_proxy.h"
 #include "xe_gt.h"

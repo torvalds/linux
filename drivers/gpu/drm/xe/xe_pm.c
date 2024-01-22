@@ -10,11 +10,11 @@
 #include <drm/drm_managed.h>
 #include <drm/ttm/ttm_placement.h>
 
+#include "display/xe_display.h"
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_device.h"
 #include "xe_device_sysfs.h"
-#include "xe_display.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
