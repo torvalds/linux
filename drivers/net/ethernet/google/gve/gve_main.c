@@ -1350,45 +1350,99 @@ static void gve_rx_stop_rings(struct gve_priv *priv, int num_rings)
 	}
 }
 
-static int gve_open(struct net_device *dev)
+static void gve_queues_mem_free(struct gve_priv *priv,
+				struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+				struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+				struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+{
+	gve_free_rings(priv, tx_alloc_cfg, rx_alloc_cfg);
+	gve_free_qpls(priv, qpls_alloc_cfg);
+}
+
+static int gve_queues_mem_alloc(struct gve_priv *priv,
+				struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+				struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+				struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+{
+	int err;
+
+	err = gve_alloc_qpls(priv, qpls_alloc_cfg);
+	if (err) {
+		netif_err(priv, drv, priv->dev, "Failed to alloc QPLs\n");
+		return err;
+	}
+	tx_alloc_cfg->qpls = qpls_alloc_cfg->qpls;
+	rx_alloc_cfg->qpls = qpls_alloc_cfg->qpls;
+	err = gve_alloc_rings(priv, tx_alloc_cfg, rx_alloc_cfg);
+	if (err) {
+		netif_err(priv, drv, priv->dev, "Failed to alloc rings\n");
+		goto free_qpls;
+	}
+
+	return 0;
+
+free_qpls:
+	gve_free_qpls(priv, qpls_alloc_cfg);
+	return err;
+}
+
+static void gve_queues_mem_remove(struct gve_priv *priv)
 {
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
 	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
-	struct gve_priv *priv = netdev_priv(dev);
+
+	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
+				&tx_alloc_cfg, &rx_alloc_cfg);
+	gve_queues_mem_free(priv, &qpls_alloc_cfg,
+			    &tx_alloc_cfg, &rx_alloc_cfg);
+	priv->qpls = NULL;
+	priv->tx = NULL;
+	priv->rx = NULL;
+}
+
+/* The passed-in queue memory is stored into priv and the queues are made live.
+ * No memory is allocated. Passed-in memory is freed on errors.
+ */
+static int gve_queues_start(struct gve_priv *priv,
+			    struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+			    struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+			    struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+{
+	struct net_device *dev = priv->dev;
 	int err;
+
+	/* Record new resources into priv */
+	priv->qpls = qpls_alloc_cfg->qpls;
+	priv->tx = tx_alloc_cfg->tx;
+	priv->rx = rx_alloc_cfg->rx;
+
+	/* Record new configs into priv */
+	priv->qpl_cfg = *qpls_alloc_cfg->qpl_cfg;
+	priv->tx_cfg = *tx_alloc_cfg->qcfg;
+	priv->rx_cfg = *rx_alloc_cfg->qcfg;
+	priv->tx_desc_cnt = tx_alloc_cfg->ring_size;
+	priv->rx_desc_cnt = rx_alloc_cfg->ring_size;
 
 	if (priv->xdp_prog)
 		priv->num_xdp_queues = priv->rx_cfg.num_queues;
 	else
 		priv->num_xdp_queues = 0;
 
-	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
-				&tx_alloc_cfg, &rx_alloc_cfg);
-	err = gve_alloc_qpls(priv, &qpls_alloc_cfg);
-	if (err)
-		return err;
-	priv->qpls = qpls_alloc_cfg.qpls;
-	tx_alloc_cfg.qpls = priv->qpls;
-	rx_alloc_cfg.qpls = priv->qpls;
-	err = gve_alloc_rings(priv, &tx_alloc_cfg, &rx_alloc_cfg);
-	if (err)
-		goto free_qpls;
-
-	gve_tx_start_rings(priv, 0, tx_alloc_cfg.num_rings);
-	gve_rx_start_rings(priv, rx_alloc_cfg.qcfg->num_queues);
+	gve_tx_start_rings(priv, 0, tx_alloc_cfg->num_rings);
+	gve_rx_start_rings(priv, rx_alloc_cfg->qcfg->num_queues);
 	gve_init_sync_stats(priv);
 
 	err = netif_set_real_num_tx_queues(dev, priv->tx_cfg.num_queues);
 	if (err)
-		goto free_rings;
+		goto stop_and_free_rings;
 	err = netif_set_real_num_rx_queues(dev, priv->rx_cfg.num_queues);
 	if (err)
-		goto free_rings;
+		goto stop_and_free_rings;
 
 	err = gve_reg_xdp_info(priv, dev);
 	if (err)
-		goto free_rings;
+		goto stop_and_free_rings;
 
 	err = gve_register_qpls(priv);
 	if (err)
@@ -1416,29 +1470,22 @@ static int gve_open(struct net_device *dev)
 	priv->interface_up_cnt++;
 	return 0;
 
-free_rings:
-	gve_tx_stop_rings(priv, 0, tx_alloc_cfg.num_rings);
-	gve_rx_stop_rings(priv, rx_alloc_cfg.qcfg->num_queues);
-	gve_free_rings(priv, &tx_alloc_cfg, &rx_alloc_cfg);
-free_qpls:
-	gve_free_qpls(priv, &qpls_alloc_cfg);
-	return err;
-
 reset:
-	/* This must have been called from a reset due to the rtnl lock
-	 * so just return at this point.
-	 */
 	if (gve_get_reset_in_progress(priv))
-		return err;
-	/* Otherwise reset before returning */
+		goto stop_and_free_rings;
 	gve_reset_and_teardown(priv, true);
 	/* if this fails there is nothing we can do so just ignore the return */
 	gve_reset_recovery(priv, false);
 	/* return the original error */
 	return err;
+stop_and_free_rings:
+	gve_tx_stop_rings(priv, 0, gve_num_tx_queues(priv));
+	gve_rx_stop_rings(priv, priv->rx_cfg.num_queues);
+	gve_queues_mem_remove(priv);
+	return err;
 }
 
-static int gve_close(struct net_device *dev)
+static int gve_open(struct net_device *dev)
 {
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
@@ -1446,7 +1493,30 @@ static int gve_close(struct net_device *dev)
 	struct gve_priv *priv = netdev_priv(dev);
 	int err;
 
-	netif_carrier_off(dev);
+	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
+				&tx_alloc_cfg, &rx_alloc_cfg);
+
+	err = gve_queues_mem_alloc(priv, &qpls_alloc_cfg,
+				   &tx_alloc_cfg, &rx_alloc_cfg);
+	if (err)
+		return err;
+
+	/* No need to free on error: ownership of resources is lost after
+	 * calling gve_queues_start.
+	 */
+	err = gve_queues_start(priv, &qpls_alloc_cfg,
+			       &tx_alloc_cfg, &rx_alloc_cfg);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+static int gve_queues_stop(struct gve_priv *priv)
+{
+	int err;
+
+	netif_carrier_off(priv->dev);
 	if (gve_get_device_rings_ok(priv)) {
 		gve_turndown(priv);
 		gve_drain_page_cache(priv);
@@ -1462,12 +1532,8 @@ static int gve_close(struct net_device *dev)
 
 	gve_unreg_xdp_info(priv);
 
-	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
-				&tx_alloc_cfg, &rx_alloc_cfg);
-	gve_tx_stop_rings(priv, 0, tx_alloc_cfg.num_rings);
-	gve_rx_stop_rings(priv, rx_alloc_cfg.qcfg->num_queues);
-	gve_free_rings(priv, &tx_alloc_cfg, &rx_alloc_cfg);
-	gve_free_qpls(priv, &qpls_alloc_cfg);
+	gve_tx_stop_rings(priv, 0, gve_num_tx_queues(priv));
+	gve_rx_stop_rings(priv, priv->rx_cfg.num_queues);
 
 	priv->interface_down_cnt++;
 	return 0;
@@ -1481,6 +1547,19 @@ err:
 	/* Otherwise reset before returning */
 	gve_reset_and_teardown(priv, true);
 	return gve_reset_recovery(priv, false);
+}
+
+static int gve_close(struct net_device *dev)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+	int err;
+
+	err = gve_queues_stop(priv);
+	if (err)
+		return err;
+
+	gve_queues_mem_remove(priv);
+	return 0;
 }
 
 static int gve_remove_xdp_queues(struct gve_priv *priv)
