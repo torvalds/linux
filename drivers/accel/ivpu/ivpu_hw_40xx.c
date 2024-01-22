@@ -1049,18 +1049,18 @@ static void ivpu_hw_40xx_irq_disable(struct ivpu_device *vdev)
 static void ivpu_hw_40xx_irq_wdt_nce_handler(struct ivpu_device *vdev)
 {
 	/* TODO: For LNN hang consider engine reset instead of full recovery */
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "WDT NCE IRQ");
 }
 
 static void ivpu_hw_40xx_irq_wdt_mss_handler(struct ivpu_device *vdev)
 {
 	ivpu_hw_wdt_disable(vdev);
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "WDT MSS IRQ");
 }
 
 static void ivpu_hw_40xx_irq_noc_firewall_handler(struct ivpu_device *vdev)
 {
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "NOC Firewall IRQ");
 }
 
 /* Handler for IRQs from VPU core (irqV) */
@@ -1154,7 +1154,7 @@ static bool ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
 
 	if (schedule_recovery)
-		ivpu_pm_schedule_recovery(vdev);
+		ivpu_pm_trigger_recovery(vdev, "Buttress IRQ");
 
 	return true;
 }

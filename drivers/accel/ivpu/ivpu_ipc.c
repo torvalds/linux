@@ -343,10 +343,8 @@ int ivpu_ipc_send_receive_active(struct ivpu_device *vdev, struct vpu_jsm_msg *r
 	hb_ret = ivpu_ipc_send_receive_internal(vdev, &hb_req, VPU_JSM_MSG_QUERY_ENGINE_HB_DONE,
 						&hb_resp, VPU_IPC_CHAN_ASYNC_CMD,
 						vdev->timeout.jsm);
-	if (hb_ret == -ETIMEDOUT) {
-		ivpu_hw_diagnose_failure(vdev);
-		ivpu_pm_schedule_recovery(vdev);
-	}
+	if (hb_ret == -ETIMEDOUT)
+		ivpu_pm_trigger_recovery(vdev, "IPC timeout");
 
 	return ret;
 }

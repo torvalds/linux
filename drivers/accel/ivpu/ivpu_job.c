@@ -515,7 +515,9 @@ int ivpu_submit_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		goto err_destroy_job;
 	}
 
+	down_read(&vdev->pm->reset_lock);
 	ret = ivpu_job_submit(job);
+	up_read(&vdev->pm->reset_lock);
 	if (ret)
 		goto err_signal_fence;
 
