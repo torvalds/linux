@@ -95,7 +95,6 @@ static int kvm_pre_enter_guest(struct kvm_vcpu *vcpu)
 		 * check vmid before vcpu enter guest
 		 */
 		local_irq_disable();
-		kvm_acquire_timer(vcpu);
 		kvm_deliver_intr(vcpu);
 		kvm_deliver_exception(vcpu);
 		/* Make sure the vcpu mode has been written */
@@ -187,8 +186,15 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 {
-	return kvm_pending_timer(vcpu) ||
+	int ret;
+
+	/* Protect from TOD sync and vcpu_load/put() */
+	preempt_disable();
+	ret = kvm_pending_timer(vcpu) ||
 		kvm_read_hw_gcsr(LOONGARCH_CSR_ESTAT) & (1 << INT_TI);
+	preempt_enable();
+
+	return ret;
 }
 
 int kvm_arch_vcpu_dump_regs(struct kvm_vcpu *vcpu)
@@ -244,23 +250,6 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
-/**
- * kvm_migrate_count() - Migrate timer.
- * @vcpu:       Virtual CPU.
- *
- * Migrate hrtimer to the current CPU by cancelling and restarting it
- * if the hrtimer is active.
- *
- * Must be called when the vCPU is migrated to a different CPU, so that
- * the timer can interrupt the guest at the new CPU, and the timer irq can
- * be delivered to the vCPU.
- */
-static void kvm_migrate_count(struct kvm_vcpu *vcpu)
-{
-	if (hrtimer_cancel(&vcpu->arch.swtimer))
-		hrtimer_restart(&vcpu->arch.swtimer);
-}
-
 static int _kvm_getcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 *val)
 {
 	unsigned long gintc;
@@ -306,6 +295,76 @@ static int _kvm_setcsr(struct kvm_vcpu *vcpu, unsigned int id, u64 val)
 
 	kvm_write_sw_gcsr(csr, id, val);
 
+	return ret;
+}
+
+static int _kvm_get_cpucfg(int id, u64 *v)
+{
+	int ret = 0;
+
+	if (id < 0 && id >= KVM_MAX_CPUCFG_REGS)
+		return -EINVAL;
+
+	switch (id) {
+	case 2:
+		/* Return CPUCFG2 features which have been supported by KVM */
+		*v = CPUCFG2_FP     | CPUCFG2_FPSP  | CPUCFG2_FPDP     |
+		     CPUCFG2_FPVERS | CPUCFG2_LLFTP | CPUCFG2_LLFTPREV |
+		     CPUCFG2_LAM;
+		/*
+		 * If LSX is supported by CPU, it is also supported by KVM,
+		 * as we implement it.
+		 */
+		if (cpu_has_lsx)
+			*v |= CPUCFG2_LSX;
+		/*
+		 * if LASX is supported by CPU, it is also supported by KVM,
+		 * as we implement it.
+		 */
+		if (cpu_has_lasx)
+			*v |= CPUCFG2_LASX;
+
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+	return ret;
+}
+
+static int kvm_check_cpucfg(int id, u64 val)
+{
+	u64 mask;
+	int ret = 0;
+
+	if (id < 0 && id >= KVM_MAX_CPUCFG_REGS)
+		return -EINVAL;
+
+	if (_kvm_get_cpucfg(id, &mask))
+		return ret;
+
+	switch (id) {
+	case 2:
+		/* CPUCFG2 features checking */
+		if (val & ~mask)
+			/* The unsupported features should not be set */
+			ret = -EINVAL;
+		else if (!(val & CPUCFG2_LLFTP))
+			/* The LLFTP must be set, as guest must has a constant timer */
+			ret = -EINVAL;
+		else if ((val & CPUCFG2_FP) && (!(val & CPUCFG2_FPSP) || !(val & CPUCFG2_FPDP)))
+			/* Single and double float point must both be set when enable FP */
+			ret = -EINVAL;
+		else if ((val & CPUCFG2_LSX) && !(val & CPUCFG2_FP))
+			/* FP should be set when enable LSX */
+			ret = -EINVAL;
+		else if ((val & CPUCFG2_LASX) && !(val & CPUCFG2_LSX))
+			/* LSX, FP should be set when enable LASX, and FP has been checked before. */
+			ret = -EINVAL;
+		break;
+	default:
+		break;
+	}
 	return ret;
 }
 
@@ -378,10 +437,10 @@ static int kvm_set_one_reg(struct kvm_vcpu *vcpu,
 		break;
 	case KVM_REG_LOONGARCH_CPUCFG:
 		id = KVM_GET_IOC_CPUCFG_IDX(reg->id);
-		if (id >= 0 && id < KVM_MAX_CPUCFG_REGS)
-			vcpu->arch.cpucfg[id] = (u32)v;
-		else
-			ret = -EINVAL;
+		ret = kvm_check_cpucfg(id, v);
+		if (ret)
+			break;
+		vcpu->arch.cpucfg[id] = (u32)v;
 		break;
 	case KVM_REG_LOONGARCH_KVM:
 		switch (reg->id) {
@@ -471,10 +530,94 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+static int kvm_loongarch_cpucfg_has_attr(struct kvm_vcpu *vcpu,
+					 struct kvm_device_attr *attr)
+{
+	switch (attr->attr) {
+	case 2:
+		return 0;
+	default:
+		return -ENXIO;
+	}
+
+	return -ENXIO;
+}
+
+static int kvm_loongarch_vcpu_has_attr(struct kvm_vcpu *vcpu,
+				       struct kvm_device_attr *attr)
+{
+	int ret = -ENXIO;
+
+	switch (attr->group) {
+	case KVM_LOONGARCH_VCPU_CPUCFG:
+		ret = kvm_loongarch_cpucfg_has_attr(vcpu, attr);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_loongarch_get_cpucfg_attr(struct kvm_vcpu *vcpu,
+					 struct kvm_device_attr *attr)
+{
+	int ret = 0;
+	uint64_t val;
+	uint64_t __user *uaddr = (uint64_t __user *)attr->addr;
+
+	ret = _kvm_get_cpucfg(attr->attr, &val);
+	if (ret)
+		return ret;
+
+	put_user(val, uaddr);
+
+	return ret;
+}
+
+static int kvm_loongarch_vcpu_get_attr(struct kvm_vcpu *vcpu,
+				       struct kvm_device_attr *attr)
+{
+	int ret = -ENXIO;
+
+	switch (attr->group) {
+	case KVM_LOONGARCH_VCPU_CPUCFG:
+		ret = kvm_loongarch_get_cpucfg_attr(vcpu, attr);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_loongarch_cpucfg_set_attr(struct kvm_vcpu *vcpu,
+					 struct kvm_device_attr *attr)
+{
+	return -ENXIO;
+}
+
+static int kvm_loongarch_vcpu_set_attr(struct kvm_vcpu *vcpu,
+				       struct kvm_device_attr *attr)
+{
+	int ret = -ENXIO;
+
+	switch (attr->group) {
+	case KVM_LOONGARCH_VCPU_CPUCFG:
+		ret = kvm_loongarch_cpucfg_set_attr(vcpu, attr);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 long kvm_arch_vcpu_ioctl(struct file *filp,
 			 unsigned int ioctl, unsigned long arg)
 {
 	long r;
+	struct kvm_device_attr attr;
 	void __user *argp = (void __user *)arg;
 	struct kvm_vcpu *vcpu = filp->private_data;
 
@@ -512,6 +655,27 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&cap, argp, sizeof(cap)))
 			break;
 		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
+		break;
+	}
+	case KVM_HAS_DEVICE_ATTR: {
+		r = -EFAULT;
+		if (copy_from_user(&attr, argp, sizeof(attr)))
+			break;
+		r = kvm_loongarch_vcpu_has_attr(vcpu, &attr);
+		break;
+	}
+	case KVM_GET_DEVICE_ATTR: {
+		r = -EFAULT;
+		if (copy_from_user(&attr, argp, sizeof(attr)))
+			break;
+		r = kvm_loongarch_vcpu_get_attr(vcpu, &attr);
+		break;
+	}
+	case KVM_SET_DEVICE_ATTR: {
+		r = -EFAULT;
+		if (copy_from_user(&attr, argp, sizeof(attr)))
+			break;
+		r = kvm_loongarch_vcpu_set_attr(vcpu, &attr);
 		break;
 	}
 	default:
@@ -561,12 +725,96 @@ void kvm_own_fpu(struct kvm_vcpu *vcpu)
 	preempt_enable();
 }
 
+#ifdef CONFIG_CPU_HAS_LSX
+/* Enable LSX and restore context */
+int kvm_own_lsx(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_guest_has_fpu(&vcpu->arch) || !kvm_guest_has_lsx(&vcpu->arch))
+		return -EINVAL;
+
+	preempt_disable();
+
+	/* Enable LSX for guest */
+	set_csr_euen(CSR_EUEN_LSXEN | CSR_EUEN_FPEN);
+	switch (vcpu->arch.aux_inuse & KVM_LARCH_FPU) {
+	case KVM_LARCH_FPU:
+		/*
+		 * Guest FPU state already loaded,
+		 * only restore upper LSX state
+		 */
+		_restore_lsx_upper(&vcpu->arch.fpu);
+		break;
+	default:
+		/* Neither FP or LSX already active,
+		 * restore full LSX state
+		 */
+		kvm_restore_lsx(&vcpu->arch.fpu);
+		break;
+	}
+
+	trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_LSX);
+	vcpu->arch.aux_inuse |= KVM_LARCH_LSX | KVM_LARCH_FPU;
+	preempt_enable();
+
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_CPU_HAS_LASX
+/* Enable LASX and restore context */
+int kvm_own_lasx(struct kvm_vcpu *vcpu)
+{
+	if (!kvm_guest_has_fpu(&vcpu->arch) || !kvm_guest_has_lsx(&vcpu->arch) || !kvm_guest_has_lasx(&vcpu->arch))
+		return -EINVAL;
+
+	preempt_disable();
+
+	set_csr_euen(CSR_EUEN_FPEN | CSR_EUEN_LSXEN | CSR_EUEN_LASXEN);
+	switch (vcpu->arch.aux_inuse & (KVM_LARCH_FPU | KVM_LARCH_LSX)) {
+	case KVM_LARCH_LSX:
+	case KVM_LARCH_LSX | KVM_LARCH_FPU:
+		/* Guest LSX state already loaded, only restore upper LASX state */
+		_restore_lasx_upper(&vcpu->arch.fpu);
+		break;
+	case KVM_LARCH_FPU:
+		/* Guest FP state already loaded, only restore upper LSX & LASX state */
+		_restore_lsx_upper(&vcpu->arch.fpu);
+		_restore_lasx_upper(&vcpu->arch.fpu);
+		break;
+	default:
+		/* Neither FP or LSX already active, restore full LASX state */
+		kvm_restore_lasx(&vcpu->arch.fpu);
+		break;
+	}
+
+	trace_kvm_aux(vcpu, KVM_TRACE_AUX_RESTORE, KVM_TRACE_AUX_LASX);
+	vcpu->arch.aux_inuse |= KVM_LARCH_LASX | KVM_LARCH_LSX | KVM_LARCH_FPU;
+	preempt_enable();
+
+	return 0;
+}
+#endif
+
 /* Save context and disable FPU */
 void kvm_lose_fpu(struct kvm_vcpu *vcpu)
 {
 	preempt_disable();
 
-	if (vcpu->arch.aux_inuse & KVM_LARCH_FPU) {
+	if (vcpu->arch.aux_inuse & KVM_LARCH_LASX) {
+		kvm_save_lasx(&vcpu->arch.fpu);
+		vcpu->arch.aux_inuse &= ~(KVM_LARCH_LSX | KVM_LARCH_FPU | KVM_LARCH_LASX);
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_LASX);
+
+		/* Disable LASX & LSX & FPU */
+		clear_csr_euen(CSR_EUEN_FPEN | CSR_EUEN_LSXEN | CSR_EUEN_LASXEN);
+	} else if (vcpu->arch.aux_inuse & KVM_LARCH_LSX) {
+		kvm_save_lsx(&vcpu->arch.fpu);
+		vcpu->arch.aux_inuse &= ~(KVM_LARCH_LSX | KVM_LARCH_FPU);
+		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_LSX);
+
+		/* Disable LSX & FPU */
+		clear_csr_euen(CSR_EUEN_FPEN | CSR_EUEN_LSXEN);
+	} else if (vcpu->arch.aux_inuse & KVM_LARCH_FPU) {
 		kvm_save_fpu(&vcpu->arch.fpu);
 		vcpu->arch.aux_inuse &= ~KVM_LARCH_FPU;
 		trace_kvm_aux(vcpu, KVM_TRACE_AUX_SAVE, KVM_TRACE_AUX_FPU);
@@ -789,17 +1037,6 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	if (vcpu->arch.last_sched_cpu != cpu) {
-		kvm_debug("[%d->%d]KVM vCPU[%d] switch\n",
-				vcpu->arch.last_sched_cpu, cpu, vcpu->vcpu_id);
-		/*
-		 * Migrate the timer interrupt to the current CPU so that it
-		 * always interrupts the guest and synchronously triggers a
-		 * guest timer interrupt.
-		 */
-		kvm_migrate_count(vcpu);
-	}
-
 	/* Restore guest state to registers */
 	_kvm_vcpu_load(vcpu, cpu);
 	local_irq_restore(flags);

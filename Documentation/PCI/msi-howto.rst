@@ -236,7 +236,7 @@ including a full 'lspci -v' so we can add the quirks to the kernel.
 Disabling MSIs below a bridge
 -----------------------------
 
-Some PCI bridges are not able to route MSIs between busses properly.
+Some PCI bridges are not able to route MSIs between buses properly.
 In this case, MSIs must be disabled on all devices behind the bridge.
 
 Some bridges allow you to enable MSIs by changing some bits in their

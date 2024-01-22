@@ -62,7 +62,7 @@
 	.endif
 
 	/* Save previous stack pointer (r1) */
-	addi	r8, r1, SWITCH_FRAME_SIZE
+	addi	r8, r1, SWITCH_FRAME_SIZE+STACK_FRAME_MIN_SIZE
 	PPC_STL	r8, GPR1(r1)
 
 	.if \allregs == 1
@@ -162,7 +162,6 @@ _GLOBAL(ftrace_regs_caller)
 .globl ftrace_regs_call
 ftrace_regs_call:
 	bl	ftrace_stub
-	nop
 	ftrace_regs_exit 1
 
 _GLOBAL(ftrace_caller)
@@ -171,7 +170,6 @@ _GLOBAL(ftrace_caller)
 .globl ftrace_call
 ftrace_call:
 	bl	ftrace_stub
-	nop
 	ftrace_regs_exit 0
 
 _GLOBAL(ftrace_stub)
@@ -182,7 +180,7 @@ ftrace_no_trace:
 	mflr	r3
 	mtctr	r3
 	REST_GPR(3, r1)
-	addi	r1, r1, SWITCH_FRAME_SIZE
+	addi	r1, r1, SWITCH_FRAME_SIZE+STACK_FRAME_MIN_SIZE
 	mtlr	r0
 	bctr
 #endif

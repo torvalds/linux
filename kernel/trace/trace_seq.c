@@ -13,9 +13,6 @@
  * trace_seq_init() more than once to reset the trace_seq to start
  * from scratch.
  * 
- * The buffer size is currently PAGE_SIZE, although it may become dynamic
- * in the future.
- *
  * A write to the buffer will either succeed or fail. That is, unlike
  * sprintf() there will not be a partial write (well it may write into
  * the buffer but it wont update the pointers). This allows users to

@@ -711,8 +711,7 @@ static bool intel_spi_cmp_mem_op(const struct intel_spi_mem_op *iop,
 {
 	if (iop->mem_op.cmd.nbytes != op->cmd.nbytes ||
 	    iop->mem_op.cmd.buswidth != op->cmd.buswidth ||
-	    iop->mem_op.cmd.dtr != op->cmd.dtr ||
-	    iop->mem_op.cmd.opcode != op->cmd.opcode)
+	    iop->mem_op.cmd.dtr != op->cmd.dtr)
 		return false;
 
 	if (iop->mem_op.addr.nbytes != op->addr.nbytes ||
@@ -737,11 +736,12 @@ intel_spi_match_mem_op(struct intel_spi *ispi, const struct spi_mem_op *op)
 	const struct intel_spi_mem_op *iop;
 
 	for (iop = ispi->mem_ops; iop->mem_op.cmd.opcode; iop++) {
-		if (intel_spi_cmp_mem_op(iop, op))
-			break;
+		if (iop->mem_op.cmd.opcode == op->cmd.opcode &&
+		    intel_spi_cmp_mem_op(iop, op))
+			return iop;
 	}
 
-	return iop->mem_op.cmd.opcode ? iop : NULL;
+	return NULL;
 }
 
 static bool intel_spi_supports_mem_op(struct spi_mem *mem,

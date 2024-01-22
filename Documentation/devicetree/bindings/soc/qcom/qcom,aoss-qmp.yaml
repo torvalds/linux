@@ -38,6 +38,8 @@ properties:
           - qcom,sm8350-aoss-qmp
           - qcom,sm8450-aoss-qmp
           - qcom,sm8550-aoss-qmp
+          - qcom,sm8650-aoss-qmp
+          - qcom,x1e80100-aoss-qmp
       - const: qcom,aoss-qmp
 
   reg:

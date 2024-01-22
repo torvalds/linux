@@ -56,6 +56,7 @@ static inline bool ipa_version_supported(enum ipa_version version)
 	case IPA_VERSION_4_9:
 	case IPA_VERSION_4_11:
 	case IPA_VERSION_5_0:
+	case IPA_VERSION_5_5:
 		return true;
 	default:
 		return false;

@@ -63,19 +63,19 @@
 
 /* used to set data->name = nct6775_device_names[data->sio_kind] */
 static const char * const nct6775_device_names[] = {
-	"nct6106",
-	"nct6116",
-	"nct6775",
-	"nct6776",
-	"nct6779",
-	"nct6791",
-	"nct6792",
-	"nct6793",
-	"nct6795",
-	"nct6796",
-	"nct6797",
-	"nct6798",
-	"nct6799",
+	[nct6106] = "nct6106",
+	[nct6116] = "nct6116",
+	[nct6775] = "nct6775",
+	[nct6776] = "nct6776",
+	[nct6779] = "nct6779",
+	[nct6791] = "nct6791",
+	[nct6792] = "nct6792",
+	[nct6793] = "nct6793",
+	[nct6795] = "nct6795",
+	[nct6796] = "nct6796",
+	[nct6797] = "nct6797",
+	[nct6798] = "nct6798",
+	[nct6799] = "nct6799",
 };
 
 /* Common and NCT6775 specific data */
@@ -767,9 +767,9 @@ static const u16 NCT6106_REG_FAN_MIN[] = { 0xe0, 0xe2, 0xe4 };
 static const u16 NCT6106_REG_FAN_PULSES[] = { 0xf6, 0xf6, 0xf6 };
 static const u16 NCT6106_FAN_PULSE_SHIFT[] = { 0, 2, 4 };
 
-static const u8 NCT6106_REG_PWM_MODE[] = { 0xf3, 0xf3, 0xf3 };
-static const u8 NCT6106_PWM_MODE_MASK[] = { 0x01, 0x02, 0x04 };
-static const u16 NCT6106_REG_PWM_READ[] = { 0x4a, 0x4b, 0x4c };
+static const u8 NCT6106_REG_PWM_MODE[] = { 0xf3, 0xf3, 0xf3, 0, 0 };
+static const u8 NCT6106_PWM_MODE_MASK[] = { 0x01, 0x02, 0x04, 0, 0 };
+static const u16 NCT6106_REG_PWM_READ[] = { 0x4a, 0x4b, 0x4c, 0xd8, 0xd9 };
 static const u16 NCT6106_REG_FAN_MODE[] = { 0x113, 0x123, 0x133 };
 static const u16 NCT6106_REG_TEMP_SOURCE[] = {
 	0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5 };
@@ -2553,6 +2553,13 @@ store_pwm(struct device *dev, struct device_attribute *attr, const char *buf,
 	int err;
 	u16 reg;
 
+	/*
+	 * The fan control mode should be set to manual if the user wants to adjust
+	 * the fan speed. Otherwise, it will fail to set.
+	 */
+	if (index == 0 && data->pwm_enable[nr] > manual)
+		return -EBUSY;
+
 	err = kstrtoul(buf, 10, &val);
 	if (err < 0)
 		return err;
@@ -3595,7 +3602,7 @@ int nct6775_probe(struct device *dev, struct nct6775_data *data,
 		break;
 	case nct6116:
 		data->in_num = 9;
-		data->pwm_num = 3;
+		data->pwm_num = 5;
 		data->auto_pwm_num = 4;
 		data->temp_fixed_num = 3;
 		data->num_temp_alarms = 3;

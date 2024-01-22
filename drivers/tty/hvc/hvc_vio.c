@@ -58,20 +58,20 @@ struct hvterm_priv {
 	hv_protocol_t		proto;	/* Raw data or HVSI packets */
 	struct hvsi_priv	hvsi;	/* HVSI specific data */
 	spinlock_t		buf_lock;
-	char			buf[SIZE_VIO_GET_CHARS];
-	int			left;
-	int			offset;
+	u8			buf[SIZE_VIO_GET_CHARS];
+	size_t			left;
+	size_t			offset;
 };
 static struct hvterm_priv *hvterm_privs[MAX_NR_HVC_CONSOLES];
 /* For early boot console */
 static struct hvterm_priv hvterm_priv0;
 
-static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
+static ssize_t hvterm_raw_get_chars(uint32_t vtermno, u8 *buf, size_t count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
 	unsigned long i;
 	unsigned long flags;
-	int got;
+	size_t got;
 
 	if (WARN_ON(!pv))
 		return 0;
@@ -115,7 +115,8 @@ static int hvterm_raw_get_chars(uint32_t vtermno, char *buf, int count)
  *       you are sending fewer chars.
  * @count: number of chars to send.
  */
-static int hvterm_raw_put_chars(uint32_t vtermno, const char *buf, int count)
+static ssize_t hvterm_raw_put_chars(uint32_t vtermno, const u8 *buf,
+				    size_t count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
 
@@ -133,7 +134,7 @@ static const struct hv_ops hvterm_raw_ops = {
 	.notifier_hangup = notifier_hangup_irq,
 };
 
-static int hvterm_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
+static ssize_t hvterm_hvsi_get_chars(uint32_t vtermno, u8 *buf, size_t count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
 
@@ -143,7 +144,8 @@ static int hvterm_hvsi_get_chars(uint32_t vtermno, char *buf, int count)
 	return hvsilib_get_chars(&pv->hvsi, buf, count);
 }
 
-static int hvterm_hvsi_put_chars(uint32_t vtermno, const char *buf, int count)
+static ssize_t hvterm_hvsi_put_chars(uint32_t vtermno, const u8 *buf,
+				     size_t count)
 {
 	struct hvterm_priv *pv = hvterm_privs[vtermno];
 

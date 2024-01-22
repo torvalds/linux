@@ -230,13 +230,11 @@ err_clk:
 	return ret;
 }
 
-static int mxs_lradc_remove(struct platform_device *pdev)
+static void mxs_lradc_remove(struct platform_device *pdev)
 {
 	struct mxs_lradc *lradc = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(lradc->clk);
-
-	return 0;
 }
 
 static struct platform_driver mxs_lradc_driver = {
@@ -245,7 +243,7 @@ static struct platform_driver mxs_lradc_driver = {
 		.of_match_table = mxs_lradc_dt_ids,
 	},
 	.probe = mxs_lradc_probe,
-	.remove = mxs_lradc_remove,
+	.remove_new = mxs_lradc_remove,
 };
 module_platform_driver(mxs_lradc_driver);
 

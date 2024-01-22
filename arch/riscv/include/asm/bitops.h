@@ -271,7 +271,9 @@ legacy:
 #include <asm-generic/bitops/fls64.h>
 #include <asm-generic/bitops/sched.h>
 
-#include <asm-generic/bitops/hweight.h>
+#include <asm/arch_hweight.h>
+
+#include <asm-generic/bitops/const_hweight.h>
 
 #if (BITS_PER_LONG == 64)
 #define __AMO(op)	"amo" #op ".d"

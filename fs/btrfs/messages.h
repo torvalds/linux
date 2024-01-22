@@ -194,7 +194,7 @@ const char * __attribute_const__ btrfs_decode_error(int error);
 
 __printf(5, 6)
 __cold
-void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
+void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
 		   unsigned int line, int error, const char *fmt, ...);
 /*
  * If BTRFS_MOUNT_PANIC_ON_FATAL_ERROR is in mount_opt, __btrfs_panic

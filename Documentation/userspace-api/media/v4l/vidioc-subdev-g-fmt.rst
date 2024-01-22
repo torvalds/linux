@@ -140,9 +140,8 @@ EBUSY
     fix the problem first. Only returned by ``VIDIOC_SUBDEV_S_FMT``
 
 EINVAL
-    The struct :c:type:`v4l2_subdev_format`
-    ``pad`` references a non-existing pad, or the ``which`` field
-    references a non-existing format.
+    The struct :c:type:`v4l2_subdev_format` ``pad`` references a non-existing
+    pad, or the ``which`` field has an unsupported value.
 
 EPERM
     The ``VIDIOC_SUBDEV_S_FMT`` ioctl has been called on a read-only subdevice

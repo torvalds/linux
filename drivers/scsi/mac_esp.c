@@ -407,7 +407,7 @@ fail:
 	return err;
 }
 
-static int esp_mac_remove(struct platform_device *dev)
+static void esp_mac_remove(struct platform_device *dev)
 {
 	struct mac_esp_priv *mep = platform_get_drvdata(dev);
 	struct esp *esp = mep->esp;
@@ -428,13 +428,11 @@ static int esp_mac_remove(struct platform_device *dev)
 	kfree(esp->command_block);
 
 	scsi_host_put(esp->host);
-
-	return 0;
 }
 
 static struct platform_driver esp_mac_driver = {
 	.probe    = esp_mac_probe,
-	.remove   = esp_mac_remove,
+	.remove_new = esp_mac_remove,
 	.driver   = {
 		.name	= DRV_MODULE_NAME,
 	},

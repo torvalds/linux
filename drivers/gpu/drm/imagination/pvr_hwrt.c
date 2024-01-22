@@ -458,7 +458,7 @@ pvr_hwrt_dataset_create(struct pvr_file *pvr_file,
 			struct drm_pvr_ioctl_create_hwrt_dataset_args *args)
 {
 	struct pvr_hwrt_dataset *hwrt;
-	int err;
+	int err, i = 0;
 
 	/* Create and fill out the kernel structure */
 	hwrt = kzalloc(sizeof(*hwrt), GFP_KERNEL);
@@ -466,35 +466,36 @@ pvr_hwrt_dataset_create(struct pvr_file *pvr_file,
 	if (!hwrt)
 		return ERR_PTR(-ENOMEM);
 
-	kref_init(&hwrt->ref_count);
-
 	err = hwrt_init_kernel_structure(pvr_file, args, hwrt);
 	if (err < 0)
 		goto err_free;
 
 	err = hwrt_init_common_fw_structure(pvr_file, args, hwrt);
 	if (err < 0)
-		goto err_free;
+		goto err_fini_kernel_structure;
 
-	for (int i = 0; i < ARRAY_SIZE(hwrt->data); i++) {
+	for (; i < ARRAY_SIZE(hwrt->data); i++) {
 		err = hwrt_data_init_fw_structure(pvr_file, hwrt, args,
 						  &args->rt_data_args[i],
 						  &hwrt->data[i]);
-		if (err < 0) {
-			i--;
-			/* Destroy already created structures. */
-			for (; i >= 0; i--)
-				hwrt_data_fini_fw_structure(hwrt, i);
-			goto err_free;
-		}
+		if (err < 0)
+			goto err_fini_data_structures;
 
 		hwrt->data[i].hwrt_dataset = hwrt;
 	}
 
+	kref_init(&hwrt->ref_count);
 	return hwrt;
 
+err_fini_data_structures:
+	while (--i >= 0)
+		hwrt_data_fini_fw_structure(hwrt, i);
+
+err_fini_kernel_structure:
+	hwrt_fini_kernel_structure(hwrt);
+
 err_free:
-	pvr_hwrt_dataset_put(hwrt);
+	kfree(hwrt);
 
 	return ERR_PTR(err);
 }

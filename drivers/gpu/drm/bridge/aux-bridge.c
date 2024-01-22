@@ -6,6 +6,7 @@
  */
 #include <linux/auxiliary_bus.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 #include <drm/drm_bridge.h>
 #include <drm/bridge/aux-bridge.h>
@@ -57,7 +58,7 @@ int drm_aux_bridge_register(struct device *parent)
 	adev->id = ret;
 	adev->name = "aux_bridge";
 	adev->dev.parent = parent;
-	adev->dev.of_node = parent->of_node;
+	adev->dev.of_node = of_node_get(parent->of_node);
 	adev->dev.release = drm_aux_bridge_release;
 
 	ret = auxiliary_device_init(adev);

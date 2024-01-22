@@ -233,8 +233,6 @@ source "net/bridge/netfilter/Kconfig"
 
 endif
 
-source "net/bpfilter/Kconfig"
-
 source "net/dccp/Kconfig"
 source "net/sctp/Kconfig"
 source "net/rds/Kconfig"

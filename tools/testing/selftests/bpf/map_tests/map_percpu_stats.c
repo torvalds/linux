@@ -131,10 +131,17 @@ static bool is_lru(__u32 map_type)
 	       map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
 }
 
+static bool is_percpu(__u32 map_type)
+{
+	return map_type == BPF_MAP_TYPE_PERCPU_HASH ||
+	       map_type == BPF_MAP_TYPE_LRU_PERCPU_HASH;
+}
+
 struct upsert_opts {
 	__u32 map_type;
 	int map_fd;
 	__u32 n;
+	bool retry_for_nomem;
 };
 
 static int create_small_hash(void)
@@ -148,19 +155,38 @@ static int create_small_hash(void)
 	return map_fd;
 }
 
+static bool retry_for_nomem_fn(int err)
+{
+	return err == ENOMEM;
+}
+
 static void *patch_map_thread(void *arg)
 {
+	/* 8KB is enough for 1024 CPUs. And it is shared between N_THREADS. */
+	static __u8 blob[8 << 10];
 	struct upsert_opts *opts = arg;
+	void *val_ptr;
 	int val;
 	int ret;
 	int i;
 
 	for (i = 0; i < opts->n; i++) {
-		if (opts->map_type == BPF_MAP_TYPE_HASH_OF_MAPS)
+		if (opts->map_type == BPF_MAP_TYPE_HASH_OF_MAPS) {
 			val = create_small_hash();
-		else
+			val_ptr = &val;
+		} else if (is_percpu(opts->map_type)) {
+			val_ptr = blob;
+		} else {
 			val = rand();
-		ret = bpf_map_update_elem(opts->map_fd, &i, &val, 0);
+			val_ptr = &val;
+		}
+
+		/* 2 seconds may be enough ? */
+		if (opts->retry_for_nomem)
+			ret = map_update_retriable(opts->map_fd, &i, val_ptr, 0,
+						   40, retry_for_nomem_fn);
+		else
+			ret = bpf_map_update_elem(opts->map_fd, &i, val_ptr, 0);
 		CHECK(ret < 0, "bpf_map_update_elem", "key=%d error: %s\n", i, strerror(errno));
 
 		if (opts->map_type == BPF_MAP_TYPE_HASH_OF_MAPS)
@@ -280,6 +306,13 @@ static void __test(int map_fd)
 		opts.n -= 512;
 	else
 		opts.n /= 2;
+
+	/* per-cpu bpf memory allocator may not be able to allocate per-cpu
+	 * pointer successfully and it can not refill free llist timely, and
+	 * bpf_map_update_elem() will return -ENOMEM. so just retry to mitigate
+	 * the problem temporarily.
+	 */
+	opts.retry_for_nomem = is_percpu(opts.map_type) && (info.map_flags & BPF_F_NO_PREALLOC);
 
 	/*
 	 * Upsert keys [0, n) under some competition: with random values from

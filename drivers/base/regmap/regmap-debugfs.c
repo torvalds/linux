@@ -226,8 +226,8 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 	if (*ppos < 0 || !count)
 		return -EINVAL;
 
-	if (count > (PAGE_SIZE << MAX_ORDER))
-		count = PAGE_SIZE << MAX_ORDER;
+	if (count > (PAGE_SIZE << MAX_PAGE_ORDER))
+		count = PAGE_SIZE << MAX_PAGE_ORDER;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)
@@ -373,8 +373,8 @@ static ssize_t regmap_reg_ranges_read_file(struct file *file,
 	if (*ppos < 0 || !count)
 		return -EINVAL;
 
-	if (count > (PAGE_SIZE << MAX_ORDER))
-		count = PAGE_SIZE << MAX_ORDER;
+	if (count > (PAGE_SIZE << MAX_PAGE_ORDER))
+		count = PAGE_SIZE << MAX_PAGE_ORDER;
 
 	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf)

@@ -10,9 +10,6 @@
 #include "mpfs.dtsi"
 #include "mpfs-m100pfs-fabric.dtsi"
 
-/* Clock frequency (in Hz) of the rtcclk */
-#define MTIMER_FREQ	1000000
-
 / {
 	model = "Aries Embedded M100PFEVPS";
 	compatible = "aries,m100pfsevp", "microchip,mpfs";
@@ -31,10 +28,6 @@
 
 	chosen {
 		stdout-path = "serial1:115200n8";
-	};
-
-	cpus {
-		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	ddrc_cache_lo: memory@80000000 {

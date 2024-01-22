@@ -110,7 +110,7 @@ static const char *get_shadow_bug_type(struct kasan_report_info *info)
 		bug_type = "use-after-free";
 		break;
 	case KASAN_SLAB_FREE:
-	case KASAN_SLAB_FREETRACK:
+	case KASAN_SLAB_FREE_META:
 		bug_type = "slab-use-after-free";
 		break;
 	case KASAN_ALLOCA_LEFT:
@@ -173,8 +173,8 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 		memcpy(&info->alloc_track, &alloc_meta->alloc_track,
 		       sizeof(info->alloc_track));
 
-	if (*(u8 *)kasan_mem_to_shadow(info->object) == KASAN_SLAB_FREETRACK) {
-		/* Free meta must be present with KASAN_SLAB_FREETRACK. */
+	if (*(u8 *)kasan_mem_to_shadow(info->object) == KASAN_SLAB_FREE_META) {
+		/* Free meta must be present with KASAN_SLAB_FREE_META. */
 		free_meta = kasan_get_free_meta(info->cache, info->object);
 		memcpy(&info->free_track, &free_meta->free_track,
 		       sizeof(info->free_track));

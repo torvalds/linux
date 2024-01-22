@@ -398,6 +398,61 @@
 		status = "disabled";
 	};
 
+	lcdc0: lcd-controller@fe940000 {
+		compatible = "renesas,r8a7740-lcdc";
+		reg = <0xfe940000 0x4000>;
+		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp1_clks R8A7740_CLK_LCDC0>,
+			 <&cpg_clocks R8A7740_CLK_M3>, <&lcdlclk0_clk>,
+			 <&vou_clk>;
+		clock-names = "fck", "media", "lclk", "video";
+		power-domains = <&pd_a4lc>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lcdc0_rgb: endpoint {
+				};
+			};
+		};
+	};
+
+	lcdc1: lcd-controller@fe944000 {
+		compatible = "renesas,r8a7740-lcdc";
+		reg = <0xfe944000 0x4000>;
+		interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&mstp1_clks R8A7740_CLK_LCDC1>,
+			 <&cpg_clocks R8A7740_CLK_M3>, <&lcdlclk1_clk>,
+			 <&vou_clk>;
+		clock-names = "fck", "media", "lclk", "video";
+		power-domains = <&pd_a4lc>;
+		status = "disabled";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				lcdc1_rgb: endpoint {
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				lcdc1_hdmi: endpoint {
+				};
+			};
+		};
+	};
+
 	tmu0: timer@fff80000 {
 		compatible = "renesas,tmu-r8a7740", "renesas,tmu";
 		reg = <0xfff80000 0x2c>;
@@ -470,6 +525,16 @@
 			clock-frequency = <0>;
 		};
 		fsibck_clk: fsibck {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+		};
+		lcdlclk0_clk: lcdlclk0 {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <0>;
+		};
+		lcdlclk1_clk: lcdlclk1 {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <0>;

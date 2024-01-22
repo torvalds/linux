@@ -45,6 +45,23 @@
 		status = "disabled";
 	};
 
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		id-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
+		label = "Type-C";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb_1_id>;
+		self-powered;
+		type = "micro";
+		vbus-supply = <&reg_usb1_vbus>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -835,15 +852,10 @@
 	srp-disable;
 	usb-role-switch;
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		id-gpios = <&gpio2 10 GPIO_ACTIVE_HIGH>;
-		label = "Type-C";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usb_1_id>;
-		self-powered;
-		type = "micro";
-		vbus-supply = <&reg_usb1_vbus>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

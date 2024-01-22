@@ -248,7 +248,7 @@ static bool fw_trace_get_next(struct pvr_fw_trace_seq_data *trace_seq_data)
 			continue;
 
 		return true;
-	};
+	}
 
 	/* Hit end of trace data. */
 	return false;

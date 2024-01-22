@@ -614,7 +614,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	intel_dp_audio_compute_config(encoder, pipe_config, conn_state);
 
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_compute_min_voltage_level(pipe_config);
 
 	intel_psr_compute_config(intel_dp, pipe_config, conn_state);
 

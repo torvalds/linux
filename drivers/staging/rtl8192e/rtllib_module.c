@@ -123,7 +123,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 		goto free_softmac;
 
 	ht_update_default_setting(ieee);
-	HTInitializeHTInfo(ieee);
+	ht_initialize_ht_info(ieee);
 	rtllib_ts_init(ieee);
 	for (i = 0; i < IEEE_IBSS_MAC_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&ieee->ibss_mac_hash[i]);

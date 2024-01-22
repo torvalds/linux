@@ -35,16 +35,16 @@ enum {
 #define ASM_LAST_BUFFER_FLAG           BIT(30)
 
 struct q6asm_flac_cfg {
-        u32 sample_rate;
-        u32 ext_sample_rate;
-        u32 min_frame_size;
-        u32 max_frame_size;
-        u16 stream_info_present;
-        u16 min_blk_size;
-        u16 max_blk_size;
-        u16 ch_cfg;
-        u16 sample_size;
-        u16 md5_sum;
+	u32 sample_rate;
+	u32 ext_sample_rate;
+	u32 min_frame_size;
+	u32 max_frame_size;
+	u16 stream_info_present;
+	u16 min_blk_size;
+	u16 max_blk_size;
+	u16 ch_cfg;
+	u16 sample_size;
+	u16 md5_sum;
 };
 
 struct q6asm_wma_cfg {

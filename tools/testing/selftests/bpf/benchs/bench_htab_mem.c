@@ -335,6 +335,7 @@ static void htab_mem_report_final(struct bench_res res[], int res_cnt)
 	       " peak memory usage %7.2lfMiB\n",
 	       loop_mean, loop_stddev, mem_mean, mem_stddev, peak_mem / 1048576.0);
 
+	close(ctx.fd);
 	cleanup_cgroup_environment();
 }
 

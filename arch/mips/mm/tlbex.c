@@ -789,7 +789,7 @@ void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 
 	if (check_for_high_segbits) {
 		/*
-		 * The kernel currently implicitely assumes that the
+		 * The kernel currently implicitly assumes that the
 		 * MIPS SEGBITS parameter for the processor is
 		 * (PGDIR_SHIFT+PGDIR_BITS) or less, and will never
 		 * allocate virtual addresses outside the maximum
@@ -1715,7 +1715,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 /*
  * Check if PTE is present, if not then jump to LABEL. PTR points to
  * the page table where this PTE is located, PTE will be re-loaded
- * with it's original value.
+ * with its original value.
  */
 static void
 build_pte_present(u32 **p, struct uasm_reloc **r,

@@ -483,7 +483,7 @@
 			};
 		};
 
-		gpioe: gpio@2d000080 {
+		gpioe: gpio@2d000000 {
 				compatible = "fsl,imx8ulp-gpio";
 				reg = <0x2d000000 0x1000>;
 				gpio-controller;
@@ -498,7 +498,7 @@
 				gpio-ranges = <&iomuxc1 0 32 24>;
 		};
 
-		gpiof: gpio@2d010080 {
+		gpiof: gpio@2d010000 {
 				compatible = "fsl,imx8ulp-gpio";
 				reg = <0x2d010000 0x1000>;
 				gpio-controller;
@@ -534,7 +534,7 @@
 			};
 		};
 
-		gpiod: gpio@2e200080 {
+		gpiod: gpio@2e200000 {
 			compatible = "fsl,imx8ulp-gpio";
 			reg = <0x2e200000 0x1000>;
 			gpio-controller;

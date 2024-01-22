@@ -747,8 +747,6 @@ static struct dentry *zonefs_lookup(struct inode *dir, struct dentry *dentry,
 		inode = zonefs_get_dir_inode(dir, dentry);
 	else
 		inode = zonefs_get_file_inode(dir, dentry);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
 
 	return d_splice_alias(inode, dentry);
 }

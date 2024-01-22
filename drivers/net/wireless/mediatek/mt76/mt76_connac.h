@@ -222,6 +222,11 @@ static inline bool is_mt7996(struct mt76_dev *dev)
 	return mt76_chip(dev) == 0x7990;
 }
 
+static inline bool is_mt7992(struct mt76_dev *dev)
+{
+	return mt76_chip(dev) == 0x7992;
+}
+
 static inline bool is_mt7622(struct mt76_dev *dev)
 {
 	if (!IS_ENABLED(CONFIG_MT7622_WMAC))
@@ -391,7 +396,8 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 
 void mt76_connac_gen_ppe_thresh(u8 *he_ppet, int nss);
 int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
-			       int ring_base, u32 flags);
+			       int ring_base, void *wed, u32 flags);
+
 void mt76_connac_write_hw_txp(struct mt76_dev *dev,
 			      struct mt76_tx_info *tx_info,
 			      void *txp_ptr, u32 id);

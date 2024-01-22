@@ -54,8 +54,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&open_touch>;
 
-		interrupt-parent = <&pio>;
-		interrupts = <155 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&pio 155 IRQ_TYPE_EDGE_FALLING>;
 
 		post-power-on-delay-ms = <10>;
 		hid-descr-addr = <0x0001>;

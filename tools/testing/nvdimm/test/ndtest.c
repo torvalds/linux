@@ -924,7 +924,7 @@ static __init int ndtest_init(void)
 
 	nfit_test_setup(ndtest_resource_lookup, NULL);
 
-	rc = class_regster(&ndtest_dimm_class);
+	rc = class_register(&ndtest_dimm_class);
 	if (rc)
 		goto err_register;
 

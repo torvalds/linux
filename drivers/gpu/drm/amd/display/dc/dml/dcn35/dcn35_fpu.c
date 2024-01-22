@@ -124,7 +124,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 600.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 186.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 1,
@@ -133,7 +133,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 2,
@@ -142,7 +142,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 3,
@@ -151,7 +151,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 371.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 4,
@@ -160,15 +160,15 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 	},
 	.num_states = 5,
 	.sr_exit_time_us = 14.0,
 	.sr_enter_plus_exit_time_us = 16.0,
-	.sr_exit_z8_time_us = 525.0,
-	.sr_enter_plus_exit_z8_time_us = 715.0,
-	.fclk_change_latency_us = 20.0,
+	.sr_exit_z8_time_us = 210.0,
+	.sr_enter_plus_exit_z8_time_us = 320.0,
+	.fclk_change_latency_us = 24.0,
 	.usr_retraining_latency_us = 2,
 	.writeback_latency_us = 12.0,
 
@@ -326,6 +326,25 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 		dcn3_5_soc.dram_clock_change_latency_us =
 			dc->debug.dram_clock_change_latency_ns / 1000.0;
 	}
+
+	if (dc->bb_overrides.dram_clock_change_latency_ns > 0)
+		dcn3_5_soc.dram_clock_change_latency_us =
+			dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_exit_time_ns > 0)
+		dcn3_5_soc.sr_exit_time_us = dc->bb_overrides.sr_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_enter_plus_exit_time_ns > 0)
+		dcn3_5_soc.sr_enter_plus_exit_time_us =
+			dc->bb_overrides.sr_enter_plus_exit_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_exit_z8_time_ns > 0)
+		dcn3_5_soc.sr_exit_z8_time_us = dc->bb_overrides.sr_exit_z8_time_ns / 1000.0;
+
+	if (dc->bb_overrides.sr_enter_plus_exit_z8_time_ns > 0)
+		dcn3_5_soc.sr_enter_plus_exit_z8_time_us =
+			dc->bb_overrides.sr_enter_plus_exit_z8_time_ns / 1000.0;
+
 	/*temp till dml2 fully work without dml1*/
 	dml_init_instance(&dc->dml, &dcn3_5_soc, &dcn3_5_ip,
 				DML_PROJECT_DCN31);
@@ -348,6 +367,8 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 				clock_limits[i].socclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].memclk_mhz =
 				clk_table->entries[i].memclk_mhz * clk_table->entries[i].wck_ratio;
+			dc->dml2_options.bbox_overrides.clks_table.clk_entries[i].dtbclk_mhz =
+				clock_limits[i].dtbclk_mhz;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dcfclk_levels =
 				clk_table->num_entries;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_fclk_levels =
@@ -359,6 +380,8 @@ void dcn35_update_bw_bounding_box_fpu(struct dc *dc,
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_socclk_levels =
 				clk_table->num_entries;
 			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_memclk_levels =
+				clk_table->num_entries;
+			dc->dml2_options.bbox_overrides.clks_table.num_entries_per_clk.num_dtbclk_levels =
 				clk_table->num_entries;
 		}
 	}

@@ -260,7 +260,7 @@ static int kona_pwmc_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			return err;
 	}
 
-	err = kona_pwmc_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = kona_pwmc_config(chip, pwm, state->duty_cycle, state->period);
 	if (err && !pwm->state.enabled)
 		clk_disable_unprepare(kp->clk);
 

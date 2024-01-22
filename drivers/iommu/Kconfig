@@ -160,6 +160,7 @@ config IOMMU_DMA
 
 # Shared Virtual Addressing
 config IOMMU_SVA
+	select IOMMU_MM_DATA
 	bool
 
 config FSL_PAMU

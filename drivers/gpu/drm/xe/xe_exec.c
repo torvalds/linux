@@ -230,7 +230,7 @@ retry:
 	vm_exec.vm = &vm->gpuvm;
 	vm_exec.flags = DRM_EXEC_INTERRUPTIBLE_WAIT;
 	if (xe_vm_in_lr_mode(vm)) {
-		drm_exec_init(exec, vm_exec.flags);
+		drm_exec_init(exec, vm_exec.flags, 0);
 	} else {
 		err = drm_gpuvm_exec_lock(&vm_exec);
 		if (err) {

@@ -3475,8 +3475,7 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			if (!devdata->dsc)
 				return false;
 
-			if (crtc_state)
-				fill_dsc(crtc_state, devdata->dsc, dsc_max_bpc);
+			fill_dsc(crtc_state, devdata->dsc, dsc_max_bpc);
 
 			return true;
 		}

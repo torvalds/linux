@@ -158,28 +158,6 @@ static int _rtl92e_wx_set_mode(struct net_device *dev,
 	return ret;
 }
 
-struct  iw_range_with_scan_capa {
-	/* Informative stuff (to choose between different interface) */
-	__u32	   throughput;     /* To give an idea... */
-	/* In theory this value should be the maximum benchmarked
-	 * TCP/IP throughput, because with most of these devices the
-	 * bit rate is meaningless (overhead an co) to estimate how
-	 * fast the connection will go and pick the fastest one.
-	 * I suggest people to play with Netperf or any benchmark...
-	 */
-
-	/* NWID (or domain id) */
-	__u32	   min_nwid;	/* Minimal NWID we are able to set */
-	__u32	   max_nwid;	/* Maximal NWID we are able to set */
-
-	/* Old Frequency (backward compat - moved lower ) */
-	__u16	   old_num_channels;
-	__u8	    old_num_frequency;
-
-	/* Scan capabilities */
-	__u8	    scan_capa;
-};
-
 static int _rtl92e_wx_get_range(struct net_device *dev,
 				struct iw_request_info *info,
 				union iwreq_data *wrqu, char *extra)

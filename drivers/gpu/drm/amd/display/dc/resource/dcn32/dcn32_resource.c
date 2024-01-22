@@ -89,6 +89,8 @@
 #include "dcn20/dcn20_vmid.h"
 #include "dml/dcn32/dcn32_fpu.h"
 
+#include "dc_state_priv.h"
+
 #include "dml2/dml2_wrapper.h"
 
 #define DC_LOGGER_INIT(logger)
@@ -1644,7 +1646,7 @@ static void dcn32_enable_phantom_plane(struct dc *dc,
 		if (curr_pipe->top_pipe && curr_pipe->top_pipe->plane_state == curr_pipe->plane_state)
 			phantom_plane = prev_phantom_plane;
 		else
-			phantom_plane = dc_create_plane_state(dc);
+			phantom_plane = dc_state_create_phantom_plane(dc, context, curr_pipe->plane_state);
 
 		memcpy(&phantom_plane->address, &curr_pipe->plane_state->address, sizeof(phantom_plane->address));
 		memcpy(&phantom_plane->scaling_quality, &curr_pipe->plane_state->scaling_quality,
@@ -1665,9 +1667,7 @@ static void dcn32_enable_phantom_plane(struct dc *dc,
 		phantom_plane->clip_rect.y = 0;
 		phantom_plane->clip_rect.height = phantom_stream->src.height;
 
-		phantom_plane->is_phantom = true;
-
-		dc_add_plane_to_context(dc, phantom_stream, phantom_plane, context);
+		dc_state_add_phantom_plane(dc, phantom_stream, phantom_plane, context);
 
 		curr_pipe = curr_pipe->bottom_pipe;
 		prev_phantom_plane = phantom_plane;
@@ -1683,13 +1683,7 @@ static struct dc_stream_state *dcn32_enable_phantom_stream(struct dc *dc,
 	struct dc_stream_state *phantom_stream = NULL;
 	struct pipe_ctx *ref_pipe = &context->res_ctx.pipe_ctx[dc_pipe_idx];
 
-	phantom_stream = dc_create_stream_for_sink(ref_pipe->stream->sink);
-	phantom_stream->signal = SIGNAL_TYPE_VIRTUAL;
-	phantom_stream->dpms_off = true;
-	phantom_stream->mall_stream_config.type = SUBVP_PHANTOM;
-	phantom_stream->mall_stream_config.paired_stream = ref_pipe->stream;
-	ref_pipe->stream->mall_stream_config.type = SUBVP_MAIN;
-	ref_pipe->stream->mall_stream_config.paired_stream = phantom_stream;
+	phantom_stream = dc_state_create_phantom_stream(dc, context, ref_pipe->stream);
 
 	/* stream has limited viewport and small timing */
 	memcpy(&phantom_stream->timing, &ref_pipe->stream->timing, sizeof(phantom_stream->timing));
@@ -1699,79 +1693,8 @@ static struct dc_stream_state *dcn32_enable_phantom_stream(struct dc *dc,
 	dcn32_set_phantom_stream_timing(dc, context, ref_pipe, phantom_stream, pipes, pipe_cnt, dc_pipe_idx);
 	DC_FP_END();
 
-	dc_add_stream_to_ctx(dc, context, phantom_stream);
+	dc_state_add_phantom_stream(dc, context, phantom_stream, ref_pipe->stream);
 	return phantom_stream;
-}
-
-void dcn32_retain_phantom_pipes(struct dc *dc, struct dc_state *context)
-{
-	int i;
-	struct dc_plane_state *phantom_plane = NULL;
-	struct dc_stream_state *phantom_stream = NULL;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
-				resource_is_pipe_type(pipe, DPP_PIPE) &&
-				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-			phantom_plane = pipe->plane_state;
-			phantom_stream = pipe->stream;
-
-			dc_plane_state_retain(phantom_plane);
-			dc_stream_retain(phantom_stream);
-		}
-	}
-}
-
-// return true if removed piped from ctx, false otherwise
-bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context, bool fast_update)
-{
-	int i;
-	bool removed_pipe = false;
-	struct dc_plane_state *phantom_plane = NULL;
-	struct dc_stream_state *phantom_stream = NULL;
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		// build scaling params for phantom pipes
-		if (pipe->plane_state && pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-			phantom_plane = pipe->plane_state;
-			phantom_stream = pipe->stream;
-
-			dc_rem_all_planes_for_stream(dc, pipe->stream, context);
-			dc_remove_stream_from_ctx(dc, context, pipe->stream);
-
-			/* Ref count is incremented on allocation and also when added to the context.
-			 * Therefore we must call release for the the phantom plane and stream once
-			 * they are removed from the ctx to finally decrement the refcount to 0 to free.
-			 */
-			dc_plane_state_release(phantom_plane);
-			dc_stream_release(phantom_stream);
-
-			removed_pipe = true;
-		}
-
-		/* For non-full updates, a shallow copy of the current state
-		 * is created. In this case we don't want to erase the current
-		 * state (there can be 2 HIRQL threads, one in flip, and one in
-		 * checkMPO) that can cause a race condition.
-		 *
-		 * This is just a workaround, needs a proper fix.
-		 */
-		if (!fast_update) {
-			// Clear all phantom stream info
-			if (pipe->stream) {
-				pipe->stream->mall_stream_config.type = SUBVP_NONE;
-				pipe->stream->mall_stream_config.paired_stream = NULL;
-			}
-
-			if (pipe->plane_state) {
-				pipe->plane_state->is_phantom = false;
-			}
-		}
-	}
-	return removed_pipe;
 }
 
 /* TODO: Input to this function should indicate which pipe indexes (or streams)
@@ -1798,7 +1721,7 @@ void dcn32_add_phantom_pipes(struct dc *dc, struct dc_state *context,
 		// We determine which phantom pipes were added by comparing with
 		// the phantom stream.
 		if (pipe->plane_state && pipe->stream && pipe->stream == phantom_stream &&
-				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
 			pipe->stream->use_dynamic_meta = false;
 			pipe->plane_state->flip_immediate = false;
 			if (!resource_build_scaling_params(pipe)) {
@@ -1817,7 +1740,6 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 	int vlevel = 0;
 	int pipe_cnt = 0;
 	display_e2e_pipe_params_st *pipes = kzalloc(dc->res_pool->pipe_count * sizeof(display_e2e_pipe_params_st), GFP_KERNEL);
-	struct mall_temp_config mall_temp_config;
 
 	/* To handle Freesync properly, setting FreeSync DML parameters
 	 * to its default state for the first stage of validation
@@ -1827,28 +1749,11 @@ static bool dml1_validate(struct dc *dc, struct dc_state *context, bool fast_val
 
 	DC_LOGGER_INIT(dc->ctx->logger);
 
-	/* For fast validation, there are situations where a shallow copy of
-	 * of the dc->current_state is created for the validation. In this case
-	 * we want to save and restore the mall config because we always
-	 * teardown subvp at the beginning of validation (and don't attempt
-	 * to add it back if it's fast validation). If we don't restore the
-	 * subvp config in cases of fast validation + shallow copy of the
-	 * dc->current_state, the dc->current_state will have a partially
-	 * removed subvp state when we did not intend to remove it.
-	 */
-	if (fast_validate) {
-		memset(&mall_temp_config, 0, sizeof(mall_temp_config));
-		dcn32_save_mall_state(dc, context, &mall_temp_config);
-	}
-
 	BW_VAL_TRACE_COUNT();
 
 	DC_FP_START();
 	out = dcn32_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, fast_validate);
 	DC_FP_END();
-
-	if (fast_validate)
-		dcn32_restore_mall_state(dc, context, &mall_temp_config);
 
 	if (pipe_cnt == 0)
 		goto validate_out;
@@ -1933,7 +1838,7 @@ int dcn32_populate_dml_pipes_from_context(
 		 * This is just a workaround -- needs a proper fix.
 		 */
 		if (!fast_validate) {
-			switch (pipe->stream->mall_stream_config.type) {
+			switch (dc_state_get_pipe_subvp_type(context, pipe)) {
 			case SUBVP_MAIN:
 				pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_sub_viewport;
 				subvp_in_use = true;
@@ -2037,10 +1942,6 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.patch_unknown_plane_state = dcn20_patch_unknown_plane_state,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.add_phantom_pipes = dcn32_add_phantom_pipes,
-	.remove_phantom_pipes = dcn32_remove_phantom_pipes,
-	.retain_phantom_pipes = dcn32_retain_phantom_pipes,
-	.save_mall_state = dcn32_save_mall_state,
-	.restore_mall_state = dcn32_restore_mall_state,
 	.build_pipe_pix_clk_params = dcn20_build_pipe_pix_clk_params,
 };
 
@@ -2454,16 +2355,19 @@ static bool dcn32_resource_construct(
 	dc->dml2_options.callbacks.get_opp_head = &resource_get_opp_head;
 
 	dc->dml2_options.svp_pstate.callbacks.dc = dc;
-	dc->dml2_options.svp_pstate.callbacks.add_plane_to_context = &dc_add_plane_to_context;
-	dc->dml2_options.svp_pstate.callbacks.add_stream_to_ctx = &dc_add_stream_to_ctx;
+	dc->dml2_options.svp_pstate.callbacks.add_phantom_plane = &dc_state_add_phantom_plane;
+	dc->dml2_options.svp_pstate.callbacks.add_phantom_stream = &dc_state_add_phantom_stream;
 	dc->dml2_options.svp_pstate.callbacks.build_scaling_params = &resource_build_scaling_params;
-	dc->dml2_options.svp_pstate.callbacks.create_plane = &dc_create_plane_state;
-	dc->dml2_options.svp_pstate.callbacks.remove_plane_from_context = &dc_remove_plane_from_context;
-	dc->dml2_options.svp_pstate.callbacks.remove_stream_from_ctx = &dc_remove_stream_from_ctx;
-	dc->dml2_options.svp_pstate.callbacks.create_stream_for_sink = &dc_create_stream_for_sink;
-	dc->dml2_options.svp_pstate.callbacks.plane_state_release = &dc_plane_state_release;
-	dc->dml2_options.svp_pstate.callbacks.stream_release = &dc_stream_release;
+	dc->dml2_options.svp_pstate.callbacks.create_phantom_plane = &dc_state_create_phantom_plane;
+	dc->dml2_options.svp_pstate.callbacks.remove_phantom_plane = &dc_state_remove_phantom_plane;
+	dc->dml2_options.svp_pstate.callbacks.remove_phantom_stream = &dc_state_remove_phantom_stream;
+	dc->dml2_options.svp_pstate.callbacks.create_phantom_stream = &dc_state_create_phantom_stream;
+	dc->dml2_options.svp_pstate.callbacks.release_phantom_plane = &dc_state_release_phantom_plane;
+	dc->dml2_options.svp_pstate.callbacks.release_phantom_stream = &dc_state_release_phantom_stream;
 	dc->dml2_options.svp_pstate.callbacks.release_dsc = &dcn20_release_dsc;
+	dc->dml2_options.svp_pstate.callbacks.get_pipe_subvp_type = &dc_state_get_pipe_subvp_type;
+	dc->dml2_options.svp_pstate.callbacks.get_stream_subvp_type = &dc_state_get_stream_subvp_type;
+	dc->dml2_options.svp_pstate.callbacks.get_paired_subvp_stream = &dc_state_get_paired_subvp_stream;
 
 	dc->dml2_options.svp_pstate.subvp_fw_processing_delay_us = dc->caps.subvp_fw_processing_delay_us;
 	dc->dml2_options.svp_pstate.subvp_prefetch_end_to_mall_start_us = dc->caps.subvp_prefetch_end_to_mall_start_us;

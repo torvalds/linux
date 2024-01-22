@@ -128,7 +128,7 @@ netdev_txq_completed_mb(struct netdev_queue *dev_queue,
 		netdev_txq_completed_mb(txq, pkts, bytes);		\
 									\
 		_res = -1;						\
-		if (pkts && likely(get_desc > start_thrs)) {		\
+		if (pkts && likely(get_desc >= start_thrs)) {		\
 			_res = 1;					\
 			if (unlikely(netif_tx_queue_stopped(txq)) &&	\
 			    !(down_cond)) {				\

@@ -100,14 +100,14 @@ struct mei_connect_client_data_vtag {
  * a FW client on a tagged channel. From this point on, every read
  * and write will communicate with the associated FW client
  * on the tagged channel.
- * Upone close() the communication is terminated.
+ * Upon close() the communication is terminated.
  *
  * The IOCTL argument is a struct with a union that contains
  * the input parameter and the output parameter for this IOCTL.
  *
  * The input parameter is UUID of the FW Client, a vtag [0,255].
  * The output parameter is the properties of the FW client
- * (FW protocool version and max message size).
+ * (FW protocol version and max message size).
  *
  * Clients that do not support tagged connection
  * will respond with -EOPNOTSUPP.

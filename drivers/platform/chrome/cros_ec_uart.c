@@ -81,9 +81,8 @@ struct cros_ec_uart {
 	struct response_info response;
 };
 
-static int cros_ec_uart_rx_bytes(struct serdev_device *serdev,
-				 const u8 *data,
-				 size_t count)
+static ssize_t cros_ec_uart_rx_bytes(struct serdev_device *serdev,
+				     const u8 *data, size_t count)
 {
 	struct ec_host_response *host_response;
 	struct cros_ec_device *ec_dev = serdev_device_get_drvdata(serdev);

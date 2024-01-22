@@ -111,11 +111,11 @@ static void paicrypt_event_destroy(struct perf_event *event)
 	mutex_unlock(&pai_reserve_mutex);
 }
 
-static u64 paicrypt_getctr(struct paicrypt_map *cpump, int nr, bool kernel)
+static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
 {
 	if (kernel)
 		nr += PAI_CRYPTO_MAXCTR;
-	return cpump->page[nr];
+	return page[nr];
 }
 
 /* Read the counter values. Return value from location in CMP. For event
@@ -129,13 +129,13 @@ static u64 paicrypt_getdata(struct perf_event *event, bool kernel)
 	int i;
 
 	if (event->attr.config != PAI_CRYPTO_BASE) {
-		return paicrypt_getctr(cpump,
+		return paicrypt_getctr(cpump->page,
 				       event->attr.config - PAI_CRYPTO_BASE,
 				       kernel);
 	}
 
 	for (i = 1; i <= paicrypt_cnt; i++) {
-		u64 val = paicrypt_getctr(cpump, i, kernel);
+		u64 val = paicrypt_getctr(cpump->page, i, kernel);
 
 		if (!val)
 			continue;
@@ -317,10 +317,14 @@ static void paicrypt_start(struct perf_event *event, int flags)
 	 * Events are added, deleted and re-added when 2 or more events
 	 * are active at the same time.
 	 */
-	if (!event->hw.last_tag) {
-		event->hw.last_tag = 1;
-		sum = paicrypt_getall(event);		/* Get current value */
-		local64_set(&event->hw.prev_count, sum);
+	if (!event->attr.sample_period) {	/* Counting */
+		if (!event->hw.last_tag) {
+			event->hw.last_tag = 1;
+			sum = paicrypt_getall(event);	/* Get current value */
+			local64_set(&event->hw.prev_count, sum);
+		}
+	} else {				/* Sampling */
+		perf_sched_cb_inc(event->pmu);
 	}
 }
 
@@ -336,19 +340,18 @@ static int paicrypt_add(struct perf_event *event, int flags)
 		local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 	}
 	cpump->event = event;
-	if (flags & PERF_EF_START && !event->attr.sample_period) {
-		/* Only counting needs initial counter value */
+	if (flags & PERF_EF_START)
 		paicrypt_start(event, PERF_EF_RELOAD);
-	}
 	event->hw.state = 0;
-	if (event->attr.sample_period)
-		perf_sched_cb_inc(event->pmu);
 	return 0;
 }
 
 static void paicrypt_stop(struct perf_event *event, int flags)
 {
-	paicrypt_read(event);
+	if (!event->attr.sample_period)	/* Counting */
+		paicrypt_read(event);
+	else				/* Sampling */
+		perf_sched_cb_dec(event->pmu);
 	event->hw.state = PERF_HES_STOPPED;
 }
 
@@ -357,11 +360,7 @@ static void paicrypt_del(struct perf_event *event, int flags)
 	struct paicrypt_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
 	struct paicrypt_map *cpump = mp->mapptr;
 
-	if (event->attr.sample_period)
-		perf_sched_cb_dec(event->pmu);
-	if (!event->attr.sample_period)
-		/* Only counting needs to read counter */
-		paicrypt_stop(event, PERF_EF_UPDATE);
+	paicrypt_stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
 		local_ctl_clear_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 		WRITE_ONCE(S390_lowcore.ccd, 0);
@@ -373,8 +372,7 @@ static void paicrypt_del(struct perf_event *event, int flags)
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
-static size_t paicrypt_copy(struct pai_userdata *userdata,
-			    struct paicrypt_map *cpump,
+static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
 			    bool exclude_user, bool exclude_kernel)
 {
 	int i, outidx = 0;
@@ -383,9 +381,9 @@ static size_t paicrypt_copy(struct pai_userdata *userdata,
 		u64 val = 0;
 
 		if (!exclude_kernel)
-			val += paicrypt_getctr(cpump, i, true);
+			val += paicrypt_getctr(page, i, true);
 		if (!exclude_user)
-			val += paicrypt_getctr(cpump, i, false);
+			val += paicrypt_getctr(page, i, false);
 		if (val) {
 			userdata[outidx].num = i;
 			userdata[outidx].value = val;
@@ -395,24 +393,13 @@ static size_t paicrypt_copy(struct pai_userdata *userdata,
 	return outidx * sizeof(struct pai_userdata);
 }
 
-static int paicrypt_push_sample(void)
+static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
+				struct perf_event *event)
 {
-	struct paicrypt_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
-	struct paicrypt_map *cpump = mp->mapptr;
-	struct perf_event *event = cpump->event;
 	struct perf_sample_data data;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
-	size_t rawsize;
 	int overflow;
-
-	if (!cpump->event)		/* No event active */
-		return 0;
-	rawsize = paicrypt_copy(cpump->save, cpump,
-				cpump->event->attr.exclude_user,
-				cpump->event->attr.exclude_kernel);
-	if (!rawsize)			/* No incremented counters */
-		return 0;
 
 	/* Setup perf sample */
 	memset(&regs, 0, sizeof(regs));
@@ -444,6 +431,25 @@ static int paicrypt_push_sample(void)
 	return overflow;
 }
 
+/* Check if there is data to be saved on schedule out of a task. */
+static int paicrypt_have_sample(void)
+{
+	struct paicrypt_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct paicrypt_map *cpump = mp->mapptr;
+	struct perf_event *event = cpump->event;
+	size_t rawsize;
+	int rc = 0;
+
+	if (!event)		/* No event active */
+		return 0;
+	rawsize = paicrypt_copy(cpump->save, cpump->page,
+				cpump->event->attr.exclude_user,
+				cpump->event->attr.exclude_kernel);
+	if (rawsize)			/* No incremented counters */
+		rc = paicrypt_push_sample(rawsize, cpump, event);
+	return rc;
+}
+
 /* Called on schedule-in and schedule-out. No access to event structure,
  * but for sampling only event CRYPTO_ALL is allowed.
  */
@@ -453,7 +459,7 @@ static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sch
 	 * results on schedule_out and if page was dirty, clear values.
 	 */
 	if (!sched_in)
-		paicrypt_push_sample();
+		paicrypt_have_sample();
 }
 
 /* Attribute definitions for paicrypt interface. As with other CPU

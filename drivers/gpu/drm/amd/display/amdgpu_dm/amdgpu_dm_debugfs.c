@@ -2976,7 +2976,6 @@ static int dmub_trace_mask_set(void *data, u64 val)
 	struct amdgpu_device *adev = data;
 	struct dmub_srv *srv = adev->dm.dc->ctx->dmub_srv->dmub;
 	enum dmub_gpint_command cmd;
-	enum dmub_status status;
 	u64 mask = 0xffff;
 	u8 shift = 0;
 	u32 res;
@@ -3003,13 +3002,7 @@ static int dmub_trace_mask_set(void *data, u64 val)
 			break;
 		}
 
-		status = dmub_srv_send_gpint_command(srv, cmd, res, 30);
-
-		if (status == DMUB_STATUS_TIMEOUT)
-			return -ETIMEDOUT;
-		else if (status == DMUB_STATUS_INVALID)
-			return -EINVAL;
-		else if (status != DMUB_STATUS_OK)
+		if (!dc_wake_and_execute_gpint(adev->dm.dc->ctx, cmd, res, NULL, DM_DMUB_WAIT_TYPE_WAIT))
 			return -EIO;
 
 		usleep_range(100, 1000);
@@ -3026,7 +3019,6 @@ static int dmub_trace_mask_show(void *data, u64 *val)
 	enum dmub_gpint_command cmd = DMUB_GPINT__GET_TRACE_BUFFER_MASK_WORD0;
 	struct amdgpu_device *adev = data;
 	struct dmub_srv *srv = adev->dm.dc->ctx->dmub_srv->dmub;
-	enum dmub_status status;
 	u8 shift = 0;
 	u64 raw = 0;
 	u64 res = 0;
@@ -3036,23 +3028,12 @@ static int dmub_trace_mask_show(void *data, u64 *val)
 		return -EINVAL;
 
 	while (i < 4) {
-		status = dmub_srv_send_gpint_command(srv, cmd, 0, 30);
+		uint32_t response;
 
-		if (status == DMUB_STATUS_OK) {
-			status = dmub_srv_get_gpint_response(srv, (u32 *) &raw);
-
-			if (status == DMUB_STATUS_INVALID)
-				return -EINVAL;
-			else if (status != DMUB_STATUS_OK)
-				return -EIO;
-		} else if (status == DMUB_STATUS_TIMEOUT) {
-			return -ETIMEDOUT;
-		} else if (status == DMUB_STATUS_INVALID) {
-			return -EINVAL;
-		} else {
+		if (!dc_wake_and_execute_gpint(adev->dm.dc->ctx, cmd, 0, &response, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 			return -EIO;
-		}
 
+		raw = response;
 		usleep_range(100, 1000);
 
 		cmd++;

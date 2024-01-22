@@ -10,16 +10,10 @@
 #include <errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include "bpf_kfuncs.h"
 
 #define MAX_DATA_SIZE (1024 * 1024)
 #define MAX_SIG_SIZE 1024
-
-extern struct bpf_key *bpf_lookup_user_key(__u32 serial, __u64 flags) __ksym;
-extern struct bpf_key *bpf_lookup_system_key(__u64 id) __ksym;
-extern void bpf_key_put(struct bpf_key *key) __ksym;
-extern int bpf_verify_pkcs7_signature(struct bpf_dynptr *data_ptr,
-				      struct bpf_dynptr *sig_ptr,
-				      struct bpf_key *trusted_keyring) __ksym;
 
 __u32 monitored_pid;
 __u32 user_keyring_serial;

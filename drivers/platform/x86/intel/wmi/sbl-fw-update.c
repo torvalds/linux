@@ -25,18 +25,13 @@
 
 static int get_fwu_request(struct device *dev, u32 *out)
 {
-	struct acpi_buffer result = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *obj;
-	acpi_status status;
 
-	status = wmi_query_block(INTEL_WMI_SBL_GUID, 0, &result);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "wmi_query_block failed\n");
+	obj = wmidev_block_query(to_wmi_device(dev), 0);
+	if (!obj)
 		return -ENODEV;
-	}
 
-	obj = (union acpi_object *)result.pointer;
-	if (!obj || obj->type != ACPI_TYPE_INTEGER) {
+	if (obj->type != ACPI_TYPE_INTEGER) {
 		dev_warn(dev, "wmi_query_block returned invalid value\n");
 		kfree(obj);
 		return -EINVAL;
@@ -58,7 +53,7 @@ static int set_fwu_request(struct device *dev, u32 in)
 	input.length = sizeof(u32);
 	input.pointer = &value;
 
-	status = wmi_set_block(INTEL_WMI_SBL_GUID, 0, &input);
+	status = wmidev_block_set(to_wmi_device(dev), 0, &input);
 	if (ACPI_FAILURE(status)) {
 		dev_err(dev, "wmi_set_block failed\n");
 		return -ENODEV;

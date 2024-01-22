@@ -2194,6 +2194,8 @@ nfs4_do_lookup_revalidate(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode;
 
+	trace_nfs_lookup_revalidate_enter(dir, dentry, flags);
+
 	if (!(flags & LOOKUP_OPEN) || (flags & LOOKUP_DIRECTORY))
 		goto full_reval;
 	if (d_mountpoint(dentry))
@@ -2963,7 +2965,7 @@ static u64 nfs_access_login_time(const struct task_struct *task,
 	rcu_read_lock();
 	for (;;) {
 		parent = rcu_dereference(task->real_parent);
-		pcred = rcu_dereference(parent->cred);
+		pcred = __task_cred(parent);
 		if (parent == task || cred_fscmp(pcred, cred) != 0)
 			break;
 		task = parent;

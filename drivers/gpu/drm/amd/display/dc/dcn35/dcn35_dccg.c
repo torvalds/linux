@@ -506,6 +506,64 @@ static void dccg35_dpp_root_clock_control(
 	dccg->dpp_clock_gated[dpp_inst] = !clock_on;
 }
 
+static void dccg35_disable_symclk32_se(
+		struct dccg *dccg,
+		int hpo_se_inst)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+
+	/* set refclk as the source for symclk32_se */
+	switch (hpo_se_inst) {
+	case 0:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE0_SRC_SEL, 0,
+				SYMCLK32_SE0_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se) {
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE0_GATE_DISABLE, 0);
+//			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+//					SYMCLK32_ROOT_SE0_GATE_DISABLE, 0);
+		}
+		break;
+	case 1:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE1_SRC_SEL, 0,
+				SYMCLK32_SE1_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se) {
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE1_GATE_DISABLE, 0);
+//			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+//					SYMCLK32_ROOT_SE1_GATE_DISABLE, 0);
+		}
+		break;
+	case 2:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE2_SRC_SEL, 0,
+				SYMCLK32_SE2_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se) {
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE2_GATE_DISABLE, 0);
+//			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+//					SYMCLK32_ROOT_SE2_GATE_DISABLE, 0);
+		}
+		break;
+	case 3:
+		REG_UPDATE_2(SYMCLK32_SE_CNTL,
+				SYMCLK32_SE3_SRC_SEL, 0,
+				SYMCLK32_SE3_EN, 0);
+		if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_se) {
+			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+					SYMCLK32_SE3_GATE_DISABLE, 0);
+//			REG_UPDATE(DCCG_GATE_DISABLE_CNTL3,
+//					SYMCLK32_ROOT_SE3_GATE_DISABLE, 0);
+		}
+		break;
+	default:
+		BREAK_TO_DEBUGGER();
+		return;
+	}
+}
+
 void dccg35_init(struct dccg *dccg)
 {
 	int otg_inst;
@@ -514,7 +572,7 @@ void dccg35_init(struct dccg *dccg)
 	 * will cause DCN to hang.
 	 */
 	for (otg_inst = 0; otg_inst < 4; otg_inst++)
-		dccg31_disable_symclk32_se(dccg, otg_inst);
+		dccg35_disable_symclk32_se(dccg, otg_inst);
 
 	if (dccg->ctx->dc->debug.root_clock_optimization.bits.symclk32_le)
 		for (otg_inst = 0; otg_inst < 2; otg_inst++)
@@ -788,7 +846,7 @@ static const struct dccg_funcs dccg35_funcs = {
 	.dccg_init = dccg35_init,
 	.set_dpstreamclk = dccg35_set_dpstreamclk,
 	.enable_symclk32_se = dccg31_enable_symclk32_se,
-	.disable_symclk32_se = dccg31_disable_symclk32_se,
+	.disable_symclk32_se = dccg35_disable_symclk32_se,
 	.enable_symclk32_le = dccg31_enable_symclk32_le,
 	.disable_symclk32_le = dccg31_disable_symclk32_le,
 	.set_symclk32_le_root_clock_gating = dccg31_set_symclk32_le_root_clock_gating,

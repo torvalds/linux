@@ -1205,23 +1205,16 @@ static int cio2_subdev_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	};
 
 	/* Initialize try_fmt */
-	format = v4l2_subdev_get_try_format(sd, fh->state, CIO2_PAD_SINK);
+	format = v4l2_subdev_state_get_format(fh->state, CIO2_PAD_SINK);
 	*format = fmt_default;
 
 	/* same as sink */
-	format = v4l2_subdev_get_try_format(sd, fh->state, CIO2_PAD_SOURCE);
+	format = v4l2_subdev_state_get_format(fh->state, CIO2_PAD_SOURCE);
 	*format = fmt_default;
 
 	return 0;
 }
 
-/*
- * cio2_subdev_get_fmt - Handle get format by pads subdev method
- * @sd : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad config
- * @fmt: pointer to v4l2 subdev format structure
- * return -EINVAL or zero on success
- */
 static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
@@ -1231,8 +1224,8 @@ static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&q->subdev_lock);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		fmt->format = q->subdev_fmt;
 
@@ -1241,13 +1234,6 @@ static int cio2_subdev_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * cio2_subdev_set_fmt - Handle set format by pads subdev method
- * @sd : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad config
- * @fmt: pointer to v4l2 subdev format structure
- * return -EINVAL or zero on success
- */
 static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 			       struct v4l2_subdev_state *sd_state,
 			       struct v4l2_subdev_format *fmt)
@@ -1265,7 +1251,7 @@ static int cio2_subdev_set_fmt(struct v4l2_subdev *sd,
 		return cio2_subdev_get_fmt(sd, sd_state, fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		mbus = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mbus = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 	else
 		mbus = &q->subdev_fmt;
 
@@ -1603,7 +1589,7 @@ static int cio2_queue_init(struct cio2_device *cio2, struct cio2_queue *q)
 	vbq->mem_ops = &vb2_dma_sg_memops;
 	vbq->buf_struct_size = sizeof(struct cio2_buffer);
 	vbq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	vbq->min_buffers_needed = 1;
+	vbq->min_queued_buffers = 1;
 	vbq->drv_priv = cio2;
 	vbq->lock = &q->lock;
 	r = vb2_queue_init(vbq);

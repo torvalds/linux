@@ -1,33 +1,46 @@
 #!/usr/bin/make -f
 # SPDX-License-Identifier: GPL-2.0-only
 
-include debian/rules.vars
+# in case debian/rules is executed directly
+export DEB_RULES_REQUIRES_ROOT := no
 
-srctree ?= .
+include debian/rules.vars
 
 ifneq (,$(filter-out parallel=1,$(filter parallel=%,$(DEB_BUILD_OPTIONS))))
     NUMJOBS = $(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
     MAKEFLAGS += -j$(NUMJOBS)
 endif
 
+revision = $(lastword $(subst -, ,$(shell dpkg-parsechangelog -S Version)))
+CROSS_COMPILE ?= $(filter-out $(DEB_BUILD_GNU_TYPE)-, $(DEB_HOST_GNU_TYPE)-)
+make-opts = ARCH=$(ARCH) KERNELRELEASE=$(KERNELRELEASE) KBUILD_BUILD_VERSION=$(revision) $(addprefix CROSS_COMPILE=,$(CROSS_COMPILE))
+
 .PHONY: binary binary-indep binary-arch
 binary: binary-arch binary-indep
 binary-indep: build-indep
 binary-arch: build-arch
-	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) \
-	KERNELRELEASE=$(KERNELRELEASE) \
-	run-command KBUILD_RUN_COMMAND=+$(srctree)/scripts/package/builddeb
+	$(MAKE) $(make-opts) \
+	run-command KBUILD_RUN_COMMAND='+$$(srctree)/scripts/package/builddeb'
 
 .PHONY: build build-indep build-arch
 build: build-arch build-indep
 build-indep:
 build-arch:
-	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) \
-	KERNELRELEASE=$(KERNELRELEASE) \
-	$(shell $(srctree)/scripts/package/deb-build-option) \
-	olddefconfig all
+	$(MAKE) $(make-opts) olddefconfig
+	$(MAKE) $(make-opts) $(if $(filter um,$(ARCH)),,headers) all
 
 .PHONY: clean
 clean:
-	rm -rf debian/files debian/linux-*
-	$(MAKE) -f $(srctree)/Makefile ARCH=$(ARCH) clean
+	rm -rf debian/files debian/linux-* debian/deb-env.vars*
+	$(MAKE) ARCH=$(ARCH) clean
+
+# If DEB_HOST_ARCH is empty, it is likely that debian/rules was executed
+# directly. Run 'dpkg-architecture --print-set --print-format=make' to
+# generate a makefile construct that exports all DEB_* variables.
+ifndef DEB_HOST_ARCH
+include debian/deb-env.vars
+
+debian/deb-env.vars:
+	dpkg-architecture -a$$(cat debian/arch) --print-set --print-format=make > $@.tmp
+	mv $@.tmp $@
+endif

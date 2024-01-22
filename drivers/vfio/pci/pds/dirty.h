@@ -4,20 +4,22 @@
 #ifndef _DIRTY_H_
 #define _DIRTY_H_
 
-struct pds_vfio_bmp_info {
-	unsigned long *bmp;
-	u32 bmp_bytes;
+struct pds_vfio_region {
+	unsigned long *host_seq;
+	unsigned long *host_ack;
+	u64 bmp_bytes;
+	u64 size;
+	u64 start;
+	u64 page_size;
 	struct pds_lm_sg_elem *sgl;
 	dma_addr_t sgl_addr;
+	u32 dev_bmp_offset_start_byte;
 	u16 num_sge;
 };
 
 struct pds_vfio_dirty {
-	struct pds_vfio_bmp_info host_seq;
-	struct pds_vfio_bmp_info host_ack;
-	u64 region_size;
-	u64 region_start;
-	u64 region_page_size;
+	struct pds_vfio_region *regions;
+	u8 num_regions;
 	bool is_enabled;
 };
 

@@ -549,7 +549,7 @@ retry:
 			goto out_unlock_outer;
 	}
 
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
 
 	drm_exec_until_all_locked(&exec) {
 		bool done = false;
@@ -987,7 +987,7 @@ static void xe_vma_destroy_unlocked(struct xe_vma *vma)
 	struct drm_exec exec;
 	int err;
 
-	drm_exec_init(&exec, 0);
+	drm_exec_init(&exec, 0, 0);
 	drm_exec_until_all_locked(&exec) {
 		err = xe_vm_prepare_vma(&exec, vma, 0);
 		drm_exec_retry_on_contention(&exec);
@@ -2126,7 +2126,7 @@ static struct xe_vma *new_vma(struct xe_vm *vm, struct drm_gpuva_op_map *op,
 	lockdep_assert_held_write(&vm->lock);
 
 	if (bo) {
-		drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+		drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
 		drm_exec_until_all_locked(&exec) {
 			err = 0;
 			if (!bo->vm) {
@@ -2496,7 +2496,7 @@ static int __xe_vma_op_execute(struct xe_vm *vm, struct xe_vma *vma,
 	int err;
 
 retry_userptr:
-	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT);
+	drm_exec_init(&exec, DRM_EXEC_INTERRUPTIBLE_WAIT, 0);
 	drm_exec_until_all_locked(&exec) {
 		err = op_execute(&exec, vm, vma, op);
 		drm_exec_retry_on_contention(&exec);

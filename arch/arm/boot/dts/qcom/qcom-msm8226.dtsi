@@ -442,8 +442,8 @@
 				 <&gcc GPLL0_VOTE>,
 				 <&gcc GPLL1_VOTE>,
 				 <&rpmcc RPM_SMD_GFX3D_CLK_SRC>,
-				 <0>,
-				 <0>;
+				 <&mdss_dsi0_phy 1>,
+				 <&mdss_dsi0_phy 0>;
 			clock-names = "xo",
 				      "mmss_gpll0_vote",
 				      "gpll0_vote",
@@ -875,8 +875,8 @@
 				offset = <0x65c>;
 
 				mode-bootloader = <0x77665500>;
-				mode-normal     = <0x77665501>;
-				mode-recovery   = <0x77665502>;
+				mode-normal = <0x77665501>;
+				mode-recovery = <0x77665502>;
 			};
 		};
 
@@ -1004,6 +1004,46 @@
 					 <&rpmcc RPM_SMD_XO_CLK_SRC>;
 				clock-names = "iface",
 					      "ref";
+			};
+		};
+
+		gpu: adreno@fdb00000 {
+			compatible = "qcom,adreno-305.18", "qcom,adreno";
+			reg = <0xfdb00000 0x10000>;
+			reg-names = "kgsl_3d0_reg_memory";
+
+			interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "kgsl_3d0_irq";
+
+			clocks = <&mmcc OXILI_GFX3D_CLK>,
+				 <&mmcc OXILICX_AHB_CLK>,
+				 <&mmcc OXILICX_AXI_CLK>;
+			clock-names = "core", "iface", "mem_iface";
+
+			sram = <&gmu_sram>;
+			power-domains = <&mmcc OXILICX_GDSC>;
+			operating-points-v2 = <&gpu_opp_table>;
+
+			status = "disabled";
+
+			gpu_opp_table: opp-table {
+				compatible = "operating-points-v2";
+
+				opp-450000000 {
+					opp-hz = /bits/ 64 <450000000>;
+				};
+
+				opp-320000000 {
+					opp-hz = /bits/ 64 <320000000>;
+				};
+
+				opp-200000000 {
+					opp-hz = /bits/ 64 <200000000>;
+				};
+
+				opp-19000000 {
+					opp-hz = /bits/ 64 <19000000>;
+				};
 			};
 		};
 	};

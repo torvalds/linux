@@ -540,7 +540,11 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 	while (size) {
 		uint32_t value;
 
-		value = RREG32_PCIE(*pos);
+		if (upper_32_bits(*pos))
+			value = RREG32_PCIE_EXT(*pos);
+		else
+			value = RREG32_PCIE(*pos);
+
 		r = put_user(value, (uint32_t *)buf);
 		if (r)
 			goto out;
@@ -600,7 +604,10 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 		if (r)
 			goto out;
 
-		WREG32_PCIE(*pos, value);
+		if (upper_32_bits(*pos))
+			WREG32_PCIE_EXT(*pos, value);
+		else
+			WREG32_PCIE(*pos, value);
 
 		result += 4;
 		buf += 4;
@@ -755,7 +762,7 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 	int r;
 
 	if (!adev->smc_rreg)
-		return -EPERM;
+		return -EOPNOTSUPP;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -814,7 +821,7 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 	int r;
 
 	if (!adev->smc_wreg)
-		return -EPERM;
+		return -EOPNOTSUPP;
 
 	if (size & 0x3 || *pos & 0x3)
 		return -EINVAL;
@@ -2146,6 +2153,8 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 
 	amdgpu_debugfs_firmware_init(adev);
 	amdgpu_ta_if_debugfs_init(adev);
+
+	amdgpu_debugfs_mes_event_log_init(adev);
 
 #if defined(CONFIG_DRM_AMD_DC)
 	if (adev->dc_enabled)

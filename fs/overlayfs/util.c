@@ -91,7 +91,7 @@ struct dentry *ovl_indexdir(struct super_block *sb)
 {
 	struct ovl_fs *ofs = OVL_FS(sb);
 
-	return ofs->indexdir;
+	return ofs->config.index ? ofs->workdir : NULL;
 }
 
 /* Index all files on copy up. For now only enabled for NFS export */
@@ -1198,12 +1198,17 @@ void ovl_nlink_end(struct dentry *dentry)
 
 int ovl_lock_rename_workdir(struct dentry *workdir, struct dentry *upperdir)
 {
+	struct dentry *trap;
+
 	/* Workdir should not be the same as upperdir */
 	if (workdir == upperdir)
 		goto err;
 
 	/* Workdir should not be subdir of upperdir and vice versa */
-	if (lock_rename(workdir, upperdir) != NULL)
+	trap = lock_rename(workdir, upperdir);
+	if (IS_ERR(trap))
+		goto err;
+	if (trap)
 		goto err_unlock;
 
 	return 0;

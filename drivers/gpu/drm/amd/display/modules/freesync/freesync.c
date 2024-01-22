@@ -81,6 +81,7 @@ fail_alloc_context:
 void mod_freesync_destroy(struct mod_freesync *mod_freesync)
 {
 	struct core_freesync *core_freesync = NULL;
+
 	if (mod_freesync == NULL)
 		return;
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
@@ -278,9 +279,8 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		}
 	} else if (last_render_time_in_us > (max_render_time_in_us + in_out_vrr->btr.margin_in_us / 2)) {
 		/* Enter Below the Range */
-		if (!in_out_vrr->btr.btr_active) {
+		if (!in_out_vrr->btr.btr_active)
 			in_out_vrr->btr.btr_active = true;
-		}
 	}
 
 	/* BTR set to "not active" so disengage */

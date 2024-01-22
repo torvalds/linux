@@ -12,7 +12,7 @@
 #include <linux/device.h>
 
 /* drivers/base/power/container.c */
-extern struct bus_type container_subsys;
+extern const struct bus_type container_subsys;
 
 struct container_dev {
 	struct device dev;

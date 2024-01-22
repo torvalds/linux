@@ -54,7 +54,7 @@ struct pingroup {
  * @drv_data: driver-defined per-pin data. pinctrl core does not touch this
  */
 struct pinctrl_pin_desc {
-	unsigned number;
+	unsigned int number;
 	const char *name;
 	void *drv_data;
 };
@@ -82,7 +82,7 @@ struct pinctrl_gpio_range {
 	unsigned int base;
 	unsigned int pin_base;
 	unsigned int npins;
-	unsigned const *pins;
+	unsigned int const *pins;
 	struct gpio_chip *gc;
 };
 
@@ -108,18 +108,18 @@ struct pinctrl_gpio_range {
 struct pinctrl_ops {
 	int (*get_groups_count) (struct pinctrl_dev *pctldev);
 	const char *(*get_group_name) (struct pinctrl_dev *pctldev,
-				       unsigned selector);
+				       unsigned int selector);
 	int (*get_group_pins) (struct pinctrl_dev *pctldev,
-			       unsigned selector,
-			       const unsigned **pins,
-			       unsigned *num_pins);
+			       unsigned int selector,
+			       const unsigned int **pins,
+			       unsigned int *num_pins);
 	void (*pin_dbg_show) (struct pinctrl_dev *pctldev, struct seq_file *s,
-			  unsigned offset);
+			      unsigned int offset);
 	int (*dt_node_to_map) (struct pinctrl_dev *pctldev,
 			       struct device_node *np_config,
-			       struct pinctrl_map **map, unsigned *num_maps);
+			       struct pinctrl_map **map, unsigned int *num_maps);
 	void (*dt_free_map) (struct pinctrl_dev *pctldev,
-			     struct pinctrl_map *map, unsigned num_maps);
+			     struct pinctrl_map *map, unsigned int num_maps);
 };
 
 /**
@@ -193,7 +193,7 @@ extern void pinctrl_add_gpio_range(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *range);
 extern void pinctrl_add_gpio_ranges(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *ranges,
-				unsigned nranges);
+				unsigned int nranges);
 extern void pinctrl_remove_gpio_range(struct pinctrl_dev *pctldev,
 				struct pinctrl_gpio_range *range);
 
@@ -203,8 +203,8 @@ extern struct pinctrl_gpio_range *
 pinctrl_find_gpio_range_from_pin(struct pinctrl_dev *pctldev,
 				 unsigned int pin);
 extern int pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
-				const char *pin_group, const unsigned **pins,
-				unsigned *num_pins);
+				  const char *pin_group, const unsigned int **pins,
+				  unsigned int *num_pins);
 
 /**
  * struct pinfunction - Description about a function

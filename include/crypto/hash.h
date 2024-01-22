@@ -212,13 +212,9 @@ struct shash_desc {
  *	      This is a counterpart to @init_tfm, used to remove
  *	      various changes set in @init_tfm.
  * @clone_tfm: Copy transform into new object, may allocate memory.
- * @digestsize: see struct ahash_alg
- * @statesize: see struct ahash_alg
  * @descsize: Size of the operational state for the message digest. This state
  * 	      size is the memory size that needs to be allocated for
  *	      shash_desc.__ctx
- * @stat: Statistics for hash algorithm.
- * @base: internally used
  * @halg: see struct hash_alg_common
  * @HASH_ALG_COMMON: see struct hash_alg_common
  */

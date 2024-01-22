@@ -67,5 +67,6 @@ enum sof_ssp_codec {
 
 enum sof_ssp_codec sof_ssp_detect_codec_type(struct device *dev);
 enum sof_ssp_codec sof_ssp_detect_amp_type(struct device *dev);
+const char *sof_ssp_get_codec_name(enum sof_ssp_codec codec_type);
 
 #endif /* __SOF_SSP_COMMON_H */

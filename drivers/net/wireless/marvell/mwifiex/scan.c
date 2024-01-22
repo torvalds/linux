@@ -180,17 +180,6 @@ mwifiex_is_wpa_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
 }
 
 /*
- * This function compares two SSIDs and checks if they match.
- */
-s32
-mwifiex_ssid_cmp(struct cfg80211_ssid *ssid1, struct cfg80211_ssid *ssid2)
-{
-	if (!ssid1 || !ssid2 || (ssid1->ssid_len != ssid2->ssid_len))
-		return -1;
-	return memcmp(ssid1->ssid, ssid2->ssid, ssid1->ssid_len);
-}
-
-/*
  * This function checks if wapi is enabled in driver and scanned network is
  * compatible with it.
  */

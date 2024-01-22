@@ -8,6 +8,7 @@
 
 #include "bcachefs.h"
 #include "bkey_methods.h"
+#include "btree_cache.h"
 #include "btree_gc.h"
 #include "btree_io.h"
 #include "btree_iter.h"
@@ -649,37 +650,31 @@ unsigned bch2_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 	return replicas;
 }
 
-unsigned bch2_extent_ptr_desired_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
+static inline unsigned __extent_ptr_durability(struct bch_dev *ca, struct extent_ptr_decoded *p)
 {
-	struct bch_dev *ca;
-
 	if (p->ptr.cached)
 		return 0;
 
-	ca = bch_dev_bkey_exists(c, p->ptr.dev);
+	return p->has_ec
+		? p->ec.redundancy + 1
+		: ca->mi.durability;
+}
 
-	return ca->mi.durability +
-		(p->has_ec
-		 ? p->ec.redundancy
-		 : 0);
+unsigned bch2_extent_ptr_desired_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, p->ptr.dev);
+
+	return __extent_ptr_durability(ca, p);
 }
 
 unsigned bch2_extent_ptr_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
 {
-	struct bch_dev *ca;
-
-	if (p->ptr.cached)
-		return 0;
-
-	ca = bch_dev_bkey_exists(c, p->ptr.dev);
+	struct bch_dev *ca = bch_dev_bkey_exists(c, p->ptr.dev);
 
 	if (ca->mi.state == BCH_MEMBER_STATE_failed)
 		return 0;
 
-	return ca->mi.durability +
-		(p->has_ec
-		 ? p->ec.redundancy
-		 : 0);
+	return __extent_ptr_durability(ca, p);
 }
 
 unsigned bch2_bkey_durability(struct bch_fs *c, struct bkey_s_c k)
@@ -849,7 +844,6 @@ void bch2_bkey_drop_device_noerror(struct bkey_s k, unsigned dev)
 const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned dev)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr)
 		if (ptr->dev == dev)
@@ -861,7 +855,6 @@ const struct bch_extent_ptr *bch2_bkey_has_device_c(struct bkey_s_c k, unsigned 
 bool bch2_bkey_has_target(struct bch_fs *c, struct bkey_s_c k, unsigned target)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr;
 
 	bkey_for_each_ptr(ptrs, ptr)
 		if (bch2_dev_in_target(c, ptr->dev, target) &&
@@ -1026,12 +1019,12 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bch_extent_crc_unpacked crc =
 				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress %s",
+			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress ",
 			       crc.compressed_size,
 			       crc.uncompressed_size,
 			       crc.offset, crc.nonce,
-			       bch2_csum_types[crc.csum_type],
-			       bch2_compression_types[crc.compression_type]);
+			       bch2_csum_types[crc.csum_type]);
+			bch2_prt_compression_type(out, crc.compression_type);
 			break;
 		}
 		case BCH_EXTENT_ENTRY_stripe_ptr: {
@@ -1071,7 +1064,6 @@ static int extent_ptr_invalid(struct bch_fs *c,
 			      struct printbuf *err)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const struct bch_extent_ptr *ptr2;
 	u64 bucket;
 	u32 bucket_offset;
 	struct bch_dev *ca;
@@ -1300,7 +1292,8 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 		unsigned i = 0;
 
 		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible) {
+			if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible ||
+			    p.ptr.unwritten) {
 				rewrite_ptrs = 0;
 				goto incompressible;
 			}
@@ -1312,7 +1305,6 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *c, struct bkey_s_c k,
 	}
 incompressible:
 	if (target && bch2_target_accepts_data(c, BCH_DATA_user, target)) {
-		const struct bch_extent_ptr *ptr;
 		unsigned i = 0;
 
 		bkey_for_each_ptr(ptrs, ptr) {
@@ -1343,10 +1335,12 @@ bool bch2_bkey_needs_rebalance(struct bch_fs *c, struct bkey_s_c k)
 }
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
-				  unsigned target, unsigned compression)
+				  struct bch_io_opts *opts)
 {
 	struct bkey_s k = bkey_i_to_s(_k);
 	struct bch_extent_rebalance *r;
+	unsigned target = opts->background_target;
+	unsigned compression = background_compression(*opts);
 	bool needs_rebalance;
 
 	if (!bkey_extent_is_direct_data(k.k))

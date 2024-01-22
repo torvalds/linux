@@ -194,11 +194,32 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (scan_sdata && scan_sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    scan_sdata->vif.cfg.assoc &&
 	    ieee80211_have_rx_timestamp(rx_status)) {
-		bss_meta.parent_tsf =
-			ieee80211_calculate_rx_timestamp(local, rx_status,
-							 len + FCS_LEN, 24);
-		ether_addr_copy(bss_meta.parent_bssid,
-				scan_sdata->vif.bss_conf.bssid);
+		struct ieee80211_bss_conf *link_conf = NULL;
+
+		/* for an MLO connection, set the TSF data only in case we have
+		 * an indication on which of the links the frame was received
+		 */
+		if (ieee80211_vif_is_mld(&scan_sdata->vif)) {
+			if (rx_status->link_valid) {
+				s8 link_id = rx_status->link_id;
+
+				link_conf =
+					rcu_dereference(scan_sdata->vif.link_conf[link_id]);
+			}
+		} else {
+			link_conf = &scan_sdata->vif.bss_conf;
+		}
+
+		if (link_conf) {
+			bss_meta.parent_tsf =
+				ieee80211_calculate_rx_timestamp(local,
+								 rx_status,
+								 len + FCS_LEN,
+								 24);
+
+			ether_addr_copy(bss_meta.parent_bssid,
+					link_conf->bssid);
+		}
 	}
 	rcu_read_unlock();
 
@@ -666,6 +687,21 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		return -EBUSY;
 
+	/* For an MLO connection, if a link ID was specified, validate that it
+	 * is indeed active. If no link ID was specified, select one of the
+	 * active links.
+	 */
+	if (ieee80211_vif_is_mld(&sdata->vif)) {
+		if (req->tsf_report_link_id >= 0) {
+			if (!(sdata->vif.active_links &
+			      BIT(req->tsf_report_link_id)))
+				return -EINVAL;
+		} else {
+			req->tsf_report_link_id =
+				__ffs(sdata->vif.active_links);
+		}
+	}
+
 	if (!__ieee80211_can_leave_ch(sdata))
 		return -EBUSY;
 
@@ -714,6 +750,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		local->hw_scan_req->req.duration = req->duration;
 		local->hw_scan_req->req.duration_mandatory =
 			req->duration_mandatory;
+		local->hw_scan_req->req.tsf_report_link_id =
+			req->tsf_report_link_id;
 
 		local->hw_scan_band = 0;
 		local->hw_scan_req->req.n_6ghz_params = req->n_6ghz_params;
@@ -1251,7 +1289,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	iebufsz = local->scan_ies_len + req->ie_len;
 
 	if (!local->ops->sched_scan_start)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		if (local->hw.wiphy->bands[i]) {
@@ -1316,7 +1354,7 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_local *local)
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!local->ops->sched_scan_stop)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* We don't want to restart sched scan anymore. */
 	RCU_INIT_POINTER(local->sched_scan_req, NULL);

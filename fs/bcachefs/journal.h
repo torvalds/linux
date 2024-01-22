@@ -119,7 +119,6 @@ static inline void journal_wake(struct journal *j)
 {
 	wake_up(&j->wait);
 	closure_wake_up(&j->async_wait);
-	closure_wake_up(&j->preres_wait);
 }
 
 static inline struct journal_buf *journal_cur_buf(struct journal *j)
@@ -136,9 +135,7 @@ static inline u64 journal_last_seq(struct journal *j)
 
 static inline u64 journal_cur_seq(struct journal *j)
 {
-	EBUG_ON(j->pin.back - 1 != atomic64_read(&j->seq));
-
-	return j->pin.back - 1;
+	return atomic64_read(&j->seq);
 }
 
 static inline u64 journal_last_unwritten_seq(struct journal *j)
@@ -241,8 +238,6 @@ bch2_journal_add_entry(struct journal *j, struct journal_res *res,
 
 static inline bool journal_entry_empty(struct jset *j)
 {
-	struct jset_entry *i;
-
 	if (j->seq != j->last_seq)
 		return false;
 
@@ -268,6 +263,7 @@ static inline union journal_res_state journal_state_buf_put(struct journal *j, u
 	return s;
 }
 
+bool bch2_journal_entry_close(struct journal *);
 void bch2_journal_buf_put_final(struct journal *, u64, bool);
 
 static inline void __bch2_journal_buf_put(struct journal *j, unsigned idx, u64 seq)
@@ -427,6 +423,7 @@ static inline void bch2_journal_set_replay_done(struct journal *j)
 
 void bch2_journal_unblock(struct journal *);
 void bch2_journal_block(struct journal *);
+struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq);
 
 void __bch2_journal_debug_to_text(struct printbuf *, struct journal *);
 void bch2_journal_debug_to_text(struct printbuf *, struct journal *);

@@ -361,7 +361,7 @@ Global Attributes
 
 ``amd-pstate`` exposes several global attributes (files) in ``sysfs`` to
 control its functionality at the system level.  They are located in the
-``/sys/devices/system/cpu/amd-pstate/`` directory and affect all CPUs.
+``/sys/devices/system/cpu/amd_pstate/`` directory and affect all CPUs.
 
 ``status``
 	Operation mode of the driver: "active", "passive" or "disable".

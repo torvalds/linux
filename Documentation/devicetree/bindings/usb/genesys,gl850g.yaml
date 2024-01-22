@@ -29,6 +29,11 @@ properties:
     description:
       the regulator that provides 3.3V core power to the hub.
 
+  peer-hub:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      phandle to the peer hub on the controller.
+
 required:
   - compatible
   - reg

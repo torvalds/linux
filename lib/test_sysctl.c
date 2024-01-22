@@ -35,6 +35,8 @@ static struct {
 	struct ctl_table_header *test_h_setup_node;
 	struct ctl_table_header *test_h_mnt;
 	struct ctl_table_header *test_h_mnterror;
+	struct ctl_table_header *empty_add;
+	struct ctl_table_header *empty;
 } sysctl_test_headers;
 
 struct test_sysctl_data {
@@ -130,7 +132,6 @@ static struct ctl_table test_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_do_large_bitmap,
 	},
-	{ }
 };
 
 static void test_sysctl_calc_match_int_ok(void)
@@ -184,7 +185,6 @@ static struct ctl_table test_table_unregister[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 	},
-	{}
 };
 
 static int test_sysctl_run_unregister_nested(void)
@@ -220,6 +220,25 @@ static int test_sysctl_run_register_mount_point(void)
 	return 0;
 }
 
+static struct ctl_table test_table_empty[] = { };
+
+static int test_sysctl_run_register_empty(void)
+{
+	/* Tets that an empty dir can be created */
+	sysctl_test_headers.empty_add
+		= register_sysctl("debug/test_sysctl/empty_add", test_table_empty);
+	if (!sysctl_test_headers.empty_add)
+		return -ENOMEM;
+
+	/* Test that register on top of an empty dir works */
+	sysctl_test_headers.empty
+		= register_sysctl("debug/test_sysctl/empty_add/empty", test_table_empty);
+	if (!sysctl_test_headers.empty)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int __init test_sysctl_init(void)
 {
 	int err;
@@ -233,6 +252,10 @@ static int __init test_sysctl_init(void)
 		goto out;
 
 	err = test_sysctl_run_register_mount_point();
+	if (err)
+		goto out;
+
+	err = test_sysctl_run_register_empty();
 
 out:
 	return err;
@@ -248,6 +271,10 @@ static void __exit test_sysctl_exit(void)
 		unregister_sysctl_table(sysctl_test_headers.test_h_mnt);
 	if (sysctl_test_headers.test_h_mnterror)
 		unregister_sysctl_table(sysctl_test_headers.test_h_mnterror);
+	if (sysctl_test_headers.empty)
+		unregister_sysctl_table(sysctl_test_headers.empty);
+	if (sysctl_test_headers.empty_add)
+		unregister_sysctl_table(sysctl_test_headers.empty_add);
 }
 
 module_exit(test_sysctl_exit);

@@ -497,11 +497,6 @@ def prepare_run(pm, args, testlist):
         pm.call_post_suite(1)
         return emergency_exit_message
 
-    if args.verbose:
-        print('give test rig 2 seconds to stabilize')
-
-    time.sleep(2)
-
 def purge_run(pm, index):
     pm.call_post_suite(index)
 
@@ -616,7 +611,7 @@ def test_runner_mp(pm, args, alltests):
     batches.insert(0, serial)
 
     print("Executing {} tests in parallel and {} in serial".format(len(parallel), len(serial)))
-    print("Using {} batches".format(len(batches)))
+    print("Using {} batches and {} workers".format(len(batches), args.mp))
 
     # We can't pickle these objects so workaround them
     global mp_pm
@@ -1017,12 +1012,17 @@ def main():
     parser = pm.call_add_args(parser)
     (args, remaining) = parser.parse_known_args()
     args.NAMES = NAMES
+    args.mp = min(args.mp, 4)
     pm.set_args(args)
     check_default_settings(args, remaining, pm)
     if args.verbose > 2:
         print('args is {}'.format(args))
 
-    set_operation_mode(pm, parser, args, remaining)
+    try:
+        set_operation_mode(pm, parser, args, remaining)
+    except KeyboardInterrupt:
+        # Cleanup on Ctrl-C
+        pm.call_post_suite(None)
 
 if __name__ == "__main__":
     main()

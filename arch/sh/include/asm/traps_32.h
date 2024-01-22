@@ -43,6 +43,9 @@ static inline void trigger_address_error(void)
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,
 				 unsigned long address);
+asmlinkage void do_page_fault(struct pt_regs *regs,
+			      unsigned long error_code,
+			      unsigned long address);
 asmlinkage void do_divide_error(unsigned long r4);
 asmlinkage void do_reserved_inst(void);
 asmlinkage void do_illegal_slot_inst(void);

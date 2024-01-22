@@ -96,6 +96,10 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 		adev->vpe.cmdbuf_cpu_addr[1] = f32_cntl;
 
 		amdgpu_vpe_psp_update_sram(adev);
+
+		/* Config DPM */
+		amdgpu_vpe_configure_dpm(vpe);
+
 		return 0;
 	}
 
@@ -128,6 +132,8 @@ static int vpe_v6_1_load_microcode(struct amdgpu_vpe *vpe)
 	}
 
 	vpe_v6_1_halt(vpe, false);
+	/* Config DPM */
+	amdgpu_vpe_configure_dpm(vpe);
 
 	return 0;
 }
@@ -263,6 +269,15 @@ static int vpe_v6_1_set_regs(struct amdgpu_vpe *vpe)
 	vpe->regs.queue0_rb_wptr_lo = regVPEC_QUEUE0_RB_WPTR;
 	vpe->regs.queue0_rb_wptr_hi = regVPEC_QUEUE0_RB_WPTR_HI;
 	vpe->regs.queue0_preempt = regVPEC_QUEUE0_PREEMPT;
+
+	vpe->regs.dpm_enable = regVPEC_PUB_DUMMY2;
+	vpe->regs.dpm_pratio = regVPEC_QUEUE6_DUMMY4;
+	vpe->regs.dpm_request_interval = regVPEC_QUEUE5_DUMMY3;
+	vpe->regs.dpm_decision_threshold = regVPEC_QUEUE5_DUMMY4;
+	vpe->regs.dpm_busy_clamp_threshold = regVPEC_QUEUE7_DUMMY2;
+	vpe->regs.dpm_idle_clamp_threshold = regVPEC_QUEUE7_DUMMY3;
+	vpe->regs.dpm_request_lv = regVPEC_QUEUE7_DUMMY1;
+	vpe->regs.context_indicator = regVPEC_QUEUE6_DUMMY3;
 
 	return 0;
 }

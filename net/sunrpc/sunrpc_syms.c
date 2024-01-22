@@ -148,6 +148,7 @@ cleanup_sunrpc(void)
 #endif
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
+MODULE_DESCRIPTION("Sun RPC core");
 MODULE_LICENSE("GPL");
 fs_initcall(init_sunrpc); /* Ensure we're initialised before nfs */
 module_exit(cleanup_sunrpc);

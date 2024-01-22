@@ -82,8 +82,7 @@ documentation files are also added which explain how to use the feature.
 When a kernel change causes the interface that the kernel exposes to
 userspace to change, it is recommended that you send the information or
 a patch to the manual pages explaining the change to the manual pages
-maintainer at mtk.manpages@gmail.com, and CC the list
-linux-api@vger.kernel.org.
+maintainer at alx@kernel.org, and CC the list linux-api@vger.kernel.org.
 
 Here is a list of files that are in the kernel source tree that are
 required reading:

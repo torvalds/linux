@@ -91,12 +91,6 @@ bool dcn32_release_post_bldn_3dlut(
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
 
-bool dcn32_remove_phantom_pipes(struct dc *dc,
-		struct dc_state *context, bool fast_update);
-
-void dcn32_retain_phantom_pipes(struct dc *dc,
-		struct dc_state *context);
-
 void dcn32_add_phantom_pipes(struct dc *dc,
 		struct dc_state *context,
 		display_e2e_pipe_params_st *pipes,
@@ -169,15 +163,7 @@ void dcn32_determine_det_override(struct dc *dc,
 void dcn32_set_det_allocations(struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes);
 
-void dcn32_save_mall_state(struct dc *dc,
-		struct dc_state *context,
-		struct mall_temp_config *temp_config);
-
-void dcn32_restore_mall_state(struct dc *dc,
-		struct dc_state *context,
-		struct mall_temp_config *temp_config);
-
-struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, const struct dc_state *context);
+struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context);
 
 bool dcn32_allow_subvp_with_active_margin(struct pipe_ctx *pipe);
 
@@ -192,6 +178,8 @@ bool dcn32_check_native_scaling_for_res(struct pipe_ctx *pipe, unsigned int widt
 bool dcn32_subvp_drr_admissable(struct dc *dc, struct dc_state *context);
 
 bool dcn32_subvp_vblank_admissable(struct dc *dc, struct dc_state *context, int vlevel);
+
+void dcn32_update_dml_pipes_odm_policy_based_on_context(struct dc *dc, struct dc_state *context, display_e2e_pipe_params_st *pipes);
 
 /* definitions for run time init of reg offsets */
 

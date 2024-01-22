@@ -66,7 +66,7 @@ static unsigned int cpuidle_cooling_runtime(unsigned int idle_duration_us,
  * @state : a pointer to the state variable to be filled
  *
  * The function always returns 100 as the injection ratio. It is
- * percentile based for consistency accross different platforms.
+ * percentile based for consistency across different platforms.
  *
  * Return: The function can not fail, it is always zero
  */
@@ -146,7 +146,7 @@ static int cpuidle_cooling_set_cur_state(struct thermal_cooling_device *cdev,
 	return 0;
 }
 
-/**
+/*
  * cpuidle_cooling_ops - thermal cooling device ops
  */
 static struct thermal_cooling_device_ops cpuidle_cooling_ops = {

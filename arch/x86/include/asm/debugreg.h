@@ -5,6 +5,7 @@
 #include <linux/bug.h>
 #include <linux/percpu.h>
 #include <uapi/asm/debugreg.h>
+#include <asm/cpufeature.h>
 
 DECLARE_PER_CPU(unsigned long, cpu_dr7);
 

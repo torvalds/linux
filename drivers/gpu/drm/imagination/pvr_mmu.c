@@ -316,11 +316,13 @@ err_free_page:
 static void
 pvr_mmu_backing_page_fini(struct pvr_mmu_backing_page *page)
 {
-	struct device *dev = from_pvr_device(page->pvr_dev)->dev;
+	struct device *dev;
 
 	/* Do nothing if no allocation is present. */
 	if (!page->pvr_dev)
 		return;
+
+	dev = from_pvr_device(page->pvr_dev)->dev;
 
 	dma_unmap_page(dev, page->dma_addr, PVR_MMU_BACKING_PAGE_SIZE,
 		       DMA_TO_DEVICE);

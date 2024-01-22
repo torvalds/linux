@@ -23,11 +23,6 @@ should properly handle a module unload. This also includes that all
 resources must be freed (kthreads, debugfs entries, ...) and global
 variables avoided.
 
-* Cleanup logging mechanism
-
-The driver should probably be using the standard kernel logging mechanisms
-such as dev_info, dev_dbg, and friends.
-
 * Documentation
 
 A short top-down description of this driver's architecture (function of

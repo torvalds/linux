@@ -20,10 +20,14 @@ static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 	struct cros_ec_device *ecdev = ec->ec_dev;
-	struct ec_params_vbnvcontext *params;
 	struct cros_ec_command *msg;
+	/*
+	 * This should be a pointer to the same type as op field in
+	 * struct ec_params_vbnvcontext.
+	 */
+	uint32_t *params_op;
 	int err;
-	const size_t para_sz = sizeof(params->op);
+	const size_t para_sz = sizeof(*params_op);
 	const size_t resp_sz = sizeof(struct ec_response_vbnvcontext);
 	const size_t payload = max(para_sz, resp_sz);
 
@@ -32,8 +36,8 @@ static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 		return -ENOMEM;
 
 	/* NB: we only kmalloc()ated enough space for the op field */
-	params = (struct ec_params_vbnvcontext *)msg->data;
-	params->op = EC_VBNV_CONTEXT_OP_READ;
+	params_op = (uint32_t *)msg->data;
+	*params_op = EC_VBNV_CONTEXT_OP_READ;
 
 	msg->version = EC_VER_VBNV_CONTEXT;
 	msg->command = EC_CMD_VBNV_CONTEXT;

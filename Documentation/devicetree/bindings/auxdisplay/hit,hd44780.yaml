@@ -113,7 +113,7 @@ examples:
     hd44780 {
             compatible = "hit,hd44780";
             display-height-chars = <2>;
-            display-width-chars  = <16>;
+            display-width-chars = <16>;
             data-gpios = <&pcf8574 4 0>,
                          <&pcf8574 5 0>,
                          <&pcf8574 6 0>,

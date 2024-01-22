@@ -534,6 +534,9 @@ static ssize_t affinity_domain_via_partition_show(struct device *dev, struct dev
 	if (!ret)
 		goto parse_result;
 
+	if (ret && (ret != H_PARAMETER))
+		goto out;
+
 	/*
 	 * ret value as 'H_PARAMETER' implies that the current buffer size
 	 * can't accommodate all the information, and a partial buffer

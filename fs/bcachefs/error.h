@@ -157,6 +157,7 @@ void bch2_flush_fsck_errs(struct bch_fs *);
 #define fsck_err_on(cond, c, _err_type, ...)				\
 	__fsck_err_on(cond, c, FSCK_CAN_FIX|FSCK_CAN_IGNORE, _err_type, __VA_ARGS__)
 
+__printf(4, 0)
 static inline void bch2_bkey_fsck_err(struct bch_fs *c,
 				     struct printbuf *err_msg,
 				     enum bch_sb_error_id err_type,
@@ -167,7 +168,6 @@ static inline void bch2_bkey_fsck_err(struct bch_fs *c,
 	va_start(args, fmt);
 	prt_vprintf(err_msg, fmt, args);
 	va_end(args);
-
 }
 
 #define bkey_fsck_err(c, _err_msg, _err_type, ...)			\

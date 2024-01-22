@@ -211,10 +211,10 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 
 	chsc_area->header.key = PAGE_DEFAULT_KEY >> 4;
 	while ((sch = chsc_get_next_subchannel(sch))) {
-		spin_lock(sch->lock);
+		spin_lock(&sch->lock);
 		private = dev_get_drvdata(&sch->dev);
 		if (private->request) {
-			spin_unlock(sch->lock);
+			spin_unlock(&sch->lock);
 			ret = -EBUSY;
 			continue;
 		}
@@ -239,7 +239,7 @@ static int chsc_async(struct chsc_async_area *chsc_area,
 		default:
 			ret = -ENODEV;
 		}
-		spin_unlock(sch->lock);
+		spin_unlock(&sch->lock);
 		CHSC_MSG(2, "chsc on 0.%x.%04x returned cc=%d\n",
 			 sch->schid.ssid, sch->schid.sch_no, cc);
 		if (ret == -EINPROGRESS)

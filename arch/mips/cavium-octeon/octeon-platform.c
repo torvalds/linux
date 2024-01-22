@@ -973,7 +973,7 @@ int __init octeon_prune_device_tree(void)
 			 * zero.
 			 */
 
-			/* Asume that CS1 immediately follows. */
+			/* Assume that CS1 immediately follows. */
 			mio_boot_reg_cfg.u64 =
 				cvmx_read_csr(CVMX_MIO_BOOT_REG_CFGX(cs + 1));
 			region1_base = mio_boot_reg_cfg.s.base << 16;

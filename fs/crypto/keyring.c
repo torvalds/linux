@@ -1002,9 +1002,9 @@ static int try_to_lock_encrypted_files(struct super_block *sb,
  * FS_IOC_REMOVE_ENCRYPTION_KEY_ALL_USERS (all_users=true) always removes the
  * key itself.
  *
- * To "remove the key itself", first we wipe the actual master key secret, so
- * that no more inodes can be unlocked with it.  Then we try to evict all cached
- * inodes that had been unlocked with the key.
+ * To "remove the key itself", first we transition the key to the "incompletely
+ * removed" state, so that no more inodes can be unlocked with it.  Then we try
+ * to evict all cached inodes that had been unlocked with the key.
  *
  * If all inodes were evicted, then we unlink the fscrypt_master_key from the
  * keyring.  Otherwise it remains in the keyring in the "incompletely removed"

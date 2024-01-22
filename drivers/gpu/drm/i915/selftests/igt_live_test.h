@@ -7,6 +7,7 @@
 #ifndef IGT_LIVE_TEST_H
 #define IGT_LIVE_TEST_H
 
+#include "gt/intel_gt_defines.h" /* for I915_MAX_GT */
 #include "gt/intel_engine.h" /* for I915_NUM_ENGINES */
 
 struct drm_i915_private;
@@ -17,7 +18,7 @@ struct igt_live_test {
 	const char *name;
 
 	unsigned int reset_global;
-	unsigned int reset_engine[I915_NUM_ENGINES];
+	unsigned int reset_engine[I915_MAX_GT][I915_NUM_ENGINES];
 };
 
 /*

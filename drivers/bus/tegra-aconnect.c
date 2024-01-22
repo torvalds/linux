@@ -53,11 +53,9 @@ static int tegra_aconnect_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int tegra_aconnect_remove(struct platform_device *pdev)
+static void tegra_aconnect_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static int tegra_aconnect_runtime_resume(struct device *dev)
@@ -106,7 +104,7 @@ MODULE_DEVICE_TABLE(of, tegra_aconnect_of_match);
 
 static struct platform_driver tegra_aconnect_driver = {
 	.probe = tegra_aconnect_probe,
-	.remove = tegra_aconnect_remove,
+	.remove_new = tegra_aconnect_remove,
 	.driver = {
 		.name = "tegra-aconnect",
 		.of_match_table = tegra_aconnect_of_match,

@@ -234,10 +234,10 @@ static void mtty_trigger_interrupt(struct mdev_state *mdev_state)
 
 	if (is_msi(mdev_state)) {
 		if (mdev_state->msi_evtfd)
-			eventfd_signal(mdev_state->msi_evtfd, 1);
+			eventfd_signal(mdev_state->msi_evtfd);
 	} else if (is_intx(mdev_state)) {
 		if (mdev_state->intx_evtfd && !mdev_state->intx_mask) {
-			eventfd_signal(mdev_state->intx_evtfd, 1);
+			eventfd_signal(mdev_state->intx_evtfd);
 			mdev_state->intx_mask = true;
 		}
 	}

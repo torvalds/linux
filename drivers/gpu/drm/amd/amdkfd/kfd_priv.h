@@ -917,7 +917,7 @@ struct kfd_process {
 	 * fence will be triggered during eviction and new one will be created
 	 * during restore
 	 */
-	struct dma_fence *ef;
+	struct dma_fence __rcu *ef;
 
 	/* Work items for evicting and restoring BOs */
 	struct delayed_work eviction_work;
@@ -970,7 +970,7 @@ struct kfd_process {
 	struct work_struct debug_event_workarea;
 
 	/* Tracks debug per-vmid request for debug flags */
-	bool dbg_flags;
+	u32 dbg_flags;
 
 	atomic_t poison;
 	/* Queues are in paused stated because we are in the process of doing a CRIU checkpoint */

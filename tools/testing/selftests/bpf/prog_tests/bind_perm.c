@@ -9,8 +9,6 @@
 #include "cap_helpers.h"
 #include "bind_perm.skel.h"
 
-static int duration;
-
 static int create_netns(void)
 {
 	if (!ASSERT_OK(unshare(CLONE_NEWNET), "create netns"))
@@ -27,7 +25,7 @@ void try_bind(int family, int port, int expected_errno)
 	int fd = -1;
 
 	fd = socket(family, SOCK_STREAM, 0);
-	if (CHECK(fd < 0, "fd", "errno %d", errno))
+	if (!ASSERT_GE(fd, 0, "socket"))
 		goto close_socket;
 
 	if (family == AF_INET) {
@@ -60,7 +58,7 @@ void test_bind_perm(void)
 		return;
 
 	cgroup_fd = test__join_cgroup("/bind_perm");
-	if (CHECK(cgroup_fd < 0, "cg-join", "errno %d", errno))
+	if (!ASSERT_GE(cgroup_fd, 0, "test__join_cgroup"))
 		return;
 
 	skel = bind_perm__open_and_load();

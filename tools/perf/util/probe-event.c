@@ -149,10 +149,32 @@ static int kernel_get_symbol_address_by_name(const char *name, u64 *addr,
 	return 0;
 }
 
+struct kernel_get_module_map_cb_args {
+	const char *module;
+	struct map *result;
+};
+
+static int kernel_get_module_map_cb(struct map *map, void *data)
+{
+	struct kernel_get_module_map_cb_args *args = data;
+	struct dso *dso = map__dso(map);
+	const char *short_name = dso->short_name; /* short_name is "[module]" */
+	u16 short_name_len =  dso->short_name_len;
+
+	if (strncmp(short_name + 1, args->module, short_name_len - 2) == 0 &&
+	    args->module[short_name_len - 2] == '\0') {
+		args->result = map__get(map);
+		return 1;
+	}
+	return 0;
+}
+
 static struct map *kernel_get_module_map(const char *module)
 {
-	struct maps *maps = machine__kernel_maps(host_machine);
-	struct map_rb_node *pos;
+	struct kernel_get_module_map_cb_args args = {
+		.module = module,
+		.result = NULL,
+	};
 
 	/* A file path -- this is an offline module */
 	if (module && strchr(module, '/'))
@@ -164,19 +186,9 @@ static struct map *kernel_get_module_map(const char *module)
 		return map__get(map);
 	}
 
-	maps__for_each_entry(maps, pos) {
-		/* short_name is "[module]" */
-		struct dso *dso = map__dso(pos->map);
-		const char *short_name = dso->short_name;
-		u16 short_name_len =  dso->short_name_len;
+	maps__for_each_map(machine__kernel_maps(host_machine), kernel_get_module_map_cb, &args);
 
-		if (strncmp(short_name + 1, module,
-			    short_name_len - 2) == 0 &&
-		    module[short_name_len - 2] == '\0') {
-			return map__get(pos->map);
-		}
-	}
-	return NULL;
+	return args.result;
 }
 
 struct map *get_target_map(const char *target, struct nsinfo *nsi, bool user)
