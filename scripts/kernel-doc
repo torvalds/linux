@@ -2331,7 +2331,7 @@ sub process_file($) {
 
     $section_counter = 0;
     while (<IN_FILE>) {
-	while (s/\\\s*$//) {
+	while (!/^ \*/ && s/\\\s*$//) {
 	    $_ .= <IN_FILE>;
 	}
 	# Replace tabs by spaces
