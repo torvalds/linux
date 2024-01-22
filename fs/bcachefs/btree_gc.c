@@ -389,7 +389,7 @@ again:
 	have_child = dropped_children = false;
 	bch2_bkey_buf_init(&prev_k);
 	bch2_bkey_buf_init(&cur_k);
-	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
+	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
 		BUG_ON(bpos_lt(k.k->p, b->data->min_key));
@@ -478,7 +478,7 @@ again:
 		goto err;
 
 	bch2_btree_and_journal_iter_exit(&iter);
-	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
+	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
 		bch2_bkey_buf_reassemble(&cur_k, c, k);
@@ -931,7 +931,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
+	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 	bch2_bkey_buf_init(&prev);
 	bch2_bkey_buf_init(&cur);
 	bkey_init(&prev.k->k);
@@ -963,7 +963,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 
 	if (b->c.level > target_depth) {
 		bch2_btree_and_journal_iter_exit(&iter);
-		bch2_btree_and_journal_iter_init_node_iter(&iter, c, b);
+		bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 
 		while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
 			struct btree *child;

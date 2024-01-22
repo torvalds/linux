@@ -376,17 +376,18 @@ void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *iter)
 	bch2_journal_iter_exit(&iter->journal);
 }
 
-void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
-						  struct bch_fs *c,
+void __bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
+						  struct btree_and_journal_iter *iter,
 						  struct btree *b,
 						  struct btree_node_iter node_iter,
 						  struct bpos pos)
 {
 	memset(iter, 0, sizeof(*iter));
 
+	iter->trans = trans;
 	iter->b = b;
 	iter->node_iter = node_iter;
-	bch2_journal_iter_init(c, &iter->journal, b->c.btree_id, b->c.level, pos);
+	bch2_journal_iter_init(trans->c, &iter->journal, b->c.btree_id, b->c.level, pos);
 	INIT_LIST_HEAD(&iter->journal.list);
 	iter->pos = b->data->min_key;
 	iter->at_end = false;
@@ -396,15 +397,15 @@ void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter 
  * this version is used by btree_gc before filesystem has gone RW and
  * multithreaded, so uses the journal_iters list:
  */
-void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
-						struct bch_fs *c,
+void bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
+						struct btree_and_journal_iter *iter,
 						struct btree *b)
 {
 	struct btree_node_iter node_iter;
 
 	bch2_btree_node_iter_init_from_start(&node_iter, b);
-	__bch2_btree_and_journal_iter_init_node_iter(iter, c, b, node_iter, b->data->min_key);
-	list_add(&iter->journal.list, &c->journal_iters);
+	__bch2_btree_and_journal_iter_init_node_iter(trans, iter, b, node_iter, b->data->min_key);
+	list_add(&iter->journal.list, &trans->c->journal_iters);
 }
 
 /* sort and dedup all keys in the journal: */
