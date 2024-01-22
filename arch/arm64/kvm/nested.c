@@ -133,6 +133,13 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 		val |= FIELD_PREP(NV_FTR(MMFR2, TTL), 0b0001);
 		break;
 
+	case SYS_ID_AA64MMFR4_EL1:
+		val = 0;
+		if (!cpus_have_final_cap(ARM64_HAS_HCR_NV1))
+			val |= FIELD_PREP(NV_FTR(MMFR4, E2H0),
+					  ID_AA64MMFR4_EL1_E2H0_NI_NV1);
+		break;
+
 	case SYS_ID_AA64DFR0_EL1:
 		/* Only limited support for PMU, Debug, BPs and WPs */
 		val &= (NV_FTR(DFR0, PMUVer)	|
