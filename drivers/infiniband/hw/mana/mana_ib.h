@@ -142,6 +142,11 @@ struct mana_ib_query_adapter_caps_resp {
 	u32 max_inline_data_size;
 }; /* HW Data */
 
+static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
+{
+	return mdev->gdma_dev->gdma_context;
+}
+
 int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 				 mana_handle_t *gdma_region);
 
