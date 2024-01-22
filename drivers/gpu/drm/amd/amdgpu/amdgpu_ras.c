@@ -3346,12 +3346,15 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 		amdgpu_ras_set_mca_debug_mode(adev, false);
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
-		if (!node->ras_obj) {
+		obj = node->ras_obj;
+		if (!obj) {
 			dev_warn(adev->dev, "Warning: abnormal ras list node.\n");
 			continue;
 		}
 
-		obj = node->ras_obj;
+		if (!amdgpu_ras_is_supported(adev, obj->ras_comm.block))
+			continue;
+
 		if (obj->ras_late_init) {
 			r = obj->ras_late_init(adev, &obj->ras_comm);
 			if (r) {
