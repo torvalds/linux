@@ -476,8 +476,8 @@ static bool newport_switch(struct vc_data *vc)
 	return true;
 }
 
-static int newport_blank(struct vc_data *c, enum vesa_blank_mode blank,
-			 int mode_switch)
+static bool newport_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			  bool mode_switch)
 {
 	unsigned short treg;
 
@@ -492,7 +492,8 @@ static int newport_blank(struct vc_data *c, enum vesa_blank_mode blank,
 		newport_vc2_set(npregs, VC2_IREG_CONTROL,
 				(treg & ~(VC2_CTRL_EDISP)));
 	}
-	return 1;
+
+	return true;
 }
 
 static int newport_set_font(int unit, struct console_font *op, unsigned int vpitch)

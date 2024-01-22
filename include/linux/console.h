@@ -49,6 +49,9 @@ enum vc_intensity;
  *		Invoked by csi_M and printing to the console.
  * @con_switch: notifier about the console switch; it is supposed to return
  *		true if a redraw is needed.
+ * @con_blank:  blank/unblank the console. The target mode is passed in @blank.
+ *		@mode_switch is set if changing from/to text/graphics. The hook
+ *		is supposed to return true if a redraw is needed.
  * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *		     Invoked by user. (optional)
@@ -70,8 +73,8 @@ struct consw {
 			unsigned int bottom, enum con_scroll dir,
 			unsigned int lines);
 	bool	(*con_switch)(struct vc_data *vc);
-	int	(*con_blank)(struct vc_data *vc, enum vesa_blank_mode blank,
-			     int mode_switch);
+	bool	(*con_blank)(struct vc_data *vc, enum vesa_blank_mode blank,
+			     bool mode_switch);
 	int	(*con_font_set)(struct vc_data *vc, struct console_font *font,
 			unsigned int vpitch, unsigned int flags);
 	int	(*con_font_get)(struct vc_data *vc, struct console_font *font,

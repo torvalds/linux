@@ -797,8 +797,8 @@ static void vga_pal_blank(struct vgastate *state)
 	}
 }
 
-static int vgacon_blank(struct vc_data *c, enum vesa_blank_mode blank,
-			int mode_switch)
+static bool vgacon_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			 bool mode_switch)
 {
 	switch (blank) {
 	case VESA_NO_BLANKING:		/* Unblank */

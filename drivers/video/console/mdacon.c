@@ -451,8 +451,8 @@ static bool mdacon_switch(struct vc_data *c)
 	return true;	/* redrawing needed */
 }
 
-static int mdacon_blank(struct vc_data *c, enum vesa_blank_mode blank,
-			int mode_switch)
+static bool mdacon_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			 bool mode_switch)
 {
 	if (mda_type == TYPE_MDA) {
 		if (blank) 
@@ -460,14 +460,14 @@ static int mdacon_blank(struct vc_data *c, enum vesa_blank_mode blank,
 				mda_convert_attr(c->vc_video_erase_char),
 				c->vc_screenbuf_size);
 		/* Tell console.c that it has to restore the screen itself */
-		return 1;
+		return true;
 	} else {
 		if (blank)
 			outb_p(0x00, mda_mode_port);	/* disable video */
 		else
 			outb_p(MDA_MODE_VIDEO_EN | MDA_MODE_BLINK_EN, 
 				mda_mode_port);
-		return 0;
+		return false;
 	}
 }
 

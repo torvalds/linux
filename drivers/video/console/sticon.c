@@ -298,19 +298,20 @@ static bool sticon_switch(struct vc_data *conp)
     return true;	/* needs refreshing */
 }
 
-static int sticon_blank(struct vc_data *c, enum vesa_blank_mode blank,
-			int mode_switch)
+static bool sticon_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			 bool mode_switch)
 {
     if (blank == VESA_NO_BLANKING) {
 	if (mode_switch)
 	    vga_is_gfx = 0;
-	return 1;
+	return true;
     }
     sti_clear(sticon_sti, 0, 0, c->vc_rows, c->vc_cols, BLANK,
 	      font_data[c->vc_num]);
     if (mode_switch)
 	vga_is_gfx = 1;
-    return 1;
+
+    return true;
 }
 
 static u8 sticon_build_attr(struct vc_data *conp, u8 color,

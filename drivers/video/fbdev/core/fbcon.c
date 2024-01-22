@@ -2198,8 +2198,8 @@ static void fbcon_generic_blank(struct vc_data *vc, struct fb_info *info,
 	}
 }
 
-static int fbcon_blank(struct vc_data *vc, enum vesa_blank_mode blank,
-		       int mode_switch)
+static bool fbcon_blank(struct vc_data *vc, enum vesa_blank_mode blank,
+			bool mode_switch)
 {
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
 	struct fbcon_ops *ops = info->fbcon_par;
@@ -2238,7 +2238,7 @@ static int fbcon_blank(struct vc_data *vc, enum vesa_blank_mode blank,
 	else
 		fbcon_add_cursor_work(info);
 
-	return 0;
+	return false;
 }
 
 static void fbcon_debug_enter(struct vc_data *vc)
