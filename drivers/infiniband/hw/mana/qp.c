@@ -104,7 +104,6 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 	struct gdma_queue **gdma_cq_allocated;
 	mana_handle_t *mana_ind_table;
 	struct mana_port_context *mpc;
-	struct gdma_queue *gdma_cq;
 	unsigned int ind_tbl_size;
 	struct net_device *ndev;
 	struct mana_ib_cq *cq;
@@ -229,19 +228,11 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 		mana_ind_table[i] = wq->rx_object;
 
 		/* Create CQ table entry */
-		WARN_ON(gc->cq_table[cq->id]);
-		gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
-		if (!gdma_cq) {
-			ret = -ENOMEM;
+		ret = mana_ib_install_cq_cb(mdev, cq);
+		if (ret)
 			goto fail;
-		}
-		gdma_cq_allocated[i] = gdma_cq;
 
-		gdma_cq->cq.context = cq;
-		gdma_cq->type = GDMA_CQ;
-		gdma_cq->cq.callback = mana_ib_cq_handler;
-		gdma_cq->id = cq->id;
-		gc->cq_table[cq->id] = gdma_cq;
+		gdma_cq_allocated[i] = gc->cq_table[cq->id];
 	}
 	resp.num_entries = i;
 
@@ -407,18 +398,9 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	send_cq->id = cq_spec.queue_index;
 
 	/* Create CQ table entry */
-	WARN_ON(gc->cq_table[send_cq->id]);
-	gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
-	if (!gdma_cq) {
-		err = -ENOMEM;
+	err = mana_ib_install_cq_cb(mdev, send_cq);
+	if (err)
 		goto err_destroy_wq_obj;
-	}
-
-	gdma_cq->cq.context = send_cq;
-	gdma_cq->type = GDMA_CQ;
-	gdma_cq->cq.callback = mana_ib_cq_handler;
-	gdma_cq->id = send_cq->id;
-	gc->cq_table[send_cq->id] = gdma_cq;
 
 	ibdev_dbg(&mdev->ib_dev,
 		  "ret %d qp->tx_object 0x%llx sq id %llu cq id %llu\n", err,

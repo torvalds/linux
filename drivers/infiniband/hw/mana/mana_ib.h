@@ -158,6 +158,8 @@ static inline struct net_device *mana_ib_get_netdev(struct ib_device *ibdev, u32
 	return mc->ports[port - 1];
 }
 
+int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq);
+
 int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 				 mana_handle_t *gdma_region);
 
@@ -226,6 +228,4 @@ int mana_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 void mana_ib_disassociate_ucontext(struct ib_ucontext *ibcontext);
 
 int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *mdev);
-
-void mana_ib_cq_handler(void *ctx, struct gdma_queue *gdma_cq);
 #endif
