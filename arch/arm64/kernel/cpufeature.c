@@ -949,7 +949,8 @@ static void init_cpu_ftr_reg(u32 sys_reg, u64 new)
 				pr_warn("%s[%d:%d]: %s to %llx\n",
 					reg->name,
 					ftrp->shift + ftrp->width - 1,
-					ftrp->shift, str, tmp);
+					ftrp->shift, str,
+					tmp & (BIT(ftrp->width) - 1));
 		} else if ((ftr_mask & reg->override->val) == ftr_mask) {
 			reg->override->val &= ~ftr_mask;
 			pr_warn("%s[%d:%d]: impossible override, ignored\n",
