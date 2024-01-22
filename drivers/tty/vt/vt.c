@@ -1555,20 +1555,20 @@ static void csi_K(struct vc_data *vc)
 	int offset;
 
 	switch (vc->vc_par[0]) {
-		case CSI_K_CURSOR_TO_LINEEND:
-			offset = 0;
-			count = vc->vc_cols - vc->state.x;
-			break;
-		case CSI_K_LINESTART_TO_CURSOR:
-			offset = -vc->state.x;
-			count = vc->state.x + 1;
-			break;
-		case CSI_K_LINE:
-			offset = -vc->state.x;
-			count = vc->vc_cols;
-			break;
-		default:
-			return;
+	case CSI_K_CURSOR_TO_LINEEND:
+		offset = 0;
+		count = vc->vc_cols - vc->state.x;
+		break;
+	case CSI_K_LINESTART_TO_CURSOR:
+		offset = -vc->state.x;
+		count = vc->state.x + 1;
+		break;
+	case CSI_K_LINE:
+		offset = -vc->state.x;
+		count = vc->vc_cols;
+		break;
+	default:
+		return;
 	}
 	vc_uniscr_clear_line(vc, vc->state.x + offset, count);
 	scr_memsetw(start + offset, vc->vc_video_erase_char, 2 * count);
