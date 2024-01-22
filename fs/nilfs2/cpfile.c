@@ -255,92 +255,6 @@ out_sem:
 }
 
 /**
- * nilfs_cpfile_get_checkpoint - get a checkpoint
- * @cpfile: inode of checkpoint file
- * @cno: checkpoint number
- * @create: create flag
- * @cpp: pointer to a checkpoint
- * @bhp: pointer to a buffer head
- *
- * Description: nilfs_cpfile_get_checkpoint() acquires the checkpoint
- * specified by @cno. A new checkpoint will be created if @cno is the current
- * checkpoint number and @create is nonzero.
- *
- * Return Value: On success, 0 is returned, and the checkpoint and the
- * buffer head of the buffer on which the checkpoint is located are stored in
- * the place pointed by @cpp and @bhp, respectively. On error, one of the
- * following negative error codes is returned.
- *
- * %-EIO - I/O error.
- *
- * %-ENOMEM - Insufficient amount of memory available.
- *
- * %-ENOENT - No such checkpoint.
- *
- * %-EINVAL - invalid checkpoint.
- */
-int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
-				__u64 cno,
-				int create,
-				struct nilfs_checkpoint **cpp,
-				struct buffer_head **bhp)
-{
-	struct buffer_head *header_bh, *cp_bh;
-	struct nilfs_cpfile_header *header;
-	struct nilfs_checkpoint *cp;
-	void *kaddr;
-	int ret;
-
-	if (unlikely(cno < 1 || cno > nilfs_mdt_cno(cpfile) ||
-		     (cno < nilfs_mdt_cno(cpfile) && create)))
-		return -EINVAL;
-
-	down_write(&NILFS_MDT(cpfile)->mi_sem);
-
-	ret = nilfs_cpfile_get_header_block(cpfile, &header_bh);
-	if (ret < 0)
-		goto out_sem;
-	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, create, &cp_bh);
-	if (ret < 0)
-		goto out_header;
-	kaddr = kmap(cp_bh->b_page);
-	cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, cp_bh, kaddr);
-	if (nilfs_checkpoint_invalid(cp)) {
-		if (!create) {
-			kunmap(cp_bh->b_page);
-			brelse(cp_bh);
-			ret = -ENOENT;
-			goto out_header;
-		}
-		/* a newly-created checkpoint */
-		nilfs_checkpoint_clear_invalid(cp);
-		if (!nilfs_cpfile_is_in_first(cpfile, cno))
-			nilfs_cpfile_block_add_valid_checkpoints(cpfile, cp_bh,
-								 kaddr, 1);
-		mark_buffer_dirty(cp_bh);
-
-		kaddr = kmap_atomic(header_bh->b_page);
-		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
-						       kaddr);
-		le64_add_cpu(&header->ch_ncheckpoints, 1);
-		kunmap_atomic(kaddr);
-		mark_buffer_dirty(header_bh);
-		nilfs_mdt_mark_dirty(cpfile);
-	}
-
-	if (cpp != NULL)
-		*cpp = cp;
-	*bhp = cp_bh;
-
- out_header:
-	brelse(header_bh);
-
- out_sem:
-	up_write(&NILFS_MDT(cpfile)->mi_sem);
-	return ret;
-}
-
-/**
  * nilfs_cpfile_create_checkpoint - create a checkpoint entry on cpfile
  * @cpfile: checkpoint file inode
  * @cno:    number of checkpoint to set up
@@ -412,23 +326,6 @@ out_header:
 out_sem:
 	up_write(&NILFS_MDT(cpfile)->mi_sem);
 	return ret;
-}
-
-/**
- * nilfs_cpfile_put_checkpoint - put a checkpoint
- * @cpfile: inode of checkpoint file
- * @cno: checkpoint number
- * @bh: buffer head
- *
- * Description: nilfs_cpfile_put_checkpoint() releases the checkpoint
- * specified by @cno. @bh must be the buffer head which has been returned by
- * a previous call to nilfs_cpfile_get_checkpoint() with @cno.
- */
-void nilfs_cpfile_put_checkpoint(struct inode *cpfile, __u64 cno,
-				 struct buffer_head *bh)
-{
-	kunmap(bh->b_page);
-	brelse(bh);
 }
 
 /**
