@@ -1045,6 +1045,10 @@ void inet_diag_dump_icsk(struct inet_hashinfo *hashinfo, struct sk_buff *skb,
 			num = 0;
 			ilb = &hashinfo->lhash2[i];
 
+			if (hlist_nulls_empty(&ilb->nulls_head)) {
+				s_num = 0;
+				continue;
+			}
 			spin_lock(&ilb->lock);
 			sk_nulls_for_each(sk, node, &ilb->nulls_head) {
 				struct inet_sock *inet = inet_sk(sk);
@@ -1109,6 +1113,10 @@ resume_bind_walk:
 			accum = 0;
 			ibb = &hashinfo->bhash2[i];
 
+			if (hlist_empty(&ibb->chain)) {
+				s_num = 0;
+				continue;
+			}
 			spin_lock_bh(&ibb->lock);
 			inet_bind_bucket_for_each(tb2, &ibb->chain) {
 				if (!net_eq(ib2_net(tb2), net))
