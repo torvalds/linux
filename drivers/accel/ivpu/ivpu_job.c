@@ -112,16 +112,14 @@ static void ivpu_cmdq_release_locked(struct ivpu_file_priv *file_priv, u16 engin
 	}
 }
 
-void ivpu_cmdq_release_all(struct ivpu_file_priv *file_priv)
+void ivpu_cmdq_release_all_locked(struct ivpu_file_priv *file_priv)
 {
 	int i;
 
-	mutex_lock(&file_priv->lock);
+	lockdep_assert_held(&file_priv->lock);
 
 	for (i = 0; i < IVPU_NUM_ENGINES; i++)
 		ivpu_cmdq_release_locked(file_priv, i);
-
-	mutex_unlock(&file_priv->lock);
 }
 
 /*
@@ -161,15 +159,13 @@ void ivpu_cmdq_reset_all_contexts(struct ivpu_device *vdev)
 	struct ivpu_file_priv *file_priv;
 	unsigned long ctx_id;
 
-	xa_for_each(&vdev->context_xa, ctx_id, file_priv) {
-		file_priv = ivpu_file_priv_get_by_ctx_id(vdev, ctx_id);
-		if (!file_priv)
-			continue;
+	mutex_lock(&vdev->context_list_lock);
 
+	xa_for_each(&vdev->context_xa, ctx_id, file_priv)
 		ivpu_cmdq_reset_all(file_priv);
 
-		ivpu_file_priv_put(&file_priv);
-	}
+	mutex_unlock(&vdev->context_list_lock);
+
 }
 
 static int ivpu_cmdq_push_job(struct ivpu_cmdq *cmdq, struct ivpu_job *job)

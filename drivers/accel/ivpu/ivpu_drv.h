@@ -115,6 +115,7 @@ struct ivpu_device {
 
 	struct ivpu_mmu_context gctx;
 	struct ivpu_mmu_context rctx;
+	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
 
@@ -147,6 +148,7 @@ struct ivpu_file_priv {
 	struct ivpu_cmdq *cmdq[IVPU_NUM_ENGINES];
 	struct ivpu_mmu_context ctx;
 	bool has_mmu_faults;
+	bool bound;
 };
 
 extern int ivpu_dbg_mask;
@@ -162,7 +164,6 @@ extern bool ivpu_disable_mmu_cont_pages;
 extern int ivpu_test_mode;
 
 struct ivpu_file_priv *ivpu_file_priv_get(struct ivpu_file_priv *file_priv);
-struct ivpu_file_priv *ivpu_file_priv_get_by_ctx_id(struct ivpu_device *vdev, unsigned long id);
 void ivpu_file_priv_put(struct ivpu_file_priv **link);
 
 int ivpu_boot(struct ivpu_device *vdev);

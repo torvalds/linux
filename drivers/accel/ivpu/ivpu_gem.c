@@ -77,7 +77,10 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 		       const struct ivpu_addr_range *range)
 {
 	struct ivpu_device *vdev = ivpu_bo_to_vdev(bo);
-	int ret;
+	int idx, ret;
+
+	if (!drm_dev_enter(&vdev->drm, &idx))
+		return -ENODEV;
 
 	mutex_lock(&bo->lock);
 
@@ -92,6 +95,8 @@ ivpu_bo_alloc_vpu_addr(struct ivpu_bo *bo, struct ivpu_mmu_context *ctx,
 	ivpu_dbg_bo(vdev, bo, "alloc");
 
 	mutex_unlock(&bo->lock);
+
+	drm_dev_exit(idx);
 
 	return ret;
 }
@@ -128,14 +133,7 @@ static void ivpu_bo_unbind_locked(struct ivpu_bo *bo)
 	dma_resv_unlock(bo->base.base.resv);
 }
 
-static void ivpu_bo_unbind(struct ivpu_bo *bo)
-{
-	mutex_lock(&bo->lock);
-	ivpu_bo_unbind_locked(bo);
-	mutex_unlock(&bo->lock);
-}
-
-void ivpu_bo_remove_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx)
+void ivpu_bo_unbind_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx)
 {
 	struct ivpu_bo *bo;
 
@@ -239,7 +237,7 @@ static void ivpu_bo_free(struct drm_gem_object *obj)
 
 	drm_WARN_ON(&vdev->drm, !dma_resv_test_signaled(obj->resv, DMA_RESV_USAGE_READ));
 
-	ivpu_bo_unbind(bo);
+	ivpu_bo_unbind_locked(bo);
 	mutex_destroy(&bo->lock);
 
 	drm_WARN_ON(obj->dev, bo->base.pages_use_count > 1);
