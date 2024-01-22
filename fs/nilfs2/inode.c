@@ -759,8 +759,18 @@ struct inode *nilfs_iget_for_shadow(struct inode *inode)
 	return s_inode;
 }
 
+/**
+ * nilfs_write_inode_common - export common inode information to on-disk inode
+ * @inode:     inode object
+ * @raw_inode: on-disk inode
+ *
+ * This function writes standard information from the on-memory inode @inode
+ * to @raw_inode on ifile, cpfile or a super root block.  Since inode bmap
+ * data is not exported, nilfs_bmap_write() must be called separately during
+ * log writing.
+ */
 void nilfs_write_inode_common(struct inode *inode,
-			      struct nilfs_inode *raw_inode, int has_bmap)
+			      struct nilfs_inode *raw_inode)
 {
 	struct nilfs_inode_info *ii = NILFS_I(inode);
 
@@ -778,21 +788,6 @@ void nilfs_write_inode_common(struct inode *inode,
 	raw_inode->i_flags = cpu_to_le32(ii->i_flags);
 	raw_inode->i_generation = cpu_to_le32(inode->i_generation);
 
-	if (NILFS_ROOT_METADATA_FILE(inode->i_ino)) {
-		struct the_nilfs *nilfs = inode->i_sb->s_fs_info;
-
-		/* zero-fill unused portion in the case of super root block */
-		raw_inode->i_xattr = 0;
-		raw_inode->i_pad = 0;
-		memset((void *)raw_inode + sizeof(*raw_inode), 0,
-		       nilfs->ns_inode_size - sizeof(*raw_inode));
-	}
-
-	if (has_bmap)
-		nilfs_bmap_write(ii->i_bmap, raw_inode);
-	else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
-		raw_inode->i_device_code =
-			cpu_to_le64(huge_encode_dev(inode->i_rdev));
 	/*
 	 * When extending inode, nilfs->ns_inode_size should be checked
 	 * for substitutions of appended fields.
@@ -813,12 +808,11 @@ void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh, int flags)
 	if (flags & I_DIRTY_DATASYNC)
 		set_bit(NILFS_I_INODE_SYNC, &ii->i_state);
 
-	nilfs_write_inode_common(inode, raw_inode, 0);
-		/*
-		 * XXX: call with has_bmap = 0 is a workaround to avoid
-		 * deadlock of bmap.  This delays update of i_bmap to just
-		 * before writing.
-		 */
+	nilfs_write_inode_common(inode, raw_inode);
+
+	if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode))
+		raw_inode->i_device_code =
+			cpu_to_le64(huge_encode_dev(inode->i_rdev));
 
 	nilfs_ifile_unmap_inode(ifile, ino, ibh);
 }
