@@ -102,6 +102,15 @@
 		};
 	};
 
+	d1_8v: regulator-d1-8v {
+		compatible = "regulator-fixed";
+		regulator-name = "D1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	d3_3v: regulator-d3-3v {
 		compatible = "regulator-fixed";
 		regulator-name = "D3.3V";
@@ -225,7 +234,7 @@
 	/*
 	 * A fallback to GPIO is provided for I2C1.
 	 */
-	i2chdmi: i2c-10 {
+	i2chdmi: i2c-mux1 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c1>, <&gpioi2c1>;
 		i2c-bus-name = "i2c-hdmi";
@@ -255,6 +264,12 @@
 			reg = <0x39>;
 			interrupt-parent = <&gpio5>;
 			interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+
+			avdd-supply = <&d1_8v>;
+			dvdd-supply = <&d1_8v>;
+			pvdd-supply = <&d1_8v>;
+			dvdd-3v-supply = <&d3_3v>;
+			bgvdd-supply = <&d1_8v>;
 
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";

@@ -18,6 +18,7 @@
 #include <linux/nvme-keyring.h>
 #include <crypto/hash.h>
 #include <crypto/kpp.h>
+#include <linux/nospec.h>
 
 #include "nvmet.h"
 
@@ -621,6 +622,7 @@ static ssize_t nvmet_ns_ana_grpid_store(struct config_item *item,
 
 	down_write(&nvmet_ana_sem);
 	oldgrpid = ns->anagrpid;
+	newgrpid = array_index_nospec(newgrpid, NVMET_MAX_ANAGRPS);
 	nvmet_ana_group_enabled[newgrpid]++;
 	ns->anagrpid = newgrpid;
 	nvmet_ana_group_enabled[oldgrpid]--;
@@ -1274,7 +1276,7 @@ static ssize_t nvmet_subsys_attr_cntlid_min_store(struct config_item *item,
 		return -EINVAL;
 
 	down_write(&nvmet_config_sem);
-	if (cntlid_min >= to_subsys(item)->cntlid_max)
+	if (cntlid_min > to_subsys(item)->cntlid_max)
 		goto out_unlock;
 	to_subsys(item)->cntlid_min = cntlid_min;
 	up_write(&nvmet_config_sem);
@@ -1304,7 +1306,7 @@ static ssize_t nvmet_subsys_attr_cntlid_max_store(struct config_item *item,
 		return -EINVAL;
 
 	down_write(&nvmet_config_sem);
-	if (cntlid_max <= to_subsys(item)->cntlid_min)
+	if (cntlid_max < to_subsys(item)->cntlid_min)
 		goto out_unlock;
 	to_subsys(item)->cntlid_max = cntlid_max;
 	up_write(&nvmet_config_sem);
@@ -1812,6 +1814,7 @@ static struct config_group *nvmet_ana_groups_make_group(
 	grp->grpid = grpid;
 
 	down_write(&nvmet_ana_sem);
+	grpid = array_index_nospec(grpid, NVMET_MAX_ANAGRPS);
 	nvmet_ana_group_enabled[grpid]++;
 	up_write(&nvmet_ana_sem);
 
@@ -1893,7 +1896,7 @@ static struct config_group *nvmet_ports_make(struct config_group *group,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	if (nvme_keyring_id()) {
+	if (IS_ENABLED(CONFIG_NVME_TARGET_TCP_TLS) && nvme_keyring_id()) {
 		port->keyring = key_lookup(nvme_keyring_id());
 		if (IS_ERR(port->keyring)) {
 			pr_warn("NVMe keyring not available, disabling TLS\n");

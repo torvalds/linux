@@ -1696,7 +1696,7 @@ static int qcom_geni_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int qcom_geni_serial_remove(struct platform_device *pdev)
+static void qcom_geni_serial_remove(struct platform_device *pdev)
 {
 	struct qcom_geni_serial_port *port = platform_get_drvdata(pdev);
 	struct uart_driver *drv = port->private_data.drv;
@@ -1704,8 +1704,6 @@ static int qcom_geni_serial_remove(struct platform_device *pdev)
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
 	uart_remove_one_port(drv, &port->uport);
-
-	return 0;
 }
 
 static int qcom_geni_serial_sys_suspend(struct device *dev)
@@ -1805,7 +1803,7 @@ static const struct of_device_id qcom_geni_serial_match_table[] = {
 MODULE_DEVICE_TABLE(of, qcom_geni_serial_match_table);
 
 static struct platform_driver qcom_geni_serial_platform_driver = {
-	.remove = qcom_geni_serial_remove,
+	.remove_new = qcom_geni_serial_remove,
 	.probe = qcom_geni_serial_probe,
 	.driver = {
 		.name = "qcom_geni_serial",

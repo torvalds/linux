@@ -71,11 +71,12 @@ static const char *config_name(struct vcpu_reg_list *c)
 	for_each_sublist(c, s) {
 		if (!strcmp(s->name, "base"))
 			continue;
-		strcat(c->name + len, s->name);
-		len += strlen(s->name) + 1;
-		c->name[len - 1] = '+';
+		if (len)
+			c->name[len++] = '+';
+		strcpy(c->name + len, s->name);
+		len += strlen(s->name);
 	}
-	c->name[len - 1] = '\0';
+	c->name[len] = '\0';
 
 	return c->name;
 }

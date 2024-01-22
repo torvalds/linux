@@ -782,16 +782,13 @@ out:
 }
 
 static int bcm_ptp_hwtstamp(struct mii_timestamper *mii_ts,
-			    struct ifreq *ifr)
+			    struct kernel_hwtstamp_config *cfg,
+			    struct netlink_ext_ack *extack)
 {
 	struct bcm_ptp_private *priv = mii2priv(mii_ts);
-	struct hwtstamp_config cfg;
 	u16 mode, ctrl;
 
-	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
-		return -EFAULT;
-
-	switch (cfg.rx_filter) {
+	switch (cfg->rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		priv->hwts_rx = false;
 		break;
@@ -804,14 +801,14 @@ static int bcm_ptp_hwtstamp(struct mii_timestamper *mii_ts,
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_SYNC:
 	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
-		cfg.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
+		cfg->rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		priv->hwts_rx = true;
 		break;
 	default:
 		return -ERANGE;
 	}
 
-	priv->tx_type = cfg.tx_type;
+	priv->tx_type = cfg->tx_type;
 
 	ctrl  = priv->hwts_rx ? SLICE_RX_EN : 0;
 	ctrl |= priv->tx_type != HWTSTAMP_TX_OFF ? SLICE_TX_EN : 0;
@@ -840,7 +837,7 @@ static int bcm_ptp_hwtstamp(struct mii_timestamper *mii_ts,
 	/* purge existing data */
 	skb_queue_purge(&priv->tx_queue);
 
-	return copy_to_user(ifr->ifr_data, &cfg, sizeof(cfg)) ? -EFAULT : 0;
+	return 0;
 }
 
 static int bcm_ptp_ts_info(struct mii_timestamper *mii_ts,

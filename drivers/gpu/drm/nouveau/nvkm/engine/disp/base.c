@@ -209,7 +209,7 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 		nvkm_head_del(&head);
 	}
 
-	if (disp->func->dtor)
+	if (disp->func && disp->func->dtor)
 		disp->func->dtor(disp);
 
 	return data;
@@ -243,8 +243,10 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	spin_lock_init(&disp->client.lock);
 
 	ret = nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
-	if (ret)
+	if (ret) {
+		disp->func = NULL;
 		return ret;
+	}
 
 	if (func->super) {
 		disp->super.wq = create_singlethread_workqueue("nvkm-disp");

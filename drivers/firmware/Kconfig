@@ -28,15 +28,6 @@ config ARM_SCPI_PROTOCOL
 	  This protocol library provides interface for all the client drivers
 	  making use of the features offered by the SCP.
 
-config ARM_SCPI_POWER_DOMAIN
-	tristate "SCPI power domain driver"
-	depends on ARM_SCPI_PROTOCOL || (COMPILE_TEST && OF)
-	default y
-	select PM_GENERIC_DOMAINS if PM
-	help
-	  This enables support for the SCPI power domains which can be
-	  enabled or disabled via the SCP firmware
-
 config ARM_SDE_INTERFACE
 	bool "ARM Software Delegated Exception Interface (SDEI)"
 	depends on ARM64
@@ -131,7 +122,7 @@ config RASPBERRYPI_FIRMWARE
 
 config FW_CFG_SYSFS
 	tristate "QEMU fw_cfg device support in sysfs"
-	depends on SYSFS && (ARM || ARM64 || PARISC || PPC_PMAC || SPARC || X86)
+	depends on SYSFS && (ARM || ARM64 || PARISC || PPC_PMAC || RISCV || SPARC || X86)
 	depends on HAS_IOPORT_MAP
 	default n
 	help
@@ -272,6 +263,7 @@ source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"
 source "drivers/firmware/imx/Kconfig"
 source "drivers/firmware/meson/Kconfig"
+source "drivers/firmware/microchip/Kconfig"
 source "drivers/firmware/psci/Kconfig"
 source "drivers/firmware/qcom/Kconfig"
 source "drivers/firmware/smccc/Kconfig"

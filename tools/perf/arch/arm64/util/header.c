@@ -57,7 +57,7 @@ static int _get_cpuid(char *buf, size_t sz, struct perf_cpu_map *cpus)
 
 int get_cpuid(char *buf, size_t sz)
 {
-	struct perf_cpu_map *cpus = perf_cpu_map__new(NULL);
+	struct perf_cpu_map *cpus = perf_cpu_map__new_online_cpus();
 	int ret;
 
 	if (!cpus)

@@ -2836,12 +2836,11 @@ static void dmz_print_dev(struct dmz_metadata *zmd, int num)
 {
 	struct dmz_dev *dev = &zmd->dev[num];
 
-	if (bdev_zoned_model(dev->bdev) == BLK_ZONED_NONE)
+	if (!bdev_is_zoned(dev->bdev))
 		dmz_dev_info(dev, "Regular block device");
 	else
-		dmz_dev_info(dev, "Host-%s zoned block device",
-			     bdev_zoned_model(dev->bdev) == BLK_ZONED_HA ?
-			     "aware" : "managed");
+		dmz_dev_info(dev, "Host-managed zoned block device");
+
 	if (zmd->sb_version > 1) {
 		sector_t sector_offset =
 			dev->zone_offset << zmd->zone_nr_sectors_shift;

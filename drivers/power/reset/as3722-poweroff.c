@@ -61,13 +61,11 @@ static int as3722_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int as3722_poweroff_remove(struct platform_device *pdev)
+static void as3722_poweroff_remove(struct platform_device *pdev)
 {
 	if (pm_power_off == as3722_pm_power_off)
 		pm_power_off = NULL;
 	as3722_pm_poweroff = NULL;
-
-	return 0;
 }
 
 static struct platform_driver as3722_poweroff_driver = {
@@ -75,7 +73,7 @@ static struct platform_driver as3722_poweroff_driver = {
 		.name = "as3722-power-off",
 	},
 	.probe = as3722_poweroff_probe,
-	.remove = as3722_poweroff_remove,
+	.remove_new = as3722_poweroff_remove,
 };
 
 module_platform_driver(as3722_poweroff_driver);

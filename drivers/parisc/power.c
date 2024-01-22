@@ -176,7 +176,7 @@ static struct notifier_block parisc_panic_block = {
 static int qemu_power_off(struct sys_off_data *data)
 {
 	/* this turns the system off via SeaBIOS */
-	*(int *)data->cb_data = 0;
+	gsc_writel(0, (unsigned long) data->cb_data);
 	pdc_soft_power_button(1);
 	return NOTIFY_DONE;
 }
@@ -213,7 +213,7 @@ static int __init power_init(void)
 	if (running_on_qemu && soft_power_reg)
 		register_sys_off_handler(SYS_OFF_MODE_POWER_OFF, SYS_OFF_PRIO_DEFAULT,
 					qemu_power_off, (void *)soft_power_reg);
-	else
+	if (!running_on_qemu || soft_power_reg)
 		power_task = kthread_run(kpowerswd, (void*)soft_power_reg,
 					KTHREAD_NAME);
 	if (IS_ERR(power_task)) {

@@ -2338,6 +2338,8 @@ void rcu_force_quiescent_state(void)
 	struct rcu_node *rnp;
 	struct rcu_node *rnp_old = NULL;
 
+	if (!rcu_gp_in_progress())
+		return;
 	/* Funnel through hierarchy to reduce memory contention. */
 	rnp = raw_cpu_read(rcu_data.mynode);
 	for (; rnp != NULL; rnp = rnp->parent) {

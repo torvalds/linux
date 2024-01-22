@@ -441,6 +441,7 @@ int of_property_read_string(const struct device_node *np, const char *propname,
 				const char **out_string)
 {
 	const struct property *prop = of_find_property(np, propname, NULL);
+
 	if (!prop)
 		return -EINVAL;
 	if (!prop->length)
@@ -1217,9 +1218,9 @@ static struct device_node *parse_##fname(struct device_node *np,	     \
  *
  * @parse_prop: function name
  *	parse_prop() finds the node corresponding to a supplier phandle
- * @parse_prop.np: Pointer to device node holding supplier phandle property
- * @parse_prop.prop_name: Name of property holding a phandle value
- * @parse_prop.index: For properties holding a list of phandles, this is the
+ *  parse_prop.np: Pointer to device node holding supplier phandle property
+ *  parse_prop.prop_name: Name of property holding a phandle value
+ *  parse_prop.index: For properties holding a list of phandles, this is the
  *		      index into the list
  * @optional: Describes whether a supplier is mandatory or not
  * @node_not_dev: The consumer node containing the property is never converted

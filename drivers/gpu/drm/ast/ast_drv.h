@@ -98,6 +98,12 @@ enum ast_tx_chip {
 #define AST_TX_DP501_BIT	BIT(AST_TX_DP501)
 #define AST_TX_ASTDP_BIT	BIT(AST_TX_ASTDP)
 
+enum ast_config_mode {
+	ast_use_p2a,
+	ast_use_dt,
+	ast_use_defaults
+};
+
 #define AST_DRAM_512Mx16 0
 #define AST_DRAM_1Gx16   1
 #define AST_DRAM_512Mx32 2
@@ -192,12 +198,13 @@ to_ast_bmc_connector(struct drm_connector *connector)
 struct ast_device {
 	struct drm_device base;
 
-	struct mutex ioregs_lock; /* Protects access to I/O registers in ioregs */
 	void __iomem *regs;
 	void __iomem *ioregs;
 	void __iomem *dp501_fw_buf;
 
+	enum ast_config_mode config_mode;
 	enum ast_chip chip;
+
 	uint32_t dram_bus_width;
 	uint32_t dram_type;
 	uint32_t mclk;
@@ -206,6 +213,8 @@ struct ast_device {
 	unsigned long	vram_base;
 	unsigned long	vram_size;
 	unsigned long	vram_fb_available;
+
+	struct mutex modeset_lock; /* Protects access to modeset I/O registers in ioregs */
 
 	struct ast_plane primary_plane;
 	struct ast_plane cursor_plane;
@@ -234,11 +243,6 @@ struct ast_device {
 	} output;
 
 	bool support_wide_screen;
-	enum {
-		ast_use_p2a,
-		ast_use_dt,
-		ast_use_defaults
-	} config_mode;
 
 	unsigned long tx_chip_types;		/* bitfield of enum ast_chip_type */
 	u8 *dp501_fw_addr;
@@ -250,9 +254,13 @@ static inline struct ast_device *to_ast_device(struct drm_device *dev)
 	return container_of(dev, struct ast_device, base);
 }
 
-struct ast_device *ast_device_create(const struct drm_driver *drv,
-				     struct pci_dev *pdev,
-				     unsigned long flags);
+struct drm_device *ast_device_create(struct pci_dev *pdev,
+				     const struct drm_driver *drv,
+				     enum ast_chip chip,
+				     enum ast_config_mode config_mode,
+				     void __iomem *regs,
+				     void __iomem *ioregs,
+				     bool need_post);
 
 static inline unsigned long __ast_gen(struct ast_device *ast)
 {
@@ -272,55 +280,94 @@ static inline bool __ast_gen_is_eq(struct ast_device *ast, unsigned long gen)
 #define IS_AST_GEN6(__ast)	__ast_gen_is_eq(__ast, 6)
 #define IS_AST_GEN7(__ast)	__ast_gen_is_eq(__ast, 7)
 
+static inline u8 __ast_read8(const void __iomem *addr, u32 reg)
+{
+	return ioread8(addr + reg);
+}
+
+static inline u32 __ast_read32(const void __iomem *addr, u32 reg)
+{
+	return ioread32(addr + reg);
+}
+
+static inline void __ast_write8(void __iomem *addr, u32 reg, u8 val)
+{
+	iowrite8(val, addr + reg);
+}
+
+static inline void __ast_write32(void __iomem *addr, u32 reg, u32 val)
+{
+	iowrite32(val, addr + reg);
+}
+
+static inline u8 __ast_read8_i(void __iomem *addr, u32 reg, u8 index)
+{
+	__ast_write8(addr, reg, index);
+	return __ast_read8(addr, reg + 1);
+}
+
+static inline u8 __ast_read8_i_masked(void __iomem *addr, u32 reg, u8 index, u8 read_mask)
+{
+	u8 val = __ast_read8_i(addr, reg, index);
+
+	return val & read_mask;
+}
+
+static inline void __ast_write8_i(void __iomem *addr, u32 reg, u8 index, u8 val)
+{
+	__ast_write8(addr, reg, index);
+	__ast_write8(addr, reg + 1, val);
+}
+
+static inline void __ast_write8_i_masked(void __iomem *addr, u32 reg, u8 index, u8 read_mask,
+					 u8 val)
+{
+	u8 tmp = __ast_read8_i_masked(addr, reg, index, read_mask);
+
+	tmp |= val;
+	__ast_write8_i(addr, reg, index, tmp);
+}
+
 static inline u32 ast_read32(struct ast_device *ast, u32 reg)
 {
-	return ioread32(ast->regs + reg);
+	return __ast_read32(ast->regs, reg);
 }
 
 static inline void ast_write32(struct ast_device *ast, u32 reg, u32 val)
 {
-	iowrite32(val, ast->regs + reg);
+	__ast_write32(ast->regs, reg, val);
 }
 
 static inline u8 ast_io_read8(struct ast_device *ast, u32 reg)
 {
-	return ioread8(ast->ioregs + reg);
+	return __ast_read8(ast->ioregs, reg);
 }
 
 static inline void ast_io_write8(struct ast_device *ast, u32 reg, u8 val)
 {
-	iowrite8(val, ast->ioregs + reg);
+	__ast_write8(ast->ioregs, reg, val);
 }
 
 static inline u8 ast_get_index_reg(struct ast_device *ast, u32 base, u8 index)
 {
-	ast_io_write8(ast, base, index);
-	++base;
-	return ast_io_read8(ast, base);
+	return __ast_read8_i(ast->ioregs, base, index);
 }
 
 static inline u8 ast_get_index_reg_mask(struct ast_device *ast, u32 base, u8 index,
 					u8 preserve_mask)
 {
-	u8 val = ast_get_index_reg(ast, base, index);
-
-	return val & preserve_mask;
+	return __ast_read8_i_masked(ast->ioregs, base, index, preserve_mask);
 }
 
 static inline void ast_set_index_reg(struct ast_device *ast, u32 base, u8 index, u8 val)
 {
-	ast_io_write8(ast, base, index);
-	++base;
-	ast_io_write8(ast, base, val);
+	__ast_write8_i(ast->ioregs, base, index, val);
 }
 
 static inline void ast_set_index_reg_mask(struct ast_device *ast, u32 base, u8 index,
 					  u8 preserve_mask, u8 val)
 {
-	u8 tmp = ast_get_index_reg_mask(ast, base, index, preserve_mask);
-
-	tmp |= val;
-	ast_set_index_reg(ast, base, index, tmp);
+	__ast_write8_i_masked(ast->ioregs, base, index, preserve_mask, val);
 }
 
 #define AST_VIDMEM_SIZE_8M    0x00800000
@@ -442,7 +489,7 @@ int ast_mm_init(struct ast_device *ast);
 void ast_post_gpu(struct drm_device *dev);
 u32 ast_mindwm(struct ast_device *ast, u32 r);
 void ast_moutdwm(struct ast_device *ast, u32 r, u32 v);
-void ast_patch_ahb_2500(struct ast_device *ast);
+void ast_patch_ahb_2500(void __iomem *regs);
 /* ast dp501 */
 void ast_set_dp501_video_output(struct drm_device *dev, u8 mode);
 bool ast_backup_fw(struct drm_device *dev, u8 *addr, u32 size);

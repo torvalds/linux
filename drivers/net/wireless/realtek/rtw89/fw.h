@@ -1685,6 +1685,12 @@ static inline void SET_JOININFO_SELF_ROLE(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(31, 30));
 }
 
+struct rtw89_h2c_notify_dbcc {
+	__le32 w0;
+} __packed;
+
+#define RTW89_H2C_NOTIFY_DBCC_EN BIT(0)
+
 static inline void SET_GENERAL_PKT_MACID(void *h2c, u32 val)
 {
 	le32p_replace_bits((__le32 *)h2c, val, GENMASK(7, 0));
@@ -3426,6 +3432,8 @@ enum rtw89_fw_element_id {
 	RTW89_FW_ELEMENT_ID_TXPWR_LMT_RU_6GHZ = 15,
 	RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT = 16,
 	RTW89_FW_ELEMENT_ID_TX_SHAPE_LMT_RU = 17,
+	RTW89_FW_ELEMENT_ID_TXPWR_TRK = 18,
+	RTW89_FW_ELEMENT_ID_RFKLOG_FMT = 19,
 
 	RTW89_FW_ELEMENT_ID_NUM,
 };
@@ -3446,6 +3454,7 @@ enum rtw89_fw_element_id {
 					     BIT(RTW89_FW_ELEMENT_ID_RADIO_A) | \
 					     BIT(RTW89_FW_ELEMENT_ID_RADIO_B) | \
 					     BIT(RTW89_FW_ELEMENT_ID_RF_NCTL) | \
+					     BIT(RTW89_FW_ELEMENT_ID_TXPWR_TRK) | \
 					     BITS_OF_RTW89_TXPWR_FW_ELEMENTS)
 
 struct __rtw89_fw_txpwr_element {
@@ -3456,6 +3465,59 @@ struct __rtw89_fw_txpwr_element {
 	__le32 num_ents;
 	u8 content[];
 } __packed;
+
+enum rtw89_fw_txpwr_trk_type {
+	__RTW89_FW_TXPWR_TRK_TYPE_6GHZ_START = 0,
+	RTW89_FW_TXPWR_TRK_TYPE_6GB_N = 0,
+	RTW89_FW_TXPWR_TRK_TYPE_6GB_P = 1,
+	RTW89_FW_TXPWR_TRK_TYPE_6GA_N = 2,
+	RTW89_FW_TXPWR_TRK_TYPE_6GA_P = 3,
+	__RTW89_FW_TXPWR_TRK_TYPE_6GHZ_MAX = 3,
+
+	__RTW89_FW_TXPWR_TRK_TYPE_5GHZ_START = 4,
+	RTW89_FW_TXPWR_TRK_TYPE_5GB_N = 4,
+	RTW89_FW_TXPWR_TRK_TYPE_5GB_P = 5,
+	RTW89_FW_TXPWR_TRK_TYPE_5GA_N = 6,
+	RTW89_FW_TXPWR_TRK_TYPE_5GA_P = 7,
+	__RTW89_FW_TXPWR_TRK_TYPE_5GHZ_MAX = 7,
+
+	__RTW89_FW_TXPWR_TRK_TYPE_2GHZ_START = 8,
+	RTW89_FW_TXPWR_TRK_TYPE_2GB_N = 8,
+	RTW89_FW_TXPWR_TRK_TYPE_2GB_P = 9,
+	RTW89_FW_TXPWR_TRK_TYPE_2GA_N = 10,
+	RTW89_FW_TXPWR_TRK_TYPE_2GA_P = 11,
+	RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_N = 12,
+	RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_P = 13,
+	RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_N = 14,
+	RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_P = 15,
+	__RTW89_FW_TXPWR_TRK_TYPE_2GHZ_MAX = 15,
+
+	RTW89_FW_TXPWR_TRK_TYPE_NR,
+};
+
+struct rtw89_fw_txpwr_track_cfg {
+	const s8 (*delta[RTW89_FW_TXPWR_TRK_TYPE_NR])[DELTA_SWINGIDX_SIZE];
+};
+
+#define RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_6GHZ \
+	(BIT(RTW89_FW_TXPWR_TRK_TYPE_6GB_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_6GB_P) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_6GA_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_6GA_P))
+#define RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_5GHZ \
+	(BIT(RTW89_FW_TXPWR_TRK_TYPE_5GB_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_5GB_P) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_5GA_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_5GA_P))
+#define RTW89_DEFAULT_NEEDED_FW_TXPWR_TRK_2GHZ \
+	(BIT(RTW89_FW_TXPWR_TRK_TYPE_2GB_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2GB_P) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2GA_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2GA_P) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_B_P) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_N) | \
+	 BIT(RTW89_FW_TXPWR_TRK_TYPE_2G_CCK_A_P))
 
 struct rtw89_fw_element_hdr {
 	__le32 id; /* enum rtw89_fw_element_id */
@@ -3477,6 +3539,23 @@ struct rtw89_fw_element_hdr {
 				__le32 data;
 			} __packed regs[];
 		} __packed reg2;
+		struct {
+			u8 cv;
+			u8 priv[7];
+			u8 contents[];
+		} __packed bbmcu;
+		struct {
+			__le32 bitmap; /* bitmap of enum rtw89_fw_txpwr_trk_type */
+			__le32 rsvd;
+			s8 contents[][DELTA_SWINGIDX_SIZE];
+		} __packed txpwr_trk;
+		struct {
+			u8 nr;
+			u8 rsvd[3];
+			u8 rfk_id; /* enum rtw89_phy_c2h_rfk_log_func */
+			u8 rsvd1[3];
+			__le16 offset[];
+		} __packed rfk_log_fmt;
 		struct __rtw89_fw_txpwr_element txpwr;
 	} __packed u;
 } __packed;
@@ -3577,6 +3656,7 @@ struct rtw89_fw_h2c_rf_reg_info {
 #define H2C_CL_MAC_MEDIA_RPT		0x8
 #define H2C_FUNC_MAC_JOININFO		0x0
 #define H2C_FUNC_MAC_FWROLE_MAINTAIN	0x4
+#define H2C_FUNC_NOTIFY_DBCC		0x5
 
 /* CLASS 9 - FW offload */
 #define H2C_CL_MAC_FW_OFLD		0x9
@@ -3649,9 +3729,78 @@ struct rtw89_fw_h2c_rf_get_mccch {
 	__le32 current_band_type;
 } __packed;
 
-#define RTW89_FW_RSVD_PLE_SIZE 0x800
+enum rtw89_rf_log_type {
+	RTW89_RF_RUN_LOG = 0,
+	RTW89_RF_RPT_LOG = 1,
+};
 
-#define RTW89_WCPU_BASE_MASK GENMASK(27, 0)
+struct rtw89_c2h_rf_log_hdr {
+	u8 type; /* enum rtw89_rf_log_type */
+	__le16 len;
+	u8 content[];
+} __packed;
+
+struct rtw89_c2h_rf_run_log {
+	__le32 fmt_idx;
+	__le32 arg[4];
+} __packed;
+
+struct rtw89_c2h_rf_dpk_rpt_log {
+	u8 ver;
+	u8 idx[2];
+	u8 band[2];
+	u8 bw[2];
+	u8 ch[2];
+	u8 path_ok[2];
+	u8 txagc[2];
+	u8 ther[2];
+	u8 gs[2];
+	u8 dc_i[4];
+	u8 dc_q[4];
+	u8 corr_val[2];
+	u8 corr_idx[2];
+	u8 is_timeout[2];
+	u8 rxbb_ov[2];
+	u8 rsvd;
+} __packed;
+
+struct rtw89_c2h_rf_dack_rpt_log {
+	u8 fwdack_ver;
+	u8 fwdack_rpt_ver;
+	u8 msbk_d[2][2][16];
+	u8 dadck_d[2][2];
+	u8 cdack_d[2][2][2];
+	__le16 addck2_d[2][2][2];
+	u8 adgaink_d[2][2];
+	__le16 biask_d[2][2];
+	u8 addck_timeout;
+	u8 cdack_timeout;
+	u8 dadck_timeout;
+	u8 msbk_timeout;
+	u8 adgaink_timeout;
+	u8 dack_fail;
+} __packed;
+
+struct rtw89_c2h_rf_rxdck_rpt_log {
+	u8 ver;
+	u8 band[2];
+	u8 bw[2];
+	u8 ch[2];
+	u8 timeout[2];
+} __packed;
+
+struct rtw89_c2h_rf_txgapk_rpt_log {
+	__le32 r0x8010[2];
+	__le32 chk_cnt;
+	u8 track_d[2][17];
+	u8 power_d[2][17];
+	u8 is_txgapk_ok;
+	u8 chk_id;
+	u8 ver;
+	u8 rsv1;
+} __packed;
+
+#define RTW89_FW_RSVD_PLE_SIZE 0x800
 
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8
 #define RTW89_VALID_FW_BACKTRACE_SIZE(_size) \
@@ -3704,6 +3853,7 @@ int rtw89_fw_h2c_role_maintain(struct rtw89_dev *rtwdev,
 			       enum rtw89_upd_mode upd_mode);
 int rtw89_fw_h2c_join_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 			   struct rtw89_sta *rtwsta, bool dis_conn);
+int rtw89_fw_h2c_notify_dbcc(struct rtw89_dev *rtwdev, bool en);
 int rtw89_fw_h2c_macid_pause(struct rtw89_dev *rtwdev, u8 sh, u8 grp,
 			     bool pause);
 int rtw89_fw_h2c_set_edca(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,

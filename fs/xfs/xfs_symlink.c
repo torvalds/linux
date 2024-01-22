@@ -23,6 +23,7 @@
 #include "xfs_trans.h"
 #include "xfs_ialloc.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 /* ----- Kernel only functions below ----- */
 int
@@ -108,6 +109,8 @@ xfs_readlink(
 
 	if (xfs_is_shutdown(mp))
 		return -EIO;
+	if (xfs_ifork_zapped(ip, XFS_DATA_FORK))
+		return -EIO;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 
@@ -128,10 +131,10 @@ xfs_readlink(
 		 * The VFS crashes on a NULL pointer, so return -EFSCORRUPTED
 		 * if if_data is junk.
 		 */
-		if (XFS_IS_CORRUPT(ip->i_mount, !ip->i_df.if_u1.if_data))
+		if (XFS_IS_CORRUPT(ip->i_mount, !ip->i_df.if_data))
 			goto out;
 
-		memcpy(link, ip->i_df.if_u1.if_data, pathlen + 1);
+		memcpy(link, ip->i_df.if_data, pathlen + 1);
 		error = 0;
 	} else {
 		error = xfs_readlink_bmap_ilocked(ip, link);

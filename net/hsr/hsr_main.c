@@ -167,4 +167,5 @@ static void __exit hsr_exit(void)
 
 module_init(hsr_init);
 module_exit(hsr_exit);
+MODULE_DESCRIPTION("High-availability Seamless Redundancy (HSR) driver");
 MODULE_LICENSE("GPL");

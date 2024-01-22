@@ -468,7 +468,7 @@ static void umount_one(struct mount *mnt, struct list_head *to_umount)
 	mnt->mnt.mnt_flags |= MNT_UMOUNT;
 	list_del_init(&mnt->mnt_child);
 	list_del_init(&mnt->mnt_umounting);
-	list_move_tail(&mnt->mnt_list, to_umount);
+	move_from_ns(mnt, to_umount);
 }
 
 /*

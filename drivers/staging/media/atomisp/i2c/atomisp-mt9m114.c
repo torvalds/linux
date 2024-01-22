@@ -666,7 +666,7 @@ static int mt9m114_set_fmt(struct v4l2_subdev *sd,
 	fmt->height = res->height;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *fmt;
 		return 0;
 	}
 
@@ -1388,10 +1388,18 @@ static int mt9m114_t_vflip(struct v4l2_subdev *sd, int value)
 	return !!err;
 }
 
-static int mt9m114_g_frame_interval(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_frame_interval *interval)
+static int mt9m114_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *interval)
 {
 	struct mt9m114_device *dev = to_mt9m114_sensor(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (interval->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	interval->interval.numerator = 1;
 	interval->interval.denominator = mt9m114_res[dev->res].fps;
@@ -1479,7 +1487,6 @@ static int mt9m114_g_skip_frames(struct v4l2_subdev *sd, u32 *frames)
 
 static const struct v4l2_subdev_video_ops mt9m114_video_ops = {
 	.s_stream = mt9m114_s_stream,
-	.g_frame_interval = mt9m114_g_frame_interval,
 };
 
 static const struct v4l2_subdev_sensor_ops mt9m114_sensor_ops = {
@@ -1498,6 +1505,7 @@ static const struct v4l2_subdev_pad_ops mt9m114_pad_ops = {
 	.get_fmt = mt9m114_get_fmt,
 	.set_fmt = mt9m114_set_fmt,
 	.set_selection = mt9m114_s_exposure_selection,
+	.get_frame_interval = mt9m114_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops mt9m114_ops = {

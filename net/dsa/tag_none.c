@@ -27,4 +27,5 @@ static const struct dsa_device_ops none_ops = {
 
 module_dsa_tag_driver(none_ops);
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_NONE, NONE_NAME);
+MODULE_DESCRIPTION("DSA no-op tag driver");
 MODULE_LICENSE("GPL");

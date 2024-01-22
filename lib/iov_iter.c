@@ -409,7 +409,7 @@ size_t copy_page_to_iter_nofault(struct page *page, unsigned offset, size_t byte
 		void *kaddr = kmap_local_page(page);
 		size_t n = min(bytes, (size_t)PAGE_SIZE - offset);
 
-		n = iterate_and_advance(i, bytes, kaddr,
+		n = iterate_and_advance(i, n, kaddr + offset,
 					copy_to_user_iter_nofault,
 					memcpy_to_iter);
 		kunmap_local(kaddr);
@@ -1368,19 +1368,6 @@ ssize_t import_iovec(int type, const struct iovec __user *uvec,
 			      in_compat_syscall());
 }
 EXPORT_SYMBOL(import_iovec);
-
-int import_single_range(int rw, void __user *buf, size_t len,
-		 struct iovec *iov, struct iov_iter *i)
-{
-	if (len > MAX_RW_COUNT)
-		len = MAX_RW_COUNT;
-	if (unlikely(!access_ok(buf, len)))
-		return -EFAULT;
-
-	iov_iter_ubuf(i, rw, buf, len);
-	return 0;
-}
-EXPORT_SYMBOL(import_single_range);
 
 int import_ubuf(int rw, void __user *buf, size_t len, struct iov_iter *i)
 {

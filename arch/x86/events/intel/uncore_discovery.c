@@ -125,7 +125,8 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 		       int die, bool parsed)
 {
 	struct intel_uncore_discovery_type *type;
-	unsigned int *box_offset, *ids;
+	unsigned int *ids;
+	u64 *box_offset;
 	int i;
 
 	if (!unit->ctl || !unit->ctl_offset || !unit->ctr_offset) {
@@ -153,7 +154,7 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 	if (!type)
 		return;
 
-	box_offset = kcalloc(type->num_boxes + 1, sizeof(unsigned int), GFP_KERNEL);
+	box_offset = kcalloc(type->num_boxes + 1, sizeof(u64), GFP_KERNEL);
 	if (!box_offset)
 		return;
 

@@ -152,7 +152,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 	cur_page = out_pages[*cur_out / PAGE_SIZE];
 	/* Allocate a new page */
 	if (!cur_page) {
-		cur_page = alloc_page(GFP_NOFS);
+		cur_page = btrfs_alloc_compr_page();
 		if (!cur_page)
 			return -ENOMEM;
 		out_pages[*cur_out / PAGE_SIZE] = cur_page;
@@ -178,7 +178,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 		cur_page = out_pages[*cur_out / PAGE_SIZE];
 		/* Allocate a new page */
 		if (!cur_page) {
-			cur_page = alloc_page(GFP_NOFS);
+			cur_page = btrfs_alloc_compr_page();
 			if (!cur_page)
 				return -ENOMEM;
 			out_pages[*cur_out / PAGE_SIZE] = cur_page;

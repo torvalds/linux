@@ -53,7 +53,7 @@ static void loongson_halt(void)
 	}
 }
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 
 /* 0X80000000~0X80200000 is safe */
 #define MAX_ARGS	64
@@ -158,7 +158,7 @@ static int __init mips_reboot_setup(void)
 	_machine_halt = loongson_halt;
 	pm_power_off = loongson_poweroff;
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	kexec_argv = kmalloc(KEXEC_ARGV_SIZE, GFP_KERNEL);
 	if (WARN_ON(!kexec_argv))
 		return -ENOMEM;

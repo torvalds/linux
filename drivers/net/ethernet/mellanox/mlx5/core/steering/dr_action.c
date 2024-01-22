@@ -57,7 +57,8 @@ static const char *dr_action_id_to_str(enum mlx5dr_action_type action_id)
 
 static bool mlx5dr_action_supp_fwd_fdb_multi_ft(struct mlx5_core_dev *dev)
 {
-	return (MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table_limit_regc) ||
+	return (MLX5_CAP_GEN(dev, steering_format_version) < MLX5_STEERING_FORMAT_CONNECTX_6DX ||
+		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table_limit_regc) ||
 		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table));
 }
 
@@ -1169,7 +1170,6 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   bool ignore_flow_level,
 				   u32 flow_source)
 {
-	struct mlx5dr_cmd_flow_destination_hw_info tmp_hw_dest;
 	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
 	struct mlx5dr_action **ref_actions;
 	struct mlx5dr_action *action;
@@ -1248,11 +1248,8 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 	 * one that done in the TX.
 	 * So, if one of the ft target is wire, put it at the end of the dest list.
 	 */
-	if (is_ft_wire && num_dst_ft > 1) {
-		tmp_hw_dest = hw_dests[last_dest];
-		hw_dests[last_dest] = hw_dests[num_of_dests - 1];
-		hw_dests[num_of_dests - 1] = tmp_hw_dest;
-	}
+	if (is_ft_wire && num_dst_ft > 1)
+		swap(hw_dests[last_dest], hw_dests[num_of_dests - 1]);
 
 	action = dr_action_create_generic(DR_ACTION_TYP_FT);
 	if (!action)

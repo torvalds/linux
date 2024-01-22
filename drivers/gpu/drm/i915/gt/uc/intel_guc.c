@@ -330,7 +330,7 @@ static u32 guc_ctl_wa_flags(struct intel_guc *guc)
 
 static u32 guc_ctl_devid(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 
 	return (INTEL_DEVID(i915) << 16) | INTEL_REVID(i915);
 }

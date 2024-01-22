@@ -1451,7 +1451,7 @@ udc_prime_status(struct mv_udc *udc, u8 direction, u16 status, bool empty)
 
 	req = udc->status_req;
 
-	/* fill in the reqest structure */
+	/* fill in the request structure */
 	if (empty == false) {
 		*((u16 *) req->req.buf) = cpu_to_le16(status);
 		req->req.length = 2;

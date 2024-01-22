@@ -181,6 +181,13 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return;
 
+	spin_lock_init(&i915->display.fb_tracking.lock);
+	mutex_init(&i915->display.backlight.lock);
+	mutex_init(&i915->display.audio.mutex);
+	mutex_init(&i915->display.wm.wm_mutex);
+	mutex_init(&i915->display.pps.mutex);
+	mutex_init(&i915->display.hdcp.hdcp_mutex);
+
 	intel_display_irq_init(i915);
 	intel_dkl_phy_init(i915);
 	intel_color_init_hooks(i915);
@@ -251,10 +258,6 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	ret = intel_pmdemand_init(i915);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
-
-	init_llist_head(&i915->display.atomic_helper.free_list);
-	INIT_WORK(&i915->display.atomic_helper.free_work,
-		  intel_atomic_helper_free_state_worker);
 
 	intel_init_quirks(i915);
 
@@ -422,9 +425,6 @@ void intel_display_driver_remove(struct drm_i915_private *i915)
 
 	flush_workqueue(i915->display.wq.flip);
 	flush_workqueue(i915->display.wq.modeset);
-
-	flush_work(&i915->display.atomic_helper.free_work);
-	drm_WARN_ON(&i915->drm, !llist_empty(&i915->display.atomic_helper.free_list));
 
 	/*
 	 * MST topology needs to be suspended so we don't have any calls to

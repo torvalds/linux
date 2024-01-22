@@ -119,7 +119,7 @@ static int brcmnand_bcma_nand_probe(struct platform_device *pdev)
 
 static struct platform_driver brcmnand_bcma_nand_driver = {
 	.probe			= brcmnand_bcma_nand_probe,
-	.remove			= brcmnand_remove,
+	.remove_new		= brcmnand_remove,
 	.driver = {
 		.name		= "bcma_brcmnand",
 		.pm		= &brcmnand_pm_ops,

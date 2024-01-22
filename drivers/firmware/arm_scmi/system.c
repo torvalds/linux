@@ -13,6 +13,9 @@
 #include "protocols.h"
 #include "notify.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+
 #define SCMI_SYSTEM_NUM_SOURCES		1
 
 enum scmi_system_protocol_cmd {
@@ -144,7 +147,7 @@ static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 	if (PROTOCOL_REV_MAJOR(pinfo->version) >= 0x2)
 		pinfo->graceful_timeout_supported = true;
 
-	return ph->set_priv(ph, pinfo);
+	return ph->set_priv(ph, pinfo, version);
 }
 
 static const struct scmi_protocol scmi_system = {
@@ -153,6 +156,7 @@ static const struct scmi_protocol scmi_system = {
 	.instance_init = &scmi_system_protocol_init,
 	.ops = NULL,
 	.events = &system_protocol_events,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(system, scmi_system)

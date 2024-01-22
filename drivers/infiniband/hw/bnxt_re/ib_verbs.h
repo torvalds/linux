@@ -108,6 +108,8 @@ struct bnxt_re_cq {
 	struct ib_umem		*umem;
 	struct ib_umem		*resize_umem;
 	int			resize_cqe;
+	void			*uctx_cq_page;
+	struct hlist_node	hash_entry;
 };
 
 struct bnxt_re_mr {
@@ -140,6 +142,7 @@ struct bnxt_re_ucontext {
 	void			*shpg;
 	spinlock_t		sh_lock;	/* protect shpg */
 	struct rdma_user_mmap_entry *shpage_mmap;
+	u64 cmask;
 };
 
 enum bnxt_re_mmap_flag {
@@ -148,6 +151,7 @@ enum bnxt_re_mmap_flag {
 	BNXT_RE_MMAP_WC_DB,
 	BNXT_RE_MMAP_DBR_PAGE,
 	BNXT_RE_MMAP_DBR_BAR,
+	BNXT_RE_MMAP_TOGGLE_PAGE,
 };
 
 struct bnxt_re_user_mmap_entry {
@@ -165,6 +169,12 @@ static inline u16 bnxt_re_get_swqe_size(int nsge)
 static inline u16 bnxt_re_get_rwqe_size(int nsge)
 {
 	return sizeof(struct rq_wqe_hdr) + (nsge * sizeof(struct sq_sge));
+}
+
+static inline u32 bnxt_re_init_depth(u32 ent, struct bnxt_re_ucontext *uctx)
+{
+	return uctx ? (uctx->cmask & BNXT_RE_UCNTX_CMASK_POW2_DISABLED) ?
+		ent : roundup_pow_of_two(ent) : ent;
 }
 
 int bnxt_re_query_device(struct ib_device *ibdev,

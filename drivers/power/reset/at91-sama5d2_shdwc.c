@@ -107,7 +107,7 @@ static const unsigned long long sdwc_dbc_period[] = {
 	0, 3, 32, 512, 4096, 32768,
 };
 
-static void __init at91_wakeup_status(struct platform_device *pdev)
+static void at91_wakeup_status(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 	const struct reg_config *rcfg = shdw->rcfg;
@@ -329,7 +329,7 @@ static const struct of_device_id at91_pmc_ids[] = {
 	{ /* Sentinel. */ }
 };
 
-static int __init at91_shdwc_probe(struct platform_device *pdev)
+static int at91_shdwc_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *np;
@@ -421,7 +421,7 @@ clk_disable:
 	return ret;
 }
 
-static int __exit at91_shdwc_remove(struct platform_device *pdev)
+static void at91_shdwc_remove(struct platform_device *pdev)
 {
 	struct shdwc *shdw = platform_get_drvdata(pdev);
 
@@ -437,18 +437,17 @@ static int __exit at91_shdwc_remove(struct platform_device *pdev)
 	iounmap(shdw->pmc_base);
 
 	clk_disable_unprepare(shdw->sclk);
-
-	return 0;
 }
 
 static struct platform_driver at91_shdwc_driver = {
-	.remove = __exit_p(at91_shdwc_remove),
+	.probe = at91_shdwc_probe,
+	.remove_new = at91_shdwc_remove,
 	.driver = {
 		.name = "at91-shdwc",
 		.of_match_table = at91_shdwc_of_match,
 	},
 };
-module_platform_driver_probe(at91_shdwc_driver, at91_shdwc_probe);
+module_platform_driver(at91_shdwc_driver);
 
 MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@atmel.com>");
 MODULE_DESCRIPTION("Atmel shutdown controller driver");

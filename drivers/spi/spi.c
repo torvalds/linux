@@ -612,10 +612,21 @@ static int spi_dev_check(struct device *dev, void *data)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct spi_device *new_spi = data;
+	int idx, nw_idx;
+	u8 cs, cs_nw;
 
-	if (spi->controller == new_spi->controller &&
-	    spi_get_chipselect(spi, 0) == spi_get_chipselect(new_spi, 0))
-		return -EBUSY;
+	if (spi->controller == new_spi->controller) {
+		for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+			cs = spi_get_chipselect(spi, idx);
+			for (nw_idx = 0; nw_idx < SPI_CS_CNT_MAX; nw_idx++) {
+				cs_nw = spi_get_chipselect(new_spi, nw_idx);
+				if (cs != 0xFF && cs_nw != 0xFF && cs == cs_nw) {
+					dev_err(dev, "chipselect %d already in use\n", cs_nw);
+					return -EBUSY;
+				}
+			}
+		}
+	}
 	return 0;
 }
 
@@ -629,13 +640,32 @@ static int __spi_add_device(struct spi_device *spi)
 {
 	struct spi_controller *ctlr = spi->controller;
 	struct device *dev = ctlr->dev.parent;
-	int status;
+	int status, idx, nw_idx;
+	u8 cs, nw_cs;
 
-	/* Chipselects are numbered 0..max; validate. */
-	if (spi_get_chipselect(spi, 0) >= ctlr->num_chipselect) {
-		dev_err(dev, "cs%d >= max %d\n", spi_get_chipselect(spi, 0),
-			ctlr->num_chipselect);
-		return -EINVAL;
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+		/* Chipselects are numbered 0..max; validate. */
+		cs = spi_get_chipselect(spi, idx);
+		if (cs != 0xFF && cs >= ctlr->num_chipselect) {
+			dev_err(dev, "cs%d >= max %d\n", spi_get_chipselect(spi, idx),
+				ctlr->num_chipselect);
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Make sure that multiple logical CS doesn't map to the same physical CS.
+	 * For example, spi->chip_select[0] != spi->chip_select[1] and so on.
+	 */
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+		cs = spi_get_chipselect(spi, idx);
+		for (nw_idx = idx + 1; nw_idx < SPI_CS_CNT_MAX; nw_idx++) {
+			nw_cs = spi_get_chipselect(spi, nw_idx);
+			if (cs != 0xFF && nw_cs != 0xFF && cs == nw_cs) {
+				dev_err(dev, "chipselect %d already in use\n", nw_cs);
+				return -EBUSY;
+			}
+		}
 	}
 
 	/* Set the bus ID string */
@@ -647,11 +677,8 @@ static int __spi_add_device(struct spi_device *spi)
 	 * its configuration.
 	 */
 	status = bus_for_each_dev(&spi_bus_type, NULL, spi, spi_dev_check);
-	if (status) {
-		dev_err(dev, "chipselect %d already in use\n",
-				spi_get_chipselect(spi, 0));
+	if (status)
 		return status;
-	}
 
 	/* Controller may unregister concurrently */
 	if (IS_ENABLED(CONFIG_SPI_DYNAMIC) &&
@@ -659,8 +686,15 @@ static int __spi_add_device(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	if (ctlr->cs_gpiods)
-		spi_set_csgpiod(spi, 0, ctlr->cs_gpiods[spi_get_chipselect(spi, 0)]);
+	if (ctlr->cs_gpiods) {
+		u8 cs;
+
+		for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+			cs = spi_get_chipselect(spi, idx);
+			if (cs != 0xFF)
+				spi_set_csgpiod(spi, idx, ctlr->cs_gpiods[cs]);
+		}
+	}
 
 	/*
 	 * Drivers may modify this initial i/o setup, but will
@@ -701,6 +735,9 @@ int spi_add_device(struct spi_device *spi)
 	struct spi_controller *ctlr = spi->controller;
 	int status;
 
+	/* Set the bus ID string */
+	spi_dev_set_name(spi);
+
 	mutex_lock(&ctlr->add_lock);
 	status = __spi_add_device(spi);
 	mutex_unlock(&ctlr->add_lock);
@@ -727,6 +764,7 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 {
 	struct spi_device	*proxy;
 	int			status;
+	u8                      idx;
 
 	/*
 	 * NOTE:  caller did any chip->bus_num checks necessary.
@@ -742,6 +780,18 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 
 	WARN_ON(strlen(chip->modalias) >= sizeof(proxy->modalias));
 
+	/*
+	 * Zero(0) is a valid physical CS value and can be located at any
+	 * logical CS in the spi->chip_select[]. If all the physical CS
+	 * are initialized to 0 then It would be difficult to differentiate
+	 * between a valid physical CS 0 & an unused logical CS whose physical
+	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
+	 * Now all the unused logical CS will have 0xFF physical CS value & can be
+	 * ignore while performing physical CS validity checks.
+	 */
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		spi_set_chipselect(proxy, idx, 0xFF);
+
 	spi_set_chipselect(proxy, 0, chip->chip_select);
 	proxy->max_speed_hz = chip->max_speed_hz;
 	proxy->mode = chip->mode;
@@ -750,6 +800,15 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	proxy->dev.platform_data = (void *) chip->platform_data;
 	proxy->controller_data = chip->controller_data;
 	proxy->controller_state = NULL;
+	/*
+	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
+	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
+	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
+	 * spi->chip_select[0] will give the physical CS.
+	 * By default spi->chip_select[0] will hold the physical CS number so, set
+	 * spi->cs_index_mask as 0x01.
+	 */
+	proxy->cs_index_mask = 0x01;
 
 	if (chip->swnode) {
 		status = device_add_software_node(&proxy->dev, chip->swnode);
@@ -942,32 +1001,51 @@ static void spi_res_release(struct spi_controller *ctlr, struct spi_message *mes
 }
 
 /*-------------------------------------------------------------------------*/
+static inline bool spi_is_last_cs(struct spi_device *spi)
+{
+	u8 idx;
+	bool last = false;
+
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+		if ((spi->cs_index_mask >> idx) & 0x01) {
+			if (spi->controller->last_cs[idx] == spi_get_chipselect(spi, idx))
+				last = true;
+		}
+	}
+	return last;
+}
+
 
 static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 {
 	bool activate = enable;
+	u8 idx;
 
 	/*
 	 * Avoid calling into the driver (or doing delays) if the chip select
 	 * isn't actually changing from the last time this was called.
 	 */
-	if (!force && ((enable && spi->controller->last_cs == spi_get_chipselect(spi, 0)) ||
-		       (!enable && spi->controller->last_cs != spi_get_chipselect(spi, 0))) &&
+	if (!force && ((enable && spi->controller->last_cs_index_mask == spi->cs_index_mask &&
+			spi_is_last_cs(spi)) ||
+		       (!enable && spi->controller->last_cs_index_mask == spi->cs_index_mask &&
+			!spi_is_last_cs(spi))) &&
 	    (spi->controller->last_cs_mode_high == (spi->mode & SPI_CS_HIGH)))
 		return;
 
 	trace_spi_set_cs(spi, activate);
 
-	spi->controller->last_cs = enable ? spi_get_chipselect(spi, 0) : -1;
+	spi->controller->last_cs_index_mask = spi->cs_index_mask;
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		spi->controller->last_cs[idx] = enable ? spi_get_chipselect(spi, 0) : -1;
 	spi->controller->last_cs_mode_high = spi->mode & SPI_CS_HIGH;
-
-	if ((spi_get_csgpiod(spi, 0) || !spi->controller->set_cs_timing) && !activate)
-		spi_delay_exec(&spi->cs_hold, NULL);
 
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi_get_csgpiod(spi, 0)) {
+	if (spi_is_csgpiod(spi)) {
+		if (!spi->controller->set_cs_timing && !activate)
+			spi_delay_exec(&spi->cs_hold, NULL);
+
 		if (!(spi->mode & SPI_NO_CS)) {
 			/*
 			 * Historically ACPI has no means of the GPIO polarity and
@@ -979,25 +1057,37 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 			 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
 			 * into account.
 			 */
-			if (has_acpi_companion(&spi->dev))
-				gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), !enable);
-			else
-				/* Polarity handled by GPIO library */
-				gpiod_set_value_cansleep(spi_get_csgpiod(spi, 0), activate);
+			for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+				if (((spi->cs_index_mask >> idx) & 0x01) &&
+				    spi_get_csgpiod(spi, idx)) {
+					if (has_acpi_companion(&spi->dev))
+						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
+									 !enable);
+					else
+						/* Polarity handled by GPIO library */
+						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
+									 activate);
+
+					if (activate)
+						spi_delay_exec(&spi->cs_setup, NULL);
+					else
+						spi_delay_exec(&spi->cs_inactive, NULL);
+				}
+			}
 		}
 		/* Some SPI masters need both GPIO CS & slave_select */
 		if ((spi->controller->flags & SPI_CONTROLLER_GPIO_SS) &&
 		    spi->controller->set_cs)
 			spi->controller->set_cs(spi, !enable);
+
+		if (!spi->controller->set_cs_timing) {
+			if (activate)
+				spi_delay_exec(&spi->cs_setup, NULL);
+			else
+				spi_delay_exec(&spi->cs_inactive, NULL);
+		}
 	} else if (spi->controller->set_cs) {
 		spi->controller->set_cs(spi, !enable);
-	}
-
-	if (spi_get_csgpiod(spi, 0) || !spi->controller->set_cs_timing) {
-		if (activate)
-			spi_delay_exec(&spi->cs_setup, NULL);
-		else
-			spi_delay_exec(&spi->cs_inactive, NULL);
 	}
 }
 
@@ -1361,6 +1451,9 @@ static int spi_transfer_wait(struct spi_controller *ctlr,
 				"SPI transfer timed out\n");
 			return -ETIMEDOUT;
 		}
+
+		if (xfer->error & SPI_TRANS_FAIL_IO)
+			return -EIO;
 	}
 
 	return 0;
@@ -2222,8 +2315,8 @@ static void of_spi_parse_dt_cs_delay(struct device_node *nc,
 static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 			   struct device_node *nc)
 {
-	u32 value;
-	int rc;
+	u32 value, cs[SPI_CS_CNT_MAX];
+	int rc, idx;
 
 	/* Mode (clock phase/polarity/etc.) */
 	if (of_property_read_bool(nc, "spi-cpha"))
@@ -2295,14 +2388,53 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		return 0;
 	}
 
+	if (ctlr->num_chipselect > SPI_CS_CNT_MAX) {
+		dev_err(&ctlr->dev, "No. of CS is more than max. no. of supported CS\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Zero(0) is a valid physical CS value and can be located at any
+	 * logical CS in the spi->chip_select[]. If all the physical CS
+	 * are initialized to 0 then It would be difficult to differentiate
+	 * between a valid physical CS 0 & an unused logical CS whose physical
+	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
+	 * Now all the unused logical CS will have 0xFF physical CS value & can be
+	 * ignore while performing physical CS validity checks.
+	 */
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		spi_set_chipselect(spi, idx, 0xFF);
+
 	/* Device address */
-	rc = of_property_read_u32(nc, "reg", &value);
-	if (rc) {
+	rc = of_property_read_variable_u32_array(nc, "reg", &cs[0], 1,
+						 SPI_CS_CNT_MAX);
+	if (rc < 0) {
 		dev_err(&ctlr->dev, "%pOF has no valid 'reg' property (%d)\n",
 			nc, rc);
 		return rc;
 	}
-	spi_set_chipselect(spi, 0, value);
+	if (rc > ctlr->num_chipselect) {
+		dev_err(&ctlr->dev, "%pOF has number of CS > ctlr->num_chipselect (%d)\n",
+			nc, rc);
+		return rc;
+	}
+	if ((of_property_read_bool(nc, "parallel-memories")) &&
+	    (!(ctlr->flags & SPI_CONTROLLER_MULTI_CS))) {
+		dev_err(&ctlr->dev, "SPI controller doesn't support multi CS\n");
+		return -EINVAL;
+	}
+	for (idx = 0; idx < rc; idx++)
+		spi_set_chipselect(spi, idx, cs[idx]);
+
+	/*
+	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
+	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
+	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
+	 * spi->chip_select[0] will give the physical CS.
+	 * By default spi->chip_select[0] will hold the physical CS number so, set
+	 * spi->cs_index_mask as 0x01.
+	 */
+	spi->cs_index_mask = 0x01;
 
 	/* Device speed */
 	if (!of_property_read_u32(nc, "spi-max-frequency", &value))
@@ -2408,6 +2540,7 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 	struct spi_controller *ctlr = spi->controller;
 	struct spi_device *ancillary;
 	int rc = 0;
+	u8 idx;
 
 	/* Alloc an spi_device */
 	ancillary = spi_alloc_device(ctlr);
@@ -2418,12 +2551,33 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 
 	strscpy(ancillary->modalias, "dummy", sizeof(ancillary->modalias));
 
+	/*
+	 * Zero(0) is a valid physical CS value and can be located at any
+	 * logical CS in the spi->chip_select[]. If all the physical CS
+	 * are initialized to 0 then It would be difficult to differentiate
+	 * between a valid physical CS 0 & an unused logical CS whose physical
+	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
+	 * Now all the unused logical CS will have 0xFF physical CS value & can be
+	 * ignore while performing physical CS validity checks.
+	 */
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		spi_set_chipselect(ancillary, idx, 0xFF);
+
 	/* Use provided chip-select for ancillary device */
 	spi_set_chipselect(ancillary, 0, chip_select);
 
 	/* Take over SPI mode/speed from SPI main device */
 	ancillary->max_speed_hz = spi->max_speed_hz;
 	ancillary->mode = spi->mode;
+	/*
+	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
+	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
+	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
+	 * spi->chip_select[0] will give the physical CS.
+	 * By default spi->chip_select[0] will hold the physical CS number so, set
+	 * spi->cs_index_mask as 0x01.
+	 */
+	ancillary->cs_index_mask = 0x01;
 
 	WARN_ON(!mutex_is_locked(&ctlr->add_lock));
 
@@ -2626,6 +2780,7 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 	struct acpi_spi_lookup lookup = {};
 	struct spi_device *spi;
 	int ret;
+	u8 idx;
 
 	if (!ctlr && index == -1)
 		return ERR_PTR(-EINVAL);
@@ -2661,12 +2816,33 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	/*
+	 * Zero(0) is a valid physical CS value and can be located at any
+	 * logical CS in the spi->chip_select[]. If all the physical CS
+	 * are initialized to 0 then It would be difficult to differentiate
+	 * between a valid physical CS 0 & an unused logical CS whose physical
+	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
+	 * Now all the unused logical CS will have 0xFF physical CS value & can be
+	 * ignore while performing physical CS validity checks.
+	 */
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		spi_set_chipselect(spi, idx, 0xFF);
+
 	ACPI_COMPANION_SET(&spi->dev, adev);
 	spi->max_speed_hz	= lookup.max_speed_hz;
 	spi->mode		|= lookup.mode;
 	spi->irq		= lookup.irq;
 	spi->bits_per_word	= lookup.bits_per_word;
 	spi_set_chipselect(spi, 0, lookup.chip_select);
+	/*
+	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
+	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
+	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
+	 * spi->chip_select[0] will give the physical CS.
+	 * By default spi->chip_select[0] will hold the physical CS number so, set
+	 * spi->cs_index_mask as 0x01.
+	 */
+	spi->cs_index_mask	= 0x01;
 
 	return spi;
 }
@@ -3100,6 +3276,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 	struct boardinfo	*bi;
 	int			first_dynamic;
 	int			status;
+	int			idx;
 
 	if (!dev)
 		return -ENODEV;
@@ -3164,7 +3341,8 @@ int spi_register_controller(struct spi_controller *ctlr)
 	}
 
 	/* Setting last_cs to -1 means no chip selected */
-	ctlr->last_cs = -1;
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		ctlr->last_cs[idx] = -1;
 
 	status = device_add(&ctlr->dev);
 	if (status < 0)
@@ -3889,7 +4067,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 	 * cs_change is set for each transfer.
 	 */
 	if ((spi->mode & SPI_CS_WORD) && (!(ctlr->mode_bits & SPI_CS_WORD) ||
-					  spi_get_csgpiod(spi, 0))) {
+					  spi_is_csgpiod(spi))) {
 		size_t maxsize = BITS_TO_BYTES(spi->bits_per_word);
 		int ret;
 

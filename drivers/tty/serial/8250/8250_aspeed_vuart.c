@@ -566,7 +566,7 @@ err_sysfs_remove:
 	return rc;
 }
 
-static int aspeed_vuart_remove(struct platform_device *pdev)
+static void aspeed_vuart_remove(struct platform_device *pdev)
 {
 	struct aspeed_vuart *vuart = platform_get_drvdata(pdev);
 
@@ -574,8 +574,6 @@ static int aspeed_vuart_remove(struct platform_device *pdev)
 	aspeed_vuart_set_enabled(vuart, false);
 	serial8250_unregister_port(vuart->line);
 	sysfs_remove_group(&vuart->dev->kobj, &aspeed_vuart_attr_group);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_vuart_table[] = {
@@ -590,7 +588,7 @@ static struct platform_driver aspeed_vuart_driver = {
 		.of_match_table = aspeed_vuart_table,
 	},
 	.probe = aspeed_vuart_probe,
-	.remove = aspeed_vuart_remove,
+	.remove_new = aspeed_vuart_remove,
 };
 
 module_platform_driver(aspeed_vuart_driver);

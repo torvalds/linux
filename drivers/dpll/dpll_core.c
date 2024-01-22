@@ -22,7 +22,8 @@ DEFINE_MUTEX(dpll_lock);
 DEFINE_XARRAY_FLAGS(dpll_device_xa, XA_FLAGS_ALLOC);
 DEFINE_XARRAY_FLAGS(dpll_pin_xa, XA_FLAGS_ALLOC);
 
-static u32 dpll_xa_id;
+static u32 dpll_device_xa_id;
+static u32 dpll_pin_xa_id;
 
 #define ASSERT_DPLL_REGISTERED(d)	\
 	WARN_ON_ONCE(!xa_get_mark(&dpll_device_xa, (d)->id, DPLL_REGISTERED))
@@ -246,7 +247,7 @@ dpll_device_alloc(const u64 clock_id, u32 device_idx, struct module *module)
 	dpll->clock_id = clock_id;
 	dpll->module = module;
 	ret = xa_alloc_cyclic(&dpll_device_xa, &dpll->id, dpll, xa_limit_32b,
-			      &dpll_xa_id, GFP_KERNEL);
+			      &dpll_device_xa_id, GFP_KERNEL);
 	if (ret < 0) {
 		kfree(dpll);
 		return ERR_PTR(ret);
@@ -446,7 +447,8 @@ dpll_pin_alloc(u64 clock_id, u32 pin_idx, struct module *module,
 	refcount_set(&pin->refcount, 1);
 	xa_init_flags(&pin->dpll_refs, XA_FLAGS_ALLOC);
 	xa_init_flags(&pin->parent_refs, XA_FLAGS_ALLOC);
-	ret = xa_alloc(&dpll_pin_xa, &pin->id, pin, xa_limit_16b, GFP_KERNEL);
+	ret = xa_alloc_cyclic(&dpll_pin_xa, &pin->id, pin, xa_limit_32b,
+			      &dpll_pin_xa_id, GFP_KERNEL);
 	if (ret)
 		goto err;
 	return pin;

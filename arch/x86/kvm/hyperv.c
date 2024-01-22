@@ -2388,7 +2388,7 @@ static u16 kvm_hvcall_signal_event(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *h
 	if (!eventfd)
 		return HV_STATUS_INVALID_PORT_ID;
 
-	eventfd_signal(eventfd, 1);
+	eventfd_signal(eventfd);
 	return HV_STATUS_SUCCESS;
 }
 

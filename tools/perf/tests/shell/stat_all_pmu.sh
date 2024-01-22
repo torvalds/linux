@@ -4,7 +4,7 @@
 
 set -e
 
-# Test all PMU events; however exclude parametrized ones (name contains '?')
+# Test all PMU events; however exclude parameterized ones (name contains '?')
 for p in $(perf list --raw-dump pmu | sed 's/[[:graph:]]\+?[[:graph:]]\+[[:space:]]//g'); do
   echo "Testing $p"
   result=$(perf stat -e "$p" true 2>&1)

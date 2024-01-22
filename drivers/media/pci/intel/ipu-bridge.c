@@ -53,7 +53,7 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	/* Omnivision ov8856 */
 	IPU_SENSOR_CONFIG("OVTI8856", 3, 180000000, 360000000, 720000000),
 	/* Omnivision ov2740 */
-	IPU_SENSOR_CONFIG("INT3474", 1, 360000000),
+	IPU_SENSOR_CONFIG("INT3474", 1, 180000000),
 	/* Hynix hi556 */
 	IPU_SENSOR_CONFIG("INT3537", 1, 437000000),
 	/* Omnivision ov13b10 */

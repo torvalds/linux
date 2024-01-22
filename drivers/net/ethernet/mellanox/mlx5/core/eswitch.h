@@ -383,6 +383,7 @@ struct mlx5_eswitch {
 	struct xarray paired;
 	struct mlx5_devcom_comp_dev *devcom;
 	u16 enabled_ipsec_vf_count;
+	bool eswitch_operation_in_progress;
 };
 
 void esw_offloads_disable(struct mlx5_eswitch *esw);
@@ -525,7 +526,8 @@ struct mlx5_esw_flow_attr {
 	u8	total_vlan;
 	struct {
 		u32 flags;
-		struct mlx5_eswitch_rep *rep;
+		bool vport_valid;
+		u16 vport;
 		struct mlx5_pkt_reformat *pkt_reformat;
 		struct mlx5_core_dev *mdev;
 		struct mlx5_termtbl_handle *termtbl;
@@ -614,13 +616,6 @@ const u32 *mlx5_esw_query_functions(struct mlx5_core_dev *dev);
 static inline bool mlx5_esw_allowed(const struct mlx5_eswitch *esw)
 {
 	return esw && MLX5_ESWITCH_MANAGER(esw->dev);
-}
-
-/* The returned number is valid only when the dev is eswitch manager. */
-static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
-{
-	return mlx5_core_is_ecpf_esw_manager(dev) ?
-		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
 }
 
 static inline bool
@@ -827,6 +822,7 @@ void mlx5_esw_release(struct mlx5_core_dev *dev);
 void mlx5_esw_get(struct mlx5_core_dev *dev);
 void mlx5_esw_put(struct mlx5_core_dev *dev);
 int mlx5_esw_try_lock(struct mlx5_eswitch *esw);
+int mlx5_esw_lock(struct mlx5_eswitch *esw);
 void mlx5_esw_unlock(struct mlx5_eswitch *esw);
 
 void esw_vport_change_handle_locked(struct mlx5_vport *vport);

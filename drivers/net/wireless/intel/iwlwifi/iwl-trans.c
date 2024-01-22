@@ -172,10 +172,6 @@ int iwl_trans_send_cmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	if (WARN_ON((cmd->flags & CMD_WANT_ASYNC_CALLBACK) &&
-		    !(cmd->flags & CMD_ASYNC)))
-		return -EINVAL;
-
 	if (!(cmd->flags & CMD_ASYNC))
 		lock_map_acquire_read(&trans->sync_cmd_lockdep_map);
 

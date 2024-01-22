@@ -14,6 +14,7 @@
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
 #include <linux/irqdomain_defs.h>
+#include <linux/spi/spi.h>
 
 struct gpio_desc;
 struct gpiod_lookup_table;
@@ -48,6 +49,12 @@ struct x86_i2c_client_info {
 	struct x86_acpi_irq_data irq_data;
 };
 
+struct x86_spi_dev_info {
+	struct spi_board_info board_info;
+	char *ctrl_path;
+	struct x86_acpi_irq_data irq_data;
+};
+
 struct x86_serdev_info {
 	const char *ctrl_hid;
 	const char *ctrl_uid;
@@ -72,10 +79,12 @@ struct x86_dev_info {
 	const struct software_node *bat_swnode;
 	struct gpiod_lookup_table * const *gpiod_lookup_tables;
 	const struct x86_i2c_client_info *i2c_client_info;
+	const struct x86_spi_dev_info *spi_dev_info;
 	const struct platform_device_info *pdev_info;
 	const struct x86_serdev_info *serdev_info;
 	const struct x86_gpio_button *gpio_button;
 	int i2c_client_count;
+	int spi_dev_count;
 	int pdev_count;
 	int serdev_count;
 	int gpio_button_count;

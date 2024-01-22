@@ -12,10 +12,11 @@ maintainers:
 properties:
   compatible:
     enum:
-      - "samsung,s5pv210-rotator"
-      - "samsung,exynos4210-rotator"
-      - "samsung,exynos4212-rotator"
-      - "samsung,exynos5250-rotator"
+      - samsung,s5pv210-rotator
+      - samsung,exynos4210-rotator
+      - samsung,exynos4212-rotator
+      - samsung,exynos5250-rotator
+
   reg:
     maxItems: 1
 

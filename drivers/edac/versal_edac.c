@@ -966,10 +966,10 @@ static int mc_probe(struct platform_device *pdev)
 	edac_mc_id = emif_get_id(pdev->dev.of_node);
 
 	regval = readl(ddrmc_baseaddr + XDDR_REG_CONFIG0_OFFSET);
-	num_chans = FIELD_PREP(XDDR_REG_CONFIG0_NUM_CHANS_MASK, regval);
+	num_chans = FIELD_GET(XDDR_REG_CONFIG0_NUM_CHANS_MASK, regval);
 	num_chans++;
 
-	num_csrows = FIELD_PREP(XDDR_REG_CONFIG0_NUM_RANKS_MASK, regval);
+	num_csrows = FIELD_GET(XDDR_REG_CONFIG0_NUM_RANKS_MASK, regval);
 	num_csrows *= 2;
 	if (!num_csrows)
 		num_csrows = 1;
@@ -1005,7 +1005,7 @@ static int mc_probe(struct platform_device *pdev)
 		goto free_edac_mc;
 	}
 
-	rc = xlnx_register_event(PM_NOTIFY_CB, EVENT_ERROR_PMC_ERR1,
+	rc = xlnx_register_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 				 XPM_EVENT_ERROR_MASK_DDRMC_CR | XPM_EVENT_ERROR_MASK_DDRMC_NCR |
 				 XPM_EVENT_ERROR_MASK_NOC_CR | XPM_EVENT_ERROR_MASK_NOC_NCR,
 				 false, err_callback, mci);
@@ -1042,7 +1042,7 @@ static int mc_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(priv->debugfs);
 #endif
 
-	xlnx_unregister_event(PM_NOTIFY_CB, EVENT_ERROR_PMC_ERR1,
+	xlnx_unregister_event(PM_NOTIFY_CB, VERSAL_EVENT_ERROR_PMC_ERR1,
 			      XPM_EVENT_ERROR_MASK_DDRMC_CR |
 			      XPM_EVENT_ERROR_MASK_NOC_CR |
 			      XPM_EVENT_ERROR_MASK_NOC_NCR |

@@ -1392,8 +1392,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__set_start(map, shdr->sh_addr + ref_reloc(kmap));
 			map__set_end(map, map__start(map) + shdr->sh_size);
 			map__set_pgoff(map, shdr->sh_offset);
-			map__set_map_ip(map, map__dso_map_ip);
-			map__set_unmap_ip(map, map__dso_unmap_ip);
+			map__set_mapping_type(map, MAPPING_TYPE__DSO);
 			/* Ensure maps are correctly ordered */
 			if (kmaps) {
 				int err;
@@ -1455,8 +1454,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__set_end(curr_map, map__start(curr_map) + shdr->sh_size);
 			map__set_pgoff(curr_map, shdr->sh_offset);
 		} else {
-			map__set_map_ip(curr_map, identity__map_ip);
-			map__set_unmap_ip(curr_map, identity__map_ip);
+			map__set_mapping_type(curr_map, MAPPING_TYPE__IDENTITY);
 		}
 		curr_dso->symtab_type = dso->symtab_type;
 		if (maps__insert(kmaps, curr_map))

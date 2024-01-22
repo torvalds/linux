@@ -111,21 +111,24 @@ examples:
    #include <dt-bindings/interrupt-controller/irq.h>
    #include <dt-bindings/input/linux-event-codes.h>
    #include <dt-bindings/spmi/spmi.h>
-   spmi_bus: spmi@c440000 {
+
+   spmi@c440000 {
      reg = <0x0c440000 0x1100>;
      #address-cells = <2>;
      #size-cells = <0>;
-     pmk8350: pmic@0 {
+
+     pmic@0 {
        reg = <0x0 SPMI_USID>;
        #address-cells = <1>;
        #size-cells = <0>;
-       pmk8350_pon: pon_hlos@1300 {
-         reg = <0x1300>;
+
+       pon@800 {
          compatible = "qcom,pm8998-pon";
+         reg = <0x800>;
 
          pwrkey {
             compatible = "qcom,pm8941-pwrkey";
-            interrupts = < 0x0 0x8 0 IRQ_TYPE_EDGE_BOTH >;
+            interrupts = <0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
             debounce = <15625>;
             bias-pull-up;
             linux,code = <KEY_POWER>;

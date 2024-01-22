@@ -682,6 +682,7 @@ void kvmhv_nestedv2_vcpu_free(struct kvm_vcpu *vcpu, struct kvmhv_nestedv2_io *i
 int kvmhv_nestedv2_flush_vcpu(struct kvm_vcpu *vcpu, u64 time_limit);
 int kvmhv_nestedv2_set_ptbl_entry(unsigned long lpid, u64 dw0, u64 dw1);
 int kvmhv_nestedv2_parse_output(struct kvm_vcpu *vcpu);
+int kvmhv_nestedv2_set_vpa(struct kvm_vcpu *vcpu, unsigned long vpa);
 
 #endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 

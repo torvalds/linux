@@ -33,8 +33,6 @@ struct kmem_cache		*xfs_attrd_cache;
 
 static const struct xfs_item_ops xfs_attri_item_ops;
 static const struct xfs_item_ops xfs_attrd_item_ops;
-static struct xfs_attrd_log_item *xfs_trans_get_attrd(struct xfs_trans *tp,
-					struct xfs_attri_log_item *attrip);
 
 static inline struct xfs_attri_log_item *ATTRI_ITEM(struct xfs_log_item *lip)
 {
@@ -310,47 +308,6 @@ xfs_attrd_item_intent(
 	return &ATTRD_ITEM(lip)->attrd_attrip->attri_item;
 }
 
-/*
- * Performs one step of an attribute update intent and marks the attrd item
- * dirty..  An attr operation may be a set or a remove.  Note that the
- * transaction is marked dirty regardless of whether the operation succeeds or
- * fails to support the ATTRI/ATTRD lifecycle rules.
- */
-STATIC int
-xfs_xattri_finish_update(
-	struct xfs_attr_intent		*attr,
-	struct xfs_attrd_log_item	*attrdp)
-{
-	struct xfs_da_args		*args = attr->xattri_da_args;
-	int				error;
-
-	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
-		error = -EIO;
-		goto out;
-	}
-
-	error = xfs_attr_set_iter(attr);
-	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
-		error = -EAGAIN;
-out:
-	/*
-	 * Mark the transaction dirty, even on error. This ensures the
-	 * transaction is aborted, which:
-	 *
-	 * 1.) releases the ATTRI and frees the ATTRD
-	 * 2.) shuts down the filesystem
-	 */
-	args->trans->t_flags |= XFS_TRANS_DIRTY | XFS_TRANS_HAS_INTENT_DONE;
-
-	/*
-	 * attr intent/done items are null when logged attributes are disabled
-	 */
-	if (attrdp)
-		set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
-
-	return error;
-}
-
 /* Log an attr to the intent item. */
 STATIC void
 xfs_attr_log_item(
@@ -359,9 +316,6 @@ xfs_attr_log_item(
 	const struct xfs_attr_intent	*attr)
 {
 	struct xfs_attri_log_format	*attrp;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	set_bit(XFS_LI_DIRTY, &attrip->attri_item.li_flags);
 
 	/*
 	 * At this point the xfs_attr_intent has been constructed, and we've
@@ -419,7 +373,6 @@ xfs_attr_create_intent(
 	}
 
 	attrip = xfs_attri_init(mp, attr->xattri_nameval);
-	xfs_trans_add_item(tp, &attrip->attri_item);
 	xfs_attr_log_item(tp, attrip, attr);
 
 	return &attrip->attri_item;
@@ -447,23 +400,33 @@ xfs_attr_finish_item(
 	struct xfs_btree_cur		**state)
 {
 	struct xfs_attr_intent		*attr;
-	struct xfs_attrd_log_item	*done_item = NULL;
+	struct xfs_da_args		*args;
 	int				error;
 
 	attr = container_of(item, struct xfs_attr_intent, xattri_list);
-	if (done)
-		done_item = ATTRD_ITEM(done);
+	args = attr->xattri_da_args;
 
-	/*
-	 * Always reset trans after EAGAIN cycle
-	 * since the transaction is new
-	 */
-	attr->xattri_da_args->trans = tp;
+	/* Reset trans after EAGAIN cycle since the transaction is new */
+	args->trans = tp;
 
-	error = xfs_xattri_finish_update(attr, done_item);
-	if (error != -EAGAIN)
-		xfs_attr_free_item(attr);
+	if (XFS_TEST_ERROR(false, args->dp->i_mount, XFS_ERRTAG_LARP)) {
+		error = -EIO;
+		goto out;
+	}
 
+	/* If an attr removal is trivially complete, we're done. */
+	if (attr->xattri_op_flags == XFS_ATTRI_OP_FLAGS_REMOVE &&
+	    !xfs_inode_hasattr(args->dp)) {
+		error = 0;
+		goto out;
+	}
+
+	error = xfs_attr_set_iter(attr);
+	if (!error && attr->xattri_dela_state != XFS_DAS_DONE)
+		return -EAGAIN;
+
+out:
+	xfs_attr_free_item(attr);
 	return error;
 }
 
@@ -532,41 +495,22 @@ xfs_attri_validate(
 	return xfs_verify_ino(mp, attrp->alfi_ino);
 }
 
-/*
- * Process an attr intent item that was recovered from the log.  We need to
- * delete the attr that it describes.
- */
-STATIC int
-xfs_attri_item_recover(
-	struct xfs_log_item		*lip,
-	struct list_head		*capture_list)
+static inline struct xfs_attr_intent *
+xfs_attri_recover_work(
+	struct xfs_mount		*mp,
+	struct xfs_defer_pending	*dfp,
+	struct xfs_attri_log_format	*attrp,
+	struct xfs_inode		**ipp,
+	struct xfs_attri_log_nameval	*nv)
 {
-	struct xfs_attri_log_item	*attrip = ATTRI_ITEM(lip);
 	struct xfs_attr_intent		*attr;
-	struct xfs_mount		*mp = lip->li_log->l_mp;
-	struct xfs_inode		*ip;
 	struct xfs_da_args		*args;
-	struct xfs_trans		*tp;
-	struct xfs_trans_res		resv;
-	struct xfs_attri_log_format	*attrp;
-	struct xfs_attri_log_nameval	*nv = attrip->attri_nameval;
-	int				error;
-	int				total;
 	int				local;
-	struct xfs_attrd_log_item	*done_item = NULL;
+	int				error;
 
-	/*
-	 * First check the validity of the attr described by the ATTRI.  If any
-	 * are bad, then assume that all are bad and just toss the ATTRI.
-	 */
-	attrp = &attrip->attri_format;
-	if (!xfs_attri_validate(mp, attrp) ||
-	    !xfs_attr_namecheck(nv->name.i_addr, nv->name.i_len))
-		return -EFSCORRUPTED;
-
-	error = xlog_recover_iget(mp,  attrp->alfi_ino, &ip);
+	error = xlog_recover_iget(mp,  attrp->alfi_ino, ipp);
 	if (error)
-		return error;
+		return ERR_PTR(error);
 
 	attr = kmem_zalloc(sizeof(struct xfs_attr_intent) +
 			   sizeof(struct xfs_da_args), KM_NOFS);
@@ -584,7 +528,7 @@ xfs_attri_item_recover(
 	attr->xattri_nameval = xfs_attri_log_nameval_get(nv);
 	ASSERT(attr->xattri_nameval);
 
-	args->dp = ip;
+	args->dp = *ipp;
 	args->geo = mp->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	args->name = nv->name.i_addr;
@@ -608,43 +552,65 @@ xfs_attri_item_recover(
 			attr->xattri_dela_state = xfs_attr_init_add_state(args);
 		break;
 	case XFS_ATTRI_OP_FLAGS_REMOVE:
-		if (!xfs_inode_hasattr(args->dp))
-			goto out;
 		attr->xattri_dela_state = xfs_attr_init_remove_state(args);
 		break;
-	default:
-		ASSERT(0);
-		error = -EFSCORRUPTED;
-		goto out;
 	}
+
+	xfs_defer_add_item(dfp, &attr->xattri_list);
+	return attr;
+}
+
+/*
+ * Process an attr intent item that was recovered from the log.  We need to
+ * delete the attr that it describes.
+ */
+STATIC int
+xfs_attr_recover_work(
+	struct xfs_defer_pending	*dfp,
+	struct list_head		*capture_list)
+{
+	struct xfs_log_item		*lip = dfp->dfp_intent;
+	struct xfs_attri_log_item	*attrip = ATTRI_ITEM(lip);
+	struct xfs_attr_intent		*attr;
+	struct xfs_mount		*mp = lip->li_log->l_mp;
+	struct xfs_inode		*ip;
+	struct xfs_da_args		*args;
+	struct xfs_trans		*tp;
+	struct xfs_trans_res		resv;
+	struct xfs_attri_log_format	*attrp;
+	struct xfs_attri_log_nameval	*nv = attrip->attri_nameval;
+	int				error;
+	int				total;
+
+	/*
+	 * First check the validity of the attr described by the ATTRI.  If any
+	 * are bad, then assume that all are bad and just toss the ATTRI.
+	 */
+	attrp = &attrip->attri_format;
+	if (!xfs_attri_validate(mp, attrp) ||
+	    !xfs_attr_namecheck(nv->name.i_addr, nv->name.i_len))
+		return -EFSCORRUPTED;
+
+	attr = xfs_attri_recover_work(mp, dfp, attrp, &ip, nv);
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+	args = attr->xattri_da_args;
 
 	xfs_init_attr_trans(args, &resv, &total);
 	resv = xlog_recover_resv(&resv);
 	error = xfs_trans_alloc(mp, &resv, total, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
-		goto out;
-
+		return error;
 	args->trans = tp;
-	done_item = xfs_trans_get_attrd(tp, attrip);
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	error = xfs_xattri_finish_update(attr, done_item);
-	if (error == -EAGAIN) {
-		/*
-		 * There's more work to do, so add the intent item to this
-		 * transaction so that we can continue it later.
-		 */
-		xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_ATTR, &attr->xattri_list);
-		error = xfs_defer_ops_capture_and_commit(tp, capture_list);
-		if (error)
-			goto out_unlock;
-
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-		xfs_irele(ip);
-		return 0;
-	}
+	error = xlog_recover_finish_intent(tp, dfp);
+	if (error == -EFSCORRUPTED)
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				&attrip->attri_format,
+				sizeof(attrip->attri_format));
 	if (error) {
 		xfs_trans_cancel(tp);
 		goto out_unlock;
@@ -654,18 +620,16 @@ xfs_attri_item_recover(
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_irele(ip);
-out:
-	xfs_attr_free_item(attr);
 	return error;
 }
 
 /* Re-log an intent item to push the log tail forward. */
 static struct xfs_log_item *
-xfs_attri_item_relog(
+xfs_attr_relog_intent(
+	struct xfs_trans		*tp,
 	struct xfs_log_item		*intent,
-	struct xfs_trans		*tp)
+	struct xfs_log_item		*done_item)
 {
-	struct xfs_attrd_log_item	*attrdp;
 	struct xfs_attri_log_item	*old_attrip;
 	struct xfs_attri_log_item	*new_attrip;
 	struct xfs_attri_log_format	*new_attrp;
@@ -673,10 +637,6 @@ xfs_attri_item_relog(
 
 	old_attrip = ATTRI_ITEM(intent);
 	old_attrp = &old_attrip->attri_format;
-
-	tp->t_flags |= XFS_TRANS_DIRTY;
-	attrdp = xfs_trans_get_attrd(tp, old_attrip);
-	set_bit(XFS_LI_DIRTY, &attrdp->attrd_item.li_flags);
 
 	/*
 	 * Create a new log item that shares the same name/value buffer as the
@@ -691,11 +651,42 @@ xfs_attri_item_relog(
 	new_attrp->alfi_name_len = old_attrp->alfi_name_len;
 	new_attrp->alfi_attr_filter = old_attrp->alfi_attr_filter;
 
-	xfs_trans_add_item(tp, &new_attrip->attri_item);
-	set_bit(XFS_LI_DIRTY, &new_attrip->attri_item.li_flags);
-
 	return &new_attrip->attri_item;
 }
+
+/* Get an ATTRD so we can process all the attrs. */
+static struct xfs_log_item *
+xfs_attr_create_done(
+	struct xfs_trans		*tp,
+	struct xfs_log_item		*intent,
+	unsigned int			count)
+{
+	struct xfs_attri_log_item	*attrip;
+	struct xfs_attrd_log_item	*attrdp;
+
+	attrip = ATTRI_ITEM(intent);
+
+	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
+
+	xfs_log_item_init(tp->t_mountp, &attrdp->attrd_item, XFS_LI_ATTRD,
+			  &xfs_attrd_item_ops);
+	attrdp->attrd_attrip = attrip;
+	attrdp->attrd_format.alfd_alf_id = attrip->attri_format.alfi_id;
+
+	return &attrdp->attrd_item;
+}
+
+const struct xfs_defer_op_type xfs_attr_defer_type = {
+	.name		= "attr",
+	.max_items	= 1,
+	.create_intent	= xfs_attr_create_intent,
+	.abort_intent	= xfs_attr_abort_intent,
+	.create_done	= xfs_attr_create_done,
+	.finish_item	= xfs_attr_finish_item,
+	.cancel_item	= xfs_attr_cancel_item,
+	.recover_work	= xfs_attr_recover_work,
+	.relog_intent	= xfs_attr_relog_intent,
+};
 
 STATIC int
 xlog_recover_attri_commit_pass2(
@@ -767,61 +758,11 @@ xlog_recover_attri_commit_pass2(
 	attrip = xfs_attri_init(mp, nv);
 	memcpy(&attrip->attri_format, attri_formatp, len);
 
-	/*
-	 * The ATTRI has two references. One for the ATTRD and one for ATTRI to
-	 * ensure it makes it into the AIL. Insert the ATTRI into the AIL
-	 * directly and drop the ATTRI reference. Note that
-	 * xfs_trans_ail_update() drops the AIL lock.
-	 */
-	xfs_trans_ail_insert(log->l_ailp, &attrip->attri_item, lsn);
-	xfs_attri_release(attrip);
+	xlog_recover_intent_item(log, &attrip->attri_item, lsn,
+			&xfs_attr_defer_type);
 	xfs_attri_log_nameval_put(nv);
 	return 0;
 }
-
-/*
- * This routine is called to allocate an "attr free done" log item.
- */
-static struct xfs_attrd_log_item *
-xfs_trans_get_attrd(struct xfs_trans		*tp,
-		  struct xfs_attri_log_item	*attrip)
-{
-	struct xfs_attrd_log_item		*attrdp;
-
-	ASSERT(tp != NULL);
-
-	attrdp = kmem_cache_zalloc(xfs_attrd_cache, GFP_NOFS | __GFP_NOFAIL);
-
-	xfs_log_item_init(tp->t_mountp, &attrdp->attrd_item, XFS_LI_ATTRD,
-			  &xfs_attrd_item_ops);
-	attrdp->attrd_attrip = attrip;
-	attrdp->attrd_format.alfd_alf_id = attrip->attri_format.alfi_id;
-
-	xfs_trans_add_item(tp, &attrdp->attrd_item);
-	return attrdp;
-}
-
-/* Get an ATTRD so we can process all the attrs. */
-static struct xfs_log_item *
-xfs_attr_create_done(
-	struct xfs_trans		*tp,
-	struct xfs_log_item		*intent,
-	unsigned int			count)
-{
-	if (!intent)
-		return NULL;
-
-	return &xfs_trans_get_attrd(tp, ATTRI_ITEM(intent))->attrd_item;
-}
-
-const struct xfs_defer_op_type xfs_attr_defer_type = {
-	.max_items	= 1,
-	.create_intent	= xfs_attr_create_intent,
-	.abort_intent	= xfs_attr_abort_intent,
-	.create_done	= xfs_attr_create_done,
-	.finish_item	= xfs_attr_finish_item,
-	.cancel_item	= xfs_attr_cancel_item,
-};
 
 /*
  * This routine is called when an ATTRD format structure is found in a committed
@@ -857,9 +798,7 @@ static const struct xfs_item_ops xfs_attri_item_ops = {
 	.iop_format	= xfs_attri_item_format,
 	.iop_unpin	= xfs_attri_item_unpin,
 	.iop_release    = xfs_attri_item_release,
-	.iop_recover	= xfs_attri_item_recover,
 	.iop_match	= xfs_attri_item_match,
-	.iop_relog	= xfs_attri_item_relog,
 };
 
 const struct xlog_recover_item_ops xlog_attri_item_ops = {

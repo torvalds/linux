@@ -1115,7 +1115,7 @@ struct privcmd_kernel_ioreq {
 	spinlock_t lock; /* Protects ioeventfds list */
 	struct list_head ioeventfds;
 	struct list_head list;
-	struct ioreq_port ports[0];
+	struct ioreq_port ports[] __counted_by(vcpus);
 };
 
 static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)
@@ -1147,7 +1147,7 @@ static irqreturn_t ioeventfd_interrupt(int irq, void *dev_id)
 		if (ioreq->addr == kioeventfd->addr + VIRTIO_MMIO_QUEUE_NOTIFY &&
 		    ioreq->size == kioeventfd->addr_len &&
 		    (ioreq->data & QUEUE_NOTIFY_VQ_MASK) == kioeventfd->vq) {
-			eventfd_signal(kioeventfd->eventfd, 1);
+			eventfd_signal(kioeventfd->eventfd);
 			state = STATE_IORESP_READY;
 			break;
 		}

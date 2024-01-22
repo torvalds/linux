@@ -100,6 +100,11 @@
     "BriefDescription": "The processor's instruction cache was reloaded from a source beyond the local core's L2 due to a demand miss."
   },
   {
+    "EventCode": "0x0003C0000000C040",
+    "EventName": "PM_DATA_FROM_L2MISS_DSRC",
+    "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss."
+  },
+  {
     "EventCode": "0x000380000010C040",
     "EventName": "PM_INST_FROM_L2MISS_ALL",
     "BriefDescription": "The processor's instruction cache was reloaded from a source beyond the local core's L2 due to a demand miss or prefetch reload."
@@ -161,8 +166,13 @@
   },
   {
     "EventCode": "0x000780000000C040",
-    "EventName": "PM_INST_FROM_L3MISS",
+    "EventName": "PM_INST_FROM_L3MISS_DSRC",
     "BriefDescription": "The processor's instruction cache was reloaded from beyond the local core's L3 due to a demand miss."
+  },
+  {
+    "EventCode": "0x0007C0000000C040",
+    "EventName": "PM_DATA_FROM_L3MISS_DSRC",
+    "BriefDescription": "The processor's L1 data cache was reloaded from beyond the local core's L3 due to a demand miss."
   },
   {
     "EventCode": "0x000780000010C040",
@@ -981,7 +991,7 @@
   },
   {
     "EventCode": "0x0003C0000000C142",
-    "EventName": "PM_MRK_DATA_FROM_L2MISS",
+    "EventName": "PM_MRK_DATA_FROM_L2MISS_DSRC",
     "BriefDescription": "The processor's L1 data cache was reloaded from a source beyond the local core's L2 due to a demand miss for a marked instruction."
   },
   {
@@ -1046,12 +1056,12 @@
   },
   {
     "EventCode": "0x000780000000C142",
-    "EventName": "PM_MRK_INST_FROM_L3MISS",
+    "EventName": "PM_MRK_INST_FROM_L3MISS_DSRC",
     "BriefDescription": "The processor's instruction cache was reloaded from beyond the local core's L3 due to a demand miss for a marked instruction."
   },
   {
     "EventCode": "0x0007C0000000C142",
-    "EventName": "PM_MRK_DATA_FROM_L3MISS",
+    "EventName": "PM_MRK_DATA_FROM_L3MISS_DSRC",
     "BriefDescription": "The processor's L1 data cache was reloaded from beyond the local core's L3 due to a demand miss for a marked instruction."
   },
   {

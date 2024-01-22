@@ -6,13 +6,7 @@
  */
 
 #include <linux/crypto.h>
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/dma-direct.h>
-#include <linux/interrupt.h>
 #include <linux/iopoll.h>
-#include <linux/io.h>
-#include <linux/mod_devicetable.h>
 #include <crypto/akcipher.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/akcipher.h>
@@ -28,13 +22,13 @@
 #define STARFIVE_PKA_CAER_OFFSET	(STARFIVE_PKA_REGS_OFFSET + 0x108)
 #define STARFIVE_PKA_CANR_OFFSET	(STARFIVE_PKA_REGS_OFFSET + 0x208)
 
-// R^2 mod N and N0'
+/* R ^ 2 mod N and N0' */
 #define CRYPTO_CMD_PRE			0x0
-// A * R mod N   ==> A
+/* A * R mod N   ==> A */
 #define CRYPTO_CMD_ARN			0x5
-// A * E * R mod N ==> A
+/* A * E * R mod N ==> A */
 #define CRYPTO_CMD_AERN			0x6
-// A * A * R mod N ==> A
+/* A * A * R mod N ==> A */
 #define CRYPTO_CMD_AARN			0x7
 
 #define STARFIVE_RSA_MAX_KEYSZ		256
@@ -43,31 +37,17 @@
 static inline int starfive_pka_wait_done(struct starfive_cryp_ctx *ctx)
 {
 	struct starfive_cryp_dev *cryp = ctx->cryp;
+	u32 status;
 
-	return wait_for_completion_timeout(&cryp->pka_done,
-					   usecs_to_jiffies(100000));
-}
-
-static inline void starfive_pka_irq_mask_clear(struct starfive_cryp_ctx *ctx)
-{
-	struct starfive_cryp_dev *cryp = ctx->cryp;
-	u32 stat;
-
-	stat = readl(cryp->base + STARFIVE_IE_MASK_OFFSET);
-	stat &= ~STARFIVE_IE_MASK_PKA_DONE;
-	writel(stat, cryp->base + STARFIVE_IE_MASK_OFFSET);
-
-	reinit_completion(&cryp->pka_done);
+	return readl_relaxed_poll_timeout(cryp->base + STARFIVE_PKA_CASR_OFFSET, status,
+					  status & STARFIVE_PKA_DONE, 10, 100000);
 }
 
 static void starfive_rsa_free_key(struct starfive_rsa_key *key)
 {
-	if (key->d)
-		kfree_sensitive(key->d);
-	if (key->e)
-		kfree_sensitive(key->e);
-	if (key->n)
-		kfree_sensitive(key->n);
+	kfree_sensitive(key->d);
+	kfree_sensitive(key->e);
+	kfree_sensitive(key->n);
 	memset(key, 0, sizeof(*key));
 }
 
@@ -114,10 +94,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.not_r2 = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 
 		for (loop = 0; loop <= opsize; loop++)
@@ -136,10 +115,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.start = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 	} else {
 		rctx->csr.pka.v = 0;
@@ -151,10 +129,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.pre_expf = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 
 		for (loop = 0; loop <= count; loop++)
@@ -172,10 +149,9 @@ static int starfive_rsa_montgomery_form(struct starfive_cryp_ctx *ctx,
 		rctx->csr.pka.start = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			return -ETIMEDOUT;
 	}
 
@@ -226,11 +202,10 @@ static int starfive_rsa_cpu_start(struct starfive_cryp_ctx *ctx, u32 *result,
 		rctx->csr.pka.start = 1;
 		rctx->csr.pka.ie = 1;
 
-		starfive_pka_irq_mask_clear(ctx);
 		writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
 		ret = -ETIMEDOUT;
-		if (!starfive_pka_wait_done(ctx))
+		if (starfive_pka_wait_done(ctx))
 			goto rsa_err;
 
 		if (mlen) {
@@ -242,10 +217,9 @@ static int starfive_rsa_cpu_start(struct starfive_cryp_ctx *ctx, u32 *result,
 			rctx->csr.pka.start = 1;
 			rctx->csr.pka.ie = 1;
 
-			starfive_pka_irq_mask_clear(ctx);
 			writel(rctx->csr.pka.v, cryp->base + STARFIVE_PKA_CACR_OFFSET);
 
-			if (!starfive_pka_wait_done(ctx))
+			if (starfive_pka_wait_done(ctx))
 				goto rsa_err;
 		}
 	}

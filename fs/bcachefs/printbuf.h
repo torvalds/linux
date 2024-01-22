@@ -124,6 +124,8 @@ void bch2_prt_units_u64(struct printbuf *, u64);
 void bch2_prt_units_s64(struct printbuf *, s64);
 void bch2_prt_string_option(struct printbuf *, const char * const[], size_t);
 void bch2_prt_bitflags(struct printbuf *, const char * const[], u64);
+void bch2_prt_bitflags_vector(struct printbuf *, const char * const[],
+			      unsigned long *, unsigned);
 
 /* Initializer for a heap allocated printbuf: */
 #define PRINTBUF ((struct printbuf) { .heap_allocated = true })

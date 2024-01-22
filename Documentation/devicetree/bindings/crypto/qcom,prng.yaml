@@ -21,6 +21,7 @@ properties:
               - qcom,sc7280-trng
               - qcom,sm8450-trng
               - qcom,sm8550-trng
+              - qcom,sm8650-trng
           - const: qcom,trng
 
   reg:

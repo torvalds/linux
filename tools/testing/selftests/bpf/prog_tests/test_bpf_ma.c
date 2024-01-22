@@ -14,7 +14,8 @@ static void do_bpf_ma_test(const char *name)
 	struct test_bpf_ma *skel;
 	struct bpf_program *prog;
 	struct btf *btf;
-	int i, err;
+	int i, err, id;
+	char tname[32];
 
 	skel = test_bpf_ma__open();
 	if (!ASSERT_OK_PTR(skel, "open"))
@@ -25,14 +26,19 @@ static void do_bpf_ma_test(const char *name)
 		goto out;
 
 	for (i = 0; i < ARRAY_SIZE(skel->rodata->data_sizes); i++) {
-		char name[32];
-		int id;
-
-		snprintf(name, sizeof(name), "bin_data_%u", skel->rodata->data_sizes[i]);
-		id = btf__find_by_name_kind(btf, name, BTF_KIND_STRUCT);
-		if (!ASSERT_GT(id, 0, "bin_data"))
+		snprintf(tname, sizeof(tname), "bin_data_%u", skel->rodata->data_sizes[i]);
+		id = btf__find_by_name_kind(btf, tname, BTF_KIND_STRUCT);
+		if (!ASSERT_GT(id, 0, tname))
 			goto out;
 		skel->rodata->data_btf_ids[i] = id;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(skel->rodata->percpu_data_sizes); i++) {
+		snprintf(tname, sizeof(tname), "percpu_bin_data_%u", skel->rodata->percpu_data_sizes[i]);
+		id = btf__find_by_name_kind(btf, tname, BTF_KIND_STRUCT);
+		if (!ASSERT_GT(id, 0, tname))
+			goto out;
+		skel->rodata->percpu_data_btf_ids[i] = id;
 	}
 
 	prog = bpf_object__find_program_by_name(skel->obj, name);

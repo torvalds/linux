@@ -451,7 +451,7 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 
 		spin_lock_irqsave(&uncore->lock, flags);
 		intel_uncore_posting_read_fw(uncore,
-					     RING_HEAD(RENDER_RING_BASE));
+					     RING_TAIL(RENDER_RING_BASE));
 		spin_unlock_irqrestore(&uncore->lock, flags);
 	}
 }
@@ -982,8 +982,6 @@ int intel_gt_probe_all(struct drm_i915_private *i915)
 
 err:
 	i915_probe_error(i915, "Failed to initialize %s! (%d)\n", gtdef->name, ret);
-	intel_gt_release_all(i915);
-
 	return ret;
 }
 
@@ -1000,15 +998,6 @@ int intel_gt_tiles_init(struct drm_i915_private *i915)
 	}
 
 	return 0;
-}
-
-void intel_gt_release_all(struct drm_i915_private *i915)
-{
-	struct intel_gt *gt;
-	unsigned int id;
-
-	for_each_gt(gt, i915, id)
-		i915->gt[id] = NULL;
 }
 
 void intel_gt_info_print(const struct intel_gt_info *info,

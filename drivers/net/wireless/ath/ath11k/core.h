@@ -599,7 +599,6 @@ struct ath11k {
 	struct ath11k_base *ab;
 	struct ath11k_pdev *pdev;
 	struct ieee80211_hw *hw;
-	struct ieee80211_ops *ops;
 	struct ath11k_pdev_wmi *wmi;
 	struct ath11k_pdev_dp dp;
 	u8 mac_addr[ETH_ALEN];

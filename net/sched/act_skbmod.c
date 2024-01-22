@@ -157,7 +157,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	if (!lflags) {
 		if (exists)

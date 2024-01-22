@@ -452,10 +452,17 @@ struct ras_fs_data {
 	char debugfs_name[32];
 };
 
+struct ras_err_addr {
+	uint64_t err_status;
+	uint64_t err_ipid;
+	uint64_t err_addr;
+};
+
 struct ras_err_info {
 	struct amdgpu_smuio_mcm_config_info mcm_info;
 	u64 ce_count;
 	u64 ue_count;
+	struct ras_err_addr err_addr;
 };
 
 struct ras_err_node {
@@ -773,7 +780,7 @@ struct amdgpu_ras* amdgpu_ras_get_context(struct amdgpu_device *adev);
 
 int amdgpu_ras_set_context(struct amdgpu_device *adev, struct amdgpu_ras *ras_con);
 
-void amdgpu_ras_set_mca_debug_mode(struct amdgpu_device *adev, bool enable);
+int amdgpu_ras_set_mca_debug_mode(struct amdgpu_device *adev, bool enable);
 bool amdgpu_ras_get_mca_debug_mode(struct amdgpu_device *adev);
 bool amdgpu_ras_get_error_query_mode(struct amdgpu_device *adev,
 				     unsigned int *mode);
@@ -806,8 +813,10 @@ void amdgpu_ras_inst_reset_ras_error_count(struct amdgpu_device *adev,
 int amdgpu_ras_error_data_init(struct ras_err_data *err_data);
 void amdgpu_ras_error_data_fini(struct ras_err_data *err_data);
 int amdgpu_ras_error_statistic_ce_count(struct ras_err_data *err_data,
-					struct amdgpu_smuio_mcm_config_info *mcm_info, u64 count);
+		struct amdgpu_smuio_mcm_config_info *mcm_info,
+		struct ras_err_addr *err_addr, u64 count);
 int amdgpu_ras_error_statistic_ue_count(struct ras_err_data *err_data,
-					struct amdgpu_smuio_mcm_config_info *mcm_info, u64 count);
+		struct amdgpu_smuio_mcm_config_info *mcm_info,
+		struct ras_err_addr *err_addr, u64 count);
 
 #endif

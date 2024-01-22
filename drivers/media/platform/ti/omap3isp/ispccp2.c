@@ -614,7 +614,7 @@ static const unsigned int ccp2_fmts[] = {
 /*
  * __ccp2_get_format - helper function for getting ccp2 format
  * @ccp2  : Pointer to ISP CCP2 device
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @pad   : pad number
  * @which : wanted subdev format
  * return format structure or NULL on error
@@ -625,8 +625,7 @@ __ccp2_get_format(struct isp_ccp2_device *ccp2,
 		  unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&ccp2->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &ccp2->formats[pad];
 }
@@ -634,7 +633,7 @@ __ccp2_get_format(struct isp_ccp2_device *ccp2,
 /*
  * ccp2_try_format - Handle try format by pad subdev method
  * @ccp2  : Pointer to ISP CCP2 device
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @pad   : pad num
  * @fmt   : pointer to v4l2 mbus format structure
  * @which : wanted subdev format
@@ -689,7 +688,7 @@ static void ccp2_try_format(struct isp_ccp2_device *ccp2,
 /*
  * ccp2_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
@@ -750,7 +749,7 @@ static int ccp2_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * ccp2_get_format - Handle get format by pads subdev method
  * @sd    : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt   : pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
@@ -772,7 +771,7 @@ static int ccp2_get_format(struct v4l2_subdev *sd,
 /*
  * ccp2_set_format - Handle set format by pads subdev method
  * @sd    : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt   : pointer to v4l2 subdev format structure
  * returns zero
  */

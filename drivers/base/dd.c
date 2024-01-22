@@ -313,7 +313,7 @@ static void deferred_probe_timeout_work_func(struct work_struct *work)
 
 	mutex_lock(&deferred_probe_mutex);
 	list_for_each_entry(p, &deferred_probe_pending_list, deferred_probe)
-		dev_info(p->device, "deferred probe pending\n");
+		dev_info(p->device, "deferred probe pending: %s", p->deferred_probe_reason ?: "(reason unknown)\n");
 	mutex_unlock(&deferred_probe_mutex);
 
 	fw_devlink_probing_done();

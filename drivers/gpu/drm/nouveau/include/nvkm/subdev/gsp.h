@@ -187,7 +187,7 @@ struct nvkm_gsp {
 		void (*rpc_done)(struct nvkm_gsp *gsp, void *repv);
 
 		void *(*rm_ctrl_get)(struct nvkm_gsp_object *, u32 cmd, u32 argc);
-		void *(*rm_ctrl_push)(struct nvkm_gsp_object *, void *argv, u32 repc);
+		int (*rm_ctrl_push)(struct nvkm_gsp_object *, void **argv, u32 repc);
 		void (*rm_ctrl_done)(struct nvkm_gsp_object *, void *repv);
 
 		void *(*rm_alloc_get)(struct nvkm_gsp_object *, u32 oclass, u32 argc);
@@ -265,7 +265,7 @@ nvkm_gsp_rm_ctrl_get(struct nvkm_gsp_object *object, u32 cmd, u32 argc)
 	return object->client->gsp->rm->rm_ctrl_get(object, cmd, argc);
 }
 
-static inline void *
+static inline int
 nvkm_gsp_rm_ctrl_push(struct nvkm_gsp_object *object, void *argv, u32 repc)
 {
 	return object->client->gsp->rm->rm_ctrl_push(object, argv, repc);
@@ -275,21 +275,24 @@ static inline void *
 nvkm_gsp_rm_ctrl_rd(struct nvkm_gsp_object *object, u32 cmd, u32 repc)
 {
 	void *argv = nvkm_gsp_rm_ctrl_get(object, cmd, repc);
+	int ret;
 
 	if (IS_ERR(argv))
 		return argv;
 
-	return nvkm_gsp_rm_ctrl_push(object, argv, repc);
+	ret = nvkm_gsp_rm_ctrl_push(object, &argv, repc);
+	if (ret)
+		return ERR_PTR(ret);
+	return argv;
 }
 
 static inline int
 nvkm_gsp_rm_ctrl_wr(struct nvkm_gsp_object *object, void *argv)
 {
-	void *repv = nvkm_gsp_rm_ctrl_push(object, argv, 0);
+	int ret = nvkm_gsp_rm_ctrl_push(object, &argv, 0);
 
-	if (IS_ERR(repv))
-		return PTR_ERR(repv);
-
+	if (ret)
+		return ret;
 	return 0;
 }
 

@@ -68,15 +68,19 @@ static struct acpi_device acpi0017_mock;
 static struct acpi_device host_bridge[NR_BRIDGES] = {
 	[0] = {
 		.handle = &host_bridge[0],
+		.pnp.unique_id = "0",
 	},
 	[1] = {
 		.handle = &host_bridge[1],
+		.pnp.unique_id = "1",
 	},
 	[2] = {
 		.handle = &host_bridge[2],
+		.pnp.unique_id = "2",
 	},
 	[3] = {
 		.handle = &host_bridge[3],
+		.pnp.unique_id = "3",
 	},
 };
 
@@ -669,10 +673,11 @@ static int mock_decoder_commit(struct cxl_decoder *cxld)
 		return 0;
 
 	dev_dbg(&port->dev, "%s commit\n", dev_name(&cxld->dev));
-	if (port->commit_end + 1 != id) {
+	if (cxl_num_decoders_committed(port) != id) {
 		dev_dbg(&port->dev,
 			"%s: out of order commit, expected decoder%d.%d\n",
-			dev_name(&cxld->dev), port->id, port->commit_end + 1);
+			dev_name(&cxld->dev), port->id,
+			cxl_num_decoders_committed(port));
 		return -EBUSY;
 	}
 

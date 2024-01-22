@@ -69,7 +69,7 @@ err:
 
 int bch2_set_rebalance_needs_scan(struct bch_fs *c, u64 inum)
 {
-	int ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+	int ret = bch2_trans_do(c, NULL, NULL, BCH_TRANS_COMMIT_no_enospc|BCH_TRANS_COMMIT_lazy_rw,
 			    __bch2_set_rebalance_needs_scan(trans, inum));
 	rebalance_wakeup(c);
 	return ret;
@@ -125,7 +125,7 @@ static int bch2_bkey_clear_needs_rebalance(struct btree_trans *trans,
 
 	extent_entry_drop(bkey_i_to_s(n),
 			  (void *) bch2_bkey_rebalance_opts(bkey_i_to_s_c(n)));
-	return bch2_trans_commit(trans, NULL, NULL, BTREE_INSERT_NOFAIL);
+	return bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 
 static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
@@ -169,6 +169,20 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 		if (ret)
 			return bkey_s_c_err(ret);
 		return bkey_s_c_null;
+	}
+
+	if (trace_rebalance_extent_enabled()) {
+		struct printbuf buf = PRINTBUF;
+
+		prt_str(&buf, "target=");
+		bch2_target_to_text(&buf, c, r->target);
+		prt_str(&buf, " compression=");
+		bch2_compression_opt_to_text(&buf, r->compression);
+		prt_str(&buf, " ");
+		bch2_bkey_val_to_text(&buf, c, k);
+
+		trace_rebalance_extent(c, buf.buf);
+		printbuf_exit(&buf);
 	}
 
 	return k;
@@ -239,13 +253,12 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 
 	if (k.k->p.inode) {
 		target		= io_opts->background_target;
-		compression	= io_opts->background_compression ?: io_opts->compression;
+		compression	= background_compression(*io_opts);
 	} else {
 		const struct bch_extent_rebalance *r = bch2_bkey_rebalance_opts(k);
 
 		target		= r ? r->target : io_opts->background_target;
-		compression	= r ? r->compression :
-			(io_opts->background_compression ?: io_opts->compression);
+		compression	= r ? r->compression : background_compression(*io_opts);
 	}
 
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, k, target, compression);
@@ -273,7 +286,7 @@ static int do_rebalance_scan(struct moving_context *ctxt, u64 inum, u64 cookie)
 	r->state = BCH_REBALANCE_scanning;
 
 	ret = __bch2_move_data(ctxt, r->scan_start, r->scan_end, rebalance_pred, NULL) ?:
-		commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+		commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			  bch2_clear_rebalance_needs_scan(trans, inum, cookie));
 
 	bch2_move_stats_exit(&r->scan_stats, trans->c);
@@ -317,8 +330,16 @@ static int do_rebalance(struct moving_context *ctxt)
 			     BTREE_ID_rebalance_work, POS_MIN,
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
-	while (!bch2_move_ratelimit(ctxt) &&
-	       !kthread_wait_freezable(r->enabled)) {
+	while (!bch2_move_ratelimit(ctxt)) {
+		if (!r->enabled) {
+			bch2_moving_ctxt_flush_all(ctxt);
+			kthread_wait_freezable(r->enabled ||
+					       kthread_should_stop());
+		}
+
+		if (kthread_should_stop())
+			break;
+
 		bch2_trans_begin(trans);
 
 		ret = bkey_err(k = next_rebalance_entry(trans, &rebalance_work_iter));
@@ -348,6 +369,7 @@ static int do_rebalance(struct moving_context *ctxt)
 	    !kthread_should_stop() &&
 	    !atomic64_read(&r->work_stats.sectors_seen) &&
 	    !atomic64_read(&r->scan_stats.sectors_seen)) {
+		bch2_moving_ctxt_flush_all(ctxt);
 		bch2_trans_unlock_long(trans);
 		rebalance_wait(c);
 	}
@@ -362,7 +384,6 @@ static int bch2_rebalance_thread(void *arg)
 	struct bch_fs *c = arg;
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct moving_context ctxt;
-	int ret;
 
 	set_freezable();
 
@@ -370,8 +391,7 @@ static int bch2_rebalance_thread(void *arg)
 			      writepoint_ptr(&c->rebalance_write_point),
 			      true);
 
-	while (!kthread_should_stop() &&
-	       !(ret = do_rebalance(&ctxt)))
+	while (!kthread_should_stop() && !do_rebalance(&ctxt))
 		;
 
 	bch2_moving_ctxt_exit(&ctxt);
@@ -447,10 +467,9 @@ int bch2_rebalance_start(struct bch_fs *c)
 
 	p = kthread_create(bch2_rebalance_thread, c, "bch-rebalance/%s", c->name);
 	ret = PTR_ERR_OR_ZERO(p);
-	if (ret) {
-		bch_err_msg(c, ret, "creating rebalance thread");
+	bch_err_msg(c, ret, "creating rebalance thread");
+	if (ret)
 		return ret;
-	}
 
 	get_task_struct(p);
 	rcu_assign_pointer(c->rebalance.thread, p);

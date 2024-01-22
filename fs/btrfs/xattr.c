@@ -382,6 +382,53 @@ static int btrfs_xattr_handler_set(const struct xattr_handler *handler,
 	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
 }
 
+static int btrfs_xattr_handler_get_security(const struct xattr_handler *handler,
+					    struct dentry *unused,
+					    struct inode *inode,
+					    const char *name, void *buffer,
+					    size_t size)
+{
+	int ret;
+	bool is_cap = false;
+
+	name = xattr_full_name(handler, name);
+
+	/*
+	 * security.capability doesn't cache the results, so calls into us
+	 * constantly to see if there's a capability xattr.  Cache the result
+	 * here in order to avoid wasting time doing lookups for xattrs we know
+	 * don't exist.
+	 */
+	if (strcmp(name, XATTR_NAME_CAPS) == 0) {
+		is_cap = true;
+		if (test_bit(BTRFS_INODE_NO_CAP_XATTR, &BTRFS_I(inode)->runtime_flags))
+			return -ENODATA;
+	}
+
+	ret = btrfs_getxattr(inode, name, buffer, size);
+	if (ret == -ENODATA && is_cap)
+		set_bit(BTRFS_INODE_NO_CAP_XATTR, &BTRFS_I(inode)->runtime_flags);
+	return ret;
+}
+
+static int btrfs_xattr_handler_set_security(const struct xattr_handler *handler,
+					    struct mnt_idmap *idmap,
+					    struct dentry *unused,
+					    struct inode *inode,
+					    const char *name,
+					    const void *buffer,
+					    size_t size, int flags)
+{
+	if (btrfs_root_readonly(BTRFS_I(inode)->root))
+		return -EROFS;
+
+	name = xattr_full_name(handler, name);
+	if (strcmp(name, XATTR_NAME_CAPS) == 0)
+		clear_bit(BTRFS_INODE_NO_CAP_XATTR, &BTRFS_I(inode)->runtime_flags);
+
+	return btrfs_setxattr_trans(inode, name, buffer, size, flags);
+}
+
 static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 					struct mnt_idmap *idmap,
 					struct dentry *unused, struct inode *inode,
@@ -420,8 +467,8 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 
 static const struct xattr_handler btrfs_security_xattr_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
-	.get = btrfs_xattr_handler_get,
-	.set = btrfs_xattr_handler_set,
+	.get = btrfs_xattr_handler_get_security,
+	.set = btrfs_xattr_handler_set_security,
 };
 
 static const struct xattr_handler btrfs_trusted_xattr_handler = {
@@ -473,6 +520,10 @@ static int btrfs_initxattrs(struct inode *inode,
 		}
 		strcpy(name, XATTR_SECURITY_PREFIX);
 		strcpy(name + XATTR_SECURITY_PREFIX_LEN, xattr->name);
+
+		if (strcmp(name, XATTR_NAME_CAPS) == 0)
+			clear_bit(BTRFS_INODE_NO_CAP_XATTR, &BTRFS_I(inode)->runtime_flags);
+
 		err = btrfs_setxattr(trans, inode, name, xattr->value,
 				     xattr->value_len, 0);
 		kfree(name);

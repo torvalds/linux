@@ -8419,6 +8419,9 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 	rif->ops = ops;
 	rif->rif_entries = rif_entries;
 
+	if (ops->setup)
+		ops->setup(rif, params);
+
 	if (ops->fid_get) {
 		fid = ops->fid_get(rif, params, extack);
 		if (IS_ERR(fid)) {
@@ -8427,9 +8430,6 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		}
 		rif->fid = fid;
 	}
-
-	if (ops->setup)
-		ops->setup(rif, params);
 
 	err = ops->configure(rif, extack);
 	if (err)
@@ -8658,6 +8658,20 @@ static struct mlxsw_sp_rif_subport *
 mlxsw_sp_rif_subport_rif(const struct mlxsw_sp_rif *rif)
 {
 	return container_of(rif, struct mlxsw_sp_rif_subport, common);
+}
+
+int mlxsw_sp_rif_subport_port(const struct mlxsw_sp_rif *rif,
+			      u16 *port, bool *is_lag)
+{
+	struct mlxsw_sp_rif_subport *rif_subport;
+
+	if (WARN_ON(rif->ops->type != MLXSW_SP_RIF_TYPE_SUBPORT))
+		return -EINVAL;
+
+	rif_subport = mlxsw_sp_rif_subport_rif(rif);
+	*is_lag = rif_subport->lag;
+	*port = *is_lag ? rif_subport->lag_id : rif_subport->system_port;
+	return 0;
 }
 
 static struct mlxsw_sp_rif *
@@ -11458,6 +11472,13 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_register_netevent_notifier;
 
+	mlxsw_sp->router->netdevice_nb.notifier_call =
+		mlxsw_sp_router_netdevice_event;
+	err = register_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
+					      &mlxsw_sp->router->netdevice_nb);
+	if (err)
+		goto err_register_netdev_notifier;
+
 	mlxsw_sp->router->nexthop_nb.notifier_call =
 		mlxsw_sp_nexthop_obj_event;
 	err = register_nexthop_notifier(mlxsw_sp_net(mlxsw_sp),
@@ -11473,22 +11494,15 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_register_fib_notifier;
 
-	mlxsw_sp->router->netdevice_nb.notifier_call =
-		mlxsw_sp_router_netdevice_event;
-	err = register_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
-					      &mlxsw_sp->router->netdevice_nb);
-	if (err)
-		goto err_register_netdev_notifier;
-
 	return 0;
 
-err_register_netdev_notifier:
-	unregister_fib_notifier(mlxsw_sp_net(mlxsw_sp),
-				&mlxsw_sp->router->fib_nb);
 err_register_fib_notifier:
 	unregister_nexthop_notifier(mlxsw_sp_net(mlxsw_sp),
 				    &mlxsw_sp->router->nexthop_nb);
 err_register_nexthop_notifier:
+	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
+					  &router->netdevice_nb);
+err_register_netdev_notifier:
 	unregister_netevent_notifier(&mlxsw_sp->router->netevent_nb);
 err_register_netevent_notifier:
 	unregister_inet6addr_validator_notifier(&router->inet6addr_valid_nb);
@@ -11536,11 +11550,11 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_router *router = mlxsw_sp->router;
 
-	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
-					  &router->netdevice_nb);
 	unregister_fib_notifier(mlxsw_sp_net(mlxsw_sp), &router->fib_nb);
 	unregister_nexthop_notifier(mlxsw_sp_net(mlxsw_sp),
 				    &router->nexthop_nb);
+	unregister_netdevice_notifier_net(mlxsw_sp_net(mlxsw_sp),
+					  &router->netdevice_nb);
 	unregister_netevent_notifier(&router->netevent_nb);
 	unregister_inet6addr_validator_notifier(&router->inet6addr_valid_nb);
 	unregister_inetaddr_validator_notifier(&router->inetaddr_valid_nb);

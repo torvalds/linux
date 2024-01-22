@@ -3,6 +3,7 @@
 #define _FS_CEPH_SUPER_H
 
 #include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/osd_client.h>
 
 #include <asm/unaligned.h>
 #include <linux/backing-dev.h>
@@ -1405,6 +1406,19 @@ static inline void __ceph_update_quota(struct ceph_inode_info *ci,
 
 	if (had_quota != has_quota)
 		ceph_adjust_quota_realms_count(&ci->netfs.inode, has_quota);
+}
+
+static inline int __ceph_sparse_read_ext_count(struct inode *inode, u64 len)
+{
+	int cnt = 0;
+
+	if (IS_ENCRYPTED(inode)) {
+		cnt = len >> CEPH_FSCRYPT_BLOCK_SHIFT;
+		if (cnt > CEPH_SPARSE_EXT_ARRAY_INITIAL)
+			cnt = 0;
+	}
+
+	return cnt;
 }
 
 extern void ceph_handle_quota(struct ceph_mds_client *mdsc,

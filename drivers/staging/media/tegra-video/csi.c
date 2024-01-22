@@ -222,13 +222,21 @@ static int csi_set_format(struct v4l2_subdev *subdev,
 /*
  * V4L2 Subdevice Video Operations
  */
-static int tegra_csi_g_frame_interval(struct v4l2_subdev *subdev,
-				      struct v4l2_subdev_frame_interval *vfi)
+static int tegra_csi_get_frame_interval(struct v4l2_subdev *subdev,
+					struct v4l2_subdev_state *sd_state,
+					struct v4l2_subdev_frame_interval *vfi)
 {
 	struct tegra_csi_channel *csi_chan = to_csi_chan(subdev);
 
 	if (!IS_ENABLED(CONFIG_VIDEO_TEGRA_TPG))
 		return -ENOIOCTLCMD;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (vfi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	vfi->interval.numerator = 1;
 	vfi->interval.denominator = csi_chan->framerate;
@@ -430,8 +438,6 @@ static int tegra_csi_s_stream(struct v4l2_subdev *subdev, int enable)
  */
 static const struct v4l2_subdev_video_ops tegra_csi_video_ops = {
 	.s_stream = tegra_csi_s_stream,
-	.g_frame_interval = tegra_csi_g_frame_interval,
-	.s_frame_interval = tegra_csi_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops tegra_csi_pad_ops = {
@@ -440,6 +446,8 @@ static const struct v4l2_subdev_pad_ops tegra_csi_pad_ops = {
 	.enum_frame_interval	= csi_enum_frameintervals,
 	.get_fmt		= csi_get_format,
 	.set_fmt		= csi_set_format,
+	.get_frame_interval	= tegra_csi_get_frame_interval,
+	.set_frame_interval	= tegra_csi_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops tegra_csi_ops = {
@@ -818,15 +826,13 @@ rpm_disable:
 	return ret;
 }
 
-static int tegra_csi_remove(struct platform_device *pdev)
+static void tegra_csi_remove(struct platform_device *pdev)
 {
 	struct tegra_csi *csi = platform_get_drvdata(pdev);
 
 	host1x_client_unregister(&csi->client);
 
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 #if defined(CONFIG_ARCH_TEGRA_210_SOC)
@@ -852,5 +858,5 @@ struct platform_driver tegra_csi_driver = {
 		.pm		= &tegra_csi_pm_ops,
 	},
 	.probe			= tegra_csi_probe,
-	.remove			= tegra_csi_remove,
+	.remove_new		= tegra_csi_remove,
 };

@@ -7,11 +7,8 @@ Assorted Miscellaneous Devices Documentation
 This documentation contains information for assorted devices that do not
 fit into other categories.
 
-.. class:: toc-title
-
-	   Table of contents
-
 .. toctree::
+   :caption: Table of contents
    :maxdepth: 2
 
    ad525x_dpot

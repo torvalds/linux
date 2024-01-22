@@ -125,4 +125,9 @@ struct hns_roce_ib_alloc_pd_resp {
 	__u32 pdn;
 };
 
+struct hns_roce_ib_create_ah_resp {
+	__u8 dmac[6];
+	__u8 reserved[2];
+};
+
 #endif /* HNS_ABI_USER_H */

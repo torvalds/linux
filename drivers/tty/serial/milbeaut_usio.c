@@ -552,15 +552,13 @@ failed:
 	return ret;
 }
 
-static int mlb_usio_remove(struct platform_device *pdev)
+static void mlb_usio_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = &mlb_usio_ports[pdev->id];
 	struct clk *clk = port->private_data;
 
 	uart_remove_one_port(&mlb_usio_uart_driver, port);
 	clk_disable_unprepare(clk);
-
-	return 0;
 }
 
 static const struct of_device_id mlb_usio_dt_ids[] = {
@@ -571,7 +569,7 @@ MODULE_DEVICE_TABLE(of, mlb_usio_dt_ids);
 
 static struct platform_driver mlb_usio_driver = {
 	.probe          = mlb_usio_probe,
-	.remove         = mlb_usio_remove,
+	.remove_new     = mlb_usio_remove,
 	.driver         = {
 		.name   = USIO_NAME,
 		.of_match_table = mlb_usio_dt_ids,

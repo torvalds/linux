@@ -119,7 +119,7 @@ acpi_parse_eio_master(union acpi_subtable_headers *header, const unsigned long e
 		return -EINVAL;
 
 	core = eiointc->node * CORES_PER_EIO_NODE;
-	set_bit(core, &(loongson_sysconf.cores_io_master));
+	set_bit(core, loongson_sysconf.cores_io_master);
 
 	return 0;
 }

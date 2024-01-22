@@ -659,6 +659,12 @@ enum pq_init_status {
  *       number (nonce) provided by the host to prevent replay attacks.
  *       public key and certificate also provided as part of the FW response.
  *
+ * CPUCP_PACKET_INFO_SIGNED_GET -
+ *       Get the device information signed by the Trusted Platform device.
+ *       device info data is also hashed with some unique number (nonce) provided
+ *       by the host to prevent replay attacks. public key and certificate also
+ *       provided as part of the FW response.
+ *
  * CPUCP_PACKET_MONITOR_DUMP_GET -
  *       Get monitors registers dump from the CpuCP kernel.
  *       The CPU will put the registers dump in the a buffer allocated by the driver
@@ -733,7 +739,7 @@ enum cpucp_packet_id {
 	CPUCP_PACKET_ENGINE_CORE_ASID_SET,	/* internal */
 	CPUCP_PACKET_RESERVED2,			/* not used */
 	CPUCP_PACKET_SEC_ATTEST_GET,		/* internal */
-	CPUCP_PACKET_RESERVED3,			/* not used */
+	CPUCP_PACKET_INFO_SIGNED_GET,		/* internal */
 	CPUCP_PACKET_RESERVED4,			/* not used */
 	CPUCP_PACKET_MONITOR_DUMP_GET,		/* debugfs */
 	CPUCP_PACKET_RESERVED5,			/* not used */

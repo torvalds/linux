@@ -1954,7 +1954,7 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 
 			/* Check if the bandwidth is high enough. */
 			psize = uvc_endpoint_max_bpi(stream->dev->udev, ep);
-			if (psize >= bandwidth && psize <= best_psize) {
+			if (psize >= bandwidth && psize < best_psize) {
 				altsetting = alts->desc.bAlternateSetting;
 				best_psize = psize;
 				best_ep = ep;

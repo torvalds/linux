@@ -1427,8 +1427,8 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 
 	/* Check if the requested SSID is already joined */
 	if (priv->curr_bss_params.bss_descriptor.ssid.ssid_len &&
-	    !mwifiex_ssid_cmp(&bss_desc->ssid,
-			      &priv->curr_bss_params.bss_descriptor.ssid) &&
+	    cfg80211_ssid_eq(&bss_desc->ssid,
+			     &priv->curr_bss_params.bss_descriptor.ssid) &&
 	    (priv->curr_bss_params.bss_descriptor.bss_mode ==
 							NL80211_IFTYPE_ADHOC)) {
 		mwifiex_dbg(priv->adapter, INFO,

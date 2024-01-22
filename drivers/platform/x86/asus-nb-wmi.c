@@ -48,25 +48,43 @@ module_param(tablet_mode_sw, uint, 0444);
 MODULE_PARM_DESC(tablet_mode_sw, "Tablet mode detect: -1:auto 0:disable 1:kbd-dock 2:lid-flip 3:lid-flip-rog");
 
 static struct quirk_entry *quirks;
+static bool atkbd_reports_vol_keys;
 
-static bool asus_q500a_i8042_filter(unsigned char data, unsigned char str,
-			      struct serio *port)
+static bool asus_i8042_filter(unsigned char data, unsigned char str, struct serio *port)
 {
-	static bool extended;
-	bool ret = false;
+	static bool extended_e0;
+	static bool extended_e1;
 
 	if (str & I8042_STR_AUXDATA)
 		return false;
 
-	if (unlikely(data == 0xe1)) {
-		extended = true;
-		ret = true;
-	} else if (unlikely(extended)) {
-		extended = false;
-		ret = true;
+	if (quirks->filter_i8042_e1_extended_codes) {
+		if (data == 0xe1) {
+			extended_e1 = true;
+			return true;
+		}
+
+		if (extended_e1) {
+			extended_e1 = false;
+			return true;
+		}
 	}
 
-	return ret;
+	if (data == 0xe0) {
+		extended_e0 = true;
+	} else if (extended_e0) {
+		extended_e0 = false;
+
+		switch (data & 0x7f) {
+		case 0x20: /* e0 20 / e0 a0, Volume Mute press / release */
+		case 0x2e: /* e0 2e / e0 ae, Volume Down press / release */
+		case 0x30: /* e0 30 / e0 b0, Volume Up press / release */
+			atkbd_reports_vol_keys = true;
+			break;
+		}
+	}
+
+	return false;
 }
 
 static struct quirk_entry quirk_asus_unknown = {
@@ -75,7 +93,7 @@ static struct quirk_entry quirk_asus_unknown = {
 };
 
 static struct quirk_entry quirk_asus_q500a = {
-	.i8042_filter = asus_q500a_i8042_filter,
+	.filter_i8042_e1_extended_codes = true,
 	.wmi_backlight_set_devstate = true,
 };
 
@@ -503,8 +521,6 @@ static const struct dmi_system_id asus_quirks[] = {
 
 static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 {
-	int ret;
-
 	quirks = &quirk_asus_unknown;
 	dmi_check_system(asus_quirks);
 
@@ -519,15 +535,6 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 
 	if (tablet_mode_sw != -1)
 		quirks->tablet_switch_mode = tablet_mode_sw;
-
-	if (quirks->i8042_filter) {
-		ret = i8042_install_filter(quirks->i8042_filter);
-		if (ret) {
-			pr_warn("Unable to install key filter\n");
-			return;
-		}
-		pr_info("Using i8042 filter function for receiving events\n");
-	}
 }
 
 static const struct key_entry asus_nb_wmi_keymap[] = {
@@ -618,6 +625,13 @@ static void asus_nb_wmi_key_filter(struct asus_wmi_driver *asus_wmi, int *code,
 			*code = ASUS_WMI_KEY_IGNORE;
 
 		break;
+	case 0x30: /* Volume Up */
+	case 0x31: /* Volume Down */
+	case 0x32: /* Volume Mute */
+		if (atkbd_reports_vol_keys)
+			*code = ASUS_WMI_KEY_IGNORE;
+
+		break;
 	}
 }
 
@@ -630,6 +644,7 @@ static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.input_phys = ASUS_NB_WMI_FILE "/input0",
 	.detect_quirks = asus_nb_wmi_quirks,
 	.key_filter = asus_nb_wmi_key_filter,
+	.i8042_filter = asus_i8042_filter,
 };
 
 

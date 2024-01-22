@@ -91,6 +91,10 @@ compatibility checking tool (fsck.erofs), and a debugging tool (dump.erofs):
 
 - git://git.kernel.org/pub/scm/linux/kernel/git/xiang/erofs-utils.git
 
+For more information, please also refer to the documentation site:
+
+- https://erofs.docs.kernel.org
+
 Bugs and patches are welcome, please kindly help us and send to the following
 linux-erofs mailing list:
 

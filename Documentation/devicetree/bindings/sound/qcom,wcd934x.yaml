@@ -201,9 +201,9 @@ examples:
   - |
     codec@1,0{
         compatible = "slim217,250";
-        reg  = <1 0>;
+        reg = <1 0>;
         reset-gpios = <&tlmm 64 0>;
-        slim-ifc-dev  = <&wcd9340_ifd>;
+        slim-ifc-dev = <&wcd9340_ifd>;
         #sound-dai-cells = <1>;
         interrupt-parent = <&tlmm>;
         interrupts = <54 4>;

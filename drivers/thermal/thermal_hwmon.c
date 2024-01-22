@@ -80,10 +80,7 @@ temp_crit_show(struct device *dev, struct device_attribute *attr, char *buf)
 
 	mutex_lock(&tz->lock);
 
-	if (device_is_registered(&tz->device))
-		ret = tz->ops->get_crit_temp(tz, &temperature);
-	else
-		ret = -ENODEV;
+	ret = tz->ops->get_crit_temp(tz, &temperature);
 
 	mutex_unlock(&tz->lock);
 

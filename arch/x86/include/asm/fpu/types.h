@@ -5,6 +5,8 @@
 #ifndef _ASM_X86_FPU_H
 #define _ASM_X86_FPU_H
 
+#include <asm/page_types.h>
+
 /*
  * The legacy x87 FPU state format, as saved by FSAVE and
  * restored by the FRSTOR instructions:
@@ -415,7 +417,7 @@ struct fpu_state_perm {
 	 *
 	 * This master permission field is only to be used when
 	 * task.fpu.fpstate based checks fail to validate whether the task
-	 * is allowed to expand it's xfeatures set which requires to
+	 * is allowed to expand its xfeatures set which requires to
 	 * allocate a larger sized fpstate buffer.
 	 *
 	 * Do not access this field directly.  Use the provided helper

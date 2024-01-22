@@ -56,14 +56,13 @@ xfs_attr_shortform_list(
 	struct xfs_attrlist_cursor_kern	*cursor = &context->cursor;
 	struct xfs_inode		*dp = context->dp;
 	struct xfs_attr_sf_sort		*sbuf, *sbp;
-	struct xfs_attr_shortform	*sf;
+	struct xfs_attr_sf_hdr		*sf = dp->i_af.if_data;
 	struct xfs_attr_sf_entry	*sfe;
 	int				sbsize, nsbuf, count, i;
 	int				error = 0;
 
-	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 	ASSERT(sf != NULL);
-	if (!sf->hdr.count)
+	if (!sf->count)
 		return 0;
 
 	trace_xfs_attr_list_sf(context);
@@ -79,8 +78,8 @@ xfs_attr_shortform_list(
 	 */
 	if (context->bufsize == 0 ||
 	    (XFS_ISRESET_CURSOR(cursor) &&
-	     (dp->i_af.if_bytes + sf->hdr.count * 16) < context->bufsize)) {
-		for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
+	     (dp->i_af.if_bytes + sf->count * 16) < context->bufsize)) {
+		for (i = 0, sfe = xfs_attr_sf_firstentry(sf); i < sf->count; i++) {
 			if (XFS_IS_CORRUPT(context->dp->i_mount,
 					   !xfs_attr_namecheck(sfe->nameval,
 							       sfe->namelen)))
@@ -109,7 +108,7 @@ xfs_attr_shortform_list(
 	/*
 	 * It didn't all fit, so we have to sort everything on hashval.
 	 */
-	sbsize = sf->hdr.count * sizeof(*sbuf);
+	sbsize = sf->count * sizeof(*sbuf);
 	sbp = sbuf = kmem_alloc(sbsize, KM_NOFS);
 
 	/*
@@ -117,7 +116,7 @@ xfs_attr_shortform_list(
 	 * the relevant info from only those that match into a buffer.
 	 */
 	nsbuf = 0;
-	for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
+	for (i = 0, sfe = xfs_attr_sf_firstentry(sf); i < sf->count; i++) {
 		if (unlikely(
 		    ((char *)sfe < (char *)sf) ||
 		    ((char *)sfe >= ((char *)sf + dp->i_af.if_bytes)))) {

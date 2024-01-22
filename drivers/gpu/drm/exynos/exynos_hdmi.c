@@ -1861,6 +1861,8 @@ static int hdmi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	crtc = exynos_drm_crtc_get_by_type(drm_dev, EXYNOS_DISPLAY_TYPE_HDMI);
+	if (IS_ERR(crtc))
+		return PTR_ERR(crtc);
 	crtc->pipe_clk = &hdata->phy_clk;
 
 	ret = hdmi_create_connector(encoder);
@@ -2067,7 +2069,7 @@ err_ddc:
 	return ret;
 }
 
-static int hdmi_remove(struct platform_device *pdev)
+static void hdmi_remove(struct platform_device *pdev)
 {
 	struct hdmi_context *hdata = platform_get_drvdata(pdev);
 
@@ -2090,8 +2092,6 @@ static int hdmi_remove(struct platform_device *pdev)
 	put_device(&hdata->ddc_adpt->dev);
 
 	mutex_destroy(&hdata->mutex);
-
-	return 0;
 }
 
 static int __maybe_unused exynos_hdmi_suspend(struct device *dev)
@@ -2123,7 +2123,7 @@ static const struct dev_pm_ops exynos_hdmi_pm_ops = {
 
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
-	.remove		= hdmi_remove,
+	.remove_new	= hdmi_remove,
 	.driver		= {
 		.name	= "exynos-hdmi",
 		.owner	= THIS_MODULE,

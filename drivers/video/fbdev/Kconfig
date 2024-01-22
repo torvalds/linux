@@ -116,24 +116,6 @@ config FB_PM2_FIFO_DISCONNECT
 	help
 	  Support the Permedia2 FIFO disconnect feature.
 
-config FB_ARMCLCD
-	tristate "ARM PrimeCell PL110 support"
-	depends on ARM || ARM64 || COMPILE_TEST
-	depends on FB && ARM_AMBA && HAS_IOMEM
-	select FB_IOMEM_HELPERS
-	select FB_MODE_HELPERS if OF
-	select VIDEOMODE_HELPERS if OF
-	select BACKLIGHT_CLASS_DEVICE if OF
-	help
-	  This framebuffer device driver is for the ARM PrimeCell PL110
-	  Colour LCD controller.  ARM PrimeCells provide the building
-	  blocks for System on a Chip devices.
-
-	  If you want to compile this as a module (=code which can be
-	  inserted into and removed from the running kernel), say M
-	  here and read <file:Documentation/kbuild/modules.rst>.  The module
-	  will be called amba-clcd.
-
 config FB_ACORN
 	bool "Acorn VIDC support"
 	depends on (FB = y) && ARM && ARCH_ACORN
@@ -146,10 +128,8 @@ config FB_ACORN
 config FB_CLPS711X
 	tristate "CLPS711X LCD support"
 	depends on FB && (ARCH_CLPS711X || COMPILE_TEST)
+	select FB_IOMEM_HELPERS
 	select FB_MODE_HELPERS
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
 	select LCD_CLASS_DEVICE
 	select VIDEOMODE_HELPERS
 	help
@@ -180,10 +160,7 @@ config FB_IMX
 config FB_CYBER2000
 	tristate "CyberPro 2000/2010/5000 support"
 	depends on FB && PCI && (BROKEN || !SPARC64)
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB_IOMEM_FOPS
+	select FB_IOMEM_HELPERS
 	select VIDEO_NOMODESET
 	help
 	  This enables support for the Integraphics CyberPro 20x0 and 5000
@@ -272,10 +249,7 @@ config FB_FM2
 config FB_ARC
 	tristate "Arc Monochrome LCD board support"
 	depends on FB && (X86 || COMPILE_TEST)
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
+	select FB_SYSMEM_HELPERS_DEFERRED
 	help
 	  This enables support for the Arc Monochrome LCD board. The board
 	  is based on the KS-108 lcd controller and is typically a matrix
@@ -847,60 +821,6 @@ config FB_I810_I2C
 
 	  If unsure, say Y.
 
-config FB_LE80578
-	tristate "Intel LE80578 (Vermilion) support"
-	depends on FB && PCI && X86
-	select FB_IOMEM_HELPERS
-	select FB_MODE_HELPERS
-	select VIDEO_NOMODESET
-	help
-	  This driver supports the LE80578 (Vermilion Range) chipset
-
-config FB_CARILLO_RANCH
-	tristate "Intel Carillo Ranch support"
-	depends on FB_LE80578 && FB && PCI && X86
-	help
-	  This driver supports the LE80578 (Carillo Ranch) board
-
-config FB_INTEL
-	tristate "Intel 830M/845G/852GM/855GM/865G/915G/945G/945GM/965G/965GM support"
-	depends on FB && PCI && X86 && AGP_INTEL && EXPERT
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
-	select FB_IOMEM_FOPS
-	select FB_MODE_HELPERS
-	select BOOT_VESA_SUPPORT if FB_INTEL = y
-	select VIDEO_NOMODESET
-	depends on !DRM_I915
-	help
-	  This driver supports the on-board graphics built in to the Intel
-	  830M/845G/852GM/855GM/865G/915G/915GM/945G/945GM/965G/965GM chipsets.
-	  Say Y if you have and plan to use such a board.
-
-	  To make FB_INTEL=Y work you need to say AGP_INTEL=y too.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called intelfb.
-
-	  For more information, please read <file:Documentation/fb/intelfb.rst>
-
-config FB_INTEL_DEBUG
-	bool "Intel driver Debug Messages"
-	depends on FB_INTEL
-	help
-	  Say Y here if you want the Intel driver to output all sorts
-	  of debugging information to provide to the maintainer when
-	  something goes wrong.
-
-config FB_INTEL_I2C
-	bool "DDC/I2C for Intel framebuffer support"
-	depends on FB_INTEL
-	select FB_DDC
-	default y
-	help
-	  Say Y here if you want DDC/I2C support for your on-board Intel graphics.
-
 config FB_MATROX
 	tristate "Matrox acceleration"
 	depends on FB && PCI
@@ -1460,10 +1380,7 @@ config FB_AU1100
 config FB_AU1200
 	bool "Au1200/Au1300 LCD Driver"
 	depends on (FB = y) && MIPS_ALCHEMY
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
+	select FB_DMAMEM_HELPERS
 	help
 	  This is the framebuffer driver for the Au1200/Au1300 SOCs.
 	  It can drive various panels and CRTs by passing in kernel cmd line
@@ -1475,6 +1392,7 @@ config FB_VT8500
 	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
 	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
+	select FB_SYSMEM_FOPS
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
 	help
@@ -1487,6 +1405,7 @@ config FB_WM8505
 	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
 	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
+	select FB_SYSMEM_FOPS
 	select FB_MODE_HELPERS
 	select VIDEOMODE_HELPERS
 	help
@@ -1637,12 +1556,9 @@ config FB_SH_MOBILE_LCDC
 	depends on FB && HAVE_CLK && HAS_IOMEM
 	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
 	depends on FB_DEVICE
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	select FB_DEFERRED_IO
 	select FB_BACKLIGHT
+	select FB_DEFERRED_IO
+	select FB_DMAMEM_HELPERS
 	help
 	  Frame buffer driver for the on-chip SH-Mobile LCD controller.
 
@@ -1689,11 +1605,7 @@ config FB_SMSCUFX
 	tristate "SMSC UFX6000/7000 USB Framebuffer support"
 	depends on FB && USB
 	select FB_MODE_HELPERS
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	select FB_DEFERRED_IO
+	select FB_SYSMEM_HELPERS_DEFERRED
 	help
 	  This is a kernel framebuffer driver for SMSC UFX USB devices.
 	  Supports fbdev clients like xf86-video-fbdev, kdrive, fbi, and
@@ -1706,11 +1618,7 @@ config FB_UDL
 	depends on FB && USB
 	depends on FB_DEVICE
 	select FB_MODE_HELPERS
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	select FB_DEFERRED_IO
+	select FB_SYSMEM_HELPERS_DEFERRED
 	help
 	  This is a kernel framebuffer driver for DisplayLink USB devices.
 	  Supports fbdev clients like xf86-video-fbdev, kdrive, fbi, and
@@ -1732,10 +1640,7 @@ config FB_IBM_GXT4500
 config FB_PS3
 	tristate "PS3 GPU framebuffer driver"
 	depends on FB && PS3_PS3AV
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
+	select FB_SYSMEM_HELPERS
 	help
 	  Include support for the virtual frame buffer in the PS3 platform.
 
@@ -1800,10 +1705,7 @@ config FB_DA8XX
 config FB_VIRTUAL
 	tristate "Virtual Frame Buffer support (ONLY FOR TESTING!)"
 	depends on FB
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
+	select FB_SYSMEM_HELPERS
 	help
 	  This is a `virtual' frame buffer device. It operates on a chunk of
 	  unswappable kernel memory instead of on the memory of a graphics

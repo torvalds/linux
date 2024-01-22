@@ -45,7 +45,7 @@ int dump_bpf_map(struct bpf_iter__bpf_map *ctx)
 	}
 
 	/* fill seq_file buffer */
-	for (i = 0; i < print_len; i++)
+	for (i = 0; i < (int)print_len; i++)
 		bpf_seq_write(seq, &seq_num, sizeof(seq_num));
 
 	return ret;

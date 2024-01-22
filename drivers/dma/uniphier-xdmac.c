@@ -563,7 +563,7 @@ out_unregister_dmac:
 	return ret;
 }
 
-static int uniphier_xdmac_remove(struct platform_device *pdev)
+static void uniphier_xdmac_remove(struct platform_device *pdev)
 {
 	struct uniphier_xdmac_device *xdev = platform_get_drvdata(pdev);
 	struct dma_device *ddev = &xdev->ddev;
@@ -579,15 +579,20 @@ static int uniphier_xdmac_remove(struct platform_device *pdev)
 	 */
 	list_for_each_entry(chan, &ddev->channels, device_node) {
 		ret = dmaengine_terminate_sync(chan);
-		if (ret)
-			return ret;
+		if (ret) {
+			/*
+			 * This results in resource leakage and maybe also
+			 * use-after-free errors as e.g. *xdev is kfreed.
+			 */
+			dev_alert(&pdev->dev, "Failed to terminate channel %d (%pe)\n",
+				  chan->chan_id, ERR_PTR(ret));
+			return;
+		}
 		uniphier_xdmac_free_chan_resources(chan);
 	}
 
 	of_dma_controller_free(pdev->dev.of_node);
 	dma_async_device_unregister(ddev);
-
-	return 0;
 }
 
 static const struct of_device_id uniphier_xdmac_match[] = {
@@ -598,7 +603,7 @@ MODULE_DEVICE_TABLE(of, uniphier_xdmac_match);
 
 static struct platform_driver uniphier_xdmac_driver = {
 	.probe = uniphier_xdmac_probe,
-	.remove = uniphier_xdmac_remove,
+	.remove_new = uniphier_xdmac_remove,
 	.driver = {
 		.name = "uniphier-xdmac",
 		.of_match_table = uniphier_xdmac_match,

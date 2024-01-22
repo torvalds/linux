@@ -475,11 +475,11 @@ int hns_roce_create_srq(struct ib_srq *ib_srq,
 
 	ret = set_srq_param(srq, init_attr, udata);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = alloc_srq_buf(hr_dev, srq, udata);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	ret = alloc_srq_db(hr_dev, srq, udata, &resp);
 	if (ret)
@@ -517,6 +517,8 @@ err_srq_db:
 	free_srq_db(hr_dev, srq, udata);
 err_srq_buf:
 	free_srq_buf(hr_dev, srq);
+err_out:
+	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_SRQ_CREATE_ERR_CNT]);
 
 	return ret;
 }

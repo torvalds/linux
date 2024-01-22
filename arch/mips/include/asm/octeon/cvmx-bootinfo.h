@@ -114,7 +114,7 @@ struct cvmx_bootinfo {
 
 	/*
 	 * flags indicating various configuration options.  These
-	 * flags supercede the 'flags' variable and should be used
+	 * flags supersede the 'flags' variable and should be used
 	 * instead if available.
 	 */
 	uint32_t config_flags;

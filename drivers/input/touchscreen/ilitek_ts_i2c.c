@@ -512,12 +512,12 @@ static ssize_t firmware_version_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ilitek_ts_data *ts = i2c_get_clientdata(client);
 
-	return scnprintf(buf, PAGE_SIZE,
-			 "fw version: [%02X%02X.%02X%02X.%02X%02X.%02X%02X]\n",
-			 ts->firmware_ver[0], ts->firmware_ver[1],
-			 ts->firmware_ver[2], ts->firmware_ver[3],
-			 ts->firmware_ver[4], ts->firmware_ver[5],
-			 ts->firmware_ver[6], ts->firmware_ver[7]);
+	return sysfs_emit(buf,
+			  "fw version: [%02X%02X.%02X%02X.%02X%02X.%02X%02X]\n",
+			  ts->firmware_ver[0], ts->firmware_ver[1],
+			  ts->firmware_ver[2], ts->firmware_ver[3],
+			  ts->firmware_ver[4], ts->firmware_ver[5],
+			  ts->firmware_ver[6], ts->firmware_ver[7]);
 }
 static DEVICE_ATTR_RO(firmware_version);
 
@@ -527,8 +527,8 @@ static ssize_t product_id_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ilitek_ts_data *ts = i2c_get_clientdata(client);
 
-	return scnprintf(buf, PAGE_SIZE, "product id: [%04X], module: [%s]\n",
-			 ts->mcu_ver, ts->product_id);
+	return sysfs_emit(buf, "product id: [%04X], module: [%s]\n",
+			  ts->mcu_ver, ts->product_id);
 }
 static DEVICE_ATTR_RO(product_id);
 

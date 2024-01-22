@@ -40,25 +40,22 @@ o        `                     ~~~~\___/~~~~    ` controller in FPGA is ,.`
  *               `.......````.```
  */
 
-#include <linux/init.h>
-#include <linux/err.h>
-#include <linux/bug.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/compiler.h>
-#include <linux/types.h>
-#include <linux/errno.h>
-#include <linux/log2.h>
-#include <linux/ioport.h>
-#include <linux/io.h>
-#include <linux/gpio/driver.h>
-#include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/compiler.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/ioport.h>
+#include <linux/log2.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
-#include <linux/mod_devicetable.h>
-#include <linux/of.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+
+#include <linux/gpio/driver.h>
 
 #include "gpiolib.h"
 
@@ -688,7 +685,6 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 	return devm_ioremap_resource(&pdev->dev, r);
 }
 
-#ifdef CONFIG_OF
 static const struct of_device_id bgpio_of_match[] = {
 	{ .compatible = "brcm,bcm6345-gpio" },
 	{ .compatible = "wd,mbl-gpio" },
@@ -697,36 +693,27 @@ static const struct of_device_id bgpio_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, bgpio_of_match);
 
-static struct bgpio_pdata *bgpio_parse_dt(struct platform_device *pdev,
-					  unsigned long *flags)
+static struct bgpio_pdata *bgpio_parse_fw(struct device *dev, unsigned long *flags)
 {
 	struct bgpio_pdata *pdata;
 
-	if (!pdev->dev.of_node)
+	if (!dev_fwnode(dev))
 		return NULL;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(struct bgpio_pdata),
-			     GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
 	pdata->base = -1;
 
-	if (of_device_is_big_endian(pdev->dev.of_node))
+	if (device_is_big_endian(dev))
 		*flags |= BGPIOF_BIG_ENDIAN_BYTE_ORDER;
 
-	if (of_property_read_bool(pdev->dev.of_node, "no-output"))
+	if (device_property_read_bool(dev, "no-output"))
 		*flags |= BGPIOF_NO_OUTPUT;
 
 	return pdata;
 }
-#else
-static struct bgpio_pdata *bgpio_parse_dt(struct platform_device *pdev,
-					  unsigned long *flags)
-{
-	return NULL;
-}
-#endif /* CONFIG_OF */
 
 static int bgpio_pdev_probe(struct platform_device *pdev)
 {
@@ -743,7 +730,7 @@ static int bgpio_pdev_probe(struct platform_device *pdev)
 	struct gpio_chip *gc;
 	struct bgpio_pdata *pdata;
 
-	pdata = bgpio_parse_dt(pdev, &flags);
+	pdata = bgpio_parse_fw(dev, &flags);
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 
@@ -814,7 +801,7 @@ MODULE_DEVICE_TABLE(platform, bgpio_id_table);
 static struct platform_driver bgpio_driver = {
 	.driver = {
 		.name = "basic-mmio-gpio",
-		.of_match_table = of_match_ptr(bgpio_of_match),
+		.of_match_table = bgpio_of_match,
 	},
 	.id_table = bgpio_id_table,
 	.probe = bgpio_pdev_probe,

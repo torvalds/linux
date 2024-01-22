@@ -1,3 +1,14 @@
+	accept_memory=  [MM]
+			Format: { eager | lazy }
+			default: lazy
+			By default, unaccepted memory is accepted lazily to
+			avoid prolonged boot times. The lazy option will add
+			some runtime overhead until all memory is eventually
+			accepted. In most cases the overhead is negligible.
+			For some workloads or for debugging purposes
+			accept_memory=eager can be used to accept all memory
+			at once during boot.
+
 	acpi=		[HW,ACPI,X86,ARM64,RISCV64]
 			Advanced Configuration and Power Interface
 			Format: { force | on | off | strict | noirq | rsdt |
@@ -877,9 +888,9 @@
 			memory region [offset, offset + size] for that kernel
 			image. If '@offset' is omitted, then a suitable offset
 			is selected automatically.
-			[KNL, X86-64, ARM64, RISCV] Select a region under 4G first, and
-			fall back to reserve region above 4G when '@offset'
-			hasn't been specified.
+			[KNL, X86-64, ARM64, RISCV, LoongArch] Select a region
+			under 4G first, and fall back to reserve region above
+			4G when '@offset' hasn't been specified.
 			See Documentation/admin-guide/kdump/kdump.rst for further details.
 
 	crashkernel=range1:size1[,range2:size2,...][@offset]
@@ -890,25 +901,27 @@
 			Documentation/admin-guide/kdump/kdump.rst for an example.
 
 	crashkernel=size[KMG],high
-			[KNL, X86-64, ARM64, RISCV] range could be above 4G.
+			[KNL, X86-64, ARM64, RISCV, LoongArch] range could be
+			above 4G.
 			Allow kernel to allocate physical memory region from top,
 			so could be above 4G if system have more than 4G ram
 			installed. Otherwise memory region will be allocated
 			below 4G, if available.
 			It will be ignored if crashkernel=X is specified.
 	crashkernel=size[KMG],low
-			[KNL, X86-64, ARM64, RISCV] range under 4G. When crashkernel=X,high
-			is passed, kernel could allocate physical memory region
-			above 4G, that cause second kernel crash on system
-			that require some amount of low memory, e.g. swiotlb
-			requires at least 64M+32K low memory, also enough extra
-			low memory is needed to make sure DMA buffers for 32-bit
-			devices won't run out. Kernel would try to allocate
+			[KNL, X86-64, ARM64, RISCV, LoongArch] range under 4G.
+			When crashkernel=X,high is passed, kernel could allocate
+			physical memory region above 4G, that cause second kernel
+			crash on system that require some amount of low memory,
+			e.g. swiotlb requires at least 64M+32K low memory, also
+			enough extra low memory is needed to make sure DMA buffers
+			for 32-bit devices won't run out. Kernel would try to allocate
 			default	size of memory below 4G automatically. The default
 			size is	platform dependent.
 			  --> x86: max(swiotlb_size_or_default() + 8MiB, 256MiB)
 			  --> arm64: 128MiB
 			  --> riscv: 128MiB
+			  --> loongarch: 128MiB
 			This one lets the user specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
@@ -970,17 +983,17 @@
 			buddy allocator. Bigger value increase the probability
 			of catching random memory corruption, but reduce the
 			amount of memory for normal system use. The maximum
-			possible value is MAX_ORDER/2.  Setting this parameter
-			to 1 or 2 should be enough to identify most random
-			memory corruption problems caused by bugs in kernel or
-			driver code when a CPU writes to (or reads from) a
-			random memory location. Note that there exists a class
-			of memory corruptions problems caused by buggy H/W or
-			F/W or by drivers badly programming DMA (basically when
-			memory is written at bus level and the CPU MMU is
-			bypassed) which are not detectable by
-			CONFIG_DEBUG_PAGEALLOC, hence this option will not help
-			tracking down these problems.
+			possible value is MAX_PAGE_ORDER/2.  Setting this
+			parameter to 1 or 2 should be enough to identify most
+			random memory corruption problems caused by bugs in
+			kernel or driver code when a CPU writes to (or reads
+			from) a random memory location. Note that there exists
+			a class of memory corruptions problems caused by buggy
+			H/W or F/W or by drivers badly programming DMA
+			(basically when memory is written at bus level and the
+			CPU MMU is bypassed) which are not detectable by
+			CONFIG_DEBUG_PAGEALLOC, hence this option will not
+			help tracking down these problems.
 
 	debug_pagealloc=
 			[KNL] When CONFIG_DEBUG_PAGEALLOC is set, this parameter
@@ -2438,7 +2451,7 @@
 			between unregistering the boot console and initializing
 			the real console.
 
-	keepinitrd	[HW,ARM]
+	keepinitrd	[HW,ARM] See retain_initrd.
 
 	kernelcore=	[KNL,X86,IA-64,PPC]
 			Format: nn[KMGTPE] | nn% | "mirror"
@@ -3985,9 +3998,9 @@
 			vulnerability. System may allow data leaks with this
 			option.
 
-	no-steal-acc	[X86,PV_OPS,ARM64,PPC/PSERIES] Disable paravirtualized
-			steal time accounting. steal time is computed, but
-			won't influence scheduler behaviour
+	no-steal-acc	[X86,PV_OPS,ARM64,PPC/PSERIES,RISCV] Disable
+			paravirtualized steal time accounting. steal time is
+			computed, but won't influence scheduler behaviour
 
 	nosync		[HW,M68K] Disables sync negotiation for all devices.
 
@@ -4136,7 +4149,7 @@
 			[KNL] Minimal page reporting order
 			Format: <integer>
 			Adjust the minimal page reporting order. The page
-			reporting is disabled when it exceeds MAX_ORDER.
+			reporting is disabled when it exceeds MAX_PAGE_ORDER.
 
 	panic=		[KNL] Kernel behaviour on panic: delay <timeout>
 			timeout > 0: seconds before rebooting
@@ -5302,6 +5315,12 @@
 			Dump ftrace buffer after reporting RCU CPU
 			stall warning.
 
+	rcupdate.rcu_cpu_stall_notifiers= [KNL]
+			Provide RCU CPU stall notifiers, but see the
+			warnings in the RCU_CPU_STALL_NOTIFIER Kconfig
+			option's help text.  TL;DR:  You almost certainly
+			do not want rcupdate.rcu_cpu_stall_notifiers.
+
 	rcupdate.rcu_cpu_stall_suppress= [KNL]
 			Suppress RCU CPU stall warning messages.
 
@@ -5544,6 +5563,13 @@
 			print every Nth verbose statement, where N is the value
 			specified.
 
+	regulator_ignore_unused
+			[REGULATOR]
+			Prevents regulator framework from disabling regulators
+			that are unused, due no driver claiming them. This may
+			be useful for debug and development, but should not be
+			needed on a platform with proper driver support.
+
 	relax_domain_level=
 			[KNL, SMP] Set scheduler's default relax_domain_level.
 			See Documentation/admin-guide/cgroup-v1/cpusets.rst.
@@ -5580,7 +5606,8 @@
 			Useful for devices that are detected asynchronously
 			(e.g. USB and MMC devices).
 
-	retain_initrd	[RAM] Keep initrd memory after extraction
+	retain_initrd	[RAM] Keep initrd memory after extraction. After boot, it will
+			be accessible via /sys/firmware/initrd.
 
 	retbleed=	[X86] Control mitigation of RETBleed (Arbitrary
 			Speculative Code Execution with Return Instructions)
@@ -6908,6 +6935,9 @@
 					pause after every control message);
 				o = USB_QUIRK_HUB_SLOW_RESET (Hub needs extra
 					delay after resetting its port);
+				p = USB_QUIRK_SHORT_SET_ADDRESS_REQ_TIMEOUT
+					(Reduce timeout of the SET_ADDRESS
+					request from 5000 ms to 500 ms);
 			Example: quirks=0781:5580:bk,0a5c:5834:gij
 
 	usbhid.mousepoll=

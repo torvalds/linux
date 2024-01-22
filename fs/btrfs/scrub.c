@@ -43,7 +43,7 @@ struct scrub_ctx;
 /*
  * The following value only influences the performance.
  *
- * This detemines how many stripes would be submitted in one go,
+ * This determines how many stripes would be submitted in one go,
  * which is 512KiB (BTRFS_STRIPE_LEN * SCRUB_STRIPES_PER_GROUP).
  */
 #define SCRUB_STRIPES_PER_GROUP		8
@@ -192,7 +192,6 @@ struct scrub_ctx {
 	int			cur_stripe;
 	atomic_t		cancel_req;
 	int			readonly;
-	int			sectors_per_bio;
 
 	/* State of IO submission throttling affecting the associated device */
 	ktime_t			throttle_deadline;
@@ -262,7 +261,7 @@ static int init_scrub_stripe(struct btrfs_fs_info *fs_info,
 	atomic_set(&stripe->pending_io, 0);
 	spin_lock_init(&stripe->write_error_lock);
 
-	ret = btrfs_alloc_page_array(SCRUB_STRIPE_PAGES, stripe->pages);
+	ret = btrfs_alloc_page_array(SCRUB_STRIPE_PAGES, stripe->pages, 0);
 	if (ret < 0)
 		goto error;
 
@@ -710,7 +709,7 @@ static void scrub_verify_one_sector(struct scrub_stripe *stripe, int sector_nr)
 	/* Metadata, verify the full tree block. */
 	if (sector->is_metadata) {
 		/*
-		 * Check if the tree block crosses the stripe boudary.  If
+		 * Check if the tree block crosses the stripe boundary.  If
 		 * crossed the boundary, we cannot verify it but only give a
 		 * warning.
 		 *
@@ -884,7 +883,7 @@ static void scrub_stripe_report_errors(struct scrub_ctx *sctx,
 	/*
 	 * Init needed infos for error reporting.
 	 *
-	 * Although our scrub_stripe infrastucture is mostly based on btrfs_submit_bio()
+	 * Although our scrub_stripe infrastructure is mostly based on btrfs_submit_bio()
 	 * thus no need for dev/physical, error reporting still needs dev and physical.
 	 */
 	if (!bitmap_empty(&stripe->init_error_bitmap, stripe->nr_sectors)) {
@@ -1280,7 +1279,7 @@ static void scrub_throttle_dev_io(struct scrub_ctx *sctx, struct btrfs_device *d
  * return 0 if it is a data stripe, 1 means parity stripe.
  */
 static int get_raid56_logic_offset(u64 physical, int num,
-				   struct map_lookup *map, u64 *offset,
+				   struct btrfs_chunk_map *map, u64 *offset,
 				   u64 *stripe_start)
 {
 	int i;
@@ -1409,14 +1408,11 @@ search_forward:
 		if (ret > 0)
 			break;
 next:
-		path->slots[0]++;
-		if (path->slots[0] >= btrfs_header_nritems(path->nodes[0])) {
-			ret = btrfs_next_leaf(extent_root, path);
-			if (ret) {
-				/* Either no more item or fatal error */
-				btrfs_release_path(path);
-				return ret;
-			}
+		ret = btrfs_next_item(extent_root, path);
+		if (ret) {
+			/* Either no more items or a fatal error. */
+			btrfs_release_path(path);
+			return ret;
 		}
 	}
 	btrfs_release_path(path);
@@ -1816,7 +1812,7 @@ static int flush_scrub_stripes(struct scrub_ctx *sctx)
 	if (sctx->is_dev_replace) {
 		/*
 		 * For dev-replace, if we know there is something wrong with
-		 * metadata, we should immedately abort.
+		 * metadata, we should immediately abort.
 		 */
 		for (int i = 0; i < nr_stripes; i++) {
 			if (stripe_has_metadata_error(&sctx->stripes[i])) {
@@ -1868,6 +1864,9 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 	 */
 	ASSERT(sctx->cur_stripe < SCRUB_TOTAL_STRIPES);
 
+	/* @found_logical_ret must be specified. */
+	ASSERT(found_logical_ret);
+
 	stripe = &sctx->stripes[sctx->cur_stripe];
 	scrub_reset_stripe(stripe);
 	ret = scrub_find_fill_first_stripe(bg, &sctx->extent_path,
@@ -1876,8 +1875,7 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 	/* Either >0 as no more extents or <0 for error. */
 	if (ret)
 		return ret;
-	if (found_logical_ret)
-		*found_logical_ret = stripe->logical;
+	*found_logical_ret = stripe->logical;
 	sctx->cur_stripe++;
 
 	/* We filled one group, submit it. */
@@ -1896,7 +1894,7 @@ static int queue_scrub_stripe(struct scrub_ctx *sctx, struct btrfs_block_group *
 static int scrub_raid56_parity_stripe(struct scrub_ctx *sctx,
 				      struct btrfs_device *scrub_dev,
 				      struct btrfs_block_group *bg,
-				      struct map_lookup *map,
+				      struct btrfs_chunk_map *map,
 				      u64 full_stripe_start)
 {
 	DECLARE_COMPLETION_ONSTACK(io_done);
@@ -2065,7 +2063,7 @@ out:
  */
 static int scrub_simple_mirror(struct scrub_ctx *sctx,
 			       struct btrfs_block_group *bg,
-			       struct map_lookup *map,
+			       struct btrfs_chunk_map *map,
 			       u64 logical_start, u64 logical_length,
 			       struct btrfs_device *device,
 			       u64 physical, int mirror_num)
@@ -2080,7 +2078,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 
 	/* Go through each extent items inside the logical range */
 	while (cur_logical < logical_end) {
-		u64 found_logical;
+		u64 found_logical = U64_MAX;
 		u64 cur_physical = physical + cur_logical - logical_start;
 
 		/* Canceled? */
@@ -2115,6 +2113,8 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		if (ret < 0)
 			break;
 
+		/* queue_scrub_stripe() returned 0, @found_logical must be updated. */
+		ASSERT(found_logical != U64_MAX);
 		cur_logical = found_logical + BTRFS_STRIPE_LEN;
 
 		/* Don't hold CPU for too long time */
@@ -2124,7 +2124,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 }
 
 /* Calculate the full stripe length for simple stripe based profiles */
-static u64 simple_stripe_full_stripe_len(const struct map_lookup *map)
+static u64 simple_stripe_full_stripe_len(const struct btrfs_chunk_map *map)
 {
 	ASSERT(map->type & (BTRFS_BLOCK_GROUP_RAID0 |
 			    BTRFS_BLOCK_GROUP_RAID10));
@@ -2133,7 +2133,7 @@ static u64 simple_stripe_full_stripe_len(const struct map_lookup *map)
 }
 
 /* Get the logical bytenr for the stripe */
-static u64 simple_stripe_get_logical(struct map_lookup *map,
+static u64 simple_stripe_get_logical(struct btrfs_chunk_map *map,
 				     struct btrfs_block_group *bg,
 				     int stripe_index)
 {
@@ -2150,7 +2150,7 @@ static u64 simple_stripe_get_logical(struct map_lookup *map,
 }
 
 /* Get the mirror number for the stripe */
-static int simple_stripe_mirror_num(struct map_lookup *map, int stripe_index)
+static int simple_stripe_mirror_num(struct btrfs_chunk_map *map, int stripe_index)
 {
 	ASSERT(map->type & (BTRFS_BLOCK_GROUP_RAID0 |
 			    BTRFS_BLOCK_GROUP_RAID10));
@@ -2162,7 +2162,7 @@ static int simple_stripe_mirror_num(struct map_lookup *map, int stripe_index)
 
 static int scrub_simple_stripe(struct scrub_ctx *sctx,
 			       struct btrfs_block_group *bg,
-			       struct map_lookup *map,
+			       struct btrfs_chunk_map *map,
 			       struct btrfs_device *device,
 			       int stripe_index)
 {
@@ -2195,18 +2195,17 @@ static int scrub_simple_stripe(struct scrub_ctx *sctx,
 
 static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 					   struct btrfs_block_group *bg,
-					   struct extent_map *em,
+					   struct btrfs_chunk_map *map,
 					   struct btrfs_device *scrub_dev,
 					   int stripe_index)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct map_lookup *map = em->map_lookup;
 	const u64 profile = map->type & BTRFS_BLOCK_GROUP_PROFILE_MASK;
 	const u64 chunk_logical = bg->start;
 	int ret;
 	int ret2;
 	u64 physical = map->stripes[stripe_index].physical;
-	const u64 dev_stripe_len = btrfs_calc_stripe_length(em);
+	const u64 dev_stripe_len = btrfs_calc_stripe_length(map);
 	const u64 physical_end = physical + dev_stripe_len;
 	u64 logical;
 	u64 logic_end;
@@ -2369,17 +2368,12 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 					  u64 dev_extent_len)
 {
 	struct btrfs_fs_info *fs_info = sctx->fs_info;
-	struct extent_map_tree *map_tree = &fs_info->mapping_tree;
-	struct map_lookup *map;
-	struct extent_map *em;
+	struct btrfs_chunk_map *map;
 	int i;
 	int ret = 0;
 
-	read_lock(&map_tree->lock);
-	em = lookup_extent_mapping(map_tree, bg->start, bg->length);
-	read_unlock(&map_tree->lock);
-
-	if (!em) {
+	map = btrfs_find_chunk_map(fs_info, bg->start, bg->length);
+	if (!map) {
 		/*
 		 * Might have been an unused block group deleted by the cleaner
 		 * kthread or relocation.
@@ -2391,22 +2385,21 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 
 		return ret;
 	}
-	if (em->start != bg->start)
+	if (map->start != bg->start)
 		goto out;
-	if (em->len < dev_extent_len)
+	if (map->chunk_len < dev_extent_len)
 		goto out;
 
-	map = em->map_lookup;
 	for (i = 0; i < map->num_stripes; ++i) {
 		if (map->stripes[i].dev->bdev == scrub_dev->bdev &&
 		    map->stripes[i].physical == dev_offset) {
-			ret = scrub_stripe(sctx, bg, em, scrub_dev, i);
+			ret = scrub_stripe(sctx, bg, map, scrub_dev, i);
 			if (ret)
 				goto out;
 		}
 	}
 out:
-	free_extent_map(em);
+	btrfs_free_chunk_map(map);
 
 	return ret;
 }

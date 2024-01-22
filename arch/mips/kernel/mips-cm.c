@@ -201,7 +201,7 @@ phys_addr_t __mips_cm_phys_base(void)
 phys_addr_t mips_cm_phys_base(void)
 	__attribute__((weak, alias("__mips_cm_phys_base")));
 
-phys_addr_t __mips_cm_l2sync_phys_base(void)
+static phys_addr_t __mips_cm_l2sync_phys_base(void)
 {
 	u32 base_reg;
 

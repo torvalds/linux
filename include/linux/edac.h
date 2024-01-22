@@ -30,7 +30,7 @@ struct device;
 
 extern int edac_op_state;
 
-struct bus_type *edac_get_sysfs_subsys(void);
+const struct bus_type *edac_get_sysfs_subsys(void);
 
 static inline void opstate_init(void)
 {
@@ -187,6 +187,7 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_NVDIMM:		Non-volatile RAM
  * @MEM_WIO2:		Wide I/O 2.
  * @MEM_HBM2:		High bandwidth Memory Gen 2.
+ * @MEM_HBM3:		High bandwidth Memory Gen 3.
  */
 enum mem_type {
 	MEM_EMPTY = 0,
@@ -218,6 +219,7 @@ enum mem_type {
 	MEM_NVDIMM,
 	MEM_WIO2,
 	MEM_HBM2,
+	MEM_HBM3,
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -248,6 +250,7 @@ enum mem_type {
 #define MEM_FLAG_NVDIMM		BIT(MEM_NVDIMM)
 #define MEM_FLAG_WIO2		BIT(MEM_WIO2)
 #define MEM_FLAG_HBM2		BIT(MEM_HBM2)
+#define MEM_FLAG_HBM3		BIT(MEM_HBM3)
 
 /**
  * enum edac_type - Error Detection and Correction capabilities and mode
@@ -492,7 +495,7 @@ struct edac_raw_error_desc {
  */
 struct mem_ctl_info {
 	struct device			dev;
-	struct bus_type			*bus;
+	const struct bus_type		*bus;
 
 	struct list_head link;	/* for global list of mem_ctl_info structs */
 

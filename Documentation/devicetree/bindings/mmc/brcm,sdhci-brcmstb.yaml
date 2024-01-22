@@ -20,10 +20,8 @@ properties:
           - const: brcm,sdhci-brcmstb
       - items:
           - enum:
+              - brcm,bcm74165b0-sdhci
               - brcm,bcm7445-sdhci
-          - const: brcm,sdhci-brcmstb
-      - items:
-          - enum:
               - brcm,bcm7425-sdhci
           - const: brcm,sdhci-brcmstb
 

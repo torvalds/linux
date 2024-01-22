@@ -9,7 +9,19 @@ Supported chips:
 
     Addresses scanned: none
 
-    Datasheet: https://www.sensirion.com/file/datasheet_sht3x_digital
+    Datasheets:
+        - https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf
+        - https://sensirion.com/media/documents/051DF50B/639C8101/Sensirion_Humidity_and_Temperature_Sensors_Datasheet_SHT33.pdf
+
+  * Sensirion STS3x-DIS
+
+    Prefix: 'sts3x'
+
+    Addresses scanned: none
+
+    Datasheets:
+        - https://sensirion.com/media/documents/1DA31AFD/61641F76/Sensirion_Temperature_Sensors_STS3x_Datasheet.pdf
+        - https://sensirion.com/media/documents/292A335C/65537BAF/Sensirion_Datasheet_STS32_STS33.pdf
 
 Author:
 
@@ -19,16 +31,17 @@ Author:
 Description
 -----------
 
-This driver implements support for the Sensirion SHT3x-DIS chip, a humidity
-and temperature sensor. Temperature is measured in degrees celsius, relative
-humidity is expressed as a percentage. In the sysfs interface, all values are
-scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
+This driver implements support for the Sensirion SHT3x-DIS and STS3x-DIS
+series of humidity and temperature sensors. Temperature is measured in degrees
+celsius, relative humidity is expressed as a percentage. In the sysfs interface,
+all values are scaled by 1000, i.e. the value for 31.5 degrees celsius is 31500.
 
 The device communicates with the I2C protocol. Sensors can have the I2C
-addresses 0x44 or 0x45, depending on the wiring. See
-Documentation/i2c/instantiating-devices.rst for methods to instantiate the device.
+addresses 0x44 or 0x45 (0x4a or 0x4b for sts3x), depending on the wiring. See
+Documentation/i2c/instantiating-devices.rst for methods to instantiate the
+device.
 
-Even if sht3x sensor supports clock-strech(blocking mode) and non-strench
+Even if sht3x sensor supports clock-stretch (blocking mode) and non-stretch
 (non-blocking mode) in single-shot mode, this driver only supports the latter.
 
 The sht3x sensor supports a single shot mode as well as 5 periodic measure

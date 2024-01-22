@@ -226,8 +226,8 @@ examples:
           interrupt-parent = <&gic>;
           interrupts = <0 48 4>;
           reg = <0xff160000 0x1000>;
-          clocks = <&clk200>, <&clk200>;
-          clock-names = "clk_xin", "clk_ahb";
+          clocks = <&clk200>, <&clk200>, <&clk1200>;
+          clock-names = "clk_xin", "clk_ahb", "gate";
           clock-output-names = "clk_out_sd0", "clk_in_sd0";
           #clock-cells = <1>;
           clk-phase-sd-hs = <63>, <72>;
@@ -239,8 +239,8 @@ examples:
           interrupt-parent = <&gic>;
           interrupts = <0 126 4>;
           reg = <0xf1040000 0x10000>;
-          clocks = <&clk200>, <&clk200>;
-          clock-names = "clk_xin", "clk_ahb";
+          clocks = <&clk200>, <&clk200>, <&clk1200>;
+          clock-names = "clk_xin", "clk_ahb", "gate";
           clock-output-names = "clk_out_sd0", "clk_in_sd0";
           #clock-cells = <1>;
           clk-phase-sd-hs = <132>, <60>;

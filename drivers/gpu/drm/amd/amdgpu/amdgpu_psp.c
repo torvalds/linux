@@ -466,7 +466,7 @@ static int psp_sw_init(void *handle)
 	}
 
 	ret = amdgpu_bo_create_kernel(adev, PSP_1_MEG, PSP_1_MEG,
-				      amdgpu_sriov_vf(adev) ?
+				      (amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf) ?
 				      AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,
 				      &psp->fw_pri_bo,
 				      &psp->fw_pri_mc_addr,
@@ -1433,8 +1433,8 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			 get_extended_data) ||
 			amdgpu_ip_version(psp->adev, MP0_HWIP, 0) ==
 				IP_VERSION(13, 0, 6);
-		bool ta_port_num_support = psp->xgmi_context.xgmi_ta_caps &
-						EXTEND_PEER_LINK_INFO_CMD_FLAG;
+		bool ta_port_num_support = amdgpu_sriov_vf(psp->adev) ? 0 :
+				psp->xgmi_context.xgmi_ta_caps & EXTEND_PEER_LINK_INFO_CMD_FLAG;
 
 		/* popluate the shared output buffer rather than the cmd input buffer
 		 * with node_ids as the input for GET_PEER_LINKS command execution.
@@ -1472,6 +1472,11 @@ int psp_xgmi_get_topology_info(struct psp_context *psp,
 			} else {
 				topology->nodes[i].num_links = (requires_reflection && topology->nodes[i].num_links) ?
 								topology->nodes[i].num_links : node_num_links;
+			}
+			/* popluate the connected port num info if supported and available */
+			if (ta_port_num_support && topology->nodes[i].num_links) {
+				memcpy(topology->nodes[i].port_num, link_extend_info_output->nodes[i].port_num,
+				       sizeof(struct xgmi_connected_port_num) * TA_XGMI__MAX_PORT_NUM);
 			}
 
 			/* reflect the topology information for bi-directionality */

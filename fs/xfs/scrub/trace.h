@@ -19,6 +19,7 @@
 struct xfile;
 struct xfarray;
 struct xfarray_sortinfo;
+struct xchk_dqiter;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -106,6 +107,7 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 	{ XCHK_HAVE_FREEZE_PROT,		"nofreeze" }, \
 	{ XCHK_FSGATES_DRAIN,			"fsgates_drain" }, \
 	{ XCHK_NEED_DRAIN,			"need_drain" }, \
+	{ XREP_RESET_PERAG_RESV,		"reset_perag_resv" }, \
 	{ XREP_ALREADY_FIXED,			"already_fixed" }
 
 DECLARE_EVENT_CLASS(xchk_class,
@@ -346,6 +348,54 @@ DEFINE_EVENT(xchk_fblock_error_class, name, \
 
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_error);
 DEFINE_SCRUB_FBLOCK_ERROR_EVENT(xchk_fblock_warning);
+
+#ifdef CONFIG_XFS_QUOTA
+DECLARE_EVENT_CLASS(xchk_dqiter_class,
+	TP_PROTO(struct xchk_dqiter *cursor, uint64_t id),
+	TP_ARGS(cursor, id),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_dqtype_t, dqtype)
+		__field(xfs_ino_t, ino)
+		__field(unsigned long long, cur_id)
+		__field(unsigned long long, id)
+		__field(xfs_fileoff_t, startoff)
+		__field(xfs_fsblock_t, startblock)
+		__field(xfs_filblks_t, blockcount)
+		__field(xfs_exntst_t, state)
+	),
+	TP_fast_assign(
+		__entry->dev = cursor->sc->ip->i_mount->m_super->s_dev;
+		__entry->dqtype = cursor->dqtype;
+		__entry->ino = cursor->quota_ip->i_ino;
+		__entry->cur_id = cursor->id;
+		__entry->startoff = cursor->bmap.br_startoff;
+		__entry->startblock = cursor->bmap.br_startblock;
+		__entry->blockcount = cursor->bmap.br_blockcount;
+		__entry->state = cursor->bmap.br_state;
+		__entry->id = id;
+	),
+	TP_printk("dev %d:%d dquot type %s ino 0x%llx cursor_id 0x%llx startoff 0x%llx startblock 0x%llx blockcount 0x%llx state %u id 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->dqtype, XFS_DQTYPE_STRINGS),
+		  __entry->ino,
+		  __entry->cur_id,
+		  __entry->startoff,
+		  __entry->startblock,
+		  __entry->blockcount,
+		  __entry->state,
+		  __entry->id)
+);
+
+#define DEFINE_SCRUB_DQITER_EVENT(name) \
+DEFINE_EVENT(xchk_dqiter_class, name, \
+	TP_PROTO(struct xchk_dqiter *cursor, uint64_t id), \
+	TP_ARGS(cursor, id))
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_revalidate_bmap);
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_advance_bmap);
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_advance_incore);
+DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter);
+#endif /* CONFIG_XFS_QUOTA */
 
 TRACE_EVENT(xchk_incomplete,
 	TP_PROTO(struct xfs_scrub *sc, void *ret_ip),
@@ -1172,36 +1222,124 @@ DEFINE_EVENT(xrep_rmap_class, name, \
 		 xfs_agblock_t agbno, xfs_extlen_t len, \
 		 uint64_t owner, uint64_t offset, unsigned int flags), \
 	TP_ARGS(mp, agno, agbno, len, owner, offset, flags))
-DEFINE_REPAIR_RMAP_EVENT(xrep_alloc_extent_fn);
-DEFINE_REPAIR_RMAP_EVENT(xrep_ialloc_extent_fn);
+DEFINE_REPAIR_RMAP_EVENT(xrep_ibt_walk_rmap);
 DEFINE_REPAIR_RMAP_EVENT(xrep_rmap_extent_fn);
-DEFINE_REPAIR_RMAP_EVENT(xrep_bmap_extent_fn);
+DEFINE_REPAIR_RMAP_EVENT(xrep_bmap_walk_rmap);
 
-TRACE_EVENT(xrep_refcount_extent_fn,
+TRACE_EVENT(xrep_abt_found,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 struct xfs_refcount_irec *irec),
-	TP_ARGS(mp, agno, irec),
+		 const struct xfs_alloc_rec_incore *rec),
+	TP_ARGS(mp, agno, rec),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, startblock)
 		__field(xfs_extlen_t, blockcount)
-		__field(xfs_nlink_t, refcount)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->agno = agno;
-		__entry->startblock = irec->rc_startblock;
-		__entry->blockcount = irec->rc_blockcount;
-		__entry->refcount = irec->rc_refcount;
+		__entry->startblock = rec->ar_startblock;
+		__entry->blockcount = rec->ar_blockcount;
 	),
-	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x refcount %u",
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
+		  __entry->startblock,
+		  __entry->blockcount)
+)
+
+TRACE_EVENT(xrep_ibt_found,
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
+		 const struct xfs_inobt_rec_incore *rec),
+	TP_ARGS(mp, agno, rec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, startino)
+		__field(uint16_t, holemask)
+		__field(uint8_t, count)
+		__field(uint8_t, freecount)
+		__field(uint64_t, freemask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->agno = agno;
+		__entry->startino = rec->ir_startino;
+		__entry->holemask = rec->ir_holemask;
+		__entry->count = rec->ir_count;
+		__entry->freecount = rec->ir_freecount;
+		__entry->freemask = rec->ir_free;
+	),
+	TP_printk("dev %d:%d agno 0x%x agino 0x%x holemask 0x%x count 0x%x freecount 0x%x freemask 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->startino,
+		  __entry->holemask,
+		  __entry->count,
+		  __entry->freecount,
+		  __entry->freemask)
+)
+
+TRACE_EVENT(xrep_refc_found,
+	TP_PROTO(struct xfs_perag *pag, const struct xfs_refcount_irec *rec),
+	TP_ARGS(pag, rec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(enum xfs_refc_domain, domain)
+		__field(xfs_agblock_t, startblock)
+		__field(xfs_extlen_t, blockcount)
+		__field(xfs_nlink_t, refcount)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->domain = rec->rc_domain;
+		__entry->startblock = rec->rc_startblock;
+		__entry->blockcount = rec->rc_blockcount;
+		__entry->refcount = rec->rc_refcount;
+	),
+	TP_printk("dev %d:%d agno 0x%x dom %s agbno 0x%x fsbcount 0x%x refcount %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __print_symbolic(__entry->domain, XFS_REFC_DOMAIN_STRINGS),
 		  __entry->startblock,
 		  __entry->blockcount,
 		  __entry->refcount)
 )
+
+TRACE_EVENT(xrep_bmap_found,
+	TP_PROTO(struct xfs_inode *ip, int whichfork,
+		 struct xfs_bmbt_irec *irec),
+	TP_ARGS(ip, whichfork, irec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(int, whichfork)
+		__field(xfs_fileoff_t, lblk)
+		__field(xfs_filblks_t, len)
+		__field(xfs_fsblock_t, pblk)
+		__field(int, state)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->whichfork = whichfork;
+		__entry->lblk = irec->br_startoff;
+		__entry->len = irec->br_blockcount;
+		__entry->pblk = irec->br_startblock;
+		__entry->state = irec->br_state;
+	),
+	TP_printk("dev %d:%d ino 0x%llx whichfork %s fileoff 0x%llx fsbcount 0x%llx startblock 0x%llx state %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
+		  __entry->lblk,
+		  __entry->len,
+		  __entry->pblk,
+		  __entry->state)
+);
 
 TRACE_EVENT(xrep_findroot_block,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, xfs_agblock_t agbno,
@@ -1299,38 +1437,326 @@ TRACE_EVENT(xrep_reset_counters,
 		  MAJOR(__entry->dev), MINOR(__entry->dev))
 )
 
-TRACE_EVENT(xrep_ialloc_insert,
+DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 xfs_agino_t startino, uint16_t holemask, uint8_t count,
-		 uint8_t freecount, uint64_t freemask),
-	TP_ARGS(mp, agno, startino, holemask, count, freecount, freemask),
+		 xfs_agblock_t agbno, xfs_extlen_t len,
+		 int64_t owner),
+	TP_ARGS(mp, agno, agbno, len, owner),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
-		__field(xfs_agino_t, startino)
-		__field(uint16_t, holemask)
-		__field(uint8_t, count)
-		__field(uint8_t, freecount)
-		__field(uint64_t, freemask)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, len)
+		__field(int64_t, owner)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->agno = agno;
-		__entry->startino = startino;
-		__entry->holemask = holemask;
-		__entry->count = count;
-		__entry->freecount = freecount;
-		__entry->freemask = freemask;
+		__entry->agbno = agbno;
+		__entry->len = len;
+		__entry->owner = owner;
 	),
-	TP_printk("dev %d:%d agno 0x%x startino 0x%x holemask 0x%x count %u freecount %u freemask 0x%llx",
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x owner 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->agno,
-		  __entry->startino,
-		  __entry->holemask,
-		  __entry->count,
-		  __entry->freecount,
-		  __entry->freemask)
+		  __entry->agbno,
+		  __entry->len,
+		  __entry->owner)
+);
+#define DEFINE_NEWBT_EXTENT_EVENT(name) \
+DEFINE_EVENT(xrep_newbt_extent_class, name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
+		 xfs_agblock_t agbno, xfs_extlen_t len, \
+		 int64_t owner), \
+	TP_ARGS(mp, agno, agbno, len, owner))
+DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_ag_blocks);
+DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_alloc_file_blocks);
+DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_free_blocks);
+DEFINE_NEWBT_EXTENT_EVENT(xrep_newbt_claim_block);
+
+DECLARE_EVENT_CLASS(xrep_dinode_class,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_dinode *dip),
+	TP_ARGS(sc, dip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(uint16_t, mode)
+		__field(uint8_t, version)
+		__field(uint8_t, format)
+		__field(uint32_t, uid)
+		__field(uint32_t, gid)
+		__field(uint64_t, size)
+		__field(uint64_t, nblocks)
+		__field(uint32_t, extsize)
+		__field(uint32_t, nextents)
+		__field(uint16_t, anextents)
+		__field(uint8_t, forkoff)
+		__field(uint8_t, aformat)
+		__field(uint16_t, flags)
+		__field(uint32_t, gen)
+		__field(uint64_t, flags2)
+		__field(uint32_t, cowextsize)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->mode = be16_to_cpu(dip->di_mode);
+		__entry->version = dip->di_version;
+		__entry->format = dip->di_format;
+		__entry->uid = be32_to_cpu(dip->di_uid);
+		__entry->gid = be32_to_cpu(dip->di_gid);
+		__entry->size = be64_to_cpu(dip->di_size);
+		__entry->nblocks = be64_to_cpu(dip->di_nblocks);
+		__entry->extsize = be32_to_cpu(dip->di_extsize);
+		__entry->nextents = be32_to_cpu(dip->di_nextents);
+		__entry->anextents = be16_to_cpu(dip->di_anextents);
+		__entry->forkoff = dip->di_forkoff;
+		__entry->aformat = dip->di_aformat;
+		__entry->flags = be16_to_cpu(dip->di_flags);
+		__entry->gen = be32_to_cpu(dip->di_gen);
+		__entry->flags2 = be64_to_cpu(dip->di_flags2);
+		__entry->cowextsize = be32_to_cpu(dip->di_cowextsize);
+	),
+	TP_printk("dev %d:%d ino 0x%llx mode 0x%x version %u format %u uid %u gid %u disize 0x%llx nblocks 0x%llx extsize %u nextents %u anextents %u forkoff 0x%x aformat %u flags 0x%x gen 0x%x flags2 0x%llx cowextsize %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->mode,
+		  __entry->version,
+		  __entry->format,
+		  __entry->uid,
+		  __entry->gid,
+		  __entry->size,
+		  __entry->nblocks,
+		  __entry->extsize,
+		  __entry->nextents,
+		  __entry->anextents,
+		  __entry->forkoff,
+		  __entry->aformat,
+		  __entry->flags,
+		  __entry->gen,
+		  __entry->flags2,
+		  __entry->cowextsize)
 )
+
+#define DEFINE_REPAIR_DINODE_EVENT(name) \
+DEFINE_EVENT(xrep_dinode_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_dinode *dip), \
+	TP_ARGS(sc, dip))
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_header);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_mode);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_flags);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_size);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_extsize_hints);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_symlink);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_dir);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_fixed);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_forks);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_dfork);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_zap_afork);
+DEFINE_REPAIR_DINODE_EVENT(xrep_dinode_ensure_forkoff);
+
+DECLARE_EVENT_CLASS(xrep_inode_class,
+	TP_PROTO(struct xfs_scrub *sc),
+	TP_ARGS(sc),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_fsize_t, size)
+		__field(xfs_rfsblock_t, nblocks)
+		__field(uint16_t, flags)
+		__field(uint64_t, flags2)
+		__field(uint32_t, nextents)
+		__field(uint8_t, format)
+		__field(uint32_t, anextents)
+		__field(uint8_t, aformat)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->size = sc->ip->i_disk_size;
+		__entry->nblocks = sc->ip->i_nblocks;
+		__entry->flags = sc->ip->i_diflags;
+		__entry->flags2 = sc->ip->i_diflags2;
+		__entry->nextents = sc->ip->i_df.if_nextents;
+		__entry->format = sc->ip->i_df.if_format;
+		__entry->anextents = sc->ip->i_af.if_nextents;
+		__entry->aformat = sc->ip->i_af.if_format;
+	),
+	TP_printk("dev %d:%d ino 0x%llx disize 0x%llx nblocks 0x%llx flags 0x%x flags2 0x%llx nextents %u format %u anextents %u aformat %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->size,
+		  __entry->nblocks,
+		  __entry->flags,
+		  __entry->flags2,
+		  __entry->nextents,
+		  __entry->format,
+		  __entry->anextents,
+		  __entry->aformat)
+)
+
+#define DEFINE_REPAIR_INODE_EVENT(name) \
+DEFINE_EVENT(xrep_inode_class, name, \
+	TP_PROTO(struct xfs_scrub *sc), \
+	TP_ARGS(sc))
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_blockcounts);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_ids);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_flags);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_blockdir_size);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_sfdir_size);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_dir_size);
+DEFINE_REPAIR_INODE_EVENT(xrep_inode_fixed);
+
+TRACE_EVENT(xrep_dinode_count_rmaps,
+	TP_PROTO(struct xfs_scrub *sc, xfs_rfsblock_t data_blocks,
+		xfs_rfsblock_t rt_blocks, xfs_rfsblock_t attr_blocks,
+		xfs_extnum_t data_extents, xfs_extnum_t rt_extents,
+		xfs_aextnum_t attr_extents),
+	TP_ARGS(sc, data_blocks, rt_blocks, attr_blocks, data_extents,
+		rt_extents, attr_extents),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_rfsblock_t, data_blocks)
+		__field(xfs_rfsblock_t, rt_blocks)
+		__field(xfs_rfsblock_t, attr_blocks)
+		__field(xfs_extnum_t, data_extents)
+		__field(xfs_extnum_t, rt_extents)
+		__field(xfs_aextnum_t, attr_extents)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->data_blocks = data_blocks;
+		__entry->rt_blocks = rt_blocks;
+		__entry->attr_blocks = attr_blocks;
+		__entry->data_extents = data_extents;
+		__entry->rt_extents = rt_extents;
+		__entry->attr_extents = attr_extents;
+	),
+	TP_printk("dev %d:%d ino 0x%llx dblocks 0x%llx rtblocks 0x%llx ablocks 0x%llx dextents %llu rtextents %llu aextents %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->data_blocks,
+		  __entry->rt_blocks,
+		  __entry->attr_blocks,
+		  __entry->data_extents,
+		  __entry->rt_extents,
+		  __entry->attr_extents)
+);
+
+TRACE_EVENT(xrep_cow_mark_file_range,
+	TP_PROTO(struct xfs_inode *ip, xfs_fsblock_t startblock,
+		 xfs_fileoff_t startoff, xfs_filblks_t blockcount),
+	TP_ARGS(ip, startblock, startoff, blockcount),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_fsblock_t, startblock)
+		__field(xfs_fileoff_t, startoff)
+		__field(xfs_filblks_t, blockcount)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->startoff = startoff;
+		__entry->startblock = startblock;
+		__entry->blockcount = blockcount;
+	),
+	TP_printk("dev %d:%d ino 0x%llx fileoff 0x%llx startblock 0x%llx fsbcount 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->startoff,
+		  __entry->startblock,
+		  __entry->blockcount)
+);
+
+TRACE_EVENT(xrep_cow_replace_mapping,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_bmbt_irec *irec,
+		 xfs_fsblock_t new_startblock, xfs_extlen_t new_blockcount),
+	TP_ARGS(ip, irec, new_startblock, new_blockcount),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_fsblock_t, startblock)
+		__field(xfs_fileoff_t, startoff)
+		__field(xfs_filblks_t, blockcount)
+		__field(xfs_exntst_t, state)
+		__field(xfs_fsblock_t, new_startblock)
+		__field(xfs_extlen_t, new_blockcount)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->startoff = irec->br_startoff;
+		__entry->startblock = irec->br_startblock;
+		__entry->blockcount = irec->br_blockcount;
+		__entry->state = irec->br_state;
+		__entry->new_startblock = new_startblock;
+		__entry->new_blockcount = new_blockcount;
+	),
+	TP_printk("dev %d:%d ino 0x%llx startoff 0x%llx startblock 0x%llx fsbcount 0x%llx state 0x%x new_startblock 0x%llx new_fsbcount 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->startoff,
+		  __entry->startblock,
+		  __entry->blockcount,
+		  __entry->state,
+		  __entry->new_startblock,
+		  __entry->new_blockcount)
+);
+
+TRACE_EVENT(xrep_cow_free_staging,
+	TP_PROTO(struct xfs_perag *pag, xfs_agblock_t agbno,
+		 xfs_extlen_t blockcount),
+	TP_ARGS(pag, agbno, blockcount),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, blockcount)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->agbno = agbno;
+		__entry->blockcount = blockcount;
+	),
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->blockcount)
+);
+
+#ifdef CONFIG_XFS_QUOTA
+DECLARE_EVENT_CLASS(xrep_dquot_class,
+	TP_PROTO(struct xfs_mount *mp, uint8_t type, uint32_t id),
+	TP_ARGS(mp, type, id),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(uint8_t, type)
+		__field(uint32_t, id)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->id = id;
+		__entry->type = type;
+	),
+	TP_printk("dev %d:%d type %s id 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_flags(__entry->type, "|", XFS_DQTYPE_STRINGS),
+		  __entry->id)
+);
+
+#define DEFINE_XREP_DQUOT_EVENT(name) \
+DEFINE_EVENT(xrep_dquot_class, name, \
+	TP_PROTO(struct xfs_mount *mp, uint8_t type, uint32_t id), \
+	TP_ARGS(mp, type, id))
+DEFINE_XREP_DQUOT_EVENT(xrep_dquot_item);
+DEFINE_XREP_DQUOT_EVENT(xrep_disk_dquot);
+DEFINE_XREP_DQUOT_EVENT(xrep_dquot_item_fill_bmap_hole);
+#endif /* CONFIG_XFS_QUOTA */
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 

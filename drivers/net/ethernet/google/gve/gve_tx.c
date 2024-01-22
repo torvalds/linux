@@ -819,7 +819,7 @@ int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 	return 0;
 }
 
-#define GVE_TX_START_THRESH	PAGE_SIZE
+#define GVE_TX_START_THRESH	4096
 
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			     u32 to_do, bool try_to_wake)
@@ -924,10 +924,6 @@ bool gve_xdp_poll(struct gve_notify_block *block, int budget)
 	u32 nic_done;
 	bool repoll;
 	u32 to_do;
-
-	/* If budget is 0, do all the work */
-	if (budget == 0)
-		budget = INT_MAX;
 
 	/* Find out how much work there is to be done */
 	nic_done = gve_tx_load_event_counter(priv, tx);

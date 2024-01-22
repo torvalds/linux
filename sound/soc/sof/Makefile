@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: (GPL-2.0-only OR BSD-3-Clause)
 
 snd-sof-objs := core.o ops.o loader.o ipc.o pcm.o pm.o debug.o topology.o\
-		control.o trace.o iomem-utils.o sof-audio.o stream-ipc.o
+		control.o trace.o iomem-utils.o sof-audio.o stream-ipc.o\
+		fw-file-profile.o
 
 # IPC implementations
 ifneq ($(CONFIG_SND_SOC_SOF_IPC3),)

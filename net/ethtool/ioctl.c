@@ -58,6 +58,9 @@ static struct devlink *netdev_to_devlink_get(struct net_device *dev)
 
 u32 ethtool_op_get_link(struct net_device *dev)
 {
+	/* Synchronize carrier state with link watch, see also rtnl_getlink() */
+	linkwatch_sync_dev(dev);
+
 	return netif_carrier_ok(dev) ? 1 : 0;
 }
 EXPORT_SYMBOL(ethtool_op_get_link);
@@ -969,18 +972,38 @@ static int ethtool_rxnfc_copy_to_user(void __user *useraddr,
 static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
 						u32 cmd, void __user *useraddr)
 {
+	const struct ethtool_ops *ops = dev->ethtool_ops;
 	struct ethtool_rxnfc info;
 	size_t info_size = sizeof(info);
 	int rc;
 
-	if (!dev->ethtool_ops->set_rxnfc)
+	if (!ops->set_rxnfc)
 		return -EOPNOTSUPP;
 
 	rc = ethtool_rxnfc_copy_struct(cmd, &info, &info_size, useraddr);
 	if (rc)
 		return rc;
 
-	rc = dev->ethtool_ops->set_rxnfc(dev, &info);
+	if (ops->get_rxfh) {
+		struct ethtool_rxfh_param rxfh = {};
+
+		rc = ops->get_rxfh(dev, &rxfh);
+		if (rc)
+			return rc;
+
+		/* Sanity check: if symmetric-xor is set, then:
+		 * 1 - no other fields besides IP src/dst and/or L4 src/dst
+		 * 2 - If src is set, dst must also be set
+		 */
+		if ((rxfh.input_xfrm & RXH_XFRM_SYM_XOR) &&
+		    ((info.data & ~(RXH_IP_SRC | RXH_IP_DST |
+				    RXH_L4_B_0_1 | RXH_L4_B_2_3)) ||
+		     (!!(info.data & RXH_IP_SRC) ^ !!(info.data & RXH_IP_DST)) ||
+		     (!!(info.data & RXH_L4_B_0_1) ^ !!(info.data & RXH_L4_B_2_3))))
+			return -EINVAL;
+	}
+
+	rc = ops->set_rxnfc(dev, &info);
 	if (rc)
 		return rc;
 
@@ -1058,15 +1081,15 @@ EXPORT_SYMBOL(netdev_rss_key_fill);
 static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
-	u32 user_size, dev_size;
-	u32 *indir;
+	struct ethtool_rxfh_param rxfh = {};
+	u32 user_size;
 	int ret;
 
 	if (!dev->ethtool_ops->get_rxfh_indir_size ||
 	    !dev->ethtool_ops->get_rxfh)
 		return -EOPNOTSUPP;
-	dev_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
-	if (dev_size == 0)
+	rxfh.indir_size = dev->ethtool_ops->get_rxfh_indir_size(dev);
+	if (rxfh.indir_size == 0)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&user_size,
@@ -1075,41 +1098,41 @@ static noinline_for_stack int ethtool_get_rxfh_indir(struct net_device *dev,
 		return -EFAULT;
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh_indir, size),
-			 &dev_size, sizeof(dev_size)))
+			 &rxfh.indir_size, sizeof(rxfh.indir_size)))
 		return -EFAULT;
 
 	/* If the user buffer size is 0, this is just a query for the
 	 * device table size.  Otherwise, if it's smaller than the
 	 * device table size it's an error.
 	 */
-	if (user_size < dev_size)
+	if (user_size < rxfh.indir_size)
 		return user_size == 0 ? 0 : -EINVAL;
 
-	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
-	if (!indir)
+	rxfh.indir = kcalloc(rxfh.indir_size, sizeof(rxfh.indir[0]), GFP_USER);
+	if (!rxfh.indir)
 		return -ENOMEM;
 
-	ret = dev->ethtool_ops->get_rxfh(dev, indir, NULL, NULL);
+	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh);
 	if (ret)
 		goto out;
-
 	if (copy_to_user(useraddr +
 			 offsetof(struct ethtool_rxfh_indir, ring_index[0]),
-			 indir, dev_size * sizeof(indir[0])))
+			 rxfh.indir, rxfh.indir_size * sizeof(*rxfh.indir)))
 		ret = -EFAULT;
 
 out:
-	kfree(indir);
+	kfree(rxfh.indir);
 	return ret;
 }
 
 static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 						     void __user *useraddr)
 {
-	struct ethtool_rxnfc rx_rings;
-	u32 user_size, dev_size, i;
-	u32 *indir;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxfh_param rxfh_dev = {};
+	struct netlink_ext_ack *extack = NULL;
+	struct ethtool_rxnfc rx_rings;
+	u32 user_size, i;
 	int ret;
 	u32 ringidx_offset = offsetof(struct ethtool_rxfh_indir, ring_index[0]);
 
@@ -1117,8 +1140,8 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 	    !ops->get_rxnfc)
 		return -EOPNOTSUPP;
 
-	dev_size = ops->get_rxfh_indir_size(dev);
-	if (dev_size == 0)
+	rxfh_dev.indir_size = ops->get_rxfh_indir_size(dev);
+	if (rxfh_dev.indir_size == 0)
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&user_size,
@@ -1126,11 +1149,12 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 			   sizeof(user_size)))
 		return -EFAULT;
 
-	if (user_size != 0 && user_size != dev_size)
+	if (user_size != 0 && user_size != rxfh_dev.indir_size)
 		return -EINVAL;
 
-	indir = kcalloc(dev_size, sizeof(indir[0]), GFP_USER);
-	if (!indir)
+	rxfh_dev.indir = kcalloc(rxfh_dev.indir_size,
+				 sizeof(rxfh_dev.indir[0]), GFP_USER);
+	if (!rxfh_dev.indir)
 		return -ENOMEM;
 
 	rx_rings.cmd = ETHTOOL_GRXRINGS;
@@ -1139,18 +1163,21 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 		goto out;
 
 	if (user_size == 0) {
-		for (i = 0; i < dev_size; i++)
+		u32 *indir = rxfh_dev.indir;
+
+		for (i = 0; i < rxfh_dev.indir_size; i++)
 			indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
 	} else {
-		ret = ethtool_copy_validate_indir(indir,
+		ret = ethtool_copy_validate_indir(rxfh_dev.indir,
 						  useraddr + ringidx_offset,
 						  &rx_rings,
-						  dev_size);
+						  rxfh_dev.indir_size);
 		if (ret)
 			goto out;
 	}
 
-	ret = ops->set_rxfh(dev, indir, NULL, ETH_RSS_HASH_NO_CHANGE);
+	rxfh_dev.hfunc = ETH_RSS_HASH_NO_CHANGE;
+	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
 		goto out;
 
@@ -1161,32 +1188,29 @@ static noinline_for_stack int ethtool_set_rxfh_indir(struct net_device *dev,
 		dev->priv_flags |= IFF_RXFH_CONFIGURED;
 
 out:
-	kfree(indir);
+	kfree(rxfh_dev.indir);
 	return ret;
 }
 
 static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 					       void __user *useraddr)
 {
-	int ret;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct ethtool_rxfh_param rxfh_dev = {};
 	u32 user_indir_size, user_key_size;
-	u32 dev_indir_size = 0, dev_key_size = 0;
 	struct ethtool_rxfh rxfh;
-	u32 total_size;
 	u32 indir_bytes;
-	u32 *indir = NULL;
-	u8 dev_hfunc = 0;
-	u8 *hkey = NULL;
 	u8 *rss_config;
+	u32 total_size;
+	int ret;
 
 	if (!ops->get_rxfh)
 		return -EOPNOTSUPP;
 
 	if (ops->get_rxfh_indir_size)
-		dev_indir_size = ops->get_rxfh_indir_size(dev);
+		rxfh_dev.indir_size = ops->get_rxfh_indir_size(dev);
 	if (ops->get_rxfh_key_size)
-		dev_key_size = ops->get_rxfh_key_size(dev);
+		rxfh_dev.key_size = ops->get_rxfh_key_size(dev);
 
 	if (copy_from_user(&rxfh, useraddr, sizeof(rxfh)))
 		return -EFAULT;
@@ -1194,44 +1218,46 @@ static noinline_for_stack int ethtool_get_rxfh(struct net_device *dev,
 	user_key_size = rxfh.key_size;
 
 	/* Check that reserved fields are 0 for now */
-	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
+	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !ops->get_rxfh_context)
+	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
 		return -EOPNOTSUPP;
 
-	rxfh.indir_size = dev_indir_size;
-	rxfh.key_size = dev_key_size;
+	rxfh.indir_size = rxfh_dev.indir_size;
+	rxfh.key_size = rxfh_dev.key_size;
 	if (copy_to_user(useraddr, &rxfh, sizeof(rxfh)))
 		return -EFAULT;
 
-	if ((user_indir_size && (user_indir_size != dev_indir_size)) ||
-	    (user_key_size && (user_key_size != dev_key_size)))
+	if ((user_indir_size && user_indir_size != rxfh_dev.indir_size) ||
+	    (user_key_size && user_key_size != rxfh_dev.key_size))
 		return -EINVAL;
 
-	indir_bytes = user_indir_size * sizeof(indir[0]);
+	indir_bytes = user_indir_size * sizeof(rxfh_dev.indir[0]);
 	total_size = indir_bytes + user_key_size;
 	rss_config = kzalloc(total_size, GFP_USER);
 	if (!rss_config)
 		return -ENOMEM;
 
 	if (user_indir_size)
-		indir = (u32 *)rss_config;
+		rxfh_dev.indir = (u32 *)rss_config;
 
 	if (user_key_size)
-		hkey = rss_config + indir_bytes;
+		rxfh_dev.key = rss_config + indir_bytes;
 
-	if (rxfh.rss_context)
-		ret = dev->ethtool_ops->get_rxfh_context(dev, indir, hkey,
-							 &dev_hfunc,
-							 rxfh.rss_context);
-	else
-		ret = dev->ethtool_ops->get_rxfh(dev, indir, hkey, &dev_hfunc);
+	rxfh_dev.rss_context = rxfh.rss_context;
+
+	ret = dev->ethtool_ops->get_rxfh(dev, &rxfh_dev);
 	if (ret)
 		goto out;
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, hfunc),
-			 &dev_hfunc, sizeof(rxfh.hfunc))) {
+			 &rxfh_dev.hfunc, sizeof(rxfh.hfunc))) {
+		ret = -EFAULT;
+	} else if (copy_to_user(useraddr +
+				offsetof(struct ethtool_rxfh, input_xfrm),
+				&rxfh_dev.input_xfrm,
+				sizeof(rxfh.input_xfrm))) {
 		ret = -EFAULT;
 	} else if (copy_to_user(useraddr +
 			      offsetof(struct ethtool_rxfh, rss_config[0]),
@@ -1247,16 +1273,16 @@ out:
 static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 					       void __user *useraddr)
 {
-	int ret;
+	u32 rss_cfg_offset = offsetof(struct ethtool_rxfh, rss_config[0]);
 	const struct ethtool_ops *ops = dev->ethtool_ops;
+	u32 dev_indir_size = 0, dev_key_size = 0, i;
+	struct ethtool_rxfh_param rxfh_dev = {};
+	struct netlink_ext_ack *extack = NULL;
 	struct ethtool_rxnfc rx_rings;
 	struct ethtool_rxfh rxfh;
-	u32 dev_indir_size = 0, dev_key_size = 0, i;
-	u32 *indir = NULL, indir_bytes = 0;
-	u8 *hkey = NULL;
+	u32 indir_bytes = 0;
 	u8 *rss_config;
-	u32 rss_cfg_offset = offsetof(struct ethtool_rxfh, rss_config[0]);
-	bool delete = false;
+	int ret;
 
 	if (!ops->get_rxnfc || !ops->set_rxfh)
 		return -EOPNOTSUPP;
@@ -1270,25 +1296,34 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		return -EFAULT;
 
 	/* Check that reserved fields are 0 for now */
-	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd8[2] || rxfh.rsvd32)
+	if (rxfh.rsvd8[0] || rxfh.rsvd8[1] || rxfh.rsvd32)
 		return -EINVAL;
 	/* Most drivers don't handle rss_context, check it's 0 as well */
-	if (rxfh.rss_context && !ops->set_rxfh_context)
+	if (rxfh.rss_context && !ops->cap_rss_ctx_supported)
+		return -EOPNOTSUPP;
+	/* Check input data transformation capabilities */
+	if (rxfh.input_xfrm && rxfh.input_xfrm != RXH_XFRM_SYM_XOR &&
+	    rxfh.input_xfrm != RXH_XFRM_NO_CHANGE)
+		return -EINVAL;
+	if ((rxfh.input_xfrm & RXH_XFRM_SYM_XOR) &&
+	    !ops->cap_rss_sym_xor_supported)
 		return -EOPNOTSUPP;
 
 	/* If either indir, hash key or function is valid, proceed further.
-	 * Must request at least one change: indir size, hash key or function.
+	 * Must request at least one change: indir size, hash key, function
+	 * or input transformation.
 	 */
 	if ((rxfh.indir_size &&
 	     rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE &&
 	     rxfh.indir_size != dev_indir_size) ||
 	    (rxfh.key_size && (rxfh.key_size != dev_key_size)) ||
 	    (rxfh.indir_size == ETH_RXFH_INDIR_NO_CHANGE &&
-	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE))
+	     rxfh.key_size == 0 && rxfh.hfunc == ETH_RSS_HASH_NO_CHANGE &&
+	     rxfh.input_xfrm == RXH_XFRM_NO_CHANGE))
 		return -EINVAL;
 
 	if (rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE)
-		indir_bytes = dev_indir_size * sizeof(indir[0]);
+		indir_bytes = dev_indir_size * sizeof(rxfh_dev.indir[0]);
 
 	rss_config = kzalloc(indir_bytes + rxfh.key_size, GFP_USER);
 	if (!rss_config)
@@ -1305,8 +1340,9 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 	 */
 	if (rxfh.indir_size &&
 	    rxfh.indir_size != ETH_RXFH_INDIR_NO_CHANGE) {
-		indir = (u32 *)rss_config;
-		ret = ethtool_copy_validate_indir(indir,
+		rxfh_dev.indir = (u32 *)rss_config;
+		rxfh_dev.indir_size = dev_indir_size;
+		ret = ethtool_copy_validate_indir(rxfh_dev.indir,
 						  useraddr + rss_cfg_offset,
 						  &rx_rings,
 						  rxfh.indir_size);
@@ -1314,17 +1350,22 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 			goto out;
 	} else if (rxfh.indir_size == 0) {
 		if (rxfh.rss_context == 0) {
-			indir = (u32 *)rss_config;
+			u32 *indir;
+
+			rxfh_dev.indir = (u32 *)rss_config;
+			rxfh_dev.indir_size = dev_indir_size;
+			indir = rxfh_dev.indir;
 			for (i = 0; i < dev_indir_size; i++)
 				indir[i] = ethtool_rxfh_indir_default(i, rx_rings.data);
 		} else {
-			delete = true;
+			rxfh_dev.rss_delete = true;
 		}
 	}
 
 	if (rxfh.key_size) {
-		hkey = rss_config + indir_bytes;
-		if (copy_from_user(hkey,
+		rxfh_dev.key_size = dev_key_size;
+		rxfh_dev.key = rss_config + indir_bytes;
+		if (copy_from_user(rxfh_dev.key,
 				   useraddr + rss_cfg_offset + indir_bytes,
 				   rxfh.key_size)) {
 			ret = -EFAULT;
@@ -1332,19 +1373,19 @@ static noinline_for_stack int ethtool_set_rxfh(struct net_device *dev,
 		}
 	}
 
-	if (rxfh.rss_context)
-		ret = ops->set_rxfh_context(dev, indir, hkey, rxfh.hfunc,
-					    &rxfh.rss_context, delete);
-	else
-		ret = ops->set_rxfh(dev, indir, hkey, rxfh.hfunc);
+	rxfh_dev.hfunc = rxfh.hfunc;
+	rxfh_dev.rss_context = rxfh.rss_context;
+	rxfh_dev.input_xfrm = rxfh.input_xfrm;
+
+	ret = ops->set_rxfh(dev, &rxfh_dev, extack);
 	if (ret)
 		goto out;
 
 	if (copy_to_user(useraddr + offsetof(struct ethtool_rxfh, rss_context),
-			 &rxfh.rss_context, sizeof(rxfh.rss_context)))
+			 &rxfh_dev.rss_context, sizeof(rxfh_dev.rss_context)))
 		ret = -EFAULT;
 
-	if (!rxfh.rss_context) {
+	if (!rxfh_dev.rss_context) {
 		/* indicate whether rxfh was set to default */
 		if (rxfh.indir_size == 0)
 			dev->priv_flags &= ~IFF_RXFH_CONFIGURED;
@@ -1990,6 +2031,13 @@ __printf(2, 3) void ethtool_sprintf(u8 **data, const char *fmt, ...)
 	*data += ETH_GSTRING_LEN;
 }
 EXPORT_SYMBOL(ethtool_sprintf);
+
+void ethtool_puts(u8 **data, const char *str)
+{
+	strscpy(*data, str, ETH_GSTRING_LEN);
+	*data += ETH_GSTRING_LEN;
+}
+EXPORT_SYMBOL(ethtool_puts);
 
 static int ethtool_phys_id(struct net_device *dev, void __user *useraddr)
 {

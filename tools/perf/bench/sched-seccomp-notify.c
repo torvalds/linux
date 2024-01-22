@@ -32,7 +32,7 @@ static bool sync_mode;
 static const struct option options[] = {
 	OPT_U64('l', "loop",	&loops,		"Specify number of loops"),
 	OPT_BOOLEAN('s', "sync-mode", &sync_mode,
-		    "Enable the synchronious mode for seccomp notifications"),
+		    "Enable the synchronous mode for seccomp notifications"),
 	OPT_END()
 };
 

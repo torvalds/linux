@@ -348,7 +348,7 @@ static struct mhi_channel_config aic100_channels[] = {
 		.local_elements = 0,
 		.event_ring = 0,
 		.dir = DMA_TO_DEVICE,
-		.ee_mask = MHI_CH_EE_SBL | MHI_CH_EE_AMSS,
+		.ee_mask = MHI_CH_EE_SBL,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
 		.lpm_notify = false,
@@ -364,7 +364,39 @@ static struct mhi_channel_config aic100_channels[] = {
 		.local_elements = 0,
 		.event_ring = 0,
 		.dir = DMA_FROM_DEVICE,
-		.ee_mask = MHI_CH_EE_SBL | MHI_CH_EE_AMSS,
+		.ee_mask = MHI_CH_EE_SBL,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+		.wake_capable = false,
+	},
+	{
+		.name = "QAIC_TIMESYNC_PERIODIC",
+		.num = 22,
+		.num_elements = 32,
+		.local_elements = 0,
+		.event_ring = 0,
+		.dir = DMA_TO_DEVICE,
+		.ee_mask = MHI_CH_EE_AMSS,
+		.pollcfg = 0,
+		.doorbell = MHI_DB_BRST_DISABLE,
+		.lpm_notify = false,
+		.offload_channel = false,
+		.doorbell_mode_switch = false,
+		.auto_queue = false,
+		.wake_capable = false,
+	},
+	{
+		.num = 23,
+		.name = "QAIC_TIMESYNC_PERIODIC",
+		.num_elements = 32,
+		.local_elements = 0,
+		.event_ring = 0,
+		.dir = DMA_FROM_DEVICE,
+		.ee_mask = MHI_CH_EE_AMSS,
 		.pollcfg = 0,
 		.doorbell = MHI_DB_BRST_DISABLE,
 		.lpm_notify = false,
@@ -450,7 +482,7 @@ static void mhi_status_cb(struct mhi_controller *mhi_cntrl, enum mhi_callback re
 		pci_err(qdev->pdev, "Fatal error received from device. Attempting to recover\n");
 	/* this event occurs in non-atomic context */
 	if (reason == MHI_CB_SYS_ERROR)
-		qaic_dev_reset_clean_local_state(qdev, true);
+		qaic_dev_reset_clean_local_state(qdev);
 }
 
 static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)
@@ -481,7 +513,7 @@ static int mhi_reset_and_async_power_up(struct mhi_controller *mhi_cntrl)
 }
 
 struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, void __iomem *mhi_bar,
-						    int mhi_irq)
+						    int mhi_irq, bool shared_msi)
 {
 	struct mhi_controller *mhi_cntrl;
 	int ret;
@@ -513,6 +545,10 @@ struct mhi_controller *qaic_mhi_register_controller(struct pci_dev *pci_dev, voi
 		return ERR_PTR(-ENOMEM);
 
 	mhi_cntrl->irq[0] = mhi_irq;
+
+	if (shared_msi) /* MSI shared with data path, no IRQF_NO_SUSPEND */
+		mhi_cntrl->irq_flags = IRQF_SHARED;
+
 	mhi_cntrl->fw_image = "qcom/aic100/sbl.bin";
 
 	/* use latest configured timeout */

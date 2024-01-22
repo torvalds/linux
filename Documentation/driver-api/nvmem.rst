@@ -41,7 +41,7 @@ A NVMEM provider can register with NVMEM core by supplying relevant
 nvmem configuration to nvmem_register(), on success core would return a valid
 nvmem_device pointer.
 
-nvmem_unregister(nvmem) is used to unregister a previously registered provider.
+nvmem_unregister() is used to unregister a previously registered provider.
 
 For example, a simple nvram case::
 
@@ -200,3 +200,9 @@ and let you add cells dynamically.
 Another use case for layouts is the post processing of cells. With layouts,
 it is possible to associate a custom post processing hook to a cell. It
 even possible to add this hook to cells not created by the layout itself.
+
+9. Internal kernel API
+======================
+
+.. kernel-doc:: drivers/nvmem/core.c
+   :export:

@@ -340,8 +340,8 @@ int vme_slave_set(struct vme_resource *resource, int enabled,
 	image = list_entry(resource->entry, struct vme_slave_resource, list);
 
 	if (!bridge->slave_set) {
-		dev_err(bridge->parent, "Function not supported\n");
-		return -ENOSYS;
+		dev_err(bridge->parent, "%s not supported\n", __func__);
+		return -EINVAL;
 	}
 
 	if (!(((image->address_attr & aspace) == aspace) &&

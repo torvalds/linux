@@ -106,11 +106,6 @@ static void __confirm_options(struct intel_uc *uc)
 		gt_info(gt,  "Incompatible option enable_guc=%d - %s\n",
 			i915->params.enable_guc, "GuC is not supported!");
 
-	if (i915->params.enable_guc & ENABLE_GUC_LOAD_HUC &&
-	    !intel_uc_supports_huc(uc))
-		gt_info(gt, "Incompatible option enable_guc=%d - %s\n",
-			i915->params.enable_guc, "HuC is not supported!");
-
 	if (i915->params.enable_guc & ENABLE_GUC_SUBMISSION &&
 	    !intel_uc_supports_guc_submission(uc))
 		gt_info(gt, "Incompatible option enable_guc=%d - %s\n",

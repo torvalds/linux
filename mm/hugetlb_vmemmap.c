@@ -14,6 +14,7 @@
 #include <linux/moduleparam.h>
 #include <linux/bootmem_info.h>
 #include <linux/mmdebug.h>
+#include <linux/pagewalk.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 #include "hugetlb_vmemmap.h"
@@ -45,20 +46,13 @@ struct vmemmap_remap_walk {
 	unsigned long		flags;
 };
 
-static int split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start, bool flush)
+static int vmemmap_split_pmd(pmd_t *pmd, struct page *head, unsigned long start,
+			     struct vmemmap_remap_walk *walk)
 {
 	pmd_t __pmd;
 	int i;
 	unsigned long addr = start;
-	struct page *head;
 	pte_t *pgtable;
-
-	spin_lock(&init_mm.page_table_lock);
-	head = pmd_leaf(*pmd) ? pmd_page(*pmd) : NULL;
-	spin_unlock(&init_mm.page_table_lock);
-
-	if (!head)
-		return 0;
 
 	pgtable = pte_alloc_one_kernel(&init_mm);
 	if (!pgtable)
@@ -88,7 +82,7 @@ static int split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start, bool flush)
 		/* Make pte visible before pmd. See comment in pmd_install(). */
 		smp_wmb();
 		pmd_populate_kernel(&init_mm, pmd, pgtable);
-		if (flush)
+		if (!(walk->flags & VMEMMAP_SPLIT_NO_TLB_FLUSH))
 			flush_tlb_kernel_range(start, start + PMD_SIZE);
 	} else {
 		pte_free_kernel(&init_mm, pgtable);
@@ -98,123 +92,83 @@ static int split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start, bool flush)
 	return 0;
 }
 
-static void vmemmap_pte_range(pmd_t *pmd, unsigned long addr,
-			      unsigned long end,
-			      struct vmemmap_remap_walk *walk)
+static int vmemmap_pmd_entry(pmd_t *pmd, unsigned long addr,
+			     unsigned long next, struct mm_walk *walk)
 {
-	pte_t *pte = pte_offset_kernel(pmd, addr);
+	int ret = 0;
+	struct page *head;
+	struct vmemmap_remap_walk *vmemmap_walk = walk->private;
+
+	/* Only splitting, not remapping the vmemmap pages. */
+	if (!vmemmap_walk->remap_pte)
+		walk->action = ACTION_CONTINUE;
+
+	spin_lock(&init_mm.page_table_lock);
+	head = pmd_leaf(*pmd) ? pmd_page(*pmd) : NULL;
+	/*
+	 * Due to HugeTLB alignment requirements and the vmemmap
+	 * pages being at the start of the hotplugged memory
+	 * region in memory_hotplug.memmap_on_memory case. Checking
+	 * the vmemmap page associated with the first vmemmap page
+	 * if it is self-hosted is sufficient.
+	 *
+	 * [                  hotplugged memory                  ]
+	 * [        section        ][...][        section        ]
+	 * [ vmemmap ][              usable memory               ]
+	 *   ^  | ^                        |
+	 *   +--+ |                        |
+	 *        +------------------------+
+	 */
+	if (IS_ENABLED(CONFIG_MEMORY_HOTPLUG) && unlikely(!vmemmap_walk->nr_walked)) {
+		struct page *page = head ? head + pte_index(addr) :
+				    pte_page(ptep_get(pte_offset_kernel(pmd, addr)));
+
+		if (PageVmemmapSelfHosted(page))
+			ret = -ENOTSUPP;
+	}
+	spin_unlock(&init_mm.page_table_lock);
+	if (!head || ret)
+		return ret;
+
+	return vmemmap_split_pmd(pmd, head, addr & PMD_MASK, vmemmap_walk);
+}
+
+static int vmemmap_pte_entry(pte_t *pte, unsigned long addr,
+			     unsigned long next, struct mm_walk *walk)
+{
+	struct vmemmap_remap_walk *vmemmap_walk = walk->private;
 
 	/*
-	 * The reuse_page is found 'first' in table walk before we start
-	 * remapping (which is calling @walk->remap_pte).
+	 * The reuse_page is found 'first' in page table walking before
+	 * starting remapping.
 	 */
-	if (!walk->reuse_page) {
-		walk->reuse_page = pte_page(ptep_get(pte));
-		/*
-		 * Because the reuse address is part of the range that we are
-		 * walking, skip the reuse address range.
-		 */
-		addr += PAGE_SIZE;
-		pte++;
-		walk->nr_walked++;
-	}
-
-	for (; addr != end; addr += PAGE_SIZE, pte++) {
-		walk->remap_pte(pte, addr, walk);
-		walk->nr_walked++;
-	}
-}
-
-static int vmemmap_pmd_range(pud_t *pud, unsigned long addr,
-			     unsigned long end,
-			     struct vmemmap_remap_walk *walk)
-{
-	pmd_t *pmd;
-	unsigned long next;
-
-	pmd = pmd_offset(pud, addr);
-	do {
-		int ret;
-
-		ret = split_vmemmap_huge_pmd(pmd, addr & PMD_MASK,
-				!(walk->flags & VMEMMAP_SPLIT_NO_TLB_FLUSH));
-		if (ret)
-			return ret;
-
-		next = pmd_addr_end(addr, end);
-
-		/*
-		 * We are only splitting, not remapping the hugetlb vmemmap
-		 * pages.
-		 */
-		if (!walk->remap_pte)
-			continue;
-
-		vmemmap_pte_range(pmd, addr, next, walk);
-	} while (pmd++, addr = next, addr != end);
+	if (!vmemmap_walk->reuse_page)
+		vmemmap_walk->reuse_page = pte_page(ptep_get(pte));
+	else
+		vmemmap_walk->remap_pte(pte, addr, vmemmap_walk);
+	vmemmap_walk->nr_walked++;
 
 	return 0;
 }
 
-static int vmemmap_pud_range(p4d_t *p4d, unsigned long addr,
-			     unsigned long end,
-			     struct vmemmap_remap_walk *walk)
-{
-	pud_t *pud;
-	unsigned long next;
-
-	pud = pud_offset(p4d, addr);
-	do {
-		int ret;
-
-		next = pud_addr_end(addr, end);
-		ret = vmemmap_pmd_range(pud, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (pud++, addr = next, addr != end);
-
-	return 0;
-}
-
-static int vmemmap_p4d_range(pgd_t *pgd, unsigned long addr,
-			     unsigned long end,
-			     struct vmemmap_remap_walk *walk)
-{
-	p4d_t *p4d;
-	unsigned long next;
-
-	p4d = p4d_offset(pgd, addr);
-	do {
-		int ret;
-
-		next = p4d_addr_end(addr, end);
-		ret = vmemmap_pud_range(p4d, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (p4d++, addr = next, addr != end);
-
-	return 0;
-}
+static const struct mm_walk_ops vmemmap_remap_ops = {
+	.pmd_entry	= vmemmap_pmd_entry,
+	.pte_entry	= vmemmap_pte_entry,
+};
 
 static int vmemmap_remap_range(unsigned long start, unsigned long end,
 			       struct vmemmap_remap_walk *walk)
 {
-	unsigned long addr = start;
-	unsigned long next;
-	pgd_t *pgd;
+	int ret;
 
-	VM_BUG_ON(!PAGE_ALIGNED(start));
-	VM_BUG_ON(!PAGE_ALIGNED(end));
+	VM_BUG_ON(!PAGE_ALIGNED(start | end));
 
-	pgd = pgd_offset_k(addr);
-	do {
-		int ret;
-
-		next = pgd_addr_end(addr, end);
-		ret = vmemmap_p4d_range(pgd, addr, next, walk);
-		if (ret)
-			return ret;
-	} while (pgd++, addr = next, addr != end);
+	mmap_read_lock(&init_mm);
+	ret = walk_page_range_novma(&init_mm, start, end, &vmemmap_remap_ops,
+				    NULL, walk);
+	mmap_read_unlock(&init_mm);
+	if (ret)
+		return ret;
 
 	if (walk->remap_pte && !(walk->flags & VMEMMAP_REMAP_NO_TLB_FLUSH))
 		flush_tlb_kernel_range(start, end);
@@ -328,9 +282,8 @@ static void vmemmap_restore_pte(pte_t *pte, unsigned long addr,
  * Return: %0 on success, negative error code otherwise.
  */
 static int vmemmap_remap_split(unsigned long start, unsigned long end,
-				unsigned long reuse)
+			       unsigned long reuse)
 {
-	int ret;
 	struct vmemmap_remap_walk walk = {
 		.remap_pte	= NULL,
 		.flags		= VMEMMAP_SPLIT_NO_TLB_FLUSH,
@@ -339,11 +292,7 @@ static int vmemmap_remap_split(unsigned long start, unsigned long end,
 	/* See the comment in the vmemmap_remap_free(). */
 	BUG_ON(start - reuse != PAGE_SIZE);
 
-	mmap_read_lock(&init_mm);
-	ret = vmemmap_remap_range(reuse, end, &walk);
-	mmap_read_unlock(&init_mm);
-
-	return ret;
+	return vmemmap_remap_range(reuse, end, &walk);
 }
 
 /**
@@ -406,7 +355,6 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 	 */
 	BUG_ON(start - reuse != PAGE_SIZE);
 
-	mmap_read_lock(&init_mm);
 	ret = vmemmap_remap_range(reuse, end, &walk);
 	if (ret && walk.nr_walked) {
 		end = reuse + walk.nr_walked * PAGE_SIZE;
@@ -425,7 +373,6 @@ static int vmemmap_remap_free(unsigned long start, unsigned long end,
 
 		vmemmap_remap_range(reuse, end, &walk);
 	}
-	mmap_read_unlock(&init_mm);
 
 	return ret;
 }
@@ -482,11 +429,7 @@ static int vmemmap_remap_alloc(unsigned long start, unsigned long end,
 	if (alloc_vmemmap_page_list(start, end, &vmemmap_pages))
 		return -ENOMEM;
 
-	mmap_read_lock(&init_mm);
-	vmemmap_remap_range(reuse, end, &walk);
-	mmap_read_unlock(&init_mm);
-
-	return 0;
+	return vmemmap_remap_range(reuse, end, &walk);
 }
 
 DEFINE_STATIC_KEY_FALSE(hugetlb_optimize_vmemmap_key);
@@ -495,14 +438,14 @@ EXPORT_SYMBOL(hugetlb_optimize_vmemmap_key);
 static bool vmemmap_optimize_enabled = IS_ENABLED(CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON);
 core_param(hugetlb_free_vmemmap, vmemmap_optimize_enabled, bool, 0);
 
-static int __hugetlb_vmemmap_restore_folio(const struct hstate *h, struct folio *folio, unsigned long flags)
+static int __hugetlb_vmemmap_restore_folio(const struct hstate *h,
+					   struct folio *folio, unsigned long flags)
 {
 	int ret;
-	struct page *head = &folio->page;
-	unsigned long vmemmap_start = (unsigned long)head, vmemmap_end;
+	unsigned long vmemmap_start = (unsigned long)&folio->page, vmemmap_end;
 	unsigned long vmemmap_reuse;
 
-	VM_WARN_ON_ONCE(!PageHuge(head));
+	VM_WARN_ON_ONCE_FOLIO(!folio_test_hugetlb(folio), folio);
 	if (!folio_test_hugetlb_vmemmap_optimized(folio))
 		return 0;
 
@@ -565,7 +508,7 @@ long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 	list_for_each_entry_safe(folio, t_folio, folio_list, lru) {
 		if (folio_test_hugetlb_vmemmap_optimized(folio)) {
 			ret = __hugetlb_vmemmap_restore_folio(h, folio,
-						VMEMMAP_REMAP_NO_TLB_FLUSH);
+							      VMEMMAP_REMAP_NO_TLB_FLUSH);
 			if (ret)
 				break;
 			restored++;
@@ -583,9 +526,9 @@ long hugetlb_vmemmap_restore_folios(const struct hstate *h,
 }
 
 /* Return true iff a HugeTLB whose vmemmap should and can be optimized. */
-static bool vmemmap_should_optimize(const struct hstate *h, const struct page *head)
+static bool vmemmap_should_optimize_folio(const struct hstate *h, struct folio *folio)
 {
-	if (HPageVmemmapOptimized((struct page *)head))
+	if (folio_test_hugetlb_vmemmap_optimized(folio))
 		return false;
 
 	if (!READ_ONCE(vmemmap_optimize_enabled))
@@ -594,65 +537,20 @@ static bool vmemmap_should_optimize(const struct hstate *h, const struct page *h
 	if (!hugetlb_vmemmap_optimizable(h))
 		return false;
 
-	if (IS_ENABLED(CONFIG_MEMORY_HOTPLUG)) {
-		pmd_t *pmdp, pmd;
-		struct page *vmemmap_page;
-		unsigned long vaddr = (unsigned long)head;
-
-		/*
-		 * Only the vmemmap page's vmemmap page can be self-hosted.
-		 * Walking the page tables to find the backing page of the
-		 * vmemmap page.
-		 */
-		pmdp = pmd_off_k(vaddr);
-		/*
-		 * The READ_ONCE() is used to stabilize *pmdp in a register or
-		 * on the stack so that it will stop changing under the code.
-		 * The only concurrent operation where it can be changed is
-		 * split_vmemmap_huge_pmd() (*pmdp will be stable after this
-		 * operation).
-		 */
-		pmd = READ_ONCE(*pmdp);
-		if (pmd_leaf(pmd))
-			vmemmap_page = pmd_page(pmd) + pte_index(vaddr);
-		else
-			vmemmap_page = pte_page(*pte_offset_kernel(pmdp, vaddr));
-		/*
-		 * Due to HugeTLB alignment requirements and the vmemmap pages
-		 * being at the start of the hotplugged memory region in
-		 * memory_hotplug.memmap_on_memory case. Checking any vmemmap
-		 * page's vmemmap page if it is marked as VmemmapSelfHosted is
-		 * sufficient.
-		 *
-		 * [                  hotplugged memory                  ]
-		 * [        section        ][...][        section        ]
-		 * [ vmemmap ][              usable memory               ]
-		 *   ^   |     |                                        |
-		 *   +---+     |                                        |
-		 *     ^       |                                        |
-		 *     +-------+                                        |
-		 *          ^                                           |
-		 *          +-------------------------------------------+
-		 */
-		if (PageVmemmapSelfHosted(vmemmap_page))
-			return false;
-	}
-
 	return true;
 }
 
 static int __hugetlb_vmemmap_optimize_folio(const struct hstate *h,
-					struct folio *folio,
-					struct list_head *vmemmap_pages,
-					unsigned long flags)
+					    struct folio *folio,
+					    struct list_head *vmemmap_pages,
+					    unsigned long flags)
 {
 	int ret = 0;
-	struct page *head = &folio->page;
-	unsigned long vmemmap_start = (unsigned long)head, vmemmap_end;
+	unsigned long vmemmap_start = (unsigned long)&folio->page, vmemmap_end;
 	unsigned long vmemmap_reuse;
 
-	VM_WARN_ON_ONCE(!PageHuge(head));
-	if (!vmemmap_should_optimize(h, head))
+	VM_WARN_ON_ONCE_FOLIO(!folio_test_hugetlb(folio), folio);
+	if (!vmemmap_should_optimize_folio(h, folio))
 		return ret;
 
 	static_branch_inc(&hugetlb_optimize_vmemmap_key);
@@ -680,7 +578,7 @@ static int __hugetlb_vmemmap_optimize_folio(const struct hstate *h,
 	 * the caller.
 	 */
 	ret = vmemmap_remap_free(vmemmap_start, vmemmap_end, vmemmap_reuse,
-							vmemmap_pages, flags);
+				 vmemmap_pages, flags);
 	if (ret) {
 		static_branch_dec(&hugetlb_optimize_vmemmap_key);
 		folio_clear_hugetlb_vmemmap_optimized(folio);
@@ -707,12 +605,12 @@ void hugetlb_vmemmap_optimize_folio(const struct hstate *h, struct folio *folio)
 	free_vmemmap_page_list(&vmemmap_pages);
 }
 
-static int hugetlb_vmemmap_split(const struct hstate *h, struct page *head)
+static int hugetlb_vmemmap_split_folio(const struct hstate *h, struct folio *folio)
 {
-	unsigned long vmemmap_start = (unsigned long)head, vmemmap_end;
+	unsigned long vmemmap_start = (unsigned long)&folio->page, vmemmap_end;
 	unsigned long vmemmap_reuse;
 
-	if (!vmemmap_should_optimize(h, head))
+	if (!vmemmap_should_optimize_folio(h, folio))
 		return 0;
 
 	vmemmap_end	= vmemmap_start + hugetlb_vmemmap_size(h);
@@ -732,7 +630,7 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 	LIST_HEAD(vmemmap_pages);
 
 	list_for_each_entry(folio, folio_list, lru) {
-		int ret = hugetlb_vmemmap_split(h, &folio->page);
+		int ret = hugetlb_vmemmap_split_folio(h, folio);
 
 		/*
 		 * Spliting the PMD requires allocating a page, thus lets fail
@@ -747,9 +645,10 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 	flush_tlb_all();
 
 	list_for_each_entry(folio, folio_list, lru) {
-		int ret = __hugetlb_vmemmap_optimize_folio(h, folio,
-						&vmemmap_pages,
-						VMEMMAP_REMAP_NO_TLB_FLUSH);
+		int ret;
+
+		ret = __hugetlb_vmemmap_optimize_folio(h, folio, &vmemmap_pages,
+						       VMEMMAP_REMAP_NO_TLB_FLUSH);
 
 		/*
 		 * Pages to be freed may have been accumulated.  If we
@@ -763,9 +662,8 @@ void hugetlb_vmemmap_optimize_folios(struct hstate *h, struct list_head *folio_l
 			flush_tlb_all();
 			free_vmemmap_page_list(&vmemmap_pages);
 			INIT_LIST_HEAD(&vmemmap_pages);
-			__hugetlb_vmemmap_optimize_folio(h, folio,
-						&vmemmap_pages,
-						VMEMMAP_REMAP_NO_TLB_FLUSH);
+			__hugetlb_vmemmap_optimize_folio(h, folio, &vmemmap_pages,
+							 VMEMMAP_REMAP_NO_TLB_FLUSH);
 		}
 	}
 

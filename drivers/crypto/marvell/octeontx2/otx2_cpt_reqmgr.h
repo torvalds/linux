@@ -27,6 +27,13 @@
 
 #define OTX2_CPT_MAX_REQ_SIZE 65535
 
+#define SG_COMPS_MAX    4
+#define SGV2_COMPS_MAX  3
+
+#define SG_COMP_3    3
+#define SG_COMP_2    2
+#define SG_COMP_1    1
+
 union otx2_cpt_opcode {
 	u16 flags;
 	struct {
@@ -40,6 +47,8 @@ struct otx2_cptvf_request {
 	u32 param2;
 	u16 dlen;
 	union otx2_cpt_opcode opcode;
+	dma_addr_t cptr_dma;
+	void *cptr;
 };
 
 /*
@@ -143,6 +152,8 @@ struct otx2_cpt_inst_info {
 	unsigned long time_in;
 	u32 dlen;
 	u32 dma_len;
+	u64 gthr_sz;
+	u64 sctr_sz;
 	u8 extra_time;
 };
 
@@ -155,6 +166,16 @@ struct otx2_cpt_sglist_component {
 	__be64 ptr1;
 	__be64 ptr2;
 	__be64 ptr3;
+};
+
+struct cn10kb_cpt_sglist_component {
+	u16 len0;
+	u16 len1;
+	u16 len2;
+	u16 valid_segs;
+	u64 ptr0;
+	u64 ptr1;
+	u64 ptr2;
 };
 
 static inline void otx2_cpt_info_destroy(struct pci_dev *pdev,
@@ -186,6 +207,283 @@ static inline void otx2_cpt_info_destroy(struct pci_dev *pdev,
 		}
 	}
 	kfree(info);
+}
+
+static inline int setup_sgio_components(struct pci_dev *pdev,
+					struct otx2_cpt_buf_ptr *list,
+					int buf_count, u8 *buffer)
+{
+	struct otx2_cpt_sglist_component *sg_ptr;
+	int components;
+	int i, j;
+
+	if (unlikely(!list)) {
+		dev_err(&pdev->dev, "Input list pointer is NULL\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < buf_count; i++) {
+		if (unlikely(!list[i].vptr))
+			continue;
+		list[i].dma_addr = dma_map_single(&pdev->dev, list[i].vptr,
+						  list[i].size,
+						  DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(&pdev->dev, list[i].dma_addr))) {
+			dev_err(&pdev->dev, "Dma mapping failed\n");
+			goto sg_cleanup;
+		}
+	}
+	components = buf_count / SG_COMPS_MAX;
+	sg_ptr = (struct otx2_cpt_sglist_component *)buffer;
+	for (i = 0; i < components; i++) {
+		sg_ptr->len0 = cpu_to_be16(list[i * SG_COMPS_MAX + 0].size);
+		sg_ptr->len1 = cpu_to_be16(list[i * SG_COMPS_MAX + 1].size);
+		sg_ptr->len2 = cpu_to_be16(list[i * SG_COMPS_MAX + 2].size);
+		sg_ptr->len3 = cpu_to_be16(list[i * SG_COMPS_MAX + 3].size);
+		sg_ptr->ptr0 = cpu_to_be64(list[i * SG_COMPS_MAX + 0].dma_addr);
+		sg_ptr->ptr1 = cpu_to_be64(list[i * SG_COMPS_MAX + 1].dma_addr);
+		sg_ptr->ptr2 = cpu_to_be64(list[i * SG_COMPS_MAX + 2].dma_addr);
+		sg_ptr->ptr3 = cpu_to_be64(list[i * SG_COMPS_MAX + 3].dma_addr);
+		sg_ptr++;
+	}
+	components = buf_count % SG_COMPS_MAX;
+
+	switch (components) {
+	case SG_COMP_3:
+		sg_ptr->len2 = cpu_to_be16(list[i * SG_COMPS_MAX + 2].size);
+		sg_ptr->ptr2 = cpu_to_be64(list[i * SG_COMPS_MAX + 2].dma_addr);
+		fallthrough;
+	case SG_COMP_2:
+		sg_ptr->len1 = cpu_to_be16(list[i * SG_COMPS_MAX + 1].size);
+		sg_ptr->ptr1 = cpu_to_be64(list[i * SG_COMPS_MAX + 1].dma_addr);
+		fallthrough;
+	case SG_COMP_1:
+		sg_ptr->len0 = cpu_to_be16(list[i * SG_COMPS_MAX + 0].size);
+		sg_ptr->ptr0 = cpu_to_be64(list[i * SG_COMPS_MAX + 0].dma_addr);
+		break;
+	default:
+		break;
+	}
+	return 0;
+
+sg_cleanup:
+	for (j = 0; j < i; j++) {
+		if (list[j].dma_addr) {
+			dma_unmap_single(&pdev->dev, list[j].dma_addr,
+					 list[j].size, DMA_BIDIRECTIONAL);
+		}
+
+		list[j].dma_addr = 0;
+	}
+	return -EIO;
+}
+
+static inline int sgv2io_components_setup(struct pci_dev *pdev,
+					  struct otx2_cpt_buf_ptr *list,
+					  int buf_count, u8 *buffer)
+{
+	struct cn10kb_cpt_sglist_component *sg_ptr;
+	int components;
+	int i, j;
+
+	if (unlikely(!list)) {
+		dev_err(&pdev->dev, "Input list pointer is NULL\n");
+		return -EFAULT;
+	}
+
+	for (i = 0; i < buf_count; i++) {
+		if (unlikely(!list[i].vptr))
+			continue;
+		list[i].dma_addr = dma_map_single(&pdev->dev, list[i].vptr,
+						  list[i].size,
+						  DMA_BIDIRECTIONAL);
+		if (unlikely(dma_mapping_error(&pdev->dev, list[i].dma_addr))) {
+			dev_err(&pdev->dev, "Dma mapping failed\n");
+			goto sg_cleanup;
+		}
+	}
+	components = buf_count / SGV2_COMPS_MAX;
+	sg_ptr = (struct cn10kb_cpt_sglist_component *)buffer;
+	for (i = 0; i < components; i++) {
+		sg_ptr->len0 = list[i * SGV2_COMPS_MAX + 0].size;
+		sg_ptr->len1 = list[i * SGV2_COMPS_MAX + 1].size;
+		sg_ptr->len2 = list[i * SGV2_COMPS_MAX + 2].size;
+		sg_ptr->ptr0 = list[i * SGV2_COMPS_MAX + 0].dma_addr;
+		sg_ptr->ptr1 = list[i * SGV2_COMPS_MAX + 1].dma_addr;
+		sg_ptr->ptr2 = list[i * SGV2_COMPS_MAX + 2].dma_addr;
+		sg_ptr->valid_segs = SGV2_COMPS_MAX;
+		sg_ptr++;
+	}
+	components = buf_count % SGV2_COMPS_MAX;
+
+	sg_ptr->valid_segs = components;
+	switch (components) {
+	case SG_COMP_2:
+		sg_ptr->len1 = list[i * SGV2_COMPS_MAX + 1].size;
+		sg_ptr->ptr1 = list[i * SGV2_COMPS_MAX + 1].dma_addr;
+		fallthrough;
+	case SG_COMP_1:
+		sg_ptr->len0 = list[i * SGV2_COMPS_MAX + 0].size;
+		sg_ptr->ptr0 = list[i * SGV2_COMPS_MAX + 0].dma_addr;
+		break;
+	default:
+		break;
+	}
+	return 0;
+
+sg_cleanup:
+	for (j = 0; j < i; j++) {
+		if (list[j].dma_addr) {
+			dma_unmap_single(&pdev->dev, list[j].dma_addr,
+					 list[j].size, DMA_BIDIRECTIONAL);
+		}
+
+		list[j].dma_addr = 0;
+	}
+	return -EIO;
+}
+
+static inline struct otx2_cpt_inst_info *
+cn10k_sgv2_info_create(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
+		       gfp_t gfp)
+{
+	u32 dlen = 0, g_len, sg_len, info_len;
+	int align = OTX2_CPT_DMA_MINALIGN;
+	struct otx2_cpt_inst_info *info;
+	u16 g_sz_bytes, s_sz_bytes;
+	u32 total_mem_len;
+	int i;
+
+	g_sz_bytes = ((req->in_cnt + 2) / 3) *
+		      sizeof(struct cn10kb_cpt_sglist_component);
+	s_sz_bytes = ((req->out_cnt + 2) / 3) *
+		      sizeof(struct cn10kb_cpt_sglist_component);
+
+	g_len = ALIGN(g_sz_bytes, align);
+	sg_len = ALIGN(g_len + s_sz_bytes, align);
+	info_len = ALIGN(sizeof(*info), align);
+	total_mem_len = sg_len + info_len + sizeof(union otx2_cpt_res_s);
+
+	info = kzalloc(total_mem_len, gfp);
+	if (unlikely(!info))
+		return NULL;
+
+	for (i = 0; i < req->in_cnt; i++)
+		dlen += req->in[i].size;
+
+	info->dlen = dlen;
+	info->in_buffer = (u8 *)info + info_len;
+	info->gthr_sz = req->in_cnt;
+	info->sctr_sz = req->out_cnt;
+
+	/* Setup gather (input) components */
+	if (sgv2io_components_setup(pdev, req->in, req->in_cnt,
+				    info->in_buffer)) {
+		dev_err(&pdev->dev, "Failed to setup gather list\n");
+		goto destroy_info;
+	}
+
+	if (sgv2io_components_setup(pdev, req->out, req->out_cnt,
+				    &info->in_buffer[g_len])) {
+		dev_err(&pdev->dev, "Failed to setup scatter list\n");
+		goto destroy_info;
+	}
+
+	info->dma_len = total_mem_len - info_len;
+	info->dptr_baddr = dma_map_single(&pdev->dev, info->in_buffer,
+					  info->dma_len, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(&pdev->dev, info->dptr_baddr))) {
+		dev_err(&pdev->dev, "DMA Mapping failed for cpt req\n");
+		goto destroy_info;
+	}
+	info->rptr_baddr = info->dptr_baddr + g_len;
+	/*
+	 * Get buffer for union otx2_cpt_res_s response
+	 * structure and its physical address
+	 */
+	info->completion_addr = info->in_buffer + sg_len;
+	info->comp_baddr = info->dptr_baddr + sg_len;
+
+	return info;
+
+destroy_info:
+	otx2_cpt_info_destroy(pdev, info);
+	return NULL;
+}
+
+/* SG list header size in bytes */
+#define SG_LIST_HDR_SIZE	8
+static inline struct otx2_cpt_inst_info *
+otx2_sg_info_create(struct pci_dev *pdev, struct otx2_cpt_req_info *req,
+		    gfp_t gfp)
+{
+	int align = OTX2_CPT_DMA_MINALIGN;
+	struct otx2_cpt_inst_info *info;
+	u32 dlen, align_dlen, info_len;
+	u16 g_sz_bytes, s_sz_bytes;
+	u32 total_mem_len;
+
+	if (unlikely(req->in_cnt > OTX2_CPT_MAX_SG_IN_CNT ||
+		     req->out_cnt > OTX2_CPT_MAX_SG_OUT_CNT)) {
+		dev_err(&pdev->dev, "Error too many sg components\n");
+		return NULL;
+	}
+
+	g_sz_bytes = ((req->in_cnt + 3) / 4) *
+		      sizeof(struct otx2_cpt_sglist_component);
+	s_sz_bytes = ((req->out_cnt + 3) / 4) *
+		      sizeof(struct otx2_cpt_sglist_component);
+
+	dlen = g_sz_bytes + s_sz_bytes + SG_LIST_HDR_SIZE;
+	align_dlen = ALIGN(dlen, align);
+	info_len = ALIGN(sizeof(*info), align);
+	total_mem_len = align_dlen + info_len + sizeof(union otx2_cpt_res_s);
+
+	info = kzalloc(total_mem_len, gfp);
+	if (unlikely(!info))
+		return NULL;
+
+	info->dlen = dlen;
+	info->in_buffer = (u8 *)info + info_len;
+
+	((u16 *)info->in_buffer)[0] = req->out_cnt;
+	((u16 *)info->in_buffer)[1] = req->in_cnt;
+	((u16 *)info->in_buffer)[2] = 0;
+	((u16 *)info->in_buffer)[3] = 0;
+	cpu_to_be64s((u64 *)info->in_buffer);
+
+	/* Setup gather (input) components */
+	if (setup_sgio_components(pdev, req->in, req->in_cnt,
+				  &info->in_buffer[8])) {
+		dev_err(&pdev->dev, "Failed to setup gather list\n");
+		goto destroy_info;
+	}
+
+	if (setup_sgio_components(pdev, req->out, req->out_cnt,
+				  &info->in_buffer[8 + g_sz_bytes])) {
+		dev_err(&pdev->dev, "Failed to setup scatter list\n");
+		goto destroy_info;
+	}
+
+	info->dma_len = total_mem_len - info_len;
+	info->dptr_baddr = dma_map_single(&pdev->dev, info->in_buffer,
+					  info->dma_len, DMA_BIDIRECTIONAL);
+	if (unlikely(dma_mapping_error(&pdev->dev, info->dptr_baddr))) {
+		dev_err(&pdev->dev, "DMA Mapping failed for cpt req\n");
+		goto destroy_info;
+	}
+	/*
+	 * Get buffer for union otx2_cpt_res_s response
+	 * structure and its physical address
+	 */
+	info->completion_addr = info->in_buffer + align_dlen;
+	info->comp_baddr = info->dptr_baddr + align_dlen;
+
+	return info;
+
+destroy_info:
+	otx2_cpt_info_destroy(pdev, info);
+	return NULL;
 }
 
 struct otx2_cptlf_wqe;

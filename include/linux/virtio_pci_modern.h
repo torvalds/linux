@@ -5,13 +5,6 @@
 #include <linux/pci.h>
 #include <linux/virtio_pci.h>
 
-struct virtio_pci_modern_common_cfg {
-	struct virtio_pci_common_cfg cfg;
-
-	__le16 queue_notify_data;	/* read-write */
-	__le16 queue_reset;		/* read-write */
-};
-
 /**
  * struct virtio_pci_modern_device - info for modern PCI virtio
  * @pci_dev:	    Ptr to the PCI device struct
@@ -132,4 +125,6 @@ int vp_modern_probe(struct virtio_pci_modern_device *mdev);
 void vp_modern_remove(struct virtio_pci_modern_device *mdev);
 int vp_modern_get_queue_reset(struct virtio_pci_modern_device *mdev, u16 index);
 void vp_modern_set_queue_reset(struct virtio_pci_modern_device *mdev, u16 index);
+u16 vp_modern_avq_num(struct virtio_pci_modern_device *mdev);
+u16 vp_modern_avq_index(struct virtio_pci_modern_device *mdev);
 #endif

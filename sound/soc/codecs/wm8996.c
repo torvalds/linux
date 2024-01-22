@@ -14,7 +14,7 @@
 #include <linux/pm.h>
 #include <linux/gcd.h>
 #include <linux/gpio/driver.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -51,7 +51,7 @@ struct wm8996_priv {
 	struct regmap *regmap;
 	struct snd_soc_component *component;
 
-	int ldo1ena;
+	struct gpio_desc *ldo_ena;
 
 	int sysclk;
 	int sysclk_src;
@@ -1596,9 +1596,9 @@ static int wm8996_set_bias_level(struct snd_soc_component *component,
 				return ret;
 			}
 
-			if (wm8996->pdata.ldo_ena >= 0) {
-				gpio_set_value_cansleep(wm8996->pdata.ldo_ena,
-							1);
+			if (wm8996->ldo_ena) {
+				gpiod_set_value_cansleep(wm8996->ldo_ena,
+							 1);
 				msleep(5);
 			}
 
@@ -1615,8 +1615,8 @@ static int wm8996_set_bias_level(struct snd_soc_component *component,
 
 	case SND_SOC_BIAS_OFF:
 		regcache_cache_only(wm8996->regmap, true);
-		if (wm8996->pdata.ldo_ena >= 0) {
-			gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+		if (wm8996->ldo_ena) {
+			gpiod_set_value_cansleep(wm8996->ldo_ena, 0);
 			regcache_cache_only(wm8996->regmap, true);
 		}
 		regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies),
@@ -2188,6 +2188,8 @@ static const struct gpio_chip wm8996_template_chip = {
 	.direction_input	= wm8996_gpio_direction_in,
 	.get			= wm8996_gpio_get,
 	.can_sleep		= 1,
+	.ngpio			= 5,
+	.base			= -1,
 };
 
 static void wm8996_init_gpio(struct wm8996_priv *wm8996)
@@ -2195,13 +2197,7 @@ static void wm8996_init_gpio(struct wm8996_priv *wm8996)
 	int ret;
 
 	wm8996->gpio_chip = wm8996_template_chip;
-	wm8996->gpio_chip.ngpio = 5;
 	wm8996->gpio_chip.parent = wm8996->dev;
-
-	if (wm8996->pdata.gpio_base)
-		wm8996->gpio_chip.base = wm8996->pdata.gpio_base;
-	else
-		wm8996->gpio_chip.base = -1;
 
 	ret = gpiochip_add_data(&wm8996->gpio_chip, wm8996);
 	if (ret != 0)
@@ -2771,15 +2767,15 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 		memcpy(&wm8996->pdata, dev_get_platdata(&i2c->dev),
 		       sizeof(wm8996->pdata));
 
-	if (wm8996->pdata.ldo_ena > 0) {
-		ret = gpio_request_one(wm8996->pdata.ldo_ena,
-				       GPIOF_OUT_INIT_LOW, "WM8996 ENA");
-		if (ret < 0) {
-			dev_err(&i2c->dev, "Failed to request GPIO %d: %d\n",
-				wm8996->pdata.ldo_ena, ret);
-			goto err;
-		}
+	wm8996->ldo_ena = devm_gpiod_get_optional(&i2c->dev, "wlf,ldo1ena",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(wm8996->ldo_ena)) {
+		ret = PTR_ERR(wm8996->ldo_ena);
+		dev_err(&i2c->dev, "Failed to request LDO ENA GPIO: %d\n",
+			ret);
+		goto err;
 	}
+	gpiod_set_consumer_name(wm8996->ldo_ena, "WM8996 ENA");
 
 	for (i = 0; i < ARRAY_SIZE(wm8996->supplies); i++)
 		wm8996->supplies[i].supply = wm8996_supply_names[i];
@@ -2814,8 +2810,8 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 		goto err_gpio;
 	}
 
-	if (wm8996->pdata.ldo_ena > 0) {
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 1);
+	if (wm8996->ldo_ena) {
+		gpiod_set_value_cansleep(wm8996->ldo_ena, 1);
 		msleep(5);
 	}
 
@@ -2847,8 +2843,8 @@ static int wm8996_i2c_probe(struct i2c_client *i2c)
 	dev_info(&i2c->dev, "revision %c\n",
 		 (reg & WM8996_CHIP_REV_MASK) + 'A');
 
-	if (wm8996->pdata.ldo_ena > 0) {
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+	if (wm8996->ldo_ena) {
+		gpiod_set_value_cansleep(wm8996->ldo_ena, 0);
 		regcache_cache_only(wm8996->regmap, true);
 	} else {
 		ret = regmap_write(wm8996->regmap, WM8996_SOFTWARE_RESET,
@@ -3054,12 +3050,10 @@ err_gpiolib:
 	wm8996_free_gpio(wm8996);
 err_regmap:
 err_enable:
-	if (wm8996->pdata.ldo_ena > 0)
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
+	if (wm8996->ldo_ena)
+		gpiod_set_value_cansleep(wm8996->ldo_ena, 0);
 	regulator_bulk_disable(ARRAY_SIZE(wm8996->supplies), wm8996->supplies);
 err_gpio:
-	if (wm8996->pdata.ldo_ena > 0)
-		gpio_free(wm8996->pdata.ldo_ena);
 err:
 
 	return ret;
@@ -3070,10 +3064,8 @@ static void wm8996_i2c_remove(struct i2c_client *client)
 	struct wm8996_priv *wm8996 = i2c_get_clientdata(client);
 
 	wm8996_free_gpio(wm8996);
-	if (wm8996->pdata.ldo_ena > 0) {
-		gpio_set_value_cansleep(wm8996->pdata.ldo_ena, 0);
-		gpio_free(wm8996->pdata.ldo_ena);
-	}
+	if (wm8996->ldo_ena)
+		gpiod_set_value_cansleep(wm8996->ldo_ena, 0);
 }
 
 static const struct i2c_device_id wm8996_i2c_id[] = {

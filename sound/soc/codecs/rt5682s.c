@@ -2971,6 +2971,8 @@ static int rt5682s_parse_dt(struct rt5682s_priv *rt5682s, struct device *dev)
 		&rt5682s->pdata.dmic_delay);
 	device_property_read_u32(dev, "realtek,amic-delay-ms",
 		&rt5682s->pdata.amic_delay);
+	device_property_read_u32(dev, "realtek,ldo-sel",
+		&rt5682s->pdata.ldo_dacref);
 
 	if (device_property_read_string_array(dev, "clock-output-names",
 					      rt5682s->pdata.dai_clk_names,
@@ -3247,6 +3249,27 @@ static int rt5682s_i2c_probe(struct i2c_client *i2c)
 		break;
 	default:
 		dev_warn(&i2c->dev, "invalid DMIC_CLK pin\n");
+		break;
+	}
+
+	/* LDO output voltage control */
+	switch (rt5682s->pdata.ldo_dacref) {
+	case RT5682S_LDO_1_607V:
+		break;
+	case RT5682S_LDO_1_5V:
+		regmap_update_bits(rt5682s->regmap, RT5682S_BIAS_CUR_CTRL_7,
+			RT5682S_LDO_DACREF_MASK, RT5682S_LDO_DACREF_1_5V);
+		break;
+	case RT5682S_LDO_1_406V:
+		regmap_update_bits(rt5682s->regmap, RT5682S_BIAS_CUR_CTRL_7,
+			RT5682S_LDO_DACREF_MASK, RT5682S_LDO_DACREF_1_406V);
+		break;
+	case RT5682S_LDO_1_731V:
+		regmap_update_bits(rt5682s->regmap, RT5682S_BIAS_CUR_CTRL_7,
+			RT5682S_LDO_DACREF_MASK, RT5682S_LDO_DACREF_1_731V);
+		break;
+	default:
+		dev_warn(&i2c->dev, "invalid LDO output setting.\n");
 		break;
 	}
 

@@ -2451,9 +2451,8 @@ static int ub960_configure_ports_for_streaming(struct ub960_data *priv,
 		if (rx_data[nport].num_streams > 2)
 			return -EPIPE;
 
-		fmt = v4l2_subdev_state_get_stream_format(state,
-							  route->sink_pad,
-							  route->sink_stream);
+		fmt = v4l2_subdev_state_get_format(state, route->sink_pad,
+						   route->sink_stream);
 		if (!fmt)
 			return -EPIPE;
 
@@ -2842,8 +2841,8 @@ static int ub960_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 			const struct ub960_format_info *ub960_fmt;
 			struct v4l2_mbus_framefmt *fmt;
 
-			fmt = v4l2_subdev_state_get_stream_format(state, pad,
-								  route->source_stream);
+			fmt = v4l2_subdev_state_get_format(state, pad,
+							   route->source_stream);
 
 			if (!fmt) {
 				ret = -EINVAL;
@@ -2891,8 +2890,7 @@ static int ub960_set_fmt(struct v4l2_subdev *sd,
 	if (!ub960_find_format(format->format.code))
 		format->format.code = ub960_formats[0].code;
 
-	fmt = v4l2_subdev_state_get_stream_format(state, format->pad,
-						  format->stream);
+	fmt = v4l2_subdev_state_get_format(state, format->pad, format->stream);
 	if (!fmt)
 		return -EINVAL;
 
@@ -2908,8 +2906,8 @@ static int ub960_set_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ub960_init_cfg(struct v4l2_subdev *sd,
-			  struct v4l2_subdev_state *state)
+static int ub960_init_state(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_state *state)
 {
 	struct ub960_data *priv = sd_to_ub960(sd);
 
@@ -2940,8 +2938,6 @@ static const struct v4l2_subdev_pad_ops ub960_pad_ops = {
 
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = ub960_set_fmt,
-
-	.init_cfg = ub960_init_cfg,
 };
 
 static int ub960_log_status(struct v4l2_subdev *sd)
@@ -3091,6 +3087,10 @@ static const struct v4l2_subdev_core_ops ub960_subdev_core_ops = {
 	.log_status = ub960_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
+static const struct v4l2_subdev_internal_ops ub960_internal_ops = {
+	.init_state = ub960_init_state,
 };
 
 static const struct v4l2_subdev_ops ub960_subdev_ops = {
@@ -3652,6 +3652,7 @@ static int ub960_create_subdev(struct ub960_data *priv)
 	int ret;
 
 	v4l2_i2c_subdev_init(&priv->sd, priv->client, &ub960_subdev_ops);
+	priv->sd.internal_ops = &ub960_internal_ops;
 
 	v4l2_ctrl_handler_init(&priv->ctrl_handler, 1);
 	priv->sd.ctrl_handler = &priv->ctrl_handler;

@@ -369,6 +369,12 @@ L_SLEEP:
 	s_or_b32	s_save_pc_hi, s_save_pc_hi, s_save_tmp
 
 #if NO_SQC_STORE
+#if ASIC_FAMILY <= CHIP_SIENNA_CICHLID
+	// gfx10: If there was a VALU exception, the exception state must be
+	// cleared before executing the VALU instructions below.
+	v_clrexcp
+#endif
+
 	// Trap temporaries must be saved via VGPR but all VGPRs are in use.
 	// There is no ttmp space to hold the resource constant for VGPR save.
 	// Save v0 by itself since it requires only two SGPRs.

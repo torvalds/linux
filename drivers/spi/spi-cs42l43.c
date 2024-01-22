@@ -213,7 +213,7 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->ctlr = devm_spi_alloc_master(&pdev->dev, sizeof(*priv->ctlr));
+	priv->ctlr = devm_spi_alloc_host(&pdev->dev, sizeof(*priv->ctlr));
 	if (!priv->ctlr)
 		return -ENOMEM;
 

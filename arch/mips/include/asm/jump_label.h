@@ -15,6 +15,9 @@
 #include <linux/types.h>
 #include <asm/isa-rev.h>
 
+struct module;
+extern void jump_label_apply_nops(struct module *mod);
+
 #define JUMP_LABEL_NOP_SIZE 4
 
 #ifdef CONFIG_64BIT

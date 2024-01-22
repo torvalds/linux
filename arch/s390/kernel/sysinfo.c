@@ -81,10 +81,12 @@ static bool convert_ext_name(unsigned char encoding, char *name, size_t len)
 
 static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 {
+	bool has_var_cap;
 	int i;
 
 	if (stsi(info, 1, 1, 1))
 		return;
+	has_var_cap = !!info->model_var_cap[0];
 	EBCASC(info->manufacturer, sizeof(info->manufacturer));
 	EBCASC(info->type, sizeof(info->type));
 	EBCASC(info->model, sizeof(info->model));
@@ -93,6 +95,8 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 	EBCASC(info->model_capacity, sizeof(info->model_capacity));
 	EBCASC(info->model_perm_cap, sizeof(info->model_perm_cap));
 	EBCASC(info->model_temp_cap, sizeof(info->model_temp_cap));
+	if (has_var_cap)
+		EBCASC(info->model_var_cap, sizeof(info->model_var_cap));
 	seq_printf(m, "Manufacturer:         %-16.16s\n", info->manufacturer);
 	seq_printf(m, "Type:                 %-4.4s\n", info->type);
 	if (info->lic)
@@ -120,12 +124,18 @@ static void stsi_1_1_1(struct seq_file *m, struct sysinfo_1_1_1 *info)
 		seq_printf(m, "Model Temp. Capacity: %-16.16s %08u\n",
 			   info->model_temp_cap,
 			   info->model_temp_cap_rating);
+	if (has_var_cap && info->model_var_cap_rating)
+		seq_printf(m, "Model Var. Capacity:  %-16.16s %08u\n",
+			   info->model_var_cap,
+			   info->model_var_cap_rating);
 	if (info->ncr)
 		seq_printf(m, "Nominal Cap. Rating:  %08u\n", info->ncr);
 	if (info->npr)
 		seq_printf(m, "Nominal Perm. Rating: %08u\n", info->npr);
 	if (info->ntr)
 		seq_printf(m, "Nominal Temp. Rating: %08u\n", info->ntr);
+	if (has_var_cap && info->nvr)
+		seq_printf(m, "Nominal Var. Rating:  %08u\n", info->nvr);
 	if (info->cai) {
 		seq_printf(m, "Capacity Adj. Ind.:   %d\n", info->cai);
 		seq_printf(m, "Capacity Ch. Reason:  %d\n", info->ccr);

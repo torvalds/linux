@@ -2223,7 +2223,7 @@ static int __init amd_iommu_init_pci(void)
 		init_device_table_dma(pci_seg);
 
 	for_each_iommu(iommu)
-		iommu_flush_all_caches(iommu);
+		amd_iommu_flush_all_caches(iommu);
 
 	print_iommu_info();
 
@@ -2773,7 +2773,7 @@ static void early_enable_iommu(struct amd_iommu *iommu)
 	iommu_enable_xt(iommu);
 	iommu_enable_irtcachedis(iommu);
 	iommu_enable(iommu);
-	iommu_flush_all_caches(iommu);
+	amd_iommu_flush_all_caches(iommu);
 }
 
 /*
@@ -2829,7 +2829,7 @@ static void early_enable_iommus(void)
 			iommu_enable_xt(iommu);
 			iommu_enable_irtcachedis(iommu);
 			iommu_set_device_table(iommu);
-			iommu_flush_all_caches(iommu);
+			amd_iommu_flush_all_caches(iommu);
 		}
 	}
 }
@@ -3293,7 +3293,7 @@ static int __init state_next(void)
 				uninit_device_table_dma(pci_seg);
 
 			for_each_iommu(iommu)
-				iommu_flush_all_caches(iommu);
+				amd_iommu_flush_all_caches(iommu);
 		}
 	}
 	return ret;

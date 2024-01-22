@@ -71,13 +71,13 @@ Protocol 2.13	(Kernel 3.14) Support 32- and 64-bit flags being set in
 
 Protocol 2.14	BURNT BY INCORRECT COMMIT
                 ae7e1238e68f2a472a125673ab506d49158c1889
-		(x86/boot: Add ACPI RSDP address to setup_header)
+		("x86/boot: Add ACPI RSDP address to setup_header")
 		DO NOT USE!!! ASSUME SAME AS 2.13.
 
 Protocol 2.15	(Kernel 5.5) Added the kernel_info and kernel_info.setup_type_max.
 =============	============================================================
 
-.. note::
+  .. note::
      The protocol version number should be changed only if the setup header
      is changed. There is no need to update the version number if boot_params
      or kernel_info are changed. Additionally, it is recommended to use

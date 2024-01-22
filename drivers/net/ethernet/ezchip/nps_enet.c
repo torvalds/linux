@@ -633,7 +633,7 @@ out_netdev:
 	return err;
 }
 
-static s32 nps_enet_remove(struct platform_device *pdev)
+static void nps_enet_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct nps_enet_priv *priv = netdev_priv(ndev);
@@ -641,8 +641,6 @@ static s32 nps_enet_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	netif_napi_del(&priv->napi);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static const struct of_device_id nps_enet_dt_ids[] = {
@@ -653,7 +651,7 @@ MODULE_DEVICE_TABLE(of, nps_enet_dt_ids);
 
 static struct platform_driver nps_enet_driver = {
 	.probe = nps_enet_probe,
-	.remove = nps_enet_remove,
+	.remove_new = nps_enet_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table  = nps_enet_dt_ids,

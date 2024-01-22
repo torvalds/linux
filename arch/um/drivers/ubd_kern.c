@@ -798,7 +798,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 		ubd_dev->cow.fd = err;
 	}
 	if (ubd_dev->no_trim == 0) {
-		ubd_dev->queue->limits.discard_granularity = SECTOR_SIZE;
 		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 	}

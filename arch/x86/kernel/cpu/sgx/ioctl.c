@@ -581,7 +581,7 @@ err_out:
  *
  * Flush any outstanding enqueued EADD operations and perform EINIT.  The
  * Launch Enclave Public Key Hash MSRs are rewritten as necessary to match
- * the enclave's MRSIGNER, which is caculated from the provided sigstruct.
+ * the enclave's MRSIGNER, which is calculated from the provided sigstruct.
  *
  * Return:
  * - 0:		Success.

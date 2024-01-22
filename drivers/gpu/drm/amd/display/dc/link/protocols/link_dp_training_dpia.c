@@ -811,7 +811,7 @@ static enum link_training_result dpia_training_eq_transparent(
 			/* Take into consideration corner case for DP 1.4a LL Compliance CTS as USB4
 			 * has to share encoders unlike DP and USBC
 			 */
-			if (dp_is_interlane_aligned(dpcd_lane_status_updated) || (link->is_automated && retries_eq)) {
+			if (dp_is_interlane_aligned(dpcd_lane_status_updated) || (link->skip_fallback_on_link_loss && retries_eq)) {
 				result =  LINK_TRAINING_SUCCESS;
 				break;
 			}
@@ -1037,7 +1037,7 @@ enum link_training_result dpia_perform_link_training(
 	 */
 	if (result == LINK_TRAINING_SUCCESS) {
 		fsleep(5000);
-		if (!link->is_automated)
+		if (!link->skip_fallback_on_link_loss)
 			result = dp_check_link_loss_status(link, &lt_settings);
 	} else if (result == LINK_TRAINING_ABORT)
 		dpia_training_abort(link, &lt_settings, repeater_id);

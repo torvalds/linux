@@ -22,6 +22,8 @@ properties:
       - items:
           - enum:
               - qcom,apq8084-sdhci
+              - qcom,ipq4019-sdhci
+              - qcom,ipq8074-sdhci
               - qcom,msm8226-sdhci
               - qcom,msm8953-sdhci
               - qcom,msm8974-sdhci

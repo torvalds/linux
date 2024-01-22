@@ -410,9 +410,24 @@ static int blkdev_get_block(struct inode *inode, sector_t iblock,
 	return 0;
 }
 
-static int blkdev_writepage(struct page *page, struct writeback_control *wbc)
+/*
+ * We cannot call mpage_writepages() as it does not take the buffer lock.
+ * We must use block_write_full_folio() directly which holds the buffer
+ * lock.  The buffer lock provides the synchronisation with writeback
+ * that filesystems rely on when they use the blockdev's mapping.
+ */
+static int blkdev_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	return block_write_full_page(page, blkdev_get_block, wbc);
+	struct blk_plug plug;
+	int err;
+
+	blk_start_plug(&plug);
+	err = write_cache_pages(mapping, wbc, block_write_full_folio,
+			blkdev_get_block);
+	blk_finish_plug(&plug);
+
+	return err;
 }
 
 static int blkdev_read_folio(struct file *file, struct folio *folio)
@@ -449,7 +464,7 @@ const struct address_space_operations def_blk_aops = {
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio	= blkdev_read_folio,
 	.readahead	= blkdev_readahead,
-	.writepage	= blkdev_writepage,
+	.writepages	= blkdev_writepages,
 	.write_begin	= blkdev_write_begin,
 	.write_end	= blkdev_write_end,
 	.migrate_folio	= buffer_migrate_folio_norefs,
@@ -500,7 +515,7 @@ const struct address_space_operations def_blk_aops = {
 	.readahead		= blkdev_readahead,
 	.writepages		= blkdev_writepages,
 	.is_partially_uptodate  = iomap_is_partially_uptodate,
-	.error_remove_page	= generic_error_remove_page,
+	.error_remove_folio	= generic_error_remove_folio,
 	.migrate_folio		= filemap_migrate_folio,
 };
 #endif /* CONFIG_BUFFER_HEAD */

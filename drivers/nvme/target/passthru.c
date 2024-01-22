@@ -602,7 +602,7 @@ int nvmet_passthru_ctrl_enable(struct nvmet_subsys *subsys)
 		goto out_put_file;
 	}
 
-	old = xa_cmpxchg(&passthru_subsystems, ctrl->cntlid, NULL,
+	old = xa_cmpxchg(&passthru_subsystems, ctrl->instance, NULL,
 			 subsys, GFP_KERNEL);
 	if (xa_is_err(old)) {
 		ret = xa_err(old);
@@ -635,7 +635,7 @@ out_unlock:
 static void __nvmet_passthru_ctrl_disable(struct nvmet_subsys *subsys)
 {
 	if (subsys->passthru_ctrl) {
-		xa_erase(&passthru_subsystems, subsys->passthru_ctrl->cntlid);
+		xa_erase(&passthru_subsystems, subsys->passthru_ctrl->instance);
 		module_put(subsys->passthru_ctrl->ops->module);
 		nvme_put_ctrl(subsys->passthru_ctrl);
 	}

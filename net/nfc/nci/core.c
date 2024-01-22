@@ -1577,4 +1577,5 @@ static void nci_cmd_work(struct work_struct *work)
 	}
 }
 
+MODULE_DESCRIPTION("NFC Controller Interface");
 MODULE_LICENSE("GPL");

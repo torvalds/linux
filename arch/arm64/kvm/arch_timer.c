@@ -295,8 +295,7 @@ static u64 wfit_delay_ns(struct kvm_vcpu *vcpu)
 	u64 val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
 	struct arch_timer_context *ctx;
 
-	ctx = (vcpu_has_nv(vcpu) && is_hyp_ctxt(vcpu)) ? vcpu_hvtimer(vcpu)
-						       : vcpu_vtimer(vcpu);
+	ctx = is_hyp_ctxt(vcpu) ? vcpu_hvtimer(vcpu) : vcpu_vtimer(vcpu);
 
 	return kvm_counter_compute_delta(ctx, val);
 }

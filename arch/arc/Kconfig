@@ -49,7 +49,6 @@ config ARC
 	select OF
 	select OF_EARLY_FLATTREE
 	select PCI_SYSCALL if PCI
-	select PERF_USE_VMALLOC if ARC_CACHE_VIPT_ALIASING
 	select HAVE_ARCH_JUMP_LABEL if ISA_ARCV2 && !CPU_ENDIAN_BE32
 	select TRACE_IRQFLAGS_SUPPORT
 
@@ -231,10 +230,6 @@ config ARC_CACHE_PAGES
 	  TLB entries have a per-page Cache Enable Bit.
 	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
 	  Global DISABLE + Per Page ENABLE won't work
-
-config ARC_CACHE_VIPT_ALIASING
-	bool "Support VIPT Aliasing D$"
-	depends on ARC_HAS_DCACHE && ISA_ARCOMPACT
 
 endif #ARC_CACHE
 

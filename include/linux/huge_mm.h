@@ -67,6 +67,26 @@ extern struct kobj_attribute shmem_enabled_attr;
 #define HPAGE_PMD_ORDER (HPAGE_PMD_SHIFT-PAGE_SHIFT)
 #define HPAGE_PMD_NR (1<<HPAGE_PMD_ORDER)
 
+/*
+ * Mask of all large folio orders supported for anonymous THP; all orders up to
+ * and including PMD_ORDER, except order-0 (which is not "huge") and order-1
+ * (which is a limitation of the THP implementation).
+ */
+#define THP_ORDERS_ALL_ANON	((BIT(PMD_ORDER + 1) - 1) & ~(BIT(0) | BIT(1)))
+
+/*
+ * Mask of all large folio orders supported for file THP.
+ */
+#define THP_ORDERS_ALL_FILE	(BIT(PMD_ORDER) | BIT(PUD_ORDER))
+
+/*
+ * Mask of all large folio orders supported for THP.
+ */
+#define THP_ORDERS_ALL		(THP_ORDERS_ALL_ANON | THP_ORDERS_ALL_FILE)
+
+#define thp_vma_allowable_order(vma, vm_flags, smaps, in_pf, enforce_sysfs, order) \
+	(!!thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf, enforce_sysfs, BIT(order)))
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define HPAGE_PMD_SHIFT PMD_SHIFT
 #define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
@@ -77,43 +97,103 @@ extern struct kobj_attribute shmem_enabled_attr;
 #define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
 
 extern unsigned long transparent_hugepage_flags;
+extern unsigned long huge_anon_orders_always;
+extern unsigned long huge_anon_orders_madvise;
+extern unsigned long huge_anon_orders_inherit;
 
-#define hugepage_flags_enabled()					       \
-	(transparent_hugepage_flags &				       \
-	 ((1<<TRANSPARENT_HUGEPAGE_FLAG) |		       \
-	  (1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG)))
-#define hugepage_flags_always()				\
-	(transparent_hugepage_flags &			\
-	 (1<<TRANSPARENT_HUGEPAGE_FLAG))
+static inline bool hugepage_global_enabled(void)
+{
+	return transparent_hugepage_flags &
+			((1<<TRANSPARENT_HUGEPAGE_FLAG) |
+			(1<<TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG));
+}
+
+static inline bool hugepage_global_always(void)
+{
+	return transparent_hugepage_flags &
+			(1<<TRANSPARENT_HUGEPAGE_FLAG);
+}
+
+static inline bool hugepage_flags_enabled(void)
+{
+	/*
+	 * We cover both the anon and the file-backed case here; we must return
+	 * true if globally enabled, even when all anon sizes are set to never.
+	 * So we don't need to look at huge_anon_orders_inherit.
+	 */
+	return hugepage_global_enabled() ||
+	       huge_anon_orders_always ||
+	       huge_anon_orders_madvise;
+}
+
+static inline int highest_order(unsigned long orders)
+{
+	return fls_long(orders) - 1;
+}
+
+static inline int next_order(unsigned long *orders, int prev)
+{
+	*orders &= ~BIT(prev);
+	return highest_order(*orders);
+}
 
 /*
  * Do the below checks:
  *   - For file vma, check if the linear page offset of vma is
- *     HPAGE_PMD_NR aligned within the file.  The hugepage is
- *     guaranteed to be hugepage-aligned within the file, but we must
- *     check that the PMD-aligned addresses in the VMA map to
- *     PMD-aligned offsets within the file, else the hugepage will
- *     not be PMD-mappable.
- *   - For all vmas, check if the haddr is in an aligned HPAGE_PMD_SIZE
+ *     order-aligned within the file.  The hugepage is
+ *     guaranteed to be order-aligned within the file, but we must
+ *     check that the order-aligned addresses in the VMA map to
+ *     order-aligned offsets within the file, else the hugepage will
+ *     not be mappable.
+ *   - For all vmas, check if the haddr is in an aligned hugepage
  *     area.
  */
-static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-		unsigned long addr)
+static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
+		unsigned long addr, int order)
 {
+	unsigned long hpage_size = PAGE_SIZE << order;
 	unsigned long haddr;
 
 	/* Don't have to check pgoff for anonymous vma */
 	if (!vma_is_anonymous(vma)) {
 		if (!IS_ALIGNED((vma->vm_start >> PAGE_SHIFT) - vma->vm_pgoff,
-				HPAGE_PMD_NR))
+				hpage_size >> PAGE_SHIFT))
 			return false;
 	}
 
-	haddr = addr & HPAGE_PMD_MASK;
+	haddr = ALIGN_DOWN(addr, hpage_size);
 
-	if (haddr < vma->vm_start || haddr + HPAGE_PMD_SIZE > vma->vm_end)
+	if (haddr < vma->vm_start || haddr + hpage_size > vma->vm_end)
 		return false;
 	return true;
+}
+
+/*
+ * Filter the bitfield of input orders to the ones suitable for use in the vma.
+ * See thp_vma_suitable_order().
+ * All orders that pass the checks are returned as a bitfield.
+ */
+static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
+		unsigned long addr, unsigned long orders)
+{
+	int order;
+
+	/*
+	 * Iterate over orders, highest to lowest, removing orders that don't
+	 * meet alignment requirements from the set. Exit loop at first order
+	 * that meets requirements, since all lower orders must also meet
+	 * requirements.
+	 */
+
+	order = highest_order(orders);
+
+	while (orders) {
+		if (thp_vma_suitable_order(vma, addr, order))
+			break;
+		order = next_order(&orders, order);
+	}
+
+	return orders;
 }
 
 static inline bool file_thp_enabled(struct vm_area_struct *vma)
@@ -126,12 +206,55 @@ static inline bool file_thp_enabled(struct vm_area_struct *vma)
 	inode = vma->vm_file->f_inode;
 
 	return (IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS)) &&
-	       (vma->vm_flags & VM_EXEC) &&
 	       !inode_is_open_for_write(inode) && S_ISREG(inode->i_mode);
 }
 
-bool hugepage_vma_check(struct vm_area_struct *vma, unsigned long vm_flags,
-			bool smaps, bool in_pf, bool enforce_sysfs);
+unsigned long __thp_vma_allowable_orders(struct vm_area_struct *vma,
+					 unsigned long vm_flags, bool smaps,
+					 bool in_pf, bool enforce_sysfs,
+					 unsigned long orders);
+
+/**
+ * thp_vma_allowable_orders - determine hugepage orders that are allowed for vma
+ * @vma:  the vm area to check
+ * @vm_flags: use these vm_flags instead of vma->vm_flags
+ * @smaps: whether answer will be used for smaps file
+ * @in_pf: whether answer will be used by page fault handler
+ * @enforce_sysfs: whether sysfs config should be taken into account
+ * @orders: bitfield of all orders to consider
+ *
+ * Calculates the intersection of the requested hugepage orders and the allowed
+ * hugepage orders for the provided vma. Permitted orders are encoded as a set
+ * bit at the corresponding bit position (bit-2 corresponds to order-2, bit-3
+ * corresponds to order-3, etc). Order-0 is never considered a hugepage order.
+ *
+ * Return: bitfield of orders allowed for hugepage in the vma. 0 if no hugepage
+ * orders are allowed.
+ */
+static inline
+unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
+				       unsigned long vm_flags, bool smaps,
+				       bool in_pf, bool enforce_sysfs,
+				       unsigned long orders)
+{
+	/* Optimization to check if required orders are enabled early. */
+	if (enforce_sysfs && vma_is_anonymous(vma)) {
+		unsigned long mask = READ_ONCE(huge_anon_orders_always);
+
+		if (vm_flags & VM_HUGEPAGE)
+			mask |= READ_ONCE(huge_anon_orders_madvise);
+		if (hugepage_global_always() ||
+		    ((vm_flags & VM_HUGEPAGE) && hugepage_global_enabled()))
+			mask |= READ_ONCE(huge_anon_orders_inherit);
+
+		orders &= mask;
+		if (!orders)
+			return 0;
+	}
+
+	return __thp_vma_allowable_orders(vma, vm_flags, smaps, in_pf,
+					  enforce_sysfs, orders);
+}
 
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
@@ -267,17 +390,24 @@ static inline bool folio_test_pmd_mappable(struct folio *folio)
 	return false;
 }
 
-static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
-		unsigned long addr)
+static inline bool thp_vma_suitable_order(struct vm_area_struct *vma,
+		unsigned long addr, int order)
 {
 	return false;
 }
 
-static inline bool hugepage_vma_check(struct vm_area_struct *vma,
-				      unsigned long vm_flags, bool smaps,
-				      bool in_pf, bool enforce_sysfs)
+static inline unsigned long thp_vma_suitable_orders(struct vm_area_struct *vma,
+		unsigned long addr, unsigned long orders)
 {
-	return false;
+	return 0;
+}
+
+static inline unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
+					unsigned long vm_flags, bool smaps,
+					bool in_pf, bool enforce_sysfs,
+					unsigned long orders)
+{
+	return 0;
 }
 
 static inline void folio_prep_large_rmappable(struct folio *folio) {}

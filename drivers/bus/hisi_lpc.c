@@ -657,7 +657,7 @@ static int hisi_lpc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int hisi_lpc_remove(struct platform_device *pdev)
+static void hisi_lpc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hisi_lpc_dev *lpcdev = dev_get_drvdata(dev);
@@ -669,8 +669,6 @@ static int hisi_lpc_remove(struct platform_device *pdev)
 		of_platform_depopulate(dev);
 
 	logic_pio_unregister_range(range);
-
-	return 0;
 }
 
 static const struct of_device_id hisi_lpc_of_match[] = {
@@ -691,6 +689,6 @@ static struct platform_driver hisi_lpc_driver = {
 		.acpi_match_table = hisi_lpc_acpi_match,
 	},
 	.probe = hisi_lpc_probe,
-	.remove = hisi_lpc_remove,
+	.remove_new = hisi_lpc_remove,
 };
 builtin_platform_driver(hisi_lpc_driver);

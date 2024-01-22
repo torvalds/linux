@@ -442,5 +442,6 @@ struct evsel *evlist__find_evsel(struct evlist *evlist, int idx);
 int evlist__scnprintf_evsels(struct evlist *evlist, size_t size, char *bf);
 void evlist__check_mem_load_aux(struct evlist *evlist);
 void evlist__warn_user_requested_cpus(struct evlist *evlist, const char *cpu_list);
+void evlist__uniquify_name(struct evlist *evlist);
 
 #endif /* __PERF_EVLIST_H */

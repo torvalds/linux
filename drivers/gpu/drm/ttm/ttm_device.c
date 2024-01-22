@@ -210,7 +210,8 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 	if (ret)
 		return ret;
 
-	bdev->wq = alloc_workqueue("ttm", WQ_MEM_RECLAIM | WQ_HIGHPRI, 16);
+	bdev->wq = alloc_workqueue("ttm",
+				   WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_UNBOUND, 16);
 	if (!bdev->wq) {
 		ttm_global_release();
 		return -ENOMEM;
@@ -219,7 +220,8 @@ int ttm_device_init(struct ttm_device *bdev, const struct ttm_device_funcs *func
 	bdev->funcs = funcs;
 
 	ttm_sys_man_init(bdev);
-	ttm_pool_init(&bdev->pool, dev, NUMA_NO_NODE, use_dma_alloc, use_dma32);
+
+	ttm_pool_init(&bdev->pool, dev, dev_to_node(dev), use_dma_alloc, use_dma32);
 
 	bdev->vma_manager = vma_manager;
 	spin_lock_init(&bdev->lru_lock);

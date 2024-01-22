@@ -156,6 +156,7 @@ static void __net_exit afs_net_exit(struct net *net_ns)
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
 	afs_put_sysnames(net->sysnames);
+	kfree_rcu(rcu_access_pointer(net->address_prefs), rcu);
 }
 
 static struct pernet_operations afs_net_ops = {

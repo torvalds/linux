@@ -58,6 +58,7 @@
 /* Capability register E */
 #define CAPID_E_OFFSET			0xf0
 #define CAPID_E_IBECC			BIT(12)
+#define CAPID_E_IBECC_BIT18		BIT(18)
 
 /* Error Status */
 #define ERRSTS_OFFSET			0xc8
@@ -80,6 +81,7 @@
 #define ECC_ERROR_LOG_UE		BIT_ULL(63)
 #define ECC_ERROR_LOG_ADDR_SHIFT	5
 #define ECC_ERROR_LOG_ADDR(v)		GET_BITFIELD(v, 5, 38)
+#define ECC_ERROR_LOG_ADDR45(v)		GET_BITFIELD(v, 5, 45)
 #define ECC_ERROR_LOG_SYND(v)		GET_BITFIELD(v, 46, 61)
 
 /* Host MMIO base address */
@@ -133,6 +135,8 @@ static struct res_config {
 	u32 ibecc_base;
 	u32 ibecc_error_log_offset;
 	bool (*ibecc_available)(struct pci_dev *pdev);
+	/* Extract error address logged in IBECC */
+	u64 (*err_addr)(u64 ecclog);
 	/* Convert error address logged in IBECC to system physical address */
 	u64 (*err_addr_to_sys_addr)(u64 eaddr, int mc);
 	/* Convert error address logged in IBECC to integrated memory controller address */
@@ -222,6 +226,67 @@ static struct work_struct ecclog_work;
 #define DID_ADL_SKU3	0x4621
 #define DID_ADL_SKU4	0x4641
 
+/* Compute die IDs for Alder Lake-N with IBECC */
+#define DID_ADL_N_SKU1	0x4614
+#define DID_ADL_N_SKU2	0x4617
+#define DID_ADL_N_SKU3	0x461b
+#define DID_ADL_N_SKU4	0x461c
+#define DID_ADL_N_SKU5	0x4673
+#define DID_ADL_N_SKU6	0x4674
+#define DID_ADL_N_SKU7	0x4675
+#define DID_ADL_N_SKU8	0x4677
+#define DID_ADL_N_SKU9	0x4678
+#define DID_ADL_N_SKU10	0x4679
+#define DID_ADL_N_SKU11	0x467c
+
+/* Compute die IDs for Raptor Lake-P with IBECC */
+#define DID_RPL_P_SKU1	0xa706
+#define DID_RPL_P_SKU2	0xa707
+#define DID_RPL_P_SKU3	0xa708
+#define DID_RPL_P_SKU4	0xa716
+#define DID_RPL_P_SKU5	0xa718
+
+/* Compute die IDs for Meteor Lake-PS with IBECC */
+#define DID_MTL_PS_SKU1	0x7d21
+#define DID_MTL_PS_SKU2	0x7d22
+#define DID_MTL_PS_SKU3	0x7d23
+#define DID_MTL_PS_SKU4	0x7d24
+
+/* Compute die IDs for Meteor Lake-P with IBECC */
+#define DID_MTL_P_SKU1	0x7d01
+#define DID_MTL_P_SKU2	0x7d02
+#define DID_MTL_P_SKU3	0x7d14
+
+static int get_mchbar(struct pci_dev *pdev, u64 *mchbar)
+{
+	union  {
+		u64 v;
+		struct {
+			u32 v_lo;
+			u32 v_hi;
+		};
+	} u;
+
+	if (pci_read_config_dword(pdev, MCHBAR_OFFSET, &u.v_lo)) {
+		igen6_printk(KERN_ERR, "Failed to read lower MCHBAR\n");
+		return -ENODEV;
+	}
+
+	if (pci_read_config_dword(pdev, MCHBAR_OFFSET + 4, &u.v_hi)) {
+		igen6_printk(KERN_ERR, "Failed to read upper MCHBAR\n");
+		return -ENODEV;
+	}
+
+	if (!(u.v & MCHBAR_EN)) {
+		igen6_printk(KERN_ERR, "MCHBAR is disabled\n");
+		return -ENODEV;
+	}
+
+	*mchbar = MCHBAR_BASE(u.v);
+
+	return 0;
+}
+
 static bool ehl_ibecc_available(struct pci_dev *pdev)
 {
 	u32 v;
@@ -270,6 +335,39 @@ static bool tgl_ibecc_available(struct pci_dev *pdev)
 		return false;
 
 	return !(CAPID_E_IBECC & v);
+}
+
+static bool mtl_p_ibecc_available(struct pci_dev *pdev)
+{
+	u32 v;
+
+	if (pci_read_config_dword(pdev, CAPID_E_OFFSET, &v))
+		return false;
+
+	return !(CAPID_E_IBECC_BIT18 & v);
+}
+
+static bool mtl_ps_ibecc_available(struct pci_dev *pdev)
+{
+#define MCHBAR_MEMSS_IBECCDIS	0x13c00
+	void __iomem *window;
+	u64 mchbar;
+	u32 val;
+
+	if (get_mchbar(pdev, &mchbar))
+		return false;
+
+	window = ioremap(mchbar, MCHBAR_SIZE * 2);
+	if (!window) {
+		igen6_printk(KERN_ERR, "Failed to ioremap 0x%llx\n", mchbar);
+		return false;
+	}
+
+	val = readl(window + MCHBAR_MEMSS_IBECCDIS);
+	iounmap(window);
+
+	/* Bit6: 1 - IBECC is disabled, 0 - IBECC isn't disabled */
+	return !GET_BITFIELD(val, 6, 6);
 }
 
 static u64 mem_addr_to_sys_addr(u64 maddr)
@@ -358,6 +456,11 @@ static u64 adl_err_addr_to_imc_addr(u64 eaddr, int mc)
 	return imc_addr;
 }
 
+static u64 rpl_p_err_addr(u64 ecclog)
+{
+	return ECC_ERROR_LOG_ADDR45(ecclog);
+}
+
 static struct res_config ehl_cfg = {
 	.num_imc		= 1,
 	.imc_base		= 0x5000,
@@ -403,6 +506,51 @@ static struct res_config adl_cfg = {
 	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
 };
 
+static struct res_config adl_n_cfg = {
+	.machine_check		= true,
+	.num_imc		= 1,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x68,
+	.ibecc_available	= tgl_ibecc_available,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
+static struct res_config rpl_p_cfg = {
+	.machine_check		= true,
+	.num_imc		= 2,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x68,
+	.ibecc_available	= tgl_ibecc_available,
+	.err_addr		= rpl_p_err_addr,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
+static struct res_config mtl_ps_cfg = {
+	.machine_check		= true,
+	.num_imc		= 2,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x170,
+	.ibecc_available	= mtl_ps_ibecc_available,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
+static struct res_config mtl_p_cfg = {
+	.machine_check		= true,
+	.num_imc		= 2,
+	.imc_base		= 0xd800,
+	.ibecc_base		= 0xd400,
+	.ibecc_error_log_offset	= 0x170,
+	.ibecc_available	= mtl_p_ibecc_available,
+	.err_addr_to_sys_addr	= adl_err_addr_to_sys_addr,
+	.err_addr_to_imc_addr	= adl_err_addr_to_imc_addr,
+};
+
 static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU5), (kernel_ulong_t)&ehl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_EHL_SKU6), (kernel_ulong_t)&ehl_cfg },
@@ -424,6 +572,29 @@ static const struct pci_device_id igen6_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, DID_ADL_SKU2), (kernel_ulong_t)&adl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_ADL_SKU3), (kernel_ulong_t)&adl_cfg },
 	{ PCI_VDEVICE(INTEL, DID_ADL_SKU4), (kernel_ulong_t)&adl_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU1), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU2), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU3), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU4), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU5), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU6), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU7), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU8), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU9), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU10), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_ADL_N_SKU11), (kernel_ulong_t)&adl_n_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU1), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU2), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU3), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU4), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_RPL_P_SKU5), (kernel_ulong_t)&rpl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU1), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU2), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU3), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_PS_SKU4), (kernel_ulong_t)&mtl_ps_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_P_SKU1), (kernel_ulong_t)&mtl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_P_SKU2), (kernel_ulong_t)&mtl_p_cfg },
+	{ PCI_VDEVICE(INTEL, DID_MTL_P_SKU3), (kernel_ulong_t)&mtl_p_cfg },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, igen6_pci_tbl);
@@ -679,8 +850,11 @@ static void ecclog_work_cb(struct work_struct *work)
 
 	llist_for_each_entry_safe(node, tmp, head, llnode) {
 		memset(&res, 0, sizeof(res));
-		eaddr = ECC_ERROR_LOG_ADDR(node->ecclog) <<
-			ECC_ERROR_LOG_ADDR_SHIFT;
+		if (res_cfg->err_addr)
+			eaddr = res_cfg->err_addr(node->ecclog);
+		else
+			eaddr = ECC_ERROR_LOG_ADDR(node->ecclog) <<
+				ECC_ERROR_LOG_ADDR_SHIFT;
 		res.mc	     = node->mc;
 		res.sys_addr = res_cfg->err_addr_to_sys_addr(eaddr, res.mc);
 		res.imc_addr = res_cfg->err_addr_to_imc_addr(eaddr, res.mc);
@@ -969,22 +1143,8 @@ static int igen6_pci_setup(struct pci_dev *pdev, u64 *mchbar)
 
 	igen6_tom = u.v & GENMASK_ULL(38, 20);
 
-	if (pci_read_config_dword(pdev, MCHBAR_OFFSET, &u.v_lo)) {
-		igen6_printk(KERN_ERR, "Failed to read lower MCHBAR\n");
+	if (get_mchbar(pdev, mchbar))
 		goto fail;
-	}
-
-	if (pci_read_config_dword(pdev, MCHBAR_OFFSET + 4, &u.v_hi)) {
-		igen6_printk(KERN_ERR, "Failed to read upper MCHBAR\n");
-		goto fail;
-	}
-
-	if (!(u.v & MCHBAR_EN)) {
-		igen6_printk(KERN_ERR, "MCHBAR is disabled\n");
-		goto fail;
-	}
-
-	*mchbar = MCHBAR_BASE(u.v);
 
 #ifdef CONFIG_EDAC_DEBUG
 	if (pci_read_config_dword(pdev, TOUUD_OFFSET, &u.v_lo))

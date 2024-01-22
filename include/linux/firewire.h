@@ -75,7 +75,7 @@ void fw_csr_iterator_init(struct fw_csr_iterator *ci, const u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value);
 int fw_csr_string(const u32 *directory, int key, char *buf, size_t size);
 
-extern struct bus_type fw_bus_type;
+extern const struct bus_type fw_bus_type;
 
 struct fw_card_driver;
 struct fw_node;
