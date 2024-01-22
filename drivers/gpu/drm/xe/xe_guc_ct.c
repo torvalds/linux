@@ -166,6 +166,8 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	if (err)
 		return err;
 
+	xe_assert(xe, ct->state == XE_GUC_CT_STATE_NOT_INITIALIZED);
+	ct->state = XE_GUC_CT_STATE_DISABLED;
 	return 0;
 }
 
@@ -285,12 +287,35 @@ static int guc_ct_control_toggle(struct xe_guc_ct *ct, bool enable)
 	return ret > 0 ? -EPROTO : ret;
 }
 
+static void xe_guc_ct_set_state(struct xe_guc_ct *ct,
+				enum xe_guc_ct_state state)
+{
+	mutex_lock(&ct->lock);		/* Serialise dequeue_one_g2h() */
+	spin_lock_irq(&ct->fast_lock);	/* Serialise CT fast-path */
+
+	xe_gt_assert(ct_to_gt(ct), ct->g2h_outstanding == 0 ||
+		     state == XE_GUC_CT_STATE_STOPPED);
+
+	ct->g2h_outstanding = 0;
+	ct->state = state;
+
+	spin_unlock_irq(&ct->fast_lock);
+
+	/*
+	 * Lockdep doesn't like this under the fast lock and he destroy only
+	 * needs to be serialized with the send path which ct lock provides.
+	 */
+	xa_destroy(&ct->fence_lookup);
+
+	mutex_unlock(&ct->lock);
+}
+
 int xe_guc_ct_enable(struct xe_guc_ct *ct)
 {
 	struct xe_device *xe = ct_to_xe(ct);
 	int err;
 
-	xe_assert(xe, !ct->enabled);
+	xe_assert(xe, !xe_guc_ct_enabled(ct));
 
 	guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
 	guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
@@ -307,12 +332,7 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	if (err)
 		goto err_out;
 
-	mutex_lock(&ct->lock);
-	spin_lock_irq(&ct->fast_lock);
-	ct->g2h_outstanding = 0;
-	ct->enabled = true;
-	spin_unlock_irq(&ct->fast_lock);
-	mutex_unlock(&ct->lock);
+	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_ENABLED);
 
 	smp_mb();
 	wake_up_all(&ct->wq);
@@ -326,15 +346,26 @@ err_out:
 	return err;
 }
 
+/**
+ * xe_guc_ct_disable - Set GuC to disabled state
+ * @ct: the &xe_guc_ct
+ *
+ * Set GuC CT to disabled state, no outstanding g2h expected in this transition
+ */
 void xe_guc_ct_disable(struct xe_guc_ct *ct)
 {
-	mutex_lock(&ct->lock); /* Serialise dequeue_one_g2h() */
-	spin_lock_irq(&ct->fast_lock); /* Serialise CT fast-path */
-	ct->enabled = false; /* Finally disable CT communication */
-	spin_unlock_irq(&ct->fast_lock);
-	mutex_unlock(&ct->lock);
+	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_DISABLED);
+}
 
-	xa_destroy(&ct->fence_lookup);
+/**
+ * xe_guc_ct_stop - Set GuC to stopped state
+ * @ct: the &xe_guc_ct
+ *
+ * Set GuC CT to stopped state and clear any outstanding g2h
+ */
+void xe_guc_ct_stop(struct xe_guc_ct *ct)
+{
+	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_STOPPED);
 }
 
 static bool h2g_has_room(struct xe_guc_ct *ct, u32 cmd_len)
@@ -509,6 +540,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 	u16 seqno;
 	int ret;
 
+	xe_assert(xe, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
 	xe_assert(xe, !g2h_len || !g2h_fence);
 	xe_assert(xe, !num_g2h || !g2h_fence);
 	xe_assert(xe, !g2h_len || num_g2h);
@@ -520,10 +552,17 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		goto out;
 	}
 
-	if (unlikely(!ct->enabled)) {
+	if (ct->state == XE_GUC_CT_STATE_DISABLED) {
 		ret = -ENODEV;
 		goto out;
 	}
+
+	if (ct->state == XE_GUC_CT_STATE_STOPPED) {
+		ret = -ECANCELED;
+		goto out;
+	}
+
+	xe_assert(xe, xe_guc_ct_enabled(ct));
 
 	if (g2h_fence) {
 		g2h_len = GUC_CTB_HXG_MSG_MAX_LEN;
@@ -712,7 +751,8 @@ static bool retry_failure(struct xe_guc_ct *ct, int ret)
 		return false;
 
 #define ct_alive(ct)	\
-	(ct->enabled && !ct->ctbs.h2g.info.broken && !ct->ctbs.g2h.info.broken)
+	(xe_guc_ct_enabled(ct) && !ct->ctbs.h2g.info.broken && \
+	 !ct->ctbs.g2h.info.broken)
 	if (!wait_event_interruptible_timeout(ct->wq, ct_alive(ct),  HZ * 5))
 		return false;
 #undef ct_alive
@@ -1031,13 +1071,19 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	u32 action;
 	u32 *hxg;
 
+	xe_assert(xe, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
 	lockdep_assert_held(&ct->fast_lock);
 
-	if (!ct->enabled)
+	if (ct->state == XE_GUC_CT_STATE_DISABLED)
 		return -ENODEV;
+
+	if (ct->state == XE_GUC_CT_STATE_STOPPED)
+		return -ECANCELED;
 
 	if (g2h->info.broken)
 		return -EPIPE;
+
+	xe_assert(xe, xe_guc_ct_enabled(ct));
 
 	/* Calculate DW available to read */
 	tail = desc_read(xe, g2h, tail);
@@ -1340,7 +1386,7 @@ struct xe_guc_ct_snapshot *xe_guc_ct_snapshot_capture(struct xe_guc_ct *ct,
 		return NULL;
 	}
 
-	if (ct->enabled) {
+	if (xe_guc_ct_enabled(ct)) {
 		snapshot->ct_enabled = true;
 		snapshot->g2h_outstanding = READ_ONCE(ct->g2h_outstanding);
 		guc_ctb_snapshot_capture(xe, &ct->ctbs.h2g,
