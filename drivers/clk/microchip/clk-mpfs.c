@@ -61,13 +61,10 @@ struct mpfs_msspll_hw_clock {
 
 struct mpfs_msspll_out_hw_clock {
 	void __iomem *base;
-	struct clk_hw hw;
+	struct clk_divider output;
 	struct clk_init_data init;
 	unsigned int id;
 	u32 reg_offset;
-	u32 shift;
-	u32 width;
-	u32 flags;
 };
 
 #define to_mpfs_msspll_out_clk(_hw) container_of(_hw, struct mpfs_msspll_out_hw_clock, hw)
@@ -177,75 +174,25 @@ static int mpfs_clk_register_mssplls(struct device *dev, struct mpfs_msspll_hw_c
  * MSS PLL output clocks
  */
 
-static unsigned long mpfs_clk_msspll_out_recalc_rate(struct clk_hw *hw, unsigned long prate)
-{
-	struct mpfs_msspll_out_hw_clock *msspll_out_hw = to_mpfs_msspll_out_clk(hw);
-	void __iomem *postdiv_addr = msspll_out_hw->base + msspll_out_hw->reg_offset;
-	u32 postdiv;
-
-	postdiv = readl_relaxed(postdiv_addr) >> msspll_out_hw->shift;
-	postdiv &= clk_div_mask(msspll_out_hw->width);
-
-	return prate / postdiv;
-}
-
-static long mpfs_clk_msspll_out_round_rate(struct clk_hw *hw, unsigned long rate,
-					   unsigned long *prate)
-{
-	struct mpfs_msspll_out_hw_clock *msspll_out_hw = to_mpfs_msspll_out_clk(hw);
-
-	return divider_round_rate(hw, rate, prate, NULL, msspll_out_hw->width,
-				  msspll_out_hw->flags);
-}
-
-static int mpfs_clk_msspll_out_set_rate(struct clk_hw *hw, unsigned long rate, unsigned long prate)
-{
-	struct mpfs_msspll_out_hw_clock *msspll_out_hw = to_mpfs_msspll_out_clk(hw);
-	void __iomem *postdiv_addr = msspll_out_hw->base + msspll_out_hw->reg_offset;
-	u32 postdiv;
-	int divider_setting;
-	unsigned long flags;
-
-	divider_setting = divider_get_val(rate, prate, NULL, msspll_out_hw->width,
-					  msspll_out_hw->flags);
-
-	if (divider_setting < 0)
-		return divider_setting;
-
-	spin_lock_irqsave(&mpfs_clk_lock, flags);
-
-	postdiv = readl_relaxed(postdiv_addr);
-	postdiv &= ~(clk_div_mask(msspll_out_hw->width) << msspll_out_hw->shift);
-	writel_relaxed(postdiv, postdiv_addr);
-
-	spin_unlock_irqrestore(&mpfs_clk_lock, flags);
-
-	return 0;
-}
-
-static const struct clk_ops mpfs_clk_msspll_out_ops = {
-	.recalc_rate = mpfs_clk_msspll_out_recalc_rate,
-	.round_rate = mpfs_clk_msspll_out_round_rate,
-	.set_rate = mpfs_clk_msspll_out_set_rate,
-};
-
 #define CLK_PLL_OUT(_id, _name, _parent, _flags, _shift, _width, _offset) {	\
 	.id = _id,								\
-	.shift = _shift,							\
-	.width = _width,							\
+	.output.shift = _shift,							\
+	.output.width = _width,							\
+	.output.table = NULL,							\
 	.reg_offset = _offset,							\
-	.flags = _flags,							\
-	.hw.init = CLK_HW_INIT(_name, _parent, &mpfs_clk_msspll_out_ops, 0),	\
+	.output.flags = _flags,							\
+	.output.hw.init = CLK_HW_INIT(_name, _parent, &clk_divider_ops, 0),	\
+	.output.lock = &mpfs_clk_lock,						\
 }
 
 static struct mpfs_msspll_out_hw_clock mpfs_msspll_out_clks[] = {
-	CLK_PLL_OUT(CLK_MSSPLL0, "clk_msspll", "clk_msspll_internal", 0,
+	CLK_PLL_OUT(CLK_MSSPLL0, "clk_msspll", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
 		    MSSPLL_POSTDIV02_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV01_CR),
-	CLK_PLL_OUT(CLK_MSSPLL1, "clk_msspll1", "clk_msspll_internal", 0,
+	CLK_PLL_OUT(CLK_MSSPLL1, "clk_msspll1", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
 		    MSSPLL_POSTDIV13_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV01_CR),
-	CLK_PLL_OUT(CLK_MSSPLL2, "clk_msspll2", "clk_msspll_internal", 0,
+	CLK_PLL_OUT(CLK_MSSPLL2, "clk_msspll2", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
 		    MSSPLL_POSTDIV02_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV23_CR),
-	CLK_PLL_OUT(CLK_MSSPLL3, "clk_msspll3", "clk_msspll_internal", 0,
+	CLK_PLL_OUT(CLK_MSSPLL3, "clk_msspll3", "clk_msspll_internal", CLK_DIVIDER_ONE_BASED,
 		    MSSPLL_POSTDIV13_SHIFT, MSSPLL_POSTDIV_WIDTH, REG_MSSPLL_POSTDIV23_CR),
 };
 
@@ -259,13 +206,13 @@ static int mpfs_clk_register_msspll_outs(struct device *dev,
 	for (i = 0; i < num_clks; i++) {
 		struct mpfs_msspll_out_hw_clock *msspll_out_hw = &msspll_out_hws[i];
 
-		msspll_out_hw->base = data->msspll_base;
-		ret = devm_clk_hw_register(dev, &msspll_out_hw->hw);
+		msspll_out_hw->output.reg = data->msspll_base + msspll_out_hw->reg_offset;
+		ret = devm_clk_hw_register(dev, &msspll_out_hw->output.hw);
 		if (ret)
 			return dev_err_probe(dev, ret, "failed to register msspll out id: %d\n",
 					     msspll_out_hw->id);
 
-		data->hw_data.hws[msspll_out_hw->id] = &msspll_out_hw->hw;
+		data->hw_data.hws[msspll_out_hw->id] = &msspll_out_hw->output.hw;
 	}
 
 	return 0;
