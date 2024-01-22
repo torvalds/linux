@@ -289,15 +289,9 @@ static inline bool con_should_update(const struct vc_data *vc)
 static inline unsigned short *screenpos(const struct vc_data *vc, int offset,
 		bool viewed)
 {
-	unsigned short *p;
-	
-	if (!viewed)
-		p = (unsigned short *)(vc->vc_origin + offset);
-	else if (!vc->vc_sw->con_screen_pos)
-		p = (unsigned short *)(vc->vc_visible_origin + offset);
-	else
-		p = vc->vc_sw->con_screen_pos(vc, offset);
-	return p;
+	unsigned long origin = viewed ? vc->vc_visible_origin : vc->vc_origin;
+
+	return (unsigned short *)(origin + offset);
 }
 
 static void con_putc(struct vc_data *vc, u16 ca, unsigned int y, unsigned int x)
