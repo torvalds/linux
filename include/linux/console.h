@@ -39,6 +39,8 @@ enum vc_intensity;
  * @con_init:   initialize the console on @vc. @init is true for the very first
  *		call on this @vc.
  * @con_clear:  erase @count characters at [@x, @y] on @vc. @count >= 1.
+ * @con_putc:   emit one character with attributes @ca to [@x, @y] on @vc.
+ *		(optional -- @con_putcs would be called instead)
  * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
  *		Return true if no generic handling should be done.
  *		Invoked by csi_M and printing to the console.
@@ -53,7 +55,8 @@ struct consw {
 	void	(*con_deinit)(struct vc_data *vc);
 	void	(*con_clear)(struct vc_data *vc, unsigned int y,
 			     unsigned int x, unsigned int count);
-	void	(*con_putc)(struct vc_data *vc, int c, int ypos, int xpos);
+	void	(*con_putc)(struct vc_data *vc, u16 ca, unsigned int y,
+			    unsigned int x);
 	void	(*con_putcs)(struct vc_data *vc, const unsigned short *s,
 			int count, int ypos, int xpos);
 	void	(*con_cursor)(struct vc_data *vc, int mode);

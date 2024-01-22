@@ -367,8 +367,8 @@ static void newport_clear(struct vc_data *vc, unsigned int sy, unsigned int sx,
 	}
 }
 
-static void newport_putc(struct vc_data *vc, int charattr, int ypos,
-			 int xpos)
+static void newport_putc(struct vc_data *vc, u16 charattr, unsigned int ypos,
+			 unsigned int xpos)
 {
 	unsigned char *p;
 
