@@ -1574,12 +1574,7 @@ static void csi_K(struct vc_data *vc, int vpar)
 /* erase the following vpar positions */
 static void csi_X(struct vc_data *vc, unsigned int vpar)
 {					  /* not vt100? */
-	unsigned int count;
-
-	if (!vpar)
-		vpar++;
-
-	count = min(vpar, vc->vc_cols - vc->state.x);
+	unsigned int count = clamp(vpar, 1, vc->vc_cols - vc->state.x);
 
 	vc_uniscr_clear_line(vc, vc->state.x, count);
 	scr_memsetw((unsigned short *)vc->vc_pos, vc->vc_video_erase_char, 2 * count);
@@ -2010,20 +2005,14 @@ static void setterm_command(struct vc_data *vc)
 /* console_lock is held */
 static void csi_at(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_cols - vc->state.x)
-		nr = vc->vc_cols - vc->state.x;
-	else if (!nr)
-		nr = 1;
+	nr = clamp(nr, 1, vc->vc_cols - vc->state.x);
 	insert_char(vc, nr);
 }
 
 /* console_lock is held */
 static void csi_L(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_rows - vc->state.y)
-		nr = vc->vc_rows - vc->state.y;
-	else if (!nr)
-		nr = 1;
+	nr = clamp(nr, 1, vc->vc_rows - vc->state.y);
 	con_scroll(vc, vc->state.y, vc->vc_bottom, SM_DOWN, nr);
 	vc->vc_need_wrap = 0;
 }
@@ -2031,20 +2020,14 @@ static void csi_L(struct vc_data *vc, unsigned int nr)
 /* console_lock is held */
 static void csi_P(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_cols - vc->state.x)
-		nr = vc->vc_cols - vc->state.x;
-	else if (!nr)
-		nr = 1;
+	nr = clamp(nr, 1, vc->vc_cols - vc->state.x);
 	delete_char(vc, nr);
 }
 
 /* console_lock is held */
 static void csi_M(struct vc_data *vc, unsigned int nr)
 {
-	if (nr > vc->vc_rows - vc->state.y)
-		nr = vc->vc_rows - vc->state.y;
-	else if (!nr)
-		nr=1;
+	nr = clamp(nr, 1, vc->vc_rows - vc->state.y);
 	con_scroll(vc, vc->state.y, vc->vc_bottom, SM_UP, nr);
 	vc->vc_need_wrap = 0;
 }
