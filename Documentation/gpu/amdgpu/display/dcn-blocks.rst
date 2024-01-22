@@ -64,3 +64,15 @@ OPP
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/opp.h
    :internal:
+
+DIO
+---
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/link/hwss/link_hwss_dio.h
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/link/hwss/link_hwss_dio.h
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/link/hwss/link_hwss_dio.h
+   :internal:
