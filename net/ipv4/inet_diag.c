@@ -32,7 +32,7 @@
 #include <linux/inet_diag.h>
 #include <linux/sock_diag.h>
 
-static const struct inet_diag_handler **inet_diag_table;
+static const struct inet_diag_handler __rcu **inet_diag_table;
 
 struct inet_diag_entry {
 	const __be32 *saddr;
@@ -48,28 +48,28 @@ struct inet_diag_entry {
 #endif
 };
 
-static DEFINE_MUTEX(inet_diag_table_mutex);
-
 static const struct inet_diag_handler *inet_diag_lock_handler(int proto)
 {
-	if (proto < 0 || proto >= IPPROTO_MAX) {
-		mutex_lock(&inet_diag_table_mutex);
-		return ERR_PTR(-ENOENT);
-	}
+	const struct inet_diag_handler *handler;
+
+	if (proto < 0 || proto >= IPPROTO_MAX)
+		return NULL;
 
 	if (!READ_ONCE(inet_diag_table[proto]))
 		sock_load_diag_module(AF_INET, proto);
 
-	mutex_lock(&inet_diag_table_mutex);
-	if (!inet_diag_table[proto])
-		return ERR_PTR(-ENOENT);
+	rcu_read_lock();
+	handler = rcu_dereference(inet_diag_table[proto]);
+	if (handler && !try_module_get(handler->owner))
+		handler = NULL;
+	rcu_read_unlock();
 
-	return inet_diag_table[proto];
+	return handler;
 }
 
 static void inet_diag_unlock_handler(const struct inet_diag_handler *handler)
 {
-	mutex_unlock(&inet_diag_table_mutex);
+	module_put(handler->owner);
 }
 
 void inet_diag_msg_common_fill(struct inet_diag_msg *r, struct sock *sk)
@@ -104,9 +104,12 @@ static size_t inet_sk_attr_size(struct sock *sk,
 	const struct inet_diag_handler *handler;
 	size_t aux = 0;
 
-	handler = inet_diag_table[req->sdiag_protocol];
+	rcu_read_lock();
+	handler = rcu_dereference(inet_diag_table[req->sdiag_protocol]);
+	DEBUG_NET_WARN_ON_ONCE(!handler);
 	if (handler && handler->idiag_get_aux_size)
 		aux = handler->idiag_get_aux_size(sk, net_admin);
+	rcu_read_unlock();
 
 	return	  nla_total_size(sizeof(struct tcp_info))
 		+ nla_total_size(sizeof(struct inet_diag_msg))
@@ -244,10 +247,16 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 	struct nlmsghdr  *nlh;
 	struct nlattr *attr;
 	void *info = NULL;
+	int protocol;
 
 	cb_data = cb->data;
-	handler = inet_diag_table[inet_diag_get_protocol(req, cb_data)];
-	BUG_ON(!handler);
+	protocol = inet_diag_get_protocol(req, cb_data);
+
+	/* inet_diag_lock_handler() made sure inet_diag_table[] is stable. */
+	handler = rcu_dereference_protected(inet_diag_table[protocol], 1);
+	DEBUG_NET_WARN_ON_ONCE(!handler);
+	if (!handler)
+		return -ENXIO;
 
 	nlh = nlmsg_put(skb, NETLINK_CB(cb->skb).portid, cb->nlh->nlmsg_seq,
 			cb->nlh->nlmsg_type, sizeof(*r), nlmsg_flags);
@@ -605,9 +614,10 @@ static int inet_diag_cmd_exact(int cmd, struct sk_buff *in_skb,
 	protocol = inet_diag_get_protocol(req, &dump_data);
 
 	handler = inet_diag_lock_handler(protocol);
-	if (IS_ERR(handler)) {
-		err = PTR_ERR(handler);
-	} else if (cmd == SOCK_DIAG_BY_FAMILY) {
+	if (!handler)
+		return -ENOENT;
+
+	if (cmd == SOCK_DIAG_BY_FAMILY) {
 		struct netlink_callback cb = {
 			.nlh = nlh,
 			.skb = in_skb,
@@ -1259,12 +1269,12 @@ static int __inet_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 again:
 	prev_min_dump_alloc = cb->min_dump_alloc;
 	handler = inet_diag_lock_handler(protocol);
-	if (!IS_ERR(handler))
+	if (handler) {
 		handler->dump(skb, cb, r);
-	else
-		err = PTR_ERR(handler);
-	inet_diag_unlock_handler(handler);
-
+		inet_diag_unlock_handler(handler);
+	} else {
+		err = -ENOENT;
+	}
 	/* The skb is not large enough to fit one sk info and
 	 * inet_sk_diag_fill() has requested for a larger skb.
 	 */
@@ -1457,10 +1467,9 @@ int inet_diag_handler_get_info(struct sk_buff *skb, struct sock *sk)
 	}
 
 	handler = inet_diag_lock_handler(sk->sk_protocol);
-	if (IS_ERR(handler)) {
-		inet_diag_unlock_handler(handler);
+	if (!handler) {
 		nlmsg_cancel(skb, nlh);
-		return PTR_ERR(handler);
+		return -ENOENT;
 	}
 
 	attr = handler->idiag_info_size
@@ -1495,20 +1504,12 @@ static const struct sock_diag_handler inet6_diag_handler = {
 int inet_diag_register(const struct inet_diag_handler *h)
 {
 	const __u16 type = h->idiag_type;
-	int err = -EINVAL;
 
 	if (type >= IPPROTO_MAX)
-		goto out;
+		return -EINVAL;
 
-	mutex_lock(&inet_diag_table_mutex);
-	err = -EEXIST;
-	if (!inet_diag_table[type]) {
-		WRITE_ONCE(inet_diag_table[type], h);
-		err = 0;
-	}
-	mutex_unlock(&inet_diag_table_mutex);
-out:
-	return err;
+	return !cmpxchg((const struct inet_diag_handler **)&inet_diag_table[type],
+			NULL, h) ? 0 : -EEXIST;
 }
 EXPORT_SYMBOL_GPL(inet_diag_register);
 
@@ -1519,9 +1520,8 @@ void inet_diag_unregister(const struct inet_diag_handler *h)
 	if (type >= IPPROTO_MAX)
 		return;
 
-	mutex_lock(&inet_diag_table_mutex);
-	WRITE_ONCE(inet_diag_table[type], NULL);
-	mutex_unlock(&inet_diag_table_mutex);
+	xchg((const struct inet_diag_handler **)&inet_diag_table[type],
+	     NULL);
 }
 EXPORT_SYMBOL_GPL(inet_diag_unregister);
 
