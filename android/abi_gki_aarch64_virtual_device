@@ -1143,6 +1143,7 @@
   page_relinquish
   page_reporting_register
   page_reporting_unregister
+  post_page_relinquish_tlb_inv
   register_oom_notifier
   register_shrinker
   __SetPageMovable

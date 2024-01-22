@@ -69,3 +69,10 @@ void page_relinquish(struct page *page)
 		hyp_ops.page_relinquish(page);
 }
 EXPORT_SYMBOL_GPL(page_relinquish);
+
+void post_page_relinquish_tlb_inv(void)
+{
+	if (hyp_ops.post_page_relinquish_tlb_inv)
+		hyp_ops.post_page_relinquish_tlb_inv();
+}
+EXPORT_SYMBOL_GPL(post_page_relinquish_tlb_inv);

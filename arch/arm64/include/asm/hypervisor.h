@@ -16,6 +16,7 @@ void kvm_init_ioremap_services(void);
 struct hypervisor_ops {
 #ifdef CONFIG_MEMORY_RELINQUISH
 	void (*page_relinquish)(struct page *page);
+	void (*post_page_relinquish_tlb_inv)(void);
 #endif
 };
 
