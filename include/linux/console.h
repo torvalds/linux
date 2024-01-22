@@ -55,6 +55,9 @@ enum vc_intensity;
  * @con_set_palette: sets the palette of the console to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *		     Invoked by user. (optional)
+ * @con_set_origin: set origin (see &vc_data::vc_origin) of the @vc. If not
+ *		provided or returns false, the origin is set to
+ *		@vc->vc_screenbuf. (optional)
  */
 struct consw {
 	struct module *owner;
@@ -87,7 +90,7 @@ struct consw {
 	void	(*con_set_palette)(struct vc_data *vc,
 			const unsigned char *table);
 	void	(*con_scrolldelta)(struct vc_data *vc, int lines);
-	int	(*con_set_origin)(struct vc_data *vc);
+	bool	(*con_set_origin)(struct vc_data *vc);
 	void	(*con_save_screen)(struct vc_data *vc);
 	u8	(*con_build_attr)(struct vc_data *vc, u8 color,
 			enum vc_intensity intensity,

@@ -65,7 +65,7 @@ static struct vgastate vgastate;
  *  Interface used by the world
  */
 
-static int vgacon_set_origin(struct vc_data *c);
+static bool vgacon_set_origin(struct vc_data *c);
 
 static struct uni_pagedict *vgacon_uni_pagedir;
 static int vgacon_refcount;
@@ -1100,15 +1100,15 @@ static int vgacon_resize(struct vc_data *c, unsigned int width,
 	return 0;
 }
 
-static int vgacon_set_origin(struct vc_data *c)
+static bool vgacon_set_origin(struct vc_data *c)
 {
 	if (vga_is_gfx ||	/* We don't play origin tricks in graphic modes */
 	    (console_blanked && !vga_palette_blanked))	/* Nor we write to blanked screens */
-		return 0;
+		return false;
 	c->vc_origin = c->vc_visible_origin = vga_vram_base;
 	vga_set_mem_top(c);
 	vga_rolled_over = 0;
-	return 1;
+	return true;
 }
 
 static void vgacon_save_screen(struct vc_data *c)
