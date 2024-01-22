@@ -622,6 +622,55 @@ struct gve_ptype_lut {
 	struct gve_ptype ptypes[GVE_NUM_PTYPES];
 };
 
+/* Parameters for allocating queue page lists */
+struct gve_qpls_alloc_cfg {
+	struct gve_qpl_config *qpl_cfg;
+	struct gve_queue_config *tx_cfg;
+	struct gve_queue_config *rx_cfg;
+
+	u16 num_xdp_queues;
+	bool raw_addressing;
+	bool is_gqi;
+
+	/* Allocated resources are returned here */
+	struct gve_queue_page_list *qpls;
+};
+
+/* Parameters for allocating resources for tx queues */
+struct gve_tx_alloc_rings_cfg {
+	struct gve_queue_config *qcfg;
+
+	/* qpls and qpl_cfg must already be allocated */
+	struct gve_queue_page_list *qpls;
+	struct gve_qpl_config *qpl_cfg;
+
+	u16 ring_size;
+	u16 start_idx;
+	u16 num_rings;
+	bool raw_addressing;
+
+	/* Allocated resources are returned here */
+	struct gve_tx_ring *tx;
+};
+
+/* Parameters for allocating resources for rx queues */
+struct gve_rx_alloc_rings_cfg {
+	/* tx config is also needed to determine QPL ids */
+	struct gve_queue_config *qcfg;
+	struct gve_queue_config *qcfg_tx;
+
+	/* qpls and qpl_cfg must already be allocated */
+	struct gve_queue_page_list *qpls;
+	struct gve_qpl_config *qpl_cfg;
+
+	u16 ring_size;
+	bool raw_addressing;
+	bool enable_header_split;
+
+	/* Allocated resources are returned here */
+	struct gve_rx_ring *rx;
+};
+
 /* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
  * when the entire configure_device_resources command is zeroed out and the
  * queue_format is not specified.
