@@ -2069,36 +2069,37 @@ static int gve_set_features(struct net_device *netdev,
 			    netdev_features_t features)
 {
 	const netdev_features_t orig_features = netdev->features;
+	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
+	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
 	struct gve_priv *priv = netdev_priv(netdev);
+	struct gve_qpl_config new_qpl_cfg;
 	int err;
+
+	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
+				&tx_alloc_cfg, &rx_alloc_cfg);
+	/* qpl_cfg is not read-only, it contains a map that gets updated as
+	 * rings are allocated, which is why we cannot use the yet unreleased
+	 * one in priv.
+	 */
+	qpls_alloc_cfg.qpl_cfg = &new_qpl_cfg;
+	tx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
+	rx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
 
 	if ((netdev->features & NETIF_F_LRO) != (features & NETIF_F_LRO)) {
 		netdev->features ^= NETIF_F_LRO;
 		if (netif_carrier_ok(netdev)) {
-			/* To make this process as simple as possible we
-			 * teardown the device, set the new configuration,
-			 * and then bring the device up again.
-			 */
-			err = gve_close(netdev);
-			/* We have already tried to reset in close, just fail
-			 * at this point.
-			 */
-			if (err)
-				goto err;
-
-			err = gve_open(netdev);
-			if (err)
-				goto err;
+			err = gve_adjust_config(priv, &qpls_alloc_cfg,
+						&tx_alloc_cfg, &rx_alloc_cfg);
+			if (err) {
+				/* Revert the change on error. */
+				netdev->features = orig_features;
+				return err;
+			}
 		}
 	}
 
 	return 0;
-err:
-	/* Reverts the change on error. */
-	netdev->features = orig_features;
-	netif_err(priv, drv, netdev,
-		  "Set features failed! !!! DISABLING ALL QUEUES !!!\n");
-	return err;
 }
 
 static const struct net_device_ops gve_netdev_ops = {
