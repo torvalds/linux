@@ -22,6 +22,7 @@
 #include "gve_dqo.h"
 #include "gve_adminq.h"
 #include "gve_register.h"
+#include "gve_utils.h"
 
 #define GVE_DEFAULT_RX_COPYBREAK	(256)
 
@@ -252,7 +253,7 @@ static irqreturn_t gve_intr_dqo(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int gve_napi_poll(struct napi_struct *napi, int budget)
+int gve_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct gve_notify_block *block;
 	__be32 __iomem *irq_doorbell;
@@ -302,7 +303,7 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
+int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 {
 	struct gve_notify_block *block =
 		container_of(napi, struct gve_notify_block, napi);
@@ -579,21 +580,6 @@ static void gve_teardown_device_resources(struct gve_priv *priv)
 	gve_free_notify_blocks(priv);
 	gve_free_stats_report(priv);
 	gve_clear_device_resources_ok(priv);
-}
-
-static void gve_add_napi(struct gve_priv *priv, int ntfy_idx,
-			 int (*gve_poll)(struct napi_struct *, int))
-{
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
-
-	netif_napi_add(priv->dev, &block->napi, gve_poll);
-}
-
-static void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
-{
-	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
-
-	netif_napi_del(&block->napi);
 }
 
 static int gve_register_xdp_qpls(struct gve_priv *priv)

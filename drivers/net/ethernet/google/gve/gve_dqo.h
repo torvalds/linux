@@ -93,4 +93,6 @@ gve_set_itr_coalesce_usecs_dqo(struct gve_priv *priv,
 	gve_write_irq_doorbell_dqo(priv, block,
 				   gve_setup_itr_interval_dqo(usecs));
 }
+
+int gve_napi_poll_dqo(struct napi_struct *napi, int budget);
 #endif /* _GVE_DQO_H_ */

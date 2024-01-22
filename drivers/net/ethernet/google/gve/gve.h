@@ -1085,6 +1085,9 @@ static inline u32 gve_xdp_tx_start_queue_id(struct gve_priv *priv)
 	return gve_xdp_tx_queue_id(priv, 0);
 }
 
+/* gqi napi handler defined in gve_main.c */
+int gve_napi_poll(struct napi_struct *napi, int budget);
+
 /* buffers */
 int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 		   struct page **page, dma_addr_t *dma,

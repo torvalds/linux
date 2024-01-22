@@ -81,3 +81,18 @@ void gve_dec_pagecnt_bias(struct gve_rx_slot_page_info *page_info)
 		page_ref_add(page_info->page, INT_MAX - pagecount);
 	}
 }
+
+void gve_add_napi(struct gve_priv *priv, int ntfy_idx,
+		  int (*gve_poll)(struct napi_struct *, int))
+{
+	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+	netif_napi_add(priv->dev, &block->napi, gve_poll);
+}
+
+void gve_remove_napi(struct gve_priv *priv, int ntfy_idx)
+{
+	struct gve_notify_block *block = &priv->ntfy_blocks[ntfy_idx];
+
+	netif_napi_del(&block->napi);
+}
