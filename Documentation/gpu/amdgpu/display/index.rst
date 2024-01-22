@@ -92,4 +92,5 @@ table of content:
    dcn-blocks.rst
    mpo-overview.rst
    dc-debug.rst
+   display-contributing.rst
    dc-glossary.rst
