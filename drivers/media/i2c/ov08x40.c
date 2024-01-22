@@ -2432,6 +2432,9 @@ struct ov08x40 {
 
 	/* Mutex for serialized access */
 	struct mutex mutex;
+
+	/* True if the device has been identified */
+	bool identified;
 };
 
 #define to_ov08x40(_sd)	container_of(_sd, struct ov08x40, sd)
@@ -2948,6 +2951,9 @@ static int ov08x40_identify_module(struct ov08x40 *ov08x)
 	int ret;
 	u32 val;
 
+	if (ov08x->identified)
+		return 0;
+
 	ret = ov08x40_read_reg(ov08x, OV08X40_REG_CHIP_ID,
 			       OV08X40_REG_VALUE_24BIT, &val);
 	if (ret)
@@ -2956,8 +2962,10 @@ static int ov08x40_identify_module(struct ov08x40 *ov08x)
 	if (val != OV08X40_CHIP_ID) {
 		dev_err(&client->dev, "chip id mismatch: %x!=%x\n",
 			OV08X40_CHIP_ID, val);
-		return -EIO;
+		return -ENXIO;
 	}
+
+	ov08x->identified = true;
 
 	return 0;
 }
@@ -3175,6 +3183,7 @@ static int ov08x40_probe(struct i2c_client *client)
 {
 	struct ov08x40 *ov08x;
 	int ret;
+	bool full_power;
 
 	/* Check HW config */
 	ret = ov08x40_check_hwcfg(&client->dev);
@@ -3190,11 +3199,14 @@ static int ov08x40_probe(struct i2c_client *client)
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&ov08x->sd, client, &ov08x40_subdev_ops);
 
-	/* Check module identity */
-	ret = ov08x40_identify_module(ov08x);
-	if (ret) {
-		dev_err(&client->dev, "failed to find sensor: %d\n", ret);
-		return ret;
+	full_power = acpi_dev_state_d0(&client->dev);
+	if (full_power) {
+		/* Check module identity */
+		ret = ov08x40_identify_module(ov08x);
+		if (ret) {
+			dev_err(&client->dev, "failed to find sensor: %d\n", ret);
+			return ret;
+		}
 	}
 
 	/* Set default mode to max resolution */
@@ -3222,11 +3234,8 @@ static int ov08x40_probe(struct i2c_client *client)
 	if (ret < 0)
 		goto error_media_entity;
 
-	/*
-	 * Device is already turned on by i2c-core with ACPI domain PM.
-	 * Enable runtime PM and turn off the device.
-	 */
-	pm_runtime_set_active(&client->dev);
+	if (full_power)
+		pm_runtime_set_active(&client->dev);
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
@@ -3270,6 +3279,7 @@ static struct i2c_driver ov08x40_i2c_driver = {
 	},
 	.probe = ov08x40_probe,
 	.remove = ov08x40_remove,
+	.flags = I2C_DRV_ACPI_WAIVE_D0_PROBE,
 };
 
 module_i2c_driver(ov08x40_i2c_driver);
