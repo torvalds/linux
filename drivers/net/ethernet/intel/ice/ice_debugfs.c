@@ -64,9 +64,6 @@ static const char * const ice_fwlog_level_string[] = {
 	"verbose",
 };
 
-/* the order in this array is important. it matches the ordering of the
- * values in the FW so the index is the same value as in ice_fwlog_level
- */
 static const char * const ice_fwlog_log_size[] = {
 	"128K",
 	"256K",
