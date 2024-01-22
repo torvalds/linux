@@ -2437,7 +2437,7 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
 			page = pmd_page(old_pmd);
 			folio = page_folio(page);
 			if (!folio_test_dirty(folio) && pmd_dirty(old_pmd))
-				folio_set_dirty(folio);
+				folio_mark_dirty(folio);
 			if (!folio_test_referenced(folio) && pmd_young(old_pmd))
 				folio_set_referenced(folio);
 			folio_remove_rmap_pmd(folio, page, vma);
@@ -3563,7 +3563,7 @@ int set_pmd_migration_entry(struct page_vma_mapped_walk *pvmw,
 	}
 
 	if (pmd_dirty(pmdval))
-		folio_set_dirty(folio);
+		folio_mark_dirty(folio);
 	if (pmd_write(pmdval))
 		entry = make_writable_migration_entry(page_to_pfn(page));
 	else if (anon_exclusive)
