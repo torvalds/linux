@@ -273,6 +273,80 @@ int nilfs_cpfile_get_checkpoint(struct inode *cpfile,
 }
 
 /**
+ * nilfs_cpfile_create_checkpoint - create a checkpoint entry on cpfile
+ * @cpfile: checkpoint file inode
+ * @cno:    number of checkpoint to set up
+ *
+ * This function creates a checkpoint with the number specified by @cno on
+ * cpfile.  If the specified checkpoint entry already exists due to a past
+ * failure, it will be reused without returning an error.
+ * In either case, the buffer of the block containing the checkpoint entry
+ * and the cpfile inode are made dirty for inclusion in the write log.
+ *
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-EROFS	- Read only filesystem
+ */
+int nilfs_cpfile_create_checkpoint(struct inode *cpfile, __u64 cno)
+{
+	struct buffer_head *header_bh, *cp_bh;
+	struct nilfs_cpfile_header *header;
+	struct nilfs_checkpoint *cp;
+	void *kaddr;
+	int ret;
+
+	if (WARN_ON_ONCE(cno < 1))
+		return -EIO;
+
+	down_write(&NILFS_MDT(cpfile)->mi_sem);
+	ret = nilfs_cpfile_get_header_block(cpfile, &header_bh);
+	if (unlikely(ret < 0)) {
+		if (ret == -ENOENT) {
+			nilfs_error(cpfile->i_sb,
+				    "checkpoint creation failed due to metadata corruption.");
+			ret = -EIO;
+		}
+		goto out_sem;
+	}
+	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 1, &cp_bh);
+	if (unlikely(ret < 0))
+		goto out_header;
+
+	kaddr = kmap_local_page(cp_bh->b_page);
+	cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, cp_bh, kaddr);
+	if (nilfs_checkpoint_invalid(cp)) {
+		/* a newly-created checkpoint */
+		nilfs_checkpoint_clear_invalid(cp);
+		if (!nilfs_cpfile_is_in_first(cpfile, cno))
+			nilfs_cpfile_block_add_valid_checkpoints(cpfile, cp_bh,
+								 kaddr, 1);
+		kunmap_local(kaddr);
+
+		kaddr = kmap_local_page(header_bh->b_page);
+		header = nilfs_cpfile_block_get_header(cpfile, header_bh,
+						       kaddr);
+		le64_add_cpu(&header->ch_ncheckpoints, 1);
+		kunmap_local(kaddr);
+		mark_buffer_dirty(header_bh);
+	} else {
+		kunmap_local(kaddr);
+	}
+
+	/* Force the buffer and the inode to become dirty */
+	mark_buffer_dirty(cp_bh);
+	brelse(cp_bh);
+	nilfs_mdt_mark_dirty(cpfile);
+
+out_header:
+	brelse(header_bh);
+
+out_sem:
+	up_write(&NILFS_MDT(cpfile)->mi_sem);
+	return ret;
+}
+
+/**
  * nilfs_cpfile_put_checkpoint - put a checkpoint
  * @cpfile: inode of checkpoint file
  * @cno: checkpoint number
