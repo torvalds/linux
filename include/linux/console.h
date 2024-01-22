@@ -81,7 +81,7 @@ struct consw {
 	int	(*con_font_get)(struct vc_data *vc, struct console_font *font,
 			unsigned int vpitch);
 	int	(*con_font_default)(struct vc_data *vc,
-			struct console_font *font, char *name);
+			struct console_font *font, const char *name);
 	int     (*con_resize)(struct vc_data *vc, unsigned int width,
 			      unsigned int height, bool from_user);
 	void	(*con_set_palette)(struct vc_data *vc,

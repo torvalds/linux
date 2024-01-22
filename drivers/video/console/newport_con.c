@@ -564,7 +564,8 @@ static int newport_set_def_font(int unit, struct console_font *op)
 	return 0;
 }
 
-static int newport_font_default(struct vc_data *vc, struct console_font *op, char *name)
+static int newport_font_default(struct vc_data *vc, struct console_font *op,
+				const char *name)
 {
 	return newport_set_def_font(vc->vc_num, op);
 }
