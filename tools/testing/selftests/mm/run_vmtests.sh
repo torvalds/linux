@@ -5,6 +5,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+count_total=0
 count_pass=0
 count_fail=0
 count_skip=0
@@ -17,6 +18,7 @@ usage: ${BASH_SOURCE[0]:-$0} [ options ]
   -a: run all tests, including extra ones
   -t: specify specific categories to tests to run
   -h: display this message
+  -n: disable TAP output
 
 The default behavior is to run required tests only.  If -a is specified,
 will run all tests.
@@ -77,12 +79,14 @@ EOF
 }
 
 RUN_ALL=false
+TAP_PREFIX="# "
 
-while getopts "aht:" OPT; do
+while getopts "aht:n" OPT; do
 	case ${OPT} in
 		"a") RUN_ALL=true ;;
 		"h") usage ;;
 		"t") VM_SELFTEST_ITEMS=${OPTARG} ;;
+		"n") TAP_PREFIX= ;;
 	esac
 done
 shift $((OPTIND -1))
@@ -184,29 +188,51 @@ fi
 VADDR64=0
 echo "$ARCH64STR" | grep "$ARCH" &>/dev/null && VADDR64=1
 
+tap_prefix() {
+	sed -e "s/^/${TAP_PREFIX}/"
+}
+
+tap_output() {
+	if [[ ! -z "$TAP_PREFIX" ]]; then
+		read str
+		echo $str
+	fi
+}
+
+pretty_name() {
+	echo "$*" | sed -e 's/^\(bash \)\?\.\///'
+}
+
 # Usage: run_test [test binary] [arbitrary test arguments...]
 run_test() {
 	if test_selected ${CATEGORY}; then
+		local test=$(pretty_name "$*")
 		local title="running $*"
 		local sep=$(echo -n "$title" | tr "[:graph:][:space:]" -)
-		printf "%s\n%s\n%s\n" "$sep" "$title" "$sep"
+		printf "%s\n%s\n%s\n" "$sep" "$title" "$sep" | tap_prefix
 
-		"$@"
-		local ret=$?
+		("$@" 2>&1) | tap_prefix
+		local ret=${PIPESTATUS[0]}
+		count_total=$(( count_total + 1 ))
 		if [ $ret -eq 0 ]; then
 			count_pass=$(( count_pass + 1 ))
-			echo "[PASS]"
+			echo "[PASS]" | tap_prefix
+			echo "ok ${count_total} ${test}" | tap_output
 		elif [ $ret -eq $ksft_skip ]; then
 			count_skip=$(( count_skip + 1 ))
-			echo "[SKIP]"
+			echo "[SKIP]" | tap_prefix
+			echo "ok ${count_total} ${test} # SKIP" | tap_output
 			exitcode=$ksft_skip
 		else
 			count_fail=$(( count_fail + 1 ))
-			echo "[FAIL]"
+			echo "[FAIL]" | tap_prefix
+			echo "not ok ${count_total} ${test} # exit=$ret" | tap_output
 			exitcode=1
 		fi
 	fi # test_selected
 }
+
+echo "TAP version 13" | tap_output
 
 CATEGORY="hugetlb" run_test ./hugepage-mmap
 
@@ -231,9 +257,9 @@ CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
 echo "$nr_hugepages_tmp" > /proc/sys/vm/nr_hugepages
 
 if test_selected "hugetlb"; then
-	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"
-	echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
-	echo "      hugetlb regression testing."
+	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"	  | tap_prefix
+	echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for" | tap_prefix
+	echo "      hugetlb regression testing."			  | tap_prefix
 fi
 
 CATEGORY="mmap" run_test ./map_fixed_noreplace
@@ -312,7 +338,7 @@ CATEGORY="hmm" run_test bash ./test_hmm.sh smoke
 # MADV_POPULATE_READ and MADV_POPULATE_WRITE tests
 CATEGORY="madv_populate" run_test ./madv_populate
 
-echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope
+(echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope 2>&1) | tap_prefix
 CATEGORY="memfd_secret" run_test ./memfd_secret
 
 # KSM KSM_MERGE_TIME_HUGE_PAGES test with size of 100
@@ -333,8 +359,6 @@ CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 1
 CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 0
 
 CATEGORY="ksm" run_test ./ksm_functional_tests
-
-run_test ./ksm_functional_tests
 
 # protection_keys tests
 if [ -x ./protection_keys_32 ]
@@ -359,6 +383,8 @@ CATEGORY="cow" run_test ./cow
 
 CATEGORY="thp" run_test ./khugepaged
 
+CATEGORY="thp" run_test ./khugepaged -s 2
+
 CATEGORY="thp" run_test ./transhuge-stress -d 20
 
 CATEGORY="thp" run_test ./split_huge_page_test
@@ -369,6 +395,7 @@ CATEGORY="mkdirty" run_test ./mkdirty
 
 CATEGORY="mdwe" run_test ./mdwe_test
 
-echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}"
+echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}" | tap_prefix
+echo "1..${count_total}" | tap_output
 
 exit $exitcode

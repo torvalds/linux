@@ -652,7 +652,7 @@ static void dump_eb_and_memory_contents(struct extent_buffer *eb, void *memory,
 					const char *test_name)
 {
 	for (int i = 0; i < eb->len; i++) {
-		struct page *page = eb->pages[i >> PAGE_SHIFT];
+		struct page *page = folio_page(eb->folios[i >> PAGE_SHIFT], 0);
 		void *addr = page_address(page) + offset_in_page(i);
 
 		if (memcmp(addr, memory + i, 1) != 0) {
@@ -668,7 +668,7 @@ static int verify_eb_and_memory(struct extent_buffer *eb, void *memory,
 				const char *test_name)
 {
 	for (int i = 0; i < (eb->len >> PAGE_SHIFT); i++) {
-		void *eb_addr = page_address(eb->pages[i]);
+		void *eb_addr = folio_address(eb->folios[i]);
 
 		if (memcmp(memory + (i << PAGE_SHIFT), eb_addr, PAGE_SIZE) != 0) {
 			dump_eb_and_memory_contents(eb, memory, test_name);

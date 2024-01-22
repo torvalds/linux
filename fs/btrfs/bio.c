@@ -194,6 +194,12 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 	struct bio_vec *bv = bio_first_bvec_all(&repair_bbio->bio);
 	int mirror = repair_bbio->mirror_num;
 
+	/*
+	 * We can only trigger this for data bio, which doesn't support larger
+	 * folios yet.
+	 */
+	ASSERT(folio_order(page_folio(bv->bv_page)) == 0);
+
 	if (repair_bbio->bio.bi_status ||
 	    !btrfs_data_csum_ok(repair_bbio, dev, 0, bv)) {
 		bio_reset(&repair_bbio->bio, NULL, REQ_OP_READ);
@@ -215,7 +221,7 @@ static void btrfs_end_repair_bio(struct btrfs_bio *repair_bbio,
 		btrfs_repair_io_failure(fs_info, btrfs_ino(inode),
 				  repair_bbio->file_offset, fs_info->sectorsize,
 				  repair_bbio->saved_iter.bi_sector << SECTOR_SHIFT,
-				  bv->bv_page, bv->bv_offset, mirror);
+				  page_folio(bv->bv_page), bv->bv_offset, mirror);
 	} while (mirror != fbio->bbio->mirror_num);
 
 done:
@@ -626,7 +632,7 @@ static bool should_async_write(struct btrfs_bio *bbio)
 /*
  * Submit bio to an async queue.
  *
- * Return true if the work has been succesfuly submitted, else false.
+ * Return true if the work has been successfully submitted, else false.
  */
 static bool btrfs_wq_submit_bio(struct btrfs_bio *bbio,
 				struct btrfs_io_context *bioc,
@@ -767,8 +773,8 @@ void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num)
  * freeing the bio.
  */
 int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
-			    u64 length, u64 logical, struct page *page,
-			    unsigned int pg_offset, int mirror_num)
+			    u64 length, u64 logical, struct folio *folio,
+			    unsigned int folio_offset, int mirror_num)
 {
 	struct btrfs_io_stripe smap = { 0 };
 	struct bio_vec bvec;
@@ -799,7 +805,8 @@ int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
 
 	bio_init(&bio, smap.dev->bdev, &bvec, 1, REQ_OP_WRITE | REQ_SYNC);
 	bio.bi_iter.bi_sector = smap.physical >> SECTOR_SHIFT;
-	__bio_add_page(&bio, page, length, pg_offset);
+	ret = bio_add_folio(&bio, folio, length, folio_offset);
+	ASSERT(ret);
 	ret = submit_bio_wait(&bio);
 	if (ret) {
 		/* try to remap that extent elsewhere? */

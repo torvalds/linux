@@ -740,15 +740,13 @@ err_remove_nodes:
 	return ret;
 }
 
-static int msm8974_icc_remove(struct platform_device *pdev)
+static void msm8974_icc_remove(struct platform_device *pdev)
 {
 	struct msm8974_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_provider_deregister(&qp->provider);
 	icc_nodes_remove(&qp->provider);
 	clk_bulk_disable_unprepare(qp->num_clks, qp->bus_clks);
-
-	return 0;
 }
 
 static const struct of_device_id msm8974_noc_of_match[] = {
@@ -764,7 +762,7 @@ MODULE_DEVICE_TABLE(of, msm8974_noc_of_match);
 
 static struct platform_driver msm8974_noc_driver = {
 	.probe = msm8974_icc_probe,
-	.remove = msm8974_icc_remove,
+	.remove_new = msm8974_icc_remove,
 	.driver = {
 		.name = "qnoc-msm8974",
 		.of_match_table = msm8974_noc_of_match,

@@ -17,7 +17,7 @@
         中文版校譯者： 張漢輝  Eugene Teo <eugeneteo@kernel.sg>
                        楊瑞  Dave Young <hidave.darkstar@gmail.com>
                        時奎亮 Alex Shi <alex.shi@linux.alibaba.com>
-                       胡皓文 Hu Haowen <src.res.211@gmail.com>
+                       胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 爲什麼不應該使用“volatile”類型
 ==============================

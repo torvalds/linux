@@ -9,13 +9,13 @@
 #include <linux/rbtree.h>
 #include <linux/list.h>
 #include <linux/mm.h>
-#include <linux/rtmutex.h>
+#include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/list_lru.h>
 #include <uapi/linux/android/binder.h>
 
-extern struct list_lru binder_alloc_lru;
+extern struct list_lru binder_freelist;
 struct binder_transaction;
 
 /**
@@ -49,21 +49,19 @@ struct binder_buffer {
 	unsigned async_transaction:1;
 	unsigned oneway_spam_suspect:1;
 	unsigned debug_id:27;
-
 	struct binder_transaction *transaction;
-
 	struct binder_node *target_node;
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
-	void __user *user_data;
-	int    pid;
+	unsigned long user_data;
+	int pid;
 };
 
 /**
  * struct binder_lru_page - page object used for binder shrinker
  * @page_ptr: pointer to physical page in mmap'd space
- * @lru:      entry in binder_alloc_lru
+ * @lru:      entry in binder_freelist
  * @alloc:    binder_alloc for a proc
  */
 struct binder_lru_page {
@@ -74,7 +72,7 @@ struct binder_lru_page {
 
 /**
  * struct binder_alloc - per-binder proc state for binder allocator
- * @mutex:              protects binder_alloc fields
+ * @lock:               protects binder_alloc fields
  * @vma:                vm_area_struct passed to mmap_handler
  *                      (invariant after mmap)
  * @mm:                 copy of task->mm (invariant after open)
@@ -98,10 +96,10 @@ struct binder_lru_page {
  * struct binder_buffer objects used to track the user buffers
  */
 struct binder_alloc {
-	struct mutex mutex;
+	spinlock_t lock;
 	struct vm_area_struct *vma;
 	struct mm_struct *mm;
-	void __user *buffer;
+	unsigned long buffer;
 	struct list_head buffers;
 	struct rb_root free_buffers;
 	struct rb_root allocated_buffers;
@@ -121,27 +119,26 @@ static inline void binder_selftest_alloc(struct binder_alloc *alloc) {}
 enum lru_status binder_alloc_free_page(struct list_head *item,
 				       struct list_lru_one *lru,
 				       spinlock_t *lock, void *cb_arg);
-extern struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
-						  size_t data_size,
-						  size_t offsets_size,
-						  size_t extra_buffers_size,
-						  int is_async,
-						  int pid);
-extern void binder_alloc_init(struct binder_alloc *alloc);
-extern int binder_alloc_shrinker_init(void);
-extern void binder_alloc_shrinker_exit(void);
-extern void binder_alloc_vma_close(struct binder_alloc *alloc);
-extern struct binder_buffer *
+struct binder_buffer *binder_alloc_new_buf(struct binder_alloc *alloc,
+					   size_t data_size,
+					   size_t offsets_size,
+					   size_t extra_buffers_size,
+					   int is_async);
+void binder_alloc_init(struct binder_alloc *alloc);
+int binder_alloc_shrinker_init(void);
+void binder_alloc_shrinker_exit(void);
+void binder_alloc_vma_close(struct binder_alloc *alloc);
+struct binder_buffer *
 binder_alloc_prepare_to_free(struct binder_alloc *alloc,
-			     uintptr_t user_ptr);
-extern void binder_alloc_free_buf(struct binder_alloc *alloc,
-				  struct binder_buffer *buffer);
-extern int binder_alloc_mmap_handler(struct binder_alloc *alloc,
-				     struct vm_area_struct *vma);
-extern void binder_alloc_deferred_release(struct binder_alloc *alloc);
-extern int binder_alloc_get_allocated_count(struct binder_alloc *alloc);
-extern void binder_alloc_print_allocated(struct seq_file *m,
-					 struct binder_alloc *alloc);
+			     unsigned long user_ptr);
+void binder_alloc_free_buf(struct binder_alloc *alloc,
+			   struct binder_buffer *buffer);
+int binder_alloc_mmap_handler(struct binder_alloc *alloc,
+			      struct vm_area_struct *vma);
+void binder_alloc_deferred_release(struct binder_alloc *alloc);
+int binder_alloc_get_allocated_count(struct binder_alloc *alloc);
+void binder_alloc_print_allocated(struct seq_file *m,
+				  struct binder_alloc *alloc);
 void binder_alloc_print_pages(struct seq_file *m,
 			      struct binder_alloc *alloc);
 
@@ -156,9 +153,9 @@ binder_alloc_get_free_async_space(struct binder_alloc *alloc)
 {
 	size_t free_async_space;
 
-	mutex_lock(&alloc->mutex);
+	spin_lock(&alloc->lock);
 	free_async_space = alloc->free_async_space;
-	mutex_unlock(&alloc->mutex);
+	spin_unlock(&alloc->lock);
 	return free_async_space;
 }
 

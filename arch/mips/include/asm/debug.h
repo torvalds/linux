@@ -10,7 +10,7 @@
 
 /*
  * mips_debugfs_dir corresponds to the "mips" directory at the top level
- * of the DebugFS hierarchy. MIPS-specific DebugFS entires should be
+ * of the DebugFS hierarchy. MIPS-specific DebugFS entries should be
  * placed beneath this directory.
  */
 extern struct dentry *mips_debugfs_dir;

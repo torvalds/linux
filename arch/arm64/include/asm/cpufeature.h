@@ -617,6 +617,7 @@ static inline bool id_aa64pfr1_mte(u64 pfr1)
 	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
 }
 
+void __init setup_boot_cpu_features(void);
 void __init setup_system_features(void);
 void __init setup_user_features(void);
 
@@ -817,6 +818,11 @@ static inline bool system_supports_bti_kernel(void)
 static inline bool system_supports_tlb_range(void)
 {
 	return alternative_has_cap_unlikely(ARM64_HAS_TLB_RANGE);
+}
+
+static inline bool system_supports_lpa2(void)
+{
+	return cpus_have_final_cap(ARM64_HAS_LPA2);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);

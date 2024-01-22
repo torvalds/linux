@@ -491,6 +491,8 @@ struct mpi3_nvme_encapsulated_error_reply {
 #define MPI3MR_NVME_DATA_FORMAT_PRP	0
 #define MPI3MR_NVME_DATA_FORMAT_SGL1	1
 #define MPI3MR_NVME_DATA_FORMAT_SGL2	2
+#define MPI3MR_NVMESGL_DATA_SEGMENT	0x00
+#define MPI3MR_NVMESGL_LAST_SEGMENT	0x03
 
 /* MPI3: task management related definitions */
 struct mpi3_scsi_task_mgmt_request {

@@ -1643,7 +1643,7 @@ static int top_print_work(struct perf_kwork *kwork __maybe_unused, struct kwork_
 	/*
 	 * pid
 	 */
-	ret += printf(" %*ld ", PRINT_PID_WIDTH, work->id);
+	ret += printf(" %*" PRIu64 " ", PRINT_PID_WIDTH, work->id);
 
 	/*
 	 * tgid

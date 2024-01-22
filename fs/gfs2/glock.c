@@ -156,7 +156,7 @@ static bool glock_blocked_by_withdraw(struct gfs2_glock *gl)
 {
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
 
-	if (likely(!gfs2_withdrawn(sdp)))
+	if (!gfs2_withdrawing_or_withdrawn(sdp))
 		return false;
 	if (gl->gl_ops->go_flags & GLOF_NONDISK)
 		return false;
@@ -278,7 +278,7 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	GLOCK_BUG_ON(gl, !list_empty(&gl->gl_holders));
 	if (mapping) {
 		truncate_inode_pages_final(mapping);
-		if (!gfs2_withdrawn(sdp))
+		if (!gfs2_withdrawing_or_withdrawn(sdp))
 			GLOCK_BUG_ON(gl, !mapping_empty(mapping));
 	}
 	trace_gfs2_glock_put(gl);
@@ -514,6 +514,23 @@ static inline struct gfs2_holder *find_first_waiter(const struct gfs2_glock *gl)
 			return gh;
 	}
 	return NULL;
+}
+
+/**
+ * find_last_waiter - find the last gh that's waiting for the glock
+ * @gl: the glock
+ *
+ * This also is a fast way of finding out if there are any waiters.
+ */
+
+static inline struct gfs2_holder *find_last_waiter(const struct gfs2_glock *gl)
+{
+	struct gfs2_holder *gh;
+
+	if (list_empty(&gl->gl_holders))
+		return NULL;
+	gh = list_last_entry(&gl->gl_holders, struct gfs2_holder, gh_list);
+	return test_bit(HIF_HOLDER, &gh->gh_iflags) ? NULL : gh;
 }
 
 /**
@@ -757,7 +774,7 @@ skip_inval:
 	 * gfs2_gl_hash_clear calls clear_glock) and recovery is complete
 	 * then it's okay to tell dlm to unlock it.
 	 */
-	if (unlikely(sdp->sd_log_error && !gfs2_withdrawn(sdp)))
+	if (unlikely(sdp->sd_log_error) && !gfs2_withdrawing_or_withdrawn(sdp))
 		gfs2_withdraw_delayed(sdp);
 	if (glock_blocked_by_withdraw(gl) &&
 	    (target != LM_ST_UNLOCKED ||
@@ -794,7 +811,7 @@ skip_inval:
 			gfs2_glock_queue_work(gl, 0);
 		} else if (ret) {
 			fs_err(sdp, "lm_lock ret %d\n", ret);
-			GLOCK_BUG_ON(gl, !gfs2_withdrawn(sdp));
+			GLOCK_BUG_ON(gl, !gfs2_withdrawing_or_withdrawn(sdp));
 		}
 	} else { /* lock_nolock */
 		finish_xmote(gl, target);
@@ -1213,7 +1230,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 		mapping->host = s->s_bdev->bd_inode;
 		mapping->flags = 0;
 		mapping_set_gfp_mask(mapping, GFP_NOFS);
-		mapping->private_data = NULL;
+		mapping->i_private_data = NULL;
 		mapping->writeback_index = 0;
 	}
 
@@ -1555,10 +1572,29 @@ trap_recursive:
 int gfs2_glock_nq(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
-	int error = 0;
+	int error;
 
 	if (glock_blocked_by_withdraw(gl) && !(gh->gh_flags & LM_FLAG_NOEXP))
 		return -EIO;
+
+	if (gh->gh_flags & GL_NOBLOCK) {
+		struct gfs2_holder *current_gh;
+
+		error = -ECHILD;
+		spin_lock(&gl->gl_lockref.lock);
+		if (find_last_waiter(gl))
+			goto unlock;
+		current_gh = find_first_holder(gl);
+		if (!may_grant(gl, current_gh, gh))
+			goto unlock;
+		set_bit(HIF_HOLDER, &gh->gh_iflags);
+		list_add_tail(&gh->gh_list, &gl->gl_holders);
+		trace_gfs2_promote(gh);
+		error = 0;
+unlock:
+		spin_unlock(&gl->gl_lockref.lock);
+		return error;
+	}
 
 	if (test_bit(GLF_LRU, &gl->gl_flags))
 		gfs2_glock_remove_from_lru(gl);
@@ -1575,6 +1611,7 @@ int gfs2_glock_nq(struct gfs2_holder *gh)
 	run_queue(gl, 1);
 	spin_unlock(&gl->gl_lockref.lock);
 
+	error = 0;
 	if (!(gh->gh_flags & GL_ASYNC))
 		error = gfs2_glock_wait(gh);
 

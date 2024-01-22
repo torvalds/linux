@@ -96,16 +96,16 @@ static int tps65219_gpio_change_direction(struct gpio_chip *gc, unsigned int off
 	 * Below can be used for test purpose only.
 	 */
 
-	if (IS_ENABLED(CONFIG_DEBUG_GPIO)) {
-		int ret = regmap_update_bits(gpio->tps->regmap, TPS65219_REG_MFP_1_CONFIG,
-					     TPS65219_GPIO0_DIR_MASK, direction);
-		if (ret) {
-			dev_err(dev,
-				"GPIO DEBUG enabled: Fail to change direction to %u for GPIO%d.\n",
-				direction, offset);
-			return ret;
-		}
+#if 0
+	int ret = regmap_update_bits(gpio->tps->regmap, TPS65219_REG_MFP_1_CONFIG,
+				     TPS65219_GPIO0_DIR_MASK, direction);
+	if (ret) {
+		dev_err(dev,
+			"GPIO DEBUG enabled: Fail to change direction to %u for GPIO%d.\n",
+			direction, offset);
+		return ret;
 	}
+#endif
 
 	dev_err(dev,
 		"GPIO%d direction set by NVM, change to %u failed, not allowed by specification\n",

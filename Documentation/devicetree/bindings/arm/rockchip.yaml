@@ -30,9 +30,11 @@ properties:
           - const: amarula,vyasa-rk3288
           - const: rockchip,rk3288
 
-      - description: Anbernic RG351M
+      - description: Anbernic RK3326 Handheld Gaming Console
         items:
-          - const: anbernic,rg351m
+          - enum:
+              - anbernic,rg351m
+              - anbernic,rg351v
           - const: rockchip,rk3326
 
       - description: Anbernic RG353P
@@ -95,22 +97,30 @@ properties:
           - const: chipspark,rayeager-px2
           - const: rockchip,rk3066a
 
+      - description: Cool Pi Compute Module 5(CM5) EVB
+        items:
+          - enum:
+              - coolpi,pi-cm5-evb
+          - const: coolpi,pi-cm5
+          - const: rockchip,rk3588
+
+      - description: Cool Pi 4 Model B
+        items:
+          - const: coolpi,pi-4b
+          - const: rockchip,rk3588s
+
       - description: Edgeble Neural Compute Module 2(Neu2) SoM based boards
         items:
           - const: edgeble,neural-compute-module-2-io   # Edgeble Neural Compute Module 2 IO Board
           - const: edgeble,neural-compute-module-2      # Edgeble Neural Compute Module 2 SoM
           - const: rockchip,rv1126
 
-      - description: Edgeble Neural Compute Module 6(Neu6) Model A SoM based boards
+      - description: Edgeble Neural Compute Module 6(Neu6) SoM based boards
         items:
-          - const: edgeble,neural-compute-module-6a-io  # Edgeble Neural Compute Module 6A IO Board
-          - const: edgeble,neural-compute-module-6a     # Edgeble Neural Compute Module 6A SoM
-          - const: rockchip,rk3588
-
-      - description: Edgeble Neural Compute Module 6(Neu6) Model B SoM based boards
-        items:
-          - const: edgeble,neural-compute-module-6b-io  # Edgeble Neural Compute Module 6B IO Board
-          - const: edgeble,neural-compute-module-6b     # Edgeble Neural Compute Module 6B SoM
+          - const: edgeble,neural-compute-module-6a-io  # Edgeble NCM6A-IO Board
+          - enum:
+              - edgeble,neural-compute-module-6a        # Edgeble Neural Compute Module 6A SoM
+              - edgeble,neural-compute-module-6b        # Edgeble Neural Compute Module 6B SoM
           - const: rockchip,rk3588
 
       - description: Elgin RV1108 R1
@@ -236,6 +246,11 @@ properties:
         items:
           - const: geekbuying,geekbox
           - const: rockchip,rk3368
+
+      - description: Geniatech XPI-3128
+        items:
+          - const: geniatech,xpi-3128
+          - const: rockchip,rk3128
 
       - description: Google Bob (Asus Chromebook Flip C101PA)
         items:
@@ -674,9 +689,12 @@ properties:
           - const: pine64,soquartz
           - const: rockchip,rk3566
 
-      - description: Powkiddy RGB30
+      - description: Powkiddy RK3566 Handheld Gaming Console
         items:
-          - const: powkiddy,rgb30
+          - enum:
+              - powkiddy,rgb30
+              - powkiddy,rk2023
+              - powkiddy,x55
           - const: rockchip,rk3566
 
       - description: Radxa Compute Module 3(CM3)
@@ -875,6 +893,11 @@ properties:
           - const: tsd,rk3399-puma-haikou
           - const: rockchip,rk3399
 
+      - description: Theobroma Systems RK3588-SBC Jaguar
+        items:
+          - const: tsd,rk3588-jaguar
+          - const: rockchip,rk3588
+
       - description: Tronsmart Orion R68 Meta
         items:
           - const: tronsmart,orion-r68-meta
@@ -921,6 +944,13 @@ properties:
         items:
           - const: rockchip,rk3568-bpi-r2pro
           - const: rockchip,rk3568
+
+      - description: Sonoff iHost Smart Home Hub
+        items:
+          - const: itead,sonoff-ihost
+          - enum:
+              - rockchip,rv1126
+              - rockchip,rv1109
 
 additionalProperties: true
 

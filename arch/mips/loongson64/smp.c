@@ -516,7 +516,7 @@ static void __init loongson3_prepare_cpus(unsigned int max_cpus)
 }
 
 /*
- * Setup the PC, SP, and GP of a secondary processor and start it runing!
+ * Setup the PC, SP, and GP of a secondary processor and start it running!
  */
 static int loongson3_boot_secondary(int cpu, struct task_struct *idle)
 {
@@ -864,7 +864,7 @@ const struct plat_smp_ops loongson3_smp_ops = {
 	.cpu_disable = loongson3_cpu_disable,
 	.cpu_die = loongson3_cpu_die,
 #endif
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.kexec_nonboot_cpu = kexec_nonboot_cpu_jump,
 #endif
 };

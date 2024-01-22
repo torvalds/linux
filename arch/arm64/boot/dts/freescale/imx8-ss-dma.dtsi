@@ -149,7 +149,7 @@ dma_subsys: bus@5a000000 {
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
-		#pwm-cells = <2>;
+		#pwm-cells = <3>;
 		power-domains = <&pd IMX_SC_R_LCD_0_PWM_0>;
 	};
 

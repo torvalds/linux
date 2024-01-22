@@ -183,7 +183,6 @@ void pg_cntl35_optc_pg_control(struct pg_cntl *pg_cntl,
 	unsigned int optc_inst, bool power_on);
 void pg_cntl35_dwb_pg_control(struct pg_cntl *pg_cntl, bool power_on);
 void pg_cntl35_init_pg_status(struct pg_cntl *pg_cntl);
-void pg_cntl35_set_force_poweron_domain22(struct pg_cntl *pg_cntl, bool power_on);
 
 struct pg_cntl *pg_cntl35_create(
 	struct dc_context *ctx,

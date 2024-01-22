@@ -18,11 +18,11 @@ extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
 extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
-extern const char * const bch2_compression_types[];
+extern const char * const __bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
-extern const char * const bch2_data_types[];
+extern const char * const __bch2_data_types[];
 extern const char * const bch2_member_states[];
 extern const char * const bch2_jset_entry_types[];
 extern const char * const bch2_fs_usage_types[];
@@ -233,11 +233,6 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"Stash pointer to in memory btree node in btree ptr")\
-	x(btree_write_buffer_size, u32,					\
-	  OPT_FS|OPT_MOUNT,						\
-	  OPT_UINT(16, (1U << 20) - 1),					\
-	  BCH2_NO_SB_OPT,		1U << 13,			\
-	  NULL,		"Number of btree write buffer entries")		\
 	x(gc_reserve_percent,		u8,				\
 	  OPT_FS|OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME,			\
 	  OPT_UINT(5, 21),						\
@@ -394,7 +389,7 @@ enum fsck_err_opts {
 	  BCH2_NO_SB_OPT,		BCH_SB_SECTOR,			\
 	  "offset",	"Sector offset of superblock")			\
 	x(read_only,			u8,				\
-	  OPT_FS,							\
+	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		NULL)						\
@@ -419,6 +414,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Allocate the buckets_nouse bitmap")		\
+	x(stdio,			u64,				\
+	  0,								\
+	  OPT_UINT(0, S64_MAX),						\
+	  BCH2_NO_SB_OPT,		false,				\
+	  NULL,		"Pointer to a struct stdio_redirect")		\
 	x(project,			u8,				\
 	  OPT_INODE,							\
 	  OPT_BOOL(),							\
@@ -458,7 +458,13 @@ enum fsck_err_opts {
 	  OPT_UINT(0, BCH_REPLICAS_MAX),				\
 	  BCH2_NO_SB_OPT,		1,				\
 	  "n",		"Data written to this device will be considered\n"\
-			"to have already been replicated n times")
+			"to have already been replicated n times")	\
+	x(btree_node_prefetch,		u8,				\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,		true,				\
+	  NULL,		"BTREE_ITER_PREFETCH casuse btree nodes to be\n"\
+	  " prefetched sequentially")
 
 struct bch_opts {
 #define x(_name, _bits, ...)	unsigned _name##_defined:1;
@@ -557,6 +563,11 @@ struct bch_io_opts {
 	BCH_INODE_OPTS()
 #undef x
 };
+
+static inline unsigned background_compression(struct bch_io_opts opts)
+{
+	return opts.background_compression ?: opts.compression;
+}
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);

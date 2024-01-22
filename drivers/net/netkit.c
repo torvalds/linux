@@ -851,6 +851,12 @@ static int netkit_change_link(struct net_device *dev, struct nlattr *tb[],
 		return -EACCES;
 	}
 
+	if (data[IFLA_NETKIT_PEER_INFO]) {
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_NETKIT_PEER_INFO],
+				    "netkit peer info cannot be changed after device creation");
+		return -EINVAL;
+	}
+
 	if (data[IFLA_NETKIT_POLICY]) {
 		attr = data[IFLA_NETKIT_POLICY];
 		policy = nla_get_u32(attr);

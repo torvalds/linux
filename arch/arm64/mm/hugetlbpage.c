@@ -51,7 +51,7 @@ void __init arm64_hugetlb_cma_reserve(void)
 	 * page allocator. Just warn if there is any change
 	 * breaking this assumption.
 	 */
-	WARN_ON(order <= MAX_ORDER);
+	WARN_ON(order <= MAX_PAGE_ORDER);
 	hugetlb_cma_reserve(order);
 }
 #endif /* CONFIG_CMA */

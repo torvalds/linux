@@ -170,7 +170,6 @@ bool edp_set_backlight_level_nits(struct dc_link *link,
 	*(uint32_t *)&dpcd_backlight_set.backlight_level_millinits = backlight_millinits;
 	*(uint16_t *)&dpcd_backlight_set.backlight_transition_time_ms = (uint16_t)transition_time_in_ms;
 
-	link->backlight_settings.backlight_millinits = backlight_millinits;
 
 	if (!link->dpcd_caps.panel_luminance_control) {
 		if (core_link_write_dpcd(link, DP_SOURCE_BACKLIGHT_LEVEL,
@@ -290,7 +289,7 @@ bool set_default_brightness_aux(struct dc_link *link)
 			default_backlight = 150000;
 		// if < 1 nits or > 5000, it might be wrong readback
 		if (default_backlight < 1000 || default_backlight > 5000000)
-			default_backlight = 150000; //
+			default_backlight = 150000;
 
 		return edp_set_backlight_level_nits(link, true,
 				default_backlight, 0);
@@ -298,15 +297,6 @@ bool set_default_brightness_aux(struct dc_link *link)
 	return false;
 }
 
-bool set_cached_brightness_aux(struct dc_link *link)
-{
-	if (link->backlight_settings.backlight_millinits)
-		return edp_set_backlight_level_nits(link, true,
-						    link->backlight_settings.backlight_millinits, 0);
-	else
-		return set_default_brightness_aux(link);
-	return false;
-}
 bool edp_is_ilr_optimization_enabled(struct dc_link *link)
 {
 	if (link->dpcd_caps.edp_supported_link_rates_count == 0 || !link->panel_config.ilr.optimize_edp_link_rate)
@@ -538,6 +528,9 @@ bool edp_set_backlight_level(const struct dc_link *link,
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		struct pipe_ctx *pipe_ctx = get_pipe_from_link(link);
+
+		if (link->panel_cntl)
+			link->panel_cntl->stored_backlight_registers.USER_LEVEL = backlight_pwm_u16_16;
 
 		if (pipe_ctx) {
 			/* Disable brightness ramping when the display is blanked
@@ -937,8 +930,8 @@ bool edp_get_replay_state(const struct dc_link *link, uint64_t *state)
 bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream)
 {
 	/* To-do: Setup Replay */
-	struct dc *dc = link->ctx->dc;
-	struct dmub_replay *replay = dc->res_pool->replay;
+	struct dc *dc;
+	struct dmub_replay *replay;
 	int i;
 	unsigned int panel_inst;
 	struct replay_context replay_context = { 0 };
@@ -953,6 +946,10 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 
 	if (!link)
 		return false;
+
+	dc = link->ctx->dc;
+
+	replay = dc->res_pool->replay;
 
 	if (!replay)
 		return false;
@@ -982,8 +979,7 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 
 	replay_context.line_time_in_ns = lineTimeInNs;
 
-	if (replay)
-		link->replay_settings.replay_feature_enabled =
+	link->replay_settings.replay_feature_enabled =
 			replay->funcs->replay_copy_settings(replay, link, &replay_context, panel_inst);
 	if (link->replay_settings.replay_feature_enabled) {
 
@@ -1004,6 +1000,36 @@ bool edp_setup_replay(struct dc_link *link, const struct dc_stream_state *stream
 			&alpm_config.raw,
 			sizeof(alpm_config.raw));
 	}
+	return true;
+}
+
+/*
+ * This is general Interface for Replay to set an 32 bit variable to dmub
+ * replay_FW_Message_type: Indicates which instruction or variable pass to DMUB
+ * cmd_data: Value of the config.
+ */
+bool edp_send_replay_cmd(struct dc_link *link,
+			enum replay_FW_Message_type msg,
+			union dmub_replay_cmd_set *cmd_data)
+{
+	struct dc *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+
+	if (!replay)
+		return false;
+
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	if (dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		cmd_data->panel_inst = panel_inst;
+	else {
+		DC_LOG_DC("%s(): get edp panel inst fail ", __func__);
+		return false;
+	}
+
+	replay->funcs->replay_send_cmd(replay, msg, cmd_data);
+
 	return true;
 }
 
@@ -1041,6 +1067,33 @@ bool edp_replay_residency(const struct dc_link *link,
 		replay->funcs->replay_residency(replay, panel_inst, residency, is_start, is_alpm);
 	else
 		*residency = 0;
+
+	return true;
+}
+
+bool edp_set_replay_power_opt_and_coasting_vtotal(struct dc_link *link,
+	const unsigned int *power_opts, uint16_t coasting_vtotal)
+{
+	struct dc  *dc = link->ctx->dc;
+	struct dmub_replay *replay = dc->res_pool->replay;
+	unsigned int panel_inst;
+
+	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
+		return false;
+
+	/* Only both power and coasting vtotal changed, this func could return true */
+	if (power_opts && link->replay_settings.replay_power_opt_active != *power_opts &&
+		coasting_vtotal && link->replay_settings.coasting_vtotal != coasting_vtotal) {
+		if (link->replay_settings.replay_feature_enabled &&
+			replay->funcs->replay_set_power_opt_and_coasting_vtotal) {
+			replay->funcs->replay_set_power_opt_and_coasting_vtotal(replay,
+				*power_opts, panel_inst, coasting_vtotal);
+			link->replay_settings.replay_power_opt_active = *power_opts;
+			link->replay_settings.coasting_vtotal = coasting_vtotal;
+		} else
+			return false;
+	} else
+		return false;
 
 	return true;
 }

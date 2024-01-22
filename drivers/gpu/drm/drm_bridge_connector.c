@@ -198,12 +198,6 @@ static void drm_bridge_connector_destroy(struct drm_connector *connector)
 	struct drm_bridge_connector *bridge_connector =
 		to_drm_bridge_connector(connector);
 
-	if (bridge_connector->bridge_hpd) {
-		struct drm_bridge *hpd = bridge_connector->bridge_hpd;
-
-		drm_bridge_hpd_disable(hpd);
-	}
-
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
 

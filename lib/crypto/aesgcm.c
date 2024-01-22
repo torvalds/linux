@@ -73,6 +73,19 @@ static void aesgcm_ghash(be128 *ghash, const be128 *key, const void *src,
 	}
 }
 
+/**
+ * aesgcm_mac - Generates the authentication tag using AES-GCM algorithm.
+ * @ctx: The data structure that will hold the AES-GCM key schedule
+ * @src: The input source data.
+ * @src_len: Length of the source data.
+ * @assoc: Points to the associated data.
+ * @assoc_len: Length of the associated data values.
+ * @ctr: Points to the counter value.
+ * @authtag: The output buffer for the authentication tag.
+ *
+ * It takes in the AES-GCM context, source data, associated data, counter value,
+ * and an output buffer for the authentication tag.
+ */
 static void aesgcm_mac(const struct aesgcm_ctx *ctx, const u8 *src, int src_len,
 		       const u8 *assoc, int assoc_len, __be32 *ctr, u8 *authtag)
 {

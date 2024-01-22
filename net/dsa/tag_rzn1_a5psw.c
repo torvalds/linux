@@ -110,6 +110,7 @@ static const struct dsa_device_ops a5psw_netdev_ops = {
 	.needed_headroom = A5PSW_TAG_LEN,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Renesas RZ/N1 A5PSW switch");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_A5PSW, A5PSW_NAME);
 module_dsa_tag_driver(a5psw_netdev_ops);

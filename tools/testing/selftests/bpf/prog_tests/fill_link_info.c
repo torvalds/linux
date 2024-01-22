@@ -7,6 +7,7 @@
 #include <test_progs.h>
 #include "trace_helpers.h"
 #include "test_fill_link_info.skel.h"
+#include "bpf/libbpf_internal.h"
 
 #define TP_CAT "sched"
 #define TP_NAME "sched_switch"
@@ -140,14 +141,14 @@ static void test_kprobe_fill_link_info(struct test_fill_link_info *skel,
 		.retprobe = type == BPF_PERF_EVENT_KRETPROBE,
 	);
 	ssize_t entry_offset = 0;
+	struct bpf_link *link;
 	int link_fd, err;
 
-	skel->links.kprobe_run = bpf_program__attach_kprobe_opts(skel->progs.kprobe_run,
-								 KPROBE_FUNC, &opts);
-	if (!ASSERT_OK_PTR(skel->links.kprobe_run, "attach_kprobe"))
+	link = bpf_program__attach_kprobe_opts(skel->progs.kprobe_run, KPROBE_FUNC, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_kprobe"))
 		return;
 
-	link_fd = bpf_link__fd(skel->links.kprobe_run);
+	link_fd = bpf_link__fd(link);
 	if (!invalid) {
 		/* See also arch_adjust_kprobe_addr(). */
 		if (skel->kconfig->CONFIG_X86_KERNEL_IBT)
@@ -157,39 +158,41 @@ static void test_kprobe_fill_link_info(struct test_fill_link_info *skel,
 	} else {
 		kprobe_fill_invalid_user_buffer(link_fd);
 	}
-	bpf_link__detach(skel->links.kprobe_run);
+	bpf_link__destroy(link);
 }
 
 static void test_tp_fill_link_info(struct test_fill_link_info *skel)
 {
+	struct bpf_link *link;
 	int link_fd, err;
 
-	skel->links.tp_run = bpf_program__attach_tracepoint(skel->progs.tp_run, TP_CAT, TP_NAME);
-	if (!ASSERT_OK_PTR(skel->links.tp_run, "attach_tp"))
+	link = bpf_program__attach_tracepoint(skel->progs.tp_run, TP_CAT, TP_NAME);
+	if (!ASSERT_OK_PTR(link, "attach_tp"))
 		return;
 
-	link_fd = bpf_link__fd(skel->links.tp_run);
+	link_fd = bpf_link__fd(link);
 	err = verify_perf_link_info(link_fd, BPF_PERF_EVENT_TRACEPOINT, 0, 0, 0);
 	ASSERT_OK(err, "verify_perf_link_info");
-	bpf_link__detach(skel->links.tp_run);
+	bpf_link__destroy(link);
 }
 
 static void test_uprobe_fill_link_info(struct test_fill_link_info *skel,
 				       enum bpf_perf_event_type type)
 {
+	struct bpf_link *link;
 	int link_fd, err;
 
-	skel->links.uprobe_run = bpf_program__attach_uprobe(skel->progs.uprobe_run,
-							    type == BPF_PERF_EVENT_URETPROBE,
-							    0, /* self pid */
-							    UPROBE_FILE, uprobe_offset);
-	if (!ASSERT_OK_PTR(skel->links.uprobe_run, "attach_uprobe"))
+	link = bpf_program__attach_uprobe(skel->progs.uprobe_run,
+					  type == BPF_PERF_EVENT_URETPROBE,
+					  0, /* self pid */
+					  UPROBE_FILE, uprobe_offset);
+	if (!ASSERT_OK_PTR(link, "attach_uprobe"))
 		return;
 
-	link_fd = bpf_link__fd(skel->links.uprobe_run);
+	link_fd = bpf_link__fd(link);
 	err = verify_perf_link_info(link_fd, type, 0, uprobe_offset, 0);
 	ASSERT_OK(err, "verify_perf_link_info");
-	bpf_link__detach(skel->links.uprobe_run);
+	bpf_link__destroy(link);
 }
 
 static int verify_kmulti_link_info(int fd, bool retprobe)
@@ -278,24 +281,214 @@ static void test_kprobe_multi_fill_link_info(struct test_fill_link_info *skel,
 					     bool retprobe, bool invalid)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	struct bpf_link *link;
 	int link_fd, err;
 
 	opts.syms = kmulti_syms;
 	opts.cnt = KMULTI_CNT;
 	opts.retprobe = retprobe;
-	skel->links.kmulti_run = bpf_program__attach_kprobe_multi_opts(skel->progs.kmulti_run,
-								       NULL, &opts);
-	if (!ASSERT_OK_PTR(skel->links.kmulti_run, "attach_kprobe_multi"))
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.kmulti_run, NULL, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_kprobe_multi"))
 		return;
 
-	link_fd = bpf_link__fd(skel->links.kmulti_run);
+	link_fd = bpf_link__fd(link);
 	if (!invalid) {
 		err = verify_kmulti_link_info(link_fd, retprobe);
 		ASSERT_OK(err, "verify_kmulti_link_info");
 	} else {
 		verify_kmulti_invalid_user_buffer(link_fd);
 	}
-	bpf_link__detach(skel->links.kmulti_run);
+	bpf_link__destroy(link);
+}
+
+#define SEC(name) __attribute__((section(name), used))
+
+static short uprobe_link_info_sema_1 SEC(".probes");
+static short uprobe_link_info_sema_2 SEC(".probes");
+static short uprobe_link_info_sema_3 SEC(".probes");
+
+noinline void uprobe_link_info_func_1(void)
+{
+	asm volatile ("");
+	uprobe_link_info_sema_1++;
+}
+
+noinline void uprobe_link_info_func_2(void)
+{
+	asm volatile ("");
+	uprobe_link_info_sema_2++;
+}
+
+noinline void uprobe_link_info_func_3(void)
+{
+	asm volatile ("");
+	uprobe_link_info_sema_3++;
+}
+
+static int
+verify_umulti_link_info(int fd, bool retprobe, __u64 *offsets,
+			__u64 *cookies, __u64 *ref_ctr_offsets)
+{
+	char path[PATH_MAX], path_buf[PATH_MAX];
+	struct bpf_link_info info;
+	__u32 len = sizeof(info);
+	__u64 ref_ctr_offsets_buf[3];
+	__u64 offsets_buf[3];
+	__u64 cookies_buf[3];
+	int i, err, bit;
+	__u32 count = 0;
+
+	memset(path, 0, sizeof(path));
+	err = readlink("/proc/self/exe", path, sizeof(path));
+	if (!ASSERT_NEQ(err, -1, "readlink"))
+		return -1;
+
+	for (bit = 0; bit < 8; bit++) {
+		memset(&info, 0, sizeof(info));
+		info.uprobe_multi.path = ptr_to_u64(path_buf);
+		info.uprobe_multi.path_size = sizeof(path_buf);
+		info.uprobe_multi.count = count;
+
+		if (bit & 0x1)
+			info.uprobe_multi.offsets = ptr_to_u64(offsets_buf);
+		if (bit & 0x2)
+			info.uprobe_multi.cookies = ptr_to_u64(cookies_buf);
+		if (bit & 0x4)
+			info.uprobe_multi.ref_ctr_offsets = ptr_to_u64(ref_ctr_offsets_buf);
+
+		err = bpf_link_get_info_by_fd(fd, &info, &len);
+		if (!ASSERT_OK(err, "bpf_link_get_info_by_fd"))
+			return -1;
+
+		if (!ASSERT_EQ(info.type, BPF_LINK_TYPE_UPROBE_MULTI, "info.type"))
+			return -1;
+
+		ASSERT_EQ(info.uprobe_multi.pid, getpid(), "info.uprobe_multi.pid");
+		ASSERT_EQ(info.uprobe_multi.count, 3, "info.uprobe_multi.count");
+		ASSERT_EQ(info.uprobe_multi.flags & BPF_F_KPROBE_MULTI_RETURN,
+			  retprobe, "info.uprobe_multi.flags.retprobe");
+		ASSERT_EQ(info.uprobe_multi.path_size, strlen(path) + 1, "info.uprobe_multi.path_size");
+		ASSERT_STREQ(path_buf, path, "info.uprobe_multi.path");
+
+		for (i = 0; i < info.uprobe_multi.count; i++) {
+			if (info.uprobe_multi.offsets)
+				ASSERT_EQ(offsets_buf[i], offsets[i], "info.uprobe_multi.offsets");
+			if (info.uprobe_multi.cookies)
+				ASSERT_EQ(cookies_buf[i], cookies[i], "info.uprobe_multi.cookies");
+			if (info.uprobe_multi.ref_ctr_offsets) {
+				ASSERT_EQ(ref_ctr_offsets_buf[i], ref_ctr_offsets[i],
+					  "info.uprobe_multi.ref_ctr_offsets");
+			}
+		}
+		count = count ?: info.uprobe_multi.count;
+	}
+
+	return 0;
+}
+
+static void verify_umulti_invalid_user_buffer(int fd)
+{
+	struct bpf_link_info info;
+	__u32 len = sizeof(info);
+	__u64 buf[3];
+	int err;
+
+	/* upath_size defined, not path */
+	memset(&info, 0, sizeof(info));
+	info.uprobe_multi.path_size = 3;
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EINVAL, "failed_upath_size");
+
+	/* path defined, but small */
+	memset(&info, 0, sizeof(info));
+	info.uprobe_multi.path = ptr_to_u64(buf);
+	info.uprobe_multi.path_size = 3;
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_LT(err, 0, "failed_upath_small");
+
+	/* path has wrong pointer */
+	memset(&info, 0, sizeof(info));
+	info.uprobe_multi.path_size = PATH_MAX;
+	info.uprobe_multi.path = 123;
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EFAULT, "failed_bad_path_ptr");
+
+	/* count zero, with offsets */
+	memset(&info, 0, sizeof(info));
+	info.uprobe_multi.offsets = ptr_to_u64(buf);
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EINVAL, "failed_count");
+
+	/* offsets not big enough */
+	memset(&info, 0, sizeof(info));
+	info.uprobe_multi.offsets = ptr_to_u64(buf);
+	info.uprobe_multi.count = 2;
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -ENOSPC, "failed_small_count");
+
+	/* offsets has wrong pointer */
+	memset(&info, 0, sizeof(info));
+	info.uprobe_multi.offsets = 123;
+	info.uprobe_multi.count = 3;
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EFAULT, "failed_wrong_offsets");
+}
+
+static void test_uprobe_multi_fill_link_info(struct test_fill_link_info *skel,
+					     bool retprobe, bool invalid)
+{
+	LIBBPF_OPTS(bpf_uprobe_multi_opts, opts,
+		.retprobe = retprobe,
+	);
+	const char *syms[3] = {
+		"uprobe_link_info_func_1",
+		"uprobe_link_info_func_2",
+		"uprobe_link_info_func_3",
+	};
+	__u64 cookies[3] = {
+		0xdead,
+		0xbeef,
+		0xcafe,
+	};
+	const char *sema[3] = {
+		"uprobe_link_info_sema_1",
+		"uprobe_link_info_sema_2",
+		"uprobe_link_info_sema_3",
+	};
+	__u64 *offsets = NULL, *ref_ctr_offsets;
+	struct bpf_link *link;
+	int link_fd, err;
+
+	err = elf_resolve_syms_offsets("/proc/self/exe", 3, sema,
+				       (unsigned long **) &ref_ctr_offsets, STT_OBJECT);
+	if (!ASSERT_OK(err, "elf_resolve_syms_offsets_object"))
+		return;
+
+	err = elf_resolve_syms_offsets("/proc/self/exe", 3, syms,
+				       (unsigned long **) &offsets, STT_FUNC);
+	if (!ASSERT_OK(err, "elf_resolve_syms_offsets_func"))
+		goto out;
+
+	opts.syms = syms;
+	opts.cookies = &cookies[0];
+	opts.ref_ctr_offsets = (unsigned long *) &ref_ctr_offsets[0];
+	opts.cnt = ARRAY_SIZE(syms);
+
+	link = bpf_program__attach_uprobe_multi(skel->progs.umulti_run, 0,
+						"/proc/self/exe", NULL, &opts);
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_uprobe_multi"))
+		goto out;
+
+	link_fd = bpf_link__fd(link);
+	if (invalid)
+		verify_umulti_invalid_user_buffer(link_fd);
+	else
+		verify_umulti_link_info(link_fd, retprobe, offsets, cookies, ref_ctr_offsets);
+
+	bpf_link__destroy(link);
+out:
+	free(ref_ctr_offsets);
+	free(offsets);
 }
 
 void test_fill_link_info(void)
@@ -336,6 +529,13 @@ void test_fill_link_info(void)
 		test_kprobe_multi_fill_link_info(skel, true, false);
 	if (test__start_subtest("kprobe_multi_invalid_ubuff"))
 		test_kprobe_multi_fill_link_info(skel, true, true);
+
+	if (test__start_subtest("uprobe_multi_link_info"))
+		test_uprobe_multi_fill_link_info(skel, false, false);
+	if (test__start_subtest("uretprobe_multi_link_info"))
+		test_uprobe_multi_fill_link_info(skel, true, false);
+	if (test__start_subtest("uprobe_multi_invalid"))
+		test_uprobe_multi_fill_link_info(skel, false, true);
 
 cleanup:
 	test_fill_link_info__destroy(skel);

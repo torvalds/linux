@@ -739,7 +739,7 @@ static int iic_probe(struct platform_device *ofdev)
 	adap->dev.of_node = of_node_get(np);
 	strscpy(adap->name, "IBM IIC", sizeof(adap->name));
 	i2c_set_adapdata(adap, dev);
-	adap->class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	adap->class = I2C_CLASS_HWMON;
 	adap->algo = &iic_algo;
 	adap->timeout = HZ;
 

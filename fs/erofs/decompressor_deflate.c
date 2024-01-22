@@ -70,7 +70,7 @@ int __init z_erofs_deflate_init(void)
 	return 0;
 
 out_failed:
-	pr_err("failed to allocate zlib workspace\n");
+	erofs_err(NULL, "failed to allocate zlib workspace");
 	z_erofs_deflate_exit();
 	return -ENOMEM;
 }

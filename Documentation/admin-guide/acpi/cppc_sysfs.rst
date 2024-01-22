@@ -75,4 +75,4 @@ taking two different snapshots of feedback counters at time T1 and T2.
   delivered_counter_delta = fbc_t2[del] - fbc_t1[del]
   reference_counter_delta = fbc_t2[ref] - fbc_t1[ref]
 
-  delivered_perf = (refernce_perf x delivered_counter_delta) / reference_counter_delta
+  delivered_perf = (reference_perf x delivered_counter_delta) / reference_counter_delta

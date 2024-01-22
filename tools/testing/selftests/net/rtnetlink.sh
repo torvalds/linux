@@ -28,6 +28,7 @@ ALL_TESTS="
 	kci_test_neigh_get
 	kci_test_bridge_parent_id
 	kci_test_address_proto
+	kci_test_enslave_bonding
 "
 
 devdummy="test-dummy0"
@@ -35,8 +36,7 @@ VERBOSE=0
 PAUSE=no
 PAUSE_ON_FAIL=no
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
+source lib.sh
 
 # set global exit status, but never reset nonzero one.
 check_err()
@@ -297,7 +297,7 @@ kci_test_addrlft()
 	done
 
 	sleep 5
-	run_cmd_grep "10.23.11." ip addr show dev "$devdummy"
+	run_cmd_grep_fail "10.23.11." ip addr show dev "$devdummy"
 	if [ $? -eq 0 ]; then
 		check_err 1
 		end_test "FAIL: preferred_lft addresses remaining"
@@ -517,9 +517,8 @@ kci_test_encap_fou()
 # test various encap methods, use netns to avoid unwanted interference
 kci_test_encap()
 {
-	testns="testns"
 	local ret=0
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP encap tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -572,6 +571,10 @@ kci_test_macsec_offload()
 	if [ $? -ne 0 ]; then
 		end_test "SKIP: macsec: iproute2 too old"
 		return $ksft_skip
+	fi
+
+	if ! mount | grep -q debugfs; then
+		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
 	fi
 
 	# setup netdevsim since dummydev doesn't have offload support
@@ -738,6 +741,10 @@ kci_test_ipsec_offload()
 	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
 	probed=false
 
+	if ! mount | grep -q debugfs; then
+		mount -t debugfs none /sys/kernel/debug/ &> /dev/null
+	fi
+
 	# setup netdevsim since dummydev doesn't have offload support
 	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
 		run_cmd modprobe -q netdevsim
@@ -836,11 +843,10 @@ EOF
 
 kci_test_gretap()
 {
-	testns="testns"
 	DEV_NS=gretap00
 	local ret=0
 
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP gretap tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -878,11 +884,10 @@ kci_test_gretap()
 
 kci_test_ip6gretap()
 {
-	testns="testns"
 	DEV_NS=ip6gretap00
 	local ret=0
 
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP ip6gretap tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -920,7 +925,6 @@ kci_test_ip6gretap()
 
 kci_test_erspan()
 {
-	testns="testns"
 	DEV_NS=erspan00
 	local ret=0
 	run_cmd_grep "^Usage:" ip link help erspan
@@ -928,7 +932,7 @@ kci_test_erspan()
 		end_test "SKIP: erspan: iproute2 too old"
 		return $ksft_skip
 	fi
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP erspan tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -970,7 +974,6 @@ kci_test_erspan()
 
 kci_test_ip6erspan()
 {
-	testns="testns"
 	DEV_NS=ip6erspan00
 	local ret=0
 	run_cmd_grep "^Usage:" ip link help ip6erspan
@@ -978,7 +981,7 @@ kci_test_ip6erspan()
 		end_test "SKIP: ip6erspan: iproute2 too old"
 		return $ksft_skip
 	fi
-	run_cmd ip netns add "$testns"
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP ip6erspan tests: cannot add net namespace $testns"
 		return $ksft_skip
@@ -1022,8 +1025,6 @@ kci_test_ip6erspan()
 
 kci_test_fdb_get()
 {
-	IP="ip -netns testns"
-	BRIDGE="bridge -netns testns"
 	brdev="test-br0"
 	vxlandev="vxlan10"
 	test_mac=de:ad:be:ef:13:37
@@ -1037,11 +1038,13 @@ kci_test_fdb_get()
 		return $ksft_skip
 	fi
 
-	run_cmd ip netns add testns
+	setup_ns testns
 	if [ $? -ne 0 ]; then
 		end_test "SKIP fdb get tests: cannot add net namespace $testns"
 		return $ksft_skip
 	fi
+	IP="ip -netns $testns"
+	BRIDGE="bridge -netns $testns"
 	run_cmd $IP link add "$vxlandev" type vxlan id 10 local $localip \
                 dstport 4789
 	run_cmd $IP link add name "$brdev" type bridge
@@ -1052,7 +1055,7 @@ kci_test_fdb_get()
 	run_cmd_grep "dev $vxlandev master $brdev" $BRIDGE fdb get $test_mac br "$brdev"
 	run_cmd_grep "dev $vxlandev dst $dstip" $BRIDGE fdb get $test_mac dev "$vxlandev" self
 
-	ip netns del testns &>/dev/null
+	ip netns del $testns &>/dev/null
 
 	if [ $ret -ne 0 ]; then
 		end_test "FAIL: bridge fdb get"
@@ -1237,6 +1240,31 @@ kci_test_address_proto()
 	check_err $?
 
 	return $ret
+}
+
+kci_test_enslave_bonding()
+{
+	local bond="bond123"
+	local ret=0
+
+	setup_ns testns
+	if [ $? -ne 0 ]; then
+		end_test "SKIP bonding tests: cannot add net namespace $testns"
+		return $ksft_skip
+	fi
+
+	run_cmd ip -netns $testns link add dev $bond type bond mode balance-rr
+	run_cmd ip -netns $testns link add dev $devdummy type dummy
+	run_cmd ip -netns $testns link set dev $devdummy up
+	run_cmd ip -netns $testns link set dev $devdummy master $bond down
+	if [ $ret -ne 0 ]; then
+		end_test "FAIL: initially up interface added to a bond and set down"
+		ip netns del "$testns"
+		return 1
+	fi
+
+	end_test "PASS: enslave interface in a bond"
+	ip netns del "$testns"
 }
 
 kci_test_rtnl()

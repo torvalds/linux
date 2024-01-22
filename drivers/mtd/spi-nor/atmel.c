@@ -16,12 +16,12 @@
  * is to unlock the whole flash array on startup. Therefore, we have to support
  * exactly this operation.
  */
-static int at25fs_nor_lock(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static int at25fs_nor_lock(struct spi_nor *nor, loff_t ofs, u64 len)
 {
 	return -EOPNOTSUPP;
 }
 
-static int at25fs_nor_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static int at25fs_nor_unlock(struct spi_nor *nor, loff_t ofs, u64 len)
 {
 	int ret;
 
@@ -37,7 +37,7 @@ static int at25fs_nor_unlock(struct spi_nor *nor, loff_t ofs, uint64_t len)
 	return ret;
 }
 
-static int at25fs_nor_is_locked(struct spi_nor *nor, loff_t ofs, uint64_t len)
+static int at25fs_nor_is_locked(struct spi_nor *nor, loff_t ofs, u64 len)
 {
 	return -EOPNOTSUPP;
 }
@@ -69,7 +69,7 @@ static const struct spi_nor_fixups at25fs_nor_fixups = {
  * Return: 0 on success, -error otherwise.
  */
 static int atmel_nor_set_global_protection(struct spi_nor *nor, loff_t ofs,
-					   uint64_t len, bool is_protect)
+					   u64 len, bool is_protect)
 {
 	int ret;
 	u8 sr;
@@ -118,20 +118,18 @@ static int atmel_nor_set_global_protection(struct spi_nor *nor, loff_t ofs,
 	return spi_nor_write_sr(nor, nor->bouncebuf, 1);
 }
 
-static int atmel_nor_global_protect(struct spi_nor *nor, loff_t ofs,
-				    uint64_t len)
+static int atmel_nor_global_protect(struct spi_nor *nor, loff_t ofs, u64 len)
 {
 	return atmel_nor_set_global_protection(nor, ofs, len, true);
 }
 
-static int atmel_nor_global_unprotect(struct spi_nor *nor, loff_t ofs,
-				      uint64_t len)
+static int atmel_nor_global_unprotect(struct spi_nor *nor, loff_t ofs, u64 len)
 {
 	return atmel_nor_set_global_protection(nor, ofs, len, false);
 }
 
 static int atmel_nor_is_global_protected(struct spi_nor *nor, loff_t ofs,
-					 uint64_t len)
+					 u64 len)
 {
 	int ret;
 

@@ -738,20 +738,20 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 	return err;
 }
 
-/**
- * tvp514x_g_frame_interval() - V4L2 decoder interface handler
- * @sd: pointer to standard V4L2 sub-device structure
- * @ival: pointer to a v4l2_subdev_frame_interval structure
- *
- * Returns the decoder's video CAPTURE parameters.
- */
 static int
-tvp514x_g_frame_interval(struct v4l2_subdev *sd,
-			 struct v4l2_subdev_frame_interval *ival)
+tvp514x_get_frame_interval(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_frame_interval *ival)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 	enum tvp514x_std current_std;
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	/* get the current standard */
 	current_std = decoder->current_std;
@@ -762,22 +762,21 @@ tvp514x_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/**
- * tvp514x_s_frame_interval() - V4L2 decoder interface handler
- * @sd: pointer to standard V4L2 sub-device structure
- * @ival: pointer to a v4l2_subdev_frame_interval structure
- *
- * Configures the decoder to use the input parameters, if possible. If
- * not possible, returns the appropriate error code.
- */
 static int
-tvp514x_s_frame_interval(struct v4l2_subdev *sd,
-			 struct v4l2_subdev_frame_interval *ival)
+tvp514x_set_frame_interval(struct v4l2_subdev *sd,
+			   struct v4l2_subdev_state *sd_state,
+			   struct v4l2_subdev_frame_interval *ival)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 	struct v4l2_fract *timeperframe;
 	enum tvp514x_std current_std;
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	timeperframe = &ival->interval;
 
@@ -940,8 +939,6 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
-	.g_frame_interval = tvp514x_g_frame_interval,
-	.s_frame_interval = tvp514x_s_frame_interval,
 	.s_stream = tvp514x_s_stream,
 };
 
@@ -949,6 +946,8 @@ static const struct v4l2_subdev_pad_ops tvp514x_pad_ops = {
 	.enum_mbus_code = tvp514x_enum_mbus_code,
 	.get_fmt = tvp514x_get_pad_format,
 	.set_fmt = tvp514x_set_pad_format,
+	.get_frame_interval = tvp514x_get_frame_interval,
+	.set_frame_interval = tvp514x_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops tvp514x_ops = {

@@ -11,7 +11,7 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -114,15 +114,13 @@ static int ingenic_rng_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ingenic_rng_remove(struct platform_device *pdev)
+static void ingenic_rng_remove(struct platform_device *pdev)
 {
 	struct ingenic_rng *priv = platform_get_drvdata(pdev);
 
 	hwrng_unregister(&priv->rng);
 
 	writel(0, priv->base + RNG_REG_ERNG_OFFSET);
-
-	return 0;
 }
 
 static const struct of_device_id ingenic_rng_of_match[] = {
@@ -134,7 +132,7 @@ MODULE_DEVICE_TABLE(of, ingenic_rng_of_match);
 
 static struct platform_driver ingenic_rng_driver = {
 	.probe		= ingenic_rng_probe,
-	.remove		= ingenic_rng_remove,
+	.remove_new	= ingenic_rng_remove,
 	.driver		= {
 		.name	= "ingenic-rng",
 		.of_match_table = ingenic_rng_of_match,

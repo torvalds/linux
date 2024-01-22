@@ -24,6 +24,7 @@
 #include <asm/ucontext.h>
 #include <asm/fpu.h>
 #include <asm/cpu-features.h>
+#include <asm/syscalls.h>
 
 #include "signal-common.h"
 
@@ -31,9 +32,6 @@
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
 #define __NR_N32_restart_syscall	6214
-
-extern int setup_sigcontext(struct pt_regs *, struct sigcontext __user *);
-extern int restore_sigcontext(struct pt_regs *, struct sigcontext __user *);
 
 struct ucontextn32 {
 	u32		    uc_flags;

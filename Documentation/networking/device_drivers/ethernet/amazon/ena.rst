@@ -54,6 +54,7 @@ ena_common_defs.h   Common definitions for ena_com layer.
 ena_regs_defs.h     Definition of ENA PCI memory-mapped (MMIO) registers.
 ena_netdev.[ch]     Main Linux kernel driver.
 ena_ethtool.c       ethtool callbacks.
+ena_xdp.[ch]        XDP files
 ena_pci_id_tbl.h    Supported device IDs.
 =================   ======================================================
 

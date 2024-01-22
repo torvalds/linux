@@ -192,7 +192,7 @@
 	/*
 	 * A fallback to GPIO is provided for I2C1.
 	 */
-	i2chdmi: i2c-11 {
+	i2chdmi: i2c-mux1 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c1>, <&gpioi2c1>;
 		i2c-bus-name = "i2c-hdmi";
@@ -222,7 +222,7 @@
 	 * I2C4 is routed to EXIO connector B, pins 73 (SCL) + 74 (SDA).
 	 * A fallback to GPIO is provided.
 	 */
-	i2cexio4: i2c-14 {
+	i2cexio4: i2c-mux2 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&i2c4>, <&gpioi2c4>;
 		i2c-bus-name = "i2c-exio4";

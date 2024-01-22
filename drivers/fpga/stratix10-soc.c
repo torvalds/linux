@@ -436,15 +436,13 @@ probe_err:
 	return ret;
 }
 
-static int s10_remove(struct platform_device *pdev)
+static void s10_remove(struct platform_device *pdev)
 {
 	struct fpga_manager *mgr = platform_get_drvdata(pdev);
 	struct s10_priv *priv = mgr->priv;
 
 	fpga_mgr_unregister(mgr);
 	stratix10_svc_free_channel(priv->chan);
-
-	return 0;
 }
 
 static const struct of_device_id s10_of_match[] = {
@@ -457,7 +455,7 @@ MODULE_DEVICE_TABLE(of, s10_of_match);
 
 static struct platform_driver s10_driver = {
 	.probe = s10_probe,
-	.remove = s10_remove,
+	.remove_new = s10_remove,
 	.driver = {
 		.name	= "Stratix10 SoC FPGA manager",
 		.of_match_table = of_match_ptr(s10_of_match),

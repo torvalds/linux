@@ -550,6 +550,10 @@ ga100_fifo_nonstall_ctor(struct nvkm_fifo *fifo)
 		struct nvkm_engn *engn = list_first_entry(&runl->engns, typeof(*engn), head);
 
 		runl->nonstall.vector = engn->func->nonstall(engn);
+
+		/* if no nonstall vector just keep going */
+		if (runl->nonstall.vector == -1)
+			continue;
 		if (runl->nonstall.vector < 0) {
 			RUNL_ERROR(runl, "nonstall %d", runl->nonstall.vector);
 			return runl->nonstall.vector;

@@ -29,6 +29,7 @@
 #include <asm/lowcore.h>
 #include <asm/switch_to.h>
 #include <asm/vdso.h>
+#include <asm/fpu/api.h>
 #include "compat_linux.h"
 #include "compat_ptrace.h"
 #include "entry.h"
@@ -98,10 +99,6 @@ static int restore_sigregs32(struct pt_regs *regs,_sigregs32 __user *sregs)
 	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW32_MASK_RI))
 		return -EINVAL;
 
-	/* Test the floating-point-control word. */
-	if (test_fp_ctl(user_sregs.fpregs.fpc))
-		return -EINVAL;
-
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~(PSW_MASK_USER | PSW_MASK_RI)) |
 		(__u64)(user_sregs.regs.psw.mask & PSW32_MASK_USER) << 32 |
@@ -137,7 +134,7 @@ static int save_sigregs_ext32(struct pt_regs *regs,
 		return -EFAULT;
 
 	/* Save vector registers to signal stack */
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			vxrs[i] = current->thread.fpu.vxrs[i].low;
 		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
@@ -165,7 +162,7 @@ static int restore_sigregs_ext32(struct pt_regs *regs,
 		*(__u32 *)&regs->gprs[i] = gprs_high[i];
 
 	/* Restore vector registers from signal stack */
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
 				     sizeof(sregs_ext->vxrs_low)) ||
 		    __copy_from_user(current->thread.fpu.vxrs + __NUM_VXRS_LOW,
@@ -265,7 +262,7 @@ static int setup_frame32(struct ksignal *ksig, sigset_t *set,
 	 * the machine supports it
 	 */
 	frame_size = sizeof(*frame) - sizeof(frame->sregs_ext.__reserved);
-	if (!MACHINE_HAS_VX)
+	if (!cpu_has_vx())
 		frame_size -= sizeof(frame->sregs_ext.vxrs_low) +
 			      sizeof(frame->sregs_ext.vxrs_high);
 	frame = get_sigframe(&ksig->ka, regs, frame_size);
@@ -348,11 +345,12 @@ static int setup_rt_frame32(struct ksignal *ksig, sigset_t *set,
 	 * the machine supports it
 	 */
 	uc_flags = UC_GPRS_HIGH;
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		uc_flags |= UC_VXRS;
-	} else
+	} else {
 		frame_size -= sizeof(frame->uc.uc_mcontext_ext.vxrs_low) +
 			      sizeof(frame->uc.uc_mcontext_ext.vxrs_high);
+	}
 	frame = get_sigframe(&ksig->ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
 		return -EFAULT;

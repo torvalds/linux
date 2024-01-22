@@ -559,11 +559,13 @@ static const struct isi_format *find_format_by_fourcc(struct atmel_isi *isi,
 static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 			struct v4l2_subdev_state *sd_state)
 {
-	int ret;
+	struct v4l2_rect *try_crop =
+		v4l2_subdev_state_get_crop(sd_state, 0);
 	struct v4l2_subdev_frame_size_enum fse = {
 		.code = isi_fmt->mbus_code,
 		.which = V4L2_SUBDEV_FORMAT_TRY,
 	};
+	int ret;
 
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, enum_frame_size,
 			       sd_state, &fse);
@@ -572,11 +574,11 @@ static void isi_try_fse(struct atmel_isi *isi, const struct isi_format *isi_fmt,
 	 * just use the maximum ISI can receive.
 	 */
 	if (ret) {
-		sd_state->pads->try_crop.width = MAX_SUPPORT_WIDTH;
-		sd_state->pads->try_crop.height = MAX_SUPPORT_HEIGHT;
+		try_crop->width = MAX_SUPPORT_WIDTH;
+		try_crop->height = MAX_SUPPORT_HEIGHT;
 	} else {
-		sd_state->pads->try_crop.width = fse.max_width;
-		sd_state->pads->try_crop.height = fse.max_height;
+		try_crop->width = fse.max_width;
+		try_crop->height = fse.max_height;
 	}
 }
 
@@ -587,6 +589,7 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	struct v4l2_pix_format *pixfmt = &f->fmt.pix;
 	struct v4l2_subdev_pad_config pad_cfg = {};
 	struct v4l2_subdev_state pad_state = {
+		.sd = isi->entity.subdev,
 		.pads = &pad_cfg,
 	};
 	struct v4l2_subdev_format format = {
@@ -1242,7 +1245,7 @@ static int atmel_isi_probe(struct platform_device *pdev)
 	q->ops = &isi_video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed = 2;
+	q->min_queued_buffers = 2;
 	q->dev = &pdev->dev;
 
 	ret = vb2_queue_init(q);

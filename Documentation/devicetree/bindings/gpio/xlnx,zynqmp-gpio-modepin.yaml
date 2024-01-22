@@ -23,6 +23,8 @@ properties:
   "#gpio-cells":
     const: 2
 
+  label: true
+
 required:
   - compatible
   - gpio-controller
@@ -37,6 +39,7 @@ examples:
             compatible = "xlnx,zynqmp-gpio-modepin";
             gpio-controller;
             #gpio-cells = <2>;
+            label = "modepin";
         };
     };
 

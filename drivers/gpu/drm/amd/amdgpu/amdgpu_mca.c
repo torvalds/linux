@@ -218,6 +218,7 @@ static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, st
 int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type, struct ras_err_data *err_data)
 {
 	struct amdgpu_smuio_mcm_config_info mcm_info;
+	struct ras_err_addr err_addr = {0};
 	struct mca_bank_set mca_set;
 	struct mca_bank_node *node;
 	struct mca_bank_entry *entry;
@@ -246,10 +247,18 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 		mcm_info.socket_id = entry->info.socket_id;
 		mcm_info.die_id = entry->info.aid;
 
+		if (blk == AMDGPU_RAS_BLOCK__UMC) {
+			err_addr.err_status = entry->regs[MCA_REG_IDX_STATUS];
+			err_addr.err_ipid = entry->regs[MCA_REG_IDX_IPID];
+			err_addr.err_addr = entry->regs[MCA_REG_IDX_ADDR];
+		}
+
 		if (type == AMDGPU_MCA_ERROR_TYPE_UE)
-			amdgpu_ras_error_statistic_ue_count(err_data, &mcm_info, (uint64_t)count);
+			amdgpu_ras_error_statistic_ue_count(err_data,
+				&mcm_info, &err_addr, (uint64_t)count);
 		else
-			amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, (uint64_t)count);
+			amdgpu_ras_error_statistic_ce_count(err_data,
+				&mcm_info, &err_addr, (uint64_t)count);
 	}
 
 out_mca_release:
@@ -351,6 +360,9 @@ int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_err
 	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
 	int count;
 
+	if (!mca_funcs || !mca_funcs->mca_get_mca_entry)
+		return -EOPNOTSUPP;
+
 	switch (type) {
 	case AMDGPU_MCA_ERROR_TYPE_UE:
 		count = mca_funcs->max_ue_count;
@@ -365,10 +377,7 @@ int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_err
 	if (idx >= count)
 		return -EINVAL;
 
-	if (mca_funcs && mca_funcs->mca_get_mca_entry)
-		return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
-
-	return -EOPNOTSUPP;
+	return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
 }
 
 #if defined(CONFIG_DEBUG_FS)
@@ -377,7 +386,7 @@ static int amdgpu_mca_smu_debug_mode_set(void *data, u64 val)
 	struct amdgpu_device *adev = (struct amdgpu_device *)data;
 	int ret;
 
-	ret = amdgpu_mca_smu_set_debug_mode(adev, val ? true : false);
+	ret = amdgpu_ras_set_mca_debug_mode(adev, val ? true : false);
 	if (ret)
 		return ret;
 
@@ -485,7 +494,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(mca_debug_mode_fops, NULL, amdgpu_mca_smu_debug_mode_se
 void amdgpu_mca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (!root || adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 6))
+	if (!root || amdgpu_ip_version(adev, MP1_HWIP, 0) != IP_VERSION(13, 0, 6))
 		return;
 
 	debugfs_create_file("mca_debug_mode", 0200, root, adev, &mca_debug_mode_fops);

@@ -57,7 +57,7 @@ static s64 cal_camerarx_get_ext_link_freq(struct cal_camerarx *phy)
 
 	state = v4l2_subdev_get_locked_active_state(&phy->subdev);
 
-	fmt = v4l2_subdev_get_pad_format(&phy->subdev, state, CAL_CAMERARX_PAD_SINK);
+	fmt = v4l2_subdev_state_get_format(state, CAL_CAMERARX_PAD_SINK);
 
 	fmtinfo = cal_format_by_code(fmt->code);
 	if (!fmtinfo)
@@ -621,8 +621,6 @@ static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
 					  struct v4l2_subdev_state *state,
 					  struct v4l2_subdev_mbus_code_enum *code)
 {
-	struct cal_camerarx *phy = to_cal_camerarx(sd);
-
 	/* No transcoding, source and sink codes must match. */
 	if (cal_rx_pad_is_source(code->pad)) {
 		struct v4l2_mbus_framefmt *fmt;
@@ -630,8 +628,8 @@ static int cal_camerarx_sd_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		fmt = v4l2_subdev_get_pad_format(&phy->subdev, state,
-						 CAL_CAMERARX_PAD_SINK);
+		fmt = v4l2_subdev_state_get_format(state,
+						   CAL_CAMERARX_PAD_SINK);
 		code->code = fmt->code;
 	} else {
 		if (code->index >= cal_num_formats)
@@ -656,8 +654,8 @@ static int cal_camerarx_sd_enum_frame_size(struct v4l2_subdev *sd,
 	if (cal_rx_pad_is_source(fse->pad)) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_pad_format(sd, state,
-						 CAL_CAMERARX_PAD_SINK);
+		fmt = v4l2_subdev_state_get_format(state,
+						   CAL_CAMERARX_PAD_SINK);
 		if (fse->code != fmt->code)
 			return -EINVAL;
 
@@ -713,18 +711,18 @@ static int cal_camerarx_sd_set_fmt(struct v4l2_subdev *sd,
 
 	/* Store the format and propagate it to the source pad. */
 
-	fmt = v4l2_subdev_get_pad_format(sd, state, CAL_CAMERARX_PAD_SINK);
+	fmt = v4l2_subdev_state_get_format(state, CAL_CAMERARX_PAD_SINK);
 	*fmt = format->format;
 
-	fmt = v4l2_subdev_get_pad_format(sd, state,
-					 CAL_CAMERARX_PAD_FIRST_SOURCE);
+	fmt = v4l2_subdev_state_get_format(state,
+					   CAL_CAMERARX_PAD_FIRST_SOURCE);
 	*fmt = format->format;
 
 	return 0;
 }
 
-static int cal_camerarx_sd_init_cfg(struct v4l2_subdev *sd,
-				    struct v4l2_subdev_state *state)
+static int cal_camerarx_sd_init_state(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_format format = {
 		.which = state ? V4L2_SUBDEV_FORMAT_TRY
@@ -784,7 +782,6 @@ static const struct v4l2_subdev_video_ops cal_camerarx_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops cal_camerarx_pad_ops = {
-	.init_cfg = cal_camerarx_sd_init_cfg,
 	.enum_mbus_code = cal_camerarx_sd_enum_mbus_code,
 	.enum_frame_size = cal_camerarx_sd_enum_frame_size,
 	.get_fmt = v4l2_subdev_get_fmt,
@@ -795,6 +792,10 @@ static const struct v4l2_subdev_pad_ops cal_camerarx_pad_ops = {
 static const struct v4l2_subdev_ops cal_camerarx_subdev_ops = {
 	.video = &cal_camerarx_video_ops,
 	.pad = &cal_camerarx_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops cal_camerarx_internal_ops = {
+	.init_state = cal_camerarx_sd_init_state,
 };
 
 static struct media_entity_operations cal_camerarx_media_ops = {
@@ -848,6 +849,7 @@ struct cal_camerarx *cal_camerarx_create(struct cal_dev *cal,
 	/* Initialize the V4L2 subdev and media entity. */
 	sd = &phy->subdev;
 	v4l2_subdev_init(sd, &cal_camerarx_subdev_ops);
+	sd->internal_ops = &cal_camerarx_internal_ops;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;
 	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, sizeof(sd->name), "CAMERARX%u", instance);

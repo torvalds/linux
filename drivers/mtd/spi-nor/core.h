@@ -85,9 +85,9 @@
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
-#define SPI_NOR_CHIP_ERASE_OP						\
-	SPI_MEM_OP(SPI_MEM_OP_CMD(SPINOR_OP_CHIP_ERASE, 0),		\
-		   SPI_MEM_OP_NO_ADDR,					\
+#define SPI_NOR_DIE_ERASE_OP(opcode, addr_nbytes, addr, dice)		\
+	SPI_MEM_OP(SPI_MEM_OP_CMD(opcode, 0),				\
+		   SPI_MEM_OP_ADDR(dice ? addr_nbytes : 0, addr, 0),	\
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
@@ -293,9 +293,9 @@ struct spi_nor_erase_map {
  * @is_locked:	check if a region of the SPI NOR is completely locked
  */
 struct spi_nor_locking_ops {
-	int (*lock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
-	int (*unlock)(struct spi_nor *nor, loff_t ofs, uint64_t len);
-	int (*is_locked)(struct spi_nor *nor, loff_t ofs, uint64_t len);
+	int (*lock)(struct spi_nor *nor, loff_t ofs, u64 len);
+	int (*unlock)(struct spi_nor *nor, loff_t ofs, u64 len);
+	int (*is_locked)(struct spi_nor *nor, loff_t ofs, u64 len);
 };
 
 /**
@@ -362,6 +362,7 @@ struct spi_nor_otp {
  *			command in octal DTR mode.
  * @n_banks:		number of banks.
  * @n_dice:		number of dice in the flash memory.
+ * @die_erase_opcode:	die erase opcode. Defaults to SPINOR_OP_CHIP_ERASE.
  * @vreg_offset:	volatile register offset for each die.
  * @hwcaps:		describes the read and page program hardware
  *			capabilities.
@@ -399,6 +400,7 @@ struct spi_nor_flash_parameter {
 	u8				rdsr_addr_nbytes;
 	u8				n_banks;
 	u8				n_dice;
+	u8				die_erase_opcode;
 	u32				*vreg_offset;
 
 	struct spi_nor_hwcaps		hwcaps;
@@ -463,7 +465,7 @@ struct spi_nor_id {
  * struct flash_info - SPI NOR flash_info entry.
  * @id:   pointer to struct spi_nor_id or NULL, which means "no ID" (mostly
  *        older chips).
- * @name: the name of the flash.
+ * @name: (obsolete) the name of the flash. Do not set it for new additions.
  * @size:           the size of the flash in bytes.
  * @sector_size:    (optional) the size listed here is what works with
  *                  SPINOR_OP_SE, which isn't necessarily called a "sector" by
@@ -487,7 +489,6 @@ struct spi_nor_id {
  *                            Usually these will power-up in a write-protected
  *                            state.
  *   SPI_NOR_NO_ERASE:        no erase command needed.
- *   NO_CHIP_ERASE:           chip does not support chip erase.
  *   SPI_NOR_NO_FR:           can't do fastread.
  *   SPI_NOR_QUAD_PP:         flash supports Quad Input Page Program.
  *   SPI_NOR_RWW:             flash supports reads while write.
@@ -537,10 +538,9 @@ struct flash_info {
 #define SPI_NOR_BP3_SR_BIT6		BIT(4)
 #define SPI_NOR_SWP_IS_VOLATILE		BIT(5)
 #define SPI_NOR_NO_ERASE		BIT(6)
-#define NO_CHIP_ERASE			BIT(7)
-#define SPI_NOR_NO_FR			BIT(8)
-#define SPI_NOR_QUAD_PP			BIT(9)
-#define SPI_NOR_RWW			BIT(10)
+#define SPI_NOR_NO_FR			BIT(7)
+#define SPI_NOR_QUAD_PP			BIT(8)
+#define SPI_NOR_RWW			BIT(9)
 
 	u8 no_sfdp_flags;
 #define SPI_NOR_SKIP_SFDP		BIT(0)

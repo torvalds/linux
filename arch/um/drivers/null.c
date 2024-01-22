@@ -28,7 +28,7 @@ static int null_open(int input, int output, int primary, void *d,
 	return (fd < 0) ? -errno : fd;
 }
 
-static int null_read(int fd, char *c_out, void *unused)
+static int null_read(int fd, __u8 *c_out, void *unused)
 {
 	return -ENODEV;
 }

@@ -242,7 +242,7 @@ static int __net_init ip6mr_rules_init(struct net *net)
 		goto err1;
 	}
 
-	err = fib_default_rule_add(ops, 0x7fff, RT6_TABLE_DFLT, 0);
+	err = fib_default_rule_add(ops, 0x7fff, RT6_TABLE_DFLT);
 	if (err < 0)
 		goto err2;
 

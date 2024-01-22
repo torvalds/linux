@@ -184,19 +184,17 @@ err:
 	return -ENXIO;
 }
 
-static int octeon_l2c_remove(struct platform_device *pdev)
+static void octeon_l2c_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *l2c = platform_get_drvdata(pdev);
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(l2c);
-
-	return 0;
 }
 
 static struct platform_driver octeon_l2c_driver = {
 	.probe = octeon_l2c_probe,
-	.remove = octeon_l2c_remove,
+	.remove_new = octeon_l2c_remove,
 	.driver = {
 		   .name = "octeon_l2c_edac",
 	}

@@ -35,6 +35,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 
 #include "i915_drv.h"
 #include "i915_reg.h"
@@ -1787,16 +1788,27 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 	intel_sdvo_get_eld(intel_sdvo, pipe_config);
 }
 
-static void intel_sdvo_disable_audio(struct intel_sdvo *intel_sdvo)
+static void intel_sdvo_disable_audio(struct intel_encoder *encoder,
+				     const struct intel_crtc_state *old_crtc_state,
+				     const struct drm_connector_state *old_conn_state)
 {
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
+
+	if (!old_crtc_state->has_audio)
+		return;
+
 	intel_sdvo_set_audio_state(intel_sdvo, 0);
 }
 
-static void intel_sdvo_enable_audio(struct intel_sdvo *intel_sdvo,
+static void intel_sdvo_enable_audio(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state,
 				    const struct drm_connector_state *conn_state)
 {
+	struct intel_sdvo *intel_sdvo = to_sdvo(encoder);
 	const u8 *eld = crtc_state->eld;
+
+	if (!crtc_state->has_audio)
+		return;
 
 	intel_sdvo_set_audio_state(intel_sdvo, 0);
 
@@ -1818,8 +1830,7 @@ static void intel_disable_sdvo(struct intel_atomic_state *state,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	u32 temp;
 
-	if (old_crtc_state->has_audio)
-		intel_sdvo_disable_audio(intel_sdvo);
+	encoder->audio_disable(encoder, old_crtc_state, conn_state);
 
 	intel_sdvo_set_active_outputs(intel_sdvo, 0);
 	if (0)
@@ -1913,20 +1924,25 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 						   DRM_MODE_DPMS_ON);
 	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo_connector->output_flag);
 
-	if (pipe_config->has_audio)
-		intel_sdvo_enable_audio(intel_sdvo, pipe_config, conn_state);
+	encoder->audio_enable(encoder, pipe_config, conn_state);
 }
 
 static enum drm_mode_status
 intel_sdvo_mode_valid(struct drm_connector *connector,
 		      struct drm_display_mode *mode)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(to_intel_connector(connector));
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(connector);
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 	bool has_hdmi_sink = intel_has_hdmi_sink(intel_sdvo_connector, connector->state);
+	int max_dotclk = i915->max_dotclk_freq;
+	enum drm_mode_status status;
 	int clock = mode->clock;
+
+	status = intel_cpu_transcoder_mode_valid(i915, mode);
+	if (status != MODE_OK)
+		return status;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
@@ -3311,7 +3327,6 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo_ddc *ddc,
 	ddc->ddc_bus = ddc_bus;
 
 	ddc->ddc.owner = THIS_MODULE;
-	ddc->ddc.class = I2C_CLASS_DDC;
 	snprintf(ddc->ddc.name, I2C_NAME_SIZE, "SDVO %c DDC%d",
 		 port_name(sdvo->base.port), ddc_bus);
 	ddc->ddc.dev.parent = &pdev->dev;
@@ -3390,6 +3405,8 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 	}
 	intel_encoder->pre_enable = intel_sdvo_pre_enable;
 	intel_encoder->enable = intel_enable_sdvo;
+	intel_encoder->audio_enable = intel_sdvo_enable_audio;
+	intel_encoder->audio_disable = intel_sdvo_disable_audio;
 	intel_encoder->get_hw_state = intel_sdvo_get_hw_state;
 	intel_encoder->get_config = intel_sdvo_get_config;
 

@@ -352,7 +352,7 @@ static int da7280_haptic_set_pwm(struct da7280_haptic *haptics, bool enabled)
 		state.duty_cycle = period_mag_multi;
 	}
 
-	error = pwm_apply_state(haptics->pwm_dev, &state);
+	error = pwm_apply_might_sleep(haptics->pwm_dev, &state);
 	if (error)
 		dev_err(haptics->dev, "Failed to apply pwm state: %d\n", error);
 
@@ -1175,7 +1175,7 @@ static int da7280_probe(struct i2c_client *client)
 		/* Sync up PWM state and ensure it is off. */
 		pwm_init_state(haptics->pwm_dev, &state);
 		state.enabled = false;
-		error = pwm_apply_state(haptics->pwm_dev, &state);
+		error = pwm_apply_might_sleep(haptics->pwm_dev, &state);
 		if (error) {
 			dev_err(dev, "Failed to apply PWM state: %d\n", error);
 			return error;

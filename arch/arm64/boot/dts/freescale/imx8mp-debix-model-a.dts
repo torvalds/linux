@@ -75,7 +75,7 @@
 &eqos {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
-	phy-connection-type = "rgmii-id";
+	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
 	status = "okay";
 

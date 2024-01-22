@@ -22,21 +22,6 @@ struct dpu_hw_sspp;
 #define DPU_SSPP_SOLID_FILL		BIT(4)
 
 /**
- * Define all scaler feature bits in catalog
- */
-#define DPU_SSPP_SCALER (BIT(DPU_SSPP_SCALER_RGB) | \
-			 BIT(DPU_SSPP_SCALER_QSEED2) | \
-			 BIT(DPU_SSPP_SCALER_QSEED3) | \
-			 BIT(DPU_SSPP_SCALER_QSEED3LITE) | \
-			 BIT(DPU_SSPP_SCALER_QSEED4))
-
-/*
- * Define all CSC feature bits in catalog
- */
-#define DPU_SSPP_CSC_ANY (BIT(DPU_SSPP_CSC) | \
-			  BIT(DPU_SSPP_CSC_10BIT))
-
-/**
  * Component indices
  */
 enum {
@@ -297,12 +282,6 @@ struct dpu_hw_sspp_ops {
 		const struct dpu_format *format);
 
 	/**
-	 * get_scaler_ver - get scaler h/w version
-	 * @ctx: Pointer to pipe context
-	 */
-	u32 (*get_scaler_ver)(struct dpu_hw_sspp *ctx);
-
-	/**
 	 * setup_cdp - setup client driven prefetch
 	 * @pipe: Pointer to software pipe context
 	 * @fmt: format used by the sw pipe
@@ -339,21 +318,17 @@ struct dpu_kms;
 /**
  * dpu_hw_sspp_init() - Initializes the sspp hw driver object.
  * Should be called once before accessing every pipe.
+ * @dev:  Corresponding device for devres management
  * @cfg:  Pipe catalog entry for which driver object is required
  * @addr: Mapped register io address of MDP
  * @mdss_data: UBWC / MDSS configuration data
  * @mdss_rev: dpu core's major and minor versions
  */
-struct dpu_hw_sspp *dpu_hw_sspp_init(const struct dpu_sspp_cfg *cfg,
-		void __iomem *addr, const struct msm_mdss_data *mdss_data,
-		const struct dpu_mdss_version *mdss_rev);
-
-/**
- * dpu_hw_sspp_destroy(): Destroys SSPP driver context
- * should be called during Hw pipe cleanup.
- * @ctx:  Pointer to SSPP driver context returned by dpu_hw_sspp_init
- */
-void dpu_hw_sspp_destroy(struct dpu_hw_sspp *ctx);
+struct dpu_hw_sspp *dpu_hw_sspp_init(struct drm_device *dev,
+				     const struct dpu_sspp_cfg *cfg,
+				     void __iomem *addr,
+				     const struct msm_mdss_data *mdss_data,
+				     const struct dpu_mdss_version *mdss_rev);
 
 int _dpu_hw_sspp_init_debugfs(struct dpu_hw_sspp *hw_pipe, struct dpu_kms *kms,
 			      struct dentry *entry);

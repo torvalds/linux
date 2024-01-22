@@ -144,7 +144,7 @@ void __noreturn hv_ghcb_terminate(unsigned int set, unsigned int reason)
 	/* Tell the hypervisor what went wrong. */
 	val |= GHCB_SEV_TERM_REASON(set, reason);
 
-	/* Request Guest Termination from Hypvervisor */
+	/* Request Guest Termination from Hypervisor */
 	wr_ghcb_msr(val);
 	VMGEXIT();
 

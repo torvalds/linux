@@ -12,6 +12,8 @@
 
 #include <linux/efi.h>
 #include <linux/gpio/machine.h>
+#include <linux/mfd/arizona/pdata.h>
+#include <linux/mfd/arizona/registers.h>
 #include <linux/mfd/intel_soc_pmic.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/machine.h>
@@ -32,9 +34,27 @@
  *
  * To avoid having to have a similar hack in the mainline kernel program the
  * LP8557 to directly set the level and use the lp855x_bl driver for control.
+ *
+ * The LP8557 can either be configured to multiply its PWM input and
+ * the I2C register set level (requiring both to be at 100% for 100% output);
+ * or to only take the I2C register set level into account.
+ *
+ * Multiplying the 2 levels is useful because this will turn off the backlight
+ * when the panel goes off and turns off its PWM output.
+ *
+ * But on some models the panel's PWM output defaults to a duty-cycle of
+ * much less then 100%, severely limiting max brightness. In this case
+ * the LP8557 should be configured to only take the I2C register into
+ * account and the i915 driver must turn off the panel and the backlight
+ * separately using e.g. VBT MIPI sequences to turn off the backlight.
  */
-static struct lp855x_platform_data lenovo_lp8557_pdata = {
+static struct lp855x_platform_data lenovo_lp8557_pwm_and_reg_pdata = {
 	.device_control = 0x86,
+	.initial_brightness = 128,
+};
+
+static struct lp855x_platform_data lenovo_lp8557_reg_only_pdata = {
+	.device_control = 0x85,
 	.initial_brightness = 128,
 };
 
@@ -120,7 +140,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pdata,
+			.platform_data = &lenovo_lp8557_pwm_and_reg_pdata,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C4",
 	}, {
@@ -356,7 +376,7 @@ static struct x86_i2c_client_info lenovo_yoga_tab2_830_1050_i2c_clients[] __init
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pdata,
+			.platform_data = &lenovo_lp8557_pwm_and_reg_pdata,
 		},
 		.adapter_path = "\\_SB_.I2C3",
 	},
@@ -653,9 +673,91 @@ static const struct x86_i2c_client_info lenovo_yt3_i2c_clients[] __initconst = {
 			.type = "lp8557",
 			.addr = 0x2c,
 			.dev_name = "lp8557",
-			.platform_data = &lenovo_lp8557_pdata,
+			.platform_data = &lenovo_lp8557_reg_only_pdata,
 		},
 		.adapter_path = "\\_SB_.PCI0.I2C1",
+	}
+};
+
+/*
+ * The AOSP 3.5 mm Headset: Accessory Specification gives the following values:
+ * Function A Play/Pause:           0 ohm
+ * Function D Voice assistant:    135 ohm
+ * Function B Volume Up           240 ohm
+ * Function C Volume Down         470 ohm
+ * Minimum Mic DC resistance     1000 ohm
+ * Minimum Ear speaker impedance   16 ohm
+ * Note the first max value below must be less then the min. speaker impedance,
+ * to allow CTIA/OMTP detection to work. The other max values are the closest
+ * value from extcon-arizona.c:arizona_micd_levels halfway 2 button resistances.
+ */
+static const struct arizona_micd_range arizona_micd_aosp_ranges[] = {
+	{ .max =  11, .key = KEY_PLAYPAUSE },
+	{ .max = 186, .key = KEY_VOICECOMMAND },
+	{ .max = 348, .key = KEY_VOLUMEUP },
+	{ .max = 752, .key = KEY_VOLUMEDOWN },
+};
+
+/* YT3 WM5102 arizona_micd_config comes from Android kernel sources */
+static struct arizona_micd_config lenovo_yt3_wm5102_micd_config[] = {
+	{ 0, 1, 0 },
+	{ ARIZONA_ACCDET_SRC, 2, 1 },
+};
+
+static struct arizona_pdata lenovo_yt3_wm5102_pdata = {
+	.irq_flags = IRQF_TRIGGER_LOW,
+	.micd_detect_debounce = 200,
+	.micd_ranges = arizona_micd_aosp_ranges,
+	.num_micd_ranges = ARRAY_SIZE(arizona_micd_aosp_ranges),
+	.hpdet_channel = ARIZONA_ACCDET_MODE_HPL,
+
+	/* Below settings come from Android kernel sources */
+	.micd_bias_start_time = 1,
+	.micd_rate = 6,
+	.micd_configs = lenovo_yt3_wm5102_micd_config,
+	.num_micd_configs = ARRAY_SIZE(lenovo_yt3_wm5102_micd_config),
+	.micbias = {
+		[0] = { /* MICBIAS1 */
+			.mV = 2800,
+			.ext_cap = 1,
+			.discharge = 1,
+			.soft_start = 0,
+			.bypass = 0,
+		},
+		[1] = { /* MICBIAS2 */
+			.mV = 2800,
+			.ext_cap = 1,
+			.discharge = 1,
+			.soft_start = 0,
+			.bypass = 0,
+		},
+		[2] = { /* MICBIAS2 */
+			.mV = 2800,
+			.ext_cap = 1,
+			.discharge = 1,
+			.soft_start = 0,
+			.bypass = 0,
+		},
+	},
+};
+
+static const struct x86_spi_dev_info lenovo_yt3_spi_devs[] __initconst = {
+	{
+		/* WM5102 codec */
+		.board_info = {
+			.modalias = "wm5102",
+			.platform_data = &lenovo_yt3_wm5102_pdata,
+			.max_speed_hz = 5000000,
+		},
+		.ctrl_path = "\\_SB_.PCI0.SPI1",
+		.irq_data = {
+			.type = X86_ACPI_IRQ_TYPE_GPIOINT,
+			.chip = "INT33FF:00",
+			.index = 91,
+			.trigger = ACPI_LEVEL_SENSITIVE,
+			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "wm5102_irq",
+		},
 	}
 };
 
@@ -702,14 +804,28 @@ static struct gpiod_lookup_table lenovo_yt3_hideep_gpios = {
 	},
 };
 
+static struct gpiod_lookup_table lenovo_yt3_wm5102_gpios = {
+	.dev_id = "spi1.0",
+	.table = {
+		GPIO_LOOKUP("INT33FF:00", 75, "wlf,spkvdd-ena", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FF:00", 81, "wlf,ldoena", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("INT33FF:00", 82, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("arizona", 2, "wlf,micd-pol", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static struct gpiod_lookup_table * const lenovo_yt3_gpios[] = {
 	&lenovo_yt3_hideep_gpios,
+	&lenovo_yt3_wm5102_gpios,
 	NULL
 };
 
 const struct x86_dev_info lenovo_yt3_info __initconst = {
 	.i2c_client_info = lenovo_yt3_i2c_clients,
 	.i2c_client_count = ARRAY_SIZE(lenovo_yt3_i2c_clients),
+	.spi_dev_info = lenovo_yt3_spi_devs,
+	.spi_dev_count = ARRAY_SIZE(lenovo_yt3_spi_devs),
 	.gpiod_lookup_tables = lenovo_yt3_gpios,
 	.init = lenovo_yt3_init,
 };

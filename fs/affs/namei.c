@@ -532,9 +532,6 @@ static struct dentry *affs_get_parent(struct dentry *child)
 	parent = affs_iget(child->d_sb,
 			   be32_to_cpu(AFFS_TAIL(child->d_sb, bh)->parent));
 	brelse(bh);
-	if (IS_ERR(parent))
-		return ERR_CAST(parent);
-
 	return d_obtain_alias(parent);
 }
 

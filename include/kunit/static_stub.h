@@ -93,7 +93,7 @@ void __kunit_activate_static_stub(struct kunit *test,
  * The redirection can be disabled again with kunit_deactivate_static_stub().
  */
 #define kunit_activate_static_stub(test, real_fn_addr, replacement_addr) do {	\
-	typecheck_fn(typeof(&real_fn_addr), replacement_addr);			\
+	typecheck_fn(typeof(&replacement_addr), real_fn_addr);			\
 	__kunit_activate_static_stub(test, real_fn_addr, replacement_addr);	\
 } while (0)
 

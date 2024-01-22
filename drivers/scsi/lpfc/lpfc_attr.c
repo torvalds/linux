@@ -5905,11 +5905,11 @@ LPFC_ATTR_RW(ras_fwlog_level, 0, 0, 4, "Firmware Logging Level");
 /*
  * lpfc_ras_fwlog_func: Firmware logging enabled on function number
  * Default function which has RAS support : 0
- * Value Range is [0..7].
+ * Value Range is [0..3].
  * FW logging is a global action and enablement is via a specific
  * port.
  */
-LPFC_ATTR_RW(ras_fwlog_func, 0, 0, 7, "Firmware Logging Enabled on Function");
+LPFC_ATTR_RW(ras_fwlog_func, 0, 0, 3, "Firmware Logging Enabled on Function");
 
 /*
  * lpfc_enable_bbcr: Enable BB Credit Recovery
@@ -5954,7 +5954,7 @@ LPFC_ATTR_R(enable_mi, 1, 0, 1, "Enable MI");
  *       4 - 255  = vmid support enabled for 4-255 VMs
  *       Value range is [4,255].
  */
-LPFC_ATTR_RW(max_vmid, LPFC_MIN_VMID, LPFC_MIN_VMID, LPFC_MAX_VMID,
+LPFC_ATTR_R(max_vmid, LPFC_MIN_VMID, LPFC_MIN_VMID, LPFC_MAX_VMID,
 	     "Maximum number of VMs supported");
 
 /*
@@ -5962,7 +5962,7 @@ LPFC_ATTR_RW(max_vmid, LPFC_MIN_VMID, LPFC_MIN_VMID, LPFC_MAX_VMID,
  *       0  = Timeout is disabled
  * Value range is [0,24].
  */
-LPFC_ATTR_RW(vmid_inactivity_timeout, 4, 0, 24,
+LPFC_ATTR_R(vmid_inactivity_timeout, 4, 0, 24,
 	     "Inactivity timeout in hours");
 
 /*
@@ -5971,7 +5971,7 @@ LPFC_ATTR_RW(vmid_inactivity_timeout, 4, 0, 24,
  *       1  = Support is enabled
  * Value range is [0,1].
  */
-LPFC_ATTR_RW(vmid_app_header, LPFC_VMID_APP_HEADER_DISABLE,
+LPFC_ATTR_R(vmid_app_header, LPFC_VMID_APP_HEADER_DISABLE,
 	     LPFC_VMID_APP_HEADER_DISABLE, LPFC_VMID_APP_HEADER_ENABLE,
 	     "Enable App Header VMID support");
 
@@ -5982,7 +5982,7 @@ LPFC_ATTR_RW(vmid_app_header, LPFC_VMID_APP_HEADER_DISABLE,
  *       2  = Allow all targets
  * Value range is [0,2].
  */
-LPFC_ATTR_RW(vmid_priority_tagging, LPFC_VMID_PRIO_TAG_DISABLE,
+LPFC_ATTR_R(vmid_priority_tagging, LPFC_VMID_PRIO_TAG_DISABLE,
 	     LPFC_VMID_PRIO_TAG_DISABLE,
 	     LPFC_VMID_PRIO_TAG_ALL_TARGETS,
 	     "Enable Priority Tagging VMID support");

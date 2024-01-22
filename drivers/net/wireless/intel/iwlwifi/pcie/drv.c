@@ -1121,9 +1121,8 @@ static const struct iwl_dev_info iwl_dev_info_table[] = {
 /*
  * Read rf id and cdb info from prph register and store it
  */
-static int get_crf_id(struct iwl_trans *iwl_trans)
+static void get_crf_id(struct iwl_trans *iwl_trans)
 {
-	int ret = 0;
 	u32 sd_reg_ver_addr;
 	u32 val = 0;
 
@@ -1150,8 +1149,6 @@ static int get_crf_id(struct iwl_trans *iwl_trans)
 	IWL_INFO(iwl_trans, "Detected crf-id 0x%x, cnv-id 0x%x wfpm id 0x%x\n",
 		 iwl_trans->hw_crf_id, iwl_trans->hw_cnv_id,
 		 iwl_trans->hw_wfpm_id);
-
-	return ret;
 }
 
 /*

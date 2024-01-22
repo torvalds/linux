@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright 2022 DimOnOff
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/usb/pd.h>
+#include "imx8mn-var-som-symphony.dts"
+
+/ {
+	model = "DimOnOff Gateway EVK board";
+	compatible = "dimonoff,gateway-evk", "variscite,var-som-mx8mn",
+		     "fsl,imx8mn";
+
+	/*
+	 * U30 FPF2193 regulator.
+	 * Source = BASE_PER_3V3 = SOM_3V3 (COM pin 49).
+	 */
+	reg_disp_3v3: regulator-disp-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "Display 3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		key-enter {
+			label = "enter";
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_ENTER>;
+			wakeup-source;
+		};
+	};
+
+	/* Bourns PEC12R rotary encoder, 24 steps. */
+	rotary: rotary-encoder {
+		compatible = "rotary-encoder";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rotary>;
+		gpios = <&gpio5 12 GPIO_ACTIVE_LOW>, /* A */
+			<&gpio5 13 GPIO_ACTIVE_LOW>; /* B */
+		linux,axis = <0>; /* REL_X */
+		rotary-encoder,encoding = "gray";
+		rotary-encoder,relative-axis;
+	};
+};
+
+/* Disable Asynchronous Sample Rate Converter (audio) */
+&easrc {
+	status = "disabled";
+};
+
+&ecspi1 {
+	/* Resistive touch controller */
+	/delete-node/ touchscreen@0;
+};
+
+&gpu {
+	status = "disabled";
+};
+
+&i2c2 {
+	adc@48 {
+		compatible = "ti,ads7924";
+		reg = <0x48>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_adc>;
+		vref-supply = <&reg_disp_3v3>;
+		reset-gpios = <&gpio5 5 GPIO_ACTIVE_LOW>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@0 {
+			reg = <0>;
+			label = "Pot0";
+		};
+		channel@1 {
+			reg = <1>;
+			label = "Pot1";
+		};
+		channel@2 {
+			reg = <2>;
+			label = "Pot2";
+		};
+		channel@3 {
+			reg = <3>;
+			label = "Pot3";
+		};
+	};
+
+	rtc@51 {
+		compatible = "nxp,pcf2129";
+		reg = <0x51>;
+		reset-source; /* For watchdog. */
+	};
+
+	rtc@53 {
+		compatible = "nxp,pcf2131";
+		reg = <0x53>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_rtc>;
+		reset-source; /* For watchdog. */
+		interrupt-parent = <&gpio5>;
+		interrupts = <10 IRQ_TYPE_EDGE_FALLING>; /* J17.6 on EVK */
+	};
+};
+
+&i2c3 {
+	touchscreen@38 {
+		status = "disabled";
+	};
+
+	codec@1a {
+		status = "disabled";
+	};
+
+	/* DS1337 RTC module */
+	rtc@68 {
+		status = "disabled";
+	};
+};
+
+&sai5 {
+	status = "disabled";
+};
+
+&iomuxc {
+	pinctrl_gpio_keys: gpiokeysgrp {
+		fsl,pins = <
+			MX8MN_IOMUXC_GPIO1_IO08_GPIO1_IO8	0xc6
+		>;
+	};
+
+	pinctrl_rotary: rotarygrp {
+		fsl,pins = <
+			MX8MN_IOMUXC_ECSPI2_MISO_GPIO5_IO12	0x00000156
+			MX8MN_IOMUXC_ECSPI2_SS0_GPIO5_IO13	0x00000156
+		>;
+	};
+
+	pinctrl_adc: adcgrp {
+		fsl,pins = <
+			MX8MN_IOMUXC_SPDIF_EXT_CLK_GPIO5_IO5	0x00000156
+		>;
+	};
+
+	pinctrl_rtc: rtcgrp {
+		fsl,pins = <
+			MX8MN_IOMUXC_ECSPI2_SCLK_GPIO5_IO10	0x00000156
+			MX8MN_IOMUXC_ECSPI2_MOSI_GPIO5_IO11	0x00000156
+		>;
+	};
+};

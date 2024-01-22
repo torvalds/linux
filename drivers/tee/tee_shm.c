@@ -22,23 +22,12 @@ static void shm_put_kernel_pages(struct page **pages, size_t page_count)
 		put_page(pages[n]);
 }
 
-static int shm_get_kernel_pages(unsigned long start, size_t page_count,
-				struct page **pages)
+static void shm_get_kernel_pages(struct page **pages, size_t page_count)
 {
-	struct page *page;
 	size_t n;
 
-	if (WARN_ON_ONCE(is_vmalloc_addr((void *)start) ||
-			 is_kmap_addr((void *)start)))
-		return -EINVAL;
-
-	page = virt_to_page((void *)start);
-	for (n = 0; n < page_count; n++) {
-		pages[n] = page + n;
+	for (n = 0; n < page_count; n++)
 		get_page(pages[n]);
-	}
-
-	return page_count;
 }
 
 static void release_registered_pages(struct tee_shm *shm)
@@ -214,13 +203,14 @@ struct tee_shm *tee_shm_alloc_priv_buf(struct tee_context *ctx, size_t size)
 EXPORT_SYMBOL_GPL(tee_shm_alloc_priv_buf);
 
 static struct tee_shm *
-register_shm_helper(struct tee_context *ctx, unsigned long addr,
-		    size_t length, u32 flags, int id)
+register_shm_helper(struct tee_context *ctx, struct iov_iter *iter, u32 flags,
+		    int id)
 {
 	struct tee_device *teedev = ctx->teedev;
 	struct tee_shm *shm;
-	unsigned long start;
-	size_t num_pages;
+	unsigned long start, addr;
+	size_t num_pages, off;
+	ssize_t len;
 	void *ret;
 	int rc;
 
@@ -245,30 +235,37 @@ register_shm_helper(struct tee_context *ctx, unsigned long addr,
 	shm->flags = flags;
 	shm->ctx = ctx;
 	shm->id = id;
-	addr = untagged_addr(addr);
+	addr = untagged_addr((unsigned long)iter_iov_addr(iter));
 	start = rounddown(addr, PAGE_SIZE);
-	shm->offset = addr - start;
-	shm->size = length;
-	num_pages = (roundup(addr + length, PAGE_SIZE) - start) / PAGE_SIZE;
+	num_pages = iov_iter_npages(iter, INT_MAX);
+	if (!num_pages) {
+		ret = ERR_PTR(-ENOMEM);
+		goto err_ctx_put;
+	}
+
 	shm->pages = kcalloc(num_pages, sizeof(*shm->pages), GFP_KERNEL);
 	if (!shm->pages) {
 		ret = ERR_PTR(-ENOMEM);
 		goto err_free_shm;
 	}
 
-	if (flags & TEE_SHM_USER_MAPPED)
-		rc = pin_user_pages_fast(start, num_pages, FOLL_WRITE,
-					 shm->pages);
-	else
-		rc = shm_get_kernel_pages(start, num_pages, shm->pages);
-	if (rc > 0)
-		shm->num_pages = rc;
-	if (rc != num_pages) {
-		if (rc >= 0)
-			rc = -ENOMEM;
-		ret = ERR_PTR(rc);
-		goto err_put_shm_pages;
+	len = iov_iter_extract_pages(iter, &shm->pages, LONG_MAX, num_pages, 0,
+				     &off);
+	if (unlikely(len <= 0)) {
+		ret = len ? ERR_PTR(len) : ERR_PTR(-ENOMEM);
+		goto err_free_shm_pages;
 	}
+
+	/*
+	 * iov_iter_extract_kvec_pages does not get reference on the pages,
+	 * get a reference on them.
+	 */
+	if (iov_iter_is_kvec(iter))
+		shm_get_kernel_pages(shm->pages, num_pages);
+
+	shm->offset = off;
+	shm->size = len;
+	shm->num_pages = num_pages;
 
 	rc = teedev->desc->ops->shm_register(ctx, shm, shm->pages,
 					     shm->num_pages, start);
@@ -279,10 +276,11 @@ register_shm_helper(struct tee_context *ctx, unsigned long addr,
 
 	return shm;
 err_put_shm_pages:
-	if (flags & TEE_SHM_USER_MAPPED)
+	if (!iov_iter_is_kvec(iter))
 		unpin_user_pages(shm->pages, shm->num_pages);
 	else
 		shm_put_kernel_pages(shm->pages, shm->num_pages);
+err_free_shm_pages:
 	kfree(shm->pages);
 err_free_shm:
 	kfree(shm);
@@ -307,6 +305,7 @@ struct tee_shm *tee_shm_register_user_buf(struct tee_context *ctx,
 	u32 flags = TEE_SHM_USER_MAPPED | TEE_SHM_DYNAMIC;
 	struct tee_device *teedev = ctx->teedev;
 	struct tee_shm *shm;
+	struct iov_iter iter;
 	void *ret;
 	int id;
 
@@ -319,7 +318,8 @@ struct tee_shm *tee_shm_register_user_buf(struct tee_context *ctx,
 	if (id < 0)
 		return ERR_PTR(id);
 
-	shm = register_shm_helper(ctx, addr, length, flags, id);
+	iov_iter_ubuf(&iter, ITER_DEST,  (void __user *)addr, length);
+	shm = register_shm_helper(ctx, &iter, flags, id);
 	if (IS_ERR(shm)) {
 		mutex_lock(&teedev->mutex);
 		idr_remove(&teedev->idr, id);
@@ -352,8 +352,14 @@ struct tee_shm *tee_shm_register_kernel_buf(struct tee_context *ctx,
 					    void *addr, size_t length)
 {
 	u32 flags = TEE_SHM_DYNAMIC;
+	struct kvec kvec;
+	struct iov_iter iter;
 
-	return register_shm_helper(ctx, (unsigned long)addr, length, flags, -1);
+	kvec.iov_base = addr;
+	kvec.iov_len = length;
+	iov_iter_kvec(&iter, ITER_DEST, &kvec, 1, length);
+
+	return register_shm_helper(ctx, &iter, flags, -1);
 }
 EXPORT_SYMBOL_GPL(tee_shm_register_kernel_buf);
 

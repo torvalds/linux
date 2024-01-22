@@ -1051,32 +1051,28 @@ Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
 }
 
 /**
- * die_get_typename - Get the name of given variable DIE
- * @vr_die: a variable DIE
+ * die_get_typename_from_type - Get the name of given type DIE
+ * @type_die: a type DIE
  * @buf: a strbuf for result type name
  *
- * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
+ * Get the name of @type_die and stores it to @buf. Return 0 if succeeded.
  * and Return -ENOENT if failed to find type name.
  * Note that the result will stores typedef name if possible, and stores
  * "*(function_type)" if the type is a function pointer.
  */
-int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
+int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf)
 {
-	Dwarf_Die type;
 	int tag, ret;
 	const char *tmp = "";
 
-	if (__die_get_real_type(vr_die, &type) == NULL)
-		return -ENOENT;
-
-	tag = dwarf_tag(&type);
+	tag = dwarf_tag(type_die);
 	if (tag == DW_TAG_array_type || tag == DW_TAG_pointer_type)
 		tmp = "*";
 	else if (tag == DW_TAG_subroutine_type) {
 		/* Function pointer */
 		return strbuf_add(buf, "(function_type)", 15);
 	} else {
-		const char *name = dwarf_diename(&type);
+		const char *name = dwarf_diename(type_die);
 
 		if (tag == DW_TAG_union_type)
 			tmp = "union ";
@@ -1089,8 +1085,35 @@ int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
 		/* Write a base name */
 		return strbuf_addf(buf, "%s%s", tmp, name ?: "");
 	}
-	ret = die_get_typename(&type, buf);
-	return ret ? ret : strbuf_addstr(buf, tmp);
+	ret = die_get_typename(type_die, buf);
+	if (ret < 0) {
+		/* void pointer has no type attribute */
+		if (tag == DW_TAG_pointer_type && ret == -ENOENT)
+			return strbuf_addf(buf, "void*");
+
+		return ret;
+	}
+	return strbuf_addstr(buf, tmp);
+}
+
+/**
+ * die_get_typename - Get the name of given variable DIE
+ * @vr_die: a variable DIE
+ * @buf: a strbuf for result type name
+ *
+ * Get the name of @vr_die and stores it to @buf. Return 0 if succeeded.
+ * and Return -ENOENT if failed to find type name.
+ * Note that the result will stores typedef name if possible, and stores
+ * "*(function_type)" if the type is a function pointer.
+ */
+int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf)
+{
+	Dwarf_Die type;
+
+	if (__die_get_real_type(vr_die, &type) == NULL)
+		return -ENOENT;
+
+	return die_get_typename_from_type(&type, buf);
 }
 
 /**
@@ -1238,12 +1261,151 @@ int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf)
 out:
 	return ret;
 }
-#else
-int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
-		      Dwarf_Die *vr_die __maybe_unused,
-		      struct strbuf *buf __maybe_unused)
+
+/* Interval parameters for __die_find_var_reg_cb() */
+struct find_var_data {
+	/* Target instruction address */
+	Dwarf_Addr pc;
+	/* Target memory address (for global data) */
+	Dwarf_Addr addr;
+	/* Target register */
+	unsigned reg;
+	/* Access offset, set for global data */
+	int offset;
+};
+
+/* Max number of registers DW_OP_regN supports */
+#define DWARF_OP_DIRECT_REGS  32
+
+/* Only checks direct child DIEs in the given scope. */
+static int __die_find_var_reg_cb(Dwarf_Die *die_mem, void *arg)
 {
-	return -ENOTSUP;
+	struct find_var_data *data = arg;
+	int tag = dwarf_tag(die_mem);
+	ptrdiff_t off = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Addr base, start, end;
+	Dwarf_Op *ops;
+	size_t nops;
+
+	if (tag != DW_TAG_variable && tag != DW_TAG_formal_parameter)
+		return DIE_FIND_CB_SIBLING;
+
+	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
+		return DIE_FIND_CB_SIBLING;
+
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+		/* Assuming the location list is sorted by address */
+		if (end < data->pc)
+			continue;
+		if (start > data->pc)
+			break;
+
+		/* Only match with a simple case */
+		if (data->reg < DWARF_OP_DIRECT_REGS) {
+			if (ops->atom == (DW_OP_reg0 + data->reg) && nops == 1)
+				return DIE_FIND_CB_END;
+		} else {
+			if (ops->atom == DW_OP_regx && ops->number == data->reg &&
+			    nops == 1)
+				return DIE_FIND_CB_END;
+		}
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_find_variable_by_reg - Find a variable saved in a register
+ * @sc_die: a scope DIE
+ * @pc: the program address to find
+ * @reg: the register number to find
+ * @die_mem: a buffer to save the resulting DIE
+ *
+ * Find the variable DIE accessed by the given register.
+ */
+Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
+				    Dwarf_Die *die_mem)
+{
+	struct find_var_data data = {
+		.pc = pc,
+		.reg = reg,
+	};
+	return die_find_child(sc_die, __die_find_var_reg_cb, &data, die_mem);
+}
+
+/* Only checks direct child DIEs in the given scope */
+static int __die_find_var_addr_cb(Dwarf_Die *die_mem, void *arg)
+{
+	struct find_var_data *data = arg;
+	int tag = dwarf_tag(die_mem);
+	ptrdiff_t off = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Addr base, start, end;
+	Dwarf_Word size;
+	Dwarf_Die type_die;
+	Dwarf_Op *ops;
+	size_t nops;
+
+	if (tag != DW_TAG_variable)
+		return DIE_FIND_CB_SIBLING;
+
+	if (dwarf_attr(die_mem, DW_AT_location, &attr) == NULL)
+		return DIE_FIND_CB_SIBLING;
+
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+		if (ops->atom != DW_OP_addr)
+			continue;
+
+		if (data->addr < ops->number)
+			continue;
+
+		if (data->addr == ops->number) {
+			/* Update offset relative to the start of the variable */
+			data->offset = 0;
+			return DIE_FIND_CB_END;
+		}
+
+		if (die_get_real_type(die_mem, &type_die) == NULL)
+			continue;
+
+		if (dwarf_aggregate_size(&type_die, &size) < 0)
+			continue;
+
+		if (data->addr >= ops->number + size)
+			continue;
+
+		/* Update offset relative to the start of the variable */
+		data->offset = data->addr - ops->number;
+		return DIE_FIND_CB_END;
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_find_variable_by_addr - Find variable located at given address
+ * @sc_die: a scope DIE
+ * @pc: the program address to find
+ * @addr: the data address to find
+ * @die_mem: a buffer to save the resulting DIE
+ * @offset: the offset in the resulting type
+ *
+ * Find the variable DIE located at the given address (in PC-relative mode).
+ * This is usually for global variables.
+ */
+Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
+				     Dwarf_Addr addr, Dwarf_Die *die_mem,
+				     int *offset)
+{
+	struct find_var_data data = {
+		.pc = pc,
+		.addr = addr,
+	};
+	Dwarf_Die *result;
+
+	result = die_find_child(sc_die, __die_find_var_addr_cb, &data, die_mem);
+	if (result)
+		*offset = data.offset;
+	return result;
 }
 #endif
 
@@ -1424,4 +1586,57 @@ void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
 		return;
 
 	*entrypc = postprologue_addr;
+}
+
+/* Internal parameters for __die_find_scope_cb() */
+struct find_scope_data {
+	/* Target instruction address */
+	Dwarf_Addr pc;
+	/* Number of scopes found [output] */
+	int nr;
+	/* Array of scopes found, 0 for the outermost one. [output] */
+	Dwarf_Die *scopes;
+};
+
+static int __die_find_scope_cb(Dwarf_Die *die_mem, void *arg)
+{
+	struct find_scope_data *data = arg;
+
+	if (dwarf_haspc(die_mem, data->pc)) {
+		Dwarf_Die *tmp;
+
+		tmp = realloc(data->scopes, (data->nr + 1) * sizeof(*tmp));
+		if (tmp == NULL)
+			return DIE_FIND_CB_END;
+
+		memcpy(tmp + data->nr, die_mem, sizeof(*die_mem));
+		data->scopes = tmp;
+		data->nr++;
+		return DIE_FIND_CB_CHILD;
+	}
+	return DIE_FIND_CB_SIBLING;
+}
+
+/**
+ * die_get_scopes - Return a list of scopes including the address
+ * @cu_die: a compile unit DIE
+ * @pc: the address to find
+ * @scopes: the array of DIEs for scopes (result)
+ *
+ * This function does the same as the dwarf_getscopes() but doesn't follow
+ * the origins of inlined functions.  It returns the number of scopes saved
+ * in the @scopes argument.  The outer scope will be saved first (index 0) and
+ * the last one is the innermost scope at the @pc.
+ */
+int die_get_scopes(Dwarf_Die *cu_die, Dwarf_Addr pc, Dwarf_Die **scopes)
+{
+	struct find_scope_data data = {
+		.pc = pc,
+	};
+	Dwarf_Die die_mem;
+
+	die_find_child(cu_die, __die_find_scope_cb, &data, &die_mem);
+
+	*scopes = data.scopes;
+	return data.nr;
 }

@@ -3,6 +3,7 @@
 config INTEL_MEI
 	tristate "Intel Management Engine Interface"
 	depends on X86 && PCI
+	default GENERIC_CPU || MCORE2 || MATOM || X86_GENERIC
 	help
 	  The Intel Management Engine (Intel ME) provides Manageability,
 	  Security and Media services for system containing Intel chipsets.
@@ -11,10 +12,11 @@ config INTEL_MEI
 	  For more information see
 	  <https://software.intel.com/en-us/manageability/>
 
+if INTEL_MEI
+
 config INTEL_MEI_ME
 	tristate "ME Enabled Intel Chipsets"
-	select INTEL_MEI
-	depends on X86 && PCI
+	default y
 	help
 	  MEI support for ME Enabled Intel chipsets.
 
@@ -38,8 +40,6 @@ config INTEL_MEI_ME
 
 config INTEL_MEI_TXE
 	tristate "Intel Trusted Execution Environment with ME Interface"
-	select INTEL_MEI
-	depends on X86 && PCI
 	help
 	  MEI Support for Trusted Execution Environment device on Intel SoCs
 
@@ -48,9 +48,7 @@ config INTEL_MEI_TXE
 
 config INTEL_MEI_GSC
 	tristate "Intel MEI GSC embedded device"
-	depends on INTEL_MEI
 	depends on INTEL_MEI_ME
-	depends on X86 && PCI
 	depends on DRM_I915
 	help
 	  Intel auxiliary driver for GSC devices embedded in Intel graphics devices.
@@ -60,6 +58,31 @@ config INTEL_MEI_GSC
 	  tasks such as graphics card firmware update and security
 	  tasks.
 
+config INTEL_MEI_VSC_HW
+	tristate "Intel visual sensing controller device transport driver"
+	depends on ACPI && SPI
+	depends on GPIOLIB || COMPILE_TEST
+	help
+	  Intel SPI transport driver between host and Intel visual sensing
+	  controller (IVSC) device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called mei-vsc-hw.
+
+config INTEL_MEI_VSC
+	tristate "Intel visual sensing controller device with ME interface"
+	depends on INTEL_MEI_VSC_HW
+	help
+	  Intel MEI over SPI driver for Intel visual sensing controller
+	  (IVSC) device embedded in IA platform. It supports camera sharing
+	  between IVSC for context sensing and IPU for typical media usage.
+	  Select this config should enable transport layer for IVSC device.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called mei-vsc.
+
 source "drivers/misc/mei/hdcp/Kconfig"
 source "drivers/misc/mei/pxp/Kconfig"
 source "drivers/misc/mei/gsc_proxy/Kconfig"
+
+endif

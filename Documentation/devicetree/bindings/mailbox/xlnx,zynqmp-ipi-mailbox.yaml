@@ -37,7 +37,9 @@ maintainers:
 
 properties:
   compatible:
-    const: xlnx,zynqmp-ipi-mailbox
+    enum:
+      - xlnx,zynqmp-ipi-mailbox
+      - xlnx,versal-ipi-mailbox
 
   method:
     description: |
@@ -58,6 +60,12 @@ properties:
   '#size-cells':
     const: 2
 
+  reg:
+    maxItems: 2
+
+  reg-names:
+    maxItems: 2
+
   xlnx,ipi-id:
     description: |
       Remote Xilinx IPI agent ID of which the mailbox is connected to.
@@ -76,7 +84,17 @@ patternProperties:
     properties:
 
       compatible:
-        const: xlnx,zynqmp-ipi-dest-mailbox
+        enum:
+          - xlnx,zynqmp-ipi-dest-mailbox
+          - xlnx,versal-ipi-dest-mailbox
+
+      reg:
+        minItems: 1
+        maxItems: 4
+
+      reg-names:
+        minItems: 1
+        maxItems: 4
 
       xlnx,ipi-id:
         description:
@@ -88,23 +106,44 @@ patternProperties:
         description:
           It contains tx(0) or rx(1) channel IPI id number.
 
-      reg:
-        maxItems: 4
+    allOf:
+      - if:
+          properties:
+            compatible:
+              contains:
+                enum:
+                  - xlnx,zynqmp-ipi-dest-mailbox
+        then:
+          properties:
+            reg:
+              maxItems: 4
 
-      reg-names:
-        items:
-          - const: local_request_region
-          - const: local_response_region
-          - const: remote_request_region
-          - const: remote_response_region
+            reg-names:
+              items:
+                - const: local_request_region
+                - const: local_response_region
+                - const: remote_request_region
+                - const: remote_response_region
+        else:
+          properties:
+            reg:
+              minItems: 1
+              items:
+                - description: Remote IPI agent control register region
+                - description: Remote IPI agent optional message buffers
+
+            reg-names:
+              minItems: 1
+              items:
+                - const: ctrl
+                - const: msg
 
     required:
       - compatible
       - reg
       - reg-names
       - "#mbox-cells"
-
-additionalProperties: false
+      - xlnx,ipi-id
 
 required:
   - compatible
@@ -112,6 +151,36 @@ required:
   - '#address-cells'
   - '#size-cells'
   - xlnx,ipi-id
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - xlnx,zynqmp-ipi-mailbox
+    then:
+      properties:
+        reg: false
+        reg-names: false
+
+    else:
+      properties:
+        reg:
+          items:
+            - description: Host IPI agent control register region
+            - description: Host IPI agent optional message buffers
+
+        reg-names:
+          items:
+            - const: ctrl
+            - const: msg
+
+      required:
+        - reg
+        - reg-names
+
+additionalProperties: false
 
 examples:
   - |
@@ -144,4 +213,41 @@ examples:
       };
     };
 
+  - |
+    #include<dt-bindings/interrupt-controller/arm-gic.h>
+
+    bus {
+      #address-cells = <2>;
+      #size-cells = <2>;
+      mailbox@ff300000 {
+        compatible = "xlnx,versal-ipi-mailbox";
+        interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+        #address-cells = <2>;
+        #size-cells = <2>;
+        reg = <0x0 0xff300000 0x0 0x1000>,
+              <0x0 0xff990000 0x0 0x1ff>;
+        reg-names = "ctrl", "msg";
+        xlnx,ipi-id = <0>;
+        ranges;
+
+        /* buffered IPI */
+        mailbox@ff340000 {
+          compatible = "xlnx,versal-ipi-dest-mailbox";
+          reg = <0x0 0xff340000 0x0 0x1000>,
+                <0x0 0xff990400 0x0 0x1ff>;
+          reg-names = "ctrl", "msg";
+          #mbox-cells = <1>;
+          xlnx,ipi-id = <4>;
+        };
+
+        /* bufferless IPI */
+        mailbox@ff370000 {
+          compatible = "xlnx,versal-ipi-dest-mailbox";
+          reg = <0x0 0xff370000 0x0 0x1000>;
+          reg-names = "ctrl";
+          #mbox-cells = <1>;
+          xlnx,ipi-id = <7>;
+        };
+      };
+    };
 ...

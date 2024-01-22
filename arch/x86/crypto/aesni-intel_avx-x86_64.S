@@ -747,7 +747,7 @@ VARIABLE_OFFSET = 16*8
 
 .if  \ENC_DEC ==  DEC
         vmovdqa	%xmm1, %xmm3
-        pxor	%xmm1, %xmm9		# Cyphertext XOR E(K, Yn)
+        pxor	%xmm1, %xmm9		# Ciphertext XOR E(K, Yn)
 
         mov	\PLAIN_CYPH_LEN, %r10
         add	%r13, %r10

@@ -18,6 +18,7 @@
 #include <libelf.h>
 #include <gelf.h>
 #include <float.h>
+#include <math.h>
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -99,6 +100,7 @@ struct stat_specs {
 	enum stat_id ids[ALL_STATS_CNT];
 	enum stat_variant variants[ALL_STATS_CNT];
 	bool asc[ALL_STATS_CNT];
+	bool abs[ALL_STATS_CNT];
 	int lens[ALL_STATS_CNT * 3]; /* 3x for comparison mode */
 };
 
@@ -133,6 +135,7 @@ struct filter {
 	int stat_id;
 	enum stat_variant stat_var;
 	long value;
+	bool abs;
 };
 
 static struct env {
@@ -142,10 +145,12 @@ static struct env {
 	bool debug;
 	bool quiet;
 	bool force_checkpoints;
+	bool force_reg_invariants;
 	enum resfmt out_fmt;
 	bool show_version;
 	bool comparison_mode;
 	bool replay_mode;
+	int top_n;
 
 	int log_level;
 	int log_size;
@@ -210,8 +215,7 @@ static const struct argp_option opts[] = {
 	{ "log-level", 'l', "LEVEL", 0, "Verifier log level (default 0 for normal mode, 1 for verbose mode)" },
 	{ "log-fixed", OPT_LOG_FIXED, NULL, 0, "Disable verifier log rotation" },
 	{ "log-size", OPT_LOG_SIZE, "BYTES", 0, "Customize verifier log size (default to 16MB)" },
-	{ "test-states", 't', NULL, 0,
-	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
+	{ "top-n", 'n', "N", 0, "Emit only up to first N results." },
 	{ "quiet", 'q', NULL, 0, "Quiet mode" },
 	{ "emit", 'e', "SPEC", 0, "Specify stats to be emitted" },
 	{ "sort", 's', "SPEC", 0, "Specify sort order" },
@@ -219,6 +223,10 @@ static const struct argp_option opts[] = {
 	{ "compare", 'C', NULL, 0, "Comparison mode" },
 	{ "replay", 'R', NULL, 0, "Replay mode" },
 	{ "filter", 'f', "FILTER", 0, "Filter expressions (or @filename for file with expressions)." },
+	{ "test-states", 't', NULL, 0,
+	  "Force frequent BPF verifier state checkpointing (set BPF_F_TEST_STATE_FREQ program flag)" },
+	{ "test-reg-invariants", 'r', NULL, 0,
+	  "Force BPF verifier failure on register invariant violation (BPF_F_TEST_REG_INVARIANTS program flag)" },
 	{},
 };
 
@@ -290,6 +298,16 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 	case 't':
 		env.force_checkpoints = true;
 		break;
+	case 'r':
+		env.force_reg_invariants = true;
+		break;
+	case 'n':
+		errno = 0;
+		env.top_n = strtol(arg, NULL, 10);
+		if (errno) {
+			fprintf(stderr, "invalid top N specifier: %s\n", arg);
+			argp_usage(state);
+		}
 	case 'C':
 		env.comparison_mode = true;
 		break;
@@ -455,7 +473,8 @@ static struct {
 	{ OP_EQ, "=" },
 };
 
-static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_variant *var);
+static bool parse_stat_id_var(const char *name, size_t len, int *id,
+			      enum stat_variant *var, bool *is_abs);
 
 static int append_filter(struct filter **filters, int *cnt, const char *str)
 {
@@ -488,13 +507,14 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 		long val;
 		const char *end = str;
 		const char *op_str;
+		bool is_abs;
 
 		op_str = operators[i].op_str;
 		p = strstr(str, op_str);
 		if (!p)
 			continue;
 
-		if (!parse_stat_id_var(str, p - str, &id, &var)) {
+		if (!parse_stat_id_var(str, p - str, &id, &var, &is_abs)) {
 			fprintf(stderr, "Unrecognized stat name in '%s'!\n", str);
 			return -EINVAL;
 		}
@@ -533,6 +553,7 @@ static int append_filter(struct filter **filters, int *cnt, const char *str)
 		f->stat_id = id;
 		f->stat_var = var;
 		f->op = operators[i].op_kind;
+		f->abs = true;
 		f->value = val;
 
 		*cnt += 1;
@@ -657,7 +678,8 @@ static struct stat_def {
 	[MARK_READ_MAX_LEN] = { "Max mark read length", {"max_mark_read_len", "mark_read"}, },
 };
 
-static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_variant *var)
+static bool parse_stat_id_var(const char *name, size_t len, int *id,
+			      enum stat_variant *var, bool *is_abs)
 {
 	static const char *var_sfxs[] = {
 		[VARIANT_A] = "_a",
@@ -666,6 +688,14 @@ static bool parse_stat_id_var(const char *name, size_t len, int *id, enum stat_v
 		[VARIANT_PCT] = "_pct",
 	};
 	int i, j, k;
+
+	/* |<stat>| means we take absolute value of given stat */
+	*is_abs = false;
+	if (len > 2 && name[0] == '|' && name[len - 1] == '|') {
+		*is_abs = true;
+		name += 1;
+		len -= 2;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(stat_defs); i++) {
 		struct stat_def *def = &stat_defs[i];
@@ -722,7 +752,7 @@ static bool is_desc_sym(char c)
 static int parse_stat(const char *stat_name, struct stat_specs *specs)
 {
 	int id;
-	bool has_order = false, is_asc = false;
+	bool has_order = false, is_asc = false, is_abs = false;
 	size_t len = strlen(stat_name);
 	enum stat_variant var;
 
@@ -737,7 +767,7 @@ static int parse_stat(const char *stat_name, struct stat_specs *specs)
 		len -= 1;
 	}
 
-	if (!parse_stat_id_var(stat_name, len, &id, &var)) {
+	if (!parse_stat_id_var(stat_name, len, &id, &var, &is_abs)) {
 		fprintf(stderr, "Unrecognized stat name '%s'\n", stat_name);
 		return -ESRCH;
 	}
@@ -745,6 +775,7 @@ static int parse_stat(const char *stat_name, struct stat_specs *specs)
 	specs->ids[specs->spec_cnt] = id;
 	specs->variants[specs->spec_cnt] = var;
 	specs->asc[specs->spec_cnt] = has_order ? is_asc : stat_defs[id].asc_by_default;
+	specs->abs[specs->spec_cnt] = is_abs;
 	specs->spec_cnt++;
 
 	return 0;
@@ -997,6 +1028,8 @@ static int process_prog(const char *filename, struct bpf_object *obj, struct bpf
 
 	if (env.force_checkpoints)
 		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_STATE_FREQ);
+	if (env.force_reg_invariants)
+		bpf_program__set_flags(prog, bpf_program__flags(prog) | BPF_F_TEST_REG_INVARIANTS);
 
 	err = bpf_object__load(obj);
 	env.progs_processed++;
@@ -1103,7 +1136,7 @@ cleanup:
 }
 
 static int cmp_stat(const struct verif_stats *s1, const struct verif_stats *s2,
-		    enum stat_id id, bool asc)
+		    enum stat_id id, bool asc, bool abs)
 {
 	int cmp = 0;
 
@@ -1124,6 +1157,11 @@ static int cmp_stat(const struct verif_stats *s1, const struct verif_stats *s2,
 		long v1 = s1->stats[id];
 		long v2 = s2->stats[id];
 
+		if (abs) {
+			v1 = v1 < 0 ? -v1 : v1;
+			v2 = v2 < 0 ? -v2 : v2;
+		}
+
 		if (v1 != v2)
 			cmp = v1 < v2 ? -1 : 1;
 		break;
@@ -1142,7 +1180,8 @@ static int cmp_prog_stats(const void *v1, const void *v2)
 	int i, cmp;
 
 	for (i = 0; i < env.sort_spec.spec_cnt; i++) {
-		cmp = cmp_stat(s1, s2, env.sort_spec.ids[i], env.sort_spec.asc[i]);
+		cmp = cmp_stat(s1, s2, env.sort_spec.ids[i],
+			       env.sort_spec.asc[i], env.sort_spec.abs[i]);
 		if (cmp != 0)
 			return cmp;
 	}
@@ -1211,14 +1250,20 @@ static void fetch_join_stat_value(const struct verif_stats_join *s,
 
 static int cmp_join_stat(const struct verif_stats_join *s1,
 			 const struct verif_stats_join *s2,
-			 enum stat_id id, enum stat_variant var, bool asc)
+			 enum stat_id id, enum stat_variant var,
+			 bool asc, bool abs)
 {
 	const char *str1 = NULL, *str2 = NULL;
-	double v1, v2;
+	double v1 = 0.0, v2 = 0.0;
 	int cmp = 0;
 
 	fetch_join_stat_value(s1, id, var, &str1, &v1);
 	fetch_join_stat_value(s2, id, var, &str2, &v2);
+
+	if (abs) {
+		v1 = fabs(v1);
+		v2 = fabs(v2);
+	}
 
 	if (str1)
 		cmp = strcmp(str1, str2);
@@ -1237,7 +1282,8 @@ static int cmp_join_stats(const void *v1, const void *v2)
 		cmp = cmp_join_stat(s1, s2,
 				    env.sort_spec.ids[i],
 				    env.sort_spec.variants[i],
-				    env.sort_spec.asc[i]);
+				    env.sort_spec.asc[i],
+				    env.sort_spec.abs[i]);
 		if (cmp != 0)
 			return cmp;
 	}
@@ -1720,6 +1766,9 @@ static bool is_join_stat_filter_matched(struct filter *f, const struct verif_sta
 
 	fetch_join_stat_value(stats, f->stat_id, f->stat_var, &str, &value);
 
+	if (f->abs)
+		value = fabs(value);
+
 	switch (f->op) {
 	case OP_EQ: return value > f->value - eps && value < f->value + eps;
 	case OP_NEQ: return value < f->value - eps || value > f->value + eps;
@@ -1766,7 +1815,7 @@ static int handle_comparison_mode(void)
 	struct stat_specs base_specs = {}, comp_specs = {};
 	struct stat_specs tmp_sort_spec;
 	enum resfmt cur_fmt;
-	int err, i, j, last_idx;
+	int err, i, j, last_idx, cnt;
 
 	if (env.filename_cnt != 2) {
 		fprintf(stderr, "Comparison mode expects exactly two input CSV files!\n\n");
@@ -1879,7 +1928,7 @@ static int handle_comparison_mode(void)
 		env.join_stat_cnt += 1;
 	}
 
-	/* now sort joined results accorsing to sort spec */
+	/* now sort joined results according to sort spec */
 	qsort(env.join_stats, env.join_stat_cnt, sizeof(*env.join_stats), cmp_join_stats);
 
 	/* for human-readable table output we need to do extra pass to
@@ -1896,16 +1945,22 @@ one_more_time:
 	output_comp_headers(cur_fmt);
 
 	last_idx = -1;
+	cnt = 0;
 	for (i = 0; i < env.join_stat_cnt; i++) {
 		const struct verif_stats_join *join = &env.join_stats[i];
 
 		if (!should_output_join_stats(join))
 			continue;
 
+		if (env.top_n && cnt >= env.top_n)
+			break;
+
 		if (cur_fmt == RESFMT_TABLE_CALCLEN)
 			last_idx = i;
 
 		output_comp_stats(join, cur_fmt, i == last_idx);
+
+		cnt++;
 	}
 
 	if (cur_fmt == RESFMT_TABLE_CALCLEN) {
@@ -1919,6 +1974,9 @@ one_more_time:
 static bool is_stat_filter_matched(struct filter *f, const struct verif_stats *stats)
 {
 	long value = stats->stats[f->stat_id];
+
+	if (f->abs)
+		value = value < 0 ? -value : value;
 
 	switch (f->op) {
 	case OP_EQ: return value == f->value;
@@ -1964,7 +2022,7 @@ static bool should_output_stats(const struct verif_stats *stats)
 static void output_prog_stats(void)
 {
 	const struct verif_stats *stats;
-	int i, last_stat_idx = 0;
+	int i, last_stat_idx = 0, cnt = 0;
 
 	if (env.out_fmt == RESFMT_TABLE) {
 		/* calculate column widths */
@@ -1984,7 +2042,10 @@ static void output_prog_stats(void)
 		stats = &env.prog_stats[i];
 		if (!should_output_stats(stats))
 			continue;
+		if (env.top_n && cnt >= env.top_n)
+			break;
 		output_stats(stats, env.out_fmt, i == last_stat_idx);
+		cnt++;
 	}
 }
 

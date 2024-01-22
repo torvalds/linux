@@ -793,17 +793,16 @@ static int stratix10_rsu_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int stratix10_rsu_remove(struct platform_device *pdev)
+static void stratix10_rsu_remove(struct platform_device *pdev)
 {
 	struct stratix10_rsu_priv *priv = platform_get_drvdata(pdev);
 
 	stratix10_svc_free_channel(priv->chan);
-	return 0;
 }
 
 static struct platform_driver stratix10_rsu_driver = {
 	.probe = stratix10_rsu_probe,
-	.remove = stratix10_rsu_remove,
+	.remove_new = stratix10_rsu_remove,
 	.driver = {
 		.name = "stratix10-rsu",
 		.dev_groups = rsu_groups,

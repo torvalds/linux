@@ -56,15 +56,10 @@ struct user_regs_struct {
 	unsigned long pc;
 	unsigned long cause;
 	unsigned long badva;
-#if CONFIG_HEXAGON_ARCH_VERSION < 4
-	unsigned long pad1;  /* pad out to 48 words total */
-	unsigned long pad2;  /* pad out to 48 words total */
-	unsigned long pad3;  /* pad out to 48 words total */
-#else
+	/* cs0 and cs1 are only available with HEXAGON_ARCH_VERSION >= 4 */
 	unsigned long cs0;
 	unsigned long cs1;
 	unsigned long pad1;  /* pad out to 48 words total */
-#endif
 };
 
 #endif
