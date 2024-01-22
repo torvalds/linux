@@ -1047,6 +1047,8 @@ struct ubifs_debug_info;
  * @bg_bud_bytes: number of bud bytes when background commit is initiated
  * @old_buds: buds to be released after commit ends
  * @max_bud_cnt: maximum number of buds
+ * @need_wait_space: Non %0 means space reservation tasks need to wait in queue
+ * @reserve_space_wq: wait queue to sleep on if @need_wait_space is not %0
  *
  * @commit_sem: synchronizes committer with other processes
  * @cmt_state: commit state
@@ -1305,6 +1307,8 @@ struct ubifs_info {
 	long long bg_bud_bytes;
 	struct list_head old_buds;
 	int max_bud_cnt;
+	atomic_t need_wait_space;
+	wait_queue_head_t reserve_space_wq;
 
 	struct rw_semaphore commit_sem;
 	int cmt_state;
