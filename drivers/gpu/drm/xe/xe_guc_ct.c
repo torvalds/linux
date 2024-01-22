@@ -346,26 +346,34 @@ err_out:
 	return err;
 }
 
+static void stop_g2h_handler(struct xe_guc_ct *ct)
+{
+	cancel_work_sync(&ct->g2h_worker);
+}
+
 /**
  * xe_guc_ct_disable - Set GuC to disabled state
  * @ct: the &xe_guc_ct
  *
- * Set GuC CT to disabled state, no outstanding g2h expected in this transition
+ * Set GuC CT to disabled state and stop g2h handler. No outstanding g2h expected
+ * in this transition.
  */
 void xe_guc_ct_disable(struct xe_guc_ct *ct)
 {
 	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_DISABLED);
+	stop_g2h_handler(ct);
 }
 
 /**
  * xe_guc_ct_stop - Set GuC to stopped state
  * @ct: the &xe_guc_ct
  *
- * Set GuC CT to stopped state and clear any outstanding g2h
+ * Set GuC CT to stopped state, stop g2h handler, and clear any outstanding g2h
  */
 void xe_guc_ct_stop(struct xe_guc_ct *ct)
 {
 	xe_guc_ct_set_state(ct, XE_GUC_CT_STATE_STOPPED);
+	stop_g2h_handler(ct);
 }
 
 static bool h2g_has_room(struct xe_guc_ct *ct, u32 cmd_len)
