@@ -181,11 +181,6 @@ static enum gic_intid_range get_intid_range(struct irq_data *d)
 	return __get_intid_range(d->hwirq);
 }
 
-static inline unsigned int gic_irq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-
 static inline bool gic_irq_in_rdist(struct irq_data *d)
 {
 	switch (get_intid_range(d)) {
@@ -542,7 +537,7 @@ static int gic_irq_nmi_setup(struct irq_data *d)
 	 * A secondary irq_chip should be in charge of LPI request,
 	 * it should not be possible to get there
 	 */
-	if (WARN_ON(gic_irq(d) >= 8192))
+	if (WARN_ON(irqd_to_hwirq(d) >= 8192))
 		return -EINVAL;
 
 	/* desc lock should already be held */
@@ -582,7 +577,7 @@ static void gic_irq_nmi_teardown(struct irq_data *d)
 	 * A secondary irq_chip should be in charge of LPI request,
 	 * it should not be possible to get there
 	 */
-	if (WARN_ON(gic_irq(d) >= 8192))
+	if (WARN_ON(irqd_to_hwirq(d) >= 8192))
 		return;
 
 	/* desc lock should already be held */
@@ -620,7 +615,7 @@ static bool gic_arm64_erratum_2941627_needed(struct irq_data *d)
 
 static void gic_eoi_irq(struct irq_data *d)
 {
-	write_gicreg(gic_irq(d), ICC_EOIR1_EL1);
+	write_gicreg(irqd_to_hwirq(d), ICC_EOIR1_EL1);
 	isb();
 
 	if (gic_arm64_erratum_2941627_needed(d)) {
@@ -640,19 +635,19 @@ static void gic_eoimode1_eoi_irq(struct irq_data *d)
 	 * No need to deactivate an LPI, or an interrupt that
 	 * is is getting forwarded to a vcpu.
 	 */
-	if (gic_irq(d) >= 8192 || irqd_is_forwarded_to_vcpu(d))
+	if (irqd_to_hwirq(d) >= 8192 || irqd_is_forwarded_to_vcpu(d))
 		return;
 
 	if (!gic_arm64_erratum_2941627_needed(d))
-		gic_write_dir(gic_irq(d));
+		gic_write_dir(irqd_to_hwirq(d));
 	else
 		gic_poke_irq(d, GICD_ICACTIVER);
 }
 
 static int gic_set_type(struct irq_data *d, unsigned int type)
 {
+	irq_hw_number_t irq = irqd_to_hwirq(d);
 	enum gic_intid_range range;
-	unsigned int irq = gic_irq(d);
 	void __iomem *base;
 	u32 offset, index;
 	int ret;
@@ -678,7 +673,7 @@ static int gic_set_type(struct irq_data *d, unsigned int type)
 	ret = gic_configure_irq(index, type, base + offset, NULL);
 	if (ret && (range == PPI_RANGE || range == EPPI_RANGE)) {
 		/* Misconfigured PPIs are usually not fatal */
-		pr_warn("GIC: PPI INTID%d is secure or misconfigured\n", irq);
+		pr_warn("GIC: PPI INTID%ld is secure or misconfigured\n", irq);
 		ret = 0;
 	}
 
