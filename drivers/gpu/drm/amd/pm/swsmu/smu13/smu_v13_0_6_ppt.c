@@ -1439,7 +1439,10 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 							entry->src_data[1]);
 					schedule_work(&smu->throttling_logging_work);
 				}
-
+				break;
+			default:
+				dev_dbg(adev->dev, "Unhandled context id %d from client:%d!\n",
+									ctxid, client_id);
 				break;
 			}
 		}
