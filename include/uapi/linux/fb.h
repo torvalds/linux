@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
+#include <linux/vesa.h>
 
 /* Definitions of frame buffers						*/
 
@@ -292,13 +293,6 @@ struct fb_con2fbmap {
 	__u32 console;
 	__u32 framebuffer;
 };
-
-/* VESA Blanking Levels */
-#define VESA_NO_BLANKING        0
-#define VESA_VSYNC_SUSPEND      1
-#define VESA_HSYNC_SUSPEND      2
-#define VESA_POWERDOWN          3
-
 
 enum {
 	/* screen: unblanked, hsync: on,  vsync: on */

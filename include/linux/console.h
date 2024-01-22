@@ -18,6 +18,7 @@
 #include <linux/bits.h>
 #include <linux/rculist.h>
 #include <linux/types.h>
+#include <linux/vesa.h>
 
 struct vc_data;
 struct console_font_op;
@@ -519,12 +520,6 @@ void vcs_remove_sysfs(int index);
  * WARN_CONSOLE_UNLOCKED() for debugging purposes.
  */
 extern atomic_t ignore_console_lock_warning;
-
-/* VESA Blanking Levels */
-#define VESA_NO_BLANKING        0
-#define VESA_VSYNC_SUSPEND      1
-#define VESA_HSYNC_SUSPEND      2
-#define VESA_POWERDOWN          3
 
 extern void console_init(void);
 
