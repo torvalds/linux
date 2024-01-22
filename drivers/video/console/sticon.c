@@ -71,8 +71,8 @@ static const char *sticon_startup(void)
     return "STI console";
 }
 
-static void sticon_putcs(struct vc_data *conp, const unsigned short *s,
-			 int count, int ypos, int xpos)
+static void sticon_putcs(struct vc_data *conp, const u16 *s, unsigned int count,
+			 unsigned int ypos, unsigned int xpos)
 {
     if (vga_is_gfx || console_blanked)
 	    return;

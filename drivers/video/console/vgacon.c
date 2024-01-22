@@ -1193,8 +1193,8 @@ static bool vgacon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
 
 static void vgacon_clear(struct vc_data *vc, unsigned int sy, unsigned int sx,
 			 unsigned int width) { }
-static void vgacon_putcs(struct vc_data *vc, const unsigned short *s,
-			 int count, int ypos, int xpos) { }
+static void vgacon_putcs(struct vc_data *vc, const u16 *s, unsigned int count,
+			 unsigned int ypos, unsigned int xpos) { }
 
 const struct consw vga_con = {
 	.owner = THIS_MODULE,

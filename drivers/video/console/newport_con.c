@@ -396,12 +396,13 @@ static void newport_putc(struct vc_data *vc, u16 charattr, unsigned int ypos,
 	RENDER(npregs, p);
 }
 
-static void newport_putcs(struct vc_data *vc, const unsigned short *s,
-			  int count, int ypos, int xpos)
+static void newport_putcs(struct vc_data *vc, const u16 *s,
+			  unsigned int count, unsigned int ypos,
+			  unsigned int xpos)
 {
-	int i;
-	int charattr;
 	unsigned char *p;
+	unsigned int i;
+	u16 charattr;
 
 	charattr = (scr_readw(s) >> 8) & 0xff;
 

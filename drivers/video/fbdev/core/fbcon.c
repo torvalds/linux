@@ -1279,8 +1279,8 @@ static void fbcon_clear(struct vc_data *vc, unsigned int sy, unsigned int sx,
 	__fbcon_clear(vc, sy, sx, 1, width);
 }
 
-static void fbcon_putcs(struct vc_data *vc, const unsigned short *s,
-			int count, int ypos, int xpos)
+static void fbcon_putcs(struct vc_data *vc, const u16 *s, unsigned int count,
+			unsigned int ypos, unsigned int xpos)
 {
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
 	struct fbcon_display *p = &fb_display[vc->vc_num];

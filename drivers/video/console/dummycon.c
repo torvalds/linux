@@ -59,10 +59,10 @@ static void dummycon_putc(struct vc_data *vc, u16 c, unsigned int y,
 	raw_notifier_call_chain(&dummycon_output_nh, 0, NULL);
 }
 
-static void dummycon_putcs(struct vc_data *vc, const unsigned short *s,
-			   int count, int ypos, int xpos)
+static void dummycon_putcs(struct vc_data *vc, const u16 *s, unsigned int count,
+			   unsigned int ypos, unsigned int xpos)
 {
-	int i;
+	unsigned int i;
 
 	if (!dummycon_putc_called) {
 		/* Ignore erases */
@@ -87,8 +87,8 @@ static int dummycon_blank(struct vc_data *vc, int blank, int mode_switch)
 #else
 static void dummycon_putc(struct vc_data *vc, u16 c, unsigned int y,
 			  unsigned int x) { }
-static void dummycon_putcs(struct vc_data *vc, const unsigned short *s,
-			   int count, int ypos, int xpos) { }
+static void dummycon_putcs(struct vc_data *vc, const u16 *s, unsigned int count,
+			   unsigned int ypos, unsigned int xpos) { }
 static int dummycon_blank(struct vc_data *vc, int blank, int mode_switch)
 {
 	return 0;

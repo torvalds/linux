@@ -427,8 +427,8 @@ static inline u16 *mda_addr(unsigned int x, unsigned int y)
 	return mda_vram_base + y * mda_num_columns + x;
 }
 
-static void mdacon_putcs(struct vc_data *c, const unsigned short *s,
-		         int count, int y, int x)
+static void mdacon_putcs(struct vc_data *c, const u16 *s, unsigned int count,
+			 unsigned int y, unsigned int x)
 {
 	u16 *dest = mda_addr(x, y);
 
