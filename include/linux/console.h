@@ -37,8 +37,11 @@ enum vc_intensity;
 /**
  * struct consw - callbacks for consoles
  *
+ * @owner:      the module to get references of when this console is used
+ * @con_startup: set up the console and return its name (like VGA, EGA, ...)
  * @con_init:   initialize the console on @vc. @init is true for the very first
  *		call on this @vc.
+ * @con_deinit: deinitialize the console from @vc.
  * @con_clear:  erase @count characters at [@x, @y] on @vc. @count >= 1.
  * @con_putc:   emit one character with attributes @ca to [@x, @y] on @vc.
  *		(optional -- @con_putcs would be called instead)
@@ -52,12 +55,33 @@ enum vc_intensity;
  * @con_blank:  blank/unblank the console. The target mode is passed in @blank.
  *		@mode_switch is set if changing from/to text/graphics. The hook
  *		is supposed to return true if a redraw is needed.
- * @con_set_palette: sets the palette of the console to @table (optional)
+ * @con_font_set: set console @vc font to @font with height @vpitch. @flags can
+ *		be %KD_FONT_FLAG_DONT_RECALC. (optional)
+ * @con_font_get: fetch the current font on @vc of height @vpitch into @font.
+ *		(optional)
+ * @con_font_default: set default font on @vc. @name can be %NULL or font name
+ *		to search for. @font can be filled back. (optional)
+ * @con_resize:	resize the @vc console to @width x @height. @from_user is true
+ *		when this change comes from the user space.
+ * @con_set_palette: sets the palette of the console @vc to @table (optional)
  * @con_scrolldelta: the contents of the console should be scrolled by @lines.
  *		     Invoked by user. (optional)
  * @con_set_origin: set origin (see &vc_data::vc_origin) of the @vc. If not
  *		provided or returns false, the origin is set to
  *		@vc->vc_screenbuf. (optional)
+ * @con_save_screen: save screen content into @vc->vc_screenbuf. Called e.g.
+ *		upon entering graphics. (optional)
+ * @con_build_attr: build attributes based on @color, @intensity and other
+ *		parameters. The result is used for both normal and erase
+ *		characters. (optional)
+ * @con_invert_region: invert a region of length @count on @vc starting at @p.
+ *		(optional)
+ * @con_debug_enter: prepare the console for the debugger. This includes, but
+ *		is not limited to, unblanking the console, loading an
+ *		appropriate palette, and allowing debugger generated output.
+ *		(optional)
+ * @con_debug_leave: restore the console to its pre-debug state as closely as
+ *		possible. (optional)
  */
 struct consw {
 	struct module *owner;
@@ -96,15 +120,7 @@ struct consw {
 			enum vc_intensity intensity,
 			bool blink, bool underline, bool reverse, bool italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
-	/*
-	 * Prepare the console for the debugger.  This includes, but is not
-	 * limited to, unblanking the console, loading an appropriate
-	 * palette, and allowing debugger generated output.
-	 */
 	void	(*con_debug_enter)(struct vc_data *vc);
-	/*
-	 * Restore the console to its pre-debug state as closely as possible.
-	 */
 	void	(*con_debug_leave)(struct vc_data *vc);
 };
 
