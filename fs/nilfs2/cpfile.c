@@ -364,6 +364,80 @@ void nilfs_cpfile_put_checkpoint(struct inode *cpfile, __u64 cno,
 }
 
 /**
+ * nilfs_cpfile_finalize_checkpoint - fill in a checkpoint entry in cpfile
+ * @cpfile: checkpoint file inode
+ * @cno:    checkpoint number
+ * @root:   nilfs root object
+ * @blkinc: number of blocks added by this checkpoint
+ * @ctime:  checkpoint creation time
+ * @minor:  minor checkpoint flag
+ *
+ * This function completes the checkpoint entry numbered by @cno in the
+ * cpfile with the data given by the arguments @root, @blkinc, @ctime, and
+ * @minor.
+ *
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-EIO	- I/O error (including metadata corruption).
+ */
+int nilfs_cpfile_finalize_checkpoint(struct inode *cpfile, __u64 cno,
+				     struct nilfs_root *root, __u64 blkinc,
+				     time64_t ctime, bool minor)
+{
+	struct buffer_head *cp_bh;
+	struct nilfs_checkpoint *cp;
+	void *kaddr;
+	int ret;
+
+	if (WARN_ON_ONCE(cno < 1))
+		return -EIO;
+
+	down_write(&NILFS_MDT(cpfile)->mi_sem);
+	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &cp_bh);
+	if (unlikely(ret < 0)) {
+		if (ret == -ENOENT)
+			goto error;
+		goto out_sem;
+	}
+
+	kaddr = kmap_local_page(cp_bh->b_page);
+	cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, cp_bh, kaddr);
+	if (unlikely(nilfs_checkpoint_invalid(cp))) {
+		kunmap_local(kaddr);
+		brelse(cp_bh);
+		goto error;
+	}
+
+	cp->cp_snapshot_list.ssl_next = 0;
+	cp->cp_snapshot_list.ssl_prev = 0;
+	cp->cp_inodes_count = cpu_to_le64(atomic64_read(&root->inodes_count));
+	cp->cp_blocks_count = cpu_to_le64(atomic64_read(&root->blocks_count));
+	cp->cp_nblk_inc = cpu_to_le64(blkinc);
+	cp->cp_create = cpu_to_le64(ctime);
+	cp->cp_cno = cpu_to_le64(cno);
+
+	if (minor)
+		nilfs_checkpoint_set_minor(cp);
+	else
+		nilfs_checkpoint_clear_minor(cp);
+
+	nilfs_write_inode_common(root->ifile, &cp->cp_ifile_inode);
+	nilfs_bmap_write(NILFS_I(root->ifile)->i_bmap, &cp->cp_ifile_inode);
+
+	kunmap_local(kaddr);
+	brelse(cp_bh);
+out_sem:
+	up_write(&NILFS_MDT(cpfile)->mi_sem);
+	return ret;
+
+error:
+	nilfs_error(cpfile->i_sb,
+		    "checkpoint finalization failed due to metadata corruption.");
+	ret = -EIO;
+	goto out_sem;
+}
+
+/**
  * nilfs_cpfile_delete_checkpoints - delete checkpoints
  * @cpfile: inode of checkpoint file
  * @start: start checkpoint number

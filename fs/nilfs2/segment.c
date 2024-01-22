@@ -880,51 +880,6 @@ static void nilfs_segctor_clear_metadata_dirty(struct nilfs_sc_info *sci)
 	nilfs_mdt_clear_dirty(nilfs->ns_dat);
 }
 
-static int nilfs_segctor_fill_in_checkpoint(struct nilfs_sc_info *sci)
-{
-	struct the_nilfs *nilfs = sci->sc_super->s_fs_info;
-	struct buffer_head *bh_cp;
-	struct nilfs_checkpoint *raw_cp;
-	struct inode *ifile;
-	int err;
-
-	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, 0,
-					  &raw_cp, &bh_cp);
-	if (unlikely(err)) {
-		if (err == -EINVAL || err == -ENOENT) {
-			nilfs_error(sci->sc_super,
-				    "checkpoint finalization failed due to metadata corruption.");
-			err = -EIO;
-		}
-		goto failed_ibh;
-	}
-	raw_cp->cp_snapshot_list.ssl_next = 0;
-	raw_cp->cp_snapshot_list.ssl_prev = 0;
-	raw_cp->cp_inodes_count =
-		cpu_to_le64(atomic64_read(&sci->sc_root->inodes_count));
-	raw_cp->cp_blocks_count =
-		cpu_to_le64(atomic64_read(&sci->sc_root->blocks_count));
-	raw_cp->cp_nblk_inc =
-		cpu_to_le64(sci->sc_nblk_inc + sci->sc_nblk_this_inc);
-	raw_cp->cp_create = cpu_to_le64(sci->sc_seg_ctime);
-	raw_cp->cp_cno = cpu_to_le64(nilfs->ns_cno);
-
-	if (test_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags))
-		nilfs_checkpoint_clear_minor(raw_cp);
-	else
-		nilfs_checkpoint_set_minor(raw_cp);
-
-	ifile = sci->sc_root->ifile;
-	nilfs_write_inode_common(ifile, &raw_cp->cp_ifile_inode);
-	nilfs_bmap_write(NILFS_I(ifile)->i_bmap, &raw_cp->cp_ifile_inode);
-
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, nilfs->ns_cno, bh_cp);
-	return 0;
-
- failed_ibh:
-	return err;
-}
-
 static void nilfs_fill_in_file_bmap(struct inode *ifile,
 				    struct nilfs_inode_info *ii)
 
@@ -2105,7 +2060,11 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 
 		if (mode == SC_LSEG_SR &&
 		    nilfs_sc_cstage_get(sci) >= NILFS_ST_CPFILE) {
-			err = nilfs_segctor_fill_in_checkpoint(sci);
+			err = nilfs_cpfile_finalize_checkpoint(
+				nilfs->ns_cpfile, nilfs->ns_cno, sci->sc_root,
+				sci->sc_nblk_inc + sci->sc_nblk_this_inc,
+				sci->sc_seg_ctime,
+				!test_bit(NILFS_SC_HAVE_DELTA, &sci->sc_flags));
 			if (unlikely(err))
 				goto failed_to_write;
 
