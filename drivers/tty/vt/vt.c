@@ -4012,15 +4012,9 @@ EXPORT_SYMBOL(con_is_visible);
  * Called when the console is taken over by the kernel debugger, this
  * function needs to save the current console state, then put the console
  * into a state suitable for the kernel debugger.
- *
- * RETURNS:
- * Zero on success, nonzero if a failure occurred when trying to prepare
- * the console for the debugger.
  */
-int con_debug_enter(struct vc_data *vc)
+void con_debug_enter(struct vc_data *vc)
 {
-	int ret = 0;
-
 	saved_fg_console = fg_console;
 	saved_last_console = last_console;
 	saved_want_console = want_console;
@@ -4029,7 +4023,7 @@ int con_debug_enter(struct vc_data *vc)
 	vc->vc_mode = KD_TEXT;
 	console_blanked = 0;
 	if (vc->vc_sw->con_debug_enter)
-		ret = vc->vc_sw->con_debug_enter(vc);
+		vc->vc_sw->con_debug_enter(vc);
 #ifdef CONFIG_KGDB_KDB
 	/* Set the initial LINES variable if it is not already set */
 	if (vc->vc_rows < 999) {
@@ -4059,7 +4053,6 @@ int con_debug_enter(struct vc_data *vc)
 		}
 	}
 #endif /* CONFIG_KGDB_KDB */
-	return ret;
 }
 EXPORT_SYMBOL_GPL(con_debug_enter);
 
@@ -4068,15 +4061,10 @@ EXPORT_SYMBOL_GPL(con_debug_enter);
  *
  * Restore the console state to what it was before the kernel debugger
  * was invoked.
- *
- * RETURNS:
- * Zero on success, nonzero if a failure occurred when trying to restore
- * the console.
  */
-int con_debug_leave(void)
+void con_debug_leave(void)
 {
 	struct vc_data *vc;
-	int ret = 0;
 
 	fg_console = saved_fg_console;
 	last_console = saved_last_console;
@@ -4086,8 +4074,7 @@ int con_debug_leave(void)
 
 	vc = vc_cons[fg_console].d;
 	if (vc->vc_sw->con_debug_leave)
-		ret = vc->vc_sw->con_debug_leave(vc);
-	return ret;
+		vc->vc_sw->con_debug_leave(vc);
 }
 EXPORT_SYMBOL_GPL(con_debug_leave);
 
