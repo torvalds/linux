@@ -113,15 +113,22 @@ static inline int inword(const u32 c)
  *	sel_loadlut()		-	load the LUT table
  *	@lut: user table
  *
- *	Load the LUT table from user space. The caller must hold the console
- *	lock. Make a temporary copy so a partial update doesn't make a mess.
+ *	Load the LUT table from user space. Make a temporary copy so a partial
+ *	update doesn't make a mess.
+ *
+ *	Locking: The console lock is acquired.
  */
 int sel_loadlut(u32 __user *lut)
 {
 	u32 tmplut[ARRAY_SIZE(inwordLut)];
+
 	if (copy_from_user(tmplut, lut, sizeof(inwordLut)))
 		return -EFAULT;
+
+	console_lock();
 	memcpy(inwordLut, tmplut, sizeof(inwordLut));
+	console_unlock();
+
 	return 0;
 }
 

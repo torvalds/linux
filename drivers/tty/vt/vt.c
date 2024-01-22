@@ -3162,10 +3162,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	case TIOCL_SELLOADLUT:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		console_lock();
-		ret = sel_loadlut(param_aligned32);
-		console_unlock();
-		break;
+		return sel_loadlut(param_aligned32);
 	case TIOCL_GETSHIFTSTATE:
 		/*
 		 * Make it possible to react to Shift+Mousebutton. Note that
@@ -3181,10 +3178,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		console_unlock();
 		return put_user(data, p);
 	case TIOCL_SETVESABLANK:
-		console_lock();
-		ret = set_vesa_blanking(param);
-		console_unlock();
-		break;
+		return set_vesa_blanking(param);
 	case TIOCL_GETKMSGREDIRECT:
 		data = vt_get_kmsg_redirect();
 		return put_user(data, p);
@@ -4270,7 +4264,10 @@ static int set_vesa_blanking(u8 __user *mode_user)
 	if (get_user(mode, mode_user))
 		return -EFAULT;
 
+	console_lock();
 	vesa_blank_mode = (mode < 4) ? mode : 0;
+	console_unlock();
+
 	return 0;
 }
 
