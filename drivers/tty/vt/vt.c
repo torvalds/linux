@@ -286,12 +286,12 @@ static inline bool con_should_update(const struct vc_data *vc)
 	return con_is_visible(vc) && !console_blanked;
 }
 
-static inline unsigned short *screenpos(const struct vc_data *vc, int offset,
-		bool viewed)
+static inline u16 *screenpos(const struct vc_data *vc, unsigned int offset,
+			     bool viewed)
 {
 	unsigned long origin = viewed ? vc->vc_visible_origin : vc->vc_origin;
 
-	return (unsigned short *)(origin + offset);
+	return (u16 *)(origin + offset);
 }
 
 static void con_putc(struct vc_data *vc, u16 ca, unsigned int y, unsigned int x)
@@ -705,7 +705,7 @@ static void update_attr(struct vc_data *vc)
 /* Note: inverting the screen twice should revert to the original state */
 void invert_screen(struct vc_data *vc, int offset, int count, bool viewed)
 {
-	unsigned short *p;
+	u16 *p;
 
 	WARN_CONSOLE_UNLOCKED();
 
@@ -773,8 +773,7 @@ void complement_pos(struct vc_data *vc, int offset)
 	if (offset != -1 && offset >= 0 &&
 	    offset < vc->vc_screenbuf_size) {
 		unsigned short new;
-		unsigned short *p;
-		p = screenpos(vc, offset, true);
+		u16 *p = screenpos(vc, offset, true);
 		old = scr_readw(p);
 		new = old ^ vc->vc_complement_mask;
 		scr_writew(new, p);
