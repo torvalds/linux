@@ -27,6 +27,31 @@
 #ifndef __DAL_DPP_H__
 #define __DAL_DPP_H__
 
+/**
+ * DOC: overview
+ *
+ * The DPP (Display Pipe and Plane) block is the unified display data
+ * processing engine in DCN for processing graphic or video data on per DPP
+ * rectangle base. This rectangle can be a part of SLS (Single Large Surface),
+ * or a layer to be blended with other DPP, or a rectangle associated with a
+ * display tile.
+ *
+ * It provides various functions including:
+ * - graphic color keyer
+ * - graphic cursor compositing
+ * - graphic or video image source to destination scaling
+ * - image sharping
+ * - video format conversion from 4:2:0 or 4:2:2 to 4:4:4
+ * - Color Space Conversion
+ * - Host LUT gamma adjustment
+ * - Color Gamut Remap
+ * - brightness and contrast adjustment.
+ *
+ * DPP pipe consists of Converter and Cursor (CNVC), Scaler (DSCL), Color
+ * Management (CM), Output Buffer (OBUF) and Digital Bypass (DPB) module
+ * connected in a video/graphics pipeline.
+ */
+
 #include "transform.h"
 #include "cursor_reg_cache.h"
 
