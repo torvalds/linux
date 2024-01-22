@@ -520,7 +520,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 			inode, inode->i_mode,
 			huge_decode_dev(le64_to_cpu(raw_inode->i_device_code)));
 	}
-	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
+	nilfs_ifile_unmap_inode(raw_inode);
 	brelse(bh);
 	up_read(&NILFS_MDT(nilfs->ns_dat)->mi_sem);
 	nilfs_set_inode_flags(inode);
@@ -529,7 +529,7 @@ static int __nilfs_read_inode(struct super_block *sb,
 	return 0;
 
  failed_unmap:
-	nilfs_ifile_unmap_inode(root->ifile, ino, bh);
+	nilfs_ifile_unmap_inode(raw_inode);
 	brelse(bh);
 
  bad_inode:
@@ -814,7 +814,7 @@ void nilfs_update_inode(struct inode *inode, struct buffer_head *ibh, int flags)
 		raw_inode->i_device_code =
 			cpu_to_le64(huge_encode_dev(inode->i_rdev));
 
-	nilfs_ifile_unmap_inode(ifile, ino, ibh);
+	nilfs_ifile_unmap_inode(raw_inode);
 }
 
 #define NILFS_MAX_TRUNCATE_BLOCKS	16384  /* 64MB for 4KB block */
