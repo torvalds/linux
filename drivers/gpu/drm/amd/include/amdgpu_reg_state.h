@@ -138,7 +138,7 @@ static inline size_t amdgpu_reginst_size(uint16_t num_inst, size_t inst_size,
 }
 
 #define amdgpu_asic_get_reg_state_supported(adev) \
-	((adev)->asic_funcs->get_reg_state ? 1 : 0)
+	(((adev)->asic_funcs && (adev)->asic_funcs->get_reg_state) ? 1 : 0)
 
 #define amdgpu_asic_get_reg_state(adev, state, buf, size)                  \
 	((adev)->asic_funcs->get_reg_state ?                               \
