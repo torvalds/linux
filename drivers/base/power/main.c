@@ -578,6 +578,35 @@ bool dev_pm_skip_resume(struct device *dev)
 	return !dev->power.must_resume;
 }
 
+static bool is_async(struct device *dev)
+{
+	return dev->power.async_suspend && pm_async_enabled
+		&& !pm_trace_is_enabled();
+}
+
+static bool dpm_async_fn(struct device *dev, async_func_t func)
+{
+	reinit_completion(&dev->power.completion);
+
+	if (is_async(dev)) {
+		dev->power.async_in_progress = true;
+
+		get_device(dev);
+
+		if (async_schedule_dev_nocall(func, dev))
+			return true;
+
+		put_device(dev);
+	}
+	/*
+	 * Because async_schedule_dev_nocall() above has returned false or it
+	 * has not been called at all, func() is not running and it is safe to
+	 * update the async_in_progress flag without extra synchronization.
+	 */
+	dev->power.async_in_progress = false;
+	return false;
+}
+
 /**
  * device_resume_noirq - Execute a "noirq resume" callback for given device.
  * @dev: Device to handle.
@@ -662,35 +691,6 @@ Out:
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async noirq" : " noirq", error);
 	}
-}
-
-static bool is_async(struct device *dev)
-{
-	return dev->power.async_suspend && pm_async_enabled
-		&& !pm_trace_is_enabled();
-}
-
-static bool dpm_async_fn(struct device *dev, async_func_t func)
-{
-	reinit_completion(&dev->power.completion);
-
-	if (is_async(dev)) {
-		dev->power.async_in_progress = true;
-
-		get_device(dev);
-
-		if (async_schedule_dev_nocall(func, dev))
-			return true;
-
-		put_device(dev);
-	}
-	/*
-	 * Because async_schedule_dev_nocall() above has returned false or it
-	 * has not been called at all, func() is not running and it is safe to
-	 * update the async_in_progress flag without extra synchronization.
-	 */
-	dev->power.async_in_progress = false;
-	return false;
 }
 
 static void async_resume_noirq(void *data, async_cookie_t cookie)
