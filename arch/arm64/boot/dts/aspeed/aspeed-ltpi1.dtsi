@@ -137,6 +137,13 @@
 			resets = <&ltpi1_syscon AST1700_RESET_I3C11>;
 			status = "disabled";
 		};
+
+		ltpi1_ltpi: ltpi@50c34000 {
+			compatible = "aspeed-ltpi";
+			reg = <0x0 0x50c34000 0x0 0x100>;
+			clocks = <&ltpi1_syscon AST1700_CLK_GATE_LTPICLK>;
+			status = "okay";
+		};
 	};
 };
 

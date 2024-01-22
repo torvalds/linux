@@ -6,6 +6,15 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/clk.h>
+#include <asm/io.h>
+
+#define LTPI_AUTO_CAP_LOW			0x24
+#define   LTPI_I2C_DATA_FRAME_MUX		GENMASK(29, 24)
+#define LTPI_AUTO_CAP_HIGH			0x28
+#define LTPI_LINK_CONTROLL			0x80
+#define   LTPI_MANUAL_CONTROLL			GENMASK(10, 10)
+#define LTPI_MANUAL_CAP_LOW			0x118
+#define LTPI_MANUAL_CAP_HIGH			0x11C
 
 static int aspeed_ltpi_probe(struct platform_device *pdev)
 {
@@ -14,6 +23,8 @@ static int aspeed_ltpi_probe(struct platform_device *pdev)
 	struct device_node *np = dev->of_node;
 	const struct of_device_id *match;
 	struct clk *ltpi_clk;
+	void __iomem *regs;
+	u32 reg;
 
 	match = of_match_device(dev->driver->of_match_table, dev);
 	if (match && match->data) {
@@ -29,8 +40,23 @@ static int aspeed_ltpi_probe(struct platform_device *pdev)
 
 	clk_prepare_enable(ltpi_clk);
 
+	regs = devm_platform_ioremap_resource(pdev, 0);
+
 	if (np)
 		of_platform_populate(np, NULL, lookup, &pdev->dev);
+
+	/* Switch I2C mux into data frame*/
+	reg = readl(regs + LTPI_AUTO_CAP_LOW);
+	reg &= ~(LTPI_I2C_DATA_FRAME_MUX);
+	writel(reg, regs + LTPI_MANUAL_CAP_LOW);
+
+	reg = readl(regs + LTPI_AUTO_CAP_HIGH);
+	writel(reg, regs + LTPI_MANUAL_CAP_HIGH);
+
+	/* Apply ltpi as manual mode */
+	reg = readl(regs + LTPI_LINK_CONTROLL);
+	reg &= ~(LTPI_MANUAL_CONTROLL);
+	writel(reg, regs + LTPI_LINK_CONTROLL);
 
 	return 0;
 }
