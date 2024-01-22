@@ -28,5 +28,6 @@ table of content:
    display-manager.rst
    dc-debug.rst
    dcn-overview.rst
+   dcn-blocks.rst
    mpo-overview.rst
    dc-glossary.rst
