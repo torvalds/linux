@@ -1498,13 +1498,20 @@ static inline void del(struct vc_data *vc)
 	/* ignored */
 }
 
-static void csi_J(struct vc_data *vc, int vpar)
+enum CSI_J {
+	CSI_J_CURSOR_TO_END	= 0,
+	CSI_J_START_TO_CURSOR	= 1,
+	CSI_J_VISIBLE		= 2,
+	CSI_J_FULL		= 3,
+};
+
+static void csi_J(struct vc_data *vc, enum CSI_J vpar)
 {
 	unsigned int count;
 	unsigned short * start;
 
 	switch (vpar) {
-		case 0:	/* erase from cursor to end of display */
+		case CSI_J_CURSOR_TO_END:
 			vc_uniscr_clear_line(vc, vc->state.x,
 					     vc->vc_cols - vc->state.x);
 			vc_uniscr_clear_lines(vc, vc->state.y + 1,
@@ -1512,16 +1519,16 @@ static void csi_J(struct vc_data *vc, int vpar)
 			count = (vc->vc_scr_end - vc->vc_pos) >> 1;
 			start = (unsigned short *)vc->vc_pos;
 			break;
-		case 1:	/* erase from start to cursor */
+		case CSI_J_START_TO_CURSOR:
 			vc_uniscr_clear_line(vc, 0, vc->state.x + 1);
 			vc_uniscr_clear_lines(vc, 0, vc->state.y);
 			count = ((vc->vc_pos - vc->vc_origin) >> 1) + 1;
 			start = (unsigned short *)vc->vc_origin;
 			break;
-		case 3: /* include scrollback */
+		case CSI_J_FULL:
 			flush_scrollback(vc);
 			fallthrough;
-		case 2: /* erase whole display */
+		case CSI_J_VISIBLE:
 			vc_uniscr_clear_lines(vc, 0, vc->vc_rows);
 			count = vc->vc_cols * vc->vc_rows;
 			start = (unsigned short *)vc->vc_origin;
@@ -2110,7 +2117,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	gotoxy(vc, 0, 0);
 	save_cur(vc);
 	if (do_clear)
-	    csi_J(vc, 2);
+	    csi_J(vc, CSI_J_VISIBLE);
 }
 
 static void vc_setGx(struct vc_data *vc, unsigned int which, int c)
@@ -2526,7 +2533,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			/* DEC screen alignment test. kludge :-) */
 			vc->vc_video_erase_char =
 				(vc->vc_video_erase_char & 0xff00) | 'E';
-			csi_J(vc, 2);
+			csi_J(vc, CSI_J_VISIBLE);
 			vc->vc_video_erase_char =
 				(vc->vc_video_erase_char & 0xff00) | ' ';
 			do_update_region(vc, vc->vc_origin, vc->vc_screenbuf_size / 2);
@@ -3498,7 +3505,7 @@ static int __init con_init(void)
 	set_origin(vc);
 	save_screen(vc);
 	gotoxy(vc, vc->state.x, vc->state.y);
-	csi_J(vc, 0);
+	csi_J(vc, CSI_J_CURSOR_TO_END);
 	update_screen(vc);
 	pr_info("Console: %s %s %dx%d\n",
 		vc->vc_can_do_color ? "colour" : "mono",
