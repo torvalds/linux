@@ -2142,7 +2142,7 @@ config TEST_DHRY
 
 	  To run the benchmark, it needs to be enabled explicitly, either from
 	  the kernel command line (when built-in), or from userspace (when
-	  built-in or modular.
+	  built-in or modular).
 
 	  Run once during kernel boot:
 
