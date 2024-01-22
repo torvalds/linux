@@ -43,7 +43,6 @@ struct ivpu_cmdq {
 			  will update the job status
  */
 struct ivpu_job {
-	struct kref ref;
 	struct ivpu_device *vdev;
 	struct ivpu_file_priv *file_priv;
 	struct dma_fence *done_fence;
