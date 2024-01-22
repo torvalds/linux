@@ -658,7 +658,7 @@ typedef struct _ATOM_PPLIB_SAMClk_Voltage_Limit_Record
 
 typedef struct _ATOM_PPLIB_SAMClk_Voltage_Limit_Table{
     UCHAR numEntries;
-    ATOM_PPLIB_SAMClk_Voltage_Limit_Record entries[1];
+    ATOM_PPLIB_SAMClk_Voltage_Limit_Record entries[];
 }ATOM_PPLIB_SAMClk_Voltage_Limit_Table;
 
 typedef struct _ATOM_PPLIB_SAMU_Table
