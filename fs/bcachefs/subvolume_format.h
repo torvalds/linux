@@ -19,7 +19,7 @@ struct bch_subvolume {
 	 * This is _not_ necessarily the subvolume of the directory containing
 	 * this subvolume:
 	 */
-	__le32			parent;
+	__le32			creation_parent;
 	__le32			pad;
 	bch_le128		otime;
 };

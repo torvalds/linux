@@ -143,8 +143,8 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 		   le64_to_cpu(s.v->inode),
 		   le32_to_cpu(s.v->snapshot));
 
-	if (bkey_val_bytes(s.k) > offsetof(struct bch_subvolume, parent))
-		prt_printf(out, " parent %u", le32_to_cpu(s.v->parent));
+	if (bkey_val_bytes(s.k) > offsetof(struct bch_subvolume, creation_parent))
+		prt_printf(out, " creation_parent %u", le32_to_cpu(s.v->creation_parent));
 }
 
 static __always_inline int
@@ -228,8 +228,8 @@ static int bch2_subvolume_reparent(struct btree_trans *trans,
 	if (k.k->type != KEY_TYPE_subvolume)
 		return 0;
 
-	if (bkey_val_bytes(k.k) > offsetof(struct bch_subvolume, parent) &&
-	    le32_to_cpu(bkey_s_c_to_subvolume(k).v->parent) != old_parent)
+	if (bkey_val_bytes(k.k) > offsetof(struct bch_subvolume, creation_parent) &&
+	    le32_to_cpu(bkey_s_c_to_subvolume(k).v->creation_parent) != old_parent)
 		return 0;
 
 	s = bch2_bkey_make_mut_typed(trans, iter, &k, 0, subvolume);
@@ -237,7 +237,7 @@ static int bch2_subvolume_reparent(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	s->v.parent = cpu_to_le32(new_parent);
+	s->v.creation_parent = cpu_to_le32(new_parent);
 	return 0;
 }
 
@@ -260,7 +260,7 @@ static int bch2_subvolumes_reparent(struct btree_trans *trans, u32 subvolid_to_d
 				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_subvolume_reparent(trans, &iter, k,
-					subvolid_to_delete, le32_to_cpu(s.parent)));
+					subvolid_to_delete, le32_to_cpu(s.creation_parent)));
 }
 
 /*
@@ -447,12 +447,12 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 	if (ret)
 		goto err;
 
-	new_subvol->v.flags	= 0;
-	new_subvol->v.snapshot	= cpu_to_le32(new_nodes[0]);
-	new_subvol->v.inode	= cpu_to_le64(inode);
-	new_subvol->v.parent	= cpu_to_le32(src_subvolid);
-	new_subvol->v.otime.lo	= cpu_to_le64(bch2_current_time(c));
-	new_subvol->v.otime.hi	= 0;
+	new_subvol->v.flags		= 0;
+	new_subvol->v.snapshot		= cpu_to_le32(new_nodes[0]);
+	new_subvol->v.inode		= cpu_to_le64(inode);
+	new_subvol->v.creation_parent	= cpu_to_le32(src_subvolid);
+	new_subvol->v.otime.lo		= cpu_to_le64(bch2_current_time(c));
+	new_subvol->v.otime.hi		= 0;
 
 	SET_BCH_SUBVOLUME_RO(&new_subvol->v, ro);
 	SET_BCH_SUBVOLUME_SNAP(&new_subvol->v, src_subvolid != 0);
