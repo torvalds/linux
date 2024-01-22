@@ -627,7 +627,7 @@ restart:
 		prt_printf(&i->buf, "backtrace:");
 		prt_newline(&i->buf);
 		printbuf_indent_add(&i->buf, 2);
-		bch2_prt_task_backtrace(&i->buf, task, 0);
+		bch2_prt_task_backtrace(&i->buf, task, 0, GFP_KERNEL);
 		printbuf_indent_sub(&i->buf, 2);
 		prt_newline(&i->buf);
 
