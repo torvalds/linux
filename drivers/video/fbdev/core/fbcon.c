@@ -2593,30 +2593,6 @@ static void fbcon_set_palette(struct vc_data *vc, const unsigned char *table)
 	fb_set_cmap(&palette_cmap, info);
 }
 
-static unsigned long fbcon_getxy(struct vc_data *vc, unsigned long pos,
-				 int *px, int *py)
-{
-	unsigned long ret;
-	int x, y;
-
-	if (pos >= vc->vc_origin && pos < vc->vc_scr_end) {
-		unsigned long offset = (pos - vc->vc_origin) / 2;
-
-		x = offset % vc->vc_cols;
-		y = offset / vc->vc_cols;
-		ret = pos + (vc->vc_cols - x) * 2;
-	} else {
-		/* Should not happen */
-		x = y = 0;
-		ret = vc->vc_origin;
-	}
-	if (px)
-		*px = x;
-	if (py)
-		*py = y;
-	return ret;
-}
-
 /* As we might be inside of softback, we may work with non-contiguous buffer,
    that's why we have to use a separate routine. */
 static void fbcon_invert_region(struct vc_data *vc, u16 * p, int cnt)
@@ -3157,7 +3133,6 @@ static const struct consw fb_con = {
 	.con_font_default	= fbcon_set_def_font,
 	.con_set_palette 	= fbcon_set_palette,
 	.con_invert_region 	= fbcon_invert_region,
-	.con_getxy 		= fbcon_getxy,
 	.con_resize             = fbcon_resize,
 	.con_debug_enter	= fbcon_debug_enter,
 	.con_debug_leave	= fbcon_debug_leave,
