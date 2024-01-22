@@ -23,7 +23,6 @@
 #include <linux/swapops.h>
 #include <linux/pm.h>
 #include <linux/slab.h>
-#include <linux/lzo.h>
 #include <linux/vmalloc.h>
 #include <linux/cpumask.h>
 #include <linux/atomic.h>
@@ -340,6 +339,13 @@ static int mark_swapfiles(struct swap_map_handle *handle, unsigned int flags)
 	return error;
 }
 
+/*
+ * Hold the swsusp_header flag. This is used in software_resume() in
+ * 'kernel/power/hibernate' to check if the image is compressed and query
+ * for the compression algorithm support(if so).
+ */
+unsigned int swsusp_header_flags;
+
 /**
  *	swsusp_swap_check - check if the resume device is a swap device
  *	and get its index (if so)
@@ -519,6 +525,12 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 	return error;
 }
 
+/*
+ * Bytes we need for compressed data in worst case. We assume(limitation)
+ * this is the worst of all the compression algorithms.
+ */
+#define bytes_worst_compress(x) ((x) + ((x) / 16) + 64 + 3 + 2)
+
 /* We need to remember how much compressed data we need to read. */
 #define CMP_HEADER	sizeof(size_t)
 
@@ -527,7 +539,7 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 #define UNC_SIZE	(UNC_PAGES * PAGE_SIZE)
 
 /* Number of pages we need for compressed data (worst case). */
-#define CMP_PAGES	DIV_ROUND_UP(lzo1x_worst_compress(UNC_SIZE) + \
+#define CMP_PAGES	DIV_ROUND_UP(bytes_worst_compress(UNC_SIZE) + \
 				CMP_HEADER, PAGE_SIZE)
 #define CMP_SIZE	(CMP_PAGES * PAGE_SIZE)
 
@@ -537,7 +549,6 @@ static int swap_writer_finish(struct swap_map_handle *handle,
 /* Minimum/maximum number of pages for read buffering. */
 #define CMP_MIN_RD_PAGES	1024
 #define CMP_MAX_RD_PAGES	8192
-
 
 /**
  *	save_image - save the suspend image data
@@ -636,6 +647,7 @@ static int crc32_threadfn(void *data)
  */
 struct cmp_data {
 	struct task_struct *thr;                  /* thread */
+	struct crypto_comp *cc;                   /* crypto compressor stream */
 	atomic_t ready;                           /* ready to start flag */
 	atomic_t stop;                            /* ready to stop flag */
 	int ret;                                  /* return code */
@@ -645,8 +657,10 @@ struct cmp_data {
 	size_t cmp_len;                           /* compressed length */
 	unsigned char unc[UNC_SIZE];              /* uncompressed buffer */
 	unsigned char cmp[CMP_SIZE];              /* compressed buffer */
-	unsigned char wrk[LZO1X_1_MEM_COMPRESS];  /* compression workspace */
 };
+
+/* Indicates the image size after compression */
+static atomic_t compressed_size = ATOMIC_INIT(0);
 
 /**
  * Compression function that runs in its own thread.
@@ -654,6 +668,7 @@ struct cmp_data {
 static int compress_threadfn(void *data)
 {
 	struct cmp_data *d = data;
+	unsigned int cmp_len = 0;
 
 	while (1) {
 		wait_event(d->go, atomic_read(&d->ready) ||
@@ -667,9 +682,13 @@ static int compress_threadfn(void *data)
 		}
 		atomic_set(&d->ready, 0);
 
-		d->ret = lzo1x_1_compress(d->unc, d->unc_len,
-					  d->cmp + CMP_HEADER, &d->cmp_len,
-		                          d->wrk);
+		cmp_len = CMP_SIZE - CMP_HEADER;
+		d->ret = crypto_comp_compress(d->cc, d->unc, d->unc_len,
+					      d->cmp + CMP_HEADER,
+					      &cmp_len);
+		d->cmp_len = cmp_len;
+
+		atomic_set(&compressed_size, atomic_read(&compressed_size) + d->cmp_len);
 		atomic_set(&d->stop, 1);
 		wake_up(&d->done);
 	}
@@ -701,6 +720,8 @@ static int save_compressed_image(struct swap_map_handle *handle,
 
 	hib_init_batch(&hb);
 
+	atomic_set(&compressed_size, 0);
+
 	/*
 	 * We'll limit the number of threads for compression to limit memory
 	 * footprint.
@@ -710,14 +731,14 @@ static int save_compressed_image(struct swap_map_handle *handle,
 
 	page = (void *)__get_free_page(GFP_NOIO | __GFP_HIGH);
 	if (!page) {
-		pr_err("Failed to allocate compression page\n");
+		pr_err("Failed to allocate %s page\n", hib_comp_algo);
 		ret = -ENOMEM;
 		goto out_clean;
 	}
 
 	data = vzalloc(array_size(nr_threads, sizeof(*data)));
 	if (!data) {
-		pr_err("Failed to allocate compression data\n");
+		pr_err("Failed to allocate %s data\n", hib_comp_algo);
 		ret = -ENOMEM;
 		goto out_clean;
 	}
@@ -735,6 +756,13 @@ static int save_compressed_image(struct swap_map_handle *handle,
 	for (thr = 0; thr < nr_threads; thr++) {
 		init_waitqueue_head(&data[thr].go);
 		init_waitqueue_head(&data[thr].done);
+
+		data[thr].cc = crypto_alloc_comp(hib_comp_algo, 0, 0);
+		if (IS_ERR_OR_NULL(data[thr].cc)) {
+			pr_err("Could not allocate comp stream %ld\n", PTR_ERR(data[thr].cc));
+			ret = -EFAULT;
+			goto out_clean;
+		}
 
 		data[thr].thr = kthread_run(compress_threadfn,
 		                            &data[thr],
@@ -774,7 +802,7 @@ static int save_compressed_image(struct swap_map_handle *handle,
 	 */
 	handle->reqd_free_pages = reqd_free_pages();
 
-	pr_info("Using %u thread(s) for compression\n", nr_threads);
+	pr_info("Using %u thread(s) for %s compression\n", nr_threads, hib_comp_algo);
 	pr_info("Compressing and saving image data (%u pages)...\n",
 		nr_to_write);
 	m = nr_to_write / 10;
@@ -824,14 +852,14 @@ static int save_compressed_image(struct swap_map_handle *handle,
 			ret = data[thr].ret;
 
 			if (ret < 0) {
-				pr_err("compression failed\n");
+				pr_err("%s compression failed\n", hib_comp_algo);
 				goto out_finish;
 			}
 
 			if (unlikely(!data[thr].cmp_len ||
 			             data[thr].cmp_len >
-			             lzo1x_worst_compress(data[thr].unc_len))) {
-				pr_err("Invalid compressed length\n");
+				     bytes_worst_compress(data[thr].unc_len))) {
+				pr_err("Invalid %s compressed length\n", hib_comp_algo);
 				ret = -1;
 				goto out_finish;
 			}
@@ -869,6 +897,9 @@ out_finish:
 	if (!ret)
 		pr_info("Image saving done\n");
 	swsusp_show_speed(start, stop, nr_to_write, "Wrote");
+	pr_info("Image size after compression: %d kbytes\n",
+		(atomic_read(&compressed_size) / 1024));
+
 out_clean:
 	hib_finish_batch(&hb);
 	if (crc) {
@@ -877,9 +908,12 @@ out_clean:
 		kfree(crc);
 	}
 	if (data) {
-		for (thr = 0; thr < nr_threads; thr++)
+		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
+			if (data[thr].cc)
+				crypto_free_comp(data[thr].cc);
+		}
 		vfree(data);
 	}
 	if (page) free_page((unsigned long)page);
@@ -1121,6 +1155,7 @@ static int load_image(struct swap_map_handle *handle,
  */
 struct dec_data {
 	struct task_struct *thr;                  /* thread */
+	struct crypto_comp *cc;                   /* crypto compressor stream */
 	atomic_t ready;                           /* ready to start flag */
 	atomic_t stop;                            /* ready to stop flag */
 	int ret;                                  /* return code */
@@ -1138,6 +1173,7 @@ struct dec_data {
 static int decompress_threadfn(void *data)
 {
 	struct dec_data *d = data;
+	unsigned int unc_len = 0;
 
 	while (1) {
 		wait_event(d->go, atomic_read(&d->ready) ||
@@ -1151,9 +1187,11 @@ static int decompress_threadfn(void *data)
 		}
 		atomic_set(&d->ready, 0);
 
-		d->unc_len = UNC_SIZE;
-		d->ret = lzo1x_decompress_safe(d->cmp + CMP_HEADER, d->cmp_len,
-					       d->unc, &d->unc_len);
+		unc_len = UNC_SIZE;
+		d->ret = crypto_comp_decompress(d->cc, d->cmp + CMP_HEADER, d->cmp_len,
+						d->unc, &unc_len);
+		d->unc_len = unc_len;
+
 		if (clean_pages_on_decompress)
 			flush_icache_range((unsigned long)d->unc,
 					   (unsigned long)d->unc + d->unc_len);
@@ -1201,14 +1239,14 @@ static int load_compressed_image(struct swap_map_handle *handle,
 
 	page = vmalloc(array_size(CMP_MAX_RD_PAGES, sizeof(*page)));
 	if (!page) {
-		pr_err("Failed to allocate compression page\n");
+		pr_err("Failed to allocate %s page\n", hib_comp_algo);
 		ret = -ENOMEM;
 		goto out_clean;
 	}
 
 	data = vzalloc(array_size(nr_threads, sizeof(*data)));
 	if (!data) {
-		pr_err("Failed to allocate compression data\n");
+		pr_err("Failed to allocate %s data\n", hib_comp_algo);
 		ret = -ENOMEM;
 		goto out_clean;
 	}
@@ -1228,6 +1266,13 @@ static int load_compressed_image(struct swap_map_handle *handle,
 	for (thr = 0; thr < nr_threads; thr++) {
 		init_waitqueue_head(&data[thr].go);
 		init_waitqueue_head(&data[thr].done);
+
+		data[thr].cc = crypto_alloc_comp(hib_comp_algo, 0, 0);
+		if (IS_ERR_OR_NULL(data[thr].cc)) {
+			pr_err("Could not allocate comp stream %ld\n", PTR_ERR(data[thr].cc));
+			ret = -EFAULT;
+			goto out_clean;
+		}
 
 		data[thr].thr = kthread_run(decompress_threadfn,
 		                            &data[thr],
@@ -1281,7 +1326,7 @@ static int load_compressed_image(struct swap_map_handle *handle,
 		if (!page[i]) {
 			if (i < CMP_PAGES) {
 				ring_size = i;
-				pr_err("Failed to allocate compression pages\n");
+				pr_err("Failed to allocate %s pages\n", hib_comp_algo);
 				ret = -ENOMEM;
 				goto out_clean;
 			} else {
@@ -1291,7 +1336,7 @@ static int load_compressed_image(struct swap_map_handle *handle,
 	}
 	want = ring_size = i;
 
-	pr_info("Using %u thread(s) for decompression\n", nr_threads);
+	pr_info("Using %u thread(s) for %s decompression\n", nr_threads, hib_comp_algo);
 	pr_info("Loading and decompressing image data (%u pages)...\n",
 		nr_to_read);
 	m = nr_to_read / 10;
@@ -1352,8 +1397,8 @@ static int load_compressed_image(struct swap_map_handle *handle,
 			data[thr].cmp_len = *(size_t *)page[pg];
 			if (unlikely(!data[thr].cmp_len ||
 			             data[thr].cmp_len >
-					lzo1x_worst_compress(UNC_SIZE))) {
-				pr_err("Invalid compressed length\n");
+					bytes_worst_compress(UNC_SIZE))) {
+				pr_err("Invalid %s compressed length\n", hib_comp_algo);
 				ret = -1;
 				goto out_finish;
 			}
@@ -1404,14 +1449,14 @@ static int load_compressed_image(struct swap_map_handle *handle,
 			ret = data[thr].ret;
 
 			if (ret < 0) {
-				pr_err("decompression failed\n");
+				pr_err("%s decompression failed\n", hib_comp_algo);
 				goto out_finish;
 			}
 
 			if (unlikely(!data[thr].unc_len ||
 				data[thr].unc_len > UNC_SIZE ||
 				data[thr].unc_len & (PAGE_SIZE - 1))) {
-				pr_err("Invalid uncompressed length\n");
+				pr_err("Invalid %s uncompressed length\n", hib_comp_algo);
 				ret = -1;
 				goto out_finish;
 			}
@@ -1472,9 +1517,12 @@ out_clean:
 		kfree(crc);
 	}
 	if (data) {
-		for (thr = 0; thr < nr_threads; thr++)
+		for (thr = 0; thr < nr_threads; thr++) {
 			if (data[thr].thr)
 				kthread_stop(data[thr].thr);
+			if (data[thr].cc)
+				crypto_free_comp(data[thr].cc);
+		}
 		vfree(data);
 	}
 	vfree(page);
@@ -1545,6 +1593,7 @@ int swsusp_check(void)
 
 		if (!memcmp(HIBERNATE_SIG, swsusp_header->sig, 10)) {
 			memcpy(swsusp_header->sig, swsusp_header->orig_sig, 10);
+			swsusp_header_flags = swsusp_header->flags;
 			/* Reset swap signature now */
 			error = hib_submit_io(REQ_OP_WRITE | REQ_SYNC,
 						swsusp_resume_block,
