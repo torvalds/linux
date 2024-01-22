@@ -1796,7 +1796,23 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 
 static bool has_nv1(const struct arm64_cpu_capabilities *entry, int scope)
 {
-	return !has_cpuid_feature(entry, scope);
+	/*
+	 * Although the Apple M2 family appears to support NV1, the
+	 * PTW barfs on the nVHE EL2 S1 page table format. Pretend
+	 * that it doesn't support NV1 at all.
+	 */
+	static const struct midr_range nv1_ni_list[] = {
+		MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD),
+		MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE),
+		MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_PRO),
+		MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_PRO),
+		MIDR_ALL_VERSIONS(MIDR_APPLE_M2_BLIZZARD_MAX),
+		MIDR_ALL_VERSIONS(MIDR_APPLE_M2_AVALANCHE_MAX),
+		{}
+	};
+
+	return !(has_cpuid_feature(entry, scope) ||
+		 is_midr_in_range_list(read_cpuid_id(), nv1_ni_list));
 }
 
 #if defined(ID_AA64MMFR0_EL1_TGRAN_LPA2) && defined(ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_LPA2)
