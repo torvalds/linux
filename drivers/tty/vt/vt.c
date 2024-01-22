@@ -2143,6 +2143,28 @@ static bool ansi_control_string(unsigned int state)
 	return false;
 }
 
+enum {
+	ASCII_NULL		= 0,
+	ASCII_BELL		= 7,
+	ASCII_BACKSPACE		= 8,
+	ASCII_IGNORE_FIRST	= ASCII_BACKSPACE,
+	ASCII_HTAB		= 9,
+	ASCII_LINEFEED		= 10,
+	ASCII_VTAB		= 11,
+	ASCII_FORMFEED		= 12,
+	ASCII_CAR_RET		= 13,
+	ASCII_IGNORE_LAST	= ASCII_CAR_RET,
+	ASCII_SHIFTOUT		= 14,
+	ASCII_SHIFTIN		= 15,
+	ASCII_CANCEL		= 24,
+	ASCII_SUBSTITUTE	= 26,
+	ASCII_ESCAPE		= 27,
+	ASCII_CSI_IGNORE_FIRST	= ' ', /* 0x2x, 0x3a and 0x3c - 0x3f */
+	ASCII_CSI_IGNORE_LAST	= '?',
+	ASCII_DEL		= 127,
+	ASCII_EXT_CSI		= 128 + ASCII_ESCAPE,
+};
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 {
@@ -2150,21 +2172,22 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 	 *  Control characters can be used in the _middle_
 	 *  of an escape sequence, aside from ANSI control strings.
 	 */
-	if (ansi_control_string(vc->vc_state) && c >= 8 && c <= 13)
+	if (ansi_control_string(vc->vc_state) && c >= ASCII_IGNORE_FIRST &&
+	    c <= ASCII_IGNORE_LAST)
 		return;
 	switch (c) {
-	case 0:
+	case ASCII_NULL:
 		return;
-	case 7:
+	case ASCII_BELL:
 		if (ansi_control_string(vc->vc_state))
 			vc->vc_state = ESnormal;
 		else if (vc->vc_bell_duration)
 			kd_mksound(vc->vc_bell_pitch, vc->vc_bell_duration);
 		return;
-	case 8:
+	case ASCII_BACKSPACE:
 		bs(vc);
 		return;
-	case 9:
+	case ASCII_HTAB:
 		vc->vc_pos -= (vc->state.x << 1);
 
 		vc->state.x = find_next_bit(vc->vc_tab_stop,
@@ -2176,34 +2199,37 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		vc->vc_pos += (vc->state.x << 1);
 		notify_write(vc, '\t');
 		return;
-	case 10: case 11: case 12:
+	case ASCII_LINEFEED:
+	case ASCII_VTAB:
+	case ASCII_FORMFEED:
 		lf(vc);
 		if (!is_kbd(vc, lnm))
 			return;
 		fallthrough;
-	case 13:
+	case ASCII_CAR_RET:
 		cr(vc);
 		return;
-	case 14:
+	case ASCII_SHIFTOUT:
 		vc->state.charset = 1;
 		vc->vc_translate = set_translate(vc->state.Gx_charset[1], vc);
 		vc->vc_disp_ctrl = 1;
 		return;
-	case 15:
+	case ASCII_SHIFTIN:
 		vc->state.charset = 0;
 		vc->vc_translate = set_translate(vc->state.Gx_charset[0], vc);
 		vc->vc_disp_ctrl = 0;
 		return;
-	case 24: case 26:
+	case ASCII_CANCEL:
+	case ASCII_SUBSTITUTE:
 		vc->vc_state = ESnormal;
 		return;
-	case 27:
+	case ASCII_ESCAPE:
 		vc->vc_state = ESesc;
 		return;
-	case 127:
+	case ASCII_DEL:
 		del(vc);
 		return;
-	case 128+27:
+	case ASCII_EXT_CSI:
 		vc->vc_state = ESsquare;
 		return;
 	}
@@ -2338,7 +2364,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_par[vc->vc_npar] += c - '0';
 			return;
 		}
-		if (c >= 0x20 && c <= 0x3f) { /* 0x2x, 0x3a and 0x3c - 0x3f */
+		if (c >= ASCII_CSI_IGNORE_FIRST && c <= ASCII_CSI_IGNORE_LAST) {
 			vc->vc_state = EScsiignore;
 			return;
 		}
@@ -2500,7 +2526,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		}
 		return;
 	case EScsiignore:
-		if (c >= 0x20 && c <= 0x3f)
+		if (c >= ASCII_CSI_IGNORE_FIRST && c <= ASCII_CSI_IGNORE_LAST)
 			return;
 		vc->vc_state = ESnormal;
 		return;
@@ -2761,17 +2787,17 @@ static bool vc_is_control(struct vc_data *vc, int tc, int c)
 	 * useless without them; to display an arbitrary font position use the
 	 * direct-to-font zone in UTF-8 mode.
 	 */
-	if (c < 32) {
+	if (c < ' ') {
 		if (vc->vc_disp_ctrl)
 			return CTRL_ALWAYS & BIT(c);
 		else
 			return vc->vc_utf || (CTRL_ACTION & BIT(c));
 	}
 
-	if (c == 127 && !vc->vc_disp_ctrl)
+	if (c == ASCII_DEL && !vc->vc_disp_ctrl)
 		return true;
 
-	if (c == 128 + 27)
+	if (c == ASCII_EXT_CSI)
 		return true;
 
 	return false;
