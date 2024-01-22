@@ -1542,6 +1542,12 @@ static void csi_J(struct vc_data *vc, enum CSI_J vpar)
 	vc->vc_need_wrap = 0;
 }
 
+enum {
+	CSI_K_CURSOR_TO_LINEEND		= 0,
+	CSI_K_LINESTART_TO_CURSOR	= 1,
+	CSI_K_LINE			= 2,
+};
+
 static void csi_K(struct vc_data *vc)
 {
 	unsigned int count;
@@ -1549,15 +1555,15 @@ static void csi_K(struct vc_data *vc)
 	int offset;
 
 	switch (vc->vc_par[0]) {
-		case 0:	/* erase from cursor to end of line */
+		case CSI_K_CURSOR_TO_LINEEND:
 			offset = 0;
 			count = vc->vc_cols - vc->state.x;
 			break;
-		case 1:	/* erase from start of line to cursor */
+		case CSI_K_LINESTART_TO_CURSOR:
 			offset = -vc->state.x;
 			count = vc->state.x + 1;
 			break;
-		case 2: /* erase whole line */
+		case CSI_K_LINE:
 			offset = -vc->state.x;
 			count = vc->vc_cols;
 			break;
