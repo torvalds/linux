@@ -514,47 +514,41 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 
 	c_height = c->vc_cell_height;
 
-	switch (mode) {
-	case CM_ERASE:
-		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
+	write_vga(14, (c->vc_pos - vga_vram_base) / 2);
+
+	if (mode == CM_ERASE) {
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
 			vgacon_set_cursor_size(31, 30);
 		else
 			vgacon_set_cursor_size(31, 31);
-		break;
+		return;
+	}
 
-	case CM_MOVE:
-	case CM_DRAW:
-		write_vga(14, (c->vc_pos - vga_vram_base) / 2);
-		switch (CUR_SIZE(c->vc_cursor_type)) {
-		case CUR_UNDERLINE:
-			vgacon_set_cursor_size(c_height -
-					       (c_height < 10 ? 2 : 3),
-					       c_height -
-					       (c_height < 10 ? 1 : 2));
-			break;
-		case CUR_TWO_THIRDS:
-			vgacon_set_cursor_size(c_height / 3, c_height -
-					       (c_height < 10 ? 1 : 2));
-			break;
-		case CUR_LOWER_THIRD:
-			vgacon_set_cursor_size(c_height * 2 / 3, c_height -
-					       (c_height < 10 ? 1 : 2));
-			break;
-		case CUR_LOWER_HALF:
-			vgacon_set_cursor_size(c_height / 2, c_height -
-					       (c_height < 10 ? 1 : 2));
-			break;
-		case CUR_NONE:
-			if (vga_video_type >= VIDEO_TYPE_VGAC)
-				vgacon_set_cursor_size(31, 30);
-			else
-				vgacon_set_cursor_size(31, 31);
-			break;
-		default:
-			vgacon_set_cursor_size(1, c_height);
-			break;
-		}
+	switch (CUR_SIZE(c->vc_cursor_type)) {
+	case CUR_UNDERLINE:
+		vgacon_set_cursor_size(c_height - (c_height < 10 ? 2 : 3),
+				       c_height - (c_height < 10 ? 1 : 2));
+		break;
+	case CUR_TWO_THIRDS:
+		vgacon_set_cursor_size(c_height / 3,
+				       c_height - (c_height < 10 ? 1 : 2));
+		break;
+	case CUR_LOWER_THIRD:
+		vgacon_set_cursor_size(c_height * 2 / 3,
+				       c_height - (c_height < 10 ? 1 : 2));
+		break;
+	case CUR_LOWER_HALF:
+		vgacon_set_cursor_size(c_height / 2,
+				       c_height - (c_height < 10 ? 1 : 2));
+		break;
+	case CUR_NONE:
+		if (vga_video_type >= VIDEO_TYPE_VGAC)
+			vgacon_set_cursor_size(31, 30);
+		else
+			vgacon_set_cursor_size(31, 31);
+		break;
+	default:
+		vgacon_set_cursor_size(1, c_height);
 		break;
 	}
 }

@@ -95,23 +95,20 @@ static void sticon_cursor(struct vc_data *conp, int mode)
 	return;
 
     car1 = conp->vc_screenbuf[conp->state.x + conp->state.y * conp->vc_cols];
-    switch (mode) {
-    case CM_ERASE:
+    if (mode == CM_ERASE) {
 	sti_putc(sticon_sti, car1, conp->state.y, conp->state.x,
 		 font_data[conp->vc_num]);
-	break;
-    case CM_MOVE:
-    case CM_DRAW:
-	switch (CUR_SIZE(conp->vc_cursor_type)) {
-	case CUR_UNDERLINE:
-	case CUR_LOWER_THIRD:
-	case CUR_LOWER_HALF:
-	case CUR_TWO_THIRDS:
-	case CUR_BLOCK:
-	    sti_putc(sticon_sti, (car1 & 255) + (0 << 8) + (7 << 11),
-		     conp->state.y, conp->state.x, font_data[conp->vc_num]);
-	    break;
-	}
+	return;
+    }
+
+    switch (CUR_SIZE(conp->vc_cursor_type)) {
+    case CUR_UNDERLINE:
+    case CUR_LOWER_THIRD:
+    case CUR_LOWER_HALF:
+    case CUR_TWO_THIRDS:
+    case CUR_BLOCK:
+	sti_putc(sticon_sti, (car1 & 255) + (0 << 8) + (7 << 11),
+		 conp->state.y, conp->state.x, font_data[conp->vc_num]);
 	break;
     }
 }
