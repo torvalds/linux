@@ -300,6 +300,14 @@ static inline unsigned short *screenpos(const struct vc_data *vc, int offset,
 	return p;
 }
 
+static void con_putc(struct vc_data *vc, u16 ca, unsigned int y, unsigned int x)
+{
+	if (vc->vc_sw->con_putc)
+		vc->vc_sw->con_putc(vc, ca, y, x);
+	else
+		vc->vc_sw->con_putcs(vc, &ca, 1, y, x);
+}
+
 /* Called  from the keyboard irq path.. */
 static inline void scrolldelta(int lines)
 {
@@ -762,7 +770,7 @@ void complement_pos(struct vc_data *vc, int offset)
 	    old_offset < vc->vc_screenbuf_size) {
 		scr_writew(old, screenpos(vc, old_offset, true));
 		if (con_should_update(vc))
-			vc->vc_sw->con_putc(vc, old, oldy, oldx);
+			con_putc(vc, old, oldy, oldx);
 		notify_update(vc);
 	}
 
@@ -779,7 +787,7 @@ void complement_pos(struct vc_data *vc, int offset)
 		if (con_should_update(vc)) {
 			oldx = (offset >> 1) % vc->vc_cols;
 			oldy = (offset >> 1) / vc->vc_cols;
-			vc->vc_sw->con_putc(vc, new, oldy, oldx);
+			con_putc(vc, new, oldy, oldx);
 		}
 		notify_update(vc);
 	}
@@ -833,7 +841,7 @@ static void add_softcursor(struct vc_data *vc)
 		i ^= CUR_FG;
 	scr_writew(i, (u16 *)vc->vc_pos);
 	if (con_should_update(vc))
-		vc->vc_sw->con_putc(vc, i, vc->state.y, vc->state.x);
+		con_putc(vc, i, vc->state.y, vc->state.x);
 }
 
 static void hide_softcursor(struct vc_data *vc)
@@ -841,8 +849,8 @@ static void hide_softcursor(struct vc_data *vc)
 	if (softcursor_original != -1) {
 		scr_writew(softcursor_original, (u16 *)vc->vc_pos);
 		if (con_should_update(vc))
-			vc->vc_sw->con_putc(vc, softcursor_original,
-					vc->state.y, vc->state.x);
+			con_putc(vc, softcursor_original, vc->state.y,
+				 vc->state.x);
 		softcursor_original = -1;
 	}
 }
