@@ -1869,42 +1869,87 @@ static int gve_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
+static int gve_adjust_config(struct gve_priv *priv,
+			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+{
+	int err;
+
+	/* Allocate resources for the new confiugration */
+	err = gve_queues_mem_alloc(priv, qpls_alloc_cfg,
+				   tx_alloc_cfg, rx_alloc_cfg);
+	if (err) {
+		netif_err(priv, drv, priv->dev,
+			  "Adjust config failed to alloc new queues");
+		return err;
+	}
+
+	/* Teardown the device and free existing resources */
+	err = gve_close(priv->dev);
+	if (err) {
+		netif_err(priv, drv, priv->dev,
+			  "Adjust config failed to close old queues");
+		gve_queues_mem_free(priv, qpls_alloc_cfg,
+				    tx_alloc_cfg, rx_alloc_cfg);
+		return err;
+	}
+
+	/* Bring the device back up again with the new resources. */
+	err = gve_queues_start(priv, qpls_alloc_cfg,
+			       tx_alloc_cfg, rx_alloc_cfg);
+	if (err) {
+		netif_err(priv, drv, priv->dev,
+			  "Adjust config failed to start new queues, !!! DISABLING ALL QUEUES !!!\n");
+		/* No need to free on error: ownership of resources is lost after
+		 * calling gve_queues_start.
+		 */
+		gve_turndown(priv);
+		return err;
+	}
+
+	return 0;
+}
+
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config)
 {
+	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
+	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
+	struct gve_qpl_config new_qpl_cfg;
 	int err;
 
+	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
+				&tx_alloc_cfg, &rx_alloc_cfg);
+
+	/* qpl_cfg is not read-only, it contains a map that gets updated as
+	 * rings are allocated, which is why we cannot use the yet unreleased
+	 * one in priv.
+	 */
+	qpls_alloc_cfg.qpl_cfg = &new_qpl_cfg;
+	tx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
+	rx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
+
+	/* Relay the new config from ethtool */
+	qpls_alloc_cfg.tx_cfg = &new_tx_config;
+	tx_alloc_cfg.qcfg = &new_tx_config;
+	rx_alloc_cfg.qcfg_tx = &new_tx_config;
+	qpls_alloc_cfg.rx_cfg = &new_rx_config;
+	rx_alloc_cfg.qcfg = &new_rx_config;
+	tx_alloc_cfg.num_rings = new_tx_config.num_queues;
+
 	if (netif_carrier_ok(priv->dev)) {
-		/* To make this process as simple as possible we teardown the
-		 * device, set the new configuration, and then bring the device
-		 * up again.
-		 */
-		err = gve_close(priv->dev);
-		/* we have already tried to reset in close,
-		 * just fail at this point
-		 */
-		if (err)
-			return err;
-		priv->tx_cfg = new_tx_config;
-		priv->rx_cfg = new_rx_config;
-
-		err = gve_open(priv->dev);
-		if (err)
-			goto err;
-
-		return 0;
+		err = gve_adjust_config(priv, &qpls_alloc_cfg,
+					&tx_alloc_cfg, &rx_alloc_cfg);
+		return err;
 	}
 	/* Set the config for the next up. */
 	priv->tx_cfg = new_tx_config;
 	priv->rx_cfg = new_rx_config;
 
 	return 0;
-err:
-	netif_err(priv, drv, priv->dev,
-		  "Adjust queues failed! !!! DISABLING ALL QUEUES !!!\n");
-	gve_turndown(priv);
-	return err;
 }
 
 static void gve_turndown(struct gve_priv *priv)
