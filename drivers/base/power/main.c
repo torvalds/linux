@@ -1017,25 +1017,19 @@ void dpm_resume(pm_message_t state)
 
 	while (!list_empty(&dpm_suspended_list)) {
 		dev = to_device(dpm_suspended_list.next);
-
-		get_device(dev);
+		list_move_tail(&dev->power.entry, &dpm_prepared_list);
 
 		if (!dev->power.async_in_progress) {
+			get_device(dev);
+
 			mutex_unlock(&dpm_list_mtx);
 
 			device_resume(dev, state, false);
 
+			put_device(dev);
+
 			mutex_lock(&dpm_list_mtx);
 		}
-
-		if (!list_empty(&dev->power.entry))
-			list_move_tail(&dev->power.entry, &dpm_prepared_list);
-
-		mutex_unlock(&dpm_list_mtx);
-
-		put_device(dev);
-
-		mutex_lock(&dpm_list_mtx);
 	}
 	mutex_unlock(&dpm_list_mtx);
 	async_synchronize_full();
