@@ -13,6 +13,7 @@ struct nlmsghdr;
 struct sock;
 
 struct sock_diag_handler {
+	struct module *owner;
 	__u8 family;
 	int (*dump)(struct sk_buff *skb, struct nlmsghdr *nlh);
 	int (*get_info)(struct sk_buff *skb, struct sock *sk);
