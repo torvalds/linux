@@ -2939,7 +2939,7 @@ search_op(struct tep_format_field *prev_state_field, struct tep_print_arg *arg)
 	return sym;
 }
 
-static __maybe_unused const char *get_states(struct tep_format_field *prev_state_field)
+static const char *get_states(struct tep_format_field *prev_state_field)
 {
 	struct tep_print_flag_sym *sym;
 	struct tep_print_arg *arg;
@@ -2962,6 +2962,40 @@ static __maybe_unused const char *get_states(struct tep_format_field *prev_state
 			return convert_sym(sym);
 	}
 	return NULL;
+}
+
+char evsel__taskstate(struct evsel *evsel, struct perf_sample *sample, const char *name)
+{
+	static struct tep_format_field *prev_state_field;
+	static const char *states;
+	struct tep_format_field *field;
+	unsigned long long val;
+	unsigned int bit;
+	char state = '?'; /* '?' denotes unknown task state */
+
+	field = evsel__field(evsel, name);
+
+	if (!field)
+		return state;
+
+	if (!states || field != prev_state_field) {
+		states = get_states(field);
+		if (!states)
+			return state;
+		prev_state_field = field;
+	}
+
+	/*
+	 * Note since the kernel exposes TASK_REPORT_MAX to userspace
+	 * to denote the 'preempted' state, we might as welll report
+	 * 'R' for this case, which make senses to users as well.
+	 *
+	 * We can change this if we have a good reason in the future.
+	 */
+	val = evsel__intval(evsel, sample, name);
+	bit = val ? ffs(val) : 0;
+	state = (!bit || bit > strlen(states)) ? 'R' : states[bit-1];
+	return state;
 }
 #endif
 
