@@ -199,19 +199,29 @@ static int gve_alloc_page_dqo(struct gve_rx_ring *rx,
 	return 0;
 }
 
-static void gve_rx_free_ring_dqo(struct gve_priv *priv, int idx)
+void gve_rx_stop_ring_dqo(struct gve_priv *priv, int idx)
 {
-	struct gve_rx_ring *rx = &priv->rx[idx];
+	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
+
+	if (!gve_rx_was_added_to_block(priv, idx))
+		return;
+
+	gve_remove_napi(priv, ntfy_idx);
+	gve_rx_remove_from_block(priv, idx);
+}
+
+static void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
+				 struct gve_rx_alloc_rings_cfg *cfg)
+{
 	struct device *hdev = &priv->pdev->dev;
 	size_t completion_queue_slots;
 	size_t buffer_queue_slots;
+	int idx = rx->q_num;
 	size_t size;
 	int i;
 
 	completion_queue_slots = rx->dqo.complq.mask + 1;
 	buffer_queue_slots = rx->dqo.bufq.mask + 1;
-
-	gve_rx_remove_from_block(priv, idx);
 
 	if (rx->q_resources) {
 		dma_free_coherent(hdev, sizeof(*rx->q_resources),
@@ -226,7 +236,7 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, int idx)
 			gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
 	}
 	if (rx->dqo.qpl) {
-		gve_unassign_qpl(priv, rx->dqo.qpl->id);
+		gve_unassign_qpl(cfg->qpl_cfg, rx->dqo.qpl->id);
 		rx->dqo.qpl = NULL;
 	}
 
@@ -251,17 +261,26 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, int idx)
 	netif_dbg(priv, drv, priv->dev, "freed rx ring %d\n", idx);
 }
 
-static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
+void gve_rx_start_ring_dqo(struct gve_priv *priv, int idx)
 {
-	struct gve_rx_ring *rx = &priv->rx[idx];
+	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
+
+	gve_rx_add_to_block(priv, idx);
+	gve_add_napi(priv, ntfy_idx, gve_napi_poll_dqo);
+}
+
+static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
+				 struct gve_rx_alloc_rings_cfg *cfg,
+				 struct gve_rx_ring *rx,
+				 int idx)
+{
 	struct device *hdev = &priv->pdev->dev;
 	size_t size;
 	int i;
 
-	const u32 buffer_queue_slots =
-		priv->queue_format == GVE_DQO_RDA_FORMAT ?
-		priv->options_dqo_rda.rx_buff_ring_entries : priv->rx_desc_cnt;
-	const u32 completion_queue_slots = priv->rx_desc_cnt;
+	const u32 buffer_queue_slots = cfg->raw_addressing ?
+		priv->options_dqo_rda.rx_buff_ring_entries : cfg->ring_size;
+	const u32 completion_queue_slots = cfg->ring_size;
 
 	netif_dbg(priv, drv, priv->dev, "allocating rx ring DQO\n");
 
@@ -274,7 +293,7 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	rx->ctx.skb_head = NULL;
 	rx->ctx.skb_tail = NULL;
 
-	rx->dqo.num_buf_states = priv->queue_format == GVE_DQO_RDA_FORMAT ?
+	rx->dqo.num_buf_states = cfg->raw_addressing ?
 		min_t(s16, S16_MAX, buffer_queue_slots * 4) :
 		priv->rx_pages_per_qpl;
 	rx->dqo.buf_states = kvcalloc(rx->dqo.num_buf_states,
@@ -308,8 +327,8 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	if (!rx->dqo.bufq.desc_ring)
 		goto err;
 
-	if (priv->queue_format != GVE_DQO_RDA_FORMAT) {
-		rx->dqo.qpl = gve_assign_rx_qpl(priv, rx->q_num);
+	if (!cfg->raw_addressing) {
+		rx->dqo.qpl = gve_assign_rx_qpl(cfg, rx->q_num);
 		if (!rx->dqo.qpl)
 			goto err;
 		rx->dqo.next_qpl_page_idx = 0;
@@ -320,12 +339,10 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	if (!rx->q_resources)
 		goto err;
 
-	gve_rx_add_to_block(priv, idx);
-
 	return 0;
 
 err:
-	gve_rx_free_ring_dqo(priv, idx);
+	gve_rx_free_ring_dqo(priv, rx, cfg);
 	return -ENOMEM;
 }
 
@@ -337,13 +354,26 @@ void gve_rx_write_doorbell_dqo(const struct gve_priv *priv, int queue_idx)
 	iowrite32(rx->dqo.bufq.tail, &priv->db_bar2[index]);
 }
 
-int gve_rx_alloc_rings_dqo(struct gve_priv *priv)
+int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg)
 {
-	int err = 0;
+	struct gve_rx_ring *rx;
+	int err;
 	int i;
 
-	for (i = 0; i < priv->rx_cfg.num_queues; i++) {
-		err = gve_rx_alloc_ring_dqo(priv, i);
+	if (!cfg->raw_addressing && !cfg->qpls) {
+		netif_err(priv, drv, priv->dev,
+			  "Cannot alloc QPL ring before allocing QPLs\n");
+		return -EINVAL;
+	}
+
+	rx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_rx_ring),
+		      GFP_KERNEL);
+	if (!rx)
+		return -ENOMEM;
+
+	for (i = 0; i < cfg->qcfg->num_queues; i++) {
+		err = gve_rx_alloc_ring_dqo(priv, cfg, &rx[i], i);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to alloc rx ring=%d: err=%d\n",
@@ -352,21 +382,30 @@ int gve_rx_alloc_rings_dqo(struct gve_priv *priv)
 		}
 	}
 
+	cfg->rx = rx;
 	return 0;
 
 err:
 	for (i--; i >= 0; i--)
-		gve_rx_free_ring_dqo(priv, i);
-
+		gve_rx_free_ring_dqo(priv, &rx[i], cfg);
+	kvfree(rx);
 	return err;
 }
 
-void gve_rx_free_rings_dqo(struct gve_priv *priv)
+void gve_rx_free_rings_dqo(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg)
 {
+	struct gve_rx_ring *rx = cfg->rx;
 	int i;
 
-	for (i = 0; i < priv->rx_cfg.num_queues; i++)
-		gve_rx_free_ring_dqo(priv, i);
+	if (!rx)
+		return;
+
+	for (i = 0; i < cfg->qcfg->num_queues;  i++)
+		gve_rx_free_ring_dqo(priv, &rx[i], cfg);
+
+	kvfree(rx);
+	cfg->rx = NULL;
 }
 
 void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)

@@ -8,6 +8,14 @@
 #include "gve_adminq.h"
 #include "gve_utils.h"
 
+bool gve_tx_was_added_to_block(struct gve_priv *priv, int queue_idx)
+{
+	struct gve_notify_block *block =
+			&priv->ntfy_blocks[gve_tx_idx_to_ntfy(priv, queue_idx)];
+
+	return block->tx != NULL;
+}
+
 void gve_tx_remove_from_block(struct gve_priv *priv, int queue_idx)
 {
 	struct gve_notify_block *block =
@@ -28,6 +36,14 @@ void gve_tx_add_to_block(struct gve_priv *priv, int queue_idx)
 	tx->ntfy_id = ntfy_idx;
 	netif_set_xps_queue(priv->dev, get_cpu_mask(ntfy_idx % active_cpus),
 			    queue_idx);
+}
+
+bool gve_rx_was_added_to_block(struct gve_priv *priv, int queue_idx)
+{
+	struct gve_notify_block *block =
+			&priv->ntfy_blocks[gve_rx_idx_to_ntfy(priv, queue_idx)];
+
+	return block->rx != NULL;
 }
 
 void gve_rx_remove_from_block(struct gve_priv *priv, int queue_idx)

@@ -38,10 +38,18 @@ netdev_features_t gve_features_check_dqo(struct sk_buff *skb,
 					 netdev_features_t features);
 bool gve_tx_poll_dqo(struct gve_notify_block *block, bool do_clean);
 int gve_rx_poll_dqo(struct gve_notify_block *block, int budget);
-int gve_tx_alloc_rings_dqo(struct gve_priv *priv);
-void gve_tx_free_rings_dqo(struct gve_priv *priv);
-int gve_rx_alloc_rings_dqo(struct gve_priv *priv);
-void gve_rx_free_rings_dqo(struct gve_priv *priv);
+int gve_tx_alloc_rings_dqo(struct gve_priv *priv,
+			   struct gve_tx_alloc_rings_cfg *cfg);
+void gve_tx_free_rings_dqo(struct gve_priv *priv,
+			   struct gve_tx_alloc_rings_cfg *cfg);
+void gve_tx_start_ring_dqo(struct gve_priv *priv, int idx);
+void gve_tx_stop_ring_dqo(struct gve_priv *priv, int idx);
+int gve_rx_alloc_rings_dqo(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg);
+void gve_rx_free_rings_dqo(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg);
+void gve_rx_start_ring_dqo(struct gve_priv *priv, int idx);
+void gve_rx_stop_ring_dqo(struct gve_priv *priv, int idx);
 int gve_clean_tx_done_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
 			  struct napi_struct *napi);
 void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx);

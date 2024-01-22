@@ -11,9 +11,11 @@
 
 #include "gve.h"
 
+bool gve_tx_was_added_to_block(struct gve_priv *priv, int queue_idx);
 void gve_tx_remove_from_block(struct gve_priv *priv, int queue_idx);
 void gve_tx_add_to_block(struct gve_priv *priv, int queue_idx);
 
+bool gve_rx_was_added_to_block(struct gve_priv *priv, int queue_idx);
 void gve_rx_remove_from_block(struct gve_priv *priv, int queue_idx);
 void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx);
 
