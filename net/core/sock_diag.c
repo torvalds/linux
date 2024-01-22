@@ -292,13 +292,9 @@ static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	}
 }
 
-static DEFINE_MUTEX(sock_diag_mutex);
-
 static void sock_diag_rcv(struct sk_buff *skb)
 {
-	mutex_lock(&sock_diag_mutex);
 	netlink_rcv_skb(skb, &sock_diag_rcv_msg);
-	mutex_unlock(&sock_diag_mutex);
 }
 
 static int sock_diag_bind(struct net *net, int group)
