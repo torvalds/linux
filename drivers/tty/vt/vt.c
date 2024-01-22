@@ -1154,9 +1154,6 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 
 	WARN_CONSOLE_UNLOCKED();
 
-	if (!vc)
-		return -ENXIO;
-
 	user = vc->vc_resize_user;
 	vc->vc_resize_user = 0;
 
@@ -2852,7 +2849,7 @@ static int do_con_write(struct tty_struct *tty, const u8 *buf, int count)
 	};
 	int c, tc, n = 0;
 	unsigned int currcons;
-	struct vc_data *vc;
+	struct vc_data *vc = tty->driver_data;
 	struct vt_notifier_param param;
 	bool rescan;
 
@@ -2860,13 +2857,6 @@ static int do_con_write(struct tty_struct *tty, const u8 *buf, int count)
 		return count;
 
 	console_lock();
-	vc = tty->driver_data;
-	if (vc == NULL) {
-		pr_err("vt: argh, driver_data is NULL !\n");
-		console_unlock();
-		return 0;
-	}
-
 	currcons = vc->vc_num;
 	if (!vc_cons_allocated(currcons)) {
 		/* could this happen? */
@@ -3312,16 +3302,13 @@ static void con_start(struct tty_struct *tty)
 
 static void con_flush_chars(struct tty_struct *tty)
 {
-	struct vc_data *vc;
+	struct vc_data *vc = tty->driver_data;
 
 	if (in_interrupt())	/* from flush_to_ldisc */
 		return;
 
-	/* if we race with con_close(), vt may be null */
 	console_lock();
-	vc = tty->driver_data;
-	if (vc)
-		set_cursor(vc);
+	set_cursor(vc);
 	console_unlock();
 }
 
