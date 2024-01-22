@@ -42,6 +42,7 @@ enum vc_intensity;
  * @con_putc:   emit one character with attributes @ca to [@x, @y] on @vc.
  *		(optional -- @con_putcs would be called instead)
  * @con_putcs:  emit @count characters with attributes @s to [@x, @y] on @vc.
+ * @con_cursor: enable/disable cursor depending on @enable
  * @con_scroll: move lines from @top to @bottom in direction @dir by @lines.
  *		Return true if no generic handling should be done.
  *		Invoked by csi_M and printing to the console.
@@ -61,7 +62,7 @@ struct consw {
 	void	(*con_putcs)(struct vc_data *vc, const u16 *s,
 			     unsigned int count, unsigned int ypos,
 			     unsigned int xpos);
-	void	(*con_cursor)(struct vc_data *vc, int mode);
+	void	(*con_cursor)(struct vc_data *vc, bool enable);
 	bool	(*con_scroll)(struct vc_data *vc, unsigned int top,
 			unsigned int bottom, enum con_scroll dir,
 			unsigned int lines);
@@ -127,11 +128,6 @@ void con_debug_leave(void);
 static inline void con_debug_enter(struct vc_data *vc) { }
 static inline void con_debug_leave(void) { }
 #endif
-
-/* cursor */
-#define CM_DRAW     (1)
-#define CM_ERASE    (2)
-#define CM_MOVE     (3)
 
 /*
  * The interface for a console, or any other device that wants to capture

@@ -438,14 +438,14 @@ static void newport_putcs(struct vc_data *vc, const u16 *s,
 	}
 }
 
-static void newport_cursor(struct vc_data *vc, int mode)
+static void newport_cursor(struct vc_data *vc, bool enable)
 {
 	unsigned short treg;
 	int xcurs, ycurs;
 
 	treg = newport_vc2_get(npregs, VC2_IREG_CONTROL);
 
-	if (mode == CM_ERASE) {
+	if (!enable) {
 		newport_vc2_set(npregs, VC2_IREG_CONTROL,
 				(treg & ~(VC2_CTRL_ECDISP)));
 		return;

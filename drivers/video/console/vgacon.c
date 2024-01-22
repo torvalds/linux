@@ -503,7 +503,7 @@ static void vgacon_set_cursor_size(int from, int to)
 	raw_spin_unlock_irqrestore(&vga_lock, flags);
 }
 
-static void vgacon_cursor(struct vc_data *c, int mode)
+static void vgacon_cursor(struct vc_data *c, bool enable)
 {
 	unsigned int c_height;
 
@@ -516,7 +516,7 @@ static void vgacon_cursor(struct vc_data *c, int mode)
 
 	write_vga(14, (c->vc_pos - vga_vram_base) / 2);
 
-	if (mode == CM_ERASE) {
+	if (!enable) {
 	        if (vga_video_type >= VIDEO_TYPE_VGAC)
 			vgacon_set_cursor_size(31, 30);
 		else
@@ -1030,7 +1030,7 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 			        /* void size to cause regs to be rewritten */
 				cursor_size_lastfrom = 0;
 				cursor_size_lastto = 0;
-				c->vc_sw->con_cursor(c, CM_DRAW);
+				c->vc_sw->con_cursor(c, true);
 			}
 			c->vc_font.height = c->vc_cell_height = fontheight;
 			vc_resize(c, 0, rows);	/* Adjust console size */

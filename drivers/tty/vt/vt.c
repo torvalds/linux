@@ -860,7 +860,7 @@ static void hide_cursor(struct vc_data *vc)
 	if (vc_is_sel(vc))
 		clear_selection();
 
-	vc->vc_sw->con_cursor(vc, CM_ERASE);
+	vc->vc_sw->con_cursor(vc, false);
 	hide_softcursor(vc);
 }
 
@@ -873,7 +873,7 @@ static void set_cursor(struct vc_data *vc)
 			clear_selection();
 		add_softcursor(vc);
 		if (CUR_SIZE(vc->vc_cursor_type) != CUR_NONE)
-			vc->vc_sw->con_cursor(vc, CM_DRAW);
+			vc->vc_sw->con_cursor(vc, true);
 	} else
 		hide_cursor(vc);
 }

@@ -248,7 +248,7 @@ static void ud_clear_margins(struct vc_data *vc, struct fb_info *info,
 	}
 }
 
-static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
+static void ud_cursor(struct vc_data *vc, struct fb_info *info, bool enable,
 		      int fg, int bg)
 {
 	struct fb_cursor cursor;
@@ -372,7 +372,7 @@ static void ud_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 			mask[i++] = ~msk;
 	}
 
-	ops->cursor_state.enable = (mode != CM_ERASE) && !use_sw;
+	ops->cursor_state.enable = enable && !use_sw;
 
 	cursor.image.data = src;
 	cursor.image.fg_color = ops->cursor_state.image.fg_color;

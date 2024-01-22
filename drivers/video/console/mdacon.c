@@ -470,9 +470,9 @@ static int mdacon_blank(struct vc_data *c, int blank, int mode_switch)
 	}
 }
 
-static void mdacon_cursor(struct vc_data *c, int mode)
+static void mdacon_cursor(struct vc_data *c, bool enable)
 {
-	if (mode == CM_ERASE) {
+	if (!enable) {
 		mda_set_cursor(mda_vram_len - 1);
 		return;
 	}

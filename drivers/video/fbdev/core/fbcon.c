@@ -351,7 +351,7 @@ static void fb_flashcursor(struct work_struct *work)
 	struct fb_info *info;
 	struct vc_data *vc = NULL;
 	int c;
-	int mode;
+	bool enable;
 	int ret;
 
 	/* FIXME: we should sort out the unbind locking instead */
@@ -375,9 +375,8 @@ static void fb_flashcursor(struct work_struct *work)
 	}
 
 	c = scr_readw((u16 *) vc->vc_pos);
-	mode = (!ops->cursor_flash || ops->cursor_state.enable) ?
-		CM_ERASE : CM_DRAW;
-	ops->cursor(vc, info, mode, get_color(vc, info, c, 1),
+	enable = ops->cursor_flash && !ops->cursor_state.enable;
+	ops->cursor(vc, info, enable, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
 	console_unlock();
 
@@ -1301,7 +1300,7 @@ static void fbcon_clear_margins(struct vc_data *vc, int bottom_only)
 		ops->clear_margins(vc, info, margin_color, bottom_only);
 }
 
-static void fbcon_cursor(struct vc_data *vc, int mode)
+static void fbcon_cursor(struct vc_data *vc, bool enable)
 {
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
 	struct fbcon_ops *ops = info->fbcon_par;
@@ -1317,12 +1316,12 @@ static void fbcon_cursor(struct vc_data *vc, int mode)
 	else
 		fbcon_add_cursor_work(info);
 
-	ops->cursor_flash = (mode == CM_ERASE) ? 0 : 1;
+	ops->cursor_flash = enable;
 
 	if (!ops->cursor)
 		return;
 
-	ops->cursor(vc, info, mode, get_color(vc, info, c, 1),
+	ops->cursor(vc, info, enable, get_color(vc, info, c, 1),
 		    get_color(vc, info, c, 0));
 }
 
@@ -1742,7 +1741,7 @@ static bool fbcon_scroll(struct vc_data *vc, unsigned int t, unsigned int b,
 	if (fbcon_is_inactive(vc, info))
 		return true;
 
-	fbcon_cursor(vc, CM_ERASE);
+	fbcon_cursor(vc, false);
 
 	/*
 	 * ++Geert: Only use ywrap/ypan if the console is in text mode
@@ -2221,7 +2220,7 @@ static int fbcon_blank(struct vc_data *vc, int blank, int mode_switch)
  	if (!fbcon_is_inactive(vc, info)) {
 		if (ops->blank_state != blank) {
 			ops->blank_state = blank;
-			fbcon_cursor(vc, blank ? CM_ERASE : CM_DRAW);
+			fbcon_cursor(vc, !blank);
 			ops->cursor_flash = (!blank);
 
 			if (fb_blank(info, blank))
@@ -2649,7 +2648,7 @@ void fbcon_suspended(struct fb_info *info)
 	vc = vc_cons[ops->currcon].d;
 
 	/* Clear cursor, restore saved data */
-	fbcon_cursor(vc, CM_ERASE);
+	fbcon_cursor(vc, false);
 }
 
 void fbcon_resumed(struct fb_info *info)
