@@ -96,8 +96,6 @@ struct consw {
 			enum vc_intensity intensity,
 			bool blink, bool underline, bool reverse, bool italic);
 	void	(*con_invert_region)(struct vc_data *vc, u16 *p, int count);
-	unsigned long (*con_getxy)(struct vc_data *vc, unsigned long position,
-			int *px, int *py);
 	/*
 	 * Flush the video console driver's scrollback buffer
 	 */
