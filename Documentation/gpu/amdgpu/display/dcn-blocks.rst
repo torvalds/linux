@@ -40,3 +40,15 @@ DPP
 
 .. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/hubp.h
    :internal:
+
+MPC
+---
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/mpc.h
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/mpc.h
+   :export:
+
+.. kernel-doc:: drivers/gpu/drm/amd/display/dc/inc/hw/mpc.h
+   :internal:
