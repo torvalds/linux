@@ -1115,21 +1115,20 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
 }
 
 /**
- *	vc_do_resize	-	resizing method for the tty
- *	@tty: tty being resized
- *	@vc: virtual console private data
- *	@cols: columns
- *	@lines: lines
- *	@from_user: invoked by a user?
+ * vc_do_resize - resizing method for the tty
+ * @tty: tty being resized
+ * @vc: virtual console private data
+ * @cols: columns
+ * @lines: lines
+ * @from_user: invoked by a user?
  *
- *	Resize a virtual console, clipping according to the actual constraints.
- *	If the caller passes a tty structure then update the termios winsize
- *	information and perform any necessary signal handling.
+ * Resize a virtual console, clipping according to the actual constraints. If
+ * the caller passes a tty structure then update the termios winsize
+ * information and perform any necessary signal handling.
  *
- *	Caller must hold the console semaphore. Takes the termios rwsem and
- *	ctrl.lock of the tty IFF a tty is passed.
+ * Locking: Caller must hold the console semaphore. Takes the termios rwsem and
+ * ctrl.lock of the tty IFF a tty is passed.
  */
-
 static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 			unsigned int cols, unsigned int lines, bool from_user)
 {
@@ -1277,16 +1276,17 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 }
 
 /**
- *	__vc_resize		-	resize a VT
- *	@vc: virtual console
- *	@cols: columns
- *	@rows: rows
- *	@from_user: invoked by a user?
+ * __vc_resize - resize a VT
+ * @vc: virtual console
+ * @cols: columns
+ * @rows: rows
+ * @from_user: invoked by a user?
  *
- *	Resize a virtual console as seen from the console end of things. We
- *	use the common vc_do_resize methods to update the structures. The
- *	caller must hold the console sem to protect console internals and
- *	vc->port.tty
+ * Resize a virtual console as seen from the console end of things. We use the
+ * common vc_do_resize() method to update the structures.
+ *
+ * Locking: The caller must hold the console sem to protect console internals
+ * and @vc->port.tty.
  */
 int __vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows,
 		bool from_user)
@@ -1296,16 +1296,15 @@ int __vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows,
 EXPORT_SYMBOL(__vc_resize);
 
 /**
- *	vt_resize		-	resize a VT
- *	@tty: tty to resize
- *	@ws: winsize attributes
+ * vt_resize - resize a VT
+ * @tty: tty to resize
+ * @ws: winsize attributes
  *
- *	Resize a virtual terminal. This is called by the tty layer as we
- *	register our own handler for resizing. The mutual helper does all
- *	the actual work.
+ * Resize a virtual terminal. This is called by the tty layer as we register
+ * our own handler for resizing. The mutual helper does all the actual work.
  *
- *	Takes the console sem and the called methods then take the tty
- *	termios_rwsem and the tty ctrl.lock in that order.
+ * Locking: Takes the console sem and the called methods then take the tty
+ * termios_rwsem and the tty ctrl.lock in that order.
  */
 static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 {
@@ -2633,8 +2632,8 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
 
 
 /**
- * vc_sanitize_unicode - Replace invalid Unicode code points with U+FFFD
- * @c: the received character, or U+FFFD for invalid sequences.
+ * vc_sanitize_unicode - Replace invalid Unicode code points with ``U+FFFD``
+ * @c: the received character, or ``U+FFFD`` for invalid sequences.
  */
 static inline int vc_sanitize_unicode(const int c)
 {
@@ -2645,14 +2644,15 @@ static inline int vc_sanitize_unicode(const int c)
 }
 
 /**
- * vc_translate_unicode - Combine UTF-8 into Unicode in @vc_utf_char
+ * vc_translate_unicode - Combine UTF-8 into Unicode in &vc_data.vc_utf_char
  * @vc: virtual console
  * @c: character to translate
  * @rescan: we return true if we need more (continuation) data
  *
- * @vc_utf_char is the being-constructed unicode character.
- * @vc_utf_count is the number of continuation bytes still expected to arrive.
- * @vc_npar is the number of continuation bytes arrived so far.
+ * * &vc_data.vc_utf_char is the being-constructed unicode character.
+ * * &vc_data.vc_utf_count is the number of continuation bytes still expected to
+ *   arrive.
+ * * &vc_data.vc_npar is the number of continuation bytes arrived so far.
  */
 static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 {
@@ -3030,16 +3030,16 @@ struct tty_driver *console_driver;
 #ifdef CONFIG_VT_CONSOLE
 
 /**
- * vt_kmsg_redirect() - Sets/gets the kernel message console
- * @new:	The new virtual terminal number or -1 if the console should stay
- * 		unchanged
+ * vt_kmsg_redirect() - sets/gets the kernel message console
+ * @new: the new virtual terminal number or -1 if the console should stay
+ *	unchanged
  *
  * By default, the kernel messages are always printed on the current virtual
  * console. However, the user may modify that default with the
- * TIOCL_SETKMSGREDIRECT ioctl call.
+ * %TIOCL_SETKMSGREDIRECT ioctl call.
  *
  * This function sets the kernel message console to be @new. It returns the old
- * virtual console number. The virtual terminal number 0 (both as parameter and
+ * virtual console number. The virtual terminal number %0 (both as parameter and
  * return value) means no redirection (i.e. always printed on the currently
  * active console).
  *
@@ -3047,8 +3047,8 @@ struct tty_driver *console_driver;
  * value is not modified. You may use the macro vt_get_kmsg_redirect() in that
  * case to make the code more understandable.
  *
- * When the kernel is compiled without CONFIG_VT_CONSOLE, this function ignores
- * the parameter and always returns 0.
+ * When the kernel is compiled without %CONFIG_VT_CONSOLE, this function ignores
+ * the parameter and always returns %0.
  */
 int vt_kmsg_redirect(int new)
 {
@@ -3960,7 +3960,7 @@ static void vtconsole_deinit_device(struct con_driver *con)
  * RETURNS: zero if unbound, nonzero if bound
  *
  * Drivers can call this and if zero, they should release
- * all resources allocated on con_startup()
+ * all resources allocated on &consw.con_startup()
  */
 int con_is_bound(const struct consw *csw)
 {

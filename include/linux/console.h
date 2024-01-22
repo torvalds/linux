@@ -155,7 +155,7 @@ static inline void con_debug_leave(void) { }
  */
 
 /**
- * cons_flags - General console flags
+ * enum cons_flags - General console flags
  * @CON_PRINTBUFFER:	Used by newly registered consoles to avoid duplicate
  *			output of messages that were already shown by boot
  *			consoles or read by userspace via syslog() syscall.
@@ -236,7 +236,7 @@ struct nbcon_state {
 static_assert(sizeof(struct nbcon_state) <= sizeof(int));
 
 /**
- * nbcon_prio - console owner priority for nbcon consoles
+ * enum nbcon_prio - console owner priority for nbcon consoles
  * @NBCON_PRIO_NONE:		Unused
  * @NBCON_PRIO_NORMAL:		Normal (non-emergency) usage
  * @NBCON_PRIO_EMERGENCY:	Emergency output (WARN/OOPS...)
@@ -468,7 +468,7 @@ static inline bool console_is_registered(const struct console *con)
  * for_each_console() - Iterator over registered consoles
  * @con:	struct console pointer used as loop cursor
  *
- * The console list and the console->flags are immutable while iterating.
+ * The console list and the &console.flags are immutable while iterating.
  *
  * Requires console_list_lock to be held.
  */
