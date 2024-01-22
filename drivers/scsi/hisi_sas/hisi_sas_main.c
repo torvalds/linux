@@ -2625,7 +2625,8 @@ static __exit void hisi_sas_exit(void)
 {
 	sas_release_transport(hisi_sas_stt);
 
-	debugfs_remove(hisi_sas_debugfs_dir);
+	if (hisi_sas_debugfs_enable)
+		debugfs_remove(hisi_sas_debugfs_dir);
 }
 
 module_init(hisi_sas_init);
