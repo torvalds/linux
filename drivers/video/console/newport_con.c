@@ -496,7 +496,8 @@ static bool newport_blank(struct vc_data *c, enum vesa_blank_mode blank,
 	return true;
 }
 
-static int newport_set_font(int unit, struct console_font *op, unsigned int vpitch)
+static int newport_set_font(int unit, const struct console_font *op,
+			    unsigned int vpitch)
 {
 	int w = op->width;
 	int h = op->height;
@@ -568,7 +569,7 @@ static int newport_font_default(struct vc_data *vc, struct console_font *op, cha
 	return newport_set_def_font(vc->vc_num, op);
 }
 
-static int newport_font_set(struct vc_data *vc, struct console_font *font,
+static int newport_font_set(struct vc_data *vc, const struct console_font *font,
 			    unsigned int vpitch, unsigned int flags)
 {
 	return newport_set_font(vc->vc_num, font, vpitch);
