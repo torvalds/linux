@@ -363,6 +363,7 @@ struct arm64_cpu_capabilities {
 			u8 field_pos;
 			u8 field_width;
 			u8 min_field_value;
+			u8 max_field_value;
 			u8 hwcap_type;
 			bool sign;
 			unsigned long hwcap;

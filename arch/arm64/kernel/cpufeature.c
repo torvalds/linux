@@ -140,12 +140,42 @@ void dump_cpu_features(void)
 	pr_emerg("0x%*pb\n", ARM64_NCAPS, &system_cpucaps);
 }
 
+#define __ARM64_MAX_POSITIVE(reg, field)				\
+		((reg##_##field##_SIGNED ?				\
+		  BIT(reg##_##field##_WIDTH - 1) :			\
+		  BIT(reg##_##field##_WIDTH)) - 1)
+
+#define __ARM64_MIN_NEGATIVE(reg, field)  BIT(reg##_##field##_WIDTH - 1)
+
+#define __ARM64_CPUID_FIELDS(reg, field, min_value, max_value)		\
+		.sys_reg = SYS_##reg,					\
+		.field_pos = reg##_##field##_SHIFT,			\
+		.field_width = reg##_##field##_WIDTH,			\
+		.sign = reg##_##field##_SIGNED,				\
+		.min_field_value = min_value,				\
+		.max_field_value = max_value,
+
+/*
+ * ARM64_CPUID_FIELDS() encodes a field with a range from min_value to
+ * an implicit maximum that depends on the sign-ess of the field.
+ *
+ * An unsigned field will be capped at all ones, while a signed field
+ * will be limited to the positive half only.
+ */
 #define ARM64_CPUID_FIELDS(reg, field, min_value)			\
-		.sys_reg = SYS_##reg,							\
-		.field_pos = reg##_##field##_SHIFT,						\
-		.field_width = reg##_##field##_WIDTH,						\
-		.sign = reg##_##field##_SIGNED,							\
-		.min_field_value = reg##_##field##_##min_value,
+	__ARM64_CPUID_FIELDS(reg, field,				\
+			     SYS_FIELD_VALUE(reg, field, min_value),	\
+			     __ARM64_MAX_POSITIVE(reg, field))
+
+/*
+ * ARM64_CPUID_FIELDS_NEG() encodes a field with a range from an
+ * implicit minimal value to max_value. This should be used when
+ * matching a non-implemented property.
+ */
+#define ARM64_CPUID_FIELDS_NEG(reg, field, max_value)			\
+	__ARM64_CPUID_FIELDS(reg, field,				\
+			     __ARM64_MIN_NEGATIVE(reg, field),		\
+			     SYS_FIELD_VALUE(reg, field, max_value))
 
 #define __ARM64_FTR_BITS(SIGNED, VISIBLE, STRICT, TYPE, SHIFT, WIDTH, SAFE_VAL) \
 	{						\
@@ -1451,11 +1481,28 @@ has_always(const struct arm64_cpu_capabilities *entry, int scope)
 static bool
 feature_matches(u64 reg, const struct arm64_cpu_capabilities *entry)
 {
-	int val = cpuid_feature_extract_field_width(reg, entry->field_pos,
-						    entry->field_width,
-						    entry->sign);
+	int val, min, max;
+	u64 tmp;
 
-	return val >= entry->min_field_value;
+	val = cpuid_feature_extract_field_width(reg, entry->field_pos,
+						entry->field_width,
+						entry->sign);
+
+	tmp = entry->min_field_value;
+	tmp <<= entry->field_pos;
+
+	min = cpuid_feature_extract_field_width(tmp, entry->field_pos,
+						entry->field_width,
+						entry->sign);
+
+	tmp = entry->max_field_value;
+	tmp <<= entry->field_pos;
+
+	max = cpuid_feature_extract_field_width(tmp, entry->field_pos,
+						entry->field_width,
+						entry->sign);
+
+	return val >= min && val <= max;
 }
 
 static u64
