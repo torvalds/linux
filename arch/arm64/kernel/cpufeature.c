@@ -1794,6 +1794,11 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 	return !meltdown_safe;
 }
 
+static bool has_nv1(const struct arm64_cpu_capabilities *entry, int scope)
+{
+	return !has_cpuid_feature(entry, scope);
+}
+
 #if defined(ID_AA64MMFR0_EL1_TGRAN_LPA2) && defined(ID_AA64MMFR0_EL1_TGRAN_2_SUPPORTED_LPA2)
 static bool has_lpa2_at_stage1(u64 mmfr0)
 {
@@ -2793,6 +2798,13 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_LPA2,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_lpa2,
+	},
+	{
+		.desc = "NV1",
+		.capability = ARM64_HAS_HCR_NV1,
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
+		.matches = has_nv1,
+		ARM64_CPUID_FIELDS_NEG(ID_AA64MMFR4_EL1, E2H0, NI_NV1)
 	},
 	{},
 };
