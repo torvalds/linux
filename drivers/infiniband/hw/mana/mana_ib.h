@@ -147,6 +147,17 @@ static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 	return mdev->gdma_dev->gdma_context;
 }
 
+static inline struct net_device *mana_ib_get_netdev(struct ib_device *ibdev, u32 port)
+{
+	struct mana_ib_dev *mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct mana_context *mc = gc->mana.driver_data;
+
+	if (port < 1 || port > mc->num_ports)
+		return NULL;
+	return mc->ports[port - 1];
+}
+
 int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 				 mana_handle_t *gdma_region);
 
