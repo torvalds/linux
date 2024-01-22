@@ -145,7 +145,7 @@ static void gotoxy(struct vc_data *vc, int new_x, int new_y);
 static void save_cur(struct vc_data *vc);
 static void reset_terminal(struct vc_data *vc, int do_clear);
 static void con_flush_chars(struct tty_struct *tty);
-static int set_vesa_blanking(char __user *p);
+static int set_vesa_blanking(u8 __user *mode);
 static void set_cursor(struct vc_data *vc);
 static void hide_cursor(struct vc_data *vc);
 static void console_callback(struct work_struct *ignored);
@@ -3134,6 +3134,8 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 {
 	char type, data;
 	char __user *p = (char __user *)arg;
+	void __user *param_aligned32 = (u32 __user *)arg + 1;
+	void __user *param = (void __user *)arg + 1;
 	int lines;
 	int ret;
 
@@ -3147,8 +3149,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 	case TIOCL_SETSEL:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		return set_selection_user((struct tiocl_selection
-					 __user *)(p+1), tty);
+		return set_selection_user(param, tty);
 	case TIOCL_PASTESEL:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -3162,7 +3163,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
 		console_lock();
-		ret = sel_loadlut(p);
+		ret = sel_loadlut(param_aligned32);
 		console_unlock();
 		break;
 	case TIOCL_GETSHIFTSTATE:
@@ -3181,7 +3182,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		return put_user(data, p);
 	case TIOCL_SETVESABLANK:
 		console_lock();
-		ret = set_vesa_blanking(p);
+		ret = set_vesa_blanking(param);
 		console_unlock();
 		break;
 	case TIOCL_GETKMSGREDIRECT:
@@ -3204,7 +3205,7 @@ int tioclinux(struct tty_struct *tty, unsigned long arg)
 		 */
 		return fg_console;
 	case TIOCL_SCROLLCONSOLE:
-		if (get_user(lines, (s32 __user *)(p+4)))
+		if (get_user(lines, (s32 __user *)param_aligned32))
 			return -EFAULT;
 
 		/*
@@ -4262,11 +4263,11 @@ postcore_initcall(vtconsole_class_init);
  *	Screen blanking
  */
 
-static int set_vesa_blanking(char __user *p)
+static int set_vesa_blanking(u8 __user *mode_user)
 {
-	unsigned int mode;
+	u8 mode;
 
-	if (get_user(mode, p + 1))
+	if (get_user(mode, mode_user))
 		return -EFAULT;
 
 	vesa_blank_mode = (mode < 4) ? mode : 0;
