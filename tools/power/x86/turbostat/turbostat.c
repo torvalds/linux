@@ -5848,6 +5848,15 @@ void process_cpuid()
 		base_mhz = max_mhz = bus_mhz = edx = 0;
 
 		__cpuid(0x16, base_mhz, max_mhz, bus_mhz, edx);
+
+		bclk = bus_mhz;
+
+		base_hz = base_mhz * 1000000;
+		has_base_hz = 1;
+
+		if (platform->enable_tsc_tweak)
+			tsc_tweak = base_hz / tsc_hz;
+
 		if (!quiet)
 			fprintf(outf, "CPUID(0x16): base_mhz: %d max_mhz: %d bus_mhz: %d\n",
 				base_mhz, max_mhz, bus_mhz);
