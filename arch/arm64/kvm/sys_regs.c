@@ -1685,7 +1685,8 @@ static u64 read_sanitised_id_aa64pfr0_el1(struct kvm_vcpu *vcpu,
 	u64 __f_val = FIELD_GET(reg##_##field##_MASK, val);		       \
 	(val) &= ~reg##_##field##_MASK;					       \
 	(val) |= FIELD_PREP(reg##_##field##_MASK,			       \
-			min(__f_val, (u64)reg##_##field##_##limit));	       \
+			    min(__f_val,				       \
+				(u64)SYS_FIELD_VALUE(reg, field, limit)));     \
 	(val);								       \
 })
 
