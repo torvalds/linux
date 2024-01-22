@@ -1542,13 +1542,13 @@ static void csi_J(struct vc_data *vc, enum CSI_J vpar)
 	vc->vc_need_wrap = 0;
 }
 
-static void csi_K(struct vc_data *vc, int vpar)
+static void csi_K(struct vc_data *vc)
 {
 	unsigned int count;
 	unsigned short *start = (unsigned short *)vc->vc_pos;
 	int offset;
 
-	switch (vpar) {
+	switch (vc->vc_par[0]) {
 		case 0:	/* erase from cursor to end of line */
 			offset = 0;
 			count = vc->vc_cols - vc->state.x;
@@ -1571,10 +1571,10 @@ static void csi_K(struct vc_data *vc, int vpar)
 		do_update_region(vc, (unsigned long)(start + offset), count);
 }
 
-/* erase the following vpar positions */
-static void csi_X(struct vc_data *vc, unsigned int vpar)
+/* erase the following count positions */
+static void csi_X(struct vc_data *vc)
 {					  /* not vt100? */
-	unsigned int count = clamp(vpar, 1, vc->vc_cols - vc->state.x);
+	unsigned int count = clamp(vc->vc_par[0], 1, vc->vc_cols - vc->state.x);
 
 	vc_uniscr_clear_line(vc, vc->state.x, count);
 	scr_memsetw((unsigned short *)vc->vc_pos, vc->vc_video_erase_char, 2 * count);
@@ -2010,24 +2010,27 @@ static void csi_at(struct vc_data *vc, unsigned int nr)
 }
 
 /* console_lock is held */
-static void csi_L(struct vc_data *vc, unsigned int nr)
+static void csi_L(struct vc_data *vc)
 {
-	nr = clamp(nr, 1, vc->vc_rows - vc->state.y);
+	unsigned int nr = clamp(vc->vc_par[0], 1, vc->vc_rows - vc->state.y);
+
 	con_scroll(vc, vc->state.y, vc->vc_bottom, SM_DOWN, nr);
 	vc->vc_need_wrap = 0;
 }
 
 /* console_lock is held */
-static void csi_P(struct vc_data *vc, unsigned int nr)
+static void csi_P(struct vc_data *vc)
 {
-	nr = clamp(nr, 1, vc->vc_cols - vc->state.x);
+	unsigned int nr = clamp(vc->vc_par[0], 1, vc->vc_cols - vc->state.x);
+
 	delete_char(vc, nr);
 }
 
 /* console_lock is held */
-static void csi_M(struct vc_data *vc, unsigned int nr)
+static void csi_M(struct vc_data *vc)
 {
-	nr = clamp(nr, 1, vc->vc_rows - vc->state.y);
+	unsigned int nr = clamp(vc->vc_par[0], 1, vc->vc_rows - vc->state.y);
+
 	con_scroll(vc, vc->state.y, vc->vc_bottom, SM_UP, nr);
 	vc->vc_need_wrap = 0;
 }
@@ -2430,16 +2433,16 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			csi_J(vc, vc->vc_par[0]);
 			return;
 		case 'K':
-			csi_K(vc, vc->vc_par[0]);
+			csi_K(vc);
 			return;
 		case 'L':
-			csi_L(vc, vc->vc_par[0]);
+			csi_L(vc);
 			return;
 		case 'M':
-			csi_M(vc, vc->vc_par[0]);
+			csi_M(vc);
 			return;
 		case 'P':
-			csi_P(vc, vc->vc_par[0]);
+			csi_P(vc);
 			return;
 		case 'c':
 			if (!vc->vc_par[0])
@@ -2480,7 +2483,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			restore_cur(vc);
 			return;
 		case 'X':
-			csi_X(vc, vc->vc_par[0]);
+			csi_X(vc);
 			return;
 		case '@':
 			csi_at(vc, vc->vc_par[0]);
