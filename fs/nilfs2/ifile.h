@@ -38,7 +38,6 @@ int nilfs_ifile_get_inode_block(struct inode *, ino_t, struct buffer_head **);
 int nilfs_ifile_count_free_inodes(struct inode *, u64 *, u64 *);
 
 int nilfs_ifile_read(struct super_block *sb, struct nilfs_root *root,
-		     size_t inode_size, struct nilfs_inode *raw_inode,
-		     struct inode **inodep);
+		     __u64 cno, size_t inode_size);
 
 #endif	/* _NILFS_IFILE_H */

@@ -187,6 +187,74 @@ static inline int nilfs_cpfile_delete_checkpoint_block(struct inode *cpfile,
 }
 
 /**
+ * nilfs_cpfile_read_checkpoint - read a checkpoint entry in cpfile
+ * @cpfile: checkpoint file inode
+ * @cno:    number of checkpoint entry to read
+ * @root:   nilfs root object
+ * @ifile:  ifile's inode to read and attach to @root
+ *
+ * This function imports checkpoint information from the checkpoint file and
+ * stores it to the inode file given by @ifile and the nilfs root object
+ * given by @root.
+ *
+ * Return: 0 on success, or the following negative error code on failure.
+ * * %-EINVAL	- Invalid checkpoint.
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-EIO	- I/O error (including metadata corruption).
+ */
+int nilfs_cpfile_read_checkpoint(struct inode *cpfile, __u64 cno,
+				 struct nilfs_root *root, struct inode *ifile)
+{
+	struct buffer_head *cp_bh;
+	struct nilfs_checkpoint *cp;
+	void *kaddr;
+	int ret;
+
+	if (cno < 1 || cno > nilfs_mdt_cno(cpfile))
+		return -EINVAL;
+
+	down_read(&NILFS_MDT(cpfile)->mi_sem);
+	ret = nilfs_cpfile_get_checkpoint_block(cpfile, cno, 0, &cp_bh);
+	if (unlikely(ret < 0)) {
+		if (ret == -ENOENT)
+			ret = -EINVAL;
+		goto out_sem;
+	}
+
+	kaddr = kmap_local_page(cp_bh->b_page);
+	cp = nilfs_cpfile_block_get_checkpoint(cpfile, cno, cp_bh, kaddr);
+	if (nilfs_checkpoint_invalid(cp)) {
+		ret = -EINVAL;
+		goto put_cp;
+	}
+
+	ret = nilfs_read_inode_common(ifile, &cp->cp_ifile_inode);
+	if (unlikely(ret)) {
+		/*
+		 * Since this inode is on a checkpoint entry, treat errors
+		 * as metadata corruption.
+		 */
+		nilfs_err(cpfile->i_sb,
+			  "ifile inode (checkpoint number=%llu) corrupted",
+			  (unsigned long long)cno);
+		ret = -EIO;
+		goto put_cp;
+	}
+
+	/* Configure the nilfs root object */
+	atomic64_set(&root->inodes_count, le64_to_cpu(cp->cp_inodes_count));
+	atomic64_set(&root->blocks_count, le64_to_cpu(cp->cp_blocks_count));
+	root->ifile = ifile;
+
+put_cp:
+	kunmap_local(kaddr);
+	brelse(cp_bh);
+out_sem:
+	up_read(&NILFS_MDT(cpfile)->mi_sem);
+	return ret;
+}
+
+/**
  * nilfs_cpfile_get_checkpoint - get a checkpoint
  * @cpfile: inode of checkpoint file
  * @cno: checkpoint number
