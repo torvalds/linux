@@ -88,7 +88,7 @@ void clear_selection(void)
 }
 EXPORT_SYMBOL_GPL(clear_selection);
 
-bool vc_is_sel(struct vc_data *vc)
+bool vc_is_sel(const struct vc_data *vc)
 {
 	return vc == vc_sel.cons;
 }

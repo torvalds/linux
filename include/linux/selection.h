@@ -24,7 +24,7 @@ extern int sel_loadlut(u32 __user *lut);
 extern int mouse_reporting(void);
 extern void mouse_report(struct tty_struct * tty, int butt, int mrx, int mry);
 
-bool vc_is_sel(struct vc_data *vc);
+bool vc_is_sel(const struct vc_data *vc);
 
 extern int console_blanked;
 
