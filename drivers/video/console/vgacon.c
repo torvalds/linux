@@ -1081,12 +1081,12 @@ static int vgacon_font_get(struct vc_data *c, struct console_font *font, unsigne
 }
 
 static int vgacon_resize(struct vc_data *c, unsigned int width,
-			 unsigned int height, unsigned int user)
+			 unsigned int height, bool from_user)
 {
 	if ((width << 1) * height > vga_vram_size)
 		return -EINVAL;
 
-	if (user) {
+	if (from_user) {
 		/*
 		 * Ho ho!  Someone (svgatextmode, eh?) may have reprogrammed
 		 * the video mode!  Set the new defaults then and go away.

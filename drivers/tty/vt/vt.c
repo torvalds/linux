@@ -1115,13 +1115,13 @@ err_free:
 }
 
 static inline int resize_screen(struct vc_data *vc, int width, int height,
-				int user)
+				bool from_user)
 {
 	/* Resizes the resolution of the display adapater */
 	int err = 0;
 
 	if (vc->vc_sw->con_resize)
-		err = vc->vc_sw->con_resize(vc, width, height, user);
+		err = vc->vc_sw->con_resize(vc, width, height, from_user);
 
 	return err;
 }
@@ -1132,6 +1132,7 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  *	@vc: virtual console private data
  *	@cols: columns
  *	@lines: lines
+ *	@from_user: invoked by a user?
  *
  *	Resize a virtual console, clipping according to the actual constraints.
  *	If the caller passes a tty structure then update the termios winsize
@@ -1142,20 +1143,16 @@ static inline int resize_screen(struct vc_data *vc, int width, int height,
  */
 
 static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
-				unsigned int cols, unsigned int lines)
+			unsigned int cols, unsigned int lines, bool from_user)
 {
 	unsigned long old_origin, new_origin, new_scr_end, rlth, rrem, err = 0;
 	unsigned long end;
 	unsigned int old_rows, old_row_size, first_copied_row;
 	unsigned int new_cols, new_rows, new_row_size, new_screen_size;
-	unsigned int user;
 	unsigned short *oldscreen, *newscreen;
 	u32 **new_uniscr = NULL;
 
 	WARN_CONSOLE_UNLOCKED();
-
-	user = vc->vc_resize_user;
-	vc->vc_resize_user = 0;
 
 	if (cols > VC_MAXCOL || lines > VC_MAXROW)
 		return -EINVAL;
@@ -1182,7 +1179,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 		 * to deal with possible errors from the code below, we call
 		 * the resize_screen here as well.
 		 */
-		return resize_screen(vc, new_cols, new_rows, user);
+		return resize_screen(vc, new_cols, new_rows, from_user);
 	}
 
 	if (new_screen_size > KMALLOC_MAX_SIZE || !new_screen_size)
@@ -1205,7 +1202,7 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 	old_rows = vc->vc_rows;
 	old_row_size = vc->vc_size_row;
 
-	err = resize_screen(vc, new_cols, new_rows, user);
+	err = resize_screen(vc, new_cols, new_rows, from_user);
 	if (err) {
 		kfree(newscreen);
 		vc_uniscr_free(new_uniscr);
@@ -1292,22 +1289,23 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
 }
 
 /**
- *	vc_resize		-	resize a VT
+ *	__vc_resize		-	resize a VT
  *	@vc: virtual console
  *	@cols: columns
  *	@rows: rows
+ *	@from_user: invoked by a user?
  *
  *	Resize a virtual console as seen from the console end of things. We
  *	use the common vc_do_resize methods to update the structures. The
  *	caller must hold the console sem to protect console internals and
  *	vc->port.tty
  */
-
-int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
+int __vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows,
+		bool from_user)
 {
-	return vc_do_resize(vc->port.tty, vc, cols, rows);
+	return vc_do_resize(vc->port.tty, vc, cols, rows, from_user);
 }
-EXPORT_SYMBOL(vc_resize);
+EXPORT_SYMBOL(__vc_resize);
 
 /**
  *	vt_resize		-	resize a VT
@@ -1327,7 +1325,7 @@ static int vt_resize(struct tty_struct *tty, struct winsize *ws)
 	int ret;
 
 	console_lock();
-	ret = vc_do_resize(tty, vc, ws->ws_col, ws->ws_row);
+	ret = vc_do_resize(tty, vc, ws->ws_col, ws->ws_row, false);
 	console_unlock();
 	return ret;
 }

@@ -1996,7 +1996,7 @@ static void updatescrollmode(struct fbcon_display *p,
 #define CALC_FONTSZ(h, p, c) ((h) * (p) * (c)) /* size = height * pitch * charcount */
 
 static int fbcon_resize(struct vc_data *vc, unsigned int width,
-			unsigned int height, unsigned int user)
+			unsigned int height, bool from_user)
 {
 	struct fb_info *info = fbcon_info_from_console(vc->vc_num);
 	struct fbcon_ops *ops = info->fbcon_par;
