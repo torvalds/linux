@@ -194,10 +194,14 @@ struct kvm_vm *test_vm_create(void)
 	vm_init_descriptor_tables(vm);
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT, guest_irq_handler);
 
-	if (!test_args.offset.reserved) {
-		if (kvm_has_cap(KVM_CAP_COUNTER_OFFSET))
-			vm_ioctl(vm, KVM_ARM_SET_COUNTER_OFFSET, &test_args.offset);
-		else
+	if (!test_args.reserved) {
+		if (kvm_has_cap(KVM_CAP_COUNTER_OFFSET)) {
+			struct kvm_arm_counter_offset offset = {
+				.counter_offset = test_args.counter_offset,
+				.reserved = 0,
+			};
+			vm_ioctl(vm, KVM_ARM_SET_COUNTER_OFFSET, &offset);
+		} else
 			TEST_FAIL("no support for global offset");
 	}
 
