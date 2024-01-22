@@ -23,6 +23,7 @@ struct btree_and_journal_iter {
 	struct journal_iter	journal;
 	struct bpos		pos;
 	bool			at_end;
+	bool			prefetch;
 };
 
 struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *, enum btree_id,

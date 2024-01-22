@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_buf.h"
 #include "bset.h"
+#include "btree_cache.h"
 #include "btree_journal_iter.h"
 #include "journal_io.h"
 
@@ -334,9 +336,38 @@ void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *iter)
 		iter->pos = bpos_successor(iter->pos);
 }
 
+static void btree_and_journal_iter_prefetch(struct btree_and_journal_iter *_iter)
+{
+	struct btree_and_journal_iter iter = *_iter;
+	struct bch_fs *c = iter.trans->c;
+	unsigned level = iter.journal.level;
+	struct bkey_buf tmp;
+	unsigned nr = test_bit(BCH_FS_started, &c->flags)
+		? (level > 1 ? 0 :  2)
+		: (level > 1 ? 1 : 16);
+
+	iter.prefetch = false;
+	bch2_bkey_buf_init(&tmp);
+
+	while (nr--) {
+		bch2_btree_and_journal_iter_advance(&iter);
+		struct bkey_s_c k = bch2_btree_and_journal_iter_peek(&iter);
+		if (!k.k)
+			break;
+
+		bch2_bkey_buf_reassemble(&tmp, c, k);
+		bch2_btree_node_prefetch(iter.trans, NULL, tmp.k, iter.journal.btree_id, level - 1);
+	}
+
+	bch2_bkey_buf_exit(&tmp, c);
+}
+
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *iter)
 {
 	struct bkey_s_c btree_k, journal_k, ret;
+
+	if (iter->prefetch && iter->journal.level)
+		btree_and_journal_iter_prefetch(iter);
 again:
 	if (iter->at_end)
 		return bkey_s_c_null;

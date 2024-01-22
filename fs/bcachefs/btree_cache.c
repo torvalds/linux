@@ -711,6 +711,9 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	b = bch2_btree_node_mem_alloc(trans, level != 0);
 
 	if (bch2_err_matches(PTR_ERR_OR_ZERO(b), ENOMEM)) {
+		if (!path)
+			return b;
+
 		trans->memory_allocation_failure = true;
 		trace_and_count(c, trans_restart_memory_allocation_failure, trans, _THIS_IP_, path);
 		return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_fill_mem_alloc_fail));
@@ -760,8 +763,9 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	}
 
 	if (!six_relock_type(&b->c.lock, lock_type, seq)) {
-		if (path)
-			trace_and_count(c, trans_restart_relock_after_fill, trans, _THIS_IP_, path);
+		BUG_ON(!path);
+
+		trace_and_count(c, trans_restart_relock_after_fill, trans, _THIS_IP_, path);
 		return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_relock_after_fill));
 	}
 
@@ -1096,7 +1100,7 @@ int bch2_btree_node_prefetch(struct btree_trans *trans,
 	struct btree_cache *bc = &c->btree_cache;
 	struct btree *b;
 
-	BUG_ON(trans && !btree_node_locked(path, level + 1));
+	BUG_ON(path && !btree_node_locked(path, level + 1));
 	BUG_ON(level >= BTREE_MAX_DEPTH);
 
 	b = btree_cache_find(bc, k);
