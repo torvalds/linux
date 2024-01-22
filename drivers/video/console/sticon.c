@@ -298,7 +298,8 @@ static bool sticon_switch(struct vc_data *conp)
     return true;	/* needs refreshing */
 }
 
-static int sticon_blank(struct vc_data *c, int blank, int mode_switch)
+static int sticon_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			int mode_switch)
 {
     if (blank == VESA_NO_BLANKING) {
 	if (mode_switch)

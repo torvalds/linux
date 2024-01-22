@@ -451,7 +451,8 @@ static bool mdacon_switch(struct vc_data *c)
 	return true;	/* redrawing needed */
 }
 
-static int mdacon_blank(struct vc_data *c, int blank, int mode_switch)
+static int mdacon_blank(struct vc_data *c, enum vesa_blank_mode blank,
+			int mode_switch)
 {
 	if (mda_type == TYPE_MDA) {
 		if (blank) 

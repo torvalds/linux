@@ -175,7 +175,7 @@ int do_poke_blanked_console;
 int console_blanked;
 EXPORT_SYMBOL(console_blanked);
 
-static int vesa_blank_mode; /* 0:none 1:suspendV 2:suspendH 3:powerdown */
+static enum vesa_blank_mode vesa_blank_mode;
 static int vesa_off_interval;
 static int blankinterval;
 core_param(consoleblank, blankinterval, int, 0444);
@@ -4320,7 +4320,7 @@ static int set_vesa_blanking(u8 __user *mode_user)
 		return -EFAULT;
 
 	console_lock();
-	vesa_blank_mode = (mode < 4) ? mode : VESA_NO_BLANKING;
+	vesa_blank_mode = (mode <= VESA_BLANK_MAX) ? mode : VESA_NO_BLANKING;
 	console_unlock();
 
 	return 0;
