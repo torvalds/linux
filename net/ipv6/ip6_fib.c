@@ -751,8 +751,6 @@ static struct fib6_node *fib6_add_1(struct net *net,
 	int	bit;
 	__be32	dir = 0;
 
-	RT6_TRACE("fib6_add_1\n");
-
 	/* insert node in tree */
 
 	fn = root;
@@ -1904,8 +1902,6 @@ static void fib6_del_route(struct fib6_table *table, struct fib6_node *fn,
 				    lockdep_is_held(&table->tb6_lock));
 	struct net *net = info->nl_net;
 	bool notify_del = false;
-
-	RT6_TRACE("fib6_del_route\n");
 
 	/* If the deleted route is the first in the node and it is not part of
 	 * a multipath route, then we need to replace it with the next route
