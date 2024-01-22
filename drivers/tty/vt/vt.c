@@ -1795,25 +1795,22 @@ static void csi_m(struct vc_data *vc)
 			vc->state.color = (vc->vc_def_color & 0xf0) |
 				(vc->state.color & 0x0f);
 			break;
-		default:
-			if (vc->vc_par[i] >= CSI_m_BRIGHT_FG_COLOR_BEG &&
-			    vc->vc_par[i] <= CSI_m_BRIGHT_BG_COLOR_END) {
-				if (vc->vc_par[i] < CSI_m_BRIGHT_BG_COLOR_BEG)
-					vc->state.intensity = VCI_BOLD;
-				vc->vc_par[i] -= CSI_m_BRIGHT_FG_COLOR_OFF;
-			}
-			if (vc->vc_par[i] >= CSI_m_FG_COLOR_BEG &&
-			    vc->vc_par[i] <= CSI_m_FG_COLOR_END) {
-				vc->vc_par[i] -= CSI_m_FG_COLOR_BEG;
-				vc->state.color = color_table[vc->vc_par[i]] |
-					(vc->state.color & 0xf0);
-			} else if (vc->vc_par[i] >= CSI_m_BG_COLOR_BEG &&
-				 vc->vc_par[i] <= CSI_m_BG_COLOR_END) {
-				vc->vc_par[i] -= CSI_m_BG_COLOR_BEG;
-				vc->state.color = (color_table[vc->vc_par[i]] << 4) |
-					(vc->state.color & 0x0f);
-			}
-
+		case CSI_m_BRIGHT_FG_COLOR_BEG ... CSI_m_BRIGHT_FG_COLOR_END:
+			vc->state.intensity = VCI_BOLD;
+			vc->vc_par[i] -= CSI_m_BRIGHT_FG_COLOR_OFF;
+			fallthrough;
+		case CSI_m_FG_COLOR_BEG ... CSI_m_FG_COLOR_END:
+			vc->vc_par[i] -= CSI_m_FG_COLOR_BEG;
+			vc->state.color = color_table[vc->vc_par[i]] |
+				(vc->state.color & 0xf0);
+			break;
+		case CSI_m_BRIGHT_BG_COLOR_BEG ... CSI_m_BRIGHT_BG_COLOR_END:
+			vc->vc_par[i] -= CSI_m_BRIGHT_BG_COLOR_OFF;
+			fallthrough;
+		case CSI_m_BG_COLOR_BEG ... CSI_m_BG_COLOR_END:
+			vc->vc_par[i] -= CSI_m_BG_COLOR_BEG;
+			vc->state.color = (color_table[vc->vc_par[i]] << 4) |
+				(vc->state.color & 0x0f);
 			break;
 		}
 	update_attr(vc);
