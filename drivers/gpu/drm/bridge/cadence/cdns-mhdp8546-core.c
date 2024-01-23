@@ -1524,12 +1524,14 @@ static int cdns_mhdp_get_modes(struct drm_connector *connector)
 		return 0;
 
 	drm_edid = cdns_mhdp_edid_read(mhdp, connector);
+
+	drm_edid_connector_update(connector, drm_edid);
+
 	if (!drm_edid) {
 		dev_err(mhdp->dev, "Failed to read EDID\n");
 		return 0;
 	}
 
-	drm_edid_connector_update(connector, drm_edid);
 	num_modes = drm_edid_connector_add_modes(connector);
 	drm_edid_free(drm_edid);
 
