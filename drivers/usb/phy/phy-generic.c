@@ -337,6 +337,9 @@ static void usb_phy_generic_remove(struct platform_device *pdev)
 	struct usb_phy_generic *nop = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&nop->phy);
+
+	if (nop->vbus_draw && nop->vbus_draw_enabled)
+		regulator_disable(nop->vbus_draw);
 }
 
 static const struct of_device_id nop_xceiv_dt_ids[] = {
