@@ -225,6 +225,7 @@ static void mptcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 }
 
 static const struct inet_diag_handler mptcp_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = mptcp_diag_dump,
 	.dump_one	 = mptcp_diag_dump_one,
 	.idiag_get_info  = mptcp_diag_get_info,
