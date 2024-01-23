@@ -286,12 +286,6 @@ static struct edid *sii902x_get_edid(struct sii902x *sii902x,
 	mutex_lock(&sii902x->mutex);
 
 	edid = drm_get_edid(connector, sii902x->i2cmux->adapter[0]);
-	if (edid) {
-		if (drm_detect_hdmi_monitor(edid))
-			sii902x->sink_is_hdmi = true;
-		else
-			sii902x->sink_is_hdmi = false;
-	}
 
 	mutex_unlock(&sii902x->mutex);
 
@@ -310,6 +304,8 @@ static int sii902x_get_modes(struct drm_connector *connector)
 		num = drm_add_edid_modes(connector, edid);
 		kfree(edid);
 	}
+
+	sii902x->sink_is_hdmi = connector->display_info.is_hdmi;
 
 	return num;
 }
