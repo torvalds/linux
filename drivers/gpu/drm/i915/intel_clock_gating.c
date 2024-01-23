@@ -105,12 +105,6 @@ static void bxt_init_clock_gating(struct drm_i915_private *i915)
 	 * Display WA #0562: bxt
 	 */
 	intel_uncore_rmw(&i915->uncore, DISP_ARB_CTL, 0, DISP_FBC_WM_DIS);
-
-	/*
-	 * WaFbcHighMemBwCorruptionAvoidance:bxt
-	 * Display WA #0883: bxt
-	 */
-	intel_uncore_rmw(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A), 0, DPFC_DISABLE_DUMMY0);
 }
 
 static void glk_init_clock_gating(struct drm_i915_private *i915)
@@ -396,13 +390,6 @@ static void cfl_init_clock_gating(struct drm_i915_private *i915)
 	 * Display WA #0562: cfl
 	 */
 	intel_uncore_rmw(&i915->uncore, DISP_ARB_CTL, 0, DISP_FBC_WM_DIS);
-
-	/*
-	 * WaFbcNukeOnHostModify:cfl
-	 * Display WA #0873: cfl
-	 */
-	intel_uncore_rmw(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-			 0, DPFC_NUKE_ON_ANY_MODIFICATION);
 }
 
 static void kbl_init_clock_gating(struct drm_i915_private *i915)
@@ -427,13 +414,6 @@ static void kbl_init_clock_gating(struct drm_i915_private *i915)
 	 * Display WA #0562: kbl
 	 */
 	intel_uncore_rmw(&i915->uncore, DISP_ARB_CTL, 0, DISP_FBC_WM_DIS);
-
-	/*
-	 * WaFbcNukeOnHostModify:kbl
-	 * Display WA #0873: kbl
-	 */
-	intel_uncore_rmw(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-			 0, DPFC_NUKE_ON_ANY_MODIFICATION);
 }
 
 static void skl_init_clock_gating(struct drm_i915_private *i915)
@@ -452,19 +432,6 @@ static void skl_init_clock_gating(struct drm_i915_private *i915)
 	 * Display WA #0562: skl
 	 */
 	intel_uncore_rmw(&i915->uncore, DISP_ARB_CTL, 0, DISP_FBC_WM_DIS);
-
-	/*
-	 * WaFbcNukeOnHostModify:skl
-	 * Display WA #0873: skl
-	 */
-	intel_uncore_rmw(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A),
-			 0, DPFC_NUKE_ON_ANY_MODIFICATION);
-
-	/*
-	 * WaFbcHighMemBwCorruptionAvoidance:skl
-	 * Display WA #0883: skl
-	 */
-	intel_uncore_rmw(&i915->uncore, ILK_DPFC_CHICKEN(INTEL_FBC_A), 0, DPFC_DISABLE_DUMMY0);
 }
 
 static void bdw_init_clock_gating(struct drm_i915_private *i915)
