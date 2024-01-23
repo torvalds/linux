@@ -8,13 +8,21 @@
 #include <linux/refcount.h>
 #include <net/sock.h>
 
+#if IS_ENABLED(CONFIG_UNIX)
+struct unix_sock *unix_get_socket(struct file *filp);
+#else
+static inline struct unix_sock *unix_get_socket(struct file *filp)
+{
+	return NULL;
+}
+#endif
+
 void unix_inflight(struct user_struct *user, struct file *fp);
 void unix_notinflight(struct user_struct *user, struct file *fp);
 void unix_destruct_scm(struct sk_buff *skb);
 void io_uring_destruct_scm(struct sk_buff *skb);
 void unix_gc(void);
-void wait_for_unix_gc(void);
-struct unix_sock *unix_get_socket(struct file *filp);
+void wait_for_unix_gc(struct scm_fp_list *fpl);
 struct sock *unix_peer_get(struct sock *sk);
 
 #define UNIX_HASH_MOD	(256 - 1)
