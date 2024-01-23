@@ -271,9 +271,10 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 		meta = NULL;
 		goto unmap;
 	}
-	IWL_WARN(trans,
-		 "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
-		 len, (unsigned long long)oldphys, (unsigned long long)phys);
+	IWL_DEBUG_TX(trans,
+		     "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
+		     len, (unsigned long long)oldphys,
+		     (unsigned long long)phys);
 
 	ret = 0;
 unmap:
