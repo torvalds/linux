@@ -1104,6 +1104,7 @@ static void ethqos_fix_mac_speed(void *priv, unsigned int speed)
 	int ret = 0;
 
 	ethqos->speed = speed;
+	ethqos_update_rgmii_clk(ethqos, speed);
 
 	if (ethqos->emac_ver == EMAC_HW_v3_0_0_RG)
 		ret = ethqos_configure_mac_v3(ethqos);
