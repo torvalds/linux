@@ -10,7 +10,7 @@
 #include "fw/api/txq.h"
 
 /* Highest firmware API version supported */
-#define IWL_AX210_UCODE_API_MAX	86
+#define IWL_AX210_UCODE_API_MAX	87
 
 /* Lowest firmware API version supported */
 #define IWL_AX210_UCODE_API_MIN	59
