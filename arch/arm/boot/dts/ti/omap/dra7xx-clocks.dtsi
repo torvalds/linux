@@ -1685,7 +1685,7 @@
 		reg = <0x0558>;
 	};
 
-	sys_32k_ck: clock-sys-32k {
+	sys_32k_ck: clock-sys-32k@6c4 {
 		#clock-cells = <0>;
 		compatible = "ti,mux-clock";
 		clock-output-names = "sys_32k_ck";
