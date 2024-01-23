@@ -799,6 +799,16 @@ static inline bool local_timer_softirq_pending(void)
 	return local_softirq_pending() & BIT(TIMER_SOFTIRQ);
 }
 
+/**
+ * tick_nohz_next_event() - return the clock monotonic based next event
+ * @ts:		pointer to tick_sched struct
+ * @cpu:	CPU number
+ *
+ * Return:
+ * *%0		- When the next event is a maximum of TICK_NSEC in the future
+ *		  and the tick is not stopped yet
+ * *%next_event	- Next event based on clock monotonic
+ */
 static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 {
 	u64 basemono, next_tick, delta, expires;
