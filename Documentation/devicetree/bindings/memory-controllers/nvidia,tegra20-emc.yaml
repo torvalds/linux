@@ -145,7 +145,7 @@ patternProperties:
   "^emc-table@[0-9]+$":
     $ref: "#/$defs/emc-table"
 
-  "^emc-tables@[a-z0-9-]+$":
+  "^emc-tables@[a-f0-9-]+$":
     type: object
     properties:
       reg:
