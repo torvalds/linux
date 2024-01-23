@@ -325,7 +325,8 @@ static int __uac_clock_find_source(struct snd_usb_audio *chip,
 					      visited, validate);
 		if (ret > 0) {
 			/* Skip setting clock selector again for some devices */
-			if (chip->quirk_flags & QUIRK_FLAG_SKIP_CLOCK_SELECTOR)
+			if (chip->quirk_flags & QUIRK_FLAG_SKIP_CLOCK_SELECTOR ||
+			    pins == 1)
 				return ret;
 			err = uac_clock_selector_set_val(chip, entity_id, cur);
 			if (err < 0)
