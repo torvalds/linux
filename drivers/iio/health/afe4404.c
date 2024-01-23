@@ -547,7 +547,7 @@ static int afe4404_probe(struct i2c_client *client)
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
 
-		ret = iio_trigger_register(afe->trig);
+		ret = devm_iio_trigger_register(afe->dev, afe->trig);
 		if (ret) {
 			dev_err(afe->dev, "Unable to register IIO trigger\n");
 			return ret;
@@ -564,42 +564,21 @@ static int afe4404_probe(struct i2c_client *client)
 		}
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-					 afe4404_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(afe->dev, indio_dev,
+					      &iio_pollfunc_store_time,
+					      afe4404_trigger_handler, NULL);
 	if (ret) {
 		dev_err(afe->dev, "Unable to setup buffer\n");
-		goto unregister_trigger;
+		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(afe->dev, indio_dev);
 	if (ret) {
 		dev_err(afe->dev, "Unable to register IIO device\n");
-		goto unregister_triggered_buffer;
+		return ret;
 	}
 
 	return 0;
-
-unregister_triggered_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-unregister_trigger:
-	if (afe->irq > 0)
-		iio_trigger_unregister(afe->trig);
-
-	return ret;
-}
-
-static void afe4404_remove(struct i2c_client *client)
-{
-	struct iio_dev *indio_dev = i2c_get_clientdata(client);
-	struct afe4404_data *afe = iio_priv(indio_dev);
-	int ret;
-
-	iio_device_unregister(indio_dev);
-
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	if (afe->irq > 0)
-		iio_trigger_unregister(afe->trig);
 }
 
 static const struct i2c_device_id afe4404_ids[] = {
@@ -615,7 +594,6 @@ static struct i2c_driver afe4404_i2c_driver = {
 		.pm = pm_sleep_ptr(&afe4404_pm_ops),
 	},
 	.probe = afe4404_probe,
-	.remove = afe4404_remove,
 	.id_table = afe4404_ids,
 };
 module_i2c_driver(afe4404_i2c_driver);
