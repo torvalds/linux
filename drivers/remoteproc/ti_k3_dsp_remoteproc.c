@@ -550,6 +550,13 @@ static int k3_dsp_rproc_of_get_memories(struct platform_device *pdev,
 	return 0;
 }
 
+static void k3_dsp_mem_release(void *data)
+{
+	struct device *dev = data;
+
+	of_reserved_mem_device_release(dev);
+}
+
 static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 {
 	struct device *dev = kproc->dev;
@@ -579,13 +586,14 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 			ERR_PTR(ret));
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, k3_dsp_mem_release, dev);
+	if (ret)
+		return ret;
 
 	num_rmems--;
 	kproc->rmem = kcalloc(num_rmems, sizeof(*kproc->rmem), GFP_KERNEL);
-	if (!kproc->rmem) {
-		ret = -ENOMEM;
-		goto release_rmem;
-	}
+	if (!kproc->rmem)
+		return -ENOMEM;
 
 	/* use remaining reserved memory regions for static carveouts */
 	for (i = 0; i < num_rmems; i++) {
@@ -628,8 +636,6 @@ unmap_rmem:
 	for (i--; i >= 0; i--)
 		iounmap(kproc->rmem[i].cpu_addr);
 	kfree(kproc->rmem);
-release_rmem:
-	of_reserved_mem_device_release(kproc->dev);
 	return ret;
 }
 
@@ -640,8 +646,6 @@ static void k3_dsp_reserved_mem_exit(struct k3_dsp_rproc *kproc)
 	for (i = 0; i < kproc->num_rmems; i++)
 		iounmap(kproc->rmem[i].cpu_addr);
 	kfree(kproc->rmem);
-
-	of_reserved_mem_device_release(kproc->dev);
 }
 
 static
