@@ -516,4 +516,8 @@ static inline int req_ref_read(struct request *req)
 	return atomic_read(&req->ref);
 }
 
+void bdev_release(struct bdev_handle *handle);
+struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
+		const struct blk_holder_ops *hops);
+
 #endif /* BLK_INTERNAL_H */
