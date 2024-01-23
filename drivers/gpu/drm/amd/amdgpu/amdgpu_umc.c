@@ -246,7 +246,8 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 	return 0;
 }
 
-int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
+int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, bool reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
 
@@ -297,7 +298,7 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev, bool reset)
 		}
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
-			adev->virt.ops->ras_poison_handler(adev);
+			adev->virt.ops->ras_poison_handler(adev, block);
 		else
 			dev_warn(adev->dev,
 				"No ras_poison_handler interface in SRIOV!\n");

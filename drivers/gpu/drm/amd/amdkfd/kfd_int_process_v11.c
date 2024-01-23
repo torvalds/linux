@@ -191,6 +191,7 @@ static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
 static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 				uint16_t pasid, uint16_t source_id)
 {
+	enum amdgpu_ras_block block = 0;
 	int ret = -EINVAL;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
@@ -210,9 +211,11 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
 		if (dev->dqm->ops.reset_queues)
 			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
+		block = AMDGPU_RAS_BLOCK__GFX;
 		break;
 	case SOC21_INTSRC_SDMA_ECC:
 	default:
+		block = AMDGPU_RAS_BLOCK__GFX;
 		break;
 	}
 
@@ -221,9 +224,9 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 	/* resetting queue passes, do page retirement without gpu reset
 	   resetting queue fails, fallback to gpu reset solution */
 	if (!ret)
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
+		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, false);
 	else
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
+		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, true);
 }
 
 static bool event_interrupt_isr_v11(struct kfd_node *dev,

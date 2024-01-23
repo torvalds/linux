@@ -2041,7 +2041,7 @@ static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *
 		}
 	}
 
-	amdgpu_umc_poison_handler(adev, false);
+	amdgpu_umc_poison_handler(adev, obj->head.block, false);
 
 	if (block_obj->hw_ops && block_obj->hw_ops->handle_poison_consumption)
 		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
