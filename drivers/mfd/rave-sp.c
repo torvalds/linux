@@ -358,7 +358,7 @@ int rave_sp_exec(struct rave_sp *sp,
 
 	ackid       = atomic_inc_return(&sp->ackid);
 	reply.ackid = ackid;
-	reply.code  = rave_sp_reply_code((u8)command),
+	reply.code  = rave_sp_reply_code((u8)command);
 
 	mutex_lock(&sp->bus_lock);
 
