@@ -589,6 +589,8 @@ struct q2spi_packet {
 	enum xfer_status status;
 	dma_addr_t var1_tx_dma;
 	dma_addr_t var5_tx_dma;
+	dma_addr_t var1_rx_dma;
+	dma_addr_t var5_rx_dma;
 	dma_addr_t soft_reset_tx_dma;
 	bool sync;
 	struct q2spi_geni *q2spi;

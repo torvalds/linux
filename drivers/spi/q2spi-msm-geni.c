@@ -2140,6 +2140,7 @@ static int q2spi_prep_var1_request(struct q2spi_geni *q2spi, struct q2spi_packet
 			    __func__, var1_xfer->tx_len, var1_xfer->tx_data_len);
 		var1_xfer->rx_buf = q2spi->xfer->rx_buf;
 		var1_xfer->rx_dma = q2spi->xfer->rx_dma;
+		q2spi_pkt->var1_rx_dma = var1_xfer->rx_dma;
 		var1_xfer->rx_data_len = (q2spi_pkt->var1_pkt->dw_len * 4) + 4;
 		var1_xfer->rx_len = var1_xfer->rx_data_len;
 		Q2SPI_DEBUG(q2spi, "%s var1_xfer->rx_len:%d var1_xfer->rx_data_len:%d\n",
@@ -2190,6 +2191,7 @@ static int q2spi_prep_var5_request(struct q2spi_geni *q2spi, struct q2spi_packet
 	if (q2spi_pkt->m_cmd_param == Q2SPI_TX_RX) {
 		var5_xfer->rx_buf = q2spi->xfer->rx_buf;
 		var5_xfer->rx_dma = q2spi->xfer->rx_dma;
+		q2spi_pkt->var5_rx_dma = var5_xfer->rx_dma;
 		var5_xfer->tx_len = Q2SPI_HEADER_LEN;
 		var5_xfer->rx_len =
 			((q2spi_pkt->var5_pkt->dw_len_part1 |
@@ -2375,6 +2377,22 @@ static int __q2spi_send_messages(struct q2spi_geni *q2spi)
 	if (!cm_flow_pkt && atomic_read(&q2spi->doorbell_pending)) {
 		atomic_inc(&q2spi->retry);
 		Q2SPI_DEBUG(q2spi, "%s doorbell pending retry\n", __func__);
+		if (q2spi_pkt->vtype == VARIANT_1_LRA || q2spi_pkt->vtype == VARIANT_1_HRF) {
+			Q2SPI_DEBUG(q2spi, "%s Unmapping Var1 buffers..\n", __func__);
+			q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var1_tx_dma,
+						 q2spi_pkt->var1_rx_dma);
+		} else if (q2spi_pkt->vtype == VARIANT_5) {
+			Q2SPI_DEBUG(q2spi, "%s Unmapping Var5 buffers..\n", __func__);
+			q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
+						 q2spi_pkt->var5_rx_dma);
+		} else if (q2spi_pkt->vtype == VARIANT_5_HRF) {
+			Q2SPI_DEBUG(q2spi, "%s Unmapping Var1 and Var5 buffers..\n",
+				    __func__);
+			q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var1_tx_dma,
+						 (dma_addr_t)NULL);
+			q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
+						 q2spi_pkt->var5_rx_dma);
+		}
 		complete(&q2spi->sync_wait);
 		return -ETIMEDOUT;
 	}
