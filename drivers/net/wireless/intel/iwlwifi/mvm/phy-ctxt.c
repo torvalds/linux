@@ -204,7 +204,7 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 	int ret;
 	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1);
 
-	if (ver == 3 || ver == 4) {
+	if (ver >= 3 && ver <= 5) {
 		struct iwl_phy_context_cmd cmd = {};
 
 		/* Set the command header fields */
