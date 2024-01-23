@@ -124,6 +124,22 @@
 	voltage-max-design-microvolt = <4380000>;
 };
 
+&i2c_3 {
+	touchscreen@1 {
+		compatible = "novatek,nt36672a-ts";
+		reg = <0x1>;
+
+		interrupts-extended = <&tlmm 65 IRQ_TYPE_EDGE_FALLING>;
+
+		iovcc-supply = <&pm8953_l6>;
+		vcc-supply = <&pm8953_l10>;
+
+		reset-gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
+
+		status = "disabled";
+	};
+};
+
 &panel {
 	compatible = "xiaomi,vince-panel";
 };
@@ -134,7 +150,7 @@
 };
 
 &rmi4_ts {
-	status = "okay";
+	status = "disabled";
 };
 
 &sound_card {
