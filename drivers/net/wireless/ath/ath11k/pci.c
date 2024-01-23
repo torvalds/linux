@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -18,7 +18,8 @@
 #include "qmi.h"
 
 #define ATH11K_PCI_BAR_NUM		0
-#define ATH11K_PCI_DMA_MASK		32
+#define ATH11K_PCI_DMA_MASK		36
+#define ATH11K_PCI_COHERENT_DMA_MASK	32
 
 #define TCSR_SOC_HW_VERSION		0x0224
 #define TCSR_SOC_HW_VERSION_MAJOR_MASK	GENMASK(11, 8)
@@ -526,11 +527,21 @@ static int ath11k_pci_claim(struct ath11k_pci *ab_pci, struct pci_dev *pdev)
 		goto disable_device;
 	}
 
-	ret = dma_set_mask_and_coherent(&pdev->dev,
-					DMA_BIT_MASK(ATH11K_PCI_DMA_MASK));
+	ret = dma_set_mask(&pdev->dev,
+			   DMA_BIT_MASK(ATH11K_PCI_DMA_MASK));
 	if (ret) {
 		ath11k_err(ab, "failed to set pci dma mask to %d: %d\n",
 			   ATH11K_PCI_DMA_MASK, ret);
+		goto release_region;
+	}
+
+	ab_pci->dma_mask = DMA_BIT_MASK(ATH11K_PCI_DMA_MASK);
+
+	ret = dma_set_coherent_mask(&pdev->dev,
+				    DMA_BIT_MASK(ATH11K_PCI_COHERENT_DMA_MASK));
+	if (ret) {
+		ath11k_err(ab, "failed to set pci coherent dma mask to %d: %d\n",
+			   ATH11K_PCI_COHERENT_DMA_MASK, ret);
 		goto release_region;
 	}
 
