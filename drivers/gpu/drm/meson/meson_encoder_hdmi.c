@@ -323,19 +323,31 @@ static void meson_encoder_hdmi_hpd_notify(struct drm_bridge *bridge,
 					  enum drm_connector_status status)
 {
 	struct meson_encoder_hdmi *encoder_hdmi = bridge_to_meson_encoder_hdmi(bridge);
-	struct edid *edid;
 
 	if (!encoder_hdmi->cec_notifier)
 		return;
 
 	if (status == connector_status_connected) {
-		edid = drm_bridge_get_edid(encoder_hdmi->next_bridge, encoder_hdmi->connector);
-		if (!edid)
+		const struct drm_edid *drm_edid;
+		const struct edid *edid;
+
+		drm_edid = drm_bridge_edid_read(encoder_hdmi->next_bridge,
+						encoder_hdmi->connector);
+		if (!drm_edid)
 			return;
+
+		/*
+		 * FIXME: The CEC physical address should be set using
+		 * cec_notifier_set_phys_addr(encoder_hdmi->cec_notifier,
+		 * connector->display_info.source_physical_address) from a path
+		 * that has read the EDID and called
+		 * drm_edid_connector_update().
+		 */
+		edid = drm_edid_raw(drm_edid);
 
 		cec_notifier_set_phys_addr_from_edid(encoder_hdmi->cec_notifier, edid);
 
-		kfree(edid);
+		drm_edid_free(drm_edid);
 	} else
 		cec_notifier_phys_addr_invalidate(encoder_hdmi->cec_notifier);
 }
