@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 
+#include "bbpos_types.h"
 #include "btree_key_cache_types.h"
 #include "buckets_types.h"
 #include "darray.h"
@@ -173,6 +174,11 @@ struct btree_cache {
 	 */
 	struct task_struct	*alloc_lock;
 	struct closure_waitlist	alloc_wait;
+
+	struct bbpos		pinned_nodes_start;
+	struct bbpos		pinned_nodes_end;
+	u64			pinned_nodes_leaf_mask;
+	u64			pinned_nodes_interior_mask;
 };
 
 struct btree_node_iter {

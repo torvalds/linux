@@ -337,6 +337,11 @@ enum fsck_err_opts {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Run fsck on mount")				\
+	x(fsck_memory_usage_percent,	u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_UINT(20, 70),						\
+	  BCH2_NO_SB_OPT,		50,				\
+	  NULL,		"Maximum percentage of system ram fsck is allowed to pin")\
 	x(fix_errors,			u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_FN(bch2_opt_fix_errors),					\

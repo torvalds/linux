@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bbpos.h"
 #include "bkey_buf.h"
 #include "btree_cache.h"
 #include "btree_io.h"
@@ -208,6 +209,18 @@ static int __btree_node_reclaim(struct bch_fs *c, struct btree *b, bool flush)
 	int ret = 0;
 
 	lockdep_assert_held(&bc->lock);
+
+	struct bbpos pos = BBPOS(b->c.btree_id, b->key.k.p);
+
+	u64 mask = b->c.level
+		? bc->pinned_nodes_interior_mask
+		: bc->pinned_nodes_leaf_mask;
+
+	if ((mask & BIT_ULL(b->c.btree_id)) &&
+	    bbpos_cmp(bc->pinned_nodes_start, pos) < 0 &&
+	    bbpos_cmp(bc->pinned_nodes_end, pos) >= 0)
+		return -BCH_ERR_ENOMEM_btree_node_reclaim;
+
 wait_on_io:
 	if (b->flags & ((1U << BTREE_NODE_dirty)|
 			(1U << BTREE_NODE_read_in_flight)|
