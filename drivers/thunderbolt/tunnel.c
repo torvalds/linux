@@ -1184,17 +1184,13 @@ static int tb_dp_consumed_bandwidth(struct tb_tunnel *tunnel, int *consumed_up,
 		/*
 		 * Then see if the DPRX negotiation is ready and if yes
 		 * return that bandwidth (it may be smaller than the
-		 * reduced one). Otherwise return the remote (possibly
-		 * reduced) caps.
+		 * reduced one). According to VESA spec, the DPRX
+		 * negotiation shall compete in 5 seconds after tunnel
+		 * established. We give it 100ms extra just in case.
 		 */
-		ret = tb_dp_wait_dprx(tunnel, 150);
-		if (ret) {
-			if (ret == -ETIMEDOUT)
-				ret = tb_dp_read_cap(tunnel, DP_REMOTE_CAP,
-						     &rate, &lanes);
-			if (ret)
-				return ret;
-		}
+		ret = tb_dp_wait_dprx(tunnel, 5100);
+		if (ret)
+			return ret;
 		ret = tb_dp_read_cap(tunnel, DP_COMMON_CAP, &rate, &lanes);
 		if (ret)
 			return ret;
