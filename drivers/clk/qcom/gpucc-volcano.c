@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -26,9 +26,16 @@
 #include "vdd-level.h"
 
 static DEFINE_VDD_REGULATORS(vdd_cx, VDD_LOW_L1 + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_gfx, VDD_LOWER + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mx, VDD_LOW_L1 + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *gpu_cc_volcano_regulators[] = {
+	&vdd_cx,
+	&vdd_gfx,
+	&vdd_mx,
+};
+
+static struct clk_vdd_class *gpu_cc_volcano_regulators_cx_mx[] = {
 	&vdd_cx,
 	&vdd_mx,
 };
@@ -172,7 +179,8 @@ static struct clk_rcg2 gpu_cc_ff_clk_src = {
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_cx,
+		.vdd_classes = gpu_cc_volcano_regulators,
+		.num_vdd_classes = ARRAY_SIZE(gpu_cc_volcano_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER] = 200000000},
@@ -202,8 +210,8 @@ static struct clk_rcg2 gpu_cc_gmu_clk_src = {
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_classes = gpu_cc_volcano_regulators,
-		.num_vdd_classes = ARRAY_SIZE(gpu_cc_volcano_regulators),
+		.vdd_classes = gpu_cc_volcano_regulators_cx_mx,
+		.num_vdd_classes = ARRAY_SIZE(gpu_cc_volcano_regulators_cx_mx),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER] = 350000000,
