@@ -51,8 +51,7 @@ EXPORT_SYMBOL(I_BDEV);
 
 struct block_device *file_bdev(struct file *bdev_file)
 {
-	struct bdev_handle *handle = bdev_file->private_data;
-	return handle->bdev;
+	return I_BDEV(bdev_file->f_mapping->host);
 }
 EXPORT_SYMBOL(file_bdev);
 
@@ -891,7 +890,6 @@ int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
 
 	if (unblock_events)
 		disk_unblock_events(disk);
-	handle->bdev = bdev;
 	handle->holder = holder;
 	handle->mode = mode;
 
@@ -899,7 +897,7 @@ int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
 	bdev_file->f_mode |= FMODE_BUF_RASYNC | FMODE_CAN_ODIRECT;
 	if (bdev_nowait(bdev))
 		bdev_file->f_mode |= FMODE_NOWAIT;
-	bdev_file->f_mapping = handle->bdev->bd_inode->i_mapping;
+	bdev_file->f_mapping = bdev->bd_inode->i_mapping;
 	bdev_file->f_wb_err = filemap_sample_wb_err(bdev_file->f_mapping);
 	bdev_file->private_data = handle;
 
@@ -985,7 +983,7 @@ struct file *bdev_file_open_by_path(const char *path, blk_mode_t mode,
 				    void *holder,
 				    const struct blk_holder_ops *hops)
 {
-	struct file *bdev_file;
+	struct file *file;
 	dev_t dev;
 	int error;
 
@@ -993,22 +991,22 @@ struct file *bdev_file_open_by_path(const char *path, blk_mode_t mode,
 	if (error)
 		return ERR_PTR(error);
 
-	bdev_file = bdev_file_open_by_dev(dev, mode, holder, hops);
-	if (!IS_ERR(bdev_file) && (mode & BLK_OPEN_WRITE)) {
-		struct bdev_handle *handle = bdev_file->private_data;
-		if (bdev_read_only(handle->bdev)) {
-			fput(bdev_file);
-			bdev_file = ERR_PTR(-EACCES);
+	file = bdev_file_open_by_dev(dev, mode, holder, hops);
+	if (!IS_ERR(file) && (mode & BLK_OPEN_WRITE)) {
+		if (bdev_read_only(file_bdev(file))) {
+			fput(file);
+			file = ERR_PTR(-EACCES);
 		}
 	}
 
-	return bdev_file;
+	return file;
 }
 EXPORT_SYMBOL(bdev_file_open_by_path);
 
-void bdev_release(struct bdev_handle *handle)
+void bdev_release(struct file *bdev_file)
 {
-	struct block_device *bdev = handle->bdev;
+	struct block_device *bdev = file_bdev(bdev_file);
+	struct bdev_handle *handle = bdev_file->private_data;
 	struct gendisk *disk = bdev->bd_disk;
 
 	/*

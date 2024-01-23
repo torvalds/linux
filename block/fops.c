@@ -623,7 +623,7 @@ static int blkdev_open(struct inode *inode, struct file *filp)
 static int blkdev_release(struct inode *inode, struct file *filp)
 {
 	if (filp->private_data)
-		bdev_release(filp->private_data);
+		bdev_release(filp);
 	return 0;
 }
 
