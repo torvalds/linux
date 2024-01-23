@@ -16,13 +16,13 @@ static char mem_stores_name[100];
 
 #define E(t, n, s) { .tag = t, .name = n, .sysfs_name = s }
 
-static struct perf_mem_event perf_mem_events_intel[PERF_MEM_EVENTS__MAX] = {
+struct perf_mem_event perf_mem_events_intel[PERF_MEM_EVENTS__MAX] = {
 	E("ldlat-loads",	"%s/mem-loads,ldlat=%u/P",	"%s/events/mem-loads"),
 	E("ldlat-stores",	"%s/mem-stores/P",		"%s/events/mem-stores"),
 	E(NULL,			NULL,				NULL),
 };
 
-static struct perf_mem_event perf_mem_events_amd[PERF_MEM_EVENTS__MAX] = {
+struct perf_mem_event perf_mem_events_amd[PERF_MEM_EVENTS__MAX] = {
 	E(NULL,		NULL,		NULL),
 	E(NULL,		NULL,		NULL),
 	E("mem-ldst",	"ibs_op//",	"ibs_op"),
