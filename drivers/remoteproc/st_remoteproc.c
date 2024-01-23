@@ -347,23 +347,21 @@ static int st_rproc_probe(struct platform_device *pdev)
 	int enabled;
 	int ret, i;
 
-	rproc = rproc_alloc(dev, np->name, &st_rproc_ops, NULL, sizeof(*ddata));
+	rproc = devm_rproc_alloc(dev, np->name, &st_rproc_ops, NULL, sizeof(*ddata));
 	if (!rproc)
 		return -ENOMEM;
 
 	rproc->has_iommu = false;
 	ddata = rproc->priv;
 	ddata->config = (struct st_rproc_config *)device_get_match_data(dev);
-	if (!ddata->config) {
-		ret = -ENODEV;
-		goto free_rproc;
-	}
+	if (!ddata->config)
+		return -ENODEV;
 
 	platform_set_drvdata(pdev, rproc);
 
 	ret = st_rproc_parse_dt(pdev);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	enabled = st_rproc_state(pdev);
 	if (enabled < 0) {
@@ -439,8 +437,7 @@ free_mbox:
 		mbox_free_channel(ddata->mbox_chan[i]);
 free_clk:
 	clk_unprepare(ddata->clk);
-free_rproc:
-	rproc_free(rproc);
+
 	return ret;
 }
 
@@ -456,8 +453,6 @@ static void st_rproc_remove(struct platform_device *pdev)
 
 	for (i = 0; i < ST_RPROC_MAX_VRING * MBOX_MAX; i++)
 		mbox_free_channel(ddata->mbox_chan[i]);
-
-	rproc_free(rproc);
 }
 
 static struct platform_driver st_rproc_driver = {
