@@ -90,4 +90,7 @@ uint32_t dcn35_get_idle_state(const struct dc *dc);
 void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 		int num_pipes, struct dc_crtc_timing_adjust adjust);
 
+void dcn35_set_static_screen_control(struct pipe_ctx **pipe_ctx,
+		int num_pipes, const struct dc_static_screen_params *params);
+
 #endif /* __DC_HWSS_DCN35_H__ */
