@@ -1595,9 +1595,16 @@ static inline int bq27xxx_battery_read_fcc(struct bq27xxx_device_info *di)
  * Return the Design Capacity in µAh
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di,
+				     union power_supply_propval *val)
 {
 	int dcap;
+
+	/* We only have to read charge design full once */
+	if (di->charge_design_full > 0) {
+		val->intval = di->charge_design_full;
+		return 0;
+	}
 
 	if (di->opts & BQ27XXX_O_ZERO)
 		dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, true);
@@ -1605,7 +1612,7 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
 		dcap = bq27xxx_read(di, BQ27XXX_REG_DCAP, false);
 
 	if (dcap < 0) {
-		dev_dbg(di->dev, "error reading initial last measured discharge\n");
+		dev_dbg(di->dev, "error reading design capacity\n");
 		return dcap;
 	}
 
@@ -1614,7 +1621,12 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di)
 	else
 		dcap *= 1000;
 
-	return dcap;
+	/* Save for later reads */
+	di->charge_design_full = dcap;
+
+	val->intval = dcap;
+
+	return 0;
 }
 
 /*
@@ -1865,10 +1877,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 		 */
 		if (!(di->opts & BQ27XXX_O_ZERO))
 			bq27xxx_battery_current_and_status(di, NULL, &status, &cache);
-
-		/* We only have to read charge design full once */
-		if (di->charge_design_full <= 0)
-			di->charge_design_full = bq27xxx_battery_read_dcap(di);
 	}
 
 	if ((di->cache.capacity != cache.capacity) ||
@@ -2062,7 +2070,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_simple_value(di->cache.charge_full, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-		ret = bq27xxx_simple_value(di->charge_design_full, val);
+		ret = bq27xxx_battery_read_dcap(di, val);
 		break;
 	/*
 	 * TODO: Implement these to make registers set from
