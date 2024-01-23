@@ -252,8 +252,6 @@ static void nvmet_execute_admin_connect(struct nvmet_req *req)
 	if (status)
 		goto out;
 
-	ctrl->pi_support = ctrl->port->pi_enable && ctrl->subsys->pi_support;
-
 	uuid_copy(&ctrl->hostid, &d->hostid);
 
 	ret = nvmet_setup_auth(ctrl);
