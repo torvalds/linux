@@ -13,7 +13,7 @@ void test_kptr_xchg_inline(void)
 	unsigned int cnt;
 	int err;
 
-#if !defined(__x86_64__)
+#if !(defined(__x86_64__) || defined(__aarch64__))
 	test__skip();
 	return;
 #endif
