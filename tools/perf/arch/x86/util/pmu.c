@@ -42,13 +42,3 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 			pmu->mem_events = perf_mem_events_intel;
 	}
 }
-
-int perf_pmus__num_mem_pmus(void)
-{
-	/* AMD uses IBS OP pmu and not a core PMU for perf mem/c2c */
-	if (x86__is_amd_cpu())
-		return 1;
-
-	/* Intel uses core pmus for perf mem/c2c */
-	return perf_pmus__num_core_pmus();
-}

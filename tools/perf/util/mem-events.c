@@ -62,6 +62,20 @@ struct perf_pmu *perf_mem_events_find_pmu(void)
 	return perf_pmus__scan_mem(NULL);
 }
 
+/**
+ * perf_pmu__mem_events_num_mem_pmus - Get the number of mem PMUs since the given pmu
+ * @pmu: Start pmu. If it's NULL, search the entire PMU list.
+ */
+int perf_pmu__mem_events_num_mem_pmus(struct perf_pmu *pmu)
+{
+	int num = 0;
+
+	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL)
+		num++;
+
+	return num;
+}
+
 static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
 {
 	struct perf_mem_event *e;
