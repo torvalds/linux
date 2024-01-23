@@ -108,7 +108,7 @@ static ssize_t u3_entry_store(struct device *dev,
 	int port;
 	int ret;
 
-	if (!kstrtoint(buf, 0, &port) || port >= 1 || port <= 255) {
+	if (!kstrtoint(buf, 0, &port) && port >= 1 && port <= 255) {
 		lvs->portnum = port;
 		lvs->present = true;
 	}
@@ -143,7 +143,7 @@ static ssize_t u3_exit_store(struct device *dev,
 	int port;
 	int ret;
 
-	if (!kstrtoint(buf, 0, &port) || port >= 1 || port <= 255) {
+	if (!kstrtoint(buf, 0, &port) && port >= 1 && port <= 255) {
 		lvs->portnum = port;
 		lvs->present = true;
 	}
@@ -280,7 +280,7 @@ static ssize_t get_dev_desc_store(struct device *dev,
 	struct usb_device_descriptor *descriptor;
 	int ret, port;
 
-	if (!kstrtoint(buf, 0, &port) || port >= 1 || port <= 255) {
+	if (!kstrtoint(buf, 0, &port) && port >= 1 && port <= 255) {
 		lvs->portnum = port;
 		lvs->present = true;
 	}
