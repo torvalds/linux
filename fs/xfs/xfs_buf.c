@@ -1951,7 +1951,7 @@ xfs_free_buftarg(
 	fs_put_dax(btp->bt_daxdev, btp->bt_mount);
 	/* the main block device is closed by kill_block_super */
 	if (btp->bt_bdev != btp->bt_mount->m_super->s_bdev)
-		bdev_release(btp->bt_bdev_handle);
+		fput(btp->bt_bdev_file);
 
 	kmem_free(btp);
 }
@@ -1994,7 +1994,7 @@ xfs_setsize_buftarg_early(
 struct xfs_buftarg *
 xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
-	struct bdev_handle	*bdev_handle)
+	struct file		*bdev_file)
 {
 	xfs_buftarg_t		*btp;
 	const struct dax_holder_operations *ops = NULL;
@@ -2005,9 +2005,9 @@ xfs_alloc_buftarg(
 	btp = kmem_zalloc(sizeof(*btp), KM_NOFS);
 
 	btp->bt_mount = mp;
-	btp->bt_bdev_handle = bdev_handle;
-	btp->bt_dev = bdev_handle->bdev->bd_dev;
-	btp->bt_bdev = bdev_handle->bdev;
+	btp->bt_bdev_file = bdev_file;
+	btp->bt_bdev = file_bdev(bdev_file);
+	btp->bt_dev = btp->bt_bdev->bd_dev;
 	btp->bt_daxdev = fs_dax_get_by_bdev(btp->bt_bdev, &btp->bt_dax_part_off,
 					    mp, ops);
 
