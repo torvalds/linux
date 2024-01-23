@@ -3326,7 +3326,6 @@ static inline void *get_freelist(struct kmem_cache *s, struct slab *slab)
 		counters = slab->counters;
 
 		new.counters = counters;
-		VM_BUG_ON(!new.frozen);
 
 		new.inuse = slab->objects;
 		new.frozen = freelist != NULL;
@@ -3498,18 +3497,20 @@ new_slab:
 
 		slab = slub_percpu_partial(c);
 		slub_set_percpu_partial(c, slab);
-		local_unlock_irqrestore(&s->cpu_slab->lock, flags);
-		stat(s, CPU_PARTIAL_ALLOC);
 
-		if (unlikely(!node_match(slab, node) ||
-			     !pfmemalloc_match(slab, gfpflags))) {
-			slab->next = NULL;
-			__put_partials(s, slab);
-			continue;
+		if (likely(node_match(slab, node) &&
+			   pfmemalloc_match(slab, gfpflags))) {
+			c->slab = slab;
+			freelist = get_freelist(s, slab);
+			VM_BUG_ON(!freelist);
+			stat(s, CPU_PARTIAL_ALLOC);
+			goto load_freelist;
 		}
 
-		freelist = freeze_slab(s, slab);
-		goto retry_load_slab;
+		local_unlock_irqrestore(&s->cpu_slab->lock, flags);
+
+		slab->next = NULL;
+		__put_partials(s, slab);
 	}
 #endif
 
