@@ -78,8 +78,8 @@ int iter_err_unsafe_asm_loop(const void *ctx)
 		"*(u32 *)(r1 + 0) = r6;" /* invalid */
 		:
 		: [it]"r"(&it),
-		  [small_arr]"p"(small_arr),
-		  [zero]"p"(zero),
+		  [small_arr]"r"(small_arr),
+		  [zero]"r"(zero),
 		  __imm(bpf_iter_num_new),
 		  __imm(bpf_iter_num_next),
 		  __imm(bpf_iter_num_destroy)
