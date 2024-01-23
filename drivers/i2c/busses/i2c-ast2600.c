@@ -853,9 +853,14 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 			i2c_bus->master_safe_buf = i2c_get_dma_safe_msg_buf(msg, 1);
 			if (!i2c_bus->master_safe_buf)
 				return -ENOMEM;
-			i2c_bus->master_dma_addr =
-				dma_map_single(i2c_bus->dev, i2c_bus->master_safe_buf,
-					       msg->len, DMA_FROM_DEVICE);
+			if (msg->flags & I2C_M_RECV_LEN)
+				i2c_bus->master_dma_addr =
+					dma_map_single(i2c_bus->dev, i2c_bus->master_safe_buf,
+						       I2C_SMBUS_BLOCK_MAX + 3, DMA_FROM_DEVICE);
+			else
+				i2c_bus->master_dma_addr =
+					dma_map_single(i2c_bus->dev, i2c_bus->master_safe_buf,
+						       msg->len, DMA_FROM_DEVICE);
 			if (dma_mapping_error(i2c_bus->dev, i2c_bus->master_dma_addr)) {
 				i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, false);
 				i2c_bus->master_safe_buf = NULL;
@@ -1150,11 +1155,18 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 		}
 
 		if (msg->flags & I2C_M_RECV_LEN) {
-			msg->len = min_t(unsigned int, msg->buf[0], I2C_SMBUS_BLOCK_MAX);
+			u8 recv_len = AST2600_I2CC_GET_RX_BUFF(readl(i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF));
+
+			msg->len = min_t(unsigned int, recv_len, I2C_SMBUS_BLOCK_MAX);
 			msg->len += ((msg->flags & I2C_CLIENT_PEC) ? 2 : 1);
 			msg->flags &= ~I2C_M_RECV_LEN;
+			if (!recv_len)
+				i2c_bus->master_xfer_cnt = 0;
+			else
+				i2c_bus->master_xfer_cnt = 1;
+		} else {
+			i2c_bus->master_xfer_cnt += xfer_len;
 		}
-		i2c_bus->master_xfer_cnt += xfer_len;
 
 		if (i2c_bus->master_xfer_cnt == msg->len) {
 			if (i2c_bus->mode == DMA_MODE) {
