@@ -49,7 +49,7 @@ typedef u32 erofs_blk_t;
 struct erofs_device_info {
 	char *path;
 	struct erofs_fscache *fscache;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	struct dax_device *dax_dev;
 	u64 dax_part_off;
 
