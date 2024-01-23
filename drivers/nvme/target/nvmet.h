@@ -545,7 +545,7 @@ void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 
 #define NVMET_QUEUE_SIZE	1024
 #define NVMET_NR_QUEUES		128
-#define NVMET_MAX_CMD		NVMET_QUEUE_SIZE
+#define NVMET_MAX_CMD(ctrl)	(NVME_CAP_MQES(ctrl->cap) + 1)
 
 /*
  * Nice round number that makes a list of nsids fit into a page.

@@ -282,7 +282,7 @@ static void nvmet_execute_disc_identify(struct nvmet_req *req)
 	id->lpa = (1 << 2);
 
 	/* no enforcement soft-limit for maxcmd - pick arbitrary high value */
-	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
+	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD(ctrl));
 
 	id->sgls = cpu_to_le32(1 << 0);	/* we always support SGLs */
 	if (ctrl->ops->flags & NVMF_KEYED_SGLS)
