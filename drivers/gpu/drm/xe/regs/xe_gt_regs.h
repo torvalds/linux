@@ -144,6 +144,9 @@
 
 #define GSCPSMI_BASE				XE_REG(0x880c)
 
+#define CCCHKNREG1				XE_REG_MCR(0x8828)
+#define   ENCOMPPERFFIX				REG_BIT(18)
+
 /* Fuse readout registers for GT */
 #define XEHP_FUSE4				XE_REG(0x9114)
 #define   CFEG_WMTP_DISABLE			REG_BIT(20)
@@ -288,6 +291,9 @@
 
 #define XEHP_L3NODEARBCFG			XE_REG_MCR(0xb0b4)
 #define   XEHP_LNESPARE				REG_BIT(19)
+
+#define L3SQCREG3				XE_REG_MCR(0xb108)
+#define   COMPPWOVERFETCHEN			REG_BIT(28)
 
 #define XEHP_L3SQCREG5				XE_REG_MCR(0xb158)
 #define   L3_PWM_TIMER_INIT_VAL_MASK		REG_GENMASK(9, 0)
