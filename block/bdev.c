@@ -799,16 +799,21 @@ static void bdev_claim_write_access(struct block_device *bdev, blk_mode_t mode)
 		bdev->bd_writers++;
 }
 
-static void bdev_yield_write_access(struct block_device *bdev, blk_mode_t mode)
+static void bdev_yield_write_access(struct file *bdev_file, blk_mode_t mode)
 {
+	struct block_device *bdev;
+
 	if (bdev_allow_write_mounted)
 		return;
 
+	bdev = file_bdev(bdev_file);
 	/* Yield exclusive or shared write access. */
-	if (mode & BLK_OPEN_RESTRICT_WRITES)
-		bdev_unblock_writes(bdev);
-	else if (mode & BLK_OPEN_WRITE)
-		bdev->bd_writers--;
+	if (mode & BLK_OPEN_WRITE) {
+		if (bdev_writes_blocked(bdev))
+			bdev_unblock_writes(bdev);
+		else
+			bdev->bd_writers--;
+	}
 }
 
 /**
@@ -1020,7 +1025,7 @@ void bdev_release(struct file *bdev_file)
 		sync_blockdev(bdev);
 
 	mutex_lock(&disk->open_mutex);
-	bdev_yield_write_access(bdev, handle->mode);
+	bdev_yield_write_access(bdev_file, handle->mode);
 
 	if (handle->holder)
 		bd_end_claim(bdev, handle->holder);
