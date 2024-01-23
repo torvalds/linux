@@ -43,12 +43,19 @@ static int parse_record_events(const struct option *opt,
 			       const char *str, int unset __maybe_unused)
 {
 	struct perf_mem *mem = *(struct perf_mem **)opt->value;
+	struct perf_pmu *pmu;
+
+	pmu = perf_mem_events_find_pmu();
+	if (!pmu) {
+		pr_err("failed: there is no PMU that supports perf mem\n");
+		exit(-1);
+	}
 
 	if (!strcmp(str, "list")) {
-		perf_mem_events__list();
+		perf_pmu__mem_events_list(pmu);
 		exit(0);
 	}
-	if (perf_mem_events__parse(str))
+	if (perf_pmu__mem_events_parse(pmu, str))
 		exit(-1);
 
 	mem->operation = 0;
@@ -72,6 +79,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	int ret;
 	bool all_user = false, all_kernel = false;
 	struct perf_mem_event *e;
+	struct perf_pmu *pmu;
 	struct option options[] = {
 	OPT_CALLBACK('e', "event", &mem, "event",
 		     "event selector. use 'perf mem record -e list' to list available events",
@@ -84,7 +92,13 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	OPT_END()
 	};
 
-	if (perf_mem_events__init()) {
+	pmu = perf_mem_events_find_pmu();
+	if (!pmu) {
+		pr_err("failed: no PMU supports the memory events\n");
+		return -1;
+	}
+
+	if (perf_pmu__mem_events_init(pmu)) {
 		pr_err("failed: memory events not supported\n");
 		return -1;
 	}
@@ -113,7 +127,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 	rec_argv[i++] = "record";
 
-	e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD_STORE);
+	e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD_STORE);
 
 	/*
 	 * The load and store operations are required, use the event
@@ -126,17 +140,17 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		rec_argv[i++] = "-W";
 	} else {
 		if (mem->operation & MEM_OPERATION_LOAD) {
-			e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
+			e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD);
 			e->record = true;
 		}
 
 		if (mem->operation & MEM_OPERATION_STORE) {
-			e = perf_mem_events__ptr(PERF_MEM_EVENTS__STORE);
+			e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__STORE);
 			e->record = true;
 		}
 	}
 
-	e = perf_mem_events__ptr(PERF_MEM_EVENTS__LOAD);
+	e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD);
 	if (e->record)
 		rec_argv[i++] = "-W";
 

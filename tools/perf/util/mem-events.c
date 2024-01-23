@@ -29,17 +29,42 @@ struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
 static char mem_loads_name[100];
 static bool mem_loads_name__init;
 
-struct perf_mem_event * __weak perf_mem_events__ptr(int i)
+struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i)
 {
-	if (i >= PERF_MEM_EVENTS__MAX)
+	if (i >= PERF_MEM_EVENTS__MAX || !pmu)
 		return NULL;
 
-	return &perf_mem_events[i];
+	return &pmu->mem_events[i];
+}
+
+static struct perf_pmu *perf_pmus__scan_mem(struct perf_pmu *pmu)
+{
+	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+		if (pmu->mem_events)
+			return pmu;
+	}
+	return NULL;
+}
+
+struct perf_pmu *perf_mem_events_find_pmu(void)
+{
+	/*
+	 * The current perf mem doesn't support per-PMU configuration.
+	 * The exact same configuration is applied to all the
+	 * mem_events supported PMUs.
+	 * Return the first mem_events supported PMU.
+	 *
+	 * Notes: The only case which may support multiple mem_events
+	 * supported PMUs is Intel hybrid. The exact same mem_events
+	 * is shared among the PMUs. Only configure the first PMU
+	 * is good enough as well.
+	 */
+	return perf_pmus__scan_mem(NULL);
 }
 
 const char * __weak perf_mem_events__name(int i, const char *pmu_name  __maybe_unused)
 {
-	struct perf_mem_event *e = perf_mem_events__ptr(i);
+	struct perf_mem_event *e = &perf_mem_events[i];
 
 	if (!e)
 		return NULL;
@@ -61,7 +86,7 @@ __weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
 	return false;
 }
 
-int perf_mem_events__parse(const char *str)
+int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str)
 {
 	char *tok, *saveptr = NULL;
 	bool found = false;
@@ -79,7 +104,7 @@ int perf_mem_events__parse(const char *str)
 
 	while (tok) {
 		for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-			struct perf_mem_event *e = perf_mem_events__ptr(j);
+			struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 			if (!e->tag)
 				continue;
@@ -112,7 +137,7 @@ static bool perf_mem_event__supported(const char *mnt, struct perf_pmu *pmu,
 	return !stat(path, &st);
 }
 
-int perf_mem_events__init(void)
+int perf_pmu__mem_events_init(struct perf_pmu *pmu)
 {
 	const char *mnt = sysfs__mount();
 	bool found = false;
@@ -122,8 +147,7 @@ int perf_mem_events__init(void)
 		return -ENOENT;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		struct perf_mem_event *e = perf_mem_events__ptr(j);
-		struct perf_pmu *pmu = NULL;
+		struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 		/*
 		 * If the event entry isn't valid, skip initialization
@@ -132,29 +156,20 @@ int perf_mem_events__init(void)
 		if (!e->tag)
 			continue;
 
-		/*
-		 * Scan all PMUs not just core ones, since perf mem/c2c on
-		 * platforms like AMD uses IBS OP PMU which is independent
-		 * of core PMU.
-		 */
-		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-			e->supported |= perf_mem_event__supported(mnt, pmu, e);
-			if (e->supported) {
-				found = true;
-				break;
-			}
-		}
+		e->supported |= perf_mem_event__supported(mnt, pmu, e);
+		if (e->supported)
+			found = true;
 	}
 
 	return found ? 0 : -ENOENT;
 }
 
-void perf_mem_events__list(void)
+void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 {
 	int j;
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		struct perf_mem_event *e = perf_mem_events__ptr(j);
+		struct perf_mem_event *e = perf_pmu__mem_events_ptr(pmu, j);
 
 		fprintf(stderr, "%-*s%-*s%s",
 			e->tag ? 13 : 0,
@@ -165,50 +180,32 @@ void perf_mem_events__list(void)
 	}
 }
 
-static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
-						    int idx)
-{
-	const char *mnt = sysfs__mount();
-	struct perf_pmu *pmu = NULL;
-
-	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		if (!perf_mem_event__supported(mnt, pmu, e)) {
-			pr_err("failed: event '%s' not supported\n",
-			       perf_mem_events__name(idx, pmu->name));
-		}
-	}
-}
-
 int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				 char **rec_tmp, int *tmp_nr)
 {
 	const char *mnt = sysfs__mount();
+	struct perf_pmu *pmu = NULL;
 	int i = *argv_nr, k = 0;
 	struct perf_mem_event *e;
 
-	for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
-		e = perf_mem_events__ptr(j);
-		if (!e->record)
-			continue;
 
-		if (perf_pmus__num_mem_pmus() == 1) {
+	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
+		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
+			e = perf_pmu__mem_events_ptr(pmu, j);
+
+			if (!e->record)
+				continue;
+
 			if (!e->supported) {
 				pr_err("failed: event '%s' not supported\n",
-				       perf_mem_events__name(j, NULL));
+					perf_mem_events__name(j, pmu->name));
 				return -1;
 			}
 
-			rec_argv[i++] = "-e";
-			rec_argv[i++] = perf_mem_events__name(j, NULL);
-		} else {
-			struct perf_pmu *pmu = NULL;
-
-			if (!e->supported) {
-				perf_mem_events__print_unsupport_hybrid(e, j);
-				return -1;
-			}
-
-			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+			if (perf_pmus__num_mem_pmus() == 1) {
+				rec_argv[i++] = "-e";
+				rec_argv[i++] = perf_mem_events__name(j, NULL);
+			} else {
 				const char *s = perf_mem_events__name(j, pmu->name);
 
 				if (!perf_mem_event__supported(mnt, pmu, e))

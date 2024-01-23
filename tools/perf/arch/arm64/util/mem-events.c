@@ -13,17 +13,9 @@ struct perf_mem_event perf_mem_events_arm[PERF_MEM_EVENTS__MAX] = {
 
 static char mem_ev_name[100];
 
-struct perf_mem_event *perf_mem_events__ptr(int i)
-{
-	if (i >= PERF_MEM_EVENTS__MAX)
-		return NULL;
-
-	return &perf_mem_events_arm[i];
-}
-
 const char *perf_mem_events__name(int i, const char *pmu_name __maybe_unused)
 {
-	struct perf_mem_event *e = perf_mem_events__ptr(i);
+	struct perf_mem_event *e = &perf_mem_events_arm[i];
 
 	if (i >= PERF_MEM_EVENTS__MAX)
 		return NULL;

@@ -28,17 +28,6 @@ struct perf_mem_event perf_mem_events_amd[PERF_MEM_EVENTS__MAX] = {
 	E("mem-ldst",	"ibs_op//",	"ibs_op"),
 };
 
-struct perf_mem_event *perf_mem_events__ptr(int i)
-{
-	if (i >= PERF_MEM_EVENTS__MAX)
-		return NULL;
-
-	if (x86__is_amd_cpu())
-		return &perf_mem_events_amd[i];
-
-	return &perf_mem_events_intel[i];
-}
-
 bool is_mem_loads_aux_event(struct evsel *leader)
 {
 	struct perf_pmu *pmu = perf_pmus__find("cpu");
@@ -54,7 +43,12 @@ bool is_mem_loads_aux_event(struct evsel *leader)
 
 const char *perf_mem_events__name(int i, const char *pmu_name)
 {
-	struct perf_mem_event *e = perf_mem_events__ptr(i);
+	struct perf_mem_event *e;
+
+	if (x86__is_amd_cpu())
+		e = &perf_mem_events_amd[i];
+	else
+		e = &perf_mem_events_intel[i];
 
 	if (!e)
 		return NULL;
