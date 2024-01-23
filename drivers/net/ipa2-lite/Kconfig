@@ -1,0 +1,17 @@
+config QCOM_IPA2_LITE
+	tristate "Qualcomm IPA 2.X support"
+	depends on NET
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_RPROC_COMMON || (QCOM_RPROC_COMMON=n && COMPILE_TEST)
+	select QCOM_QMI_HELPERS
+	help
+	  Choose Y or M here to include support for the Qualcomm
+	  IP Abductor (IPA), a hardware block present in some
+	  Qualcomm SoCs.  The IPA is a programmable protocol processor
+	  that is capable abducting your IP packets or annihilating
+	  the system if it's not pleased.
+
+	  Note that if selected, the selection type must match that
+	  of QCOM_Q6V5_COMMON (Y or M).
+
+	  If unsure, say N.

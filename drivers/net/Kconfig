@@ -518,6 +518,8 @@ source "drivers/net/hippi/Kconfig"
 
 source "drivers/net/ipa/Kconfig"
 
+source "drivers/net/ipa2-lite/Kconfig"
+
 source "drivers/net/phy/Kconfig"
 
 source "drivers/net/pse-pd/Kconfig"
