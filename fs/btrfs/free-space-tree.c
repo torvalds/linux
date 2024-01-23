@@ -1328,8 +1328,11 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 	set_bit(BTRFS_FS_FREE_SPACE_TREE_UNTRUSTED, &fs_info->flags);
 
 	ret = clear_free_space_tree(trans, free_space_root);
-	if (ret)
-		goto abort;
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
 
 	node = rb_first_cached(&fs_info->block_group_cache_tree);
 	while (node) {
@@ -1338,8 +1341,11 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 		block_group = rb_entry(node, struct btrfs_block_group,
 				       cache_node);
 		ret = populate_free_space_tree(trans, block_group);
-		if (ret)
-			goto abort;
+		if (ret) {
+			btrfs_abort_transaction(trans, ret);
+			btrfs_end_transaction(trans);
+			return ret;
+		}
 		node = rb_next(node);
 	}
 
@@ -1349,10 +1355,6 @@ int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
 
 	ret = btrfs_commit_transaction(trans);
 	clear_bit(BTRFS_FS_FREE_SPACE_TREE_UNTRUSTED, &fs_info->flags);
-	return ret;
-abort:
-	btrfs_abort_transaction(trans, ret);
-	btrfs_end_transaction(trans);
 	return ret;
 }
 
