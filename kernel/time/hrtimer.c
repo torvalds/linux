@@ -1021,21 +1021,23 @@ void unlock_hrtimer_base(const struct hrtimer *timer, unsigned long *flags)
 }
 
 /**
- * hrtimer_forward - forward the timer expiry
+ * hrtimer_forward() - forward the timer expiry
  * @timer:	hrtimer to forward
  * @now:	forward past this time
  * @interval:	the interval to forward
  *
  * Forward the timer expiry so it will expire in the future.
- * Returns the number of overruns.
  *
- * Can be safely called from the callback function of @timer. If
- * called from other contexts @timer must neither be enqueued nor
- * running the callback and the caller needs to take care of
- * serialization.
+ * .. note::
+ *  This only updates the timer expiry value and does not requeue the timer.
  *
- * Note: This only updates the timer expiry value and does not requeue
- * the timer.
+ * There is also a variant of the function hrtimer_forward_now().
+ *
+ * Context: Can be safely called from the callback function of @timer. If called
+ *          from other contexts @timer must neither be enqueued nor running the
+ *          callback and the caller needs to take care of serialization.
+ *
+ * Return: The number of overruns are returned.
  */
 u64 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 {
