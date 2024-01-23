@@ -157,7 +157,8 @@ static u16 nvmet_install_queue(struct nvmet_ctrl *ctrl, struct nvmet_req *req)
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 	}
 
-	if (sqsize > mqes) {
+	/* for fabrics, this value applies to only the I/O Submission Queues */
+	if (qid && sqsize > mqes) {
 		pr_warn("sqsize %u is larger than MQES supported %u cntlid %d\n",
 				sqsize, mqes, ctrl->cntlid);
 		req->error_loc = offsetof(struct nvmf_connect_command, sqsize);
