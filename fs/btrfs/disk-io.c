@@ -4927,7 +4927,14 @@ int btrfs_init_root_free_objectid(struct btrfs_root *root)
 	ret = btrfs_search_slot(NULL, root, &search_key, path, 0, 0);
 	if (ret < 0)
 		goto error;
-	BUG_ON(ret == 0); /* Corruption */
+	if (ret == 0) {
+		/*
+		 * Key with offset -1 found, there would have to exist a root
+		 * with such id, but this is out of valid range.
+		 */
+		ret = -EUCLEAN;
+		goto error;
+	}
 	if (path->slots[0] > 0) {
 		slot = path->slots[0] - 1;
 		l = path->nodes[0];
