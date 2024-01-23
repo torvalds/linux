@@ -222,7 +222,7 @@ int swsusp_swap_in_use(void)
  */
 
 static unsigned short root_swap = 0xffff;
-static struct bdev_handle *hib_resume_bdev_handle;
+static struct file *hib_resume_bdev_file;
 
 struct hib_bio_batch {
 	atomic_t		count;
@@ -276,7 +276,7 @@ static int hib_submit_io(blk_opf_t opf, pgoff_t page_off, void *addr,
 	struct bio *bio;
 	int error = 0;
 
-	bio = bio_alloc(hib_resume_bdev_handle->bdev, 1, opf,
+	bio = bio_alloc(file_bdev(hib_resume_bdev_file), 1, opf,
 			GFP_NOIO | __GFP_HIGH);
 	bio->bi_iter.bi_sector = page_off * (PAGE_SIZE >> 9);
 
@@ -357,14 +357,14 @@ static int swsusp_swap_check(void)
 		return res;
 	root_swap = res;
 
-	hib_resume_bdev_handle = bdev_open_by_dev(swsusp_resume_device,
+	hib_resume_bdev_file = bdev_file_open_by_dev(swsusp_resume_device,
 			BLK_OPEN_WRITE, NULL, NULL);
-	if (IS_ERR(hib_resume_bdev_handle))
-		return PTR_ERR(hib_resume_bdev_handle);
+	if (IS_ERR(hib_resume_bdev_file))
+		return PTR_ERR(hib_resume_bdev_file);
 
-	res = set_blocksize(hib_resume_bdev_handle->bdev, PAGE_SIZE);
+	res = set_blocksize(file_bdev(hib_resume_bdev_file), PAGE_SIZE);
 	if (res < 0)
-		bdev_release(hib_resume_bdev_handle);
+		fput(hib_resume_bdev_file);
 
 	return res;
 }
@@ -1523,10 +1523,10 @@ int swsusp_check(bool exclusive)
 	void *holder = exclusive ? &swsusp_holder : NULL;
 	int error;
 
-	hib_resume_bdev_handle = bdev_open_by_dev(swsusp_resume_device,
+	hib_resume_bdev_file = bdev_file_open_by_dev(swsusp_resume_device,
 				BLK_OPEN_READ, holder, NULL);
-	if (!IS_ERR(hib_resume_bdev_handle)) {
-		set_blocksize(hib_resume_bdev_handle->bdev, PAGE_SIZE);
+	if (!IS_ERR(hib_resume_bdev_file)) {
+		set_blocksize(file_bdev(hib_resume_bdev_file), PAGE_SIZE);
 		clear_page(swsusp_header);
 		error = hib_submit_io(REQ_OP_READ, swsusp_resume_block,
 					swsusp_header, NULL);
@@ -1551,11 +1551,11 @@ int swsusp_check(bool exclusive)
 
 put:
 		if (error)
-			bdev_release(hib_resume_bdev_handle);
+			fput(hib_resume_bdev_file);
 		else
 			pr_debug("Image signature found, resuming\n");
 	} else {
-		error = PTR_ERR(hib_resume_bdev_handle);
+		error = PTR_ERR(hib_resume_bdev_file);
 	}
 
 	if (error)
@@ -1570,12 +1570,12 @@ put:
 
 void swsusp_close(void)
 {
-	if (IS_ERR(hib_resume_bdev_handle)) {
+	if (IS_ERR(hib_resume_bdev_file)) {
 		pr_debug("Image device not initialised\n");
 		return;
 	}
 
-	bdev_release(hib_resume_bdev_handle);
+	fput(hib_resume_bdev_file);
 }
 
 /**
