@@ -1068,6 +1068,7 @@ struct iwl_trans_txqs {
  * @pcie_link_speed: current PCIe link speed (%PCI_EXP_LNKSTA_CLS_*),
  *	only valid for discrete (not integrated) NICs
  * @invalid_tx_cmd: invalid TX command buffer
+ * @reduced_cap_sku: reduced capability supported SKU
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1090,6 +1091,7 @@ struct iwl_trans {
 	u32 hw_id;
 	char hw_id_str[52];
 	u32 sku_id[3];
+	bool reduced_cap_sku;
 
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 

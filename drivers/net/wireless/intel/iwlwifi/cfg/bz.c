@@ -153,6 +153,7 @@ const struct iwl_cfg_trans_params iwl_bz_trans_cfg = {
 };
 
 const char iwl_bz_name[] = "Intel(R) TBD Bz device";
+const char iwl_mtp_name[] = "Intel(R) Wi-Fi 7 BE202 160MHz";
 
 const struct iwl_cfg iwl_cfg_bz = {
 	.fw_name_mac = "bz",

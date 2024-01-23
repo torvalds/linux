@@ -892,8 +892,9 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	bool is_ap = iftype_data->types_mask & BIT(NL80211_IFTYPE_AP);
 	bool no_320;
 
-	no_320 = !trans->trans_cfg->integrated &&
-		 trans->pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB;
+	no_320 = (!trans->trans_cfg->integrated &&
+		 trans->pcie_link_speed < PCI_EXP_LNKSTA_CLS_8_0GB) ||
+		 trans->reduced_cap_sku;
 
 	if (!data->sku_cap_11be_enable || iwlwifi_mod_params.disable_11be)
 		iftype_data->eht_cap.has_eht = false;
@@ -1058,6 +1059,17 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			~IEEE80211_HE_PHY_CAP2_STBC_RX_UNDER_80MHZ;
 		iftype_data->he_cap.he_cap_elem.phy_cap_info[7] &=
 			~IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ;
+	}
+
+	if (trans->reduced_cap_sku) {
+		memset(&iftype_data->eht_cap.eht_mcs_nss_supp.bw._320, 0,
+		       sizeof(iftype_data->eht_cap.eht_mcs_nss_supp.bw._320));
+		iftype_data->eht_cap.eht_mcs_nss_supp.bw._80.rx_tx_mcs13_max_nss = 0;
+		iftype_data->eht_cap.eht_mcs_nss_supp.bw._160.rx_tx_mcs13_max_nss = 0;
+		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[8] &=
+			~IEEE80211_EHT_PHY_CAP8_RX_4096QAM_WIDER_BW_DL_OFDMA;
+		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[2] &=
+			~IEEE80211_EHT_PHY_CAP2_SOUNDING_DIM_320MHZ_MASK;
 	}
 }
 

@@ -12,6 +12,8 @@
 #include "fw/api/alive.h"
 #include "fw/uefi.h"
 
+#define IWL_PNVM_REDUCED_CAP_BIT BIT(25)
+
 struct iwl_pnvm_section {
 	__le32 offset;
 	const u8 data[];
@@ -173,6 +175,7 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 
 	while (len >= sizeof(*tlv)) {
 		u32 tlv_len, tlv_type;
+		u32 rf_type;
 
 		len -= sizeof(*tlv);
 		tlv = (const void *)data;
@@ -200,6 +203,16 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 
 			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 			len -= ALIGN(tlv_len, 4);
+
+			trans->reduced_cap_sku = false;
+			rf_type = CSR_HW_RFID_TYPE(trans->hw_rf_id);
+			if ((trans->sku_id[0] & IWL_PNVM_REDUCED_CAP_BIT) &&
+			    rf_type == IWL_CFG_RF_TYPE_FM)
+				trans->reduced_cap_sku = true;
+
+			IWL_DEBUG_FW(trans,
+				     "Reduced SKU device %d\n",
+				     trans->reduced_cap_sku);
 
 			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
 			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
