@@ -1273,12 +1273,18 @@ int btrfs_delete_free_space_tree(struct btrfs_fs_info *fs_info)
 	btrfs_clear_fs_compat_ro(fs_info, FREE_SPACE_TREE_VALID);
 
 	ret = clear_free_space_tree(trans, free_space_root);
-	if (ret)
-		goto abort;
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
 
 	ret = btrfs_del_root(trans, &free_space_root->root_key);
-	if (ret)
-		goto abort;
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		btrfs_end_transaction(trans);
+		return ret;
+	}
 
 	btrfs_global_root_delete(free_space_root);
 
@@ -1295,11 +1301,6 @@ int btrfs_delete_free_space_tree(struct btrfs_fs_info *fs_info)
 	btrfs_put_root(free_space_root);
 
 	return btrfs_commit_transaction(trans);
-
-abort:
-	btrfs_abort_transaction(trans, ret);
-	btrfs_end_transaction(trans);
-	return ret;
 }
 
 int btrfs_rebuild_free_space_tree(struct btrfs_fs_info *fs_info)
