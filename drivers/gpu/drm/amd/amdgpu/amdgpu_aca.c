@@ -613,7 +613,7 @@ int amdgpu_aca_add_handle(struct amdgpu_device *adev, struct aca_handle *handle,
 	return add_aca_sysfs(adev, handle);
 }
 
-static void remove_aca(struct aca_handle *handle)
+static void remove_aca_handle(struct aca_handle *handle)
 {
 	struct aca_handle_manager *mgr = handle->mgr;
 
@@ -622,12 +622,24 @@ static void remove_aca(struct aca_handle *handle)
 	mgr->nr_handles--;
 }
 
+static void remove_aca_sysfs(struct aca_handle *handle)
+{
+	struct amdgpu_device *adev = handle->adev;
+	struct device_attribute *aca_attr = &handle->aca_attr;
+
+	if (adev->dev->kobj.sd)
+		sysfs_remove_file_from_group(&adev->dev->kobj,
+					     &aca_attr->attr,
+					     "ras");
+}
+
 void amdgpu_aca_remove_handle(struct aca_handle *handle)
 {
 	if (!handle || list_empty(&handle->node))
 		return;
 
-	remove_aca(handle);
+	remove_aca_sysfs(handle);
+	remove_aca_handle(handle);
 }
 
 static int aca_manager_init(struct aca_handle_manager *mgr)
@@ -643,7 +655,7 @@ static void aca_manager_fini(struct aca_handle_manager *mgr)
 	struct aca_handle *handle, *tmp;
 
 	list_for_each_entry_safe(handle, tmp, &mgr->list, node)
-		remove_aca(handle);
+		amdgpu_aca_remove_handle(handle);
 }
 
 bool amdgpu_aca_is_enabled(struct amdgpu_device *adev)
