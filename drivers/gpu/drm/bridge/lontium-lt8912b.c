@@ -620,8 +620,8 @@ lt8912_bridge_detect(struct drm_bridge *bridge)
 	return lt8912_check_cable_status(lt);
 }
 
-static struct edid *lt8912_bridge_get_edid(struct drm_bridge *bridge,
-					   struct drm_connector *connector)
+static const struct drm_edid *lt8912_bridge_edid_read(struct drm_bridge *bridge,
+						      struct drm_connector *connector)
 {
 	struct lt8912 *lt = bridge_to_lt8912(bridge);
 
@@ -630,7 +630,7 @@ static struct edid *lt8912_bridge_get_edid(struct drm_bridge *bridge,
 	 * given to the hdmi connector node.
 	 */
 	if (lt->hdmi_port->ops & DRM_BRIDGE_OP_EDID)
-		return drm_bridge_get_edid(lt->hdmi_port, connector);
+		return drm_bridge_edid_read(lt->hdmi_port, connector);
 
 	dev_warn(lt->dev, "The connected bridge does not supports DRM_BRIDGE_OP_EDID\n");
 	return NULL;
@@ -642,7 +642,7 @@ static const struct drm_bridge_funcs lt8912_bridge_funcs = {
 	.mode_set = lt8912_bridge_mode_set,
 	.enable = lt8912_bridge_enable,
 	.detect = lt8912_bridge_detect,
-	.get_edid = lt8912_bridge_get_edid,
+	.edid_read = lt8912_bridge_edid_read,
 };
 
 static int lt8912_bridge_resume(struct device *dev)
