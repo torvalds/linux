@@ -349,6 +349,13 @@ err:
 	return IRQ_HANDLED;
 }
 
+static void afe4404_regulator_disable(void *data)
+{
+	struct regulator *regulator = data;
+
+	regulator_disable(regulator);
+}
+
 /* Default timings from data-sheet */
 #define AFE4404_TIMING_PAIRS			\
 	{ AFE440X_PRPCOUNT,	39999	},	\
@@ -502,19 +509,24 @@ static int afe4404_probe(struct i2c_client *client)
 		dev_err(afe->dev, "Unable to enable regulator\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(afe->dev, afe4404_regulator_disable, afe->regulator);
+	if (ret) {
+		dev_err(afe->dev, "Unable to enable regulator\n");
+		return ret;
+	}
 
 	ret = regmap_write(afe->regmap, AFE440X_CONTROL0,
 			   AFE440X_CONTROL0_SW_RESET);
 	if (ret) {
 		dev_err(afe->dev, "Unable to reset device\n");
-		goto disable_reg;
+		return ret;
 	}
 
 	ret = regmap_multi_reg_write(afe->regmap, afe4404_reg_sequences,
 				     ARRAY_SIZE(afe4404_reg_sequences));
 	if (ret) {
 		dev_err(afe->dev, "Unable to set register defaults\n");
-		goto disable_reg;
+		return ret;
 	}
 
 	indio_dev->modes = INDIO_DIRECT_MODE;
@@ -530,8 +542,7 @@ static int afe4404_probe(struct i2c_client *client)
 						   iio_device_id(indio_dev));
 		if (!afe->trig) {
 			dev_err(afe->dev, "Unable to allocate IIO trigger\n");
-			ret = -ENOMEM;
-			goto disable_reg;
+			return -ENOMEM;
 		}
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
@@ -539,7 +550,7 @@ static int afe4404_probe(struct i2c_client *client)
 		ret = iio_trigger_register(afe->trig);
 		if (ret) {
 			dev_err(afe->dev, "Unable to register IIO trigger\n");
-			goto disable_reg;
+			return ret;
 		}
 
 		ret = devm_request_threaded_irq(afe->dev, afe->irq,
@@ -549,7 +560,7 @@ static int afe4404_probe(struct i2c_client *client)
 						afe->trig);
 		if (ret) {
 			dev_err(afe->dev, "Unable to request IRQ\n");
-			goto disable_reg;
+			return ret;
 		}
 	}
 
@@ -573,8 +584,6 @@ unregister_triggered_buffer:
 unregister_trigger:
 	if (afe->irq > 0)
 		iio_trigger_unregister(afe->trig);
-disable_reg:
-	regulator_disable(afe->regulator);
 
 	return ret;
 }
@@ -591,10 +600,6 @@ static void afe4404_remove(struct i2c_client *client)
 
 	if (afe->irq > 0)
 		iio_trigger_unregister(afe->trig);
-
-	ret = regulator_disable(afe->regulator);
-	if (ret)
-		dev_err(afe->dev, "Unable to disable regulator\n");
 }
 
 static const struct i2c_device_id afe4404_ids[] = {
