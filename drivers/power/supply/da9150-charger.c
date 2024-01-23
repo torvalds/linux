@@ -538,15 +538,13 @@ static int da9150_charger_probe(struct platform_device *pdev)
 		return PTR_ERR(charger->vbat_chan);
 
 	/* Register power supplies */
-	charger->usb = power_supply_register(dev, &usb_desc, NULL);
+	charger->usb = devm_power_supply_register(dev, &usb_desc, NULL);
 	if (IS_ERR(charger->usb))
 		return PTR_ERR(charger->usb);
 
-	charger->battery = power_supply_register(dev, &battery_desc, NULL);
-	if (IS_ERR(charger->battery)) {
-		ret = PTR_ERR(charger->battery);
-		goto battery_fail;
-	}
+	charger->battery = devm_power_supply_register(dev, &battery_desc, NULL);
+	if (IS_ERR(charger->battery))
+		return PTR_ERR(charger->battery);
 
 	/* Get initial online supply */
 	reg = da9150_reg_read(da9150, DA9150_STATUS_H);
@@ -606,8 +604,6 @@ tjunc_irq_fail:
 chg_irq_fail:
 	if (!IS_ERR_OR_NULL(charger->usb_phy))
 		usb_unregister_notifier(charger->usb_phy, &charger->otg_nb);
-battery_fail:
-	power_supply_unregister(charger->usb);
 
 	return ret;
 }
@@ -633,9 +629,6 @@ static void da9150_charger_remove(struct platform_device *pdev)
 	if (!IS_ERR_OR_NULL(charger->usb_phy))
 		usb_unregister_notifier(charger->usb_phy, &charger->otg_nb);
 	cancel_work_sync(&charger->otg_work);
-
-	power_supply_unregister(charger->battery);
-	power_supply_unregister(charger->usb);
 }
 
 static struct platform_driver da9150_charger_driver = {
