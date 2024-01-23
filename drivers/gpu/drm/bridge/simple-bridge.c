@@ -62,6 +62,8 @@ static int simple_bridge_get_modes(struct drm_connector *connector)
 		drm_edid = NULL;
 	}
 
+	drm_edid_connector_update(connector, drm_edid);
+
 	if (!drm_edid) {
 		/*
 		 * In case we cannot retrieve the EDIDs (missing or broken DDC
@@ -73,7 +75,6 @@ static int simple_bridge_get_modes(struct drm_connector *connector)
 		return ret;
 	}
 
-	drm_edid_connector_update(connector, drm_edid);
 	ret = drm_edid_connector_add_modes(connector);
 	drm_edid_free(drm_edid);
 
