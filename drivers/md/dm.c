@@ -726,7 +726,8 @@ static struct table_device *open_table_device(struct mapped_device *md,
 		dev_t dev, blk_mode_t mode)
 {
 	struct table_device *td;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
+	struct block_device *bdev;
 	u64 part_off;
 	int r;
 
@@ -735,11 +736,13 @@ static struct table_device *open_table_device(struct mapped_device *md,
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&td->count, 1);
 
-	bdev_handle = bdev_open_by_dev(dev, mode, _dm_claim_ptr, NULL);
-	if (IS_ERR(bdev_handle)) {
-		r = PTR_ERR(bdev_handle);
+	bdev_file = bdev_file_open_by_dev(dev, mode, _dm_claim_ptr, NULL);
+	if (IS_ERR(bdev_file)) {
+		r = PTR_ERR(bdev_file);
 		goto out_free_td;
 	}
+
+	bdev = file_bdev(bdev_file);
 
 	/*
 	 * We can be called before the dm disk is added.  In that case we can't
@@ -747,22 +750,22 @@ static struct table_device *open_table_device(struct mapped_device *md,
 	 * called.
 	 */
 	if (md->disk->slave_dir) {
-		r = bd_link_disk_holder(bdev_handle->bdev, md->disk);
+		r = bd_link_disk_holder(bdev, md->disk);
 		if (r)
 			goto out_blkdev_put;
 	}
 
 	td->dm_dev.mode = mode;
-	td->dm_dev.bdev = bdev_handle->bdev;
-	td->dm_dev.bdev_handle = bdev_handle;
-	td->dm_dev.dax_dev = fs_dax_get_by_bdev(bdev_handle->bdev, &part_off,
+	td->dm_dev.bdev = bdev;
+	td->dm_dev.bdev_file = bdev_file;
+	td->dm_dev.dax_dev = fs_dax_get_by_bdev(bdev, &part_off,
 						NULL, NULL);
 	format_dev_t(td->dm_dev.name, dev);
 	list_add(&td->list, &md->table_devices);
 	return td;
 
 out_blkdev_put:
-	bdev_release(bdev_handle);
+	fput(bdev_file);
 out_free_td:
 	kfree(td);
 	return ERR_PTR(r);
@@ -775,7 +778,7 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 {
 	if (md->disk->slave_dir)
 		bd_unlink_disk_holder(td->dm_dev.bdev, md->disk);
-	bdev_release(td->dm_dev.bdev_handle);
+	fput(td->dm_dev.bdev_file);
 	put_dax(td->dm_dev.dax_dev);
 	list_del(&td->list);
 	kfree(td);
