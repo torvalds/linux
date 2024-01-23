@@ -87,9 +87,9 @@ struct xe_guc_ct {
 	spinlock_t fast_lock;
 	/** @ctbs: buffers for sending and receiving commands */
 	struct {
-		/** @send: Host to GuC (H2G, send) channel */
+		/** @ctbs.send: Host to GuC (H2G, send) channel */
 		struct guc_ctb h2g;
-		/** @recv: GuC to Host (G2H, receive) channel */
+		/** @ctbs.recv: GuC to Host (G2H, receive) channel */
 		struct guc_ctb g2h;
 	} ctbs;
 	/** @g2h_outstanding: number of outstanding G2H */

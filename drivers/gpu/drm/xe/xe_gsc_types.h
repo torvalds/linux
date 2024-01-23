@@ -50,21 +50,21 @@ struct xe_gsc {
 
 	/** @proxy: sub-structure containing the SW proxy-related variables */
 	struct {
-		/** @component: struct for communication with mei component */
+		/** @proxy.component: struct for communication with mei component */
 		struct i915_gsc_proxy_component *component;
-		/** @mutex: protects the component binding and usage */
+		/** @proxy.mutex: protects the component binding and usage */
 		struct mutex mutex;
-		/** @component_added: whether the component has been added */
+		/** @proxy.component_added: whether the component has been added */
 		bool component_added;
-		/** @bo: object to store message to and from the GSC */
+		/** @proxy.bo: object to store message to and from the GSC */
 		struct xe_bo *bo;
-		/** @to_gsc: map of the memory used to send messages to the GSC */
+		/** @proxy.to_gsc: map of the memory used to send messages to the GSC */
 		struct iosys_map to_gsc;
-		/** @from_gsc: map of the memory used to recv messages from the GSC */
+		/** @proxy.from_gsc: map of the memory used to recv messages from the GSC */
 		struct iosys_map from_gsc;
-		/** @to_csme: pointer to the memory used to send messages to CSME */
+		/** @proxy.to_csme: pointer to the memory used to send messages to CSME */
 		void *to_csme;
-		/** @from_csme: pointer to the memory used to recv messages from CSME */
+		/** @proxy.from_csme: pointer to the memory used to recv messages from CSME */
 		void *from_csme;
 	} proxy;
 };

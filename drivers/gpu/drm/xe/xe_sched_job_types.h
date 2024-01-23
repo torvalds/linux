@@ -30,11 +30,11 @@ struct xe_sched_job {
 	struct dma_fence *fence;
 	/** @user_fence: write back value when BB is complete */
 	struct {
-		/** @used: user fence is used */
+		/** @user_fence.used: user fence is used */
 		bool used;
-		/** @addr: address to write to */
+		/** @user_fence.addr: address to write to */
 		u64 addr;
-		/** @value: write back value */
+		/** @user_fence.value: write back value */
 		u64 value;
 	} user_fence;
 	/** @migrate_flush_flags: Additional flush flags for migration jobs */

@@ -49,40 +49,40 @@ struct xe_guc {
 	struct xe_guc_db_mgr dbm;
 	/** @submission_state: GuC submission state */
 	struct {
-		/** @exec_queue_lookup: Lookup an xe_engine from guc_id */
+		/** @submission_state.exec_queue_lookup: Lookup an xe_engine from guc_id */
 		struct xarray exec_queue_lookup;
-		/** @guc_ids: used to allocate new guc_ids, single-lrc */
+		/** @submission_state.guc_ids: used to allocate new guc_ids, single-lrc */
 		struct ida guc_ids;
-		/** @guc_ids_bitmap: used to allocate new guc_ids, multi-lrc */
+		/** @submission_state.guc_ids_bitmap: used to allocate new guc_ids, multi-lrc */
 		unsigned long *guc_ids_bitmap;
-		/** @stopped: submissions are stopped */
+		/** @submission_state.stopped: submissions are stopped */
 		atomic_t stopped;
-		/** @lock: protects submission state */
+		/** @submission_state.lock: protects submission state */
 		struct mutex lock;
-		/** @suspend: suspend fence state */
+		/** @submission_state.suspend: suspend fence state */
 		struct {
-			/** @lock: suspend fences lock */
+			/** @submission_state.suspend.lock: suspend fences lock */
 			spinlock_t lock;
-			/** @context: suspend fences context */
+			/** @submission_state.suspend.context: suspend fences context */
 			u64 context;
-			/** @seqno: suspend fences seqno */
+			/** @submission_state.suspend.seqno: suspend fences seqno */
 			u32 seqno;
 		} suspend;
 #ifdef CONFIG_PROVE_LOCKING
 #define NUM_SUBMIT_WQ	256
-		/** @submit_wq_pool: submission ordered workqueues pool */
+		/** @submission_state.submit_wq_pool: submission ordered workqueues pool */
 		struct workqueue_struct *submit_wq_pool[NUM_SUBMIT_WQ];
-		/** @submit_wq_idx: submission ordered workqueue index */
+		/** @submission_state.submit_wq_idx: submission ordered workqueue index */
 		int submit_wq_idx;
 #endif
-		/** @enabled: submission is enabled */
+		/** @submission_state.enabled: submission is enabled */
 		bool enabled;
 	} submission_state;
 	/** @hwconfig: Hardware config state */
 	struct {
-		/** @bo: buffer object of the hardware config */
+		/** @hwconfig.bo: buffer object of the hardware config */
 		struct xe_bo *bo;
-		/** @size: size of the hardware config */
+		/** @hwconfig.size: size of the hardware config */
 		u32 size;
 	} hwconfig;
 

@@ -109,9 +109,9 @@ struct xe_exec_queue {
 	 * @persistent: persistent exec queue state
 	 */
 	struct {
-		/** @xef: file which this exec queue belongs to */
+		/** @persistent.xef: file which this exec queue belongs to */
 		struct xe_file *xef;
-		/** @link: link in list of persistent exec queues */
+		/** @persisiten.link: link in list of persistent exec queues */
 		struct list_head link;
 	} persistent;
 
@@ -120,55 +120,55 @@ struct xe_exec_queue {
 		 * @parallel: parallel submission state
 		 */
 		struct {
-			/** @composite_fence_ctx: context composite fence */
+			/** @parallel.composite_fence_ctx: context composite fence */
 			u64 composite_fence_ctx;
-			/** @composite_fence_seqno: seqno for composite fence */
+			/** @parallel.composite_fence_seqno: seqno for composite fence */
 			u32 composite_fence_seqno;
 		} parallel;
 		/**
 		 * @bind: bind submission state
 		 */
 		struct {
-			/** @fence_ctx: context bind fence */
+			/** @bind.fence_ctx: context bind fence */
 			u64 fence_ctx;
-			/** @fence_seqno: seqno for bind fence */
+			/** @bind.fence_seqno: seqno for bind fence */
 			u32 fence_seqno;
 		} bind;
 	};
 
 	/** @sched_props: scheduling properties */
 	struct {
-		/** @timeslice_us: timeslice period in micro-seconds */
+		/** @sched_props.timeslice_us: timeslice period in micro-seconds */
 		u32 timeslice_us;
-		/** @preempt_timeout_us: preemption timeout in micro-seconds */
+		/** @sched_props.preempt_timeout_us: preemption timeout in micro-seconds */
 		u32 preempt_timeout_us;
-		/** @job_timeout_ms: job timeout in milliseconds */
+		/** @sched_props.job_timeout_ms: job timeout in milliseconds */
 		u32 job_timeout_ms;
-		/** @priority: priority of this exec queue */
+		/** @sched_props.priority: priority of this exec queue */
 		enum xe_exec_queue_priority priority;
 	} sched_props;
 
 	/** @compute: compute exec queue state */
 	struct {
-		/** @pfence: preemption fence */
+		/** @compute.pfence: preemption fence */
 		struct dma_fence *pfence;
-		/** @context: preemption fence context */
+		/** @compute.context: preemption fence context */
 		u64 context;
-		/** @seqno: preemption fence seqno */
+		/** @compute.seqno: preemption fence seqno */
 		u32 seqno;
-		/** @link: link into VM's list of exec queues */
+		/** @compute.link: link into VM's list of exec queues */
 		struct list_head link;
-		/** @lock: preemption fences lock */
+		/** @compute.lock: preemption fences lock */
 		spinlock_t lock;
 	} compute;
 
 	/** @usm: unified shared memory state */
 	struct {
-		/** @acc_trigger: access counter trigger */
+		/** @usm.acc_trigger: access counter trigger */
 		u32 acc_trigger;
-		/** @acc_notify: access counter notify */
+		/** @usm.acc_notify: access counter notify */
 		u32 acc_notify;
-		/** @acc_granularity: access counter granularity */
+		/** @usm.acc_granularity: access counter granularity */
 		u32 acc_granularity;
 	} usm;
 
