@@ -2140,7 +2140,7 @@ int bq27xxx_battery_setup(struct bq27xxx_device_info *di)
 	psy_desc->get_property = bq27xxx_battery_get_property;
 	psy_desc->external_power_changed = bq27xxx_external_power_changed;
 
-	di->bat = power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
+	di->bat = devm_power_supply_register_no_ws(di->dev, psy_desc, &psy_cfg);
 	if (IS_ERR(di->bat))
 		return dev_err_probe(di->dev, PTR_ERR(di->bat),
 				     "failed to register battery\n");
@@ -2168,8 +2168,6 @@ void bq27xxx_battery_teardown(struct bq27xxx_device_info *di)
 	mutex_unlock(&di->lock);
 
 	cancel_delayed_work_sync(&di->work);
-
-	power_supply_unregister(di->bat);
 }
 EXPORT_SYMBOL_GPL(bq27xxx_battery_teardown);
 
