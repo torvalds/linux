@@ -2850,7 +2850,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 	 * btrfs_do_readpage() call of previously relocated file cluster.
 	 *
 	 * If the current cluster starts in the above range, btrfs_do_readpage()
-	 * will skip the read, and relocate_one_page() will later writeback
+	 * will skip the read, and relocate_one_folio() will later writeback
 	 * the padding zeros as new data, causing data corruption.
 	 *
 	 * Here we have to manually invalidate the range (i_size, PAGE_END + 1).
@@ -2984,68 +2984,71 @@ static u64 get_cluster_boundary_end(const struct file_extent_cluster *cluster,
 	return cluster->boundary[cluster_nr + 1] - 1;
 }
 
-static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
-			     const struct file_extent_cluster *cluster,
-			     int *cluster_nr, unsigned long page_index)
+static int relocate_one_folio(struct inode *inode, struct file_ra_state *ra,
+			      const struct file_extent_cluster *cluster,
+			      int *cluster_nr, unsigned long index)
 {
 	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	u64 offset = BTRFS_I(inode)->index_cnt;
 	const unsigned long last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
-	struct page *page;
-	u64 page_start;
-	u64 page_end;
+	struct folio *folio;
+	u64 folio_start;
+	u64 folio_end;
 	u64 cur;
 	int ret;
 
-	ASSERT(page_index <= last_index);
-	page = find_lock_page(inode->i_mapping, page_index);
-	if (!page) {
+	ASSERT(index <= last_index);
+	folio = filemap_lock_folio(inode->i_mapping, index);
+	if (IS_ERR(folio)) {
 		page_cache_sync_readahead(inode->i_mapping, ra, NULL,
-				page_index, last_index + 1 - page_index);
-		page = find_or_create_page(inode->i_mapping, page_index, mask);
-		if (!page)
-			return -ENOMEM;
+					  index, last_index + 1 - index);
+		folio = __filemap_get_folio(inode->i_mapping, index,
+					    FGP_LOCK | FGP_ACCESSED | FGP_CREAT, mask);
+		if (IS_ERR(folio))
+			return PTR_ERR(folio);
 	}
 
-	if (PageReadahead(page))
-		page_cache_async_readahead(inode->i_mapping, ra, NULL,
-				page_folio(page), page_index,
-				last_index + 1 - page_index);
+	WARN_ON(folio_order(folio));
 
-	if (!PageUptodate(page)) {
-		btrfs_read_folio(NULL, page_folio(page));
-		lock_page(page);
-		if (!PageUptodate(page)) {
+	if (folio_test_readahead(folio))
+		page_cache_async_readahead(inode->i_mapping, ra, NULL,
+					   folio, index,
+					   last_index + 1 - index);
+
+	if (!folio_test_uptodate(folio)) {
+		btrfs_read_folio(NULL, folio);
+		folio_lock(folio);
+		if (!folio_test_uptodate(folio)) {
 			ret = -EIO;
-			goto release_page;
+			goto release_folio;
 		}
 	}
 
 	/*
-	 * We could have lost page private when we dropped the lock to read the
-	 * page above, make sure we set_page_extent_mapped here so we have any
+	 * We could have lost folio private when we dropped the lock to read the
+	 * folio above, make sure we set_page_extent_mapped here so we have any
 	 * of the subpage blocksize stuff we need in place.
 	 */
-	ret = set_page_extent_mapped(page);
+	ret = set_folio_extent_mapped(folio);
 	if (ret < 0)
-		goto release_page;
+		goto release_folio;
 
-	page_start = page_offset(page);
-	page_end = page_start + PAGE_SIZE - 1;
+	folio_start = folio_pos(folio);
+	folio_end = folio_start + PAGE_SIZE - 1;
 
 	/*
 	 * Start from the cluster, as for subpage case, the cluster can start
-	 * inside the page.
+	 * inside the folio.
 	 */
-	cur = max(page_start, cluster->boundary[*cluster_nr] - offset);
-	while (cur <= page_end) {
+	cur = max(folio_start, cluster->boundary[*cluster_nr] - offset);
+	while (cur <= folio_end) {
 		struct extent_state *cached_state = NULL;
 		u64 extent_start = cluster->boundary[*cluster_nr] - offset;
 		u64 extent_end = get_cluster_boundary_end(cluster,
 						*cluster_nr) - offset;
-		u64 clamped_start = max(page_start, extent_start);
-		u64 clamped_end = min(page_end, extent_end);
+		u64 clamped_start = max(folio_start, extent_start);
+		u64 clamped_end = min(folio_end, extent_end);
 		u32 clamped_len = clamped_end + 1 - clamped_start;
 
 		/* Reserve metadata for this range */
@@ -3053,7 +3056,7 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 						      clamped_len, clamped_len,
 						      false);
 		if (ret)
-			goto release_page;
+			goto release_folio;
 
 		/* Mark the range delalloc and dirty for later writeback */
 		lock_extent(&BTRFS_I(inode)->io_tree, clamped_start, clamped_end,
@@ -3069,20 +3072,18 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 							clamped_len, true);
 			btrfs_delalloc_release_extents(BTRFS_I(inode),
 						       clamped_len);
-			goto release_page;
+			goto release_folio;
 		}
-		btrfs_folio_set_dirty(fs_info, page_folio(page),
-				      clamped_start, clamped_len);
+		btrfs_folio_set_dirty(fs_info, folio, clamped_start, clamped_len);
 
 		/*
-		 * Set the boundary if it's inside the page.
+		 * Set the boundary if it's inside the folio.
 		 * Data relocation requires the destination extents to have the
 		 * same size as the source.
 		 * EXTENT_BOUNDARY bit prevents current extent from being merged
 		 * with previous extent.
 		 */
-		if (in_range(cluster->boundary[*cluster_nr] - offset,
-			     page_start, PAGE_SIZE)) {
+		if (in_range(cluster->boundary[*cluster_nr] - offset, folio_start, PAGE_SIZE)) {
 			u64 boundary_start = cluster->boundary[*cluster_nr] -
 						offset;
 			u64 boundary_end = boundary_start +
@@ -3105,8 +3106,8 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 				break;
 		}
 	}
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	balance_dirty_pages_ratelimited(inode->i_mapping);
 	btrfs_throttle(fs_info);
@@ -3114,9 +3115,9 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 		ret = -ECANCELED;
 	return ret;
 
-release_page:
-	unlock_page(page);
-	put_page(page);
+release_folio:
+	folio_unlock(folio);
+	folio_put(folio);
 	return ret;
 }
 
@@ -3151,7 +3152,7 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	last_index = (cluster->end - offset) >> PAGE_SHIFT;
 	for (index = (cluster->start - offset) >> PAGE_SHIFT;
 	     index <= last_index && !ret; index++)
-		ret = relocate_one_page(inode, ra, cluster, &cluster_nr, index);
+		ret = relocate_one_folio(inode, ra, cluster, &cluster_nr, index);
 	if (ret == 0)
 		WARN_ON(cluster_nr != cluster->nr);
 out:
