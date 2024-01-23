@@ -1098,7 +1098,7 @@ static int throtl_dispatch_tg(struct throtl_grp *tg)
 	while ((bio = throtl_peek_queued(&sq->queued[READ])) &&
 	       tg_may_dispatch(tg, bio, NULL)) {
 
-		tg_dispatch_one_bio(tg, bio_data_dir(bio));
+		tg_dispatch_one_bio(tg, READ);
 		nr_reads++;
 
 		if (nr_reads >= max_nr_reads)
@@ -1108,7 +1108,7 @@ static int throtl_dispatch_tg(struct throtl_grp *tg)
 	while ((bio = throtl_peek_queued(&sq->queued[WRITE])) &&
 	       tg_may_dispatch(tg, bio, NULL)) {
 
-		tg_dispatch_one_bio(tg, bio_data_dir(bio));
+		tg_dispatch_one_bio(tg, WRITE);
 		nr_writes++;
 
 		if (nr_writes >= max_nr_writes)
