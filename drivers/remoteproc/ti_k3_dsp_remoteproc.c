@@ -690,8 +690,8 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to parse firmware-name property\n");
 
-	rproc = rproc_alloc(dev, dev_name(dev), &k3_dsp_rproc_ops, fw_name,
-			    sizeof(*kproc));
+	rproc = devm_rproc_alloc(dev, dev_name(dev), &k3_dsp_rproc_ops,
+				 fw_name, sizeof(*kproc));
 	if (!rproc)
 		return -ENOMEM;
 
@@ -707,12 +707,9 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	kproc->data = data;
 
 	kproc->ti_sci = ti_sci_get_by_phandle(np, "ti,sci");
-	if (IS_ERR(kproc->ti_sci)) {
-		ret = dev_err_probe(dev, PTR_ERR(kproc->ti_sci),
-				    "failed to get ti-sci handle\n");
-		kproc->ti_sci = NULL;
-		goto free_rproc;
-	}
+	if (IS_ERR(kproc->ti_sci))
+		return dev_err_probe(dev, PTR_ERR(kproc->ti_sci),
+				     "failed to get ti-sci handle\n");
 
 	ret = of_property_read_u32(np, "ti,sci-dev-id", &kproc->ti_sci_id);
 	if (ret) {
@@ -810,8 +807,6 @@ put_sci:
 	ret1 = ti_sci_put_handle(kproc->ti_sci);
 	if (ret1)
 		dev_err(dev, "failed to put ti_sci handle (%pe)\n", ERR_PTR(ret1));
-free_rproc:
-	rproc_free(rproc);
 	return ret;
 }
 
@@ -844,7 +839,6 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 		dev_err(dev, "failed to put ti_sci handle (%pe)\n", ERR_PTR(ret));
 
 	k3_dsp_reserved_mem_exit(kproc);
-	rproc_free(kproc->rproc);
 }
 
 static const struct k3_dsp_mem_data c66_mems[] = {
