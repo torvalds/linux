@@ -2505,8 +2505,6 @@ static int dw_hdmi_connector_get_modes(struct drm_connector *connector)
 	int ret;
 
 	drm_edid = dw_hdmi_edid_read(hdmi, connector);
-	if (!drm_edid)
-		return 0;
 
 	drm_edid_connector_update(connector, drm_edid);
 	cec_notifier_set_phys_addr(hdmi->cec_notifier,
