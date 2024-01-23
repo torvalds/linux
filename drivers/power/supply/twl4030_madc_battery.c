@@ -215,22 +215,14 @@ static int twl4030_madc_battery_probe(struct platform_device *pdev)
 		twl4030_cmp, NULL);
 
 	twl4030_madc_bat->pdata = pdata;
-	platform_set_drvdata(pdev, twl4030_madc_bat);
 	psy_cfg.drv_data = twl4030_madc_bat;
-	twl4030_madc_bat->psy = power_supply_register(&pdev->dev,
-						      &twl4030_madc_bat_desc,
-						      &psy_cfg);
+	twl4030_madc_bat->psy = devm_power_supply_register(&pdev->dev,
+							   &twl4030_madc_bat_desc,
+							   &psy_cfg);
 	if (IS_ERR(twl4030_madc_bat->psy))
 		return PTR_ERR(twl4030_madc_bat->psy);
 
 	return 0;
-}
-
-static void twl4030_madc_battery_remove(struct platform_device *pdev)
-{
-	struct twl4030_madc_battery *bat = platform_get_drvdata(pdev);
-
-	power_supply_unregister(bat->psy);
 }
 
 static struct platform_driver twl4030_madc_battery_driver = {
@@ -238,7 +230,6 @@ static struct platform_driver twl4030_madc_battery_driver = {
 		.name = "twl4030_madc_battery",
 	},
 	.probe  = twl4030_madc_battery_probe,
-	.remove_new = twl4030_madc_battery_remove,
 };
 module_platform_driver(twl4030_madc_battery_driver);
 
