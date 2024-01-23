@@ -25,11 +25,6 @@ struct blk_flush_queue {
 	struct request		*flush_rq;
 };
 
-struct bdev_handle {
-	void *holder;
-	blk_mode_t mode;
-};
-
 bool is_flush_rq(struct request *req);
 
 struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
