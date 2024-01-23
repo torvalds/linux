@@ -1104,16 +1104,14 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	int ret;
 
 	/* set some other name then imx */
-	rproc = rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
-			    NULL, sizeof(*priv));
+	rproc = devm_rproc_alloc(dev, "imx-rproc", &imx_rproc_ops,
+				 NULL, sizeof(*priv));
 	if (!rproc)
 		return -ENOMEM;
 
 	dcfg = of_device_get_match_data(dev);
-	if (!dcfg) {
-		ret = -EINVAL;
-		goto err_put_rproc;
-	}
+	if (!dcfg)
+		return -EINVAL;
 
 	priv = rproc->priv;
 	priv->rproc = rproc;
@@ -1124,8 +1122,7 @@ static int imx_rproc_probe(struct platform_device *pdev)
 	priv->workqueue = create_workqueue(dev_name(dev));
 	if (!priv->workqueue) {
 		dev_err(dev, "cannot create workqueue\n");
-		ret = -ENOMEM;
-		goto err_put_rproc;
+		return -ENOMEM;
 	}
 
 	ret = imx_rproc_xtr_mbox_init(rproc);
@@ -1167,8 +1164,6 @@ err_put_mbox:
 	imx_rproc_free_mbox(rproc);
 err_put_wkq:
 	destroy_workqueue(priv->workqueue);
-err_put_rproc:
-	rproc_free(rproc);
 
 	return ret;
 }
@@ -1183,7 +1178,6 @@ static void imx_rproc_remove(struct platform_device *pdev)
 	imx_rproc_put_scu(rproc);
 	imx_rproc_free_mbox(rproc);
 	destroy_workqueue(priv->workqueue);
-	rproc_free(rproc);
 }
 
 static const struct of_device_id imx_rproc_of_match[] = {
