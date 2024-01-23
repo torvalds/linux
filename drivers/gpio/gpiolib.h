@@ -63,7 +63,7 @@ struct gpio_device {
 	int			id;
 	struct device		*mockdev;
 	struct module		*owner;
-	struct gpio_chip	*chip;
+	struct gpio_chip __rcu	*chip;
 	struct gpio_desc	*descs;
 	int			base;
 	u16			ngpio;
@@ -192,6 +192,26 @@ struct gpio_desc {
 };
 
 #define gpiod_not_found(desc)		(IS_ERR(desc) && PTR_ERR(desc) == -ENOENT)
+
+struct gpio_chip_guard {
+	struct gpio_device *gdev;
+	struct gpio_chip *gc;
+	int idx;
+};
+
+DEFINE_CLASS(gpio_chip_guard,
+	     struct gpio_chip_guard,
+	     srcu_read_unlock(&_T.gdev->srcu, _T.idx),
+	     ({
+		struct gpio_chip_guard _guard;
+
+		_guard.gdev = desc->gdev;
+		_guard.idx = srcu_read_lock(&_guard.gdev->srcu);
+		_guard.gc = rcu_dereference(_guard.gdev->chip);
+
+		_guard;
+	     }),
+	     struct gpio_desc *desc)
 
 int gpiod_request(struct gpio_desc *desc, const char *label);
 void gpiod_free(struct gpio_desc *desc);
