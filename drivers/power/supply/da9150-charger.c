@@ -521,36 +521,26 @@ static int da9150_charger_probe(struct platform_device *pdev)
 	charger->dev = dev;
 
 	/* Acquire ADC channels */
-	charger->ibus_chan = iio_channel_get(dev, "CHAN_IBUS");
-	if (IS_ERR(charger->ibus_chan)) {
-		ret = PTR_ERR(charger->ibus_chan);
-		goto ibus_chan_fail;
-	}
+	charger->ibus_chan = devm_iio_channel_get(dev, "CHAN_IBUS");
+	if (IS_ERR(charger->ibus_chan))
+		return PTR_ERR(charger->ibus_chan);
 
-	charger->vbus_chan = iio_channel_get(dev, "CHAN_VBUS");
-	if (IS_ERR(charger->vbus_chan)) {
-		ret = PTR_ERR(charger->vbus_chan);
-		goto vbus_chan_fail;
-	}
+	charger->vbus_chan = devm_iio_channel_get(dev, "CHAN_VBUS");
+	if (IS_ERR(charger->vbus_chan))
+		return PTR_ERR(charger->vbus_chan);
 
-	charger->tjunc_chan = iio_channel_get(dev, "CHAN_TJUNC");
-	if (IS_ERR(charger->tjunc_chan)) {
-		ret = PTR_ERR(charger->tjunc_chan);
-		goto tjunc_chan_fail;
-	}
+	charger->tjunc_chan = devm_iio_channel_get(dev, "CHAN_TJUNC");
+	if (IS_ERR(charger->tjunc_chan))
+		return PTR_ERR(charger->tjunc_chan);
 
-	charger->vbat_chan = iio_channel_get(dev, "CHAN_VBAT");
-	if (IS_ERR(charger->vbat_chan)) {
-		ret = PTR_ERR(charger->vbat_chan);
-		goto vbat_chan_fail;
-	}
+	charger->vbat_chan = devm_iio_channel_get(dev, "CHAN_VBAT");
+	if (IS_ERR(charger->vbat_chan))
+		return PTR_ERR(charger->vbat_chan);
 
 	/* Register power supplies */
 	charger->usb = power_supply_register(dev, &usb_desc, NULL);
-	if (IS_ERR(charger->usb)) {
-		ret = PTR_ERR(charger->usb);
-		goto usb_fail;
-	}
+	if (IS_ERR(charger->usb))
+		return PTR_ERR(charger->usb);
 
 	charger->battery = power_supply_register(dev, &battery_desc, NULL);
 	if (IS_ERR(charger->battery)) {
@@ -619,19 +609,6 @@ chg_irq_fail:
 battery_fail:
 	power_supply_unregister(charger->usb);
 
-usb_fail:
-	iio_channel_release(charger->vbat_chan);
-
-vbat_chan_fail:
-	iio_channel_release(charger->tjunc_chan);
-
-tjunc_chan_fail:
-	iio_channel_release(charger->vbus_chan);
-
-vbus_chan_fail:
-	iio_channel_release(charger->ibus_chan);
-
-ibus_chan_fail:
 	return ret;
 }
 
@@ -659,12 +636,6 @@ static void da9150_charger_remove(struct platform_device *pdev)
 
 	power_supply_unregister(charger->battery);
 	power_supply_unregister(charger->usb);
-
-	/* Release ADC channels */
-	iio_channel_release(charger->ibus_chan);
-	iio_channel_release(charger->vbus_chan);
-	iio_channel_release(charger->tjunc_chan);
-	iio_channel_release(charger->vbat_chan);
 }
 
 static struct platform_driver da9150_charger_driver = {
