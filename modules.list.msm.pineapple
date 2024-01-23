@@ -36,6 +36,7 @@ debug_symbol.ko
 minidump.ko
 memory_dump_v2.ko
 dispcc-pineapple.ko
+dispcc-volcano.ko
 tcsrcc-pineapple.ko
 gpucc-pineapple.ko
 gcc-cliffs.ko
