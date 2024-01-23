@@ -921,8 +921,6 @@ int drm_bridge_get_modes(struct drm_bridge *bridge,
 			 struct drm_connector *connector);
 const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,
 					    struct drm_connector *connector);
-struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
-				 struct drm_connector *connector);
 void drm_bridge_hpd_enable(struct drm_bridge *bridge,
 			   void (*cb)(void *data,
 				      enum drm_connector_status status),

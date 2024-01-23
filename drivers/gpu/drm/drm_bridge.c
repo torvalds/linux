@@ -1217,7 +1217,7 @@ EXPORT_SYMBOL_GPL(drm_bridge_get_modes);
  * the EDID and return it. Otherwise return NULL.
  *
  * If &drm_bridge_funcs.edid_read is not set, fall back to using
- * drm_bridge_get_edid() and wrapping it in struct drm_edid.
+ * &drm_bridge_funcs.get_edid and wrapping it in struct drm_edid.
  *
  * RETURNS:
  * The retrieved EDID on success, or NULL otherwise.
@@ -1233,7 +1233,7 @@ const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,
 		const struct drm_edid *drm_edid;
 		struct edid *edid;
 
-		edid = drm_bridge_get_edid(bridge, connector);
+		edid = bridge->funcs->get_edid(bridge, connector);
 		if (!edid)
 			return NULL;
 
@@ -1247,30 +1247,6 @@ const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,
 	return bridge->funcs->edid_read(bridge, connector);
 }
 EXPORT_SYMBOL_GPL(drm_bridge_edid_read);
-
-/**
- * drm_bridge_get_edid - get the EDID data of the connected display
- * @bridge: bridge control structure
- * @connector: the connector to read EDID for
- *
- * If the bridge supports output EDID retrieval, as reported by the
- * DRM_BRIDGE_OP_EDID bridge ops flag, call &drm_bridge_funcs.get_edid to
- * get the EDID and return it. Otherwise return NULL.
- *
- * Deprecated. Prefer using drm_bridge_edid_read().
- *
- * RETURNS:
- * The retrieved EDID on success, or NULL otherwise.
- */
-struct edid *drm_bridge_get_edid(struct drm_bridge *bridge,
-				 struct drm_connector *connector)
-{
-	if (!(bridge->ops & DRM_BRIDGE_OP_EDID))
-		return NULL;
-
-	return bridge->funcs->get_edid(bridge, connector);
-}
-EXPORT_SYMBOL_GPL(drm_bridge_get_edid);
 
 /**
  * drm_bridge_hpd_enable - enable hot plug detection for the bridge
