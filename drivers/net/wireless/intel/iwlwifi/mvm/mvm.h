@@ -121,7 +121,7 @@ struct iwl_mvm_time_event_data {
 	 * if the te is in the time event list or not (when id == TE_MAX)
 	 */
 	u32 id;
-	u8 link_id;
+	s8 link_id;
 };
 
  /* Power management */

@@ -692,7 +692,7 @@ void iwl_mvm_protect_session(struct iwl_mvm *mvm,
 /* Determine whether mac or link id should be used, and validate the link id */
 static int iwl_mvm_get_session_prot_id(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif,
-				       u32 link_id)
+				       s8 link_id)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int ver = iwl_fw_lookup_cmd_ver(mvm->fw,
@@ -716,7 +716,7 @@ static int iwl_mvm_get_session_prot_id(struct iwl_mvm *mvm,
 
 static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
 					      struct ieee80211_vif *vif,
-					      u32 id, u32 link_id)
+					      u32 id, s8 link_id)
 {
 	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, link_id);
 	struct iwl_mvm_session_prot_cmd cmd = {
@@ -745,7 +745,7 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	struct ieee80211_vif *vif = te_data->vif;
 	struct iwl_mvm_vif *mvmvif;
 	enum nl80211_iftype iftype;
-	unsigned int link_id;
+	s8 link_id;
 
 	if (!vif)
 		return false;
@@ -1296,7 +1296,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
 	const u16 notif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF) };
 	struct iwl_notification_wait wait_notif;
-	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, link_id);
+	int mac_link_id = iwl_mvm_get_session_prot_id(mvm, vif, (s8)link_id);
 	struct iwl_mvm_session_prot_cmd cmd = {
 		.id_and_color = cpu_to_le32(mac_link_id),
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
