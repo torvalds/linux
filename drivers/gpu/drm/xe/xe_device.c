@@ -727,3 +727,23 @@ void xe_device_mem_access_put(struct xe_device *xe)
 
 	xe_assert(xe, ref >= 0);
 }
+
+void xe_device_snapshot_print(struct xe_device *xe, struct drm_printer *p)
+{
+	struct xe_gt *gt;
+	u8 id;
+
+	drm_printf(p, "PCI ID: 0x%04x\n", xe->info.devid);
+	drm_printf(p, "PCI revision: 0x%02x\n", xe->info.revid);
+
+	for_each_gt(gt, xe, id) {
+		drm_printf(p, "GT id: %u\n", id);
+		drm_printf(p, "\tType: %s\n",
+			   gt->info.type == XE_GT_TYPE_MAIN ? "main" : "media");
+		drm_printf(p, "\tIP ver: %u.%u.%u\n",
+			   REG_FIELD_GET(GMD_ID_ARCH_MASK, gt->info.gmdid),
+			   REG_FIELD_GET(GMD_ID_RELEASE_MASK, gt->info.gmdid),
+			   REG_FIELD_GET(GMD_ID_REVID, gt->info.gmdid));
+		drm_printf(p, "\tCS reference clock: %u\n", gt->info.reference_clock);
+	}
+}
