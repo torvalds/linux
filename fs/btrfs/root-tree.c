@@ -322,8 +322,11 @@ int btrfs_del_root(struct btrfs_trans_handle *trans,
 	ret = btrfs_search_slot(trans, root, key, path, -1, 1);
 	if (ret < 0)
 		goto out;
-
-	BUG_ON(ret != 0);
+	if (ret != 0) {
+		/* The root must exist but we did not find it by the key. */
+		ret = -EUCLEAN;
+		goto out;
+	}
 
 	ret = btrfs_del_item(trans, root, path);
 out:
