@@ -15,6 +15,7 @@ struct perf_tool;
 struct thread;
 struct tep_plugin_list;
 struct evsel;
+struct tep_format_field;
 
 struct trace_event {
 	struct tep_handle	*pevent;
@@ -50,6 +51,8 @@ int parse_event_file(struct tep_handle *pevent,
 
 unsigned long long
 raw_field_value(struct tep_event *event, const char *name, void *data);
+
+const char *parse_task_states(struct tep_format_field *state_field);
 
 void parse_proc_kallsyms(struct tep_handle *pevent, char *file, unsigned int size);
 void parse_ftrace_printk(struct tep_handle *pevent, char *file, unsigned int size);
