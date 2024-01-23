@@ -229,8 +229,10 @@ static int tsnep_phy_loopback(struct tsnep_adapter *adapter, bool enable)
 	 * would delay a working loopback anyway, let's ensure that loopback
 	 * is working immediately by setting link mode directly
 	 */
-	if (!retval && enable)
+	if (!retval && enable) {
+		netif_carrier_on(adapter->netdev);
 		tsnep_set_link_mode(adapter);
+	}
 
 	return retval;
 }
