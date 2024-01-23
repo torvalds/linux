@@ -192,7 +192,6 @@ static int rx51_battery_probe(struct platform_device *pdev)
 {
 	struct power_supply_config psy_cfg = {};
 	struct rx51_device_info *di;
-	int ret;
 
 	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
@@ -209,41 +208,23 @@ static int rx51_battery_probe(struct platform_device *pdev)
 
 	psy_cfg.drv_data = di;
 
-	di->channel_temp = iio_channel_get(di->dev, "temp");
-	if (IS_ERR(di->channel_temp)) {
-		ret = PTR_ERR(di->channel_temp);
-		goto error;
-	}
+	di->channel_temp = devm_iio_channel_get(di->dev, "temp");
+	if (IS_ERR(di->channel_temp))
+		return PTR_ERR(di->channel_temp);
 
-	di->channel_bsi  = iio_channel_get(di->dev, "bsi");
-	if (IS_ERR(di->channel_bsi)) {
-		ret = PTR_ERR(di->channel_bsi);
-		goto error_channel_temp;
-	}
+	di->channel_bsi  = devm_iio_channel_get(di->dev, "bsi");
+	if (IS_ERR(di->channel_bsi))
+		return PTR_ERR(di->channel_bsi);
 
-	di->channel_vbat = iio_channel_get(di->dev, "vbat");
-	if (IS_ERR(di->channel_vbat)) {
-		ret = PTR_ERR(di->channel_vbat);
-		goto error_channel_bsi;
-	}
+	di->channel_vbat = devm_iio_channel_get(di->dev, "vbat");
+	if (IS_ERR(di->channel_vbat))
+		return PTR_ERR(di->channel_vbat);
 
 	di->bat = power_supply_register(di->dev, &di->bat_desc, &psy_cfg);
-	if (IS_ERR(di->bat)) {
-		ret = PTR_ERR(di->bat);
-		goto error_channel_vbat;
-	}
+	if (IS_ERR(di->bat))
+		return PTR_ERR(di->bat);
 
 	return 0;
-
-error_channel_vbat:
-	iio_channel_release(di->channel_vbat);
-error_channel_bsi:
-	iio_channel_release(di->channel_bsi);
-error_channel_temp:
-	iio_channel_release(di->channel_temp);
-error:
-
-	return ret;
 }
 
 static void rx51_battery_remove(struct platform_device *pdev)
@@ -251,10 +232,6 @@ static void rx51_battery_remove(struct platform_device *pdev)
 	struct rx51_device_info *di = platform_get_drvdata(pdev);
 
 	power_supply_unregister(di->bat);
-
-	iio_channel_release(di->channel_vbat);
-	iio_channel_release(di->channel_bsi);
-	iio_channel_release(di->channel_temp);
 }
 
 #ifdef CONFIG_OF
