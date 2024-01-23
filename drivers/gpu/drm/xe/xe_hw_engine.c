@@ -838,17 +838,17 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 	drm_printf(p, "\tRING_EXECLIST_SQ_CONTENTS: 0x%016llx\n",
 		   snapshot->reg.ring_execlist_sq_contents);
 	drm_printf(p, "\tRING_START: 0x%08x\n", snapshot->reg.ring_start);
-	drm_printf(p, "\tRING_HEAD:  0x%08x\n", snapshot->reg.ring_head);
-	drm_printf(p, "\tRING_TAIL:  0x%08x\n", snapshot->reg.ring_tail);
+	drm_printf(p, "\tRING_HEAD: 0x%08x\n", snapshot->reg.ring_head);
+	drm_printf(p, "\tRING_TAIL: 0x%08x\n", snapshot->reg.ring_tail);
 	drm_printf(p, "\tRING_CTL: 0x%08x\n", snapshot->reg.ring_ctl);
 	drm_printf(p, "\tRING_MI_MODE: 0x%08x\n", snapshot->reg.ring_mi_mode);
 	drm_printf(p, "\tRING_MODE: 0x%08x\n",
 		   snapshot->reg.ring_mode);
-	drm_printf(p, "\tRING_IMR:   0x%08x\n", snapshot->reg.ring_imr);
-	drm_printf(p, "\tRING_ESR:   0x%08x\n", snapshot->reg.ring_esr);
-	drm_printf(p, "\tRING_EMR:   0x%08x\n", snapshot->reg.ring_emr);
-	drm_printf(p, "\tRING_EIR:   0x%08x\n", snapshot->reg.ring_eir);
-	drm_printf(p, "\tACTHD:  0x%016llx\n", snapshot->reg.ring_acthd);
+	drm_printf(p, "\tRING_IMR: 0x%08x\n", snapshot->reg.ring_imr);
+	drm_printf(p, "\tRING_ESR: 0x%08x\n", snapshot->reg.ring_esr);
+	drm_printf(p, "\tRING_EMR: 0x%08x\n", snapshot->reg.ring_emr);
+	drm_printf(p, "\tRING_EIR: 0x%08x\n", snapshot->reg.ring_eir);
+	drm_printf(p, "\tACTHD: 0x%016llx\n", snapshot->reg.ring_acthd);
 	drm_printf(p, "\tBBADDR: 0x%016llx\n", snapshot->reg.ring_bbaddr);
 	drm_printf(p, "\tDMA_FADDR: 0x%016llx\n", snapshot->reg.ring_dma_fadd);
 	drm_printf(p, "\tIPEHR: 0x%08x\n", snapshot->reg.ipehr);
