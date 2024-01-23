@@ -197,8 +197,6 @@ static int rx51_battery_probe(struct platform_device *pdev)
 	if (!di)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, di);
-
 	di->dev = &pdev->dev;
 	di->bat_desc.name = "rx51-battery";
 	di->bat_desc.type = POWER_SUPPLY_TYPE_BATTERY;
@@ -220,18 +218,11 @@ static int rx51_battery_probe(struct platform_device *pdev)
 	if (IS_ERR(di->channel_vbat))
 		return PTR_ERR(di->channel_vbat);
 
-	di->bat = power_supply_register(di->dev, &di->bat_desc, &psy_cfg);
+	di->bat = devm_power_supply_register(di->dev, &di->bat_desc, &psy_cfg);
 	if (IS_ERR(di->bat))
 		return PTR_ERR(di->bat);
 
 	return 0;
-}
-
-static void rx51_battery_remove(struct platform_device *pdev)
-{
-	struct rx51_device_info *di = platform_get_drvdata(pdev);
-
-	power_supply_unregister(di->bat);
 }
 
 #ifdef CONFIG_OF
@@ -244,7 +235,6 @@ MODULE_DEVICE_TABLE(of, n900_battery_of_match);
 
 static struct platform_driver rx51_battery_driver = {
 	.probe = rx51_battery_probe,
-	.remove_new = rx51_battery_remove,
 	.driver = {
 		.name = "rx51-battery",
 		.of_match_table = of_match_ptr(n900_battery_of_match),
