@@ -23,8 +23,9 @@
 #include <linux/serial.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-
 #include <linux/io.h>
+
+#include <asm/txx9/generic.h>
 
 #define PASS_LIMIT	256
 
