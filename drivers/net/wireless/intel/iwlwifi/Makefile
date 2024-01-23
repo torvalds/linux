@@ -33,4 +33,6 @@ obj-$(CONFIG_IWLDVM)	+= dvm/
 obj-$(CONFIG_IWLMVM)	+= mvm/
 obj-$(CONFIG_IWLMEI)	+= mei/
 
+obj-$(CONFIG_IWLWIFI_KUNIT_TESTS) += tests/
+
 CFLAGS_iwl-devtrace.o := -I$(src)

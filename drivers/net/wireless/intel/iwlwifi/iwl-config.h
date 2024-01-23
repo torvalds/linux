@@ -12,6 +12,7 @@
 #include <linux/ieee80211.h>
 #include <linux/nl80211.h>
 #include "iwl-csr.h"
+#include "iwl-drv.h"
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -470,6 +471,15 @@ struct iwl_dev_info {
 	const struct iwl_cfg *cfg;
 	const char *name;
 };
+
+#if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
+extern const struct iwl_dev_info iwl_dev_info_table[];
+extern const unsigned int iwl_dev_info_table_size;
+const struct iwl_dev_info *
+iwl_pci_find_dev_info(u16 device, u16 subsystem_device,
+		      u16 mac_type, u8 mac_step, u16 rf_type, u8 cdb,
+		      u8 jacket, u8 rf_id, u8 no_160, u8 cores, u8 rf_step);
+#endif
 
 /*
  * This list declares the config structures for all devices.
