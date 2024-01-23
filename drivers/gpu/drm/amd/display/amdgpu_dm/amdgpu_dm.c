@@ -1720,7 +1720,8 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	init_data.nbio_reg_offsets = adev->reg_offset[NBIO_HWIP][0];
 	init_data.clk_reg_offsets = adev->reg_offset[CLK_HWIP][0];
 
-	init_data.flags.disable_ips = DMUB_IPS_DISABLE_ALL;
+	if (amdgpu_dc_debug_mask & DC_DISABLE_IPS)
+		init_data.flags.disable_ips = DMUB_IPS_DISABLE_ALL;
 
 	init_data.flags.disable_ips_in_vpb = 1;
 
