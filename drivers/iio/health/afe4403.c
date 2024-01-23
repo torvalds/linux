@@ -540,7 +540,7 @@ static int afe4403_probe(struct spi_device *spi)
 
 		iio_trigger_set_drvdata(afe->trig, indio_dev);
 
-		ret = iio_trigger_register(afe->trig);
+		ret = devm_iio_trigger_register(afe->dev, afe->trig);
 		if (ret) {
 			dev_err(afe->dev, "Unable to register IIO trigger\n");
 			return ret;
@@ -553,46 +553,25 @@ static int afe4403_probe(struct spi_device *spi)
 						afe->trig);
 		if (ret) {
 			dev_err(afe->dev, "Unable to request IRQ\n");
-			goto err_trig;
+			return ret;
 		}
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, &iio_pollfunc_store_time,
-					 afe4403_trigger_handler, NULL);
+	ret = devm_iio_triggered_buffer_setup(afe->dev, indio_dev,
+					      &iio_pollfunc_store_time,
+					      afe4403_trigger_handler, NULL);
 	if (ret) {
 		dev_err(afe->dev, "Unable to setup buffer\n");
-		goto err_trig;
+		return ret;
 	}
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(afe->dev, indio_dev);
 	if (ret) {
 		dev_err(afe->dev, "Unable to register IIO device\n");
-		goto err_buff;
+		return ret;
 	}
 
 	return 0;
-
-err_buff:
-	iio_triggered_buffer_cleanup(indio_dev);
-err_trig:
-	if (afe->irq > 0)
-		iio_trigger_unregister(afe->trig);
-
-	return ret;
-}
-
-static void afe4403_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct afe4403_data *afe = iio_priv(indio_dev);
-	int ret;
-
-	iio_device_unregister(indio_dev);
-
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	if (afe->irq > 0)
-		iio_trigger_unregister(afe->trig);
 }
 
 static const struct spi_device_id afe4403_ids[] = {
@@ -608,7 +587,6 @@ static struct spi_driver afe4403_spi_driver = {
 		.pm = pm_sleep_ptr(&afe4403_pm_ops),
 	},
 	.probe = afe4403_probe,
-	.remove = afe4403_remove,
 	.id_table = afe4403_ids,
 };
 module_spi_driver(afe4403_spi_driver);
