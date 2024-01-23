@@ -178,7 +178,7 @@ int bcm63xx_timer_set(int id, int monotonic, unsigned int countdown_us)
 
 EXPORT_SYMBOL(bcm63xx_timer_set);
 
-int bcm63xx_timer_init(void)
+static int bcm63xx_timer_init(void)
 {
 	int ret, irq;
 	u32 reg;
