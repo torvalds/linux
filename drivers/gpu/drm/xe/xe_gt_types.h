@@ -117,6 +117,8 @@ struct xe_gt {
 		 * hwconfig blob.
 		 */
 		u64 __engine_mask;
+		/** @info.gmdid: raw GMD_ID value from hardware */
+		u32 gmdid;
 	} info;
 
 	/**
