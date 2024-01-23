@@ -468,39 +468,39 @@ static noinline struct btrfs_fs_devices *find_fsid(
 
 static int
 btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
-		      int flush, struct bdev_handle **bdev_handle,
+		      int flush, struct file **bdev_file,
 		      struct btrfs_super_block **disk_super)
 {
 	struct block_device *bdev;
 	int ret;
 
-	*bdev_handle = bdev_open_by_path(device_path, flags, holder, NULL);
+	*bdev_file = bdev_file_open_by_path(device_path, flags, holder, NULL);
 
-	if (IS_ERR(*bdev_handle)) {
-		ret = PTR_ERR(*bdev_handle);
+	if (IS_ERR(*bdev_file)) {
+		ret = PTR_ERR(*bdev_file);
 		goto error;
 	}
-	bdev = (*bdev_handle)->bdev;
+	bdev = file_bdev(*bdev_file);
 
 	if (flush)
 		sync_blockdev(bdev);
 	ret = set_blocksize(bdev, BTRFS_BDEV_BLOCKSIZE);
 	if (ret) {
-		bdev_release(*bdev_handle);
+		fput(*bdev_file);
 		goto error;
 	}
 	invalidate_bdev(bdev);
 	*disk_super = btrfs_read_dev_super(bdev);
 	if (IS_ERR(*disk_super)) {
 		ret = PTR_ERR(*disk_super);
-		bdev_release(*bdev_handle);
+		fput(*bdev_file);
 		goto error;
 	}
 
 	return 0;
 
 error:
-	*bdev_handle = NULL;
+	*bdev_file = NULL;
 	return ret;
 }
 
@@ -643,7 +643,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 			struct btrfs_device *device, blk_mode_t flags,
 			void *holder)
 {
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	struct btrfs_super_block *disk_super;
 	u64 devid;
 	int ret;
@@ -654,7 +654,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		return -EINVAL;
 
 	ret = btrfs_get_bdev_and_sb(device->name->str, flags, holder, 1,
-				    &bdev_handle, &disk_super);
+				    &bdev_file, &disk_super);
 	if (ret)
 		return ret;
 
@@ -678,20 +678,20 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 		clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 		fs_devices->seeding = true;
 	} else {
-		if (bdev_read_only(bdev_handle->bdev))
+		if (bdev_read_only(file_bdev(bdev_file)))
 			clear_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 		else
 			set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 	}
 
-	if (!bdev_nonrot(bdev_handle->bdev))
+	if (!bdev_nonrot(file_bdev(bdev_file)))
 		fs_devices->rotating = true;
 
-	if (bdev_max_discard_sectors(bdev_handle->bdev))
+	if (bdev_max_discard_sectors(file_bdev(bdev_file)))
 		fs_devices->discardable = true;
 
-	device->bdev_handle = bdev_handle;
-	device->bdev = bdev_handle->bdev;
+	device->bdev_file = bdev_file;
+	device->bdev = file_bdev(bdev_file);
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 
 	fs_devices->open_devices++;
@@ -706,7 +706,7 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 
 error_free_page:
 	btrfs_release_disk_super(disk_super);
-	bdev_release(bdev_handle);
+	fput(bdev_file);
 
 	return -EINVAL;
 }
@@ -1015,10 +1015,10 @@ static void __btrfs_free_extra_devids(struct btrfs_fs_devices *fs_devices,
 		if (device->devid == BTRFS_DEV_REPLACE_DEVID)
 			continue;
 
-		if (device->bdev_handle) {
-			bdev_release(device->bdev_handle);
+		if (device->bdev_file) {
+			fput(device->bdev_file);
 			device->bdev = NULL;
-			device->bdev_handle = NULL;
+			device->bdev_file = NULL;
 			fs_devices->open_devices--;
 		}
 		if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
@@ -1063,7 +1063,7 @@ static void btrfs_close_bdev(struct btrfs_device *device)
 		invalidate_bdev(device->bdev);
 	}
 
-	bdev_release(device->bdev_handle);
+	fput(device->bdev_file);
 }
 
 static void btrfs_close_one_device(struct btrfs_device *device)
@@ -1316,7 +1316,7 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	struct btrfs_super_block *disk_super;
 	bool new_device_added = false;
 	struct btrfs_device *device = NULL;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	u64 bytenr, bytenr_orig;
 	int ret;
 
@@ -1339,18 +1339,18 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 	 * values temporarily, as the device paths of the fsid are the only
 	 * required information for assembling the volume.
 	 */
-	bdev_handle = bdev_open_by_path(path, flags, NULL, NULL);
-	if (IS_ERR(bdev_handle))
-		return ERR_CAST(bdev_handle);
+	bdev_file = bdev_file_open_by_path(path, flags, NULL, NULL);
+	if (IS_ERR(bdev_file))
+		return ERR_CAST(bdev_file);
 
 	bytenr_orig = btrfs_sb_offset(0);
-	ret = btrfs_sb_log_location_bdev(bdev_handle->bdev, 0, READ, &bytenr);
+	ret = btrfs_sb_log_location_bdev(file_bdev(bdev_file), 0, READ, &bytenr);
 	if (ret) {
 		device = ERR_PTR(ret);
 		goto error_bdev_put;
 	}
 
-	disk_super = btrfs_read_disk_super(bdev_handle->bdev, bytenr,
+	disk_super = btrfs_read_disk_super(file_bdev(bdev_file), bytenr,
 					   bytenr_orig);
 	if (IS_ERR(disk_super)) {
 		device = ERR_CAST(disk_super);
@@ -1381,7 +1381,7 @@ free_disk_super:
 	btrfs_release_disk_super(disk_super);
 
 error_bdev_put:
-	bdev_release(bdev_handle);
+	fput(bdev_file);
 
 	return device;
 }
@@ -2057,7 +2057,7 @@ void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
 
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		    struct btrfs_dev_lookup_args *args,
-		    struct bdev_handle **bdev_handle)
+		    struct file **bdev_file)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
@@ -2166,7 +2166,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 
 	btrfs_assign_next_active_device(device, NULL);
 
-	if (device->bdev_handle) {
+	if (device->bdev_file) {
 		cur_devices->open_devices--;
 		/* remove sysfs entry */
 		btrfs_sysfs_remove_device(device);
@@ -2182,9 +2182,9 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	 * free the device.
 	 *
 	 * We cannot call btrfs_close_bdev() here because we're holding the sb
-	 * write lock, and bdev_release() will pull in the ->open_mutex on
-	 * the block device and it's dependencies.  Instead just flush the
-	 * device and let the caller do the final bdev_release.
+	 * write lock, and fput() on the block device will pull in the
+	 * ->open_mutex on the block device and it's dependencies.  Instead
+	 *  just flush the device and let the caller do the final bdev_release.
 	 */
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
 		btrfs_scratch_superblocks(fs_info, device->bdev,
@@ -2195,7 +2195,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	*bdev_handle = device->bdev_handle;
+	*bdev_file = device->bdev_file;
 	synchronize_rcu();
 	btrfs_free_device(device);
 
@@ -2332,7 +2332,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 				 const char *path)
 {
 	struct btrfs_super_block *disk_super;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	int ret;
 
 	if (!path || !path[0])
@@ -2350,7 +2350,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 	}
 
 	ret = btrfs_get_bdev_and_sb(path, BLK_OPEN_READ, NULL, 0,
-				    &bdev_handle, &disk_super);
+				    &bdev_file, &disk_super);
 	if (ret) {
 		btrfs_put_dev_args_from_path(args);
 		return ret;
@@ -2363,7 +2363,7 @@ int btrfs_get_dev_args_from_path(struct btrfs_fs_info *fs_info,
 	else
 		memcpy(args->fsid, disk_super->fsid, BTRFS_FSID_SIZE);
 	btrfs_release_disk_super(disk_super);
-	bdev_release(bdev_handle);
+	fput(bdev_file);
 	return 0;
 }
 
@@ -2583,7 +2583,7 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	struct btrfs_root *root = fs_info->dev_root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_device *device;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	struct super_block *sb = fs_info->sb;
 	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_fs_devices *seed_devices = NULL;
@@ -2596,12 +2596,12 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	if (sb_rdonly(sb) && !fs_devices->seeding)
 		return -EROFS;
 
-	bdev_handle = bdev_open_by_path(device_path, BLK_OPEN_WRITE,
+	bdev_file = bdev_file_open_by_path(device_path, BLK_OPEN_WRITE,
 					fs_info->bdev_holder, NULL);
-	if (IS_ERR(bdev_handle))
-		return PTR_ERR(bdev_handle);
+	if (IS_ERR(bdev_file))
+		return PTR_ERR(bdev_file);
 
-	if (!btrfs_check_device_zone_type(fs_info, bdev_handle->bdev)) {
+	if (!btrfs_check_device_zone_type(fs_info, file_bdev(bdev_file))) {
 		ret = -EINVAL;
 		goto error;
 	}
@@ -2613,11 +2613,11 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 		locked = true;
 	}
 
-	sync_blockdev(bdev_handle->bdev);
+	sync_blockdev(file_bdev(bdev_file));
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(device, &fs_devices->devices, dev_list) {
-		if (device->bdev == bdev_handle->bdev) {
+		if (device->bdev == file_bdev(bdev_file)) {
 			ret = -EEXIST;
 			rcu_read_unlock();
 			goto error;
@@ -2633,8 +2633,8 @@ int btrfs_init_new_device(struct btrfs_fs_info *fs_info, const char *device_path
 	}
 
 	device->fs_info = fs_info;
-	device->bdev_handle = bdev_handle;
-	device->bdev = bdev_handle->bdev;
+	device->bdev_file = bdev_file;
+	device->bdev = file_bdev(bdev_file);
 	ret = lookup_bdev(device_path, &device->devt);
 	if (ret)
 		goto error_free_device;
@@ -2817,7 +2817,7 @@ error_free_zone:
 error_free_device:
 	btrfs_free_device(device);
 error:
-	bdev_release(bdev_handle);
+	fput(bdev_file);
 	if (locked) {
 		mutex_unlock(&uuid_mutex);
 		up_write(&sb->s_umount);
