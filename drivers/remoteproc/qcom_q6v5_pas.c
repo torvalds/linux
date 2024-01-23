@@ -705,7 +705,7 @@ static int adsp_probe(struct platform_device *pdev)
 	if (desc->minidump_id)
 		ops = &adsp_minidump_ops;
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, ops, fw_name, sizeof(*adsp));
+	rproc = devm_rproc_alloc(&pdev->dev, pdev->name, ops, fw_name, sizeof(*adsp));
 
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
@@ -784,7 +784,6 @@ detach_proxy_pds:
 	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 free_rproc:
 	device_init_wakeup(adsp->dev, false);
-	rproc_free(rproc);
 
 	return ret;
 }
@@ -803,7 +802,6 @@ static void adsp_remove(struct platform_device *pdev)
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	adsp_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 	device_init_wakeup(adsp->dev, false);
-	rproc_free(adsp->rproc);
 }
 
 static const struct adsp_data adsp_resource_init = {
