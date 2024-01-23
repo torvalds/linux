@@ -644,7 +644,7 @@ int orangefs_inode_cache_initialize(void)
 					"orangefs_inode_cache",
 					sizeof(struct orangefs_inode_s),
 					0,
-					ORANGEFS_CACHE_CREATE_FLAGS,
+					0,
 					offsetof(struct orangefs_inode_s,
 						link_target),
 					sizeof_field(struct orangefs_inode_s,
