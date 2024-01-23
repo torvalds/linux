@@ -173,18 +173,20 @@ struct xe_hw_engine_snapshot {
 	u32 mmio_base;
 	/** @reg: Useful MMIO register snapshot */
 	struct {
+		/** @reg.ring_execlist_status: RING_EXECLIST_STATUS */
+		u64 ring_execlist_status;
+		/** @reg.ring_execlist_sq_contents: RING_EXECLIST_SQ_CONTENTS */
+		u64 ring_execlist_sq_contents;
+		/** @reg.ring_acthd: RING_ACTHD */
+		u64 ring_acthd;
+		/** @reg.ring_bbaddr: RING_BBADDR */
+		u64 ring_bbaddr;
+		/** @reg.ring_dma_fadd: RING_DMA_FADD */
+		u64 ring_dma_fadd;
 		/** @reg.ring_hwstam: RING_HWSTAM */
 		u32 ring_hwstam;
 		/** @reg.ring_hws_pga: RING_HWS_PGA */
 		u32 ring_hws_pga;
-		/** @reg.ring_execlist_status_lo: RING_EXECLIST_STATUS_LO */
-		u32 ring_execlist_status_lo;
-		/** @reg.ring_execlist_status_hi: RING_EXECLIST_STATUS_HI */
-		u32 ring_execlist_status_hi;
-		/** @reg.ring_execlist_sq_contents_lo: RING_EXECLIST_SQ_CONTENTS */
-		u32 ring_execlist_sq_contents_lo;
-		/** @reg.ring_execlist_sq_contents_hi: RING_EXECLIST_SQ_CONTENTS + 4 */
-		u32 ring_execlist_sq_contents_hi;
 		/** @reg.ring_start: RING_START */
 		u32 ring_start;
 		/** @reg.ring_head: RING_HEAD */
@@ -205,18 +207,6 @@ struct xe_hw_engine_snapshot {
 		u32 ring_emr;
 		/** @reg.ring_eir: RING_EIR */
 		u32 ring_eir;
-		/** @reg.ring_acthd_udw: RING_ACTHD_UDW */
-		u32 ring_acthd_udw;
-		/** @reg.ring_acthd: RING_ACTHD */
-		u32 ring_acthd;
-		/** @reg.ring_bbaddr_udw: RING_BBADDR_UDW */
-		u32 ring_bbaddr_udw;
-		/** @reg.ring_bbaddr: RING_BBADDR */
-		u32 ring_bbaddr;
-		/** @reg.ring_dma_fadd_udw: RING_DMA_FADD_UDW */
-		u32 ring_dma_fadd_udw;
-		/** @reg.ring_dma_fadd: RING_DMA_FADD */
-		u32 ring_dma_fadd;
 		/** @reg.ipehr: IPEHR */
 		u32 ipehr;
 		/** @reg.rcu_mode: RCU_MODE */
