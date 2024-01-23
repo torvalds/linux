@@ -25,6 +25,12 @@ struct blk_flush_queue {
 	struct request		*flush_rq;
 };
 
+struct bdev_handle {
+	struct block_device *bdev;
+	void *holder;
+	blk_mode_t mode;
+};
+
 bool is_flush_rq(struct request *req);
 
 struct blk_flush_queue *blk_alloc_flush_queue(int node, int cmd_size,
@@ -517,7 +523,7 @@ static inline int req_ref_read(struct request *req)
 }
 
 void bdev_release(struct bdev_handle *handle);
-struct bdev_handle *bdev_open_by_dev(dev_t dev, blk_mode_t mode, void *holder,
-		const struct blk_holder_ops *hops);
-
+int bdev_open(struct block_device *bdev, blk_mode_t mode, void *holder,
+	      const struct blk_holder_ops *hops, struct file *bdev_file);
+int bdev_permission(dev_t dev, blk_mode_t mode, void *holder);
 #endif /* BLK_INTERNAL_H */

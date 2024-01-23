@@ -1327,12 +1327,6 @@ struct super_block {
 	struct list_head	s_inodes_wb;	/* writeback inodes */
 } __randomize_layout;
 
-/* Temporary helper that will go away. */
-static inline struct bdev_handle *sb_bdev_handle(struct super_block *sb)
-{
-	return sb->s_bdev_file->private_data;
-}
-
 static inline struct user_namespace *i_user_ns(const struct inode *inode)
 {
 	return inode->i_sb->s_user_ns;
