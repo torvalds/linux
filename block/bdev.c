@@ -1004,46 +1004,6 @@ struct file *bdev_file_open_by_path(const char *path, blk_mode_t mode,
 }
 EXPORT_SYMBOL(bdev_file_open_by_path);
 
-/**
- * bdev_open_by_path - open a block device by name
- * @path: path to the block device to open
- * @mode: open mode (BLK_OPEN_*)
- * @holder: exclusive holder identifier
- * @hops: holder operations
- *
- * Open the block device described by the device file at @path.  If @holder is
- * not %NULL, the block device is opened with exclusive access.  Exclusive opens
- * may nest for the same @holder.
- *
- * CONTEXT:
- * Might sleep.
- *
- * RETURNS:
- * Handle with a reference to the block_device on success, ERR_PTR(-errno) on
- * failure.
- */
-struct bdev_handle *bdev_open_by_path(const char *path, blk_mode_t mode,
-		void *holder, const struct blk_holder_ops *hops)
-{
-	struct bdev_handle *handle;
-	dev_t dev;
-	int error;
-
-	error = lookup_bdev(path, &dev);
-	if (error)
-		return ERR_PTR(error);
-
-	handle = bdev_open_by_dev(dev, mode, holder, hops);
-	if (!IS_ERR(handle) && (mode & BLK_OPEN_WRITE) &&
-	    bdev_read_only(handle->bdev)) {
-		bdev_release(handle);
-		return ERR_PTR(-EACCES);
-	}
-
-	return handle;
-}
-EXPORT_SYMBOL(bdev_open_by_path);
-
 void bdev_release(struct bdev_handle *handle)
 {
 	struct block_device *bdev = handle->bdev;
