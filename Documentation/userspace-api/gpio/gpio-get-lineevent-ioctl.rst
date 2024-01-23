@@ -48,6 +48,12 @@ to its default state.
 
 Requesting a line already in use is an error (**EBUSY**).
 
+Requesting edge detection on a line that does not support interrupts is an
+error (**ENXIO**).
+
+As with the :ref:`line handle<gpio-get-linehandle-config-support>`, the
+bias configuration is best effort.
+
 Closing the ``chip_fd`` has no effect on existing line events.
 
 Configuration Rules

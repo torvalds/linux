@@ -74,7 +74,8 @@ If no bias flags are set then the bias configuration is not changed.
 
 The edge flags, ``GPIO_V2_LINE_FLAG_EDGE_xxx``, require
 ``GPIO_V2_LINE_FLAG_INPUT`` to be set and may be combined to detect both rising
-and falling edges.
+and falling edges.  Requesting edge detection from a line that does not support
+it is an error (**ENXIO**).
 
 Only one event clock flag, ``GPIO_V2_LINE_FLAG_EVENT_CLOCK_xxx``, may be set.
 If none are set then the event clock defaults to ``CLOCK_MONOTONIC``.
@@ -86,10 +87,60 @@ The :c:type:`debounce_period_us<gpio_v2_line_attribute>` attribute may only
 be applied to lines with ``GPIO_V2_LINE_FLAG_INPUT`` set. When set, debounce
 applies to both the values returned by gpio-v2-line-get-values-ioctl.rst and
 the edges returned by gpio-v2-line-event-read.rst.  If not
-supported directly by hardware, the debouncing is performed in software by the
-kernel.
+supported directly by hardware, debouncing is emulated in software by the
+kernel.  Requesting debounce on a line that supports neither debounce in
+hardware nor interrupts, as required for software emulation, is an error
+(**ENXIO**).
 
 Requesting an invalid configuration is an error (**EINVAL**).
+
+.. _gpio-v2-get-line-config-support:
+
+Configuration Support
+---------------------
+
+Where the requested configuration is not directly supported by the underlying
+hardware and driver, the kernel applies one of these approaches:
+
+ - reject the request
+ - emulate the feature in software
+ - treat the feature as best effort
+
+The approach applied depends on whether the feature can reasonably be emulated
+in software, and the impact on the hardware and userspace if the feature is not
+supported.
+The approach applied for each feature is as follows:
+
+==============   ===========
+Feature          Approach
+==============   ===========
+Bias             best effort
+Debounce         emulate
+Direction        reject
+Drive            emulate
+Edge Detection   reject
+==============   ===========
+
+Bias is treated as best effort to allow userspace to apply the same
+configuration for platforms that support internal bias as those that require
+external bias.
+Worst case the line floats rather than being biased as expected.
+
+Debounce is emulated by applying a filter to hardware interrupts on the line.
+An edge event is generated after an edge is detected and the line remains
+stable for the debounce period.
+The event timestamp corresponds to the end of the debounce period.
+
+Drive is emulated by switching the line to an input when the line should not
+be actively driven.
+
+Edge detection requires interrupt support, and is rejected if that is not
+supported. Emulation by polling can still be performed from userspace.
+
+In all cases, the configuration reported by gpio-v2-get-lineinfo-ioctl.rst
+is the requested configuration, not the resulting hardware configuration.
+Userspace cannot determine if a feature is supported in hardware, is
+emulated, or is best effort.
 
 Return Value
 ============

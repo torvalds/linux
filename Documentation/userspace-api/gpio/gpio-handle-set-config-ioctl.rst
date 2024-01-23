@@ -41,12 +41,13 @@ line or introducing potential glitches.
 
 The configuration applies to all requested lines.
 
-The same :ref:`gpio-get-linehandle-config-rules` that apply when requesting the
+The same :ref:`gpio-get-linehandle-config-rules` and
+:ref:`gpio-get-linehandle-config-support` that apply when requesting the
 lines also apply when updating the line configuration.
 
 The motivating use case for this command is changing direction of
 bi-directional lines between input and output, but it may be used more
-generally move lines seamlessly from one configuration state to another.
+generally to move lines seamlessly from one configuration state to another.
 
 To only change the value of output lines, use
 gpio-handle-set-line-values-ioctl.rst.

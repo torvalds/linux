@@ -76,6 +76,45 @@ If no bias flags are set then the bias configuration is not changed.
 
 Requesting an invalid configuration is an error (**EINVAL**).
 
+
+.. _gpio-get-linehandle-config-support:
+
+Configuration Support
+---------------------
+
+Where the requested configuration is not directly supported by the underlying
+hardware and driver, the kernel applies one of these approaches:
+
+ - reject the request
+ - emulate the feature in software
+ - treat the feature as best effort
+
+The approach applied depends on whether the feature can reasonably be emulated
+in software, and the impact on the hardware and userspace if the feature is not
+supported.
+The approach applied for each feature is as follows:
+
+==============   ===========
+Feature          Approach
+==============   ===========
+Bias             best effort
+Direction        reject
+Drive            emulate
+==============   ===========
+
+Bias is treated as best effort to allow userspace to apply the same
+configuration for platforms that support internal bias as those that require
+external bias.
+Worst case the line floats rather than being biased as expected.
+
+Drive is emulated by switching the line to an input when the line should not
+be driven.
+
+In all cases, the configuration reported by gpio-get-lineinfo-ioctl.rst
+is the requested configuration, not the resulting hardware configuration.
+Userspace cannot determine if a feature is supported in hardware, is
+emulated, or is best effort.
+
 Return Value
 ============
 

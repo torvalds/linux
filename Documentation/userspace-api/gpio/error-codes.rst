@@ -65,7 +65,8 @@ GPIO Error Codes
 
     -  - ``ENXIO``
 
-       -  No device corresponding to this device special file exists.
+       -  Typically returned when a feature requiring interrupt support was
+          requested, but the line does not support interrupts.
 
 .. note::
 
