@@ -72,10 +72,9 @@ static const char * const *record_mem_usage = __usage;
 
 static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 {
-	int rec_argc, i = 0, j, tmp_nr = 0;
+	int rec_argc, i = 0, j;
 	int start, end;
 	const char **rec_argv;
-	char **rec_tmp;
 	int ret;
 	bool all_user = false, all_kernel = false;
 	struct perf_mem_event *e;
@@ -116,15 +115,6 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 	if (!rec_argv)
 		return -1;
 
-	/*
-	 * Save the allocated event name strings.
-	 */
-	rec_tmp = calloc(rec_argc + 1, sizeof(char *));
-	if (!rec_tmp) {
-		free(rec_argv);
-		return -1;
-	}
-
 	rec_argv[i++] = "record";
 
 	e = perf_pmu__mem_events_ptr(pmu, PERF_MEM_EVENTS__LOAD_STORE);
@@ -163,7 +153,7 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 		rec_argv[i++] = "--data-page-size";
 
 	start = i;
-	ret = perf_mem_events__record_args(rec_argv, &i, rec_tmp, &tmp_nr);
+	ret = perf_mem_events__record_args(rec_argv, &i);
 	if (ret)
 		goto out;
 	end = i;
@@ -193,10 +183,6 @@ static int __cmd_record(int argc, const char **argv, struct perf_mem *mem)
 
 	ret = cmd_record(i, rec_argv);
 out:
-	for (i = 0; i < tmp_nr; i++)
-		free(rec_tmp[i]);
-
-	free(rec_tmp);
 	free(rec_argv);
 	return ret;
 }

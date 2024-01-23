@@ -3245,9 +3245,8 @@ static const char * const *record_mem_usage = __usage_record;
 
 static int perf_c2c__record(int argc, const char **argv)
 {
-	int rec_argc, i = 0, j, rec_tmp_nr = 0;
+	int rec_argc, i = 0, j;
 	const char **rec_argv;
-	char **rec_tmp;
 	int ret;
 	bool all_user = false, all_kernel = false;
 	bool event_set = false;
@@ -3285,12 +3284,6 @@ static int perf_c2c__record(int argc, const char **argv)
 	if (!rec_argv)
 		return -1;
 
-	rec_tmp = calloc(rec_argc + 1, sizeof(char *));
-	if (!rec_tmp) {
-		free(rec_argv);
-		return -1;
-	}
-
 	rec_argv[i++] = "record";
 
 	if (!event_set) {
@@ -3319,7 +3312,7 @@ static int perf_c2c__record(int argc, const char **argv)
 	rec_argv[i++] = "--phys-data";
 	rec_argv[i++] = "--sample-cpu";
 
-	ret = perf_mem_events__record_args(rec_argv, &i, rec_tmp, &rec_tmp_nr);
+	ret = perf_mem_events__record_args(rec_argv, &i);
 	if (ret)
 		goto out;
 
@@ -3346,10 +3339,6 @@ static int perf_c2c__record(int argc, const char **argv)
 
 	ret = cmd_record(i, rec_argv);
 out:
-	for (i = 0; i < rec_tmp_nr; i++)
-		free(rec_tmp[i]);
-
-	free(rec_tmp);
 	free(rec_argv);
 	return ret;
 }

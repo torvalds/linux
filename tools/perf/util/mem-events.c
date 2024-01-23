@@ -218,14 +218,14 @@ void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 	}
 }
 
-int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
-				 char **rec_tmp, int *tmp_nr)
+int perf_mem_events__record_args(const char **rec_argv, int *argv_nr)
 {
 	const char *mnt = sysfs__mount();
 	struct perf_pmu *pmu = NULL;
-	int i = *argv_nr, k = 0;
 	struct perf_mem_event *e;
-
+	int i = *argv_nr;
+	const char *s;
+	char *copy;
 
 	while ((pmu = perf_pmus__scan_mem(pmu)) != NULL) {
 		for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
@@ -240,30 +240,20 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				return -1;
 			}
 
-			if (perf_pmus__num_mem_pmus() == 1) {
-				rec_argv[i++] = "-e";
-				rec_argv[i++] = perf_pmu__mem_events_name(j, pmu);
-			} else {
-				const char *s = perf_pmu__mem_events_name(j, pmu);
+			s = perf_pmu__mem_events_name(j, pmu);
+			if (!s || !perf_pmu__mem_events_supported(mnt, pmu, e))
+				continue;
 
-				if (!perf_pmu__mem_events_supported(mnt, pmu, e))
-					continue;
+			copy = strdup(s);
+			if (!copy)
+				return -1;
 
-				rec_argv[i++] = "-e";
-				if (s) {
-					char *copy = strdup(s);
-					if (!copy)
-						return -1;
-
-					rec_argv[i++] = copy;
-					rec_tmp[k++] = copy;
-				}
-			}
+			rec_argv[i++] = "-e";
+			rec_argv[i++] = copy;
 		}
 	}
 
 	*argv_nr = i;
-	*tmp_nr = k;
 	return 0;
 }
 
