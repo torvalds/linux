@@ -336,7 +336,7 @@ int bio_integrity_map_user(struct bio *bio, void __user *ubuf, ssize_t bytes,
 	if (nr_vecs > BIO_MAX_VECS)
 		return -E2BIG;
 	if (nr_vecs > UIO_FASTIOV) {
-		bvec = kcalloc(sizeof(*bvec), nr_vecs, GFP_KERNEL);
+		bvec = kcalloc(nr_vecs, sizeof(*bvec), GFP_KERNEL);
 		if (!bvec)
 			return -ENOMEM;
 		pages = NULL;

@@ -17,17 +17,14 @@
 
 struct gpio_restart {
 	struct gpio_desc *reset_gpio;
-	struct notifier_block restart_handler;
 	u32 active_delay_ms;
 	u32 inactive_delay_ms;
 	u32 wait_delay_ms;
 };
 
-static int gpio_restart_notify(struct notifier_block *this,
-				unsigned long mode, void *cmd)
+static int gpio_restart_notify(struct sys_off_data *data)
 {
-	struct gpio_restart *gpio_restart =
-		container_of(this, struct gpio_restart, restart_handler);
+	struct gpio_restart *gpio_restart = data->cb_data;
 
 	/* drive it active, also inactive->active edge */
 	gpiod_direction_output(gpio_restart->reset_gpio, 1);
@@ -52,6 +49,7 @@ static int gpio_restart_probe(struct platform_device *pdev)
 {
 	struct gpio_restart *gpio_restart;
 	bool open_source = false;
+	int priority = 129;
 	u32 property;
 	int ret;
 
@@ -71,8 +69,6 @@ static int gpio_restart_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	gpio_restart->restart_handler.notifier_call = gpio_restart_notify;
-	gpio_restart->restart_handler.priority = 129;
 	gpio_restart->active_delay_ms = 100;
 	gpio_restart->inactive_delay_ms = 100;
 	gpio_restart->wait_delay_ms = 3000;
@@ -83,7 +79,7 @@ static int gpio_restart_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "Invalid priority property: %u\n",
 					property);
 		else
-			gpio_restart->restart_handler.priority = property;
+			priority = property;
 	}
 
 	of_property_read_u32(pdev->dev.of_node, "active-delay",
@@ -93,9 +89,11 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	of_property_read_u32(pdev->dev.of_node, "wait-delay",
 			&gpio_restart->wait_delay_ms);
 
-	platform_set_drvdata(pdev, gpio_restart);
-
-	ret = register_restart_handler(&gpio_restart->restart_handler);
+	ret = devm_register_sys_off_handler(&pdev->dev,
+					    SYS_OFF_MODE_RESTART,
+					    priority,
+					    gpio_restart_notify,
+					    gpio_restart);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: cannot register restart handler, %d\n",
 				__func__, ret);
@@ -105,19 +103,6 @@ static int gpio_restart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static void gpio_restart_remove(struct platform_device *pdev)
-{
-	struct gpio_restart *gpio_restart = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = unregister_restart_handler(&gpio_restart->restart_handler);
-	if (ret) {
-		dev_err(&pdev->dev,
-				"%s: cannot unregister restart handler, %d\n",
-				__func__, ret);
-	}
-}
-
 static const struct of_device_id of_gpio_restart_match[] = {
 	{ .compatible = "gpio-restart", },
 	{},
@@ -125,7 +110,6 @@ static const struct of_device_id of_gpio_restart_match[] = {
 
 static struct platform_driver gpio_restart_driver = {
 	.probe = gpio_restart_probe,
-	.remove_new = gpio_restart_remove,
 	.driver = {
 		.name = "restart-gpio",
 		.of_match_table = of_gpio_restart_match,

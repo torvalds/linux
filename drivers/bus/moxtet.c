@@ -102,7 +102,7 @@ static int moxtet_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static struct bus_type moxtet_bus_type = {
+static const struct bus_type moxtet_bus_type = {
 	.name		= "moxtet",
 	.dev_groups	= moxtet_dev_groups,
 	.match		= moxtet_match,

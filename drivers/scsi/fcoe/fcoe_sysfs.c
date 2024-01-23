@@ -263,6 +263,7 @@ static ssize_t store_ctlr_mode(struct device *dev,
 			       const char *buf, size_t count)
 {
 	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
+	int res;
 
 	if (count > FCOE_MAX_MODENAME_LEN)
 		return -EINVAL;
@@ -279,12 +280,13 @@ static ssize_t store_ctlr_mode(struct device *dev,
 			return -ENOTSUPP;
 		}
 
-		ctlr->mode = sysfs_match_string(fip_conn_type_names, buf);
-		if (ctlr->mode < 0 || ctlr->mode == FIP_CONN_TYPE_UNKNOWN) {
+		res = sysfs_match_string(fip_conn_type_names, buf);
+		if (res < 0 || res == FIP_CONN_TYPE_UNKNOWN) {
 			LIBFCOE_SYSFS_DBG(ctlr, "Unknown mode %s provided.\n",
 					  buf);
 			return -EINVAL;
 		}
+		ctlr->mode = res;
 
 		ctlr->f->set_fcoe_ctlr_mode(ctlr);
 		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.\n", buf);

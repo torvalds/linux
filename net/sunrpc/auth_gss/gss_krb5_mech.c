@@ -650,6 +650,7 @@ static void __exit cleanup_kerberos_module(void)
 	gss_mech_unregister(&gss_kerberos_mech);
 }
 
+MODULE_DESCRIPTION("Sun RPC Kerberos 5 module");
 MODULE_LICENSE("GPL");
 module_init(init_kerberos_module);
 module_exit(cleanup_kerberos_module);

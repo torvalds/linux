@@ -18,11 +18,11 @@ extern const char * const bch2_sb_compat[];
 extern const char * const __bch2_btree_ids[];
 extern const char * const bch2_csum_types[];
 extern const char * const bch2_csum_opts[];
-extern const char * const bch2_compression_types[];
+extern const char * const __bch2_compression_types[];
 extern const char * const bch2_compression_opts[];
 extern const char * const bch2_str_hash_types[];
 extern const char * const bch2_str_hash_opts[];
-extern const char * const bch2_data_types[];
+extern const char * const __bch2_data_types[];
 extern const char * const bch2_member_states[];
 extern const char * const bch2_jset_entry_types[];
 extern const char * const bch2_fs_usage_types[];
@@ -563,6 +563,11 @@ struct bch_io_opts {
 	BCH_INODE_OPTS()
 #undef x
 };
+
+static inline unsigned background_compression(struct bch_io_opts opts)
+{
+	return opts.background_compression ?: opts.compression;
+}
 
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts);
 bool bch2_opt_is_inode_opt(enum bch_opt_id);

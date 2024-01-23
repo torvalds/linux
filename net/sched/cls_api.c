@@ -1424,6 +1424,14 @@ static void tcf_block_owner_del(struct tcf_block *block,
 	WARN_ON(1);
 }
 
+static bool tcf_block_tracks_dev(struct tcf_block *block,
+				 struct tcf_block_ext_info *ei)
+{
+	return tcf_block_shared(block) &&
+	       (ei->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_INGRESS ||
+		ei->binder_type == FLOW_BLOCK_BINDER_TYPE_CLSACT_EGRESS);
+}
+
 int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 		      struct tcf_block_ext_info *ei,
 		      struct netlink_ext_ack *extack)
@@ -1462,7 +1470,7 @@ int tcf_block_get_ext(struct tcf_block **p_block, struct Qdisc *q,
 	if (err)
 		goto err_block_offload_bind;
 
-	if (tcf_block_shared(block)) {
+	if (tcf_block_tracks_dev(block, ei)) {
 		err = xa_insert(&block->ports, dev->ifindex, dev, GFP_KERNEL);
 		if (err) {
 			NL_SET_ERR_MSG(extack, "block dev insert failed");
@@ -1516,7 +1524,7 @@ void tcf_block_put_ext(struct tcf_block *block, struct Qdisc *q,
 
 	if (!block)
 		return;
-	if (tcf_block_shared(block))
+	if (tcf_block_tracks_dev(block, ei))
 		xa_erase(&block->ports, dev->ifindex);
 	tcf_chain0_head_change_cb_del(block, ei);
 	tcf_block_owner_del(block, q, ei->binder_type);

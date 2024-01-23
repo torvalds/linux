@@ -429,7 +429,7 @@ int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct)
 	mbox_cmd.q_no = 0;
 	mbox_cmd.recv_len = 0;
 	mbox_cmd.recv_status = 0;
-	mbox_cmd.fn = (octeon_mbox_callback_t)octeon_pfvf_hs_callback;
+	mbox_cmd.fn = octeon_pfvf_hs_callback;
 	mbox_cmd.fn_arg = &status;
 
 	octeon_mbox_write(oct, &mbox_cmd);

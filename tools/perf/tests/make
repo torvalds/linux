@@ -183,7 +183,7 @@ run += make_install_prefix_slash
 # run += make_install_pdf
 run += make_minimal
 
-old_libbpf := $(shell echo '\#include <bpf/libbpf.h>' | $(CC) -E -dM -x c -| egrep -q "define[[:space:]]+LIBBPF_MAJOR_VERSION[[:space:]]+0{1}")
+old_libbpf := $(shell echo '\#include <bpf/libbpf.h>' | $(CC) -E -dM -x c -| grep -q -E "define[[:space:]]+LIBBPF_MAJOR_VERSION[[:space:]]+0{1}")
 
 ifneq ($(old_libbpf),)
 run += make_libbpf_dynamic

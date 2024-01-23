@@ -556,7 +556,7 @@ static int graph_parse_node_multi_nm(struct snd_soc_dai_link *dai_link,
 		struct device_node *mcodec_port;
 		int codec_idx;
 
-		if (*nm_idx >= nm_max)
+		if (*nm_idx > nm_max)
 			break;
 
 		mcpu_ep_n = of_get_next_child(mcpu_port, mcpu_ep_n);

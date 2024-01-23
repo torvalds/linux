@@ -125,9 +125,9 @@ static struct xe_mem_region *res_to_mem_region(struct ttm_resource *res)
 static void try_add_system(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
-	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
-
 	if (bo_flags & XE_BO_CREATE_SYSTEM_BIT) {
+		xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_TT,
 		};
@@ -144,6 +144,8 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 	struct ttm_place place = { .mem_type = mem_type };
 	struct xe_mem_region *vram;
 	u64 io_size;
+
+	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
 
 	vram = to_xe_ttm_vram_mgr(ttm_manager_type(&xe->ttm, mem_type))->vram;
 	xe_assert(xe, vram && vram->usable_size);
@@ -175,8 +177,6 @@ static void add_vram(struct xe_device *xe, struct xe_bo *bo,
 static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
 			 u32 bo_flags, u32 *c)
 {
-	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
-
 	if (bo->props.preferred_gt == XE_GT1) {
 		if (bo_flags & XE_BO_CREATE_VRAM1_BIT)
 			add_vram(xe, bo, bo->placements, bo_flags, XE_PL_VRAM1, c);
@@ -193,9 +193,9 @@ static void try_add_vram(struct xe_device *xe, struct xe_bo *bo,
 static void try_add_stolen(struct xe_device *xe, struct xe_bo *bo,
 			   u32 bo_flags, u32 *c)
 {
-	xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
-
 	if (bo_flags & XE_BO_CREATE_STOLEN_BIT) {
+		xe_assert(xe, *c < ARRAY_SIZE(bo->placements));
+
 		bo->placements[*c] = (struct ttm_place) {
 			.mem_type = XE_PL_STOLEN,
 			.flags = bo_flags & (XE_BO_CREATE_PINNED_BIT |
@@ -442,7 +442,7 @@ static int xe_ttm_io_mem_reserve(struct ttm_device *bdev,
 
 		if (vram->mapping &&
 		    mem->placement & TTM_PL_FLAG_CONTIGUOUS)
-			mem->bus.addr = (u8 *)vram->mapping +
+			mem->bus.addr = (u8 __force *)vram->mapping +
 				mem->bus.offset;
 
 		mem->bus.offset += vram->io_start;
@@ -734,7 +734,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 			/* Create a new VMAP once kernel BO back in VRAM */
 			if (!ret && resource_is_vram(new_mem)) {
 				struct xe_mem_region *vram = res_to_mem_region(new_mem);
-				void *new_addr = vram->mapping +
+				void __iomem *new_addr = vram->mapping +
 					(new_mem->start << PAGE_SHIFT);
 
 				if (XE_WARN_ON(new_mem->start == XE_BO_INVALID_OFFSET)) {

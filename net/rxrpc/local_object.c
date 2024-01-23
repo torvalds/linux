@@ -37,6 +37,17 @@ static void rxrpc_encap_err_rcv(struct sock *sk, struct sk_buff *skb, int err,
 }
 
 /*
+ * Set or clear the Don't Fragment flag on a socket.
+ */
+void rxrpc_local_dont_fragment(const struct rxrpc_local *local, bool set)
+{
+	if (set)
+		ip_sock_set_mtu_discover(local->socket->sk, IP_PMTUDISC_DO);
+	else
+		ip_sock_set_mtu_discover(local->socket->sk, IP_PMTUDISC_DONT);
+}
+
+/*
  * Compare a local to an address.  Return -ve, 0 or +ve to indicate less than,
  * same or greater than.
  *
@@ -203,7 +214,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		ip_sock_set_recverr(usk);
 
 		/* we want to set the don't fragment bit */
-		ip_sock_set_mtu_discover(usk, IP_PMTUDISC_DO);
+		rxrpc_local_dont_fragment(local, true);
 
 		/* We want receive timestamps. */
 		sock_enable_timestamps(usk);

@@ -367,8 +367,6 @@ static void virtblk_done(struct virtqueue *vq)
 				blk_mq_complete_request(req);
 			req_done = true;
 		}
-		if (unlikely(virtqueue_is_broken(vq)))
-			break;
 	} while (!virtqueue_enable_cb(vq));
 
 	/* In case queue is stopped waiting for more buffers. */

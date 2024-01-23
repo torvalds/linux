@@ -618,7 +618,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int zynq_fpga_remove(struct platform_device *pdev)
+static void zynq_fpga_remove(struct platform_device *pdev)
 {
 	struct zynq_fpga_priv *priv;
 	struct fpga_manager *mgr;
@@ -629,8 +629,6 @@ static int zynq_fpga_remove(struct platform_device *pdev)
 	fpga_mgr_unregister(mgr);
 
 	clk_unprepare(priv->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -644,7 +642,7 @@ MODULE_DEVICE_TABLE(of, zynq_fpga_of_match);
 
 static struct platform_driver zynq_fpga_driver = {
 	.probe = zynq_fpga_probe,
-	.remove = zynq_fpga_remove,
+	.remove_new = zynq_fpga_remove,
 	.driver = {
 		.name = "zynq_fpga_manager",
 		.of_match_table = of_match_ptr(zynq_fpga_of_match),

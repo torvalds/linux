@@ -351,7 +351,7 @@ r535_engn_nonstall(struct nvkm_engn *engn)
 	int ret;
 
 	ret = nvkm_gsp_intr_nonstall(subdev->device->gsp, subdev->type, subdev->inst);
-	WARN_ON(ret < 0);
+	WARN_ON(ret == -ENOENT);
 	return ret;
 }
 

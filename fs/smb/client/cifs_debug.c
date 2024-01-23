@@ -659,6 +659,7 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 					spin_lock(&tcon->stat_lock);
 					tcon->bytes_read = 0;
 					tcon->bytes_written = 0;
+					tcon->stats_from_time = ktime_get_real_seconds();
 					spin_unlock(&tcon->stat_lock);
 					if (server->ops->clear_stats)
 						server->ops->clear_stats(tcon);
@@ -737,8 +738,9 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 				seq_printf(m, "\n%d) %s", i, tcon->tree_name);
 				if (tcon->need_reconnect)
 					seq_puts(m, "\tDISCONNECTED ");
-				seq_printf(m, "\nSMBs: %d",
-					   atomic_read(&tcon->num_smbs_sent));
+				seq_printf(m, "\nSMBs: %d since %ptTs UTC",
+					   atomic_read(&tcon->num_smbs_sent),
+					   &tcon->stats_from_time);
 				if (server->ops->print_stats)
 					server->ops->print_stats(m, tcon);
 			}

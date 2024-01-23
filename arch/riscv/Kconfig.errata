@@ -98,6 +98,7 @@ config ERRATA_THEAD_CMO
 	depends on ERRATA_THEAD && MMU
 	select DMA_DIRECT_REMAP
 	select RISCV_DMA_NONCOHERENT
+	select RISCV_NONSTANDARD_CACHE_OPS
 	default y
 	help
 	  This will apply the cache management errata to handle the

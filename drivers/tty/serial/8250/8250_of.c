@@ -251,7 +251,7 @@ err_free:
 /*
  * Release a line
  */
-static int of_platform_serial_remove(struct platform_device *ofdev)
+static void of_platform_serial_remove(struct platform_device *ofdev)
 {
 	struct of_serial_info *info = platform_get_drvdata(ofdev);
 
@@ -261,7 +261,6 @@ static int of_platform_serial_remove(struct platform_device *ofdev)
 	pm_runtime_put_sync(&ofdev->dev);
 	pm_runtime_disable(&ofdev->dev);
 	kfree(info);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -337,7 +336,7 @@ static struct platform_driver of_platform_serial_driver = {
 		.pm = &of_serial_pm_ops,
 	},
 	.probe = of_platform_serial_probe,
-	.remove = of_platform_serial_remove,
+	.remove_new = of_platform_serial_remove,
 };
 
 module_platform_driver(of_platform_serial_driver);

@@ -333,6 +333,7 @@ struct clk_mgr {
 	bool force_smu_not_present;
 	bool dc_mode_softmax_enabled;
 	int dprefclk_khz; // Used by program pixel clock in clock source funcs, need to figureout where this goes
+	int dp_dto_source_clock_in_khz; // Used to program DP DTO with ss adjustment on DCN314
 	int dentist_vco_freq_khz;
 	struct clk_state_registers_and_bypass boot_snapshot;
 	struct clk_bw_params *bw_params;

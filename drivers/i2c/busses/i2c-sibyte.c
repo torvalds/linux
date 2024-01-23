@@ -142,7 +142,7 @@ static struct i2c_algo_sibyte_data sibyte_board_data[2] = {
 static struct i2c_adapter sibyte_board_adapter[2] = {
 	{
 		.owner		= THIS_MODULE,
-		.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+		.class		= I2C_CLASS_HWMON,
 		.algo		= NULL,
 		.algo_data	= &sibyte_board_data[0],
 		.nr		= 0,
@@ -150,7 +150,7 @@ static struct i2c_adapter sibyte_board_adapter[2] = {
 	},
 	{
 		.owner		= THIS_MODULE,
-		.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+		.class		= I2C_CLASS_HWMON,
 		.algo		= NULL,
 		.algo_data	= &sibyte_board_data[1],
 		.nr		= 1,

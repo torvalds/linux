@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Intel pin control drivers
 menu "Intel pinctrl drivers"
-	depends on ACPI && (X86 || COMPILE_TEST)
+	depends on (ACPI && X86) || COMPILE_TEST
 
 config PINCTRL_BAYTRAIL
 	bool "Intel Baytrail GPIO pin control"
@@ -36,6 +36,16 @@ config PINCTRL_INTEL
 	select GENERIC_PINCONF
 	select GPIOLIB
 	select GPIOLIB_IRQCHIP
+
+config PINCTRL_INTEL_PLATFORM
+	tristate "Intel pinctrl and GPIO platform driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel PCH pins and using them as GPIOs. Currently the following
+	  Intel SoCs / platforms require this to be functional:
+	  - Lunar Lake
 
 config PINCTRL_ALDERLAKE
 	tristate "Intel Alder Lake pinctrl and GPIO driver"
@@ -127,6 +137,15 @@ config PINCTRL_METEORLAKE
 	help
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Meteor Lake pins and using them as GPIOs.
+
+config PINCTRL_METEORPOINT
+	tristate "Intel Meteor Point pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  Meteor Point is the PCH of Intel Meteor Lake. This pinctrl driver
+	  provides an interface that allows configuring of PCH pins and
+	  using them as GPIOs.
 
 config PINCTRL_SUNRISEPOINT
 	tristate "Intel Sunrisepoint pinctrl and GPIO driver"

@@ -15,6 +15,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/property.h>
 #include <linux/uuid.h>
+#include <linux/node.h>
 
 struct irq_domain;
 struct irq_domain_ops;
@@ -429,6 +430,16 @@ int thermal_acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_tem
 int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp);
 int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp);
 int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp);
+#endif
+
+#ifdef CONFIG_ACPI_HMAT
+int acpi_get_genport_coordinates(u32 uid, struct access_coordinate *coord);
+#else
+static inline int acpi_get_genport_coordinates(u32 uid,
+					       struct access_coordinate *coord)
+{
+	return -EOPNOTSUPP;
+}
 #endif
 
 #ifdef CONFIG_ACPI_NUMA

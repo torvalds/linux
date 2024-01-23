@@ -431,7 +431,7 @@ static ssize_t edt_ft5x06_setting_show(struct device *dev,
 		*field = val;
 	}
 
-	count = scnprintf(buf, PAGE_SIZE, "%d\n", val);
+	count = sysfs_emit(buf, "%d\n", val);
 out:
 	mutex_unlock(&tsdata->mutex);
 	return error ?: count;

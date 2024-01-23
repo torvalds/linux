@@ -208,7 +208,6 @@ void __load_fpu_regs(void)
 	}
 	clear_cpu_flag(CIF_FPU);
 }
-EXPORT_SYMBOL(__load_fpu_regs);
 
 void load_fpu_regs(void)
 {

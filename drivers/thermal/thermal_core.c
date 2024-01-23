@@ -211,7 +211,7 @@ exit:
 	mutex_unlock(&tz->lock);
 	mutex_unlock(&thermal_governor_lock);
 
-	thermal_notify_tz_gov_change(tz->id, policy);
+	thermal_notify_tz_gov_change(tz, policy);
 
 	return ret;
 }
@@ -381,9 +381,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * the threshold and the trip temperature will be equal.
 		 */
 		if (tz->temperature >= trip->temperature) {
-			thermal_notify_tz_trip_up(tz->id,
-						  thermal_zone_trip_id(tz, trip),
-						  tz->temperature);
+			thermal_notify_tz_trip_up(tz, trip);
+			thermal_debug_tz_trip_up(tz, trip);
 			trip->threshold = trip->temperature - trip->hysteresis;
 		} else {
 			trip->threshold = trip->temperature;
@@ -400,9 +399,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * the trip.
 		 */
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
-			thermal_notify_tz_trip_down(tz->id,
-						    thermal_zone_trip_id(tz, trip),
-						    tz->temperature);
+			thermal_notify_tz_trip_down(tz, trip);
+			thermal_debug_tz_trip_down(tz, trip);
 			trip->threshold = trip->temperature;
 		} else {
 			trip->threshold = trip->temperature - trip->hysteresis;
@@ -434,6 +432,7 @@ static void update_temperature(struct thermal_zone_device *tz)
 	trace_thermal_temperature(tz);
 
 	thermal_genl_sampling_temp(tz->id, temp);
+	thermal_debug_update_temp(tz);
 }
 
 static void thermal_zone_device_check(struct work_struct *work)
@@ -505,9 +504,9 @@ static int thermal_zone_device_set_mode(struct thermal_zone_device *tz,
 	mutex_unlock(&tz->lock);
 
 	if (mode == THERMAL_DEVICE_ENABLED)
-		thermal_notify_tz_enable(tz->id);
+		thermal_notify_tz_enable(tz);
 	else
-		thermal_notify_tz_disable(tz->id);
+		thermal_notify_tz_disable(tz);
 
 	return ret;
 }
@@ -846,7 +845,7 @@ static void thermal_release(struct device *dev)
 			    sizeof("cooling_device") - 1)) {
 		cdev = to_cooling_device(dev);
 		thermal_cooling_device_destroy_sysfs(cdev);
-		kfree(cdev->type);
+		kfree_const(cdev->type);
 		ida_free(&thermal_cdev_ida, cdev->id);
 		kfree(cdev);
 	}
@@ -918,7 +917,7 @@ __thermal_cooling_device_register(struct device_node *np,
 	cdev->id = ret;
 	id = ret;
 
-	cdev->type = kstrdup(type ? type : "", GFP_KERNEL);
+	cdev->type = kstrdup_const(type ? type : "", GFP_KERNEL);
 	if (!cdev->type) {
 		ret = -ENOMEM;
 		goto out_ida_remove;
@@ -964,12 +963,14 @@ __thermal_cooling_device_register(struct device_node *np,
 
 	mutex_unlock(&thermal_list_lock);
 
+	thermal_debug_cdev_add(cdev);
+
 	return cdev;
 
 out_cooling_dev:
 	thermal_cooling_device_destroy_sysfs(cdev);
 out_cdev_type:
-	kfree(cdev->type);
+	kfree_const(cdev->type);
 out_ida_remove:
 	ida_free(&thermal_cdev_ida, id);
 out_kfree_cdev:
@@ -1169,6 +1170,8 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
 	if (!cdev)
 		return;
+
+	thermal_debug_cdev_remove(cdev);
 
 	mutex_lock(&thermal_list_lock);
 
@@ -1411,7 +1414,9 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	if (atomic_cmpxchg(&tz->need_update, 1, 0))
 		thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
 
-	thermal_notify_tz_create(tz->id, tz->type);
+	thermal_notify_tz_create(tz);
+
+	thermal_debug_tz_add(tz);
 
 	return tz;
 
@@ -1470,14 +1475,13 @@ EXPORT_SYMBOL_GPL(thermal_zone_device);
  */
 void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 {
-	int tz_id;
 	struct thermal_cooling_device *cdev;
 	struct thermal_zone_device *pos = NULL;
 
 	if (!tz)
 		return;
 
-	tz_id = tz->id;
+	thermal_debug_tz_remove(tz);
 
 	mutex_lock(&thermal_list_lock);
 	list_for_each_entry(pos, &thermal_tz_list, node)
@@ -1514,7 +1518,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 
 	put_device(&tz->device);
 
-	thermal_notify_tz_delete(tz_id);
+	thermal_notify_tz_delete(tz);
 
 	wait_for_completion(&tz->removal);
 	kfree(tz);
@@ -1635,6 +1639,8 @@ static struct notifier_block thermal_pm_nb = {
 static int __init thermal_init(void)
 {
 	int result;
+
+	thermal_debug_init();
 
 	result = thermal_netlink_init();
 	if (result)

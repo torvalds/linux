@@ -525,18 +525,21 @@ static int rtd_gpio_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct gpio_irq_chip *irq_chip;
 	struct rtd_gpio *data;
+	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->irqs[0] = platform_get_irq(pdev, 0);
-	if (data->irqs[0] < 0)
-		return data->irqs[0];
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+	data->irqs[0] = ret;
 
-	data->irqs[1] = platform_get_irq(pdev, 1);
-	if (data->irqs[1] < 0)
-		return data->irqs[1];
+	ret = platform_get_irq(pdev, 1);
+	if (ret < 0)
+		return ret;
+	data->irqs[1] = ret;
 
 	data->info = device_get_match_data(dev);
 	if (!data->info)

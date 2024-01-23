@@ -227,8 +227,8 @@ EXPORT_SYMBOL_GPL(ssam_client_bind);
 
 /* -- Glue layer (serdev_device -> ssam_controller). ------------------------ */
 
-static int ssam_receive_buf(struct serdev_device *dev, const unsigned char *buf,
-			    size_t n)
+static ssize_t ssam_receive_buf(struct serdev_device *dev, const u8 *buf,
+				size_t n)
 {
 	struct ssam_controller *ctrl;
 	int ret;

@@ -195,6 +195,7 @@ struct npcm7xx_cooling_device {
 struct npcm7xx_pwm_fan_data {
 	void __iomem *pwm_base;
 	void __iomem *fan_base;
+	int pwm_modules;
 	unsigned long pwm_clk_freq;
 	unsigned long fan_clk_freq;
 	struct clk *pwm_clk;
@@ -710,7 +711,7 @@ static u32 npcm7xx_pwm_init(struct npcm7xx_pwm_fan_data *data)
 	/* Setting PWM Prescale Register value register to both modules */
 	prescale_val |= (prescale_val << NPCM7XX_PWM_PRESCALE_SHIFT_CH01);
 
-	for (m = 0; m < NPCM7XX_PWM_MAX_MODULES  ; m++) {
+	for (m = 0; m < data->pwm_modules; m++) {
 		iowrite32(prescale_val, NPCM7XX_PWM_REG_PR(data->pwm_base, m));
 		iowrite32(NPCM7XX_PWM_PRESCALE2_DEFAULT,
 			  NPCM7XX_PWM_REG_CSR(data->pwm_base, m));
@@ -946,6 +947,8 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 	if (!data->info)
 		return -EINVAL;
 
+	data->pwm_modules = data->info->pwm_max_channel / NPCM7XX_PWM_MAX_CHN_NUM_IN_A_MODULE;
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pwm");
 	if (!res) {
 		dev_err(dev, "pwm resource not found\n");
@@ -983,7 +986,7 @@ static int npcm7xx_pwm_fan_probe(struct platform_device *pdev)
 	output_freq = npcm7xx_pwm_init(data);
 	npcm7xx_fan_init(data);
 
-	for (cnt = 0; cnt < NPCM7XX_PWM_MAX_MODULES  ; cnt++)
+	for (cnt = 0; cnt < data->pwm_modules; cnt++)
 		mutex_init(&data->pwm_lock[cnt]);
 
 	for (i = 0; i < NPCM7XX_FAN_MAX_MODULE; i++) {

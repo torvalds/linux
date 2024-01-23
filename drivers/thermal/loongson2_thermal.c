@@ -8,9 +8,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/minmax.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/thermal.h>
 #include <linux/units.h>
 #include "thermal_hwmon.h"

@@ -84,13 +84,13 @@ static inline void notify_daemon(struct xencons_info *cons)
 	notify_remote_via_evtchn(cons->evtchn);
 }
 
-static int __write_console(struct xencons_info *xencons,
-		const char *data, int len)
+static ssize_t __write_console(struct xencons_info *xencons,
+			       const u8 *data, size_t len)
 {
 	XENCONS_RING_IDX cons, prod;
 	struct xencons_interface *intf = xencons->intf;
-	int sent = 0;
 	unsigned long flags;
+	size_t sent = 0;
 
 	spin_lock_irqsave(&xencons->ring_lock, flags);
 	cons = intf->out_cons;
@@ -115,10 +115,11 @@ static int __write_console(struct xencons_info *xencons,
 	return sent;
 }
 
-static int domU_write_console(uint32_t vtermno, const char *data, int len)
+static ssize_t domU_write_console(uint32_t vtermno, const u8 *data, size_t len)
 {
-	int ret = len;
 	struct xencons_info *cons = vtermno_to_xencons(vtermno);
+	size_t ret = len;
+
 	if (cons == NULL)
 		return -EINVAL;
 
@@ -129,7 +130,7 @@ static int domU_write_console(uint32_t vtermno, const char *data, int len)
 	 * kernel is crippled.
 	 */
 	while (len) {
-		int sent = __write_console(cons, data, len);
+		ssize_t sent = __write_console(cons, data, len);
 
 		if (sent < 0)
 			return sent;
@@ -144,14 +145,14 @@ static int domU_write_console(uint32_t vtermno, const char *data, int len)
 	return ret;
 }
 
-static int domU_read_console(uint32_t vtermno, char *buf, int len)
+static ssize_t domU_read_console(uint32_t vtermno, u8 *buf, size_t len)
 {
 	struct xencons_interface *intf;
 	XENCONS_RING_IDX cons, prod;
-	int recv = 0;
 	struct xencons_info *xencons = vtermno_to_xencons(vtermno);
 	unsigned int eoiflag = 0;
 	unsigned long flags;
+	size_t recv = 0;
 
 	if (xencons == NULL)
 		return -EINVAL;
@@ -209,7 +210,7 @@ static const struct hv_ops domU_hvc_ops = {
 	.notifier_hangup = notifier_hangup_irq,
 };
 
-static int dom0_read_console(uint32_t vtermno, char *buf, int len)
+static ssize_t dom0_read_console(uint32_t vtermno, u8 *buf, size_t len)
 {
 	return HYPERVISOR_console_io(CONSOLEIO_read, len, buf);
 }
@@ -218,9 +219,9 @@ static int dom0_read_console(uint32_t vtermno, char *buf, int len)
  * Either for a dom0 to write to the system console, or a domU with a
  * debug version of Xen
  */
-static int dom0_write_console(uint32_t vtermno, const char *str, int len)
+static ssize_t dom0_write_console(uint32_t vtermno, const u8 *str, size_t len)
 {
-	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (char *)str);
+	int rc = HYPERVISOR_console_io(CONSOLEIO_write, len, (u8 *)str);
 	if (rc < 0)
 		return rc;
 

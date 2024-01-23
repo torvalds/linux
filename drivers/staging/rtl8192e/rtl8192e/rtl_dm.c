@@ -287,9 +287,9 @@ static void _rtl92e_dm_check_rate_adaptive(struct net_device *dev)
 
 	if (priv->rtllib->link_state == MAC80211_LINKED) {
 		bshort_gi_enabled = (ht_info->cur_tx_bw40mhz &&
-				     ht_info->bCurShortGI40MHz) ||
+				     ht_info->cur_short_gi_40mhz) ||
 				    (!ht_info->cur_tx_bw40mhz &&
-				     ht_info->bCurShortGI20MHz);
+				     ht_info->cur_short_gi_20mhz);
 
 		pra->upper_rssi_threshold_ratr =
 				(pra->upper_rssi_threshold_ratr & (~BIT(31))) |
@@ -1142,7 +1142,7 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 				if (priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
 					rtl92e_writel(dev, EDCAPARA_BE,
-						      edca_setting_UL[ht_info->IOTPeer]);
+						      edca_setting_UL[ht_info->iot_peer]);
 					priv->bis_cur_rdlstate = false;
 				}
 			} else {
@@ -1150,10 +1150,10 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 				    !priv->bcurrent_turbo_EDCA) {
 					if (priv->rtllib->mode == WIRELESS_MODE_G)
 						rtl92e_writel(dev, EDCAPARA_BE,
-							      edca_setting_DL_GMode[ht_info->IOTPeer]);
+							      edca_setting_DL_GMode[ht_info->iot_peer]);
 					else
 						rtl92e_writel(dev, EDCAPARA_BE,
-							      edca_setting_DL[ht_info->IOTPeer]);
+							      edca_setting_DL[ht_info->iot_peer]);
 					priv->bis_cur_rdlstate = true;
 				}
 			}
@@ -1164,17 +1164,17 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 				    !priv->bcurrent_turbo_EDCA) {
 					if (priv->rtllib->mode == WIRELESS_MODE_G)
 						rtl92e_writel(dev, EDCAPARA_BE,
-							      edca_setting_DL_GMode[ht_info->IOTPeer]);
+							      edca_setting_DL_GMode[ht_info->iot_peer]);
 					else
 						rtl92e_writel(dev, EDCAPARA_BE,
-							      edca_setting_DL[ht_info->IOTPeer]);
+							      edca_setting_DL[ht_info->iot_peer]);
 					priv->bis_cur_rdlstate = true;
 				}
 			} else {
 				if (priv->bis_cur_rdlstate ||
 				    !priv->bcurrent_turbo_EDCA) {
 					rtl92e_writel(dev, EDCAPARA_BE,
-						      edca_setting_UL[ht_info->IOTPeer]);
+						      edca_setting_UL[ht_info->iot_peer]);
 					priv->bis_cur_rdlstate = false;
 				}
 			}
@@ -1217,7 +1217,7 @@ static void _rtl92e_dm_cts_to_self(struct net_device *dev)
 		ht_info->iot_action &= ~HT_IOT_ACT_FORCED_CTS2SELF;
 		return;
 	}
-	if (ht_info->IOTPeer == HT_IOT_PEER_BROADCOM) {
+	if (ht_info->iot_peer == HT_IOT_PEER_BROADCOM) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;
 		if (curRxOkCnt > 4 * curTxOkCnt)
@@ -1713,7 +1713,7 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 	static u8 reg_c38_State = RegC38_Default;
 
 	if (priv->rtllib->link_state == MAC80211_LINKED &&
-	    priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_BROADCOM) {
+	    priv->rtllib->ht_info->iot_peer == HT_IOT_PEER_BROADCOM) {
 		if (priv->rtllib->bfsync_enable == 0) {
 			switch (priv->rtllib->fsync_state) {
 			case Default_Fsync:
@@ -1819,7 +1819,7 @@ static void _rtl92e_dm_dynamic_tx_power(struct net_device *dev)
 		priv->dynamic_tx_low_pwr = false;
 		return;
 	}
-	if ((priv->rtllib->ht_info->IOTPeer == HT_IOT_PEER_ATHEROS) &&
+	if ((priv->rtllib->ht_info->iot_peer == HT_IOT_PEER_ATHEROS) &&
 	    (priv->rtllib->mode == WIRELESS_MODE_G)) {
 		txhipower_threshold = TX_POWER_ATHEROAP_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_ATHEROAP_THRESH_LOW;

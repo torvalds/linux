@@ -302,7 +302,10 @@ static bool hwp_forced __read_mostly;
 
 static struct cpufreq_driver *intel_pstate_driver __read_mostly;
 
-#define HYBRID_SCALING_FACTOR	78741
+#define HYBRID_SCALING_FACTOR		78741
+#define HYBRID_SCALING_FACTOR_MTL	80000
+
+static int hybrid_scaling_factor = HYBRID_SCALING_FACTOR;
 
 static inline int core_get_scaling(void)
 {
@@ -422,7 +425,7 @@ static int intel_pstate_cppc_get_scaling(int cpu)
 	 */
 	if (!ret && cppc_perf.nominal_perf && cppc_perf.nominal_freq &&
 	    cppc_perf.nominal_perf * 100 != cppc_perf.nominal_freq)
-		return HYBRID_SCALING_FACTOR;
+		return hybrid_scaling_factor;
 
 	return core_get_scaling();
 }
@@ -1968,7 +1971,7 @@ static int hwp_get_cpu_scaling(int cpu)
 	smp_call_function_single(cpu, hybrid_get_type, &cpu_type, 1);
 	/* P-cores have a smaller perf level-to-freqency scaling factor. */
 	if (cpu_type == 0x40)
-		return HYBRID_SCALING_FACTOR;
+		return hybrid_scaling_factor;
 
 	/* Use default core scaling for E-cores */
 	if (cpu_type == 0x20)
@@ -3399,6 +3402,11 @@ static const struct x86_cpu_id intel_epp_balance_perf[] = {
 	{}
 };
 
+static const struct x86_cpu_id intel_hybrid_scaling_factor[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE_L, HYBRID_SCALING_FACTOR_MTL),
+	{}
+};
+
 static int __init intel_pstate_init(void)
 {
 	static struct cpudata **_all_cpu_data;
@@ -3489,9 +3497,16 @@ hwp_cpu_matched:
 
 	if (hwp_active) {
 		const struct x86_cpu_id *id = x86_match_cpu(intel_epp_balance_perf);
+		const struct x86_cpu_id *hybrid_id = x86_match_cpu(intel_hybrid_scaling_factor);
 
 		if (id)
 			epp_values[EPP_INDEX_BALANCE_PERFORMANCE] = id->driver_data;
+
+		if (hybrid_id) {
+			hybrid_scaling_factor = hybrid_id->driver_data;
+			pr_debug("hybrid scaling factor: %d\n", hybrid_scaling_factor);
+		}
+
 	}
 
 	mutex_lock(&intel_pstate_driver_lock);

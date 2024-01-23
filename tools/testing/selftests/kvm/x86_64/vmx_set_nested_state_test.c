@@ -125,21 +125,25 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 
 	/*
 	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
-	 * setting the nested state but flags other than eVMCS must be clear.
-	 * The eVMCS flag can be set if the enlightened VMCS capability has
-	 * been enabled.
+	 * setting the nested state. When the eVMCS flag is not set, the
+	 * expected return value is '0'.
 	 */
 	set_default_vmx_state(state, state_sz);
+	state->flags = 0;
 	state->hdr.vmx.vmxon_pa = -1ull;
 	state->hdr.vmx.vmcs12_pa = -1ull;
-	test_nested_state_expect_einval(vcpu, state);
+	test_nested_state(vcpu, state);
 
-	state->flags &= KVM_STATE_NESTED_EVMCS;
+	/*
+	 * When eVMCS is supported, the eVMCS flag can only be set if the
+	 * enlightened VMCS capability has been enabled.
+	 */
 	if (have_evmcs) {
+		state->flags = KVM_STATE_NESTED_EVMCS;
 		test_nested_state_expect_einval(vcpu, state);
 		vcpu_enable_evmcs(vcpu);
+		test_nested_state(vcpu, state);
 	}
-	test_nested_state(vcpu, state);
 
 	/* It is invalid to have vmxon_pa == -1ull and SMM flags non-zero. */
 	state->hdr.vmx.smm.flags = 1;

@@ -2054,7 +2054,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int s3c24xx_serial_remove(struct platform_device *dev)
+static void s3c24xx_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
@@ -2063,8 +2063,6 @@ static int s3c24xx_serial_remove(struct platform_device *dev)
 	}
 
 	uart_unregister_driver(&s3c24xx_uart_drv);
-
-	return 0;
 }
 
 /* UART power management code */
@@ -2627,7 +2625,7 @@ MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
 
 static struct platform_driver samsung_serial_driver = {
 	.probe		= s3c24xx_serial_probe,
-	.remove		= s3c24xx_serial_remove,
+	.remove_new	= s3c24xx_serial_remove,
 	.id_table	= s3c24xx_serial_driver_ids,
 	.driver		= {
 		.name	= "samsung-uart",

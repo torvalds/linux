@@ -888,7 +888,6 @@ sx9324_get_default_reg(struct device *dev, int idx,
 	char prop[] = SX9324_PROXRAW_DEF;
 	u32 start = 0, raw = 0, pos = 0;
 	int ret, count, ph, pin;
-	const char *res;
 
 	memcpy(reg_def, &sx9324_default_regs[idx], sizeof(*reg_def));
 
@@ -915,24 +914,21 @@ sx9324_get_default_reg(struct device *dev, int idx,
 		reg_def->def = raw;
 		break;
 	case SX9324_REG_AFE_CTRL0:
-		ret = device_property_read_string(dev,
-				"semtech,cs-idle-sleep", &res);
-		if (!ret)
-			ret = match_string(sx9324_csidle, ARRAY_SIZE(sx9324_csidle), res);
+		ret = device_property_match_property_string(dev, "semtech,cs-idle-sleep",
+							    sx9324_csidle,
+							    ARRAY_SIZE(sx9324_csidle));
 		if (ret >= 0) {
 			reg_def->def &= ~SX9324_REG_AFE_CTRL0_CSIDLE_MASK;
 			reg_def->def |= ret << SX9324_REG_AFE_CTRL0_CSIDLE_SHIFT;
 		}
 
-		ret = device_property_read_string(dev,
-				"semtech,int-comp-resistor", &res);
-		if (ret)
-			break;
-		ret = match_string(sx9324_rints, ARRAY_SIZE(sx9324_rints), res);
-		if (ret < 0)
-			break;
-		reg_def->def &= ~SX9324_REG_AFE_CTRL0_RINT_MASK;
-		reg_def->def |= ret << SX9324_REG_AFE_CTRL0_RINT_SHIFT;
+		ret = device_property_match_property_string(dev, "semtech,int-comp-resistor",
+							    sx9324_rints,
+							    ARRAY_SIZE(sx9324_rints));
+		if (ret >= 0) {
+			reg_def->def &= ~SX9324_REG_AFE_CTRL0_RINT_MASK;
+			reg_def->def |= ret << SX9324_REG_AFE_CTRL0_RINT_SHIFT;
+		}
 		break;
 	case SX9324_REG_AFE_CTRL4:
 	case SX9324_REG_AFE_CTRL7:

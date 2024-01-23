@@ -708,7 +708,7 @@ unsigned bch2_bkey_ptrs_need_rebalance(struct bch_fs *, struct bkey_s_c,
 bool bch2_bkey_needs_rebalance(struct bch_fs *, struct bkey_s_c);
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *, struct bkey_i *,
-				  unsigned, unsigned);
+				  struct bch_io_opts *);
 
 /* Generic extent code: */
 

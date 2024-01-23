@@ -15,7 +15,6 @@
 #include <linux/gpio/consumer.h> /* for enum gpiod_flags */
 #include <linux/gpio/driver.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <linux/notifier.h>
 #include <linux/rwsem.h>
 
@@ -137,7 +136,6 @@ int gpiod_set_transitory(struct gpio_desc *desc, bool transitory);
 
 extern spinlock_t gpio_lock;
 extern struct list_head gpio_devices;
-extern struct rw_semaphore gpio_devices_sem;
 
 void gpiod_line_state_notify(struct gpio_desc *desc, unsigned long action);
 

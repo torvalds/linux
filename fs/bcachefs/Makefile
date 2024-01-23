@@ -27,7 +27,6 @@ bcachefs-y		:=	\
 	checksum.o		\
 	clock.o			\
 	compress.o		\
-	counters.o		\
 	darray.o		\
 	debug.o			\
 	dirent.o		\
@@ -71,6 +70,7 @@ bcachefs-y		:=	\
 	reflink.o		\
 	replicas.o		\
 	sb-clean.o		\
+	sb-counters.o		\
 	sb-downgrade.o		\
 	sb-errors.o		\
 	sb-members.o		\

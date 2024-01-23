@@ -146,14 +146,23 @@ unlock:
 }
 EXPORT_SYMBOL_GPL(thermal_zone_get_temp);
 
-static void thermal_cdev_set_cur_state(struct thermal_cooling_device *cdev,
-				       int target)
+static int thermal_cdev_set_cur_state(struct thermal_cooling_device *cdev, int state)
 {
-	if (cdev->ops->set_cur_state(cdev, target))
-		return;
+	int ret;
 
-	thermal_notify_cdev_state_update(cdev->id, target);
-	thermal_cooling_device_stats_update(cdev, target);
+	/*
+	 * No check is needed for the ops->set_cur_state as the
+	 * registering function checked the ops are correctly set
+	 */
+	ret = cdev->ops->set_cur_state(cdev, state);
+	if (ret)
+		return ret;
+
+	thermal_notify_cdev_state_update(cdev, state);
+	thermal_cooling_device_stats_update(cdev, state);
+	thermal_debug_cdev_state_update(cdev, state);
+
+	return 0;
 }
 
 void __thermal_cdev_update(struct thermal_cooling_device *cdev)

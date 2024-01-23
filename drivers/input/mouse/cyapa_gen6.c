@@ -629,14 +629,14 @@ static ssize_t cyapa_gen6_show_baseline(struct device *dev,
 	if (error)
 		goto resume_scanning;
 
-	size = scnprintf(buf, PAGE_SIZE, "%d %d %d %d %d %d ",
-			data[0],  /* RX Attenuator Mutual */
-			data[1],  /* IDAC Mutual */
-			data[2],  /* RX Attenuator Self RX */
-			data[3],  /* IDAC Self RX */
-			data[4],  /* RX Attenuator Self TX */
-			data[5]	  /* IDAC Self TX */
-			);
+	size = sysfs_emit(buf, "%d %d %d %d %d %d ",
+			  data[0],  /* RX Attenuator Mutual */
+			  data[1],  /* IDAC Mutual */
+			  data[2],  /* RX Attenuator Self RX */
+			  data[3],  /* IDAC Self RX */
+			  data[4],  /* RX Attenuator Self TX */
+			  data[5]   /* IDAC Self TX */
+			 );
 
 	/* 3. Read Attenuator Trim. */
 	data_len = sizeof(data);
@@ -648,8 +648,8 @@ static ssize_t cyapa_gen6_show_baseline(struct device *dev,
 
 	/* set attenuator trim values. */
 	for (i = 0; i < data_len; i++)
-		size += scnprintf(buf + size, PAGE_SIZE - size,	"%d ", data[i]);
-	size += scnprintf(buf + size, PAGE_SIZE - size, "\n");
+		size += sysfs_emit_at(buf, size, "%d ", data[i]);
+	size += sysfs_emit_at(buf, size, "\n");
 
 resume_scanning:
 	/* 4. Resume Scanning*/

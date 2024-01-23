@@ -20,19 +20,16 @@ config KVM
 	def_tristate y
 	prompt "Kernel-based Virtual Machine (KVM) support"
 	depends on HAVE_KVM
-	select PREEMPT_NOTIFIERS
 	select HAVE_KVM_CPU_RELAX_INTERCEPT
 	select HAVE_KVM_VCPU_ASYNC_IOCTL
-	select HAVE_KVM_EVENTFD
 	select KVM_ASYNC_PF
 	select KVM_ASYNC_PF_SYNC
+	select KVM_COMMON
 	select HAVE_KVM_IRQCHIP
-	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_INVALID_WAKEUPS
 	select HAVE_KVM_NO_POLL
 	select KVM_VFIO
-	select INTERVAL_TREE
 	select MMU_NOTIFIER
 	help
 	  Support hosting paravirtualized guest machines using the SIE

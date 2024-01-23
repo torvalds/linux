@@ -202,7 +202,7 @@ static ssize_t hycon_hy46xx_setting_show(struct device *dev,
 		*field = val;
 	}
 
-	count = scnprintf(buf, PAGE_SIZE, "%d\n", val);
+	count = sysfs_emit(buf, "%d\n", val);
 
 out:
 	mutex_unlock(&tsdata->mutex);

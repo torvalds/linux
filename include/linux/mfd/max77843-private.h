@@ -198,7 +198,7 @@ enum max77843_irq_muic {
 #define MAX77843_MCONFIG_MEN_MASK		BIT(MCONFIG_MEN_SHIFT)
 #define MAX77843_MCONFIG_PDIV_MASK		(0x3 << MCONFIG_PDIV_SHIFT)
 
-/* Max77843 charger insterrupts */
+/* Max77843 charger interrupts */
 #define MAX77843_CHG_BYP_I			BIT(0)
 #define MAX77843_CHG_BATP_I			BIT(2)
 #define MAX77843_CHG_BAT_I			BIT(3)

@@ -13,7 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/input/as5011.h>
 #include <linux/slab.h>
@@ -61,7 +61,7 @@ MODULE_LICENSE("GPL");
 struct as5011_device {
 	struct input_dev *input_dev;
 	struct i2c_client *i2c_client;
-	unsigned int button_gpio;
+	struct gpio_desc *button_gpiod;
 	unsigned int button_irq;
 	unsigned int axis_irq;
 };
@@ -114,7 +114,7 @@ static int as5011_i2c_read(struct i2c_client *client,
 static irqreturn_t as5011_button_interrupt(int irq, void *dev_id)
 {
 	struct as5011_device *as5011 = dev_id;
-	int val = gpio_get_value_cansleep(as5011->button_gpio);
+	int val = gpiod_get_value_cansleep(as5011->button_gpiod);
 
 	input_report_key(as5011->input_dev, BTN_JOYSTICK, !val);
 	input_sync(as5011->input_dev);
@@ -248,7 +248,6 @@ static int as5011_probe(struct i2c_client *client)
 
 	as5011->i2c_client = client;
 	as5011->input_dev = input_dev;
-	as5011->button_gpio = plat_data->button_gpio;
 	as5011->axis_irq = plat_data->axis_irq;
 
 	input_dev->name = "Austria Microsystem as5011 joystick";
@@ -262,18 +261,20 @@ static int as5011_probe(struct i2c_client *client)
 	input_set_abs_params(as5011->input_dev, ABS_Y,
 		AS5011_MIN_AXIS, AS5011_MAX_AXIS, AS5011_FUZZ, AS5011_FLAT);
 
-	error = gpio_request(as5011->button_gpio, "AS5011 button");
-	if (error < 0) {
-		dev_err(&client->dev, "Failed to request button gpio\n");
+	as5011->button_gpiod = devm_gpiod_get(&client->dev, NULL, GPIOD_IN);
+	if (IS_ERR(as5011->button_gpiod)) {
+		error = PTR_ERR(as5011->button_gpiod);
+		dev_err(&client->dev, "Failed to request button GPIO\n");
 		goto err_free_mem;
 	}
+	gpiod_set_consumer_name(as5011->button_gpiod, "AS5011 button");
 
-	irq = gpio_to_irq(as5011->button_gpio);
+	irq = gpiod_to_irq(as5011->button_gpiod);
 	if (irq < 0) {
 		dev_err(&client->dev,
 			"Failed to get irq number for button gpio\n");
 		error = irq;
-		goto err_free_button_gpio;
+		goto err_free_mem;
 	}
 
 	as5011->button_irq = irq;
@@ -286,7 +287,7 @@ static int as5011_probe(struct i2c_client *client)
 	if (error < 0) {
 		dev_err(&client->dev,
 			"Can't allocate button irq %d\n", as5011->button_irq);
-		goto err_free_button_gpio;
+		goto err_free_mem;
 	}
 
 	error = as5011_configure_chip(as5011, plat_data);
@@ -317,8 +318,6 @@ err_free_axis_irq:
 	free_irq(as5011->axis_irq, as5011);
 err_free_button_irq:
 	free_irq(as5011->button_irq, as5011);
-err_free_button_gpio:
-	gpio_free(as5011->button_gpio);
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(as5011);
@@ -332,7 +331,6 @@ static void as5011_remove(struct i2c_client *client)
 
 	free_irq(as5011->axis_irq, as5011);
 	free_irq(as5011->button_irq, as5011);
-	gpio_free(as5011->button_gpio);
 
 	input_unregister_device(as5011->input_dev);
 	kfree(as5011);

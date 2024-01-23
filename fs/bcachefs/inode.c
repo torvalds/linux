@@ -506,22 +506,33 @@ fsck_err:
 static void __bch2_inode_unpacked_to_text(struct printbuf *out,
 					  struct bch_inode_unpacked *inode)
 {
-	prt_printf(out, "mode=%o ", inode->bi_mode);
+	printbuf_indent_add(out, 2);
+	prt_printf(out, "mode=%o", inode->bi_mode);
+	prt_newline(out);
 
 	prt_str(out, "flags=");
 	prt_bitflags(out, bch2_inode_flag_strs, inode->bi_flags & ((1U << 20) - 1));
 	prt_printf(out, " (%x)", inode->bi_flags);
+	prt_newline(out);
 
-	prt_printf(out, " journal_seq=%llu bi_size=%llu bi_sectors=%llu bi_version=%llu",
-	       inode->bi_journal_seq,
-	       inode->bi_size,
-	       inode->bi_sectors,
-	       inode->bi_version);
+	prt_printf(out, "journal_seq=%llu", inode->bi_journal_seq);
+	prt_newline(out);
+
+	prt_printf(out, "bi_size=%llu", inode->bi_size);
+	prt_newline(out);
+
+	prt_printf(out, "bi_sectors=%llu", inode->bi_sectors);
+	prt_newline(out);
+
+	prt_newline(out);
+	prt_printf(out, "bi_version=%llu", inode->bi_version);
 
 #define x(_name, _bits)						\
-	prt_printf(out, " "#_name "=%llu", (u64) inode->_name);
+	prt_printf(out, #_name "=%llu", (u64) inode->_name);	\
+	prt_newline(out);
 	BCH_INODE_FIELDS_v3()
 #undef  x
+	printbuf_indent_sub(out, 2);
 }
 
 void bch2_inode_unpacked_to_text(struct printbuf *out, struct bch_inode_unpacked *inode)
@@ -587,7 +598,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		}
 	}
 
-	if (!(flags & BTREE_TRIGGER_TRANSACTIONAL) && (flags & BTREE_TRIGGER_INSERT)) {
+	if ((flags & BTREE_TRIGGER_ATOMIC) && (flags & BTREE_TRIGGER_INSERT)) {
 		BUG_ON(!trans->journal_res.seq);
 
 		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);
@@ -597,7 +608,7 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		struct bch_fs *c = trans->c;
 
 		percpu_down_read(&c->mark_lock);
-		this_cpu_add(c->usage_gc->nr_inodes, nr);
+		this_cpu_add(c->usage_gc->b.nr_inodes, nr);
 		percpu_up_read(&c->mark_lock);
 	}
 
