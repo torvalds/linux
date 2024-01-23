@@ -82,6 +82,7 @@ static void library_status(void)
 	STATUS(HAVE_LIBPFM, libpfm4);
 	STATUS(HAVE_LIBTRACEEVENT, libtraceevent);
 	STATUS(HAVE_BPF_SKEL, bpf_skeletons);
+	STATUS(HAVE_DWARF_UNWIND_SUPPORT, dwarf-unwind-support);
 }
 
 int cmd_version(int argc, const char **argv)
