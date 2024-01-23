@@ -18,7 +18,7 @@ struct perf_mem_event {
 	u32		aux_event;
 	const char	*tag;
 	const char	*name;
-	const char	*sysfs_name;
+	const char	*event_name;
 };
 
 struct mem_info {

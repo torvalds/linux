@@ -17,12 +17,12 @@
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
-#define E(t, n, s, l, a) { .tag = t, .name = n, .sysfs_name = s, .ldlat = l, .aux_event = a }
+#define E(t, n, s, l, a) { .tag = t, .name = n, .event_name = s, .ldlat = l, .aux_event = a }
 
 struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
-	E("ldlat-loads",	"%s/mem-loads,ldlat=%u/P",	"cpu/events/mem-loads",		true,	0),
-	E("ldlat-stores",	"%s/mem-stores/P",		"cpu/events/mem-stores",	false,	0),
-	E(NULL,			NULL,				NULL,				false,	0),
+	E("ldlat-loads",	"%s/mem-loads,ldlat=%u/P",	"mem-loads",	true,	0),
+	E("ldlat-stores",	"%s/mem-stores/P",		"mem-stores",	false,	0),
+	E(NULL,			NULL,				NULL,		false,	0),
 };
 #undef E
 
@@ -151,15 +151,17 @@ int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str)
 	return -1;
 }
 
-static bool perf_mem_event__supported(const char *mnt, struct perf_pmu *pmu,
+static bool perf_pmu__mem_events_supported(const char *mnt, struct perf_pmu *pmu,
 				      struct perf_mem_event *e)
 {
-	char sysfs_name[100];
 	char path[PATH_MAX];
 	struct stat st;
 
-	scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name, pmu->name);
-	scnprintf(path, PATH_MAX, "%s/devices/%s", mnt, sysfs_name);
+	if (!e->event_name)
+		return true;
+
+	scnprintf(path, PATH_MAX, "%s/devices/%s/events/%s", mnt, pmu->name, e->event_name);
+
 	return !stat(path, &st);
 }
 
@@ -182,7 +184,7 @@ int perf_pmu__mem_events_init(struct perf_pmu *pmu)
 		if (!e->tag)
 			continue;
 
-		e->supported |= perf_mem_event__supported(mnt, pmu, e);
+		e->supported |= perf_pmu__mem_events_supported(mnt, pmu, e);
 		if (e->supported)
 			found = true;
 	}
@@ -234,7 +236,7 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 			} else {
 				const char *s = perf_pmu__mem_events_name(j, pmu);
 
-				if (!perf_mem_event__supported(mnt, pmu, e))
+				if (!perf_pmu__mem_events_supported(mnt, pmu, e))
 					continue;
 
 				rec_argv[i++] = "-e";
