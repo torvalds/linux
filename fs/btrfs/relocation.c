@@ -2859,7 +2859,7 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 		struct address_space *mapping = inode->vfs_inode.i_mapping;
 		struct btrfs_fs_info *fs_info = inode->root->fs_info;
 		const u32 sectorsize = fs_info->sectorsize;
-		struct page *page;
+		struct folio *folio;
 
 		ASSERT(sectorsize < PAGE_SIZE);
 		ASSERT(IS_ALIGNED(i_size, sectorsize));
@@ -2890,16 +2890,16 @@ static noinline_for_stack int prealloc_file_extent_cluster(
 		clear_extent_bits(&inode->io_tree, i_size,
 				  round_up(i_size, PAGE_SIZE) - 1,
 				  EXTENT_UPTODATE);
-		page = find_lock_page(mapping, i_size >> PAGE_SHIFT);
+		folio = filemap_lock_folio(mapping, i_size >> PAGE_SHIFT);
 		/*
 		 * If page is freed we don't need to do anything then, as we
 		 * will re-read the whole page anyway.
 		 */
-		if (page) {
-			btrfs_subpage_clear_uptodate(fs_info, page_folio(page), i_size,
+		if (!IS_ERR(folio)) {
+			btrfs_subpage_clear_uptodate(fs_info, folio, i_size,
 					round_up(i_size, PAGE_SIZE) - i_size);
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 	}
 
