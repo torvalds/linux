@@ -113,6 +113,7 @@ def define_autogvm():
     _autogvm_consolidate_in_tree_modules = _autogvm_in_tree_modules + [
         # keep sorted
         "drivers/misc/lkdtm/lkdtm.ko",
+        "drivers/usb/misc/lvstest.ko",
     ]
 
     for variant in la_variants:
