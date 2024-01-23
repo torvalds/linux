@@ -81,7 +81,14 @@ int btrfs_find_root(struct btrfs_root *root, const struct btrfs_key *search_key,
 		if (ret > 0)
 			goto out;
 	} else {
-		BUG_ON(ret == 0);		/* Logical error */
+		/*
+		 * Key with offset -1 found, there would have to exist a root
+		 * with such id, but this is out of the valid range.
+		 */
+		if (ret == 0) {
+			ret = -EUCLEAN;
+			goto out;
+		}
 		if (path->slots[0] == 0)
 			goto out;
 		path->slots[0]--;
