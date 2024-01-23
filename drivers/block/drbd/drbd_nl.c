@@ -1635,45 +1635,45 @@ success:
 	return 0;
 }
 
-static struct bdev_handle *open_backing_dev(struct drbd_device *device,
+static struct file *open_backing_dev(struct drbd_device *device,
 		const char *bdev_path, void *claim_ptr, bool do_bd_link)
 {
-	struct bdev_handle *handle;
+	struct file *file;
 	int err = 0;
 
-	handle = bdev_open_by_path(bdev_path, BLK_OPEN_READ | BLK_OPEN_WRITE,
-				   claim_ptr, NULL);
-	if (IS_ERR(handle)) {
+	file = bdev_file_open_by_path(bdev_path, BLK_OPEN_READ | BLK_OPEN_WRITE,
+				      claim_ptr, NULL);
+	if (IS_ERR(file)) {
 		drbd_err(device, "open(\"%s\") failed with %ld\n",
-				bdev_path, PTR_ERR(handle));
-		return handle;
+				bdev_path, PTR_ERR(file));
+		return file;
 	}
 
 	if (!do_bd_link)
-		return handle;
+		return file;
 
-	err = bd_link_disk_holder(handle->bdev, device->vdisk);
+	err = bd_link_disk_holder(file_bdev(file), device->vdisk);
 	if (err) {
-		bdev_release(handle);
+		fput(file);
 		drbd_err(device, "bd_link_disk_holder(\"%s\", ...) failed with %d\n",
 				bdev_path, err);
-		handle = ERR_PTR(err);
+		file = ERR_PTR(err);
 	}
-	return handle;
+	return file;
 }
 
 static int open_backing_devices(struct drbd_device *device,
 		struct disk_conf *new_disk_conf,
 		struct drbd_backing_dev *nbc)
 {
-	struct bdev_handle *handle;
+	struct file *file;
 
-	handle = open_backing_dev(device, new_disk_conf->backing_dev, device,
+	file = open_backing_dev(device, new_disk_conf->backing_dev, device,
 				  true);
-	if (IS_ERR(handle))
+	if (IS_ERR(file))
 		return ERR_OPEN_DISK;
-	nbc->backing_bdev = handle->bdev;
-	nbc->backing_bdev_handle = handle;
+	nbc->backing_bdev = file_bdev(file);
+	nbc->backing_bdev_file = file;
 
 	/*
 	 * meta_dev_idx >= 0: external fixed size, possibly multiple
@@ -1683,7 +1683,7 @@ static int open_backing_devices(struct drbd_device *device,
 	 * should check it for you already; but if you don't, or
 	 * someone fooled it, we need to double check here)
 	 */
-	handle = open_backing_dev(device, new_disk_conf->meta_dev,
+	file = open_backing_dev(device, new_disk_conf->meta_dev,
 		/* claim ptr: device, if claimed exclusively; shared drbd_m_holder,
 		 * if potentially shared with other drbd minors */
 			(new_disk_conf->meta_dev_idx < 0) ? (void*)device : (void*)drbd_m_holder,
@@ -1691,21 +1691,21 @@ static int open_backing_devices(struct drbd_device *device,
 		 * as would happen with internal metadata. */
 			(new_disk_conf->meta_dev_idx != DRBD_MD_INDEX_FLEX_INT &&
 			 new_disk_conf->meta_dev_idx != DRBD_MD_INDEX_INTERNAL));
-	if (IS_ERR(handle))
+	if (IS_ERR(file))
 		return ERR_OPEN_MD_DISK;
-	nbc->md_bdev = handle->bdev;
-	nbc->md_bdev_handle = handle;
+	nbc->md_bdev = file_bdev(file);
+	nbc->f_md_bdev = file;
 	return NO_ERROR;
 }
 
 static void close_backing_dev(struct drbd_device *device,
-		struct bdev_handle *handle, bool do_bd_unlink)
+		struct file *bdev_file, bool do_bd_unlink)
 {
-	if (!handle)
+	if (!bdev_file)
 		return;
 	if (do_bd_unlink)
-		bd_unlink_disk_holder(handle->bdev, device->vdisk);
-	bdev_release(handle);
+		bd_unlink_disk_holder(file_bdev(bdev_file), device->vdisk);
+	fput(bdev_file);
 }
 
 void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *ldev)
@@ -1713,9 +1713,9 @@ void drbd_backing_dev_free(struct drbd_device *device, struct drbd_backing_dev *
 	if (ldev == NULL)
 		return;
 
-	close_backing_dev(device, ldev->md_bdev_handle,
+	close_backing_dev(device, ldev->f_md_bdev,
 			  ldev->md_bdev != ldev->backing_bdev);
-	close_backing_dev(device, ldev->backing_bdev_handle, true);
+	close_backing_dev(device, ldev->backing_bdev_file, true);
 
 	kfree(ldev->disk_conf);
 	kfree(ldev);
@@ -2131,9 +2131,9 @@ int drbd_adm_attach(struct sk_buff *skb, struct genl_info *info)
  fail:
 	conn_reconfig_done(connection);
 	if (nbc) {
-		close_backing_dev(device, nbc->md_bdev_handle,
+		close_backing_dev(device, nbc->f_md_bdev,
 			  nbc->md_bdev != nbc->backing_bdev);
-		close_backing_dev(device, nbc->backing_bdev_handle, true);
+		close_backing_dev(device, nbc->backing_bdev_file, true);
 		kfree(nbc);
 	}
 	kfree(new_disk_conf);
