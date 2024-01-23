@@ -117,20 +117,36 @@ properties:
           - const: xlnx,zynqmp
 
       - description: Xilinx Kria SOMs
+        minItems: 3
         items:
-          - const: xlnx,zynqmp-sm-k26-rev1
-          - const: xlnx,zynqmp-sm-k26-revB
-          - const: xlnx,zynqmp-sm-k26-revA
-          - const: xlnx,zynqmp-sm-k26
-          - const: xlnx,zynqmp
+          enum:
+            - xlnx,zynqmp-sm-k26-rev2
+            - xlnx,zynqmp-sm-k26-rev1
+            - xlnx,zynqmp-sm-k26-revB
+            - xlnx,zynqmp-sm-k26-revA
+            - xlnx,zynqmp-sm-k26
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp
+          - contains:
+              const: xlnx,zynqmp-sm-k26
 
       - description: Xilinx Kria SOMs (starter)
+        minItems: 3
         items:
-          - const: xlnx,zynqmp-smk-k26-rev1
-          - const: xlnx,zynqmp-smk-k26-revB
-          - const: xlnx,zynqmp-smk-k26-revA
-          - const: xlnx,zynqmp-smk-k26
-          - const: xlnx,zynqmp
+          enum:
+            - xlnx,zynqmp-smk-k26-rev2
+            - xlnx,zynqmp-smk-k26-rev1
+            - xlnx,zynqmp-smk-k26-revB
+            - xlnx,zynqmp-smk-k26-revA
+            - xlnx,zynqmp-smk-k26
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp
+          - contains:
+              const: xlnx,zynqmp-smk-k26
 
       - description: AMD MicroBlaze V (QEMU)
         items:
