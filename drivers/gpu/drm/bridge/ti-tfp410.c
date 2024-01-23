@@ -61,6 +61,8 @@ static int tfp410_get_modes(struct drm_connector *connector)
 		drm_edid = NULL;
 	}
 
+	drm_edid_connector_update(connector, drm_edid);
+
 	if (!drm_edid) {
 		/*
 		 * No EDID, fallback on the XGA standard modes and prefer a mode
@@ -70,8 +72,6 @@ static int tfp410_get_modes(struct drm_connector *connector)
 		drm_set_preferred_mode(connector, 1024, 768);
 		return ret;
 	}
-
-	drm_edid_connector_update(connector, drm_edid);
 
 	ret = drm_edid_connector_add_modes(connector);
 
