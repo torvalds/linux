@@ -8,6 +8,8 @@
 #include <linux/of_irq.h>
 #include <linux/io.h>
 
+#include "socrates_fpga_pic.h"
+
 /*
  * The FPGA supports 9 interrupt sources, which can be routed to 3
  * interrupt request lines of the MPIC. The line to be used can be

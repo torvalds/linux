@@ -370,7 +370,7 @@ exit:
  *
  * @pixclock: the wavelength, in picoseconds, of the clock
  */
-void p1022ds_set_pixel_clock(unsigned int pixclock)
+static void p1022ds_set_pixel_clock(unsigned int pixclock)
 {
 	struct device_node *guts_np = NULL;
 	struct ccsr_guts __iomem *guts;
@@ -418,7 +418,7 @@ void p1022ds_set_pixel_clock(unsigned int pixclock)
 /**
  * p1022ds_valid_monitor_port: set the monitor port for sysfs
  */
-enum fsl_diu_monitor_port
+static enum fsl_diu_monitor_port
 p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 {
 	switch (port) {
@@ -432,7 +432,7 @@ p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 
 #endif
 
-void __init p1022_ds_pic_init(void)
+static void __init p1022_ds_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN |
 		MPIC_SINGLE_DEST_CPU,
