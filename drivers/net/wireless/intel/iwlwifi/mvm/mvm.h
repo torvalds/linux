@@ -848,6 +848,9 @@ struct iwl_mvm {
 	spinlock_t async_handlers_lock;
 	struct work_struct async_handlers_wk;
 
+	/* For async rx handlers that require the wiphy lock */
+	struct wiphy_work async_handlers_wiphy_wk;
+
 	struct work_struct roc_done_wk;
 
 	unsigned long init_status;
