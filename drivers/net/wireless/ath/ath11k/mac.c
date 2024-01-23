@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <net/mac80211.h>
@@ -8108,7 +8108,6 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	struct ath11k_base *ab = ar->ab;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	int ret;
-	struct peer_create_params param;
 	struct cur_regulatory_info *reg_info;
 	enum ieee80211_ap_reg_power power_type;
 
@@ -8149,21 +8148,6 @@ ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 	if (WARN_ON(arvif->is_started)) {
 		ret = -EBUSY;
 		goto out;
-	}
-
-	if (ab->hw_params.vdev_start_delay &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_AP &&
-	    arvif->vdev_type != WMI_VDEV_TYPE_MONITOR) {
-		param.vdev_id = arvif->vdev_id;
-		param.peer_type = WMI_PEER_TYPE_DEFAULT;
-		param.peer_addr = ar->mac_addr;
-
-		ret = ath11k_peer_create(ar, arvif, NULL, &param);
-		if (ret) {
-			ath11k_warn(ab, "failed to create peer after vdev start delay: %d",
-				    ret);
-			goto out;
-		}
 	}
 
 	if (arvif->vdev_type == WMI_VDEV_TYPE_MONITOR) {
