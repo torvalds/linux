@@ -17,17 +17,17 @@
 
 unsigned int perf_mem_events__loads_ldlat = 30;
 
-#define E(t, n, s) { .tag = t, .name = n, .sysfs_name = s }
+#define E(t, n, s, l, a) { .tag = t, .name = n, .sysfs_name = s, .ldlat = l, .aux_event = a }
 
 struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX] = {
-	E("ldlat-loads",	"cpu/mem-loads,ldlat=%u/P",	"cpu/events/mem-loads"),
-	E("ldlat-stores",	"cpu/mem-stores/P",		"cpu/events/mem-stores"),
-	E(NULL,			NULL,				NULL),
+	E("ldlat-loads",	"%s/mem-loads,ldlat=%u/P",	"cpu/events/mem-loads",		true,	0),
+	E("ldlat-stores",	"%s/mem-stores/P",		"cpu/events/mem-stores",	false,	0),
+	E(NULL,			NULL,				NULL,				false,	0),
 };
 #undef E
 
 static char mem_loads_name[100];
-static bool mem_loads_name__init;
+static char mem_stores_name[100];
 
 struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i)
 {
@@ -62,23 +62,49 @@ struct perf_pmu *perf_mem_events_find_pmu(void)
 	return perf_pmus__scan_mem(NULL);
 }
 
-const char * __weak perf_mem_events__name(int i, const char *pmu_name  __maybe_unused)
+static const char *perf_pmu__mem_events_name(int i, struct perf_pmu *pmu)
 {
-	struct perf_mem_event *e = &perf_mem_events[i];
+	struct perf_mem_event *e;
 
+	if (i >= PERF_MEM_EVENTS__MAX || !pmu)
+		return NULL;
+
+	e = &pmu->mem_events[i];
 	if (!e)
 		return NULL;
 
-	if (i == PERF_MEM_EVENTS__LOAD) {
-		if (!mem_loads_name__init) {
-			mem_loads_name__init = true;
-			scnprintf(mem_loads_name, sizeof(mem_loads_name),
-				  e->name, perf_mem_events__loads_ldlat);
+	if (i == PERF_MEM_EVENTS__LOAD || i == PERF_MEM_EVENTS__LOAD_STORE) {
+		if (e->ldlat) {
+			if (!e->aux_event) {
+				/* ARM and Most of Intel */
+				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+					  e->name, pmu->name,
+					  perf_mem_events__loads_ldlat);
+			} else {
+				/* Intel with mem-loads-aux event */
+				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+					  e->name, pmu->name, pmu->name,
+					  perf_mem_events__loads_ldlat);
+			}
+		} else {
+			if (!e->aux_event) {
+				/* AMD and POWER */
+				scnprintf(mem_loads_name, sizeof(mem_loads_name),
+					  e->name, pmu->name);
+			} else
+				return NULL;
 		}
+
 		return mem_loads_name;
 	}
 
-	return e->name;
+	if (i == PERF_MEM_EVENTS__STORE) {
+		scnprintf(mem_stores_name, sizeof(mem_stores_name),
+			  e->name, pmu->name);
+		return mem_stores_name;
+	}
+
+	return NULL;
 }
 
 __weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
@@ -175,7 +201,7 @@ void perf_pmu__mem_events_list(struct perf_pmu *pmu)
 			e->tag ? 13 : 0,
 			e->tag ? : "",
 			e->tag && verbose > 0 ? 25 : 0,
-			e->tag && verbose > 0 ? perf_mem_events__name(j, NULL) : "",
+			e->tag && verbose > 0 ? perf_pmu__mem_events_name(j, pmu) : "",
 			e->supported ? ": available\n" : "");
 	}
 }
@@ -198,15 +224,15 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 
 			if (!e->supported) {
 				pr_err("failed: event '%s' not supported\n",
-					perf_mem_events__name(j, pmu->name));
+					perf_pmu__mem_events_name(j, pmu));
 				return -1;
 			}
 
 			if (perf_pmus__num_mem_pmus() == 1) {
 				rec_argv[i++] = "-e";
-				rec_argv[i++] = perf_mem_events__name(j, NULL);
+				rec_argv[i++] = perf_pmu__mem_events_name(j, pmu);
 			} else {
-				const char *s = perf_mem_events__name(j, pmu->name);
+				const char *s = perf_pmu__mem_events_name(j, pmu);
 
 				if (!perf_mem_event__supported(mnt, pmu, e))
 					continue;

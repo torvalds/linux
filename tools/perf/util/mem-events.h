@@ -14,6 +14,8 @@
 struct perf_mem_event {
 	bool		record;
 	bool		supported;
+	bool		ldlat;
+	u32		aux_event;
 	const char	*tag;
 	const char	*name;
 	const char	*sysfs_name;
@@ -39,7 +41,6 @@ extern struct perf_mem_event perf_mem_events[PERF_MEM_EVENTS__MAX];
 int perf_pmu__mem_events_parse(struct perf_pmu *pmu, const char *str);
 int perf_pmu__mem_events_init(struct perf_pmu *pmu);
 
-const char *perf_mem_events__name(int i, const char *pmu_name);
 struct perf_mem_event *perf_pmu__mem_events_ptr(struct perf_pmu *pmu, int i);
 struct perf_pmu *perf_mem_events_find_pmu(void);
 bool is_mem_loads_aux_event(struct evsel *leader);

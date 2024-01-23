@@ -3,28 +3,10 @@
 #include "util/mem-events.h"
 #include "mem-events.h"
 
-#define E(t, n, s) { .tag = t, .name = n, .sysfs_name = s }
+#define E(t, n, s, l, a) { .tag = t, .name = n, .sysfs_name = s, .ldlat = l, .aux_event = a }
 
 struct perf_mem_event perf_mem_events_arm[PERF_MEM_EVENTS__MAX] = {
-	E("spe-load",	"arm_spe_0/ts_enable=1,pa_enable=1,load_filter=1,store_filter=0,min_latency=%u/",	"arm_spe_0"),
-	E("spe-store",	"arm_spe_0/ts_enable=1,pa_enable=1,load_filter=0,store_filter=1/",			"arm_spe_0"),
-	E("spe-ldst",	"arm_spe_0/ts_enable=1,pa_enable=1,load_filter=1,store_filter=1,min_latency=%u/",	"arm_spe_0"),
+	E("spe-load",	"%s/ts_enable=1,pa_enable=1,load_filter=1,store_filter=0,min_latency=%u/",	"arm_spe_0",	true,	0),
+	E("spe-store",	"%s/ts_enable=1,pa_enable=1,load_filter=0,store_filter=1/",			"arm_spe_0",	false,	0),
+	E("spe-ldst",	"%s/ts_enable=1,pa_enable=1,load_filter=1,store_filter=1,min_latency=%u/",	"arm_spe_0",	true,	0),
 };
-
-static char mem_ev_name[100];
-
-const char *perf_mem_events__name(int i, const char *pmu_name __maybe_unused)
-{
-	struct perf_mem_event *e = &perf_mem_events_arm[i];
-
-	if (i >= PERF_MEM_EVENTS__MAX)
-		return NULL;
-
-	if (i == PERF_MEM_EVENTS__LOAD || i == PERF_MEM_EVENTS__LOAD_STORE)
-		scnprintf(mem_ev_name, sizeof(mem_ev_name),
-			  e->name, perf_mem_events__loads_ldlat);
-	else /* PERF_MEM_EVENTS__STORE */
-		scnprintf(mem_ev_name, sizeof(mem_ev_name), e->name);
-
-	return mem_ev_name;
-}

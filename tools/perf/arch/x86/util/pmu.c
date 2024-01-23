@@ -35,8 +35,12 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 	if (x86__is_amd_cpu()) {
 		if (!strcmp(pmu->name, "ibs_op"))
 			pmu->mem_events = perf_mem_events_amd;
-	} else if (pmu->is_core)
-		pmu->mem_events = perf_mem_events_intel;
+	} else if (pmu->is_core) {
+		if (perf_pmu__have_event(pmu, "mem-loads-aux"))
+			pmu->mem_events = perf_mem_events_intel_aux;
+		else
+			pmu->mem_events = perf_mem_events_intel;
+	}
 }
 
 int perf_pmus__num_mem_pmus(void)
