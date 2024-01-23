@@ -232,29 +232,20 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 
 	psy_cfg.drv_data = data;
 
-	data->ac = power_supply_register(&pdev->dev, &ac_desc, &psy_cfg);
+	data->ac = devm_power_supply_register(&pdev->dev,
+					      &ac_desc,
+					      &psy_cfg);
 	if (IS_ERR(data->ac))
 		return PTR_ERR(data->ac);
 
-	data->battery = power_supply_register(&pdev->dev, &battery_desc,
-						&psy_cfg);
-	if (IS_ERR(data->battery)) {
-		power_supply_unregister(data->ac);
+	data->battery = devm_power_supply_register(&pdev->dev,
+						   &battery_desc,
+						   &psy_cfg);
+	if (IS_ERR(data->battery))
 		return PTR_ERR(data->battery);
-	}
-
-	platform_set_drvdata(pdev, data);
 
 	GOLDFISH_BATTERY_WRITE(data, BATTERY_INT_ENABLE, BATTERY_INT_MASK);
 	return 0;
-}
-
-static void goldfish_battery_remove(struct platform_device *pdev)
-{
-	struct goldfish_battery_data *data = platform_get_drvdata(pdev);
-
-	power_supply_unregister(data->battery);
-	power_supply_unregister(data->ac);
 }
 
 static const struct of_device_id goldfish_battery_of_match[] = {
@@ -273,7 +264,6 @@ MODULE_DEVICE_TABLE(acpi, goldfish_battery_acpi_match);
 
 static struct platform_driver goldfish_battery_device = {
 	.probe		= goldfish_battery_probe,
-	.remove_new	= goldfish_battery_remove,
 	.driver = {
 		.name = "goldfish-battery",
 		.of_match_table = goldfish_battery_of_match,
