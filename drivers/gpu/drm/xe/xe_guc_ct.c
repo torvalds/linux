@@ -1366,7 +1366,7 @@ void xe_guc_ct_snapshot_print(struct xe_guc_ct_snapshot *snapshot,
 		return;
 
 	if (snapshot->ct_enabled) {
-		drm_puts(p, "\nH2G CTB (all sizes in DW):\n");
+		drm_puts(p, "H2G CTB (all sizes in DW):\n");
 		guc_ctb_snapshot_print(&snapshot->h2g, p);
 
 		drm_puts(p, "\nG2H CTB (all sizes in DW):\n");
@@ -1375,7 +1375,7 @@ void xe_guc_ct_snapshot_print(struct xe_guc_ct_snapshot *snapshot,
 		drm_printf(p, "\tg2h outstanding: %d\n",
 			   snapshot->g2h_outstanding);
 	} else {
-		drm_puts(p, "\nCT disabled\n");
+		drm_puts(p, "CT disabled\n");
 	}
 }
 
