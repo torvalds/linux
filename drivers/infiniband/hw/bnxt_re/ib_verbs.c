@@ -401,6 +401,10 @@ static void bnxt_re_create_fence_wqe(struct bnxt_re_pd *pd)
 	struct bnxt_re_fence_data *fence = &pd->fence;
 	struct ib_mr *ib_mr = &fence->mr->ib_mr;
 	struct bnxt_qplib_swqe *wqe = &fence->bind_wqe;
+	struct bnxt_re_dev *rdev = pd->rdev;
+
+	if (bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return;
 
 	memset(wqe, 0, sizeof(*wqe));
 	wqe->type = BNXT_QPLIB_SWQE_TYPE_BIND_MW;
@@ -455,6 +459,9 @@ static void bnxt_re_destroy_fence_mr(struct bnxt_re_pd *pd)
 	struct device *dev = &rdev->en_dev->pdev->dev;
 	struct bnxt_re_mr *mr = fence->mr;
 
+	if (bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return;
+
 	if (fence->mw) {
 		bnxt_re_dealloc_mw(fence->mw);
 		fence->mw = NULL;
@@ -485,6 +492,9 @@ static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
 	dma_addr_t dma_addr = 0;
 	struct ib_mw *mw;
 	int rc;
+
+	if (bnxt_qplib_is_chip_gen_p5_p7(rdev->chip_ctx))
+		return 0;
 
 	dma_addr = dma_map_single(dev, fence->va, BNXT_RE_FENCE_BYTES,
 				  DMA_BIDIRECTIONAL);
