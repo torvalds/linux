@@ -4004,4 +4004,5 @@ static void __exit nvme_fc_exit_module(void)
 module_init(nvme_fc_init_module);
 module_exit(nvme_fc_exit_module);
 
+MODULE_DESCRIPTION("NVMe host FC transport driver");
 MODULE_LICENSE("GPL v2");

@@ -4851,5 +4851,6 @@ static void __exit nvme_core_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
+MODULE_DESCRIPTION("NVMe host core framework");
 module_init(nvme_core_init);
 module_exit(nvme_core_exit);

@@ -1488,6 +1488,7 @@ static void __exit nvmf_exit(void)
 }
 
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("NVMe host fabrics library");
 
 module_init(nvmf_init);
 module_exit(nvmf_exit);
