@@ -59,7 +59,7 @@ int bpf_testcb(struct bpf_sock_ops *skops)
 
 	asm volatile (
 		"%[op] = *(u32 *)(%[skops] +96)"
-		: [op] "+r"(op)
+		: [op] "=r"(op)
 		: [skops] "r"(skops)
 		:);
 
