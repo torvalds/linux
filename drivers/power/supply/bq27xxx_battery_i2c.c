@@ -13,8 +13,7 @@
 
 #include <linux/power/bq27xxx_battery.h>
 
-static DEFINE_IDR(battery_id);
-static DEFINE_MUTEX(battery_mutex);
+static DEFINE_IDA(battery_id);
 
 static irqreturn_t bq27xxx_battery_irq_handler_thread(int irq, void *data)
 {
@@ -145,9 +144,7 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client)
 	int num;
 
 	/* Get new ID for the new battery device */
-	mutex_lock(&battery_mutex);
-	num = idr_alloc(&battery_id, client, 0, 0, GFP_KERNEL);
-	mutex_unlock(&battery_mutex);
+	num = ida_alloc(&battery_id, GFP_KERNEL);
 	if (num < 0)
 		return num;
 
@@ -198,9 +195,7 @@ err_mem:
 	ret = -ENOMEM;
 
 err_failed:
-	mutex_lock(&battery_mutex);
-	idr_remove(&battery_id, num);
-	mutex_unlock(&battery_mutex);
+	ida_free(&battery_id, num);
 
 	return ret;
 }
@@ -212,9 +207,7 @@ static void bq27xxx_battery_i2c_remove(struct i2c_client *client)
 	free_irq(client->irq, di);
 	bq27xxx_battery_teardown(di);
 
-	mutex_lock(&battery_mutex);
-	idr_remove(&battery_id, di->id);
-	mutex_unlock(&battery_mutex);
+	ida_free(&battery_id, di->id);
 }
 
 static const struct i2c_device_id bq27xxx_i2c_id_table[] = {
