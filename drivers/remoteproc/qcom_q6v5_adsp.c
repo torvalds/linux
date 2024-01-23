@@ -683,8 +683,8 @@ static int adsp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
-			    firmware_name, sizeof(*adsp));
+	rproc = devm_rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
+				 firmware_name, sizeof(*adsp));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
@@ -709,17 +709,17 @@ static int adsp_probe(struct platform_device *pdev)
 
 	ret = adsp_alloc_memory_region(adsp);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	ret = adsp_init_clock(adsp, desc->clk_ids);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	ret = qcom_rproc_pds_attach(adsp->dev, adsp,
 				    desc->proxy_pd_names);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to attach proxy power domains\n");
-		goto free_rproc;
+		return ret;
 	}
 	adsp->proxy_pd_count = ret;
 
@@ -755,9 +755,6 @@ static int adsp_probe(struct platform_device *pdev)
 disable_pm:
 	qcom_rproc_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
 
-free_rproc:
-	rproc_free(rproc);
-
 	return ret;
 }
 
@@ -772,7 +769,6 @@ static void adsp_remove(struct platform_device *pdev)
 	qcom_remove_sysmon_subdev(adsp->sysmon);
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
 	qcom_rproc_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
-	rproc_free(adsp->rproc);
 }
 
 static const struct adsp_pil_data adsp_resource_init = {
