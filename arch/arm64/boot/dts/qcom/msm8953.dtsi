@@ -2058,6 +2058,13 @@
 				reg = <0x16000 0x1000>;
 				interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH>;
 			};
+
+			/* IPA */
+			iommu-ctx@18000 {
+				compatible = "qcom,msm-iommu-v1-ns";
+				reg = <0x18000 0x1000>;
+				interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+			};
 		};
 
 		venus@1d00000 {
@@ -2516,6 +2523,24 @@
 			#size-cells = <0>;
 
 			status = "disabled";
+		};
+
+		ipa: ipa@7900000 {
+			compatible = "qcom,ipa-lite-v2.6";
+			reg = <0x7900000 0x47000>;
+			clocks = <&rpmcc RPM_SMD_IPA_CLK>;
+			interrupts = <GIC_SPI 228 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 230 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "ipa", "dma";
+			interconnects = <&snoc MAS_IPA RPM_ACTIVE_TAG
+					 &bimc SLV_EBI RPM_ACTIVE_TAG>,
+					<&snoc MAS_IPA RPM_ACTIVE_TAG
+					 &snoc SLV_IMEM RPM_ACTIVE_TAG>,
+					<&bimc MAS_APPS_PROC RPM_ACTIVE_TAG
+					 &pcnoc SLV_IPA_CFG RPM_ACTIVE_TAG>;
+			interconnect-names = "ipa-mem", "ipa-imem", "cpu-cfg";
+			iommus = <&apps_iommu 0x18>;
+			modem-remoteproc = <&mpss>;
 		};
 
 		i2c_4: i2c@78b8000 {
