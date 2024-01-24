@@ -4280,6 +4280,10 @@ void btrfs_setup_item_for_insert(struct btrfs_trans_handle *trans,
 /*
  * Given a key and some data, insert items into the tree.
  * This does all the path init required, making room in the tree if needed.
+ *
+ * Returns: 0        on success
+ *          -EEXIST  if the first key already exists
+ *          < 0      on other errors
  */
 int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
