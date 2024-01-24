@@ -2239,7 +2239,7 @@ static int btrfs_read_roots(struct btrfs_fs_info *fs_info)
 	struct btrfs_key location;
 	int ret;
 
-	BUG_ON(!fs_info->tree_root);
+	ASSERT(fs_info->tree_root);
 
 	ret = load_global_roots(tree_root);
 	if (ret)
