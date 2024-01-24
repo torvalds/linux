@@ -105,7 +105,8 @@ static void gve_setup_rx_buffer(struct gve_rx_slot_page_info *page_info,
 
 static int gve_rx_alloc_buffer(struct gve_priv *priv, struct device *dev,
 			       struct gve_rx_slot_page_info *page_info,
-			       union gve_rx_data_slot *data_slot)
+			       union gve_rx_data_slot *data_slot,
+			       struct gve_rx_ring *rx)
 {
 	struct page *page;
 	dma_addr_t dma;
@@ -113,8 +114,12 @@ static int gve_rx_alloc_buffer(struct gve_priv *priv, struct device *dev,
 
 	err = gve_alloc_page(priv, dev, &page, &dma, DMA_FROM_DEVICE,
 			     GFP_ATOMIC);
-	if (err)
+	if (err) {
+		u64_stats_update_begin(&rx->statss);
+		rx->rx_buf_alloc_fail++;
+		u64_stats_update_end(&rx->statss);
 		return err;
+	}
 
 	gve_setup_rx_buffer(page_info, dma, page, &data_slot->addr);
 	return 0;
@@ -156,8 +161,9 @@ static int gve_rx_prefill_pages(struct gve_rx_ring *rx,
 					    &rx->data.data_ring[i].qpl_offset);
 			continue;
 		}
-		err = gve_rx_alloc_buffer(priv, &priv->pdev->dev, &rx->data.page_info[i],
-					  &rx->data.data_ring[i]);
+		err = gve_rx_alloc_buffer(priv, &priv->pdev->dev,
+					  &rx->data.page_info[i],
+					  &rx->data.data_ring[i], rx);
 		if (err)
 			goto alloc_err_rda;
 	}
@@ -936,10 +942,7 @@ static bool gve_rx_refill_buffers(struct gve_priv *priv, struct gve_rx_ring *rx)
 				gve_rx_free_buffer(dev, page_info, data_slot);
 				page_info->page = NULL;
 				if (gve_rx_alloc_buffer(priv, dev, page_info,
-							data_slot)) {
-					u64_stats_update_begin(&rx->statss);
-					rx->rx_buf_alloc_fail++;
-					u64_stats_update_end(&rx->statss);
+							data_slot, rx)) {
 					break;
 				}
 			}
