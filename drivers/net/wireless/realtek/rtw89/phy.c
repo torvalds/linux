@@ -796,6 +796,71 @@ u32 rtw89_phy_read_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 }
 EXPORT_SYMBOL(rtw89_phy_read_rf_v1);
 
+static u32 rtw89_phy_read_full_rf_v2_a(struct rtw89_dev *rtwdev,
+				       enum rtw89_rf_path rf_path, u32 addr)
+{
+	static const u16 r_addr_ofst[2] = {0x2C24, 0x2D24};
+	static const u16 addr_ofst[2] = {0x2ADC, 0x2BDC};
+	bool busy, done;
+	int ret;
+	u32 val;
+
+	rtw89_phy_write32_mask(rtwdev, addr_ofst[rf_path], B_HWSI_ADD_CTL_MASK, 0x1);
+	ret = read_poll_timeout_atomic(rtw89_phy_read32_mask, busy, !busy,
+				       1, 3800, false,
+				       rtwdev, r_addr_ofst[rf_path], B_HWSI_VAL_BUSY);
+	if (ret) {
+		rtw89_warn(rtwdev, "poll HWSI is busy\n");
+		return INV_RF_DATA;
+	}
+
+	rtw89_phy_write32_mask(rtwdev, addr_ofst[rf_path], B_HWSI_ADD_MASK, addr);
+	rtw89_phy_write32_mask(rtwdev, addr_ofst[rf_path], B_HWSI_ADD_RD, 0x1);
+	udelay(2);
+
+	ret = read_poll_timeout_atomic(rtw89_phy_read32_mask, done, done,
+				       1, 3800, false,
+				       rtwdev, r_addr_ofst[rf_path], B_HWSI_VAL_RDONE);
+	if (ret) {
+		rtw89_warn(rtwdev, "read HWSI is busy\n");
+		val = INV_RF_DATA;
+		goto out;
+	}
+
+	val = rtw89_phy_read32_mask(rtwdev, r_addr_ofst[rf_path], RFREG_MASK);
+out:
+	rtw89_phy_write32_mask(rtwdev, addr_ofst[rf_path], B_HWSI_ADD_POLL_MASK, 0);
+
+	return val;
+}
+
+static u32 rtw89_phy_read_rf_v2_a(struct rtw89_dev *rtwdev,
+				  enum rtw89_rf_path rf_path, u32 addr, u32 mask)
+{
+	u32 val;
+
+	val = rtw89_phy_read_full_rf_v2_a(rtwdev, rf_path, addr);
+
+	return (val & mask) >> __ffs(mask);
+}
+
+u32 rtw89_phy_read_rf_v2(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			 u32 addr, u32 mask)
+{
+	bool ad_sel = u32_get_bits(addr, RTW89_RF_ADDR_ADSEL_MASK);
+
+	if (rf_path >= rtwdev->chip->rf_path_num) {
+		rtw89_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
+		return INV_RF_DATA;
+	}
+
+	if (ad_sel)
+		return rtw89_phy_read_rf(rtwdev, rf_path, addr, mask);
+	else
+		return rtw89_phy_read_rf_v2_a(rtwdev, rf_path, addr, mask);
+}
+EXPORT_SYMBOL(rtw89_phy_read_rf_v2);
+
 bool rtw89_phy_write_rf(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 			u32 addr, u32 mask, u32 data)
 {
@@ -874,6 +939,66 @@ bool rtw89_phy_write_rf_v1(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
 		return rtw89_phy_write_rf_a(rtwdev, rf_path, addr, mask, data);
 }
 EXPORT_SYMBOL(rtw89_phy_write_rf_v1);
+
+static
+bool rtw89_phy_write_full_rf_v2_a(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+				  u32 addr, u32 data)
+{
+	static const u32 addr_is_idle[2] = {0x2C24, 0x2D24};
+	static const u32 addr_ofst[2] = {0x2AE0, 0x2BE0};
+	bool busy;
+	u32 val;
+	int ret;
+
+	ret = read_poll_timeout_atomic(rtw89_phy_read32_mask, busy, !busy,
+				       1, 3800, false,
+				       rtwdev, addr_is_idle[rf_path], BIT(29));
+	if (ret) {
+		rtw89_warn(rtwdev, "[%s] HWSI is busy\n", __func__);
+		return false;
+	}
+
+	val = u32_encode_bits(addr, B_HWSI_DATA_ADDR) |
+	      u32_encode_bits(data, B_HWSI_DATA_VAL);
+
+	rtw89_phy_write32(rtwdev, addr_ofst[rf_path], val);
+
+	return true;
+}
+
+static
+bool rtw89_phy_write_rf_a_v2(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			     u32 addr, u32 mask, u32 data)
+{
+	u32 val;
+
+	if (mask == RFREG_MASK) {
+		val = data;
+	} else {
+		val = rtw89_phy_read_full_rf_v2_a(rtwdev, rf_path, addr);
+		val &= ~mask;
+		val |= (data << __ffs(mask)) & mask;
+	}
+
+	return rtw89_phy_write_full_rf_v2_a(rtwdev, rf_path, addr, val);
+}
+
+bool rtw89_phy_write_rf_v2(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path,
+			   u32 addr, u32 mask, u32 data)
+{
+	bool ad_sel = u32_get_bits(addr, RTW89_RF_ADDR_ADSEL_MASK);
+
+	if (rf_path >= rtwdev->chip->rf_path_num) {
+		rtw89_err(rtwdev, "unsupported rf path (%d)\n", rf_path);
+		return INV_RF_DATA;
+	}
+
+	if (ad_sel)
+		return rtw89_phy_write_rf(rtwdev, rf_path, addr, mask, data);
+	else
+		return rtw89_phy_write_rf_a_v2(rtwdev, rf_path, addr, mask, data);
+}
+EXPORT_SYMBOL(rtw89_phy_write_rf_v2);
 
 static bool rtw89_chip_rf_v1(struct rtw89_dev *rtwdev)
 {
