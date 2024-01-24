@@ -40,6 +40,8 @@ struct emac_sgmii {
 int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt);
 
 int emac_sgmii_init_fsm9900(struct emac_adapter *adpt);
+int emac_sgmii_init_qdf2432(struct emac_adapter *adpt);
+int emac_sgmii_init_qdf2400(struct emac_adapter *adpt);
 
 int emac_sgmii_init(struct emac_adapter *adpt);
 int emac_sgmii_open(struct emac_adapter *adpt);

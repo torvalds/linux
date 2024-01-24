@@ -7,6 +7,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
+#include <linux/acpi.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
@@ -274,10 +275,75 @@ static struct sgmii_ops fsm9900_ops = {
 	.reset = emac_sgmii_common_reset,
 };
 
+static struct sgmii_ops qdf2432_ops = {
+	.init = emac_sgmii_init_qdf2432,
+	.open = emac_sgmii_common_open,
+	.close = emac_sgmii_common_close,
+	.link_change = emac_sgmii_common_link_change,
+	.reset = emac_sgmii_common_reset,
+};
+
+#ifdef CONFIG_ACPI
+static struct sgmii_ops qdf2400_ops = {
+	.init = emac_sgmii_init_qdf2400,
+	.open = emac_sgmii_common_open,
+	.close = emac_sgmii_common_close,
+	.link_change = emac_sgmii_common_link_change,
+	.reset = emac_sgmii_common_reset,
+};
+#endif
+
+static int emac_sgmii_acpi_match(struct device *dev, void *data)
+{
+#ifdef CONFIG_ACPI
+	static const struct acpi_device_id match_table[] = {
+		{
+			.id = "QCOM8071",
+		},
+		{}
+	};
+	const struct acpi_device_id *id = acpi_match_device(match_table, dev);
+	struct sgmii_ops **ops = data;
+
+	if (id) {
+		acpi_handle handle = ACPI_HANDLE(dev);
+		unsigned long long hrv;
+		acpi_status status;
+
+		status = acpi_evaluate_integer(handle, "_HRV", NULL, &hrv);
+		if (status) {
+			if (status == AE_NOT_FOUND)
+				/* Older versions of the QDF2432 ACPI tables do
+				 * not have an _HRV property.
+				 */
+				hrv = 1;
+			else
+				/* Something is wrong with the tables */
+				return 0;
+		}
+
+		switch (hrv) {
+		case 1:
+			*ops = &qdf2432_ops;
+			return 1;
+		case 2:
+			*ops = &qdf2400_ops;
+			return 1;
+		}
+	}
+#endif
+
+	return 0;
+}
+
 static const struct of_device_id emac_sgmii_dt_match[] = {
 	{
 		.compatible = "qcom,fsm9900-emac-sgmii",
 		.data = &fsm9900_ops,
+	},
+	{
+		.compatible = "qcom,qdf2432-emac-sgmii",
+		.data = &qdf2432_ops,
 	},
 	{}
 };
@@ -289,30 +355,44 @@ int emac_sgmii_config(struct platform_device *pdev, struct emac_adapter *adpt)
 	struct resource *res;
 	int ret;
 
-	const struct of_device_id *match;
-	struct device_node *np;
+	if (has_acpi_companion(&pdev->dev)) {
+		struct device *dev;
 
-	np = of_parse_phandle(pdev->dev.of_node, "internal-phy", 0);
-	if (!np) {
-		dev_err(&pdev->dev, "missing internal-phy property\n");
-		return -ENODEV;
+		dev = device_find_child(&pdev->dev, &phy->sgmii_ops,
+					emac_sgmii_acpi_match);
+
+		if (!dev) {
+			dev_warn(&pdev->dev, "cannot find internal phy node\n");
+			return 0;
+		}
+
+		sgmii_pdev = to_platform_device(dev);
+	} else {
+		const struct of_device_id *match;
+		struct device_node *np;
+
+		np = of_parse_phandle(pdev->dev.of_node, "internal-phy", 0);
+		if (!np) {
+			dev_err(&pdev->dev, "missing internal-phy property\n");
+			return -ENODEV;
+		}
+
+		sgmii_pdev = of_find_device_by_node(np);
+		of_node_put(np);
+		if (!sgmii_pdev) {
+			dev_err(&pdev->dev, "invalid internal-phy property\n");
+			return -ENODEV;
+		}
+
+		match = of_match_device(emac_sgmii_dt_match, &sgmii_pdev->dev);
+		if (!match) {
+			dev_err(&pdev->dev, "unrecognized internal phy node\n");
+			ret = -ENODEV;
+			goto error_put_device;
+		}
+
+		phy->sgmii_ops = (struct sgmii_ops *)match->data;
 	}
-
-	sgmii_pdev = of_find_device_by_node(np);
-	of_node_put(np);
-	if (!sgmii_pdev) {
-		dev_err(&pdev->dev, "invalid internal-phy property\n");
-		return -ENODEV;
-	}
-
-	match = of_match_device(emac_sgmii_dt_match, &sgmii_pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "unrecognized internal phy node\n");
-		ret = -ENODEV;
-		goto error_put_device;
-	}
-
-	phy->sgmii_ops = (struct sgmii_ops *)match->data;
 
 	/* Base address is the first address */
 	res = platform_get_resource(sgmii_pdev, IORESOURCE_MEM, 0);
