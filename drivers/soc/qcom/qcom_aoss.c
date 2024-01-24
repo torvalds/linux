@@ -14,6 +14,9 @@
 #include <linux/slab.h>
 #include <linux/soc/qcom/qcom_aoss.h>
 
+#define CREATE_TRACE_POINTS
+#include "trace-aoss.h"
+
 #define QMP_DESC_MAGIC			0x0
 #define QMP_DESC_VERSION		0x4
 #define QMP_DESC_FEATURES		0x8
@@ -240,6 +243,8 @@ int __printf(2, 3) qmp_send(struct qmp *qmp, const char *fmt, ...)
 
 	mutex_lock(&qmp->tx_lock);
 
+	trace_aoss_send(buf);
+
 	/* The message RAM only implements 32-bit accesses */
 	__iowrite32_copy(qmp->msgram + qmp->offset + sizeof(u32),
 			 buf, sizeof(buf) / sizeof(u32));
@@ -260,6 +265,8 @@ int __printf(2, 3) qmp_send(struct qmp *qmp, const char *fmt, ...)
 	} else {
 		ret = 0;
 	}
+
+	trace_aoss_send_done(buf, ret);
 
 	mutex_unlock(&qmp->tx_lock);
 
