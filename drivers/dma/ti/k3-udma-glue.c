@@ -1073,12 +1073,59 @@ err:
 	return ERR_PTR(ret);
 }
 
+static int
+k3_udma_glue_request_remote_rx_chn_common(struct k3_udma_glue_rx_channel *rx_chn,
+					  struct k3_udma_glue_rx_channel_cfg *cfg,
+					  struct device *dev)
+{
+	int ret, i;
+
+	rx_chn->common.hdesc_size = cppi5_hdesc_calc_size(rx_chn->common.epib,
+						rx_chn->common.psdata_size,
+						rx_chn->common.swdata_size);
+
+	rx_chn->flows = devm_kcalloc(dev, rx_chn->flow_num,
+				     sizeof(*rx_chn->flows), GFP_KERNEL);
+	if (!rx_chn->flows)
+		return -ENOMEM;
+
+	rx_chn->common.chan_dev.class = &k3_udma_glue_devclass;
+	rx_chn->common.chan_dev.parent = xudma_get_device(rx_chn->common.udmax);
+	dev_set_name(&rx_chn->common.chan_dev, "rchan_remote-0x%04x-0x%02x",
+		     rx_chn->common.src_thread, rx_chn->flow_id_base);
+	ret = device_register(&rx_chn->common.chan_dev);
+	if (ret) {
+		dev_err(dev, "Channel Device registration failed %d\n", ret);
+		put_device(&rx_chn->common.chan_dev);
+		rx_chn->common.chan_dev.parent = NULL;
+		return ret;
+	}
+
+	if (xudma_is_pktdma(rx_chn->common.udmax)) {
+		/* prepare the channel device as coherent */
+		rx_chn->common.chan_dev.dma_coherent = true;
+		dma_coerce_mask_and_coherent(&rx_chn->common.chan_dev,
+					     DMA_BIT_MASK(48));
+	}
+
+	ret = k3_udma_glue_allocate_rx_flows(rx_chn, cfg);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < rx_chn->flow_num; i++)
+		rx_chn->flows[i].udma_rflow_id = rx_chn->flow_id_base + i;
+
+	k3_udma_glue_dump_rx_chn(rx_chn);
+
+	return 0;
+}
+
 static struct k3_udma_glue_rx_channel *
 k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 				   struct k3_udma_glue_rx_channel_cfg *cfg)
 {
 	struct k3_udma_glue_rx_channel *rx_chn;
-	int ret, i;
+	int ret;
 
 	if (cfg->flow_id_num <= 0 ||
 	    cfg->flow_id_use_rxchan_id ||
@@ -1109,44 +1156,9 @@ k3_udma_glue_request_remote_rx_chn(struct device *dev, const char *name,
 	if (ret)
 		goto err;
 
-	rx_chn->common.hdesc_size = cppi5_hdesc_calc_size(rx_chn->common.epib,
-						rx_chn->common.psdata_size,
-						rx_chn->common.swdata_size);
-
-	rx_chn->flows = devm_kcalloc(dev, rx_chn->flow_num,
-				     sizeof(*rx_chn->flows), GFP_KERNEL);
-	if (!rx_chn->flows) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	rx_chn->common.chan_dev.class = &k3_udma_glue_devclass;
-	rx_chn->common.chan_dev.parent = xudma_get_device(rx_chn->common.udmax);
-	dev_set_name(&rx_chn->common.chan_dev, "rchan_remote-0x%04x-0x%02x",
-		     rx_chn->common.src_thread, rx_chn->flow_id_base);
-	ret = device_register(&rx_chn->common.chan_dev);
-	if (ret) {
-		dev_err(dev, "Channel Device registration failed %d\n", ret);
-		put_device(&rx_chn->common.chan_dev);
-		rx_chn->common.chan_dev.parent = NULL;
-		goto err;
-	}
-
-	if (xudma_is_pktdma(rx_chn->common.udmax)) {
-		/* prepare the channel device as coherent */
-		rx_chn->common.chan_dev.dma_coherent = true;
-		dma_coerce_mask_and_coherent(&rx_chn->common.chan_dev,
-					     DMA_BIT_MASK(48));
-	}
-
-	ret = k3_udma_glue_allocate_rx_flows(rx_chn, cfg);
+	ret = k3_udma_glue_request_remote_rx_chn_common(rx_chn, cfg, dev);
 	if (ret)
 		goto err;
-
-	for (i = 0; i < rx_chn->flow_num; i++)
-		rx_chn->flows[i].udma_rflow_id = rx_chn->flow_id_base + i;
-
-	k3_udma_glue_dump_rx_chn(rx_chn);
 
 	return rx_chn;
 
@@ -1154,6 +1166,53 @@ err:
 	k3_udma_glue_release_rx_chn(rx_chn);
 	return ERR_PTR(ret);
 }
+
+struct k3_udma_glue_rx_channel *
+k3_udma_glue_request_remote_rx_chn_for_thread_id(struct device *dev,
+						 struct k3_udma_glue_rx_channel_cfg *cfg,
+						 struct device_node *udmax_np, u32 thread_id)
+{
+	struct k3_udma_glue_rx_channel *rx_chn;
+	int ret;
+
+	if (cfg->flow_id_num <= 0 ||
+	    cfg->flow_id_use_rxchan_id ||
+	    cfg->def_flow_cfg ||
+	    cfg->flow_id_base < 0)
+		return ERR_PTR(-EINVAL);
+
+	/*
+	 * Remote RX channel is under control of Remote CPU core, so
+	 * Linux can only request and manipulate by dedicated RX flows
+	 */
+
+	rx_chn = devm_kzalloc(dev, sizeof(*rx_chn), GFP_KERNEL);
+	if (!rx_chn)
+		return ERR_PTR(-ENOMEM);
+
+	rx_chn->common.dev = dev;
+	rx_chn->common.swdata_size = cfg->swdata_size;
+	rx_chn->remote = true;
+	rx_chn->udma_rchan_id = -1;
+	rx_chn->flow_num = cfg->flow_id_num;
+	rx_chn->flow_id_base = cfg->flow_id_base;
+	rx_chn->psil_paired = false;
+
+	ret = of_k3_udma_glue_parse_chn_by_id(udmax_np, &rx_chn->common, false, thread_id);
+	if (ret)
+		goto err;
+
+	ret = k3_udma_glue_request_remote_rx_chn_common(rx_chn, cfg, dev);
+	if (ret)
+		goto err;
+
+	return rx_chn;
+
+err:
+	k3_udma_glue_release_rx_chn(rx_chn);
+	return ERR_PTR(ret);
+}
+EXPORT_SYMBOL_GPL(k3_udma_glue_request_remote_rx_chn_for_thread_id);
 
 struct k3_udma_glue_rx_channel *
 k3_udma_glue_request_rx_chn(struct device *dev, const char *name,

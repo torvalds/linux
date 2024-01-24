@@ -114,6 +114,11 @@ struct k3_udma_glue_rx_channel *k3_udma_glue_request_rx_chn(
 		const char *name,
 		struct k3_udma_glue_rx_channel_cfg *cfg);
 
+struct k3_udma_glue_rx_channel *
+k3_udma_glue_request_remote_rx_chn_for_thread_id(struct device *dev,
+						 struct k3_udma_glue_rx_channel_cfg *cfg,
+						 struct device_node *udmax_np, u32 thread_id);
+
 void k3_udma_glue_release_rx_chn(struct k3_udma_glue_rx_channel *rx_chn);
 int k3_udma_glue_enable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn);
 void k3_udma_glue_disable_rx_chn(struct k3_udma_glue_rx_channel *rx_chn);
