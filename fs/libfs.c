@@ -1704,16 +1704,28 @@ bool is_empty_dir_inode(struct inode *inode)
 static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 				const char *str, const struct qstr *name)
 {
-	const struct dentry *parent = READ_ONCE(dentry->d_parent);
-	const struct inode *dir = READ_ONCE(parent->d_inode);
-	const struct super_block *sb = dentry->d_sb;
-	const struct unicode_map *um = sb->s_encoding;
-	struct qstr qstr = QSTR_INIT(str, len);
+	const struct dentry *parent;
+	const struct inode *dir;
 	char strbuf[DNAME_INLINE_LEN];
-	int ret;
+	struct qstr qstr;
 
+	/*
+	 * Attempt a case-sensitive match first. It is cheaper and
+	 * should cover most lookups, including all the sane
+	 * applications that expect a case-sensitive filesystem.
+	 *
+	 * This comparison is safe under RCU because the caller
+	 * guarantees the consistency between str and len. See
+	 * __d_lookup_rcu_op_compare() for details.
+	 */
+	if (len == name->len && !memcmp(str, name->name, len))
+		return 0;
+
+	parent = READ_ONCE(dentry->d_parent);
+	dir = READ_ONCE(parent->d_inode);
 	if (!dir || !IS_CASEFOLDED(dir))
-		goto fallback;
+		return 1;
+
 	/*
 	 * If the dentry name is stored in-line, then it may be concurrently
 	 * modified by a rename.  If this happens, the VFS will eventually retry
@@ -1724,20 +1736,14 @@ static int generic_ci_d_compare(const struct dentry *dentry, unsigned int len,
 	if (len <= DNAME_INLINE_LEN - 1) {
 		memcpy(strbuf, str, len);
 		strbuf[len] = 0;
-		qstr.name = strbuf;
+		str = strbuf;
 		/* prevent compiler from optimizing out the temporary buffer */
 		barrier();
 	}
-	ret = utf8_strncasecmp(um, name, &qstr);
-	if (ret >= 0)
-		return ret;
+	qstr.len = len;
+	qstr.name = str;
 
-	if (sb_has_strict_encoding(sb))
-		return -EINVAL;
-fallback:
-	if (len != name->len)
-		return 1;
-	return !!memcmp(str, name->name, len);
+	return utf8_strncasecmp(dentry->d_sb->s_encoding, name, &qstr);
 }
 
 /**
