@@ -499,14 +499,14 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 /**
  * cancel_budget - cancel budget.
  * @c: UBIFS file-system description object
- * @page: page to cancel budget for
+ * @folio: folio to cancel budget for
  * @ui: UBIFS inode object the page belongs to
  * @appending: non-zero if the page is appended
  *
  * This is a helper function for a page write operation. It unlocks the
  * @ui->ui_mutex in case of appending.
  */
-static void cancel_budget(struct ubifs_info *c, struct page *page,
+static void cancel_budget(struct ubifs_info *c, struct folio *folio,
 			  struct ubifs_inode *ui, int appending)
 {
 	if (appending) {
@@ -514,8 +514,8 @@ static void cancel_budget(struct ubifs_info *c, struct page *page,
 			ubifs_release_dirty_inode_budget(c, ui);
 		mutex_unlock(&ui->ui_mutex);
 	}
-	if (!PagePrivate(page)) {
-		if (PageChecked(page))
+	if (!folio->private) {
+		if (folio_test_checked(folio))
 			release_new_page_budget(c);
 		else
 			release_existing_page_budget(c);
@@ -548,7 +548,7 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 		 */
 		dbg_gen("copied %d instead of %d, read page and repeat",
 			copied, len);
-		cancel_budget(c, &folio->page, ui, appending);
+		cancel_budget(c, folio, ui, appending);
 		folio_clear_checked(folio);
 
 		/*
