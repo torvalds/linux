@@ -705,12 +705,6 @@
 	num-lanes = <1>;
 };
 
-&pcie0_ep {
-	phys = <&serdes0_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <1>;
-};
-
 &ecap0 {
 	status = "okay";
 	/* PWM is available on Pin 1 of header J12 */

@@ -1041,25 +1041,6 @@
 		status = "disabled";
 	};
 
-	pcie0_ep: pcie-ep@f102000 {
-		compatible = "ti,am64-pcie-ep", "ti,j721e-pcie-ep";
-		reg = <0x00 0x0f102000 0x00 0x1000>,
-		      <0x00 0x0f100000 0x00 0x400>,
-		      <0x00 0x0d000000 0x00 0x00800000>,
-		      <0x00 0x68000000 0x00 0x08000000>;
-		reg-names = "intd_cfg", "user_cfg", "reg", "mem";
-		interrupt-names = "link_state";
-		interrupts = <GIC_SPI 203 IRQ_TYPE_EDGE_RISING>;
-		ti,syscon-pcie-ctrl = <&main_conf 0x4070>;
-		max-link-speed = <2>;
-		num-lanes = <1>;
-		power-domains = <&k3_pds 114 TI_SCI_PD_EXCLUSIVE>;
-		clocks = <&k3_clks 114 0>;
-		clock-names = "fck";
-		max-functions = /bits/ 8 <1>;
-		status = "disabled";
-	};
-
 	epwm0: pwm@23000000 {
 		compatible = "ti,am64-epwm", "ti,am3352-ehrpwm";
 		#pwm-cells = <3>;
