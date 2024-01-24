@@ -1435,8 +1435,10 @@ again:
 	if (ret < 0)
 		goto out;
 	if (ret == 0) {
-		/* This shouldn't happen, indicates a bug or fs corruption. */
-		ASSERT(ret != 0);
+		/*
+		 * Key with offset -1 found, there would have to exist an extent
+		 * item with such offset, but this is out of the valid range.
+		 */
 		ret = -EUCLEAN;
 		goto out;
 	}
