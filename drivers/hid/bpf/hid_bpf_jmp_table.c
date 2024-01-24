@@ -333,15 +333,10 @@ static int hid_bpf_insert_prog(int prog_fd, struct bpf_prog *prog)
 	return err;
 }
 
-int hid_bpf_get_prog_attach_type(int prog_fd)
+int hid_bpf_get_prog_attach_type(struct bpf_prog *prog)
 {
-	struct bpf_prog *prog = NULL;
-	int i;
 	int prog_type = HID_BPF_PROG_TYPE_UNDEF;
-
-	prog = bpf_prog_get(prog_fd);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
+	int i;
 
 	for (i = 0; i < HID_BPF_PROG_TYPE_MAX; i++) {
 		if (hid_bpf_btf_ids[i] == prog->aux->attach_btf_id) {
@@ -349,8 +344,6 @@ int hid_bpf_get_prog_attach_type(int prog_fd)
 			break;
 		}
 	}
-
-	bpf_prog_put(prog);
 
 	return prog_type;
 }
@@ -388,18 +381,12 @@ static const struct bpf_link_ops hid_bpf_link_lops = {
 /* called from syscall */
 noinline int
 __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
-		      int prog_fd, __u32 flags)
+		      int prog_fd, struct bpf_prog *prog, __u32 flags)
 {
 	struct bpf_link_primer link_primer;
 	struct hid_bpf_link *link;
-	struct bpf_prog *prog = NULL;
 	struct hid_bpf_prog_entry *prog_entry;
 	int cnt, err = -EINVAL, prog_table_idx = -1;
-
-	/* take a ref on the prog itself */
-	prog = bpf_prog_get(prog_fd);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
 
 	mutex_lock(&hid_bpf_attach_lock);
 
@@ -467,7 +454,6 @@ __hid_bpf_attach_prog(struct hid_device *hdev, enum hid_bpf_prog_type prog_type,
  err_unlock:
 	mutex_unlock(&hid_bpf_attach_lock);
 
-	bpf_prog_put(prog);
 	kfree(link);
 
 	return err;
