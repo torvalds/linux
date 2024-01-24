@@ -1118,15 +1118,16 @@ static void cache_cpu_init(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cache_disable();
 
-	if (memory_caching_control & CACHE_MTRR)
+	if (memory_caching_control & CACHE_MTRR) {
+		cache_disable();
 		mtrr_generic_set_state();
+		cache_enable();
+	}
 
 	if (memory_caching_control & CACHE_PAT)
 		pat_cpu_init();
 
-	cache_enable();
 	local_irq_restore(flags);
 }
 
