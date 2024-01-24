@@ -18,6 +18,7 @@
 #include "priv_map.skel.h"
 #include "priv_prog.skel.h"
 #include "dummy_st_ops_success.skel.h"
+#include "token_lsm.skel.h"
 
 static inline int sys_mount(const char *dev_name, const char *dir_name,
 			    const char *type, unsigned long flags,
@@ -279,12 +280,23 @@ static int create_and_enter_userns(void)
 	return 0;
 }
 
-typedef int (*child_callback_fn)(int);
+typedef int (*child_callback_fn)(int bpffs_fd, struct token_lsm *lsm_skel);
 
 static void child(int sock_fd, struct bpffs_opts *opts, child_callback_fn callback)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, map_opts);
-	int mnt_fd = -1, fs_fd = -1, err = 0, bpffs_fd = -1;
+	int mnt_fd = -1, fs_fd = -1, err = 0, bpffs_fd = -1, token_fd = -1;
+	struct token_lsm *lsm_skel = NULL;
+
+	/* load and attach LSM "policy" before we go into unpriv userns */
+	lsm_skel = token_lsm__open_and_load();
+	if (!ASSERT_OK_PTR(lsm_skel, "lsm_skel_load")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+	lsm_skel->bss->my_pid = getpid();
+	err = token_lsm__attach(lsm_skel);
+	if (!ASSERT_OK(err, "lsm_skel_attach"))
+		goto cleanup;
 
 	/* setup userns with root mappings */
 	err = create_and_enter_userns();
@@ -365,8 +377,19 @@ static void child(int sock_fd, struct bpffs_opts *opts, child_callback_fn callba
 		goto cleanup;
 	}
 
+	/* create BPF token FD and pass it to parent for some extra checks */
+	token_fd = bpf_token_create(bpffs_fd, NULL);
+	if (!ASSERT_GT(token_fd, 0, "child_token_create")) {
+		err = -EINVAL;
+		goto cleanup;
+	}
+	err = sendfd(sock_fd, token_fd);
+	if (!ASSERT_OK(err, "send_token_fd"))
+		goto cleanup;
+	zclose(token_fd);
+
 	/* do custom test logic with customly set up BPF FS instance */
-	err = callback(bpffs_fd);
+	err = callback(bpffs_fd, lsm_skel);
 	if (!ASSERT_OK(err, "test_callback"))
 		goto cleanup;
 
@@ -376,6 +399,10 @@ cleanup:
 	zclose(mnt_fd);
 	zclose(fs_fd);
 	zclose(bpffs_fd);
+	zclose(token_fd);
+
+	lsm_skel->bss->my_pid = 0;
+	token_lsm__destroy(lsm_skel);
 
 	exit(-err);
 }
@@ -401,7 +428,7 @@ again:
 
 static void parent(int child_pid, struct bpffs_opts *bpffs_opts, int sock_fd)
 {
-	int fs_fd = -1, mnt_fd = -1, err;
+	int fs_fd = -1, mnt_fd = -1, token_fd = -1, err;
 
 	err = recvfd(sock_fd, &fs_fd);
 	if (!ASSERT_OK(err, "recv_bpffs_fd"))
@@ -420,6 +447,11 @@ static void parent(int child_pid, struct bpffs_opts *bpffs_opts, int sock_fd)
 		goto cleanup;
 	zclose(mnt_fd);
 
+	/* receive BPF token FD back from child for some extra tests */
+	err = recvfd(sock_fd, &token_fd);
+	if (!ASSERT_OK(err, "recv_token_fd"))
+		goto cleanup;
+
 	err = wait_for_pid(child_pid);
 	ASSERT_OK(err, "waitpid_child");
 
@@ -427,12 +459,14 @@ cleanup:
 	zclose(sock_fd);
 	zclose(fs_fd);
 	zclose(mnt_fd);
+	zclose(token_fd);
 
 	if (child_pid > 0)
 		(void)kill(child_pid, SIGKILL);
 }
 
-static void subtest_userns(struct bpffs_opts *bpffs_opts, child_callback_fn cb)
+static void subtest_userns(struct bpffs_opts *bpffs_opts,
+			   child_callback_fn child_cb)
 {
 	int sock_fds[2] = { -1, -1 };
 	int child_pid = 0, err;
@@ -447,7 +481,7 @@ static void subtest_userns(struct bpffs_opts *bpffs_opts, child_callback_fn cb)
 
 	if (child_pid == 0) {
 		zclose(sock_fds[0]);
-		return child(sock_fds[1], bpffs_opts, cb);
+		return child(sock_fds[1], bpffs_opts, child_cb);
 
 	} else {
 		zclose(sock_fds[1]);
@@ -461,7 +495,7 @@ cleanup:
 		(void)kill(child_pid, SIGKILL);
 }
 
-static int userns_map_create(int mnt_fd)
+static int userns_map_create(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_map_create_opts, map_opts);
 	int err, token_fd = -1, map_fd = -1;
@@ -529,7 +563,7 @@ cleanup:
 	return err;
 }
 
-static int userns_btf_load(int mnt_fd)
+static int userns_btf_load(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_btf_load_opts, btf_opts);
 	int err, token_fd = -1, btf_fd = -1;
@@ -598,7 +632,7 @@ cleanup:
 	return err;
 }
 
-static int userns_prog_load(int mnt_fd)
+static int userns_prog_load(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, prog_opts);
 	int err, token_fd = -1, prog_fd = -1;
@@ -677,7 +711,7 @@ cleanup:
 	return err;
 }
 
-static int userns_obj_priv_map(int mnt_fd)
+static int userns_obj_priv_map(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	char buf[256];
@@ -705,7 +739,7 @@ static int userns_obj_priv_map(int mnt_fd)
 	return 0;
 }
 
-static int userns_obj_priv_prog(int mnt_fd)
+static int userns_obj_priv_prog(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	char buf[256];
@@ -724,10 +758,31 @@ static int userns_obj_priv_prog(int mnt_fd)
 	skel = priv_prog__open_opts(&opts);
 	if (!ASSERT_OK_PTR(skel, "obj_token_path_open"))
 		return -EINVAL;
-
 	err = priv_prog__load(skel);
 	priv_prog__destroy(skel);
 	if (!ASSERT_OK(err, "obj_token_path_load"))
+		return -EINVAL;
+
+	/* provide BPF token, but reject bpf_token_capable() with LSM */
+	lsm_skel->bss->reject_capable = true;
+	lsm_skel->bss->reject_cmd = false;
+	skel = priv_prog__open_opts(&opts);
+	if (!ASSERT_OK_PTR(skel, "obj_token_lsm_reject_cap_open"))
+		return -EINVAL;
+	err = priv_prog__load(skel);
+	priv_prog__destroy(skel);
+	if (!ASSERT_ERR(err, "obj_token_lsm_reject_cap_load"))
+		return -EINVAL;
+
+	/* provide BPF token, but reject bpf_token_cmd() with LSM */
+	lsm_skel->bss->reject_capable = false;
+	lsm_skel->bss->reject_cmd = true;
+	skel = priv_prog__open_opts(&opts);
+	if (!ASSERT_OK_PTR(skel, "obj_token_lsm_reject_cmd_open"))
+		return -EINVAL;
+	err = priv_prog__load(skel);
+	priv_prog__destroy(skel);
+	if (!ASSERT_ERR(err, "obj_token_lsm_reject_cmd_load"))
 		return -EINVAL;
 
 	return 0;
@@ -763,12 +818,12 @@ static int validate_struct_ops_load(int mnt_fd, bool expect_success)
 	return 0;
 }
 
-static int userns_obj_priv_btf_fail(int mnt_fd)
+static int userns_obj_priv_btf_fail(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	return validate_struct_ops_load(mnt_fd, false /* should fail */);
 }
 
-static int userns_obj_priv_btf_success(int mnt_fd)
+static int userns_obj_priv_btf_success(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	return validate_struct_ops_load(mnt_fd, true /* should succeed */);
 }
@@ -776,7 +831,7 @@ static int userns_obj_priv_btf_success(int mnt_fd)
 #define TOKEN_ENVVAR "LIBBPF_BPF_TOKEN_PATH"
 #define TOKEN_BPFFS_CUSTOM "/bpf-token-fs"
 
-static int userns_obj_priv_implicit_token(int mnt_fd)
+static int userns_obj_priv_implicit_token(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	struct dummy_st_ops_success *skel;
@@ -835,7 +890,7 @@ static int userns_obj_priv_implicit_token(int mnt_fd)
 	return 0;
 }
 
-static int userns_obj_priv_implicit_token_envvar(int mnt_fd)
+static int userns_obj_priv_implicit_token_envvar(int mnt_fd, struct token_lsm *lsm_skel)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
 	struct dummy_st_ops_success *skel;
