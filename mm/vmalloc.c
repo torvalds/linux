@@ -765,9 +765,10 @@ static struct rb_root free_vmap_area_root = RB_ROOT;
 static DEFINE_PER_CPU(struct vmap_area *, ne_fit_preload_node);
 
 /*
- * An effective vmap-node logic. Users make use of nodes instead
- * of a global heap. It allows to balance an access and mitigate
- * contention.
+ * This structure defines a single, solid model where a list and
+ * rb-tree are part of one entity protected by the lock. Nodes are
+ * sorted in ascending order, thus for O(1) access to left/right
+ * neighbors a list is used as well as for sequential traversal.
  */
 struct rb_list {
 	struct rb_root root;
@@ -775,16 +776,23 @@ struct rb_list {
 	spinlock_t lock;
 };
 
+/*
+ * A fast size storage contains VAs up to 1M size. A pool consists
+ * of linked between each other ready to go VAs of certain sizes.
+ * An index in the pool-array corresponds to number of pages + 1.
+ */
+#define MAX_VA_SIZE_PAGES 256
+
 struct vmap_pool {
 	struct list_head head;
 	unsigned long len;
 };
 
 /*
- * A fast size storage contains VAs up to 1M size.
+ * An effective vmap-node logic. Users make use of nodes instead
+ * of a global heap. It allows to balance an access and mitigate
+ * contention.
  */
-#define MAX_VA_SIZE_PAGES 256
-
 static struct vmap_node {
 	/* Simple size segregated storage. */
 	struct vmap_pool pool[MAX_VA_SIZE_PAGES];
@@ -803,6 +811,11 @@ static struct vmap_node {
 	unsigned long nr_purged;
 } single;
 
+/*
+ * Initial setup consists of one single node, i.e. a balancing
+ * is fully disabled. Later on, after vmap is initialized these
+ * parameters are updated based on a system capacity.
+ */
 static struct vmap_node *vmap_nodes = &single;
 static __read_mostly unsigned int nr_vmap_nodes = 1;
 static __read_mostly unsigned int vmap_zone_size = 1;
@@ -2048,7 +2061,12 @@ decay_va_pool_node(struct vmap_node *vn, bool full_decay)
 			}
 		}
 
-		/* Attach the pool back if it has been partly decayed. */
+		/*
+		 * Attach the pool back if it has been partly decayed.
+		 * Please note, it is supposed that nobody(other contexts)
+		 * can populate the pool therefore a simple list replace
+		 * operation takes place here.
+		 */
 		if (!full_decay && !list_empty(&tmp_list)) {
 			spin_lock(&vn->pool_lock);
 			list_replace_init(&tmp_list, &vn->pool[i].head);
@@ -2257,16 +2275,14 @@ struct vmap_area *find_vmap_area(unsigned long addr)
 	 * An addr_to_node_id(addr) converts an address to a node index
 	 * where a VA is located. If VA spans several zones and passed
 	 * addr is not the same as va->va_start, what is not common, we
-	 * may need to scan an extra nodes. See an example:
+	 * may need to scan extra nodes. See an example:
 	 *
-	 *      <--va-->
+	 *      <----va---->
 	 * -|-----|-----|-----|-----|-
 	 *     1     2     0     1
 	 *
-	 * VA resides in node 1 whereas it spans 1 and 2. If passed
-	 * addr is within a second node we should do extra work. We
-	 * should mention that it is rare and is a corner case from
-	 * the other hand it has to be covered.
+	 * VA resides in node 1 whereas it spans 1, 2 an 0. If passed
+	 * addr is within 2 or 0 nodes we should do extra work.
 	 */
 	i = j = addr_to_node_id(addr);
 	do {
@@ -2289,6 +2305,9 @@ static struct vmap_area *find_unlink_vmap_area(unsigned long addr)
 	struct vmap_area *va;
 	int i, j;
 
+	/*
+	 * Check the comment in the find_vmap_area() about the loop.
+	 */
 	i = j = addr_to_node_id(addr);
 	do {
 		vn = &vmap_nodes[i];
@@ -4882,7 +4901,20 @@ static void vmap_init_nodes(void)
 	int i, n;
 
 #if BITS_PER_LONG == 64
-	/* A high threshold of max nodes is fixed and bound to 128. */
+	/*
+	 * A high threshold of max nodes is fixed and bound to 128,
+	 * thus a scale factor is 1 for systems where number of cores
+	 * are less or equal to specified threshold.
+	 *
+	 * As for NUMA-aware notes. For bigger systems, for example
+	 * NUMA with multi-sockets, where we can end-up with thousands
+	 * of cores in total, a "sub-numa-clustering" should be added.
+	 *
+	 * In this case a NUMA domain is considered as a single entity
+	 * with dedicated sub-nodes in it which describe one group or
+	 * set of cores. Therefore a per-domain purging is supposed to
+	 * be added as well as a per-domain balancing.
+	 */
 	n = clamp_t(unsigned int, num_possible_cpus(), 1, 128);
 
 	if (n > 1) {
