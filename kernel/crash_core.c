@@ -11,9 +11,14 @@
 #include <linux/sizes.h>
 #include <linux/kexec.h>
 #include <linux/memory.h>
+#include <linux/mm.h>
 #include <linux/cpuhotplug.h>
 #include <linux/memblock.h>
 #include <linux/kmemleak.h>
+#include <linux/crash_core.h>
+#include <linux/reboot.h>
+#include <linux/btf.h>
+#include <linux/objtool.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -25,6 +30,131 @@
 
 /* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t __percpu *crash_notes;
+
+#ifdef CONFIG_CRASH_DUMP
+
+int kimage_crash_copy_vmcoreinfo(struct kimage *image)
+{
+	struct page *vmcoreinfo_page;
+	void *safecopy;
+
+	if (!IS_ENABLED(CONFIG_CRASH_DUMP))
+		return 0;
+	if (image->type != KEXEC_TYPE_CRASH)
+		return 0;
+
+	/*
+	 * For kdump, allocate one vmcoreinfo safe copy from the
+	 * crash memory. as we have arch_kexec_protect_crashkres()
+	 * after kexec syscall, we naturally protect it from write
+	 * (even read) access under kernel direct mapping. But on
+	 * the other hand, we still need to operate it when crash
+	 * happens to generate vmcoreinfo note, hereby we rely on
+	 * vmap for this purpose.
+	 */
+	vmcoreinfo_page = kimage_alloc_control_pages(image, 0);
+	if (!vmcoreinfo_page) {
+		pr_warn("Could not allocate vmcoreinfo buffer\n");
+		return -ENOMEM;
+	}
+	safecopy = vmap(&vmcoreinfo_page, 1, VM_MAP, PAGE_KERNEL);
+	if (!safecopy) {
+		pr_warn("Could not vmap vmcoreinfo buffer\n");
+		return -ENOMEM;
+	}
+
+	image->vmcoreinfo_data_copy = safecopy;
+	crash_update_vmcoreinfo_safecopy(safecopy);
+
+	return 0;
+}
+
+
+
+int kexec_should_crash(struct task_struct *p)
+{
+	/*
+	 * If crash_kexec_post_notifiers is enabled, don't run
+	 * crash_kexec() here yet, which must be run after panic
+	 * notifiers in panic().
+	 */
+	if (crash_kexec_post_notifiers)
+		return 0;
+	/*
+	 * There are 4 panic() calls in make_task_dead() path, each of which
+	 * corresponds to each of these 4 conditions.
+	 */
+	if (in_interrupt() || !p->pid || is_global_init(p) || panic_on_oops)
+		return 1;
+	return 0;
+}
+
+int kexec_crash_loaded(void)
+{
+	return !!kexec_crash_image;
+}
+EXPORT_SYMBOL_GPL(kexec_crash_loaded);
+
+/*
+ * No panic_cpu check version of crash_kexec().  This function is called
+ * only when panic_cpu holds the current CPU number; this is the only CPU
+ * which processes crash_kexec routines.
+ */
+void __noclone __crash_kexec(struct pt_regs *regs)
+{
+	/* Take the kexec_lock here to prevent sys_kexec_load
+	 * running on one cpu from replacing the crash kernel
+	 * we are using after a panic on a different cpu.
+	 *
+	 * If the crash kernel was not located in a fixed area
+	 * of memory the xchg(&kexec_crash_image) would be
+	 * sufficient.  But since I reuse the memory...
+	 */
+	if (kexec_trylock()) {
+		if (kexec_crash_image) {
+			struct pt_regs fixed_regs;
+
+			crash_setup_regs(&fixed_regs, regs);
+			crash_save_vmcoreinfo();
+			machine_crash_shutdown(&fixed_regs);
+			machine_kexec(kexec_crash_image);
+		}
+		kexec_unlock();
+	}
+}
+STACK_FRAME_NON_STANDARD(__crash_kexec);
+
+__bpf_kfunc void crash_kexec(struct pt_regs *regs)
+{
+	int old_cpu, this_cpu;
+
+	/*
+	 * Only one CPU is allowed to execute the crash_kexec() code as with
+	 * panic().  Otherwise parallel calls of panic() and crash_kexec()
+	 * may stop each other.  To exclude them, we use panic_cpu here too.
+	 */
+	old_cpu = PANIC_CPU_INVALID;
+	this_cpu = raw_smp_processor_id();
+
+	if (atomic_try_cmpxchg(&panic_cpu, &old_cpu, this_cpu)) {
+		/* This is the 1st CPU which comes here, so go ahead. */
+		__crash_kexec(regs);
+
+		/*
+		 * Reset panic_cpu to allow another panic()/crash_kexec()
+		 * call.
+		 */
+		atomic_set(&panic_cpu, PANIC_CPU_INVALID);
+	}
+}
+
+static inline resource_size_t crash_resource_size(const struct resource *res)
+{
+	return !res->end ? 0 : resource_size(res);
+}
+
+
+
 
 int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_map,
 			  void **addr, unsigned long *sz)
@@ -187,6 +317,130 @@ int crash_exclude_mem_range(struct crash_mem *mem,
 	return 0;
 }
 
+ssize_t crash_get_memory_size(void)
+{
+	ssize_t size = 0;
+
+	if (!kexec_trylock())
+		return -EBUSY;
+
+	size += crash_resource_size(&crashk_res);
+	size += crash_resource_size(&crashk_low_res);
+
+	kexec_unlock();
+	return size;
+}
+
+static int __crash_shrink_memory(struct resource *old_res,
+				 unsigned long new_size)
+{
+	struct resource *ram_res;
+
+	ram_res = kzalloc(sizeof(*ram_res), GFP_KERNEL);
+	if (!ram_res)
+		return -ENOMEM;
+
+	ram_res->start = old_res->start + new_size;
+	ram_res->end   = old_res->end;
+	ram_res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
+	ram_res->name  = "System RAM";
+
+	if (!new_size) {
+		release_resource(old_res);
+		old_res->start = 0;
+		old_res->end   = 0;
+	} else {
+		crashk_res.end = ram_res->start - 1;
+	}
+
+	crash_free_reserved_phys_range(ram_res->start, ram_res->end);
+	insert_resource(&iomem_resource, ram_res);
+
+	return 0;
+}
+
+int crash_shrink_memory(unsigned long new_size)
+{
+	int ret = 0;
+	unsigned long old_size, low_size;
+
+	if (!kexec_trylock())
+		return -EBUSY;
+
+	if (kexec_crash_image) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	low_size = crash_resource_size(&crashk_low_res);
+	old_size = crash_resource_size(&crashk_res) + low_size;
+	new_size = roundup(new_size, KEXEC_CRASH_MEM_ALIGN);
+	if (new_size >= old_size) {
+		ret = (new_size == old_size) ? 0 : -EINVAL;
+		goto unlock;
+	}
+
+	/*
+	 * (low_size > new_size) implies that low_size is greater than zero.
+	 * This also means that if low_size is zero, the else branch is taken.
+	 *
+	 * If low_size is greater than 0, (low_size > new_size) indicates that
+	 * crashk_low_res also needs to be shrunken. Otherwise, only crashk_res
+	 * needs to be shrunken.
+	 */
+	if (low_size > new_size) {
+		ret = __crash_shrink_memory(&crashk_res, 0);
+		if (ret)
+			goto unlock;
+
+		ret = __crash_shrink_memory(&crashk_low_res, new_size);
+	} else {
+		ret = __crash_shrink_memory(&crashk_res, new_size - low_size);
+	}
+
+	/* Swap crashk_res and crashk_low_res if needed */
+	if (!crashk_res.end && crashk_low_res.end) {
+		crashk_res.start = crashk_low_res.start;
+		crashk_res.end   = crashk_low_res.end;
+		release_resource(&crashk_low_res);
+		crashk_low_res.start = 0;
+		crashk_low_res.end   = 0;
+		insert_resource(&iomem_resource, &crashk_res);
+	}
+
+unlock:
+	kexec_unlock();
+	return ret;
+}
+
+void crash_save_cpu(struct pt_regs *regs, int cpu)
+{
+	struct elf_prstatus prstatus;
+	u32 *buf;
+
+	if ((cpu < 0) || (cpu >= nr_cpu_ids))
+		return;
+
+	/* Using ELF notes here is opportunistic.
+	 * I need a well defined structure format
+	 * for the data I pass, and I need tags
+	 * on the data to indicate what information I have
+	 * squirrelled away.  ELF notes happen to provide
+	 * all of that, so there is no need to invent something new.
+	 */
+	buf = (u32 *)per_cpu_ptr(crash_notes, cpu);
+	if (!buf)
+		return;
+	memset(&prstatus, 0, sizeof(prstatus));
+	prstatus.common.pr_pid = current->pid;
+	elf_core_copy_regs(&prstatus.pr_reg, regs);
+	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
+			      &prstatus, sizeof(prstatus));
+	final_note(buf);
+}
+
+
+
 static int __init crash_notes_memory_init(void)
 {
 	/* Allocate memory for saving cpu registers. */
@@ -219,6 +473,8 @@ static int __init crash_notes_memory_init(void)
 	return 0;
 }
 subsys_initcall(crash_notes_memory_init);
+
+#endif /*CONFIG_CRASH_DUMP*/
 
 #ifdef CONFIG_CRASH_HOTPLUG
 #undef pr_fmt

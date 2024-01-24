@@ -6,6 +6,48 @@
 #include <linux/elfcore.h>
 #include <linux/elf.h>
 
+struct kimage;
+
+#ifdef CONFIG_CRASH_DUMP
+
+int crash_shrink_memory(unsigned long new_size);
+ssize_t crash_get_memory_size(void);
+
+#ifndef arch_kexec_protect_crashkres
+/*
+ * Protection mechanism for crashkernel reserved memory after
+ * the kdump kernel is loaded.
+ *
+ * Provide an empty default implementation here -- architecture
+ * code may override this
+ */
+static inline void arch_kexec_protect_crashkres(void) { }
+#endif
+
+#ifndef arch_kexec_unprotect_crashkres
+static inline void arch_kexec_unprotect_crashkres(void) { }
+#endif
+
+
+
+#ifndef arch_crash_handle_hotplug_event
+static inline void arch_crash_handle_hotplug_event(struct kimage *image) { }
+#endif
+
+int crash_check_update_elfcorehdr(void);
+
+#ifndef crash_hotplug_cpu_support
+static inline int crash_hotplug_cpu_support(void) { return 0; }
+#endif
+
+#ifndef crash_hotplug_memory_support
+static inline int crash_hotplug_memory_support(void) { return 0; }
+#endif
+
+#ifndef crash_get_elfcorehdr_size
+static inline unsigned int crash_get_elfcorehdr_size(void) { return 0; }
+#endif
+
 /* Alignment required for elf header segment */
 #define ELF_CORE_HEADER_ALIGN   4096
 
@@ -30,5 +72,24 @@ struct kexec_segment;
 #define KEXEC_CRASH_HP_ADD_MEMORY		3
 #define KEXEC_CRASH_HP_REMOVE_MEMORY		4
 #define KEXEC_CRASH_HP_INVALID_CPU		-1U
+
+extern void __crash_kexec(struct pt_regs *regs);
+extern void crash_kexec(struct pt_regs *regs);
+int kexec_should_crash(struct task_struct *p);
+int kexec_crash_loaded(void);
+void crash_save_cpu(struct pt_regs *regs, int cpu);
+extern int kimage_crash_copy_vmcoreinfo(struct kimage *image);
+
+#else /* !CONFIG_CRASH_DUMP*/
+struct pt_regs;
+struct task_struct;
+struct kimage;
+static inline void __crash_kexec(struct pt_regs *regs) { }
+static inline void crash_kexec(struct pt_regs *regs) { }
+static inline int kexec_should_crash(struct task_struct *p) { return 0; }
+static inline int kexec_crash_loaded(void) { return 0; }
+static inline void crash_save_cpu(struct pt_regs *regs, int cpu) {};
+static inline int kimage_crash_copy_vmcoreinfo(struct kimage *image) { return 0; };
+#endif /* CONFIG_CRASH_DUMP*/
 
 #endif /* LINUX_CRASH_CORE_H */
