@@ -2967,29 +2967,24 @@ void blk_mq_submit_bio(struct bio *bio)
 	struct blk_plug *plug = blk_mq_plug(bio);
 	const int is_sync = op_is_sync(bio->bi_opf);
 	struct blk_mq_hw_ctx *hctx;
-	struct request *rq = NULL;
 	unsigned int nr_segs = 1;
+	struct request *rq;
 	blk_status_t ret;
 
 	bio = blk_queue_bounce(bio, q);
 
+	/*
+	 * If the plug has a cached request for this queue, try use it.
+	 *
+	 * The cached request already holds a q_usage_counter reference and we
+	 * don't have to acquire a new one if we use it.
+	 */
 	rq = blk_mq_peek_cached_request(plug, q, bio->bi_opf);
-	if (rq) {
-		if (unlikely(bio_may_exceed_limits(bio, &q->limits))) {
-			bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
-			if (!bio)
-				return;
-		}
-		if (!bio_integrity_prep(bio))
+	if (!rq) {
+		if (unlikely(bio_queue_enter(bio)))
 			return;
-		if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
-			return;
-		blk_mq_use_cached_rq(rq, plug, bio);
-		goto done;
 	}
 
-	if (unlikely(bio_queue_enter(bio)))
-		return;
 	if (unlikely(bio_may_exceed_limits(bio, &q->limits))) {
 		bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
 		if (!bio)
@@ -3001,11 +2996,14 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
 		goto queue_exit;
 
-	rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
-	if (unlikely(!rq))
-		goto queue_exit;
+	if (!rq) {
+		rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
+		if (unlikely(!rq))
+			goto queue_exit;
+	} else {
+		blk_mq_use_cached_rq(rq, plug, bio);
+	}
 
-done:
 	trace_block_getrq(bio);
 
 	rq_qos_track(q, rq, bio);
@@ -3039,7 +3037,12 @@ done:
 	return;
 
 queue_exit:
-	blk_queue_exit(q);
+	/*
+	 * Don't drop the queue reference if we were trying to use a cached
+	 * request and thus didn't acquire one.
+	 */
+	if (!rq)
+		blk_queue_exit(q);
 }
 
 #ifdef CONFIG_BLK_MQ_STACKING
