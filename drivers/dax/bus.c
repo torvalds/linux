@@ -269,7 +269,7 @@ static ssize_t id_show(struct device *dev,
 {
 	struct dax_region *dax_region = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", dax_region->id);
+	return sysfs_emit(buf, "%d\n", dax_region->id);
 }
 static DEVICE_ATTR_RO(id);
 
@@ -278,8 +278,8 @@ static ssize_t region_size_show(struct device *dev,
 {
 	struct dax_region *dax_region = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%llu\n", (unsigned long long)
-			resource_size(&dax_region->res));
+	return sysfs_emit(buf, "%llu\n",
+			  (unsigned long long)resource_size(&dax_region->res));
 }
 static struct device_attribute dev_attr_region_size = __ATTR(size, 0444,
 		region_size_show, NULL);
@@ -289,7 +289,7 @@ static ssize_t region_align_show(struct device *dev,
 {
 	struct dax_region *dax_region = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%u\n", dax_region->align);
+	return sysfs_emit(buf, "%u\n", dax_region->align);
 }
 static struct device_attribute dev_attr_region_align =
 		__ATTR(align, 0400, region_align_show, NULL);
@@ -322,7 +322,7 @@ static ssize_t available_size_show(struct device *dev,
 	size = dax_region_avail_size(dax_region);
 	up_read(&dax_region_rwsem);
 
-	return sprintf(buf, "%llu\n", size);
+	return sysfs_emit(buf, "%llu\n", size);
 }
 static DEVICE_ATTR_RO(available_size);
 
@@ -340,7 +340,7 @@ static ssize_t seed_show(struct device *dev,
 	if (rc)
 		return rc;
 	seed = dax_region->seed;
-	rc = sprintf(buf, "%s\n", seed ? dev_name(seed) : "");
+	rc = sysfs_emit(buf, "%s\n", seed ? dev_name(seed) : "");
 	up_read(&dax_region_rwsem);
 
 	return rc;
@@ -361,7 +361,7 @@ static ssize_t create_show(struct device *dev,
 	if (rc)
 		return rc;
 	youngest = dax_region->youngest;
-	rc = sprintf(buf, "%s\n", youngest ? dev_name(youngest) : "");
+	rc = sysfs_emit(buf, "%s\n", youngest ? dev_name(youngest) : "");
 	up_read(&dax_region_rwsem);
 
 	return rc;
@@ -763,7 +763,7 @@ static ssize_t start_show(struct device *dev,
 	dax_range = get_dax_range(dev);
 	if (!dax_range)
 		return -ENXIO;
-	rc = sprintf(buf, "%#llx\n", dax_range->range.start);
+	rc = sysfs_emit(buf, "%#llx\n", dax_range->range.start);
 	put_dax_range();
 
 	return rc;
@@ -779,7 +779,7 @@ static ssize_t end_show(struct device *dev,
 	dax_range = get_dax_range(dev);
 	if (!dax_range)
 		return -ENXIO;
-	rc = sprintf(buf, "%#llx\n", dax_range->range.end);
+	rc = sysfs_emit(buf, "%#llx\n", dax_range->range.end);
 	put_dax_range();
 
 	return rc;
@@ -795,7 +795,7 @@ static ssize_t pgoff_show(struct device *dev,
 	dax_range = get_dax_range(dev);
 	if (!dax_range)
 		return -ENXIO;
-	rc = sprintf(buf, "%#lx\n", dax_range->pgoff);
+	rc = sysfs_emit(buf, "%#lx\n", dax_range->pgoff);
 	put_dax_range();
 
 	return rc;
@@ -969,7 +969,7 @@ static ssize_t size_show(struct device *dev,
 	size = dev_dax_size(dev_dax);
 	up_write(&dax_dev_rwsem);
 
-	return sprintf(buf, "%llu\n", size);
+	return sysfs_emit(buf, "%llu\n", size);
 }
 
 static bool alloc_is_aligned(struct dev_dax *dev_dax, resource_size_t size)
@@ -1233,7 +1233,7 @@ static ssize_t align_show(struct device *dev,
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 
-	return sprintf(buf, "%d\n", dev_dax->align);
+	return sysfs_emit(buf, "%d\n", dev_dax->align);
 }
 
 static ssize_t dev_dax_validate_align(struct dev_dax *dev_dax)
@@ -1311,7 +1311,7 @@ static ssize_t target_node_show(struct device *dev,
 {
 	struct dev_dax *dev_dax = to_dev_dax(dev);
 
-	return sprintf(buf, "%d\n", dev_dax_target_node(dev_dax));
+	return sysfs_emit(buf, "%d\n", dev_dax_target_node(dev_dax));
 }
 static DEVICE_ATTR_RO(target_node);
 
@@ -1327,7 +1327,7 @@ static ssize_t resource_show(struct device *dev,
 	else
 		start = dev_dax->ranges[0].range.start;
 
-	return sprintf(buf, "%#llx\n", start);
+	return sysfs_emit(buf, "%#llx\n", start);
 }
 static DEVICE_ATTR(resource, 0400, resource_show, NULL);
 
@@ -1338,14 +1338,14 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr,
 	 * We only ever expect to handle device-dax instances, i.e. the
 	 * @type argument to MODULE_ALIAS_DAX_DEVICE() is always zero
 	 */
-	return sprintf(buf, DAX_DEVICE_MODALIAS_FMT "\n", 0);
+	return sysfs_emit(buf, DAX_DEVICE_MODALIAS_FMT "\n", 0);
 }
 static DEVICE_ATTR_RO(modalias);
 
 static ssize_t numa_node_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", dev_to_node(dev));
+	return sysfs_emit(buf, "%d\n", dev_to_node(dev));
 }
 static DEVICE_ATTR_RO(numa_node);
 
