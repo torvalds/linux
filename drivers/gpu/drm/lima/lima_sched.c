@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /* Copyright 2017-2019 Qiang Yu <yuq825@gmail.com> */
 
+#include <linux/hardirq.h>
 #include <linux/iosys-map.h>
 #include <linux/kthread.h>
 #include <linux/slab.h>
@@ -401,9 +402,35 @@ static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job
 	struct lima_sched_pipe *pipe = to_lima_pipe(job->sched);
 	struct lima_sched_task *task = to_lima_task(job);
 	struct lima_device *ldev = pipe->ldev;
+	struct lima_ip *ip = pipe->processor[0];
+	int i;
+
+	/*
+	 * If the GPU managed to complete this jobs fence, the timeout is
+	 * spurious. Bail out.
+	 */
+	if (dma_fence_is_signaled(task->fence)) {
+		DRM_WARN("%s spurious timeout\n", lima_ip_name(ip));
+		return DRM_GPU_SCHED_STAT_NOMINAL;
+	}
+
+	/*
+	 * Lima IRQ handler may take a long time to process an interrupt
+	 * if there is another IRQ handler hogging the processing.
+	 * In order to catch such cases and not report spurious Lima job
+	 * timeouts, synchronize the IRQ handler and re-check the fence
+	 * status.
+	 */
+	for (i = 0; i < pipe->num_processor; i++)
+		synchronize_irq(pipe->processor[i]->irq);
+
+	if (dma_fence_is_signaled(task->fence)) {
+		DRM_WARN("%s unexpectedly high interrupt latency\n", lima_ip_name(ip));
+		return DRM_GPU_SCHED_STAT_NOMINAL;
+	}
 
 	if (!pipe->error)
-		DRM_ERROR("lima job timeout\n");
+		DRM_ERROR("%s job timeout\n", lima_ip_name(ip));
 
 	drm_sched_stop(&pipe->base, &task->base);
 
@@ -417,8 +444,6 @@ static enum drm_gpu_sched_stat lima_sched_timedout_job(struct drm_sched_job *job
 	if (pipe->bcast_mmu)
 		lima_mmu_page_fault_resume(pipe->bcast_mmu);
 	else {
-		int i;
-
 		for (i = 0; i < pipe->num_mmu; i++)
 			lima_mmu_page_fault_resume(pipe->mmu[i]);
 	}
