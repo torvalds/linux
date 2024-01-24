@@ -273,6 +273,13 @@ properties:
       with an external supply.
     type: boolean
 
+  snps,host-vbus-glitches-quirk:
+    description:
+      When set, power off all Root Hub ports immediately after
+      setting host mode to avoid vbus (negative) glitch happen in later
+      xhci reset. And the vbus will back to 5V automatically when reset done.
+    type: boolean
+
   snps,is-utmi-l1-suspend:
     description:
       True when DWC3 asserts output signal utmi_l1_suspend_n, false when
