@@ -703,15 +703,15 @@ out_err:
  * ubifs_do_bulk_read - do bulk-read.
  * @c: UBIFS file-system description object
  * @bu: bulk-read information
- * @page1: first page to read
+ * @folio1: first folio to read
  *
  * Returns: %1 if the bulk-read is done, otherwise %0 is returned.
  */
 static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
-			      struct page *page1)
+			      struct folio *folio1)
 {
-	pgoff_t offset = page1->index, end_index;
-	struct address_space *mapping = page1->mapping;
+	pgoff_t offset = folio1->index, end_index;
+	struct address_space *mapping = folio1->mapping;
 	struct inode *inode = mapping->host;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	int err, page_idx, page_cnt, ret = 0, n = 0;
@@ -761,11 +761,11 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 			goto out_warn;
 	}
 
-	err = populate_page(c, page1, bu, &n);
+	err = populate_page(c, &folio1->page, bu, &n);
 	if (err)
 		goto out_warn;
 
-	unlock_page(page1);
+	folio_unlock(folio1);
 	ret = 1;
 
 	isize = i_size_read(inode);
@@ -810,7 +810,7 @@ out_bu_off:
 
 /**
  * ubifs_bulk_read - determine whether to bulk-read and, if so, do it.
- * @page: page from which to start bulk-read.
+ * @folio: folio from which to start bulk-read.
  *
  * Some flash media are capable of reading sequentially at faster rates. UBIFS
  * bulk-read facility is designed to take advantage of that, by reading in one
@@ -819,12 +819,12 @@ out_bu_off:
  *
  * Returns: %1 if a bulk-read is done and %0 otherwise.
  */
-static int ubifs_bulk_read(struct page *page)
+static int ubifs_bulk_read(struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	pgoff_t index = page->index, last_page_read = ui->last_page_read;
+	pgoff_t index = folio->index, last_page_read = ui->last_page_read;
 	struct bu_info *bu;
 	int err = 0, allocated = 0;
 
@@ -872,8 +872,8 @@ static int ubifs_bulk_read(struct page *page)
 
 	bu->buf_len = c->max_bu_buf_len;
 	data_key_init(c, &bu->key, inode->i_ino,
-		      page->index << UBIFS_BLOCKS_PER_PAGE_SHIFT);
-	err = ubifs_do_bulk_read(c, bu, page);
+		      folio->index << UBIFS_BLOCKS_PER_PAGE_SHIFT);
+	err = ubifs_do_bulk_read(c, bu, folio);
 
 	if (!allocated)
 		mutex_unlock(&c->bu_mutex);
@@ -887,9 +887,7 @@ out_unlock:
 
 static int ubifs_read_folio(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-
-	if (ubifs_bulk_read(page))
+	if (ubifs_bulk_read(folio))
 		return 0;
 	do_readpage(folio);
 	folio_unlock(folio);
