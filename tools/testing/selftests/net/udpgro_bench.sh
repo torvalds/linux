@@ -5,7 +5,7 @@
 
 readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
 
-BPF_FILE="../bpf/xdp_dummy.bpf.o"
+BPF_FILE="xdp_dummy.o"
 
 cleanup() {
 	local -r jobs="$(jobs -p)"
@@ -83,7 +83,7 @@ run_all() {
 }
 
 if [ ! -f ${BPF_FILE} ]; then
-	echo "Missing ${BPF_FILE}. Build bpf selftest first"
+	echo "Missing ${BPF_FILE}. Run 'make' first"
 	exit -1
 fi
 
