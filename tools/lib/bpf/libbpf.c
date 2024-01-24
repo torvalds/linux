@@ -7604,6 +7604,12 @@ static struct bpf_object *bpf_object_open(const char *path, const void *obj_buf,
 		return ERR_PTR(-EINVAL);
 
 	token_path = OPTS_GET(opts, bpf_token_path, NULL);
+	/* if user didn't specify bpf_token_path explicitly, check if
+	 * LIBBPF_BPF_TOKEN_PATH envvar was set and treat it as bpf_token_path
+	 * option
+	 */
+	if (!token_path)
+		token_path = getenv("LIBBPF_BPF_TOKEN_PATH");
 	if (token_path && strlen(token_path) >= PATH_MAX)
 		return ERR_PTR(-ENAMETOOLONG);
 
