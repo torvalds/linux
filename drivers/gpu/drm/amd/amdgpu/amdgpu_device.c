@@ -4048,10 +4048,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 
 	amdgpu_device_get_pcie_info(adev);
 
-	r = amdgpu_aca_init(adev);
-	if (r)
-		return r;
-
 	r = amdgpu_device_get_job_timeout_settings(adev);
 	if (r) {
 		dev_err(adev->dev, "invalid lockup_timeout parameter syntax\n");
@@ -4447,8 +4443,6 @@ void amdgpu_device_fini_sw(struct amdgpu_device *adev)
 	dma_fence_put(rcu_dereference_protected(adev->gang_submit, true));
 
 	amdgpu_reset_fini(adev);
-
-	amdgpu_aca_fini(adev);
 
 	/* free i2c buses */
 	if (!amdgpu_device_has_dc_support(adev))

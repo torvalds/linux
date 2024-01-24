@@ -3344,10 +3344,18 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
-	if (amdgpu_aca_is_enabled(adev))
+	if (amdgpu_aca_is_enabled(adev)) {
+		if (amdgpu_in_reset(adev))
+			r = amdgpu_aca_reset(adev);
+		 else
+			r = amdgpu_aca_init(adev);
+		if (r)
+			return r;
+
 		amdgpu_ras_set_aca_debug_mode(adev, false);
-	else
+	} else {
 		amdgpu_ras_set_mca_debug_mode(adev, false);
+	}
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		obj = node->ras_obj;
@@ -3415,6 +3423,9 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 	amdgpu_ras_fs_fini(adev);
 	amdgpu_ras_interrupt_remove_all(adev);
+
+	if (amdgpu_aca_is_enabled(adev))
+		amdgpu_aca_fini(adev);
 
 	WARN(AMDGPU_RAS_GET_FEATURES(con->features), "Feature mask is not cleared");
 
