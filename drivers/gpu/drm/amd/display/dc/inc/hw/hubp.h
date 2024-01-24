@@ -157,9 +157,7 @@ struct hubp_funcs {
 
 	void (*set_blank)(struct hubp *hubp, bool blank);
 	void (*set_blank_regs)(struct hubp *hubp, bool blank);
-#ifdef CONFIG_DRM_AMD_DC_FP
 	void (*phantom_hubp_post_enable)(struct hubp *hubp);
-#endif
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);
 
 	void (*set_cursor_attributes)(
