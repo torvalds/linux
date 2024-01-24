@@ -61,11 +61,6 @@ static_assert(IS_ALIGNED(sizeof(struct gpio_v2_line_values), 8));
  * interface to gpiolib GPIOs via ioctl()s.
  */
 
-typedef __poll_t (*poll_fn)(struct file *, struct poll_table_struct *);
-typedef long (*ioctl_fn)(struct file *, unsigned int, unsigned long);
-typedef ssize_t (*read_fn)(struct file *, char __user *,
-			   size_t count, loff_t *);
-
 /*
  * GPIO line handle management
  */
