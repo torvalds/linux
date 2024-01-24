@@ -292,7 +292,7 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 	struct hid_device *hdev;
 	struct bpf_prog *prog;
 	struct device *dev;
-	int fd;
+	int err, fd;
 
 	if (!hid_bpf_ops)
 		return -EINVAL;
@@ -311,14 +311,24 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 	 * on errors or when it'll be detached
 	 */
 	prog = bpf_prog_get(prog_fd);
-	if (IS_ERR(prog))
-		return PTR_ERR(prog);
+	if (IS_ERR(prog)) {
+		err = PTR_ERR(prog);
+		goto out_dev_put;
+	}
 
 	fd = do_hid_bpf_attach_prog(hdev, prog_fd, prog, flags);
-	if (fd < 0)
-		bpf_prog_put(prog);
+	if (fd < 0) {
+		err = fd;
+		goto out_prog_put;
+	}
 
 	return fd;
+
+ out_prog_put:
+	bpf_prog_put(prog);
+ out_dev_put:
+	put_device(dev);
+	return err;
 }
 
 /**
@@ -345,8 +355,10 @@ hid_bpf_allocate_context(unsigned int hid_id)
 	hdev = to_hid_device(dev);
 
 	ctx_kern = kzalloc(sizeof(*ctx_kern), GFP_KERNEL);
-	if (!ctx_kern)
+	if (!ctx_kern) {
+		put_device(dev);
 		return NULL;
+	}
 
 	ctx_kern->ctx.hid = hdev;
 
@@ -363,10 +375,15 @@ noinline void
 hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
+	struct hid_device *hid;
 
 	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	hid = (struct hid_device *)ctx_kern->ctx.hid; /* ignore const */
 
 	kfree(ctx_kern);
+
+	/* get_device() is called by bus_find_device() */
+	put_device(&hid->dev);
 }
 
 /**

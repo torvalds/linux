@@ -196,6 +196,7 @@ static void __hid_bpf_do_release_prog(int map_fd, unsigned int idx)
 static void hid_bpf_release_progs(struct work_struct *work)
 {
 	int i, j, n, map_fd = -1;
+	bool hdev_destroyed;
 
 	if (!jmp_table.map)
 		return;
@@ -220,6 +221,12 @@ static void hid_bpf_release_progs(struct work_struct *work)
 		if (entry->hdev) {
 			hdev = entry->hdev;
 			type = entry->type;
+			/*
+			 * hdev is still valid, even if we are called after hid_destroy_device():
+			 * when hid_bpf_attach() gets called, it takes a ref on the dev through
+			 * bus_find_device()
+			 */
+			hdev_destroyed = hdev->bpf.destroyed;
 
 			hid_bpf_populate_hdev(hdev, type);
 
@@ -232,12 +239,19 @@ static void hid_bpf_release_progs(struct work_struct *work)
 				if (test_bit(next->idx, jmp_table.enabled))
 					continue;
 
-				if (next->hdev == hdev && next->type == type)
+				if (next->hdev == hdev && next->type == type) {
+					/*
+					 * clear the hdev reference and decrement the device ref
+					 * that was taken during bus_find_device() while calling
+					 * hid_bpf_attach()
+					 */
 					next->hdev = NULL;
+					put_device(&hdev->dev);
+				}
 			}
 
-			/* if type was rdesc fixup, reconnect device */
-			if (type == HID_BPF_PROG_TYPE_RDESC_FIXUP)
+			/* if type was rdesc fixup and the device is not gone, reconnect device */
+			if (type == HID_BPF_PROG_TYPE_RDESC_FIXUP && !hdev_destroyed)
 				hid_bpf_reconnect(hdev);
 		}
 	}
