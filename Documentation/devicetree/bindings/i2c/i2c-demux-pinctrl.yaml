@@ -32,7 +32,6 @@ description: |
       +-------------------------------+
 
 allOf:
-  - $ref: i2c-mux.yaml
   - $ref: /schemas/i2c/i2c-controller.yaml#
 
 properties:
