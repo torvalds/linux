@@ -898,60 +898,64 @@ static int ubifs_read_folio(struct file *file, struct folio *folio)
 	return 0;
 }
 
-static int do_writepage(struct page *page, int len)
+static int do_writepage(struct folio *folio, size_t len)
 {
-	int err = 0, i, blen;
+	int err = 0, blen;
 	unsigned int block;
 	void *addr;
+	size_t offset = 0;
 	union ubifs_key key;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 #ifdef UBIFS_DEBUG
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	spin_lock(&ui->ui_lock);
-	ubifs_assert(c, page->index <= ui->synced_i_size >> PAGE_SHIFT);
+	ubifs_assert(c, folio->index <= ui->synced_i_size >> PAGE_SHIFT);
 	spin_unlock(&ui->ui_lock);
 #endif
 
-	/* Update radix tree tags */
-	set_page_writeback(page);
+	folio_start_writeback(folio);
 
-	addr = kmap(page);
-	block = page->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
-	i = 0;
-	while (len) {
-		blen = min_t(int, len, UBIFS_BLOCK_SIZE);
+	addr = kmap_local_folio(folio, offset);
+	block = folio->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
+	for (;;) {
+		blen = min_t(size_t, len, UBIFS_BLOCK_SIZE);
 		data_key_init(c, &key, inode->i_ino, block);
 		err = ubifs_jnl_write_data(c, inode, &key, addr, blen);
 		if (err)
 			break;
-		if (++i >= UBIFS_BLOCKS_PER_PAGE)
+		len -= blen;
+		if (!len)
 			break;
 		block += 1;
 		addr += blen;
-		len -= blen;
+		if (folio_test_highmem(folio) && !offset_in_page(addr)) {
+			kunmap_local(addr - blen);
+			offset += PAGE_SIZE;
+			addr = kmap_local_folio(folio, offset);
+		}
 	}
+	kunmap_local(addr);
 	if (err) {
-		SetPageError(page);
-		ubifs_err(c, "cannot write page %lu of inode %lu, error %d",
-			  page->index, inode->i_ino, err);
+		mapping_set_error(folio->mapping, err);
+		ubifs_err(c, "cannot write folio %lu of inode %lu, error %d",
+			  folio->index, inode->i_ino, err);
 		ubifs_ro_mode(c, err);
 	}
 
-	ubifs_assert(c, PagePrivate(page));
-	if (PageChecked(page))
+	ubifs_assert(c, folio->private != NULL);
+	if (folio_test_checked(folio))
 		release_new_page_budget(c);
 	else
 		release_existing_page_budget(c);
 
 	atomic_long_dec(&c->dirty_pg_cnt);
-	detach_page_private(page);
-	ClearPageChecked(page);
+	folio_detach_private(folio);
+	folio_clear_checked(folio);
 
-	kunmap(page);
-	unlock_page(page);
-	end_page_writeback(page);
+	folio_unlock(folio);
+	folio_end_writeback(folio);
 	return err;
 }
 
@@ -1039,7 +1043,7 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 			 * with this.
 			 */
 		}
-		return do_writepage(&folio->page, len);
+		return do_writepage(folio, len);
 	}
 
 	/*
@@ -1058,7 +1062,7 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 			goto out_redirty;
 	}
 
-	return do_writepage(&folio->page, len);
+	return do_writepage(folio, len);
 out_redirty:
 	/*
 	 * folio_redirty_for_writepage() won't call ubifs_dirty_inode() because
@@ -1172,7 +1176,7 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 				if (UBIFS_BLOCKS_PER_PAGE_SHIFT)
 					offset = offset_in_folio(folio,
 							new_size);
-				err = do_writepage(&folio->page, offset);
+				err = do_writepage(folio, offset);
 				folio_put(folio);
 				if (err)
 					goto out_budg;
