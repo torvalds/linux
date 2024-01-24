@@ -9,14 +9,17 @@
 #include <dt-bindings/clock/aspeed,ast2700-clk.h>
 #include <dt-bindings/reset/aspeed,ast2700-reset.h>
 
-#define AST2700_CLK_25MHZ 25000000
 #define AST2700_CLK_24MHZ 24000000
+#define AST2700_CLK_25MHZ 25000000
 #define AST2700_CLK_192MHZ 192000000
+/* SOC0 USB2 PHY CLK*/
+#define AST2700_CLK_12MHZ 12000000
 /* SOC0 */
 #define AST2700_SOC0_HWSTRAP1 0x010
 #define AST2700_SOC0_CLK_STOP 0x240
 #define AST2700_SOC0_CLK_SEL1 0x280
 #define AST2700_SOC0_CLK_SEL2 0x284
+#define GET_USB_REFCLK_DIV(x) ((GENMASK(23, 20) & (x)) >> 20)
 #define UART_DIV13_EN BIT(30)
 #define AST2700_SOC0_HPLL_PARAM 0x300
 #define AST2700_SOC0_DPLL_PARAM 0x308
@@ -958,6 +961,7 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	clks[AST2700_SOC0_CLK_MPLL] = ast2700_calc_mpll("soc0-mpll", "soc0-clkin", val);
 	clks[AST2700_SOC0_CLK_MPLL_DIV2] = clk_hw_register_fixed_factor(NULL, "soc0-mpll_div2", "soc0-mpll", 0, 1, 2);
 	clks[AST2700_SOC0_CLK_MPLL_DIV4] = clk_hw_register_fixed_factor(NULL, "soc0-mpll_div4", "soc0-mpll", 0, 1, 4);
+	clks[AST2700_SOC0_CLK_MPLL_DIV8] = clk_hw_register_fixed_factor(NULL, "soc0-mpll_div8", "soc0-mpll", 0, 1, 8);
 
 	val = readl(clk_base + AST2700_SOC0_D1CLK_PARAM);
 	clks[AST2700_SOC0_CLK_D1CLK] = ast2700_soc0_hw_pll("d1clk", "soc0-clkin", val);
@@ -1037,6 +1041,12 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 		ast2700_clk_hw_register_gate(NULL, "soc0-refclk-gate", "soc0-clkin",
 					     CLK_IS_CRITICAL, clk_base + AST2700_SOC0_CLK_STOP,
 					     6, 0, &ast2700_clk_lock);
+
+	div = (GET_USB_REFCLK_DIV(readl(clk_base + AST2700_SOC0_CLK_SEL2)) + 1) * 2;
+	clks[AST2700_SOC0_CLK_U2PHY_REFCLK] = clk_hw_register_fixed_factor(NULL, "xhci_ref_clk", "soc0-mpll_div8", 0, 1, div);
+
+	clks[AST2700_SOC0_CLK_U2PHY_CLK12M] =
+		clk_hw_register_fixed_rate(NULL, "xhci_suspend_clk", NULL, 0, AST2700_CLK_12MHZ);
 
 	clks[AST2700_SOC0_CLK_GATE_USB0CLK] =
 		ast2700_clk_hw_register_gate(NULL, "usb0clk", NULL,

@@ -254,7 +254,10 @@
 			compatible = "aspeed,ast2700-xhci", "snps,dwc3";
 			reg = <0x0 0x12030000 0x0 0x10000>;
 			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_USB0CLK>;
+			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_USB0CLK>,
+				 <&syscon0 AST2700_SOC0_CLK_U2PHY_REFCLK>,
+				 <&syscon0 AST2700_SOC0_CLK_U2PHY_CLK12M>;
+			clock-names = "bus_early", "ref", "suspend";
 			resets = <&syscon0 ASPEED_RESET_P0_XHCI>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb3axh_default &pinctrl_usb2axh_default>;
@@ -286,7 +289,10 @@
 			compatible = "aspeed,ast2700-xhci", "snps,dwc3";
 			reg = <0x0 0x12050000 0x0 0x10000>;
 			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_USB2CLK>;
+			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_USB2CLK>,
+				 <&syscon0 AST2700_SOC0_CLK_U2PHY_REFCLK>,
+				 <&syscon0 AST2700_SOC0_CLK_U2PHY_CLK12M>;
+			clock-names = "bus_early", "ref", "suspend";
 			resets = <&syscon0 ASPEED_RESET_P1_XHCI>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_usb3bxh_default &pinctrl_usb2bxh_default>;
