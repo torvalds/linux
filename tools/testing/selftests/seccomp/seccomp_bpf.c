@@ -784,7 +784,7 @@ void *kill_thread(void *data)
 	bool die = (bool)data;
 
 	if (die) {
-		prctl(PR_GET_SECCOMP, 0, 0, 0, 0);
+		syscall(__NR_getpid);
 		return (void *)SIBLING_EXIT_FAILURE;
 	}
 
@@ -803,11 +803,11 @@ void kill_thread_or_group(struct __test_metadata *_metadata,
 {
 	pthread_t thread;
 	void *status;
-	/* Kill only when calling __NR_prctl. */
+	/* Kill only when calling __NR_getpid. */
 	struct sock_filter filter_thread[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_prctl, 0, 1),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_KILL_THREAD),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 	};
@@ -819,7 +819,7 @@ void kill_thread_or_group(struct __test_metadata *_metadata,
 	struct sock_filter filter_process[] = {
 		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
 			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_prctl, 0, 1),
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_getpid, 0, 1),
 		BPF_STMT(BPF_RET|BPF_K, kill),
 		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
 	};
