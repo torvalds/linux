@@ -1146,7 +1146,7 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 	path = &trans->paths[path_idx];
 
 	if (unlikely(path->level >= BTREE_MAX_DEPTH))
-		goto out;
+		goto out_uptodate;
 
 	path->level = btree_path_up_until_good_node(trans, path, 0);
 
@@ -1179,7 +1179,7 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 			goto out;
 		}
 	}
-
+out_uptodate:
 	path->uptodate = BTREE_ITER_UPTODATE;
 out:
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) != !!trans->restarted)
