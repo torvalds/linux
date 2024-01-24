@@ -426,7 +426,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	pgoff_t index = pos >> PAGE_SHIFT;
 	int err, appending = !!(pos + len > inode->i_size);
 	int skipped_read = 0;
-	struct page *page;
+	struct folio *folio;
 
 	ubifs_assert(c, ubifs_inode(inode)->ui_size == inode->i_size);
 	ubifs_assert(c, !c->ro_media && !c->ro_mount);
@@ -435,13 +435,14 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		return -EROFS;
 
 	/* Try out the fast-path part first */
-	page = grab_cache_page_write_begin(mapping, index);
-	if (unlikely(!page))
-		return -ENOMEM;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	if (!PageUptodate(page)) {
+	if (!folio_test_uptodate(folio)) {
 		/* The page is not loaded from the flash */
-		if (!(pos & ~PAGE_MASK) && len == PAGE_SIZE) {
+		if (pos == folio_pos(folio) && len >= folio_size(folio)) {
 			/*
 			 * We change whole page so no need to load it. But we
 			 * do not know whether this page exists on the media or
@@ -451,19 +452,19 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 			 * media. Thus, we are setting the @PG_checked flag
 			 * here.
 			 */
-			SetPageChecked(page);
+			folio_set_checked(folio);
 			skipped_read = 1;
 		} else {
-			err = do_readpage(page);
+			err = do_readpage(&folio->page);
 			if (err) {
-				unlock_page(page);
-				put_page(page);
+				folio_unlock(folio);
+				folio_put(folio);
 				return err;
 			}
 		}
 	}
 
-	err = allocate_budget(c, page, ui, appending);
+	err = allocate_budget(c, &folio->page, ui, appending);
 	if (unlikely(err)) {
 		ubifs_assert(c, err == -ENOSPC);
 		/*
@@ -471,7 +472,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		 * write all of it, then it is not up to date.
 		 */
 		if (skipped_read)
-			ClearPageChecked(page);
+			folio_clear_checked(folio);
 		/*
 		 * Budgeting failed which means it would have to force
 		 * write-back but didn't, because we set the @fast flag in the
@@ -483,8 +484,8 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 			ubifs_assert(c, mutex_is_locked(&ui->ui_mutex));
 			mutex_unlock(&ui->ui_mutex);
 		}
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 
 		return write_begin_slow(mapping, pos, len, pagep);
 	}
@@ -495,9 +496,8 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 	 * with @ui->ui_mutex locked if we are appending pages, and unlocked
 	 * otherwise. This is an optimization (slightly hacky though).
 	 */
-	*pagep = page;
+	*pagep = &folio->page;
 	return 0;
-
 }
 
 /**
