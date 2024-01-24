@@ -117,11 +117,6 @@ the SVE instruction set architecture.
 * The SVE registers are not used to pass arguments to or receive results from
   any syscall.
 
-* In practice the affected registers/bits will be preserved or will be replaced
-  with zeros on return from a syscall, but userspace should not make
-  assumptions about this.  The kernel behaviour may vary on a case-by-case
-  basis.
-
 * All other SVE state of a thread, including the currently configured vector
   length, the state of the PR_SVE_VL_INHERIT flag, and the deferred vector
   length (if any), is preserved across all syscalls, subject to the specific
