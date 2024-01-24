@@ -19,6 +19,7 @@ static const char *kmulti_syms[] = {
 };
 #define KMULTI_CNT ARRAY_SIZE(kmulti_syms)
 static __u64 kmulti_addrs[KMULTI_CNT];
+static __u64 kmulti_cookies[] = { 3, 1, 2 };
 
 #define KPROBE_FUNC "bpf_fentry_test1"
 static __u64 kprobe_addr;
@@ -30,6 +31,8 @@ static noinline void uprobe_func(void)
 {
 	asm volatile ("");
 }
+
+#define PERF_EVENT_COOKIE 0xdeadbeef
 
 static int verify_perf_link_info(int fd, enum bpf_perf_event_type type, long addr,
 				 ssize_t offset, ssize_t entry_offset)
@@ -62,6 +65,8 @@ again:
 			ASSERT_EQ(info.perf_event.kprobe.addr, addr + entry_offset,
 				  "kprobe_addr");
 
+		ASSERT_EQ(info.perf_event.kprobe.cookie, PERF_EVENT_COOKIE, "kprobe_cookie");
+
 		if (!info.perf_event.kprobe.func_name) {
 			ASSERT_EQ(info.perf_event.kprobe.name_len, 0, "name_len");
 			info.perf_event.kprobe.func_name = ptr_to_u64(&buf);
@@ -81,6 +86,8 @@ again:
 			goto again;
 		}
 
+		ASSERT_EQ(info.perf_event.tracepoint.cookie, PERF_EVENT_COOKIE, "tracepoint_cookie");
+
 		err = strncmp(u64_to_ptr(info.perf_event.tracepoint.tp_name), TP_NAME,
 			      strlen(TP_NAME));
 		ASSERT_EQ(err, 0, "cmp_tp_name");
@@ -96,9 +103,16 @@ again:
 			goto again;
 		}
 
+		ASSERT_EQ(info.perf_event.uprobe.cookie, PERF_EVENT_COOKIE, "uprobe_cookie");
+
 		err = strncmp(u64_to_ptr(info.perf_event.uprobe.file_name), UPROBE_FILE,
 			      strlen(UPROBE_FILE));
 			ASSERT_EQ(err, 0, "cmp_file_name");
+		break;
+	case BPF_PERF_EVENT_EVENT:
+		ASSERT_EQ(info.perf_event.event.type, PERF_TYPE_SOFTWARE, "event_type");
+		ASSERT_EQ(info.perf_event.event.config, PERF_COUNT_SW_PAGE_FAULTS, "event_config");
+		ASSERT_EQ(info.perf_event.event.cookie, PERF_EVENT_COOKIE, "event_cookie");
 		break;
 	default:
 		err = -1;
@@ -139,6 +153,7 @@ static void test_kprobe_fill_link_info(struct test_fill_link_info *skel,
 	DECLARE_LIBBPF_OPTS(bpf_kprobe_opts, opts,
 		.attach_mode = PROBE_ATTACH_MODE_LINK,
 		.retprobe = type == BPF_PERF_EVENT_KRETPROBE,
+		.bpf_cookie = PERF_EVENT_COOKIE,
 	);
 	ssize_t entry_offset = 0;
 	struct bpf_link *link;
@@ -163,10 +178,13 @@ static void test_kprobe_fill_link_info(struct test_fill_link_info *skel,
 
 static void test_tp_fill_link_info(struct test_fill_link_info *skel)
 {
+	DECLARE_LIBBPF_OPTS(bpf_tracepoint_opts, opts,
+		.bpf_cookie = PERF_EVENT_COOKIE,
+	);
 	struct bpf_link *link;
 	int link_fd, err;
 
-	link = bpf_program__attach_tracepoint(skel->progs.tp_run, TP_CAT, TP_NAME);
+	link = bpf_program__attach_tracepoint_opts(skel->progs.tp_run, TP_CAT, TP_NAME, &opts);
 	if (!ASSERT_OK_PTR(link, "attach_tp"))
 		return;
 
@@ -176,16 +194,53 @@ static void test_tp_fill_link_info(struct test_fill_link_info *skel)
 	bpf_link__destroy(link);
 }
 
+static void test_event_fill_link_info(struct test_fill_link_info *skel)
+{
+	DECLARE_LIBBPF_OPTS(bpf_perf_event_opts, opts,
+		.bpf_cookie = PERF_EVENT_COOKIE,
+	);
+	struct bpf_link *link;
+	int link_fd, err, pfd;
+	struct perf_event_attr attr = {
+		.type = PERF_TYPE_SOFTWARE,
+		.config = PERF_COUNT_SW_PAGE_FAULTS,
+		.freq = 1,
+		.sample_freq = 1,
+		.size = sizeof(struct perf_event_attr),
+	};
+
+	pfd = syscall(__NR_perf_event_open, &attr, -1 /* pid */, 0 /* cpu 0 */,
+		      -1 /* group id */, 0 /* flags */);
+	if (!ASSERT_GE(pfd, 0, "perf_event_open"))
+		return;
+
+	link = bpf_program__attach_perf_event_opts(skel->progs.event_run, pfd, &opts);
+	if (!ASSERT_OK_PTR(link, "attach_event"))
+		goto error;
+
+	link_fd = bpf_link__fd(link);
+	err = verify_perf_link_info(link_fd, BPF_PERF_EVENT_EVENT, 0, 0, 0);
+	ASSERT_OK(err, "verify_perf_link_info");
+	bpf_link__destroy(link);
+
+error:
+	close(pfd);
+}
+
 static void test_uprobe_fill_link_info(struct test_fill_link_info *skel,
 				       enum bpf_perf_event_type type)
 {
+	DECLARE_LIBBPF_OPTS(bpf_uprobe_opts, opts,
+		.retprobe = type == BPF_PERF_EVENT_URETPROBE,
+		.bpf_cookie = PERF_EVENT_COOKIE,
+	);
 	struct bpf_link *link;
 	int link_fd, err;
 
-	link = bpf_program__attach_uprobe(skel->progs.uprobe_run,
-					  type == BPF_PERF_EVENT_URETPROBE,
-					  0, /* self pid */
-					  UPROBE_FILE, uprobe_offset);
+	link = bpf_program__attach_uprobe_opts(skel->progs.uprobe_run,
+					       0, /* self pid */
+					       UPROBE_FILE, uprobe_offset,
+					       &opts);
 	if (!ASSERT_OK_PTR(link, "attach_uprobe"))
 		return;
 
@@ -195,11 +250,11 @@ static void test_uprobe_fill_link_info(struct test_fill_link_info *skel,
 	bpf_link__destroy(link);
 }
 
-static int verify_kmulti_link_info(int fd, bool retprobe)
+static int verify_kmulti_link_info(int fd, bool retprobe, bool has_cookies)
 {
+	__u64 addrs[KMULTI_CNT], cookies[KMULTI_CNT];
 	struct bpf_link_info info;
 	__u32 len = sizeof(info);
-	__u64 addrs[KMULTI_CNT];
 	int flags, i, err;
 
 	memset(&info, 0, sizeof(info));
@@ -221,18 +276,22 @@ again:
 
 	if (!info.kprobe_multi.addrs) {
 		info.kprobe_multi.addrs = ptr_to_u64(addrs);
+		info.kprobe_multi.cookies = ptr_to_u64(cookies);
 		goto again;
 	}
-	for (i = 0; i < KMULTI_CNT; i++)
+	for (i = 0; i < KMULTI_CNT; i++) {
 		ASSERT_EQ(addrs[i], kmulti_addrs[i], "kmulti_addrs");
+		ASSERT_EQ(cookies[i], has_cookies ? kmulti_cookies[i] : 0,
+			  "kmulti_cookies_value");
+	}
 	return 0;
 }
 
 static void verify_kmulti_invalid_user_buffer(int fd)
 {
+	__u64 addrs[KMULTI_CNT], cookies[KMULTI_CNT];
 	struct bpf_link_info info;
 	__u32 len = sizeof(info);
-	__u64 addrs[KMULTI_CNT];
 	int err, i;
 
 	memset(&info, 0, sizeof(info));
@@ -266,7 +325,20 @@ static void verify_kmulti_invalid_user_buffer(int fd)
 	info.kprobe_multi.count = KMULTI_CNT;
 	info.kprobe_multi.addrs = 0x1; /* invalid addr */
 	err = bpf_link_get_info_by_fd(fd, &info, &len);
-	ASSERT_EQ(err, -EFAULT, "invalid_buff");
+	ASSERT_EQ(err, -EFAULT, "invalid_buff_addrs");
+
+	info.kprobe_multi.count = KMULTI_CNT;
+	info.kprobe_multi.addrs = ptr_to_u64(addrs);
+	info.kprobe_multi.cookies = 0x1; /* invalid addr */
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EFAULT, "invalid_buff_cookies");
+
+	/* cookies && !count */
+	info.kprobe_multi.count = 0;
+	info.kprobe_multi.addrs = ptr_to_u64(NULL);
+	info.kprobe_multi.cookies = ptr_to_u64(cookies);
+	err = bpf_link_get_info_by_fd(fd, &info, &len);
+	ASSERT_EQ(err, -EINVAL, "invalid_cookies_count");
 }
 
 static int symbols_cmp_r(const void *a, const void *b)
@@ -278,13 +350,15 @@ static int symbols_cmp_r(const void *a, const void *b)
 }
 
 static void test_kprobe_multi_fill_link_info(struct test_fill_link_info *skel,
-					     bool retprobe, bool invalid)
+					     bool retprobe, bool cookies,
+					     bool invalid)
 {
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
 	struct bpf_link *link;
 	int link_fd, err;
 
 	opts.syms = kmulti_syms;
+	opts.cookies = cookies ? kmulti_cookies : NULL;
 	opts.cnt = KMULTI_CNT;
 	opts.retprobe = retprobe;
 	link = bpf_program__attach_kprobe_multi_opts(skel->progs.kmulti_run, NULL, &opts);
@@ -293,7 +367,7 @@ static void test_kprobe_multi_fill_link_info(struct test_fill_link_info *skel,
 
 	link_fd = bpf_link__fd(link);
 	if (!invalid) {
-		err = verify_kmulti_link_info(link_fd, retprobe);
+		err = verify_kmulti_link_info(link_fd, retprobe, cookies);
 		ASSERT_OK(err, "verify_kmulti_link_info");
 	} else {
 		verify_kmulti_invalid_user_buffer(link_fd);
@@ -513,6 +587,8 @@ void test_fill_link_info(void)
 		test_kprobe_fill_link_info(skel, BPF_PERF_EVENT_KPROBE, true);
 	if (test__start_subtest("tracepoint_link_info"))
 		test_tp_fill_link_info(skel);
+	if (test__start_subtest("event_link_info"))
+		test_event_fill_link_info(skel);
 
 	uprobe_offset = get_uprobe_offset(&uprobe_func);
 	if (test__start_subtest("uprobe_link_info"))
@@ -523,12 +599,16 @@ void test_fill_link_info(void)
 	qsort(kmulti_syms, KMULTI_CNT, sizeof(kmulti_syms[0]), symbols_cmp_r);
 	for (i = 0; i < KMULTI_CNT; i++)
 		kmulti_addrs[i] = ksym_get_addr(kmulti_syms[i]);
-	if (test__start_subtest("kprobe_multi_link_info"))
-		test_kprobe_multi_fill_link_info(skel, false, false);
-	if (test__start_subtest("kretprobe_multi_link_info"))
-		test_kprobe_multi_fill_link_info(skel, true, false);
+	if (test__start_subtest("kprobe_multi_link_info")) {
+		test_kprobe_multi_fill_link_info(skel, false, false, false);
+		test_kprobe_multi_fill_link_info(skel, false, true, false);
+	}
+	if (test__start_subtest("kretprobe_multi_link_info")) {
+		test_kprobe_multi_fill_link_info(skel, true, false, false);
+		test_kprobe_multi_fill_link_info(skel, true, true, false);
+	}
 	if (test__start_subtest("kprobe_multi_invalid_ubuff"))
-		test_kprobe_multi_fill_link_info(skel, true, true);
+		test_kprobe_multi_fill_link_info(skel, true, true, true);
 
 	if (test__start_subtest("uprobe_multi_link_info"))
 		test_uprobe_multi_fill_link_info(skel, false, false);
