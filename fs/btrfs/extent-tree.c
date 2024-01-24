@@ -2396,7 +2396,14 @@ static noinline int check_committed_ref(struct btrfs_root *root,
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret == 0); /* Corruption */
+	if (ret == 0) {
+		/*
+		 * Key with offset -1 found, there would have to exist an extent
+		 * item with such offset, but this is out of the valid range.
+		 */
+		ret = -EUCLEAN;
+		goto out;
+	}
 
 	ret = -ENOENT;
 	if (path->slots[0] == 0)
