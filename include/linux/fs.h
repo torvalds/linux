@@ -907,7 +907,8 @@ static inline loff_t i_size_read(const struct inode *inode)
 	preempt_enable();
 	return i_size;
 #else
-	return inode->i_size;
+	/* Pairs with smp_store_release() in i_size_write() */
+	return smp_load_acquire(&inode->i_size);
 #endif
 }
 
@@ -929,7 +930,12 @@ static inline void i_size_write(struct inode *inode, loff_t i_size)
 	inode->i_size = i_size;
 	preempt_enable();
 #else
-	inode->i_size = i_size;
+	/*
+	 * Pairs with smp_load_acquire() in i_size_read() to ensure
+	 * changes related to inode size (such as page contents) are
+	 * visible before we see the changed inode size.
+	 */
+	smp_store_release(&inode->i_size, i_size);
 #endif
 }
 
