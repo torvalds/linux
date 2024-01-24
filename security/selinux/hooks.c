@@ -6942,7 +6942,8 @@ static void selinux_bpf_map_free(struct bpf_map *map)
 	kfree(bpfsec);
 }
 
-static int selinux_bpf_prog_alloc(struct bpf_prog_aux *aux)
+static int selinux_bpf_prog_load(struct bpf_prog *prog, union bpf_attr *attr,
+				 struct bpf_token *token)
 {
 	struct bpf_security_struct *bpfsec;
 
@@ -6951,16 +6952,16 @@ static int selinux_bpf_prog_alloc(struct bpf_prog_aux *aux)
 		return -ENOMEM;
 
 	bpfsec->sid = current_sid();
-	aux->security = bpfsec;
+	prog->aux->security = bpfsec;
 
 	return 0;
 }
 
-static void selinux_bpf_prog_free(struct bpf_prog_aux *aux)
+static void selinux_bpf_prog_free(struct bpf_prog *prog)
 {
-	struct bpf_security_struct *bpfsec = aux->security;
+	struct bpf_security_struct *bpfsec = prog->aux->security;
 
-	aux->security = NULL;
+	prog->aux->security = NULL;
 	kfree(bpfsec);
 }
 #endif
@@ -7325,7 +7326,7 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 	LSM_HOOK_INIT(bpf_map, selinux_bpf_map),
 	LSM_HOOK_INIT(bpf_prog, selinux_bpf_prog),
 	LSM_HOOK_INIT(bpf_map_free_security, selinux_bpf_map_free),
-	LSM_HOOK_INIT(bpf_prog_free_security, selinux_bpf_prog_free),
+	LSM_HOOK_INIT(bpf_prog_free, selinux_bpf_prog_free),
 #endif
 
 #ifdef CONFIG_PERF_EVENTS
@@ -7383,7 +7384,7 @@ static struct security_hook_list selinux_hooks[] __ro_after_init = {
 #endif
 #ifdef CONFIG_BPF_SYSCALL
 	LSM_HOOK_INIT(bpf_map_alloc_security, selinux_bpf_map_alloc),
-	LSM_HOOK_INIT(bpf_prog_alloc_security, selinux_bpf_prog_alloc),
+	LSM_HOOK_INIT(bpf_prog_load, selinux_bpf_prog_load),
 #endif
 #ifdef CONFIG_PERF_EVENTS
 	LSM_HOOK_INIT(perf_event_alloc, selinux_perf_event_alloc),
