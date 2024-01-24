@@ -162,6 +162,15 @@ int bpf_token_create(union bpf_attr *attr)
 		goto out_path;
 	}
 
+	mnt_opts = path.dentry->d_sb->s_fs_info;
+	if (mnt_opts->delegate_cmds == 0 &&
+	    mnt_opts->delegate_maps == 0 &&
+	    mnt_opts->delegate_progs == 0 &&
+	    mnt_opts->delegate_attachs == 0) {
+		err = -ENOENT; /* no BPF token delegation is set up */
+		goto out_path;
+	}
+
 	mode = S_IFREG | ((S_IRUSR | S_IWUSR) & ~current_umask());
 	inode = bpf_get_inode(path.mnt->mnt_sb, NULL, mode);
 	if (IS_ERR(inode)) {
@@ -191,7 +200,6 @@ int bpf_token_create(union bpf_attr *attr)
 	/* remember bpffs owning userns for future ns_capable() checks */
 	token->userns = get_user_ns(userns);
 
-	mnt_opts = path.dentry->d_sb->s_fs_info;
 	token->allowed_cmds = mnt_opts->delegate_cmds;
 	token->allowed_maps = mnt_opts->delegate_maps;
 	token->allowed_progs = mnt_opts->delegate_progs;
