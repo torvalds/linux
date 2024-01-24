@@ -713,7 +713,7 @@ config GPIO_UNIPHIER
 config GPIO_VF610
 	bool "VF610 GPIO support"
 	default y if SOC_VF610
-	depends on ARCH_MXC
+	depends on ARCH_MXC || COMPILE_TEST
 	select GPIOLIB_IRQCHIP
 	help
 	  Say yes here to support i.MX or Vybrid vf610 GPIOs.
