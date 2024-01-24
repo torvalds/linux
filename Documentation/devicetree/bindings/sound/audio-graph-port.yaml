@@ -51,7 +51,7 @@ definitions:
           - $ref: /schemas/types.yaml#/definitions/phandle
       clocks:
         description: Indicates system clock
-        $ref: /schemas/types.yaml#/definitions/phandle
+        maxItems: 1
       system-clock-frequency:
         $ref: simple-card.yaml#/definitions/system-clock-frequency
       system-clock-direction-out:
