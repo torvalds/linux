@@ -1609,6 +1609,18 @@ struct bpf_link_primer {
 	u32 id;
 };
 
+struct bpf_mount_opts {
+	kuid_t uid;
+	kgid_t gid;
+	umode_t mode;
+
+	/* BPF token-related delegation options */
+	u64 delegate_cmds;
+	u64 delegate_maps;
+	u64 delegate_progs;
+	u64 delegate_attachs;
+};
+
 struct bpf_struct_ops_value;
 struct btf_member;
 
