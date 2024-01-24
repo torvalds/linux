@@ -622,6 +622,55 @@ struct gve_ptype_lut {
 	struct gve_ptype ptypes[GVE_NUM_PTYPES];
 };
 
+/* Parameters for allocating queue page lists */
+struct gve_qpls_alloc_cfg {
+	struct gve_qpl_config *qpl_cfg;
+	struct gve_queue_config *tx_cfg;
+	struct gve_queue_config *rx_cfg;
+
+	u16 num_xdp_queues;
+	bool raw_addressing;
+	bool is_gqi;
+
+	/* Allocated resources are returned here */
+	struct gve_queue_page_list *qpls;
+};
+
+/* Parameters for allocating resources for tx queues */
+struct gve_tx_alloc_rings_cfg {
+	struct gve_queue_config *qcfg;
+
+	/* qpls and qpl_cfg must already be allocated */
+	struct gve_queue_page_list *qpls;
+	struct gve_qpl_config *qpl_cfg;
+
+	u16 ring_size;
+	u16 start_idx;
+	u16 num_rings;
+	bool raw_addressing;
+
+	/* Allocated resources are returned here */
+	struct gve_tx_ring *tx;
+};
+
+/* Parameters for allocating resources for rx queues */
+struct gve_rx_alloc_rings_cfg {
+	/* tx config is also needed to determine QPL ids */
+	struct gve_queue_config *qcfg;
+	struct gve_queue_config *qcfg_tx;
+
+	/* qpls and qpl_cfg must already be allocated */
+	struct gve_queue_page_list *qpls;
+	struct gve_qpl_config *qpl_cfg;
+
+	u16 ring_size;
+	bool raw_addressing;
+	bool enable_header_split;
+
+	/* Allocated resources are returned here */
+	struct gve_rx_ring *rx;
+};
+
 /* GVE_QUEUE_FORMAT_UNSPECIFIED must be zero since 0 is the default value
  * when the entire configure_device_resources command is zeroed out and the
  * queue_format is not specified.
@@ -917,14 +966,14 @@ static inline bool gve_is_qpl(struct gve_priv *priv)
 		priv->queue_format == GVE_DQO_QPL_FORMAT;
 }
 
-/* Returns the number of tx queue page lists
- */
-static inline u32 gve_num_tx_qpls(struct gve_priv *priv)
+/* Returns the number of tx queue page lists */
+static inline u32 gve_num_tx_qpls(const struct gve_queue_config *tx_cfg,
+				  int num_xdp_queues,
+				  bool is_qpl)
 {
-	if (!gve_is_qpl(priv))
+	if (!is_qpl)
 		return 0;
-
-	return priv->tx_cfg.num_queues + priv->num_xdp_queues;
+	return tx_cfg->num_queues + num_xdp_queues;
 }
 
 /* Returns the number of XDP tx queue page lists
@@ -937,14 +986,13 @@ static inline u32 gve_num_xdp_qpls(struct gve_priv *priv)
 	return priv->num_xdp_queues;
 }
 
-/* Returns the number of rx queue page lists
- */
-static inline u32 gve_num_rx_qpls(struct gve_priv *priv)
+/* Returns the number of rx queue page lists */
+static inline u32 gve_num_rx_qpls(const struct gve_queue_config *rx_cfg,
+				  bool is_qpl)
 {
-	if (!gve_is_qpl(priv))
+	if (!is_qpl)
 		return 0;
-
-	return priv->rx_cfg.num_queues;
+	return rx_cfg->num_queues;
 }
 
 static inline u32 gve_tx_qpl_id(struct gve_priv *priv, int tx_qid)
@@ -957,59 +1005,59 @@ static inline u32 gve_rx_qpl_id(struct gve_priv *priv, int rx_qid)
 	return priv->tx_cfg.max_queues + rx_qid;
 }
 
+/* Returns the index into priv->qpls where a certain rx queue's QPL resides */
+static inline u32 gve_get_rx_qpl_id(const struct gve_queue_config *tx_cfg, int rx_qid)
+{
+	return tx_cfg->max_queues + rx_qid;
+}
+
 static inline u32 gve_tx_start_qpl_id(struct gve_priv *priv)
 {
 	return gve_tx_qpl_id(priv, 0);
 }
 
-static inline u32 gve_rx_start_qpl_id(struct gve_priv *priv)
+/* Returns the index into priv->qpls where the first rx queue's QPL resides */
+static inline u32 gve_rx_start_qpl_id(const struct gve_queue_config *tx_cfg)
 {
-	return gve_rx_qpl_id(priv, 0);
+	return gve_get_rx_qpl_id(tx_cfg, 0);
 }
 
-/* Returns a pointer to the next available tx qpl in the list of qpls
- */
+/* Returns a pointer to the next available tx qpl in the list of qpls */
 static inline
-struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_priv *priv, int tx_qid)
+struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_tx_alloc_rings_cfg *cfg,
+					      int tx_qid)
 {
-	int id = gve_tx_qpl_id(priv, tx_qid);
-
 	/* QPL already in use */
-	if (test_bit(id, priv->qpl_cfg.qpl_id_map))
+	if (test_bit(tx_qid, cfg->qpl_cfg->qpl_id_map))
 		return NULL;
-
-	set_bit(id, priv->qpl_cfg.qpl_id_map);
-	return &priv->qpls[id];
+	set_bit(tx_qid, cfg->qpl_cfg->qpl_id_map);
+	return &cfg->qpls[tx_qid];
 }
 
-/* Returns a pointer to the next available rx qpl in the list of qpls
- */
+/* Returns a pointer to the next available rx qpl in the list of qpls */
 static inline
-struct gve_queue_page_list *gve_assign_rx_qpl(struct gve_priv *priv, int rx_qid)
+struct gve_queue_page_list *gve_assign_rx_qpl(struct gve_rx_alloc_rings_cfg *cfg,
+					      int rx_qid)
 {
-	int id = gve_rx_qpl_id(priv, rx_qid);
-
+	int id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx_qid);
 	/* QPL already in use */
-	if (test_bit(id, priv->qpl_cfg.qpl_id_map))
+	if (test_bit(id, cfg->qpl_cfg->qpl_id_map))
 		return NULL;
-
-	set_bit(id, priv->qpl_cfg.qpl_id_map);
-	return &priv->qpls[id];
+	set_bit(id, cfg->qpl_cfg->qpl_id_map);
+	return &cfg->qpls[id];
 }
 
-/* Unassigns the qpl with the given id
- */
-static inline void gve_unassign_qpl(struct gve_priv *priv, int id)
+/* Unassigns the qpl with the given id */
+static inline void gve_unassign_qpl(struct gve_qpl_config *qpl_cfg, int id)
 {
-	clear_bit(id, priv->qpl_cfg.qpl_id_map);
+	clear_bit(id, qpl_cfg->qpl_id_map);
 }
 
-/* Returns the correct dma direction for tx and rx qpls
- */
+/* Returns the correct dma direction for tx and rx qpls */
 static inline enum dma_data_direction gve_qpl_dma_dir(struct gve_priv *priv,
 						      int id)
 {
-	if (id < gve_rx_start_qpl_id(priv))
+	if (id < gve_rx_start_qpl_id(&priv->tx_cfg))
 		return DMA_TO_DEVICE;
 	else
 		return DMA_FROM_DEVICE;
@@ -1036,6 +1084,9 @@ static inline u32 gve_xdp_tx_start_queue_id(struct gve_priv *priv)
 	return gve_xdp_tx_queue_id(priv, 0);
 }
 
+/* gqi napi handler defined in gve_main.c */
+int gve_napi_poll(struct napi_struct *napi, int budget);
+
 /* buffers */
 int gve_alloc_page(struct gve_priv *priv, struct device *dev,
 		   struct page **page, dma_addr_t *dma,
@@ -1051,8 +1102,12 @@ int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 void gve_xdp_tx_flush(struct gve_priv *priv, u32 xdp_qid);
 bool gve_tx_poll(struct gve_notify_block *block, int budget);
 bool gve_xdp_poll(struct gve_notify_block *block, int budget);
-int gve_tx_alloc_rings(struct gve_priv *priv, int start_id, int num_rings);
-void gve_tx_free_rings_gqi(struct gve_priv *priv, int start_id, int num_rings);
+int gve_tx_alloc_rings_gqi(struct gve_priv *priv,
+			   struct gve_tx_alloc_rings_cfg *cfg);
+void gve_tx_free_rings_gqi(struct gve_priv *priv,
+			   struct gve_tx_alloc_rings_cfg *cfg);
+void gve_tx_start_ring_gqi(struct gve_priv *priv, int idx);
+void gve_tx_stop_ring_gqi(struct gve_priv *priv, int idx);
 u32 gve_tx_load_event_counter(struct gve_priv *priv,
 			      struct gve_tx_ring *tx);
 bool gve_tx_clean_pending(struct gve_priv *priv, struct gve_tx_ring *tx);
@@ -1061,7 +1116,12 @@ void gve_rx_write_doorbell(struct gve_priv *priv, struct gve_rx_ring *rx);
 int gve_rx_poll(struct gve_notify_block *block, int budget);
 bool gve_rx_work_pending(struct gve_rx_ring *rx);
 int gve_rx_alloc_rings(struct gve_priv *priv);
-void gve_rx_free_rings_gqi(struct gve_priv *priv);
+int gve_rx_alloc_rings_gqi(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg);
+void gve_rx_free_rings_gqi(struct gve_priv *priv,
+			   struct gve_rx_alloc_rings_cfg *cfg);
+void gve_rx_start_ring_gqi(struct gve_priv *priv, int idx);
+void gve_rx_stop_ring_gqi(struct gve_priv *priv, int idx);
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
 int gve_reset(struct gve_priv *priv, bool attempt_teardown);
