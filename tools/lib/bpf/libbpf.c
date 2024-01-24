@@ -4958,12 +4958,17 @@ enum kern_feature_result {
 	FEAT_MISSING = 2,
 };
 
+struct kern_feature_cache {
+	enum kern_feature_result res[__FEAT_CNT];
+};
+
 typedef int (*feature_probe_fn)(void);
+
+static struct kern_feature_cache feature_cache;
 
 static struct kern_feature_desc {
 	const char *desc;
 	feature_probe_fn probe;
-	enum kern_feature_result res;
 } feature_probes[__FEAT_CNT] = {
 	[FEAT_PROG_NAME] = {
 		"BPF program name", probe_kern_prog_name,
@@ -5031,6 +5036,7 @@ static struct kern_feature_desc {
 bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 {
 	struct kern_feature_desc *feat = &feature_probes[feat_id];
+	struct kern_feature_cache *cache = &feature_cache;
 	int ret;
 
 	if (obj && obj->gen_loader)
@@ -5039,19 +5045,19 @@ bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 		 */
 		return true;
 
-	if (READ_ONCE(feat->res) == FEAT_UNKNOWN) {
+	if (READ_ONCE(cache->res[feat_id]) == FEAT_UNKNOWN) {
 		ret = feat->probe();
 		if (ret > 0) {
-			WRITE_ONCE(feat->res, FEAT_SUPPORTED);
+			WRITE_ONCE(cache->res[feat_id], FEAT_SUPPORTED);
 		} else if (ret == 0) {
-			WRITE_ONCE(feat->res, FEAT_MISSING);
+			WRITE_ONCE(cache->res[feat_id], FEAT_MISSING);
 		} else {
 			pr_warn("Detection of kernel %s support failed: %d\n", feat->desc, ret);
-			WRITE_ONCE(feat->res, FEAT_MISSING);
+			WRITE_ONCE(cache->res[feat_id], FEAT_MISSING);
 		}
 	}
 
-	return READ_ONCE(feat->res) == FEAT_SUPPORTED;
+	return READ_ONCE(cache->res[feat_id]) == FEAT_SUPPORTED;
 }
 
 static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
