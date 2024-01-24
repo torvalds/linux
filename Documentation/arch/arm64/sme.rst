@@ -379,9 +379,8 @@ The regset data starts with struct user_za_header, containing:
 /proc/sys/abi/sme_default_vector_length
 
     Writing the text representation of an integer to this file sets the system
-    default vector length to the specified value, unless the value is greater
-    than the maximum vector length supported by the system in which case the
-    default vector length is set to that maximum.
+    default vector length to the specified value rounded to a supported value
+    using the same rules as for setting vector length via PR_SME_SET_VL.
 
     The result can be determined by reopening the file and reading its
     contents.
