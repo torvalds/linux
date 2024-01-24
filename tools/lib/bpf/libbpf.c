@@ -6440,7 +6440,7 @@ static int probe_kern_arg_ctx_tag(void)
 	if (cached_result >= 0)
 		return cached_result;
 
-	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types), strs, sizeof(strs));
+	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types), strs, sizeof(strs), 0);
 	if (btf_fd < 0)
 		return 0;
 
@@ -10606,7 +10606,7 @@ static const char *arch_specific_syscall_pfx(void)
 #endif
 }
 
-int probe_kern_syscall_wrapper(void)
+int probe_kern_syscall_wrapper(int token_fd)
 {
 	char syscall_name[64];
 	const char *ksys_pfx;

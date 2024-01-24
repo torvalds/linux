@@ -103,7 +103,7 @@ int sys_bpf_prog_load(union bpf_attr *attr, unsigned int size, int attempts)
  *   [0] https://lore.kernel.org/bpf/20201201215900.3569844-1-guro@fb.com/
  *   [1] d05512618056 ("bpf: Add bpf_ktime_get_coarse_ns helper")
  */
-int probe_memcg_account(void)
+int probe_memcg_account(int token_fd)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, attach_btf_obj_fd);
 	struct bpf_insn insns[] = {
@@ -120,6 +120,9 @@ int probe_memcg_account(void)
 	attr.insns = ptr_to_u64(insns);
 	attr.insn_cnt = insn_cnt;
 	attr.license = ptr_to_u64("GPL");
+	attr.prog_token_fd = token_fd;
+	if (token_fd)
+		attr.prog_flags |= BPF_F_TOKEN_FD;
 
 	prog_fd = sys_bpf_fd(BPF_PROG_LOAD, &attr, attr_sz);
 	if (prog_fd >= 0) {

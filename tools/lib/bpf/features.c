@@ -20,7 +20,7 @@ int probe_fd(int fd)
 	return fd >= 0;
 }
 
-static int probe_kern_prog_name(void)
+static int probe_kern_prog_name(int token_fd)
 {
 	const size_t attr_sz = offsetofend(union bpf_attr, prog_name);
 	struct bpf_insn insns[] = {
@@ -35,6 +35,9 @@ static int probe_kern_prog_name(void)
 	attr.license = ptr_to_u64("GPL");
 	attr.insns = ptr_to_u64(insns);
 	attr.insn_cnt = (__u32)ARRAY_SIZE(insns);
+	attr.prog_token_fd = token_fd;
+	if (token_fd)
+		attr.prog_flags |= BPF_F_TOKEN_FD;
 	libbpf_strlcpy(attr.prog_name, "libbpf_nametest", sizeof(attr.prog_name));
 
 	/* make sure loading with name works */
@@ -42,7 +45,7 @@ static int probe_kern_prog_name(void)
 	return probe_fd(ret);
 }
 
-static int probe_kern_global_data(void)
+static int probe_kern_global_data(int token_fd)
 {
 	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
@@ -51,9 +54,17 @@ static int probe_kern_global_data(void)
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts,
+		.token_fd = token_fd,
+		.map_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
+	LIBBPF_OPTS(bpf_prog_load_opts, prog_opts,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
 	int ret, map, insn_cnt = ARRAY_SIZE(insns);
 
-	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_global", sizeof(int), 32, 1, NULL);
+	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_global", sizeof(int), 32, 1, &map_opts);
 	if (map < 0) {
 		ret = -errno;
 		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
@@ -64,12 +75,12 @@ static int probe_kern_global_data(void)
 
 	insns[0].imm = map;
 
-	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, NULL);
+	ret = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, &prog_opts);
 	close(map);
 	return probe_fd(ret);
 }
 
-static int probe_kern_btf(void)
+static int probe_kern_btf(int token_fd)
 {
 	static const char strs[] = "\0int";
 	__u32 types[] = {
@@ -78,10 +89,10 @@ static int probe_kern_btf(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_btf_func(void)
+static int probe_kern_btf_func(int token_fd)
 {
 	static const char strs[] = "\0int\0x\0a";
 	/* void x(int a) {} */
@@ -96,10 +107,10 @@ static int probe_kern_btf_func(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_btf_func_global(void)
+static int probe_kern_btf_func_global(int token_fd)
 {
 	static const char strs[] = "\0int\0x\0a";
 	/* static void x(int a) {} */
@@ -114,10 +125,10 @@ static int probe_kern_btf_func_global(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_btf_datasec(void)
+static int probe_kern_btf_datasec(int token_fd)
 {
 	static const char strs[] = "\0x\0.data";
 	/* static int a; */
@@ -133,10 +144,10 @@ static int probe_kern_btf_datasec(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_btf_float(void)
+static int probe_kern_btf_float(int token_fd)
 {
 	static const char strs[] = "\0float";
 	__u32 types[] = {
@@ -145,10 +156,10 @@ static int probe_kern_btf_float(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_btf_decl_tag(void)
+static int probe_kern_btf_decl_tag(int token_fd)
 {
 	static const char strs[] = "\0tag";
 	__u32 types[] = {
@@ -162,10 +173,10 @@ static int probe_kern_btf_decl_tag(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_btf_type_tag(void)
+static int probe_kern_btf_type_tag(int token_fd)
 {
 	static const char strs[] = "\0tag";
 	__u32 types[] = {
@@ -178,21 +189,28 @@ static int probe_kern_btf_type_tag(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-static int probe_kern_array_mmap(void)
+static int probe_kern_array_mmap(int token_fd)
 {
-	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_MMAPABLE);
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
+		.map_flags = BPF_F_MMAPABLE | (token_fd ? BPF_F_TOKEN_FD : 0),
+		.token_fd = token_fd,
+	);
 	int fd;
 
 	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_mmap", sizeof(int), sizeof(int), 1, &opts);
 	return probe_fd(fd);
 }
 
-static int probe_kern_exp_attach_type(void)
+static int probe_kern_exp_attach_type(int token_fd)
 {
-	LIBBPF_OPTS(bpf_prog_load_opts, opts, .expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE);
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.expected_attach_type = BPF_CGROUP_INET_SOCK_CREATE,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
@@ -208,8 +226,12 @@ static int probe_kern_exp_attach_type(void)
 	return probe_fd(fd);
 }
 
-static int probe_kern_probe_read_kernel(void)
+static int probe_kern_probe_read_kernel(int token_fd)
 {
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
 	struct bpf_insn insns[] = {
 		BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),	/* r1 = r10 (fp) */
 		BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -8),	/* r1 += -8 */
@@ -220,20 +242,28 @@ static int probe_kern_probe_read_kernel(void)
 	};
 	int fd, insn_cnt = ARRAY_SIZE(insns);
 
-	fd = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, NULL);
+	fd = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, &opts);
 	return probe_fd(fd);
 }
 
-static int probe_prog_bind_map(void)
+static int probe_prog_bind_map(int token_fd)
 {
 	char *cp, errmsg[STRERR_BUFSIZE];
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
+	LIBBPF_OPTS(bpf_map_create_opts, map_opts,
+		.token_fd = token_fd,
+		.map_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
+	LIBBPF_OPTS(bpf_prog_load_opts, prog_opts,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
 	int ret, map, prog, insn_cnt = ARRAY_SIZE(insns);
 
-	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_det_bind", sizeof(int), 32, 1, NULL);
+	map = bpf_map_create(BPF_MAP_TYPE_ARRAY, "libbpf_det_bind", sizeof(int), 32, 1, &map_opts);
 	if (map < 0) {
 		ret = -errno;
 		cp = libbpf_strerror_r(ret, errmsg, sizeof(errmsg));
@@ -242,7 +272,7 @@ static int probe_prog_bind_map(void)
 		return ret;
 	}
 
-	prog = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, NULL);
+	prog = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, NULL, "GPL", insns, insn_cnt, &prog_opts);
 	if (prog < 0) {
 		close(map);
 		return 0;
@@ -256,7 +286,7 @@ static int probe_prog_bind_map(void)
 	return ret >= 0;
 }
 
-static int probe_module_btf(void)
+static int probe_module_btf(int token_fd)
 {
 	static const char strs[] = "\0int";
 	__u32 types[] = {
@@ -268,7 +298,7 @@ static int probe_module_btf(void)
 	char name[16];
 	int fd, err;
 
-	fd = libbpf__load_raw_btf((char *)types, sizeof(types), strs, sizeof(strs));
+	fd = libbpf__load_raw_btf((char *)types, sizeof(types), strs, sizeof(strs), token_fd);
 	if (fd < 0)
 		return 0; /* BTF not supported at all */
 
@@ -285,16 +315,20 @@ static int probe_module_btf(void)
 	return !err;
 }
 
-static int probe_perf_link(void)
+static int probe_perf_link(int token_fd)
 {
 	struct bpf_insn insns[] = {
 		BPF_MOV64_IMM(BPF_REG_0, 0),
 		BPF_EXIT_INSN(),
 	};
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
 	int prog_fd, link_fd, err;
 
 	prog_fd = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL",
-				insns, ARRAY_SIZE(insns), NULL);
+				insns, ARRAY_SIZE(insns), &opts);
 	if (prog_fd < 0)
 		return -errno;
 
@@ -311,10 +345,12 @@ static int probe_perf_link(void)
 	return link_fd < 0 && err == -EBADF;
 }
 
-static int probe_uprobe_multi_link(void)
+static int probe_uprobe_multi_link(int token_fd)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, load_opts,
 		.expected_attach_type = BPF_TRACE_UPROBE_MULTI,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
 	);
 	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
 	struct bpf_insn insns[] = {
@@ -344,19 +380,23 @@ static int probe_uprobe_multi_link(void)
 	return link_fd < 0 && err == -EBADF;
 }
 
-static int probe_kern_bpf_cookie(void)
+static int probe_kern_bpf_cookie(int token_fd)
 {
 	struct bpf_insn insns[] = {
 		BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_attach_cookie),
 		BPF_EXIT_INSN(),
 	};
+	LIBBPF_OPTS(bpf_prog_load_opts, opts,
+		.token_fd = token_fd,
+		.prog_flags = token_fd ? BPF_F_TOKEN_FD : 0,
+	);
 	int ret, insn_cnt = ARRAY_SIZE(insns);
 
-	ret = bpf_prog_load(BPF_PROG_TYPE_KPROBE, NULL, "GPL", insns, insn_cnt, NULL);
+	ret = bpf_prog_load(BPF_PROG_TYPE_TRACEPOINT, NULL, "GPL", insns, insn_cnt, &opts);
 	return probe_fd(ret);
 }
 
-static int probe_kern_btf_enum64(void)
+static int probe_kern_btf_enum64(int token_fd)
 {
 	static const char strs[] = "\0enum64";
 	__u32 types[] = {
@@ -364,10 +404,10 @@ static int probe_kern_btf_enum64(void)
 	};
 
 	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
-					     strs, sizeof(strs)));
+					     strs, sizeof(strs), token_fd));
 }
 
-typedef int (*feature_probe_fn)(void);
+typedef int (*feature_probe_fn)(int /* token_fd */);
 
 static struct kern_feature_cache feature_cache;
 
@@ -448,7 +488,7 @@ bool feat_supported(struct kern_feature_cache *cache, enum kern_feature_id feat_
 		cache = &feature_cache;
 
 	if (READ_ONCE(cache->res[feat_id]) == FEAT_UNKNOWN) {
-		ret = feat->probe();
+		ret = feat->probe(cache->token_fd);
 		if (ret > 0) {
 			WRITE_ONCE(cache->res[feat_id], FEAT_SUPPORTED);
 		} else if (ret == 0) {
