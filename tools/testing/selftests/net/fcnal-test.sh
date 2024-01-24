@@ -109,6 +109,7 @@ log_test()
 	else
 		nfail=$((nfail+1))
 		printf "TEST: %-70s  [FAIL]\n" "${msg}"
+		echo "    expected rc $expected; actual rc $rc"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
