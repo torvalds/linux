@@ -461,16 +461,15 @@ static void end_page_read(struct page *page, bool uptodate, u64 start, u32 len)
  */
 static void end_bbio_data_write(struct btrfs_bio *bbio)
 {
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct bio *bio = &bbio->bio;
 	int error = blk_status_to_errno(bio->bi_status);
 	struct folio_iter fi;
+	const u32 sectorsize = fs_info->sectorsize;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_folio_all(fi, bio) {
 		struct folio *folio = fi.folio;
-		struct inode *inode = folio->mapping->host;
-		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-		const u32 sectorsize = fs_info->sectorsize;
 		u64 start = folio_pos(folio) + fi.offset;
 		u32 len = fi.length;
 
@@ -592,17 +591,17 @@ static void begin_page_read(struct btrfs_fs_info *fs_info, struct page *page)
  */
 static void end_bbio_data_read(struct btrfs_bio *bbio)
 {
+	struct btrfs_fs_info *fs_info = bbio->fs_info;
 	struct bio *bio = &bbio->bio;
 	struct processed_extent processed = { 0 };
 	struct folio_iter fi;
+	const u32 sectorsize = fs_info->sectorsize;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 	bio_for_each_folio_all(fi, &bbio->bio) {
 		bool uptodate = !bio->bi_status;
 		struct folio *folio = fi.folio;
 		struct inode *inode = folio->mapping->host;
-		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-		const u32 sectorsize = fs_info->sectorsize;
 		u64 start;
 		u64 end;
 		u32 len;
