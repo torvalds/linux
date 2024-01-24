@@ -388,10 +388,3 @@
 	phy-names = "pcie-phy";
 	num-lanes = <2>;
 };
-
-&pcie1_ep {
-	phys = <&serdes0_pcie_link>;
-	phy-names = "pcie-phy";
-	num-lanes = <2>;
-	status = "disabled";
-};
