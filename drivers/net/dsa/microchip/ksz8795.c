@@ -633,6 +633,57 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 }
 
 /**
+ * ksz879x_get_loopback - KSZ879x specific function to get loopback
+ *                        configuration status for a specific port
+ * @dev: Pointer to the device structure
+ * @port: Port number to query
+ * @val: Pointer to store the result
+ *
+ * This function reads the SMI registers to determine whether loopback mode
+ * is enabled for a specific port.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz879x_get_loopback(struct ksz_device *dev, u16 port,
+				u16 *val)
+{
+	u8 stat3;
+	int ret;
+
+	ret = ksz_pread8(dev, port, REG_PORT_STATUS_3, &stat3);
+	if (ret)
+		return ret;
+
+	if (stat3 & PORT_PHY_LOOPBACK)
+		*val |= BMCR_LOOPBACK;
+
+	return 0;
+}
+
+/**
+ * ksz879x_set_loopback - KSZ879x specific function  to set loopback mode for
+ *			  a specific port
+ * @dev: Pointer to the device structure.
+ * @port: Port number to modify.
+ * @val: Value indicating whether to enable or disable loopback mode.
+ *
+ * This function translates loopback bit of the BMCR register into the
+ * corresponding hardware register bit value and writes it to the SMI interface.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz879x_set_loopback(struct ksz_device *dev, u16 port, u16 val)
+{
+	u8 stat3 = 0;
+
+	if (val & BMCR_LOOPBACK)
+		stat3 |= PORT_PHY_LOOPBACK;
+
+	return ksz_prmw8(dev, port, REG_PORT_STATUS_3, PORT_PHY_LOOPBACK,
+			 stat3);
+}
+
+/**
  * ksz8_r_phy_ctrl - Translates and reads from the SMI interface to a MIIM PHY
  *		     Control register (Reg. 31).
  * @dev: The KSZ device instance.
@@ -731,16 +782,20 @@ static int ksz8_r_phy_bmcr(struct ksz_device *dev, u16 port, u16 *val)
 	if (ret)
 		return ret;
 
-	if (restart & PORT_PHY_LOOPBACK)
-		*val |= BMCR_LOOPBACK;
-
 	if (ctrl & PORT_FORCE_100_MBIT)
 		*val |= BMCR_SPEED100;
 
 	if (ksz_is_ksz88x3(dev)) {
+		if (restart & KSZ8873_PORT_PHY_LOOPBACK)
+			*val |= BMCR_LOOPBACK;
+
 		if ((ctrl & PORT_AUTO_NEG_ENABLE))
 			*val |= BMCR_ANENABLE;
 	} else {
+		ret = ksz879x_get_loopback(dev, port, val);
+		if (ret)
+			return ret;
+
 		if (!(ctrl & PORT_AUTO_NEG_DISABLE))
 			*val |= BMCR_ANENABLE;
 	}
@@ -1001,8 +1056,7 @@ static int ksz8_w_phy_bmcr(struct ksz_device *dev, u16 port, u16 val)
 
 	restart = 0;
 	restart_mask = PORT_LED_OFF | PORT_TX_DISABLE | PORT_AUTO_NEG_RESTART |
-		PORT_POWER_DOWN | PORT_AUTO_MDIX_DISABLE | PORT_FORCE_MDIX |
-		PORT_PHY_LOOPBACK;
+		PORT_POWER_DOWN | PORT_AUTO_MDIX_DISABLE | PORT_FORCE_MDIX;
 
 	if (val & KSZ886X_BMCR_DISABLE_LED)
 		restart |= PORT_LED_OFF;
@@ -1022,8 +1076,16 @@ static int ksz8_w_phy_bmcr(struct ksz_device *dev, u16 port, u16 val)
 	if (val & KSZ886X_BMCR_FORCE_MDI)
 		restart |= PORT_FORCE_MDIX;
 
-	if (val & BMCR_LOOPBACK)
-		restart |= PORT_PHY_LOOPBACK;
+	if (ksz_is_ksz88x3(dev)) {
+		restart_mask |= KSZ8873_PORT_PHY_LOOPBACK;
+
+		if (val & BMCR_LOOPBACK)
+			restart |= KSZ8873_PORT_PHY_LOOPBACK;
+	} else {
+		ret = ksz879x_set_loopback(dev, port, val);
+		if (ret)
+			return ret;
+	}
 
 	return ksz_prmw8(dev, port, regs[P_NEG_RESTART_CTRL], restart_mask,
 			 restart);
