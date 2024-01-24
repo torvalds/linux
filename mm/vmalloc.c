@@ -4696,34 +4696,35 @@ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
 #ifdef CONFIG_PRINTK
 bool vmalloc_dump_obj(void *object)
 {
-	void *objp = (void *)PAGE_ALIGN((unsigned long)object);
 	const void *caller;
+	struct vm_struct *vm;
 	struct vmap_area *va;
 	struct vmap_node *vn;
 	unsigned long addr;
 	unsigned int nr_pages;
-	bool success = false;
 
-	vn = addr_to_node((unsigned long)objp);
+	addr = PAGE_ALIGN((unsigned long) object);
+	vn = addr_to_node(addr);
 
-	if (spin_trylock(&vn->busy.lock)) {
-		va = __find_vmap_area((unsigned long)objp, &vn->busy.root);
+	if (!spin_trylock(&vn->busy.lock))
+		return false;
 
-		if (va && va->vm) {
-			addr = (unsigned long)va->vm->addr;
-			caller = va->vm->caller;
-			nr_pages = va->vm->nr_pages;
-			success = true;
-		}
-
+	va = __find_vmap_area(addr, &vn->busy.root);
+	if (!va || !va->vm) {
 		spin_unlock(&vn->busy.lock);
+		return false;
 	}
 
-	if (success)
-		pr_cont(" %u-page vmalloc region starting at %#lx allocated at %pS\n",
-			nr_pages, addr, caller);
+	vm = va->vm;
+	addr = (unsigned long) vm->addr;
+	caller = vm->caller;
+	nr_pages = vm->nr_pages;
+	spin_unlock(&vn->busy.lock);
 
-	return success;
+	pr_cont(" %u-page vmalloc region starting at %#lx allocated at %pS\n",
+		nr_pages, addr, caller);
+
+	return true;
 }
 #endif
 
