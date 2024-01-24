@@ -1519,7 +1519,7 @@ config ARCH_SUPPORTS_CRASH_DUMP
 	def_bool y
 
 config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
-	def_bool CRASH_CORE
+	def_bool CRASH_RESERVE
 
 config TRANS_TABLE
 	def_bool y

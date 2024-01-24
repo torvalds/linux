@@ -691,6 +691,7 @@ config FA_DUMP
 	bool "Firmware-assisted dump"
 	depends on PPC64 && (PPC_RTAS || PPC_POWERNV)
 	select CRASH_CORE
+	select CRASH_RESERVE
 	select CRASH_DUMP
 	help
 	  A robust mechanism to get reliable kernel crash dump with

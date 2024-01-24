@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _X86_CRASH_CORE_H
-#define _X86_CRASH_CORE_H
+#ifndef _X86_CRASH_RESERVE_H
+#define _X86_CRASH_RESERVE_H
 
 /* 16M alignment for crash kernel regions */
 #define CRASH_ALIGN             SZ_16M
@@ -39,4 +39,4 @@ static inline unsigned long crash_low_size_default(void)
 #endif
 }
 
-#endif /* _X86_CRASH_CORE_H */
+#endif /* _X86_CRASH_RESERVE_H */
