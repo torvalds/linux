@@ -620,7 +620,8 @@ static int bpf_show_options(struct seq_file *m, struct dentry *root)
 	else if (opts->delegate_cmds)
 		seq_printf(m, ",delegate_cmds=0x%llx", opts->delegate_cmds);
 
-	if (opts->delegate_maps == ~0ULL)
+	mask = (1ULL << __MAX_BPF_MAP_TYPE) - 1;
+	if ((opts->delegate_maps & mask) == mask)
 		seq_printf(m, ",delegate_maps=any");
 	else if (opts->delegate_maps)
 		seq_printf(m, ",delegate_maps=0x%llx", opts->delegate_maps);
