@@ -36,8 +36,7 @@ test_db()
 	echo "DB test"
 
 	# Check if python script is supported
-	libpython=$(perf version --build-options | grep python | grep -cv OFF)
-	if [ "${libpython}" != "1" ] ; then
+        if perf version --build-options | grep python | grep -q OFF ; then
 		echo "SKIP: python scripting is not supported"
 		err=2
 		return
