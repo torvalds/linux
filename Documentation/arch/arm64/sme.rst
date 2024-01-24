@@ -75,7 +75,7 @@ model features for SME is included in Appendix A.
 2.  Vector lengths
 ------------------
 
-SME defines a second vector length similar to the SVE vector length which is
+SME defines a second vector length similar to the SVE vector length which
 controls the size of the streaming mode SVE vectors and the ZA matrix array.
 The ZA matrix is square with each side having as many bytes as a streaming
 mode SVE vector.
