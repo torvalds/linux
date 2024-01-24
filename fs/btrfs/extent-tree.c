@@ -4961,7 +4961,7 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	u64 root_objectid = root->root_key.objectid;
 	u64 owning_root = root_objectid;
 
-	BUG_ON(root_objectid == BTRFS_TREE_LOG_OBJECTID);
+	ASSERT(root_objectid != BTRFS_TREE_LOG_OBJECTID);
 
 	if (btrfs_is_data_reloc_root(root) && is_fstree(root->relocation_src_root))
 		owning_root = root->relocation_src_root;
