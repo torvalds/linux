@@ -16,6 +16,7 @@
 #if !defined(__ASSEMBLY__)
 
 #include <linux/crash_core.h>
+#include <linux/vmcore_info.h>
 #include <linux/crash_reserve.h>
 #include <asm/io.h>
 #include <linux/range.h>

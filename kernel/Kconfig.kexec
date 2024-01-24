@@ -5,11 +5,11 @@ menu "Kexec and crash features"
 config CRASH_RESERVE
 	bool
 
-config CRASH_CORE
+config VMCORE_INFO
 	bool
 
 config KEXEC_CORE
-	select CRASH_CORE
+	select VMCORE_INFO
 	select CRASH_RESERVE
 	bool
 

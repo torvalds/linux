@@ -690,7 +690,7 @@ config ARCH_SELECTS_CRASH_DUMP
 config FA_DUMP
 	bool "Firmware-assisted dump"
 	depends on PPC64 && (PPC_RTAS || PPC_POWERNV)
-	select CRASH_CORE
+	select VMCORE_INFO
 	select CRASH_RESERVE
 	select CRASH_DUMP
 	help
