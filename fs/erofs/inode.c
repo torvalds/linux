@@ -60,7 +60,7 @@ static void *erofs_read_inode(struct erofs_buf *buf,
 		} else {
 			const unsigned int gotten = sb->s_blocksize - *ofs;
 
-			copied = kmalloc(vi->inode_isize, GFP_NOFS);
+			copied = kmalloc(vi->inode_isize, GFP_KERNEL);
 			if (!copied) {
 				err = -ENOMEM;
 				goto err_out;
