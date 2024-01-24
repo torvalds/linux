@@ -450,6 +450,8 @@
 				 <&clkc_periphs CLKID_USB_BUS>,
 				 <&clkc_periphs CLKID_USB_CTRL_IN>;
 			clock-names = "usb_ctrl", "usb_bus", "xtal_usb_ctrl";
+			assigned-clocks = <&clkc_periphs CLKID_USB_BUS>;
+			assigned-clock-rates = <64000000>;
 			resets = <&reset RESET_USBCTRL>;
 			reset-name = "usb_ctrl";
 
