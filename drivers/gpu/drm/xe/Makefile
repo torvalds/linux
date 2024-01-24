@@ -222,8 +222,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_ddi.o \
 	i915-display/intel_ddi_buf_trans.o \
 	i915-display/intel_display.o \
-	i915-display/intel_display_debugfs.o \
-	i915-display/intel_display_debugfs_params.o \
 	i915-display/intel_display_device.o \
 	i915-display/intel_display_driver.o \
 	i915-display/intel_display_irq.o \
@@ -267,7 +265,6 @@ xe-$(CONFIG_DRM_XE_DISPLAY) += \
 	i915-display/intel_modeset_setup.o \
 	i915-display/intel_modeset_verify.o \
 	i915-display/intel_panel.o \
-	i915-display/intel_pipe_crc.o \
 	i915-display/intel_pmdemand.o \
 	i915-display/intel_pps.o \
 	i915-display/intel_psr.o \
@@ -292,6 +289,13 @@ endif
 
 ifeq ($(CONFIG_DRM_FBDEV_EMULATION),y)
 	xe-$(CONFIG_DRM_XE_DISPLAY) += i915-display/intel_fbdev.o
+endif
+
+ifeq ($(CONFIG_DEBUG_FS),y)
+	xe-$(CONFIG_DRM_XE_DISPLAY) += \
+		i915-display/intel_display_debugfs.o \
+		i915-display/intel_display_debugfs_params.o \
+		i915-display/intel_pipe_crc.o
 endif
 
 obj-$(CONFIG_DRM_XE) += xe.o
