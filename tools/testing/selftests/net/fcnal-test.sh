@@ -38,6 +38,9 @@
 # server / client nomenclature relative to ns-A
 
 source lib.sh
+
+PATH=$PWD:$PWD/tools/testing/selftests/net:$PATH
+
 VERBOSE=0
 
 NSA_DEV=eth1
