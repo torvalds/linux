@@ -1153,11 +1153,11 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 
 	if (offset) {
 		pgoff_t index = new_size >> PAGE_SHIFT;
-		struct page *page;
+		struct folio *folio;
 
-		page = find_lock_page(inode->i_mapping, index);
-		if (page) {
-			if (PageDirty(page)) {
+		folio = filemap_lock_folio(inode->i_mapping, index);
+		if (!IS_ERR(folio)) {
+			if (folio_test_dirty(folio)) {
 				/*
 				 * 'ubifs_jnl_truncate()' will try to truncate
 				 * the last data node, but it contains
@@ -1166,14 +1166,14 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 				 * 'ubifs_jnl_truncate()' will see an already
 				 * truncated (and up to date) data node.
 				 */
-				ubifs_assert(c, PagePrivate(page));
+				ubifs_assert(c, folio->private != NULL);
 
-				clear_page_dirty_for_io(page);
+				folio_clear_dirty_for_io(folio);
 				if (UBIFS_BLOCKS_PER_PAGE_SHIFT)
-					offset = new_size &
-						 (PAGE_SIZE - 1);
-				err = do_writepage(page, offset);
-				put_page(page);
+					offset = offset_in_folio(folio,
+							new_size);
+				err = do_writepage(&folio->page, offset);
+				folio_put(folio);
 				if (err)
 					goto out_budg;
 				/*
@@ -1186,8 +1186,8 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 				 * to 'ubifs_jnl_truncate()' to save it from
 				 * having to read it.
 				 */
-				unlock_page(page);
-				put_page(page);
+				folio_unlock(folio);
+				folio_put(folio);
 			}
 		}
 	}
