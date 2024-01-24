@@ -590,35 +590,35 @@ out:
 /**
  * populate_page - copy data nodes into a page for bulk-read.
  * @c: UBIFS file-system description object
- * @page: page
+ * @folio: folio
  * @bu: bulk-read information
  * @n: next zbranch slot
  *
  * Returns: %0 on success and a negative error code on failure.
  */
-static int populate_page(struct ubifs_info *c, struct page *page,
+static int populate_page(struct ubifs_info *c, struct folio *folio,
 			 struct bu_info *bu, int *n)
 {
 	int i = 0, nn = *n, offs = bu->zbranch[0].offs, hole = 0, read = 0;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	loff_t i_size = i_size_read(inode);
 	unsigned int page_block;
 	void *addr, *zaddr;
 	pgoff_t end_index;
 
 	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
-		inode->i_ino, page->index, i_size, page->flags);
+		inode->i_ino, folio->index, i_size, folio->flags);
 
-	addr = zaddr = kmap(page);
+	addr = zaddr = kmap_local_folio(folio, 0);
 
 	end_index = (i_size - 1) >> PAGE_SHIFT;
-	if (!i_size || page->index > end_index) {
+	if (!i_size || folio->index > end_index) {
 		hole = 1;
-		memset(addr, 0, PAGE_SIZE);
+		addr = folio_zero_tail(folio, 0, addr);
 		goto out_hole;
 	}
 
-	page_block = page->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
+	page_block = folio->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
 	while (1) {
 		int err, len, out_len, dlen;
 
@@ -667,9 +667,13 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 			break;
 		addr += UBIFS_BLOCK_SIZE;
 		page_block += 1;
+		if (folio_test_highmem(folio) && (offset_in_page(addr) == 0)) {
+			kunmap_local(addr - UBIFS_BLOCK_SIZE);
+			addr = kmap_local_folio(folio, i * UBIFS_BLOCK_SIZE);
+		}
 	}
 
-	if (end_index == page->index) {
+	if (end_index == folio->index) {
 		int len = i_size & (PAGE_SIZE - 1);
 
 		if (len && len < read)
@@ -678,22 +682,19 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 
 out_hole:
 	if (hole) {
-		SetPageChecked(page);
+		folio_set_checked(folio);
 		dbg_gen("hole");
 	}
 
-	SetPageUptodate(page);
-	ClearPageError(page);
-	flush_dcache_page(page);
-	kunmap(page);
+	folio_mark_uptodate(folio);
+	flush_dcache_folio(folio);
+	kunmap_local(addr);
 	*n = nn;
 	return 0;
 
 out_err:
-	ClearPageUptodate(page);
-	SetPageError(page);
-	flush_dcache_page(page);
-	kunmap(page);
+	flush_dcache_folio(folio);
+	kunmap_local(addr);
 	ubifs_err(c, "bad data node (block %u, inode %lu)",
 		  page_block, inode->i_ino);
 	return -EINVAL;
@@ -761,7 +762,7 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 			goto out_warn;
 	}
 
-	err = populate_page(c, &folio1->page, bu, &n);
+	err = populate_page(c, folio1, bu, &n);
 	if (err)
 		goto out_warn;
 
@@ -785,7 +786,7 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 		if (IS_ERR(folio))
 			break;
 		if (!folio_test_uptodate(folio))
-			err = populate_page(c, &folio->page, bu, &n);
+			err = populate_page(c, folio, bu, &n);
 		folio_unlock(folio);
 		folio_put(folio);
 		if (err)
