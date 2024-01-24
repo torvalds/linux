@@ -58,11 +58,11 @@
 		};
 
 		serdes_ln_ctrl: mux-controller@80 {
-			compatible = "mmio-mux";
+			compatible = "reg-mux";
 			reg = <0x80 0x10>;
 			#mux-control-cells = <1>;
-			mux-reg-masks = <0x80 0x3>, <0x84 0x3>, /* SERDES0 lane0/1 select */
-					<0x88 0x3>, <0x8c 0x3>; /* SERDES0 lane2/3 select */
+			mux-reg-masks = <0x0 0x3>, <0x4 0x3>, /* SERDES0 lane0/1 select */
+					<0x8 0x3>, <0xc 0x3>; /* SERDES0 lane2/3 select */
 		};
 
 		ehrpwm_tbclk: clock-controller@140 {
