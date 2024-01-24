@@ -3709,7 +3709,12 @@ TEST(user_notification_sibling_pid_ns)
 	ASSERT_GE(pid, 0);
 
 	if (pid == 0) {
-		ASSERT_EQ(unshare(CLONE_NEWPID), 0);
+		ASSERT_EQ(unshare(CLONE_NEWPID), 0) {
+			if (errno == EPERM)
+				SKIP(return, "CLONE_NEWPID requires CAP_SYS_ADMIN");
+			else if (errno == EINVAL)
+				SKIP(return, "CLONE_NEWPID is invalid (missing CONFIG_PID_NS?)");
+		}
 
 		pid2 = fork();
 		ASSERT_GE(pid2, 0);
@@ -3727,6 +3732,8 @@ TEST(user_notification_sibling_pid_ns)
 	ASSERT_EQ(unshare(CLONE_NEWPID), 0) {
 		if (errno == EPERM)
 			SKIP(return, "CLONE_NEWPID requires CAP_SYS_ADMIN");
+		else if (errno == EINVAL)
+			SKIP(return, "CLONE_NEWPID is invalid (missing CONFIG_PID_NS?)");
 	}
 	ASSERT_EQ(errno, 0);
 
