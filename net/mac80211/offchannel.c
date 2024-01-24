@@ -230,7 +230,7 @@ static bool ieee80211_recalc_sw_work(struct ieee80211_local *local,
 	if (dur == LONG_MAX)
 		return false;
 
-	mod_delayed_work(local->workqueue, &local->roc_work, dur);
+	wiphy_delayed_work_queue(local->hw.wiphy, &local->roc_work, dur);
 	return true;
 }
 
@@ -258,7 +258,7 @@ static void ieee80211_handle_roc_started(struct ieee80211_roc_work *roc,
 	roc->notified = true;
 }
 
-static void ieee80211_hw_roc_start(struct work_struct *work)
+static void ieee80211_hw_roc_start(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, hw_roc_start);
@@ -285,7 +285,7 @@ void ieee80211_ready_on_channel(struct ieee80211_hw *hw)
 
 	trace_api_ready_on_channel(local);
 
-	ieee80211_queue_work(hw, &local->hw_roc_start);
+	wiphy_work_queue(hw->wiphy, &local->hw_roc_start);
 }
 EXPORT_SYMBOL_GPL(ieee80211_ready_on_channel);
 
@@ -338,7 +338,7 @@ static void _ieee80211_start_next_roc(struct ieee80211_local *local)
 				tmp->started = true;
 				tmp->abort = true;
 			}
-			ieee80211_queue_work(&local->hw, &local->hw_roc_done);
+			wiphy_work_queue(local->hw.wiphy, &local->hw_roc_done);
 			return;
 		}
 
@@ -368,8 +368,8 @@ static void _ieee80211_start_next_roc(struct ieee80211_local *local)
 			ieee80211_hw_config(local, 0);
 		}
 
-		ieee80211_queue_delayed_work(&local->hw, &local->roc_work,
-					     msecs_to_jiffies(min_dur));
+		wiphy_delayed_work_queue(local->hw.wiphy, &local->roc_work,
+					 msecs_to_jiffies(min_dur));
 
 		/* tell userspace or send frame(s) */
 		list_for_each_entry(tmp, &local->roc_list, list) {
@@ -407,8 +407,8 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 		_ieee80211_start_next_roc(local);
 	} else {
 		/* delay it a bit */
-		ieee80211_queue_delayed_work(&local->hw, &local->roc_work,
-					     round_jiffies_relative(HZ/2));
+		wiphy_delayed_work_queue(local->hw.wiphy, &local->roc_work,
+					 round_jiffies_relative(HZ / 2));
 	}
 }
 
@@ -451,7 +451,7 @@ static void __ieee80211_roc_work(struct ieee80211_local *local)
 	}
 }
 
-static void ieee80211_roc_work(struct work_struct *work)
+static void ieee80211_roc_work(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, roc_work.work);
@@ -461,7 +461,7 @@ static void ieee80211_roc_work(struct work_struct *work)
 	mutex_unlock(&local->mtx);
 }
 
-static void ieee80211_hw_roc_done(struct work_struct *work)
+static void ieee80211_hw_roc_done(struct wiphy *wiphy, struct wiphy_work *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, hw_roc_done);
@@ -482,7 +482,7 @@ void ieee80211_remain_on_channel_expired(struct ieee80211_hw *hw)
 
 	trace_api_remain_on_channel_expired(local);
 
-	ieee80211_queue_work(hw, &local->hw_roc_done);
+	wiphy_work_queue(hw->wiphy, &local->hw_roc_done);
 }
 EXPORT_SYMBOL_GPL(ieee80211_remain_on_channel_expired);
 
@@ -586,8 +586,8 @@ static int ieee80211_start_roc_work(struct ieee80211_local *local,
 		/* if not HW assist, just queue & schedule work */
 		if (!local->ops->remain_on_channel) {
 			list_add_tail(&roc->list, &local->roc_list);
-			ieee80211_queue_delayed_work(&local->hw,
-						     &local->roc_work, 0);
+			wiphy_delayed_work_queue(local->hw.wiphy,
+						 &local->roc_work, 0);
 		} else {
 			/* otherwise actually kick it off here
 			 * (for error handling)
@@ -695,7 +695,7 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	if (!cookie)
 		return -ENOENT;
 
-	flush_work(&local->hw_roc_start);
+	wiphy_work_flush(local->hw.wiphy, &local->hw_roc_start);
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
@@ -745,7 +745,7 @@ static int ieee80211_cancel_roc(struct ieee80211_local *local,
 	} else {
 		/* go through work struct to return to the operating channel */
 		found->abort = true;
-		mod_delayed_work(local->workqueue, &local->roc_work, 0);
+		wiphy_delayed_work_queue(local->hw.wiphy, &local->roc_work, 0);
 	}
 
  out_unlock:
@@ -994,9 +994,9 @@ int ieee80211_mgmt_tx_cancel_wait(struct wiphy *wiphy,
 
 void ieee80211_roc_setup(struct ieee80211_local *local)
 {
-	INIT_WORK(&local->hw_roc_start, ieee80211_hw_roc_start);
-	INIT_WORK(&local->hw_roc_done, ieee80211_hw_roc_done);
-	INIT_DELAYED_WORK(&local->roc_work, ieee80211_roc_work);
+	wiphy_work_init(&local->hw_roc_start, ieee80211_hw_roc_start);
+	wiphy_work_init(&local->hw_roc_done, ieee80211_hw_roc_done);
+	wiphy_delayed_work_init(&local->roc_work, ieee80211_roc_work);
 	INIT_LIST_HEAD(&local->roc_list);
 }
 

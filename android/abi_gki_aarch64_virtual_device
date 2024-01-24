@@ -440,6 +440,7 @@
   sysfs_remove_group
   sysfs_remove_link
   system_freezable_wq
+  system_unbound_wq
   system_wq
   __tasklet_schedule
   tasklet_setup

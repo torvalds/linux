@@ -207,7 +207,7 @@ static void xen_power_off(void)
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {
-	xen_hvm_evtchn_do_upcall();
+	xen_evtchn_do_upcall();
 	return IRQ_HANDLED;
 }
 
@@ -487,7 +487,8 @@ static int __init xen_guest_init(void)
 	 * for secondary CPUs as they are brought up.
 	 * For uniformity we use VCPUOP_register_vcpu_info even on cpu0.
 	 */
-	xen_vcpu_info = alloc_percpu(struct vcpu_info);
+	xen_vcpu_info = __alloc_percpu(sizeof(struct vcpu_info),
+				       1 << fls(sizeof(struct vcpu_info) - 1));
 	if (xen_vcpu_info == NULL)
 		return -ENOMEM;
 

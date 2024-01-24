@@ -102,7 +102,8 @@ enum cq_type {
 	CQ_RX,
 	CQ_TX,
 	CQ_XDP,
-	CQS_PER_CINT = 3, /* RQ + SQ + XDP */
+	CQ_QOS,
+	CQS_PER_CINT = 4, /* RQ + SQ + XDP + QOS_SQ */
 };
 
 struct otx2_cq_poll {

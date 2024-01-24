@@ -145,6 +145,13 @@ enum qm_vf_state {
 	QM_NOT_READY,
 };
 
+enum qm_misc_ctl_bits {
+	QM_DRIVER_REMOVING = 0x0,
+	QM_RST_SCHED,
+	QM_RESETTING,
+	QM_MODULE_PARAM,
+};
+
 enum qm_cap_bits {
 	QM_SUPPORT_DB_ISOLATION = 0x0,
 	QM_SUPPORT_FUNC_QOS,
@@ -471,11 +478,11 @@ int hisi_qm_sriov_disable(struct pci_dev *pdev, bool is_frozen);
 int hisi_qm_sriov_configure(struct pci_dev *pdev, int num_vfs);
 void hisi_qm_dev_err_init(struct hisi_qm *qm);
 void hisi_qm_dev_err_uninit(struct hisi_qm *qm);
-int hisi_qm_diff_regs_init(struct hisi_qm *qm,
-		struct dfx_diff_registers *dregs, int reg_len);
-void hisi_qm_diff_regs_uninit(struct hisi_qm *qm, int reg_len);
+int hisi_qm_regs_debugfs_init(struct hisi_qm *qm,
+			  struct dfx_diff_registers *dregs, u32 reg_len);
+void hisi_qm_regs_debugfs_uninit(struct hisi_qm *qm, u32 reg_len);
 void hisi_qm_acc_diff_regs_dump(struct hisi_qm *qm, struct seq_file *s,
-		struct dfx_diff_registers *dregs, int regs_len);
+				struct dfx_diff_registers *dregs, u32 regs_len);
 
 pci_ers_result_t hisi_qm_dev_err_detected(struct pci_dev *pdev,
 					  pci_channel_state_t state);
