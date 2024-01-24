@@ -169,7 +169,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
 
 	/* Clear %R15 which holds the boot_params pointer on the boot CPU */
-	xorq	%r15, %r15
+	xorl	%r15d, %r15d
 
 	/*
 	 * Retrieve the modifier (SME encryption mask if SME is active) to be
@@ -178,7 +178,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	movq	sme_me_mask, %rax
 #else
-	xorq	%rax, %rax
+	xorl	%eax, %eax
 #endif
 
 	/* Form the CR3 value being sure to include the CR3 modifier */
@@ -295,7 +295,7 @@ SYM_INNER_LABEL(secondary_startup_64_no_verify, SYM_L_GLOBAL)
 
 .Llookup_AP:
 	/* EAX contains the APIC ID of the current CPU */
-	xorq	%rcx, %rcx
+	xorl	%ecx, %ecx
 	leaq	cpuid_to_apicid(%rip), %rbx
 
 .Lfind_cpunr:
