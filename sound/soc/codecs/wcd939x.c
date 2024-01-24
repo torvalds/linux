@@ -970,7 +970,7 @@ static int wcd939x_codec_enable_dmic(struct snd_soc_dapm_widget *w,
 	default:
 		dev_err(component->dev, "%s: Invalid DMIC Selection\n", __func__);
 		return -EINVAL;
-	};
+	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1292,7 +1292,7 @@ static int wcd939x_micbias_control(struct snd_soc_component *component,
 		dev_err(component->dev, "%s: Invalid micbias number: %d\n",
 			__func__, micb_num);
 		return -EINVAL;
-	};
+	}
 
 	switch (req) {
 	case MICB_PULLUP_ENABLE:
