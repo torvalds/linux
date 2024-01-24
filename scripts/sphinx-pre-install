@@ -421,6 +421,7 @@ sub give_redhat_hints()
 	#
 	my $old = 0;
 	my $rel;
+	my $noto_sans_redhat = "google-noto-sans-cjk-ttc-fonts";
 	$rel = $1 if ($system_release =~ /release\s+(\d+)/);
 
 	if (!($system_release =~ /Fedora/)) {
@@ -438,6 +439,9 @@ sub give_redhat_hints()
 		if ($rel && $rel < 26) {
 			$old = 1;
 		}
+		if ($rel && $rel >= 38) {
+			$noto_sans_redhat = "google-noto-sans-cjk-fonts";
+		}
 	}
 	if (!$rel) {
 		printf("Couldn't identify release number\n");
@@ -446,8 +450,9 @@ sub give_redhat_hints()
 	}
 
 	if ($pdf) {
-		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc"],
-				   "google-noto-sans-cjk-ttc-fonts", 2);
+		check_missing_file(["/usr/share/fonts/google-noto-cjk/NotoSansCJK-Regular.ttc",
+				    "/usr/share/fonts/google-noto-sans-cjk-fonts/NotoSansCJK-Regular.ttc"],
+				   $noto_sans_redhat, 2);
 	}
 
 	check_rpm_missing(\@fedora26_opt_pkgs, 2) if ($pdf && !$old);
