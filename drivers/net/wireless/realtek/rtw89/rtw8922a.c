@@ -1528,6 +1528,27 @@ static void rtw8922a_bb_cfg_txrx_path(struct rtw89_dev *rtwdev)
 				   &tx_en0, false);
 }
 
+static u8 rtw8922a_get_thermal(struct rtw89_dev *rtwdev, enum rtw89_rf_path rf_path)
+{
+	struct rtw89_power_trim_info *info = &rtwdev->pwr_trim;
+	int th;
+
+	/* read thermal only if debugging */
+	if (!rtw89_debug_is_enabled(rtwdev, RTW89_DBG_CFO | RTW89_DBG_RFK_TRACK))
+		return 80;
+
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x0);
+	rtw89_write_rf(rtwdev, rf_path, RR_TM, RR_TM_TRI, 0x1);
+
+	fsleep(200);
+
+	th = rtw89_read_rf(rtwdev, rf_path, RR_TM, RR_TM_VAL_V1);
+	th += (s8)info->thermal_trim[rf_path];
+
+	return clamp_t(int, th, 0, U8_MAX);
+}
+
 static void rtw8922a_fill_freq_with_ppdu(struct rtw89_dev *rtwdev,
 					 struct rtw89_rx_phy_ppdu *phy_ppdu,
 					 struct ieee80211_rx_status *status)
@@ -1603,6 +1624,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.set_txpwr		= rtw8922a_set_txpwr,
 	.set_txpwr_ctrl		= rtw8922a_set_txpwr_ctrl,
 	.init_txpwr_unit	= NULL,
+	.get_thermal		= rtw8922a_get_thermal,
 	.ctrl_btg_bt_rx		= rtw8922a_ctrl_btg_bt_rx,
 	.query_ppdu		= rtw8922a_query_ppdu,
 	.ctrl_nbtg_bt_tx	= rtw8922a_ctrl_nbtg_bt_tx,

@@ -7468,6 +7468,7 @@
 #define RR_LUTWD0_LB GENMASK(5, 0)
 #define RR_TM 0x42
 #define RR_TM_TRI BIT(19)
+#define RR_TM_VAL_V1 GENMASK(7, 0)
 #define RR_TM_VAL GENMASK(6, 1)
 #define RR_TM2 0x43
 #define RR_TM2_OFF GENMASK(19, 16)
