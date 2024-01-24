@@ -7584,7 +7584,6 @@ R:	Robert Richter <rric@kernel.org>
 L:	linux-edac@vger.kernel.org
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ras/ras.git edac-for-next
-F:	Documentation/admin-guide/ras.rst
 F:	Documentation/driver-api/edac.rst
 F:	drivers/edac/
 F:	include/linux/edac.h
@@ -18359,8 +18358,7 @@ M:	Tony Luck <tony.luck@intel.com>
 M:	Borislav Petkov <bp@alien8.de>
 L:	linux-edac@vger.kernel.org
 S:	Maintained
-F:	Documentation/RAS/
-F:	Documentation/admin-guide/ras.rst
+F:	Documentation/admin-guide/RAS
 F:	drivers/ras/
 F:	include/linux/ras.h
 F:	include/ras/ras_event.h
