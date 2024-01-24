@@ -154,13 +154,12 @@ void lima_sched_task_fini(struct lima_sched_task *task)
 }
 
 int lima_sched_context_init(struct lima_sched_pipe *pipe,
-			    struct lima_sched_context *context,
-			    atomic_t *guilty)
+			    struct lima_sched_context *context)
 {
 	struct drm_gpu_scheduler *sched = &pipe->base;
 
 	return drm_sched_entity_init(&context->base, DRM_SCHED_PRIORITY_NORMAL,
-				     &sched, 1, guilty);
+				     &sched, 1, NULL);
 }
 
 void lima_sched_context_fini(struct lima_sched_pipe *pipe,
