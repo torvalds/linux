@@ -238,12 +238,12 @@ prctl(PR_SME_SET_VL, unsigned long arg)
       bits of Z0..Z31 except for Z0 bits [127:0] .. Z31 bits [127:0] to become
       unspecified, including both streaming and non-streaming SVE state.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
-      length, or calling PR_SME_SET_VL with the PR_SVE_SET_VL_ONEXEC flag,
+      length, or calling PR_SME_SET_VL with the PR_SME_SET_VL_ONEXEC flag,
       does not constitute a change to the vector length for this purpose.
 
     * Changing the vector length causes PSTATE.ZA and PSTATE.SM to be cleared.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
-      length, or calling PR_SME_SET_VL with the PR_SVE_SET_VL_ONEXEC flag,
+      length, or calling PR_SME_SET_VL with the PR_SME_SET_VL_ONEXEC flag,
       does not constitute a change to the vector length for this purpose.
 
 
