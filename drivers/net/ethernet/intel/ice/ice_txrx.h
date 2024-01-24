@@ -333,6 +333,7 @@ struct ice_rx_ring {
 	struct ice_channel *ch;
 	struct ice_tx_ring *xdp_ring;
 	struct xsk_buff_pool *xsk_pool;
+	u32 nr_frags;
 	dma_addr_t dma;			/* physical address of ring */
 	u64 cached_phctime;
 	u16 rx_buf_len;
