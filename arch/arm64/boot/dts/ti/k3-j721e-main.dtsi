@@ -70,10 +70,11 @@
 		};
 
 		usb_serdes_mux: mux-controller@4000 {
-			compatible = "mmio-mux";
+			compatible = "reg-mux";
+			reg = <0x4000 0x20>;
 			#mux-control-cells = <1>;
-			mux-reg-masks = <0x4000 0x8000000>, /* USB0 to SERDES0/3 mux */
-					<0x4010 0x8000000>; /* USB1 to SERDES1/2 mux */
+			mux-reg-masks = <0x0 0x8000000>, /* USB0 to SERDES0/3 mux */
+					<0x10 0x8000000>; /* USB1 to SERDES1/2 mux */
 		};
 
 		ehrpwm_tbclk: clock-controller@4140 {
