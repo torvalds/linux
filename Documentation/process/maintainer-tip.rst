@@ -304,13 +304,15 @@ following tag ordering scheme:
 
  - Reported-by: ``Reporter <reporter@mail>``
 
+ - Closes: ``URL or Message-ID of the bug report this is fixing``
+
  - Originally-by: ``Original author <original-author@mail>``
 
  - Suggested-by: ``Suggester <suggester@mail>``
 
  - Co-developed-by: ``Co-author <co-author@mail>``
 
-   Signed-off: ``Co-author <co-author@mail>``
+   Signed-off-by: ``Co-author <co-author@mail>``
 
    Note, that Co-developed-by and Signed-off-by of the co-author(s) must
    come in pairs.
