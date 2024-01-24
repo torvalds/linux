@@ -5033,17 +5033,14 @@ static struct kern_feature_desc {
 	},
 };
 
-bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
+bool feat_supported(struct kern_feature_cache *cache, enum kern_feature_id feat_id)
 {
 	struct kern_feature_desc *feat = &feature_probes[feat_id];
-	struct kern_feature_cache *cache = &feature_cache;
 	int ret;
 
-	if (obj && obj->gen_loader)
-		/* To generate loader program assume the latest kernel
-		 * to avoid doing extra prog_load, map_create syscalls.
-		 */
-		return true;
+	/* assume global feature cache, unless custom one is provided */
+	if (!cache)
+		cache = &feature_cache;
 
 	if (READ_ONCE(cache->res[feat_id]) == FEAT_UNKNOWN) {
 		ret = feat->probe();
@@ -5058,6 +5055,17 @@ bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 	}
 
 	return READ_ONCE(cache->res[feat_id]) == FEAT_SUPPORTED;
+}
+
+bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
+{
+	if (obj && obj->gen_loader)
+		/* To generate loader program assume the latest kernel
+		 * to avoid doing extra prog_load, map_create syscalls.
+		 */
+		return true;
+
+	return feat_supported(NULL, feat_id);
 }
 
 static bool map_is_reuse_compat(const struct bpf_map *map, int map_fd)
