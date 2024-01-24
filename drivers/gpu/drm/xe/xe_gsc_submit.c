@@ -125,10 +125,17 @@ int xe_gsc_read_out_header(struct xe_device *xe,
 {
 	u32 marker = mtl_gsc_header_rd(xe, map, offset, validity_marker);
 	u32 size = mtl_gsc_header_rd(xe, map, offset, message_size);
+	u32 status = mtl_gsc_header_rd(xe, map, offset, status);
 	u32 payload_size = size - GSC_HDR_SIZE;
 
 	if (marker != GSC_HECI_VALIDITY_MARKER)
 		return -EPROTO;
+
+	if (status != 0) {
+		drm_err(&xe->drm, "GSC header readout indicates error: %d\n",
+			status);
+		return -EINVAL;
+	}
 
 	if (size < GSC_HDR_SIZE || payload_size < min_payload_size)
 		return -ENODATA;
