@@ -189,6 +189,13 @@ static int lima_gp_hard_reset(struct lima_ip *ip)
 	gp_write(LIMA_GP_PERF_CNT_0_LIMIT, 0);
 	gp_write(LIMA_GP_INT_CLEAR, LIMA_GP_IRQ_MASK_ALL);
 	gp_write(LIMA_GP_INT_MASK, LIMA_GP_IRQ_MASK_USED);
+
+	/*
+	 * if there was an async soft reset queued,
+	 * don't wait for it in the next job
+	 */
+	ip->data.async_reset = false;
+
 	return 0;
 }
 
