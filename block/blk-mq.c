@@ -2909,22 +2909,31 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 }
 
 /*
- * Check if we can use the passed on request for submitting the passed in bio,
- * and remove it from the request list if it can be used.
+ * Check if there is a suitable cached request and return it.
  */
-static bool blk_mq_use_cached_rq(struct request *rq, struct blk_plug *plug,
+static struct request *blk_mq_peek_cached_request(struct blk_plug *plug,
+		struct request_queue *q, blk_opf_t opf)
+{
+	enum hctx_type type = blk_mq_get_hctx_type(opf);
+	struct request *rq;
+
+	if (!plug)
+		return NULL;
+	rq = rq_list_peek(&plug->cached_rq);
+	if (!rq || rq->q != q)
+		return NULL;
+	if (type != rq->mq_hctx->type &&
+	    (type != HCTX_TYPE_READ || rq->mq_hctx->type != HCTX_TYPE_DEFAULT))
+		return NULL;
+	if (op_is_flush(rq->cmd_flags) != op_is_flush(opf))
+		return NULL;
+	return rq;
+}
+
+static void blk_mq_use_cached_rq(struct request *rq, struct blk_plug *plug,
 		struct bio *bio)
 {
-	enum hctx_type type = blk_mq_get_hctx_type(bio->bi_opf);
-	enum hctx_type hctx_type = rq->mq_hctx->type;
-
 	WARN_ON_ONCE(rq_list_peek(&plug->cached_rq) != rq);
-
-	if (type != hctx_type &&
-	    !(type == HCTX_TYPE_READ && hctx_type == HCTX_TYPE_DEFAULT))
-		return false;
-	if (op_is_flush(rq->cmd_flags) != op_is_flush(bio->bi_opf))
-		return false;
 
 	/*
 	 * If any qos ->throttle() end up blocking, we will have flushed the
@@ -2937,7 +2946,6 @@ static bool blk_mq_use_cached_rq(struct request *rq, struct blk_plug *plug,
 	blk_mq_rq_time_init(rq, 0);
 	rq->cmd_flags = bio->bi_opf;
 	INIT_LIST_HEAD(&rq->queuelist);
-	return true;
 }
 
 /**
@@ -2965,11 +2973,7 @@ void blk_mq_submit_bio(struct bio *bio)
 
 	bio = blk_queue_bounce(bio, q);
 
-	if (plug) {
-		rq = rq_list_peek(&plug->cached_rq);
-		if (rq && rq->q != q)
-			rq = NULL;
-	}
+	rq = blk_mq_peek_cached_request(plug, q, bio->bi_opf);
 	if (rq) {
 		if (unlikely(bio_may_exceed_limits(bio, &q->limits))) {
 			bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
@@ -2980,20 +2984,19 @@ void blk_mq_submit_bio(struct bio *bio)
 			return;
 		if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
 			return;
-		if (blk_mq_use_cached_rq(rq, plug, bio))
-			goto done;
-		percpu_ref_get(&q->q_usage_counter);
-	} else {
-		if (unlikely(bio_queue_enter(bio)))
-			return;
-		if (unlikely(bio_may_exceed_limits(bio, &q->limits))) {
-			bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
-			if (!bio)
-				goto queue_exit;
-		}
-		if (!bio_integrity_prep(bio))
+		blk_mq_use_cached_rq(rq, plug, bio);
+		goto done;
+	}
+
+	if (unlikely(bio_queue_enter(bio)))
+		return;
+	if (unlikely(bio_may_exceed_limits(bio, &q->limits))) {
+		bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
+		if (!bio)
 			goto queue_exit;
 	}
+	if (!bio_integrity_prep(bio))
+		goto queue_exit;
 
 	if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
 		goto queue_exit;
