@@ -305,7 +305,7 @@ static int write_begin_slow(struct address_space *mapping,
 /**
  * allocate_budget - allocate budget for 'ubifs_write_begin()'.
  * @c: UBIFS file-system description object
- * @page: page to allocate budget for
+ * @folio: folio to allocate budget for
  * @ui: UBIFS inode object the page belongs to
  * @appending: non-zero if the page is appended
  *
@@ -316,15 +316,15 @@ static int write_begin_slow(struct address_space *mapping,
  *
  * Returns: %0 in case of success and %-ENOSPC in case of failure.
  */
-static int allocate_budget(struct ubifs_info *c, struct page *page,
+static int allocate_budget(struct ubifs_info *c, struct folio *folio,
 			   struct ubifs_inode *ui, int appending)
 {
 	struct ubifs_budget_req req = { .fast = 1 };
 
-	if (PagePrivate(page)) {
+	if (folio->private) {
 		if (!appending)
 			/*
-			 * The page is dirty and we are not appending, which
+			 * The folio is dirty and we are not appending, which
 			 * means no budget is needed at all.
 			 */
 			return 0;
@@ -348,11 +348,11 @@ static int allocate_budget(struct ubifs_info *c, struct page *page,
 		 */
 		req.dirtied_ino = 1;
 	} else {
-		if (PageChecked(page))
+		if (folio_test_checked(folio))
 			/*
 			 * The page corresponds to a hole and does not
 			 * exist on the media. So changing it makes
-			 * make the amount of indexing information
+			 * the amount of indexing information
 			 * larger, and we have to budget for a new
 			 * page.
 			 */
@@ -460,7 +460,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		}
 	}
 
-	err = allocate_budget(c, &folio->page, ui, appending);
+	err = allocate_budget(c, folio, ui, appending);
 	if (unlikely(err)) {
 		ubifs_assert(c, err == -ENOSPC);
 		/*
