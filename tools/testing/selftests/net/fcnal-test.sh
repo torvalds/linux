@@ -190,6 +190,15 @@ kill_procs()
 	sleep 1
 }
 
+set_ping_group()
+{
+	if [ "$VERBOSE" = "1" ]; then
+		echo "COMMAND: ${NSA_CMD} sysctl -q -w net.ipv4.ping_group_range='0 2147483647'"
+	fi
+
+	${NSA_CMD} sysctl -q -w net.ipv4.ping_group_range='0 2147483647'
+}
+
 do_run_cmd()
 {
 	local cmd="$*"
@@ -838,14 +847,14 @@ ipv4_ping()
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
 	ipv4_ping_novrf
 	setup
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_ping_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
 	ipv4_ping_vrf
 	setup "yes"
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_ping_vrf
 }
 
@@ -2056,12 +2065,12 @@ ipv4_addr_bind()
 
 	log_subsection "No VRF"
 	setup
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_addr_bind_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_addr_bind_vrf
 }
 
@@ -2524,14 +2533,14 @@ ipv6_ping()
 	setup
 	ipv6_ping_novrf
 	setup
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv6_ping_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
 	ipv6_ping_vrf
 	setup "yes"
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv6_ping_vrf
 }
 
