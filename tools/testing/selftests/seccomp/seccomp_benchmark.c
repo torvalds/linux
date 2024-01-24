@@ -98,23 +98,35 @@ bool le(int i_one, int i_two)
 }
 
 long compare(const char *name_one, const char *name_eval, const char *name_two,
-	     unsigned long long one, bool (*eval)(int, int), unsigned long long two)
+	     unsigned long long one, bool (*eval)(int, int), unsigned long long two,
+	     bool skip)
 {
 	bool good;
+
+	if (skip) {
+		ksft_test_result_skip("%s %s %s\n", name_one, name_eval,
+				      name_two);
+		return 0;
+	}
 
 	ksft_print_msg("\t%s %s %s (%lld %s %lld): ", name_one, name_eval, name_two,
 		       (long long)one, name_eval, (long long)two);
 	if (one > INT_MAX) {
 		ksft_print_msg("Miscalculation! Measurement went negative: %lld\n", (long long)one);
-		return 1;
+		good = false;
+		goto out;
 	}
 	if (two > INT_MAX) {
 		ksft_print_msg("Miscalculation! Measurement went negative: %lld\n", (long long)two);
-		return 1;
+		good = false;
+		goto out;
 	}
 
 	good = eval(one, two);
 	printf("%s\n", good ? "✔️" : "❌");
+
+out:
+	ksft_test_result(good, "%s %s %s\n", name_one, name_eval, name_two);
 
 	return good ? 0 : 1;
 }
@@ -142,8 +154,12 @@ int main(int argc, char *argv[])
 	unsigned long long samples, calc;
 	unsigned long long native, filter1, filter2, bitmap1, bitmap2;
 	unsigned long long entry, per_filter1, per_filter2;
+	bool skip = false;
 
 	setbuf(stdout, NULL);
+
+	ksft_print_header();
+	ksft_set_plan(7);
 
 	ksft_print_msg("Running on:\n");
 	ksft_print_msg("");
@@ -202,8 +218,10 @@ int main(int argc, char *argv[])
 #define ESTIMATE(fmt, var, what)	do {			\
 		var = (what);					\
 		ksft_print_msg("Estimated " fmt ": %llu ns\n", var);	\
-		if (var > INT_MAX)				\
-			goto more_samples;			\
+		if (var > INT_MAX) {				\
+			skip = true;				\
+			ret |= 1;				\
+		}						\
 	} while (0)
 
 	ESTIMATE("total seccomp overhead for 1 bitmapped filter", calc,
@@ -222,30 +240,33 @@ int main(int argc, char *argv[])
 		 (filter2 - native - entry) / 4);
 
 	ksft_print_msg("Expectations:\n");
-	ret |= compare("native", "≤", "1 bitmap", native, le, bitmap1);
-	bits = compare("native", "≤", "1 filter", native, le, filter1);
+	ret |= compare("native", "≤", "1 bitmap", native, le, bitmap1,
+		       skip);
+	bits = compare("native", "≤", "1 filter", native, le, filter1,
+		       skip);
 	if (bits)
-		goto more_samples;
+		skip = true;
 
 	ret |= compare("per-filter (last 2 diff)", "≈", "per-filter (filters / 4)",
-			per_filter1, approx, per_filter2);
+		       per_filter1, approx, per_filter2, skip);
 
 	bits = compare("1 bitmapped", "≈", "2 bitmapped",
-			bitmap1 - native, approx, bitmap2 - native);
+		       bitmap1 - native, approx, bitmap2 - native, skip);
 	if (bits) {
 		ksft_print_msg("Skipping constant action bitmap expectations: they appear unsupported.\n");
-		goto out;
+		skip = true;
 	}
 
-	ret |= compare("entry", "≈", "1 bitmapped", entry, approx, bitmap1 - native);
-	ret |= compare("entry", "≈", "2 bitmapped", entry, approx, bitmap2 - native);
+	ret |= compare("entry", "≈", "1 bitmapped", entry, approx,
+		       bitmap1 - native, skip);
+	ret |= compare("entry", "≈", "2 bitmapped", entry, approx,
+		       bitmap2 - native, skip);
 	ret |= compare("native + entry + (per filter * 4)", "≈", "4 filters total",
-			entry + (per_filter1 * 4) + native, approx, filter2);
-	if (ret == 0)
-		goto out;
+		       entry + (per_filter1 * 4) + native, approx, filter2,
+		       skip);
 
-more_samples:
-	ksft_print_msg("Saw unexpected benchmark result. Try running again with more samples?\n");
-out:
-	return 0;
+	if (ret)
+		ksft_print_msg("Saw unexpected benchmark result. Try running again with more samples?\n");
+
+	ksft_finished();
 }
