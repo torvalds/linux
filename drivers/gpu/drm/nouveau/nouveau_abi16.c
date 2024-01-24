@@ -267,6 +267,11 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	case NOUVEAU_GETPARAM_VRAM_BAR_SIZE:
 		getparam->value = nvkm_device->func->resource_size(nvkm_device, 1);
 		break;
+	case NOUVEAU_GETPARAM_VRAM_USED: {
+		struct ttm_resource_manager *vram_mgr = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
+		getparam->value = (u64)ttm_resource_manager_usage(vram_mgr) << PAGE_SHIFT;
+		break;
+	}
 	default:
 		NV_PRINTK(dbg, cli, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
