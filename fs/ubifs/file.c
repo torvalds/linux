@@ -775,19 +775,19 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 
 	for (page_idx = 1; page_idx < page_cnt; page_idx++) {
 		pgoff_t page_offset = offset + page_idx;
-		struct page *page;
+		struct folio *folio;
 
 		if (page_offset > end_index)
 			break;
-		page = pagecache_get_page(mapping, page_offset,
+		folio = __filemap_get_folio(mapping, page_offset,
 				 FGP_LOCK|FGP_ACCESSED|FGP_CREAT|FGP_NOWAIT,
 				 ra_gfp_mask);
-		if (!page)
+		if (IS_ERR(folio))
 			break;
-		if (!PageUptodate(page))
-			err = populate_page(c, page, bu, &n);
-		unlock_page(page);
-		put_page(page);
+		if (!folio_test_uptodate(folio))
+			err = populate_page(c, &folio->page, bu, &n);
+		folio_unlock(folio);
+		folio_put(folio);
 		if (err)
 			break;
 	}
