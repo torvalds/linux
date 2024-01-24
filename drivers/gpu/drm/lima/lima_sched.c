@@ -505,7 +505,7 @@ static void lima_sched_recover_work(struct work_struct *work)
 int lima_sched_pipe_init(struct lima_sched_pipe *pipe, const char *name)
 {
 	unsigned int timeout = lima_sched_timeout_ms > 0 ?
-			       lima_sched_timeout_ms : 500;
+			       lima_sched_timeout_ms : 10000;
 
 	pipe->fence_context = dma_fence_context_alloc(1);
 	spin_lock_init(&pipe->fence_lock);
