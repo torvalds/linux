@@ -2891,9 +2891,6 @@ static struct request *blk_mq_get_new_requests(struct request_queue *q,
 	};
 	struct request *rq;
 
-	if (blk_mq_attempt_bio_merge(q, bio, nsegs))
-		return NULL;
-
 	rq_qos_throttle(q, bio);
 
 	if (plug) {
@@ -2992,18 +2989,18 @@ void blk_mq_submit_bio(struct bio *bio)
 		if (unlikely(bio_may_exceed_limits(bio, &q->limits))) {
 			bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
 			if (!bio)
-				goto fail;
+				goto queue_exit;
 		}
 		if (!bio_integrity_prep(bio))
-			goto fail;
+			goto queue_exit;
 	}
 
+	if (blk_mq_attempt_bio_merge(q, bio, nr_segs))
+		goto queue_exit;
+
 	rq = blk_mq_get_new_requests(q, plug, bio, nr_segs);
-	if (unlikely(!rq)) {
-fail:
-		blk_queue_exit(q);
-		return;
-	}
+	if (unlikely(!rq))
+		goto queue_exit;
 
 done:
 	trace_block_getrq(bio);
@@ -3036,6 +3033,10 @@ done:
 	} else {
 		blk_mq_run_dispatch_ops(q, blk_mq_try_issue_directly(hctx, rq));
 	}
+	return;
+
+queue_exit:
+	blk_queue_exit(q);
 }
 
 #ifdef CONFIG_BLK_MQ_STACKING
