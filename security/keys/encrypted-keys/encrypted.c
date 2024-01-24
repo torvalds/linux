@@ -237,10 +237,6 @@ static int datablob_parse(char *datablob, const char **format,
 			break;
 		}
 		*decrypted_data = strsep(&datablob, " \t");
-		if (!*decrypted_data) {
-			pr_info("encrypted_key: decrypted_data is missing\n");
-			break;
-		}
 		ret = 0;
 		break;
 	case Opt_load:
