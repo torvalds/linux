@@ -355,10 +355,7 @@ static int __init xfrm6_tunnel_init(void)
 {
 	int rv;
 
-	xfrm6_tunnel_spi_kmem = kmem_cache_create("xfrm6_tunnel_spi",
-						  sizeof(struct xfrm6_tunnel_spi),
-						  0, SLAB_HWCACHE_ALIGN,
-						  NULL);
+	xfrm6_tunnel_spi_kmem = KMEM_CACHE(xfrm6_tunnel_spi, SLAB_HWCACHE_ALIGN);
 	if (!xfrm6_tunnel_spi_kmem)
 		return -ENOMEM;
 	rv = register_pernet_subsys(&xfrm6_tunnel_net_ops);
