@@ -5205,7 +5205,8 @@ error:
 	return false;
 }
 
-int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
+static
+int rtw89_mac_cfg_ppdu_status_ax(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 {
 	u32 reg = rtw89_mac_reg_by_idx(rtwdev, R_AX_PPDU_STAT, mac_idx);
 	int ret;
@@ -5228,7 +5229,6 @@ int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
 
 	return 0;
 }
-EXPORT_SYMBOL(rtw89_mac_cfg_ppdu_status);
 
 void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
@@ -6179,6 +6179,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.bf_assoc = rtw89_mac_bf_assoc_ax,
 
 	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_ax,
+	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_ax,
 
 	.dle_mix_cfg = dle_mix_cfg_ax,
 	.chk_dle_rdy = chk_dle_rdy_ax,
