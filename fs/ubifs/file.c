@@ -1004,21 +1004,18 @@ static int do_writepage(struct page *page, int len)
 static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 		void *data)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	loff_t i_size =  i_size_read(inode), synced_i_size;
-	pgoff_t end_index = i_size >> PAGE_SHIFT;
-	int err, len = i_size & (PAGE_SIZE - 1);
-	void *kaddr;
+	int err, len = folio_size(folio);
 
 	dbg_gen("ino %lu, pg %lu, pg flags %#lx",
-		inode->i_ino, page->index, page->flags);
-	ubifs_assert(c, PagePrivate(page));
+		inode->i_ino, folio->index, folio->flags);
+	ubifs_assert(c, folio->private != NULL);
 
-	/* Is the page fully outside @i_size? (truncate in progress) */
-	if (page->index > end_index || (page->index == end_index && !len)) {
+	/* Is the folio fully outside @i_size? (truncate in progress) */
+	if (folio_pos(folio) >= i_size) {
 		err = 0;
 		goto out_unlock;
 	}
@@ -1027,9 +1024,9 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 	synced_i_size = ui->synced_i_size;
 	spin_unlock(&ui->ui_lock);
 
-	/* Is the page fully inside @i_size? */
-	if (page->index < end_index) {
-		if (page->index >= synced_i_size >> PAGE_SHIFT) {
+	/* Is the folio fully inside i_size? */
+	if (folio_pos(folio) + len <= i_size) {
+		if (folio_pos(folio) >= synced_i_size) {
 			err = inode->i_sb->s_op->write_inode(inode, NULL);
 			if (err)
 				goto out_redirty;
@@ -1042,20 +1039,18 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 			 * with this.
 			 */
 		}
-		return do_writepage(page, PAGE_SIZE);
+		return do_writepage(&folio->page, len);
 	}
 
 	/*
-	 * The page straddles @i_size. It must be zeroed out on each and every
+	 * The folio straddles @i_size. It must be zeroed out on each and every
 	 * writepage invocation because it may be mmapped. "A file is mapped
 	 * in multiples of the page size. For a file that is not a multiple of
 	 * the page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
 	 */
-	kaddr = kmap_atomic(page);
-	memset(kaddr + len, 0, PAGE_SIZE - len);
-	flush_dcache_page(page);
-	kunmap_atomic(kaddr);
+	len = i_size - folio_pos(folio);
+	folio_zero_segment(folio, len, folio_size(folio));
 
 	if (i_size > synced_i_size) {
 		err = inode->i_sb->s_op->write_inode(inode, NULL);
@@ -1063,16 +1058,16 @@ static int ubifs_writepage(struct folio *folio, struct writeback_control *wbc,
 			goto out_redirty;
 	}
 
-	return do_writepage(page, len);
+	return do_writepage(&folio->page, len);
 out_redirty:
 	/*
-	 * redirty_page_for_writepage() won't call ubifs_dirty_inode() because
+	 * folio_redirty_for_writepage() won't call ubifs_dirty_inode() because
 	 * it passes I_DIRTY_PAGES flag while calling __mark_inode_dirty(), so
 	 * there is no need to do space budget for dirty inode.
 	 */
-	redirty_page_for_writepage(wbc, page);
+	folio_redirty_for_writepage(wbc, folio);
 out_unlock:
-	unlock_page(page);
+	folio_unlock(folio);
 	return err;
 }
 
