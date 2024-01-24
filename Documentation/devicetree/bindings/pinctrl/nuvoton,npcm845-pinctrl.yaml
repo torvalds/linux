@@ -159,7 +159,6 @@ patternProperties:
         description: |
           0: Low rate
           1: High rate
-        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1]
 
       drive-strength:
