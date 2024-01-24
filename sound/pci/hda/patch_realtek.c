@@ -133,7 +133,6 @@ struct alc_spec {
 	u8 alc_mute_keycode_map[1];
 
 	/* component binding */
-	struct component_match *match;
 	struct hda_component comps[HDA_MAX_COMPONENTS];
 };
 
@@ -6717,79 +6716,16 @@ static void alc287_fixup_legion_15imhg05_speakers(struct hda_codec *codec,
 	}
 }
 
-#ifdef CONFIG_ACPI
 static void comp_acpi_device_notify(acpi_handle handle, u32 event, void *data)
 {
 	struct hda_codec *cdc = data;
 	struct alc_spec *spec = cdc->spec;
-	int i;
 
 	codec_info(cdc, "ACPI Notification %d\n", event);
 
-	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
-		if (spec->comps[i].dev && spec->comps[i].acpi_notify)
-			spec->comps[i].acpi_notify(acpi_device_handle(spec->comps[i].adev), event,
-						   spec->comps[i].dev);
-	}
+	hda_component_acpi_device_notify(spec->comps, ARRAY_SIZE(spec->comps),
+					 handle, event, data);
 }
-
-static int comp_bind_acpi(struct device *dev)
-{
-	struct hda_codec *cdc = dev_to_hda_codec(dev);
-	struct alc_spec *spec = cdc->spec;
-	bool support_notifications = false;
-	struct acpi_device *adev;
-	int ret;
-	int i;
-
-	adev = spec->comps[0].adev;
-	if (!acpi_device_handle(adev))
-		return 0;
-
-	for (i = 0; i < HDA_MAX_COMPONENTS; i++)
-		support_notifications = support_notifications ||
-			spec->comps[i].acpi_notifications_supported;
-
-	if (support_notifications) {
-		ret = acpi_install_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
-						comp_acpi_device_notify, cdc);
-		if (ret < 0) {
-			codec_warn(cdc, "Failed to install notify handler: %d\n", ret);
-			return 0;
-		}
-
-		codec_dbg(cdc, "Notify handler installed\n");
-	}
-
-	return 0;
-}
-
-static void comp_unbind_acpi(struct device *dev)
-{
-	struct hda_codec *cdc = dev_to_hda_codec(dev);
-	struct alc_spec *spec = cdc->spec;
-	struct acpi_device *adev;
-	int ret;
-
-	adev = spec->comps[0].adev;
-	if (!acpi_device_handle(adev))
-		return;
-
-	ret = acpi_remove_notify_handler(adev->handle, ACPI_DEVICE_NOTIFY,
-					 comp_acpi_device_notify);
-	if (ret < 0)
-		codec_warn(cdc, "Failed to uninstall notify handler: %d\n", ret);
-}
-#else
-static int comp_bind_acpi(struct device *dev)
-{
-	return 0;
-}
-
-static void comp_unbind_acpi(struct device *dev)
-{
-}
-#endif
 
 static int comp_bind(struct device *dev)
 {
@@ -6797,11 +6733,13 @@ static int comp_bind(struct device *dev)
 	struct alc_spec *spec = cdc->spec;
 	int ret;
 
-	ret = component_bind_all(dev, spec->comps);
+	ret = hda_component_manager_bind(cdc, spec->comps);
 	if (ret)
 		return ret;
 
-	return comp_bind_acpi(dev);
+	return hda_component_manager_bind_acpi_notifications(cdc,
+							     spec->comps, ARRAY_SIZE(spec->comps),
+							     comp_acpi_device_notify, cdc);
 }
 
 static void comp_unbind(struct device *dev)
@@ -6809,8 +6747,8 @@ static void comp_unbind(struct device *dev)
 	struct hda_codec *cdc = dev_to_hda_codec(dev);
 	struct alc_spec *spec = cdc->spec;
 
-	comp_unbind_acpi(dev);
-	component_unbind_all(dev, spec->comps);
+	hda_component_manager_unbind_acpi_notifications(cdc, spec->comps, comp_acpi_device_notify);
+	hda_component_manager_unbind(cdc, spec->comps);
 }
 
 static const struct component_master_ops comp_master_ops = {
@@ -6822,78 +6760,27 @@ static void comp_generic_playback_hook(struct hda_pcm_stream *hinfo, struct hda_
 				       struct snd_pcm_substream *sub, int action)
 {
 	struct alc_spec *spec = cdc->spec;
-	int i;
 
-	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
-		if (spec->comps[i].dev && spec->comps[i].pre_playback_hook)
-			spec->comps[i].pre_playback_hook(spec->comps[i].dev, action);
-	}
-	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
-		if (spec->comps[i].dev && spec->comps[i].playback_hook)
-			spec->comps[i].playback_hook(spec->comps[i].dev, action);
-	}
-	for (i = 0; i < HDA_MAX_COMPONENTS; i++) {
-		if (spec->comps[i].dev && spec->comps[i].post_playback_hook)
-			spec->comps[i].post_playback_hook(spec->comps[i].dev, action);
-	}
-}
-
-struct scodec_dev_name {
-	const char *bus;
-	const char *hid;
-	const char *match_str;
-	int index;
-};
-
-/* match the device name in a slightly relaxed manner */
-static int comp_match_dev_name(struct device *dev, void *data)
-{
-	struct scodec_dev_name *p = data;
-	const char *d = dev_name(dev);
-	int n = strlen(p->bus);
-	char tmp[32];
-
-	/* check the bus name */
-	if (strncmp(d, p->bus, n))
-		return 0;
-	/* skip the bus number */
-	if (isdigit(d[n]))
-		n++;
-	/* the rest must be exact matching */
-	snprintf(tmp, sizeof(tmp), p->match_str, p->hid, p->index);
-	return !strcmp(d + n, tmp);
+	hda_component_manager_playback_hook(spec->comps, ARRAY_SIZE(spec->comps), action);
 }
 
 static void comp_generic_fixup(struct hda_codec *cdc, int action, const char *bus,
 			       const char *hid, const char *match_str, int count)
 {
-	struct device *dev = hda_codec_dev(cdc);
 	struct alc_spec *spec = cdc->spec;
-	struct scodec_dev_name *rec;
-	int ret, i;
+	int ret;
 
 	switch (action) {
 	case HDA_FIXUP_ACT_PRE_PROBE:
-		for (i = 0; i < count; i++) {
-			rec = devm_kmalloc(dev, sizeof(*rec), GFP_KERNEL);
-			if (!rec)
-				return;
-			rec->bus = bus;
-			rec->hid = hid;
-			rec->match_str = match_str;
-			rec->index = i;
-			spec->comps[i].codec = cdc;
-			component_match_add(dev, &spec->match,
-					    comp_match_dev_name, rec);
-		}
-		ret = component_master_add_with_match(dev, &comp_master_ops, spec->match);
+		ret = hda_component_manager_init(cdc, spec->comps, count, bus, hid,
+						 match_str, &comp_master_ops);
 		if (ret)
-			codec_err(cdc, "Fail to register component aggregator %d\n", ret);
-		else
-			spec->gen.pcm_playback_hook = comp_generic_playback_hook;
+			return;
+
+		spec->gen.pcm_playback_hook = comp_generic_playback_hook;
 		break;
 	case HDA_FIXUP_ACT_FREE:
-		component_master_del(dev, &comp_master_ops);
+		hda_component_manager_free(cdc, &comp_master_ops);
 		break;
 	}
 }
@@ -12568,6 +12455,7 @@ MODULE_DEVICE_TABLE(hdaudio, snd_hda_id_realtek);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Realtek HD-audio codec");
+MODULE_IMPORT_NS(SND_HDA_SCODEC_COMPONENT);
 
 static struct hda_codec_driver realtek_driver = {
 	.id = snd_hda_id_realtek,
