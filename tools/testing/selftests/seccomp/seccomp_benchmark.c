@@ -38,10 +38,10 @@ unsigned long long timing(clockid_t clk_id, unsigned long long samples)
 	i *= 1000000000ULL;
 	i += finish.tv_nsec - start.tv_nsec;
 
-	printf("%lu.%09lu - %lu.%09lu = %llu (%.1fs)\n",
-		finish.tv_sec, finish.tv_nsec,
-		start.tv_sec, start.tv_nsec,
-		i, (double)i / 1000000000.0);
+	ksft_print_msg("%lu.%09lu - %lu.%09lu = %llu (%.1fs)\n",
+		       finish.tv_sec, finish.tv_nsec,
+		       start.tv_sec, start.tv_nsec,
+		       i, (double)i / 1000000000.0);
 
 	return i;
 }
@@ -53,7 +53,7 @@ unsigned long long calibrate(void)
 	pid_t pid, ret;
 	int seconds = 15;
 
-	printf("Calibrating sample size for %d seconds worth of syscalls ...\n", seconds);
+	ksft_print_msg("Calibrating sample size for %d seconds worth of syscalls ...\n", seconds);
 
 	samples = 0;
 	pid = getpid();
@@ -102,14 +102,14 @@ long compare(const char *name_one, const char *name_eval, const char *name_two,
 {
 	bool good;
 
-	printf("\t%s %s %s (%lld %s %lld): ", name_one, name_eval, name_two,
-	       (long long)one, name_eval, (long long)two);
+	ksft_print_msg("\t%s %s %s (%lld %s %lld): ", name_one, name_eval, name_two,
+		       (long long)one, name_eval, (long long)two);
 	if (one > INT_MAX) {
-		printf("Miscalculation! Measurement went negative: %lld\n", (long long)one);
+		ksft_print_msg("Miscalculation! Measurement went negative: %lld\n", (long long)one);
 		return 1;
 	}
 	if (two > INT_MAX) {
-		printf("Miscalculation! Measurement went negative: %lld\n", (long long)two);
+		ksft_print_msg("Miscalculation! Measurement went negative: %lld\n", (long long)two);
 		return 1;
 	}
 
@@ -145,12 +145,15 @@ int main(int argc, char *argv[])
 
 	setbuf(stdout, NULL);
 
-	printf("Running on:\n");
+	ksft_print_msg("Running on:\n");
+	ksft_print_msg("");
 	system("uname -a");
 
-	printf("Current BPF sysctl settings:\n");
+	ksft_print_msg("Current BPF sysctl settings:\n");
 	/* Avoid using "sysctl" which may not be installed. */
+	ksft_print_msg("");
 	system("grep -H . /proc/sys/net/core/bpf_jit_enable");
+	ksft_print_msg("");
 	system("grep -H . /proc/sys/net/core/bpf_jit_harden");
 
 	if (argc > 1)
@@ -158,11 +161,11 @@ int main(int argc, char *argv[])
 	else
 		samples = calibrate();
 
-	printf("Benchmarking %llu syscalls...\n", samples);
+	ksft_print_msg("Benchmarking %llu syscalls...\n", samples);
 
 	/* Native call */
 	native = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
-	printf("getpid native: %llu ns\n", native);
+	ksft_print_msg("getpid native: %llu ns\n", native);
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	assert(ret == 0);
@@ -172,33 +175,33 @@ int main(int argc, char *argv[])
 	assert(ret == 0);
 
 	bitmap1 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
-	printf("getpid RET_ALLOW 1 filter (bitmap): %llu ns\n", bitmap1);
+	ksft_print_msg("getpid RET_ALLOW 1 filter (bitmap): %llu ns\n", bitmap1);
 
 	/* Second filter resulting in a bitmap */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bitmap_prog);
 	assert(ret == 0);
 
 	bitmap2 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
-	printf("getpid RET_ALLOW 2 filters (bitmap): %llu ns\n", bitmap2);
+	ksft_print_msg("getpid RET_ALLOW 2 filters (bitmap): %llu ns\n", bitmap2);
 
 	/* Third filter, can no longer be converted to bitmap */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
 	assert(ret == 0);
 
 	filter1 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
-	printf("getpid RET_ALLOW 3 filters (full): %llu ns\n", filter1);
+	ksft_print_msg("getpid RET_ALLOW 3 filters (full): %llu ns\n", filter1);
 
 	/* Fourth filter, can not be converted to bitmap because of filter 3 */
 	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &bitmap_prog);
 	assert(ret == 0);
 
 	filter2 = timing(CLOCK_PROCESS_CPUTIME_ID, samples) / samples;
-	printf("getpid RET_ALLOW 4 filters (full): %llu ns\n", filter2);
+	ksft_print_msg("getpid RET_ALLOW 4 filters (full): %llu ns\n", filter2);
 
 	/* Estimations */
 #define ESTIMATE(fmt, var, what)	do {			\
 		var = (what);					\
-		printf("Estimated " fmt ": %llu ns\n", var);	\
+		ksft_print_msg("Estimated " fmt ": %llu ns\n", var);	\
 		if (var > INT_MAX)				\
 			goto more_samples;			\
 	} while (0)
@@ -218,7 +221,7 @@ int main(int argc, char *argv[])
 	ESTIMATE("seccomp per-filter overhead (filters / 4)", per_filter2,
 		 (filter2 - native - entry) / 4);
 
-	printf("Expectations:\n");
+	ksft_print_msg("Expectations:\n");
 	ret |= compare("native", "≤", "1 bitmap", native, le, bitmap1);
 	bits = compare("native", "≤", "1 filter", native, le, filter1);
 	if (bits)
@@ -230,7 +233,7 @@ int main(int argc, char *argv[])
 	bits = compare("1 bitmapped", "≈", "2 bitmapped",
 			bitmap1 - native, approx, bitmap2 - native);
 	if (bits) {
-		printf("Skipping constant action bitmap expectations: they appear unsupported.\n");
+		ksft_print_msg("Skipping constant action bitmap expectations: they appear unsupported.\n");
 		goto out;
 	}
 
@@ -242,7 +245,7 @@ int main(int argc, char *argv[])
 		goto out;
 
 more_samples:
-	printf("Saw unexpected benchmark result. Try running again with more samples?\n");
+	ksft_print_msg("Saw unexpected benchmark result. Try running again with more samples?\n");
 out:
 	return 0;
 }
