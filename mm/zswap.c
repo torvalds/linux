@@ -1808,19 +1808,9 @@ void zswap_swapoff(int type)
 	if (!trees)
 		return;
 
-	for (i = 0; i < nr_zswap_trees[type]; i++) {
-		struct zswap_tree *tree = trees + i;
-		struct zswap_entry *entry, *n;
-
-		/* walk the tree and free everything */
-		spin_lock(&tree->lock);
-		rbtree_postorder_for_each_entry_safe(entry, n,
-						     &tree->rbroot,
-						     rbnode)
-			zswap_free_entry(entry);
-		tree->rbroot = RB_ROOT;
-		spin_unlock(&tree->lock);
-	}
+	/* try_to_unuse() invalidated all the entries already */
+	for (i = 0; i < nr_zswap_trees[type]; i++)
+		WARN_ON_ONCE(!RB_EMPTY_ROOT(&trees[i].rbroot));
 
 	kvfree(trees);
 	nr_zswap_trees[type] = 0;
