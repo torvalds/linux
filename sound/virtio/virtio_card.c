@@ -91,8 +91,6 @@ static void virtsnd_event_notify_cb(struct virtqueue *vqueue)
 			virtsnd_event_dispatch(snd, event);
 			virtsnd_event_send(vqueue, event, true, GFP_ATOMIC);
 		}
-		if (unlikely(virtqueue_is_broken(vqueue)))
-			break;
 	} while (!virtqueue_enable_cb(vqueue));
 	spin_unlock_irqrestore(&queue->lock, flags);
 }
