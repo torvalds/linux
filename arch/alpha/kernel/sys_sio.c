@@ -310,7 +310,7 @@ alphabook1_init_pci(void)
 	outb(0x0f, 0x3ce); outb(orig, 0x3cf); /* (re)lock PR0-4 */
 }
 
-void
+static void
 sio_kill_arch(int mode)
 {
 #if defined(ALPHA_RESTORE_SRM_SETUP)
