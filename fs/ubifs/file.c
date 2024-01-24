@@ -530,6 +530,7 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 			   loff_t pos, unsigned len, unsigned copied,
 			   struct page *page, void *fsdata)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -537,47 +538,47 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 	int appending = !!(end_pos > inode->i_size);
 
 	dbg_gen("ino %lu, pos %llu, pg %lu, len %u, copied %d, i_size %lld",
-		inode->i_ino, pos, page->index, len, copied, inode->i_size);
+		inode->i_ino, pos, folio->index, len, copied, inode->i_size);
 
-	if (unlikely(copied < len && len == PAGE_SIZE)) {
+	if (unlikely(copied < len && !folio_test_uptodate(folio))) {
 		/*
-		 * VFS copied less data to the page that it intended and
+		 * VFS copied less data to the folio than it intended and
 		 * declared in its '->write_begin()' call via the @len
-		 * argument. If the page was not up-to-date, and @len was
-		 * @PAGE_SIZE, the 'ubifs_write_begin()' function did
+		 * argument. If the folio was not up-to-date,
+		 * the 'ubifs_write_begin()' function did
 		 * not load it from the media (for optimization reasons). This
-		 * means that part of the page contains garbage. So read the
-		 * page now.
+		 * means that part of the folio contains garbage. So read the
+		 * folio now.
 		 */
 		dbg_gen("copied %d instead of %d, read page and repeat",
 			copied, len);
-		cancel_budget(c, page, ui, appending);
-		ClearPageChecked(page);
+		cancel_budget(c, &folio->page, ui, appending);
+		folio_clear_checked(folio);
 
 		/*
 		 * Return 0 to force VFS to repeat the whole operation, or the
 		 * error code if 'do_readpage()' fails.
 		 */
-		copied = do_readpage(page);
+		copied = do_readpage(&folio->page);
 		goto out;
 	}
 
-	if (len == PAGE_SIZE)
-		SetPageUptodate(page);
+	if (len == folio_size(folio))
+		folio_mark_uptodate(folio);
 
-	if (!PagePrivate(page)) {
-		attach_page_private(page, (void *)1);
+	if (!folio->private) {
+		folio_attach_private(folio, (void *)1);
 		atomic_long_inc(&c->dirty_pg_cnt);
-		__set_page_dirty_nobuffers(page);
+		filemap_dirty_folio(mapping, folio);
 	}
 
 	if (appending) {
 		i_size_write(inode, end_pos);
 		ui->ui_size = end_pos;
 		/*
-		 * Note, we do not set @I_DIRTY_PAGES (which means that the
-		 * inode has dirty pages), this has been done in
-		 * '__set_page_dirty_nobuffers()'.
+		 * We do not set @I_DIRTY_PAGES (which means that
+		 * the inode has dirty pages), this was done in
+		 * filemap_dirty_folio().
 		 */
 		__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 		ubifs_assert(c, mutex_is_locked(&ui->ui_mutex));
@@ -585,8 +586,8 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 	}
 
 out:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 	return copied;
 }
 
