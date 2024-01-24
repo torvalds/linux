@@ -518,17 +518,18 @@
 		status = "disabled";
 	};
 
-	fss: syscon@47000000 {
-		compatible = "syscon", "simple-mfd";
+	fss: bus@47000000 {
+		compatible = "simple-bus";
 		reg = <0x00 0x47000000 0x00 0x100>;
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
 
-		hbmc_mux: hbmc-mux {
-			compatible = "mmio-mux";
+		hbmc_mux: mux-controller@47000004 {
+			compatible = "reg-mux";
+			reg = <0x00 0x47000004 0x00 0x4>;
 			#mux-control-cells = <1>;
-			mux-reg-masks = <0x4 0x2>; /* HBMC select */
+			mux-reg-masks = <0x0 0x2>; /* HBMC select */
 		};
 
 		hbmc: hyperbus@47034000 {
