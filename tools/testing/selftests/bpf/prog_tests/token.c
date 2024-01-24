@@ -773,6 +773,9 @@ static int userns_obj_priv_btf_success(int mnt_fd)
 	return validate_struct_ops_load(mnt_fd, true /* should succeed */);
 }
 
+#define TOKEN_ENVVAR "LIBBPF_BPF_TOKEN_PATH"
+#define TOKEN_BPFFS_CUSTOM "/bpf-token-fs"
+
 static int userns_obj_priv_implicit_token(int mnt_fd)
 {
 	LIBBPF_OPTS(bpf_object_open_opts, opts);
@@ -795,6 +798,20 @@ static int userns_obj_priv_implicit_token(int mnt_fd)
 	if (!ASSERT_OK(err, "move_mount_bpffs"))
 		return -EINVAL;
 
+	/* disable implicit BPF token creation by setting
+	 * LIBBPF_BPF_TOKEN_PATH envvar to empty value, load should fail
+	 */
+	err = setenv(TOKEN_ENVVAR, "", 1 /*overwrite*/);
+	if (!ASSERT_OK(err, "setenv_token_path"))
+		return -EINVAL;
+	skel = dummy_st_ops_success__open_and_load();
+	if (!ASSERT_ERR_PTR(skel, "obj_token_envvar_disabled_load")) {
+		unsetenv(TOKEN_ENVVAR);
+		dummy_st_ops_success__destroy(skel);
+		return -EINVAL;
+	}
+	unsetenv(TOKEN_ENVVAR);
+
 	/* now the same struct_ops skeleton should succeed thanks to libppf
 	 * creating BPF token from /sys/fs/bpf mount point
 	 */
@@ -816,6 +833,76 @@ static int userns_obj_priv_implicit_token(int mnt_fd)
 		return -EINVAL;
 
 	return 0;
+}
+
+static int userns_obj_priv_implicit_token_envvar(int mnt_fd)
+{
+	LIBBPF_OPTS(bpf_object_open_opts, opts);
+	struct dummy_st_ops_success *skel;
+	int err;
+
+	/* before we mount BPF FS with token delegation, struct_ops skeleton
+	 * should fail to load
+	 */
+	skel = dummy_st_ops_success__open_and_load();
+	if (!ASSERT_ERR_PTR(skel, "obj_tokenless_load")) {
+		dummy_st_ops_success__destroy(skel);
+		return -EINVAL;
+	}
+
+	/* mount custom BPF FS over custom location, so libbpf can't create
+	 * BPF token implicitly, unless pointed to it through
+	 * LIBBPF_BPF_TOKEN_PATH envvar
+	 */
+	rmdir(TOKEN_BPFFS_CUSTOM);
+	if (!ASSERT_OK(mkdir(TOKEN_BPFFS_CUSTOM, 0777), "mkdir_bpffs_custom"))
+		goto err_out;
+	err = sys_move_mount(mnt_fd, "", AT_FDCWD, TOKEN_BPFFS_CUSTOM, MOVE_MOUNT_F_EMPTY_PATH);
+	if (!ASSERT_OK(err, "move_mount_bpffs"))
+		goto err_out;
+
+	/* even though we have BPF FS with delegation, it's not at default
+	 * /sys/fs/bpf location, so we still fail to load until envvar is set up
+	 */
+	skel = dummy_st_ops_success__open_and_load();
+	if (!ASSERT_ERR_PTR(skel, "obj_tokenless_load2")) {
+		dummy_st_ops_success__destroy(skel);
+		goto err_out;
+	}
+
+	err = setenv(TOKEN_ENVVAR, TOKEN_BPFFS_CUSTOM, 1 /*overwrite*/);
+	if (!ASSERT_OK(err, "setenv_token_path"))
+		goto err_out;
+
+	/* now the same struct_ops skeleton should succeed thanks to libppf
+	 * creating BPF token from custom mount point
+	 */
+	skel = dummy_st_ops_success__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "obj_implicit_token_load"))
+		goto err_out;
+
+	dummy_st_ops_success__destroy(skel);
+
+	/* now disable implicit token through empty bpf_token_path, envvar
+	 * will be ignored, should fail
+	 */
+	opts.bpf_token_path = "";
+	skel = dummy_st_ops_success__open_opts(&opts);
+	if (!ASSERT_OK_PTR(skel, "obj_empty_token_path_open"))
+		goto err_out;
+
+	err = dummy_st_ops_success__load(skel);
+	dummy_st_ops_success__destroy(skel);
+	if (!ASSERT_ERR(err, "obj_empty_token_path_load"))
+		goto err_out;
+
+	rmdir(TOKEN_BPFFS_CUSTOM);
+	unsetenv(TOKEN_ENVVAR);
+	return 0;
+err_out:
+	rmdir(TOKEN_BPFFS_CUSTOM);
+	unsetenv(TOKEN_ENVVAR);
+	return -EINVAL;
 }
 
 #define bit(n) (1ULL << (n))
@@ -895,5 +982,16 @@ void test_token(void)
 		};
 
 		subtest_userns(&opts, userns_obj_priv_implicit_token);
+	}
+	if (test__start_subtest("obj_priv_implicit_token_envvar")) {
+		struct bpffs_opts opts = {
+			/* allow BTF loading */
+			.cmds = bit(BPF_BTF_LOAD) | bit(BPF_MAP_CREATE) | bit(BPF_PROG_LOAD),
+			.maps = bit(BPF_MAP_TYPE_STRUCT_OPS),
+			.progs = bit(BPF_PROG_TYPE_STRUCT_OPS),
+			.attachs = ~0ULL,
+		};
+
+		subtest_userns(&opts, userns_obj_priv_implicit_token_envvar);
 	}
 }
