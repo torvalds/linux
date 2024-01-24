@@ -222,16 +222,16 @@ static int write_begin_slow(struct address_space *mapping,
 	pgoff_t index = pos >> PAGE_SHIFT;
 	struct ubifs_budget_req req = { .new_page = 1 };
 	int err, appending = !!(pos + len > inode->i_size);
-	struct page *page;
+	struct folio *folio;
 
 	dbg_gen("ino %lu, pos %llu, len %u, i_size %lld",
 		inode->i_ino, pos, len, inode->i_size);
 
 	/*
-	 * At the slow path we have to budget before locking the page, because
-	 * budgeting may force write-back, which would wait on locked pages and
-	 * deadlock if we had the page locked. At this point we do not know
-	 * anything about the page, so assume that this is a new page which is
+	 * At the slow path we have to budget before locking the folio, because
+	 * budgeting may force write-back, which would wait on locked folios and
+	 * deadlock if we had the folio locked. At this point we do not know
+	 * anything about the folio, so assume that this is a new folio which is
 	 * written to a hole. This corresponds to largest budget. Later the
 	 * budget will be amended if this is not true.
 	 */
@@ -243,42 +243,43 @@ static int write_begin_slow(struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (unlikely(!page)) {
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio)) {
 		ubifs_release_budget(c, &req);
-		return -ENOMEM;
+		return PTR_ERR(folio);
 	}
 
-	if (!PageUptodate(page)) {
-		if (!(pos & ~PAGE_MASK) && len == PAGE_SIZE)
-			SetPageChecked(page);
+	if (!folio_test_uptodate(folio)) {
+		if (pos == folio_pos(folio) && len >= folio_size(folio))
+			folio_set_checked(folio);
 		else {
-			err = do_readpage(page);
+			err = do_readpage(&folio->page);
 			if (err) {
-				unlock_page(page);
-				put_page(page);
+				folio_unlock(folio);
+				folio_put(folio);
 				ubifs_release_budget(c, &req);
 				return err;
 			}
 		}
 	}
 
-	if (PagePrivate(page))
+	if (folio->private)
 		/*
-		 * The page is dirty, which means it was budgeted twice:
+		 * The folio is dirty, which means it was budgeted twice:
 		 *   o first time the budget was allocated by the task which
-		 *     made the page dirty and set the PG_private flag;
+		 *     made the folio dirty and set the private field;
 		 *   o and then we budgeted for it for the second time at the
 		 *     very beginning of this function.
 		 *
-		 * So what we have to do is to release the page budget we
+		 * So what we have to do is to release the folio budget we
 		 * allocated.
 		 */
 		release_new_page_budget(c);
-	else if (!PageChecked(page))
+	else if (!folio_test_checked(folio))
 		/*
-		 * We are changing a page which already exists on the media.
-		 * This means that changing the page does not make the amount
+		 * We are changing a folio which already exists on the media.
+		 * This means that changing the folio does not make the amount
 		 * of indexing information larger, and this part of the budget
 		 * which we have already acquired may be released.
 		 */
@@ -301,7 +302,7 @@ static int write_begin_slow(struct address_space *mapping,
 			ubifs_release_dirty_inode_budget(c, ui);
 	}
 
-	*pagep = page;
+	*pagep = &folio->page;
 	return 0;
 }
 
