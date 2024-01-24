@@ -661,4 +661,5 @@ static struct platform_driver nps_enet_driver = {
 module_platform_driver(nps_enet_driver);
 
 MODULE_AUTHOR("EZchip Semiconductor");
+MODULE_DESCRIPTION("EZchip NPS Ethernet driver");
 MODULE_LICENSE("GPL v2");

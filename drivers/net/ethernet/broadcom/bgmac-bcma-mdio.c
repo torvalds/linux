@@ -260,4 +260,5 @@ void bcma_mdio_mii_unregister(struct mii_bus *mii_bus)
 EXPORT_SYMBOL_GPL(bcma_mdio_mii_unregister);
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom iProc GBit BCMA MDIO helpers");
 MODULE_LICENSE("GPL");

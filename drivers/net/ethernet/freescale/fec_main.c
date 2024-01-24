@@ -4769,4 +4769,5 @@ static struct platform_driver fec_driver = {
 
 module_platform_driver(fec_driver);
 
+MODULE_DESCRIPTION("NXP Fast Ethernet Controller (FEC) driver");
 MODULE_LICENSE("GPL");

@@ -443,4 +443,5 @@ static void __exit zorro8390_cleanup_module(void)
 module_init(zorro8390_init_module);
 module_exit(zorro8390_cleanup_module);
 
+MODULE_DESCRIPTION("Zorro NS8390-based ethernet driver");
 MODULE_LICENSE("GPL");
