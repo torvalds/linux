@@ -2670,7 +2670,11 @@ static int amdgpu_ras_page_retirement_thread(void *param)
 	while (!kthread_should_stop()) {
 
 		wait_event_interruptible(con->page_retirement_wq,
+				kthread_should_stop() ||
 				atomic_read(&con->page_retirement_req_cnt));
+
+		if (kthread_should_stop())
+			break;
 
 		dev_info(adev->dev, "Start processing page retirement. request:%d\n",
 			atomic_read(&con->page_retirement_req_cnt));
