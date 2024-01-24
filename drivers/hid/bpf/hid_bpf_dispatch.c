@@ -143,6 +143,9 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 }
 EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
 
+/* Disables missing prototype warnings */
+__bpf_kfunc_start_defs();
+
 /**
  * hid_bpf_get_data - Get the kernel memory pointer associated with the context @ctx
  *
@@ -152,7 +155,7 @@ EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
  *
  * @returns %NULL on error, an %__u8 memory pointer on success
  */
-noinline __u8 *
+__bpf_kfunc __u8 *
 hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr_buf_size)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
@@ -167,6 +170,7 @@ hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr
 
 	return ctx_kern->data + offset;
 }
+__bpf_kfunc_end_defs();
 
 /*
  * The following set contains all functions we agree BPF programs
@@ -274,6 +278,9 @@ static int do_hid_bpf_attach_prog(struct hid_device *hdev, int prog_fd, struct b
 	return fd;
 }
 
+/* Disables missing prototype warnings */
+__bpf_kfunc_start_defs();
+
 /**
  * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
  *
@@ -286,7 +293,7 @@ static int do_hid_bpf_attach_prog(struct hid_device *hdev, int prog_fd, struct b
  * is pinned to the BPF file system).
  */
 /* called from syscall */
-noinline int
+__bpf_kfunc int
 hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 {
 	struct hid_device *hdev;
@@ -338,7 +345,7 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
  *
  * @returns A pointer to &struct hid_bpf_ctx on success, %NULL on error.
  */
-noinline struct hid_bpf_ctx *
+__bpf_kfunc struct hid_bpf_ctx *
 hid_bpf_allocate_context(unsigned int hid_id)
 {
 	struct hid_device *hdev;
@@ -371,7 +378,7 @@ hid_bpf_allocate_context(unsigned int hid_id)
  * @ctx: the HID-BPF context to release
  *
  */
-noinline void
+__bpf_kfunc void
 hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
@@ -397,7 +404,7 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
  *
  * @returns %0 on success, a negative error code otherwise.
  */
-noinline int
+__bpf_kfunc int
 hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 		   enum hid_report_type rtype, enum hid_class_request reqtype)
 {
@@ -465,6 +472,7 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 	kfree(dma_data);
 	return ret;
 }
+__bpf_kfunc_end_defs();
 
 /* our HID-BPF entrypoints */
 BTF_SET8_START(hid_bpf_fmodret_ids)
