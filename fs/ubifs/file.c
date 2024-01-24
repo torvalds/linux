@@ -96,36 +96,36 @@ dump:
 	return -EINVAL;
 }
 
-static int do_readpage(struct page *page)
+static int do_readpage(struct folio *folio)
 {
 	void *addr;
 	int err = 0, i;
 	unsigned int block, beyond;
-	struct ubifs_data_node *dn;
-	struct inode *inode = page->mapping->host;
+	struct ubifs_data_node *dn = NULL;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	loff_t i_size = i_size_read(inode);
 
 	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
-		inode->i_ino, page->index, i_size, page->flags);
-	ubifs_assert(c, !PageChecked(page));
-	ubifs_assert(c, !PagePrivate(page));
+		inode->i_ino, folio->index, i_size, folio->flags);
+	ubifs_assert(c, !folio_test_checked(folio));
+	ubifs_assert(c, !folio->private);
 
-	addr = kmap(page);
+	addr = kmap_local_folio(folio, 0);
 
-	block = page->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
+	block = folio->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
 	beyond = (i_size + UBIFS_BLOCK_SIZE - 1) >> UBIFS_BLOCK_SHIFT;
 	if (block >= beyond) {
 		/* Reading beyond inode */
-		SetPageChecked(page);
-		memset(addr, 0, PAGE_SIZE);
+		folio_set_checked(folio);
+		addr = folio_zero_tail(folio, 0, addr);
 		goto out;
 	}
 
 	dn = kmalloc(UBIFS_MAX_DATA_NODE_SZ, GFP_NOFS);
 	if (!dn) {
 		err = -ENOMEM;
-		goto error;
+		goto out;
 	}
 
 	i = 0;
@@ -150,39 +150,35 @@ static int do_readpage(struct page *page)
 					memset(addr + ilen, 0, dlen - ilen);
 			}
 		}
-		if (++i >= UBIFS_BLOCKS_PER_PAGE)
+		if (++i >= (UBIFS_BLOCKS_PER_PAGE << folio_order(folio)))
 			break;
 		block += 1;
 		addr += UBIFS_BLOCK_SIZE;
+		if (folio_test_highmem(folio) && (offset_in_page(addr) == 0)) {
+			kunmap_local(addr - UBIFS_BLOCK_SIZE);
+			addr = kmap_local_folio(folio, i * UBIFS_BLOCK_SIZE);
+		}
 	}
+
 	if (err) {
 		struct ubifs_info *c = inode->i_sb->s_fs_info;
 		if (err == -ENOENT) {
 			/* Not found, so it must be a hole */
-			SetPageChecked(page);
+			folio_set_checked(folio);
 			dbg_gen("hole");
-			goto out_free;
+			err = 0;
+		} else {
+			ubifs_err(c, "cannot read page %lu of inode %lu, error %d",
+				  folio->index, inode->i_ino, err);
 		}
-		ubifs_err(c, "cannot read page %lu of inode %lu, error %d",
-			  page->index, inode->i_ino, err);
-		goto error;
 	}
 
-out_free:
-	kfree(dn);
 out:
-	SetPageUptodate(page);
-	ClearPageError(page);
-	flush_dcache_page(page);
-	kunmap(page);
-	return 0;
-
-error:
 	kfree(dn);
-	ClearPageUptodate(page);
-	SetPageError(page);
-	flush_dcache_page(page);
-	kunmap(page);
+	if (!err)
+		folio_mark_uptodate(folio);
+	flush_dcache_folio(folio);
+	kunmap_local(addr);
 	return err;
 }
 
@@ -254,7 +250,7 @@ static int write_begin_slow(struct address_space *mapping,
 		if (pos == folio_pos(folio) && len >= folio_size(folio))
 			folio_set_checked(folio);
 		else {
-			err = do_readpage(&folio->page);
+			err = do_readpage(folio);
 			if (err) {
 				folio_unlock(folio);
 				folio_put(folio);
@@ -455,7 +451,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 			folio_set_checked(folio);
 			skipped_read = 1;
 		} else {
-			err = do_readpage(&folio->page);
+			err = do_readpage(folio);
 			if (err) {
 				folio_unlock(folio);
 				folio_put(folio);
@@ -559,7 +555,7 @@ static int ubifs_write_end(struct file *file, struct address_space *mapping,
 		 * Return 0 to force VFS to repeat the whole operation, or the
 		 * error code if 'do_readpage()' fails.
 		 */
-		copied = do_readpage(&folio->page);
+		copied = do_readpage(folio);
 		goto out;
 	}
 
@@ -895,7 +891,7 @@ static int ubifs_read_folio(struct file *file, struct folio *folio)
 
 	if (ubifs_bulk_read(page))
 		return 0;
-	do_readpage(page);
+	do_readpage(folio);
 	folio_unlock(folio);
 	return 0;
 }
