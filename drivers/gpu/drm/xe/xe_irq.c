@@ -683,8 +683,9 @@ static void irq_uninstall(struct drm_device *drm, void *arg)
 int xe_irq_install(struct xe_device *xe)
 {
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	unsigned int irq_flags = PCI_IRQ_MSIX;
 	irq_handler_t irq_handler;
-	int err, irq;
+	int err, irq, nvec;
 
 	irq_handler = xe_irq_handler(xe);
 	if (!irq_handler) {
@@ -694,7 +695,19 @@ int xe_irq_install(struct xe_device *xe)
 
 	xe_irq_reset(xe);
 
-	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_MSIX);
+	nvec = pci_msix_vec_count(pdev);
+	if (nvec <= 0) {
+		if (nvec == -EINVAL) {
+			/* MSIX capability is not supported in the device, using MSI */
+			irq_flags = PCI_IRQ_MSI;
+			nvec = 1;
+		} else {
+			drm_err(&xe->drm, "MSIX: Failed getting count\n");
+			return nvec;
+		}
+	}
+
+	err = pci_alloc_irq_vectors(pdev, nvec, nvec, irq_flags);
 	if (err < 0) {
 		drm_err(&xe->drm, "MSI/MSIX: Failed to enable support %d\n", err);
 		return err;
