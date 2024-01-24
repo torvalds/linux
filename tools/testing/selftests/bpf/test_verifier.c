@@ -67,6 +67,7 @@
 
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
+#define F_NEEDS_JIT_ENABLED			(1 << 2)
 
 /* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
 #define ADMIN_CAPS (1ULL << CAP_NET_ADMIN |	\
@@ -74,6 +75,7 @@
 		    1ULL << CAP_BPF)
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
+static bool jit_disabled;
 static int skips;
 static bool verbose = false;
 static int verif_log_level = 0;
@@ -1524,6 +1526,13 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	__u32 pflags;
 	int i, err;
 
+	if ((test->flags & F_NEEDS_JIT_ENABLED) && jit_disabled) {
+		printf("SKIP (requires BPF JIT)");
+		skips++;
+		sched_yield();
+		return;
+	}
+
 	fd_prog = -1;
 	for (i = 0; i < MAX_NR_MAPS; i++)
 		map_fds[i] = -1;
@@ -1843,6 +1852,8 @@ int main(int argc, char **argv)
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}
+
+	jit_disabled = !is_jit_enabled();
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
