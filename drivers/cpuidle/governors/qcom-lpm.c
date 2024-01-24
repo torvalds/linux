@@ -3,7 +3,7 @@
  * Copyright (C) 2006-2007 Adam Belay <abelay@novell.com>
  * Copyright (C) 2009 Intel Corporation
  * Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/cpu.h>
@@ -66,6 +66,9 @@ static bool lpm_disallowed(s64 sleep_ns, int cpu)
 	struct lpm_cpu *cpu_gov = per_cpu_ptr(&lpm_cpu_data, cpu);
 	uint64_t bias_time = 0;
 #endif
+
+	if (suspend_in_progress)
+		return true;
 
 	if (!check_cpu_isactive(cpu))
 		return false;
@@ -801,14 +804,22 @@ static void lpm_disable_device(struct cpuidle_driver *drv,
 static void qcom_lpm_suspend_trace(void *unused, const char *action,
 				   int event, bool start)
 {
+	int cpu;
+
 	if (start && !strcmp("dpm_suspend_late", action)) {
 		suspend_in_progress = true;
 
+		for_each_online_cpu(cpu)
+			wake_up_if_idle(cpu);
 		return;
 	}
 
-	if (!start && !strcmp("dpm_resume_early", action))
+	if (!start && !strcmp("dpm_resume_early", action)) {
 		suspend_in_progress = false;
+
+		for_each_online_cpu(cpu)
+			wake_up_if_idle(cpu);
+	}
 }
 
 static struct cpuidle_governor lpm_governor = {
