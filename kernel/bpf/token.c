@@ -7,6 +7,7 @@
 #include <linux/idr.h>
 #include <linux/namei.h>
 #include <linux/user_namespace.h>
+#include <linux/security.h>
 
 static bool bpf_ns_capable(struct user_namespace *ns, int cap)
 {
@@ -21,6 +22,8 @@ bool bpf_token_capable(const struct bpf_token *token, int cap)
 	userns = token ? token->userns : &init_user_ns;
 	if (!bpf_ns_capable(userns, cap))
 		return false;
+	if (token && security_bpf_token_capable(token, cap) < 0)
+		return false;
 	return true;
 }
 
@@ -31,6 +34,7 @@ void bpf_token_inc(struct bpf_token *token)
 
 static void bpf_token_free(struct bpf_token *token)
 {
+	security_bpf_token_free(token);
 	put_user_ns(token->userns);
 	kfree(token);
 }
@@ -193,6 +197,10 @@ int bpf_token_create(union bpf_attr *attr)
 	token->allowed_progs = mnt_opts->delegate_progs;
 	token->allowed_attachs = mnt_opts->delegate_attachs;
 
+	err = security_bpf_token_create(token, attr, &path);
+	if (err)
+		goto out_token;
+
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0) {
 		err = fd;
@@ -237,7 +245,9 @@ bool bpf_token_allow_cmd(const struct bpf_token *token, enum bpf_cmd cmd)
 {
 	if (!token)
 		return false;
-	return token->allowed_cmds & (1ULL << cmd);
+	if (!(token->allowed_cmds & (1ULL << cmd)))
+		return false;
+	return security_bpf_token_cmd(token, cmd) == 0;
 }
 
 bool bpf_token_allow_map_type(const struct bpf_token *token, enum bpf_map_type type)
