@@ -1254,8 +1254,8 @@ static void gpiochip_irqchip_free_valid_mask(struct gpio_chip *gc)
 	gpiochip_free_mask(&gc->irq.valid_mask);
 }
 
-bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
-				unsigned int offset)
+static bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
+				       unsigned int offset)
 {
 	if (!gpiochip_line_is_valid(gc, offset))
 		return false;
@@ -1264,7 +1264,6 @@ bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
 		return true;
 	return test_bit(offset, gc->irq.valid_mask);
 }
-EXPORT_SYMBOL_GPL(gpiochip_irqchip_irq_valid);
 
 #ifdef CONFIG_IRQ_DOMAIN_HIERARCHY
 
@@ -1439,6 +1438,43 @@ static unsigned int gpiochip_child_offset_to_irq_noop(struct gpio_chip *gc,
 	return offset;
 }
 
+/**
+ * gpiochip_irq_domain_activate() - Lock a GPIO to be used as an IRQ
+ * @domain: The IRQ domain used by this IRQ chip
+ * @data: Outermost irq_data associated with the IRQ
+ * @reserve: If set, only reserve an interrupt vector instead of assigning one
+ *
+ * This function is a wrapper that calls gpiochip_lock_as_irq() and is to be
+ * used as the activate function for the &struct irq_domain_ops. The host_data
+ * for the IRQ domain must be the &struct gpio_chip.
+ */
+static int gpiochip_irq_domain_activate(struct irq_domain *domain,
+					struct irq_data *data, bool reserve)
+{
+	struct gpio_chip *gc = domain->host_data;
+	unsigned int hwirq = irqd_to_hwirq(data);
+
+	return gpiochip_lock_as_irq(gc, hwirq);
+}
+
+/**
+ * gpiochip_irq_domain_deactivate() - Unlock a GPIO used as an IRQ
+ * @domain: The IRQ domain used by this IRQ chip
+ * @data: Outermost irq_data associated with the IRQ
+ *
+ * This function is a wrapper that will call gpiochip_unlock_as_irq() and is to
+ * be used as the deactivate function for the &struct irq_domain_ops. The
+ * host_data for the IRQ domain must be the &struct gpio_chip.
+ */
+static void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
+					   struct irq_data *data)
+{
+	struct gpio_chip *gc = domain->host_data;
+	unsigned int hwirq = irqd_to_hwirq(data);
+
+	return gpiochip_unlock_as_irq(gc, hwirq);
+}
+
 static void gpiochip_hierarchy_setup_domain_ops(struct irq_domain_ops *ops)
 {
 	ops->activate = gpiochip_irq_domain_activate;
@@ -1556,7 +1592,8 @@ static bool gpiochip_hierarchy_is_hierarchical(struct gpio_chip *gc)
  * gpiochip by assigning the gpiochip as chip data, and using the irqchip
  * stored inside the gpiochip.
  */
-int gpiochip_irq_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hwirq)
+static int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
+			    irq_hw_number_t hwirq)
 {
 	struct gpio_chip *gc = d->host_data;
 	int ret = 0;
@@ -1593,9 +1630,8 @@ int gpiochip_irq_map(struct irq_domain *d, unsigned int irq, irq_hw_number_t hwi
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(gpiochip_irq_map);
 
-void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
+static void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 {
 	struct gpio_chip *gc = d->host_data;
 
@@ -1604,7 +1640,6 @@ void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq)
 	irq_set_chip_and_handler(irq, NULL, NULL);
 	irq_set_chip_data(irq, NULL);
 }
-EXPORT_SYMBOL_GPL(gpiochip_irq_unmap);
 
 static const struct irq_domain_ops gpiochip_domain_ops = {
 	.map	= gpiochip_irq_map,
@@ -1625,50 +1660,6 @@ static struct irq_domain *gpiochip_simple_create_domain(struct gpio_chip *gc)
 
 	return domain;
 }
-
-/*
- * TODO: move these activate/deactivate in under the hierarchicial
- * irqchip implementation as static once SPMI and SSBI (all external
- * users) are phased over.
- */
-/**
- * gpiochip_irq_domain_activate() - Lock a GPIO to be used as an IRQ
- * @domain: The IRQ domain used by this IRQ chip
- * @data: Outermost irq_data associated with the IRQ
- * @reserve: If set, only reserve an interrupt vector instead of assigning one
- *
- * This function is a wrapper that calls gpiochip_lock_as_irq() and is to be
- * used as the activate function for the &struct irq_domain_ops. The host_data
- * for the IRQ domain must be the &struct gpio_chip.
- */
-int gpiochip_irq_domain_activate(struct irq_domain *domain,
-				 struct irq_data *data, bool reserve)
-{
-	struct gpio_chip *gc = domain->host_data;
-	unsigned int hwirq = irqd_to_hwirq(data);
-
-	return gpiochip_lock_as_irq(gc, hwirq);
-}
-EXPORT_SYMBOL_GPL(gpiochip_irq_domain_activate);
-
-/**
- * gpiochip_irq_domain_deactivate() - Unlock a GPIO used as an IRQ
- * @domain: The IRQ domain used by this IRQ chip
- * @data: Outermost irq_data associated with the IRQ
- *
- * This function is a wrapper that will call gpiochip_unlock_as_irq() and is to
- * be used as the deactivate function for the &struct irq_domain_ops. The
- * host_data for the IRQ domain must be the &struct gpio_chip.
- */
-void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
-				    struct irq_data *data)
-{
-	struct gpio_chip *gc = domain->host_data;
-	unsigned int hwirq = irqd_to_hwirq(data);
-
-	return gpiochip_unlock_as_irq(gc, hwirq);
-}
-EXPORT_SYMBOL_GPL(gpiochip_irq_domain_deactivate);
 
 static int gpiochip_to_irq(struct gpio_chip *gc, unsigned int offset)
 {

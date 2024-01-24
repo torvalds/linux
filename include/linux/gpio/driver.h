@@ -704,18 +704,6 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 #define BGPIOF_NO_OUTPUT		BIT(5) /* only input */
 #define BGPIOF_NO_SET_ON_INPUT		BIT(6)
 
-int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
-		     irq_hw_number_t hwirq);
-void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq);
-
-int gpiochip_irq_domain_activate(struct irq_domain *domain,
-				 struct irq_data *data, bool reserve);
-void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
-				    struct irq_data *data);
-
-bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
-				unsigned int offset);
-
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 				struct irq_domain *domain);
