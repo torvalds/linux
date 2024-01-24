@@ -1514,14 +1514,14 @@ static bool ubifs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
  */
 static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 {
-	struct page *page = vmf->page;
+	struct folio *folio = page_folio(vmf->page);
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct timespec64 now = current_time(inode);
 	struct ubifs_budget_req req = { .new_page = 1 };
 	int err, update_time;
 
-	dbg_gen("ino %lu, pg %lu, i_size %lld",	inode->i_ino, page->index,
+	dbg_gen("ino %lu, pg %lu, i_size %lld",	inode->i_ino, folio->index,
 		i_size_read(inode));
 	ubifs_assert(c, !c->ro_media && !c->ro_mount);
 
@@ -1529,17 +1529,17 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS; /* -EROFS */
 
 	/*
-	 * We have not locked @page so far so we may budget for changing the
-	 * page. Note, we cannot do this after we locked the page, because
+	 * We have not locked @folio so far so we may budget for changing the
+	 * folio. Note, we cannot do this after we locked the folio, because
 	 * budgeting may cause write-back which would cause deadlock.
 	 *
-	 * At the moment we do not know whether the page is dirty or not, so we
-	 * assume that it is not and budget for a new page. We could look at
+	 * At the moment we do not know whether the folio is dirty or not, so we
+	 * assume that it is not and budget for a new folio. We could look at
 	 * the @PG_private flag and figure this out, but we may race with write
-	 * back and the page state may change by the time we lock it, so this
+	 * back and the folio state may change by the time we lock it, so this
 	 * would need additional care. We do not bother with this at the
 	 * moment, although it might be good idea to do. Instead, we allocate
-	 * budget for a new page and amend it later on if the page was in fact
+	 * budget for a new folio and amend it later on if the folio was in fact
 	 * dirty.
 	 *
 	 * The budgeting-related logic of this function is similar to what we
@@ -1562,21 +1562,21 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 		return VM_FAULT_SIGBUS;
 	}
 
-	lock_page(page);
-	if (unlikely(page->mapping != inode->i_mapping ||
-		     page_offset(page) > i_size_read(inode))) {
-		/* Page got truncated out from underneath us */
+	folio_lock(folio);
+	if (unlikely(folio->mapping != inode->i_mapping ||
+		     folio_pos(folio) >= i_size_read(inode))) {
+		/* Folio got truncated out from underneath us */
 		goto sigbus;
 	}
 
-	if (PagePrivate(page))
+	if (folio->private)
 		release_new_page_budget(c);
 	else {
-		if (!PageChecked(page))
+		if (!folio_test_checked(folio))
 			ubifs_convert_page_budget(c);
-		attach_page_private(page, (void *)1);
+		folio_attach_private(folio, (void *)1);
 		atomic_long_inc(&c->dirty_pg_cnt);
-		__set_page_dirty_nobuffers(page);
+		filemap_dirty_folio(folio->mapping, folio);
 	}
 
 	if (update_time) {
@@ -1592,11 +1592,11 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 			ubifs_release_dirty_inode_budget(c, ui);
 	}
 
-	wait_for_stable_page(page);
+	folio_wait_stable(folio);
 	return VM_FAULT_LOCKED;
 
 sigbus:
-	unlock_page(page);
+	folio_unlock(folio);
 	ubifs_release_budget(c, &req);
 	return VM_FAULT_SIGBUS;
 }
