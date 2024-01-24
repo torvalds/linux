@@ -39,6 +39,8 @@ static const char *sock_type_str(int type)
 		return "DGRAM";
 	case SOCK_STREAM:
 		return "STREAM";
+	case SOCK_SEQPACKET:
+		return "SEQPACKET";
 	default:
 		return "INVALID TYPE";
 	}
