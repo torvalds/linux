@@ -626,12 +626,14 @@ static int bpf_show_options(struct seq_file *m, struct dentry *root)
 	else if (opts->delegate_maps)
 		seq_printf(m, ",delegate_maps=0x%llx", opts->delegate_maps);
 
-	if (opts->delegate_progs == ~0ULL)
+	mask = (1ULL << __MAX_BPF_PROG_TYPE) - 1;
+	if ((opts->delegate_progs & mask) == mask)
 		seq_printf(m, ",delegate_progs=any");
 	else if (opts->delegate_progs)
 		seq_printf(m, ",delegate_progs=0x%llx", opts->delegate_progs);
 
-	if (opts->delegate_attachs == ~0ULL)
+	mask = (1ULL << __MAX_BPF_ATTACH_TYPE) - 1;
+	if ((opts->delegate_attachs & mask) == mask)
 		seq_printf(m, ",delegate_attachs=any");
 	else if (opts->delegate_attachs)
 		seq_printf(m, ",delegate_attachs=0x%llx", opts->delegate_attachs);
