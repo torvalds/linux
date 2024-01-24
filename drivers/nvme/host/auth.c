@@ -897,7 +897,7 @@ static void nvme_ctrl_auth_work(struct work_struct *work)
 	 * If the ctrl is no connected, bail as reconnect will handle
 	 * authentication.
 	 */
-	if (ctrl->state != NVME_CTRL_LIVE)
+	if (nvme_ctrl_state(ctrl) != NVME_CTRL_LIVE)
 		return;
 
 	/* Authenticate admin queue first */

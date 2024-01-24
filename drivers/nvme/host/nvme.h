@@ -805,17 +805,18 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req);
 blk_status_t nvme_fail_nonready_command(struct nvme_ctrl *ctrl,
 		struct request *req);
 bool __nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
-		bool queue_live);
+		bool queue_live, enum nvme_ctrl_state state);
 
 static inline bool nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live)
 {
-	if (likely(ctrl->state == NVME_CTRL_LIVE))
+	enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+	if (likely(state == NVME_CTRL_LIVE))
 		return true;
-	if (ctrl->ops->flags & NVME_F_FABRICS &&
-	    ctrl->state == NVME_CTRL_DELETING)
+	if (ctrl->ops->flags & NVME_F_FABRICS && state == NVME_CTRL_DELETING)
 		return queue_live;
-	return __nvme_check_ready(ctrl, rq, queue_live);
+	return __nvme_check_ready(ctrl, rq, queue_live, state);
 }
 
 /*
