@@ -29,7 +29,7 @@ llvm)
 	elif [ "$SRCARCH" = loongarch ]; then
 		echo 18.0.0
 	else
-		echo 11.0.0
+		echo 13.0.1
 	fi
 	;;
 rustc)
