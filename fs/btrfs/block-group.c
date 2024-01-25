@@ -2729,6 +2729,37 @@ next:
 		btrfs_dec_delayed_refs_rsv_bg_inserts(fs_info);
 		list_del_init(&block_group->bg_list);
 		clear_bit(BLOCK_GROUP_FLAG_NEW, &block_group->runtime_flags);
+
+		/*
+		 * If the block group is still unused, add it to the list of
+		 * unused block groups. The block group may have been created in
+		 * order to satisfy a space reservation, in which case the
+		 * extent allocation only happens later. But often we don't
+		 * actually need to allocate space that we previously reserved,
+		 * so the block group may become unused for a long time. For
+		 * example for metadata we generally reserve space for a worst
+		 * possible scenario, but then don't end up allocating all that
+		 * space or none at all (due to no need to COW, extent buffers
+		 * were already COWed in the current transaction and still
+		 * unwritten, tree heights lower than the maximum possible
+		 * height, etc). For data we generally reserve the axact amount
+		 * of space we are going to allocate later, the exception is
+		 * when using compression, as we must reserve space based on the
+		 * uncompressed data size, because the compression is only done
+		 * when writeback triggered and we don't know how much space we
+		 * are actually going to need, so we reserve the uncompressed
+		 * size because the data may be uncompressible in the worst case.
+		 */
+		if (ret == 0) {
+			bool used;
+
+			spin_lock(&block_group->lock);
+			used = btrfs_is_block_group_used(block_group);
+			spin_unlock(&block_group->lock);
+
+			if (!used)
+				btrfs_mark_bg_unused(block_group);
+		}
 	}
 	btrfs_trans_release_chunk_metadata(trans);
 }
