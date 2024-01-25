@@ -184,8 +184,6 @@ nautilus_machine_check(unsigned long vector, unsigned long la_ptr)
 	mb();
 }
 
-extern void pcibios_claim_one_bus(struct pci_bus *);
-
 static struct resource irongate_mem = {
 	.name	= "Irongate PCI MEM",
 	.flags	= IORESOURCE_MEM,

@@ -17,6 +17,7 @@
 #include <linux/scatterlist.h>
 #include <linux/syscalls.h>
 
+#include "pci_impl.h"
 #include "proto.h"
 
 
