@@ -7,7 +7,7 @@
  *
  * Code supporting the Jensen.
  */
-#define __EXTERN_INLINE
+#define __EXTERN_INLINE inline
 #include <asm/io.h>
 #include <asm/jensen.h>
 #undef  __EXTERN_INLINE
