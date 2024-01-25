@@ -731,10 +731,13 @@ struct btrfs_fs_info {
 
 	/* Reclaim partially filled block groups in the background */
 	struct work_struct reclaim_bgs_work;
+	/* Protected by unused_bgs_lock. */
 	struct list_head reclaim_bgs;
 	int bg_reclaim_threshold;
 
+	/* Protects the lists unused_bgs and reclaim_bgs. */
 	spinlock_t unused_bgs_lock;
+	/* Protected by unused_bgs_lock. */
 	struct list_head unused_bgs;
 	struct mutex unused_bg_unpin_mutex;
 	/* Protect block groups that are going to be deleted */
