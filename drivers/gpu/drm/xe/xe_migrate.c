@@ -71,6 +71,7 @@ struct xe_migrate {
 #define NUM_KERNEL_PDE 17
 #define NUM_PT_SLOTS 32
 #define LEVEL0_PAGE_TABLE_ENCODE_SIZE SZ_2M
+#define MAX_NUM_PTE 512
 
 /*
  * Although MI_STORE_DATA_IMM's "length" field is 10-bits, 0x3FE is the largest
@@ -1107,7 +1108,7 @@ static void write_pgtable(struct xe_tile *tile, struct xe_bb *bb, u64 ppgtt_ofs,
 	 * This shouldn't be possible in practice.. might change when 16K
 	 * pages are used. Hence the assert.
 	 */
-	xe_tile_assert(tile, update->qwords <= MAX_PTE_PER_SDI);
+	xe_tile_assert(tile, update->qwords < MAX_NUM_PTE);
 	if (!ppgtt_ofs)
 		ppgtt_ofs = xe_migrate_vram_ofs(tile_to_xe(tile),
 						xe_bo_addr(update->pt_bo, 0,
