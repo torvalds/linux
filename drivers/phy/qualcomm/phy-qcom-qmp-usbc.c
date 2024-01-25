@@ -315,9 +315,6 @@ struct qmp_phy_cfg {
 
 	/* array of registers with different offsets */
 	const unsigned int *regs;
-
-	/* true, if PHY needs delay after POWER_DOWN */
-	bool has_pwrdn_delay;
 };
 
 struct qmp_usbc {
@@ -545,9 +542,6 @@ static int qmp_usbc_power_on(struct phy *phy)
 	qmp_configure_lane(qmp->rx2, cfg->rx_tbl, cfg->rx_tbl_num, 2);
 
 	qmp_configure(qmp->pcs, cfg->pcs_tbl, cfg->pcs_tbl_num);
-
-	if (cfg->has_pwrdn_delay)
-		usleep_range(10, 20);
 
 	/* Pull PHY out of reset state */
 	qphy_clrbits(qmp->pcs, cfg->regs[QPHY_SW_RESET], SW_RESET);
