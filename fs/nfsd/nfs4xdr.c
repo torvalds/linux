@@ -5447,7 +5447,8 @@ nfsd4_encode_listxattrs(struct nfsd4_compoundres *resp, __be32 nfserr,
 
 		slen -= XATTR_USER_PREFIX_LEN;
 		xdrlen = 4 + ((slen + 3) & ~3);
-		if (xdrlen > xdrleft) {
+		/* Check if both entry and eof can fit in the XDR buffer */
+		if (xdrlen + XDR_UNIT > xdrleft) {
 			if (count == 0) {
 				/*
 				 * Can't even fit the first attribute name.
