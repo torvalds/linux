@@ -271,7 +271,7 @@ static void ifs_test_core(int cpu, struct device *dev)
 }
 
 #define SPINUNIT 100 /* 100 nsec */
-static atomic_t array_cpus_out;
+static atomic_t array_cpus_in;
 
 /*
  * Simplified cpu sibling rendezvous loop based on microcode loader __wait_for_cpus()
@@ -298,6 +298,8 @@ static int do_array_test(void *data)
 	int cpu = smp_processor_id();
 	int first;
 
+	wait_for_sibling_cpu(&array_cpus_in, NSEC_PER_SEC);
+
 	/*
 	 * Only one logical CPU on a core needs to trigger the Array test via MSR write.
 	 */
@@ -308,9 +310,6 @@ static int do_array_test(void *data)
 		/* Pass back the result of the test */
 		rdmsrl(MSR_ARRAY_BIST, command->data);
 	}
-
-	/* Tests complete faster if the sibling is spinning here */
-	wait_for_sibling_cpu(&array_cpus_out, NSEC_PER_SEC);
 
 	return 0;
 }
@@ -332,7 +331,7 @@ static void ifs_array_test_core(int cpu, struct device *dev)
 			timed_out = true;
 			break;
 		}
-		atomic_set(&array_cpus_out, 0);
+		atomic_set(&array_cpus_in, 0);
 		stop_core_cpuslocked(cpu, do_array_test, &command);
 
 		if (command.ctrl_result)
