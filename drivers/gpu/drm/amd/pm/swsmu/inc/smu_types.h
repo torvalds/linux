@@ -115,6 +115,10 @@
        __SMU_DUMMY_MAP(PowerDownVcn),                 \
        __SMU_DUMMY_MAP(PowerUpJpeg),                  \
        __SMU_DUMMY_MAP(PowerDownJpeg),                \
+       __SMU_DUMMY_MAP(PowerUpJpeg0),                 \
+       __SMU_DUMMY_MAP(PowerDownJpeg0),               \
+       __SMU_DUMMY_MAP(PowerUpJpeg1),                 \
+       __SMU_DUMMY_MAP(PowerDownJpeg1),               \
        __SMU_DUMMY_MAP(BacoAudioD3PME),               \
        __SMU_DUMMY_MAP(ArmD3),                        \
        __SMU_DUMMY_MAP(RunDcBtc),                     \
@@ -135,6 +139,8 @@
 	__SMU_DUMMY_MAP(PowerUpSdma),                 \
 	__SMU_DUMMY_MAP(SetHardMinIspclkByFreq),      \
 	__SMU_DUMMY_MAP(SetHardMinVcn),               \
+       __SMU_DUMMY_MAP(SetHardMinVcn0),               \
+       __SMU_DUMMY_MAP(SetHardMinVcn1),               \
 	__SMU_DUMMY_MAP(SetAllowFclkSwitch),          \
 	__SMU_DUMMY_MAP(SetMinVideoGfxclkFreq),       \
 	__SMU_DUMMY_MAP(ActiveProcessNotify),         \
@@ -150,6 +156,8 @@
 	__SMU_DUMMY_MAP(SetPhyclkVoltageByFreq),      \
 	__SMU_DUMMY_MAP(SetDppclkVoltageByFreq),      \
 	__SMU_DUMMY_MAP(SetSoftMinVcn),               \
+       __SMU_DUMMY_MAP(SetSoftMinVcn0),              \
+       __SMU_DUMMY_MAP(SetSoftMinVcn1),              \
 	__SMU_DUMMY_MAP(EnablePostCode),              \
 	__SMU_DUMMY_MAP(GetGfxclkFrequency),          \
 	__SMU_DUMMY_MAP(GetFclkFrequency),            \
@@ -161,6 +169,8 @@
 	__SMU_DUMMY_MAP(SetSoftMaxSocclkByFreq),      \
 	__SMU_DUMMY_MAP(SetSoftMaxFclkByFreq),        \
 	__SMU_DUMMY_MAP(SetSoftMaxVcn),               \
+       __SMU_DUMMY_MAP(SetSoftMaxVcn0),              \
+       __SMU_DUMMY_MAP(SetSoftMaxVcn1),              \
 	__SMU_DUMMY_MAP(PowerGateMmHub),              \
 	__SMU_DUMMY_MAP(UpdatePmeRestore),            \
 	__SMU_DUMMY_MAP(GpuChangeState),              \
