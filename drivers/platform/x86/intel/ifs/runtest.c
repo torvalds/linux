@@ -23,6 +23,12 @@
 /* Max retries on the same chunk */
 #define MAX_IFS_RETRIES  5
 
+struct run_params {
+	struct ifs_data *ifsd;
+	union ifs_scan *activate;
+	union ifs_status status;
+};
+
 /*
  * Number of TSC cycles that a logical CPU will wait for the other
  * logical CPU on the core in the WRMSR(ACTIVATE_SCAN).
@@ -140,9 +146,21 @@ static bool can_restart(union ifs_status status)
  */
 static int doscan(void *data)
 {
-	int cpu = smp_processor_id();
-	u64 *msrs = data;
+	int cpu = smp_processor_id(), start, stop;
+	struct run_params *params = data;
+	union ifs_status status;
+	struct ifs_data *ifsd;
 	int first;
+
+	ifsd = params->ifsd;
+
+	if (ifsd->generation) {
+		start = params->activate->gen2.start;
+		stop = params->activate->gen2.stop;
+	} else {
+		start = params->activate->gen0.start;
+		stop = params->activate->gen0.stop;
+	}
 
 	/* Only the first logical CPU on a core reports result */
 	first = cpumask_first(cpu_smt_mask(cpu));
@@ -155,12 +173,14 @@ static int doscan(void *data)
 	 * take up to 200 milliseconds (in the case where all chunks
 	 * are processed in a single pass) before it retires.
 	 */
-	wrmsrl(MSR_ACTIVATE_SCAN, msrs[0]);
+	wrmsrl(MSR_ACTIVATE_SCAN, params->activate->data);
+	rdmsrl(MSR_SCAN_STATUS, status.data);
 
-	if (cpu == first) {
-		/* Pass back the result of the scan */
-		rdmsrl(MSR_SCAN_STATUS, msrs[1]);
-	}
+	trace_ifs_status(start, stop, status.data);
+
+	/* Pass back the result of the scan */
+	if (cpu == first)
+		params->status = status;
 
 	return 0;
 }
@@ -179,7 +199,7 @@ static void ifs_test_core(int cpu, struct device *dev)
 	struct ifs_data *ifsd;
 	int to_start, to_stop;
 	int status_chunk;
-	u64 msrvals[2];
+	struct run_params params;
 	int retries;
 
 	ifsd = ifs_get_data(dev);
@@ -189,6 +209,8 @@ static void ifs_test_core(int cpu, struct device *dev)
 	activate.sigmce = 0;
 	to_start = 0;
 	to_stop = ifsd->valid_chunks - 1;
+
+	params.ifsd = ifs_get_data(dev);
 
 	if (ifsd->generation) {
 		activate.gen2.start = to_start;
@@ -207,12 +229,10 @@ static void ifs_test_core(int cpu, struct device *dev)
 			break;
 		}
 
-		msrvals[0] = activate.data;
-		stop_core_cpuslocked(cpu, doscan, msrvals);
+		params.activate = &activate;
+		stop_core_cpuslocked(cpu, doscan, &params);
 
-		status.data = msrvals[1];
-
-		trace_ifs_status(cpu, to_start, to_stop, status.data);
+		status = params.status;
 
 		/* Some cases can be retried, give up for others */
 		if (!can_restart(status))
