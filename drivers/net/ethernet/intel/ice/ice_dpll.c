@@ -254,6 +254,7 @@ ice_dpll_output_frequency_get(const struct dpll_pin *pin, void *pin_priv,
  * ice_dpll_pin_enable - enable a pin on dplls
  * @hw: board private hw structure
  * @pin: pointer to a pin
+ * @dpll_idx: dpll index to connect to output pin
  * @pin_type: type of pin being enabled
  * @extack: error reporting
  *
@@ -266,7 +267,7 @@ ice_dpll_output_frequency_get(const struct dpll_pin *pin, void *pin_priv,
  */
 static int
 ice_dpll_pin_enable(struct ice_hw *hw, struct ice_dpll_pin *pin,
-		    enum ice_dpll_pin_type pin_type,
+		    u8 dpll_idx, enum ice_dpll_pin_type pin_type,
 		    struct netlink_ext_ack *extack)
 {
 	u8 flags = 0;
@@ -280,10 +281,12 @@ ice_dpll_pin_enable(struct ice_hw *hw, struct ice_dpll_pin *pin,
 		ret = ice_aq_set_input_pin_cfg(hw, pin->idx, 0, flags, 0, 0);
 		break;
 	case ICE_DPLL_PIN_TYPE_OUTPUT:
+		flags = ICE_AQC_SET_CGU_OUT_CFG_UPDATE_SRC_SEL;
 		if (pin->flags[0] & ICE_AQC_GET_CGU_OUT_CFG_ESYNC_EN)
 			flags |= ICE_AQC_SET_CGU_OUT_CFG_ESYNC_EN;
 		flags |= ICE_AQC_SET_CGU_OUT_CFG_OUT_EN;
-		ret = ice_aq_set_output_pin_cfg(hw, pin->idx, flags, 0, 0, 0);
+		ret = ice_aq_set_output_pin_cfg(hw, pin->idx, flags, dpll_idx,
+						0, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -398,14 +401,27 @@ ice_dpll_pin_state_update(struct ice_pf *pf, struct ice_dpll_pin *pin,
 		break;
 	case ICE_DPLL_PIN_TYPE_OUTPUT:
 		ret = ice_aq_get_output_pin_cfg(&pf->hw, pin->idx,
-						&pin->flags[0], NULL,
+						&pin->flags[0], &parent,
 						&pin->freq, NULL);
 		if (ret)
 			goto err;
-		if (ICE_AQC_SET_CGU_OUT_CFG_OUT_EN & pin->flags[0])
-			pin->state[0] = DPLL_PIN_STATE_CONNECTED;
-		else
-			pin->state[0] = DPLL_PIN_STATE_DISCONNECTED;
+
+		parent &= ICE_AQC_GET_CGU_OUT_CFG_DPLL_SRC_SEL;
+		if (ICE_AQC_SET_CGU_OUT_CFG_OUT_EN & pin->flags[0]) {
+			pin->state[pf->dplls.eec.dpll_idx] =
+				parent == pf->dplls.eec.dpll_idx ?
+				DPLL_PIN_STATE_CONNECTED :
+				DPLL_PIN_STATE_DISCONNECTED;
+			pin->state[pf->dplls.pps.dpll_idx] =
+				parent == pf->dplls.pps.dpll_idx ?
+				DPLL_PIN_STATE_CONNECTED :
+				DPLL_PIN_STATE_DISCONNECTED;
+		} else {
+			pin->state[pf->dplls.eec.dpll_idx] =
+				DPLL_PIN_STATE_DISCONNECTED;
+			pin->state[pf->dplls.pps.dpll_idx] =
+				DPLL_PIN_STATE_DISCONNECTED;
+		}
 		break;
 	case ICE_DPLL_PIN_TYPE_RCLK_INPUT:
 		for (parent = 0; parent < pf->dplls.rclk.num_parents;
@@ -570,7 +586,8 @@ ice_dpll_pin_state_set(const struct dpll_pin *pin, void *pin_priv,
 
 	mutex_lock(&pf->dplls.lock);
 	if (enable)
-		ret = ice_dpll_pin_enable(&pf->hw, p, pin_type, extack);
+		ret = ice_dpll_pin_enable(&pf->hw, p, d->dpll_idx, pin_type,
+					  extack);
 	else
 		ret = ice_dpll_pin_disable(&pf->hw, p, pin_type, extack);
 	if (!ret)
@@ -603,6 +620,11 @@ ice_dpll_output_state_set(const struct dpll_pin *pin, void *pin_priv,
 			  struct netlink_ext_ack *extack)
 {
 	bool enable = state == DPLL_PIN_STATE_CONNECTED;
+	struct ice_dpll_pin *p = pin_priv;
+	struct ice_dpll *d = dpll_priv;
+
+	if (!enable && p->state[d->dpll_idx] == DPLL_PIN_STATE_DISCONNECTED)
+		return 0;
 
 	return ice_dpll_pin_state_set(pin, pin_priv, dpll, dpll_priv, enable,
 				      extack, ICE_DPLL_PIN_TYPE_OUTPUT);
@@ -669,10 +691,9 @@ ice_dpll_pin_state_get(const struct dpll_pin *pin, void *pin_priv,
 	ret = ice_dpll_pin_state_update(pf, p, pin_type, extack);
 	if (ret)
 		goto unlock;
-	if (pin_type == ICE_DPLL_PIN_TYPE_INPUT)
+	if (pin_type == ICE_DPLL_PIN_TYPE_INPUT ||
+	    pin_type == ICE_DPLL_PIN_TYPE_OUTPUT)
 		*state = p->state[d->dpll_idx];
-	else if (pin_type == ICE_DPLL_PIN_TYPE_OUTPUT)
-		*state = p->state[0];
 	ret = 0;
 unlock:
 	mutex_unlock(&pf->dplls.lock);
