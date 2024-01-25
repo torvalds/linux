@@ -1166,27 +1166,11 @@ static int phy_pipe_clk_register(struct qmp_usb *qmp, struct device_node *np)
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
-static void __iomem *qmp_usb_legacy_iomap(struct device *dev, struct device_node *np,
-					int index, bool exclusive)
-{
-	struct resource res;
-
-	if (!exclusive) {
-		if (of_address_to_resource(np, index, &res))
-			return IOMEM_ERR_PTR(-EINVAL);
-
-		return devm_ioremap(dev, res.start, resource_size(&res));
-	}
-
-	return devm_of_iomap(dev, np, index, NULL);
-}
-
 static int qmp_usb_legacy_parse_dt_legacy(struct qmp_usb *qmp, struct device_node *np)
 {
 	struct platform_device *pdev = to_platform_device(qmp->dev);
 	const struct qmp_phy_cfg *cfg = qmp->cfg;
 	struct device *dev = qmp->dev;
-	bool exclusive = true;
 
 	qmp->serdes = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(qmp->serdes))
@@ -1210,7 +1194,7 @@ static int qmp_usb_legacy_parse_dt_legacy(struct qmp_usb *qmp, struct device_nod
 	if (IS_ERR(qmp->rx))
 		return PTR_ERR(qmp->rx);
 
-	qmp->pcs = qmp_usb_legacy_iomap(dev, np, 2, exclusive);
+	qmp->pcs = devm_of_iomap(dev, np, 2, NULL);
 	if (IS_ERR(qmp->pcs))
 		return PTR_ERR(qmp->pcs);
 
