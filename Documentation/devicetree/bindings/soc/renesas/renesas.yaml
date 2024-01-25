@@ -361,6 +361,12 @@ properties:
           - const: renesas,white-hawk-cpu
           - const: renesas,r8a779g0
 
+      - description: R-Car V4M (R8A779H0)
+        items:
+          - enum:
+              - renesas,gray-hawk-single # Gray Hawk Single board (RTP8A779H0ASKB0F10S)
+          - const: renesas,r8a779h0
+
       - description: R-Car H3e (R8A779M0)
         items:
           - enum:
