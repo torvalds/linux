@@ -7016,6 +7016,9 @@ set_identity_unlock:
 		r = -EEXIST;
 		if (kvm->arch.vpit)
 			goto create_pit_unlock;
+		r = -ENOENT;
+		if (!pic_in_kernel(kvm))
+			goto create_pit_unlock;
 		r = -ENOMEM;
 		kvm->arch.vpit = kvm_create_pit(kvm, u.pit_config.flags);
 		if (kvm->arch.vpit)
