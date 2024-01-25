@@ -232,6 +232,97 @@ static int samsung_kbd_input_mapping(struct hid_device *hdev,
 	return 1;
 }
 
+static int samsung_gamepad_input_mapping(struct hid_device *hdev,
+	struct hid_input *hi, struct hid_field *field, struct hid_usage *usage,
+	unsigned long **bit, int *max)
+{
+	if (!(HID_UP_BUTTON == (usage->hid & HID_USAGE_PAGE) ||
+			HID_UP_CONSUMER == (usage->hid & HID_USAGE_PAGE)))
+		return 0;
+
+	dbg_hid("samsung wireless gamepad input mapping event [0x%x], %ld, %ld, [0x%x]\n",
+		usage->hid & HID_USAGE, hi->input->evbit[0], hi->input->absbit[0], usage->hid & HID_USAGE_PAGE);
+
+	if (HID_UP_BUTTON == (usage->hid & HID_USAGE_PAGE)) {
+		switch (usage->hid & HID_USAGE) {
+		case 0x01:
+			samsung_kbd_mouse_map_key_clear(BTN_A);
+			break;
+		case 0x02:
+			samsung_kbd_mouse_map_key_clear(BTN_B);
+			break;
+		case 0x03:
+			samsung_kbd_mouse_map_key_clear(BTN_C);
+			break;
+		case 0x04:
+			samsung_kbd_mouse_map_key_clear(BTN_X);
+			break;
+		case 0x05:
+			samsung_kbd_mouse_map_key_clear(BTN_Y);
+			break;
+		case 0x06:
+			samsung_kbd_mouse_map_key_clear(BTN_Z);
+			break;
+		case 0x07:
+			samsung_kbd_mouse_map_key_clear(BTN_TL);
+			break;
+		case 0x08:
+			samsung_kbd_mouse_map_key_clear(BTN_TR);
+			break;
+		case 0x09:
+			samsung_kbd_mouse_map_key_clear(BTN_TL2);
+			break;
+		case 0x0a:
+			samsung_kbd_mouse_map_key_clear(BTN_TR2);
+			break;
+		case 0x0b:
+			samsung_kbd_mouse_map_key_clear(BTN_SELECT);
+			break;
+		case 0x0c:
+			samsung_kbd_mouse_map_key_clear(BTN_START);
+			break;
+		case 0x0d:
+			samsung_kbd_mouse_map_key_clear(BTN_MODE);
+			break;
+		case 0x0e:
+			samsung_kbd_mouse_map_key_clear(BTN_THUMBL);
+			break;
+		case 0x0f:
+			samsung_kbd_mouse_map_key_clear(BTN_THUMBR);
+			break;
+		case 0x10:
+			samsung_kbd_mouse_map_key_clear(0x13f);
+			break;
+		default:
+			return 0;
+		}
+	}
+
+	if (HID_UP_CONSUMER == (usage->hid & HID_USAGE_PAGE)) {
+		switch (usage->hid & HID_USAGE) {
+		case 0x040:
+			samsung_kbd_mouse_map_key_clear(KEY_MENU);
+			break;
+		case 0x223:
+			samsung_kbd_mouse_map_key_clear(KEY_HOMEPAGE);
+			break;
+		case 0x224:
+			samsung_kbd_mouse_map_key_clear(KEY_BACK);
+			break;
+
+		/* Screen Capture */
+		case 0x303:
+			samsung_kbd_mouse_map_key_clear(KEY_SYSRQ);
+			break;
+
+		default:
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 static __u8 *samsung_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	unsigned int *rsize)
 {
@@ -251,6 +342,9 @@ static int samsung_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			hi, field, usage, bit, max);
 	else if (hdev->product == USB_DEVICE_ID_SAMSUNG_WIRELESS_KBD)
 		ret = samsung_kbd_input_mapping(hdev,
+			hi, field, usage, bit, max);
+	else if (hdev->product == USB_DEVICE_ID_SAMSUNG_WIRELESS_GAMEPAD)
+		ret = samsung_gamepad_input_mapping(hdev,
 			hi, field, usage, bit, max);
 
 	return ret;
@@ -295,6 +389,7 @@ static const struct hid_device_id samsung_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_IR_REMOTE) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_WIRELESS_KBD_MOUSE) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SAMSUNG_ELECTRONICS, USB_DEVICE_ID_SAMSUNG_WIRELESS_KBD) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SAMSUNG_ELECTRONICS, USB_DEVICE_ID_SAMSUNG_WIRELESS_GAMEPAD) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, samsung_devices);
