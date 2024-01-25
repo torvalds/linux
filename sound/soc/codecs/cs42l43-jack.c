@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/time.h>
 #include <linux/workqueue.h>
 #include <sound/control.h>
 #include <sound/jack.h>
@@ -647,7 +648,7 @@ static int cs42l43_run_load_detect(struct cs42l43_codec *priv, bool mic)
 static int cs42l43_run_type_detect(struct cs42l43_codec *priv)
 {
 	struct cs42l43 *cs42l43 = priv->core;
-	int timeout_ms = ((2 * priv->detect_us) / 1000) + 200;
+	int timeout_ms = ((2 * priv->detect_us) / USEC_PER_MSEC) + 200;
 	unsigned int type = 0xff;
 	unsigned long time_left;
 
