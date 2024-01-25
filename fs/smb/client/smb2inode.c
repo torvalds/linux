@@ -223,14 +223,13 @@ replay_again:
 							  SMB2_O_INFO_FILE, 0,
 							  sizeof(struct smb2_file_all_info) +
 							  PATH_MAX * 2, 0, NULL);
-				if (!rc) {
-					smb2_set_next_command(tcon, &rqst[num_rqst]);
-					smb2_set_related(&rqst[num_rqst]);
-				}
 			}
-
-			if (rc)
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
+			}
 			num_rqst++;
 			trace_smb3_query_info_compound_enter(xid, ses->Suid,
 							     tcon->tid, full_path);
@@ -260,14 +259,13 @@ replay_again:
 							  sizeof(struct smb311_posix_qinfo *) +
 							  (PATH_MAX * 2) +
 							  (sizeof(struct cifs_sid) * 2), 0, NULL);
-				if (!rc) {
-					smb2_set_next_command(tcon, &rqst[num_rqst]);
-					smb2_set_related(&rqst[num_rqst]);
-				}
 			}
-
-			if (rc)
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
+			}
 			num_rqst++;
 			trace_smb3_posix_query_info_compound_enter(xid, ses->Suid,
 								   tcon->tid, full_path);
@@ -325,13 +323,13 @@ replay_again:
 							FILE_END_OF_FILE_INFORMATION,
 							SMB2_O_INFO_FILE, 0,
 							data, size);
-				if (!rc) {
-					smb2_set_next_command(tcon, &rqst[num_rqst]);
-					smb2_set_related(&rqst[num_rqst]);
-				}
 			}
-			if (rc)
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
+			}
 			num_rqst++;
 			trace_smb3_set_eof_enter(xid, ses->Suid, tcon->tid, full_path);
 			break;
@@ -356,14 +354,13 @@ replay_again:
 							COMPOUND_FID, current->tgid,
 							FILE_BASIC_INFORMATION,
 							SMB2_O_INFO_FILE, 0, data, size);
-				if (!rc) {
-					smb2_set_next_command(tcon, &rqst[num_rqst]);
-					smb2_set_related(&rqst[num_rqst]);
-				}
 			}
-
-			if (rc)
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
+			}
 			num_rqst++;
 			trace_smb3_set_info_compound_enter(xid, ses->Suid,
 							   tcon->tid, full_path);
@@ -397,13 +394,13 @@ replay_again:
 							COMPOUND_FID, COMPOUND_FID,
 							current->tgid, FILE_RENAME_INFORMATION,
 							SMB2_O_INFO_FILE, 0, data, size);
-				if (!rc) {
-					smb2_set_next_command(tcon, &rqst[num_rqst]);
-					smb2_set_related(&rqst[num_rqst]);
-				}
 			}
-			if (rc)
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
+			}
 			num_rqst++;
 			trace_smb3_rename_enter(xid, ses->Suid, tcon->tid, full_path);
 			break;
@@ -438,15 +435,27 @@ replay_again:
 			rqst[num_rqst].rq_iov = vars->io_iov;
 			rqst[num_rqst].rq_nvec = ARRAY_SIZE(vars->io_iov);
 
-			rc = SMB2_ioctl_init(tcon, server, &rqst[num_rqst],
-					     COMPOUND_FID, COMPOUND_FID,
-					     FSCTL_SET_REPARSE_POINT,
-					     in_iov[i].iov_base,
-					     in_iov[i].iov_len, 0);
-			if (rc)
+			if (cfile) {
+				rc = SMB2_ioctl_init(tcon, server, &rqst[num_rqst],
+						     cfile->fid.persistent_fid,
+						     cfile->fid.volatile_fid,
+						     FSCTL_SET_REPARSE_POINT,
+						     in_iov[i].iov_base,
+						     in_iov[i].iov_len, 0);
+			} else {
+				rc = SMB2_ioctl_init(tcon, server, &rqst[num_rqst],
+						     COMPOUND_FID, COMPOUND_FID,
+						     FSCTL_SET_REPARSE_POINT,
+						     in_iov[i].iov_base,
+						     in_iov[i].iov_len, 0);
+			}
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
-			smb2_set_next_command(tcon, &rqst[num_rqst]);
-			smb2_set_related(&rqst[num_rqst++]);
+			}
+			num_rqst++;
 			trace_smb3_set_reparse_compound_enter(xid, ses->Suid,
 							      tcon->tid, full_path);
 			break;
@@ -454,14 +463,25 @@ replay_again:
 			rqst[num_rqst].rq_iov = vars->io_iov;
 			rqst[num_rqst].rq_nvec = ARRAY_SIZE(vars->io_iov);
 
-			rc = SMB2_ioctl_init(tcon, server, &rqst[num_rqst],
-					     COMPOUND_FID, COMPOUND_FID,
-					     FSCTL_GET_REPARSE_POINT,
-					     NULL, 0, CIFSMaxBufSize);
-			if (rc)
+			if (cfile) {
+				rc = SMB2_ioctl_init(tcon, server, &rqst[num_rqst],
+						     cfile->fid.persistent_fid,
+						     cfile->fid.volatile_fid,
+						     FSCTL_GET_REPARSE_POINT,
+						     NULL, 0, CIFSMaxBufSize);
+			} else {
+				rc = SMB2_ioctl_init(tcon, server, &rqst[num_rqst],
+						     COMPOUND_FID, COMPOUND_FID,
+						     FSCTL_GET_REPARSE_POINT,
+						     NULL, 0, CIFSMaxBufSize);
+			}
+			if (!rc && (!cfile || num_rqst > 1)) {
+				smb2_set_next_command(tcon, &rqst[num_rqst]);
+				smb2_set_related(&rqst[num_rqst]);
+			} else if (rc) {
 				goto finished;
-			smb2_set_next_command(tcon, &rqst[num_rqst]);
-			smb2_set_related(&rqst[num_rqst++]);
+			}
+			num_rqst++;
 			trace_smb3_get_reparse_compound_enter(xid, ses->Suid,
 							      tcon->tid, full_path);
 			break;
