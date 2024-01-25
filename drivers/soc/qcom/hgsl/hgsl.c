@@ -2573,6 +2573,12 @@ static int hgsl_ioctl_issueib_with_alloc_list(struct file *filep,
 			}
 		}
 
+		if (params.num_ibs > UINT_MAX - params.num_allocations) {
+			ret = -ENOMEM;
+			LOGE("Too many ibs or allocations: num_ibs = %u, num_allocations = %u",
+				params.num_ibs, params.num_allocations);
+			goto out;
+		}
 		be_data_size = (params.num_ibs + params.num_allocations) *
 			(sizeof(struct gsl_memdesc_t) + sizeof(uint64_t));
 		be_descs = (struct gsl_memdesc_t *)hgsl_malloc(be_data_size);
