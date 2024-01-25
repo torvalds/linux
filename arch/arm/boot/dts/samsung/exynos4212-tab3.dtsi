@@ -434,6 +434,7 @@
 };
 
 &fimd {
+	samsung,invert-vclk;
 	status = "okay";
 };
 
