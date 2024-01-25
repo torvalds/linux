@@ -458,41 +458,29 @@ out:
 	return ret;
 }
 
-int __bch2_dirent_lookup_trans(struct btree_trans *trans,
-			       struct btree_iter *iter,
-			       subvol_inum dir,
-			       const struct bch_hash_info *hash_info,
-			       const struct qstr *name, subvol_inum *inum,
-			       unsigned flags)
+int bch2_dirent_lookup_trans(struct btree_trans *trans,
+			     struct btree_iter *iter,
+			     subvol_inum dir,
+			     const struct bch_hash_info *hash_info,
+			     const struct qstr *name, subvol_inum *inum,
+			     unsigned flags)
 {
-	struct bkey_s_c k;
-	struct bkey_s_c_dirent d;
-	u32 snapshot;
-	int ret;
-
-	ret = bch2_subvolume_get_snapshot(trans, dir.subvol, &snapshot);
+	int ret = bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
+				   hash_info, dir, name, flags);
 	if (ret)
 		return ret;
 
-	ret = bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
-			       hash_info, dir, name, flags);
-	if (ret)
-		return ret;
-
-	k = bch2_btree_iter_peek_slot(iter);
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
 
-	d = bkey_s_c_to_dirent(k);
-
-	ret = bch2_dirent_read_target(trans, dir, d, inum);
+	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), inum);
 	if (ret > 0)
 		ret = -ENOENT;
 err:
 	if (ret)
 		bch2_trans_iter_exit(trans, iter);
-
 	return ret;
 }
 
@@ -504,7 +492,7 @@ u64 bch2_dirent_lookup(struct bch_fs *c, subvol_inum dir,
 	struct btree_iter iter = { NULL };
 
 	int ret = lockrestart_do(trans,
-		__bch2_dirent_lookup_trans(trans, &iter, dir, hash_info, name, inum, 0));
+		bch2_dirent_lookup_trans(trans, &iter, dir, hash_info, name, inum, 0));
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
 	return ret;

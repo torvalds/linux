@@ -260,8 +260,8 @@ int bch2_unlink_trans(struct btree_trans *trans,
 
 	dir_hash = bch2_hash_info_init(c, dir_u);
 
-	ret = __bch2_dirent_lookup_trans(trans, &dirent_iter, dir, &dir_hash,
-					 name, &inum, BTREE_ITER_INTENT);
+	ret = bch2_dirent_lookup_trans(trans, &dirent_iter, dir, &dir_hash,
+				       name, &inum, BTREE_ITER_INTENT);
 	if (ret)
 		goto err;
 
