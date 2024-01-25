@@ -307,11 +307,6 @@ static inline unsigned long inet_cmsg_flags(const struct inet_sock *inet)
 #define inet_assign_bit(nr, sk, val)		\
 	assign_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags, val)
 
-static inline bool sk_is_inet(struct sock *sk)
-{
-	return sk->sk_family == AF_INET || sk->sk_family == AF_INET6;
-}
-
 /**
  * sk_to_full_sk - Access to a full socket
  * @sk: pointer to a socket

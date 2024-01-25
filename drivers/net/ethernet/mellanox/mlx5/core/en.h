@@ -1124,7 +1124,7 @@ static inline bool mlx5_tx_swp_supported(struct mlx5_core_dev *mdev)
 extern const struct ethtool_ops mlx5e_ethtool_ops;
 
 int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn, u32 *mkey);
-int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev);
+int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev, bool create_tises);
 void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev);
 int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb,
 		       bool enable_mc_lb);

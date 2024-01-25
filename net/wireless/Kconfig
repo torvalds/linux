@@ -206,7 +206,6 @@ config CFG80211_KUNIT_TEST
 	depends on KUNIT
 	depends on CFG80211
 	default KUNIT_ALL_TESTS
-	depends on !KERNEL_6_2
 	help
 	  Enable this option to test cfg80211 functions with kunit.
 

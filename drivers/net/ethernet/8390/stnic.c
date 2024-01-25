@@ -296,4 +296,5 @@ static void __exit stnic_cleanup(void)
 
 module_init(stnic_probe);
 module_exit(stnic_cleanup);
+MODULE_DESCRIPTION("National Semiconductor DP83902AV ethernet driver");
 MODULE_LICENSE("GPL");
