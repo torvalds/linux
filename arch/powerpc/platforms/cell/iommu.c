@@ -424,23 +424,6 @@ static void __init cell_iommu_setup_hardware(struct cbe_iommu *iommu,
 	cell_iommu_enable_hardware(iommu);
 }
 
-#if 0/* Unused for now */
-static struct iommu_window *find_window(struct cbe_iommu *iommu,
-		unsigned long offset, unsigned long size)
-{
-	struct iommu_window *window;
-
-	/* todo: check for overlapping (but not equal) windows) */
-
-	list_for_each_entry(window, &(iommu->windows), list) {
-		if (window->offset == offset && window->size == size)
-			return window;
-	}
-
-	return NULL;
-}
-#endif
-
 static inline u32 cell_iommu_get_ioid(struct device_node *np)
 {
 	const u32 *ioid;
