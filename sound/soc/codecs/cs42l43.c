@@ -6,10 +6,12 @@
 //                         Cirrus Logic International Semiconductor Ltd.
 
 #include <linux/bitops.h>
+#include <linux/bits.h>
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/find.h>
 #include <linux/gcd.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
@@ -547,23 +549,22 @@ static int cs42l43_asp_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static void cs42l43_mask_to_slots(struct cs42l43_codec *priv, unsigned int mask, int *slots)
+static void cs42l43_mask_to_slots(struct cs42l43_codec *priv, unsigned long mask,
+				  int *slots, unsigned int nslots)
 {
-	int i;
+	int i = 0;
+	int slot;
 
-	for (i = 0; i < CS42L43_ASP_MAX_CHANNELS; ++i) {
-		int slot = ffs(mask) - 1;
-
-		if (slot < 0)
+	for_each_set_bit(slot, &mask, BITS_PER_TYPE(mask)) {
+		if (i == nslots) {
+			dev_warn(priv->dev, "Too many channels in TDM mask: %lx\n",
+				 mask);
 			return;
+		}
 
-		slots[i] = slot;
-
-		mask &= ~(1 << slot);
+		slots[i++] = slot;
 	}
 
-	if (mask)
-		dev_warn(priv->dev, "Too many channels in TDM mask\n");
 }
 
 static int cs42l43_asp_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
@@ -580,8 +581,10 @@ static int cs42l43_asp_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mas
 		rx_mask = CS42L43_DEFAULT_SLOTS;
 	}
 
-	cs42l43_mask_to_slots(priv, tx_mask, priv->tx_slots);
-	cs42l43_mask_to_slots(priv, rx_mask, priv->rx_slots);
+	cs42l43_mask_to_slots(priv, tx_mask, priv->tx_slots,
+			      ARRAY_SIZE(priv->tx_slots));
+	cs42l43_mask_to_slots(priv, rx_mask, priv->rx_slots,
+			      ARRAY_SIZE(priv->rx_slots));
 
 	return 0;
 }
@@ -2098,8 +2101,10 @@ static int cs42l43_component_probe(struct snd_soc_component *component)
 
 	snd_soc_component_init_regmap(component, cs42l43->regmap);
 
-	cs42l43_mask_to_slots(priv, CS42L43_DEFAULT_SLOTS, priv->tx_slots);
-	cs42l43_mask_to_slots(priv, CS42L43_DEFAULT_SLOTS, priv->rx_slots);
+	cs42l43_mask_to_slots(priv, CS42L43_DEFAULT_SLOTS, priv->tx_slots,
+			      ARRAY_SIZE(priv->tx_slots));
+	cs42l43_mask_to_slots(priv, CS42L43_DEFAULT_SLOTS, priv->rx_slots,
+			      ARRAY_SIZE(priv->rx_slots));
 
 	priv->component = component;
 	priv->constraint = cs42l43_constraint;
