@@ -323,6 +323,29 @@ static int samsung_gamepad_input_mapping(struct hid_device *hdev,
 	return 1;
 }
 
+static int samsung_actionmouse_input_mapping(struct hid_device *hdev,
+	struct hid_input *hi, struct hid_field *field, struct hid_usage *usage,
+	unsigned long **bit, int *max)
+{
+
+	dbg_hid("samsung wireless actionmouse input mapping event [0x%x], [0x%x], %ld, %ld, [0x%x]\n",
+			usage->hid, usage->hid & HID_USAGE, hi->input->evbit[0], hi->input->absbit[0],
+			usage->hid & HID_USAGE_PAGE);
+
+	if (((usage->hid & HID_USAGE_PAGE) != HID_UP_CONSUMER) && ((usage->hid & HID_USAGE_PAGE) != HID_UP_BUTTON))
+		return 0;
+
+	switch (usage->hid & HID_USAGE) {
+	case 0x301:
+		samsung_kbd_mouse_map_key_clear(254);
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
 static __u8 *samsung_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	unsigned int *rsize)
 {
@@ -345,6 +368,9 @@ static int samsung_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			hi, field, usage, bit, max);
 	else if (hdev->product == USB_DEVICE_ID_SAMSUNG_WIRELESS_GAMEPAD)
 		ret = samsung_gamepad_input_mapping(hdev,
+			hi, field, usage, bit, max);
+	else if (hdev->product == USB_DEVICE_ID_SAMSUNG_WIRELESS_ACTIONMOUSE)
+		ret = samsung_actionmouse_input_mapping(hdev,
 			hi, field, usage, bit, max);
 
 	return ret;
@@ -390,6 +416,7 @@ static const struct hid_device_id samsung_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_SAMSUNG, USB_DEVICE_ID_SAMSUNG_WIRELESS_KBD_MOUSE) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SAMSUNG_ELECTRONICS, USB_DEVICE_ID_SAMSUNG_WIRELESS_KBD) },
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SAMSUNG_ELECTRONICS, USB_DEVICE_ID_SAMSUNG_WIRELESS_GAMEPAD) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SAMSUNG_ELECTRONICS, USB_DEVICE_ID_SAMSUNG_WIRELESS_ACTIONMOUSE) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, samsung_devices);
