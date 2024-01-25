@@ -909,21 +909,29 @@ static void ath12k_rfkill_work(struct work_struct *work)
 {
 	struct ath12k_base *ab = container_of(work, struct ath12k_base, rfkill_work);
 	struct ath12k *ar;
+	struct ath12k_hw *ah;
 	struct ieee80211_hw *hw;
 	bool rfkill_radio_on;
-	int i;
+	int i, j;
 
 	spin_lock_bh(&ab->base_lock);
 	rfkill_radio_on = ab->rfkill_radio_on;
 	spin_unlock_bh(&ab->base_lock);
 
-	for (i = 0; i < ab->num_radios; i++) {
-		ar = ab->pdevs[i].ar;
-		if (!ar)
+	for (i = 0; i < ab->num_hw; i++) {
+		ah = ab->ah[i];
+		if (!ah)
 			continue;
 
-		hw = ath12k_ar_to_hw(ar);
-		ath12k_mac_rfkill_enable_radio(ar, rfkill_radio_on);
+		for (j = 0; j < ah->num_radio; j++) {
+			ar = &ah->radio[j];
+			if (!ar)
+				continue;
+
+			ath12k_mac_rfkill_enable_radio(ar, rfkill_radio_on);
+		}
+
+		hw = ah->hw;
 		wiphy_rfkill_set_hw_state(hw->wiphy, !rfkill_radio_on);
 	}
 }
