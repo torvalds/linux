@@ -2273,6 +2273,17 @@ static inline void cifs_sg_set_buf(struct sg_table *sgtable,
 	}
 }
 
+#define CIFS_OPARMS(_cifs_sb, _tcon, _path, _da, _cd, _co, _mode) \
+	((struct cifs_open_parms) { \
+		.tcon = _tcon, \
+		.path = _path, \
+		.desired_access = (_da), \
+		.disposition = (_cd), \
+		.create_options = cifs_create_options(_cifs_sb, (_co)), \
+		.mode = (_mode), \
+		.cifs_sb = _cifs_sb, \
+	})
+
 struct smb2_compound_vars {
 	struct cifs_open_parms oparms;
 	struct kvec rsp_iov[MAX_COMPOUND];
