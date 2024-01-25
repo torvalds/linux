@@ -165,6 +165,24 @@ struct btrfs_space_info {
 
 	struct kobject kobj;
 	struct kobject *block_group_kobjs[BTRFS_NR_RAID_TYPES];
+
+	/*
+	 * Monotonically increasing counter of block group reclaim attempts
+	 * Exposed in /sys/fs/<uuid>/allocation/<type>/reclaim_count
+	 */
+	u64 reclaim_count;
+
+	/*
+	 * Monotonically increasing counter of reclaimed bytes
+	 * Exposed in /sys/fs/<uuid>/allocation/<type>/reclaim_bytes
+	 */
+	u64 reclaim_bytes;
+
+	/*
+	 * Monotonically increasing counter of reclaim errors
+	 * Exposed in /sys/fs/<uuid>/allocation/<type>/reclaim_errors
+	 */
+	u64 reclaim_errors;
 };
 
 struct reserve_ticket {
