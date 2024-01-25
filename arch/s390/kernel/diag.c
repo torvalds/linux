@@ -157,10 +157,30 @@ void diag0c(struct hypfs_diag0c_entry *data)
 
 /*
  * Diagnose 14: Input spool file manipulation
+ *
+ * The subcode parameter determines the type of the first parameter rx.
+ * Currently used are the following 3 subcommands:
+ * 0x0:   Read the Next Spool File Buffer (Data Record)
+ * 0x28:  Position a Spool File to the Designated Record
+ * 0xfff: Retrieve Next File Descriptor
+ *
+ * For subcommands 0x0 and 0xfff, the value of the first parameter is
+ * a virtual address of a memory buffer and needs virtual to physical
+ * address translation. For other subcommands the rx parameter is not
+ * a virtual address.
  */
 int diag14(unsigned long rx, unsigned long ry1, unsigned long subcode)
 {
 	diag_stat_inc(DIAG_STAT_X014);
+	switch (subcode) {
+	case 0x0:
+	case 0xfff:
+		rx = virt_to_phys((void *)rx);
+		break;
+	default:
+		/* Do nothing */
+		break;
+	}
 	return diag_amode31_ops.diag14(rx, ry1, subcode);
 }
 EXPORT_SYMBOL(diag14);
