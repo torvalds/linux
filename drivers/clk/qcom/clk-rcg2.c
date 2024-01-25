@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013, 2016-2018, 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -2092,7 +2092,7 @@ int clk_rcg2_crmb_prepare(struct clk_hw *hw)
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	struct clk_crm *crm = rcg->clkr.crm;
 
-	if (!rcg->freq_tbl && !crm->initialized)
+	if (!rcg->freq_tbl || !crm->initialized)
 		return 0;
 
 	return clk_rcg2_vote_bw(hw, rcg->current_freq);
