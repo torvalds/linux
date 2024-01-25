@@ -859,6 +859,8 @@
 				      "vsync",
 				      "core";
 
+			resets = <&gcc GCC_MDSS_BCR>;
+
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
