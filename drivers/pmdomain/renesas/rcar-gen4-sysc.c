@@ -285,6 +285,9 @@ static const struct of_device_id rcar_gen4_sysc_matches[] __initconst = {
 #ifdef CONFIG_SYSC_R8A779G0
 	{ .compatible = "renesas,r8a779g0-sysc", .data = &r8a779g0_sysc_info },
 #endif
+#ifdef CONFIG_SYSC_R8A779H0
+	{ .compatible = "renesas,r8a779h0-sysc", .data = &r8a779h0_sysc_info },
+#endif
 	{ /* sentinel */ }
 };
 
