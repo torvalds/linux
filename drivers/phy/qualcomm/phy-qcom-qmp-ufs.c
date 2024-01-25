@@ -20,6 +20,9 @@
 #include <linux/slab.h>
 
 #include <ufs/unipro.h>
+
+#include "phy-qcom-qmp-common.h"
+
 #include "phy-qcom-qmp.h"
 #include "phy-qcom-qmp-pcs-ufs-v2.h"
 #include "phy-qcom-qmp-pcs-ufs-v3.h"
@@ -42,30 +45,6 @@
 #define PHY_INIT_COMPLETE_TIMEOUT		10000
 
 #define NUM_OVERLAY				2
-
-struct qmp_phy_init_tbl {
-	unsigned int offset;
-	unsigned int val;
-	/*
-	 * mask of lanes for which this register is written
-	 * for cases when second lane needs different values
-	 */
-	u8 lane_mask;
-};
-
-#define QMP_PHY_INIT_CFG(o, v)		\
-	{				\
-		.offset = o,		\
-		.val = v,		\
-		.lane_mask = 0xff,	\
-	}
-
-#define QMP_PHY_INIT_CFG_LANE(o, v, l)	\
-	{				\
-		.offset = o,		\
-		.val = v,		\
-		.lane_mask = l,		\
-	}
 
 /* set of registers with offsets different per-PHY */
 enum qphy_reg_layout {
@@ -1483,37 +1462,11 @@ static const struct qmp_phy_cfg sm8650_ufsphy_cfg = {
 	.regs			= ufsphy_v6_regs_layout,
 };
 
-static void qmp_ufs_configure_lane(void __iomem *base,
-					const struct qmp_phy_init_tbl tbl[],
-					int num,
-					u8 lane_mask)
-{
-	int i;
-	const struct qmp_phy_init_tbl *t = tbl;
-
-	if (!t)
-		return;
-
-	for (i = 0; i < num; i++, t++) {
-		if (!(t->lane_mask & lane_mask))
-			continue;
-
-		writel(t->val, base + t->offset);
-	}
-}
-
-static void qmp_ufs_configure(void __iomem *base,
-				   const struct qmp_phy_init_tbl tbl[],
-				   int num)
-{
-	qmp_ufs_configure_lane(base, tbl, num, 0xff);
-}
-
 static void qmp_ufs_serdes_init(struct qmp_ufs *qmp, const struct qmp_phy_cfg_tbls *tbls)
 {
 	void __iomem *serdes = qmp->serdes;
 
-	qmp_ufs_configure(serdes, tbls->serdes, tbls->serdes_num);
+	qmp_configure(serdes, tbls->serdes, tbls->serdes_num);
 }
 
 static void qmp_ufs_lanes_init(struct qmp_ufs *qmp, const struct qmp_phy_cfg_tbls *tbls)
@@ -1522,12 +1475,12 @@ static void qmp_ufs_lanes_init(struct qmp_ufs *qmp, const struct qmp_phy_cfg_tbl
 	void __iomem *tx = qmp->tx;
 	void __iomem *rx = qmp->rx;
 
-	qmp_ufs_configure_lane(tx, tbls->tx, tbls->tx_num, 1);
-	qmp_ufs_configure_lane(rx, tbls->rx, tbls->rx_num, 1);
+	qmp_configure_lane(tx, tbls->tx, tbls->tx_num, 1);
+	qmp_configure_lane(rx, tbls->rx, tbls->rx_num, 1);
 
 	if (cfg->lanes >= 2) {
-		qmp_ufs_configure_lane(qmp->tx2, tbls->tx, tbls->tx_num, 2);
-		qmp_ufs_configure_lane(qmp->rx2, tbls->rx, tbls->rx_num, 2);
+		qmp_configure_lane(qmp->tx2, tbls->tx, tbls->tx_num, 2);
+		qmp_configure_lane(qmp->rx2, tbls->rx, tbls->rx_num, 2);
 	}
 }
 
@@ -1535,7 +1488,7 @@ static void qmp_ufs_pcs_init(struct qmp_ufs *qmp, const struct qmp_phy_cfg_tbls 
 {
 	void __iomem *pcs = qmp->pcs;
 
-	qmp_ufs_configure(pcs, tbls->pcs, tbls->pcs_num);
+	qmp_configure(pcs, tbls->pcs, tbls->pcs_num);
 }
 
 static int qmp_ufs_get_gear_overlay(struct qmp_ufs *qmp, const struct qmp_phy_cfg *cfg)
