@@ -5423,7 +5423,7 @@ nfsd4_encode_listxattrs(struct nfsd4_compoundres *resp, __be32 nfserr,
 	 */
 	cookie_offset = xdr->buf->len;
 	count_offset = cookie_offset + 8;
-	p = xdr_reserve_space(xdr, 12);
+	p = xdr_reserve_space(xdr, XDR_UNIT * 3);
 	if (!p) {
 		status = nfserr_resource;
 		goto out;
@@ -5434,7 +5434,8 @@ nfsd4_encode_listxattrs(struct nfsd4_compoundres *resp, __be32 nfserr,
 	sp = listxattrs->lsxa_buf;
 	nuser = 0;
 
-	xdrleft = listxattrs->lsxa_maxcount;
+	/* Bytes left is maxcount - 8 (cookie) - 4 (array count) */
+	xdrleft = listxattrs->lsxa_maxcount - XDR_UNIT * 3;
 
 	while (left > 0 && xdrleft > 0) {
 		slen = strlen(sp);
