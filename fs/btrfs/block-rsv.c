@@ -6,7 +6,6 @@
 #include "space-info.h"
 #include "transaction.h"
 #include "block-group.h"
-#include "disk-io.h"
 #include "fs.h"
 #include "accessors.h"
 

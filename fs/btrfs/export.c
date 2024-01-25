@@ -5,7 +5,6 @@
 #include "ctree.h"
 #include "disk-io.h"
 #include "btrfs_inode.h"
-#include "print-tree.h"
 #include "export.h"
 #include "accessors.h"
 #include "super.h"

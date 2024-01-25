@@ -14,7 +14,6 @@
 #include <linux/raid/xor.h>
 #include <linux/mm.h>
 #include "messages.h"
-#include "misc.h"
 #include "ctree.h"
 #include "disk-io.h"
 #include "volumes.h"

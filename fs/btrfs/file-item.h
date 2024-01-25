@@ -5,6 +5,8 @@
 
 #include "accessors.h"
 
+struct extent_map;
+
 #define BTRFS_FILE_EXTENT_INLINE_DATA_START		\
 		(offsetof(struct btrfs_file_extent_item, disk_bytenr))
 

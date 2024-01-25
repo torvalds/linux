@@ -8,7 +8,6 @@
 #include <linux/btrfs_tree.h>
 #include <linux/sizes.h>
 #include "extent-io-tree.h"
-#include "extent_map.h"
 #include "async-thread.h"
 #include "block-rsv.h"
 

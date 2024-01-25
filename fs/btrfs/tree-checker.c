@@ -21,7 +21,6 @@
 #include "messages.h"
 #include "ctree.h"
 #include "tree-checker.h"
-#include "disk-io.h"
 #include "compression.h"
 #include "volumes.h"
 #include "misc.h"
@@ -30,7 +29,6 @@
 #include "file-item.h"
 #include "inode-item.h"
 #include "dir-item.h"
-#include "raid-stripe-tree.h"
 #include "extent-tree.h"
 
 /*

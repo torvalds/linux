@@ -14,7 +14,6 @@
 #include <linux/pagevec.h>
 #include <linux/prefetch.h>
 #include <linux/fsverity.h>
-#include "misc.h"
 #include "extent_io.h"
 #include "extent-io-tree.h"
 #include "extent_map.h"
@@ -22,7 +21,6 @@
 #include "btrfs_inode.h"
 #include "bio.h"
 #include "locking.h"
-#include "rcu-string.h"
 #include "backref.h"
 #include "disk-io.h"
 #include "subpage.h"

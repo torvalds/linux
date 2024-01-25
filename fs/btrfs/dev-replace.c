@@ -11,10 +11,8 @@
 #include <linux/math64.h>
 #include "misc.h"
 #include "ctree.h"
-#include "extent_map.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "print-tree.h"
 #include "volumes.h"
 #include "async-thread.h"
 #include "dev-replace.h"

@@ -5,7 +5,6 @@
 #include <linux/spinlock.h>
 #include "messages.h"
 #include "ctree.h"
-#include "volumes.h"
 #include "extent_map.h"
 #include "compression.h"
 #include "btrfs_inode.h"

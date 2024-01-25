@@ -25,8 +25,6 @@
 #include "misc.h"
 #include "ctree.h"
 #include "fs.h"
-#include "disk-io.h"
-#include "transaction.h"
 #include "btrfs_inode.h"
 #include "bio.h"
 #include "ordered-data.h"
@@ -34,8 +32,7 @@
 #include "extent_io.h"
 #include "extent_map.h"
 #include "subpage.h"
-#include "zoned.h"
-#include "file-item.h"
+#include "messages.h"
 #include "super.h"
 
 static struct bio_set btrfs_compressed_bioset;

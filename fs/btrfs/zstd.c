@@ -19,7 +19,6 @@
 #include <linux/zstd.h>
 #include "misc.h"
 #include "compression.h"
-#include "ctree.h"
 
 #define ZSTD_BTRFS_MAX_WINDOWLOG 17
 #define ZSTD_BTRFS_MAX_INPUT (1 << ZSTD_BTRFS_MAX_WINDOWLOG)

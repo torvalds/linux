@@ -5,7 +5,8 @@
 
 #include <asm/unaligned.h>
 #include "messages.h"
-#include "ctree.h"
+#include "extent_io.h"
+#include "fs.h"
 #include "accessors.h"
 
 static bool check_setget_bounds(const struct extent_buffer *eb,

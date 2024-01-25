@@ -6,7 +6,6 @@
 #include <linux/sched.h>
 #include "ctree.h"
 #include "disk-io.h"
-#include "print-tree.h"
 #include "transaction.h"
 #include "locking.h"
 #include "accessors.h"

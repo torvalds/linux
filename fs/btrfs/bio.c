@@ -11,7 +11,6 @@
 #include "raid56.h"
 #include "async-thread.h"
 #include "dev-replace.h"
-#include "rcu-string.h"
 #include "zoned.h"
 #include "file-item.h"
 #include "raid-stripe-tree.h"
