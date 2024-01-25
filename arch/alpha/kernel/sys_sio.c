@@ -360,7 +360,7 @@ struct alpha_machine_vector alphabook1_mv __initmv = {
 ALIAS_MV(alphabook1)
 #endif
 
-#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_AVANTI)
+#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_AVANTI_CH)
 struct alpha_machine_vector avanti_mv __initmv = {
 	.vector_name		= "Avanti",
 	DO_EV4_MMU,
@@ -389,7 +389,7 @@ struct alpha_machine_vector avanti_mv __initmv = {
 ALIAS_MV(avanti)
 #endif
 
-#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_NONAME)
+#if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_NONAME_CH)
 struct alpha_machine_vector noname_mv __initmv = {
 	.vector_name		= "Noname",
 	DO_EV4_MMU,
