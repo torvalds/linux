@@ -33,6 +33,7 @@
 #include <linux/filter.h>
 #include <linux/limits.h>
 #include <linux/perf_event.h>
+#include <linux/bpf_perf_event.h>
 #include <linux/ring_buffer.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -6339,6 +6340,14 @@ static struct {
 	/* all other program types don't have "named" context structs */
 };
 
+/* forward declarations for arch-specific underlying types of bpf_user_pt_regs_t typedef,
+ * for below __builtin_types_compatible_p() checks;
+ * with this approach we don't need any extra arch-specific #ifdef guards
+ */
+struct pt_regs;
+struct user_pt_regs;
+struct user_regs_struct;
+
 static bool need_func_arg_type_fixup(const struct btf *btf, const struct bpf_program *prog,
 				     const char *subprog_name, int arg_idx,
 				     int arg_type_id, const char *ctx_name)
@@ -6379,10 +6388,20 @@ static bool need_func_arg_type_fixup(const struct btf *btf, const struct bpf_pro
 	/* special cases */
 	switch (prog->type) {
 	case BPF_PROG_TYPE_KPROBE:
-	case BPF_PROG_TYPE_PERF_EVENT:
 		/* `struct pt_regs *` is expected, but we need to fix up */
 		if (btf_is_struct(t) && strcmp(tname, "pt_regs") == 0)
 			return true;
+		break;
+	case BPF_PROG_TYPE_PERF_EVENT:
+		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct pt_regs) &&
+		    btf_is_struct(t) && strcmp(tname, "pt_regs") == 0)
+			return 0;
+		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct user_pt_regs) &&
+		    btf_is_struct(t) && strcmp(tname, "user_pt_regs") == 0)
+			return 0;
+		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct user_regs_struct) &&
+		    btf_is_struct(t) && strcmp(tname, "user_regs_struct") == 0)
+			return 0;
 		break;
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE:
