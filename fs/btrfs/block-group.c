@@ -1522,6 +1522,13 @@ void btrfs_delete_unused_bgs(struct btrfs_fs_info *fs_info)
 			 * outstanding allocations in this block group.  We do
 			 * the ro check in case balance is currently acting on
 			 * this block group.
+			 *
+			 * Also bail out if this is the only block group for its
+			 * type, because otherwise we would lose profile
+			 * information from fs_info->avail_*_alloc_bits and the
+			 * next block group of this type would be created with a
+			 * "single" profile (even if we're in a raid fs) because
+			 * fs_info->avail_*_alloc_bits would be 0.
 			 */
 			trace_btrfs_skip_unused_block_group(block_group);
 			spin_unlock(&block_group->lock);
