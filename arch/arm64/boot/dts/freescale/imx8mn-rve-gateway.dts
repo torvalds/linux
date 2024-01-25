@@ -10,7 +10,7 @@
 
 / {
 	model = "RVE gateway";
-	compatible = "rve,rve-gateway", "variscite,var-som-mx8mn", "fsl,imx8mn";
+	compatible = "rve,gateway", "variscite,var-som-mx8mn", "fsl,imx8mn";
 
 	crystal_duart_24m: crystal-duart-24m {
 		compatible = "fixed-clock";
