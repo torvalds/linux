@@ -1068,8 +1068,8 @@ static void a7xx_get_indexed_registers(struct msm_gpu *gpu,
 
 	/* Get the contents of the CP_BV mempool */
 	for (i = 0; i < mempool_count; i++)
-		a6xx_get_indexed_regs(gpu, a6xx_state, a7xx_cp_bv_mempool_indexed,
-			&a6xx_state->indexed_regs[indexed_count - 1 + i]);
+		a6xx_get_indexed_regs(gpu, a6xx_state, &a7xx_cp_bv_mempool_indexed[i],
+			&a6xx_state->indexed_regs[indexed_count + i]);
 
 	gpu_rmw(gpu, REG_A6XX_CP_CHICKEN_DBG, BIT(2), 0);
 	gpu_rmw(gpu, REG_A7XX_CP_BV_CHICKEN_DBG, BIT(2), 0);
