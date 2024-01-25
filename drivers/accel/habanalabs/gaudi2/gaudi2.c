@@ -158,11 +158,13 @@
 #define RAZWI_INITIATOR_ID_X_Y(xl, yl, xh) \
 	(RAZWI_INITIATOR_ID_X_Y_LOW(xl, yl) | RAZWI_INITIATOR_ID_X_HIGH(xh))
 
-#define PSOC_RAZWI_ENG_STR_SIZE 128
-#define PSOC_RAZWI_MAX_ENG_PER_RTR 5
+#define PSOC_RAZWI_ENG_STR_SIZE			128
+#define PSOC_RAZWI_MAX_ENG_PER_RTR		5
 
 /* HW scrambles only bits 0-25 */
-#define HW_UNSCRAMBLED_BITS_MASK GENMASK_ULL(63, 26)
+#define HW_UNSCRAMBLED_BITS_MASK		GENMASK_ULL(63, 26)
+
+#define GAUDI2_GLBL_ERR_MAX_CAUSE_NUM		17
 
 struct gaudi2_razwi_info {
 	u32 axuser_xy;
@@ -3587,7 +3589,7 @@ static int gaudi2_special_blocks_config(struct hl_device *hdev)
 	int i, rc;
 
 	/* Configure Special blocks */
-	prop->glbl_err_cause_num = GAUDI2_NUM_OF_GLBL_ERR_CAUSE;
+	prop->glbl_err_max_cause_num = GAUDI2_GLBL_ERR_MAX_CAUSE_NUM;
 	prop->num_of_special_blocks = ARRAY_SIZE(gaudi2_special_blocks);
 	prop->special_blocks = kmalloc_array(prop->num_of_special_blocks,
 			sizeof(*prop->special_blocks), GFP_KERNEL);

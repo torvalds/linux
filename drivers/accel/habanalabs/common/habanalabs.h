@@ -647,7 +647,7 @@ struct hl_hints_range {
  * @num_engine_cores: number of engine cpu cores.
  * @max_num_of_engines: maximum number of all engines in the ASIC.
  * @num_of_special_blocks: special_blocks array size.
- * @glbl_err_cause_num: global err cause number.
+ * @glbl_err_max_cause_num: global err max cause number.
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
  *                 not supported.
  * @reserved_fw_mem_size: size in MB of dram memory reserved for FW.
@@ -779,7 +779,7 @@ struct asic_fixed_properties {
 	u32				num_engine_cores;
 	u32				max_num_of_engines;
 	u32				num_of_special_blocks;
-	u32				glbl_err_cause_num;
+	u32				glbl_err_max_cause_num;
 	u32				hbw_flush_reg;
 	u32				reserved_fw_mem_size;
 	u16				collective_first_sob;
