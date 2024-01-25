@@ -29,11 +29,11 @@
 #include "cs42l43.h"
 
 static const unsigned int cs42l43_accdet_us[] = {
-	20, 100, 1000, 10000, 50000, 75000, 100000, 200000
+	20, 100, 1000, 10000, 50000, 75000, 100000, 200000,
 };
 
 static const unsigned int cs42l43_accdet_db_ms[] = {
-	0, 125, 250, 500, 750, 1000, 1250, 1500
+	0, 125, 250, 500, 750, 1000, 1250, 1500,
 };
 
 static const unsigned int cs42l43_accdet_ramp_ms[] = { 10, 40, 90, 170 };
@@ -851,6 +851,9 @@ static const char * const cs42l43_jack_text[] = {
 	"Line-In", "Microphone", "Optical",
 };
 
+static_assert(ARRAY_SIZE(cs42l43_jack_override_modes) ==
+	      ARRAY_SIZE(cs42l43_jack_text) - 1);
+
 SOC_ENUM_SINGLE_VIRT_DECL(cs42l43_jack_enum, cs42l43_jack_text);
 
 int cs42l43_jack_get(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -872,9 +875,6 @@ int cs42l43_jack_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *u
 	struct cs42l43 *cs42l43 = priv->core;
 	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
 	unsigned int override = ucontrol->value.integer.value[0];
-
-	BUILD_BUG_ON(ARRAY_SIZE(cs42l43_jack_override_modes) !=
-		     ARRAY_SIZE(cs42l43_jack_text) - 1);
 
 	if (override >= e->items)
 		return -EINVAL;
