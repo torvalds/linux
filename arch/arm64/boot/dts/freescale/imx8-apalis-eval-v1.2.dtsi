@@ -1,0 +1,124 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2024 Toradex
+ */
+
+#include "imx8-apalis-eval.dtsi"
+
+/ {
+	reg_3v3_mmc: regulator-3v3-mmc {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_3v3_mmc>;
+		enable-active-high;
+		gpio = <&lsio_gpio5 19 GPIO_ACTIVE_HIGH>;
+		off-on-delay-us = <100000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3.3V_MMC";
+		startup-delay-us = <10000>;
+	};
+
+	reg_3v3_sd: regulator-3v3-sd {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_3v3_sd>;
+		enable-active-high;
+		gpio = <&lsio_gpio5 20 GPIO_ACTIVE_HIGH>;
+		off-on-delay-us = <100000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-min-microvolt = <3300000>;
+		regulator-name = "3.3V_SD";
+		startup-delay-us = <10000>;
+	};
+
+	reg_can1: regulator-can1 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_can1_power>;
+		enable-active-high;
+		gpio = <&lsio_gpio5 22 GPIO_ACTIVE_HIGH>;
+		regulator-name = "5V_SW_CAN1";
+		startup-delay-us = <10000>;
+	};
+
+	reg_can2: regulator-can2 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_enable_can2_power>;
+		enable-active-high;
+		gpio = <&lsio_gpio5 21 GPIO_ACTIVE_HIGH>;
+		regulator-name = "5V_SW_CAN2";
+		startup-delay-us = <10000>;
+	};
+};
+
+/* Apalis CAN1 */
+&flexcan1 {
+	xceiver-supply = <&reg_can1>;
+	status = "okay";
+};
+
+/* Apalis CAN2 */
+&flexcan2 {
+	xceiver-supply = <&reg_can2>;
+	status = "okay";
+};
+
+/* Apalis I2C1 */
+&i2c2 {
+	status = "okay";
+
+	/* Power/Current Measurement Sensor */
+	hwmon@40 {
+		compatible = "ti,ina219";
+		reg = <0x40>;
+		shunt-resistor = <5000>;
+	};
+
+	temperature-sensor@4f {
+		compatible = "ti,tmp75c";
+		reg = <0x4f>;
+	};
+
+	eeprom@57 {
+		compatible = "st,24c02", "atmel,24c02";
+		reg = <0x57>;
+	};
+};
+
+/* Apalis MMC1 */
+&usdhc2 {
+	pinctrl-0 = <&pinctrl_usdhc2_4bit>, <&pinctrl_mmc1_cd>;
+	pinctrl-1 = <&pinctrl_usdhc2_4bit_100mhz>, <&pinctrl_mmc1_cd>;
+	pinctrl-2 = <&pinctrl_usdhc2_4bit_200mhz>, <&pinctrl_mmc1_cd>;
+	pinctrl-3 = <&pinctrl_usdhc2_4bit_sleep>, <&pinctrl_mmc1_cd_sleep>;
+	bus-width = <4>;
+	vmmc-supply = <&reg_3v3_mmc>;
+	status = "okay";
+};
+
+/* Apalis SD1 */
+&usdhc3 {
+	vmmc-supply = <&reg_3v3_sd>;
+	status = "okay";
+};
+
+&iomuxc {
+
+	pinctrl_enable_3v3_mmc: enable3v3mmcgrp {
+		fsl,pins = <IMX8QM_USDHC1_DATA4_LSIO_GPIO5_IO19	0x00000021>; /* MXM3_148 */
+	};
+
+	pinctrl_enable_3v3_sd: enable3v3sdgrp {
+		fsl,pins = <IMX8QM_USDHC1_DATA5_LSIO_GPIO5_IO20	0x00000021>; /* MXM3_152 */
+	};
+
+	pinctrl_enable_can1_power: enablecan1powergrp {
+		fsl,pins = <IMX8QM_USDHC1_DATA7_LSIO_GPIO5_IO22	0x00000021>; /* MXM3_158 */
+	};
+
+	pinctrl_enable_can2_power: enablecan2powergrp {
+		fsl,pins = <IMX8QM_USDHC1_DATA6_LSIO_GPIO5_IO21	0x00000021>; /* MXM3_156 */
+	};
+};
