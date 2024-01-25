@@ -481,7 +481,8 @@ void mipi_i3c_hci_resume(struct i3c_hci *hci)
 /* located here rather than pio.c because needed bits are in core reg space */
 void mipi_i3c_hci_pio_reset(struct i3c_hci *hci)
 {
-	reg_write(RESET_CONTROL, RX_FIFO_RST | TX_FIFO_RST | RESP_QUEUE_RST);
+	reg_write(RESET_CONTROL,
+		  RX_FIFO_RST | TX_FIFO_RST | RESP_QUEUE_RST | CMD_QUEUE_RST);
 }
 
 /* located here rather than dct.c because needed bits are in core reg space */
