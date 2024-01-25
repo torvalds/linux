@@ -365,23 +365,78 @@ err_trans:
 
 /* methods */
 
+static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
+			subvol_inum dir, struct bch_hash_info *dir_hash_info,
+			const struct qstr *name)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter dirent_iter = {};
+	subvol_inum inum = {};
+
+	int ret = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
+				   dir_hash_info, dir, name, 0);
+	if (ret)
+		return ERR_PTR(ret);
+
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(&dirent_iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
+	if (ret > 0)
+		ret = -ENOENT;
+	if (ret)
+		goto err;
+
+	struct bch_inode_info *inode =
+		to_bch_ei(ilookup5_nowait(c->vfs_sb,
+					  bch2_inode_hash(inum),
+					  bch2_iget5_test,
+					  &inum));
+	if (inode)
+		goto out;
+
+	struct bch_subvolume subvol;
+	struct bch_inode_unpacked inode_u;
+	ret =   bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
+		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
+		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
+	if (bch2_err_matches(ret, ENOENT)) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		bch_err(c, "%s points to missing inode", buf.buf);
+		printbuf_exit(&buf);
+	}
+	if (ret)
+		goto err;
+
+	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
+	inode = bch2_inode_insert(c, inode);
+out:
+	bch2_trans_iter_exit(trans, &dirent_iter);
+	return inode;
+err:
+	inode = ERR_PTR(ret);
+	goto out;
+}
+
 static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 				  unsigned int flags)
 {
 	struct bch_fs *c = vdir->i_sb->s_fs_info;
 	struct bch_inode_info *dir = to_bch_ei(vdir);
 	struct bch_hash_info hash = bch2_hash_info_init(c, &dir->ei_inode);
-	struct inode *vinode = NULL;
-	subvol_inum inum = { .subvol = 1 };
-	int ret;
 
-	ret = bch2_dirent_lookup(c, inode_inum(dir), &hash,
-				 &dentry->d_name, &inum);
+	struct bch_inode_info *inode;
+	bch2_trans_do(c, NULL, NULL, 0,
+		PTR_ERR_OR_ZERO(inode = bch2_lookup_trans(trans, inode_inum(dir),
+							  &hash, &dentry->d_name)));
+	if (IS_ERR(inode))
+		inode = NULL;
 
-	if (!ret)
-		vinode = bch2_vfs_inode_get(c, inum);
-
-	return d_splice_alias(vinode, dentry);
+	return d_splice_alias(&inode->v, dentry);
 }
 
 static int bch2_mknod(struct mnt_idmap *idmap,
