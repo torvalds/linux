@@ -1057,6 +1057,12 @@
   ida_alloc_range
   ida_destroy
   ida_free
+  idle_inject_get_duration
+  idle_inject_register
+  idle_inject_set_duration
+  idle_inject_set_latency
+  idle_inject_start
+  idle_inject_stop
   idr_alloc
   idr_alloc_cyclic
   idr_destroy
