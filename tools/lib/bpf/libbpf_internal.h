@@ -372,6 +372,8 @@ enum kern_feature_id {
 	FEAT_SYSCALL_WRAPPER,
 	/* BPF multi-uprobe link support */
 	FEAT_UPROBE_MULTI_LINK,
+	/* Kernel supports arg:ctx tag (__arg_ctx) for global subprogs natively */
+	FEAT_ARG_CTX_TAG,
 	__FEAT_CNT,
 };
 
