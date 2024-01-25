@@ -1675,6 +1675,7 @@ void wiphy_delayed_work_queue(struct wiphy *wiphy,
 			      unsigned long delay)
 {
 	if (!delay) {
+		del_timer(&dwork->timer);
 		wiphy_work_queue(wiphy, &dwork->work);
 		return;
 	}
