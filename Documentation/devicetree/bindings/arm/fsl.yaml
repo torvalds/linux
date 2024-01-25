@@ -1196,7 +1196,8 @@ properties:
       - description: i.MX8QM Boards with Toradex Apalis iMX8 Modules
         items:
           - enum:
-              - toradex,apalis-imx8-eval            # Apalis iMX8 Module on Apalis Evaluation Board
+              - toradex,apalis-imx8-eval            # Apalis iMX8 Module on Apalis Evaluation V1.0/V1.1 Board
+              - toradex,apalis-imx8-eval-v1.2       # Apalis iMX8 Module on Apalis Evaluation V1.2 Board
               - toradex,apalis-imx8-ixora-v1.1      # Apalis iMX8 Module on Ixora V1.1 Carrier Board
           - const: toradex,apalis-imx8
           - const: fsl,imx8qm
@@ -1204,7 +1205,8 @@ properties:
       - description: i.MX8QM Boards with Toradex Apalis iMX8 V1.1 Modules
         items:
           - enum:
-              - toradex,apalis-imx8-v1.1-eval       # Apalis iMX8 V1.1 Module on Apalis Eval. Board
+              - toradex,apalis-imx8-v1.1-eval       # Apalis iMX8 V1.1 Module on Apalis Eval. V1.0/V1.1 Board
+              - toradex,apalis-imx8-v1.1-eval-v1.2  # Apalis iMX8 V1.1 Module on Apalis Eval. V1.2 Board
               - toradex,apalis-imx8-v1.1-ixora-v1.1 # Apalis iMX8 V1.1 Module on Ixora V1.1 C. Board
               - toradex,apalis-imx8-v1.1-ixora-v1.2 # Apalis iMX8 V1.1 Module on Ixora V1.2 C. Board
           - const: toradex,apalis-imx8-v1.1
