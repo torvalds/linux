@@ -225,9 +225,11 @@ static const char * const snd_pcm_format_names[] = {
  */
 const char *snd_pcm_format_name(snd_pcm_format_t format)
 {
-	if ((__force unsigned int)format >= ARRAY_SIZE(snd_pcm_format_names))
+	unsigned int format_num = (__force unsigned int)format;
+
+	if (format_num >= ARRAY_SIZE(snd_pcm_format_names) || !snd_pcm_format_names[format_num])
 		return "Unknown";
-	return snd_pcm_format_names[(__force unsigned int)format];
+	return snd_pcm_format_names[format_num];
 }
 EXPORT_SYMBOL_GPL(snd_pcm_format_name);
 
