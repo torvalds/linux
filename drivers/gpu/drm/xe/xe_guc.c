@@ -174,8 +174,8 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 		if (GUC_VER(version->major, version->minor, version->patch) >= GUC_VER(70, 7, 0))
 			flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 		else
-			drm_warn(&xe->drm, "can't apply WA 14018913170, GUC version expected >= 70.7.0, found %u %u %u\n",
-				 version->major, version->minor, version->patch);
+			drm_dbg(&xe->drm, "Skip WA 14018913170: GUC version expected >= 70.7.0, found %u.%u.%u\n",
+				version->major, version->minor, version->patch);
 	}
 
 	return flags;
