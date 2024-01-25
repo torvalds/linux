@@ -75,6 +75,20 @@ def cpumask_str(cpumask):
         output += f'{v:08x}'
     return output.strip()
 
+wq_type_len = 9
+
+def wq_type_str(wq):
+    if wq.flags & WQ_UNBOUND:
+        if wq.flags & WQ_ORDERED:
+            return f'{"ordered":{wq_type_len}}'
+        else:
+            if wq.unbound_attrs.affn_strict:
+                return f'{"unbound,S":{wq_type_len}}'
+            else:
+                return f'{"unbound":{wq_type_len}}'
+    else:
+        return f'{"percpu":{wq_type_len}}'
+
 worker_pool_idr         = prog['worker_pool_idr']
 workqueues              = prog['workqueues']
 wq_unbound_cpumask      = prog['wq_unbound_cpumask']
@@ -91,6 +105,10 @@ WQ_AFFN_SMT             = prog['WQ_AFFN_SMT']
 WQ_AFFN_CACHE           = prog['WQ_AFFN_CACHE']
 WQ_AFFN_NUMA            = prog['WQ_AFFN_NUMA']
 WQ_AFFN_SYSTEM          = prog['WQ_AFFN_SYSTEM']
+
+WQ_NAME_LEN             = prog['WQ_NAME_LEN'].value_()
+
+cpumask_str_len         = len(cpumask_str(wq_unbound_cpumask))
 
 print('Affinity Scopes')
 print('===============')
@@ -148,24 +166,13 @@ print('')
 print('Workqueue CPU -> pool')
 print('=====================')
 
-print('[    workqueue     \     type   CPU', end='')
+print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ {"type   CPU":{wq_type_len}}', end='')
 for cpu in for_each_possible_cpu(prog):
     print(f' {cpu:{max_pool_id_len}}', end='')
 print(' dfl]')
 
 for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
-    print(f'{wq.name.string_().decode()[-24:]:24}', end='')
-    if wq.flags & WQ_UNBOUND:
-        if wq.flags & WQ_ORDERED:
-            print(' ordered   ', end='')
-        else:
-            print(' unbound', end='')
-            if wq.unbound_attrs.affn_strict:
-                print(',S ', end='')
-            else:
-                print('   ', end='')
-    else:
-        print(' percpu    ', end='')
+    print(f'{wq.name.string_().decode():{WQ_NAME_LEN}} {wq_type_str(wq):10}', end='')
 
     for cpu in for_each_possible_cpu(prog):
         pool_id = per_cpu_ptr(wq.cpu_pwq, cpu)[0].pool.id.value_()
@@ -178,29 +185,23 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
 
 print('')
 print('Workqueue -> rescuer')
-print('=====================')
-print(f'wq_unbound_cpumask={cpumask_str(wq_unbound_cpumask)}')
-print('')
-print('[    workqueue     \     type            unbound_cpumask     rescuer                  pid   cpumask]')
+print('====================')
+
+ucpus_len = max(cpumask_str_len, len("unbound_cpus"))
+rcpus_len = max(cpumask_str_len, len("rescuer_cpus"))
+
+print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ {"unbound_cpus":{ucpus_len}}    pid {"rescuer_cpus":{rcpus_len}} ]')
 
 for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
-    print(f'{wq.name.string_().decode()[-24:]:24}', end='')
-    if wq.flags & WQ_UNBOUND:
-        if wq.flags & WQ_ORDERED:
-            print(' ordered   ', end='')
-        else:
-            print(' unbound', end='')
-            if wq.unbound_attrs.affn_strict:
-                print(',S ', end='')
-            else:
-                print('   ', end='')
-        print(f' {cpumask_str(wq.unbound_attrs.cpumask):24}', end='')
-    else:
-        print(' percpu    ', end='')
-        print('                         ', end='')
+    if not (wq.flags & WQ_MEM_RECLAIM):
+        continue
 
-    if wq.flags & WQ_MEM_RECLAIM:
-        print(f' {wq.rescuer.task.comm.string_().decode()[-24:]:24}', end='')
-        print(f' {wq.rescuer.task.pid.value_():5}', end='')
-        print(f' {cpumask_str(wq.rescuer.task.cpus_ptr)}', end='')
+    print(f'{wq.name.string_().decode():{WQ_NAME_LEN}}', end='')
+    if wq.unbound_attrs.value_() != 0:
+        print(f' {cpumask_str(wq.unbound_attrs.cpumask):{ucpus_len}}', end='')
+    else:
+        print(f' {"":{ucpus_len}}', end='')
+
+    print(f' {wq.rescuer.task.pid.value_():6}', end='')
+    print(f' {cpumask_str(wq.rescuer.task.cpus_ptr):{rcpus_len}}', end='')
     print('')
