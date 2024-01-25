@@ -97,6 +97,10 @@ parameters.
 
        When metadata is disabled, the above use cases will fail to initialize if
        users try to enable them.
+
+       Note: Setting this parameter does not take effect immediately. Setting
+       must happen in legacy mode and eswitch port metadata takes effect after
+       enabling switchdev mode.
    * - ``hairpin_num_queues``
      - u32
      - driverinit
