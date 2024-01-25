@@ -248,5 +248,7 @@ cleanup
 
 echo ALL PASS
 
-umount $CGROUP_ROOT
-rm -rf $CGROUP_ROOT
+if [[ $do_umount ]]; then
+  umount $CGROUP_ROOT
+  rm -rf $CGROUP_ROOT
+fi
