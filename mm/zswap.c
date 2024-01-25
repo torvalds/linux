@@ -568,8 +568,7 @@ static void zswap_entry_get(struct zswap_entry *entry)
 /* caller must hold the tree lock
 * remove from the tree and free it, if nobody reference the entry
 */
-static void zswap_entry_put(struct zswap_tree *tree,
-			struct zswap_entry *entry)
+static void zswap_entry_put(struct zswap_entry *entry)
 {
 	int refcount = --entry->refcount;
 
@@ -852,7 +851,7 @@ static void zswap_invalidate_entry(struct zswap_tree *tree,
 				   struct zswap_entry *entry)
 {
 	if (zswap_rb_erase(&tree->rbroot, entry))
-		zswap_entry_put(tree, entry);
+		zswap_entry_put(entry);
 }
 
 static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_one *l,
@@ -921,7 +920,7 @@ static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_o
 
 put_unlock:
 	/* Drop local reference */
-	zswap_entry_put(tree, entry);
+	zswap_entry_put(entry);
 unlock:
 	spin_unlock(&tree->lock);
 	spin_lock(lock);
@@ -1754,7 +1753,7 @@ bool zswap_load(struct folio *folio)
 		zswap_lru_del(&entry->pool->list_lru, entry);
 		zswap_lru_add(&entry->pool->list_lru, entry);
 	}
-	zswap_entry_put(tree, entry);
+	zswap_entry_put(entry);
 	spin_unlock(&tree->lock);
 
 	return true;
