@@ -1028,7 +1028,7 @@ properties:
         items:
           - enum:
               - dimonoff,gateway-evk # i.MX8MN Dimonoff Gateway EVK Board
-              - rve,rve-gateway # i.MX8MN RVE Gateway Board
+              - rve,gateway # i.MX8MN RVE Gateway Board
               - variscite,var-som-mx8mn-symphony
           - const: variscite,var-som-mx8mn
           - const: fsl,imx8mn
