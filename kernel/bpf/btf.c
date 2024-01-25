@@ -7112,6 +7112,10 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				bpf_log(log, "arg#%d has invalid combination of tags\n", i);
 				return -EINVAL;
 			}
+			if ((tags & ARG_TAG_CTX) &&
+			    btf_validate_prog_ctx_type(log, btf, t, i, prog_type,
+						       prog->expected_attach_type))
+				return -EINVAL;
 			sub->args[i].arg_type = ARG_PTR_TO_CTX;
 			continue;
 		}
@@ -7154,23 +7158,6 @@ skip_pointer:
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
 		return -EINVAL;
-	}
-
-	for (i = 0; i < nargs; i++) {
-		const char *tag;
-
-		if (sub->args[i].arg_type != ARG_PTR_TO_CTX)
-			continue;
-
-		/* check if arg has "arg:ctx" tag */
-		t = btf_type_by_id(btf, args[i].type);
-		tag = btf_find_decl_tag_value(btf, fn_t, i, "arg:");
-		if (IS_ERR_OR_NULL(tag) || strcmp(tag, "ctx") != 0)
-			continue;
-
-		if (btf_validate_prog_ctx_type(log, btf, t, i, prog_type,
-					       prog->expected_attach_type))
-			return -EINVAL;
 	}
 
 	sub->arg_cnt = nargs;
