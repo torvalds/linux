@@ -5407,6 +5407,7 @@ nfsd4_encode_listxattrs(struct nfsd4_compoundres *resp, __be32 nfserr,
 	u64 cookie;
 	char *sp;
 	__be32 status, tmp;
+	__be64 wire_cookie;
 	__be32 *p;
 	u32 nuser;
 
@@ -5498,7 +5499,8 @@ wreof:
 
 	cookie = offset + count;
 
-	write_bytes_to_xdr_buf(xdr->buf, cookie_offset, &cookie, 8);
+	wire_cookie = cpu_to_be64(cookie);
+	write_bytes_to_xdr_buf(xdr->buf, cookie_offset, &wire_cookie, 8);
 	tmp = cpu_to_be32(count);
 	write_bytes_to_xdr_buf(xdr->buf, count_offset, &tmp, 4);
 out:
