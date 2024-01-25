@@ -2681,6 +2681,7 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 					     struct ktermios *termios,
 					     const struct ktermios *old)
 {
+	struct uart_8250_port *up = up_to_u8250p(port);
 	unsigned int tolerance = port->uartclk / 100;
 	unsigned int min;
 	unsigned int max;
@@ -2697,6 +2698,12 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
 		min = port->uartclk / 16 / UART_DIV_MAX;
 		max = (port->uartclk + tolerance) / 16;
 	}
+
+	/*
+	 * Microchip PCI1XXXX UART supports maximum baud rate up to 4 Mbps
+	 */
+	if (up->port.type == PORT_MCHP16550A)
+		max = 4000000;
 
 	/*
 	 * Ask the core to calculate the divisor for us.

@@ -82,7 +82,8 @@
 #define ADCL_CFG_PIN_SEL			BIT(1)
 #define ADCL_CFG_EN				BIT(0)
 
-#define UART_BIT_SAMPLE_CNT			16
+#define UART_BIT_SAMPLE_CNT_8			8
+#define UART_BIT_SAMPLE_CNT_16			16
 #define BAUD_CLOCK_DIV_INT_MSK			GENMASK(31, 8)
 #define ADCL_CFG_RTS_DELAY_MASK			GENMASK(11, 8)
 #define UART_CLOCK_DEFAULT			(62500 * HZ_PER_KHZ)
@@ -96,6 +97,7 @@
 	(UART_WAKE_N_PIN | UART_WAKE_NCTS | UART_WAKE_INT)
 
 #define UART_BAUD_CLK_DIVISOR_REG		0x54
+#define FRAC_DIV_CFG_REG			0x58
 
 #define UART_RESET_REG				0x94
 #define UART_RESET_D3_RESET_DISABLE		BIT(16)
@@ -103,6 +105,10 @@
 #define UART_BURST_STATUS_REG			0x9C
 #define UART_TX_BURST_FIFO			0xA0
 #define UART_RX_BURST_FIFO			0xA4
+
+#define UART_BIT_DIVISOR_8			0x26731000
+#define UART_BIT_DIVISOR_16			0x6ef71000
+#define UART_BAUD_4MBPS				4000000
 
 #define MAX_PORTS				4
 #define PORT_OFFSET				0x100
@@ -210,15 +216,24 @@ static int pci1xxxx_get_num_ports(struct pci_dev *dev)
 static unsigned int pci1xxxx_get_divisor(struct uart_port *port,
 					 unsigned int baud, unsigned int *frac)
 {
+	unsigned int uart_sample_cnt;
 	unsigned int quot;
+
+	if (baud >= UART_BAUD_4MBPS) {
+		uart_sample_cnt = UART_BIT_SAMPLE_CNT_8;
+		writel(UART_BIT_DIVISOR_8, (port->membase + FRAC_DIV_CFG_REG));
+	} else {
+		uart_sample_cnt = UART_BIT_SAMPLE_CNT_16;
+		writel(UART_BIT_DIVISOR_16, (port->membase + FRAC_DIV_CFG_REG));
+	}
 
 	/*
 	 * Calculate baud rate sampling period in nanoseconds.
 	 * Fractional part x denotes x/255 parts of a nanosecond.
 	 */
-	quot = NSEC_PER_SEC / (baud * UART_BIT_SAMPLE_CNT);
-	*frac = (NSEC_PER_SEC - quot * baud * UART_BIT_SAMPLE_CNT) *
-		  255 / UART_BIT_SAMPLE_CNT / baud;
+	quot = NSEC_PER_SEC / (baud * uart_sample_cnt);
+	*frac = (NSEC_PER_SEC - quot * baud * uart_sample_cnt) *
+		  255 / uart_sample_cnt / baud;
 
 	return quot;
 }
@@ -237,7 +252,16 @@ static int pci1xxxx_rs485_config(struct uart_port *port,
 	u32 delay_in_baud_periods;
 	u32 baud_period_in_ns;
 	u32 mode_cfg = 0;
+	u32 sample_cnt;
 	u32 clock_div;
+	u32 frac_div;
+
+	frac_div = readl(port->membase + FRAC_DIV_CFG_REG);
+
+	if (frac_div == UART_BIT_DIVISOR_16)
+		sample_cnt = UART_BIT_SAMPLE_CNT_16;
+	else
+		sample_cnt = UART_BIT_SAMPLE_CNT_8;
 
 	/*
 	 * pci1xxxx's uart hardware supports only RTS delay after
@@ -253,7 +277,7 @@ static int pci1xxxx_rs485_config(struct uart_port *port,
 			clock_div = readl(port->membase + UART_BAUD_CLK_DIVISOR_REG);
 			baud_period_in_ns =
 				FIELD_GET(BAUD_CLOCK_DIV_INT_MSK, clock_div) *
-				UART_BIT_SAMPLE_CNT;
+				sample_cnt;
 			delay_in_baud_periods =
 				rs485->delay_rts_after_send * NSEC_PER_MSEC /
 				baud_period_in_ns;
