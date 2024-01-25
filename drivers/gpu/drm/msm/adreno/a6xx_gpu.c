@@ -2063,13 +2063,19 @@ static void a6xx_recover(struct msm_gpu *gpu)
 
 static const char *a6xx_uche_fault_block(struct msm_gpu *gpu, u32 mid)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	static const char *uche_clients[7] = {
 		"VFD", "SP", "VSC", "VPC", "HLSQ", "PC", "LRZ",
 	};
 	u32 val;
 
-	if (mid < 1 || mid > 3)
-		return "UNKNOWN";
+	if (adreno_is_a7xx(adreno_gpu)) {
+		if (mid != 1 && mid != 2 && mid != 3 && mid != 8)
+			return "UNKNOWN";
+	} else {
+		if (mid < 1 || mid > 3)
+			return "UNKNOWN";
+	}
 
 	/*
 	 * The source of the data depends on the mid ID read from FSYNR1.
@@ -2077,26 +2083,95 @@ static const char *a6xx_uche_fault_block(struct msm_gpu *gpu, u32 mid)
 	 */
 	val = gpu_read(gpu, REG_A6XX_UCHE_CLIENT_PF);
 
-	/* mid = 3 is most precise and refers to only one block per client */
-	if (mid == 3)
-		return uche_clients[val & 7];
+	if (adreno_is_a7xx(adreno_gpu)) {
+		/* Bit 3 for mid=3 indicates BR or BV */
+		static const char *uche_clients_a7xx[16] = {
+			"BR_VFD", "BR_SP", "BR_VSC", "BR_VPC",
+			"BR_HLSQ", "BR_PC", "BR_LRZ", "BR_TP",
+			"BV_VFD", "BV_SP", "BV_VSC", "BV_VPC",
+			"BV_HLSQ", "BV_PC", "BV_LRZ", "BV_TP",
+		};
 
-	/* For mid=2 the source is TP or VFD except when the client id is 0 */
-	if (mid == 2)
-		return ((val & 7) == 0) ? "TP" : "TP|VFD";
+		/* LPAC has the same clients as BR and BV, but because it is
+		 * compute-only some of them do not exist and there are holes
+		 * in the array.
+		 */
+		static const char *uche_clients_lpac_a7xx[8] = {
+			"-", "LPAC_SP", "-", "-",
+			"LPAC_HLSQ", "-", "-", "LPAC_TP",
+		};
 
-	/* For mid=1 just return "UCHE" as a catchall for everything else */
-	return "UCHE";
+		val &= GENMASK(6, 0);
+
+		/* mid=3 refers to BR or BV */
+		if (mid == 3) {
+			if (val < ARRAY_SIZE(uche_clients_a7xx))
+				return uche_clients_a7xx[val];
+			else
+				return "UCHE";
+		}
+
+		/* mid=8 refers to LPAC */
+		if (mid == 8) {
+			if (val < ARRAY_SIZE(uche_clients_lpac_a7xx))
+				return uche_clients_lpac_a7xx[val];
+			else
+				return "UCHE_LPAC";
+		}
+
+		/* mid=2 is a catchall for everything else in LPAC */
+		if (mid == 2)
+			return "UCHE_LPAC";
+
+		/* mid=1 is a catchall for everything else in BR/BV */
+		return "UCHE";
+	} else if (adreno_is_a660_family(adreno_gpu)) {
+		static const char *uche_clients_a660[8] = {
+			"VFD", "SP", "VSC", "VPC", "HLSQ", "PC", "LRZ", "TP",
+		};
+
+		static const char *uche_clients_a660_not[8] = {
+			"not VFD", "not SP", "not VSC", "not VPC",
+			"not HLSQ", "not PC", "not LRZ", "not TP",
+		};
+
+		val &= GENMASK(6, 0);
+
+		if (mid == 3 && val < ARRAY_SIZE(uche_clients_a660))
+			return uche_clients_a660[val];
+
+		if (mid == 1 && val < ARRAY_SIZE(uche_clients_a660_not))
+			return uche_clients_a660_not[val];
+
+		return "UCHE";
+	} else {
+		/* mid = 3 is most precise and refers to only one block per client */
+		if (mid == 3)
+			return uche_clients[val & 7];
+
+		/* For mid=2 the source is TP or VFD except when the client id is 0 */
+		if (mid == 2)
+			return ((val & 7) == 0) ? "TP" : "TP|VFD";
+
+		/* For mid=1 just return "UCHE" as a catchall for everything else */
+		return "UCHE";
+	}
 }
 
 static const char *a6xx_fault_block(struct msm_gpu *gpu, u32 id)
 {
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
 	if (id == 0)
 		return "CP";
 	else if (id == 4)
 		return "CCU";
 	else if (id == 6)
 		return "CDP Prefetch";
+	else if (id == 7)
+		return "GMU";
+	else if (id == 5 && adreno_is_a7xx(adreno_gpu))
+		return "Flag cache";
 
 	return a6xx_uche_fault_block(gpu, id);
 }
