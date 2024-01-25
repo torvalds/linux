@@ -4,7 +4,7 @@
  */
 /dts-v1/;
 
-#include "msm8953.dtsi"
+#include "sdm450.dtsi"
 #include "pm8953.dtsi"
 #include "pmi8950.dtsi"
 
