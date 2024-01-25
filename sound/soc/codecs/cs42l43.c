@@ -1338,10 +1338,9 @@ static int cs42l43_enable_pll(struct cs42l43_codec *priv)
 
 	dev_dbg(priv->dev, "Enabling PLL at %uHz\n", freq);
 
-	while (freq > cs42l43_pll_configs[ARRAY_SIZE(cs42l43_pll_configs) - 1].freq) {
-		div++;
-		freq /= 2;
-	}
+	div = fls(freq) -
+	      fls(cs42l43_pll_configs[ARRAY_SIZE(cs42l43_pll_configs) - 1].freq);
+	freq >>= div;
 
 	if (div <= CS42L43_PLL_REFCLK_DIV_MASK) {
 		int i;
