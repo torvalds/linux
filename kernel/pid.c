@@ -595,7 +595,7 @@ struct task_struct *pidfd_get_task(int pidfd, unsigned int *flags)
  * Return: On success, a cloexec pidfd is returned.
  *         On error, a negative errno number will be returned.
  */
-int pidfd_create(struct pid *pid, unsigned int flags)
+static int pidfd_create(struct pid *pid, unsigned int flags)
 {
 	int pidfd;
 	struct file *pidfd_file;

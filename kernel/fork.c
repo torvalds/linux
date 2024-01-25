@@ -2130,15 +2130,12 @@ static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **re
 	int pidfd;
 	struct file *pidfd_file;
 
-	if (flags & ~(O_NONBLOCK | O_RDWR | O_CLOEXEC))
-		return -EINVAL;
-
-	pidfd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
+	pidfd = get_unused_fd_flags(O_CLOEXEC);
 	if (pidfd < 0)
 		return pidfd;
 
 	pidfd_file = anon_inode_getfile("[pidfd]", &pidfd_fops, pid,
-					flags | O_RDWR | O_CLOEXEC);
+					flags | O_RDWR);
 	if (IS_ERR(pidfd_file)) {
 		put_unused_fd(pidfd);
 		return PTR_ERR(pidfd_file);
@@ -2524,7 +2521,7 @@ __latent_entropy struct task_struct *copy_process(
 	 */
 	if (clone_flags & CLONE_PIDFD) {
 		/* Note that no task has been attached to @pid yet. */
-		retval = __pidfd_prepare(pid, O_RDWR | O_CLOEXEC, &pidfile);
+		retval = __pidfd_prepare(pid, 0, &pidfile);
 		if (retval < 0)
 			goto bad_fork_free_pid;
 		pidfd = retval;
