@@ -4,7 +4,7 @@
 
 //! Network PHY device.
 //!
-//! C headers: [`include/linux/phy.h`](../../../../../../../include/linux/phy.h).
+//! C headers: [`include/linux/phy.h`](srctree/include/linux/phy.h).
 
 use crate::{bindings, error::*, prelude::*, str::CStr, types::Opaque};
 
@@ -16,7 +16,7 @@ use core::marker::PhantomData;
 ///
 /// Some of PHY drivers access to the state of PHY's software state machine.
 ///
-/// [`enum phy_state`]: ../../../../../../../include/linux/phy.h
+/// [`enum phy_state`]: srctree/include/linux/phy.h
 #[derive(PartialEq, Eq)]
 pub enum DeviceState {
     /// PHY device and driver are not ready for anything.
@@ -61,7 +61,7 @@ pub enum DuplexMode {
 /// Referencing a `phy_device` using this struct asserts that you are in
 /// a context where all methods defined on this struct are safe to call.
 ///
-/// [`struct phy_device`]: ../../../../../../../include/linux/phy.h
+/// [`struct phy_device`]: srctree/include/linux/phy.h
 // During the calls to most functions in [`Driver`], the C side (`PHYLIB`) holds a lock that is
 // unique for every instance of [`Device`]. `PHYLIB` uses a different serialization technique for
 // [`Driver::resume`] and [`Driver::suspend`]: `PHYLIB` updates `phy_device`'s state with
@@ -486,7 +486,7 @@ impl<T: Driver> Adapter<T> {
 ///
 /// `self.0` is always in a valid state.
 ///
-/// [`struct phy_driver`]: ../../../../../../../include/linux/phy.h
+/// [`struct phy_driver`]: srctree/include/linux/phy.h
 #[repr(transparent)]
 pub struct DriverVTable(Opaque<bindings::phy_driver>);
 
