@@ -1317,6 +1317,7 @@
   loops_per_jiffy
   mac_pton
   mas_empty_area_rev
+  max_load_balance_interval
   mbox_chan_received_data
   mbox_controller_register
   mbox_controller_unregister
@@ -2139,6 +2140,7 @@
   srcu_notifier_chain_unregister
   sscanf
   __stack_chk_fail
+  static_key_count
   static_key_disable
   static_key_enable
   static_key_slow_dec
