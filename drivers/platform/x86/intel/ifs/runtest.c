@@ -176,7 +176,7 @@ static int doscan(void *data)
 	wrmsrl(MSR_ACTIVATE_SCAN, params->activate->data);
 	rdmsrl(MSR_SCAN_STATUS, status.data);
 
-	trace_ifs_status(start, stop, status.data);
+	trace_ifs_status(ifsd->cur_batch, start, stop, status.data);
 
 	/* Pass back the result of the scan */
 	if (cpu == first)
