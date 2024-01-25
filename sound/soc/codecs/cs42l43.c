@@ -2349,7 +2349,7 @@ MODULE_DEVICE_TABLE(platform, cs42l43_codec_id_table);
 static struct platform_driver cs42l43_codec_driver = {
 	.driver = {
 		.name	= "cs42l43-codec",
-		.pm	= &cs42l43_codec_pm_ops,
+		.pm	= pm_ptr(&cs42l43_codec_pm_ops),
 	},
 
 	.probe		= cs42l43_codec_probe,
