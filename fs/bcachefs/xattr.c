@@ -590,8 +590,9 @@ err:
 	mutex_unlock(&inode->ei_update_lock);
 
 	if (value &&
-	    (opt_id == Opt_background_compression ||
-	     opt_id == Opt_background_target))
+	    (opt_id == Opt_background_target ||
+	     opt_id == Opt_background_compression ||
+	     (opt_id == Opt_compression && !inode_opt_get(c, &inode->ei_inode, background_compression))))
 		bch2_set_rebalance_needs_scan(c, inode->ei_inode.bi_inum);
 
 	return bch2_err_class(ret);

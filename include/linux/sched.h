@@ -920,7 +920,7 @@ struct task_struct {
 	unsigned			sched_rt_mutex:1;
 #endif
 
-	/* Bit to tell LSMs we're in execve(): */
+	/* Bit to tell TOMOYO we're in execve(): */
 	unsigned			in_execve:1;
 	unsigned			in_iowait:1;
 #ifndef TIF_RESTORE_SIGMASK

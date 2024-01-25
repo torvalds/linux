@@ -44,19 +44,19 @@ static bool bch2_btree_verify_replica(struct bch_fs *c, struct btree *b,
 		return false;
 
 	bio = bio_alloc_bioset(ca->disk_sb.bdev,
-			       buf_pages(n_sorted, btree_bytes(c)),
+			       buf_pages(n_sorted, btree_buf_bytes(b)),
 			       REQ_OP_READ|REQ_META,
 			       GFP_NOFS,
 			       &c->btree_bio);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
-	bch2_bio_map(bio, n_sorted, btree_bytes(c));
+	bch2_bio_map(bio, n_sorted, btree_buf_bytes(b));
 
 	submit_bio_wait(bio);
 
 	bio_put(bio);
 	percpu_ref_put(&ca->io_ref);
 
-	memcpy(n_ondisk, n_sorted, btree_bytes(c));
+	memcpy(n_ondisk, n_sorted, btree_buf_bytes(b));
 
 	v->written = 0;
 	if (bch2_btree_node_read_done(c, ca, v, false, &saw_error) || saw_error)
@@ -137,7 +137,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	mutex_lock(&c->verify_lock);
 
 	if (!c->verify_ondisk) {
-		c->verify_ondisk = kvpmalloc(btree_bytes(c), GFP_KERNEL);
+		c->verify_ondisk = kvpmalloc(btree_buf_bytes(b), GFP_KERNEL);
 		if (!c->verify_ondisk)
 			goto out;
 	}
@@ -199,19 +199,19 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-	n_ondisk = kvpmalloc(btree_bytes(c), GFP_KERNEL);
+	n_ondisk = kvpmalloc(btree_buf_bytes(b), GFP_KERNEL);
 	if (!n_ondisk) {
 		prt_printf(out, "memory allocation failure\n");
 		goto out;
 	}
 
 	bio = bio_alloc_bioset(ca->disk_sb.bdev,
-			       buf_pages(n_ondisk, btree_bytes(c)),
+			       buf_pages(n_ondisk, btree_buf_bytes(b)),
 			       REQ_OP_READ|REQ_META,
 			       GFP_NOFS,
 			       &c->btree_bio);
 	bio->bi_iter.bi_sector	= pick.ptr.offset;
-	bch2_bio_map(bio, n_ondisk, btree_bytes(c));
+	bch2_bio_map(bio, n_ondisk, btree_buf_bytes(b));
 
 	ret = submit_bio_wait(bio);
 	if (ret) {
@@ -293,7 +293,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 out:
 	if (bio)
 		bio_put(bio);
-	kvpfree(n_ondisk, btree_bytes(c));
+	kvpfree(n_ondisk, btree_buf_bytes(b));
 	percpu_ref_put(&ca->io_ref);
 }
 

@@ -391,9 +391,6 @@ struct blk_mq_hw_ctx {
 	 */
 	struct blk_mq_tags	*sched_tags;
 
-	/** @run: Number of dispatched requests. */
-	unsigned long		run;
-
 	/** @numa_node: NUMA node the storage adapter has been connected to. */
 	unsigned int		numa_node;
 	/** @queue_num: Index of this hardware queue. */

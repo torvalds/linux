@@ -83,9 +83,10 @@ enum btree_update_flags {
 
 	__BTREE_TRIGGER_NORUN,
 	__BTREE_TRIGGER_TRANSACTIONAL,
+	__BTREE_TRIGGER_ATOMIC,
+	__BTREE_TRIGGER_GC,
 	__BTREE_TRIGGER_INSERT,
 	__BTREE_TRIGGER_OVERWRITE,
-	__BTREE_TRIGGER_GC,
 	__BTREE_TRIGGER_BUCKET_INVALIDATE,
 };
 
@@ -107,15 +108,16 @@ enum btree_update_flags {
  * causing us to go emergency read-only)
  */
 #define BTREE_TRIGGER_TRANSACTIONAL	(1U << __BTREE_TRIGGER_TRANSACTIONAL)
+#define BTREE_TRIGGER_ATOMIC		(1U << __BTREE_TRIGGER_ATOMIC)
+
+/* We're in gc/fsck: running triggers to recalculate e.g. disk usage */
+#define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
 
 /* @new is entering the btree */
 #define BTREE_TRIGGER_INSERT		(1U << __BTREE_TRIGGER_INSERT)
 
 /* @old is leaving the btree */
 #define BTREE_TRIGGER_OVERWRITE		(1U << __BTREE_TRIGGER_OVERWRITE)
-
-/* We're in gc/fsck: running triggers to recalculate e.g. disk usage */
-#define BTREE_TRIGGER_GC		(1U << __BTREE_TRIGGER_GC)
 
 /* signal from bucket invalidate path to alloc trigger */
 #define BTREE_TRIGGER_BUCKET_INVALIDATE	(1U << __BTREE_TRIGGER_BUCKET_INVALIDATE)

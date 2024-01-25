@@ -1239,7 +1239,7 @@ int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
 	if (has_crtc_cm_degamma && ret != -EINVAL) {
 		drm_dbg_kms(crtc->base.crtc->dev,
 			    "doesn't support plane and CRTC degamma at the same time\n");
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/* If we are here, it means we don't have plane degamma settings, check

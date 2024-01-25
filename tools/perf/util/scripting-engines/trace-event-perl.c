@@ -490,6 +490,9 @@ static int perl_start_script(const char *script, int argc, const char **argv,
 	scripting_context->session = session;
 
 	command_line = malloc((argc + 2) * sizeof(const char *));
+	if (!command_line)
+		return -ENOMEM;
+
 	command_line[0] = "";
 	command_line[1] = script;
 	for (i = 2; i < argc + 2; i++)

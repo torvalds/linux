@@ -115,7 +115,7 @@ int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	struct xe_sched_job *job;
 	struct dma_fence *rebind_fence;
 	struct xe_vm *vm;
-	bool write_locked;
+	bool write_locked, skip_retry = false;
 	ktime_t end = 0;
 	int err = 0;
 
@@ -227,7 +227,8 @@ retry:
 	}
 
 	if (xe_exec_queue_is_lr(q) && xe_exec_queue_ring_full(q)) {
-		err = -EWOULDBLOCK;
+		err = -EWOULDBLOCK;	/* Aliased to -EAGAIN */
+		skip_retry = true;
 		goto err_exec;
 	}
 
@@ -337,7 +338,7 @@ err_unlock_list:
 		up_write(&vm->lock);
 	else
 		up_read(&vm->lock);
-	if (err == -EAGAIN)
+	if (err == -EAGAIN && !skip_retry)
 		goto retry;
 err_syncs:
 	for (i = 0; i < num_syncs; i++)

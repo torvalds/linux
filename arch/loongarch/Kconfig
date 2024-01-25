@@ -142,6 +142,7 @@ config LOONGARCH
 	select HAVE_REGS_AND_STACK_ACCESS_API
 	select HAVE_RETHOOK
 	select HAVE_RSEQ
+	select HAVE_RUST
 	select HAVE_SAMPLE_FTRACE_DIRECT
 	select HAVE_SAMPLE_FTRACE_DIRECT_MULTI
 	select HAVE_SETUP_PER_CPU_AREA if NUMA
@@ -376,6 +377,24 @@ config CMDLINE_FORCE
 
 endchoice
 
+config BUILTIN_DTB
+	bool "Enable built-in dtb in kernel"
+	depends on OF
+	help
+	  Some existing systems do not provide a canonical device tree to
+	  the kernel at boot time. Let's provide a device tree table in the
+	  kernel, keyed by the dts filename, containing the relevant DTBs.
+
+	  Built-in DTBs are generic enough and can be used as references.
+
+config BUILTIN_DTB_NAME
+	string "Source file for built-in dtb"
+	depends on BUILTIN_DTB
+	help
+	  Base name (without suffix, relative to arch/loongarch/boot/dts/)
+	  for the DTS file that will be used to produce the DTB linked into
+	  the kernel.
+
 config DMI
 	bool "Enable DMI scanning"
 	select DMI_SCAN_MACHINE_NON_EFI_FALLBACK
@@ -576,6 +595,9 @@ config ARCH_SELECTS_CRASH_DUMP
 	def_bool y
 	depends on CRASH_DUMP
 	select RELOCATABLE
+
+config ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
+	def_bool CRASH_CORE
 
 config RELOCATABLE
 	bool "Relocatable kernel"

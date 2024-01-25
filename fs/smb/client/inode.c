@@ -665,8 +665,6 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 /* Fill a cifs_fattr struct with info from POSIX info struct */
 static void smb311_posix_info_to_fattr(struct cifs_fattr *fattr,
 				       struct cifs_open_info_data *data,
-				       struct cifs_sid *owner,
-				       struct cifs_sid *group,
 				       struct super_block *sb)
 {
 	struct smb311_posix_qinfo *info = &data->posix_fi;
@@ -722,8 +720,8 @@ out_reparse:
 		fattr->cf_symlink_target = data->symlink_target;
 		data->symlink_target = NULL;
 	}
-	sid_to_id(cifs_sb, owner, fattr, SIDOWNER);
-	sid_to_id(cifs_sb, group, fattr, SIDGROUP);
+	sid_to_id(cifs_sb, &data->posix_owner, fattr, SIDOWNER);
+	sid_to_id(cifs_sb, &data->posix_group, fattr, SIDGROUP);
 
 	cifs_dbg(FYI, "POSIX query info: mode 0x%x uniqueid 0x%llx nlink %d\n",
 		fattr->cf_mode, fattr->cf_uniqueid, fattr->cf_nlink);
@@ -1070,9 +1068,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 				 const unsigned int xid,
 				 struct cifs_tcon *tcon,
 				 const char *full_path,
-				 struct cifs_fattr *fattr,
-				 struct cifs_sid *owner,
-				 struct cifs_sid *group)
+				 struct cifs_fattr *fattr)
 {
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -1117,7 +1113,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 	}
 
 	if (tcon->posix_extensions)
-		smb311_posix_info_to_fattr(fattr, data, owner, group, sb);
+		smb311_posix_info_to_fattr(fattr, data, sb);
 	else
 		cifs_open_info_to_fattr(fattr, data, sb);
 out:
@@ -1171,8 +1167,7 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 		 */
 		if (cifs_open_data_reparse(data)) {
 			rc = reparse_info_to_fattr(data, sb, xid, tcon,
-						   full_path, fattr,
-						   NULL, NULL);
+						   full_path, fattr);
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
 		}
@@ -1317,10 +1312,10 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 				  const unsigned int xid)
 {
 	struct cifs_open_info_data tmp_data = {};
+	struct TCP_Server_Info *server;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifs_tcon *tcon;
 	struct tcon_link *tlink;
-	struct cifs_sid owner, group;
 	int tmprc;
 	int rc = 0;
 
@@ -1328,14 +1323,14 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	if (IS_ERR(tlink))
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
+	server = tcon->ses->server;
 
 	/*
 	 * 1. Fetch file metadata if not provided (data)
 	 */
 	if (!data) {
-		rc = smb311_posix_query_path_info(xid, tcon, cifs_sb,
-						  full_path, &tmp_data,
-						  &owner, &group);
+		rc = server->ops->query_path_info(xid, tcon, cifs_sb,
+						  full_path, &tmp_data);
 		data = &tmp_data;
 	}
 
@@ -1347,11 +1342,9 @@ static int smb311_posix_get_fattr(struct cifs_open_info_data *data,
 	case 0:
 		if (cifs_open_data_reparse(data)) {
 			rc = reparse_info_to_fattr(data, sb, xid, tcon,
-						   full_path, fattr,
-						   &owner, &group);
+						   full_path, fattr);
 		} else {
-			smb311_posix_info_to_fattr(fattr, data,
-						   &owner, &group, sb);
+			smb311_posix_info_to_fattr(fattr, data, sb);
 		}
 		break;
 	case -EREMOTE:

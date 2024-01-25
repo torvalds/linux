@@ -362,9 +362,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 				     bkey_start_pos(&sk.k->k),
 				     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
 
-		ret =   bch2_bkey_set_needs_rebalance(c, sk.k,
-					op->opts.background_target,
-					op->opts.background_compression) ?:
+		ret =   bch2_bkey_set_needs_rebalance(c, sk.k, &op->opts) ?:
 			bch2_extent_update(trans, inum, &iter, sk.k,
 					&op->res,
 					op->new_i_size, &op->i_sectors_delta,
@@ -1447,10 +1445,11 @@ err:
 			op->flags |= BCH_WRITE_DONE;
 
 			if (ret < 0) {
-				bch_err_inum_offset_ratelimited(c,
-					op->pos.inode,
-					op->pos.offset << 9,
-					"%s(): error: %s", __func__, bch2_err_str(ret));
+				if (!(op->flags & BCH_WRITE_ALLOC_NOWAIT))
+					bch_err_inum_offset_ratelimited(c,
+						op->pos.inode,
+						op->pos.offset << 9,
+						"%s(): error: %s", __func__, bch2_err_str(ret));
 				op->error = ret;
 				break;
 			}

@@ -597,7 +597,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			      "bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
 			      p.ptr.gen,
 			      (printbuf_reset(&buf),
 			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))) {
@@ -615,7 +615,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			      "bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
 			      p.ptr.gen, g->gen,
 			      (printbuf_reset(&buf),
 			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))) {
@@ -637,7 +637,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			      "bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
-			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
 			      p.ptr.gen,
 			      (printbuf_reset(&buf),
 			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf))))
@@ -649,7 +649,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			      "bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
 			      "while marking %s",
 			      p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-			      bch2_data_types[ptr_data_type(k->k, &p.ptr)],
+			      bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
 			      p.ptr.gen, g->gen,
 			      (printbuf_reset(&buf),
 			       bch2_bkey_val_to_text(&buf, c, *k), buf.buf))))
@@ -664,8 +664,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
 				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_types[g->data_type],
-				bch2_data_types[data_type],
+				bch2_data_type_str(g->data_type),
+				bch2_data_type_str(data_type),
 				(printbuf_reset(&buf),
 				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
 			if (data_type == BCH_DATA_btree) {
@@ -1238,11 +1238,11 @@ static int bch2_gc_done(struct bch_fs *c,
 
 		for (i = 0; i < BCH_DATA_NR; i++) {
 			copy_dev_field(dev_usage_buckets_wrong,
-				       d[i].buckets,	"%s buckets", bch2_data_types[i]);
+				       d[i].buckets,	"%s buckets", bch2_data_type_str(i));
 			copy_dev_field(dev_usage_sectors_wrong,
-				       d[i].sectors,	"%s sectors", bch2_data_types[i]);
+				       d[i].sectors,	"%s sectors", bch2_data_type_str(i));
 			copy_dev_field(dev_usage_fragmented_wrong,
-				       d[i].fragmented,	"%s fragmented", bch2_data_types[i]);
+				       d[i].fragmented,	"%s fragmented", bch2_data_type_str(i));
 		}
 	}
 
@@ -1253,19 +1253,19 @@ static int bch2_gc_done(struct bch_fs *c,
 			bch2_acc_percpu_u64s((u64 __percpu *) c->usage_gc, nr);
 
 		copy_fs_field(fs_usage_hidden_wrong,
-			      hidden,		"hidden");
+			      b.hidden,		"hidden");
 		copy_fs_field(fs_usage_btree_wrong,
-			      btree,		"btree");
+			      b.btree,		"btree");
 
 		if (!metadata_only) {
 			copy_fs_field(fs_usage_data_wrong,
-				      data,	"data");
+				      b.data,	"data");
 			copy_fs_field(fs_usage_cached_wrong,
-				      cached,	"cached");
+				      b.cached,	"cached");
 			copy_fs_field(fs_usage_reserved_wrong,
-				      reserved,	"reserved");
+				      b.reserved,	"reserved");
 			copy_fs_field(fs_usage_nr_inodes_wrong,
-				      nr_inodes,"nr_inodes");
+				      b.nr_inodes,"nr_inodes");
 
 			for (i = 0; i < BCH_REPLICAS_MAX; i++)
 				copy_fs_field(fs_usage_persistent_reserved_wrong,
@@ -1417,8 +1417,8 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 			": got %s, should be %s",
 			iter->pos.inode, iter->pos.offset,
 			gc.gen,
-			bch2_data_types[new.data_type],
-			bch2_data_types[gc.data_type]))
+			bch2_data_type_str(new.data_type),
+			bch2_data_type_str(gc.data_type)))
 		new.data_type = gc.data_type;
 
 #define copy_bucket_field(_errtype, _f)					\
@@ -1428,7 +1428,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 			": got %u, should be %u",			\
 			iter->pos.inode, iter->pos.offset,		\
 			gc.gen,						\
-			bch2_data_types[gc.data_type],			\
+			bch2_data_type_str(gc.data_type),		\
 			new._f, gc._f))					\
 		new._f = gc._f;						\
 

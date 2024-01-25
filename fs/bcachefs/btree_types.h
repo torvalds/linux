@@ -430,6 +430,9 @@ struct btree_trans {
 	struct journal_res	journal_res;
 	u64			*journal_seq;
 	struct disk_reservation *disk_res;
+
+	struct bch_fs_usage_base fs_usage_delta;
+
 	unsigned		journal_u64s;
 	unsigned		extra_disk_res; /* XXX kill */
 	struct replicas_delta_list *fs_usage_deltas;
@@ -653,7 +656,7 @@ const char *bch2_btree_node_type_str(enum btree_node_type);
 	 BIT_ULL(BKEY_TYPE_reflink)|			\
 	 BIT_ULL(BKEY_TYPE_btree))
 
-#define BTREE_NODE_TYPE_HAS_MEM_TRIGGERS		\
+#define BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS		\
 	(BIT_ULL(BKEY_TYPE_alloc)|			\
 	 BIT_ULL(BKEY_TYPE_inodes)|			\
 	 BIT_ULL(BKEY_TYPE_stripes)|			\
@@ -661,7 +664,7 @@ const char *bch2_btree_node_type_str(enum btree_node_type);
 
 #define BTREE_NODE_TYPE_HAS_TRIGGERS			\
 	(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS|		\
-	 BTREE_NODE_TYPE_HAS_MEM_TRIGGERS)
+	 BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS)
 
 static inline bool btree_node_type_needs_gc(enum btree_node_type type)
 {
@@ -736,6 +739,11 @@ enum btree_gc_coalesce_fail_reason {
 enum btree_node_sibling {
 	btree_prev_sib,
 	btree_next_sib,
+};
+
+struct get_locks_fail {
+	unsigned	l;
+	struct btree	*b;
 };
 
 #endif /* _BCACHEFS_BTREE_TYPES_H */

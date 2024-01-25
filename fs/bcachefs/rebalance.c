@@ -177,8 +177,7 @@ static struct bkey_s_c next_rebalance_extent(struct btree_trans *trans,
 		prt_str(&buf, "target=");
 		bch2_target_to_text(&buf, c, r->target);
 		prt_str(&buf, " compression=");
-		struct bch_compression_opt opt = __bch2_compression_decode(r->compression);
-		prt_str(&buf, bch2_compression_opts[opt.type]);
+		bch2_compression_opt_to_text(&buf, r->compression);
 		prt_str(&buf, " ");
 		bch2_bkey_val_to_text(&buf, c, k);
 
@@ -254,13 +253,12 @@ static bool rebalance_pred(struct bch_fs *c, void *arg,
 
 	if (k.k->p.inode) {
 		target		= io_opts->background_target;
-		compression	= io_opts->background_compression ?: io_opts->compression;
+		compression	= background_compression(*io_opts);
 	} else {
 		const struct bch_extent_rebalance *r = bch2_bkey_rebalance_opts(k);
 
 		target		= r ? r->target : io_opts->background_target;
-		compression	= r ? r->compression :
-			(io_opts->background_compression ?: io_opts->compression);
+		compression	= r ? r->compression : background_compression(*io_opts);
 	}
 
 	data_opts->rewrite_ptrs		= bch2_bkey_ptrs_need_rebalance(c, k, target, compression);
@@ -371,6 +369,7 @@ static int do_rebalance(struct moving_context *ctxt)
 	    !kthread_should_stop() &&
 	    !atomic64_read(&r->work_stats.sectors_seen) &&
 	    !atomic64_read(&r->scan_stats.sectors_seen)) {
+		bch2_moving_ctxt_flush_all(ctxt);
 		bch2_trans_unlock_long(trans);
 		rebalance_wait(c);
 	}
@@ -385,7 +384,6 @@ static int bch2_rebalance_thread(void *arg)
 	struct bch_fs *c = arg;
 	struct bch_fs_rebalance *r = &c->rebalance;
 	struct moving_context ctxt;
-	int ret;
 
 	set_freezable();
 
@@ -393,8 +391,7 @@ static int bch2_rebalance_thread(void *arg)
 			      writepoint_ptr(&c->rebalance_write_point),
 			      true);
 
-	while (!kthread_should_stop() &&
-	       !(ret = do_rebalance(&ctxt)))
+	while (!kthread_should_stop() && !do_rebalance(&ctxt))
 		;
 
 	bch2_moving_ctxt_exit(&ctxt);

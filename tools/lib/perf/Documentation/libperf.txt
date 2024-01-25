@@ -37,7 +37,7 @@ SYNOPSIS
 
   struct perf_cpu_map;
 
-  struct perf_cpu_map *perf_cpu_map__dummy_new(void);
+  struct perf_cpu_map *perf_cpu_map__new_any_cpu(void);
   struct perf_cpu_map *perf_cpu_map__new(const char *cpu_list);
   struct perf_cpu_map *perf_cpu_map__read(FILE *file);
   struct perf_cpu_map *perf_cpu_map__get(struct perf_cpu_map *map);
@@ -46,7 +46,7 @@ SYNOPSIS
   void perf_cpu_map__put(struct perf_cpu_map *map);
   int perf_cpu_map__cpu(const struct perf_cpu_map *cpus, int idx);
   int perf_cpu_map__nr(const struct perf_cpu_map *cpus);
-  bool perf_cpu_map__empty(const struct perf_cpu_map *map);
+  bool perf_cpu_map__has_any_cpu_or_is_empty(const struct perf_cpu_map *map);
   int perf_cpu_map__max(struct perf_cpu_map *map);
   bool perf_cpu_map__has(const struct perf_cpu_map *map, int cpu);
 

@@ -2,6 +2,7 @@
 #ifndef _BCACHEFS_BACKPOINTERS_BACKGROUND_H
 #define _BCACHEFS_BACKPOINTERS_BACKGROUND_H
 
+#include "btree_cache.h"
 #include "btree_iter.h"
 #include "btree_update.h"
 #include "buckets.h"

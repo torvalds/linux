@@ -720,7 +720,7 @@ static noinline void __build_ro_aux_tree(struct btree *b, struct bset_tree *t)
 {
 	struct bkey_packed *prev = NULL, *k = btree_bkey_first(b, t);
 	struct bkey_i min_key, max_key;
-	unsigned j, cacheline = 1;
+	unsigned cacheline = 1;
 
 	t->size = min(bkey_to_cacheline(b, t, btree_bkey_last(b, t)),
 		      bset_ro_tree_capacity(b, t));
@@ -823,13 +823,12 @@ void bch2_bset_init_first(struct btree *b, struct bset *i)
 	set_btree_bset(b, t, i);
 }
 
-void bch2_bset_init_next(struct bch_fs *c, struct btree *b,
-			 struct btree_node_entry *bne)
+void bch2_bset_init_next(struct btree *b, struct btree_node_entry *bne)
 {
 	struct bset *i = &bne->keys;
 	struct bset_tree *t;
 
-	BUG_ON(bset_byte_offset(b, bne) >= btree_bytes(c));
+	BUG_ON(bset_byte_offset(b, bne) >= btree_buf_bytes(b));
 	BUG_ON((void *) bne < (void *) btree_bkey_last(b, bset_tree_last(b)));
 	BUG_ON(b->nsets >= MAX_BSETS);
 

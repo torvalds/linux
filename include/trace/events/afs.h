@@ -902,37 +902,6 @@ TRACE_EVENT(afs_dir_check_failed,
 		      __entry->vnode, __entry->off, __entry->i_size)
 	    );
 
-TRACE_EVENT(afs_folio_dirty,
-	    TP_PROTO(struct afs_vnode *vnode, const char *where, struct folio *folio),
-
-	    TP_ARGS(vnode, where, folio),
-
-	    TP_STRUCT__entry(
-		    __field(struct afs_vnode *,		vnode)
-		    __field(const char *,		where)
-		    __field(pgoff_t,			index)
-		    __field(unsigned long,		from)
-		    __field(unsigned long,		to)
-			     ),
-
-	    TP_fast_assign(
-		    unsigned long priv = (unsigned long)folio_get_private(folio);
-		    __entry->vnode = vnode;
-		    __entry->where = where;
-		    __entry->index = folio_index(folio);
-		    __entry->from  = afs_folio_dirty_from(folio, priv);
-		    __entry->to    = afs_folio_dirty_to(folio, priv);
-		    __entry->to   |= (afs_is_folio_dirty_mmapped(priv) ?
-				      (1UL << (BITS_PER_LONG - 1)) : 0);
-			   ),
-
-	    TP_printk("vn=%p %lx %s %lx-%lx%s",
-		      __entry->vnode, __entry->index, __entry->where,
-		      __entry->from,
-		      __entry->to & ~(1UL << (BITS_PER_LONG - 1)),
-		      __entry->to & (1UL << (BITS_PER_LONG - 1)) ? " M" : "")
-	    );
-
 TRACE_EVENT(afs_call_state,
 	    TP_PROTO(struct afs_call *call,
 		     enum afs_call_state from,
@@ -1100,6 +1069,31 @@ TRACE_EVENT(afs_file_error,
 		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
 		      __entry->error,
 		      __print_symbolic(__entry->where, afs_file_errors))
+	    );
+
+TRACE_EVENT(afs_bulkstat_error,
+	    TP_PROTO(struct afs_operation *op, struct afs_fid *fid, unsigned int index, s32 abort),
+
+	    TP_ARGS(op, fid, index, abort),
+
+	    TP_STRUCT__entry(
+		    __field_struct(struct afs_fid,	fid)
+		    __field(unsigned int,		op)
+		    __field(unsigned int,		index)
+		    __field(s32,			abort)
+			     ),
+
+	    TP_fast_assign(
+		    __entry->op = op->debug_id;
+		    __entry->fid = *fid;
+		    __entry->index = index;
+		    __entry->abort = abort;
+			   ),
+
+	    TP_printk("OP=%08x[%02x] %llx:%llx:%x a=%d",
+		      __entry->op, __entry->index,
+		      __entry->fid.vid, __entry->fid.vnode, __entry->fid.unique,
+		      __entry->abort)
 	    );
 
 TRACE_EVENT(afs_cm_no_server,

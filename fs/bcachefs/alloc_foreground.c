@@ -1525,10 +1525,11 @@ static void bch2_open_bucket_to_text(struct printbuf *out, struct bch_fs *c, str
 	unsigned data_type = ob->data_type;
 	barrier(); /* READ_ONCE() doesn't work on bitfields */
 
-	prt_printf(out, "%zu ref %u %s %u:%llu gen %u allocated %u/%u",
+	prt_printf(out, "%zu ref %u ",
 		   ob - c->open_buckets,
-		   atomic_read(&ob->pin),
-		   data_type < BCH_DATA_NR ? bch2_data_types[data_type] : "invalid data type",
+		   atomic_read(&ob->pin));
+	bch2_prt_data_type(out, data_type);
+	prt_printf(out, " %u:%llu gen %u allocated %u/%u",
 		   ob->dev, ob->bucket, ob->gen,
 		   ca->mi.bucket_size - ob->sectors_free, ca->mi.bucket_size);
 	if (ob->ec)

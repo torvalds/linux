@@ -8,6 +8,7 @@
 
 #include "bcachefs.h"
 #include "bkey_methods.h"
+#include "btree_cache.h"
 #include "btree_gc.h"
 #include "btree_io.h"
 #include "btree_iter.h"
@@ -1018,12 +1019,12 @@ void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			struct bch_extent_crc_unpacked crc =
 				bch2_extent_crc_unpack(k.k, entry_to_crc(entry));
 
-			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress %s",
+			prt_printf(out, "crc: c_size %u size %u offset %u nonce %u csum %s compress ",
 			       crc.compressed_size,
 			       crc.uncompressed_size,
 			       crc.offset, crc.nonce,
-			       bch2_csum_types[crc.csum_type],
-			       bch2_compression_types[crc.compression_type]);
+			       bch2_csum_types[crc.csum_type]);
+			bch2_prt_compression_type(out, crc.compression_type);
 			break;
 		}
 		case BCH_EXTENT_ENTRY_stripe_ptr: {
@@ -1334,10 +1335,12 @@ bool bch2_bkey_needs_rebalance(struct bch_fs *c, struct bkey_s_c k)
 }
 
 int bch2_bkey_set_needs_rebalance(struct bch_fs *c, struct bkey_i *_k,
-				  unsigned target, unsigned compression)
+				  struct bch_io_opts *opts)
 {
 	struct bkey_s k = bkey_i_to_s(_k);
 	struct bch_extent_rebalance *r;
+	unsigned target = opts->background_target;
+	unsigned compression = background_compression(*opts);
 	bool needs_rebalance;
 
 	if (!bkey_extent_is_direct_data(k.k))

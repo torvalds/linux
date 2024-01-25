@@ -312,8 +312,7 @@ void bch2_btree_node_lock_write_nofail(struct btree_trans *,
 
 /* relock: */
 
-bool bch2_btree_path_relock_norestart(struct btree_trans *,
-				      struct btree_path *, unsigned long);
+bool bch2_btree_path_relock_norestart(struct btree_trans *, struct btree_path *);
 int __bch2_btree_path_relock(struct btree_trans *,
 			     struct btree_path *, unsigned long);
 
@@ -352,12 +351,6 @@ static inline bool bch2_btree_node_relock_notrace(struct btree_trans *trans,
 }
 
 /* upgrade */
-
-
-struct get_locks_fail {
-	unsigned	l;
-	struct btree	*b;
-};
 
 bool bch2_btree_path_upgrade_noupgrade_sibs(struct btree_trans *,
 			       struct btree_path *, unsigned,

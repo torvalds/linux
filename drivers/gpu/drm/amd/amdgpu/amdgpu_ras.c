@@ -305,11 +305,13 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 			return -EINVAL;
 
 		data->head.block = block_id;
-		/* only ue and ce errors are supported */
+		/* only ue, ce and poison errors are supported */
 		if (!memcmp("ue", err, 2))
 			data->head.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
 		else if (!memcmp("ce", err, 2))
 			data->head.type = AMDGPU_RAS_ERROR__SINGLE_CORRECTABLE;
+		else if (!memcmp("poison", err, 6))
+			data->head.type = AMDGPU_RAS_ERROR__POISON;
 		else
 			return -EINVAL;
 
@@ -431,9 +433,10 @@ static void amdgpu_ras_instance_mask_check(struct amdgpu_device *adev,
  * The block is one of: umc, sdma, gfx, etc.
  *	see ras_block_string[] for details
  *
- * The error type is one of: ue, ce, where,
+ * The error type is one of: ue, ce and poison where,
  *	ue is multi-uncorrectable
  *	ce is single-correctable
+ *	poison is poison
  *
  * The sub-block is a the sub-block index, pass 0 if there is no sub-block.
  * The address and value are hexadecimal numbers, leading 0x is optional.
@@ -1067,8 +1070,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 			mcm_info = &err_info->mcm_info;
 			if (err_info->ce_count) {
 				dev_info(adev->dev, "socket: %d, die: %d, "
-					 "%lld new correctable hardware errors detected in %s block, "
-					 "no user action is needed\n",
+					 "%lld new correctable hardware errors detected in %s block\n",
 					 mcm_info->socket_id,
 					 mcm_info->die_id,
 					 err_info->ce_count,
@@ -1080,8 +1082,7 @@ static void amdgpu_ras_error_print_error_data(struct amdgpu_device *adev,
 			err_info = &err_node->err_info;
 			mcm_info = &err_info->mcm_info;
 			dev_info(adev->dev, "socket: %d, die: %d, "
-				 "%lld correctable hardware errors detected in total in %s block, "
-				 "no user action is needed\n",
+				 "%lld correctable hardware errors detected in total in %s block\n",
 				 mcm_info->socket_id, mcm_info->die_id, err_info->ce_count, blk_name);
 		}
 	}
@@ -1108,16 +1109,14 @@ static void amdgpu_ras_error_generate_report(struct amdgpu_device *adev,
 			   adev->smuio.funcs->get_die_id) {
 			dev_info(adev->dev, "socket: %d, die: %d "
 				 "%ld correctable hardware errors "
-				 "detected in %s block, no user "
-				 "action is needed.\n",
+				 "detected in %s block\n",
 				 adev->smuio.funcs->get_socket_id(adev),
 				 adev->smuio.funcs->get_die_id(adev),
 				 ras_mgr->err_data.ce_count,
 				 blk_name);
 		} else {
 			dev_info(adev->dev, "%ld correctable hardware errors "
-				 "detected in %s block, no user "
-				 "action is needed.\n",
+				 "detected in %s block\n",
 				 ras_mgr->err_data.ce_count,
 				 blk_name);
 		}
@@ -1920,7 +1919,7 @@ static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj
 				struct amdgpu_iv_entry *entry)
 {
 	dev_info(obj->adev->dev,
-		"Poison is created, no user action is needed.\n");
+		"Poison is created\n");
 }
 
 static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
@@ -2919,6 +2918,11 @@ int amdgpu_ras_init(struct amdgpu_device *adev)
 	}
 
 	amdgpu_ras_query_poison_mode(adev);
+
+	/* Packed socket_id to ras feature mask bits[31:29] */
+	if (adev->smuio.funcs &&
+	    adev->smuio.funcs->get_socket_id)
+		con->features |= ((adev->smuio.funcs->get_socket_id(adev)) << 29);
 
 	/* Get RAS schema for particular SOC */
 	con->schema = amdgpu_get_ras_schema(adev);

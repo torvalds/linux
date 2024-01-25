@@ -401,8 +401,7 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 
 			if (err_data.ce_count)
 				dev_info(adev->dev, "%ld correctable hardware "
-						"errors detected in %s block, "
-						"no user action is needed.\n",
+						"errors detected in %s block\n",
 						obj->err_data.ce_count,
 						get_ras_block_str(adev->nbio.ras_if));
 

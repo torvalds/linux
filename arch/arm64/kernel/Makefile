@@ -73,7 +73,13 @@ obj-$(CONFIG_ARM64_MTE)			+= mte.o
 obj-y					+= vdso-wrap.o
 obj-$(CONFIG_COMPAT_VDSO)		+= vdso32-wrap.o
 obj-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)	+= patch-scs.o
-CFLAGS_patch-scs.o			+= -mbranch-protection=none
+
+# We need to prevent the SCS patching code from patching itself. Using
+# -mbranch-protection=none here to avoid the patchable PAC opcodes from being
+# generated triggers an issue with full LTO on Clang, which stops emitting PAC
+# instructions altogether. So instead, omit the unwind tables used by the
+# patching code, so it will not be able to locate its own PAC instructions.
+CFLAGS_patch-scs.o			+= -fno-asynchronous-unwind-tables -fno-unwind-tables
 
 # Force dependency (vdso*-wrap.S includes vdso.so through incbin)
 $(obj)/vdso-wrap.o: $(obj)/vdso/vdso.so

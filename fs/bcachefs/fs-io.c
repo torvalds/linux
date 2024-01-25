@@ -675,8 +675,11 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 		bch2_i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 
-		drop_locks_do(trans,
-			(bch2_mark_pagecache_reserved(inode, hole_start, iter.pos.offset), 0));
+		if (bch2_mark_pagecache_reserved(inode, &hole_start,
+						 iter.pos.offset, true))
+			drop_locks_do(trans,
+				bch2_mark_pagecache_reserved(inode, &hole_start,
+							     iter.pos.offset, false));
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))

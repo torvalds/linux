@@ -50,7 +50,7 @@ static ssize_t cachefiles_ondemand_fd_write_iter(struct kiocb *kiocb,
 		return -ENOBUFS;
 
 	cachefiles_begin_secure(cache, &saved_cred);
-	ret = __cachefiles_prepare_write(object, file, &pos, &len, true);
+	ret = __cachefiles_prepare_write(object, file, &pos, &len, len, true);
 	cachefiles_end_secure(cache, saved_cred);
 	if (ret < 0)
 		return ret;
@@ -538,6 +538,9 @@ int cachefiles_ondemand_init_object(struct cachefiles_object *object)
 	struct fscache_cookie *cookie = object->cookie;
 	struct fscache_volume *volume = object->volume->vcookie;
 	size_t volume_key_size, cookie_key_size, data_len;
+
+	if (!object->ondemand)
+		return 0;
 
 	/*
 	 * CacheFiles will firstly check the cache file under the root cache

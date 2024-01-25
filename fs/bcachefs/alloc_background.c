@@ -273,7 +273,7 @@ int bch2_alloc_v4_invalid(struct bch_fs *c, struct bkey_s_c k,
 		bkey_fsck_err_on(!bch2_bucket_sectors_dirty(*a.v),
 				 c, err, alloc_key_dirty_sectors_0,
 				 "data_type %s but dirty_sectors==0",
-				 bch2_data_types[a.v->data_type]);
+				 bch2_data_type_str(a.v->data_type));
 		break;
 	case BCH_DATA_cached:
 		bkey_fsck_err_on(!a.v->cached_sectors ||
@@ -321,16 +321,12 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 {
 	struct bch_alloc_v4 _a;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &_a);
-	unsigned i;
 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "gen %u oldest_gen %u data_type %s",
-	       a->gen, a->oldest_gen,
-	       a->data_type < BCH_DATA_NR
-	       ? bch2_data_types[a->data_type]
-	       : "(invalid data type)");
+	prt_printf(out, "gen %u oldest_gen %u data_type ", a->gen, a->oldest_gen);
+	bch2_prt_data_type(out, a->data_type);
 	prt_newline(out);
 	prt_printf(out, "journal_seq       %llu",	a->journal_seq);
 	prt_newline(out);
@@ -353,23 +349,6 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "fragmentation     %llu",	a->fragmentation_lru);
 	prt_newline(out);
 	prt_printf(out, "bp_start          %llu", BCH_ALLOC_V4_BACKPOINTERS_START(a));
-	prt_newline(out);
-
-	if (BCH_ALLOC_V4_NR_BACKPOINTERS(a)) {
-		struct bkey_s_c_alloc_v4 a_raw = bkey_s_c_to_alloc_v4(k);
-		const struct bch_backpointer *bps = alloc_v4_backpointers_c(a_raw.v);
-
-		prt_printf(out, "backpointers:     %llu", BCH_ALLOC_V4_NR_BACKPOINTERS(a_raw.v));
-		printbuf_indent_add(out, 2);
-
-		for (i = 0; i < BCH_ALLOC_V4_NR_BACKPOINTERS(a_raw.v); i++) {
-			prt_newline(out);
-			bch2_backpointer_to_text(out, &bps[i]);
-		}
-
-		printbuf_indent_sub(out, 2);
-	}
-
 	printbuf_indent_sub(out, 2);
 }
 
@@ -839,7 +818,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		}
 	}
 
-	if (!(flags & BTREE_TRIGGER_TRANSACTIONAL) && (flags & BTREE_TRIGGER_INSERT)) {
+	if ((flags & BTREE_TRIGGER_ATOMIC) && (flags & BTREE_TRIGGER_INSERT)) {
 		struct bch_alloc_v4 *new_a = bkey_s_to_alloc_v4(new).v;
 		u64 journal_seq = trans->journal_res.seq;
 		u64 bucket_journal_seq = new_a->journal_seq;
@@ -1625,13 +1604,36 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 	return ret;
 }
 
+struct discard_buckets_state {
+	u64		seen;
+	u64		open;
+	u64		need_journal_commit;
+	u64		discarded;
+	struct bch_dev	*ca;
+	u64		need_journal_commit_this_dev;
+};
+
+static void discard_buckets_next_dev(struct bch_fs *c, struct discard_buckets_state *s, struct bch_dev *ca)
+{
+	if (s->ca == ca)
+		return;
+
+	if (s->ca && s->need_journal_commit_this_dev >
+	    bch2_dev_usage_read(s->ca).d[BCH_DATA_free].buckets)
+		bch2_journal_flush_async(&c->journal, NULL);
+
+	if (s->ca)
+		percpu_ref_put(&s->ca->ref);
+	if (ca)
+		percpu_ref_get(&ca->ref);
+	s->ca = ca;
+	s->need_journal_commit_this_dev = 0;
+}
+
 static int bch2_discard_one_bucket(struct btree_trans *trans,
 				   struct btree_iter *need_discard_iter,
 				   struct bpos *discard_pos_done,
-				   u64 *seen,
-				   u64 *open,
-				   u64 *need_journal_commit,
-				   u64 *discarded)
+				   struct discard_buckets_state *s)
 {
 	struct bch_fs *c = trans->c;
 	struct bpos pos = need_discard_iter->pos;
@@ -1643,20 +1645,24 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	int ret = 0;
 
 	ca = bch_dev_bkey_exists(c, pos.inode);
+
 	if (!percpu_ref_tryget(&ca->io_ref)) {
 		bch2_btree_iter_set_pos(need_discard_iter, POS(pos.inode + 1, 0));
 		return 0;
 	}
 
+	discard_buckets_next_dev(c, s, ca);
+
 	if (bch2_bucket_is_open_safe(c, pos.inode, pos.offset)) {
-		(*open)++;
+		s->open++;
 		goto out;
 	}
 
 	if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
 			c->journal.flushed_seq_ondisk,
 			pos.inode, pos.offset)) {
-		(*need_journal_commit)++;
+		s->need_journal_commit++;
+		s->need_journal_commit_this_dev++;
 		goto out;
 	}
 
@@ -1732,9 +1738,9 @@ write:
 		goto out;
 
 	count_event(c, bucket_discard);
-	(*discarded)++;
+	s->discarded++;
 out:
-	(*seen)++;
+	s->seen++;
 	bch2_trans_iter_exit(trans, &iter);
 	percpu_ref_put(&ca->io_ref);
 	printbuf_exit(&buf);
@@ -1744,7 +1750,7 @@ out:
 static void bch2_do_discards_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, discard_work);
-	u64 seen = 0, open = 0, need_journal_commit = 0, discarded = 0;
+	struct discard_buckets_state s = {};
 	struct bpos discard_pos_done = POS_MAX;
 	int ret;
 
@@ -1756,19 +1762,14 @@ static void bch2_do_discards_work(struct work_struct *work)
 	ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter,
 				   BTREE_ID_need_discard, POS_MIN, 0, k,
-			bch2_discard_one_bucket(trans, &iter, &discard_pos_done,
-						&seen,
-						&open,
-						&need_journal_commit,
-						&discarded)));
+			bch2_discard_one_bucket(trans, &iter, &discard_pos_done, &s)));
 
-	if (need_journal_commit * 2 > seen)
-		bch2_journal_flush_async(&c->journal, NULL);
+	discard_buckets_next_dev(c, &s, NULL);
+
+	trace_discard_buckets(c, s.seen, s.open, s.need_journal_commit, s.discarded,
+			      bch2_err_str(ret));
 
 	bch2_write_ref_put(c, BCH_WRITE_REF_discard);
-
-	trace_discard_buckets(c, seen, open, need_journal_commit, discarded,
-			      bch2_err_str(ret));
 }
 
 void bch2_do_discards(struct bch_fs *c)

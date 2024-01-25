@@ -356,6 +356,8 @@ int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
 	ret;											\
 })
 
+void bch2_trans_account_disk_usage_change(struct btree_trans *);
+
 void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 
@@ -383,6 +385,21 @@ static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
 	}
 
 	return false;
+}
+
+static inline const char *bch2_data_type_str(enum bch_data_type type)
+{
+	return type < BCH_DATA_NR
+		? __bch2_data_types[type]
+		: "(invalid data type)";
+}
+
+static inline void bch2_prt_data_type(struct printbuf *out, enum bch_data_type type)
+{
+	if (type < BCH_DATA_NR)
+		prt_str(out, __bch2_data_types[type]);
+	else
+		prt_printf(out, "(invalid data type %u)", type);
 }
 
 /* disk reservations: */
