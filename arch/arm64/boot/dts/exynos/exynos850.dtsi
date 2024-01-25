@@ -184,6 +184,16 @@
 			clock-names = "fin_pll", "mct";
 		};
 
+		pdma0: dma-controller@120c0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x120c0000 0x1000>;
+			clocks = <&cmu_core CLK_GOUT_PDMA_CORE_ACLK>;
+			clock-names = "apb_pclk";
+			#dma-cells = <1>;
+			interrupts = <GIC_SPI 479 IRQ_TYPE_LEVEL_HIGH>;
+			arm,pl330-broken-no-flushp;
+		};
+
 		gic: interrupt-controller@12a01000 {
 			compatible = "arm,gic-400";
 			#interrupt-cells = <3>;
