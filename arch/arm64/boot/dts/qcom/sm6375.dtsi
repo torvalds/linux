@@ -1431,13 +1431,15 @@
 			assigned-clock-rates = <19200000>, <133333333>;
 
 			interrupts-extended = <&intc GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
-					      <&mpm 12 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+					      <&mpm 94 IRQ_TYPE_EDGE_BOTH>,
 					      <&mpm 93 IRQ_TYPE_EDGE_BOTH>,
-					      <&mpm 94 IRQ_TYPE_EDGE_BOTH>;
-			interrupt-names = "hs_phy_irq",
-					  "ss_phy_irq",
+					      <&mpm 12 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pwr_event",
+					  "hs_phy_irq",
+					  "dp_hs_phy_irq",
 					  "dm_hs_phy_irq",
-					  "dp_hs_phy_irq";
+					  "ss_phy_irq";
 
 			power-domains = <&gcc USB30_PRIM_GDSC>;
 
