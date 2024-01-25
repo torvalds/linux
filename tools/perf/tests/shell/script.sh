@@ -54,7 +54,14 @@ def sample_table(*args):
 def call_path_table(*args):
     print(f'call_path_table({args}')
 _end_of_file_
-	perf record -g -o "${perfdatafile}" true
+	case $(uname -m)
+	in s390x)
+		cmd_flags="--call-graph dwarf -e cpu-clock";;
+	*)
+		cmd_flags="-g";;
+	esac
+
+	perf record $cmd_flags -o "${perfdatafile}" true
 	perf script -i "${perfdatafile}" -s "${db_test}"
 	echo "DB test [Success]"
 }
