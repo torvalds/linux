@@ -67,6 +67,7 @@
 #define SYSLOCK_RETRY_CNT			1000
 
 #define UART_RX_BYTE_FIFO			0x00
+#define UART_TX_BYTE_FIFO			0x00
 #define UART_FIFO_CTL				0x02
 
 #define UART_ACTV_REG				0x11
@@ -100,6 +101,7 @@
 #define UART_RESET_D3_RESET_DISABLE		BIT(16)
 
 #define UART_BURST_STATUS_REG			0x9C
+#define UART_TX_BURST_FIFO			0xA0
 #define UART_RX_BURST_FIFO			0xA4
 
 #define MAX_PORTS				4
@@ -109,6 +111,7 @@
 #define UART_BURST_SIZE				4
 
 #define UART_BST_STAT_RX_COUNT_MASK		0x00FF
+#define UART_BST_STAT_TX_COUNT_MASK		0xFF00
 #define UART_BST_STAT_IIR_INT_PEND		0x100000
 #define UART_LSR_OVERRUN_ERR_CLR		0x43
 #define UART_BST_STAT_LSR_RX_MASK		0x9F000000
@@ -116,6 +119,7 @@
 #define UART_BST_STAT_LSR_OVERRUN_ERR		0x2000000
 #define UART_BST_STAT_LSR_PARITY_ERR		0x4000000
 #define UART_BST_STAT_LSR_FRAME_ERR		0x8000000
+#define UART_BST_STAT_LSR_THRE			0x20000000
 
 struct pci1xxxx_8250 {
 	unsigned int nr;
@@ -344,6 +348,105 @@ static void pci1xxxx_rx_burst(struct uart_port *port, u32 uart_status)
 	}
 }
 
+static void pci1xxxx_process_write_data(struct uart_port *port,
+					struct circ_buf *xmit,
+					int *data_empty_count,
+					u32 *valid_byte_count)
+{
+	u32 valid_burst_count = *valid_byte_count / UART_BURST_SIZE;
+
+	/*
+	 * Each transaction transfers data in DWORDs. If there are less than
+	 * four remaining valid_byte_count to transfer or if the circular
+	 * buffer has insufficient space for a DWORD, the data is transferred
+	 * one byte at a time.
+	 */
+	while (valid_burst_count) {
+		if (*data_empty_count - UART_BURST_SIZE < 0)
+			break;
+		if (xmit->tail > (UART_XMIT_SIZE - UART_BURST_SIZE))
+			break;
+		writel(*(unsigned int *)&xmit->buf[xmit->tail],
+		       port->membase + UART_TX_BURST_FIFO);
+		*valid_byte_count -= UART_BURST_SIZE;
+		*data_empty_count -= UART_BURST_SIZE;
+		valid_burst_count -= UART_BYTE_SIZE;
+
+		xmit->tail = (xmit->tail + UART_BURST_SIZE) &
+			     (UART_XMIT_SIZE - 1);
+	}
+
+	while (*valid_byte_count) {
+		if (*data_empty_count - UART_BYTE_SIZE < 0)
+			break;
+		writeb(xmit->buf[xmit->tail], port->membase +
+		       UART_TX_BYTE_FIFO);
+		*data_empty_count -= UART_BYTE_SIZE;
+		*valid_byte_count -= UART_BYTE_SIZE;
+
+		/*
+		 * When the tail of the circular buffer is reached, the next
+		 * byte is transferred to the beginning of the buffer.
+		 */
+		xmit->tail = (xmit->tail + UART_BYTE_SIZE) &
+			     (UART_XMIT_SIZE - 1);
+
+		/*
+		 * If there are any pending burst count, data is handled by
+		 * transmitting DWORDs at a time.
+		 */
+		if (valid_burst_count && (xmit->tail <
+		   (UART_XMIT_SIZE - UART_BURST_SIZE)))
+			break;
+	}
+}
+
+static void pci1xxxx_tx_burst(struct uart_port *port, u32 uart_status)
+{
+	struct uart_8250_port *up = up_to_u8250p(port);
+	u32 valid_byte_count;
+	int data_empty_count;
+	struct circ_buf *xmit;
+
+	xmit = &port->state->xmit;
+
+	if (port->x_char) {
+		writeb(port->x_char, port->membase + UART_TX);
+		port->icount.tx++;
+		port->x_char = 0;
+		return;
+	}
+
+	if ((uart_tx_stopped(port)) || (uart_circ_empty(xmit))) {
+		port->ops->stop_tx(port);
+	} else {
+		data_empty_count = (pci1xxxx_read_burst_status(port) &
+				    UART_BST_STAT_TX_COUNT_MASK) >> 8;
+		do {
+			valid_byte_count = uart_circ_chars_pending(xmit);
+
+			pci1xxxx_process_write_data(port, xmit,
+						    &data_empty_count,
+						    &valid_byte_count);
+
+			port->icount.tx++;
+			if (uart_circ_empty(xmit))
+				break;
+		} while (data_empty_count && valid_byte_count);
+	}
+
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		uart_write_wakeup(port);
+
+	 /*
+	  * With RPM enabled, we have to wait until the FIFO is empty before
+	  * the HW can go idle. So we get here once again with empty FIFO and
+	  * disable the interrupt and RPM in __stop_tx()
+	  */
+	if (uart_circ_empty(xmit) && !(up->capabilities & UART_CAP_RPM))
+		port->ops->stop_tx(port);
+}
+
 static int pci1xxxx_handle_irq(struct uart_port *port)
 {
 	unsigned long flags;
@@ -358,6 +461,9 @@ static int pci1xxxx_handle_irq(struct uart_port *port)
 
 	if (status & UART_BST_STAT_LSR_RX_MASK)
 		pci1xxxx_rx_burst(port, status);
+
+	if (status & UART_BST_STAT_LSR_THRE)
+		pci1xxxx_tx_burst(port, status);
 
 	spin_unlock_irqrestore(&port->lock, flags);
 
