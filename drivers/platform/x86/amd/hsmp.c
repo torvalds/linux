@@ -655,8 +655,9 @@ static int hsmp_create_attr_list(struct attribute_group *attr_grp,
 	struct bin_attribute **hsmp_bin_attrs;
 
 	/* Null terminated list of attributes */
-	hsmp_bin_attrs = devm_kzalloc(dev, sizeof(struct bin_attribute *) *
-				      (NUM_HSMP_ATTRS + 1), GFP_KERNEL);
+	hsmp_bin_attrs = devm_kcalloc(dev, NUM_HSMP_ATTRS + 1,
+				      sizeof(*hsmp_bin_attrs),
+				      GFP_KERNEL);
 	if (!hsmp_bin_attrs)
 		return -ENOMEM;
 
@@ -671,8 +672,9 @@ static int hsmp_create_non_acpi_sysfs_if(struct device *dev)
 	struct attribute_group *attr_grp;
 	u16 i;
 
-	hsmp_attr_grps = devm_kzalloc(dev, sizeof(struct attribute_group *) *
-				      (plat_dev.num_sockets + 1), GFP_KERNEL);
+	hsmp_attr_grps = devm_kcalloc(dev, plat_dev.num_sockets + 1,
+				      sizeof(*hsmp_attr_grps),
+				      GFP_KERNEL);
 	if (!hsmp_attr_grps)
 		return -ENOMEM;
 
@@ -801,8 +803,8 @@ static int hsmp_pltdrv_probe(struct platform_device *pdev)
 	 * on each probe.
 	 */
 	if (!plat_dev.is_probed) {
-		plat_dev.sock = devm_kzalloc(&pdev->dev,
-					     (plat_dev.num_sockets * sizeof(struct hsmp_socket)),
+		plat_dev.sock = devm_kcalloc(&pdev->dev, plat_dev.num_sockets,
+					     sizeof(*plat_dev.sock),
 					     GFP_KERNEL);
 		if (!plat_dev.sock)
 			return -ENOMEM;
