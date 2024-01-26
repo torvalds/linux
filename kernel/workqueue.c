@@ -56,7 +56,7 @@
 
 #include "workqueue_internal.h"
 
-enum {
+enum worker_pool_flags {
 	/*
 	 * worker_pool flags
 	 *
@@ -75,7 +75,9 @@ enum {
 	 */
 	POOL_MANAGER_ACTIVE	= 1 << 0,	/* being managed */
 	POOL_DISASSOCIATED	= 1 << 2,	/* cpu can't serve workers */
+};
 
+enum worker_flags {
 	/* worker flags */
 	WORKER_DIE		= 1 << 1,	/* die die die */
 	WORKER_IDLE		= 1 << 2,	/* is idle */
@@ -86,7 +88,9 @@ enum {
 
 	WORKER_NOT_RUNNING	= WORKER_PREP | WORKER_CPU_INTENSIVE |
 				  WORKER_UNBOUND | WORKER_REBOUND,
+};
 
+enum wq_internal_consts {
 	NR_STD_WORKER_POOLS	= 2,		/* # standard pools per cpu */
 
 	UNBOUND_POOL_HASH_ORDER	= 6,		/* hashed by pool->attrs */
