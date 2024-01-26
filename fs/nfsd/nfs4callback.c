@@ -45,7 +45,7 @@
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
-static void nfsd4_mark_cb_fault(struct nfs4_client *, int reason);
+static void nfsd4_mark_cb_fault(struct nfs4_client *clp);
 
 #define NFSPROC4_CB_NULL 0
 #define NFSPROC4_CB_COMPOUND 1
@@ -1012,14 +1012,14 @@ static void nfsd4_mark_cb_state(struct nfs4_client *clp, int newstate)
 	}
 }
 
-static void nfsd4_mark_cb_down(struct nfs4_client *clp, int reason)
+static void nfsd4_mark_cb_down(struct nfs4_client *clp)
 {
 	if (test_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags))
 		return;
 	nfsd4_mark_cb_state(clp, NFSD4_CB_DOWN);
 }
 
-static void nfsd4_mark_cb_fault(struct nfs4_client *clp, int reason)
+static void nfsd4_mark_cb_fault(struct nfs4_client *clp)
 {
 	if (test_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags))
 		return;
@@ -1031,7 +1031,7 @@ static void nfsd4_cb_probe_done(struct rpc_task *task, void *calldata)
 	struct nfs4_client *clp = container_of(calldata, struct nfs4_client, cl_cb_null);
 
 	if (task->tk_status)
-		nfsd4_mark_cb_down(clp, task->tk_status);
+		nfsd4_mark_cb_down(clp);
 	else
 		nfsd4_mark_cb_state(clp, NFSD4_CB_UP);
 }
@@ -1183,7 +1183,7 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 		break;
 	case -ESERVERFAULT:
 		++session->se_cb_seq_nr;
-		nfsd4_mark_cb_fault(cb->cb_clp, cb->cb_seq_status);
+		nfsd4_mark_cb_fault(cb->cb_clp);
 		ret = false;
 		break;
 	case 1:
@@ -1195,7 +1195,7 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 		 */
 		fallthrough;
 	case -NFS4ERR_BADSESSION:
-		nfsd4_mark_cb_fault(cb->cb_clp, cb->cb_seq_status);
+		nfsd4_mark_cb_fault(cb->cb_clp);
 		ret = false;
 		goto need_restart;
 	case -NFS4ERR_DELAY:
@@ -1214,7 +1214,7 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 		}
 		break;
 	default:
-		nfsd4_mark_cb_fault(cb->cb_clp, cb->cb_seq_status);
+		nfsd4_mark_cb_fault(cb->cb_clp);
 	}
 	nfsd41_cb_release_slot(cb);
 
@@ -1260,7 +1260,7 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 		case -EIO:
 		case -ETIMEDOUT:
 		case -EACCES:
-			nfsd4_mark_cb_down(clp, task->tk_status);
+			nfsd4_mark_cb_down(clp);
 		}
 		break;
 	default:
@@ -1382,7 +1382,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 
 	err = setup_callback_client(clp, &conn, ses);
 	if (err) {
-		nfsd4_mark_cb_down(clp, err);
+		nfsd4_mark_cb_down(clp);
 		if (c)
 			svc_xprt_put(c->cn_xprt);
 		return;
