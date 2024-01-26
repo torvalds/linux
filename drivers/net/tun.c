@@ -54,6 +54,7 @@
 #include <linux/if_tun.h>
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
+#include <linux/math.h>
 #include <linux/nsproxy.h>
 #include <linux/virtio_net.h>
 #include <linux/rcupdate.h>
@@ -523,8 +524,7 @@ static inline void tun_flow_save_rps_rxhash(struct tun_flow_entry *e, u32 hash)
 static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 {
 	struct tun_flow_entry *e;
-	u32 txq = 0;
-	u32 numqueues = 0;
+	u32 txq, numqueues;
 
 	numqueues = READ_ONCE(tun->numqueues);
 
@@ -534,8 +534,7 @@ static u16 tun_automq_select_queue(struct tun_struct *tun, struct sk_buff *skb)
 		tun_flow_save_rps_rxhash(e, txq);
 		txq = e->queue_index;
 	} else {
-		/* use multiply and shift instead of expensive divide */
-		txq = ((u64)txq * numqueues) >> 32;
+		txq = reciprocal_scale(txq, numqueues);
 	}
 
 	return txq;
