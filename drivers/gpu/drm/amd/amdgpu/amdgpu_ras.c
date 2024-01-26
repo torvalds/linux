@@ -3430,7 +3430,7 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	WARN(AMDGPU_RAS_GET_FEATURES(con->features), "Feature mask is not cleared");
 
 	if (AMDGPU_RAS_GET_FEATURES(con->features))
-		amdgpu_ras_disable_all_features(adev, 1);
+		amdgpu_ras_disable_all_features(adev, 0);
 
 	cancel_delayed_work_sync(&con->ras_counte_delay_work);
 
