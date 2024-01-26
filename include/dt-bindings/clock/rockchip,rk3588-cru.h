@@ -734,8 +734,6 @@
 #define PCLK_AV1_PRE			719
 #define HCLK_SDIO_PRE			720
 
-#define CLK_NR_CLKS			(HCLK_SDIO_PRE + 1)
-
 /* scmi-clocks indices */
 
 #define SCMI_CLK_CPUL			0
