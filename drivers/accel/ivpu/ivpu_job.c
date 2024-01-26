@@ -294,7 +294,7 @@ static int ivpu_job_signal_and_destroy(struct ivpu_device *vdev, u32 job_id, u32
 		return -ENOENT;
 
 	if (job->file_priv->has_mmu_faults)
-		job_status = VPU_JSM_STATUS_ABORTED;
+		job_status = DRM_IVPU_JOB_STATUS_ABORTED;
 
 	job->bos[CMD_BUF_IDX]->job_status = job_status;
 	dma_fence_signal(job->done_fence);
@@ -315,7 +315,7 @@ void ivpu_jobs_abort_all(struct ivpu_device *vdev)
 	unsigned long id;
 
 	xa_for_each(&vdev->submitted_jobs_xa, id, job)
-		ivpu_job_signal_and_destroy(vdev, id, VPU_JSM_STATUS_ABORTED);
+		ivpu_job_signal_and_destroy(vdev, id, DRM_IVPU_JOB_STATUS_ABORTED);
 }
 
 static int ivpu_job_submit(struct ivpu_job *job)
