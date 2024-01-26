@@ -2751,6 +2751,11 @@ static void mlxsw_sp_lag_pgt_fini(struct mlxsw_sp *mlxsw_sp)
 
 #define MLXSW_SP_LAG_SEED_INIT 0xcafecafe
 
+struct mlxsw_sp_lag {
+	struct net_device *dev;
+	unsigned int ref_count;
+};
+
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char slcr_pl[MLXSW_REG_SLCR_LEN];
@@ -2784,7 +2789,7 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	mlxsw_sp->lags = kcalloc(max_lag, sizeof(struct mlxsw_sp_upper),
+	mlxsw_sp->lags = kcalloc(max_lag, sizeof(struct mlxsw_sp_lag),
 				 GFP_KERNEL);
 	if (!mlxsw_sp->lags) {
 		err = -ENOMEM;
@@ -4329,11 +4334,17 @@ static int mlxsw_sp_lag_col_port_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcor), slcor_pl);
 }
 
+static struct mlxsw_sp_lag *
+mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
+{
+	return &mlxsw_sp->lags[lag_id];
+}
+
 static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 				  struct net_device *lag_dev,
 				  u16 *p_lag_id)
 {
-	struct mlxsw_sp_upper *lag;
+	struct mlxsw_sp_lag *lag;
 	int free_lag_id = -1;
 	u16 max_lag;
 	int err, i;
@@ -4482,7 +4493,7 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
-	struct mlxsw_sp_upper *lag;
+	struct mlxsw_sp_lag *lag;
 	u16 lag_id;
 	u8 port_index;
 	int err;
@@ -4560,7 +4571,7 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	u16 lag_id = mlxsw_sp_port->lag_id;
-	struct mlxsw_sp_upper *lag;
+	struct mlxsw_sp_lag *lag;
 
 	if (!mlxsw_sp_port->lagged)
 		return;
