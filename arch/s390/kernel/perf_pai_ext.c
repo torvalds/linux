@@ -331,11 +331,8 @@ static void paiext_start(struct perf_event *event, int flags)
 	u64 sum;
 
 	if (!event->attr.sample_period) {	/* Counting */
-		if (!event->hw.last_tag) {
-			event->hw.last_tag = 1;
-			sum = paiext_getall(event);	/* Get current value */
-			local64_set(&event->hw.prev_count, sum);
-		}
+		sum = paiext_getall(event);	/* Get current value */
+		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
 		perf_sched_cb_inc(event->pmu);
 	}
