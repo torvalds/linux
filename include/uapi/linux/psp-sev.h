@@ -29,6 +29,7 @@ enum {
 	SEV_GET_ID,	/* This command is deprecated, use SEV_GET_ID2 */
 	SEV_GET_ID2,
 	SNP_PLATFORM_STATUS,
+	SNP_COMMIT,
 
 	SEV_MAX,
 };
