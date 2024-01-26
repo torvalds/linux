@@ -298,7 +298,7 @@ static void __noreturn lkdtm_HUNG_TASK(void)
 {
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule();
-	BUG_ON(1);
+	BUG();
 }
 
 static volatile unsigned int huge = INT_MAX - 2;
