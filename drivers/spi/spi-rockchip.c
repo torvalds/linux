@@ -192,8 +192,6 @@ struct rockchip_spi {
 	u8 n_bytes;
 	u8 rsd;
 
-	bool cs_asserted[ROCKCHIP_SPI_MAX_CS_NUM];
-
 	bool target_abort;
 	bool cs_inactive; /* spi target tansmition stop when cs inactive */
 	bool cs_high_supported; /* native CS supports active-high polarity */
@@ -245,10 +243,6 @@ static void rockchip_spi_set_cs(struct spi_device *spi, bool enable)
 	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
 	bool cs_asserted = spi->mode & SPI_CS_HIGH ? enable : !enable;
 
-	/* Return immediately for no-op */
-	if (cs_asserted == rs->cs_asserted[spi_get_chipselect(spi, 0)])
-		return;
-
 	if (cs_asserted) {
 		/* Keep things powered as long as CS is asserted */
 		pm_runtime_get_sync(rs->dev);
@@ -268,8 +262,6 @@ static void rockchip_spi_set_cs(struct spi_device *spi, bool enable)
 		/* Drop reference from when we first asserted CS */
 		pm_runtime_put(rs->dev);
 	}
-
-	rs->cs_asserted[spi_get_chipselect(spi, 0)] = cs_asserted;
 }
 
 static void rockchip_spi_handle_err(struct spi_controller *ctlr,
