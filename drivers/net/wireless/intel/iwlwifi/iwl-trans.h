@@ -1069,6 +1069,7 @@ struct iwl_trans_txqs {
  *	only valid for discrete (not integrated) NICs
  * @invalid_tx_cmd: invalid TX command buffer
  * @reduced_cap_sku: reduced capability supported SKU
+ * @no_160: device not supporting 160 MHz
  */
 struct iwl_trans {
 	bool csme_own;
@@ -1092,7 +1093,7 @@ struct iwl_trans {
 	char hw_id_str[52];
 	u32 sku_id[3];
 	bool reduced_cap_sku;
-
+	u8 no_160;
 	u8 rx_mpdu_cmd, rx_mpdu_cmd_hdr_size;
 
 	bool pm_support;
