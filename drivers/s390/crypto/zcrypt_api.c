@@ -977,7 +977,26 @@ out:
 
 long zcrypt_send_cprb(struct ica_xcRB *xcrb)
 {
-	return _zcrypt_send_cprb(false, &ap_perms, NULL, xcrb);
+	struct zcrypt_track tr;
+	int rc;
+
+	memset(&tr, 0, sizeof(tr));
+
+	do {
+		rc = _zcrypt_send_cprb(false, &ap_perms, &tr, xcrb);
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
+		do {
+			rc = _zcrypt_send_cprb(false, &ap_perms, &tr, xcrb);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
+		rc = -EIO;
+	if (rc)
+		pr_debug("%s rc=%d\n", __func__, rc);
+
+	return rc;
 }
 EXPORT_SYMBOL(zcrypt_send_cprb);
 
@@ -1162,7 +1181,26 @@ out:
 
 long zcrypt_send_ep11_cprb(struct ep11_urb *xcrb)
 {
-	return _zcrypt_send_ep11_cprb(false, &ap_perms, NULL, xcrb);
+	struct zcrypt_track tr;
+	int rc;
+
+	memset(&tr, 0, sizeof(tr));
+
+	do {
+		rc = _zcrypt_send_ep11_cprb(false, &ap_perms, &tr, xcrb);
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
+		do {
+			rc = _zcrypt_send_ep11_cprb(false, &ap_perms, &tr, xcrb);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
+		rc = -EIO;
+	if (rc)
+		pr_debug("%s rc=%d\n", __func__, rc);
+
+	return rc;
 }
 EXPORT_SYMBOL(zcrypt_send_ep11_cprb);
 
