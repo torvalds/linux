@@ -1081,7 +1081,6 @@ static void rtllib_associate_complete_wq(void *data)
 	}
 	psc->LpsIdleCount = 0;
 	ieee->link_change(ieee->dev);
-
 }
 
 static void rtllib_sta_send_associnfo(struct rtllib_device *ieee)
