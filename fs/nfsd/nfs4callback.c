@@ -1370,8 +1370,9 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	 * Only serialized callback code is allowed to clear these
 	 * flags; main nfsd code can only set them:
 	 */
-	BUG_ON(!(clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK));
+	WARN_ON(!(clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK));
 	clear_bit(NFSD4_CLIENT_CB_UPDATE, &clp->cl_flags);
+
 	memcpy(&conn, &cb->cb_clp->cl_cb_conn, sizeof(struct nfs4_cb_conn));
 	c = __nfsd4_find_backchannel(clp);
 	if (c) {
