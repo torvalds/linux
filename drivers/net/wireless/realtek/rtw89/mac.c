@@ -4867,6 +4867,9 @@ rtw89_mac_c2h_done_ack(struct rtw89_dev *rtwdev, struct sk_buff *skb_c2h, u32 le
 		case H2C_FUNC_SCANOFLD:
 			cond = RTW89_SCANOFLD_WAIT_COND_START;
 			break;
+		case H2C_FUNC_SCANOFLD_BE:
+			cond = RTW89_SCANOFLD_BE_WAIT_COND_START;
+			break;
 		}
 
 		data.err = !!h2c_return;
@@ -5116,14 +5119,21 @@ static void rtw89_mac_c2h_scanofld_rsp_atomic(struct rtw89_dev *rtwdev,
 		(const struct rtw89_c2h_scanofld *)skb->data;
 	struct rtw89_wait_info *fw_ofld_wait = &rtwdev->mac.fw_ofld_wait;
 	struct rtw89_completion_data data = {};
+	unsigned int cond;
 	u8 status, reason;
 
 	status = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_STATUS);
 	reason = le32_get_bits(c2h->w2, RTW89_C2H_SCANOFLD_W2_RSN);
 	data.err = status != RTW89_SCAN_STATUS_SUCCESS;
 
-	if (reason == RTW89_SCAN_END_SCAN_NOTIFY)
-		rtw89_complete_cond(fw_ofld_wait, RTW89_SCANOFLD_WAIT_COND_STOP, &data);
+	if (reason == RTW89_SCAN_END_SCAN_NOTIFY) {
+		if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+			cond = RTW89_SCANOFLD_BE_WAIT_COND_STOP;
+		else
+			cond = RTW89_SCANOFLD_WAIT_COND_STOP;
+
+		rtw89_complete_cond(fw_ofld_wait, cond, &data);
+	}
 }
 
 bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
@@ -6227,5 +6237,6 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.is_txq_empty = mac_is_txq_empty_ax,
 
 	.add_chan_list = rtw89_hw_scan_add_chan_list,
+	.scan_offload = rtw89_fw_h2c_scan_offload,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);

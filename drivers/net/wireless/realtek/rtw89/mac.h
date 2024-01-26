@@ -956,6 +956,9 @@ struct rtw89_mac_gen_def {
 
 	int (*add_chan_list)(struct rtw89_dev *rtwdev,
 			     struct rtw89_vif *rtwvif, bool connected);
+	int (*scan_offload)(struct rtw89_dev *rtwdev,
+			    struct rtw89_scan_option *option,
+			    struct rtw89_vif *rtwvif);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;

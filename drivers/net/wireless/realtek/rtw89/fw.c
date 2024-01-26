@@ -459,6 +459,7 @@ static const struct __fw_feat_cfg fw_feat_tbl[] = {
 	__CFG_FW_FEAT(RTL8852C, ge, 0, 27, 56, 10, BEACON_FILTER),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 30, 0, CRASH_TRIGGER),
 	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 11, 0, MACID_PAUSE_SLEEP),
+	__CFG_FW_FEAT(RTL8922A, ge, 0, 34, 35, 0, SCAN_OFFLOAD),
 };
 
 static void rtw89_fw_iterate_feature_cfg(struct rtw89_fw_info *fw,
@@ -4236,6 +4237,169 @@ int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static void rtw89_scan_get_6g_disabled_chan(struct rtw89_dev *rtwdev,
+					    struct rtw89_scan_option *option)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+	u8 i, idx;
+
+	sband = rtwdev->hw->wiphy->bands[NL80211_BAND_6GHZ];
+
+	for (i = 0; i < sband->n_channels; i++) {
+		chan = &sband->channels[i];
+		if (chan->flags & IEEE80211_CHAN_DISABLED) {
+			idx = (chan->hw_value - 1) / 4;
+			option->prohib_chan |= BIT(idx);
+		}
+	}
+}
+
+int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
+				 struct rtw89_scan_option *option,
+				 struct rtw89_vif *rtwvif)
+{
+	struct rtw89_hw_scan_info *scan_info = &rtwdev->scan_info;
+	struct rtw89_wait_info *wait = &rtwdev->mac.fw_ofld_wait;
+	struct rtw89_h2c_scanofld_be_macc_role *macc_role;
+	struct rtw89_chan *op = &scan_info->op_chan;
+	struct rtw89_h2c_scanofld_be_opch *opch;
+	struct rtw89_h2c_scanofld_be *h2c;
+	struct sk_buff *skb;
+	u8 macc_role_size = sizeof(*macc_role) * option->num_macc_role;
+	u8 opch_size = sizeof(*opch) * option->num_opch;
+	u8 probe_id[NUM_NL80211_BANDS];
+	unsigned int cond;
+	void *ptr;
+	int ret;
+	u32 len;
+	u8 i;
+
+	rtw89_scan_get_6g_disabled_chan(rtwdev, option);
+
+	len = sizeof(*h2c) + macc_role_size + opch_size;
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c scan offload\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_scanofld_be *)skb->data;
+	ptr = skb->data;
+
+	h2c->w0 = le32_encode_bits(option->operation, RTW89_H2C_SCANOFLD_BE_W0_OP) |
+		  le32_encode_bits(option->scan_mode,
+				   RTW89_H2C_SCANOFLD_BE_W0_SCAN_MODE) |
+		  le32_encode_bits(option->repeat, RTW89_H2C_SCANOFLD_BE_W0_REPEAT) |
+		  le32_encode_bits(true, RTW89_H2C_SCANOFLD_BE_W0_NOTIFY_END) |
+		  le32_encode_bits(true, RTW89_H2C_SCANOFLD_BE_W0_LEARN_CH) |
+		  le32_encode_bits(rtwvif->mac_id, RTW89_H2C_SCANOFLD_BE_W0_MACID) |
+		  le32_encode_bits(rtwvif->port, RTW89_H2C_SCANOFLD_BE_W0_PORT) |
+		  le32_encode_bits(option->band, RTW89_H2C_SCANOFLD_BE_W0_BAND);
+
+	h2c->w1 = le32_encode_bits(option->num_macc_role, RTW89_H2C_SCANOFLD_BE_W1_NUM_MACC_ROLE) |
+		  le32_encode_bits(option->num_opch, RTW89_H2C_SCANOFLD_BE_W1_NUM_OP) |
+		  le32_encode_bits(option->norm_pd, RTW89_H2C_SCANOFLD_BE_W1_NORM_PD);
+
+	h2c->w2 = le32_encode_bits(option->slow_pd, RTW89_H2C_SCANOFLD_BE_W2_SLOW_PD) |
+		  le32_encode_bits(option->norm_cy, RTW89_H2C_SCANOFLD_BE_W2_NORM_CY) |
+		  le32_encode_bits(option->opch_end, RTW89_H2C_SCANOFLD_BE_W2_OPCH_END);
+
+	h2c->w3 = le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W3_NUM_SSID) |
+		  le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W3_NUM_SHORT_SSID) |
+		  le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W3_NUM_BSSID) |
+		  le32_encode_bits(probe_id[NL80211_BAND_2GHZ], RTW89_H2C_SCANOFLD_BE_W3_PROBEID);
+
+	h2c->w4 = le32_encode_bits(probe_id[NL80211_BAND_5GHZ],
+				   RTW89_H2C_SCANOFLD_BE_W4_PROBE_5G) |
+		  le32_encode_bits(probe_id[NL80211_BAND_6GHZ],
+				   RTW89_H2C_SCANOFLD_BE_W4_PROBE_6G) |
+		  le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_W4_DELAY_START);
+
+	h2c->w5 = le32_encode_bits(option->mlo_mode, RTW89_H2C_SCANOFLD_BE_W5_MLO_MODE);
+
+	h2c->w6 = le32_encode_bits(option->prohib_chan,
+				   RTW89_H2C_SCANOFLD_BE_W6_CHAN_PROHIB_LOW);
+	h2c->w7 = le32_encode_bits(option->prohib_chan >> 32,
+				   RTW89_H2C_SCANOFLD_BE_W7_CHAN_PROHIB_HIGH);
+	ptr += sizeof(*h2c);
+
+	for (i = 0; i < option->num_macc_role; i++) {
+		macc_role = (struct rtw89_h2c_scanofld_be_macc_role *)&h2c->role[i];
+		macc_role->w0 =
+			le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_MACC_ROLE_W0_BAND) |
+			le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_MACC_ROLE_W0_PORT) |
+			le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_MACC_ROLE_W0_MACID) |
+			le32_encode_bits(0, RTW89_H2C_SCANOFLD_BE_MACC_ROLE_W0_OPCH_END);
+		ptr += sizeof(*macc_role);
+	}
+
+	for (i = 0; i < option->num_opch; i++) {
+		opch = ptr;
+		opch->w0 = le32_encode_bits(rtwvif->mac_id,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_MACID) |
+			   le32_encode_bits(option->band,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_BAND) |
+			   le32_encode_bits(rtwvif->port,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_PORT) |
+			   le32_encode_bits(RTW89_SCAN_OPMODE_INTV,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_POLICY) |
+			   le32_encode_bits(true,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_TXNULL) |
+			   le32_encode_bits(RTW89_OFF_CHAN_TIME / 10,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W0_POLICY_VAL);
+
+		opch->w1 = le32_encode_bits(RTW89_CHANNEL_TIME,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_DURATION) |
+			   le32_encode_bits(op->band_type,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_CH_BAND) |
+			   le32_encode_bits(op->band_width,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_BW) |
+			   le32_encode_bits(0x3,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_NOTIFY) |
+			   le32_encode_bits(op->primary_channel,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_PRI_CH) |
+			   le32_encode_bits(op->channel,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W1_CENTRAL_CH);
+
+		opch->w2 = le32_encode_bits(0,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_PKTS_CTRL) |
+			   le32_encode_bits(0,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SW_DEF) |
+			   le32_encode_bits(2,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W2_SS);
+
+		opch->w3 = le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT0) |
+			   le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT1) |
+			   le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT2) |
+			   le32_encode_bits(RTW89_SCANOFLD_PKT_NONE,
+					    RTW89_H2C_SCANOFLD_BE_OPCH_W3_PKT3);
+		ptr += sizeof(*opch);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC, H2C_CL_MAC_FW_OFLD,
+			      H2C_FUNC_SCANOFLD_BE, 1, 1,
+			      len);
+
+	if (option->enable)
+		cond = RTW89_SCANOFLD_BE_WAIT_COND_START;
+	else
+		cond = RTW89_SCANOFLD_BE_WAIT_COND_STOP;
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+	if (ret) {
+		rtw89_debug(rtwdev, RTW89_DBG_FW, "failed to scan be ofld\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 			struct rtw89_fw_h2c_rf_reg_info *info,
 			u16 len, u8 page)
@@ -5173,6 +5337,7 @@ static bool rtw89_is_any_vif_connected_or_connecting(struct rtw89_dev *rtwdev)
 int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			  bool enable)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	struct rtw89_scan_option opt = {0};
 	struct rtw89_vif *rtwvif;
 	bool connected;
@@ -5190,7 +5355,18 @@ int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 		if (ret)
 			goto out;
 	}
-	ret = rtw89_fw_h2c_scan_offload(rtwdev, &opt, rtwvif);
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+		opt.operation = enable ? RTW89_SCAN_OP_START : RTW89_SCAN_OP_STOP;
+		opt.scan_mode = RTW89_SCAN_MODE_SA;
+		opt.band = RTW89_PHY_0;
+		opt.num_macc_role = 0;
+		opt.mlo_mode = rtwdev->mlo_dbcc_mode;
+		opt.num_opch = connected ? 1 : 0;
+		opt.opch_end = connected ? 0 : RTW89_CHAN_INVALID;
+	}
+
+	ret = mac->scan_offload(rtwdev, &opt, rtwvif);
 out:
 	return ret;
 }
