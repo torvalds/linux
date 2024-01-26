@@ -502,6 +502,9 @@ int psp_ras_enable_features(struct psp_context *psp,
 int psp_ras_trigger_error(struct psp_context *psp,
 			  struct ta_ras_trigger_error_input *info, uint32_t instance_mask);
 int psp_ras_terminate(struct psp_context *psp);
+int psp_ras_query_address(struct psp_context *psp,
+			  struct ta_ras_query_address_input *addr_in,
+			  struct ta_ras_query_address_output *addr_out);
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);

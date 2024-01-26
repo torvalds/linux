@@ -1782,6 +1782,31 @@ int psp_ras_trigger_error(struct psp_context *psp,
 
 	return 0;
 }
+
+int psp_ras_query_address(struct psp_context *psp,
+			  struct ta_ras_query_address_input *addr_in,
+			  struct ta_ras_query_address_output *addr_out)
+{
+	struct ta_ras_shared_memory *ras_cmd;
+	int ret;
+
+	if (!psp->ras_context.context.initialized)
+		return -EINVAL;
+
+	ras_cmd = (struct ta_ras_shared_memory *)psp->ras_context.context.mem_context.shared_buf;
+	memset(ras_cmd, 0, sizeof(struct ta_ras_shared_memory));
+
+	ras_cmd->cmd_id = TA_RAS_COMMAND__QUERY_ADDRESS;
+	ras_cmd->ras_in_message.address = *addr_in;
+
+	ret = psp_ras_invoke(psp, ras_cmd->cmd_id);
+	if (ret || ras_cmd->ras_status || psp->cmd_buf_mem->resp.status)
+		return -EINVAL;
+
+	*addr_out = ras_cmd->ras_out_message.address;
+
+	return 0;
+}
 // ras end
 
 // HDCP start
