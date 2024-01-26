@@ -1017,6 +1017,10 @@
 };
 #endif
 
+&wdt0 {
+	status = "disabled";
+};
+
 &wdt1 {
 	status = "disabled";
 };
