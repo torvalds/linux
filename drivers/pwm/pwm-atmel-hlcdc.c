@@ -183,9 +183,10 @@ static const struct atmel_hlcdc_pwm_errata atmel_hlcdc_pwm_sama5d3_errata = {
 static int atmel_hlcdc_pwm_suspend(struct device *dev)
 {
 	struct atmel_hlcdc_pwm *atmel = dev_get_drvdata(dev);
+	struct pwm_device *pwm = &atmel->chip.pwms[0];
 
 	/* Keep the periph clock enabled if the PWM is still running. */
-	if (!pwm_is_enabled(&atmel->chip.pwms[0]))
+	if (!pwm->state.enabled)
 		clk_disable_unprepare(atmel->hlcdc->periph_clk);
 
 	return 0;
@@ -194,20 +195,17 @@ static int atmel_hlcdc_pwm_suspend(struct device *dev)
 static int atmel_hlcdc_pwm_resume(struct device *dev)
 {
 	struct atmel_hlcdc_pwm *atmel = dev_get_drvdata(dev);
-	struct pwm_state state;
+	struct pwm_device *pwm = &atmel->chip.pwms[0];
 	int ret;
 
-	pwm_get_state(&atmel->chip.pwms[0], &state);
-
 	/* Re-enable the periph clock it was stopped during suspend. */
-	if (!state.enabled) {
+	if (!pwm->state.enabled) {
 		ret = clk_prepare_enable(atmel->hlcdc->periph_clk);
 		if (ret)
 			return ret;
 	}
 
-	return atmel_hlcdc_pwm_apply(&atmel->chip, &atmel->chip.pwms[0],
-				     &state);
+	return atmel_hlcdc_pwm_apply(&atmel->chip, pwm, &pwm->state);
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(atmel_hlcdc_pwm_pm_ops,
