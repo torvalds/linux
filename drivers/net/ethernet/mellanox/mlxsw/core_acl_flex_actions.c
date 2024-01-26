@@ -95,7 +95,7 @@ struct mlxsw_afa_set {
 		      */
 	   has_trap:1,
 	   has_police:1;
-	unsigned int ref_count;
+	refcount_t ref_count;
 	struct mlxsw_afa_set *next; /* Pointer to the next set. */
 	struct mlxsw_afa_set *prev; /* Pointer to the previous set,
 				     * note that set may have multiple
@@ -120,7 +120,7 @@ struct mlxsw_afa_fwd_entry {
 	struct rhash_head ht_node;
 	struct mlxsw_afa_fwd_entry_ht_key ht_key;
 	u32 kvdl_index;
-	unsigned int ref_count;
+	refcount_t ref_count;
 };
 
 static const struct rhashtable_params mlxsw_afa_fwd_entry_ht_params = {
@@ -282,7 +282,7 @@ static struct mlxsw_afa_set *mlxsw_afa_set_create(bool is_first)
 	/* Need to initialize the set to pass by default */
 	mlxsw_afa_set_goto_set(set, MLXSW_AFA_SET_GOTO_BINDING_CMD_TERM, 0);
 	set->ht_key.is_first = is_first;
-	set->ref_count = 1;
+	refcount_set(&set->ref_count, 1);
 	return set;
 }
 
@@ -330,7 +330,7 @@ static void mlxsw_afa_set_unshare(struct mlxsw_afa *mlxsw_afa,
 static void mlxsw_afa_set_put(struct mlxsw_afa *mlxsw_afa,
 			      struct mlxsw_afa_set *set)
 {
-	if (--set->ref_count)
+	if (!refcount_dec_and_test(&set->ref_count))
 		return;
 	if (set->shared)
 		mlxsw_afa_set_unshare(mlxsw_afa, set);
@@ -350,7 +350,7 @@ static struct mlxsw_afa_set *mlxsw_afa_set_get(struct mlxsw_afa *mlxsw_afa,
 	set = rhashtable_lookup_fast(&mlxsw_afa->set_ht, &orig_set->ht_key,
 				     mlxsw_afa_set_ht_params);
 	if (set) {
-		set->ref_count++;
+		refcount_inc(&set->ref_count);
 		mlxsw_afa_set_put(mlxsw_afa, orig_set);
 	} else {
 		set = orig_set;
@@ -564,7 +564,7 @@ mlxsw_afa_fwd_entry_create(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 	if (!fwd_entry)
 		return ERR_PTR(-ENOMEM);
 	fwd_entry->ht_key.local_port = local_port;
-	fwd_entry->ref_count = 1;
+	refcount_set(&fwd_entry->ref_count, 1);
 
 	err = rhashtable_insert_fast(&mlxsw_afa->fwd_entry_ht,
 				     &fwd_entry->ht_node,
@@ -607,7 +607,7 @@ mlxsw_afa_fwd_entry_get(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 	fwd_entry = rhashtable_lookup_fast(&mlxsw_afa->fwd_entry_ht, &ht_key,
 					   mlxsw_afa_fwd_entry_ht_params);
 	if (fwd_entry) {
-		fwd_entry->ref_count++;
+		refcount_inc(&fwd_entry->ref_count);
 		return fwd_entry;
 	}
 	return mlxsw_afa_fwd_entry_create(mlxsw_afa, local_port);
@@ -616,7 +616,7 @@ mlxsw_afa_fwd_entry_get(struct mlxsw_afa *mlxsw_afa, u16 local_port)
 static void mlxsw_afa_fwd_entry_put(struct mlxsw_afa *mlxsw_afa,
 				    struct mlxsw_afa_fwd_entry *fwd_entry)
 {
-	if (--fwd_entry->ref_count)
+	if (!refcount_dec_and_test(&fwd_entry->ref_count))
 		return;
 	mlxsw_afa_fwd_entry_destroy(mlxsw_afa, fwd_entry);
 }
