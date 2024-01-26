@@ -1165,6 +1165,8 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 	if (!cb->cb_holds_slot)
 		goto need_restart;
 
+	/* This is the operation status code for CB_SEQUENCE */
+	trace_nfsd_cb_seq_status(task, cb);
 	switch (cb->cb_seq_status) {
 	case 0:
 		/*
@@ -1210,13 +1212,10 @@ static bool nfsd4_cb_sequence_done(struct rpc_task *task, struct nfsd4_callback 
 		break;
 	default:
 		nfsd4_mark_cb_fault(cb->cb_clp, cb->cb_seq_status);
-		dprintk("%s: unprocessed error %d\n", __func__,
-			cb->cb_seq_status);
 	}
-
 	nfsd41_cb_release_slot(cb);
-	dprintk("%s: freed slot, new seqid=%d\n", __func__,
-		clp->cl_cb_session->se_cb_seq_nr);
+
+	trace_nfsd_cb_free_slot(task, cb);
 
 	if (RPC_SIGNALLED(task))
 		goto need_restart;
