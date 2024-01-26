@@ -107,6 +107,20 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		rvas_memory0: rvas0 {
+			size = <0x0 0x04000000>;
+			alignment = <0x0 0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		rvas_memory1: rvas1 {
+			size = <0x0 0x04000000>;
+			alignment = <0x0 0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
 	};
 
 	fan0: pwm-fan0 {
@@ -768,6 +782,7 @@
 	status = "okay";
 };
 
+#if 1
 &video0 {
 	status = "okay";
 	memory-region = <&video_engine_memory0>;
@@ -777,6 +792,17 @@
 	status = "okay";
 	memory-region = <&video_engine_memory1>;
 };
+#else
+&rvas0 {
+	status = "okay";
+	memory-region = <&rvas_memory0>;
+};
+
+&rvas1 {
+	status = "okay";
+	memory-region = <&rvas_memory1>;
+};
+#endif
 
 &rtc {
 	status = "okay";

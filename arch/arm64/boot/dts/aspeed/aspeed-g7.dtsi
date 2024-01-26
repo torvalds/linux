@@ -888,6 +888,34 @@
 			status = "disabled";
 		};
 
+		rvas0: rvas@120b8000 {
+			compatible = "aspeed,ast2700-rvas";
+			reg = <0x0 0x120b8000 0x0 0x800>,
+				  <0x0 0x12c14000 0x0 0x800>,
+				  <0x0 0x120a0000 0x0 0x1000>;
+			clocks = <&syscon0 AST2700_SOC0_CLK_RVAS0>,
+					<&syscon0 AST2700_SOC0_CLK_GATE_VCLK>,
+					<&syscon0 AST2700_SOC0_CLK_GATE_ECLK>;
+			clock-names = "rvasclk", "vclk", "eclk";
+			interrupts = <GIC_SPI 39 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon0 ASPEED_RESET_RVAS0>, <&syscon0 ASPEED_RESET_VIDEO>;
+			status = "disabled";
+		};
+
+		rvas1: rvas@120bc000 {
+			compatible = "aspeed,ast2700-rvas";
+			reg = <0x0 0x120bc000 0x0 0x800>,
+				  <0x0 0x12c14800 0x0 0x800>,
+				  <0x0 0x120a0000 0x0 0x1000>;
+			clocks = <&syscon0 AST2700_SOC0_CLK_RVAS1>,
+					<&syscon0 AST2700_SOC0_CLK_GATE_VCLK>,
+					<&syscon0 AST2700_SOC0_CLK_GATE_ECLK>;
+			clock-names = "rvas2clk", "vclk", "eclk";
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			resets = <&syscon0 ASPEED_RESET_RVAS1>, <&syscon0 ASPEED_RESET_VIDEO>;
+			status = "disabled";
+		};
+
 		xdma0: xdma@12c04000 {
 			compatible = "aspeed,ast2700-xdma0";
 			reg = <0x0 0x12c04000 0x0 0x100>;
