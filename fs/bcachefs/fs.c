@@ -176,45 +176,88 @@ static unsigned bch2_inode_hash(subvol_inum inum)
 	return jhash_3words(inum.subvol, inum.inum >> 32, inum.inum, JHASH_INITVAL);
 }
 
-struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
+static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_inode_info *inode)
 {
-	struct bch_inode_unpacked inode_u;
-	struct bch_inode_info *inode;
-	struct btree_trans *trans;
-	struct bch_subvolume subvol;
-	int ret;
+	subvol_inum inum = inode_inum(inode);
+	struct bch_inode_info *old = to_bch_ei(inode_insert5(&inode->v,
+				      bch2_inode_hash(inum),
+				      bch2_iget5_test,
+				      bch2_iget5_set,
+				      &inum));
+	BUG_ON(!old);
 
-	inode = to_bch_ei(iget5_locked(c->vfs_sb,
-				       bch2_inode_hash(inum),
-				       bch2_iget5_test,
-				       bch2_iget5_set,
-				       &inum));
-	if (unlikely(!inode))
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->v.i_state & I_NEW))
-		return &inode->v;
-
-	trans = bch2_trans_get(c);
-	ret = lockrestart_do(trans,
-		bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
-		bch2_inode_find_by_inum_trans(trans, inum, &inode_u));
-
-	if (!ret)
-		bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
-	bch2_trans_put(trans);
-
-	if (ret) {
-		iget_failed(&inode->v);
-		return ERR_PTR(bch2_err_class(ret));
+	if (unlikely(old != inode)) {
+		discard_new_inode(&inode->v);
+		inode = old;
+	} else {
+		mutex_lock(&c->vfs_inodes_lock);
+		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
+		mutex_unlock(&c->vfs_inodes_lock);
+		/*
+		 * we really don't want insert_inode_locked2() to be setting
+		 * I_NEW...
+		 */
+		unlock_new_inode(&inode->v);
 	}
 
-	mutex_lock(&c->vfs_inodes_lock);
-	list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
-	mutex_unlock(&c->vfs_inodes_lock);
+	return inode;
+}
 
-	unlock_new_inode(&inode->v);
+#define memalloc_flags_do(_flags, _do)						\
+({										\
+	unsigned _saved_flags = memalloc_flags_save(_flags);			\
+	typeof(_do) _ret = _do;							\
+	memalloc_noreclaim_restore(_saved_flags);				\
+	_ret;									\
+})
 
-	return &inode->v;
+/*
+ * Allocate a new inode, dropping/retaking btree locks if necessary:
+ */
+static struct bch_inode_info *bch2_new_inode(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+
+	struct bch_inode_info *inode =
+		memalloc_flags_do(PF_MEMALLOC_NORECLAIM|PF_MEMALLOC_NOWARN,
+				  to_bch_ei(new_inode(c->vfs_sb)));
+
+	if (unlikely(!inode)) {
+		int ret = drop_locks_do(trans, (inode = to_bch_ei(new_inode(c->vfs_sb))) ? 0 : -ENOMEM);
+		if (ret && inode)
+			discard_new_inode(&inode->v);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	return inode;
+}
+
+struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
+{
+	struct bch_inode_info *inode =
+		to_bch_ei(ilookup5_nowait(c->vfs_sb,
+					  bch2_inode_hash(inum),
+					  bch2_iget5_test,
+					  &inum));
+	if (inode)
+		return &inode->v;
+
+	struct btree_trans *trans = bch2_trans_get(c);
+
+	struct bch_inode_unpacked inode_u;
+	struct bch_subvolume subvol;
+	int ret = lockrestart_do(trans,
+		bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
+		bch2_inode_find_by_inum_trans(trans, inum, &inode_u)) ?:
+		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
+	if (!ret) {
+		bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
+		inode = bch2_inode_insert(c, inode);
+	}
+	bch2_trans_put(trans);
+
+	return ret ? ERR_PTR(ret) : &inode->v;
 }
 
 struct bch_inode_info *
@@ -226,7 +269,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	struct bch_fs *c = dir->v.i_sb->s_fs_info;
 	struct btree_trans *trans;
 	struct bch_inode_unpacked dir_u;
-	struct bch_inode_info *inode, *old;
+	struct bch_inode_info *inode;
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *default_acl = NULL, *acl = NULL;
 	subvol_inum inum;
@@ -293,7 +336,6 @@ err_before_quota:
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
-	bch2_iget5_set(&inode->v, &inum);
 	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
 
 	set_cached_acl(&inode->v, ACL_TYPE_ACCESS, acl);
@@ -304,36 +346,7 @@ err_before_quota:
 	 * bch2_trans_exit() and dropping locks, else we could race with another
 	 * thread pulling the inode in and modifying it:
 	 */
-
-	inode->v.i_state |= I_CREATING;
-
-	old = to_bch_ei(inode_insert5(&inode->v,
-				      bch2_inode_hash(inum),
-				      bch2_iget5_test,
-				      bch2_iget5_set,
-				      &inum));
-	BUG_ON(!old);
-
-	if (unlikely(old != inode)) {
-		/*
-		 * We raced, another process pulled the new inode into cache
-		 * before us:
-		 */
-		make_bad_inode(&inode->v);
-		iput(&inode->v);
-
-		inode = old;
-	} else {
-		mutex_lock(&c->vfs_inodes_lock);
-		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
-		mutex_unlock(&c->vfs_inodes_lock);
-		/*
-		 * we really don't want insert_inode_locked2() to be setting
-		 * I_NEW...
-		 */
-		unlock_new_inode(&inode->v);
-	}
-
+	inode = bch2_inode_insert(c, inode);
 	bch2_trans_put(trans);
 err:
 	posix_acl_release(default_acl);
@@ -1372,6 +1385,7 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 				struct bch_inode_unpacked *bi,
 				struct bch_subvolume *subvol)
 {
+	bch2_iget5_set(&inode->v, &inum);
 	bch2_inode_update_after_write(trans, inode, bi, ~0);
 
 	if (BCH_SUBVOLUME_SNAP(subvol))
