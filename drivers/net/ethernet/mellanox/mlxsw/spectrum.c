@@ -4323,7 +4323,7 @@ static int mlxsw_sp_lag_col_port_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 				  struct net_device *lag_dev,
-				  u16 *p_lag_id)
+				  u16 *p_lag_id, struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_lag *lag;
 	int free_lag_id = -1;
@@ -4340,8 +4340,11 @@ static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 			free_lag_id = i;
 		}
 	}
-	if (free_lag_id < 0)
+	if (free_lag_id < 0) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Exceeded number of supported LAG devices");
 		return -EBUSY;
+	}
 	*p_lag_id = free_lag_id;
 	return 0;
 }
@@ -4352,12 +4355,6 @@ mlxsw_sp_master_lag_check(struct mlxsw_sp *mlxsw_sp,
 			  struct netdev_lag_upper_info *lag_upper_info,
 			  struct netlink_ext_ack *extack)
 {
-	u16 lag_id;
-
-	if (mlxsw_sp_lag_index_get(mlxsw_sp, lag_dev, &lag_id) != 0) {
-		NL_SET_ERR_MSG_MOD(extack, "Exceeded number of supported LAG devices");
-		return false;
-	}
 	if (lag_upper_info->tx_type != NETDEV_LAG_TX_TYPE_HASH) {
 		NL_SET_ERR_MSG_MOD(extack, "LAG device using unsupported Tx type");
 		return false;
@@ -4474,7 +4471,7 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	u8 port_index;
 	int err;
 
-	err = mlxsw_sp_lag_index_get(mlxsw_sp, lag_dev, &lag_id);
+	err = mlxsw_sp_lag_index_get(mlxsw_sp, lag_dev, &lag_id, extack);
 	if (err)
 		return err;
 	lag = &mlxsw_sp->lags[lag_id];
