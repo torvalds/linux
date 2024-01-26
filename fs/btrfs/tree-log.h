@@ -36,6 +36,15 @@ struct btrfs_log_ctx {
 	struct list_head conflict_inodes;
 	int num_conflict_inodes;
 	bool logging_conflict_inodes;
+	/*
+	 * Used for fsyncs that need to copy items from the subvolume tree to
+	 * the log tree (full sync flag set or copy everything flag set) to
+	 * avoid allocating a temporary extent buffer while holding a lock on
+	 * an extent buffer of the subvolume tree and under the log transaction.
+	 * Also helps to avoid allocating and freeing a temporary extent buffer
+	 * in case we need to process multiple leaves from the subvolume tree.
+	 */
+	struct extent_buffer *scratch_eb;
 };
 
 static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
@@ -53,6 +62,22 @@ static inline void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx,
 	INIT_LIST_HEAD(&ctx->conflict_inodes);
 	ctx->num_conflict_inodes = 0;
 	ctx->logging_conflict_inodes = false;
+	ctx->scratch_eb = NULL;
+}
+
+static inline void btrfs_init_log_ctx_scratch_eb(struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_inode *inode = BTRFS_I(ctx->inode);
+
+	if (!test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags) &&
+	    !test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags))
+		return;
+
+	/*
+	 * Don't care about allocation failure. This is just for optimization,
+	 * if we fail to allocate here, we will try again later if needed.
+	 */
+	ctx->scratch_eb = alloc_dummy_extent_buffer(inode->root->fs_info, 0);
 }
 
 static inline void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx)
