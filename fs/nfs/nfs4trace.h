@@ -1991,6 +1991,34 @@ DECLARE_EVENT_CLASS(nfs4_deviceid_status,
 DEFINE_PNFS_DEVICEID_STATUS(nfs4_getdeviceinfo);
 DEFINE_PNFS_DEVICEID_STATUS(nfs4_find_deviceid);
 
+TRACE_EVENT(fl_getdevinfo,
+		TP_PROTO(
+			const struct nfs_server *server,
+			const struct nfs4_deviceid *deviceid,
+			char *ds_remotestr
+		),
+		TP_ARGS(server, deviceid, ds_remotestr),
+
+		TP_STRUCT__entry(
+			__string(mds_addr, server->nfs_client->cl_hostname)
+			__array(unsigned char, deviceid, NFS4_DEVICEID4_SIZE)
+			__string(ds_ips, ds_remotestr)
+		),
+
+		TP_fast_assign(
+			__assign_str(mds_addr, server->nfs_client->cl_hostname);
+			__assign_str(ds_ips, ds_remotestr);
+			memcpy(__entry->deviceid, deviceid->data,
+			       NFS4_DEVICEID4_SIZE);
+		),
+		TP_printk(
+			"deviceid=%s, mds_addr=%s, ds_ips=%s",
+			__print_hex(__entry->deviceid, NFS4_DEVICEID4_SIZE),
+			__get_str(mds_addr),
+			__get_str(ds_ips)
+		)
+);
+
 DECLARE_EVENT_CLASS(nfs4_flexfiles_io_event,
 		TP_PROTO(
 			const struct nfs_pgio_header *hdr
