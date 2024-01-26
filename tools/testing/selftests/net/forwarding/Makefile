@@ -129,4 +129,7 @@ TEST_PROGS_EXTENDED := devlink_lib.sh \
 	sch_tbf_etsprio.sh \
 	tc_common.sh
 
+TEST_INCLUDES := \
+	../lib.sh
+
 include ../../lib.mk

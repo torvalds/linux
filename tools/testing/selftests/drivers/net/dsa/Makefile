@@ -26,6 +26,7 @@ TEST_INCLUDES := \
 	../../../net/forwarding/local_termination.sh \
 	../../../net/forwarding/no_forwarding.sh \
 	../../../net/forwarding/tc_actions.sh \
-	../../../net/forwarding/tc_common.sh
+	../../../net/forwarding/tc_common.sh \
+	../../../net/lib.sh
 
 include ../../../lib.mk

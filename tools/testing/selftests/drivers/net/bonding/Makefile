@@ -18,6 +18,7 @@ TEST_FILES := \
 	bond_topo_3d1c.sh
 
 TEST_INCLUDES := \
-	../../../net/forwarding/lib.sh
+	../../../net/forwarding/lib.sh \
+	../../../net/lib.sh
 
 include ../../../lib.mk
