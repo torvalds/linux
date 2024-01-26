@@ -53,6 +53,9 @@ struct rmpentry {
  */
 #define RMPTABLE_CPU_BOOKKEEPING_SZ	0x4000
 
+/* Mask to apply to a PFN to get the first PFN of a 2MB page */
+#define PFN_PMD_MASK	GENMASK_ULL(63, PMD_SHIFT - PAGE_SHIFT)
+
 static u64 probed_rmp_base, probed_rmp_size;
 static struct rmpentry *rmptable __ro_after_init;
 static u64 rmptable_max_pfn __ro_after_init;
@@ -214,3 +217,49 @@ nosnp:
  * This must be called after the IOMMU has been initialized.
  */
 device_initcall(snp_rmptable_init);
+
+static struct rmpentry *get_rmpentry(u64 pfn)
+{
+	if (WARN_ON_ONCE(pfn > rmptable_max_pfn))
+		return ERR_PTR(-EFAULT);
+
+	return &rmptable[pfn];
+}
+
+static struct rmpentry *__snp_lookup_rmpentry(u64 pfn, int *level)
+{
+	struct rmpentry *large_entry, *entry;
+
+	if (!cpu_feature_enabled(X86_FEATURE_SEV_SNP))
+		return ERR_PTR(-ENODEV);
+
+	entry = get_rmpentry(pfn);
+	if (IS_ERR(entry))
+		return entry;
+
+	/*
+	 * Find the authoritative RMP entry for a PFN. This can be either a 4K
+	 * RMP entry or a special large RMP entry that is authoritative for a
+	 * whole 2M area.
+	 */
+	large_entry = get_rmpentry(pfn & PFN_PMD_MASK);
+	if (IS_ERR(large_entry))
+		return large_entry;
+
+	*level = RMP_TO_PG_LEVEL(large_entry->pagesize);
+
+	return entry;
+}
+
+int snp_lookup_rmpentry(u64 pfn, bool *assigned, int *level)
+{
+	struct rmpentry *e;
+
+	e = __snp_lookup_rmpentry(pfn, level);
+	if (IS_ERR(e))
+		return PTR_ERR(e);
+
+	*assigned = !!e->assigned;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snp_lookup_rmpentry);

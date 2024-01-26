@@ -90,6 +90,7 @@ extern bool handle_vc_boot_ghcb(struct pt_regs *regs);
 /* RMP page size */
 #define RMP_PG_SIZE_4K			0
 #define RMP_PG_SIZE_2M			1
+#define RMP_TO_PG_LEVEL(level)		(((level) == RMP_PG_SIZE_4K) ? PG_LEVEL_4K : PG_LEVEL_2M)
 
 #define RMPADJUST_VMSA_PAGE_BIT		BIT(16)
 
@@ -245,8 +246,10 @@ static inline u64 sev_get_status(void) { return 0; }
 
 #ifdef CONFIG_KVM_AMD_SEV
 bool snp_probe_rmptable_info(void);
+int snp_lookup_rmpentry(u64 pfn, bool *assigned, int *level);
 #else
 static inline bool snp_probe_rmptable_info(void) { return false; }
+static inline int snp_lookup_rmpentry(u64 pfn, bool *assigned, int *level) { return -ENODEV; }
 #endif
 
 #endif
