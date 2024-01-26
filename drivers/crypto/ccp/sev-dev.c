@@ -21,6 +21,7 @@
 #include <linux/hw_random.h>
 #include <linux/ccp.h>
 #include <linux/firmware.h>
+#include <linux/panic_notifier.h>
 #include <linux/gfp.h>
 #include <linux/cpufeature.h>
 #include <linux/fs.h>
@@ -142,6 +143,25 @@ static int sev_wait_cmd_ioc(struct sev_device *sev,
 			    unsigned int *reg, unsigned int timeout)
 {
 	int ret;
+
+	/*
+	 * If invoked during panic handling, local interrupts are disabled,
+	 * so the PSP command completion interrupt can't be used. Poll for
+	 * PSP command completion instead.
+	 */
+	if (irqs_disabled()) {
+		unsigned long timeout_usecs = (timeout * USEC_PER_SEC) / 10;
+
+		/* Poll for SEV command completion: */
+		while (timeout_usecs--) {
+			*reg = ioread32(sev->io_regs + sev->vdata->cmdresp_reg);
+			if (*reg & PSP_CMDRESP_RESP)
+				return 0;
+
+			udelay(10);
+		}
+		return -ETIMEDOUT;
+	}
 
 	ret = wait_event_timeout(sev->int_queue,
 			sev->int_rcvd, timeout * HZ);
@@ -1338,17 +1358,6 @@ static int __sev_platform_shutdown_locked(int *error)
 	return ret;
 }
 
-static int sev_platform_shutdown(int *error)
-{
-	int rc;
-
-	mutex_lock(&sev_cmd_mutex);
-	rc = __sev_platform_shutdown_locked(NULL);
-	mutex_unlock(&sev_cmd_mutex);
-
-	return rc;
-}
-
 static int sev_get_platform_state(int *state, int *error)
 {
 	struct sev_user_data_status data;
@@ -1624,7 +1633,7 @@ fw_err:
 	return ret;
 }
 
-static int __sev_snp_shutdown_locked(int *error)
+static int __sev_snp_shutdown_locked(int *error, bool panic)
 {
 	struct sev_device *sev = psp_master->sev_data;
 	struct sev_data_snp_shutdown_ex data;
@@ -1637,7 +1646,16 @@ static int __sev_snp_shutdown_locked(int *error)
 	data.len = sizeof(data);
 	data.iommu_snp_shutdown = 1;
 
-	wbinvd_on_all_cpus();
+	/*
+	 * If invoked during panic handling, local interrupts are disabled
+	 * and all CPUs are stopped, so wbinvd_on_all_cpus() can't be called.
+	 * In that case, a wbinvd() is done on remote CPUs via the NMI
+	 * callback, so only a local wbinvd() is needed here.
+	 */
+	if (!panic)
+		wbinvd_on_all_cpus();
+	else
+		wbinvd();
 
 	ret = __sev_do_cmd_locked(SEV_CMD_SNP_SHUTDOWN_EX, &data, error);
 	/* SHUTDOWN may require DF_FLUSH */
@@ -1679,17 +1697,6 @@ static int __sev_snp_shutdown_locked(int *error)
 	dev_dbg(sev->dev, "SEV-SNP firmware shutdown\n");
 
 	return ret;
-}
-
-static int sev_snp_shutdown(int *error)
-{
-	int rc;
-
-	mutex_lock(&sev_cmd_mutex);
-	rc = __sev_snp_shutdown_locked(error);
-	mutex_unlock(&sev_cmd_mutex);
-
-	return rc;
 }
 
 static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp, bool writable)
@@ -2139,19 +2146,28 @@ e_err:
 	return ret;
 }
 
-static void sev_firmware_shutdown(struct sev_device *sev)
+static void __sev_firmware_shutdown(struct sev_device *sev, bool panic)
 {
 	int error;
 
-	sev_platform_shutdown(NULL);
+	__sev_platform_shutdown_locked(NULL);
 
 	if (sev_es_tmr) {
-		/* The TMR area was encrypted, flush it from the cache */
-		wbinvd_on_all_cpus();
+		/*
+		 * The TMR area was encrypted, flush it from the cache.
+		 *
+		 * If invoked during panic handling, local interrupts are
+		 * disabled and all CPUs are stopped, so wbinvd_on_all_cpus()
+		 * can't be used. In that case, wbinvd() is done on remote CPUs
+		 * via the NMI callback, and done for this CPU later during
+		 * SNP shutdown, so wbinvd_on_all_cpus() can be skipped.
+		 */
+		if (!panic)
+			wbinvd_on_all_cpus();
 
 		__snp_free_firmware_pages(virt_to_page(sev_es_tmr),
 					  get_order(sev_es_tmr_size),
-					  false);
+					  true);
 		sev_es_tmr = NULL;
 	}
 
@@ -2167,7 +2183,14 @@ static void sev_firmware_shutdown(struct sev_device *sev)
 		snp_range_list = NULL;
 	}
 
-	sev_snp_shutdown(&error);
+	__sev_snp_shutdown_locked(&error, panic);
+}
+
+static void sev_firmware_shutdown(struct sev_device *sev)
+{
+	mutex_lock(&sev_cmd_mutex);
+	__sev_firmware_shutdown(sev, false);
+	mutex_unlock(&sev_cmd_mutex);
 }
 
 void sev_dev_destroy(struct psp_device *psp)
@@ -2184,6 +2207,29 @@ void sev_dev_destroy(struct psp_device *psp)
 
 	psp_clear_sev_irq_handler(psp);
 }
+
+static int snp_shutdown_on_panic(struct notifier_block *nb,
+				 unsigned long reason, void *arg)
+{
+	struct sev_device *sev = psp_master->sev_data;
+
+	/*
+	 * If sev_cmd_mutex is already acquired, then it's likely
+	 * another PSP command is in flight and issuing a shutdown
+	 * would fail in unexpected ways. Rather than create even
+	 * more confusion during a panic, just bail out here.
+	 */
+	if (mutex_is_locked(&sev_cmd_mutex))
+		return NOTIFY_DONE;
+
+	__sev_firmware_shutdown(sev, true);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block snp_panic_notifier = {
+	.notifier_call = snp_shutdown_on_panic,
+};
 
 int sev_issue_cmd_external_user(struct file *filep, unsigned int cmd,
 				void *data, int *error)
@@ -2222,6 +2268,8 @@ void sev_pci_init(void)
 	dev_info(sev->dev, "SEV%s API:%d.%d build:%d\n", sev->snp_initialized ?
 		"-SNP" : "", sev->api_major, sev->api_minor, sev->build);
 
+	atomic_notifier_chain_register(&panic_notifier_list,
+				       &snp_panic_notifier);
 	return;
 
 err:
@@ -2236,4 +2284,7 @@ void sev_pci_exit(void)
 		return;
 
 	sev_firmware_shutdown(sev);
+
+	atomic_notifier_chain_unregister(&panic_notifier_list,
+					 &snp_panic_notifier);
 }

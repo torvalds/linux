@@ -216,6 +216,12 @@ skip_enable:
 
 	cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "x86/rmptable_init:online", __snp_enable, NULL);
 
+	/*
+	 * Setting crash_kexec_post_notifiers to 'true' to ensure that SNP panic
+	 * notifier is invoked to do SNP IOMMU shutdown before kdump.
+	 */
+	crash_kexec_post_notifiers = true;
+
 	return 0;
 
 nosnp:
