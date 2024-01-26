@@ -887,7 +887,7 @@ static struct workqueue_struct *callback_wq;
 
 static bool nfsd4_queue_cb(struct nfsd4_callback *cb)
 {
-	return queue_work(callback_wq, &cb->cb_work);
+	return queue_delayed_work(callback_wq, &cb->cb_work, 0);
 }
 
 static void nfsd41_cb_inflight_begin(struct nfs4_client *clp)
@@ -1370,7 +1370,7 @@ static void
 nfsd4_run_cb_work(struct work_struct *work)
 {
 	struct nfsd4_callback *cb =
-		container_of(work, struct nfsd4_callback, cb_work);
+		container_of(work, struct nfsd4_callback, cb_work.work);
 	struct nfs4_client *clp = cb->cb_clp;
 	struct rpc_clnt *clnt;
 	int flags;
@@ -1415,7 +1415,7 @@ void nfsd4_init_cb(struct nfsd4_callback *cb, struct nfs4_client *clp,
 	cb->cb_msg.rpc_argp = cb;
 	cb->cb_msg.rpc_resp = cb;
 	cb->cb_ops = ops;
-	INIT_WORK(&cb->cb_work, nfsd4_run_cb_work);
+	INIT_DELAYED_WORK(&cb->cb_work, nfsd4_run_cb_work);
 	cb->cb_seq_status = 1;
 	cb->cb_status = 0;
 	cb->cb_need_restart = false;
