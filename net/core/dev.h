@@ -56,6 +56,7 @@ struct netdev_name_node {
 	struct list_head list;
 	struct net_device *dev;
 	const char *name;
+	struct rcu_head rcu;
 };
 
 int netdev_get_name(struct net *net, char *name, int ifindex);

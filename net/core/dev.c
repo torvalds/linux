@@ -341,11 +341,20 @@ int netdev_name_node_alt_create(struct net_device *dev, const char *name)
 	return 0;
 }
 
-static void __netdev_name_node_alt_destroy(struct netdev_name_node *name_node)
+static void netdev_name_node_alt_free(struct rcu_head *head)
 {
-	list_del(&name_node->list);
+	struct netdev_name_node *name_node =
+		container_of(head, struct netdev_name_node, rcu);
+
 	kfree(name_node->name);
 	netdev_name_node_free(name_node);
+}
+
+static void __netdev_name_node_alt_destroy(struct netdev_name_node *name_node)
+{
+	netdev_name_node_del(name_node);
+	list_del(&name_node->list);
+	call_rcu(&name_node->rcu, netdev_name_node_alt_free);
 }
 
 int netdev_name_node_alt_destroy(struct net_device *dev, const char *name)
@@ -362,10 +371,7 @@ int netdev_name_node_alt_destroy(struct net_device *dev, const char *name)
 	if (name_node == dev->name_node || name_node->dev != dev)
 		return -EINVAL;
 
-	netdev_name_node_del(name_node);
-	synchronize_rcu();
 	__netdev_name_node_alt_destroy(name_node);
-
 	return 0;
 }
 
@@ -373,8 +379,10 @@ static void netdev_name_node_alt_flush(struct net_device *dev)
 {
 	struct netdev_name_node *name_node, *tmp;
 
-	list_for_each_entry_safe(name_node, tmp, &dev->name_node->list, list)
-		__netdev_name_node_alt_destroy(name_node);
+	list_for_each_entry_safe(name_node, tmp, &dev->name_node->list, list) {
+		list_del(&name_node->list);
+		netdev_name_node_alt_free(&name_node->rcu);
+	}
 }
 
 /* Device list insertion */
@@ -11576,11 +11584,8 @@ static void __net_exit default_device_exit_net(struct net *net)
 			snprintf(fb_name, IFNAMSIZ, "dev%%d");
 
 		netdev_for_each_altname_safe(dev, name_node, tmp)
-			if (netdev_name_in_use(&init_net, name_node->name)) {
-				netdev_name_node_del(name_node);
-				synchronize_rcu();
+			if (netdev_name_in_use(&init_net, name_node->name))
 				__netdev_name_node_alt_destroy(name_node);
-			}
 
 		err = dev_change_net_namespace(dev, &init_net, fb_name);
 		if (err) {
