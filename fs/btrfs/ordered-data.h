@@ -6,6 +6,8 @@
 #ifndef BTRFS_ORDERED_DATA_H
 #define BTRFS_ORDERED_DATA_H
 
+#include "async-thread.h"
+
 struct btrfs_ordered_sum {
 	/*
 	 * Logical start address and length for of the blocks covered by

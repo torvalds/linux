@@ -5,6 +5,7 @@
 
 #include <linux/rbtree.h>
 #include <linux/refcount.h>
+#include "misc.h"
 #include "compression.h"
 
 #define EXTENT_MAP_LAST_BYTE ((u64)-4)

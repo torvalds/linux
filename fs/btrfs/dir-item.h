@@ -3,9 +3,15 @@
 #ifndef BTRFS_DIR_ITEM_H
 #define BTRFS_DIR_ITEM_H
 
+#include <linux/types.h>
 #include <linux/crc32c.h>
 
 struct fscrypt_str;
+struct btrfs_fs_info;
+struct btrfs_key;
+struct btrfs_path;
+struct btrfs_root;
+struct btrfs_trans_handle;
 
 int btrfs_check_dir_item_collision(struct btrfs_root *root, u64 dir,
 			  const struct fscrypt_str *name);

@@ -4,6 +4,7 @@
  */
 
 #include <linux/hashtable.h>
+#include <linux/xattr.h>
 #include "messages.h"
 #include "props.h"
 #include "btrfs_inode.h"

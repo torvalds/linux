@@ -6,6 +6,10 @@
 #ifndef BTRFS_DISK_IO_H
 #define BTRFS_DISK_IO_H
 
+#include <linux/sizes.h>
+#include "ctree.h"
+#include "fs.h"
+
 #define BTRFS_SUPER_MIRROR_MAX	 3
 #define BTRFS_SUPER_MIRROR_SHIFT 12
 
