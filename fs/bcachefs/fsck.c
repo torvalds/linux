@@ -100,8 +100,8 @@ err:
 }
 
 static int lookup_inode(struct btree_trans *trans, u64 inode_nr,
-			  struct bch_inode_unpacked *inode,
-			  u32 *snapshot)
+			struct bch_inode_unpacked *inode,
+			u32 *snapshot)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -722,7 +722,7 @@ static int hash_redo_key(struct btree_trans *trans,
 	delete->k.p = k_iter->pos;
 	return  bch2_btree_iter_traverse(k_iter) ?:
 		bch2_trans_update(trans, k_iter, delete, 0) ?:
-		bch2_hash_set_snapshot(trans, desc, hash_info,
+		bch2_hash_set_in_snapshot(trans, desc, hash_info,
 				       (subvol_inum) { 0, k.k->p.inode },
 				       k.k->p.snapshot, tmp,
 				       BCH_HASH_SET_MUST_CREATE,
@@ -1778,7 +1778,6 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (d.v->d_type == DT_DIR)
 		for_each_visible_inode(c, s, dir, equiv.snapshot, i)
 			i->count++;
-
 out:
 err:
 fsck_err:

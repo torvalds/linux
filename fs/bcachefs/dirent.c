@@ -219,10 +219,10 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 	dirent->k.p.inode	= dir;
 	dirent->k.p.snapshot	= snapshot;
 
-	ret = bch2_hash_set_snapshot(trans, bch2_dirent_hash_desc, hash_info,
-				     zero_inum, snapshot,
-				     &dirent->k_i, str_hash_flags,
-				     BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	ret = bch2_hash_set_in_snapshot(trans, bch2_dirent_hash_desc, hash_info,
+					zero_inum, snapshot,
+					&dirent->k_i, str_hash_flags,
+					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;
