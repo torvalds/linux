@@ -864,7 +864,6 @@
 	status = "okay";
 };
 
-#if 0
 &mctp0 {
 	status = "okay";
 	memory-region = <&mctp0_reserved>;
@@ -875,6 +874,7 @@
 	memory-region = <&mctp1_reserved>;
 };
 
+#if 0
 &sdio_controller {
 	status = "okay";
 	aspeed-max-tap-delay = <9000>;
