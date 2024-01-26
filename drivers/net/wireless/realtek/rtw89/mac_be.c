@@ -2313,6 +2313,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.rx_fltr = R_BE_RX_FLTR_OPT,
 	.port_base = &rtw89_port_base_be,
 	.agg_len_ht = R_BE_AGG_LEN_HT_0,
+	.ps_status = R_BE_WMTX_POWER_BE_BIT_CTL,
 
 	.muedca_ctrl = {
 		.addr = R_BE_MUEDCA_EN,

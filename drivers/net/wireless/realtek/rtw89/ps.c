@@ -14,6 +14,7 @@
 
 static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 pwr_en_bit = 0xE;
 	u32 chk_msk = pwr_en_bit << (4 * macid);
 	u32 polling;
@@ -21,7 +22,7 @@ static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 
 	ret = read_poll_timeout_atomic(rtw89_read32_mask, polling, !polling,
 				       1000, 50000, false, rtwdev,
-				       R_AX_PPWRBIT_SETTING, chk_msk);
+				       mac->ps_status, chk_msk);
 	if (ret) {
 		rtw89_info(rtwdev, "rtw89: failed to leave lps state\n");
 		return -EBUSY;

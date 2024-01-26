@@ -894,6 +894,7 @@ struct rtw89_mac_gen_def {
 	u32 rx_fltr;
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
+	u32 ps_status;
 
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;

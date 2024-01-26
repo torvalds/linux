@@ -6184,6 +6184,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.rx_fltr = R_AX_RX_FLTR_OPT,
 	.port_base = &rtw89_port_base_ax,
 	.agg_len_ht = R_AX_AGG_LEN_HT_0,
+	.ps_status = R_AX_PPWRBIT_SETTING,
 
 	.muedca_ctrl = {
 		.addr = R_AX_MUEDCA_EN,
