@@ -7,8 +7,6 @@
 
 #include <linux/delay.h>
 #include <linux/iopoll.h>
-#include <linux/phy/phy.h>
-#include <linux/phy/phy-dp.h>
 #include <linux/rational.h>
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_print.h>
@@ -241,16 +239,6 @@ void dp_catalog_aux_enable(struct dp_catalog *dp_catalog, bool enable)
 	}
 
 	dp_write_aux(catalog, REG_DP_AUX_CTRL, aux_ctrl);
-}
-
-void dp_catalog_aux_update_cfg(struct dp_catalog *dp_catalog)
-{
-	struct dp_catalog_private *catalog = container_of(dp_catalog,
-				struct dp_catalog_private, dp_catalog);
-	struct dp_io *dp_io = catalog->io;
-	struct phy *phy = dp_io->phy;
-
-	phy_calibrate(phy);
 }
 
 int dp_catalog_aux_wait_for_hpd_connect_state(struct dp_catalog *dp_catalog)
