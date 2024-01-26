@@ -1730,6 +1730,24 @@ struct rtw89_h2c_bcn_upd_be {
 	__le32 w9;
 	__le32 w10;
 	__le32 w11;
+	__le32 w12;
+	__le32 w13;
+	__le32 w14;
+	__le32 w15;
+	__le32 w16;
+	__le32 w17;
+	__le32 w18;
+	__le32 w19;
+	__le32 w20;
+	__le32 w21;
+	__le32 w22;
+	__le32 w23;
+	__le32 w24;
+	__le32 w25;
+	__le32 w26;
+	__le32 w27;
+	__le32 w28;
+	__le32 w29;
 } __packed;
 
 #define RTW89_H2C_BCN_UPD_BE_W0_PORT GENMASK(7, 0)
