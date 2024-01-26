@@ -369,6 +369,81 @@ int psmash(u64 pfn)
 EXPORT_SYMBOL_GPL(psmash);
 
 /*
+ * If the kernel uses a 2MB or larger directmap mapping to write to an address,
+ * and that mapping contains any 4KB pages that are set to private in the RMP
+ * table, an RMP #PF will trigger and cause a host crash. Hypervisor code that
+ * owns the PFNs being transitioned will never attempt such a write, but other
+ * kernel tasks writing to other PFNs in the range may trigger these checks
+ * inadvertently due a large directmap mapping that happens to overlap such a
+ * PFN.
+ *
+ * Prevent this by splitting any 2MB+ mappings that might end up containing a
+ * mix of private/shared PFNs as a result of a subsequent RMPUPDATE for the
+ * PFN/rmp_level passed in.
+ *
+ * Note that there is no attempt here to scan all the RMP entries for the 2MB
+ * physical range, since it would only be worthwhile in determining if a
+ * subsequent RMPUPDATE for a 4KB PFN would result in all the entries being of
+ * the same shared/private state, thus avoiding the need to split the mapping.
+ * But that would mean the entries are currently in a mixed state, and so the
+ * mapping would have already been split as a result of prior transitions.
+ * And since the 4K split is only done if the mapping is 2MB+, and there isn't
+ * currently a mechanism in place to restore 2MB+ mappings, such a check would
+ * not provide any usable benefit.
+ *
+ * More specifics on how these checks are carried out can be found in APM
+ * Volume 2, "RMP and VMPL Access Checks".
+ */
+static int adjust_direct_map(u64 pfn, int rmp_level)
+{
+	unsigned long vaddr;
+	unsigned int level;
+	int npages, ret;
+	pte_t *pte;
+
+	/*
+	 * pfn_to_kaddr() will return a vaddr only within the direct
+	 * map range.
+	 */
+	vaddr = (unsigned long)pfn_to_kaddr(pfn);
+
+	/* Only 4KB/2MB RMP entries are supported by current hardware. */
+	if (WARN_ON_ONCE(rmp_level > PG_LEVEL_2M))
+		return -EINVAL;
+
+	if (!pfn_valid(pfn))
+		return -EINVAL;
+
+	if (rmp_level == PG_LEVEL_2M &&
+	    (!IS_ALIGNED(pfn, PTRS_PER_PMD) || !pfn_valid(pfn + PTRS_PER_PMD - 1)))
+		return -EINVAL;
+
+	/*
+	 * If an entire 2MB physical range is being transitioned, then there is
+	 * no risk of RMP #PFs due to write accesses from overlapping mappings,
+	 * since even accesses from 1GB mappings will be treated as 2MB accesses
+	 * as far as RMP table checks are concerned.
+	 */
+	if (rmp_level == PG_LEVEL_2M)
+		return 0;
+
+	pte = lookup_address(vaddr, &level);
+	if (!pte || pte_none(*pte))
+		return 0;
+
+	if (level == PG_LEVEL_4K)
+		return 0;
+
+	npages = page_level_size(rmp_level) / PAGE_SIZE;
+	ret = set_memory_4k(vaddr, npages);
+	if (ret)
+		pr_warn("Failed to split direct map for PFN 0x%llx, ret: %d\n",
+			pfn, ret);
+
+	return ret;
+}
+
+/*
  * It is expected that those operations are seldom enough so that no mutual
  * exclusion of updaters is needed and thus the overlap error condition below
  * should happen very rarely and would get resolved relatively quickly by
@@ -384,10 +459,15 @@ EXPORT_SYMBOL_GPL(psmash);
 static int rmpupdate(u64 pfn, struct rmp_state *state)
 {
 	unsigned long paddr = pfn << PAGE_SHIFT;
-	int ret;
+	int ret, level;
 
 	if (!cpu_feature_enabled(X86_FEATURE_SEV_SNP))
 		return -ENODEV;
+
+	level = RMP_TO_PG_LEVEL(state->pagesize);
+
+	if (adjust_direct_map(pfn, level))
+		return -EFAULT;
 
 	do {
 		/* Binutils version 2.36 supports the RMPUPDATE mnemonic. */
@@ -398,7 +478,8 @@ static int rmpupdate(u64 pfn, struct rmp_state *state)
 	} while (ret == RMPUPDATE_FAIL_OVERLAP);
 
 	if (ret) {
-		pr_err("RMPUPDATE failed for PFN %llx, ret: %d\n", pfn, ret);
+		pr_err("RMPUPDATE failed for PFN %llx, pg_level: %d, ret: %d\n",
+		       pfn, level, ret);
 		dump_rmpentry(pfn);
 		dump_stack();
 		return -EFAULT;
