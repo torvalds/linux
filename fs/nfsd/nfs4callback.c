@@ -1315,11 +1315,12 @@ void nfsd4_shutdown_callback(struct nfs4_client *clp)
 	nfsd41_cb_inflight_wait_complete(clp);
 }
 
-/* requires cl_lock: */
 static struct nfsd4_conn * __nfsd4_find_backchannel(struct nfs4_client *clp)
 {
 	struct nfsd4_session *s;
 	struct nfsd4_conn *c;
+
+	lockdep_assert_held(&clp->cl_lock);
 
 	list_for_each_entry(s, &clp->cl_sessions, se_perclnt) {
 		list_for_each_entry(c, &s->se_conns, cn_persession) {
