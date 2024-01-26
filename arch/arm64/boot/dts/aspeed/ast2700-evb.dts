@@ -860,6 +860,10 @@
 	status = "okay";
 };
 
+&jtag1 {
+	status = "okay";
+};
+
 #if 0
 &mctp0 {
 	status = "okay";
@@ -869,18 +873,6 @@
 &mctp1 {
 	status = "okay";
 	memory-region = <&mctp1_reserved>;
-};
-
-&i3c0 {
-	status = "okay";
-};
-
-&jtag0 {
-	status = "okay";
-};
-
-&jtag1 {
-	status = "okay";
 };
 
 &sdio_controller {
