@@ -491,7 +491,6 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	mmu->cmdq.cons = 0;
 
 	memset(mmu->evtq.base, 0, IVPU_MMU_EVTQ_SIZE);
-	clflush_cache_range(mmu->evtq.base, IVPU_MMU_EVTQ_SIZE);
 	mmu->evtq.prod = 0;
 	mmu->evtq.cons = 0;
 
@@ -804,8 +803,6 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 	evtq->prod = REGV_RD32(VPU_37XX_HOST_MMU_EVTQ_PROD_SEC);
 	if (!CIRC_CNT(IVPU_MMU_Q_IDX(evtq->prod), IVPU_MMU_Q_IDX(evtq->cons), IVPU_MMU_Q_COUNT))
 		return NULL;
-
-	clflush_cache_range(evt, IVPU_MMU_EVTQ_CMD_SIZE);
 
 	evtq->cons = (evtq->cons + 1) & IVPU_MMU_Q_WRAP_MASK;
 	REGV_WR32(VPU_37XX_HOST_MMU_EVTQ_CONS_SEC, evtq->cons);
