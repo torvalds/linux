@@ -160,8 +160,7 @@
  */
 #define ROCKCHIP_SPI_MAX_TRANLEN		0xffff
 
-/* 2 for native cs, 2 for cs-gpio */
-#define ROCKCHIP_SPI_MAX_CS_NUM			4
+#define ROCKCHIP_SPI_MAX_NATIVE_CS_NUM		2
 #define ROCKCHIP_SPI_VER2_TYPE1			0x05EC0002
 #define ROCKCHIP_SPI_VER2_TYPE2			0x00110002
 
@@ -839,7 +838,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ctlr->target_abort = rockchip_spi_target_abort;
 	} else {
 		ctlr->flags = SPI_CONTROLLER_GPIO_SS;
-		ctlr->max_native_cs = ROCKCHIP_SPI_MAX_CS_NUM;
+		ctlr->max_native_cs = ROCKCHIP_SPI_MAX_NATIVE_CS_NUM;
 		/*
 		 * rk spi0 has two native cs, spi1..5 one cs only
 		 * if num-cs is missing in the dts, default to 1
