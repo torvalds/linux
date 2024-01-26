@@ -43,8 +43,26 @@
 };
 
 &hscif0 {
+	pinctrl-0 = <&hscif0_pins>;
+	pinctrl-names = "default";
+
 	uart-has-rtscts;
 	status = "okay";
+};
+
+&pfc {
+	pinctrl-0 = <&scif_clk_pins>;
+	pinctrl-names = "default";
+
+	hscif0_pins: hscif0 {
+		groups = "hscif0_data", "hscif0_ctrl";
+		function = "hscif0";
+	};
+
+	scif_clk_pins: scif-clk {
+		groups = "scif_clk";
+		function = "scif_clk";
+	};
 };
 
 &rwdt {
