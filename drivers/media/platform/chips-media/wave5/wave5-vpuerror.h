@@ -2,7 +2,7 @@
 /*
  * Wave5 series multi-standard codec IP - error values
  *
- * Copyright (C) 2021 CHIPS&MEDIA INC
+ * Copyright (C) 2021-2023 CHIPS&MEDIA INC
  */
 
 #ifndef ERROR_CODE_H_INCLUDED
@@ -210,126 +210,6 @@
 #define AVC_ETCERR_FMO                                                 0x00005005
 #define AVC_ETCERR_INPLACE_V                                           0x0000500F
 
-// AV1
-#define AV1_SPSERR_MAX_FRAME_WIDTH                                     0x00001001
-#define AV1_SPSERR_MAX_FRAME_HEIGHT                                    0x00001002
-#define AV1_SPSERR_ID_LEN_EXCEED_16                                    0x00001004
-#define AV1_SPSERR_NOT_FOUND_FIRST_SPS                                 0x0000100A
-#define AV1_SPSERR_SEQ_PROFILE                                         0x0000100B
-#define AV1_SPSERR_STILL_PICTURE                                       0x0000100C
-#define AV1_PPSERR_FRAME_SIZE_WIDTH                                    0x00002001
-#define AV1_PPSERR_FRAME_SIZE_HEIGHT                                   0x00002002
-#define AV1_PPSERR_SEEN_FRAME_HEADER                                   0x00002003
-#define AV1_PPSERR_REF_VALID                                           0x00002007
-#define AV1_PPSERR_LAST_ORDER_HINT                                     0x0000200B
-#define AV1_PPSERR_GOLD_ORDER_HINT                                     0x0000200C
-#define AV1_PPSERR_CODED_LOSSLESS_DELTA_Q                              0x0000200E
-#define AV1_PPSERR_FILM_GRAIN_PARAM_REF_IDX                            0x0000200F
-#define AV1_PPSERR_SEQ_CHANGE_BIT_DEPTH                                0x00002010
-#define AV1_PPSERR_SEQ_CHANGE_PROFILE                                  0x00002012
-#define AV1_PPSERR_SEQ_CHANGE_DETECTED_INTER                           0x00002013
-#define AV1_PPSERR_NUM_Y_POINTS                                        0x00002014
-#define AV1_PPSERR_POINT_Y_VALUE                                       0x00002015
-#define AV1_PPSERR_NUM_CB_POINTS                                       0x00002016
-#define AV1_PPSERR_POINT_CB_VALUE                                      0x00002017
-#define AV1_PPSERR_NUM_CR_POINTS                                       0x00002018
-#define AV1_PPSERR_POINT_CR_VALUE                                      0x00002019
-#define AV1_PPSERR_SUBSAMPLING_FORMAT                                  0x0000201A
-#define AV1_FRAMEERR_TILE_START_END_PRESENT                            0x00003001
-#define AV1_FRAMEERR_SHOW_EXISING_FRAME                                0x00003002
-#define AV1_TGERR_NUM_TILES_ZERO                                       0x00004001
-#define AV1_TGERR_START_NOT_TILE_NUM                                   0x00004002
-#define AV1_TGERR_END_LESS_THAN_TG_START                               0x00004003
-#define AV1_TGERR_TILE_SIZE_GREATER_THAN_32M                           0x00004004
-#define AV1_SPECERR_OVER_MAX_H_SIZE                                    0x00005001
-#define AV1_SPECERR_OVER_MAX_V_SIZE                                    0x00005002
-#define AV1_SPECERR_OVER_MAX_TILE_COLS                                 0x00005004
-#define AV1_SPECERR_OVER_MAX_TILE_ROWS                                 0x00005005
-#define AV1_SPECERR_OVER_TILE_SIZE                                     0x00005006
-#define AV1_SPECERR_OVER_NUMTILES_GT_MAX_TILES                         0x00005007
-#define AV1_ETCERR_OBU_HEADER                                          0x00006001
-#define AV1_ETCERR_OBU_SIZE                                            0x00006003
-#define AV1_ETCERR_OVERCONSUME                                         0x00006004
-#define AV1_ETCERR_NOT_SUPPORTED_FEATURE                               0x00006005
-#define AV1_ETCERR_RESILIENCE_FAIL                                     0x00006006
-
-// VP9
-#define VP9_PICERR_FRAME_MARKER                                        0x00001000
-#define VP9_PICERR_PROFILE                                             0x00001001
-#define VP9_PICERR_SYNC_CODE                                           0x00001002
-#define VP9_PICERR_PROFILE_COLOR_SAMPLE                                0x00001003
-#define VP9_PICERR_FRAME_SIZE                                          0x00001004
-#define VP9_PICERR_SEGMENT                                             0x00001005
-#define VP9_PICERR_TILE                                                0x00001006
-#define VP9_PICERR_PROFILE_COMP_MISMATCH_WITH_REF                      0x00001007
-#define VP9_PICERR_COMP_DAT_OVER_CS                                    0x00001008
-#define VP9_PICERR_COMP_TRAILING_BIT_ERR                               0x00001009
-#define VP9_PICERR_MARKER                                              0x0000100A
-#define VP9_PICERR_NOT_EXIST_REF_FRAME                                 0x0000100B
-#define VP9_PICERR_UNINIT_CTX                                          0x0000100C
-#define VP9_PICERR_FRAME_SIZE_LIMIT_BY_REF                             0x0000100D
-#define VP9_SPECERR_OVER_PICTURE_WIDTH_SIZE                            0x00004000
-#define VP9_SPECERR_OVER_PICTURE_HEIGHT_SIZE                           0x00004001
-#define VP9_SPECERR_OVER_CHROMA_FORMAT                                 0x00004002
-#define VP9_SPECERR_OVER_BIT_DEPTH                                     0x00004003
-#define VP9_ETCERR_INIT_KEY_FRAME_NOT_FOUND                            0x00005000
-#define VP9_ETCERR_FORBIDDEN_BS_MODE                                   0x00005004
-#define VP9_ETCERR_SPP_OVER_CS_AU                                      0x00005005
-
-// AVS2
-#define AVS2_SPSERR_PROFILE_ID                                         0x00001000
-#define AVS2_SPSERR_LEVEL_ID                                           0x00001001
-#define AVS2_SPSERR_HORIZONTAL_SIZE                                    0x00001002
-#define AVS2_SPSERR_VERTICAL_SIZE                                      0x00001003
-#define AVS2_SPSERR_CHROMA_FORMAT                                      0x00001004
-#define AVS2_SPSERR_SAMPLE_PRECISION                                   0x00001005
-#define AVS2_SPSERR_ENCODING_PRECISION                                 0x00001006
-#define AVS2_SPSERR_LCU_SIZE                                           0x00001007
-#define AVS2_SPSERR_WEIGHT_QUANT_MATRIX                                0x00001008
-#define AVS2_SPSERR_NUM_OF_RCS                                         0x00001009
-#define AVS2_SPSERR_REFERENCE_CONFIGURATION_SET                        0x0000100A
-#define AVS2_SPSERR_OUTPUT_REORDER_DELAY                               0x0000100B
-#define AVS2_PPSERR_BBV_DELAY                                          0x00002000
-#define AVS2_PPSERR_TIME_CODE                                          0x00002001
-#define AVS2_PPSERR_DECODE_ORDER_INDEX                                 0x00002002
-#define AVS2_PPSERR_TEMPORAL_ID                                        0x00002003
-#define AVS2_PPSERR_PICTURE_OUTPUT_DELAY                               0x00002004
-#define AVS2_PPSERR_RCS_INDEX                                          0x00002005
-#define AVS2_PPSERR_REFERENCE_CONFIGURATION_SET                        0x00002006
-#define AVS2_PPSERR_BBV_CHECK_TIMES                                    0x00002007
-#define AVS2_PPSERR_PICTURE_QP                                         0x00002008
-#define AVS2_PPSERR_ALPHA_C_OFFSET                                     0x00002009
-#define AVS2_PPSERR_BETA_OFFSET                                        0x0000200A
-#define AVS2_PPSERR_CHROMA_QUANT_PARAM_DELTA_CB                        0x0000200B
-#define AVS2_PPSERR_CHROMA_QUANT_PARAM_DELTA_CR                        0x0000200C
-#define AVS2_PPSERR_WEIGHT_QUANT_PARAM_DELTA1                          0x0000200D
-#define AVS2_PPSERR_WEIGHT_QUANT_PARAM_DELTA2                          0x0000200E
-#define AVS2_PPSERR_PICTURE_CODING_TYPE                                0x0000200F
-#define AVS2_PPSERR_ALF_FILTER_NUM_MINUS1                              0x00002010
-#define AVS2_PPSERR_ALF_REGION_DISTANCE                                0x00002011
-#define AVS2_PPSERR_ALF_COEFF_LUMA                                     0x00002012
-#define AVS2_PPSERR_ALF_COEFF_CHROMA_CB                                0x00002013
-#define AVS2_PPSERR_ALF_COEFF_CHROMA_CR                                0x00002014
-#define AVS2_SHERR_SLICE_VERTICAL_POSITION                             0x00003000
-#define AVS2_SHERR_SLICE_VERTICAL_POSITION_EXTENSION                   0x00003001
-#define AVS2_SHERR_SLICE_HORIZONTAL_POSITION                           0x00003002
-#define AVS2_SHERR_SLICE_HORIZONTAL_POSITION_EXTENSION                 0x00003003
-#define AVS2_SHERR_FIXED_SLICE_QP                                      0x00003004
-#define AVS2_SHERR_SLICE_QP                                            0x00003005
-#define AVS2_SHERR_SLICE_SAO_ENABLE_FLAG                               0x00003006
-#define AVS2_SHERR_AEC_BYTE_ALIGNMENT_BIT                              0x00003007
-#define AVS2_SHERR_STREAM_END                                          0x00003008
-#define AVS2_SPECERR_OVER_PICTURE_WIDTH_SIZE                           0x00004000
-#define AVS2_SPECERR_OVER_PICTURE_HEIGHT_SIZE                          0x00004001
-#define AVS2_SPECERR_OVER_CHROMA_FORMAT                                0x00004002
-#define AVS2_SPECERR_OVER_BIT_DEPTH                                    0x00004003
-#define AVS2_SPECERR_OVER_REF_TEMPORAL_ID                              0x00004004
-#define AVS2_ETCERR_SPS_NOT_FOUND                                      0x00005000
-#define AVS2_ETCERR_DEC_PIC_VCL_NOT_FOUND                              0x00005001
-#define AVS2_ETCERR_NO_VALID_SLICE_IN_AU                               0x00005002
-#define AVS2_ETCERR_PPS_ERROR                                          0x00005003
-#define AVS2_ETCERR_SLICE_NUM_OVERFLOW                                 0x00005004
-
 /************************************************************************/
 /* WAVE5 WARNING ON DECODER (WARN_INFO)                                 */
 /************************************************************************/
@@ -391,48 +271,6 @@
 #define AVC_PRESWARN_RUN_BEFORE_RANGE_OUT                              0x01000000
 #define AVC_PRESWARN_OVERCONSUME                                       0x01100000
 #define AVC_PRESWARN_MISSING_SLICE                                     0x01200000
-
-// AV1
-#define AV1_SPSWARN_OBU_EXTENSION_FLAG_ZERO                            0x00001000
-#define AV1_SPSWARN_DUPLICATE_OPERATING_POINT_IDX                      0x00001001
-#define AV1_SPSWARN_MC_IDENTIY_SUBSAMPLING_X                           0x00001002
-#define AV1_PPSWARN_MC_IDENTIY_SUBSAMPLING_Y                           0x00001003
-#define AV1_SPSWARN_NUM_UNITS_IN_DISPLAY_TICK                          0x00001004
-#define AV1_SPSWARN_TIME_SCALE_ZERO                                    0x00001005
-#define AV1_SPSWARN_NUM_TICKS_PER_PICTURE                              0x00001006
-#define AV1_PPSWARN_TILE_WIDTH                                         0x00002001
-#define AV1_PPSWARN_TILE_HEIGHT                                        0x00002002
-#define AV1_PPSWARN_SHOW_EXISTING_KEY_FRAME_OUTPUT                     0x00002004
-#define AV1_PPSWARN_DIFF_FRAME_ID                                      0x00002008
-#define AV1_PPSWARN_CURRENT_FRAME_ID                                   0x00002010
-#define AV1_PPSWARN_REFRESH_FRAME_FLAGS                                0x00002020
-#define AV1_PPSWARN_DISPLAY_ID                                         0x00002040
-#define AV1_PPSWARN_PREV_FRAME_SHOWABLE_FLAG_ZERO                      0x00002080
-#define AV1_PPSWARN_EXPECTED_FRAME_ID                                  0x00002100
-#define AV1_SPECWARN_OVER_MAX_TILE_AREA_SB                             0x00005000
-#define AV1_SPECWARN_OVER_MAX_PIC_SIZE                                 0x00005001
-#define AV1_ETCWARN_OBU_EXTENSION_FLAG                                 0x00006000
-#define AV1_TGWARN_TRAIL_BIT_POS                                       0x00400000
-#define AV1_TGWARN_TRAIL_PAD_BIT                                       0x00800000
-#define AV1_TGWARN_SYM_MAX_OVER                                        0x01000000
-#define AV1_TGWARN_EXP_GOLB_OVER                                       0x02000000
-#define AV1_TGWARN_MV_NOT_VALID                                        0x04000000
-
-// VP9
-#define VP9_PICWARN_COLOR_SPACE_MISMATCH_WITH_REF                      0x00001000
-#define VP9_PRESWARN_OVERCONSUME                                       0x00400000
-#define VP9_PRESWARN_TRAILING_BITS                                     0x00800000
-#define VP9_PRESWARN_MARKER                                            0x01000000
-#define VP9_PRESWARN_MV_RANGE_OVER                                     0x02000000
-#define VP9_PRESWARN_MISIZE_SEG_LVL_ACTIVE                             0x04000000
-
-// AVS2
-#define AVS2_ETCWARN_INIT_SEQ_VCL_NOT_FOUND                            0x00010000
-#define AVS2_ETCWARN_MISSING_REFERENCE_PICTURE                         0x00020000
-#define AVS2_ETCWARN_WRONG_TEMPORAL_ID                                 0x00040000
-#define AVS2_ETCWARN_ERROR_PICTURE_IS_REFERENCED                       0x00080000
-#define AVS2_ETCWARN_REF_WRONG_TEMPORAL_ID                             0x00080001
-#define AVS2_ETCWARN_SPS_ERROR                                         0x00080002
 
 /************************************************************************/
 /* WAVE5 ERROR ON ENCODER (ERR_INFO)                                    */

@@ -200,8 +200,7 @@ static irqreturn_t stf_vin_isp_irq_csiline_handler(int irq, void *priv)
 			reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, 0x30000, 0x30000);
 			reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, BIT(1) | BIT(0), 0x3);
 		} else {
-			st_err_ratelimited(ST_VIN,
-				"isp shadow_lock locked. skip this frame\n");
+			st_warn(ST_VIN, "isp shadow_lock locked. skip this frame\n");
 		}
 
 		/* clear interrupt */

@@ -2,16 +2,13 @@
 /*
  * Wave5 series multi-standard codec IP - platform driver
  *
- * Copyright (C) 2021 CHIPS&MEDIA INC
+ * Copyright (C) 2021-2023 CHIPS&MEDIA INC
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/clk-provider.h>
-#include <linux/pm_runtime.h>
 #include <linux/reset.h>
-#include <linux/of_address.h>
 #include <linux/firmware.h>
 #include <linux/interrupt.h>
 #include "wave5-vpu.h"
@@ -44,99 +41,55 @@ int wave5_vpu_wait_interrupt(struct vpu_instance *inst, unsigned int timeout)
 	return 0;
 }
 
-static void wave5_vpu_get_interrupt_for_inst(struct vpu_instance *inst, u32 status)
-{
-	struct vpu_device *dev = inst->dev;
-	u32 seq_done;
-	u32 cmd_done;
-	int val;
-
-	seq_done = wave5_vdi_readl(dev, W5_RET_SEQ_DONE_INSTANCE_INFO);
-	cmd_done = wave5_vdi_readl(dev, W5_RET_QUEUE_CMD_DONE_INST);
-
-	if (status & BIT(INT_WAVE5_INIT_SEQ)) {
-		if (seq_done & BIT(inst->id)) {
-			seq_done &= ~BIT(inst->id);
-			wave5_vdi_write_register(dev, W5_RET_SEQ_DONE_INSTANCE_INFO, seq_done);
-			val = BIT(INT_WAVE5_INIT_SEQ);
-			kfifo_in(&inst->irq_status, &val, sizeof(int));
-		}
-	}
-	if (status & BIT(INT_WAVE5_ENC_SET_PARAM)) {
-		if (seq_done & BIT(inst->id)) {
-			seq_done &= ~BIT(inst->id);
-			wave5_vdi_write_register(dev, W5_RET_SEQ_DONE_INSTANCE_INFO, seq_done);
-			val = BIT(INT_WAVE5_ENC_SET_PARAM);
-			kfifo_in(&inst->irq_status, &val, sizeof(int));
-		}
-	}
-	if (status & BIT(INT_WAVE5_DEC_PIC) ||
-	    status & BIT(INT_WAVE5_ENC_PIC)) {
-		if (cmd_done & BIT(inst->id)) {
-			cmd_done &= ~BIT(inst->id);
-			wave5_vdi_write_register(dev, W5_RET_QUEUE_CMD_DONE_INST, cmd_done);
-			val = BIT(INT_WAVE5_DEC_PIC);
-			kfifo_in(&inst->irq_status, &val, sizeof(int));
-		}
-	}
-}
-
-static irqreturn_t wave5_vpu_irq(int irq, void *dev_id)
-{
-	struct vpu_device *dev = dev_id;
-
-	if (wave5_vdi_readl(dev, W5_VPU_VPU_INT_STS)) {
-		struct vpu_instance *inst;
-		u32 irq_status = wave5_vdi_readl(dev, W5_VPU_VINT_REASON);
-
-		list_for_each_entry(inst, &dev->instances, list) {
-			wave5_vpu_get_interrupt_for_inst(inst, irq_status);
-		}
-
-		wave5_vdi_write_register(dev, W5_VPU_VINT_REASON_CLR, irq_status);
-		wave5_vdi_write_register(dev, W5_VPU_VINT_CLEAR, 0x1);
-
-		return IRQ_WAKE_THREAD;
-	}
-
-	return IRQ_HANDLED;
-}
-
 static irqreturn_t wave5_vpu_irq_thread(int irq, void *dev_id)
 {
-	struct vpu_device *dev = dev_id;
+	u32 seq_done;
+	u32 cmd_done;
+	u32 irq_reason;
 	struct vpu_instance *inst;
-	int irq_status, ret;
-	u32 val;
+	struct vpu_device *dev = dev_id;
 
-	list_for_each_entry(inst, &dev->instances, list) {
-		while (kfifo_len(&inst->irq_status)) {
-			struct vpu_instance *curr;
+	if (wave5_vdi_read_register(dev, W5_VPU_VPU_INT_STS)) {
+		irq_reason = wave5_vdi_read_register(dev, W5_VPU_VINT_REASON);
+		wave5_vdi_write_register(dev, W5_VPU_VINT_REASON_CLR, irq_reason);
+		wave5_vdi_write_register(dev, W5_VPU_VINT_CLEAR, 0x1);
 
-			curr = v4l2_m2m_get_curr_priv(inst->v4l2_m2m_dev);
-			if (curr) {
-				inst->ops->finish_process(inst);
-			} else {
-				ret = kfifo_out(&inst->irq_status, &irq_status, sizeof(int));
-				if (!ret)
-					break;
+		list_for_each_entry(inst, &dev->instances, list) {
+			seq_done = wave5_vdi_read_register(dev, W5_RET_SEQ_DONE_INSTANCE_INFO);
+			cmd_done = wave5_vdi_read_register(dev, W5_RET_QUEUE_CMD_DONE_INST);
 
-				val = wave5_vdi_readl(dev, W5_VPU_VINT_REASON_USR);
-				val &= ~irq_status;
-				wave5_vdi_write_register(dev, W5_VPU_VINT_REASON_USR, val);
-				complete(&inst->irq_done);
+			if (irq_reason & BIT(INT_WAVE5_INIT_SEQ) ||
+			    irq_reason & BIT(INT_WAVE5_ENC_SET_PARAM)) {
+				if (seq_done & BIT(inst->id)) {
+					seq_done &= ~BIT(inst->id);
+					wave5_vdi_write_register(dev, W5_RET_SEQ_DONE_INSTANCE_INFO,
+								 seq_done);
+					complete(&inst->irq_done);
+				}
 			}
+
+			if (irq_reason & BIT(INT_WAVE5_DEC_PIC) ||
+			    irq_reason & BIT(INT_WAVE5_ENC_PIC)) {
+				if (cmd_done & BIT(inst->id)) {
+					cmd_done &= ~BIT(inst->id);
+					wave5_vdi_write_register(dev, W5_RET_QUEUE_CMD_DONE_INST,
+								 cmd_done);
+					inst->ops->finish_process(inst);
+				}
+			}
+
+			wave5_vpu_clear_interrupt(inst, irq_reason);
 		}
 	}
 
 	return IRQ_HANDLED;
 }
 
-static int wave5_vpu_load_firmware(struct device *dev, const char *fw_name)
+static int wave5_vpu_load_firmware(struct device *dev, const char *fw_name,
+				   u32 *revision)
 {
 	const struct firmware *fw;
 	int ret;
-	u32 revision;
 	unsigned int product_id;
 
 	ret = request_firmware(&fw, fw_name, dev);
@@ -148,25 +101,21 @@ static int wave5_vpu_load_firmware(struct device *dev, const char *fw_name)
 	ret = wave5_vpu_init_with_bitcode(dev, (u8 *)fw->data, fw->size);
 	if (ret) {
 		dev_err(dev, "vpu_init_with_bitcode, fail: %d\n", ret);
-		goto release_fw;
+		release_firmware(fw);
+		return ret;
 	}
 	release_firmware(fw);
 
-	ret = wave5_vpu_get_version_info(dev, &revision, &product_id);
+	ret = wave5_vpu_get_version_info(dev, revision, &product_id);
 	if (ret) {
 		dev_err(dev, "vpu_get_version_info fail: %d\n", ret);
-		goto err_without_release;
+		return ret;
 	}
 
 	dev_dbg(dev, "%s: enum product_id: %08x, fw revision: %u\n",
-		__func__, product_id, revision);
+		__func__, product_id, *revision);
 
 	return 0;
-
-release_fw:
-	release_firmware(fw);
-err_without_release:
-	return ret;
 }
 
 static const struct of_device_id sifive_l2_ids[] = {
@@ -180,6 +129,7 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	struct vpu_device *dev;
 	const struct wave5_match_data *match_data;
 	struct device_node *np;
+	u32 fw_revision;
 
 	match_data = device_get_match_data(&pdev->dev);
 	if (!match_data) {
@@ -188,8 +138,11 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	}
 
 	/* physical addresses limited to 32 bits */
-	dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to set DMA mask: %d\n", ret);
+		return ret;
+	}
 
 	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (!dev)
@@ -198,7 +151,6 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	dev->vdb_register = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->vdb_register))
 		return PTR_ERR(dev->vdb_register);
-	dev_dbg(&pdev->dev, "vdb_register %p\n",dev->vdb_register);
 	ida_init(&dev->inst_ida);
 
 	mutex_init(&dev->dev_lock);
@@ -210,8 +162,8 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 
 	/* continue without clock, assume externally managed */
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Getting clocks, fail: %d\n", ret);
-		return ret;
+		dev_warn(&pdev->dev, "Getting clocks, fail: %d\n", ret);
+		ret = 0;
 	}
 	dev->num_clks = ret;
 
@@ -236,15 +188,13 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		goto  err_clk_dis;
 	}
 
-	dev->product_code = wave5_vdi_readl(dev, VPU_PRODUCT_CODE_REGISTER);
-	dev_dbg(&pdev->dev, "product_code %d\n",dev->product_code);
+	dev->product_code = wave5_vdi_read_register(dev, VPU_PRODUCT_CODE_REGISTER);
 	ret = wave5_vdi_init(&pdev->dev);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "wave5_vdi_init, fail: %d\n", ret);
 		goto err_rst_dis;
 	}
 	dev->product = wave5_vpu_get_product_id(dev);
-	dev_dbg(&pdev->dev, "product %d\n",dev->product);
 
 	INIT_LIST_HEAD(&dev->instances);
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
@@ -274,16 +224,15 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_enc_unreg;
 	}
-	dev_dbg(&pdev->dev, "irq %d\n",dev->irq);
 
-	ret = devm_request_threaded_irq(&pdev->dev, dev->irq, wave5_vpu_irq,
-					wave5_vpu_irq_thread, 0, "vpu_irq", dev);
+	ret = devm_request_threaded_irq(&pdev->dev, dev->irq, NULL,
+					wave5_vpu_irq_thread, IRQF_ONESHOT, "vpu_irq", dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Register interrupt handler, fail: %d\n", ret);
 		goto err_enc_unreg;
 	}
 
-	ret = wave5_vpu_load_firmware(&pdev->dev, match_data->fw_name);
+	ret = wave5_vpu_load_firmware(&pdev->dev, match_data->fw_name, &fw_revision);
 	if (ret) {
 		dev_err(&pdev->dev, "wave5_vpu_load_firmware, fail: %d\n", ret);
 		goto err_enc_unreg;
@@ -299,10 +248,11 @@ static int wave5_vpu_probe(struct platform_device *pdev)
 	if (ret)
 		dev->l2_cache_size = 0x200000;
 
-	dev_dbg(&pdev->dev, "Added wave5 driver with caps: %s %s and product code: 0x%x\n",
-		(match_data->flags & WAVE5_IS_ENC) ? "'ENCODE'" : "",
-		(match_data->flags & WAVE5_IS_DEC) ? "'DECODE'" : "",
-		dev->product_code);
+	dev_dbg(&pdev->dev, "Added wave5 driver with caps: %s %s\n",
+		 (match_data->flags & WAVE5_IS_ENC) ? "'ENCODE'" : "",
+		 (match_data->flags & WAVE5_IS_DEC) ? "'DECODE'" : "");
+	dev_dbg(&pdev->dev, "Product Code:      0x%x\n", dev->product_code);
+	dev_dbg(&pdev->dev, "Firmware Revision: %u\n", fw_revision);
 	return 0;
 
 err_enc_unreg:
@@ -327,7 +277,8 @@ static int wave5_vpu_remove(struct platform_device *pdev)
 {
 	struct vpu_device *dev = dev_get_drvdata(&pdev->dev);
 
-	reset_control_assert(dev->resets);
+	mutex_destroy(&dev->dev_lock);
+	mutex_destroy(&dev->hw_lock);
 	clk_bulk_disable_unprepare(dev->num_clks, dev->clks);
 	wave5_vpu_enc_unregister_device(dev);
 	wave5_vpu_dec_unregister_device(dev);
@@ -338,39 +289,18 @@ static int wave5_vpu_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct wave5_match_data wave511_data = {
-	.flags = WAVE5_IS_DEC,
-	.fw_name = "wave511_dec_fw.bin",
-};
-
-static const struct wave5_match_data wave521_data = {
-	.flags = WAVE5_IS_ENC,
-	.fw_name = "wave521_enc_fw.bin",
-};
-
-static const struct wave5_match_data wave521c_data = {
+static const struct wave5_match_data ti_wave521c_data = {
 	.flags = WAVE5_IS_ENC | WAVE5_IS_DEC,
-	.fw_name = "wave521c_codec_fw.bin",
-};
-
-static const struct wave5_match_data default_match_data = {
-	.flags = WAVE5_IS_ENC | WAVE5_IS_DEC,
-	.fw_name = "chagall.bin",
+	.fw_name = "cnm/wave521c_k3_codec_fw.bin",
 };
 
 static const struct wave5_match_data sfdec_match_data = {
 	.flags = WAVE5_IS_DEC,
-	.fw_name = "chagall.bin",
+	.fw_name = "wave511_dec_fw.bin",
 };
 
 static const struct of_device_id wave5_dt_ids[] = {
-	{ .compatible = "cnm,cm511-vpu", .data = &wave511_data },
-	{ .compatible = "cnm,cm517-vpu", .data = &default_match_data },
-	{ .compatible = "cnm,cm521-vpu", .data = &wave521_data },
-	{ .compatible = "cnm,cm521c-vpu", .data = &wave521c_data },
-	{ .compatible = "cnm,cm521c-dual-vpu", .data = &wave521c_data },
-	{ .compatible = "cnm,cm521e1-vpu", .data = &default_match_data },
-	{ .compatible = "cnm,cm537-vpu", .data = &default_match_data },
+	{ .compatible = "ti,k3-j721s2-wave521c", .data = &ti_wave521c_data },
 	{ .compatible = "starfive,vdec", .data = &sfdec_match_data },
 	{ /* sentinel */ }
 };

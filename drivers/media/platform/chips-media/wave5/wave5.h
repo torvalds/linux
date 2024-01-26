@@ -2,7 +2,7 @@
 /*
  * Wave5 series multi-standard codec IP - wave5 backend definitions
  *
- * Copyright (C) 2021 CHIPS&MEDIA INC
+ * Copyright (C) 2021-2023 CHIPS&MEDIA INC
  */
 
 #ifndef __WAVE5_FUNCTION_H__
@@ -11,7 +11,27 @@
 #define WAVE5_SUBSAMPLED_ONE_SIZE(_w, _h)	(ALIGN((_w) / 4, 16) * ALIGN((_h) / 4, 8))
 #define WAVE5_SUBSAMPLED_ONE_SIZE_AVC(_w, _h)	(ALIGN((_w) / 4, 32) * ALIGN((_h) / 4, 4))
 
-#define BSOPTION_ENABLE_EXPLICIT_END        BIT(0)
+/*
+ * Bitstream buffer option: Explicit End
+ * When set to 1 the VPU assumes that the bitstream has at least one frame and
+ * will read until the end of the bitstream buffer.
+ * When set to 0 the VPU will not read the last few bytes.
+ * This option can be set anytime but cannot be cleared during processing.
+ * It can be set to force finish decoding even though there is not enough
+ * bitstream data for a full frame.
+ */
+#define BSOPTION_ENABLE_EXPLICIT_END		BIT(0)
+#define BSOPTION_HIGHLIGHT_STREAM_END		BIT(1)
+
+/*
+ * Currently the driver only supports hardware with little endian but for source
+ * picture format, the bitstream and the report parameter the hardware works
+ * with the opposite endianness, thus hard-code big endian for the register
+ * writes
+ */
+#define PIC_SRC_ENDIANNESS_BIG_ENDIAN		0xf
+#define BITSTREAM_ENDIANNESS_BIG_ENDIAN		0xf
+#define REPORT_PARAM_ENDIANNESS_BIG_ENDIAN	0xf
 
 #define WTL_RIGHT_JUSTIFIED          0
 #define WTL_LEFT_JUSTIFIED           1
@@ -32,8 +52,6 @@ bool wave5_vpu_is_init(struct vpu_device *vpu_dev);
 
 unsigned int wave5_vpu_get_product_id(struct vpu_device *vpu_dev);
 
-void wave5_bit_issue_command(struct vpu_instance *inst, u32 cmd);
-
 int wave5_vpu_get_version(struct vpu_device *vpu_dev, u32 *revision);
 
 int wave5_vpu_init(struct device *dev, u8 *fw, size_t size);
@@ -43,6 +61,8 @@ int wave5_vpu_reset(struct device *dev, enum sw_reset_mode reset_mode);
 int wave5_vpu_build_up_dec_param(struct vpu_instance *inst, struct dec_open_param *param);
 
 int wave5_vpu_dec_set_bitstream_flag(struct vpu_instance *inst, bool eos);
+
+int wave5_vpu_hw_flush_instance(struct vpu_instance *inst);
 
 int wave5_vpu_dec_register_framebuffer(struct vpu_instance *inst,
 				       struct frame_buffer *fb_arr, enum tiled_map_type map_type,
@@ -54,7 +74,7 @@ int wave5_vpu_dec_init_seq(struct vpu_instance *inst);
 
 int wave5_vpu_dec_get_seq_info(struct vpu_instance *inst, struct dec_initial_info *info);
 
-int wave5_vpu_decode(struct vpu_instance *inst, struct dec_param *option, u32 *fail_res);
+int wave5_vpu_decode(struct vpu_instance *inst, u32 *fail_res);
 
 int wave5_vpu_dec_get_result(struct vpu_instance *inst, struct dec_output_info *result);
 
@@ -66,7 +86,7 @@ int wave5_dec_set_disp_flag(struct vpu_instance *inst, unsigned int index);
 
 int wave5_vpu_clear_interrupt(struct vpu_instance *inst, u32 flags);
 
-dma_addr_t wave5_vpu_dec_get_rd_ptr(struct vpu_instance *inst);
+dma_addr_t wave5_dec_get_rd_ptr(struct vpu_instance *inst);
 
 int wave5_dec_set_rd_ptr(struct vpu_instance *inst, dma_addr_t addr);
 

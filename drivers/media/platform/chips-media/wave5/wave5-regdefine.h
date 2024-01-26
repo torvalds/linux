@@ -2,62 +2,51 @@
 /*
  * Wave5 series multi-standard codec IP - wave5 register definitions
  *
- * Copyright (C) 2021 CHIPS&MEDIA INC
+ * Copyright (C) 2021-2023 CHIPS&MEDIA INC
  */
 
 #ifndef __WAVE5_REGISTER_DEFINE_H__
 #define __WAVE5_REGISTER_DEFINE_H__
 
 enum W5_VPU_COMMAND {
-	W5_INIT_VPU        = 0x0001,
-	W5_WAKEUP_VPU      = 0x0002,
-	W5_SLEEP_VPU       = 0x0004,
-	W5_CREATE_INSTANCE = 0x0008,            /* queuing command */
-	W5_FLUSH_INSTANCE  = 0x0010,
-	W5_DESTROY_INSTANCE = 0x0020,            /* queuing command */
-	W5_INIT_SEQ        = 0x0040,            /* queuing command */
-	W5_SET_FB          = 0x0080,
-	W5_DEC_PIC         = 0x0100,            /* queuing command */
-	W5_ENC_PIC         = 0x0100,            /* queuing command */
-	W5_ENC_SET_PARAM   = 0x0200,            /* queuing command */
-	W5_QUERY           = 0x4000,
-	W5_UPDATE_BS       = 0x8000,
-	W5_MAX_VPU_COMD	   = 0x10000,
+	W5_INIT_VPU		= 0x0001,
+	W5_WAKEUP_VPU		= 0x0002,
+	W5_SLEEP_VPU		= 0x0004,
+	W5_CREATE_INSTANCE	= 0x0008,       /* queuing command */
+	W5_FLUSH_INSTANCE	= 0x0010,
+	W5_DESTROY_INSTANCE	= 0x0020,       /* queuing command */
+	W5_INIT_SEQ		= 0x0040,       /* queuing command */
+	W5_SET_FB		= 0x0080,
+	W5_DEC_ENC_PIC		= 0x0100,       /* queuing command */
+	W5_ENC_SET_PARAM	= 0x0200,	/* queuing command */
+	W5_QUERY		= 0x4000,
+	W5_UPDATE_BS		= 0x8000,
+	W5_MAX_VPU_COMD		= 0x10000,
 };
 
-enum QUERY_OPT {
-	GET_VPU_INFO        = 0,
-	SET_WRITE_PROT      = 1,
-	GET_RESULT          = 2,
-	UPDATE_DISP_FLAG    = 3,
-	GET_BW_REPORT       = 4,
-	GET_BS_RD_PTR       = 5,    // for decoder
-	GET_BS_WR_PTR       = 6,    // for encoder
-	GET_SRC_BUF_FLAG    = 7,    // for encoder
-	SET_BS_RD_PTR       = 8,    // for decoder
-	GET_DEBUG_INFO      = 0x61,
+enum query_opt {
+	GET_VPU_INFO		= 0,
+	SET_WRITE_PROT		= 1,
+	GET_RESULT		= 2,
+	UPDATE_DISP_FLAG	= 3,
+	GET_BW_REPORT		= 4,
+	GET_BS_RD_PTR		= 5,		/* for decoder */
+	GET_BS_WR_PTR		= 6,		/* for encoder */
+	GET_SRC_BUF_FLAG	= 7,		/* for encoder */
+	SET_BS_RD_PTR		= 8,		/* for decoder */
+	GET_DEBUG_INFO		= 0x61,
 };
-
-/*
- * A flag of user data buffer full.
- * User data buffer full flag equal to 1 specifies that de-
- * coded frame has more user data size than VPU internal
- * buffer. VPU only dumps the internal buffer size of us-
- * er data to USER_DATA_BUF_BASE buffer. In other
- * words, VPU is unable to report the rest of the user data to
- * USER_DATA_BUF_BASE buffer after the internal buffer
- * fullness happens.
- */
-#define USERDATA_FLAG_BUFF_FULL		1
 
 #define W5_REG_BASE                     0x00000000
 #define W5_CMD_REG_BASE                 0x00000100
 #define W5_CMD_REG_END                  0x00000200
 
 /*
- * common
- */
-/* power on configuration
+ * COMMON
+ *
+ * ----
+ *
+ * Power on configuration
  * PO_DEBUG_MODE    [0]     1 - power on with debug mode
  * USE_PO_CONF      [3]     1 - use power-on-configuration
  */
@@ -65,10 +54,10 @@ enum QUERY_OPT {
 #define W5_VCPU_CUR_PC                 (W5_REG_BASE + 0x0004)
 #define W5_VCPU_CUR_LR                 (W5_REG_BASE + 0x0008)
 #define W5_VPU_PDBG_STEP_MASK_V        (W5_REG_BASE + 0x000C)
-#define W5_VPU_PDBG_CTRL               (W5_REG_BASE + 0x0010) // v_cpu debugger ctrl register
-#define W5_VPU_PDBG_IDX_REG            (W5_REG_BASE + 0x0014) // v_cpu debugger index register
-#define W5_VPU_PDBG_WDATA_REG          (W5_REG_BASE + 0x0018) // v_cpu debugger write data register
-#define W5_VPU_PDBG_RDATA_REG          (W5_REG_BASE + 0x001C) // v_cpu debugger read data register
+#define W5_VPU_PDBG_CTRL               (W5_REG_BASE + 0x0010) /* v_cpu debugger ctrl register */
+#define W5_VPU_PDBG_IDX_REG            (W5_REG_BASE + 0x0014) /* v_cpu debugger index register */
+#define W5_VPU_PDBG_WDATA_REG          (W5_REG_BASE + 0x0018) /* v_cpu debugger write data reg */
+#define W5_VPU_PDBG_RDATA_REG          (W5_REG_BASE + 0x001C) /* v_cpu debugger read data reg */
 
 #define W5_VPU_FIO_CTRL_ADDR           (W5_REG_BASE + 0x0020)
 #define W5_VPU_FIO_DATA                (W5_REG_BASE + 0x0024)
@@ -105,7 +94,7 @@ enum QUERY_OPT {
  * REGION ATTR2 [11]    0     - normal
  *                      1     - bypass region
  * REMAP INDEX  [15:12]       - 0 ~ 3
- * ENDIAN       [19:16]       - see endian_mode in vdi.h
+ * ENDIAN       [19:16]       - NOTE: Currently not supported in this driver
  * AXI-ID       [23:20]       - upper AXI-ID
  * BUS_ERROR    [29]    0     - bypass
  *                      1     - make BUS_ERROR for unmapped region
@@ -198,12 +187,12 @@ enum QUERY_OPT {
 
 #define W5_BS_OPTION                            (W5_REG_BASE + 0x0120)
 
-// return info when QUERY (GET_RESULT) for en/decoder
+/* return info when QUERY (GET_RESULT) for en/decoder */
 #define W5_RET_VLC_BUF_SIZE                     (W5_REG_BASE + 0x01B0)
-// return info when QUERY (GET_RESULT) for en/decoder
+/* return info when QUERY (GET_RESULT) for en/decoder */
 #define W5_RET_PARAM_BUF_SIZE                   (W5_REG_BASE + 0x01B4)
 
-// set when SET_FB for en/decoder
+/* set when SET_FB for en/decoder */
 #define W5_CMD_SET_FB_ADDR_TASK_BUF             (W5_REG_BASE + 0x01D4)
 #define W5_CMD_SET_FB_TASK_BUF_SIZE             (W5_REG_BASE + 0x01D8)
 /************************************************************************/
@@ -228,6 +217,8 @@ enum QUERY_OPT {
 #define W5_CMD_DEC_BS_START_ADDR                (W5_REG_BASE + 0x011C)
 #define W5_CMD_DEC_BS_SIZE                      (W5_REG_BASE + 0x0120)
 #define W5_CMD_BS_PARAM                         (W5_REG_BASE + 0x0124)
+#define W5_CMD_ADDR_SEC_AXI                     (W5_REG_BASE + 0x0130)
+#define W5_CMD_SEC_AXI_SIZE                     (W5_REG_BASE + 0x0134)
 #define W5_CMD_EXT_ADDR                         (W5_REG_BASE + 0x0138)
 #define W5_CMD_NUM_CQ_DEPTH_M1                  (W5_REG_BASE + 0x013C)
 #define W5_CMD_ERR_CONCEAL                      (W5_REG_BASE + 0x0140)
@@ -252,58 +243,58 @@ enum QUERY_OPT {
 #define W5_ADDR_LUMA_BASE0                      (W5_REG_BASE + 0x0134)
 #define W5_ADDR_CB_BASE0                        (W5_REG_BASE + 0x0138)
 #define W5_ADDR_CR_BASE0                        (W5_REG_BASE + 0x013C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET0                   (W5_REG_BASE + 0x013C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET0                   (W5_REG_BASE + 0x0140)
 #define W5_ADDR_LUMA_BASE1                      (W5_REG_BASE + 0x0144)
 #define W5_ADDR_CB_ADDR1                        (W5_REG_BASE + 0x0148)
 #define W5_ADDR_CR_ADDR1                        (W5_REG_BASE + 0x014C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET1                   (W5_REG_BASE + 0x014C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET1                   (W5_REG_BASE + 0x0150)
 #define W5_ADDR_LUMA_BASE2                      (W5_REG_BASE + 0x0154)
 #define W5_ADDR_CB_ADDR2                        (W5_REG_BASE + 0x0158)
 #define W5_ADDR_CR_ADDR2                        (W5_REG_BASE + 0x015C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET2                   (W5_REG_BASE + 0x015C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET2                   (W5_REG_BASE + 0x0160)
 #define W5_ADDR_LUMA_BASE3                      (W5_REG_BASE + 0x0164)
 #define W5_ADDR_CB_ADDR3                        (W5_REG_BASE + 0x0168)
 #define W5_ADDR_CR_ADDR3                        (W5_REG_BASE + 0x016C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET3                   (W5_REG_BASE + 0x016C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET3                   (W5_REG_BASE + 0x0170)
 #define W5_ADDR_LUMA_BASE4                      (W5_REG_BASE + 0x0174)
 #define W5_ADDR_CB_ADDR4                        (W5_REG_BASE + 0x0178)
 #define W5_ADDR_CR_ADDR4                        (W5_REG_BASE + 0x017C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET4                   (W5_REG_BASE + 0x017C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET4                   (W5_REG_BASE + 0x0180)
 #define W5_ADDR_LUMA_BASE5                      (W5_REG_BASE + 0x0184)
 #define W5_ADDR_CB_ADDR5                        (W5_REG_BASE + 0x0188)
 #define W5_ADDR_CR_ADDR5                        (W5_REG_BASE + 0x018C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET5                   (W5_REG_BASE + 0x018C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET5                   (W5_REG_BASE + 0x0190)
 #define W5_ADDR_LUMA_BASE6                      (W5_REG_BASE + 0x0194)
 #define W5_ADDR_CB_ADDR6                        (W5_REG_BASE + 0x0198)
 #define W5_ADDR_CR_ADDR6                        (W5_REG_BASE + 0x019C)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET6                   (W5_REG_BASE + 0x019C)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET6                   (W5_REG_BASE + 0x01A0)
 #define W5_ADDR_LUMA_BASE7                      (W5_REG_BASE + 0x01A4)
 #define W5_ADDR_CB_ADDR7                        (W5_REG_BASE + 0x01A8)
 #define W5_ADDR_CR_ADDR7                        (W5_REG_BASE + 0x01AC)
-// compression offset table for luma
+/* compression offset table for luma */
 #define W5_ADDR_FBC_Y_OFFSET7                   (W5_REG_BASE + 0x01AC)
-// compression offset table for chroma
+/* compression offset table for chroma */
 #define W5_ADDR_FBC_C_OFFSET7                   (W5_REG_BASE + 0x01B0)
 #define W5_ADDR_MV_COL0                         (W5_REG_BASE + 0x01B4)
 #define W5_ADDR_MV_COL1                         (W5_REG_BASE + 0x01B8)
@@ -508,7 +499,7 @@ enum QUERY_OPT {
 #define W5_BACKBONE_BUS_CTRL_VCORE0         (W5_BACKBONE_BASE_VCORE0 + 0x010)
 #define W5_BACKBONE_BUS_STATUS_VCORE0       (W5_BACKBONE_BASE_VCORE0 + 0x014)
 
-#define W5_BACKBONE_BASE_VCORE1             0x9E00  // for dual-core product
+#define W5_BACKBONE_BASE_VCORE1             0x9E00  /* for dual-core product */
 #define W5_BACKBONE_BUS_CTRL_VCORE1         (W5_BACKBONE_BASE_VCORE1 + 0x010)
 #define W5_BACKBONE_BUS_STATUS_VCORE1       (W5_BACKBONE_BASE_VCORE1 + 0x014)
 
@@ -525,7 +516,7 @@ enum QUERY_OPT {
 /************************************************************************/
 /* ENCODER - CREATE_INSTANCE                                            */
 /************************************************************************/
-// 0x114 ~ 0x124 : defined above (CREATE_INSTANCE COMMON)
+/* 0x114 ~ 0x124 : defined above (CREATE_INSTANCE COMMON) */
 #define W5_CMD_ENC_VCORE_INFO                   (W5_REG_BASE + 0x0194)
 #define W5_CMD_ENC_SRC_OPTIONS                  (W5_REG_BASE + 0x0128)
 
