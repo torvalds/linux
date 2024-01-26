@@ -322,7 +322,7 @@ static int hdc3020_read_raw(struct iio_dev *indio_dev,
 		if (chan->type != IIO_TEMP)
 			return -EINVAL;
 
-		*val = 16852;
+		*val = -16852;
 		return IIO_VAL_INT;
 
 	default:
