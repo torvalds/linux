@@ -52,6 +52,9 @@ struct sev_device {
 	u8 build;
 
 	void *cmd_buf;
+	void *cmd_buf_backup;
+	bool cmd_buf_active;
+	bool cmd_buf_backup_active;
 
 	bool snp_initialized;
 };
