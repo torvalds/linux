@@ -149,6 +149,7 @@ enum rtw89_fw_log_comp {
 	RTW89_FW_LOG_COMP_TWT,
 	RTW89_FW_LOG_COMP_RF,
 	RTW89_FW_LOG_COMP_MCC = 20,
+	RTW89_FW_LOG_COMP_SCAN = 28,
 };
 
 enum rtw89_pkt_offload_op {
