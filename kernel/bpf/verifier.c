@@ -20298,7 +20298,10 @@ static int check_struct_ops_btf_id(struct bpf_verifier_env *env)
 		return -EINVAL;
 	}
 
-	btf = prog->aux->attach_btf ?: bpf_get_btf_vmlinux();
+	if (!prog->aux->attach_btf_id)
+		return -ENOTSUPP;
+
+	btf = prog->aux->attach_btf;
 	if (btf_is_module(btf)) {
 		/* Make sure st_ops is valid through the lifetime of env */
 		env->attach_btf_mod = btf_try_get_module(btf);
