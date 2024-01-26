@@ -35,16 +35,21 @@
  * Family 19h Model 01h, Rev B1 processor.
  */
 struct rmpentry {
-	u64	assigned	: 1,
-		pagesize	: 1,
-		immutable	: 1,
-		rsvd1		: 9,
-		gpa		: 39,
-		asid		: 10,
-		vmsa		: 1,
-		validated	: 1,
-		rsvd2		: 1;
-	u64 rsvd3;
+	union {
+		struct {
+			u64 assigned	: 1,
+			    pagesize	: 1,
+			    immutable	: 1,
+			    rsvd1	: 9,
+			    gpa		: 39,
+			    asid	: 10,
+			    vmsa	: 1,
+			    validated	: 1,
+			    rsvd2	: 1;
+		};
+		u64 lo;
+	};
+	u64 hi;
 } __packed;
 
 /*
@@ -263,3 +268,77 @@ int snp_lookup_rmpentry(u64 pfn, bool *assigned, int *level)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snp_lookup_rmpentry);
+
+/*
+ * Dump the raw RMP entry for a particular PFN. These bits are documented in the
+ * PPR for a particular CPU model and provide useful information about how a
+ * particular PFN is being utilized by the kernel/firmware at the time certain
+ * unexpected events occur, such as RMP faults.
+ */
+static void dump_rmpentry(u64 pfn)
+{
+	u64 pfn_i, pfn_end;
+	struct rmpentry *e;
+	int level;
+
+	e = __snp_lookup_rmpentry(pfn, &level);
+	if (IS_ERR(e)) {
+		pr_err("Failed to read RMP entry for PFN 0x%llx, error %ld\n",
+		       pfn, PTR_ERR(e));
+		return;
+	}
+
+	if (e->assigned) {
+		pr_info("PFN 0x%llx, RMP entry: [0x%016llx - 0x%016llx]\n",
+			pfn, e->lo, e->hi);
+		return;
+	}
+
+	/*
+	 * If the RMP entry for a particular PFN is not in an assigned state,
+	 * then it is sometimes useful to get an idea of whether or not any RMP
+	 * entries for other PFNs within the same 2MB region are assigned, since
+	 * those too can affect the ability to access a particular PFN in
+	 * certain situations, such as when the PFN is being accessed via a 2MB
+	 * mapping in the host page table.
+	 */
+	pfn_i = ALIGN_DOWN(pfn, PTRS_PER_PMD);
+	pfn_end = pfn_i + PTRS_PER_PMD;
+
+	pr_info("PFN 0x%llx unassigned, dumping non-zero entries in 2M PFN region: [0x%llx - 0x%llx]\n",
+		pfn, pfn_i, pfn_end);
+
+	while (pfn_i < pfn_end) {
+		e = __snp_lookup_rmpentry(pfn_i, &level);
+		if (IS_ERR(e)) {
+			pr_err("Error %ld reading RMP entry for PFN 0x%llx\n",
+			       PTR_ERR(e), pfn_i);
+			pfn_i++;
+			continue;
+		}
+
+		if (e->lo || e->hi)
+			pr_info("PFN: 0x%llx, [0x%016llx - 0x%016llx]\n", pfn_i, e->lo, e->hi);
+		pfn_i++;
+	}
+}
+
+void snp_dump_hva_rmpentry(unsigned long hva)
+{
+	unsigned long paddr;
+	unsigned int level;
+	pgd_t *pgd;
+	pte_t *pte;
+
+	pgd = __va(read_cr3_pa());
+	pgd += pgd_index(hva);
+	pte = lookup_address_in_pgd(pgd, hva, &level);
+
+	if (!pte) {
+		pr_err("Can't dump RMP entry for HVA %lx: no PTE/PFN found\n", hva);
+		return;
+	}
+
+	paddr = PFN_PHYS(pte_pfn(*pte)) | (hva & ~page_level_mask(level));
+	dump_rmpentry(PHYS_PFN(paddr));
+}
