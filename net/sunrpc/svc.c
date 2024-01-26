@@ -1623,7 +1623,6 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 	WARN_ON_ONCE(atomic_read(&task->tk_count) != 1);
 	rpc_put_task(task);
 }
-EXPORT_SYMBOL_GPL(svc_process_bc);
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 /**
