@@ -14546,7 +14546,7 @@ static void wlc_phy_txpwr_srom_read_ppr_nphy(struct brcms_phy *pi)
 	wlc_phy_txpwr_apply_nphy(pi);
 }
 
-static bool wlc_phy_txpwr_srom_read_nphy(struct brcms_phy *pi)
+static void wlc_phy_txpwr_srom_read_nphy(struct brcms_phy *pi)
 {
 	struct ssb_sprom *sprom = &pi->d11core->bus->sprom;
 
@@ -14595,11 +14595,9 @@ static bool wlc_phy_txpwr_srom_read_nphy(struct brcms_phy *pi)
 		pi->phycal_tempdelta = 0;
 
 	wlc_phy_txpwr_srom_read_ppr_nphy(pi);
-
-	return true;
 }
 
-bool wlc_phy_attach_nphy(struct brcms_phy *pi)
+void wlc_phy_attach_nphy(struct brcms_phy *pi)
 {
 	uint i;
 
@@ -14645,10 +14643,7 @@ bool wlc_phy_attach_nphy(struct brcms_phy *pi)
 	pi->pi_fptr.chanset = wlc_phy_chanspec_set_nphy;
 	pi->pi_fptr.txpwrrecalc = wlc_phy_txpower_recalc_target_nphy;
 
-	if (!wlc_phy_txpwr_srom_read_nphy(pi))
-		return false;
-
-	return true;
+	wlc_phy_txpwr_srom_read_nphy(pi);
 }
 
 static s32 get_rf_pwr_offset(struct brcms_phy *pi, s16 pga_gn, s16 pad_gn)

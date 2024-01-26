@@ -78,6 +78,314 @@ static const struct rtw89_cfo_regs rtw89_cfo_regs_be = {
 	.valid_0_mask = B_DCFO_OPT_EN_V1,
 };
 
+union rtw89_phy_bb_gain_arg_be {
+	u32 addr;
+	struct {
+		u8 type;
+#define BB_GAIN_TYPE_SUB0_BE GENMASK(3, 0)
+#define BB_GAIN_TYPE_SUB1_BE GENMASK(7, 4)
+		u8 path_bw;
+#define BB_GAIN_PATH_BE GENMASK(3, 0)
+#define BB_GAIN_BW_BE GENMASK(7, 4)
+		u8 gain_band;
+		u8 cfg_type;
+	} __packed;
+} __packed;
+
+static void
+rtw89_phy_cfg_bb_gain_error_be(struct rtw89_dev *rtwdev,
+			       union rtw89_phy_bb_gain_arg_be arg, u32 data)
+{
+	struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 bw_type = u8_get_bits(arg.path_bw, BB_GAIN_BW_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+	u8 gband = arg.gain_band;
+	u8 type = arg.type;
+	int i;
+
+	switch (type) {
+	case 0:
+		for (i = 0; i < 4; i++, data >>= 8)
+			gain->lna_gain[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 1:
+		for (i = 4; i < 7; i++, data >>= 8)
+			gain->lna_gain[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 2:
+		for (i = 0; i < 2; i++, data >>= 8)
+			gain->tia_gain[gband][bw_type][path][i] = data & 0xff;
+		break;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb gain error {0x%x:0x%x} with unknown type: %d\n",
+			   arg.addr, data, type);
+		break;
+	}
+}
+
+static void
+rtw89_phy_cfg_bb_rpl_ofst_be(struct rtw89_dev *rtwdev,
+			     union rtw89_phy_bb_gain_arg_be arg, u32 data)
+{
+	struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 type_sub0 = u8_get_bits(arg.type, BB_GAIN_TYPE_SUB0_BE);
+	u8 type_sub1 = u8_get_bits(arg.type, BB_GAIN_TYPE_SUB1_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+	u8 gband = arg.gain_band;
+	u8 ofst = 0;
+	int i;
+
+	switch (type_sub1) {
+	case RTW89_CMAC_BW_20M:
+		gain->rpl_ofst_20[gband][path][0] = (s8)data;
+		break;
+	case RTW89_CMAC_BW_40M:
+		for (i = 0; i < RTW89_BW20_SC_40M; i++, data >>= 8)
+			gain->rpl_ofst_40[gband][path][i] = data & 0xff;
+		break;
+	case RTW89_CMAC_BW_80M:
+		for (i = 0; i < RTW89_BW20_SC_80M; i++, data >>= 8)
+			gain->rpl_ofst_80[gband][path][i] = data & 0xff;
+		break;
+	case RTW89_CMAC_BW_160M:
+		if (type_sub0 == 0)
+			ofst = 0;
+		else
+			ofst = RTW89_BW20_SC_80M;
+
+		for (i = 0; i < RTW89_BW20_SC_80M; i++, data >>= 8)
+			gain->rpl_ofst_160[gband][path][i + ofst] = data & 0xff;
+		break;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb rpl ofst {0x%x:0x%x} with unknown type_sub1: %d\n",
+			   arg.addr, data, type_sub1);
+		break;
+	}
+}
+
+static void
+rtw89_phy_cfg_bb_gain_op1db_be(struct rtw89_dev *rtwdev,
+			       union rtw89_phy_bb_gain_arg_be arg, u32 data)
+{
+	struct rtw89_phy_bb_gain_info_be *gain = &rtwdev->bb_gain.be;
+	u8 bw_type = u8_get_bits(arg.path_bw, BB_GAIN_BW_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+	u8 gband = arg.gain_band;
+	u8 type = arg.type;
+	int i;
+
+	switch (type) {
+	case 0:
+		for (i = 0; i < 4; i++, data >>= 8)
+			gain->lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 1:
+		for (i = 4; i < 7; i++, data >>= 8)
+			gain->lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 2:
+		for (i = 0; i < 4; i++, data >>= 8)
+			gain->tia_lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	case 3:
+		for (i = 4; i < 8; i++, data >>= 8)
+			gain->tia_lna_op1db[gband][bw_type][path][i] = data & 0xff;
+		break;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb gain op1db {0x%x:0x%x} with unknown type: %d\n",
+			   arg.addr, data, type);
+		break;
+	}
+}
+
+static void rtw89_phy_config_bb_gain_be(struct rtw89_dev *rtwdev,
+					const struct rtw89_reg2_def *reg,
+					enum rtw89_rf_path rf_path,
+					void *extra_data)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	union rtw89_phy_bb_gain_arg_be arg = { .addr = reg->addr };
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+	u8 bw_type = u8_get_bits(arg.path_bw, BB_GAIN_BW_BE);
+	u8 path = u8_get_bits(arg.path_bw, BB_GAIN_PATH_BE);
+
+	if (bw_type >= RTW89_BB_BW_NR_BE)
+		return;
+
+	if (arg.gain_band >= RTW89_BB_GAIN_BAND_NR_BE)
+		return;
+
+	if (path >= chip->rf_path_num)
+		return;
+
+	if (arg.addr >= 0xf9 && arg.addr <= 0xfe) {
+		rtw89_warn(rtwdev, "bb gain table with flow ctrl\n");
+		return;
+	}
+
+	switch (arg.cfg_type) {
+	case 0:
+		rtw89_phy_cfg_bb_gain_error_be(rtwdev, arg, reg->data);
+		break;
+	case 1:
+		rtw89_phy_cfg_bb_rpl_ofst_be(rtwdev, arg, reg->data);
+		break;
+	case 2:
+		/* ignore BB gain bypass */
+		break;
+	case 3:
+		rtw89_phy_cfg_bb_gain_op1db_be(rtwdev, arg, reg->data);
+		break;
+	case 4:
+		/* This cfg_type is only used by rfe_type >= 50 with eFEM */
+		if (efuse->rfe_type < 50)
+			break;
+		fallthrough;
+	default:
+		rtw89_warn(rtwdev,
+			   "bb gain {0x%x:0x%x} with unknown cfg type: %d\n",
+			   arg.addr, reg->data, arg.cfg_type);
+		break;
+	}
+}
+
+static void rtw89_phy_preinit_rf_nctl_be(struct rtw89_dev *rtwdev)
+{
+	rtw89_phy_write32_mask(rtwdev, R_GOTX_IQKDPK_C0, B_GOTX_IQKDPK, 0x3);
+	rtw89_phy_write32_mask(rtwdev, R_GOTX_IQKDPK_C1, B_GOTX_IQKDPK, 0x3);
+	rtw89_phy_write32_mask(rtwdev, R_IQKDPK_HC, B_IQKDPK_HC, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_CLK_GCK, B_CLK_GCK, 0x00fffff);
+	rtw89_phy_write32_mask(rtwdev, R_IOQ_IQK_DPK, B_IOQ_IQK_DPK_CLKEN, 0x3);
+	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_RST, B_IQK_DPK_RST, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST, B_IQK_DPK_PRST, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_PRST_C1, B_IQK_DPK_PRST, 0x1);
+	rtw89_phy_write32_mask(rtwdev, R_TXRFC, B_TXRFC_RST, 0x1);
+
+	if (rtwdev->dbcc_en) {
+		rtw89_phy_write32_mask(rtwdev, R_IQK_DPK_RST_C1, B_IQK_DPK_RST, 0x1);
+		rtw89_phy_write32_mask(rtwdev, R_TXRFC_C1, B_TXRFC_RST, 0x1);
+	}
+}
+
+static
+void rtw89_phy_bb_wrap_pwr_by_macid_init(struct rtw89_dev *rtwdev)
+{
+	u32 macid_idx, cr, base_macid_lmt, max_macid = 32;
+
+	base_macid_lmt = R_BE_PWR_MACID_LMT_BASE;
+
+	for (macid_idx = 0; macid_idx < 4 * max_macid; macid_idx += 4) {
+		cr = base_macid_lmt + macid_idx;
+		rtw89_write32(rtwdev, cr, 0x03007F7F);
+	}
+}
+
+static
+void rtw89_phy_bb_wrap_tx_path_by_macid_init(struct rtw89_dev *rtwdev)
+{
+	int i, max_macid = 32;
+	u32 cr = R_BE_PWR_MACID_PATH_BASE;
+
+	for (i = 0; i < max_macid; i++, cr += 4)
+		rtw89_write32(rtwdev, cr, 0x03C86000);
+}
+
+static void rtw89_phy_bb_wrap_tpu_set_all(struct rtw89_dev *rtwdev,
+					  enum rtw89_mac_idx mac_idx)
+{
+	u32 addr;
+
+	for (addr = R_BE_PWR_BY_RATE; addr <= R_BE_PWR_BY_RATE_END; addr += 4)
+		rtw89_write32(rtwdev, addr, 0);
+	for (addr = R_BE_PWR_RULMT_START; addr <= R_BE_PWR_RULMT_END; addr += 4)
+		rtw89_write32(rtwdev, addr, 0);
+	for (addr = R_BE_PWR_RATE_OFST_CTRL; addr <= R_BE_PWR_RATE_OFST_END; addr += 4)
+		rtw89_write32(rtwdev, addr, 0);
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_REF_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_LMT_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_LMTBF, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_LMTBF_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_RATE_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_BYRATE_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_RULMT, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_RULMT_DB, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_SW, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_OFST_SW_DB, 0);
+}
+
+static
+void rtw89_phy_bb_wrap_listen_path_en_init(struct rtw89_dev *rtwdev)
+{
+	u32 addr;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, RTW89_MAC_1, RTW89_CMAC_SEL);
+	if (ret)
+		return;
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_LISTEN_PATH, RTW89_MAC_1);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_LISTEN_PATH_EN, 0x2);
+}
+
+static void rtw89_phy_bb_wrap_force_cr_init(struct rtw89_dev *rtwdev,
+					    enum rtw89_mac_idx mac_idx)
+{
+	u32 addr;
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FORCE_LMT, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_LMT_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_BOOST, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_RATE_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_OFST_RULMT, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_RU_ENON, 0);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_RU_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FORCE_MACID, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_MACID_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_COEX_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_PWR_FORCE_COEX_ON, 0);
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_RATE_CTRL, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, B_BE_FORCE_PWR_BY_RATE_EN, 0);
+}
+
+static void rtw89_phy_bb_wrap_ftm_init(struct rtw89_dev *rtwdev,
+				       enum rtw89_mac_idx mac_idx)
+{
+	u32 addr;
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FTM, mac_idx);
+	rtw89_write32(rtwdev, addr, 0xE4E431);
+
+	addr = rtw89_mac_reg_by_idx(rtwdev, R_BE_PWR_FTM_SS, mac_idx);
+	rtw89_write32_mask(rtwdev, addr, 0x7, 0);
+}
+
+static void rtw89_phy_bb_wrap_init_be(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_mac_idx mac_idx = RTW89_MAC_0;
+
+	rtw89_phy_bb_wrap_pwr_by_macid_init(rtwdev);
+	rtw89_phy_bb_wrap_tx_path_by_macid_init(rtwdev);
+	rtw89_phy_bb_wrap_listen_path_en_init(rtwdev);
+	rtw89_phy_bb_wrap_force_cr_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_ftm_init(rtwdev, mac_idx);
+	rtw89_phy_bb_wrap_tpu_set_all(rtwdev, mac_idx);
+}
+
+static void rtw89_phy_ch_info_init_be(struct rtw89_dev *rtwdev)
+{
+	rtw89_phy_write32_mask(rtwdev, R_CHINFO_SEG, B_CHINFO_SEG_LEN, 0x0);
+	rtw89_phy_write32_mask(rtwdev, R_CHINFO_SEG, B_CHINFO_SEG, 0xf);
+	rtw89_phy_write32_mask(rtwdev, R_CHINFO_DATA, B_CHINFO_DATA_BITMAP, 0x1);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_ELM_SRC, B_CHINFO_ELM_BITMAP, 0x40303);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_ELM_SRC, B_CHINFO_SRC, 0x0);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_TYPE_SCAL, B_CHINFO_TYPE, 0x3);
+	rtw89_phy_set_phy_regs(rtwdev, R_CHINFO_TYPE_SCAL, B_CHINFO_SCAL, 0x0);
+}
+
 struct rtw89_byr_spec_ent_be {
 	struct rtw89_rate_desc init;
 	u8 num_of_idx;
@@ -644,6 +952,10 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.ccx = &rtw89_ccx_regs_be,
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
+	.config_bb_gain = rtw89_phy_config_bb_gain_be,
+	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
+	.bb_wrap_init = rtw89_phy_bb_wrap_init_be,
+	.ch_info_init = rtw89_phy_ch_info_init_be,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_be,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_be,

@@ -122,7 +122,7 @@ struct brcmf_pub {
 	struct mutex proto_block;
 	unsigned char proto_buf[BRCMF_DCMD_MAXLEN];
 
-	struct brcmf_fweh_info fweh;
+	struct brcmf_fweh_info *fweh;
 
 	struct brcmf_ampdu_rx_reorder
 		*reorder_flows[BRCMF_AMPDU_RX_REORDER_MAXFLOWS];

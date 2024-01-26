@@ -146,6 +146,21 @@
 #define  GPIO_INTM_EDGE_TRIG_IRQ	BIT(9)
 
 #define REG_LEDCFG0			0x004c
+#define  LEDCFG0_LED0CM			GENMASK(2, 0)
+#define  LEDCFG0_LED1CM			GENMASK(10, 8)
+#define   LED_MODE_SW_CTRL		0x0
+#define   LED_MODE_TX_OR_RX_EVENTS	0x3
+#define  LEDCFG0_LED0SV			BIT(3)
+#define  LEDCFG0_LED1SV			BIT(11)
+#define   LED_SW_OFF			0x0
+#define   LED_SW_ON			0x1
+#define  LEDCFG0_LED0_IO_MODE		BIT(7)
+#define  LEDCFG0_LED1_IO_MODE		BIT(15)
+#define   LED_IO_MODE_OUTPUT		0x0
+#define   LED_IO_MODE_INPUT		0x1
+#define  LEDCFG0_LED2EN			BIT(21)
+#define   LED_GPIO_DISABLE		0x0
+#define   LED_GPIO_ENABLE		0x1
 #define  LEDCFG0_DPDT_SELECT		BIT(23)
 #define REG_LEDCFG1			0x004d
 #define  LEDCFG1_HW_LED_CONTROL		BIT(1)

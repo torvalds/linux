@@ -905,6 +905,8 @@ static void rtw89_phy_config_bb_reg(struct rtw89_dev *rtwdev,
 		udelay(5);
 	else if (reg->addr == 0xf9)
 		udelay(1);
+	else if (reg->data == BYPASS_CR_DATA)
+		rtw89_debug(rtwdev, RTW89_DBG_PHY_TRACK, "Bypass CR 0x%x\n", reg->addr);
 	else
 		rtw89_phy_write32(rtwdev, reg->addr, reg->data);
 }
@@ -929,7 +931,7 @@ static void
 rtw89_phy_cfg_bb_gain_error(struct rtw89_dev *rtwdev,
 			    union rtw89_phy_bb_gain_arg arg, u32 data)
 {
-	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 type = arg.type;
 	u8 path = arg.path;
 	u8 gband = arg.gain_band;
@@ -968,7 +970,7 @@ static void
 rtw89_phy_cfg_bb_rpl_ofst(struct rtw89_dev *rtwdev,
 			  union rtw89_phy_bb_gain_arg arg, u32 data)
 {
-	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 rxsc_start = arg.rxsc_start;
 	u8 bw = arg.bw;
 	u8 path = arg.path;
@@ -1050,7 +1052,7 @@ static void
 rtw89_phy_cfg_bb_gain_bypass(struct rtw89_dev *rtwdev,
 			     union rtw89_phy_bb_gain_arg arg, u32 data)
 {
-	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 type = arg.type;
 	u8 path = arg.path;
 	u8 gband = arg.gain_band;
@@ -1077,7 +1079,7 @@ static void
 rtw89_phy_cfg_bb_gain_op1db(struct rtw89_dev *rtwdev,
 			    union rtw89_phy_bb_gain_arg arg, u32 data)
 {
-	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 type = arg.type;
 	u8 path = arg.path;
 	u8 gband = arg.gain_band;
@@ -1108,10 +1110,10 @@ rtw89_phy_cfg_bb_gain_op1db(struct rtw89_dev *rtwdev,
 	}
 }
 
-static void rtw89_phy_config_bb_gain(struct rtw89_dev *rtwdev,
-				     const struct rtw89_reg2_def *reg,
-				     enum rtw89_rf_path rf_path,
-				     void *extra_data)
+static void rtw89_phy_config_bb_gain_ax(struct rtw89_dev *rtwdev,
+					const struct rtw89_reg2_def *reg,
+					enum rtw89_rf_path rf_path,
+					void *extra_data)
 {
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	union rtw89_phy_bb_gain_arg arg = { .addr = reg->addr };
@@ -1425,7 +1427,7 @@ void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 	bb_gain_table = elm_info->bb_gain ? elm_info->bb_gain : chip->bb_gain_table;
 	if (bb_gain_table)
 		rtw89_phy_init_reg(rtwdev, bb_gain_table,
-				   rtw89_phy_config_bb_gain, NULL);
+				   chip->phy_def->config_bb_gain, NULL);
 	rtw89_phy_bb_reset(rtwdev, RTW89_PHY_0);
 }
 
@@ -1467,11 +1469,9 @@ void rtw89_phy_init_rf_reg(struct rtw89_dev *rtwdev, bool noio)
 	kfree(rf_reg_info);
 }
 
-static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
+static void rtw89_phy_preinit_rf_nctl_ax(struct rtw89_dev *rtwdev)
 {
-	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
-	const struct rtw89_phy_table *nctl_table;
 	u32 val;
 	int ret;
 
@@ -1491,6 +1491,15 @@ static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
 				1000, false, rtwdev);
 	if (ret)
 		rtw89_err(rtwdev, "failed to poll nctl block\n");
+}
+
+static void rtw89_phy_init_rf_nctl(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_fw_elm_info *elm_info = &rtwdev->fw.elm_info;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_phy_table *nctl_table;
+
+	rtw89_phy_preinit_rf_nctl(rtwdev);
 
 	nctl_table = elm_info->rf_nctl ? elm_info->rf_nctl : chip->nctl_table;
 	rtw89_phy_init_reg(rtwdev, nctl_table, rtw89_phy_config_bb_reg, NULL);
@@ -1561,6 +1570,7 @@ void rtw89_phy_set_phy_regs(struct rtw89_dev *rtwdev, u32 addr, u32 mask,
 
 	rtw89_phy_write32_idx(rtwdev, addr, mask, val, RTW89_PHY_1);
 }
+EXPORT_SYMBOL(rtw89_phy_set_phy_regs);
 
 void rtw89_phy_write_reg3_tbl(struct rtw89_dev *rtwdev,
 			      const struct rtw89_phy_reg3_tbl *tbl)
@@ -4551,6 +4561,9 @@ static void rtw89_phy_dig_set_rxb_idx(struct rtw89_dev *rtwdev, u8 rxb_idx)
 static void rtw89_phy_dig_set_igi_cr(struct rtw89_dev *rtwdev,
 				     const struct rtw89_agc_gaincode_set set)
 {
+	if (!rtwdev->hal.support_igi)
+		return;
+
 	rtw89_phy_dig_set_lna_idx(rtwdev, set.lna_idx);
 	rtw89_phy_dig_set_tia_idx(rtwdev, set.tia_idx);
 	rtw89_phy_dig_set_rxb_idx(rtwdev, set.rxb_idx);
@@ -4606,7 +4619,8 @@ static void rtw89_phy_dig_dyn_pd_th(struct rtw89_dev *rtwdev, u8 rssi,
 	s8 cck_cca_th;
 	u32 pd_val = 0;
 
-	under_region += PD_TH_SB_FLTR_CMP_VAL;
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_AX)
+		under_region += PD_TH_SB_FLTR_CMP_VAL;
 
 	switch (cbw) {
 	case RTW89_CHANNEL_WIDTH_40:
@@ -4953,7 +4967,9 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_physts_parsing_init(rtwdev);
 	rtw89_phy_dig_init(rtwdev);
 	rtw89_phy_cfo_init(rtwdev);
+	rtw89_phy_bb_wrap_init(rtwdev);
 	rtw89_phy_edcca_init(rtwdev);
+	rtw89_phy_ch_info_init(rtwdev);
 	rtw89_phy_ul_tb_info_init(rtwdev);
 	rtw89_phy_antdiv_init(rtwdev);
 	rtw89_chip_rfe_gpio(rtwdev);
@@ -5476,6 +5492,10 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_ax = {
 	.ccx = &rtw89_ccx_regs_ax,
 	.physts = &rtw89_physts_regs_ax,
 	.cfo = &rtw89_cfo_regs_ax,
+	.config_bb_gain = rtw89_phy_config_bb_gain_ax,
+	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_ax,
+	.bb_wrap_init = NULL,
+	.ch_info_init = NULL,
 
 	.set_txpwr_byrate = rtw89_phy_set_txpwr_byrate_ax,
 	.set_txpwr_offset = rtw89_phy_set_txpwr_offset_ax,

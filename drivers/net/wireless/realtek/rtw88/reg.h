@@ -557,6 +557,9 @@
 #define REG_RFE_INV16		0x0cbe
 #define BIT_RFE_BUF_EN		BIT(3)
 
+#define REG_ANAPARSW_MAC_0	0x1010
+#define BIT_CF_L_V2		GENMASK(29, 28)
+
 #define REG_ANAPAR_XTAL_0	0x1040
 #define BIT_XCAP_0		GENMASK(23, 10)
 #define REG_CPU_DMEM_CON	0x1080

@@ -842,7 +842,7 @@ static void rtw8852c_set_gain_error(struct rtw89_dev *rtwdev,
 				    enum rtw89_subband subband,
 				    enum rtw89_rf_path path)
 {
-	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain;
+	const struct rtw89_phy_bb_gain_info *gain = &rtwdev->bb_gain.ax;
 	u8 gain_band = rtw89_subband_to_bb_gain_band(subband);
 	s32 val;
 	u32 reg;
@@ -2813,6 +2813,7 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.enable_bb_rf		= rtw8852c_mac_enable_bb_rf,
 	.disable_bb_rf		= rtw8852c_mac_disable_bb_rf,
 	.bb_preinit		= NULL,
+	.bb_postinit		= NULL,
 	.bb_reset		= rtw8852c_bb_reset,
 	.bb_sethw		= rtw8852c_bb_sethw,
 	.read_rf		= rtw89_phy_read_rf_v1,
@@ -2848,6 +2849,12 @@ static const struct rtw89_chip_ops rtw8852c_chip_ops = {
 	.stop_sch_tx		= rtw89_mac_stop_sch_tx_v1,
 	.resume_sch_tx		= rtw89_mac_resume_sch_tx_v1,
 	.h2c_dctl_sec_cam	= rtw89_fw_h2c_dctl_sec_cam_v1,
+	.h2c_default_cmac_tbl	= rtw89_fw_h2c_default_cmac_tbl,
+	.h2c_assoc_cmac_tbl	= rtw89_fw_h2c_assoc_cmac_tbl,
+	.h2c_ampdu_cmac_tbl	= NULL,
+	.h2c_default_dmac_tbl	= NULL,
+	.h2c_update_beacon	= rtw89_fw_h2c_update_beacon,
+	.h2c_ba_cam		= rtw89_fw_h2c_ba_cam,
 
 	.btc_set_rfe		= rtw8852c_btc_set_rfe,
 	.btc_init_cfg		= rtw8852c_btc_init_cfg,
@@ -2902,7 +2909,10 @@ const struct rtw89_chip_info rtw8852c_chip_info = {
 	.support_bands		= BIT(NL80211_BAND_2GHZ) |
 				  BIT(NL80211_BAND_5GHZ) |
 				  BIT(NL80211_BAND_6GHZ),
-	.support_bw160		= true,
+	.support_bandwidths	= BIT(NL80211_CHAN_WIDTH_20) |
+				  BIT(NL80211_CHAN_WIDTH_40) |
+				  BIT(NL80211_CHAN_WIDTH_80) |
+				  BIT(NL80211_CHAN_WIDTH_160),
 	.support_unii4		= true,
 	.ul_tb_waveform_ctrl	= false,
 	.ul_tb_pwr_diff		= true,

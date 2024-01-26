@@ -266,7 +266,7 @@ static int brcmf_c_process_cal_blob(struct brcmf_if *ifp)
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
-	s8 eventmask[BRCMF_EVENTING_MASK_LEN];
+	struct brcmf_fweh_info *fweh = drvr->fweh;
 	u8 buf[BRCMF_DCMD_SMLEN];
 	struct brcmf_bus *bus;
 	struct brcmf_rev_info_le revinfo;
@@ -413,15 +413,21 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 	brcmf_c_set_joinpref_default(ifp);
 
 	/* Setup event_msgs, enable E_IF */
-	err = brcmf_fil_iovar_data_get(ifp, "event_msgs", eventmask,
-				       BRCMF_EVENTING_MASK_LEN);
+	err = brcmf_fil_iovar_data_get(ifp, "event_msgs", fweh->event_mask,
+				       fweh->event_mask_len);
 	if (err) {
 		bphy_err(drvr, "Get event_msgs error (%d)\n", err);
 		goto done;
 	}
-	setbit(eventmask, BRCMF_E_IF);
-	err = brcmf_fil_iovar_data_set(ifp, "event_msgs", eventmask,
-				       BRCMF_EVENTING_MASK_LEN);
+	/*
+	 * BRCMF_E_IF can safely be used to set the appropriate bit
+	 * in the event_mask as the firmware event code is guaranteed
+	 * to match the value of BRCMF_E_IF because it is old cruft
+	 * that all vendors have.
+	 */
+	setbit(fweh->event_mask, BRCMF_E_IF);
+	err = brcmf_fil_iovar_data_set(ifp, "event_msgs", fweh->event_mask,
+				       fweh->event_mask_len);
 	if (err) {
 		bphy_err(drvr, "Set event_msgs error (%d)\n", err);
 		goto done;

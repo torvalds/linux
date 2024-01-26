@@ -777,3 +777,64 @@ void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 	SET_DCTL_SEC_ENT5_V1(cmd, addr_cam->sec_ent[5]);
 	SET_DCTL_SEC_ENT6_V1(cmd, addr_cam->sec_ent[6]);
 }
+
+void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif *rtwvif,
+					 struct rtw89_sta *rtwsta,
+					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c)
+{
+	struct rtw89_addr_cam_entry *addr_cam = rtw89_get_addr_cam_of(rtwvif, rtwsta);
+
+	h2c->c0 = le32_encode_bits(rtwsta ? rtwsta->mac_id : rtwvif->mac_id,
+				   DCTLINFO_V2_C0_MACID) |
+		  le32_encode_bits(1, DCTLINFO_V2_C0_OP);
+
+	h2c->w4 = le32_encode_bits(addr_cam->sec_ent_keyid[0],
+				   DCTLINFO_V2_W4_SEC_ENT0_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[1],
+				   DCTLINFO_V2_W4_SEC_ENT1_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[2],
+				   DCTLINFO_V2_W4_SEC_ENT2_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[3],
+				   DCTLINFO_V2_W4_SEC_ENT3_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[4],
+				   DCTLINFO_V2_W4_SEC_ENT4_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[5],
+				   DCTLINFO_V2_W4_SEC_ENT5_KEYID) |
+		  le32_encode_bits(addr_cam->sec_ent_keyid[6],
+				   DCTLINFO_V2_W4_SEC_ENT6_KEYID);
+	h2c->m4 = cpu_to_le32(DCTLINFO_V2_W4_SEC_ENT0_KEYID |
+			      DCTLINFO_V2_W4_SEC_ENT1_KEYID |
+			      DCTLINFO_V2_W4_SEC_ENT2_KEYID |
+			      DCTLINFO_V2_W4_SEC_ENT3_KEYID |
+			      DCTLINFO_V2_W4_SEC_ENT4_KEYID |
+			      DCTLINFO_V2_W4_SEC_ENT5_KEYID |
+			      DCTLINFO_V2_W4_SEC_ENT6_KEYID);
+
+	h2c->w5 = le32_encode_bits(addr_cam->sec_cam_map[0],
+				   DCTLINFO_V2_W5_SEC_ENT_VALID_V1) |
+		  le32_encode_bits(addr_cam->sec_ent[0],
+				   DCTLINFO_V2_W5_SEC_ENT0_V1);
+	h2c->m5 = cpu_to_le32(DCTLINFO_V2_W5_SEC_ENT_VALID_V1 |
+			      DCTLINFO_V2_W5_SEC_ENT0_V1);
+
+	h2c->w6 = le32_encode_bits(addr_cam->sec_ent[1],
+				   DCTLINFO_V2_W6_SEC_ENT1_V1) |
+		  le32_encode_bits(addr_cam->sec_ent[2],
+				   DCTLINFO_V2_W6_SEC_ENT2_V1) |
+		  le32_encode_bits(addr_cam->sec_ent[3],
+				   DCTLINFO_V2_W6_SEC_ENT3_V1) |
+		  le32_encode_bits(addr_cam->sec_ent[4],
+				   DCTLINFO_V2_W6_SEC_ENT4_V1);
+	h2c->m6 = cpu_to_le32(DCTLINFO_V2_W6_SEC_ENT1_V1 |
+			      DCTLINFO_V2_W6_SEC_ENT2_V1 |
+			      DCTLINFO_V2_W6_SEC_ENT3_V1 |
+			      DCTLINFO_V2_W6_SEC_ENT4_V1);
+
+	h2c->w7 = le32_encode_bits(addr_cam->sec_ent[5],
+				   DCTLINFO_V2_W7_SEC_ENT5_V1) |
+		  le32_encode_bits(addr_cam->sec_ent[6],
+				   DCTLINFO_V2_W7_SEC_ENT6_V1);
+	h2c->m7 = cpu_to_le32(DCTLINFO_V2_W7_SEC_ENT5_V1 |
+			      DCTLINFO_V2_W7_SEC_ENT6_V1);
+}

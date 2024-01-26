@@ -1198,6 +1198,24 @@ int wilc_wlan_stop(struct wilc *wilc, struct wilc_vif *vif)
 
 	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 
+	ret = wilc->hif_func->hif_read_reg(wilc, GLOBAL_MODE_CONTROL, &reg);
+	if (ret)
+		goto release;
+
+	reg &= ~WILC_GLOBAL_MODE_ENABLE_WIFI;
+	ret = wilc->hif_func->hif_write_reg(wilc, GLOBAL_MODE_CONTROL, reg);
+	if (ret)
+		goto release;
+
+	ret = wilc->hif_func->hif_read_reg(wilc, PWR_SEQ_MISC_CTRL, &reg);
+	if (ret)
+		goto release;
+
+	reg &= ~WILC_PWR_SEQ_ENABLE_WIFI_SLEEP;
+	ret = wilc->hif_func->hif_write_reg(wilc, PWR_SEQ_MISC_CTRL, reg);
+	if (ret)
+		goto release;
+
 	ret = wilc->hif_func->hif_read_reg(wilc, WILC_GP_REG_0, &reg);
 	if (ret) {
 		netdev_err(vif->ndev, "Error while reading reg\n");
@@ -1206,19 +1224,6 @@ int wilc_wlan_stop(struct wilc *wilc, struct wilc_vif *vif)
 
 	ret = wilc->hif_func->hif_write_reg(wilc, WILC_GP_REG_0,
 					(reg | WILC_ABORT_REQ_BIT));
-	if (ret) {
-		netdev_err(vif->ndev, "Error while writing reg\n");
-		goto release;
-	}
-
-	ret = wilc->hif_func->hif_read_reg(wilc, WILC_FW_HOST_COMM, &reg);
-	if (ret) {
-		netdev_err(vif->ndev, "Error while reading reg\n");
-		goto release;
-	}
-	reg = BIT(0);
-
-	ret = wilc->hif_func->hif_write_reg(wilc, WILC_FW_HOST_COMM, reg);
 	if (ret) {
 		netdev_err(vif->ndev, "Error while writing reg\n");
 		goto release;
@@ -1410,7 +1415,7 @@ static int init_chip(struct net_device *dev)
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 
-	acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+	acquire_bus(wilc, WILC_BUS_ACQUIRE_AND_WAKEUP);
 
 	chipid = wilc_get_chipid(wilc, true);
 
@@ -1440,7 +1445,7 @@ static int init_chip(struct net_device *dev)
 	}
 
 release:
-	release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+	release_bus(wilc, WILC_BUS_RELEASE_ALLOW_SLEEP);
 
 	return ret;
 }

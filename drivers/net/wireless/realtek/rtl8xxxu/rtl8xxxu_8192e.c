@@ -1769,6 +1769,7 @@ struct rtl8xxxu_fileops rtl8192eu_fops = {
 	.needs_full_init = 1,
 	.supports_ap = 1,
 	.max_macid_num = 128,
+	.max_sec_cam_num = 64,
 	.adda_1t_init = 0x0fc01616,
 	.adda_1t_path_on = 0x0fc01616,
 	.adda_2t_path_on_a = 0x0fc01616,

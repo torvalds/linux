@@ -1699,7 +1699,7 @@ void rtl8188e_handle_ra_tx_report2(struct rtl8xxxu_priv *priv, struct sk_buff *s
 	/* We only use macid 0, so only the first item is relevant.
 	 * AP mode will use more of them if it's ever implemented.
 	 */
-	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_STATION)
+	if (!priv->vifs[0] || priv->vifs[0]->type == NL80211_IFTYPE_STATION)
 		items = 1;
 
 	for (macid = 0; macid < items; macid++) {
@@ -1882,6 +1882,7 @@ struct rtl8xxxu_fileops rtl8188eu_fops = {
 	.has_tx_report = 1,
 	.init_reg_pkt_life_time = 1,
 	.gen2_thermal_meter = 1,
+	.max_sec_cam_num = 32,
 	.adda_1t_init = 0x0b1b25a0,
 	.adda_1t_path_on = 0x0bdb25a0,
 	/*

@@ -498,6 +498,7 @@ struct rtl8xxxu_txdesc40 {
 #define DESC_RATE_ID_SHIFT		16
 #define DESC_RATE_ID_MASK		0xf
 #define TXDESC_NAVUSEHDR		BIT(20)
+#define TXDESC_EN_DESC_ID		BIT(21)
 #define TXDESC_SEC_RC4			0x00400000
 #define TXDESC_SEC_AES			0x00c00000
 #define TXDESC_PKT_OFFSET_SHIFT		26
@@ -1774,6 +1775,8 @@ struct rtl8xxxu_cfo_tracking {
 #define RTL8XXXU_HW_LED_CONTROL	2
 #define RTL8XXXU_MAX_MAC_ID_NUM	128
 #define RTL8XXXU_BC_MC_MACID	0
+#define RTL8XXXU_BC_MC_MACID1	1
+#define RTL8XXXU_MAX_SEC_CAM_NUM	64
 
 struct rtl8xxxu_priv {
 	struct ieee80211_hw *hw;
@@ -1892,15 +1895,12 @@ struct rtl8xxxu_priv {
 	u8 rssi_level;
 	DECLARE_BITMAP(tx_aggr_started, IEEE80211_NUM_TIDS);
 	DECLARE_BITMAP(tid_tx_operational, IEEE80211_NUM_TIDS);
-	/*
-	 * Only one virtual interface permitted because only STA mode
-	 * is supported and no iface_combinations are provided.
-	 */
-	struct ieee80211_vif *vif;
+
+	struct ieee80211_vif *vifs[2];
 	struct delayed_work ra_watchdog;
 	struct work_struct c2hcmd_work;
 	struct sk_buff_head c2hcmd_queue;
-	struct work_struct update_beacon_work;
+	struct delayed_work update_beacon_work;
 	struct rtl8xxxu_btcoex bt_coex;
 	struct rtl8xxxu_ra_report ra_report;
 	struct rtl8xxxu_cfo_tracking cfo_tracking;
@@ -1910,6 +1910,7 @@ struct rtl8xxxu_priv {
 	char led_name[32];
 	struct led_classdev led_cdev;
 	DECLARE_BITMAP(mac_id_map, RTL8XXXU_MAX_MAC_ID_NUM);
+	DECLARE_BITMAP(cam_map, RTL8XXXU_MAX_SEC_CAM_NUM);
 };
 
 struct rtl8xxxu_sta_info {
@@ -1917,6 +1918,11 @@ struct rtl8xxxu_sta_info {
 	struct ieee80211_vif *vif;
 
 	u8 macid;
+};
+
+struct rtl8xxxu_vif {
+	int port_num;
+	u8 hw_key_idx;
 };
 
 struct rtl8xxxu_rx_urb {
@@ -1986,11 +1992,13 @@ struct rtl8xxxu_fileops {
 	u8 init_reg_rxfltmap:1;
 	u8 init_reg_pkt_life_time:1;
 	u8 init_reg_hmtfr:1;
+	u8 supports_concurrent:1;
 	u8 ampdu_max_time;
 	u8 ustime_tsf_edca;
 	u16 max_aggr_num;
 	u8 supports_ap:1;
 	u16 max_macid_num;
+	u16 max_sec_cam_num;
 	u32 adda_1t_init;
 	u32 adda_1t_path_on;
 	u32 adda_2t_path_on_a;

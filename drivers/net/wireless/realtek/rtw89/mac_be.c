@@ -1616,7 +1616,7 @@ static int dbcc_enable_be(struct rtw89_dev *rtwdev, bool enable)
 		if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags)) {
 			ret = rtw89_fw_h2c_notify_dbcc(rtwdev, true);
 			if (ret) {
-				rtw89_err(rtwdev, "%s:[ERR]notfify dbcc1 fail %d\n",
+				rtw89_err(rtwdev, "%s:[ERR] notify dbcc1 fail %d\n",
 					  __func__, ret);
 				return ret;
 			}
@@ -1625,7 +1625,7 @@ static int dbcc_enable_be(struct rtw89_dev *rtwdev, bool enable)
 		if (test_bit(RTW89_FLAG_FW_RDY, rtwdev->flags)) {
 			ret = rtw89_fw_h2c_notify_dbcc(rtwdev, false);
 			if (ret) {
-				rtw89_err(rtwdev, "%s:[ERR]notfify dbcc1 fail %d\n",
+				rtw89_err(rtwdev, "%s:[ERR] notify dbcc1 fail %d\n",
 					  __func__, ret);
 				return ret;
 			}

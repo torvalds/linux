@@ -1633,33 +1633,41 @@ rtl8xxxu_gen1_set_tx_power(struct rtl8xxxu_priv *priv, int channel, bool ht40)
 }
 
 static void rtl8xxxu_set_linktype(struct rtl8xxxu_priv *priv,
-				  enum nl80211_iftype linktype)
+				  enum nl80211_iftype linktype, int port_num)
 {
-	u8 val8;
-
-	val8 = rtl8xxxu_read8(priv, REG_MSR);
-	val8 &= ~MSR_LINKTYPE_MASK;
+	u8 val8, type;
 
 	switch (linktype) {
 	case NL80211_IFTYPE_UNSPECIFIED:
-		val8 |= MSR_LINKTYPE_NONE;
+		type = MSR_LINKTYPE_NONE;
 		break;
 	case NL80211_IFTYPE_ADHOC:
-		val8 |= MSR_LINKTYPE_ADHOC;
+		type = MSR_LINKTYPE_ADHOC;
 		break;
 	case NL80211_IFTYPE_STATION:
-		val8 |= MSR_LINKTYPE_STATION;
+		type = MSR_LINKTYPE_STATION;
 		break;
 	case NL80211_IFTYPE_AP:
-		val8 |= MSR_LINKTYPE_AP;
+		type = MSR_LINKTYPE_AP;
 		break;
 	default:
-		goto out;
+		return;
+	}
+
+	switch (port_num) {
+	case 0:
+		val8 = rtl8xxxu_read8(priv, REG_MSR) & 0x0c;
+		val8 |= type;
+		break;
+	case 1:
+		val8 = rtl8xxxu_read8(priv, REG_MSR) & 0x03;
+		val8 |= type << 2;
+		break;
+	default:
+		return;
 	}
 
 	rtl8xxxu_write8(priv, REG_MSR, val8);
-out:
-	return;
 }
 
 static void
@@ -3572,27 +3580,47 @@ void rtl8723a_phy_lc_calibrate(struct rtl8xxxu_priv *priv)
 		rtl8xxxu_write8(priv, REG_TXPAUSE, 0x00);
 }
 
-static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv)
+static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv, int port_num)
 {
 	int i;
 	u16 reg;
 
-	reg = REG_MACID;
+	switch (port_num) {
+	case 0:
+		reg = REG_MACID;
+		break;
+	case 1:
+		reg = REG_MACID1;
+		break;
+	default:
+		WARN_ONCE("%s: invalid port_num\n", __func__);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ETH_ALEN; i++)
-		rtl8xxxu_write8(priv, reg + i, priv->mac_addr[i]);
+		rtl8xxxu_write8(priv, reg + i, priv->vifs[port_num]->addr[i]);
 
 	return 0;
 }
 
-static int rtl8xxxu_set_bssid(struct rtl8xxxu_priv *priv, const u8 *bssid)
+static int rtl8xxxu_set_bssid(struct rtl8xxxu_priv *priv, const u8 *bssid, int port_num)
 {
 	int i;
 	u16 reg;
 
 	dev_dbg(&priv->udev->dev, "%s: (%pM)\n", __func__, bssid);
 
-	reg = REG_BSSID;
+	switch (port_num) {
+	case 0:
+		reg = REG_BSSID;
+		break;
+	case 1:
+		reg = REG_BSSID1;
+		break;
+	default:
+		WARN_ONCE("%s: invalid port_num\n", __func__);
+		return -EINVAL;
+	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl8xxxu_write8(priv, reg + i, bssid[i]);
@@ -4025,10 +4053,13 @@ static inline u8 rtl8xxxu_get_macid(struct rtl8xxxu_priv *priv,
 {
 	struct rtl8xxxu_sta_info *sta_info;
 
-	if (!priv->vif || priv->vif->type == NL80211_IFTYPE_STATION || !sta)
+	if (!sta)
 		return 0;
 
 	sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+	if (!sta_info)
+		return 0;
+
 	return sta_info->macid;
 }
 
@@ -4234,9 +4265,6 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8xxxu_write32(priv, REG_HISR, 0xffffffff);
 		rtl8xxxu_write32(priv, REG_HIMR, 0xffffffff);
 	}
-
-	rtl8xxxu_set_mac(priv);
-	rtl8xxxu_set_linktype(priv, NL80211_IFTYPE_STATION);
 
 	/*
 	 * Configure initial WMAC settings
@@ -4511,6 +4539,7 @@ static int rtl8xxxu_init_device(struct ieee80211_hw *hw)
 		rtl8188e_ra_info_init_all(&priv->ra_info);
 
 	set_bit(RTL8XXXU_BC_MC_MACID, priv->mac_id_map);
+	set_bit(RTL8XXXU_BC_MC_MACID1, priv->mac_id_map);
 
 exit:
 	return ret;
@@ -4530,8 +4559,10 @@ static void rtl8xxxu_cam_write(struct rtl8xxxu_priv *priv,
 	 * This is a bit of a hack - the lower bits of the cipher
 	 * suite selector happens to match the cipher index in the CAM
 	 */
-	addr = key->keyidx << CAM_CMD_KEY_SHIFT;
+	addr = key->hw_key_idx << CAM_CMD_KEY_SHIFT;
 	ctrl = (key->cipher & 0x0f) << 2 | key->keyidx | CAM_WRITE_VALID;
+	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+		ctrl |= BIT(6);
 
 	for (j = 5; j >= 0; j--) {
 		switch (j) {
@@ -4574,7 +4605,7 @@ static int rtl8xxxu_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
 
-	schedule_work(&priv->update_beacon_work);
+	schedule_delayed_work(&priv->update_beacon_work, 0);
 
 	return 0;
 }
@@ -4839,10 +4870,9 @@ static void rtl8xxxu_set_basic_rates(struct rtl8xxxu_priv *priv, u32 rate_cfg)
 
 	dev_dbg(&priv->udev->dev, "%s: rates %08x\n", __func__,	rate_cfg);
 
-	while (rate_cfg) {
-		rate_cfg = (rate_cfg >> 1);
-		rate_idx++;
-	}
+	if (rate_cfg)
+		rate_idx = __fls(rate_cfg);
+
 	rtl8xxxu_write8(priv, REG_INIRTS_RATE_SEL, rate_idx);
 }
 
@@ -4888,14 +4918,20 @@ static void rtl8xxxu_set_aifs(struct rtl8xxxu_priv *priv, u8 slot_time)
 	u8 aifs, aifsn, sifs;
 	int i;
 
-	if (priv->vif) {
+	for (i = 0; i < ARRAY_SIZE(priv->vifs); i++) {
+		if (!priv->vifs[i])
+			continue;
+
 		struct ieee80211_sta *sta;
 
 		rcu_read_lock();
-		sta = ieee80211_find_sta(priv->vif, priv->vif->bss_conf.bssid);
+		sta = ieee80211_find_sta(priv->vifs[i], priv->vifs[i]->bss_conf.bssid);
 		if (sta)
 			wireless_mode = rtl8xxxu_wireless_mode(priv->hw, sta);
 		rcu_read_unlock();
+
+		if (wireless_mode)
+			break;
 	}
 
 	if (priv->hw->conf.chandef.chan->band == NL80211_BAND_5GHZ ||
@@ -4952,6 +4988,7 @@ static void
 rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			  struct ieee80211_bss_conf *bss_conf, u64 changed)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct device *dev = &priv->udev->dev;
 	struct ieee80211_sta *sta;
@@ -4964,7 +5001,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changed & BSS_CHANGED_ASSOC) {
 		dev_dbg(dev, "Changed ASSOC: %i!\n", vif->cfg.assoc);
 
-		rtl8xxxu_set_linktype(priv, vif->type);
+		rtl8xxxu_set_linktype(priv, vif->type, rtlvif->port_num);
 
 		if (vif->cfg.assoc) {
 			u32 ramask;
@@ -5004,7 +5041,6 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 			rtl8xxxu_update_ra_report(rarpt, highest_rate, sgi, bw);
 
-			priv->vif = vif;
 			priv->rssi_level = RTL8XXXU_RATR_STA_INIT;
 
 			priv->fops->update_rate_mask(priv, ramask, 0, sgi,
@@ -5012,7 +5048,8 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 			rtl8xxxu_write8(priv, REG_BCN_MAX_ERR, 0xff);
 
-			rtl8xxxu_stop_tx_beacon(priv);
+			if (rtlvif->port_num == 0)
+				rtl8xxxu_stop_tx_beacon(priv);
 
 			/* joinbss sequence */
 			rtl8xxxu_write16(priv, REG_BCN_PSR_RPT,
@@ -5054,7 +5091,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changed & BSS_CHANGED_BSSID) {
 		dev_dbg(dev, "Changed BSSID!\n");
-		rtl8xxxu_set_bssid(priv, bss_conf->bssid);
+		rtl8xxxu_set_bssid(priv, bss_conf->bssid, rtlvif->port_num);
 	}
 
 	if (changed & BSS_CHANGED_BASIC_RATES) {
@@ -5070,7 +5107,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changed & BSS_CHANGED_BEACON)
-		schedule_work(&priv->update_beacon_work);
+		schedule_delayed_work(&priv->update_beacon_work, 0);
 
 error:
 	return;
@@ -5079,11 +5116,12 @@ error:
 static int rtl8xxxu_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *link_conf)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct device *dev = &priv->udev->dev;
 
 	dev_dbg(dev, "Start AP mode\n");
-	rtl8xxxu_set_bssid(priv, vif->bss_conf.bssid);
+	rtl8xxxu_set_bssid(priv, vif->bss_conf.bssid, rtlvif->port_num);
 	rtl8xxxu_write16(priv, REG_BCN_INTERVAL, vif->bss_conf.beacon_int);
 	priv->fops->report_connect(priv, RTL8XXXU_BC_MC_MACID, 0, true);
 
@@ -5509,13 +5547,14 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct device *dev = &priv->udev->dev;
 	u32 queue, rts_rate;
 	u16 pktlen = skb->len;
 	int tx_desc_size = priv->fops->tx_desc_size;
 	u8 macid;
 	int ret;
-	bool ampdu_enable, sgi = false, short_preamble = false;
+	bool ampdu_enable, sgi = false, short_preamble = false, bmc = false;
 
 	if (skb_headroom(skb) < tx_desc_size) {
 		dev_warn(dev,
@@ -5557,10 +5596,14 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		tx_desc->txdw0 =
 			TXDESC_OWN | TXDESC_FIRST_SEGMENT | TXDESC_LAST_SEGMENT;
 	if (is_multicast_ether_addr(ieee80211_get_DA(hdr)) ||
-	    is_broadcast_ether_addr(ieee80211_get_DA(hdr)))
+	    is_broadcast_ether_addr(ieee80211_get_DA(hdr))) {
 		tx_desc->txdw0 |= TXDESC_BROADMULTICAST;
+		bmc = true;
+	}
+
 
 	tx_desc->txdw1 = cpu_to_le32(queue << TXDESC_QUEUE_SHIFT);
+	macid = rtl8xxxu_get_macid(priv, sta);
 
 	if (tx_info->control.hw_key) {
 		switch (tx_info->control.hw_key->cipher) {
@@ -5574,6 +5617,10 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 			break;
 		default:
 			break;
+		}
+		if (bmc && rtlvif->hw_key_idx != 0xff) {
+			tx_desc->txdw1 |= cpu_to_le32(TXDESC_EN_DESC_ID);
+			macid = rtlvif->hw_key_idx;
 		}
 	}
 
@@ -5618,7 +5665,6 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	else
 		rts_rate = 0;
 
-	macid = rtl8xxxu_get_macid(priv, sta);
 	priv->fops->fill_txdesc(hw, hdr, tx_info, tx_desc, sgi, short_preamble,
 				ampdu_enable, rts_rate, macid);
 
@@ -5680,16 +5726,42 @@ static void rtl8xxxu_send_beacon_frame(struct ieee80211_hw *hw,
 static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 {
 	struct rtl8xxxu_priv *priv =
-		container_of(work, struct rtl8xxxu_priv, update_beacon_work);
+		container_of(work, struct rtl8xxxu_priv, update_beacon_work.work);
 	struct ieee80211_hw *hw = priv->hw;
-	struct ieee80211_vif *vif = priv->vif;
+	struct ieee80211_vif *vif = priv->vifs[0];
 
 	if (!vif) {
 		WARN_ONCE(true, "no vif to update beacon\n");
 		return;
 	}
 
+	if (vif->bss_conf.csa_active) {
+		if (ieee80211_beacon_cntdwn_is_complete(vif)) {
+			ieee80211_csa_finish(vif);
+			return;
+		}
+		schedule_delayed_work(&priv->update_beacon_work,
+				      msecs_to_jiffies(vif->bss_conf.beacon_int));
+	}
 	rtl8xxxu_send_beacon_frame(hw, vif);
+}
+
+static inline bool rtl8xxxu_is_packet_match_bssid(struct rtl8xxxu_priv *priv,
+						  struct ieee80211_hdr *hdr,
+						  int port_num)
+{
+	return priv->vifs[port_num] &&
+	       priv->vifs[port_num]->type == NL80211_IFTYPE_STATION &&
+	       priv->vifs[port_num]->cfg.assoc &&
+	       ether_addr_equal(priv->vifs[port_num]->bss_conf.bssid, hdr->addr2);
+}
+
+static inline bool rtl8xxxu_is_sta_sta(struct rtl8xxxu_priv *priv)
+{
+	return (priv->vifs[0] && priv->vifs[0]->cfg.assoc &&
+		priv->vifs[0]->type == NL80211_IFTYPE_STATION) &&
+	       (priv->vifs[1] && priv->vifs[1]->cfg.assoc &&
+		priv->vifs[1]->type == NL80211_IFTYPE_STATION);
 }
 
 void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
@@ -5708,12 +5780,11 @@ void rtl8723au_rx_parse_phystats(struct rtl8xxxu_priv *priv,
 		rx_status->signal = priv->fops->cck_rssi(priv, phy_stats);
 	} else {
 		bool parse_cfo = priv->fops->set_crystal_cap &&
-				 priv->vif &&
-				 priv->vif->type == NL80211_IFTYPE_STATION &&
-				 priv->vif->cfg.assoc &&
 				 !crc_icv_err &&
 				 !ieee80211_is_ctl(hdr->frame_control) &&
-				 ether_addr_equal(priv->vif->bss_conf.bssid, hdr->addr2);
+				 !rtl8xxxu_is_sta_sta(priv) &&
+				 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
+				  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
 
 		if (parse_cfo) {
 			priv->cfo_tracking.cfo_tail[0] = phy_stats->path_cfotail[0];
@@ -5748,12 +5819,11 @@ static void jaguar2_rx_parse_phystats_type1(struct rtl8xxxu_priv *priv,
 					    bool crc_icv_err)
 {
 	bool parse_cfo = priv->fops->set_crystal_cap &&
-			 priv->vif &&
-			 priv->vif->type == NL80211_IFTYPE_STATION &&
-			 priv->vif->cfg.assoc &&
 			 !crc_icv_err &&
 			 !ieee80211_is_ctl(hdr->frame_control) &&
-			 ether_addr_equal(priv->vif->bss_conf.bssid, hdr->addr2);
+			 !rtl8xxxu_is_sta_sta(priv) &&
+			 (rtl8xxxu_is_packet_match_bssid(priv, hdr, 0) ||
+			  rtl8xxxu_is_packet_match_bssid(priv, hdr, 1));
 	u8 pwdb_max = 0;
 	int rx_path;
 
@@ -6029,18 +6099,20 @@ void rtl8723bu_update_bt_link_info(struct rtl8xxxu_priv *priv, u8 bt_info)
 		btcoex->bt_busy = false;
 }
 
+static inline bool rtl8xxxu_is_assoc(struct rtl8xxxu_priv *priv)
+{
+	return (priv->vifs[0] && priv->vifs[0]->cfg.assoc) ||
+	       (priv->vifs[1] && priv->vifs[1]->cfg.assoc);
+}
+
 static
 void rtl8723bu_handle_bt_inquiry(struct rtl8xxxu_priv *priv)
 {
-	struct ieee80211_vif *vif;
 	struct rtl8xxxu_btcoex *btcoex;
-	bool wifi_connected;
 
-	vif = priv->vif;
 	btcoex = &priv->bt_coex;
-	wifi_connected = (vif && vif->cfg.assoc);
 
-	if (!wifi_connected) {
+	if (!rtl8xxxu_is_assoc(priv)) {
 		rtl8723bu_set_ps_tdma(priv, 0x8, 0x0, 0x0, 0x0, 0x0);
 		rtl8723bu_set_coex_with_type(priv, 0);
 	} else if (btcoex->has_sco || btcoex->has_hid || btcoex->has_a2dp) {
@@ -6058,15 +6130,11 @@ void rtl8723bu_handle_bt_inquiry(struct rtl8xxxu_priv *priv)
 static
 void rtl8723bu_handle_bt_info(struct rtl8xxxu_priv *priv)
 {
-	struct ieee80211_vif *vif;
 	struct rtl8xxxu_btcoex *btcoex;
-	bool wifi_connected;
 
-	vif = priv->vif;
 	btcoex = &priv->bt_coex;
-	wifi_connected = (vif && vif->cfg.assoc);
 
-	if (wifi_connected) {
+	if (rtl8xxxu_is_assoc(priv)) {
 		u32 val32 = 0;
 		u32 high_prio_tx = 0, high_prio_rx = 0;
 
@@ -6563,29 +6631,123 @@ error:
 	return ret;
 }
 
+static void rtl8xxxu_switch_ports(struct rtl8xxxu_priv *priv)
+{
+	u8 macid[ETH_ALEN], bssid[ETH_ALEN], macid_1[ETH_ALEN], bssid_1[ETH_ALEN];
+	u8 msr, bcn_ctrl, bcn_ctrl_1, atimwnd[2], atimwnd_1[2];
+	struct rtl8xxxu_vif *rtlvif;
+	struct ieee80211_vif *vif;
+	u8 tsftr[8], tsftr_1[8];
+	int i;
+
+	msr = rtl8xxxu_read8(priv, REG_MSR);
+	bcn_ctrl = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
+	bcn_ctrl_1 = rtl8xxxu_read8(priv, REG_BEACON_CTRL_1);
+
+	for (i = 0; i < ARRAY_SIZE(atimwnd); i++)
+		atimwnd[i] = rtl8xxxu_read8(priv, REG_ATIMWND + i);
+	for (i = 0; i < ARRAY_SIZE(atimwnd_1); i++)
+		atimwnd_1[i] = rtl8xxxu_read8(priv, REG_ATIMWND_1 + i);
+
+	for (i = 0; i < ARRAY_SIZE(tsftr); i++)
+		tsftr[i] = rtl8xxxu_read8(priv, REG_TSFTR + i);
+	for (i = 0; i < ARRAY_SIZE(tsftr); i++)
+		tsftr_1[i] = rtl8xxxu_read8(priv, REG_TSFTR1 + i);
+
+	for (i = 0; i < ARRAY_SIZE(macid); i++)
+		macid[i] = rtl8xxxu_read8(priv, REG_MACID + i);
+
+	for (i = 0; i < ARRAY_SIZE(bssid); i++)
+		bssid[i] = rtl8xxxu_read8(priv, REG_BSSID + i);
+
+	for (i = 0; i < ARRAY_SIZE(macid_1); i++)
+		macid_1[i] = rtl8xxxu_read8(priv, REG_MACID1 + i);
+
+	for (i = 0; i < ARRAY_SIZE(bssid_1); i++)
+		bssid_1[i] = rtl8xxxu_read8(priv, REG_BSSID1 + i);
+
+	/* disable bcn function, disable update TSF */
+	rtl8xxxu_write8(priv, REG_BEACON_CTRL, (bcn_ctrl &
+			(~BEACON_FUNCTION_ENABLE)) | BEACON_DISABLE_TSF_UPDATE);
+	rtl8xxxu_write8(priv, REG_BEACON_CTRL_1, (bcn_ctrl_1 &
+			(~BEACON_FUNCTION_ENABLE)) | BEACON_DISABLE_TSF_UPDATE);
+
+	/* switch msr */
+	msr = (msr & 0xf0) | ((msr & 0x03) << 2) | ((msr & 0x0c) >> 2);
+	rtl8xxxu_write8(priv, REG_MSR, msr);
+
+	/* write port0 */
+	rtl8xxxu_write8(priv, REG_BEACON_CTRL, bcn_ctrl_1 & ~BEACON_FUNCTION_ENABLE);
+	for (i = 0; i < ARRAY_SIZE(atimwnd_1); i++)
+		rtl8xxxu_write8(priv, REG_ATIMWND + i, atimwnd_1[i]);
+	for (i = 0; i < ARRAY_SIZE(tsftr_1); i++)
+		rtl8xxxu_write8(priv, REG_TSFTR + i, tsftr_1[i]);
+	for (i = 0; i < ARRAY_SIZE(macid_1); i++)
+		rtl8xxxu_write8(priv, REG_MACID + i, macid_1[i]);
+	for (i = 0; i < ARRAY_SIZE(bssid_1); i++)
+		rtl8xxxu_write8(priv, REG_BSSID + i, bssid_1[i]);
+
+	/* write port1 */
+	rtl8xxxu_write8(priv, REG_BEACON_CTRL_1, bcn_ctrl & ~BEACON_FUNCTION_ENABLE);
+	for (i = 0; i < ARRAY_SIZE(atimwnd); i++)
+		rtl8xxxu_write8(priv, REG_ATIMWND_1 + i, atimwnd[i]);
+	for (i = 0; i < ARRAY_SIZE(tsftr); i++)
+		rtl8xxxu_write8(priv, REG_TSFTR1 + i, tsftr[i]);
+	for (i = 0; i < ARRAY_SIZE(macid); i++)
+		rtl8xxxu_write8(priv, REG_MACID1 + i, macid[i]);
+	for (i = 0; i < ARRAY_SIZE(bssid); i++)
+		rtl8xxxu_write8(priv, REG_BSSID1 + i, bssid[i]);
+
+	/* write bcn ctl */
+	rtl8xxxu_write8(priv, REG_BEACON_CTRL, bcn_ctrl_1);
+	rtl8xxxu_write8(priv, REG_BEACON_CTRL_1, bcn_ctrl);
+
+	vif = priv->vifs[0];
+	priv->vifs[0] = priv->vifs[1];
+	priv->vifs[1] = vif;
+
+	/* priv->vifs[0] is NULL here, based on how this function is currently
+	 * called from rtl8xxxu_add_interface().
+	 * When this function will be used in the future for a different
+	 * scenario, please check whether vifs[0] or vifs[1] can be NULL and if
+	 * necessary add code to set port_num = 1.
+	 */
+	rtlvif = (struct rtl8xxxu_vif *)priv->vifs[1]->drv_priv;
+	rtlvif->port_num = 1;
+}
+
 static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
-	int ret;
+	int port_num;
 	u8 val8;
 
-	if (!priv->vif)
-		priv->vif = vif;
+	if (!priv->vifs[0])
+		port_num = 0;
+	else if (!priv->vifs[1])
+		port_num = 1;
 	else
 		return -EOPNOTSUPP;
 
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		rtl8xxxu_stop_tx_beacon(priv);
+		if (port_num == 0) {
+			rtl8xxxu_stop_tx_beacon(priv);
 
-		val8 = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
-		val8 |= BEACON_ATIM | BEACON_FUNCTION_ENABLE |
-			BEACON_DISABLE_TSF_UPDATE;
-		rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
-		ret = 0;
+			val8 = rtl8xxxu_read8(priv, REG_BEACON_CTRL);
+			val8 |= BEACON_ATIM | BEACON_FUNCTION_ENABLE |
+				BEACON_DISABLE_TSF_UPDATE;
+			rtl8xxxu_write8(priv, REG_BEACON_CTRL, val8);
+		}
 		break;
 	case NL80211_IFTYPE_AP:
+		if (port_num == 1) {
+			rtl8xxxu_switch_ports(priv);
+			port_num = 0;
+		}
+
 		rtl8xxxu_write8(priv, REG_BEACON_CTRL,
 				BEACON_DISABLE_TSF_UPDATE | BEACON_CTRL_MBSSID);
 		rtl8xxxu_write8(priv, REG_ATIMWND, 0x0c); /* 12ms */
@@ -6602,29 +6764,31 @@ static int rtl8xxxu_add_interface(struct ieee80211_hw *hw,
 		val8 = rtl8xxxu_read8(priv, REG_CCK_CHECK);
 		val8 &= ~BIT_BCN_PORT_SEL;
 		rtl8xxxu_write8(priv, REG_CCK_CHECK, val8);
-
-		ret = 0;
 		break;
 	default:
-		ret = -EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
-	rtl8xxxu_set_linktype(priv, vif->type);
-	ether_addr_copy(priv->mac_addr, vif->addr);
-	rtl8xxxu_set_mac(priv);
+	priv->vifs[port_num] = vif;
+	rtlvif->port_num = port_num;
+	rtlvif->hw_key_idx = 0xff;
 
-	return ret;
+	rtl8xxxu_set_linktype(priv, vif->type, port_num);
+	ether_addr_copy(priv->mac_addr, vif->addr);
+	rtl8xxxu_set_mac(priv, port_num);
+
+	return 0;
 }
 
 static void rtl8xxxu_remove_interface(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 
 	dev_dbg(&priv->udev->dev, "%s\n", __func__);
 
-	if (priv->vif)
-		priv->vif = NULL;
+	priv->vifs[rtlvif->port_num] = NULL;
 }
 
 static int rtl8xxxu_config(struct ieee80211_hw *hw, u32 changed)
@@ -6746,8 +6910,8 @@ static void rtl8xxxu_configure_filter(struct ieee80211_hw *hw,
 	else
 		rcr |= RCR_CHECK_BSSID_BEACON | RCR_CHECK_BSSID_MATCH;
 
-	if (priv->vif && priv->vif->type == NL80211_IFTYPE_AP)
-		rcr &= ~RCR_CHECK_BSSID_MATCH;
+	if (priv->vifs[0] && priv->vifs[0]->type == NL80211_IFTYPE_AP)
+		rcr &= ~(RCR_CHECK_BSSID_MATCH | RCR_CHECK_BSSID_BEACON);
 
 	if (*total_flags & FIF_CONTROL)
 		rcr |= RCR_ACCEPT_CTRL_FRAME;
@@ -6784,11 +6948,19 @@ static int rtl8xxxu_set_rts_threshold(struct ieee80211_hw *hw, u32 rts)
 	return 0;
 }
 
+static int rtl8xxxu_get_free_sec_cam(struct ieee80211_hw *hw)
+{
+	struct rtl8xxxu_priv *priv = hw->priv;
+
+	return find_first_zero_bit(priv->cam_map, priv->fops->max_sec_cam_num);
+}
+
 static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta,
 			    struct ieee80211_key_conf *key)
 {
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct device *dev = &priv->udev->dev;
 	u8 mac_addr[ETH_ALEN];
@@ -6799,9 +6971,6 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	dev_dbg(dev, "%s: cmd %02x, cipher %08x, index %i\n",
 		__func__, cmd, key->cipher, key->keyidx);
-
-	if (vif->type != NL80211_IFTYPE_STATION)
-		return -EOPNOTSUPP;
 
 	if (key->keyidx > 3)
 		return -EOPNOTSUPP;
@@ -6826,7 +6995,7 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ether_addr_copy(mac_addr, sta->addr);
 	} else {
 		dev_dbg(dev, "%s: group key\n", __func__);
-		eth_broadcast_addr(mac_addr);
+		ether_addr_copy(mac_addr, vif->bss_conf.bssid);
 	}
 
 	val16 = rtl8xxxu_read16(priv, REG_CR);
@@ -6840,16 +7009,28 @@ static int rtl8xxxu_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	switch (cmd) {
 	case SET_KEY:
-		key->hw_key_idx = key->keyidx;
+
+		retval = rtl8xxxu_get_free_sec_cam(hw);
+		if (retval < 0)
+			return -EOPNOTSUPP;
+
+		key->hw_key_idx = retval;
+
+		if (vif->type == NL80211_IFTYPE_AP && !(key->flags & IEEE80211_KEY_FLAG_PAIRWISE))
+			rtlvif->hw_key_idx = key->hw_key_idx;
+
 		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
 		rtl8xxxu_cam_write(priv, key, mac_addr);
+		set_bit(key->hw_key_idx, priv->cam_map);
 		retval = 0;
 		break;
 	case DISABLE_KEY:
 		rtl8xxxu_write32(priv, REG_CAM_WRITE, 0x00000000);
 		val32 = CAM_CMD_POLLING | CAM_CMD_WRITE |
-			key->keyidx << CAM_CMD_KEY_SHIFT;
+			key->hw_key_idx << CAM_CMD_KEY_SHIFT;
 		rtl8xxxu_write32(priv, REG_CAM_CMD, val32);
+		rtlvif->hw_key_idx = 0xff;
+		clear_bit(key->hw_key_idx, priv->cam_map);
 		retval = 0;
 		break;
 	default:
@@ -7085,7 +7266,7 @@ static void rtl8xxxu_track_cfo(struct rtl8xxxu_priv *priv)
 	int cfo_khz_a, cfo_khz_b, cfo_average;
 	int crystal_cap;
 
-	if (!priv->vif || !priv->vif->cfg.assoc) {
+	if (!rtl8xxxu_is_assoc(priv)) {
 		/* Reset */
 		cfo->adjust = true;
 
@@ -7152,11 +7333,15 @@ static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 {
 	struct ieee80211_vif *vif;
 	struct rtl8xxxu_priv *priv;
+	int i;
 
 	priv = container_of(work, struct rtl8xxxu_priv, ra_watchdog.work);
-	vif = priv->vif;
+	for (i = 0; i < ARRAY_SIZE(priv->vifs); i++) {
+		vif = priv->vifs[i];
 
-	if (vif && vif->type == NL80211_IFTYPE_STATION) {
+		if (!vif || vif->type != NL80211_IFTYPE_STATION)
+			continue;
+
 		int signal;
 		struct ieee80211_sta *sta;
 
@@ -7167,22 +7352,21 @@ static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 
 			dev_dbg(dev, "%s: no sta found\n", __func__);
 			rcu_read_unlock();
-			goto out;
+			continue;
 		}
 		rcu_read_unlock();
 
 		signal = ieee80211_ave_rssi(vif);
 
-		priv->fops->report_rssi(priv, 0,
+		priv->fops->report_rssi(priv, rtl8xxxu_get_macid(priv, sta),
 					rtl8xxxu_signal_to_snr(signal));
-
-		if (priv->fops->set_crystal_cap)
-			rtl8xxxu_track_cfo(priv);
 
 		rtl8xxxu_refresh_rate_mask(priv, signal, sta, false);
 	}
 
-out:
+	if (priv->fops->set_crystal_cap)
+		rtl8xxxu_track_cfo(priv);
+
 	schedule_delayed_work(&priv->ra_watchdog, 2 * HZ);
 }
 
@@ -7304,7 +7488,9 @@ static void rtl8xxxu_stop(struct ieee80211_hw *hw)
 	if (priv->usb_interrupts)
 		rtl8xxxu_write32(priv, REG_USB_HIMR, 0);
 
+	cancel_work_sync(&priv->c2hcmd_work);
 	cancel_delayed_work_sync(&priv->ra_watchdog);
+	cancel_delayed_work_sync(&priv->update_beacon_work);
 
 	rtl8xxxu_free_rx_resources(priv);
 	rtl8xxxu_free_tx_resources(priv);
@@ -7315,6 +7501,7 @@ static int rtl8xxxu_sta_add(struct ieee80211_hw *hw,
 			    struct ieee80211_sta *sta)
 {
 	struct rtl8xxxu_sta_info *sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 
 	if (vif->type == NL80211_IFTYPE_AP) {
@@ -7324,6 +7511,17 @@ static int rtl8xxxu_sta_add(struct ieee80211_hw *hw,
 
 		rtl8xxxu_refresh_rate_mask(priv, 0, sta, true);
 		priv->fops->report_connect(priv, sta_info->macid, H2C_MACID_ROLE_STA, true);
+	} else {
+		switch (rtlvif->port_num) {
+		case 0:
+			sta_info->macid = RTL8XXXU_BC_MC_MACID;
+			break;
+		case 1:
+			sta_info->macid = RTL8XXXU_BC_MC_MACID1;
+			break;
+		default:
+			break;
+		}
 	}
 
 	return 0;
@@ -7476,6 +7674,20 @@ static void rtl8xxxu_deinit_led(struct rtl8xxxu_priv *priv)
 	led_classdev_unregister(led);
 }
 
+static const struct ieee80211_iface_limit rtl8xxxu_limits[] = {
+	{ .max = 2, .types = BIT(NL80211_IFTYPE_STATION), },
+	{ .max = 1, .types = BIT(NL80211_IFTYPE_AP), },
+};
+
+static const struct ieee80211_iface_combination rtl8xxxu_combinations[] = {
+	{
+		.limits = rtl8xxxu_limits,
+		.n_limits = ARRAY_SIZE(rtl8xxxu_limits),
+		.max_interfaces = 2,
+		.num_different_channels = 1,
+	},
+};
+
 static int rtl8xxxu_probe(struct usb_interface *interface,
 			  const struct usb_device_id *id)
 {
@@ -7561,7 +7773,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	spin_lock_init(&priv->rx_urb_lock);
 	INIT_WORK(&priv->rx_urb_wq, rtl8xxxu_rx_urb_work);
 	INIT_DELAYED_WORK(&priv->ra_watchdog, rtl8xxxu_watchdog_callback);
-	INIT_WORK(&priv->update_beacon_work, rtl8xxxu_update_beacon_work_callback);
+	INIT_DELAYED_WORK(&priv->update_beacon_work, rtl8xxxu_update_beacon_work_callback);
 	skb_queue_head_init(&priv->c2hcmd_queue);
 
 	usb_set_intfdata(interface, hw);
@@ -7611,6 +7823,8 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	if (ret)
 		goto err_set_intfdata;
 
+	hw->vif_data_size = sizeof(struct rtl8xxxu_vif);
+
 	hw->wiphy->max_scan_ssids = 1;
 	hw->wiphy->max_scan_ie_len = IEEE80211_MAX_DATA_LEN;
 	if (priv->fops->max_macid_num)
@@ -7619,6 +7833,13 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	if (priv->fops->supports_ap)
 		hw->wiphy->interface_modes |= BIT(NL80211_IFTYPE_AP);
 	hw->queues = 4;
+
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_CHANNEL_SWITCH;
+
+	if (priv->fops->supports_concurrent) {
+		hw->wiphy->iface_combinations = rtl8xxxu_combinations;
+		hw->wiphy->n_iface_combinations = ARRAY_SIZE(rtl8xxxu_combinations);
+	}
 
 	sband = &rtl8xxxu_supported_band;
 	sband->ht_cap.ht_supported = true;
