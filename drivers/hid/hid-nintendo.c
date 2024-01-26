@@ -754,18 +754,6 @@ static inline bool joycon_type_is_right_nescon(struct joycon_ctlr *ctlr)
 	return ctlr->ctlr_type == JOYCON_CTLR_TYPE_NESR;
 }
 
-static inline bool joycon_type_has_left_controls(struct joycon_ctlr *ctlr)
-{
-	return joycon_type_is_left_joycon(ctlr) ||
-	       joycon_type_is_procon(ctlr);
-}
-
-static inline bool joycon_type_has_right_controls(struct joycon_ctlr *ctlr)
-{
-	return joycon_type_is_right_joycon(ctlr) ||
-	       joycon_type_is_procon(ctlr);
-}
-
 static inline bool joycon_type_is_any_joycon(struct joycon_ctlr *ctlr)
 {
 	return joycon_type_is_left_joycon(ctlr) ||
