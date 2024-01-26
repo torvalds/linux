@@ -174,12 +174,12 @@ and imm containing the high 32 bits of the immediate value.
 This is depicted in the following figure::
 
         basic_instruction
-  .-----------------------------.
-  |                             |
-  code:8 regs:8 offset:16 imm:32 unused:32 imm:32
-                                 |              |
-                                 '--------------'
-                                pseudo instruction
+  .------------------------------.
+  |                              |
+  opcode:8 regs:8 offset:16 imm:32 unused:32 imm:32
+                                   |              |
+                                   '--------------'
+                                  pseudo instruction
 
 Thus the 64-bit immediate value is constructed as follows:
 
@@ -320,6 +320,9 @@ bit operands, and zeroes the remaining upper 32 bits.
 operands into 64 bit operands.  Unlike other arithmetic instructions,
 ``BPF_MOVSX`` is only defined for register source operands (``BPF_X``).
 
+The ``BPF_NEG`` instruction is only defined when the source bit is clear
+(``BPF_K``).
+
 Shift operations use a mask of 0x3F (63) for 64-bit operations and 0x1F (31)
 for 32-bit operations.
 
@@ -375,27 +378,27 @@ Jump instructions
 otherwise identical operations.
 The 'code' field encodes the operation as below:
 
-========  =====  ===  ===========================================  =========================================
-code      value  src  description                                  notes
-========  =====  ===  ===========================================  =========================================
-BPF_JA    0x0    0x0  PC += offset                                 BPF_JMP class
-BPF_JA    0x0    0x0  PC += imm                                    BPF_JMP32 class
+========  =====  ===  ===============================  =============================================
+code      value  src  description                      notes
+========  =====  ===  ===============================  =============================================
+BPF_JA    0x0    0x0  PC += offset                     BPF_JMP | BPF_K only
+BPF_JA    0x0    0x0  PC += imm                        BPF_JMP32 | BPF_K only
 BPF_JEQ   0x1    any  PC += offset if dst == src
-BPF_JGT   0x2    any  PC += offset if dst > src                    unsigned
-BPF_JGE   0x3    any  PC += offset if dst >= src                   unsigned
+BPF_JGT   0x2    any  PC += offset if dst > src        unsigned
+BPF_JGE   0x3    any  PC += offset if dst >= src       unsigned
 BPF_JSET  0x4    any  PC += offset if dst & src
 BPF_JNE   0x5    any  PC += offset if dst != src
-BPF_JSGT  0x6    any  PC += offset if dst > src                    signed
-BPF_JSGE  0x7    any  PC += offset if dst >= src                   signed
-BPF_CALL  0x8    0x0  call helper function by address              see `Helper functions`_
-BPF_CALL  0x8    0x1  call PC += imm                               see `Program-local functions`_
-BPF_CALL  0x8    0x2  call helper function by BTF ID               see `Helper functions`_
-BPF_EXIT  0x9    0x0  return                                       BPF_JMP only
-BPF_JLT   0xa    any  PC += offset if dst < src                    unsigned
-BPF_JLE   0xb    any  PC += offset if dst <= src                   unsigned
-BPF_JSLT  0xc    any  PC += offset if dst < src                    signed
-BPF_JSLE  0xd    any  PC += offset if dst <= src                   signed
-========  =====  ===  ===========================================  =========================================
+BPF_JSGT  0x6    any  PC += offset if dst > src        signed
+BPF_JSGE  0x7    any  PC += offset if dst >= src       signed
+BPF_CALL  0x8    0x0  call helper function by address  BPF_JMP | BPF_K only, see `Helper functions`_
+BPF_CALL  0x8    0x1  call PC += imm                   BPF_JMP | BPF_K only, see `Program-local functions`_
+BPF_CALL  0x8    0x2  call helper function by BTF ID   BPF_JMP | BPF_K only, see `Helper functions`_
+BPF_EXIT  0x9    0x0  return                           BPF_JMP | BPF_K only
+BPF_JLT   0xa    any  PC += offset if dst < src        unsigned
+BPF_JLE   0xb    any  PC += offset if dst <= src       unsigned
+BPF_JSLT  0xc    any  PC += offset if dst < src        signed
+BPF_JSLE  0xd    any  PC += offset if dst <= src       signed
+========  =====  ===  ===============================  =============================================
 
 The BPF program needs to store the return value into register R0 before doing a
 ``BPF_EXIT``.
