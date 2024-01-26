@@ -111,7 +111,7 @@
 
 	fan0: pwm-fan0 {
 		compatible = "pwm-fan";
-		pwms = <&pwm_tach 0 40000 0>;   /* Target freq:25 kHz */
+		pwms = <&pwm_tach 0 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -120,7 +120,7 @@
 
 	fan1: pwm-fan1 {
 		compatible = "pwm-fan";
-		pwms = <&pwm_tach 1 40000 0>;   /* Target freq:25 kHz */
+		pwms = <&pwm_tach 1 40000 0>;	/* Target freq:25 kHz */
 		cooling-min-state = <0>;
 		cooling-max-state = <3>;
 		#cooling-cells = <2>;
@@ -262,6 +262,7 @@
 	};
 
 	vcc_sdhci0: regulator-vcc-sdhci0 {
+		status = "disabled";
 		compatible = "regulator-fixed";
 		regulator-name = "SDHCI0 Vcc";
 		regulator-min-microvolt = <3300000>;
@@ -271,6 +272,7 @@
 	};
 
 	vccq_sdhci0: regulator-vccq-sdhci0 {
+		status = "disabled";
 		compatible = "regulator-gpio";
 		regulator-name = "SDHCI0 VccQ";
 		regulator-min-microvolt = <1800000>;
@@ -280,7 +282,6 @@
 		states = <3300000 1>,
 			 <1800000 0>;
 	};
-
 };
 
 &pwm_tach {
