@@ -509,6 +509,8 @@ static void dcn32_auto_dpm_test_log(
 		}
 	}
 
+	msleep(5);
+
 	mall_ss_size_bytes = context->bw_ctx.bw.dcn.mall_ss_size_bytes;
 
     dispclk_khz_reg    = REG_READ(CLK1_CLK0_CURRENT_CNT); // DISPCLK
