@@ -3445,6 +3445,25 @@ static inline struct f_fs_opts *to_ffs_opts(struct config_item *item)
 			    func_inst.group);
 }
 
+static ssize_t f_fs_opts_ready_show(struct config_item *item, char *page)
+{
+	struct f_fs_opts *opts = to_ffs_opts(item);
+	int ready;
+
+	ffs_dev_lock();
+	ready = opts->dev->desc_ready;
+	ffs_dev_unlock();
+
+	return sprintf(page, "%d\n", ready);
+}
+
+CONFIGFS_ATTR_RO(f_fs_opts_, ready);
+
+static struct configfs_attribute *ffs_attrs[] = {
+	&f_fs_opts_attr_ready,
+	NULL,
+};
+
 static void ffs_attr_release(struct config_item *item)
 {
 	struct f_fs_opts *opts = to_ffs_opts(item);
@@ -3458,6 +3477,7 @@ static struct configfs_item_operations ffs_item_ops = {
 
 static const struct config_item_type ffs_func_type = {
 	.ct_item_ops	= &ffs_item_ops,
+	.ct_attrs	= ffs_attrs,
 	.ct_owner	= THIS_MODULE,
 };
 
