@@ -246,6 +246,7 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
+	struct sev_platform_init_args init_args = {0};
 	int asid, ret;
 
 	if (kvm->created_vcpus)
@@ -262,7 +263,8 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 		goto e_no_asid;
 	sev->asid = asid;
 
-	ret = sev_platform_init(&argp->error);
+	init_args.probe = false;
+	ret = sev_platform_init(&init_args);
 	if (ret)
 		goto e_free;
 
@@ -274,6 +276,7 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 	return 0;
 
 e_free:
+	argp->error = init_args.error;
 	sev_asid_free(sev);
 	sev->asid = 0;
 e_no_asid:
