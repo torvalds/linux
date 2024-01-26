@@ -117,9 +117,10 @@ struct share_redirect_error_context_rsp {
  * [4] : posix context
  * [5] : time warp context
  * [6] : query id context
- * [7] : compound padding
+ * [7] : create ea context
+ * [8] : compound padding
  */
-#define SMB2_CREATE_IOV_SIZE 8
+#define SMB2_CREATE_IOV_SIZE 9
 
 /*
  * Maximum size of a SMB2_CREATE response is 64 (smb2 header) +
@@ -412,5 +413,11 @@ struct smb2_posix_info_parsed {
 	int name_len;
 	const u8 *name;
 };
+
+struct smb2_create_ea_ctx {
+	struct create_context ctx;
+	__u8 name[8];
+	struct smb2_file_full_ea_info ea;
+} __packed;
 
 #endif				/* _SMB2PDU_H */

@@ -5043,7 +5043,7 @@ static int smb2_make_node(unsigned int xid, struct inode *inode,
 		rc = cifs_sfu_make_node(xid, inode, dentry, tcon,
 					full_path, mode, dev);
 	} else {
-		rc = smb2_make_nfs_node(xid, inode, dentry, tcon,
+		rc = smb2_mknod_reparse(xid, inode, dentry, tcon,
 					full_path, mode, dev);
 	}
 	return rc;

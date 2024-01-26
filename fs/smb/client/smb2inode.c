@@ -1060,7 +1060,8 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 				     const unsigned int xid,
 				     struct cifs_tcon *tcon,
 				     const char *full_path,
-				     struct kvec *iov)
+				     struct kvec *reparse_iov,
+				     struct kvec *xattr_iov)
 {
 	struct cifs_open_parms oparms;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
@@ -1077,8 +1078,11 @@ struct inode *smb2_get_reparse_inode(struct cifs_open_info_data *data,
 			     FILE_CREATE,
 			     CREATE_NOT_DIR | OPEN_REPARSE_POINT,
 			     ACL_NO_MODE);
+	if (xattr_iov)
+		oparms.ea_cctx = xattr_iov;
+
 	cmds[0] = SMB2_OP_SET_REPARSE;
-	in_iov[0] = *iov;
+	in_iov[0] = *reparse_iov;
 	in_iov[1].iov_base = data;
 	in_iov[1].iov_len = sizeof(*data);
 

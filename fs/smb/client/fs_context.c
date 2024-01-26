@@ -317,8 +317,8 @@ static int parse_reparse_flavor(struct fs_context *fc, char *value,
 		ctx->reparse_type = CIFS_REPARSE_TYPE_NFS;
 		break;
 	case Opt_reparse_wsl:
-		cifs_errorf(fc, "unsupported reparse= option: %s\n", value);
-		return 1;
+		ctx->reparse_type = CIFS_REPARSE_TYPE_WSL;
+		break;
 	default:
 		cifs_errorf(fc, "bad reparse= option: %s\n", value);
 		return 1;

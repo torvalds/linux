@@ -28,6 +28,17 @@ static inline u64 reparse_mode_nfs_type(mode_t mode)
 	return 0;
 }
 
+static inline u32 reparse_mode_wsl_tag(mode_t mode)
+{
+	switch (mode & S_IFMT) {
+	case S_IFBLK: return IO_REPARSE_TAG_LX_BLK;
+	case S_IFCHR: return IO_REPARSE_TAG_LX_CHR;
+	case S_IFIFO: return IO_REPARSE_TAG_LX_FIFO;
+	case S_IFSOCK: return IO_REPARSE_TAG_AF_UNIX;
+	}
+	return 0;
+}
+
 /*
  * Match a reparse point inode if reparse tag and ctime haven't changed.
  *
@@ -64,7 +75,7 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 int smb2_create_reparse_symlink(const unsigned int xid, struct inode *inode,
 				struct dentry *dentry, struct cifs_tcon *tcon,
 				const char *full_path, const char *symname);
-int smb2_make_nfs_node(unsigned int xid, struct inode *inode,
+int smb2_mknod_reparse(unsigned int xid, struct inode *inode,
 		       struct dentry *dentry, struct cifs_tcon *tcon,
 		       const char *full_path, umode_t mode, dev_t dev);
 int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb, struct kvec *rsp_iov,
