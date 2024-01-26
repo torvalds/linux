@@ -27,6 +27,8 @@
 #define QUIRK_FORCE_POWER_LINK_CONTROLLER		BIT(0)
 /* Disable CLx if not supported */
 #define QUIRK_NO_CLX					BIT(1)
+/* Need to keep power on while USB4 port is in redrive mode */
+#define QUIRK_KEEP_POWER_IN_DP_REDRIVE			BIT(2)
 
 /**
  * struct tb_nvm - Structure holding NVM information
@@ -254,6 +256,7 @@ struct tb_switch {
  *		 DMA paths through this port.
  * @max_bw: Maximum possible bandwidth through this adapter if set to
  *	    non-zero.
+ * @redrive: For DP IN, if true the adapter is in redrive mode.
  *
  * In USB4 terminology this structure represents an adapter (protocol or
  * lane adapter).
@@ -280,6 +283,7 @@ struct tb_port {
 	unsigned int ctl_credits;
 	unsigned int dma_credits;
 	unsigned int max_bw;
+	bool redrive;
 };
 
 /**
