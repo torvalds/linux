@@ -342,3 +342,95 @@ void snp_dump_hva_rmpentry(unsigned long hva)
 	paddr = PFN_PHYS(pte_pfn(*pte)) | (hva & ~page_level_mask(level));
 	dump_rmpentry(PHYS_PFN(paddr));
 }
+
+/*
+ * PSMASH a 2MB aligned page into 4K pages in the RMP table while preserving the
+ * Validated bit.
+ */
+int psmash(u64 pfn)
+{
+	unsigned long paddr = pfn << PAGE_SHIFT;
+	int ret;
+
+	if (!cpu_feature_enabled(X86_FEATURE_SEV_SNP))
+		return -ENODEV;
+
+	if (!pfn_valid(pfn))
+		return -EINVAL;
+
+	/* Binutils version 2.36 supports the PSMASH mnemonic. */
+	asm volatile(".byte 0xF3, 0x0F, 0x01, 0xFF"
+		      : "=a" (ret)
+		      : "a" (paddr)
+		      : "memory", "cc");
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(psmash);
+
+/*
+ * It is expected that those operations are seldom enough so that no mutual
+ * exclusion of updaters is needed and thus the overlap error condition below
+ * should happen very rarely and would get resolved relatively quickly by
+ * the firmware.
+ *
+ * If not, one could consider introducing a mutex or so here to sync concurrent
+ * RMP updates and thus diminish the amount of cases where firmware needs to
+ * lock 2M ranges to protect against concurrent updates.
+ *
+ * The optimal solution would be range locking to avoid locking disjoint
+ * regions unnecessarily but there's no support for that yet.
+ */
+static int rmpupdate(u64 pfn, struct rmp_state *state)
+{
+	unsigned long paddr = pfn << PAGE_SHIFT;
+	int ret;
+
+	if (!cpu_feature_enabled(X86_FEATURE_SEV_SNP))
+		return -ENODEV;
+
+	do {
+		/* Binutils version 2.36 supports the RMPUPDATE mnemonic. */
+		asm volatile(".byte 0xF2, 0x0F, 0x01, 0xFE"
+			     : "=a" (ret)
+			     : "a" (paddr), "c" ((unsigned long)state)
+			     : "memory", "cc");
+	} while (ret == RMPUPDATE_FAIL_OVERLAP);
+
+	if (ret) {
+		pr_err("RMPUPDATE failed for PFN %llx, ret: %d\n", pfn, ret);
+		dump_rmpentry(pfn);
+		dump_stack();
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+/* Transition a page to guest-owned/private state in the RMP table. */
+int rmp_make_private(u64 pfn, u64 gpa, enum pg_level level, u32 asid, bool immutable)
+{
+	struct rmp_state state;
+
+	memset(&state, 0, sizeof(state));
+	state.assigned = 1;
+	state.asid = asid;
+	state.immutable = immutable;
+	state.gpa = gpa;
+	state.pagesize = PG_LEVEL_TO_RMP(level);
+
+	return rmpupdate(pfn, &state);
+}
+EXPORT_SYMBOL_GPL(rmp_make_private);
+
+/* Transition a page to hypervisor-owned/shared state in the RMP table. */
+int rmp_make_shared(u64 pfn, enum pg_level level)
+{
+	struct rmp_state state;
+
+	memset(&state, 0, sizeof(state));
+	state.pagesize = PG_LEVEL_TO_RMP(level);
+
+	return rmpupdate(pfn, &state);
+}
+EXPORT_SYMBOL_GPL(rmp_make_shared);
