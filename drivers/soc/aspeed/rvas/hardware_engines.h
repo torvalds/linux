@@ -10,6 +10,7 @@
 #define __HARDWAREENGINES_H__
 
 #include <linux/semaphore.h>
+#include <linux/miscdevice.h>
 #include "video_ioctl.h"
 
 #define MAX_NUM_CONTEXT				(8)
@@ -36,6 +37,35 @@
 
 #define MAX_TEXT_DATA_SIZE			(8192)
 
+#ifdef CONFIG_MACH_ASPEED_G7
+
+#define MANUAL_ENABLE_CLK
+#define AST2700
+
+#define SCU200_System_Reset_Control_Register (0x200)
+#define SCU204_System_Reset_Control_Clear_Register (0x204)
+#define SCU240_Clock_Stop_Control_Register (0x240)
+#define SCU244_Clock_Stop_Control_Clear_Register (0x244)
+#define SCU500_Hardware_Strap1_Register (0x500)
+//TO DO local monitor on off
+//single node - vga and dp
+//dual node- node 0- vga only, node 1- dp only
+#define SCU418_Pin_Ctrl (0x418)
+#define SCU0C0_Misc1_Ctrl (0x0C0)
+#define SCU0D0_Misc3_Ctrl (0x0D0)
+ //SCU418
+#define VGAVS_ENBL			BIT(31)
+#define VGAHS_ENBL			BIT(30)
+//SCU0C0
+#define VGA0_CRT_DISBL			BIT(1)
+#define VGA1_CRT_DISBL			BIT(2)
+//SCU0D0
+#define VGA0_PWR_OFF_VDAC			BIT(2)
+#define VGA1_PWR_OFF_VDAC			BIT(3)
+
+#define SCU_RVAS_ENGINE_BIT		BIT(9)
+#define SCU_RVAS_STOP_CLOCK_BIT		BIT(25)
+#else
 //SCU
 #define SCU000_Protection_Key_Register	(0x000)
 #define SCU040_Module_Reset_Control_Register_Set_1 (0x040)
@@ -57,7 +87,7 @@
 #define SCU_UNLOCK_PWD			(0x1688A8A8)
 #define SCU_RVAS_ENGINE_BIT		BIT(9)
 #define SCU_RVAS_STOP_CLOCK_BIT		BIT(25)
-
+#endif
 //MCR -edac
 #define MCR_CONF	0x04 /* configuration register */
 
@@ -197,6 +227,7 @@
 //#define TSE_INTR_COUNT			(0x196E00)	//50MHz clock ~1/30 sec
 #define TIMER_INTR_COUNT			(0x65000)	// 25MHz clock ~1/60 sec
 
+#ifndef AST2700
 //Timer
 /* Register byte offsets */
 // AST2600 Timer registers
@@ -233,6 +264,7 @@
 #define BIT_TIMER_CLK_SEL        BIT(1)
 #define BIT_INTERRUPT_ENBL       BIT(2)
 #define BIT_TIMER_STAT           BIT(0)
+#endif
 
 #define SNOOP_MAP_QWORD_COUNT			(64)
 #define BSE_UPPER_LIMIT				(0x900000) //(0x540000)
@@ -242,16 +274,30 @@
 
 #define NUM_SNOOP_ROWS				(64)
 
+#ifdef CONFIG_MACH_ASPEED_G7
+
+//vga memory information
+#define SCU010						(0x10)
+#define DDR_SIZE_CONFIG_BITS				(0x3)
+#define VGA_MEM_SIZE_CONFIG_BITS			(0x3)
+#define VGA_MEM_SIZE_CONFIG_BIT_POS			(10)
+#define DDR_BASE					(0x400000000)
+#else
 //vga memory information
 #define SCU500						(0x500)
 #define DDR_SIZE_CONFIG_BITS				(0x3)
 #define VGA_MEM_SIZE_CONFIG_BITS			(0x3)
 #define VGA_MEM_SIZE_CONFIG_BIT_POS			(13)
 #define DDR_BASE					(0x80000000)
+#endif
 
 //grce
 #define VGACR0_REG					(0x60)
 #define VGACR9F_REG					(0x9F)
+
+//display out
+#define VGA_OUT						BIT(0)
+#define DP_OUT						BIT(1)
 
 struct ContextTable {
 	struct inode *pin;
@@ -263,13 +309,13 @@ struct ContextTable {
 	struct EventMap emEventReceived;
 	u32 dwEventWaitInMs;
 	void *desc_virt;
-	u32 desc_phy;
+	phys_addr_t desc_phy;
 };
 
 struct MemoryMapTable {
 	struct file *pf;
 	void *pvVirtualAddr;
-	u32 dwPhysicalAddr;
+	dma_addr_t mem_phys;
 	u32 dwLength;
 	u8 byDmaAlloc;
 	u8 byReserved[3];
@@ -307,13 +353,13 @@ enum StartBytePosition {
 struct VGAMemInfo {
 	u32 dwVGASize;
 	u32 dwDRAMSize;
-	u32 dwFBPhysStart;
+	phys_addr_t qwFBPhysStart;
 };
 
 struct VideoDataBufferInfo {
 	u32 dwSize;
-	u32 dwPhys;
-	u32 dwVirt;
+	phys_addr_t dwPhys;
+	phys_addr_t dwVirt;
 };
 
 enum ColorMode {
@@ -363,14 +409,14 @@ struct EngineInfo {
 };
 
 struct AstRVAS {
-	struct miscdevice *rvas_dev;
+	struct miscdevice rvas_dev;
 	void *pdev;
 	int irq_fge;	//FrameGrabber IRQ number
 	int irq_vga; // VGA IRQ number
 	int irq_video;
-	u32 fg_reg_base;
-	u32 grce_reg_base;
-	u32 video_reg_base;
+	void __iomem *fg_reg_base;
+	void __iomem *grce_reg_base;
+	void __iomem *video_reg_base;
 	struct regmap *scu;
 	struct reset_control *rvas_reset;
 	struct reset_control *video_engine_reset;
@@ -389,7 +435,8 @@ struct AstRVAS {
 	struct Video_OsSleepStruct video_wait;
 	u8 video_intr_occurred;
 	u8 timer_irq_requested;
-	u8 reserved[2];
+	u8 display_out;
+	u8 vga_index;
 	struct ContextTable *ppctContextTable[MAX_NUM_CONTEXT];
 	u32 dwMemoryTableSize;
 	u32 dwScreenOffset;
@@ -399,10 +446,11 @@ struct AstRVAS {
 	struct clk *vclk;
 	struct clk *eclk;
 	struct clk *rvasclk;
+	void __iomem *dp_base;
 };
 
 //
-// IOCTL function
+// IOCTL functions
 //
 void ioctl_get_video_geometry(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_wait_for_video_event(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
@@ -413,14 +461,16 @@ void ioctl_set_tse_tsicr(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_get_tse_tsicr(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_reset_video_engine(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 
+//vidoe fetch functions
 void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_run_length_encode_data(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_fetch_text_data(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
 void ioctl_fetch_mode_13_data(struct RvasIoctl *ri, struct AstRVAS *ast_rvas);
-u32 get_phy_fb_start_address(struct AstRVAS *ast_rvas);
+phys_addr_t get_phy_fb_start_address(struct AstRVAS *ast_rvas);
 bool video_geometry_change(struct AstRVAS *ast_rvas, u32 dwGRCEStatus);
 void update_video_geometry(struct AstRVAS *ast_rvas);
+
 //interrupts
 void enable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
 void disable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
@@ -429,36 +479,34 @@ bool clear_ldma_interrupt(struct AstRVAS *ast_rvas);
 bool clear_tfe_interrupt(struct AstRVAS *ast_rvas);
 bool clear_bse_interrupt(struct AstRVAS *ast_rvas);
 u32 get_screen_offset(struct AstRVAS *ast_rvas);
+//
 void setup_lmem(struct AstRVAS *ast_rvas);
-
 //
 // helper functions
 //
+
 struct BSEAggregateRegister setUp_bse_bucket(u8 *abyBitIndexes, u8 byTotalBucketCount,
 					     u8 byBSBytesPerPixel, u32 dwFetchWidthPixels,
 					     u32 dwFetchHeight);
-void prepare_bse_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			    u32 dwDestAddress, bool bNotLastEntry,
+void prepare_bse_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			    phys_addr_t dest_addr, bool bNotLastEntry,
 			    u16 wStride, u8 bytesPerPixel,
 			    u32 dwFetchWidthPixels, u32 dwFetchHeight,
 			    bool bInterrupt);
 
-void prepare_tfe_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			    u32 dwDestAddress, bool bNotLastEntry, u8 bCheckSum,
+void prepare_tfe_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			    phys_addr_t dest_addr, bool bNotLastEntry, u8 bCheckSum,
 			    bool bEnabledRLE, u16 wStride, u8 bytesPerPixel,
 			    u32 dwFetchWidthPixels, u32 dwFetchHeight,
 			    enum SelectedByteMode sbm, bool bRLEOverFLow,
 			    bool bInterrupt);
-void prepare_tfe_text_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-				 u32 dwDestAddress, bool bEnabledRLE, u32 dwFetchWidth,
+void prepare_tfe_text_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+				 phys_addr_t dest_addr, bool bEnabledRLE, u32 dwFetchWidth,
 				 u32 dwFetchHeight, enum DataProccessMode dpm,
 				 bool bRLEOverFLow, bool bInterrupt);
-void prepare_ldma_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			     u32 dwDestAddress, u32 dwLDMASize, u8 byNotLastEntry);
+void prepare_ldma_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			     phys_addr_t dest_addr, u32 dwLDMASize, u8 byNotLastEntry);
 
-void OnFetchVideoTileChaining(struct RvasIoctl *ri);
-void OnFetchVideoTileNoChainingWithRLE(struct RvasIoctl *ri);
-void WaitWhileEngineBusy(u32 theAddress);
 u8 get_text_mode_character_per_line(struct AstRVAS *ast_rvas, u16 wScreenWidth);
 u16 get_text_mode_fetch_lines(struct AstRVAS *ast_rvas, u16 wScreenHeight);
 void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *ast_rvas);
@@ -472,23 +520,20 @@ void update_all_snoop_context(struct AstRVAS *ast_rvas);
 void get_snoop_map_data(struct AstRVAS *ast_rvas);
 void get_snoop_aggregate(struct AstRVAS *ast_rvas);
 
-void sleep_on_ldma_busy(struct AstRVAS *ast_rvas, u32 dwAddress);
-bool sleep_on_tfe_busy(struct AstRVAS *ast_rvas, u32 dwTFEDescriptorAddr,
+void sleep_on_ldma_busy(struct AstRVAS *ast_rvas, phys_addr_t desc_addr_phys);
+bool sleep_on_tfe_busy(struct AstRVAS *ast_rvas, phys_addr_t desc_addr_phys,
 		       u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
 		       u32 *pdwCheckSum);
 
-bool sleep_on_tfe_text_busy(struct AstRVAS *ast_rvas, u32 dwTFEDescriptorAddr,
+bool sleep_on_tfe_text_busy(struct AstRVAS *ast_rvas, phys_addr_t desc_addr_phys,
 			    u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
 			    u32 *pdwCheckSum);
 
-bool sleep_on_bse_busy(struct AstRVAS *ast_rvas, u32 dwBSEDescriptorAddr,
+bool sleep_on_bse_busy(struct AstRVAS *ast_rvas, phys_addr_t desc_addr_phys,
 		       struct BSEAggregateRegister aBSEAR, u32 size);
 
 void enable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
 void disable_grce_tse_interrupt(struct AstRVAS *ast_rvas);
-
-void disable_interrupts(struct AstRVAS *ast_rvas);
-void enable_interrupts(struct AstRVAS *ast_rvas);
 
 bool host_suspended(struct AstRVAS *pAstRVAS);
 #endif // __HARDWAREENGINES_H__

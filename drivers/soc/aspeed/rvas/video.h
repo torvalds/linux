@@ -26,7 +26,7 @@ u32 ioctl_get_lm_status(struct AstRVAS *ast_rvas);
 
 //void* get_from_rsvd_mem(u32 size, u32 *phys_add, struct AstRVAS *pAstRVAS);
 void *get_virt_add_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS);
-u32 get_phys_add_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS);
+dma_addr_t get_phys_add_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS);
 u32 get_len_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS);
 
 //int release_rsvd_mem(u32 size, u32 phys_add);

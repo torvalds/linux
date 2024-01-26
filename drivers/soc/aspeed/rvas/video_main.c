@@ -44,23 +44,25 @@
 #define TEST_GRCE_DETECT_RESOLUTION_CHG
 
 static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
-static int video_open(struct inode *pInode, struct file *pFile);
-static int video_release(struct inode *pInode, struct file *pFile);
+static int video_open(struct inode *inode, struct file *file);
+static int video_release(struct inode *inode, struct file *file);
 static irqreturn_t fge_handler(int irq, void *dev_id);
 
 static void video_os_init_sleep_struct(struct Video_OsSleepStruct *Sleep);
 static void video_ss_wakeup_on_timeout(struct Video_OsSleepStruct *Sleep);
 static void enable_rvas_engines(struct AstRVAS *pAstRVAS);
-static void video_engine_init(void);
-static void rvas_init(void);
+static void video_engine_init(struct AstRVAS *pAstRVAS);
+static void rvas_init(struct AstRVAS *pAstRVAS);
 static void reset_rvas_engine(struct AstRVAS *pAstRVAS);
 static void reset_video_engine(struct AstRVAS *pAstRVAS);
 static void set_FBInfo_size(struct AstRVAS *pAstRVAS, void __iomem *mcr_base);
 
 static long video_os_sleep_on_timeout(struct Video_OsSleepStruct *Sleep, u8 *Var, long msecs);
 
-static struct AstRVAS *pAstRVAS;
-static void __iomem *dp_base;
+static struct AstRVAS *file_ast_rvas(struct file *file)
+{
+	return container_of(file->private_data, struct AstRVAS, rvas_dev);
+}
 
 static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -69,7 +71,8 @@ static long video_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct VideoConfig video_config;
 	struct MultiJpegConfig multi_jpeg;
 	u8 bVideoCmd = 0;
-	u32 dw_phys = 0;
+	dma_addr_t dw_phys = 0;
+	struct AstRVAS *pAstRVAS = file_ast_rvas(file);
 
 	VIDEO_DBG("Start\n");
 	VIDEO_DBG("pAstRVAS: 0x%p\n", pAstRVAS);
@@ -236,24 +239,25 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 	size_t size;
 	u32 dw_index;
 	u8 found = 0;
+	struct AstRVAS *pAstRVAS = file_ast_rvas(file);
 
 	struct MemoryMapTable **pmmt = pAstRVAS->ppmmtMemoryTable;
 
 	size = vma->vm_end - vma->vm_start;
 	vma->vm_private_data = pAstRVAS;
-	VIDEO_DBG("vma->vm_start 0x%lx, vma->vm_end 0x%lx, vma->vm_pgoff=0x%x\n",
+	VIDEO_DBG("vma->vm_start 0x%lx, vma->vm_end 0x%lx, vma->vm_pgoff=0x%llx\n",
 		  vma->vm_start,
 		  vma->vm_end,
-		  (u32)vma->vm_pgoff);
-	VIDEO_DBG("(vma->vm_pgoff << PAGE_SHIFT) = 0x%lx\n", (vma->vm_pgoff << PAGE_SHIFT));
+		  vma->vm_pgoff);
+	VIDEO_DBG("(vma->vm_pgoff << PAGE_SHIFT) = 0x%llx\n", (vma->vm_pgoff << PAGE_SHIFT));
 	for (dw_index = 0; dw_index < MAX_NUM_MEM_TBL; ++dw_index) {
 		if (pmmt[dw_index]) {
-			VIDEO_DBG("index %d, phys_addr=0x%x, virt_addr0x%x, length=0x%x\n",
+			VIDEO_DBG("index %d, phys_addr=0x%llx, virt_addr=%p, length=0x%x\n",
 				  dw_index,
-				  pmmt[dw_index]->dwPhysicalAddr,
-				  (u32)pmmt[dw_index]->pvVirtualAddr,
+				  pmmt[dw_index]->mem_phys,
+				  pmmt[dw_index]->pvVirtualAddr,
 				  pmmt[dw_index]->dwLength);
-			if ((vma->vm_pgoff << PAGE_SHIFT) == (u32)pmmt[dw_index]->pvVirtualAddr) {
+			if ((vma->vm_pgoff << PAGE_SHIFT) == pmmt[dw_index]->mem_phys) {
 				found = 1;
 				if (size > pmmt[dw_index]->dwLength) {
 					pr_err("required size exceed alloc size\n");
@@ -281,13 +285,19 @@ static int video_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static int video_open(struct inode *pin, struct file *pf)
+static int video_open(struct inode *pin, struct file *file)
 {
+	struct AstRVAS *pAstRVAS = file_ast_rvas(file);
+
 	VIDEO_DBG("\n");
 
 	// make sure the rvas clk is running.
 	//	 if it's already enabled, clk_enable will just return.
+#ifdef MANUAL_ENABLE_CLK
+	enable_rvas_engines(pAstRVAS);
+#else
 	clk_enable(pAstRVAS->rvasclk);
+#endif
 
 	return 0;
 }
@@ -297,12 +307,13 @@ void free_all_mem_entries(struct AstRVAS *pAstRVAS)
 	u32 dw_index;
 	struct MemoryMapTable **pmmt = pAstRVAS->ppmmtMemoryTable;
 	void *virt_add;
-	u32 dw_phys, len;
+	dma_addr_t dw_phys;
+	u32 len;
 
 	VIDEO_DBG("Removing mem map entries...\n");
 	for (dw_index = 0; dw_index < MAX_NUM_MEM_TBL; ++dw_index) {
 		if (pmmt[dw_index]) {
-			if (pmmt[dw_index]->dwPhysicalAddr) {
+			if (pmmt[dw_index]->mem_phys) {
 				virt_add = get_virt_add_rsvd_mem(dw_index, pAstRVAS);
 				dw_phys = get_phys_add_rsvd_mem(dw_index, pAstRVAS);
 				len = get_len_rsvd_mem(dw_index, pAstRVAS);
@@ -315,9 +326,10 @@ void free_all_mem_entries(struct AstRVAS *pAstRVAS)
 	}
 }
 
-static int video_release(struct inode *inode, struct file *filp)
+static int video_release(struct inode *inode, struct file *file)
 {
 	u32 dw_index;
+	struct AstRVAS *pAstRVAS = file_ast_rvas(file);
 	struct ContextTable **ppctContextTable = pAstRVAS->ppctContextTable;
 
 	VIDEO_DBG("Start\n");
@@ -440,10 +452,10 @@ void *get_virt_add_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS)
 	return 0;
 }
 
-u32 get_phys_add_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS)
+dma_addr_t get_phys_add_rsvd_mem(u32 index, struct AstRVAS *pAstRVAS)
 {
 	if (index < MAX_NUM_MEM_TBL && pAstRVAS->ppmmtMemoryTable[index])
-		return pAstRVAS->ppmmtMemoryTable[index]->dwPhysicalAddr;
+		return pAstRVAS->ppmmtMemoryTable[index]->mem_phys;
 
 	return 0;
 }
@@ -468,11 +480,11 @@ bool virt_is_valid_rsvd_mem(u32 index, u32 size, struct AstRVAS *pAstRVAS)
 	return false;
 }
 
-void ioctl_alloc(struct file *pfile, struct RvasIoctl *pri, struct AstRVAS *pAstRVAS)
+void ioctl_alloc(struct file *file, struct RvasIoctl *pri, struct AstRVAS *pAstRVAS)
 {
 	u32 size;
-	u32 phys_add = 0;
-	u32 virt_add = 0;
+	dma_addr_t phys_add = 0;
+	void *virt_add = 0;
 	u32 index = get_mem_entry(pAstRVAS);
 
 	if (index < 0 || index >= MAX_NUM_MEM_TBL) {
@@ -485,15 +497,15 @@ void ioctl_alloc(struct file *pfile, struct RvasIoctl *pri, struct AstRVAS *pAst
 	size = pri->req_mem_size;
 
 	VIDEO_DBG("Allocating memory size: 0x%x\n", size);
-	virt_add = (u32)dma_alloc_coherent(pAstRVAS->pdev, size, &phys_add,
-					   GFP_KERNEL);
+	virt_add = dma_alloc_coherent(pAstRVAS->pdev, size, &phys_add,
+				      GFP_KERNEL);
 	if (virt_add) {
 		pri->rmh = (void *)index;
 		pri->rvb.pv = (void *)phys_add;
 		pri->rvb.cb = size;
 		pri->rs = SuccessStatus;
-		pAstRVAS->ppmmtMemoryTable[index]->pf = pfile;
-		pAstRVAS->ppmmtMemoryTable[index]->dwPhysicalAddr = phys_add;
+		pAstRVAS->ppmmtMemoryTable[index]->pf = file;
+		pAstRVAS->ppmmtMemoryTable[index]->mem_phys = phys_add;
 		pAstRVAS->ppmmtMemoryTable[index]->pvVirtualAddr = (void *)virt_add;
 		pAstRVAS->ppmmtMemoryTable[index]->dwLength = size;
 		pAstRVAS->ppmmtMemoryTable[index]->byDmaAlloc = 1;
@@ -504,14 +516,14 @@ void ioctl_alloc(struct file *pfile, struct RvasIoctl *pri, struct AstRVAS *pAst
 		pr_err("Cannot alloc video destination data buffer\n");
 		pri->rs = MemoryAllocError;
 	}
-	VIDEO_DBG("Allocated: index: 0x%x phys: %#x cb: 0x%x\n", index,
+	VIDEO_DBG("Allocated: index: 0x%x phys: %llx cb: 0x%x\n", index,
 		  phys_add, pri->rvb.cb);
 }
 
 void ioctl_free(struct RvasIoctl *pri, struct AstRVAS *pAstRVAS)
 {
 	void *virt_add = get_virt_add_rsvd_mem((u32)pri->rmh, pAstRVAS);
-	u32 dw_phys = get_phys_add_rsvd_mem((u32)pri->rmh, pAstRVAS);
+	dma_addr_t dw_phys = get_phys_add_rsvd_mem((u32)pri->rmh, pAstRVAS);
 	u32 len = get_len_rsvd_mem((u32)pri->rmh, pAstRVAS);
 
 	VIDEO_DBG("Start\n");
@@ -527,6 +539,98 @@ void ioctl_free(struct RvasIoctl *pri, struct AstRVAS *pAstRVAS)
 	VIDEO_DBG("After dma_free_coherent\n");
 }
 
+#ifdef CONFIG_MACH_ASPEED_G7
+void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
+{
+	u32 reg_scu418 = 0;
+	u32 reg_scu0C0 = 0;
+	u32 reg_scu0D0 = 0;
+	u32 reg_dptx100 = 0;
+	u32 reg_dptx104 = 0;
+	u32 vga_crt_disbl = 0;
+	u32 vga_pwr_off_vdac = 0;
+
+	if (pAstRVAS->vga_index == 0x0) {
+		vga_crt_disbl = VGA0_CRT_DISBL;
+		vga_pwr_off_vdac = VGA0_PWR_OFF_VDAC;
+	} else {
+		vga_crt_disbl = VGA1_CRT_DISBL;
+		vga_pwr_off_vdac = VGA1_PWR_OFF_VDAC;
+	}
+
+	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_scu418);
+	regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_scu0C0);
+	regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_scu0D0);
+	if (pAstRVAS->dp_base) {
+		reg_dptx100 = readl(pAstRVAS->dp_base + DPTX_Configuration_Register);
+		reg_dptx104 = readl(pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
+	}
+
+	if (lms_on) {
+		if (!(reg_scu418 & (VGAVS_ENBL | VGAHS_ENBL))) {
+			reg_scu418 |= (VGAVS_ENBL | VGAHS_ENBL);
+			regmap_write(pAstRVAS->scu, SCU418_Pin_Ctrl, reg_scu418);
+		}
+		if (reg_scu0C0 & vga_crt_disbl) {
+			reg_scu0C0 &= ~vga_crt_disbl;
+			regmap_write(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, reg_scu0C0);
+		}
+		if (reg_scu0D0 & vga_pwr_off_vdac) {
+			reg_scu0D0 &= ~vga_pwr_off_vdac;
+			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
+		}
+		//dp output
+		if (pAstRVAS->dp_base) {
+			reg_dptx100 |= 1 << AUX_RESETN;
+			writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
+		}
+	} else { //turn off
+		if (reg_scu418 & (VGAVS_ENBL | VGAHS_ENBL)) {
+			reg_scu418 &= ~(VGAVS_ENBL | VGAHS_ENBL);
+			regmap_write(pAstRVAS->scu, SCU418_Pin_Ctrl, reg_scu418);
+		}
+		if (!(reg_scu0C0 & vga_crt_disbl)) {
+			reg_scu0C0 |= vga_crt_disbl;
+			regmap_write(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, reg_scu0C0);
+		}
+		if (!(reg_scu0D0 & vga_pwr_off_vdac)) {
+			reg_scu0D0 |= vga_pwr_off_vdac;
+			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
+		}
+		//dp output
+		if (pAstRVAS->dp_base) {
+			reg_dptx100 &= ~(1 << AUX_RESETN);
+			writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
+			reg_dptx104 &= ~(1 << DP_TX_I_MAIN_ON);
+			writel(reg_dptx104, pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
+		}
+	}
+}
+
+u32 ioctl_get_lm_status(struct AstRVAS *pAstRVAS)
+{
+	u32 reg_val = 0;
+
+	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_val);
+	if (reg_val & (VGAVS_ENBL | VGAHS_ENBL)) {
+		regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_val);
+		if (pAstRVAS->vga_index == 0x0) {
+			if (!(reg_val & VGA0_CRT_DISBL)) {
+				regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_val);
+				if (!(reg_val & VGA0_PWR_OFF_VDAC))
+					return 1;
+			}
+		} else {
+			if (!(reg_val & VGA1_CRT_DISBL)) {
+				regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_val);
+				if (!(reg_val & VGA1_PWR_OFF_VDAC))
+					return 1;
+			}
+		}
+	}
+	return 0;
+}
+#else
 void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 {
 	u32 reg_scu418 = 0;
@@ -538,9 +642,9 @@ void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_scu418);
 	regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_scu0C0);
 	regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_scu0D0);
-	if (dp_base) {
-		reg_dptx100 = readl(dp_base + DPTX_Configuration_Register);
-		reg_dptx104 = readl(dp_base + DPTX_PHY_Configuration_Register);
+	if (pAstRVAS->dp_base) {
+		reg_dptx100 = readl(pAstRVAS->dp_base + DPTX_Configuration_Register);
+		reg_dptx104 = readl(pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
 	}
 
 	if (lms_on) {
@@ -557,9 +661,9 @@ void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
 		}
 		//dp output
-		if (dp_base) {
+		if (pAstRVAS->dp_base) {
 			reg_dptx100 |= 1 << AUX_RESETN;
-			writel(reg_dptx100, dp_base + DPTX_Configuration_Register);
+			writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
 		}
 	} else { //turn off
 		if (reg_scu418 & (VGAVS_ENBL | VGAHS_ENBL)) {
@@ -575,11 +679,11 @@ void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
 		}
 		//dp output
-		if (dp_base) {
+		if (pAstRVAS->dp_base) {
 			reg_dptx100 &= ~(1 << AUX_RESETN);
-			writel(reg_dptx100, dp_base + DPTX_Configuration_Register);
+			writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
 			reg_dptx104 &= ~(1 << DP_TX_I_MAIN_ON);
-			writel(reg_dptx104, dp_base + DPTX_PHY_Configuration_Register);
+			writel(reg_dptx104, pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
 		}
 	}
 }
@@ -595,11 +699,12 @@ u32 ioctl_get_lm_status(struct AstRVAS *pAstRVAS)
 			regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_val);
 			if (!(reg_val & PWR_OFF_VDAC))
 				return 1;
+
 		}
 	}
 	return 0;
 }
-
+#endif
 void init_osr_es(struct AstRVAS *pAstRVAS)
 {
 	VIDEO_DBG("Start\n");
@@ -823,6 +928,7 @@ static void update_context_events(struct AstRVAS *pAstRVAS,
 	// VIDEO_DBG("Setting up context\n");
 	for (dwIter = 0; dwIter < MAX_NUM_CONTEXT; ++dwIter) {
 		if (ppctContextTable[dwIter]) {
+			//          VIDEO_DBG ("Copying EventMap to RVAS Context\n");
 			memcpy((void *)&eduEmReceived,
 			       (void *)&ppctContextTable[dwIter]->emEventReceived,
 			       sizeof(union EmDwordUnion));
@@ -854,7 +960,7 @@ static irqreturn_t fge_handler(int irq, void *dev_id)
 	bFgeItr = false;
 	VIDEO_DBG("fge_handler");
 	// Checking for GRC status changes
-	dwGRCEStatus = readl((void *)(pAstRVAS->grce_reg_base + GRCE_STATUS_REGISTER));
+	dwGRCEStatus = readl(pAstRVAS->grce_reg_base + GRCE_STATUS_REGISTER);
 	if (dwGRCEStatus & GRC_INT_STS_MASK) {
 		VIDEO_DBG("GRC Status Changed: %#x\n", dwGRCEStatus);
 		eduFge_status.dw |= dwGRCEStatus & GRC_INT_STS_MASK;
@@ -980,6 +1086,47 @@ void enable_video_engines(struct AstRVAS *pAstRVAS)
 	clk_enable(pAstRVAS->vclk);
 }
 
+#ifdef MANUAL_ENABLE_CLK
+void disable_rvas_engines(struct AstRVAS *pAstRVAS)
+{
+	u32 reg_val;
+	//disable rvas0
+	//printk("disable rvas engines\n");
+	regmap_write(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, 0x2000000);
+	regmap_read(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, &reg_val);
+	//printk("after rvas disable: SCU240=0x%x\n", reg_val);
+	//disable rvas1
+	//regmap_write(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, 0x10000000);
+}
+
+void enable_rvas_engines(struct AstRVAS *pAstRVAS)
+{
+	// clk enable does
+	//	reset engine reset at SCU200
+	//	delay 100 us
+	//	enable clock at SCU244
+	//	delay 10ms
+	//	disable engine reset at SCU204
+	u32 reg_val;
+	//enable rvas0
+	//printk("enable rvas engines\n");
+	regmap_write(pAstRVAS->scu, SCU200_System_Reset_Control_Register, 0x200);
+	usleep_range(100);
+	regmap_write(pAstRVAS->scu, SCU244_Clock_Stop_Control_Clear_Register, 0x2000000);
+	mdelay(10);
+	regmap_write(pAstRVAS->scu, SCU204_System_Reset_Control_Clear_Register, 0x200);
+
+	//enable rvas1
+	//regmap_write(pAstRVAS->scu, SCU200_System_Reset_Control_Register, 0x400);
+	//udelay(100);
+	//regmap_write(pAstRVAS->scu, SCU244_Clock_Stop_Control_Clear_Register, 0x10000000);
+	//mdelay(10);
+	//regmap_write(pAstRVAS->scu, SCU204_System_Reset_Control_Clear_Register, 0x400);
+
+	regmap_read(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, &reg_val);
+	//printk("after rvas enable: SCU240=0x%x\n", reg_val);
+}
+#else
 void disable_rvas_engines(struct AstRVAS *pAstRVAS)
 {
 	clk_disable(pAstRVAS->rvasclk);
@@ -995,19 +1142,21 @@ void enable_rvas_engines(struct AstRVAS *pAstRVAS)
 	//	disable engine reset at SCU040
 	clk_enable(pAstRVAS->rvasclk);
 }
+#endif
+
 
 static void reset_rvas_engine(struct AstRVAS *pAstRVAS)
 {
 	disable_rvas_engines(pAstRVAS);
 	enable_rvas_engines(pAstRVAS);
-	rvas_init();
+	rvas_init(pAstRVAS);
 }
 
 static void reset_video_engine(struct AstRVAS *pAstRVAS)
 {
 	disable_video_engines(pAstRVAS);
 	enable_video_engines(pAstRVAS);
-	video_engine_init();
+	video_engine_init(pAstRVAS);
 }
 
 void ioctl_reset_video_engine(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
@@ -1059,28 +1208,28 @@ static const struct attribute_group rvas_attribute_group = {
 	.attrs = ast_rvas_attributes
 };
 
-bool sleep_on_tfe_busy(struct AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
+bool sleep_on_tfe_busy(struct AstRVAS *pAstRVAS, phys_addr_t desc_addr_phys,
 		       u32 dwTFEControlR, u32 dwTFERleLimitor,
 		       u32 *pdwRLESize,	u32 *pdwCheckSum)
 {
-	u32 addrTFEDTBR = pAstRVAS->fg_reg_base + TFE_Descriptor_Table_Offset;
-	u32 addrTFECR = pAstRVAS->fg_reg_base + TFE_Descriptor_Control_Resgister;
-	u32 addrTFERleL = pAstRVAS->fg_reg_base + TFE_RLE_LIMITOR;
-	u32 addrTFERSTS = pAstRVAS->fg_reg_base + TFE_Status_Register;
+	void __iomem *addrTFEDTBR = pAstRVAS->fg_reg_base + TFE_Descriptor_Table_Offset;
+	void __iomem *addrTFECR = pAstRVAS->fg_reg_base + TFE_Descriptor_Control_Resgister;
+	void __iomem *addrTFERleL = pAstRVAS->fg_reg_base + TFE_RLE_LIMITOR;
+	void __iomem *addrTFERSTS = pAstRVAS->fg_reg_base + TFE_Status_Register;
 	bool bResult = true;
 
 	down(&pAstRVAS->tfe_engine.sem);
 	VIDEO_DBG("In Busy Semaphore......\n");
 
-	VIDEO_DBG("Before change, TFECR: %#x\n", readl((void *)addrTFECR));
-	writel(dwTFEControlR, (void *)addrTFECR);
-	VIDEO_DBG("After change, TFECR: %#x\n", readl((void *)addrTFECR));
-	writel(dwTFERleLimitor, (void *)addrTFERleL);
+	VIDEO_DBG("Before change, TFECR: %#x\n", readl(addrTFECR));
+	writel(dwTFEControlR, addrTFECR);
+	VIDEO_DBG("After change, TFECR: %#x\n", readl(addrTFECR));
+	writel(dwTFERleLimitor, addrTFERleL);
 	VIDEO_DBG("dwTFEControlR: %#x\n", dwTFEControlR);
 	VIDEO_DBG("dwTFERleLimitor: %#x\n", dwTFERleLimitor);
-	VIDEO_DBG("dwTFEDescriptorAddr: %#x\n", dwTFEDescriptorAddr);
+	VIDEO_DBG("desc_addr_phys: %#x\n", desc_addr_phys);
 	// put descriptor add to TBR and Fetch start
-	writel(dwTFEDescriptorAddr, (void *)addrTFEDTBR);
+	writel((u32)desc_addr_phys, addrTFEDTBR);
 	//wTFETiles = 1;
 	pAstRVAS->tfe_engine.finished = 0;
 	video_os_sleep_on_timeout(&pAstRVAS->tfe_engine.wait,
@@ -1089,14 +1238,14 @@ bool sleep_on_tfe_busy(struct AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
 
 	if (!pAstRVAS->tfe_engine.finished) {
 		dev_err(pAstRVAS->pdev, "Video TFE failed\n");
-		writel(0x00, (void *)addrTFERSTS);
+		writel(0x00, addrTFERSTS);
 		pAstRVAS->tfe_engine.finished = 1;
 		bResult = false;
 	}
 
-	writel((readl((void *)addrTFECR) & (~0x3)), (void *)addrTFECR); // Disable IRQ and Turn off TFE when done
-	*pdwRLESize = readl((void *)(pAstRVAS->fg_reg_base + TFE_RLE_Byte_Count));
-	*pdwCheckSum = readl((void *)(pAstRVAS->fg_reg_base + TFE_RLE_CheckSum));
+	writel((readl(addrTFECR) & (~0x3)), addrTFECR); // Disable IRQ and Turn off TFE when done
+	*pdwRLESize = readl(pAstRVAS->fg_reg_base + TFE_RLE_Byte_Count);
+	*pdwCheckSum = readl(pAstRVAS->fg_reg_base + TFE_RLE_CheckSum);
 
 	up(&pAstRVAS->tfe_engine.sem);
 	VIDEO_DBG("Done Busy: bResult: %d\n", bResult);
@@ -1104,28 +1253,28 @@ bool sleep_on_tfe_busy(struct AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
 	return bResult;
 }
 
-bool sleep_on_tfe_text_busy(struct AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
+bool sleep_on_tfe_text_busy(struct AstRVAS *pAstRVAS, phys_addr_t desc_addr_phys,
 			    u32 dwTFEControlR, u32 dwTFERleLimitor, u32 *pdwRLESize,
 			    u32 *pdwCheckSum)
 {
-	u32 addrTFEDTBR = pAstRVAS->fg_reg_base + TFE_Descriptor_Table_Offset;
-	u32 addrTFECR = pAstRVAS->fg_reg_base + TFE_Descriptor_Control_Resgister;
-	u32 addrTFERleL = pAstRVAS->fg_reg_base + TFE_RLE_LIMITOR;
-	u32 addrTFERSTS = pAstRVAS->fg_reg_base + TFE_Status_Register;
+	void __iomem *addrTFEDTBR = pAstRVAS->fg_reg_base + TFE_Descriptor_Table_Offset;
+	void __iomem *addrTFECR = pAstRVAS->fg_reg_base + TFE_Descriptor_Control_Resgister;
+	void __iomem *addrTFERleL = pAstRVAS->fg_reg_base + TFE_RLE_LIMITOR;
+	void __iomem *addrTFERSTS = pAstRVAS->fg_reg_base + TFE_Status_Register;
 	bool bResult = true;
 
 	down(&pAstRVAS->tfe_engine.sem);
 	VIDEO_DBG("In Busy Semaphore......\n");
 
-	VIDEO_DBG("Before change, TFECR: %#x\n", readl((void *)addrTFECR));
-	writel(dwTFEControlR, (void *)addrTFECR);
-	VIDEO_DBG("After change, TFECR: %#x\n", readl((void *)addrTFECR));
-	writel(dwTFERleLimitor, (void *)addrTFERleL);
+	VIDEO_DBG("Before change, TFECR: %#x\n", readl(addrTFECR));
+	writel(dwTFEControlR, addrTFECR);
+	VIDEO_DBG("After change, TFECR: %#x\n", readl(addrTFECR));
+	writel(dwTFERleLimitor, addrTFERleL);
 	VIDEO_DBG("dwTFEControlR: %#x\n", dwTFEControlR);
 	VIDEO_DBG("dwTFERleLimitor: %#x\n", dwTFERleLimitor);
-	VIDEO_DBG("dwTFEDescriptorAddr: %#x\n", dwTFEDescriptorAddr);
+	VIDEO_DBG("desc_addr_phys: %#x\n", desc_addr_phys);
 	// put descriptor add to TBR and Fetch start
-	writel(dwTFEDescriptorAddr, (void *)addrTFEDTBR);
+	writel((u32)desc_addr_phys, addrTFEDTBR);
 	//wTFETiles = 1;
 	pAstRVAS->tfe_engine.finished = 0;
 	video_os_sleep_on_timeout(&pAstRVAS->tfe_engine.wait,
@@ -1133,15 +1282,15 @@ bool sleep_on_tfe_text_busy(struct AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
 
 	if (!pAstRVAS->tfe_engine.finished) {
 		dev_err(pAstRVAS->pdev, "Video TFE failed\n");
-		writel(0x00, (void *)addrTFERSTS);
+		writel(0x00, addrTFERSTS);
 		pAstRVAS->tfe_engine.finished = 1;
 		bResult = false;
 	}
 
-	writel((readl((void *)addrTFECR) & (~0x3)), (void *)addrTFECR);// Disable IRQ and Turn off TFE when done
-	writel((readl((void *)addrTFERSTS) | 0x2), (void *)addrTFERSTS); // clear status bit
-	*pdwRLESize = readl((void *)(pAstRVAS->fg_reg_base + TFE_RLE_Byte_Count));
-	*pdwCheckSum = readl((void *)(pAstRVAS->fg_reg_base + TFE_RLE_CheckSum));
+	writel((readl(addrTFECR) & (~0x3)), addrTFECR);// Disable IRQ and Turn off TFE when done
+	writel((readl(addrTFERSTS) | 0x2), addrTFERSTS); // clear status bit
+	*pdwRLESize = readl(pAstRVAS->fg_reg_base + TFE_RLE_Byte_Count);
+	*pdwCheckSum = readl(pAstRVAS->fg_reg_base + TFE_RLE_CheckSum);
 
 	up(&pAstRVAS->tfe_engine.sem);
 	VIDEO_DBG("Done Busy: bResult: %d\n", bResult);
@@ -1149,16 +1298,16 @@ bool sleep_on_tfe_text_busy(struct AstRVAS *pAstRVAS, u32 dwTFEDescriptorAddr,
 	return bResult;
 }
 
-bool sleep_on_bse_busy(struct AstRVAS *pAstRVAS, u32 dwBSEDescriptorAddr,
+bool sleep_on_bse_busy(struct AstRVAS *pAstRVAS, phys_addr_t desc_addr_phys,
 		       struct BSEAggregateRegister aBSEAR, u32 size)
 {
-	u32 addrBSEDTBR = pAstRVAS->fg_reg_base + BSE_Descriptor_Table_Base_Register;
-	u32 addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
-	u32 addrBSDBS = pAstRVAS->fg_reg_base + BSE_Destination_Buket_Size_Resgister;
-	u32 addrBSBPS0 = pAstRVAS->fg_reg_base + BSE_Bit_Position_Register_0;
-	u32 addrBSBPS1 = pAstRVAS->fg_reg_base + BSE_Bit_Position_Register_1;
-	u32 addrBSBPS2 = pAstRVAS->fg_reg_base + BSE_Bit_Position_Register_2;
-	u32 addrBSESSTS = pAstRVAS->fg_reg_base + BSE_Status_Register;
+	void __iomem *addrBSEDTBR = pAstRVAS->fg_reg_base + BSE_Descriptor_Table_Base_Register;
+	void __iomem *addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
+	void __iomem *addrBSDBS = pAstRVAS->fg_reg_base + BSE_Destination_Buket_Size_Resgister;
+	void __iomem *addrBSBPS0 = pAstRVAS->fg_reg_base + BSE_Bit_Position_Register_0;
+	void __iomem *addrBSBPS1 = pAstRVAS->fg_reg_base + BSE_Bit_Position_Register_1;
+	void __iomem *addrBSBPS2 = pAstRVAS->fg_reg_base + BSE_Bit_Position_Register_2;
+	void __iomem *addrBSESSTS = pAstRVAS->fg_reg_base + BSE_Status_Register;
 	u8 byCounter = 0;
 	bool bResult = true;
 
@@ -1166,43 +1315,43 @@ bool sleep_on_bse_busy(struct AstRVAS *pAstRVAS, u32 dwBSEDescriptorAddr,
 	pAstRVAS->bse_engine.finished = 0;
 
     // Set BSE Temp buffer address, and clear lower u16
-	writel(BSE_LMEM_Temp_Buffer_Offset << 16, (void *)addrBSCR);
-	writel(readl((void *)addrBSCR) | (aBSEAR.dwBSCR & 0X00000FFF), (void *)addrBSCR);
-	writel(aBSEAR.dwBSDBS, (void *)addrBSDBS);
-	writel(aBSEAR.adwBSBPS[0], (void *)addrBSBPS0);
-	writel(aBSEAR.adwBSBPS[1], (void *)addrBSBPS1);
-	writel(aBSEAR.adwBSBPS[2], (void *)addrBSBPS2);
+	writel(BSE_LMEM_Temp_Buffer_Offset << 16, addrBSCR);
+	writel(readl(addrBSCR) | (aBSEAR.dwBSCR & 0X00000FFF), addrBSCR);
+	writel(aBSEAR.dwBSDBS, addrBSDBS);
+	writel(aBSEAR.adwBSBPS[0], addrBSBPS0);
+	writel(aBSEAR.adwBSBPS[1], addrBSBPS1);
+	writel(aBSEAR.adwBSBPS[2], addrBSBPS2);
 
-	writel(dwBSEDescriptorAddr, (void *)addrBSEDTBR);
+	writel((u32)desc_addr_phys, addrBSEDTBR);
 
 	while (!pAstRVAS->bse_engine.finished) {
 		VIDEO_DBG("BSE Sleeping...\n");
 		video_os_sleep_on_timeout(&pAstRVAS->bse_engine.wait,
-					  &pAstRVAS->bse_engine.finished, 1000); // loop if bse timedout
+			&pAstRVAS->bse_engine.finished, 1000); // loop if bse timedout
 		byCounter++;
 		VIDEO_DBG("Back from BSE Sleeping, finished: %u\n",
-			  pAstRVAS->bse_engine.finished);
+			pAstRVAS->bse_engine.finished);
 
 		if (byCounter == ENGINE_TIMEOUT_IN_SECONDS) {
-			writel(0x00, (void *)addrBSESSTS);
+			writel(0x00, addrBSESSTS);
 			pAstRVAS->bse_engine.finished = 1;
 			dev_err(pAstRVAS->pdev, "TIMEOUT::Waiting BSE\n");
 			bResult = false;
 		}
 	}
 
-	VIDEO_DBG("*pdwBSESSTS = %#x\n", readl((void *)addrBSESSTS));
-	writel(readl((void *)addrBSCR) & (~0x3), (void *)addrBSCR);
+	VIDEO_DBG("*pdwBSESSTS = %#x\n", readl(addrBSESSTS));
+	writel(readl(addrBSCR) & (~0x3), addrBSCR);
 
 	up(&pAstRVAS->bse_engine.sem);
 
 	return bResult;
 }
 
-void sleep_on_ldma_busy(struct AstRVAS *pAstRVAS, u32 dwDescriptorAddress)
+void sleep_on_ldma_busy(struct AstRVAS *pAstRVAS, phys_addr_t desc_addr_phys)
 {
-	u32 addrLDMADTBR = pAstRVAS->fg_reg_base + LDMA_Descriptor_Table_Base_Register;
-	u32 addrLDMAControlR = pAstRVAS->fg_reg_base + LDMA_Control_Register;
+	void __iomem *addrLDMADTBR = pAstRVAS->fg_reg_base + LDMA_Descriptor_Table_Base_Register;
+	void __iomem *addrLDMAControlR = pAstRVAS->fg_reg_base + LDMA_Control_Register;
 
 	VIDEO_DBG("In sleepONldma busy\n");
 
@@ -1210,26 +1359,26 @@ void sleep_on_ldma_busy(struct AstRVAS *pAstRVAS, u32 dwDescriptorAddress)
 
 	pAstRVAS->ldma_engine.finished = 0;
 
-	writel(0x83, (void *)addrLDMAControlR);// descriptor can only in LMEM FOR LDMA
-	writel(dwDescriptorAddress, (void *)addrLDMADTBR);
-	VIDEO_DBG("LDMA: control [%#x]\n", readl((void *)addrLDMAControlR));
-	VIDEO_DBG("LDMA:  DTBR  [%#x]\n", readl((void *)addrLDMADTBR));
+	writel(0x83, addrLDMAControlR);// descriptor can only in LMEM FOR LDMA
+	writel((u32)desc_addr_phys, addrLDMADTBR);
+	VIDEO_DBG("LDMA: control [%#x]\n", readl(addrLDMAControlR));
+	VIDEO_DBG("LDMA:  DTBR  [%#x]\n", readl(addrLDMADTBR));
 
 	while (!pAstRVAS->ldma_engine.finished)
 		video_os_sleep_on_timeout(&pAstRVAS->ldma_engine.wait, (u8 *)&pAstRVAS->ldma_engine.finished, 1000); // loop if bse timedout
 
 	VIDEO_DBG("LDMA wake up\n");
-	writel(readl((void *)addrLDMAControlR) & (~0x3), (void *)addrLDMAControlR);
+	writel(readl(addrLDMAControlR) & (~0x3), addrLDMAControlR);
 	up(&pAstRVAS->ldma_engine.sem);
 }
 
 static int video_drv_get_resources(struct platform_device *pdev)
 {
 	int result = 0;
-
 	struct resource *io_fg;
 	struct resource *io_grc;
 	struct resource *io_video;
+	struct AstRVAS *pAstRVAS = platform_get_drvdata(pdev);
 
 	//get resources from platform
 	io_fg = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1253,26 +1402,24 @@ static int video_drv_get_resources(struct platform_device *pdev)
 	}
 
 	//map resource by device
-	pAstRVAS->fg_reg_base = (u32)devm_ioremap_resource(&pdev->dev, io_fg);
-	VIDEO_DBG("fg_reg_base: %#x\n", pAstRVAS->fg_reg_base);
+	pAstRVAS->fg_reg_base = devm_ioremap_resource(&pdev->dev, io_fg);
+	VIDEO_DBG("fg_reg_base: %p\n", pAstRVAS->fg_reg_base);
 	if (IS_ERR((void *)pAstRVAS->fg_reg_base)) {
 		result = PTR_ERR((void *)pAstRVAS->fg_reg_base);
 		dev_err(&pdev->dev, "Cannot map FG registers\n");
 		pAstRVAS->fg_reg_base = 0;
 		return result;
 	}
-	pAstRVAS->grce_reg_base = (u32)devm_ioremap_resource(&pdev->dev,
-			  io_grc);
-	VIDEO_DBG("grce_reg_base: %#x\n", pAstRVAS->grce_reg_base);
+	pAstRVAS->grce_reg_base = devm_ioremap_resource(&pdev->dev, io_grc);
+	VIDEO_DBG("grce_reg_base: %p\n", pAstRVAS->grce_reg_base);
 	if (IS_ERR((void *)pAstRVAS->grce_reg_base)) {
 		result = PTR_ERR((void *)pAstRVAS->grce_reg_base);
 		dev_err(&pdev->dev, "Cannot map GRC registers\n");
 		pAstRVAS->grce_reg_base = 0;
 		return result;
 	}
-	pAstRVAS->video_reg_base = (u32)devm_ioremap_resource(&pdev->dev,
-				  io_video);
-	VIDEO_DBG("video_reg_base: %#x\n", pAstRVAS->video_reg_base);
+	pAstRVAS->video_reg_base = devm_ioremap_resource(&pdev->dev, io_video);
+	VIDEO_DBG("video_reg_base: %p\n", pAstRVAS->video_reg_base);
 	if (IS_ERR((void *)pAstRVAS->video_reg_base)) {
 		result = PTR_ERR((void *)pAstRVAS->video_reg_base);
 		dev_err(&pdev->dev, "Cannot map video registers\n");
@@ -1284,6 +1431,8 @@ static int video_drv_get_resources(struct platform_device *pdev)
 
 static int video_drv_get_irqs(struct platform_device *pdev)
 {
+	struct AstRVAS *pAstRVAS = platform_get_drvdata(pdev);
+
 	pAstRVAS->irq_fge = platform_get_irq(pdev, 0);
 	VIDEO_DBG("irq_fge: %#x\n", pAstRVAS->irq_fge);
 	if (pAstRVAS->irq_fge < 0) {
@@ -1307,12 +1456,14 @@ static int video_drv_get_irqs(struct platform_device *pdev)
 
 static int video_drv_get_clock(struct platform_device *pdev)
 {
+	struct AstRVAS *pAstRVAS = platform_get_drvdata(pdev);
+
 	pAstRVAS->eclk = devm_clk_get(&pdev->dev, "eclk");
 	if (IS_ERR(pAstRVAS->eclk)) {
 		dev_err(&pdev->dev, "no eclk clock defined\n");
 		return PTR_ERR(pAstRVAS->eclk);
 	}
-
+#if 1
 	clk_prepare_enable(pAstRVAS->eclk);
 
 	pAstRVAS->vclk = devm_clk_get(&pdev->dev, "vclk");
@@ -1322,13 +1473,31 @@ static int video_drv_get_clock(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(pAstRVAS->vclk);
+#else
+	{
+		u32 reg_scu080 = 0;
 
+		regmap_read(pAstRVAS->scu, 0x80, &reg_scu080);
+		if (reg_scu080 & 0x8)
+			regmap_write(pAstRVAS->scu, 0x84, 0x8);
+	}
+#endif
+#ifdef CONFIG_MACH_ASPEED_G7
+	pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvasclk");
+	if (IS_ERR(pAstRVAS->rvasclk)) {
+		pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvas2clk");
+		if (IS_ERR(pAstRVAS->rvasclk)) {
+			dev_err(&pdev->dev, "no rvasclk or rvas2clk clock defined\n");
+			return PTR_ERR(pAstRVAS->rvasclk);
+		}
+	}
+#else
 	pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvasclk-gate");
 	if (IS_ERR(pAstRVAS->rvasclk)) {
 		dev_err(&pdev->dev, "no rvasclk clock defined\n");
 		return PTR_ERR(pAstRVAS->rvasclk);
 	}
-
+#endif
 	clk_prepare_enable(pAstRVAS->rvasclk);
 	return 0;
 }
@@ -1336,16 +1505,17 @@ static int video_drv_get_clock(struct platform_device *pdev)
 static int video_drv_map_irqs(struct platform_device *pdev)
 {
 	int result = 0;
+	struct AstRVAS *pAstRVAS = platform_get_drvdata(pdev);
 	//Map IRQS to handler
 	VIDEO_DBG("Requesting IRQs, irq_fge: %d, irq_vga: %d, irq_video: %d\n",
-		  pAstRVAS->irq_fge, pAstRVAS->irq_vga, pAstRVAS->irq_video);
+			  pAstRVAS->irq_fge, pAstRVAS->irq_vga, pAstRVAS->irq_video);
 
 	result = devm_request_irq(&pdev->dev, pAstRVAS->irq_fge, fge_handler, 0,
-				  dev_name(&pdev->dev), pAstRVAS);
+			  dev_name(&pdev->dev), pAstRVAS);
 	if (result) {
 		pr_err("Error in requesting IRQ\n");
 		pr_err("RVAS: Failed request FGE irq %d\n", pAstRVAS->irq_fge);
-		misc_deregister(&video_misc);
+		misc_deregister(&pAstRVAS->rvas_dev);
 		return result;
 	}
 
@@ -1354,7 +1524,7 @@ static int video_drv_map_irqs(struct platform_device *pdev)
 	if (result) {
 		pr_err("Error in requesting IRQ\n");
 		pr_err("RVAS: Failed request vga irq %d\n", pAstRVAS->irq_vga);
-		misc_deregister(&video_misc);
+		misc_deregister(&pAstRVAS->rvas_dev);
 		return result;
 	}
 
@@ -1363,19 +1533,19 @@ static int video_drv_map_irqs(struct platform_device *pdev)
 	if (result) {
 		pr_err("Error in requesting IRQ\n");
 		pr_err("RVAS: Failed request video irq %d\n", pAstRVAS->irq_video);
-		misc_deregister(&video_misc);
+		misc_deregister(&pAstRVAS->rvas_dev);
 		return result;
 	}
 
 	return result;
 }
-
 //
 //
 //
 static int video_drv_probe(struct platform_device *pdev)
 {
 	int result = 0;
+	struct AstRVAS *pAstRVAS;
 	struct regmap *sdram_scu;
 	struct device_node *dp_node;
 	struct device_node *edac_node;
@@ -1389,7 +1559,18 @@ static int video_drv_probe(struct platform_device *pdev)
 		dev_err(pAstRVAS->pdev, "Cannot allocate device structure\n");
 		return -ENOMEM;
 	}
+	dev_set_drvdata(&pdev->dev, pAstRVAS);
 	pAstRVAS->pdev = (void *)&pdev->dev;
+
+#ifdef CONFIG_MACH_ASPEED_G7
+	result = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+#else
+	result = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+#endif
+	if (result) {
+		dev_err(&pdev->dev, "Failed to set DMA mask\n");
+		of_reserved_mem_device_release(&pdev->dev);
+	}
 
 	// Get resources
 	result = video_drv_get_resources(pdev);
@@ -1428,11 +1609,15 @@ static int video_drv_probe(struct platform_device *pdev)
 	if (!dp_node) {
 		dev_err(&pdev->dev, "cannot find dp node\n");
 	} else {
-		dp_base = of_iomap(dp_node, 0);
-		if (!dp_base)
+		pAstRVAS->dp_base = of_iomap(dp_node, 0);
+		if (!pAstRVAS->dp_base)
 			dev_err(&pdev->dev, "failed to iomem of display port\n");
 	}
-
+#ifdef CONFIG_MACH_ASPEED_G7
+	pAstRVAS->FBInfo.dwDRAMSize = 0x40000000; // 1GB
+	// VGA size is fixed with 32MB
+	pAstRVAS->FBInfo.dwVGASize = 0x2000000;
+#else
 	edac_node = of_find_compatible_node(NULL, NULL, "aspeed,ast2600-sdram-edac");
 	if (!edac_node) {
 		dev_err(&pdev->dev, "cannot find edac node\n");
@@ -1443,22 +1628,34 @@ static int video_drv_probe(struct platform_device *pdev)
 	}
 
 	set_FBInfo_size(pAstRVAS, mcr_base);
-
+#endif
 	//scu
+#ifdef CONFIG_MACH_ASPEED_G7
+	sdram_scu = syscon_regmap_lookup_by_compatible("aspeed,ast2700-scu0");
+	VIDEO_DBG("sdram_scu: 0x%p\n", sdram_scu);
+	if (IS_ERR(sdram_scu)) {
+		dev_err(&pdev->dev, "failed to find ast2700-scu0 regmap\n");
+		return PTR_ERR(sdram_scu);
+	}
+#else
 	sdram_scu = syscon_regmap_lookup_by_compatible("aspeed,ast2600-scu");
 	VIDEO_DBG("sdram_scu: 0x%p\n", sdram_scu);
 	if (IS_ERR(sdram_scu)) {
 		dev_err(&pdev->dev, "failed to find ast2600-scu regmap\n");
 		return PTR_ERR(sdram_scu);
 	}
+#endif
 	pAstRVAS->scu = sdram_scu;
-
-	result = misc_register(&video_misc);
+	pAstRVAS->rvas_dev = video_misc;
+	pAstRVAS->rvas_dev.parent = &pdev->dev;
+	result = misc_register(&pAstRVAS->rvas_dev);
 	if (result) {
-		pr_err("Failed in miscellaneous register (err: %d)\n", result);
+		pr_err("Failed in rvas misc device register (err: %d)\n", result);
 		return result;
 	}
-	pr_info("Video misc minor %d\n", video_misc.minor);
+	pr_info("Video misc minor %d\n", pAstRVAS->rvas_dev.minor);
+	VIDEO_DBG("pdev: 0x%p dev: 0x%p pAstRVAS: 0x%p rvas_dev: 0x%p\n", pdev,
+		  &pdev->dev, pAstRVAS, pAstRVAS->rvas_dev);
 
 	if (sysfs_create_group(&pdev->dev.kobj, &rvas_attribute_group)) {
 		pr_err("Failed in creating group\n");
@@ -1470,11 +1667,6 @@ static int video_drv_probe(struct platform_device *pdev)
 
 	//reserve memory
 	of_reserved_mem_device_init(&pdev->dev);
-	result = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-	if (result) {
-		dev_err(&pdev->dev, "Failed to set DMA mask\n");
-		of_reserved_mem_device_release(&pdev->dev);
-	}
 
 	// map irqs to irq_handlers
 	result = video_drv_map_irqs(pdev);
@@ -1484,21 +1676,17 @@ static int video_drv_probe(struct platform_device *pdev)
 	}
 	VIDEO_DBG("After IRQ registration\n");
 
-	platform_set_drvdata(pdev, pAstRVAS);
-	pAstRVAS->rvas_dev = &video_misc;
-	VIDEO_DBG("pdev: 0x%p dev: 0x%p pAstRVAS: 0x%p rvas_dev: 0x%p\n", pdev,
-		  &pdev->dev, pAstRVAS, pAstRVAS->rvas_dev);
-
 	init_osr_es(pAstRVAS);
-	rvas_init();
+	rvas_init(pAstRVAS);
 	video_engine_reserveMem(pAstRVAS);
-	video_engine_init();
+	video_engine_init(pAstRVAS);
+
 
 	pr_info("RVAS: driver successfully loaded.\n");
 	return result;
 }
 
-static void rvas_init(void)
+static void rvas_init(struct AstRVAS *pAstRVAS)
 {
 	VIDEO_ENG_DBG("\n");
 
@@ -1509,7 +1697,7 @@ static void rvas_init(void)
 	enable_grce_tse_interrupt(pAstRVAS);
 }
 
-static void video_engine_init(void)
+static void video_engine_init(struct AstRVAS *pAstRVAS)
 {
 	VIDEO_ENG_DBG("\n");
 	// video engine
@@ -1535,7 +1723,7 @@ static int video_drv_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &rvas_attribute_group);
 
 	VIDEO_DBG("misc_deregister...\n");
-	misc_deregister(&video_misc);
+	misc_deregister(&pAstRVAS->rvas_dev);
 
 	VIDEO_DBG("Releasing OSRes...\n");
 	release_osr_es(pAstRVAS);
@@ -1585,10 +1773,16 @@ static void set_FBInfo_size(struct AstRVAS *pAstRVAS, void __iomem *mcr_base)
 #endif
 
 	pAstRVAS->FBInfo.dwVGASize = aspeed_vga_table[((reg_mcr004 & 0xC) >> 2)];
+
 }
 
+#ifdef CONFIG_MACH_ASPEED_G7
+static const struct of_device_id ast_rvas_match[] = { { .compatible =
+	"aspeed,ast2700-rvas", }, { }, };
+#else
 static const struct of_device_id ast_rvas_match[] = { { .compatible =
 	"aspeed,ast2600-rvas", }, { }, };
+#endif
 
 MODULE_DEVICE_TABLE(of, ast_rvas_match);
 

@@ -37,8 +37,8 @@ static struct Resolution resTable2[0x52 - 0x50 + 1] = { { 320, 240 }, { 400, 300
 	512, 384 }, };
 
 static void prepare_bse_descriptor_2(struct Descriptor *pDAddress,
-				     u32 dwSourceAddress,
-				     u32 dwDestAddress,
+				     phys_addr_t source_addr,
+				     phys_addr_t dest_addr,
 				     bool bNotLastEntry,
 				     u16 wStride,
 				     u8 bytesPerPixel,
@@ -49,15 +49,16 @@ static void prepare_bse_descriptor_2(struct Descriptor *pDAddress,
 
 static struct BSEAggregateRegister set_up_bse_bucket_2(struct AstRVAS *pAstRVAS,
 						       u8 *abyBitIndexes,
-						       u8 byTotalBucketCount,
-						       u8 byBSBytesPerPixel,
+							   u8 byTotalBucketCount,
+							   u8 byBSBytesPerPixel,
 						       u32 dwFetchWidthPixels,
-						       u32 dwFetchHeight,
-						       u32 dwBucketSizeIndex);
+							   u32 dwFetchHeight,
+							   u32 dwBucketSizeIndex);
 
-static inline u32 ast_video_read(u32 video_reg_base, u32 reg)
+static inline u32 ast_video_read(void __iomem *video_reg_base, u32 reg)
 {
-	u32 val = readl((void *)(video_reg_base + reg));
+	u32 val = readl(video_reg_base + reg);
+
 	return val;
 }
 
@@ -136,10 +137,10 @@ static void ast_video_get_indexed_mode(struct ModeInfo *pModeInfo, struct VideoG
 //check special modes
 static void ast_video_set_special_modes(struct ModeInfo *pModeInfo, struct AstRVAS *pAstRVAS)
 {
-	u8 byVGACR1 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x1)); //number of chars per line
-	u8 byVGACR7 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x7));
-	u8 byVGACR12 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x12));
-	u8 byVGASR1 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_SEQ_OFFSET + 0x1));
+	u8 byVGACR1 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x1); //number of chars per line
+	u8 byVGACR7 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x7);
+	u8 byVGACR12 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x12);
+	u8 byVGASR1 = readb(pAstRVAS->grce_reg_base + GRCE_SEQ_OFFSET + 0x1);
 	struct VideoGeometry *pvg = &pAstRVAS->current_vg;
 	u32 dwHorizontalDisplayEnd = 0;
 	u32 dwVerticalDisplayEnd = 0;
@@ -183,14 +184,13 @@ static u32 ast_video_get_pitch(struct AstRVAS *pAstRVAS)
 	struct VideoGeometry *pvg = &pAstRVAS->current_vg;
 
 	//read actual register
-	byVGACR13 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x13));
-	byVGACR14 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x14));
-	byVGACR17 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x17));
-	wOffsetUpper = readb((void *)(pAstRVAS->grce_reg_base + 0xb0));
+	byVGACR13 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x13);
+	byVGACR14 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x14);
+	byVGACR17 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC_OFFSET + 0x17);
+	wOffsetUpper = readb(pAstRVAS->grce_reg_base + 0xb0);
 
 	wOffset = (wOffsetUpper << 8) | byVGACR13;
-	VIDEO_DBG("wOffsetUpper= %#x, byVGACR13= %#x,
-		  byVGACR14= %#x, byVGACR17= %#x, wOffset= %#x\n",
+	VIDEO_DBG("wOffsetUpper= %#x, byVGACR13= %#x, byVGACR14= %#x, byVGACR17= %#x, wOffset= %#x\n",
 		  wOffsetUpper, byVGACR13, byVGACR14, byVGACR17, wOffset);
 
 	if (byVGACR14 & 0x40)
@@ -285,7 +285,7 @@ void update_video_geometry(struct AstRVAS *ast_rvas)
 		cur_vg->gmt = InvalidMode;
 
 	if (cur_vg->gmt == TextMode) {
-		u8 byVGACR9 = readb((void *)(ast_rvas->grce_reg_base + GRCE_CRTC_OFFSET + 0x9));
+		u8 byVGACR9 = readb(ast_rvas->grce_reg_base + GRCE_CRTC_OFFSET + 0x9);
 		u32 dwCharacterHeight = ((byVGACR9) & 0x1f) + 1;
 
 		VIDEO_DBG("byModeID=0x%x,dwCharacterHeight=%d\n",
@@ -328,34 +328,34 @@ void ioctl_get_video_geometry(struct RvasIoctl *ri, struct AstRVAS *ast_rvas)
 void print_frame_buffer(u32 dwSizeByBytes, struct VGAMemInfo FBInfo)
 {
 	u32 iter = 0;
-	u32 *pdwFrameBufferAddrBase = NULL;
+	phys_addr_t *frame_buffer_base = NULL;
 	u32 dwNumMappedPages = 0;
 
 	dwNumMappedPages = ((dwSizeByBytes + 4095) >> 12);
-	pdwFrameBufferAddrBase = (u32 *)ioremap(FBInfo.dwFBPhysStart, dwNumMappedPages << 12);
+	frame_buffer_base = (phys_addr_t *)ioremap(FBInfo.qwFBPhysStart, dwNumMappedPages << 12);
 
-	if (pdwFrameBufferAddrBase) {
+	if (frame_buffer_base) {
 		VIDEO_DBG("==============%s===========\n", __func__);
 
 		for (iter = 0; iter < (dwSizeByBytes >> 2); iter++) {
-			VIDEO_DBG("0x%x, ", pdwFrameBufferAddrBase[iter]);
+			VIDEO_DBG("0x%x, ", frame_buffer_base[iter]);
 
 			if ((iter % 16) == 0)
 				VIDEO_DBG("\n");
 		}
 
 		VIDEO_DBG("===========END=============\n");
-		iounmap((void *)pdwFrameBufferAddrBase);
+		iounmap((void *)frame_buffer_base);
 	}
 }
 
 void ioctl_get_grc_register(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 {
-	u32 virt_add = 0;
+	void *virt_add = 0;
 	u32 size = 0;
 
 	VIDEO_DBG("Start\n");
-	virt_add = (u32)get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS);
+	virt_add = get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS);
 	size = ri->rmh1_mem_size;
 
 	if (virt_is_valid_rsvd_mem((u32)ri->rmh, size, pAstRVAS)) {
@@ -374,10 +374,10 @@ void ioctl_get_grc_register(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 void ioctl_read_snoop_map(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 {
 	struct ContextTable *pct = get_context_entry(ri->rc, pAstRVAS);
-	u32 virt_add = 0;
+	void *virt_add = 0;
 	u32 size = 0;
 
-	virt_add = (u32)get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS);
+	virt_add = get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS);
 	size = ri->rmh_mem_size;
 
 	disable_grce_tse_interrupt(pAstRVAS);
@@ -432,11 +432,11 @@ void ioctl_read_snoop_aggregate(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 
 void ioctl_set_tse_tsicr(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 {
-	u32 addrTSICR;
+	void __iomem *addrTSICR;
 
 	pAstRVAS->tse_tsicr = ri->tse_counter;
 	addrTSICR = pAstRVAS->fg_reg_base + TSE_TileSnoop_Interrupt_Count;
-	writel(pAstRVAS->tse_tsicr, (void *)addrTSICR);// max wait time before interrupt
+	writel(pAstRVAS->tse_tsicr, addrTSICR);// max wait time before interrupt
 	ri->rs = SuccessStatus;
 }
 
@@ -450,13 +450,13 @@ void ioctl_get_tse_tsicr(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 u32 get_screen_offset(struct AstRVAS *pAstRVAS)
 {
 	u32 dwScreenOffset = 0;
-	u32 addrVGACRC = pAstRVAS->grce_reg_base + GRCE_CRTC + 0xC; // Ch
-	u32 addrVGACRD = pAstRVAS->grce_reg_base + GRCE_CRTC + 0xD; // Dh
-	u32 addrVGACRAF = pAstRVAS->grce_reg_base + GRCE_CRTCEXT + 0x2F;
+	void __iomem *addrVGACRC = pAstRVAS->grce_reg_base + GRCE_CRTC + 0xC; // Ch
+	void __iomem *addrVGACRD = pAstRVAS->grce_reg_base + GRCE_CRTC + 0xD; // Dh
+	void __iomem *addrVGACRAF = pAstRVAS->grce_reg_base + GRCE_CRTCEXT + 0x2F;
 
 	if (pAstRVAS->current_vg.gmt == AGAGraphicsMode) {
-		dwScreenOffset = ((readb((void *)addrVGACRAF)) << 16) | ((readb((void *)addrVGACRC)) << 8) |
-				  (readb((void *)addrVGACRD));
+		dwScreenOffset = ((readb(addrVGACRAF) << 16) | ((readb(addrVGACRC)) << 8) |
+				(readb(addrVGACRD)));
 		dwScreenOffset *= pAstRVAS->current_vg.byBitsPerPixel >> 3;
 	}
 
@@ -467,32 +467,32 @@ u32 get_screen_offset(struct AstRVAS *pAstRVAS)
 
 void reset_snoop_engine(struct AstRVAS *pAstRVAS)
 {
-	u32 addr_snoop = pAstRVAS->fg_reg_base + TSE_SnoopMap_Offset;
+	void __iomem *addr_snoop = pAstRVAS->fg_reg_base + TSE_SnoopMap_Offset;
 	u32 reg_value = 0;
 	u32 iter;
 
-	writel(0x0, (void *)(pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset));
-	writel(0x3, (void *)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
-	reg_value = readl((void *)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
-	reg_value = readl((void *)(pAstRVAS->fg_reg_base + TSE_CS0Reg));
-	reg_value = readl((void *)(pAstRVAS->fg_reg_base + TSE_CS1Reg));
-	reg_value = readl((void *)(pAstRVAS->fg_reg_base + TSE_RS0Reg));
-	reg_value = readl((void *)(pAstRVAS->fg_reg_base + TSE_RS1Reg));
+	writel(0x0, pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset);
+	writel(0x3, pAstRVAS->fg_reg_base + TSE_Status_Register_Offset);
+	reg_value = readl(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset);
+	reg_value = readl(pAstRVAS->fg_reg_base + TSE_CS0Reg);
+	reg_value = readl(pAstRVAS->fg_reg_base + TSE_CS1Reg);
+	reg_value = readl(pAstRVAS->fg_reg_base + TSE_RS0Reg);
+	reg_value = readl(pAstRVAS->fg_reg_base + TSE_RS1Reg);
 
 	//Clear TSRR00 to TSRR126 (TSRR01 to TSRR127), Snoop Map
 	for (iter = 0; iter < 0x80; ++iter) {
-		reg_value = readl((void *)addr_snoop) + 1;
-		writel(reg_value, (void *)addr_snoop);
+		reg_value = readl(addr_snoop) + 1;
+		writel(reg_value, addr_snoop);
 	}
 
-	reg_value = readl((void *)(pAstRVAS->fg_reg_base + TSE_TileCount_Register_Offset));
+	reg_value = readl(pAstRVAS->fg_reg_base + TSE_TileCount_Register_Offset);
 }
 
 void set_snoop_engine(bool b_geom_chg, struct AstRVAS *pAstRVAS)
 {
-	u32 tscmd_reg = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
-	u32 tsfbsa_reg = pAstRVAS->fg_reg_base + TSE_FrameBuffer_Offset;
-	u32 tsulr_reg = pAstRVAS->fg_reg_base + TSE_UpperLimit_Offset;
+	void __iomem *tscmd_reg = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
+	void __iomem *tsfbsa_reg = pAstRVAS->fg_reg_base + TSE_FrameBuffer_Offset;
+	void __iomem *tsulr_reg = pAstRVAS->fg_reg_base + TSE_UpperLimit_Offset;
 	u32 new_tsfbsa = 0;
 	u32 tscmd = 0;
 	u8 byBytesPerPixel = 0x0;
@@ -503,7 +503,7 @@ void set_snoop_engine(bool b_geom_chg, struct AstRVAS *pAstRVAS)
 
 	// Calculate Start Address into the Frame Buffer
 	new_tsfbsa = get_screen_offset(pAstRVAS);
-	tscmd = readl((void *)(pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset));
+	tscmd = readl(tscmd_reg);
 
 	tscmd &= (1 << TSCMD_INT_ENBL_BIT);
 
@@ -515,7 +515,7 @@ void set_snoop_engine(bool b_geom_chg, struct AstRVAS *pAstRVAS)
 		  pAstRVAS->current_vg.wScreenHeight,
 		  pAstRVAS->current_vg.wStride);
 
-	if (b_geom_chg || (readl((void *)tsfbsa_reg) != new_tsfbsa)) {
+	if (b_geom_chg || (readl(tsfbsa_reg) != new_tsfbsa)) {
 		byBytesPerPixel = pAstRVAS->current_vg.byBitsPerPixel >> 3;
 
 		if (pAstRVAS->current_vg.gmt == VGAGraphicsMode ||
@@ -547,7 +547,7 @@ void set_snoop_engine(bool b_geom_chg, struct AstRVAS *pAstRVAS)
 		// set TSE SCR
 		// start the tile snoop engine
 		// flip the 15 bit
-		if (!(readl((void *)tscmd_reg) & TSCMD_SCREEN_OWNER))
+		if (!(readl(tscmd_reg) & TSCMD_SCREEN_OWNER))
 			tscmd |= TSCMD_SCREEN_OWNER;
 
 		tscmd |= (dwStride << TSCMD_PITCH_BIT) | (1 << TSCMD_CPT_BIT)
@@ -556,9 +556,9 @@ void set_snoop_engine(bool b_geom_chg, struct AstRVAS *pAstRVAS)
 			| (1 << TSCMD_VGA_MODE_BIT) | (1 << TSCMD_TSE_ENBL_BIT);
 		VIDEO_DBG("tscmd: %#8.8x\n", tscmd);
 		// set the TSFBSA & TSULR
-		writel(new_tsfbsa, (void *)tsfbsa_reg);
-		writel(BSE_UPPER_LIMIT, (void *)tsulr_reg);
-		writel(tscmd, (void *)tscmd_reg);
+		writel(new_tsfbsa, tsfbsa_reg);
+		writel(BSE_UPPER_LIMIT, tsulr_reg);
+		writel(tscmd, tscmd_reg);
 		//reset snoop information
 		get_snoop_map_data(pAstRVAS);
 		memset((void *)pAstRVAS->accrued_sm, 0,
@@ -611,14 +611,14 @@ void get_snoop_aggregate(struct AstRVAS *pAstRVAS)
 	u64 qwCol = 0;
 
 	// copy the snoop aggregate,row 64 bits
-	qwRow = readl((void *)(pAstRVAS->fg_reg_base + TSE_RS1Reg));
+	qwRow = readl(pAstRVAS->fg_reg_base + TSE_RS1Reg);
 	qwRow = qwRow << 32;
-	qwRow |= readl((void *)(pAstRVAS->fg_reg_base + TSE_RS0Reg));
+	qwRow |= readl(pAstRVAS->fg_reg_base + TSE_RS0Reg);
 
 	// column
-	qwCol = readl((void *)(pAstRVAS->fg_reg_base + TSE_CS1Reg));
+	qwCol = readl(pAstRVAS->fg_reg_base + TSE_CS1Reg);
 	qwCol = qwCol << 32;
-	qwCol |= readl((void *)(pAstRVAS->fg_reg_base + TSE_CS0Reg));
+	qwCol |= readl(pAstRVAS->fg_reg_base + TSE_CS0Reg);
 
 	VIDEO_DBG("Snoop Aggregate Row: 0x%16.16llx\n", qwRow);
 	VIDEO_DBG("Snoop Aggregate Col: 0x%16.16llx\n", qwCol);
@@ -708,34 +708,34 @@ static u32 setup_tfe_cr(struct FetchOperation *pfo)
 	return dwTFECR;
 }
 
-static void start_skip_mode_skip(struct Descriptor *pDescriptorVirtualAddr,
-				 u32 dwDescPhysicalAddr,
-				 u32 dwSourceAddr, u32 dwDestAddr, u16 wStride,
+static void start_skip_mode_skip(struct Descriptor *desc_virt,
+				 phys_addr_t desc_phys,
+				 phys_addr_t source_phys, phys_addr_t dest_addr, u16 wStride,
 				 u8 bytesPerPixel, u32 dwFetchWidthPixels,
 				 u32 dwFetchHeight, bool bRLEOverFLow)
 {
-	struct Descriptor *pVirtDesc = pDescriptorVirtualAddr;
+	struct Descriptor *pVirtDesc = desc_virt;
 
 	// Fetch Skipping data to a temp buffer
-	prepare_tfe_descriptor(pVirtDesc, dwSourceAddr, dwDestAddr, true, 1,
+	prepare_tfe_descriptor(pVirtDesc, source_phys, dest_addr, true, 1,
 			       false, wStride, bytesPerPixel,
 			       dwFetchWidthPixels, dwFetchHeight,
 			       LowByteMode, bRLEOverFLow, 0);
 
-	dwDestAddr += dwFetchWidthPixels * dwFetchHeight;
+	dest_addr += dwFetchWidthPixels * dwFetchHeight;
 	pVirtDesc++;
 
 	if (bytesPerPixel == 3 || bytesPerPixel == 4) {
-		prepare_tfe_descriptor(pVirtDesc, dwSourceAddr, dwDestAddr,
+		prepare_tfe_descriptor(pVirtDesc, source_phys, dest_addr,
 				       true, 1, false, wStride, bytesPerPixel,
 				       dwFetchWidthPixels, dwFetchHeight,
 				       MiddleByteMode, bRLEOverFLow, 0);
 
-		dwDestAddr += dwFetchWidthPixels * dwFetchHeight;
+		dest_addr += dwFetchWidthPixels * dwFetchHeight;
 		pVirtDesc++;
 	}
 
-	prepare_tfe_descriptor(pVirtDesc, dwSourceAddr, dwDestAddr, false, 1,
+	prepare_tfe_descriptor(pVirtDesc, source_phys, dest_addr, false, 1,
 			       false, wStride, bytesPerPixel,
 			       dwFetchWidthPixels, dwFetchHeight,
 			       TopByteMode, bRLEOverFLow, 1);
@@ -793,10 +793,10 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 {
 	struct FetchVideoTilesArg *pFVTDescriptor;
 	u32 dwCD = 0;
-	struct Descriptor *pDescriptorVirtualAddr;
-	u32 dwDescPhysicalAddr;
-	u32 dwSourcePhyAddr;
-	u32 dwDestinationPhyAddr;
+	struct Descriptor *pdesc_virt;
+	phys_addr_t qw_desc_phys;
+	phys_addr_t qw_source_phys;
+	phys_addr_t qw_destination_phys;
 	u8 bytesPerPixel;
 	struct FetchRegion *pfr;
 	bool bNotLastEntry = false;
@@ -806,13 +806,13 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 	bool bRLEOverFLow = false;
 	u32 dwFetchWidthPixels = 0;
 	u32 dwFetchHeight = 0;
-	u32 arg_phys = 0;
-	u32 data_phys_out = 0;
-	u32 data_phys_temp = 0;
+	phys_addr_t arg_phys = 0;
+	phys_addr_t data_phys_out = 0;
+	phys_addr_t data_phys_temp = 0;
 	u16 stride = 0;
 	bool bSkippingMode = false;
 	void *desc_virt = NULL;
-	u32 desc_phy = 0;
+	phys_addr_t desc_phy = 0;
 	struct ContextTable *ctx_entry = NULL;
 
 	VIDEO_DBG("DRIVER:::: TILE FETCH CHAINING\n");
@@ -835,18 +835,18 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 	//Intermediate Buffer
 	data_phys_temp = get_phys_add_rsvd_mem((u32)ri->rmh2, pAstRVAS);
 
-	dwDestinationPhyAddr = data_phys_out;
+	qw_destination_phys = data_phys_out;
 	pFVTDescriptor = (struct FetchVideoTilesArg *)get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS);
-	VIDEO_DBG("Destination virtual Add: 0x%p\n", get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS));
-	VIDEO_DBG("Destination Physical Add: %#x\n", dwDestinationPhyAddr);
+	VIDEO_DBG("Destination virtual Add: 0x%llx\n", get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS));
+	VIDEO_DBG("Destination Physical Add: %llx\n", qw_destination_phys);
 	memset(desc_virt, 0x00, PAGE_SIZE);
 
 	if (arg_phys && data_phys_out && data_phys_temp) {
-		pDescriptorVirtualAddr = (struct Descriptor *)desc_virt;
-		dwDescPhysicalAddr = desc_phy;
-		VIDEO_DBG("Descriptor Virtual Addr: %#x\n",
-			  (u32)pDescriptorVirtualAddr);
-		VIDEO_DBG("Descriptor Physical Addr: %#x\n", dwDescPhysicalAddr);
+		pdesc_virt = (struct Descriptor *)desc_virt;
+		qw_desc_phys = desc_phy;
+		VIDEO_DBG("Descriptor Virtual Addr: %llx\n",
+			  (phys_addr_t)desc_virt);
+		VIDEO_DBG("Descriptor Physical Addr: %llx\n", qw_desc_phys);
 		stride = pFVTDescriptor->vg.wStride;
 
 		if (pFVTDescriptor->vg.byBitsPerPixel == 4) {
@@ -868,26 +868,26 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 			pfr = &pFVTDescriptor->pfo[dwCD].fr;
 			// find Source Address
 			if (pFVTDescriptor->vg.byBitsPerPixel == 4) {
-				dwSourcePhyAddr = get_phy_fb_start_address(pAstRVAS)
+				qw_source_phys = get_phy_fb_start_address(pAstRVAS)
 								+ ((pfr->wLeftX * bytesPerPixel) >> 1)
 								+ pfr->wTopY * stride
 								* bytesPerPixel;
 
 				dwFetchWidthPixels = (pfr->wRightX - pfr->wLeftX + 1) >> 1;
 			} else {
-				dwSourcePhyAddr = get_phy_fb_start_address(pAstRVAS)
+				qw_source_phys = get_phy_fb_start_address(pAstRVAS)
 						+ pfr->wLeftX * bytesPerPixel
 						+ pfr->wTopY * stride
 						* bytesPerPixel;
 
 				dwFetchWidthPixels = (pfr->wRightX - pfr->wLeftX + 1);
 			}
-			VIDEO_DBG("dwCD: %u dwSourcePhyAddr: %#x\n", dwCD,
-				  dwSourcePhyAddr);
+			VIDEO_DBG("dwCD: %u qw_source_phys: %#x\n", dwCD,
+				  qw_source_phys);
 			dwFetchHeight = pfr->wBottomY - pfr->wTopY + 1;
 
 			VIDEO_DBG("DESCRIPTOR virtual ADDRESS: 0x%p\n",
-				  pDescriptorVirtualAddr);
+				  pdesc_virt);
 			if (pFVTDescriptor->vg.byBitsPerPixel == 4)
 				pFVTDescriptor->pfo[dwCD].sbm =
 					PlanarToPackedMode;
@@ -901,8 +901,8 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 				true : false;
 
 			if (bSkippingMode && bytesPerPixel > 1) {
-				u32 skipSrcAddr = dwSourcePhyAddr;
-				u32 skipDestAddr = dwDestinationPhyAddr;
+				u32 skipSrcAddr = qw_source_phys;
+				u32 skipDestAddr = qw_destination_phys;
 				u8 byPostBytesPerPixel =
 					(bytesPerPixel == 2) ? 2 : 3;
 				VIDEO_DBG("In SkippingMode...\n");
@@ -912,8 +912,8 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 					skipDestAddr = data_phys_temp;
 				}
 
-				start_skip_mode_skip(pDescriptorVirtualAddr,
-						     dwDescPhysicalAddr, skipSrcAddr,
+				start_skip_mode_skip(pdesc_virt,
+						     qw_desc_phys, skipSrcAddr,
 						     skipDestAddr,
 						     pFVTDescriptor->vg.wStride,
 						     bytesPerPixel, dwFetchWidthPixels,
@@ -921,11 +921,11 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 
 				if (pFVTDescriptor->pfo[dwCD].bEnableRLE) {
 					u32 rleSrcAddr = skipDestAddr;
-					u32 rleDesAddr = dwDestinationPhyAddr;
+					u32 rleDesAddr = qw_destination_phys;
 
 					///// take second look at skip mode for using map single
 					if (sleep_on_tfe_busy(pAstRVAS,
-							      dwDescPhysicalAddr, // Descriptor physical Address
+							      qw_desc_phys, // Descriptor physical Address
 							      dwTFECR, // control register value
 							      pFVTDescriptor->pfo[dwCD].dwFetchSize, // bandwidth limitor value
 							      &dwRLESize,    // out:: rle size
@@ -935,9 +935,9 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 						return;
 					}
 
-					// perform RLE from Temp buffer to dwDestinationPhyAddr
+					// perform RLE from Temp buffer to qw_destination_phys
 					//VIDEO_DBG("skip rle\n");
-					prepare_tfe_descriptor(pDescriptorVirtualAddr,
+					prepare_tfe_descriptor(pdesc_virt,
 							       rleSrcAddr, rleDesAddr,
 							       bNotLastEntry, 1,
 							       pFVTDescriptor->pfo[dwCD].bEnableRLE,
@@ -948,20 +948,20 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 							       bRLEOverFLow, 1);
 				}
 			} else {
-				VIDEO_DBG("Prep TFE Desc - no skipping\n");
-				prepare_tfe_descriptor(pDescriptorVirtualAddr,
-						       dwSourcePhyAddr, dwDestinationPhyAddr,
+				VIDEO_DBG("Preparing TFE Descriptor with no skipping...\n");
+				prepare_tfe_descriptor(pdesc_virt,
+						       qw_source_phys, qw_destination_phys,
 						       bNotLastEntry, 1,
 						       pFVTDescriptor->pfo[dwCD].bEnableRLE,
 						       stride, bytesPerPixel,
 						       dwFetchWidthPixels, dwFetchHeight,
 						       pFVTDescriptor->pfo[dwCD].sbm,
 						       bRLEOverFLow, 1);
-				VIDEO_DBG("Done prep TFE Desc-no skipping\n");
+				VIDEO_DBG("Successfully prepared TFE Descriptor with no skipping\n");
 			}
 			VIDEO_DBG("Sleeping while TFE is busy...\n");
 
-			if (sleep_on_tfe_busy(pAstRVAS, dwDescPhysicalAddr, // Descriptor physical Address
+			if (sleep_on_tfe_busy(pAstRVAS, qw_desc_phys, // Descriptor physical Address
 					      dwTFECR,               // control register value
 					      pFVTDescriptor->pfo[dwCD].dwFetchSize, // bandwidth limitor value
 					      &dwRLESize,                    // out:: rle size
@@ -992,15 +992,15 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 						true;
 
 					if (bSkippingMode) {
-						u32 skipSrcAddr =
-							dwSourcePhyAddr;
-						u32 skipDestAddr =
-							dwDestinationPhyAddr;
+						phys_addr_t skip_source_addr =
+							qw_source_phys;
+						phys_addr_t skip_dest_addr =
+							qw_destination_phys;
 
-						start_skip_mode_skip(pDescriptorVirtualAddr,
-								     dwDescPhysicalAddr,
-								     skipSrcAddr,
-								     skipDestAddr,
+						start_skip_mode_skip(pdesc_virt,
+								     qw_desc_phys,
+								     skip_source_addr,
+								     skip_dest_addr,
 								     pFVTDescriptor->vg.wStride,
 								     bytesPerPixel,
 								     dwFetchWidthPixels,
@@ -1008,9 +1008,9 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 								     bRLEOverFLow);
 					} else {
 						VIDEO_DBG(" FETCH - 4\n");
-						prepare_tfe_descriptor(pDescriptorVirtualAddr,
-								       dwSourcePhyAddr,
-								       dwDestinationPhyAddr,
+						prepare_tfe_descriptor(pdesc_virt,
+								       qw_source_phys,
+								       qw_destination_phys,
 								       bNotLastEntry, 1, false,
 								       pFVTDescriptor->vg.wStride,
 								       bytesPerPixel,
@@ -1021,7 +1021,7 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 					}
 
 					if (sleep_on_tfe_busy(pAstRVAS,
-							      dwDescPhysicalAddr, // Descriptor physical Address
+							      qw_desc_phys, // Descriptor physical Address
 							      dwTFECR, // control register value
 							      pFVTDescriptor->pfo[dwCD].dwFetchSize, // bandwidth limitor value
 							      &dwRLESize,    // out:: rle size
@@ -1048,7 +1048,7 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 			VIDEO_DBG("DRIVER:: RLE: %u, nonRLE: %u\n", dwRLESize,
 				  pFVTDescriptor->pfo[dwCD].dwFetchSize);
 			VIDEO_DBG("FETCH:: loop FETCH size: %u\n", dwTotalFetchSize);
-			dwDestinationPhyAddr = data_phys_out + dwTotalFetchSize;
+			qw_destination_phys = data_phys_out + dwTotalFetchSize;
 		} //for TFE
 
 		pFVTDescriptor->dwTotalOutputSize = dwTotalFetchSize;
@@ -1059,8 +1059,8 @@ void ioctl_fetch_video_tiles(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 	}
 } // End - ioctl_fetch_video_tiles
 
-void prepare_ldma_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			     u32 dwDestAddress, u32 dwLDMASize, u8 byNotLastEntry)
+void prepare_ldma_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			     phys_addr_t dest_addr, u32 dwLDMASize, u8 byNotLastEntry)
 {
 	u8 byInterrupt = 0;
 
@@ -1078,8 +1078,8 @@ void prepare_ldma_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
 
 	pDAddress->dw0General = ((dwLDMASize - 1) << 8) | (byNotLastEntry << 1)
 		| byInterrupt;
-	pDAddress->dw2SourceAddr = dwSourceAddress;
-	pDAddress->dw3DestinationAddr = dwDestAddress;
+	pDAddress->dw2SourceAddr = (u32)source_addr;
+	pDAddress->dw3DestinationAddr = (u32)dest_addr;
 
 	VIDEO_DBG("u32 0: 0x%x\n", pDAddress->dw0General);
 	VIDEO_DBG("u32 1: 0x%x\n", pDAddress->dw1FetchWidthLine);
@@ -1147,7 +1147,7 @@ void ioctl_run_length_encode_data(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS
 				       bytesPerPixel, dwFetchWidthPixels,
 				       dwFetchHeight, AllBytesMode, bRLEOverFLow, 1);
 
-		if (sleep_on_tfe_busy(pAstRVAS, (u32)pDescriptorAddPhys,
+		if (sleep_on_tfe_busy(pAstRVAS, (phys_addr_t)pDescriptorAddPhys,
 				      dwTFECR, data_size, &ri->rle_len,
 				      &ri->rle_checksum) == false) {
 			ri->rs = GenericError;
@@ -1192,10 +1192,10 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 {
 	struct FetchVideoSlicesArg *pFVSA;
 	u32 dwCD;
-	struct Descriptor *pDescriptorVirtualAddr;
-	u32 dwDescPhysicalAddr;
-	u32 dwSourceAddress;
-	u32 dwDestinationAddress1Index;
+	struct Descriptor *pdesc_virt;
+	phys_addr_t qw_desc_phys;
+	phys_addr_t source_addr;
+	phys_addr_t slice_dest_addr;
 	u8 bytesPerPixel;
 	bool bNotLastEntry = true;
 	bool bInterrupt = false;
@@ -1204,17 +1204,17 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 	bool bRLEOverFLow = false;
 	u32 dwFetchWidthPixels = 0;
 	u32 dwFetchHeight = 0;
-	u32 arg_phys = 0;
-	u32 data_phys_out = 0;
-	u32 data_phys_rle = 0;
+	phys_addr_t arg_phys = 0;
+	phys_addr_t data_phys_out = 0;
+	phys_addr_t data_phys_rle = 0;
 	struct BSEAggregateRegister aBSEAR;
 	struct Descriptor *pNextDescriptor = 0;
-	u32 dwNexDestAddr = 0;
+	phys_addr_t dest_next_addr = 0;
 	u32 dwBucketSizeIter = 0;
 	bool bBucketSizeEnable = 0;
-	u32 addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
+	void __iomem *addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
 	void *desc_virt = NULL;
-	u32 desc_phy = 0;
+	phys_addr_t desc_phy = 0;
 	struct ContextTable *ctx_entry = get_context_entry(ri->rc, pAstRVAS);
 
 	VIDEO_DBG("Start\n");
@@ -1238,35 +1238,35 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 		return;
 	}
 	ri->rs = SuccessStatus;
-	dwDestinationAddress1Index = data_phys_out;
+	slice_dest_addr = data_phys_out;
 	pFVSA = (struct FetchVideoSlicesArg *)get_virt_add_rsvd_mem((u32)ri->rmh, pAstRVAS);
 
 	VIDEO_DBG("bEnableRLE: %d cBuckets: %u cfr: %u\n", pFVSA->bEnableRLE,
 		  pFVSA->cBuckets, pFVSA->cfr);
 
 	if (pFVSA->cfr > 1) {
-		writel(readl((void *)addrBSCR) | BSE_ENABLE_MULT_BUCKET_SZS, (void *)addrBSCR);
+		writel(readl(addrBSCR) | BSE_ENABLE_MULT_BUCKET_SZS, addrBSCR);
 		bBucketSizeEnable = 1;
 	} else {
-		writel(readl((void *)addrBSCR) & (~BSE_ENABLE_MULT_BUCKET_SZS), (void *)addrBSCR);
+		writel(readl(addrBSCR) & (~BSE_ENABLE_MULT_BUCKET_SZS), addrBSCR);
 		bBucketSizeEnable = 0;
 	}
 
-	VIDEO_DBG("*pdwBSCR: %#x bBucketSizeEnable: %d\n", readl((void *)addrBSCR),
+	VIDEO_DBG("*pdwBSCR: %#x bBucketSizeEnable: %d\n", readl(addrBSCR),
 		  bBucketSizeEnable);
 
-	pDescriptorVirtualAddr = ctx_entry->desc_virt;
-	dwDescPhysicalAddr = ctx_entry->desc_phy;
+	pdesc_virt = ctx_entry->desc_virt;
+	qw_desc_phys = ctx_entry->desc_phy;
 	bytesPerPixel = pFVSA->vg.byBitsPerPixel >> 3;
 
 	VIDEO_DBG("BSE:: u8 per pixel: %d\n", bytesPerPixel);
 	VIDEO_DBG("BSE:: cfr: %u bucket size: %d\n", pFVSA->cfr, pFVSA->cBuckets);
 
-	pNextDescriptor = pDescriptorVirtualAddr;
-	dwNexDestAddr = dwDestinationAddress1Index;
+	pNextDescriptor = pdesc_virt;
+	dest_next_addr = slice_dest_addr;
 	// Prepare BSE Descriptors for all Regions
-	VIDEO_DBG("pNextDescriptor 0x%p dwNexDestAddr: %#x\n", pNextDescriptor,
-		  dwNexDestAddr);
+	VIDEO_DBG("pNextDescriptor 0x%p dest_next_addr: %#x\n", pNextDescriptor,
+		  dest_next_addr);
 
 	for (dwCD = 0; dwCD < pFVSA->cfr; dwCD++) {
 		VIDEO_DBG("dwCD: %u\n", dwCD);
@@ -1275,7 +1275,7 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 		VIDEO_DBG("pfr->wRightX :%d\n", pFVSA->pfr[dwCD].wRightX);
 		VIDEO_DBG("pfr->wBottomY :%d\n", pFVSA->pfr[dwCD].wBottomY);
 
-		dwSourceAddress = get_phy_fb_start_address(pAstRVAS)
+		source_addr = get_phy_fb_start_address(pAstRVAS)
 			+ pFVSA->pfr[dwCD].wLeftX * bytesPerPixel
 			+ pFVSA->pfr[dwCD].wTopY * pFVSA->vg.wStride
 			* bytesPerPixel;
@@ -1291,8 +1291,8 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 		if (!bBucketSizeEnable) {
 			bNotLastEntry = false;
 			bInterrupt = true;
-			prepare_bse_descriptor(pDescriptorVirtualAddr,
-					       dwSourceAddress, dwDestinationAddress1Index,
+			prepare_bse_descriptor(pdesc_virt,
+					       source_addr, slice_dest_addr,
 					       bNotLastEntry, pFVSA->vg.wStride, bytesPerPixel,
 					       dwFetchWidthPixels, dwFetchHeight, bInterrupt);
 			dwFetchSize += (pFVSA->cBuckets
@@ -1311,8 +1311,8 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 			}
 
 			prepare_bse_descriptor_2(pNextDescriptor,
-						 dwSourceAddress,
-						 dwNexDestAddr, bNotLastEntry,
+						 source_addr,
+						 dest_next_addr, bNotLastEntry,
 						 pFVSA->vg.wStride, bytesPerPixel,
 						 dwFetchWidthPixels, dwFetchHeight,
 						 bInterrupt,
@@ -1328,7 +1328,7 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 			pNextDescriptor++;
 			dwFetchSize += pFVSA->cBuckets
 				* ((dwFetchWidthPixels * dwFetchHeight) >> 3); //each bucket size
-			dwNexDestAddr = dwDestinationAddress1Index
+			dest_next_addr = slice_dest_addr
 				+ dwFetchSize;
 		}
 	}
@@ -1340,7 +1340,7 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 
 		VIDEO_DBG("Sleeping on BSE to complete\n");
 
-		if (sleep_on_bse_busy(pAstRVAS, dwDescPhysicalAddr, aBSEAR,
+		if (sleep_on_bse_busy(pAstRVAS, qw_desc_phys, aBSEAR,
 				      dwFetchSize) == false) {
 			dev_err(pAstRVAS->pdev, ".....BSE Timeout\n");
 			ri->rs = GenericError;
@@ -1369,14 +1369,14 @@ void ioctl_fetch_video_slices(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 		dwFetchWidthPixels = get_video_slice_fetch_width(pFVSA->cBuckets);
 		dwFetchHeight = dwFetchSize / dwFetchWidthPixels;
 
-		prepare_tfe_descriptor(pDescriptorVirtualAddr, data_phys_out,
+		prepare_tfe_descriptor(pdesc_virt, data_phys_out,
 				       data_phys_rle, bNotLastEntry, 1, pFVSA->bEnableRLE,
 				       dwFetchWidthPixels, bytesPerPixel, dwFetchWidthPixels,
 				       dwFetchHeight, 0, bRLEOverFLow, 1);
 
 		VIDEO_DBG("TFE-RLE Control Register value: 0x%x\n", dwTFECR);
 
-		if (sleep_on_tfe_busy(pAstRVAS, dwDescPhysicalAddr, // Descriptor physical Address
+		if (sleep_on_tfe_busy(pAstRVAS, qw_desc_phys, // Descriptor physical Address
 			dwTFECR,               // control register value
 			dwFetchSize,          // bandwidth limiter value
 			&pFVSA->dwSlicedRLESize,       // out:: rle size
@@ -1412,20 +1412,20 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 	struct Descriptor *pDescriptorAdd;
 	struct Descriptor *pDescriptorAddPhys;
 	u32 dwScreenOffset = 0x00;
-	u32 dwSourceAddress = get_phy_fb_start_address(pAstRVAS);
-	u32 dwDestinationAddress;
+	phys_addr_t source_addr = get_phy_fb_start_address(pAstRVAS);
+	phys_addr_t dest_addr;
 	bool bRLEOverFlow = false;
 	bool bInterrupt = true;
 	u32 wFetchLines = 0;
 	u8 byCharacterPerLine = 0;
 	u16 wFetchWidthInBytes = 0;
-	u32 data_phys = 0;
-	u32 data_phys_rle = 0;
-	u32 data_phys_temp = 0;
+	phys_addr_t data_phys = 0;
+	phys_addr_t data_phys_rle = 0;
+	phys_addr_t data_phys_temp = 0;
 	u32 dwCtrlRegValue = 0;
 	u32 dwMinBufSize = 0;
 	void *desc_virt = NULL;
-	u32 desc_phy = 0;
+	phys_addr_t desc_phy = 0;
 	struct ContextTable *ctx_entry = NULL;
 
 	VIDEO_DBG("Start\n");
@@ -1462,22 +1462,22 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 	memset(desc_virt, 0x00, MAX_DESC_SIZE);
 	pDescriptorAdd = desc_virt;
 	pDescriptorAddPhys = (struct Descriptor *)desc_phy;
-	dwDestinationAddress = data_phys;
+	dest_addr = data_phys;
 
 	// Enable TFE
 	dwCtrlRegValue |= 1;
 	dwCtrlRegValue &= TFCTL_DESCRIPTOR_IN_DDR_MASK;
 	// set up the text alignment
 	dwScreenOffset = get_screen_offset(pAstRVAS);
-	dwSourceAddress += dwScreenOffset;
-	VIDEO_DBG("screen offset:%#x, Source start Addr: %#x\n", dwScreenOffset,
-		  dwSourceAddress);
+	source_addr += dwScreenOffset;
+	VIDEO_DBG("screen offset:%#x, Source start Addr: %%llx\n", dwScreenOffset,
+		  source_addr);
 	if (ri->tfm.dpm == AttrMode) { // ATTR and ASCII
 		data_phys_temp = data_phys_rle;
 		wFetchWidthInBytes = byCharacterPerLine << 3;
 		// must fetch both ascii & attr
 		VIDEO_DBG("Attribute and ASCII\n");
-		prepare_tfe_text_descriptor(desc_virt, dwSourceAddress,
+		prepare_tfe_text_descriptor(desc_virt, source_addr,
 					    data_phys_temp,
 					    false, wFetchWidthInBytes, wFetchLines,
 					    ri->tfm.dpm, bRLEOverFlow, bInterrupt);
@@ -1485,16 +1485,16 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 	} else if (ri->tfm.dpm == AsciiOnlyMode) {
 		wFetchWidthInBytes = byCharacterPerLine << 3;
 		VIDEO_DBG("ASCII Only\n");
-		prepare_tfe_text_descriptor(desc_virt, dwSourceAddress,
-					    dwDestinationAddress,
+		prepare_tfe_text_descriptor(desc_virt, source_addr,
+					    dest_addr,
 					    false, wFetchWidthInBytes, wFetchLines,
 					    ri->tfm.dpm, bRLEOverFlow, bInterrupt);
 		ri->tfm.dwFetchSize = byCharacterPerLine * wFetchLines;
 	} else if (ri->tfm.dpm == FontFetchMode) {
 		wFetchWidthInBytes = byCharacterPerLine << 2;
 		VIDEO_DBG("Font Only\n");
-		prepare_tfe_text_descriptor(desc_virt, dwSourceAddress,
-					    dwDestinationAddress,
+		prepare_tfe_text_descriptor(desc_virt, source_addr,
+					    dest_addr,
 					    false, wFetchWidthInBytes,
 					    wFetchLines + 256,
 					    ri->tfm.dpm, bRLEOverFlow, bInterrupt);
@@ -1523,8 +1523,8 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 
 	if (ri->tfm.dpm == AttrMode) {
 		//separate ATTR from ATTR+ASCII
-		dwSourceAddress = data_phys_temp;
-		dwDestinationAddress = data_phys;
+		source_addr = data_phys_temp;
+		dest_addr = data_phys;
 		prepare_tfe_descriptor(desc_virt, data_phys_temp, data_phys,
 				       false,        //not last entry?
 				       1,        //checksum
@@ -1537,7 +1537,7 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 		ri->tfm.dwFetchSize = byCharacterPerLine * wFetchLines;
 
 		dwCtrlRegValue |= 1 << 1;        // enabled IRQ
-		if (sleep_on_tfe_text_busy(pAstRVAS, (u32)pDescriptorAddPhys,
+		if (sleep_on_tfe_text_busy(pAstRVAS, (phys_addr_t)pDescriptorAddPhys,
 					   dwCtrlRegValue, ri->tfm.dwFetchSize,
 					   &ri->tfm.dwFetchRLESize, &ri->tfm.dwCheckSum) == false) {
 			dev_err(pAstRVAS->pdev, "Could not sleep_on_tfe_busy for attributes # 2\n");
@@ -1551,12 +1551,12 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 		dwCtrlRegValue = 1;
 		dwCtrlRegValue |= (ri->tfm.byRLETripletCode << 24)
 			| (ri->tfm.byRLERepeatCode << 16);
-		dwSourceAddress = dwDestinationAddress;
-		dwDestinationAddress = data_phys_rle;
+		source_addr = dest_addr;
+		dest_addr = data_phys_rle;
 
 		// RLE only
-		prepare_tfe_descriptor(pDescriptorAdd, dwSourceAddress,
-				       dwDestinationAddress,
+		prepare_tfe_descriptor(pDescriptorAdd, source_addr,
+				       dest_addr,
 				       false,        //not last entry?
 				       1,        //checksum
 				       bRLEOn,        //RLE?
@@ -1566,7 +1566,7 @@ void on_fetch_text_data(struct RvasIoctl *ri, bool bRLEOn, struct AstRVAS *pAstR
 
 		dwCtrlRegValue |= 1 << 1;        // enabled IRQ
 
-		if (sleep_on_tfe_busy(pAstRVAS, (u32)pDescriptorAddPhys, // Descriptor physical Address
+		if (sleep_on_tfe_busy(pAstRVAS, (phys_addr_t)pDescriptorAddPhys, // Descriptor physical Address
 				      dwCtrlRegValue,        // control register value
 				      ri->tfm.dwFetchSize,        // bandwidth limitor value
 				      &ri->tfm.dwFetchRLESize,        // out:: rle size
@@ -1587,7 +1587,7 @@ u8 get_text_mode_character_per_line(struct AstRVAS *pAstRVAS, u16 wScreenWidth)
 {
 	u8 byCharPerLine = 0x00;
 	u8 byCharWidth = 0;
-	u8 byVGASR1 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_SEQ + 0x1));
+	u8 byVGASR1 = readb(pAstRVAS->grce_reg_base + GRCE_SEQ + 0x1);
 
 	byCharWidth = (byVGASR1 & 0x1) ? 8 : 9;
 	byCharPerLine = wScreenWidth / byCharWidth;
@@ -1597,7 +1597,7 @@ u8 get_text_mode_character_per_line(struct AstRVAS *pAstRVAS, u16 wScreenWidth)
 
 u16 get_text_mode_fetch_lines(struct AstRVAS *pAstRVAS, u16 wScreenHeight)
 {
-	u8 byVGACR9 = readb((void *)(pAstRVAS->grce_reg_base + GRCE_CRTC + 0x9));
+	u8 byVGACR9 = readb(pAstRVAS->grce_reg_base + GRCE_CRTC + 0x9);
 	u8 byFontHeight = (byVGACR9 & 0x1F) + 1;
 	u16 wFetchLines;
 
@@ -1610,8 +1610,8 @@ u16 get_text_mode_fetch_lines(struct AstRVAS *pAstRVAS, u16 wScreenHeight)
 // HELPER Functions
 //
 
-void prepare_bse_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			    u32 dwDestAddress, bool bNotLastEntry,
+void prepare_bse_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			    phys_addr_t dest_addr, bool bNotLastEntry,
 			    u16 wStride, u8 bytesPerPixel,
 			    u32 dwFetchWidthPixels, u32 dwFetchHeight,
 			    bool bInterrupt)
@@ -1631,8 +1631,8 @@ void prepare_bse_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
 		| (wDestinationStride << 8) | (bNotLastEntry << 1) | bInterrupt;
 	pDAddress->dw1FetchWidthLine = ((dwFetchHeight - 1) << 16)
 		| (dwFetchWidthPixels * bytesPerPixel - 1);
-	pDAddress->dw2SourceAddr = dwSourceAddress & 0xfffffffc;
-	pDAddress->dw3DestinationAddr = dwDestAddress & 0xfffffffc;
+	pDAddress->dw2SourceAddr = (u32)source_addr & 0xfffffffc;
+	pDAddress->dw3DestinationAddr = (u32)dest_addr & 0xfffffffc;
 
 	VIDEO_DBG("After SETTING BSE Descriptor\n");
 	VIDEO_DBG("u32 0: 0x%x\n", pDAddress->dw0General);
@@ -1642,8 +1642,8 @@ void prepare_bse_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
 }
 
 //for descriptor chaining
-void prepare_bse_descriptor_2(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			      u32 dwDestAddress, bool bNotLastEntry,
+void prepare_bse_descriptor_2(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			      phys_addr_t dest_addr, bool bNotLastEntry,
 			      u16 wStride, u8 bytesPerPixel,
 			      u32 dwFetchWidthPixels, u32 dwFetchHeight,
 			      bool bInterrupt, u8 byBuckSizeRegIndex)
@@ -1665,8 +1665,8 @@ void prepare_bse_descriptor_2(struct Descriptor *pDAddress, u32 dwSourceAddress,
 		| (bNotLastEntry << 1) | bInterrupt;
 	pDAddress->dw1FetchWidthLine = ((dwFetchHeight - 1) << 16)
 		| (dwFetchWidthPixels * bytesPerPixel - 1);
-	pDAddress->dw2SourceAddr = dwSourceAddress & 0xfffffffc;
-	pDAddress->dw3DestinationAddr = dwDestAddress & 0xfffffffc;
+	pDAddress->dw2SourceAddr = (u32)source_addr & 0xfffffffc;
+	pDAddress->dw3DestinationAddr = (u32)dest_addr & 0xfffffffc;
 
 	VIDEO_DBG("AFter SETTING BSE Descriptor\n");
 	VIDEO_DBG("u32 0: 0x%x\n", pDAddress->dw0General);
@@ -1681,8 +1681,8 @@ struct BSEAggregateRegister set_up_bse_bucket_2(struct AstRVAS *pAstRVAS, u8 *ab
 						u32 dwBucketSizeIndex)
 {
 	struct BSEAggregateRegister aBSEAR = { 0 };
-	u32 addrBSDBS = 0;
-	u32 addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
+	void __iomem *addrBSDBS = 0;
+	void __iomem *addrBSCR = pAstRVAS->fg_reg_base + BSE_Command_Register;
 
 	if (dwBucketSizeIndex >= BSE_MAX_BUCKET_SIZE_REGS) {
 		dev_err(pAstRVAS->pdev, "Video::BSE bucket size index %d too big!",
@@ -1697,10 +1697,10 @@ struct BSEAggregateRegister set_up_bse_bucket_2(struct AstRVAS *pAstRVAS, u8 *ab
 	aBSEAR = setUp_bse_bucket(abyBitIndexes, byTotalBucketCount,
 				  byBSBytesPerPixel, dwFetchWidthPixels, dwFetchHeight);
 
-	writel(aBSEAR.dwBSDBS, (void *)addrBSDBS);
-	aBSEAR.dwBSCR |= readl((void *)addrBSCR) & (BSE_ENABLE_MULT_BUCKET_SZS);
+	writel(aBSEAR.dwBSDBS, addrBSDBS);
+	aBSEAR.dwBSCR |= readl(addrBSCR) & (BSE_ENABLE_MULT_BUCKET_SZS);
 	VIDEO_DBG("BSE Bucket size register index %d, [%#x], readback 0x%x\n",
-		  dwBucketSizeIndex, aBSEAR.dwBSDBS, readl((void *)addrBSCR));
+		  dwBucketSizeIndex, aBSEAR.dwBSDBS, readl(addrBSCR));
 
 	return aBSEAR;
 }
@@ -1768,8 +1768,8 @@ struct BSEAggregateRegister setUp_bse_bucket(u8 *abyBitIndexes, u8 byTotalBucket
 	return aBSEAR;
 }
 
-void prepare_tfe_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-			    u32 dwDestAddress, bool bNotLastEntry, u8 bCheckSum,
+void prepare_tfe_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+			    phys_addr_t dest_addr, bool bNotLastEntry, u8 bCheckSum,
 			    bool bEnabledRLE, u16 wStride, u8 bytesPerPixel,
 			    u32 dwFetchWidthPixels, u32 dwFetchHeight,
 			    enum SelectedByteMode sbm, bool bRLEOverFLow,
@@ -1852,8 +1852,8 @@ void prepare_tfe_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
 		| bInterrupt;
 	pDAddress->dw1FetchWidthLine = ((dwFetchHeight - 1) << 16)
 		| (dwFetchWidthPixels * bytesPerPixel - 1);
-	pDAddress->dw2SourceAddr = dwSourceAddress & 0xfffffffc;
-	pDAddress->dw3DestinationAddr = dwDestAddress & 0xfffffffc;
+	pDAddress->dw2SourceAddr = (u32)source_addr & 0xfffffffc;
+	pDAddress->dw3DestinationAddr = (u32)dest_addr & 0xfffffffc;
 
 	VIDEO_DBG("After SETTING TFE Descriptor\n");
 	VIDEO_DBG("u32 0: 0x%x\n", pDAddress->dw0General);
@@ -1862,8 +1862,8 @@ void prepare_tfe_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
 	VIDEO_DBG("u32 3: 0x%x\n", pDAddress->dw3DestinationAddr);
 }
 
-void prepare_tfe_text_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddress,
-				 u32 dwDestAddress, bool bEnabledRLE, u32 dwFetchWidth,
+void prepare_tfe_text_descriptor(struct Descriptor *pDAddress, phys_addr_t source_addr,
+				 phys_addr_t dest_addr, bool bEnabledRLE, u32 dwFetchWidth,
 				 u32 dwFetchHeight, enum DataProccessMode dpm,
 				 bool bRLEOverFLow, bool bInterrupt)
 {
@@ -1881,8 +1881,8 @@ void prepare_tfe_text_descriptor(struct Descriptor *pDAddress, u32 dwSourceAddre
 		| bInterrupt;
 	pDAddress->dw1FetchWidthLine = ((dwFetchHeight - 1) << 16)
 		| (dwFetchWidth - 1);
-	pDAddress->dw2SourceAddr = dwSourceAddress & 0xfffffffc;
-	pDAddress->dw3DestinationAddr = dwDestAddress & 0xfffffffc;
+	pDAddress->dw2SourceAddr = (u32)source_addr & 0xfffffffc;
+	pDAddress->dw3DestinationAddr = (u32)dest_addr & 0xfffffffc;
 
 	VIDEO_DBG("u32 0: 0x%x\n", pDAddress->dw0General);
 	VIDEO_DBG("u32 1: 0x%x\n", pDAddress->dw1FetchWidthLine);
@@ -1894,18 +1894,18 @@ void on_fetch_mode_13_data(struct AstRVAS *pAstRVAS, struct RvasIoctl *ri, bool 
 {
 	struct Descriptor *pDescriptorAdd;
 	struct Descriptor *pDescriptorAddPhys;
-	u32 dwSourceAddress = get_phy_fb_start_address(pAstRVAS);
-	u32 dwDestinationAddress;
+	phys_addr_t source_addr = get_phy_fb_start_address(pAstRVAS);
+	phys_addr_t dest_addr;
 	bool bRLEOverFlow = false;
 	bool bNotLastEntry = false;
 	bool bInterrupt = 1;
 	u32 dwFetchHeight = MODE13_HEIGHT;
 	u32 dwFetchWidth = MODE13_WIDTH;
-	u32 data_phys = 0;
-	u32 data_phys_rle = 0;
+	phys_addr_t data_phys = 0;
+	phys_addr_t data_phys_rle = 0;
 	u32 dwCtrlRegValue = 0x55AA0080;
 	void *desc_virt = NULL;
-	u32 desc_phy = 0;
+	phys_addr_t desc_phy = 0;
 	struct ContextTable *ctx_entry = NULL;
 
 	VIDEO_DBG("Start, bRLEOn: %d\n", bRLEOn);
@@ -1945,9 +1945,9 @@ void on_fetch_mode_13_data(struct AstRVAS *pAstRVAS, struct RvasIoctl *ri, bool 
 	// Enable TFE
 	dwCtrlRegValue |= 1;
 	dwCtrlRegValue &= TFCTL_DESCRIPTOR_IN_DDR_MASK;
-	dwDestinationAddress = data_phys;
-	prepare_tfe_descriptor(pDescriptorAdd, dwSourceAddress,
-			       dwDestinationAddress,
+	dest_addr = data_phys;
+	prepare_tfe_descriptor(pDescriptorAdd, source_addr,
+			       dest_addr,
 			       false, //is last entry
 			       1,     //checksum
 			       false, //No RLE
@@ -1959,7 +1959,7 @@ void on_fetch_mode_13_data(struct AstRVAS *pAstRVAS, struct RvasIoctl *ri, bool 
 
 	dwCtrlRegValue |= 1 << 1; // enabled IRQ
 
-	if (sleep_on_tfe_busy(pAstRVAS, (u32)pDescriptorAddPhys, // Descriptor physical Address
+	if (sleep_on_tfe_busy(pAstRVAS, (phys_addr_t)pDescriptorAddPhys, // Descriptor physical Address
 			      dwCtrlRegValue,           // control register value
 			      ri->tfm.dwFetchSize,         // bandwidth limitor value
 			      &ri->tfm.dwFetchRLESize,     // out:: rle size
@@ -1974,12 +1974,12 @@ void on_fetch_mode_13_data(struct AstRVAS *pAstRVAS, struct RvasIoctl *ri, bool 
 		dwCtrlRegValue = 1;
 		dwCtrlRegValue |= (ri->tfm.byRLETripletCode << 24)
 		| (ri->tfm.byRLERepeatCode << 16);
-		dwSourceAddress = data_phys;
-		dwDestinationAddress = data_phys_rle;
+		source_addr = data_phys;
+		dest_addr = data_phys_rle;
 		VIDEO_DBG("RLE is on\n");
 
-		prepare_tfe_descriptor(pDescriptorAdd, dwSourceAddress,
-				       dwDestinationAddress,
+		prepare_tfe_descriptor(pDescriptorAdd, source_addr,
+				       dest_addr,
 				       bNotLastEntry,  //not last entry?
 				       1,				//checksum
 				       bRLEOn,		//RLE?
@@ -1988,7 +1988,7 @@ void on_fetch_mode_13_data(struct AstRVAS *pAstRVAS, struct RvasIoctl *ri, bool 
 
 		dwCtrlRegValue |= 1 << 1; // enabled IRQ
 
-		if (sleep_on_tfe_busy(pAstRVAS, (u32)pDescriptorAddPhys, // Descriptor physical Address
+		if (sleep_on_tfe_busy(pAstRVAS, (phys_addr_t)pDescriptorAddPhys, // Descriptor physical Address
 				      dwCtrlRegValue,           // control register value
 				      ri->tfm.dwFetchSize,          // bandwidth limitor value
 				      &ri->tfm.dwFetchRLESize,     // out:: rle size
@@ -2023,61 +2023,61 @@ void ioctl_fetch_mode_13_data(struct RvasIoctl *ri, struct AstRVAS *pAstRVAS)
 	}
 }
 
-u32 get_phy_fb_start_address(struct AstRVAS *pAstRVAS)
+phys_addr_t get_phy_fb_start_address(struct AstRVAS *pAstRVAS)
 {
 	u32 dw_offset = get_screen_offset(pAstRVAS);
 
-	pAstRVAS->FBInfo.dwFBPhysStart = DDR_BASE + pAstRVAS->FBInfo.dwDRAMSize - pAstRVAS->FBInfo.dwVGASize + dw_offset;
+	pAstRVAS->FBInfo.qwFBPhysStart = DDR_BASE + pAstRVAS->FBInfo.dwDRAMSize - pAstRVAS->FBInfo.dwVGASize + dw_offset;
 
 	VIDEO_DBG("Frame buffer start address: %#x, dram size: %#x, vga size: %#x\n",
-		  pAstRVAS->FBInfo.dwFBPhysStart,
+		  pAstRVAS->FBInfo.qwFBPhysStart,
 		  pAstRVAS->FBInfo.dwDRAMSize,
 		  pAstRVAS->FBInfo.dwVGASize);
 
-	return pAstRVAS->FBInfo.dwFBPhysStart;
+	return pAstRVAS->FBInfo.qwFBPhysStart;
 }
 
 // Enable Snoop Interrupts and TSE, Disable FIQ
 static void enable_tse_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
-	u32 reg_addr = pAstRVAS->fg_reg_base
+	void __iomem *reg_addr = pAstRVAS->fg_reg_base
 		+ TSE_SnoopCommand_Register_Offset;
 
-	reg_val = readl((void *)reg_addr);
+	reg_val = readl(reg_addr);
 	reg_val |= SNOOP_IRQ_MASK;
 	reg_val &= ~SNOOP_FIQ_MASK;
 
 	VIDEO_DBG("Enabled TSE Interrupts[%#X]\n", reg_val);
-	writel(reg_val, (void *)reg_addr);
+	writel(reg_val, reg_addr);
 	pAstRVAS->tse_tsicr = TSE_INTR_COUNT;
 	reg_addr = pAstRVAS->fg_reg_base
 			+ TSE_TileSnoop_Interrupt_Count;
 	//set max wait time before interrupt
-	writel(pAstRVAS->tse_tsicr, (void *)reg_addr);
+	writel(pAstRVAS->tse_tsicr, reg_addr);
 }
 
 //disable tse interrupt
 static void disable_tse_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
-	u32 reg_addr = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
+	void __iomem *reg_addr = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
 
 	// Disable Snoop Interrupts and TSE, Disable FIQ
-	reg_val = readl((void *)reg_addr);
+	reg_val = readl(reg_addr);
 	VIDEO_DBG("disable interrupt\n");
 	reg_val &= ~(SNOOP_IRQ_MASK | SNOOP_FIQ_MASK);
-	writel(reg_val, (void *)reg_addr);
+	writel(reg_val, reg_addr);
 }
 
 static void enable_grce_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
-	u32 reg_addr = pAstRVAS->grce_reg_base + GRCE_CTL0;
+	void __iomem *reg_addr = pAstRVAS->grce_reg_base + GRCE_CTL0;
 
-	reg_val = readl((void *)reg_addr);
+	reg_val = readl(reg_addr);
 	reg_val |= GRC_IRQ_MASK;
-	writel(reg_val, (void *)reg_addr);
+	writel(reg_val, reg_addr);
 	VIDEO_DBG("Enabled GRC Interrupts[%#X]\n", reg_val);
 }
 
@@ -2092,10 +2092,10 @@ void disable_grce_tse_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
 
-	VIDEO_DBG("disable_interrupts- grce_reg_base: %#x GRCE_CTL0: %#x\n",
+	VIDEO_DBG("disable_interrupts- grce_reg_base: %p GRCE_CTL0: %#x\n",
 		  pAstRVAS->grce_reg_base, GRCE_CTL0);
-	reg_val = readl((void *)(pAstRVAS->grce_reg_base + GRCE_CTL0));
-	writel(reg_val & (~GRC_IRQ_MASK), (void *)(pAstRVAS->grce_reg_base + GRCE_CTL0));
+	reg_val = readl(pAstRVAS->grce_reg_base + GRCE_CTL0);
+	writel(reg_val & (~GRC_IRQ_MASK), pAstRVAS->grce_reg_base + GRCE_CTL0);
 	disable_tse_interrupt(pAstRVAS);
 }
 
@@ -2104,36 +2104,36 @@ u32 clear_tse_interrupt(struct AstRVAS *pAstRVAS)
 	u32 tse_sts = 0;
 	u32 tse_tile_status = 0;
 	u32 tse_snoop_ctrl = 0;
-	u32 tse_ctrl_addr = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
+	void __iomem *tse_ctrl_addr = pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset;
 
 	VIDEO_DBG("clear tse inerrupt");
-	tse_sts = readl((void *)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
-	tse_snoop_ctrl = readl((void *)(pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset));
+	tse_sts = readl(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset);
+	tse_snoop_ctrl = readl(pAstRVAS->fg_reg_base + TSE_SnoopCommand_Register_Offset);
 
 	if (tse_sts & (TSSTS_TC_SCREEN0 | TSSTS_TC_SCREEN1)) {
 		if (tse_sts & TSSTS_TC_SCREEN0) {
 			VIDEO_DBG("Snoop** Update Screen 0\n");
 			 // clear interrupt and switch to screen 1
 			tse_snoop_ctrl |= TSCMD_SCREEN_OWNER;
-			writel(tse_sts, (void *)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
-			writel(tse_snoop_ctrl, (void *)tse_ctrl_addr);
+			writel(tse_sts, pAstRVAS->fg_reg_base + TSE_Status_Register_Offset);
+			writel(tse_snoop_ctrl, tse_ctrl_addr);
 
 		} else if (tse_sts & TSSTS_TC_SCREEN1) {
 			VIDEO_DBG("Snoop** Update Screen 1\n");
 			tse_snoop_ctrl &= ~TSCMD_SCREEN_OWNER; // snap shutter
 			// clear status
-			writel(tse_sts, (void *)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
+			writel(tse_sts, pAstRVAS->fg_reg_base + TSE_Status_Register_Offset);
 			 // clear interrupt and switch to screen 1
-			writel(tse_snoop_ctrl, (void *)tse_ctrl_addr);
+			writel(tse_snoop_ctrl, tse_ctrl_addr);
 		}
 		// read clear interrupt
-		tse_tile_status = readl((void *)(pAstRVAS->fg_reg_base
-				+ TSE_TileCount_Register_Offset));
+		tse_tile_status = readl(pAstRVAS->fg_reg_base
+				+ TSE_TileCount_Register_Offset);
 
 		if (tse_sts & TSSTS_FIFO_OVFL) {
 			//need to send full frame
 			dev_err(pAstRVAS->pdev, "TSE snoop fifo overflow\n");
-			writel(TSSTS_FIFO_OVFL, (void *)(pAstRVAS->fg_reg_base + TSE_Status_Register_Offset));
+			writel(TSSTS_FIFO_OVFL, pAstRVAS->fg_reg_base + TSE_Status_Register_Offset);
 			memset((void *)pAstRVAS->accrued_sm, 0xff, sizeof(pAstRVAS->accrued_sm));
 			memset((void *)&pAstRVAS->accrued_sa, 0xff,
 			       sizeof(pAstRVAS->accrued_sa));
@@ -2149,12 +2149,12 @@ bool clear_ldma_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 ldma_sts = 0;
 
-	ldma_sts = readl((void *)(pAstRVAS->fg_reg_base + LDMA_Status_Register));
+	ldma_sts = readl(pAstRVAS->fg_reg_base + LDMA_Status_Register);
 
 	if (ldma_sts & 0x02) {
 		//VIDEO_DBG("Got a LDMA interrupt\n");
 		// write 1 to clear the interrupt
-		writel(0x2, (void *)(pAstRVAS->fg_reg_base + LDMA_Status_Register));
+		writel(0x2, pAstRVAS->fg_reg_base + LDMA_Status_Register);
 		return true;
 	}
 	return false;
@@ -2164,11 +2164,11 @@ bool clear_tfe_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 tfe_sts = 0;
 
-	tfe_sts = readl((void *)(pAstRVAS->fg_reg_base + TFE_Status_Register));
+	tfe_sts = readl(pAstRVAS->fg_reg_base + TFE_Status_Register);
 
 	if (tfe_sts & 0x02) {
 		// VIDEO_DBG("Debug: TFSTS Interrupt is triggered\n");
-		writel(0x2, (void *)(pAstRVAS->fg_reg_base + TFE_Status_Register));
+		writel(0x2, pAstRVAS->fg_reg_base + TFE_Status_Register);
 		return true;
 	}
 	return false;
@@ -2178,10 +2178,10 @@ bool clear_bse_interrupt(struct AstRVAS *pAstRVAS)
 {
 	u32 bse_sts = 0;
 
-	bse_sts = readl((void *)(pAstRVAS->fg_reg_base + BSE_Status_Register));
+	bse_sts = readl(pAstRVAS->fg_reg_base + BSE_Status_Register);
 
 	if (bse_sts & 0x02) {
-		writel(0x2, (void *)(pAstRVAS->fg_reg_base + BSE_Status_Register));
+		writel(0x2, pAstRVAS->fg_reg_base + BSE_Status_Register);
 		return true;
 	}
 	return false;
@@ -2189,19 +2189,19 @@ bool clear_bse_interrupt(struct AstRVAS *pAstRVAS)
 
 void setup_lmem(struct AstRVAS *pAstRVAS)
 {
-	writel(0x0, (void *)(pAstRVAS->fg_reg_base + LMEM_BASE_REG_3));
-	writel(0x2000, (void *)(pAstRVAS->fg_reg_base + LMEM_LIMIT_REG_3));
-	writel(0x9c89c8, (void *)(pAstRVAS->fg_reg_base + LMEM11_P0));
-	writel(0x9c89c8, (void *)(pAstRVAS->fg_reg_base + LMEM12_P0));
-	writel(0xf3cf3c, (void *)(pAstRVAS->fg_reg_base + LMEM11_P1));
-	writel(0x067201, (void *)(pAstRVAS->fg_reg_base + LMEM11_P2));
-	writel(0x00F3CF3C, (void *)(pAstRVAS->fg_reg_base + LMEM10_P1));
-	writel(0x00067201, (void *)(pAstRVAS->fg_reg_base + LMEM10_P2));
+	writel(0x0, pAstRVAS->fg_reg_base + LMEM_BASE_REG_3);
+	writel(0x2000, pAstRVAS->fg_reg_base + LMEM_LIMIT_REG_3);
+	writel(0x9c89c8, pAstRVAS->fg_reg_base + LMEM11_P0);
+	writel(0x9c89c8, pAstRVAS->fg_reg_base + LMEM12_P0);
+	writel(0xf3cf3c, pAstRVAS->fg_reg_base + LMEM11_P1);
+	writel(0x067201, pAstRVAS->fg_reg_base + LMEM11_P2);
+	writel(0x00F3CF3C, pAstRVAS->fg_reg_base + LMEM10_P1);
+	writel(0x00067201, pAstRVAS->fg_reg_base + LMEM10_P2);
 }
 
 bool host_suspended(struct AstRVAS *pAstRVAS)
 {
-	u32 GRCE18 = readl((void *)(pAstRVAS->grce_reg_base + GRCE_ATTR_VGAIR0_OFFSET));
+	u32 GRCE18 = readl(pAstRVAS->grce_reg_base + GRCE_ATTR_VGAIR0_OFFSET);
 
 	// VGAER is GRCE19
 	// VGAER bit[0]:0 - vga disabled (host suspended)

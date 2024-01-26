@@ -479,6 +479,7 @@ static void dump_buffer(u32 dwPhyStreamAddress, u32 size)
 		val = readl((void *)(dwPhyStreamAddress + iC));
 		VIDEO_ENG_DBG("%#x, ", val);
 	}
+
 }
 
 static void video_set_scaling(struct AstRVAS *pAstRVAS)
@@ -502,7 +503,7 @@ static void video_set_scaling(struct AstRVAS *pAstRVAS)
 void video_ctrl_init(struct AstRVAS *pAstRVAS)
 {
 	VIDEO_ENG_DBG("\n");
-	VIDEO_ENG_DBG("reg address: %#x\n", pAstRVAS->video_reg_base);
+	VIDEO_ENG_DBG("reg address: %p\n", pAstRVAS->video_reg_base);
 	video_write(pAstRVAS, (u32)vem.captureBuf0.phy, AST_VIDEO_SOURCE_BUFF0);//44h
 	video_write(pAstRVAS, (u32)vem.captureBuf1.phy, AST_VIDEO_SOURCE_BUFF1);//4Ch
 	video_write(pAstRVAS, (u32)vem.jpegTable.phy, AST_VIDEO_JPEG_HEADER_BUFF); //40h
@@ -540,8 +541,8 @@ void video_ctrl_init(struct AstRVAS *pAstRVAS)
 static int reserve_video_engine_memory(struct AstRVAS *pAstRVAS)
 {
 	u32 size;
-	u32 phys_add = 0;
-	u32 virt_add = 0;
+	dma_addr_t phys_add = 0;
+	void *virt_add = 0;
 
 	memset(&vem, 0, sizeof(struct VideoEngineMem));
 	vem.captureBuf0.size = VIDEO_CAPTURE_BUFFER_SIZE; //size 10M
@@ -550,8 +551,8 @@ static int reserve_video_engine_memory(struct AstRVAS *pAstRVAS)
 
 	size = vem.captureBuf0.size + vem.captureBuf1.size + vem.jpegTable.size;
 	VIDEO_ENG_DBG("Allocating memory size: 0x%x\n", size);
-	virt_add = (u32)dma_alloc_coherent(pAstRVAS->pdev, size, &phys_add,
-				  GFP_KERNEL);
+	virt_add = dma_alloc_coherent(pAstRVAS->pdev, size, &phys_add,
+				      GFP_KERNEL);
 
 	if (!virt_add) {
 		pr_err("Cannot alloc buffer for video engine\n");
@@ -566,9 +567,9 @@ static int reserve_video_engine_memory(struct AstRVAS *pAstRVAS)
 	vem.captureBuf1.pVirt = (void *)(virt_add + vem.captureBuf0.size);
 	vem.jpegTable.pVirt = (void *)(virt_add + vem.captureBuf0.size + vem.captureBuf1.size);
 
-	VIDEO_ENG_DBG("Allocated: phys: %#x\n", phys_add);
-	VIDEO_ENG_DBG("Phy: Buf0:%#x; Buf1:%#x; jpegT:%#x\n", vem.captureBuf0.phy, vem.captureBuf1.phy, vem.jpegTable.phy);
-	VIDEO_ENG_DBG("Virt: Buf0:%#x; Buf1:%#x; JpegT:%#x\n", vem.captureBuf0.pVirt, vem.captureBuf1.pVirt, vem.jpegTable.pVirt);
+	VIDEO_ENG_DBG("Allocated: phys: 0x%llx\n", phys_add);
+	VIDEO_ENG_DBG("Phy: Buf0:0x%llx; Buf1:0x%llx; jpegT:0x%llx\n", vem.captureBuf0.phy, vem.captureBuf1.phy, vem.jpegTable.phy);
+	VIDEO_ENG_DBG("Virt: Buf0:%p; Buf1:%p; JpegT:%p\n", vem.captureBuf0.pVirt, vem.captureBuf1.pVirt, vem.jpegTable.pVirt);
 
 	return 0;
 }
@@ -1162,15 +1163,17 @@ video_write(struct AstRVAS *pAstRVAS, u32 val, u32 reg)
 	VIDEO_ENG_DBG("write offset: %x, val: %x\n", reg, val);
 	//Video is lock after reset, need always unlock
 	//unlock
-	writel(VIDEO_PROTECT_UNLOCK, (void *)pAstRVAS->video_reg_base);
-	writel(val, (void *)(pAstRVAS->video_reg_base + reg));
+	writel(VIDEO_PROTECT_UNLOCK, pAstRVAS->video_reg_base);
+	writel(val, pAstRVAS->video_reg_base + reg);
+
 }
 
 static inline u32
 video_read(struct AstRVAS *pAstRVAS, u32 reg)
 {
-	u32 val = readl((void *)(pAstRVAS->video_reg_base + reg));
+	u32 val = readl(pAstRVAS->video_reg_base + reg);
 
 	VIDEO_ENG_DBG("read offset: %x, val: %x\n", reg, val);
 	return val;
 }
+
