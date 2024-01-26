@@ -6225,5 +6225,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.dump_err_status = rtw89_mac_dump_err_status_ax,
 
 	.is_txq_empty = mac_is_txq_empty_ax,
+
+	.add_chan_list = rtw89_hw_scan_add_chan_list,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_ax);

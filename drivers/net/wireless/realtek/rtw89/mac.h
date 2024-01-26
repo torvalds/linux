@@ -953,6 +953,9 @@ struct rtw89_mac_gen_def {
 				enum mac_ax_err_info err);
 
 	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
+
+	int (*add_chan_list)(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif, bool connected);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;

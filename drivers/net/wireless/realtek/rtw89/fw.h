@@ -297,6 +297,34 @@ struct rtw89_mac_chinfo {
 	bool is_psc;
 };
 
+struct rtw89_mac_chinfo_be {
+	u8 period;
+	u8 dwell_time;
+	u8 central_ch;
+	u8 pri_ch;
+	u8 bw:3;
+	u8 ch_band:2;
+	u8 dfs_ch:1;
+	u8 pause_data:1;
+	u8 tx_null:1;
+	u8 rand_seq_num:1;
+	u8 notify_action:5;
+	u8 probe_id;
+	u8 leave_crit;
+	u8 chkpt_timer;
+	u8 leave_time;
+	u8 leave_th;
+	u16 tx_pkt_ctrl;
+	u8 pkt_id[RTW89_SCANOFLD_MAX_SSID];
+	u8 sw_def;
+	u16 fw_probe0_ssids;
+	u16 fw_probe0_shortssids;
+	u16 fw_probe0_bssids;
+
+	struct list_head list;
+	bool is_psc;
+};
+
 struct rtw89_scan_option {
 	bool enable;
 	bool target_ch_mode;
@@ -2708,13 +2736,56 @@ struct rtw89_h2c_chinfo_elem {
 #define RTW89_H2C_CHINFO_W3_PKT7 GENMASK(31, 24)
 #define RTW89_H2C_CHINFO_W4_POWER_IDX GENMASK(15, 0)
 
+struct rtw89_h2c_chinfo_elem_be {
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+} __packed;
+
+#define RTW89_H2C_CHINFO_BE_W0_PERIOD GENMASK(7, 0)
+#define RTW89_H2C_CHINFO_BE_W0_DWELL GENMASK(15, 8)
+#define RTW89_H2C_CHINFO_BE_W0_CENTER_CH GENMASK(23, 16)
+#define RTW89_H2C_CHINFO_BE_W0_PRI_CH GENMASK(31, 24)
+#define RTW89_H2C_CHINFO_BE_W1_BW GENMASK(2, 0)
+#define RTW89_H2C_CHINFO_BE_W1_CH_BAND GENMASK(4, 3)
+#define RTW89_H2C_CHINFO_BE_W1_DFS BIT(5)
+#define RTW89_H2C_CHINFO_BE_W1_PAUSE_DATA BIT(6)
+#define RTW89_H2C_CHINFO_BE_W1_TX_NULL BIT(7)
+#define RTW89_H2C_CHINFO_BE_W1_RANDOM BIT(8)
+#define RTW89_H2C_CHINFO_BE_W1_NOTIFY GENMASK(13, 9)
+#define RTW89_H2C_CHINFO_BE_W1_PROBE BIT(14)
+#define RTW89_H2C_CHINFO_BE_W1_EARLY_LEAVE_CRIT GENMASK(17, 15)
+#define RTW89_H2C_CHINFO_BE_W1_CHKPT_TIMER GENMASK(31, 24)
+#define RTW89_H2C_CHINFO_BE_W2_EARLY_LEAVE_TIME GENMASK(7, 0)
+#define RTW89_H2C_CHINFO_BE_W2_EARLY_LEAVE_TH GENMASK(15, 8)
+#define RTW89_H2C_CHINFO_BE_W2_TX_PKT_CTRL GENMASK(31, 16)
+#define RTW89_H2C_CHINFO_BE_W3_PKT0 GENMASK(7, 0)
+#define RTW89_H2C_CHINFO_BE_W3_PKT1 GENMASK(15, 8)
+#define RTW89_H2C_CHINFO_BE_W3_PKT2 GENMASK(23, 16)
+#define RTW89_H2C_CHINFO_BE_W3_PKT3 GENMASK(31, 24)
+#define RTW89_H2C_CHINFO_BE_W4_PKT4 GENMASK(7, 0)
+#define RTW89_H2C_CHINFO_BE_W4_PKT5 GENMASK(15, 8)
+#define RTW89_H2C_CHINFO_BE_W4_PKT6 GENMASK(23, 16)
+#define RTW89_H2C_CHINFO_BE_W4_PKT7 GENMASK(31, 24)
+#define RTW89_H2C_CHINFO_BE_W5_SW_DEF GENMASK(7, 0)
+#define RTW89_H2C_CHINFO_BE_W5_FW_PROBE0_SSIDS GENMASK(31, 16)
+#define RTW89_H2C_CHINFO_BE_W6_FW_PROBE0_SHORTSSIDS GENMASK(15, 0)
+#define RTW89_H2C_CHINFO_BE_W6_FW_PROBE0_BSSIDS GENMASK(31, 16)
+
 struct rtw89_h2c_chinfo {
 	u8 ch_num;
 	u8 elem_size;
+	u8 arg;
 	u8 rsvd0;
-	u8 rsvd1;
 	struct rtw89_h2c_chinfo_elem elem[] __counted_by(ch_num);
 } __packed;
+
+#define RTW89_H2C_CHINFO_ARG_MAC_IDX_MASK BIT(0)
+#define RTW89_H2C_CHINFO_ARG_APPEND_MASK BIT(1)
 
 struct rtw89_h2c_scanofld {
 	__le32 w0;
@@ -3933,6 +4004,8 @@ int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 				 struct sk_buff *skb_ofld);
 int rtw89_fw_h2c_scan_list_offload(struct rtw89_dev *rtwdev, int ch_num,
 				   struct list_head *chan_list);
+int rtw89_fw_h2c_scan_list_offload_be(struct rtw89_dev *rtwdev, int ch_num,
+				      struct list_head *chan_list);
 int rtw89_fw_h2c_scan_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_scan_option *opt,
 			      struct rtw89_vif *vif);
@@ -3975,6 +4048,10 @@ void rtw89_hw_scan_complete(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 int rtw89_hw_scan_offload(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif,
 			  bool enable);
 void rtw89_hw_scan_abort(struct rtw89_dev *rtwdev, struct ieee80211_vif *vif);
+int rtw89_hw_scan_add_chan_list(struct rtw89_dev *rtwdev,
+				struct rtw89_vif *rtwvif, bool connected);
+int rtw89_hw_scan_add_chan_list_be(struct rtw89_dev *rtwdev,
+				   struct rtw89_vif *rtwvif, bool connected);
 int rtw89_fw_h2c_trigger_cpu_exception(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_pkt_drop(struct rtw89_dev *rtwdev,
 			  const struct rtw89_pkt_drop_params *params);
