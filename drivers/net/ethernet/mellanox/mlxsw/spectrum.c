@@ -4334,12 +4334,6 @@ static int mlxsw_sp_lag_col_port_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcor), slcor_pl);
 }
 
-static struct mlxsw_sp_lag *
-mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
-{
-	return &mlxsw_sp->lags[lag_id];
-}
-
 static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 				  struct net_device *lag_dev,
 				  u16 *p_lag_id)
@@ -4354,7 +4348,7 @@ static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 		return err;
 
 	for (i = 0; i < max_lag; i++) {
-		lag = mlxsw_sp_lag_get(mlxsw_sp, i);
+		lag = &mlxsw_sp->lags[i];
 		if (lag->ref_count) {
 			if (lag->dev == lag_dev) {
 				*p_lag_id = i;
@@ -4501,7 +4495,7 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	err = mlxsw_sp_lag_index_get(mlxsw_sp, lag_dev, &lag_id);
 	if (err)
 		return err;
-	lag = mlxsw_sp_lag_get(mlxsw_sp, lag_id);
+	lag = &mlxsw_sp->lags[lag_id];
 	if (!lag->ref_count) {
 		err = mlxsw_sp_lag_create(mlxsw_sp, lag_id);
 		if (err)
@@ -4575,7 +4569,7 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	if (!mlxsw_sp_port->lagged)
 		return;
-	lag = mlxsw_sp_lag_get(mlxsw_sp, lag_id);
+	lag = &mlxsw_sp->lags[lag_id];
 	WARN_ON(lag->ref_count == 0);
 
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
