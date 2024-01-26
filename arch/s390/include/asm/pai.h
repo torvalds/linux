@@ -81,4 +81,5 @@ enum paievt_mode {
 	PAI_MODE_COUNTING,
 };
 
+#define PAI_SAVE_AREA(x)	((x)->hw.event_base)
 #endif

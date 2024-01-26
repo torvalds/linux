@@ -98,6 +98,7 @@ static void paicrypt_event_destroy(struct perf_event *event)
 			    event->attr.config, event->cpu,
 			    cpump->active_events, cpump->mode,
 			    refcount_read(&cpump->refcnt));
+	free_page(PAI_SAVE_AREA(event));
 	if (refcount_dec_and_test(&cpump->refcnt)) {
 		debug_sprintf_event(cfm_dbg, 4, "%s page %#lx save %p\n",
 				    __func__, (unsigned long)cpump->page,
@@ -260,6 +261,7 @@ static int paicrypt_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *a = &event->attr;
 	struct paicrypt_map *cpump;
+	int rc = 0;
 
 	/* PAI crypto PMU registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
@@ -274,10 +276,21 @@ static int paicrypt_event_init(struct perf_event *event)
 	/* Allow only CRYPTO_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_CRYPTO_BASE)
 		return -EINVAL;
+	/* Get a page to store last counter values for sampling */
+	if (a->sample_period) {
+		PAI_SAVE_AREA(event) = get_zeroed_page(GFP_KERNEL);
+		if (!PAI_SAVE_AREA(event)) {
+			rc = -ENOMEM;
+			goto out;
+		}
+	}
 
 	cpump = paicrypt_busy(event);
-	if (IS_ERR(cpump))
-		return PTR_ERR(cpump);
+	if (IS_ERR(cpump)) {
+		free_page(PAI_SAVE_AREA(event));
+		rc = PTR_ERR(cpump);
+		goto out;
+	}
 
 	event->destroy = paicrypt_event_destroy;
 
@@ -293,7 +306,8 @@ static int paicrypt_event_init(struct perf_event *event)
 	}
 
 	static_branch_inc(&pai_key);
-	return 0;
+out:
+	return rc;
 }
 
 static void paicrypt_read(struct perf_event *event)
@@ -367,23 +381,34 @@ static void paicrypt_del(struct perf_event *event, int flags)
 	}
 }
 
-/* Create raw data and save it in buffer. Returns number of bytes copied.
- * Saves only positive counter entries of the form
+/* Create raw data and save it in buffer. Calculate the delta for each
+ * counter between this invocation and the last invocation.
+ * Returns number of bytes copied.
+ * Saves only entries with positive counter difference of the form
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
 static size_t paicrypt_copy(struct pai_userdata *userdata, unsigned long *page,
-			    bool exclude_user, bool exclude_kernel)
+			    unsigned long *page_old, bool exclude_user,
+			    bool exclude_kernel)
 {
 	int i, outidx = 0;
 
 	for (i = 1; i <= paicrypt_cnt; i++) {
-		u64 val = 0;
+		u64 val = 0, val_old = 0;
 
-		if (!exclude_kernel)
+		if (!exclude_kernel) {
 			val += paicrypt_getctr(page, i, true);
-		if (!exclude_user)
+			val_old += paicrypt_getctr(page_old, i, true);
+		}
+		if (!exclude_user) {
 			val += paicrypt_getctr(page, i, false);
+			val_old += paicrypt_getctr(page_old, i, false);
+		}
+		if (val >= val_old)
+			val -= val_old;
+		else
+			val = (~0ULL - val_old) + val + 1;
 		if (val) {
 			userdata[outidx].num = i;
 			userdata[outidx].value = val;
@@ -426,8 +451,8 @@ static int paicrypt_push_sample(size_t rawsize, struct paicrypt_map *cpump,
 
 	overflow = perf_event_overflow(event, &data, &regs);
 	perf_event_update_userpage(event);
-	/* Clear lowcore page after read */
-	memset(cpump->page, 0, PAGE_SIZE);
+	/* Save crypto counter lowcore page after reading event data. */
+	memcpy((void *)PAI_SAVE_AREA(event), cpump->page, PAGE_SIZE);
 	return overflow;
 }
 
@@ -443,6 +468,7 @@ static int paicrypt_have_sample(void)
 	if (!event)		/* No event active */
 		return 0;
 	rawsize = paicrypt_copy(cpump->save, cpump->page,
+				(unsigned long *)PAI_SAVE_AREA(event),
 				cpump->event->attr.exclude_user,
 				cpump->event->attr.exclude_kernel);
 	if (rawsize)			/* No incremented counters */
