@@ -887,12 +887,14 @@ static struct workqueue_struct *callback_wq;
 
 static bool nfsd4_queue_cb(struct nfsd4_callback *cb)
 {
+	trace_nfsd_cb_queue(cb->cb_clp, cb);
 	return queue_delayed_work(callback_wq, &cb->cb_work, 0);
 }
 
 static void nfsd4_queue_cb_delayed(struct nfsd4_callback *cb,
 				   unsigned long msecs)
 {
+	trace_nfsd_cb_queue(cb->cb_clp, cb);
 	queue_delayed_work(callback_wq, &cb->cb_work,
 			   msecs_to_jiffies(msecs));
 }
@@ -1113,6 +1115,7 @@ static void nfsd41_destroy_cb(struct nfsd4_callback *cb)
 {
 	struct nfs4_client *clp = cb->cb_clp;
 
+	trace_nfsd_cb_destroy(clp, cb);
 	nfsd41_cb_release_slot(cb);
 	if (cb->cb_ops && cb->cb_ops->release)
 		cb->cb_ops->release(cb);
@@ -1227,6 +1230,7 @@ retry_nowait:
 	goto out;
 need_restart:
 	if (!test_bit(NFSD4_CLIENT_CB_KILL, &clp->cl_flags)) {
+		trace_nfsd_cb_restart(clp, cb);
 		task->tk_status = 0;
 		cb->cb_need_restart = true;
 	}
@@ -1340,11 +1344,14 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	struct nfsd4_conn *c;
 	int err;
 
+	trace_nfsd_cb_bc_update(clp, cb);
+
 	/*
 	 * This is either an update, or the client dying; in either case,
 	 * kill the old client:
 	 */
 	if (clp->cl_cb_client) {
+		trace_nfsd_cb_bc_shutdown(clp, cb);
 		rpc_shutdown_client(clp->cl_cb_client);
 		clp->cl_cb_client = NULL;
 		put_cred(clp->cl_cb_cred);
@@ -1356,6 +1363,7 @@ static void nfsd4_process_cb_update(struct nfsd4_callback *cb)
 	}
 	if (test_bit(NFSD4_CLIENT_CB_KILL, &clp->cl_flags))
 		return;
+
 	spin_lock(&clp->cl_lock);
 	/*
 	 * Only serialized callback code is allowed to clear these

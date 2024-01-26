@@ -1443,6 +1443,48 @@ TRACE_EVENT(nfsd_cb_setup_err,
 		__entry->error)
 );
 
+DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfsd4_callback *cb
+	),
+	TP_ARGS(clp, cb),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(const void *, cb)
+		__field(bool, need_restart)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__entry->cb = cb;
+		__entry->need_restart = cb->cb_need_restart;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_printk("addr=%pISpc client %08x:%08x cb=%p%s",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->cb, __entry->need_restart ?
+			" (need restart)" : " (first try)"
+	)
+);
+
+#define DEFINE_NFSD_CB_LIFETIME_EVENT(name)		\
+DEFINE_EVENT(nfsd_cb_lifetime_class, nfsd_cb_##name,	\
+	TP_PROTO(					\
+		const struct nfs4_client *clp,		\
+		const struct nfsd4_callback *cb		\
+	),						\
+	TP_ARGS(clp, cb))
+
+DEFINE_NFSD_CB_LIFETIME_EVENT(queue);
+DEFINE_NFSD_CB_LIFETIME_EVENT(destroy);
+DEFINE_NFSD_CB_LIFETIME_EVENT(restart);
+DEFINE_NFSD_CB_LIFETIME_EVENT(bc_update);
+DEFINE_NFSD_CB_LIFETIME_EVENT(bc_shutdown);
+
 TRACE_EVENT(nfsd_cb_seq_status,
 	TP_PROTO(
 		const struct rpc_task *task,
