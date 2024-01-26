@@ -67,6 +67,22 @@ counter (e.g. counter overflow), then -EIO will be returned.
                 };
         };
 
+The host ioctls are issued to a file descriptor of the /dev/sev device.
+The ioctl accepts the command ID/input structure documented below.
+
+::
+        struct sev_issue_cmd {
+                /* Command ID */
+                __u32 cmd;
+
+                /* Command request structure */
+                __u64 data;
+
+                /* Firmware error code on failure (see psp-sev.h) */
+                __u32 error;
+        };
+
+
 2.1 SNP_GET_REPORT
 ------------------
 
@@ -123,6 +139,17 @@ length of the blob is smaller than expected then snp_ext_report_req.certs_len wi
 be updated with the expected value.
 
 See GHCB specification for further detail on how to parse the certificate blob.
+
+2.4 SNP_PLATFORM_STATUS
+-----------------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Parameters (out): struct sev_user_data_snp_status
+:Returns (out): 0 on success, -negative on error
+
+The SNP_PLATFORM_STATUS command is used to query the SNP platform status. The
+status includes API major, minor version and more. See the SEV-SNP
+specification for further details.
 
 3. SEV-SNP CPUID Enforcement
 ============================
