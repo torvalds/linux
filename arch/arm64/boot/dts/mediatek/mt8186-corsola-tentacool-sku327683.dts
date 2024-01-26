@@ -1,0 +1,24 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2023 Google LLC
+ */
+
+#include "mt8186-corsola-tentacool-sku327681.dts"
+
+/ {
+	compatible = "google,tentacruel-sku327683", "google,tentacruel", "mediatek,mt8186";
+};
+
+/* This variant replaces only the trackpad controller. */
+&i2c2 {
+	/delete-node/ trackpad@15;
+
+	trackpad@15 {
+		compatible = "hid-over-i2c";
+		reg = <0x15>;
+		interrupts-extended = <&pio 11 IRQ_TYPE_LEVEL_LOW>;
+		hid-descr-addr = <0x0001>;
+		vdd-supply = <&pp3300_s3>;
+		wakeup-source;
+	};
+};
