@@ -11,7 +11,7 @@
 
 #include "vlv_sideband_reg.h"
 
-enum pipe;
+enum dpio_phy;
 struct drm_i915_private;
 
 enum {
@@ -26,9 +26,6 @@ enum {
 };
 
 void vlv_iosf_sb_get(struct drm_i915_private *i915, unsigned long ports);
-u32 vlv_iosf_sb_read(struct drm_i915_private *i915, u8 port, u32 reg);
-void vlv_iosf_sb_write(struct drm_i915_private *i915,
-		       u8 port, u32 reg, u32 val);
 void vlv_iosf_sb_put(struct drm_i915_private *i915, unsigned long ports);
 
 static inline void vlv_bunit_get(struct drm_i915_private *i915)
@@ -75,9 +72,9 @@ static inline void vlv_dpio_get(struct drm_i915_private *i915)
 	vlv_iosf_sb_get(i915, BIT(VLV_IOSF_SB_DPIO));
 }
 
-u32 vlv_dpio_read(struct drm_i915_private *i915, enum pipe pipe, int reg);
+u32 vlv_dpio_read(struct drm_i915_private *i915, enum dpio_phy phy, int reg);
 void vlv_dpio_write(struct drm_i915_private *i915,
-		    enum pipe pipe, int reg, u32 val);
+		    enum dpio_phy phy, int reg, u32 val);
 
 static inline void vlv_dpio_put(struct drm_i915_private *i915)
 {

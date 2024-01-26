@@ -147,9 +147,8 @@ static u32 get_ff_hwaddr(struct xmit_frame *pxmitframe)
 }
 
 static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
-					 struct hw_xmit *phwxmit,
-					 struct tx_servq *ptxservq,
-					 struct  __queue *pframe_queue)
+						struct hw_xmit *phwxmit, struct tx_servq *ptxservq,
+						struct  __queue *pframe_queue)
 {
 	struct list_head *xmitframe_plist, *xmitframe_phead;
 	struct	xmit_frame *pxmitframe = NULL;
@@ -167,7 +166,7 @@ static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
 }
 
 static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
-				     struct hw_xmit *phwxmit_i, sint entry)
+					    struct hw_xmit *phwxmit_i, sint entry)
 {
 	unsigned long irqL0;
 	struct list_head *sta_plist, *sta_phead;
@@ -197,11 +196,10 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 		sta_phead = &phwxmit->sta_queue->queue;
 		sta_plist = sta_phead->next;
 		while (!end_of_queue_search(sta_phead, sta_plist)) {
-			ptxservq = container_of(sta_plist, struct tx_servq,
-						tx_pending);
+			ptxservq = container_of(sta_plist, struct tx_servq, tx_pending);
 			pframe_queue = &ptxservq->sta_pending;
-			pxmitframe = dequeue_one_xmitframe(pxmitpriv, phwxmit,
-				     ptxservq, pframe_queue);
+			pxmitframe = dequeue_one_xmitframe(pxmitpriv, phwxmit, ptxservq,
+							   pframe_queue);
 			if (pxmitframe) {
 				phwxmit->accnt--;
 				goto exit_dequeue_xframe_ex;
@@ -221,8 +219,7 @@ exit_dequeue_xframe_ex:
 	return pxmitframe;
 }
 
-void r8712_do_queue_select(struct _adapter *padapter,
-			   struct pkt_attrib *pattrib)
+void r8712_do_queue_select(struct _adapter *padapter, struct pkt_attrib *pattrib)
 {
 	unsigned int qsel = 0;
 	struct dvobj_priv *pdvobj = &padapter->dvobjpriv;
@@ -292,14 +289,12 @@ void r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 	r8712_xmit_complete(padapter, pxmitframe);
 	if (pxmitframe->attrib.ether_type != 0x0806) {
 		if ((pxmitframe->attrib.ether_type != 0x888e) &&
-			(pxmitframe->attrib.dhcp_pkt != 1)) {
-			r8712_issue_addbareq_cmd(padapter,
-					pxmitframe->attrib.priority);
+		    (pxmitframe->attrib.dhcp_pkt != 1)) {
+			r8712_issue_addbareq_cmd(padapter, pxmitframe->attrib.priority);
 		}
 	}
 	pxmitframe->last[0] = 1;
-	update_txdesc(pxmitframe, (uint *)(pxmitframe->buf_addr),
-		pxmitframe->attrib.last_txcmdsz);
+	update_txdesc(pxmitframe, (uint *)(pxmitframe->buf_addr), pxmitframe->attrib.last_txcmdsz);
 	/*padding zero */
 	last_txcmdsz = pxmitframe->attrib.last_txcmdsz;
 	padding_sz = (8 - (last_txcmdsz % 8));
@@ -333,8 +328,7 @@ void r8712_xmitframe_aggr_1st(struct xmit_buf *pxmitbuf,
 	pxmitbuf->aggr_nr = 1;
 }
 
-u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf,
-			struct xmit_frame *pxmitframe)
+u16 r8712_xmitframe_aggr_next(struct xmit_buf *pxmitbuf, struct xmit_frame *pxmitframe)
 {
 	pxmitframe->pxmitbuf = pxmitbuf;
 	pxmitbuf->priv_data = pxmitframe;
@@ -374,9 +368,9 @@ void r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 	pxmitframe->bpending[0] = false;
 	pxmitframe->mem_addr = pxmitbuf->pbuf;
 
-	if ((pdvobj->ishighspeed && ((total_length + TXDESC_SIZE) % 0x200) ==
-	     0) || ((!pdvobj->ishighspeed && ((total_length + TXDESC_SIZE) %
-					      0x40) == 0))) {
+	if ((pdvobj->ishighspeed && ((total_length + TXDESC_SIZE) % 0x200) == 0) ||
+	    ((!pdvobj->ishighspeed && ((total_length + TXDESC_SIZE) %
+	    0x40) == 0))) {
 		ptxdesc->txdw0 |= cpu_to_le32
 			(((TXDESC_SIZE + OFFSET_SZ + 8) << OFFSET_SHT) &
 			 0x00ff0000);
@@ -387,8 +381,8 @@ void r8712_dump_aggr_xframe(struct xmit_buf *pxmitbuf,
 			 0x00ff0000);
 		/*default = 32 bytes for TX Desc*/
 	}
-	r8712_write_port(pxmitframe->padapter, RTL8712_DMA_H2CCMD,
-			total_length + TXDESC_SIZE, (u8 *)pxmitframe);
+	r8712_write_port(pxmitframe->padapter, RTL8712_DMA_H2CCMD, total_length + TXDESC_SIZE,
+			 (u8 *)pxmitframe);
 }
 
 #endif
@@ -618,14 +612,12 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 	pxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits, hwentry);
 	/* need to remember the 1st frame */
 	if (pxmitframe) {
-
 #ifdef CONFIG_R8712_TX_AGGR
 		/* 1. dequeue 2nd frame
 		 * 2. aggr if 2nd xframe is dequeued, else dump directly
 		 */
 		if (AGGR_NR_HIGH_BOUND > 1)
-			p2ndxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits,
-							hwentry);
+			p2ndxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits, hwentry);
 		if (pxmitframe->frame_tag != DATA_FRAMETAG) {
 			r8712_free_xmitbuf(pxmitpriv, pxmitbuf);
 			return false;
@@ -639,16 +631,12 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 		if (p2ndxmitframe) {
 			u16 total_length;
 
-			total_length = r8712_xmitframe_aggr_next(
-				pxmitbuf, p2ndxmitframe);
+			total_length = r8712_xmitframe_aggr_next(pxmitbuf, p2ndxmitframe);
 			do {
-				p2ndxmitframe = dequeue_xframe_ex(
-					pxmitpriv, phwxmits, hwentry);
+				p2ndxmitframe = dequeue_xframe_ex(pxmitpriv, phwxmits, hwentry);
 				if (p2ndxmitframe)
 					total_length =
-						r8712_xmitframe_aggr_next(
-							pxmitbuf,
-							p2ndxmitframe);
+						r8712_xmitframe_aggr_next(pxmitbuf, p2ndxmitframe);
 				else
 					break;
 			} while (total_length <= 0x1800 &&
@@ -662,8 +650,8 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 		xmitframe_xmitbuf_attach(pxmitframe, pxmitbuf);
 		if (pxmitframe->frame_tag == DATA_FRAMETAG) {
 			if (pxmitframe->attrib.priority <= 15)
-				res = r8712_xmitframe_coalesce(padapter,
-					pxmitframe->pkt, pxmitframe);
+				res = r8712_xmitframe_coalesce(padapter, pxmitframe->pkt,
+							       pxmitframe);
 			/* always return ndis_packet after
 			 * r8712_xmitframe_coalesce
 			 */
@@ -714,10 +702,10 @@ static void dump_xframe(struct _adapter *padapter,
 		ff_hwaddr = get_ff_hwaddr(pxmitframe);
 #ifdef CONFIG_R8712_TX_AGGR
 		r8712_write_port(padapter, RTL8712_DMA_H2CCMD, w_sz,
-				(unsigned char *)pxmitframe);
+				 (unsigned char *)pxmitframe);
 #else
 		r8712_write_port(padapter, ff_hwaddr, w_sz,
-			   (unsigned char *)pxmitframe);
+				 (unsigned char *)pxmitframe);
 #endif
 		mem_addr += w_sz;
 		mem_addr = (u8 *)RND4(((addr_t)(mem_addr)));

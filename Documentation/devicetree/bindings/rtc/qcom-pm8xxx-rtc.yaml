@@ -61,27 +61,27 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/interrupt-controller/irq.h>
     #include <dt-bindings/spmi/spmi.h>
-    spmi_bus: spmi@c440000 {
-      reg = <0x0c440000 0x1100>;
-      #address-cells = <2>;
-      #size-cells = <0>;
-      pmicintc: pmic@0 {
-        reg = <0x0 SPMI_USID>;
-        compatible = "qcom,pm8921";
-        interrupts = <104 8>;
-        #interrupt-cells = <2>;
-        interrupt-controller;
-        #address-cells = <1>;
+
+    spmi {
+        #address-cells = <2>;
         #size-cells = <0>;
 
-        pm8921_rtc: rtc@11d {
-          compatible = "qcom,pm8921-rtc";
-          reg = <0x11d>;
-          interrupts = <0x27 0>;
-          nvmem-cells = <&rtc_offset>;
-          nvmem-cell-names = "offset";
+        pmic@0 {
+            compatible = "qcom,pm8941", "qcom,spmi-pmic";
+            reg = <0x0 SPMI_USID>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            rtc@6000 {
+                compatible = "qcom,pm8941-rtc";
+                reg = <0x6000>, <0x6100>;
+                reg-names = "rtc", "alarm";
+                interrupts = <0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
+                nvmem-cells = <&rtc_offset>;
+                nvmem-cell-names = "offset";
+            };
         };
-      };
     };
 ...

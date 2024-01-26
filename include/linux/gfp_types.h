@@ -162,25 +162,25 @@ typedef unsigned int __bitwise gfp_t;
  * %__GFP_RECLAIM is shorthand to allow/forbid both direct and kswapd reclaim.
  *
  * The default allocator behavior depends on the request size. We have a concept
- * of so called costly allocations (with order > %PAGE_ALLOC_COSTLY_ORDER).
+ * of so-called costly allocations (with order > %PAGE_ALLOC_COSTLY_ORDER).
  * !costly allocations are too essential to fail so they are implicitly
  * non-failing by default (with some exceptions like OOM victims might fail so
  * the caller still has to check for failures) while costly requests try to be
  * not disruptive and back off even without invoking the OOM killer.
  * The following three modifiers might be used to override some of these
- * implicit rules
+ * implicit rules.
  *
  * %__GFP_NORETRY: The VM implementation will try only very lightweight
  * memory direct reclaim to get some memory under memory pressure (thus
  * it can sleep). It will avoid disruptive actions like OOM killer. The
  * caller must handle the failure which is quite likely to happen under
  * heavy memory pressure. The flag is suitable when failure can easily be
- * handled at small cost, such as reduced throughput
+ * handled at small cost, such as reduced throughput.
  *
  * %__GFP_RETRY_MAYFAIL: The VM implementation will retry memory reclaim
  * procedures that have previously failed if there is some indication
- * that progress has been made else where.  It can wait for other
- * tasks to attempt high level approaches to freeing memory such as
+ * that progress has been made elsewhere.  It can wait for other
+ * tasks to attempt high-level approaches to freeing memory such as
  * compaction (which removes fragmentation) and page-out.
  * There is still a definite limit to the number of retries, but it is
  * a larger limit than with %__GFP_NORETRY.
@@ -230,7 +230,7 @@ typedef unsigned int __bitwise gfp_t;
  * is being zeroed (either via __GFP_ZERO or via init_on_alloc, provided that
  * __GFP_SKIP_ZERO is not set). This flag is intended for optimization: setting
  * memory tags at the same time as zeroing memory has minimal additional
- * performace impact.
+ * performance impact.
  *
  * %__GFP_SKIP_KASAN makes KASAN skip unpoisoning on page allocation.
  * Used for userspace and vmalloc pages; the latter are unpoisoned by
@@ -274,7 +274,8 @@ typedef unsigned int __bitwise gfp_t;
  * accounted to kmemcg.
  *
  * %GFP_NOWAIT is for kernel allocations that should not stall for direct
- * reclaim, start physical IO or use any filesystem callback.
+ * reclaim, start physical IO or use any filesystem callback.  It is very
+ * likely to fail to allocate memory, even for very small allocations.
  *
  * %GFP_NOIO will use direct reclaim to discard clean pages or slab pages
  * that do not require the starting of any physical IO.
@@ -325,7 +326,7 @@ typedef unsigned int __bitwise gfp_t;
 #define GFP_ATOMIC	(__GFP_HIGH|__GFP_KSWAPD_RECLAIM)
 #define GFP_KERNEL	(__GFP_RECLAIM | __GFP_IO | __GFP_FS)
 #define GFP_KERNEL_ACCOUNT (GFP_KERNEL | __GFP_ACCOUNT)
-#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM)
+#define GFP_NOWAIT	(__GFP_KSWAPD_RECLAIM | __GFP_NOWARN)
 #define GFP_NOIO	(__GFP_RECLAIM)
 #define GFP_NOFS	(__GFP_RECLAIM | __GFP_IO)
 #define GFP_USER	(__GFP_RECLAIM | __GFP_IO | __GFP_FS | __GFP_HARDWALL)

@@ -13,7 +13,7 @@ char _license[] SEC("license") = "GPL";
 
 #define DUMMY_STORAGE_VALUE 0xdeadbeef
 
-int monitored_pid = 0;
+__u32 monitored_pid = 0;
 int inode_storage_result = -1;
 int sk_storage_result = -1;
 int task_storage_result = -1;

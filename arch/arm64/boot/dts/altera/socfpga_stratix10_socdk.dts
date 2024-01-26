@@ -51,7 +51,7 @@
 		regulator-max-microvolt = <330000>;
 	};
 
-	soc {
+	soc@0 {
 		eccmgr {
 			sdmmca-ecc@ff8c8c00 {
 				compatible = "altr,socfpga-s10-sdmmc-ecc",
@@ -66,14 +66,14 @@
 };
 
 &pinctrl0 {
-	i2c1_pmx_func: i2c1-pmx-func {
+	i2c1_pmx_func: i2c1-pmx-func-pins {
 		pinctrl-single,pins = <
 			0x78   0x4   /* I2C1_SDA (IO6-B) PIN30SEL) */
 			0x7c   0x4   /* I2C1_SCL (IO7-B) PIN31SEL */
 		>;
 	};
 
-	i2c1_pmx_func_gpio: i2c1-pmx-func-gpio {
+	i2c1_pmx_func_gpio: i2c1-pmx-func-gpio-pins {
 		pinctrl-single,pins = <
 			0x78   0x8   /* I2C1_SDA (IO6-B) PIN30SEL) */
 			0x7c   0x8   /* I2C1_SCL (IO7-B) PIN31SEL */
@@ -187,8 +187,6 @@
 		spi-max-frequency = <100000000>;
 
 		m25p,fast-read;
-		cdns,page-size = <256>;
-		cdns,block-size = <16>;
 		cdns,read-delay = <1>;
 		cdns,tshsl-ns = <50>;
 		cdns,tsd2d-ns = <50>;

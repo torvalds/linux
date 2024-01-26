@@ -132,7 +132,7 @@ nfs4_xattr_entry_lru_add(struct nfs4_xattr_entry *entry)
 	lru = (entry->flags & NFS4_XATTR_ENTRY_EXTVAL) ?
 	    &nfs4_xattr_large_entry_lru : &nfs4_xattr_entry_lru;
 
-	return list_lru_add(lru, &entry->lru);
+	return list_lru_add_obj(lru, &entry->lru);
 }
 
 static bool
@@ -143,7 +143,7 @@ nfs4_xattr_entry_lru_del(struct nfs4_xattr_entry *entry)
 	lru = (entry->flags & NFS4_XATTR_ENTRY_EXTVAL) ?
 	    &nfs4_xattr_large_entry_lru : &nfs4_xattr_entry_lru;
 
-	return list_lru_del(lru, &entry->lru);
+	return list_lru_del_obj(lru, &entry->lru);
 }
 
 /*
@@ -349,7 +349,7 @@ nfs4_xattr_cache_unlink(struct inode *inode)
 
 	oldcache = nfsi->xattr_cache;
 	if (oldcache != NULL) {
-		list_lru_del(&nfs4_xattr_cache_lru, &oldcache->lru);
+		list_lru_del_obj(&nfs4_xattr_cache_lru, &oldcache->lru);
 		oldcache->inode = NULL;
 	}
 	nfsi->xattr_cache = NULL;
@@ -474,7 +474,7 @@ nfs4_xattr_get_cache(struct inode *inode, int add)
 			kref_get(&cache->ref);
 			nfsi->xattr_cache = cache;
 			cache->inode = inode;
-			list_lru_add(&nfs4_xattr_cache_lru, &cache->lru);
+			list_lru_add_obj(&nfs4_xattr_cache_lru, &cache->lru);
 		}
 
 		spin_unlock(&inode->i_lock);

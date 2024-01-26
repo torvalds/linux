@@ -840,43 +840,22 @@ static void load_fw_from_host_handler(struct work_struct *work)
  *
  * Return: 0 for success, negative error code for failure
  */
-static int loader_init(struct ishtp_cl *loader_ishtp_cl, int reset)
+static int loader_init(struct ishtp_cl *loader_ishtp_cl, bool reset)
 {
 	int rv;
-	struct ishtp_fw_client *fw_client;
 	struct ishtp_cl_data *client_data =
 		ishtp_get_client_data(loader_ishtp_cl);
 
 	dev_dbg(cl_data_to_dev(client_data), "reset flag: %d\n", reset);
 
-	rv = ishtp_cl_link(loader_ishtp_cl);
-	if (rv < 0) {
-		dev_err(cl_data_to_dev(client_data), "ishtp_cl_link failed\n");
-		return rv;
-	}
-
-	/* Connect to firmware client */
-	ishtp_set_tx_ring_size(loader_ishtp_cl, LOADER_CL_TX_RING_SIZE);
-	ishtp_set_rx_ring_size(loader_ishtp_cl, LOADER_CL_RX_RING_SIZE);
-
-	fw_client =
-		ishtp_fw_cl_get_client(ishtp_get_ishtp_device(loader_ishtp_cl),
-				       &loader_ishtp_id_table[0].guid);
-	if (!fw_client) {
-		dev_err(cl_data_to_dev(client_data),
-			"ISH client uuid not found\n");
-		rv = -ENOENT;
-		goto err_cl_unlink;
-	}
-
-	ishtp_cl_set_fw_client_id(loader_ishtp_cl,
-				  ishtp_get_fw_client_id(fw_client));
-	ishtp_set_connection_state(loader_ishtp_cl, ISHTP_CL_CONNECTING);
-
-	rv = ishtp_cl_connect(loader_ishtp_cl);
+	rv = ishtp_cl_establish_connection(loader_ishtp_cl,
+					   &loader_ishtp_id_table[0].guid,
+					   LOADER_CL_TX_RING_SIZE,
+					   LOADER_CL_RX_RING_SIZE,
+					   reset);
 	if (rv < 0) {
 		dev_err(cl_data_to_dev(client_data), "Client connect fail\n");
-		goto err_cl_unlink;
+		goto err_cl_disconnect;
 	}
 
 	dev_dbg(cl_data_to_dev(client_data), "Client connected\n");
@@ -885,17 +864,14 @@ static int loader_init(struct ishtp_cl *loader_ishtp_cl, int reset)
 
 	return 0;
 
-err_cl_unlink:
-	ishtp_cl_unlink(loader_ishtp_cl);
+err_cl_disconnect:
+	ishtp_cl_destroy_connection(loader_ishtp_cl, reset);
 	return rv;
 }
 
 static void loader_deinit(struct ishtp_cl *loader_ishtp_cl)
 {
-	ishtp_set_connection_state(loader_ishtp_cl, ISHTP_CL_DISCONNECTING);
-	ishtp_cl_disconnect(loader_ishtp_cl);
-	ishtp_cl_unlink(loader_ishtp_cl);
-	ishtp_cl_flush_queues(loader_ishtp_cl);
+	ishtp_cl_destroy_connection(loader_ishtp_cl, false);
 
 	/* Disband and free all Tx and Rx client-level rings */
 	ishtp_cl_free(loader_ishtp_cl);
@@ -914,19 +890,7 @@ static void reset_handler(struct work_struct *work)
 	loader_ishtp_cl = client_data->loader_ishtp_cl;
 	cl_device = client_data->cl_device;
 
-	/* Unlink, flush queues & start again */
-	ishtp_cl_unlink(loader_ishtp_cl);
-	ishtp_cl_flush_queues(loader_ishtp_cl);
-	ishtp_cl_free(loader_ishtp_cl);
-
-	loader_ishtp_cl = ishtp_cl_allocate(cl_device);
-	if (!loader_ishtp_cl)
-		return;
-
-	ishtp_set_drvdata(cl_device, loader_ishtp_cl);
-	ishtp_set_client_data(loader_ishtp_cl, client_data);
-	client_data->loader_ishtp_cl = loader_ishtp_cl;
-	client_data->cl_device = cl_device;
+	ishtp_cl_destroy_connection(loader_ishtp_cl, true);
 
 	rv = loader_init(loader_ishtp_cl, 1);
 	if (rv < 0) {
@@ -974,7 +938,7 @@ static int loader_ishtp_cl_probe(struct ishtp_cl_device *cl_device)
 	INIT_WORK(&client_data->work_fw_load,
 		  load_fw_from_host_handler);
 
-	rv = loader_init(loader_ishtp_cl, 0);
+	rv = loader_init(loader_ishtp_cl, false);
 	if (rv < 0) {
 		ishtp_cl_free(loader_ishtp_cl);
 		return rv;

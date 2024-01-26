@@ -341,16 +341,16 @@ static void dirty_init(struct keybuf_key *w)
 	bch_bio_map(bio, NULL);
 }
 
-static void dirty_io_destructor(struct closure *cl)
+static CLOSURE_CALLBACK(dirty_io_destructor)
 {
-	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
+	closure_type(io, struct dirty_io, cl);
 
 	kfree(io);
 }
 
-static void write_dirty_finish(struct closure *cl)
+static CLOSURE_CALLBACK(write_dirty_finish)
 {
-	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
+	closure_type(io, struct dirty_io, cl);
 	struct keybuf_key *w = io->bio.bi_private;
 	struct cached_dev *dc = io->dc;
 
@@ -400,9 +400,9 @@ static void dirty_endio(struct bio *bio)
 	closure_put(&io->cl);
 }
 
-static void write_dirty(struct closure *cl)
+static CLOSURE_CALLBACK(write_dirty)
 {
-	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
+	closure_type(io, struct dirty_io, cl);
 	struct keybuf_key *w = io->bio.bi_private;
 	struct cached_dev *dc = io->dc;
 
@@ -462,9 +462,9 @@ static void read_dirty_endio(struct bio *bio)
 	dirty_endio(bio);
 }
 
-static void read_dirty_submit(struct closure *cl)
+static CLOSURE_CALLBACK(read_dirty_submit)
 {
-	struct dirty_io *io = container_of(cl, struct dirty_io, cl);
+	closure_type(io, struct dirty_io, cl);
 
 	closure_bio_submit(io->dc->disk.c, &io->bio, cl);
 
@@ -913,7 +913,7 @@ static int bch_dirty_init_thread(void *arg)
 	int cur_idx, prev_idx, skip_nr;
 
 	k = p = NULL;
-	cur_idx = prev_idx = 0;
+	prev_idx = 0;
 
 	bch_btree_iter_init(&c->root->keys, &iter, NULL);
 	k = bch_btree_iter_next_filter(&iter, &c->root->keys, bch_ptr_bad);
@@ -977,24 +977,35 @@ static int bch_btre_dirty_init_thread_nr(void)
 void bch_sectors_dirty_init(struct bcache_device *d)
 {
 	int i;
+	struct btree *b = NULL;
 	struct bkey *k = NULL;
 	struct btree_iter iter;
 	struct sectors_dirty_init op;
 	struct cache_set *c = d->c;
 	struct bch_dirty_init_state state;
 
+retry_lock:
+	b = c->root;
+	rw_lock(0, b, b->level);
+	if (b != c->root) {
+		rw_unlock(0, b);
+		goto retry_lock;
+	}
+
 	/* Just count root keys if no leaf node */
-	rw_lock(0, c->root, c->root->level);
 	if (c->root->level == 0) {
 		bch_btree_op_init(&op.op, -1);
 		op.inode = d->id;
 		op.count = 0;
 
 		for_each_key_filter(&c->root->keys,
-				    k, &iter, bch_ptr_invalid)
+				    k, &iter, bch_ptr_invalid) {
+			if (KEY_INODE(k) != op.inode)
+				continue;
 			sectors_dirty_init_fn(&op.op, c->root, k);
+		}
 
-		rw_unlock(0, c->root);
+		rw_unlock(0, b);
 		return;
 	}
 
@@ -1014,23 +1025,24 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 		if (atomic_read(&state.enough))
 			break;
 
+		atomic_inc(&state.started);
 		state.infos[i].state = &state;
 		state.infos[i].thread =
 			kthread_run(bch_dirty_init_thread, &state.infos[i],
 				    "bch_dirtcnt[%d]", i);
 		if (IS_ERR(state.infos[i].thread)) {
 			pr_err("fails to run thread bch_dirty_init[%d]\n", i);
+			atomic_dec(&state.started);
 			for (--i; i >= 0; i--)
 				kthread_stop(state.infos[i].thread);
 			goto out;
 		}
-		atomic_inc(&state.started);
 	}
 
 out:
 	/* Must wait for all threads to stop. */
 	wait_event(state.wait, atomic_read(&state.started) == 0);
-	rw_unlock(0, c->root);
+	rw_unlock(0, b);
 }
 
 void bch_cached_dev_writeback_init(struct cached_dev *dc)

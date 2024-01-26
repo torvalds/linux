@@ -594,7 +594,7 @@ impl<T> [T] {
     /// ```
     #[rustc_allow_incoherent_impl]
     #[stable(feature = "rust1", since = "1.0.0")]
-    #[deprecated(since = "1.3.0", note = "renamed to join")]
+    #[deprecated(since = "1.3.0", note = "renamed to join", suggestion = "join")]
     pub fn connect<Separator>(&self, sep: Separator) -> <Self as Join<Separator>>::Output
     where
         Self: Join<Separator>,

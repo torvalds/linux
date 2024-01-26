@@ -267,7 +267,7 @@ struct cpu_topology *cpu_topology__new(void)
 	ncpus = cpu__max_present_cpu().cpu;
 
 	/* build online CPU map */
-	map = perf_cpu_map__new(NULL);
+	map = perf_cpu_map__new_online_cpus();
 	if (map == NULL) {
 		pr_debug("failed to get system cpumap\n");
 		return NULL;

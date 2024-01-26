@@ -7,6 +7,7 @@
 #include "netlink.h"
 #include "main.h"
 
+#include <linux/array_size.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -20,7 +21,6 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/init.h>
-#include <linux/kernel.h>
 #include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/minmax.h>

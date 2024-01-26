@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015-2021, Linaro Limited
+ * Copyright (c) 2015-2021, 2023 Linaro Limited
  * Copyright (c) 2016, EPAM Systems
  */
 
@@ -283,7 +283,7 @@ static void optee_enable_shm_cache(struct optee *optee)
 	struct optee_call_waiter w;
 
 	/* We need to retry until secure world isn't busy. */
-	optee_cq_wait_init(&optee->call_queue, &w);
+	optee_cq_wait_init(&optee->call_queue, &w, false);
 	while (true) {
 		struct arm_smccc_res res;
 
@@ -308,7 +308,7 @@ static void __optee_disable_shm_cache(struct optee *optee, bool is_mapped)
 	struct optee_call_waiter w;
 
 	/* We need to retry until secure world isn't busy. */
-	optee_cq_wait_init(&optee->call_queue, &w);
+	optee_cq_wait_init(&optee->call_queue, &w, false);
 	while (true) {
 		union {
 			struct arm_smccc_res smccc;
@@ -507,7 +507,7 @@ static int optee_shm_register(struct tee_context *ctx, struct tee_shm *shm,
 	msg_arg->params->u.tmem.buf_ptr = virt_to_phys(pages_list) |
 	  (tee_shm_get_page_offset(shm) & (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
 
-	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0) ||
+	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0, false) ||
 	    msg_arg->ret != TEEC_SUCCESS)
 		rc = -EINVAL;
 
@@ -550,7 +550,7 @@ static int optee_shm_unregister(struct tee_context *ctx, struct tee_shm *shm)
 	msg_arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_RMEM_INPUT;
 	msg_arg->params[0].u.rmem.shm_ref = (unsigned long)shm;
 
-	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0) ||
+	if (optee->ops->do_call_with_arg(ctx, shm_arg, 0, false) ||
 	    msg_arg->ret != TEEC_SUCCESS)
 		rc = -EINVAL;
 out:
@@ -678,10 +678,11 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 					  struct optee_msg_arg *arg,
 					  struct optee_call_ctx *call_ctx)
 {
-	phys_addr_t pa;
 	struct tee_shm *shm;
 	size_t sz;
 	size_t n;
+	struct page **pages;
+	size_t page_count;
 
 	arg->ret_origin = TEEC_ORIGIN_COMMS;
 
@@ -716,32 +717,23 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 		return;
 	}
 
-	if (tee_shm_get_pa(shm, 0, &pa)) {
-		arg->ret = TEEC_ERROR_BAD_PARAMETERS;
-		goto bad;
-	}
-
-	sz = tee_shm_get_size(shm);
-
-	if (tee_shm_is_dynamic(shm)) {
-		struct page **pages;
+	/*
+	 * If there are pages it's dynamically allocated shared memory (not
+	 * from the reserved shared memory pool) and needs to be
+	 * registered.
+	 */
+	pages = tee_shm_get_pages(shm, &page_count);
+	if (pages) {
 		u64 *pages_list;
-		size_t page_num;
 
-		pages = tee_shm_get_pages(shm, &page_num);
-		if (!pages || !page_num) {
-			arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
-			goto bad;
-		}
-
-		pages_list = optee_allocate_pages_list(page_num);
+		pages_list = optee_allocate_pages_list(page_count);
 		if (!pages_list) {
 			arg->ret = TEEC_ERROR_OUT_OF_MEMORY;
 			goto bad;
 		}
 
 		call_ctx->pages_list = pages_list;
-		call_ctx->num_entries = page_num;
+		call_ctx->num_entries = page_count;
 
 		arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT |
 				      OPTEE_MSG_ATTR_NONCONTIG;
@@ -752,17 +744,22 @@ static void handle_rpc_func_cmd_shm_alloc(struct tee_context *ctx,
 		arg->params[0].u.tmem.buf_ptr = virt_to_phys(pages_list) |
 			(tee_shm_get_page_offset(shm) &
 			 (OPTEE_MSG_NONCONTIG_PAGE_SIZE - 1));
-		arg->params[0].u.tmem.size = tee_shm_get_size(shm);
-		arg->params[0].u.tmem.shm_ref = (unsigned long)shm;
 
-		optee_fill_pages_list(pages_list, pages, page_num,
+		optee_fill_pages_list(pages_list, pages, page_count,
 				      tee_shm_get_page_offset(shm));
 	} else {
+		phys_addr_t pa;
+
+		if (tee_shm_get_pa(shm, 0, &pa)) {
+			arg->ret = TEEC_ERROR_BAD_PARAMETERS;
+			goto bad;
+		}
+
 		arg->params[0].attr = OPTEE_MSG_ATTR_TYPE_TMEM_OUTPUT;
 		arg->params[0].u.tmem.buf_ptr = pa;
-		arg->params[0].u.tmem.size = sz;
-		arg->params[0].u.tmem.shm_ref = (unsigned long)shm;
 	}
+	arg->params[0].u.tmem.size = tee_shm_get_size(shm);
+	arg->params[0].u.tmem.shm_ref = (unsigned long)shm;
 
 	arg->ret = TEEC_SUCCESS;
 	return;
@@ -806,6 +803,7 @@ static void handle_rpc_func_cmd(struct tee_context *ctx, struct optee *optee,
 /**
  * optee_handle_rpc() - handle RPC from secure world
  * @ctx:	context doing the RPC
+ * @rpc_arg:	pointer to RPC arguments if any, or NULL if none
  * @param:	value of registers for the RPC
  * @call_ctx:	call context. Preserved during one OP-TEE invocation
  *
@@ -878,6 +876,7 @@ static void optee_handle_rpc(struct tee_context *ctx,
  * @ctx:	calling context
  * @shm:	shared memory holding the message to pass to secure world
  * @offs:	offset of the message in @shm
+ * @system_thread: true if caller requests TEE system thread support
  *
  * Does and SMC to OP-TEE in secure world and handles eventual resulting
  * Remote Procedure Calls (RPC) from OP-TEE.
@@ -885,7 +884,8 @@ static void optee_handle_rpc(struct tee_context *ctx,
  * Returns return code from secure world, 0 is OK
  */
 static int optee_smc_do_call_with_arg(struct tee_context *ctx,
-				      struct tee_shm *shm, u_int offs)
+				      struct tee_shm *shm, u_int offs,
+				      bool system_thread)
 {
 	struct optee *optee = tee_get_drvdata(ctx->teedev);
 	struct optee_call_waiter w;
@@ -926,7 +926,7 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 		reg_pair_from_64(&param.a1, &param.a2, parg);
 	}
 	/* Initialize waiter */
-	optee_cq_wait_init(&optee->call_queue, &w);
+	optee_cq_wait_init(&optee->call_queue, &w, system_thread);
 	while (true) {
 		struct arm_smccc_res res;
 
@@ -963,34 +963,6 @@ static int optee_smc_do_call_with_arg(struct tee_context *ctx,
 	optee_cq_wait_final(&optee->call_queue, &w);
 
 	return rc;
-}
-
-static int simple_call_with_arg(struct tee_context *ctx, u32 cmd)
-{
-	struct optee_shm_arg_entry *entry;
-	struct optee_msg_arg *msg_arg;
-	struct tee_shm *shm;
-	u_int offs;
-
-	msg_arg = optee_get_msg_arg(ctx, 0, &entry, &shm, &offs);
-	if (IS_ERR(msg_arg))
-		return PTR_ERR(msg_arg);
-
-	msg_arg->cmd = cmd;
-	optee_smc_do_call_with_arg(ctx, shm, offs);
-
-	optee_free_msg_arg(ctx, entry, offs);
-	return 0;
-}
-
-static int optee_smc_do_bottom_half(struct tee_context *ctx)
-{
-	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_DO_BOTTOM_HALF);
-}
-
-static int optee_smc_stop_async_notif(struct tee_context *ctx)
-{
-	return simple_call_with_arg(ctx, OPTEE_MSG_CMD_STOP_ASYNC_NOTIF);
 }
 
 /*
@@ -1048,7 +1020,7 @@ static irqreturn_t notif_irq_thread_fn(int irq, void *dev_id)
 {
 	struct optee *optee = dev_id;
 
-	optee_smc_do_bottom_half(optee->ctx);
+	optee_do_bottom_half(optee->ctx);
 
 	return IRQ_HANDLED;
 }
@@ -1086,7 +1058,7 @@ static void notif_pcpu_irq_work_fn(struct work_struct *work)
 						   notif_pcpu_work);
 	struct optee *optee = container_of(optee_smc, struct optee, smc);
 
-	optee_smc_do_bottom_half(optee->ctx);
+	optee_do_bottom_half(optee->ctx);
 }
 
 static int init_pcpu_irq(struct optee *optee, u_int irq)
@@ -1158,7 +1130,7 @@ static void uninit_pcpu_irq(struct optee *optee)
 static void optee_smc_notif_uninit_irq(struct optee *optee)
 {
 	if (optee->smc.sec_caps & OPTEE_SMC_SEC_CAP_ASYNC_NOTIF) {
-		optee_smc_stop_async_notif(optee->ctx);
+		optee_stop_async_notif(optee->ctx);
 		if (optee->smc.notif_irq) {
 			if (irq_is_percpu_devid(optee->smc.notif_irq))
 				uninit_pcpu_irq(optee);
@@ -1210,6 +1182,7 @@ static const struct tee_driver_ops optee_clnt_ops = {
 	.release = optee_release,
 	.open_session = optee_open_session,
 	.close_session = optee_close_session,
+	.system_session = optee_system_session,
 	.invoke_func = optee_invoke_func,
 	.cancel_req = optee_cancel_req,
 	.shm_register = optee_shm_register,
@@ -1355,6 +1328,16 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 		*rpc_param_count = 0;
 
 	return true;
+}
+
+static unsigned int optee_msg_get_thread_count(optee_invoke_fn *invoke_fn)
+{
+	struct arm_smccc_res res;
+
+	invoke_fn(OPTEE_SMC_GET_THREAD_COUNT, 0, 0, 0, 0, 0, 0, 0, &res);
+	if (res.a0)
+		return 0;
+	return res.a1;
 }
 
 static struct tee_shm_pool *
@@ -1609,6 +1592,7 @@ static int optee_probe(struct platform_device *pdev)
 	struct optee *optee = NULL;
 	void *memremaped_shm = NULL;
 	unsigned int rpc_param_count;
+	unsigned int thread_count;
 	struct tee_device *teedev;
 	struct tee_context *ctx;
 	u32 max_notif_value;
@@ -1636,6 +1620,7 @@ static int optee_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	thread_count = optee_msg_get_thread_count(invoke_fn);
 	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps,
 					     &max_notif_value,
 					     &rpc_param_count)) {
@@ -1725,8 +1710,7 @@ static int optee_probe(struct platform_device *pdev)
 	if (rc)
 		goto err_unreg_supp_teedev;
 
-	mutex_init(&optee->call_queue.mutex);
-	INIT_LIST_HEAD(&optee->call_queue.waiters);
+	optee_cq_init(&optee->call_queue, thread_count);
 	optee_supp_init(&optee->supp);
 	optee->smc.memremaped_shm = memremaped_shm;
 	optee->pool = pool;

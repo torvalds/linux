@@ -123,6 +123,7 @@ static int hisi_ptt_process_auxtrace_event(struct perf_session *session,
 	if (dump_trace)
 		hisi_ptt_dump_event(ptt, data, size);
 
+	free(data);
 	return 0;
 }
 

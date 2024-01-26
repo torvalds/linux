@@ -16,15 +16,22 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <linux/keyctl.h>
+#include <sys/xattr.h>
+#include <linux/fsverity.h>
 #include <test_progs.h>
 
 #include "test_verify_pkcs7_sig.skel.h"
+#include "test_sig_in_xattr.skel.h"
 
 #define MAX_DATA_SIZE (1024 * 1024)
 #define MAX_SIG_SIZE 1024
 
 #define VERIFY_USE_SECONDARY_KEYRING (1UL)
 #define VERIFY_USE_PLATFORM_KEYRING  (2UL)
+
+#ifndef SHA256_DIGEST_SIZE
+#define SHA256_DIGEST_SIZE      32
+#endif
 
 /* In stripped ARM and x86-64 modules, ~ is surprisingly rare. */
 #define MODULE_SIG_STRING "~Module signature appended~\n"
@@ -254,7 +261,7 @@ out:
 	return ret;
 }
 
-void test_verify_pkcs7_sig(void)
+static void test_verify_pkcs7_sig_from_map(void)
 {
 	libbpf_print_fn_t old_print_cb;
 	char tmp_dir_template[] = "/tmp/verify_sigXXXXXX";
@@ -399,4 +406,160 @@ close_prog:
 
 	skel->bss->monitored_pid = 0;
 	test_verify_pkcs7_sig__destroy(skel);
+}
+
+static int get_signature_size(const char *sig_path)
+{
+	struct stat st;
+
+	if (stat(sig_path, &st) == -1)
+		return -1;
+
+	return st.st_size;
+}
+
+static int add_signature_to_xattr(const char *data_path, const char *sig_path)
+{
+	char sig[MAX_SIG_SIZE] = {0};
+	int fd, size, ret;
+
+	if (sig_path) {
+		fd = open(sig_path, O_RDONLY);
+		if (fd < 0)
+			return -1;
+
+		size = read(fd, sig, MAX_SIG_SIZE);
+		close(fd);
+		if (size <= 0)
+			return -1;
+	} else {
+		/* no sig_path, just write 32 bytes of zeros */
+		size = 32;
+	}
+	ret = setxattr(data_path, "user.sig", sig, size, 0);
+	if (!ASSERT_OK(ret, "setxattr"))
+		return -1;
+
+	return 0;
+}
+
+static int test_open_file(struct test_sig_in_xattr *skel, char *data_path,
+			  pid_t pid, bool should_success, char *name)
+{
+	int ret;
+
+	skel->bss->monitored_pid = pid;
+	ret = open(data_path, O_RDONLY);
+	close(ret);
+	skel->bss->monitored_pid = 0;
+
+	if (should_success) {
+		if (!ASSERT_GE(ret, 0, name))
+			return -1;
+	} else {
+		if (!ASSERT_LT(ret, 0, name))
+			return -1;
+	}
+	return 0;
+}
+
+static void test_pkcs7_sig_fsverity(void)
+{
+	char data_path[PATH_MAX];
+	char sig_path[PATH_MAX];
+	char tmp_dir_template[] = "/tmp/verify_sigXXXXXX";
+	char *tmp_dir;
+	struct test_sig_in_xattr *skel = NULL;
+	pid_t pid;
+	int ret;
+
+	tmp_dir = mkdtemp(tmp_dir_template);
+	if (!ASSERT_OK_PTR(tmp_dir, "mkdtemp"))
+		return;
+
+	snprintf(data_path, PATH_MAX, "%s/data-file", tmp_dir);
+	snprintf(sig_path, PATH_MAX, "%s/sig-file", tmp_dir);
+
+	ret = _run_setup_process(tmp_dir, "setup");
+	if (!ASSERT_OK(ret, "_run_setup_process"))
+		goto out;
+
+	ret = _run_setup_process(tmp_dir, "fsverity-create-sign");
+
+	if (ret) {
+		printf("%s: SKIP: fsverity [sign|enable] doesn't work.\n"
+		       "To run this test, try enable CONFIG_FS_VERITY and enable FSVerity for the filesystem.\n",
+		       __func__);
+		test__skip();
+		goto out;
+	}
+
+	skel = test_sig_in_xattr__open();
+	if (!ASSERT_OK_PTR(skel, "test_sig_in_xattr__open"))
+		goto out;
+	ret = get_signature_size(sig_path);
+	if (!ASSERT_GT(ret, 0, "get_signature_size"))
+		goto out;
+	skel->bss->sig_size = ret;
+	skel->bss->user_keyring_serial = syscall(__NR_request_key, "keyring",
+						 "ebpf_testing_keyring", NULL,
+						 KEY_SPEC_SESSION_KEYRING);
+	memcpy(skel->bss->digest, "FSVerity", 8);
+
+	ret = test_sig_in_xattr__load(skel);
+	if (!ASSERT_OK(ret, "test_sig_in_xattr__load"))
+		goto out;
+
+	ret = test_sig_in_xattr__attach(skel);
+	if (!ASSERT_OK(ret, "test_sig_in_xattr__attach"))
+		goto out;
+
+	pid = getpid();
+
+	/* Case 1: fsverity is not enabled, open should succeed */
+	if (test_open_file(skel, data_path, pid, true, "open_1"))
+		goto out;
+
+	/* Case 2: fsverity is enabled, xattr is missing, open should
+	 * fail
+	 */
+	ret = _run_setup_process(tmp_dir, "fsverity-enable");
+	if (!ASSERT_OK(ret, "fsverity-enable"))
+		goto out;
+	if (test_open_file(skel, data_path, pid, false, "open_2"))
+		goto out;
+
+	/* Case 3: fsverity is enabled, xattr has valid signature, open
+	 * should succeed
+	 */
+	ret = add_signature_to_xattr(data_path, sig_path);
+	if (!ASSERT_OK(ret, "add_signature_to_xattr_1"))
+		goto out;
+
+	if (test_open_file(skel, data_path, pid, true, "open_3"))
+		goto out;
+
+	/* Case 4: fsverity is enabled, xattr has invalid signature, open
+	 * should fail
+	 */
+	ret = add_signature_to_xattr(data_path, NULL);
+	if (!ASSERT_OK(ret, "add_signature_to_xattr_2"))
+		goto out;
+	test_open_file(skel, data_path, pid, false, "open_4");
+
+out:
+	_run_setup_process(tmp_dir, "cleanup");
+	if (!skel)
+		return;
+
+	skel->bss->monitored_pid = 0;
+	test_sig_in_xattr__destroy(skel);
+}
+
+void test_verify_pkcs7_sig(void)
+{
+	if (test__start_subtest("pkcs7_sig_from_map"))
+		test_verify_pkcs7_sig_from_map();
+	if (test__start_subtest("pkcs7_sig_fsverity"))
+		test_pkcs7_sig_fsverity();
 }

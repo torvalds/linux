@@ -65,23 +65,7 @@ do {							\
 #define DBG3(args...) DBG_(0x04, ##args)
 #define DBG4(args...) DBG_(0x08, ##args)
 
-/* TODO: rewrite to optimize macros... */
-
 #define TMP_BUF_MAX 256
-
-#define DUMP(buf__, len__)						\
-	do {								\
-		char tbuf[TMP_BUF_MAX] = {0};				\
-		if (len__ > 1) {					\
-			u32 data_len = min_t(u32, len__, TMP_BUF_MAX);	\
-			strscpy(tbuf, buf__, data_len);			\
-			if (tbuf[data_len - 2] == '\r')			\
-				tbuf[data_len - 2] = 'r';		\
-			DBG1("SENDING: '%s' (%d+n)", tbuf, len__);	\
-		} else {						\
-			DBG1("SENDING: '%s' (%d)", tbuf, len__);	\
-		}							\
-	} while (0)
 
 /*    Defines */
 #define NOZOMI_NAME		"nozomi"
@@ -754,8 +738,6 @@ static int send_data(enum port_type index, struct nozomi *dc)
 		return 0;
 	}
 
-	/* DUMP(buf, size); */
-
 	/* Write length + data */
 	write_mem32(addr, (u32 *) &size, 4);
 	write_mem32(addr + 4, (u32 *) dc->send_buf, size);
@@ -801,11 +783,10 @@ static int receive_data(enum port_type index, struct nozomi *dc)
 			tty_insert_flip_char(&port->port, buf[0], TTY_NORMAL);
 			size = 0;
 		} else if (size < RECEIVE_BUF_MAX) {
-			size -= tty_insert_flip_string(&port->port,
-					(char *)buf, size);
+			size -= tty_insert_flip_string(&port->port, buf, size);
 		} else {
-			i = tty_insert_flip_string(&port->port,
-					(char *)buf, RECEIVE_BUF_MAX);
+			i = tty_insert_flip_string(&port->port, buf,
+						   RECEIVE_BUF_MAX);
 			size -= i;
 			offset += i;
 		}
@@ -1602,10 +1583,10 @@ static void ntty_hangup(struct tty_struct *tty)
 static ssize_t ntty_write(struct tty_struct *tty, const u8 *buffer,
 			  size_t count)
 {
-	int rval = -EINVAL;
 	struct nozomi *dc = get_dc_by_tty(tty);
 	struct port *port = tty->driver_data;
 	unsigned long flags;
+	size_t rval;
 
 	if (!dc || !port)
 		return -ENODEV;

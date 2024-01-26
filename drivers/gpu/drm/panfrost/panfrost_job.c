@@ -405,12 +405,22 @@ void panfrost_job_enable_interrupts(struct panfrost_device *pfdev)
 	int j;
 	u32 irq_mask = 0;
 
+	clear_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended);
+
 	for (j = 0; j < NUM_JOB_SLOTS; j++) {
 		irq_mask |= MK_JS_MASK(j);
 	}
 
 	job_write(pfdev, JOB_INT_CLEAR, irq_mask);
 	job_write(pfdev, JOB_INT_MASK, irq_mask);
+}
+
+void panfrost_job_suspend_irq(struct panfrost_device *pfdev)
+{
+	set_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended);
+
+	job_write(pfdev, JOB_INT_MASK, 0);
+	synchronize_irq(pfdev->js->irq);
 }
 
 static void panfrost_job_handle_err(struct panfrost_device *pfdev,
@@ -792,17 +802,25 @@ static irqreturn_t panfrost_job_irq_handler_thread(int irq, void *data)
 	struct panfrost_device *pfdev = data;
 
 	panfrost_job_handle_irqs(pfdev);
-	job_write(pfdev, JOB_INT_MASK,
-		  GENMASK(16 + NUM_JOB_SLOTS - 1, 16) |
-		  GENMASK(NUM_JOB_SLOTS - 1, 0));
+
+	/* Enable interrupts only if we're not about to get suspended */
+	if (!test_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended))
+		job_write(pfdev, JOB_INT_MASK,
+			  GENMASK(16 + NUM_JOB_SLOTS - 1, 16) |
+			  GENMASK(NUM_JOB_SLOTS - 1, 0));
+
 	return IRQ_HANDLED;
 }
 
 static irqreturn_t panfrost_job_irq_handler(int irq, void *data)
 {
 	struct panfrost_device *pfdev = data;
-	u32 status = job_read(pfdev, JOB_INT_STAT);
+	u32 status;
 
+	if (test_bit(PANFROST_COMP_BIT_JOB, pfdev->is_suspended))
+		return IRQ_NONE;
+
+	status = job_read(pfdev, JOB_INT_STAT);
 	if (!status)
 		return IRQ_NONE;
 
@@ -852,7 +870,7 @@ int panfrost_job_init(struct panfrost_device *pfdev)
 		js->queue[j].fence_context = dma_fence_context_alloc(1);
 
 		ret = drm_sched_init(&js->queue[j].sched,
-				     &panfrost_sched_ops,
+				     &panfrost_sched_ops, NULL,
 				     DRM_SCHED_PRIORITY_COUNT,
 				     nentries, 0,
 				     msecs_to_jiffies(JOB_TIMEOUT_MS),
@@ -963,7 +981,7 @@ int panfrost_job_is_idle(struct panfrost_device *pfdev)
 
 	for (i = 0; i < NUM_JOB_SLOTS; i++) {
 		/* If there are any jobs in the HW queue, we're not idle */
-		if (atomic_read(&js->queue[i].sched.hw_rq_count))
+		if (atomic_read(&js->queue[i].sched.credit_count))
 			return false;
 	}
 

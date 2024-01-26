@@ -549,8 +549,7 @@ __mt9p031_get_pad_format(struct mt9p031 *mt9p031,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(&mt9p031->subdev, sd_state,
-						  pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->format;
 	default:
@@ -565,8 +564,7 @@ __mt9p031_get_pad_crop(struct mt9p031 *mt9p031,
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&mt9p031->subdev, sd_state,
-						pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &mt9p031->crop;
 	default:
@@ -698,8 +696,8 @@ static int mt9p031_set_selection(struct v4l2_subdev *subdev,
 	return 0;
 }
 
-static int mt9p031_init_cfg(struct v4l2_subdev *subdev,
-			    struct v4l2_subdev_state *sd_state)
+static int mt9p031_init_state(struct v4l2_subdev *subdev,
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 	struct v4l2_mbus_framefmt *format;
@@ -1043,7 +1041,6 @@ static const struct v4l2_subdev_video_ops mt9p031_subdev_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mt9p031_subdev_pad_ops = {
-	.init_cfg = mt9p031_init_cfg,
 	.enum_mbus_code = mt9p031_enum_mbus_code,
 	.enum_frame_size = mt9p031_enum_frame_size,
 	.get_fmt = mt9p031_get_format,
@@ -1059,6 +1056,7 @@ static const struct v4l2_subdev_ops mt9p031_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops mt9p031_subdev_internal_ops = {
+	.init_state = mt9p031_init_state,
 	.registered = mt9p031_registered,
 	.open = mt9p031_open,
 	.close = mt9p031_close,
@@ -1191,7 +1189,7 @@ static int mt9p031_probe(struct i2c_client *client)
 
 	mt9p031->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	ret = mt9p031_init_cfg(&mt9p031->subdev, NULL);
+	ret = mt9p031_init_state(&mt9p031->subdev, NULL);
 	if (ret)
 		goto done;
 

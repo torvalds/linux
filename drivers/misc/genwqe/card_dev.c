@@ -443,7 +443,7 @@ static int genwqe_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (vsize == 0)
 		return -EINVAL;
 
-	if (get_order(vsize) > MAX_ORDER)
+	if (get_order(vsize) > MAX_PAGE_ORDER)
 		return -ENOMEM;
 
 	dma_map = kzalloc(sizeof(struct dma_mapping), GFP_KERNEL);

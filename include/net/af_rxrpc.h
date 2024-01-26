@@ -15,6 +15,7 @@ struct key;
 struct sock;
 struct socket;
 struct rxrpc_call;
+struct rxrpc_peer;
 enum rxrpc_abort_reason;
 
 enum rxrpc_interruptibility {
@@ -41,13 +42,14 @@ void rxrpc_kernel_new_call_notification(struct socket *,
 					rxrpc_notify_new_call_t,
 					rxrpc_discard_new_call_t);
 struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
-					   struct sockaddr_rxrpc *srx,
+					   struct rxrpc_peer *peer,
 					   struct key *key,
 					   unsigned long user_call_ID,
 					   s64 tx_total_len,
 					   u32 hard_timeout,
 					   gfp_t gfp,
 					   rxrpc_notify_rx_t notify_rx,
+					   u16 service_id,
 					   bool upgrade,
 					   enum rxrpc_interruptibility interruptibility,
 					   unsigned int debug_id);
@@ -60,9 +62,14 @@ bool rxrpc_kernel_abort_call(struct socket *, struct rxrpc_call *,
 			     u32, int, enum rxrpc_abort_reason);
 void rxrpc_kernel_shutdown_call(struct socket *sock, struct rxrpc_call *call);
 void rxrpc_kernel_put_call(struct socket *sock, struct rxrpc_call *call);
-void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
-			   struct sockaddr_rxrpc *);
-bool rxrpc_kernel_get_srtt(struct socket *, struct rxrpc_call *, u32 *);
+struct rxrpc_peer *rxrpc_kernel_lookup_peer(struct socket *sock,
+					    struct sockaddr_rxrpc *srx, gfp_t gfp);
+void rxrpc_kernel_put_peer(struct rxrpc_peer *peer);
+struct rxrpc_peer *rxrpc_kernel_get_peer(struct rxrpc_peer *peer);
+struct rxrpc_peer *rxrpc_kernel_get_call_peer(struct socket *sock, struct rxrpc_call *call);
+const struct sockaddr_rxrpc *rxrpc_kernel_remote_srx(const struct rxrpc_peer *peer);
+const struct sockaddr *rxrpc_kernel_remote_addr(const struct rxrpc_peer *peer);
+unsigned int rxrpc_kernel_get_srtt(const struct rxrpc_peer *);
 int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
 			       rxrpc_user_attach_call_t, unsigned long, gfp_t,
 			       unsigned int);

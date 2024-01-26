@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 ///
 /// From Documentation/filesystems/sysfs.rst:
-///  show() must not use snprintf() when formatting the value to be
-///  returned to user space. If you can guarantee that an overflow
-///  will never happen you can use sprintf() otherwise you must use
-///  scnprintf().
+///  show() should only use sysfs_emit() or sysfs_emit_at() when formatting
+///  the value to be returned to user space.
 ///
 // Confidence: High
 // Copyright: (C) 2020 Denis Efremov ISPRAS
@@ -30,15 +28,16 @@ ssize_t show(struct device *dev, struct device_attribute *attr, char *buf)
 
 @rp depends on patch@
 identifier show, dev, attr, buf;
+expression BUF, SZ, FORMAT, STR;
 @@
 
 ssize_t show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	<...
 	return
--		snprintf
-+		scnprintf
-			(...);
+-		snprintf(BUF, SZ, FORMAT
++		sysfs_emit(BUF, FORMAT
+				,...);
 	...>
 }
 
@@ -46,10 +45,10 @@ ssize_t show(struct device *dev, struct device_attribute *attr, char *buf)
 p << r.p;
 @@
 
-coccilib.report.print_report(p[0], "WARNING: use scnprintf or sprintf")
+coccilib.report.print_report(p[0], "WARNING: please use sysfs_emit or sysfs_emit_at")
 
 @script: python depends on org@
 p << r.p;
 @@
 
-coccilib.org.print_todo(p[0], "WARNING: use scnprintf or sprintf")
+coccilib.org.print_todo(p[0], "WARNING: please use sysfs_emit or sysfs_emit_at")

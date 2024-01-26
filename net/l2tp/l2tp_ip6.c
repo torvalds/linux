@@ -599,9 +599,9 @@ static int l2tp_ip6_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 	final_p = fl6_update_dst(&fl6, opt, &final);
 
 	if (!fl6.flowi6_oif && ipv6_addr_is_multicast(&fl6.daddr))
-		fl6.flowi6_oif = np->mcast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->mcast_oif);
 	else if (!fl6.flowi6_oif)
-		fl6.flowi6_oif = np->ucast_oif;
+		fl6.flowi6_oif = READ_ONCE(np->ucast_oif);
 
 	security_sk_classify_flow(sk, flowi6_to_flowi_common(&fl6));
 

@@ -1112,8 +1112,7 @@ static int ov7670_set_fmt(struct v4l2_subdev *sd,
 		ret = ov7670_try_fmt_internal(sd, &format->format, NULL, NULL);
 		if (ret)
 			return ret;
-		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state,
-						      format->pad);
+		mbus_fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		*mbus_fmt = format->format;
 		return 0;
 	}
@@ -1141,7 +1140,7 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mbus_fmt;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mbus_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		mbus_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		format->format = *mbus_fmt;
 		return 0;
 	} else {
@@ -1155,23 +1154,37 @@ static int ov7670_get_fmt(struct v4l2_subdev *sd,
  * Implement G/S_PARM.  There is a "high quality" mode we could try
  * to do someday; for now, we just do the frame rate tweak.
  */
-static int ov7670_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
+static int ov7670_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
 {
 	struct ov7670_info *info = to_state(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	info->devtype->get_framerate(sd, &ival->interval);
 
 	return 0;
 }
 
-static int ov7670_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *ival)
+static int ov7670_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *ival)
 {
 	struct v4l2_fract *tpf = &ival->interval;
 	struct ov7670_info *info = to_state(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (ival->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	return info->devtype->set_framerate(sd, tpf);
 }
@@ -1707,7 +1720,7 @@ static void ov7670_get_default_format(struct v4l2_subdev *sd,
 static int ov7670_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *format =
-				v4l2_subdev_get_try_format(sd, fh->state, 0);
+				v4l2_subdev_state_get_format(fh->state, 0);
 
 	ov7670_get_default_format(sd, format);
 
@@ -1729,22 +1742,18 @@ static const struct v4l2_subdev_core_ops ov7670_core_ops = {
 #endif
 };
 
-static const struct v4l2_subdev_video_ops ov7670_video_ops = {
-	.s_frame_interval = ov7670_s_frame_interval,
-	.g_frame_interval = ov7670_g_frame_interval,
-};
-
 static const struct v4l2_subdev_pad_ops ov7670_pad_ops = {
 	.enum_frame_interval = ov7670_enum_frame_interval,
 	.enum_frame_size = ov7670_enum_frame_size,
 	.enum_mbus_code = ov7670_enum_mbus_code,
 	.get_fmt = ov7670_get_fmt,
 	.set_fmt = ov7670_set_fmt,
+	.get_frame_interval = ov7670_get_frame_interval,
+	.set_frame_interval = ov7670_set_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov7670_ops = {
 	.core = &ov7670_core_ops,
-	.video = &ov7670_video_ops,
 	.pad = &ov7670_pad_ops,
 };
 

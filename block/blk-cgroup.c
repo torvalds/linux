@@ -300,7 +300,7 @@ static inline struct blkcg *blkcg_parent(struct blkcg *blkcg)
  * @disk: gendisk the new blkg is associated with
  * @gfp_mask: allocation mask to use
  *
- * Allocate a new blkg assocating @blkcg and @q.
+ * Allocate a new blkg associating @blkcg and @disk.
  */
 static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct gendisk *disk,
 				   gfp_t gfp_mask)
@@ -575,12 +575,13 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 static void blkg_destroy_all(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
-	struct blkcg_gq *blkg, *n;
+	struct blkcg_gq *blkg;
 	int count = BLKG_DESTROY_BATCH_SIZE;
+	int i;
 
 restart:
 	spin_lock_irq(&q->queue_lock);
-	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
+	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		struct blkcg *blkcg = blkg->blkcg;
 
 		if (hlist_unhashed(&blkg->blkcg_node))
@@ -600,6 +601,18 @@ restart:
 			cond_resched();
 			goto restart;
 		}
+	}
+
+	/*
+	 * Mark policy deactivated since policy offline has been done, and
+	 * the free is scheduled, so future blkcg_deactivate_policy() can
+	 * be bypassed
+	 */
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
+		struct blkcg_policy *pol = blkcg_policy[i];
+
+		if (pol)
+			__clear_bit(pol->plid, q->blkcg_pols);
 	}
 
 	q->root_blkg = NULL;
@@ -2050,6 +2063,9 @@ EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);
 void bio_associate_blkg(struct bio *bio)
 {
 	struct cgroup_subsys_state *css;
+
+	if (blk_op_is_passthrough(bio->bi_opf))
+		return;
 
 	rcu_read_lock();
 

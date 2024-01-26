@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/input/ti,drv266x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments - drv266x Haptics driver
+
+description: |
+  Product Page:
+    http://www.ti.com/product/drv2665
+    http://www.ti.com/product/drv2667
+
+maintainers:
+  - Anshul Dalal <anshulusr@gmail.com>
+
+properties:
+  compatible:
+    enum:
+      - ti,drv2665
+      - ti,drv2667
+
+  reg:
+    maxItems: 1
+
+  vbat-supply:
+    description: Required supply regulator
+
+required:
+  - compatible
+  - reg
+  - vbat-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        haptics@59 {
+            compatible = "ti,drv2667";
+            reg = <0x59>;
+            vbat-supply = <&vbat>;
+        };
+    };

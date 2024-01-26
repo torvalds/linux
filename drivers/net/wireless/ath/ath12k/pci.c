@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -57,6 +57,17 @@ static const struct ath12k_msi_config ath12k_msi_config[] = {
 			{ .name = "CE", .num_vectors = 5, .base_vector = 3 },
 			{ .name = "DP", .num_vectors = 8, .base_vector = 8 },
 		},
+	},
+};
+
+static const struct ath12k_msi_config msi_config_one_msi = {
+	.total_vectors = 1,
+	.total_users = 4,
+	.users = (struct ath12k_msi_user[]) {
+		{ .name = "MHI", .num_vectors = 3, .base_vector = 0 },
+		{ .name = "CE", .num_vectors = 1, .base_vector = 0 },
+		{ .name = "WAKE", .num_vectors = 1, .base_vector = 0 },
+		{ .name = "DP", .num_vectors = 1, .base_vector = 0 },
 	},
 };
 
@@ -355,7 +366,14 @@ static void ath12k_pci_free_irq(struct ath12k_base *ab)
 
 static void ath12k_pci_ce_irq_enable(struct ath12k_base *ab, u16 ce_id)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 	u32 irq_idx;
+
+	/* In case of one MSI vector, we handle irq enable/disable in a
+	 * uniform way since we only have one irq
+	 */
+	if (!test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return;
 
 	irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + ce_id;
 	enable_irq(ab->irq_num[irq_idx]);
@@ -363,7 +381,14 @@ static void ath12k_pci_ce_irq_enable(struct ath12k_base *ab, u16 ce_id)
 
 static void ath12k_pci_ce_irq_disable(struct ath12k_base *ab, u16 ce_id)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 	u32 irq_idx;
+
+	/* In case of one MSI vector, we handle irq enable/disable in a
+	 * uniform way since we only have one irq
+	 */
+	if (!test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return;
 
 	irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + ce_id;
 	disable_irq_nosync(ab->irq_num[irq_idx]);
@@ -372,6 +397,8 @@ static void ath12k_pci_ce_irq_disable(struct ath12k_base *ab, u16 ce_id)
 static void ath12k_pci_ce_irqs_disable(struct ath12k_base *ab)
 {
 	int i;
+
+	clear_bit(ATH12K_FLAG_CE_IRQ_ENABLED, &ab->dev_flags);
 
 	for (i = 0; i < ab->hw_params->ce_count; i++) {
 		if (ath12k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
@@ -397,20 +424,27 @@ static void ath12k_pci_sync_ce_irqs(struct ath12k_base *ab)
 static void ath12k_pci_ce_tasklet(struct tasklet_struct *t)
 {
 	struct ath12k_ce_pipe *ce_pipe = from_tasklet(ce_pipe, t, intr_tq);
+	int irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + ce_pipe->pipe_num;
 
 	ath12k_ce_per_engine_service(ce_pipe->ab, ce_pipe->pipe_num);
 
-	ath12k_pci_ce_irq_enable(ce_pipe->ab, ce_pipe->pipe_num);
+	enable_irq(ce_pipe->ab->irq_num[irq_idx]);
 }
 
 static irqreturn_t ath12k_pci_ce_interrupt_handler(int irq, void *arg)
 {
 	struct ath12k_ce_pipe *ce_pipe = arg;
+	struct ath12k_base *ab = ce_pipe->ab;
+	int irq_idx = ATH12K_PCI_IRQ_CE0_OFFSET + ce_pipe->pipe_num;
+
+	if (!test_bit(ATH12K_FLAG_CE_IRQ_ENABLED, &ab->dev_flags))
+		return IRQ_HANDLED;
 
 	/* last interrupt received for this CE */
 	ce_pipe->timestamp = jiffies;
 
-	ath12k_pci_ce_irq_disable(ce_pipe->ab, ce_pipe->pipe_num);
+	disable_irq_nosync(ab->irq_num[irq_idx]);
+
 	tasklet_schedule(&ce_pipe->intr_tq);
 
 	return IRQ_HANDLED;
@@ -418,7 +452,14 @@ static irqreturn_t ath12k_pci_ce_interrupt_handler(int irq, void *arg)
 
 static void ath12k_pci_ext_grp_disable(struct ath12k_ext_irq_grp *irq_grp)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(irq_grp->ab);
 	int i;
+
+	/* In case of one MSI vector, we handle irq enable/disable
+	 * in a uniform way since we only have one irq
+	 */
+	if (!test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
 		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
@@ -427,6 +468,8 @@ static void ath12k_pci_ext_grp_disable(struct ath12k_ext_irq_grp *irq_grp)
 static void __ath12k_pci_ext_irq_disable(struct ath12k_base *ab)
 {
 	int i;
+
+	clear_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags);
 
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath12k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
@@ -440,7 +483,14 @@ static void __ath12k_pci_ext_irq_disable(struct ath12k_base *ab)
 
 static void ath12k_pci_ext_grp_enable(struct ath12k_ext_irq_grp *irq_grp)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(irq_grp->ab);
 	int i;
+
+	/* In case of one MSI vector, we handle irq enable/disable in a
+	 * uniform way since we only have one irq
+	 */
+	if (!test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return;
 
 	for (i = 0; i < irq_grp->num_irq; i++)
 		enable_irq(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
@@ -467,11 +517,13 @@ static int ath12k_pci_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 						napi);
 	struct ath12k_base *ab = irq_grp->ab;
 	int work_done;
+	int i;
 
 	work_done = ath12k_dp_service_srng(ab, irq_grp, budget);
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
-		ath12k_pci_ext_grp_enable(irq_grp);
+		for (i = 0; i < irq_grp->num_irq; i++)
+			enable_irq(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 	}
 
 	if (work_done > budget)
@@ -483,13 +535,19 @@ static int ath12k_pci_ext_grp_napi_poll(struct napi_struct *napi, int budget)
 static irqreturn_t ath12k_pci_ext_interrupt_handler(int irq, void *arg)
 {
 	struct ath12k_ext_irq_grp *irq_grp = arg;
+	struct ath12k_base *ab = irq_grp->ab;
+	int i;
+
+	if (!test_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags))
+		return IRQ_HANDLED;
 
 	ath12k_dbg(irq_grp->ab, ATH12K_DBG_PCI, "ext irq:%d\n", irq);
 
 	/* last interrupt received for this group */
 	irq_grp->timestamp = jiffies;
 
-	ath12k_pci_ext_grp_disable(irq_grp);
+	for (i = 0; i < irq_grp->num_irq; i++)
+		disable_irq_nosync(irq_grp->ab->irq_num[irq_grp->irqs[i]]);
 
 	napi_schedule(&irq_grp->napi);
 
@@ -498,6 +556,7 @@ static irqreturn_t ath12k_pci_ext_interrupt_handler(int irq, void *arg)
 
 static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 	int i, j, ret, num_vectors = 0;
 	u32 user_base_data = 0, base_vector = 0, base_idx;
 
@@ -544,23 +603,32 @@ static int ath12k_pci_ext_irq_config(struct ath12k_base *ab)
 
 			irq_set_status_flags(irq, IRQ_DISABLE_UNLAZY);
 			ret = request_irq(irq, ath12k_pci_ext_interrupt_handler,
-					  IRQF_SHARED,
+					  ab_pci->irq_flags,
 					  "DP_EXT_IRQ", irq_grp);
 			if (ret) {
 				ath12k_err(ab, "failed request irq %d: %d\n",
 					   vector, ret);
 				return ret;
 			}
-
-			disable_irq_nosync(ab->irq_num[irq_idx]);
 		}
+		ath12k_pci_ext_grp_disable(irq_grp);
 	}
 
 	return 0;
 }
 
+static int ath12k_pci_set_irq_affinity_hint(struct ath12k_pci *ab_pci,
+					    const struct cpumask *m)
+{
+	if (test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		return 0;
+
+	return irq_set_affinity_hint(ab_pci->pdev->irq, m);
+}
+
 static int ath12k_pci_config_irq(struct ath12k_base *ab)
 {
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 	struct ath12k_ce_pipe *ce_pipe;
 	u32 msi_data_start;
 	u32 msi_data_count, msi_data_idx;
@@ -589,7 +657,7 @@ static int ath12k_pci_config_irq(struct ath12k_base *ab)
 		tasklet_setup(&ce_pipe->intr_tq, ath12k_pci_ce_tasklet);
 
 		ret = request_irq(irq, ath12k_pci_ce_interrupt_handler,
-				  IRQF_SHARED, irq_name[irq_idx],
+				  ab_pci->irq_flags, irq_name[irq_idx],
 				  ce_pipe);
 		if (ret) {
 			ath12k_err(ab, "failed to request irq %d: %d\n",
@@ -625,6 +693,8 @@ static void ath12k_pci_init_qmi_ce_config(struct ath12k_base *ab)
 static void ath12k_pci_ce_irqs_enable(struct ath12k_base *ab)
 {
 	int i;
+
+	set_bit(ATH12K_FLAG_CE_IRQ_ENABLED, &ab->dev_flags);
 
 	for (i = 0; i < ab->hw_params->ce_count; i++) {
 		if (ath12k_ce_get_attr_flags(ab, i) & CE_ATTR_DIS_INTR)
@@ -670,15 +740,26 @@ static int ath12k_pci_msi_alloc(struct ath12k_pci *ab_pci)
 					    msi_config->total_vectors,
 					    msi_config->total_vectors,
 					    PCI_IRQ_MSI);
-	if (num_vectors != msi_config->total_vectors) {
-		ath12k_err(ab, "failed to get %d MSI vectors, only %d available",
-			   msi_config->total_vectors, num_vectors);
 
-		if (num_vectors >= 0)
-			return -EINVAL;
-		else
-			return num_vectors;
+	if (num_vectors == msi_config->total_vectors) {
+		set_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags);
+		ab_pci->irq_flags = IRQF_SHARED;
+	} else {
+		num_vectors = pci_alloc_irq_vectors(ab_pci->pdev,
+						    1,
+						    1,
+						    PCI_IRQ_MSI);
+		if (num_vectors < 0) {
+			ret = -EINVAL;
+			goto reset_msi_config;
+		}
+		clear_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags);
+		ab_pci->msi_config = &msi_config_one_msi;
+		ab_pci->irq_flags = IRQF_SHARED | IRQF_NOBALANCING;
+		ath12k_dbg(ab, ATH12K_DBG_PCI, "request MSI one vector\n");
 	}
+
+	ath12k_info(ab, "MSI vectors: %d\n", num_vectors);
 
 	ath12k_pci_msi_disable(ab_pci);
 
@@ -700,12 +781,32 @@ static int ath12k_pci_msi_alloc(struct ath12k_pci *ab_pci)
 free_msi_vector:
 	pci_free_irq_vectors(ab_pci->pdev);
 
+reset_msi_config:
 	return ret;
 }
 
 static void ath12k_pci_msi_free(struct ath12k_pci *ab_pci)
 {
 	pci_free_irq_vectors(ab_pci->pdev);
+}
+
+static int ath12k_pci_config_msi_data(struct ath12k_pci *ab_pci)
+{
+	struct msi_desc *msi_desc;
+
+	msi_desc = irq_get_msi_desc(ab_pci->pdev->irq);
+	if (!msi_desc) {
+		ath12k_err(ab_pci->ab, "msi_desc is NULL!\n");
+		pci_free_irq_vectors(ab_pci->pdev);
+		return -EINVAL;
+	}
+
+	ab_pci->msi_ep_base_data = msi_desc->msg.data;
+
+	ath12k_dbg(ab_pci->ab, ATH12K_DBG_PCI, "pci after request_irq msi_ep_base_data %d\n",
+		   ab_pci->msi_ep_base_data);
+
+	return 0;
 }
 
 static int ath12k_pci_claim(struct ath12k_pci *ab_pci, struct pci_dev *pdev)
@@ -891,11 +992,11 @@ int ath12k_pci_get_user_msi_assignment(struct ath12k_base *ab, char *user_name,
 	for (idx = 0; idx < msi_config->total_users; idx++) {
 		if (strcmp(user_name, msi_config->users[idx].name) == 0) {
 			*num_vectors = msi_config->users[idx].num_vectors;
-			*user_base_data = msi_config->users[idx].base_vector
-				+ ab_pci->msi_ep_base_data;
-			*base_vector = msi_config->users[idx].base_vector;
+			*base_vector =  msi_config->users[idx].base_vector;
+			*user_base_data = *base_vector + ab_pci->msi_ep_base_data;
 
-			ath12k_dbg(ab, ATH12K_DBG_PCI, "Assign MSI to user: %s, num_vectors: %d, user_base_data: %u, base_vector: %u\n",
+			ath12k_dbg(ab, ATH12K_DBG_PCI,
+				   "Assign MSI to user: %s, num_vectors: %d, user_base_data: %u, base_vector: %u\n",
 				   user_name, *num_vectors, *user_base_data,
 				   *base_vector);
 
@@ -956,6 +1057,8 @@ void ath12k_pci_ext_irq_enable(struct ath12k_base *ab)
 {
 	int i;
 
+	set_bit(ATH12K_FLAG_EXT_IRQ_ENABLED, &ab->dev_flags);
+
 	for (i = 0; i < ATH12K_EXT_IRQ_GRP_NUM_MAX; i++) {
 		struct ath12k_ext_irq_grp *irq_grp = &ab->ext_irq_grp[i];
 
@@ -1000,7 +1103,10 @@ int ath12k_pci_start(struct ath12k_base *ab)
 
 	set_bit(ATH12K_PCI_FLAG_INIT_DONE, &ab_pci->flags);
 
-	ath12k_pci_aspm_restore(ab_pci);
+	if (test_bit(ATH12K_PCI_FLAG_MULTI_MSI_VECTORS, &ab_pci->flags))
+		ath12k_pci_aspm_restore(ab_pci);
+	else
+		ath12k_info(ab, "leaving PCI ASPM disabled to avoid MHI M2 problems\n");
 
 	ath12k_pci_ce_irqs_enable(ab);
 	ath12k_ce_rx_post_buf(ab);
@@ -1262,10 +1368,16 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_pci_msi_free;
 
+	ret = ath12k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
+	if (ret) {
+		ath12k_err(ab, "failed to set irq affinity %d\n", ret);
+		goto err_pci_msi_free;
+	}
+
 	ret = ath12k_mhi_register(ab_pci);
 	if (ret) {
 		ath12k_err(ab, "failed to register mhi: %d\n", ret);
-		goto err_pci_msi_free;
+		goto err_irq_affinity_cleanup;
 	}
 
 	ret = ath12k_hal_srng_init(ab);
@@ -1284,6 +1396,17 @@ static int ath12k_pci_probe(struct pci_dev *pdev,
 	if (ret) {
 		ath12k_err(ab, "failed to config irq: %d\n", ret);
 		goto err_ce_free;
+	}
+
+	/* kernel may allocate a dummy vector before request_irq and
+	 * then allocate a real vector when request_irq is called.
+	 * So get msi_data here again to avoid spurious interrupt
+	 * as msi_data will configured to srngs.
+	 */
+	ret = ath12k_pci_config_msi_data(ab_pci);
+	if (ret) {
+		ath12k_err(ab, "failed to config msi_data: %d\n", ret);
+		goto err_free_irq;
 	}
 
 	ret = ath12k_core_init(ab);
@@ -1308,6 +1431,9 @@ err_mhi_unregister:
 err_pci_msi_free:
 	ath12k_pci_msi_free(ab_pci);
 
+err_irq_affinity_cleanup:
+	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
+
 err_pci_free_region:
 	ath12k_pci_free_region(ab_pci);
 
@@ -1321,6 +1447,8 @@ static void ath12k_pci_remove(struct pci_dev *pdev)
 {
 	struct ath12k_base *ab = pci_get_drvdata(pdev);
 	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
+
+	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 	if (test_bit(ATH12K_FLAG_QMI_FAIL, &ab->dev_flags)) {
 		ath12k_pci_power_down(ab);
@@ -1348,7 +1476,9 @@ qmi_fail:
 static void ath12k_pci_shutdown(struct pci_dev *pdev)
 {
 	struct ath12k_base *ab = pci_get_drvdata(pdev);
+	struct ath12k_pci *ab_pci = ath12k_pci_priv(ab);
 
+	ath12k_pci_set_irq_affinity_hint(ab_pci, NULL);
 	ath12k_pci_power_down(ab);
 }
 

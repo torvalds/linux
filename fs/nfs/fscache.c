@@ -274,12 +274,6 @@ static void nfs_netfs_free_request(struct netfs_io_request *rreq)
 	put_nfs_open_context(rreq->netfs_priv);
 }
 
-static inline int nfs_netfs_begin_cache_operation(struct netfs_io_request *rreq)
-{
-	return fscache_begin_read_operation(&rreq->cache_resources,
-					    netfs_i_cookie(netfs_inode(rreq->inode)));
-}
-
 static struct nfs_netfs_io_data *nfs_netfs_alloc(struct netfs_io_subrequest *sreq)
 {
 	struct nfs_netfs_io_data *netfs;
@@ -387,7 +381,6 @@ void nfs_netfs_read_completion(struct nfs_pgio_header *hdr)
 const struct netfs_request_ops nfs_netfs_ops = {
 	.init_request		= nfs_netfs_init_request,
 	.free_request		= nfs_netfs_free_request,
-	.begin_cache_operation	= nfs_netfs_begin_cache_operation,
 	.issue_read		= nfs_netfs_issue_read,
 	.clamp_length		= nfs_netfs_clamp_length
 };

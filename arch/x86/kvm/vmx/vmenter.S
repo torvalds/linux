@@ -289,7 +289,7 @@ SYM_INNER_LABEL_ALIGN(vmx_vmexit, SYM_L_GLOBAL)
 	RET
 
 .Lfixup:
-	cmpb $0, kvm_rebooting
+	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne .Lvmfail
 	ud2
 .Lvmfail:

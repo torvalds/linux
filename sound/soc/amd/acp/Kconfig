@@ -73,6 +73,19 @@ config SND_AMD_ASOC_ACP63
 	  Say Y if you want to enable AUDIO on ACP6.3
 	  If unsure select "N".
 
+config SND_AMD_ASOC_ACP70
+	tristate "AMD ACP ASOC Acp7.0 Support"
+	depends on X86 && PCI
+	depends on ACPI
+	select SND_SOC_AMD_ACP_PCM
+	select SND_SOC_AMD_ACP_I2S
+	select SND_SOC_AMD_ACP_PDM
+	select SND_SOC_AMD_ACP_LEGACY_COMMON
+	help
+	This option enables Acp7.0 PDM support on AMD platform.
+	Say Y if you want to enable AUDIO on ACP7.0
+          If unsure select "N".
+
 config SND_SOC_AMD_MACH_COMMON
 	tristate
 	depends on X86 && PCI && I2C

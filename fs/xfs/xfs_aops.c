@@ -584,7 +584,7 @@ const struct address_space_operations xfs_address_space_operations = {
 	.bmap			= xfs_vm_bmap,
 	.migrate_folio		= filemap_migrate_folio,
 	.is_partially_uptodate  = iomap_is_partially_uptodate,
-	.error_remove_page	= generic_error_remove_page,
+	.error_remove_folio	= generic_error_remove_folio,
 	.swap_activate		= xfs_iomap_swapfile_activate,
 };
 

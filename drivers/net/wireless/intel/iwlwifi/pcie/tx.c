@@ -873,6 +873,33 @@ void iwl_trans_pcie_txq_disable(struct iwl_trans *trans, int txq_id,
 
 /*************** HOST COMMAND QUEUE FUNCTIONS   *****/
 
+static void iwl_trans_pcie_block_txq_ptrs(struct iwl_trans *trans, bool block)
+{
+	int i;
+
+	for (i = 0; i < trans->trans_cfg->base_params->num_of_queues; i++) {
+		struct iwl_txq *txq = trans->txqs.txq[i];
+
+		if (i == trans->txqs.cmd.q_id)
+			continue;
+
+		/* we skip the command queue (obviously) so it's OK to nest */
+		spin_lock_nested(&txq->lock, 1);
+
+		if (!block && !(WARN_ON_ONCE(!txq->block))) {
+			txq->block--;
+			if (!txq->block) {
+				iwl_write32(trans, HBUS_TARG_WRPTR,
+					    txq->write_ptr | (i << 8));
+			}
+		} else if (block) {
+			txq->block++;
+		}
+
+		spin_unlock(&txq->lock);
+	}
+}
+
 /*
  * iwl_pcie_enqueue_hcmd - enqueue a uCode command
  * @priv: device private data point
@@ -1137,6 +1164,9 @@ int iwl_pcie_enqueue_hcmd(struct iwl_trans *trans,
 		goto out;
 	}
 
+	if (cmd->flags & CMD_BLOCK_TXQS)
+		iwl_trans_pcie_block_txq_ptrs(trans, true);
+
 	/* Increment and update queue's write index */
 	txq->write_ptr = iwl_txq_inc_wrap(trans, txq->write_ptr);
 	iwl_pcie_txq_inc_wr_ptr(trans, txq);
@@ -1202,8 +1232,8 @@ void iwl_pcie_hcmd_complete(struct iwl_trans *trans,
 		meta->source->_rx_page_order = trans_pcie->rx_page_order;
 	}
 
-	if (meta->flags & CMD_WANT_ASYNC_CALLBACK)
-		iwl_op_mode_async_cb(trans->op_mode, cmd);
+	if (meta->flags & CMD_BLOCK_TXQS)
+		iwl_trans_pcie_block_txq_ptrs(trans, false);
 
 	iwl_pcie_cmdq_reclaim(trans, txq_id, index);
 

@@ -578,10 +578,6 @@ int hl_get_temperature(struct hl_device *hdev,
 				CPUCP_PKT_CTL_OPCODE_SHIFT);
 	pkt.sensor_index = __cpu_to_le16(sensor_index);
 	pkt.type = __cpu_to_le16(attr);
-
-	dev_dbg(hdev->dev, "get temp, ctl 0x%x, sensor %d, type %d\n",
-		pkt.ctl, pkt.sensor_index, pkt.type);
-
 	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt),
 						0, &result);
 

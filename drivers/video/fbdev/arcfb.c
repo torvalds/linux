@@ -363,39 +363,6 @@ static void arcfb_lcd_update(struct arcfb_par *par, unsigned int dx,
 	}
 }
 
-static void arcfb_fillrect(struct fb_info *info,
-			   const struct fb_fillrect *rect)
-{
-	struct arcfb_par *par = info->par;
-
-	sys_fillrect(info, rect);
-
-	/* update the physical lcd */
-	arcfb_lcd_update(par, rect->dx, rect->dy, rect->width, rect->height);
-}
-
-static void arcfb_copyarea(struct fb_info *info,
-			   const struct fb_copyarea *area)
-{
-	struct arcfb_par *par = info->par;
-
-	sys_copyarea(info, area);
-
-	/* update the physical lcd */
-	arcfb_lcd_update(par, area->dx, area->dy, area->width, area->height);
-}
-
-static void arcfb_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	struct arcfb_par *par = info->par;
-
-	sys_imageblit(info, image);
-
-	/* update the physical lcd */
-	arcfb_lcd_update(par, image->dx, image->dy, image->width,
-				image->height);
-}
-
 static int arcfb_ioctl(struct fb_info *info,
 			  unsigned int cmd, unsigned long arg)
 {
@@ -436,76 +403,48 @@ static int arcfb_ioctl(struct fb_info *info,
 	}
 }
 
-/*
- * this is the access path from userspace. they can seek and write to
- * the fb. it's inefficient for them to do anything less than 64*8
- * writes since we update the lcd in each write() anyway.
- */
-static ssize_t arcfb_write(struct fb_info *info, const char __user *buf,
-			   size_t count, loff_t *ppos)
+static void arcfb_damage_range(struct fb_info *info, off_t off, size_t len)
 {
-	/* modded from epson 1355 */
+	struct arcfb_par *par = info->par;
+	unsigned int xres = info->var.xres;
+	unsigned int bitppos, startpos, endpos, bitcount;
+	unsigned int x, y, width, height;
 
-	unsigned long p;
-	int err;
-	unsigned int fbmemlength,x,y,w,h, bitppos, startpos, endpos, bitcount;
-	struct arcfb_par *par;
-	unsigned int xres;
-
-	if (!info->screen_buffer)
-		return -ENODEV;
-
-	p = *ppos;
-	par = info->par;
-	xres = info->var.xres;
-	fbmemlength = (xres * info->var.yres)/8;
-
-	if (p > fbmemlength)
-		return -ENOSPC;
-
-	err = 0;
-	if ((count + p) > fbmemlength) {
-		count = fbmemlength - p;
-		err = -ENOSPC;
-	}
-
-	if (count) {
-		char *base_addr;
-
-		base_addr = info->screen_buffer;
-		count -= copy_from_user(base_addr + p, buf, count);
-		*ppos += count;
-		err = -EFAULT;
-	}
-
-
-	bitppos = p*8;
+	bitppos = off * 8;
 	startpos = floorXres(bitppos, xres);
-	endpos = ceilXres((bitppos + (count*8)), xres);
+	endpos = ceilXres((bitppos + (len * 8)), xres);
 	bitcount = endpos - startpos;
 
 	x = startpos % xres;
 	y = startpos / xres;
-	w = xres;
-	h = bitcount / xres;
-	arcfb_lcd_update(par, x, y, w, h);
+	width = xres;
+	height = bitcount / xres;
 
-	if (count)
-		return count;
-	return err;
+	arcfb_lcd_update(par, x, y, width, height);
 }
+
+static void arcfb_damage_area(struct fb_info *info, u32 x, u32 y,
+			      u32 width, u32 height)
+{
+	struct arcfb_par *par = info->par;
+
+	/* update the physical lcd */
+	arcfb_lcd_update(par, x, y, width, height);
+}
+
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(arcfb,
+				   arcfb_damage_range,
+				   arcfb_damage_area)
 
 static const struct fb_ops arcfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= arcfb_open,
-	.fb_read        = fb_sys_read,
-	.fb_write	= arcfb_write,
+	__FB_DEFAULT_DEFERRED_OPS_RDWR(arcfb),
 	.fb_release	= arcfb_release,
 	.fb_pan_display	= arcfb_pan_display,
-	.fb_fillrect	= arcfb_fillrect,
-	.fb_copyarea	= arcfb_copyarea,
-	.fb_imageblit	= arcfb_imageblit,
+	__FB_DEFAULT_DEFERRED_OPS_DRAW(arcfb),
 	.fb_ioctl 	= arcfb_ioctl,
+	// .fb_mmap reqires deferred I/O
 };
 
 static int arcfb_probe(struct platform_device *dev)
@@ -529,6 +468,7 @@ static int arcfb_probe(struct platform_device *dev)
 	if (!info)
 		goto err_fb_alloc;
 
+	info->flags |= FBINFO_VIRTFB;
 	info->screen_buffer = videomemory;
 	info->fbops = &arcfb_ops;
 

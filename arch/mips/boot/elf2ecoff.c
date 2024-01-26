@@ -443,7 +443,7 @@ int main(int argc, char *argv[])
 	efh.f_symptr = 0;
 	efh.f_nsyms = 0;
 	efh.f_opthdr = sizeof eah;
-	efh.f_flags = 0x100f;	/* Stripped, not sharable. */
+	efh.f_flags = 0x100f;	/* Stripped, not shareable. */
 
 	memset(esecs, 0, sizeof esecs);
 	strcpy(esecs[0].s_name, ".text");

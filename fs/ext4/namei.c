@@ -2388,8 +2388,6 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 
 	sb = dir->i_sb;
 	blocksize = sb->s_blocksize;
-	if (!dentry->d_name.len)
-		return -EINVAL;
 
 	if (fscrypt_is_nokey_name(dentry))
 		return -ENOKEY;
@@ -3591,9 +3589,13 @@ struct ext4_renament {
 	int dir_inlined;
 };
 
-static int ext4_rename_dir_prepare(handle_t *handle, struct ext4_renament *ent)
+static int ext4_rename_dir_prepare(handle_t *handle, struct ext4_renament *ent, bool is_cross)
 {
 	int retval;
+
+	ent->is_dir = true;
+	if (!is_cross)
+		return 0;
 
 	ent->dir_bh = ext4_get_first_dir_block(handle, ent->inode,
 					      &retval, &ent->parent_de,
@@ -3611,6 +3613,9 @@ static int ext4_rename_dir_finish(handle_t *handle, struct ext4_renament *ent,
 				  unsigned dir_ino)
 {
 	int retval;
+
+	if (!ent->dir_bh)
+		return 0;
 
 	ent->parent_de->inode = cpu_to_le32(dir_ino);
 	BUFFER_TRACE(ent->dir_bh, "call ext4_handle_dirty_metadata");
@@ -3900,7 +3905,7 @@ static int ext4_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 			if (new.dir != old.dir && EXT4_DIR_LINK_MAX(new.dir))
 				goto end_rename;
 		}
-		retval = ext4_rename_dir_prepare(handle, &old);
+		retval = ext4_rename_dir_prepare(handle, &old, new.dir != old.dir);
 		if (retval)
 			goto end_rename;
 	}
@@ -3964,7 +3969,7 @@ static int ext4_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	}
 	inode_set_mtime_to_ts(old.dir, inode_set_ctime_current(old.dir));
 	ext4_update_dx_flag(old.dir);
-	if (old.dir_bh) {
+	if (old.is_dir) {
 		retval = ext4_rename_dir_finish(handle, &old, new.dir->i_ino);
 		if (retval)
 			goto end_rename;
@@ -3987,7 +3992,7 @@ static int ext4_rename(struct mnt_idmap *idmap, struct inode *old_dir,
 	if (unlikely(retval))
 		goto end_rename;
 
-	if (S_ISDIR(old.inode->i_mode)) {
+	if (old.is_dir) {
 		/*
 		 * We disable fast commits here that's because the
 		 * replay code is not yet capable of changing dot dot
@@ -4114,14 +4119,12 @@ static int ext4_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
 		ext4_handle_sync(handle);
 
 	if (S_ISDIR(old.inode->i_mode)) {
-		old.is_dir = true;
-		retval = ext4_rename_dir_prepare(handle, &old);
+		retval = ext4_rename_dir_prepare(handle, &old, new.dir != old.dir);
 		if (retval)
 			goto end_rename;
 	}
 	if (S_ISDIR(new.inode->i_mode)) {
-		new.is_dir = true;
-		retval = ext4_rename_dir_prepare(handle, &new);
+		retval = ext4_rename_dir_prepare(handle, &new, new.dir != old.dir);
 		if (retval)
 			goto end_rename;
 	}

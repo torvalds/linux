@@ -98,7 +98,7 @@ static struct watchdog_device txx9wdt = {
 	.ops = &txx9wdt_ops,
 };
 
-static int __init txx9wdt_probe(struct platform_device *dev)
+static int txx9wdt_probe(struct platform_device *dev)
 {
 	int ret;
 
@@ -145,12 +145,11 @@ exit:
 	return ret;
 }
 
-static int __exit txx9wdt_remove(struct platform_device *dev)
+static void txx9wdt_remove(struct platform_device *dev)
 {
 	watchdog_unregister_device(&txx9wdt);
 	clk_disable_unprepare(txx9_imclk);
 	clk_put(txx9_imclk);
-	return 0;
 }
 
 static void txx9wdt_shutdown(struct platform_device *dev)
@@ -159,14 +158,14 @@ static void txx9wdt_shutdown(struct platform_device *dev)
 }
 
 static struct platform_driver txx9wdt_driver = {
-	.remove = __exit_p(txx9wdt_remove),
+	.probe = txx9wdt_probe,
+	.remove_new = txx9wdt_remove,
 	.shutdown = txx9wdt_shutdown,
 	.driver = {
 		.name = "txx9wdt",
 	},
 };
-
-module_platform_driver_probe(txx9wdt_driver, txx9wdt_probe);
+module_platform_driver(txx9wdt_driver);
 
 MODULE_DESCRIPTION("TXx9 Watchdog Driver");
 MODULE_LICENSE("GPL");

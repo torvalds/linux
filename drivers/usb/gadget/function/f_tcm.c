@@ -1504,8 +1504,8 @@ static ssize_t tcm_usbg_tpg_nexus_show(struct config_item *item, char *page)
 		ret = -ENODEV;
 		goto out;
 	}
-	ret = snprintf(page, PAGE_SIZE, "%s\n",
-			tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
+	ret = sysfs_emit(page, "%s\n",
+			 tv_nexus->tvn_se_sess->se_node_acl->initiatorname);
 out:
 	mutex_unlock(&tpg->tpg_mutex);
 	return ret;

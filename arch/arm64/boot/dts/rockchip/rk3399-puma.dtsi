@@ -9,6 +9,7 @@
 
 / {
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &sdhci;
 	};
 
@@ -117,6 +118,20 @@
 &emmc_phy {
 	status = "okay";
 	drive-impedance-ohm = <33>;
+};
+
+&gpio0 {
+	/*
+	 * The BIOS_DISABLE hog is a feedback pin for the actual status of the
+	 * signal. This usually represents the state of a switch on the baseboard.
+	 * The pin has a 10k pull-up resistor connected, so no pull-up setting is needed.
+	 */
+	bios-disable-hog {
+		gpios = <RK_PB0 GPIO_ACTIVE_HIGH>;
+		gpio-hog;
+		input;
+		line-name = "bios_disable";
+	};
 };
 
 &gmac {

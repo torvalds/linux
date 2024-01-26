@@ -80,9 +80,9 @@ examples:
             compatible = "adi,ad7780";
             reg = <0>;
 
-            avdd-supply      = <&vdd_supply>;
-            powerdown-gpios  = <&gpio0 12 GPIO_ACTIVE_HIGH>;
-            adi,gain-gpios   = <&gpio1  5 GPIO_ACTIVE_LOW>;
+            avdd-supply = <&vdd_supply>;
+            powerdown-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+            adi,gain-gpios = <&gpio1  5 GPIO_ACTIVE_LOW>;
             adi,filter-gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
         };
     };

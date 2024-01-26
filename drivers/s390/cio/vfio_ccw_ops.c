@@ -421,7 +421,7 @@ static int vfio_ccw_mdev_set_irqs(struct vfio_ccw_private *private,
 	case VFIO_IRQ_SET_DATA_NONE:
 	{
 		if (*ctx)
-			eventfd_signal(*ctx, 1);
+			eventfd_signal(*ctx);
 		return 0;
 	}
 	case VFIO_IRQ_SET_DATA_BOOL:
@@ -432,7 +432,7 @@ static int vfio_ccw_mdev_set_irqs(struct vfio_ccw_private *private,
 			return -EFAULT;
 
 		if (trigger && *ctx)
-			eventfd_signal(*ctx, 1);
+			eventfd_signal(*ctx);
 		return 0;
 	}
 	case VFIO_IRQ_SET_DATA_EVENTFD:
@@ -612,7 +612,7 @@ static void vfio_ccw_mdev_request(struct vfio_device *vdev, unsigned int count)
 					       "Relaying device request to user (#%u)\n",
 					       count);
 
-		eventfd_signal(private->req_trigger, 1);
+		eventfd_signal(private->req_trigger);
 	} else if (count == 0) {
 		dev_notice(dev,
 			   "No device request channel registered, blocked until released by user\n");

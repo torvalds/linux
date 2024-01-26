@@ -1691,8 +1691,6 @@ static int lan78xx_get_eee(struct net_device *net, struct ethtool_eee *edata)
 	ret = lan78xx_read_reg(dev, MAC_CR, &buf);
 	if (buf & MAC_CR_EEE_EN_) {
 		edata->eee_enabled = true;
-		edata->eee_active = !!(edata->advertised &
-				       edata->lp_advertised);
 		edata->tx_lpi_enabled = true;
 		/* EEE_TX_LPI_REQ_DLY & tx_lpi_timer are same uSec unit */
 		ret = lan78xx_read_reg(dev, EEE_TX_LPI_REQ_DLY, &buf);

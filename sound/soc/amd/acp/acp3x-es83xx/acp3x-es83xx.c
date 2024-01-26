@@ -222,7 +222,6 @@ static int acp3x_es83xx_resume_post(struct snd_soc_card *card)
 
 static int acp3x_es83xx_configure_gpios(struct acp3x_es83xx_private *priv)
 {
-	int ret = 0;
 
 	priv->enable_spk_gpio.crs_entry_index = 0;
 	priv->enable_hp_gpio.crs_entry_index = 1;
@@ -245,7 +244,7 @@ static int acp3x_es83xx_configure_gpios(struct acp3x_es83xx_private *priv)
 		 priv->enable_spk_gpio.active_low ? "low" : "high",
 		 priv->enable_hp_gpio.crs_entry_index,
 		 priv->enable_hp_gpio.active_low ? "low" : "high");
-	return ret;
+	return 0;
 }
 
 static int acp3x_es83xx_configure_mics(struct acp3x_es83xx_private *priv)

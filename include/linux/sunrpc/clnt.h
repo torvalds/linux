@@ -252,7 +252,6 @@ void		rpc_clnt_probe_trunked_xprts(struct rpc_clnt *,
 
 const char *rpc_proc_name(const struct rpc_task *task);
 
-void rpc_clnt_xprt_switch_put(struct rpc_clnt *);
 void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *, struct rpc_xprt *);
 void rpc_clnt_xprt_switch_remove_xprt(struct rpc_clnt *, struct rpc_xprt *);
 bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,

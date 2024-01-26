@@ -521,7 +521,8 @@ static struct csio_hw *csio_hw_alloc(struct pci_dev *pdev)
 		goto err;
 
 	hw->pdev = pdev;
-	strncpy(hw->drv_version, CSIO_DRV_VERSION, 32);
+	strscpy(hw->drv_version, CSIO_DRV_VERSION,
+		sizeof(hw->drv_version));
 
 	/* memory pool/DMA pool allocation */
 	if (csio_resource_alloc(hw))

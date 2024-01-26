@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 
 #include <scsi/fcoe_sysfs.h>
 #include <scsi/libfcoe.h>
@@ -214,24 +215,12 @@ static const char *get_fcoe_##title##_name(enum table_type table_key)	\
 	return table[table_key];					\
 }
 
-static char *fip_conn_type_names[] = {
+static const char * const fip_conn_type_names[] = {
 	[ FIP_CONN_TYPE_UNKNOWN ] = "Unknown",
 	[ FIP_CONN_TYPE_FABRIC ]  = "Fabric",
 	[ FIP_CONN_TYPE_VN2VN ]   = "VN2VN",
 };
 fcoe_enum_name_search(ctlr_mode, fip_conn_type, fip_conn_type_names)
-
-static enum fip_conn_type fcoe_parse_mode(const char *buf)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(fip_conn_type_names); i++) {
-		if (strcasecmp(buf, fip_conn_type_names[i]) == 0)
-			return i;
-	}
-
-	return FIP_CONN_TYPE_UNKNOWN;
-}
 
 static char *fcf_state_names[] = {
 	[ FCOE_FCF_STATE_UNKNOWN ]      = "Unknown",
@@ -274,17 +263,11 @@ static ssize_t store_ctlr_mode(struct device *dev,
 			       const char *buf, size_t count)
 {
 	struct fcoe_ctlr_device *ctlr = dev_to_ctlr(dev);
-	char mode[FCOE_MAX_MODENAME_LEN + 1];
+	int res;
 
 	if (count > FCOE_MAX_MODENAME_LEN)
 		return -EINVAL;
 
-	strncpy(mode, buf, count);
-
-	if (mode[count - 1] == '\n')
-		mode[count - 1] = '\0';
-	else
-		mode[count] = '\0';
 
 	switch (ctlr->enabled) {
 	case FCOE_CTLR_ENABLED:
@@ -297,12 +280,13 @@ static ssize_t store_ctlr_mode(struct device *dev,
 			return -ENOTSUPP;
 		}
 
-		ctlr->mode = fcoe_parse_mode(mode);
-		if (ctlr->mode == FIP_CONN_TYPE_UNKNOWN) {
+		res = sysfs_match_string(fip_conn_type_names, buf);
+		if (res < 0 || res == FIP_CONN_TYPE_UNKNOWN) {
 			LIBFCOE_SYSFS_DBG(ctlr, "Unknown mode %s provided.\n",
 					  buf);
 			return -EINVAL;
 		}
+		ctlr->mode = res;
 
 		ctlr->f->set_fcoe_ctlr_mode(ctlr);
 		LIBFCOE_SYSFS_DBG(ctlr, "Mode changed to %s.\n", buf);

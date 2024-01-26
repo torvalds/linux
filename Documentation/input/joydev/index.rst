@@ -6,11 +6,8 @@ Linux Joystick support
 
 :Copyright: |copy| 1996-2000 Vojtech Pavlik <vojtech@ucw.cz> - Sponsored by SuSE
 
-.. class:: toc-title
-
-	Table of Contents
-
 .. toctree::
+	:caption: Table of Contents
 	:maxdepth: 3
 
 	joystick

@@ -662,13 +662,11 @@ static int sunplus_uart_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int sunplus_uart_remove(struct platform_device *pdev)
+static void sunplus_uart_remove(struct platform_device *pdev)
 {
 	struct sunplus_uart_port *sup = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&sunplus_uart_driver, &sup->port);
-
-	return 0;
 }
 
 static int __maybe_unused sunplus_uart_suspend(struct device *dev)
@@ -703,7 +701,7 @@ MODULE_DEVICE_TABLE(of, sp_uart_of_match);
 
 static struct platform_driver sunplus_uart_platform_driver = {
 	.probe		= sunplus_uart_probe,
-	.remove		= sunplus_uart_remove,
+	.remove_new	= sunplus_uart_remove,
 	.driver = {
 		.name	= "sunplus_uart",
 		.of_match_table = sp_uart_of_match,

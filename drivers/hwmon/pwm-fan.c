@@ -151,7 +151,7 @@ static int pwm_fan_power_on(struct pwm_fan_ctx *ctx)
 	}
 
 	state->enabled = true;
-	ret = pwm_apply_state(ctx->pwm, state);
+	ret = pwm_apply_might_sleep(ctx->pwm, state);
 	if (ret) {
 		dev_err(ctx->dev, "failed to enable PWM\n");
 		goto disable_regulator;
@@ -181,7 +181,7 @@ static int pwm_fan_power_off(struct pwm_fan_ctx *ctx)
 
 	state->enabled = false;
 	state->duty_cycle = 0;
-	ret = pwm_apply_state(ctx->pwm, state);
+	ret = pwm_apply_might_sleep(ctx->pwm, state);
 	if (ret) {
 		dev_err(ctx->dev, "failed to disable PWM\n");
 		return ret;
@@ -207,7 +207,7 @@ static int  __set_pwm(struct pwm_fan_ctx *ctx, unsigned long pwm)
 
 		period = state->period;
 		state->duty_cycle = DIV_ROUND_UP(pwm * (period - 1), MAX_PWM);
-		ret = pwm_apply_state(ctx->pwm, state);
+		ret = pwm_apply_might_sleep(ctx->pwm, state);
 		if (ret)
 			return ret;
 		ret = pwm_fan_power_on(ctx);
@@ -278,7 +278,7 @@ static int pwm_fan_update_enable(struct pwm_fan_ctx *ctx, long val)
 						    state,
 						    &enable_regulator);
 
-			pwm_apply_state(ctx->pwm, state);
+			pwm_apply_might_sleep(ctx->pwm, state);
 			pwm_fan_switch_power(ctx, enable_regulator);
 			pwm_fan_update_state(ctx, 0);
 		}

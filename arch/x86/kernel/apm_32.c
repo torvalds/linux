@@ -420,7 +420,7 @@ static DEFINE_MUTEX(apm_mutex);
  * This is for buggy BIOS's that refer to (real mode) segment 0x40
  * even though they are called in protected mode.
  */
-static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(0x4092,
+static struct desc_struct bad_bios_desc = GDT_ENTRY_INIT(DESC_DATA32_BIOS,
 			(unsigned long)__va(0x400UL), PAGE_SIZE - 0x400 - 1);
 
 static const char driver_version[] = "1.16ac";	/* no spaces */

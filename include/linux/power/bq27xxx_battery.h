@@ -83,5 +83,6 @@ struct bq27xxx_device_info {
 void bq27xxx_battery_update(struct bq27xxx_device_info *di);
 int bq27xxx_battery_setup(struct bq27xxx_device_info *di);
 void bq27xxx_battery_teardown(struct bq27xxx_device_info *di);
+extern const struct dev_pm_ops bq27xxx_battery_battery_pm_ops;
 
 #endif

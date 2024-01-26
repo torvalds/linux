@@ -262,4 +262,5 @@ static void __exit packet_diag_exit(void)
 module_init(packet_diag_init);
 module_exit(packet_diag_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("PACKET socket monitoring via SOCK_DIAG");
 MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 17 /* AF_PACKET */);

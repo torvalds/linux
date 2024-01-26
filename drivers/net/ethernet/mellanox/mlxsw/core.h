@@ -38,6 +38,8 @@ unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
 int mlxsw_core_max_lag(struct mlxsw_core *mlxsw_core, u16 *p_max_lag);
 enum mlxsw_cmd_mbox_config_profile_lag_mode
 mlxsw_core_lag_mode(struct mlxsw_core *mlxsw_core);
+enum mlxsw_cmd_mbox_config_profile_flood_mode
+mlxsw_core_flood_mode(struct mlxsw_core *mlxsw_core);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
@@ -322,7 +324,12 @@ struct mlxsw_config_profile {
 	u16	max_regions;
 	u8	max_flood_tables;
 	u8	max_vid_flood_tables;
+
+	/* Flood mode to use if used_flood_mode. If flood_mode_prefer_cff,
+	 * the backup flood mode (if any) when CFF unsupported.
+	 */
 	u8	flood_mode;
+
 	u8	max_fid_offset_flood_tables;
 	u16	fid_offset_flood_table_size;
 	u8	max_fid_flood_tables;
@@ -338,6 +345,7 @@ struct mlxsw_config_profile {
 	u8	kvd_hash_double_parts;
 	u8	cqe_time_stamp_type;
 	bool	lag_mode_prefer_sw;
+	bool	flood_mode_prefer_cff;
 	struct mlxsw_swid_config swid_config[MLXSW_CONFIG_PROFILE_SWID_COUNT];
 };
 
@@ -489,6 +497,7 @@ struct mlxsw_bus {
 	u32 (*read_utc_sec)(void *bus_priv);
 	u32 (*read_utc_nsec)(void *bus_priv);
 	enum mlxsw_cmd_mbox_config_profile_lag_mode (*lag_mode)(void *bus_priv);
+	enum mlxsw_cmd_mbox_config_profile_flood_mode (*flood_mode)(void *priv);
 	u8 features;
 };
 

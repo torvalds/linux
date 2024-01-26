@@ -482,7 +482,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 
 	str_l	x21, __fdt_pointer, x5		// Save FDT pointer
 
-	ldr_l	x4, kimage_vaddr		// Save the offset between
+	adrp	x4, _text			// Save the offset between
 	sub	x4, x4, x0			// the kernel virtual and
 	str_l	x4, kimage_voffset, x5		// physical mappings
 

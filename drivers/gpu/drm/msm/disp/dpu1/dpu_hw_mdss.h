@@ -98,6 +98,7 @@ enum dpu_hw_blk_type {
 	DPU_HW_BLK_DSPP,
 	DPU_HW_BLK_MERGE_3D,
 	DPU_HW_BLK_DSC,
+	DPU_HW_BLK_CDM,
 	DPU_HW_BLK_MAX,
 };
 
@@ -185,6 +186,11 @@ enum dpu_dsc {
 	DSC_MAX
 };
 
+enum dpu_cdm {
+	CDM_0 = 1,
+	CDM_MAX
+};
+
 enum dpu_pingpong {
 	PINGPONG_NONE,
 	PINGPONG_0,
@@ -195,6 +201,8 @@ enum dpu_pingpong {
 	PINGPONG_5,
 	PINGPONG_6,
 	PINGPONG_7,
+	PINGPONG_8,
+	PINGPONG_9,
 	PINGPONG_S0,
 	PINGPONG_MAX
 };
@@ -204,6 +212,7 @@ enum dpu_merge_3d {
 	MERGE_3D_1,
 	MERGE_3D_2,
 	MERGE_3D_3,
+	MERGE_3D_4,
 	MERGE_3D_MAX
 };
 
@@ -458,6 +467,7 @@ struct dpu_mdss_color {
 #define DPU_DBG_MASK_ROT      (1 << 9)
 #define DPU_DBG_MASK_DSPP     (1 << 10)
 #define DPU_DBG_MASK_DSC      (1 << 11)
+#define DPU_DBG_MASK_CDM      (1 << 12)
 
 /**
  * struct dpu_hw_tear_check - Struct contains parameters to configure

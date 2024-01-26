@@ -4,7 +4,7 @@ Kernel Probes (Kprobes)
 
 :Author: Jim Keniston <jkenisto@us.ibm.com>
 :Author: Prasanna S Panchamukhi <prasanna.panchamukhi@gmail.com>
-:Author: Masami Hiramatsu <mhiramat@redhat.com>
+:Author: Masami Hiramatsu <mhiramat@kernel.org>
 
 .. CONTENTS
 
@@ -321,6 +321,7 @@ architectures:
 - mips
 - s390
 - parisc
+- loongarch
 
 Configuring Kprobes
 ===================

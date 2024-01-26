@@ -27,6 +27,7 @@
 
 #include <linux/types.h>
 
+#include "intel_display_power.h"
 #include "intel_wakeref.h"
 
 #define for_each_shared_dpll(__i915, __pll, __i) \
@@ -269,6 +270,11 @@ struct dpll_info {
 	 * @id: unique indentifier for this DPLL
 	 */
 	enum intel_dpll_id id;
+
+	/**
+	 * @power_domain: extra power domain required by the DPLL
+	 */
+	enum intel_display_power_domain power_domain;
 
 #define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 	/**

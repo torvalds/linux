@@ -576,6 +576,28 @@ free_rtd:
 	return NULL;
 }
 
+static void snd_soc_fill_dummy_dai(struct snd_soc_card *card)
+{
+	struct snd_soc_dai_link *dai_link;
+	int i;
+
+	/*
+	 * COMP_DUMMY() creates size 0 array on dai_link.
+	 * Fill it as dummy DAI in case of CPU/Codec here.
+	 * Do nothing for Platform.
+	 */
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->num_cpus == 0 && dai_link->cpus) {
+			dai_link->num_cpus	= 1;
+			dai_link->cpus		= &snd_soc_dummy_dlc;
+		}
+		if (dai_link->num_codecs == 0 && dai_link->codecs) {
+			dai_link->num_codecs	= 1;
+			dai_link->codecs	= &snd_soc_dummy_dlc;
+		}
+	}
+}
+
 static void snd_soc_flush_all_delayed_work(struct snd_soc_card *card)
 {
 	struct snd_soc_pcm_runtime *rtd;
@@ -1015,6 +1037,94 @@ component_dai_empty:
 	return -EINVAL;
 }
 
+#define MAX_DEFAULT_CH_MAP_SIZE 7
+static struct snd_soc_dai_link_ch_map default_ch_map_sync[MAX_DEFAULT_CH_MAP_SIZE] = {
+	{ .cpu = 0, .codec = 0 },
+	{ .cpu = 1, .codec = 1 },
+	{ .cpu = 2, .codec = 2 },
+	{ .cpu = 3, .codec = 3 },
+	{ .cpu = 4, .codec = 4 },
+	{ .cpu = 5, .codec = 5 },
+	{ .cpu = 6, .codec = 6 },
+};
+static struct snd_soc_dai_link_ch_map default_ch_map_1cpu[MAX_DEFAULT_CH_MAP_SIZE] = {
+	{ .cpu = 0, .codec = 0 },
+	{ .cpu = 0, .codec = 1 },
+	{ .cpu = 0, .codec = 2 },
+	{ .cpu = 0, .codec = 3 },
+	{ .cpu = 0, .codec = 4 },
+	{ .cpu = 0, .codec = 5 },
+	{ .cpu = 0, .codec = 6 },
+};
+static struct snd_soc_dai_link_ch_map default_ch_map_1codec[MAX_DEFAULT_CH_MAP_SIZE] = {
+	{ .cpu = 0, .codec = 0 },
+	{ .cpu = 1, .codec = 0 },
+	{ .cpu = 2, .codec = 0 },
+	{ .cpu = 3, .codec = 0 },
+	{ .cpu = 4, .codec = 0 },
+	{ .cpu = 5, .codec = 0 },
+	{ .cpu = 6, .codec = 0 },
+};
+static int snd_soc_compensate_channel_connection_map(struct snd_soc_card *card,
+						     struct snd_soc_dai_link *dai_link)
+{
+	struct snd_soc_dai_link_ch_map *ch_maps;
+	int i;
+
+	/*
+	 * dai_link->ch_maps indicates how CPU/Codec are connected.
+	 * It will be a map seen from a larger number of DAI.
+	 * see
+	 *	soc.h :: [dai_link->ch_maps Image sample]
+	 */
+
+	/* it should have ch_maps if connection was N:M */
+	if (dai_link->num_cpus > 1 && dai_link->num_codecs > 1 &&
+	    dai_link->num_cpus != dai_link->num_codecs && !dai_link->ch_maps) {
+		dev_err(card->dev, "need to have ch_maps when N:M connection (%s)",
+			dai_link->name);
+		return -EINVAL;
+	}
+
+	/* do nothing if it has own maps */
+	if (dai_link->ch_maps)
+		goto sanity_check;
+
+	/* check default map size */
+	if (dai_link->num_cpus   > MAX_DEFAULT_CH_MAP_SIZE ||
+	    dai_link->num_codecs > MAX_DEFAULT_CH_MAP_SIZE) {
+		dev_err(card->dev, "soc-core.c needs update default_connection_maps");
+		return -EINVAL;
+	}
+
+	/* Compensate missing map for ... */
+	if (dai_link->num_cpus == dai_link->num_codecs)
+		dai_link->ch_maps = default_ch_map_sync;	/* for 1:1 or N:N */
+	else if (dai_link->num_cpus <  dai_link->num_codecs)
+		dai_link->ch_maps = default_ch_map_1cpu;	/* for 1:N */
+	else
+		dai_link->ch_maps = default_ch_map_1codec;	/* for N:1 */
+
+sanity_check:
+	dev_dbg(card->dev, "dai_link %s\n", dai_link->stream_name);
+	for_each_link_ch_maps(dai_link, i, ch_maps) {
+		if ((ch_maps->cpu   >= dai_link->num_cpus) ||
+		    (ch_maps->codec >= dai_link->num_codecs)) {
+			dev_err(card->dev,
+				"unexpected dai_link->ch_maps[%d] index (cpu(%d/%d) codec(%d/%d))",
+				i,
+				ch_maps->cpu,	dai_link->num_cpus,
+				ch_maps->codec,	dai_link->num_codecs);
+			return -EINVAL;
+		}
+
+		dev_dbg(card->dev, "  [%d] cpu%d <-> codec%d\n",
+			i, ch_maps->cpu, ch_maps->codec);
+	}
+
+	return 0;
+}
+
 /**
  * snd_soc_remove_pcm_runtime - Remove a pcm_runtime from card
  * @card: The ASoC card to which the pcm_runtime has
@@ -1121,8 +1231,13 @@ int snd_soc_add_pcm_runtimes(struct snd_soc_card *card,
 			     int num_dai_link)
 {
 	for (int i = 0; i < num_dai_link; i++) {
-		int ret = snd_soc_add_pcm_runtime(card, dai_link + i);
+		int ret;
 
+		ret = snd_soc_compensate_channel_connection_map(card, dai_link + i);
+		if (ret < 0)
+			return ret;
+
+		ret = snd_soc_add_pcm_runtime(card, dai_link + i);
 		if (ret < 0)
 			return ret;
 	}
@@ -1206,7 +1321,7 @@ found:
 	 *
 	 * To avoid such issue, loop from 63 to 0 here.
 	 * Small number of SND_SOC_POSSIBLE_xxx will be Hi priority.
-	 * Basic/Default settings of each part and aboves are defined
+	 * Basic/Default settings of each part and above are defined
 	 * as Hi priority (= small number) of SND_SOC_POSSIBLE_xxx.
 	 */
 	for (i = 63; i >= 0; i--) {
@@ -1752,7 +1867,7 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
  * @flavour: The flavour "differentiator" for the card amongst its peers.
  *
  * An Intel machine driver may be used by many different devices but are
- * difficult for userspace to differentiate, since machine drivers ususally
+ * difficult for userspace to differentiate, since machine drivers usually
  * use their own name as the card short name and leave the card long name
  * blank. To differentiate such devices and fix bugs due to lack of
  * device-specific configurations, this function allows DMI info to be used
@@ -1773,7 +1888,7 @@ static void append_dmi_string(struct snd_soc_card *card, const char *str)
  * We only keep number and alphabet characters and a few separator characters
  * in the card long name since UCM in the user space uses the card long names
  * as card configuration directory names and AudoConf cannot support special
- * charactors like SPACE.
+ * characters like SPACE.
  *
  * Returns 0 on success, otherwise a negative error code.
  */
@@ -2037,6 +2152,8 @@ static int snd_soc_bind_card(struct snd_soc_card *card)
 
 	mutex_lock(&client_mutex);
 	snd_soc_card_mutex_lock_root(card);
+
+	snd_soc_fill_dummy_dai(card);
 
 	snd_soc_dapm_init(&card->dapm, card, NULL);
 
@@ -2368,7 +2485,7 @@ EXPORT_SYMBOL_GPL(snd_soc_add_card_controls);
 
 /**
  * snd_soc_add_dai_controls - add an array of controls to a DAI.
- * Convienience function to add a list of controls.
+ * Convenience function to add a list of controls.
  *
  * @dai: DAI to add controls to
  * @controls: array of controls to add

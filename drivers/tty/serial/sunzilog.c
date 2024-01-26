@@ -1513,7 +1513,7 @@ static void zs_remove_one(struct uart_sunzilog_port *up)
 		uart_remove_one_port(&sunzilog_reg, &up->port);
 }
 
-static int zs_remove(struct platform_device *op)
+static void zs_remove(struct platform_device *op)
 {
 	struct uart_sunzilog_port *up = platform_get_drvdata(op);
 	struct zilog_layout __iomem *regs;
@@ -1523,8 +1523,6 @@ static int zs_remove(struct platform_device *op)
 
 	regs = sunzilog_chip_regs[up[0].port.line / 2];
 	of_iounmap(&op->resource[0], regs, sizeof(struct zilog_layout));
-
-	return 0;
 }
 
 static const struct of_device_id zs_match[] = {
@@ -1541,7 +1539,7 @@ static struct platform_driver zs_driver = {
 		.of_match_table = zs_match,
 	},
 	.probe		= zs_probe,
-	.remove		= zs_remove,
+	.remove_new	= zs_remove,
 };
 
 static int __init sunzilog_init(void)

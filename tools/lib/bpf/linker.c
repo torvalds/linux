@@ -719,13 +719,28 @@ static int linker_sanity_check_elf(struct src_obj *obj)
 			return -EINVAL;
 		}
 
-		if (sec->shdr->sh_addralign && !is_pow_of_2(sec->shdr->sh_addralign))
-			return -EINVAL;
-		if (sec->shdr->sh_addralign != sec->data->d_align)
-			return -EINVAL;
+		if (is_dwarf_sec_name(sec->sec_name))
+			continue;
 
-		if (sec->shdr->sh_size != sec->data->d_size)
+		if (sec->shdr->sh_addralign && !is_pow_of_2(sec->shdr->sh_addralign)) {
+			pr_warn("ELF section #%zu alignment %llu is non pow-of-2 alignment in %s\n",
+				sec->sec_idx, (long long unsigned)sec->shdr->sh_addralign,
+				obj->filename);
 			return -EINVAL;
+		}
+		if (sec->shdr->sh_addralign != sec->data->d_align) {
+			pr_warn("ELF section #%zu has inconsistent alignment addr=%llu != d=%llu in %s\n",
+				sec->sec_idx, (long long unsigned)sec->shdr->sh_addralign,
+				(long long unsigned)sec->data->d_align, obj->filename);
+			return -EINVAL;
+		}
+
+		if (sec->shdr->sh_size != sec->data->d_size) {
+			pr_warn("ELF section #%zu has inconsistent section size sh=%llu != d=%llu in %s\n",
+				sec->sec_idx, (long long unsigned)sec->shdr->sh_size,
+				(long long unsigned)sec->data->d_size, obj->filename);
+			return -EINVAL;
+		}
 
 		switch (sec->shdr->sh_type) {
 		case SHT_SYMTAB:
@@ -737,8 +752,12 @@ static int linker_sanity_check_elf(struct src_obj *obj)
 			break;
 		case SHT_PROGBITS:
 			if (sec->shdr->sh_flags & SHF_EXECINSTR) {
-				if (sec->shdr->sh_size % sizeof(struct bpf_insn) != 0)
+				if (sec->shdr->sh_size % sizeof(struct bpf_insn) != 0) {
+					pr_warn("ELF section #%zu has unexpected size alignment %llu in %s\n",
+						sec->sec_idx, (long long unsigned)sec->shdr->sh_size,
+						obj->filename);
 					return -EINVAL;
+				}
 			}
 			break;
 		case SHT_NOBITS:

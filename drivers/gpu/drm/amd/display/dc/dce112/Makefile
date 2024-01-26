@@ -25,8 +25,7 @@
 
 CFLAGS_$(AMDDALPATH)/dc/dce112/dce112_resource.o = $(call cc-disable-warning, override-init)
 
-DCE112 = dce112_compressor.o \
-dce112_resource.o
+DCE112 = dce112_compressor.o
 
 AMD_DAL_DCE112 = $(addprefix $(AMDDALPATH)/dc/dce112/,$(DCE112))
 

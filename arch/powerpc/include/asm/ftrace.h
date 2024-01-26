@@ -25,7 +25,7 @@ static inline unsigned long ftrace_call_adjust(unsigned long addr)
 	if (IS_ENABLED(CONFIG_ARCH_USING_PATCHABLE_FUNCTION_ENTRY))
 		addr += MCOUNT_INSN_SIZE;
 
-       return addr;
+	return addr;
 }
 
 unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,

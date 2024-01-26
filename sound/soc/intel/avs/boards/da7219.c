@@ -277,16 +277,24 @@ static int avs_da7219_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, card);
 }
 
+static const struct platform_device_id avs_da7219_driver_ids[] = {
+	{
+		.name = "avs_da7219",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, avs_da7219_driver_ids);
+
 static struct platform_driver avs_da7219_driver = {
 	.probe = avs_da7219_probe,
 	.driver = {
 		.name = "avs_da7219",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = avs_da7219_driver_ids,
 };
 
 module_platform_driver(avs_da7219_driver);
 
 MODULE_AUTHOR("Cezary Rojewski <cezary.rojewski@intel.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:avs_da7219");

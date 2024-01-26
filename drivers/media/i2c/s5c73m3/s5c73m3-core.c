@@ -819,7 +819,6 @@ static void s5c73m3_oif_try_format(struct s5c73m3 *state,
 				   struct v4l2_subdev_format *fmt,
 				   const struct s5c73m3_frame_size **fs)
 {
-	struct v4l2_subdev *sd = &state->sensor_sd;
 	u32 code;
 
 	switch (fmt->pad) {
@@ -841,10 +840,8 @@ static void s5c73m3_oif_try_format(struct s5c73m3 *state,
 		if (fmt->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 			*fs = state->oif_pix_size[RES_ISP];
 		else
-			*fs = s5c73m3_find_frame_size(
-						v4l2_subdev_get_try_format(sd, sd_state,
-									   OIF_ISP_PAD),
-						RES_ISP);
+			*fs = s5c73m3_find_frame_size(v4l2_subdev_state_get_format(sd_state, OIF_ISP_PAD),
+						      RES_ISP);
 		break;
 	}
 
@@ -869,10 +866,18 @@ static void s5c73m3_try_format(struct s5c73m3 *state,
 	s5c73m3_fill_mbus_fmt(&fmt->format, *fs, code);
 }
 
-static int s5c73m3_oif_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5c73m3_oif_get_frame_interval(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *sd_state,
+					  struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad != OIF_SOURCE_PAD)
 		return -EINVAL;
@@ -918,11 +923,19 @@ static int __s5c73m3_set_frame_interval(struct s5c73m3 *state,
 	return 0;
 }
 
-static int s5c73m3_oif_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5c73m3_oif_set_frame_interval(struct v4l2_subdev *sd,
+					  struct v4l2_subdev_state *sd_state,
+					  struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5c73m3 *state = oif_sd_to_s5c73m3(sd);
 	int ret;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad != OIF_SOURCE_PAD)
 		return -EINVAL;
@@ -990,8 +1003,8 @@ static int s5c73m3_get_fmt(struct v4l2_subdev *sd,
 	u32 code;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 		return 0;
 	}
 
@@ -1025,8 +1038,8 @@ static int s5c73m3_oif_get_fmt(struct v4l2_subdev *sd,
 	u32 code;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 		return 0;
 	}
 
@@ -1069,7 +1082,7 @@ static int s5c73m3_set_fmt(struct v4l2_subdev *sd,
 	s5c73m3_try_format(state, sd_state, fmt, &frame_size);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*mf = fmt->format;
 	} else {
 		switch (fmt->pad) {
@@ -1108,11 +1121,11 @@ static int s5c73m3_oif_set_fmt(struct v4l2_subdev *sd,
 	s5c73m3_oif_try_format(state, sd_state, fmt, &frame_size);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*mf = fmt->format;
 		if (fmt->pad == OIF_ISP_PAD) {
-			mf = v4l2_subdev_get_try_format(sd, sd_state,
-							OIF_SOURCE_PAD);
+			mf = v4l2_subdev_state_get_format(sd_state,
+							  OIF_SOURCE_PAD);
 			mf->width = fmt->format.width;
 			mf->height = fmt->format.height;
 		}
@@ -1260,8 +1273,8 @@ static int s5c73m3_oif_enum_frame_size(struct v4l2_subdev *sd,
 			if (fse->which == V4L2_SUBDEV_FORMAT_TRY) {
 				struct v4l2_mbus_framefmt *mf;
 
-				mf = v4l2_subdev_get_try_format(sd, sd_state,
-								OIF_ISP_PAD);
+				mf = v4l2_subdev_state_get_format(sd_state,
+								  OIF_ISP_PAD);
 
 				w = mf->width;
 				h = mf->height;
@@ -1316,11 +1329,11 @@ static int s5c73m3_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, S5C73M3_ISP_PAD);
+	mf = v4l2_subdev_state_get_format(fh->state, S5C73M3_ISP_PAD);
 	s5c73m3_fill_mbus_fmt(mf, &s5c73m3_isp_resolutions[1],
 						S5C73M3_ISP_FMT);
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, S5C73M3_JPEG_PAD);
+	mf = v4l2_subdev_state_get_format(fh->state, S5C73M3_JPEG_PAD);
 	s5c73m3_fill_mbus_fmt(mf, &s5c73m3_jpeg_resolutions[1],
 					S5C73M3_JPEG_FMT);
 
@@ -1331,15 +1344,15 @@ static int s5c73m3_oif_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, OIF_ISP_PAD);
+	mf = v4l2_subdev_state_get_format(fh->state, OIF_ISP_PAD);
 	s5c73m3_fill_mbus_fmt(mf, &s5c73m3_isp_resolutions[1],
 						S5C73M3_ISP_FMT);
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, OIF_JPEG_PAD);
+	mf = v4l2_subdev_state_get_format(fh->state, OIF_JPEG_PAD);
 	s5c73m3_fill_mbus_fmt(mf, &s5c73m3_jpeg_resolutions[1],
 					S5C73M3_JPEG_FMT);
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, OIF_SOURCE_PAD);
+	mf = v4l2_subdev_state_get_format(fh->state, OIF_SOURCE_PAD);
 	s5c73m3_fill_mbus_fmt(mf, &s5c73m3_isp_resolutions[1],
 						S5C73M3_ISP_FMT);
 	return 0;
@@ -1500,6 +1513,8 @@ static const struct v4l2_subdev_pad_ops s5c73m3_oif_pad_ops = {
 	.enum_frame_interval	= s5c73m3_oif_enum_frame_interval,
 	.get_fmt		= s5c73m3_oif_get_fmt,
 	.set_fmt		= s5c73m3_oif_set_fmt,
+	.get_frame_interval	= s5c73m3_oif_get_frame_interval,
+	.set_frame_interval	= s5c73m3_oif_set_frame_interval,
 	.get_frame_desc		= s5c73m3_oif_get_frame_desc,
 	.set_frame_desc		= s5c73m3_oif_set_frame_desc,
 };
@@ -1511,8 +1526,6 @@ static const struct v4l2_subdev_core_ops s5c73m3_oif_core_ops = {
 
 static const struct v4l2_subdev_video_ops s5c73m3_oif_video_ops = {
 	.s_stream		= s5c73m3_oif_s_stream,
-	.g_frame_interval	= s5c73m3_oif_g_frame_interval,
-	.s_frame_interval	= s5c73m3_oif_s_frame_interval,
 };
 
 static const struct v4l2_subdev_ops oif_subdev_ops = {

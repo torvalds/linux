@@ -39,4 +39,10 @@ int BPF_PROG(kmulti_run)
 	return 0;
 }
 
+SEC("uprobe.multi")
+int BPF_PROG(umulti_run)
+{
+	return 0;
+}
+
 char _license[] SEC("license") = "GPL";

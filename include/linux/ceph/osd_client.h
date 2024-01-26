@@ -572,9 +572,12 @@ int __ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op, int cnt);
  */
 #define CEPH_SPARSE_EXT_ARRAY_INITIAL  16
 
-static inline int ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op)
+static inline int ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op, int cnt)
 {
-	return __ceph_alloc_sparse_ext_map(op, CEPH_SPARSE_EXT_ARRAY_INITIAL);
+	if (!cnt)
+		cnt = CEPH_SPARSE_EXT_ARRAY_INITIAL;
+
+	return __ceph_alloc_sparse_ext_map(op, cnt);
 }
 
 extern void ceph_osdc_get_request(struct ceph_osd_request *req);

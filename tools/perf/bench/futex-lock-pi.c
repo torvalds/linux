@@ -172,7 +172,7 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	if (argc)
 		goto err;
 
-	cpu = perf_cpu_map__new(NULL);
+	cpu = perf_cpu_map__new_online_cpus();
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 

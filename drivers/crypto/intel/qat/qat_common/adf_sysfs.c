@@ -215,6 +215,9 @@ static ssize_t rp2srv_show(struct device *dev, struct device_attribute *attr,
 	enum adf_cfg_service_type svc;
 
 	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
+	if (!accel_dev)
+		return -EINVAL;
+
 	hw_data = GET_HW_DATA(accel_dev);
 
 	if (accel_dev->sysfs.ring_num == UNSET_RING_NUM)
@@ -242,7 +245,8 @@ static ssize_t rp2srv_store(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
 	struct adf_accel_dev *accel_dev;
-	int ring, num_rings, ret;
+	int num_rings, ret;
+	unsigned int ring;
 
 	accel_dev = adf_devmgr_pci_to_accel_dev(to_pci_dev(dev));
 	if (!accel_dev)

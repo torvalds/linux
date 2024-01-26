@@ -40,7 +40,7 @@ static struct ttyprintk_port tpk_port;
 
 static int tpk_curr;
 
-static char tpk_buffer[TPK_STR_SIZE + 4];
+static u8 tpk_buffer[TPK_STR_SIZE + 4];
 
 static void tpk_flush(void)
 {
@@ -51,9 +51,9 @@ static void tpk_flush(void)
 	}
 }
 
-static int tpk_printk(const u8 *buf, int count)
+static int tpk_printk(const u8 *buf, size_t count)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < count; i++) {
 		if (tpk_curr >= TPK_STR_SIZE) {

@@ -669,6 +669,8 @@ void mlx5e_build_rq_params(struct mlx5_core_dev *mdev,
 void mlx5e_build_create_cq_param(struct mlx5e_create_cq_param *ccp, struct mlx5e_channel *c)
 {
 	*ccp = (struct mlx5e_create_cq_param) {
+		.netdev = c->netdev,
+		.wq = c->priv->wq,
 		.napi = &c->napi,
 		.ch_stats = c->stats,
 		.node = cpu_to_node(c->cpu),
@@ -1062,8 +1064,8 @@ void mlx5e_build_sq_param(struct mlx5_core_dev *mdev,
 	void *wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	bool allow_swp;
 
-	allow_swp =
-		mlx5_geneve_tx_allowed(mdev) || !!mlx5_ipsec_device_caps(mdev);
+	allow_swp = mlx5_geneve_tx_allowed(mdev) ||
+		    (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_CRYPTO);
 	mlx5e_build_sq_param_common(mdev, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
 	MLX5_SET(sqc, sqc, allow_swp, allow_swp);

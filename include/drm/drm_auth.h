@@ -33,24 +33,6 @@
 #include <linux/wait.h>
 
 struct drm_file;
-struct drm_hw_lock;
-
-/*
- * Legacy DRI1 locking data structure. Only here instead of in drm_legacy.h for
- * include ordering reasons.
- *
- * DO NOT USE.
- */
-struct drm_lock_data {
-	struct drm_hw_lock *hw_lock;
-	struct drm_file *file_priv;
-	wait_queue_head_t lock_queue;
-	unsigned long lock_time;
-	spinlock_t spinlock;
-	uint32_t kernel_waiters;
-	uint32_t user_waiters;
-	int idle_has_lock;
-};
 
 /**
  * struct drm_master - drm master structure
@@ -145,10 +127,6 @@ struct drm_master {
 	 * Protected by &drm_device.mode_config's &drm_mode_config.idr_mutex.
 	 */
 	struct idr lessee_idr;
-	/* private: */
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
-	struct drm_lock_data lock;
-#endif
 };
 
 struct drm_master *drm_master_get(struct drm_master *master);

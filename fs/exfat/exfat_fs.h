@@ -135,8 +135,7 @@ enum {
 #define BITMAP_OFFSET_BIT_IN_SECTOR(sb, ent) (ent & BITS_PER_SECTOR_MASK(sb))
 #define BITMAP_OFFSET_BYTE_IN_SECTOR(sb, ent) \
 	((ent / BITS_PER_BYTE) & ((sb)->s_blocksize - 1))
-#define BITS_PER_BYTE_MASK	0x7
-#define IGNORED_BITS_REMAINED(clu, clu_base) ((1 << ((clu) - (clu_base))) - 1)
+#define IGNORED_BITS_REMAINED(clu, clu_base) ((1UL << ((clu) - (clu_base))) - 1)
 
 #define ES_ENTRY_NUM(name_len)	(ES_IDX_LAST_FILENAME(name_len) + 1)
 /* 19 entries = 1 file entry + 1 stream entry + 17 filename entries */
@@ -208,6 +207,7 @@ struct exfat_dir_entry {
 	unsigned char flags;
 	unsigned short attr;
 	loff_t size;
+	loff_t valid_size;
 	unsigned int num_subdirs;
 	struct timespec64 atime;
 	struct timespec64 mtime;
@@ -317,6 +317,7 @@ struct exfat_inode_info {
 	loff_t i_size_aligned;
 	/* on-disk position of directory entry or 0 */
 	loff_t i_pos;
+	loff_t valid_size;
 	/* hash by i_location */
 	struct hlist_node i_hash_fat;
 	/* protect bmap against truncate */

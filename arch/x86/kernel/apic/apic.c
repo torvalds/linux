@@ -782,7 +782,7 @@ bool __init apic_needs_pit(void)
 
 	/*
 	 * If interrupt delivery mode is legacy PIC or virtual wire without
-	 * configuration, the local APIC timer wont be set up. Make sure
+	 * configuration, the local APIC timer won't be set up. Make sure
 	 * that the PIT is initialized.
 	 */
 	if (apic_intr_mode == APIC_PIC ||

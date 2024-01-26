@@ -201,7 +201,8 @@ int perf_pmu__config_terms(const struct perf_pmu *pmu,
 __u64 perf_pmu__format_bits(struct perf_pmu *pmu, const char *name);
 int perf_pmu__format_type(struct perf_pmu *pmu, const char *name);
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_terms,
-			  struct perf_pmu_info *info, struct parse_events_error *err);
+			  struct perf_pmu_info *info, bool *rewrote_terms,
+			  struct parse_events_error *err);
 int perf_pmu__find_event(struct perf_pmu *pmu, const char *event, void *state, pmu_event_callback cb);
 
 int perf_pmu__format_parse(struct perf_pmu *pmu, int dirfd, bool eager_load);

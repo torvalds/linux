@@ -11,10 +11,3 @@ config MEDIA_CONTROLLER_DVB
 	  Enable the media controller API support for DVB.
 
 	  This is currently experimental.
-
-config MEDIA_CONTROLLER_REQUEST_API
-	bool
-	depends on MEDIA_CONTROLLER
-	help
-	  This option enables the Request API for the Media controller and V4L2
-	  interfaces. It is currently needed by a few stateless codec drivers.

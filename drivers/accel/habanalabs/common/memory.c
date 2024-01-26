@@ -955,8 +955,8 @@ static int map_phys_pg_pack(struct hl_ctx *ctx, u64 vaddr,
 				(i + 1) == phys_pg_pack->npages);
 		if (rc) {
 			dev_err(hdev->dev,
-				"map failed for handle %u, npages: %llu, mapped: %llu",
-				phys_pg_pack->handle, phys_pg_pack->npages,
+				"map failed (%d) for handle %u, npages: %llu, mapped: %llu\n",
+				rc, phys_pg_pack->handle, phys_pg_pack->npages,
 				mapped_pg_cnt);
 			goto err;
 		}
@@ -1186,7 +1186,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device
 
 	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
-		dev_err(hdev->dev, "mapping page pack failed for handle %u\n", handle);
+		dev_err(hdev->dev, "mapping page pack failed (%d) for handle %u\n",
+			rc, handle);
 		mutex_unlock(&hdev->mmu_lock);
 		goto map_err;
 	}

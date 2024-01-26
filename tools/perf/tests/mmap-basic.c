@@ -52,7 +52,7 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 		return -1;
 	}
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	if (cpus == NULL) {
 		pr_debug("perf_cpu_map__new\n");
 		goto out_free_threads;

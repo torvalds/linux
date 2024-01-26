@@ -8,6 +8,7 @@
 
 #include <linux/sched.h>
 #include <linux/magic.h>
+#include <linux/refcount.h>
 
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 

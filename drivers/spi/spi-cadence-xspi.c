@@ -619,7 +619,6 @@ MODULE_DEVICE_TABLE(of, cdns_xspi_of_match);
 
 static struct platform_driver cdns_xspi_platform_driver = {
 	.probe          = cdns_xspi_probe,
-	.remove         = NULL,
 	.driver = {
 		.name = CDNS_XSPI_NAME,
 		.of_match_table = cdns_xspi_of_match,

@@ -389,7 +389,7 @@ static int meson_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops meson_pcie_host_ops = {
-	.host_init = meson_pcie_host_init,
+	.init = meson_pcie_host_init,
 };
 
 static const struct dw_pcie_ops dw_pcie_ops = {

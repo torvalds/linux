@@ -11,7 +11,7 @@ config FS_ENCRYPTION
 	  feature is similar to ecryptfs, but it is more memory
 	  efficient since it avoids caching the encrypted and
 	  decrypted pages in the page cache.  Currently Ext4,
-	  F2FS and UBIFS make use of this feature.
+	  F2FS, UBIFS, and CephFS make use of this feature.
 
 # Filesystems supporting encryption must select this if FS_ENCRYPTION.  This
 # allows the algorithms to be built as modules when all the filesystems are,

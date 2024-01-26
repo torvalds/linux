@@ -63,8 +63,17 @@ static int key_type_cookie_invalid(struct bch_fs *c, struct bkey_s_c k,
 	return 0;
 }
 
+static void key_type_cookie_to_text(struct printbuf *out, struct bch_fs *c,
+				    struct bkey_s_c k)
+{
+	struct bkey_s_c_cookie ck = bkey_s_c_to_cookie(k);
+
+	prt_printf(out, "%llu", le64_to_cpu(ck.v->cookie));
+}
+
 #define bch2_bkey_ops_cookie ((struct bkey_ops) {	\
 	.key_invalid	= key_type_cookie_invalid,	\
+	.val_to_text	= key_type_cookie_to_text,	\
 	.min_val_size	= 8,				\
 })
 

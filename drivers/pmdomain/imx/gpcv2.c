@@ -1373,7 +1373,7 @@ out_domain_unmap:
 	return ret;
 }
 
-static int imx_pgc_domain_remove(struct platform_device *pdev)
+static void imx_pgc_domain_remove(struct platform_device *pdev)
 {
 	struct imx_pgc_domain *domain = pdev->dev.platform_data;
 
@@ -1385,8 +1385,6 @@ static int imx_pgc_domain_remove(struct platform_device *pdev)
 				   domain->bits.map, 0);
 
 	pm_runtime_disable(domain->dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1430,7 +1428,7 @@ static struct platform_driver imx_pgc_domain_driver = {
 		.pm = &imx_pgc_domain_pm_ops,
 	},
 	.probe    = imx_pgc_domain_probe,
-	.remove   = imx_pgc_domain_remove,
+	.remove_new = imx_pgc_domain_remove,
 	.id_table = imx_pgc_domain_id,
 };
 builtin_platform_driver(imx_pgc_domain_driver)

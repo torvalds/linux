@@ -44,6 +44,7 @@ u8 bxt_ddi_phy_get_lane_lat_optim_mask(struct intel_encoder *encoder);
 
 enum dpio_channel vlv_dig_port_to_channel(struct intel_digital_port *dig_port);
 enum dpio_phy vlv_dig_port_to_phy(struct intel_digital_port *dig_port);
+enum dpio_phy vlv_pipe_to_phy(enum pipe pipe);
 enum dpio_channel vlv_pipe_to_channel(enum pipe pipe);
 
 void chv_set_phy_signal_level(struct intel_encoder *encoder,
@@ -113,6 +114,10 @@ static inline enum dpio_channel vlv_dig_port_to_channel(struct intel_digital_por
 	return DPIO_CH0;
 }
 static inline enum dpio_phy vlv_dig_port_to_phy(struct intel_digital_port *dig_port)
+{
+	return DPIO_PHY0;
+}
+static inline enum dpio_phy vlv_pipe_to_phy(enum pipe pipe)
 {
 	return DPIO_PHY0;
 }

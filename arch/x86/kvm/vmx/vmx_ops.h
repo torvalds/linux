@@ -6,7 +6,7 @@
 
 #include <asm/vmx.h>
 
-#include "hyperv.h"
+#include "vmx_onhyperv.h"
 #include "vmcs.h"
 #include "../x86.h"
 

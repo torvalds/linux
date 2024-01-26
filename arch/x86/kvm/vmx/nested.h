@@ -3,6 +3,7 @@
 #define __KVM_X86_VMX_NESTED_H
 
 #include "kvm_cache_regs.h"
+#include "hyperv.h"
 #include "vmcs12.h"
 #include "vmx.h"
 
@@ -57,7 +58,7 @@ static inline int vmx_has_valid_vmcs12(struct kvm_vcpu *vcpu)
 
 	/* 'hv_evmcs_vmptr' can also be EVMPTR_MAP_PENDING here */
 	return vmx->nested.current_vmptr != -1ull ||
-		vmx->nested.hv_evmcs_vmptr != EVMPTR_INVALID;
+		nested_vmx_is_evmptr12_set(vmx);
 }
 
 static inline u16 nested_get_vpid02(struct kvm_vcpu *vcpu)

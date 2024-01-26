@@ -18,14 +18,12 @@
 /**
  * struct cros_ec_pwm_device - Driver data for EC PWM
  *
- * @dev: Device node
  * @ec: Pointer to EC device
  * @chip: PWM controller chip
  * @use_pwm_type: Use PWM types instead of generic channels
  * @channel: array with per-channel data
  */
 struct cros_ec_pwm_device {
-	struct device *dev;
 	struct cros_ec_device *ec;
 	struct pwm_chip chip;
 	bool use_pwm_type;

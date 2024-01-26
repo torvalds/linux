@@ -343,16 +343,19 @@ struct dma_buf {
 	/**
 	 * @exp_name:
 	 *
-	 * Name of the exporter; useful for debugging. See the
-	 * DMA_BUF_SET_NAME IOCTL.
+	 * Name of the exporter; useful for debugging. Must not be NULL
 	 */
 	const char *exp_name;
 
 	/**
 	 * @name:
 	 *
-	 * Userspace-provided name; useful for accounting and debugging,
-	 * protected by dma_resv_lock() on @resv and @name_lock for read access.
+	 * Userspace-provided name. Default value is NULL. If not NULL,
+	 * length cannot be longer than DMA_BUF_NAME_LEN, including NIL
+	 * char. Useful for accounting and debugging. Read/Write accesses
+	 * are protected by @name_lock
+	 *
+	 * See the IOCTLs DMA_BUF_SET_NAME or DMA_BUF_SET_NAME_A/B
 	 */
 	const char *name;
 

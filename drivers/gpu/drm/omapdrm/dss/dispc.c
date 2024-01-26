@@ -22,11 +22,11 @@
 #include <linux/hardirq.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/sizes.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/component.h>
 #include <linux/sys_soc.h>
 #include <drm/drm_fourcc.h>
@@ -4765,7 +4765,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	if (soc)
 		dispc->feat = soc->data;
 	else
-		dispc->feat = of_match_device(dispc_of_match, &pdev->dev)->data;
+		dispc->feat = device_get_match_data(&pdev->dev);
 
 	r = dispc_errata_i734_wa_init(dispc);
 	if (r)

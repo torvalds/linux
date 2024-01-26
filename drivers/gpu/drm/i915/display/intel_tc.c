@@ -1030,18 +1030,25 @@ static bool xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool enabl
 
 	__xelpdp_tc_phy_enable_tcss_power(tc, enable);
 
-	if ((!tc_phy_wait_for_ready(tc) ||
-	     !xelpdp_tc_phy_wait_for_tcss_power(tc, enable)) &&
-	    !drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY)) {
-		if (enable) {
-			__xelpdp_tc_phy_enable_tcss_power(tc, false);
-			xelpdp_tc_phy_wait_for_tcss_power(tc, false);
-		}
+	if (enable && !tc_phy_wait_for_ready(tc))
+		goto out_disable;
 
-		return false;
-	}
+	if (!xelpdp_tc_phy_wait_for_tcss_power(tc, enable))
+		goto out_disable;
 
 	return true;
+
+out_disable:
+	if (drm_WARN_ON(&i915->drm, tc->mode == TC_PORT_LEGACY))
+		return false;
+
+	if (!enable)
+		return false;
+
+	__xelpdp_tc_phy_enable_tcss_power(tc, false);
+	xelpdp_tc_phy_wait_for_tcss_power(tc, false);
+
+	return false;
 }
 
 static void xelpdp_tc_phy_take_ownership(struct intel_tc_port *tc, bool take)

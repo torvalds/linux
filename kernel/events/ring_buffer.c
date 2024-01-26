@@ -610,8 +610,8 @@ static struct page *rb_alloc_aux_page(int node, int order)
 {
 	struct page *page;
 
-	if (order > MAX_ORDER)
-		order = MAX_ORDER;
+	if (order > MAX_PAGE_ORDER)
+		order = MAX_PAGE_ORDER;
 
 	do {
 		page = alloc_pages_node(node, PERF_AUX_GFP, order);
@@ -702,9 +702,9 @@ int rb_alloc_aux(struct perf_buffer *rb, struct perf_event *event,
 
 	/*
 	 * kcalloc_node() is unable to allocate buffer if the size is larger
-	 * than: PAGE_SIZE << MAX_ORDER; directly bail out in this case.
+	 * than: PAGE_SIZE << MAX_PAGE_ORDER; directly bail out in this case.
 	 */
-	if (get_order((unsigned long)nr_pages * sizeof(void *)) > MAX_ORDER)
+	if (get_order((unsigned long)nr_pages * sizeof(void *)) > MAX_PAGE_ORDER)
 		return -ENOMEM;
 	rb->aux_pages = kcalloc_node(nr_pages, sizeof(void *), GFP_KERNEL,
 				     node);
@@ -821,7 +821,7 @@ struct perf_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	size = sizeof(struct perf_buffer);
 	size += nr_pages * sizeof(void *);
 
-	if (order_base_2(size) > PAGE_SHIFT+MAX_ORDER)
+	if (order_base_2(size) > PAGE_SHIFT+MAX_PAGE_ORDER)
 		goto fail;
 
 	node = (cpu == -1) ? cpu : cpu_to_node(cpu);

@@ -23,6 +23,7 @@ struct option;
 struct perf_sample;
 struct evsel;
 struct symbol;
+struct annotated_data_type;
 
 struct ins {
 	const char     *name;
@@ -31,8 +32,6 @@ struct ins {
 
 struct ins_operands {
 	char	*raw;
-	char	*raw_comment;
-	char	*raw_func_start;
 	struct {
 		char	*raw;
 		char	*name;
@@ -41,21 +40,29 @@ struct ins_operands {
 		s64	offset;
 		bool	offset_avail;
 		bool	outside;
+		bool	multi_regs;
 	} target;
 	union {
 		struct {
 			char	*raw;
 			char	*name;
 			u64	addr;
+			bool	multi_regs;
 		} source;
 		struct {
 			struct ins	    ins;
 			struct ins_operands *ops;
 		} locked;
+		struct {
+			char	*raw_comment;
+			char	*raw_func_start;
+		} jump;
 	};
 };
 
 struct arch;
+
+bool arch__is(struct arch *arch, const char *name);
 
 struct ins_ops {
 	void (*free)(struct ins_operands *ops);
@@ -101,6 +108,8 @@ struct annotation_options {
 	unsigned int percent_type;
 };
 
+extern struct annotation_options annotate_opts;
+
 enum {
 	ANNOTATION__OFFSET_JUMP_TARGETS = 1,
 	ANNOTATION__OFFSET_CALL,
@@ -130,6 +139,13 @@ struct annotation_data {
 	struct sym_hist_entry	 he;
 };
 
+struct cycles_info {
+	float			 ipc;
+	u64			 avg;
+	u64			 max;
+	u64			 min;
+};
+
 struct annotation_line {
 	struct list_head	 node;
 	struct rb_node		 rb_node;
@@ -137,12 +153,9 @@ struct annotation_line {
 	char			*line;
 	int			 line_nr;
 	char			*fileloc;
-	int			 jump_sources;
-	float			 ipc;
-	u64			 cycles;
-	u64			 cycles_max;
-	u64			 cycles_min;
 	char			*path;
+	struct cycles_info	*cycles;
+	int			 jump_sources;
 	u32			 idx;
 	int			 idx_asm;
 	int			 data_nr;
@@ -214,8 +227,7 @@ struct annotation_write_ops {
 };
 
 void annotation_line__write(struct annotation_line *al, struct annotation *notes,
-			    struct annotation_write_ops *ops,
-			    struct annotation_options *opts);
+			    struct annotation_write_ops *ops);
 
 int __annotation__scnprintf_samples_period(struct annotation *notes,
 					   char *bf, size_t size,
@@ -264,27 +276,29 @@ struct cyc_hist {
  * returns.
  */
 struct annotated_source {
-	struct list_head   source;
-	int    		   nr_histograms;
-	size_t		   sizeof_sym_hist;
-	struct cyc_hist	   *cycles_hist;
-	struct sym_hist	   *histograms;
+	struct list_head	source;
+	size_t			sizeof_sym_hist;
+	struct sym_hist		*histograms;
+	struct annotation_line	**offsets;
+	int    			nr_histograms;
+	int			nr_entries;
+	int			nr_asm_entries;
+	u16			max_line_len;
 };
 
-struct LOCKABLE annotation {
-	u64			max_coverage;
-	u64			start;
+struct annotated_branch {
 	u64			hit_cycles;
 	u64			hit_insn;
 	unsigned int		total_insn;
 	unsigned int		cover_insn;
-	struct annotation_options *options;
-	struct annotation_line	**offsets;
+	struct cyc_hist		*cycles_hist;
+	u64			max_coverage;
+};
+
+struct LOCKABLE annotation {
+	u64			start;
 	int			nr_events;
 	int			max_jump_sources;
-	int			nr_entries;
-	int			nr_asm_entries;
-	u16			max_line_len;
 	struct {
 		u8		addr;
 		u8		jumps;
@@ -293,8 +307,8 @@ struct LOCKABLE annotation {
 		u8		max_addr;
 		u8		max_ins_name;
 	} widths;
-	bool			have_cycles;
 	struct annotated_source *src;
+	struct annotated_branch *branch;
 };
 
 static inline void annotation__init(struct annotation *notes __maybe_unused)
@@ -308,10 +322,10 @@ bool annotation__trylock(struct annotation *notes) EXCLUSIVE_TRYLOCK_FUNCTION(tr
 
 static inline int annotation__cycles_width(struct annotation *notes)
 {
-	if (notes->have_cycles && notes->options->show_minmax_cycle)
+	if (notes->branch && annotate_opts.show_minmax_cycle)
 		return ANNOTATION__IPC_WIDTH + ANNOTATION__MINMAX_CYCLES_WIDTH;
 
-	return notes->have_cycles ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
+	return notes->branch ? ANNOTATION__IPC_WIDTH + ANNOTATION__CYCLES_WIDTH : 0;
 }
 
 static inline int annotation__pcnt_width(struct annotation *notes)
@@ -319,13 +333,12 @@ static inline int annotation__pcnt_width(struct annotation *notes)
 	return (symbol_conf.show_total_period ? 12 : 7) * notes->nr_events;
 }
 
-static inline bool annotation_line__filter(struct annotation_line *al, struct annotation *notes)
+static inline bool annotation_line__filter(struct annotation_line *al)
 {
-	return notes->options->hide_src_code && al->offset == -1;
+	return annotate_opts.hide_src_code && al->offset == -1;
 }
 
 void annotation__set_offsets(struct annotation *notes, s64 size);
-void annotation__compute_ipc(struct annotation *notes, size_t size);
 void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym);
 void annotation__update_column_widths(struct annotation *notes);
 void annotation__init_column_widths(struct annotation *notes, struct symbol *sym);
@@ -349,6 +362,8 @@ static inline struct annotation *symbol__annotation(struct symbol *sym)
 int addr_map_symbol__inc_samples(struct addr_map_symbol *ams, struct perf_sample *sample,
 				 struct evsel *evsel);
 
+struct annotated_branch *annotation__get_branch(struct annotation *notes);
+
 int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 				    struct addr_map_symbol *start,
 				    unsigned cycles);
@@ -361,11 +376,9 @@ void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct map_symbol *ms,
 		     struct evsel *evsel,
-		     struct annotation_options *options,
 		     struct arch **parch);
 int symbol__annotate2(struct map_symbol *ms,
 		      struct evsel *evsel,
-		      struct annotation_options *options,
 		      struct arch **parch);
 
 enum symbol_disassemble_errno {
@@ -392,43 +405,86 @@ enum symbol_disassemble_errno {
 
 int symbol__strerror_disassemble(struct map_symbol *ms, int errnum, char *buf, size_t buflen);
 
-int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel,
-			    struct annotation_options *options);
+int symbol__annotate_printf(struct map_symbol *ms, struct evsel *evsel);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
 void annotated_source__purge(struct annotated_source *as);
 
-int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel,
-				struct annotation_options *opts);
+int map_symbol__annotation_dump(struct map_symbol *ms, struct evsel *evsel);
 
 bool ui__has_annotation(void);
 
-int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel, struct annotation_options *opts);
+int symbol__tty_annotate(struct map_symbol *ms, struct evsel *evsel);
 
-int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel, struct annotation_options *opts);
+int symbol__tty_annotate2(struct map_symbol *ms, struct evsel *evsel);
 
 #ifdef HAVE_SLANG_SUPPORT
 int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
-			 struct hist_browser_timer *hbt,
-			 struct annotation_options *opts);
+			 struct hist_browser_timer *hbt);
 #else
 static inline int symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
 				struct evsel *evsel  __maybe_unused,
-				struct hist_browser_timer *hbt __maybe_unused,
-				struct annotation_options *opts __maybe_unused)
+				struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
 #endif
 
-void annotation_options__init(struct annotation_options *opt);
-void annotation_options__exit(struct annotation_options *opt);
+void annotation_options__init(void);
+void annotation_options__exit(void);
 
-void annotation_config__init(struct annotation_options *opt);
+void annotation_config__init(void);
 
 int annotate_parse_percent_type(const struct option *opt, const char *_str,
 				int unset);
 
-int annotate_check_args(struct annotation_options *args);
+int annotate_check_args(void);
+
+/**
+ * struct annotated_op_loc - Location info of instruction operand
+ * @reg: Register in the operand
+ * @offset: Memory access offset in the operand
+ * @mem_ref: Whether the operand accesses memory
+ */
+struct annotated_op_loc {
+	int reg;
+	int offset;
+	bool mem_ref;
+};
+
+enum annotated_insn_ops {
+	INSN_OP_SOURCE = 0,
+	INSN_OP_TARGET = 1,
+
+	INSN_OP_MAX,
+};
+
+/**
+ * struct annotated_insn_loc - Location info of instruction
+ * @ops: Array of location info for source and target operands
+ */
+struct annotated_insn_loc {
+	struct annotated_op_loc ops[INSN_OP_MAX];
+};
+
+#define for_each_insn_op_loc(insn_loc, i, op_loc)			\
+	for (i = INSN_OP_SOURCE, op_loc = &(insn_loc)->ops[i];		\
+	     i < INSN_OP_MAX;						\
+	     i++, op_loc++)
+
+/* Get detailed location info in the instruction */
+int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
+			       struct annotated_insn_loc *loc);
+
+/* Returns a data type from the sample instruction (if any) */
+struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he);
+
+struct annotated_item_stat {
+	struct list_head list;
+	char *name;
+	int good;
+	int bad;
+};
+extern struct list_head ann_insn_stat;
 
 #endif	/* __PERF_ANNOTATE_H */

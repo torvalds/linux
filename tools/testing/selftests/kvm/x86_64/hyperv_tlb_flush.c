@@ -590,6 +590,8 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	int stage = 1, r, i;
 
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_TLBFLUSH));
+
 	vm = vm_create_with_one_vcpu(&vcpu[0], sender_guest_code);
 
 	/* Test data page */

@@ -56,7 +56,7 @@ static const struct pixel_format bdw_pixel_formats[] = {
 	{DRM_FORMAT_XBGR8888, 32, "32-bit RGBX (8:8:8:8 MSB-X:B:G:R)"},
 
 	/* non-supported format has bpp default to 0 */
-	{0, 0, NULL},
+	{}
 };
 
 static const struct pixel_format skl_pixel_formats[] = {
@@ -76,7 +76,7 @@ static const struct pixel_format skl_pixel_formats[] = {
 	{DRM_FORMAT_XRGB2101010, 32, "32-bit BGRX (2:10:10:10 MSB-X:R:G:B)"},
 
 	/* non-supported format has bpp default to 0 */
-	{0, 0, NULL},
+	{}
 };
 
 static int bdw_format_to_drm(int format)
@@ -293,7 +293,7 @@ static const struct cursor_mode_format cursor_pixel_formats[] = {
 	{DRM_FORMAT_ARGB8888, 32, 64, 64, "64x64 32bpp ARGB"},
 
 	/* non-supported format has bpp default to 0 */
-	{0, 0, 0, 0, NULL},
+	{}
 };
 
 static int cursor_mode_to_drm(int mode)

@@ -31,7 +31,7 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		prepare_frametrace(newregs);
 }
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 struct kimage;
 extern unsigned long kexec_args[4];
 extern int (*_machine_kexec_prepare)(struct kimage *);

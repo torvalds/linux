@@ -2090,18 +2090,6 @@ static inline struct ieee80211_vif *rtwvif_to_vif(struct rtw_vif *rtwvif)
 	return container_of(p, struct ieee80211_vif, drv_priv);
 }
 
-static inline bool rtw_ssid_equal(struct cfg80211_ssid *a,
-				  struct cfg80211_ssid *b)
-{
-	if (!a || !b || a->ssid_len != b->ssid_len)
-		return false;
-
-	if (memcmp(a->ssid, b->ssid, a->ssid_len))
-		return false;
-
-	return true;
-}
-
 static inline void rtw_chip_efuse_grant_on(struct rtw_dev *rtwdev)
 {
 	if (rtwdev->chip->ops->efuse_grant)

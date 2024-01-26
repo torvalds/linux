@@ -10,7 +10,7 @@
 #include "keystone-k2hk.dtsi"
 
 / {
-	compatible =  "ti,k2hk-evm", "ti,k2hk", "ti,keystone";
+	compatible = "ti,k2hk-evm", "ti,k2hk", "ti,keystone";
 	model = "Texas Instruments Keystone 2 Kepler/Hawking EVM";
 
 	reserved-memory {

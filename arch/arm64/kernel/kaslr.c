@@ -36,3 +36,10 @@ void __init kaslr_init(void)
 	pr_info("KASLR enabled\n");
 	__kaslr_is_enabled = true;
 }
+
+static int __init parse_nokaslr(char *unused)
+{
+	/* nokaslr param handling is done by early cpufeature code */
+	return 0;
+}
+early_param("nokaslr", parse_nokaslr);

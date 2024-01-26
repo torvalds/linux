@@ -366,11 +366,16 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 
 static void __io_poll_execute(struct io_kiocb *req, int mask)
 {
+	unsigned flags = 0;
+
 	io_req_set_res(req, mask, 0);
 	req->io_task_work.func = io_poll_task_func;
 
 	trace_io_uring_task_add(req, mask);
-	__io_req_task_work_add(req, IOU_F_TWQ_LAZY_WAKE);
+
+	if (!(req->flags & REQ_F_POLL_NO_LAZY))
+		flags = IOU_F_TWQ_LAZY_WAKE;
+	__io_req_task_work_add(req, flags);
 }
 
 static inline void io_poll_execute(struct io_kiocb *req, int res)
@@ -526,10 +531,19 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 	poll->head = head;
 	poll->wait.private = (void *) wqe_private;
 
-	if (poll->events & EPOLLEXCLUSIVE)
+	if (poll->events & EPOLLEXCLUSIVE) {
+		/*
+		 * Exclusive waits may only wake a limited amount of entries
+		 * rather than all of them, this may interfere with lazy
+		 * wake if someone does wait(events > 1). Ensure we don't do
+		 * lazy wake for those, as we need to process each one as they
+		 * come in.
+		 */
+		req->flags |= REQ_F_POLL_NO_LAZY;
 		add_wait_queue_exclusive(head, &poll->wait);
-	else
+	} else {
 		add_wait_queue(head, &poll->wait);
+	}
 }
 
 static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,

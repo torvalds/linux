@@ -205,6 +205,9 @@ static int eud_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->mode_mgr);
 
 	chip->irq = platform_get_irq(pdev, 0);
+	if (chip->irq < 0)
+		return chip->irq;
+
 	ret = devm_request_threaded_irq(&pdev->dev, chip->irq, handle_eud_irq,
 			handle_eud_irq_thread, IRQF_ONESHOT, NULL, chip);
 	if (ret)

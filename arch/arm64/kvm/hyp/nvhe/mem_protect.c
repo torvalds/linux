@@ -91,7 +91,7 @@ static void host_s2_put_page(void *addr)
 	hyp_put_page(&host_s2_pool, addr);
 }
 
-static void host_s2_free_unlinked_table(void *addr, u32 level)
+static void host_s2_free_unlinked_table(void *addr, s8 level)
 {
 	kvm_pgtable_stage2_free_unlinked(&host_mmu.mm_ops, addr, level);
 }
@@ -443,7 +443,7 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 {
 	struct kvm_mem_range cur;
 	kvm_pte_t pte;
-	u32 level;
+	s8 level;
 	int ret;
 
 	hyp_assert_lock_held(&host_mmu.lock);
@@ -462,7 +462,7 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 		cur.start = ALIGN_DOWN(addr, granule);
 		cur.end = cur.start + granule;
 		level++;
-	} while ((level < KVM_PGTABLE_MAX_LEVELS) &&
+	} while ((level <= KVM_PGTABLE_LAST_LEVEL) &&
 			!(kvm_level_supports_block_mapping(level) &&
 			  range_included(&cur, range)));
 

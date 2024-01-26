@@ -88,7 +88,7 @@ static inline void brcmnand_soc_write(struct brcmnand_soc *soc, u32 val,
 }
 
 int brcmnand_probe(struct platform_device *pdev, struct brcmnand_soc *soc);
-int brcmnand_remove(struct platform_device *pdev);
+void brcmnand_remove(struct platform_device *pdev);
 
 extern const struct dev_pm_ops brcmnand_pm_ops;
 

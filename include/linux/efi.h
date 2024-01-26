@@ -40,6 +40,7 @@ struct screen_info;
 #define EFI_WRITE_PROTECTED	( 8 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_OUT_OF_RESOURCES	( 9 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_NOT_FOUND		(14 | (1UL << (BITS_PER_LONG-1)))
+#define EFI_ACCESS_DENIED	(15 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_TIMEOUT		(18 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_ABORTED		(21 | (1UL << (BITS_PER_LONG-1)))
 #define EFI_SECURITY_VIOLATION	(26 | (1UL << (BITS_PER_LONG-1)))
@@ -1347,5 +1348,16 @@ bool efi_config_table_is_usable(const efi_guid_t *guid, unsigned long table)
 }
 
 umode_t efi_attr_is_visible(struct kobject *kobj, struct attribute *attr, int n);
+
+/*
+ * efivar ops event type
+ */
+#define EFIVAR_OPS_RDONLY 0
+#define EFIVAR_OPS_RDWR 1
+
+extern struct blocking_notifier_head efivar_ops_nh;
+
+void efivars_generic_ops_register(void);
+void efivars_generic_ops_unregister(void);
 
 #endif /* _LINUX_EFI_H */

@@ -231,7 +231,7 @@ void __put_user_ns(struct user_namespace *ns)
 }
 EXPORT_SYMBOL(__put_user_ns);
 
-/**
+/*
  * struct idmap_key - holds the information necessary to find an idmapping in a
  * sorted idmap array. It is passed to cmp_map_id() as first argument.
  */
@@ -241,7 +241,7 @@ struct idmap_key {
 	u32 count; /* == 0 unless used with map_id_range_down() */
 };
 
-/**
+/*
  * cmp_map_id - Function to be passed to bsearch() to find the requested
  * idmapping. Expects struct idmap_key to be passed via @k.
  */
@@ -271,7 +271,7 @@ static int cmp_map_id(const void *k, const void *e)
 	return 1;
 }
 
-/**
+/*
  * map_id_range_down_max - Find idmap via binary search in ordered idmap array.
  * Can only be called if number of mappings exceeds UID_GID_MAP_MAX_BASE_EXTENTS.
  */
@@ -288,7 +288,7 @@ map_id_range_down_max(unsigned extents, struct uid_gid_map *map, u32 id, u32 cou
 		       sizeof(struct uid_gid_extent), cmp_map_id);
 }
 
-/**
+/*
  * map_id_range_down_base - Find idmap via binary search in static extent array.
  * Can only be called if number of mappings is equal or less than
  * UID_GID_MAP_MAX_BASE_EXTENTS.
@@ -332,12 +332,12 @@ static u32 map_id_range_down(struct uid_gid_map *map, u32 id, u32 count)
 	return id;
 }
 
-static u32 map_id_down(struct uid_gid_map *map, u32 id)
+u32 map_id_down(struct uid_gid_map *map, u32 id)
 {
 	return map_id_range_down(map, id, 1);
 }
 
-/**
+/*
  * map_id_up_base - Find idmap via binary search in static extent array.
  * Can only be called if number of mappings is equal or less than
  * UID_GID_MAP_MAX_BASE_EXTENTS.
@@ -358,7 +358,7 @@ map_id_up_base(unsigned extents, struct uid_gid_map *map, u32 id)
 	return NULL;
 }
 
-/**
+/*
  * map_id_up_max - Find idmap via binary search in ordered idmap array.
  * Can only be called if number of mappings exceeds UID_GID_MAP_MAX_BASE_EXTENTS.
  */
@@ -375,7 +375,7 @@ map_id_up_max(unsigned extents, struct uid_gid_map *map, u32 id)
 		       sizeof(struct uid_gid_extent), cmp_map_id);
 }
 
-static u32 map_id_up(struct uid_gid_map *map, u32 id)
+u32 map_id_up(struct uid_gid_map *map, u32 id)
 {
 	struct uid_gid_extent *extent;
 	unsigned extents = map->nr_extents;
@@ -770,7 +770,7 @@ static bool mappings_overlap(struct uid_gid_map *new_map,
 	return false;
 }
 
-/**
+/*
  * insert_extent - Safely insert a new idmap extent into struct uid_gid_map.
  * Takes care to allocate a 4K block of memory if the number of mappings exceeds
  * UID_GID_MAP_MAX_BASE_EXTENTS.
@@ -839,7 +839,7 @@ static int cmp_extents_reverse(const void *a, const void *b)
 	return 0;
 }
 
-/**
+/*
  * sort_idmaps - Sorts an array of idmap entries.
  * Can only be called if number of mappings exceeds UID_GID_MAP_MAX_BASE_EXTENTS.
  */

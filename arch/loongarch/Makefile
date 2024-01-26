@@ -6,6 +6,7 @@
 boot	:= arch/loongarch/boot
 
 KBUILD_DEFCONFIG := loongson3_defconfig
+KBUILD_DTBS      := dtbs
 
 image-name-y			:= vmlinux
 image-name-$(CONFIG_EFI_ZBOOT)	:= vmlinuz
@@ -68,6 +69,7 @@ LDFLAGS_vmlinux			+= -static -n -nostdlib
 ifdef CONFIG_AS_HAS_EXPLICIT_RELOCS
 cflags-y			+= $(call cc-option,-mexplicit-relocs)
 KBUILD_CFLAGS_KERNEL		+= $(call cc-option,-mdirect-extern-access)
+KBUILD_CFLAGS_KERNEL		+= $(call cc-option,-fdirect-access-external-data)
 KBUILD_AFLAGS_MODULE		+= $(call cc-option,-fno-direct-access-external-data)
 KBUILD_CFLAGS_MODULE		+= $(call cc-option,-fno-direct-access-external-data)
 KBUILD_AFLAGS_MODULE		+= $(call cc-option,-mno-relax) $(call cc-option,-Wa$(comma)-mno-relax)
@@ -80,9 +82,12 @@ KBUILD_AFLAGS_MODULE		+= -Wa,-mla-global-with-abs
 KBUILD_CFLAGS_MODULE		+= -fplt -Wa,-mla-global-with-abs,-mla-local-with-abs
 endif
 
+KBUILD_RUSTFLAGS_MODULE		+= -Crelocation-model=pic
+
 ifeq ($(CONFIG_RELOCATABLE),y)
 KBUILD_CFLAGS_KERNEL		+= -fPIE
-LDFLAGS_vmlinux			+= -static -pie --no-dynamic-linker -z notext
+KBUILD_RUSTFLAGS_KERNEL		+= -Crelocation-model=pie
+LDFLAGS_vmlinux			+= -static -pie --no-dynamic-linker -z notext $(call ld-option, --apply-dynamic-relocs)
 endif
 
 cflags-y += $(call cc-option, -mno-check-zero-division)
@@ -140,7 +145,9 @@ endif
 
 vdso-install-y += arch/loongarch/vdso/vdso.so.dbg
 
-all:	$(notdir $(KBUILD_IMAGE))
+all:	$(notdir $(KBUILD_IMAGE)) $(KBUILD_DTBS)
+
+vmlinuz.efi: vmlinux.efi
 
 vmlinux.elf vmlinux.efi vmlinuz.efi: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(bootvars-y) $(boot)/$@

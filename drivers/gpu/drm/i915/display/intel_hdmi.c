@@ -1983,6 +1983,10 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	bool ycbcr_420_only;
 	enum intel_output_format sink_format;
 
+	status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	if (status != MODE_OK)
+		return status;
+
 	if ((mode->flags & DRM_MODE_FLAG_3D_MASK) == DRM_MODE_FLAG_3D_FRAME_PACKING)
 		clock *= 2;
 
@@ -3028,16 +3032,6 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		if (ret)
 			drm_dbg_kms(&dev_priv->drm,
 				    "HDCP init failed, skipping.\n");
-	}
-
-	/* For G4X desktop chip, PEG_BAND_GAP_DATA 3:0 must first be written
-	 * 0xd.  Failure to do so will result in spurious interrupts being
-	 * generated on the port when a cable is not attached.
-	 */
-	if (IS_G45(dev_priv)) {
-		u32 temp = intel_de_read(dev_priv, PEG_BAND_GAP_DATA);
-		intel_de_write(dev_priv, PEG_BAND_GAP_DATA,
-		               (temp & ~0xf) | 0xd);
 	}
 
 	cec_fill_conn_info_from_drm(&conn_info, connector);

@@ -103,7 +103,7 @@ EXPORT_SYMBOL_GPL(cros_ec_sensorhub_unregister_push_data);
  * @sensorhub: Sensor Hub object
  * @on: true when events are requested.
  *
- * To be called before sleeping or when noone is listening.
+ * To be called before sleeping or when no one is listening.
  * Return: 0 on success, or an error when we can not communicate with the EC.
  *
  */
@@ -133,33 +133,61 @@ int cros_ec_sensorhub_ring_fifo_enable(struct cros_ec_sensorhub *sensorhub,
 	return ret;
 }
 
-static int cros_ec_sensor_ring_median_cmp(const void *pv1, const void *pv2)
+static void cros_ec_sensor_ring_median_swap(s64 *a, s64 *b)
 {
-	s64 v1 = *(s64 *)pv1;
-	s64 v2 = *(s64 *)pv2;
-
-	if (v1 > v2)
-		return 1;
-	else if (v1 < v2)
-		return -1;
-	else
-		return 0;
+	s64 tmp = *a;
+	*a = *b;
+	*b = tmp;
 }
 
 /*
  * cros_ec_sensor_ring_median: Gets median of an array of numbers
  *
- * For now it's implemented using an inefficient > O(n) sort then return
- * the middle element. A more optimal method would be something like
- * quickselect, but given that n = 64 we can probably live with it in the
- * name of clarity.
+ * It's implemented using the quickselect algorithm, which achieves an
+ * average time complexity of O(n) the middle element. In the worst case,
+ * the runtime of quickselect could regress to O(n^2). To mitigate this,
+ * algorithms like median-of-medians exist, which can guarantee O(n) even
+ * in the worst case. However, these algorithms come with a higher
+ * overhead and are more complex to implement, making quickselect a
+ * pragmatic choice for our use case.
  *
- * Warning: the input array gets modified (sorted)!
+ * Warning: the input array gets modified!
  */
 static s64 cros_ec_sensor_ring_median(s64 *array, size_t length)
 {
-	sort(array, length, sizeof(s64), cros_ec_sensor_ring_median_cmp, NULL);
-	return array[length / 2];
+	int lo = 0;
+	int hi = length - 1;
+
+	while (lo <= hi) {
+		int mid = lo + (hi - lo) / 2;
+		int pivot, i;
+
+		if (array[lo] > array[mid])
+			cros_ec_sensor_ring_median_swap(&array[lo], &array[mid]);
+		if (array[lo] > array[hi])
+			cros_ec_sensor_ring_median_swap(&array[lo], &array[hi]);
+		if (array[mid] < array[hi])
+			cros_ec_sensor_ring_median_swap(&array[mid], &array[hi]);
+
+		pivot = array[hi];
+		i = lo - 1;
+
+		for (int j = lo; j < hi; j++)
+			if (array[j] < pivot)
+				cros_ec_sensor_ring_median_swap(&array[++i], &array[j]);
+
+		/* The pivot's index corresponds to i+1. */
+		cros_ec_sensor_ring_median_swap(&array[i + 1], &array[hi]);
+		if (i + 1 == length / 2)
+			return array[i + 1];
+		if (i + 1 > length / 2)
+			hi = i;
+		else
+			lo = i + 2;
+	}
+
+	/* Should never reach here. */
+	return -1;
 }
 
 /*
@@ -175,8 +203,8 @@ static s64 cros_ec_sensor_ring_median(s64 *array, size_t length)
  *
  * While a and b are recorded at accurate times (due to the EC real time
  * nature); c is pretty untrustworthy, even though it's recorded the
- * first thing in ec_irq_handler(). There is a very good change we'll get
- * added lantency due to:
+ * first thing in ec_irq_handler(). There is a very good chance we'll get
+ * added latency due to:
  *   other irqs
  *   ddrfreq
  *   cpuidle
@@ -511,7 +539,7 @@ cros_ec_sensor_ring_process_event(struct cros_ec_sensorhub *sensorhub,
  *                                 ringbuffer.
  *
  * This is the new spreading code, assumes every sample's timestamp
- * preceeds the sample. Run if tight_timestamps == true.
+ * precedes the sample. Run if tight_timestamps == true.
  *
  * Sometimes the EC receives only one interrupt (hence timestamp) for
  * a batch of samples. Only the first sample will have the correct
@@ -595,7 +623,7 @@ cros_ec_sensor_ring_spread_add(struct cros_ec_sensorhub *sensorhub,
 			} else {
 				/*
 				 * Push first sample in the batch to the,
-				 * kifo, it's guaranteed to be correct, the
+				 * kfifo, it's guaranteed to be correct, the
 				 * rest will follow later on.
 				 */
 				sample_idx = 1;
@@ -701,7 +729,7 @@ done_with_this_batch:
  *           last_out -->
  *
  *
- * We spread time for the samples using perod p = (current - TS1)/4.
+ * We spread time for the samples using period p = (current - TS1)/4.
  * between TS1 and TS2: [TS1+p/4, TS1+2p/4, TS1+3p/4, current_timestamp].
  *
  */

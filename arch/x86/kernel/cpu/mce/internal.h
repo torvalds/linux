@@ -41,9 +41,7 @@ struct dentry *mce_get_debugfs_dir(void);
 extern mce_banks_t mce_banks_ce_disabled;
 
 #ifdef CONFIG_X86_MCE_INTEL
-unsigned long cmci_intel_adjust_timer(unsigned long interval);
-bool mce_intel_cmci_poll(void);
-void mce_intel_hcpu_update(unsigned long cpu);
+void mce_intel_handle_storm(int bank, bool on);
 void cmci_disable_bank(int bank);
 void intel_init_cmci(void);
 void intel_init_lmce(void);
@@ -51,9 +49,7 @@ void intel_clear_lmce(void);
 bool intel_filter_mce(struct mce *m);
 bool intel_mce_usable_address(struct mce *m);
 #else
-# define cmci_intel_adjust_timer mce_adjust_timer_default
-static inline bool mce_intel_cmci_poll(void) { return false; }
-static inline void mce_intel_hcpu_update(unsigned long cpu) { }
+static inline void mce_intel_handle_storm(int bank, bool on) { }
 static inline void cmci_disable_bank(int bank) { }
 static inline void intel_init_cmci(void) { }
 static inline void intel_init_lmce(void) { }
@@ -62,7 +58,63 @@ static inline bool intel_filter_mce(struct mce *m) { return false; }
 static inline bool intel_mce_usable_address(struct mce *m) { return false; }
 #endif
 
-void mce_timer_kick(unsigned long interval);
+void mce_timer_kick(bool storm);
+
+#ifdef CONFIG_X86_MCE_THRESHOLD
+void cmci_storm_begin(unsigned int bank);
+void cmci_storm_end(unsigned int bank);
+void mce_track_storm(struct mce *mce);
+void mce_inherit_storm(unsigned int bank);
+bool mce_get_storm_mode(void);
+void mce_set_storm_mode(bool storm);
+#else
+static inline void cmci_storm_begin(unsigned int bank) {}
+static inline void cmci_storm_end(unsigned int bank) {}
+static inline void mce_track_storm(struct mce *mce) {}
+static inline void mce_inherit_storm(unsigned int bank) {}
+static inline bool mce_get_storm_mode(void) { return false; }
+static inline void mce_set_storm_mode(bool storm) {}
+#endif
+
+/*
+ * history:		Bitmask tracking errors occurrence. Each set bit
+ *			represents an error seen.
+ *
+ * timestamp:		Last time (in jiffies) that the bank was polled.
+ * in_storm_mode:	Is this bank in storm mode?
+ * poll_only:		Bank does not support CMCI, skip storm tracking.
+ */
+struct storm_bank {
+	u64 history;
+	u64 timestamp;
+	bool in_storm_mode;
+	bool poll_only;
+};
+
+#define NUM_HISTORY_BITS (sizeof(u64) * BITS_PER_BYTE)
+
+/* How many errors within the history buffer mark the start of a storm. */
+#define STORM_BEGIN_THRESHOLD	5
+
+/*
+ * How many polls of machine check bank without an error before declaring
+ * the storm is over. Since it is tracked by the bitmasks in the history
+ * field of struct storm_bank the mask is 30 bits [0 ... 29].
+ */
+#define STORM_END_POLL_THRESHOLD	29
+
+/*
+ * banks:		per-cpu, per-bank details
+ * stormy_bank_count:	count of MC banks in storm state
+ * poll_mode:		CPU is in poll mode
+ */
+struct mca_storm_desc {
+	struct storm_bank	banks[MAX_NR_BANKS];
+	u8			stormy_bank_count;
+	bool			poll_mode;
+};
+
+DECLARE_PER_CPU(struct mca_storm_desc, storm_desc);
 
 #ifdef CONFIG_ACPI_APEI
 int apei_write_mce(struct mce *m);

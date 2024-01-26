@@ -5,7 +5,7 @@
 
 char _license[] SEC("license") = "GPL";
 
-__u32 page_size = 0;
+__s32 page_size = 0;
 
 SEC("cgroup/getsockopt")
 int _getsockopt_child(struct bpf_sockopt *ctx)

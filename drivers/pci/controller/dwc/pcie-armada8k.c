@@ -225,7 +225,7 @@ static irqreturn_t armada8k_pcie_irq_handler(int irq, void *arg)
 }
 
 static const struct dw_pcie_host_ops armada8k_pcie_host_ops = {
-	.host_init = armada8k_pcie_host_init,
+	.init = armada8k_pcie_host_init,
 };
 
 static int armada8k_add_pcie_port(struct armada8k_pcie *pcie,

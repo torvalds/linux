@@ -18,7 +18,7 @@ struct pds_vfio_pci_device {
 	struct pds_vfio_dirty dirty;
 	struct mutex state_mutex; /* protect migration state */
 	enum vfio_device_mig_state state;
-	spinlock_t reset_lock; /* protect reset_done flow */
+	struct mutex reset_mutex; /* protect reset_done flow */
 	u8 deferred_reset;
 	enum vfio_device_mig_state deferred_reset_state;
 	struct notifier_block nb;

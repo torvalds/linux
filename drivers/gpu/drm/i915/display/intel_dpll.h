@@ -20,8 +20,6 @@ int intel_dpll_crtc_compute_clock(struct intel_atomic_state *state,
 				  struct intel_crtc *crtc);
 int intel_dpll_crtc_get_shared_dpll(struct intel_atomic_state *state,
 				    struct intel_crtc *crtc);
-int vlv_calc_dpll_params(int refclk, struct dpll *clock);
-int pnv_calc_dpll_params(int refclk, struct dpll *clock);
 int i9xx_calc_dpll_params(int refclk, struct dpll *clock);
 u32 i9xx_dpll_compute_fp(const struct dpll *dpll);
 void vlv_compute_dpll(struct intel_crtc_state *crtc_state);
@@ -40,6 +38,13 @@ void i9xx_disable_pll(const struct intel_crtc_state *crtc_state);
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 			struct dpll *best_clock);
 int chv_calc_dpll_params(int refclk, struct dpll *pll_clock);
+
+void i9xx_crtc_clock_get(struct intel_crtc *crtc,
+			 struct intel_crtc_state *pipe_config);
+void vlv_crtc_clock_get(struct intel_crtc *crtc,
+			struct intel_crtc_state *pipe_config);
+void chv_crtc_clock_get(struct intel_crtc *crtc,
+			struct intel_crtc_state *pipe_config);
 
 void assert_pll_enabled(struct drm_i915_private *i915, enum pipe pipe);
 void assert_pll_disabled(struct drm_i915_private *i915, enum pipe pipe);

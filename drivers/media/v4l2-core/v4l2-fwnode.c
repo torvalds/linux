@@ -1179,7 +1179,9 @@ v4l2_async_nf_parse_fwnode_sensor(struct device *dev,
 	static const char * const led_props[] = { "led" };
 	static const struct v4l2_fwnode_int_props props[] = {
 		{ "flash-leds", led_props, ARRAY_SIZE(led_props) },
-		{ "lens-focus", NULL, 0 },
+		{ "mipi-img-flash-leds", },
+		{ "lens-focus", },
+		{ "mipi-img-lens-focus", },
 	};
 	unsigned int i;
 

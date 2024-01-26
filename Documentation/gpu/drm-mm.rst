@@ -466,6 +466,8 @@ DRM MM Range Allocator Function References
 .. kernel-doc:: drivers/gpu/drm/drm_mm.c
    :export:
 
+.. _drm_gpuvm:
+
 DRM GPUVM
 =========
 
@@ -480,6 +482,8 @@ Split and Merge
 
 .. kernel-doc:: drivers/gpu/drm/drm_gpuvm.c
    :doc: Split and Merge
+
+.. _drm_gpuvm_locking:
 
 Locking
 -------
@@ -551,6 +555,12 @@ Overview
 
 .. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
    :doc: Overview
+
+Flow Control
+------------
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
+   :doc: Flow Control
 
 Scheduler Function References
 -----------------------------

@@ -169,12 +169,14 @@ def bpftool(args, JSON=True, ns="", fail=True, include_stderr=False):
     return tool("bpftool", args, {"json":"-p"}, JSON=JSON, ns=ns,
                 fail=fail, include_stderr=include_stderr)
 
-def bpftool_prog_list(expected=None, ns=""):
+def bpftool_prog_list(expected=None, ns="", exclude_orphaned=True):
     _, progs = bpftool("prog show", JSON=True, ns=ns, fail=True)
     # Remove the base progs
     for p in base_progs:
         if p in progs:
             progs.remove(p)
+    if exclude_orphaned:
+        progs = [ p for p in progs if not p['orphaned'] ]
     if expected is not None:
         if len(progs) != expected:
             fail(True, "%d BPF programs loaded, expected %d" %
@@ -612,11 +614,9 @@ def pin_map(file_name, idx=0, expected=1):
 
 def check_dev_info_removed(prog_file=None, map_file=None):
     bpftool_prog_list(expected=0)
+    bpftool_prog_list(expected=1, exclude_orphaned=False)
     ret, err = bpftool("prog show pin %s" % (prog_file), fail=False)
-    fail(ret == 0, "Showing prog with removed device did not fail")
-    fail(err["error"].find("No such device") == -1,
-         "Showing prog with removed device expected ENODEV, error is %s" %
-         (err["error"]))
+    fail(ret != 0, "failed to show prog with removed device")
 
     bpftool_map_list(expected=0)
     ret, err = bpftool("map show pin %s" % (map_file), fail=False)
@@ -1395,10 +1395,7 @@ try:
 
     start_test("Test multi-dev ASIC cross-dev destruction - orphaned...")
     ret, out = bpftool("prog show %s" % (progB), fail=False)
-    fail(ret == 0, "got information about orphaned program")
-    fail("error" not in out, "no error reported for get info on orphaned")
-    fail(out["error"] != "can't get prog info: No such device",
-         "wrong error for get info on orphaned")
+    fail(ret != 0, "couldn't get information about orphaned program")
 
     print("%s: OK" % (os.path.basename(__file__)))
 

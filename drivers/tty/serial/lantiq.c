@@ -887,13 +887,11 @@ static int lqasc_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int lqasc_remove(struct platform_device *pdev)
+static void lqasc_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&lqasc_reg, port);
-
-	return 0;
 }
 
 static const struct ltq_soc_data soc_data_lantiq = {
@@ -917,7 +915,7 @@ MODULE_DEVICE_TABLE(of, ltq_asc_match);
 
 static struct platform_driver lqasc_driver = {
 	.probe		= lqasc_probe,
-	.remove		= lqasc_remove,
+	.remove_new	= lqasc_remove,
 	.driver		= {
 		.name	= DRVNAME,
 		.of_match_table = ltq_asc_match,

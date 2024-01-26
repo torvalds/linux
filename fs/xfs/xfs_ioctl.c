@@ -1121,23 +1121,25 @@ xfs_ioctl_setattr_xflags(
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
+	bool			rtflag = (fa->fsx_xflags & FS_XFLAG_REALTIME);
 	uint64_t		i_flags2;
 
-	/* Can't change realtime flag if any extents are allocated. */
-	if ((ip->i_df.if_nextents || ip->i_delayed_blks) &&
-	    XFS_IS_REALTIME_INODE(ip) != (fa->fsx_xflags & FS_XFLAG_REALTIME))
-		return -EINVAL;
-
-	/* If realtime flag is set then must have realtime device */
-	if (fa->fsx_xflags & FS_XFLAG_REALTIME) {
-		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
-		    xfs_extlen_to_rtxmod(mp, ip->i_extsize))
+	if (rtflag != XFS_IS_REALTIME_INODE(ip)) {
+		/* Can't change realtime flag if any extents are allocated. */
+		if (ip->i_df.if_nextents || ip->i_delayed_blks)
 			return -EINVAL;
 	}
 
-	/* Clear reflink if we are actually able to set the rt flag. */
-	if ((fa->fsx_xflags & FS_XFLAG_REALTIME) && xfs_is_reflink_inode(ip))
-		ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
+	if (rtflag) {
+		/* If realtime flag is set then must have realtime device */
+		if (mp->m_sb.sb_rblocks == 0 || mp->m_sb.sb_rextsize == 0 ||
+		    xfs_extlen_to_rtxmod(mp, ip->i_extsize))
+			return -EINVAL;
+
+		/* Clear reflink if we are actually able to set the rt flag. */
+		if (xfs_is_reflink_inode(ip))
+			ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
+	}
 
 	/* diflags2 only valid for v3 inodes. */
 	i_flags2 = xfs_flags2diflags2(ip, fa->fsx_xflags);
@@ -1148,6 +1150,14 @@ xfs_ioctl_setattr_xflags(
 	ip->i_diflags2 = i_flags2;
 
 	xfs_diflags_to_iflags(ip, false);
+
+	/*
+	 * Make the stable writes flag match that of the device the inode
+	 * resides on when flipping the RT flag.
+	 */
+	if (rtflag != XFS_IS_REALTIME_INODE(ip) && S_ISREG(VFS_I(ip)->i_mode))
+		xfs_update_stable_writes(ip);
+
 	xfs_trans_ichgtime(tp, ip, XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 	XFS_STATS_INC(mp, xs_ig_attrchg);
@@ -1862,6 +1872,63 @@ xfs_fs_eofblocks_from_user(
 	return 0;
 }
 
+static int
+xfs_ioctl_getset_resblocks(
+	struct file		*filp,
+	unsigned int		cmd,
+	void __user		*arg)
+{
+	struct xfs_mount	*mp = XFS_I(file_inode(filp))->i_mount;
+	struct xfs_fsop_resblks	fsop = { };
+	int			error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	if (cmd == XFS_IOC_SET_RESBLKS) {
+		if (xfs_is_readonly(mp))
+			return -EROFS;
+
+		if (copy_from_user(&fsop, arg, sizeof(fsop)))
+			return -EFAULT;
+
+		error = mnt_want_write_file(filp);
+		if (error)
+			return error;
+		error = xfs_reserve_blocks(mp, fsop.resblks);
+		mnt_drop_write_file(filp);
+		if (error)
+			return error;
+	}
+
+	spin_lock(&mp->m_sb_lock);
+	fsop.resblks = mp->m_resblks;
+	fsop.resblks_avail = mp->m_resblks_avail;
+	spin_unlock(&mp->m_sb_lock);
+
+	if (copy_to_user(arg, &fsop, sizeof(fsop)))
+		return -EFAULT;
+	return 0;
+}
+
+static int
+xfs_ioctl_fs_counts(
+	struct xfs_mount	*mp,
+	struct xfs_fsop_counts __user	*uarg)
+{
+	struct xfs_fsop_counts	out = {
+		.allocino = percpu_counter_read_positive(&mp->m_icount),
+		.freeino  = percpu_counter_read_positive(&mp->m_ifree),
+		.freedata = percpu_counter_read_positive(&mp->m_fdblocks) -
+				xfs_fdblocks_unavailable(mp),
+		.freertx  = percpu_counter_read_positive(&mp->m_frextents),
+	};
+
+	if (copy_to_user(uarg, &out, sizeof(out)))
+		return -EFAULT;
+	return 0;
+}
+
 /*
  * These long-unused ioctls were removed from the official ioctl API in 5.17,
  * but retain these definitions so that we can log warnings about them.
@@ -1998,60 +2065,12 @@ xfs_file_ioctl(
 		return error;
 	}
 
-	case XFS_IOC_FSCOUNTS: {
-		xfs_fsop_counts_t out;
+	case XFS_IOC_FSCOUNTS:
+		return xfs_ioctl_fs_counts(mp, arg);
 
-		xfs_fs_counts(mp, &out);
-
-		if (copy_to_user(arg, &out, sizeof(out)))
-			return -EFAULT;
-		return 0;
-	}
-
-	case XFS_IOC_SET_RESBLKS: {
-		xfs_fsop_resblks_t inout;
-		uint64_t	   in;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		if (xfs_is_readonly(mp))
-			return -EROFS;
-
-		if (copy_from_user(&inout, arg, sizeof(inout)))
-			return -EFAULT;
-
-		error = mnt_want_write_file(filp);
-		if (error)
-			return error;
-
-		/* input parameter is passed in resblks field of structure */
-		in = inout.resblks;
-		error = xfs_reserve_blocks(mp, &in, &inout);
-		mnt_drop_write_file(filp);
-		if (error)
-			return error;
-
-		if (copy_to_user(arg, &inout, sizeof(inout)))
-			return -EFAULT;
-		return 0;
-	}
-
-	case XFS_IOC_GET_RESBLKS: {
-		xfs_fsop_resblks_t out;
-
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-
-		error = xfs_reserve_blocks(mp, NULL, &out);
-		if (error)
-			return error;
-
-		if (copy_to_user(arg, &out, sizeof(out)))
-			return -EFAULT;
-
-		return 0;
-	}
+	case XFS_IOC_SET_RESBLKS:
+	case XFS_IOC_GET_RESBLKS:
+		return xfs_ioctl_getset_resblocks(filp, cmd, arg);
 
 	case XFS_IOC_FSGROWFSDATA: {
 		struct xfs_growfs_data in;

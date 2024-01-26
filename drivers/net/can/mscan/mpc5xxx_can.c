@@ -12,8 +12,10 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/netdevice.h>
 #include <linux/can/dev.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
@@ -290,7 +292,7 @@ static int mpc5xxx_can_probe(struct platform_device *ofdev)
 	int irq, mscan_clksrc = 0;
 	int err = -ENOMEM;
 
-	data = of_device_get_match_data(&ofdev->dev);
+	data = device_get_match_data(&ofdev->dev);
 	if (!data)
 		return -EINVAL;
 
@@ -351,13 +353,11 @@ exit_unmap_mem:
 
 static void mpc5xxx_can_remove(struct platform_device *ofdev)
 {
-	const struct of_device_id *match;
 	const struct mpc5xxx_can_data *data;
 	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct mscan_priv *priv = netdev_priv(dev);
 
-	match = of_match_device(mpc5xxx_can_table, &ofdev->dev);
-	data = match ? match->data : NULL;
+	data = device_get_match_data(&ofdev->dev);
 
 	unregister_mscandev(dev);
 	if (data && data->put_clock)

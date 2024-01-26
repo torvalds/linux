@@ -241,12 +241,10 @@ static int ks_sa_rng_probe(struct platform_device *pdev)
 	return devm_hwrng_register(&pdev->dev, &ks_sa_rng->rng);
 }
 
-static int ks_sa_rng_remove(struct platform_device *pdev)
+static void ks_sa_rng_remove(struct platform_device *pdev)
 {
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id ks_sa_rng_dt_match[] = {
@@ -263,7 +261,7 @@ static struct platform_driver ks_sa_rng_driver = {
 		.of_match_table = ks_sa_rng_dt_match,
 	},
 	.probe		= ks_sa_rng_probe,
-	.remove		= ks_sa_rng_remove,
+	.remove_new	= ks_sa_rng_remove,
 };
 
 module_platform_driver(ks_sa_rng_driver);

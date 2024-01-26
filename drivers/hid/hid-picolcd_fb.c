@@ -505,6 +505,7 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 		dev_err(dev, "can't get a free page for framebuffer\n");
 		goto err_nomem;
 	}
+	info->flags |= FBINFO_VIRTFB;
 	info->screen_buffer = fbdata->bitmap;
 	info->fix.smem_start = (unsigned long)fbdata->bitmap;
 	memset(fbdata->vbitmap, 0xff, PICOLCDFB_SIZE);

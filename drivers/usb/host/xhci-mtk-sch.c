@@ -650,9 +650,8 @@ static int check_isoc_ss_overlap(struct mu3h_sch_ep_info *sch_ep, u32 offset)
 
 		if (sch_ep->ep_type == ISOC_OUT_EP) {
 			for (j = 0; j < sch_ep->num_budget_microframes; j++) {
-				k = XHCI_MTK_BW_INDEX(base + j + CS_OFFSET);
-				/* use cs to indicate existence of in-ss @(base+j) */
-				if (tt->fs_bus_bw_in[k])
+				k = XHCI_MTK_BW_INDEX(base + j);
+				if (tt->in_ss_cnt[k])
 					return -ESCH_SS_OVERLAP;
 			}
 		} else if (sch_ep->ep_type == ISOC_IN_EP || sch_ep->ep_type == INT_IN_EP) {
@@ -768,6 +767,14 @@ static void update_sch_tt(struct mu3h_sch_ep_info *sch_ep, bool used)
 				fs_bus_bw[k] -= (u16)sch_ep->bw_budget_table[j];
 				tt->fs_frame_bw[f] -= (u16)sch_ep->bw_budget_table[j];
 			}
+		}
+
+		if (sch_ep->ep_type == ISOC_IN_EP || sch_ep->ep_type == INT_IN_EP) {
+			k = XHCI_MTK_BW_INDEX(base);
+			if (used)
+				tt->in_ss_cnt[k]++;
+			else
+				tt->in_ss_cnt[k]--;
 		}
 	}
 

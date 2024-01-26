@@ -1121,19 +1121,6 @@ static const struct n2_skcipher_tmpl skcipher_tmpls[] = {
 			.decrypt	= n2_decrypt_chaining,
 		},
 	},
-	{	.name		= "cfb(des)",
-		.drv_name	= "cfb-des",
-		.block_size	= DES_BLOCK_SIZE,
-		.enc_type	= (ENC_TYPE_ALG_DES |
-				   ENC_TYPE_CHAINING_CFB),
-		.skcipher	= {
-			.min_keysize	= DES_KEY_SIZE,
-			.max_keysize	= DES_KEY_SIZE,
-			.setkey		= n2_des_setkey,
-			.encrypt	= n2_encrypt_chaining,
-			.decrypt	= n2_decrypt_chaining,
-		},
-	},
 
 	/* 3DES: ECB CBC and CFB are supported */
 	{	.name		= "ecb(des3_ede)",
@@ -1163,19 +1150,7 @@ static const struct n2_skcipher_tmpl skcipher_tmpls[] = {
 			.decrypt	= n2_decrypt_chaining,
 		},
 	},
-	{	.name		= "cfb(des3_ede)",
-		.drv_name	= "cfb-3des",
-		.block_size	= DES_BLOCK_SIZE,
-		.enc_type	= (ENC_TYPE_ALG_3DES |
-				   ENC_TYPE_CHAINING_CFB),
-		.skcipher	= {
-			.min_keysize	= 3 * DES_KEY_SIZE,
-			.max_keysize	= 3 * DES_KEY_SIZE,
-			.setkey		= n2_3des_setkey,
-			.encrypt	= n2_encrypt_chaining,
-			.decrypt	= n2_decrypt_chaining,
-		},
-	},
+
 	/* AES: ECB CBC and CTR are supported */
 	{	.name		= "ecb(aes)",
 		.drv_name	= "ecb-aes",
@@ -1382,8 +1357,12 @@ static int __n2_register_one_hmac(struct n2_ahash_alg *n2ahash)
 	ahash->setkey = n2_hmac_async_setkey;
 
 	base = &ahash->halg.base;
-	snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)", p->child_alg);
-	snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "hmac-%s-n2", p->child_alg);
+	if (snprintf(base->cra_name, CRYPTO_MAX_ALG_NAME, "hmac(%s)",
+		     p->child_alg) >= CRYPTO_MAX_ALG_NAME)
+		goto out_free_p;
+	if (snprintf(base->cra_driver_name, CRYPTO_MAX_ALG_NAME, "hmac-%s-n2",
+		     p->child_alg) >= CRYPTO_MAX_ALG_NAME)
+		goto out_free_p;
 
 	base->cra_ctxsize = sizeof(struct n2_hmac_ctx);
 	base->cra_init = n2_hmac_cra_init;
@@ -1394,6 +1373,7 @@ static int __n2_register_one_hmac(struct n2_ahash_alg *n2ahash)
 	if (err) {
 		pr_err("%s alg registration failed\n", base->cra_name);
 		list_del(&p->derived.entry);
+out_free_p:
 		kfree(p);
 	} else {
 		pr_info("%s alg registered\n", base->cra_name);

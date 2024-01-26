@@ -697,12 +697,16 @@ static int qat_hal_chip_init(struct icp_qat_fw_loader_handle *handle,
 	case ADF_4XXX_PCI_DEVICE_ID:
 	case ADF_401XX_PCI_DEVICE_ID:
 	case ADF_402XX_PCI_DEVICE_ID:
+	case ADF_420XX_PCI_DEVICE_ID:
 		handle->chip_info->mmp_sram_size = 0;
 		handle->chip_info->nn = false;
 		handle->chip_info->lm2lm3 = true;
 		handle->chip_info->lm_size = ICP_QAT_UCLO_MAX_LMEM_REG_2X;
 		handle->chip_info->icp_rst_csr = ICP_RESET_CPP0;
-		handle->chip_info->icp_rst_mask = 0x100015;
+		if (handle->pci_dev->device == ADF_420XX_PCI_DEVICE_ID)
+			handle->chip_info->icp_rst_mask = 0x100155;
+		else
+			handle->chip_info->icp_rst_mask = 0x100015;
 		handle->chip_info->glb_clk_enable_csr = ICP_GLOBAL_CLK_ENABLE_CPP0;
 		handle->chip_info->misc_ctl_csr = MISC_CONTROL_C4XXX;
 		handle->chip_info->wakeup_event_val = 0x80000000;

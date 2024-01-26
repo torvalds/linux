@@ -11,6 +11,3 @@ void sm4_ce_crypt_block(const u32 *rkey, u8 *dst, const u8 *src);
 
 void sm4_ce_cbc_enc(const u32 *rkey_enc, u8 *dst, const u8 *src,
 		    u8 *iv, unsigned int nblocks);
-
-void sm4_ce_cfb_enc(const u32 *rkey_enc, u8 *dst, const u8 *src,
-		    u8 *iv, unsigned int nblocks);

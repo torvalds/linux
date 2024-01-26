@@ -17,6 +17,7 @@ TEST_PROGS = bridge_fdb_learning_limit.sh \
 	dual_vxlan_bridge.sh \
 	ethtool_extended_state.sh \
 	ethtool_mm.sh \
+	ethtool_rmon.sh \
 	ethtool.sh \
 	gre_custom_multipath_hash.sh \
 	gre_inner_v4_multipath.sh \

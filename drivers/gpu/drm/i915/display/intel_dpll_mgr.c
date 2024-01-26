@@ -219,6 +219,26 @@ intel_tc_pll_enable_reg(struct drm_i915_private *i915,
 	return MG_PLL_ENABLE(tc_port);
 }
 
+static void _intel_enable_shared_dpll(struct drm_i915_private *i915,
+				      struct intel_shared_dpll *pll)
+{
+	if (pll->info->power_domain)
+		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
+
+	pll->info->funcs->enable(i915, pll);
+	pll->on = true;
+}
+
+static void _intel_disable_shared_dpll(struct drm_i915_private *i915,
+				       struct intel_shared_dpll *pll)
+{
+	pll->info->funcs->disable(i915, pll);
+	pll->on = false;
+
+	if (pll->info->power_domain)
+		intel_display_power_put(i915, pll->info->power_domain, pll->wakeref);
+}
+
 /**
  * intel_enable_shared_dpll - enable a CRTC's shared DPLL
  * @crtc_state: CRTC, and its state, which has a shared DPLL
@@ -258,8 +278,8 @@ void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state)
 	drm_WARN_ON(&i915->drm, pll->on);
 
 	drm_dbg_kms(&i915->drm, "enabling %s\n", pll->info->name);
-	pll->info->funcs->enable(i915, pll);
-	pll->on = true;
+
+	_intel_enable_shared_dpll(i915, pll);
 
 out:
 	mutex_unlock(&i915->display.dpll.lock);
@@ -304,8 +324,8 @@ void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state)
 		goto out;
 
 	drm_dbg_kms(&i915->drm, "disabling %s\n", pll->info->name);
-	pll->info->funcs->disable(i915, pll);
-	pll->on = false;
+
+	_intel_disable_shared_dpll(i915, pll);
 
 out:
 	mutex_unlock(&i915->display.dpll.lock);
@@ -631,9 +651,9 @@ static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
 };
 
 static const struct dpll_info pch_plls[] = {
-	{ "PCH DPLL A", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_A, 0 },
-	{ "PCH DPLL B", &ibx_pch_dpll_funcs, DPLL_ID_PCH_PLL_B, 0 },
-	{ },
+	{ .name = "PCH DPLL A", .funcs = &ibx_pch_dpll_funcs, .id = DPLL_ID_PCH_PLL_A, },
+	{ .name = "PCH DPLL B", .funcs = &ibx_pch_dpll_funcs, .id = DPLL_ID_PCH_PLL_B, },
+	{}
 };
 
 static const struct intel_dpll_mgr pch_pll_mgr = {
@@ -1239,13 +1259,16 @@ static const struct intel_shared_dpll_funcs hsw_ddi_lcpll_funcs = {
 };
 
 static const struct dpll_info hsw_plls[] = {
-	{ "WRPLL 1",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL1,     0 },
-	{ "WRPLL 2",    &hsw_ddi_wrpll_funcs, DPLL_ID_WRPLL2,     0 },
-	{ "SPLL",       &hsw_ddi_spll_funcs,  DPLL_ID_SPLL,       0 },
-	{ "LCPLL 810",  &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_810,  INTEL_DPLL_ALWAYS_ON },
-	{ "LCPLL 1350", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_1350, INTEL_DPLL_ALWAYS_ON },
-	{ "LCPLL 2700", &hsw_ddi_lcpll_funcs, DPLL_ID_LCPLL_2700, INTEL_DPLL_ALWAYS_ON },
-	{ },
+	{ .name = "WRPLL 1", .funcs = &hsw_ddi_wrpll_funcs, .id = DPLL_ID_WRPLL1, },
+	{ .name = "WRPLL 2", .funcs = &hsw_ddi_wrpll_funcs, .id = DPLL_ID_WRPLL2, },
+	{ .name = "SPLL", .funcs = &hsw_ddi_spll_funcs, .id = DPLL_ID_SPLL, },
+	{ .name = "LCPLL 810", .funcs = &hsw_ddi_lcpll_funcs, .id = DPLL_ID_LCPLL_810,
+	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	{ .name = "LCPLL 1350", .funcs = &hsw_ddi_lcpll_funcs, .id = DPLL_ID_LCPLL_1350,
+	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	{ .name = "LCPLL 2700", .funcs = &hsw_ddi_lcpll_funcs, .id = DPLL_ID_LCPLL_2700,
+	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	{}
 };
 
 static const struct intel_dpll_mgr hsw_pll_mgr = {
@@ -1921,11 +1944,12 @@ static const struct intel_shared_dpll_funcs skl_ddi_dpll0_funcs = {
 };
 
 static const struct dpll_info skl_plls[] = {
-	{ "DPLL 0", &skl_ddi_dpll0_funcs, DPLL_ID_SKL_DPLL0, INTEL_DPLL_ALWAYS_ON },
-	{ "DPLL 1", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL1, 0 },
-	{ "DPLL 2", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL2, 0 },
-	{ "DPLL 3", &skl_ddi_pll_funcs,   DPLL_ID_SKL_DPLL3, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &skl_ddi_dpll0_funcs, .id = DPLL_ID_SKL_DPLL0,
+	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	{ .name = "DPLL 1", .funcs = &skl_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL1, },
+	{ .name = "DPLL 2", .funcs = &skl_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL2, },
+	{ .name = "DPLL 3", .funcs = &skl_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL3, },
+	{}
 };
 
 static const struct intel_dpll_mgr skl_pll_mgr = {
@@ -2376,10 +2400,10 @@ static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 };
 
 static const struct dpll_info bxt_plls[] = {
-	{ "PORT PLL A", &bxt_ddi_pll_funcs, DPLL_ID_SKL_DPLL0, 0 },
-	{ "PORT PLL B", &bxt_ddi_pll_funcs, DPLL_ID_SKL_DPLL1, 0 },
-	{ "PORT PLL C", &bxt_ddi_pll_funcs, DPLL_ID_SKL_DPLL2, 0 },
-	{ },
+	{ .name = "PORT PLL A", .funcs = &bxt_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL0, },
+	{ .name = "PORT PLL B", .funcs = &bxt_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL1, },
+	{ .name = "PORT PLL C", .funcs = &bxt_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL2, },
+	{}
 };
 
 static const struct intel_dpll_mgr bxt_pll_mgr = {
@@ -3834,18 +3858,6 @@ static void combo_pll_enable(struct drm_i915_private *i915,
 {
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(i915, pll);
 
-	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
-	    pll->info->id == DPLL_ID_EHL_DPLL4) {
-
-		/*
-		 * We need to disable DC states when this DPLL is enabled.
-		 * This can be done by taking a reference on DPLL4 power
-		 * domain.
-		 */
-		pll->wakeref = intel_display_power_get(i915,
-						       POWER_DOMAIN_DC_OFF);
-	}
-
 	icl_pll_power_enable(i915, pll, enable_reg);
 
 	icl_dpll_write(i915, pll);
@@ -3941,11 +3953,6 @@ static void combo_pll_disable(struct drm_i915_private *i915,
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(i915, pll);
 
 	icl_pll_disable(i915, pll, enable_reg);
-
-	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
-	    pll->info->id == DPLL_ID_EHL_DPLL4)
-		intel_display_power_put(i915, POWER_DOMAIN_DC_OFF,
-					pll->wakeref);
 }
 
 static void tbt_pll_disable(struct drm_i915_private *i915,
@@ -4014,14 +4021,14 @@ static const struct intel_shared_dpll_funcs mg_pll_funcs = {
 };
 
 static const struct dpll_info icl_plls[] = {
-	{ "DPLL 0",   &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
-	{ "DPLL 1",   &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
-	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
-	{ "MG PLL 1", &mg_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
-	{ "MG PLL 2", &mg_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
-	{ "MG PLL 3", &mg_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
-	{ "MG PLL 4", &mg_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
+	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL, },
+	{ .name = "MG PLL 1", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL1, },
+	{ .name = "MG PLL 2", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL2, },
+	{ .name = "MG PLL 3", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL3, },
+	{ .name = "MG PLL 4", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL4, },
+	{}
 };
 
 static const struct intel_dpll_mgr icl_pll_mgr = {
@@ -4035,10 +4042,11 @@ static const struct intel_dpll_mgr icl_pll_mgr = {
 };
 
 static const struct dpll_info ehl_plls[] = {
-	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
-	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
-	{ "DPLL 4", &combo_pll_funcs, DPLL_ID_EHL_DPLL4, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
+	{ .name = "DPLL 4", .funcs = &combo_pll_funcs, .id = DPLL_ID_EHL_DPLL4,
+	  .power_domain = POWER_DOMAIN_DC_OFF, },
+	{}
 };
 
 static const struct intel_dpll_mgr ehl_pll_mgr = {
@@ -4058,16 +4066,16 @@ static const struct intel_shared_dpll_funcs dkl_pll_funcs = {
 };
 
 static const struct dpll_info tgl_plls[] = {
-	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
-	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
-	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
-	{ "TC PLL 1", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
-	{ "TC PLL 2", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
-	{ "TC PLL 3", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
-	{ "TC PLL 4", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
-	{ "TC PLL 5", &dkl_pll_funcs, DPLL_ID_TGL_MGPLL5, 0 },
-	{ "TC PLL 6", &dkl_pll_funcs, DPLL_ID_TGL_MGPLL6, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
+	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL, },
+	{ .name = "TC PLL 1", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL1, },
+	{ .name = "TC PLL 2", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL2, },
+	{ .name = "TC PLL 3", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL3, },
+	{ .name = "TC PLL 4", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL4, },
+	{ .name = "TC PLL 5", .funcs = &dkl_pll_funcs, .id = DPLL_ID_TGL_MGPLL5, },
+	{ .name = "TC PLL 6", .funcs = &dkl_pll_funcs, .id = DPLL_ID_TGL_MGPLL6, },
+	{}
 };
 
 static const struct intel_dpll_mgr tgl_pll_mgr = {
@@ -4081,10 +4089,10 @@ static const struct intel_dpll_mgr tgl_pll_mgr = {
 };
 
 static const struct dpll_info rkl_plls[] = {
-	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
-	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
-	{ "DPLL 4", &combo_pll_funcs, DPLL_ID_EHL_DPLL4, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
+	{ .name = "DPLL 4", .funcs = &combo_pll_funcs, .id = DPLL_ID_EHL_DPLL4, },
+	{}
 };
 
 static const struct intel_dpll_mgr rkl_pll_mgr = {
@@ -4097,11 +4105,11 @@ static const struct intel_dpll_mgr rkl_pll_mgr = {
 };
 
 static const struct dpll_info dg1_plls[] = {
-	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_DG1_DPLL0, 0 },
-	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_DG1_DPLL1, 0 },
-	{ "DPLL 2", &combo_pll_funcs, DPLL_ID_DG1_DPLL2, 0 },
-	{ "DPLL 3", &combo_pll_funcs, DPLL_ID_DG1_DPLL3, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_DG1_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_DG1_DPLL1, },
+	{ .name = "DPLL 2", .funcs = &combo_pll_funcs, .id = DPLL_ID_DG1_DPLL2, },
+	{ .name = "DPLL 3", .funcs = &combo_pll_funcs, .id = DPLL_ID_DG1_DPLL3, },
+	{}
 };
 
 static const struct intel_dpll_mgr dg1_pll_mgr = {
@@ -4114,11 +4122,11 @@ static const struct intel_dpll_mgr dg1_pll_mgr = {
 };
 
 static const struct dpll_info adls_plls[] = {
-	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0, 0 },
-	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1, 0 },
-	{ "DPLL 2", &combo_pll_funcs, DPLL_ID_DG1_DPLL2, 0 },
-	{ "DPLL 3", &combo_pll_funcs, DPLL_ID_DG1_DPLL3, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
+	{ .name = "DPLL 2", .funcs = &combo_pll_funcs, .id = DPLL_ID_DG1_DPLL2, },
+	{ .name = "DPLL 3", .funcs = &combo_pll_funcs, .id = DPLL_ID_DG1_DPLL3, },
+	{}
 };
 
 static const struct intel_dpll_mgr adls_pll_mgr = {
@@ -4131,14 +4139,14 @@ static const struct intel_dpll_mgr adls_pll_mgr = {
 };
 
 static const struct dpll_info adlp_plls[] = {
-	{ "DPLL 0", &combo_pll_funcs, DPLL_ID_ICL_DPLL0,  0 },
-	{ "DPLL 1", &combo_pll_funcs, DPLL_ID_ICL_DPLL1,  0 },
-	{ "TBT PLL",  &tbt_pll_funcs, DPLL_ID_ICL_TBTPLL, 0 },
-	{ "TC PLL 1", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL1, 0 },
-	{ "TC PLL 2", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL2, 0 },
-	{ "TC PLL 3", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL3, 0 },
-	{ "TC PLL 4", &dkl_pll_funcs, DPLL_ID_ICL_MGPLL4, 0 },
-	{ },
+	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
+	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
+	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL, },
+	{ .name = "TC PLL 1", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL1, },
+	{ .name = "TC PLL 2", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL2, },
+	{ .name = "TC PLL 3", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL3, },
+	{ .name = "TC PLL 4", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL4, },
+	{}
 };
 
 static const struct intel_dpll_mgr adlp_pll_mgr = {
@@ -4365,12 +4373,8 @@ static void readout_dpll_hw_state(struct drm_i915_private *i915,
 
 	pll->on = intel_dpll_get_hw_state(i915, pll, &pll->state.hw_state);
 
-	if ((IS_JASPERLAKE(i915) || IS_ELKHARTLAKE(i915)) &&
-	    pll->on &&
-	    pll->info->id == DPLL_ID_EHL_DPLL4) {
-		pll->wakeref = intel_display_power_get(i915,
-						       POWER_DOMAIN_DC_OFF);
-	}
+	if (pll->on && pll->info->power_domain)
+		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
 
 	pll->state.pipe_mask = 0;
 	for_each_intel_crtc(&i915->drm, crtc) {
@@ -4417,8 +4421,7 @@ static void sanitize_dpll_state(struct drm_i915_private *i915,
 		    "%s enabled but not in use, disabling\n",
 		    pll->info->name);
 
-	pll->info->funcs->disable(i915, pll);
-	pll->on = false;
+	_intel_disable_shared_dpll(i915, pll);
 }
 
 void intel_dpll_sanitize_state(struct drm_i915_private *i915)
@@ -4534,7 +4537,7 @@ void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
 				"pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
 				pipe_name(crtc->pipe), pll->active_mask);
 		I915_STATE_WARN(i915, pll->state.pipe_mask & pipe_mask,
-				"pll enabled crtcs mismatch (found %x in enabled mask (0x%x))\n",
+				"pll enabled crtcs mismatch (found pipe %c in enabled mask (0x%x))\n",
 				pipe_name(crtc->pipe), pll->state.pipe_mask);
 	}
 }

@@ -80,9 +80,10 @@ static int sl28vpd_v1_check_crc(struct device *dev, struct nvmem_device *nvmem)
 	return 0;
 }
 
-static int sl28vpd_add_cells(struct device *dev, struct nvmem_device *nvmem,
-			     struct nvmem_layout *layout)
+static int sl28vpd_add_cells(struct nvmem_layout *layout)
 {
+	struct nvmem_device *nvmem = layout->nvmem;
+	struct device *dev = &layout->dev;
 	const struct nvmem_cell_info *pinfo;
 	struct nvmem_cell_info info = {0};
 	struct device_node *layout_np;
@@ -135,16 +136,32 @@ static int sl28vpd_add_cells(struct device *dev, struct nvmem_device *nvmem,
 	return 0;
 }
 
+static int sl28vpd_probe(struct nvmem_layout *layout)
+{
+	layout->add_cells = sl28vpd_add_cells;
+
+	return nvmem_layout_register(layout);
+}
+
+static void sl28vpd_remove(struct nvmem_layout *layout)
+{
+	nvmem_layout_unregister(layout);
+}
+
 static const struct of_device_id sl28vpd_of_match_table[] = {
 	{ .compatible = "kontron,sl28-vpd" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sl28vpd_of_match_table);
 
-static struct nvmem_layout sl28vpd_layout = {
-	.name = "sl28-vpd",
-	.of_match_table = sl28vpd_of_match_table,
-	.add_cells = sl28vpd_add_cells,
+static struct nvmem_layout_driver sl28vpd_layout = {
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "kontron-sl28vpd-layout",
+		.of_match_table = sl28vpd_of_match_table,
+	},
+	.probe = sl28vpd_probe,
+	.remove = sl28vpd_remove,
 };
 module_nvmem_layout_driver(sl28vpd_layout);
 

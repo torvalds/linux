@@ -1023,7 +1023,7 @@ static const struct nt35510_config nt35510_hydis_hva40wv1 = {
 		.hdisplay = 480,
 		.hsync_start = 480 + 2, /* HFP = 2 */
 		.hsync_end = 480 + 2 + 0, /* HSync = 0 */
-		.htotal = 480 + 2 + 0 + 5, /* HFP = 5 */
+		.htotal = 480 + 2 + 0 + 5, /* HBP = 5 */
 		.vdisplay = 800,
 		.vsync_start = 800 + 2, /* VFP = 2 */
 		.vsync_end = 800 + 2 + 0, /* VSync = 0 */

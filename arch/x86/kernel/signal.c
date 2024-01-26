@@ -27,6 +27,7 @@
 #include <linux/context_tracking.h>
 #include <linux/entry-common.h>
 #include <linux/syscalls.h>
+#include <linux/rseq.h>
 
 #include <asm/processor.h>
 #include <asm/ucontext.h>

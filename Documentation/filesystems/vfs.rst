@@ -437,7 +437,7 @@ field.  This is a pointer to a "struct inode_operations" which describes
 the methods that can be performed on individual inodes.
 
 
-struct xattr_handlers
+struct xattr_handler
 ---------------------
 
 On filesystems that support extended attributes (xattrs), the s_xattr
@@ -823,7 +823,7 @@ cache in your filesystem.  The following members are defined:
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
 					       size_t count);
 		void (*is_dirty_writeback)(struct folio *, bool *, bool *);
-		int (*error_remove_page) (struct mapping *mapping, struct page *page);
+		int (*error_remove_folio)(struct mapping *mapping, struct folio *);
 		int (*swap_activate)(struct swap_info_struct *sis, struct file *f, sector_t *span)
 		int (*swap_deactivate)(struct file *);
 		int (*swap_rw)(struct kiocb *iocb, struct iov_iter *iter);
@@ -1034,8 +1034,8 @@ cache in your filesystem.  The following members are defined:
 	VM if a folio should be treated as dirty or writeback for the
 	purposes of stalling.
 
-``error_remove_page``
-	normally set to generic_error_remove_page if truncation is ok
+``error_remove_folio``
+	normally set to generic_error_remove_folio if truncation is ok
 	for this address space.  Used for memory failure handling.
 	Setting this implies you deal with pages going away under you,
 	unless you have them locked or reference counts increased.

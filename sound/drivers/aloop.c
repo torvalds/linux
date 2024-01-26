@@ -322,6 +322,17 @@ static int loopback_snd_timer_close_cable(struct loopback_pcm *dpcm)
 	return 0;
 }
 
+static bool is_access_interleaved(snd_pcm_access_t access)
+{
+	switch (access) {
+	case SNDRV_PCM_ACCESS_MMAP_INTERLEAVED:
+	case SNDRV_PCM_ACCESS_RW_INTERLEAVED:
+		return true;
+	default:
+		return false;
+	}
+};
+
 static int loopback_check_format(struct loopback_cable *cable, int stream)
 {
 	struct snd_pcm_runtime *runtime, *cruntime;
@@ -341,7 +352,8 @@ static int loopback_check_format(struct loopback_cable *cable, int stream)
 	check = runtime->format != cruntime->format ||
 		runtime->rate != cruntime->rate ||
 		runtime->channels != cruntime->channels ||
-		runtime->access != cruntime->access;
+		is_access_interleaved(runtime->access) !=
+		is_access_interleaved(cruntime->access);
 	if (!check)
 		return 0;
 	if (stream == SNDRV_PCM_STREAM_CAPTURE) {
@@ -369,7 +381,8 @@ static int loopback_check_format(struct loopback_cable *cable, int stream)
 							&setup->channels_id);
 			setup->channels = runtime->channels;
 		}
-		if (setup->access != runtime->access) {
+		if (is_access_interleaved(setup->access) !=
+		    is_access_interleaved(runtime->access)) {
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_VALUE,
 							&setup->access_id);
 			setup->access = runtime->access;
@@ -584,8 +597,7 @@ static void copy_play_buf(struct loopback_pcm *play,
 			size = play->pcm_buffer_size - src_off;
 		if (dst_off + size > capt->pcm_buffer_size)
 			size = capt->pcm_buffer_size - dst_off;
-		if (runtime->access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
-		    runtime->access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED)
+		if (!is_access_interleaved(runtime->access))
 			copy_play_buf_part_n(play, capt, size, src_off, dst_off);
 		else
 			memcpy(dst + dst_off, src + src_off, size);
@@ -1544,8 +1556,7 @@ static int loopback_access_get(struct snd_kcontrol *kcontrol,
 	mutex_lock(&loopback->cable_lock);
 	access = loopback->setup[kcontrol->id.subdevice][kcontrol->id.device].access;
 
-	ucontrol->value.enumerated.item[0] = access == SNDRV_PCM_ACCESS_RW_NONINTERLEAVED ||
-					     access == SNDRV_PCM_ACCESS_MMAP_NONINTERLEAVED;
+	ucontrol->value.enumerated.item[0] = !is_access_interleaved(access);
 
 	mutex_unlock(&loopback->cable_lock);
 	return 0;

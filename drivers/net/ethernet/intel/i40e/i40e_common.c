@@ -2,6 +2,7 @@
 /* Copyright(c) 2013 - 2021 Intel Corporation. */
 
 #include <linux/avf/virtchnl.h>
+#include <linux/bitfield.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
@@ -195,11 +196,11 @@ void i40e_debug_aq(struct i40e_hw *hw, enum i40e_debug_mask mask, void *desc,
  **/
 bool i40e_check_asq_alive(struct i40e_hw *hw)
 {
-	if (hw->aq.asq.len)
-		return !!(rd32(hw, hw->aq.asq.len) &
-			  I40E_PF_ATQLEN_ATQENABLE_MASK);
-	else
+	/* Check if the queue is initialized */
+	if (!hw->aq.asq.count)
 		return false;
+
+	return !!(rd32(hw, I40E_PF_ATQLEN) & I40E_PF_ATQLEN_ATQENABLE_MASK);
 }
 
 /**
@@ -248,6 +249,7 @@ static int i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
 	struct i40e_aqc_get_set_rss_lut *cmd_resp =
 		   (struct i40e_aqc_get_set_rss_lut *)&desc.params.raw;
 	int status;
+	u16 flags;
 
 	if (set)
 		i40e_fill_default_direct_cmd_desc(&desc,
@@ -260,23 +262,18 @@ static int i40e_aq_get_set_rss_lut(struct i40e_hw *hw,
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
 
-	cmd_resp->vsi_id =
-			cpu_to_le16((u16)((vsi_id <<
-					  I40E_AQC_SET_RSS_LUT_VSI_ID_SHIFT) &
-					  I40E_AQC_SET_RSS_LUT_VSI_ID_MASK));
-	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_LUT_VSI_VALID);
+	vsi_id = FIELD_PREP(I40E_AQC_SET_RSS_LUT_VSI_ID_MASK, vsi_id) |
+		 FIELD_PREP(I40E_AQC_SET_RSS_LUT_VSI_VALID, 1);
+	cmd_resp->vsi_id = cpu_to_le16(vsi_id);
 
 	if (pf_lut)
-		cmd_resp->flags |= cpu_to_le16((u16)
-					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF <<
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+		flags = FIELD_PREP(I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK,
+				   I40E_AQC_SET_RSS_LUT_TABLE_TYPE_PF);
 	else
-		cmd_resp->flags |= cpu_to_le16((u16)
-					((I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI <<
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_SHIFT) &
-					I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK));
+		flags = FIELD_PREP(I40E_AQC_SET_RSS_LUT_TABLE_TYPE_MASK,
+				   I40E_AQC_SET_RSS_LUT_TABLE_TYPE_VSI);
 
+	cmd_resp->flags = cpu_to_le16(flags);
 	status = i40e_asq_send_command(hw, &desc, lut, lut_size, NULL);
 
 	return status;
@@ -346,11 +343,9 @@ static int i40e_aq_get_set_rss_key(struct i40e_hw *hw,
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_RD);
 
-	cmd_resp->vsi_id =
-			cpu_to_le16((u16)((vsi_id <<
-					  I40E_AQC_SET_RSS_KEY_VSI_ID_SHIFT) &
-					  I40E_AQC_SET_RSS_KEY_VSI_ID_MASK));
-	cmd_resp->vsi_id |= cpu_to_le16((u16)I40E_AQC_SET_RSS_KEY_VSI_VALID);
+	vsi_id = FIELD_PREP(I40E_AQC_SET_RSS_KEY_VSI_ID_MASK, vsi_id) |
+		 FIELD_PREP(I40E_AQC_SET_RSS_KEY_VSI_VALID, 1);
+	cmd_resp->vsi_id = cpu_to_le16(vsi_id);
 
 	status = i40e_asq_send_command(hw, &desc, key, key_size, NULL);
 
@@ -669,11 +664,11 @@ int i40e_init_shared_code(struct i40e_hw *hw)
 	hw->phy.get_link_info = true;
 
 	/* Determine port number and PF number*/
-	port = (rd32(hw, I40E_PFGEN_PORTNUM) & I40E_PFGEN_PORTNUM_PORT_NUM_MASK)
-					   >> I40E_PFGEN_PORTNUM_PORT_NUM_SHIFT;
+	port = FIELD_GET(I40E_PFGEN_PORTNUM_PORT_NUM_MASK,
+			 rd32(hw, I40E_PFGEN_PORTNUM));
 	hw->port = (u8)port;
-	ari = (rd32(hw, I40E_GLPCI_CAPSUP) & I40E_GLPCI_CAPSUP_ARI_EN_MASK) >>
-						 I40E_GLPCI_CAPSUP_ARI_EN_SHIFT;
+	ari = FIELD_GET(I40E_GLPCI_CAPSUP_ARI_EN_MASK,
+			rd32(hw, I40E_GLPCI_CAPSUP));
 	func_rid = rd32(hw, I40E_PF_FUNC_RID);
 	if (ari)
 		hw->pf_id = (u8)(func_rid & 0xff);
@@ -991,9 +986,8 @@ int i40e_pf_reset(struct i40e_hw *hw)
 	 * The grst delay value is in 100ms units, and we'll wait a
 	 * couple counts longer to be sure we don't just miss the end.
 	 */
-	grst_del = (rd32(hw, I40E_GLGEN_RSTCTL) &
-		    I40E_GLGEN_RSTCTL_GRSTDEL_MASK) >>
-		    I40E_GLGEN_RSTCTL_GRSTDEL_SHIFT;
+	grst_del = FIELD_GET(I40E_GLGEN_RSTCTL_GRSTDEL_MASK,
+			     rd32(hw, I40E_GLGEN_RSTCTL));
 
 	/* It can take upto 15 secs for GRST steady state.
 	 * Bump it to 16 secs max to be safe.
@@ -1085,26 +1079,20 @@ void i40e_clear_hw(struct i40e_hw *hw)
 
 	/* get number of interrupts, queues, and VFs */
 	val = rd32(hw, I40E_GLPCI_CNF2);
-	num_pf_int = (val & I40E_GLPCI_CNF2_MSI_X_PF_N_MASK) >>
-		     I40E_GLPCI_CNF2_MSI_X_PF_N_SHIFT;
-	num_vf_int = (val & I40E_GLPCI_CNF2_MSI_X_VF_N_MASK) >>
-		     I40E_GLPCI_CNF2_MSI_X_VF_N_SHIFT;
+	num_pf_int = FIELD_GET(I40E_GLPCI_CNF2_MSI_X_PF_N_MASK, val);
+	num_vf_int = FIELD_GET(I40E_GLPCI_CNF2_MSI_X_VF_N_MASK, val);
 
 	val = rd32(hw, I40E_PFLAN_QALLOC);
-	base_queue = (val & I40E_PFLAN_QALLOC_FIRSTQ_MASK) >>
-		     I40E_PFLAN_QALLOC_FIRSTQ_SHIFT;
-	j = (val & I40E_PFLAN_QALLOC_LASTQ_MASK) >>
-	    I40E_PFLAN_QALLOC_LASTQ_SHIFT;
+	base_queue = FIELD_GET(I40E_PFLAN_QALLOC_FIRSTQ_MASK, val);
+	j = FIELD_GET(I40E_PFLAN_QALLOC_LASTQ_MASK, val);
 	if (val & I40E_PFLAN_QALLOC_VALID_MASK && j >= base_queue)
 		num_queues = (j - base_queue) + 1;
 	else
 		num_queues = 0;
 
 	val = rd32(hw, I40E_PF_VT_PFALLOC);
-	i = (val & I40E_PF_VT_PFALLOC_FIRSTVF_MASK) >>
-	    I40E_PF_VT_PFALLOC_FIRSTVF_SHIFT;
-	j = (val & I40E_PF_VT_PFALLOC_LASTVF_MASK) >>
-	    I40E_PF_VT_PFALLOC_LASTVF_SHIFT;
+	i = FIELD_GET(I40E_PF_VT_PFALLOC_FIRSTVF_MASK, val);
+	j = FIELD_GET(I40E_PF_VT_PFALLOC_LASTVF_MASK, val);
 	if (val & I40E_PF_VT_PFALLOC_VALID_MASK && j >= i)
 		num_vfs = (j - i) + 1;
 	else
@@ -1199,8 +1187,7 @@ static u32 i40e_led_is_mine(struct i40e_hw *hw, int idx)
 	    !hw->func_caps.led[idx])
 		return 0;
 	gpio_val = rd32(hw, I40E_GLGEN_GPIO_CTL(idx));
-	port = (gpio_val & I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK) >>
-		I40E_GLGEN_GPIO_CTL_PRT_NUM_SHIFT;
+	port = FIELD_GET(I40E_GLGEN_GPIO_CTL_PRT_NUM_MASK, gpio_val);
 
 	/* if PRT_NUM_NA is 1 then this LED is not port specific, OR
 	 * if it is not our port then ignore
@@ -1244,8 +1231,7 @@ u32 i40e_led_get(struct i40e_hw *hw)
 		if (!gpio_val)
 			continue;
 
-		mode = (gpio_val & I40E_GLGEN_GPIO_CTL_LED_MODE_MASK) >>
-			I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT;
+		mode = FIELD_GET(I40E_GLGEN_GPIO_CTL_LED_MODE_MASK, gpio_val);
 		break;
 	}
 
@@ -1288,14 +1274,14 @@ void i40e_led_set(struct i40e_hw *hw, u32 mode, bool blink)
 				pin_func = I40E_PIN_FUNC_LED;
 
 			gpio_val &= ~I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK;
-			gpio_val |= ((pin_func <<
-				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_SHIFT) &
-				     I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK);
+			gpio_val |=
+				FIELD_PREP(I40E_GLGEN_GPIO_CTL_PIN_FUNC_MASK,
+					   pin_func);
 		}
 		gpio_val &= ~I40E_GLGEN_GPIO_CTL_LED_MODE_MASK;
 		/* this & is a bit of paranoia, but serves as a range check */
-		gpio_val |= ((mode << I40E_GLGEN_GPIO_CTL_LED_MODE_SHIFT) &
-			     I40E_GLGEN_GPIO_CTL_LED_MODE_MASK);
+		gpio_val |= FIELD_PREP(I40E_GLGEN_GPIO_CTL_LED_MODE_MASK,
+				       mode);
 
 		if (blink)
 			gpio_val |= BIT(I40E_GLGEN_GPIO_CTL_LED_BLINK_SHIFT);
@@ -1374,8 +1360,8 @@ i40e_aq_get_phy_capabilities(struct i40e_hw *hw,
 
 	if (report_init) {
 		if (hw->mac.type ==  I40E_MAC_XL710 &&
-		    hw->aq.api_maj_ver == I40E_FW_API_VERSION_MAJOR &&
-		    hw->aq.api_min_ver >= I40E_MINOR_VER_GET_LINK_INFO_XL710) {
+		    i40e_is_aq_api_ver_ge(hw, I40E_FW_API_VERSION_MAJOR,
+					  I40E_MINOR_VER_GET_LINK_INFO_XL710)) {
 			status = i40e_aq_get_link_info(hw, true, NULL, NULL);
 		} else {
 			hw->phy.phy_types = le32_to_cpu(abilities->phy_type);
@@ -1645,12 +1631,11 @@ int i40e_aq_get_link_info(struct i40e_hw *hw,
 	else
 		hw_link_info->lse_enable = false;
 
-	if ((hw->mac.type == I40E_MAC_XL710) &&
-	    (hw->aq.fw_maj_ver < 4 || (hw->aq.fw_maj_ver == 4 &&
-	     hw->aq.fw_min_ver < 40)) && hw_link_info->phy_type == 0xE)
+	if (hw->mac.type == I40E_MAC_XL710 && i40e_is_fw_ver_lt(hw, 4, 40) &&
+	    hw_link_info->phy_type == 0xE)
 		hw_link_info->phy_type = I40E_PHY_TYPE_10GBASE_SFPP_CU;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE &&
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps) &&
 	    hw->mac.type != I40E_MAC_X722) {
 		__le32 tmp;
 
@@ -1747,21 +1732,6 @@ int i40e_aq_set_phy_debug(struct i40e_hw *hw, u8 cmd_flags,
 	status = i40e_asq_send_command(hw, &desc, NULL, 0, cmd_details);
 
 	return status;
-}
-
-/**
- * i40e_is_aq_api_ver_ge
- * @aq: pointer to AdminQ info containing HW API version to compare
- * @maj: API major value
- * @min: API minor value
- *
- * Assert whether current HW API version is greater/equal than provided.
- **/
-static bool i40e_is_aq_api_ver_ge(struct i40e_adminq_info *aq, u16 maj,
-				  u16 min)
-{
-	return (aq->api_maj_ver > maj ||
-		(aq->api_maj_ver == maj && aq->api_min_ver >= min));
 }
 
 /**
@@ -1890,14 +1860,14 @@ int i40e_aq_set_vsi_unicast_promiscuous(struct i40e_hw *hw,
 
 	if (set) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
-		if (rx_only_promisc && i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
+		if (rx_only_promisc && i40e_is_aq_api_ver_ge(hw, 1, 5))
 			flags |= I40E_AQC_SET_VSI_PROMISC_RX_ONLY;
 	}
 
 	cmd->promiscuous_flags = cpu_to_le16(flags);
 
 	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
-	if (i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
+	if (i40e_is_aq_api_ver_ge(hw, 1, 5))
 		cmd->valid_flags |=
 			cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_RX_ONLY);
 
@@ -2000,13 +1970,13 @@ int i40e_aq_set_vsi_uc_promisc_on_vlan(struct i40e_hw *hw,
 
 	if (enable) {
 		flags |= I40E_AQC_SET_VSI_PROMISC_UNICAST;
-		if (i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
+		if (i40e_is_aq_api_ver_ge(hw, 1, 5))
 			flags |= I40E_AQC_SET_VSI_PROMISC_RX_ONLY;
 	}
 
 	cmd->promiscuous_flags = cpu_to_le16(flags);
 	cmd->valid_flags = cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_UNICAST);
-	if (i40e_is_aq_api_ver_ge(&hw->aq, 1, 5))
+	if (i40e_is_aq_api_ver_ge(hw, 1, 5))
 		cmd->valid_flags |=
 			cpu_to_le16(I40E_AQC_SET_VSI_PROMISC_RX_ONLY);
 	cmd->seid = cpu_to_le16(seid);
@@ -2253,7 +2223,7 @@ int i40e_aq_set_switch_config(struct i40e_hw *hw,
 	scfg->flags = cpu_to_le16(flags);
 	scfg->valid_flags = cpu_to_le16(valid_flags);
 	scfg->mode = mode;
-	if (hw->flags & I40E_HW_FLAG_802_1AD_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_802_1AD, hw->caps)) {
 		scfg->switch_tag = cpu_to_le16(hw->switch_tag);
 		scfg->first_tag = cpu_to_le16(hw->first_tag);
 		scfg->second_tag = cpu_to_le16(hw->second_tag);
@@ -3530,8 +3500,7 @@ int i40e_aq_get_lldp_mib(struct i40e_hw *hw, u8 bridge_type,
 	desc.flags |= cpu_to_le16((u16)I40E_AQ_FLAG_BUF);
 
 	cmd->type = mib_type & I40E_AQ_LLDP_MIB_TYPE_MASK;
-	cmd->type |= ((bridge_type << I40E_AQ_LLDP_BRIDGE_TYPE_SHIFT) &
-		       I40E_AQ_LLDP_BRIDGE_TYPE_MASK);
+	cmd->type |= FIELD_PREP(I40E_AQ_LLDP_BRIDGE_TYPE_MASK, bridge_type);
 
 	desc.datalen = cpu_to_le16(buff_size);
 
@@ -3637,7 +3606,7 @@ i40e_aq_restore_lldp(struct i40e_hw *hw, u8 *setting, bool restore,
 		(struct i40e_aqc_lldp_restore *)&desc.params.raw;
 	int status;
 
-	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)) {
+	if (!test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps)) {
 		i40e_debug(hw, I40E_DEBUG_ALL,
 			   "Restore LLDP not supported by current FW version.\n");
 		return -ENODEV;
@@ -3680,7 +3649,7 @@ int i40e_aq_stop_lldp(struct i40e_hw *hw, bool shutdown_agent,
 		cmd->command |= I40E_AQ_LLDP_AGENT_SHUTDOWN;
 
 	if (persist) {
-		if (hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)
+		if (test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps))
 			cmd->command |= I40E_AQ_LLDP_AGENT_STOP_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
@@ -3713,7 +3682,7 @@ int i40e_aq_start_lldp(struct i40e_hw *hw, bool persist,
 	cmd->command = I40E_AQ_LLDP_AGENT_START;
 
 	if (persist) {
-		if (hw->flags & I40E_HW_FLAG_FW_LLDP_PERSISTENT)
+		if (test_bit(I40E_HW_CAP_FW_LLDP_PERSISTENT, hw->caps))
 			cmd->command |= I40E_AQ_LLDP_AGENT_START_PERSIST;
 		else
 			i40e_debug(hw, I40E_DEBUG_ALL,
@@ -3741,7 +3710,7 @@ i40e_aq_set_dcb_parameters(struct i40e_hw *hw, bool dcb_enable,
 		(struct i40e_aqc_set_dcb_parameters *)&desc.params.raw;
 	int status;
 
-	if (!(hw->flags & I40E_HW_FLAG_FW_LLDP_STOPPABLE))
+	if (!test_bit(I40E_HW_CAP_FW_LLDP_STOPPABLE, hw->caps))
 		return -ENODEV;
 
 	i40e_fill_default_direct_cmd_desc(&desc,
@@ -4212,8 +4181,7 @@ i40e_validate_filter_settings(struct i40e_hw *hw,
 
 	/* FCHSIZE + FCDSIZE should not be greater than PMFCOEFMAX */
 	val = rd32(hw, I40E_GLHMC_FCOEFMAX);
-	fcoe_fmax = (val & I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_MASK)
-		     >> I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_SHIFT;
+	fcoe_fmax = FIELD_GET(I40E_GLHMC_FCOEFMAX_PMFCOEFMAX_MASK, val);
 	if (fcoe_filt_size + fcoe_cntx_size >  fcoe_fmax)
 		return -EINVAL;
 
@@ -4249,30 +4217,25 @@ int i40e_set_filter_control(struct i40e_hw *hw,
 
 	/* Program required PE hash buckets for the PF */
 	val &= ~I40E_PFQF_CTL_0_PEHSIZE_MASK;
-	val |= ((u32)settings->pe_filt_num << I40E_PFQF_CTL_0_PEHSIZE_SHIFT) &
-		I40E_PFQF_CTL_0_PEHSIZE_MASK;
+	val |= FIELD_PREP(I40E_PFQF_CTL_0_PEHSIZE_MASK, settings->pe_filt_num);
 	/* Program required PE contexts for the PF */
 	val &= ~I40E_PFQF_CTL_0_PEDSIZE_MASK;
-	val |= ((u32)settings->pe_cntx_num << I40E_PFQF_CTL_0_PEDSIZE_SHIFT) &
-		I40E_PFQF_CTL_0_PEDSIZE_MASK;
+	val |= FIELD_PREP(I40E_PFQF_CTL_0_PEDSIZE_MASK, settings->pe_cntx_num);
 
 	/* Program required FCoE hash buckets for the PF */
 	val &= ~I40E_PFQF_CTL_0_PFFCHSIZE_MASK;
-	val |= ((u32)settings->fcoe_filt_num <<
-			I40E_PFQF_CTL_0_PFFCHSIZE_SHIFT) &
-		I40E_PFQF_CTL_0_PFFCHSIZE_MASK;
+	val |= FIELD_PREP(I40E_PFQF_CTL_0_PFFCHSIZE_MASK,
+			  settings->fcoe_filt_num);
 	/* Program required FCoE DDP contexts for the PF */
 	val &= ~I40E_PFQF_CTL_0_PFFCDSIZE_MASK;
-	val |= ((u32)settings->fcoe_cntx_num <<
-			I40E_PFQF_CTL_0_PFFCDSIZE_SHIFT) &
-		I40E_PFQF_CTL_0_PFFCDSIZE_MASK;
+	val |= FIELD_PREP(I40E_PFQF_CTL_0_PFFCDSIZE_MASK,
+			  settings->fcoe_cntx_num);
 
 	/* Program Hash LUT size for the PF */
 	val &= ~I40E_PFQF_CTL_0_HASHLUTSIZE_MASK;
 	if (settings->hash_lut_size == I40E_HASH_LUT_SIZE_512)
 		hash_lut_size = 1;
-	val |= (hash_lut_size << I40E_PFQF_CTL_0_HASHLUTSIZE_SHIFT) &
-		I40E_PFQF_CTL_0_HASHLUTSIZE_MASK;
+	val |= FIELD_PREP(I40E_PFQF_CTL_0_HASHLUTSIZE_MASK, hash_lut_size);
 
 	/* Enable FDIR, Ethertype and MACVLAN filters for PF and VFs */
 	if (settings->enable_fdir)
@@ -4673,8 +4636,7 @@ int i40e_read_phy_register_clause22(struct i40e_hw *hw,
 			   "PHY: Can't write command to external PHY.\n");
 	} else {
 		command = rd32(hw, I40E_GLGEN_MSRWD(port_num));
-		*value = (command & I40E_GLGEN_MSRWD_MDIRDDATA_MASK) >>
-			 I40E_GLGEN_MSRWD_MDIRDDATA_SHIFT;
+		*value = FIELD_GET(I40E_GLGEN_MSRWD_MDIRDDATA_MASK, command);
 	}
 
 	return status;
@@ -4783,8 +4745,7 @@ int i40e_read_phy_register_clause45(struct i40e_hw *hw,
 
 	if (!status) {
 		command = rd32(hw, I40E_GLGEN_MSRWD(port_num));
-		*value = (command & I40E_GLGEN_MSRWD_MDIRDDATA_MASK) >>
-			 I40E_GLGEN_MSRWD_MDIRDDATA_SHIFT;
+		*value = FIELD_GET(I40E_GLGEN_MSRWD_MDIRDDATA_MASK, command);
 	} else {
 		i40e_debug(hw, I40E_DEBUG_PHY,
 			   "PHY: Can't read register value from external PHY.\n");
@@ -5043,7 +5004,7 @@ static int i40e_led_get_reg(struct i40e_hw *hw, u16 led_addr,
 	u32 i;
 
 	*reg_val = 0;
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		status =
 		       i40e_aq_get_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
@@ -5076,7 +5037,7 @@ static int i40e_led_set_reg(struct i40e_hw *hw, u16 led_addr,
 	int status;
 	u32 i;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		status =
 		       i40e_aq_set_phy_register(hw,
 						I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
@@ -5115,7 +5076,7 @@ int i40e_led_get_phy(struct i40e_hw *hw, u16 *led_addr,
 	u8 port_num;
 	u32 i;
 
-	if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_CAPABLE) {
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS, hw->caps)) {
 		status =
 		      i40e_aq_get_phy_register(hw,
 					       I40E_AQ_PHY_REG_ACCESS_EXTERNAL,
@@ -5238,14 +5199,14 @@ int i40e_aq_rx_ctl_read_register(struct i40e_hw *hw,
  **/
 u32 i40e_read_rx_ctl(struct i40e_hw *hw, u32 reg_addr)
 {
-	bool use_register;
+	bool use_register = false;
 	int status = 0;
 	int retry = 5;
 	u32 val = 0;
 
-	use_register = (((hw->aq.api_maj_ver == 1) &&
-			(hw->aq.api_min_ver < 5)) ||
-			(hw->mac.type == I40E_MAC_X722));
+	if (i40e_is_aq_api_ver_lt(hw, 1, 5) || hw->mac.type == I40E_MAC_X722)
+		use_register = true;
+
 	if (!use_register) {
 do_retry:
 		status = i40e_aq_rx_ctl_read_register(hw, reg_addr, &val, NULL);
@@ -5300,13 +5261,13 @@ int i40e_aq_rx_ctl_write_register(struct i40e_hw *hw,
  **/
 void i40e_write_rx_ctl(struct i40e_hw *hw, u32 reg_addr, u32 reg_val)
 {
-	bool use_register;
+	bool use_register = false;
 	int status = 0;
 	int retry = 5;
 
-	use_register = (((hw->aq.api_maj_ver == 1) &&
-			(hw->aq.api_min_ver < 5)) ||
-			(hw->mac.type == I40E_MAC_X722));
+	if (i40e_is_aq_api_ver_lt(hw, 1, 5) || hw->mac.type == I40E_MAC_X722)
+		use_register = true;
+
 	if (!use_register) {
 do_retry:
 		status = i40e_aq_rx_ctl_write_register(hw, reg_addr,
@@ -5334,16 +5295,17 @@ static void i40e_mdio_if_number_selection(struct i40e_hw *hw, bool set_mdio,
 					  u8 mdio_num,
 					  struct i40e_aqc_phy_register_access *cmd)
 {
-	if (set_mdio && cmd->phy_interface == I40E_AQ_PHY_REG_ACCESS_EXTERNAL) {
-		if (hw->flags & I40E_HW_FLAG_AQ_PHY_ACCESS_EXTENDED)
-			cmd->cmd_flags |=
-				I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER |
-				((mdio_num <<
-				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_SHIFT) &
-				I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK);
-		else
-			i40e_debug(hw, I40E_DEBUG_PHY,
-				   "MDIO I/F number selection not supported by current FW version.\n");
+	if (!set_mdio ||
+	    cmd->phy_interface != I40E_AQ_PHY_REG_ACCESS_EXTERNAL)
+		return;
+
+	if (test_bit(I40E_HW_CAP_AQ_PHY_ACCESS_EXTENDED, hw->caps)) {
+		cmd->cmd_flags |=
+			I40E_AQ_PHY_REG_ACCESS_SET_MDIO_IF_NUMBER |
+			FIELD_PREP(I40E_AQ_PHY_REG_ACCESS_MDIO_IF_NUMBER_MASK,
+				   mdio_num);
+	} else {
+		i40e_debug(hw, I40E_DEBUG_PHY, "MDIO I/F number selection not supported by current FW version.\n");
 	}
 }
 
@@ -5928,9 +5890,8 @@ i40e_aq_add_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 		u16 tnl_type;
 		u32 ti;
 
-		tnl_type = (le16_to_cpu(filters[i].element.flags) &
-			   I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK) >>
-			   I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT;
+		tnl_type = le16_get_bits(filters[i].element.flags,
+					 I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK);
 
 		/* Due to hardware eccentricities, the VNI for Geneve is shifted
 		 * one more byte further than normally used for Tenant ID in
@@ -6022,9 +5983,8 @@ i40e_aq_rem_cloud_filters_bb(struct i40e_hw *hw, u16 seid,
 		u16 tnl_type;
 		u32 ti;
 
-		tnl_type = (le16_to_cpu(filters[i].element.flags) &
-			   I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK) >>
-			   I40E_AQC_ADD_CLOUD_TNL_TYPE_SHIFT;
+		tnl_type = le16_get_bits(filters[i].element.flags,
+					 I40E_AQC_ADD_CLOUD_TNL_TYPE_MASK);
 
 		/* Due to hardware eccentricities, the VNI for Geneve is shifted
 		 * one more byte further than normally used for Tenant ID in

@@ -242,7 +242,7 @@ struct tty_struct {
 	void *driver_data;
 	spinlock_t files_lock;
 	int write_cnt;
-	unsigned char *write_buf;
+	u8 *write_buf;
 
 	struct list_head tty_files;
 
@@ -393,8 +393,10 @@ extern const struct class tty_class;
  * tty_kref_get - get a tty reference
  * @tty: tty device
  *
- * Returns: a new reference to a tty object. The caller must hold sufficient
- * locks/counts to ensure that their existing reference cannot go away
+ * Returns: a new reference to a tty object
+ *
+ * Locking: The caller must hold sufficient locks/counts to ensure that their
+ * existing reference cannot go away.
  */
 static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 {
@@ -408,8 +410,8 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 void stop_tty(struct tty_struct *tty);
 void start_tty(struct tty_struct *tty);
 void tty_write_message(struct tty_struct *tty, char *msg);
-int tty_send_xchar(struct tty_struct *tty, char ch);
-int tty_put_char(struct tty_struct *tty, unsigned char c);
+int tty_send_xchar(struct tty_struct *tty, u8 ch);
+int tty_put_char(struct tty_struct *tty, u8 c);
 unsigned int tty_chars_in_buffer(struct tty_struct *tty);
 unsigned int tty_write_room(struct tty_struct *tty);
 void tty_driver_flush_buffer(struct tty_struct *tty);
@@ -419,6 +421,7 @@ bool tty_unthrottle_safe(struct tty_struct *tty);
 int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 int tty_get_icount(struct tty_struct *tty,
 		struct serial_icounter_struct *icount);
+int tty_get_tiocm(struct tty_struct *tty);
 int is_current_pgrp_orphaned(void);
 void tty_hangup(struct tty_struct *tty);
 void tty_vhangup(struct tty_struct *tty);
@@ -436,12 +439,11 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud,
  * tty_get_baud_rate - get tty bit rates
  * @tty: tty to query
  *
- * Returns: the baud rate as an integer for this terminal. The termios lock
- * must be held by the caller and the terminal bit flags may be updated.
+ * Returns: the baud rate as an integer for this terminal
  *
- * Locking: none
+ * Locking: The termios lock must be held by the caller.
  */
-static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
+static inline speed_t tty_get_baud_rate(const struct tty_struct *tty)
 {
 	return tty_termios_baud_rate(&tty->termios);
 }

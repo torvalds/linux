@@ -30,8 +30,8 @@ for f in $files; do
     fi
 
     echo -e "\tGEN ${params[2]}\t$f"
-    $TOOL --mode ${params[2]} --${params[3]} --spec $KDIR/${params[0]} \
-	  $args -o $f
+    $TOOL --cmp-out --mode ${params[2]} --${params[3]} \
+	  --spec $KDIR/${params[0]} $args -o $f
 done
 
 popd >>/dev/null

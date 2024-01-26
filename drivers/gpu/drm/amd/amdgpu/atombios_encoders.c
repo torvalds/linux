@@ -28,6 +28,7 @@
 
 #include <acpi/video.h>
 
+#include <drm/drm_edid.h>
 #include <drm/amdgpu_drm.h>
 #include "amdgpu.h"
 #include "amdgpu_connectors.h"

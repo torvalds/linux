@@ -10,6 +10,7 @@
  */
 
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/export.h>
@@ -19,6 +20,7 @@
 #include <linux/math.h>
 #include <linux/module.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pm.h>
 #include <linux/spinlock.h>
 #include <linux/string_helpers.h>
 #include <linux/types.h>
@@ -91,36 +93,30 @@ static int tng_gpio_get(struct gpio_chip *chip, unsigned int offset)
 static void tng_gpio_set(struct gpio_chip *chip, unsigned int offset, int value)
 {
 	struct tng_gpio *priv = gpiochip_get_data(chip);
-	unsigned long flags;
 	void __iomem *reg;
 	u8 shift;
 
 	reg = gpio_reg_and_bit(chip, offset, value ? GPSR : GPCR, &shift);
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	writel(BIT(shift), reg);
-
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static int tng_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	struct tng_gpio *priv = gpiochip_get_data(chip);
-	unsigned long flags;
 	void __iomem *gpdr;
 	u32 value;
 	u8 shift;
 
 	gpdr = gpio_reg_and_bit(chip, offset, GPDR, &shift);
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	value = readl(gpdr);
 	value &= ~BIT(shift);
 	writel(value, gpdr);
-
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -129,20 +125,17 @@ static int tng_gpio_direction_output(struct gpio_chip *chip, unsigned int offset
 				     int value)
 {
 	struct tng_gpio *priv = gpiochip_get_data(chip);
-	unsigned long flags;
 	void __iomem *gpdr;
 	u8 shift;
 
 	gpdr = gpio_reg_and_bit(chip, offset, GPDR, &shift);
 	tng_gpio_set(chip, offset, value);
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	value = readl(gpdr);
 	value |= BIT(shift);
 	writel(value, gpdr);
-
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -164,14 +157,13 @@ static int tng_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 				 unsigned int debounce)
 {
 	struct tng_gpio *priv = gpiochip_get_data(chip);
-	unsigned long flags;
 	void __iomem *gfbr;
 	u32 value;
 	u8 shift;
 
 	gfbr = gpio_reg_and_bit(chip, offset, GFBR, &shift);
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	value = readl(gfbr);
 	if (debounce)
@@ -179,8 +171,6 @@ static int tng_gpio_set_debounce(struct gpio_chip *chip, unsigned int offset,
 	else
 		value |= BIT(shift);
 	writel(value, gfbr);
-
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
 
 	return 0;
 }
@@ -207,27 +197,25 @@ static void tng_irq_ack(struct irq_data *d)
 {
 	struct tng_gpio *priv = irq_data_get_irq_chip_data(d);
 	irq_hw_number_t gpio = irqd_to_hwirq(d);
-	unsigned long flags;
 	void __iomem *gisr;
 	u8 shift;
 
 	gisr = gpio_reg_and_bit(&priv->chip, gpio, GISR, &shift);
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
+
 	writel(BIT(shift), gisr);
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void tng_irq_unmask_mask(struct tng_gpio *priv, u32 gpio, bool unmask)
 {
-	unsigned long flags;
 	void __iomem *gimr;
 	u32 value;
 	u8 shift;
 
 	gimr = gpio_reg_and_bit(&priv->chip, gpio, GIMR, &shift);
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	value = readl(gimr);
 	if (unmask)
@@ -235,8 +223,6 @@ static void tng_irq_unmask_mask(struct tng_gpio *priv, u32 gpio, bool unmask)
 	else
 		value &= ~BIT(shift);
 	writel(value, gimr);
-
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 static void tng_irq_mask(struct irq_data *d)
@@ -267,10 +253,9 @@ static int tng_irq_set_type(struct irq_data *d, unsigned int type)
 	void __iomem *gitr = gpio_reg(&priv->chip, gpio, GITR);
 	void __iomem *glpr = gpio_reg(&priv->chip, gpio, GLPR);
 	u8 shift = gpio % 32;
-	unsigned long flags;
 	u32 value;
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	value = readl(grer);
 	if (type & IRQ_TYPE_EDGE_RISING)
@@ -311,8 +296,6 @@ static int tng_irq_set_type(struct irq_data *d, unsigned int type)
 		irq_set_handler_locked(d, handle_edge_irq);
 	}
 
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
 
@@ -324,10 +307,11 @@ static int tng_irq_set_wake(struct irq_data *d, unsigned int on)
 	void __iomem *gwmr = gpio_reg(&priv->chip, gpio, priv->wake_regs.gwmr);
 	void __iomem *gwsr = gpio_reg(&priv->chip, gpio, priv->wake_regs.gwsr);
 	u8 shift = gpio % 32;
-	unsigned long flags;
 	u32 value;
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	dev_dbg(priv->dev, "%s wake for gpio %lu\n", str_enable_disable(on), gpio);
+
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	/* Clear the existing wake status */
 	writel(BIT(shift), gwsr);
@@ -339,9 +323,6 @@ static int tng_irq_set_wake(struct irq_data *d, unsigned int on)
 		value &= ~BIT(shift);
 	writel(value, gwmr);
 
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
-
-	dev_dbg(priv->dev, "%s wake for gpio %lu\n", str_enable_disable(on), gpio);
 	return 0;
 }
 
@@ -477,14 +458,13 @@ int devm_tng_gpio_probe(struct device *dev, struct tng_gpio *gpio)
 }
 EXPORT_SYMBOL_NS_GPL(devm_tng_gpio_probe, GPIO_TANGIER);
 
-int tng_gpio_suspend(struct device *dev)
+static int tng_gpio_suspend(struct device *dev)
 {
 	struct tng_gpio *priv = dev_get_drvdata(dev);
 	struct tng_gpio_context *ctx = priv->ctx;
-	unsigned long flags;
 	unsigned int base;
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	for (base = 0; base < priv->chip.ngpio; base += 32, ctx++) {
 		/* GPLR is RO, values read will be restored using GPSR */
@@ -498,20 +478,16 @@ int tng_gpio_suspend(struct device *dev)
 		ctx->gwmr = readl(gpio_reg(&priv->chip, base, priv->wake_regs.gwmr));
 	}
 
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(tng_gpio_suspend, GPIO_TANGIER);
 
-int tng_gpio_resume(struct device *dev)
+static int tng_gpio_resume(struct device *dev)
 {
 	struct tng_gpio *priv = dev_get_drvdata(dev);
 	struct tng_gpio_context *ctx = priv->ctx;
-	unsigned long flags;
 	unsigned int base;
 
-	raw_spin_lock_irqsave(&priv->lock, flags);
+	guard(raw_spinlock_irqsave)(&priv->lock);
 
 	for (base = 0; base < priv->chip.ngpio; base += 32, ctx++) {
 		/* GPLR is RO, values read will be restored using GPSR */
@@ -525,11 +501,10 @@ int tng_gpio_resume(struct device *dev)
 		writel(ctx->gwmr, gpio_reg(&priv->chip, base, priv->wake_regs.gwmr));
 	}
 
-	raw_spin_unlock_irqrestore(&priv->lock, flags);
-
 	return 0;
 }
-EXPORT_SYMBOL_NS_GPL(tng_gpio_resume, GPIO_TANGIER);
+
+EXPORT_NS_GPL_SIMPLE_DEV_PM_OPS(tng_gpio_pm_ops, tng_gpio_suspend, tng_gpio_resume, GPIO_TANGIER);
 
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_AUTHOR("Pandith N <pandith.n@intel.com>");

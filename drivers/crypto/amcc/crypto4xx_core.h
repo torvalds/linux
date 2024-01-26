@@ -162,13 +162,9 @@ int crypto4xx_build_pd(struct crypto_async_request *req,
 		       struct scatterlist *dst_tmp);
 int crypto4xx_setkey_aes_cbc(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
-int crypto4xx_setkey_aes_cfb(struct crypto_skcipher *cipher,
-			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_ctr(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_aes_ecb(struct crypto_skcipher *cipher,
-			     const u8 *key, unsigned int keylen);
-int crypto4xx_setkey_aes_ofb(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);
 int crypto4xx_setkey_rfc3686(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen);

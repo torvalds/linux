@@ -1714,7 +1714,7 @@ MODULE_DEVICE_TABLE(of, sdm660_noc_of_match);
 
 static struct platform_driver sdm660_noc_driver = {
 	.probe = qnoc_probe,
-	.remove = qnoc_remove,
+	.remove_new = qnoc_remove,
 	.driver = {
 		.name = "qnoc-sdm660",
 		.of_match_table = sdm660_noc_of_match,

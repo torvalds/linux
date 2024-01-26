@@ -773,13 +773,13 @@ static void tegra_pcie_enable_system_interrupts(struct dw_pcie_rp *pp)
 			   val_w);
 }
 
-static void tegra_pcie_enable_legacy_interrupts(struct dw_pcie_rp *pp)
+static void tegra_pcie_enable_intx_interrupts(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 	u32 val;
 
-	/* Enable legacy interrupt generation */
+	/* Enable INTX interrupt generation */
 	val = appl_readl(pcie, APPL_INTR_EN_L0_0);
 	val |= APPL_INTR_EN_L0_0_SYS_INTR_EN;
 	val |= APPL_INTR_EN_L0_0_INT_INT_EN;
@@ -830,7 +830,7 @@ static void tegra_pcie_enable_interrupts(struct dw_pcie_rp *pp)
 	appl_writel(pcie, 0xFFFFFFFF, APPL_INTR_STATUS_L1_17);
 
 	tegra_pcie_enable_system_interrupts(pp);
-	tegra_pcie_enable_legacy_interrupts(pp);
+	tegra_pcie_enable_intx_interrupts(pp);
 	if (IS_ENABLED(CONFIG_PCI_MSI))
 		tegra_pcie_enable_msi_interrupts(pp);
 }
@@ -1060,7 +1060,7 @@ static const struct dw_pcie_ops tegra_dw_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops tegra_pcie_dw_host_ops = {
-	.host_init = tegra_pcie_dw_host_init,
+	.init = tegra_pcie_dw_host_init,
 };
 
 static void tegra_pcie_disable_phy(struct tegra_pcie_dw *pcie)
@@ -1947,7 +1947,7 @@ static irqreturn_t tegra_pcie_ep_pex_rst_irq(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int tegra_pcie_ep_raise_legacy_irq(struct tegra_pcie_dw *pcie, u16 irq)
+static int tegra_pcie_ep_raise_intx_irq(struct tegra_pcie_dw *pcie, u16 irq)
 {
 	/* Tegra194 supports only INTA */
 	if (irq > 1)
@@ -1979,20 +1979,19 @@ static int tegra_pcie_ep_raise_msix_irq(struct tegra_pcie_dw *pcie, u16 irq)
 }
 
 static int tegra_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				   enum pci_epc_irq_type type,
-				   u16 interrupt_num)
+				   unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct tegra_pcie_dw *pcie = to_tegra_pcie(pci);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		return tegra_pcie_ep_raise_legacy_irq(pcie, interrupt_num);
+	case PCI_IRQ_INTX:
+		return tegra_pcie_ep_raise_intx_irq(pcie, interrupt_num);
 
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_MSI:
 		return tegra_pcie_ep_raise_msi_irq(pcie, interrupt_num);
 
-	case PCI_EPC_IRQ_MSIX:
+	case PCI_IRQ_MSIX:
 		return tegra_pcie_ep_raise_msix_irq(pcie, interrupt_num);
 
 	default:

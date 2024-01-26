@@ -345,18 +345,31 @@ extern "Rust" {
     fn __rust_alloc_error_handler(size: usize, align: usize) -> !;
 }
 
-/// Abort on memory allocation error or failure.
+/// Signal a memory allocation error.
 ///
-/// Callers of memory allocation APIs wishing to abort computation
+/// Callers of memory allocation APIs wishing to cease execution
 /// in response to an allocation error are encouraged to call this function,
-/// rather than directly invoking `panic!` or similar.
+/// rather than directly invoking [`panic!`] or similar.
 ///
-/// The default behavior of this function is to print a message to standard error
-/// and abort the process.
-/// It can be replaced with [`set_alloc_error_hook`] and [`take_alloc_error_hook`].
+/// This function is guaranteed to diverge (not return normally with a value), but depending on
+/// global configuration, it may either panic (resulting in unwinding or aborting as per
+/// configuration for all panics), or abort the process (with no unwinding).
+///
+/// The default behavior is:
+///
+///  * If the binary links against `std` (typically the case), then
+///   print a message to standard error and abort the process.
+///   This behavior can be replaced with [`set_alloc_error_hook`] and [`take_alloc_error_hook`].
+///   Future versions of Rust may panic by default instead.
+///
+/// * If the binary does not link against `std` (all of its crates are marked
+///   [`#![no_std]`][no_std]), then call [`panic!`] with a message.
+///   [The panic handler] applies as to any panic.
 ///
 /// [`set_alloc_error_hook`]: ../../std/alloc/fn.set_alloc_error_hook.html
 /// [`take_alloc_error_hook`]: ../../std/alloc/fn.take_alloc_error_hook.html
+/// [The panic handler]: https://doc.rust-lang.org/reference/runtime.html#the-panic_handler-attribute
+/// [no_std]: https://doc.rust-lang.org/reference/names/preludes.html#the-no_std-attribute
 #[stable(feature = "global_alloc", since = "1.28.0")]
 #[rustc_const_unstable(feature = "const_alloc_error", issue = "92523")]
 #[cfg(all(not(no_global_oom_handling), not(test)))]
@@ -397,9 +410,10 @@ pub mod __alloc_error_handler {
         if unsafe { __rust_alloc_error_handler_should_panic != 0 } {
             panic!("memory allocation of {size} bytes failed")
         } else {
-            core::panicking::panic_nounwind_fmt(format_args!(
-                "memory allocation of {size} bytes failed"
-            ))
+            core::panicking::panic_nounwind_fmt(
+                format_args!("memory allocation of {size} bytes failed"),
+                /* force_no_backtrace */ false,
+            )
         }
     }
 }

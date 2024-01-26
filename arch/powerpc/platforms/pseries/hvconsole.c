@@ -25,7 +25,7 @@
  *	firmware.
  * @count: not used?
  */
-int hvc_get_chars(uint32_t vtermno, char *buf, int count)
+ssize_t hvc_get_chars(uint32_t vtermno, u8 *buf, size_t count)
 {
 	long ret;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
@@ -52,7 +52,7 @@ EXPORT_SYMBOL(hvc_get_chars);
  *	firmware. Must be at least 16 bytes, even if count is less than 16.
  * @count: Send this number of characters.
  */
-int hvc_put_chars(uint32_t vtermno, const char *buf, int count)
+ssize_t hvc_put_chars(uint32_t vtermno, const u8 *buf, size_t count)
 {
 	unsigned long *lbuf = (unsigned long *) buf;
 	long ret;

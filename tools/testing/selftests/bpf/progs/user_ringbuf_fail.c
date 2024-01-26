@@ -184,7 +184,7 @@ invalid_drain_callback_return(struct bpf_dynptr *dynptr, void *context)
  * not be able to write to that pointer.
  */
 SEC("?raw_tp")
-__failure __msg("At callback return the register R0 has value")
+__failure __msg("At callback return the register R0 has ")
 int user_ringbuf_callback_invalid_return(void *ctx)
 {
 	bpf_user_ringbuf_drain(&user_ringbuf, invalid_drain_callback_return, NULL, 0);

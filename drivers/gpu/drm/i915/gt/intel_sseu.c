@@ -849,13 +849,12 @@ void intel_sseu_print_topology(struct drm_i915_private *i915,
 			       const struct sseu_dev_info *sseu,
 			       struct drm_printer *p)
 {
-	if (sseu->max_slices == 0) {
+	if (sseu->max_slices == 0)
 		drm_printf(p, "Unavailable\n");
-	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
+	else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
 		sseu_print_xehp_topology(sseu, p);
-	} else {
+	else
 		sseu_print_hsw_topology(sseu, p);
-	}
 }
 
 void intel_sseu_print_ss_info(const char *type,

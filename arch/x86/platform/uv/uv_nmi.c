@@ -741,7 +741,7 @@ static void uv_nmi_dump_state_cpu(int cpu, struct pt_regs *regs)
 	this_cpu_write(uv_cpu_nmi.state, UV_NMI_STATE_DUMP_DONE);
 }
 
-/* Trigger a slave CPU to dump it's state */
+/* Trigger a slave CPU to dump its state */
 static void uv_nmi_trigger_dump(int cpu)
 {
 	int retry = uv_nmi_trigger_delay;

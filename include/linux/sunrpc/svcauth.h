@@ -131,8 +131,11 @@ enum svc_auth_status {
  *   This call releases a domain.
  *
  * set_client()
- *   Givens a pending request (struct svc_rqst), finds and assigns
+ *   Given a pending request (struct svc_rqst), finds and assigns
  *   an appropriate 'auth_domain' as the client.
+ *
+ * pseudoflavor()
+ *   Returns RPC_AUTH pseudoflavor in use by @rqstp.
  */
 struct auth_ops {
 	char *	name;
@@ -143,11 +146,13 @@ struct auth_ops {
 	int			(*release)(struct svc_rqst *rqstp);
 	void			(*domain_release)(struct auth_domain *dom);
 	enum svc_auth_status	(*set_client)(struct svc_rqst *rqstp);
+	rpc_authflavor_t	(*pseudoflavor)(struct svc_rqst *rqstp);
 };
 
 struct svc_xprt;
 
 extern enum svc_auth_status svc_authenticate(struct svc_rqst *rqstp);
+extern rpc_authflavor_t svc_auth_flavor(struct svc_rqst *rqstp);
 extern int	svc_authorise(struct svc_rqst *rqstp);
 extern enum svc_auth_status svc_set_client(struct svc_rqst *rqstp);
 extern int	svc_auth_register(rpc_authflavor_t flavor, struct auth_ops *aops);

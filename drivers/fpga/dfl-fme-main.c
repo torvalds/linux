@@ -730,13 +730,11 @@ exit:
 	return ret;
 }
 
-static int fme_remove(struct platform_device *pdev)
+static void fme_remove(struct platform_device *pdev)
 {
 	dfl_fpga_dev_ops_unregister(pdev);
 	dfl_fpga_dev_feature_uinit(pdev);
 	fme_dev_destroy(pdev);
-
-	return 0;
 }
 
 static const struct attribute_group *fme_dev_groups[] = {
@@ -751,7 +749,7 @@ static struct platform_driver fme_driver = {
 		.dev_groups = fme_dev_groups,
 	},
 	.probe   = fme_probe,
-	.remove  = fme_remove,
+	.remove_new = fme_remove,
 };
 
 module_platform_driver(fme_driver);

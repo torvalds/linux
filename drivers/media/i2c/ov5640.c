@@ -399,7 +399,7 @@ struct ov5640_mode_info {
 	const struct reg_value *reg_data;
 	u32 reg_data_size;
 
-	/* Used by s_frame_interval only. */
+	/* Used by set_frame_interval only. */
 	u32 max_fps;
 	u32 def_fps;
 };
@@ -2797,8 +2797,7 @@ static int ov5640_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state,
-						 format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 	else
 		fmt = &sensor->fmt;
 
@@ -2971,7 +2970,7 @@ static int ov5640_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, 0) = *mbus_fmt;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *mbus_fmt;
 		goto out;
 	}
 
@@ -3605,10 +3604,18 @@ static int ov5640_enum_frame_interval(
 	return 0;
 }
 
-static int ov5640_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int ov5640_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&sensor->lock);
 	fi->interval = sensor->frame_interval;
@@ -3617,12 +3624,20 @@ static int ov5640_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov5640_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int ov5640_set_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
+				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	const struct ov5640_mode_info *mode;
 	int frame_rate, ret = 0;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad != 0)
 		return -EINVAL;
@@ -3745,13 +3760,13 @@ out:
 	return ret;
 }
 
-static int ov5640_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int ov5640_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
 	struct v4l2_mbus_framefmt *fmt =
-				v4l2_subdev_get_try_format(sd, state, 0);
-	struct v4l2_rect *crop = v4l2_subdev_get_try_crop(sd, state, 0);
+				v4l2_subdev_state_get_format(state, 0);
+	struct v4l2_rect *crop = v4l2_subdev_state_get_crop(state, 0);
 
 	*fmt = ov5640_is_csi2(sensor) ? ov5640_csi2_default_fmt :
 					ov5640_dvp_default_fmt;
@@ -3771,17 +3786,16 @@ static const struct v4l2_subdev_core_ops ov5640_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov5640_video_ops = {
-	.g_frame_interval = ov5640_g_frame_interval,
-	.s_frame_interval = ov5640_s_frame_interval,
 	.s_stream = ov5640_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops ov5640_pad_ops = {
-	.init_cfg = ov5640_init_cfg,
 	.enum_mbus_code = ov5640_enum_mbus_code,
 	.get_fmt = ov5640_get_fmt,
 	.set_fmt = ov5640_set_fmt,
 	.get_selection = ov5640_get_selection,
+	.get_frame_interval = ov5640_get_frame_interval,
+	.set_frame_interval = ov5640_set_frame_interval,
 	.enum_frame_size = ov5640_enum_frame_size,
 	.enum_frame_interval = ov5640_enum_frame_interval,
 };
@@ -3790,6 +3804,10 @@ static const struct v4l2_subdev_ops ov5640_subdev_ops = {
 	.core = &ov5640_core_ops,
 	.video = &ov5640_video_ops,
 	.pad = &ov5640_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov5640_internal_ops = {
+	.init_state = ov5640_init_state,
 };
 
 static int ov5640_get_regulators(struct ov5640_dev *sensor)
@@ -3906,6 +3924,7 @@ static int ov5640_probe(struct i2c_client *client)
 		return PTR_ERR(sensor->reset_gpio);
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov5640_subdev_ops);
+	sensor->sd.internal_ops = &ov5640_internal_ops;
 
 	sensor->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;

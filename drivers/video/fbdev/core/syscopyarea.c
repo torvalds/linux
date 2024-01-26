@@ -324,6 +324,9 @@ void sys_copyarea(struct fb_info *p, const struct fb_copyarea *area)
 	if (p->state != FBINFO_STATE_RUNNING)
 		return;
 
+	if (!(p->flags & FBINFO_VIRTFB))
+		fb_warn_once(p, "Framebuffer is not in virtual address space.");
+
 	/* if the beginning of the target area might overlap with the end of
 	the source area, be have to copy the area reverse. */
 	if ((dy == sy && dx > sx) || (dy > sy)) {

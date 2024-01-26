@@ -116,7 +116,7 @@ static void dw_hdma_debugfs_regs_ch(struct dw_edma *dw, enum dw_edma_dir dir,
 static void dw_hdma_debugfs_regs_wr(struct dw_edma *dw, struct dentry *dent)
 {
 	struct dentry *regs_dent, *ch_dent;
-	char name[16];
+	char name[32];
 	int i;
 
 	regs_dent = debugfs_create_dir(WRITE_STR, dent);
@@ -133,7 +133,7 @@ static void dw_hdma_debugfs_regs_wr(struct dw_edma *dw, struct dentry *dent)
 static void dw_hdma_debugfs_regs_rd(struct dw_edma *dw, struct dentry *dent)
 {
 	struct dentry *regs_dent, *ch_dent;
-	char name[16];
+	char name[32];
 	int i;
 
 	regs_dent = debugfs_create_dir(READ_STR, dent);

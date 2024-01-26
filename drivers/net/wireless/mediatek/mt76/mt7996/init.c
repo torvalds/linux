@@ -5,6 +5,8 @@
 
 #include <linux/etherdevice.h>
 #include <linux/of.h>
+#include <linux/hwmon.h>
+#include <linux/hwmon-sysfs.h>
 #include <linux/thermal.h>
 #include "mt7996.h"
 #include "mac.h"
@@ -42,6 +44,183 @@ static const struct ieee80211_iface_combination if_comb[] = {
 				       BIT(NL80211_CHAN_WIDTH_160),
 	}
 };
+
+static ssize_t mt7996_thermal_temp_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct mt7996_phy *phy = dev_get_drvdata(dev);
+	int i = to_sensor_dev_attr(attr)->index;
+	int temperature;
+
+	switch (i) {
+	case 0:
+		temperature = mt7996_mcu_get_temperature(phy);
+		if (temperature < 0)
+			return temperature;
+		/* display in millidegree celcius */
+		return sprintf(buf, "%u\n", temperature * 1000);
+	case 1:
+	case 2:
+		return sprintf(buf, "%u\n",
+			       phy->throttle_temp[i - 1] * 1000);
+	case 3:
+		return sprintf(buf, "%hhu\n", phy->throttle_state);
+	default:
+		return -EINVAL;
+	}
+}
+
+static ssize_t mt7996_thermal_temp_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct mt7996_phy *phy = dev_get_drvdata(dev);
+	int ret, i = to_sensor_dev_attr(attr)->index;
+	long val;
+
+	ret = kstrtol(buf, 10, &val);
+	if (ret < 0)
+		return ret;
+
+	mutex_lock(&phy->dev->mt76.mutex);
+	val = clamp_val(DIV_ROUND_CLOSEST(val, 1000), 40, 130);
+
+	/* add a safety margin ~10 */
+	if ((i - 1 == MT7996_CRIT_TEMP_IDX &&
+	     val > phy->throttle_temp[MT7996_MAX_TEMP_IDX] - 10) ||
+	    (i - 1 == MT7996_MAX_TEMP_IDX &&
+	     val - 10 < phy->throttle_temp[MT7996_CRIT_TEMP_IDX])) {
+		dev_err(phy->dev->mt76.dev,
+			"temp1_max shall be 10 degrees higher than temp1_crit.");
+		mutex_unlock(&phy->dev->mt76.mutex);
+		return -EINVAL;
+	}
+
+	phy->throttle_temp[i - 1] = val;
+	mutex_unlock(&phy->dev->mt76.mutex);
+
+	ret = mt7996_mcu_set_thermal_protect(phy, true);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR_RO(temp1_input, mt7996_thermal_temp, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_crit, mt7996_thermal_temp, 1);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, mt7996_thermal_temp, 2);
+static SENSOR_DEVICE_ATTR_RO(throttle1, mt7996_thermal_temp, 3);
+
+static struct attribute *mt7996_hwmon_attrs[] = {
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_crit.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_throttle1.dev_attr.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(mt7996_hwmon);
+
+static int
+mt7996_thermal_get_max_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
+{
+	*state = MT7996_CDEV_THROTTLE_MAX;
+
+	return 0;
+}
+
+static int
+mt7996_thermal_get_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long *state)
+{
+	struct mt7996_phy *phy = cdev->devdata;
+
+	*state = phy->cdev_state;
+
+	return 0;
+}
+
+static int
+mt7996_thermal_set_cur_throttle_state(struct thermal_cooling_device *cdev,
+				      unsigned long state)
+{
+	struct mt7996_phy *phy = cdev->devdata;
+	u8 throttling = MT7996_THERMAL_THROTTLE_MAX - state;
+	int ret;
+
+	if (state > MT7996_CDEV_THROTTLE_MAX) {
+		dev_err(phy->dev->mt76.dev,
+			"please specify a valid throttling state\n");
+		return -EINVAL;
+	}
+
+	if (state == phy->cdev_state)
+		return 0;
+
+	/* cooling_device convention: 0 = no cooling, more = more cooling
+	 * mcu convention: 1 = max cooling, more = less cooling
+	 */
+	ret = mt7996_mcu_set_thermal_throttling(phy, throttling);
+	if (ret)
+		return ret;
+
+	phy->cdev_state = state;
+
+	return 0;
+}
+
+static const struct thermal_cooling_device_ops mt7996_thermal_ops = {
+	.get_max_state = mt7996_thermal_get_max_throttle_state,
+	.get_cur_state = mt7996_thermal_get_cur_throttle_state,
+	.set_cur_state = mt7996_thermal_set_cur_throttle_state,
+};
+
+static void mt7996_unregister_thermal(struct mt7996_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+
+	if (!phy->cdev)
+		return;
+
+	sysfs_remove_link(&wiphy->dev.kobj, "cooling_device");
+	thermal_cooling_device_unregister(phy->cdev);
+}
+
+static int mt7996_thermal_init(struct mt7996_phy *phy)
+{
+	struct wiphy *wiphy = phy->mt76->hw->wiphy;
+	struct thermal_cooling_device *cdev;
+	struct device *hwmon;
+	const char *name;
+
+	name = devm_kasprintf(&wiphy->dev, GFP_KERNEL, "mt7996_%s",
+			      wiphy_name(wiphy));
+
+	cdev = thermal_cooling_device_register(name, phy, &mt7996_thermal_ops);
+	if (!IS_ERR(cdev)) {
+		if (sysfs_create_link(&wiphy->dev.kobj, &cdev->device.kobj,
+				      "cooling_device") < 0)
+			thermal_cooling_device_unregister(cdev);
+		else
+			phy->cdev = cdev;
+	}
+
+	/* initialize critical/maximum high temperature */
+	phy->throttle_temp[MT7996_CRIT_TEMP_IDX] = MT7996_CRIT_TEMP;
+	phy->throttle_temp[MT7996_MAX_TEMP_IDX] = MT7996_MAX_TEMP;
+
+	if (!IS_REACHABLE(CONFIG_HWMON))
+		return 0;
+
+	hwmon = devm_hwmon_device_register_with_groups(&wiphy->dev, name, phy,
+						       mt7996_hwmon_groups);
+
+	if (IS_ERR(hwmon))
+		return PTR_ERR(hwmon);
+
+	return 0;
+}
 
 static void mt7996_led_set_config(struct led_classdev *led_cdev,
 				  u8 delay_on, u8 delay_off)
@@ -109,10 +288,11 @@ static void mt7996_led_set_brightness(struct led_classdev *led_cdev,
 		mt7996_led_set_config(led_cdev, 0xff, 0);
 }
 
-void mt7996_init_txpower(struct mt7996_dev *dev,
-			 struct ieee80211_supported_band *sband)
+static void __mt7996_init_txpower(struct mt7996_phy *phy,
+				  struct ieee80211_supported_band *sband)
 {
-	int i, nss = hweight8(dev->mphy.antenna_mask);
+	struct mt7996_dev *dev = phy->dev;
+	int i, nss = hweight16(phy->mt76->chainmask);
 	int nss_delta = mt76_tx_power_nss_delta(nss);
 	int pwr_delta = mt7996_eeprom_get_power_delta(dev, sband->band);
 	struct mt76_power_limits limits;
@@ -122,7 +302,7 @@ void mt7996_init_txpower(struct mt7996_dev *dev,
 		int target_power = mt7996_eeprom_get_target_power(dev, chan);
 
 		target_power += pwr_delta;
-		target_power = mt76_get_rate_power_limits(&dev->mphy, chan,
+		target_power = mt76_get_rate_power_limits(phy->mt76, chan,
 							  &limits,
 							  target_power);
 		target_power += nss_delta;
@@ -131,6 +311,19 @@ void mt7996_init_txpower(struct mt7996_dev *dev,
 					target_power);
 		chan->orig_mpwr = target_power;
 	}
+}
+
+void mt7996_init_txpower(struct mt7996_phy *phy)
+{
+	if (!phy)
+		return;
+
+	if (phy->mt76->cap.has_2ghz)
+		__mt7996_init_txpower(phy, &phy->mt76->sband_2g.sband);
+	if (phy->mt76->cap.has_5ghz)
+		__mt7996_init_txpower(phy, &phy->mt76->sband_5g.sband);
+	if (phy->mt76->cap.has_6ghz)
+		__mt7996_init_txpower(phy, &phy->mt76->sband_6g.sband);
 }
 
 static void
@@ -147,16 +340,14 @@ mt7996_regd_notifier(struct wiphy *wiphy,
 	if (dev->mt76.region == NL80211_DFS_UNSET)
 		mt7996_mcu_rdd_background_enable(phy, NULL);
 
-	mt7996_init_txpower(dev, &phy->mt76->sband_2g.sband);
-	mt7996_init_txpower(dev, &phy->mt76->sband_5g.sband);
-	mt7996_init_txpower(dev, &phy->mt76->sband_6g.sband);
+	mt7996_init_txpower(phy);
 
 	phy->mt76->dfs_state = MT_DFS_STATE_UNKNOWN;
 	mt7996_dfs_init_radar_detector(phy);
 }
 
 static void
-mt7996_init_wiphy(struct ieee80211_hw *hw)
+mt7996_init_wiphy(struct ieee80211_hw *hw, struct mtk_wed_device *wed)
 {
 	struct mt7996_phy *phy = mt7996_hw_phy(hw);
 	struct mt76_dev *mdev = &phy->dev->mt76;
@@ -168,11 +359,14 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 	hw->max_rx_aggregation_subframes = max_subframes;
 	hw->max_tx_aggregation_subframes = max_subframes;
 	hw->netdev_features = NETIF_F_RXCSUM;
+	if (mtk_wed_device_active(wed))
+		hw->netdev_features |= NETIF_F_HW_TC;
 
 	hw->radiotap_timestamp.units_pos =
 		IEEE80211_RADIOTAP_TIMESTAMP_UNIT_US;
 
 	phy->slottime = 9;
+	phy->beacon_rate = -1;
 
 	hw->sta_data_size = sizeof(struct mt7996_sta);
 	hw->vif_data_size = sizeof(struct mt7996_vif);
@@ -242,6 +436,7 @@ mt7996_init_wiphy(struct ieee80211_hw *hw)
 	mt76_set_stream_caps(phy->mt76, true);
 	mt7996_set_stream_vht_txbf_caps(phy);
 	mt7996_set_stream_he_eht_caps(phy);
+	mt7996_init_txpower(phy);
 
 	wiphy->available_antennas_rx = phy->mt76->antenna_mask;
 	wiphy->available_antennas_tx = phy->mt76->antenna_mask;
@@ -287,11 +482,12 @@ static void mt7996_mac_init_basic_rates(struct mt7996_dev *dev)
 
 	for (i = 0; i < ARRAY_SIZE(mt76_rates); i++) {
 		u16 rate = mt76_rates[i].hw_value;
-		u16 idx = MT7996_BASIC_RATES_TBL + i;
+		/* odd index for driver, even index for firmware */
+		u16 idx = MT7996_BASIC_RATES_TBL + 2 * i;
 
 		rate = FIELD_PREP(MT_TX_RATE_MODE, rate >> 8) |
 		       FIELD_PREP(MT_TX_RATE_IDX, rate & GENMASK(7, 0));
-		mt7996_mac_set_fixed_rate_table(dev, idx, rate);
+		mt7996_mcu_set_fixed_rate_table(&dev->phy, idx, rate, false);
 	}
 }
 
@@ -317,9 +513,23 @@ void mt7996_mac_init(struct mt7996_dev *dev)
 	mt76_rmw_field(dev, MT_DMA_TCRF1(2), MT_DMA_TCRF1_QIDX, 0);
 
 	/* rro module init */
-	mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, 2);
-	mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, 3);
-	mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, 1);
+	if (is_mt7996(&dev->mt76))
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE, 2);
+	else
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_PLATFORM_TYPE,
+				   dev->hif2 ? 7 : 0);
+
+	if (dev->has_rro) {
+		u16 timeout;
+
+		timeout = mt76_rr(dev, MT_HW_REV) == MT_HW_REV1 ? 512 : 128;
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_FLUSH_TIMEOUT, timeout);
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, 1);
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, 0);
+	} else {
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_BYPASS_MODE, 3);
+		mt7996_mcu_set_rro(dev, UNI_RRO_SET_TXFREE_PATH, 1);
+	}
 
 	mt7996_mcu_wa_cmd(dev, MCU_WA_PARAM_CMD(SET),
 			  MCU_WA_PARAM_HW_PATH_HIF_VER,
@@ -335,7 +545,8 @@ int mt7996_txbf_init(struct mt7996_dev *dev)
 {
 	int ret;
 
-	if (dev->dbdc_support) {
+	if (mt7996_band_valid(dev, MT_BAND1) ||
+	    mt7996_band_valid(dev, MT_BAND2)) {
 		ret = mt7996_mcu_set_txbf(dev, BF_MOD_EN_CTRL);
 		if (ret)
 			return ret;
@@ -356,19 +567,18 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	struct mt76_phy *mphy;
 	u32 mac_ofs, hif1_ofs = 0;
 	int ret;
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
 
-	if (band != MT_BAND1 && band != MT_BAND2)
-		return 0;
-
-	if ((band == MT_BAND1 && !dev->dbdc_support) ||
-	    (band == MT_BAND2 && !dev->tbtc_support))
+	if (!mt7996_band_valid(dev, band) || band == MT_BAND0)
 		return 0;
 
 	if (phy)
 		return 0;
 
-	if (band == MT_BAND2 && dev->hif2)
+	if (is_mt7996(&dev->mt76) && band == MT_BAND2 && dev->hif2) {
 		hif1_ofs = MT_WFDMA0_PCIE1(0) - MT_WFDMA0(0);
+		wed = &dev->mt76.mmio.wed_hif2;
+	}
 
 	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7996_ops, band);
 	if (!mphy)
@@ -401,11 +611,12 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	mt76_eeprom_override(mphy);
 
 	/* init wiphy according to mphy and phy */
-	mt7996_init_wiphy(mphy->hw);
-	ret = mt76_connac_init_tx_queues(phy->mt76,
-					 MT_TXQ_ID(band),
-					 MT7996_TX_RING_SIZE,
-					 MT_TXQ_RING_BASE(band) + hif1_ofs, 0);
+	mt7996_init_wiphy(mphy->hw, wed);
+	ret = mt7996_init_tx_queues(mphy->priv,
+				    MT_TXQ_ID(band),
+				    MT7996_TX_RING_SIZE,
+				    MT_TXQ_RING_BASE(band) + hif1_ofs,
+				    wed);
 	if (ret)
 		goto error;
 
@@ -414,9 +625,20 @@ static int mt7996_register_phy(struct mt7996_dev *dev, struct mt7996_phy *phy,
 	if (ret)
 		goto error;
 
+	ret = mt7996_thermal_init(phy);
+	if (ret)
+		goto error;
+
 	ret = mt7996_init_debugfs(phy);
 	if (ret)
 		goto error;
+
+	if (wed == &dev->mt76.mmio.wed_hif2 && mtk_wed_device_active(wed)) {
+		u32 irq_mask = dev->mt76.mmio.irqmask | MT_INT_TX_DONE_BAND2;
+
+		mt76_wr(dev, MT_INT1_MASK_CSR, irq_mask);
+		mtk_wed_device_start(&dev->mt76.mmio.wed_hif2, irq_mask);
+	}
 
 	return 0;
 
@@ -434,6 +656,8 @@ mt7996_unregister_phy(struct mt7996_phy *phy, enum mt76_band_id band)
 	if (!phy)
 		return;
 
+	mt7996_unregister_thermal(phy);
+
 	mphy = phy->dev->mt76.phys[band];
 	mt76_unregister_phy(mphy);
 	ieee80211_free_hw(mphy->hw);
@@ -447,9 +671,6 @@ static void mt7996_init_work(struct work_struct *work)
 
 	mt7996_mcu_set_eeprom(dev);
 	mt7996_mac_init(dev);
-	mt7996_init_txpower(dev, &dev->mphy.sband_2g.sband);
-	mt7996_init_txpower(dev, &dev->mphy.sband_5g.sband);
-	mt7996_init_txpower(dev, &dev->mphy.sband_6g.sband);
 	mt7996_txbf_init(dev);
 }
 
@@ -462,16 +683,225 @@ void mt7996_wfsys_reset(struct mt7996_dev *dev)
 	msleep(20);
 }
 
+static int mt7996_wed_rro_init(struct mt7996_dev *dev)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	u32 reg = MT_RRO_ADDR_ELEM_SEG_ADDR0;
+	struct mt7996_wed_rro_addr *addr;
+	void *ptr;
+	int i;
+
+	if (!dev->has_rro)
+		return 0;
+
+	if (!mtk_wed_device_active(wed))
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.ba_bitmap); i++) {
+		ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
+					  MT7996_RRO_BA_BITMAP_CR_SIZE,
+					  &dev->wed_rro.ba_bitmap[i].phy_addr,
+					  GFP_KERNEL);
+		if (!ptr)
+			return -ENOMEM;
+
+		dev->wed_rro.ba_bitmap[i].ptr = ptr;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.addr_elem); i++) {
+		int j;
+
+		ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
+				MT7996_RRO_WINDOW_MAX_SIZE * sizeof(*addr),
+				&dev->wed_rro.addr_elem[i].phy_addr,
+				GFP_KERNEL);
+		if (!ptr)
+			return -ENOMEM;
+
+		dev->wed_rro.addr_elem[i].ptr = ptr;
+		memset(dev->wed_rro.addr_elem[i].ptr, 0,
+		       MT7996_RRO_WINDOW_MAX_SIZE * sizeof(*addr));
+
+		addr = dev->wed_rro.addr_elem[i].ptr;
+		for (j = 0; j < MT7996_RRO_WINDOW_MAX_SIZE; j++) {
+			addr->signature = 0xff;
+			addr++;
+		}
+
+		wed->wlan.ind_cmd.addr_elem_phys[i] =
+			dev->wed_rro.addr_elem[i].phy_addr;
+	}
+
+	ptr = dmam_alloc_coherent(dev->mt76.dma_dev,
+				  MT7996_RRO_WINDOW_MAX_LEN * sizeof(*addr),
+				  &dev->wed_rro.session.phy_addr,
+				  GFP_KERNEL);
+	if (!ptr)
+		return -ENOMEM;
+
+	dev->wed_rro.session.ptr = ptr;
+	addr = dev->wed_rro.session.ptr;
+	for (i = 0; i < MT7996_RRO_WINDOW_MAX_LEN; i++) {
+		addr->signature = 0xff;
+		addr++;
+	}
+
+	/* rro hw init */
+	/* TODO: remove line after WM has set */
+	mt76_clear(dev, WF_RRO_AXI_MST_CFG, WF_RRO_AXI_MST_CFG_DIDX_OK);
+
+	/* setup BA bitmap cache address */
+	mt76_wr(dev, MT_RRO_BA_BITMAP_BASE0,
+		dev->wed_rro.ba_bitmap[0].phy_addr);
+	mt76_wr(dev, MT_RRO_BA_BITMAP_BASE1, 0);
+	mt76_wr(dev, MT_RRO_BA_BITMAP_BASE_EXT0,
+		dev->wed_rro.ba_bitmap[1].phy_addr);
+	mt76_wr(dev, MT_RRO_BA_BITMAP_BASE_EXT1, 0);
+
+	/* setup Address element address */
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.addr_elem); i++) {
+		mt76_wr(dev, reg, dev->wed_rro.addr_elem[i].phy_addr >> 4);
+		reg += 4;
+	}
+
+	/* setup Address element address - separate address segment mode */
+	mt76_wr(dev, MT_RRO_ADDR_ARRAY_BASE1,
+		MT_RRO_ADDR_ARRAY_ELEM_ADDR_SEG_MODE);
+
+	wed->wlan.ind_cmd.win_size = ffs(MT7996_RRO_WINDOW_MAX_LEN) - 6;
+	wed->wlan.ind_cmd.particular_sid = MT7996_RRO_MAX_SESSION;
+	wed->wlan.ind_cmd.particular_se_phys = dev->wed_rro.session.phy_addr;
+	wed->wlan.ind_cmd.se_group_nums = MT7996_RRO_ADDR_ELEM_LEN;
+	wed->wlan.ind_cmd.ack_sn_addr = MT_RRO_ACK_SN_CTRL;
+
+	mt76_wr(dev, MT_RRO_IND_CMD_SIGNATURE_BASE0, 0x15010e00);
+	mt76_set(dev, MT_RRO_IND_CMD_SIGNATURE_BASE1,
+		 MT_RRO_IND_CMD_SIGNATURE_BASE1_EN);
+
+	/* particular session configure */
+	/* use max session idx + 1 as particular session id */
+	mt76_wr(dev, MT_RRO_PARTICULAR_CFG0, dev->wed_rro.session.phy_addr);
+	mt76_wr(dev, MT_RRO_PARTICULAR_CFG1,
+		MT_RRO_PARTICULAR_CONFG_EN |
+		FIELD_PREP(MT_RRO_PARTICULAR_SID, MT7996_RRO_MAX_SESSION));
+
+	/* interrupt enable */
+	mt76_wr(dev, MT_RRO_HOST_INT_ENA,
+		MT_RRO_HOST_INT_ENA_HOST_RRO_DONE_ENA);
+
+	/* rro ind cmd queue init */
+	return mt7996_dma_rro_init(dev);
+#else
+	return 0;
+#endif
+}
+
+static void mt7996_wed_rro_free(struct mt7996_dev *dev)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	int i;
+
+	if (!dev->has_rro)
+		return;
+
+	if (!mtk_wed_device_active(&dev->mt76.mmio.wed))
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.ba_bitmap); i++) {
+		if (!dev->wed_rro.ba_bitmap[i].ptr)
+			continue;
+
+		dmam_free_coherent(dev->mt76.dma_dev,
+				   MT7996_RRO_BA_BITMAP_CR_SIZE,
+				   dev->wed_rro.ba_bitmap[i].ptr,
+				   dev->wed_rro.ba_bitmap[i].phy_addr);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(dev->wed_rro.addr_elem); i++) {
+		if (!dev->wed_rro.addr_elem[i].ptr)
+			continue;
+
+		dmam_free_coherent(dev->mt76.dma_dev,
+				   MT7996_RRO_WINDOW_MAX_SIZE *
+				   sizeof(struct mt7996_wed_rro_addr),
+				   dev->wed_rro.addr_elem[i].ptr,
+				   dev->wed_rro.addr_elem[i].phy_addr);
+	}
+
+	if (!dev->wed_rro.session.ptr)
+		return;
+
+	dmam_free_coherent(dev->mt76.dma_dev,
+			   MT7996_RRO_WINDOW_MAX_LEN *
+			   sizeof(struct mt7996_wed_rro_addr),
+			   dev->wed_rro.session.ptr,
+			   dev->wed_rro.session.phy_addr);
+#endif
+}
+
+static void mt7996_wed_rro_work(struct work_struct *work)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mt7996_dev *dev;
+	LIST_HEAD(list);
+
+	dev = (struct mt7996_dev *)container_of(work, struct mt7996_dev,
+						wed_rro.work);
+
+	spin_lock_bh(&dev->wed_rro.lock);
+	list_splice_init(&dev->wed_rro.poll_list, &list);
+	spin_unlock_bh(&dev->wed_rro.lock);
+
+	while (!list_empty(&list)) {
+		struct mt7996_wed_rro_session_id *e;
+		int i;
+
+		e = list_first_entry(&list, struct mt7996_wed_rro_session_id,
+				     list);
+		list_del_init(&e->list);
+
+		for (i = 0; i < MT7996_RRO_WINDOW_MAX_LEN; i++) {
+			void *ptr = dev->wed_rro.session.ptr;
+			struct mt7996_wed_rro_addr *elem;
+			u32 idx, elem_id = i;
+
+			if (e->id == MT7996_RRO_MAX_SESSION)
+				goto reset;
+
+			idx = e->id / MT7996_RRO_BA_BITMAP_SESSION_SIZE;
+			if (idx >= ARRAY_SIZE(dev->wed_rro.addr_elem))
+				goto out;
+
+			ptr = dev->wed_rro.addr_elem[idx].ptr;
+			elem_id +=
+				(e->id % MT7996_RRO_BA_BITMAP_SESSION_SIZE) *
+				MT7996_RRO_WINDOW_MAX_LEN;
+reset:
+			elem = ptr + elem_id * sizeof(*elem);
+			elem->signature = 0xff;
+		}
+		mt7996_mcu_wed_rro_reset_sessions(dev, e->id);
+out:
+		kfree(e);
+	}
+#endif
+}
+
 static int mt7996_init_hardware(struct mt7996_dev *dev)
 {
 	int ret, idx;
 
 	mt76_wr(dev, MT_INT_SOURCE_CSR, ~0);
+	if (is_mt7992(&dev->mt76)) {
+		mt76_rmw(dev, MT_AFE_CTL_BAND_PLL_03(MT_BAND0), MT_AFE_CTL_BAND_PLL_03_MSB_EN, 0);
+		mt76_rmw(dev, MT_AFE_CTL_BAND_PLL_03(MT_BAND1), MT_AFE_CTL_BAND_PLL_03_MSB_EN, 0);
+	}
 
 	INIT_WORK(&dev->init_work, mt7996_init_work);
-
-	dev->dbdc_support = true;
-	dev->tbtc_support = true;
+	INIT_WORK(&dev->wed_rro.work, mt7996_wed_rro_work);
+	INIT_LIST_HEAD(&dev->wed_rro.poll_list);
+	spin_lock_init(&dev->wed_rro.lock);
 
 	ret = mt7996_dma_init(dev);
 	if (ret)
@@ -480,6 +910,10 @@ static int mt7996_init_hardware(struct mt7996_dev *dev)
 	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	ret = mt7996_mcu_init(dev);
+	if (ret)
+		return ret;
+
+	ret = mt7996_wed_rro_init(dev);
 	if (ret)
 		return ret;
 
@@ -889,14 +1323,16 @@ int mt7996_register_device(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
-	mt7996_init_wiphy(hw);
+	mt7996_init_wiphy(hw, &dev->mt76.mmio.wed);
 
 	ret = mt76_register_device(&dev->mt76, true, mt76_rates,
 				   ARRAY_SIZE(mt76_rates));
 	if (ret)
 		return ret;
 
-	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
+	ret = mt7996_thermal_init(&dev->phy);
+	if (ret)
+		return ret;
 
 	ret = mt7996_register_phy(dev, mt7996_phy2(dev), MT_BAND1);
 	if (ret)
@@ -906,21 +1342,35 @@ int mt7996_register_device(struct mt7996_dev *dev)
 	if (ret)
 		return ret;
 
+	ieee80211_queue_work(mt76_hw(dev), &dev->init_work);
+
 	dev->recovery.hw_init_done = true;
 
 	ret = mt7996_init_debugfs(&dev->phy);
 	if (ret)
-		return ret;
+		goto error;
 
-	return mt7996_coredump_register(dev);
+	ret = mt7996_coredump_register(dev);
+	if (ret)
+		goto error;
+
+	return 0;
+
+error:
+	cancel_work_sync(&dev->init_work);
+
+	return ret;
 }
 
 void mt7996_unregister_device(struct mt7996_dev *dev)
 {
+	cancel_work_sync(&dev->wed_rro.work);
 	mt7996_unregister_phy(mt7996_phy3(dev), MT_BAND2);
 	mt7996_unregister_phy(mt7996_phy2(dev), MT_BAND1);
+	mt7996_unregister_thermal(&dev->phy);
 	mt7996_coredump_unregister(dev);
 	mt76_unregister_device(&dev->mt76);
+	mt7996_wed_rro_free(dev);
 	mt7996_mcu_exit(dev);
 	mt7996_tx_token_put(dev);
 	mt7996_dma_cleanup(dev);

@@ -190,6 +190,7 @@ static void sof_pci_probe_complete(struct device *dev)
 
 int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
+	struct sof_loadable_file_profile *path_override;
 	struct device *dev = &pci->dev;
 	const struct sof_dev_desc *desc =
 		(const struct sof_dev_desc *)pci_id->driver_data;
@@ -232,106 +233,39 @@ int sof_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 	sof_pdata->desc = desc;
 	sof_pdata->dev = dev;
 
-	sof_pdata->ipc_type = desc->ipc_default;
+	path_override = &sof_pdata->ipc_file_profile_base;
 
 	if (sof_pci_ipc_type < 0) {
-		sof_pdata->ipc_type = desc->ipc_default;
+		path_override->ipc_type = desc->ipc_default;
+	} else if (sof_pci_ipc_type < SOF_IPC_TYPE_COUNT) {
+		path_override->ipc_type = sof_pci_ipc_type;
 	} else {
-		dev_info(dev, "overriding default IPC %d to requested %d\n",
-			 desc->ipc_default, sof_pci_ipc_type);
-		if (sof_pci_ipc_type >= SOF_IPC_TYPE_COUNT) {
-			dev_err(dev, "invalid request value %d\n", sof_pci_ipc_type);
-			ret = -EINVAL;
-			goto out;
-		}
-		if (!(BIT(sof_pci_ipc_type) & desc->ipc_supported_mask)) {
-			dev_err(dev, "invalid request value %d, supported mask is %#x\n",
-				sof_pci_ipc_type, desc->ipc_supported_mask);
-			ret = -EINVAL;
-			goto out;
-		}
-		sof_pdata->ipc_type = sof_pci_ipc_type;
+		dev_err(dev, "Invalid IPC type requested: %d\n", sof_pci_ipc_type);
+		ret = -EINVAL;
+		goto out;
 	}
 
-	if (fw_filename) {
-		sof_pdata->fw_filename = fw_filename;
+	path_override->fw_path = fw_path;
+	path_override->fw_name = fw_filename;
+	path_override->fw_lib_path = lib_path;
+	path_override->tplg_path = tplg_path;
 
-		dev_dbg(dev, "Module parameter used, changed fw filename to %s\n",
-			sof_pdata->fw_filename);
-	} else {
-		sof_pdata->fw_filename = desc->default_fw_filename[sof_pdata->ipc_type];
+	if (dmi_check_system(community_key_platforms) &&
+	    sof_dmi_use_community_key) {
+		path_override->fw_path_postfix = "community";
+		path_override->fw_lib_path_postfix = "community";
 	}
-
-	/*
-	 * for platforms using the SOF community key, change the
-	 * default path automatically to pick the right files from the
-	 * linux-firmware tree. This can be overridden with the
-	 * fw_path kernel parameter, e.g. for developers.
-	 */
-
-	/* alternate fw and tplg filenames ? */
-	if (fw_path) {
-		sof_pdata->fw_filename_prefix = fw_path;
-
-		dev_dbg(dev,
-			"Module parameter used, changed fw path to %s\n",
-			sof_pdata->fw_filename_prefix);
-
-	} else if (dmi_check_system(community_key_platforms) && sof_dmi_use_community_key) {
-		sof_pdata->fw_filename_prefix =
-			devm_kasprintf(dev, GFP_KERNEL, "%s/%s",
-				       sof_pdata->desc->default_fw_path[sof_pdata->ipc_type],
-				       "community");
-
-		dev_dbg(dev,
-			"Platform uses community key, changed fw path to %s\n",
-			sof_pdata->fw_filename_prefix);
-	} else {
-		sof_pdata->fw_filename_prefix =
-			sof_pdata->desc->default_fw_path[sof_pdata->ipc_type];
-	}
-
-	if (lib_path) {
-		sof_pdata->fw_lib_prefix = lib_path;
-
-		dev_dbg(dev, "Module parameter used, changed fw_lib path to %s\n",
-			sof_pdata->fw_lib_prefix);
-
-	} else if (sof_pdata->desc->default_lib_path[sof_pdata->ipc_type]) {
-		if (dmi_check_system(community_key_platforms) && sof_dmi_use_community_key) {
-			sof_pdata->fw_lib_prefix =
-				devm_kasprintf(dev, GFP_KERNEL, "%s/%s",
-					sof_pdata->desc->default_lib_path[sof_pdata->ipc_type],
-					"community");
-
-			dev_dbg(dev,
-				"Platform uses community key, changed fw_lib path to %s\n",
-				sof_pdata->fw_lib_prefix);
-		} else {
-			sof_pdata->fw_lib_prefix =
-				sof_pdata->desc->default_lib_path[sof_pdata->ipc_type];
-		}
-	}
-
-	if (tplg_path)
-		sof_pdata->tplg_filename_prefix = tplg_path;
-	else
-		sof_pdata->tplg_filename_prefix =
-			sof_pdata->desc->default_tplg_path[sof_pdata->ipc_type];
 
 	/*
 	 * the topology filename will be provided in the machine descriptor, unless
 	 * it is overridden by a module parameter or DMI quirk.
 	 */
 	if (tplg_filename) {
-		sof_pdata->tplg_filename = tplg_filename;
-
-		dev_dbg(dev, "Module parameter used, changed tplg filename to %s\n",
-			sof_pdata->tplg_filename);
+		path_override->tplg_name = tplg_filename;
 	} else {
 		dmi_check_system(sof_tplg_table);
 		if (sof_dmi_override_tplg_name)
-			sof_pdata->tplg_filename = sof_dmi_override_tplg_name;
+			path_override->tplg_name = sof_dmi_override_tplg_name;
 	}
 
 	/* set callback to be called on successful device probe to enable runtime_pm */

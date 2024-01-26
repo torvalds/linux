@@ -1400,20 +1400,16 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	enum i915_power_well_id id = i915_power_well_instance(power_well)->id;
 	enum dpio_phy phy;
-	enum pipe pipe;
 	u32 tmp;
 
 	drm_WARN_ON_ONCE(&dev_priv->drm,
 			 id != VLV_DISP_PW_DPIO_CMN_BC &&
 			 id != CHV_DISP_PW_DPIO_CMN_D);
 
-	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
-		pipe = PIPE_A;
+	if (id == VLV_DISP_PW_DPIO_CMN_BC)
 		phy = DPIO_PHY0;
-	} else {
-		pipe = PIPE_C;
+	else
 		phy = DPIO_PHY1;
-	}
 
 	/* since ref/cri clock was enabled */
 	udelay(1); /* >10ns for cmnreset, >0ns for sidereset */
@@ -1428,24 +1424,24 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_dpio_get(dev_priv);
 
 	/* Enable dynamic power down */
-	tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW28);
+	tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW28);
 	tmp |= DPIO_DYNPWRDOWNEN_CH0 | DPIO_CL1POWERDOWNEN |
 		DPIO_SUS_CLK_CONFIG_GATE_CLKREQ;
-	vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW28, tmp);
+	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW28, tmp);
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
-		tmp = vlv_dpio_read(dev_priv, pipe, _CHV_CMN_DW6_CH1);
+		tmp = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
-		vlv_dpio_write(dev_priv, pipe, _CHV_CMN_DW6_CH1, tmp);
+		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW6_CH1, tmp);
 	} else {
 		/*
 		 * Force the non-existing CL2 off. BXT does this
 		 * too, so maybe it saves some power even though
 		 * CL2 doesn't exist?
 		 */
-		tmp = vlv_dpio_read(dev_priv, pipe, CHV_CMN_DW30);
+		tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW30);
 		tmp |= DPIO_CL2_LDOFUSE_PWRENB;
-		vlv_dpio_write(dev_priv, pipe, CHV_CMN_DW30, tmp);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW30, tmp);
 	}
 
 	vlv_dpio_put(dev_priv);
@@ -1499,7 +1495,6 @@ static void chv_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpio_phy phy,
 				     enum dpio_channel ch, bool override, unsigned int mask)
 {
-	enum pipe pipe = phy == DPIO_PHY0 ? PIPE_A : PIPE_C;
 	u32 reg, val, expected, actual;
 
 	/*
@@ -1518,7 +1513,7 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 		reg = _CHV_CMN_DW6_CH1;
 
 	vlv_dpio_get(dev_priv);
-	val = vlv_dpio_read(dev_priv, pipe, reg);
+	val = vlv_dpio_read(dev_priv, phy, reg);
 	vlv_dpio_put(dev_priv);
 
 	/*

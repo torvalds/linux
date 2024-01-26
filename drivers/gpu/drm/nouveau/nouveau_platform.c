@@ -43,11 +43,10 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int nouveau_platform_remove(struct platform_device *pdev)
+static void nouveau_platform_remove(struct platform_device *pdev)
 {
 	struct drm_device *dev = platform_get_drvdata(pdev);
 	nouveau_drm_device_remove(dev);
-	return 0;
 }
 
 #if IS_ENABLED(CONFIG_OF)
@@ -93,5 +92,5 @@ struct platform_driver nouveau_platform_driver = {
 		.of_match_table = of_match_ptr(nouveau_platform_match),
 	},
 	.probe = nouveau_platform_probe,
-	.remove = nouveau_platform_remove,
+	.remove_new = nouveau_platform_remove,
 };

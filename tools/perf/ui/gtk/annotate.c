@@ -162,7 +162,6 @@ static int perf_gtk__annotate_symbol(GtkWidget *window, struct map_symbol *ms,
 }
 
 static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
-				struct annotation_options *options,
 				struct hist_browser_timer *hbt)
 {
 	struct dso *dso = map__dso(ms->map);
@@ -176,7 +175,7 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 	if (dso->annotate_warned)
 		return -1;
 
-	err = symbol__annotate(ms, evsel, options, NULL);
+	err = symbol__annotate(ms, evsel, NULL);
 	if (err) {
 		char msg[BUFSIZ];
 		dso->annotate_warned = true;
@@ -244,10 +243,9 @@ static int symbol__gtk_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 int hist_entry__gtk_annotate(struct hist_entry *he,
 			     struct evsel *evsel,
-			     struct annotation_options *options,
 			     struct hist_browser_timer *hbt)
 {
-	return symbol__gtk_annotate(&he->ms, evsel, options, hbt);
+	return symbol__gtk_annotate(&he->ms, evsel, hbt);
 }
 
 void perf_gtk__show_annotations(void)

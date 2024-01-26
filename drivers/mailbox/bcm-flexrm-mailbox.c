@@ -1650,7 +1650,7 @@ fail:
 	return ret;
 }
 
-static int flexrm_mbox_remove(struct platform_device *pdev)
+static void flexrm_mbox_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct flexrm_mbox *mbox = platform_get_drvdata(pdev);
@@ -1661,8 +1661,6 @@ static int flexrm_mbox_remove(struct platform_device *pdev)
 
 	dma_pool_destroy(mbox->cmpl_pool);
 	dma_pool_destroy(mbox->bd_pool);
-
-	return 0;
 }
 
 static const struct of_device_id flexrm_mbox_of_match[] = {
@@ -1677,7 +1675,7 @@ static struct platform_driver flexrm_mbox_driver = {
 		.of_match_table = flexrm_mbox_of_match,
 	},
 	.probe		= flexrm_mbox_probe,
-	.remove		= flexrm_mbox_remove,
+	.remove_new	= flexrm_mbox_remove,
 };
 module_platform_driver(flexrm_mbox_driver);
 

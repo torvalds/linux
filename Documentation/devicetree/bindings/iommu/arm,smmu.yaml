@@ -56,6 +56,8 @@ properties:
               - qcom,sm8350-smmu-500
               - qcom,sm8450-smmu-500
               - qcom,sm8550-smmu-500
+              - qcom,sm8650-smmu-500
+              - qcom,x1e80100-smmu-500
           - const: qcom,smmu-500
           - const: arm,mmu-500
 
@@ -89,6 +91,8 @@ properties:
               - qcom,sm8150-smmu-500
               - qcom,sm8250-smmu-500
               - qcom,sm8350-smmu-500
+              - qcom,sm8450-smmu-500
+              - qcom,sm8550-smmu-500
           - const: qcom,adreno-smmu
           - const: qcom,smmu-500
           - const: arm,mmu-500
@@ -434,6 +438,30 @@ allOf:
         compatible:
           items:
             - enum:
+                - qcom,sm8350-smmu-500
+            - const: qcom,adreno-smmu
+            - const: qcom,smmu-500
+            - const: arm,mmu-500
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: bus
+            - const: iface
+            - const: ahb
+            - const: hlos1_vote_gpu_smmu
+            - const: cx_gmu
+            - const: hub_cx_int
+            - const: hub_aon
+        clocks:
+          minItems: 7
+          maxItems: 7
+
+  - if:
+      properties:
+        compatible:
+          items:
+            - enum:
                 - qcom,sm6115-smmu-500
                 - qcom,sm6125-smmu-500
             - const: qcom,adreno-smmu
@@ -452,6 +480,50 @@ allOf:
             - description: GPU memory bus clock
             - description: Voter clock required for HLOS SMMU access
             - description: Interface clock required for register access
+
+  - if:
+      properties:
+        compatible:
+          const: qcom,sm8450-smmu-500
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: gmu
+            - const: hub
+            - const: hlos
+            - const: bus
+            - const: iface
+            - const: ahb
+
+        clocks:
+          items:
+            - description: GMU clock
+            - description: GPU HUB clock
+            - description: HLOS vote clock
+            - description: GPU memory bus clock
+            - description: GPU SNoC bus clock
+            - description: GPU AHB clock
+
+  - if:
+      properties:
+        compatible:
+          const: qcom,sm8550-smmu-500
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: hlos
+            - const: bus
+            - const: iface
+            - const: ahb
+
+        clocks:
+          items:
+            - description: HLOS vote clock
+            - description: GPU memory bus clock
+            - description: GPU SNoC bus clock
+            - description: GPU AHB clock
 
   # Disallow clocks for all other platforms with specific compatibles
   - if:
@@ -472,9 +544,8 @@ allOf:
               - qcom,sdx65-smmu-500
               - qcom,sm6350-smmu-500
               - qcom,sm6375-smmu-500
-              - qcom,sm8350-smmu-500
-              - qcom,sm8450-smmu-500
-              - qcom,sm8550-smmu-500
+              - qcom,sm8650-smmu-500
+              - qcom,x1e80100-smmu-500
     then:
       properties:
         clock-names: false

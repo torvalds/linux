@@ -8,7 +8,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
 #include <linux/tty_flip.h>
@@ -413,18 +413,17 @@ static int esp32s3_acm_probe(struct platform_device *pdev)
 	return uart_add_one_port(&esp32s3_acm_reg, port);
 }
 
-static int esp32s3_acm_remove(struct platform_device *pdev)
+static void esp32s3_acm_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&esp32s3_acm_reg, port);
-	return 0;
 }
 
 
 static struct platform_driver esp32s3_acm_driver = {
 	.probe		= esp32s3_acm_probe,
-	.remove		= esp32s3_acm_remove,
+	.remove_new	= esp32s3_acm_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= esp32s3_acm_dt_ids,

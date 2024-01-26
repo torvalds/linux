@@ -539,6 +539,11 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
  * not backed by VMAs. Because 'unusual' entries may be walked this function
  * will also not lock the PTEs for the pte_entry() callback. This is useful for
  * walking the kernel pages tables or page tables for firmware.
+ *
+ * Note: Be careful to walk the kernel pages tables, the caller may be need to
+ * take other effective approache (mmap lock may be insufficient) to prevent
+ * the intermediate kernel page tables belonging to the specified address range
+ * from being freed (e.g. memory hot-remove).
  */
 int walk_page_range_novma(struct mm_struct *mm, unsigned long start,
 			  unsigned long end, const struct mm_walk_ops *ops,
@@ -556,7 +561,29 @@ int walk_page_range_novma(struct mm_struct *mm, unsigned long start,
 	if (start >= end || !walk.mm)
 		return -EINVAL;
 
-	mmap_assert_write_locked(walk.mm);
+	/*
+	 * 1) For walking the user virtual address space:
+	 *
+	 * The mmap lock protects the page walker from changes to the page
+	 * tables during the walk.  However a read lock is insufficient to
+	 * protect those areas which don't have a VMA as munmap() detaches
+	 * the VMAs before downgrading to a read lock and actually tearing
+	 * down PTEs/page tables. In which case, the mmap write lock should
+	 * be hold.
+	 *
+	 * 2) For walking the kernel virtual address space:
+	 *
+	 * The kernel intermediate page tables usually do not be freed, so
+	 * the mmap map read lock is sufficient. But there are some exceptions.
+	 * E.g. memory hot-remove. In which case, the mmap lock is insufficient
+	 * to prevent the intermediate kernel pages tables belonging to the
+	 * specified address range from being freed. The caller should take
+	 * other actions to prevent this race.
+	 */
+	if (mm == &init_mm)
+		mmap_assert_locked(walk.mm);
+	else
+		mmap_assert_write_locked(walk.mm);
 
 	return walk_pgd_range(start, end, &walk);
 }

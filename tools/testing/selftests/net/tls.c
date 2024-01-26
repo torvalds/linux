@@ -707,6 +707,20 @@ TEST_F(tls, splice_from_pipe)
 	EXPECT_EQ(memcmp(mem_send, mem_recv, send_len), 0);
 }
 
+TEST_F(tls, splice_more)
+{
+	unsigned int f = SPLICE_F_NONBLOCK | SPLICE_F_MORE | SPLICE_F_GIFT;
+	int send_len = TLS_PAYLOAD_MAX_LEN;
+	char mem_send[TLS_PAYLOAD_MAX_LEN];
+	int i, send_pipe = 1;
+	int p[2];
+
+	ASSERT_GE(pipe(p), 0);
+	EXPECT_GE(write(p[1], mem_send, send_len), 0);
+	for (i = 0; i < 32; i++)
+		EXPECT_EQ(splice(p[0], NULL, self->fd, NULL, send_pipe, f), 1);
+}
+
 TEST_F(tls, splice_from_pipe2)
 {
 	int send_len = 16000;

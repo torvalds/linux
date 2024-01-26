@@ -362,6 +362,7 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 	struct hci_rh_data *rh;
 	unsigned int i, ring, enqueue_ptr;
 	u32 op1_val, op2_val;
+	void *buf;
 
 	/* For now we only use ring 0 */
 	ring = 0;
@@ -390,9 +391,10 @@ static int hci_dma_queue_xfer(struct i3c_hci *hci,
 
 		/* 2nd and 3rd words of Data Buffer Descriptor Structure */
 		if (xfer->data) {
+			buf = xfer->bounce_buf ? xfer->bounce_buf : xfer->data;
 			xfer->data_dma =
 				dma_map_single(&hci->master.dev,
-					       xfer->data,
+					       buf,
 					       xfer->data_len,
 					       xfer->rnw ?
 						  DMA_FROM_DEVICE :

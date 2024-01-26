@@ -1046,6 +1046,8 @@ struct acpi_madt_generic_interrupt {
 /* ACPI_MADT_ENABLED                    (1)      Processor is usable if set */
 #define ACPI_MADT_PERFORMANCE_IRQ_MODE  (1<<1)	/* 01: Performance Interrupt Mode */
 #define ACPI_MADT_VGIC_IRQ_MODE         (1<<2)	/* 02: VGIC Maintenance Interrupt mode */
+#define ACPI_MADT_GICC_ONLINE_CAPABLE   (1<<3)	/* 03: Processor is online capable  */
+#define ACPI_MADT_GICC_NON_COHERENT     (1<<4)	/* 04: GIC redistributor is not coherent */
 
 /* 12: Generic Distributor (ACPI 5.0 + ACPI 6.0 changes) */
 
@@ -1090,20 +1092,26 @@ struct acpi_madt_generic_msi_frame {
 
 struct acpi_madt_generic_redistributor {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* reserved - must be zero */
+	u8 flags;
+	u8 reserved;		/* reserved - must be zero */
 	u64 base_address;
 	u32 length;
 };
+
+#define ACPI_MADT_GICR_NON_COHERENT     (1)
 
 /* 15: Generic Translator (ACPI 6.0) */
 
 struct acpi_madt_generic_translator {
 	struct acpi_subtable_header header;
-	u16 reserved;		/* reserved - must be zero */
+	u8 flags;
+	u8 reserved;		/* reserved - must be zero */
 	u32 translation_id;
 	u64 base_address;
 	u32 reserved2;
 };
+
+#define ACPI_MADT_ITS_NON_COHERENT      (1)
 
 /* 16: Multiprocessor wakeup (ACPI 6.4) */
 

@@ -800,6 +800,24 @@ static struct undef_hook neon_support_hook[] = {{
 	.cpsr_mask	= PSR_T_BIT,
 	.cpsr_val	= PSR_T_BIT,
 	.fn		= vfp_support_entry,
+}, {
+	.instr_mask	= 0xff000800,
+	.instr_val	= 0xfc000800,
+	.cpsr_mask	= 0,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
+}, {
+	.instr_mask	= 0xff000800,
+	.instr_val	= 0xfd000800,
+	.cpsr_mask	= 0,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
+}, {
+	.instr_mask	= 0xff000800,
+	.instr_val	= 0xfe000800,
+	.cpsr_mask	= 0,
+	.cpsr_val	= 0,
+	.fn		= vfp_support_entry,
 }};
 
 static struct undef_hook vfp_support_hook = {

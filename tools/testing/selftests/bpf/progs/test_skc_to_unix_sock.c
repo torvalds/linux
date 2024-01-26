@@ -29,7 +29,7 @@ int BPF_PROG(unix_listen, struct socket *sock, int backlog)
 	len = unix_sk->addr->len - sizeof(short);
 	path[0] = '@';
 	for (i = 1; i < len; i++) {
-		if (i >= sizeof(struct sockaddr_un))
+		if (i >= (int)sizeof(struct sockaddr_un))
 			break;
 
 		path[i] = unix_sk->addr->name->sun_path[i];

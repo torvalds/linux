@@ -193,7 +193,6 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
  * Allocate a new client call.
  */
 static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
-						  struct sockaddr_rxrpc *srx,
 						  struct rxrpc_conn_parameters *cp,
 						  struct rxrpc_call_params *p,
 						  gfp_t gfp,
@@ -211,10 +210,12 @@ static struct rxrpc_call *rxrpc_alloc_client_call(struct rxrpc_sock *rx,
 	now = ktime_get_real();
 	call->acks_latest_ts	= now;
 	call->cong_tstamp	= now;
-	call->dest_srx		= *srx;
+	call->dest_srx		= cp->peer->srx;
+	call->dest_srx.srx_service = cp->service_id;
 	call->interruptibility	= p->interruptibility;
 	call->tx_total_len	= p->tx_total_len;
 	call->key		= key_get(cp->key);
+	call->peer		= rxrpc_get_peer(cp->peer, rxrpc_peer_get_call);
 	call->local		= rxrpc_get_local(cp->local, rxrpc_local_get_call);
 	call->security_level	= cp->security_level;
 	if (p->kernel)
@@ -306,10 +307,6 @@ static int rxrpc_connect_call(struct rxrpc_call *call, gfp_t gfp)
 
 	_enter("{%d,%lx},", call->debug_id, call->user_call_ID);
 
-	call->peer = rxrpc_lookup_peer(local, &call->dest_srx, gfp);
-	if (!call->peer)
-		goto error;
-
 	ret = rxrpc_look_up_bundle(call, gfp);
 	if (ret < 0)
 		goto error;
@@ -334,7 +331,6 @@ error:
  */
 struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 					 struct rxrpc_conn_parameters *cp,
-					 struct sockaddr_rxrpc *srx,
 					 struct rxrpc_call_params *p,
 					 gfp_t gfp,
 					 unsigned int debug_id)
@@ -349,13 +345,18 @@ struct rxrpc_call *rxrpc_new_client_call(struct rxrpc_sock *rx,
 
 	_enter("%p,%lx", rx, p->user_call_ID);
 
+	if (WARN_ON_ONCE(!cp->peer)) {
+		release_sock(&rx->sk);
+		return ERR_PTR(-EIO);
+	}
+
 	limiter = rxrpc_get_call_slot(p, gfp);
 	if (!limiter) {
 		release_sock(&rx->sk);
 		return ERR_PTR(-ERESTARTSYS);
 	}
 
-	call = rxrpc_alloc_client_call(rx, srx, cp, p, gfp, debug_id);
+	call = rxrpc_alloc_client_call(rx, cp, p, gfp, debug_id);
 	if (IS_ERR(call)) {
 		release_sock(&rx->sk);
 		up(limiter);
@@ -545,8 +546,8 @@ void rxrpc_get_call(struct rxrpc_call *call, enum rxrpc_call_trace why)
  */
 static void rxrpc_cleanup_ring(struct rxrpc_call *call)
 {
-	skb_queue_purge(&call->recvmsg_queue);
-	skb_queue_purge(&call->rx_oos_queue);
+	rxrpc_purge_queue(&call->recvmsg_queue);
+	rxrpc_purge_queue(&call->rx_oos_queue);
 }
 
 /*

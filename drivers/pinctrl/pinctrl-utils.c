@@ -18,11 +18,11 @@
 #include "pinctrl-utils.h"
 
 int pinctrl_utils_reserve_map(struct pinctrl_dev *pctldev,
-		struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, unsigned reserve)
+		struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, unsigned int reserve)
 {
-	unsigned old_num = *reserved_maps;
-	unsigned new_num = *num_maps + reserve;
+	unsigned int old_num = *reserved_maps;
+	unsigned int new_num = *num_maps + reserve;
 	struct pinctrl_map *new_map;
 
 	if (old_num >= new_num)
@@ -43,8 +43,8 @@ int pinctrl_utils_reserve_map(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_reserve_map);
 
 int pinctrl_utils_add_map_mux(struct pinctrl_dev *pctldev,
-		struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, const char *group,
+		struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, const char *group,
 		const char *function)
 {
 	if (WARN_ON(*num_maps == *reserved_maps))
@@ -60,9 +60,9 @@ int pinctrl_utils_add_map_mux(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_map_mux);
 
 int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
-		struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, const char *group,
-		unsigned long *configs, unsigned num_configs,
+		struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, const char *group,
+		unsigned long *configs, unsigned int num_configs,
 		enum pinctrl_map_type type)
 {
 	unsigned long *dup_configs;
@@ -86,11 +86,11 @@ int pinctrl_utils_add_map_configs(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_map_configs);
 
 int pinctrl_utils_add_config(struct pinctrl_dev *pctldev,
-		unsigned long **configs, unsigned *num_configs,
+		unsigned long **configs, unsigned int *num_configs,
 		unsigned long config)
 {
-	unsigned old_num = *num_configs;
-	unsigned new_num = old_num + 1;
+	unsigned int old_num = *num_configs;
+	unsigned int new_num = old_num + 1;
 	unsigned long *new_configs;
 
 	new_configs = krealloc(*configs, sizeof(*new_configs) * new_num,
@@ -110,7 +110,7 @@ int pinctrl_utils_add_config(struct pinctrl_dev *pctldev,
 EXPORT_SYMBOL_GPL(pinctrl_utils_add_config);
 
 void pinctrl_utils_free_map(struct pinctrl_dev *pctldev,
-	      struct pinctrl_map *map, unsigned num_maps)
+	      struct pinctrl_map *map, unsigned int num_maps)
 {
 	int i;
 

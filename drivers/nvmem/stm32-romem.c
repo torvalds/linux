@@ -269,6 +269,19 @@ static const struct stm32_romem_cfg stm32mp13_bsec_cfg = {
 	.ta = true,
 };
 
+/*
+ * STM32MP25 BSEC OTP: 3 regions of 32-bits data words
+ *   lower OTP (OTP0 to OTP127), bitwise (1-bit) programmable
+ *   mid OTP (OTP128 to OTP255), bulk (32-bit) programmable
+ *   upper OTP (OTP256 to OTP383), bulk (32-bit) programmable
+ *              but no access to HWKEY and ECIES key: limited at OTP367
+ */
+static const struct stm32_romem_cfg stm32mp25_bsec_cfg = {
+	.size = 368 * 4,
+	.lower = 127,
+	.ta = true,
+};
+
 static const struct of_device_id stm32_romem_of_match[] __maybe_unused = {
 	{ .compatible = "st,stm32f4-otp", }, {
 		.compatible = "st,stm32mp15-bsec",
@@ -276,6 +289,9 @@ static const struct of_device_id stm32_romem_of_match[] __maybe_unused = {
 	}, {
 		.compatible = "st,stm32mp13-bsec",
 		.data = (void *)&stm32mp13_bsec_cfg,
+	}, {
+		.compatible = "st,stm32mp25-bsec",
+		.data = (void *)&stm32mp25_bsec_cfg,
 	},
 	{ /* sentinel */ },
 };

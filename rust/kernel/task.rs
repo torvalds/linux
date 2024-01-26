@@ -2,7 +2,7 @@
 
 //! Tasks (threads and processes).
 //!
-//! C header: [`include/linux/sched.h`](../../../../include/linux/sched.h).
+//! C header: [`include/linux/sched.h`](srctree/include/linux/sched.h).
 
 use crate::{bindings, types::Opaque};
 use core::{marker::PhantomData, ops::Deref, ptr};

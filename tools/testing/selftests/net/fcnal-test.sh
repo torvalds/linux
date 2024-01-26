@@ -37,9 +37,7 @@
 #
 # server / client nomenclature relative to ns-A
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
-
+source lib.sh
 VERBOSE=0
 
 NSA_DEV=eth1
@@ -81,14 +79,6 @@ MCAST=ff02::1
 # set after namespace create
 NSA_LINKIP6=
 NSB_LINKIP6=
-
-NSA=ns-A
-NSB=ns-B
-NSC=ns-C
-
-NSA_CMD="ip netns exec ${NSA}"
-NSB_CMD="ip netns exec ${NSB}"
-NSC_CMD="ip netns exec ${NSC}"
 
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
@@ -406,9 +396,6 @@ create_ns()
 	local addr=$2
 	local addr6=$3
 
-	ip netns add ${ns}
-
-	ip -netns ${ns} link set lo up
 	if [ "${addr}" != "-" ]; then
 		ip -netns ${ns} addr add dev lo ${addr}
 	fi
@@ -467,13 +454,12 @@ cleanup()
 		ip -netns ${NSA} link del dev ${NSA_DEV}
 
 		ip netns pids ${NSA} | xargs kill 2>/dev/null
-		ip netns del ${NSA}
+		cleanup_ns ${NSA}
 	fi
 
 	ip netns pids ${NSB} | xargs kill 2>/dev/null
-	ip netns del ${NSB}
 	ip netns pids ${NSC} | xargs kill 2>/dev/null
-	ip netns del ${NSC} >/dev/null 2>&1
+	cleanup_ns ${NSB} ${NSC}
 }
 
 cleanup_vrf_dup()
@@ -487,6 +473,8 @@ setup_vrf_dup()
 {
 	# some VRF tests use ns-C which has the same config as
 	# ns-B but for a device NOT in the VRF
+	setup_ns NSC
+	NSC_CMD="ip netns exec ${NSC}"
 	create_ns ${NSC} "-" "-"
 	connect_ns ${NSA} ${NSA_DEV2} ${NSA_IP}/24 ${NSA_IP6}/64 \
 		   ${NSC} ${NSC_DEV} ${NSB_IP}/24 ${NSB_IP6}/64
@@ -502,6 +490,10 @@ setup()
 
 	log_debug "Configuring network namespaces"
 	set -e
+
+	setup_ns NSA NSB
+	NSA_CMD="ip netns exec ${NSA}"
+	NSB_CMD="ip netns exec ${NSB}"
 
 	create_ns ${NSA} ${NSA_LO_IP}/32 ${NSA_LO_IP6}/128
 	create_ns ${NSB} ${NSB_LO_IP}/32 ${NSB_LO_IP6}/128
@@ -545,6 +537,10 @@ setup_lla_only()
 	log_debug "Configuring network namespaces"
 	set -e
 
+	setup_ns NSA NSB NSC
+	NSA_CMD="ip netns exec ${NSA}"
+	NSB_CMD="ip netns exec ${NSB}"
+	NSC_CMD="ip netns exec ${NSC}"
 	create_ns ${NSA} "-" "-"
 	create_ns ${NSB} "-" "-"
 	create_ns ${NSC} "-" "-"

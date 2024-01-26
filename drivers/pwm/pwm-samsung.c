@@ -620,7 +620,6 @@ static void pwm_samsung_remove(struct platform_device *pdev)
 	clk_disable_unprepare(our_chip->base_clk);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int pwm_samsung_resume(struct device *dev)
 {
 	struct samsung_pwm_chip *our_chip = dev_get_drvdata(dev);
@@ -653,14 +652,13 @@ static int pwm_samsung_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(pwm_samsung_pm_ops, NULL, pwm_samsung_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(pwm_samsung_pm_ops, NULL, pwm_samsung_resume);
 
 static struct platform_driver pwm_samsung_driver = {
 	.driver		= {
 		.name	= "samsung-pwm",
-		.pm	= &pwm_samsung_pm_ops,
+		.pm	= pm_ptr(&pwm_samsung_pm_ops),
 		.of_match_table = of_match_ptr(samsung_pwm_matches),
 	},
 	.probe		= pwm_samsung_probe,

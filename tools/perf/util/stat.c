@@ -315,7 +315,7 @@ static int check_per_pkg(struct evsel *counter, struct perf_counts_values *vals,
 	if (!counter->per_pkg)
 		return 0;
 
-	if (perf_cpu_map__empty(cpus))
+	if (perf_cpu_map__has_any_cpu_or_is_empty(cpus))
 		return 0;
 
 	if (!mask) {
@@ -592,7 +592,7 @@ void perf_stat_merge_counters(struct perf_stat_config *config, struct evlist *ev
 {
 	struct evsel *evsel;
 
-	if (config->no_merge)
+	if (config->aggr_mode == AGGR_NONE)
 		return;
 
 	evlist__for_each_entry(evlist, evsel)

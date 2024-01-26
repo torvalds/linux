@@ -30,16 +30,6 @@ properties:
       - const: core
       - const: audio
 
-  gpio-controller: true
-
-  "#gpio-cells":
-    description: Specifying the pin number and flags, as defined in
-      include/dt-bindings/gpio/gpio.h
-    const: 2
-
-  gpio-ranges:
-    maxItems: 1
-
 patternProperties:
   "-state$":
     oneOf:
@@ -55,7 +45,8 @@ $defs:
     description:
       Pinctrl node's client devices use subnodes for desired pin configuration.
       Client device subnodes use below standard properties.
-    $ref: /schemas/pinctrl/pincfg-node.yaml
+    $ref: qcom,lpass-lpi-common.yaml#/$defs/qcom-tlmm-state
+    unevaluatedProperties: false
 
     properties:
       pins:
@@ -78,48 +69,16 @@ $defs:
           Specify the alternative function to be configured for the specified
           pins.
 
-      drive-strength:
-        enum: [2, 4, 6, 8, 10, 12, 14, 16]
-        default: 2
-        description:
-          Selects the drive strength for the specified pins, in mA.
-
-      slew-rate:
-        enum: [0, 1, 2, 3]
-        default: 0
-        description: |
-            0: No adjustments
-            1: Higher Slew rate (faster edges)
-            2: Lower Slew rate (slower edges)
-            3: Reserved (No adjustments)
-
-      bias-pull-down: true
-      bias-pull-up: true
-      bias-bus-hold: true
-      bias-disable: true
-      input-enable: true
-      output-high: true
-      output-low: true
-
-    required:
-      - pins
-      - function
-
-    additionalProperties: false
-
 allOf:
-  - $ref: pinctrl.yaml#
+  - $ref: qcom,lpass-lpi-common.yaml#
 
 required:
   - compatible
   - reg
   - clocks
   - clock-names
-  - gpio-controller
-  - "#gpio-cells"
-  - gpio-ranges
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

@@ -24,7 +24,9 @@ config DRM_I915_DEBUG
 	select DEBUG_FS
 	select PREEMPT_COUNT
 	select I2C_CHARDEV
+	select REF_TRACKER
 	select STACKDEPOT
+	select STACKTRACE
 	select DRM_DP_AUX_CHARDEV
 	select X86_MSR # used by igt/pm_rpm
 	select DRM_VGEM # used by igt/prime_vgem (dmabuf interop checks)
@@ -38,6 +40,7 @@ config DRM_I915_DEBUG
 	select DRM_I915_DEBUG_GEM_ONCE
 	select DRM_I915_DEBUG_MMIO
 	select DRM_I915_DEBUG_RUNTIME_PM
+	select DRM_I915_DEBUG_WAKEREF
 	select DRM_I915_SW_FENCE_DEBUG_OBJECTS
 	select DRM_I915_SELFTEST
 	default n
@@ -231,12 +234,27 @@ config DRM_I915_DEBUG_RUNTIME_PM
 	bool "Enable extra state checking for runtime PM"
 	depends on DRM_I915
 	default n
+	select REF_TRACKER
 	select STACKDEPOT
+	select STACKTRACE
 	help
 	  Choose this option to turn on extra state checking for the
 	  runtime PM functionality. This may introduce overhead during
 	  driver loading, suspend and resume operations.
 
 	  Recommended for driver developers only.
+
+	  If in doubt, say "N"
+
+config DRM_I915_DEBUG_WAKEREF
+	bool "Enable extra tracking for wakerefs"
+	depends on DRM_I915
+	select REF_TRACKER
+	select STACKDEPOT
+	select STACKTRACE
+	help
+	  Choose this option to turn on extra state checking and usage
+	  tracking for the wakerefPM functionality. This may introduce
+	  overhead during driver runtime.
 
 	  If in doubt, say "N"

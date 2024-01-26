@@ -307,7 +307,7 @@ static int max77693_haptic_probe(struct platform_device *pdev)
 	haptic->suspend_state = false;
 
 	/* Variant-specific init */
-	haptic->dev_type = platform_get_device_id(pdev)->driver_data;
+	haptic->dev_type = max77693->type;
 	switch (haptic->dev_type) {
 	case TYPE_MAX77693:
 		haptic->regmap_haptic = max77693->regmap_haptic;
@@ -406,16 +406,24 @@ static DEFINE_SIMPLE_DEV_PM_OPS(max77693_haptic_pm_ops,
 				max77693_haptic_resume);
 
 static const struct platform_device_id max77693_haptic_id[] = {
-	{ "max77693-haptic", TYPE_MAX77693 },
-	{ "max77843-haptic", TYPE_MAX77843 },
+	{ "max77693-haptic", },
+	{ "max77843-haptic", },
 	{},
 };
 MODULE_DEVICE_TABLE(platform, max77693_haptic_id);
+
+static const struct of_device_id of_max77693_haptic_dt_match[] = {
+	{ .compatible = "maxim,max77693-haptic", },
+	{ .compatible = "maxim,max77843-haptic", },
+	{ /* sentinel */ },
+};
+MODULE_DEVICE_TABLE(of, of_max77693_haptic_dt_match);
 
 static struct platform_driver max77693_haptic_driver = {
 	.driver		= {
 		.name	= "max77693-haptic",
 		.pm	= pm_sleep_ptr(&max77693_haptic_pm_ops),
+		.of_match_table = of_max77693_haptic_dt_match,
 	},
 	.probe		= max77693_haptic_probe,
 	.id_table	= max77693_haptic_id,

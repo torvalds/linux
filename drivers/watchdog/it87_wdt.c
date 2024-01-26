@@ -13,9 +13,9 @@
  *		    http://www.ite.com.tw/
  *
  *	Support of the watchdog timers, which are available on
- *	IT8607, IT8613, IT8620, IT8622, IT8625, IT8628, IT8655, IT8665,
- *	IT8686, IT8702, IT8712, IT8716, IT8718, IT8720, IT8721, IT8726,
- *	IT8728, IT8772, IT8783 and IT8784.
+ *	IT8607, IT8613, IT8620, IT8622, IT8625, IT8628, IT8655, IT8659,
+ *	IT8665, IT8686, IT8702, IT8712, IT8716, IT8718, IT8720, IT8721,
+ *	IT8726,	IT8728, IT8772, IT8783, IT8784 and IT8786.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -56,6 +56,7 @@
 #define IT8625_ID	0x8625
 #define IT8628_ID	0x8628
 #define IT8655_ID	0x8655
+#define IT8659_ID	0x8659
 #define IT8665_ID	0x8665
 #define IT8686_ID	0x8686
 #define IT8702_ID	0x8702
@@ -146,6 +147,7 @@ static inline void superio_outb(int val, int reg)
 static inline int superio_inw(int reg)
 {
 	int val;
+
 	outb(reg++, REG);
 	val = inb(VAL) << 8;
 	outb(reg, REG);
@@ -256,6 +258,7 @@ static struct watchdog_device wdt_dev = {
 static int __init it87_wdt_init(void)
 {
 	u8  chip_rev;
+	u8 ctrl;
 	int rc;
 
 	rc = superio_enter();
@@ -273,10 +276,6 @@ static int __init it87_wdt_init(void)
 	case IT8712_ID:
 		max_units = (chip_rev < 8) ? 255 : 65535;
 		break;
-	case IT8716_ID:
-	case IT8726_ID:
-		max_units = 65535;
-		break;
 	case IT8607_ID:
 	case IT8613_ID:
 	case IT8620_ID:
@@ -284,11 +283,14 @@ static int __init it87_wdt_init(void)
 	case IT8625_ID:
 	case IT8628_ID:
 	case IT8655_ID:
+	case IT8659_ID:
 	case IT8665_ID:
 	case IT8686_ID:
+	case IT8716_ID:
 	case IT8718_ID:
 	case IT8720_ID:
 	case IT8721_ID:
+	case IT8726_ID:
 	case IT8728_ID:
 	case IT8772_ID:
 	case IT8783_ID:
@@ -315,7 +317,18 @@ static int __init it87_wdt_init(void)
 
 	superio_select(GPIO);
 	superio_outb(WDT_TOV1, WDTCFG);
-	superio_outb(0x00, WDTCTRL);
+
+	switch (chip_type) {
+	case IT8784_ID:
+	case IT8786_ID:
+		ctrl = superio_inb(WDTCTRL);
+		ctrl &= 0x08;
+		superio_outb(ctrl, WDTCTRL);
+		break;
+	default:
+		superio_outb(0x00, WDTCTRL);
+	}
+
 	superio_exit();
 
 	if (timeout < 1 || timeout > max_units * 60) {

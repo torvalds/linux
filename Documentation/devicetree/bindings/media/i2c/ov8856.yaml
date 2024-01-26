@@ -67,19 +67,17 @@ properties:
 
         properties:
           data-lanes:
-            description: |-
-              The driver only supports four-lane operation.
-            items:
-              - const: 1
-              - const: 2
-              - const: 3
-              - const: 4
-
-          link-frequencies:
-            description: Frequencies listed are driver, not h/w limitations.
-            maxItems: 2
-            items:
-              enum: [ 360000000, 180000000 ]
+            oneOf:
+              - items:
+                  - const: 1
+              - items:
+                  - const: 1
+                  - const: 2
+              - items:
+                  - const: 1
+                  - const: 2
+                  - const: 3
+                  - const: 4
 
         required:
           - link-frequencies

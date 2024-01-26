@@ -23,32 +23,12 @@ properties:
     description: Specifies the TLMM summary IRQ
     maxItems: 1
 
-  interrupt-controller: true
-
-  '#interrupt-cells':
-    description:
-      Specifies the PIN numbers and Flags, as defined in defined in
-      include/dt-bindings/interrupt-controller/irq.h
-    const: 2
-
-  gpio-controller: true
-
-  '#gpio-cells':
-    description: Specifying the pin number and flags, as defined in
-      include/dt-bindings/gpio/gpio.h
-    const: 2
-
-  gpio-ranges:
-    maxItems: 1
-
   gpio-reserved-ranges:
     minItems: 1
     maxItems: 88
 
   gpio-line-names:
     maxItems: 175
-
-  wakeup-parent: true
 
 patternProperties:
   "-state$":
@@ -124,14 +104,8 @@ allOf:
 required:
   - compatible
   - reg
-  - interrupts
-  - interrupt-controller
-  - '#interrupt-cells'
-  - gpio-controller
-  - '#gpio-cells'
-  - gpio-ranges
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |

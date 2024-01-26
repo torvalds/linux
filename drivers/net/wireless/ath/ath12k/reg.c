@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/rtnetlink.h>
 #include "core.h"
@@ -28,11 +28,11 @@ static const struct ieee80211_regdomain ath12k_world_regd = {
 	}
 };
 
-static bool ath12k_regdom_changes(struct ath12k *ar, char *alpha2)
+static bool ath12k_regdom_changes(struct ieee80211_hw *hw, char *alpha2)
 {
 	const struct ieee80211_regdomain *regd;
 
-	regd = rcu_dereference_rtnl(ar->hw->wiphy->regd);
+	regd = rcu_dereference_rtnl(hw->wiphy->regd);
 	/* This can happen during wiphy registration where the previous
 	 * user request is received before we update the regd received
 	 * from firmware.
@@ -71,7 +71,7 @@ ath12k_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request)
 		return;
 	}
 
-	if (!ath12k_regdom_changes(ar, request->alpha2)) {
+	if (!ath12k_regdom_changes(hw, request->alpha2)) {
 		ath12k_dbg(ar->ab, ATH12K_DBG_REG, "Country is already set\n");
 		return;
 	}
@@ -199,6 +199,7 @@ static void ath12k_copy_regd(struct ieee80211_regdomain *regd_orig,
 
 int ath12k_regd_update(struct ath12k *ar, bool init)
 {
+	struct ieee80211_hw *hw = ar->hw;
 	struct ieee80211_regdomain *regd, *regd_copy = NULL;
 	int ret, regd_len, pdev_id;
 	struct ath12k_base *ab;
@@ -246,9 +247,9 @@ int ath12k_regd_update(struct ath12k *ar, bool init)
 	}
 
 	rtnl_lock();
-	wiphy_lock(ar->hw->wiphy);
-	ret = regulatory_set_wiphy_regd_sync(ar->hw->wiphy, regd_copy);
-	wiphy_unlock(ar->hw->wiphy);
+	wiphy_lock(hw->wiphy);
+	ret = regulatory_set_wiphy_regd_sync(hw->wiphy, regd_copy);
+	wiphy_unlock(hw->wiphy);
 	rtnl_unlock();
 
 	kfree(regd_copy);
@@ -729,10 +730,10 @@ void ath12k_regd_update_work(struct work_struct *work)
 	}
 }
 
-void ath12k_reg_init(struct ath12k *ar)
+void ath12k_reg_init(struct ieee80211_hw *hw)
 {
-	ar->hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
-	ar->hw->wiphy->reg_notifier = ath12k_reg_notifier;
+	hw->wiphy->regulatory_flags = REGULATORY_WIPHY_SELF_MANAGED;
+	hw->wiphy->reg_notifier = ath12k_reg_notifier;
 }
 
 void ath12k_reg_free(struct ath12k_base *ab)

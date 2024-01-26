@@ -121,22 +121,12 @@ struct net_vrf {
 	int			ifindex;
 };
 
-struct pcpu_dstats {
-	u64			tx_pkts;
-	u64			tx_bytes;
-	u64			tx_drps;
-	u64			rx_pkts;
-	u64			rx_bytes;
-	u64			rx_drps;
-	struct u64_stats_sync	syncp;
-};
-
 static void vrf_rx_stats(struct net_device *dev, int len)
 {
 	struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
 
 	u64_stats_update_begin(&dstats->syncp);
-	dstats->rx_pkts++;
+	dstats->rx_packets++;
 	dstats->rx_bytes += len;
 	u64_stats_update_end(&dstats->syncp);
 }
@@ -161,10 +151,10 @@ static void vrf_get_stats64(struct net_device *dev,
 		do {
 			start = u64_stats_fetch_begin(&dstats->syncp);
 			tbytes = dstats->tx_bytes;
-			tpkts = dstats->tx_pkts;
-			tdrops = dstats->tx_drps;
+			tpkts = dstats->tx_packets;
+			tdrops = dstats->tx_drops;
 			rbytes = dstats->rx_bytes;
-			rpkts = dstats->rx_pkts;
+			rpkts = dstats->rx_packets;
 		} while (u64_stats_fetch_retry(&dstats->syncp, start));
 		stats->tx_bytes += tbytes;
 		stats->tx_packets += tpkts;
@@ -421,7 +411,7 @@ static int vrf_local_xmit(struct sk_buff *skb, struct net_device *dev,
 	if (likely(__netif_rx(skb) == NET_RX_SUCCESS))
 		vrf_rx_stats(dev, len);
 	else
-		this_cpu_inc(dev->dstats->rx_drps);
+		this_cpu_inc(dev->dstats->rx_drops);
 
 	return NETDEV_TX_OK;
 }
@@ -616,11 +606,11 @@ static netdev_tx_t vrf_xmit(struct sk_buff *skb, struct net_device *dev)
 		struct pcpu_dstats *dstats = this_cpu_ptr(dev->dstats);
 
 		u64_stats_update_begin(&dstats->syncp);
-		dstats->tx_pkts++;
+		dstats->tx_packets++;
 		dstats->tx_bytes += len;
 		u64_stats_update_end(&dstats->syncp);
 	} else {
-		this_cpu_inc(dev->dstats->tx_drps);
+		this_cpu_inc(dev->dstats->tx_drops);
 	}
 
 	return ret;
@@ -1174,22 +1164,15 @@ static void vrf_dev_uninit(struct net_device *dev)
 
 	vrf_rtable_release(dev, vrf);
 	vrf_rt6_release(dev, vrf);
-
-	free_percpu(dev->dstats);
-	dev->dstats = NULL;
 }
 
 static int vrf_dev_init(struct net_device *dev)
 {
 	struct net_vrf *vrf = netdev_priv(dev);
 
-	dev->dstats = netdev_alloc_pcpu_stats(struct pcpu_dstats);
-	if (!dev->dstats)
-		goto out_nomem;
-
 	/* create the default dst which points back to us */
 	if (vrf_rtable_create(dev) != 0)
-		goto out_stats;
+		goto out_nomem;
 
 	if (vrf_rt6_create(dev) != 0)
 		goto out_rth;
@@ -1203,9 +1186,6 @@ static int vrf_dev_init(struct net_device *dev)
 
 out_rth:
 	vrf_rtable_release(dev, vrf);
-out_stats:
-	free_percpu(dev->dstats);
-	dev->dstats = NULL;
 out_nomem:
 	return -ENOMEM;
 }
@@ -1704,6 +1684,8 @@ static void vrf_setup(struct net_device *dev)
 	dev->min_mtu = IPV6_MIN_MTU;
 	dev->max_mtu = IP6_MAX_MTU;
 	dev->mtu = dev->max_mtu;
+
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_DSTATS;
 }
 
 static int vrf_validate(struct nlattr *tb[], struct nlattr *data[],

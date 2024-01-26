@@ -26,7 +26,7 @@
 		reg = <0 0x80000000 0 0>;
 	};
 
-	soc {
+	soc@0 {
 		bus@80000000 {
 			compatible = "simple-bus";
 			reg = <0x80000000 0x60000000>,

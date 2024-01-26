@@ -96,7 +96,8 @@ static void enable_memory_low_power(struct dc *dc)
 	if (dc->debug.enable_mem_low_power.bits.vpg && dc->res_pool->stream_enc[0]->vpg->funcs->vpg_powerdown) {
 		// Power down VPGs
 		for (i = 0; i < dc->res_pool->stream_enc_count; i++)
-			dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
+			if (dc->res_pool->stream_enc[i]->vpg)
+				dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
 #if defined(CONFIG_DRM_AMD_DC_FP)
 		for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++)
 			dc->res_pool->hpo_dp_stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->hpo_dp_stream_enc[i]->vpg);
@@ -112,6 +113,7 @@ void dcn31_init_hw(struct dc *dc)
 	struct dc_bios *dcb = dc->ctx->dc_bios;
 	struct resource_pool *res_pool = dc->res_pool;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
+	uint32_t user_level = MAX_BACKLIGHT_LEVEL;
 	int i;
 
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
@@ -223,13 +225,15 @@ void dcn31_init_hw(struct dc *dc)
 	for (i = 0; i < dc->link_count; i++) {
 		struct dc_link *link = dc->links[i];
 
-		if (link->panel_cntl)
+		if (link->panel_cntl) {
 			backlight = link->panel_cntl->funcs->hw_init(link->panel_cntl);
+			user_level = link->panel_cntl->stored_backlight_registers.USER_LEVEL;
+		}
 	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (abms[i] != NULL)
-			abms[i]->funcs->abm_init(abms[i], backlight);
+			abms[i]->funcs->abm_init(abms[i], backlight, user_level);
 	}
 
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
@@ -415,7 +419,7 @@ void dcn31_z10_save_init(struct dc *dc)
 	cmd.dcn_restore.header.type = DMUB_CMD__IDLE_OPT;
 	cmd.dcn_restore.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_SAVE_INIT;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dcn31_z10_restore(const struct dc *dc)
@@ -433,7 +437,7 @@ void dcn31_z10_restore(const struct dc *dc)
 	cmd.dcn_restore.header.type = DMUB_CMD__IDLE_OPT;
 	cmd.dcn_restore.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_RESTORE;
 
-	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dcn31_hubp_pg_control(struct dce_hwseq *hws, unsigned int hubp_inst, bool power_on)
@@ -523,7 +527,8 @@ static void dcn31_reset_back_end_for_pipe(
 	if (pipe_ctx->stream_res.tg->funcs->set_odm_bypass)
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
-	pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
+	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal))
+		pipe_ctx->stream->link->phy_state.symclk_ref_cnts.otg = 0;
 
 	if (pipe_ctx->stream_res.tg->funcs->set_drr)
 		pipe_ctx->stream_res.tg->funcs->set_drr(

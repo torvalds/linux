@@ -503,13 +503,11 @@ static int digicolor_uart_probe(struct platform_device *pdev)
 	return uart_add_one_port(&digicolor_uart, &dp->port);
 }
 
-static int digicolor_uart_remove(struct platform_device *pdev)
+static void digicolor_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&digicolor_uart, port);
-
-	return 0;
 }
 
 static const struct of_device_id digicolor_uart_dt_ids[] = {
@@ -524,7 +522,7 @@ static struct platform_driver digicolor_uart_platform = {
 		.of_match_table	= of_match_ptr(digicolor_uart_dt_ids),
 	},
 	.probe	= digicolor_uart_probe,
-	.remove	= digicolor_uart_remove,
+	.remove_new = digicolor_uart_remove,
 };
 
 static int __init digicolor_uart_init(void)

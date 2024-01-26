@@ -38,29 +38,35 @@ static long ax45mp_iocp_sw_workaround(void)
 	return ret.error ? 0 : ret.value;
 }
 
-static bool errata_probe_iocp(unsigned int stage, unsigned long arch_id, unsigned long impid)
+static void errata_probe_iocp(unsigned int stage, unsigned long arch_id, unsigned long impid)
 {
+	static bool done;
+
 	if (!IS_ENABLED(CONFIG_ERRATA_ANDES_CMO))
-		return false;
+		return;
+
+	if (done)
+		return;
+
+	done = true;
 
 	if (arch_id != ANDESTECH_AX45MP_MARCHID || impid != ANDESTECH_AX45MP_MIMPID)
-		return false;
+		return;
 
 	if (!ax45mp_iocp_sw_workaround())
-		return false;
+		return;
 
 	/* Set this just to make core cbo code happy */
 	riscv_cbom_block_size = 1;
 	riscv_noncoherent_supported();
-
-	return true;
 }
 
 void __init_or_module andes_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
 					      unsigned long archid, unsigned long impid,
 					      unsigned int stage)
 {
-	errata_probe_iocp(stage, archid, impid);
+	if (stage == RISCV_ALTERNATIVES_BOOT)
+		errata_probe_iocp(stage, archid, impid);
 
 	/* we have nothing to patch here ATM so just return back */
 }

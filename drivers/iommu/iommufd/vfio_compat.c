@@ -41,7 +41,7 @@ int iommufd_vfio_compat_ioas_get_id(struct iommufd_ctx *ictx, u32 *out_ioas_id)
 	if (IS_ERR(ioas))
 		return PTR_ERR(ioas);
 	*out_ioas_id = ioas->obj.id;
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ictx, &ioas->obj);
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(iommufd_vfio_compat_ioas_get_id, IOMMUFD_VFIO);
@@ -98,7 +98,7 @@ int iommufd_vfio_compat_ioas_create(struct iommufd_ctx *ictx)
 
 	if (ictx->vfio_ioas && iommufd_lock_obj(&ictx->vfio_ioas->obj)) {
 		ret = 0;
-		iommufd_put_object(&ictx->vfio_ioas->obj);
+		iommufd_put_object(ictx, &ictx->vfio_ioas->obj);
 		goto out_abort;
 	}
 	ictx->vfio_ioas = ioas;
@@ -133,7 +133,7 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd)
 		if (IS_ERR(ioas))
 			return PTR_ERR(ioas);
 		cmd->ioas_id = ioas->obj.id;
-		iommufd_put_object(&ioas->obj);
+		iommufd_put_object(ucmd->ictx, &ioas->obj);
 		return iommufd_ucmd_respond(ucmd, sizeof(*cmd));
 
 	case IOMMU_VFIO_IOAS_SET:
@@ -143,7 +143,7 @@ int iommufd_vfio_ioas(struct iommufd_ucmd *ucmd)
 		xa_lock(&ucmd->ictx->objects);
 		ucmd->ictx->vfio_ioas = ioas;
 		xa_unlock(&ucmd->ictx->objects);
-		iommufd_put_object(&ioas->obj);
+		iommufd_put_object(ucmd->ictx, &ioas->obj);
 		return 0;
 
 	case IOMMU_VFIO_IOAS_CLEAR:
@@ -190,7 +190,7 @@ static int iommufd_vfio_map_dma(struct iommufd_ctx *ictx, unsigned int cmd,
 	iova = map.iova;
 	rc = iopt_map_user_pages(ictx, &ioas->iopt, &iova, u64_to_user_ptr(map.vaddr),
 				 map.size, iommu_prot, 0);
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ictx, &ioas->obj);
 	return rc;
 }
 
@@ -249,7 +249,7 @@ static int iommufd_vfio_unmap_dma(struct iommufd_ctx *ictx, unsigned int cmd,
 		rc = -EFAULT;
 
 err_put:
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ictx, &ioas->obj);
 	return rc;
 }
 
@@ -272,7 +272,7 @@ static int iommufd_vfio_cc_iommu(struct iommufd_ctx *ictx)
 	}
 	mutex_unlock(&ioas->mutex);
 
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ictx, &ioas->obj);
 	return rc;
 }
 
@@ -349,7 +349,7 @@ static int iommufd_vfio_set_iommu(struct iommufd_ctx *ictx, unsigned long type)
 	 */
 	if (type == VFIO_TYPE1_IOMMU)
 		rc = iopt_disable_large_pages(&ioas->iopt);
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ictx, &ioas->obj);
 	return rc;
 }
 
@@ -511,7 +511,7 @@ static int iommufd_vfio_iommu_get_info(struct iommufd_ctx *ictx,
 
 out_put:
 	up_read(&ioas->iopt.iova_rwsem);
-	iommufd_put_object(&ioas->obj);
+	iommufd_put_object(ictx, &ioas->obj);
 	return rc;
 }
 

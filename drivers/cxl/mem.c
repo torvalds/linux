@@ -215,23 +215,78 @@ static ssize_t trigger_poison_list_store(struct device *dev,
 }
 static DEVICE_ATTR_WO(trigger_poison_list);
 
+static ssize_t ram_qos_class_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
+	struct cxl_dpa_perf *dpa_perf;
+
+	if (!dev->driver)
+		return -ENOENT;
+
+	if (list_empty(&mds->ram_perf_list))
+		return -ENOENT;
+
+	dpa_perf = list_first_entry(&mds->ram_perf_list, struct cxl_dpa_perf,
+				    list);
+
+	return sysfs_emit(buf, "%d\n", dpa_perf->qos_class);
+}
+
+static struct device_attribute dev_attr_ram_qos_class =
+	__ATTR(qos_class, 0444, ram_qos_class_show, NULL);
+
+static ssize_t pmem_qos_class_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_dev_state *cxlds = cxlmd->cxlds;
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
+	struct cxl_dpa_perf *dpa_perf;
+
+	if (!dev->driver)
+		return -ENOENT;
+
+	if (list_empty(&mds->pmem_perf_list))
+		return -ENOENT;
+
+	dpa_perf = list_first_entry(&mds->pmem_perf_list, struct cxl_dpa_perf,
+				    list);
+
+	return sysfs_emit(buf, "%d\n", dpa_perf->qos_class);
+}
+
+static struct device_attribute dev_attr_pmem_qos_class =
+	__ATTR(qos_class, 0444, pmem_qos_class_show, NULL);
+
 static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
 {
-	if (a == &dev_attr_trigger_poison_list.attr) {
-		struct device *dev = kobj_to_dev(kobj);
-		struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
-		struct cxl_memdev_state *mds =
-			to_cxl_memdev_state(cxlmd->cxlds);
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlmd->cxlds);
 
+	if (a == &dev_attr_trigger_poison_list.attr)
 		if (!test_bit(CXL_POISON_ENABLED_LIST,
 			      mds->poison.enabled_cmds))
 			return 0;
-	}
+
+	if (a == &dev_attr_pmem_qos_class.attr)
+		if (list_empty(&mds->pmem_perf_list))
+			return 0;
+
+	if (a == &dev_attr_ram_qos_class.attr)
+		if (list_empty(&mds->ram_perf_list))
+			return 0;
+
 	return a->mode;
 }
 
 static struct attribute *cxl_mem_attrs[] = {
 	&dev_attr_trigger_poison_list.attr,
+	&dev_attr_ram_qos_class.attr,
+	&dev_attr_pmem_qos_class.attr,
 	NULL
 };
 

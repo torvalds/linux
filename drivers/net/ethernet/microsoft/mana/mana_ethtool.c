@@ -13,6 +13,46 @@ static const struct {
 } mana_eth_stats[] = {
 	{"stop_queue", offsetof(struct mana_ethtool_stats, stop_queue)},
 	{"wake_queue", offsetof(struct mana_ethtool_stats, wake_queue)},
+	{"hc_rx_discards_no_wqe", offsetof(struct mana_ethtool_stats,
+					   hc_rx_discards_no_wqe)},
+	{"hc_rx_err_vport_disabled", offsetof(struct mana_ethtool_stats,
+					      hc_rx_err_vport_disabled)},
+	{"hc_rx_bytes", offsetof(struct mana_ethtool_stats, hc_rx_bytes)},
+	{"hc_rx_ucast_pkts", offsetof(struct mana_ethtool_stats,
+				      hc_rx_ucast_pkts)},
+	{"hc_rx_ucast_bytes", offsetof(struct mana_ethtool_stats,
+				       hc_rx_ucast_bytes)},
+	{"hc_rx_bcast_pkts", offsetof(struct mana_ethtool_stats,
+				      hc_rx_bcast_pkts)},
+	{"hc_rx_bcast_bytes", offsetof(struct mana_ethtool_stats,
+				       hc_rx_bcast_bytes)},
+	{"hc_rx_mcast_pkts", offsetof(struct mana_ethtool_stats,
+			hc_rx_mcast_pkts)},
+	{"hc_rx_mcast_bytes", offsetof(struct mana_ethtool_stats,
+				       hc_rx_mcast_bytes)},
+	{"hc_tx_err_gf_disabled", offsetof(struct mana_ethtool_stats,
+					   hc_tx_err_gf_disabled)},
+	{"hc_tx_err_vport_disabled", offsetof(struct mana_ethtool_stats,
+					      hc_tx_err_vport_disabled)},
+	{"hc_tx_err_inval_vportoffset_pkt",
+	 offsetof(struct mana_ethtool_stats,
+		  hc_tx_err_inval_vportoffset_pkt)},
+	{"hc_tx_err_vlan_enforcement", offsetof(struct mana_ethtool_stats,
+						hc_tx_err_vlan_enforcement)},
+	{"hc_tx_err_eth_type_enforcement",
+	 offsetof(struct mana_ethtool_stats, hc_tx_err_eth_type_enforcement)},
+	{"hc_tx_err_sa_enforcement", offsetof(struct mana_ethtool_stats,
+					      hc_tx_err_sa_enforcement)},
+	{"hc_tx_err_sqpdid_enforcement",
+	 offsetof(struct mana_ethtool_stats, hc_tx_err_sqpdid_enforcement)},
+	{"hc_tx_err_cqpdid_enforcement",
+	 offsetof(struct mana_ethtool_stats, hc_tx_err_cqpdid_enforcement)},
+	{"hc_tx_err_mtu_violation", offsetof(struct mana_ethtool_stats,
+					     hc_tx_err_mtu_violation)},
+	{"hc_tx_err_inval_oob", offsetof(struct mana_ethtool_stats,
+					 hc_tx_err_inval_oob)},
+	{"hc_tx_err_gdma", offsetof(struct mana_ethtool_stats,
+				    hc_tx_err_gdma)},
 	{"hc_tx_bytes", offsetof(struct mana_ethtool_stats, hc_tx_bytes)},
 	{"hc_tx_ucast_pkts", offsetof(struct mana_ethtool_stats,
 					hc_tx_ucast_pkts)},
@@ -208,28 +248,28 @@ static u32 mana_rss_indir_size(struct net_device *ndev)
 	return MANA_INDIRECT_TABLE_SIZE;
 }
 
-static int mana_get_rxfh(struct net_device *ndev, u32 *indir, u8 *key,
-			 u8 *hfunc)
+static int mana_get_rxfh(struct net_device *ndev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
 	int i;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
+	rxfh->hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++)
-			indir[i] = apc->indir_table[i];
+			rxfh->indir[i] = apc->indir_table[i];
 	}
 
-	if (key)
-		memcpy(key, apc->hashkey, MANA_HASH_KEY_SIZE);
+	if (rxfh->key)
+		memcpy(rxfh->key, apc->hashkey, MANA_HASH_KEY_SIZE);
 
 	return 0;
 }
 
-static int mana_set_rxfh(struct net_device *ndev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
+static int mana_set_rxfh(struct net_device *ndev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
 {
 	struct mana_port_context *apc = netdev_priv(ndev);
 	bool update_hash = false, update_table = false;
@@ -240,25 +280,26 @@ static int mana_set_rxfh(struct net_device *ndev, const u32 *indir,
 	if (!apc->port_is_up)
 		return -EOPNOTSUPP;
 
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++)
-			if (indir[i] >= apc->num_queues)
+			if (rxfh->indir[i] >= apc->num_queues)
 				return -EINVAL;
 
 		update_table = true;
 		for (i = 0; i < MANA_INDIRECT_TABLE_SIZE; i++) {
 			save_table[i] = apc->indir_table[i];
-			apc->indir_table[i] = indir[i];
+			apc->indir_table[i] = rxfh->indir[i];
 		}
 	}
 
-	if (key) {
+	if (rxfh->key) {
 		update_hash = true;
 		memcpy(save_key, apc->hashkey, MANA_HASH_KEY_SIZE);
-		memcpy(apc->hashkey, key, MANA_HASH_KEY_SIZE);
+		memcpy(apc->hashkey, rxfh->key, MANA_HASH_KEY_SIZE);
 	}
 
 	err = mana_config_rss(apc, TRI_STATE_TRUE, update_hash, update_table);

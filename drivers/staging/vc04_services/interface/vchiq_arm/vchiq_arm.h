@@ -69,13 +69,6 @@ struct vchiq_instance {
 	struct vchiq_debugfs_node debugfs_node;
 };
 
-struct dump_context {
-	char __user *buf;
-	size_t actual;
-	size_t space;
-	loff_t offset;
-};
-
 extern spinlock_t msg_queue_spinlock;
 extern struct vchiq_state g_state;
 

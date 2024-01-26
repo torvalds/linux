@@ -57,7 +57,7 @@ EXPORT_SYMBOL_GPL(ocxl_irq_set_handler);
 
 static irqreturn_t afu_irq_handler(int virq, void *data)
 {
-	struct afu_irq *irq = (struct afu_irq *) data;
+	struct afu_irq *irq = data;
 
 	trace_ocxl_afu_irq_receive(virq);
 

@@ -984,10 +984,11 @@ free_ctrl:
 
 static void nvme_rdma_reconnect_or_remove(struct nvme_rdma_ctrl *ctrl)
 {
+	enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
+
 	/* If we are resetting/deleting then do nothing */
-	if (ctrl->ctrl.state != NVME_CTRL_CONNECTING) {
-		WARN_ON_ONCE(ctrl->ctrl.state == NVME_CTRL_NEW ||
-			ctrl->ctrl.state == NVME_CTRL_LIVE);
+	if (state != NVME_CTRL_CONNECTING) {
+		WARN_ON_ONCE(state == NVME_CTRL_NEW || state == NVME_CTRL_LIVE);
 		return;
 	}
 
@@ -1059,8 +1060,10 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 		 * unless we're during creation of a new controller to
 		 * avoid races with teardown flow.
 		 */
-		WARN_ON_ONCE(ctrl->ctrl.state != NVME_CTRL_DELETING &&
-			     ctrl->ctrl.state != NVME_CTRL_DELETING_NOIO);
+		enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
+
+		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
+			     state != NVME_CTRL_DELETING_NOIO);
 		WARN_ON_ONCE(new);
 		ret = -EINVAL;
 		goto destroy_io;
@@ -1080,6 +1083,7 @@ destroy_io:
 		nvme_rdma_free_io_queues(ctrl);
 	}
 destroy_admin:
+	nvme_stop_keep_alive(&ctrl->ctrl);
 	nvme_quiesce_admin_queue(&ctrl->ctrl);
 	blk_sync_queue(ctrl->ctrl.admin_q);
 	nvme_rdma_stop_queue(&ctrl->queues[0]);
@@ -1128,8 +1132,10 @@ static void nvme_rdma_error_recovery_work(struct work_struct *work)
 
 	if (!nvme_change_ctrl_state(&ctrl->ctrl, NVME_CTRL_CONNECTING)) {
 		/* state change failure is ok if we started ctrl delete */
-		WARN_ON_ONCE(ctrl->ctrl.state != NVME_CTRL_DELETING &&
-			     ctrl->ctrl.state != NVME_CTRL_DELETING_NOIO);
+		enum nvme_ctrl_state state = nvme_ctrl_state(&ctrl->ctrl);
+
+		WARN_ON_ONCE(state != NVME_CTRL_DELETING &&
+			     state != NVME_CTRL_DELETING_NOIO);
 		return;
 	}
 
@@ -1161,7 +1167,7 @@ static void nvme_rdma_wr_error(struct ib_cq *cq, struct ib_wc *wc,
 	struct nvme_rdma_queue *queue = wc->qp->qp_context;
 	struct nvme_rdma_ctrl *ctrl = queue->ctrl;
 
-	if (ctrl->ctrl.state == NVME_CTRL_LIVE)
+	if (nvme_ctrl_state(&ctrl->ctrl) == NVME_CTRL_LIVE)
 		dev_info(ctrl->ctrl.device,
 			     "%s for CQE 0x%p failed with status %s (%d)\n",
 			     op, wc->wr_cqe,
@@ -1417,7 +1423,7 @@ static int nvme_rdma_map_sg_pi(struct nvme_rdma_queue *queue,
 		goto mr_put;
 
 	nvme_rdma_set_sig_attrs(blk_get_integrity(bio->bi_bdev->bd_disk), c,
-				req->mr->sig_attrs, ns->pi_type);
+				req->mr->sig_attrs, ns->head->pi_type);
 	nvme_rdma_set_prot_checks(c, &req->mr->sig_attrs->check_mask);
 
 	ib_update_fast_reg_key(req->mr, ib_inc_rkey(req->mr->rkey));
@@ -1940,11 +1946,16 @@ static enum blk_eh_timer_return nvme_rdma_timeout(struct request *rq)
 	struct nvme_rdma_request *req = blk_mq_rq_to_pdu(rq);
 	struct nvme_rdma_queue *queue = req->queue;
 	struct nvme_rdma_ctrl *ctrl = queue->ctrl;
+	u8 opcode = req->req.cmd->common.opcode;
+	u8 fctype = req->req.cmd->fabrics.fctype;
+	int qid = nvme_rdma_queue_idx(queue);
 
-	dev_warn(ctrl->ctrl.device, "I/O %d QID %d timeout\n",
-		 rq->tag, nvme_rdma_queue_idx(queue));
+	dev_warn(ctrl->ctrl.device,
+		 "I/O tag %d (%04x) opcode %#x (%s) QID %d timeout\n",
+		 rq->tag, nvme_cid(rq), opcode,
+		 nvme_opcode_str(qid, opcode, fctype), qid);
 
-	if (ctrl->ctrl.state != NVME_CTRL_LIVE) {
+	if (nvme_ctrl_state(&ctrl->ctrl) != NVME_CTRL_LIVE) {
 		/*
 		 * If we are resetting, connecting or deleting we should
 		 * complete immediately because we may block controller
@@ -2011,7 +2022,7 @@ static blk_status_t nvme_rdma_queue_rq(struct blk_mq_hw_ctx *hctx,
 	    queue->pi_support &&
 	    (c->common.opcode == nvme_cmd_write ||
 	     c->common.opcode == nvme_cmd_read) &&
-	    nvme_ns_has_pi(ns))
+	    nvme_ns_has_pi(ns->head))
 		req->use_sig_mr = true;
 	else
 		req->use_sig_mr = false;

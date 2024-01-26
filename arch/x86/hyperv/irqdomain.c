@@ -212,7 +212,7 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 		 * This interrupt is already mapped. Let's unmap first.
 		 *
 		 * We don't use retarget interrupt hypercalls here because
-		 * Microsoft Hypervisor doens't allow root to change the vector
+		 * Microsoft Hypervisor doesn't allow root to change the vector
 		 * or specify VPs outside of the set that is initially used
 		 * during mapping.
 		 */

@@ -374,7 +374,7 @@ static int imx219_set_ctrl(struct v4l2_ctrl *ctrl)
 	int ret = 0;
 
 	state = v4l2_subdev_get_locked_active_state(&imx219->sd);
-	format = v4l2_subdev_get_pad_format(&imx219->sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	if (ctrl->id == V4L2_CID_VBLANK) {
 		int exposure_max, exposure_def;
@@ -593,8 +593,8 @@ static int imx219_set_framefmt(struct imx219 *imx219,
 	u64 bin_h, bin_v;
 	int ret = 0;
 
-	format = v4l2_subdev_get_pad_format(&imx219->sd, state, 0);
-	crop = v4l2_subdev_get_pad_crop(&imx219->sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
 
 	switch (format->code) {
 	case MEDIA_BUS_FMT_SRGGB8_1X8:
@@ -826,7 +826,7 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 
 	imx219_update_pad_format(imx219, mode, &fmt->format, fmt->format.code);
 
-	format = v4l2_subdev_get_pad_format(sd, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 	*format = fmt->format;
 
 	/*
@@ -836,7 +836,7 @@ static int imx219_set_pad_format(struct v4l2_subdev *sd,
 	bin_h = min(IMX219_PIXEL_ARRAY_WIDTH / format->width, 2U);
 	bin_v = min(IMX219_PIXEL_ARRAY_HEIGHT / format->height, 2U);
 
-	crop = v4l2_subdev_get_pad_crop(sd, state, 0);
+	crop = v4l2_subdev_state_get_crop(state, 0);
 	crop->width = format->width * bin_h;
 	crop->height = format->height * bin_v;
 	crop->left = (IMX219_NATIVE_WIDTH - crop->width) / 2;
@@ -880,7 +880,7 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 {
 	switch (sel->target) {
 	case V4L2_SEL_TGT_CROP: {
-		sel->r = *v4l2_subdev_get_pad_crop(sd, state, 0);
+		sel->r = *v4l2_subdev_state_get_crop(state, 0);
 		return 0;
 	}
 
@@ -905,8 +905,8 @@ static int imx219_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int imx219_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int imx219_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
@@ -933,7 +933,6 @@ static const struct v4l2_subdev_video_ops imx219_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx219_pad_ops = {
-	.init_cfg = imx219_init_cfg,
 	.enum_mbus_code = imx219_enum_mbus_code,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = imx219_set_pad_format,
@@ -947,6 +946,9 @@ static const struct v4l2_subdev_ops imx219_subdev_ops = {
 	.pad = &imx219_pad_ops,
 };
 
+static const struct v4l2_subdev_internal_ops imx219_internal_ops = {
+	.init_state = imx219_init_state,
+};
 
 /* -----------------------------------------------------------------------------
  * Power management
@@ -1098,6 +1100,7 @@ static int imx219_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	v4l2_i2c_subdev_init(&imx219->sd, client, &imx219_subdev_ops);
+	imx219->sd.internal_ops = &imx219_internal_ops;
 
 	/* Check the hardware configuration in device tree */
 	if (imx219_check_hwcfg(dev, imx219))

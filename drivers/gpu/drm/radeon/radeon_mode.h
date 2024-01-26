@@ -32,13 +32,13 @@
 
 #include <drm/display/drm_dp_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
+struct edid;
 struct radeon_bo;
 struct radeon_device;
 

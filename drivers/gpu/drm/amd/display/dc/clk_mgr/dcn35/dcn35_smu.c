@@ -116,6 +116,9 @@ static uint32_t dcn35_smu_wait_for_response(struct clk_mgr_internal *clk_mgr, un
 			msleep(delay_us/1000);
 		else if (delay_us > 0)
 			udelay(delay_us);
+
+		if (clk_mgr->base.ctx->dc->debug.disable_timeout)
+			max_retries++;
 	} while (max_retries--);
 
 	return res_val;
@@ -276,7 +279,7 @@ void dcn35_smu_set_display_idle_optimization(struct clk_mgr_internal *clk_mgr, u
 		clk_mgr,
 		VBIOSSMC_MSG_SetDisplayIdleOptimizations,
 		idle_info);
-	smu_print("VBIOSSMC_MSG_SetDisplayIdleOptimizations idle_info  = %d\n", idle_info);
+	smu_print("%s: VBIOSSMC_MSG_SetDisplayIdleOptimizations idle_info  = %x\n", __func__, idle_info);
 }
 
 void dcn35_smu_enable_phy_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable)
@@ -295,7 +298,7 @@ void dcn35_smu_enable_phy_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool e
 			clk_mgr,
 			VBIOSSMC_MSG_SetDisplayIdleOptimizations,
 			idle_info.data);
-	smu_print("dcn35_smu_enable_phy_refclk_pwrdwn  = %d\n", enable ? 1 : 0);
+	smu_print("%s smu_enable_phy_refclk_pwrdwn  = %d\n", __func__, enable ? 1 : 0);
 }
 
 void dcn35_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr)
@@ -307,6 +310,7 @@ void dcn35_smu_enable_pme_wa(struct clk_mgr_internal *clk_mgr)
 			clk_mgr,
 			VBIOSSMC_MSG_UpdatePmeRestore,
 			0);
+	smu_print("%s: SMC_MSG_UpdatePmeRestore\n", __func__);
 }
 
 void dcn35_smu_set_dram_addr_high(struct clk_mgr_internal *clk_mgr, uint32_t addr_high)
@@ -347,7 +351,7 @@ void dcn35_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr)
 
 void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zstate_support_state support)
 {
-	unsigned int msg_id, param;
+	unsigned int msg_id, param, retv;
 
 	if (!clk_mgr->smu_present)
 		return;
@@ -357,27 +361,32 @@ void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zst
 	case DCN_ZSTATE_SUPPORT_ALLOW:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 10) | (1 << 9) | (1 << 8);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW, param = %d\n", __func__, param);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_DISALLOW:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = 0;
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg_id = DISALLOW, param = %d\n",  __func__, param);
 		break;
 
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 10);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z10_ONLY, param = %d\n", __func__, param);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 10) | (1 << 8);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_Z10_ONLY, param = %d\n", __func__, param);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 8);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_ONLY, param = %d\n", __func__, param);
 		break;
 
 	default: //DCN_ZSTATE_SUPPORT_UNKNOWN
@@ -387,11 +396,11 @@ void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zst
 	}
 
 
-	dcn35_smu_send_msg_with_param(
+	retv = dcn35_smu_send_msg_with_param(
 		clk_mgr,
 		msg_id,
 		param);
-	smu_print("dcn35_smu_set_zstate_support msg_id = %d, param = %d\n", msg_id, param);
+	smu_print("%s:  msg_id = %d, param = 0x%x, return = %d\n", __func__, msg_id, param, retv);
 }
 
 int dcn35_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr)
@@ -405,7 +414,7 @@ int dcn35_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr)
 						 VBIOSSMC_MSG_GetDprefclkFreq,
 						 0);
 
-	smu_print("dcn35_smu_get_DPREF clk  = %d mhz\n", dprefclk);
+	smu_print("%s:  SMU DPREF clk  = %d mhz\n",  __func__, dprefclk);
 	return dprefclk * 1000;
 }
 
@@ -420,7 +429,7 @@ int dcn35_smu_get_dtbclk(struct clk_mgr_internal *clk_mgr)
 					       VBIOSSMC_MSG_GetDtbclkFreq,
 					       0);
 
-	smu_print("dcn35_smu_get_dtbclk  = %d mhz\n", dtbclk);
+	smu_print("%s: get_dtbclk  = %dmhz\n", __func__, dtbclk);
 	return dtbclk * 1000;
 }
 /* Arg = 1: Turn DTB on; 0: Turn DTB CLK OFF. when it is on, it is 600MHZ */
@@ -433,7 +442,7 @@ void dcn35_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
 			clk_mgr,
 			VBIOSSMC_MSG_SetDtbClk,
 			enable);
-	smu_print("dcn35_smu_set_dtbclk  = %d \n", enable ? 1 : 0);
+	smu_print("%s: smu_set_dtbclk = %d\n", __func__, enable ? 1 : 0);
 }
 
 void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable)
@@ -442,30 +451,45 @@ void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *cl
 			clk_mgr,
 			VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown,
 			enable);
+	smu_print("%s: smu_enable_48mhz_tmdp_refclk_pwrdwn = %d\n", __func__, enable ? 1 : 0);
 }
 
 int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
 {
-	return dcn35_smu_send_msg_with_param(
+	int retv;
+
+	retv = dcn35_smu_send_msg_with_param(
 		clk_mgr,
 		VBIOSSMC_MSG_DispPsrExit,
 		0);
+	smu_print("%s: smu_exit_low_power_state return = %d\n", __func__, retv);
+	return retv;
 }
 
 int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 {
-	return dcn35_smu_send_msg_with_param(
+	int retv;
+
+	retv = dcn35_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_QueryIPS2Support,
 			0);
+
+	//smu_print("%s: VBIOSSMC_MSG_QueryIPS2Support return = %x\n", __func__, retv);
+	return retv;
 }
 
 void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t param)
 {
 	REG_WRITE(MP1_SMN_C2PMSG_71, param);
+	//smu_print("%s: write_ips_scratch = %x\n", __func__, param);
 }
 
 uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr)
 {
-	return REG_READ(MP1_SMN_C2PMSG_71);
+	uint32_t retv;
+
+	retv = REG_READ(MP1_SMN_C2PMSG_71);
+	//smu_print("%s: dcn35_smu_read_ips_scratch = %x\n",  __func__, retv);
+	return retv;
 }

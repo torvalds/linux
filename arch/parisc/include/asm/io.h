@@ -132,8 +132,6 @@ static inline void gsc_writeq(unsigned long long val, unsigned long addr)
 
 #define ioremap_wc(addr, size)  \
 	ioremap_prot((addr), (size), _PAGE_IOREMAP)
-#define ioremap_uc(addr, size)  \
-	ioremap_prot((addr), (size), _PAGE_IOREMAP)
 
 #define pci_iounmap			pci_iounmap
 
@@ -266,12 +264,6 @@ extern void iowrite64be(u64 val, void __iomem *addr);
 #define iowrite8_rep iowrite8_rep
 #define iowrite16_rep iowrite16_rep
 #define iowrite32_rep iowrite32_rep
-
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
 
 extern int devmem_is_allowed(unsigned long pfn);
 

@@ -35,11 +35,3 @@ __kernel_size_t __clear_user_hexagon(void __user *dest, unsigned long count)
 
 	return count;
 }
-
-unsigned long clear_user_hexagon(void __user *dest, unsigned long count)
-{
-	if (!access_ok(dest, count))
-		return count;
-	else
-		return __clear_user_hexagon(dest, count);
-}

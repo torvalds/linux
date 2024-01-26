@@ -12,6 +12,7 @@
 	compatible = "tronsmart,orion-r68-meta", "rockchip,rk3368";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &sdmmc;
 		mmc1 = &emmc;
 	};

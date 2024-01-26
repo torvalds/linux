@@ -15,10 +15,12 @@
 #include "xfs_icache.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
+#include "xfs_health.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
 #include "scrub/readdir.h"
+#include "scrub/health.h"
 
 /* Set us up to scrub directories. */
 int
@@ -760,6 +762,11 @@ xchk_directory(
 	if (!S_ISDIR(VFS_I(sc->ip)->i_mode))
 		return -ENOENT;
 
+	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_DIR_ZAPPED)) {
+		xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, 0);
+		return 0;
+	}
+
 	/* Plausible size? */
 	if (sc->ip->i_disk_size < xfs_dir2_sf_hdr_size(0)) {
 		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
@@ -784,7 +791,36 @@ xchk_directory(
 
 	/* Look up every name in this directory by hash. */
 	error = xchk_dir_walk(sc, sc->ip, xchk_dir_actor, NULL);
-	if (error == -ECANCELED)
-		error = 0;
-	return error;
+	if (error && error != -ECANCELED)
+		return error;
+
+	/* If the dir is clean, it is clearly not zapped. */
+	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_DIR_ZAPPED);
+	return 0;
+}
+
+/*
+ * Decide if this directory has been zapped to satisfy the inode and ifork
+ * verifiers.  Checking and repairing should be postponed until the directory
+ * is fixed.
+ */
+bool
+xchk_dir_looks_zapped(
+	struct xfs_inode	*dp)
+{
+	/* Repair zapped this dir's data fork a short time ago */
+	if (xfs_ifork_zapped(dp, XFS_DATA_FORK))
+		return true;
+
+	/*
+	 * If the dinode repair found a bad data fork, it will reset the fork
+	 * to extents format with zero records and wait for the bmapbtd
+	 * scrubber to reconstruct the block mappings.  Directories always
+	 * contain some content, so this is a clear sign of a zapped directory.
+	 * The state checked by xfs_ifork_zapped is not persisted, so this is
+	 * the secondary strategy if repairs are interrupted by a crash or an
+	 * unmount.
+	 */
+	return dp->i_df.if_format == XFS_DINODE_FMT_EXTENTS &&
+	       dp->i_df.if_nextents == 0;
 }

@@ -1246,7 +1246,7 @@ static struct usb_driver uas_driver = {
 	.suspend = uas_suspend,
 	.resume = uas_resume,
 	.reset_resume = uas_reset_resume,
-	.drvwrap.driver.shutdown = uas_shutdown,
+	.driver.shutdown = uas_shutdown,
 	.id_table = uas_usb_ids,
 };
 

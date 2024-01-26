@@ -64,6 +64,7 @@ enum mlx5_ib_uapi_dm_type {
 	MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM,
 	MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM,
 	MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_PATTERN_SW_ICM,
+	MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM,
 };
 
 enum mlx5_ib_uapi_devx_create_event_channel_flags {

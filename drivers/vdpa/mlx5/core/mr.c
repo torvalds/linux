@@ -498,32 +498,54 @@ static void destroy_user_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr
 
 static void _mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev, struct mlx5_vdpa_mr *mr)
 {
+	if (WARN_ON(!mr))
+		return;
+
 	if (mr->user_mr)
 		destroy_user_mr(mvdev, mr);
 	else
 		destroy_dma_mr(mvdev, mr);
 
 	vhost_iotlb_free(mr->iotlb);
+
+	list_del(&mr->mr_list);
+
+	kfree(mr);
 }
 
-void mlx5_vdpa_destroy_mr(struct mlx5_vdpa_dev *mvdev,
-			  struct mlx5_vdpa_mr *mr)
+static void _mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
+			      struct mlx5_vdpa_mr *mr)
 {
 	if (!mr)
 		return;
 
+	if (refcount_dec_and_test(&mr->refcount))
+		_mlx5_vdpa_destroy_mr(mvdev, mr);
+}
+
+void mlx5_vdpa_put_mr(struct mlx5_vdpa_dev *mvdev,
+		      struct mlx5_vdpa_mr *mr)
+{
 	mutex_lock(&mvdev->mr_mtx);
-
-	_mlx5_vdpa_destroy_mr(mvdev, mr);
-
-	for (int i = 0; i < MLX5_VDPA_NUM_AS; i++) {
-		if (mvdev->mr[i] == mr)
-			mvdev->mr[i] = NULL;
-	}
-
+	_mlx5_vdpa_put_mr(mvdev, mr);
 	mutex_unlock(&mvdev->mr_mtx);
+}
 
-	kfree(mr);
+static void _mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
+			      struct mlx5_vdpa_mr *mr)
+{
+	if (!mr)
+		return;
+
+	refcount_inc(&mr->refcount);
+}
+
+void mlx5_vdpa_get_mr(struct mlx5_vdpa_dev *mvdev,
+		      struct mlx5_vdpa_mr *mr)
+{
+	mutex_lock(&mvdev->mr_mtx);
+	_mlx5_vdpa_get_mr(mvdev, mr);
+	mutex_unlock(&mvdev->mr_mtx);
 }
 
 void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
@@ -534,10 +556,23 @@ void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
 
 	mutex_lock(&mvdev->mr_mtx);
 
+	_mlx5_vdpa_put_mr(mvdev, old_mr);
 	mvdev->mr[asid] = new_mr;
-	if (old_mr) {
-		_mlx5_vdpa_destroy_mr(mvdev, old_mr);
-		kfree(old_mr);
+
+	mutex_unlock(&mvdev->mr_mtx);
+}
+
+static void mlx5_vdpa_show_mr_leaks(struct mlx5_vdpa_dev *mvdev)
+{
+	struct mlx5_vdpa_mr *mr;
+
+	mutex_lock(&mvdev->mr_mtx);
+
+	list_for_each_entry(mr, &mvdev->mr_list_head, mr_list) {
+
+		mlx5_vdpa_warn(mvdev, "mkey still alive after resource delete: "
+				      "mr: %p, mkey: 0x%x, refcount: %u\n",
+				       mr, mr->mkey, refcount_read(&mr->refcount));
 	}
 
 	mutex_unlock(&mvdev->mr_mtx);
@@ -547,9 +582,11 @@ void mlx5_vdpa_update_mr(struct mlx5_vdpa_dev *mvdev,
 void mlx5_vdpa_destroy_mr_resources(struct mlx5_vdpa_dev *mvdev)
 {
 	for (int i = 0; i < MLX5_VDPA_NUM_AS; i++)
-		mlx5_vdpa_destroy_mr(mvdev, mvdev->mr[i]);
+		mlx5_vdpa_update_mr(mvdev, NULL, i);
 
 	prune_iotlb(mvdev->cvq.iotlb);
+
+	mlx5_vdpa_show_mr_leaks(mvdev);
 }
 
 static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
@@ -575,6 +612,8 @@ static int _mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 	err = dup_iotlb(mr->iotlb, iotlb);
 	if (err)
 		goto err_iotlb;
+
+	list_add_tail(&mr->mr_list, &mvdev->mr_list_head);
 
 	return 0;
 
@@ -606,6 +645,8 @@ struct mlx5_vdpa_mr *mlx5_vdpa_create_mr(struct mlx5_vdpa_dev *mvdev,
 
 	if (err)
 		goto out_err;
+
+	refcount_set(&mr->refcount, 1);
 
 	return mr;
 
@@ -651,7 +692,7 @@ int mlx5_vdpa_reset_mr(struct mlx5_vdpa_dev *mvdev, unsigned int asid)
 	if (asid >= MLX5_VDPA_NUM_AS)
 		return -EINVAL;
 
-	mlx5_vdpa_destroy_mr(mvdev, mvdev->mr[asid]);
+	mlx5_vdpa_update_mr(mvdev, NULL, asid);
 
 	if (asid == 0 && MLX5_CAP_GEN(mvdev->mdev, umem_uid_0)) {
 		if (mlx5_vdpa_create_dma_mr(mvdev))

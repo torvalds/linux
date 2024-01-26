@@ -77,7 +77,7 @@ __sync_print(struct i915_syncmap *p,
 		for_each_set_bit(i, (unsigned long *)&p->bitmap, KSYNCMAP) {
 			buf = __sync_print(__sync_child(p)[i], buf, sz,
 					   depth + 1,
-					   last << 1 | !!(p->bitmap >> (i + 1)),
+					   last << 1 | ((p->bitmap >> (i + 1)) ? 1 : 0),
 					   i);
 		}
 	}

@@ -311,12 +311,6 @@ static int cvm_ecb_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	return cvm_setkey(cipher, key, keylen, AES_ECB);
 }
 
-static int cvm_cfb_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
-			      u32 keylen)
-{
-	return cvm_setkey(cipher, key, keylen, AES_CFB);
-}
-
 static int cvm_cbc_des3_setkey(struct crypto_skcipher *cipher, const u8 *key,
 			       u32 keylen)
 {
@@ -388,24 +382,6 @@ static struct skcipher_alg algs[] = { {
 	.min_keysize		= AES_MIN_KEY_SIZE,
 	.max_keysize		= AES_MAX_KEY_SIZE,
 	.setkey			= cvm_ecb_aes_setkey,
-	.encrypt		= cvm_encrypt,
-	.decrypt		= cvm_decrypt,
-	.init			= cvm_enc_dec_init,
-}, {
-	.base.cra_flags		= CRYPTO_ALG_ASYNC |
-				  CRYPTO_ALG_ALLOCATES_MEMORY,
-	.base.cra_blocksize	= AES_BLOCK_SIZE,
-	.base.cra_ctxsize	= sizeof(struct cvm_enc_ctx),
-	.base.cra_alignmask	= 7,
-	.base.cra_priority	= 4001,
-	.base.cra_name		= "cfb(aes)",
-	.base.cra_driver_name	= "cavium-cfb-aes",
-	.base.cra_module	= THIS_MODULE,
-
-	.ivsize			= AES_BLOCK_SIZE,
-	.min_keysize		= AES_MIN_KEY_SIZE,
-	.max_keysize		= AES_MAX_KEY_SIZE,
-	.setkey			= cvm_cfb_aes_setkey,
 	.encrypt		= cvm_encrypt,
 	.decrypt		= cvm_decrypt,
 	.init			= cvm_enc_dec_init,

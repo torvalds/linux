@@ -27,7 +27,7 @@ static int test_stat_cpu(void)
 	};
 	int err, idx;
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	__T("failed to create cpus", cpus);
 
 	evsel = perf_evsel__new(&attr);

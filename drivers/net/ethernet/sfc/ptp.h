@@ -18,8 +18,11 @@ void efx_ptp_defer_probe_with_channel(struct efx_nic *efx);
 struct efx_channel *efx_ptp_channel(struct efx_nic *efx);
 void efx_ptp_update_channel(struct efx_nic *efx, struct efx_channel *channel);
 void efx_ptp_remove(struct efx_nic *efx);
-int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr);
-int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr);
+int efx_ptp_set_ts_config(struct efx_nic *efx,
+			  struct kernel_hwtstamp_config *config,
+			  struct netlink_ext_ack *extack);
+int efx_ptp_get_ts_config(struct efx_nic *efx,
+			  struct kernel_hwtstamp_config *config);
 void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info);
 bool efx_ptp_is_ptp_tx(struct efx_nic *efx, struct sk_buff *skb);
 int efx_ptp_get_mode(struct efx_nic *efx);

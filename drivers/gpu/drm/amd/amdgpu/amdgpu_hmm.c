@@ -190,8 +190,8 @@ int amdgpu_hmm_range_get_pages(struct mmu_interval_notifier *notifier,
 		pr_debug("hmm range: start = 0x%lx, end = 0x%lx",
 			hmm_range->start, hmm_range->end);
 
-		/* Assuming 128MB takes maximum 1 second to fault page address */
-		timeout = max((hmm_range->end - hmm_range->start) >> 27, 1UL);
+		/* Assuming 64MB takes maximum 1 second to fault page address */
+		timeout = max((hmm_range->end - hmm_range->start) >> 26, 1UL);
 		timeout *= HMM_RANGE_DEFAULT_TIMEOUT;
 		timeout = jiffies + msecs_to_jiffies(timeout);
 
@@ -199,6 +199,7 @@ retry:
 		hmm_range->notifier_seq = mmu_interval_read_begin(notifier);
 		r = hmm_range_fault(hmm_range);
 		if (unlikely(r)) {
+			schedule();
 			/*
 			 * FIXME: This timeout should encompass the retry from
 			 * mmu_interval_read_retry() as well.
@@ -212,7 +213,6 @@ retry:
 			break;
 		hmm_range->hmm_pfns += MAX_WALK_BYTE >> PAGE_SHIFT;
 		hmm_range->start = hmm_range->end;
-		schedule();
 	} while (hmm_range->end < end);
 
 	hmm_range->start = start;

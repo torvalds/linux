@@ -58,12 +58,13 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 						       struct extent_io_tree *tree,
 						       u64 start, u64 end)
 {
-	struct btrfs_inode *inode = tree->inode;
+	const struct btrfs_inode *inode;
 	u64 isize;
 
-	if (!inode)
+	if (tree->owner != IO_TREE_INODE_IO)
 		return;
 
+	inode = extent_io_tree_to_inode_const(tree);
 	isize = i_size_read(&inode->vfs_inode);
 	if (end >= PAGE_SIZE && (end % 2) == 0 && end != isize - 1) {
 		btrfs_debug_rl(inode->root->fs_info,
@@ -78,31 +79,46 @@ static inline void __btrfs_debug_check_extent_io_range(const char *caller,
 #define btrfs_debug_check_extent_io_range(c, s, e)	do {} while (0)
 #endif
 
-/*
- * For the file_extent_tree, we want to hold the inode lock when we lookup and
- * update the disk_i_size, but lockdep will complain because our io_tree we hold
- * the tree lock and get the inode lock when setting delalloc.  These two things
- * are unrelated, so make a class for the file_extent_tree so we don't get the
- * two locking patterns mixed up.
- */
-static struct lock_class_key file_extent_tree_class;
 
-struct tree_entry {
-	u64 start;
-	u64 end;
-	struct rb_node rb_node;
-};
+/*
+ * The only tree allowed to set the inode is IO_TREE_INODE_IO.
+ */
+static bool is_inode_io_tree(const struct extent_io_tree *tree)
+{
+	return tree->owner == IO_TREE_INODE_IO;
+}
+
+/* Return the inode if it's valid for the given tree, otherwise NULL. */
+struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree)
+{
+	if (tree->owner == IO_TREE_INODE_IO)
+		return tree->inode;
+	return NULL;
+}
+
+/* Read-only access to the inode. */
+const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree)
+{
+	if (tree->owner == IO_TREE_INODE_IO)
+		return tree->inode;
+	return NULL;
+}
+
+/* For read-only access to fs_info. */
+const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree)
+{
+	if (tree->owner == IO_TREE_INODE_IO)
+		return tree->inode->root->fs_info;
+	return tree->fs_info;
+}
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner)
 {
-	tree->fs_info = fs_info;
 	tree->state = RB_ROOT;
 	spin_lock_init(&tree->lock);
-	tree->inode = NULL;
+	tree->fs_info = fs_info;
 	tree->owner = owner;
-	if (owner == IO_TREE_INODE_FILE_EXTENT)
-		lockdep_set_class(&tree->lock, &file_extent_tree_class);
 }
 
 /*
@@ -329,10 +345,14 @@ static inline struct extent_state *tree_search(struct extent_io_tree *tree, u64 
 	return tree_search_for_insert(tree, offset, NULL, NULL);
 }
 
-static void extent_io_tree_panic(struct extent_io_tree *tree, int err)
+static void extent_io_tree_panic(const struct extent_io_tree *tree,
+				 const struct extent_state *state,
+				 const char *opname,
+				 int err)
 {
-	btrfs_panic(tree->fs_info, err,
-	"locking error: extent tree was modified by another thread while locked");
+	btrfs_panic(extent_io_tree_to_fs_info(tree), err,
+		    "extent io tree error on %s state start %llu end %llu",
+		    opname, state->start, state->end);
 }
 
 static void merge_prev_state(struct extent_io_tree *tree, struct extent_state *state)
@@ -341,8 +361,9 @@ static void merge_prev_state(struct extent_io_tree *tree, struct extent_state *s
 
 	prev = prev_state(state);
 	if (prev && prev->end == state->start - 1 && prev->state == state->state) {
-		if (tree->inode)
-			btrfs_merge_delalloc_extent(tree->inode, state, prev);
+		if (is_inode_io_tree(tree))
+			btrfs_merge_delalloc_extent(extent_io_tree_to_inode(tree),
+						    state, prev);
 		state->start = prev->start;
 		rb_erase(&prev->rb_node, &tree->state);
 		RB_CLEAR_NODE(&prev->rb_node);
@@ -356,8 +377,9 @@ static void merge_next_state(struct extent_io_tree *tree, struct extent_state *s
 
 	next = next_state(state);
 	if (next && next->start == state->end + 1 && next->state == state->state) {
-		if (tree->inode)
-			btrfs_merge_delalloc_extent(tree->inode, state, next);
+		if (is_inode_io_tree(tree))
+			btrfs_merge_delalloc_extent(extent_io_tree_to_inode(tree),
+						    state, next);
 		state->end = next->end;
 		rb_erase(&next->rb_node, &tree->state);
 		RB_CLEAR_NODE(&next->rb_node);
@@ -390,8 +412,8 @@ static void set_state_bits(struct extent_io_tree *tree,
 	u32 bits_to_set = bits & ~EXTENT_CTLBITS;
 	int ret;
 
-	if (tree->inode)
-		btrfs_set_delalloc_extent(tree->inode, state, bits);
+	if (is_inode_io_tree(tree))
+		btrfs_set_delalloc_extent(extent_io_tree_to_inode(tree), state, bits);
 
 	ret = add_extent_changeset(state, bits_to_set, changeset, 1);
 	BUG_ON(ret < 0);
@@ -436,9 +458,10 @@ static struct extent_state *insert_state(struct extent_io_tree *tree,
 		if (state->end < entry->start) {
 			if (try_merge && end == entry->start &&
 			    state->state == entry->state) {
-				if (tree->inode)
-					btrfs_merge_delalloc_extent(tree->inode,
-								    state, entry);
+				if (is_inode_io_tree(tree))
+					btrfs_merge_delalloc_extent(
+							extent_io_tree_to_inode(tree),
+							state, entry);
 				entry->start = state->start;
 				merge_prev_state(tree, entry);
 				state->state = 0;
@@ -448,9 +471,10 @@ static struct extent_state *insert_state(struct extent_io_tree *tree,
 		} else if (state->end > entry->end) {
 			if (try_merge && entry->end == start &&
 			    state->state == entry->state) {
-				if (tree->inode)
-					btrfs_merge_delalloc_extent(tree->inode,
-								    state, entry);
+				if (is_inode_io_tree(tree))
+					btrfs_merge_delalloc_extent(
+							extent_io_tree_to_inode(tree),
+							state, entry);
 				entry->end = state->end;
 				merge_next_state(tree, entry);
 				state->state = 0;
@@ -458,9 +482,6 @@ static struct extent_state *insert_state(struct extent_io_tree *tree,
 			}
 			node = &(*node)->rb_right;
 		} else {
-			btrfs_err(tree->fs_info,
-			       "found node %llu %llu on insert of %llu %llu",
-			       entry->start, entry->end, state->start, state->end);
 			return ERR_PTR(-EEXIST);
 		}
 	}
@@ -505,8 +526,9 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 	struct rb_node *parent = NULL;
 	struct rb_node **node;
 
-	if (tree->inode)
-		btrfs_split_delalloc_extent(tree->inode, orig, split);
+	if (is_inode_io_tree(tree))
+		btrfs_split_delalloc_extent(extent_io_tree_to_inode(tree), orig,
+					    split);
 
 	prealloc->start = orig->start;
 	prealloc->end = split - 1;
@@ -553,8 +575,9 @@ static struct extent_state *clear_state_bit(struct extent_io_tree *tree,
 	u32 bits_to_clear = bits & ~EXTENT_CTLBITS;
 	int ret;
 
-	if (tree->inode)
-		btrfs_clear_delalloc_extent(tree->inode, state, bits);
+	if (is_inode_io_tree(tree))
+		btrfs_clear_delalloc_extent(extent_io_tree_to_inode(tree), state,
+					    bits);
 
 	ret = add_extent_changeset(state, bits_to_clear, changeset, 0);
 	BUG_ON(ret < 0);
@@ -695,7 +718,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, start);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		prealloc = NULL;
 		if (err)
@@ -717,7 +740,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		if (wake)
 			wake_up(&state->wq);
@@ -939,6 +962,8 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 	struct extent_state *state;
 	int ret = 1;
 
+	ASSERT(!btrfs_fs_incompat(extent_io_tree_to_fs_info(tree), NO_HOLES));
+
 	spin_lock(&tree->lock);
 	state = find_first_extent_bit_state(tree, start, bits);
 	if (state) {
@@ -1152,7 +1177,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, start);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		prealloc = NULL;
 		if (err)
@@ -1200,7 +1225,7 @@ hit_next:
 		inserted_state = insert_state(tree, prealloc, bits, changeset);
 		if (IS_ERR(inserted_state)) {
 			err = PTR_ERR(inserted_state);
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, prealloc, "insert", err);
 		}
 
 		cache_state(inserted_state, cached_state);
@@ -1228,7 +1253,7 @@ hit_next:
 			goto search_again;
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		set_state_bits(tree, prealloc, bits, changeset);
 		cache_state(prealloc, cached_state);
@@ -1382,7 +1407,7 @@ hit_next:
 		}
 		err = split_state(tree, state, prealloc, start);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 		prealloc = NULL;
 		if (err)
 			goto out;
@@ -1430,7 +1455,7 @@ hit_next:
 		inserted_state = insert_state(tree, prealloc, bits, NULL);
 		if (IS_ERR(inserted_state)) {
 			err = PTR_ERR(inserted_state);
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, prealloc, "insert", err);
 		}
 		cache_state(inserted_state, cached_state);
 		if (inserted_state == prealloc)
@@ -1453,7 +1478,7 @@ hit_next:
 
 		err = split_state(tree, state, prealloc, end + 1);
 		if (err)
-			extent_io_tree_panic(tree, err);
+			extent_io_tree_panic(tree, state, "split", err);
 
 		set_state_bits(tree, prealloc, bits, NULL);
 		cache_state(prealloc, cached_state);

@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
+	depends on USB || MMC || SPI
 	depends on CFG80211
-	select WIRELESS_EXT
-	select WEXT_SPY
 	select LIB80211
 	select FW_LOADER
 	help
@@ -14,12 +13,6 @@ config LIBERTAS_USB
 	depends on LIBERTAS && USB
 	help
 	  A driver for Marvell Libertas 8388 USB devices.
-
-config LIBERTAS_CS
-	tristate "Marvell Libertas 8385 CompactFlash 802.11b/g cards"
-	depends on LIBERTAS && PCMCIA && HAS_IOPORT_MAP
-	help
-	  A driver for Marvell Libertas 8385 CompactFlash devices.
 
 config LIBERTAS_SDIO
 	tristate "Marvell Libertas 8385/8686/8688 SDIO 802.11b/g cards"

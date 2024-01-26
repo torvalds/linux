@@ -4,7 +4,6 @@
 #
 
 config FB_CORE
-	select FB_IOMEM_FOPS
 	select VIDEO_CMDLINE
 	tristate
 
@@ -129,7 +128,7 @@ config FB_LITTLE_ENDIAN
 
 endchoice
 
-config FB_SYS_FOPS
+config FB_SYSMEM_FOPS
 	tristate
 	depends on FB_CORE
 
@@ -142,8 +141,8 @@ config FB_DMAMEM_HELPERS
 	depends on FB_CORE
 	select FB_SYS_COPYAREA
 	select FB_SYS_FILLRECT
-	select FB_SYS_FOPS
 	select FB_SYS_IMAGEBLIT
+	select FB_SYSMEM_FOPS
 
 config FB_IOMEM_FOPS
 	tristate
@@ -168,8 +167,8 @@ config FB_SYSMEM_HELPERS
 	depends on FB_CORE
 	select FB_SYS_COPYAREA
 	select FB_SYS_FILLRECT
-	select FB_SYS_FOPS
 	select FB_SYS_IMAGEBLIT
+	select FB_SYSMEM_FOPS
 
 config FB_SYSMEM_HELPERS_DEFERRED
 	bool

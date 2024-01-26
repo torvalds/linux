@@ -33,6 +33,91 @@
 #include <asm/irqflags-compact.h>
 #include <asm/thread_info.h>	/* For THREAD_SIZE */
 
+/* Note on the LD/ST addr modes with addr reg wback
+ *
+ * LD.a same as LD.aw
+ *
+ * LD.a    reg1, [reg2, x]  => Pre Incr
+ *      Eff Addr for load = [reg2 + x]
+ *
+ * LD.ab   reg1, [reg2, x]  => Post Incr
+ *      Eff Addr for load = [reg2]
+ */
+
+.macro PUSHAX aux
+	lr	r9, [\aux]
+	push	r9
+.endm
+
+.macro POPAX aux
+	pop	r9
+	sr	r9, [\aux]
+.endm
+
+.macro  SAVE_R0_TO_R12
+	push	r0
+	push	r1
+	push	r2
+	push	r3
+	push	r4
+	push	r5
+	push	r6
+	push	r7
+	push	r8
+	push	r9
+	push	r10
+	push	r11
+	push	r12
+.endm
+
+.macro RESTORE_R12_TO_R0
+	pop	r12
+	pop	r11
+	pop	r10
+	pop	r9
+	pop	r8
+	pop	r7
+	pop	r6
+	pop	r5
+	pop	r4
+	pop	r3
+	pop	r2
+	pop	r1
+	pop	r0
+.endm
+
+.macro SAVE_ABI_CALLEE_REGS
+	push	r13
+	push	r14
+	push	r15
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	push	r20
+	push	r21
+	push	r22
+	push	r23
+	push	r24
+	push	r25
+.endm
+
+.macro RESTORE_ABI_CALLEE_REGS
+	pop	r25
+	pop	r24
+	pop	r23
+	pop	r22
+	pop	r21
+	pop	r20
+	pop	r19
+	pop	r18
+	pop	r17
+	pop	r16
+	pop	r15
+	pop	r14
+	pop	r13
+.endm
+
 /*--------------------------------------------------------------
  * Switch to Kernel Mode stack if SP points to User Mode stack
  *
@@ -235,7 +320,7 @@
 	SWITCH_TO_KERNEL_STK
 
 
-	PUSH	0x003\LVL\()abcd    /* Dummy ECR */
+	st.a	0x003\LVL\()abcd, [sp, -4]	/* Dummy ECR */
 	sub	sp, sp, 8	    /* skip orig_r0 (not needed)
 				       skip pt_regs->sp, already saved above */
 

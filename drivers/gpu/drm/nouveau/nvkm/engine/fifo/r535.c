@@ -242,6 +242,7 @@ r535_chan_id_put(struct nvkm_chan *chan)
 				nvkm_memory_unref(&userd->mem);
 				nvkm_chid_put(runl->chid, userd->chid, &chan->cgrp->lock);
 				list_del(&userd->head);
+				kfree(userd);
 			}
 
 			break;
@@ -350,7 +351,7 @@ r535_engn_nonstall(struct nvkm_engn *engn)
 	int ret;
 
 	ret = nvkm_gsp_intr_nonstall(subdev->device->gsp, subdev->type, subdev->inst);
-	WARN_ON(ret < 0);
+	WARN_ON(ret == -ENOENT);
 	return ret;
 }
 
@@ -539,7 +540,7 @@ r535_fifo_runl_ctor(struct nvkm_fifo *fifo)
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn;
 	u32 cgids = 2048;
-	u32 chids = 2048 / CHID_PER_USERD;
+	u32 chids = 2048;
 	int ret;
 	NV2080_CTRL_FIFO_GET_DEVICE_INFO_TABLE_PARAMS *ctrl;
 

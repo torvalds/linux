@@ -309,7 +309,7 @@ static ssize_t xilinx_dpdma_debugfs_desc_done_irq_read(char *buf)
 
 	out_str_len = strlen(XILINX_DPDMA_DEBUGFS_UINT16_MAX_STR);
 	out_str_len = min_t(size_t, XILINX_DPDMA_DEBUGFS_READ_MAX_SIZE,
-			    out_str_len);
+			    out_str_len + 1);
 	snprintf(buf, out_str_len, "%d",
 		 dpdma_debugfs.xilinx_dpdma_irq_done_count);
 

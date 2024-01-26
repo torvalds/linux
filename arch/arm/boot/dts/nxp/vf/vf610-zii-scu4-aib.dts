@@ -47,17 +47,17 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch0: switch0@0 {
+			switch0: ethernet-switch@0 {
 				compatible = "marvell,mv88e6190";
 				reg = <0>;
 				dsa,member = <0 0>;
 				eeprom-length = <65536>;
 
-				ports {
+				ethernet-ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@0 {
+					ethernet-port@0 {
 						reg = <0>;
 						phy-mode = "rmii";
 						ethernet = <&fec1>;
@@ -68,37 +68,37 @@
 						};
 					};
 
-					port@1 {
+					ethernet-port@1 {
 						reg = <1>;
 						label = "aib2main_1";
 					};
 
-					port@2 {
+					ethernet-port@2 {
 						reg = <2>;
 						label = "aib2main_2";
 					};
 
-					port@3 {
+					ethernet-port@3 {
 						reg = <3>;
 						label = "eth_cu_1000_5";
 					};
 
-					port@4 {
+					ethernet-port@4 {
 						reg = <4>;
 						label = "eth_cu_1000_6";
 					};
 
-					port@5 {
+					ethernet-port@5 {
 						reg = <5>;
 						label = "eth_cu_1000_4";
 					};
 
-					port@6 {
+					ethernet-port@6 {
 						reg = <6>;
 						label = "eth_cu_1000_7";
 					};
 
-					port@7 {
+					ethernet-port@7 {
 						reg = <7>;
 						label = "modem_pic";
 
@@ -108,7 +108,7 @@
 						};
 					};
 
-					switch0port10: port@10 {
+					switch0port10: ethernet-port@10 {
 						reg = <10>;
 						label = "dsa";
 						phy-mode = "xgmii";
@@ -130,32 +130,32 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch1: switch1@0 {
+			switch1: ethernet-switch@0 {
 				compatible = "marvell,mv88e6190";
 				reg = <0>;
 				dsa,member = <0 1>;
 				eeprom-length = <65536>;
 
-				ports {
+				ethernet-ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@1 {
+					ethernet-port@1 {
 						reg = <1>;
 						label = "eth_cu_1000_3";
 					};
 
-					port@2 {
+					ethernet-port@2 {
 						reg = <2>;
 						label = "eth_cu_100_2";
 					};
 
-					port@3 {
+					ethernet-port@3 {
 						reg = <3>;
 						label = "eth_cu_100_3";
 					};
 
-					switch1port9: port@9 {
+					switch1port9: ethernet-port@9 {
 						reg = <9>;
 						label = "dsa";
 						phy-mode = "xgmii";
@@ -168,7 +168,7 @@
 						};
 					};
 
-					switch1port10: port@10 {
+					switch1port10: ethernet-port@10 {
 						reg = <10>;
 						label = "dsa";
 						phy-mode = "xgmii";
@@ -188,17 +188,17 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch2: switch2@0 {
+			switch2: ethernet-switch@0 {
 				compatible = "marvell,mv88e6190";
 				reg = <0>;
 				dsa,member = <0 2>;
 				eeprom-length = <65536>;
 
-				ports {
+				ethernet-ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@2 {
+					ethernet-port@2 {
 						reg = <2>;
 						label = "eth_fc_1000_2";
 						phy-mode = "1000base-x";
@@ -206,7 +206,7 @@
 						sfp = <&sff1>;
 					};
 
-					port@3 {
+					ethernet-port@3 {
 						reg = <3>;
 						label = "eth_fc_1000_3";
 						phy-mode = "1000base-x";
@@ -214,7 +214,7 @@
 						sfp = <&sff2>;
 					};
 
-					port@4 {
+					ethernet-port@4 {
 						reg = <4>;
 						label = "eth_fc_1000_4";
 						phy-mode = "1000base-x";
@@ -222,7 +222,7 @@
 						sfp = <&sff3>;
 					};
 
-					port@5 {
+					ethernet-port@5 {
 						reg = <5>;
 						label = "eth_fc_1000_5";
 						phy-mode = "1000base-x";
@@ -230,7 +230,7 @@
 						sfp = <&sff4>;
 					};
 
-					port@6 {
+					ethernet-port@6 {
 						reg = <6>;
 						label = "eth_fc_1000_6";
 						phy-mode = "1000base-x";
@@ -238,7 +238,7 @@
 						sfp = <&sff5>;
 					};
 
-					port@7 {
+					ethernet-port@7 {
 						reg = <7>;
 						label = "eth_fc_1000_7";
 						phy-mode = "1000base-x";
@@ -246,7 +246,7 @@
 						sfp = <&sff6>;
 					};
 
-					port@9 {
+					ethernet-port@9 {
 						reg = <9>;
 						label = "eth_fc_1000_1";
 						phy-mode = "1000base-x";
@@ -254,7 +254,7 @@
 						sfp = <&sff0>;
 					};
 
-					switch2port10: port@10 {
+					switch2port10: ethernet-port@10 {
 						reg = <10>;
 						label = "dsa";
 						phy-mode = "2500base-x";
@@ -276,17 +276,17 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			switch3: switch3@0 {
+			switch3: ethernet-switch@0 {
 				compatible = "marvell,mv88e6190";
 				reg = <0>;
 				dsa,member = <0 3>;
 				eeprom-length = <65536>;
 
-				ports {
+				ethernet-ports {
 					#address-cells = <1>;
 					#size-cells = <0>;
 
-					port@2 {
+					ethernet-port@2 {
 						reg = <2>;
 						label = "eth_fc_1000_8";
 						phy-mode = "1000base-x";
@@ -294,7 +294,7 @@
 						sfp = <&sff7>;
 					};
 
-					port@3 {
+					ethernet-port@3 {
 						reg = <3>;
 						label = "eth_fc_1000_9";
 						phy-mode = "1000base-x";
@@ -302,7 +302,7 @@
 						sfp = <&sff8>;
 					};
 
-					port@4 {
+					ethernet-port@4 {
 						reg = <4>;
 						label = "eth_fc_1000_10";
 						phy-mode = "1000base-x";
@@ -310,7 +310,7 @@
 						sfp = <&sff9>;
 					};
 
-					switch3port9: port@9 {
+					switch3port9: ethernet-port@9 {
 						reg = <9>;
 						label = "dsa";
 						phy-mode = "2500base-x";
@@ -322,7 +322,7 @@
 						};
 					};
 
-					switch3port10: port@10 {
+					switch3port10: ethernet-port@10 {
 						reg = <10>;
 						label = "dsa";
 						phy-mode = "xgmii";

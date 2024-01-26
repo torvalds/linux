@@ -10,10 +10,9 @@
 / {
 	spmi: spmi@fff24000 {
 		compatible = "hisilicon,kirin970-spmi-controller";
+		reg = <0x0 0xfff24000 0x0 0x1000>;
 		#address-cells = <2>;
 		#size-cells = <0>;
-		status = "okay";
-		reg = <0x0 0xfff24000 0x0 0x1000>;
 		hisilicon,spmi-channel = <2>;
 
 		pmic: pmic@0 {
@@ -25,9 +24,6 @@
 			gpios = <&gpio28 0 0>;
 
 			regulators {
-				#address-cells = <1>;
-				#size-cells = <0>;
-
 				ldo3: ldo3 { /* HDMI */
 					regulator-name = "ldo3";
 					regulator-min-microvolt = <1500000>;

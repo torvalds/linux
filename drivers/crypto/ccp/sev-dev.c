@@ -906,7 +906,7 @@ static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
 		/*
 		 * The length of the ID shouldn't be assumed by software since
 		 * it may change in the future.  The allocation size is limited
-		 * to 1 << (PAGE_SHIFT + MAX_ORDER) by the page allocator.
+		 * to 1 << (PAGE_SHIFT + MAX_PAGE_ORDER) by the page allocator.
 		 * If the allocation fails, simply return ENOMEM rather than
 		 * warning in the kernel log.
 		 */

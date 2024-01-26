@@ -27,7 +27,7 @@ static void namespace_pmem_release(struct device *dev)
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 
 	if (nspm->id >= 0)
-		ida_simple_remove(&nd_region->ns_ida, nspm->id);
+		ida_free(&nd_region->ns_ida, nspm->id);
 	kfree(nspm->alt_name);
 	kfree(nspm->uuid);
 	kfree(nspm);
@@ -71,6 +71,8 @@ static int is_namespace_uuid_busy(struct device *dev, void *data)
  * nd_is_uuid_unique - verify that no other namespace has @uuid
  * @dev: any device on a nvdimm_bus
  * @uuid: uuid to check
+ *
+ * Returns: %true if the uuid is unique, %false if not
  */
 bool nd_is_uuid_unique(struct device *dev, uuid_t *uuid)
 {
@@ -337,6 +339,8 @@ static int scan_free(struct nd_region *nd_region,
  * adjust_resource() the allocation to @n, but if @n is larger than the
  * allocation delete it and find the 'new' last allocation in the label
  * set.
+ *
+ * Returns: %0 on success on -errno on error
  */
 static int shrink_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
@@ -662,6 +666,8 @@ void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
  * allocations from the start of an interleave set and end at the first
  * BLK allocation or the end of the interleave set, whichever comes
  * first.
+ *
+ * Returns: %0 on success on -errno on error
  */
 static int grow_dpa_allocation(struct nd_region *nd_region,
 		struct nd_label_id *label_id, resource_size_t n)
@@ -951,6 +957,8 @@ static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
  * @dev: namespace type for generating label_id
  * @new_uuid: incoming uuid
  * @old_uuid: reference to the uuid storage location in the namespace object
+ *
+ * Returns: %0 on success on -errno on error
  */
 static int namespace_update_uuid(struct nd_region *nd_region,
 				 struct device *dev, uuid_t *new_uuid,
@@ -1656,8 +1664,10 @@ static int select_pmem_id(struct nd_region *nd_region, const uuid_t *pmem_id)
 /**
  * create_namespace_pmem - validate interleave set labelling, retrieve label0
  * @nd_region: region with mappings to validate
- * @nspm: target namespace to create
+ * @nd_mapping: container of dpa-resource-root + labels
  * @nd_label: target pmem namespace label to evaluate
+ *
+ * Returns: the created &struct device on success or ERR_PTR(-errno) on error
  */
 static struct device *create_namespace_pmem(struct nd_region *nd_region,
 					    struct nd_mapping *nd_mapping,
@@ -1810,7 +1820,7 @@ static struct device *nd_namespace_pmem_create(struct nd_region *nd_region)
 	res->name = dev_name(&nd_region->dev);
 	res->flags = IORESOURCE_MEM;
 
-	nspm->id = ida_simple_get(&nd_region->ns_ida, 0, 0, GFP_KERNEL);
+	nspm->id = ida_alloc(&nd_region->ns_ida, GFP_KERNEL);
 	if (nspm->id < 0) {
 		kfree(nspm);
 		return NULL;
@@ -2188,8 +2198,7 @@ int nd_region_register_namespaces(struct nd_region *nd_region, int *err)
 			struct nd_namespace_pmem *nspm;
 
 			nspm = to_nd_namespace_pmem(dev);
-			id = ida_simple_get(&nd_region->ns_ida, 0, 0,
-					    GFP_KERNEL);
+			id = ida_alloc(&nd_region->ns_ida, GFP_KERNEL);
 			nspm->id = id;
 		} else
 			id = i;

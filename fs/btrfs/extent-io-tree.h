@@ -87,9 +87,17 @@ enum {
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct btrfs_fs_info *fs_info;
-	/* Inode associated with this tree, or NULL. */
-	struct btrfs_inode *inode;
+	/*
+	 * The fs_info is needed for trace points, a tree attached to an inode
+	 * needs the inode.
+	 *
+	 * owner == IO_TREE_INODE_IO - then inode is valid and fs_info can be
+	 *                             accessed as inode->root->fs_info
+	 */
+	union {
+		struct btrfs_fs_info *fs_info;
+		struct btrfs_inode *inode;
+	};
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
 	u8 owner;
@@ -111,6 +119,10 @@ struct extent_state {
 	struct list_head leak_list;
 #endif
 };
+
+struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree);
+const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree);
+const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
 
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner);

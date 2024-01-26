@@ -160,7 +160,7 @@ static int imx_dsp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int imx_dsp_remove(struct platform_device *pdev)
+static void imx_dsp_remove(struct platform_device *pdev)
 {
 	struct imx_dsp_chan *dsp_chan;
 	struct imx_dsp_ipc *dsp_ipc;
@@ -173,8 +173,6 @@ static int imx_dsp_remove(struct platform_device *pdev)
 		mbox_free_channel(dsp_chan->ch);
 		kfree(dsp_chan->name);
 	}
-
-	return 0;
 }
 
 static struct platform_driver imx_dsp_driver = {
@@ -182,7 +180,7 @@ static struct platform_driver imx_dsp_driver = {
 		.name = "imx-dsp",
 	},
 	.probe = imx_dsp_probe,
-	.remove = imx_dsp_remove,
+	.remove_new = imx_dsp_remove,
 };
 builtin_platform_driver(imx_dsp_driver);
 

@@ -245,7 +245,14 @@ static int i3c_hci_send_ccc_cmd(struct i3c_master_controller *m,
 		if (ccc->rnw)
 			ccc->dests[i - prefixed].payload.len =
 				RESP_DATA_LENGTH(xfer[i].response);
-		if (RESP_STATUS(xfer[i].response) != RESP_SUCCESS) {
+		switch (RESP_STATUS(xfer[i].response)) {
+		case RESP_SUCCESS:
+			continue;
+		case RESP_ERR_ADDR_HEADER:
+		case RESP_ERR_NACK:
+			ccc->err = I3C_ERROR_M2;
+			fallthrough;
+		default:
 			ret = -EIO;
 			goto out;
 		}
@@ -267,6 +274,34 @@ static int i3c_hci_daa(struct i3c_master_controller *m)
 	DBG("");
 
 	return hci->cmd->perform_daa(hci);
+}
+
+static int i3c_hci_alloc_safe_xfer_buf(struct i3c_hci *hci,
+				       struct hci_xfer *xfer)
+{
+	if (hci->io != &mipi_i3c_hci_dma ||
+	    xfer->data == NULL || !is_vmalloc_addr(xfer->data))
+		return 0;
+
+	if (xfer->rnw)
+		xfer->bounce_buf = kzalloc(xfer->data_len, GFP_KERNEL);
+	else
+		xfer->bounce_buf = kmemdup(xfer->data,
+					   xfer->data_len, GFP_KERNEL);
+
+	return xfer->bounce_buf == NULL ? -ENOMEM : 0;
+}
+
+static void i3c_hci_free_safe_xfer_buf(struct i3c_hci *hci,
+				       struct hci_xfer *xfer)
+{
+	if (hci->io != &mipi_i3c_hci_dma || xfer->bounce_buf == NULL)
+		return;
+
+	if (xfer->rnw)
+		memcpy(xfer->data, xfer->bounce_buf, xfer->data_len);
+
+	kfree(xfer->bounce_buf);
 }
 
 static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
@@ -302,6 +337,9 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 		}
 		hci->cmd->prep_i3c_xfer(hci, dev, &xfer[i]);
 		xfer[i].cmd_desc[0] |= CMD_0_ROC;
+		ret = i3c_hci_alloc_safe_xfer_buf(hci, &xfer[i]);
+		if (ret)
+			goto out;
 	}
 	last = i - 1;
 	xfer[last].cmd_desc[0] |= CMD_0_TOC;
@@ -325,6 +363,9 @@ static int i3c_hci_priv_xfers(struct i3c_dev_desc *dev,
 	}
 
 out:
+	for (i = 0; i < nxfers; i++)
+		i3c_hci_free_safe_xfer_buf(hci, &xfer[i]);
+
 	hci_free_xfer(xfer, nxfers);
 	return ret;
 }
@@ -350,6 +391,9 @@ static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
 		xfer[i].rnw = i2c_xfers[i].flags & I2C_M_RD;
 		hci->cmd->prep_i2c_xfer(hci, dev, &xfer[i]);
 		xfer[i].cmd_desc[0] |= CMD_0_ROC;
+		ret = i3c_hci_alloc_safe_xfer_buf(hci, &xfer[i]);
+		if (ret)
+			goto out;
 	}
 	last = i - 1;
 	xfer[last].cmd_desc[0] |= CMD_0_TOC;
@@ -371,6 +415,9 @@ static int i3c_hci_i2c_xfers(struct i2c_dev_desc *dev,
 	}
 
 out:
+	for (i = 0; i < nxfers; i++)
+		i3c_hci_free_safe_xfer_buf(hci, &xfer[i]);
+
 	hci_free_xfer(xfer, nxfers);
 	return ret;
 }

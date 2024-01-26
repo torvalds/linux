@@ -10,6 +10,10 @@
 / {
 	model = "Khadas Edge-Captain";
 	compatible = "khadas,edge-captain", "rockchip,rk3399";
+
+	aliases {
+		ethernet0 = &gmac;
+	};
 };
 
 &gmac {

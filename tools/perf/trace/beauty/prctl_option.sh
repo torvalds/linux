@@ -4,9 +4,9 @@
 [ $# -eq 1 ] && header_dir=$1 || header_dir=tools/include/uapi/linux/
 
 printf "static const char *prctl_options[] = {\n"
-regex='^#define[[:space:]]{1}PR_(\w+)[[:space:]]*([[:xdigit:]]+)([[:space:]]*\/.*)?$'
+regex='^#define[[:space:]]{1}PR_(\w+)[[:space:]]*([[:xdigit:]]+)([[:space:]]*/.*)?$'
 grep -E $regex ${header_dir}/prctl.h | grep -v PR_SET_PTRACER | \
-	sed -r "s/$regex/\2 \1/g"	| \
+	sed -E "s%$regex%\2 \1%g"	| \
 	sort -n | xargs printf "\t[%s] = \"%s\",\n"
 printf "};\n"
 

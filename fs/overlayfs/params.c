@@ -743,10 +743,8 @@ void ovl_free_fs(struct ovl_fs *ofs)
 	unsigned i;
 
 	iput(ofs->workbasedir_trap);
-	iput(ofs->indexdir_trap);
 	iput(ofs->workdir_trap);
 	dput(ofs->whiteout);
-	dput(ofs->indexdir);
 	dput(ofs->workdir);
 	if (ofs->workdir_locked)
 		ovl_inuse_unlock(ofs->workbasedir);

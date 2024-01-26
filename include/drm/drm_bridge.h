@@ -194,7 +194,7 @@ struct drm_bridge_funcs {
 	 * or &drm_encoder_helper_funcs.dpms hook.
 	 *
 	 * The bridge must assume that the display pipe (i.e. clocks and timing
-	 * singals) feeding it is no longer running when this callback is
+	 * signals) feeding it is no longer running when this callback is
 	 * called.
 	 *
 	 * The @post_disable callback is optional.
@@ -949,7 +949,5 @@ static inline struct drm_bridge *drmm_of_get_bridge(struct drm_device *drm,
 	return ERR_PTR(-ENODEV);
 }
 #endif
-
-void drm_bridge_debugfs_init(struct drm_device *dev);
 
 #endif

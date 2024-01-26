@@ -114,7 +114,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3,
  *
  * The function is complicated by the ultimate brokenness of the IOC3 chip
  * which is used in SGI systems.  The IOC3 can only handle 32-bit PCI
- * accesses and does only decode parts of it's address space.
+ * accesses and does only decode parts of its address space.
  */
 static int pci_conf0_read_config(struct pci_bus *bus, unsigned int devfn,
 				 int where, int size, u32 *value)

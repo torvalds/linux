@@ -71,6 +71,11 @@ is unknown to the kernel.
         of 'stream' fields (referring to the stream number) with various
         ioctls. If this is not set (which is the default), the 'stream' fields
         will be forced to 0 by the kernel.
+    * - ``V4L2_SUBDEV_CLIENT_CAP_INTERVAL_USES_WHICH``
+      - The client is aware of the :c:type:`v4l2_subdev_frame_interval`
+        ``which`` field. If this is not set (which is the default), the
+        ``which`` field is forced to ``V4L2_SUBDEV_FORMAT_ACTIVE`` by the
+        kernel.
 
 Return Value
 ============

@@ -307,7 +307,7 @@ static u64 qcom_icc_calc_rate(struct qcom_icc_provider *qp, struct qcom_icc_node
 
 	if (qn->ib_coeff) {
 		agg_peak_rate = qn->max_peak[ctx] * 100;
-		agg_peak_rate = div_u64(qn->max_peak[ctx], qn->ib_coeff);
+		agg_peak_rate = div_u64(agg_peak_rate, qn->ib_coeff);
 	} else {
 		agg_peak_rate = qn->max_peak[ctx];
 	}
@@ -627,14 +627,12 @@ err_disable_unprepare_clk:
 }
 EXPORT_SYMBOL(qnoc_probe);
 
-int qnoc_remove(struct platform_device *pdev)
+void qnoc_remove(struct platform_device *pdev)
 {
 	struct qcom_icc_provider *qp = platform_get_drvdata(pdev);
 
 	icc_provider_deregister(&qp->provider);
 	icc_nodes_remove(&qp->provider);
 	clk_disable_unprepare(qp->bus_clk);
-
-	return 0;
 }
 EXPORT_SYMBOL(qnoc_remove);

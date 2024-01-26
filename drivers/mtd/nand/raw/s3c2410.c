@@ -105,7 +105,6 @@ struct s3c2410_nand_info;
 
 /**
  * struct s3c2410_nand_mtd - driver MTD structure
- * @mtd: The MTD instance to pass to the MTD layer.
  * @chip: The NAND chip information.
  * @set: The platform information supplied for this set of NAND chips.
  * @info: Link back to the hardware information.
@@ -145,7 +144,6 @@ enum s3c_nand_clk_state {
  * @clk_rate: The clock rate from @clk.
  * @clk_state: The current clock state.
  * @cpu_type: The exact type of this controller.
- * @freq_transition: CPUFreq notifier block
  */
 struct s3c2410_nand_info {
 	/* mtd info */

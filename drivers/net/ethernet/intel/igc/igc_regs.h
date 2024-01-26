@@ -243,6 +243,11 @@
 #define IGC_SYSTIMR	0x0B6F8  /* System time register Residue */
 #define IGC_TIMINCA	0x0B608  /* Increment attributes register - RW */
 
+#define IGC_SYSTIML_1	0x0B688  /* System time register Low - RO (timer 1) */
+#define IGC_SYSTIMH_1	0x0B68C  /* System time register High - RO (timer 1) */
+#define IGC_SYSTIMR_1	0x0B684  /* System time register Residue (timer 1) */
+#define IGC_TIMINCA_1	0x0B690  /* Increment attributes register - RW (timer 1) */
+
 /* TX Timestamp Low */
 #define IGC_TXSTMPL_0		0x0B618
 #define IGC_TXSTMPL_1		0x0B698

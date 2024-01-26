@@ -923,7 +923,7 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 	return 0;
 }
 
-static int _intel_hdcp_enable(struct intel_connector *connector)
+static int intel_hdcp1_enable(struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	struct intel_hdcp *hdcp = &connector->hdcp;
@@ -1058,7 +1058,7 @@ static int intel_hdcp_check_link(struct intel_connector *connector)
 		goto out;
 	}
 
-	ret = _intel_hdcp_enable(connector);
+	ret = intel_hdcp1_enable(connector);
 	if (ret) {
 		drm_err(&i915->drm, "Failed to enable hdcp (%d)\n", ret);
 		intel_hdcp_update_value(connector,
@@ -2324,10 +2324,10 @@ intel_hdcp_set_streams(struct intel_digital_port *dig_port,
 	return 0;
 }
 
-int intel_hdcp_enable(struct intel_atomic_state *state,
-		      struct intel_encoder *encoder,
-		      const struct intel_crtc_state *pipe_config,
-		      const struct drm_connector_state *conn_state)
+static int _intel_hdcp_enable(struct intel_atomic_state *state,
+			      struct intel_encoder *encoder,
+			      const struct intel_crtc_state *pipe_config,
+			      const struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	struct intel_connector *connector =
@@ -2388,7 +2388,7 @@ int intel_hdcp_enable(struct intel_atomic_state *state,
 	 */
 	if (ret && intel_hdcp_capable(connector) &&
 	    hdcp->content_type != DRM_MODE_HDCP_CONTENT_TYPE1) {
-		ret = _intel_hdcp_enable(connector);
+		ret = intel_hdcp1_enable(connector);
 	}
 
 	if (!ret) {
@@ -2402,6 +2402,27 @@ int intel_hdcp_enable(struct intel_atomic_state *state,
 	mutex_unlock(&dig_port->hdcp_mutex);
 	mutex_unlock(&hdcp->mutex);
 	return ret;
+}
+
+void intel_hdcp_enable(struct intel_atomic_state *state,
+		       struct intel_encoder *encoder,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state)
+{
+	struct intel_connector *connector =
+		to_intel_connector(conn_state->connector);
+	struct intel_hdcp *hdcp = &connector->hdcp;
+
+	/*
+	 * Enable hdcp if it's desired or if userspace is enabled and
+	 * driver set its state to undesired
+	 */
+	if (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_DESIRED ||
+	    (conn_state->content_protection ==
+	    DRM_MODE_CONTENT_PROTECTION_ENABLED && hdcp->value ==
+	    DRM_MODE_CONTENT_PROTECTION_UNDESIRED))
+		_intel_hdcp_enable(state, encoder, crtc_state, conn_state);
 }
 
 int intel_hdcp_disable(struct intel_connector *connector)
@@ -2491,7 +2512,7 @@ void intel_hdcp_update_pipe(struct intel_atomic_state *state,
 	}
 
 	if (desired_and_not_enabled || content_protection_type_changed)
-		intel_hdcp_enable(state, encoder, crtc_state, conn_state);
+		_intel_hdcp_enable(state, encoder, crtc_state, conn_state);
 }
 
 void intel_hdcp_component_fini(struct drm_i915_private *i915)

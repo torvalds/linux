@@ -150,18 +150,18 @@ static bool vimc_debayer_src_code_is_valid(u32 code)
 	return false;
 }
 
-static int vimc_debayer_init_cfg(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *sd_state)
+static int vimc_debayer_init_state(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_state *sd_state)
 {
 	struct vimc_debayer_device *vdebayer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf;
 	unsigned int i;
 
-	mf = v4l2_subdev_get_try_format(sd, sd_state, 0);
+	mf = v4l2_subdev_state_get_format(sd_state, 0);
 	*mf = sink_fmt_default;
 
 	for (i = 1; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mf = v4l2_subdev_state_get_format(sd_state, i);
 		*mf = sink_fmt_default;
 		mf->code = vdebayer->src_code;
 	}
@@ -221,7 +221,7 @@ static int vimc_debayer_get_fmt(struct v4l2_subdev *sd,
 
 	/* Get the current sink format */
 	fmt->format = fmt->which == V4L2_SUBDEV_FORMAT_TRY ?
-		      *v4l2_subdev_get_try_format(sd, sd_state, 0) :
+		      *v4l2_subdev_state_get_format(sd_state, 0) :
 		      vdebayer->sink_fmt;
 
 	/* Set the right code for the source pad */
@@ -267,8 +267,8 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 		sink_fmt = &vdebayer->sink_fmt;
 		src_code = &vdebayer->src_code;
 	} else {
-		sink_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
-		src_code = &v4l2_subdev_get_try_format(sd, sd_state, 1)->code;
+		sink_fmt = v4l2_subdev_state_get_format(sd_state, 0);
+		src_code = &v4l2_subdev_state_get_format(sd_state, 1)->code;
 	}
 
 	/*
@@ -307,7 +307,6 @@ static int vimc_debayer_set_fmt(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_pad_ops vimc_debayer_pad_ops = {
-	.init_cfg		= vimc_debayer_init_cfg,
 	.enum_mbus_code		= vimc_debayer_enum_mbus_code,
 	.enum_frame_size	= vimc_debayer_enum_frame_size,
 	.get_fmt		= vimc_debayer_get_fmt,
@@ -393,6 +392,10 @@ static const struct v4l2_subdev_ops vimc_debayer_ops = {
 	.core = &vimc_debayer_core_ops,
 	.pad = &vimc_debayer_pad_ops,
 	.video = &vimc_debayer_video_ops,
+};
+
+static const struct v4l2_subdev_internal_ops vimc_debayer_internal_ops = {
+	.init_state = vimc_debayer_init_state,
 };
 
 static unsigned int vimc_debayer_get_val(const u8 *bytes,
@@ -594,6 +597,8 @@ static struct vimc_ent_device *vimc_debayer_add(struct vimc_device *vimc,
 				   vdebayer->pads, &vimc_debayer_ops);
 	if (ret)
 		goto err_free_hdl;
+
+	vdebayer->sd.internal_ops = &vimc_debayer_internal_ops;
 
 	vdebayer->ved.process_frame = vimc_debayer_process_frame;
 	vdebayer->ved.dev = vimc->mdev.dev;

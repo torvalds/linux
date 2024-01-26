@@ -2,8 +2,8 @@
 /*
  * Cryptographic API.
  *
- * Glue code for the SHA1 Secure Hash Algorithm assembler implementation using
- * Supplemental SSE3 instructions.
+ * Glue code for the SHA1 Secure Hash Algorithm assembler implementations
+ * using SSSE3, AVX, AVX2, and SHA-NI instructions.
  *
  * This file is based on sha1_generic.c
  *
@@ -28,6 +28,9 @@
 #include <asm/simd.h>
 
 static const struct x86_cpu_id module_cpu_ids[] = {
+#ifdef CONFIG_AS_SHA1_NI
+	X86_MATCH_FEATURE(X86_FEATURE_SHA_NI, NULL),
+#endif
 	X86_MATCH_FEATURE(X86_FEATURE_AVX2, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_AVX, NULL),
 	X86_MATCH_FEATURE(X86_FEATURE_SSSE3, NULL),

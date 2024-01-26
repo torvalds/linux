@@ -127,20 +127,13 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
-	/* When a client exits without waiting for it's queued up jobs to
-	 * finish it might happen that we fault the channel. This is due to
-	 * drm_file_free() calling drm_gem_release() before the postclose()
-	 * callback. Hence, we can't tear down this scheduler entity before
-	 * uvmm mappings are unmapped. Currently, we can't detect this case.
-	 *
-	 * However, this should be rare and harmless, since the channel isn't
-	 * needed anymore.
-	 */
-	nouveau_sched_entity_fini(&chan->sched_entity);
+	/* Cancel all jobs from the entity's queue. */
+	drm_sched_entity_fini(&chan->sched.entity);
 
-	/* wait for all activity to stop before cleaning up */
 	if (chan->chan)
 		nouveau_channel_idle(chan->chan);
+
+	nouveau_sched_fini(&chan->sched);
 
 	/* cleanup notifier state */
 	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
@@ -344,8 +337,8 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	ret = nouveau_sched_entity_init(&chan->sched_entity, &drm->sched,
-					drm->sched_wq);
+	ret = nouveau_sched_init(&chan->sched, drm, drm->sched_wq,
+				 chan->chan->dma.ib_max);
 	if (ret)
 		goto done;
 

@@ -180,6 +180,21 @@ of ftrace. Here is a list of some of the key files:
 	Only active when the file contains a number greater than 0.
 	(in microseconds)
 
+  buffer_percent:
+
+	This is the watermark for how much the ring buffer needs to be filled
+	before a waiter is woken up. That is, if an application calls a
+	blocking read syscall on one of the per_cpu trace_pipe_raw files, it
+	will block until the given amount of data specified by buffer_percent
+	is in the ring buffer before it wakes the reader up. This also
+	controls how the splice system calls are blocked on this file::
+
+	  0   - means to wake up as soon as there is any data in the ring buffer.
+	  50  - means to wake up when roughly half of the ring buffer sub-buffers
+	        are full.
+	  100 - means to block until the ring buffer is totally full and is
+	        about to start overwriting the older data.
+
   buffer_size_kb:
 
 	This sets or displays the number of kilobytes each CPU
@@ -202,6 +217,27 @@ of ftrace. Here is a list of some of the key files:
   buffer_total_size_kb:
 
 	This displays the total combined size of all the trace buffers.
+
+  buffer_subbuf_size_kb:
+
+	This sets or displays the sub buffer size. The ring buffer is broken up
+	into several same size "sub buffers". An event can not be bigger than
+	the size of the sub buffer. Normally, the sub buffer is the size of the
+	architecture's page (4K on x86). The sub buffer also contains meta data
+	at the start which also limits the size of an event.  That means when
+	the sub buffer is a page size, no event can be larger than the page
+	size minus the sub buffer meta data.
+
+	Note, the buffer_subbuf_size_kb is a way for the user to specify the
+	minimum size of the subbuffer. The kernel may make it bigger due to the
+	implementation details, or simply fail the operation if the kernel can
+	not handle the request.
+
+	Changing the sub buffer size allows for events to be larger than the
+	page size.
+
+	Note: When changing the sub-buffer size, tracing is stopped and any
+	data in the ring buffer and the snapshot buffer will be discarded.
 
   free_buffer:
 
@@ -2574,7 +2610,7 @@ want, depending on your needs.
 
 - The cpu number on which the function executed is default
   enabled.  It is sometimes better to only trace one cpu (see
-  tracing_cpu_mask file) or you might sometimes see unordered
+  tracing_cpumask file) or you might sometimes see unordered
   function calls while cpu tracing switch.
 
 	- hide: echo nofuncgraph-cpu > trace_options

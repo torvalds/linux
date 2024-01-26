@@ -218,7 +218,14 @@ void
 __drm_gem_duplicate_shadow_plane_state(struct drm_plane *plane,
 				       struct drm_shadow_plane_state *new_shadow_plane_state)
 {
+	struct drm_plane_state *plane_state = plane->state;
+	struct drm_shadow_plane_state *shadow_plane_state =
+		to_drm_shadow_plane_state(plane_state);
+
 	__drm_atomic_helper_plane_duplicate_state(plane, &new_shadow_plane_state->base);
+
+	drm_format_conv_state_copy(&shadow_plane_state->fmtcnv_state,
+				   &new_shadow_plane_state->fmtcnv_state);
 }
 EXPORT_SYMBOL(__drm_gem_duplicate_shadow_plane_state);
 
@@ -266,6 +273,7 @@ EXPORT_SYMBOL(drm_gem_duplicate_shadow_plane_state);
  */
 void __drm_gem_destroy_shadow_plane_state(struct drm_shadow_plane_state *shadow_plane_state)
 {
+	drm_format_conv_state_release(&shadow_plane_state->fmtcnv_state);
 	__drm_atomic_helper_plane_destroy_state(&shadow_plane_state->base);
 }
 EXPORT_SYMBOL(__drm_gem_destroy_shadow_plane_state);
@@ -302,6 +310,7 @@ void __drm_gem_reset_shadow_plane(struct drm_plane *plane,
 				  struct drm_shadow_plane_state *shadow_plane_state)
 {
 	__drm_atomic_helper_plane_reset(plane, &shadow_plane_state->base);
+	drm_format_conv_state_init(&shadow_plane_state->fmtcnv_state);
 }
 EXPORT_SYMBOL(__drm_gem_reset_shadow_plane);
 

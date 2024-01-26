@@ -4,6 +4,7 @@
 #ifndef _I40E_DIAG_H_
 #define _I40E_DIAG_H_
 
+#include <linux/types.h>
 #include "i40e_adminq_cmd.h"
 
 /* forward-declare the HW struct for the compiler */

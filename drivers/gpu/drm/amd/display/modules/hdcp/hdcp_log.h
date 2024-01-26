@@ -86,10 +86,12 @@
 #define HDCP_CPIRQ_TRACE(hdcp) \
 		HDCP_LOG_FSM(hdcp, "[Link %d] --> CPIRQ", hdcp->config.index)
 #define HDCP_EVENT_TRACE(hdcp, event) \
-		if (event == MOD_HDCP_EVENT_WATCHDOG_TIMEOUT) \
-			HDCP_TIMEOUT_TRACE(hdcp); \
-		else if (event == MOD_HDCP_EVENT_CPIRQ) \
-			HDCP_CPIRQ_TRACE(hdcp)
+		do { \
+			if (event == MOD_HDCP_EVENT_WATCHDOG_TIMEOUT) \
+				HDCP_TIMEOUT_TRACE(hdcp); \
+			else if (event == MOD_HDCP_EVENT_CPIRQ) \
+				HDCP_CPIRQ_TRACE(hdcp);	\
+		} while (0)
 /* TODO: find some way to tell if logging is off to save time */
 #define HDCP_DDC_READ_TRACE(hdcp, msg_name, msg, msg_size) do { \
 		mod_hdcp_dump_binary_message(msg, msg_size, hdcp->buf, \

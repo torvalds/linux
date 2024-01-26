@@ -17,7 +17,7 @@ properties:
   compatible:
     items:
       - enum:
-          - renesas,r9a07g043-usbphy-ctrl # RZ/G2UL
+          - renesas,r9a07g043-usbphy-ctrl # RZ/G2UL and RZ/Five
           - renesas,r9a07g044-usbphy-ctrl # RZ/G2{L,LC}
           - renesas,r9a07g054-usbphy-ctrl # RZ/V2L
       - const: renesas,rzg2l-usbphy-ctrl

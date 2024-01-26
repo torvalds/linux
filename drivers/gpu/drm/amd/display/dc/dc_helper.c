@@ -50,7 +50,7 @@ static inline void submit_dmub_read_modify_write(
 	cmd_buf->header.payload_bytes =
 			sizeof(struct dmub_cmd_read_modify_write_sequence) * offload->reg_seq_count;
 
-	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -67,7 +67,7 @@ static inline void submit_dmub_burst_write(
 	cmd_buf->header.payload_bytes =
 			sizeof(uint32_t) * offload->reg_seq_count;
 
-	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -80,7 +80,7 @@ static inline void submit_dmub_reg_wait(
 {
 	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
 
-	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 	offload->reg_seq_count = 0;

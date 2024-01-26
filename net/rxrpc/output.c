@@ -494,14 +494,12 @@ send_fragmentable:
 	switch (conn->local->srx.transport.family) {
 	case AF_INET6:
 	case AF_INET:
-		ip_sock_set_mtu_discover(conn->local->socket->sk,
-					 IP_PMTUDISC_DONT);
+		rxrpc_local_dont_fragment(conn->local, false);
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
 		ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 		conn->peer->last_tx_at = ktime_get_seconds();
 
-		ip_sock_set_mtu_discover(conn->local->socket->sk,
-					 IP_PMTUDISC_DO);
+		rxrpc_local_dont_fragment(conn->local, true);
 		break;
 
 	default:

@@ -1955,6 +1955,10 @@ static const struct pcs_soc_data pinctrl_single_am654 = {
 	.irq_status_mask = (1 << 30),   /* WKUP_EVT */
 };
 
+static const struct pcs_soc_data pinctrl_single_j7200 = {
+	.flags = PCS_CONTEXT_LOSS_OFF,
+};
+
 static const struct pcs_soc_data pinctrl_single = {
 };
 
@@ -1969,6 +1973,7 @@ static const struct of_device_id pcs_of_match[] = {
 	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },
+	{ .compatible = "ti,j7200-padconf", .data = &pinctrl_single_j7200 },
 	{ .compatible = "pinctrl-single", .data = &pinctrl_single },
 	{ .compatible = "pinconf-single", .data = &pinconf_single },
 	{ },

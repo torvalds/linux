@@ -270,4 +270,5 @@ static void __exit hydra_cleanup_module(void)
 module_init(hydra_init_module);
 module_exit(hydra_cleanup_module);
 
+MODULE_DESCRIPTION("Zorro-II Hydra 8390 ethernet driver");
 MODULE_LICENSE("GPL");

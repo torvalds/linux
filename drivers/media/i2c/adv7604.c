@@ -1929,7 +1929,7 @@ static int adv76xx_get_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		format->format.code = fmt->code;
 	} else {
 		format->format.code = state->format->code;
@@ -1978,7 +1978,7 @@ static int adv76xx_set_format(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, format->pad);
 		fmt->code = format->format.code;
 	} else {
 		state->format = info;

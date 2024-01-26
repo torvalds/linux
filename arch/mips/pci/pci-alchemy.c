@@ -453,7 +453,7 @@ static int alchemy_pci_probe(struct platform_device *pdev)
 
 	/* we can't ioremap the entire pci config space because it's too large,
 	 * nor can we dynamically ioremap it because some drivers use the
-	 * PCI config routines from within atomic contex and that becomes a
+	 * PCI config routines from within atomic context and that becomes a
 	 * problem in get_vm_area().  Instead we use one wired TLB entry to
 	 * handle all config accesses for all busses.
 	 */

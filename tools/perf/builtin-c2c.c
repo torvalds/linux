@@ -2320,7 +2320,7 @@ static int setup_nodes(struct perf_session *session)
 		nodes[node] = set;
 
 		/* empty node, skip */
-		if (perf_cpu_map__empty(map))
+		if (perf_cpu_map__has_any_cpu_or_is_empty(map))
 			continue;
 
 		perf_cpu_map__for_each_cpu(cpu, idx, map) {

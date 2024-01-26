@@ -103,8 +103,14 @@ xchk_setup_rtsummary(struct xfs_scrub *sc)
 }
 #endif
 #ifdef CONFIG_XFS_QUOTA
+int xchk_ino_dqattach(struct xfs_scrub *sc);
 int xchk_setup_quota(struct xfs_scrub *sc);
 #else
+static inline int
+xchk_ino_dqattach(struct xfs_scrub *sc)
+{
+	return 0;
+}
 static inline int
 xchk_setup_quota(struct xfs_scrub *sc)
 {
@@ -151,11 +157,36 @@ void xchk_iunlock(struct xfs_scrub *sc, unsigned int ilock_flags);
 
 void xchk_buffer_recheck(struct xfs_scrub *sc, struct xfs_buf *bp);
 
+/*
+ * Grab the inode at @inum.  The caller must have created a scrub transaction
+ * so that we can confirm the inumber by walking the inobt and not deadlock on
+ * a loop in the inobt.
+ */
 int xchk_iget(struct xfs_scrub *sc, xfs_ino_t inum, struct xfs_inode **ipp);
 int xchk_iget_agi(struct xfs_scrub *sc, xfs_ino_t inum,
 		struct xfs_buf **agi_bpp, struct xfs_inode **ipp);
 void xchk_irele(struct xfs_scrub *sc, struct xfs_inode *ip);
 int xchk_install_handle_inode(struct xfs_scrub *sc, struct xfs_inode *ip);
+
+/*
+ * Safe version of (untrusted) xchk_iget that uses an empty transaction to
+ * avoid deadlocking on loops in the inobt.  This should only be used in a
+ * scrub or repair setup routine, and only prior to grabbing a transaction.
+ */
+static inline int
+xchk_iget_safe(struct xfs_scrub *sc, xfs_ino_t inum, struct xfs_inode **ipp)
+{
+	int	error;
+
+	ASSERT(sc->tp == NULL);
+
+	error = xchk_trans_alloc(sc, 0);
+	if (error)
+		return error;
+	error = xchk_iget(sc, inum, ipp);
+	xchk_trans_cancel(sc);
+	return error;
+}
 
 /*
  * Don't bother cross-referencing if we already found corruption or cross
@@ -167,6 +198,8 @@ static inline bool xchk_skip_xref(struct xfs_scrub_metadata *sm)
 			       XFS_SCRUB_OFLAG_XCORRUPT);
 }
 
+bool xchk_dir_looks_zapped(struct xfs_inode *dp);
+
 #ifdef CONFIG_XFS_ONLINE_REPAIR
 /* Decide if a repair is required. */
 static inline bool xchk_needs_repair(const struct xfs_scrub_metadata *sm)
@@ -175,8 +208,21 @@ static inline bool xchk_needs_repair(const struct xfs_scrub_metadata *sm)
 			       XFS_SCRUB_OFLAG_XCORRUPT |
 			       XFS_SCRUB_OFLAG_PREEN);
 }
+
+/*
+ * "Should we prepare for a repair?"
+ *
+ * Return true if the caller permits us to repair metadata and we're not
+ * setting up for a post-repair evaluation.
+ */
+static inline bool xchk_could_repair(const struct xfs_scrub *sc)
+{
+	return (sc->sm->sm_flags & XFS_SCRUB_IFLAG_REPAIR) &&
+		!(sc->flags & XREP_ALREADY_FIXED);
+}
 #else
 # define xchk_needs_repair(sc)		(false)
+# define xchk_could_repair(sc)		(false)
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 
 int xchk_metadata_inode_forks(struct xfs_scrub *sc);
@@ -188,6 +234,16 @@ int xchk_metadata_inode_forks(struct xfs_scrub *sc);
 #define xchk_xfile_descr(sc, fmt, ...) \
 	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): " fmt, \
 			(sc)->mp->m_super->s_id, ##__VA_ARGS__)
+#define xchk_xfile_ag_descr(sc, fmt, ...) \
+	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): AG 0x%x " fmt, \
+			(sc)->mp->m_super->s_id, \
+			(sc)->sa.pag ? (sc)->sa.pag->pag_agno : (sc)->sm->sm_agno, \
+			##__VA_ARGS__)
+#define xchk_xfile_ino_descr(sc, fmt, ...) \
+	kasprintf(XCHK_GFP_FLAGS, "XFS (%s): inode 0x%llx " fmt, \
+			(sc)->mp->m_super->s_id, \
+			(sc)->ip ? (sc)->ip->i_ino : (sc)->sm->sm_ino, \
+			##__VA_ARGS__)
 
 /*
  * Setting up a hook to wait for intents to drain is costly -- we have to take

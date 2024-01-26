@@ -441,11 +441,19 @@ int adf_sysfs_rl_add(struct adf_accel_dev *accel_dev)
 
 	data->cap_rem_srv = ADF_SVC_NONE;
 	data->input.srv = ADF_SVC_NONE;
+	data->sysfs_added = true;
 
 	return ret;
 }
 
 void adf_sysfs_rl_rm(struct adf_accel_dev *accel_dev)
 {
+	struct adf_rl_interface_data *data;
+
+	data = &GET_RL_STRUCT(accel_dev);
+	if (!data->sysfs_added)
+		return;
+
 	device_remove_group(&GET_DEV(accel_dev), &qat_rl_group);
+	data->sysfs_added = false;
 }

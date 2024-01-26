@@ -294,6 +294,37 @@ show_kprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
 	jsonw_end_array(json_wtr);
 }
 
+static __u64 *u64_to_arr(__u64 val)
+{
+	return (__u64 *) u64_to_ptr(val);
+}
+
+static void
+show_uprobe_multi_json(struct bpf_link_info *info, json_writer_t *wtr)
+{
+	__u32 i;
+
+	jsonw_bool_field(json_wtr, "retprobe",
+			 info->uprobe_multi.flags & BPF_F_UPROBE_MULTI_RETURN);
+	jsonw_string_field(json_wtr, "path", (char *) u64_to_ptr(info->uprobe_multi.path));
+	jsonw_uint_field(json_wtr, "func_cnt", info->uprobe_multi.count);
+	jsonw_int_field(json_wtr, "pid", (int) info->uprobe_multi.pid);
+	jsonw_name(json_wtr, "funcs");
+	jsonw_start_array(json_wtr);
+
+	for (i = 0; i < info->uprobe_multi.count; i++) {
+		jsonw_start_object(json_wtr);
+		jsonw_uint_field(json_wtr, "offset",
+				 u64_to_arr(info->uprobe_multi.offsets)[i]);
+		jsonw_uint_field(json_wtr, "ref_ctr_offset",
+				 u64_to_arr(info->uprobe_multi.ref_ctr_offsets)[i]);
+		jsonw_uint_field(json_wtr, "cookie",
+				 u64_to_arr(info->uprobe_multi.cookies)[i]);
+		jsonw_end_object(json_wtr);
+	}
+	jsonw_end_array(json_wtr);
+}
+
 static void
 show_perf_event_kprobe_json(struct bpf_link_info *info, json_writer_t *wtr)
 {
@@ -464,6 +495,9 @@ static int show_link_close_json(int fd, struct bpf_link_info *info)
 		break;
 	case BPF_LINK_TYPE_KPROBE_MULTI:
 		show_kprobe_multi_json(info, json_wtr);
+		break;
+	case BPF_LINK_TYPE_UPROBE_MULTI:
+		show_uprobe_multi_json(info, json_wtr);
 		break;
 	case BPF_LINK_TYPE_PERF_EVENT:
 		switch (info->perf_event.type) {
@@ -674,6 +708,33 @@ static void show_kprobe_multi_plain(struct bpf_link_info *info)
 	}
 }
 
+static void show_uprobe_multi_plain(struct bpf_link_info *info)
+{
+	__u32 i;
+
+	if (!info->uprobe_multi.count)
+		return;
+
+	if (info->uprobe_multi.flags & BPF_F_UPROBE_MULTI_RETURN)
+		printf("\n\turetprobe.multi  ");
+	else
+		printf("\n\tuprobe.multi  ");
+
+	printf("path %s  ", (char *) u64_to_ptr(info->uprobe_multi.path));
+	printf("func_cnt %u  ", info->uprobe_multi.count);
+
+	if (info->uprobe_multi.pid)
+		printf("pid %d  ", info->uprobe_multi.pid);
+
+	printf("\n\t%-16s   %-16s   %-16s", "offset", "ref_ctr_offset", "cookies");
+	for (i = 0; i < info->uprobe_multi.count; i++) {
+		printf("\n\t0x%-16llx 0x%-16llx 0x%-16llx",
+			u64_to_arr(info->uprobe_multi.offsets)[i],
+			u64_to_arr(info->uprobe_multi.ref_ctr_offsets)[i],
+			u64_to_arr(info->uprobe_multi.cookies)[i]);
+	}
+}
+
 static void show_perf_event_kprobe_plain(struct bpf_link_info *info)
 {
 	const char *buf;
@@ -807,6 +868,9 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 	case BPF_LINK_TYPE_KPROBE_MULTI:
 		show_kprobe_multi_plain(info);
 		break;
+	case BPF_LINK_TYPE_UPROBE_MULTI:
+		show_uprobe_multi_plain(info);
+		break;
 	case BPF_LINK_TYPE_PERF_EVENT:
 		switch (info->perf_event.type) {
 		case BPF_PERF_EVENT_EVENT:
@@ -846,8 +910,10 @@ static int show_link_close_plain(int fd, struct bpf_link_info *info)
 
 static int do_show_link(int fd)
 {
+	__u64 *ref_ctr_offsets = NULL, *offsets = NULL, *cookies = NULL;
 	struct bpf_link_info info;
 	__u32 len = sizeof(info);
+	char path_buf[PATH_MAX];
 	__u64 *addrs = NULL;
 	char buf[PATH_MAX];
 	int count;
@@ -889,6 +955,39 @@ again:
 			goto again;
 		}
 	}
+	if (info.type == BPF_LINK_TYPE_UPROBE_MULTI &&
+	    !info.uprobe_multi.offsets) {
+		count = info.uprobe_multi.count;
+		if (count) {
+			offsets = calloc(count, sizeof(__u64));
+			if (!offsets) {
+				p_err("mem alloc failed");
+				close(fd);
+				return -ENOMEM;
+			}
+			info.uprobe_multi.offsets = ptr_to_u64(offsets);
+			ref_ctr_offsets = calloc(count, sizeof(__u64));
+			if (!ref_ctr_offsets) {
+				p_err("mem alloc failed");
+				free(offsets);
+				close(fd);
+				return -ENOMEM;
+			}
+			info.uprobe_multi.ref_ctr_offsets = ptr_to_u64(ref_ctr_offsets);
+			cookies = calloc(count, sizeof(__u64));
+			if (!cookies) {
+				p_err("mem alloc failed");
+				free(cookies);
+				free(offsets);
+				close(fd);
+				return -ENOMEM;
+			}
+			info.uprobe_multi.cookies = ptr_to_u64(cookies);
+			info.uprobe_multi.path = ptr_to_u64(path_buf);
+			info.uprobe_multi.path_size = sizeof(path_buf);
+			goto again;
+		}
+	}
 	if (info.type == BPF_LINK_TYPE_PERF_EVENT) {
 		switch (info.perf_event.type) {
 		case BPF_PERF_EVENT_TRACEPOINT:
@@ -924,8 +1023,10 @@ again:
 	else
 		show_link_close_plain(fd, &info);
 
-	if (addrs)
-		free(addrs);
+	free(ref_ctr_offsets);
+	free(cookies);
+	free(offsets);
+	free(addrs);
 	close(fd);
 	return 0;
 }

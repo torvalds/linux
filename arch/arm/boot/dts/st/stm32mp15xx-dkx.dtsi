@@ -680,7 +680,6 @@
 };
 
 &usbh_ehci {
-	phys = <&usbphyc_port0>;
 	status = "okay";
 	#address-cells = <1>;
 	#size-cells = <0>;

@@ -6,7 +6,7 @@
 #
 # Makefile for dcn303.
 
-DCN3_03 = dcn303_init.o dcn303_resource.o
+DCN3_03 = dcn303_init.o
 
 AMD_DAL_DCN3_03 = $(addprefix $(AMDDALPATH)/dc/dcn303/,$(DCN3_03))
 

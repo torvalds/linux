@@ -620,11 +620,9 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 		struct md_rdev *rdev;
 		struct block_device *bdev = NULL;
 
-		rcu_read_lock();
-		rdev = rcu_dereference(conf->disks[i].rdev);
+		rdev = conf->disks[i].rdev;
 		if (rdev && !test_bit(Faulty, &rdev->flags))
 			bdev = rdev->bdev;
-		rcu_read_unlock();
 
 		if (bdev) {
 			struct bio *bio;
@@ -882,9 +880,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				 (unsigned long long)r_sector, dd_idx,
 				 (unsigned long long)sector);
 
-			/* Array has not started so rcu dereference is safe */
-			rdev = rcu_dereference_protected(
-					conf->disks[dd_idx].rdev, 1);
+			rdev = conf->disks[dd_idx].rdev;
 			if (!rdev || (!test_bit(In_sync, &rdev->flags) &&
 				      sector >= rdev->recovery_offset)) {
 				pr_debug("%s:%*s data member disk %d missing\n",
@@ -936,9 +932,7 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				0, &disk, &sh);
 		BUG_ON(sh.pd_idx != le32_to_cpu(e->parity_disk));
 
-		/* Array has not started so rcu dereference is safe */
-		parity_rdev = rcu_dereference_protected(
-					conf->disks[sh.pd_idx].rdev, 1);
+		parity_rdev = conf->disks[sh.pd_idx].rdev;
 
 		BUG_ON(parity_rdev->bdev->bd_dev != log->rdev->bdev->bd_dev);
 		pr_debug("%s:%*s write parity at sector %llu, disk %pg\n",
@@ -1404,9 +1398,7 @@ int ppl_init_log(struct r5conf *conf)
 
 	for (i = 0; i < ppl_conf->count; i++) {
 		struct ppl_log *log = &ppl_conf->child_logs[i];
-		/* Array has not started so rcu dereference is safe */
-		struct md_rdev *rdev =
-			rcu_dereference_protected(conf->disks[i].rdev, 1);
+		struct md_rdev *rdev = conf->disks[i].rdev;
 
 		mutex_init(&log->io_mutex);
 		spin_lock_init(&log->io_list_lock);

@@ -171,6 +171,7 @@ int reject_with_rbtree_add_throw(void *ctx)
 		return 0;
 	bpf_spin_lock(&lock);
 	bpf_rbtree_add(&rbtree, &f->node, rbless);
+	bpf_spin_unlock(&lock);
 	return 0;
 }
 
@@ -214,6 +215,7 @@ int reject_with_cb_reference(void *ctx)
 	if (!f)
 		return 0;
 	bpf_loop(5, subprog_cb_ref, NULL, 0);
+	bpf_obj_drop(f);
 	return 0;
 }
 
@@ -306,7 +308,7 @@ int reject_set_exception_cb_bad_ret1(void *ctx)
 }
 
 SEC("?fentry/bpf_check")
-__failure __msg("At program exit the register R0 has value (0x40; 0x0) should")
+__failure __msg("At program exit the register R1 has smin=64 smax=64 should")
 int reject_set_exception_cb_bad_ret2(void *ctx)
 {
 	bpf_throw(64);

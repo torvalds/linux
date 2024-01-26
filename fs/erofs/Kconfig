@@ -21,7 +21,7 @@ config EROFS_FS
 	  performance under extremely memory pressure without extra cost.
 
 	  See the documentation at <file:Documentation/filesystems/erofs.rst>
-	  for more details.
+	  and the web pages at <https://erofs.docs.kernel.org> for more details.
 
 	  If unsure, say N.
 
@@ -114,8 +114,11 @@ config EROFS_FS_ZIP_DEFLATE
 
 config EROFS_FS_ONDEMAND
 	bool "EROFS fscache-based on-demand read support"
-	depends on CACHEFILES_ONDEMAND && (EROFS_FS=m && FSCACHE || EROFS_FS=y && FSCACHE=y)
-	default n
+	depends on EROFS_FS
+	select NETFS_SUPPORT
+	select FSCACHE
+	select CACHEFILES
+	select CACHEFILES_ONDEMAND
 	help
 	  This permits EROFS to use fscache-backed data blobs with on-demand
 	  read support.

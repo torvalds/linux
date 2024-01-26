@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/spi/adi,axi-spi-engine.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AXI SPI Engine Controller
+
+description: |
+  The AXI SPI Engine controller is part of the SPI Engine framework[1] and
+  allows memory mapped access to the SPI Engine control bus. This allows it
+  to be used as a general purpose software driven SPI controller as well as
+  some optional advanced acceleration and offloading capabilities.
+
+  [1] https://wiki.analog.com/resources/fpga/peripherals/spi_engine
+
+maintainers:
+  - Michael Hennerich <Michael.Hennerich@analog.com>
+  - Nuno Sá <nuno.sa@analog.com>
+
+allOf:
+  - $ref: /schemas/spi/spi-controller.yaml#
+
+properties:
+  compatible:
+    const: adi,axi-spi-engine-1.00.a
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    items:
+      - description: The AXI interconnect clock.
+      - description: The SPI controller clock.
+
+  clock-names:
+    items:
+      - const: s_axi_aclk
+      - const: spi_clk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi@44a00000 {
+        compatible = "adi,axi-spi-engine-1.00.a";
+        reg = <0x44a00000 0x1000>;
+        interrupts = <0 56 4>;
+        clocks = <&clkc 15>, <&clkc 15>;
+        clock-names = "s_axi_aclk", "spi_clk";
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        /* SPI devices */
+    };

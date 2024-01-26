@@ -212,6 +212,8 @@ struct erdma_dev {
 
 	atomic_t num_ctx;
 	struct list_head cep_list;
+
+	struct dma_pool *resp_pool;
 };
 
 static inline void *get_queue_entry(void *qbuf, u32 idx, u32 depth, u32 shift)

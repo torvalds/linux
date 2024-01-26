@@ -14,11 +14,11 @@
 #include "clk-pll.h"
 
 /**
- * struct samsung_clk_provider: information about clock provider
- * @reg_base: virtual address for the register base.
- * @dev: clock provider device needed for runtime PM.
- * @lock: maintains exclusion between callbacks for a given clock-provider.
- * @clk_data: holds clock related data like clk_hw* and number of clocks.
+ * struct samsung_clk_provider - information about clock provider
+ * @reg_base: virtual address for the register base
+ * @dev: clock provider device needed for runtime PM
+ * @lock: maintains exclusion between callbacks for a given clock-provider
+ * @clk_data: holds clock related data like clk_hw* and number of clocks
  */
 struct samsung_clk_provider {
 	void __iomem *reg_base;
@@ -29,10 +29,10 @@ struct samsung_clk_provider {
 };
 
 /**
- * struct samsung_clock_alias: information about mux clock
- * @id: platform specific id of the clock.
- * @dev_name: name of the device to which this clock belongs.
- * @alias: optional clock alias name to be assigned to this clock.
+ * struct samsung_clock_alias - information about mux clock
+ * @id: platform specific id of the clock
+ * @dev_name: name of the device to which this clock belongs
+ * @alias: optional clock alias name to be assigned to this clock
  */
 struct samsung_clock_alias {
 	unsigned int		id;
@@ -50,12 +50,12 @@ struct samsung_clock_alias {
 #define MHZ (1000 * 1000)
 
 /**
- * struct samsung_fixed_rate_clock: information about fixed-rate clock
- * @id: platform specific id of the clock.
- * @name: name of this fixed-rate clock.
- * @parent_name: optional parent clock name.
- * @flags: optional fixed-rate clock flags.
- * @fixed-rate: fixed clock rate of this clock.
+ * struct samsung_fixed_rate_clock - information about fixed-rate clock
+ * @id: platform specific id of the clock
+ * @name: name of this fixed-rate clock
+ * @parent_name: optional parent clock name
+ * @flags: optional fixed-rate clock flags
+ * @fixed_rate: fixed clock rate of this clock
  */
 struct samsung_fixed_rate_clock {
 	unsigned int		id;
@@ -74,14 +74,14 @@ struct samsung_fixed_rate_clock {
 		.fixed_rate	= frate,		\
 	}
 
-/*
- * struct samsung_fixed_factor_clock: information about fixed-factor clock
- * @id: platform specific id of the clock.
- * @name: name of this fixed-factor clock.
- * @parent_name: parent clock name.
- * @mult: fixed multiplication factor.
- * @div: fixed division factor.
- * @flags: optional fixed-factor clock flags.
+/**
+ * struct samsung_fixed_factor_clock - information about fixed-factor clock
+ * @id: platform specific id of the clock
+ * @name: name of this fixed-factor clock
+ * @parent_name: parent clock name
+ * @mult: fixed multiplication factor
+ * @div: fixed division factor
+ * @flags: optional fixed-factor clock flags
  */
 struct samsung_fixed_factor_clock {
 	unsigned int		id;
@@ -103,16 +103,16 @@ struct samsung_fixed_factor_clock {
 	}
 
 /**
- * struct samsung_mux_clock: information about mux clock
- * @id: platform specific id of the clock.
- * @name: name of this mux clock.
- * @parent_names: array of pointer to parent clock names.
- * @num_parents: number of parents listed in @parent_names.
- * @flags: optional flags for basic clock.
- * @offset: offset of the register for configuring the mux.
- * @shift: starting bit location of the mux control bit-field in @reg.
- * @width: width of the mux control bit-field in @reg.
- * @mux_flags: flags for mux-type clock.
+ * struct samsung_mux_clock - information about mux clock
+ * @id: platform specific id of the clock
+ * @name: name of this mux clock
+ * @parent_names: array of pointer to parent clock names
+ * @num_parents: number of parents listed in @parent_names
+ * @flags: optional flags for basic clock
+ * @offset: offset of the register for configuring the mux
+ * @shift: starting bit location of the mux control bit-field in @reg
+ * @width: width of the mux control bit-field in @reg
+ * @mux_flags: flags for mux-type clock
  */
 struct samsung_mux_clock {
 	unsigned int		id;
@@ -146,14 +146,16 @@ struct samsung_mux_clock {
 	__MUX(_id, cname, pnames, o, s, w, f, mf)
 
 /**
- * @id: platform specific id of the clock.
- * struct samsung_div_clock: information about div clock
- * @name: name of this div clock.
- * @parent_name: name of the parent clock.
- * @flags: optional flags for basic clock.
- * @offset: offset of the register for configuring the div.
- * @shift: starting bit location of the div control bit-field in @reg.
- * @div_flags: flags for div-type clock.
+ * struct samsung_div_clock - information about div clock
+ * @id: platform specific id of the clock
+ * @name: name of this div clock
+ * @parent_name: name of the parent clock
+ * @flags: optional flags for basic clock
+ * @offset: offset of the register for configuring the div
+ * @shift: starting bit location of the div control bit-field in @reg
+ * @width: width of the bitfield
+ * @div_flags: flags for div-type clock
+ * @table: array of divider/value pairs ending with a div set to 0
  */
 struct samsung_div_clock {
 	unsigned int		id;
@@ -190,14 +192,14 @@ struct samsung_div_clock {
 	__DIV(_id, cname, pname, o, s, w, 0, 0, t)
 
 /**
- * struct samsung_gate_clock: information about gate clock
- * @id: platform specific id of the clock.
- * @name: name of this gate clock.
- * @parent_name: name of the parent clock.
- * @flags: optional flags for basic clock.
- * @offset: offset of the register for configuring the gate.
- * @bit_idx: bit index of the gate control bit-field in @reg.
- * @gate_flags: flags for gate-type clock.
+ * struct samsung_gate_clock - information about gate clock
+ * @id: platform specific id of the clock
+ * @name: name of this gate clock
+ * @parent_name: name of the parent clock
+ * @flags: optional flags for basic clock
+ * @offset: offset of the register for configuring the gate
+ * @bit_idx: bit index of the gate control bit-field in @reg
+ * @gate_flags: flags for gate-type clock
  */
 struct samsung_gate_clock {
 	unsigned int		id;
@@ -226,9 +228,9 @@ struct samsung_gate_clock {
 #define PNAME(x) static const char * const x[] __initconst
 
 /**
- * struct samsung_clk_reg_dump: register dump of clock controller registers.
- * @offset: clock register offset from the controller base address.
- * @value: the value to be register at offset.
+ * struct samsung_clk_reg_dump - register dump of clock controller registers
+ * @offset: clock register offset from the controller base address
+ * @value: the value to be register at offset
  */
 struct samsung_clk_reg_dump {
 	u32	offset;
@@ -236,14 +238,15 @@ struct samsung_clk_reg_dump {
 };
 
 /**
- * struct samsung_pll_clock: information about pll clock
- * @id: platform specific id of the clock.
- * @name: name of this pll clock.
- * @parent_name: name of the parent clock.
- * @flags: optional flags for basic clock.
- * @con_offset: offset of the register for configuring the PLL.
- * @lock_offset: offset of the register for locking the PLL.
- * @type: Type of PLL to be registered.
+ * struct samsung_pll_clock - information about pll clock
+ * @id: platform specific id of the clock
+ * @name: name of this pll clock
+ * @parent_name: name of the parent clock
+ * @flags: optional flags for basic clock
+ * @con_offset: offset of the register for configuring the PLL
+ * @lock_offset: offset of the register for locking the PLL
+ * @type: type of PLL to be registered
+ * @rate_table: array of PLL settings for possible PLL rates
  */
 struct samsung_pll_clock {
 	unsigned int		id;
@@ -302,39 +305,51 @@ struct samsung_clock_reg_cache {
 	unsigned int rsuspend_num;
 };
 
+/**
+ * struct samsung_cmu_info - all clocks information needed for CMU registration
+ * @pll_clks: list of PLL clocks
+ * @nr_pll_clks: count of clocks in @pll_clks
+ * @mux_clks: list of mux clocks
+ * @nr_mux_clks: count of clocks in @mux_clks
+ * @div_clks: list of div clocks
+ * @nr_div_clks: count of clocks in @div_clks
+ * @gate_clks: list of gate clocks
+ * @nr_gate_clks: count of clocks in @gate_clks
+ * @fixed_clks: list of fixed clocks
+ * @nr_fixed_clks: count clocks in @fixed_clks
+ * @fixed_factor_clks: list of fixed factor clocks
+ * @nr_fixed_factor_clks: count of clocks in @fixed_factor_clks
+ * @nr_clk_ids: total number of clocks with IDs assigned
+ * @cpu_clks: list of CPU clocks
+ * @nr_cpu_clks: count of clocks in @cpu_clks
+ * @clk_regs: list of clock registers
+ * @nr_clk_regs: count of clock registers in @clk_regs
+ * @suspend_regs: list of clock registers to set before suspend
+ * @nr_suspend_regs: count of clock registers in @suspend_regs
+ * @clk_name: name of the parent clock needed for CMU register access
+ */
 struct samsung_cmu_info {
-	/* list of pll clocks and respective count */
 	const struct samsung_pll_clock *pll_clks;
 	unsigned int nr_pll_clks;
-	/* list of mux clocks and respective count */
 	const struct samsung_mux_clock *mux_clks;
 	unsigned int nr_mux_clks;
-	/* list of div clocks and respective count */
 	const struct samsung_div_clock *div_clks;
 	unsigned int nr_div_clks;
-	/* list of gate clocks and respective count */
 	const struct samsung_gate_clock *gate_clks;
 	unsigned int nr_gate_clks;
-	/* list of fixed clocks and respective count */
 	const struct samsung_fixed_rate_clock *fixed_clks;
 	unsigned int nr_fixed_clks;
-	/* list of fixed factor clocks and respective count */
 	const struct samsung_fixed_factor_clock *fixed_factor_clks;
 	unsigned int nr_fixed_factor_clks;
-	/* total number of clocks with IDs assigned*/
 	unsigned int nr_clk_ids;
-	/* list of cpu clocks and respective count */
 	const struct samsung_cpu_clock *cpu_clks;
 	unsigned int nr_cpu_clks;
 
-	/* list and number of clocks registers */
 	const unsigned long *clk_regs;
 	unsigned int nr_clk_regs;
 
-	/* list and number of clocks registers to set before suspend */
 	const struct samsung_clk_reg_dump *suspend_regs;
 	unsigned int nr_suspend_regs;
-	/* name of the parent clock needed for CMU register access */
 	const char *clk_name;
 };
 

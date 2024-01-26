@@ -201,6 +201,23 @@ static inline void *objpool_try_get_slot(struct objpool_head *pool, int cpu)
 	while (head != READ_ONCE(slot->last)) {
 		void *obj;
 
+		/*
+		 * data visibility of 'last' and 'head' could be out of
+		 * order since memory updating of 'last' and 'head' are
+		 * performed in push() and pop() independently
+		 *
+		 * before any retrieving attempts, pop() must guarantee
+		 * 'last' is behind 'head', that is to say, there must
+		 * be available objects in slot, which could be ensured
+		 * by condition 'last != head && last - head <= nr_objs'
+		 * that is equivalent to 'last - head - 1 < nr_objs' as
+		 * 'last' and 'head' are both unsigned int32
+		 */
+		if (READ_ONCE(slot->last) - head - 1 >= pool->nr_objs) {
+			head = READ_ONCE(slot->head);
+			continue;
+		}
+
 		/* obj must be retrieved before moving forward head */
 		obj = READ_ONCE(slot->entries[head & slot->mask]);
 

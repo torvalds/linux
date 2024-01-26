@@ -7,13 +7,8 @@
 Part IV - Media Controller API
 ##############################
 
-.. only:: html
-
-   .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+    :caption: Table of Contents
     :maxdepth: 5
     :numbered:
 

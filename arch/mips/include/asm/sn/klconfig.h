@@ -851,7 +851,7 @@ typedef union kldev_s {	     /* for device structure allocation */
 /*
  * TBD - Allocation issues.
  *
- * Do we need to Mark off sepatate heaps for lboard_t, rboard_t, component,
+ * Do we need to Mark off separate heaps for lboard_t, rboard_t, component,
  * errinfo and allocate from them, or have a single heap and allocate all
  * structures from it. Debug is easier in the former method since we can
  * dump all similar structs in one command, but there will be lots of holes,
