@@ -203,14 +203,14 @@ static bool umc_v12_0_bit_wise_xor(uint32_t val)
 	return result;
 }
 
-static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
-					    struct ras_err_data *err_data, uint64_t err_addr,
-					    uint32_t ch_inst, uint32_t umc_inst,
-					    uint32_t node_inst)
+static void umc_v12_0_mca_addr_to_pa(struct amdgpu_device *adev,
+					uint64_t err_addr, uint32_t ch_inst, uint32_t umc_inst,
+					uint32_t node_inst,
+					struct ta_ras_query_address_output *addr_out)
 {
 	uint32_t channel_index, i;
-	uint64_t soc_pa, na, retired_page, column;
-	uint32_t bank_hash0, bank_hash1, bank_hash2, bank_hash3, col, row, row_xor;
+	uint64_t na, soc_pa;
+	uint32_t bank_hash0, bank_hash1, bank_hash2, bank_hash3, col, row;
 	uint32_t bank0, bank1, bank2, bank3, bank;
 
 	bank_hash0 = (err_addr >> UMC_V12_0_MCA_B0_BIT) & 0x1ULL;
@@ -260,12 +260,44 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 	/* the umc channel bits are not original values, they are hashed */
 	UMC_V12_0_SET_CHANNEL_HASH(channel_index, soc_pa);
 
+	addr_out->pa.pa = soc_pa;
+	addr_out->pa.bank = bank;
+	addr_out->pa.channel_idx = channel_index;
+}
+
+static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
+					    struct ras_err_data *err_data, uint64_t err_addr,
+					    uint32_t ch_inst, uint32_t umc_inst,
+					    uint32_t node_inst)
+{
+	uint32_t col, row, row_xor, bank, channel_index;
+	uint64_t soc_pa, retired_page, column;
+	struct ta_ras_query_address_input addr_in;
+	struct ta_ras_query_address_output addr_out;
+
+	addr_in.addr_type = TA_RAS_MCA_TO_PA;
+	addr_in.ma.err_addr = err_addr;
+	addr_in.ma.ch_inst = ch_inst;
+	addr_in.ma.umc_inst = umc_inst;
+	addr_in.ma.node_inst = node_inst;
+
+	if (psp_ras_query_address(&adev->psp, &addr_in, &addr_out))
+		/* fallback to old path if fail to get pa from psp */
+		umc_v12_0_mca_addr_to_pa(adev, err_addr, ch_inst, umc_inst,
+				node_inst, &addr_out);
+
+	soc_pa = addr_out.pa.pa;
+	bank = addr_out.pa.bank;
+	channel_index = addr_out.pa.channel_idx;
+
+	col = (err_addr >> 1) & 0x1fULL;
+	row = (err_addr >> 10) & 0x3fffULL;
+	row_xor = row ^ (0x1ULL << 13);
 	/* clear [C3 C2] in soc physical address */
 	soc_pa &= ~(0x3ULL << UMC_V12_0_PA_C2_BIT);
 	/* clear [C4] in soc physical address */
 	soc_pa &= ~(0x1ULL << UMC_V12_0_PA_C4_BIT);
 
-	row_xor = row ^ (0x1ULL << 13);
 	/* loop for all possibilities of [C4 C3 C2] */
 	for (column = 0; column < UMC_V12_0_NA_MAP_PA_NUM; column++) {
 		retired_page = soc_pa | ((column & 0x3) << UMC_V12_0_PA_C2_BIT);
