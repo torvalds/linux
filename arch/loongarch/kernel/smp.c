@@ -473,7 +473,6 @@ asmlinkage void start_secondary(void)
 	sync_counter();
 	cpu = raw_smp_processor_id();
 	set_my_cpu_offset(per_cpu_offset(cpu));
-	rcu_cpu_starting(cpu);
 
 	cpu_probe();
 	constant_clockevent_init();
