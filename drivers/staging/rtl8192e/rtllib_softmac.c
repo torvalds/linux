@@ -1207,7 +1207,7 @@ inline void rtllib_softmac_new_net(struct rtllib_device *ieee,
 				    ieee->current_network.flags);
 
 			if ((rtllib_act_scanning(ieee, false)) &&
-			   !(ieee->softmac_features & IEEE_SOFTMAC_SCAN))
+			    !(ieee->softmac_features & IEEE_SOFTMAC_SCAN))
 				rtllib_stop_scan_syncro(ieee);
 
 			ht_reset_iot_setting(ieee->ht_info);
