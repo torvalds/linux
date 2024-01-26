@@ -2099,7 +2099,7 @@ int ni_readpage_cmpr(struct ntfs_inode *ni, struct page *page)
 	gfp_t gfp_mask;
 	struct page *pg;
 
-	if (vbo >= ni->vfs_inode.i_size) {
+	if (vbo >= i_size_read(&ni->vfs_inode)) {
 		SetPageUptodate(page);
 		err = 0;
 		goto out;
@@ -2173,7 +2173,7 @@ int ni_decompress_file(struct ntfs_inode *ni)
 {
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 	struct inode *inode = &ni->vfs_inode;
-	loff_t i_size = inode->i_size;
+	loff_t i_size = i_size_read(inode);
 	struct address_space *mapping = inode->i_mapping;
 	gfp_t gfp_mask = mapping_gfp_mask(mapping);
 	struct page **pages = NULL;
@@ -2457,6 +2457,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 	struct ATTR_LIST_ENTRY *le = NULL;
 	struct runs_tree *run = &ni->file.run;
 	u64 valid_size = ni->i_valid;
+	loff_t i_size = i_size_read(&ni->vfs_inode);
 	u64 vbo_disk;
 	size_t unc_size;
 	u32 frame_size, i, npages_disk, ondisk_size;
@@ -2548,7 +2549,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 			}
 		}
 
-		frames = (ni->vfs_inode.i_size - 1) >> frame_bits;
+		frames = (i_size - 1) >> frame_bits;
 
 		err = attr_wof_frame_info(ni, attr, run, frame64, frames,
 					  frame_bits, &ondisk_size, &vbo_data);
@@ -2556,8 +2557,7 @@ int ni_read_frame(struct ntfs_inode *ni, u64 frame_vbo, struct page **pages,
 			goto out2;
 
 		if (frame64 == frames) {
-			unc_size = 1 + ((ni->vfs_inode.i_size - 1) &
-					(frame_size - 1));
+			unc_size = 1 + ((i_size - 1) & (frame_size - 1));
 			ondisk_size = attr_size(attr) - vbo_data;
 		} else {
 			unc_size = frame_size;
