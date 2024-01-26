@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
- * Copyright (c) 2009-2022 VMware, Inc., Palo Alto, CA., USA
+ * Copyright (c) 2009-2023 VMware, Inc., Palo Alto, CA., USA
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -648,7 +648,6 @@ out_unref:
  * @tfile: struct ttm_object_file identifying the caller
  * @size: The size of the dma_bufs we export.
  * @prime: The object to be initialized.
- * @shareable: See ttm_base_object_init
  * @type: See ttm_base_object_init
  * @refcount_release: See ttm_base_object_init
  *
@@ -656,10 +655,11 @@ out_unref:
  * for data sharing between processes and devices.
  */
 int ttm_prime_object_init(struct ttm_object_file *tfile, size_t size,
-			  struct ttm_prime_object *prime, bool shareable,
+			  struct ttm_prime_object *prime,
 			  enum ttm_object_type type,
 			  void (*refcount_release) (struct ttm_base_object **))
 {
+	bool shareable = !!(type == VMW_RES_SURFACE);
 	mutex_init(&prime->mutex);
 	prime->size = PAGE_ALIGN(size);
 	prime->real_type = type;
