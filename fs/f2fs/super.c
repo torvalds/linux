@@ -264,7 +264,8 @@ static match_table_t f2fs_tokens = {
 	{Opt_err, NULL},
 };
 
-void f2fs_printk(struct f2fs_sb_info *sbi, const char *fmt, ...)
+void f2fs_printk(struct f2fs_sb_info *sbi, bool limit_rate,
+						const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -275,8 +276,12 @@ void f2fs_printk(struct f2fs_sb_info *sbi, const char *fmt, ...)
 	level = printk_get_level(fmt);
 	vaf.fmt = printk_skip_level(fmt);
 	vaf.va = &args;
-	printk("%c%cF2FS-fs (%s): %pV\n",
-	       KERN_SOH_ASCII, level, sbi->sb->s_id, &vaf);
+	if (limit_rate)
+		printk_ratelimited("%c%cF2FS-fs (%s): %pV\n",
+			KERN_SOH_ASCII, level, sbi->sb->s_id, &vaf);
+	else
+		printk("%c%cF2FS-fs (%s): %pV\n",
+			KERN_SOH_ASCII, level, sbi->sb->s_id, &vaf);
 
 	va_end(args);
 }

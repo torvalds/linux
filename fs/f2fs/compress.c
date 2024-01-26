@@ -512,8 +512,8 @@ static int lzorle_compress_pages(struct compress_ctx *cc)
 	ret = lzorle1x_1_compress(cc->rbuf, cc->rlen, cc->cbuf->cdata,
 					&cc->clen, cc->private);
 	if (ret != LZO_E_OK) {
-		printk_ratelimited("%sF2FS-fs (%s): lzo-rle compress failed, ret:%d\n",
-				KERN_ERR, F2FS_I_SB(cc->inode)->sb->s_id, ret);
+		f2fs_err_ratelimited(F2FS_I_SB(cc->inode),
+				"lzo-rle compress failed, ret:%d", ret);
 		return -EIO;
 	}
 	return 0;
@@ -780,9 +780,9 @@ void f2fs_decompress_cluster(struct decompress_io_ctx *dic, bool in_task)
 		if (provided != calculated) {
 			if (!is_inode_flag_set(dic->inode, FI_COMPRESS_CORRUPT)) {
 				set_inode_flag(dic->inode, FI_COMPRESS_CORRUPT);
-				printk_ratelimited(
-					"%sF2FS-fs (%s): checksum invalid, nid = %lu, %x vs %x",
-					KERN_INFO, sbi->sb->s_id, dic->inode->i_ino,
+				f2fs_info_ratelimited(sbi,
+					"checksum invalid, nid = %lu, %x vs %x",
+					dic->inode->i_ino,
 					provided, calculated);
 			}
 			set_sbi_flag(sbi, SBI_NEED_FSCK);
