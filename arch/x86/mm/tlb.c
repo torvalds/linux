@@ -299,7 +299,7 @@ static void load_new_mm_cr3(pgd_t *pgdir, u16 new_asid, unsigned long lam,
 	write_cr3(new_mm_cr3);
 }
 
-void leave_mm(int cpu)
+void leave_mm(void)
 {
 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
 
