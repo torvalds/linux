@@ -2741,7 +2741,8 @@ static void mlxsw_sp_lag_pgt_fini(struct mlxsw_sp *mlxsw_sp)
 
 struct mlxsw_sp_lag {
 	struct net_device *dev;
-	unsigned int ref_count;
+	refcount_t ref_count;
+	u16 lag_id;
 };
 
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
@@ -4261,19 +4262,48 @@ mlxsw_sp_port_lag_uppers_cleanup(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
-static int mlxsw_sp_lag_create(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
+static struct mlxsw_sp_lag *
+mlxsw_sp_lag_create(struct mlxsw_sp *mlxsw_sp, struct net_device *lag_dev,
+		    struct netlink_ext_ack *extack)
 {
 	char sldr_pl[MLXSW_REG_SLDR_LEN];
+	struct mlxsw_sp_lag *lag;
+	u16 lag_id;
+	int i, err;
 
+	for (i = 0; i < mlxsw_sp->max_lag; i++) {
+		if (!mlxsw_sp->lags[i].dev)
+			break;
+	}
+
+	if (i == mlxsw_sp->max_lag) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Exceeded number of supported LAG devices");
+		return ERR_PTR(-EBUSY);
+	}
+
+	lag_id = i;
 	mlxsw_reg_sldr_lag_create_pack(sldr_pl, lag_id);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sldr), sldr_pl);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sldr), sldr_pl);
+	if (err)
+		return ERR_PTR(err);
+
+	lag = &mlxsw_sp->lags[lag_id];
+	lag->lag_id = lag_id;
+	lag->dev = lag_dev;
+	refcount_set(&lag->ref_count, 1);
+
+	return lag;
 }
 
-static int mlxsw_sp_lag_destroy(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
+static int
+mlxsw_sp_lag_destroy(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_lag *lag)
 {
 	char sldr_pl[MLXSW_REG_SLDR_LEN];
 
-	mlxsw_reg_sldr_lag_destroy_pack(sldr_pl, lag_id);
+	lag->dev = NULL;
+
+	mlxsw_reg_sldr_lag_destroy_pack(sldr_pl, lag->lag_id);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sldr), sldr_pl);
 }
 
@@ -4321,32 +4351,44 @@ static int mlxsw_sp_lag_col_port_disable(struct mlxsw_sp_port *mlxsw_sp_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(slcor), slcor_pl);
 }
 
-static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
-				  struct net_device *lag_dev,
-				  u16 *p_lag_id, struct netlink_ext_ack *extack)
+static struct mlxsw_sp_lag *
+mlxsw_sp_lag_find(struct mlxsw_sp *mlxsw_sp, struct net_device *lag_dev)
 {
-	struct mlxsw_sp_lag *lag;
-	int free_lag_id = -1;
 	int i;
 
 	for (i = 0; i < mlxsw_sp->max_lag; i++) {
-		lag = &mlxsw_sp->lags[i];
-		if (lag->ref_count) {
-			if (lag->dev == lag_dev) {
-				*p_lag_id = i;
-				return 0;
-			}
-		} else if (free_lag_id < 0) {
-			free_lag_id = i;
-		}
+		if (!mlxsw_sp->lags[i].dev)
+			continue;
+
+		if (mlxsw_sp->lags[i].dev == lag_dev)
+			return &mlxsw_sp->lags[i];
 	}
-	if (free_lag_id < 0) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Exceeded number of supported LAG devices");
-		return -EBUSY;
+
+	return NULL;
+}
+
+static struct mlxsw_sp_lag *
+mlxsw_sp_lag_get(struct mlxsw_sp *mlxsw_sp, struct net_device *lag_dev,
+		 struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_lag *lag;
+
+	lag = mlxsw_sp_lag_find(mlxsw_sp, lag_dev);
+	if (lag) {
+		refcount_inc(&lag->ref_count);
+		return lag;
 	}
-	*p_lag_id = free_lag_id;
-	return 0;
+
+	return mlxsw_sp_lag_create(mlxsw_sp, lag_dev, extack);
+}
+
+static void
+mlxsw_sp_lag_put(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_lag *lag)
+{
+	if (!refcount_dec_and_test(&lag->ref_count))
+		return;
+
+	mlxsw_sp_lag_destroy(mlxsw_sp, lag);
 }
 
 static bool
@@ -4471,17 +4513,11 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	u8 port_index;
 	int err;
 
-	err = mlxsw_sp_lag_index_get(mlxsw_sp, lag_dev, &lag_id, extack);
-	if (err)
-		return err;
-	lag = &mlxsw_sp->lags[lag_id];
-	if (!lag->ref_count) {
-		err = mlxsw_sp_lag_create(mlxsw_sp, lag_id);
-		if (err)
-			return err;
-		lag->dev = lag_dev;
-	}
+	lag = mlxsw_sp_lag_get(mlxsw_sp, lag_dev, extack);
+	if (IS_ERR(lag))
+		return PTR_ERR(lag);
 
+	lag_id = lag->lag_id;
 	err = mlxsw_sp_port_lag_index_get(mlxsw_sp, lag_id, &port_index);
 	if (err)
 		return err;
@@ -4499,7 +4535,6 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 				   mlxsw_sp_port->local_port);
 	mlxsw_sp_port->lag_id = lag_id;
 	mlxsw_sp_port->lagged = 1;
-	lag->ref_count++;
 
 	err = mlxsw_sp_fid_port_join_lag(mlxsw_sp_port);
 	if (err)
@@ -4526,7 +4561,6 @@ err_replay:
 err_router_join:
 	mlxsw_sp_fid_port_leave_lag(mlxsw_sp_port);
 err_fid_port_join_lag:
-	lag->ref_count--;
 	mlxsw_sp_port->lagged = 0;
 	mlxsw_core_lag_mapping_clear(mlxsw_sp->core, lag_id,
 				     mlxsw_sp_port->local_port);
@@ -4534,8 +4568,7 @@ err_fid_port_join_lag:
 err_col_port_add:
 	mlxsw_sp_lag_uppers_bridge_leave(mlxsw_sp_port, lag_dev);
 err_lag_uppers_bridge_join:
-	if (!lag->ref_count)
-		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
+	mlxsw_sp_lag_put(mlxsw_sp, lag);
 	return err;
 }
 
@@ -4549,7 +4582,6 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!mlxsw_sp_port->lagged)
 		return;
 	lag = &mlxsw_sp->lags[lag_id];
-	WARN_ON(lag->ref_count == 0);
 
 	mlxsw_sp_lag_col_port_remove(mlxsw_sp_port, lag_id);
 
@@ -4563,13 +4595,11 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	mlxsw_sp_fid_port_leave_lag(mlxsw_sp_port);
 
-	if (lag->ref_count == 1)
-		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
+	mlxsw_sp_lag_put(mlxsw_sp, lag);
 
 	mlxsw_core_lag_mapping_clear(mlxsw_sp->core, lag_id,
 				     mlxsw_sp_port->local_port);
 	mlxsw_sp_port->lagged = 0;
-	lag->ref_count--;
 
 	/* Make sure untagged frames are allowed to ingress */
 	mlxsw_sp_port_pvid_set(mlxsw_sp_port, MLXSW_SP_DEFAULT_VID,
