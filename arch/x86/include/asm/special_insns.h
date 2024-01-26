@@ -224,10 +224,10 @@ static inline void serialize(void)
 }
 
 /* The dst parameter must be 64-bytes aligned */
-static inline void movdir64b(void __iomem *dst, const void *src)
+static inline void movdir64b(void *dst, const void *src)
 {
 	const struct { char _[64]; } *__src = src;
-	struct { char _[64]; } __iomem *__dst = dst;
+	struct { char _[64]; } *__dst = dst;
 
 	/*
 	 * MOVDIR64B %(rdx), rax.
@@ -243,6 +243,11 @@ static inline void movdir64b(void __iomem *dst, const void *src)
 	asm volatile(".byte 0x66, 0x0f, 0x38, 0xf8, 0x02"
 		     : "+m" (*__dst)
 		     :  "m" (*__src), "a" (__dst), "d" (__src));
+}
+
+static inline void movdir64b_io(void __iomem *dst, const void *src)
+{
+	movdir64b((void __force *)dst, src);
 }
 
 /**
