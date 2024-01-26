@@ -83,16 +83,17 @@ void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 		rtw89_ps_power_mode_change(rtwdev, false);
 }
 
-static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, u8 mac_id)
+static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	struct rtw89_lps_parm lps_param = {
-		.macid = mac_id,
+		.macid = rtwvif->mac_id,
 		.psmode = RTW89_MAC_AX_PS_MODE_LEGACY,
 		.lastrpwm = RTW89_LAST_RPWM_PS,
 	};
 
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_FW_CTRL);
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
+	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
 }
 
 static void __rtw89_leave_lps(struct rtw89_dev *rtwdev, u8 mac_id)
@@ -123,7 +124,7 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	if (test_and_set_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;
 
-	__rtw89_enter_lps(rtwdev, rtwvif->mac_id);
+	__rtw89_enter_lps(rtwdev, rtwvif);
 	if (ps_mode)
 		__rtw89_enter_ps_mode(rtwdev, rtwvif);
 }

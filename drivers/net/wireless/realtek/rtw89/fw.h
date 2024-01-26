@@ -1974,6 +1974,17 @@ static inline void SET_LPS_PARM_LASTRPWM(void *h2c, u32 val)
 	le32p_replace_bits((__le32 *)(h2c) + 1, val, GENMASK(15, 8));
 }
 
+struct rtw89_h2c_lps_ch_info {
+	struct {
+		u8 pri_ch;
+		u8 central_ch;
+		u8 bw;
+		u8 band;
+	} __packed info[2];
+
+	__le32 mlo_dbcc_mode_lps;
+} __packed;
+
 static inline void RTW89_SET_FWCMD_CPU_EXCEPTION_TYPE(void *cmd, u32 val)
 {
 	le32p_replace_bits((__le32 *)cmd, val, GENMASK(31, 0));
@@ -3896,6 +3907,9 @@ enum rtw89_mcc_h2c_func {
 #define H2C_CL_OUTSRC_RA		0x1
 #define H2C_FUNC_OUTSRC_RA_MACIDCFG	0x0
 
+#define H2C_CL_OUTSRC_DM		0x2
+#define H2C_FUNC_FW_LPS_CH_INFO		0xb
+
 #define H2C_CL_OUTSRC_RF_REG_A		0x8
 #define H2C_CL_OUTSRC_RF_REG_B		0x9
 #define H2C_CL_OUTSRC_RF_FW_NOTIFY	0xa
@@ -4110,6 +4124,8 @@ int rtw89_fw_h2c_init_ba_cam_users(struct rtw89_dev *rtwdev, u8 users,
 
 int rtw89_fw_h2c_lps_parm(struct rtw89_dev *rtwdev,
 			  struct rtw89_lps_parm *lps_param);
+int rtw89_fw_h2c_lps_ch_info(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_with_hdr(struct rtw89_dev *rtwdev, u32 len);
 struct sk_buff *rtw89_fw_h2c_alloc_skb_no_hdr(struct rtw89_dev *rtwdev, u32 len);
 int rtw89_fw_msg_reg(struct rtw89_dev *rtwdev,
