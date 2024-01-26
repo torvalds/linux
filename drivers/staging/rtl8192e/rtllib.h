@@ -1201,7 +1201,7 @@ struct rtllib_device {
 	bool cannot_notify;
 	bool bSupportRemoteWakeUp;
 	bool actscanning;
-	bool FirstIe_InScan;
+	bool first_ie_in_scan;
 	bool be_scan_inprogress;
 	bool beinretry;
 	enum rt_rf_power_state rf_power_state;

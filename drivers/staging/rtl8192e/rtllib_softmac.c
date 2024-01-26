@@ -2101,7 +2101,7 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 	ieee->reg_dot11tx_ht_oper_rate_set[1] = 0xff;
 	ieee->reg_dot11tx_ht_oper_rate_set[4] = 0x01;
 
-	ieee->FirstIe_InScan = false;
+	ieee->first_ie_in_scan = false;
 	ieee->actscanning = false;
 	ieee->beinretry = false;
 	ieee->is_set_key = false;
