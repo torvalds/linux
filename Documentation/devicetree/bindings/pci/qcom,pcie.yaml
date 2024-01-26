@@ -38,8 +38,6 @@ properties:
           - qcom,pcie-sm8150
           - qcom,pcie-sm8250
           - qcom,pcie-sm8350
-          - qcom,pcie-sm8450-pcie0
-          - qcom,pcie-sm8450-pcie1
       - items:
           - const: qcom,pcie-msm8998
           - const: qcom,pcie-msm8996
@@ -219,8 +217,6 @@ allOf:
               - qcom,pcie-sdx55
               - qcom,pcie-sm8250
               - qcom,pcie-sm8350
-              - qcom,pcie-sm8450-pcie0
-              - qcom,pcie-sm8450-pcie1
     then:
       properties:
         reg:
@@ -653,67 +649,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-sm8450-pcie0
-    then:
-      properties:
-        clocks:
-          minItems: 12
-          maxItems: 12
-        clock-names:
-          items:
-            - const: pipe # PIPE clock
-            - const: pipe_mux # PIPE MUX
-            - const: phy_pipe # PIPE output clock
-            - const: ref # REFERENCE clock
-            - const: aux # Auxiliary clock
-            - const: cfg # Configuration clock
-            - const: bus_master # Master AXI clock
-            - const: bus_slave # Slave AXI clock
-            - const: slave_q2a # Slave Q2A clock
-            - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre0 # Aggre NoC PCIe0 AXI clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
-        resets:
-          maxItems: 1
-        reset-names:
-          items:
-            - const: pci # PCIe core reset
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,pcie-sm8450-pcie1
-    then:
-      properties:
-        clocks:
-          minItems: 11
-          maxItems: 11
-        clock-names:
-          items:
-            - const: pipe # PIPE clock
-            - const: pipe_mux # PIPE MUX
-            - const: phy_pipe # PIPE output clock
-            - const: ref # REFERENCE clock
-            - const: aux # Auxiliary clock
-            - const: cfg # Configuration clock
-            - const: bus_master # Master AXI clock
-            - const: bus_slave # Slave AXI clock
-            - const: slave_q2a # Slave Q2A clock
-            - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
-        resets:
-          maxItems: 1
-        reset-names:
-          items:
-            - const: pci # PCIe core reset
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,pcie-sa8540p
               - qcom,pcie-sc8280xp
     then:
@@ -844,8 +779,6 @@ allOf:
               - qcom,pcie-sm8150
               - qcom,pcie-sm8250
               - qcom,pcie-sm8350
-              - qcom,pcie-sm8450-pcie0
-              - qcom,pcie-sm8450-pcie1
     then:
       oneOf:
         - properties:
