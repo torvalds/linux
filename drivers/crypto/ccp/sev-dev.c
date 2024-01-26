@@ -2004,6 +2004,23 @@ static int sev_ioctl_do_snp_commit(struct sev_issue_cmd *argp)
 	return __sev_do_cmd_locked(SEV_CMD_SNP_COMMIT, &buf, &argp->error);
 }
 
+static int sev_ioctl_do_snp_set_config(struct sev_issue_cmd *argp, bool writable)
+{
+	struct sev_device *sev = psp_master->sev_data;
+	struct sev_user_data_snp_config config;
+
+	if (!sev->snp_initialized || !argp->data)
+		return -EINVAL;
+
+	if (!writable)
+		return -EPERM;
+
+	if (copy_from_user(&config, (void __user *)argp->data, sizeof(config)))
+		return -EFAULT;
+
+	return __sev_do_cmd_locked(SEV_CMD_SNP_CONFIG, &config, &argp->error);
+}
+
 static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -2060,6 +2077,9 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 		break;
 	case SNP_COMMIT:
 		ret = sev_ioctl_do_snp_commit(&input);
+		break;
+	case SNP_SET_CONFIG:
+		ret = sev_ioctl_do_snp_set_config(&input, writable);
 		break;
 	default:
 		ret = -EINVAL;

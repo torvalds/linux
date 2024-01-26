@@ -162,6 +162,19 @@ SEV-SNP firmware SNP_COMMIT command. This prevents roll-back to a previously
 committed firmware version. This will also update the reported TCB to match
 that of the currently installed firmware.
 
+2.6 SNP_SET_CONFIG
+------------------
+:Technology: sev-snp
+:Type: hypervisor ioctl cmd
+:Parameters (in): struct sev_user_data_snp_config
+:Returns (out): 0 on success, -negative on error
+
+SNP_SET_CONFIG is used to set the system-wide configuration such as
+reported TCB version in the attestation report. The command is similar
+to SNP_CONFIG command defined in the SEV-SNP spec. The current values of
+the firmware parameters affected by this command can be queried via
+SNP_PLATFORM_STATUS.
+
 3. SEV-SNP CPUID Enforcement
 ============================
 
