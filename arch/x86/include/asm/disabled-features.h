@@ -117,7 +117,11 @@
 #define DISABLE_IBT	(1 << (X86_FEATURE_IBT & 31))
 #endif
 
+#ifdef CONFIG_KVM_AMD_SEV
+#define DISABLE_SEV_SNP		0
+#else
 #define DISABLE_SEV_SNP		(1 << (X86_FEATURE_SEV_SNP & 31))
+#endif
 
 /*
  * Make sure to add features to the correct mask
