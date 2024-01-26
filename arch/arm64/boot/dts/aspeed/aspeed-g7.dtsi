@@ -1206,6 +1206,14 @@
 			};
 		};
 
+		rng: hwrng@1e6e2524 {
+			compatible = "timeriomem_rng";
+			reg = <0x0 0x14c020f4 0x0 0x4>;
+			period = <1>;
+			quality = <100>;
+			status = "disabled";
+		};
+
 		chassis: chassis@14c04000 {
 			compatible = "aspeed,ast2600-chassis";
 			reg = <0 0x14c04010 0 0x4>;
