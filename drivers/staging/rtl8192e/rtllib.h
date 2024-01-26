@@ -1071,7 +1071,7 @@ struct rt_pwr_save_ctrl {
 	enum ips_callback_function ReturnPoint;
 
 	bool				bLeisurePs;
-	u8				LpsIdleCount;
+	u8				lps_idle_count;
 	u8				lps_awake_intvl;
 
 	u32				CurPsLevel;

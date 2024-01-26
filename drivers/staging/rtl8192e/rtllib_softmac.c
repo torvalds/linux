@@ -1079,7 +1079,7 @@ static void rtllib_associate_complete_wq(void *data)
 		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
 		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
-	psc->LpsIdleCount = 0;
+	psc->lps_idle_count = 0;
 	ieee->link_change(ieee->dev);
 }
 
