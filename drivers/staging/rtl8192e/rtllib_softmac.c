@@ -1390,33 +1390,33 @@ static short rtllib_sta_ps_sleep(struct rtllib_device *ieee, u64 *time)
 					       (psc->LPSAwakeIntvl + 1);
 		}
 		{
-			u8 LPSAwakeIntvl_tmp = 0;
+			u8 lps_awake_intvl_tmp = 0;
 			u8 period = ieee->current_network.dtim_period;
 			u8 count = ieee->current_network.tim.tim_count;
 
 			if (count == 0) {
 				if (psc->LPSAwakeIntvl > period)
-					LPSAwakeIntvl_tmp = period +
+					lps_awake_intvl_tmp = period +
 						 (psc->LPSAwakeIntvl -
 						 period) -
 						 ((psc->LPSAwakeIntvl - period) %
 						 period);
 				else
-					LPSAwakeIntvl_tmp = psc->LPSAwakeIntvl;
+					lps_awake_intvl_tmp = psc->LPSAwakeIntvl;
 
 			} else {
 				if (psc->LPSAwakeIntvl >
 				    ieee->current_network.tim.tim_count)
-					LPSAwakeIntvl_tmp = count +
+					lps_awake_intvl_tmp = count +
 					(psc->LPSAwakeIntvl - count) -
 					((psc->LPSAwakeIntvl - count) % period);
 				else
-					LPSAwakeIntvl_tmp = psc->LPSAwakeIntvl;
+					lps_awake_intvl_tmp = psc->LPSAwakeIntvl;
 			}
 
 		*time = ieee->current_network.last_dtim_sta_time
 			+ msecs_to_jiffies(ieee->current_network.beacon_interval *
-			LPSAwakeIntvl_tmp);
+			lps_awake_intvl_tmp);
 	}
 	}
 
