@@ -19,6 +19,30 @@
 		stdout-path = &uart1;
 	};
 
+	backlight_lvds: backlight {
+		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lvds1>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <11>;
+		enable-gpios = <&gpio2 20 GPIO_ACTIVE_LOW>;
+		num-interpolated-steps = <2>;
+		power-supply = <&reg_lvds1_reg_en>;
+		pwms = <&pwm3 0 50000 0>;
+	};
+
+	panel1_lvds: panel-lvds {
+		compatible = "edt,etml1010g3dra";
+		backlight = <&backlight_lvds>;
+		power-supply = <&reg_vcc_3v3_sw>;
+
+		port {
+			panel1_in: endpoint {
+				remote-endpoint = <&ldb_lvds_ch1>;
+			};
+		};
+	};
+
 	reg_can1_stby: regulator-can1-stby {
 		compatible = "regulator-fixed";
 		pinctrl-names = "default";
@@ -37,6 +61,15 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-min-microvolt = <3300000>;
 		regulator-name = "can2-stby";
+	};
+
+	reg_lvds1_reg_en: regulator-lvds1 {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio1 9 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <1200000>;
+		regulator-min-microvolt = <1200000>;
+		regulator-name = "lvds1_reg_en";
 	};
 
 	reg_usb1_vbus: regulator-usb1-vbus {
@@ -60,6 +93,13 @@
 		enable-active-high;
 		startup-delay-us = <100>;
 		off-on-delay-us = <12000>;
+	};
+
+	reg_vcc_3v3_sw: regulator-vcc-3v3-sw {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 };
 
@@ -135,8 +175,30 @@
 	};
 };
 
+&lcdif2 {
+	status = "okay";
+};
+
+&lvds_bridge {
+	status = "okay";
+
+	ports {
+		port@2 {
+			ldb_lvds_ch1: endpoint {
+				remote-endpoint = <&panel1_in>;
+			};
+		};
+	};
+};
+
 &snvs_pwrkey {
 	status = "okay";
+};
+
+&pwm3 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm3>;
 };
 
 /* debug console */
@@ -286,6 +348,18 @@
 		fsl,pins = <
 			MX8MP_IOMUXC_I2C2_SCL__GPIO5_IO16	0x1e2
 			MX8MP_IOMUXC_I2C2_SDA__GPIO5_IO17	0x1e2
+		>;
+	};
+
+	pinctrl_lvds1: lvds1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SD2_WP__GPIO2_IO20		0x12
+		>;
+	};
+
+	pinctrl_pwm3: pwm3grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SPDIF_TX__PWM3_OUT		0x12
 		>;
 	};
 
