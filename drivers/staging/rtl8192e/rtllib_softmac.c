@@ -1074,9 +1074,9 @@ static void rtllib_associate_complete_wq(void *data)
 	ieee->link_detect_info.slot_num = 2 * (1 +
 				       ieee->current_network.beacon_interval /
 				       500);
-	if (ieee->link_detect_info.NumRecvBcnInPeriod == 0 ||
+	if (ieee->link_detect_info.num_recv_bcn_in_period == 0 ||
 	    ieee->link_detect_info.NumRecvDataInPeriod == 0) {
-		ieee->link_detect_info.NumRecvBcnInPeriod = 1;
+		ieee->link_detect_info.num_recv_bcn_in_period = 1;
 		ieee->link_detect_info.NumRecvDataInPeriod = 1;
 	}
 	psc->lps_idle_count = 0;
@@ -2070,7 +2070,7 @@ int rtllib_softmac_init(struct rtllib_device *ieee)
 
 	ieee->link_detect_info.slot_index = 0;
 	ieee->link_detect_info.slot_num = 2;
-	ieee->link_detect_info.NumRecvBcnInPeriod = 0;
+	ieee->link_detect_info.num_recv_bcn_in_period = 0;
 	ieee->link_detect_info.NumRecvDataInPeriod = 0;
 	ieee->link_detect_info.num_tx_ok_in_period = 0;
 	ieee->link_detect_info.num_rx_ok_in_period = 0;

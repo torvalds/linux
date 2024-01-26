@@ -2470,7 +2470,7 @@ static inline void rtllib_process_probe_response(
 		}
 		if (ieee80211_is_beacon(frame_ctl)) {
 			if (ieee->link_state >= MAC80211_LINKED)
-				ieee->link_detect_info.NumRecvBcnInPeriod++;
+				ieee->link_detect_info.num_recv_bcn_in_period++;
 		}
 	}
 	list_for_each_entry(target, &ieee->network_list, list) {

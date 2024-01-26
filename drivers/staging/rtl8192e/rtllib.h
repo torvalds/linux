@@ -1110,7 +1110,7 @@ enum scan_op_backup_opt {
 
 #define RT_MAX_LD_SLOT_NUM	10
 struct rt_link_detect {
-	u32				NumRecvBcnInPeriod;
+	u32				num_recv_bcn_in_period;
 	u32				NumRecvDataInPeriod;
 
 	u32				RxBcnNum[RT_MAX_LD_SLOT_NUM];

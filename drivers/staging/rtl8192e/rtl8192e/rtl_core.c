@@ -923,7 +923,7 @@ static void _rtl92e_update_rxcounts(struct r8192_priv *priv, u32 *TotalRxBcnNum,
 	slot_index = (priv->rtllib->link_detect_info.slot_index++) %
 			(priv->rtllib->link_detect_info.slot_num);
 	priv->rtllib->link_detect_info.RxBcnNum[slot_index] =
-			priv->rtllib->link_detect_info.NumRecvBcnInPeriod;
+			priv->rtllib->link_detect_info.num_recv_bcn_in_period;
 	priv->rtllib->link_detect_info.RxDataNum[slot_index] =
 			priv->rtllib->link_detect_info.NumRecvDataInPeriod;
 	for (i = 0; i < priv->rtllib->link_detect_info.slot_num; i++) {
@@ -1045,7 +1045,7 @@ static void _rtl92e_watchdog_wq_cb(void *data)
 
 			priv->check_roaming_cnt = 0;
 		}
-		ieee->link_detect_info.NumRecvBcnInPeriod = 0;
+		ieee->link_detect_info.num_recv_bcn_in_period = 0;
 		ieee->link_detect_info.NumRecvDataInPeriod = 0;
 	}
 
