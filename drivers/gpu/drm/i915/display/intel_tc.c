@@ -995,10 +995,11 @@ xelpdp_tc_phy_tcss_power_is_enabled(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 
 	assert_tc_cold_blocked(tc);
 
-	return intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port)) & XELPDP_TCSS_POWER_STATE;
+	return intel_de_read(i915, reg) & XELPDP_TCSS_POWER_STATE;
 }
 
 static bool
@@ -1021,16 +1022,17 @@ static void __xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool ena
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
 
-	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port));
+	val = intel_de_read(i915, reg);
 	if (enable)
 		val |= XELPDP_TCSS_POWER_REQUEST;
 	else
 		val &= ~XELPDP_TCSS_POWER_REQUEST;
-	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(port), val);
+	intel_de_write(i915, reg, val);
 }
 
 static bool xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool enable)
@@ -1064,26 +1066,28 @@ static void xelpdp_tc_phy_take_ownership(struct intel_tc_port *tc, bool take)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
 
-	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port));
+	val = intel_de_read(i915, reg);
 	if (take)
 		val |= XELPDP_TC_PHY_OWNERSHIP;
 	else
 		val &= ~XELPDP_TC_PHY_OWNERSHIP;
-	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(port), val);
+	intel_de_write(i915, reg, val);
 }
 
 static bool xelpdp_tc_phy_is_owned(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 
 	assert_tc_cold_blocked(tc);
 
-	return intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port)) & XELPDP_TC_PHY_OWNERSHIP;
+	return intel_de_read(i915, reg) & XELPDP_TC_PHY_OWNERSHIP;
 }
 
 static void xelpdp_tc_phy_get_hw_state(struct intel_tc_port *tc)

@@ -178,7 +178,7 @@ static void mtl_wait_ddi_buf_idle(struct drm_i915_private *i915, enum port port)
 	int ret;
 
 	/* FIXME: find out why Bspec's 100us timeout is too short */
-	ret = wait_for_us((intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port)) &
+	ret = wait_for_us((intel_de_read(i915, XELPDP_PORT_BUF_CTL1(i915, port)) &
 			   XELPDP_PORT_BUF_PHY_IDLE), 10000);
 	if (ret)
 		drm_err(&i915->drm, "Timeout waiting for DDI BUF %c to get idle\n",
@@ -226,7 +226,9 @@ static void intel_wait_ddi_buf_active(struct drm_i915_private *dev_priv,
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 14)
-		ret = _wait_for(!(intel_de_read(dev_priv, XELPDP_PORT_BUF_CTL1(port)) & XELPDP_PORT_BUF_PHY_IDLE),
+		ret = _wait_for(!(intel_de_read(dev_priv,
+						XELPDP_PORT_BUF_CTL1(dev_priv, port)) &
+				  XELPDP_PORT_BUF_PHY_IDLE),
 				timeout_us, 10, 10);
 	else
 		ret = _wait_for(!(intel_de_read(dev_priv, DDI_BUF_CTL(port)) & DDI_BUF_IS_IDLE),
@@ -2437,7 +2439,7 @@ mtl_ddi_enable_d2d(struct intel_encoder *encoder)
 		set_bits = XE2LPD_DDI_BUF_D2D_LINK_ENABLE;
 		wait_bits = XE2LPD_DDI_BUF_D2D_LINK_STATE;
 	} else {
-		reg = XELPDP_PORT_BUF_CTL1(port);
+		reg = XELPDP_PORT_BUF_CTL1(dev_priv, port);
 		set_bits = XELPDP_PORT_BUF_D2D_LINK_ENABLE;
 		wait_bits = XELPDP_PORT_BUF_D2D_LINK_STATE;
 	}
@@ -2457,7 +2459,7 @@ static void mtl_port_buf_ctl_program(struct intel_encoder *encoder,
 	enum port port = encoder->port;
 	u32 val;
 
-	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port));
+	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(i915, port));
 	val &= ~XELPDP_PORT_WIDTH_MASK;
 	val |= XELPDP_PORT_WIDTH(mtl_get_port_width(crtc_state->lane_count));
 
@@ -2470,7 +2472,7 @@ static void mtl_port_buf_ctl_program(struct intel_encoder *encoder,
 	if (dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL)
 		val |= XELPDP_PORT_REVERSAL;
 
-	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(port), val);
+	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(i915, port), val);
 }
 
 static void mtl_port_buf_ctl_io_selection(struct intel_encoder *encoder)
@@ -2481,7 +2483,7 @@ static void mtl_port_buf_ctl_io_selection(struct intel_encoder *encoder)
 
 	val = intel_tc_port_in_tbt_alt_mode(dig_port) ?
 	      XELPDP_PORT_BUF_IO_SELECT_TBT : 0;
-	intel_de_rmw(i915, XELPDP_PORT_BUF_CTL1(encoder->port),
+	intel_de_rmw(i915, XELPDP_PORT_BUF_CTL1(i915, encoder->port),
 		     XELPDP_PORT_BUF_IO_SELECT_TBT, val);
 }
 
@@ -2915,7 +2917,7 @@ mtl_ddi_disable_d2d_link(struct intel_encoder *encoder)
 		clr_bits = XE2LPD_DDI_BUF_D2D_LINK_ENABLE;
 		wait_bits = XE2LPD_DDI_BUF_D2D_LINK_STATE;
 	} else {
-		reg = XELPDP_PORT_BUF_CTL1(port);
+		reg = XELPDP_PORT_BUF_CTL1(dev_priv, port);
 		clr_bits = XELPDP_PORT_BUF_D2D_LINK_ENABLE;
 		wait_bits = XELPDP_PORT_BUF_D2D_LINK_STATE;
 	}
@@ -3056,7 +3058,7 @@ static void intel_ddi_post_disable_dp(struct intel_atomic_state *state,
 
 	/* De-select Thunderbolt */
 	if (DISPLAY_VER(dev_priv) >= 14)
-		intel_de_rmw(dev_priv, XELPDP_PORT_BUF_CTL1(encoder->port),
+		intel_de_rmw(dev_priv, XELPDP_PORT_BUF_CTL1(dev_priv, encoder->port),
 			     XELPDP_PORT_BUF_IO_SELECT_TBT, 0);
 }
 
@@ -3337,7 +3339,7 @@ static void intel_enable_ddi_hdmi(struct intel_atomic_state *state,
 		if (dig_port->saved_port_bits & DDI_BUF_PORT_REVERSAL)
 			port_buf |= XELPDP_PORT_REVERSAL;
 
-		intel_de_rmw(dev_priv, XELPDP_PORT_BUF_CTL1(port),
+		intel_de_rmw(dev_priv, XELPDP_PORT_BUF_CTL1(dev_priv, port),
 			     XELPDP_PORT_WIDTH_MASK | XELPDP_PORT_REVERSAL, port_buf);
 
 		buf_ctl |= DDI_PORT_WIDTH(lane_count);
