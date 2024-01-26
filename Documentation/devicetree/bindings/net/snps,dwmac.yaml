@@ -95,6 +95,7 @@ properties:
         - snps,dwmac-5.20
         - snps,dwxgmac
         - snps,dwxgmac-2.10
+        - starfive,jh7100-dwmac
         - starfive,jh7110-dwmac
 
   reg:
@@ -144,10 +145,12 @@ properties:
       - description: AHB reset
 
   reset-names:
-    minItems: 1
-    items:
-      - const: stmmaceth
-      - const: ahb
+    oneOf:
+      - items:
+          - enum: [stmmaceth, ahb]
+      - items:
+          - const: stmmaceth
+          - const: ahb
 
   power-domains:
     maxItems: 1
