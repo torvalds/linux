@@ -580,6 +580,7 @@ bool check_index_header(const struct INDEX_HDR *hdr, size_t bytes);
 int log_replay(struct ntfs_inode *ni, bool *initialized);
 
 /* Globals from fsntfs.c */
+struct buffer_head *ntfs_bread(struct super_block *sb, sector_t block);
 bool ntfs_fix_pre_write(struct NTFS_RECORD_HEADER *rhdr, size_t bytes);
 int ntfs_fix_post_read(struct NTFS_RECORD_HEADER *rhdr, size_t bytes,
 		       bool simple);
@@ -1010,19 +1011,6 @@ static inline CLST bytes_to_cluster(const struct ntfs_sb_info *sbi, u64 size)
 static inline u64 bytes_to_block(const struct super_block *sb, u64 size)
 {
 	return (size + sb->s_blocksize - 1) >> sb->s_blocksize_bits;
-}
-
-static inline struct buffer_head *ntfs_bread(struct super_block *sb,
-					     sector_t block)
-{
-	struct buffer_head *bh = sb_bread_unmovable(sb, block);
-
-	if (bh)
-		return bh;
-
-	ntfs_err(sb, "failed to read volume at offset 0x%llx",
-		 (u64)block << sb->s_blocksize_bits);
-	return NULL;
 }
 
 static inline struct ntfs_inode *ntfs_i(struct inode *inode)
