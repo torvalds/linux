@@ -300,7 +300,7 @@ OnADDBAReq_Fail:
 	}
 }
 
-int rtllib_rx_ADDBARsp(struct rtllib_device *ieee, struct sk_buff *skb)
+int rtllib_rx_add_ba_rsp(struct rtllib_device *ieee, struct sk_buff *skb)
 {
 	struct ieee80211_hdr_3addr *rsp = NULL;
 	struct ba_record *pending_ba, *admitted_ba;

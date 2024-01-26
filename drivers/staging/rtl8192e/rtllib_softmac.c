@@ -1556,7 +1556,7 @@ static void rtllib_process_action(struct rtllib_device *ieee,
 			rtllib_rx_ADDBAReq(ieee, skb);
 			break;
 		case ACT_ADDBARSP:
-			rtllib_rx_ADDBARsp(ieee, skb);
+			rtllib_rx_add_ba_rsp(ieee, skb);
 			break;
 		case ACT_DELBA:
 			rtllib_rx_DELBA(ieee, skb);
