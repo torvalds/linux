@@ -1527,7 +1527,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int i, err;
 
 	if ((test->flags & F_NEEDS_JIT_ENABLED) && jit_disabled) {
-		printf("SKIP (requires BPF JIT)");
+		printf("SKIP (requires BPF JIT)\n");
 		skips++;
 		sched_yield();
 		return;
