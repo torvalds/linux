@@ -775,6 +775,48 @@ static void __sev_platform_init_handle_tmr(struct sev_device *sev)
 	}
 }
 
+/*
+ * If an init_ex_path is provided allocate a buffer for the file and
+ * read in the contents. Additionally, if SNP is initialized, convert
+ * the buffer pages to firmware pages.
+ */
+static int __sev_platform_init_handle_init_ex_path(struct sev_device *sev)
+{
+	struct page *page;
+	int rc;
+
+	if (!init_ex_path)
+		return 0;
+
+	if (sev_init_ex_buffer)
+		return 0;
+
+	page = alloc_pages(GFP_KERNEL, get_order(NV_LENGTH));
+	if (!page) {
+		dev_err(sev->dev, "SEV: INIT_EX NV memory allocation failed\n");
+		return -ENOMEM;
+	}
+
+	sev_init_ex_buffer = page_address(page);
+
+	rc = sev_read_init_ex_file();
+	if (rc)
+		return rc;
+
+	/* If SEV-SNP is initialized, transition to firmware page. */
+	if (sev->snp_initialized) {
+		unsigned long npages;
+
+		npages = 1UL << get_order(NV_LENGTH);
+		if (rmp_mark_pages_firmware(__pa(sev_init_ex_buffer), npages, false)) {
+			dev_err(sev->dev, "SEV: INIT_EX NV memory page state change failed.\n");
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 static int __sev_platform_init_locked(int *error)
 {
 	int rc, psp_ret = SEV_RET_NO_FW_CALL;
@@ -790,11 +832,9 @@ static int __sev_platform_init_locked(int *error)
 
 	__sev_platform_init_handle_tmr(sev);
 
-	if (sev_init_ex_buffer) {
-		rc = sev_read_init_ex_file();
-		if (rc)
-			return rc;
-	}
+	rc = __sev_platform_init_handle_init_ex_path(sev);
+	if (rc)
+		return rc;
 
 	rc = __sev_do_init_locked(&psp_ret);
 	if (rc && psp_ret == SEV_RET_SECURE_DATA_INVALID) {
@@ -1693,8 +1733,9 @@ static void sev_firmware_shutdown(struct sev_device *sev)
 	}
 
 	if (sev_init_ex_buffer) {
-		free_pages((unsigned long)sev_init_ex_buffer,
-			   get_order(NV_LENGTH));
+		__snp_free_firmware_pages(virt_to_page(sev_init_ex_buffer),
+					  get_order(NV_LENGTH),
+					  true);
 		sev_init_ex_buffer = NULL;
 	}
 
@@ -1747,18 +1788,6 @@ void sev_pci_init(void)
 
 	if (sev_update_firmware(sev->dev) == 0)
 		sev_get_api_version();
-
-	/* If an init_ex_path is provided rely on INIT_EX for PSP initialization
-	 * instead of INIT.
-	 */
-	if (init_ex_path) {
-		sev_init_ex_buffer = sev_fw_alloc(NV_LENGTH);
-		if (!sev_init_ex_buffer) {
-			dev_err(sev->dev,
-				"SEV: INIT_EX NV memory allocation failed\n");
-			goto err;
-		}
-	}
 
 	/* Initialize the platform */
 	args.probe = true;
