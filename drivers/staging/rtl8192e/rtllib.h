@@ -1072,7 +1072,7 @@ struct rt_pwr_save_ctrl {
 
 	bool				bLeisurePs;
 	u8				LpsIdleCount;
-	u8				LPSAwakeIntvl;
+	u8				lps_awake_intvl;
 
 	u32				CurPsLevel;
 };
