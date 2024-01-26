@@ -2695,23 +2695,18 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 static int mlxsw_sp_lag_pgt_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char sgcr_pl[MLXSW_REG_SGCR_LEN];
-	u16 max_lag;
 	int err;
 
 	if (mlxsw_core_lag_mode(mlxsw_sp->core) !=
 	    MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW)
 		return 0;
 
-	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
-	if (err)
-		return err;
-
 	/* In DDD mode, which we by default use, each LAG entry is 8 PGT
 	 * entries. The LAG table address needs to be 8-aligned, but that ought
 	 * to be the case, since the LAG table is allocated first.
 	 */
 	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, &mlxsw_sp->lag_pgt_base,
-					   max_lag * 8);
+					   mlxsw_sp->max_lag * 8);
 	if (err)
 		return err;
 	if (WARN_ON_ONCE(mlxsw_sp->lag_pgt_base % 8)) {
@@ -2728,25 +2723,18 @@ static int mlxsw_sp_lag_pgt_init(struct mlxsw_sp *mlxsw_sp)
 
 err_mid_alloc_range:
 	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, mlxsw_sp->lag_pgt_base,
-				    max_lag * 8);
+				    mlxsw_sp->max_lag * 8);
 	return err;
 }
 
 static void mlxsw_sp_lag_pgt_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	u16 max_lag;
-	int err;
-
 	if (mlxsw_core_lag_mode(mlxsw_sp->core) !=
 	    MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW)
 		return;
 
-	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
-	if (err)
-		return;
-
 	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, mlxsw_sp->lag_pgt_base,
-				    max_lag * 8);
+				    mlxsw_sp->max_lag * 8);
 }
 
 #define MLXSW_SP_LAG_SEED_INIT 0xcafecafe
@@ -2759,7 +2747,6 @@ struct mlxsw_sp_lag {
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 {
 	char slcr_pl[MLXSW_REG_SLCR_LEN];
-	u16 max_lag;
 	u32 seed;
 	int err;
 
@@ -2778,7 +2765,7 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
+	err = mlxsw_core_max_lag(mlxsw_sp->core, &mlxsw_sp->max_lag);
 	if (err)
 		return err;
 
@@ -2789,7 +2776,7 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		return err;
 
-	mlxsw_sp->lags = kcalloc(max_lag, sizeof(struct mlxsw_sp_lag),
+	mlxsw_sp->lags = kcalloc(mlxsw_sp->max_lag, sizeof(struct mlxsw_sp_lag),
 				 GFP_KERNEL);
 	if (!mlxsw_sp->lags) {
 		err = -ENOMEM;
@@ -4340,14 +4327,9 @@ static int mlxsw_sp_lag_index_get(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_lag *lag;
 	int free_lag_id = -1;
-	u16 max_lag;
-	int err, i;
+	int i;
 
-	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
-	if (err)
-		return err;
-
-	for (i = 0; i < max_lag; i++) {
+	for (i = 0; i < mlxsw_sp->max_lag; i++) {
 		lag = &mlxsw_sp->lags[i];
 		if (lag->ref_count) {
 			if (lag->dev == lag_dev) {
