@@ -36,7 +36,6 @@ properties:
           - qcom,pcie-sdm845
           - qcom,pcie-sdx55
           - qcom,pcie-sm8150
-          - qcom,pcie-sm8250
           - qcom,pcie-sm8350
       - items:
           - const: qcom,pcie-msm8998
@@ -215,7 +214,6 @@ allOf:
               - qcom,pcie-sc8180x
               - qcom,pcie-sc8280xp
               - qcom,pcie-sdx55
-              - qcom,pcie-sm8250
               - qcom,pcie-sm8350
     then:
       properties:
@@ -575,51 +573,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-sm8250
-    then:
-      oneOf:
-          # Unfortunately the "optional" ref clock is used in the middle of the list
-        - properties:
-            clocks:
-              minItems: 9
-              maxItems: 9
-            clock-names:
-              items:
-                - const: pipe # PIPE clock
-                - const: aux # Auxiliary clock
-                - const: cfg # Configuration clock
-                - const: bus_master # Master AXI clock
-                - const: bus_slave # Slave AXI clock
-                - const: slave_q2a # Slave Q2A clock
-                - const: ref # REFERENCE clock
-                - const: tbu # PCIe TBU clock
-                - const: ddrss_sf_tbu # PCIe SF TBU clock
-        - properties:
-            clocks:
-              minItems: 8
-              maxItems: 8
-            clock-names:
-              items:
-                - const: pipe # PIPE clock
-                - const: aux # Auxiliary clock
-                - const: cfg # Configuration clock
-                - const: bus_master # Master AXI clock
-                - const: bus_slave # Slave AXI clock
-                - const: slave_q2a # Slave Q2A clock
-                - const: tbu # PCIe TBU clock
-                - const: ddrss_sf_tbu # PCIe SF TBU clock
-      properties:
-        resets:
-          maxItems: 1
-        reset-names:
-          items:
-            - const: pci # PCIe core reset
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,pcie-sm8350
     then:
       properties:
@@ -777,7 +730,6 @@ allOf:
               - qcom,pcie-sc8180x
               - qcom,pcie-sdm845
               - qcom,pcie-sm8150
-              - qcom,pcie-sm8250
               - qcom,pcie-sm8350
     then:
       oneOf:
