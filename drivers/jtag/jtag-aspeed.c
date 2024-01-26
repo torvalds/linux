@@ -162,7 +162,7 @@
 /* Use this macro to set us delay for JTAG Master Controller to be programmed */
 #define AST26XX_JTAG_CTRL_UDELAY	2
 
-/*#define USE_INTERRUPTS*/
+#define USE_INTERRUPTS
 #define DEBUG_JTAG
 
 static const char * const regnames[] = {
