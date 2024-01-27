@@ -2719,12 +2719,12 @@ void vdo_traverse_forest(struct block_map *map, vdo_entry_callback_fn callback,
  */
 static int __must_check initialize_block_map_zone(struct block_map *map,
 						  zone_count_t zone_number,
-						  struct vdo *vdo,
 						  page_count_t cache_size,
 						  block_count_t maximum_age)
 {
 	int result;
 	block_count_t i;
+	struct vdo *vdo = map->vdo;
 	struct block_map_zone *zone = &map->zones[zone_number];
 
 	BUILD_BUG_ON(sizeof(struct page_descriptor) != sizeof(u64));
@@ -2898,8 +2898,7 @@ int vdo_decode_block_map(struct block_map_state_2_0 state, block_count_t logical
 
 	map->zone_count = vdo->thread_config.logical_zone_count;
 	for (zone = 0; zone < map->zone_count; zone++) {
-		result = initialize_block_map_zone(map, zone, vdo, cache_size,
-						   maximum_age);
+		result = initialize_block_map_zone(map, zone, cache_size, maximum_age);
 		if (result != VDO_SUCCESS) {
 			vdo_free_block_map(map);
 			return result;
