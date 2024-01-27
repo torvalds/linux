@@ -39,6 +39,14 @@ static void bch2_journal_replay_to_text(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "seq %llu ", le64_to_cpu(j->j.seq));
 
 	bch2_journal_ptrs_to_text(out, c, j);
+
+	struct jset_entry *entry;
+	for_each_jset_entry_type(entry, &j->j, BCH_JSET_ENTRY_datetime) {
+		struct jset_entry_datetime *datetime =
+			container_of(entry, struct jset_entry_datetime, entry);
+		bch2_prt_datetime(out, le64_to_cpu(datetime->seconds));
+		break;
+	}
 }
 
 static struct nonce journal_nonce(const struct jset *jset)
@@ -752,6 +760,37 @@ static void journal_entry_write_buffer_keys_to_text(struct printbuf *out, struct
 					    struct jset_entry *entry)
 {
 	journal_entry_btree_keys_to_text(out, c, entry);
+}
+
+static int journal_entry_datetime_validate(struct bch_fs *c,
+				struct jset *jset,
+				struct jset_entry *entry,
+				unsigned version, int big_endian,
+				enum bkey_invalid_flags flags)
+{
+	unsigned bytes = vstruct_bytes(entry);
+	unsigned expected = 16;
+	int ret = 0;
+
+	if (journal_entry_err_on(vstruct_bytes(entry) < expected,
+				 c, version, jset, entry,
+				 journal_entry_dev_usage_bad_size,
+				 "bad size (%u < %u)",
+				 bytes, expected)) {
+		journal_entry_null_range(entry, vstruct_next(entry));
+		return ret;
+	}
+fsck_err:
+	return ret;
+}
+
+static void journal_entry_datetime_to_text(struct printbuf *out, struct bch_fs *c,
+					    struct jset_entry *entry)
+{
+	struct jset_entry_datetime *datetime =
+		container_of(entry, struct jset_entry_datetime, entry);
+
+	bch2_prt_datetime(out, le64_to_cpu(datetime->seconds));
 }
 
 struct jset_entry_ops {
@@ -1793,6 +1832,11 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	start = end = vstruct_last(jset);
 
 	end	= bch2_btree_roots_to_journal_entries(c, end, btree_roots_have);
+
+	struct jset_entry_datetime *d =
+		container_of(jset_entry_init(&end, sizeof(*d)), struct jset_entry_datetime, entry);
+	d->entry.type	= BCH_JSET_ENTRY_datetime;
+	d->seconds	= cpu_to_le64(ktime_get_real_seconds());
 
 	bch2_journal_super_entries_add_common(c, &end, seq);
 	u64s	= (u64 *) end - (u64 *) start;
