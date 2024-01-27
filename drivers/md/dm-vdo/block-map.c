@@ -98,7 +98,7 @@ struct cursors {
 	struct block_map_zone *zone;
 	struct vio_pool *pool;
 	vdo_entry_callback_fn entry_callback;
-	struct vdo_completion *parent;
+	struct vdo_completion *completion;
 	root_count_t active_roots;
 	struct cursor cursors[];
 };
@@ -2501,7 +2501,7 @@ static void replace_forest(struct block_map *map)
 static void finish_cursor(struct cursor *cursor)
 {
 	struct cursors *cursors = cursor->parent;
-	struct vdo_completion *parent = cursors->parent;
+	struct vdo_completion *completion = cursors->completion;
 
 	return_vio_to_pool(cursors->pool, uds_forget(cursor->vio));
 	if (--cursors->active_roots > 0)
@@ -2509,7 +2509,7 @@ static void finish_cursor(struct cursor *cursor)
 
 	uds_free(cursors);
 
-	vdo_finish_completion(parent);
+	vdo_finish_completion(completion);
 }
 
 static void traverse(struct cursor *cursor);
@@ -2595,12 +2595,10 @@ static void traverse(struct cursor *cursor)
 
 			if (cursor->height < VDO_BLOCK_MAP_TREE_HEIGHT - 1) {
 				int result = cursor->parent->entry_callback(location.pbn,
-									    cursor->parent->parent);
-
+									    cursor->parent->completion);
 				if (result != VDO_SUCCESS) {
 					page->entries[level->slot] = UNMAPPED_BLOCK_MAP_ENTRY;
-					vdo_write_tree_page(tree_page,
-							    cursor->parent->zone);
+					vdo_write_tree_page(tree_page, cursor->parent->zone);
 					continue;
 				}
 			}
@@ -2676,10 +2674,10 @@ static struct boundary compute_boundary(struct block_map *map, root_count_t root
 /**
  * vdo_traverse_forest() - Walk the entire forest of a block map.
  * @callback: A function to call with the pbn of each allocated node in the forest.
- * @parent: The completion to notify on each traversed PBN, and when the traversal is complete.
+ * @completion: The completion to notify on each traversed PBN, and when traversal completes.
  */
 void vdo_traverse_forest(struct block_map *map, vdo_entry_callback_fn callback,
-			 struct vdo_completion *parent)
+			 struct vdo_completion *completion)
 {
 	root_count_t root;
 	struct cursors *cursors;
@@ -2688,14 +2686,14 @@ void vdo_traverse_forest(struct block_map *map, vdo_entry_callback_fn callback,
 	result = uds_allocate_extended(struct cursors, map->root_count,
 				       struct cursor, __func__, &cursors);
 	if (result != VDO_SUCCESS) {
-		vdo_fail_completion(parent, result);
+		vdo_fail_completion(completion, result);
 		return;
 	}
 
 	cursors->zone = &map->zones[0];
 	cursors->pool = cursors->zone->vio_pool;
 	cursors->entry_callback = callback;
-	cursors->parent = parent;
+	cursors->completion = completion;
 	cursors->active_roots = map->root_count;
 	for (root = 0; root < map->root_count; root++) {
 		struct cursor *cursor = &cursors->cursors[root];

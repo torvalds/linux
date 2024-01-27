@@ -313,7 +313,7 @@ physical_block_number_t vdo_find_block_map_page_pbn(struct block_map *map,
 void vdo_write_tree_page(struct tree_page *page, struct block_map_zone *zone);
 
 void vdo_traverse_forest(struct block_map *map, vdo_entry_callback_fn callback,
-			 struct vdo_completion *parent);
+			 struct vdo_completion *completion);
 
 int __must_check vdo_decode_block_map(struct block_map_state_2_0 state,
 				      block_count_t logical_blocks, struct vdo *vdo,
