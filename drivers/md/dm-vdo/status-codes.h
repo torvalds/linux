@@ -105,6 +105,6 @@ extern const struct error_info vdo_status_list[];
 
 int vdo_register_status_codes(void);
 
-int vdo_map_to_system_error(int error);
+int vdo_status_to_errno(int error);
 
 #endif /* VDO_STATUS_CODES_H */

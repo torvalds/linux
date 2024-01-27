@@ -87,7 +87,7 @@ int vdo_register_status_codes(void)
 }
 
 /**
- * vdo_map_to_system_error() - Given an error code, return a value we can return to the OS.
+ * vdo_status_to_errno() - Given an error code, return a value we can return to the OS.
  * @error: The error code to convert.
  *
  * The input error code may be a system-generated value (such as -EIO), an errno macro used in our
@@ -96,7 +96,7 @@ int vdo_register_status_codes(void)
  *
  * Return: A system error code value.
  */
-int vdo_map_to_system_error(int error)
+int vdo_status_to_errno(int error)
 {
 	char error_name[UDS_MAX_ERROR_NAME_SIZE];
 	char error_message[UDS_MAX_ERROR_MESSAGE_SIZE];
