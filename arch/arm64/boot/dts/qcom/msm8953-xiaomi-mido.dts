@@ -2,6 +2,7 @@
 /dts-v1/;
 
 #include "msm8953-xiaomi-common.dtsi"
+#include "dt-bindings/pinctrl/qcom,pmic-gpio.h"
 
 /delete-node/ &cont_splash_mem;
 /delete-node/ &qseecom_mem;
@@ -74,6 +75,11 @@
 		};
 	};
 
+	irled {
+		compatible = "pwm-ir-tx";
+		pwms = <&pmi8950_pwm 0 0>;
+	};
+
 	reserved-memory {
 		qseecom_mem: qseecom@84a00000 {
 			reg = <0x0 0x84a00000 0x0 0x1900000>;
@@ -134,6 +140,25 @@
 
 &panel {
 	compatible = "xiaomi,mido-panel";
+};
+
+&pmi8950_gpios {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_ir_default>;
+
+	pwm_ir_default: pwm_ir_default {
+		pwm_ir_state {
+			pins = "gpio1";
+			output-low;
+			bias-pull-down;
+			function = "func1";
+			qcom,drive-strength = <PMIC_GPIO_STRENGTH_MED>;
+		};
+	};
+};
+
+&pmi8950_pwm {
+	status = "okay";
 };
 
 &sdhc_2 {
