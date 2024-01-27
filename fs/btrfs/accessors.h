@@ -3,8 +3,17 @@
 #ifndef BTRFS_ACCESSORS_H
 #define BTRFS_ACCESSORS_H
 
-#include <linux/stddef.h>
 #include <asm/unaligned.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+#include <linux/align.h>
+#include <linux/build_bug.h>
+#include <linux/compiler.h>
+#include <linux/string.h>
+#include <linux/mm.h>
+#include <uapi/linux/btrfs_tree.h>
+
+struct extent_buffer;
 
 struct btrfs_map_token {
 	struct extent_buffer *eb;

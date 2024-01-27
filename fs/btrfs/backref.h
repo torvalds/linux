@@ -6,11 +6,23 @@
 #ifndef BTRFS_BACKREF_H
 #define BTRFS_BACKREF_H
 
-#include <linux/btrfs.h>
+#include <linux/types.h>
+#include <linux/rbtree.h>
+#include <linux/list.h>
+#include <linux/slab.h>
+#include <uapi/linux/btrfs.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "messages.h"
-#include "ulist.h"
+#include "locking.h"
 #include "disk-io.h"
 #include "extent_io.h"
+#include "ctree.h"
+
+struct extent_inode_elem;
+struct ulist;
+struct btrfs_extent_item;
+struct btrfs_trans_handle;
+struct btrfs_fs_info;
 
 /*
  * Used by implementations of iterate_extent_inodes_t (see definition below) to

@@ -6,7 +6,17 @@
 #ifndef BTRFS_DELAYED_REF_H
 #define BTRFS_DELAYED_REF_H
 
+#include <linux/types.h>
 #include <linux/refcount.h>
+#include <linux/list.h>
+#include <linux/rbtree.h>
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
+#include <linux/slab.h>
+#include <uapi/linux/btrfs_tree.h>
+
+struct btrfs_trans_handle;
+struct btrfs_fs_info;
 
 /* these are the possible values of struct btrfs_delayed_ref_node->action */
 enum btrfs_delayed_ref_action {

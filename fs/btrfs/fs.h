@@ -4,12 +4,50 @@
 #define BTRFS_FS_H
 
 #include <linux/blkdev.h>
-#include <linux/fs.h>
-#include <linux/btrfs_tree.h>
 #include <linux/sizes.h>
+#include <linux/time64.h>
+#include <linux/compiler.h>
+#include <linux/math.h>
+#include <linux/atomic.h>
+#include <linux/blkdev.h>
+#include <linux/percpu_counter.h>
+#include <linux/completion.h>
+#include <linux/lockdep.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include <linux/rwlock_types.h>
+#include <linux/rwsem.h>
+#include <linux/semaphore.h>
+#include <linux/list.h>
+#include <linux/radix-tree.h>
+#include <linux/workqueue.h>
+#include <linux/wait.h>
+#include <linux/wait_bit.h>
+#include <linux/sched.h>
+#include <linux/rbtree.h>
+#include <uapi/linux/btrfs.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "extent-io-tree.h"
 #include "async-thread.h"
 #include "block-rsv.h"
+#include "fs.h"
+
+struct inode;
+struct super_block;
+struct kobject;
+struct reloc_control;
+struct crypto_shash;
+struct ulist;
+struct btrfs_device;
+struct btrfs_block_group;
+struct btrfs_root;
+struct btrfs_fs_devices;
+struct btrfs_transaction;
+struct btrfs_delayed_root;
+struct btrfs_balance_control;
+struct btrfs_subpage_info;
+struct btrfs_stripe_hash_table;
+struct btrfs_space_info;
 
 #define BTRFS_MAX_EXTENT_SIZE SZ_128M
 

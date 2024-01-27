@@ -3,9 +3,22 @@
 #ifndef BTRFS_BLOCK_GROUP_H
 #define BTRFS_BLOCK_GROUP_H
 
+#include <linux/atomic.h>
+#include <linux/mutex.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/refcount.h>
+#include <linux/wait.h>
+#include <linux/sizes.h>
+#include <linux/rwsem.h>
+#include <linux/rbtree.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "free-space-cache.h"
 
 struct btrfs_chunk_map;
+struct btrfs_fs_info;
+struct btrfs_inode;
+struct btrfs_trans_handle;
 
 enum btrfs_disk_cache_state {
 	BTRFS_DC_WRITTEN,

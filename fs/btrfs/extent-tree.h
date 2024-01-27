@@ -13,6 +13,7 @@ struct btrfs_free_cluster;
 struct btrfs_fs_info;
 struct btrfs_root;
 struct btrfs_path;
+struct btrfs_ref;
 struct btrfs_disk_key;
 struct btrfs_delayed_ref_head;
 struct btrfs_delayed_ref_root;
