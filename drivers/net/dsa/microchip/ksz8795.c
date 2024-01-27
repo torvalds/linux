@@ -633,6 +633,57 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 }
 
 /**
+ * ksz879x_get_loopback - KSZ879x specific function to get loopback
+ *                        configuration status for a specific port
+ * @dev: Pointer to the device structure
+ * @port: Port number to query
+ * @val: Pointer to store the result
+ *
+ * This function reads the SMI registers to determine whether loopback mode
+ * is enabled for a specific port.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz879x_get_loopback(struct ksz_device *dev, u16 port,
+				u16 *val)
+{
+	u8 stat3;
+	int ret;
+
+	ret = ksz_pread8(dev, port, REG_PORT_STATUS_3, &stat3);
+	if (ret)
+		return ret;
+
+	if (stat3 & PORT_PHY_LOOPBACK)
+		*val |= BMCR_LOOPBACK;
+
+	return 0;
+}
+
+/**
+ * ksz879x_set_loopback - KSZ879x specific function  to set loopback mode for
+ *			  a specific port
+ * @dev: Pointer to the device structure.
+ * @port: Port number to modify.
+ * @val: Value indicating whether to enable or disable loopback mode.
+ *
+ * This function translates loopback bit of the BMCR register into the
+ * corresponding hardware register bit value and writes it to the SMI interface.
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz879x_set_loopback(struct ksz_device *dev, u16 port, u16 val)
+{
+	u8 stat3 = 0;
+
+	if (val & BMCR_LOOPBACK)
+		stat3 |= PORT_PHY_LOOPBACK;
+
+	return ksz_prmw8(dev, port, REG_PORT_STATUS_3, PORT_PHY_LOOPBACK,
+			 stat3);
+}
+
+/**
  * ksz8_r_phy_ctrl - Translates and reads from the SMI interface to a MIIM PHY
  *		     Control register (Reg. 31).
  * @dev: The KSZ device instance.
@@ -676,59 +727,122 @@ static int ksz8_r_phy_ctrl(struct ksz_device *dev, int port, u16 *val)
 	return 0;
 }
 
+/**
+ * ksz8_r_phy_bmcr - Translates and reads from the SMI interface to a MIIM PHY
+ *		     Basic mode control register (Reg. 0).
+ * @dev: The KSZ device instance.
+ * @port: The port number to be read.
+ * @val: The value read from the SMI interface.
+ *
+ * This function reads the SMI interface and translates the hardware register
+ * bit values into their corresponding control settings for a MIIM PHY Basic
+ * mode control register.
+ *
+ * MIIM Bit Mapping Comparison between KSZ8794 and KSZ8873
+ * -------------------------------------------------------------------
+ * MIIM Bit                    | KSZ8794 Reg/Bit             | KSZ8873 Reg/Bit
+ * ----------------------------+-----------------------------+----------------
+ * Bit 15 - Soft Reset         | 0xF/4                       | Not supported
+ * Bit 14 - Loopback           | 0xD/0 (MAC), 0xF/7 (PHY)    ~ 0xD/0 (PHY)
+ * Bit 13 - Force 100          | 0xC/6                       = 0xC/6
+ * Bit 12 - AN Enable          | 0xC/7 (reverse logic)       ~ 0xC/7
+ * Bit 11 - Power Down         | 0xD/3                       = 0xD/3
+ * Bit 10 - PHY Isolate        | 0xF/5                       | Not supported
+ * Bit 9 - Restart AN          | 0xD/5                       = 0xD/5
+ * Bit 8 - Force Full-Duplex   | 0xC/5                       = 0xC/5
+ * Bit 7 - Collision Test/Res. | Not supported               | Not supported
+ * Bit 6 - Reserved            | Not supported               | Not supported
+ * Bit 5 - Hp_mdix             | 0x9/7                       ~ 0xF/7
+ * Bit 4 - Force MDI           | 0xD/1                       = 0xD/1
+ * Bit 3 - Disable MDIX        | 0xD/2                       = 0xD/2
+ * Bit 2 - Disable Far-End F.  | ????                        | 0xD/4
+ * Bit 1 - Disable Transmit    | 0xD/6                       = 0xD/6
+ * Bit 0 - Disable LED         | 0xD/7                       = 0xD/7
+ * -------------------------------------------------------------------
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz8_r_phy_bmcr(struct ksz_device *dev, u16 port, u16 *val)
+{
+	const u16 *regs = dev->info->regs;
+	u8 restart, speed, ctrl;
+	int ret;
+
+	*val = 0;
+
+	ret = ksz_pread8(dev, port, regs[P_NEG_RESTART_CTRL], &restart);
+	if (ret)
+		return ret;
+
+	ret = ksz_pread8(dev, port, regs[P_SPEED_STATUS], &speed);
+	if (ret)
+		return ret;
+
+	ret = ksz_pread8(dev, port, regs[P_FORCE_CTRL], &ctrl);
+	if (ret)
+		return ret;
+
+	if (ctrl & PORT_FORCE_100_MBIT)
+		*val |= BMCR_SPEED100;
+
+	if (ksz_is_ksz88x3(dev)) {
+		if (restart & KSZ8873_PORT_PHY_LOOPBACK)
+			*val |= BMCR_LOOPBACK;
+
+		if ((ctrl & PORT_AUTO_NEG_ENABLE))
+			*val |= BMCR_ANENABLE;
+	} else {
+		ret = ksz879x_get_loopback(dev, port, val);
+		if (ret)
+			return ret;
+
+		if (!(ctrl & PORT_AUTO_NEG_DISABLE))
+			*val |= BMCR_ANENABLE;
+	}
+
+	if (restart & PORT_POWER_DOWN)
+		*val |= BMCR_PDOWN;
+
+	if (restart & PORT_AUTO_NEG_RESTART)
+		*val |= BMCR_ANRESTART;
+
+	if (ctrl & PORT_FORCE_FULL_DUPLEX)
+		*val |= BMCR_FULLDPLX;
+
+	if (speed & PORT_HP_MDIX)
+		*val |= KSZ886X_BMCR_HP_MDIX;
+
+	if (restart & PORT_FORCE_MDIX)
+		*val |= KSZ886X_BMCR_FORCE_MDI;
+
+	if (restart & PORT_AUTO_MDIX_DISABLE)
+		*val |= KSZ886X_BMCR_DISABLE_AUTO_MDIX;
+
+	if (restart & PORT_TX_DISABLE)
+		*val |= KSZ886X_BMCR_DISABLE_TRANSMIT;
+
+	if (restart & PORT_LED_OFF)
+		*val |= KSZ886X_BMCR_DISABLE_LED;
+
+	return 0;
+}
+
 int ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
-	u8 restart, speed, ctrl, link;
+	u8 ctrl, link, val1, val2;
 	int processed = true;
 	const u16 *regs;
-	u8 val1, val2;
 	u16 data = 0;
-	u8 p = phy;
+	u16 p = phy;
 	int ret;
 
 	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
-		ret = ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
+		ret = ksz8_r_phy_bmcr(dev, p, &data);
 		if (ret)
 			return ret;
-
-		ret = ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
-		if (ret)
-			return ret;
-
-		ret = ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
-		if (ret)
-			return ret;
-
-		if (restart & PORT_PHY_LOOPBACK)
-			data |= BMCR_LOOPBACK;
-		if (ctrl & PORT_FORCE_100_MBIT)
-			data |= BMCR_SPEED100;
-		if (ksz_is_ksz88x3(dev)) {
-			if ((ctrl & PORT_AUTO_NEG_ENABLE))
-				data |= BMCR_ANENABLE;
-		} else {
-			if (!(ctrl & PORT_AUTO_NEG_DISABLE))
-				data |= BMCR_ANENABLE;
-		}
-		if (restart & PORT_POWER_DOWN)
-			data |= BMCR_PDOWN;
-		if (restart & PORT_AUTO_NEG_RESTART)
-			data |= BMCR_ANRESTART;
-		if (ctrl & PORT_FORCE_FULL_DUPLEX)
-			data |= BMCR_FULLDPLX;
-		if (speed & PORT_HP_MDIX)
-			data |= KSZ886X_BMCR_HP_MDIX;
-		if (restart & PORT_FORCE_MDIX)
-			data |= KSZ886X_BMCR_FORCE_MDI;
-		if (restart & PORT_AUTO_MDIX_DISABLE)
-			data |= KSZ886X_BMCR_DISABLE_AUTO_MDIX;
-		if (restart & PORT_TX_DISABLE)
-			data |= KSZ886X_BMCR_DISABLE_TRANSMIT;
-		if (restart & PORT_LED_OFF)
-			data |= KSZ886X_BMCR_DISABLE_LED;
 		break;
 	case MII_BMSR:
 		ret = ksz_pread8(dev, p, regs[P_LINK_STATUS], &link);
@@ -860,113 +974,137 @@ static int ksz8_w_phy_ctrl(struct ksz_device *dev, int port, u16 val)
 	return ret;
 }
 
+/**
+ * ksz8_w_phy_bmcr - Translates and writes to the SMI interface from a MIIM PHY
+ *		     Basic mode control register (Reg. 0).
+ * @dev: The KSZ device instance.
+ * @port: The port number to be configured.
+ * @val: The register value to be written.
+ *
+ * This function translates control settings from a MIIM PHY Basic mode control
+ * register into their corresponding hardware register bit values for the SMI
+ * interface.
+ *
+ * MIIM Bit Mapping Comparison between KSZ8794 and KSZ8873
+ * -------------------------------------------------------------------
+ * MIIM Bit                    | KSZ8794 Reg/Bit             | KSZ8873 Reg/Bit
+ * ----------------------------+-----------------------------+----------------
+ * Bit 15 - Soft Reset         | 0xF/4                       | Not supported
+ * Bit 14 - Loopback           | 0xD/0 (MAC), 0xF/7 (PHY)    ~ 0xD/0 (PHY)
+ * Bit 13 - Force 100          | 0xC/6                       = 0xC/6
+ * Bit 12 - AN Enable          | 0xC/7 (reverse logic)       ~ 0xC/7
+ * Bit 11 - Power Down         | 0xD/3                       = 0xD/3
+ * Bit 10 - PHY Isolate        | 0xF/5                       | Not supported
+ * Bit 9 - Restart AN          | 0xD/5                       = 0xD/5
+ * Bit 8 - Force Full-Duplex   | 0xC/5                       = 0xC/5
+ * Bit 7 - Collision Test/Res. | Not supported               | Not supported
+ * Bit 6 - Reserved            | Not supported               | Not supported
+ * Bit 5 - Hp_mdix             | 0x9/7                       ~ 0xF/7
+ * Bit 4 - Force MDI           | 0xD/1                       = 0xD/1
+ * Bit 3 - Disable MDIX        | 0xD/2                       = 0xD/2
+ * Bit 2 - Disable Far-End F.  | ????                        | 0xD/4
+ * Bit 1 - Disable Transmit    | 0xD/6                       = 0xD/6
+ * Bit 0 - Disable LED         | 0xD/7                       = 0xD/7
+ * -------------------------------------------------------------------
+ *
+ * Return: 0 on success, error code on failure.
+ */
+static int ksz8_w_phy_bmcr(struct ksz_device *dev, u16 port, u16 val)
+{
+	u8 restart, speed, ctrl, restart_mask;
+	const u16 *regs = dev->info->regs;
+	int ret;
+
+	/* Do not support PHY reset function. */
+	if (val & BMCR_RESET)
+		return 0;
+
+	speed = 0;
+	if (val & KSZ886X_BMCR_HP_MDIX)
+		speed |= PORT_HP_MDIX;
+
+	ret = ksz_prmw8(dev, port, regs[P_SPEED_STATUS], PORT_HP_MDIX, speed);
+	if (ret)
+		return ret;
+
+	ctrl = 0;
+	if (ksz_is_ksz88x3(dev)) {
+		if ((val & BMCR_ANENABLE))
+			ctrl |= PORT_AUTO_NEG_ENABLE;
+	} else {
+		if (!(val & BMCR_ANENABLE))
+			ctrl |= PORT_AUTO_NEG_DISABLE;
+
+		/* Fiber port does not support auto-negotiation. */
+		if (dev->ports[port].fiber)
+			ctrl |= PORT_AUTO_NEG_DISABLE;
+	}
+
+	if (val & BMCR_SPEED100)
+		ctrl |= PORT_FORCE_100_MBIT;
+
+	if (val & BMCR_FULLDPLX)
+		ctrl |= PORT_FORCE_FULL_DUPLEX;
+
+	ret = ksz_prmw8(dev, port, regs[P_FORCE_CTRL], PORT_FORCE_100_MBIT |
+		 /* PORT_AUTO_NEG_ENABLE and PORT_AUTO_NEG_DISABLE are the same
+		  * bits
+		  */
+		 PORT_FORCE_FULL_DUPLEX | PORT_AUTO_NEG_ENABLE, ctrl);
+	if (ret)
+		return ret;
+
+	restart = 0;
+	restart_mask = PORT_LED_OFF | PORT_TX_DISABLE | PORT_AUTO_NEG_RESTART |
+		PORT_POWER_DOWN | PORT_AUTO_MDIX_DISABLE | PORT_FORCE_MDIX;
+
+	if (val & KSZ886X_BMCR_DISABLE_LED)
+		restart |= PORT_LED_OFF;
+
+	if (val & KSZ886X_BMCR_DISABLE_TRANSMIT)
+		restart |= PORT_TX_DISABLE;
+
+	if (val & BMCR_ANRESTART)
+		restart |= PORT_AUTO_NEG_RESTART;
+
+	if (val & BMCR_PDOWN)
+		restart |= PORT_POWER_DOWN;
+
+	if (val & KSZ886X_BMCR_DISABLE_AUTO_MDIX)
+		restart |= PORT_AUTO_MDIX_DISABLE;
+
+	if (val & KSZ886X_BMCR_FORCE_MDI)
+		restart |= PORT_FORCE_MDIX;
+
+	if (ksz_is_ksz88x3(dev)) {
+		restart_mask |= KSZ8873_PORT_PHY_LOOPBACK;
+
+		if (val & BMCR_LOOPBACK)
+			restart |= KSZ8873_PORT_PHY_LOOPBACK;
+	} else {
+		ret = ksz879x_set_loopback(dev, port, val);
+		if (ret)
+			return ret;
+	}
+
+	return ksz_prmw8(dev, port, regs[P_NEG_RESTART_CTRL], restart_mask,
+			 restart);
+}
+
 int ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
-	u8 restart, speed, ctrl, data;
 	const u16 *regs;
-	u8 p = phy;
+	u8 ctrl, data;
+	u16 p = phy;
 	int ret;
 
 	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
-
-		/* Do not support PHY reset function. */
-		if (val & BMCR_RESET)
-			break;
-		ret = ksz_pread8(dev, p, regs[P_SPEED_STATUS], &speed);
+		ret = ksz8_w_phy_bmcr(dev, p, val);
 		if (ret)
 			return ret;
-
-		data = speed;
-		if (val & KSZ886X_BMCR_HP_MDIX)
-			data |= PORT_HP_MDIX;
-		else
-			data &= ~PORT_HP_MDIX;
-
-		if (data != speed) {
-			ret = ksz_pwrite8(dev, p, regs[P_SPEED_STATUS], data);
-			if (ret)
-				return ret;
-		}
-
-		ret = ksz_pread8(dev, p, regs[P_FORCE_CTRL], &ctrl);
-		if (ret)
-			return ret;
-
-		data = ctrl;
-		if (ksz_is_ksz88x3(dev)) {
-			if ((val & BMCR_ANENABLE))
-				data |= PORT_AUTO_NEG_ENABLE;
-			else
-				data &= ~PORT_AUTO_NEG_ENABLE;
-		} else {
-			if (!(val & BMCR_ANENABLE))
-				data |= PORT_AUTO_NEG_DISABLE;
-			else
-				data &= ~PORT_AUTO_NEG_DISABLE;
-
-			/* Fiber port does not support auto-negotiation. */
-			if (dev->ports[p].fiber)
-				data |= PORT_AUTO_NEG_DISABLE;
-		}
-
-		if (val & BMCR_SPEED100)
-			data |= PORT_FORCE_100_MBIT;
-		else
-			data &= ~PORT_FORCE_100_MBIT;
-		if (val & BMCR_FULLDPLX)
-			data |= PORT_FORCE_FULL_DUPLEX;
-		else
-			data &= ~PORT_FORCE_FULL_DUPLEX;
-
-		if (data != ctrl) {
-			ret = ksz_pwrite8(dev, p, regs[P_FORCE_CTRL], data);
-			if (ret)
-				return ret;
-		}
-
-		ret = ksz_pread8(dev, p, regs[P_NEG_RESTART_CTRL], &restart);
-		if (ret)
-			return ret;
-
-		data = restart;
-		if (val & KSZ886X_BMCR_DISABLE_LED)
-			data |= PORT_LED_OFF;
-		else
-			data &= ~PORT_LED_OFF;
-		if (val & KSZ886X_BMCR_DISABLE_TRANSMIT)
-			data |= PORT_TX_DISABLE;
-		else
-			data &= ~PORT_TX_DISABLE;
-		if (val & BMCR_ANRESTART)
-			data |= PORT_AUTO_NEG_RESTART;
-		else
-			data &= ~(PORT_AUTO_NEG_RESTART);
-		if (val & BMCR_PDOWN)
-			data |= PORT_POWER_DOWN;
-		else
-			data &= ~PORT_POWER_DOWN;
-		if (val & KSZ886X_BMCR_DISABLE_AUTO_MDIX)
-			data |= PORT_AUTO_MDIX_DISABLE;
-		else
-			data &= ~PORT_AUTO_MDIX_DISABLE;
-		if (val & KSZ886X_BMCR_FORCE_MDI)
-			data |= PORT_FORCE_MDIX;
-		else
-			data &= ~PORT_FORCE_MDIX;
-		if (val & BMCR_LOOPBACK)
-			data |= PORT_PHY_LOOPBACK;
-		else
-			data &= ~PORT_PHY_LOOPBACK;
-
-		if (data != restart) {
-			ret = ksz_pwrite8(dev, p, regs[P_NEG_RESTART_CTRL],
-					  data);
-			if (ret)
-				return ret;
-		}
 		break;
 	case MII_ADVERTISE:
 		ret = ksz_pread8(dev, p, regs[P_LOCAL_CTRL], &ctrl);
