@@ -452,9 +452,9 @@ l0_%=:	r1 >>= 16;					\
 SEC("raw_tp")
 __log_level(2)
 __success
-__msg("fp-8=0m??mmmm")
-__msg("fp-16=00mm??mm")
-__msg("fp-24=00mm???m")
+__msg("fp-8=0m??scalar()")
+__msg("fp-16=00mm??scalar()")
+__msg("fp-24=00mm???scalar()")
 __naked void spill_subregs_preserve_stack_zero(void)
 {
 	asm volatile (
