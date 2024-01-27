@@ -1061,7 +1061,7 @@ static void start_deduping(struct hash_lock *lock, struct data_vio *agent,
  * increment_stat() - Increment a statistic counter in a non-atomic yet thread-safe manner.
  * @stat: The statistic field to increment.
  */
-static void increment_stat(u64 *stat)
+static inline void increment_stat(u64 *stat)
 {
 	/*
 	 * Must only be mutated on the hash zone thread. Prevents any compiler shenanigans from
@@ -1129,7 +1129,6 @@ static void finish_verifying(struct vdo_completion *completion)
 static bool blocks_equal(char *block1, char *block2)
 {
 	int i;
-
 
 	for (i = 0; i < VDO_BLOCK_SIZE; i += sizeof(u64)) {
 		if (*((u64 *) &block1[i]) != *((u64 *) &block2[i]))
@@ -1456,13 +1455,13 @@ static void finish_writing(struct hash_lock *lock, struct data_vio *agent)
 	lock->duplicate = agent->new_mapped;
 	lock->verified = true;
 
-	if (vdo_is_state_compressed(lock->duplicate.state) &&
-	    lock->registered)
+	if (vdo_is_state_compressed(lock->duplicate.state) && lock->registered) {
 		/*
 		 * Compression means the location we gave in the UDS query is not the location
 		 * we're using to deduplicate.
 		 */
 		lock->update_advice = true;
+	}
 
 	/* If there are any waiters, we need to start deduping them. */
 	if (vdo_waitq_has_waiters(&lock->waiters)) {
@@ -2366,7 +2365,7 @@ static void timeout_index_operations_callback(struct vdo_completion *completion)
 					  DEDUPE_CONTEXT_TIMED_OUT)) {
 			/*
 			 * This context completed between the time the timeout fired, and now. We
-			 * can treat it as a a successful query, its requestor is already enqueued
+			 * can treat it as a successful query, its requestor is already enqueued
 			 * to process it.
 			 */
 			continue;
