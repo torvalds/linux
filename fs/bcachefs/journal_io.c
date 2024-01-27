@@ -17,6 +17,30 @@
 #include "sb-clean.h"
 #include "trace.h"
 
+void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
+			       struct journal_replay *j)
+{
+	darray_for_each(j->ptrs, i) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, i->dev);
+		u64 offset;
+
+		div64_u64_rem(i->sector, ca->mi.bucket_size, &offset);
+
+		if (i != j->ptrs.data)
+			prt_printf(out, " ");
+		prt_printf(out, "%u:%u:%u (sector %llu)",
+			   i->dev, i->bucket, i->bucket_offset, i->sector);
+	}
+}
+
+static void bch2_journal_replay_to_text(struct printbuf *out, struct bch_fs *c,
+					struct journal_replay *j)
+{
+	prt_printf(out, "seq %llu ", le64_to_cpu(j->j.seq));
+
+	bch2_journal_ptrs_to_text(out, c, j);
+}
+
 static struct nonce journal_nonce(const struct jset *jset)
 {
 	return (struct nonce) {{
@@ -86,6 +110,7 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	struct journal_replay **_i, *i, *dup;
 	size_t bytes = vstruct_bytes(j);
 	u64 last_seq = !JSET_NO_FLUSH(j) ? le64_to_cpu(j->last_seq) : 0;
+	struct printbuf buf = PRINTBUF;
 	int ret = JOURNAL_ENTRY_ADD_OK;
 
 	/* Is this entry older than the range we need? */
@@ -130,25 +155,37 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	 */
 	dup = *_i;
 	if (dup) {
-		if (bytes == vstruct_bytes(&dup->j) &&
-		    !memcmp(j, &dup->j, bytes)) {
-			i = dup;
-			goto found;
-		}
+		bool identical = bytes == vstruct_bytes(&dup->j) &&
+			!memcmp(j, &dup->j, bytes);
+		bool not_identical = !identical &&
+			entry_ptr.csum_good &&
+			dup->csum_good;
 
-		if (!entry_ptr.csum_good) {
-			i = dup;
-			goto found;
-		}
+		bool same_device = false;
+		darray_for_each(dup->ptrs, ptr)
+			if (ptr->dev == ca->dev_idx)
+				same_device = true;
 
-		if (!dup->csum_good)
+		ret = darray_push(&dup->ptrs, entry_ptr);
+		if (ret)
+			goto out;
+
+		bch2_journal_replay_to_text(&buf, c, dup);
+
+		fsck_err_on(same_device,
+			    c, journal_entry_dup_same_device,
+			    "duplicate journal entry on same device\n  %s",
+			    buf.buf);
+
+		fsck_err_on(not_identical,
+			    c, journal_entry_replicas_data_mismatch,
+			    "found duplicate but non identical journal entries\n  %s",
+			    buf.buf);
+
+		if (entry_ptr.csum_good && !identical)
 			goto replace;
 
-		fsck_err(c, journal_entry_replicas_data_mismatch,
-			 "found duplicate but non identical journal entries (seq %llu)",
-			 le64_to_cpu(j->seq));
-		i = dup;
-		goto found;
+		goto out;
 	}
 replace:
 	i = kvpmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
@@ -159,27 +196,20 @@ replace:
 	i->csum_good	= entry_ptr.csum_good;
 	i->ignore	= false;
 	unsafe_memcpy(&i->j, j, bytes, "embedded variable length struct");
-	darray_push(&i->ptrs, entry_ptr);
 
 	if (dup) {
 		/* The first ptr should represent the jset we kept: */
 		darray_for_each(dup->ptrs, ptr)
 			darray_push(&i->ptrs, *ptr);
 		__journal_replay_free(c, dup);
+	} else {
+		darray_push(&i->ptrs, entry_ptr);
 	}
 
 	*_i = i;
-found:
-	darray_for_each(i->ptrs, ptr)
-		if (ptr->dev == ca->dev_idx) {
-			bch_err(c, "duplicate journal entry %llu on same device",
-				le64_to_cpu(i->j.seq));
-			goto out;
-		}
-
-	ret = darray_push(&i->ptrs, entry_ptr);
 out:
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -1135,22 +1165,6 @@ err:
 	jlist->ret = ret;
 	mutex_unlock(&jlist->lock);
 	goto out;
-}
-
-void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
-			       struct journal_replay *j)
-{
-	darray_for_each(j->ptrs, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, i->dev);
-		u64 offset;
-
-		div64_u64_rem(i->sector, ca->mi.bucket_size, &offset);
-
-		if (i != j->ptrs.data)
-			prt_printf(out, " ");
-		prt_printf(out, "%u:%u:%u (sector %llu)",
-			   i->dev, i->bucket, i->bucket_offset, i->sector);
-	}
 }
 
 int bch2_journal_read(struct bch_fs *c,
