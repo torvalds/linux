@@ -1090,4 +1090,158 @@ l0_%=:	r1 >>= 32;					\
 	: __clobber_all);
 }
 
+/* stacksafe(): check if stack spill of an imprecise scalar in old state
+ * is considered equivalent to STACK_{MISC,INVALID} in cur state.
+ */
+SEC("socket")
+__success __log_level(2)
+__msg("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg("8: safe")
+__msg("processed 11 insns")
+/* STACK_INVALID should prevent verifier in unpriv mode from
+ * considering states equivalent and force an error on second
+ * verification path (entry - label 1 - label 2).
+ */
+__failure_unpriv
+__msg_unpriv("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg_unpriv("9: (95) exit")
+__msg_unpriv("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg_unpriv("invalid read from stack off -8+2 size 8")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_imprecise_scalar_vs_cur_stack_misc(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure scalar at fp-8 */
+	"r0 = 42;"
+	"*(u64*)(r10 - 8) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure STACK_{MISC,INVALID} at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u16*)(r10 - 8) = r0;"
+	"*(u16*)(r10 - 4) = r0;"
+"2:"
+	/* read fp-8, should be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/* stacksafe(): check that stack spill of a precise scalar in old state
+ * is not considered equivalent to STACK_MISC in cur state.
+ */
+SEC("socket")
+__success __log_level(2)
+/* verifier should visit 'if r1 == 0x2a ...' two times:
+ * - once for path entry - label 2;
+ * - once for path entry - label 1 - label 2.
+ */
+__msg("if r1 == 0x2a goto pc+0")
+__msg("if r1 == 0x2a goto pc+0")
+__msg("processed 15 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_precise_scalar_vs_cur_stack_misc(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure scalar at fp-8 */
+	"r0 = 42;"
+	"*(u64*)(r10 - 8) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure STACK_MISC at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u64*)(r10 - 8) = r0;"
+	"*(u32*)(r10 - 4) = r0;"
+"2:"
+	/* read fp-8, should not be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	/* use r1 in precise context */
+	"if r1 == 42 goto +0;"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/* stacksafe(): check if STACK_MISC in old state is considered
+ * equivalent to stack spill of a scalar in cur state.
+ */
+SEC("socket")
+__success  __log_level(2)
+__msg("8: (79) r0 = *(u64 *)(r10 -8)")
+__msg("8: safe")
+__msg("processed 11 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_stack_misc_vs_cur_scalar(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure STACK_{MISC,INVALID} at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u16*)(r10 - 8) = r0;"
+	"*(u16*)(r10 - 4) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure scalar at fp-8 */
+	"r0 = 42;"
+	"*(u64*)(r10 - 8) = r0;"
+"2:"
+	/* read fp-8, should be considered safe on second visit */
+	"r0 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/* stacksafe(): check that STACK_MISC in old state is not considered
+ * equivalent to stack spill of a non-scalar in cur state.
+ */
+SEC("socket")
+__success  __log_level(2)
+/* verifier should process exit instructions twice:
+ * - once for path entry - label 2;
+ * - once for path entry - label 1 - label 2.
+ */
+__msg("r1 = *(u64 *)(r10 -8)")
+__msg("exit")
+__msg("r1 = *(u64 *)(r10 -8)")
+__msg("exit")
+__msg("processed 11 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_stack_misc_vs_cur_ctx_ptr(void)
+{
+	asm volatile(
+	/* remember context pointer in r9 */
+	"r9 = r1;"
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure STACK_MISC at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u64*)(r10 - 8) = r0;"
+	"*(u32*)(r10 - 4) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure context pointer in fp-8 */
+	"*(u64*)(r10 - 8) = r9;"
+"2:"
+	/* read fp-8, should not be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
