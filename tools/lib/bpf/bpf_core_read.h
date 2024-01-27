@@ -268,7 +268,7 @@ enum bpf_enum_value_kind {
  * a relocation, which records BTF type ID describing root struct/union and an
  * accessor string which describes exact embedded field that was used to take
  * an address. See detailed description of this relocation format and
- * semantics in comments to struct bpf_field_reloc in libbpf_internal.h.
+ * semantics in comments to struct bpf_core_relo in include/uapi/linux/bpf.h.
  *
  * This relocation allows libbpf to adjust BPF instruction to use correct
  * actual field offset, based on target kernel BTF type that matches original

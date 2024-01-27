@@ -181,7 +181,7 @@ static int parse_test_spec(struct test_loader *tester,
 	memset(spec, 0, sizeof(*spec));
 
 	spec->prog_name = bpf_program__name(prog);
-	spec->prog_flags = BPF_F_TEST_REG_INVARIANTS; /* by default be strict */
+	spec->prog_flags = testing_prog_flags();
 
 	btf = bpf_object__btf(obj);
 	if (!btf) {
@@ -688,7 +688,7 @@ static void process_subtest(struct test_loader *tester,
 		++nr_progs;
 
 	specs = calloc(nr_progs, sizeof(struct test_spec));
-	if (!ASSERT_OK_PTR(specs, "Can't alloc specs array"))
+	if (!ASSERT_OK_PTR(specs, "specs_alloc"))
 		return;
 
 	i = 0;

@@ -51,8 +51,24 @@
 #define ICSK_TIME_LOSS_PROBE	5
 #define ICSK_TIME_REO_TIMEOUT	6
 
+#define ETH_ALEN		6
 #define ETH_HLEN		14
+#define ETH_P_IP		0x0800
 #define ETH_P_IPV6		0x86DD
+
+#define NEXTHDR_TCP		6
+
+#define TCPOPT_NOP		1
+#define TCPOPT_EOL		0
+#define TCPOPT_MSS		2
+#define TCPOPT_WINDOW		3
+#define TCPOPT_TIMESTAMP	8
+#define TCPOPT_SACK_PERM	4
+
+#define TCPOLEN_MSS		4
+#define TCPOLEN_WINDOW		3
+#define TCPOLEN_TIMESTAMP	10
+#define TCPOLEN_SACK_PERM	2
 
 #define CHECKSUM_NONE		0
 #define CHECKSUM_PARTIAL	3

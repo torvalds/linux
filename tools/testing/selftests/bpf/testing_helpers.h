@@ -46,4 +46,12 @@ static inline __u64 get_time_ns(void)
 	return (u64)t.tv_sec * 1000000000 + t.tv_nsec;
 }
 
+struct bpf_insn;
+/* Request BPF program instructions after all rewrites are applied,
+ * e.g. verifier.c:convert_ctx_access() is done.
+ */
+int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt);
+int testing_prog_flags(void);
+bool is_jit_enabled(void);
+
 #endif /* __TESTING_HELPERS_H */

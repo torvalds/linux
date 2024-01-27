@@ -243,7 +243,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("Spill u32 const scalars.  Refill as u64.  Offset to skb->data")
-__failure __msg("invalid access to packet")
+__failure __msg("math between pkt pointer and register with unbounded min value is not allowed")
 __naked void u64_offset_to_skb_data(void)
 {
 	asm volatile ("					\
@@ -253,13 +253,11 @@ __naked void u64_offset_to_skb_data(void)
 	w7 = 20;					\
 	*(u32*)(r10 - 4) = r6;				\
 	*(u32*)(r10 - 8) = r7;				\
-	r4 = *(u16*)(r10 - 8);				\
+	r4 = *(u64*)(r10 - 8);				\
 	r0 = r2;					\
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */\
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4= */	\
 	r0 += r4;					\
-	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=umax=65535 */\
 	if r0 > r3 goto l0_%=;				\
-	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=20 */\
 	r0 = *(u32*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
@@ -495,14 +493,14 @@ char single_byte_buf[1] SEC(".data.single_byte_buf");
 SEC("raw_tp")
 __log_level(2)
 __success
-/* make sure fp-8 is all STACK_ZERO */
-__msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8_w=00000000")
+/* fp-8 is spilled IMPRECISE value zero (represented by a zero value fake reg) */
+__msg("2: (7a) *(u64 *)(r10 -8) = 0          ; R10=fp0 fp-8_w=0")
 /* but fp-16 is spilled IMPRECISE zero const reg */
 __msg("4: (7b) *(u64 *)(r10 -16) = r0        ; R0_w=0 R10=fp0 fp-16_w=0")
-/* validate that assigning R2 from STACK_ZERO doesn't mark register
+/* validate that assigning R2 from STACK_SPILL with zero value  doesn't mark register
  * precise immediately; if necessary, it will be marked precise later
  */
-__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8_w=00000000")
+__msg("6: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8_w=0")
 /* similarly, when R2 is assigned from spilled register, it is initially
  * imprecise, but will be marked precise later once it is used in precise context
  */
@@ -520,14 +518,14 @@ __msg("mark_precise: frame0: regs=r0 stack= before 3: (b7) r0 = 0")
 __naked void partial_stack_load_preserves_zeros(void)
 {
 	asm volatile (
-		/* fp-8 is all STACK_ZERO */
+		/* fp-8 is value zero (represented by a zero value fake reg) */
 		".8byte %[fp8_st_zero];" /* LLVM-18+: *(u64 *)(r10 -8) = 0; */
 
 		/* fp-16 is const zero register */
 		"r0 = 0;"
 		"*(u64 *)(r10 -16) = r0;"
 
-		/* load single U8 from non-aligned STACK_ZERO slot */
+		/* load single U8 from non-aligned spilled value zero slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u8 *)(r10 -1);"
 		"r1 += r2;"
@@ -539,7 +537,7 @@ __naked void partial_stack_load_preserves_zeros(void)
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U16 from non-aligned STACK_ZERO slot */
+		/* load single U16 from non-aligned spilled value zero slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u16 *)(r10 -2);"
 		"r1 += r2;"
@@ -551,7 +549,7 @@ __naked void partial_stack_load_preserves_zeros(void)
 		"r1 += r2;"
 		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
 
-		/* load single U32 from non-aligned STACK_ZERO slot */
+		/* load single U32 from non-aligned spilled value zero slot */
 		"r1 = %[single_byte_buf];"
 		"r2 = *(u32 *)(r10 -4);"
 		"r1 += r2;"
@@ -580,6 +578,47 @@ __naked void partial_stack_load_preserves_zeros(void)
 	:
 	: __imm_ptr(single_byte_buf),
 	  __imm_insn(fp8_st_zero, BPF_ST_MEM(BPF_DW, BPF_REG_FP, -8, 0))
+	: __clobber_common);
+}
+
+SEC("raw_tp")
+__log_level(2)
+__success
+/* fp-4 is STACK_ZERO */
+__msg("2: (62) *(u32 *)(r10 -4) = 0          ; R10=fp0 fp-8=0000????")
+__msg("4: (71) r2 = *(u8 *)(r10 -1)          ; R2_w=0 R10=fp0 fp-8=0000????")
+__msg("5: (0f) r1 += r2")
+__msg("mark_precise: frame0: last_idx 5 first_idx 0 subseq_idx -1")
+__msg("mark_precise: frame0: regs=r2 stack= before 4: (71) r2 = *(u8 *)(r10 -1)")
+__naked void partial_stack_load_preserves_partial_zeros(void)
+{
+	asm volatile (
+		/* fp-4 is value zero */
+		".8byte %[fp4_st_zero];" /* LLVM-18+: *(u32 *)(r10 -4) = 0; */
+
+		/* load single U8 from non-aligned stack zero slot */
+		"r1 = %[single_byte_buf];"
+		"r2 = *(u8 *)(r10 -1);"
+		"r1 += r2;"
+		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
+
+		/* load single U16 from non-aligned stack zero slot */
+		"r1 = %[single_byte_buf];"
+		"r2 = *(u16 *)(r10 -2);"
+		"r1 += r2;"
+		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
+
+		/* load single U32 from non-aligned stack zero slot */
+		"r1 = %[single_byte_buf];"
+		"r2 = *(u32 *)(r10 -4);"
+		"r1 += r2;"
+		"*(u8 *)(r1 + 0) = r2;" /* this should be fine */
+
+		"r0 = 0;"
+		"exit;"
+	:
+	: __imm_ptr(single_byte_buf),
+	  __imm_insn(fp4_st_zero, BPF_ST_MEM(BPF_W, BPF_REG_FP, -4, 0))
 	: __clobber_common);
 }
 
@@ -735,6 +774,170 @@ __naked void stack_load_preserves_const_precision_subreg(void)
 	: __imm_ptr(two_byte_buf),
 	  __imm_insn(fp8_st_one, BPF_ST_MEM(BPF_W, BPF_REG_FP, -8, 1)) /* 32-bit spill */
 	: __clobber_common);
+}
+
+SEC("xdp")
+__description("32-bit spilled reg range should be tracked")
+__success __retval(0)
+__naked void spill_32bit_range_track(void)
+{
+	asm volatile("					\
+	call %[bpf_ktime_get_ns];			\
+	/* Make r0 bounded. */				\
+	r0 &= 65535;					\
+	/* Assign an ID to r0. */			\
+	r1 = r0;					\
+	/* 32-bit spill r0 to stack. */			\
+	*(u32*)(r10 - 8) = r0;				\
+	/* Boundary check on r0. */			\
+	if r0 < 1 goto l0_%=;				\
+	/* 32-bit fill r1 from stack. */		\
+	r1 = *(u32*)(r10 - 8);				\
+	/* r1 == r0 => r1 >= 1 always. */		\
+	if r1 >= 1 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it.   \
+	 * Do an invalid memory access if the verifier	\
+	 * follows it.					\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("64-bit spill of 64-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_64bit_of_64bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x80000000;				\
+	r0 <<= 32;					\
+	/* 64-bit spill r0 to stack - should assign an ID. */\
+	*(u64*)(r10 - 8) = r0;				\
+	/* 64-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u64*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit spill of 32-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_32bit_of_32bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	w0 &= 0x80000000;				\
+	/* 32-bit spill r0 to stack - should assign an ID. */\
+	*(u32*)(r10 - 8) = r0;				\
+	/* 32-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u32*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("16-bit spill of 16-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_16bit_of_16bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x8000;					\
+	/* 16-bit spill r0 to stack - should assign an ID. */\
+	*(u16*)(r10 - 8) = r0;				\
+	/* 16-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u16*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("8-bit spill of 8-bit reg should assign ID")
+__success __retval(0)
+__naked void spill_8bit_of_8bit_ok(void)
+{
+	asm volatile ("					\
+	/* Roll one bit to make the register inexact. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x80;					\
+	/* 8-bit spill r0 to stack - should assign an ID. */\
+	*(u8*)(r10 - 8) = r0;				\
+	/* 8-bit fill r1 from stack - should preserve the ID. */\
+	r1 = *(u8*)(r10 - 8);				\
+	/* Compare r1 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners.					\
+	 */						\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
 }
 
 char _license[] SEC("license") = "GPL";

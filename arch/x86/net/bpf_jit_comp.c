@@ -3242,3 +3242,8 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 		BUG_ON(ret < 0);
 	}
 }
+
+bool bpf_jit_supports_ptr_xchg(void)
+{
+	return true;
+}
