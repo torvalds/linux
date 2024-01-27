@@ -4076,8 +4076,11 @@ again:
 		/*
 		 * The delalloc extent containing lblk, it must have been
 		 * added after ext4_map_blocks() checked the extent status
-		 * tree, adjust the length to the delalloc extent's after
-		 * lblk.
+		 * tree so we are not holding i_rwsem and delalloc info is
+		 * only stabilized by i_data_sem we are going to release
+		 * soon. Don't modify the extent status tree and report
+		 * extent as a hole, just adjust the length to the delalloc
+		 * extent's after lblk.
 		 */
 		len = es.es_lblk + es.es_len - lblk;
 		return len;
