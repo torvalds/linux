@@ -168,6 +168,115 @@ struct device *dev_pm_domain_attach_by_name(struct device *dev,
 EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_name);
 
 /**
+ * dev_pm_domain_attach_list - Associate a device with its PM domains.
+ * @dev: The device used to lookup the PM domains for.
+ * @data: The data used for attaching to the PM domains.
+ * @list: An out-parameter with an allocated list of attached PM domains.
+ *
+ * This function helps to attach a device to its multiple PM domains. The
+ * caller, which is typically a driver's probe function, may provide a list of
+ * names for the PM domains that we should try to attach the device to, but it
+ * may also provide an empty list, in case the attach should be done for all of
+ * the available PM domains.
+ *
+ * Callers must ensure proper synchronization of this function with power
+ * management callbacks.
+ *
+ * Returns the number of attached PM domains or a negative error code in case of
+ * a failure. Note that, to detach the list of PM domains, the driver shall call
+ * dev_pm_domain_detach_list(), typically during the remove phase.
+ */
+int dev_pm_domain_attach_list(struct device *dev,
+			      const struct dev_pm_domain_attach_data *data,
+			      struct dev_pm_domain_list **list)
+{
+	struct device_node *np = dev->of_node;
+	struct dev_pm_domain_list *pds;
+	struct device *pd_dev = NULL;
+	int ret, i, num_pds = 0;
+	bool by_id = true;
+	u32 pd_flags = data ? data->pd_flags : 0;
+	u32 link_flags = pd_flags & PD_FLAG_NO_DEV_LINK ? 0 :
+			DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME;
+
+	if (dev->pm_domain)
+		return -EEXIST;
+
+	/* For now this is limited to OF based platforms. */
+	if (!np)
+		return 0;
+
+	if (data && data->pd_names) {
+		num_pds = data->num_pd_names;
+		by_id = false;
+	} else {
+		num_pds = of_count_phandle_with_args(np, "power-domains",
+						     "#power-domain-cells");
+	}
+
+	if (num_pds <= 0)
+		return 0;
+
+	pds = devm_kzalloc(dev, sizeof(*pds), GFP_KERNEL);
+	if (!pds)
+		return -ENOMEM;
+
+	pds->pd_devs = devm_kcalloc(dev, num_pds, sizeof(*pds->pd_devs),
+				    GFP_KERNEL);
+	if (!pds->pd_devs)
+		return -ENOMEM;
+
+	pds->pd_links = devm_kcalloc(dev, num_pds, sizeof(*pds->pd_links),
+				     GFP_KERNEL);
+	if (!pds->pd_links)
+		return -ENOMEM;
+
+	if (link_flags && pd_flags & PD_FLAG_DEV_LINK_ON)
+		link_flags |= DL_FLAG_RPM_ACTIVE;
+
+	for (i = 0; i < num_pds; i++) {
+		if (by_id)
+			pd_dev = dev_pm_domain_attach_by_id(dev, i);
+		else
+			pd_dev = dev_pm_domain_attach_by_name(dev,
+							data->pd_names[i]);
+		if (IS_ERR_OR_NULL(pd_dev)) {
+			ret = pd_dev ? PTR_ERR(pd_dev) : -ENODEV;
+			goto err_attach;
+		}
+
+		if (link_flags) {
+			struct device_link *link;
+
+			link = device_link_add(dev, pd_dev, link_flags);
+			if (!link) {
+				ret = -ENODEV;
+				goto err_link;
+			}
+
+			pds->pd_links[i] = link;
+		}
+
+		pds->pd_devs[i] = pd_dev;
+	}
+
+	pds->num_pds = num_pds;
+	*list = pds;
+	return num_pds;
+
+err_link:
+	dev_pm_domain_detach(pd_dev, true);
+err_attach:
+	while (--i >= 0) {
+		if (pds->pd_links[i])
+			device_link_del(pds->pd_links[i]);
+		dev_pm_domain_detach(pds->pd_devs[i], true);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_attach_list);
+
+/**
  * dev_pm_domain_detach - Detach a device from its PM domain.
  * @dev: Device to detach.
  * @power_off: Used to indicate whether we should power off the device.
@@ -186,6 +295,31 @@ void dev_pm_domain_detach(struct device *dev, bool power_off)
 		dev->pm_domain->detach(dev, power_off);
 }
 EXPORT_SYMBOL_GPL(dev_pm_domain_detach);
+
+/**
+ * dev_pm_domain_detach_list - Detach a list of PM domains.
+ * @list: The list of PM domains to detach.
+ *
+ * This function reverse the actions from dev_pm_domain_attach_list().
+ * Typically it should be invoked during the remove phase from drivers.
+ *
+ * Callers must ensure proper synchronization of this function with power
+ * management callbacks.
+ */
+void dev_pm_domain_detach_list(struct dev_pm_domain_list *list)
+{
+	int i;
+
+	if (!list)
+		return;
+
+	for (i = 0; i < list->num_pds; i++) {
+		if (list->pd_links[i])
+			device_link_del(list->pd_links[i]);
+		dev_pm_domain_detach(list->pd_devs[i], true);
+	}
+}
+EXPORT_SYMBOL_GPL(dev_pm_domain_detach_list);
 
 /**
  * dev_pm_domain_start - Start the device through its PM domain.
