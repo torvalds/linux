@@ -1513,9 +1513,9 @@ static void eee_to_keee(struct ethtool_keee *keee,
 {
 	memset(keee, 0, sizeof(*keee));
 
-	keee->supported = eee->supported;
-	keee->advertised = eee->advertised;
-	keee->lp_advertised = eee->lp_advertised;
+	keee->supported_u32 = eee->supported;
+	keee->advertised_u32 = eee->advertised;
+	keee->lp_advertised_u32 = eee->lp_advertised;
 	keee->eee_active = eee->eee_active;
 	keee->eee_enabled = eee->eee_enabled;
 	keee->tx_lpi_enabled = eee->tx_lpi_enabled;
@@ -1527,9 +1527,9 @@ static void keee_to_eee(struct ethtool_eee *eee,
 {
 	memset(eee, 0, sizeof(*eee));
 
-	eee->supported = keee->supported;
-	eee->advertised = keee->advertised;
-	eee->lp_advertised = keee->lp_advertised;
+	eee->supported = keee->supported_u32;
+	eee->advertised = keee->advertised_u32;
+	eee->lp_advertised = keee->lp_advertised_u32;
 	eee->eee_active = keee->eee_active;
 	eee->eee_enabled = keee->eee_enabled;
 	eee->tx_lpi_enabled = keee->tx_lpi_enabled;

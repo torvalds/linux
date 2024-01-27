@@ -5,7 +5,7 @@
 #include "bitset.h"
 
 #define EEE_MODES_COUNT \
-	(sizeof_field(struct ethtool_keee, supported) * BITS_PER_BYTE)
+	(sizeof_field(struct ethtool_keee, supported_u32) * BITS_PER_BYTE)
 
 struct eee_req_info {
 	struct ethnl_req_info		base;
@@ -52,19 +52,19 @@ static int eee_reply_size(const struct ethnl_req_info *req_base,
 	int len = 0;
 	int ret;
 
-	BUILD_BUG_ON(sizeof(eee->advertised) * BITS_PER_BYTE !=
+	BUILD_BUG_ON(sizeof(eee->advertised_u32) * BITS_PER_BYTE !=
 		     EEE_MODES_COUNT);
-	BUILD_BUG_ON(sizeof(eee->lp_advertised) * BITS_PER_BYTE !=
+	BUILD_BUG_ON(sizeof(eee->lp_advertised_u32) * BITS_PER_BYTE !=
 		     EEE_MODES_COUNT);
 
 	/* MODES_OURS */
-	ret = ethnl_bitset32_size(&eee->advertised, &eee->supported,
+	ret = ethnl_bitset32_size(&eee->advertised_u32, &eee->supported_u32,
 				  EEE_MODES_COUNT, link_mode_names, compact);
 	if (ret < 0)
 		return ret;
 	len += ret;
 	/* MODES_PEERS */
-	ret = ethnl_bitset32_size(&eee->lp_advertised, NULL,
+	ret = ethnl_bitset32_size(&eee->lp_advertised_u32, NULL,
 				  EEE_MODES_COUNT, link_mode_names, compact);
 	if (ret < 0)
 		return ret;
@@ -88,12 +88,12 @@ static int eee_fill_reply(struct sk_buff *skb,
 	int ret;
 
 	ret = ethnl_put_bitset32(skb, ETHTOOL_A_EEE_MODES_OURS,
-				 &eee->advertised, &eee->supported,
+				 &eee->advertised_u32, &eee->supported_u32,
 				 EEE_MODES_COUNT, link_mode_names, compact);
 	if (ret < 0)
 		return ret;
 	ret = ethnl_put_bitset32(skb, ETHTOOL_A_EEE_MODES_PEER,
-				 &eee->lp_advertised, NULL, EEE_MODES_COUNT,
+				 &eee->lp_advertised_u32, NULL, EEE_MODES_COUNT,
 				 link_mode_names, compact);
 	if (ret < 0)
 		return ret;
@@ -140,7 +140,7 @@ ethnl_set_eee(struct ethnl_req_info *req_info, struct genl_info *info)
 	if (ret < 0)
 		return ret;
 
-	ret = ethnl_update_bitset32(&eee.advertised, EEE_MODES_COUNT,
+	ret = ethnl_update_bitset32(&eee.advertised_u32, EEE_MODES_COUNT,
 				    tb[ETHTOOL_A_EEE_MODES_OURS],
 				    link_mode_names, info->extack, &mod);
 	if (ret < 0)

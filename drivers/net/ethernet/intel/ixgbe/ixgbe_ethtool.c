@@ -3436,27 +3436,27 @@ ixgbe_get_eee_fw(struct ixgbe_adapter *adapter, struct ethtool_keee *edata)
 	if (rc)
 		return rc;
 
-	edata->lp_advertised = 0;
+	edata->lp_advertised_u32 = 0;
 	for (i = 0; i < ARRAY_SIZE(ixgbe_lp_map); ++i) {
 		if (info[0] & ixgbe_lp_map[i].lp_advertised)
-			edata->lp_advertised |= ixgbe_lp_map[i].mac_speed;
+			edata->lp_advertised_u32 |= ixgbe_lp_map[i].mac_speed;
 	}
 
-	edata->supported = 0;
+	edata->supported_u32 = 0;
 	for (i = 0; i < ARRAY_SIZE(ixgbe_ls_map); ++i) {
 		if (hw->phy.eee_speeds_supported & ixgbe_ls_map[i].mac_speed)
-			edata->supported |= ixgbe_ls_map[i].supported;
+			edata->supported_u32 |= ixgbe_ls_map[i].supported;
 	}
 
-	edata->advertised = 0;
+	edata->advertised_u32 = 0;
 	for (i = 0; i < ARRAY_SIZE(ixgbe_ls_map); ++i) {
 		if (hw->phy.eee_speeds_advertised & ixgbe_ls_map[i].mac_speed)
-			edata->advertised |= ixgbe_ls_map[i].supported;
+			edata->advertised_u32 |= ixgbe_ls_map[i].supported;
 	}
 
-	edata->eee_enabled = !!edata->advertised;
+	edata->eee_enabled = !!edata->advertised_u32;
 	edata->tx_lpi_enabled = edata->eee_enabled;
-	if (edata->advertised & edata->lp_advertised)
+	if (edata->advertised_u32 & edata->lp_advertised_u32)
 		edata->eee_active = true;
 
 	return 0;
@@ -3504,7 +3504,7 @@ static int ixgbe_set_eee(struct net_device *netdev, struct ethtool_keee *edata)
 			return -EINVAL;
 		}
 
-		if (eee_data.advertised != edata->advertised) {
+		if (eee_data.advertised_u32 != edata->advertised_u32) {
 			e_err(drv,
 			      "Setting EEE advertised speeds is not supported\n");
 			return -EINVAL;

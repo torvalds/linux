@@ -3038,10 +3038,10 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_keee *edata)
 	    (hw->phy.media_type != e1000_media_type_copper))
 		return -EOPNOTSUPP;
 
-	edata->supported = (SUPPORTED_1000baseT_Full |
-			    SUPPORTED_100baseT_Full);
+	edata->supported_u32 = (SUPPORTED_1000baseT_Full |
+				SUPPORTED_100baseT_Full);
 	if (!hw->dev_spec._82575.eee_disable)
-		edata->advertised =
+		edata->advertised_u32 =
 			mmd_eee_adv_to_ethtool_adv_t(adapter->eee_advert);
 
 	/* The IPCNFG and EEER registers are not supported on I354. */
@@ -3068,7 +3068,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_keee *edata)
 		if (ret_val)
 			return -ENODATA;
 
-		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+		edata->lp_advertised_u32 = mmd_eee_adv_to_ethtool_adv_t(phy_data);
 		break;
 	case e1000_i354:
 	case e1000_i210:
@@ -3079,7 +3079,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_keee *edata)
 		if (ret_val)
 			return -ENODATA;
 
-		edata->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(phy_data);
+		edata->lp_advertised_u32 = mmd_eee_adv_to_ethtool_adv_t(phy_data);
 
 		break;
 	default:
@@ -3099,7 +3099,7 @@ static int igb_get_eee(struct net_device *netdev, struct ethtool_keee *edata)
 		edata->eee_enabled = false;
 		edata->eee_active = false;
 		edata->tx_lpi_enabled = false;
-		edata->advertised &= ~edata->advertised;
+		edata->advertised_u32 &= ~edata->advertised_u32;
 	}
 
 	return 0;
@@ -3138,14 +3138,14 @@ static int igb_set_eee(struct net_device *netdev,
 			return -EINVAL;
 		}
 
-		if (!edata->advertised || (edata->advertised &
+		if (!edata->advertised_u32 || (edata->advertised_u32 &
 		    ~(ADVERTISE_100_FULL | ADVERTISE_1000_FULL))) {
 			dev_err(&adapter->pdev->dev,
 				"EEE Advertisement supports only 100Tx and/or 100T full duplex\n");
 			return -EINVAL;
 		}
-		adv100m_eee = !!(edata->advertised & ADVERTISE_100_FULL);
-		adv1g_eee = !!(edata->advertised & ADVERTISE_1000_FULL);
+		adv100m_eee = !!(edata->advertised_u32 & ADVERTISE_100_FULL);
+		adv1g_eee = !!(edata->advertised_u32 & ADVERTISE_1000_FULL);
 
 	} else if (!edata->eee_enabled) {
 		dev_err(&adapter->pdev->dev,
@@ -3153,7 +3153,7 @@ static int igb_set_eee(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	adapter->eee_advert = ethtool_adv_to_mmd_eee_adv_t(edata->advertised);
+	adapter->eee_advert = ethtool_adv_to_mmd_eee_adv_t(edata->advertised_u32);
 	if (hw->dev_spec._82575.eee_disable != !edata->eee_enabled) {
 		hw->dev_spec._82575.eee_disable = !edata->eee_enabled;
 		adapter->flags |= IGB_FLAG_EEE;

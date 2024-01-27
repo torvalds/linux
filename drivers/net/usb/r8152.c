@@ -8938,16 +8938,16 @@ static int r8152_get_eee(struct r8152 *tp, struct ethtool_keee *eee)
 
 	eee->eee_enabled = tp->eee_en;
 	eee->eee_active = !!(supported & adv & lp);
-	eee->supported = supported;
-	eee->advertised = tp->eee_adv;
-	eee->lp_advertised = lp;
+	eee->supported_u32 = supported;
+	eee->advertised_u32 = tp->eee_adv;
+	eee->lp_advertised_u32 = lp;
 
 	return 0;
 }
 
 static int r8152_set_eee(struct r8152 *tp, struct ethtool_keee *eee)
 {
-	u16 val = ethtool_adv_to_mmd_eee_adv_t(eee->advertised);
+	u16 val = ethtool_adv_to_mmd_eee_adv_t(eee->advertised_u32);
 
 	tp->eee_en = eee->eee_enabled;
 	tp->eee_adv = val;
@@ -8973,9 +8973,9 @@ static int r8153_get_eee(struct r8152 *tp, struct ethtool_keee *eee)
 
 	eee->eee_enabled = tp->eee_en;
 	eee->eee_active = !!(supported & adv & lp);
-	eee->supported = supported;
-	eee->advertised = tp->eee_adv;
-	eee->lp_advertised = lp;
+	eee->supported_u32 = supported;
+	eee->advertised_u32 = tp->eee_adv;
+	eee->lp_advertised_u32 = lp;
 
 	return 0;
 }
