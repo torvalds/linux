@@ -940,4 +940,31 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
+SEC("xdp")
+__description("spill unbounded reg, then range check src")
+__success __retval(0)
+__naked void spill_unbounded(void)
+{
+	asm volatile ("					\
+	/* Produce an unbounded scalar. */		\
+	call %[bpf_get_prandom_u32];			\
+	/* Spill r0 to stack. */			\
+	*(u64*)(r10 - 8) = r0;				\
+	/* Boundary check on r0. */			\
+	if r0 > 16 goto l0_%=;				\
+	/* Fill r0 from stack. */			\
+	r0 = *(u64*)(r10 - 8);				\
+	/* Boundary check on r0 with predetermined result. */\
+	if r0 <= 16 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
