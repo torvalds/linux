@@ -12,14 +12,12 @@ enum {
 	UDS_BLOCK_SIZE = UDS_ERROR_CODE_BLOCK_END - UDS_ERROR_CODE_BASE,
 	VDO_BLOCK_START = UDS_ERROR_CODE_BLOCK_END,
 	VDO_BLOCK_END = VDO_BLOCK_START + UDS_BLOCK_SIZE,
-	PRP_BLOCK_START = VDO_BLOCK_END,
-	PRP_BLOCK_END = PRP_BLOCK_START + UDS_BLOCK_SIZE,
 };
 
 /* VDO-specific status codes. */
 enum vdo_status_codes {
 	/* successful result */
-	VDO_SUCCESS,
+	VDO_SUCCESS = UDS_SUCCESS,
 	/* base of all VDO errors */
 	VDO_STATUS_CODE_BASE = VDO_BLOCK_START,
 	/* we haven't written this yet */
