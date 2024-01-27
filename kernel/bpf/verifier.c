@@ -1155,6 +1155,12 @@ static bool is_spilled_scalar_reg(const struct bpf_stack_state *stack)
 	       stack->spilled_ptr.type == SCALAR_VALUE;
 }
 
+static bool is_spilled_scalar_reg64(const struct bpf_stack_state *stack)
+{
+	return stack->slot_type[0] == STACK_SPILL &&
+	       stack->spilled_ptr.type == SCALAR_VALUE;
+}
+
 /* Mark stack slot as STACK_MISC, unless it is already STACK_INVALID, in which
  * case they are equivalent, or it's STACK_ZERO, in which case we preserve
  * more precise STACK_ZERO.
@@ -2264,8 +2270,7 @@ static void __reg_assign_32_into_64(struct bpf_reg_state *reg)
 }
 
 /* Mark a register as having a completely unknown (scalar) value. */
-static void __mark_reg_unknown(const struct bpf_verifier_env *env,
-			       struct bpf_reg_state *reg)
+static void __mark_reg_unknown_imprecise(struct bpf_reg_state *reg)
 {
 	/*
 	 * Clear type, off, and union(map_ptr, range) and
@@ -2277,8 +2282,18 @@ static void __mark_reg_unknown(const struct bpf_verifier_env *env,
 	reg->ref_obj_id = 0;
 	reg->var_off = tnum_unknown;
 	reg->frameno = 0;
-	reg->precise = !env->bpf_capable;
+	reg->precise = false;
 	__mark_reg_unbounded(reg);
+}
+
+/* Mark a register as having a completely unknown (scalar) value,
+ * initialize .precise as true when not bpf capable.
+ */
+static void __mark_reg_unknown(const struct bpf_verifier_env *env,
+			       struct bpf_reg_state *reg)
+{
+	__mark_reg_unknown_imprecise(reg);
+	reg->precise = !env->bpf_capable;
 }
 
 static void mark_reg_unknown(struct bpf_verifier_env *env,
@@ -16486,6 +16501,43 @@ static bool regsafe(struct bpf_verifier_env *env, struct bpf_reg_state *rold,
 	}
 }
 
+static struct bpf_reg_state unbound_reg;
+
+static __init int unbound_reg_init(void)
+{
+	__mark_reg_unknown_imprecise(&unbound_reg);
+	unbound_reg.live |= REG_LIVE_READ;
+	return 0;
+}
+late_initcall(unbound_reg_init);
+
+static bool is_stack_all_misc(struct bpf_verifier_env *env,
+			      struct bpf_stack_state *stack)
+{
+	u32 i;
+
+	for (i = 0; i < ARRAY_SIZE(stack->slot_type); ++i) {
+		if ((stack->slot_type[i] == STACK_MISC) ||
+		    (stack->slot_type[i] == STACK_INVALID && env->allow_uninit_stack))
+			continue;
+		return false;
+	}
+
+	return true;
+}
+
+static struct bpf_reg_state *scalar_reg_for_stack(struct bpf_verifier_env *env,
+						  struct bpf_stack_state *stack)
+{
+	if (is_spilled_scalar_reg64(stack))
+		return &stack->spilled_ptr;
+
+	if (is_stack_all_misc(env, stack))
+		return &unbound_reg;
+
+	return NULL;
+}
+
 static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 		      struct bpf_func_state *cur, struct bpf_idmap *idmap, bool exact)
 {
@@ -16523,6 +16575,20 @@ static bool stacksafe(struct bpf_verifier_env *env, struct bpf_func_state *old,
 		 */
 		if (i >= cur->allocated_stack)
 			return false;
+
+		/* 64-bit scalar spill vs all slots MISC and vice versa.
+		 * Load from all slots MISC produces unbound scalar.
+		 * Construct a fake register for such stack and call
+		 * regsafe() to ensure scalar ids are compared.
+		 */
+		old_reg = scalar_reg_for_stack(env, &old->stack[spi]);
+		cur_reg = scalar_reg_for_stack(env, &cur->stack[spi]);
+		if (old_reg && cur_reg) {
+			if (!regsafe(env, old_reg, cur_reg, idmap, exact))
+				return false;
+			i += BPF_REG_SIZE - 1;
+			continue;
+		}
 
 		/* if old state was safe with misc data in the stack
 		 * it will be safe with zero-initialized stack.
