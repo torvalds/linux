@@ -199,7 +199,7 @@ struct data_vio {
 	u16 write : 1;
 	u16 fua : 1;
 	u16 is_zero : 1;
-	u16 is_trim : 1;
+	u16 is_discard : 1;
 	u16 is_partial : 1;
 	u16 is_duplicate : 1;
 	u16 first_reference_operation_complete : 1;

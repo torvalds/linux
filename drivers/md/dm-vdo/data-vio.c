@@ -553,7 +553,7 @@ static void launch_bio(struct vdo *vdo, struct data_vio *data_vio, struct bio *b
 	if (bio_op(bio) == REQ_OP_DISCARD) {
 		data_vio->remaining_discard = bio->bi_iter.bi_size;
 		data_vio->write = true;
-		data_vio->is_trim = true;
+		data_vio->is_discard = true;
 		if (data_vio->is_partial) {
 			vdo_count_bios(&vdo->stats.bios_in_partial, bio);
 			data_vio->read = true;
@@ -1990,10 +1990,10 @@ static void handle_allocation_error(struct vdo_completion *completion)
 	handle_data_vio_error(completion);
 }
 
-static int assert_is_trim(struct data_vio *data_vio)
+static int assert_is_discard(struct data_vio *data_vio)
 {
-	int result = ASSERT(data_vio->is_trim,
-			    "data_vio with no block map page is a trim");
+	int result = ASSERT(data_vio->is_discard,
+			    "data_vio with no block map page is a discard");
 
 	return ((result == VDO_SUCCESS) ? result : VDO_READ_ONLY);
 }
@@ -2019,19 +2019,19 @@ void continue_data_vio_with_block_map_slot(struct vdo_completion *completion)
 
 	if (data_vio->tree_lock.tree_slots[0].block_map_slot.pbn == VDO_ZERO_BLOCK) {
 		/*
-		 * This is a trim for a block on a block map page which has not been allocated, so
+		 * This is a discard for a block on a block map page which has not been allocated, so
 		 * there's nothing more we need to do.
 		 */
 		completion->callback = complete_data_vio;
-		continue_data_vio_with_error(data_vio, assert_is_trim(data_vio));
+		continue_data_vio_with_error(data_vio, assert_is_discard(data_vio));
 		return;
 	}
 
 	/*
-	 * We need an allocation if this is neither a full-block trim nor a
+	 * We need an allocation if this is neither a full-block discard nor a
 	 * full-block zero write.
 	 */
-	if (!data_vio->is_zero && (!data_vio->is_trim || data_vio->is_partial)) {
+	if (!data_vio->is_zero && (!data_vio->is_discard || data_vio->is_partial)) {
 		data_vio_allocate_data_block(data_vio, VIO_WRITE_LOCK, allocate_block,
 					     handle_allocation_error);
 		return;

@@ -2194,8 +2194,8 @@ static void allocate_block_map_page(struct block_map_zone *zone,
 {
 	int result;
 
-	if (!data_vio->write || data_vio->is_trim) {
-		/* This is a pure read or a trim, so there's nothing left to do here. */
+	if (!data_vio->write || data_vio->is_discard) {
+		/* This is a pure read or a discard, so there's nothing left to do here. */
 		finish_lookup(data_vio, VDO_SUCCESS);
 		return;
 	}
