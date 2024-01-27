@@ -1360,7 +1360,7 @@ static unsigned int calculate_slab_priority(struct vdo_slab *slab)
 
 /*
  * Slabs are essentially prioritized by an approximation of the number of free blocks in the slab
- * so slabs with lots of free blocks with be opened for allocation before slabs that have few free
+ * so slabs with lots of free blocks will be opened for allocation before slabs that have few free
  * blocks.
  */
 static void prioritize_slab(struct vdo_slab *slab)
@@ -1374,14 +1374,14 @@ static void prioritize_slab(struct vdo_slab *slab)
 
 /**
  * adjust_free_block_count() - Adjust the free block count and (if needed) reprioritize the slab.
- * @increment: should be true if the free block count went up.
+ * @incremented: true if the free block count went up.
  */
-static void adjust_free_block_count(struct vdo_slab *slab, bool increment)
+static void adjust_free_block_count(struct vdo_slab *slab, bool incremented)
 {
 	struct block_allocator *allocator = slab->allocator;
 
 	WRITE_ONCE(allocator->allocated_blocks,
-		   allocator->allocated_blocks + (increment ? -1 : 1));
+		   allocator->allocated_blocks + (incremented ? -1 : 1));
 
 	/* The open slab doesn't need to be reprioritized until it is closed. */
 	if (slab == allocator->open_slab)
@@ -1747,9 +1747,8 @@ static void add_entry_from_waiter(struct vdo_waiter *waiter, void *context)
 static inline bool is_next_entry_a_block_map_increment(struct slab_journal *journal)
 {
 	struct vdo_waiter *waiter = vdo_waitq_get_first_waiter(&journal->entry_waiters);
-	struct reference_updater *updater = container_of(waiter,
-							 struct reference_updater,
-							 waiter);
+	struct reference_updater *updater =
+		container_of(waiter, struct reference_updater, waiter);
 
 	return (updater->operation == VDO_JOURNAL_BLOCK_MAP_REMAPPING);
 }
@@ -2642,7 +2641,7 @@ static struct vdo_slab *get_next_slab(struct slab_scrubber *scrubber)
  *
  * Return: true if the scrubber has slabs to scrub.
  */
-static bool __must_check has_slabs_to_scrub(struct slab_scrubber *scrubber)
+static inline bool __must_check has_slabs_to_scrub(struct slab_scrubber *scrubber)
 {
 	return (get_next_slab(scrubber) != NULL);
 }
@@ -2817,8 +2816,8 @@ static int apply_block_entries(struct packed_slab_journal_block *block,
 static void apply_journal_entries(struct vdo_completion *completion)
 {
 	int result;
-	struct slab_scrubber *scrubber
-		= container_of(as_vio(completion), struct slab_scrubber, vio);
+	struct slab_scrubber *scrubber =
+		container_of(as_vio(completion), struct slab_scrubber, vio);
 	struct vdo_slab *slab = scrubber->slab;
 	struct slab_journal *journal = &slab->journal;
 
