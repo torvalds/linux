@@ -6,9 +6,17 @@
 #ifndef BTRFS_TREE_LOG_H
 #define BTRFS_TREE_LOG_H
 
+#include <linux/list.h>
+#include <linux/fs.h>
 #include "messages.h"
 #include "ctree.h"
 #include "transaction.h"
+
+struct inode;
+struct dentry;
+struct btrfs_ordered_extent;
+struct btrfs_root;
+struct btrfs_trans_handle;
 
 /* return value for btrfs_log_dentry_safe that means we don't need to log it at all */
 #define BTRFS_NO_LOG_SYNC 256

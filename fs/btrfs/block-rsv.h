@@ -3,8 +3,15 @@
 #ifndef BTRFS_BLOCK_RSV_H
 #define BTRFS_BLOCK_RSV_H
 
+#include <linux/types.h>
+#include <linux/compiler.h>
+#include <linux/spinlock.h>
+
 struct btrfs_trans_handle;
 struct btrfs_root;
+struct btrfs_space_info;
+struct btrfs_block_rsv;
+struct btrfs_fs_info;
 enum btrfs_reserve_flush_enum;
 
 /*

@@ -6,11 +6,26 @@
 #ifndef BTRFS_TRANSACTION_H
 #define BTRFS_TRANSACTION_H
 
+#include <linux/atomic.h>
 #include <linux/refcount.h>
+#include <linux/list.h>
+#include <linux/time64.h>
+#include <linux/mutex.h>
+#include <linux/wait.h>
 #include "btrfs_inode.h"
 #include "delayed-ref.h"
-#include "ctree.h"
+#include "extent-io-tree.h"
+#include "block-rsv.h"
+#include "messages.h"
 #include "misc.h"
+
+struct dentry;
+struct inode;
+struct btrfs_pending_snapshot;
+struct btrfs_fs_info;
+struct btrfs_root_item;
+struct btrfs_root;
+struct btrfs_path;
 
 /* Radix-tree tag for roots that are part of the trasaction. */
 #define BTRFS_ROOT_TRANS_TAG			0

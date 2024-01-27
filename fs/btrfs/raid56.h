@@ -7,8 +7,17 @@
 #ifndef BTRFS_RAID56_H
 #define BTRFS_RAID56_H
 
+#include <linux/types.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/bio.h>
+#include <linux/refcount.h>
 #include <linux/workqueue.h>
 #include "volumes.h"
+
+struct page;
+struct sector_ptr;
+struct btrfs_fs_info;
 
 enum btrfs_rbio_ops {
 	BTRFS_RBIO_WRITE,

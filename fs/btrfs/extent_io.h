@@ -7,12 +7,32 @@
 #include <linux/refcount.h>
 #include <linux/fiemap.h>
 #include <linux/btrfs_tree.h>
+#include <linux/spinlock.h>
+#include <linux/atomic.h>
+#include <linux/rwsem.h>
+#include <linux/list.h>
+#include <linux/slab.h>
 #include "compression.h"
 #include "messages.h"
 #include "ulist.h"
 #include "misc.h"
 
+struct page;
+struct file;
+struct folio;
+struct inode;
+struct fiemap_extent_info;
+struct readahead_control;
+struct address_space;
+struct writeback_control;
+struct extent_io_tree;
+struct extent_map_tree;
+struct btrfs_block_group;
+struct btrfs_fs_info;
+struct btrfs_inode;
+struct btrfs_root;
 struct btrfs_trans_handle;
+struct btrfs_tree_parent_check;
 
 enum {
 	EXTENT_BUFFER_UPTODATE,
@@ -64,11 +84,6 @@ enum {
 #define BITMAP_LAST_BYTE_MASK(nbits) \
 	(BYTE_MASK >> (-(nbits) & (BITS_PER_BYTE - 1)))
 
-struct btrfs_root;
-struct btrfs_inode;
-struct btrfs_fs_info;
-struct extent_io_tree;
-struct btrfs_tree_parent_check;
 
 int __init extent_buffer_init_cachep(void);
 void __cold extent_buffer_free_cachep(void);

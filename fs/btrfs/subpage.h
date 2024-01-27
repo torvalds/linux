@@ -4,6 +4,11 @@
 #define BTRFS_SUBPAGE_H
 
 #include <linux/spinlock.h>
+#include <linux/atomic.h>
+
+struct address_space;
+struct folio;
+struct btrfs_fs_info;
 
 /*
  * Extra info for subpapge bitmap.

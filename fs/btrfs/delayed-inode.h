@@ -7,14 +7,22 @@
 #ifndef BTRFS_DELAYED_INODE_H
 #define BTRFS_DELAYED_INODE_H
 
+#include <linux/types.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/fs.h>
 #include <linux/atomic.h>
 #include <linux/refcount.h>
 #include "ctree.h"
+
+struct btrfs_disk_key;
+struct btrfs_fs_info;
+struct btrfs_inode;
+struct btrfs_root;
+struct btrfs_trans_handle;
 
 enum btrfs_delayed_item_type {
 	BTRFS_DELAYED_INSERTION_ITEM,

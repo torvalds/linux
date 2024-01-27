@@ -6,6 +6,19 @@
 #ifndef BTRFS_FREE_SPACE_CACHE_H
 #define BTRFS_FREE_SPACE_CACHE_H
 
+#include <linux/rbtree.h>
+#include <linux/list.h>
+#include <linux/spinlock.h>
+#include <linux/mutex.h>
+#include "fs.h"
+
+struct inode;
+struct page;
+struct btrfs_fs_info;
+struct btrfs_path;
+struct btrfs_trans_handle;
+struct btrfs_trim_block_group;
+
 /*
  * This is the trim state of an extent or bitmap.
  *
