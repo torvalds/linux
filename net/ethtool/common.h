@@ -55,5 +55,6 @@ int ethtool_get_module_eeprom_call(struct net_device *dev,
 				   struct ethtool_eeprom *ee, u8 *data);
 
 bool __ethtool_dev_mm_supported(struct net_device *dev);
+bool ethtool_eee_use_linkmodes(const struct ethtool_keee *eee);
 
 #endif /* _ETHTOOL_COMMON_H */
