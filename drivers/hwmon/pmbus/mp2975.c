@@ -131,10 +131,9 @@ static int mp2975_read_byte_data(struct i2c_client *client, int page, int reg)
 	switch (reg) {
 	case PMBUS_VOUT_MODE:
 		/*
-		 * Enforce VOUT direct format, since device allows to set the
-		 * different formats for the different rails. Conversion from
-		 * VID to direct provided by driver internally, in case it is
-		 * necessary.
+		 * Report direct format as configured by MFR_DC_LOOP_CTRL.
+		 * Unlike on MP2971/MP2973 the reported VOUT_MODE isn't automatically
+		 * internally updated, but always reads as PB_VOUT_MODE_VID.
 		 */
 		return PB_VOUT_MODE_DIRECT;
 	default:
