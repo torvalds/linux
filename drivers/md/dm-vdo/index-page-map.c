@@ -100,8 +100,7 @@ void uds_get_list_number_bounds(const struct index_page_map *map, u32 chapter_nu
 	u32 slot = chapter_number * map->entries_per_chapter;
 
 	*lowest_list = ((index_page_number == 0) ?
-			0 :
-			map->entries[slot + index_page_number - 1] + 1);
+			0 : map->entries[slot + index_page_number - 1] + 1);
 	*highest_list = ((index_page_number < map->entries_per_chapter) ?
 			 map->entries[slot + index_page_number] :
 			 map->geometry->delta_lists_per_chapter - 1);

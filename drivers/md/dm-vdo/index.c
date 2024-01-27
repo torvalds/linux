@@ -1330,8 +1330,7 @@ int uds_save_index(struct uds_index *index)
 	uds_wait_for_idle_index(index);
 	index->prev_save = index->last_save;
 	index->last_save = ((index->newest_virtual_chapter == 0) ?
-			    NO_LAST_SAVE :
-			    index->newest_virtual_chapter - 1);
+			    NO_LAST_SAVE : index->newest_virtual_chapter - 1);
 	uds_log_info("beginning save (vcn %llu)", (unsigned long long) index->last_save);
 
 	result = uds_save_index_state(index->layout, index);
