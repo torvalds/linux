@@ -1128,7 +1128,7 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 		prt_newline(&buf);
 
 		prt_bdevname(&buf, fs->bdev);
-		prt_str(&buf, "believes seq of ");
+		prt_str(&buf, " believes seq of ");
 		prt_bdevname(&buf, sb->bdev);
 		prt_printf(&buf, " to be %llu, but ", seq_from_fs);
 		prt_bdevname(&buf, sb->bdev);
