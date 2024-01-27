@@ -63,7 +63,7 @@
 static void ping_once(const char *ip)
 {
 	/* We won't get a reply. Don't fail here */
-	SYS_NOFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
+	SYS_NOFAIL("ping %s -c1 -W1 -s %d",
 		   ip, ICMP_PAYLOAD_SIZE);
 }
 

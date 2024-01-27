@@ -85,7 +85,7 @@ static void ping_dev(const char *dev, bool is_ingress)
 		snprintf(ip, sizeof(ip), "20.0.0.%d", link_index);
 
 	/* We won't get a reply. Don't fail here */
-	SYS_NOFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
+	SYS_NOFAIL("ping %s -c1 -W1 -s %d",
 		   ip, ICMP_PAYLOAD_SIZE);
 }
 

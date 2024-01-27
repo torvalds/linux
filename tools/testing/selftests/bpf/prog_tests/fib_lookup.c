@@ -298,6 +298,6 @@ void test_fib_lookup(void)
 fail:
 	if (nstoken)
 		close_netns(nstoken);
-	SYS_NOFAIL("ip netns del " NS_TEST " &> /dev/null");
+	SYS_NOFAIL("ip netns del " NS_TEST);
 	fib_lookup__destroy(skel);
 }
