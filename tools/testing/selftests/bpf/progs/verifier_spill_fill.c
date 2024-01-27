@@ -979,4 +979,115 @@ l0_%=:	r0 = 0;						\
 	: __clobber_all);
 }
 
+SEC("xdp")
+__description("32-bit fill after 64-bit spill")
+__success __retval(0)
+__naked void fill_32bit_after_spill_64bit(void)
+{
+	asm volatile("					\
+	/* Randomize the upper 32 bits. */		\
+	call %[bpf_get_prandom_u32];			\
+	r0 <<= 32;					\
+	/* 64-bit spill r0 to stack. */			\
+	*(u64*)(r10 - 8) = r0;				\
+	/* 32-bit fill r0 from stack. */		\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r0 = *(u32*)(r10 - 8);"
+#else
+	"r0 = *(u32*)(r10 - 4);"
+#endif
+	"						\
+	/* Boundary check on r0 with predetermined result. */\
+	if r0 == 0 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+l0_%=:	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit fill after 64-bit spill of 32-bit value should preserve ID")
+__success __retval(0)
+__naked void fill_32bit_after_spill_64bit_preserve_id(void)
+{
+	asm volatile ("					\
+	/* Randomize the lower 32 bits. */		\
+	call %[bpf_get_prandom_u32];			\
+	w0 &= 0xffffffff;				\
+	/* 64-bit spill r0 to stack - should assign an ID. */\
+	*(u64*)(r10 - 8) = r0;				\
+	/* 32-bit fill r1 from stack - should preserve the ID. */\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r1 = *(u32*)(r10 - 8);"
+#else
+	"r1 = *(u32*)(r10 - 4);"
+#endif
+	"						\
+	/* Compare r1 with another register to trigger find_equal_scalars. */\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit fill after 64-bit spill should clear ID")
+__failure __msg("math between ctx pointer and 4294967295 is not allowed")
+__naked void fill_32bit_after_spill_64bit_clear_id(void)
+{
+	asm volatile ("					\
+	r6 = r1;					\
+	/* Roll one bit to force the verifier to track both branches. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x8;					\
+	/* Put a large number into r1. */		\
+	r1 = 0xffffffff;				\
+	r1 <<= 32;					\
+	r1 += r0;					\
+	/* 64-bit spill r1 to stack - should assign an ID. */\
+	*(u64*)(r10 - 8) = r1;				\
+	/* 32-bit fill r2 from stack - should clear the ID. */\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r2 = *(u32*)(r10 - 8);"
+#else
+	"r2 = *(u32*)(r10 - 4);"
+#endif
+	"						\
+	/* Compare r2 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners. If the ID was mistakenly preserved on fill, this would\
+	 * cause the verifier to think that r1 is also equal to zero in one of\
+	 * the branches, and equal to eight on the other branch.\
+	 */						\
+	r3 = 0;						\
+	if r2 != r3 goto l0_%=;				\
+l0_%=:	r1 >>= 32;					\
+	/* The verifier shouldn't propagate r2's range to r1, so it should\
+	 * still remember r1 = 0xffffffff and reject the below.\
+	 */						\
+	r6 += r1;					\
+	r0 = *(u32*)(r6 + 0);				\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
 char _license[] SEC("license") = "GPL";
