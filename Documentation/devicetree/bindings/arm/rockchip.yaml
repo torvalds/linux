@@ -649,6 +649,14 @@ properties:
           - const: pine64,pinephone-pro
           - const: rockchip,rk3399
 
+      - description: Pine64 PineTab2
+        items:
+          - enum:
+              - pine64,pinetab2-v0.1
+              - pine64,pinetab2-v2.0
+          - const: pine64,pinetab2
+          - const: rockchip,rk3566
+
       - description: Pine64 Rock64
         items:
           - const: pine64,rock64
