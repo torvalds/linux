@@ -1014,13 +1014,9 @@ static void handle_page_write_error(struct vdo_completion *completion)
 
 	/* If we're already read-only, write failures are to be expected. */
 	if (result != VDO_READ_ONLY) {
-		static DEFINE_RATELIMIT_STATE(error_limiter, DEFAULT_RATELIMIT_INTERVAL,
-					      DEFAULT_RATELIMIT_BURST);
-
-		if (__ratelimit(&error_limiter)) {
-			uds_log_error("failed to write block map page %llu",
-				      (unsigned long long) info->pbn);
-		}
+		uds_log_ratelimit(uds_log_error,
+				  "failed to write block map page %llu",
+				  (unsigned long long) info->pbn);
 	}
 
 	set_info_state(info, PS_DIRTY);
