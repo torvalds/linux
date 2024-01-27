@@ -296,10 +296,10 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 		dma_async_issue_pending(dma_chan);
 	}
 
-	data->bytes_xfered += host->data_remain;
-
 	wait_for_completion_interruptible_timeout(&host->dma_complete,
 						  host->timeout);
+
+	data->bytes_xfered = host->data_len;
 
 	dma_unmap_sg(dma_chan->device->dev,
 		     data->sg, data->sg_len,
