@@ -217,7 +217,7 @@ __naked void uninit_u32_from_the_stack(void)
 
 SEC("tc")
 __description("Spill a u32 const scalar.  Refill as u16.  Offset to skb->data")
-__failure __msg("invalid access to packet")
+__success __retval(0)
 __naked void u16_offset_to_skb_data(void)
 {
 	asm volatile ("					\
@@ -225,13 +225,19 @@ __naked void u16_offset_to_skb_data(void)
 	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	w4 = 20;					\
 	*(u32*)(r10 - 8) = r4;				\
-	r4 = *(u16*)(r10 - 8);				\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r4 = *(u16*)(r10 - 8);"
+#else
+	"r4 = *(u16*)(r10 - 6);"
+#endif
+	"						\
 	r0 = r2;					\
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */\
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=20 */\
 	r0 += r4;					\
-	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=umax=65535 */\
+	/* if (r0 > r3) R0=pkt,off=20 R2=pkt R3=pkt_end R4=20 */\
 	if r0 > r3 goto l0_%=;				\
-	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=20 */\
+	/* r0 = *(u32 *)r2 R0=pkt,off=20 R2=pkt R3=pkt_end R4=20 */\
 	r0 = *(u32*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
@@ -268,7 +274,7 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("tc")
-__description("Spill a u32 const scalar.  Refill as u16 from fp-6.  Offset to skb->data")
+__description("Spill a u32 const scalar.  Refill as u16 from MSB.  Offset to skb->data")
 __failure __msg("invalid access to packet")
 __naked void _6_offset_to_skb_data(void)
 {
@@ -277,7 +283,13 @@ __naked void _6_offset_to_skb_data(void)
 	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	w4 = 20;					\
 	*(u32*)(r10 - 8) = r4;				\
-	r4 = *(u16*)(r10 - 6);				\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r4 = *(u16*)(r10 - 6);"
+#else
+	"r4 = *(u16*)(r10 - 8);"
+#endif
+	"						\
 	r0 = r2;					\
 	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */\
 	r0 += r4;					\
