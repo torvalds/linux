@@ -562,7 +562,7 @@ static void set_persistent_error(struct vdo_page_cache *cache, const char *conte
 {
 	struct page_info *info;
 	/* If we're already read-only, there's no need to log. */
-	struct vdo *vdo = cache->zone->block_map->vdo;
+	struct vdo *vdo = cache->vdo;
 
 	if ((result != VDO_READ_ONLY) && !vdo_is_read_only(vdo)) {
 		uds_log_error_strerror(result, "VDO Page Cache persistent error: %s",
@@ -1111,7 +1111,7 @@ static void write_pages(struct vdo_completion *flush_completion)
 					 state_entry);
 
 		list_del_init(&info->state_entry);
-		if (vdo_is_read_only(info->cache->zone->block_map->vdo)) {
+		if (vdo_is_read_only(info->cache->vdo)) {
 			struct vdo_completion *completion = &info->vio->completion;
 
 			vdo_reset_completion(completion);
@@ -1233,7 +1233,7 @@ void vdo_get_page(struct vdo_page_completion *page_completion,
 			       cache->zone->thread_id, parent);
 	completion->requeue = requeue;
 
-	if (page_completion->writable && vdo_is_read_only(cache->zone->block_map->vdo)) {
+	if (page_completion->writable && vdo_is_read_only(cache->vdo)) {
 		vdo_fail_completion(completion, VDO_READ_ONLY);
 		return;
 	}
