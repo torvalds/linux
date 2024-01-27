@@ -535,19 +535,19 @@ static void complete_waiter_with_page(struct vdo_waiter *waiter, void *page_info
 static unsigned int distribute_page_over_waitq(struct page_info *info,
 					       struct vdo_wait_queue *waitq)
 {
-	size_t pages;
+	size_t num_pages;
 
 	update_lru(info);
-	pages = vdo_waitq_num_waiters(waitq);
+	num_pages = vdo_waitq_num_waiters(waitq);
 
 	/*
 	 * Increment the busy count once for each pending completion so that this page does not
 	 * stop being busy until all completions have been processed (VDO-83).
 	 */
-	info->busy += pages;
+	info->busy += num_pages;
 
 	vdo_waitq_notify_all_waiters(waitq, complete_waiter_with_page, info);
-	return pages;
+	return num_pages;
 }
 
 /**
@@ -614,7 +614,8 @@ static int __must_check validate_completed_page(struct vdo_page_completion *comp
 		return result;
 
 	if (writable) {
-		result = ASSERT(completion->writable, "VDO Page Completion is writable");
+		result = ASSERT(completion->writable,
+				"VDO Page Completion must be writable");
 		if (result != UDS_SUCCESS)
 			return result;
 	}
@@ -741,8 +742,8 @@ static void handle_rebuild_read_error(struct vdo_completion *completion)
 	assert_on_cache_thread(cache, __func__);
 
 	/*
-	 * We are doing a read-only rebuild, so treat this as a successful read of an uninitialized
-	 * page.
+	 * We are doing a read-only rebuild, so treat this as a successful read
+	 * of an uninitialized page.
 	 */
 	vio_record_metadata_io_error(as_vio(completion));
 	ADD_ONCE(cache->stats.failed_reads, 1);
