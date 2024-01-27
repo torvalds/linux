@@ -84,7 +84,6 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 {
 	struct genradix_iter iter;
 	struct journal_replay **_i, *i, *dup;
-	struct journal_ptr *ptr;
 	size_t bytes = vstruct_bytes(j);
 	u64 last_seq = !JSET_NO_FLUSH(j) ? le64_to_cpu(j->last_seq) : 0;
 	int ret = JOURNAL_ENTRY_ADD_OK;
@@ -156,45 +155,29 @@ replace:
 	if (!i)
 		return -BCH_ERR_ENOMEM_journal_entry_add;
 
-	i->nr_ptrs	= 0;
+	darray_init(&i->ptrs);
 	i->csum_good	= entry_ptr.csum_good;
 	i->ignore	= false;
 	unsafe_memcpy(&i->j, j, bytes, "embedded variable length struct");
-	i->ptrs[i->nr_ptrs++] = entry_ptr;
+	darray_push(&i->ptrs, entry_ptr);
 
 	if (dup) {
-		if (dup->nr_ptrs >= ARRAY_SIZE(dup->ptrs)) {
-			bch_err(c, "found too many copies of journal entry %llu",
-				le64_to_cpu(i->j.seq));
-			dup->nr_ptrs = ARRAY_SIZE(dup->ptrs) - 1;
-		}
-
 		/* The first ptr should represent the jset we kept: */
-		memcpy(i->ptrs + i->nr_ptrs,
-		       dup->ptrs,
-		       sizeof(dup->ptrs[0]) * dup->nr_ptrs);
-		i->nr_ptrs += dup->nr_ptrs;
+		darray_for_each(dup->ptrs, ptr)
+			darray_push(&i->ptrs, *ptr);
 		__journal_replay_free(c, dup);
 	}
 
 	*_i = i;
-	return 0;
 found:
-	for (ptr = i->ptrs; ptr < i->ptrs + i->nr_ptrs; ptr++) {
+	darray_for_each(i->ptrs, ptr)
 		if (ptr->dev == ca->dev_idx) {
 			bch_err(c, "duplicate journal entry %llu on same device",
 				le64_to_cpu(i->j.seq));
 			goto out;
 		}
-	}
 
-	if (i->nr_ptrs >= ARRAY_SIZE(i->ptrs)) {
-		bch_err(c, "found too many copies of journal entry %llu",
-			le64_to_cpu(i->j.seq));
-		goto out;
-	}
-
-	i->ptrs[i->nr_ptrs++] = entry_ptr;
+	ret = darray_push(&i->ptrs, entry_ptr);
 out:
 fsck_err:
 	return ret;
@@ -1102,16 +1085,15 @@ static CLOSURE_CALLBACK(bch2_journal_read_device)
 		if (!r)
 			continue;
 
-		for (i = 0; i < r->nr_ptrs; i++) {
-			if (r->ptrs[i].dev == ca->dev_idx) {
-				unsigned wrote = bucket_remainder(ca, r->ptrs[i].sector) +
+		darray_for_each(r->ptrs, i)
+			if (i->dev == ca->dev_idx) {
+				unsigned wrote = bucket_remainder(ca, i->sector) +
 					vstruct_sectors(&r->j, c->block_bits);
 
-				ja->cur_idx = r->ptrs[i].bucket;
+				ja->cur_idx = i->bucket;
 				ja->sectors_free = ca->mi.bucket_size - wrote;
 				goto found;
 			}
-		}
 	}
 found:
 	mutex_unlock(&jlist->lock);
@@ -1158,21 +1140,16 @@ err:
 void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			       struct journal_replay *j)
 {
-	unsigned i;
-
-	for (i = 0; i < j->nr_ptrs; i++) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, j->ptrs[i].dev);
+	darray_for_each(j->ptrs, i) {
+		struct bch_dev *ca = bch_dev_bkey_exists(c, i->dev);
 		u64 offset;
 
-		div64_u64_rem(j->ptrs[i].sector, ca->mi.bucket_size, &offset);
+		div64_u64_rem(i->sector, ca->mi.bucket_size, &offset);
 
-		if (i)
+		if (i != j->ptrs.data)
 			prt_printf(out, " ");
 		prt_printf(out, "%u:%u:%u (sector %llu)",
-		       j->ptrs[i].dev,
-		       j->ptrs[i].bucket,
-		       j->ptrs[i].bucket_offset,
-		       j->ptrs[i].sector);
+			   i->dev, i->bucket, i->bucket_offset, i->sector);
 	}
 }
 
@@ -1353,32 +1330,31 @@ int bch2_journal_read(struct bch_fs *c,
 			.e.data_type = BCH_DATA_journal,
 			.e.nr_required = 1,
 		};
-		unsigned ptr;
 
 		i = *_i;
 		if (!i || i->ignore)
 			continue;
 
-		for (ptr = 0; ptr < i->nr_ptrs; ptr++) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, i->ptrs[ptr].dev);
+		darray_for_each(i->ptrs, ptr) {
+			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 
-			if (!i->ptrs[ptr].csum_good)
-				bch_err_dev_offset(ca, i->ptrs[ptr].sector,
+			if (!ptr->csum_good)
+				bch_err_dev_offset(ca, ptr->sector,
 						   "invalid journal checksum, seq %llu%s",
 						   le64_to_cpu(i->j.seq),
 						   i->csum_good ? " (had good copy on another device)" : "");
 		}
 
 		ret = jset_validate(c,
-				    bch_dev_bkey_exists(c, i->ptrs[0].dev),
+				    bch_dev_bkey_exists(c, i->ptrs.data[0].dev),
 				    &i->j,
-				    i->ptrs[0].sector,
+				    i->ptrs.data[0].sector,
 				    READ);
 		if (ret)
 			goto err;
 
-		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
-			replicas.e.devs[replicas.e.nr_devs++] = i->ptrs[ptr].dev;
+		darray_for_each(i->ptrs, ptr)
+			replicas.e.devs[replicas.e.nr_devs++] = ptr->dev;
 
 		bch2_replicas_entry_sort(&replicas.e);
 

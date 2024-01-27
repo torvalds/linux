@@ -1153,7 +1153,6 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 	struct journal_replay *i, **_i;
 	struct genradix_iter iter;
 	bool had_entries = false;
-	unsigned ptr;
 	u64 last_seq = cur_seq, nr, seq;
 
 	genradix_for_each_reverse(&c->journal_entries, iter, _i) {
@@ -1207,8 +1206,8 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 		p = journal_seq_pin(j, seq);
 
 		p->devs.nr = 0;
-		for (ptr = 0; ptr < i->nr_ptrs; ptr++)
-			bch2_dev_list_add_dev(&p->devs, i->ptrs[ptr].dev);
+		darray_for_each(i->ptrs, ptr)
+			bch2_dev_list_add_dev(&p->devs, ptr->dev);
 
 		had_entries = true;
 	}
