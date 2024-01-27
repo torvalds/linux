@@ -543,7 +543,6 @@ static const struct i2c_device_id max31790_id[] = {
 MODULE_DEVICE_TABLE(i2c, max31790_id);
 
 static struct i2c_driver max31790_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.probe		= max31790_probe,
 	.driver = {
 		.name	= "max31790",
