@@ -6000,21 +6000,24 @@ out:
 
 static int btrfs_get_dir_last_index(struct btrfs_inode *dir, u64 *index)
 {
-	if (dir->index_cnt == (u64)-1) {
-		int ret;
+	int ret = 0;
 
+	btrfs_inode_lock(&dir->vfs_inode, 0);
+	if (dir->index_cnt == (u64)-1) {
 		ret = btrfs_inode_delayed_dir_index_count(dir);
 		if (ret) {
 			ret = btrfs_set_inode_index_count(dir);
 			if (ret)
-				return ret;
+				goto out;
 		}
 	}
 
 	/* index_cnt is the index number of next new entry, so decrement it. */
 	*index = dir->index_cnt - 1;
+out:
+	btrfs_inode_unlock(&dir->vfs_inode, 0);
 
-	return 0;
+	return ret;
 }
 
 /*
