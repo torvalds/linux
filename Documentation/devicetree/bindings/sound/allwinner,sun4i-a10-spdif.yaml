@@ -22,6 +22,7 @@ properties:
       - const: allwinner,sun6i-a31-spdif
       - const: allwinner,sun8i-h3-spdif
       - const: allwinner,sun50i-h6-spdif
+      - const: allwinner,sun50i-h616-spdif
       - items:
           - const: allwinner,sun8i-a83t-spdif
           - const: allwinner,sun8i-h3-spdif
@@ -63,6 +64,7 @@ allOf:
               - allwinner,sun6i-a31-spdif
               - allwinner,sun8i-h3-spdif
               - allwinner,sun50i-h6-spdif
+              - allwinner,sun50i-h616-spdif
 
     then:
       required:
@@ -74,6 +76,7 @@ allOf:
           contains:
             enum:
               - allwinner,sun8i-h3-spdif
+              - allwinner,sun50i-h616-spdif
 
     then:
       properties:
