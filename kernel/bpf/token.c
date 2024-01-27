@@ -72,28 +72,28 @@ static void bpf_token_show_fdinfo(struct seq_file *m, struct file *filp)
 	u64 mask;
 
 	BUILD_BUG_ON(__MAX_BPF_CMD >= 64);
-	mask = (1ULL << __MAX_BPF_CMD) - 1;
+	mask = BIT_ULL(__MAX_BPF_CMD) - 1;
 	if ((token->allowed_cmds & mask) == mask)
 		seq_printf(m, "allowed_cmds:\tany\n");
 	else
 		seq_printf(m, "allowed_cmds:\t0x%llx\n", token->allowed_cmds);
 
 	BUILD_BUG_ON(__MAX_BPF_MAP_TYPE >= 64);
-	mask = (1ULL << __MAX_BPF_MAP_TYPE) - 1;
+	mask = BIT_ULL(__MAX_BPF_MAP_TYPE) - 1;
 	if ((token->allowed_maps & mask) == mask)
 		seq_printf(m, "allowed_maps:\tany\n");
 	else
 		seq_printf(m, "allowed_maps:\t0x%llx\n", token->allowed_maps);
 
 	BUILD_BUG_ON(__MAX_BPF_PROG_TYPE >= 64);
-	mask = (1ULL << __MAX_BPF_PROG_TYPE) - 1;
+	mask = BIT_ULL(__MAX_BPF_PROG_TYPE) - 1;
 	if ((token->allowed_progs & mask) == mask)
 		seq_printf(m, "allowed_progs:\tany\n");
 	else
 		seq_printf(m, "allowed_progs:\t0x%llx\n", token->allowed_progs);
 
 	BUILD_BUG_ON(__MAX_BPF_ATTACH_TYPE >= 64);
-	mask = (1ULL << __MAX_BPF_ATTACH_TYPE) - 1;
+	mask = BIT_ULL(__MAX_BPF_ATTACH_TYPE) - 1;
 	if ((token->allowed_attachs & mask) == mask)
 		seq_printf(m, "allowed_attachs:\tany\n");
 	else
@@ -253,7 +253,7 @@ bool bpf_token_allow_cmd(const struct bpf_token *token, enum bpf_cmd cmd)
 {
 	if (!token)
 		return false;
-	if (!(token->allowed_cmds & (1ULL << cmd)))
+	if (!(token->allowed_cmds & BIT_ULL(cmd)))
 		return false;
 	return security_bpf_token_cmd(token, cmd) == 0;
 }
@@ -263,7 +263,7 @@ bool bpf_token_allow_map_type(const struct bpf_token *token, enum bpf_map_type t
 	if (!token || type >= __MAX_BPF_MAP_TYPE)
 		return false;
 
-	return token->allowed_maps & (1ULL << type);
+	return token->allowed_maps & BIT_ULL(type);
 }
 
 bool bpf_token_allow_prog_type(const struct bpf_token *token,
@@ -273,6 +273,6 @@ bool bpf_token_allow_prog_type(const struct bpf_token *token,
 	if (!token || prog_type >= __MAX_BPF_PROG_TYPE || attach_type >= __MAX_BPF_ATTACH_TYPE)
 		return false;
 
-	return (token->allowed_progs & (1ULL << prog_type)) &&
-	       (token->allowed_attachs & (1ULL << attach_type));
+	return (token->allowed_progs & BIT_ULL(prog_type)) &&
+	       (token->allowed_attachs & BIT_ULL(attach_type));
 }
