@@ -71,7 +71,7 @@ const char * __must_check uds_string_error(int errnum, char *buf, size_t buflen)
 
 const char *uds_string_error_name(int errnum, char *buf, size_t buflen);
 
-int uds_map_to_system_error(int error);
+int uds_status_to_errno(int error);
 
 int uds_register_error_block(const char *block_name, int first_error,
 			     int last_reserved_error, const struct error_info *infos,

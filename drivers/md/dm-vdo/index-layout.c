@@ -267,13 +267,13 @@ int uds_compute_index_size(const struct uds_parameters *parameters, u64 *index_s
 	result = uds_make_configuration(parameters, &index_config);
 	if (result != UDS_SUCCESS) {
 		uds_log_error_strerror(result, "cannot compute index size");
-		return uds_map_to_system_error(result);
+		return uds_status_to_errno(result);
 	}
 
 	result = compute_sizes(index_config, &sizes);
 	uds_free_configuration(index_config);
 	if (result != UDS_SUCCESS)
-		return uds_map_to_system_error(result);
+		return uds_status_to_errno(result);
 
 	*index_size = sizes.total_size;
 	return UDS_SUCCESS;

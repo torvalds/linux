@@ -210,7 +210,7 @@ static void handle_callbacks(struct uds_request *request)
 	if (request->status == UDS_SUCCESS)
 		update_session_stats(request);
 
-	request->status = uds_map_to_system_error(request->status);
+	request->status = uds_status_to_errno(request->status);
 	request->callback(request);
 	release_index_session(index_session);
 }
@@ -276,7 +276,7 @@ int uds_create_index_session(struct uds_index_session **session)
 		return -EINVAL;
 	}
 
-	return uds_map_to_system_error(make_empty_index_session(session));
+	return uds_status_to_errno(make_empty_index_session(session));
 }
 
 static int __must_check start_loading_index_session(struct uds_index_session *index_session)
@@ -374,7 +374,7 @@ int uds_open_index(enum uds_open_index_type open_type,
 
 	result = start_loading_index_session(session);
 	if (result != UDS_SUCCESS)
-		return uds_map_to_system_error(result);
+		return uds_status_to_errno(result);
 
 	session->parameters = *parameters;
 	format_dev_t(name, parameters->bdev->bd_dev);
@@ -386,7 +386,7 @@ int uds_open_index(enum uds_open_index_type open_type,
 				       get_open_type_string(open_type));
 
 	finish_loading_index_session(session, result);
-	return uds_map_to_system_error(result);
+	return uds_status_to_errno(result);
 }
 
 static void wait_for_no_requests_in_progress(struct uds_index_session *index_session)
@@ -470,7 +470,7 @@ int uds_suspend_index_session(struct uds_index_session *session, bool save)
 	uds_unlock_mutex(&session->request_mutex);
 
 	if (no_work)
-		return uds_map_to_system_error(result);
+		return uds_status_to_errno(result);
 
 	if (rebuilding)
 		suspend_rebuild(session);
@@ -484,7 +484,7 @@ int uds_suspend_index_session(struct uds_index_session *session, bool save)
 	session->state |= IS_FLAG_SUSPENDED;
 	uds_broadcast_cond(&session->request_cond);
 	uds_unlock_mutex(&session->request_mutex);
-	return uds_map_to_system_error(result);
+	return uds_status_to_errno(result);
 }
 
 static int replace_device(struct uds_index_session *session, struct block_device *bdev)
@@ -536,7 +536,7 @@ int uds_resume_index_session(struct uds_index_session *session,
 			session->state &= ~IS_FLAG_WAITING;
 			uds_broadcast_cond(&session->request_cond);
 			uds_unlock_mutex(&session->request_mutex);
-			return uds_map_to_system_error(result);
+			return uds_status_to_errno(result);
 		}
 	}
 
@@ -635,7 +635,7 @@ int uds_close_index(struct uds_index_session *index_session)
 	}
 	uds_unlock_mutex(&index_session->request_mutex);
 	if (result != UDS_SUCCESS)
-		return uds_map_to_system_error(result);
+		return uds_status_to_errno(result);
 
 	uds_log_debug("Closing index");
 	wait_for_no_requests_in_progress(index_session);
@@ -646,7 +646,7 @@ int uds_close_index(struct uds_index_session *index_session)
 	index_session->state &= ~IS_FLAG_CLOSING;
 	uds_broadcast_cond(&index_session->request_cond);
 	uds_unlock_mutex(&index_session->request_mutex);
-	return uds_map_to_system_error(result);
+	return uds_status_to_errno(result);
 }
 
 /* This will save and close an open index before destroying the session. */
@@ -702,7 +702,7 @@ int uds_destroy_index_session(struct uds_index_session *index_session)
 	uds_destroy_mutex(&index_session->request_mutex);
 	uds_log_debug("Destroyed index session");
 	uds_free(index_session);
-	return uds_map_to_system_error(result);
+	return uds_status_to_errno(result);
 }
 
 /* Wait until all callbacks for index operations are complete. */

@@ -219,7 +219,7 @@ const char *uds_string_error_name(int errnum, char *buf, size_t buflen)
  * system-generated value (such as -EIO), or an internal UDS status code. The result will be a
  * negative errno value.
  */
-int uds_map_to_system_error(int error)
+int uds_status_to_errno(int error)
 {
 	char error_name[UDS_MAX_ERROR_NAME_SIZE];
 	char error_message[UDS_MAX_ERROR_MESSAGE_SIZE];
