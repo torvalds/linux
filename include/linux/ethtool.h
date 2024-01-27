@@ -223,15 +223,13 @@ __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
 
 struct ethtool_keee {
-	u32	cmd;
 	u32	supported;
 	u32	advertised;
 	u32	lp_advertised;
-	u32	eee_active;
-	u32	eee_enabled;
-	u32	tx_lpi_enabled;
 	u32	tx_lpi_timer;
-	u32	reserved[2];
+	bool	tx_lpi_enabled;
+	bool	eee_active;
+	bool	eee_enabled;
 };
 
 struct kernel_ethtool_coalesce {

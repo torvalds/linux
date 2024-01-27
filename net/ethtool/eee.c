@@ -98,10 +98,10 @@ static int eee_fill_reply(struct sk_buff *skb,
 	if (ret < 0)
 		return ret;
 
-	if (nla_put_u8(skb, ETHTOOL_A_EEE_ACTIVE, !!eee->eee_active) ||
-	    nla_put_u8(skb, ETHTOOL_A_EEE_ENABLED, !!eee->eee_enabled) ||
+	if (nla_put_u8(skb, ETHTOOL_A_EEE_ACTIVE, eee->eee_active) ||
+	    nla_put_u8(skb, ETHTOOL_A_EEE_ENABLED, eee->eee_enabled) ||
 	    nla_put_u8(skb, ETHTOOL_A_EEE_TX_LPI_ENABLED,
-		       !!eee->tx_lpi_enabled) ||
+		       eee->tx_lpi_enabled) ||
 	    nla_put_u32(skb, ETHTOOL_A_EEE_TX_LPI_TIMER, eee->tx_lpi_timer))
 		return -EMSGSIZE;
 
@@ -145,9 +145,9 @@ ethnl_set_eee(struct ethnl_req_info *req_info, struct genl_info *info)
 				    link_mode_names, info->extack, &mod);
 	if (ret < 0)
 		return ret;
-	ethnl_update_bool32(&eee.eee_enabled, tb[ETHTOOL_A_EEE_ENABLED], &mod);
-	ethnl_update_bool32(&eee.tx_lpi_enabled,
-			    tb[ETHTOOL_A_EEE_TX_LPI_ENABLED], &mod);
+	ethnl_update_bool(&eee.eee_enabled, tb[ETHTOOL_A_EEE_ENABLED], &mod);
+	ethnl_update_bool(&eee.tx_lpi_enabled, tb[ETHTOOL_A_EEE_TX_LPI_ENABLED],
+			  &mod);
 	ethnl_update_u32(&eee.tx_lpi_timer, tb[ETHTOOL_A_EEE_TX_LPI_TIMER],
 			 &mod);
 	if (!mod)
