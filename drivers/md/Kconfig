@@ -498,22 +498,6 @@ config DM_FLAKEY
 	help
 	 A target that intermittently fails I/O for debugging purposes.
 
-config DM_VDO
-	tristate "VDO: deduplication and compression target"
-	depends on 64BIT
-	depends on BLK_DEV_DM
-	select DM_BUFIO
-	select LZ4_COMPRESS
-	select LZ4_DECOMPRESS
-	help
-	  This device mapper target presents a block device with
-	  deduplication, compression and thin-provisioning.
-
-	  To compile this code as a module, choose M here: the module will
-	  be called dm-vdo.
-
-	  If unsure, say N.
-
 config DM_VERITY
 	tristate "Verity target support"
 	depends on BLK_DEV_DM
@@ -649,5 +633,7 @@ config DM_AUDIT
 
 	  Enables audit logging of several security relevant events in the
 	  particular device-mapper targets, especially the integrity target.
+
+source "drivers/md/dm-vdo/Kconfig"
 
 endif # MD
