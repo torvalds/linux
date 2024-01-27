@@ -166,7 +166,7 @@ Note that most instructions do not use all of the fields.
 Unused fields shall be cleared to zero.
 
 As discussed below in `64-bit immediate instructions`_, a 64-bit immediate
-instruction uses a 64-bit immediate value that is constructed as follows.
+instruction uses two 32-bit immediate values that are constructed as follows.
 The 64 bits following the basic instruction contain a pseudo instruction
 using the same format but with opcode, dst_reg, src_reg, and offset all set to zero,
 and imm containing the high 32 bits of the immediate value.
@@ -181,13 +181,8 @@ This is depicted in the following figure::
                                    '--------------'
                                   pseudo instruction
 
-Thus the 64-bit immediate value is constructed as follows:
-
-  imm64 = (next_imm << 32) | imm
-
-where 'next_imm' refers to the imm value of the pseudo instruction
-following the basic instruction.  The unused bytes in the pseudo
-instruction are reserved and shall be cleared to zero.
+Here, the imm value of the pseudo instruction is called 'next_imm'. The unused
+bytes in the pseudo instruction are reserved and shall be cleared to zero.
 
 Instruction classes
 -------------------
@@ -590,7 +585,7 @@ defined further below:
 =========================  ======  ===  =========================================  ===========  ==============
 opcode construction        opcode  src  pseudocode                                 imm type     dst type
 =========================  ======  ===  =========================================  ===========  ==============
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x0  dst = imm64                                integer      integer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x0  dst = (next_imm << 32) | imm               integer      integer
 BPF_IMM | BPF_DW | BPF_LD  0x18    0x1  dst = map_by_fd(imm)                       map fd       map
 BPF_IMM | BPF_DW | BPF_LD  0x18    0x2  dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
 BPF_IMM | BPF_DW | BPF_LD  0x18    0x3  dst = var_addr(imm)                        variable id  data pointer
