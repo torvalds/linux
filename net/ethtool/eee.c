@@ -5,7 +5,7 @@
 #include "bitset.h"
 
 #define EEE_MODES_COUNT \
-	(sizeof_field(struct ethtool_eee, supported) * BITS_PER_BYTE)
+	(sizeof_field(struct ethtool_keee, supported) * BITS_PER_BYTE)
 
 struct eee_req_info {
 	struct ethnl_req_info		base;
@@ -13,7 +13,7 @@ struct eee_req_info {
 
 struct eee_reply_data {
 	struct ethnl_reply_data		base;
-	struct ethtool_eee		eee;
+	struct ethtool_keee		eee;
 };
 
 #define EEE_REPDATA(__reply_base) \
@@ -48,7 +48,7 @@ static int eee_reply_size(const struct ethnl_req_info *req_base,
 {
 	bool compact = req_base->flags & ETHTOOL_FLAG_COMPACT_BITSETS;
 	const struct eee_reply_data *data = EEE_REPDATA(reply_base);
-	const struct ethtool_eee *eee = &data->eee;
+	const struct ethtool_keee *eee = &data->eee;
 	int len = 0;
 	int ret;
 
@@ -84,7 +84,7 @@ static int eee_fill_reply(struct sk_buff *skb,
 {
 	bool compact = req_base->flags & ETHTOOL_FLAG_COMPACT_BITSETS;
 	const struct eee_reply_data *data = EEE_REPDATA(reply_base);
-	const struct ethtool_eee *eee = &data->eee;
+	const struct ethtool_keee *eee = &data->eee;
 	int ret;
 
 	ret = ethnl_put_bitset32(skb, ETHTOOL_A_EEE_MODES_OURS,
@@ -132,7 +132,7 @@ ethnl_set_eee(struct ethnl_req_info *req_info, struct genl_info *info)
 {
 	struct net_device *dev = req_info->dev;
 	struct nlattr **tb = info->attrs;
-	struct ethtool_eee eee = {};
+	struct ethtool_keee eee = {};
 	bool mod = false;
 	int ret;
 

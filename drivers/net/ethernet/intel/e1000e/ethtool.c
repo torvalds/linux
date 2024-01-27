@@ -2186,7 +2186,7 @@ static int e1000_get_rxnfc(struct net_device *netdev,
 	}
 }
 
-static int e1000e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+static int e1000e_get_eee(struct net_device *netdev, struct ethtool_keee *edata)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -2262,11 +2262,11 @@ release:
 	return ret_val;
 }
 
-static int e1000e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
+static int e1000e_set_eee(struct net_device *netdev, struct ethtool_keee *edata)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct ethtool_eee eee_curr;
+	struct ethtool_keee eee_curr;
 	s32 ret_val;
 
 	ret_val = e1000e_get_eee(netdev, &eee_curr);

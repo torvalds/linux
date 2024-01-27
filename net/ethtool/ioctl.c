@@ -1510,13 +1510,13 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_eee edata;
+	struct ethtool_keee edata;
 	int rc;
 
 	if (!dev->ethtool_ops->get_eee)
 		return -EOPNOTSUPP;
 
-	memset(&edata, 0, sizeof(struct ethtool_eee));
+	memset(&edata, 0, sizeof(struct ethtool_keee));
 	edata.cmd = ETHTOOL_GEEE;
 	rc = dev->ethtool_ops->get_eee(dev, &edata);
 
@@ -1531,7 +1531,7 @@ static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_eee edata;
+	struct ethtool_keee edata;
 	int ret;
 
 	if (!dev->ethtool_ops->set_eee)

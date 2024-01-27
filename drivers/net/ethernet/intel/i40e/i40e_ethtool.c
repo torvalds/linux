@@ -5644,7 +5644,7 @@ static int i40e_get_module_eeprom(struct net_device *netdev,
 	return 0;
 }
 
-static int i40e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
+static int i40e_get_eee(struct net_device *netdev, struct ethtool_keee *edata)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_aq_get_phy_abilities_resp phy_cfg;
@@ -5682,7 +5682,7 @@ static int i40e_get_eee(struct net_device *netdev, struct ethtool_eee *edata)
 }
 
 static int i40e_is_eee_param_supported(struct net_device *netdev,
-				       struct ethtool_eee *edata)
+				       struct ethtool_keee *edata)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_vsi *vsi = np->vsi;
@@ -5709,7 +5709,7 @@ static int i40e_is_eee_param_supported(struct net_device *netdev,
 	return 0;
 }
 
-static int i40e_set_eee(struct net_device *netdev, struct ethtool_eee *edata)
+static int i40e_set_eee(struct net_device *netdev, struct ethtool_keee *edata)
 {
 	struct i40e_netdev_priv *np = netdev_priv(netdev);
 	struct i40e_aq_get_phy_abilities_resp abilities;

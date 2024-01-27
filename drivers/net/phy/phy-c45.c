@@ -1443,13 +1443,13 @@ EXPORT_SYMBOL(genphy_c45_eee_is_active);
 /**
  * genphy_c45_ethtool_get_eee - get EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: it reports the Supported/Advertisement/LP Advertisement
  * capabilities.
  */
 int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data)
+			       struct ethtool_keee *data)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp) = {};
@@ -1481,7 +1481,7 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
 /**
  * genphy_c45_ethtool_set_eee - set EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: sets the Supported/Advertisement/LP Advertisement
  * capabilities. If eee_enabled is false, no links modes are
@@ -1490,7 +1490,7 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
  * non-destructive way.
  */
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data)
+			       struct ethtool_keee *data)
 {
 	int ret;
 

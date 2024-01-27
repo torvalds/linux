@@ -1222,7 +1222,7 @@ static int dsa_user_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 	return ret;
 }
 
-static int dsa_user_set_eee(struct net_device *dev, struct ethtool_eee *e)
+static int dsa_user_set_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
@@ -1242,7 +1242,7 @@ static int dsa_user_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phylink_ethtool_set_eee(dp->pl, e);
 }
 
-static int dsa_user_get_eee(struct net_device *dev, struct ethtool_eee *e)
+static int dsa_user_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;

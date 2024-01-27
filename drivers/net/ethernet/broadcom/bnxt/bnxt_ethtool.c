@@ -3884,10 +3884,10 @@ static int bnxt_set_eeprom(struct net_device *dev,
 				eeprom->len);
 }
 
-static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnxt_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct ethtool_eee *eee = &bp->eee;
+	struct ethtool_keee *eee = &bp->eee;
 	struct bnxt_link_info *link_info = &bp->link_info;
 	u32 advertising;
 	int rc = 0;
@@ -3942,7 +3942,7 @@ eee_exit:
 	return rc;
 }
 
-static int bnxt_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnxt_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnxt *bp = netdev_priv(dev);
 

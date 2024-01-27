@@ -697,7 +697,7 @@ static u32 eee_mask_to_ethtool_mask(u32 speed)
 	return rate;
 }
 
-static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
+static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_keee *eee)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	u32 rate, supported_rates;
@@ -729,7 +729,7 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	return 0;
 }
 
-static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
+static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_keee *eee)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	u32 rate, supported_rates;

@@ -45,7 +45,7 @@ static int emac_set_link_ksettings(struct net_device *ndev,
 	return phy_ethtool_set_link_ksettings(ndev, ecmd);
 }
 
-static int emac_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
+static int emac_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	if (!ndev->phydev)
 		return -EOPNOTSUPP;
@@ -53,7 +53,7 @@ static int emac_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 	return phy_ethtool_get_eee(ndev->phydev, edata);
 }
 
-static int emac_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
+static int emac_set_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	if (!ndev->phydev)
 		return -EOPNOTSUPP;

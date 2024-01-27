@@ -422,7 +422,7 @@ int cpsw_set_link_ksettings(struct net_device *ndev,
 	return phy_ethtool_ksettings_set(cpsw->slaves[slave_no].phy, ecmd);
 }
 
-int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
+int cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;
@@ -434,7 +434,7 @@ int cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 }
 
-int cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
+int cpsw_set_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	struct cpsw_common *cpsw = priv->cpsw;

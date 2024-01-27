@@ -240,7 +240,7 @@ static int tsnep_phy_loopback(struct tsnep_adapter *adapter, bool enable)
 static int tsnep_phy_open(struct tsnep_adapter *adapter)
 {
 	struct phy_device *phydev;
-	struct ethtool_eee ethtool_eee;
+	struct ethtool_keee ethtool_keee;
 	int retval;
 
 	retval = phy_connect_direct(adapter->netdev, adapter->phydev,
@@ -259,8 +259,8 @@ static int tsnep_phy_open(struct tsnep_adapter *adapter)
 	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
 
 	/* disable EEE autoneg, EEE not supported by TSNEP */
-	memset(&ethtool_eee, 0, sizeof(ethtool_eee));
-	phy_ethtool_set_eee(adapter->phydev, &ethtool_eee);
+	memset(&ethtool_keee, 0, sizeof(ethtool_keee));
+	phy_ethtool_set_eee(adapter->phydev, &ethtool_keee);
 
 	adapter->phydev->irq = PHY_MAC_INTERRUPT;
 	phy_start(adapter->phydev);

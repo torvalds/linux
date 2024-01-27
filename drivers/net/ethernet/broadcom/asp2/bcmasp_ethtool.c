@@ -363,10 +363,10 @@ void bcmasp_eee_enable_set(struct bcmasp_intf *intf, bool enable)
 	intf->eee.eee_active = enable;
 }
 
-static int bcmasp_get_eee(struct net_device *dev, struct ethtool_eee *e)
+static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct bcmasp_intf *intf = netdev_priv(dev);
-	struct ethtool_eee *p = &intf->eee;
+	struct ethtool_keee *p = &intf->eee;
 
 	if (!dev->phydev)
 		return -ENODEV;
@@ -379,10 +379,10 @@ static int bcmasp_get_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phy_ethtool_get_eee(dev->phydev, e);
 }
 
-static int bcmasp_set_eee(struct net_device *dev, struct ethtool_eee *e)
+static int bcmasp_set_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct bcmasp_intf *intf = netdev_priv(dev);
-	struct ethtool_eee *p = &intf->eee;
+	struct ethtool_keee *p = &intf->eee;
 	int ret;
 
 	if (!dev->phydev)
