@@ -1446,6 +1446,51 @@ int msi_domain_alloc_irqs_all_locked(struct device *dev, unsigned int domid, int
 	return msi_domain_alloc_locked(dev, &ctrl);
 }
 
+static struct msi_map __msi_domain_alloc_irq_at(struct device *dev, unsigned int domid,
+						unsigned int index,
+						const struct irq_affinity_desc *affdesc,
+						union msi_instance_cookie *icookie)
+{
+	struct msi_ctrl ctrl = { .domid	= domid, .nirqs = 1, };
+	struct irq_domain *domain;
+	struct msi_map map = { };
+	struct msi_desc *desc;
+	int ret;
+
+	domain = msi_get_device_domain(dev, domid);
+	if (!domain) {
+		map.index = -ENODEV;
+		return map;
+	}
+
+	desc = msi_alloc_desc(dev, 1, affdesc);
+	if (!desc) {
+		map.index = -ENOMEM;
+		return map;
+	}
+
+	if (icookie)
+		desc->data.icookie = *icookie;
+
+	ret = msi_insert_desc(dev, desc, domid, index);
+	if (ret) {
+		map.index = ret;
+		return map;
+	}
+
+	ctrl.first = ctrl.last = desc->msi_index;
+
+	ret = __msi_domain_alloc_irqs(dev, domain, &ctrl);
+	if (ret) {
+		map.index = ret;
+		msi_domain_free_locked(dev, &ctrl);
+	} else {
+		map.index = desc->msi_index;
+		map.virq = desc->irq;
+	}
+	return map;
+}
+
 /**
  * msi_domain_alloc_irq_at - Allocate an interrupt from a MSI interrupt domain at
  *			     a given index - or at the next free index
@@ -1475,45 +1520,10 @@ struct msi_map msi_domain_alloc_irq_at(struct device *dev, unsigned int domid, u
 				       const struct irq_affinity_desc *affdesc,
 				       union msi_instance_cookie *icookie)
 {
-	struct msi_ctrl ctrl = { .domid	= domid, .nirqs = 1, };
-	struct irq_domain *domain;
-	struct msi_map map = { };
-	struct msi_desc *desc;
-	int ret;
+	struct msi_map map;
 
 	msi_lock_descs(dev);
-	domain = msi_get_device_domain(dev, domid);
-	if (!domain) {
-		map.index = -ENODEV;
-		goto unlock;
-	}
-
-	desc = msi_alloc_desc(dev, 1, affdesc);
-	if (!desc) {
-		map.index = -ENOMEM;
-		goto unlock;
-	}
-
-	if (icookie)
-		desc->data.icookie = *icookie;
-
-	ret = msi_insert_desc(dev, desc, domid, index);
-	if (ret) {
-		map.index = ret;
-		goto unlock;
-	}
-
-	ctrl.first = ctrl.last = desc->msi_index;
-
-	ret = __msi_domain_alloc_irqs(dev, domain, &ctrl);
-	if (ret) {
-		map.index = ret;
-		msi_domain_free_locked(dev, &ctrl);
-	} else {
-		map.index = desc->msi_index;
-		map.virq = desc->irq;
-	}
-unlock:
+	map = __msi_domain_alloc_irq_at(dev, domid, index, affdesc, icookie);
 	msi_unlock_descs(dev);
 	return map;
 }
