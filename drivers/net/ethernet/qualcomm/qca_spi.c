@@ -476,7 +476,7 @@ qcaspi_flush_tx_ring(struct qcaspi *qca)
 	 * has been replaced by netif_tx_lock_bh() and so on.
 	 */
 	netif_tx_lock_bh(qca->net_dev);
-	for (i = 0; i < TX_RING_MAX_LEN; i++) {
+	for (i = 0; i < QCASPI_TX_RING_MAX_LEN; i++) {
 		if (qca->txr.skb[i]) {
 			dev_kfree_skb(qca->txr.skb[i]);
 			qca->txr.skb[i] = NULL;
@@ -890,7 +890,7 @@ qcaspi_netdev_setup(struct net_device *dev)
 	memset(qca, 0, sizeof(struct qcaspi));
 
 	memset(&qca->txr, 0, sizeof(qca->txr));
-	qca->txr.count = TX_RING_MAX_LEN;
+	qca->txr.count = QCASPI_TX_RING_MAX_LEN;
 }
 
 static const struct of_device_id qca_spi_of_match[] = {

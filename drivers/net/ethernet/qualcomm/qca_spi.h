@@ -39,8 +39,8 @@
 
 #define QCASPI_GOOD_SIGNATURE 0xAA55
 
-#define TX_RING_MAX_LEN 10
-#define TX_RING_MIN_LEN 2
+#define QCASPI_TX_RING_MAX_LEN 10
+#define QCASPI_TX_RING_MIN_LEN 2
 
 /* sync related constants */
 #define QCASPI_SYNC_UNKNOWN 0
@@ -54,7 +54,7 @@
 #define QCASPI_EVENT_CPUON  1
 
 struct tx_ring {
-	struct sk_buff *skb[TX_RING_MAX_LEN];
+	struct sk_buff *skb[QCASPI_TX_RING_MAX_LEN];
 	u16 head;
 	u16 tail;
 	u16 size;
