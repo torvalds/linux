@@ -1462,7 +1462,8 @@ static void iwl_mvm_report_wakeup_reasons(struct iwl_mvm *mvm,
 			status->pattern_number;
 
 	if (reasons & (IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
-		       IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH))
+		       IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH |
+		       IWL_WOWLAN_WAKEUP_BY_GTK_REKEY_FAILURE))
 		wakeup.disconnect = true;
 
 	if (reasons & IWL_WOWLAN_WAKEUP_BY_GTK_REKEY_FAILURE)
