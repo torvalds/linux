@@ -131,7 +131,7 @@ static int mp3309c_bl_update_status(struct backlight_device *bl)
 					    chip->pdata->levels[brightness],
 					    chip->pdata->levels[chip->pdata->max_brightness]);
 		pwmstate.enabled = true;
-		ret = pwm_apply_state(chip->pwmd, &pwmstate);
+		ret = pwm_apply_might_sleep(chip->pwmd, &pwmstate);
 		if (ret)
 			return ret;
 
@@ -393,7 +393,7 @@ static int mp3309c_probe(struct i2c_client *client)
 					    chip->pdata->default_brightness,
 					    chip->pdata->max_brightness);
 		pwmstate.enabled = true;
-		ret = pwm_apply_state(chip->pwmd, &pwmstate);
+		ret = pwm_apply_might_sleep(chip->pwmd, &pwmstate);
 		if (ret)
 			return dev_err_probe(chip->dev, ret,
 					     "error setting pwm device\n");
