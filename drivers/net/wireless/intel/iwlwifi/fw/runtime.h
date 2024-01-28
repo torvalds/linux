@@ -100,6 +100,9 @@ struct iwl_txf_iter_data {
  * @dump: debug dump data
  * @uats_enabled: VLP or AFC AP is enabled
  * @uats_table: AP type table
+ * @uefi_tables_lock_status: The status of the WIFI GUID UEFI variables lock:
+ *	0: Unlocked, 1 and 2: Locked.
+ *	Only read the UEFI variables if locked.
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -175,6 +178,7 @@ struct iwl_fw_runtime {
 	u8 reduced_power_flags;
 	bool uats_enabled;
 	struct iwl_uats_table_cmd uats_table;
+	u8 uefi_tables_lock_status;
 #endif
 };
 

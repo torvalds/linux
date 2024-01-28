@@ -25,6 +25,7 @@
 #define ACPI_PPAG_METHOD	"PPAG"
 #define ACPI_WTAS_METHOD	"WTAS"
 #define ACPI_WPFC_METHOD	"WPFC"
+#define ACPI_GLAI_METHOD	"GLAI"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -66,7 +67,12 @@
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
 #define ACPI_ECKV_WIFI_DATA_SIZE	2
-
+/*
+ * One element for domain type,
+ * and one for the status
+ */
+#define ACPI_GLAI_WIFI_DATA_SIZE	2
+#define ACPI_GLAI_MAX_STATUS		2
 /*
  * TAS size: 1 elelment for type,
  *	     1 element for enabled field,
@@ -237,6 +243,8 @@ bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 			      struct iwl_phy_specific_cfg *filters);
 
+void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
@@ -331,6 +339,9 @@ static inline void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 {
 }
 
+static inline void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
+{
+}
 #endif /* CONFIG_ACPI */
 
 #endif /* __iwl_fw_acpi__ */

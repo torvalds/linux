@@ -1402,6 +1402,8 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 {
 	int ret;
 
+	iwl_acpi_get_guid_lock_status(&mvm->fwrt);
+
 	/* read PPAG table */
 	ret = iwl_acpi_get_ppag_table(&mvm->fwrt);
 	if (ret < 0) {
