@@ -687,6 +687,7 @@ static int
 qcaspi_netdev_open(struct net_device *dev)
 {
 	struct qcaspi *qca = netdev_priv(dev);
+	struct task_struct *thread;
 	int ret = 0;
 
 	if (!qca)
@@ -697,14 +698,16 @@ qcaspi_netdev_open(struct net_device *dev)
 	qca->sync = QCASPI_SYNC_UNKNOWN;
 	qcafrm_fsm_init_spi(&qca->frm_handle);
 
-	qca->spi_thread = kthread_run((void *)qcaspi_spi_thread,
-				      qca, "%s", dev->name);
+	thread = kthread_run((void *)qcaspi_spi_thread,
+			     qca, "%s", dev->name);
 
-	if (IS_ERR(qca->spi_thread)) {
+	if (IS_ERR(thread)) {
 		netdev_err(dev, "%s: unable to start kernel thread.\n",
 			   QCASPI_DRV_NAME);
-		return PTR_ERR(qca->spi_thread);
+		return PTR_ERR(thread);
 	}
+
+	qca->spi_thread = thread;
 
 	ret = request_irq(qca->spi_dev->irq, qcaspi_intr_handler, 0,
 			  dev->name, qca);
