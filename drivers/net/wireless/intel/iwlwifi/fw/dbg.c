@@ -2430,9 +2430,12 @@ static u32 iwl_dump_ini_info(struct iwl_fw_runtime *fwrt,
 		struct iwl_fw_ini_debug_info_tlv *debug_info =
 			(void *)node->tlv.data;
 
+		BUILD_BUG_ON(sizeof(cfg_name->cfg_name) !=
+			     sizeof(debug_info->debug_cfg_name));
+
 		cfg_name->image_type = debug_info->image_type;
 		cfg_name->cfg_name_len =
-			cpu_to_le32(IWL_FW_INI_MAX_CFG_NAME);
+			cpu_to_le32(sizeof(cfg_name->cfg_name));
 		memcpy(cfg_name->cfg_name, debug_info->debug_cfg_name,
 		       sizeof(cfg_name->cfg_name));
 		cfg_name++;
