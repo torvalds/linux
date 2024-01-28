@@ -259,7 +259,7 @@ static void iwl_mvm_rx_thermal_dual_chain_req(struct iwl_mvm *mvm,
 }
 
 /**
- * enum iwl_rx_handler_context context for Rx handler
+ * enum iwl_rx_handler_context: context for Rx handler
  * @RX_HANDLER_SYNC : this means that it will be called in the Rx path
  *	which can't acquire mvm->mutex.
  * @RX_HANDLER_ASYNC_LOCKED : If the handler needs to hold mvm->mutex
@@ -279,7 +279,7 @@ enum iwl_rx_handler_context {
 };
 
 /**
- * struct iwl_rx_handlers handler for FW notification
+ * struct iwl_rx_handlers: handler for FW notification
  * @cmd_id: command id
  * @min_size: minimum size to expect for the notification
  * @context: see &iwl_rx_handler_context
