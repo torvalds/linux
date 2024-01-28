@@ -41,6 +41,7 @@
 
 #define QCASPI_TX_RING_MAX_LEN 10
 #define QCASPI_TX_RING_MIN_LEN 2
+#define QCASPI_RX_MAX_FRAMES 4
 
 /* sync related constants */
 #define QCASPI_SYNC_UNKNOWN 0

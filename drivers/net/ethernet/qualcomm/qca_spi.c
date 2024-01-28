@@ -829,7 +829,7 @@ qcaspi_netdev_init(struct net_device *dev)
 	qca->burst_len = qcaspi_burst_len;
 	qca->spi_thread = NULL;
 	qca->buffer_size = (dev->mtu + VLAN_ETH_HLEN + QCAFRM_HEADER_LEN +
-		QCAFRM_FOOTER_LEN + 4) * 4;
+		QCAFRM_FOOTER_LEN + 4) * QCASPI_RX_MAX_FRAMES;
 
 	memset(&qca->stats, 0, sizeof(struct qcaspi_stats));
 
