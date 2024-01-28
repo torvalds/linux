@@ -277,7 +277,7 @@ static inline struct zswap_tree *swap_zswap_tree(swp_entry_t swp)
 		 zpool_get_type((p)->zpools[0]))
 
 static int zswap_writeback_entry(struct zswap_entry *entry,
-				 struct zswap_tree *tree);
+				 swp_entry_t swpentry);
 static int zswap_pool_get(struct zswap_pool *pool);
 static void zswap_pool_put(struct zswap_pool *pool);
 
@@ -441,27 +441,6 @@ static void zswap_lru_del(struct list_lru *list_lru, struct zswap_entry *entry)
 	memcg = mem_cgroup_from_entry(entry);
 	/* will always succeed */
 	list_lru_del(list_lru, &entry->lru, nid, memcg);
-	rcu_read_unlock();
-}
-
-static void zswap_lru_putback(struct list_lru *list_lru,
-		struct zswap_entry *entry)
-{
-	int nid = entry_to_nid(entry);
-	spinlock_t *lock = &list_lru->node[nid].lock;
-	struct mem_cgroup *memcg;
-	struct lruvec *lruvec;
-
-	rcu_read_lock();
-	memcg = mem_cgroup_from_entry(entry);
-	spin_lock(lock);
-	/* we cannot use list_lru_add here, because it increments node's lru count */
-	list_lru_putback(list_lru, &entry->lru, nid, memcg);
-	spin_unlock(lock);
-
-	lruvec = mem_cgroup_lruvec(memcg, NODE_DATA(entry_to_nid(entry)));
-	/* increment the protection area to account for the LRU rotation. */
-	atomic_long_inc(&lruvec->zswap_lruvec_state.nr_zswap_protected);
 	rcu_read_unlock();
 }
 
@@ -859,40 +838,47 @@ static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_o
 {
 	struct zswap_entry *entry = container_of(item, struct zswap_entry, lru);
 	bool *encountered_page_in_swapcache = (bool *)arg;
-	struct zswap_tree *tree;
-	pgoff_t swpoffset;
+	swp_entry_t swpentry;
 	enum lru_status ret = LRU_REMOVED_RETRY;
 	int writeback_result;
 
 	/*
+	 * Rotate the entry to the tail before unlocking the LRU,
+	 * so that in case of an invalidation race concurrent
+	 * reclaimers don't waste their time on it.
+	 *
+	 * If writeback succeeds, or failure is due to the entry
+	 * being invalidated by the swap subsystem, the invalidation
+	 * will unlink and free it.
+	 *
+	 * Temporary failures, where the same entry should be tried
+	 * again immediately, almost never happen for this shrinker.
+	 * We don't do any trylocking; -ENOMEM comes closest,
+	 * but that's extremely rare and doesn't happen spuriously
+	 * either. Don't bother distinguishing this case.
+	 *
+	 * But since they do exist in theory, the entry cannot just
+	 * be unlinked, or we could leak it. Hence, rotate.
+	 */
+	list_move_tail(item, &l->list);
+
+	/*
 	 * Once the lru lock is dropped, the entry might get freed. The
-	 * swpoffset is copied to the stack, and entry isn't deref'd again
+	 * swpentry is copied to the stack, and entry isn't deref'd again
 	 * until the entry is verified to still be alive in the tree.
 	 */
-	swpoffset = swp_offset(entry->swpentry);
-	tree = swap_zswap_tree(entry->swpentry);
-	list_lru_isolate(l, item);
+	swpentry = entry->swpentry;
+
 	/*
 	 * It's safe to drop the lock here because we return either
 	 * LRU_REMOVED_RETRY or LRU_RETRY.
 	 */
 	spin_unlock(lock);
 
-	/* Check for invalidate() race */
-	spin_lock(&tree->lock);
-	if (entry != zswap_rb_search(&tree->rbroot, swpoffset))
-		goto unlock;
+	writeback_result = zswap_writeback_entry(entry, swpentry);
 
-	/* Hold a reference to prevent a free during writeback */
-	zswap_entry_get(entry);
-	spin_unlock(&tree->lock);
-
-	writeback_result = zswap_writeback_entry(entry, tree);
-
-	spin_lock(&tree->lock);
 	if (writeback_result) {
 		zswap_reject_reclaim_fail++;
-		zswap_lru_putback(&entry->pool->list_lru, entry);
 		ret = LRU_RETRY;
 
 		/*
@@ -902,27 +888,10 @@ static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_o
 		 */
 		if (writeback_result == -EEXIST && encountered_page_in_swapcache)
 			*encountered_page_in_swapcache = true;
-
-		goto put_unlock;
+	} else {
+		zswap_written_back_pages++;
 	}
-	zswap_written_back_pages++;
 
-	if (entry->objcg)
-		count_objcg_event(entry->objcg, ZSWPWB);
-
-	count_vm_event(ZSWPWB);
-	/*
-	 * Writeback started successfully, the page now belongs to the
-	 * swapcache. Drop the entry from zswap - unless invalidate already
-	 * took it out while we had the tree->lock released for IO.
-	 */
-	zswap_invalidate_entry(tree, entry);
-
-put_unlock:
-	/* Drop local reference */
-	zswap_entry_put(entry);
-unlock:
-	spin_unlock(&tree->lock);
 	spin_lock(lock);
 	return ret;
 }
@@ -1407,9 +1376,9 @@ static void __zswap_load(struct zswap_entry *entry, struct page *page)
  * freed.
  */
 static int zswap_writeback_entry(struct zswap_entry *entry,
-				 struct zswap_tree *tree)
+				 swp_entry_t swpentry)
 {
-	swp_entry_t swpentry = entry->swpentry;
+	struct zswap_tree *tree;
 	struct folio *folio;
 	struct mempolicy *mpol;
 	bool folio_was_allocated;
@@ -1425,9 +1394,11 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 		return -ENOMEM;
 
 	/*
-	 * Found an existing folio, we raced with load/swapin. We generally
-	 * writeback cold folios from zswap, and swapin means the folio just
-	 * became hot. Skip this folio and let the caller find another one.
+	 * Found an existing folio, we raced with swapin or concurrent
+	 * shrinker. We generally writeback cold folios from zswap, and
+	 * swapin means the folio just became hot, so skip this folio.
+	 * For unlikely concurrent shrinker case, it will be unlinked
+	 * and freed when invalidated by the concurrent shrinker anyway.
 	 */
 	if (!folio_was_allocated) {
 		folio_put(folio);
@@ -1441,17 +1412,30 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 	 * backs (our zswap_entry reference doesn't prevent that), to
 	 * avoid overwriting a new swap folio with old compressed data.
 	 */
+	tree = swap_zswap_tree(swpentry);
 	spin_lock(&tree->lock);
-	if (zswap_rb_search(&tree->rbroot, swp_offset(entry->swpentry)) != entry) {
+	if (zswap_rb_search(&tree->rbroot, swp_offset(swpentry)) != entry) {
 		spin_unlock(&tree->lock);
 		delete_from_swap_cache(folio);
 		folio_unlock(folio);
 		folio_put(folio);
 		return -ENOMEM;
 	}
+
+	/* Safe to deref entry after the entry is verified above. */
+	zswap_entry_get(entry);
 	spin_unlock(&tree->lock);
 
 	__zswap_load(entry, &folio->page);
+
+	count_vm_event(ZSWPWB);
+	if (entry->objcg)
+		count_objcg_event(entry->objcg, ZSWPWB);
+
+	spin_lock(&tree->lock);
+	zswap_invalidate_entry(tree, entry);
+	zswap_entry_put(entry);
+	spin_unlock(&tree->lock);
 
 	/* folio is up to date */
 	folio_mark_uptodate(folio);
