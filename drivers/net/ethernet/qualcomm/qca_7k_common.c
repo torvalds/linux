@@ -149,5 +149,5 @@ EXPORT_SYMBOL_GPL(qcafrm_fsm_decode);
 
 MODULE_DESCRIPTION("Qualcomm Atheros QCA7000 common");
 MODULE_AUTHOR("Qualcomm Atheros Communications");
-MODULE_AUTHOR("Stefan Wahren <stefan.wahren@i2se.com>");
+MODULE_AUTHOR("Stefan Wahren <wahrenst@gmx.net>");
 MODULE_LICENSE("Dual BSD/GPL");
