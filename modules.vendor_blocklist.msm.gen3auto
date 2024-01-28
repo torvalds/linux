@@ -63,11 +63,6 @@ blocklist vsock_diag
 blocklist xc4000
 blocklist xc5000
 blocklist limits_stat
-blocklist cnss2
-blocklist cnss_plat_ipc_qmi_svc
-blocklist wlan_firmware_service
-blocklist cnss_nl
-blocklist cnss_utils
 blocklist qca_cld3_qca6174
 blocklist qca_cld3_qcn7605
 blocklist qca_cld3_qca6390
