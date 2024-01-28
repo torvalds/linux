@@ -410,7 +410,7 @@ static void zswap_lru_add(struct list_lru *list_lru, struct zswap_entry *entry)
 	 * 2. list_lru_add() is called after memcg->kmemcg_id is updated. The
 	 *    new entry will be added directly to memcg's parent's list_lru.
 	 *
-	 * Similar reasoning holds for list_lru_del() and list_lru_putback().
+	 * Similar reasoning holds for list_lru_del().
 	 */
 	rcu_read_lock();
 	memcg = mem_cgroup_from_entry(entry);
