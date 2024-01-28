@@ -76,6 +76,42 @@ void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 	return data;
 }
 
+static
+void *iwl_uefi_get_verified_variable(struct iwl_trans *trans,
+				     efi_char16_t *uefi_var_name,
+				     char *var_name,
+				     unsigned int expected_size,
+				     unsigned long *size)
+{
+	void *var;
+	unsigned long var_size;
+
+	var = iwl_uefi_get_variable(uefi_var_name, &IWL_EFI_VAR_GUID,
+				    &var_size);
+
+	if (IS_ERR(var)) {
+		IWL_DEBUG_RADIO(trans,
+				"%s UEFI variable not found 0x%lx\n", var_name,
+				PTR_ERR(var));
+		return var;
+	}
+
+	if (var_size < expected_size) {
+		IWL_DEBUG_RADIO(trans,
+				"Invalid %s UEFI variable len (%lu)\n",
+				var_name, var_size);
+		kfree(var);
+		return ERR_PTR(-EINVAL);
+	}
+
+	IWL_DEBUG_RADIO(trans, "%s from UEFI with size %lu\n", var_name,
+			var_size);
+
+	if (size)
+		*size = var_size;
+	return var;
+}
+
 int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
 				 u32 tlv_len, struct iwl_pnvm_image *pnvm_data)
 {
@@ -230,26 +266,13 @@ u8 *iwl_uefi_get_reduced_power(struct iwl_trans *trans, size_t *len)
 	unsigned long package_size;
 	u8 *data;
 
-	package = iwl_uefi_get_variable(IWL_UEFI_REDUCED_POWER_NAME,
-					&IWL_EFI_VAR_GUID, &package_size);
-
-	if (IS_ERR(package)) {
-		IWL_DEBUG_FW(trans,
-			     "Reduced Power UEFI variable not found 0x%lx (len %lu)\n",
-			     PTR_ERR(package), package_size);
+	package = iwl_uefi_get_verified_variable(trans,
+						 IWL_UEFI_REDUCED_POWER_NAME,
+						 "Reduced Power",
+						 sizeof(*package),
+						 &package_size);
+	if (IS_ERR(package))
 		return ERR_CAST(package);
-	}
-
-	if (package_size < sizeof(*package)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid Reduced Power UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(package);
-		return ERR_PTR(-EINVAL);
-	}
-
-	IWL_DEBUG_FW(trans, "Read reduced power from UEFI with size %lu\n",
-		     package_size);
 
 	IWL_DEBUG_FW(trans, "rev %d, total_size %d, n_skus %d\n",
 		     package->rev, package->total_size, package->n_skus);
@@ -283,32 +306,15 @@ static int iwl_uefi_step_parse(struct uefi_cnv_common_step_data *common_step_dat
 void iwl_uefi_get_step_table(struct iwl_trans *trans)
 {
 	struct uefi_cnv_common_step_data *data;
-	unsigned long package_size;
 	int ret;
 
 	if (trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_AX210)
 		return;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_STEP_NAME, &IWL_EFI_VAR_GUID,
-				     &package_size);
-
-	if (IS_ERR(data)) {
-		IWL_DEBUG_FW(trans,
-			     "STEP UEFI variable not found 0x%lx\n",
-			     PTR_ERR(data));
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_STEP_NAME,
+					      "STEP", sizeof(*data), NULL);
+	if (IS_ERR(data))
 		return;
-	}
-
-	if (package_size < sizeof(*data)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid STEP table UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(data);
-		return;
-	}
-
-	IWL_DEBUG_FW(trans, "Read STEP from UEFI with size %lu\n",
-		     package_size);
 
 	ret = iwl_uefi_step_parse(data, trans);
 	if (ret < 0)
@@ -355,31 +361,15 @@ void iwl_uefi_get_sgom_table(struct iwl_trans *trans,
 			     struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_sgom_data *data;
-	unsigned long package_size;
 	int ret;
 
 	if (!fwrt->geo_enabled)
 		return;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_SGOM_NAME, &IWL_EFI_VAR_GUID,
-				     &package_size);
-	if (IS_ERR(data)) {
-		IWL_DEBUG_FW(trans,
-			     "SGOM UEFI variable not found 0x%lx\n",
-			     PTR_ERR(data));
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_SGOM_NAME,
+					      "SGOM", sizeof(*data), NULL);
+	if (IS_ERR(data))
 		return;
-	}
-
-	if (package_size < sizeof(*data)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid SGOM table UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(data);
-		return;
-	}
-
-	IWL_DEBUG_FW(trans, "Read SGOM from UEFI with size %lu\n",
-		     package_size);
 
 	ret = iwl_uefi_sgom_parse(data, fwrt);
 	if (ret < 0)
@@ -404,28 +394,12 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 			    struct iwl_fw_runtime *fwrt)
 {
 	struct uefi_cnv_wlan_uats_data *data;
-	unsigned long package_size;
 	int ret;
 
-	data = iwl_uefi_get_variable(IWL_UEFI_UATS_NAME, &IWL_EFI_VAR_GUID,
-				     &package_size);
-	if (IS_ERR(data)) {
-		IWL_DEBUG_FW(trans,
-			     "UATS UEFI variable not found 0x%lx\n",
-			     PTR_ERR(data));
+	data = iwl_uefi_get_verified_variable(trans, IWL_UEFI_UATS_NAME,
+					      "UATS", sizeof(*data), NULL);
+	if (IS_ERR(data))
 		return -EINVAL;
-	}
-
-	if (package_size < sizeof(*data)) {
-		IWL_DEBUG_FW(trans,
-			     "Invalid UATS table UEFI variable len (%lu)\n",
-			     package_size);
-		kfree(data);
-		return -EINVAL;
-	}
-
-	IWL_DEBUG_FW(trans, "Read UATS from UEFI with size %lu\n",
-		     package_size);
 
 	ret = iwl_uefi_uats_parse(data, fwrt);
 	if (ret < 0) {
