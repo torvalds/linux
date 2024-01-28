@@ -1149,8 +1149,9 @@ int mhi_ep_power_up(struct mhi_ep_cntrl *mhi_cntrl)
 	mhi_ep_mmio_mask_interrupts(mhi_cntrl);
 	mhi_ep_mmio_init(mhi_cntrl);
 
-	mhi_cntrl->mhi_event = kzalloc(mhi_cntrl->event_rings * (sizeof(*mhi_cntrl->mhi_event)),
-					GFP_KERNEL);
+	mhi_cntrl->mhi_event = kcalloc(mhi_cntrl->event_rings,
+				       sizeof(*mhi_cntrl->mhi_event),
+				       GFP_KERNEL);
 	if (!mhi_cntrl->mhi_event)
 		return -ENOMEM;
 
