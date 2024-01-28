@@ -878,6 +878,8 @@ qcaspi_netdev_setup(struct net_device *dev)
 	qcaspi_set_ethtool_ops(dev);
 	dev->watchdog_timeo = QCASPI_TX_TIMEOUT;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
+	dev->needed_tailroom = ALIGN(QCAFRM_FOOTER_LEN + QCAFRM_MIN_LEN, 4);
+	dev->needed_headroom = ALIGN(QCAFRM_HEADER_LEN, 4);
 	dev->tx_queue_len = 100;
 
 	/* MTU range: 46 - 1500 */
