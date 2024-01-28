@@ -205,15 +205,15 @@ static int wsl_set_xattrs(struct inode *inode, umode_t _mode,
 	__le64 dev = cpu_to_le64(((u64)MINOR(_dev) << 32) | MAJOR(_dev));
 	__le64 mode = cpu_to_le64(_mode);
 	struct wsl_xattr xattrs[] = {
-		{ .name = "$LXUID", .value = uid, .size = 4, },
-		{ .name = "$LXGID", .value = gid, .size = 4, },
-		{ .name = "$LXMOD", .value = mode, .size = 4, },
-		{ .name = "$LXDEV", .value = dev, .size = 8, },
+		{ .name = SMB2_WSL_XATTR_UID,  .value = uid,  .size = SMB2_WSL_XATTR_UID_SIZE, },
+		{ .name = SMB2_WSL_XATTR_GID,  .value = gid,  .size = SMB2_WSL_XATTR_GID_SIZE, },
+		{ .name = SMB2_WSL_XATTR_MODE, .value = mode, .size = SMB2_WSL_XATTR_MODE_SIZE, },
+		{ .name = SMB2_WSL_XATTR_DEV,  .value = dev, .size = SMB2_WSL_XATTR_DEV_SIZE, },
 	};
 	size_t cc_len;
 	u32 dlen = 0, next = 0;
 	int i, num_xattrs;
-	u8 name_size = strlen(xattrs[0].name) + 1;
+	u8 name_size = SMB2_WSL_XATTR_NAME_LEN + 1;
 
 	memset(iov, 0, sizeof(*iov));
 

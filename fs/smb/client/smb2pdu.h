@@ -420,4 +420,29 @@ struct smb2_create_ea_ctx {
 	struct smb2_file_full_ea_info ea;
 } __packed;
 
+#define SMB2_WSL_XATTR_UID		"$LXUID"
+#define SMB2_WSL_XATTR_GID		"$LXGID"
+#define SMB2_WSL_XATTR_MODE		"$LXMOD"
+#define SMB2_WSL_XATTR_DEV		"$LXDEV"
+#define SMB2_WSL_XATTR_NAME_LEN	6
+#define SMB2_WSL_NUM_XATTRS		4
+
+#define SMB2_WSL_XATTR_UID_SIZE	4
+#define SMB2_WSL_XATTR_GID_SIZE	4
+#define SMB2_WSL_XATTR_MODE_SIZE	4
+#define SMB2_WSL_XATTR_DEV_SIZE	8
+
+#define SMB2_WSL_MIN_QUERY_EA_RESP_SIZE \
+	(ALIGN((SMB2_WSL_NUM_XATTRS - 1) * \
+	       (SMB2_WSL_XATTR_NAME_LEN + 1 + \
+		sizeof(struct smb2_file_full_ea_info)), 4) + \
+	 SMB2_WSL_XATTR_NAME_LEN + 1 + sizeof(struct smb2_file_full_ea_info))
+
+#define SMB2_WSL_MAX_QUERY_EA_RESP_SIZE \
+	(ALIGN(SMB2_WSL_MIN_QUERY_EA_RESP_SIZE + \
+	       SMB2_WSL_XATTR_UID_SIZE + \
+	       SMB2_WSL_XATTR_GID_SIZE + \
+	       SMB2_WSL_XATTR_MODE_SIZE + \
+	       SMB2_WSL_XATTR_DEV_SIZE, 4))
+
 #endif				/* _SMB2PDU_H */
