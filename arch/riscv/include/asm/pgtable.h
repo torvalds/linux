@@ -350,6 +350,19 @@ static inline int pte_present(pte_t pte)
 	return (pte_val(pte) & (_PAGE_PRESENT | _PAGE_PROT_NONE));
 }
 
+#define pte_accessible pte_accessible
+static inline unsigned long pte_accessible(struct mm_struct *mm, pte_t a)
+{
+	if (pte_val(a) & _PAGE_PRESENT)
+		return true;
+
+	if ((pte_val(a) & _PAGE_PROT_NONE) &&
+	    atomic_read(&mm->tlb_flush_pending))
+		return true;
+
+	return false;
+}
+
 static inline int pte_none(pte_t pte)
 {
 	return (pte_val(pte) == 0);
