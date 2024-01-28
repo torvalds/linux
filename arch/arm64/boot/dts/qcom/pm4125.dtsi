@@ -19,7 +19,7 @@
 			compatible = "qcom,pm8916-pon";
 			reg = <0x800>;
 
-			pm2250_pwrkey: pwrkey {
+			pm4125_pwrkey: pwrkey {
 				compatible = "qcom,pm8941-pwrkey";
 				interrupts-extended = <&spmi_bus 0x0 0x8 0 IRQ_TYPE_EDGE_BOTH>;
 				linux,code = <KEY_POWER>;
@@ -27,7 +27,7 @@
 				bias-pull-up;
 			};
 
-			pm2250_resin: resin {
+			pm4125_resin: resin {
 				compatible = "qcom,pm8941-resin";
 				interrupts-extended = <&spmi_bus 0x0 0x8 1 IRQ_TYPE_EDGE_BOTH>;
 				debounce = <15625>;
@@ -43,11 +43,11 @@
 			interrupts-extended = <&spmi_bus 0x0 0x61 0x1 IRQ_TYPE_EDGE_RISING>;
 		};
 
-		pm2250_gpios: gpio@c000 {
+		pm4125_gpios: gpio@c000 {
 			compatible = "qcom,pm2250-gpio", "qcom,spmi-gpio";
 			reg = <0xc000>;
 			gpio-controller;
-			gpio-ranges = <&pm2250_gpios 0 0 10>;
+			gpio-ranges = <&pm4125_gpios 0 0 10>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
