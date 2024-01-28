@@ -107,9 +107,6 @@ struct qcafrm_handle {
 
 	/* Offset in buffer (borrowed for length too) */
 	u16 offset;
-
-	/* Frame length as kept by this module */
-	u16 len;
 };
 
 u16 qcafrm_create_header(u8 *buf, u16 len);
