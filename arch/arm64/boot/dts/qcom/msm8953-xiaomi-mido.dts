@@ -181,7 +181,7 @@
 };
 
 &ft5406_ts {
-	status = "okay";
+	status = "disabled";
 
 	touchscreen-size-x = <1080>;
 	touchscreen-size-y = <1920>;
