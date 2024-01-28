@@ -124,6 +124,9 @@ static int df4_determine_df_rev(u32 reg)
 	if (reg == DF_FUNC0_ID_ZEN4_SERVER)
 		df_cfg.flags.socket_id_shift_quirk = 1;
 
+	if (reg == DF_FUNC0_ID_MI300)
+		df_cfg.flags.heterogeneous = 1;
+
 	return df4_get_fabric_id_mask_registers();
 }
 

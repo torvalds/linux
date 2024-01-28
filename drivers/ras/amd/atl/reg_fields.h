@@ -246,11 +246,11 @@
 #define DF3_HASH_CTL_64K		BIT(20)
 #define DF3_HASH_CTL_2M			BIT(21)
 #define DF3_HASH_CTL_1G			BIT(22)
-#define DF4_HASH_CTL_4K			BIT(7)
 #define DF4_HASH_CTL_64K		BIT(8)
 #define DF4_HASH_CTL_2M			BIT(9)
 #define DF4_HASH_CTL_1G			BIT(10)
-#define DF4_HASH_CTL_1T			BIT(15)
+#define DF4p5_HASH_CTL_4K		BIT(7)
+#define DF4p5_HASH_CTL_1T		BIT(15)
 
 /*
  * High Address Offset
@@ -268,10 +268,13 @@
  *	D18F7x140 [DRAM Offset]
  *	DF4	HiAddrOffset	[24:1]
  *	DF4p5	HiAddrOffset	[24:1]
+ *	MI300	HiAddrOffset	[31:1]
  */
 #define DF2_HI_ADDR_OFFSET	GENMASK(31, 20)
 #define DF3_HI_ADDR_OFFSET	GENMASK(31, 12)
-#define DF4_HI_ADDR_OFFSET	GENMASK(24, 1)
+
+/* Follow reference code by including reserved bits for simplicity. */
+#define DF4_HI_ADDR_OFFSET	GENMASK(31, 1)
 
 /*
  * High Address Offset Enable

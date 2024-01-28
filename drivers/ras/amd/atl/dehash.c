@@ -253,7 +253,7 @@ static int df4p5_dehash_addr(struct addr_ctx *ctx)
 	hash_ctl_64k = FIELD_GET(DF4_HASH_CTL_64K, ctx->map.ctl);
 	hash_ctl_2M  = FIELD_GET(DF4_HASH_CTL_2M, ctx->map.ctl);
 	hash_ctl_1G  = FIELD_GET(DF4_HASH_CTL_1G, ctx->map.ctl);
-	hash_ctl_1T  = FIELD_GET(DF4_HASH_CTL_1T, ctx->map.ctl);
+	hash_ctl_1T  = FIELD_GET(DF4p5_HASH_CTL_1T, ctx->map.ctl);
 
 	/*
 	 * Generate a unique address to determine which bits
@@ -343,6 +343,94 @@ static int df4p5_dehash_addr(struct addr_ctx *ctx)
 	return 0;
 }
 
+/*
+ * MI300 hash bits
+ *					  4K 64K  2M  1G  1T  1T
+ * COH_ST_Select[0]	= XOR of addr{8,  12, 15, 22, 29, 36, 43}
+ * COH_ST_Select[1]	= XOR of addr{9,  13, 16, 23, 30, 37, 44}
+ * COH_ST_Select[2]	= XOR of addr{10, 14, 17, 24, 31, 38, 45}
+ * COH_ST_Select[3]	= XOR of addr{11,     18, 25, 32, 39, 46}
+ * COH_ST_Select[4]	= XOR of addr{14,     19, 26, 33, 40, 47} aka Stack
+ * DieID[0]		= XOR of addr{12,     20, 27, 34, 41    }
+ * DieID[1]		= XOR of addr{13,     21, 28, 35, 42    }
+ */
+static int mi300_dehash_addr(struct addr_ctx *ctx)
+{
+	bool hash_ctl_4k, hash_ctl_64k, hash_ctl_2M, hash_ctl_1G, hash_ctl_1T;
+	bool hashed_bit, intlv_bit, test_bit;
+	u8 num_intlv_bits, base_bit, i;
+
+	if (!map_bits_valid(ctx, 8, 8, 4, 1))
+		return -EINVAL;
+
+	hash_ctl_4k  = FIELD_GET(DF4p5_HASH_CTL_4K, ctx->map.ctl);
+	hash_ctl_64k = FIELD_GET(DF4_HASH_CTL_64K,  ctx->map.ctl);
+	hash_ctl_2M  = FIELD_GET(DF4_HASH_CTL_2M,   ctx->map.ctl);
+	hash_ctl_1G  = FIELD_GET(DF4_HASH_CTL_1G,   ctx->map.ctl);
+	hash_ctl_1T  = FIELD_GET(DF4p5_HASH_CTL_1T, ctx->map.ctl);
+
+	/* Channel bits */
+	num_intlv_bits = ilog2(ctx->map.num_intlv_chan);
+
+	for (i = 0; i < num_intlv_bits; i++) {
+		base_bit = 8 + i;
+
+		/* COH_ST_Select[4] jumps to a base bit of 14. */
+		if (i == 4)
+			base_bit = 14;
+
+		intlv_bit = BIT_ULL(base_bit) & ctx->ret_addr;
+
+		hashed_bit = intlv_bit;
+
+		/* 4k hash bit only applies to the first 3 bits. */
+		if (i <= 2) {
+			test_bit    = BIT_ULL(12 + i) & ctx->ret_addr;
+			hashed_bit ^= test_bit & hash_ctl_4k;
+		}
+
+		/* Use temporary 'test_bit' value to avoid Sparse warnings. */
+		test_bit    = BIT_ULL(15 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_64k;
+		test_bit    = BIT_ULL(22 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_2M;
+		test_bit    = BIT_ULL(29 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_1G;
+		test_bit    = BIT_ULL(36 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_1T;
+		test_bit    = BIT_ULL(43 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_1T;
+
+		if (hashed_bit != intlv_bit)
+			ctx->ret_addr ^= BIT_ULL(base_bit);
+	}
+
+	/* Die bits */
+	num_intlv_bits = ilog2(ctx->map.num_intlv_dies);
+
+	for (i = 0; i < num_intlv_bits; i++) {
+		base_bit = 12 + i;
+
+		intlv_bit = BIT_ULL(base_bit) & ctx->ret_addr;
+
+		hashed_bit = intlv_bit;
+
+		test_bit    = BIT_ULL(20 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_64k;
+		test_bit    = BIT_ULL(27 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_2M;
+		test_bit    = BIT_ULL(34 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_1G;
+		test_bit    = BIT_ULL(41 + i) & ctx->ret_addr;
+		hashed_bit ^= test_bit & hash_ctl_1T;
+
+		if (hashed_bit != intlv_bit)
+			ctx->ret_addr ^= BIT_ULL(base_bit);
+	}
+
+	return 0;
+}
+
 int dehash_address(struct addr_ctx *ctx)
 {
 	switch (ctx->map.intlv_mode) {
@@ -399,6 +487,11 @@ int dehash_address(struct addr_ctx *ctx)
 	case DF4p5_NPS1_16CHAN_1K_HASH:
 	case DF4p5_NPS1_16CHAN_2K_HASH:
 		return df4p5_dehash_addr(ctx);
+
+	case MI3_HASH_8CHAN:
+	case MI3_HASH_16CHAN:
+	case MI3_HASH_32CHAN:
+		return mi300_dehash_addr(ctx);
 
 	default:
 		atl_debug_on_bad_intlv_mode(ctx);

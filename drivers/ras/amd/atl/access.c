@@ -36,6 +36,32 @@ static DEFINE_MUTEX(df_indirect_mutex);
 
 #define DF_FICAA_REG_NUM_LEGACY	GENMASK(10, 2)
 
+static u16 get_accessible_node(u16 node)
+{
+	/*
+	 * On heterogeneous systems, not all AMD Nodes are accessible
+	 * through software-visible registers. The Node ID needs to be
+	 * adjusted for register accesses. But its value should not be
+	 * changed for the translation methods.
+	 */
+	if (df_cfg.flags.heterogeneous) {
+		/* Only Node 0 is accessible on DF3.5 systems. */
+		if (df_cfg.rev == DF3p5)
+			node = 0;
+
+		/*
+		 * Only the first Node in each Socket is accessible on
+		 * DF4.5 systems, and this is visible to software as one
+		 * Fabric per Socket.  The Socket ID can be derived from
+		 * the Node ID and global shift values.
+		 */
+		if (df_cfg.rev == DF4p5)
+			node >>= df_cfg.socket_id_shift - df_cfg.node_id_shift;
+	}
+
+	return node;
+}
+
 static int __df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *lo)
 {
 	u32 ficaa_addr = 0x8C, ficad_addr = 0xB8;
@@ -43,6 +69,7 @@ static int __df_indirect_read(u16 node, u8 func, u16 reg, u8 instance_id, u32 *l
 	int err = -ENODEV;
 	u32 ficaa = 0;
 
+	node = get_accessible_node(node);
 	if (node >= amd_nb_num())
 		goto out;
 

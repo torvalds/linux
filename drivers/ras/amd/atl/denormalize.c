@@ -81,6 +81,40 @@ static u64 make_space_for_coh_st_id_split_2_1(struct addr_ctx *ctx)
 }
 
 /*
+ * Make space for CS ID at bits [14:8] as follows:
+ *
+ * 8 channels	-> bits [10:8]
+ * 16 channels	-> bits [11:8]
+ * 32 channels	-> bits [14,11:8]
+ *
+ * 1 die	-> N/A
+ * 2 dies	-> bit  [12]
+ * 4 dies	-> bits [13:12]
+ */
+static u64 make_space_for_coh_st_id_mi300(struct addr_ctx *ctx)
+{
+	u8 num_intlv_bits = ilog2(ctx->map.num_intlv_chan);
+	u64 denorm_addr;
+
+	if (ctx->map.intlv_bit_pos != 8) {
+		pr_debug("Invalid interleave bit: %u", ctx->map.intlv_bit_pos);
+		return ~0ULL;
+	}
+
+	/* Channel bits. Covers up to 4 bits at [11:8]. */
+	denorm_addr = expand_bits(8, min(num_intlv_bits, 4), ctx->ret_addr);
+
+	/* Die bits. Always starts at [12]. */
+	denorm_addr = expand_bits(12, ilog2(ctx->map.num_intlv_dies), denorm_addr);
+
+	/* Additional channel bit at [14]. */
+	if (num_intlv_bits > 4)
+		denorm_addr = expand_bits(14, 1, denorm_addr);
+
+	return denorm_addr;
+}
+
+/*
  * Take the current calculated address and shift enough bits in the middle
  * to make a gap where the interleave bits will be inserted.
  */
@@ -107,6 +141,12 @@ static u64 make_space_for_coh_st_id(struct addr_ctx *ctx)
 	case DF4p5_NPS1_8CHAN_2K_HASH:
 	case DF4p5_NPS1_16CHAN_2K_HASH:
 		return make_space_for_coh_st_id_split_2_1(ctx);
+
+	case MI3_HASH_8CHAN:
+	case MI3_HASH_16CHAN:
+	case MI3_HASH_32CHAN:
+		return make_space_for_coh_st_id_mi300(ctx);
+
 	default:
 		atl_debug_on_bad_intlv_mode(ctx);
 		return ~0ULL;
@@ -205,6 +245,32 @@ static u16 get_coh_st_id_df4(struct addr_ctx *ctx)
 }
 
 /*
+ * MI300 hash has:
+ * (C)hannel[3:0]	= coh_st_id[3:0]
+ * (S)tack[0]		= coh_st_id[4]
+ * (D)ie[1:0]		= coh_st_id[6:5]
+ *
+ * Hashed coh_st_id is swizzled so that Stack bit is at the end.
+ * coh_st_id = SDDCCCC
+ */
+static u16 get_coh_st_id_mi300(struct addr_ctx *ctx)
+{
+	u8 channel_bits, die_bits, stack_bit;
+	u16 die_id;
+
+	/* Subtract the "base" Destination Fabric ID. */
+	ctx->coh_st_fabric_id -= get_dst_fabric_id(ctx);
+
+	die_id = (ctx->coh_st_fabric_id & df_cfg.die_id_mask) >> df_cfg.die_id_shift;
+
+	channel_bits	= FIELD_GET(GENMASK(3, 0), ctx->coh_st_fabric_id);
+	stack_bit	= FIELD_GET(BIT(4), ctx->coh_st_fabric_id) << 6;
+	die_bits	= die_id << 4;
+
+	return stack_bit | die_bits | channel_bits;
+}
+
+/*
  * Derive the correct Coherent Station ID that represents the interleave bits
  * used within the system physical address. This accounts for the
  * interleave mode, number of interleaved channels/dies/sockets, and
@@ -236,6 +302,11 @@ static u16 calculate_coh_st_id(struct addr_ctx *ctx)
 	case DF4p5_NPS1_8CHAN_2K_HASH:
 	case DF4p5_NPS1_16CHAN_2K_HASH:
 		return get_coh_st_id_df4(ctx);
+
+	case MI3_HASH_8CHAN:
+	case MI3_HASH_16CHAN:
+	case MI3_HASH_32CHAN:
+		return get_coh_st_id_mi300(ctx);
 
 	/* COH_ST ID is simply the COH_ST Fabric ID adjusted by the Destination Fabric ID. */
 	case DF4p5_NPS2_4CHAN_1K_HASH:
@@ -287,6 +358,9 @@ static u64 insert_coh_st_id(struct addr_ctx *ctx, u64 denorm_addr, u16 coh_st_id
 	case NOHASH_8CHAN:
 	case NOHASH_16CHAN:
 	case NOHASH_32CHAN:
+	case MI3_HASH_8CHAN:
+	case MI3_HASH_16CHAN:
+	case MI3_HASH_32CHAN:
 	case DF2_2CHAN_HASH:
 		return insert_coh_st_id_at_intlv_bit(ctx, denorm_addr, coh_st_id);
 
@@ -314,12 +388,40 @@ static u64 insert_coh_st_id(struct addr_ctx *ctx, u64 denorm_addr, u16 coh_st_id
 	}
 }
 
+/*
+ * MI300 systems have a fixed, hardware-defined physical-to-logical
+ * Coherent Station mapping. The Remap registers are not used.
+ */
+static const u16 phy_to_log_coh_st_map_mi300[] = {
+	12, 13, 14, 15,
+	 8,  9, 10, 11,
+	 4,  5,  6,  7,
+	 0,  1,  2,  3,
+	28, 29, 30, 31,
+	24, 25, 26, 27,
+	20, 21, 22, 23,
+	16, 17, 18, 19,
+};
+
+static u16 get_logical_coh_st_fabric_id_mi300(struct addr_ctx *ctx)
+{
+	if (ctx->inst_id >= sizeof(phy_to_log_coh_st_map_mi300)) {
+		atl_debug(ctx, "Instance ID out of range");
+		return ~0;
+	}
+
+	return phy_to_log_coh_st_map_mi300[ctx->inst_id] | (ctx->node_id << df_cfg.node_id_shift);
+}
+
 static u16 get_logical_coh_st_fabric_id(struct addr_ctx *ctx)
 {
 	u16 component_id, log_fabric_id;
 
 	/* Start with the physical COH_ST Fabric ID. */
 	u16 phys_fabric_id = ctx->coh_st_fabric_id;
+
+	if (df_cfg.rev == DF4p5 && df_cfg.flags.heterogeneous)
+		return get_logical_coh_st_fabric_id_mi300(ctx);
 
 	/* Skip logical ID lookup if remapping is disabled. */
 	if (!FIELD_GET(DF4_REMAP_EN, ctx->map.ctl) &&

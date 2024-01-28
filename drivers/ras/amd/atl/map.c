@@ -63,6 +63,10 @@ static int df4p5_get_intlv_mode(struct addr_ctx *ctx)
 	if (ctx->map.intlv_mode <= NOHASH_32CHAN)
 		return 0;
 
+	if (ctx->map.intlv_mode >= MI3_HASH_8CHAN &&
+	    ctx->map.intlv_mode <= MI3_HASH_32CHAN)
+		return 0;
+
 	/*
 	 * Modes matching the ranges above are returned as-is.
 	 *
@@ -124,6 +128,9 @@ static u64 get_hi_addr_offset(u32 reg_dram_offset)
 		hi_addr_offset = 0;
 		atl_debug_on_bad_df_rev();
 	}
+
+	if (df_cfg.rev == DF4p5 && df_cfg.flags.heterogeneous)
+		shift = MI300_DRAM_LIMIT_LSB;
 
 	return hi_addr_offset << shift;
 }
@@ -369,6 +376,13 @@ static int get_coh_st_fabric_id(struct addr_ctx *ctx)
 {
 	u32 reg;
 
+	/*
+	 * On MI300 systems, the Coherent Station Fabric ID is derived
+	 * later. And it does not depend on the register value.
+	 */
+	if (df_cfg.rev == DF4p5 && df_cfg.flags.heterogeneous)
+		return 0;
+
 	/* Read D18F0x50 (FabricBlockInstanceInformation3). */
 	if (df_indirect_read_instance(ctx->node_id, 0, 0x50, ctx->inst_id, &reg))
 		return -EINVAL;
@@ -490,6 +504,7 @@ static u8 get_num_intlv_chan(struct addr_ctx *ctx)
 	case NOHASH_8CHAN:
 	case DF3_COD1_8CHAN_HASH:
 	case DF4_NPS1_8CHAN_HASH:
+	case MI3_HASH_8CHAN:
 	case DF4p5_NPS1_8CHAN_1K_HASH:
 	case DF4p5_NPS1_8CHAN_2K_HASH:
 		return 8;
@@ -502,6 +517,7 @@ static u8 get_num_intlv_chan(struct addr_ctx *ctx)
 	case DF4p5_NPS1_12CHAN_2K_HASH:
 		return 12;
 	case NOHASH_16CHAN:
+	case MI3_HASH_16CHAN:
 	case DF4p5_NPS1_16CHAN_1K_HASH:
 	case DF4p5_NPS1_16CHAN_2K_HASH:
 		return 16;
@@ -509,6 +525,7 @@ static u8 get_num_intlv_chan(struct addr_ctx *ctx)
 	case DF4p5_NPS0_24CHAN_2K_HASH:
 		return 24;
 	case NOHASH_32CHAN:
+	case MI3_HASH_32CHAN:
 		return 32;
 	default:
 		atl_debug_on_bad_intlv_mode(ctx);
