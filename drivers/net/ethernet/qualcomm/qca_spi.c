@@ -730,8 +730,10 @@ qcaspi_netdev_close(struct net_device *dev)
 	qcaspi_write_register(qca, SPI_REG_INTR_ENABLE, 0, wr_verify);
 	free_irq(qca->spi_dev->irq, qca);
 
-	kthread_stop(qca->spi_thread);
-	qca->spi_thread = NULL;
+	if (qca->spi_thread) {
+		kthread_stop(qca->spi_thread);
+		qca->spi_thread = NULL;
+	}
 	qcaspi_flush_tx_ring(qca);
 
 	return 0;
