@@ -619,7 +619,7 @@ static void bpf_testmod_exit(void)
 	while (refcount_read(&prog_test_struct.cnt) > 1)
 		msleep(20);
 
-	return sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
+	sysfs_remove_bin_file(kernel_kobj, &bin_attr_bpf_testmod_file);
 }
 
 module_init(bpf_testmod_init);
