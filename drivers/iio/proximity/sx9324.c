@@ -429,25 +429,16 @@ static int sx9324_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct sx_common_data *data = iio_priv(indio_dev);
-	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		ret = sx_common_read_proximity(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-		return ret;
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
+			return sx_common_read_proximity(data, chan, val);
+		unreachable();
 	case IIO_CHAN_INFO_HARDWAREGAIN:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		ret = sx9324_read_gain(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-		return ret;
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
+			return sx9324_read_gain(data, chan, val);
+		unreachable();
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return sx9324_read_samp_freq(data, val, val2);
 	default:
@@ -484,7 +475,7 @@ static int sx9324_read_avail(struct iio_dev *indio_dev,
 static int sx9324_set_samp_freq(struct sx_common_data *data,
 				int val, int val2)
 {
-	int i, ret;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sx9324_samp_freq_table); i++)
 		if (val == sx9324_samp_freq_table[i].val &&
@@ -494,15 +485,11 @@ static int sx9324_set_samp_freq(struct sx_common_data *data,
 	if (i == ARRAY_SIZE(sx9324_samp_freq_table))
 		return -EINVAL;
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	ret = regmap_update_bits(data->regmap,
-				 SX9324_REG_GNRL_CTRL0,
-				 SX9324_REG_GNRL_CTRL0_SCANPERIOD_MASK, i);
-
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	return regmap_update_bits(data->regmap,
+				  SX9324_REG_GNRL_CTRL0,
+				  SX9324_REG_GNRL_CTRL0_SCANPERIOD_MASK, i);
 }
 
 static int sx9324_read_thresh(struct sx_common_data *data,
@@ -623,7 +610,6 @@ static int sx9324_write_thresh(struct sx_common_data *data,
 			       const struct iio_chan_spec *chan, int _val)
 {
 	unsigned int reg, val = _val;
-	int ret;
 
 	reg = SX9324_REG_PROX_CTRL6 + chan->channel / 2;
 
@@ -633,11 +619,9 @@ static int sx9324_write_thresh(struct sx_common_data *data,
 	if (val > 0xff)
 		return -EINVAL;
 
-	mutex_lock(&data->mutex);
-	ret = regmap_write(data->regmap, reg, val);
-	mutex_unlock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	return ret;
+	return regmap_write(data->regmap, reg, val);
 }
 
 static int sx9324_write_hysteresis(struct sx_common_data *data,
@@ -662,18 +646,15 @@ static int sx9324_write_hysteresis(struct sx_common_data *data,
 		return -EINVAL;
 
 	hyst = FIELD_PREP(SX9324_REG_PROX_CTRL5_HYST_MASK, hyst);
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9324_REG_PROX_CTRL5,
-				 SX9324_REG_PROX_CTRL5_HYST_MASK, hyst);
-	mutex_unlock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	return ret;
+	return regmap_update_bits(data->regmap, SX9324_REG_PROX_CTRL5,
+				  SX9324_REG_PROX_CTRL5_HYST_MASK, hyst);
 }
 
 static int sx9324_write_far_debounce(struct sx_common_data *data, int _val)
 {
 	unsigned int regval, val = _val;
-	int ret;
 
 	if (val > 0)
 		val = ilog2(val);
@@ -682,19 +663,16 @@ static int sx9324_write_far_debounce(struct sx_common_data *data, int _val)
 
 	regval = FIELD_PREP(SX9324_REG_PROX_CTRL5_FAR_DEBOUNCE_MASK, val);
 
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9324_REG_PROX_CTRL5,
-				 SX9324_REG_PROX_CTRL5_FAR_DEBOUNCE_MASK,
-				 regval);
-	mutex_unlock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	return ret;
+	return regmap_update_bits(data->regmap, SX9324_REG_PROX_CTRL5,
+				  SX9324_REG_PROX_CTRL5_FAR_DEBOUNCE_MASK,
+				  regval);
 }
 
 static int sx9324_write_close_debounce(struct sx_common_data *data, int _val)
 {
 	unsigned int regval, val = _val;
-	int ret;
 
 	if (val > 0)
 		val = ilog2(val);
@@ -703,13 +681,11 @@ static int sx9324_write_close_debounce(struct sx_common_data *data, int _val)
 
 	regval = FIELD_PREP(SX9324_REG_PROX_CTRL5_CLOSE_DEBOUNCE_MASK, val);
 
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9324_REG_PROX_CTRL5,
-				 SX9324_REG_PROX_CTRL5_CLOSE_DEBOUNCE_MASK,
-				 regval);
-	mutex_unlock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	return ret;
+	return regmap_update_bits(data->regmap, SX9324_REG_PROX_CTRL5,
+				  SX9324_REG_PROX_CTRL5_CLOSE_DEBOUNCE_MASK,
+				  regval);
 }
 
 static int sx9324_write_event_val(struct iio_dev *indio_dev,
@@ -746,7 +722,6 @@ static int sx9324_write_gain(struct sx_common_data *data,
 			     const struct iio_chan_spec *chan, int val)
 {
 	unsigned int gain, reg;
-	int ret;
 
 	reg = SX9324_REG_PROX_CTRL0 + chan->channel / 2;
 
@@ -756,13 +731,11 @@ static int sx9324_write_gain(struct sx_common_data *data,
 
 	gain = FIELD_PREP(SX9324_REG_PROX_CTRL0_GAIN_MASK, gain);
 
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, reg,
-				 SX9324_REG_PROX_CTRL0_GAIN_MASK,
-				 gain);
-	mutex_unlock(&data->mutex);
+	guard(mutex)(&data->mutex);
 
-	return ret;
+	return regmap_update_bits(data->regmap, reg,
+				  SX9324_REG_PROX_CTRL0_GAIN_MASK,
+				  gain);
 }
 
 static int sx9324_write_raw(struct iio_dev *indio_dev,
@@ -1092,34 +1065,30 @@ static int sx9324_suspend(struct device *dev)
 
 	disable_irq_nosync(data->client->irq);
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 	ret = regmap_read(data->regmap, SX9324_REG_GNRL_CTRL1, &regval);
+	if (ret < 0)
+		return ret;
 
 	data->suspend_ctrl =
 		FIELD_GET(SX9324_REG_GNRL_CTRL1_PHEN_MASK, regval);
 
-	if (ret < 0)
-		goto out;
 
 	/* Disable all phases, send the device to sleep. */
-	ret = regmap_write(data->regmap, SX9324_REG_GNRL_CTRL1, 0);
-
-out:
-	mutex_unlock(&data->mutex);
-	return ret;
+	return regmap_write(data->regmap, SX9324_REG_GNRL_CTRL1, 0);
 }
 
 static int sx9324_resume(struct device *dev)
 {
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
-	int ret;
 
-	mutex_lock(&data->mutex);
-	ret = regmap_write(data->regmap, SX9324_REG_GNRL_CTRL1,
-			   data->suspend_ctrl | SX9324_REG_GNRL_CTRL1_PAUSECTRL);
-	mutex_unlock(&data->mutex);
-	if (ret)
-		return ret;
+	scoped_guard(mutex, &data->mutex) {
+		int ret = regmap_write(data->regmap, SX9324_REG_GNRL_CTRL1,
+				       data->suspend_ctrl |
+				       SX9324_REG_GNRL_CTRL1_PAUSECTRL);
+		if (ret)
+			return ret;
+	}
 
 	enable_irq(data->client->irq);
 	return 0;
