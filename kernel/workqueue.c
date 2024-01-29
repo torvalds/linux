@@ -1587,6 +1587,11 @@ static void pwq_dec_nr_active(struct pool_workqueue *pwq)
  * A work either has completed or is removed from pending queue,
  * decrement nr_in_flight of its pwq and handle workqueue flushing.
  *
+ * NOTE:
+ * For unbound workqueues, this function may temporarily drop @pwq->pool->lock
+ * and thus should be called after all other state updates for the in-flight
+ * work item is complete.
+ *
  * CONTEXT:
  * raw_spin_lock_irq(pool->lock).
  */
@@ -1711,10 +1716,12 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 		pwq_activate_work(pwq, work);
 
 		list_del_init(&work->entry);
-		pwq_dec_nr_in_flight(pwq, *work_data_bits(work));
 
 		/* work->data points to pwq iff queued, point to pool */
 		set_work_pool_and_keep_pending(work, pool->id);
+
+		/* must be the last step, see the function comment */
+		pwq_dec_nr_in_flight(pwq, *work_data_bits(work));
 
 		raw_spin_unlock(&pool->lock);
 		rcu_read_unlock();
@@ -2780,6 +2787,8 @@ __acquires(&pool->lock)
 	worker->current_func = NULL;
 	worker->current_pwq = NULL;
 	worker->current_color = INT_MAX;
+
+	/* must be the last step, see the function comment */
 	pwq_dec_nr_in_flight(pwq, work_data);
 }
 
