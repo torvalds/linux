@@ -154,6 +154,11 @@
 			resets = <&ltpi0_syscon AST1700_RESET_LTPI>;
 			status = "okay";
 		};
+
+		ltpi0_wdt0: watchdog@30c37000 {
+			compatible = "aspeed,ast2700-wdt";
+			reg = <0x0 0x30c37000 0x0 0x40>;
+		};
 	};
 };
 

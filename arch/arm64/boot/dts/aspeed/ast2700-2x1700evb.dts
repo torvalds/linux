@@ -224,3 +224,13 @@
 	initial-role = "primary";
 	status = "okay";
 };
+
+&ltpi0_wdt0 {
+	aspeed,reset-type = "system";
+	status = "okay";
+};
+
+&ltpi1_wdt0 {
+	aspeed,reset-type = "system";
+	status = "okay";
+};
