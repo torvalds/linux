@@ -510,6 +510,33 @@ exit:
 	return ret;
 }
 
+u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab)
+{
+	if (ab->num_radios == 2)
+		return TARGET_NUM_STATIONS_DBS;
+	else if (ab->num_radios == 3)
+		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
+	return TARGET_NUM_STATIONS_SINGLE;
+}
+
+u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
+{
+	if (ab->num_radios == 2)
+		return TARGET_NUM_PEERS_PDEV_DBS;
+	else if (ab->num_radios == 3)
+		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
+	return TARGET_NUM_PEERS_PDEV_SINGLE;
+}
+
+u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab)
+{
+	if (ab->num_radios == 2)
+		return TARGET_NUM_TIDS(DBS);
+	else if (ab->num_radios == 3)
+		return TARGET_NUM_TIDS(DBS_SBS);
+	return TARGET_NUM_TIDS(SINGLE);
+}
+
 static void ath12k_core_stop(struct ath12k_base *ab)
 {
 	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))

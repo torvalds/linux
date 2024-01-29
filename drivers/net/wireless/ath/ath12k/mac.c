@@ -7624,8 +7624,8 @@ static int ath12k_mac_setup_register(struct ath12k *ar,
 	ath12k_mac_setup_ht_vht_cap(ar, cap, ht_cap);
 	ath12k_mac_setup_sband_iftype_data(ar, cap);
 
-	ar->max_num_stations = TARGET_NUM_STATIONS;
-	ar->max_num_peers = TARGET_NUM_PEERS_PDEV;
+	ar->max_num_stations = ath12k_core_get_max_station_per_radio(ar->ab);
+	ar->max_num_peers = ath12k_core_get_max_peers_per_radio(ar->ab);
 
 	return 0;
 }
