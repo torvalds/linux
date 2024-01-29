@@ -1506,25 +1506,29 @@ TRACE_EVENT(rxrpc_drop_ack,
 	    );
 
 TRACE_EVENT(rxrpc_retransmit,
-	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq, s64 expiry),
+	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
+		     rxrpc_serial_t serial, s64 expiry),
 
-	    TP_ARGS(call, seq, expiry),
+	    TP_ARGS(call, seq, serial, expiry),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
 		    __field(rxrpc_seq_t,	seq)
+		    __field(rxrpc_serial_t,	serial)
 		    __field(s64,		expiry)
 			     ),
 
 	    TP_fast_assign(
 		    __entry->call = call->debug_id;
 		    __entry->seq = seq;
+		    __entry->serial = serial;
 		    __entry->expiry = expiry;
 			   ),
 
-	    TP_printk("c=%08x q=%x xp=%lld",
+	    TP_printk("c=%08x q=%x r=%x xp=%lld",
 		      __entry->call,
 		      __entry->seq,
+		      __entry->serial,
 		      __entry->expiry)
 	    );
 

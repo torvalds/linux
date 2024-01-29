@@ -794,6 +794,7 @@ struct rxrpc_txbuf {
 	ktime_t			last_sent;	/* Time at which last transmitted */
 	refcount_t		ref;
 	rxrpc_seq_t		seq;		/* Sequence number of this packet */
+	rxrpc_serial_t		serial;		/* Last serial number transmitted with */
 	unsigned int		call_debug_id;
 	unsigned int		debug_id;
 	unsigned int		len;		/* Amount of data in buffer */

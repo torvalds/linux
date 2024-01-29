@@ -189,7 +189,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	struct rxrpc_connection *conn;
 	struct msghdr msg;
 	struct kvec iov[1];
-	rxrpc_serial_t serial;
 	size_t len, n;
 	int ret, rtt_slot = -1;
 	u16 rwind;
@@ -216,15 +215,15 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	iov[0].iov_len	= sizeof(txb->wire) + sizeof(txb->ack) + n;
 	len = iov[0].iov_len;
 
-	serial = rxrpc_get_next_serial(conn);
-	txb->wire.serial = htonl(serial);
-	trace_rxrpc_tx_ack(call->debug_id, serial,
+	txb->serial = rxrpc_get_next_serial(conn);
+	txb->wire.serial = htonl(txb->serial);
+	trace_rxrpc_tx_ack(call->debug_id, txb->serial,
 			   ntohl(txb->ack.firstPacket),
 			   ntohl(txb->ack.serial), txb->ack.reason, txb->ack.nAcks,
 			   rwind);
 
 	if (txb->ack.reason == RXRPC_ACK_PING)
-		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_ping);
+		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_ping);
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_send);
 
@@ -235,7 +234,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0) {
-		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
+		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret,
 				    rxrpc_tx_point_call_ack);
 	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
@@ -247,7 +246,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 
 	if (!__rxrpc_call_is_complete(call)) {
 		if (ret < 0)
-			rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
+			rxrpc_cancel_rtt_probe(call, txb->serial, rtt_slot);
 		rxrpc_set_keepalive(call);
 	}
 
@@ -327,15 +326,14 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	struct rxrpc_connection *conn = call->conn;
 	struct msghdr msg;
 	struct kvec iov[1];
-	rxrpc_serial_t serial;
 	size_t len;
 	int ret, rtt_slot = -1;
 
 	_enter("%x,{%d}", txb->seq, txb->len);
 
-	/* Each transmission of a Tx packet needs a new serial number */
-	serial = rxrpc_get_next_serial(conn);
-	txb->wire.serial = htonl(serial);
+	/* Each transmission of a Tx packet+ needs a new serial number */
+	txb->serial = rxrpc_get_next_serial(conn);
+	txb->wire.serial = htonl(txb->serial);
 
 	if (test_bit(RXRPC_CONN_PROBING_FOR_UPGRADE, &conn->flags) &&
 	    txb->seq == 1)
@@ -388,7 +386,7 @@ dont_set_request_ack:
 		static int lose;
 		if ((lose++ & 7) == 7) {
 			ret = 0;
-			trace_rxrpc_tx_data(call, txb->seq, serial,
+			trace_rxrpc_tx_data(call, txb->seq, txb->serial,
 					    txb->wire.flags,
 					    test_bit(RXRPC_TXBUF_RESENT, &txb->flags),
 					    true);
@@ -396,7 +394,7 @@ dont_set_request_ack:
 		}
 	}
 
-	trace_rxrpc_tx_data(call, txb->seq, serial, txb->wire.flags,
+	trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->wire.flags,
 			    test_bit(RXRPC_TXBUF_RESENT, &txb->flags), false);
 
 	/* Track what we've attempted to transmit at least once so that the
@@ -415,7 +413,7 @@ dont_set_request_ack:
 
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
-		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
+		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_data);
 
 	/* send the packet by UDP
 	 * - returns -EMSGSIZE if UDP would have to fragment the packet
@@ -429,8 +427,8 @@ dont_set_request_ack:
 
 	if (ret < 0) {
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
-		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
-		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
+		rxrpc_cancel_rtt_probe(call, txb->serial, rtt_slot);
+		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret,
 				    rxrpc_tx_point_call_data_nofrag);
 	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
@@ -489,7 +487,7 @@ send_fragmentable:
 
 	txb->last_sent = ktime_get_real();
 	if (txb->wire.flags & RXRPC_REQUEST_ACK)
-		rtt_slot = rxrpc_begin_rtt_probe(call, serial, rxrpc_rtt_tx_data);
+		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_data);
 
 	switch (conn->local->srx.transport.family) {
 	case AF_INET6:
@@ -508,8 +506,8 @@ send_fragmentable:
 
 	if (ret < 0) {
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
-		rxrpc_cancel_rtt_probe(call, serial, rtt_slot);
-		trace_rxrpc_tx_fail(call->debug_id, serial, ret,
+		rxrpc_cancel_rtt_probe(call, txb->serial, rtt_slot);
+		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret,
 				    rxrpc_tx_point_call_data_frag);
 	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,

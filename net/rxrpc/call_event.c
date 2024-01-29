@@ -160,7 +160,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 			goto no_further_resend;
 
 		found_txb:
-			if (after(ntohl(txb->wire.serial), call->acks_highest_serial))
+			if (after(txb->serial, call->acks_highest_serial))
 				continue; /* Ack point not yet reached */
 
 			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_unacked);
@@ -170,7 +170,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 				set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
 			}
 
-			trace_rxrpc_retransmit(call, txb->seq,
+			trace_rxrpc_retransmit(call, txb->seq, txb->serial,
 					       ktime_to_ns(ktime_sub(txb->last_sent,
 								     max_age)));
 
@@ -197,7 +197,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 			break; /* Not transmitted yet */
 
 		if (ack && ack->reason == RXRPC_ACK_PING_RESPONSE &&
-		    before(ntohl(txb->wire.serial), ntohl(ack->serial)))
+		    before(txb->serial, ntohl(ack->serial)))
 			goto do_resend; /* Wasn't accounted for by a more recent ping. */
 
 		if (ktime_after(txb->last_sent, max_age)) {
