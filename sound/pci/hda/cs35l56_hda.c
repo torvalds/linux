@@ -405,16 +405,19 @@ static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 	int ret = 0;
 
 	if (system_name && amp_name)
-		*filename = kasprintf(GFP_KERNEL, "%scs35l56%s-%02x-dsp1-misc-%s-%s.%s", dir,
-				      cs35l56->base.secured ? "s" : "", cs35l56->base.rev,
+		*filename = kasprintf(GFP_KERNEL, "%scs35l56-%02x%s-dsp1-misc-%s-%s.%s", dir,
+				      cs35l56->base.rev,
+				      cs35l56->base.secured ? "-s" : "",
 				      system_name, amp_name, filetype);
 	else if (system_name)
-		*filename = kasprintf(GFP_KERNEL, "%scs35l56%s-%02x-dsp1-misc-%s.%s", dir,
-				      cs35l56->base.secured ? "s" : "", cs35l56->base.rev,
+		*filename = kasprintf(GFP_KERNEL, "%scs35l56-%02x%s-dsp1-misc-%s.%s", dir,
+				      cs35l56->base.rev,
+				      cs35l56->base.secured ? "-s" : "",
 				      system_name, filetype);
 	else
-		*filename = kasprintf(GFP_KERNEL, "%scs35l56%s-%02x-dsp1-misc.%s", dir,
-				      cs35l56->base.secured ? "s" : "", cs35l56->base.rev,
+		*filename = kasprintf(GFP_KERNEL, "%scs35l56-%02x%s-dsp1-misc.%s", dir,
+				      cs35l56->base.rev,
+				      cs35l56->base.secured ? "-s" : "",
 				      filetype);
 
 	if (!*filename)
