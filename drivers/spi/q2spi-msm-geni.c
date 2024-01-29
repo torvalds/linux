@@ -1430,7 +1430,7 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 		atomic_dec(&q2spi->retry);
 		Q2SPI_DEBUG(q2spi, "%s CR Doorbell Pending need to try again\n", __func__);
 		if (atomic_read(&q2spi->doorbell_pending))
-			usleep_range(10000, 20000);
+			usleep_range(5000, 10000);
 		return 0;
 	}
 
@@ -1590,7 +1590,7 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 
 	if (atomic_read(&q2spi->doorbell_pending)) {
 		Q2SPI_DEBUG(q2spi, "%s CR Doorbell Pending\n", __func__);
-		usleep_range(10000, 20000);
+		usleep_range(1000, 2000);
 	}
 
 	mutex_lock(&q2spi->queue_lock);
@@ -1786,8 +1786,6 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 	spin_lock(&q2spi->cr_queue_lock);
 	list_del(&q2spi_cr_pkt->list);
 	spin_unlock(&q2spi->cr_queue_lock);
-	q2spi_kfree(q2spi, q2spi_cr_pkt->xfer, __LINE__);
-	q2spi_kfree(q2spi, q2spi_cr_pkt, __LINE__);
 	Q2SPI_DEBUG(q2spi, "%s End ret:%d PID=%d", __func__, ret, current->pid);
 	return ret;
 }
@@ -1827,7 +1825,7 @@ static void q2spi_flush_pending_crs(struct q2spi_geni *q2spi)
 		    __func__, atomic_read(&q2spi->rx_avail),
 		    !list_empty(&q2spi->tx_queue_list), !list_empty(&q2spi->cr_queue_list));
 	/* Delay to ensure any pending CRs in progress are consumed */
-	usleep_range(50000, 100000);
+	usleep_range(10000, 20000);
 
 	if (atomic_read(&q2spi->rx_avail)) {
 		while (!list_empty(&q2spi->cr_queue_list)) {
