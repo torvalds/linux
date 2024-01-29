@@ -90,11 +90,11 @@ ieee80211_chanctx_reserved_chandef(struct ieee80211_local *local,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
+	if (WARN_ON(!compat))
+		return NULL;
+
 	list_for_each_entry(link, &ctx->reserved_links,
 			    reserved_chanctx_list) {
-		if (!compat)
-			compat = &link->reserved_chandef;
-
 		compat = cfg80211_chandef_compatible(&link->reserved_chandef,
 						     compat);
 		if (!compat)
