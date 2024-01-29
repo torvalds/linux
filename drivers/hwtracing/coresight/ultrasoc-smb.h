@@ -109,7 +109,6 @@ struct smb_data_buffer {
  * @reading:	Synchronise user space access to SMB buffer.
  * @pid:	Process ID of the process being monitored by the
  *		session that is using this component.
- * @mode:	How this SMB is being used, perf mode or sysfs mode.
  */
 struct smb_drv_data {
 	void __iomem *base;
@@ -119,7 +118,6 @@ struct smb_drv_data {
 	spinlock_t spinlock;
 	bool reading;
 	pid_t pid;
-	enum cs_mode mode;
 };
 
 #endif

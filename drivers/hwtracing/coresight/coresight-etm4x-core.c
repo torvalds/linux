@@ -841,9 +841,8 @@ static int etm4_enable(struct coresight_device *csdev, struct perf_event *event,
 {
 	int ret;
 	u32 val;
-	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
-	val = local_cmpxchg(&drvdata->mode, CS_MODE_DISABLED, mode);
+	val = local_cmpxchg(&csdev->mode, CS_MODE_DISABLED, mode);
 
 	/* Someone is already using the tracer */
 	if (val)
@@ -862,7 +861,7 @@ static int etm4_enable(struct coresight_device *csdev, struct perf_event *event,
 
 	/* The tracer didn't start */
 	if (ret)
-		local_set(&drvdata->mode, CS_MODE_DISABLED);
+		local_set(&csdev->mode, CS_MODE_DISABLED);
 
 	return ret;
 }
@@ -1004,14 +1003,13 @@ static void etm4_disable(struct coresight_device *csdev,
 			 struct perf_event *event)
 {
 	enum cs_mode mode;
-	struct etmv4_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
 	 * For as long as the tracer isn't disabled another entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
-	mode = local_read(&drvdata->mode);
+	mode = local_read(&csdev->mode);
 
 	switch (mode) {
 	case CS_MODE_DISABLED:
@@ -1025,7 +1023,7 @@ static void etm4_disable(struct coresight_device *csdev,
 	}
 
 	if (mode)
-		local_set(&drvdata->mode, CS_MODE_DISABLED);
+		local_set(&csdev->mode, CS_MODE_DISABLED);
 }
 
 static const struct coresight_ops_source etm4_source_ops = {
@@ -1663,7 +1661,7 @@ static int etm4_starting_cpu(unsigned int cpu)
 	if (!etmdrvdata[cpu]->os_unlock)
 		etm4_os_unlock(etmdrvdata[cpu]);
 
-	if (local_read(&etmdrvdata[cpu]->mode))
+	if (local_read(&etmdrvdata[cpu]->csdev->mode))
 		etm4_enable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;
@@ -1675,7 +1673,7 @@ static int etm4_dying_cpu(unsigned int cpu)
 		return 0;
 
 	spin_lock(&etmdrvdata[cpu]->spinlock);
-	if (local_read(&etmdrvdata[cpu]->mode))
+	if (local_read(&etmdrvdata[cpu]->csdev->mode))
 		etm4_disable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;
@@ -1833,7 +1831,7 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	 * Save and restore the ETM Trace registers only if
 	 * the ETM is active.
 	 */
-	if (local_read(&drvdata->mode) && drvdata->save_state)
+	if (local_read(&drvdata->csdev->mode) && drvdata->save_state)
 		ret = __etm4_cpu_save(drvdata);
 	return ret;
 }

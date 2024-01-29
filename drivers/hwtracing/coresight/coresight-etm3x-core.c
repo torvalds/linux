@@ -559,7 +559,7 @@ static int etm_enable(struct coresight_device *csdev, struct perf_event *event,
 	u32 val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
-	val = local_cmpxchg(&drvdata->mode, CS_MODE_DISABLED, mode);
+	val = local_cmpxchg(&drvdata->csdev->mode, CS_MODE_DISABLED, mode);
 
 	/* Someone is already using the tracer */
 	if (val)
@@ -578,7 +578,7 @@ static int etm_enable(struct coresight_device *csdev, struct perf_event *event,
 
 	/* The tracer didn't start */
 	if (ret)
-		local_set(&drvdata->mode, CS_MODE_DISABLED);
+		local_set(&drvdata->csdev->mode, CS_MODE_DISABLED);
 
 	return ret;
 }
@@ -672,14 +672,13 @@ static void etm_disable(struct coresight_device *csdev,
 			struct perf_event *event)
 {
 	enum cs_mode mode;
-	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	/*
 	 * For as long as the tracer isn't disabled another entity can't
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
-	mode = local_read(&drvdata->mode);
+	mode = local_read(&csdev->mode);
 
 	switch (mode) {
 	case CS_MODE_DISABLED:
@@ -696,7 +695,7 @@ static void etm_disable(struct coresight_device *csdev,
 	}
 
 	if (mode)
-		local_set(&drvdata->mode, CS_MODE_DISABLED);
+		local_set(&csdev->mode, CS_MODE_DISABLED);
 }
 
 static const struct coresight_ops_source etm_source_ops = {
@@ -730,7 +729,7 @@ static int etm_starting_cpu(unsigned int cpu)
 		etmdrvdata[cpu]->os_unlock = true;
 	}
 
-	if (local_read(&etmdrvdata[cpu]->mode))
+	if (local_read(&etmdrvdata[cpu]->csdev->mode))
 		etm_enable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;
@@ -742,7 +741,7 @@ static int etm_dying_cpu(unsigned int cpu)
 		return 0;
 
 	spin_lock(&etmdrvdata[cpu]->spinlock);
-	if (local_read(&etmdrvdata[cpu]->mode))
+	if (local_read(&etmdrvdata[cpu]->csdev->mode))
 		etm_disable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;

@@ -226,6 +226,11 @@ struct coresight_sysfs_link {
  *		by @coresight_ops.
  * @access:	Device i/o access abstraction for this device.
  * @dev:	The device entity associated to this component.
+ * @mode:	This tracer's mode, i.e sysFS, Perf or disabled. This is
+ *		actually an 'enum cs_mode', but is stored in an atomic type.
+ *		This is always accessed through local_read() and local_set(),
+ *		but wherever it's done from within the Coresight device's lock,
+ *		a non-atomic read would also work.
  * @refcnt:	keep track of what is in use.
  * @orphan:	true if the component has connections that haven't been linked.
  * @enable:	'true' if component is currently part of an active path.
@@ -252,6 +257,7 @@ struct coresight_device {
 	const struct coresight_ops *ops;
 	struct csdev_access access;
 	struct device dev;
+	local_t	mode;
 	atomic_t refcnt;
 	bool orphan;
 	bool enable;
