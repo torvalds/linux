@@ -3570,8 +3570,8 @@ nvme_fc_init_ctrl(struct device *dev, struct nvmf_ctrl_options *opts,
 	flush_delayed_work(&ctrl->connect_work);
 
 	dev_info(ctrl->ctrl.device,
-		"NVME-FC{%d}: new ctrl: NQN \"%s\"\n",
-		ctrl->cnum, nvmf_ctrl_subsysnqn(&ctrl->ctrl));
+		"NVME-FC{%d}: new ctrl: NQN \"%s\", hostnqn: %s\n",
+		ctrl->cnum, nvmf_ctrl_subsysnqn(&ctrl->ctrl), opts->host->nqn);
 
 	return &ctrl->ctrl;
 
