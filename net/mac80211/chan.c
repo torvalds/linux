@@ -81,22 +81,35 @@ ieee80211_link_get_chanctx(struct ieee80211_link_data *link)
 	return container_of(conf, struct ieee80211_chanctx, conf);
 }
 
+bool ieee80211_chanreq_identical(const struct ieee80211_chan_req *a,
+				 const struct ieee80211_chan_req *b)
+{
+	if (!cfg80211_chandef_identical(&a->oper, &b->oper))
+		return false;
+	if (!a->ap.chan && !b->ap.chan)
+		return true;
+	return cfg80211_chandef_identical(&a->ap, &b->ap);
+}
+
 static const struct ieee80211_chan_req *
 ieee80211_chanreq_compatible(const struct ieee80211_chan_req *a,
-			     const struct ieee80211_chan_req *b)
+			     const struct ieee80211_chan_req *b,
+			     struct ieee80211_chan_req *tmp)
 {
 	const struct cfg80211_chan_def *compat;
 
+	if (a->ap.chan && b->ap.chan &&
+	    !cfg80211_chandef_identical(&a->ap, &b->ap))
+		return NULL;
+
 	compat = cfg80211_chandef_compatible(&a->oper, &b->oper);
+	if (!compat)
+		return NULL;
 
-	if (compat == &a->oper)
-		return a;
-
-	if (compat == &b->oper)
-		return b;
-
-	WARN_ON(compat);
-	return NULL;
+	/* Note: later code assumes this always fills & returns tmp if compat */
+	tmp->oper = *compat;
+	tmp->ap = a->ap.chan ? a->ap : b->ap;
+	return tmp;
 }
 
 static const struct ieee80211_chan_req *
@@ -104,17 +117,26 @@ ieee80211_chanctx_compatible(struct ieee80211_chanctx *ctx,
 			     const struct ieee80211_chan_req *req,
 			     struct ieee80211_chan_req *tmp)
 {
+	const struct ieee80211_chan_req *ret;
+	struct ieee80211_chan_req tmp2;
+
 	*tmp = (struct ieee80211_chan_req){
 		.oper = ctx->conf.def,
+		.ap = ctx->conf.ap,
 	};
 
-	return ieee80211_chanreq_compatible(tmp, req);
+	ret = ieee80211_chanreq_compatible(tmp, req, &tmp2);
+	if (!ret)
+		return NULL;
+	*tmp = *ret;
+	return tmp;
 }
 
 static const struct ieee80211_chan_req *
 ieee80211_chanctx_reserved_chanreq(struct ieee80211_local *local,
 				   struct ieee80211_chanctx *ctx,
-				   const struct ieee80211_chan_req *req)
+				   const struct ieee80211_chan_req *req,
+				   struct ieee80211_chan_req *tmp)
 {
 	struct ieee80211_link_data *link;
 
@@ -124,7 +146,7 @@ ieee80211_chanctx_reserved_chanreq(struct ieee80211_local *local,
 		return NULL;
 
 	list_for_each_entry(link, &ctx->reserved_links, reserved_chanctx_list) {
-		req = ieee80211_chanreq_compatible(&link->reserved, req);
+		req = ieee80211_chanreq_compatible(&link->reserved, req, tmp);
 		if (!req)
 			break;
 	}
@@ -135,7 +157,8 @@ ieee80211_chanctx_reserved_chanreq(struct ieee80211_local *local,
 static const struct ieee80211_chan_req *
 ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
 				       struct ieee80211_chanctx *ctx,
-				       const struct ieee80211_chan_req *compat)
+				       const struct ieee80211_chan_req *compat,
+				       struct ieee80211_chan_req *tmp)
 {
 	struct ieee80211_link_data *link;
 	const struct ieee80211_chan_req *comp_def = compat;
@@ -149,7 +172,7 @@ ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
 			continue;
 
 		comp_def = ieee80211_chanreq_compatible(&link_conf->chanreq,
-							comp_def);
+							comp_def, tmp);
 		if (!comp_def)
 			break;
 	}
@@ -162,16 +185,18 @@ ieee80211_chanctx_can_reserve(struct ieee80211_local *local,
 			      struct ieee80211_chanctx *ctx,
 			      const struct ieee80211_chan_req *req)
 {
+	struct ieee80211_chan_req tmp;
+
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (!ieee80211_chanctx_reserved_chanreq(local, ctx, req))
+	if (!ieee80211_chanctx_reserved_chanreq(local, ctx, req, &tmp))
 		return false;
 
-	if (!ieee80211_chanctx_non_reserved_chandef(local, ctx, req))
+	if (!ieee80211_chanctx_non_reserved_chandef(local, ctx, req, &tmp))
 		return false;
 
 	if (!list_empty(&ctx->reserved_links) &&
-	    ieee80211_chanctx_reserved_chanreq(local, ctx, req))
+	    ieee80211_chanctx_reserved_chanreq(local, ctx, req, &tmp))
 		return true;
 
 	return false;
@@ -456,7 +481,11 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 				      struct ieee80211_link_data *rsvd_for)
 {
 	const struct cfg80211_chan_def *chandef = &chanreq->oper;
-	u32 changed;
+	struct ieee80211_chan_req ctx_req = {
+		.oper = ctx->conf.def,
+		.ap = ctx->conf.ap,
+	};
+	u32 changed = 0;
 
 	/* expected to handle only 20/40/80/160/320 channel widths */
 	switch (chandef->width) {
@@ -478,26 +507,31 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 	 */
 	ieee80211_chan_bw_change(local, old_ctx, true);
 
-	if (cfg80211_chandef_identical(&ctx->conf.def, chandef)) {
+	if (ieee80211_chanreq_identical(&ctx_req, chanreq)) {
 		ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for);
 		return;
 	}
 
-	WARN_ON(!cfg80211_chandef_compatible(&ctx->conf.def, chandef));
+	WARN_ON(ieee80211_chanctx_refcount(local, ctx) > 1 &&
+		!cfg80211_chandef_compatible(&ctx->conf.def, &chanreq->oper));
 
 	ieee80211_remove_wbrf(local, &ctx->conf.def);
 
+	if (!cfg80211_chandef_identical(&ctx->conf.def, &chanreq->oper))
+		changed |= IEEE80211_CHANCTX_CHANGE_WIDTH;
+	if (!cfg80211_chandef_identical(&ctx->conf.ap, &chanreq->ap))
+		changed |= IEEE80211_CHANCTX_CHANGE_AP;
 	ctx->conf.def = *chandef;
+	ctx->conf.ap = chanreq->ap;
 
 	/* check if min chanctx also changed */
-	changed = IEEE80211_CHANCTX_CHANGE_WIDTH |
-		  _ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for);
+	changed |= _ieee80211_recalc_chanctx_min_def(local, ctx, rsvd_for);
 
 	ieee80211_add_wbrf(local, &ctx->conf.def);
 
 	drv_change_chanctx(local, ctx, changed);
 
-	/* check is BW wider */
+	/* check if BW is wider */
 	ieee80211_chan_bw_change(local, old_ctx, false);
 }
 
@@ -536,7 +570,7 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 			continue;
 
 		compat = ieee80211_chanctx_reserved_chanreq(local, ctx,
-							    compat);
+							    compat, &tmp);
 		if (!compat)
 			continue;
 
@@ -598,6 +632,7 @@ ieee80211_alloc_chanctx(struct ieee80211_local *local,
 	INIT_LIST_HEAD(&ctx->assigned_links);
 	INIT_LIST_HEAD(&ctx->reserved_links);
 	ctx->conf.def = chanreq->oper;
+	ctx->conf.ap = chanreq->ap;
 	ctx->conf.rx_chains_static = 1;
 	ctx->conf.rx_chains_dynamic = 1;
 	ctx->mode = mode;
@@ -683,9 +718,9 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 				       struct ieee80211_chanctx *ctx)
 {
 	struct ieee80211_chanctx_conf *conf = &ctx->conf;
-	const struct cfg80211_chan_def *compat = NULL;
+	const struct ieee80211_chan_req *compat = NULL;
 	struct ieee80211_link_data *link;
-	struct ieee80211_chan_req chanreq = {};
+	struct ieee80211_chan_req tmp;
 	struct sta_info *sta;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -702,10 +737,10 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 			continue;
 
 		if (!compat)
-			compat = &link_conf->chanreq.oper;
+			compat = &link_conf->chanreq;
 
-		compat = cfg80211_chandef_compatible(&link_conf->chanreq.oper,
-						     compat);
+		compat = ieee80211_chanreq_compatible(&link_conf->chanreq,
+						      compat, &tmp);
 		if (WARN_ON_ONCE(!compat))
 			return;
 	}
@@ -715,24 +750,23 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 	/* TDLS peers can sometimes affect the chandef width */
 	list_for_each_entry(sta, &local->sta_list, list) {
+		struct ieee80211_chan_req tdls_chanreq = {};
 		if (!sta->uploaded ||
 		    !test_sta_flag(sta, WLAN_STA_TDLS_WIDER_BW) ||
 		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED) ||
 		    !sta->tdls_chandef.chan)
 			continue;
 
-		compat = cfg80211_chandef_compatible(&sta->tdls_chandef,
-						     compat);
+		tdls_chanreq.oper = sta->tdls_chandef;
+
+		/* note this always fills and returns &tmp if compat */
+		compat = ieee80211_chanreq_compatible(&tdls_chanreq,
+						      compat, &tmp);
 		if (WARN_ON_ONCE(!compat))
 			return;
 	}
 
-	if (!compat)
-		return;
-
-	chanreq.oper = *compat;
-
-	ieee80211_change_chanctx(local, ctx, ctx, &chanreq);
+	ieee80211_change_chanctx(local, ctx, ctx, compat);
 }
 
 static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
@@ -1133,6 +1167,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	struct ieee80211_vif_chanctx_switch vif_chsw[1] = {};
 	struct ieee80211_chanctx *old_ctx, *new_ctx;
 	const struct ieee80211_chan_req *chanreq;
+	struct ieee80211_chan_req tmp;
 	u64 changed = 0;
 	int err;
 
@@ -1155,7 +1190,8 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 		return -EINVAL;
 
 	chanreq = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
-							 &link->reserved);
+							 &link->reserved,
+							 &tmp);
 	if (WARN_ON(!chanreq))
 		return -EINVAL;
 
@@ -1213,6 +1249,7 @@ ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx *old_ctx, *new_ctx;
 	const struct ieee80211_chan_req *chanreq;
+	struct ieee80211_chan_req tmp;
 	int err;
 
 	old_ctx = ieee80211_link_get_chanctx(link);
@@ -1232,7 +1269,8 @@ ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 		return -EINVAL;
 
 	chanreq = ieee80211_chanctx_non_reserved_chandef(local, new_ctx,
-							 &link->reserved);
+							 &link->reserved,
+							 &tmp);
 	if (WARN_ON(!chanreq))
 		return -EINVAL;
 
@@ -1770,6 +1808,52 @@ int ieee80211_link_use_reserved_context(struct ieee80211_link_data *link)
 	return 0;
 }
 
+/*
+ * This is similar to ieee80211_chanctx_compatible(), but rechecks
+ * against all the links actually using it (except the one that's
+ * passed, since that one is changing).
+ * This is done in order to allow changes to the AP's bandwidth for
+ * wider bandwidth OFDMA purposes, which wouldn't be treated as
+ * compatible by ieee80211_chanctx_recheck() but is OK if the link
+ * requesting the update is the only one using it.
+ */
+static const struct ieee80211_chan_req *
+ieee80211_chanctx_recheck(struct ieee80211_local *local,
+			  struct ieee80211_link_data *skip_link,
+			  struct ieee80211_chanctx *ctx,
+			  const struct ieee80211_chan_req *req,
+			  struct ieee80211_chan_req *tmp)
+{
+	const struct ieee80211_chan_req *ret = req;
+	struct ieee80211_link_data *link;
+
+	lockdep_assert_wiphy(local->hw.wiphy);
+
+	for_each_sdata_link(local, link) {
+		if (link == skip_link)
+			continue;
+
+		if (rcu_access_pointer(link->conf->chanctx_conf) == &ctx->conf) {
+			ret = ieee80211_chanreq_compatible(ret,
+							   &link->conf->chanreq,
+							   tmp);
+			if (!ret)
+				return NULL;
+		}
+
+		if (link->reserved_chanctx == ctx) {
+			ret = ieee80211_chanreq_compatible(ret,
+							   &link->reserved,
+							   tmp);
+			if (!ret)
+				return NULL;
+		}
+	}
+
+	*tmp = *ret;
+	return tmp;
+}
+
 int ieee80211_link_change_chanreq(struct ieee80211_link_data *link,
 				  const struct ieee80211_chan_req *chanreq,
 				  u64 *changed)
@@ -1806,13 +1890,14 @@ int ieee80211_link_change_chanreq(struct ieee80211_link_data *link,
 
 	ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-	compat = ieee80211_chanctx_compatible(ctx, chanreq, &tmp);
+	compat = ieee80211_chanctx_recheck(local, link, ctx, chanreq, &tmp);
 	if (!compat)
 		return -EINVAL;
 
 	switch (ctx->replace_state) {
 	case IEEE80211_CHANCTX_REPLACE_NONE:
-		if (!ieee80211_chanctx_reserved_chanreq(local, ctx, compat))
+		if (!ieee80211_chanctx_reserved_chanreq(local, ctx, compat,
+							&tmp))
 			return -EBUSY;
 		break;
 	case IEEE80211_CHANCTX_WILL_BE_REPLACED:

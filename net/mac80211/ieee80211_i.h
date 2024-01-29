@@ -2536,6 +2536,19 @@ bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
 				struct cfg80211_chan_def *chandef);
 void ieee80211_chandef_downgrade(struct cfg80211_chan_def *chandef,
 				 struct ieee80211_conn_settings *conn);
+static inline void
+ieee80211_chanreq_downgrade(struct ieee80211_chan_req *chanreq,
+			    struct ieee80211_conn_settings *conn)
+{
+	ieee80211_chandef_downgrade(&chanreq->oper, conn);
+	if (WARN_ON(!conn))
+		return;
+	if (conn->mode < IEEE80211_CONN_MODE_EHT)
+		chanreq->ap.chan = NULL;
+}
+
+bool ieee80211_chanreq_identical(const struct ieee80211_chan_req *a,
+				 const struct ieee80211_chan_req *b);
 
 int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,
