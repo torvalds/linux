@@ -4304,7 +4304,8 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 			link->u.mgd.bss_param_ch_cnt =
 				ieee80211_mle_get_bss_param_ch_cnt(elems->ml_basic);
 		}
-	} else if (!elems->prof ||
+	} else if (elems->parse_error & IEEE80211_PARSE_ERR_DUP_NEST_ML_BASIC ||
+		   !elems->prof ||
 		   !(elems->prof->control & prof_bss_param_ch_present)) {
 		ret = false;
 		goto out;

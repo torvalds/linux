@@ -1012,6 +1012,11 @@ ieee80211_parse_extension_element(u32 *crc,
 			switch (le16_get_bits(mle->control,
 					      IEEE80211_ML_CONTROL_TYPE)) {
 			case IEEE80211_ML_CONTROL_TYPE_BASIC:
+				if (elems->ml_basic) {
+					elems->parse_error |=
+						IEEE80211_PARSE_ERR_DUP_NEST_ML_BASIC;
+					break;
+				}
 				elems->ml_basic_elem = (void *)elem;
 				elems->ml_basic = data;
 				elems->ml_basic_len = len;
