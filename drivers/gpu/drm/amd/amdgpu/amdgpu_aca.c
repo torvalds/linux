@@ -120,10 +120,10 @@ static void aca_smu_bank_dump(struct amdgpu_device *adev, int idx, int total, st
 {
 	int i;
 
-	dev_info(adev->dev, "[Hardware error] Accelerator Check Architecture events logged\n");
+	dev_info(adev->dev, HW_ERR "Accelerator Check Architecture events logged\n");
 	/* plus 1 for output format, e.g: ACA[08/08]: xxxx */
 	for (i = 0; i < ARRAY_SIZE(aca_regs); i++)
-		dev_info(adev->dev, "[Hardware error] ACA[%02d/%02d].%s=0x%016llx\n",
+		dev_info(adev->dev, HW_ERR "ACA[%02d/%02d].%s=0x%016llx\n",
 			 idx + 1, total, aca_regs[i].name, bank->regs[aca_regs[i].reg_idx]);
 }
 
