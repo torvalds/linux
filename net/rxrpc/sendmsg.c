@@ -362,7 +362,7 @@ reload:
 			if (!txb)
 				goto maybe_error;
 
-			txb->offset = offset;
+			txb->offset = offset + sizeof(struct rxrpc_wire_header);
 			txb->space -= offset;
 			txb->space = min_t(size_t, chunk, txb->space);
 		}
@@ -374,8 +374,8 @@ reload:
 			size_t copy = min_t(size_t, txb->space, msg_data_left(msg));
 
 			_debug("add %zu", copy);
-			if (!copy_from_iter_full(txb->data + txb->offset, copy,
-						 &msg->msg_iter))
+			if (!copy_from_iter_full(txb->kvec[0].iov_base + txb->offset,
+						 copy, &msg->msg_iter))
 				goto efault;
 			_debug("added");
 			txb->space -= copy;
@@ -404,6 +404,8 @@ reload:
 			if (ret < 0)
 				goto out;
 
+			txb->kvec[0].iov_len += txb->len;
+			txb->len = txb->kvec[0].iov_len;
 			rxrpc_queue_packet(rx, call, txb, notify_end_tx);
 			txb = NULL;
 		}

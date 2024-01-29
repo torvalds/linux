@@ -805,6 +805,8 @@ struct rxrpc_txbuf {
 #define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */
 	__be16			cksum;		/* Checksum to go in header */
 	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
+	u8			nr_kvec;
+	struct kvec		kvec[1];
 	struct {
 		/* The packet for encrypting and DMA'ing.  We align it such
 		 * that data[] aligns correctly for any crypto blocksize.

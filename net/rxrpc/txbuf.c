@@ -36,6 +36,9 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->seq		= call->tx_prepared + 1;
 		txb->serial		= 0;
 		txb->cksum		= 0;
+		txb->nr_kvec		= 1;
+		txb->kvec[0].iov_base	= &txb->wire;
+		txb->kvec[0].iov_len	= sizeof(txb->wire);
 		txb->wire.epoch		= htonl(call->conn->proto.epoch);
 		txb->wire.cid		= htonl(call->cid);
 		txb->wire.callNumber	= htonl(call->call_id);

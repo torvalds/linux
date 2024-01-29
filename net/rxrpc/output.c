@@ -77,10 +77,10 @@ static void rxrpc_set_keepalive(struct rxrpc_call *call)
 /*
  * Fill out an ACK packet.
  */
-static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
-				 struct rxrpc_call *call,
-				 struct rxrpc_txbuf *txb,
-				 u16 *_rwind)
+static void rxrpc_fill_out_ack(struct rxrpc_connection *conn,
+			       struct rxrpc_call *call,
+			       struct rxrpc_txbuf *txb,
+			       u16 *_rwind)
 {
 	struct rxrpc_acktrailer trailer;
 	unsigned int qsize, sack, wrap, to;
@@ -134,7 +134,9 @@ static size_t rxrpc_fill_out_ack(struct rxrpc_connection *conn,
 	*ackp++ = 0;
 	*ackp++ = 0;
 	memcpy(ackp, &trailer, sizeof(trailer));
-	return txb->ack.nAcks + 3 + sizeof(trailer);
+	txb->kvec[0].iov_len = sizeof(txb->wire) +
+		sizeof(txb->ack) + txb->ack.nAcks + 3 + sizeof(trailer);
+	txb->len = txb->kvec[0].iov_len;
 }
 
 /*
@@ -187,8 +189,6 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	struct rxrpc_connection *conn;
 	struct msghdr msg;
-	struct kvec iov[1];
-	size_t len, n;
 	int ret, rtt_slot = -1;
 	u16 rwind;
 
@@ -207,13 +207,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 		txb->flags |= RXRPC_REQUEST_ACK;
 	txb->wire.flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 
-	n = rxrpc_fill_out_ack(conn, call, txb, &rwind);
-	if (n == 0)
-		return 0;
-
-	iov[0].iov_base	= &txb->wire;
-	iov[0].iov_len	= sizeof(txb->wire) + sizeof(txb->ack) + n;
-	len = iov[0].iov_len;
+	rxrpc_fill_out_ack(conn, call, txb, &rwind);
 
 	txb->serial = rxrpc_get_next_serial(conn);
 	txb->wire.serial = htonl(txb->serial);
@@ -230,9 +224,9 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	/* Grab the highest received seq as late as possible */
 	txb->ack.previousPacket	= htonl(call->rx_highest_seq);
 
-	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
+	iov_iter_kvec(&msg.msg_iter, WRITE, txb->kvec, txb->nr_kvec, txb->len);
 	rxrpc_local_dont_fragment(conn->local, false);
-	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
+	ret = do_udp_sendmsg(conn->local->socket, &msg, txb->len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0) {
 		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret,
@@ -327,7 +321,6 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	enum rxrpc_req_ack_trace why;
 	enum rxrpc_tx_point frag;
 	struct msghdr msg;
-	struct kvec iov[1];
 	size_t len;
 	int ret, rtt_slot = -1;
 
@@ -342,10 +335,8 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	    txb->seq == 1)
 		txb->wire.userStatus = RXRPC_USERSTATUS_SERVICE_UPGRADE;
 
-	iov[0].iov_base = &txb->wire;
-	iov[0].iov_len = sizeof(txb->wire) + txb->len;
-	len = iov[0].iov_len;
-	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
+	len = txb->kvec[0].iov_len;
+	iov_iter_kvec(&msg.msg_iter, WRITE, txb->kvec, txb->nr_kvec, len);
 
 	msg.msg_name = &call->peer->srx.transport;
 	msg.msg_namelen = call->peer->srx.transport_len;
