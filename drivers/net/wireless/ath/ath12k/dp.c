@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <crypto/hash.h>
@@ -995,6 +995,12 @@ void ath12k_dp_pdev_pre_alloc(struct ath12k_base *ab)
 
 		/* TODO: Add any RXDMA setup required per pdev */
 	}
+}
+
+void ath12k_dp_hal_rx_desc_init(struct ath12k_base *ab)
+{
+	ab->hal.hal_desc_sz =
+		ab->hal_rx_ops->rx_desc_get_desc_size();
 }
 
 static void ath12k_dp_service_mon_ring(struct timer_list *t)

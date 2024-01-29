@@ -1023,6 +1023,8 @@ struct ath12k_hal {
 	/* shadow register configuration */
 	u32 shadow_reg_addr[HAL_SHADOW_NUM_REGS];
 	int num_shadow_reg_configured;
+
+	u32 hal_desc_sz;
 };
 
 /* Maps WBM ring number and Return Buffer Manager Id per TCL ring */
@@ -1075,6 +1077,7 @@ struct hal_rx_ops {
 	bool (*dp_rx_h_ip_cksum_fail)(struct hal_rx_desc *desc);
 	bool (*dp_rx_h_is_decrypted)(struct hal_rx_desc *desc);
 	u32 (*dp_rx_h_mpdu_err)(struct hal_rx_desc *desc);
+	u32 (*rx_desc_get_desc_size)(void);
 };
 
 struct hal_ops {

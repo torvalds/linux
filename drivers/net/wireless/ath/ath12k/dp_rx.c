@@ -58,7 +58,7 @@ static bool ath12k_dp_rx_h_more_frags(struct ath12k_base *ab,
 {
 	struct ieee80211_hdr *hdr;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + ab->hw_params->hal_desc_sz);
+	hdr = (struct ieee80211_hdr *)(skb->data + ab->hal.hal_desc_sz);
 	return ieee80211_has_morefrags(hdr->frame_control);
 }
 
@@ -67,7 +67,7 @@ static u16 ath12k_dp_rx_h_frag_no(struct ath12k_base *ab,
 {
 	struct ieee80211_hdr *hdr;
 
-	hdr = (struct ieee80211_hdr *)(skb->data + ab->hw_params->hal_desc_sz);
+	hdr = (struct ieee80211_hdr *)(skb->data + ab->hal.hal_desc_sz);
 	return le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 }
 
@@ -1761,7 +1761,7 @@ static int ath12k_dp_rx_msdu_coalesce(struct ath12k *ar,
 	int buf_first_hdr_len, buf_first_len;
 	struct hal_rx_desc *ldesc;
 	int space_extra, rem_len, buf_len;
-	u32 hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	/* As the msdu is spread across multiple rx buffers,
 	 * find the offset to the start of msdu for computing
@@ -2473,7 +2473,7 @@ static int ath12k_dp_rx_process_msdu(struct ath12k *ar,
 	u8 l3_pad_bytes;
 	u16 msdu_len;
 	int ret;
-	u32 hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	last_buf = ath12k_dp_rx_get_msdu_last_buf(msdu_list, msdu);
 	if (!last_buf) {
@@ -2804,7 +2804,7 @@ static int ath12k_dp_rx_h_verify_tkip_mic(struct ath12k *ar, struct ath12k_peer 
 	u8 mic[IEEE80211_CCMP_MIC_LEN];
 	int head_len, tail_len, ret;
 	size_t data_len;
-	u32 hdr_len, hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hdr_len, hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 	u8 *key, *data;
 	u8 key_idx;
 
@@ -2854,7 +2854,7 @@ static void ath12k_dp_rx_h_undecap_frag(struct ath12k *ar, struct sk_buff *msdu,
 	struct ieee80211_hdr *hdr;
 	size_t hdr_len;
 	size_t crypto_len;
-	u32 hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	if (!flags)
 		return;
@@ -2892,7 +2892,7 @@ static int ath12k_dp_rx_h_defrag(struct ath12k *ar,
 	bool is_decrypted = false;
 	int msdu_len = 0;
 	int extra_space;
-	u32 flags, hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 flags, hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	first_frag = skb_peek(&rx_tid->rx_frags);
 	last_frag = skb_peek_tail(&rx_tid->rx_frags);
@@ -2968,7 +2968,7 @@ static int ath12k_dp_rx_h_defrag_reo_reinject(struct ath12k *ar,
 	struct ath12k_rx_desc_info *desc_info;
 	u8 dst_ind;
 
-	hal_rx_desc_sz = ab->hw_params->hal_desc_sz;
+	hal_rx_desc_sz = ab->hal.hal_desc_sz;
 	link_desc_banks = dp->link_desc_banks;
 	reo_dest_ring = rx_tid->dst_ring_desc;
 
@@ -3122,7 +3122,7 @@ static u64 ath12k_dp_rx_h_get_pn(struct ath12k *ar, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr;
 	u64 pn = 0;
 	u8 *ehdr;
-	u32 hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	hdr = (struct ieee80211_hdr *)(skb->data + hal_rx_desc_sz);
 	ehdr = skb->data + hal_rx_desc_sz + ieee80211_hdrlen(hdr->frame_control);
@@ -3305,7 +3305,7 @@ ath12k_dp_process_rx_err_buf(struct ath12k *ar, struct hal_reo_dest_ring *desc,
 	struct ath12k_skb_rxcb *rxcb;
 	struct hal_rx_desc *rx_desc;
 	u16 msdu_len;
-	u32 hal_rx_desc_sz = ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ab->hal.hal_desc_sz;
 	struct ath12k_rx_desc_info *desc_info;
 	u64 desc_va;
 
@@ -3486,7 +3486,7 @@ static void ath12k_dp_rx_null_q_desc_sg_drop(struct ath12k *ar,
 	int n_buffs;
 
 	n_buffs = DIV_ROUND_UP(msdu_len,
-			       (DP_RX_BUFFER_SIZE - ar->ab->hw_params->hal_desc_sz));
+			       (DP_RX_BUFFER_SIZE - ar->ab->hal.hal_desc_sz));
 
 	skb_queue_walk_safe(msdu_list, skb, tmp) {
 		rxcb = ATH12K_SKB_RXCB(skb);
@@ -3510,7 +3510,7 @@ static int ath12k_dp_rx_h_null_q_desc(struct ath12k *ar, struct sk_buff *msdu,
 	struct hal_rx_desc *desc = (struct hal_rx_desc *)msdu->data;
 	u8 l3pad_bytes;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	u32 hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	msdu_len = ath12k_dp_rx_h_msdu_len(ab, desc);
 
@@ -3607,7 +3607,7 @@ static void ath12k_dp_rx_h_tkip_mic_err(struct ath12k *ar, struct sk_buff *msdu,
 	struct hal_rx_desc *desc = (struct hal_rx_desc *)msdu->data;
 	u8 l3pad_bytes;
 	struct ath12k_skb_rxcb *rxcb = ATH12K_SKB_RXCB(msdu);
-	u32 hal_rx_desc_sz = ar->ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ar->ab->hal.hal_desc_sz;
 
 	rxcb->is_first_msdu = ath12k_dp_rx_h_first_msdu(ab, desc);
 	rxcb->is_last_msdu = ath12k_dp_rx_h_last_msdu(ab, desc);
@@ -3922,7 +3922,7 @@ int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab)
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
 	u32 ring_id;
 	int ret;
-	u32 hal_rx_desc_sz = ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ab->hal.hal_desc_sz;
 
 	ring_id = dp->rx_refill_buf_ring.refill_buf_ring.ring_id;
 
@@ -3957,7 +3957,7 @@ int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab)
 	struct htt_rx_ring_tlv_filter tlv_filter = {0};
 	u32 ring_id;
 	int ret;
-	u32 hal_rx_desc_sz = ab->hw_params->hal_desc_sz;
+	u32 hal_rx_desc_sz = ab->hal.hal_desc_sz;
 	int i;
 
 	ring_id = dp->rx_refill_buf_ring.refill_buf_ring.ring_id;

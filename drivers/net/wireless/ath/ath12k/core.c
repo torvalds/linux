@@ -748,6 +748,8 @@ static int ath12k_core_start(struct ath12k_base *ab,
 		goto err_mac_destroy;
 	}
 
+	ath12k_dp_hal_rx_desc_init(ab);
+
 	ret = ath12k_wmi_cmd_init(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to send wmi init cmd: %d\n", ret);

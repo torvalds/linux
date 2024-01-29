@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/types.h>
@@ -897,7 +897,6 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.reoq_lut_support = false,
 		.supports_shadow_regs = false,
 
-		.hal_desc_sz = sizeof(struct hal_rx_desc_qcn9274),
 		.num_tcl_banks = 48,
 		.max_tx_ring = 4,
 
@@ -963,7 +962,6 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.reoq_lut_support = false,
 		.supports_shadow_regs = true,
 
-		.hal_desc_sz = sizeof(struct hal_rx_desc_wcn7850),
 		.num_tcl_banks = 7,
 		.max_tx_ring = 3,
 
@@ -1029,7 +1027,6 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.reoq_lut_support = false,
 		.supports_shadow_regs = false,
 
-		.hal_desc_sz = sizeof(struct hal_rx_desc_qcn9274),
 		.num_tcl_banks = 48,
 		.max_tx_ring = 4,
 
