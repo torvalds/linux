@@ -325,13 +325,18 @@ struct suspend_stats {
 };
 
 static struct suspend_stats suspend_stats;
+static DEFINE_MUTEX(suspend_stats_lock);
 
 void dpm_save_failed_dev(const char *name)
 {
+	mutex_lock(&suspend_stats_lock);
+
 	strscpy(suspend_stats.failed_devs[suspend_stats.last_failed_dev],
 		name, sizeof(suspend_stats.failed_devs[0]));
 	suspend_stats.last_failed_dev++;
 	suspend_stats.last_failed_dev %= REC_FAILED_NUM;
+
+	mutex_unlock(&suspend_stats_lock);
 }
 
 void dpm_save_failed_step(enum suspend_stat_step step)
