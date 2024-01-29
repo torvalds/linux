@@ -1038,38 +1038,6 @@ static bool ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	return mu_mimo_owner;
 }
 
-/* This function determines HE capability flags for the association
- * and builds the IE.
- */
-static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
-				struct sk_buff *skb,
-				struct ieee80211_supported_band *sband,
-				enum ieee80211_smps_mode smps_mode,
-				const struct ieee80211_conn_settings *conn)
-{
-	u8 *pos, *pre_he_pos;
-	const struct ieee80211_sta_he_cap *he_cap;
-	u8 he_cap_size;
-
-	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
-	if (WARN_ON(!he_cap))
-		return;
-
-	/* get a max size estimate */
-	he_cap_size =
-		2 + 1 + sizeof(he_cap->he_cap_elem) +
-		ieee80211_he_mcs_nss_size(&he_cap->he_cap_elem) +
-		ieee80211_he_ppe_size(he_cap->ppe_thres[0],
-				      he_cap->he_cap_elem.phy_cap_info);
-	pos = skb_put(skb, he_cap_size);
-	pre_he_pos = pos;
-	pos = ieee80211_ie_build_he_cap(conn, he_cap, pos, pos + he_cap_size);
-	/* trim excess if any */
-	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
-
-	ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
-}
-
 static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb,
 				 struct ieee80211_supported_band *sband,
@@ -1403,9 +1371,10 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 					       offset);
 
 	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_HE) {
-		ieee80211_add_he_ie(sdata, skb, sband, smps_mode,
-				    &assoc_data->link[link_id].conn);
+		ieee80211_put_he_cap(skb, sdata, sband,
+				     &assoc_data->link[link_id].conn);
 		ADD_PRESENT_EXT_ELEM(WLAN_EID_EXT_HE_CAPABILITY);
+		ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
 	}
 
 	/*

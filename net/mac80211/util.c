@@ -1352,19 +1352,14 @@ static int ieee80211_put_preq_ies_band(struct sk_buff *skb,
 		*offset = noffset;
 	}
 
-	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
-	if (he_cap &&
-	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
+	if (cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE)) {
-		u8 *pos = skb_tail_pointer(skb);
-		u8 *end = pos + skb_tailroom(skb);
-
-		pos = ieee80211_ie_build_he_cap(NULL, he_cap, pos, end);
-		if (!pos)
-			return -ENOBUFS;
-		skb_put(skb, pos - skb_tail_pointer(skb));
+		err = ieee80211_put_he_cap(skb, sdata, sband, NULL);
+		if (err)
+			return err;
 	}
 
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
 
 	if (eht_cap &&
@@ -2408,7 +2403,7 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	return pos;
 }
 
-/* this may return more than ieee80211_ie_build_he_cap() will need */
+/* this may return more than ieee80211_put_he_6ghz_cap() will need */
 u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata)
 {
 	const struct ieee80211_sta_he_cap *he_cap;
@@ -2479,21 +2474,23 @@ ieee80211_get_adjusted_he_cap(const struct ieee80211_conn_settings *conn,
 	}
 }
 
-u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
-			      const struct ieee80211_sta_he_cap *he_cap,
-			      u8 *pos, u8 *end)
+int ieee80211_put_he_cap(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata,
+			 const struct ieee80211_supported_band *sband,
+			 const struct ieee80211_conn_settings *conn)
 {
+	const struct ieee80211_sta_he_cap *he_cap;
 	struct ieee80211_he_cap_elem elem;
+	u8 *len;
 	u8 n;
 	u8 ie_len;
-	u8 *orig_pos = pos;
 
 	if (!conn)
 		conn = &ieee80211_conn_settings_unlimited;
 
-	/* Make sure we have place for the IE */
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (!he_cap)
-		return orig_pos;
+		return 0;
 
 	/* modify on stack first to calculate 'n' and 'ie_len' correctly */
 	ieee80211_get_adjusted_he_cap(conn, he_cap, &elem);
@@ -2504,19 +2501,17 @@ u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
 		 ieee80211_he_ppe_size(he_cap->ppe_thres[0],
 				       he_cap->he_cap_elem.phy_cap_info);
 
-	if ((end - pos) < ie_len)
-		return orig_pos;
+	if (skb_tailroom(skb) < ie_len)
+		return -ENOBUFS;
 
-	*pos++ = WLAN_EID_EXTENSION;
-	pos++; /* We'll set the size later below */
-	*pos++ = WLAN_EID_EXT_HE_CAPABILITY;
+	skb_put_u8(skb, WLAN_EID_EXTENSION);
+	len = skb_put(skb, 1); /* We'll set the size later below */
+	skb_put_u8(skb, WLAN_EID_EXT_HE_CAPABILITY);
 
 	/* Fixed data */
-	memcpy(pos, &elem, sizeof(elem));
-	pos += sizeof(elem);
+	skb_put_data(skb, &elem, sizeof(elem));
 
-	memcpy(pos, &he_cap->he_mcs_nss_supp, n);
-	pos += n;
+	skb_put_data(skb, &he_cap->he_mcs_nss_supp, n);
 
 	/* Check if PPE Threshold should be present */
 	if ((he_cap->he_cap_elem.phy_cap_info[6] &
@@ -2540,12 +2535,11 @@ u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
 	n = DIV_ROUND_UP(n, 8);
 
 	/* Copy PPE Thresholds */
-	memcpy(pos, &he_cap->ppe_thres, n);
-	pos += n;
+	skb_put_data(skb, &he_cap->ppe_thres, n);
 
 end:
-	orig_pos[1] = (pos - orig_pos) - 2;
-	return pos;
+	*len = skb_tail_pointer(skb) - len - 1;
+	return 0;
 }
 
 int ieee80211_put_he_6ghz_cap(struct sk_buff *skb,

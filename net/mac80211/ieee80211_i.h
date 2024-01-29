@@ -2502,9 +2502,6 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef);
 u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata);
-u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
-			      const struct ieee80211_sta_he_cap *he_cap,
-			      u8 *pos, u8 *end);
 u8 *ieee80211_ie_build_he_oper(u8 *pos, struct cfg80211_chan_def *chandef);
 u8 *ieee80211_ie_build_eht_oper(u8 *pos, struct cfg80211_chan_def *chandef,
 				const struct ieee80211_sta_eht_cap *eht_cap);
@@ -2523,6 +2520,10 @@ int ieee80211_put_srates_elem(struct sk_buff *skb,
 			      const struct ieee80211_supported_band *sband,
 			      u32 basic_rates, u32 rate_flags, u32 masked_rates,
 			      u8 element_id);
+int ieee80211_put_he_cap(struct sk_buff *skb,
+			 struct ieee80211_sub_if_data *sdata,
+			 const struct ieee80211_supported_band *sband,
+			 const struct ieee80211_conn_settings *conn);
 int ieee80211_put_he_6ghz_cap(struct sk_buff *skb,
 			      struct ieee80211_sub_if_data *sdata,
 			      enum ieee80211_smps_mode smps_mode);

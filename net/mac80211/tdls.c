@@ -548,19 +548,10 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	}
 
 	/* build the HE-cap from sband */
-	if (he_cap &&
-	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
-	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
-	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
-		u8 cap_size;
-
-		cap_size =
-			2 + 1 + sizeof(he_cap->he_cap_elem) +
-			ieee80211_he_mcs_nss_size(&he_cap->he_cap_elem) +
-			ieee80211_he_ppe_size(he_cap->ppe_thres[0],
-					      he_cap->he_cap_elem.phy_cap_info);
-		pos = skb_put(skb, cap_size);
-		pos = ieee80211_ie_build_he_cap(NULL, he_cap, pos, pos + cap_size);
+	if (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	    action_code == WLAN_TDLS_SETUP_RESPONSE ||
+	    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES) {
+		ieee80211_put_he_cap(skb, sdata, sband, NULL);
 
 		/* Build HE 6Ghz capa IE from sband */
 		if (sband->band == NL80211_BAND_6GHZ)
