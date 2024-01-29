@@ -50,6 +50,7 @@ import drgn
 from drgn.helpers.linux.list import list_for_each_entry,list_empty
 from drgn.helpers.linux.percpu import per_cpu_ptr
 from drgn.helpers.linux.cpumask import for_each_cpu,for_each_possible_cpu
+from drgn.helpers.linux.nodemask import for_each_node
 from drgn.helpers.linux.idr import idr_for_each
 
 import argparse
@@ -107,7 +108,6 @@ WQ_AFFN_NUMA            = prog['WQ_AFFN_NUMA']
 WQ_AFFN_SYSTEM          = prog['WQ_AFFN_SYSTEM']
 
 WQ_NAME_LEN             = prog['WQ_NAME_LEN'].value_()
-
 cpumask_str_len         = len(cpumask_str(wq_unbound_cpumask))
 
 print('Affinity Scopes')
@@ -205,3 +205,42 @@ for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(
     print(f' {wq.rescuer.task.pid.value_():6}', end='')
     print(f' {cpumask_str(wq.rescuer.task.cpus_ptr):{rcpus_len}}', end='')
     print('')
+
+print('')
+print('Unbound workqueue -> node_nr/max_active')
+print('=======================================')
+
+if 'node_to_cpumask_map' in prog:
+    __cpu_online_mask = prog['__cpu_online_mask']
+    node_to_cpumask_map = prog['node_to_cpumask_map']
+    nr_node_ids = prog['nr_node_ids'].value_()
+
+    print(f'online_cpus={cpumask_str(__cpu_online_mask.address_of_())}')
+    for node in for_each_node():
+        print(f'NODE[{node:02}]={cpumask_str(node_to_cpumask_map[node])}')
+    print('')
+
+    print(f'[{"workqueue":^{WQ_NAME_LEN-2}}\\ min max', end='')
+    first = True
+    for node in for_each_node():
+        if first:
+            print(f'  NODE {node}', end='')
+            first = False
+        else:
+            print(f' {node:7}', end='')
+    print(f' {"dfl":>7} ]')
+    print('')
+
+    for wq in list_for_each_entry('struct workqueue_struct', workqueues.address_of_(), 'list'):
+        if not (wq.flags & WQ_UNBOUND):
+            continue
+
+        print(f'{wq.name.string_().decode():{WQ_NAME_LEN}} ', end='')
+        print(f'{wq.min_active.value_():3} {wq.max_active.value_():3}', end='')
+        for node in for_each_node():
+            nna = wq.node_nr_active[node]
+            print(f' {nna.nr.counter.value_():3}/{nna.max.value_():3}', end='')
+        nna = wq.node_nr_active[nr_node_ids]
+        print(f' {nna.nr.counter.value_():3}/{nna.max.value_():3}')
+else:
+    printf(f'node_to_cpumask_map not present, is NUMA enabled?')
