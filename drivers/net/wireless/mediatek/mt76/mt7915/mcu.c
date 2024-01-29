@@ -3801,30 +3801,38 @@ int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wlan_idx)
 {
 	struct {
 		__le32 cmd;
-		__le32 num;
-		__le32 __rsv;
-		__le16 wlan_idx;
-	} req = {
+		__le32 arg0;
+		__le32 arg1;
+		__le16 arg2;
+	} __packed req = {
 		.cmd = cpu_to_le32(0x15),
-		.num = cpu_to_le32(1),
-		.wlan_idx = cpu_to_le16(wlan_idx),
 	};
 	struct mt7915_mcu_wa_tx_stat {
-		__le16 wlan_idx;
-		u8 __rsv[2];
+		__le16 wcid;
+		u8 __rsv2[2];
 
 		/* tx_bytes is deprecated since WA byte counter uses u32,
 		 * which easily leads to overflow.
 		 */
 		__le32 tx_bytes;
 		__le32 tx_packets;
-	} *res;
+	} __packed *res;
 	struct mt76_wcid *wcid;
 	struct sk_buff *skb;
-	int ret;
+	int ret, len;
+	u16 ret_wcid;
+
+	if (is_mt7915(&dev->mt76)) {
+		req.arg0 = cpu_to_le32(wlan_idx);
+		len = sizeof(req) - sizeof(req.arg2);
+	} else {
+		req.arg0 = cpu_to_le32(1);
+		req.arg2 = cpu_to_le16(wlan_idx);
+		len = sizeof(req);
+	}
 
 	ret = mt76_mcu_send_and_get_msg(&dev->mt76, MCU_WA_PARAM_CMD(QUERY),
-					&req, sizeof(req), true, &skb);
+					&req, len, true, &skb);
 	if (ret)
 		return ret;
 
@@ -3833,7 +3841,11 @@ int mt7915_mcu_wed_wa_tx_stats(struct mt7915_dev *dev, u16 wlan_idx)
 
 	res = (struct mt7915_mcu_wa_tx_stat *)skb->data;
 
-	if (le16_to_cpu(res->wlan_idx) != wlan_idx) {
+	ret_wcid = le16_to_cpu(res->wcid);
+	if (is_mt7915(&dev->mt76))
+		ret_wcid &= 0xff;
+
+	if (ret_wcid != wlan_idx) {
 		ret = -EINVAL;
 		goto out;
 	}
