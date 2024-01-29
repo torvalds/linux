@@ -23,34 +23,34 @@
 static enum hal_encrypt_type ath12k_dp_rx_h_enctype(struct ath12k_base *ab,
 						    struct hal_rx_desc *desc)
 {
-	if (!ab->hw_params->hal_ops->rx_desc_encrypt_valid(desc))
+	if (!ab->hal_rx_ops->rx_desc_encrypt_valid(desc))
 		return HAL_ENCRYPT_TYPE_OPEN;
 
-	return ab->hw_params->hal_ops->rx_desc_get_encrypt_type(desc);
+	return ab->hal_rx_ops->rx_desc_get_encrypt_type(desc);
 }
 
 u8 ath12k_dp_rx_h_decap_type(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_decap_type(desc);
+	return ab->hal_rx_ops->rx_desc_get_decap_type(desc);
 }
 
 static u8 ath12k_dp_rx_h_mesh_ctl_present(struct ath12k_base *ab,
 					  struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mesh_ctl(desc);
+	return ab->hal_rx_ops->rx_desc_get_mesh_ctl(desc);
 }
 
 static bool ath12k_dp_rx_h_seq_ctrl_valid(struct ath12k_base *ab,
 					  struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mpdu_seq_ctl_vld(desc);
+	return ab->hal_rx_ops->rx_desc_get_mpdu_seq_ctl_vld(desc);
 }
 
 static bool ath12k_dp_rx_h_fc_valid(struct ath12k_base *ab,
 				    struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mpdu_fc_valid(desc);
+	return ab->hal_rx_ops->rx_desc_get_mpdu_fc_valid(desc);
 }
 
 static bool ath12k_dp_rx_h_more_frags(struct ath12k_base *ab,
@@ -74,149 +74,149 @@ static u16 ath12k_dp_rx_h_frag_no(struct ath12k_base *ab,
 static u16 ath12k_dp_rx_h_seq_no(struct ath12k_base *ab,
 				 struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mpdu_start_seq_no(desc);
+	return ab->hal_rx_ops->rx_desc_get_mpdu_start_seq_no(desc);
 }
 
 static bool ath12k_dp_rx_h_msdu_done(struct ath12k_base *ab,
 				     struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->dp_rx_h_msdu_done(desc);
+	return ab->hal_rx_ops->dp_rx_h_msdu_done(desc);
 }
 
 static bool ath12k_dp_rx_h_l4_cksum_fail(struct ath12k_base *ab,
 					 struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->dp_rx_h_l4_cksum_fail(desc);
+	return ab->hal_rx_ops->dp_rx_h_l4_cksum_fail(desc);
 }
 
 static bool ath12k_dp_rx_h_ip_cksum_fail(struct ath12k_base *ab,
 					 struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->dp_rx_h_ip_cksum_fail(desc);
+	return ab->hal_rx_ops->dp_rx_h_ip_cksum_fail(desc);
 }
 
 static bool ath12k_dp_rx_h_is_decrypted(struct ath12k_base *ab,
 					struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->dp_rx_h_is_decrypted(desc);
+	return ab->hal_rx_ops->dp_rx_h_is_decrypted(desc);
 }
 
 u32 ath12k_dp_rx_h_mpdu_err(struct ath12k_base *ab,
 			    struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->dp_rx_h_mpdu_err(desc);
+	return ab->hal_rx_ops->dp_rx_h_mpdu_err(desc);
 }
 
 static u16 ath12k_dp_rx_h_msdu_len(struct ath12k_base *ab,
 				   struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_msdu_len(desc);
+	return ab->hal_rx_ops->rx_desc_get_msdu_len(desc);
 }
 
 static u8 ath12k_dp_rx_h_sgi(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_msdu_sgi(desc);
+	return ab->hal_rx_ops->rx_desc_get_msdu_sgi(desc);
 }
 
 static u8 ath12k_dp_rx_h_rate_mcs(struct ath12k_base *ab,
 				  struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_msdu_rate_mcs(desc);
+	return ab->hal_rx_ops->rx_desc_get_msdu_rate_mcs(desc);
 }
 
 static u8 ath12k_dp_rx_h_rx_bw(struct ath12k_base *ab,
 			       struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_msdu_rx_bw(desc);
+	return ab->hal_rx_ops->rx_desc_get_msdu_rx_bw(desc);
 }
 
 static u32 ath12k_dp_rx_h_freq(struct ath12k_base *ab,
 			       struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_msdu_freq(desc);
+	return ab->hal_rx_ops->rx_desc_get_msdu_freq(desc);
 }
 
 static u8 ath12k_dp_rx_h_pkt_type(struct ath12k_base *ab,
 				  struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_msdu_pkt_type(desc);
+	return ab->hal_rx_ops->rx_desc_get_msdu_pkt_type(desc);
 }
 
 static u8 ath12k_dp_rx_h_nss(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc)
 {
-	return hweight8(ab->hw_params->hal_ops->rx_desc_get_msdu_nss(desc));
+	return hweight8(ab->hal_rx_ops->rx_desc_get_msdu_nss(desc));
 }
 
 static u8 ath12k_dp_rx_h_tid(struct ath12k_base *ab,
 			     struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mpdu_tid(desc);
+	return ab->hal_rx_ops->rx_desc_get_mpdu_tid(desc);
 }
 
 static u16 ath12k_dp_rx_h_peer_id(struct ath12k_base *ab,
 				  struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mpdu_peer_id(desc);
+	return ab->hal_rx_ops->rx_desc_get_mpdu_peer_id(desc);
 }
 
 u8 ath12k_dp_rx_h_l3pad(struct ath12k_base *ab,
 			struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_l3_pad_bytes(desc);
+	return ab->hal_rx_ops->rx_desc_get_l3_pad_bytes(desc);
 }
 
 static bool ath12k_dp_rx_h_first_msdu(struct ath12k_base *ab,
 				      struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_first_msdu(desc);
+	return ab->hal_rx_ops->rx_desc_get_first_msdu(desc);
 }
 
 static bool ath12k_dp_rx_h_last_msdu(struct ath12k_base *ab,
 				     struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_last_msdu(desc);
+	return ab->hal_rx_ops->rx_desc_get_last_msdu(desc);
 }
 
 static void ath12k_dp_rx_desc_end_tlv_copy(struct ath12k_base *ab,
 					   struct hal_rx_desc *fdesc,
 					   struct hal_rx_desc *ldesc)
 {
-	ab->hw_params->hal_ops->rx_desc_copy_end_tlv(fdesc, ldesc);
+	ab->hal_rx_ops->rx_desc_copy_end_tlv(fdesc, ldesc);
 }
 
 static void ath12k_dp_rxdesc_set_msdu_len(struct ath12k_base *ab,
 					  struct hal_rx_desc *desc,
 					  u16 len)
 {
-	ab->hw_params->hal_ops->rx_desc_set_msdu_len(desc, len);
+	ab->hal_rx_ops->rx_desc_set_msdu_len(desc, len);
 }
 
 static bool ath12k_dp_rx_h_is_da_mcbc(struct ath12k_base *ab,
 				      struct hal_rx_desc *desc)
 {
 	return (ath12k_dp_rx_h_first_msdu(ab, desc) &&
-		ab->hw_params->hal_ops->rx_desc_is_da_mcbc(desc));
+		ab->hal_rx_ops->rx_desc_is_da_mcbc(desc));
 }
 
 static bool ath12k_dp_rxdesc_mac_addr2_valid(struct ath12k_base *ab,
 					     struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_mac_addr2_valid(desc);
+	return ab->hal_rx_ops->rx_desc_mac_addr2_valid(desc);
 }
 
 static u8 *ath12k_dp_rxdesc_get_mpdu_start_addr2(struct ath12k_base *ab,
 						 struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_mpdu_start_addr2(desc);
+	return ab->hal_rx_ops->rx_desc_mpdu_start_addr2(desc);
 }
 
 static void ath12k_dp_rx_desc_get_dot11_hdr(struct ath12k_base *ab,
 					    struct hal_rx_desc *desc,
 					    struct ieee80211_hdr *hdr)
 {
-	ab->hw_params->hal_ops->rx_desc_get_dot11_hdr(desc, hdr);
+	ab->hal_rx_ops->rx_desc_get_dot11_hdr(desc, hdr);
 }
 
 static void ath12k_dp_rx_desc_get_crypto_header(struct ath12k_base *ab,
@@ -224,13 +224,13 @@ static void ath12k_dp_rx_desc_get_crypto_header(struct ath12k_base *ab,
 						u8 *crypto_hdr,
 						enum hal_encrypt_type enctype)
 {
-	ab->hw_params->hal_ops->rx_desc_get_crypto_header(desc, crypto_hdr, enctype);
+	ab->hal_rx_ops->rx_desc_get_crypto_header(desc, crypto_hdr, enctype);
 }
 
 static u16 ath12k_dp_rxdesc_get_mpdu_frame_ctrl(struct ath12k_base *ab,
 						struct hal_rx_desc *desc)
 {
-	return ab->hw_params->hal_ops->rx_desc_get_mpdu_frame_ctl(desc);
+	return ab->hal_rx_ops->rx_desc_get_mpdu_frame_ctl(desc);
 }
 
 static int ath12k_dp_purge_mon_ring(struct ath12k_base *ab)
@@ -3935,9 +3935,9 @@ int ath12k_dp_rxdma_ring_sel_config_qcn9274(struct ath12k_base *ab)
 	tlv_filter.rx_packet_offset = hal_rx_desc_sz;
 
 	tlv_filter.rx_mpdu_start_offset =
-			ab->hw_params->hal_ops->rx_desc_get_mpdu_start_offset();
+		ab->hal_rx_ops->rx_desc_get_mpdu_start_offset();
 	tlv_filter.rx_msdu_end_offset =
-		ab->hw_params->hal_ops->rx_desc_get_msdu_end_offset();
+		ab->hal_rx_ops->rx_desc_get_msdu_end_offset();
 
 	/* TODO: Selectively subscribe to required qwords within msdu_end
 	 * and mpdu_start and setup the mask in below msg
@@ -3973,9 +3973,9 @@ int ath12k_dp_rxdma_ring_sel_config_wcn7850(struct ath12k_base *ab)
 	tlv_filter.rx_header_offset = offsetof(struct hal_rx_desc_wcn7850, pkt_hdr_tlv);
 
 	tlv_filter.rx_mpdu_start_offset =
-			ab->hw_params->hal_ops->rx_desc_get_mpdu_start_offset();
+		ab->hal_rx_ops->rx_desc_get_mpdu_start_offset();
 	tlv_filter.rx_msdu_end_offset =
-		ab->hw_params->hal_ops->rx_desc_get_msdu_end_offset();
+		ab->hal_rx_ops->rx_desc_get_msdu_end_offset();
 
 	/* TODO: Selectively subscribe to required qwords within msdu_end
 	 * and mpdu_start and setup the mask in below msg
