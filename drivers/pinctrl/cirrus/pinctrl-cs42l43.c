@@ -490,7 +490,7 @@ static void cs42l43_gpio_set(struct gpio_chip *chip, unsigned int offset, int va
 	int ret;
 
 	dev_dbg(priv->dev, "Setting gpio%d to %s\n",
-		offset + 1, value ? "high" : "low");
+		offset + 1, str_high_low(value));
 
 	ret = pm_runtime_resume_and_get(priv->dev);
 	if (ret) {
