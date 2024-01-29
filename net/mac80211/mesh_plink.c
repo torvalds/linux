@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2019, 2021-2023 Intel Corporation
+ * Copyright (C) 2019, 2021-2024 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 #include <linux/gfp.h>
@@ -226,10 +226,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.self_prot);
 	int err = -ENOMEM;
 
-	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata,
-						NL80211_IFTYPE_MESH_POINT);
-	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata,
-						  NL80211_IFTYPE_MESH_POINT);
+	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata);
+	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata);
 	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
 			    2 + /* capability info */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2018 - 2023 Intel Corporation
+ * Copyright (C) 2018 - 2024 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  * 	       Javier Cardona <javier@cozybit.com>
  */
@@ -981,10 +981,8 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	band = chanctx_conf->def.chan->band;
 	rcu_read_unlock();
 
-	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata,
-						NL80211_IFTYPE_MESH_POINT);
-	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata,
-						  NL80211_IFTYPE_MESH_POINT);
+	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata);
+	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata);
 	head_len = hdr_len +
 		   2 + /* NULL SSID */
 		   /* Channel Switch Announcement */

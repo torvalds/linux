@@ -3272,7 +3272,8 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 	return pos;
 }
 
-u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
+/* this may return more than ieee80211_ie_build_he_cap() will need */
+u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata)
 {
 	const struct ieee80211_sta_he_cap *he_cap;
 	struct ieee80211_supported_band *sband;
@@ -3282,7 +3283,7 @@ u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 	if (!sband)
 		return 0;
 
-	he_cap = ieee80211_get_he_iftype_cap(sband, iftype);
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
 	if (!he_cap)
 		return 0;
 
@@ -5065,7 +5066,8 @@ u16 ieee80211_encode_usf(int listen_interval)
 	return (u16) listen_interval;
 }
 
-u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
+/* this may return more than ieee80211_ie_build_eht_cap() will need */
+u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata)
 {
 	const struct ieee80211_sta_he_cap *he_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap;
@@ -5077,13 +5079,12 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 	if (!sband)
 		return 0;
 
-	he_cap = ieee80211_get_he_iftype_cap(sband, iftype);
-	eht_cap = ieee80211_get_eht_iftype_cap(sband, iftype);
+	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
 	if (!he_cap || !eht_cap)
 		return 0;
 
-	is_ap = iftype == NL80211_IFTYPE_AP ||
-		iftype == NL80211_IFTYPE_P2P_GO;
+	is_ap = sdata->vif.type == NL80211_IFTYPE_AP;
 
 	n = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
 				       &eht_cap->eht_cap_elem,
