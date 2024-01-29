@@ -1063,16 +1063,6 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
 
-#if IS_ENABLED(CONFIG_SND_HDA_SCODEC_CS35L56_KUNIT_TEST)
-/* Hooks to export static function to KUnit test */
-
-int cs35l56_hda_test_hook_get_speaker_id(struct device *dev, int amp_index, int num_amps)
-{
-	return cs35l56_hda_get_speaker_id(dev, amp_index, num_amps);
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_test_hook_get_speaker_id, SND_HDA_SCODEC_CS35L56);
-#endif
-
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
 MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);
 MODULE_IMPORT_NS(SND_HDA_CS_DSP_CONTROLS);
