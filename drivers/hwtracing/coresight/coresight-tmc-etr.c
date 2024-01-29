@@ -1237,7 +1237,7 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 
 	ret = tmc_etr_enable_hw(drvdata, sysfs_buf);
 	if (!ret) {
-		local_set(&csdev->mode, CS_MODE_SYSFS);
+		coresight_set_mode(csdev, CS_MODE_SYSFS);
 		csdev->refcnt++;
 	}
 
@@ -1684,7 +1684,7 @@ static int tmc_enable_etr_sink_perf(struct coresight_device *csdev, void *data)
 	if (!rc) {
 		/* Associate with monitored process. */
 		drvdata->pid = pid;
-		local_set(&csdev->mode, CS_MODE_PERF);
+		coresight_set_mode(csdev, CS_MODE_PERF);
 		drvdata->perf_buf = etr_perf->etr_buf;
 		csdev->refcnt++;
 	}
@@ -1730,7 +1730,7 @@ static int tmc_disable_etr_sink(struct coresight_device *csdev)
 	tmc_etr_disable_hw(drvdata);
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
-	local_set(&csdev->mode, CS_MODE_DISABLED);
+	coresight_set_mode(csdev, CS_MODE_DISABLED);
 	/* Reset perf specific data */
 	drvdata->perf_buf = NULL;
 

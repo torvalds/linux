@@ -158,7 +158,7 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 		if (ret)
 			goto out;
 
-		local_set(&csdev->mode, CS_MODE_SYSFS);
+		coresight_set_mode(csdev, CS_MODE_SYSFS);
 	}
 
 	csdev->refcnt++;
@@ -214,7 +214,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	if (!ret) {
 		/* Associate with monitored process. */
 		drvdata->pid = pid;
-		local_set(&drvdata->csdev->mode, CS_MODE_PERF);
+		coresight_set_mode(drvdata->csdev, CS_MODE_PERF);
 		csdev->refcnt++;
 	}
 
@@ -365,7 +365,7 @@ static int etb_disable(struct coresight_device *csdev)
 	etb_disable_hw(drvdata);
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
-	local_set(&csdev->mode, CS_MODE_DISABLED);
+	coresight_set_mode(csdev, CS_MODE_DISABLED);
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
 	dev_dbg(&csdev->dev, "ETB disabled\n");

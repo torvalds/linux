@@ -211,7 +211,7 @@ static void smb_enable_sysfs(struct coresight_device *csdev)
 		return;
 
 	smb_enable_hw(drvdata);
-	local_set(&csdev->mode, CS_MODE_SYSFS);
+	coresight_set_mode(csdev, CS_MODE_SYSFS);
 }
 
 static int smb_enable_perf(struct coresight_device *csdev, void *data)
@@ -234,7 +234,7 @@ static int smb_enable_perf(struct coresight_device *csdev, void *data)
 	if (drvdata->pid == -1) {
 		smb_enable_hw(drvdata);
 		drvdata->pid = pid;
-		local_set(&csdev->mode, CS_MODE_PERF);
+		coresight_set_mode(csdev, CS_MODE_PERF);
 	}
 
 	return 0;
@@ -297,7 +297,7 @@ static int smb_disable(struct coresight_device *csdev)
 
 	/* Dissociate from the target process. */
 	drvdata->pid = -1;
-	local_set(&csdev->mode, CS_MODE_DISABLED);
+	coresight_set_mode(csdev, CS_MODE_DISABLED);
 	dev_dbg(&csdev->dev, "Ultrasoc SMB disabled\n");
 
 	return 0;

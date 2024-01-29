@@ -272,7 +272,7 @@ static void stm_disable(struct coresight_device *csdev,
 
 		pm_runtime_put(csdev->dev.parent);
 
-		local_set(&csdev->mode, CS_MODE_DISABLED);
+		coresight_set_mode(csdev, CS_MODE_DISABLED);
 		dev_dbg(&csdev->dev, "STM tracing disabled\n");
 	}
 }

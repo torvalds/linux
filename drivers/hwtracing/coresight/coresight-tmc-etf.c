@@ -228,7 +228,7 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 
 	ret = tmc_etb_enable_hw(drvdata);
 	if (!ret) {
-		local_set(&csdev->mode, CS_MODE_SYSFS);
+		coresight_set_mode(csdev, CS_MODE_SYSFS);
 		csdev->refcnt++;
 	} else {
 		/* Free up the buffer if we failed to enable */
@@ -292,7 +292,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 		if (!ret) {
 			/* Associate with monitored process. */
 			drvdata->pid = pid;
-			local_set(&csdev->mode, CS_MODE_PERF);
+			coresight_set_mode(csdev, CS_MODE_PERF);
 			csdev->refcnt++;
 		}
 	} while (0);
@@ -349,7 +349,7 @@ static int tmc_disable_etf_sink(struct coresight_device *csdev)
 	tmc_etb_disable_hw(drvdata);
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
-	local_set(&csdev->mode, CS_MODE_DISABLED);
+	coresight_set_mode(csdev, CS_MODE_DISABLED);
 
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 
@@ -375,7 +375,7 @@ static int tmc_enable_etf_link(struct coresight_device *csdev,
 	if (csdev->refcnt == 0) {
 		ret = tmc_etf_enable_hw(drvdata);
 		if (!ret) {
-			local_set(&csdev->mode, CS_MODE_SYSFS);
+			coresight_set_mode(csdev, CS_MODE_SYSFS);
 			first_enable = true;
 		}
 	}
@@ -405,7 +405,7 @@ static void tmc_disable_etf_link(struct coresight_device *csdev,
 	csdev->refcnt--;
 	if (csdev->refcnt == 0) {
 		tmc_etf_disable_hw(drvdata);
-		local_set(&csdev->mode, CS_MODE_DISABLED);
+		coresight_set_mode(csdev, CS_MODE_DISABLED);
 		last_disable = true;
 	}
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);

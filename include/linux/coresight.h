@@ -596,6 +596,22 @@ static inline enum cs_mode coresight_get_mode(struct coresight_device *csdev)
 	return local_read(&csdev->mode);
 }
 
+static inline void coresight_set_mode(struct coresight_device *csdev,
+				      enum cs_mode new_mode)
+{
+	enum cs_mode current_mode = coresight_get_mode(csdev);
+
+	/*
+	 * Changing to a new mode must be done from an already disabled state
+	 * unless it's synchronized with coresight_take_mode(). Otherwise the
+	 * device is already in use and signifies a locking issue.
+	 */
+	WARN(new_mode != CS_MODE_DISABLED && current_mode != CS_MODE_DISABLED &&
+	     current_mode != new_mode, "Device already in use\n");
+
+	local_set(&csdev->mode, new_mode);
+}
+
 extern struct coresight_device *
 coresight_register(struct coresight_desc *desc);
 extern void coresight_unregister(struct coresight_device *csdev);

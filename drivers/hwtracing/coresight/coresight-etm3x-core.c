@@ -576,7 +576,7 @@ static int etm_enable(struct coresight_device *csdev, struct perf_event *event,
 
 	/* The tracer didn't start */
 	if (ret)
-		local_set(&drvdata->csdev->mode, CS_MODE_DISABLED);
+		coresight_set_mode(drvdata->csdev, CS_MODE_DISABLED);
 
 	return ret;
 }
@@ -693,7 +693,7 @@ static void etm_disable(struct coresight_device *csdev,
 	}
 
 	if (mode)
-		local_set(&csdev->mode, CS_MODE_DISABLED);
+		coresight_set_mode(csdev, CS_MODE_DISABLED);
 }
 
 static const struct coresight_ops_source etm_source_ops = {
