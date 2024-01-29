@@ -25,7 +25,6 @@
 
 struct bcm2835_pwm {
 	struct pwm_chip chip;
-	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
 	unsigned long rate;
@@ -141,8 +140,6 @@ static int bcm2835_pwm_probe(struct platform_device *pdev)
 	pc = devm_kzalloc(&pdev->dev, sizeof(*pc), GFP_KERNEL);
 	if (!pc)
 		return -ENOMEM;
-
-	pc->dev = &pdev->dev;
 
 	pc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->base))
