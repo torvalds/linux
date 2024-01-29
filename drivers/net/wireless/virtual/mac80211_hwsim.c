@@ -213,6 +213,7 @@ static const struct ieee80211_regdomain *hwsim_world_regdom_custom[] = {
 
 struct hwsim_vif_priv {
 	u32 magic;
+	u32 skip_beacons;
 	u8 bssid[ETH_ALEN];
 	bool assoc;
 	bool bcn_en;
@@ -2128,6 +2129,16 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+static void mac80211_hwsim_vif_add_debugfs(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif)
+{
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+
+	debugfs_create_u32("skip_beacons", 0600, vif->debugfs_dir,
+			   &vp->skip_beacons);
+}
+#endif
 
 static int mac80211_hwsim_change_interface(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
@@ -2193,11 +2204,18 @@ static void __mac80211_hwsim_beacon_tx(struct ieee80211_bss_conf *link_conf,
 				       struct ieee80211_vif *vif,
 				       struct sk_buff *skb)
 {
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_rate *txrate;
 	struct ieee80211_mgmt *mgmt;
 	/* TODO: get MCS */
 	int bitrate = 100;
+
+	if (vp->skip_beacons) {
+		vp->skip_beacons--;
+		dev_kfree_skb(skb);
+		return;
+	}
 
 	info = IEEE80211_SKB_CB(skb);
 	if (ieee80211_hw_check(hw, SUPPORTS_RC_TABLE))
@@ -3857,6 +3875,13 @@ out:
 	return err;
 }
 
+#ifdef CONFIG_MAC80211_DEBUGFS
+#define HWSIM_DEBUGFS_OPS					\
+	.vif_add_debugfs = mac80211_hwsim_vif_add_debugfs,
+#else
+#define HWSIM_DEBUGFS_OPS
+#endif
+
 #define HWSIM_COMMON_OPS					\
 	.tx = mac80211_hwsim_tx,				\
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,	\
@@ -3881,7 +3906,8 @@ out:
 	.get_et_stats = mac80211_hwsim_get_et_stats,		\
 	.get_et_strings = mac80211_hwsim_get_et_strings,	\
 	.start_pmsr = mac80211_hwsim_start_pmsr,		\
-	.abort_pmsr = mac80211_hwsim_abort_pmsr,
+	.abort_pmsr = mac80211_hwsim_abort_pmsr,		\
+	HWSIM_DEBUGFS_OPS
 
 #define HWSIM_NON_MLO_OPS					\
 	.sta_add = mac80211_hwsim_sta_add,			\
