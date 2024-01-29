@@ -4365,8 +4365,9 @@ EXPORT_SYMBOL(ieee80211_radar_detected);
 void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 				 struct ieee80211_conn_settings *conn)
 {
+	/* no-HT indicates nothing to do */
+	enum nl80211_chan_width new_primary_width = NL80211_CHAN_WIDTH_20_NOHT;
 	struct ieee80211_conn_settings _ignored = {};
-	int tmp;
 
 	/* allow passing NULL if caller doesn't care */
 	if (!conn)
@@ -4390,12 +4391,7 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_20;
 		break;
 	case NL80211_CHAN_WIDTH_80:
-		tmp = (30 + c->chan->center_freq - c->center_freq1)/20;
-		/* n_P40 */
-		tmp /= 2;
-		/* freq_P40 */
-		c->center_freq1 = c->center_freq1 - 20 + 40 * tmp;
-		c->width = NL80211_CHAN_WIDTH_40;
+		new_primary_width = NL80211_CHAN_WIDTH_40;
 		if (conn->mode == IEEE80211_CONN_MODE_VHT)
 			conn->mode = IEEE80211_CONN_MODE_HT;
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_40;
@@ -4406,21 +4402,11 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_80;
 		break;
 	case NL80211_CHAN_WIDTH_160:
-		/* n_P20 */
-		tmp = (70 + c->chan->center_freq - c->center_freq1)/20;
-		/* n_P80 */
-		tmp /= 4;
-		c->center_freq1 = c->center_freq1 - 40 + 80 * tmp;
-		c->width = NL80211_CHAN_WIDTH_80;
+		new_primary_width = NL80211_CHAN_WIDTH_80;
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_80;
 		break;
 	case NL80211_CHAN_WIDTH_320:
-		/* n_P20 */
-		tmp = (150 + c->chan->center_freq - c->center_freq1) / 20;
-		/* n_P160 */
-		tmp /= 8;
-		c->center_freq1 = c->center_freq1 - 80 + 160 * tmp;
-		c->width = NL80211_CHAN_WIDTH_160;
+		new_primary_width = NL80211_CHAN_WIDTH_160;
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_160;
 		break;
 	case NL80211_CHAN_WIDTH_1:
@@ -4440,6 +4426,12 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 		conn->mode = IEEE80211_CONN_MODE_LEGACY;
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_20;
 		break;
+	}
+
+	if (new_primary_width != NL80211_CHAN_WIDTH_20_NOHT) {
+		c->center_freq1 =
+			cfg80211_chandef_primary_freq(c, new_primary_width);
+		c->width = new_primary_width;
 	}
 
 	WARN_ON_ONCE(!cfg80211_chandef_valid(c));
