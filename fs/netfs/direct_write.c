@@ -139,6 +139,9 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 
 	_enter("%llx,%zx,%llx", iocb->ki_pos, iov_iter_count(from), i_size_read(inode));
 
+	if (!iov_iter_count(from))
+		return 0;
+
 	trace_netfs_write_iter(iocb, from);
 	netfs_stat(&netfs_n_rh_dio_write);
 
@@ -146,7 +149,7 @@ ssize_t netfs_unbuffered_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	if (ret < 0)
 		return ret;
 	ret = generic_write_checks(iocb, from);
-	if (ret < 0)
+	if (ret <= 0)
 		goto out;
 	ret = file_remove_privs(file);
 	if (ret < 0)
