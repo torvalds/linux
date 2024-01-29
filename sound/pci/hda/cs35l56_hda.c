@@ -483,6 +483,20 @@ static void cs35l56_hda_request_firmware_files(struct cs35l56_hda *cs35l56,
 								  NULL, "bin");
 			return;
 		}
+
+		/*
+		 * Check for system-specific bin files without wmfw before
+		 * falling back to generic firmware
+		 */
+		if (amp_name)
+			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
+							  cirrus_dir, system_name, amp_name, "bin");
+		if (!*coeff_firmware)
+			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
+							  cirrus_dir, system_name, NULL, "bin");
+
+		if (*coeff_firmware)
+			return;
 	}
 
 	ret = cs35l56_hda_request_firmware_file(cs35l56, wmfw_firmware, wmfw_filename,
@@ -491,16 +505,6 @@ static void cs35l56_hda_request_firmware_files(struct cs35l56_hda *cs35l56,
 		cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
 						  cirrus_dir, NULL, NULL, "bin");
 		return;
-	}
-
-	/* When a firmware file is not found must still search for the coeff files */
-	if (system_name) {
-		if (amp_name)
-			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  cirrus_dir, system_name, amp_name, "bin");
-		if (!*coeff_firmware)
-			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  cirrus_dir, system_name, NULL, "bin");
 	}
 
 	if (!*coeff_firmware)
