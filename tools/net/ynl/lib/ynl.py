@@ -720,6 +720,20 @@ class YnlFamily(SpecFamily):
                 fixed_header_attrs[m.name] = value
         return fixed_header_attrs
 
+    def _encode_struct(self, name, vals):
+        members = self.consts[name].members
+        attr_payload = b''
+        for m in members:
+            value = vals.pop(m.name) if m.name in vals else 0
+            if m.type == 'pad':
+                attr_payload += bytearray(m.len)
+            elif m.type == 'binary':
+                attr_payload += bytes.fromhex(value)
+            else:
+                format = NlAttr.get_format(m.type, m.byte_order)
+                attr_payload += format.pack(value)
+        return attr_payload
+
     def handle_ntf(self, decoded):
         msg = dict()
         if self.include_raw:
@@ -779,18 +793,8 @@ class YnlFamily(SpecFamily):
 
         req_seq = random.randint(1024, 65535)
         msg = self.nlproto.message(nl_flags, op.req_value, 1, req_seq)
-        fixed_header_members = []
         if op.fixed_header:
-            fixed_header_members = self.consts[op.fixed_header].members
-            for m in fixed_header_members:
-                value = vals.pop(m.name) if m.name in vals else 0
-                if m.type == 'pad':
-                    msg += bytearray(m.len)
-                elif m.type == 'binary':
-                    msg += bytes.fromhex(value)
-                else:
-                    format = NlAttr.get_format(m.type, m.byte_order)
-                    msg += format.pack(value)
+            msg += self._encode_struct(op.fixed_header, vals)
         for name, value in vals.items():
             msg += self._add_attr(op.attr_set.name, name, value)
         msg = _genl_msg_finalize(msg)
