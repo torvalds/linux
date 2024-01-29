@@ -46,6 +46,25 @@ pub trait ForeignOwnable: Sized {
     /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow`] for
     /// this object must have been dropped.
     unsafe fn from_foreign(ptr: *const core::ffi::c_void) -> Self;
+
+    /// Tries to convert a foreign-owned object back to a Rust-owned one.
+    ///
+    /// A convenience wrapper over [`ForeignOwnable::from_foreign`] that returns [`None`] if `ptr`
+    /// is null.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must either be null or satisfy the safety requirements for
+    /// [`ForeignOwnable::from_foreign`].
+    unsafe fn try_from_foreign(ptr: *const core::ffi::c_void) -> Option<Self> {
+        if ptr.is_null() {
+            None
+        } else {
+            // SAFETY: Since `ptr` is not null here, then `ptr` satisfies the safety requirements
+            // of `from_foreign` given the safety requirements of this function.
+            unsafe { Some(Self::from_foreign(ptr)) }
+        }
+    }
 }
 
 impl<T: 'static> ForeignOwnable for Box<T> {
