@@ -6,7 +6,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 
 #include <linux/jiffies.h>
@@ -1251,8 +1251,7 @@ static bool ieee80211_sta_manage_reorder_buf(struct ieee80211_sub_if_data *sdata
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
-	u16 sc = le16_to_cpu(hdr->seq_ctrl);
-	u16 mpdu_seq_num = (sc & IEEE80211_SCTL_SEQ) >> 4;
+	u16 mpdu_seq_num = ieee80211_get_sn(hdr);
 	u16 head_seq_num, buf_size;
 	int index;
 	bool ret = true;

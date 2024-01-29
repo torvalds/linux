@@ -9,7 +9,7 @@
  * Copyright (c) 2006, Michael Wu <flamingice@sourmilk.net>
  * Copyright (c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (c) 2018 - 2023 Intel Corporation
+ * Copyright (c) 2018 - 2024 Intel Corporation
  */
 
 #ifndef LINUX_IEEE80211_H
@@ -806,6 +806,11 @@ static inline bool ieee80211_is_frag(struct ieee80211_hdr *hdr)
 {
 	return ieee80211_has_morefrags(hdr->frame_control) ||
 	       hdr->seq_ctrl & cpu_to_le16(IEEE80211_SCTL_FRAG);
+}
+
+static inline u16 ieee80211_get_sn(struct ieee80211_hdr *hdr)
+{
+	return le16_get_bits(hdr->seq_ctrl, IEEE80211_SCTL_SEQ);
 }
 
 struct ieee80211s_hdr {
