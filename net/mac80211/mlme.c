@@ -116,7 +116,7 @@ ieee80211_extract_dis_subch_bmap(const struct ieee80211_eht_operation *eht_oper,
 
 	/* set 160/320 supported to get the full AP definition */
 	ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
-				   true, true, &ap_chandef);
+				   &ap_chandef);
 	ap_center_freq = ap_chandef.center_freq1;
 	ap_bw = 20 * BIT(u8_get_bits(info->control,
 				     IEEE80211_EHT_OPER_CHAN_WIDTH));
@@ -280,7 +280,7 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 			mode = IEEE80211_CONN_MODE_HE;
 		}
 
-		if (!ieee80211_chandef_he_6ghz_oper(sdata, he_oper,
+		if (!ieee80211_chandef_he_6ghz_oper(sdata->local, he_oper,
 						    eht_oper, chandef)) {
 			sdata_info(sdata, "bad HE/EHT 6 GHz operation\n");
 			return IEEE80211_CONN_MODE_LEGACY;
@@ -394,9 +394,7 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 		struct cfg80211_chan_def eht_chandef = *chandef;
 
 		ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
-					   eht_chandef.width ==
-					   NL80211_CHAN_WIDTH_160,
-					   false, &eht_chandef);
+					   &eht_chandef);
 
 		if (!cfg80211_chandef_valid(&eht_chandef)) {
 			sdata_info(sdata,

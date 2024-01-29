@@ -3841,7 +3841,6 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 }
 
 void ieee80211_chandef_eht_oper(const struct ieee80211_eht_operation_info *info,
-				bool support_160, bool support_320,
 				struct cfg80211_chan_def *chandef)
 {
 	chandef->center_freq1 =
@@ -3860,80 +3859,34 @@ void ieee80211_chandef_eht_oper(const struct ieee80211_eht_operation_info *info,
 		chandef->width = NL80211_CHAN_WIDTH_80;
 		break;
 	case IEEE80211_EHT_OPER_CHAN_WIDTH_160MHZ:
-		if (support_160) {
-			chandef->width = NL80211_CHAN_WIDTH_160;
-			chandef->center_freq1 =
-				ieee80211_channel_to_frequency(info->ccfs1,
-							       chandef->chan->band);
-		} else {
-			chandef->width = NL80211_CHAN_WIDTH_80;
-		}
+		chandef->width = NL80211_CHAN_WIDTH_160;
+		chandef->center_freq1 =
+			ieee80211_channel_to_frequency(info->ccfs1,
+						       chandef->chan->band);
 		break;
 	case IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ:
-		if (support_320) {
-			chandef->width = NL80211_CHAN_WIDTH_320;
-			chandef->center_freq1 =
-				ieee80211_channel_to_frequency(info->ccfs1,
-							       chandef->chan->band);
-		} else if (support_160) {
-			chandef->width = NL80211_CHAN_WIDTH_160;
-		} else {
-			chandef->width = NL80211_CHAN_WIDTH_80;
-
-			if (chandef->center_freq1 > chandef->chan->center_freq)
-				chandef->center_freq1 -= 40;
-			else
-				chandef->center_freq1 += 40;
-		}
+		chandef->width = NL80211_CHAN_WIDTH_320;
+		chandef->center_freq1 =
+			ieee80211_channel_to_frequency(info->ccfs1,
+						       chandef->chan->band);
 		break;
 	}
 }
 
-bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
+bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_local *local,
 				    const struct ieee80211_he_operation *he_oper,
 				    const struct ieee80211_eht_operation *eht_oper,
 				    struct cfg80211_chan_def *chandef)
 {
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
-	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
-	const struct ieee80211_sta_he_cap *he_cap;
-	const struct ieee80211_sta_eht_cap *eht_cap;
 	struct cfg80211_chan_def he_chandef = *chandef;
 	const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
-	bool support_80_80, support_160, support_320;
-	u8 he_phy_cap, eht_phy_cap;
 	u32 freq;
 
 	if (chandef->chan->band != NL80211_BAND_6GHZ)
 		return true;
 
-	sband = local->hw.wiphy->bands[NL80211_BAND_6GHZ];
-
-	he_cap = ieee80211_get_he_iftype_cap(sband, iftype);
-	if (!he_cap) {
-		sdata_info(sdata, "Missing iftype sband data/HE cap");
+	if (!he_oper)
 		return false;
-	}
-
-	he_phy_cap = he_cap->he_cap_elem.phy_cap_info[0];
-	support_160 =
-		he_phy_cap &
-		IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
-	support_80_80 =
-		he_phy_cap &
-		IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G;
-
-	if (!he_oper) {
-		sdata_info(sdata,
-			   "HE is not advertised on (on %d MHz), expect issues\n",
-			   chandef->chan->center_freq);
-		return false;
-	}
-
-	eht_cap = ieee80211_get_eht_iftype_cap(sband, iftype);
-	if (!eht_cap)
-		eht_oper = NULL;
 
 	he_6ghz_oper = ieee80211_he_6ghz_oper(he_oper);
 	if (!he_6ghz_oper)
@@ -3946,7 +3899,10 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 	 */
 	freq = ieee80211_channel_to_frequency(he_6ghz_oper->primary,
 					      NL80211_BAND_6GHZ);
-	he_chandef.chan = ieee80211_get_channel(sdata->local->hw.wiphy, freq);
+	he_chandef.chan = ieee80211_get_channel(local->hw.wiphy, freq);
+
+	if (!he_chandef.chan)
+		return false;
 
 	if (!eht_oper ||
 	    !(eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT)) {
@@ -3965,13 +3921,10 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 			he_chandef.width = NL80211_CHAN_WIDTH_80;
 			if (!he_6ghz_oper->ccfs1)
 				break;
-			if (abs(he_6ghz_oper->ccfs1 - he_6ghz_oper->ccfs0) == 8) {
-				if (support_160)
-					he_chandef.width = NL80211_CHAN_WIDTH_160;
-			} else {
-				if (support_80_80)
-					he_chandef.width = NL80211_CHAN_WIDTH_80P80;
-			}
+			if (abs(he_6ghz_oper->ccfs1 - he_6ghz_oper->ccfs0) == 8)
+				he_chandef.width = NL80211_CHAN_WIDTH_160;
+			else
+				he_chandef.width = NL80211_CHAN_WIDTH_80P80;
 			break;
 		}
 
@@ -3983,30 +3936,17 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 			he_chandef.center_freq1 =
 				ieee80211_channel_to_frequency(he_6ghz_oper->ccfs0,
 							       NL80211_BAND_6GHZ);
-			if (support_80_80 || support_160)
-				he_chandef.center_freq2 =
-					ieee80211_channel_to_frequency(he_6ghz_oper->ccfs1,
-								       NL80211_BAND_6GHZ);
+			he_chandef.center_freq2 =
+				ieee80211_channel_to_frequency(he_6ghz_oper->ccfs1,
+							       NL80211_BAND_6GHZ);
 		}
 	} else {
-		eht_phy_cap = eht_cap->eht_cap_elem.phy_cap_info[0];
-		support_320 =
-			eht_phy_cap & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
-
 		ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
-					   support_160, support_320,
 					   &he_chandef);
 	}
 
-	if (!cfg80211_chandef_valid(&he_chandef)) {
-		sdata_info(sdata,
-			   "HE 6GHz operation resulted in invalid chandef: %d MHz/%d/%d MHz/%d MHz\n",
-			   he_chandef.chan ? he_chandef.chan->center_freq : 0,
-			   he_chandef.width,
-			   he_chandef.center_freq1,
-			   he_chandef.center_freq2);
+	if (!cfg80211_chandef_valid(&he_chandef))
 		return false;
-	}
 
 	*chandef = he_chandef;
 

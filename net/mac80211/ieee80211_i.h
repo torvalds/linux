@@ -2512,9 +2512,8 @@ bool ieee80211_chandef_vht_oper(struct ieee80211_hw *hw, u32 vht_cap_info,
 				const struct ieee80211_ht_operation *htop,
 				struct cfg80211_chan_def *chandef);
 void ieee80211_chandef_eht_oper(const struct ieee80211_eht_operation_info *info,
-				bool support_160, bool support_320,
 				struct cfg80211_chan_def *chandef);
-bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
+bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_local *local,
 				    const struct ieee80211_he_operation *he_oper,
 				    const struct ieee80211_eht_operation *eht_oper,
 				    struct cfg80211_chan_def *chandef);

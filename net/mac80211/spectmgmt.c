@@ -139,9 +139,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		/* start with the CSA one */
 		new_vht_chandef = csa_ie->chandef;
 		/* and update the width accordingly */
-		/* FIXME: support 160/320 */
-		ieee80211_chandef_eht_oper(&bwi->info, true, true,
-					   &new_vht_chandef);
+		ieee80211_chandef_eht_oper(&bwi->info, &new_vht_chandef);
 	} else if (wide_bw_chansw_ie) {
 		u8 new_seg1 = wide_bw_chansw_ie->new_center_freq_seg1;
 		struct ieee80211_vht_operation vht_oper = {
