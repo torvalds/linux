@@ -17,6 +17,11 @@ enum ath12k_fw_ie_type {
 };
 
 enum ath12k_fw_features {
+	/* The firmware supports setting the QRTR id via register
+	 * PCIE_LOCAL_REG_QRTR_NODE_ID
+	 */
+	ATH12K_FW_FEATURE_MULTI_QRTR_ID = 0,
+
 	/* keep last */
 	ATH12K_FW_FEATURE_COUNT,
 };
