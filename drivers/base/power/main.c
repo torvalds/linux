@@ -1304,17 +1304,11 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 	while (!list_empty(&dpm_late_early_list)) {
 		struct device *dev = to_device(dpm_late_early_list.prev);
 
+		list_move(&dev->power.entry, &dpm_noirq_list);
 		get_device(dev);
 		mutex_unlock(&dpm_list_mtx);
 
 		error = device_suspend_noirq(dev);
-
-		mutex_lock(&dpm_list_mtx);
-
-		if (!error && !list_empty(&dev->power.entry))
-			list_move(&dev->power.entry, &dpm_noirq_list);
-
-		mutex_unlock(&dpm_list_mtx);
 
 		put_device(dev);
 
@@ -1486,18 +1480,12 @@ int dpm_suspend_late(pm_message_t state)
 	while (!list_empty(&dpm_suspended_list)) {
 		struct device *dev = to_device(dpm_suspended_list.prev);
 
+		list_move(&dev->power.entry, &dpm_late_early_list);
 		get_device(dev);
 
 		mutex_unlock(&dpm_list_mtx);
 
 		error = device_suspend_late(dev);
-
-		mutex_lock(&dpm_list_mtx);
-
-		if (!list_empty(&dev->power.entry))
-			list_move(&dev->power.entry, &dpm_late_early_list);
-
-		mutex_unlock(&dpm_list_mtx);
 
 		put_device(dev);
 
@@ -1763,18 +1751,12 @@ int dpm_suspend(pm_message_t state)
 	while (!list_empty(&dpm_prepared_list)) {
 		struct device *dev = to_device(dpm_prepared_list.prev);
 
+		list_move(&dev->power.entry, &dpm_suspended_list);
 		get_device(dev);
 
 		mutex_unlock(&dpm_list_mtx);
 
 		error = device_suspend(dev);
-
-		mutex_lock(&dpm_list_mtx);
-
-		if (!error && !list_empty(&dev->power.entry))
-			list_move(&dev->power.entry, &dpm_suspended_list);
-
-		mutex_unlock(&dpm_list_mtx);
 
 		put_device(dev);
 
