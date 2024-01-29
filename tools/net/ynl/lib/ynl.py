@@ -674,7 +674,10 @@ class YnlFamily(SpecFamily):
             size = 0
             for m in members:
                 if m.type in ['pad', 'binary']:
-                    size += m.len
+                    if m.struct:
+                        size += self._struct_size(m.struct)
+                    else:
+                        size += m.len
                 else:
                     format = NlAttr.get_format(m.type, m.byte_order)
                     size += format.size
@@ -691,8 +694,14 @@ class YnlFamily(SpecFamily):
             if m.type == 'pad':
                 offset += m.len
             elif m.type == 'binary':
-                value = data[offset : offset + m.len]
-                offset += m.len
+                if m.struct:
+                    len = self._struct_size(m.struct)
+                    value = self._decode_struct(data[offset : offset + len],
+                                                m.struct)
+                    offset += len
+                else:
+                    value = data[offset : offset + m.len]
+                    offset += m.len
             else:
                 format = NlAttr.get_format(m.type, m.byte_order)
                 [ value ] = format.unpack_from(data, offset)
@@ -713,10 +722,15 @@ class YnlFamily(SpecFamily):
             if m.type == 'pad':
                 attr_payload += bytearray(m.len)
             elif m.type == 'binary':
-                if value is None:
-                    attr_payload += bytearray(m.len)
+                if m.struct:
+                    if value is None:
+                        value = dict()
+                    attr_payload += self._encode_struct(m.struct, value)
                 else:
-                    attr_payload += bytes.fromhex(value)
+                    if value is None:
+                        attr_payload += bytearray(m.len)
+                    else:
+                        attr_payload += bytes.fromhex(value)
             else:
                 if value is None:
                     value = 0
