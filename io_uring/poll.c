@@ -228,6 +228,21 @@ enum {
 	IOU_POLL_REISSUE = 3,
 };
 
+static void __io_poll_execute(struct io_kiocb *req, int mask)
+{
+	io_req_set_res(req, mask, 0);
+	req->io_task_work.func = io_poll_task_func;
+
+	trace_io_uring_task_add(req, mask);
+	io_req_task_work_add(req);
+}
+
+static inline void io_poll_execute(struct io_kiocb *req, int res)
+{
+	if (io_poll_get_ownership(req))
+		__io_poll_execute(req, res);
+}
+
 /*
  * All poll tw should go through this. Checks for poll events, manages
  * references, does rewait, etc.
@@ -362,21 +377,6 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 		else
 			io_req_defer_failed(req, ret);
 	}
-}
-
-static void __io_poll_execute(struct io_kiocb *req, int mask)
-{
-	io_req_set_res(req, mask, 0);
-	req->io_task_work.func = io_poll_task_func;
-
-	trace_io_uring_task_add(req, mask);
-	io_req_task_work_add(req);
-}
-
-static inline void io_poll_execute(struct io_kiocb *req, int res)
-{
-	if (io_poll_get_ownership(req))
-		__io_poll_execute(req, res);
 }
 
 static void io_poll_cancel_req(struct io_kiocb *req)
