@@ -1666,6 +1666,13 @@ struct ieee80211_csa_ie {
 	u32 max_switch_time;
 };
 
+enum ieee80211_elems_parse_error {
+	IEEE80211_PARSE_ERR_INVALID_END		= BIT(0),
+	IEEE80211_PARSE_ERR_DUP_ELEM		= BIT(1),
+	IEEE80211_PARSE_ERR_BAD_ELEM_SIZE	= BIT(2),
+	IEEE80211_PARSE_ERR_UNEXPECTED_ELEM	= BIT(3),
+};
+
 /* Parsed Information Elements */
 struct ieee802_11_elems {
 	const u8 *ie_start;
@@ -1776,8 +1783,8 @@ struct ieee802_11_elems {
 	struct ieee80211_mle_per_sta_profile *prof;
 	size_t sta_prof_len;
 
-	/* whether a parse error occurred while retrieving these elements */
-	bool parse_error;
+	/* whether/which parse error occurred while retrieving these elements */
+	u8 parse_error;
 
 	/*
 	 * scratch buffer that can be used for various element parsing related
