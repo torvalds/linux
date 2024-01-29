@@ -56,8 +56,8 @@ enum suspend_stat_step {
 
 struct suspend_stats {
 	unsigned int step_failures[SUSPEND_NR_STEPS];
-	int	success;
-	int	fail;
+	unsigned int success;
+	unsigned int fail;
 #define	REC_FAILED_NUM	2
 	int	last_failed_dev;
 	char	failed_devs[REC_FAILED_NUM][40];

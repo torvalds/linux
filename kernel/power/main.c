@@ -339,8 +339,8 @@ static ssize_t _name##_show(struct kobject *kobj,		\
 }								\
 static struct kobj_attribute _name = __ATTR_RO(_name)
 
-suspend_attr(success, "%d\n");
-suspend_attr(fail, "%d\n");
+suspend_attr(success, "%u\n");
+suspend_attr(fail, "%u\n");
 suspend_attr(last_hw_sleep, "%llu\n");
 suspend_attr(total_hw_sleep, "%llu\n");
 suspend_attr(max_hw_sleep, "%llu\n");
@@ -458,7 +458,7 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 	last_step = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	last_step %= REC_FAILED_NUM;
 
-	seq_printf(s, "success: %d\nfail: %d\n",
+	seq_printf(s, "success: %u\nfail: %u\n",
 		   suspend_stats.success, suspend_stats.fail);
 
 	for (step = SUSPEND_FREEZE; step <= SUSPEND_NR_STEPS; step++)
