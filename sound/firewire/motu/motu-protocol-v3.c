@@ -261,6 +261,7 @@ int snd_motu_protocol_v3_cache_packet_formats(struct snd_motu *motu)
 
 	if (motu->spec == &snd_motu_spec_828mk3_fw ||
 	    motu->spec == &snd_motu_spec_828mk3_hybrid ||
+	    motu->spec == &snd_motu_spec_896mk3 ||
 	    motu->spec == &snd_motu_spec_traveler_mk3 ||
 	    motu->spec == &snd_motu_spec_track16)
 		return detect_packet_formats_with_opt_ifaces(motu, data);
@@ -286,6 +287,14 @@ const struct snd_motu_spec snd_motu_spec_828mk3_hybrid = {
 		 SND_MOTU_SPEC_COMMAND_DSP,
 	.tx_fixed_pcm_chunks = {18, 18, 14},
 	.rx_fixed_pcm_chunks = {14, 14, 14},	// Additional 4 dummy chunks at higher rate.
+};
+
+const struct snd_motu_spec snd_motu_spec_896mk3 = {
+	.name = "896mk3",
+	.protocol_version = SND_MOTU_PROTOCOL_V3,
+	.flags = SND_MOTU_SPEC_COMMAND_DSP,
+	.tx_fixed_pcm_chunks = {18, 14, 10},
+	.rx_fixed_pcm_chunks = {18, 14, 10},
 };
 
 const struct snd_motu_spec snd_motu_spec_traveler_mk3 = {
