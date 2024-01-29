@@ -1159,6 +1159,10 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 	if (ret < 0)
 		return ret;
 
+	ret = cs35l56_set_patch(&cs35l56->base);
+	if (ret)
+		return ret;
+
 	/* Populate the DSP information with the revision and security state */
 	cs35l56->dsp.part = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL, "cs35l56%s-%02x",
 					   cs35l56->base.secured ? "s" : "", cs35l56->base.rev);
@@ -1194,10 +1198,6 @@ post_soft_reset:
 
 	/* Disable auto-hibernate so that runtime_pm has control */
 	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
-	if (ret)
-		return ret;
-
-	ret = cs35l56_set_patch(&cs35l56->base);
 	if (ret)
 		return ret;
 
