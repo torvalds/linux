@@ -121,7 +121,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 	workspace->strm.total_in = 0;
 	workspace->strm.total_out = 0;
 
-	out_page = btrfs_alloc_compr_page();
+	out_page = folio_page(btrfs_alloc_compr_folio(), 0);
 	if (out_page == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -206,7 +206,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = btrfs_alloc_compr_page();
+			out_page = folio_page(btrfs_alloc_compr_folio(), 0);
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;
@@ -242,7 +242,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = btrfs_alloc_compr_page();
+			out_page = folio_page(btrfs_alloc_compr_folio(), 0);
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;

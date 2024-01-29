@@ -1047,7 +1047,7 @@ free_pages:
 	if (pages) {
 		for (i = 0; i < nr_pages; i++) {
 			WARN_ON(pages[i]->mapping);
-			btrfs_free_compr_page(pages[i]);
+			btrfs_free_compr_folio(page_folio(pages[i]));
 		}
 		kfree(pages);
 	}
@@ -1062,7 +1062,7 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 
 	for (i = 0; i < async_extent->nr_pages; i++) {
 		WARN_ON(async_extent->pages[i]->mapping);
-		btrfs_free_compr_page(async_extent->pages[i]);
+		btrfs_free_compr_folio(page_folio(async_extent->pages[i]));
 	}
 	kfree(async_extent->pages);
 	async_extent->nr_pages = 0;

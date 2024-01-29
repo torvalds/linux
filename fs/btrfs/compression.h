@@ -104,8 +104,8 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio);
 
 unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
-struct page *btrfs_alloc_compr_page(void);
-void btrfs_free_compr_page(struct page *page);
+struct folio *btrfs_alloc_compr_folio(void);
+void btrfs_free_compr_folio(struct folio *folio);
 
 enum btrfs_compression_type {
 	BTRFS_COMPRESS_NONE  = 0,

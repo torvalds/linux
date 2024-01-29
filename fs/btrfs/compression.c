@@ -161,7 +161,7 @@ static int compression_decompress(int type, struct list_head *ws,
 static void btrfs_free_compressed_pages(struct compressed_bio *cb)
 {
 	for (unsigned int i = 0; i < cb->nr_pages; i++)
-		btrfs_free_compr_page(cb->compressed_pages[i]);
+		btrfs_free_compr_folio(page_folio(cb->compressed_pages[i]));
 	kfree(cb->compressed_pages);
 }
 
@@ -223,25 +223,25 @@ static unsigned long btrfs_compr_pool_scan(struct shrinker *sh, struct shrink_co
 /*
  * Common wrappers for page allocation from compression wrappers
  */
-struct page *btrfs_alloc_compr_page(void)
+struct folio *btrfs_alloc_compr_folio(void)
 {
-	struct page *page = NULL;
+	struct folio *folio = NULL;
 
 	spin_lock(&compr_pool.lock);
 	if (compr_pool.count > 0) {
-		page = list_first_entry(&compr_pool.list, struct page, lru);
-		list_del_init(&page->lru);
+		folio = list_first_entry(&compr_pool.list, struct folio, lru);
+		list_del_init(&folio->lru);
 		compr_pool.count--;
 	}
 	spin_unlock(&compr_pool.lock);
 
-	if (page)
-		return page;
+	if (folio)
+		return folio;
 
-	return alloc_page(GFP_NOFS);
+	return folio_alloc(GFP_NOFS, 0);
 }
 
-void btrfs_free_compr_page(struct page *page)
+void btrfs_free_compr_folio(struct folio *folio)
 {
 	bool do_free = false;
 
@@ -249,7 +249,7 @@ void btrfs_free_compr_page(struct page *page)
 	if (compr_pool.count > compr_pool.thresh) {
 		do_free = true;
 	} else {
-		list_add(&page->lru, &compr_pool.list);
+		list_add(&folio->lru, &compr_pool.list);
 		compr_pool.count++;
 	}
 	spin_unlock(&compr_pool.lock);
@@ -257,8 +257,8 @@ void btrfs_free_compr_page(struct page *page)
 	if (!do_free)
 		return;
 
-	ASSERT(page_ref_count(page) == 1);
-	put_page(page);
+	ASSERT(folio_ref_count(folio) == 1);
+	folio_put(folio);
 }
 
 static void end_bbio_comprssed_read(struct btrfs_bio *bbio)
