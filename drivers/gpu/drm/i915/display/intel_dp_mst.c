@@ -1119,6 +1119,28 @@ static void intel_mst_pre_enable_dp(struct intel_atomic_state *state,
 	intel_ddi_set_dp_msa(pipe_config, conn_state);
 }
 
+static void enable_bs_jitter_was(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	u32 clear = 0;
+	u32 set = 0;
+
+	if (!IS_ALDERLAKE_P(i915))
+		return;
+
+	if (!IS_DISPLAY_STEP(i915, STEP_D0, STEP_FOREVER))
+		return;
+
+	/* Wa_14013163432:adlp */
+	if (crtc_state->fec_enable || intel_dp_is_uhbr(crtc_state))
+		set |= DP_MST_FEC_BS_JITTER_WA(crtc_state->cpu_transcoder);
+
+	if (!clear && !set)
+		return;
+
+	intel_de_rmw(i915, CHICKEN_MISC_3, clear, set);
+}
+
 static void intel_mst_enable_dp(struct intel_atomic_state *state,
 				struct intel_encoder *encoder,
 				const struct intel_crtc_state *pipe_config,
@@ -1146,6 +1168,8 @@ static void intel_mst_enable_dp(struct intel_atomic_state *state,
 		intel_de_write(dev_priv, TRANS_DP2_VFREQLOW(pipe_config->cpu_transcoder),
 			       TRANS_DP2_VFREQ_PIXEL_CLOCK(crtc_clock_hz & 0xffffff));
 	}
+
+	enable_bs_jitter_was(pipe_config);
 
 	intel_ddi_enable_transcoder_func(encoder, pipe_config);
 
