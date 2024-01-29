@@ -1946,6 +1946,8 @@
 			compatible = "aspeed-ltpi";
 			reg = <0x0 0x14c34000 0x0 0x100>;
 			clocks = <&syscon1 AST2700_SOC1_CLK_GATE_LTPICLK>;
+			resets = <&syscon1 ASPEED_RESET_LTPI>;
+			interrupts-extended = <&intc5 12>;
 			status = "disabled";
 		};
 
@@ -1953,6 +1955,8 @@
 			compatible = "aspeed-ltpi";
 			reg = <0x0 0x14c35000 0x0 0x100>;
 			clocks = <&syscon1 AST2700_SOC1_CLK_GATE_LTPICLK>;
+			resets = <&syscon1 ASPEED_RESET_LTPI>;
+			interrupts-extended = <&intc5 13>;
 			status = "disabled";
 		};
 
