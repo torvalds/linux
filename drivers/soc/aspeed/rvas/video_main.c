@@ -1111,7 +1111,7 @@ void enable_rvas_engines(struct AstRVAS *pAstRVAS)
 	//enable rvas0
 	//printk("enable rvas engines\n");
 	regmap_write(pAstRVAS->scu, SCU200_System_Reset_Control_Register, 0x200);
-	usleep_range(100);
+	usleep_range(100, 200);
 	regmap_write(pAstRVAS->scu, SCU244_Clock_Stop_Control_Clear_Register, 0x2000000);
 	mdelay(10);
 	regmap_write(pAstRVAS->scu, SCU204_System_Reset_Control_Clear_Register, 0x200);
