@@ -148,7 +148,11 @@ static int __tpda_enable(struct tpda_drvdata *drvdata, int port)
 
 	CS_UNLOCK(drvdata->base);
 
-	if (!drvdata->csdev->enable)
+	/*
+	 * Only do pre-port enable for first port that calls enable when the
+	 * device's main refcount is still 0
+	 */
+	if (!atomic_read(&drvdata->csdev->refcnt))
 		tpda_enable_pre_port(drvdata);
 
 	ret = tpda_enable_port(drvdata, port);
@@ -169,6 +173,7 @@ static int tpda_enable(struct coresight_device *csdev,
 		ret = __tpda_enable(drvdata, in->dest_port);
 		if (!ret) {
 			atomic_inc(&in->dest_refcnt);
+			atomic_inc(&csdev->refcnt);
 			dev_dbg(drvdata->dev, "TPDA inport %d enabled.\n", in->dest_port);
 		}
 	}
@@ -197,9 +202,10 @@ static void tpda_disable(struct coresight_device *csdev,
 	struct tpda_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	spin_lock(&drvdata->spinlock);
-	if (atomic_dec_return(&in->dest_refcnt) == 0)
+	if (atomic_dec_return(&in->dest_refcnt) == 0) {
 		__tpda_disable(drvdata, in->dest_port);
-
+		atomic_dec(&csdev->refcnt);
+	}
 	spin_unlock(&drvdata->spinlock);
 
 	dev_dbg(drvdata->dev, "TPDA inport %d disabled\n", in->dest_port);

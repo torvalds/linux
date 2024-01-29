@@ -233,7 +233,6 @@ struct coresight_sysfs_link {
  *		a non-atomic read would also work.
  * @refcnt:	keep track of what is in use.
  * @orphan:	true if the component has connections that haven't been linked.
- * @enable:	'true' if component is currently part of an active path.
  * @sysfs_sink_activated: 'true' when a sink has been selected for use via sysfs
  *		by writing a 1 to the 'enable_sink' file.  A sink can be
  *		activated but not yet enabled.  Enabling for a _sink_ happens
@@ -260,7 +259,6 @@ struct coresight_device {
 	local_t	mode;
 	atomic_t refcnt;
 	bool orphan;
-	bool enable;
 	/* sink specific fields */
 	bool sysfs_sink_activated;
 	struct dev_ext_attribute *ea;
