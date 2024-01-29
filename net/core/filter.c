@@ -11982,21 +11982,21 @@ int bpf_dynptr_from_skb_rdonly(struct sk_buff *skb, u64 flags,
 	return 0;
 }
 
-BTF_SET8_START(bpf_kfunc_check_set_skb)
+BTF_KFUNCS_START(bpf_kfunc_check_set_skb)
 BTF_ID_FLAGS(func, bpf_dynptr_from_skb)
-BTF_SET8_END(bpf_kfunc_check_set_skb)
+BTF_KFUNCS_END(bpf_kfunc_check_set_skb)
 
-BTF_SET8_START(bpf_kfunc_check_set_xdp)
+BTF_KFUNCS_START(bpf_kfunc_check_set_xdp)
 BTF_ID_FLAGS(func, bpf_dynptr_from_xdp)
-BTF_SET8_END(bpf_kfunc_check_set_xdp)
+BTF_KFUNCS_END(bpf_kfunc_check_set_xdp)
 
-BTF_SET8_START(bpf_kfunc_check_set_sock_addr)
+BTF_KFUNCS_START(bpf_kfunc_check_set_sock_addr)
 BTF_ID_FLAGS(func, bpf_sock_addr_set_sun_path)
-BTF_SET8_END(bpf_kfunc_check_set_sock_addr)
+BTF_KFUNCS_END(bpf_kfunc_check_set_sock_addr)
 
-BTF_SET8_START(bpf_kfunc_check_set_tcp_reqsk)
+BTF_KFUNCS_START(bpf_kfunc_check_set_tcp_reqsk)
 BTF_ID_FLAGS(func, bpf_sk_assign_tcp_reqsk, KF_TRUSTED_ARGS)
-BTF_SET8_END(bpf_kfunc_check_set_tcp_reqsk)
+BTF_KFUNCS_END(bpf_kfunc_check_set_tcp_reqsk)
 
 static const struct btf_kfunc_id_set bpf_kfunc_set_skb = {
 	.owner = THIS_MODULE,
@@ -12075,9 +12075,9 @@ __bpf_kfunc int bpf_sock_destroy(struct sock_common *sock)
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(bpf_sk_iter_kfunc_ids)
+BTF_KFUNCS_START(bpf_sk_iter_kfunc_ids)
 BTF_ID_FLAGS(func, bpf_sock_destroy, KF_TRUSTED_ARGS)
-BTF_SET8_END(bpf_sk_iter_kfunc_ids)
+BTF_KFUNCS_END(bpf_sk_iter_kfunc_ids)
 
 static int tracing_iter_filter(const struct bpf_prog *prog, u32 kfunc_id)
 {
