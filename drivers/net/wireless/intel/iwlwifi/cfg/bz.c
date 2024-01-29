@@ -129,10 +129,6 @@ static const struct iwl_base_params iwl_bz_base_params = {
 	IWL_DEVICE_BZ_COMMON,						\
 	.ht_params = &iwl_22000_ht_params
 
-#define IWL_DEVICE_GL_A							\
-	IWL_DEVICE_BZ_COMMON,						\
-	.ht_params = &iwl_gl_a_ht_params
-
 /*
  * This size was picked according to 8 MSDUs inside 512 A-MSDUs in an
  * A-MPDU, with additional overhead to account for processing time.
