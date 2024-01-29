@@ -14,6 +14,7 @@ static void mle_defrag(struct kunit *test)
 	struct ieee80211_elems_parse_params parse_params = {
 		.link_id = 12,
 		.from_ap = true,
+		.mode = IEEE80211_CONN_MODE_EHT,
 	};
 	struct ieee802_11_elems *parsed;
 	struct sk_buff *skb;

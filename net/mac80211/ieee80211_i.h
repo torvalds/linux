@@ -370,18 +370,31 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
 };
 
-typedef u32 __bitwise ieee80211_conn_flags_t;
-
-enum ieee80211_conn_flags {
-	IEEE80211_CONN_DISABLE_HT	= (__force ieee80211_conn_flags_t)BIT(0),
-	IEEE80211_CONN_DISABLE_40MHZ	= (__force ieee80211_conn_flags_t)BIT(1),
-	IEEE80211_CONN_DISABLE_VHT	= (__force ieee80211_conn_flags_t)BIT(2),
-	IEEE80211_CONN_DISABLE_80P80MHZ	= (__force ieee80211_conn_flags_t)BIT(3),
-	IEEE80211_CONN_DISABLE_160MHZ	= (__force ieee80211_conn_flags_t)BIT(4),
-	IEEE80211_CONN_DISABLE_HE	= (__force ieee80211_conn_flags_t)BIT(5),
-	IEEE80211_CONN_DISABLE_EHT	= (__force ieee80211_conn_flags_t)BIT(6),
-	IEEE80211_CONN_DISABLE_320MHZ	= (__force ieee80211_conn_flags_t)BIT(7),
+enum ieee80211_conn_mode {
+	IEEE80211_CONN_MODE_S1G,
+	IEEE80211_CONN_MODE_LEGACY,
+	IEEE80211_CONN_MODE_HT,
+	IEEE80211_CONN_MODE_VHT,
+	IEEE80211_CONN_MODE_HE,
+	IEEE80211_CONN_MODE_EHT,
 };
+
+#define IEEE80211_CONN_MODE_HIGHEST	IEEE80211_CONN_MODE_EHT
+
+enum ieee80211_conn_bw_limit {
+	IEEE80211_CONN_BW_LIMIT_20,
+	IEEE80211_CONN_BW_LIMIT_40,
+	IEEE80211_CONN_BW_LIMIT_80,
+	IEEE80211_CONN_BW_LIMIT_160, /* also 80+80 */
+	IEEE80211_CONN_BW_LIMIT_320,
+};
+
+struct ieee80211_conn_settings {
+	enum ieee80211_conn_mode mode;
+	enum ieee80211_conn_bw_limit bw_limit;
+};
+
+extern const struct ieee80211_conn_settings ieee80211_conn_settings_unlimited;
 
 struct ieee80211_mgd_auth_data {
 	struct cfg80211_bss *bss;
@@ -416,7 +429,7 @@ struct ieee80211_mgd_assoc_data {
 		size_t elems_len;
 		u8 *elems; /* pointing to inside ie[] below */
 
-		ieee80211_conn_flags_t conn_flags;
+		struct ieee80211_conn_settings conn;
 
 		u16 status;
 
@@ -943,7 +956,7 @@ struct ieee80211_link_data_managed {
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
 				 driver_smps_mode; /* smps mode request */
 
-	ieee80211_conn_flags_t conn_flags;
+	struct ieee80211_conn_settings conn;
 
 	s16 p2p_noa_index;
 
@@ -2171,9 +2184,8 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  * @elems: parsed 802.11 elements received with the frame
  * @current_band: indicates the current band
  * @vht_cap_info: VHT capabilities of the transmitter
- * @conn_flags: contains information about own capabilities and restrictions
- *	to decide which channel switch announcements can be accepted, using
- *	flags from &enum ieee80211_conn_flags.
+ * @conn: contains information about own capabilities and restrictions
+ *	to decide which channel switch announcements can be accepted
  * @bssid: the currently connected bssid (for reporting)
  * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
  *	All of them will be filled with if success only.
@@ -2183,7 +2195,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
-				 ieee80211_conn_flags_t conn_flags, u8 *bssid,
+				 struct ieee80211_conn_settings *conn,
+				 u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie);
 
 /* Suspend/resume and hw reconfiguration */
@@ -2207,6 +2220,9 @@ static inline int __ieee80211_resume(struct ieee80211_hw *hw)
 
 /* utility functions/constants */
 extern const void *const mac80211_wiphy_privid; /* for wiphy privid */
+const char *ieee80211_conn_mode_str(enum ieee80211_conn_mode mode);
+enum ieee80211_conn_bw_limit
+ieee80211_min_bw_limit_from_chandef(struct cfg80211_chan_def *chandef);
 int ieee80211_frame_duration(enum nl80211_band band, size_t len,
 			     int rate, int erp, int short_preamble);
 void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -2248,6 +2264,7 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 
 /**
  * struct ieee80211_elems_parse_params - element parsing parameters
+ * @mode: connection mode for parsing
  * @start: pointer to the elements
  * @len: length of the elements
  * @action: %true if the elements came from an action frame
@@ -2265,6 +2282,7 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  *	for EHT capabilities parsing)
  */
 struct ieee80211_elems_parse_params {
+	enum ieee80211_conn_mode mode;
 	const u8 *start;
 	size_t len;
 	bool action;
@@ -2284,6 +2302,7 @@ ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			   struct cfg80211_bss *bss)
 {
 	struct ieee80211_elems_parse_params params = {
+		.mode = IEEE80211_CONN_MODE_HIGHEST,
 		.start = start,
 		.len = len,
 		.action = action,
@@ -2459,9 +2478,9 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef);
 u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
-u8 *ieee80211_ie_build_he_cap(ieee80211_conn_flags_t disable_flags, u8 *pos,
+u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
 			      const struct ieee80211_sta_he_cap *he_cap,
-			      u8 *end);
+			      u8 *pos, u8 *end);
 void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 				    enum ieee80211_smps_mode smps_mode,
 				    struct sk_buff *skb);
@@ -2501,7 +2520,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 				    struct cfg80211_chan_def *chandef);
 bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
 				struct cfg80211_chan_def *chandef);
-ieee80211_conn_flags_t ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
+void ieee80211_chandef_downgrade(struct cfg80211_chan_def *chandef,
+				 struct ieee80211_conn_settings *conn);
 
 int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,

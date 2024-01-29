@@ -23,7 +23,8 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
-				 ieee80211_conn_flags_t conn_flags, u8 *bssid,
+				 struct ieee80211_conn_settings *conn,
+				 u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie)
 {
 	enum nl80211_band new_band = current_band;
@@ -42,13 +43,13 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	wide_bw_chansw_ie = elems->wide_bw_chansw_ie;
 	bwi = elems->bandwidth_indication;
 
-	if (conn_flags & (IEEE80211_CONN_DISABLE_HT |
-			  IEEE80211_CONN_DISABLE_40MHZ)) {
+	if (conn->mode < IEEE80211_CONN_MODE_HT ||
+	    conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40) {
 		sec_chan_offs = NULL;
 		wide_bw_chansw_ie = NULL;
 	}
 
-	if (conn_flags & IEEE80211_CONN_DISABLE_VHT)
+	if (conn->mode < IEEE80211_CONN_MODE_VHT)
 		wide_bw_chansw_ie = NULL;
 
 	if (elems->ext_chansw_ie) {
@@ -95,7 +96,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 
 	if (sec_chan_offs) {
 		secondary_channel_offset = sec_chan_offs->sec_chan_offs;
-	} else if (!(conn_flags & IEEE80211_CONN_DISABLE_HT)) {
+	} else if (conn->mode >= IEEE80211_CONN_MODE_HT) {
 		/* If the secondary channel offset IE is not present,
 		 * we can't know what's the post-CSA offset, so the
 		 * best we can do is use 20MHz.
@@ -169,12 +170,10 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 						&new_vht_chandef))
 			new_vht_chandef.chan = NULL;
 
-		if (conn_flags & IEEE80211_CONN_DISABLE_80P80MHZ &&
-		    new_vht_chandef.width == NL80211_CHAN_WIDTH_80P80)
-			ieee80211_chandef_downgrade(&new_vht_chandef);
-		if (conn_flags & IEEE80211_CONN_DISABLE_160MHZ &&
-		    new_vht_chandef.width == NL80211_CHAN_WIDTH_160)
-			ieee80211_chandef_downgrade(&new_vht_chandef);
+		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160 &&
+		    (new_vht_chandef.width == NL80211_CHAN_WIDTH_80P80 ||
+		     new_vht_chandef.width == NL80211_CHAN_WIDTH_160))
+			ieee80211_chandef_downgrade(&new_vht_chandef, NULL);
 	}
 
 	/* if VHT data is there validate & use it */

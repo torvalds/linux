@@ -757,21 +757,22 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	enum nl80211_channel_type ch_type;
 	int err;
-	ieee80211_conn_flags_t conn_flags;
+	struct ieee80211_conn_settings conn = {
+		.mode = IEEE80211_CONN_MODE_HT,
+		.bw_limit = IEEE80211_CONN_BW_LIMIT_40,
+	};
 	u32 vht_cap_info = 0;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
-
-	conn_flags = IEEE80211_CONN_DISABLE_VHT;
 
 	switch (ifibss->chandef.width) {
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20_NOHT:
-		conn_flags |= IEEE80211_CONN_DISABLE_HT;
+		conn.mode = IEEE80211_CONN_MODE_LEGACY;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_20:
-		conn_flags |= IEEE80211_CONN_DISABLE_40MHZ;
+		conn.bw_limit = IEEE80211_CONN_BW_LIMIT_20;
 		break;
 	default:
 		break;
@@ -783,8 +784,8 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	memset(&params, 0, sizeof(params));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems,
 					   ifibss->chandef.chan->band,
-					   vht_cap_info,
-					   conn_flags, ifibss->bssid, &csa_ie);
+					   vht_cap_info, &conn,
+					   ifibss->bssid, &csa_ie);
 	/* can't switch to destination channel, fail */
 	if (err < 0)
 		goto disconnect;

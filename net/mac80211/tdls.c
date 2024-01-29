@@ -347,7 +347,7 @@ ieee80211_tdls_chandef_vht_upgrade(struct ieee80211_sub_if_data *sdata,
 	       (uc.width > sta->tdls_chandef.width &&
 		!cfg80211_reg_can_beacon_relax(sdata->local->hw.wiphy, &uc,
 					       sdata->wdev.iftype)))
-		ieee80211_chandef_downgrade(&uc);
+		ieee80211_chandef_downgrade(&uc, NULL);
 
 	if (!cfg80211_chandef_identical(&uc, &sta->tdls_chandef)) {
 		tdls_dbg(sdata, "TDLS ch width upgraded %d -> %d\n",
@@ -561,7 +561,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 			ieee80211_he_ppe_size(he_cap->ppe_thres[0],
 					      he_cap->he_cap_elem.phy_cap_info);
 		pos = skb_put(skb, cap_size);
-		pos = ieee80211_ie_build_he_cap(0, pos, he_cap, pos + cap_size);
+		pos = ieee80211_ie_build_he_cap(NULL, he_cap, pos, pos + cap_size);
 
 		/* Build HE 6Ghz capa IE from sband */
 		if (sband->band == NL80211_BAND_6GHZ) {
@@ -1413,8 +1413,8 @@ iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
 			 IEEE80211_HT_OP_MODE_NON_HT_STA_PRSNT;
 	u16 opmode;
 
-	/* Nothing to do if the BSS connection uses HT */
-	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
+	/* Nothing to do if the BSS connection uses (at least) HT */
+	if (sdata->deflink.u.mgd.conn.mode >= IEEE80211_CONN_MODE_HT)
 		return;
 
 	tdls_ht = (sta && sta->sta.deflink.ht_cap.ht_supported) ||
