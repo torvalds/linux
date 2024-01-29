@@ -25,4 +25,14 @@ void init_hash_table(struct io_hash_table *table, unsigned size);
 int io_sync_cancel(struct io_ring_ctx *ctx, void __user *arg);
 bool io_cancel_req_match(struct io_kiocb *req, struct io_cancel_data *cd);
 
+static inline bool io_cancel_match_sequence(struct io_kiocb *req, int sequence)
+{
+	if ((req->flags & REQ_F_CANCEL_SEQ) && sequence == req->work.cancel_seq)
+		return true;
+
+	req->flags |= REQ_F_CANCEL_SEQ;
+	req->work.cancel_seq = sequence;
+	return false;
+}
+
 #endif

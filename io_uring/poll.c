@@ -588,10 +588,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 				 struct io_poll_table *ipt, __poll_t mask,
 				 unsigned issue_flags)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-
 	INIT_HLIST_NODE(&req->hash_node);
-	req->work.cancel_seq = atomic_read(&ctx->cancel_seq);
 	io_init_poll_iocb(poll, mask);
 	poll->file = req->file;
 	req->apoll_events = poll->events;
@@ -818,9 +815,8 @@ static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
 		if (poll_only && req->opcode != IORING_OP_POLL_ADD)
 			continue;
 		if (cd->flags & IORING_ASYNC_CANCEL_ALL) {
-			if (cd->seq == req->work.cancel_seq)
+			if (io_cancel_match_sequence(req, cd->seq))
 				continue;
-			req->work.cancel_seq = cd->seq;
 		}
 		*out_bucket = hb;
 		return req;
