@@ -700,6 +700,11 @@ static u32 ath12k_hw_qcn9274_get_rx_desc_size(void)
 	return sizeof(struct hal_rx_desc_qcn9274);
 }
 
+static u8 ath12k_hw_qcn9274_rx_desc_get_msdu_src_link(struct hal_rx_desc *desc)
+{
+	return 0;
+}
+
 const struct hal_rx_ops hal_rx_qcn9274_ops = {
 	.rx_desc_get_first_msdu = ath12k_hw_qcn9274_rx_desc_get_first_msdu,
 	.rx_desc_get_last_msdu = ath12k_hw_qcn9274_rx_desc_get_last_msdu,
@@ -738,6 +743,7 @@ const struct hal_rx_ops hal_rx_qcn9274_ops = {
 	.dp_rx_h_is_decrypted = ath12k_hw_qcn9274_dp_rx_h_is_decrypted,
 	.dp_rx_h_mpdu_err = ath12k_hw_qcn9274_dp_rx_h_mpdu_err,
 	.rx_desc_get_desc_size = ath12k_hw_qcn9274_get_rx_desc_size,
+	.rx_desc_get_msdu_src_link_id = ath12k_hw_qcn9274_rx_desc_get_msdu_src_link,
 };
 
 static bool ath12k_hw_qcn9274_compact_rx_desc_get_first_msdu(struct hal_rx_desc *desc)
@@ -1033,6 +1039,12 @@ static u32 ath12k_hw_qcn9274_compact_get_rx_desc_size(void)
 	return sizeof(struct hal_rx_desc_qcn9274_compact);
 }
 
+static u8 ath12k_hw_qcn9274_compact_rx_desc_get_msdu_src_link(struct hal_rx_desc *desc)
+{
+	return le64_get_bits(desc->u.qcn9274_compact.msdu_end.msdu_end_tag,
+			     RX_MSDU_END_64_TLV_SRC_LINK_ID);
+}
+
 const struct hal_rx_ops hal_rx_qcn9274_compact_ops = {
 	.rx_desc_get_first_msdu = ath12k_hw_qcn9274_compact_rx_desc_get_first_msdu,
 	.rx_desc_get_last_msdu = ath12k_hw_qcn9274_compact_rx_desc_get_last_msdu,
@@ -1076,6 +1088,8 @@ const struct hal_rx_ops hal_rx_qcn9274_compact_ops = {
 	.dp_rx_h_is_decrypted = ath12k_hw_qcn9274_compact_dp_rx_h_is_decrypted,
 	.dp_rx_h_mpdu_err = ath12k_hw_qcn9274_compact_dp_rx_h_mpdu_err,
 	.rx_desc_get_desc_size = ath12k_hw_qcn9274_compact_get_rx_desc_size,
+	.rx_desc_get_msdu_src_link_id =
+		ath12k_hw_qcn9274_compact_rx_desc_get_msdu_src_link,
 };
 
 const struct hal_ops hal_qcn9274_ops = {
@@ -1504,6 +1518,11 @@ static u32 ath12k_hw_wcn7850_get_rx_desc_size(void)
 	return sizeof(struct hal_rx_desc_wcn7850);
 }
 
+static u8 ath12k_hw_wcn7850_rx_desc_get_msdu_src_link(struct hal_rx_desc *desc)
+{
+	return 0;
+}
+
 const struct hal_rx_ops hal_rx_wcn7850_ops = {
 	.rx_desc_get_first_msdu = ath12k_hw_wcn7850_rx_desc_get_first_msdu,
 	.rx_desc_get_last_msdu = ath12k_hw_wcn7850_rx_desc_get_last_msdu,
@@ -1543,6 +1562,7 @@ const struct hal_rx_ops hal_rx_wcn7850_ops = {
 	.dp_rx_h_is_decrypted = ath12k_hw_wcn7850_dp_rx_h_is_decrypted,
 	.dp_rx_h_mpdu_err = ath12k_hw_wcn7850_dp_rx_h_mpdu_err,
 	.rx_desc_get_desc_size = ath12k_hw_wcn7850_get_rx_desc_size,
+	.rx_desc_get_msdu_src_link_id = ath12k_hw_wcn7850_rx_desc_get_msdu_src_link,
 };
 
 const struct hal_ops hal_wcn7850_ops = {

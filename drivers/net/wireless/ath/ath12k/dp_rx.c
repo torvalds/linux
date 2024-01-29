@@ -233,6 +233,12 @@ static u16 ath12k_dp_rxdesc_get_mpdu_frame_ctrl(struct ath12k_base *ab,
 	return ab->hal_rx_ops->rx_desc_get_mpdu_frame_ctl(desc);
 }
 
+static inline u8 ath12k_dp_rx_get_msdu_src_link(struct ath12k_base *ab,
+						struct hal_rx_desc *desc)
+{
+	return ab->hal_rx_ops->rx_desc_get_msdu_src_link_id(desc);
+}
+
 static int ath12k_dp_purge_mon_ring(struct ath12k_base *ab)
 {
 	int i, reaped = 0;
@@ -3695,16 +3701,15 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	struct hal_rx_wbm_rel_info err_info;
 	struct hal_srng *srng;
 	struct sk_buff *msdu;
-	struct sk_buff_head msdu_list[MAX_RADIOS];
+	struct sk_buff_head msdu_list;
 	struct ath12k_skb_rxcb *rxcb;
 	void *rx_desc;
-	int mac_id;
+	u8 mac_id;
 	int num_buffs_reaped = 0;
 	struct ath12k_rx_desc_info *desc_info;
-	int ret, i;
+	int ret, pdev_id;
 
-	for (i = 0; i < ab->num_radios; i++)
-		__skb_queue_head_init(&msdu_list[i]);
+	__skb_queue_head_init(&msdu_list);
 
 	srng = &ab->hal.srng_list[dp->rx_rel_ring.ring_id];
 	rx_ring = &dp->rx_refill_buf_ring;
@@ -3737,11 +3742,6 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 			}
 		}
 
-		/* FIXME: Extract mac id correctly. Since descs are not tied
-		 * to mac, we can extract from vdev id in ring desc.
-		 */
-		mac_id = 0;
-
 		if (desc_info->magic != ATH12K_DP_RX_DESC_MAGIC)
 			ath12k_warn(ab, "WBM RX err, Check HW CC implementation");
 
@@ -3771,7 +3771,8 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 		rxcb->err_rel_src = err_info.err_rel_src;
 		rxcb->err_code = err_info.err_code;
 		rxcb->rx_desc = (struct hal_rx_desc *)msdu->data;
-		__skb_queue_tail(&msdu_list[mac_id], msdu);
+
+		__skb_queue_tail(&msdu_list, msdu);
 
 		rxcb->is_first_msdu = err_info.first_msdu;
 		rxcb->is_last_msdu = err_info.last_msdu;
@@ -3788,21 +3789,22 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	ath12k_dp_rx_bufs_replenish(ab, rx_ring, num_buffs_reaped);
 
 	rcu_read_lock();
-	for (i = 0; i <  ab->num_radios; i++) {
-		if (!rcu_dereference(ab->pdevs_active[i])) {
-			__skb_queue_purge(&msdu_list[i]);
+	while ((msdu = __skb_dequeue(&msdu_list))) {
+		mac_id = ath12k_dp_rx_get_msdu_src_link(ab,
+							(struct hal_rx_desc *)msdu->data);
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+		ar = ab->pdevs[pdev_id].ar;
+
+		if (!ar || !rcu_dereference(ar->ab->pdevs_active[mac_id])) {
+			dev_kfree_skb_any(msdu);
 			continue;
 		}
-
-		ar = ab->pdevs[i].ar;
 
 		if (test_bit(ATH12K_CAC_RUNNING, &ar->dev_flags)) {
-			__skb_queue_purge(&msdu_list[i]);
+			dev_kfree_skb_any(msdu);
 			continue;
 		}
-
-		while ((msdu = __skb_dequeue(&msdu_list[i])) != NULL)
-			ath12k_dp_rx_wbm_err(ar, napi, msdu, &msdu_list[i]);
+		ath12k_dp_rx_wbm_err(ar, napi, msdu, &msdu_list);
 	}
 	rcu_read_unlock();
 done:
