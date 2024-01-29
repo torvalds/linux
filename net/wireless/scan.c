@@ -77,45 +77,6 @@ MODULE_PARM_DESC(bss_entries_limit,
 
 #define IEEE80211_SCAN_RESULT_EXPIRE	(30 * HZ)
 
-/**
- * struct cfg80211_colocated_ap - colocated AP information
- *
- * @list: linked list to all colocated aPS
- * @bssid: BSSID of the reported AP
- * @ssid: SSID of the reported AP
- * @ssid_len: length of the ssid
- * @center_freq: frequency the reported AP is on
- * @unsolicited_probe: the reported AP is part of an ESS, where all the APs
- *	that operate in the same channel as the reported AP and that might be
- *	detected by a STA receiving this frame, are transmitting unsolicited
- *	Probe Response frames every 20 TUs
- * @oct_recommended: OCT is recommended to exchange MMPDUs with the reported AP
- * @same_ssid: the reported AP has the same SSID as the reporting AP
- * @multi_bss: the reported AP is part of a multiple BSSID set
- * @transmitted_bssid: the reported AP is the transmitting BSSID
- * @colocated_ess: all the APs that share the same ESS as the reported AP are
- *	colocated and can be discovered via legacy bands.
- * @short_ssid_valid: short_ssid is valid and can be used
- * @short_ssid: the short SSID for this SSID
- * @psd_20: The 20MHz PSD EIRP of the primary 20MHz channel for the reported AP
- */
-struct cfg80211_colocated_ap {
-	struct list_head list;
-	u8 bssid[ETH_ALEN];
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	size_t ssid_len;
-	u32 short_ssid;
-	u32 center_freq;
-	u8 unsolicited_probe:1,
-	   oct_recommended:1,
-	   same_ssid:1,
-	   multi_bss:1,
-	   transmitted_bssid:1,
-	   colocated_ess:1,
-	   short_ssid_valid:1;
-	s8 psd_20;
-};
-
 static void bss_free(struct cfg80211_internal_bss *bss)
 {
 	struct cfg80211_bss_ies *ies;
@@ -566,7 +527,8 @@ static int cfg80211_calc_short_ssid(const struct cfg80211_bss_ies *ies,
 	return 0;
 }
 
-static void cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list)
+VISIBLE_IF_CFG80211_KUNIT void
+cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list)
 {
 	struct cfg80211_colocated_ap *ap, *tmp_ap;
 
@@ -575,6 +537,7 @@ static void cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list)
 		kfree(ap);
 	}
 }
+EXPORT_SYMBOL_IF_KUNIT(cfg80211_free_coloc_ap_list);
 
 static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 				  const u8 *pos, u8 length,
@@ -648,8 +611,9 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 	return 0;
 }
 
-static int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
-				       struct list_head *list)
+VISIBLE_IF_CFG80211_KUNIT int
+cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
+			    struct list_head *list)
 {
 	struct ieee80211_neighbor_ap_info *ap_info;
 	const struct element *elem, *ssid_elem;
@@ -746,6 +710,7 @@ error:
 	list_splice_tail(&ap_list, list);
 	return n_coloc;
 }
+EXPORT_SYMBOL_IF_KUNIT(cfg80211_parse_colocated_ap);
 
 static  void cfg80211_scan_req_add_chan(struct cfg80211_scan_request *request,
 					struct ieee80211_channel *chan,
