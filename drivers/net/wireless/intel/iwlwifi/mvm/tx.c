@@ -520,6 +520,31 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 	}
 }
 
+static bool iwl_mvm_use_host_rate(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvmsta,
+				  struct ieee80211_hdr *hdr,
+				  struct ieee80211_tx_info *info)
+{
+	if (unlikely(!mvmsta))
+		return true;
+
+	if (unlikely(info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT))
+		return true;
+
+	if (likely(ieee80211_is_data(hdr->frame_control) &&
+		   mvmsta->sta_state >= IEEE80211_STA_AUTHORIZED))
+		return false;
+
+	/*
+	 * Not a data frame, use host rate if on an old device that
+	 * can't possibly be doing MLO (firmware may be selecting a
+	 * bad rate), if we might be doing MLO we need to let FW pick
+	 * (since we don't necesarily know the link), but FW rate
+	 * selection was fixed.
+	 */
+	return mvm->trans->trans_cfg->device_family < IWL_DEVICE_FAMILY_BZ;
+}
+
 /*
  * Allocates and sets the Tx cmd the driver data pointers in the skb
  */
@@ -556,12 +581,12 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			flags |= IWL_TX_FLAGS_ENCRYPT_DIS;
 
 		/*
-		 * For data and mgmt packets rate info comes from the fw. Only
+		 * For data and mgmt packets rate info comes from the fw (for
+		 * new devices, older FW is somewhat broken for this). Only
 		 * set rate/antenna for injected frames with fixed rate, or
-		 * when no sta is given.
+		 * when no sta is given, or with older firmware.
 		 */
-		if (unlikely(!sta ||
-			     info->control.flags & IEEE80211_TX_CTRL_RATE_INJECT)) {
+		if (unlikely(iwl_mvm_use_host_rate(mvm, mvmsta, hdr, info))) {
 			flags |= IWL_TX_FLAGS_CMD_RATE;
 			rate_n_flags =
 				iwl_mvm_get_tx_rate_n_flags(mvm, info, sta,
