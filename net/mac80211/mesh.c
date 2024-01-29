@@ -636,31 +636,18 @@ int mesh_add_he_6ghz_cap_ie(struct ieee80211_sub_if_data *sdata,
 int mesh_add_eht_cap_ie(struct ieee80211_sub_if_data *sdata,
 			struct sk_buff *skb, u8 ie_len)
 {
-	const struct ieee80211_sta_he_cap *he_cap;
-	const struct ieee80211_sta_eht_cap *eht_cap;
 	struct ieee80211_supported_band *sband;
-	u8 *pos;
 
 	sband = ieee80211_get_sband(sdata);
 	if (!sband)
 		return -EINVAL;
 
-	he_cap = ieee80211_get_he_iftype_cap(sband, NL80211_IFTYPE_MESH_POINT);
-	eht_cap = ieee80211_get_eht_iftype_cap(sband, NL80211_IFTYPE_MESH_POINT);
-	if (!he_cap || !eht_cap ||
-	    sdata->vif.bss_conf.chanreq.oper.width == NL80211_CHAN_WIDTH_20_NOHT ||
+	if (sdata->vif.bss_conf.chanreq.oper.width == NL80211_CHAN_WIDTH_20_NOHT ||
 	    sdata->vif.bss_conf.chanreq.oper.width == NL80211_CHAN_WIDTH_5 ||
 	    sdata->vif.bss_conf.chanreq.oper.width == NL80211_CHAN_WIDTH_10)
 		return 0;
 
-	if (skb_tailroom(skb) < ie_len)
-		return -ENOMEM;
-
-	pos = skb_put(skb, ie_len);
-	ieee80211_ie_build_eht_cap(NULL, pos, he_cap, eht_cap, pos + ie_len,
-				   false);
-
-	return 0;
+	return ieee80211_put_eht_cap(skb, sdata, sband, NULL);
 }
 
 int mesh_add_eht_oper_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)

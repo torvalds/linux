@@ -1199,8 +1199,6 @@ static int ieee80211_put_preq_ies_band(struct sk_buff *skb,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
-	const struct ieee80211_sta_he_cap *he_cap;
-	const struct ieee80211_sta_eht_cap *eht_cap;
 	int i, err;
 	size_t noffset;
 	u32 rate_flags;
@@ -1359,22 +1357,12 @@ static int ieee80211_put_preq_ies_band(struct sk_buff *skb,
 			return err;
 	}
 
-	he_cap = ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
-	eht_cap = ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
-
-	if (eht_cap &&
-	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
+	if (cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE |
 					 IEEE80211_CHAN_NO_EHT)) {
-		u8 *pos = skb_tail_pointer(skb);
-		u8 *end = pos + skb_tailroom(skb);
-
-		pos = ieee80211_ie_build_eht_cap(NULL, pos, he_cap, eht_cap,
-						 end,
-						 sdata->vif.type == NL80211_IFTYPE_AP);
-		if (!pos)
-			return -ENOBUFS;
-		skb_put(skb, pos - skb_tail_pointer(skb));
+		err = ieee80211_put_eht_cap(skb, sdata, sband, NULL);
+		if (err)
+			return err;
 	}
 
 	err = ieee80211_put_he_6ghz_cap(skb, sdata, IEEE80211_SMPS_OFF);
@@ -4175,7 +4163,7 @@ u16 ieee80211_encode_usf(int listen_interval)
 	return (u16) listen_interval;
 }
 
-/* this may return more than ieee80211_ie_build_eht_cap() will need */
+/* this may return more than ieee80211_put_eht_cap() will need */
 u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata)
 {
 	const struct ieee80211_sta_he_cap *he_cap;
@@ -4205,25 +4193,28 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-u8 *ieee80211_ie_build_eht_cap(const struct ieee80211_conn_settings *conn,
-			       u8 *pos,
-			       const struct ieee80211_sta_he_cap *he_cap,
-			       const struct ieee80211_sta_eht_cap *eht_cap,
-			       u8 *end, bool for_ap)
+int ieee80211_put_eht_cap(struct sk_buff *skb,
+			  struct ieee80211_sub_if_data *sdata,
+			  const struct ieee80211_supported_band *sband,
+			  const struct ieee80211_conn_settings *conn)
 {
-	struct ieee80211_eht_cap_elem_fixed fixed, *out;
+	const struct ieee80211_sta_he_cap *he_cap =
+		ieee80211_get_he_iftype_cap_vif(sband, &sdata->vif);
+	const struct ieee80211_sta_eht_cap *eht_cap =
+		ieee80211_get_eht_iftype_cap_vif(sband, &sdata->vif);
+	bool for_ap = sdata->vif.type == NL80211_IFTYPE_AP;
+	struct ieee80211_eht_cap_elem_fixed fixed;
 	struct ieee80211_he_cap_elem he;
 	u8 mcs_nss_len, ppet_len;
 	u8 orig_mcs_nss_len;
 	u8 ie_len;
-	u8 *orig_pos = pos;
 
 	if (!conn)
 		conn = &ieee80211_conn_settings_unlimited;
 
 	/* Make sure we have place for the IE */
 	if (!he_cap || !eht_cap)
-		return orig_pos;
+		return 0;
 
 	orig_mcs_nss_len = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
 						      &eht_cap->eht_cap_elem,
@@ -4266,16 +4257,13 @@ u8 *ieee80211_ie_build_eht_cap(const struct ieee80211_conn_settings *conn,
 					  fixed.phy_cap_info);
 
 	ie_len = 2 + 1 + sizeof(eht_cap->eht_cap_elem) + mcs_nss_len + ppet_len;
-	if ((end - pos) < ie_len)
-		return orig_pos;
+	if (skb_tailroom(skb) < ie_len)
+		return -ENOBUFS;
 
-	*pos++ = WLAN_EID_EXTENSION;
-	*pos++ = ie_len - 2;
-	*pos++ = WLAN_EID_EXT_EHT_CAPABILITY;
-
-	out = (void *)pos;
-	*out = fixed;
-	pos += sizeof(*out);
+	skb_put_u8(skb, WLAN_EID_EXTENSION);
+	skb_put_u8(skb, ie_len - 2);
+	skb_put_u8(skb, WLAN_EID_EXT_EHT_CAPABILITY);
+	skb_put_data(skb, &fixed, sizeof(fixed));
 
 	if (mcs_nss_len == 4 && orig_mcs_nss_len != 4) {
 		/*
@@ -4284,21 +4272,18 @@ u8 *ieee80211_ie_build_eht_cap(const struct ieee80211_conn_settings *conn,
 		 * the groups 0-7, 8-9, 10-11, 12-13 rather than just 0-9,
 		 * 10-11, 12-13. Thus, use 0-9 for 0-7 and 8-9.
 		 */
-		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs9_max_nss;
-		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs9_max_nss;
-		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs11_max_nss;
-		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs13_max_nss;
+		skb_put_u8(skb, eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs9_max_nss);
+		skb_put_u8(skb, eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs9_max_nss);
+		skb_put_u8(skb, eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs11_max_nss);
+		skb_put_u8(skb, eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs13_max_nss);
 	} else {
-		memcpy(pos, &eht_cap->eht_mcs_nss_supp, mcs_nss_len);
-		pos += mcs_nss_len;
+		skb_put_data(skb, &eht_cap->eht_mcs_nss_supp, mcs_nss_len);
 	}
 
-	if (ppet_len) {
-		memcpy(pos, &eht_cap->eht_ppe_thres, ppet_len);
-		pos += ppet_len;
-	}
+	if (ppet_len)
+		skb_put_data(skb, &eht_cap->eht_ppe_thres, ppet_len);
 
-	return pos;
+	return 0;
 }
 
 const char *ieee80211_conn_mode_str(enum ieee80211_conn_mode mode)

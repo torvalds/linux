@@ -575,22 +575,10 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	}
 
 	/* build the EHT-cap from sband */
-	if (he_cap && eht_cap &&
-	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
-	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
-	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
-		u8 cap_size;
-
-		cap_size =
-			2 + 1 + sizeof(eht_cap->eht_cap_elem) +
-			ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-						   &eht_cap->eht_cap_elem, false) +
-			ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
-					       eht_cap->eht_cap_elem.phy_cap_info);
-		pos = skb_put(skb, cap_size);
-		ieee80211_ie_build_eht_cap(NULL, pos, he_cap, eht_cap,
-					   pos + cap_size, false);
-	}
+	if (action_code == WLAN_TDLS_SETUP_REQUEST ||
+	    action_code == WLAN_TDLS_SETUP_RESPONSE ||
+	    action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)
+		ieee80211_put_eht_cap(skb, sdata, sband, NULL);
 
 	/* add any remaining IEs */
 	if (extra_ies_len) {
