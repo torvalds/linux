@@ -552,7 +552,6 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 	    (action_code == WLAN_TDLS_SETUP_REQUEST ||
 	     action_code == WLAN_TDLS_SETUP_RESPONSE ||
 	     action_code == WLAN_PUB_ACTION_TDLS_DISCOVER_RES)) {
-		__le16 he_6ghz_capa;
 		u8 cap_size;
 
 		cap_size =
@@ -564,14 +563,8 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 		pos = ieee80211_ie_build_he_cap(NULL, he_cap, pos, pos + cap_size);
 
 		/* Build HE 6Ghz capa IE from sband */
-		if (sband->band == NL80211_BAND_6GHZ) {
-			cap_size = 2 + 1 + sizeof(struct ieee80211_he_6ghz_capa);
-			pos = skb_put(skb, cap_size);
-			he_6ghz_capa =
-				ieee80211_get_he_6ghz_capa_vif(sband, &sdata->vif);
-			pos = ieee80211_write_he_6ghz_cap(pos, he_6ghz_capa,
-							  pos + cap_size);
-		}
+		if (sband->band == NL80211_BAND_6GHZ)
+			ieee80211_put_he_6ghz_cap(skb, sdata, link->smps_mode);
 	}
 
 	/* add any custom IEs that go before EHT capabilities */
