@@ -121,6 +121,20 @@
 			compatible = "shared-dma-pool";
 			reusable;
 		};
+
+		xdma_memory0: xdma0 {
+			size = <0x0 0x01000000>;
+			alignment = <0x0 0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
+
+		xdma_memory1: xdma1 {
+			size = <0x0 0x01000000>;
+			alignment = <0x0 0x01000000>;
+			compatible = "shared-dma-pool";
+			no-map;
+		};
 	};
 
 	fan0: pwm-fan0 {
