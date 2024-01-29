@@ -578,8 +578,8 @@ static inline bool coresight_is_percpu_sink(struct coresight_device *csdev)
 extern struct coresight_device *
 coresight_register(struct coresight_desc *desc);
 extern void coresight_unregister(struct coresight_device *csdev);
-extern int coresight_enable(struct coresight_device *csdev);
-extern void coresight_disable(struct coresight_device *csdev);
+extern int coresight_enable_sysfs(struct coresight_device *csdev);
+extern void coresight_disable_sysfs(struct coresight_device *csdev);
 extern int coresight_timeout(struct csdev_access *csa, u32 offset,
 			     int position, int value);
 
@@ -609,8 +609,8 @@ static inline struct coresight_device *
 coresight_register(struct coresight_desc *desc) { return NULL; }
 static inline void coresight_unregister(struct coresight_device *csdev) {}
 static inline int
-coresight_enable(struct coresight_device *csdev) { return -ENOSYS; }
-static inline void coresight_disable(struct coresight_device *csdev) {}
+coresight_enable_sysfs(struct coresight_device *csdev) { return -ENOSYS; }
+static inline void coresight_disable_sysfs(struct coresight_device *csdev) {}
 
 static inline int coresight_timeout(struct csdev_access *csa, u32 offset,
 				    int position, int value)
