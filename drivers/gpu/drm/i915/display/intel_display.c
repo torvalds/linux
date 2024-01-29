@@ -440,6 +440,9 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 		u32 clear = DP_DSC_INSERT_SF_AT_EOL_WA;
 		u32 set = 0;
 
+		if (DISPLAY_VER(dev_priv) == 14)
+			set |= DP_FEC_BS_JITTER_WA;
+
 		intel_de_rmw(dev_priv,
 			     hsw_chicken_trans_reg(dev_priv, cpu_transcoder),
 			     clear, set);
