@@ -512,12 +512,13 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode, bool extent_inserted,
 				size_t size, size_t compressed_size,
 				int compress_type,
-				struct page **compressed_pages,
+				struct page *compressed_page,
 				bool update_i_size)
 {
 	struct btrfs_root *root = inode->root;
 	struct extent_buffer *leaf;
 	struct page *page = NULL;
+	const u32 sectorsize = trans->fs_info->sectorsize;
 	char *kaddr;
 	unsigned long ptr;
 	struct btrfs_file_extent_item *ei;
@@ -525,10 +526,23 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	size_t cur_size = size;
 	u64 i_size;
 
-	ASSERT((compressed_size > 0 && compressed_pages) ||
-	       (compressed_size == 0 && !compressed_pages));
+	/*
+	 * The decompressed size must still be no larger than a sector.  Under
+	 * heavy race, we can have size == 0 passed in, but that shouldn't be a
+	 * big deal and we can continue the insertion.
+	 */
+	ASSERT(size <= sectorsize);
 
-	if (compressed_size && compressed_pages)
+	/*
+	 * The compressed size also needs to be no larger than a sector.
+	 * That's also why we only need one page as the parameter.
+	 */
+	if (compressed_page)
+		ASSERT(compressed_size <= sectorsize);
+	else
+		ASSERT(compressed_size == 0);
+
+	if (compressed_size && compressed_page)
 		cur_size = compressed_size;
 
 	if (!extent_inserted) {
@@ -556,21 +570,10 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	ptr = btrfs_file_extent_inline_start(ei);
 
 	if (compress_type != BTRFS_COMPRESS_NONE) {
-		struct page *cpage;
-		int i = 0;
-		while (compressed_size > 0) {
-			cpage = compressed_pages[i];
-			cur_size = min_t(unsigned long, compressed_size,
-				       PAGE_SIZE);
+		kaddr = kmap_local_page(compressed_page);
+		write_extent_buffer(leaf, kaddr, ptr, compressed_size);
+		kunmap_local(kaddr);
 
-			kaddr = kmap_local_page(cpage);
-			write_extent_buffer(leaf, kaddr, ptr, cur_size);
-			kunmap_local(kaddr);
-
-			i++;
-			ptr += cur_size;
-			compressed_size -= cur_size;
-		}
 		btrfs_set_file_extent_compression(leaf, ei,
 						  compress_type);
 	} else {
@@ -620,7 +623,7 @@ fail:
 static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 size,
 					  size_t compressed_size,
 					  int compress_type,
-					  struct page **compressed_pages,
+					  struct page *compressed_page,
 					  bool update_i_size)
 {
 	struct btrfs_drop_extents_args drop_args = { 0 };
@@ -668,7 +671,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 size,
 
 	ret = insert_inline_extent(trans, path, inode, drop_args.extent_inserted,
 				   size, compressed_size, compress_type,
-				   compressed_pages, update_i_size);
+				   compressed_page, update_i_size);
 	if (ret && ret != -ENOSPC) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -976,7 +979,7 @@ again:
 		} else {
 			ret = cow_file_range_inline(inode, actual_end,
 						    total_compressed,
-						    compress_type, pages,
+						    compress_type, pages[0],
 						    false);
 		}
 		if (ret <= 0) {
@@ -10460,7 +10463,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	if (start == 0 && encoded->unencoded_len == encoded->len &&
 	    encoded->unencoded_offset == 0) {
 		ret = cow_file_range_inline(inode, encoded->len, orig_count,
-					    compression, pages, true);
+					    compression, pages[0], true);
 		if (ret <= 0) {
 			if (ret == 0)
 				ret = orig_count;
