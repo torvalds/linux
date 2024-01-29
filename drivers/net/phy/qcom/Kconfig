@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-2.0-only
+config QCOM_NET_PHYLIB
+	tristate
+
 config AT803X_PHY
 	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"
+	select QCOM_NET_PHYLIB
 	depends on REGULATOR
 	help
 	  Currently supports the AR8030, AR8031, AR8033, AR8035 and internal
