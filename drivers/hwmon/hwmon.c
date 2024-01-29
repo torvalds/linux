@@ -510,6 +510,7 @@ static const char * const hwmon_in_attr_templates[] = {
 	[hwmon_in_rated_min] = "in%d_rated_min",
 	[hwmon_in_rated_max] = "in%d_rated_max",
 	[hwmon_in_beep] = "in%d_beep",
+	[hwmon_in_fault] = "in%d_fault",
 };
 
 static const char * const hwmon_curr_attr_templates[] = {

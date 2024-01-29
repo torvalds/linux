@@ -149,6 +149,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/inY_fault
+Description:
+		Reports a voltage hard failure (eg: shorted component)
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/cpuY_vid
 Description:
 		CPU core reference voltage.
