@@ -1249,6 +1249,35 @@ void mana_gd_free_res_map(struct gdma_resource *r)
 	r->size = 0;
 }
 
+static __maybe_unused int irq_setup(unsigned int *irqs, unsigned int len, int node)
+{
+	const struct cpumask *next, *prev = cpu_none_mask;
+	cpumask_var_t cpus __free(free_cpumask_var);
+	int cpu, weight;
+
+	if (!alloc_cpumask_var(&cpus, GFP_KERNEL))
+		return -ENOMEM;
+
+	rcu_read_lock();
+	for_each_numa_hop_mask(next, node) {
+		weight = cpumask_weight_andnot(next, prev);
+		while (weight > 0) {
+			cpumask_andnot(cpus, next, prev);
+			for_each_cpu(cpu, cpus) {
+				if (len-- == 0)
+					goto done;
+				irq_set_affinity_and_hint(*irqs++, topology_sibling_cpumask(cpu));
+				cpumask_andnot(cpus, cpus, topology_sibling_cpumask(cpu));
+				--weight;
+			}
+		}
+		prev = next;
+	}
+done:
+	rcu_read_unlock();
+	return 0;
+}
+
 static int mana_gd_setup_irqs(struct pci_dev *pdev)
 {
 	unsigned int max_queues_per_port = num_online_cpus();
