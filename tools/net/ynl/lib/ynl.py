@@ -405,6 +405,26 @@ class GenlProtocol(NetlinkProtocol):
         return self.genl_family['mcast'][mcast_name]
 
 
+
+class SpaceAttrs:
+    SpecValuesPair = namedtuple('SpecValuesPair', ['spec', 'values'])
+
+    def __init__(self, attr_space, attrs, outer = None):
+        outer_scopes = outer.scopes if outer else []
+        inner_scope = self.SpecValuesPair(attr_space, attrs)
+        self.scopes = [inner_scope] + outer_scopes
+
+    def lookup(self, name):
+        for scope in self.scopes:
+            if name in scope.spec:
+                if name in scope.values:
+                    return scope.values[name]
+                spec_name = scope.spec.yaml['name']
+                raise Exception(
+                    f"No value for '{name}' in attribute space '{spec_name}'")
+        raise Exception(f"Attribute '{name}' not defined in any attribute-set")
+
+
 #
 # YNL implementation details.
 #
@@ -548,24 +568,22 @@ class YnlFamily(SpecFamily):
         else:
             rsp[name] = [decoded]
 
-    def _resolve_selector(self, attr_spec, vals):
+    def _resolve_selector(self, attr_spec, search_attrs):
         sub_msg = attr_spec.sub_message
         if sub_msg not in self.sub_msgs:
             raise Exception(f"No sub-message spec named {sub_msg} for {attr_spec.name}")
         sub_msg_spec = self.sub_msgs[sub_msg]
 
         selector = attr_spec.selector
-        if selector not in vals:
-            raise Exception(f"There is no value for {selector} to resolve '{attr_spec.name}'")
-        value = vals[selector]
+        value = search_attrs.lookup(selector)
         if value not in sub_msg_spec.formats:
             raise Exception(f"No message format for '{value}' in sub-message spec '{sub_msg}'")
 
         spec = sub_msg_spec.formats[value]
         return spec
 
-    def _decode_sub_msg(self, attr, attr_spec, rsp):
-        msg_format = self._resolve_selector(attr_spec, rsp)
+    def _decode_sub_msg(self, attr, attr_spec, search_attrs):
+        msg_format = self._resolve_selector(attr_spec, search_attrs)
         decoded = {}
         offset = 0
         if msg_format.fixed_header:
@@ -579,10 +597,12 @@ class YnlFamily(SpecFamily):
                 raise Exception(f"Unknown attribute-set '{attr_space}' when decoding '{attr_spec.name}'")
         return decoded
 
-    def _decode(self, attrs, space):
+    def _decode(self, attrs, space, outer_attrs = None):
         if space:
             attr_space = self.attr_sets[space]
         rsp = dict()
+        search_attrs = SpaceAttrs(attr_space, rsp, outer_attrs)
+
         for attr in attrs:
             try:
                 attr_spec = attr_space.attrs_by_val[attr.type]
@@ -594,7 +614,7 @@ class YnlFamily(SpecFamily):
                 continue
 
             if attr_spec["type"] == 'nest':
-                subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'])
+                subdict = self._decode(NlAttrs(attr.raw), attr_spec['nested-attributes'], search_attrs)
                 decoded = subdict
             elif attr_spec["type"] == 'string':
                 decoded = attr.as_strz()
@@ -617,7 +637,7 @@ class YnlFamily(SpecFamily):
                     selector = self._decode_enum(selector, attr_spec)
                 decoded = {"value": value, "selector": selector}
             elif attr_spec["type"] == 'sub-message':
-                decoded = self._decode_sub_msg(attr, attr_spec, rsp)
+                decoded = self._decode_sub_msg(attr, attr_spec, vals)
             else:
                 if not self.process_unknown:
                     raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
