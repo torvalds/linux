@@ -742,12 +742,17 @@ class YnlFamily(SpecFamily):
         members = self.consts[name].members
         attr_payload = b''
         for m in members:
-            value = vals.pop(m.name) if m.name in vals else 0
+            value = vals.pop(m.name) if m.name in vals else None
             if m.type == 'pad':
                 attr_payload += bytearray(m.len)
             elif m.type == 'binary':
-                attr_payload += bytes.fromhex(value)
+                if value is None:
+                    attr_payload += bytearray(m.len)
+                else:
+                    attr_payload += bytes.fromhex(value)
             else:
+                if value is None:
+                    value = 0
                 format = NlAttr.get_format(m.type, m.byte_order)
                 attr_payload += format.pack(value)
         return attr_payload
