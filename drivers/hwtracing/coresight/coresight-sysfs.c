@@ -68,7 +68,7 @@ static int coresight_enable_source_sysfs(struct coresight_device *csdev,
 			return ret;
 	}
 
-	atomic_inc(&csdev->refcnt);
+	csdev->refcnt++;
 
 	return 0;
 }
@@ -90,7 +90,8 @@ static bool coresight_disable_source_sysfs(struct coresight_device *csdev,
 	if (local_read(&csdev->mode) != CS_MODE_SYSFS)
 		return false;
 
-	if (atomic_dec_return(&csdev->refcnt) == 0) {
+	csdev->refcnt--;
+	if (csdev->refcnt == 0) {
 		coresight_disable_source(csdev, data);
 		return true;
 	}
@@ -190,7 +191,7 @@ int coresight_enable_sysfs(struct coresight_device *csdev)
 		 * source is already enabled.
 		 */
 		if (subtype == CORESIGHT_DEV_SUBTYPE_SOURCE_SOFTWARE)
-			atomic_inc(&csdev->refcnt);
+			csdev->refcnt++;
 		goto out;
 	}
 

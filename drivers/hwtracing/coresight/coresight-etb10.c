@@ -161,7 +161,7 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 		local_set(&csdev->mode, CS_MODE_SYSFS);
 	}
 
-	atomic_inc(&csdev->refcnt);
+	csdev->refcnt++;
 out:
 	spin_unlock_irqrestore(&drvdata->spinlock, flags);
 	return ret;
@@ -197,7 +197,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	 * use for this session.
 	 */
 	if (drvdata->pid == pid) {
-		atomic_inc(&csdev->refcnt);
+		csdev->refcnt++;
 		goto out;
 	}
 
@@ -215,7 +215,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 		/* Associate with monitored process. */
 		drvdata->pid = pid;
 		local_set(&drvdata->csdev->mode, CS_MODE_PERF);
-		atomic_inc(&csdev->refcnt);
+		csdev->refcnt++;
 	}
 
 out:
@@ -354,7 +354,8 @@ static int etb_disable(struct coresight_device *csdev)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	if (atomic_dec_return(&csdev->refcnt)) {
+	csdev->refcnt--;
+	if (csdev->refcnt) {
 		spin_unlock_irqrestore(&drvdata->spinlock, flags);
 		return -EBUSY;
 	}
@@ -445,7 +446,7 @@ static unsigned long etb_update_buffer(struct coresight_device *csdev,
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't do anything if another tracer is using this sink */
-	if (atomic_read(&csdev->refcnt) != 1)
+	if (csdev->refcnt != 1)
 		goto out;
 
 	__etb_disable_hw(drvdata);

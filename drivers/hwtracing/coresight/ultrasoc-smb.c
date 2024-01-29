@@ -103,7 +103,7 @@ static int smb_open(struct inode *inode, struct file *file)
 	if (drvdata->reading)
 		return -EBUSY;
 
-	if (atomic_read(&drvdata->csdev->refcnt))
+	if (drvdata->csdev->refcnt)
 		return -EBUSY;
 
 	smb_update_data_size(drvdata);
@@ -271,7 +271,7 @@ static int smb_enable(struct coresight_device *csdev, enum cs_mode mode,
 	if (ret)
 		return ret;
 
-	atomic_inc(&csdev->refcnt);
+	csdev->refcnt++;
 	dev_dbg(&csdev->dev, "Ultrasoc SMB enabled\n");
 
 	return ret;
@@ -286,7 +286,8 @@ static int smb_disable(struct coresight_device *csdev)
 	if (drvdata->reading)
 		return -EBUSY;
 
-	if (atomic_dec_return(&csdev->refcnt))
+	csdev->refcnt--;
+	if (csdev->refcnt)
 		return -EBUSY;
 
 	/* Complain if we (somehow) got out of sync */
@@ -381,7 +382,7 @@ static unsigned long smb_update_buffer(struct coresight_device *csdev,
 	guard(spinlock)(&drvdata->spinlock);
 
 	/* Don't do anything if another tracer is using this sink. */
-	if (atomic_read(&csdev->refcnt) != 1)
+	if (csdev->refcnt != 1)
 		return 0;
 
 	smb_disable_hw(drvdata);

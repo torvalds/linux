@@ -230,8 +230,15 @@ struct coresight_sysfs_link {
  *		actually an 'enum cs_mode', but is stored in an atomic type.
  *		This is always accessed through local_read() and local_set(),
  *		but wherever it's done from within the Coresight device's lock,
- *		a non-atomic read would also work.
- * @refcnt:	keep track of what is in use.
+ *		a non-atomic read would also work. This is the main point of
+ *		synchronisation between code happening inside the sysfs mode's
+ *		coresight_mutex and outside when running in Perf mode. A compare
+ *		and exchange swap is done to atomically claim one mode or the
+ *		other.
+ * @refcnt:	keep track of what is in use. Only access this outside of the
+ *		device's spinlock when the coresight_mutex held and mode ==
+ *		CS_MODE_SYSFS. Otherwise it must be accessed from inside the
+ *		spinlock.
  * @orphan:	true if the component has connections that haven't been linked.
  * @sysfs_sink_activated: 'true' when a sink has been selected for use via sysfs
  *		by writing a 1 to the 'enable_sink' file.  A sink can be
@@ -257,7 +264,7 @@ struct coresight_device {
 	struct csdev_access access;
 	struct device dev;
 	local_t	mode;
-	atomic_t refcnt;
+	int refcnt;
 	bool orphan;
 	/* sink specific fields */
 	bool sysfs_sink_activated;
