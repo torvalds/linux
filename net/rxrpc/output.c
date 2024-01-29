@@ -83,18 +83,16 @@ static void rxrpc_fill_out_ack(struct rxrpc_call *call,
 			       rxrpc_serial_t serial)
 {
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
+	struct rxrpc_acktrailer *trailer = txb->kvec[2].iov_base + 3;
 	struct rxrpc_ackpacket *ack = (struct rxrpc_ackpacket *)(whdr + 1);
-	struct rxrpc_acktrailer trailer;
 	unsigned int qsize, sack, wrap, to;
 	rxrpc_seq_t window, wtop;
 	int rsize;
 	u32 mtu, jmax;
-	u8 *ackp = txb->acks;
+	u8 *filler = txb->kvec[2].iov_base;
+	u8 *sackp = txb->kvec[1].iov_base;
 
-	call->ackr_nr_unacked = 0;
-	atomic_set(&call->ackr_nr_consumed, 0);
 	rxrpc_inc_stat(call->rxnet, stat_tx_ack_fill);
-	clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
 
 	window = call->ackr_window;
 	wtop   = call->ackr_wtop;
@@ -110,20 +108,27 @@ static void rxrpc_fill_out_ack(struct rxrpc_call *call,
 	ack->serial		= htonl(serial);
 	ack->reason		= ack_reason;
 	ack->nAcks		= wtop - window;
+	filler[0]		= 0;
+	filler[1]		= 0;
+	filler[2]		= 0;
+
+	if (ack_reason == RXRPC_ACK_PING)
+		txb->flags |= RXRPC_REQUEST_ACK;
 
 	if (after(wtop, window)) {
+		txb->len += ack->nAcks;
+		txb->kvec[1].iov_base = sackp;
+		txb->kvec[1].iov_len = ack->nAcks;
+
 		wrap = RXRPC_SACK_SIZE - sack;
 		to = min_t(unsigned int, ack->nAcks, RXRPC_SACK_SIZE);
 
 		if (sack + ack->nAcks <= RXRPC_SACK_SIZE) {
-			memcpy(txb->acks, call->ackr_sack_table + sack, ack->nAcks);
+			memcpy(sackp, call->ackr_sack_table + sack, ack->nAcks);
 		} else {
-			memcpy(txb->acks, call->ackr_sack_table + sack, wrap);
-			memcpy(txb->acks + wrap, call->ackr_sack_table,
-			       to - wrap);
+			memcpy(sackp, call->ackr_sack_table + sack, wrap);
+			memcpy(sackp + wrap, call->ackr_sack_table, to - wrap);
 		}
-
-		ackp += to;
 	} else if (before(wtop, window)) {
 		pr_warn("ack window backward %x %x", window, wtop);
 	} else if (ack->reason == RXRPC_ACK_DELAY) {
@@ -135,18 +140,11 @@ static void rxrpc_fill_out_ack(struct rxrpc_call *call,
 	jmax = rxrpc_rx_jumbo_max;
 	qsize = (window - 1) - call->rx_consumed;
 	rsize = max_t(int, call->rx_winsize - qsize, 0);
-	txb->ack_rwind		= rsize;
-	trailer.maxMTU		= htonl(rxrpc_rx_mtu);
-	trailer.ifMTU		= htonl(mtu);
-	trailer.rwind		= htonl(rsize);
-	trailer.jumbo_max	= htonl(jmax);
-
-	*ackp++ = 0;
-	*ackp++ = 0;
-	*ackp++ = 0;
-	memcpy(ackp, &trailer, sizeof(trailer));
-	txb->kvec[0].iov_len += sizeof(*ack) + ack->nAcks + 3 + sizeof(trailer);
-	txb->len = txb->kvec[0].iov_len;
+	txb->ack_rwind = rsize;
+	trailer->maxMTU		= htonl(rxrpc_rx_mtu);
+	trailer->ifMTU		= htonl(mtu);
+	trailer->rwind		= htonl(rsize);
+	trailer->jumbo_max	= htonl(jmax);
 }
 
 /*
@@ -195,7 +193,7 @@ static void rxrpc_cancel_rtt_probe(struct rxrpc_call *call,
 /*
  * Transmit an ACK packet.
  */
-static int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
+static void rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
 	struct rxrpc_wire_header *whdr = txb->kvec[0].iov_base;
 	struct rxrpc_connection *conn;
@@ -204,7 +202,7 @@ static int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *tx
 	int ret, rtt_slot = -1;
 
 	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
-		return -ECONNRESET;
+		return;
 
 	conn = call->conn;
 
@@ -212,10 +210,8 @@ static int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *tx
 	msg.msg_namelen	= call->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
-	msg.msg_flags	= 0;
+	msg.msg_flags	= MSG_SPLICE_PAGES;
 
-	if (ack->reason == RXRPC_ACK_PING)
-		txb->flags |= RXRPC_REQUEST_ACK;
 	whdr->flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 
 	txb->serial = rxrpc_get_next_serial(conn);
@@ -250,8 +246,6 @@ static int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *tx
 			rxrpc_cancel_rtt_probe(call, txb->serial, rtt_slot);
 		rxrpc_set_keepalive(call);
 	}
-
-	return ret;
 }
 
 /*
@@ -267,16 +261,19 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_acks[ack_reason]);
 
-	txb = rxrpc_alloc_txbuf(call, RXRPC_PACKET_TYPE_ACK,
-				rcu_read_lock_held() ? GFP_ATOMIC | __GFP_NOWARN : GFP_NOFS);
+	txb = rxrpc_alloc_ack_txbuf(call, call->ackr_wtop - call->ackr_window);
 	if (!txb) {
 		kleave(" = -ENOMEM");
 		return;
 	}
 
-	rxrpc_fill_out_ack(call, txb, ack_reason, serial);
-
 	txb->ack_why = why;
+
+	rxrpc_fill_out_ack(call, txb, ack_reason, serial);
+	call->ackr_nr_unacked = 0;
+	atomic_set(&call->ackr_nr_consumed, 0);
+	clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags);
+
 	trace_rxrpc_send_ack(call, why, ack_reason, serial);
 	rxrpc_send_ack_packet(call, txb);
 	rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
@@ -465,7 +462,7 @@ static int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *t
 	msg.msg_namelen	= call->peer->srx.transport_len;
 	msg.msg_control	= NULL;
 	msg.msg_controllen = 0;
-	msg.msg_flags	= 0;
+	msg.msg_flags	= MSG_SPLICE_PAGES;
 
 	/* Track what we've attempted to transmit at least once so that the
 	 * retransmission algorithm doesn't try to resend what we haven't sent
