@@ -14,3 +14,9 @@ config QCA83XX_PHY
 	select QCOM_NET_PHYLIB
 	help
 	  Currently supports the internal QCA8337(Internal qca8k PHY) model
+
+config QCA808X_PHY
+	tristate "Qualcomm QCA808x PHYs"
+	select QCOM_NET_PHYLIB
+	help
+	  Currently supports the QCA8081 model
