@@ -2652,7 +2652,8 @@ void ieee80211_init_frag_cache(struct ieee80211_fragment_cache *cache);
 void ieee80211_destroy_frag_cache(struct ieee80211_fragment_cache *cache);
 
 u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata);
-u8 *ieee80211_ie_build_eht_cap(u8 *pos,
+u8 *ieee80211_ie_build_eht_cap(const struct ieee80211_conn_settings *conn,
+			       u8 *pos,
 			       const struct ieee80211_sta_he_cap *he_cap,
 			       const struct ieee80211_sta_eht_cap *eht_cap,
 			       u8 *end,

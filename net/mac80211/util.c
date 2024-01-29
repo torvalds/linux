@@ -2250,7 +2250,8 @@ static int ieee80211_build_preq_ies_band(struct ieee80211_sub_if_data *sdata,
 	    cfg80211_any_usable_channels(local->hw.wiphy, BIT(sband->band),
 					 IEEE80211_CHAN_NO_HE |
 					 IEEE80211_CHAN_NO_EHT)) {
-		pos = ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, end,
+		pos = ieee80211_ie_build_eht_cap(NULL, pos, he_cap, eht_cap,
+						 end,
 						 sdata->vif.type == NL80211_IFTYPE_AP);
 		if (!pos)
 			goto out_err;
@@ -3294,6 +3295,24 @@ u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata)
 				     he_cap->he_cap_elem.phy_cap_info);
 }
 
+static void
+ieee80211_get_adjusted_he_cap(const struct ieee80211_conn_settings *conn,
+			      const struct ieee80211_sta_he_cap *he_cap,
+			      struct ieee80211_he_cap_elem *elem)
+{
+	*elem = he_cap->he_cap_elem;
+
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40)
+		elem->phy_cap_info[0] &=
+			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
+			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G);
+
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160)
+		elem->phy_cap_info[0] &=
+			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
+			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G);
+}
+
 u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *pos, u8 *end)
@@ -3307,25 +3326,11 @@ u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
 		conn = &ieee80211_conn_settings_unlimited;
 
 	/* Make sure we have place for the IE */
-	/*
-	 * TODO: the 1 added is because this temporarily is under the EXTENSION
-	 * IE. Get rid of it when it moves.
-	 */
 	if (!he_cap)
 		return orig_pos;
 
 	/* modify on stack first to calculate 'n' and 'ie_len' correctly */
-	elem = he_cap->he_cap_elem;
-
-	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40)
-		elem.phy_cap_info[0] &=
-			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
-			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G);
-
-	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160)
-		elem.phy_cap_info[0] &=
-			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
-			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G);
+	ieee80211_get_adjusted_he_cap(conn, he_cap, &elem);
 
 	n = ieee80211_he_mcs_nss_size(&elem);
 	ie_len = 2 + 1 +
@@ -5096,25 +5101,65 @@ u8 ieee80211_ie_len_eht_cap(struct ieee80211_sub_if_data *sdata)
 	return 0;
 }
 
-u8 *ieee80211_ie_build_eht_cap(u8 *pos,
+u8 *ieee80211_ie_build_eht_cap(const struct ieee80211_conn_settings *conn,
+			       u8 *pos,
 			       const struct ieee80211_sta_he_cap *he_cap,
 			       const struct ieee80211_sta_eht_cap *eht_cap,
-			       u8 *end,
-			       bool for_ap)
+			       u8 *end, bool for_ap)
 {
+	struct ieee80211_eht_cap_elem_fixed fixed, *out;
+	struct ieee80211_he_cap_elem he;
 	u8 mcs_nss_len, ppet_len;
+	u8 orig_mcs_nss_len;
 	u8 ie_len;
 	u8 *orig_pos = pos;
+
+	if (!conn)
+		conn = &ieee80211_conn_settings_unlimited;
 
 	/* Make sure we have place for the IE */
 	if (!he_cap || !eht_cap)
 		return orig_pos;
 
-	mcs_nss_len = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
-						 &eht_cap->eht_cap_elem,
-						 for_ap);
+	orig_mcs_nss_len = ieee80211_eht_mcs_nss_size(&he_cap->he_cap_elem,
+						      &eht_cap->eht_cap_elem,
+						      for_ap);
+
+	ieee80211_get_adjusted_he_cap(conn, he_cap, &he);
+
+	fixed = eht_cap->eht_cap_elem;
+
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_80)
+		fixed.phy_cap_info[6] &=
+			~IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_80MHZ;
+
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160) {
+		fixed.phy_cap_info[1] &=
+			~IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_160MHZ_MASK;
+		fixed.phy_cap_info[2] &=
+			~IEEE80211_EHT_PHY_CAP2_SOUNDING_DIM_160MHZ_MASK;
+		fixed.phy_cap_info[6] &=
+			~IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_160MHZ;
+	}
+
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_320) {
+		fixed.phy_cap_info[0] &=
+			~IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ;
+		fixed.phy_cap_info[1] &=
+			~IEEE80211_EHT_PHY_CAP1_BEAMFORMEE_SS_320MHZ_MASK;
+		fixed.phy_cap_info[2] &=
+			~IEEE80211_EHT_PHY_CAP2_SOUNDING_DIM_320MHZ_MASK;
+		fixed.phy_cap_info[6] &=
+			~IEEE80211_EHT_PHY_CAP6_MCS15_SUPP_320MHZ;
+	}
+
+	if (conn->bw_limit == IEEE80211_CONN_BW_LIMIT_20)
+		fixed.phy_cap_info[0] &=
+			~IEEE80211_EHT_PHY_CAP0_242_TONE_RU_GT20MHZ;
+
+	mcs_nss_len = ieee80211_eht_mcs_nss_size(&he, &fixed, for_ap);
 	ppet_len = ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
-					  eht_cap->eht_cap_elem.phy_cap_info);
+					  fixed.phy_cap_info);
 
 	ie_len = 2 + 1 + sizeof(eht_cap->eht_cap_elem) + mcs_nss_len + ppet_len;
 	if ((end - pos) < ie_len)
@@ -5124,12 +5169,25 @@ u8 *ieee80211_ie_build_eht_cap(u8 *pos,
 	*pos++ = ie_len - 2;
 	*pos++ = WLAN_EID_EXT_EHT_CAPABILITY;
 
-	/* Fixed data */
-	memcpy(pos, &eht_cap->eht_cap_elem, sizeof(eht_cap->eht_cap_elem));
-	pos += sizeof(eht_cap->eht_cap_elem);
+	out = (void *)pos;
+	*out = fixed;
+	pos += sizeof(*out);
 
-	memcpy(pos, &eht_cap->eht_mcs_nss_supp, mcs_nss_len);
-	pos += mcs_nss_len;
+	if (mcs_nss_len == 4 && orig_mcs_nss_len != 4) {
+		/*
+		 * If the (non-AP) STA became 20 MHz only, then convert from
+		 * <=80 to 20-MHz-only format, where MCSes are indicated in
+		 * the groups 0-7, 8-9, 10-11, 12-13 rather than just 0-9,
+		 * 10-11, 12-13. Thus, use 0-9 for 0-7 and 8-9.
+		 */
+		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs9_max_nss;
+		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs9_max_nss;
+		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs11_max_nss;
+		*pos++ = eht_cap->eht_mcs_nss_supp.bw._80.rx_tx_mcs13_max_nss;
+	} else {
+		memcpy(pos, &eht_cap->eht_mcs_nss_supp, mcs_nss_len);
+		pos += mcs_nss_len;
+	}
 
 	if (ppet_len) {
 		memcpy(pos, &eht_cap->eht_ppe_thres, ppet_len);

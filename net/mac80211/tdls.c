@@ -6,7 +6,7 @@
  * Copyright 2014, Intel Corporation
  * Copyright 2014  Intel Mobile Communications GmbH
  * Copyright 2015 - 2016 Intel Deutschland GmbH
- * Copyright (C) 2019, 2021-2023 Intel Corporation
+ * Copyright (C) 2019, 2021-2024 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -604,7 +604,8 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 			ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
 					       eht_cap->eht_cap_elem.phy_cap_info);
 		pos = skb_put(skb, cap_size);
-		ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + cap_size, false);
+		ieee80211_ie_build_eht_cap(NULL, pos, he_cap, eht_cap,
+					   pos + cap_size, false);
 	}
 
 	/* add any remaining IEs */

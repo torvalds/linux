@@ -1072,9 +1072,10 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb,
-				 struct ieee80211_supported_band *sband)
+				 struct ieee80211_supported_band *sband,
+				 const struct ieee80211_conn_settings *conn)
 {
-	u8 *pos;
+	u8 *pos, *pre_eht_pos;
 	const struct ieee80211_sta_he_cap *he_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap;
 	u8 eht_cap_size;
@@ -1097,8 +1098,11 @@ static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 		ieee80211_eht_ppe_size(eht_cap->eht_ppe_thres[0],
 				       eht_cap->eht_cap_elem.phy_cap_info);
 	pos = skb_put(skb, eht_cap_size);
-	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + eht_cap_size,
-				   false);
+	pre_eht_pos = pos;
+	pos = ieee80211_ie_build_eht_cap(conn, pos, he_cap, eht_cap,
+					 pos + eht_cap_size, false);
+	/* trim excess if any */
+	skb_trim(skb, skb->len - (pre_eht_pos + eht_cap_size - pos));
 }
 
 static void ieee80211_assoc_add_rates(struct sk_buff *skb,
@@ -1453,7 +1457,8 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 	present_elems = NULL;
 
 	if (assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_EHT)
-		ieee80211_add_eht_ie(sdata, skb, sband);
+		ieee80211_add_eht_ie(sdata, skb, sband,
+				     &assoc_data->link[link_id].conn);
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
 		ieee80211_add_aid_request_ie(sdata, skb);

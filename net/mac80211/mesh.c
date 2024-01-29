@@ -668,7 +668,8 @@ int mesh_add_eht_cap_ie(struct ieee80211_sub_if_data *sdata,
 		return -ENOMEM;
 
 	pos = skb_put(skb, ie_len);
-	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + ie_len, false);
+	ieee80211_ie_build_eht_cap(NULL, pos, he_cap, eht_cap, pos + ie_len,
+				   false);
 
 	return 0;
 }
