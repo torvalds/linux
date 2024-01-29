@@ -367,7 +367,6 @@ static int suspend_prepare(suspend_state_t state)
 	if (!error)
 		return 0;
 
-	suspend_stats.failed_freeze++;
 	dpm_save_failed_step(SUSPEND_FREEZE);
 	pm_notifier_call_chain(PM_POST_SUSPEND);
  Restore:

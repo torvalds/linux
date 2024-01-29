@@ -52,17 +52,12 @@ enum suspend_stat_step {
 	SUSPEND_RESUME
 };
 
+#define SUSPEND_NR_STEPS	SUSPEND_RESUME
+
 struct suspend_stats {
+	unsigned int step_failures[SUSPEND_NR_STEPS];
 	int	success;
 	int	fail;
-	int	failed_freeze;
-	int	failed_prepare;
-	int	failed_suspend;
-	int	failed_suspend_late;
-	int	failed_suspend_noirq;
-	int	failed_resume;
-	int	failed_resume_early;
-	int	failed_resume_noirq;
 #define	REC_FAILED_NUM	2
 	int	last_failed_dev;
 	char	failed_devs[REC_FAILED_NUM][40];
@@ -95,6 +90,7 @@ static inline void dpm_save_failed_errno(int err)
 
 static inline void dpm_save_failed_step(enum suspend_stat_step step)
 {
+	suspend_stats.step_failures[step-1]++;
 	suspend_stats.failed_steps[suspend_stats.last_failed_step] = step;
 	suspend_stats.last_failed_step++;
 	suspend_stats.last_failed_step %= REC_FAILED_NUM;
