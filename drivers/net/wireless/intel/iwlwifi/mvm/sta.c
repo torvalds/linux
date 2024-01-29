@@ -3559,6 +3559,9 @@ static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
 	key_flags = cpu_to_le16(keyidx);
 	key_flags |= cpu_to_le16(STA_KEY_FLG_WEP_KEY_MAP);
 
+	if (key->flags & IEEE80211_KEY_FLAG_SPP_AMSDU)
+		key_flags |= cpu_to_le16(STA_KEY_FLG_AMSDU_SPP);
+
 	switch (key->cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:
 		key_flags |= cpu_to_le16(STA_KEY_FLG_TKIP);

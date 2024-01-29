@@ -104,6 +104,9 @@ u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 	     (keyconf->keyidx == 4 || keyconf->keyidx == 5)))
 		flags |= IWL_SEC_KEY_FLAG_MFP;
 
+	if (keyconf->flags & IEEE80211_KEY_FLAG_SPP_AMSDU)
+		flags |= IWL_SEC_KEY_FLAG_SPP_AMSDU;
+
 	return flags;
 }
 
