@@ -800,9 +800,9 @@ struct rxrpc_txbuf {
 	unsigned int		len;		/* Amount of data in buffer */
 	unsigned int		space;		/* Remaining data space */
 	unsigned int		offset;		/* Offset of fill point */
-	unsigned long		flags;
-#define RXRPC_TXBUF_LAST	0		/* Set if last packet in Tx phase */
-#define RXRPC_TXBUF_RESENT	1		/* Set if has been resent */
+	unsigned int		flags;
+#define RXRPC_TXBUF_WIRE_FLAGS	0xff		/* The wire protocol flags */
+#define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */
 	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
 	struct {
 		/* The packet for encrypting and DMA'ing.  We align it such
@@ -822,7 +822,7 @@ struct rxrpc_txbuf {
 
 static inline bool rxrpc_sending_to_server(const struct rxrpc_txbuf *txb)
 {
-	return txb->wire.flags & RXRPC_CLIENT_INITIATED;
+	return txb->flags & RXRPC_CLIENT_INITIATED;
 }
 
 static inline bool rxrpc_sending_to_client(const struct rxrpc_txbuf *txb)

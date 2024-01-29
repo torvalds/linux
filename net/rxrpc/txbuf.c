@@ -31,7 +31,7 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->space		= sizeof(txb->data);
 		txb->len		= 0;
 		txb->offset		= 0;
-		txb->flags		= 0;
+		txb->flags		= call->conn->out_clientflag;
 		txb->ack_why		= 0;
 		txb->seq		= call->tx_prepared + 1;
 		txb->serial		= 0;
@@ -40,7 +40,7 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->wire.callNumber	= htonl(call->call_id);
 		txb->wire.seq		= htonl(txb->seq);
 		txb->wire.type		= packet_type;
-		txb->wire.flags		= call->conn->out_clientflag;
+		txb->wire.flags		= 0;
 		txb->wire.userStatus	= 0;
 		txb->wire.securityIndex	= call->security_ix;
 		txb->wire._rsvd		= 0;

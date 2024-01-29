@@ -240,7 +240,7 @@ static void rxrpc_queue_packet(struct rxrpc_sock *rx, struct rxrpc_call *call,
 			       rxrpc_notify_end_tx_t notify_end_tx)
 {
 	rxrpc_seq_t seq = txb->seq;
-	bool last = test_bit(RXRPC_TXBUF_LAST, &txb->flags), poke;
+	bool poke, last = txb->flags & RXRPC_LAST_PACKET;
 
 	rxrpc_inc_stat(call->rxnet, stat_tx_data);
 
@@ -394,13 +394,11 @@ reload:
 		/* add the packet to the send queue if it's now full */
 		if (!txb->space ||
 		    (msg_data_left(msg) == 0 && !more)) {
-			if (msg_data_left(msg) == 0 && !more) {
-				txb->wire.flags |= RXRPC_LAST_PACKET;
-				__set_bit(RXRPC_TXBUF_LAST, &txb->flags);
-			}
+			if (msg_data_left(msg) == 0 && !more)
+				txb->flags |= RXRPC_LAST_PACKET;
 			else if (call->tx_top - call->acks_hard_ack <
 				 call->tx_winsize)
-				txb->wire.flags |= RXRPC_MORE_PACKETS;
+				txb->flags |= RXRPC_MORE_PACKETS;
 
 			ret = call->security->secure_packet(call, txb);
 			if (ret < 0)

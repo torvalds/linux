@@ -84,7 +84,7 @@ void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
 	txb->ack_why		= why;
 	txb->wire.seq		= 0;
 	txb->wire.type		= RXRPC_PACKET_TYPE_ACK;
-	txb->wire.flags		|= RXRPC_SLOW_START_OK;
+	txb->flags		|= RXRPC_SLOW_START_OK;
 	txb->ack.bufferSpace	= 0;
 	txb->ack.maxSkew	= 0;
 	txb->ack.firstPacket	= 0;
@@ -167,7 +167,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 
 			if (list_empty(&txb->tx_link)) {
 				list_add_tail(&txb->tx_link, &retrans_queue);
-				set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
+				txb->flags |= RXRPC_TXBUF_RESENT;
 			}
 
 			trace_rxrpc_retransmit(call, txb->seq, txb->serial,
@@ -210,7 +210,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 		unacked = true;
 		if (list_empty(&txb->tx_link)) {
 			list_add_tail(&txb->tx_link, &retrans_queue);
-			set_bit(RXRPC_TXBUF_RESENT, &txb->flags);
+			txb->flags |= RXRPC_TXBUF_RESENT;
 			rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
 		}
 	}
@@ -320,7 +320,7 @@ static void rxrpc_decant_prepared_tx(struct rxrpc_call *call)
 		call->tx_top = txb->seq;
 		list_add_tail(&txb->call_link, &call->tx_buffer);
 
-		if (txb->wire.flags & RXRPC_LAST_PACKET)
+		if (txb->flags & RXRPC_LAST_PACKET)
 			rxrpc_close_tx_phase(call);
 
 		rxrpc_transmit_one(call, txb);

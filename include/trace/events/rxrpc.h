@@ -1084,9 +1084,9 @@ TRACE_EVENT(rxrpc_tx_packet,
 
 TRACE_EVENT(rxrpc_tx_data,
 	    TP_PROTO(struct rxrpc_call *call, rxrpc_seq_t seq,
-		     rxrpc_serial_t serial, u8 flags, bool retrans, bool lose),
+		     rxrpc_serial_t serial, unsigned int flags, bool lose),
 
-	    TP_ARGS(call, seq, serial, flags, retrans, lose),
+	    TP_ARGS(call, seq, serial, flags, lose),
 
 	    TP_STRUCT__entry(
 		    __field(unsigned int,	call)
@@ -1094,8 +1094,7 @@ TRACE_EVENT(rxrpc_tx_data,
 		    __field(rxrpc_serial_t,	serial)
 		    __field(u32,		cid)
 		    __field(u32,		call_id)
-		    __field(u8,			flags)
-		    __field(bool,		retrans)
+		    __field(u16,		flags)
 		    __field(bool,		lose)
 			     ),
 
@@ -1106,7 +1105,6 @@ TRACE_EVENT(rxrpc_tx_data,
 		    __entry->seq = seq;
 		    __entry->serial = serial;
 		    __entry->flags = flags;
-		    __entry->retrans = retrans;
 		    __entry->lose = lose;
 			   ),
 
@@ -1116,8 +1114,8 @@ TRACE_EVENT(rxrpc_tx_data,
 		      __entry->call_id,
 		      __entry->serial,
 		      __entry->seq,
-		      __entry->flags,
-		      __entry->retrans ? " *RETRANS*" : "",
+		      __entry->flags & RXRPC_TXBUF_WIRE_FLAGS,
+		      __entry->flags & RXRPC_TXBUF_RESENT ? " *RETRANS*" : "",
 		      __entry->lose ? " *LOSE*" : "")
 	    );
 

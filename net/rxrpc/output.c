@@ -205,7 +205,8 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	msg.msg_flags	= 0;
 
 	if (txb->ack.reason == RXRPC_ACK_PING)
-		txb->wire.flags |= RXRPC_REQUEST_ACK;
+		txb->flags |= RXRPC_REQUEST_ACK;
+	txb->wire.flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 
 	n = rxrpc_fill_out_ack(conn, call, txb, &rwind);
 	if (n == 0)
@@ -239,7 +240,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	} else {
 		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
 				      rxrpc_tx_point_call_ack);
-		if (txb->wire.flags & RXRPC_REQUEST_ACK)
+		if (txb->flags & RXRPC_REQUEST_ACK)
 			call->peer->rtt_last_req = ktime_get_real();
 	}
 	rxrpc_tx_backoff(call, ret);
@@ -357,13 +358,13 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	 * service call, lest OpenAFS incorrectly send us an ACK with some
 	 * soft-ACKs in it and then never follow up with a proper hard ACK.
 	 */
-	if (txb->wire.flags & RXRPC_REQUEST_ACK)
+	if (txb->flags & RXRPC_REQUEST_ACK)
 		why = rxrpc_reqack_already_on;
-	else if (test_bit(RXRPC_TXBUF_LAST, &txb->flags) && rxrpc_sending_to_client(txb))
+	else if ((txb->flags & RXRPC_LAST_PACKET) && rxrpc_sending_to_client(txb))
 		why = rxrpc_reqack_no_srv_last;
 	else if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events))
 		why = rxrpc_reqack_ack_lost;
-	else if (test_bit(RXRPC_TXBUF_RESENT, &txb->flags))
+	else if (txb->flags & RXRPC_TXBUF_RESENT)
 		why = rxrpc_reqack_retrans;
 	else if (call->cong_mode == RXRPC_CALL_SLOW_START && call->cong_cwnd <= 2)
 		why = rxrpc_reqack_slow_start;
@@ -379,7 +380,7 @@ int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	rxrpc_inc_stat(call->rxnet, stat_why_req_ack[why]);
 	trace_rxrpc_req_ack(call->debug_id, txb->seq, why);
 	if (why != rxrpc_reqack_no_srv_last)
-		txb->wire.flags |= RXRPC_REQUEST_ACK;
+		txb->flags |= RXRPC_REQUEST_ACK;
 dont_set_request_ack:
 
 	if (IS_ENABLED(CONFIG_AF_RXRPC_INJECT_LOSS)) {
@@ -387,15 +388,12 @@ dont_set_request_ack:
 		if ((lose++ & 7) == 7) {
 			ret = 0;
 			trace_rxrpc_tx_data(call, txb->seq, txb->serial,
-					    txb->wire.flags,
-					    test_bit(RXRPC_TXBUF_RESENT, &txb->flags),
-					    true);
+					    txb->flags, true);
 			goto done;
 		}
 	}
 
-	trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->wire.flags,
-			    test_bit(RXRPC_TXBUF_RESENT, &txb->flags), false);
+	trace_rxrpc_tx_data(call, txb->seq, txb->serial, txb->flags, false);
 
 	/* Track what we've attempted to transmit at least once so that the
 	 * retransmission algorithm doesn't try to resend what we haven't sent
@@ -411,8 +409,9 @@ dont_set_request_ack:
 	if (txb->len >= call->peer->maxdata)
 		goto send_fragmentable;
 
+	txb->wire.flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 	txb->last_sent = ktime_get_real();
-	if (txb->wire.flags & RXRPC_REQUEST_ACK)
+	if (txb->flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_data);
 
 	/* send the packet by UDP
@@ -442,7 +441,7 @@ dont_set_request_ack:
 done:
 	if (ret >= 0) {
 		call->tx_last_sent = txb->last_sent;
-		if (txb->wire.flags & RXRPC_REQUEST_ACK) {
+		if (txb->flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = txb->last_sent;
 			if (call->peer->rtt_count > 1) {
 				unsigned long nowj = jiffies, ack_lost_at;
@@ -486,7 +485,7 @@ send_fragmentable:
 	_debug("send fragment");
 
 	txb->last_sent = ktime_get_real();
-	if (txb->wire.flags & RXRPC_REQUEST_ACK)
+	if (txb->flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_data);
 
 	switch (conn->local->srx.transport.family) {
