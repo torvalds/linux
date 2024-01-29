@@ -907,6 +907,18 @@ static void cs35l56_dsp_work(struct work_struct *work)
 
 	pm_runtime_get_sync(cs35l56->base.dev);
 
+	/* Populate fw file qualifier with the revision and security state */
+	if (!cs35l56->dsp.fwf_name) {
+		cs35l56->dsp.fwf_name = kasprintf(GFP_KERNEL, "%02x%s-dsp1",
+						  cs35l56->base.rev,
+						  cs35l56->base.secured ? "-s" : "");
+		if (!cs35l56->dsp.fwf_name)
+			goto err;
+	}
+
+	dev_dbg(cs35l56->base.dev, "DSP fwf name: '%s' system name: '%s'\n",
+		cs35l56->dsp.fwf_name, cs35l56->dsp.system_name);
+
 	/*
 	 * When the device is running in secure mode the firmware files can
 	 * only contain insecure tunings and therefore we do not need to
@@ -926,7 +938,7 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	 * on the DAPM mutex.
 	 */
 	queue_work(cs35l56->dsp_wq, &cs35l56->mux_init_work);
-
+err:
 	pm_runtime_mark_last_busy(cs35l56->base.dev);
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
@@ -978,6 +990,9 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 		wm_adsp_power_down(&cs35l56->dsp);
 
 	wm_adsp2_component_remove(&cs35l56->dsp, component);
+
+	kfree(cs35l56->dsp.fwf_name);
+	cs35l56->dsp.fwf_name = NULL;
 
 	cs35l56->component = NULL;
 }
@@ -1329,12 +1344,6 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 	ret = cs35l56_set_patch(&cs35l56->base);
 	if (ret)
 		return ret;
-
-	/* Populate the DSP information with the revision and security state */
-	cs35l56->dsp.part = devm_kasprintf(cs35l56->base.dev, GFP_KERNEL, "cs35l56%s-%02x",
-					   cs35l56->base.secured ? "s" : "", cs35l56->base.rev);
-	if (!cs35l56->dsp.part)
-		return -ENOMEM;
 
 	if (!cs35l56->base.reset_gpio) {
 		dev_dbg(cs35l56->base.dev, "No reset gpio: using soft reset\n");
