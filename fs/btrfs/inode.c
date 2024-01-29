@@ -708,8 +708,8 @@ struct async_extent {
 	u64 start;
 	u64 ram_size;
 	u64 compressed_size;
-	struct page **pages;
-	unsigned long nr_pages;
+	struct folio **folios;
+	unsigned long nr_folios;
 	int compress_type;
 	struct list_head list;
 };
@@ -734,8 +734,8 @@ struct async_cow {
 static noinline int add_async_extent(struct async_chunk *cow,
 				     u64 start, u64 ram_size,
 				     u64 compressed_size,
-				     struct page **pages,
-				     unsigned long nr_pages,
+				     struct folio **folios,
+				     unsigned long nr_folios,
 				     int compress_type)
 {
 	struct async_extent *async_extent;
@@ -746,8 +746,8 @@ static noinline int add_async_extent(struct async_chunk *cow,
 	async_extent->start = start;
 	async_extent->ram_size = ram_size;
 	async_extent->compressed_size = compressed_size;
-	async_extent->pages = pages;
-	async_extent->nr_pages = nr_pages;
+	async_extent->folios = folios;
+	async_extent->nr_folios = nr_folios;
 	async_extent->compress_type = compress_type;
 	list_add_tail(&async_extent->list, &cow->extents);
 	return 0;
@@ -851,8 +851,8 @@ static void compress_file_range(struct btrfs_work *work)
 	u64 actual_end;
 	u64 i_size;
 	int ret = 0;
-	struct page **pages;
-	unsigned long nr_pages;
+	struct folio **folios;
+	unsigned long nr_folios;
 	unsigned long total_compressed = 0;
 	unsigned long total_in = 0;
 	unsigned int poff;
@@ -882,9 +882,9 @@ static void compress_file_range(struct btrfs_work *work)
 	barrier();
 	actual_end = min_t(u64, i_size, end + 1);
 again:
-	pages = NULL;
-	nr_pages = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
-	nr_pages = min_t(unsigned long, nr_pages, BTRFS_MAX_COMPRESSED_PAGES);
+	folios = NULL;
+	nr_folios = (end >> PAGE_SHIFT) - (start >> PAGE_SHIFT) + 1;
+	nr_folios = min_t(unsigned long, nr_folios, BTRFS_MAX_COMPRESSED_PAGES);
 
 	/*
 	 * we don't want to send crud past the end of i_size through
@@ -933,8 +933,8 @@ again:
 	if (!inode_need_compress(inode, start, end))
 		goto cleanup_and_bail_uncompressed;
 
-	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
-	if (!pages) {
+	folios = kcalloc(nr_folios, sizeof(struct folio *), GFP_NOFS);
+	if (!folios) {
 		/*
 		 * Memory allocation failure is not a fatal error, we can fall
 		 * back to uncompressed code.
@@ -948,9 +948,9 @@ again:
 		compress_type = inode->prop_compress;
 
 	/* Compression level is applied here. */
-	ret = btrfs_compress_pages(compress_type | (fs_info->compress_level << 4),
-				   mapping, start, pages, &nr_pages, &total_in,
-				   &total_compressed);
+	ret = btrfs_compress_folios(compress_type | (fs_info->compress_level << 4),
+				    mapping, start, folios, &nr_folios, &total_in,
+				    &total_compressed);
 	if (ret)
 		goto mark_incompressible;
 
@@ -960,7 +960,7 @@ again:
 	 */
 	poff = offset_in_page(total_compressed);
 	if (poff)
-		memzero_page(pages[nr_pages - 1], poff, PAGE_SIZE - poff);
+		folio_zero_range(folios[nr_folios - 1], poff, PAGE_SIZE - poff);
 
 	/*
 	 * Try to create an inline extent.
@@ -979,8 +979,7 @@ again:
 		} else {
 			ret = cow_file_range_inline(inode, actual_end,
 						    total_compressed,
-						    compress_type,
-						    page_folio(pages[0]),
+						    compress_type, folios[0],
 						    false);
 		}
 		if (ret <= 0) {
@@ -1030,8 +1029,8 @@ again:
 	 * The async work queues will take care of doing actual allocation on
 	 * disk for these compressed pages, and will submit the bios.
 	 */
-	ret = add_async_extent(async_chunk, start, total_in, total_compressed, pages,
-			       nr_pages, compress_type);
+	ret = add_async_extent(async_chunk, start, total_in, total_compressed, folios,
+			       nr_folios, compress_type);
 	BUG_ON(ret);
 	if (start + total_in < end) {
 		start += total_in;
@@ -1048,12 +1047,12 @@ cleanup_and_bail_uncompressed:
 			       BTRFS_COMPRESS_NONE);
 	BUG_ON(ret);
 free_pages:
-	if (pages) {
-		for (i = 0; i < nr_pages; i++) {
-			WARN_ON(pages[i]->mapping);
-			btrfs_free_compr_folio(page_folio(pages[i]));
+	if (folios) {
+		for (i = 0; i < nr_folios; i++) {
+			WARN_ON(folios[i]->mapping);
+			btrfs_free_compr_folio(folios[i]);
 		}
-		kfree(pages);
+		kfree(folios);
 	}
 }
 
@@ -1061,16 +1060,16 @@ static void free_async_extent_pages(struct async_extent *async_extent)
 {
 	int i;
 
-	if (!async_extent->pages)
+	if (!async_extent->folios)
 		return;
 
-	for (i = 0; i < async_extent->nr_pages; i++) {
-		WARN_ON(async_extent->pages[i]->mapping);
-		btrfs_free_compr_folio(page_folio(async_extent->pages[i]));
+	for (i = 0; i < async_extent->nr_folios; i++) {
+		WARN_ON(async_extent->folios[i]->mapping);
+		btrfs_free_compr_folio(async_extent->folios[i]);
 	}
-	kfree(async_extent->pages);
-	async_extent->nr_pages = 0;
-	async_extent->pages = NULL;
+	kfree(async_extent->folios);
+	async_extent->nr_folios = 0;
+	async_extent->folios = NULL;
 }
 
 static void submit_uncompressed_range(struct btrfs_inode *inode,
@@ -1194,8 +1193,8 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 			NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
 			PAGE_UNLOCK | PAGE_START_WRITEBACK);
 	btrfs_submit_compressed_write(ordered,
-			    async_extent->pages,	/* compressed_pages */
-			    async_extent->nr_pages,
+			    async_extent->folios,	/* compressed_folios */
+			    async_extent->nr_folios,
 			    async_chunk->write_flags, true);
 	*alloc_hint = ins.objectid + ins.offset;
 done:
@@ -10309,8 +10308,8 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	size_t orig_count;
 	u64 start, end;
 	u64 num_bytes, ram_bytes, disk_num_bytes;
-	unsigned long nr_pages, i;
-	struct page **pages;
+	unsigned long nr_folios, i;
+	struct folio **folios;
 	struct btrfs_key ins;
 	bool extent_reserved = false;
 	struct extent_map *em;
@@ -10399,24 +10398,24 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	 * isn't.
 	 */
 	disk_num_bytes = ALIGN(orig_count, fs_info->sectorsize);
-	nr_pages = DIV_ROUND_UP(disk_num_bytes, PAGE_SIZE);
-	pages = kvcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL_ACCOUNT);
-	if (!pages)
+	nr_folios = DIV_ROUND_UP(disk_num_bytes, PAGE_SIZE);
+	folios = kvcalloc(nr_folios, sizeof(struct page *), GFP_KERNEL_ACCOUNT);
+	if (!folios)
 		return -ENOMEM;
-	for (i = 0; i < nr_pages; i++) {
+	for (i = 0; i < nr_folios; i++) {
 		size_t bytes = min_t(size_t, PAGE_SIZE, iov_iter_count(from));
 		char *kaddr;
 
-		pages[i] = alloc_page(GFP_KERNEL_ACCOUNT);
-		if (!pages[i]) {
+		folios[i] = folio_alloc(GFP_KERNEL_ACCOUNT, 0);
+		if (!folios[i]) {
 			ret = -ENOMEM;
-			goto out_pages;
+			goto out_folios;
 		}
-		kaddr = kmap_local_page(pages[i]);
+		kaddr = kmap_local_folio(folios[i], 0);
 		if (copy_from_iter(kaddr, bytes, from) != bytes) {
 			kunmap_local(kaddr);
 			ret = -EFAULT;
-			goto out_pages;
+			goto out_folios;
 		}
 		if (bytes < PAGE_SIZE)
 			memset(kaddr + bytes, 0, PAGE_SIZE - bytes);
@@ -10428,12 +10427,12 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 
 		ret = btrfs_wait_ordered_range(&inode->vfs_inode, start, num_bytes);
 		if (ret)
-			goto out_pages;
+			goto out_folios;
 		ret = invalidate_inode_pages2_range(inode->vfs_inode.i_mapping,
 						    start >> PAGE_SHIFT,
 						    end >> PAGE_SHIFT);
 		if (ret)
-			goto out_pages;
+			goto out_folios;
 		lock_extent(io_tree, start, end, &cached_state);
 		ordered = btrfs_lookup_ordered_range(inode, start, num_bytes);
 		if (!ordered &&
@@ -10464,8 +10463,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	if (start == 0 && encoded->unencoded_len == encoded->len &&
 	    encoded->unencoded_offset == 0) {
 		ret = cow_file_range_inline(inode, encoded->len, orig_count,
-					    compression, page_folio(pages[0]),
-					    true);
+					    compression, folios[0], true);
 		if (ret <= 0) {
 			if (ret == 0)
 				ret = orig_count;
@@ -10509,7 +10507,7 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 
 	btrfs_delalloc_release_extents(inode, num_bytes);
 
-	btrfs_submit_compressed_write(ordered, pages, nr_pages, 0, false);
+	btrfs_submit_compressed_write(ordered, folios, nr_folios, 0, false);
 	ret = orig_count;
 	goto out;
 
@@ -10531,12 +10529,12 @@ out_free_data_space:
 		btrfs_free_reserved_data_space_noquota(fs_info, disk_num_bytes);
 out_unlock:
 	unlock_extent(io_tree, start, end, &cached_state);
-out_pages:
-	for (i = 0; i < nr_pages; i++) {
-		if (pages[i])
-			__free_page(pages[i]);
+out_folios:
+	for (i = 0; i < nr_folios; i++) {
+		if (folios[i])
+			__folio_put(folios[i]);
 	}
-	kvfree(pages);
+	kvfree(folios);
 out:
 	if (ret >= 0)
 		iocb->ki_pos += encoded->len;
