@@ -4,7 +4,7 @@
  * Copyright (c) 2008, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2011, Javier Lopez <jlopex@gmail.com>
  * Copyright (c) 2016 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2023 Intel Corporation
+ * Copyright (C) 2018 - 2024 Intel Corporation
  */
 
 /*
@@ -2671,10 +2671,11 @@ static int mac80211_hwsim_sta_state(struct ieee80211_hw *hw,
 		return mac80211_hwsim_sta_add(hw, vif, sta);
 
 	/*
-	 * when client is authorized (AP station marked as such),
-	 * enable all links
+	 * in an MLO connection, when client is authorized
+	 * (AP station marked as such), enable all links
 	 */
-	if (vif->type == NL80211_IFTYPE_STATION &&
+	if (ieee80211_vif_is_mld(vif) &&
+	    vif->type == NL80211_IFTYPE_STATION &&
 	    new_state == IEEE80211_STA_AUTHORIZED && !sta->tdls)
 		ieee80211_set_active_links_async(vif,
 						 ieee80211_vif_usable_links(vif));
