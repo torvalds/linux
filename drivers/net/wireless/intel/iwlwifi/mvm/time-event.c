@@ -929,7 +929,7 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 
 	if (WARN(ver > 2 && mvmvif->time_event_data.link_id >= 0 &&
 		 mvmvif->time_event_data.link_id != notif_link_id,
-		 "SESION_PROTECTION_NOTIF was received for link %u, while the current time event is on link %u\n",
+		 "SESSION_PROTECTION_NOTIF was received for link %u, while the current time event is on link %u\n",
 		 notif_link_id, mvmvif->time_event_data.link_id))
 		goto out_unlock;
 
