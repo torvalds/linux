@@ -2038,7 +2038,7 @@ EXPORT_SYMBOL(zcrypt_wait_api_operational);
 int __init zcrypt_debug_init(void)
 {
 	zcrypt_dbf_info = debug_register("zcrypt", 2, 1,
-					 DBF_MAX_SPRINTF_ARGS * sizeof(long));
+					 ZCRYPT_DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(zcrypt_dbf_info, &debug_sprintf_view);
 	debug_set_level(zcrypt_dbf_info, DBF_ERR);
 

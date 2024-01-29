@@ -2190,7 +2190,7 @@ static void ap_config_timeout(struct timer_list *unused)
 static int __init ap_debug_init(void)
 {
 	ap_dbf_info = debug_register("ap", 2, 1,
-				     DBF_MAX_SPRINTF_ARGS * sizeof(long));
+				     AP_DBF_MAX_SPRINTF_ARGS * sizeof(long));
 	debug_register_view(ap_dbf_info, &debug_sprintf_view);
 	debug_set_level(ap_dbf_info, DBF_ERR);
 

@@ -17,7 +17,7 @@
 #define RC2ERR(rc) ((rc) ? DBF_ERR : DBF_INFO)
 #define RC2WARN(rc) ((rc) ? DBF_WARN : DBF_INFO)
 
-#define DBF_MAX_SPRINTF_ARGS 6
+#define ZCRYPT_DBF_MAX_SPRINTF_ARGS 6
 
 #define ZCRYPT_DBF(...)					\
 	debug_sprintf_event(zcrypt_dbf_info, ##__VA_ARGS__)
