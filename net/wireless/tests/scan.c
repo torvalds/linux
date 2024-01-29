@@ -407,6 +407,7 @@ static struct inform_bss_ml_sta_case {
 	int mld_id;
 	bool sta_prof_vendor_elems;
 	bool include_oper_class;
+	bool nstr;
 } inform_bss_ml_sta_cases[] = {
 	{
 		.desc = "zero_mld_id",
@@ -426,6 +427,10 @@ static struct inform_bss_ml_sta_case {
 		.mld_id = 1,
 		.sta_prof_vendor_elems = true,
 		.include_oper_class = true,
+	}, {
+		.desc = "nstr",
+		.mld_id = 0,
+		.nstr = true,
 	},
 };
 KUNIT_ARRAY_PARAM_DESC(inform_bss_ml_sta, inform_bss_ml_sta_cases, desc)
@@ -458,7 +463,7 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	struct {
 		struct ieee80211_neighbor_ap_info info;
 		struct ieee80211_tbtt_info_ge_11 ap;
-	} __packed rnr = {
+	} __packed rnr_normal = {
 		.info = {
 			.tbtt_info_hdr = u8_encode_bits(0, IEEE80211_AP_INFO_TBTT_HDR_COUNT),
 			.tbtt_info_len = sizeof(struct ieee80211_tbtt_info_ge_11),
@@ -477,6 +482,28 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 						 IEEE80211_RNR_MLD_PARAMS_LINK_ID),
 		}
 	};
+	struct {
+		struct ieee80211_neighbor_ap_info info;
+		struct ieee80211_rnr_mld_params mld_params;
+	} __packed rnr_nstr = {
+		.info = {
+			.tbtt_info_hdr =
+				u8_encode_bits(0, IEEE80211_AP_INFO_TBTT_HDR_COUNT) |
+				u8_encode_bits(IEEE80211_TBTT_INFO_TYPE_MLD,
+					       IEEE80211_AP_INFO_TBTT_HDR_TYPE),
+			.tbtt_info_len = sizeof(struct ieee80211_rnr_mld_params),
+			.op_class = 81,
+			.channel = 11,
+		},
+		.mld_params = {
+			.mld_id = params->mld_id,
+			.params =
+				le16_encode_bits(link_id,
+						 IEEE80211_RNR_MLD_PARAMS_LINK_ID),
+		}
+	};
+	size_t rnr_len = params->nstr ? sizeof(rnr_nstr) : sizeof(rnr_normal);
+	void *rnr = params->nstr ? (void *)&rnr_nstr : (void *)&rnr_normal;
 	struct {
 		__le16 control;
 		u8 var_len;
@@ -516,7 +543,7 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 				    u16_encode_bits(link_id,
 						    IEEE80211_MLE_STA_CONTROL_LINK_ID)),
 		.var_len = sizeof(sta_prof) - 2 - 2,
-		.bssid = { *rnr.ap.bssid },
+		.bssid = { *rnr_normal.ap.bssid },
 		.beacon_int = cpu_to_le16(101),
 		.tsf_offset = cpu_to_le64(-123ll),
 		.capabilities = cpu_to_le16(0xdead),
@@ -540,8 +567,8 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	}
 
 	skb_put_u8(input, WLAN_EID_REDUCED_NEIGHBOR_REPORT);
-	skb_put_u8(input, sizeof(rnr));
-	skb_put_data(input, &rnr, sizeof(rnr));
+	skb_put_u8(input, rnr_len);
+	skb_put_data(input, rnr, rnr_len);
 
 	/* build a multi-link element */
 	skb_put_u8(input, WLAN_EID_EXTENSION);
@@ -587,9 +614,10 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ctx.inform_bss_count, 2);
 
 	/* Check link_bss *****************************************************/
-	link_bss = cfg80211_get_bss(wiphy, NULL, sta_prof.bssid, NULL, 0,
-				    IEEE80211_BSS_TYPE_ANY,
-				    IEEE80211_PRIVACY_ANY);
+	link_bss = __cfg80211_get_bss(wiphy, NULL, sta_prof.bssid, NULL, 0,
+				      IEEE80211_BSS_TYPE_ANY,
+				      IEEE80211_PRIVACY_ANY,
+				      0);
 	KUNIT_ASSERT_NOT_NULL(test, link_bss);
 	KUNIT_EXPECT_EQ(test, link_bss->signal, 0);
 	KUNIT_EXPECT_EQ(test, link_bss->beacon_interval,
@@ -600,6 +628,22 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, link_bss->channel,
 			    ieee80211_get_channel_khz(wiphy, MHZ_TO_KHZ(2462)));
 
+	/* Test wiphy does not set WIPHY_FLAG_SUPPORTS_NSTR_NONPRIMARY */
+	if (params->nstr) {
+		KUNIT_EXPECT_EQ(test, link_bss->use_for, 0);
+		KUNIT_EXPECT_EQ(test, link_bss->cannot_use_reasons,
+				NL80211_BSS_CANNOT_USE_NSTR_NONPRIMARY);
+		KUNIT_EXPECT_NULL(test,
+				  cfg80211_get_bss(wiphy, NULL, sta_prof.bssid,
+						   NULL, 0,
+						   IEEE80211_BSS_TYPE_ANY,
+						   IEEE80211_PRIVACY_ANY));
+	} else {
+		KUNIT_EXPECT_EQ(test, link_bss->use_for,
+				NL80211_BSS_USE_FOR_ALL);
+		KUNIT_EXPECT_EQ(test, link_bss->cannot_use_reasons, 0);
+	}
+
 	rcu_read_lock();
 	ies = rcu_dereference(link_bss->ies);
 	KUNIT_EXPECT_NOT_NULL(test, ies);
@@ -607,20 +651,20 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	/* Resulting length should be:
 	 * SSID (inherited) + RNR (inherited) + vendor element(s) +
 	 * operating class (if requested) +
-	 * generated RNR (if MLD ID == 0) +
+	 * generated RNR (if MLD ID == 0 and not NSTR) +
 	 * MLE common info + MLE header and control
 	 */
 	if (params->sta_prof_vendor_elems)
 		KUNIT_EXPECT_EQ(test, ies->len,
-				6 + 2 + sizeof(rnr) + 2 + 160 + 2 + 165 +
+				6 + 2 + rnr_len + 2 + 160 + 2 + 165 +
 				(params->include_oper_class ? 3 : 0) +
-				(!params->mld_id ? 22 : 0) +
+				(!params->mld_id && !params->nstr ? 22 : 0) +
 				mle_basic_common_info.var_len + 5);
 	else
 		KUNIT_EXPECT_EQ(test, ies->len,
-				6 + 2 + sizeof(rnr) + 2 + 155 +
+				6 + 2 + rnr_len + 2 + 155 +
 				(params->include_oper_class ? 3 : 0) +
-				(!params->mld_id ? 22 : 0) +
+				(!params->mld_id && !params->nstr ? 22 : 0) +
 				mle_basic_common_info.var_len + 5);
 	rcu_read_unlock();
 
