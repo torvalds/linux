@@ -323,8 +323,9 @@ int rxrpc_send_abort_packet(struct rxrpc_call *call)
  */
 int rxrpc_send_data_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 {
-	enum rxrpc_req_ack_trace why;
 	struct rxrpc_connection *conn = call->conn;
+	enum rxrpc_req_ack_trace why;
+	enum rxrpc_tx_point frag;
 	struct msghdr msg;
 	struct kvec iov[1];
 	size_t len;
@@ -405,11 +406,16 @@ dont_set_request_ack:
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */
-	if (txb->len >= call->peer->maxdata)
-		goto send_fragmentable;
-	rxrpc_local_dont_fragment(conn->local, true);
+	if (txb->len >= call->peer->maxdata) {
+		rxrpc_local_dont_fragment(conn->local, false);
+		frag = rxrpc_tx_point_call_data_frag;
+	} else {
+		rxrpc_local_dont_fragment(conn->local, true);
+		frag = rxrpc_tx_point_call_data_nofrag;
+	}
 
 	txb->wire.flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
+retry:
 	txb->last_sent = ktime_get_real();
 	if (txb->flags & RXRPC_REQUEST_ACK)
 		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_data);
@@ -435,8 +441,11 @@ dont_set_request_ack:
 	}
 
 	rxrpc_tx_backoff(call, ret);
-	if (ret == -EMSGSIZE)
-		goto send_fragmentable;
+	if (ret == -EMSGSIZE && frag == rxrpc_tx_point_call_data_frag) {
+		rxrpc_local_dont_fragment(conn->local, false);
+		frag = rxrpc_tx_point_call_data_frag;
+		goto retry;
+	}
 
 done:
 	if (ret >= 0) {
@@ -478,39 +487,6 @@ done:
 
 	_leave(" = %d [%u]", ret, call->peer->maxdata);
 	return ret;
-
-send_fragmentable:
-	/* attempt to send this message with fragmentation enabled */
-	_debug("send fragment");
-
-	txb->last_sent = ktime_get_real();
-	if (txb->flags & RXRPC_REQUEST_ACK)
-		rtt_slot = rxrpc_begin_rtt_probe(call, txb->serial, rxrpc_rtt_tx_data);
-
-	switch (conn->local->srx.transport.family) {
-	case AF_INET6:
-	case AF_INET:
-		rxrpc_local_dont_fragment(conn->local, false);
-		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
-		ret = do_udp_sendmsg(conn->local->socket, &msg, len);
-		conn->peer->last_tx_at = ktime_get_seconds();
-		break;
-
-	default:
-		BUG();
-	}
-
-	if (ret < 0) {
-		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_fail);
-		rxrpc_cancel_rtt_probe(call, txb->serial, rtt_slot);
-		trace_rxrpc_tx_fail(call->debug_id, txb->serial, ret,
-				    rxrpc_tx_point_call_data_frag);
-	} else {
-		trace_rxrpc_tx_packet(call->debug_id, &txb->wire,
-				      rxrpc_tx_point_call_data_frag);
-	}
-	rxrpc_tx_backoff(call, ret);
-	goto done;
 }
 
 /*
