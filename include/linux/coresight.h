@@ -229,10 +229,12 @@ struct coresight_sysfs_link {
  * @refcnt:	keep track of what is in use.
  * @orphan:	true if the component has connections that haven't been linked.
  * @enable:	'true' if component is currently part of an active path.
- * @activated:	'true' only if a _sink_ has been activated.  A sink can be
- *		activated but not yet enabled.  Enabling for a _sink_
- *		happens when a source has been selected and a path is enabled
- *		from source to that sink.
+ * @sysfs_sink_activated: 'true' when a sink has been selected for use via sysfs
+ *		by writing a 1 to the 'enable_sink' file.  A sink can be
+ *		activated but not yet enabled.  Enabling for a _sink_ happens
+ *		when a source has been selected and a path is enabled from
+ *		source to that sink. A sink can also become enabled but not
+ *		activated if it's used via Perf.
  * @ea:		Device attribute for sink representation under PMU directory.
  * @def_sink:	cached reference to default sink found for this device.
  * @nr_links:   number of sysfs links created to other components from this
@@ -252,9 +254,9 @@ struct coresight_device {
 	struct device dev;
 	atomic_t refcnt;
 	bool orphan;
-	bool enable;	/* true only if configured as part of a path */
+	bool enable;
 	/* sink specific fields */
-	bool activated;	/* true only if a sink is part of a path */
+	bool sysfs_sink_activated;
 	struct dev_ext_attribute *ea;
 	struct coresight_device *def_sink;
 	/* sysfs links between components */

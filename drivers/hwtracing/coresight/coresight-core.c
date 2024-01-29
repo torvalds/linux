@@ -500,7 +500,7 @@ static void coresight_disable_path_from(struct list_head *path,
 		/*
 		 * ETF devices are tricky... They can be a link or a sink,
 		 * depending on how they are configured.  If an ETF has been
-		 * "activated" it will be configured as a sink, otherwise
+		 * selected as a sink it will be configured as a sink, otherwise
 		 * go ahead with the link configuration.
 		 */
 		if (type == CORESIGHT_DEV_TYPE_LINKSINK)
@@ -578,7 +578,7 @@ int coresight_enable_path(struct list_head *path, enum cs_mode mode,
 		/*
 		 * ETF devices are tricky... They can be a link or a sink,
 		 * depending on how they are configured.  If an ETF has been
-		 * "activated" it will be configured as a sink, otherwise
+		 * selected as a sink it will be configured as a sink, otherwise
 		 * go ahead with the link configuration.
 		 */
 		if (type == CORESIGHT_DEV_TYPE_LINKSINK)
@@ -635,15 +635,21 @@ struct coresight_device *coresight_get_sink(struct list_head *path)
 	return csdev;
 }
 
+/**
+ * coresight_find_activated_sysfs_sink - returns the first sink activated via
+ * sysfs using connection based search starting from the source reference.
+ *
+ * @csdev: Coresight source device reference
+ */
 static struct coresight_device *
-coresight_find_enabled_sink(struct coresight_device *csdev)
+coresight_find_activated_sysfs_sink(struct coresight_device *csdev)
 {
 	int i;
 	struct coresight_device *sink = NULL;
 
 	if ((csdev->type == CORESIGHT_DEV_TYPE_SINK ||
 	     csdev->type == CORESIGHT_DEV_TYPE_LINKSINK) &&
-	     csdev->activated)
+	     csdev->sysfs_sink_activated)
 		return csdev;
 
 	/*
@@ -654,27 +660,12 @@ coresight_find_enabled_sink(struct coresight_device *csdev)
 
 		child_dev = csdev->pdata->out_conns[i]->dest_dev;
 		if (child_dev)
-			sink = coresight_find_enabled_sink(child_dev);
+			sink = coresight_find_activated_sysfs_sink(child_dev);
 		if (sink)
 			return sink;
 	}
 
 	return NULL;
-}
-
-/**
- * coresight_get_enabled_sink - returns the first enabled sink using
- * connection based search starting from the source reference
- *
- * @source: Coresight source device reference
- */
-struct coresight_device *
-coresight_get_enabled_sink(struct coresight_device *source)
-{
-	if (!source)
-		return NULL;
-
-	return coresight_find_enabled_sink(source);
 }
 
 static int coresight_sink_by_id(struct device *dev, const void *data)
@@ -810,11 +801,10 @@ static void coresight_drop_device(struct coresight_device *csdev)
  * @sink:	The final sink we want in this path.
  * @path:	The list to add devices to.
  *
- * The tree of Coresight device is traversed until an activated sink is
- * found.  From there the sink is added to the list along with all the
- * devices that led to that point - the end result is a list from source
- * to sink. In that list the source is the first device and the sink the
- * last one.
+ * The tree of Coresight device is traversed until @sink is found.
+ * From there the sink is added to the list along with all the devices that led
+ * to that point - the end result is a list from source to sink. In that list
+ * the source is the first device and the sink the last one.
  */
 static int _coresight_build_path(struct coresight_device *csdev,
 				 struct coresight_device *sink,
@@ -824,7 +814,7 @@ static int _coresight_build_path(struct coresight_device *csdev,
 	bool found = false;
 	struct coresight_node *node;
 
-	/* An activated sink has been found.  Enqueue the element */
+	/* The sink has been found.  Enqueue the element */
 	if (csdev == sink)
 		goto out;
 
@@ -1145,7 +1135,7 @@ int coresight_enable(struct coresight_device *csdev)
 		goto out;
 	}
 
-	sink = coresight_get_enabled_sink(csdev);
+	sink = coresight_find_activated_sysfs_sink(csdev);
 	if (!sink) {
 		ret = -EINVAL;
 		goto out;
@@ -1259,7 +1249,7 @@ static ssize_t enable_sink_show(struct device *dev,
 {
 	struct coresight_device *csdev = to_coresight_device(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%u\n", csdev->activated);
+	return scnprintf(buf, PAGE_SIZE, "%u\n", csdev->sysfs_sink_activated);
 }
 
 static ssize_t enable_sink_store(struct device *dev,
@@ -1274,10 +1264,7 @@ static ssize_t enable_sink_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	if (val)
-		csdev->activated = true;
-	else
-		csdev->activated = false;
+	csdev->sysfs_sink_activated = !!val;
 
 	return size;
 
