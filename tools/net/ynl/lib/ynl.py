@@ -148,23 +148,6 @@ class NlAttr:
         format = self.get_format(type)
         return [ x[0] for x in format.iter_unpack(self.raw) ]
 
-    def as_struct(self, members):
-        value = dict()
-        offset = 0
-        for m in members:
-            # TODO: handle non-scalar members
-            if m.type == 'binary':
-                decoded = self.raw[offset : offset + m['len']]
-                offset += m['len']
-            elif m.type in NlAttr.type_formats:
-                format = self.get_format(m.type, m.byte_order)
-                [ decoded ] = format.unpack_from(self.raw, offset)
-                offset += format.size
-            if m.display_hint:
-                decoded = self.formatted_string(decoded, m.display_hint)
-            value[m.name] = decoded
-        return value
-
     def __repr__(self):
         return f"[type:{self.type} len:{self._len}] {self.raw}"
 
@@ -541,11 +524,7 @@ class YnlFamily(SpecFamily):
 
     def _decode_binary(self, attr, attr_spec):
         if attr_spec.struct_name:
-            members = self.consts[attr_spec.struct_name]
-            decoded = attr.as_struct(members)
-            for m in members:
-                if m.enum:
-                    decoded[m.name] = self._decode_enum(decoded[m.name], m)
+            decoded = self._decode_struct(attr.raw, attr_spec.struct_name)
         elif attr_spec.sub_type:
             decoded = attr.as_c_array(attr_spec.sub_type)
         else:
@@ -605,7 +584,7 @@ class YnlFamily(SpecFamily):
         decoded = {}
         offset = 0
         if msg_format.fixed_header:
-            decoded.update(self._decode_fixed_header(attr, msg_format.fixed_header));
+            decoded.update(self._decode_struct(attr.raw, msg_format.fixed_header));
             offset = self._fixed_header_size(msg_format.fixed_header)
         if msg_format.attr_set:
             if msg_format.attr_set in self.attr_sets:
@@ -717,26 +696,28 @@ class YnlFamily(SpecFamily):
         else:
             return 0
 
-    def _decode_fixed_header(self, msg, name):
-        fixed_header_members = self.consts[name].members
-        fixed_header_attrs = dict()
+    def _decode_struct(self, data, name):
+        members = self.consts[name].members
+        attrs = dict()
         offset = 0
-        for m in fixed_header_members:
+        for m in members:
             value = None
             if m.type == 'pad':
                 offset += m.len
             elif m.type == 'binary':
-                value = msg.raw[offset : offset + m.len]
+                value = data[offset : offset + m.len]
                 offset += m.len
             else:
                 format = NlAttr.get_format(m.type, m.byte_order)
-                [ value ] = format.unpack_from(msg.raw, offset)
+                [ value ] = format.unpack_from(data, offset)
                 offset += format.size
             if value is not None:
                 if m.enum:
                     value = self._decode_enum(value, m)
-                fixed_header_attrs[m.name] = value
-        return fixed_header_attrs
+                elif m.display_hint:
+                    value = NlAttr.formatted_string(value, m.display_hint)
+                attrs[m.name] = value
+        return attrs
 
     def _encode_struct(self, name, vals):
         members = self.consts[name].members
@@ -764,7 +745,7 @@ class YnlFamily(SpecFamily):
         op = self.rsp_by_value[decoded.cmd()]
         attrs = self._decode(decoded.raw_attrs, op.attr_set.name)
         if op.fixed_header:
-            attrs.update(self._decode_fixed_header(decoded, op.fixed_header))
+            attrs.update(self._decode_struct(decoded.raw, op.fixed_header))
 
         msg['name'] = op['name']
         msg['msg'] = attrs
@@ -856,7 +837,7 @@ class YnlFamily(SpecFamily):
 
                 rsp_msg = self._decode(decoded.raw_attrs, op.attr_set.name)
                 if op.fixed_header:
-                    rsp_msg.update(self._decode_fixed_header(decoded, op.fixed_header))
+                    rsp_msg.update(self._decode_struct(decoded.raw, op.fixed_header))
                 rsp.append(rsp_msg)
 
         if not rsp:
