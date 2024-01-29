@@ -36,7 +36,7 @@
 //!
 //! ```rust
 //! # #![allow(clippy::disallowed_names)]
-//! use kernel::{prelude::*, sync::Mutex, new_mutex};
+//! use kernel::sync::{new_mutex, Mutex};
 //! # use core::pin::Pin;
 //! #[pin_data]
 //! struct Foo {
@@ -56,7 +56,7 @@
 //!
 //! ```rust
 //! # #![allow(clippy::disallowed_names)]
-//! # use kernel::{prelude::*, sync::Mutex, new_mutex};
+//! # use kernel::sync::{new_mutex, Mutex};
 //! # use core::pin::Pin;
 //! # #[pin_data]
 //! # struct Foo {
@@ -79,7 +79,7 @@
 //! above method only works for types where you can access the fields.
 //!
 //! ```rust
-//! # use kernel::{new_mutex, sync::{Arc, Mutex}};
+//! # use kernel::sync::{new_mutex, Arc, Mutex};
 //! let mtx: Result<Arc<Mutex<usize>>> = Arc::pin_init(new_mutex!(42, "example::mtx"));
 //! ```
 //!

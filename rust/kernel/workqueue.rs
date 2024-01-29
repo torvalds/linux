@@ -35,8 +35,7 @@
 //! ```
 //! use kernel::prelude::*;
 //! use kernel::sync::Arc;
-//! use kernel::workqueue::{self, Work, WorkItem};
-//! use kernel::{impl_has_work, new_work};
+//! use kernel::workqueue::{self, impl_has_work, new_work, Work, WorkItem};
 //!
 //! #[pin_data]
 //! struct MyStruct {
@@ -78,8 +77,7 @@
 //! ```
 //! use kernel::prelude::*;
 //! use kernel::sync::Arc;
-//! use kernel::workqueue::{self, Work, WorkItem};
-//! use kernel::{impl_has_work, new_work};
+//! use kernel::workqueue::{self, impl_has_work, new_work, Work, WorkItem};
 //!
 //! #[pin_data]
 //! struct MyStruct {
@@ -147,6 +145,7 @@ macro_rules! new_work {
         $crate::workqueue::Work::new($crate::optional_name!($($name)?), $crate::static_lock_class!())
     };
 }
+pub use new_work;
 
 /// A kernel work queue.
 ///
@@ -405,9 +404,8 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
 /// like this:
 ///
 /// ```no_run
-/// use kernel::impl_has_work;
 /// use kernel::prelude::*;
-/// use kernel::workqueue::Work;
+/// use kernel::workqueue::{impl_has_work, Work};
 ///
 /// struct MyWorkItem {
 ///     work_field: Work<MyWorkItem, 1>,
@@ -475,9 +473,8 @@ pub unsafe trait HasWork<T, const ID: u64 = 0> {
 /// # Examples
 ///
 /// ```
-/// use kernel::impl_has_work;
 /// use kernel::sync::Arc;
-/// use kernel::workqueue::{self, Work};
+/// use kernel::workqueue::{self, impl_has_work, Work};
 ///
 /// struct MyStruct {
 ///     work_field: Work<MyStruct, 17>,
@@ -509,6 +506,7 @@ macro_rules! impl_has_work {
         }
     )*};
 }
+pub use impl_has_work;
 
 impl_has_work! {
     impl<T> HasWork<Self> for ClosureWork<T> { self.work }
