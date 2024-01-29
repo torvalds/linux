@@ -519,11 +519,6 @@ static void _ieee80211_change_chanctx(struct ieee80211_local *local,
 
 	drv_change_chanctx(local, ctx, changed);
 
-	if (!local->use_chanctx) {
-		local->_oper_chandef = *chandef;
-		ieee80211_hw_config(local, 0);
-	}
-
 	/* check is BW wider */
 	ieee80211_chan_bw_change(local, old_ctx, false);
 }
@@ -674,23 +669,15 @@ static int ieee80211_add_chanctx(struct ieee80211_local *local,
 
 	ieee80211_add_wbrf(local, &ctx->conf.def);
 
-	if (!local->use_chanctx)
-		local->hw.conf.radar_enabled = ctx->conf.radar_enabled;
-
 	/* turn idle off *before* setting channel -- some drivers need that */
 	changed = ieee80211_idle_off(local);
 	if (changed)
 		ieee80211_hw_config(local, changed);
 
-	if (!local->use_chanctx) {
-		local->_oper_chandef = ctx->conf.def;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-	} else {
-		err = drv_add_chanctx(local, ctx);
-		if (err) {
-			ieee80211_recalc_idle(local);
-			return err;
-		}
+	err = drv_add_chanctx(local, ctx);
+	if (err) {
+		ieee80211_recalc_idle(local);
+		return err;
 	}
 
 	return 0;
@@ -725,32 +712,7 @@ static void ieee80211_del_chanctx(struct ieee80211_local *local,
 {
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (!local->use_chanctx) {
-		struct cfg80211_chan_def *chandef = &local->_oper_chandef;
-		/* S1G doesn't have 20MHz, so get the correct width for the
-		 * current channel.
-		 */
-		if (chandef->chan->band == NL80211_BAND_S1GHZ)
-			chandef->width =
-				ieee80211_s1g_channel_width(chandef->chan);
-		else
-			chandef->width = NL80211_CHAN_WIDTH_20_NOHT;
-		chandef->center_freq1 = chandef->chan->center_freq;
-		chandef->freq1_offset = chandef->chan->freq_offset;
-		chandef->center_freq2 = 0;
-
-		/* NOTE: Disabling radar is only valid here for
-		 * single channel context. To be sure, check it ...
-		 */
-		WARN_ON(local->hw.conf.radar_enabled &&
-			!list_empty(&local->chanctx_list));
-
-		local->hw.conf.radar_enabled = false;
-
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-	} else {
-		drv_remove_chanctx(local, ctx);
-	}
+	drv_remove_chanctx(local, ctx);
 
 	ieee80211_recalc_idle(local);
 
@@ -848,11 +810,6 @@ static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
 		return;
 
 	chanctx->conf.radar_enabled = radar_enabled;
-
-	if (!local->use_chanctx) {
-		local->hw.conf.radar_enabled = chanctx->conf.radar_enabled;
-		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-	}
 
 	drv_change_chanctx(local, chanctx, IEEE80211_CHANCTX_CHANGE_RADAR);
 }
@@ -995,16 +952,6 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 
 	rcu_read_unlock();
 
-	if (!local->use_chanctx) {
-		if (rx_chains_static > 1)
-			local->smps_mode = IEEE80211_SMPS_OFF;
-		else if (rx_chains_dynamic > 1)
-			local->smps_mode = IEEE80211_SMPS_DYNAMIC;
-		else
-			local->smps_mode = IEEE80211_SMPS_STATIC;
-		ieee80211_hw_config(local, 0);
-	}
-
 	if (rx_chains_static == chanctx->conf.rx_chains_static &&
 	    rx_chains_dynamic == chanctx->conf.rx_chains_dynamic)
 		return;
@@ -1114,7 +1061,7 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	curr_ctx = ieee80211_link_get_chanctx(link);
-	if (curr_ctx && local->use_chanctx && !local->ops->switch_vif_chanctx)
+	if (curr_ctx && !local->ops->switch_vif_chanctx)
 		return -EOPNOTSUPP;
 
 	new_ctx = ieee80211_find_reservation_chanctx(local, chandef, mode);
@@ -1412,24 +1359,6 @@ ieee80211_link_has_in_place_reservation(struct ieee80211_link_data *link)
 	return true;
 }
 
-static int ieee80211_chsw_switch_hwconf(struct ieee80211_local *local,
-					struct ieee80211_chanctx *new_ctx)
-{
-	const struct cfg80211_chan_def *chandef;
-
-	lockdep_assert_wiphy(local->hw.wiphy);
-
-	chandef = ieee80211_chanctx_reserved_chandef(local, new_ctx, NULL);
-	if (WARN_ON(!chandef))
-		return -EINVAL;
-
-	local->hw.conf.radar_enabled = new_ctx->conf.radar_enabled;
-	local->_oper_chandef = *chandef;
-	ieee80211_hw_config(local, 0);
-
-	return 0;
-}
-
 static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 				      int n_vifs)
 {
@@ -1518,7 +1447,6 @@ err:
 static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 {
 	struct ieee80211_chanctx *ctx, *ctx_tmp, *old_ctx;
-	struct ieee80211_chanctx *new_ctx = NULL;
 	int err, n_assigned, n_reserved, n_ready;
 	int n_ctx = 0, n_vifs_switch = 0, n_vifs_assign = 0, n_vifs_ctxless = 0;
 
@@ -1550,9 +1478,6 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			err = -EINVAL;
 			goto err;
 		}
-
-		if (!local->use_chanctx)
-			new_ctx = ctx;
 
 		n_ctx++;
 
@@ -1607,9 +1532,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	if (WARN_ON(n_ctx == 0) ||
 	    WARN_ON(n_vifs_switch == 0 &&
 		    n_vifs_assign == 0 &&
-		    n_vifs_ctxless == 0) ||
-	    WARN_ON(n_ctx > 1 && !local->use_chanctx) ||
-	    WARN_ON(!new_ctx && !local->use_chanctx)) {
+		    n_vifs_ctxless == 0)) {
 		err = -EINVAL;
 		goto err;
 	}
@@ -1619,20 +1542,14 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 	 * reservations and driver capabilities.
 	 */
 
-	if (local->use_chanctx) {
-		if (n_vifs_switch > 0) {
-			err = ieee80211_chsw_switch_vifs(local, n_vifs_switch);
-			if (err)
-				goto err;
-		}
+	if (n_vifs_switch > 0) {
+		err = ieee80211_chsw_switch_vifs(local, n_vifs_switch);
+		if (err)
+			goto err;
+	}
 
-		if (n_vifs_assign > 0 || n_vifs_ctxless > 0) {
-			err = ieee80211_chsw_switch_ctxs(local);
-			if (err)
-				goto err;
-		}
-	} else {
-		err = ieee80211_chsw_switch_hwconf(local, new_ctx);
+	if (n_vifs_assign > 0 || n_vifs_ctxless > 0) {
+		err = ieee80211_chsw_switch_ctxs(local);
 		if (err)
 			goto err;
 	}

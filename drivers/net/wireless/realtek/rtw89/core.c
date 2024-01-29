@@ -4579,9 +4579,10 @@ struct rtw89_dev *rtw89_alloc_ieee80211_hw(struct device *device,
 		     !RTW89_CHK_FW_FEATURE(BEACON_FILTER, &early_fw);
 
 	if (no_chanctx) {
-		ops->add_chanctx = NULL;
-		ops->remove_chanctx = NULL;
-		ops->change_chanctx = NULL;
+		ops->add_chanctx = ieee80211_emulate_add_chanctx;
+		ops->remove_chanctx = ieee80211_emulate_remove_chanctx;
+		ops->change_chanctx = ieee80211_emulate_change_chanctx;
+		ops->switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx;
 		ops->assign_vif_chanctx = NULL;
 		ops->unassign_vif_chanctx = NULL;
 		ops->remain_on_channel = NULL;

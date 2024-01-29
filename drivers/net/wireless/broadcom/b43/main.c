@@ -5172,6 +5172,10 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
 }
 
 static const struct ieee80211_ops b43_hw_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= b43_op_tx,
 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.conf_tx		= b43_op_conf_tx,

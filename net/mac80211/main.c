@@ -93,15 +93,31 @@ static void ieee80211_reconfig_filter(struct wiphy *wiphy,
 	ieee80211_configure_filter(local);
 }
 
-static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
+static u32 ieee80211_calc_hw_conf_chan(struct ieee80211_local *local,
+				       struct ieee80211_chanctx_conf *ctx)
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct cfg80211_chan_def chandef = {};
+	struct cfg80211_chan_def *oper = NULL;
+	enum ieee80211_smps_mode smps_mode = IEEE80211_SMPS_STATIC;
 	u32 changed = 0;
 	int power;
 	u32 offchannel_flag;
 
+	if (!local->emulate_chanctx)
+		return 0;
+
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
+
+	if (ctx && !WARN_ON(!ctx->def.chan)) {
+		oper = &ctx->def;
+		if (ctx->rx_chains_static > 1)
+			smps_mode = IEEE80211_SMPS_OFF;
+		else if (ctx->rx_chains_dynamic > 1)
+			smps_mode = IEEE80211_SMPS_DYNAMIC;
+		else
+			smps_mode = IEEE80211_SMPS_STATIC;
+	}
 
 	if (local->scan_chandef.chan) {
 		chandef = local->scan_chandef;
@@ -110,25 +126,30 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 		chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 		chandef.center_freq1 = chandef.chan->center_freq;
 		chandef.freq1_offset = chandef.chan->freq_offset;
-	} else
-		chandef = local->_oper_chandef;
+	} else if (oper) {
+		chandef = *oper;
+	} else {
+		chandef = local->dflt_chandef;
+	}
 
-	WARN(!cfg80211_chandef_valid(&chandef),
-	     "control:%d.%03d MHz width:%d center: %d.%03d/%d MHz",
-	     chandef.chan->center_freq, chandef.chan->freq_offset,
-	     chandef.width, chandef.center_freq1, chandef.freq1_offset,
-	     chandef.center_freq2);
+	if (WARN(!cfg80211_chandef_valid(&chandef),
+		 "control:%d.%03d MHz width:%d center: %d.%03d/%d MHz",
+		 chandef.chan ? chandef.chan->center_freq : -1,
+		 chandef.chan ? chandef.chan->freq_offset : 0,
+		 chandef.width, chandef.center_freq1, chandef.freq1_offset,
+		 chandef.center_freq2))
+		return 0;
 
-	if (!cfg80211_chandef_identical(&chandef, &local->_oper_chandef))
+	if (!oper || !cfg80211_chandef_identical(&chandef, oper))
 		local->hw.conf.flags |= IEEE80211_CONF_OFFCHANNEL;
 	else
 		local->hw.conf.flags &= ~IEEE80211_CONF_OFFCHANNEL;
 
 	offchannel_flag ^= local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 
-	if (offchannel_flag ||
-	    !cfg80211_chandef_identical(&local->hw.conf.chandef,
-					&local->_oper_chandef)) {
+	/* force it also for scanning, since drivers might config differently */
+	if (offchannel_flag || local->scanning ||
+	    !cfg80211_chandef_identical(&local->hw.conf.chandef, &chandef)) {
 		local->hw.conf.chandef = chandef;
 		changed |= IEEE80211_CONF_CHANGE_CHANNEL;
 	}
@@ -140,8 +161,8 @@ static u32 ieee80211_hw_conf_chan(struct ieee80211_local *local)
 		 * that otherwise STATIC is used.
 		 */
 		local->hw.conf.smps_mode = IEEE80211_SMPS_STATIC;
-	} else if (local->hw.conf.smps_mode != local->smps_mode) {
-		local->hw.conf.smps_mode = local->smps_mode;
+	} else if (local->hw.conf.smps_mode != smps_mode) {
+		local->hw.conf.smps_mode = smps_mode;
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
@@ -173,12 +194,9 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 	might_sleep();
 
-	if (!local->use_chanctx)
-		changed |= ieee80211_hw_conf_chan(local);
-	else
-		changed &= ~(IEEE80211_CONF_CHANGE_CHANNEL |
-			     IEEE80211_CONF_CHANGE_POWER |
-			     IEEE80211_CONF_CHANGE_SMPS);
+	WARN_ON(changed & (IEEE80211_CONF_CHANGE_CHANNEL |
+			   IEEE80211_CONF_CHANGE_POWER |
+			   IEEE80211_CONF_CHANGE_SMPS));
 
 	if (changed && local->open_count) {
 		ret = drv_config(local, changed);
@@ -201,6 +219,107 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 	return ret;
 }
+
+/* for scanning, offchannel and chanctx emulation only */
+static int _ieee80211_hw_conf_chan(struct ieee80211_local *local,
+				   struct ieee80211_chanctx_conf *ctx)
+{
+	u32 changed;
+
+	if (!local->open_count)
+		return 0;
+
+	changed = ieee80211_calc_hw_conf_chan(local, ctx);
+	if (!changed)
+		return 0;
+
+	return drv_config(local, changed);
+}
+
+int ieee80211_hw_conf_chan(struct ieee80211_local *local)
+{
+	struct ieee80211_chanctx *ctx;
+
+	ctx = list_first_entry_or_null(&local->chanctx_list,
+				       struct ieee80211_chanctx,
+				       list);
+
+	return _ieee80211_hw_conf_chan(local, ctx ? &ctx->conf : NULL);
+}
+
+void ieee80211_hw_conf_init(struct ieee80211_local *local)
+{
+	u32 changed = ~(IEEE80211_CONF_CHANGE_CHANNEL |
+			IEEE80211_CONF_CHANGE_POWER |
+			IEEE80211_CONF_CHANGE_SMPS);
+
+	if (WARN_ON(!local->open_count))
+		return;
+
+	if (local->emulate_chanctx) {
+		struct ieee80211_chanctx *ctx;
+
+		ctx = list_first_entry_or_null(&local->chanctx_list,
+					       struct ieee80211_chanctx,
+					       list);
+
+		changed |= ieee80211_calc_hw_conf_chan(local,
+						       ctx ? &ctx->conf : NULL);
+	}
+
+	WARN_ON(drv_config(local, changed));
+}
+
+int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
+				  struct ieee80211_chanctx_conf *ctx)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	local->hw.conf.radar_enabled = ctx->radar_enabled;
+
+	return _ieee80211_hw_conf_chan(local, ctx);
+}
+EXPORT_SYMBOL(ieee80211_emulate_add_chanctx);
+
+void ieee80211_emulate_remove_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_chanctx_conf *ctx)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	local->hw.conf.radar_enabled = false;
+
+	_ieee80211_hw_conf_chan(local, NULL);
+}
+EXPORT_SYMBOL(ieee80211_emulate_remove_chanctx);
+
+void ieee80211_emulate_change_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_chanctx_conf *ctx,
+				      u32 changed)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	local->hw.conf.radar_enabled = ctx->radar_enabled;
+
+	_ieee80211_hw_conf_chan(local, ctx);
+}
+EXPORT_SYMBOL(ieee80211_emulate_change_chanctx);
+
+int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
+					 struct ieee80211_vif_chanctx_switch *vifs,
+					 int n_vifs,
+					 enum ieee80211_chanctx_switch_mode mode)
+{
+	struct ieee80211_local *local = hw_to_local(hw);
+
+	if (n_vifs <= 0)
+		return -EINVAL;
+
+	local->hw.conf.radar_enabled = vifs[0].new_ctx->radar_enabled;
+	_ieee80211_hw_conf_chan(local, vifs[0].new_ctx);
+
+	return 0;
+}
+EXPORT_SYMBOL(ieee80211_emulate_switch_vif_chanctx);
 
 #define BSS_CHANGED_VIF_CFG_FLAGS (BSS_CHANGED_ASSOC |\
 				   BSS_CHANGED_IDLE |\
@@ -645,7 +764,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	struct ieee80211_local *local;
 	int priv_size, i;
 	struct wiphy *wiphy;
-	bool use_chanctx;
+	bool emulate_chanctx;
 
 	if (WARN_ON(!ops->tx || !ops->start || !ops->stop || !ops->config ||
 		    !ops->add_interface || !ops->remove_interface ||
@@ -660,12 +779,26 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 		return NULL;
 
 	/* check all or no channel context operations exist */
-	i = !!ops->add_chanctx + !!ops->remove_chanctx +
-	    !!ops->change_chanctx + !!ops->assign_vif_chanctx +
-	    !!ops->unassign_vif_chanctx;
-	if (WARN_ON(i != 0 && i != 5))
-		return NULL;
-	use_chanctx = i == 5;
+	if (ops->add_chanctx == ieee80211_emulate_add_chanctx &&
+	    ops->remove_chanctx == ieee80211_emulate_remove_chanctx &&
+	    ops->change_chanctx == ieee80211_emulate_change_chanctx) {
+		if (WARN_ON(ops->assign_vif_chanctx ||
+			    ops->unassign_vif_chanctx))
+			return NULL;
+		emulate_chanctx = true;
+	} else {
+		if (WARN_ON(ops->add_chanctx == ieee80211_emulate_add_chanctx ||
+			    ops->remove_chanctx == ieee80211_emulate_remove_chanctx ||
+			    ops->change_chanctx == ieee80211_emulate_change_chanctx))
+			return NULL;
+		if (WARN_ON(!ops->add_chanctx ||
+			    !ops->remove_chanctx ||
+			    !ops->change_chanctx ||
+			    !ops->assign_vif_chanctx ||
+			    !ops->unassign_vif_chanctx))
+			return NULL;
+		emulate_chanctx = false;
+	}
 
 	/* Ensure 32-byte alignment of our private data and hw private data.
 	 * We use the wiphy priv data for both our ieee80211_local and for
@@ -699,7 +832,7 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 			WIPHY_FLAG_REPORTS_OBSS |
 			WIPHY_FLAG_OFFCHAN_TX;
 
-	if (!use_chanctx || ops->remain_on_channel)
+	if (emulate_chanctx || ops->remain_on_channel)
 		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy->features |= NL80211_FEATURE_SK_TX_STATUS |
@@ -756,7 +889,10 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 	local->hw.priv = (char *)local + ALIGN(sizeof(*local), NETDEV_ALIGN);
 
 	local->ops = ops;
-	local->use_chanctx = use_chanctx;
+	local->emulate_chanctx = emulate_chanctx;
+
+	if (emulate_chanctx)
+		ieee80211_hw_set(&local->hw, CHANCTX_STA_CSA);
 
 	/*
 	 * We need a bit of data queued to build aggregates properly, so
@@ -833,7 +969,6 @@ struct ieee80211_hw *ieee80211_alloc_hw_nm(size_t priv_data_len,
 			ieee80211_dfs_radar_detected_work);
 
 	wiphy_work_init(&local->reconfig_filter, ieee80211_reconfig_filter);
-	local->smps_mode = IEEE80211_SMPS_OFF;
 
 	wiphy_work_init(&local->dynamic_ps_enable_work,
 			ieee80211_dynamic_ps_enable_work);
@@ -984,7 +1119,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		 * as much, e.g. monitoring beacons would be hard if we
 		 * might not even know which link is active at which time.
 		 */
-		if (WARN_ON(!local->use_chanctx))
+		if (WARN_ON(local->emulate_chanctx))
 			return -EINVAL;
 
 		if (WARN_ON(!local->ops->link_info_changed))
@@ -1028,7 +1163,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 #endif
 
-	if (!local->use_chanctx) {
+	if (local->emulate_chanctx) {
 		for (i = 0; i < local->hw.wiphy->n_iface_combinations; i++) {
 			const struct ieee80211_iface_combination *comb;
 
@@ -1094,11 +1229,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 						&sband->channels[i],
 						NL80211_CHAN_NO_HT);
 			/* init channel we're on */
-			if (!local->use_chanctx && !local->_oper_chandef.chan) {
-				local->hw.conf.chandef = dflt_chandef;
-				local->_oper_chandef = dflt_chandef;
-			}
 			local->monitor_chandef = dflt_chandef;
+			if (local->emulate_chanctx) {
+				local->dflt_chandef = dflt_chandef;
+				local->hw.conf.chandef = dflt_chandef;
+			}
 		}
 
 		channels += sband->n_channels;

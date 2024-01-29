@@ -2287,8 +2287,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-	if (local->use_chanctx &&
-	    !ieee80211_hw_check(&local->hw, CHANCTX_STA_CSA)) {
+	if (!ieee80211_hw_check(&local->hw, CHANCTX_STA_CSA)) {
 		sdata_info(sdata,
 			   "driver doesn't support chan-switch with channel contexts\n");
 		goto drop_connection;

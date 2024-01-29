@@ -1348,7 +1348,8 @@ struct ieee80211_local {
 
 	bool wiphy_ciphers_allocated;
 
-	bool use_chanctx;
+	struct cfg80211_chan_def dflt_chandef;
+	bool emulate_chanctx;
 
 	/* protects the aggregated multicast list and filter calls */
 	spinlock_t filter_lock;
@@ -1474,8 +1475,6 @@ struct ieee80211_local {
 	enum mac80211_scan_state next_scan_state;
 	struct wiphy_delayed_work scan_work;
 	struct ieee80211_sub_if_data __rcu *scan_sdata;
-	/* For backward compatibility only -- do not use */
-	struct cfg80211_chan_def _oper_chandef;
 
 	/* Temporary remain-on-channel for off-channel operations */
 	struct ieee80211_channel *tmp_channel;
@@ -1548,8 +1547,6 @@ struct ieee80211_local {
 	int dynamic_ps_forced_timeout;
 
 	int user_power_level; /* in dBm, for all interfaces */
-
-	enum ieee80211_smps_mode smps_mode;
 
 	struct work_struct restart_work;
 
@@ -1819,6 +1816,8 @@ u64 ieee80211_calculate_rx_timestamp(struct ieee80211_local *local,
 				     unsigned int mpdu_len,
 				     unsigned int mpdu_offset);
 int ieee80211_hw_config(struct ieee80211_local *local, u32 changed);
+int ieee80211_hw_conf_chan(struct ieee80211_local *local);
+void ieee80211_hw_conf_init(struct ieee80211_local *local);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u64 changed);

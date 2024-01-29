@@ -1288,8 +1288,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		res = drv_start(local);
 		if (res)
 			goto err_del_bss;
-		/* we're brought up, everything changes */
-		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
 		ieee80211_mod_tpt_led_trig(local,
 					   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
@@ -1436,7 +1434,9 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	if (coming_up)
 		local->open_count++;
 
-	if (hw_reconf_flags)
+	if (local->open_count == 1)
+		ieee80211_hw_conf_init(local);
+	else if (hw_reconf_flags)
 		ieee80211_hw_config(local, hw_reconf_flags);
 
 	ieee80211_recalc_ps(local);

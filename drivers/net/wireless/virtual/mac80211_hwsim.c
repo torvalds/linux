@@ -3922,6 +3922,10 @@ static const struct ieee80211_ops mac80211_hwsim_ops = {
 	HWSIM_NON_MLO_OPS
 	.sw_scan_start = mac80211_hwsim_sw_scan,
 	.sw_scan_complete = mac80211_hwsim_sw_scan_complete,
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 };
 
 #define HWSIM_CHANCTX_OPS					\

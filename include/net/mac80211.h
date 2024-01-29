@@ -7532,4 +7532,17 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links);
 void ieee80211_set_active_links_async(struct ieee80211_vif *vif,
 				      u16 active_links);
 
+/* for older drivers - let's not document these ... */
+int ieee80211_emulate_add_chanctx(struct ieee80211_hw *hw,
+				  struct ieee80211_chanctx_conf *ctx);
+void ieee80211_emulate_remove_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_chanctx_conf *ctx);
+void ieee80211_emulate_change_chanctx(struct ieee80211_hw *hw,
+				      struct ieee80211_chanctx_conf *ctx,
+				      u32 changed);
+int ieee80211_emulate_switch_vif_chanctx(struct ieee80211_hw *hw,
+					 struct ieee80211_vif_chanctx_switch *vifs,
+					 int n_vifs,
+					 enum ieee80211_chanctx_switch_mode mode);
+
 #endif /* MAC80211_H */
