@@ -3300,17 +3300,48 @@ ieee80211_get_adjusted_he_cap(const struct ieee80211_conn_settings *conn,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      struct ieee80211_he_cap_elem *elem)
 {
+	u8 ru_limit, max_ru;
+
 	*elem = he_cap->he_cap_elem;
 
-	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40)
+	switch (conn->bw_limit) {
+	case IEEE80211_CONN_BW_LIMIT_20:
+		ru_limit = IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_242;
+		break;
+	case IEEE80211_CONN_BW_LIMIT_40:
+		ru_limit = IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_484;
+		break;
+	case IEEE80211_CONN_BW_LIMIT_80:
+		ru_limit = IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_996;
+		break;
+	default:
+		ru_limit = IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_2x996;
+		break;
+	}
+
+	max_ru = elem->phy_cap_info[8] & IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_MASK;
+	max_ru = min(max_ru, ru_limit);
+	elem->phy_cap_info[8] &= ~IEEE80211_HE_PHY_CAP8_DCM_MAX_RU_MASK;
+	elem->phy_cap_info[8] |= max_ru;
+
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40) {
 		elem->phy_cap_info[0] &=
 			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G);
+		elem->phy_cap_info[9] &=
+			~IEEE80211_HE_PHY_CAP9_LONGER_THAN_16_SIGB_OFDM_SYM;
+	}
 
-	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160)
+	if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160) {
 		elem->phy_cap_info[0] &=
 			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G |
 			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G);
+		elem->phy_cap_info[5] &=
+			~IEEE80211_HE_PHY_CAP5_BEAMFORMEE_NUM_SND_DIM_ABOVE_80MHZ_MASK;
+		elem->phy_cap_info[7] &=
+			~(IEEE80211_HE_PHY_CAP7_STBC_TX_ABOVE_80MHZ |
+			  IEEE80211_HE_PHY_CAP7_STBC_RX_ABOVE_80MHZ);
+	}
 }
 
 u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
