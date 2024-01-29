@@ -1329,6 +1329,24 @@ unlock:
 	return ret;
 }
 
+static enum ieee80211_neg_ttlm_res
+iwl_mvm_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ieee80211_neg_ttlm *neg_ttlm)
+{
+	u16 map;
+	u8 i;
+
+	/* Verify all TIDs are mapped to the same links set */
+	map = neg_ttlm->downlink[0];
+	for (i = 0; i < IEEE80211_TTLM_NUM_TIDS; i++) {
+		if (neg_ttlm->downlink[i] != neg_ttlm->uplink[i] ||
+		    neg_ttlm->uplink[i] != map)
+			return NEG_TTLM_RES_REJECT;
+	}
+
+	return NEG_TTLM_RES_ACCEPT;
+}
+
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.tx = iwl_mvm_mac_tx,
 	.wake_tx_queue = iwl_mvm_mac_wake_tx_queue,
@@ -1424,4 +1442,5 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 	.change_vif_links = iwl_mvm_mld_change_vif_links,
 	.change_sta_links = iwl_mvm_mld_change_sta_links,
 	.can_activate_links = iwl_mvm_mld_can_activate_links,
+	.can_neg_ttlm = iwl_mvm_mld_can_neg_ttlm,
 };
