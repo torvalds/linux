@@ -294,19 +294,16 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			   const struct pwm_state *state)
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
-	struct pwm_state cstate;
 	unsigned long cprd, cdty;
 	u32 pres, val;
 	int ret;
 
-	pwm_get_state(pwm, &cstate);
-
 	if (state->enabled) {
 		unsigned long clkrate = clk_get_rate(atmel_pwm->clk);
 
-		if (cstate.enabled &&
-		    cstate.polarity == state->polarity &&
-		    cstate.period == state->period) {
+		if (pwm->state.enabled &&
+		    pwm->state.polarity == state->polarity &&
+		    pwm->state.period == state->period) {
 			u32 cmr = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm, PWM_CMR);
 
 			cprd = atmel_pwm_ch_readl(atmel_pwm, pwm->hwpwm,
@@ -328,7 +325,7 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 		atmel_pwm_calculate_cdty(state, clkrate, cprd, pres, &cdty);
 
-		if (cstate.enabled) {
+		if (pwm->state.enabled) {
 			atmel_pwm_disable(chip, pwm, false);
 		} else {
 			ret = clk_enable(atmel_pwm->clk);
@@ -348,7 +345,7 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		atmel_pwm_ch_writel(atmel_pwm, pwm->hwpwm, PWM_CMR, val);
 		atmel_pwm_set_cprd_cdty(chip, pwm, cprd, cdty);
 		atmel_pwm_writel(atmel_pwm, PWM_ENA, 1 << pwm->hwpwm);
-	} else if (cstate.enabled) {
+	} else if (pwm->state.enabled) {
 		atmel_pwm_disable(chip, pwm, true);
 	}
 
