@@ -454,7 +454,7 @@ static void guest_test_msrs_access(void)
 		case 44:
 			/* MSR is not available when CPUID feature bit is unset */
 			if (!has_invtsc)
-				continue;
+				goto next_stage;
 			msr->idx = HV_X64_MSR_TSC_INVARIANT_CONTROL;
 			msr->write = false;
 			msr->fault_expected = true;
@@ -462,7 +462,7 @@ static void guest_test_msrs_access(void)
 		case 45:
 			/* MSR is vailable when CPUID feature bit is set */
 			if (!has_invtsc)
-				continue;
+				goto next_stage;
 			vcpu_set_cpuid_feature(vcpu, HV_ACCESS_TSC_INVARIANT);
 			msr->idx = HV_X64_MSR_TSC_INVARIANT_CONTROL;
 			msr->write = false;
@@ -471,7 +471,7 @@ static void guest_test_msrs_access(void)
 		case 46:
 			/* Writing bits other than 0 is forbidden */
 			if (!has_invtsc)
-				continue;
+				goto next_stage;
 			msr->idx = HV_X64_MSR_TSC_INVARIANT_CONTROL;
 			msr->write = true;
 			msr->write_val = 0xdeadbeef;
@@ -480,7 +480,7 @@ static void guest_test_msrs_access(void)
 		case 47:
 			/* Setting bit 0 enables the feature */
 			if (!has_invtsc)
-				continue;
+				goto next_stage;
 			msr->idx = HV_X64_MSR_TSC_INVARIANT_CONTROL;
 			msr->write = true;
 			msr->write_val = 1;
@@ -513,6 +513,7 @@ static void guest_test_msrs_access(void)
 			return;
 		}
 
+next_stage:
 		stage++;
 		kvm_vm_free(vm);
 	}
