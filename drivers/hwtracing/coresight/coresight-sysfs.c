@@ -378,22 +378,22 @@ static struct attribute *coresight_source_attrs[] = {
 ATTRIBUTE_GROUPS(coresight_source);
 
 struct device_type coresight_dev_type[] = {
-	{
+	[CORESIGHT_DEV_TYPE_SINK] = {
 		.name = "sink",
 		.groups = coresight_sink_groups,
 	},
-	{
+	[CORESIGHT_DEV_TYPE_LINK] = {
 		.name = "link",
 	},
-	{
+	[CORESIGHT_DEV_TYPE_LINKSINK] = {
 		.name = "linksink",
 		.groups = coresight_sink_groups,
 	},
-	{
+	[CORESIGHT_DEV_TYPE_SOURCE] = {
 		.name = "source",
 		.groups = coresight_source_groups,
 	},
-	{
+	[CORESIGHT_DEV_TYPE_HELPER] = {
 		.name = "helper",
 	}
 };
