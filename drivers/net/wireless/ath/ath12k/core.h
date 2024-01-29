@@ -842,6 +842,11 @@ struct ath12k_base {
 
 	const struct hal_rx_ops *hal_rx_ops;
 
+	/* slo_capable denotes if the single/multi link operation
+	 * is supported within the same chip (SoC).
+	 */
+	bool slo_capable;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
