@@ -142,29 +142,6 @@ config I2C_SLAVE_TESTUNIT
 	  multi-master, SMBus Host Notify, etc. Please read
 	  Documentation/i2c/slave-testunit-backend.rst for further details.
 
-config I2C_SLAVE_MQUEUE_MESSAGE_SIZE
-        int "The message size of I2C mqueue slave"
-        default 256
-
-config I2C_SLAVE_MQUEUE_QUEUE_SIZE
-        int "The queue size of I2C mqueue slave"
-        default 32
-        help
-          This number MUST be power of 2.
-
-config I2C_SLAVE_MQUEUE
-        tristate "I2C mqueue (message queue) slave driver"
-        help
-          Some protocols over I2C are designed for bi-directional transferring
-          messages by using I2C Master Write protocol. This driver is used to
-          receive and queue messages from the remote I2C device.
-
-          Userspace can get the messages by reading sysfs file that this driver
-          exposes.
-
-          This support is also available as a module. If so, the module will be
-          called i2c-slave-mqueue.
-
 endif
 
 config I2C_DEBUG_CORE
