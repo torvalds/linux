@@ -4091,93 +4091,62 @@ int ieee80211_parse_bitrates(enum nl80211_chan_width width,
 	return count;
 }
 
-int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,
-			    struct sk_buff *skb, bool need_basic,
-			    enum nl80211_band band)
+int ieee80211_put_srates_elem(struct sk_buff *skb,
+			      const struct ieee80211_supported_band *sband,
+			      u32 basic_rates, u32 rate_flags, u32 masked_rates,
+			      u8 element_id)
 {
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
-	int rate;
-	u8 i, rates, *pos;
-	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
-	u32 rate_flags;
+	u8 i, rates, skip;
 
-	rate_flags =
-		ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chanreq.oper);
-	sband = local->hw.wiphy->bands[band];
 	rates = 0;
 	for (i = 0; i < sband->n_bitrates; i++) {
 		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
 			continue;
+		if (masked_rates & BIT(i))
+			continue;
 		rates++;
 	}
-	if (rates > 8)
-		rates = 8;
+
+	if (element_id == WLAN_EID_SUPP_RATES) {
+		rates = min_t(u8, rates, 8);
+		skip = 0;
+	} else {
+		skip = 8;
+		if (rates <= skip)
+			return 0;
+		rates -= skip;
+	}
 
 	if (skb_tailroom(skb) < rates + 2)
-		return -ENOMEM;
+		return -ENOBUFS;
 
-	pos = skb_put(skb, rates + 2);
-	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = rates;
-	for (i = 0; i < rates; i++) {
-		u8 basic = 0;
+	skb_put_u8(skb, element_id);
+	skb_put_u8(skb, rates);
+
+	for (i = 0; i < sband->n_bitrates && rates; i++) {
+		int rate;
+		u8 basic;
+
 		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
 			continue;
-
-		if (need_basic && basic_rates & BIT(i))
-			basic = 0x80;
-		rate = DIV_ROUND_UP(sband->bitrates[i].bitrate, 5);
-		*pos++ = basic | (u8) rate;
-	}
-
-	return 0;
-}
-
-int ieee80211_add_ext_srates_ie(struct ieee80211_sub_if_data *sdata,
-				struct sk_buff *skb, bool need_basic,
-				enum nl80211_band band)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
-	int rate;
-	u8 i, exrates, *pos;
-	u32 basic_rates = sdata->vif.bss_conf.basic_rates;
-	u32 rate_flags;
-
-	rate_flags =
-		ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chanreq.oper);
-	sband = local->hw.wiphy->bands[band];
-	exrates = 0;
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if ((rate_flags & sband->bitrates[i].flags) != rate_flags)
+		if (masked_rates & BIT(i))
 			continue;
-		exrates++;
-	}
 
-	if (exrates > 8)
-		exrates -= 8;
-	else
-		exrates = 0;
-
-	if (skb_tailroom(skb) < exrates + 2)
-		return -ENOMEM;
-
-	if (exrates) {
-		pos = skb_put(skb, exrates + 2);
-		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = exrates;
-		for (i = 8; i < sband->n_bitrates; i++) {
-			u8 basic = 0;
-			if ((rate_flags & sband->bitrates[i].flags)
-			    != rate_flags)
-				continue;
-			if (need_basic && basic_rates & BIT(i))
-				basic = 0x80;
-			rate = DIV_ROUND_UP(sband->bitrates[i].bitrate, 5);
-			*pos++ = basic | (u8) rate;
+		if (skip > 0) {
+			skip--;
+			continue;
 		}
+
+		basic = basic_rates & BIT(i) ? 0x80 : 0;
+
+		rate = DIV_ROUND_UP(sband->bitrates[i].bitrate, 5);
+		skb_put_u8(skb, basic | (u8)rate);
+		rates--;
 	}
+
+	WARN(rates > 0, "rates confused: rates:%d, element:%d\n",
+	     rates, element_id);
+
 	return 0;
 }
 

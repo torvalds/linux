@@ -1110,10 +1110,7 @@ static void ieee80211_assoc_add_rates(struct sk_buff *skb,
 				      struct ieee80211_supported_band *sband,
 				      struct ieee80211_mgd_assoc_data *assoc_data)
 {
-	unsigned int rates_len, supp_rates_len;
-	u32 rates = 0;
-	int i, count;
-	u8 *pos;
+	u32 rates;
 
 	if (assoc_data->supp_rates_len) {
 		/*
@@ -1122,53 +1119,23 @@ static void ieee80211_assoc_add_rates(struct sk_buff *skb,
 		 * in the association request (e.g. D-Link DAP 1353 in
 		 * b-only mode)...
 		 */
-		rates_len = ieee80211_parse_bitrates(width, sband,
-						     assoc_data->supp_rates,
-						     assoc_data->supp_rates_len,
-						     &rates);
+		ieee80211_parse_bitrates(width, sband,
+					 assoc_data->supp_rates,
+					 assoc_data->supp_rates_len,
+					 &rates);
 	} else {
 		/*
 		 * In case AP not provide any supported rates information
 		 * before association, we send information element(s) with
 		 * all rates that we support.
 		 */
-		rates_len = sband->n_bitrates;
-		for (i = 0; i < sband->n_bitrates; i++)
-			rates |= BIT(i);
+		rates = ~0;
 	}
 
-	supp_rates_len = rates_len;
-	if (supp_rates_len > 8)
-		supp_rates_len = 8;
-
-	pos = skb_put(skb, supp_rates_len + 2);
-	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = supp_rates_len;
-
-	count = 0;
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (BIT(i) & rates) {
-			int rate = DIV_ROUND_UP(sband->bitrates[i].bitrate, 5);
-			*pos++ = (u8)rate;
-			if (++count == 8)
-				break;
-		}
-	}
-
-	if (rates_len > count) {
-		pos = skb_put(skb, rates_len - count + 2);
-		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = rates_len - count;
-
-		for (i++; i < sband->n_bitrates; i++) {
-			if (BIT(i) & rates) {
-				int rate;
-
-				rate = DIV_ROUND_UP(sband->bitrates[i].bitrate, 5);
-				*pos++ = (u8)rate;
-			}
-		}
-	}
+	ieee80211_put_srates_elem(skb, sband, 0, 0, ~rates,
+				  WLAN_EID_SUPP_RATES);
+	ieee80211_put_srates_elem(skb, sband, 0, 0, ~rates,
+				  WLAN_EID_EXT_SUPP_RATES);
 }
 
 static size_t ieee80211_add_before_ht_elems(struct sk_buff *skb,

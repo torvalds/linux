@@ -968,19 +968,19 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	int head_len, tail_len;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct mesh_csa_settings *csa;
-	enum nl80211_band band;
+	const struct ieee80211_supported_band *sband;
 	u8 ie_len_he_cap, ie_len_eht_cap;
 	u8 *pos;
 	struct ieee80211_sub_if_data *sdata;
 	int hdr_len = offsetofend(struct ieee80211_mgmt, u.beacon);
+	u32 rate_flags;
 
 	sdata = container_of(ifmsh, struct ieee80211_sub_if_data, u.mesh);
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
-	band = chanctx_conf->def.chan->band;
-	rcu_read_unlock();
+
+	sband = ieee80211_get_sband(sdata);
+	rate_flags =
+		ieee80211_chandef_rate_flags(&sdata->vif.bss_conf.chanreq.oper);
 
 	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata);
 	ie_len_eht_cap = ieee80211_ie_len_eht_cap(sdata);
@@ -1107,7 +1107,9 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	}
 	rcu_read_unlock();
 
-	if (ieee80211_add_srates_ie(sdata, skb, true, band) ||
+	if (ieee80211_put_srates_elem(skb, sband,
+				      sdata->vif.bss_conf.basic_rates,
+				      rate_flags, 0, WLAN_EID_SUPP_RATES) ||
 	    mesh_add_ds_params_ie(sdata, skb))
 		goto out_free;
 
@@ -1118,7 +1120,9 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	skb_trim(skb, 0);
 	bcn->tail = bcn->head + bcn->head_len;
 
-	if (ieee80211_add_ext_srates_ie(sdata, skb, true, band) ||
+	if (ieee80211_put_srates_elem(skb, sband,
+				      sdata->vif.bss_conf.basic_rates,
+				      rate_flags, 0, WLAN_EID_EXT_SUPP_RATES) ||
 	    mesh_add_rsn_ie(sdata, skb) ||
 	    mesh_add_ht_cap_ie(sdata, skb) ||
 	    mesh_add_ht_oper_ie(sdata, skb) ||
