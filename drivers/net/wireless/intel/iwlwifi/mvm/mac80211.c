@@ -1641,7 +1641,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvm->monitor_on = true;
 		mvm->monitor_p80 =
-			iwl_mvm_chandef_get_primary_80(&vif->bss_conf.chandef);
+			iwl_mvm_chandef_get_primary_80(&vif->bss_conf.chanreq.oper);
 	}
 
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
@@ -3421,16 +3421,16 @@ iwl_mvm_check_he_obss_narrow_bw_ru(struct ieee80211_hw *hw,
 		.tolerated = true,
 	};
 
-	if (WARN_ON_ONCE(!link_conf->chandef.chan ||
+	if (WARN_ON_ONCE(!link_conf->chanreq.oper.chan ||
 			 !mvmvif->link[link_id]))
 		return;
 
-	if (!(link_conf->chandef.chan->flags & IEEE80211_CHAN_RADAR)) {
+	if (!(link_conf->chanreq.oper.chan->flags & IEEE80211_CHAN_RADAR)) {
 		mvmvif->link[link_id]->he_ru_2mhz_block = false;
 		return;
 	}
 
-	cfg80211_bss_iter(hw->wiphy, &link_conf->chandef,
+	cfg80211_bss_iter(hw->wiphy, &link_conf->chanreq.oper,
 			  iwl_mvm_check_he_obss_narrow_bw_ru_iter,
 			  &iter_data);
 
@@ -3490,10 +3490,10 @@ static void iwl_mvm_mei_host_associated(struct iwl_mvm *mvm,
 		return;
 
 	/* FIXME: MEI needs to be updated for MLO */
-	if (!vif->bss_conf.chandef.chan)
+	if (!vif->bss_conf.chanreq.oper.chan)
 		return;
 
-	conn_info.channel = vif->bss_conf.chandef.chan->hw_value;
+	conn_info.channel = vif->bss_conf.chanreq.oper.chan->hw_value;
 
 	switch (mvm_sta->pairwise_cipher) {
 	case WLAN_CIPHER_SUITE_TKIP:

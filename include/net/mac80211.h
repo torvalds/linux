@@ -224,6 +224,14 @@ enum ieee80211_chanctx_change {
 };
 
 /**
+ * struct ieee80211_chan_req - A channel "request"
+ * @oper: channel definition to use for operation
+ */
+struct ieee80211_chan_req {
+	struct cfg80211_chan_def oper;
+};
+
+/**
  * struct ieee80211_chanctx_conf - channel context that vifs may be tuned to
  *
  * This is the driver-visible part. The ieee80211_chanctx
@@ -583,7 +591,7 @@ struct ieee80211_fils_discovery {
  * @mcast_rate: per-band multicast rate index + 1 (0: disabled)
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
- * @chandef: Channel definition for this BSS -- the hardware might be
+ * @chanreq: Channel request for this BSS -- the hardware might be
  *	configured a higher bandwidth than this BSS uses, for example.
  * @mu_group: VHT MU-MIMO group membership data
  * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
@@ -716,7 +724,7 @@ struct ieee80211_bss_conf {
 	u32 cqm_rssi_hyst;
 	s32 cqm_rssi_low;
 	s32 cqm_rssi_high;
-	struct cfg80211_chan_def chandef;
+	struct ieee80211_chan_req chanreq;
 	struct ieee80211_mu_group_data mu_group;
 	bool qos;
 	bool hidden_ssid;

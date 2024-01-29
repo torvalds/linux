@@ -794,7 +794,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		vnt_set_bss_mode(priv);
 
 	if (changed & (BSS_CHANGED_TXPOWER | BSS_CHANGED_BANDWIDTH))
-		vnt_rf_setpower(priv, conf->chandef.chan);
+		vnt_rf_setpower(priv, conf->chanreq.oper.chan);
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		dev_dbg(&priv->usb->dev,

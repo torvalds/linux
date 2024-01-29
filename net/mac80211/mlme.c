@@ -139,7 +139,7 @@ ieee80211_handle_puncturing_bitmap(struct ieee80211_link_data *link,
 				   const struct ieee80211_eht_operation *eht_oper,
 				   u16 bitmap, u64 *changed)
 {
-	struct cfg80211_chan_def *chandef = &link->conf->chandef;
+	struct cfg80211_chan_def *chandef = &link->conf->chanreq.oper;
 	struct ieee80211_local *local = link->sdata->local;
 	u16 extracted;
 	u64 _changed = 0;
@@ -862,8 +862,9 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 			       struct ieee802_11_elems *elems,
 			       u64 *changed)
 {
-	struct ieee80211_channel *channel = link->conf->chandef.chan;
+	struct ieee80211_channel *channel = link->conf->chanreq.oper.chan;
 	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_chan_req chanreq = {};
 	struct cfg80211_chan_def ap_chandef;
 	enum ieee80211_conn_mode ap_mode;
 	u32 vht_cap_info = 0;
@@ -913,7 +914,7 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 			ieee80211_min_bw_limit_from_chandef(&ap_chandef))
 		ieee80211_chandef_downgrade(&ap_chandef, NULL);
 
-	if (cfg80211_chandef_identical(&ap_chandef, &link->conf->chandef))
+	if (cfg80211_chandef_identical(&ap_chandef, &link->conf->chanreq.oper))
 		return 0;
 
 	link_info(link,
@@ -946,8 +947,9 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 	 * bandwidth changes where a this could happen, but those cases are
 	 * less common and wouldn't completely prevent using the AP.
 	 */
+	chanreq.oper = ap_chandef;
 
-	ret = ieee80211_link_change_bandwidth(link, &ap_chandef, changed);
+	ret = ieee80211_link_change_chanreq(link, &chanreq, changed);
 	if (ret) {
 		sdata_info(sdata,
 			   "AP %pM changed bandwidth to incompatible one - disconnect\n",
@@ -2069,8 +2071,8 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 		return;
 	}
 
-	if (!cfg80211_chandef_identical(&link->conf->chandef,
-					&link->csa_chandef)) {
+	if (!cfg80211_chandef_identical(&link->conf->chanreq.oper,
+					&link->csa_chanreq.oper)) {
 		sdata_info(sdata,
 			   "failed to finalize channel switch, disconnecting\n");
 		wiphy_work_queue(sdata->local->hw.wiphy,
@@ -2118,7 +2120,7 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 		return;
 	}
 
-	cfg80211_ch_switch_notify(sdata->dev, &link->reserved_chandef,
+	cfg80211_ch_switch_notify(sdata->dev, &link->reserved.oper,
 				  link->link_id, 0);
 }
 
@@ -2211,7 +2213,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		ch_switch.timestamp = timestamp;
 		ch_switch.device_timestamp = device_timestamp;
 		ch_switch.block_tx = csa_ie.mode;
-		ch_switch.chandef = csa_ie.chandef;
+		ch_switch.chandef = csa_ie.chanreq.oper;
 		ch_switch.count = csa_ie.count;
 		ch_switch.delay = csa_ie.max_switch_time;
 	}
@@ -2231,34 +2233,36 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		return;
 	}
 
-	if (link->conf->chandef.chan->band !=
-	    csa_ie.chandef.chan->band) {
+	if (link->conf->chanreq.oper.chan->band !=
+	    csa_ie.chanreq.oper.chan->band) {
 		sdata_info(sdata,
 			   "AP %pM switches to different band (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
 			   link->u.mgd.bssid,
-			   csa_ie.chandef.chan->center_freq,
-			   csa_ie.chandef.width, csa_ie.chandef.center_freq1,
-			   csa_ie.chandef.center_freq2);
+			   csa_ie.chanreq.oper.chan->center_freq,
+			   csa_ie.chanreq.oper.width,
+			   csa_ie.chanreq.oper.center_freq1,
+			   csa_ie.chanreq.oper.center_freq2);
 		goto drop_connection;
 	}
 
-	if (!cfg80211_chandef_usable(local->hw.wiphy, &csa_ie.chandef,
+	if (!cfg80211_chandef_usable(local->hw.wiphy, &csa_ie.chanreq.oper,
 				     IEEE80211_CHAN_DISABLED)) {
 		sdata_info(sdata,
 			   "AP %pM switches to unsupported channel "
 			   "(%d.%03d MHz, width:%d, CF1/2: %d.%03d/%d MHz), "
 			   "disconnecting\n",
 			   link->u.mgd.bssid,
-			   csa_ie.chandef.chan->center_freq,
-			   csa_ie.chandef.chan->freq_offset,
-			   csa_ie.chandef.width, csa_ie.chandef.center_freq1,
-			   csa_ie.chandef.freq1_offset,
-			   csa_ie.chandef.center_freq2);
+			   csa_ie.chanreq.oper.chan->center_freq,
+			   csa_ie.chanreq.oper.chan->freq_offset,
+			   csa_ie.chanreq.oper.width,
+			   csa_ie.chanreq.oper.center_freq1,
+			   csa_ie.chanreq.oper.freq1_offset,
+			   csa_ie.chanreq.oper.center_freq2);
 		goto drop_connection;
 	}
 
-	if (cfg80211_chandef_identical(&csa_ie.chandef,
-				       &link->conf->chandef) &&
+	if (cfg80211_chandef_identical(&csa_ie.chanreq.oper,
+				       &link->conf->chanreq.oper) &&
 	    (!csa_ie.mode || !beacon)) {
 		if (link->u.mgd.csa_ignored_same_chan)
 			return;
@@ -2299,7 +2303,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		goto drop_connection;
 	}
 
-	res = ieee80211_link_reserve_chanctx(link, &csa_ie.chandef,
+	res = ieee80211_link_reserve_chanctx(link, &csa_ie.chanreq,
 					     chanctx->mode, false);
 	if (res) {
 		sdata_info(sdata,
@@ -2309,7 +2313,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	link->conf->csa_active = true;
-	link->csa_chandef = csa_ie.chandef;
+	link->csa_chanreq = csa_ie.chanreq;
 	link->csa_block_tx = csa_ie.mode;
 	link->u.mgd.csa_ignored_same_chan = false;
 	link->u.mgd.beacon_crc_valid = false;
@@ -2318,7 +2322,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 		ieee80211_stop_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
 
-	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chandef,
+	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chanreq.oper,
 					  link->link_id, csa_ie.count,
 					  csa_ie.mode, 0);
 
@@ -2741,7 +2745,7 @@ void ieee80211_dfs_cac_timer_work(struct wiphy *wiphy, struct wiphy_work *work)
 	struct ieee80211_link_data *link =
 		container_of(work, struct ieee80211_link_data,
 			     dfs_cac_timer_work.work);
-	struct cfg80211_chan_def chandef = link->conf->chandef;
+	struct cfg80211_chan_def chandef = link->conf->chanreq.oper;
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 
 	lockdep_assert_wiphy(sdata->local->hw.wiphy);
@@ -4508,11 +4512,11 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		goto out;
 	}
 
-	if (WARN_ON(!link->conf->chandef.chan)) {
+	if (WARN_ON(!link->conf->chanreq.oper.chan)) {
 		ret = false;
 		goto out;
 	}
-	sband = local->hw.wiphy->bands[link->conf->chandef.chan->band];
+	sband = local->hw.wiphy->bands[link->conf->chanreq.oper.chan->band];
 
 	/* Set up internal HT/VHT capabilities */
 	if (elems->ht_cap_elem && link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_HT)
@@ -4580,7 +4584,7 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		} else if (is_6ghz) {
 			link_info(link,
 				  "HE 6 GHz operation missing (on %d MHz), expect issues\n",
-				  bss_conf->chandef.chan->center_freq);
+				  bss_conf->chanreq.oper.chan->center_freq);
 		}
 
 		bss_conf->he_support = link_sta->pub->he_cap.has_he;
@@ -5132,8 +5136,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_conn_settings *conn)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct cfg80211_chan_def chandef;
 	bool is_6ghz = cbss->channel->band == NL80211_BAND_6GHZ;
+	struct ieee80211_chan_req chanreq = {};
 	struct ieee802_11_elems *elems;
 	int ret;
 	u32 i;
@@ -5142,7 +5146,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_lock();
 	elems = ieee80211_determine_chan_mode(sdata, conn, cbss, link_id,
-					      &chandef);
+					      &chanreq.oper);
 
 	if (IS_ERR(elems)) {
 		rcu_read_unlock();
@@ -5196,17 +5200,18 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 * on incompatible channels, e.g. 80+80 and 160 sharing the
 	 * same control channel) try to use a smaller bandwidth.
 	 */
-	ret = ieee80211_link_use_channel(link, &chandef,
+	ret = ieee80211_link_use_channel(link, &chanreq,
 					 IEEE80211_CHANCTX_SHARED);
 
 	/* don't downgrade for 5 and 10 MHz channels, though. */
-	if (chandef.width == NL80211_CHAN_WIDTH_5 ||
-	    chandef.width == NL80211_CHAN_WIDTH_10)
+	if (chanreq.oper.width == NL80211_CHAN_WIDTH_5 ||
+	    chanreq.oper.width == NL80211_CHAN_WIDTH_10)
 		return ret;
 
-	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
-		ieee80211_chandef_downgrade(&chandef, conn);
-		ret = ieee80211_link_use_channel(link, &chandef,
+	while (ret && chanreq.oper.width != NL80211_CHAN_WIDTH_20_NOHT) {
+		ieee80211_chandef_downgrade(&chanreq.oper, conn);
+
+		ret = ieee80211_link_use_channel(link, &chanreq,
 						 IEEE80211_CHANCTX_SHARED);
 	}
 
@@ -5862,7 +5867,7 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 	}
 
 	extracted = ieee80211_extract_dis_subch_bmap(eht_oper,
-						     &link->conf->chandef,
+						     &link->conf->chanreq.oper,
 						     bitmap);
 
 	/* accept if there are no changes */
@@ -5871,12 +5876,12 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 		return true;
 
 	if (!cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-						      &link->conf->chandef)) {
+						      &link->conf->chanreq.oper)) {
 		link_info(link,
 			  "Got an invalid disable subchannel bitmap from AP %pM: bitmap = 0x%x, bw = 0x%x. disconnect\n",
 			  link->u.mgd.bssid,
 			  bitmap,
-			  link->conf->chandef.width);
+			  link->conf->chanreq.oper.width);
 		return false;
 	}
 
@@ -6573,10 +6578,10 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		goto free;
 	}
 
-	if (WARN_ON(!link->conf->chandef.chan))
+	if (WARN_ON(!link->conf->chanreq.oper.chan))
 		goto free;
 
-	sband = local->hw.wiphy->bands[link->conf->chandef.chan->band];
+	sband = local->hw.wiphy->bands[link->conf->chanreq.oper.chan->band];
 
 	changed |= ieee80211_recalc_twt_req(sdata, sband, link, link_sta, elems);
 

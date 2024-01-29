@@ -369,7 +369,7 @@ ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
 		link_conf = rcu_dereference(sdata->vif.link_conf[link_id]);
 
 		if (eht_cap->has_eht &&
-		    link_conf->chandef.chan->band == NL80211_BAND_6GHZ) {
+		    link_conf->chanreq.oper.chan->band == NL80211_BAND_6GHZ) {
 			info = eht_cap->eht_cap_elem.phy_cap_info[0];
 
 			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ) {
@@ -380,7 +380,7 @@ ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
 
 		info = he_cap->he_cap_elem.phy_cap_info[0];
 
-		if (link_conf->chandef.chan->band == NL80211_BAND_2GHZ) {
+		if (link_conf->chanreq.oper.chan->band == NL80211_BAND_2GHZ) {
 			if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G)
 				ret = IEEE80211_STA_RX_BW_40;
 			else
@@ -515,7 +515,7 @@ ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
 	if (WARN_ON(!link_conf))
 		bss_width = NL80211_CHAN_WIDTH_20_NOHT;
 	else
-		bss_width = link_conf->chandef.width;
+		bss_width = link_conf->chanreq.oper.width;
 	rcu_read_unlock();
 
 	bw = ieee80211_sta_cap_rx_bw(link_sta);

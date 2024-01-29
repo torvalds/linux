@@ -455,7 +455,7 @@ void iwl_mvm_set_fw_protection_flags(struct iwl_mvm *mvm,
 		break;
 	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
 		/* Protect when channel wider than 20MHz */
-		if (link_conf->chandef.width > NL80211_CHAN_WIDTH_20)
+		if (link_conf->chanreq.oper.width > NL80211_CHAN_WIDTH_20)
 			*protection_flags |= cpu_to_le32(ht_flag);
 		break;
 	default:
@@ -494,7 +494,7 @@ void iwl_mvm_set_fw_qos_params(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (link_conf->qos)
 		*qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
 
-	if (link_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT)
+	if (link_conf->chanreq.oper.width != NL80211_CHAN_WIDTH_20_NOHT)
 		*qos_flags |= cpu_to_le32(MAC_QOS_FLG_TGN);
 }
 
@@ -910,8 +910,8 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct iwl_mvm *mvm,
 		link_conf = rcu_dereference(vif->link_conf[link_id]);
 		if (link_conf) {
 			basic = link_conf->basic_rates;
-			if (link_conf->chandef.chan)
-				band = link_conf->chandef.chan->band;
+			if (link_conf->chanreq.oper.chan)
+				band = link_conf->chanreq.oper.chan->band;
 		}
 		rcu_read_unlock();
 	}

@@ -884,6 +884,9 @@ struct ieee80211_chanctx {
 	enum ieee80211_chanctx_mode mode;
 	bool driver_present;
 
+	/* temporary data for search algorithm etc. */
+	struct ieee80211_chan_req req;
+
 	struct ieee80211_chanctx_conf conf;
 };
 
@@ -1035,7 +1038,7 @@ struct ieee80211_link_data {
 
 	bool operating_11g_mode;
 
-	struct cfg80211_chan_def csa_chandef;
+	struct ieee80211_chan_req csa_chanreq;
 
 	struct wiphy_work color_change_finalize_work;
 	struct delayed_work color_collision_detect_work;
@@ -1043,7 +1046,7 @@ struct ieee80211_link_data {
 
 	/* context reservation -- protected with wiphy mutex */
 	struct ieee80211_chanctx *reserved_chanctx;
-	struct cfg80211_chan_def reserved_chandef;
+	struct ieee80211_chan_req reserved;
 	bool reserved_radar_required;
 	bool reserved_ready;
 
@@ -1574,7 +1577,7 @@ struct ieee80211_local {
 
 	/* virtual monitor interface */
 	struct ieee80211_sub_if_data __rcu *monitor_sdata;
-	struct cfg80211_chan_def monitor_chandef;
+	struct ieee80211_chan_req monitor_chanreq;
 
 	/* extended capabilities provided by mac80211 */
 	u8 ext_capa[8];
@@ -1639,7 +1642,7 @@ ieee80211_get_link_sband(struct ieee80211_link_data *link)
 
 /* this struct holds the value parsing from channel switch IE  */
 struct ieee80211_csa_ie {
-	struct cfg80211_chan_def chandef;
+	struct ieee80211_chan_req chanreq;
 	u8 mode;
 	u8 count;
 	u8 ttl;
@@ -2523,11 +2526,11 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *chandef,
 
 int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,
-			   const struct cfg80211_chan_def *chandef,
+			   const struct ieee80211_chan_req *req,
 			   enum ieee80211_chanctx_mode mode);
 int __must_check
 ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
-			       const struct cfg80211_chan_def *chandef,
+			       const struct ieee80211_chan_req *req,
 			       enum ieee80211_chanctx_mode mode,
 			       bool radar_required);
 int __must_check
@@ -2535,9 +2538,9 @@ ieee80211_link_use_reserved_context(struct ieee80211_link_data *link);
 int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
 
 int __must_check
-ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
-				const struct cfg80211_chan_def *chandef,
-				u64 *changed);
+ieee80211_link_change_chanreq(struct ieee80211_link_data *link,
+			      const struct ieee80211_chan_req *req,
+			      u64 *changed);
 void ieee80211_link_release_channel(struct ieee80211_link_data *link);
 void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link);
 void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,

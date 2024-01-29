@@ -159,7 +159,7 @@ static void ieee80211_tdls_add_oper_classes(struct ieee80211_link_data *link,
 	u8 *pos;
 	u8 op_class;
 
-	if (!ieee80211_chandef_to_operating_class(&link->conf->chandef,
+	if (!ieee80211_chandef_to_operating_class(&link->conf->chanreq.oper,
 						  &op_class))
 		return;
 
@@ -438,7 +438,7 @@ ieee80211_tdls_add_setup_start_ies(struct ieee80211_link_data *link,
 		if (WARN_ON_ONCE(!sta))
 			return;
 
-		sta->tdls_chandef = link->conf->chandef;
+		sta->tdls_chandef = link->conf->chanreq.oper;
 	}
 
 	ieee80211_tdls_add_oper_classes(link, skb);
@@ -638,7 +638,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_link_data *link,
 	if (WARN_ON_ONCE(!sta || !ap_sta))
 		return;
 
-	sta->tdls_chandef = link->conf->chandef;
+	sta->tdls_chandef = link->conf->chanreq.oper;
 
 	/* add any custom IEs that go before the QoS IE */
 	if (extra_ies_len) {
@@ -684,7 +684,7 @@ ieee80211_tdls_add_setup_cfm_ies(struct ieee80211_link_data *link,
 
 		pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
 		ieee80211_ie_build_ht_oper(pos, &sta->sta.deflink.ht_cap,
-					   &link->conf->chandef, prot,
+					   &link->conf->chanreq.oper, prot,
 					   true);
 	}
 

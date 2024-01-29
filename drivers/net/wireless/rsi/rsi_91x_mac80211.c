@@ -740,7 +740,7 @@ u16 rsi_get_connected_channel(struct ieee80211_vif *vif)
 		return 0;
 
 	bss = &vif->bss_conf;
-	channel = bss->chandef.chan;
+	channel = bss->chanreq.oper.chan;
 
 	if (!channel)
 		return 0;
@@ -759,7 +759,7 @@ static void rsi_switch_channel(struct rsi_hw *adapter,
 	if (!vif)
 		return;
 
-	channel = vif->bss_conf.chandef.chan;
+	channel = vif->bss_conf.chanreq.oper.chan;
 
 	if (!channel)
 		return;

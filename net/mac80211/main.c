@@ -1229,7 +1229,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 						&sband->channels[i],
 						NL80211_CHAN_NO_HT);
 			/* init channel we're on */
-			local->monitor_chandef = dflt_chandef;
+			local->monitor_chanreq.oper = dflt_chandef;
 			if (local->emulate_chanctx) {
 				local->dflt_chandef = dflt_chandef;
 				local->hw.conf.chandef = dflt_chandef;

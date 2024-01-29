@@ -223,7 +223,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgmt *mgmt;
 	struct cfg80211_bss *bss;
 	u64 bss_change;
-	struct cfg80211_chan_def chandef;
+	struct ieee80211_chan_req chanreq = {};
 	struct ieee80211_channel *chan;
 	struct beacon_data *presp;
 	struct cfg80211_inform_bss bss_meta = {};
@@ -257,22 +257,22 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		kfree_rcu(presp, rcu_head);
 
 	/* make a copy of the chandef, it could be modified below. */
-	chandef = *req_chandef;
-	chan = chandef.chan;
-	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef,
+	chanreq.oper = *req_chandef;
+	chan = chanreq.oper.chan;
+	if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chanreq.oper,
 				     NL80211_IFTYPE_ADHOC)) {
-		if (chandef.width == NL80211_CHAN_WIDTH_5 ||
-		    chandef.width == NL80211_CHAN_WIDTH_10 ||
-		    chandef.width == NL80211_CHAN_WIDTH_20_NOHT ||
-		    chandef.width == NL80211_CHAN_WIDTH_20) {
+		if (chanreq.oper.width == NL80211_CHAN_WIDTH_5 ||
+		    chanreq.oper.width == NL80211_CHAN_WIDTH_10 ||
+		    chanreq.oper.width == NL80211_CHAN_WIDTH_20_NOHT ||
+		    chanreq.oper.width == NL80211_CHAN_WIDTH_20) {
 			sdata_info(sdata,
 				   "Failed to join IBSS, beacons forbidden\n");
 			return;
 		}
-		chandef.width = NL80211_CHAN_WIDTH_20;
-		chandef.center_freq1 = chan->center_freq;
+		chanreq.oper.width = NL80211_CHAN_WIDTH_20;
+		chanreq.oper.center_freq1 = chan->center_freq;
 		/* check again for downgraded chandef */
-		if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chandef,
+		if (!cfg80211_reg_can_beacon(local->hw.wiphy, &chanreq.oper,
 					     NL80211_IFTYPE_ADHOC)) {
 			sdata_info(sdata,
 				   "Failed to join IBSS, beacons forbidden\n");
@@ -281,7 +281,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	}
 
 	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
-					    &chandef, NL80211_IFTYPE_ADHOC);
+					    &chanreq.oper, NL80211_IFTYPE_ADHOC);
 	if (err < 0) {
 		sdata_info(sdata,
 			   "Failed to join IBSS, invalid chandef\n");
@@ -295,7 +295,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	radar_required = err;
 
-	if (ieee80211_link_use_channel(&sdata->deflink, &chandef,
+	if (ieee80211_link_use_channel(&sdata->deflink, &chanreq,
 				       ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
@@ -307,7 +307,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	memcpy(ifibss->bssid, bssid, ETH_ALEN);
 
 	presp = ieee80211_ibss_build_presp(sdata, beacon_int, basic_rates,
-					   capability, tsf, &chandef,
+					   capability, tsf, &chanreq.oper,
 					   &have_higher_than_11mbit, NULL);
 	if (!presp)
 		return;
@@ -533,12 +533,12 @@ int ieee80211_ibss_finish_csa(struct ieee80211_sub_if_data *sdata, u64 *changed)
 					IEEE80211_PRIVACY(ifibss->privacy));
 		/* XXX: should not really modify cfg80211 data */
 		if (cbss) {
-			cbss->channel = sdata->deflink.csa_chandef.chan;
+			cbss->channel = sdata->deflink.csa_chanreq.oper.chan;
 			cfg80211_put_bss(sdata->local->hw.wiphy, cbss);
 		}
 	}
 
-	ifibss->chandef = sdata->deflink.csa_chandef;
+	ifibss->chandef = sdata->deflink.csa_chanreq.oper;
 
 	/* generate the beacon */
 	return ieee80211_ibss_csa_beacon(sdata, NULL, changed);
@@ -799,7 +799,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		goto disconnect;
 
 	params.count = csa_ie.count;
-	params.chandef = csa_ie.chandef;
+	params.chandef = csa_ie.chanreq.oper;
 
 	switch (ifibss->chandef.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -858,7 +858,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	params.radar_required = err;
 
 	if (cfg80211_chandef_identical(&params.chandef,
-				       &sdata->vif.bss_conf.chandef)) {
+				       &sdata->vif.bss_conf.chanreq.oper)) {
 		ibss_dbg(sdata,
 			 "received csa with an identical chandef, ignoring\n");
 		return true;

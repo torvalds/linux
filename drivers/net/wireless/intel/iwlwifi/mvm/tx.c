@@ -894,10 +894,10 @@ unsigned int iwl_mvm_max_amsdu_size(struct iwl_mvm *mvm,
 			if (WARN_ON(!link_conf))
 				band = NL80211_BAND_2GHZ;
 			else
-				band = link_conf->chandef.chan->band;
+				band = link_conf->chanreq.oper.chan->band;
 			rcu_read_unlock();
 		} else {
-			band = mvmsta->vif->bss_conf.chandef.chan->band;
+			band = mvmsta->vif->bss_conf.chanreq.oper.chan->band;
 		}
 
 		lmac = iwl_mvm_get_lmac_id(mvm, band);

@@ -257,7 +257,7 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!link_conf))
 		width = NL80211_CHAN_WIDTH_20_NOHT;
 	else
-		width = link_conf->chandef.width;
+		width = link_conf->chanreq.oper.width;
 
 	switch (width) {
 	default:

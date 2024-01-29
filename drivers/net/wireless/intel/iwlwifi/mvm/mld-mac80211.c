@@ -656,8 +656,8 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			continue;
 
 		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chandef.chan->band;
-		data[n_data].width = link_conf->chandef.width;
+		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		data[n_data].width = link_conf->chanreq.oper.width;
 		data[n_data].active = vif->active_links & BIT(link_id);
 		n_data++;
 	}
@@ -1241,8 +1241,8 @@ int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
 			continue;
 
 		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chandef.chan->band;
-		data[n_data].width = link_conf->chandef.width;
+		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		data[n_data].width = link_conf->chanreq.oper.width;
 		data[n_data].active = true;
 		n_data++;
 	}
@@ -1292,7 +1292,7 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 			continue;
 
 		/* BT Coex effects eSR mode only if one of the link is on LB */
-		if (link_conf->chandef.chan->band != NL80211_BAND_2GHZ)
+		if (link_conf->chanreq.oper.chan->band != NL80211_BAND_2GHZ)
 			continue;
 
 		ret = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id,

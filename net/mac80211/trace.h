@@ -503,9 +503,9 @@ TRACE_EVENT(drv_link_info_changed,
 		__entry->ht_operation_mode = link_conf->ht_operation_mode;
 		__entry->cqm_rssi_thold = link_conf->cqm_rssi_thold;
 		__entry->cqm_rssi_hyst = link_conf->cqm_rssi_hyst;
-		__entry->channel_width = link_conf->chandef.width;
-		__entry->channel_cfreq1 = link_conf->chandef.center_freq1;
-		__entry->channel_cfreq1_offset = link_conf->chandef.freq1_offset;
+		__entry->channel_width = link_conf->chanreq.oper.width;
+		__entry->channel_cfreq1 = link_conf->chanreq.oper.center_freq1;
+		__entry->channel_cfreq1_offset = link_conf->chanreq.oper.freq1_offset;
 		__entry->qos = link_conf->qos;
 		__entry->hidden_ssid = link_conf->hidden_ssid;
 		__entry->txpower = link_conf->txpower;

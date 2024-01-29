@@ -557,7 +557,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 				  &sdata->deflink.dfs_cac_timer_work);
 
 	if (sdata->wdev.cac_started) {
-		chandef = sdata->vif.bss_conf.chandef;
+		chandef = sdata->vif.bss_conf.chanreq.oper;
 		WARN_ON(local->suspended);
 		ieee80211_link_release_channel(&sdata->deflink);
 		cfg80211_cac_event(sdata->dev, &chandef,
@@ -1164,7 +1164,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	rcu_assign_pointer(local->monitor_sdata, sdata);
 	mutex_unlock(&local->iflist_mtx);
 
-	ret = ieee80211_link_use_channel(&sdata->deflink, &local->monitor_chandef,
+	ret = ieee80211_link_use_channel(&sdata->deflink, &local->monitor_chanreq,
 					 IEEE80211_CHANCTX_EXCLUSIVE);
 	if (ret) {
 		mutex_lock(&local->iflist_mtx);
@@ -1252,7 +1252,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		sdata->vif.cab_queue = master->vif.cab_queue;
 		memcpy(sdata->vif.hw_queue, master->vif.hw_queue,
 		       sizeof(sdata->vif.hw_queue));
-		sdata->vif.bss_conf.chandef = master->vif.bss_conf.chandef;
+		sdata->vif.bss_conf.chanreq = master->vif.bss_conf.chanreq;
 
 		sdata->crypto_tx_tailroom_needed_cnt +=
 			master->crypto_tx_tailroom_needed_cnt;

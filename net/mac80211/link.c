@@ -402,7 +402,8 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 
 		link = sdata_dereference(sdata->link[link_id], sdata);
 
-		ret = ieee80211_link_use_channel(link, &link->conf->chandef,
+		ret = ieee80211_link_use_channel(link,
+						 &link->conf->chanreq,
 						 IEEE80211_CHANCTX_SHARED);
 		WARN_ON_ONCE(ret);
 
