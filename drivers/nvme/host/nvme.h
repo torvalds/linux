@@ -837,12 +837,25 @@ static inline bool nvme_is_unique_nsid(struct nvme_ctrl *ctrl,
 		(ctrl->ctratt & NVME_CTRL_CTRATT_NVM_SETS);
 }
 
+/*
+ * Flags for __nvme_submit_sync_cmd()
+ */
+typedef __u32 __bitwise nvme_submit_flags_t;
+
+enum {
+	/* Insert request at the head of the queue */
+	NVME_SUBMIT_AT_HEAD  = (__force nvme_submit_flags_t)(1 << 0),
+	/* Set BLK_MQ_REQ_NOWAIT when allocating request */
+	NVME_SUBMIT_NOWAIT = (__force nvme_submit_flags_t)(1 << 1),
+	/* Set BLK_MQ_REQ_RESERVED when allocating request */
+	NVME_SUBMIT_RESERVED = (__force nvme_submit_flags_t)(1 << 2),
+};
+
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		union nvme_result *result, void *buffer, unsigned bufflen,
-		int qid, int at_head,
-		blk_mq_req_flags_t flags);
+		int qid, nvme_submit_flags_t flags);
 int nvme_set_features(struct nvme_ctrl *dev, unsigned int fid,
 		      unsigned int dword11, void *buffer, size_t buflen,
 		      u32 *result);

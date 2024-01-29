@@ -58,12 +58,12 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 			    void *data, size_t data_len, bool auth_send)
 {
 	struct nvme_command cmd = {};
-	blk_mq_req_flags_t flags = 0;
+	nvme_submit_flags_t flags = 0;
 	struct request_queue *q = ctrl->fabrics_q;
 	int ret;
 
 	if (qid != 0) {
-		flags |= BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED;
+		flags |= NVME_SUBMIT_NOWAIT | NVME_SUBMIT_RESERVED;
 		q = ctrl->connect_q;
 	}
 
@@ -80,8 +80,7 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 	}
 
 	ret = __nvme_submit_sync_cmd(q, &cmd, NULL, data, data_len,
-				     qid == 0 ? NVME_QID_ANY : qid,
-				     0, flags);
+				     qid == 0 ? NVME_QID_ANY : qid, flags);
 	if (ret > 0)
 		dev_warn(ctrl->device,
 			"qid %d auth_send failed with status %d\n", qid, ret);
