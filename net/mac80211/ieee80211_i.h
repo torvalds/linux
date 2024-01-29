@@ -1181,6 +1181,19 @@ struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 #define sdata_dereference(p, sdata) \
 	wiphy_dereference(sdata->local->hw.wiphy, p)
 
+#define for_each_sdata_link(_local, _link)				\
+	/* outer loop just to define the variables ... */		\
+	for (struct ieee80211_sub_if_data *___sdata = NULL;		\
+	     !___sdata;							\
+	     ___sdata = (void *)~0 /* always stop */)			\
+	list_for_each_entry(___sdata, &(_local)->interfaces, list)	\
+	if (ieee80211_sdata_running(___sdata))				\
+	for (int ___link_id = 0;					\
+	     ___link_id < ARRAY_SIZE(___sdata->link);			\
+	     ___link_id++)						\
+	if ((_link = wiphy_dereference((local)->hw.wiphy,		\
+				       ___sdata->link[___link_id])))
+
 static inline int
 ieee80211_get_mbssid_beacon_len(struct cfg80211_mbssid_elems *elems,
 				struct cfg80211_rnr_elems *rnr_elems,
