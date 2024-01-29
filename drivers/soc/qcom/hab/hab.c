@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 
@@ -829,9 +829,8 @@ int hab_vchan_open(struct uhab_context *ctx,
 	hab_write_lock(&ctx->ctx_lock, !ctx->kernel);
 	list_add_tail(&vchan->node, &ctx->vchannels);
 	ctx->vcnt++;
-	hab_write_unlock(&ctx->ctx_lock, !ctx->kernel);
-
 	*vcid = vchan->id;
+	hab_write_unlock(&ctx->ctx_lock, !ctx->kernel);
 
 	return 0;
 }
