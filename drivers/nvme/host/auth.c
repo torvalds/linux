@@ -48,11 +48,6 @@ struct nvme_dhchap_queue_context {
 
 static struct workqueue_struct *nvme_auth_wq;
 
-#define nvme_auth_flags_from_qid(qid) \
-	(qid == 0) ? 0 : BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED
-#define nvme_auth_queue_from_qid(ctrl, qid) \
-	(qid == 0) ? (ctrl)->fabrics_q : (ctrl)->connect_q
-
 static inline int ctrl_max_dhchaps(struct nvme_ctrl *ctrl)
 {
 	return ctrl->opts->nr_io_queues + ctrl->opts->nr_write_queues +
@@ -63,9 +58,14 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 			    void *data, size_t data_len, bool auth_send)
 {
 	struct nvme_command cmd = {};
-	blk_mq_req_flags_t flags = nvme_auth_flags_from_qid(qid);
-	struct request_queue *q = nvme_auth_queue_from_qid(ctrl, qid);
+	blk_mq_req_flags_t flags = 0;
+	struct request_queue *q = ctrl->fabrics_q;
 	int ret;
+
+	if (qid != 0) {
+		flags |= BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED;
+		q = ctrl->connect_q;
+	}
 
 	cmd.auth_common.opcode = nvme_fabrics_command;
 	cmd.auth_common.secp = NVME_AUTH_DHCHAP_PROTOCOL_IDENTIFIER;
