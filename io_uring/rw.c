@@ -721,7 +721,7 @@ static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 	struct file *file = req->file;
 	int ret;
 
-	if (unlikely(!file || !(file->f_mode & mode)))
+	if (unlikely(!(file->f_mode & mode)))
 		return -EBADF;
 
 	if (!(req->flags & REQ_F_FIXED_FILE))
