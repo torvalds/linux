@@ -345,6 +345,9 @@ u32 __init tegra_fuse_read_early(unsigned int offset)
 
 int tegra_fuse_readl(unsigned long offset, u32 *value)
 {
+	if (!fuse->dev)
+		return -EPROBE_DEFER;
+
 	/*
 	 * Wait for fuse->clk to be initialized if device-tree boot is used.
 	 */
