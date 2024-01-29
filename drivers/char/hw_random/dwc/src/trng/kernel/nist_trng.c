@@ -2009,11 +2009,11 @@ ERR:
 
 static int nisttrng_driver_probe(struct platform_device *pdev)
 {
-	struct resource *cfg, *irq;
 	struct synopsys_nisttrng_driver *data;
-	int ret;
 	struct hwrng *hwrng_driver_info = 0;
+	struct resource *cfg, *irq;
 	u32 *base_addr;
+	int ret;
 
 	// version
 	SYNHW_PRINT("DWC_TRNG_DriverSDK_%s\n", TRNG_VERSION);
@@ -2102,6 +2102,7 @@ static int nisttrng_driver_probe(struct platform_device *pdev)
 	hwrng_driver_info->read = &nisttrng_hwrng_driver_read;
 	hwrng_driver_info->data_present = 0;
 	hwrng_driver_info->priv = (unsigned long)pdev;
+	hwrng_driver_info->quality = 1024;
 
 	data->hwrng_drv = hwrng_driver_info;
 	ret = hwrng_register(hwrng_driver_info);
