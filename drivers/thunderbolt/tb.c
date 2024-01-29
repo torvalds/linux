@@ -75,112 +75,6 @@ struct tb_hotplug_event {
 	bool unplug;
 };
 
-static void tb_init_bandwidth_groups(struct tb_cm *tcm)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
-		struct tb_bandwidth_group *group = &tcm->groups[i];
-
-		group->tb = tcm_to_tb(tcm);
-		group->index = i + 1;
-		INIT_LIST_HEAD(&group->ports);
-	}
-}
-
-static void tb_bandwidth_group_attach_port(struct tb_bandwidth_group *group,
-					   struct tb_port *in)
-{
-	if (!group || WARN_ON(in->group))
-		return;
-
-	in->group = group;
-	list_add_tail(&in->group_list, &group->ports);
-
-	tb_port_dbg(in, "attached to bandwidth group %d\n", group->index);
-}
-
-static struct tb_bandwidth_group *tb_find_free_bandwidth_group(struct tb_cm *tcm)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
-		struct tb_bandwidth_group *group = &tcm->groups[i];
-
-		if (list_empty(&group->ports))
-			return group;
-	}
-
-	return NULL;
-}
-
-static struct tb_bandwidth_group *
-tb_attach_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
-			  struct tb_port *out)
-{
-	struct tb_bandwidth_group *group;
-	struct tb_tunnel *tunnel;
-
-	/*
-	 * Find all DP tunnels that go through all the same USB4 links
-	 * as this one. Because we always setup tunnels the same way we
-	 * can just check for the routers at both ends of the tunnels
-	 * and if they are the same we have a match.
-	 */
-	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
-		if (!tb_tunnel_is_dp(tunnel))
-			continue;
-
-		if (tunnel->src_port->sw == in->sw &&
-		    tunnel->dst_port->sw == out->sw) {
-			group = tunnel->src_port->group;
-			if (group) {
-				tb_bandwidth_group_attach_port(group, in);
-				return group;
-			}
-		}
-	}
-
-	/* Pick up next available group then */
-	group = tb_find_free_bandwidth_group(tcm);
-	if (group)
-		tb_bandwidth_group_attach_port(group, in);
-	else
-		tb_port_warn(in, "no available bandwidth groups\n");
-
-	return group;
-}
-
-static void tb_discover_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
-					struct tb_port *out)
-{
-	if (usb4_dp_port_bandwidth_mode_enabled(in)) {
-		int index, i;
-
-		index = usb4_dp_port_group_id(in);
-		for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
-			if (tcm->groups[i].index == index) {
-				tb_bandwidth_group_attach_port(&tcm->groups[i], in);
-				return;
-			}
-		}
-	}
-
-	tb_attach_bandwidth_group(tcm, in, out);
-}
-
-static void tb_detach_bandwidth_group(struct tb_port *in)
-{
-	struct tb_bandwidth_group *group = in->group;
-
-	if (group) {
-		in->group = NULL;
-		list_del_init(&in->group_list);
-
-		tb_port_dbg(in, "detached from bandwidth group %d\n", group->index);
-	}
-}
-
 static void tb_handle_hotplug(struct work_struct *work);
 
 static void tb_queue_hotplug(struct tb *tb, u64 route, u8 port, bool unplug)
@@ -468,34 +362,6 @@ static void tb_switch_discover_tunnels(struct tb_switch *sw,
 		if (tb_port_has_remote(port)) {
 			tb_switch_discover_tunnels(port->remote->sw, list,
 						   alloc_hopids);
-		}
-	}
-}
-
-static void tb_discover_tunnels(struct tb *tb)
-{
-	struct tb_cm *tcm = tb_priv(tb);
-	struct tb_tunnel *tunnel;
-
-	tb_switch_discover_tunnels(tb->root_switch, &tcm->tunnel_list, true);
-
-	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
-		if (tb_tunnel_is_pci(tunnel)) {
-			struct tb_switch *parent = tunnel->dst_port->sw;
-
-			while (parent != tunnel->src_port->sw) {
-				parent->boot = true;
-				parent = tb_switch_parent(parent);
-			}
-		} else if (tb_tunnel_is_dp(tunnel)) {
-			struct tb_port *in = tunnel->src_port;
-			struct tb_port *out = tunnel->dst_port;
-
-			/* Keep the domain from powering down */
-			pm_runtime_get_sync(&in->sw->dev);
-			pm_runtime_get_sync(&out->sw->dev);
-
-			tb_discover_bandwidth_group(tcm, in, out);
 		}
 	}
 }
@@ -1464,6 +1330,231 @@ out_rpm_put:
 	}
 }
 
+static void
+tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
+{
+	struct tb_tunnel *first_tunnel;
+	struct tb *tb = group->tb;
+	struct tb_port *in;
+	int ret;
+
+	tb_dbg(tb, "re-calculating bandwidth estimation for group %u\n",
+	       group->index);
+
+	first_tunnel = NULL;
+	list_for_each_entry(in, &group->ports, group_list) {
+		int estimated_bw, estimated_up, estimated_down;
+		struct tb_tunnel *tunnel;
+		struct tb_port *out;
+
+		if (!usb4_dp_port_bandwidth_mode_enabled(in))
+			continue;
+
+		tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
+		if (WARN_ON(!tunnel))
+			break;
+
+		if (!first_tunnel) {
+			/*
+			 * Since USB3 bandwidth is shared by all DP
+			 * tunnels under the host router USB4 port, even
+			 * if they do not begin from the host router, we
+			 * can release USB3 bandwidth just once and not
+			 * for each tunnel separately.
+			 */
+			first_tunnel = tunnel;
+			ret = tb_release_unused_usb3_bandwidth(tb,
+				first_tunnel->src_port, first_tunnel->dst_port);
+			if (ret) {
+				tb_tunnel_warn(tunnel,
+					"failed to release unused bandwidth\n");
+				break;
+			}
+		}
+
+		out = tunnel->dst_port;
+		ret = tb_available_bandwidth(tb, in, out, &estimated_up,
+					     &estimated_down, true);
+		if (ret) {
+			tb_tunnel_warn(tunnel,
+				"failed to re-calculate estimated bandwidth\n");
+			break;
+		}
+
+		/*
+		 * Estimated bandwidth includes:
+		 *  - already allocated bandwidth for the DP tunnel
+		 *  - available bandwidth along the path
+		 *  - bandwidth allocated for USB 3.x but not used.
+		 */
+		if (tb_port_path_direction_downstream(in, out))
+			estimated_bw = estimated_down;
+		else
+			estimated_bw = estimated_up;
+
+		if (usb4_dp_port_set_estimated_bandwidth(in, estimated_bw))
+			tb_tunnel_warn(tunnel,
+				       "failed to update estimated bandwidth\n");
+	}
+
+	if (first_tunnel)
+		tb_reclaim_usb3_bandwidth(tb, first_tunnel->src_port,
+					  first_tunnel->dst_port);
+
+	tb_dbg(tb, "bandwidth estimation for group %u done\n", group->index);
+}
+
+static void tb_recalc_estimated_bandwidth(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	int i;
+
+	tb_dbg(tb, "bandwidth consumption changed, re-calculating estimated bandwidth\n");
+
+	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
+		struct tb_bandwidth_group *group = &tcm->groups[i];
+
+		if (!list_empty(&group->ports))
+			tb_recalc_estimated_bandwidth_for_group(group);
+	}
+
+	tb_dbg(tb, "bandwidth re-calculation done\n");
+}
+
+static void tb_init_bandwidth_groups(struct tb_cm *tcm)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
+		struct tb_bandwidth_group *group = &tcm->groups[i];
+
+		group->tb = tcm_to_tb(tcm);
+		group->index = i + 1;
+		INIT_LIST_HEAD(&group->ports);
+	}
+}
+
+static void tb_bandwidth_group_attach_port(struct tb_bandwidth_group *group,
+					   struct tb_port *in)
+{
+	if (!group || WARN_ON(in->group))
+		return;
+
+	in->group = group;
+	list_add_tail(&in->group_list, &group->ports);
+
+	tb_port_dbg(in, "attached to bandwidth group %d\n", group->index);
+}
+
+static struct tb_bandwidth_group *tb_find_free_bandwidth_group(struct tb_cm *tcm)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
+		struct tb_bandwidth_group *group = &tcm->groups[i];
+
+		if (list_empty(&group->ports))
+			return group;
+	}
+
+	return NULL;
+}
+
+static struct tb_bandwidth_group *
+tb_attach_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
+			  struct tb_port *out)
+{
+	struct tb_bandwidth_group *group;
+	struct tb_tunnel *tunnel;
+
+	/*
+	 * Find all DP tunnels that go through all the same USB4 links
+	 * as this one. Because we always setup tunnels the same way we
+	 * can just check for the routers at both ends of the tunnels
+	 * and if they are the same we have a match.
+	 */
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (!tb_tunnel_is_dp(tunnel))
+			continue;
+
+		if (tunnel->src_port->sw == in->sw &&
+		    tunnel->dst_port->sw == out->sw) {
+			group = tunnel->src_port->group;
+			if (group) {
+				tb_bandwidth_group_attach_port(group, in);
+				return group;
+			}
+		}
+	}
+
+	/* Pick up next available group then */
+	group = tb_find_free_bandwidth_group(tcm);
+	if (group)
+		tb_bandwidth_group_attach_port(group, in);
+	else
+		tb_port_warn(in, "no available bandwidth groups\n");
+
+	return group;
+}
+
+static void tb_discover_bandwidth_group(struct tb_cm *tcm, struct tb_port *in,
+					struct tb_port *out)
+{
+	if (usb4_dp_port_bandwidth_mode_enabled(in)) {
+		int index, i;
+
+		index = usb4_dp_port_group_id(in);
+		for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
+			if (tcm->groups[i].index == index) {
+				tb_bandwidth_group_attach_port(&tcm->groups[i], in);
+				return;
+			}
+		}
+	}
+
+	tb_attach_bandwidth_group(tcm, in, out);
+}
+
+static void tb_detach_bandwidth_group(struct tb_port *in)
+{
+	struct tb_bandwidth_group *group = in->group;
+
+	if (group) {
+		in->group = NULL;
+		list_del_init(&in->group_list);
+
+		tb_port_dbg(in, "detached from bandwidth group %d\n", group->index);
+	}
+}
+
+static void tb_discover_tunnels(struct tb *tb)
+{
+	struct tb_cm *tcm = tb_priv(tb);
+	struct tb_tunnel *tunnel;
+
+	tb_switch_discover_tunnels(tb->root_switch, &tcm->tunnel_list, true);
+
+	list_for_each_entry(tunnel, &tcm->tunnel_list, list) {
+		if (tb_tunnel_is_pci(tunnel)) {
+			struct tb_switch *parent = tunnel->dst_port->sw;
+
+			while (parent != tunnel->src_port->sw) {
+				parent->boot = true;
+				parent = tb_switch_parent(parent);
+			}
+		} else if (tb_tunnel_is_dp(tunnel)) {
+			struct tb_port *in = tunnel->src_port;
+			struct tb_port *out = tunnel->dst_port;
+
+			/* Keep the domain from powering down */
+			pm_runtime_get_sync(&in->sw->dev);
+			pm_runtime_get_sync(&out->sw->dev);
+
+			tb_discover_bandwidth_group(tcm, in, out);
+		}
+	}
+}
+
 static void tb_deactivate_and_free_tunnel(struct tb_tunnel *tunnel)
 {
 	struct tb_port *src_port, *dst_port;
@@ -1603,101 +1694,6 @@ static struct tb_port *tb_find_pcie_down(struct tb_switch *sw,
 
 out:
 	return tb_find_unused_port(sw, TB_TYPE_PCIE_DOWN);
-}
-
-static void
-tb_recalc_estimated_bandwidth_for_group(struct tb_bandwidth_group *group)
-{
-	struct tb_tunnel *first_tunnel;
-	struct tb *tb = group->tb;
-	struct tb_port *in;
-	int ret;
-
-	tb_dbg(tb, "re-calculating bandwidth estimation for group %u\n",
-	       group->index);
-
-	first_tunnel = NULL;
-	list_for_each_entry(in, &group->ports, group_list) {
-		int estimated_bw, estimated_up, estimated_down;
-		struct tb_tunnel *tunnel;
-		struct tb_port *out;
-
-		if (!usb4_dp_port_bandwidth_mode_enabled(in))
-			continue;
-
-		tunnel = tb_find_tunnel(tb, TB_TUNNEL_DP, in, NULL);
-		if (WARN_ON(!tunnel))
-			break;
-
-		if (!first_tunnel) {
-			/*
-			 * Since USB3 bandwidth is shared by all DP
-			 * tunnels under the host router USB4 port, even
-			 * if they do not begin from the host router, we
-			 * can release USB3 bandwidth just once and not
-			 * for each tunnel separately.
-			 */
-			first_tunnel = tunnel;
-			ret = tb_release_unused_usb3_bandwidth(tb,
-				first_tunnel->src_port, first_tunnel->dst_port);
-			if (ret) {
-				tb_tunnel_warn(tunnel,
-					"failed to release unused bandwidth\n");
-				break;
-			}
-		}
-
-		out = tunnel->dst_port;
-		ret = tb_available_bandwidth(tb, in, out, &estimated_up,
-					     &estimated_down, true);
-		if (ret) {
-			tb_tunnel_warn(tunnel,
-				"failed to re-calculate estimated bandwidth\n");
-			break;
-		}
-
-		/*
-		 * Estimated bandwidth includes:
-		 *  - already allocated bandwidth for the DP tunnel
-		 *  - available bandwidth along the path
-		 *  - bandwidth allocated for USB 3.x but not used.
-		 */
-		tb_tunnel_dbg(tunnel,
-			      "re-calculated estimated bandwidth %u/%u Mb/s\n",
-			      estimated_up, estimated_down);
-
-		if (tb_port_path_direction_downstream(in, out))
-			estimated_bw = estimated_down;
-		else
-			estimated_bw = estimated_up;
-
-		if (usb4_dp_port_set_estimated_bandwidth(in, estimated_bw))
-			tb_tunnel_warn(tunnel,
-				       "failed to update estimated bandwidth\n");
-	}
-
-	if (first_tunnel)
-		tb_reclaim_usb3_bandwidth(tb, first_tunnel->src_port,
-					  first_tunnel->dst_port);
-
-	tb_dbg(tb, "bandwidth estimation for group %u done\n", group->index);
-}
-
-static void tb_recalc_estimated_bandwidth(struct tb *tb)
-{
-	struct tb_cm *tcm = tb_priv(tb);
-	int i;
-
-	tb_dbg(tb, "bandwidth consumption changed, re-calculating estimated bandwidth\n");
-
-	for (i = 0; i < ARRAY_SIZE(tcm->groups); i++) {
-		struct tb_bandwidth_group *group = &tcm->groups[i];
-
-		if (!list_empty(&group->ports))
-			tb_recalc_estimated_bandwidth_for_group(group);
-	}
-
-	tb_dbg(tb, "bandwidth re-calculation done\n");
 }
 
 static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
