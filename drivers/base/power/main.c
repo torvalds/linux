@@ -685,7 +685,7 @@ Out:
 	TRACE_RESUME(error);
 
 	if (error) {
-		dpm_save_failed_step(SUSPEND_RESUME_NOIRQ);
+		async_error = error;
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async noirq" : " noirq", error);
 	}
@@ -705,6 +705,9 @@ static void dpm_noirq_resume_devices(pm_message_t state)
 	ktime_t starttime = ktime_get();
 
 	trace_suspend_resume(TPS("dpm_resume_noirq"), state.event, true);
+
+	async_error = 0;
+
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
 
@@ -734,6 +737,9 @@ static void dpm_noirq_resume_devices(pm_message_t state)
 	mutex_unlock(&dpm_list_mtx);
 	async_synchronize_full();
 	dpm_show_time(starttime, state, 0, "noirq");
+	if (async_error)
+		dpm_save_failed_step(SUSPEND_RESUME_NOIRQ);
+
 	trace_suspend_resume(TPS("dpm_resume_noirq"), state.event, false);
 }
 
@@ -815,7 +821,7 @@ Out:
 	complete_all(&dev->power.completion);
 
 	if (error) {
-		dpm_save_failed_step(SUSPEND_RESUME_EARLY);
+		async_error = error;
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async early" : " early", error);
 	}
@@ -839,6 +845,9 @@ void dpm_resume_early(pm_message_t state)
 	ktime_t starttime = ktime_get();
 
 	trace_suspend_resume(TPS("dpm_resume_early"), state.event, true);
+
+	async_error = 0;
+
 	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
 
@@ -868,6 +877,9 @@ void dpm_resume_early(pm_message_t state)
 	mutex_unlock(&dpm_list_mtx);
 	async_synchronize_full();
 	dpm_show_time(starttime, state, 0, "early");
+	if (async_error)
+		dpm_save_failed_step(SUSPEND_RESUME_EARLY);
+
 	trace_suspend_resume(TPS("dpm_resume_early"), state.event, false);
 }
 
@@ -971,7 +983,7 @@ static void device_resume(struct device *dev, pm_message_t state, bool async)
 	TRACE_RESUME(error);
 
 	if (error) {
-		dpm_save_failed_step(SUSPEND_RESUME);
+		async_error = error;
 		dpm_save_failed_dev(dev_name(dev));
 		pm_dev_err(dev, state, async ? " async" : "", error);
 	}
@@ -1030,6 +1042,8 @@ void dpm_resume(pm_message_t state)
 	mutex_unlock(&dpm_list_mtx);
 	async_synchronize_full();
 	dpm_show_time(starttime, state, 0, NULL);
+	if (async_error)
+		dpm_save_failed_step(SUSPEND_RESUME);
 
 	cpufreq_resume();
 	devfreq_resume();
