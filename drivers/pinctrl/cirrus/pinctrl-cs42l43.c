@@ -276,7 +276,7 @@ static const struct pinmux_ops cs42l43_pin_mux_ops = {
 
 static const unsigned int cs42l43_pin_drv_str_ma[] = { 1, 2, 4, 8, 9, 10, 12, 16 };
 
-static inline int cs42l43_pin_get_drv_str(struct cs42l43_pin *priv, unsigned int pin)
+static int cs42l43_pin_get_drv_str(struct cs42l43_pin *priv, unsigned int pin)
 {
 	const struct cs42l43_pin_data *pdat = cs42l43_pin_pins[pin].drv_data;
 	unsigned int val;
@@ -289,8 +289,8 @@ static inline int cs42l43_pin_get_drv_str(struct cs42l43_pin *priv, unsigned int
 	return cs42l43_pin_drv_str_ma[(val & pdat->mask) >> pdat->shift];
 }
 
-static inline int cs42l43_pin_set_drv_str(struct cs42l43_pin *priv, unsigned int pin,
-					  unsigned int ma)
+static int cs42l43_pin_set_drv_str(struct cs42l43_pin *priv, unsigned int pin,
+				   unsigned int ma)
 {
 	const struct cs42l43_pin_data *pdat = cs42l43_pin_pins[pin].drv_data;
 	int i;
@@ -314,7 +314,7 @@ err:
 	return -EINVAL;
 }
 
-static inline int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
+static int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
 {
 	unsigned int val;
 	int ret;
@@ -332,8 +332,8 @@ static inline int cs42l43_pin_get_db(struct cs42l43_pin *priv, unsigned int pin)
 	return 85; // Debounce is roughly 85uS
 }
 
-static inline int cs42l43_pin_set_db(struct cs42l43_pin *priv, unsigned int pin,
-				     unsigned int us)
+static int cs42l43_pin_set_db(struct cs42l43_pin *priv, unsigned int pin,
+			      unsigned int us)
 {
 	if (pin >= CS42L43_NUM_GPIOS)
 		return -ENOTSUPP;
