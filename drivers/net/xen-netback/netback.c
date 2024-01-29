@@ -104,13 +104,12 @@ bool provides_xdp_headroom = true;
 module_param(provides_xdp_headroom, bool, 0644);
 
 static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
-			       u8 status);
+			       s8 status);
 
 static void make_tx_response(struct xenvif_queue *queue,
-			     struct xen_netif_tx_request *txp,
+			     const struct xen_netif_tx_request *txp,
 			     unsigned int extra_count,
-			     s8       st);
-static void push_tx_responses(struct xenvif_queue *queue);
+			     s8 status);
 
 static void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx);
 
@@ -208,13 +207,9 @@ static void xenvif_tx_err(struct xenvif_queue *queue,
 			  unsigned int extra_count, RING_IDX end)
 {
 	RING_IDX cons = queue->tx.req_cons;
-	unsigned long flags;
 
 	do {
-		spin_lock_irqsave(&queue->response_lock, flags);
 		make_tx_response(queue, txp, extra_count, XEN_NETIF_RSP_ERROR);
-		push_tx_responses(queue);
-		spin_unlock_irqrestore(&queue->response_lock, flags);
 		if (cons == end)
 			break;
 		RING_COPY_REQUEST(&queue->tx, cons++, txp);
@@ -465,12 +460,7 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 	for (shinfo->nr_frags = 0; nr_slots > 0 && shinfo->nr_frags < MAX_SKB_FRAGS;
 	     nr_slots--) {
 		if (unlikely(!txp->size)) {
-			unsigned long flags;
-
-			spin_lock_irqsave(&queue->response_lock, flags);
 			make_tx_response(queue, txp, 0, XEN_NETIF_RSP_OKAY);
-			push_tx_responses(queue);
-			spin_unlock_irqrestore(&queue->response_lock, flags);
 			++txp;
 			continue;
 		}
@@ -496,14 +486,8 @@ static void xenvif_get_requests(struct xenvif_queue *queue,
 
 		for (shinfo->nr_frags = 0; shinfo->nr_frags < nr_slots; ++txp) {
 			if (unlikely(!txp->size)) {
-				unsigned long flags;
-
-				spin_lock_irqsave(&queue->response_lock, flags);
 				make_tx_response(queue, txp, 0,
 						 XEN_NETIF_RSP_OKAY);
-				push_tx_responses(queue);
-				spin_unlock_irqrestore(&queue->response_lock,
-						       flags);
 				continue;
 			}
 
@@ -997,7 +981,6 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 					 (ret == 0) ?
 					 XEN_NETIF_RSP_OKAY :
 					 XEN_NETIF_RSP_ERROR);
-			push_tx_responses(queue);
 			continue;
 		}
 
@@ -1009,7 +992,6 @@ static void xenvif_tx_build_gops(struct xenvif_queue *queue,
 
 			make_tx_response(queue, &txreq, extra_count,
 					 XEN_NETIF_RSP_OKAY);
-			push_tx_responses(queue);
 			continue;
 		}
 
@@ -1444,44 +1426,17 @@ int xenvif_tx_action(struct xenvif_queue *queue, int budget)
 	return work_done;
 }
 
-static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
-			       u8 status)
-{
-	struct pending_tx_info *pending_tx_info;
-	pending_ring_idx_t index;
-	unsigned long flags;
-
-	pending_tx_info = &queue->pending_tx_info[pending_idx];
-
-	spin_lock_irqsave(&queue->response_lock, flags);
-
-	make_tx_response(queue, &pending_tx_info->req,
-			 pending_tx_info->extra_count, status);
-
-	/* Release the pending index before pusing the Tx response so
-	 * its available before a new Tx request is pushed by the
-	 * frontend.
-	 */
-	index = pending_index(queue->pending_prod++);
-	queue->pending_ring[index] = pending_idx;
-
-	push_tx_responses(queue);
-
-	spin_unlock_irqrestore(&queue->response_lock, flags);
-}
-
-
-static void make_tx_response(struct xenvif_queue *queue,
-			     struct xen_netif_tx_request *txp,
+static void _make_tx_response(struct xenvif_queue *queue,
+			     const struct xen_netif_tx_request *txp,
 			     unsigned int extra_count,
-			     s8       st)
+			     s8 status)
 {
 	RING_IDX i = queue->tx.rsp_prod_pvt;
 	struct xen_netif_tx_response *resp;
 
 	resp = RING_GET_RESPONSE(&queue->tx, i);
 	resp->id     = txp->id;
-	resp->status = st;
+	resp->status = status;
 
 	while (extra_count-- != 0)
 		RING_GET_RESPONSE(&queue->tx, ++i)->status = XEN_NETIF_RSP_NULL;
@@ -1496,6 +1451,47 @@ static void push_tx_responses(struct xenvif_queue *queue)
 	RING_PUSH_RESPONSES_AND_CHECK_NOTIFY(&queue->tx, notify);
 	if (notify)
 		notify_remote_via_irq(queue->tx_irq);
+}
+
+static void xenvif_idx_release(struct xenvif_queue *queue, u16 pending_idx,
+			       s8 status)
+{
+	struct pending_tx_info *pending_tx_info;
+	pending_ring_idx_t index;
+	unsigned long flags;
+
+	pending_tx_info = &queue->pending_tx_info[pending_idx];
+
+	spin_lock_irqsave(&queue->response_lock, flags);
+
+	_make_tx_response(queue, &pending_tx_info->req,
+			  pending_tx_info->extra_count, status);
+
+	/* Release the pending index before pusing the Tx response so
+	 * its available before a new Tx request is pushed by the
+	 * frontend.
+	 */
+	index = pending_index(queue->pending_prod++);
+	queue->pending_ring[index] = pending_idx;
+
+	push_tx_responses(queue);
+
+	spin_unlock_irqrestore(&queue->response_lock, flags);
+}
+
+static void make_tx_response(struct xenvif_queue *queue,
+			     const struct xen_netif_tx_request *txp,
+			     unsigned int extra_count,
+			     s8 status)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&queue->response_lock, flags);
+
+	_make_tx_response(queue, txp, extra_count, status);
+	push_tx_responses(queue);
+
+	spin_unlock_irqrestore(&queue->response_lock, flags);
 }
 
 static void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
