@@ -58,7 +58,7 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 			    void *data, size_t data_len, bool auth_send)
 {
 	struct nvme_command cmd = {};
-	nvme_submit_flags_t flags = 0;
+	nvme_submit_flags_t flags = NVME_SUBMIT_RETRY;
 	struct request_queue *q = ctrl->fabrics_q;
 	int ret;
 

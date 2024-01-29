@@ -849,6 +849,8 @@ enum {
 	NVME_SUBMIT_NOWAIT = (__force nvme_submit_flags_t)(1 << 1),
 	/* Set BLK_MQ_REQ_RESERVED when allocating request */
 	NVME_SUBMIT_RESERVED = (__force nvme_submit_flags_t)(1 << 2),
+	/* Retry command when NVME_SC_DNR is not set in the result */
+	NVME_SUBMIT_RETRY = (__force nvme_submit_flags_t)(1 << 3),
 };
 
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
