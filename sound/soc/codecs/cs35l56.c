@@ -148,6 +148,21 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx4_enum,
 static const struct snd_kcontrol_new sdw1_tx4_mux =
 	SOC_DAPM_ENUM("SDW1TX4 SRC", cs35l56_sdw1tx4_enum);
 
+static int cs35l56_asp1_cfg_event(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Override register values set by firmware boot */
+		return cs35l56_force_sync_asp1_registers_from_cache(&cs35l56->base);
+	default:
+		return 0;
+	}
+}
+
 static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
@@ -183,6 +198,9 @@ static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_B", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_AMP", 0, 0),
+
+	SND_SOC_DAPM_SUPPLY("ASP1 CFG", SND_SOC_NOPM, 0, 0, cs35l56_asp1_cfg_event,
+			    SND_SOC_DAPM_PRE_PMU),
 
 	SND_SOC_DAPM_SUPPLY("PLAY", SND_SOC_NOPM, 0, 0, cs35l56_play_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
@@ -250,6 +268,9 @@ static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	{ "AMP", NULL, "VDD_B" },
 	{ "AMP", NULL, "VDD_AMP" },
+
+	{ "ASP1 Playback", NULL, "ASP1 CFG" },
+	{ "ASP1 Capture", NULL, "ASP1 CFG" },
 
 	{ "ASP1 Playback", NULL, "PLAY" },
 	{ "SDW1 Playback", NULL, "PLAY" },
