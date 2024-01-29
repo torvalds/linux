@@ -974,6 +974,29 @@ static unsigned int btrfs_compress_set_level(int type, unsigned level)
 	return level;
 }
 
+/* Wrapper around find_get_page(), with extra error message. */
+int btrfs_compress_find_get_page(struct address_space *mapping, u64 start,
+				 struct page **in_page_ret)
+{
+	struct page *in_page;
+
+	/*
+	 * The compressed write path should have the page locked already, thus
+	 * we only need to grab one reference of the page cache.
+	 */
+	in_page = find_get_page(mapping, start >> PAGE_SHIFT);
+	if (unlikely(!in_page)) {
+		struct btrfs_inode *inode = BTRFS_I(mapping->host);
+
+		btrfs_crit(inode->root->fs_info,
+		"failed to get page cache, root %lld ino %llu file offset %llu",
+			   inode->root->root_key.objectid, btrfs_ino(inode), start);
+		return -ENOENT;
+	}
+	*in_page_ret = in_page;
+	return 0;
+}
+
 /*
  * Given an address space and start and length, compress the bytes into @pages
  * that are allocated on demand.

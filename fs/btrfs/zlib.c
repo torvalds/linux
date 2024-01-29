@@ -151,9 +151,12 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 					if (data_in) {
 						kunmap_local(data_in);
 						put_page(in_page);
+						data_in = NULL;
 					}
-					in_page = find_get_page(mapping,
-								start >> PAGE_SHIFT);
+					ret = btrfs_compress_find_get_page(mapping,
+							start, &in_page);
+					if (ret < 0)
+						goto out;
 					data_in = kmap_local_page(in_page);
 					copy_page(workspace->buf + i * PAGE_SIZE,
 						  data_in);
@@ -164,9 +167,12 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				if (data_in) {
 					kunmap_local(data_in);
 					put_page(in_page);
+					data_in = NULL;
 				}
-				in_page = find_get_page(mapping,
-							start >> PAGE_SHIFT);
+				ret = btrfs_compress_find_get_page(mapping,
+						start, &in_page);
+				if (ret < 0)
+					goto out;
 				data_in = kmap_local_page(in_page);
 				start += PAGE_SIZE;
 				workspace->strm.next_in = data_in;

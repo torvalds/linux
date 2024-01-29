@@ -244,8 +244,9 @@ int lzo_compress_pages(struct list_head *ws, struct address_space *mapping,
 
 		/* Get the input page first */
 		if (!page_in) {
-			page_in = find_get_page(mapping, cur_in >> PAGE_SHIFT);
-			ASSERT(page_in);
+			ret =  btrfs_compress_find_get_page(mapping, cur_in, &page_in);
+			if (ret < 0)
+				goto out;
 		}
 
 		/* Compress at most one sector of data each time */

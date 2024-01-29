@@ -406,7 +406,9 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 	}
 
 	/* map in the first page of input data */
-	in_page = find_get_page(mapping, start >> PAGE_SHIFT);
+	ret = btrfs_compress_find_get_page(mapping, start, &in_page);
+	if (ret < 0)
+		goto out;
 	workspace->in_buf.src = kmap_local_page(in_page);
 	workspace->in_buf.pos = 0;
 	workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
@@ -479,10 +481,13 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 		if (workspace->in_buf.pos == workspace->in_buf.size) {
 			tot_in += PAGE_SIZE;
 			kunmap_local(workspace->in_buf.src);
+			workspace->in_buf.src = NULL;
 			put_page(in_page);
 			start += PAGE_SIZE;
 			len -= PAGE_SIZE;
-			in_page = find_get_page(mapping, start >> PAGE_SHIFT);
+			ret = btrfs_compress_find_get_page(mapping, start, &in_page);
+			if (ret < 0)
+				goto out;
 			workspace->in_buf.src = kmap_local_page(in_page);
 			workspace->in_buf.pos = 0;
 			workspace->in_buf.size = min_t(size_t, len, PAGE_SIZE);
