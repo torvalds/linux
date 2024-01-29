@@ -150,3 +150,11 @@ attributes from an ``attribute-set``. For example the following
 
 Note that a selector attribute must appear in a netlink message before any
 sub-message attributes that depend on it.
+
+If an attribute such as ``kind`` is defined at more than one nest level, then a
+sub-message selector will be resolved using the value 'closest' to the selector.
+For example, if the same attribute name is defined in a nested ``attribute-set``
+alongside a sub-message selector and also in a top level ``attribute-set``, then
+the selector will be resolved using the value 'closest' to the selector. If the
+value is not present in the message at the same level as defined in the spec
+then this is an error.
