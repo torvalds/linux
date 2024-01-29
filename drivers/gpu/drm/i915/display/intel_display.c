@@ -436,6 +436,15 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 		intel_de_rmw(dev_priv, PIPE_ARB_CTL(pipe),
 			     0, PIPE_ARB_USE_PROG_SLOTS);
 
+	if (DISPLAY_VER(dev_priv) >= 14) {
+		u32 clear = DP_DSC_INSERT_SF_AT_EOL_WA;
+		u32 set = 0;
+
+		intel_de_rmw(dev_priv,
+			     hsw_chicken_trans_reg(dev_priv, cpu_transcoder),
+			     clear, set);
+	}
+
 	val = intel_de_read(dev_priv, TRANSCONF(cpu_transcoder));
 	if (val & TRANSCONF_ENABLE) {
 		/* we keep both pipes enabled on 830 */
