@@ -1135,6 +1135,14 @@ static void enable_bs_jitter_was(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->fec_enable || intel_dp_is_uhbr(crtc_state))
 		set |= DP_MST_FEC_BS_JITTER_WA(crtc_state->cpu_transcoder);
 
+	/* Wa_14014143976:adlp */
+	if (IS_DISPLAY_STEP(i915, STEP_E0, STEP_FOREVER)) {
+		if (intel_dp_is_uhbr(crtc_state))
+			set |= DP_MST_SHORT_HBLANK_WA(crtc_state->cpu_transcoder);
+		else if (crtc_state->fec_enable)
+			clear |= DP_MST_SHORT_HBLANK_WA(crtc_state->cpu_transcoder);
+	}
+
 	if (!clear && !set)
 		return;
 
