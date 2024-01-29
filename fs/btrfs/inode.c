@@ -512,7 +512,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode, bool extent_inserted,
 				size_t size, size_t compressed_size,
 				int compress_type,
-				struct page *compressed_page,
+				struct folio *compressed_folio,
 				bool update_i_size)
 {
 	struct btrfs_root *root = inode->root;
@@ -537,12 +537,12 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	 * The compressed size also needs to be no larger than a sector.
 	 * That's also why we only need one page as the parameter.
 	 */
-	if (compressed_page)
+	if (compressed_folio)
 		ASSERT(compressed_size <= sectorsize);
 	else
 		ASSERT(compressed_size == 0);
 
-	if (compressed_size && compressed_page)
+	if (compressed_size && compressed_folio)
 		cur_size = compressed_size;
 
 	if (!extent_inserted) {
@@ -570,7 +570,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	ptr = btrfs_file_extent_inline_start(ei);
 
 	if (compress_type != BTRFS_COMPRESS_NONE) {
-		kaddr = kmap_local_page(compressed_page);
+		kaddr = kmap_local_folio(compressed_folio, 0);
 		write_extent_buffer(leaf, kaddr, ptr, compressed_size);
 		kunmap_local(kaddr);
 
@@ -623,7 +623,7 @@ fail:
 static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 size,
 					  size_t compressed_size,
 					  int compress_type,
-					  struct page *compressed_page,
+					  struct folio *compressed_folio,
 					  bool update_i_size)
 {
 	struct btrfs_drop_extents_args drop_args = { 0 };
@@ -671,7 +671,7 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 size,
 
 	ret = insert_inline_extent(trans, path, inode, drop_args.extent_inserted,
 				   size, compressed_size, compress_type,
-				   compressed_page, update_i_size);
+				   compressed_folio, update_i_size);
 	if (ret && ret != -ENOSPC) {
 		btrfs_abort_transaction(trans, ret);
 		goto out;
@@ -979,7 +979,8 @@ again:
 		} else {
 			ret = cow_file_range_inline(inode, actual_end,
 						    total_compressed,
-						    compress_type, pages[0],
+						    compress_type,
+						    page_folio(pages[0]),
 						    false);
 		}
 		if (ret <= 0) {
@@ -10463,7 +10464,8 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 	if (start == 0 && encoded->unencoded_len == encoded->len &&
 	    encoded->unencoded_offset == 0) {
 		ret = cow_file_range_inline(inode, encoded->len, orig_count,
-					    compression, pages[0], true);
+					    compression, page_folio(pages[0]),
+					    true);
 		if (ret <= 0) {
 			if (ret == 0)
 				ret = orig_count;
