@@ -1048,6 +1048,17 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef);
 
 /**
+ * cfg80211_chandef_primary_freq - calculate primary 40/80/160 MHz freq
+ * @chandef: chandef to calculate for
+ * @primary_chan_width: primary channel width to calculate center for
+ *
+ * Returns: the primary 40/80/160 MHz channel center frequency, or -1
+ *	for errors
+ */
+int cfg80211_chandef_primary_freq(const struct cfg80211_chan_def *chandef,
+				  enum nl80211_chan_width primary_chan_width);
+
+/**
  * nl80211_send_chandef - sends the channel definition.
  * @msg: the msg to send channel definition
  * @chandef: the channel definition to check

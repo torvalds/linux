@@ -390,68 +390,60 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 }
 EXPORT_SYMBOL(cfg80211_chandef_valid);
 
-static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
-				  u32 *pri40, u32 *pri80, u32 *pri160)
+int cfg80211_chandef_primary_freq(const struct cfg80211_chan_def *c,
+				  enum nl80211_chan_width primary_chan_width)
 {
-	int tmp;
+	int pri_width = nl80211_chan_width_to_mhz(primary_chan_width);
+	int width = cfg80211_chandef_get_width(c);
+	u32 control = c->chan->center_freq;
+	u32 center = c->center_freq1;
 
-	switch (c->width) {
-	case NL80211_CHAN_WIDTH_40:
-		*pri40 = c->center_freq1;
-		*pri80 = 0;
-		*pri160 = 0;
-		break;
-	case NL80211_CHAN_WIDTH_80:
-	case NL80211_CHAN_WIDTH_80P80:
-		*pri160 = 0;
-		*pri80 = c->center_freq1;
-		/* n_P20 */
-		tmp = (30 + c->chan->center_freq - c->center_freq1)/20;
-		/* n_P40 */
-		tmp /= 2;
-		/* freq_P40 */
-		*pri40 = c->center_freq1 - 20 + 40 * tmp;
-		break;
-	case NL80211_CHAN_WIDTH_160:
-		*pri160 = c->center_freq1;
-		/* n_P20 */
-		tmp = (70 + c->chan->center_freq - c->center_freq1)/20;
-		/* n_P40 */
-		tmp /= 2;
-		/* freq_P40 */
-		*pri40 = c->center_freq1 - 60 + 40 * tmp;
-		/* n_P80 */
-		tmp /= 2;
-		*pri80 = c->center_freq1 - 40 + 80 * tmp;
-		break;
-	case NL80211_CHAN_WIDTH_320:
-		/* n_P20 */
-		tmp = (150 + c->chan->center_freq - c->center_freq1) / 20;
-		/* n_P40 */
-		tmp /= 2;
-		/* freq_P40 */
-		*pri40 = c->center_freq1 - 140 + 40 * tmp;
-		/* n_P80 */
-		tmp /= 2;
-		*pri80 = c->center_freq1 - 120 + 80 * tmp;
-		/* n_P160 */
-		tmp /= 2;
-		*pri160 = c->center_freq1 - 80 + 160 * tmp;
-		break;
-	default:
-		WARN_ON_ONCE(1);
+	if (WARN_ON_ONCE(pri_width < 0 || width < 0))
+		return -1;
+
+	/* not intended to be called this way, can't determine */
+	if (WARN_ON_ONCE(pri_width > width))
+		return -1;
+
+	while (width > pri_width) {
+		if (control > center)
+			center += width / 4;
+		else
+			center -= width / 4;
+		width /= 2;
 	}
+
+	return center;
+}
+EXPORT_SYMBOL(cfg80211_chandef_primary_freq);
+
+static const struct cfg80211_chan_def *
+check_chandef_primary_compat(const struct cfg80211_chan_def *c1,
+			     const struct cfg80211_chan_def *c2,
+			     enum nl80211_chan_width primary_chan_width)
+{
+	/* check primary is compatible -> error if not */
+	if (cfg80211_chandef_primary_freq(c1, primary_chan_width) !=
+	    cfg80211_chandef_primary_freq(c2, primary_chan_width))
+		return ERR_PTR(-EINVAL);
+
+	/* assumes c1 is smaller width, if that was just checked -> done */
+	if (c1->width == primary_chan_width)
+		return c2;
+
+	/* otherwise continue checking the next width */
+	return NULL;
 }
 
-const struct cfg80211_chan_def *
-cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
-			    const struct cfg80211_chan_def *c2)
+static const struct cfg80211_chan_def *
+_cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
+			     const struct cfg80211_chan_def *c2)
 {
-	u32 c1_pri40, c1_pri80, c2_pri40, c2_pri80, c1_pri160, c2_pri160;
+	const struct cfg80211_chan_def *ret;
 
 	/* If they are identical, return */
 	if (cfg80211_chandef_identical(c1, c2))
-		return c1;
+		return c2;
 
 	/* otherwise, must have same control channel */
 	if (c1->chan != c2->chan)
@@ -479,44 +471,62 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
 	if (NARROW_OR_S1G(c1->width) || NARROW_OR_S1G(c2->width))
 		return NULL;
 
-	if (c1->width == NL80211_CHAN_WIDTH_20_NOHT ||
-	    c1->width == NL80211_CHAN_WIDTH_20)
-		return c2;
-
-	if (c2->width == NL80211_CHAN_WIDTH_20_NOHT ||
-	    c2->width == NL80211_CHAN_WIDTH_20)
-		return c1;
-
-	chandef_primary_freqs(c1, &c1_pri40, &c1_pri80, &c1_pri160);
-	chandef_primary_freqs(c2, &c2_pri40, &c2_pri80, &c2_pri160);
-
-	if (c1_pri40 != c2_pri40)
-		return NULL;
-
-	if (c1->width == NL80211_CHAN_WIDTH_40)
-		return c2;
-
-	if (c2->width == NL80211_CHAN_WIDTH_40)
-		return c1;
-
-	if (c1_pri80 != c2_pri80)
-		return NULL;
-
-	if (c1->width == NL80211_CHAN_WIDTH_80 &&
-	    c2->width > NL80211_CHAN_WIDTH_80)
-		return c2;
-
-	if (c2->width == NL80211_CHAN_WIDTH_80 &&
-	    c1->width > NL80211_CHAN_WIDTH_80)
-		return c1;
-
-	WARN_ON(!c1_pri160 && !c2_pri160);
-	if (c1_pri160 && c2_pri160 && c1_pri160 != c2_pri160)
-		return NULL;
-
+	/*
+	 * Make sure that c1 is always the narrower one, so that later
+	 * we either return NULL or c2 and don't have to check both
+	 * directions.
+	 */
 	if (c1->width > c2->width)
-		return c1;
-	return c2;
+		swap(c1, c2);
+
+	/*
+	 * No further checks needed if the "narrower" one is only 20 MHz.
+	 * Here "narrower" includes being a 20 MHz non-HT channel vs. a
+	 * 20 MHz HT (or later) one.
+	 */
+	if (c1->width <= NL80211_CHAN_WIDTH_20)
+		return c2;
+
+	ret = check_chandef_primary_compat(c1, c2, NL80211_CHAN_WIDTH_40);
+	if (ret)
+		return ret;
+
+	ret = check_chandef_primary_compat(c1, c2, NL80211_CHAN_WIDTH_80);
+	if (ret)
+		return ret;
+
+	/*
+	 * If c1 is 80+80, then c2 is 160 or higher, but that cannot
+	 * match. If c2 was also 80+80 it was already either accepted
+	 * or rejected above (identical or not, respectively.)
+	 */
+	if (c1->width == NL80211_CHAN_WIDTH_80P80)
+		return NULL;
+
+	ret = check_chandef_primary_compat(c1, c2, NL80211_CHAN_WIDTH_160);
+	if (ret)
+		return ret;
+
+	/*
+	 * Getting here would mean they're both wider than 160, have the
+	 * same primary 160, but are not identical - this cannot happen
+	 * since they must be 320 (no wider chandefs exist, at least yet.)
+	 */
+	WARN_ON_ONCE(1);
+
+	return NULL;
+}
+
+const struct cfg80211_chan_def *
+cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
+			    const struct cfg80211_chan_def *c2)
+{
+	const struct cfg80211_chan_def *ret;
+
+	ret = _cfg80211_chandef_compatible(c1, c2);
+	if (IS_ERR(ret))
+		return NULL;
+	return ret;
 }
 EXPORT_SYMBOL(cfg80211_chandef_compatible);
 
