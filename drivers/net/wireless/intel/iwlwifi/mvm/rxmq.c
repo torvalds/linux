@@ -401,8 +401,11 @@ static int iwl_mvm_rx_crypto(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 	case IWL_RX_MPDU_STATUS_SEC_GCM:
 		BUILD_BUG_ON(IEEE80211_CCMP_PN_LEN != IEEE80211_GCMP_PN_LEN);
 		/* alg is CCM: check MIC only */
-		if (!(status & IWL_RX_MPDU_STATUS_MIC_OK))
+		if (!(status & IWL_RX_MPDU_STATUS_MIC_OK)) {
+			IWL_DEBUG_DROP(mvm,
+				       "Dropping packet, bad MIC (CCM/GCM)\n");
 			return -1;
+		}
 
 		stats->flag |= RX_FLAG_DECRYPTED | RX_FLAG_MIC_STRIPPED;
 		*crypt_len = IEEE80211_CCMP_HDR_LEN;
