@@ -7,6 +7,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <linux/err.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -56,9 +57,11 @@ static bool str_has_suffix(const char *str, const char *suffix)
 
 static void get_obj_name(char *name, const char *file)
 {
-	/* Using basename() GNU version which doesn't modify arg. */
-	strncpy(name, basename(file), MAX_OBJ_NAME_LEN - 1);
-	name[MAX_OBJ_NAME_LEN - 1] = '\0';
+	char file_copy[PATH_MAX];
+
+	/* Using basename() POSIX version to be more portable. */
+	strncpy(file_copy, file, PATH_MAX - 1)[PATH_MAX - 1] = '\0';
+	strncpy(name, basename(file_copy), MAX_OBJ_NAME_LEN - 1)[MAX_OBJ_NAME_LEN - 1] = '\0';
 	if (str_has_suffix(name, ".o"))
 		name[strlen(name) - 2] = '\0';
 	sanitize_identifier(name);
