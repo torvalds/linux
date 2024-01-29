@@ -106,16 +106,16 @@ static int __init init_profile_hash(void)
 	if (!apparmor_initialized)
 		return 0;
 
-	tfm = crypto_alloc_shash("sha1", 0, 0);
+	tfm = crypto_alloc_shash("sha256", 0, 0);
 	if (IS_ERR(tfm)) {
 		int error = PTR_ERR(tfm);
-		AA_ERROR("failed to setup profile sha1 hashing: %d\n", error);
+		AA_ERROR("failed to setup profile sha256 hashing: %d\n", error);
 		return error;
 	}
 	apparmor_tfm = tfm;
 	apparmor_hash_size = crypto_shash_digestsize(apparmor_tfm);
 
-	aa_info_message("AppArmor sha1 policy hashing enabled");
+	aa_info_message("AppArmor sha256 policy hashing enabled");
 
 	return 0;
 }

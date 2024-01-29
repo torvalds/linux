@@ -90,7 +90,7 @@ properties:
             bitmap of all MHPMCOUNTERx that can monitor the range of events
 
 dependencies:
-  "riscv,event-to-mhpmevent": [ "riscv,event-to-mhpmcounters" ]
+  riscv,event-to-mhpmevent: [ "riscv,event-to-mhpmcounters" ]
 
 required:
   - compatible

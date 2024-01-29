@@ -582,7 +582,7 @@ int smp_store_status(int cpu)
 	if (__pcpu_sigp_relax(pcpu->address, SIGP_STORE_STATUS_AT_ADDRESS,
 			      pa) != SIGP_CC_ORDER_CODE_ACCEPTED)
 		return -EIO;
-	if (!MACHINE_HAS_VX && !MACHINE_HAS_GS)
+	if (!cpu_has_vx() && !MACHINE_HAS_GS)
 		return 0;
 	pa = lc->mcesad & MCESA_ORIGIN_MASK;
 	if (MACHINE_HAS_GS)
@@ -638,7 +638,7 @@ void __init smp_save_dump_ipl_cpu(void)
 	copy_oldmem_kernel(regs, __LC_FPREGS_SAVE_AREA, 512);
 	save_area_add_regs(sa, regs);
 	memblock_free(regs, 512);
-	if (MACHINE_HAS_VX)
+	if (cpu_has_vx())
 		save_area_add_vxrs(sa, boot_cpu_vector_save_area);
 }
 
@@ -671,7 +671,7 @@ void __init smp_save_dump_secondary_cpus(void)
 			panic("could not allocate memory for save area\n");
 		__pcpu_sigp_relax(addr, SIGP_STORE_STATUS_AT_ADDRESS, __pa(page));
 		save_area_add_regs(sa, page);
-		if (MACHINE_HAS_VX) {
+		if (cpu_has_vx()) {
 			__pcpu_sigp_relax(addr, SIGP_STORE_ADDITIONAL_STATUS, __pa(page));
 			save_area_add_vxrs(sa, page);
 		}

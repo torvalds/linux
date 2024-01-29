@@ -1530,7 +1530,7 @@ err_destroy_slab:
 	return ret;
 }
 
-static int g2d_remove(struct platform_device *pdev)
+static void g2d_remove(struct platform_device *pdev)
 {
 	struct g2d_data *g2d = platform_get_drvdata(pdev);
 
@@ -1545,8 +1545,6 @@ static int g2d_remove(struct platform_device *pdev)
 	g2d_fini_cmdlist(g2d);
 	destroy_workqueue(g2d->g2d_workq);
 	kmem_cache_destroy(g2d->runqueue_slab);
-
-	return 0;
 }
 
 static int g2d_suspend(struct device *dev)
@@ -1609,7 +1607,7 @@ MODULE_DEVICE_TABLE(of, exynos_g2d_match);
 
 struct platform_driver g2d_driver = {
 	.probe		= g2d_probe,
-	.remove		= g2d_remove,
+	.remove_new	= g2d_remove,
 	.driver		= {
 		.name	= "exynos-drm-g2d",
 		.owner	= THIS_MODULE,

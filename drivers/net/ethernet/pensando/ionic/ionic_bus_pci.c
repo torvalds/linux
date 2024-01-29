@@ -215,9 +215,16 @@ out:
 
 static void ionic_clear_pci(struct ionic *ionic)
 {
+	ionic->idev.dev_info_regs = NULL;
+	ionic->idev.dev_cmd_regs = NULL;
+	ionic->idev.intr_status = NULL;
+	ionic->idev.intr_ctrl = NULL;
+
 	ionic_unmap_bars(ionic);
 	pci_release_regions(ionic->pdev);
-	pci_disable_device(ionic->pdev);
+
+	if (atomic_read(&ionic->pdev->enable_cnt) > 0)
+		pci_disable_device(ionic->pdev);
 }
 
 static int ionic_setup_one(struct ionic *ionic)
@@ -389,9 +396,13 @@ static void ionic_remove(struct pci_dev *pdev)
 {
 	struct ionic *ionic = pci_get_drvdata(pdev);
 
-	del_timer_sync(&ionic->watchdog_timer);
+	timer_shutdown_sync(&ionic->watchdog_timer);
 
 	if (ionic->lif) {
+		/* prevent adminq cmds if already known as down */
+		if (test_and_clear_bit(IONIC_LIF_F_FW_RESET, ionic->lif->state))
+			set_bit(IONIC_LIF_F_FW_STOPPING, ionic->lif->state);
+
 		ionic_lif_unregister(ionic->lif);
 		ionic_devlink_unregister(ionic);
 		ionic_lif_deinit(ionic->lif);
@@ -416,6 +427,8 @@ static void ionic_reset_prepare(struct pci_dev *pdev)
 
 	dev_dbg(ionic->dev, "%s: device stopping\n", __func__);
 
+	set_bit(IONIC_LIF_F_FW_RESET, lif->state);
+
 	del_timer_sync(&ionic->watchdog_timer);
 	cancel_work_sync(&lif->deferred.work);
 
@@ -424,6 +437,7 @@ static void ionic_reset_prepare(struct pci_dev *pdev)
 	ionic_txrx_free(lif);
 	ionic_lif_deinit(lif);
 	ionic_qcqs_free(lif);
+	ionic_debugfs_del_lif(lif);
 	mutex_unlock(&lif->queue_lock);
 
 	ionic_dev_teardown(ionic);
@@ -455,10 +469,35 @@ err_out:
 		__func__, err ? "failed" : "done");
 }
 
+static pci_ers_result_t ionic_pci_error_detected(struct pci_dev *pdev,
+						 pci_channel_state_t error)
+{
+	if (error == pci_channel_io_frozen) {
+		ionic_reset_prepare(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	}
+
+	return PCI_ERS_RESULT_NONE;
+}
+
+static void ionic_pci_error_resume(struct pci_dev *pdev)
+{
+	struct ionic *ionic = pci_get_drvdata(pdev);
+	struct ionic_lif *lif = ionic->lif;
+
+	if (lif && test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		pci_reset_function_locked(pdev);
+}
+
 static const struct pci_error_handlers ionic_err_handler = {
 	/* FLR handling */
 	.reset_prepare      = ionic_reset_prepare,
 	.reset_done         = ionic_reset_done,
+
+	/* PCI bus error detected on this device */
+	.error_detected     = ionic_pci_error_detected,
+	.resume		    = ionic_pci_error_resume,
+
 };
 
 static struct pci_driver ionic_driver = {

@@ -47,9 +47,9 @@ struct line {
 	 *
 	 * buffer points to a buffer allocated on demand, of length
 	 * LINE_BUFSIZE, head to the start of the ring, tail to the end.*/
-	char *buffer;
-	char *head;
-	char *tail;
+	u8 *buffer;
+	u8 *head;
+	u8 *tail;
 
 	int sigio;
 	struct delayed_work task;

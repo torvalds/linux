@@ -9,7 +9,7 @@ char _license[] SEC("license") = "GPL";
 #define CUSTOM_INHERIT2			1
 #define CUSTOM_LISTENER			2
 
-__u32 page_size = 0;
+__s32 page_size = 0;
 
 struct sockopt_inherit {
 	__u8 val;

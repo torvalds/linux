@@ -1228,8 +1228,8 @@ impl<T, A: Allocator> Vec<T, A> {
     /// Shortens the vector, keeping the first `len` elements and dropping
     /// the rest.
     ///
-    /// If `len` is greater than the vector's current length, this has no
-    /// effect.
+    /// If `len` is greater or equal to the vector's current length, this has
+    /// no effect.
     ///
     /// The [`drain`] method can emulate `truncate`, but causes the excess
     /// elements to be returned instead of dropped.
@@ -1336,6 +1336,15 @@ impl<T, A: Allocator> Vec<T, A> {
     /// is never written to (except inside an `UnsafeCell`) using this pointer or any pointer
     /// derived from it. If you need to mutate the contents of the slice, use [`as_mut_ptr`].
     ///
+    /// This method guarantees that for the purpose of the aliasing model, this method
+    /// does not materialize a reference to the underlying slice, and thus the returned pointer
+    /// will remain valid when mixed with other calls to [`as_ptr`] and [`as_mut_ptr`].
+    /// Note that calling other methods that materialize mutable references to the slice,
+    /// or mutable references to specific elements you are planning on accessing through this pointer,
+    /// as well as writing to those elements, may still invalidate this pointer.
+    /// See the second example below for how this guarantee can be used.
+    ///
+    ///
     /// # Examples
     ///
     /// ```
@@ -1349,8 +1358,25 @@ impl<T, A: Allocator> Vec<T, A> {
     /// }
     /// ```
     ///
+    /// Due to the aliasing guarantee, the following code is legal:
+    ///
+    /// ```rust
+    /// unsafe {
+    ///     let mut v = vec![0, 1, 2];
+    ///     let ptr1 = v.as_ptr();
+    ///     let _ = ptr1.read();
+    ///     let ptr2 = v.as_mut_ptr().offset(2);
+    ///     ptr2.write(2);
+    ///     // Notably, the write to `ptr2` did *not* invalidate `ptr1`
+    ///     // because it mutated a different element:
+    ///     let _ = ptr1.read();
+    /// }
+    /// ```
+    ///
     /// [`as_mut_ptr`]: Vec::as_mut_ptr
+    /// [`as_ptr`]: Vec::as_ptr
     #[stable(feature = "vec_as_ptr", since = "1.37.0")]
+    #[cfg_attr(not(bootstrap), rustc_never_returns_null_ptr)]
     #[inline]
     pub fn as_ptr(&self) -> *const T {
         // We shadow the slice method of the same name to avoid going through
@@ -1365,6 +1391,15 @@ impl<T, A: Allocator> Vec<T, A> {
     /// function returns, or else it will end up pointing to garbage.
     /// Modifying the vector may cause its buffer to be reallocated,
     /// which would also make any pointers to it invalid.
+    ///
+    /// This method guarantees that for the purpose of the aliasing model, this method
+    /// does not materialize a reference to the underlying slice, and thus the returned pointer
+    /// will remain valid when mixed with other calls to [`as_ptr`] and [`as_mut_ptr`].
+    /// Note that calling other methods that materialize references to the slice,
+    /// or references to specific elements you are planning on accessing through this pointer,
+    /// may still invalidate this pointer.
+    /// See the second example below for how this guarantee can be used.
+    ///
     ///
     /// # Examples
     ///
@@ -1383,7 +1418,25 @@ impl<T, A: Allocator> Vec<T, A> {
     /// }
     /// assert_eq!(&*x, &[0, 1, 2, 3]);
     /// ```
+    ///
+    /// Due to the aliasing guarantee, the following code is legal:
+    ///
+    /// ```rust
+    /// unsafe {
+    ///     let mut v = vec![0];
+    ///     let ptr1 = v.as_mut_ptr();
+    ///     ptr1.write(1);
+    ///     let ptr2 = v.as_mut_ptr();
+    ///     ptr2.write(2);
+    ///     // Notably, the write to `ptr2` did *not* invalidate `ptr1`:
+    ///     ptr1.write(3);
+    /// }
+    /// ```
+    ///
+    /// [`as_mut_ptr`]: Vec::as_mut_ptr
+    /// [`as_ptr`]: Vec::as_ptr
     #[stable(feature = "vec_as_ptr", since = "1.37.0")]
+    #[cfg_attr(not(bootstrap), rustc_never_returns_null_ptr)]
     #[inline]
     pub fn as_mut_ptr(&mut self) -> *mut T {
         // We shadow the slice method of the same name to avoid going through
@@ -3400,6 +3453,36 @@ impl<T: Clone> From<&mut [T]> for Vec<T> {
     #[cfg(test)]
     fn from(s: &mut [T]) -> Vec<T> {
         crate::slice::to_vec(s, Global)
+    }
+}
+
+#[cfg(not(no_global_oom_handling))]
+#[stable(feature = "vec_from_array_ref", since = "1.74.0")]
+impl<T: Clone, const N: usize> From<&[T; N]> for Vec<T> {
+    /// Allocate a `Vec<T>` and fill it by cloning `s`'s items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// assert_eq!(Vec::from(&[1, 2, 3]), vec![1, 2, 3]);
+    /// ```
+    fn from(s: &[T; N]) -> Vec<T> {
+        Self::from(s.as_slice())
+    }
+}
+
+#[cfg(not(no_global_oom_handling))]
+#[stable(feature = "vec_from_array_ref", since = "1.74.0")]
+impl<T: Clone, const N: usize> From<&mut [T; N]> for Vec<T> {
+    /// Allocate a `Vec<T>` and fill it by cloning `s`'s items.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// assert_eq!(Vec::from(&mut [1, 2, 3]), vec![1, 2, 3]);
+    /// ```
+    fn from(s: &mut [T; N]) -> Vec<T> {
+        Self::from(s.as_mut_slice())
     }
 }
 

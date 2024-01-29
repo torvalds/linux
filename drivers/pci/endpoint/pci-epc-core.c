@@ -211,13 +211,13 @@ EXPORT_SYMBOL_GPL(pci_epc_start);
  * @epc: the EPC device which has to interrupt the host
  * @func_no: the physical endpoint function number in the EPC device
  * @vfunc_no: the virtual endpoint function number in the physical function
- * @type: specify the type of interrupt; legacy, MSI or MSI-X
+ * @type: specify the type of interrupt; INTX, MSI or MSI-X
  * @interrupt_num: the MSI or MSI-X interrupt number with range (1-N)
  *
- * Invoke to raise an legacy, MSI or MSI-X interrupt
+ * Invoke to raise an INTX, MSI or MSI-X interrupt
  */
 int pci_epc_raise_irq(struct pci_epc *epc, u8 func_no, u8 vfunc_no,
-		      enum pci_epc_irq_type type, u16 interrupt_num)
+		      unsigned int type, u16 interrupt_num)
 {
 	int ret;
 

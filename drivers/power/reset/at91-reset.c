@@ -337,7 +337,7 @@ static int at91_rcdev_init(struct at91_reset *reset,
 	return devm_reset_controller_register(&pdev->dev, &reset->rcdev);
 }
 
-static int __init at91_reset_probe(struct platform_device *pdev)
+static int at91_reset_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct at91_reset *reset;
@@ -417,24 +417,23 @@ disable_clk:
 	return ret;
 }
 
-static int __exit at91_reset_remove(struct platform_device *pdev)
+static void at91_reset_remove(struct platform_device *pdev)
 {
 	struct at91_reset *reset = platform_get_drvdata(pdev);
 
 	unregister_restart_handler(&reset->nb);
 	clk_disable_unprepare(reset->sclk);
-
-	return 0;
 }
 
 static struct platform_driver at91_reset_driver = {
-	.remove = __exit_p(at91_reset_remove),
+	.probe = at91_reset_probe,
+	.remove_new = at91_reset_remove,
 	.driver = {
 		.name = "at91-reset",
 		.of_match_table = at91_reset_of_match,
 	},
 };
-module_platform_driver_probe(at91_reset_driver, at91_reset_probe);
+module_platform_driver(at91_reset_driver);
 
 MODULE_AUTHOR("Atmel Corporation");
 MODULE_DESCRIPTION("Reset driver for Atmel SoCs");

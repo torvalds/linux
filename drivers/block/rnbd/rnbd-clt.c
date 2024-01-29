@@ -1006,10 +1006,10 @@ static int rnbd_client_xfer_request(struct rnbd_clt_dev *dev,
 	msg.prio	= cpu_to_le16(req_get_ioprio(rq));
 
 	/*
-	 * We only support discards with single segment for now.
+	 * We only support discards/WRITE_ZEROES with single segment for now.
 	 * See queue limits.
 	 */
-	if (req_op(rq) != REQ_OP_DISCARD)
+	if ((req_op(rq) != REQ_OP_DISCARD) && (req_op(rq) != REQ_OP_WRITE_ZEROES))
 		sg_cnt = blk_rq_map_sg(dev->queue, rq, iu->sgt.sgl);
 
 	if (sg_cnt == 0)
@@ -1362,6 +1362,8 @@ static void setup_request_queue(struct rnbd_clt_dev *dev,
 	blk_queue_write_cache(dev->queue,
 			      !!(rsp->cache_policy & RNBD_WRITEBACK),
 			      !!(rsp->cache_policy & RNBD_FUA));
+	blk_queue_max_write_zeroes_sectors(dev->queue,
+					   le32_to_cpu(rsp->max_write_zeroes_sectors));
 }
 
 static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev,
@@ -1567,8 +1569,8 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 
 	dev = init_dev(sess, access_mode, pathname, nr_poll_queues);
 	if (IS_ERR(dev)) {
-		pr_err("map_device: failed to map device '%s' from session %s, can't initialize device, err: %ld\n",
-		       pathname, sess->sessname, PTR_ERR(dev));
+		pr_err("map_device: failed to map device '%s' from session %s, can't initialize device, err: %pe\n",
+		       pathname, sess->sessname, dev);
 		ret = PTR_ERR(dev);
 		goto put_sess;
 	}
@@ -1626,10 +1628,11 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 	}
 
 	rnbd_clt_info(dev,
-		       "map_device: Device mapped as %s (nsectors: %llu, logical_block_size: %d, physical_block_size: %d, max_discard_sectors: %d, discard_granularity: %d, discard_alignment: %d, secure_discard: %d, max_segments: %d, max_hw_sectors: %d, wc: %d, fua: %d)\n",
+		       "map_device: Device mapped as %s (nsectors: %llu, logical_block_size: %d, physical_block_size: %d, max_write_zeroes_sectors: %d, max_discard_sectors: %d, discard_granularity: %d, discard_alignment: %d, secure_discard: %d, max_segments: %d, max_hw_sectors: %d, wc: %d, fua: %d)\n",
 		       dev->gd->disk_name, le64_to_cpu(rsp->nsectors),
 		       le16_to_cpu(rsp->logical_block_size),
 		       le16_to_cpu(rsp->physical_block_size),
+		       le32_to_cpu(rsp->max_write_zeroes_sectors),
 		       le32_to_cpu(rsp->max_discard_sectors),
 		       le32_to_cpu(rsp->discard_granularity),
 		       le32_to_cpu(rsp->discard_alignment),

@@ -322,4 +322,4 @@ static struct platform_driver sc7180_lpass_cpu_platform_driver = {
 module_platform_driver(sc7180_lpass_cpu_platform_driver);
 
 MODULE_DESCRIPTION("SC7180 LPASS CPU DRIVER");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

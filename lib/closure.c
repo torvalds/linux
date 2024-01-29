@@ -36,7 +36,7 @@ static inline void closure_put_after_sub(struct closure *cl, int flags)
 			closure_debug_destroy(cl);
 
 			if (destructor)
-				destructor(cl);
+				destructor(&cl->work);
 
 			if (parent)
 				closure_put(parent);
@@ -108,8 +108,9 @@ struct closure_syncer {
 	int			done;
 };
 
-static void closure_sync_fn(struct closure *cl)
+static CLOSURE_CALLBACK(closure_sync_fn)
 {
+	struct closure *cl = container_of(ws, struct closure, work);
 	struct closure_syncer *s = cl->s;
 	struct task_struct *p;
 

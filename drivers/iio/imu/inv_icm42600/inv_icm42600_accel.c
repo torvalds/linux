@@ -137,10 +137,7 @@ static int inv_icm42600_accel_update_scan_mode(struct iio_dev *indio_dev,
 out_unlock:
 	mutex_unlock(&st->lock);
 	/* sleep maximum required time */
-	if (sleep_accel > sleep_temp)
-		sleep = sleep_accel;
-	else
-		sleep = sleep_temp;
+	sleep = max(sleep_accel, sleep_temp);
 	if (sleep)
 		msleep(sleep);
 	return ret;

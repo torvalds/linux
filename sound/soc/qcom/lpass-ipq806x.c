@@ -177,4 +177,4 @@ static struct platform_driver ipq806x_lpass_cpu_platform_driver = {
 module_platform_driver(ipq806x_lpass_cpu_platform_driver);
 
 MODULE_DESCRIPTION("QTi LPASS CPU Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

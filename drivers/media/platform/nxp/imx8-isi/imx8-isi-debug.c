@@ -22,10 +22,11 @@ static inline u32 mxc_isi_read(struct mxc_isi_pipe *pipe, u32 reg)
 static int mxc_isi_debug_dump_regs_show(struct seq_file *m, void *p)
 {
 #define MXC_ISI_DEBUG_REG(name)		{ name, #name }
-	static const struct {
+	struct debug_regs {
 		u32 offset;
 		const char * const name;
-	} registers[] = {
+	};
+	static const struct debug_regs registers[] = {
 		MXC_ISI_DEBUG_REG(CHNL_CTRL),
 		MXC_ISI_DEBUG_REG(CHNL_IMG_CTRL),
 		MXC_ISI_DEBUG_REG(CHNL_OUT_BUF_CTRL),
@@ -67,6 +68,16 @@ static int mxc_isi_debug_dump_regs_show(struct seq_file *m, void *p)
 		MXC_ISI_DEBUG_REG(CHNL_SCL_IMG_CFG),
 		MXC_ISI_DEBUG_REG(CHNL_FLOW_CTRL),
 	};
+	/* These registers contain the upper 4 bits of 36-bit DMA addresses. */
+	static const struct debug_regs registers_36bit_dma[] = {
+		MXC_ISI_DEBUG_REG(CHNL_Y_BUF1_XTND_ADDR),
+		MXC_ISI_DEBUG_REG(CHNL_U_BUF1_XTND_ADDR),
+		MXC_ISI_DEBUG_REG(CHNL_V_BUF1_XTND_ADDR),
+		MXC_ISI_DEBUG_REG(CHNL_Y_BUF2_XTND_ADDR),
+		MXC_ISI_DEBUG_REG(CHNL_U_BUF2_XTND_ADDR),
+		MXC_ISI_DEBUG_REG(CHNL_V_BUF2_XTND_ADDR),
+		MXC_ISI_DEBUG_REG(CHNL_IN_BUF_XTND_ADDR),
+	};
 
 	struct mxc_isi_pipe *pipe = m->private;
 	unsigned int i;
@@ -77,9 +88,19 @@ static int mxc_isi_debug_dump_regs_show(struct seq_file *m, void *p)
 	seq_printf(m, "--- ISI pipe %u registers ---\n", pipe->id);
 
 	for (i = 0; i < ARRAY_SIZE(registers); ++i)
-		seq_printf(m, "%20s[0x%02x]: 0x%08x\n",
+		seq_printf(m, "%21s[0x%02x]: 0x%08x\n",
 			   registers[i].name, registers[i].offset,
 			   mxc_isi_read(pipe, registers[i].offset));
+
+	if (pipe->isi->pdata->has_36bit_dma) {
+		for (i = 0; i < ARRAY_SIZE(registers_36bit_dma); ++i) {
+			const struct debug_regs *reg = &registers_36bit_dma[i];
+
+			seq_printf(m, "%21s[0x%02x]: 0x%08x\n",
+				   reg->name, reg->offset,
+				   mxc_isi_read(pipe, reg->offset));
+		}
+	}
 
 	pm_runtime_put(pipe->isi->dev);
 

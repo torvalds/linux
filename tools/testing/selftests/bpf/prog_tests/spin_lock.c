@@ -13,22 +13,22 @@ static struct {
 	const char *err_msg;
 } spin_lock_fail_tests[] = {
 	{ "lock_id_kptr_preserve",
-	  "5: (bf) r1 = r0                       ; R0_w=ptr_foo(id=2,ref_obj_id=2,off=0,imm=0) "
-	  "R1_w=ptr_foo(id=2,ref_obj_id=2,off=0,imm=0) refs=2\n6: (85) call bpf_this_cpu_ptr#154\n"
+	  "5: (bf) r1 = r0                       ; R0_w=ptr_foo(id=2,ref_obj_id=2) "
+	  "R1_w=ptr_foo(id=2,ref_obj_id=2) refs=2\n6: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=ptr_ expected=percpu_ptr_" },
 	{ "lock_id_global_zero",
-	  "; R1_w=map_value(off=0,ks=4,vs=4,imm=0)\n2: (85) call bpf_this_cpu_ptr#154\n"
+	  "; R1_w=map_value(map=.data.A,ks=4,vs=4)\n2: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=map_value expected=percpu_ptr_" },
 	{ "lock_id_mapval_preserve",
 	  "[0-9]\\+: (bf) r1 = r0                       ;"
-	  " R0_w=map_value(id=1,off=0,ks=4,vs=8,imm=0)"
-	  " R1_w=map_value(id=1,off=0,ks=4,vs=8,imm=0)\n"
+	  " R0_w=map_value(id=1,map=array_map,ks=4,vs=8)"
+	  " R1_w=map_value(id=1,map=array_map,ks=4,vs=8)\n"
 	  "[0-9]\\+: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=map_value expected=percpu_ptr_" },
 	{ "lock_id_innermapval_preserve",
 	  "[0-9]\\+: (bf) r1 = r0                      ;"
-	  " R0=map_value(id=2,off=0,ks=4,vs=8,imm=0)"
-	  " R1_w=map_value(id=2,off=0,ks=4,vs=8,imm=0)\n"
+	  " R0=map_value(id=2,ks=4,vs=8)"
+	  " R1_w=map_value(id=2,ks=4,vs=8)\n"
 	  "[0-9]\\+: (85) call bpf_this_cpu_ptr#154\n"
 	  "R1 type=map_value expected=percpu_ptr_" },
 	{ "lock_id_mismatch_kptr_kptr", "bpf_spin_unlock of different lock" },

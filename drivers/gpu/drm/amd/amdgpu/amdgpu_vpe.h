@@ -47,6 +47,15 @@ struct vpe_regs {
 	uint32_t queue0_rb_wptr_lo;
 	uint32_t queue0_rb_wptr_hi;
 	uint32_t queue0_preempt;
+
+	uint32_t dpm_enable;
+	uint32_t dpm_pratio;
+	uint32_t dpm_request_interval;
+	uint32_t dpm_decision_threshold;
+	uint32_t dpm_busy_clamp_threshold;
+	uint32_t dpm_idle_clamp_threshold;
+	uint32_t dpm_request_lv;
+	uint32_t context_indicator;
 };
 
 struct amdgpu_vpe {
@@ -63,12 +72,15 @@ struct amdgpu_vpe {
 	struct amdgpu_bo		*cmdbuf_obj;
 	uint64_t			cmdbuf_gpu_addr;
 	uint32_t			*cmdbuf_cpu_addr;
+	struct delayed_work		idle_work;
+	bool				context_started;
 };
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev);
 int amdgpu_vpe_init_microcode(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_ring_init(struct amdgpu_vpe *vpe);
 int amdgpu_vpe_ring_fini(struct amdgpu_vpe *vpe);
+int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe);
 
 #define vpe_ring_init(vpe) ((vpe)->funcs->ring_init ? (vpe)->funcs->ring_init((vpe)) : 0)
 #define vpe_ring_start(vpe) ((vpe)->funcs->ring_start ? (vpe)->funcs->ring_start((vpe)) : 0)

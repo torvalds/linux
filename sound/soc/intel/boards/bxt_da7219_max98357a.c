@@ -797,6 +797,9 @@ static int broxton_audio_probe(struct platform_device *pdev)
 		broxton_audio_card.name = "glkda7219max";
 		/* Fixup the SSP entries for geminilake */
 		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
+			if (!broxton_dais[i].codecs->dai_name)
+				continue;
+
 			/* MAXIM_CODEC is connected to SSP1. */
 			if (!strcmp(broxton_dais[i].codecs->dai_name,
 				    BXT_MAXIM_CODEC_DAI)) {
@@ -822,6 +825,9 @@ static int broxton_audio_probe(struct platform_device *pdev)
 			broxton_audio_card.name = "cmlda7219max";
 
 		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
+			if (!broxton_dais[i].codecs->dai_name)
+				continue;
+
 			/* MAXIM_CODEC is connected to SSP1. */
 			if (!strcmp(broxton_dais[i].codecs->dai_name,
 					BXT_MAXIM_CODEC_DAI)) {

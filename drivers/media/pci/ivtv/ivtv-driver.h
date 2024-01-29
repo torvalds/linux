@@ -619,6 +619,7 @@ struct ivtv {
 	u32 hw_flags;			/* hardware description of the board */
 	v4l2_std_id tuner_std;		/* the norm of the card's tuner (fixed) */
 	struct v4l2_subdev *sd_video;	/* controlling video decoder subdev */
+	bool sd_video_is_streaming;	/* is video already streaming? */
 	struct v4l2_subdev *sd_audio;	/* controlling audio subdev */
 	struct v4l2_subdev *sd_muxer;	/* controlling audio muxer subdev */
 	resource_size_t base_addr;      /* PCI resource base address */

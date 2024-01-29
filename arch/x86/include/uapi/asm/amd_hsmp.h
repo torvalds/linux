@@ -238,7 +238,7 @@ static const struct hsmp_msg_desc hsmp_msg_desc_table[] = {
 	/*
 	 * HSMP_GET_DIMM_THERMAL, num_args = 1, response_sz = 1
 	 * input: args[0] = DIMM address[7:0]
-	 * output: args[0] = temperature in degree celcius[31:21] + update rate in ms[16:8] +
+	 * output: args[0] = temperature in degree celsius[31:21] + update rate in ms[16:8] +
 	 * DIMM address[7:0]
 	 */
 	{1, 1, HSMP_GET},

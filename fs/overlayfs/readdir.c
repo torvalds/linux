@@ -1169,7 +1169,7 @@ int ovl_workdir_cleanup(struct ovl_fs *ofs, struct inode *dir,
 int ovl_indexdir_cleanup(struct ovl_fs *ofs)
 {
 	int err;
-	struct dentry *indexdir = ofs->indexdir;
+	struct dentry *indexdir = ofs->workdir;
 	struct dentry *index = NULL;
 	struct inode *dir = indexdir->d_inode;
 	struct path path = { .mnt = ovl_upper_mnt(ofs), .dentry = indexdir };

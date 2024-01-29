@@ -152,8 +152,8 @@ pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 	u64 end;
 	u32 cache_policy;
 	u32 pte_flags;
-	u32 start_pfn;
-	u32 end_pfn;
+	s32 start_pfn;
+	s32 end_pfn;
 	s32 pfn;
 	int err;
 
@@ -201,7 +201,7 @@ pvr_vm_mips_map(struct pvr_device *pvr_dev, struct pvr_fw_object *fw_obj)
 	return 0;
 
 err_unmap_pages:
-	for (; pfn >= start_pfn; pfn--)
+	while (--pfn >= start_pfn)
 		WRITE_ONCE(mips_data->pt[pfn], 0);
 
 	pvr_mmu_flush_request_all(pvr_dev);

@@ -731,7 +731,7 @@ err_sel:
 	return err;
 }
 
-static int fw_cfg_sysfs_remove(struct platform_device *pdev)
+static void fw_cfg_sysfs_remove(struct platform_device *pdev)
 {
 	pr_debug("fw_cfg: unloading.\n");
 	fw_cfg_sysfs_cache_cleanup();
@@ -739,7 +739,6 @@ static int fw_cfg_sysfs_remove(struct platform_device *pdev)
 	fw_cfg_io_cleanup();
 	fw_cfg_kset_unregister_recursive(fw_cfg_fname_kset);
 	fw_cfg_kobj_cleanup(fw_cfg_sel_ko);
-	return 0;
 }
 
 static const struct of_device_id fw_cfg_sysfs_mmio_match[] = {
@@ -758,7 +757,7 @@ MODULE_DEVICE_TABLE(acpi, fw_cfg_sysfs_acpi_match);
 
 static struct platform_driver fw_cfg_sysfs_driver = {
 	.probe = fw_cfg_sysfs_probe,
-	.remove = fw_cfg_sysfs_remove,
+	.remove_new = fw_cfg_sysfs_remove,
 	.driver = {
 		.name = "fw_cfg",
 		.of_match_table = fw_cfg_sysfs_mmio_match,

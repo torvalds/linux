@@ -11,6 +11,7 @@
 #include <linux/elfnote.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/desc_defs.h>
 #include <asm/segment.h>
 #include <asm/asm.h>
 #include <asm/boot.h>
@@ -41,7 +42,7 @@
  *             Bit 8 (TF) must be cleared. Other bits are all unspecified.
  *
  * All other processor registers and flag bits are unspecified. The OS is in
- * charge of setting up it's own stack, GDT and IDT.
+ * charge of setting up its own stack, GDT and IDT.
  */
 
 #define PVH_GDT_ENTRY_CS	1
@@ -148,11 +149,11 @@ SYM_DATA_END(gdt)
 SYM_DATA_START_LOCAL(gdt_start)
 	.quad 0x0000000000000000            /* NULL descriptor */
 #ifdef CONFIG_X86_64
-	.quad GDT_ENTRY(0xa09a, 0, 0xfffff) /* PVH_CS_SEL */
+	.quad GDT_ENTRY(DESC_CODE64, 0, 0xfffff) /* PVH_CS_SEL */
 #else
-	.quad GDT_ENTRY(0xc09a, 0, 0xfffff) /* PVH_CS_SEL */
+	.quad GDT_ENTRY(DESC_CODE32, 0, 0xfffff) /* PVH_CS_SEL */
 #endif
-	.quad GDT_ENTRY(0xc092, 0, 0xfffff) /* PVH_DS_SEL */
+	.quad GDT_ENTRY(DESC_DATA32, 0, 0xfffff) /* PVH_DS_SEL */
 SYM_DATA_END_LABEL(gdt_start, SYM_L_LOCAL, gdt_end)
 
 	.balign 16

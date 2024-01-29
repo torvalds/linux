@@ -1314,15 +1314,7 @@ nilfs_mount(struct file_system_type *fs_type, int flags,
 		return ERR_CAST(s);
 
 	if (!s->s_root) {
-		/*
-		 * We drop s_umount here because we need to open the bdev and
-		 * bdev->open_mutex ranks above s_umount (blkdev_put() ->
-		 * __invalidate_device()). It is safe because we have active sb
-		 * reference and SB_BORN is not set yet.
-		 */
-		up_write(&s->s_umount);
 		err = setup_bdev_super(s, flags, NULL);
-		down_write(&s->s_umount);
 		if (!err)
 			err = nilfs_fill_super(s, data,
 					       flags & SB_SILENT ? 1 : 0);

@@ -13,6 +13,7 @@ struct netns_core {
 	struct ctl_table_header	*sysctl_hdr;
 
 	int	sysctl_somaxconn;
+	int	sysctl_optmem_max;
 	u8	sysctl_txrehash;
 
 #ifdef CONFIG_PROC_FS

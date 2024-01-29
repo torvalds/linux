@@ -232,6 +232,12 @@
 			interrupt-names = "nand";
 		};
 
+		serial@4400 {
+			compatible = "brcm,bcm63138-hs-uart", "brcm,bcmbca-hs-uart";
+			reg = <0x4400 0x1e0>;
+			interrupts = <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		bootlut: bootlut@8000 {
 			compatible = "brcm,bcm63138-bootlut";
 			reg = <0x8000 0x50>;

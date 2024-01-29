@@ -3672,16 +3672,42 @@ static bool intel_ddi_is_audio_enabled(struct drm_i915_private *dev_priv,
 		AUDIO_OUTPUT_ENABLE(cpu_transcoder);
 }
 
-void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
-					 struct intel_crtc_state *crtc_state)
+static int tgl_ddi_min_voltage_level(const struct intel_crtc_state *crtc_state)
 {
-	if (DISPLAY_VER(dev_priv) >= 12 && crtc_state->port_clock > 594000)
-		crtc_state->min_voltage_level = 2;
-	else if ((IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv)) &&
-		 crtc_state->port_clock > 594000)
-		crtc_state->min_voltage_level = 3;
-	else if (DISPLAY_VER(dev_priv) >= 11 && crtc_state->port_clock > 594000)
-		crtc_state->min_voltage_level = 1;
+	if (crtc_state->port_clock > 594000)
+		return 2;
+	else
+		return 0;
+}
+
+static int jsl_ddi_min_voltage_level(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->port_clock > 594000)
+		return 3;
+	else
+		return 0;
+}
+
+static int icl_ddi_min_voltage_level(const struct intel_crtc_state *crtc_state)
+{
+	if (crtc_state->port_clock > 594000)
+		return 1;
+	else
+		return 0;
+}
+
+void intel_ddi_compute_min_voltage_level(struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->uapi.crtc->dev);
+
+	if (DISPLAY_VER(dev_priv) >= 14)
+		crtc_state->min_voltage_level = icl_ddi_min_voltage_level(crtc_state);
+	else if (DISPLAY_VER(dev_priv) >= 12)
+		crtc_state->min_voltage_level = tgl_ddi_min_voltage_level(crtc_state);
+	else if (IS_JASPERLAKE(dev_priv) || IS_ELKHARTLAKE(dev_priv))
+		crtc_state->min_voltage_level = jsl_ddi_min_voltage_level(crtc_state);
+	else if (DISPLAY_VER(dev_priv) >= 11)
+		crtc_state->min_voltage_level = icl_ddi_min_voltage_level(crtc_state);
 }
 
 static enum transcoder bdw_transcoder_master_readout(struct drm_i915_private *dev_priv,
@@ -3895,7 +3921,7 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
 
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_compute_min_voltage_level(pipe_config);
 
 	intel_hdmi_read_gcp_infoframe(encoder, pipe_config);
 
@@ -4175,7 +4201,7 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 		pipe_config->lane_lat_optim_mask =
 			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_compute_min_voltage_level(pipe_config);
 
 	return 0;
 }

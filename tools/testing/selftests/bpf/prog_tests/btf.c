@@ -4630,11 +4630,6 @@ static int test_btf_id(unsigned int test_num)
 	/* The map holds the last ref to BTF and its btf_id */
 	close(map_fd);
 	map_fd = -1;
-	btf_fd[0] = bpf_btf_get_fd_by_id(map_info.btf_id);
-	if (CHECK(btf_fd[0] >= 0, "BTF lingers")) {
-		err = -1;
-		goto done;
-	}
 
 	fprintf(stderr, "OK");
 
@@ -5265,6 +5260,7 @@ static size_t get_pprint_mapv_size(enum pprint_mapv_kind_t mapv_kind)
 #endif
 
 	assert(0);
+	return 0;
 }
 
 static void set_pprint_mapv(enum pprint_mapv_kind_t mapv_kind,

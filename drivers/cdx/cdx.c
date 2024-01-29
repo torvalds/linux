@@ -57,13 +57,17 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/idr.h>
 #include <linux/cdx/cdx_bus.h>
 #include <linux/iommu.h>
 #include <linux/dma-map-ops.h>
+#include <linux/debugfs.h>
 #include "cdx.h"
 
 /* Default DMA mask for devices on a CDX bus */
@@ -74,8 +78,12 @@
 static DEFINE_IDA(cdx_controller_ida);
 /* Lock to protect controller ops */
 static DEFINE_MUTEX(cdx_controller_lock);
+/* Debugfs dir for cdx bus */
+static struct dentry *cdx_debugfs_dir;
 
 static char *compat_node_name = "xlnx,versal-net-cdx";
+
+static void cdx_destroy_res_attr(struct cdx_device *cdx_dev, int num);
 
 /**
  * cdx_dev_reset - Reset a CDX device
@@ -145,6 +153,8 @@ static int cdx_unregister_device(struct device *dev,
 		if (cdx_dev->enabled && cdx->ops->bus_disable)
 			cdx->ops->bus_disable(cdx, cdx_dev->bus_num);
 	} else {
+		cdx_destroy_res_attr(cdx_dev, MAX_CDX_DEV_RESOURCES);
+		debugfs_remove_recursive(cdx_dev->debugfs_dir);
 		kfree(cdx_dev->driver_override);
 		cdx_dev->driver_override = NULL;
 	}
@@ -548,6 +558,31 @@ static const struct attribute_group *cdx_dev_groups[] = {
 	NULL,
 };
 
+static int cdx_debug_resource_show(struct seq_file *s, void *data)
+{
+	struct cdx_device *cdx_dev = s->private;
+	int i;
+
+	for (i = 0; i < MAX_CDX_DEV_RESOURCES; i++) {
+		struct resource *res =  &cdx_dev->res[i];
+
+		seq_printf(s, "%pr\n", res);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(cdx_debug_resource);
+
+static void cdx_device_debugfs_init(struct cdx_device *cdx_dev)
+{
+	cdx_dev->debugfs_dir = debugfs_create_dir(dev_name(&cdx_dev->dev), cdx_debugfs_dir);
+	if (IS_ERR(cdx_dev->debugfs_dir))
+		return;
+
+	debugfs_create_file("resource", 0444, cdx_dev->debugfs_dir, cdx_dev,
+			    &cdx_debug_resource_fops);
+}
+
 static ssize_t rescan_store(const struct bus_type *bus,
 			    const char *buf, size_t count)
 {
@@ -569,12 +604,12 @@ static ssize_t rescan_store(const struct bus_type *bus,
 
 	/* Rescan all the devices */
 	for_each_compatible_node(np, NULL, compat_node_name) {
-		if (!np)
-			return -EINVAL;
-
 		pd = of_find_device_by_node(np);
-		if (!pd)
-			return -EINVAL;
+		if (!pd) {
+			of_node_put(np);
+			count = -EINVAL;
+			goto unlock;
+		}
 
 		cdx = platform_get_drvdata(pd);
 		if (cdx && cdx->controller_registered && cdx->ops->scan)
@@ -583,6 +618,7 @@ static ssize_t rescan_store(const struct bus_type *bus,
 		put_device(&pd->dev);
 	}
 
+unlock:
 	mutex_unlock(&cdx_controller_lock);
 
 	return count;
@@ -640,11 +676,105 @@ static void cdx_device_release(struct device *dev)
 	kfree(cdx_dev);
 }
 
+static const struct vm_operations_struct cdx_phys_vm_ops = {
+#ifdef CONFIG_HAVE_IOREMAP_PROT
+	.access = generic_access_phys,
+#endif
+};
+
+/**
+ * cdx_mmap_resource - map a CDX resource into user memory space
+ * @fp: File pointer. Not used in this function, but required where
+ *      this API is registered as a callback.
+ * @kobj: kobject for mapping
+ * @attr: struct bin_attribute for the file being mapped
+ * @vma: struct vm_area_struct passed into the mmap
+ *
+ * Use the regular CDX mapping routines to map a CDX resource into userspace.
+ *
+ * Return: true on success, false otherwise.
+ */
+static int cdx_mmap_resource(struct file *fp, struct kobject *kobj,
+			     struct bin_attribute *attr,
+			     struct vm_area_struct *vma)
+{
+	struct cdx_device *cdx_dev = to_cdx_device(kobj_to_dev(kobj));
+	int num = (unsigned long)attr->private;
+	struct resource *res;
+	unsigned long size;
+
+	res = &cdx_dev->res[num];
+	if (iomem_is_exclusive(res->start))
+		return -EINVAL;
+
+	/* Make sure the caller is mapping a valid resource for this device */
+	size = ((cdx_resource_len(cdx_dev, num) - 1) >> PAGE_SHIFT) + 1;
+	if (vma->vm_pgoff + vma_pages(vma) > size)
+		return -EINVAL;
+
+	/*
+	 * Map memory region and vm->vm_pgoff is expected to be an
+	 * offset within that region.
+	 */
+	vma->vm_page_prot = pgprot_device(vma->vm_page_prot);
+	vma->vm_pgoff += (cdx_resource_start(cdx_dev, num) >> PAGE_SHIFT);
+	vma->vm_ops = &cdx_phys_vm_ops;
+	return io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
+				  vma->vm_end - vma->vm_start,
+				  vma->vm_page_prot);
+}
+
+static void cdx_destroy_res_attr(struct cdx_device *cdx_dev, int num)
+{
+	int i;
+
+	/* removing the bin attributes */
+	for (i = 0; i < num; i++) {
+		struct bin_attribute *res_attr;
+
+		res_attr = cdx_dev->res_attr[i];
+		if (res_attr) {
+			sysfs_remove_bin_file(&cdx_dev->dev.kobj, res_attr);
+			kfree(res_attr);
+		}
+	}
+}
+
+#define CDX_RES_ATTR_NAME_LEN	10
+static int cdx_create_res_attr(struct cdx_device *cdx_dev, int num)
+{
+	struct bin_attribute *res_attr;
+	char *res_attr_name;
+	int ret;
+
+	res_attr = kzalloc(sizeof(*res_attr) + CDX_RES_ATTR_NAME_LEN, GFP_ATOMIC);
+	if (!res_attr)
+		return -ENOMEM;
+
+	res_attr_name = (char *)(res_attr + 1);
+
+	sysfs_bin_attr_init(res_attr);
+
+	cdx_dev->res_attr[num] = res_attr;
+	sprintf(res_attr_name, "resource%d", num);
+
+	res_attr->mmap = cdx_mmap_resource;
+	res_attr->attr.name = res_attr_name;
+	res_attr->attr.mode = 0600;
+	res_attr->size = cdx_resource_len(cdx_dev, num);
+	res_attr->private = (void *)(unsigned long)num;
+	ret = sysfs_create_bin_file(&cdx_dev->dev.kobj, res_attr);
+	if (ret)
+		kfree(res_attr);
+
+	return ret;
+}
+
 int cdx_device_add(struct cdx_dev_params *dev_params)
 {
 	struct cdx_controller *cdx = dev_params->cdx;
 	struct cdx_device *cdx_dev;
-	int ret;
+	int ret, i;
 
 	cdx_dev = kzalloc(sizeof(*cdx_dev), GFP_KERNEL);
 	if (!cdx_dev)
@@ -687,7 +817,28 @@ int cdx_device_add(struct cdx_dev_params *dev_params)
 		goto fail;
 	}
 
+	/* Create resource<N> attributes */
+	for (i = 0; i < MAX_CDX_DEV_RESOURCES; i++) {
+		if (cdx_resource_flags(cdx_dev, i) & IORESOURCE_MEM) {
+			/* skip empty resources */
+			if (!cdx_resource_len(cdx_dev, i))
+				continue;
+
+			ret = cdx_create_res_attr(cdx_dev, i);
+			if (ret != 0) {
+				dev_err(&cdx_dev->dev,
+					"cdx device resource<%d> file creation failed: %d", i, ret);
+				goto resource_create_fail;
+			}
+		}
+	}
+
+	cdx_device_debugfs_init(cdx_dev);
+
 	return 0;
+resource_create_fail:
+	cdx_destroy_res_attr(cdx_dev, i);
+	device_del(&cdx_dev->dev);
 fail:
 	/*
 	 * Do not free cdx_dev here as it would be freed in
@@ -788,6 +939,12 @@ EXPORT_SYMBOL_NS_GPL(cdx_unregister_controller, CDX_BUS_CONTROLLER);
 
 static int __init cdx_bus_init(void)
 {
-	return bus_register(&cdx_bus_type);
+	int ret;
+
+	ret = bus_register(&cdx_bus_type);
+	if (!ret)
+		cdx_debugfs_dir = debugfs_create_dir(cdx_bus_type.name, NULL);
+
+	return ret;
 }
 postcore_initcall(cdx_bus_init);

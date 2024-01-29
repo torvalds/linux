@@ -30,8 +30,7 @@ struct hfsplus_wd {
  * @sector: block to read or write, for blocks of HFSPLUS_SECTOR_SIZE bytes
  * @buf: buffer for I/O
  * @data: output pointer for location of requested data
- * @op: direction of I/O
- * @op_flags: request op flags
+ * @opf: request op flags
  *
  * The unit of I/O is hfsplus_min_io_size(sb), which may be bigger than
  * HFSPLUS_SECTOR_SIZE, and @buf must be sized accordingly. On reads
@@ -43,6 +42,8 @@ struct hfsplus_wd {
  * that starts at the rounded-down address. As long as the data was
  * read using hfsplus_submit_bio() and the same buffer is used things
  * will work correctly.
+ *
+ * Returns: %0 on success else -errno code
  */
 int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 		       void *buf, void **data, blk_opf_t opf)

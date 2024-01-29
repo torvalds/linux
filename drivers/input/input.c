@@ -1365,8 +1365,8 @@ static ssize_t input_dev_show_##name(struct device *dev,		\
 {									\
 	struct input_dev *input_dev = to_input_dev(dev);		\
 									\
-	return scnprintf(buf, PAGE_SIZE, "%s\n",			\
-			 input_dev->name ? input_dev->name : "");	\
+	return sysfs_emit(buf, "%s\n",					\
+			  input_dev->name ? input_dev->name : "");	\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, input_dev_show_##name, NULL)
 
@@ -1458,7 +1458,7 @@ static ssize_t inhibited_show(struct device *dev,
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", input_dev->inhibited);
+	return sysfs_emit(buf, "%d\n", input_dev->inhibited);
 }
 
 static ssize_t inhibited_store(struct device *dev,
@@ -1505,7 +1505,7 @@ static ssize_t input_dev_show_id_##name(struct device *dev,		\
 					char *buf)			\
 {									\
 	struct input_dev *input_dev = to_input_dev(dev);		\
-	return scnprintf(buf, PAGE_SIZE, "%04x\n", input_dev->id.name);	\
+	return sysfs_emit(buf, "%04x\n", input_dev->id.name);		\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, input_dev_show_id_##name, NULL)
 

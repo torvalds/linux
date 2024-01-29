@@ -218,45 +218,54 @@
 #define ARMV8_PMU_PMCR_DP	(1 << 5) /* Disable CCNT if non-invasive debug*/
 #define ARMV8_PMU_PMCR_LC	(1 << 6) /* Overflow on 64 bit cycle counter */
 #define ARMV8_PMU_PMCR_LP	(1 << 7) /* Long event counter enable */
-#define ARMV8_PMU_PMCR_N_SHIFT	11  /* Number of counters supported */
-#define ARMV8_PMU_PMCR_N_MASK	0x1f
-#define ARMV8_PMU_PMCR_MASK	0xff    /* Mask for writable bits */
+#define ARMV8_PMU_PMCR_N	GENMASK(15, 11) /* Number of counters supported */
+/* Mask for writable bits */
+#define ARMV8_PMU_PMCR_MASK	(ARMV8_PMU_PMCR_E | ARMV8_PMU_PMCR_P | \
+				 ARMV8_PMU_PMCR_C | ARMV8_PMU_PMCR_D | \
+				 ARMV8_PMU_PMCR_X | ARMV8_PMU_PMCR_DP | \
+				 ARMV8_PMU_PMCR_LC | ARMV8_PMU_PMCR_LP)
 
 /*
  * PMOVSR: counters overflow flag status reg
  */
-#define ARMV8_PMU_OVSR_MASK		0xffffffff	/* Mask for writable bits */
-#define ARMV8_PMU_OVERFLOWED_MASK	ARMV8_PMU_OVSR_MASK
+#define ARMV8_PMU_OVSR_P		GENMASK(30, 0)
+#define ARMV8_PMU_OVSR_C		BIT(31)
+/* Mask for writable bits is both P and C fields */
+#define ARMV8_PMU_OVERFLOWED_MASK	(ARMV8_PMU_OVSR_P | ARMV8_PMU_OVSR_C)
 
 /*
  * PMXEVTYPER: Event selection reg
  */
-#define ARMV8_PMU_EVTYPE_MASK	0xc800ffff	/* Mask for writable bits */
-#define ARMV8_PMU_EVTYPE_EVENT	0xffff		/* Mask for EVENT bits */
+#define ARMV8_PMU_EVTYPE_EVENT	GENMASK(15, 0)	/* Mask for EVENT bits */
+#define ARMV8_PMU_EVTYPE_TH	GENMASK(43, 32)
+#define ARMV8_PMU_EVTYPE_TC	GENMASK(63, 61)
 
 /*
  * Event filters for PMUv3
  */
-#define ARMV8_PMU_EXCLUDE_EL1	(1U << 31)
-#define ARMV8_PMU_EXCLUDE_EL0	(1U << 30)
-#define ARMV8_PMU_INCLUDE_EL2	(1U << 27)
+#define ARMV8_PMU_EXCLUDE_EL1		(1U << 31)
+#define ARMV8_PMU_EXCLUDE_EL0		(1U << 30)
+#define ARMV8_PMU_EXCLUDE_NS_EL1	(1U << 29)
+#define ARMV8_PMU_EXCLUDE_NS_EL0	(1U << 28)
+#define ARMV8_PMU_INCLUDE_EL2		(1U << 27)
+#define ARMV8_PMU_EXCLUDE_EL3		(1U << 26)
 
 /*
  * PMUSERENR: user enable reg
  */
-#define ARMV8_PMU_USERENR_MASK	0xf		/* Mask for writable bits */
 #define ARMV8_PMU_USERENR_EN	(1 << 0) /* PMU regs can be accessed at EL0 */
 #define ARMV8_PMU_USERENR_SW	(1 << 1) /* PMSWINC can be written at EL0 */
 #define ARMV8_PMU_USERENR_CR	(1 << 2) /* Cycle counter can be read at EL0 */
 #define ARMV8_PMU_USERENR_ER	(1 << 3) /* Event counter can be read at EL0 */
+/* Mask for writable bits */
+#define ARMV8_PMU_USERENR_MASK	(ARMV8_PMU_USERENR_EN | ARMV8_PMU_USERENR_SW | \
+				 ARMV8_PMU_USERENR_CR | ARMV8_PMU_USERENR_ER)
 
 /* PMMIR_EL1.SLOTS mask */
-#define ARMV8_PMU_SLOTS_MASK	0xff
-
-#define ARMV8_PMU_BUS_SLOTS_SHIFT 8
-#define ARMV8_PMU_BUS_SLOTS_MASK 0xff
-#define ARMV8_PMU_BUS_WIDTH_SHIFT 16
-#define ARMV8_PMU_BUS_WIDTH_MASK 0xf
+#define ARMV8_PMU_SLOTS		GENMASK(7, 0)
+#define ARMV8_PMU_BUS_SLOTS	GENMASK(15, 8)
+#define ARMV8_PMU_BUS_WIDTH	GENMASK(19, 16)
+#define ARMV8_PMU_THWIDTH	GENMASK(23, 20)
 
 /*
  * This code is really good

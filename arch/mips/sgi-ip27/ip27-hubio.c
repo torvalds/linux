@@ -21,7 +21,7 @@ static int force_fire_and_forget = 1;
 /**
  * hub_pio_map	-  establish a HUB PIO mapping
  *
- * @hub:	hub to perform PIO mapping on
+ * @nasid:	nasid to perform PIO mapping on
  * @widget:	widget ID to perform PIO mapping for
  * @xtalk_addr: xtalk_address that needs to be mapped
  * @size:	size of the PIO mapping

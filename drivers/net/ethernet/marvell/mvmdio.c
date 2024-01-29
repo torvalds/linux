@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -52,17 +53,19 @@
 #define  MVMDIO_XSMI_BUSY		BIT(30)
 #define MVMDIO_XSMI_ADDR_REG		0x8
 
+#define MVMDIO_XSMI_CFG_REG		0xc
+#define  MVMDIO_XSMI_CLKDIV_MASK	0x3
+#define  MVMDIO_XSMI_CLKDIV_256		0x0
+#define  MVMDIO_XSMI_CLKDIV_64		0x1
+#define  MVMDIO_XSMI_CLKDIV_32		0x2
+#define  MVMDIO_XSMI_CLKDIV_8		0x3
+
 /*
  * SMI Timeout measurements:
  * - Kirkwood 88F6281 (Globalscale Dreamplug): 45us to 95us (Interrupt)
  * - Armada 370       (Globalscale Mirabox):   41us to 43us (Polled)
  */
 #define MVMDIO_SMI_TIMEOUT		1000 /* 1000us = 1ms */
-#define MVMDIO_SMI_POLL_INTERVAL_MIN	45
-#define MVMDIO_SMI_POLL_INTERVAL_MAX	55
-
-#define MVMDIO_XSMI_POLL_INTERVAL_MIN	150
-#define MVMDIO_XSMI_POLL_INTERVAL_MAX	160
 
 struct orion_mdio_dev {
 	void __iomem *regs;
@@ -84,8 +87,6 @@ enum orion_mdio_bus_type {
 
 struct orion_mdio_ops {
 	int (*is_done)(struct orion_mdio_dev *);
-	unsigned int poll_interval_min;
-	unsigned int poll_interval_max;
 };
 
 /* Wait for the SMI unit to be ready for another operation
@@ -94,34 +95,23 @@ static int orion_mdio_wait_ready(const struct orion_mdio_ops *ops,
 				 struct mii_bus *bus)
 {
 	struct orion_mdio_dev *dev = bus->priv;
-	unsigned long timeout = usecs_to_jiffies(MVMDIO_SMI_TIMEOUT);
-	unsigned long end = jiffies + timeout;
-	int timedout = 0;
+	unsigned long timeout;
+	int done;
 
-	while (1) {
-	        if (ops->is_done(dev))
+	if (dev->err_interrupt <= 0) {
+		if (!read_poll_timeout_atomic(ops->is_done, done, done, 2,
+					      MVMDIO_SMI_TIMEOUT, false, dev))
 			return 0;
-	        else if (timedout)
-			break;
+	} else {
+		/* wait_event_timeout does not guarantee a delay of at
+		 * least one whole jiffie, so timeout must be no less
+		 * than two.
+		 */
+		timeout = max(usecs_to_jiffies(MVMDIO_SMI_TIMEOUT), 2);
 
-	        if (dev->err_interrupt <= 0) {
-			usleep_range(ops->poll_interval_min,
-				     ops->poll_interval_max);
-
-			if (time_is_before_jiffies(end))
-				++timedout;
-	        } else {
-			/* wait_event_timeout does not guarantee a delay of at
-			 * least one whole jiffie, so timeout must be no less
-			 * than two.
-			 */
-			if (timeout < 2)
-				timeout = 2;
-			wait_event_timeout(dev->smi_busy_wait,
-				           ops->is_done(dev), timeout);
-
-			++timedout;
-	        }
+		if (wait_event_timeout(dev->smi_busy_wait,
+				       ops->is_done(dev), timeout))
+			return 0;
 	}
 
 	dev_err(bus->parent, "Timeout: SMI busy for too long\n");
@@ -135,8 +125,6 @@ static int orion_mdio_smi_is_done(struct orion_mdio_dev *dev)
 
 static const struct orion_mdio_ops orion_mdio_smi_ops = {
 	.is_done = orion_mdio_smi_is_done,
-	.poll_interval_min = MVMDIO_SMI_POLL_INTERVAL_MIN,
-	.poll_interval_max = MVMDIO_SMI_POLL_INTERVAL_MAX,
 };
 
 static int orion_mdio_smi_read(struct mii_bus *bus, int mii_id,
@@ -194,8 +182,6 @@ static int orion_mdio_xsmi_is_done(struct orion_mdio_dev *dev)
 
 static const struct orion_mdio_ops orion_mdio_xsmi_ops = {
 	.is_done = orion_mdio_xsmi_is_done,
-	.poll_interval_min = MVMDIO_XSMI_POLL_INTERVAL_MIN,
-	.poll_interval_max = MVMDIO_XSMI_POLL_INTERVAL_MAX,
 };
 
 static int orion_mdio_xsmi_read_c45(struct mii_bus *bus, int mii_id,
@@ -244,6 +230,40 @@ static int orion_mdio_xsmi_write_c45(struct mii_bus *bus, int mii_id,
 	       dev->regs + MVMDIO_XSMI_MGNT_REG);
 
 	return 0;
+}
+
+static void orion_mdio_xsmi_set_mdc_freq(struct mii_bus *bus)
+{
+	struct orion_mdio_dev *dev = bus->priv;
+	struct clk *mg_core;
+	u32 div, freq, cfg;
+
+	if (device_property_read_u32(bus->parent, "clock-frequency", &freq))
+		return;
+
+	mg_core = of_clk_get_by_name(bus->parent->of_node, "mg_core_clk");
+	if (IS_ERR(mg_core)) {
+		dev_err(bus->parent,
+			"MG core clock unknown, not changing MDC frequency");
+		return;
+	}
+
+	div = clk_get_rate(mg_core) / (freq + 1) + 1;
+	clk_put(mg_core);
+
+	if (div <= 8)
+		div = MVMDIO_XSMI_CLKDIV_8;
+	else if (div <= 32)
+		div = MVMDIO_XSMI_CLKDIV_32;
+	else if (div <= 64)
+		div = MVMDIO_XSMI_CLKDIV_64;
+	else
+		div = MVMDIO_XSMI_CLKDIV_256;
+
+	cfg = readl(dev->regs + MVMDIO_XSMI_CFG_REG);
+	cfg &= ~MVMDIO_XSMI_CLKDIV_MASK;
+	cfg |= div;
+	writel(cfg, dev->regs + MVMDIO_XSMI_CFG_REG);
 }
 
 static irqreturn_t orion_mdio_err_irq(int irq, void *dev_id)
@@ -324,6 +344,9 @@ static int orion_mdio_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev,
 				 "unsupported number of clocks, limiting to the first "
 				 __stringify(ARRAY_SIZE(dev->clk)) "\n");
+
+		if (type == BUS_TYPE_XSMI)
+			orion_mdio_xsmi_set_mdc_freq(bus);
 	} else {
 		dev->clk[0] = clk_get(&pdev->dev, NULL);
 		if (PTR_ERR(dev->clk[0]) == -EPROBE_DEFER) {

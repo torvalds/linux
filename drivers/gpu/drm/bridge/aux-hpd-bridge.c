@@ -68,9 +68,9 @@ struct device *drm_dp_hpd_bridge_register(struct device *parent,
 	adev->id = ret;
 	adev->name = "dp_hpd_bridge";
 	adev->dev.parent = parent;
-	adev->dev.of_node = parent->of_node;
+	adev->dev.of_node = of_node_get(parent->of_node);
 	adev->dev.release = drm_aux_hpd_bridge_release;
-	adev->dev.platform_data = np;
+	adev->dev.platform_data = of_node_get(np);
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {

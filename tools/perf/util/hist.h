@@ -82,6 +82,9 @@ enum hist_column {
 	HISTC_ADDR_TO,
 	HISTC_ADDR,
 	HISTC_SIMD,
+	HISTC_TYPE,
+	HISTC_TYPE_OFFSET,
+	HISTC_SYMBOL_OFFSET,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -457,7 +460,6 @@ struct hist_browser_timer {
 	int refresh;
 };
 
-struct annotation_options;
 struct res_sample;
 
 enum rstype {
@@ -473,16 +475,13 @@ struct block_hist;
 void attr_to_script(char *buf, struct perf_event_attr *attr);
 
 int map_symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
-			     struct hist_browser_timer *hbt,
-			     struct annotation_options *annotation_opts);
+			     struct hist_browser_timer *hbt);
 
 int hist_entry__tui_annotate(struct hist_entry *he, struct evsel *evsel,
-			     struct hist_browser_timer *hbt,
-			     struct annotation_options *annotation_opts);
+			     struct hist_browser_timer *hbt);
 
 int evlist__tui_browse_hists(struct evlist *evlist, const char *help, struct hist_browser_timer *hbt,
-			     float min_pcnt, struct perf_env *env, bool warn_lost_event,
-			     struct annotation_options *annotation_options);
+			     float min_pcnt, struct perf_env *env, bool warn_lost_event);
 
 int script_browse(const char *script_opt, struct evsel *evsel);
 
@@ -492,8 +491,7 @@ int res_sample_browse(struct res_sample *res_samples, int num_res,
 void res_sample_init(void);
 
 int block_hists_tui_browse(struct block_hist *bh, struct evsel *evsel,
-			   float min_percent, struct perf_env *env,
-			   struct annotation_options *annotation_opts);
+			   float min_percent, struct perf_env *env);
 #else
 static inline
 int evlist__tui_browse_hists(struct evlist *evlist __maybe_unused,
@@ -501,23 +499,20 @@ int evlist__tui_browse_hists(struct evlist *evlist __maybe_unused,
 			     struct hist_browser_timer *hbt __maybe_unused,
 			     float min_pcnt __maybe_unused,
 			     struct perf_env *env __maybe_unused,
-			     bool warn_lost_event __maybe_unused,
-			     struct annotation_options *annotation_options __maybe_unused)
+			     bool warn_lost_event __maybe_unused)
 {
 	return 0;
 }
 static inline int map_symbol__tui_annotate(struct map_symbol *ms __maybe_unused,
 					   struct evsel *evsel __maybe_unused,
-					   struct hist_browser_timer *hbt __maybe_unused,
-					   struct annotation_options *annotation_options __maybe_unused)
+					   struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
 
 static inline int hist_entry__tui_annotate(struct hist_entry *he __maybe_unused,
 					   struct evsel *evsel __maybe_unused,
-					   struct hist_browser_timer *hbt __maybe_unused,
-					   struct annotation_options *annotation_opts __maybe_unused)
+					   struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }
@@ -541,8 +536,7 @@ static inline void res_sample_init(void) {}
 static inline int block_hists_tui_browse(struct block_hist *bh __maybe_unused,
 					 struct evsel *evsel __maybe_unused,
 					 float min_percent __maybe_unused,
-					 struct perf_env *env __maybe_unused,
-					 struct annotation_options *annotation_opts __maybe_unused)
+					 struct perf_env *env __maybe_unused)
 {
 	return 0;
 }

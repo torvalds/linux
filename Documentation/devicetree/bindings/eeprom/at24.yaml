@@ -123,6 +123,7 @@ properties:
           - enum:
               - onnn,cat24c04
               - onnn,cat24c05
+              - rohm,br24g04
           - const: atmel,24c04
       - items:
           - const: renesas,r1ex24016

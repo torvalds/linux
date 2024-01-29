@@ -99,7 +99,7 @@ enum {
  * versions.
  */
 #define TCA_ACT_GACT 5
-#define TCA_ACT_IPT 6
+#define TCA_ACT_IPT 6 /* obsoleted, can be reused */
 #define TCA_ACT_PEDIT 7
 #define TCA_ACT_MIRRED 8
 #define TCA_ACT_NAT 9
@@ -120,7 +120,7 @@ enum tca_id {
 	TCA_ID_UNSPEC = 0,
 	TCA_ID_POLICE = 1,
 	TCA_ID_GACT = TCA_ACT_GACT,
-	TCA_ID_IPT = TCA_ACT_IPT,
+	TCA_ID_IPT = TCA_ACT_IPT, /* Obsoleted, can be reused */
 	TCA_ID_PEDIT = TCA_ACT_PEDIT,
 	TCA_ID_MIRRED = TCA_ACT_MIRRED,
 	TCA_ID_NAT = TCA_ACT_NAT,
@@ -280,37 +280,6 @@ struct tc_u32_pcnt {
 
 #define TC_U32_MAXDEPTH 8
 
-
-/* RSVP filter */
-
-enum {
-	TCA_RSVP_UNSPEC,
-	TCA_RSVP_CLASSID,
-	TCA_RSVP_DST,
-	TCA_RSVP_SRC,
-	TCA_RSVP_PINFO,
-	TCA_RSVP_POLICE,
-	TCA_RSVP_ACT,
-	__TCA_RSVP_MAX
-};
-
-#define TCA_RSVP_MAX (__TCA_RSVP_MAX - 1 )
-
-struct tc_rsvp_gpi {
-	__u32	key;
-	__u32	mask;
-	int	offset;
-};
-
-struct tc_rsvp_pinfo {
-	struct tc_rsvp_gpi dpi;
-	struct tc_rsvp_gpi spi;
-	__u8	protocol;
-	__u8	tunnelid;
-	__u8	tunnelhdr;
-	__u8	pad;
-};
-
 /* ROUTE filter */
 
 enum {
@@ -340,22 +309,6 @@ enum {
 };
 
 #define TCA_FW_MAX (__TCA_FW_MAX - 1)
-
-/* TC index filter */
-
-enum {
-	TCA_TCINDEX_UNSPEC,
-	TCA_TCINDEX_HASH,
-	TCA_TCINDEX_MASK,
-	TCA_TCINDEX_SHIFT,
-	TCA_TCINDEX_FALL_THROUGH,
-	TCA_TCINDEX_CLASSID,
-	TCA_TCINDEX_POLICE,
-	TCA_TCINDEX_ACT,
-	__TCA_TCINDEX_MAX
-};
-
-#define TCA_TCINDEX_MAX     (__TCA_TCINDEX_MAX - 1)
 
 /* Flow filter */
 

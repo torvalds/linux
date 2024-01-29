@@ -19,30 +19,6 @@
 #include <linux/irq.h>
 
 /*
- * kexec_image_info - Print received image details
- */
-static void
-kexec_image_info(const struct kimage *image)
-{
-	unsigned long i;
-
-	pr_debug("Kexec image info:\n");
-	pr_debug("\ttype:        %d\n", image->type);
-	pr_debug("\tstart:       %lx\n", image->start);
-	pr_debug("\thead:        %lx\n", image->head);
-	pr_debug("\tnr_segments: %lu\n", image->nr_segments);
-
-	for (i = 0; i < image->nr_segments; i++) {
-		pr_debug("\t    segment[%lu]: %016lx - %016lx", i,
-			image->segment[i].mem,
-			image->segment[i].mem + image->segment[i].memsz);
-		pr_debug("\t\t0x%lx bytes, %lu pages\n",
-			(unsigned long) image->segment[i].memsz,
-			(unsigned long) image->segment[i].memsz /  PAGE_SIZE);
-	}
-}
-
-/*
  * machine_kexec_prepare - Initialize kexec
  *
  * This function is called from do_kexec_load, when the user has
@@ -59,8 +35,6 @@ machine_kexec_prepare(struct kimage *image)
 	void *control_code_buffer = NULL;
 	unsigned int control_code_buffer_sz = 0;
 	int i = 0;
-
-	kexec_image_info(image);
 
 	/* Find the Flattened Device Tree and save its physical address */
 	for (i = 0; i < image->nr_segments; i++) {

@@ -160,7 +160,7 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 		return -ENODEV;
 	}
 
-	sgt = sg = devm_kcalloc(dev, sg_num, sizeof(*sg), GFP_KERNEL);
+	sgt = sg = kcalloc(sg_num, sizeof(*sg), GFP_KERNEL);
 	if (!sg) {
 		ret = -ENOMEM;
 		goto sg_err;
@@ -250,12 +250,12 @@ static int sprd_platform_compr_dma_config(struct snd_soc_component *component,
 		dma->desc->callback_param = cstream;
 	}
 
-	devm_kfree(dev, sg);
+	kfree(sg);
 
 	return 0;
 
 config_err:
-	devm_kfree(dev, sg);
+	kfree(sg);
 sg_err:
 	dma_release_channel(dma->chan);
 	return ret;

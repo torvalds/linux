@@ -90,12 +90,9 @@ slow:
 	inode->i_fop = &ns_file_operations;
 	inode->i_private = ns;
 
-	dentry = d_alloc_anon(mnt->mnt_sb);
-	if (!dentry) {
-		iput(inode);
+	dentry = d_make_root(inode);	/* not the normal use, but... */
+	if (!dentry)
 		return -ENOMEM;
-	}
-	d_instantiate(dentry, inode);
 	dentry->d_fsdata = (void *)ns->ops;
 	d = atomic_long_cmpxchg(&ns->stashed, 0, (unsigned long)dentry);
 	if (d) {

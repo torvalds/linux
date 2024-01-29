@@ -62,6 +62,7 @@ EXPORT_SYMBOL_GPL(u128_div);
 
 /**
  * mean_and_variance_get_mean() - get mean from @s
+ * @s: mean and variance number of samples and their sums
  */
 s64 mean_and_variance_get_mean(struct mean_and_variance s)
 {
@@ -71,6 +72,7 @@ EXPORT_SYMBOL_GPL(mean_and_variance_get_mean);
 
 /**
  * mean_and_variance_get_variance() -  get variance from @s1
+ * @s1: mean and variance number of samples and sums
  *
  * see linked pdf equation 12.
  */
@@ -89,6 +91,7 @@ EXPORT_SYMBOL_GPL(mean_and_variance_get_variance);
 
 /**
  * mean_and_variance_get_stddev() - get standard deviation from @s
+ * @s: mean and variance number of samples and their sums
  */
 u32 mean_and_variance_get_stddev(struct mean_and_variance s)
 {
@@ -98,8 +101,8 @@ EXPORT_SYMBOL_GPL(mean_and_variance_get_stddev);
 
 /**
  * mean_and_variance_weighted_update() - exponentially weighted variant of mean_and_variance_update()
- * @s1: ..
- * @s2: ..
+ * @s: mean and variance number of samples and their sums
+ * @x: new value to include in the &mean_and_variance_weighted
  *
  * see linked pdf: function derived from equations 140-143 where alpha = 2^w.
  * values are stored bitshifted for performance and added precision.
@@ -129,6 +132,7 @@ EXPORT_SYMBOL_GPL(mean_and_variance_weighted_update);
 
 /**
  * mean_and_variance_weighted_get_mean() - get mean from @s
+ * @s: mean and variance number of samples and their sums
  */
 s64 mean_and_variance_weighted_get_mean(struct mean_and_variance_weighted s)
 {
@@ -138,6 +142,7 @@ EXPORT_SYMBOL_GPL(mean_and_variance_weighted_get_mean);
 
 /**
  * mean_and_variance_weighted_get_variance() -- get variance from @s
+ * @s: mean and variance number of samples and their sums
  */
 u64 mean_and_variance_weighted_get_variance(struct mean_and_variance_weighted s)
 {
@@ -148,6 +153,7 @@ EXPORT_SYMBOL_GPL(mean_and_variance_weighted_get_variance);
 
 /**
  * mean_and_variance_weighted_get_stddev() - get standard deviation from @s
+ * @s: mean and variance number of samples and their sums
  */
 u32 mean_and_variance_weighted_get_stddev(struct mean_and_variance_weighted s)
 {

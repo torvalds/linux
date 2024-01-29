@@ -11,8 +11,13 @@ maintainers:
 
 description: |
   This interrupt controller is found in the Loongson-3 family of chips and
-  Loongson-2K1000 chip, as the primary package interrupt controller which
+  Loongson-2K series chips, as the primary package interrupt controller which
   can route local I/O interrupt to interrupt lines of cores.
+  Be aware of the following points.
+  1.The Loongson-2K0500 is a single core CPU;
+  2.The Loongson-2K0500/2K1000 has 64 device interrupt sources as inputs, so we
+    need to define two nodes in dts{i} to describe the "0-31" and "32-61" interrupt
+    sources respectively.
 
 allOf:
   - $ref: /schemas/interrupt-controller.yaml#
@@ -33,6 +38,7 @@ properties:
       - const: main
       - const: isr0
       - const: isr1
+    minItems: 2
 
   interrupt-controller: true
 
@@ -45,11 +51,9 @@ properties:
   interrupt-names:
     description: List of names for the parent interrupts.
     items:
-      - const: int0
-      - const: int1
-      - const: int2
-      - const: int3
+      pattern: int[0-3]
     minItems: 1
+    maxItems: 4
 
   '#interrupt-cells':
     const: 2
@@ -69,6 +73,7 @@ required:
   - compatible
   - reg
   - interrupts
+  - interrupt-names
   - interrupt-controller
   - '#interrupt-cells'
   - loongson,parent_int_map
@@ -86,7 +91,8 @@ if:
 then:
   properties:
     reg:
-      minItems: 3
+      minItems: 2
+      maxItems: 3
 
   required:
     - reg-names

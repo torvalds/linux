@@ -1046,7 +1046,7 @@ rdev_nan_change_conf(struct cfg80211_registered_device *rdev,
 		ret = rdev->ops->nan_change_conf(&rdev->wiphy, wdev, conf,
 						 changes);
 	else
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 	trace_rdev_return_int(&rdev->wiphy, ret);
 	return ret;
 }
@@ -1200,7 +1200,7 @@ rdev_start_radar_detection(struct cfg80211_registered_device *rdev,
 			   struct cfg80211_chan_def *chandef,
 			   u32 cac_time_ms)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EOPNOTSUPP;
 
 	trace_rdev_start_radar_detection(&rdev->wiphy, dev, chandef,
 					 cac_time_ms);
@@ -1226,7 +1226,7 @@ rdev_set_mcast_rate(struct cfg80211_registered_device *rdev,
 		    struct net_device *dev,
 		    int mcast_rate[NUM_NL80211_BANDS])
 {
-	int ret = -ENOTSUPP;
+	int ret = -EOPNOTSUPP;
 
 	trace_rdev_set_mcast_rate(&rdev->wiphy, dev, mcast_rate);
 	if (rdev->ops->set_mcast_rate)
@@ -1239,7 +1239,7 @@ static inline int
 rdev_set_coalesce(struct cfg80211_registered_device *rdev,
 		  struct cfg80211_coalesce *coalesce)
 {
-	int ret = -ENOTSUPP;
+	int ret = -EOPNOTSUPP;
 
 	trace_rdev_set_coalesce(&rdev->wiphy, coalesce);
 	if (rdev->ops->set_coalesce)
@@ -1520,6 +1520,24 @@ rdev_set_hw_timestamp(struct cfg80211_registered_device *rdev,
 
 	trace_rdev_set_hw_timestamp(wiphy, dev, hwts);
 	ret = rdev->ops->set_hw_timestamp(wiphy, dev, hwts);
+	trace_rdev_return_int(wiphy, ret);
+
+	return ret;
+}
+
+static inline int
+rdev_set_ttlm(struct cfg80211_registered_device *rdev,
+	      struct net_device *dev,
+	      struct cfg80211_ttlm_params *params)
+{
+	struct wiphy *wiphy = &rdev->wiphy;
+	int ret;
+
+	if (!rdev->ops->set_ttlm)
+		return -EOPNOTSUPP;
+
+	trace_rdev_set_ttlm(wiphy, dev, params);
+	ret = rdev->ops->set_ttlm(wiphy, dev, params);
 	trace_rdev_return_int(wiphy, ret);
 
 	return ret;

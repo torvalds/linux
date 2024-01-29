@@ -19,6 +19,11 @@ static const struct snd_soc_acpi_codecs glk_codecs = {
 	.codecs = {"MX98357A"}
 };
 
+static const struct snd_soc_acpi_codecs glk_rt5682_rt5682s_hp = {
+	.num_codecs = 2,
+	.codecs = {"10EC5682", "RTL5682"},
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_glk_machines[] = {
 	{
 		.id = "INT343A",
@@ -35,16 +40,9 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_glk_machines[] = {
 		.sof_tplg_filename = "sof-glk-da7219.tplg",
 	},
 	{
-		.id = "10EC5682",
+		.comp_ids = &glk_rt5682_rt5682s_hp,
 		.drv_name = "glk_rt5682_mx98357a",
 		.fw_filename = "intel/dsp_fw_glk.bin",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &glk_codecs,
-		.sof_tplg_filename = "sof-glk-rt5682.tplg",
-	},
-	{
-		.id = "RTL5682",
-		.drv_name = "glk_rt5682_max98357a",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &glk_codecs,
 		.sof_tplg_filename = "sof-glk-rt5682.tplg",

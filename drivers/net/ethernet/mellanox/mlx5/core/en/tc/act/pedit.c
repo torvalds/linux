@@ -48,7 +48,8 @@ mlx5e_tc_act_pedit_parse_action(struct mlx5e_priv *priv,
 				struct pedit_headers_action *hdrs,
 				struct netlink_ext_ack *extack)
 {
-	u8 cmd = (act->id == FLOW_ACTION_MANGLE) ? 0 : 1;
+	u8 cmd = (act->id == FLOW_ACTION_MANGLE) ? TCA_PEDIT_KEY_EX_CMD_SET :
+						   TCA_PEDIT_KEY_EX_CMD_ADD;
 	u8 htype = act->mangle.htype;
 	int err = -EOPNOTSUPP;
 	u32 mask, val, offset;

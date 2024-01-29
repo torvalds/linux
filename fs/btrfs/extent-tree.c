@@ -1547,6 +1547,23 @@ out:
 	return ret;
 }
 
+static void free_head_ref_squota_rsv(struct btrfs_fs_info *fs_info,
+				     struct btrfs_delayed_ref_head *href)
+{
+	u64 root = href->owning_root;
+
+	/*
+	 * Don't check must_insert_reserved, as this is called from contexts
+	 * where it has already been unset.
+	 */
+	if (btrfs_qgroup_mode(fs_info) != BTRFS_QGROUP_MODE_SIMPLE ||
+	    !href->is_data || !is_fstree(root))
+		return;
+
+	btrfs_qgroup_free_refroot(fs_info, root, href->reserved_bytes,
+				  BTRFS_QGROUP_RSV_DATA);
+}
+
 static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 				struct btrfs_delayed_ref_head *href,
 				struct btrfs_delayed_ref_node *node,
@@ -1569,7 +1586,6 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = href->owning_root,
 			.num_bytes = node->num_bytes,
-			.rsv_bytes = href->reserved_bytes,
 			.is_data = true,
 			.is_inc	= true,
 			.generation = trans->transid,
@@ -1586,11 +1602,9 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 						 flags, ref->objectid,
 						 ref->offset, &key,
 						 node->ref_mod, href->owning_root);
+		free_head_ref_squota_rsv(trans->fs_info, href);
 		if (!ret)
 			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
-		else
-			btrfs_qgroup_free_refroot(trans->fs_info, delta.root,
-						  delta.rsv_bytes, BTRFS_QGROUP_RSV_DATA);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, parent, ref->root,
 					     ref->objectid, ref->offset,
@@ -1742,7 +1756,6 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = href->owning_root,
 			.num_bytes = fs_info->nodesize,
-			.rsv_bytes = 0,
 			.is_data = false,
 			.is_inc = true,
 			.generation = trans->transid,
@@ -1774,8 +1787,10 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 	int ret = 0;
 
 	if (TRANS_ABORTED(trans)) {
-		if (insert_reserved)
+		if (insert_reserved) {
 			btrfs_pin_extent(trans, node->bytenr, node->num_bytes, 1);
+			free_head_ref_squota_rsv(trans->fs_info, href);
+		}
 		return 0;
 	}
 
@@ -1871,6 +1886,8 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 				  struct btrfs_delayed_ref_root *delayed_refs,
 				  struct btrfs_delayed_ref_head *head)
 {
+	u64 ret = 0;
+
 	/*
 	 * We had csum deletions accounted for in our delayed refs rsv, we need
 	 * to drop the csum leaves for this update from our delayed_refs_rsv.
@@ -1885,14 +1902,13 @@ u64 btrfs_cleanup_ref_head_accounting(struct btrfs_fs_info *fs_info,
 
 		btrfs_delayed_refs_rsv_release(fs_info, 0, nr_csums);
 
-		return btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
+		ret = btrfs_calc_delayed_ref_csum_bytes(fs_info, nr_csums);
 	}
-	if (btrfs_qgroup_mode(fs_info) == BTRFS_QGROUP_MODE_SIMPLE &&
-	    head->must_insert_reserved && head->is_data)
-		btrfs_qgroup_free_refroot(fs_info, head->owning_root,
-					  head->reserved_bytes, BTRFS_QGROUP_RSV_DATA);
+	/* must_insert_reserved can be set only if we didn't run the head ref. */
+	if (head->must_insert_reserved)
+		free_head_ref_squota_rsv(fs_info, head);
 
-	return 0;
+	return ret;
 }
 
 static int cleanup_ref_head(struct btrfs_trans_handle *trans,
@@ -2033,6 +2049,12 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 		 * spin lock.
 		 */
 		must_insert_reserved = locked_ref->must_insert_reserved;
+		/*
+		 * Unsetting this on the head ref relinquishes ownership of
+		 * the rsv_bytes, so it is critical that every possible code
+		 * path from here forward frees all reserves including qgroup
+		 * reserve.
+		 */
 		locked_ref->must_insert_reserved = false;
 
 		extent_op = locked_ref->extent_op;
@@ -3292,7 +3314,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_squota_delta delta = {
 			.root = delayed_ref_root,
 			.num_bytes = num_bytes,
-			.rsv_bytes = 0,
 			.is_data = is_data,
 			.is_inc = false,
 			.generation = btrfs_extent_generation(leaf, ei),
@@ -3426,6 +3447,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_ref generic_ref = { 0 };
+	struct btrfs_block_group *bg;
 	int ret;
 
 	btrfs_init_generic_ref(&generic_ref, BTRFS_DROP_DELAYED_REF,
@@ -3439,67 +3461,64 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		BUG_ON(ret); /* -ENOMEM */
 	}
 
-	if (last_ref && btrfs_header_generation(buf) == trans->transid) {
-		struct btrfs_block_group *cache;
-		bool must_pin = false;
+	if (!last_ref)
+		return;
 
-		if (root_id != BTRFS_TREE_LOG_OBJECTID) {
-			ret = check_ref_cleanup(trans, buf->start);
-			if (!ret) {
-				btrfs_redirty_list_add(trans->transaction, buf);
-				goto out;
-			}
-		}
+	if (btrfs_header_generation(buf) != trans->transid)
+		goto out;
 
-		cache = btrfs_lookup_block_group(fs_info, buf->start);
-
-		if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
-			pin_down_extent(trans, cache, buf->start, buf->len, 1);
-			btrfs_put_block_group(cache);
+	if (root_id != BTRFS_TREE_LOG_OBJECTID) {
+		ret = check_ref_cleanup(trans, buf->start);
+		if (!ret)
 			goto out;
-		}
-
-		/*
-		 * If there are tree mod log users we may have recorded mod log
-		 * operations for this node.  If we re-allocate this node we
-		 * could replay operations on this node that happened when it
-		 * existed in a completely different root.  For example if it
-		 * was part of root A, then was reallocated to root B, and we
-		 * are doing a btrfs_old_search_slot(root b), we could replay
-		 * operations that happened when the block was part of root A,
-		 * giving us an inconsistent view of the btree.
-		 *
-		 * We are safe from races here because at this point no other
-		 * node or root points to this extent buffer, so if after this
-		 * check a new tree mod log user joins we will not have an
-		 * existing log of operations on this node that we have to
-		 * contend with.
-		 */
-		if (test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags))
-			must_pin = true;
-
-		if (must_pin || btrfs_is_zoned(fs_info)) {
-			btrfs_redirty_list_add(trans->transaction, buf);
-			pin_down_extent(trans, cache, buf->start, buf->len, 1);
-			btrfs_put_block_group(cache);
-			goto out;
-		}
-
-		WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
-
-		btrfs_add_free_space(cache, buf->start, buf->len);
-		btrfs_free_reserved_bytes(cache, buf->len, 0);
-		btrfs_put_block_group(cache);
-		trace_btrfs_reserved_extent_free(fs_info, buf->start, buf->len);
 	}
+
+	bg = btrfs_lookup_block_group(fs_info, buf->start);
+
+	if (btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
+		pin_down_extent(trans, bg, buf->start, buf->len, 1);
+		btrfs_put_block_group(bg);
+		goto out;
+	}
+
+	/*
+	 * If there are tree mod log users we may have recorded mod log
+	 * operations for this node.  If we re-allocate this node we
+	 * could replay operations on this node that happened when it
+	 * existed in a completely different root.  For example if it
+	 * was part of root A, then was reallocated to root B, and we
+	 * are doing a btrfs_old_search_slot(root b), we could replay
+	 * operations that happened when the block was part of root A,
+	 * giving us an inconsistent view of the btree.
+	 *
+	 * We are safe from races here because at this point no other
+	 * node or root points to this extent buffer, so if after this
+	 * check a new tree mod log user joins we will not have an
+	 * existing log of operations on this node that we have to
+	 * contend with.
+	 */
+
+	if (test_bit(BTRFS_FS_TREE_MOD_LOG_USERS, &fs_info->flags)
+		     || btrfs_is_zoned(fs_info)) {
+		pin_down_extent(trans, bg, buf->start, buf->len, 1);
+		btrfs_put_block_group(bg);
+		goto out;
+	}
+
+	WARN_ON(test_bit(EXTENT_BUFFER_DIRTY, &buf->bflags));
+
+	btrfs_add_free_space(bg, buf->start, buf->len);
+	btrfs_free_reserved_bytes(bg, buf->len, 0);
+	btrfs_put_block_group(bg);
+	trace_btrfs_reserved_extent_free(fs_info, buf->start, buf->len);
+
 out:
-	if (last_ref) {
-		/*
-		 * Deleting the buffer, clear the corrupt flag since it doesn't
-		 * matter anymore.
-		 */
-		clear_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags);
-	}
+
+	/*
+	 * Deleting the buffer, clear the corrupt flag since it doesn't
+	 * matter anymore.
+	 */
+	clear_bit(EXTENT_BUFFER_CORRUPT, &buf->bflags);
 }
 
 /* Can return -ENOMEM */
@@ -4937,7 +4956,6 @@ int btrfs_alloc_logged_file_extent(struct btrfs_trans_handle *trans,
 		.root = root_objectid,
 		.num_bytes = ins->offset,
 		.generation = trans->transid,
-		.rsv_bytes = 0,
 		.is_data = true,
 		.is_inc = true,
 	};
@@ -5041,7 +5059,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	__btrfs_tree_lock(buf, nest);
 	btrfs_clear_buffer_dirty(trans, buf);
 	clear_bit(EXTENT_BUFFER_STALE, &buf->bflags);
-	clear_bit(EXTENT_BUFFER_NO_CHECK, &buf->bflags);
+	clear_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &buf->bflags);
 
 	set_extent_buffer_uptodate(buf);
 

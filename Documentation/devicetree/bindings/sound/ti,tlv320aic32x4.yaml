@@ -90,7 +90,7 @@ examples:
         ldoin-supply = <&reg_3v3>;
         clocks = <&clks 201>;
         clock-names = "mclk";
-        aic32x4-gpio-func= <
+        aic32x4-gpio-func = <
           0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
           0xff /* AIC32X4_MFPX_DEFAULT_VALUE */
           0x04 /* MFP3 AIC32X4_MFP3_GPIO_ENABLED */

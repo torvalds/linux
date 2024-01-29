@@ -48,8 +48,7 @@
 	touchscreen: touchscreen@10 {
 		compatible = "hid-over-i2c";
 		reg = <0x10>;
-		interrupt-parent = <&pio>;
-		interrupts = <155 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 155 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&touch_default>;
 

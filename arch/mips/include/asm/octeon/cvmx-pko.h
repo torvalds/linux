@@ -91,7 +91,7 @@ typedef enum {
 } cvmx_pko_status_t;
 
 /**
- * This enumeration represents the differnet locking modes supported by PKO.
+ * This enumeration represents the different locking modes supported by PKO.
  */
 typedef enum {
 	/*

@@ -17,3 +17,8 @@ VM_BIND / EXEC uAPI
     :doc: Overview
 
 .. kernel-doc:: include/uapi/drm/nouveau_drm.h
+
+drm/xe uAPI
+===========
+
+.. kernel-doc:: include/uapi/drm/xe_drm.h

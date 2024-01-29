@@ -171,16 +171,6 @@ static bool recalc_sigpending_tsk(struct task_struct *t)
 	return false;
 }
 
-/*
- * After recalculating TIF_SIGPENDING, we need to make sure the task wakes up.
- * This is superfluous when called on current, the wakeup is a harmless no-op.
- */
-void recalc_sigpending_and_wake(struct task_struct *t)
-{
-	if (recalc_sigpending_tsk(t))
-		signal_wake_up(t, 0);
-}
-
 void recalc_sigpending(void)
 {
 	if (!recalc_sigpending_tsk(current) && !freezing(current))
@@ -1348,10 +1338,8 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t,
 		action->sa.sa_handler = SIG_DFL;
 		if (handler == HANDLER_EXIT)
 			action->sa.sa_flags |= SA_IMMUTABLE;
-		if (blocked) {
+		if (blocked)
 			sigdelset(&t->blocked, sig);
-			recalc_sigpending_and_wake(t);
-		}
 	}
 	/*
 	 * Don't clear SIGNAL_UNKILLABLE for traced tasks, users won't expect
@@ -1361,6 +1349,9 @@ force_sig_info_to_task(struct kernel_siginfo *info, struct task_struct *t,
 	    (!t->ptrace || (handler == HANDLER_EXIT)))
 		t->signal->flags &= ~SIGNAL_UNKILLABLE;
 	ret = send_signal_locked(sig, info, t, PIDTYPE_PID);
+	/* This can happen if the signal was already pending and blocked */
+	if (!task_sigpending(t))
+		signal_wake_up(t, 0);
 	spin_unlock_irqrestore(&t->sighand->siglock, flags);
 
 	return ret;
@@ -1376,12 +1367,12 @@ int force_sig_info(struct kernel_siginfo *info)
  */
 int zap_other_threads(struct task_struct *p)
 {
-	struct task_struct *t = p;
+	struct task_struct *t;
 	int count = 0;
 
 	p->signal->group_stop_count = 0;
 
-	while_each_thread(p, t) {
+	for_other_threads(p, t) {
 		task_clear_jobctl_pending(t, JOBCTL_PENDING_MASK);
 		/* Don't require de_thread to wait for the vhost_worker */
 		if ((t->flags & (PF_IO_WORKER | PF_USER_WORKER)) != PF_USER_WORKER)
@@ -2465,12 +2456,10 @@ static bool do_signal_stop(int signr)
 			sig->group_exit_code = signr;
 
 		sig->group_stop_count = 0;
-
 		if (task_set_jobctl_pending(current, signr | gstop))
 			sig->group_stop_count++;
 
-		t = current;
-		while_each_thread(current, t) {
+		for_other_threads(current, t) {
 			/*
 			 * Setting state to TASK_STOPPED for a group
 			 * stop is always done with the siglock held,
@@ -2966,8 +2955,7 @@ static void retarget_shared_pending(struct task_struct *tsk, sigset_t *which)
 	if (sigisemptyset(&retarget))
 		return;
 
-	t = tsk;
-	while_each_thread(tsk, t) {
+	for_other_threads(tsk, t) {
 		if (t->flags & PF_EXITING)
 			continue;
 

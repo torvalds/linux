@@ -35,15 +35,19 @@ KBUILD_CFLAGS += -ffreestanding -D__linux__
 KBUILD_CFLAGS += -pipe -mlongcalls -mtext-section-literals
 KBUILD_CFLAGS += $(call cc-option,-mforce-no-pic,)
 KBUILD_CFLAGS += $(call cc-option,-mno-serialize-volatile,)
+KBUILD_CFLAGS += $(call cc-option,-mno-fdpic,)
 ifneq ($(CONFIG_KERNEL_ABI_CALL0),)
 KBUILD_CFLAGS += -mabi=call0
 KBUILD_AFLAGS += -mabi=call0
 endif
 
 KBUILD_AFLAGS += -mlongcalls -mtext-section-literals
+KBUILD_AFLAGS += $(call cc-option,-mno-fdpic,)
+
+KBUILD_LDFLAGS += -m elf32xtensa
 
 ifneq ($(CONFIG_LD_NO_RELAX),)
-KBUILD_LDFLAGS := --no-relax
+KBUILD_LDFLAGS += --no-relax
 endif
 
 CHECKFLAGS += -D$(if $(CONFIG_CPU_BIG_ENDIAN),__XTENSA_EB__,__XTENSA_EL__)

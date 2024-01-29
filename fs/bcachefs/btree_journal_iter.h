@@ -49,7 +49,15 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
 						struct bch_fs *,
 						struct btree *);
 
-void bch2_journal_keys_free(struct journal_keys *);
+void bch2_journal_keys_put(struct bch_fs *);
+
+static inline void bch2_journal_keys_put_initial(struct bch_fs *c)
+{
+	if (c->journal_keys.initial_ref_held)
+		bch2_journal_keys_put(c);
+	c->journal_keys.initial_ref_held = false;
+}
+
 void bch2_journal_entries_free(struct bch_fs *);
 
 int bch2_journal_keys_sort(struct bch_fs *);

@@ -286,11 +286,126 @@ err_wakeref:
 	return ret;
 }
 
+/*
+ * Send a context schedule H2G message with an invalid context id.
+ * This should generate a GUC_RESULT_INVALID_CONTEXT response.
+ */
+static int bad_h2g(struct intel_guc *guc)
+{
+	u32 action[] = {
+	   INTEL_GUC_ACTION_SCHED_CONTEXT,
+	   0x12345678,
+	};
+
+	return intel_guc_send_nb(guc, action, ARRAY_SIZE(action), 0);
+}
+
+/*
+ * Set a spinner running to make sure the system is alive and active,
+ * then send a bad but asynchronous H2G command and wait to see if an
+ * error response is returned. If no response is received or if the
+ * spinner dies then the test will fail.
+ */
+#define FAST_RESPONSE_TIMEOUT_MS	1000
+static int intel_guc_fast_request(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_context *ce;
+	struct igt_spinner spin;
+	struct i915_request *rq;
+	intel_wakeref_t wakeref;
+	struct intel_engine_cs *engine = intel_selftest_find_any_engine(gt);
+	bool spinning = false;
+	int ret = 0;
+
+	if (!engine)
+		return 0;
+
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
+
+	ce = intel_context_create(engine);
+	if (IS_ERR(ce)) {
+		ret = PTR_ERR(ce);
+		gt_err(gt, "Failed to create spinner request: %pe\n", ce);
+		goto err_pm;
+	}
+
+	ret = igt_spinner_init(&spin, engine->gt);
+	if (ret) {
+		gt_err(gt, "Failed to create spinner: %pe\n", ERR_PTR(ret));
+		goto err_pm;
+	}
+	spinning = true;
+
+	rq = igt_spinner_create_request(&spin, ce, MI_ARB_CHECK);
+	intel_context_put(ce);
+	if (IS_ERR(rq)) {
+		ret = PTR_ERR(rq);
+		gt_err(gt, "Failed to create spinner request: %pe\n", rq);
+		goto err_spin;
+	}
+
+	ret = request_add_spin(rq, &spin);
+	if (ret) {
+		gt_err(gt, "Failed to add Spinner request: %pe\n", ERR_PTR(ret));
+		goto err_rq;
+	}
+
+	gt->uc.guc.fast_response_selftest = 1;
+
+	ret = bad_h2g(&gt->uc.guc);
+	if (ret) {
+		gt_err(gt, "Failed to send H2G: %pe\n", ERR_PTR(ret));
+		goto err_rq;
+	}
+
+	ret = wait_for(gt->uc.guc.fast_response_selftest != 1 || i915_request_completed(rq),
+		       FAST_RESPONSE_TIMEOUT_MS);
+	if (ret) {
+		gt_err(gt, "Request wait failed: %pe\n", ERR_PTR(ret));
+		goto err_rq;
+	}
+
+	if (i915_request_completed(rq)) {
+		gt_err(gt, "Spinner died waiting for fast request error!\n");
+		ret = -EIO;
+		goto err_rq;
+	}
+
+	if (gt->uc.guc.fast_response_selftest != 2) {
+		gt_err(gt, "Unexpected fast response count: %d\n",
+		       gt->uc.guc.fast_response_selftest);
+		goto err_rq;
+	}
+
+	igt_spinner_end(&spin);
+	spinning = false;
+
+	ret = intel_selftest_wait_for_rq(rq);
+	if (ret) {
+		gt_err(gt, "Request failed to complete: %pe\n", ERR_PTR(ret));
+		goto err_rq;
+	}
+
+err_rq:
+	i915_request_put(rq);
+
+err_spin:
+	if (spinning)
+		igt_spinner_end(&spin);
+	igt_spinner_fini(&spin);
+
+err_pm:
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
+	return ret;
+}
+
 int intel_guc_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(intel_guc_scrub_ctbs),
 		SUBTEST(intel_guc_steal_guc_ids),
+		SUBTEST(intel_guc_fast_request),
 	};
 	struct intel_gt *gt = to_gt(i915);
 

@@ -758,7 +758,7 @@ EXPORT_SYMBOL(nla_find);
  * @dstsize: Size of destination buffer.
  *
  * Copies at most dstsize - 1 bytes into the destination buffer.
- * Unlike strlcpy the destination buffer is always padded out.
+ * Unlike strscpy() the destination buffer is always padded out.
  *
  * Return:
  * * srclen - Returns @nla length (not including the trailing %NUL).

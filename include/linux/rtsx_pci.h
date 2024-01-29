@@ -60,6 +60,7 @@
 #define   SD_EXIST			(1 << 16)
 #define   DELINK_INT			GPIO0_INT
 #define   MS_OC_INT			(1 << 23)
+#define   SD_OVP_INT		(1 << 23)
 #define   SD_OC_INT			(1 << 22)
 
 #define CARD_INT		(XD_INT | MS_INT | SD_INT)
@@ -80,6 +81,7 @@
 #define   OC_INT_EN			(1 << 23)
 #define   DELINK_INT_EN			GPIO0_INT_EN
 #define   MS_OC_INT_EN			(1 << 23)
+#define   SD_OVP_INT_EN			(1 << 23)
 #define   SD_OC_INT_EN			(1 << 22)
 
 #define RTSX_DUM_REG			0x1C
@@ -583,6 +585,7 @@
 #define   OBFF_DISABLE			0x00
 
 #define CDRESUMECTL			0xFE52
+#define CDGW				0xFE53
 #define WAKE_SEL_CTL			0xFE54
 #define PCLK_CTL			0xFE55
 #define   PCLK_MODE_SEL			0x20
@@ -763,6 +766,9 @@
 #define   SD40_VIO_TUNE_1V7		0x30
 #define   SD_VIO_LDO_1V8		0x40
 #define   SD_VIO_LDO_3V3		0x70
+
+#define RTS5264_AUTOLOAD_CFG2		0xFF7D
+#define RTS5264_CHIP_RST_N_SEL		(1 << 6)
 
 #define RTS5260_AUTOLOAD_CFG4		0xFF7F
 #define   RTS5260_MIMO_DISABLE		0x8A
@@ -1261,6 +1267,7 @@ struct rtsx_pcr {
 	u8				dma_error_count;
 	u8			ocp_stat;
 	u8			ocp_stat2;
+	u8			ovp_stat;
 	u8			rtd3_en;
 };
 
@@ -1271,6 +1278,7 @@ struct rtsx_pcr {
 #define PID_5260	0x5260
 #define PID_5261	0x5261
 #define PID_5228	0x5228
+#define PID_5264	0x5264
 
 #define CHK_PCI_PID(pcr, pid)		((pcr)->pci->device == (pid))
 #define PCI_VID(pcr)			((pcr)->pci->vendor)

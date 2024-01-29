@@ -46,7 +46,7 @@ typedef unsigned int cycles_t;
  *
  * There is a suggested workaround and also the erratum can't strike if
  * the compare interrupt isn't being used as the clock source device.
- * However for now the implementaton of this function doesn't get these
+ * However for now the implementation of this function doesn't get these
  * fine details right.
  */
 static inline int can_use_mips_counter(unsigned int prid)

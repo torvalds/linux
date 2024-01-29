@@ -30,7 +30,6 @@ int __init dev_proc_init(void);
 #endif
 
 void linkwatch_init_dev(struct net_device *dev);
-void linkwatch_forget_dev(struct net_device *dev);
 void linkwatch_run_queue(void);
 
 void dev_addr_flush(struct net_device *dev);
@@ -145,4 +144,6 @@ void xdp_do_check_flushed(struct napi_struct *napi);
 #else
 static inline void xdp_do_check_flushed(struct napi_struct *napi) { }
 #endif
+
+struct napi_struct *napi_by_id(unsigned int napi_id);
 #endif

@@ -256,7 +256,7 @@ static const struct dev_pm_ops pnp_bus_dev_pm_ops = {
 	.restore = pnp_bus_resume,
 };
 
-struct bus_type pnp_bus_type = {
+const struct bus_type pnp_bus_type = {
 	.name    = "pnp",
 	.match   = pnp_bus_match,
 	.probe   = pnp_device_probe,

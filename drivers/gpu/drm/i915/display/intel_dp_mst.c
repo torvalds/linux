@@ -54,7 +54,7 @@ static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp
 					  struct intel_crtc_state *crtc_state,
 					  bool dsc)
 {
-	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) <= 13 && dsc) {
+	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) < 14 && dsc) {
 		int output_bpp = bpp;
 		/* DisplayPort 2 128b/132b, bits per lane is always 32 */
 		int symbol_clock = crtc_state->port_clock / 32;
@@ -614,7 +614,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	intel_dp_audio_compute_config(encoder, pipe_config, conn_state);
 
-	intel_ddi_compute_min_voltage_level(dev_priv, pipe_config);
+	intel_ddi_compute_min_voltage_level(pipe_config);
 
 	intel_psr_compute_config(intel_dp, pipe_config, conn_state);
 
@@ -1282,6 +1282,10 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		return 0;
 	}
 
+	*status = intel_cpu_transcoder_mode_valid(dev_priv, mode);
+	if (*status != MODE_OK)
+		return 0;
+
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
 		*status = MODE_NO_DBLESCAN;
 		return 0;
@@ -1328,6 +1332,10 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	if (intel_dp_need_bigjoiner(intel_dp, mode->hdisplay, target_clock)) {
 		bigjoiner = true;
 		max_dotclk *= 2;
+
+		/* TODO: add support for bigjoiner */
+		*status = MODE_CLOCK_HIGH;
+		return 0;
 	}
 
 	if (DISPLAY_VER(dev_priv) >= 10 &&
@@ -1362,11 +1370,15 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	 * Big joiner configuration needs DSC for TGL which is not true for
 	 * XE_LPD where uncompressed joiner is supported.
 	 */
-	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc)
-		return MODE_CLOCK_HIGH;
+	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc) {
+		*status = MODE_CLOCK_HIGH;
+		return 0;
+	}
 
-	if (mode_rate > max_rate && !dsc)
-		return MODE_CLOCK_HIGH;
+	if (mode_rate > max_rate && !dsc) {
+		*status = MODE_CLOCK_HIGH;
+		return 0;
+	}
 
 	*status = intel_mode_valid_max_plane_size(dev_priv, mode, false);
 	return 0;

@@ -302,12 +302,31 @@ static int unwind_spec_ehframe(struct dso *dso, struct machine *machine,
 	return 0;
 }
 
+struct read_unwind_spec_eh_frame_maps_cb_args {
+	struct dso *dso;
+	u64 base_addr;
+};
+
+static int read_unwind_spec_eh_frame_maps_cb(struct map *map, void *data)
+{
+
+	struct read_unwind_spec_eh_frame_maps_cb_args *args = data;
+
+	if (map__dso(map) == args->dso && map__start(map) - map__pgoff(map) < args->base_addr)
+		args->base_addr = map__start(map) - map__pgoff(map);
+
+	return 0;
+}
+
+
 static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 				     u64 *table_data, u64 *segbase,
 				     u64 *fde_count)
 {
-	struct map_rb_node *map_node;
-	u64 base_addr = UINT64_MAX;
+	struct read_unwind_spec_eh_frame_maps_cb_args args = {
+		.dso = dso,
+		.base_addr = UINT64_MAX,
+	};
 	int ret, fd;
 
 	if (dso->data.eh_frame_hdr_offset == 0) {
@@ -325,16 +344,11 @@ static int read_unwind_spec_eh_frame(struct dso *dso, struct unwind_info *ui,
 			return -EINVAL;
 	}
 
-	maps__for_each_entry(thread__maps(ui->thread), map_node) {
-		struct map *map = map_node->map;
-		u64 start = map__start(map);
+	maps__for_each_map(thread__maps(ui->thread), read_unwind_spec_eh_frame_maps_cb, &args);
 
-		if (map__dso(map) == dso && start < base_addr)
-			base_addr = start;
-	}
-	base_addr -= dso->data.elf_base_addr;
+	args.base_addr -= dso->data.elf_base_addr;
 	/* Address of .eh_frame_hdr */
-	*segbase = base_addr + dso->data.eh_frame_hdr_addr;
+	*segbase = args.base_addr + dso->data.eh_frame_hdr_addr;
 	ret = unwind_spec_ehframe(dso, ui->machine, dso->data.eh_frame_hdr_offset,
 				   table_data, fde_count);
 	if (ret)

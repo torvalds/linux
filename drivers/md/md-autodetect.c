@@ -49,7 +49,6 @@ static int md_setup_ents __initdata;
  *             instead of just one.  -- KTK
  * 18May2000: Added support for persistent-superblock arrays:
  *             md=n,0,factor,fault,device-list   uses RAID0 for device n
- *             md=n,-1,factor,fault,device-list  uses LINEAR for device n
  *             md=n,device-list      reads a RAID superblock from the devices
  *             elements in device-list are read by name_to_kdev_t so can be
  *             a hex number or something like /dev/hda1 /dev/sdb
@@ -88,7 +87,7 @@ static int __init md_setup(char *str)
 		md_setup_ents++;
 	switch (get_option(&str, &level)) {	/* RAID level */
 	case 2: /* could be 0 or -1.. */
-		if (level == 0 || level == LEVEL_LINEAR) {
+		if (level == 0) {
 			if (get_option(&str, &factor) != 2 ||	/* Chunk Size */
 					get_option(&str, &fault) != 2) {
 				printk(KERN_WARNING "md: Too few arguments supplied to md=.\n");
@@ -96,10 +95,7 @@ static int __init md_setup(char *str)
 			}
 			md_setup_args[ent].level = level;
 			md_setup_args[ent].chunk = 1 << (factor+12);
-			if (level ==  LEVEL_LINEAR)
-				pername = "linear";
-			else
-				pername = "raid0";
+			pername = "raid0";
 			break;
 		}
 		fallthrough;

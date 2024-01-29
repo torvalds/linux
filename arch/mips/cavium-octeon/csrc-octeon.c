@@ -113,7 +113,7 @@ static struct clocksource clocksource_mips = {
 
 unsigned long long notrace sched_clock(void)
 {
-	/* 64-bit arithmatic can overflow, so use 128-bit.  */
+	/* 64-bit arithmetic can overflow, so use 128-bit.  */
 	u64 t1, t2, t3;
 	unsigned long long rv;
 	u64 mult = clocksource_mips.mult;

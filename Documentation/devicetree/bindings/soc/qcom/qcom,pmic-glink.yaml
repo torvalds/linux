@@ -20,14 +20,20 @@ description:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - qcom,sc8180x-pmic-glink
-          - qcom,sc8280xp-pmic-glink
-          - qcom,sm8350-pmic-glink
-          - qcom,sm8450-pmic-glink
-          - qcom,sm8550-pmic-glink
-      - const: qcom,pmic-glink
+    oneOf:
+      - items:
+          - enum:
+              - qcom,sc8180x-pmic-glink
+              - qcom,sc8280xp-pmic-glink
+              - qcom,sm8350-pmic-glink
+              - qcom,sm8450-pmic-glink
+              - qcom,sm8550-pmic-glink
+          - const: qcom,pmic-glink
+      - items:
+          - enum:
+              - qcom,sm8650-pmic-glink
+          - const: qcom,sm8550-pmic-glink
+          - const: qcom,pmic-glink
 
   '#address-cells':
     const: 1

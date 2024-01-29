@@ -6,7 +6,7 @@
 :Translator:
  - Alex Shi <alexs@kernel.org>
  - Wu XiangCheng <bobwxc@email.cn>
- - Hu Haowen <src.res.211@gmail.com>
+ - Hu Haowen <2023002089@link.tyut.edu.cn>
 
 .. _tw_submitchecklist:
 
@@ -56,8 +56,7 @@ Linux內核補丁提交檢查單
 9) 通過 sparse 清查。
    （參見 Documentation/translations/zh_CN/dev-tools/sparse.rst ）
 
-10) 使用 ``make checkstack`` 和 ``make namespacecheck`` 並修復他們發現的任何
-    問題。
+10) 使用 ``make checkstack`` 並修復他們發現的任何問題。
 
     .. note::
 

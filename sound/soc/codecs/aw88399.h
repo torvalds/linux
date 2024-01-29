@@ -491,6 +491,7 @@
 #define AW88399_CRC_FW_BASE_ADDR		(0x4C0)
 #define AW88399_ACF_FILE			"aw88399_acf.bin"
 #define AW88399_DEV_SYSST_CHECK_MAX		(10)
+#define AW88399_CHIP_ID			0x2183
 
 #define AW88399_I2C_NAME			"aw88399"
 

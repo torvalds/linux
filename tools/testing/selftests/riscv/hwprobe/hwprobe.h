@@ -10,6 +10,6 @@
  * contain the call.
  */
 long riscv_hwprobe(struct riscv_hwprobe *pairs, size_t pair_count,
-		   size_t cpu_count, unsigned long *cpus, unsigned int flags);
+		   size_t cpusetsize, unsigned long *cpus, unsigned int flags);
 
 #endif

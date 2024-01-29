@@ -3,7 +3,7 @@
  *
  * Copyright(c) 2009 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015        Intel Deutschland GmbH
- * Copyright(c) 2018 - 2019 Intel Corporation
+ * Copyright(c) 2018 - 2019, 2023 Intel Corporation
  *****************************************************************************/
 
 #if !defined(__IWLWIFI_DEVICE_TRACE_DATA) || defined(TRACE_HEADER_MULTI_READ)
@@ -36,20 +36,17 @@ TRACE_EVENT(iwlwifi_dev_tx_tb,
 
 TRACE_EVENT(iwlwifi_dev_rx_data,
 	TP_PROTO(const struct device *dev,
-		 const struct iwl_trans *trans,
-		 void *rxbuf, size_t len),
-	TP_ARGS(dev, trans, rxbuf, len),
+		 void *rxbuf, size_t len, size_t start),
+	TP_ARGS(dev, rxbuf, len, start),
 	TP_STRUCT__entry(
 		DEV_ENTRY
-		__dynamic_array(u8, data,
-				len - iwl_rx_trace_len(trans, rxbuf, len, NULL))
+		__dynamic_array(u8, data, len - start)
 	),
 	TP_fast_assign(
-		size_t offs = iwl_rx_trace_len(trans, rxbuf, len, NULL);
 		DEV_ASSIGN;
-		if (offs < len)
+		if (start < len)
 			memcpy(__get_dynamic_array(data),
-			       ((u8 *)rxbuf) + offs, len - offs);
+			       ((u8 *)rxbuf) + start, len - start);
 	),
 	TP_printk("[%s] RX frame data", __get_str(dev))
 );

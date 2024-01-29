@@ -47,11 +47,6 @@ static inline bool kvm_vcpu_is_legal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
 	return !(gpa & vcpu->arch.reserved_gpa_bits);
 }
 
-static inline bool kvm_vcpu_is_illegal_gpa(struct kvm_vcpu *vcpu, gpa_t gpa)
-{
-	return !kvm_vcpu_is_legal_gpa(vcpu, gpa);
-}
-
 static inline bool kvm_vcpu_is_legal_aligned_gpa(struct kvm_vcpu *vcpu,
 						 gpa_t gpa, gpa_t alignment)
 {
@@ -277,6 +272,14 @@ static __always_inline bool guest_can_use(struct kvm_vcpu *vcpu,
 
 	return test_bit(kvm_governed_feature_index(x86_feature),
 			vcpu->arch.governed_features.enabled);
+}
+
+static inline bool kvm_vcpu_is_legal_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+{
+	if (guest_can_use(vcpu, X86_FEATURE_LAM))
+		cr3 &= ~(X86_CR3_LAM_U48 | X86_CR3_LAM_U57);
+
+	return kvm_vcpu_is_legal_gpa(vcpu, cr3);
 }
 
 #endif

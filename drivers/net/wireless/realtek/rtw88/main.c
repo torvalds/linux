@@ -2008,6 +2008,11 @@ static int rtw_chip_efuse_info_setup(struct rtw_dev *rtwdev)
 	efuse->ext_pa_5g = efuse->pa_type_5g & BIT(0) ? 1 : 0;
 	efuse->ext_lna_2g = efuse->lna_type_5g & BIT(3) ? 1 : 0;
 
+	if (!is_valid_ether_addr(efuse->addr)) {
+		eth_random_addr(efuse->addr);
+		dev_warn(rtwdev->dev, "efuse MAC invalid, using random\n");
+	}
+
 out_disable:
 	rtw_chip_efuse_disable(rtwdev);
 

@@ -621,7 +621,7 @@ static int smcd_tx_sndbuf_nonempty(struct smc_connection *conn)
 	return rc;
 }
 
-static int __smc_tx_sndbuf_nonempty(struct smc_connection *conn)
+int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 	int rc = 0;
@@ -652,34 +652,6 @@ static int __smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 out:
-	return rc;
-}
-
-int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
-{
-	int rc;
-
-	/* This make sure only one can send simultaneously to prevent wasting
-	 * of CPU and CDC slot.
-	 * Record whether someone has tried to push while we are pushing.
-	 */
-	if (atomic_inc_return(&conn->tx_pushing) > 1)
-		return 0;
-
-again:
-	atomic_set(&conn->tx_pushing, 1);
-	smp_wmb(); /* Make sure tx_pushing is 1 before real send */
-	rc = __smc_tx_sndbuf_nonempty(conn);
-
-	/* We need to check whether someone else have added some data into
-	 * the send queue and tried to push but failed after the atomic_set()
-	 * when we are pushing.
-	 * If so, we need to push again to prevent those data hang in the send
-	 * queue.
-	 */
-	if (unlikely(!atomic_dec_and_test(&conn->tx_pushing)))
-		goto again;
-
 	return rc;
 }
 

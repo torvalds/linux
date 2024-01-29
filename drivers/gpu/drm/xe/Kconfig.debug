@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DRM_XE_WERROR
+	bool "Force GCC to throw an error instead of a warning when compiling"
+	# As this may inadvertently break the build, only allow the user
+	# to shoot oneself in the foot iff they aim really hard
+	depends on EXPERT
+	# We use the dependency on !COMPILE_TEST to not be enabled in
+	# allmodconfig or allyesconfig configurations
+	depends on !COMPILE_TEST
+	default n
+	help
+	  Add -Werror to the build flags for (and only for) xe.ko.
+	  Do not enable this unless you are writing code for the xe.ko module.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_DEBUG
+	bool "Enable additional driver debugging"
+	depends on DRM_XE
+	depends on EXPERT
+	depends on !COMPILE_TEST
+	default n
+	help
+	  Choose this option to turn on extra driver debugging that may affect
+	  performance but will catch some internal issues.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_DEBUG_VM
+	bool "Enable extra VM debugging info"
+	default n
+	help
+	  Enable extra VM debugging info
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_DEBUG_SRIOV
+	bool "Enable extra SR-IOV debugging"
+	default n
+	help
+	  Enable extra SR-IOV debugging info.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_DEBUG_MEM
+	bool "Enable passing SYS/VRAM addresses to user space"
+	default n
+	help
+	  Pass object location trough uapi. Intended for extended
+	  testing and development only.
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_SIMPLE_ERROR_CAPTURE
+	bool "Enable simple error capture to dmesg on job timeout"
+	default n
+	help
+	  Choose this option when debugging an unexpected job timeout
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_KUNIT_TEST
+        tristate "KUnit tests for the drm xe driver" if !KUNIT_ALL_TESTS
+	depends on DRM_XE && KUNIT && DEBUG_FS
+	default KUNIT_ALL_TESTS
+	select DRM_EXPORT_FOR_TESTS if m
+	select DRM_KUNIT_TEST_HELPERS
+	help
+	  Choose this option to allow the driver to perform selftests under
+	  the kunit framework
+
+	  Recommended for driver developers only.
+
+	  If in doubt, say "N".
+
+config DRM_XE_LARGE_GUC_BUFFER
+        bool "Enable larger guc log buffer"
+        default n
+        help
+          Choose this option when debugging guc issues.
+          Buffer should be large enough for complex issues.
+
+          Recommended for driver developers only.
+
+          If in doubt, say "N".
+
+config DRM_XE_USERPTR_INVAL_INJECT
+       bool "Inject userptr invalidation -EINVAL errors"
+       default n
+       help
+         Choose this option when debugging error paths that
+	 are hit during checks for userptr invalidations.
+
+	 Recomended for driver developers only.
+	 If in doubt, say "N".

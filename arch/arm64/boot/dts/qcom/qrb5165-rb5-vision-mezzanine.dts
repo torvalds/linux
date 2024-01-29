@@ -46,7 +46,7 @@
 		assigned-clocks = <&camcc CAM_CC_MCLK2_CLK>;
 		assigned-clock-rates = <24000000>;
 
-		dovdd-supply  = <&vreg_l7f_1p8>;
+		dovdd-supply = <&vreg_l7f_1p8>;
 		avdd-supply = <&vdc_5v>;
 		dvdd-supply = <&vdc_5v>;
 

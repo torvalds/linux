@@ -13,11 +13,20 @@
 #include "visl-trace-vp9.h"
 #include "visl-trace-h264.h"
 #include "visl-trace-hevc.h"
+#include "visl-trace-av1.h"
 
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/tpg/v4l2-tpg.h>
+
+#define LAST_BUF_IDX (V4L2_AV1_REF_LAST_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define LAST2_BUF_IDX (V4L2_AV1_REF_LAST2_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define LAST3_BUF_IDX (V4L2_AV1_REF_LAST3_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define GOLDEN_BUF_IDX (V4L2_AV1_REF_GOLDEN_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define BWD_BUF_IDX (V4L2_AV1_REF_BWDREF_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define ALT2_BUF_IDX (V4L2_AV1_REF_ALTREF2_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define ALT_BUF_IDX (V4L2_AV1_REF_ALTREF_FRAME - V4L2_AV1_REF_LAST_FRAME)
 
 static void *plane_vaddr(struct tpg_data *tpg, struct vb2_buffer *buf,
 			 u32 p, u32 bpl[TPG_MAX_PLANES], u32 h)
@@ -150,6 +159,55 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 			buflen -= len;
 		}
 
+		break;
+	}
+
+	case VISL_CODEC_AV1: {
+		int idx_last = run->av1.frame->ref_frame_idx[LAST_BUF_IDX];
+		int idx_last2 = run->av1.frame->ref_frame_idx[LAST2_BUF_IDX];
+		int idx_last3 = run->av1.frame->ref_frame_idx[LAST3_BUF_IDX];
+		int idx_golden = run->av1.frame->ref_frame_idx[GOLDEN_BUF_IDX];
+		int idx_bwd = run->av1.frame->ref_frame_idx[BWD_BUF_IDX];
+		int idx_alt2 = run->av1.frame->ref_frame_idx[ALT2_BUF_IDX];
+		int idx_alt = run->av1.frame->ref_frame_idx[ALT_BUF_IDX];
+
+		struct vb2_buffer *ref_last =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_last]);
+		struct vb2_buffer *ref_last2 =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_last2]);
+		struct vb2_buffer *ref_last3 =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_last3]);
+		struct vb2_buffer *ref_golden =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_golden]);
+		struct vb2_buffer *ref_bwd =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_bwd]);
+		struct vb2_buffer *ref_alt2 =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_alt2]);
+		struct vb2_buffer *ref_alt =
+			vb2_find_buffer(cap_q, run->av1.frame->reference_frame_ts[idx_alt]);
+
+		scnprintf(buf, buflen,
+			  "ref_last_ts: %llu, vb2_idx: %d\n"
+			  "ref_last2_ts: %llu, vb2_idx: %d\n"
+			  "ref_last3_ts: %llu, vb2_idx: %d\n"
+			  "ref_golden_ts: %llu, vb2_idx: %d\n"
+			  "ref_bwd_ts: %llu, vb2_idx: %d\n"
+			  "ref_alt2_ts: %llu, vb2_idx: %d\n"
+			  "ref_alt_ts: %llu, vb2_idx: %d\n",
+			  run->av1.frame->reference_frame_ts[idx_last],
+			  ref_last ? ref_last->index : -1,
+			  run->av1.frame->reference_frame_ts[idx_last2],
+			  ref_last2 ? ref_last2->index : -1,
+			  run->av1.frame->reference_frame_ts[idx_last3],
+			  ref_last3 ? ref_last3->index : -1,
+			  run->av1.frame->reference_frame_ts[idx_golden],
+			  ref_golden ? ref_golden->index : -1,
+			  run->av1.frame->reference_frame_ts[idx_bwd],
+			  ref_bwd ? ref_bwd->index : -1,
+			  run->av1.frame->reference_frame_ts[idx_alt2],
+			  ref_alt2 ? ref_alt2->index : -1,
+			  run->av1.frame->reference_frame_ts[idx_alt],
+			  ref_alt ? ref_alt->index : -1);
 		break;
 	}
 	}
@@ -287,16 +345,23 @@ static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
 	frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 
 	len = 0;
-	for (i = 0; i < out_q->num_buffers; i++) {
+	for (i = 0; i < vb2_get_num_buffers(out_q); i++) {
 		char entry[] = "index: %u, state: %s, request_fd: %d, ";
 		u32 old_len = len;
-		char *q_status = visl_get_vb2_state(out_q->bufs[i]->state);
+		struct vb2_buffer *vb2;
+		char *q_status;
+
+		vb2 = vb2_get_buffer(out_q, i);
+		if (!vb2)
+			continue;
+
+		q_status = visl_get_vb2_state(vb2->state);
 
 		len += scnprintf(&buf[len], TPG_STR_BUF_SZ - len,
 				 entry, i, q_status,
-				 to_vb2_v4l2_buffer(out_q->bufs[i])->request_fd);
+				 to_vb2_v4l2_buffer(vb2)->request_fd);
 
-		len += visl_fill_bytesused(to_vb2_v4l2_buffer(out_q->bufs[i]),
+		len += visl_fill_bytesused(to_vb2_v4l2_buffer(vb2),
 					   &buf[len],
 					   TPG_STR_BUF_SZ - len);
 
@@ -340,15 +405,22 @@ static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
 	frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 
 	len = 0;
-	for (i = 0; i < cap_q->num_buffers; i++) {
+	for (i = 0; i < vb2_get_num_buffers(cap_q); i++) {
 		u32 old_len = len;
-		char *q_status = visl_get_vb2_state(cap_q->bufs[i]->state);
+		struct vb2_buffer *vb2;
+		char *q_status;
+
+		vb2 = vb2_get_buffer(cap_q, i);
+		if (!vb2)
+			continue;
+
+		q_status = visl_get_vb2_state(vb2->state);
 
 		len += scnprintf(&buf[len], TPG_STR_BUF_SZ - len,
 				 "index: %u, status: %s, timestamp: %llu, is_held: %d",
-				 cap_q->bufs[i]->index, q_status,
-				 cap_q->bufs[i]->timestamp,
-				 to_vb2_v4l2_buffer(cap_q->bufs[i])->is_held);
+				 vb2->index, q_status,
+				 vb2->timestamp,
+				 to_vb2_v4l2_buffer(vb2)->is_held);
 
 		tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, &buf[old_len]);
 		frame_dprintk(ctx->dev, run->dst->sequence, "%s", &buf[old_len]);
@@ -410,7 +482,13 @@ static void visl_trace_ctrls(struct visl_ctx *ctx, struct visl_run *run)
 			trace_v4l2_hevc_dpb_entry(&run->hevc.dpram->dpb[i]);
 
 		trace_v4l2_hevc_pred_weight_table(&run->hevc.spram->pred_weight_table);
-	break;
+		break;
+	case VISL_CODEC_AV1:
+		trace_v4l2_ctrl_av1_sequence(run->av1.seq);
+		trace_v4l2_ctrl_av1_frame(run->av1.frame);
+		trace_v4l2_ctrl_av1_film_grain(run->av1.grain);
+		trace_v4l2_ctrl_av1_tile_group_entry(run->av1.tge);
+		break;
 	}
 }
 
@@ -468,6 +546,12 @@ void visl_device_run(void *priv)
 		run.hevc.spram = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_SLICE_PARAMS);
 		run.hevc.sm = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_SCALING_MATRIX);
 		run.hevc.dpram = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_DECODE_PARAMS);
+		break;
+	case VISL_CODEC_AV1:
+		run.av1.seq = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_SEQUENCE);
+		run.av1.frame = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_FRAME);
+		run.av1.tge = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY);
+		run.av1.grain = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_FILM_GRAIN);
 		break;
 	}
 

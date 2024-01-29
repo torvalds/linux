@@ -22,6 +22,7 @@
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/reboot.h>
+#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
@@ -130,11 +131,17 @@ static const char *errorname(int err)
 	}
 }
 
-static void putcharn(char c, size_t n)
+static void align_result(size_t llen)
 {
-	char buf[64];
+	const size_t align = 64;
+	char buf[align];
+	size_t n;
 
-	memset(buf, c, n);
+	if (llen >= align)
+		return;
+
+	n = align - llen;
+	memset(buf, ' ', n);
 	buf[n] = '\0';
 	fputs(buf, stdout);
 }
@@ -150,14 +157,13 @@ static void result(int llen, enum RESULT r)
 	const char *msg;
 
 	if (r == OK)
-		msg = " [OK]";
+		msg = "  [OK]";
 	else if (r == SKIPPED)
 		msg = "[SKIPPED]";
 	else
-		msg = "[FAIL]";
+		msg = " [FAIL]";
 
-	if (llen < 64)
-		putcharn(' ', 64 - llen);
+	align_result(llen);
 	puts(msg);
 }
 
@@ -834,6 +840,33 @@ int test_pipe(void)
 	return !!memcmp(buf, msg, len);
 }
 
+int test_rlimit(void)
+{
+	struct rlimit rlim = {
+		.rlim_cur = 1 << 20,
+		.rlim_max = 1 << 21,
+	};
+	int ret;
+
+	ret = setrlimit(RLIMIT_CORE, &rlim);
+	if (ret)
+		return -1;
+
+	rlim.rlim_cur = 0;
+	rlim.rlim_max = 0;
+
+	ret = getrlimit(RLIMIT_CORE, &rlim);
+	if (ret)
+		return -1;
+
+	if (rlim.rlim_cur != 1 << 20)
+		return -1;
+	if (rlim.rlim_max != 1 << 21)
+		return -1;
+
+	return 0;
+}
+
 
 /* Run syscall tests between IDs <min> and <max>.
  * Return 0 on success, non-zero on failure.
@@ -905,7 +938,6 @@ int run_syscall(int min, int max)
 		CASE_TEST(gettimeofday_tv_tz);EXPECT_SYSZR(1, gettimeofday(&tv, &tz)); break;
 		CASE_TEST(getpagesize);       EXPECT_SYSZR(1, test_getpagesize()); break;
 		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
-		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
 		CASE_TEST(link_root1);        EXPECT_SYSER(1, link("/", "/"), -1, EEXIST); break;
 		CASE_TEST(link_blah);         EXPECT_SYSER(1, link("/proc/self/blah", "/blah"), -1, ENOENT); break;
 		CASE_TEST(link_dir);          EXPECT_SYSER(euid0, link("/", "/blah"), -1, EPERM); break;
@@ -924,6 +956,7 @@ int run_syscall(int min, int max)
 		CASE_TEST(poll_fault);        EXPECT_SYSER(1, poll(NULL, 1, 0), -1, EFAULT); break;
 		CASE_TEST(prctl);             EXPECT_SYSER(1, prctl(PR_SET_NAME, (unsigned long)NULL, 0, 0, 0), -1, EFAULT); break;
 		CASE_TEST(read_badf);         EXPECT_SYSER(1, read(-1, &tmp, 1), -1, EBADF); break;
+		CASE_TEST(rlimit);            EXPECT_SYSZR(1, test_rlimit()); break;
 		CASE_TEST(rmdir_blah);        EXPECT_SYSER(1, rmdir("/blah"), -1, ENOENT); break;
 		CASE_TEST(sched_yield);       EXPECT_SYSZR(1, sched_yield()); break;
 		CASE_TEST(select_null);       EXPECT_SYSZR(1, ({ struct timeval tv = { 0 }; select(0, NULL, NULL, NULL, &tv); })); break;
@@ -1133,6 +1166,7 @@ static int run_protection(int min __attribute__((unused)),
 {
 	pid_t pid;
 	int llen = 0, status;
+	struct rlimit rlimit = { 0, 0 };
 
 	llen += printf("0 -fstackprotector ");
 
@@ -1164,6 +1198,7 @@ static int run_protection(int min __attribute__((unused)),
 		close(STDERR_FILENO);
 
 		prctl(PR_SET_DUMPABLE, 0, 0, 0, 0);
+		setrlimit(RLIMIT_CORE, &rlimit);
 		smash_stack();
 		return 1;
 

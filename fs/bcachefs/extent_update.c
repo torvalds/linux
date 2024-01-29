@@ -100,7 +100,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 	return ret2 ?: ret;
 }
 
-#define EXTENT_ITERS_MAX	(BTREE_ITER_MAX / 3)
+#define EXTENT_ITERS_MAX	(BTREE_ITER_INITIAL / 3)
 
 int bch2_extent_atomic_end(struct btree_trans *trans,
 			   struct btree_iter *iter,

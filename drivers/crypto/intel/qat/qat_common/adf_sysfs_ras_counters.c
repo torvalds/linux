@@ -99,6 +99,8 @@ void adf_sysfs_start_ras(struct adf_accel_dev *accel_dev)
 	if (device_add_group(&GET_DEV(accel_dev), &qat_ras_group))
 		dev_err(&GET_DEV(accel_dev),
 			"Failed to create qat_ras attribute group.\n");
+
+	accel_dev->ras_errors.sysfs_added = true;
 }
 
 void adf_sysfs_stop_ras(struct adf_accel_dev *accel_dev)
@@ -106,7 +108,10 @@ void adf_sysfs_stop_ras(struct adf_accel_dev *accel_dev)
 	if (!accel_dev->ras_errors.enabled)
 		return;
 
-	device_remove_group(&GET_DEV(accel_dev), &qat_ras_group);
+	if (accel_dev->ras_errors.sysfs_added) {
+		device_remove_group(&GET_DEV(accel_dev), &qat_ras_group);
+		accel_dev->ras_errors.sysfs_added = false;
+	}
 
 	ADF_RAS_ERR_CTR_CLEAR(accel_dev->ras_errors);
 }

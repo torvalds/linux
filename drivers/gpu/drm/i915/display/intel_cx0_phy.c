@@ -415,9 +415,15 @@ void intel_cx0_phy_set_signal_levels(struct intel_encoder *encoder,
 	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
 	const struct intel_ddi_buf_trans *trans;
 	enum phy phy = intel_port_to_phy(i915, encoder->port);
-	u8 owned_lane_mask = intel_cx0_get_owned_lane_mask(i915, encoder);
+	u8 owned_lane_mask;
 	intel_wakeref_t wakeref;
 	int n_entries, ln;
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
+		return;
+
+	owned_lane_mask = intel_cx0_get_owned_lane_mask(i915, encoder);
 
 	wakeref = intel_cx0_phy_transaction_begin(encoder);
 
@@ -739,7 +745,6 @@ static const struct intel_c10pll_state * const mtl_c10_edp_tables[] = {
 
 /* C20 basic DP 1.4 tables */
 static const struct intel_c20pll_state mtl_c20_dp_rbr = {
-	.link_bit_rate = 162000,
 	.clock = 162000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x5800, /* tx cfg1 */
@@ -765,7 +770,6 @@ static const struct intel_c20pll_state mtl_c20_dp_rbr = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_hbr1 = {
-	.link_bit_rate = 270000,
 	.clock = 270000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
@@ -791,7 +795,6 @@ static const struct intel_c20pll_state mtl_c20_dp_hbr1 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_hbr2 = {
-	.link_bit_rate = 540000,
 	.clock = 540000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
@@ -817,7 +820,6 @@ static const struct intel_c20pll_state mtl_c20_dp_hbr2 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_hbr3 = {
-	.link_bit_rate = 810000,
 	.clock = 810000,
 	.tx = {	0xbe88, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
@@ -844,8 +846,7 @@ static const struct intel_c20pll_state mtl_c20_dp_hbr3 = {
 
 /* C20 basic DP 2.0 tables */
 static const struct intel_c20pll_state mtl_c20_dp_uhbr10 = {
-	.link_bit_rate = 1000000, /* 10 Gbps */
-	.clock = 312500,
+	.clock = 1000000, /* 10 Gbps */
 	.tx = {	0xbe21, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -869,8 +870,7 @@ static const struct intel_c20pll_state mtl_c20_dp_uhbr10 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_uhbr13_5 = {
-	.link_bit_rate = 1350000, /* 13.5 Gbps */
-	.clock = 421875,
+	.clock = 1350000, /* 13.5 Gbps */
 	.tx = {	0xbea0, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -895,8 +895,7 @@ static const struct intel_c20pll_state mtl_c20_dp_uhbr13_5 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_dp_uhbr20 = {
-	.link_bit_rate = 2000000, /* 20 Gbps */
-	.clock = 625000,
+	.clock = 2000000, /* 20 Gbps */
 	.tx = {	0xbe20, /* tx cfg0 */
 		0x4800, /* tx cfg1 */
 		0x0000, /* tx cfg2 */
@@ -1515,7 +1514,6 @@ static const struct intel_c10pll_state * const mtl_c10_hdmi_tables[] = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_25_175 = {
-	.link_bit_rate = 25175,
 	.clock = 25175,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
@@ -1541,7 +1539,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_25_175 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_27_0 = {
-	.link_bit_rate = 27000,
 	.clock = 27000,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
@@ -1567,7 +1564,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_27_0 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_74_25 = {
-	.link_bit_rate = 74250,
 	.clock = 74250,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
@@ -1593,7 +1589,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_74_25 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_148_5 = {
-	.link_bit_rate = 148500,
 	.clock = 148500,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
@@ -1619,7 +1614,6 @@ static const struct intel_c20pll_state mtl_c20_hdmi_148_5 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_594 = {
-	.link_bit_rate = 594000,
 	.clock = 594000,
 	.tx = {  0xbe88, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
@@ -1645,8 +1639,7 @@ static const struct intel_c20pll_state mtl_c20_hdmi_594 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_300 = {
-	.link_bit_rate = 3000000,
-	.clock = 166670,
+	.clock = 3000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1671,8 +1664,7 @@ static const struct intel_c20pll_state mtl_c20_hdmi_300 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_600 = {
-	.link_bit_rate = 6000000,
-	.clock = 333330,
+	.clock = 6000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1697,8 +1689,7 @@ static const struct intel_c20pll_state mtl_c20_hdmi_600 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_800 = {
-	.link_bit_rate = 8000000,
-	.clock = 444440,
+	.clock = 8000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1723,8 +1714,7 @@ static const struct intel_c20pll_state mtl_c20_hdmi_800 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_1000 = {
-	.link_bit_rate = 10000000,
-	.clock = 555560,
+	.clock = 10000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1749,8 +1739,7 @@ static const struct intel_c20pll_state mtl_c20_hdmi_1000 = {
 };
 
 static const struct intel_c20pll_state mtl_c20_hdmi_1200 = {
-	.link_bit_rate = 12000000,
-	.clock = 666670,
+	.clock = 12000000,
 	.tx = {  0xbe98, /* tx cfg0 */
 		  0x9800, /* tx cfg1 */
 		  0x0000, /* tx cfg2 */
@@ -1999,7 +1988,6 @@ static int intel_c20_compute_hdmi_tmds_pll(u64 pixel_clock, struct intel_c20pll_
 	else
 		mpllb_ana_freq_vco = MPLLB_ANA_FREQ_VCO_0;
 
-	pll_state->link_bit_rate	= pixel_clock;
 	pll_state->clock	= pixel_clock;
 	pll_state->tx[0]	= 0xbe88;
 	pll_state->tx[1]	= 0x9800;
@@ -2036,7 +2024,7 @@ static int intel_c20_phy_check_hdmi_link_rate(int clock)
 	int i;
 
 	for (i = 0; tables[i]; i++) {
-		if (clock == tables[i]->link_bit_rate)
+		if (clock == tables[i]->clock)
 			return MODE_OK;
 	}
 
@@ -2088,7 +2076,7 @@ static int intel_c20pll_calc_state(struct intel_crtc_state *crtc_state,
 		return -EINVAL;
 
 	for (i = 0; tables[i]; i++) {
-		if (crtc_state->port_clock == tables[i]->link_bit_rate) {
+		if (crtc_state->port_clock == tables[i]->clock) {
 			crtc_state->cx0pll_state.c20 = *tables[i];
 			return 0;
 		}
@@ -2111,7 +2099,7 @@ int intel_cx0pll_calc_state(struct intel_crtc_state *crtc_state,
 static bool intel_c20_use_mplla(u32 clock)
 {
 	/* 10G and 20G rates use MPLLA */
-	if (clock == 312500 || clock == 625000)
+	if (clock == 1000000 || clock == 2000000)
 		return true;
 
 	return false;
@@ -2214,11 +2202,11 @@ static u8 intel_c20_get_dp_rate(u32 clock)
 		return 6;
 	case 432000: /* 4.32 Gbps eDP */
 		return 7;
-	case 312500: /* 10 Gbps DP2.0 */
+	case 1000000: /* 10 Gbps DP2.0 */
 		return 8;
-	case 421875: /* 13.5 Gbps DP2.0 */
+	case 1350000: /* 13.5 Gbps DP2.0 */
 		return 9;
-	case 625000: /* 20 Gbps DP2.0*/
+	case 2000000: /* 20 Gbps DP2.0 */
 		return 10;
 	case 648000: /* 6.48 Gbps eDP*/
 		return 11;
@@ -2236,13 +2224,13 @@ static u8 intel_c20_get_hdmi_rate(u32 clock)
 		return 0;
 
 	switch (clock) {
-	case 166670: /* 3 Gbps */
-	case 333330: /* 6 Gbps */
-	case 666670: /* 12 Gbps */
+	case 300000: /* 3 Gbps */
+	case 600000: /* 6 Gbps */
+	case 1200000: /* 12 Gbps */
 		return 1;
-	case 444440: /* 8 Gbps */
+	case 800000: /* 8 Gbps */
 		return 2;
-	case 555560: /* 10 Gbps */
+	case 1000000: /* 10 Gbps */
 		return 3;
 	default:
 		MISSING_CASE(clock);
@@ -2253,7 +2241,7 @@ static u8 intel_c20_get_hdmi_rate(u32 clock)
 static bool is_dp2(u32 clock)
 {
 	/* DP2.0 clock rates */
-	if (clock == 312500 || clock == 421875 || clock  == 625000)
+	if (clock == 1000000 || clock == 1350000 || clock  == 2000000)
 		return true;
 
 	return false;
@@ -2262,11 +2250,11 @@ static bool is_dp2(u32 clock)
 static bool is_hdmi_frl(u32 clock)
 {
 	switch (clock) {
-	case 166670: /* 3 Gbps */
-	case 333330: /* 6 Gbps */
-	case 444440: /* 8 Gbps */
-	case 555560: /* 10 Gbps */
-	case 666670: /* 12 Gbps */
+	case 300000: /* 3 Gbps */
+	case 600000: /* 6 Gbps */
+	case 800000: /* 8 Gbps */
+	case 1000000: /* 10 Gbps */
+	case 1200000: /* 12 Gbps */
 		return true;
 	default:
 		return false;
@@ -2299,6 +2287,7 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 	const struct intel_c20pll_state *pll_state = &crtc_state->cx0pll_state.c20;
 	bool dp = false;
 	int lane = crtc_state->lane_count > 2 ? INTEL_CX0_BOTH_LANES : INTEL_CX0_LANE0;
+	u32 clock = crtc_state->port_clock;
 	bool cntx;
 	int i;
 
@@ -2337,7 +2326,7 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 	}
 
 	/* 3.3 mpllb or mplla configuration */
-	if (intel_c20_use_mplla(pll_state->clock)) {
+	if (intel_c20_use_mplla(clock)) {
 		for (i = 0; i < ARRAY_SIZE(pll_state->mplla); i++) {
 			if (cntx)
 				intel_c20_sram_write(i915, encoder->port, INTEL_CX0_LANE0,
@@ -2364,23 +2353,23 @@ static void intel_c20_pll_program(struct drm_i915_private *i915,
 	/* 4. Program custom width to match the link protocol */
 	intel_cx0_rmw(i915, encoder->port, lane, PHY_C20_VDR_CUSTOM_WIDTH,
 		      PHY_C20_CUSTOM_WIDTH_MASK,
-		      PHY_C20_CUSTOM_WIDTH(intel_get_c20_custom_width(pll_state->clock, dp)),
+		      PHY_C20_CUSTOM_WIDTH(intel_get_c20_custom_width(clock, dp)),
 		      MB_WRITE_COMMITTED);
 
 	/* 5. For DP or 6. For HDMI */
 	if (dp) {
 		intel_cx0_rmw(i915, encoder->port, lane, PHY_C20_VDR_CUSTOM_SERDES_RATE,
 			      BIT(6) | PHY_C20_CUSTOM_SERDES_MASK,
-			      BIT(6) | PHY_C20_CUSTOM_SERDES(intel_c20_get_dp_rate(pll_state->clock)),
+			      BIT(6) | PHY_C20_CUSTOM_SERDES(intel_c20_get_dp_rate(clock)),
 			      MB_WRITE_COMMITTED);
 	} else {
 		intel_cx0_rmw(i915, encoder->port, lane, PHY_C20_VDR_CUSTOM_SERDES_RATE,
 			      BIT(7) | PHY_C20_CUSTOM_SERDES_MASK,
-			      is_hdmi_frl(pll_state->clock) ? BIT(7) : 0,
+			      is_hdmi_frl(clock) ? BIT(7) : 0,
 			      MB_WRITE_COMMITTED);
 
 		intel_cx0_write(i915, encoder->port, INTEL_CX0_BOTH_LANES, PHY_C20_VDR_HDMI_RATE,
-				intel_c20_get_hdmi_rate(pll_state->clock),
+				intel_c20_get_hdmi_rate(clock),
 				MB_WRITE_COMMITTED);
 	}
 
@@ -2479,7 +2468,8 @@ static void intel_program_port_clock_ctl(struct intel_encoder *encoder,
 
 	val |= XELPDP_FORWARD_CLOCK_UNGATE;
 
-	if (is_hdmi_frl(crtc_state->port_clock))
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) &&
+	    is_hdmi_frl(crtc_state->port_clock))
 		val |= XELPDP_DDI_CLOCK_SELECT(XELPDP_DDI_CLOCK_SELECT_DIV18CLK);
 	else
 		val |= XELPDP_DDI_CLOCK_SELECT(XELPDP_DDI_CLOCK_SELECT_MAXPCLK);
@@ -3077,23 +3067,28 @@ static void intel_c20pll_state_verify(const struct intel_crtc_state *state,
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_c20pll_state *mpll_sw_state = &state->cx0pll_state.c20;
-	bool use_mplla;
+	bool sw_use_mpllb = mpll_sw_state->tx[0] & C20_PHY_USE_MPLLB;
+	bool hw_use_mpllb = mpll_hw_state->tx[0] & C20_PHY_USE_MPLLB;
 	int i;
 
-	use_mplla = intel_c20_use_mplla(mpll_hw_state->clock);
-	if (use_mplla) {
-		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mplla); i++) {
-			I915_STATE_WARN(i915, mpll_hw_state->mplla[i] != mpll_sw_state->mplla[i],
-					"[CRTC:%d:%s] mismatch in C20MPLLA: Register[%d] (expected 0x%04x, found 0x%04x)",
-					crtc->base.base.id, crtc->base.name, i,
-					mpll_sw_state->mplla[i], mpll_hw_state->mplla[i]);
-		}
-	} else {
+	I915_STATE_WARN(i915, sw_use_mpllb != hw_use_mpllb,
+			"[CRTC:%d:%s] mismatch in C20: Register MPLLB selection (expected %d, found %d)",
+			crtc->base.base.id, crtc->base.name,
+			sw_use_mpllb, hw_use_mpllb);
+
+	if (hw_use_mpllb) {
 		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mpllb); i++) {
 			I915_STATE_WARN(i915, mpll_hw_state->mpllb[i] != mpll_sw_state->mpllb[i],
 					"[CRTC:%d:%s] mismatch in C20MPLLB: Register[%d] (expected 0x%04x, found 0x%04x)",
 					crtc->base.base.id, crtc->base.name, i,
 					mpll_sw_state->mpllb[i], mpll_hw_state->mpllb[i]);
+		}
+	} else {
+		for (i = 0; i < ARRAY_SIZE(mpll_sw_state->mplla); i++) {
+			I915_STATE_WARN(i915, mpll_hw_state->mplla[i] != mpll_sw_state->mplla[i],
+					"[CRTC:%d:%s] mismatch in C20MPLLA: Register[%d] (expected 0x%04x, found 0x%04x)",
+					crtc->base.base.id, crtc->base.name, i,
+					mpll_sw_state->mplla[i], mpll_hw_state->mplla[i]);
 		}
 	}
 
@@ -3135,6 +3130,9 @@ void intel_cx0pll_state_verify(struct intel_atomic_state *state,
 
 	encoder = intel_get_crtc_new_encoder(state, new_crtc_state);
 	phy = intel_port_to_phy(i915, encoder->port);
+
+	if (intel_tc_port_in_tbt_alt_mode(enc_to_dig_port(encoder)))
+		return;
 
 	intel_cx0pll_readout_hw_state(encoder, &mpll_hw_state);
 

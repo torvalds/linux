@@ -27,6 +27,7 @@
 #include <net/caif/caif_dev.h>
 #include <net/caif/cfpkt.h>
 
+MODULE_DESCRIPTION("ST-Ericsson CAIF modem protocol socket support (AF_CAIF)");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NETPROTO(AF_CAIF);
 

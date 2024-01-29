@@ -72,10 +72,6 @@ struct qm_aeqc {
 	__le32 dw6;
 };
 
-static const char * const qm_s[] = {
-	"init", "start", "close", "stop",
-};
-
 int qm_set_and_get_xqc(struct hisi_qm *qm, u8 cmd, void *xqc, u32 qp_id, bool op);
 void hisi_qm_show_last_dfx_regs(struct hisi_qm *qm);
 void hisi_qm_set_algqos_init(struct hisi_qm *qm);

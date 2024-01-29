@@ -1597,7 +1597,7 @@ static void pipapo_gc(struct nft_set *set, struct nft_pipapo_match *m)
 		if (nft_set_elem_expired(&e->ext)) {
 			priv->dirty = true;
 
-			gc = nft_trans_gc_queue_sync(gc, GFP_ATOMIC);
+			gc = nft_trans_gc_queue_sync(gc, GFP_KERNEL);
 			if (!gc)
 				return;
 
@@ -2042,6 +2042,9 @@ static void nft_pipapo_walk(const struct nft_ctx *ctx, struct nft_set *set,
 			goto cont;
 
 		e = f->mt[r].e;
+
+		if (!nft_set_elem_active(&e->ext, iter->genmask))
+			goto cont;
 
 		iter->err = iter->fn(ctx, set, iter, &e->priv);
 		if (iter->err < 0)

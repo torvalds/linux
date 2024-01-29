@@ -280,7 +280,7 @@ static u8 bcma_find_pci_capability(struct bcma_drv_pci *pc, unsigned int dev,
 	/* check for Header type 0 */
 	bcma_extpci_read_config(pc, dev, func, PCI_HEADER_TYPE, &byte_val,
 				sizeof(u8));
-	if ((byte_val & 0x7F) != PCI_HEADER_TYPE_NORMAL)
+	if ((byte_val & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_NORMAL)
 		return cap_ptr;
 
 	/* check if the capability pointer field exists */

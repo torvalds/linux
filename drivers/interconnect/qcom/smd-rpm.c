@@ -63,11 +63,9 @@ int qcom_icc_rpm_set_bus_rate(const struct rpm_clk_resource *clk, int ctx, u32 r
 }
 EXPORT_SYMBOL_GPL(qcom_icc_rpm_set_bus_rate);
 
-static int qcom_icc_rpm_smd_remove(struct platform_device *pdev)
+static void qcom_icc_rpm_smd_remove(struct platform_device *pdev)
 {
 	icc_smd_rpm = NULL;
-
-	return 0;
 }
 
 static int qcom_icc_rpm_smd_probe(struct platform_device *pdev)
@@ -87,7 +85,7 @@ static struct platform_driver qcom_interconnect_rpm_smd_driver = {
 		.name		= "icc_smd_rpm",
 	},
 	.probe = qcom_icc_rpm_smd_probe,
-	.remove = qcom_icc_rpm_smd_remove,
+	.remove_new = qcom_icc_rpm_smd_remove,
 };
 module_platform_driver(qcom_interconnect_rpm_smd_driver);
 MODULE_AUTHOR("Georgi Djakov <georgi.djakov@linaro.org>");

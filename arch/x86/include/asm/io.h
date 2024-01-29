@@ -242,7 +242,7 @@ static inline void slow_down_io(void)
 
 #endif
 
-#define BUILDIO(bwl, bw, type)						\
+#define BUILDIO(bwl, type)						\
 static inline void out##bwl##_p(type value, u16 port)			\
 {									\
 	out##bwl(value, port);						\
@@ -288,9 +288,9 @@ static inline void ins##bwl(u16 port, void *addr, unsigned long count)	\
 	}								\
 }
 
-BUILDIO(b, b, u8)
-BUILDIO(w, w, u16)
-BUILDIO(l,  , u32)
+BUILDIO(b, u8)
+BUILDIO(w, u16)
+BUILDIO(l, u32)
 #undef BUILDIO
 
 #define inb_p inb_p

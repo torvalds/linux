@@ -1261,7 +1261,7 @@ static void weight_updated(struct ioc_gq *iocg, struct ioc_now *now)
 static bool iocg_activate(struct ioc_gq *iocg, struct ioc_now *now)
 {
 	struct ioc *ioc = iocg->ioc;
-	u64 last_period, cur_period;
+	u64 __maybe_unused last_period, cur_period;
 	u64 vtime, vtarget;
 	int i;
 

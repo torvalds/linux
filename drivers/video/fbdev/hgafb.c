@@ -364,6 +364,8 @@ error:
  *	hgafb_open - open the framebuffer device
  *	@info: pointer to fb_info object containing info for current hga board
  *	@init: open by console system or userland.
+ *
+ *	Returns: %0
  */
 
 static int hgafb_open(struct fb_info *info, int init)
@@ -378,6 +380,8 @@ static int hgafb_open(struct fb_info *info, int init)
  *	hgafb_release - open the framebuffer device
  *	@info: pointer to fb_info object containing info for current hga board
  *	@init: open by console system or userland.
+ *
+ *	Returns: %0
  */
 
 static int hgafb_release(struct fb_info *info, int init)
@@ -399,6 +403,8 @@ static int hgafb_release(struct fb_info *info, int init)
  *	This callback function is used to set the color registers of a HGA
  *	board. Since we have only two fixed colors only @regno is checked.
  *	A zero is returned on success and 1 for failure.
+ *
+ *	Returns: %0
  */
 
 static int hgafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
@@ -410,14 +416,15 @@ static int hgafb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 }
 
 /**
- *	hga_pan_display - pan or wrap the display
+ *	hgafb_pan_display - pan or wrap the display
  *	@var:contains new xoffset, yoffset and vmode values
  *	@info:pointer to fb_info object containing info for current hga board
  *
  *	This function looks only at xoffset, yoffset and the %FB_VMODE_YWRAP
  *	flag in @var. If input parameters are correct it calls hga_pan() to
  *	program the hardware. @info->var is updated to the new values.
- *	A zero is returned on success and %-EINVAL for failure.
+ *
+ *	Returns: %0 on success or %-EINVAL for failure.
  */
 
 static int hgafb_pan_display(struct fb_var_screeninfo *var,
@@ -449,6 +456,8 @@ static int hgafb_pan_display(struct fb_var_screeninfo *var,
  *		@blank_mode == 2 means suspend vsync,
  *		@blank_mode == 3 means suspend hsync,
  *		@blank_mode == 4 means powerdown.
+ *
+ * Returns: %0
  */
 
 static int hgafb_blank(int blank_mode, struct fb_info *info)

@@ -10,6 +10,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 
 #include <linux/pinctrl/pinctrl.h>
 
@@ -668,8 +669,6 @@ static const struct intel_pinctrl_soc_data icln_soc_data = {
 	.ncommunities = ARRAY_SIZE(icln_communities),
 };
 
-static INTEL_PINCTRL_PM_OPS(icl_pinctrl_pm_ops);
-
 static const struct acpi_device_id icl_pinctrl_acpi_match[] = {
 	{ "INT3455", (kernel_ulong_t)&icllp_soc_data },
 	{ "INT34C3", (kernel_ulong_t)&icln_soc_data },
@@ -682,7 +681,7 @@ static struct platform_driver icl_pinctrl_driver = {
 	.driver = {
 		.name = "icelake-pinctrl",
 		.acpi_match_table = icl_pinctrl_acpi_match,
-		.pm = &icl_pinctrl_pm_ops,
+		.pm = pm_sleep_ptr(&intel_pinctrl_pm_ops),
 	},
 };
 module_platform_driver(icl_pinctrl_driver);

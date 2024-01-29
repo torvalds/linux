@@ -67,7 +67,7 @@ static int iucv_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-struct bus_type iucv_bus = {
+const struct bus_type iucv_bus = {
 	.name = "iucv",
 	.match = iucv_bus_match,
 };

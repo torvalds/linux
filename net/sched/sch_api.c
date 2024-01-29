@@ -1003,6 +1003,32 @@ static bool tc_qdisc_dump_ignore(struct Qdisc *q, bool dump_invisible)
 	return false;
 }
 
+static int qdisc_get_notify(struct net *net, struct sk_buff *oskb,
+			    struct nlmsghdr *n, u32 clid, struct Qdisc *q,
+			    struct netlink_ext_ack *extack)
+{
+	struct sk_buff *skb;
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (!tc_qdisc_dump_ignore(q, false)) {
+		if (tc_fill_qdisc(skb, q, clid, portid, n->nlmsg_seq, 0,
+				  RTM_NEWQDISC, extack) < 0)
+			goto err_out;
+	}
+
+	if (skb->len)
+		return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+				      n->nlmsg_flags & NLM_F_ECHO);
+
+err_out:
+	kfree_skb(skb);
+	return -EINVAL;
+}
+
 static int qdisc_notify(struct net *net, struct sk_buff *oskb,
 			struct nlmsghdr *n, u32 clid,
 			struct Qdisc *old, struct Qdisc *new,
@@ -1010,6 +1036,9 @@ static int qdisc_notify(struct net *net, struct sk_buff *oskb,
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+
+	if (!rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC))
+		return 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -1542,7 +1571,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 		if (err != 0)
 			return err;
 	} else {
-		qdisc_notify(net, skb, n, clid, NULL, q, NULL);
+		qdisc_get_notify(net, skb, n, clid, q, NULL);
 	}
 	return 0;
 }
@@ -1936,11 +1965,35 @@ static int tclass_notify(struct net *net, struct sk_buff *oskb,
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
 
+	if (!rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC))
+		return 0;
+
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
 		return -ENOBUFS;
 
 	if (tc_fill_tclass(skb, q, cl, portid, n->nlmsg_seq, 0, event, extack) < 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			      n->nlmsg_flags & NLM_F_ECHO);
+}
+
+static int tclass_get_notify(struct net *net, struct sk_buff *oskb,
+			     struct nlmsghdr *n, struct Qdisc *q,
+			     unsigned long cl, struct netlink_ext_ack *extack)
+{
+	struct sk_buff *skb;
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tc_fill_tclass(skb, q, cl, portid, n->nlmsg_seq, 0, RTM_NEWTCLASS,
+			   extack) < 0) {
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -1962,14 +2015,18 @@ static int tclass_del_notify(struct net *net,
 	if (!cops->delete)
 		return -EOPNOTSUPP;
 
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (!skb)
-		return -ENOBUFS;
+	if (rtnl_notify_needed(net, n->nlmsg_flags, RTNLGRP_TC)) {
+		skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+		if (!skb)
+			return -ENOBUFS;
 
-	if (tc_fill_tclass(skb, q, cl, portid, n->nlmsg_seq, 0,
-			   RTM_DELTCLASS, extack) < 0) {
-		kfree_skb(skb);
-		return -EINVAL;
+		if (tc_fill_tclass(skb, q, cl, portid, n->nlmsg_seq, 0,
+				   RTM_DELTCLASS, extack) < 0) {
+			kfree_skb(skb);
+			return -EINVAL;
+		}
+	} else {
+		skb = NULL;
 	}
 
 	err = cops->delete(q, cl, extack);
@@ -1978,8 +2035,8 @@ static int tclass_del_notify(struct net *net,
 		return err;
 	}
 
-	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			     n->nlmsg_flags & NLM_F_ECHO);
+	err = rtnetlink_maybe_send(skb, net, portid, RTNLGRP_TC,
+				   n->nlmsg_flags & NLM_F_ECHO);
 	return err;
 }
 
@@ -2174,7 +2231,7 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 			tc_bind_tclass(q, portid, clid, 0);
 			goto out;
 		case RTM_GETTCLASS:
-			err = tclass_notify(net, skb, n, q, cl, RTM_NEWTCLASS, extack);
+			err = tclass_get_notify(net, skb, n, q, cl, extack);
 			goto out;
 		default:
 			err = -EINVAL;

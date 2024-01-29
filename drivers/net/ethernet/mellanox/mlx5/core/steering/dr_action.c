@@ -1170,7 +1170,6 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   bool ignore_flow_level,
 				   u32 flow_source)
 {
-	struct mlx5dr_cmd_flow_destination_hw_info tmp_hw_dest;
 	struct mlx5dr_cmd_flow_destination_hw_info *hw_dests;
 	struct mlx5dr_action **ref_actions;
 	struct mlx5dr_action *action;
@@ -1249,11 +1248,8 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 	 * one that done in the TX.
 	 * So, if one of the ft target is wire, put it at the end of the dest list.
 	 */
-	if (is_ft_wire && num_dst_ft > 1) {
-		tmp_hw_dest = hw_dests[last_dest];
-		hw_dests[last_dest] = hw_dests[num_of_dests - 1];
-		hw_dests[num_of_dests - 1] = tmp_hw_dest;
-	}
+	if (is_ft_wire && num_dst_ft > 1)
+		swap(hw_dests[last_dest], hw_dests[num_of_dests - 1]);
 
 	action = dr_action_create_generic(DR_ACTION_TYP_FT);
 	if (!action)

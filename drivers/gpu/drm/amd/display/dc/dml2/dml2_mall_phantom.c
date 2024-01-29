@@ -51,7 +51,7 @@ unsigned int dml2_helper_calculate_num_ways_for_subvp(struct dml2_context *ctx, 
 
 		// Find the phantom pipes
 		if (pipe->stream && pipe->plane_state && !pipe->top_pipe && !pipe->prev_odm_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
 			bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
 			mblk_width = ctx->config.mall_cfg.mblk_width_pixels;
 			mblk_height = bytes_per_pixel == 4 ? mblk_width = ctx->config.mall_cfg.mblk_height_4bpe_pixels : ctx->config.mall_cfg.mblk_height_8bpe_pixels;
@@ -253,7 +253,7 @@ static bool assign_subvp_pipe(struct dml2_context *ctx, struct dc_state *context
 		 *   to combine this with SubVP can cause issues with the scheduling).
 		 */
 		if (pipe->plane_state && !pipe->top_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_NONE && refresh_rate < 120 &&
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe) == SUBVP_NONE && refresh_rate < 120 &&
 				vba->ActiveDRAMClockChangeLatencyMarginPerState[vba->VoltageLevel][vba->maxMpcComb][vba->pipe_plane[pipe_idx]] <= 0) {
 			while (pipe) {
 				num_pipes++;
@@ -317,7 +317,7 @@ static bool enough_pipes_for_subvp(struct dml2_context *ctx, struct dc_state *st
 
 		// Find the minimum pipe split count for non SubVP pipes
 		if (pipe->stream && !pipe->top_pipe &&
-		    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(state, pipe) == SUBVP_NONE) {
 			split_cnt = 0;
 			while (pipe) {
 				split_cnt++;
@@ -372,8 +372,8 @@ static bool subvp_subvp_schedulable(struct dml2_context *ctx, struct dc_state *c
 		 * and also to store the two main SubVP pipe pointers in subvp_pipes[2].
 		 */
 		if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
-		    pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
-			phantom = pipe->stream->mall_stream_config.paired_stream;
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe) == SUBVP_MAIN) {
+			phantom = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(context, pipe->stream);
 			microschedule_lines = (phantom->timing.v_total - phantom->timing.v_front_porch) +
 					phantom->timing.v_addressable;
 
@@ -435,6 +435,7 @@ bool dml2_svp_drr_schedulable(struct dml2_context *ctx, struct dc_state *context
 	struct pipe_ctx *pipe = NULL;
 	struct dc_crtc_timing *main_timing = NULL;
 	struct dc_crtc_timing *phantom_timing = NULL;
+	struct dc_stream_state *phantom_stream;
 	int16_t prefetch_us = 0;
 	int16_t mall_region_us = 0;
 	int16_t drr_frame_us = 0;	// nominal frame time
@@ -453,12 +454,13 @@ bool dml2_svp_drr_schedulable(struct dml2_context *ctx, struct dc_state *context
 			continue;
 
 		// Find the SubVP pipe
-		if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe) == SUBVP_MAIN)
 			break;
 	}
 
+	phantom_stream = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(context, pipe->stream);
 	main_timing = &pipe->stream->timing;
-	phantom_timing = &pipe->stream->mall_stream_config.paired_stream->timing;
+	phantom_timing = &phantom_stream->timing;
 	prefetch_us = (phantom_timing->v_total - phantom_timing->v_front_porch) * phantom_timing->h_total /
 			(double)(phantom_timing->pix_clk_100hz * 100) * 1000000 +
 			ctx->config.svp_pstate.subvp_prefetch_end_to_mall_start_us;
@@ -519,6 +521,8 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 	struct dc_crtc_timing *main_timing = NULL;
 	struct dc_crtc_timing *phantom_timing = NULL;
 	struct dc_crtc_timing *vblank_timing = NULL;
+	struct dc_stream_state *phantom_stream;
+	enum mall_stream_type pipe_mall_type;
 
 	/* For SubVP + VBLANK/DRR cases, we assume there can only be
 	 * a single VBLANK/DRR display. If DML outputs SubVP + VBLANK
@@ -528,19 +532,20 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 	 */
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
+		pipe_mall_type = ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe);
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
 		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
 			continue;
 
-		if (!found && pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+		if (!found && pipe_mall_type == SUBVP_NONE) {
 			// Found pipe which is not SubVP or Phantom (i.e. the VBLANK pipe).
 			vblank_index = i;
 			found = true;
 		}
 
-		if (!subvp_pipe && pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (!subvp_pipe && pipe_mall_type == SUBVP_MAIN)
 			subvp_pipe = pipe;
 	}
 	// Use ignore_msa_timing_param flag to identify as DRR
@@ -548,8 +553,9 @@ static bool subvp_vblank_schedulable(struct dml2_context *ctx, struct dc_state *
 		// SUBVP + DRR case
 		schedulable = dml2_svp_drr_schedulable(ctx, context, &context->res_ctx.pipe_ctx[vblank_index].stream->timing);
 	} else if (found) {
+		phantom_stream = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(context, subvp_pipe->stream);
 		main_timing = &subvp_pipe->stream->timing;
-		phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
+		phantom_timing = &phantom_stream->timing;
 		vblank_timing = &context->res_ctx.pipe_ctx[vblank_index].stream->timing;
 		// Prefetch time is equal to VACTIVE + BP + VSYNC of the phantom pipe
 		// Also include the prefetch end to mallstart delay time
@@ -602,19 +608,20 @@ bool dml2_svp_validate_static_schedulability(struct dml2_context *ctx, struct dc
 
 	for (i = 0, pipe_idx = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		enum mall_stream_type pipe_mall_type = ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(context, pipe);
 
 		if (!pipe->stream)
 			continue;
 
 		if (pipe->plane_state && !pipe->top_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+				pipe_mall_type == SUBVP_MAIN)
 			subvp_count++;
 
 		// Count how many planes that aren't SubVP/phantom are capable of VACTIVE
 		// switching (SubVP + VACTIVE unsupported). In situations where we force
 		// SubVP for a VACTIVE plane, we don't want to increment the vactive_count.
 		if (vba->ActiveDRAMClockChangeLatencyMargin[vba->pipe_plane[pipe_idx]] > 0 &&
-		    pipe->stream->mall_stream_config.type == SUBVP_NONE) {
+		    pipe_mall_type == SUBVP_NONE) {
 			vactive_count++;
 		}
 		pipe_idx++;
@@ -708,14 +715,10 @@ static void set_phantom_stream_timing(struct dml2_context *ctx, struct dc_state 
 static struct dc_stream_state *enable_phantom_stream(struct dml2_context *ctx, struct dc_state *state, unsigned int dc_pipe_idx, unsigned int svp_height, unsigned int vstartup)
 {
 	struct pipe_ctx *ref_pipe = &state->res_ctx.pipe_ctx[dc_pipe_idx];
-	struct dc_stream_state *phantom_stream = ctx->config.svp_pstate.callbacks.create_stream_for_sink(ref_pipe->stream->sink);
-
-	phantom_stream->signal = SIGNAL_TYPE_VIRTUAL;
-	phantom_stream->dpms_off = true;
-	phantom_stream->mall_stream_config.type = SUBVP_PHANTOM;
-	phantom_stream->mall_stream_config.paired_stream = ref_pipe->stream;
-	ref_pipe->stream->mall_stream_config.type = SUBVP_MAIN;
-	ref_pipe->stream->mall_stream_config.paired_stream = phantom_stream;
+	struct dc_stream_state *phantom_stream = ctx->config.svp_pstate.callbacks.create_phantom_stream(
+			ctx->config.svp_pstate.callbacks.dc,
+			state,
+			ref_pipe->stream);
 
 	/* stream has limited viewport and small timing */
 	memcpy(&phantom_stream->timing, &ref_pipe->stream->timing, sizeof(phantom_stream->timing));
@@ -723,7 +726,10 @@ static struct dc_stream_state *enable_phantom_stream(struct dml2_context *ctx, s
 	memcpy(&phantom_stream->dst, &ref_pipe->stream->dst, sizeof(phantom_stream->dst));
 	set_phantom_stream_timing(ctx, state, ref_pipe, phantom_stream, dc_pipe_idx, svp_height, vstartup);
 
-	ctx->config.svp_pstate.callbacks.add_stream_to_ctx(ctx->config.svp_pstate.callbacks.dc, state, phantom_stream);
+	ctx->config.svp_pstate.callbacks.add_phantom_stream(ctx->config.svp_pstate.callbacks.dc,
+			state,
+			phantom_stream,
+			ref_pipe->stream);
 	return phantom_stream;
 }
 
@@ -740,7 +746,10 @@ static void enable_phantom_plane(struct dml2_context *ctx,
 		if (curr_pipe->top_pipe && curr_pipe->top_pipe->plane_state == curr_pipe->plane_state) {
 			phantom_plane = prev_phantom_plane;
 		} else {
-			phantom_plane = ctx->config.svp_pstate.callbacks.create_plane(ctx->config.svp_pstate.callbacks.dc);
+			phantom_plane = ctx->config.svp_pstate.callbacks.create_phantom_plane(
+					ctx->config.svp_pstate.callbacks.dc,
+					state,
+					curr_pipe->plane_state);
 		}
 
 		memcpy(&phantom_plane->address, &curr_pipe->plane_state->address, sizeof(phantom_plane->address));
@@ -763,9 +772,7 @@ static void enable_phantom_plane(struct dml2_context *ctx,
 		phantom_plane->clip_rect.y = 0;
 		phantom_plane->clip_rect.height = phantom_stream->timing.v_addressable;
 
-		phantom_plane->is_phantom = true;
-
-		ctx->config.svp_pstate.callbacks.add_plane_to_context(ctx->config.svp_pstate.callbacks.dc, phantom_stream, phantom_plane, state);
+		ctx->config.svp_pstate.callbacks.add_phantom_plane(ctx->config.svp_pstate.callbacks.dc, phantom_stream, phantom_plane, state);
 
 		curr_pipe = curr_pipe->bottom_pipe;
 		prev_phantom_plane = phantom_plane;
@@ -790,7 +797,7 @@ static void add_phantom_pipes_for_main_pipe(struct dml2_context *ctx, struct dc_
 		// We determine which phantom pipes were added by comparing with
 		// the phantom stream.
 		if (pipe->plane_state && pipe->stream && pipe->stream == phantom_stream &&
-				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+				ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(state, pipe) == SUBVP_PHANTOM) {
 			pipe->stream->use_dynamic_meta = false;
 			pipe->plane_state->flip_immediate = false;
 			if (!ctx->config.svp_pstate.callbacks.build_scaling_params(pipe)) {
@@ -800,7 +807,7 @@ static void add_phantom_pipes_for_main_pipe(struct dml2_context *ctx, struct dc_
 	}
 }
 
-static bool remove_all_planes_for_stream(struct dml2_context *ctx, struct dc_stream_state *stream, struct dc_state *context)
+static bool remove_all_phantom_planes_for_stream(struct dml2_context *ctx, struct dc_stream_state *stream, struct dc_state *context)
 {
 	int i, old_plane_count;
 	struct dc_stream_status *stream_status = NULL;
@@ -821,9 +828,11 @@ static bool remove_all_planes_for_stream(struct dml2_context *ctx, struct dc_str
 	for (i = 0; i < old_plane_count; i++)
 		del_planes[i] = stream_status->plane_states[i];
 
-	for (i = 0; i < old_plane_count; i++)
-		if (!ctx->config.svp_pstate.callbacks.remove_plane_from_context(ctx->config.svp_pstate.callbacks.dc, stream, del_planes[i], context))
+	for (i = 0; i < old_plane_count; i++) {
+		if (!ctx->config.svp_pstate.callbacks.remove_phantom_plane(ctx->config.svp_pstate.callbacks.dc, stream, del_planes[i], context))
 			return false;
+		ctx->config.svp_pstate.callbacks.release_phantom_plane(ctx->config.svp_pstate.callbacks.dc, context, del_planes[i]);
+	}
 
 	return true;
 }
@@ -832,33 +841,19 @@ bool dml2_svp_remove_all_phantom_pipes(struct dml2_context *ctx, struct dc_state
 {
 	int i;
 	bool removed_pipe = false;
-	struct dc_plane_state *phantom_plane = NULL;
 	struct dc_stream_state *phantom_stream = NULL;
 
 	for (i = 0; i < ctx->config.dcn_pipe_count; i++) {
 		struct pipe_ctx *pipe = &state->res_ctx.pipe_ctx[i];
 		// build scaling params for phantom pipes
-		if (pipe->plane_state && pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-			phantom_plane = pipe->plane_state;
+		if (pipe->plane_state && pipe->stream && ctx->config.svp_pstate.callbacks.get_pipe_subvp_type(state, pipe) == SUBVP_PHANTOM) {
 			phantom_stream = pipe->stream;
 
-			remove_all_planes_for_stream(ctx, pipe->stream, state);
-			ctx->config.svp_pstate.callbacks.remove_stream_from_ctx(ctx->config.svp_pstate.callbacks.dc, state, pipe->stream);
-
-			/* Ref count is incremented on allocation and also when added to the context.
-			 * Therefore we must call release for the the phantom plane and stream once
-			 * they are removed from the ctx to finally decrement the refcount to 0 to free.
-			 */
-			ctx->config.svp_pstate.callbacks.plane_state_release(phantom_plane);
-			ctx->config.svp_pstate.callbacks.stream_release(phantom_stream);
+			remove_all_phantom_planes_for_stream(ctx, phantom_stream, state);
+			ctx->config.svp_pstate.callbacks.remove_phantom_stream(ctx->config.svp_pstate.callbacks.dc, state, phantom_stream);
+			ctx->config.svp_pstate.callbacks.release_phantom_stream(ctx->config.svp_pstate.callbacks.dc, state, phantom_stream);
 
 			removed_pipe = true;
-		}
-
-		// Clear all phantom stream info
-		if (pipe->stream) {
-			pipe->stream->mall_stream_config.type = SUBVP_NONE;
-			pipe->stream->mall_stream_config.paired_stream = NULL;
 		}
 
 		if (pipe->plane_state) {

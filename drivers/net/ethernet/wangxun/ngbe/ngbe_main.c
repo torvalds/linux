@@ -80,28 +80,6 @@ static void ngbe_init_type_code(struct wx *wx)
 }
 
 /**
- * ngbe_init_rss_key - Initialize wx RSS key
- * @wx: device handle
- *
- * Allocates and initializes the RSS key if it is not allocated.
- **/
-static inline int ngbe_init_rss_key(struct wx *wx)
-{
-	u32 *rss_key;
-
-	if (!wx->rss_key) {
-		rss_key = kzalloc(WX_RSS_KEY_SIZE, GFP_KERNEL);
-		if (unlikely(!rss_key))
-			return -ENOMEM;
-
-		netdev_rss_key_fill(rss_key, WX_RSS_KEY_SIZE);
-		wx->rss_key = rss_key;
-	}
-
-	return 0;
-}
-
-/**
  * ngbe_sw_init - Initialize general software structures
  * @wx: board private structure to initialize
  **/
@@ -134,8 +112,9 @@ static int ngbe_sw_init(struct wx *wx)
 		dev_err(&pdev->dev, "Do not support MSI-X\n");
 	wx->mac.max_msix_vectors = msix_count;
 
-	if (ngbe_init_rss_key(wx))
-		return -ENOMEM;
+	wx->ring_feature[RING_F_RSS].limit = min_t(int, NGBE_MAX_RSS_INDICES,
+						   num_online_cpus());
+	wx->rss_enabled = true;
 
 	/* enable itr by default in dynamic mode */
 	wx->rx_itr_setting = 1;
@@ -175,7 +154,7 @@ static void ngbe_irq_enable(struct wx *wx, bool queues)
 	if (queues)
 		wx_intr_enable(wx, NGBE_INTR_ALL);
 	else
-		wx_intr_enable(wx, NGBE_INTR_MISC(wx));
+		wx_intr_enable(wx, NGBE_INTR_MISC);
 }
 
 /**
@@ -241,7 +220,7 @@ static int ngbe_request_msix_irqs(struct wx *wx)
 
 	for (vector = 0; vector < wx->num_q_vectors; vector++) {
 		struct wx_q_vector *q_vector = wx->q_vector[vector];
-		struct msix_entry *entry = &wx->msix_entries[vector];
+		struct msix_entry *entry = &wx->msix_q_entries[vector];
 
 		if (q_vector->tx.ring && q_vector->rx.ring)
 			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
@@ -259,7 +238,7 @@ static int ngbe_request_msix_irqs(struct wx *wx)
 		}
 	}
 
-	err = request_irq(wx->msix_entries[vector].vector,
+	err = request_irq(wx->msix_entry->vector,
 			  ngbe_msix_other, 0, netdev->name, wx);
 
 	if (err) {
@@ -272,7 +251,7 @@ static int ngbe_request_msix_irqs(struct wx *wx)
 free_queue_irqs:
 	while (vector) {
 		vector--;
-		free_irq(wx->msix_entries[vector].vector,
+		free_irq(wx->msix_q_entries[vector].vector,
 			 wx->q_vector[vector]);
 	}
 	wx_reset_interrupt_capability(wx);
@@ -334,15 +313,15 @@ static void ngbe_disable_device(struct wx *wx)
 	wx_update_stats(wx);
 }
 
-static void ngbe_down(struct wx *wx)
+void ngbe_down(struct wx *wx)
 {
-	phy_stop(wx->phydev);
+	phylink_stop(wx->phylink);
 	ngbe_disable_device(wx);
 	wx_clean_all_tx_rings(wx);
 	wx_clean_all_rx_rings(wx);
 }
 
-static void ngbe_up(struct wx *wx)
+void ngbe_up(struct wx *wx)
 {
 	wx_configure_vectors(wx);
 
@@ -359,7 +338,7 @@ static void ngbe_up(struct wx *wx)
 	if (wx->gpio_ctrl)
 		ngbe_sfp_modules_txrx_powerctl(wx, true);
 
-	phy_start(wx->phydev);
+	phylink_start(wx->phylink);
 }
 
 /**
@@ -388,7 +367,7 @@ static int ngbe_open(struct net_device *netdev)
 	if (err)
 		goto err_free_resources;
 
-	err = ngbe_phy_connect(wx);
+	err = phylink_connect_phy(wx->phylink, wx->phydev);
 	if (err)
 		goto err_free_irq;
 
@@ -404,7 +383,7 @@ static int ngbe_open(struct net_device *netdev)
 
 	return 0;
 err_dis_phy:
-	phy_disconnect(wx->phydev);
+	phylink_disconnect_phy(wx->phylink);
 err_free_irq:
 	wx_free_irq(wx);
 err_free_resources:
@@ -430,7 +409,7 @@ static int ngbe_close(struct net_device *netdev)
 	ngbe_down(wx);
 	wx_free_irq(wx);
 	wx_free_resources(wx);
-	phy_disconnect(wx->phydev);
+	phylink_disconnect_phy(wx->phylink);
 	wx_control_hw(wx, false);
 
 	return 0;
@@ -478,6 +457,39 @@ static void ngbe_shutdown(struct pci_dev *pdev)
 		pci_wake_from_d3(pdev, wake);
 		pci_set_power_state(pdev, PCI_D3hot);
 	}
+}
+
+/**
+ * ngbe_setup_tc - routine to configure net_device for multiple traffic
+ * classes.
+ *
+ * @dev: net device to configure
+ * @tc: number of traffic classes to enable
+ */
+int ngbe_setup_tc(struct net_device *dev, u8 tc)
+{
+	struct wx *wx = netdev_priv(dev);
+
+	/* Hardware has to reinitialize queues and interrupts to
+	 * match packet buffer alignment. Unfortunately, the
+	 * hardware is not flexible enough to do this dynamically.
+	 */
+	if (netif_running(dev))
+		ngbe_close(dev);
+
+	wx_clear_interrupt_scheme(wx);
+
+	if (tc)
+		netdev_set_num_tc(dev, tc);
+	else
+		netdev_reset_tc(dev);
+
+	wx_init_interrupt_scheme(wx);
+
+	if (netif_running(dev))
+		ngbe_open(dev);
+
+	return 0;
 }
 
 static const struct net_device_ops ngbe_netdev_ops = {
@@ -582,6 +594,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
 	netdev->priv_flags |= IFF_SUPP_NOFCS;
+	netdev->priv_flags |= IFF_LIVE_ADDR_CHANGE;
 
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = WX_MAX_JUMBO_FRAME_SIZE -
@@ -680,6 +693,7 @@ static int ngbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_register:
+	phylink_destroy(wx->phylink);
 	wx_control_hw(wx, false);
 err_clear_interrupt_scheme:
 	wx_clear_interrupt_scheme(wx);
@@ -709,9 +723,11 @@ static void ngbe_remove(struct pci_dev *pdev)
 
 	netdev = wx->netdev;
 	unregister_netdev(netdev);
+	phylink_destroy(wx->phylink);
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 
+	kfree(wx->rss_key);
 	kfree(wx->mac_table);
 	wx_clear_interrupt_scheme(wx);
 

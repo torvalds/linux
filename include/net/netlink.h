@@ -1011,6 +1011,20 @@ static inline struct sk_buff *nlmsg_new(size_t payload, gfp_t flags)
 }
 
 /**
+ * nlmsg_new_large - Allocate a new netlink message with non-contiguous
+ * physical memory
+ * @payload: size of the message payload
+ *
+ * The allocated skb is unable to have frag page for shinfo->frags*,
+ * as the NULL setting for skb->head in netlink_skb_destructor() will
+ * bypass most of the handling in skb_release_data()
+ */
+static inline struct sk_buff *nlmsg_new_large(size_t payload)
+{
+	return netlink_alloc_large_skb(nlmsg_total_size(payload), 0);
+}
+
+/**
  * nlmsg_end - Finalize a netlink message
  * @skb: socket buffer the message is stored in
  * @nlh: netlink message header
@@ -1073,6 +1087,36 @@ static inline void nlmsg_free(struct sk_buff *skb)
 }
 
 /**
+ * nlmsg_multicast_filtered - multicast a netlink message with filter function
+ * @sk: netlink socket to spread messages to
+ * @skb: netlink message as socket buffer
+ * @portid: own netlink portid to avoid sending to yourself
+ * @group: multicast group id
+ * @flags: allocation flags
+ * @filter: filter function
+ * @filter_data: filter function private data
+ *
+ * Return: 0 on success, negative error code for failure.
+ */
+static inline int nlmsg_multicast_filtered(struct sock *sk, struct sk_buff *skb,
+					   u32 portid, unsigned int group,
+					   gfp_t flags,
+					   netlink_filter_fn filter,
+					   void *filter_data)
+{
+	int err;
+
+	NETLINK_CB(skb).dst_group = group;
+
+	err = netlink_broadcast_filtered(sk, skb, portid, group, flags,
+					 filter, filter_data);
+	if (err > 0)
+		err = 0;
+
+	return err;
+}
+
+/**
  * nlmsg_multicast - multicast a netlink message
  * @sk: netlink socket to spread messages to
  * @skb: netlink message as socket buffer
@@ -1083,15 +1127,8 @@ static inline void nlmsg_free(struct sk_buff *skb)
 static inline int nlmsg_multicast(struct sock *sk, struct sk_buff *skb,
 				  u32 portid, unsigned int group, gfp_t flags)
 {
-	int err;
-
-	NETLINK_CB(skb).dst_group = group;
-
-	err = netlink_broadcast(sk, skb, portid, group, flags);
-	if (err > 0)
-		err = 0;
-
-	return err;
+	return nlmsg_multicast_filtered(sk, skb, portid, group, flags,
+					NULL, NULL);
 }
 
 /**
@@ -1200,7 +1237,7 @@ static inline void *nla_data(const struct nlattr *nla)
  * nla_len - length of payload
  * @nla: netlink attribute
  */
-static inline int nla_len(const struct nlattr *nla)
+static inline u16 nla_len(const struct nlattr *nla)
 {
 	return nla->nla_len - NLA_HDRLEN;
 }

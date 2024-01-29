@@ -39,6 +39,7 @@ enum sof_comp_type {
 	SOF_COMP_ASRC,		/**< Asynchronous sample rate converter */
 	SOF_COMP_DCBLOCK,
 	SOF_COMP_SMART_AMP,             /**< smart amplifier component */
+	SOF_COMP_MODULE_ADAPTER,		/**< module adapter */
 	/* keep FILEREAD/FILEWRITE as the last ones */
 	SOF_COMP_FILEREAD = 10000,	/**< host test based file IO */
 	SOF_COMP_FILEWRITE = 10001,	/**< host test based file IO */
@@ -59,7 +60,7 @@ struct sof_ipc_comp {
 
 	/* extended data length, 0 if no extended data */
 	uint32_t ext_data_length;
-} __packed;
+} __packed __aligned(4);
 
 /*
  * Component Buffers
@@ -68,14 +69,15 @@ struct sof_ipc_comp {
 /*
  * SOF memory capabilities, add new ones at the end
  */
-#define SOF_MEM_CAPS_RAM			(1 << 0)
-#define SOF_MEM_CAPS_ROM			(1 << 1)
-#define SOF_MEM_CAPS_EXT			(1 << 2) /**< external */
-#define SOF_MEM_CAPS_LP			(1 << 3) /**< low power */
-#define SOF_MEM_CAPS_HP			(1 << 4) /**< high performance */
-#define SOF_MEM_CAPS_DMA			(1 << 5) /**< DMA'able */
-#define SOF_MEM_CAPS_CACHE			(1 << 6) /**< cacheable */
-#define SOF_MEM_CAPS_EXEC			(1 << 7) /**< executable */
+#define SOF_MEM_CAPS_RAM		BIT(0)
+#define SOF_MEM_CAPS_ROM		BIT(1)
+#define SOF_MEM_CAPS_EXT		BIT(2) /**< external */
+#define SOF_MEM_CAPS_LP			BIT(3) /**< low power */
+#define SOF_MEM_CAPS_HP			BIT(4) /**< high performance */
+#define SOF_MEM_CAPS_DMA		BIT(5) /**< DMA'able */
+#define SOF_MEM_CAPS_CACHE		BIT(6) /**< cacheable */
+#define SOF_MEM_CAPS_EXEC		BIT(7) /**< executable */
+#define SOF_MEM_CAPS_L3			BIT(8) /**< L3 memory */
 
 /*
  * overrun will cause ring buffer overwrite, instead of XRUN.
@@ -87,6 +89,9 @@ struct sof_ipc_comp {
  */
 #define SOF_BUF_UNDERRUN_PERMITTED	BIT(1)
 
+/* the UUID size in bytes, shared between FW and host */
+#define SOF_UUID_SIZE	16
+
 /* create new component buffer - SOF_IPC_TPLG_BUFFER_NEW */
 struct sof_ipc_buffer {
 	struct sof_ipc_comp comp;
@@ -94,7 +99,7 @@ struct sof_ipc_buffer {
 	uint32_t caps;		/**< SOF_MEM_CAPS_ */
 	uint32_t flags;		/**< SOF_BUF_ flags defined above */
 	uint32_t reserved;	/**< reserved for future use */
-} __packed;
+} __packed __aligned(4);
 
 /* generic component config data - must always be after struct sof_ipc_comp */
 struct sof_ipc_comp_config {
@@ -107,7 +112,7 @@ struct sof_ipc_comp_config {
 
 	/* reserved for future use */
 	uint32_t reserved[2];
-} __packed;
+} __packed __aligned(4);
 
 /* generic host component */
 struct sof_ipc_comp_host {
@@ -116,7 +121,7 @@ struct sof_ipc_comp_host {
 	uint32_t direction;	/**< SOF_IPC_STREAM_ */
 	uint32_t no_irq;	/**< don't send periodic IRQ to host/DSP */
 	uint32_t dmac_config; /**< DMA engine specific */
-}  __packed;
+} __packed __aligned(4);
 
 /* generic DAI component */
 struct sof_ipc_comp_dai {
@@ -126,13 +131,13 @@ struct sof_ipc_comp_dai {
 	uint32_t dai_index;	/**< index of this type dai */
 	uint32_t type;		/**< DAI type - SOF_DAI_ */
 	uint32_t reserved;	/**< reserved */
-}  __packed;
+} __packed __aligned(4);
 
 /* generic mixer component */
 struct sof_ipc_comp_mixer {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-}  __packed;
+} __packed __aligned(4);
 
 /* volume ramping types */
 enum sof_volume_ramp {
@@ -140,6 +145,8 @@ enum sof_volume_ramp {
 	SOF_VOLUME_LOG,
 	SOF_VOLUME_LINEAR_ZC,
 	SOF_VOLUME_LOG_ZC,
+	SOF_VOLUME_WINDOWS_FADE,
+	SOF_VOLUME_WINDOWS_NO_FADE,
 };
 
 /* generic volume component */
@@ -151,7 +158,7 @@ struct sof_ipc_comp_volume {
 	uint32_t max_value;
 	uint32_t ramp;		/**< SOF_VOLUME_ */
 	uint32_t initial_ramp;	/**< ramp space in ms */
-}  __packed;
+} __packed __aligned(4);
 
 /* generic SRC component */
 struct sof_ipc_comp_src {
@@ -161,7 +168,7 @@ struct sof_ipc_comp_src {
 	uint32_t source_rate;	/**< source rate or 0 for variable */
 	uint32_t sink_rate;	/**< sink rate or 0 for variable */
 	uint32_t rate_mask;	/**< SOF_RATE_ supported rates */
-} __packed;
+} __packed __aligned(4);
 
 /* generic ASRC component */
 struct sof_ipc_comp_asrc {
@@ -187,13 +194,13 @@ struct sof_ipc_comp_asrc {
 
 	/* reserved for future use */
 	uint32_t reserved[4];
-} __attribute__((packed));
+} __packed __aligned(4);
 
 /* generic MUX component */
 struct sof_ipc_comp_mux {
 	struct sof_ipc_comp comp;
 	struct sof_ipc_comp_config config;
-} __packed;
+} __packed __aligned(4);
 
 /* generic tone generator component */
 struct sof_ipc_comp_tone {
@@ -208,7 +215,7 @@ struct sof_ipc_comp_tone {
 	int32_t period;
 	int32_t repeats;
 	int32_t ramp_step;
-} __packed;
+} __packed __aligned(4);
 
 /** \brief Types of processing components */
 enum sof_ipc_process_type {
@@ -234,8 +241,8 @@ struct sof_ipc_comp_process {
 	/* reserved for future use */
 	uint32_t reserved[7];
 
-	uint8_t data[];
-} __packed;
+	unsigned char data[];
+} __packed __aligned(4);
 
 /* frees components, buffers and pipelines
  * SOF_IPC_TPLG_COMP_FREE, SOF_IPC_TPLG_PIPE_FREE, SOF_IPC_TPLG_BUFFER_FREE
@@ -243,13 +250,13 @@ struct sof_ipc_comp_process {
 struct sof_ipc_free {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t id;
-} __packed;
+} __packed __aligned(4);
 
 struct sof_ipc_comp_reply {
 	struct sof_ipc_reply rhdr;
 	uint32_t id;
 	uint32_t offset;
-} __packed;
+} __packed __aligned(4);
 
 /*
  * Pipeline
@@ -274,25 +281,25 @@ struct sof_ipc_pipe_new {
 	uint32_t frames_per_sched;/**< output frames of pipeline, 0 is variable */
 	uint32_t xrun_limit_usecs; /**< report xruns greater than limit */
 	uint32_t time_domain;	/**< scheduling time domain */
-}  __packed;
+} __packed __aligned(4);
 
 /* pipeline construction complete - SOF_IPC_TPLG_PIPE_COMPLETE */
 struct sof_ipc_pipe_ready {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t comp_id;
-}  __packed;
+} __packed __aligned(4);
 
 struct sof_ipc_pipe_free {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t comp_id;
-}  __packed;
+} __packed __aligned(4);
 
 /* connect two components in pipeline - SOF_IPC_TPLG_COMP_CONNECT */
 struct sof_ipc_pipe_comp_connect {
 	struct sof_ipc_cmd_hdr hdr;
 	uint32_t source_id;
 	uint32_t sink_id;
-}  __packed;
+} __packed __aligned(4);
 
 /* external events */
 enum sof_event_types {

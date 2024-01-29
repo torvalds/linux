@@ -249,10 +249,10 @@ static void write_footer(void)
 	fputs("\n};\n\n", out);
 	fprintf(out, "const struct linux_logo %s __initconst = {\n", logoname);
 	fprintf(out, "\t.type\t\t= %s,\n", logo_types[logo_type]);
-	fprintf(out, "\t.width\t\t= %d,\n", logo_width);
-	fprintf(out, "\t.height\t\t= %d,\n", logo_height);
+	fprintf(out, "\t.width\t\t= %u,\n", logo_width);
+	fprintf(out, "\t.height\t\t= %u,\n", logo_height);
 	if (logo_type == LINUX_LOGO_CLUT224) {
-		fprintf(out, "\t.clutsize\t= %d,\n", logo_clutsize);
+		fprintf(out, "\t.clutsize\t= %u,\n", logo_clutsize);
 		fprintf(out, "\t.clut\t\t= %s_clut,\n", logoname);
 	}
 	fprintf(out, "\t.data\t\t= %s_data\n", logoname);

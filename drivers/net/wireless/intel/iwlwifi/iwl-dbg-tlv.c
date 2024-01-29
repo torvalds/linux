@@ -1274,7 +1274,7 @@ iwl_dbg_tlv_tp_trigger(struct iwl_fw_runtime *fwrt, bool sync,
 	return 0;
 }
 
-static void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
+void iwl_dbg_tlv_init_cfg(struct iwl_fw_runtime *fwrt)
 {
 	enum iwl_fw_ini_buffer_location *ini_dest = &fwrt->trans->dbg.ini_dest;
 	int ret, i;

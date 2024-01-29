@@ -33,19 +33,16 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	flex_ptype = I40E_TXD_FLTR_QW0_QINDEX_MASK &
-		     (fdata->q_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT);
+	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK, fdata->q_index);
 
-	flex_ptype |= I40E_TXD_FLTR_QW0_FLEXOFF_MASK &
-		      (fdata->flex_off << I40E_TXD_FLTR_QW0_FLEXOFF_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_FLEXOFF_MASK,
+				 fdata->flex_off);
 
-	flex_ptype |= I40E_TXD_FLTR_QW0_PCTYPE_MASK &
-		      (fdata->pctype << I40E_TXD_FLTR_QW0_PCTYPE_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_PCTYPE_MASK, fdata->pctype);
 
 	/* Use LAN VSI Id if not programmed by user */
-	flex_ptype |= I40E_TXD_FLTR_QW0_DEST_VSI_MASK &
-		      ((u32)(fdata->dest_vsi ? : pf->vsi[pf->lan_vsi]->id) <<
-		       I40E_TXD_FLTR_QW0_DEST_VSI_SHIFT);
+	flex_ptype |= FIELD_PREP(I40E_TXD_FLTR_QW0_DEST_VSI_MASK,
+				 fdata->dest_vsi ? : pf->vsi[pf->lan_vsi]->id);
 
 	dtype_cmd = I40E_TX_DESC_DTYPE_FILTER_PROG;
 
@@ -55,17 +52,15 @@ static void i40e_fdir(struct i40e_ring *tx_ring,
 		     I40E_FILTER_PROGRAM_DESC_PCMD_REMOVE <<
 		     I40E_TXD_FLTR_QW1_PCMD_SHIFT;
 
-	dtype_cmd |= I40E_TXD_FLTR_QW1_DEST_MASK &
-		     (fdata->dest_ctl << I40E_TXD_FLTR_QW1_DEST_SHIFT);
+	dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_DEST_MASK, fdata->dest_ctl);
 
-	dtype_cmd |= I40E_TXD_FLTR_QW1_FD_STATUS_MASK &
-		     (fdata->fd_status << I40E_TXD_FLTR_QW1_FD_STATUS_SHIFT);
+	dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_FD_STATUS_MASK,
+				fdata->fd_status);
 
 	if (fdata->cnt_index) {
 		dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
-		dtype_cmd |= I40E_TXD_FLTR_QW1_CNTINDEX_MASK &
-			     ((u32)fdata->cnt_index <<
-			      I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT);
+		dtype_cmd |= FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+					fdata->cnt_index);
 	}
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -464,7 +459,7 @@ static int i40e_add_del_fdir_tcp(struct i40e_vsi *vsi,
 			       &pf->fd_tcp6_filter_cnt);
 
 	if (add) {
-		if ((pf->flags & I40E_FLAG_FD_ATR_ENABLED) &&
+		if (test_bit(I40E_FLAG_FD_ATR_ENA, pf->flags) &&
 		    I40E_DEBUG_FD & pf->hw.debug_mask)
 			dev_info(&pf->pdev->dev, "Forcing ATR off, sideband rules for TCP/IPv4 flow being applied\n");
 		set_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state);
@@ -691,8 +686,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 	u32 error;
 
 	qw0 = (struct i40e_16b_rx_wb_qw0 *)&qword0_raw;
-	error = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK) >>
-		I40E_RX_PROG_STATUS_DESC_QW1_ERROR_SHIFT;
+	error = FIELD_GET(I40E_RX_PROG_STATUS_DESC_QW1_ERROR_MASK, qword1);
 
 	if (error == BIT(I40E_RX_PROG_STATUS_DESC_FD_TBL_FULL_SHIFT)) {
 		pf->fd_inv = le32_to_cpu(qw0->hi_dword.fd_id);
@@ -734,7 +728,7 @@ static void i40e_fd_handle_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 		 * FD ATR/SB and then re-enable it when there is room.
 		 */
 		if (fcnt_prog >= (fcnt_avail - I40E_FDIR_BUFFER_FULL_MARGIN)) {
-			if ((pf->flags & I40E_FLAG_FD_SB_ENABLED) &&
+			if (test_bit(I40E_FLAG_FD_SB_ENA, pf->flags) &&
 			    !test_and_set_bit(__I40E_FD_SB_AUTO_DISABLED,
 					      pf->state))
 				if (I40E_DEBUG_FD & pf->hw.debug_mask)
@@ -1071,7 +1065,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
 	if (q_vector->arm_wb_state)
 		return;
 
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		val = I40E_PFINT_DYN_CTLN_WB_ON_ITR_MASK |
 		      I40E_PFINT_DYN_CTLN_ITR_INDX_MASK; /* set noitr */
 
@@ -1095,7 +1089,7 @@ static void i40e_enable_wb_on_itr(struct i40e_vsi *vsi,
  **/
 void i40e_force_wb(struct i40e_vsi *vsi, struct i40e_q_vector *q_vector)
 {
-	if (vsi->back->flags & I40E_FLAG_MSIX_ENABLED) {
+	if (test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		u32 val = I40E_PFINT_DYN_CTLN_INTENA_MASK |
 			  I40E_PFINT_DYN_CTLN_ITR_INDX_MASK | /* set noitr */
 			  I40E_PFINT_DYN_CTLN_SWINT_TRIG_MASK |
@@ -1403,8 +1397,7 @@ void i40e_clean_programming_status(struct i40e_ring *rx_ring, u64 qword0_raw,
 {
 	u8 id;
 
-	id = (qword1 & I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK) >>
-		  I40E_RX_PROG_STATUS_DESC_QW1_PROGID_SHIFT;
+	id = FIELD_GET(I40E_RX_PROG_STATUS_DESC_QW1_PROGID_MASK, qword1);
 
 	if (id == I40E_RX_PROG_STATUS_DESC_FD_FILTER_STATUS)
 		i40e_fd_handle_status(rx_ring, qword0_raw, qword1, id);
@@ -1764,11 +1757,9 @@ static inline void i40e_rx_checksum(struct i40e_vsi *vsi,
 	u64 qword;
 
 	qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >> I40E_RXD_QW1_PTYPE_SHIFT;
-	rx_error = (qword & I40E_RXD_QW1_ERROR_MASK) >>
-		   I40E_RXD_QW1_ERROR_SHIFT;
-	rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-		    I40E_RXD_QW1_STATUS_SHIFT;
+	ptype = FIELD_GET(I40E_RXD_QW1_PTYPE_MASK, qword);
+	rx_error = FIELD_GET(I40E_RXD_QW1_ERROR_MASK, qword);
+	rx_status = FIELD_GET(I40E_RXD_QW1_STATUS_MASK, qword);
 	decoded = decode_rx_desc_ptype(ptype);
 
 	skb->ip_summed = CHECKSUM_NONE;
@@ -1901,13 +1892,10 @@ void i40e_process_skb_fields(struct i40e_ring *rx_ring,
 			     union i40e_rx_desc *rx_desc, struct sk_buff *skb)
 {
 	u64 qword = le64_to_cpu(rx_desc->wb.qword1.status_error_len);
-	u32 rx_status = (qword & I40E_RXD_QW1_STATUS_MASK) >>
-			I40E_RXD_QW1_STATUS_SHIFT;
+	u32 rx_status = FIELD_GET(I40E_RXD_QW1_STATUS_MASK, qword);
 	u32 tsynvalid = rx_status & I40E_RXD_QW1_STATUS_TSYNVALID_MASK;
-	u32 tsyn = (rx_status & I40E_RXD_QW1_STATUS_TSYNINDX_MASK) >>
-		   I40E_RXD_QW1_STATUS_TSYNINDX_SHIFT;
-	u8 rx_ptype = (qword & I40E_RXD_QW1_PTYPE_MASK) >>
-		      I40E_RXD_QW1_PTYPE_SHIFT;
+	u32 tsyn = FIELD_GET(I40E_RXD_QW1_STATUS_TSYNINDX_MASK, rx_status);
+	u8 rx_ptype = FIELD_GET(I40E_RXD_QW1_PTYPE_MASK, qword);
 
 	if (unlikely(tsynvalid))
 		i40e_ptp_rx_hwtstamp(rx_ring->vsi->back, skb, tsyn);
@@ -2554,8 +2542,7 @@ static int i40e_clean_rx_irq(struct i40e_ring *rx_ring, int budget,
 			continue;
 		}
 
-		size = (qword & I40E_RXD_QW1_LENGTH_PBUF_MASK) >>
-		       I40E_RXD_QW1_LENGTH_PBUF_SHIFT;
+		size = FIELD_GET(I40E_RXD_QW1_LENGTH_PBUF_MASK, qword);
 		if (!size)
 			break;
 
@@ -2699,7 +2686,7 @@ static inline void i40e_update_enable_itr(struct i40e_vsi *vsi,
 	u32 intval;
 
 	/* If we don't have MSIX, then we only need to re-enable icr0 */
-	if (!(vsi->back->flags & I40E_FLAG_MSIX_ENABLED)) {
+	if (!test_bit(I40E_FLAG_MSIX_ENA, vsi->back->flags)) {
 		i40e_irq_dynamic_enable_icr0(vsi->back);
 		return;
 	}
@@ -2888,7 +2875,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	u16 i;
 
 	/* make sure ATR is enabled */
-	if (!(pf->flags & I40E_FLAG_FD_ATR_ENABLED))
+	if (!test_bit(I40E_FLAG_FD_ATR_ENA, pf->flags))
 		return;
 
 	if (test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
@@ -2933,7 +2920,7 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	/* Due to lack of space, no more new filters can be programmed */
 	if (th->syn && test_bit(__I40E_FD_ATR_AUTO_DISABLED, pf->state))
 		return;
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED) {
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags)) {
 		/* HW ATR eviction will take care of removing filters on FIN
 		 * and RST packets.
 		 */
@@ -2959,8 +2946,8 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	i++;
 	tx_ring->next_to_use = (i < tx_ring->count) ? i : 0;
 
-	flex_ptype = (tx_ring->queue_index << I40E_TXD_FLTR_QW0_QINDEX_SHIFT) &
-		      I40E_TXD_FLTR_QW0_QINDEX_MASK;
+	flex_ptype = FIELD_PREP(I40E_TXD_FLTR_QW0_QINDEX_MASK,
+				tx_ring->queue_index);
 	flex_ptype |= (tx_flags & I40E_TX_FLAGS_IPV4) ?
 		      (I40E_FILTER_PCTYPE_NONF_IPV4_TCP <<
 		       I40E_TXD_FLTR_QW0_PCTYPE_SHIFT) :
@@ -2986,16 +2973,14 @@ static void i40e_atr(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	dtype_cmd |= I40E_TXD_FLTR_QW1_CNT_ENA_MASK;
 	if (!(tx_flags & I40E_TX_FLAGS_UDP_TUNNEL))
 		dtype_cmd |=
-			((u32)I40E_FD_ATR_STAT_IDX(pf->hw.pf_id) <<
-			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+				   I40E_FD_ATR_STAT_IDX(pf->hw.pf_id));
 	else
 		dtype_cmd |=
-			((u32)I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id) <<
-			I40E_TXD_FLTR_QW1_CNTINDEX_SHIFT) &
-			I40E_TXD_FLTR_QW1_CNTINDEX_MASK;
+			FIELD_PREP(I40E_TXD_FLTR_QW1_CNTINDEX_MASK,
+				   I40E_FD_ATR_TUNNEL_STAT_IDX(pf->hw.pf_id));
 
-	if (pf->flags & I40E_FLAG_HW_ATR_EVICT_ENABLED)
+	if (test_bit(I40E_FLAG_HW_ATR_EVICT_ENA, pf->flags))
 		dtype_cmd |= I40E_TXD_FLTR_QW1_ATR_MASK;
 
 	fdir_desc->qindex_flex_ptype_vsi = cpu_to_le32(flex_ptype);
@@ -3053,7 +3038,7 @@ static inline int i40e_tx_prepare_vlan_flags(struct sk_buff *skb,
 		tx_flags |= I40E_TX_FLAGS_SW_VLAN;
 	}
 
-	if (!(tx_ring->vsi->back->flags & I40E_FLAG_DCB_ENABLED))
+	if (!test_bit(I40E_FLAG_DCB_ENA, tx_ring->vsi->back->flags))
 		goto out;
 
 	/* Insert 802.1p priority into VLAN header */
@@ -3229,7 +3214,7 @@ static int i40e_tsyn(struct i40e_ring *tx_ring, struct sk_buff *skb,
 	 * we are not already transmitting a packet to be timestamped
 	 */
 	pf = i40e_netdev_to_pf(tx_ring->netdev);
-	if (!(pf->flags & I40E_FLAG_PTP))
+	if (!test_bit(I40E_FLAG_PTP_ENA, pf->flags))
 		return 0;
 
 	if (pf->ptp_tx &&
@@ -3601,8 +3586,7 @@ static inline int i40e_tx_map(struct i40e_ring *tx_ring, struct sk_buff *skb,
 
 	if (tx_flags & I40E_TX_FLAGS_HW_VLAN) {
 		td_cmd |= I40E_TX_DESC_CMD_IL2TAG1;
-		td_tag = (tx_flags & I40E_TX_FLAGS_VLAN_MASK) >>
-			 I40E_TX_FLAGS_VLAN_SHIFT;
+		td_tag = FIELD_GET(I40E_TX_FLAGS_VLAN_MASK, tx_flags);
 	}
 
 	first->tx_flags = tx_flags;

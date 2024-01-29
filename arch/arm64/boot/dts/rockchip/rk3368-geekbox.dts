@@ -12,6 +12,7 @@
 	compatible = "geekbuying,geekbox", "rockchip,rk3368";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &emmc;
 	};
 

@@ -813,11 +813,11 @@ static int sdma_v2_4_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int r;
 
+	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
+
 	r = sdma_v2_4_init_microcode(adev);
 	if (r)
 		return r;
-
-	adev->sdma.num_instances = SDMA_MAX_INSTANCE;
 
 	sdma_v2_4_set_ring_funcs(adev);
 	sdma_v2_4_set_buffer_funcs(adev);

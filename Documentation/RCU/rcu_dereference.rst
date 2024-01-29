@@ -3,13 +3,26 @@
 PROPER CARE AND FEEDING OF RETURN VALUES FROM rcu_dereference()
 ===============================================================
 
-Most of the time, you can use values from rcu_dereference() or one of
-the similar primitives without worries.  Dereferencing (prefix "*"),
-field selection ("->"), assignment ("="), address-of ("&"), addition and
-subtraction of constants, and casts all work quite naturally and safely.
+Proper care and feeding of address and data dependencies is critically
+important to correct use of things like RCU.  To this end, the pointers
+returned from the rcu_dereference() family of primitives carry address and
+data dependencies.  These dependencies extend from the rcu_dereference()
+macro's load of the pointer to the later use of that pointer to compute
+either the address of a later memory access (representing an address
+dependency) or the value written by a later memory access (representing
+a data dependency).
 
-It is nevertheless possible to get into trouble with other operations.
-Follow these rules to keep your RCU code working properly:
+Most of the time, these dependencies are preserved, permitting you to
+freely use values from rcu_dereference().  For example, dereferencing
+(prefix "*"), field selection ("->"), assignment ("="), address-of
+("&"), casts, and addition or subtraction of constants all work quite
+naturally and safely.  However, because current compilers do not take
+either address or data dependencies into account it is still possible
+to get into trouble.
+
+Follow these rules to preserve the address and data dependencies emanating
+from your calls to rcu_dereference() and friends, thus keeping your RCU
+readers working properly:
 
 -	You must use one of the rcu_dereference() family of primitives
 	to load an RCU-protected pointer, otherwise CONFIG_PROVE_RCU

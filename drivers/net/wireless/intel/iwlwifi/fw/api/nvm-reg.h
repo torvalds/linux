@@ -269,6 +269,9 @@ struct iwl_nvm_access_complete_cmd {
 	__le32 reserved;
 } __packed; /* NVM_ACCESS_COMPLETE_CMD_API_S_VER_1 */
 
+#define IWL_MCC_US	0x5553
+#define IWL_MCC_CANADA	0x4341
+
 /**
  * struct iwl_mcc_update_cmd - Request the device to update geographic
  * regulatory profile according to the given MCC (Mobile Country Code).

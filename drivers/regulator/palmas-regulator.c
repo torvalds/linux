@@ -1594,7 +1594,7 @@ static const struct of_device_id of_palmas_match_tbl[] = {
 static int palmas_regulators_probe(struct platform_device *pdev)
 {
 	struct palmas *palmas = dev_get_drvdata(pdev->dev.parent);
-	struct palmas_pmic_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct palmas_pmic_platform_data *pdata;
 	struct device_node *node = pdev->dev.of_node;
 	struct palmas_pmic_driver_data *driver_data;
 	struct regulator_config config = { };

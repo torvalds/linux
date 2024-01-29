@@ -147,21 +147,21 @@ static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_g125[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
-	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
+	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode switch */
 };
 
 static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_g54s[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY_H(4, KEY_RESTART),
-	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
+	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode switch */
 };
 
 static const struct gpio_keys_button
 bcm47xx_buttons_buffalo_whr_hp_g54[] __initconst = {
 	BCM47XX_GPIO_KEY(0, KEY_WPS_BUTTON),
 	BCM47XX_GPIO_KEY(4, KEY_RESTART),
-	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode swtich */
+	BCM47XX_GPIO_KEY(5, BTN_0), /* Router / AP mode switch */
 };
 
 static const struct gpio_keys_button

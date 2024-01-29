@@ -189,13 +189,13 @@ static int usb_create_newid_files(struct usb_driver *usb_drv)
 		goto exit;
 
 	if (usb_drv->probe != NULL) {
-		error = driver_create_file(&usb_drv->drvwrap.driver,
+		error = driver_create_file(&usb_drv->driver,
 					   &driver_attr_new_id);
 		if (error == 0) {
-			error = driver_create_file(&usb_drv->drvwrap.driver,
+			error = driver_create_file(&usb_drv->driver,
 					&driver_attr_remove_id);
 			if (error)
-				driver_remove_file(&usb_drv->drvwrap.driver,
+				driver_remove_file(&usb_drv->driver,
 						&driver_attr_new_id);
 		}
 	}
@@ -209,9 +209,9 @@ static void usb_remove_newid_files(struct usb_driver *usb_drv)
 		return;
 
 	if (usb_drv->probe != NULL) {
-		driver_remove_file(&usb_drv->drvwrap.driver,
+		driver_remove_file(&usb_drv->driver,
 				&driver_attr_remove_id);
-		driver_remove_file(&usb_drv->drvwrap.driver,
+		driver_remove_file(&usb_drv->driver,
 				   &driver_attr_new_id);
 	}
 }
@@ -290,7 +290,10 @@ static int usb_probe_device(struct device *dev)
 	 * specialised device drivers prior to setting the
 	 * use_generic_driver bit.
 	 */
-	error = udriver->probe(udev);
+	if (udriver->probe)
+		error = udriver->probe(udev);
+	else if (!udriver->generic_subclass)
+		error = -EINVAL;
 	if (error == -ENODEV && udriver != &usb_generic_driver &&
 	    (udriver->id_table || udriver->match)) {
 		udev->use_generic_driver = 1;
@@ -549,7 +552,7 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 	if (!iface->authorized)
 		return -ENODEV;
 
-	dev->driver = &driver->drvwrap.driver;
+	dev->driver = &driver->driver;
 	usb_set_intfdata(iface, data);
 	iface->needs_binding = 0;
 
@@ -612,7 +615,7 @@ void usb_driver_release_interface(struct usb_driver *driver,
 	struct device *dev = &iface->dev;
 
 	/* this should never happen, don't release something that's not ours */
-	if (!dev->driver || dev->driver != &driver->drvwrap.driver)
+	if (!dev->driver || dev->driver != &driver->driver)
 		return;
 
 	/* don't release from within disconnect() */
@@ -947,7 +950,7 @@ static int __usb_bus_reprobe_drivers(struct device *dev, void *data)
 	int ret;
 
 	/* Don't reprobe if current driver isn't usb_generic_driver */
-	if (dev->driver != &usb_generic_driver.drvwrap.driver)
+	if (dev->driver != &usb_generic_driver.driver)
 		return 0;
 
 	udev = to_usb_device(dev);
@@ -959,6 +962,11 @@ static int __usb_bus_reprobe_drivers(struct device *dev, void *data)
 		dev_err(dev, "Failed to reprobe device (error %d)\n", ret);
 
 	return 0;
+}
+
+bool is_usb_device_driver(const struct device_driver *drv)
+{
+	return drv->probe == usb_probe_device;
 }
 
 /**
@@ -980,15 +988,14 @@ int usb_register_device_driver(struct usb_device_driver *new_udriver,
 	if (usb_disabled())
 		return -ENODEV;
 
-	new_udriver->drvwrap.for_devices = 1;
-	new_udriver->drvwrap.driver.name = new_udriver->name;
-	new_udriver->drvwrap.driver.bus = &usb_bus_type;
-	new_udriver->drvwrap.driver.probe = usb_probe_device;
-	new_udriver->drvwrap.driver.remove = usb_unbind_device;
-	new_udriver->drvwrap.driver.owner = owner;
-	new_udriver->drvwrap.driver.dev_groups = new_udriver->dev_groups;
+	new_udriver->driver.name = new_udriver->name;
+	new_udriver->driver.bus = &usb_bus_type;
+	new_udriver->driver.probe = usb_probe_device;
+	new_udriver->driver.remove = usb_unbind_device;
+	new_udriver->driver.owner = owner;
+	new_udriver->driver.dev_groups = new_udriver->dev_groups;
 
-	retval = driver_register(&new_udriver->drvwrap.driver);
+	retval = driver_register(&new_udriver->driver);
 
 	if (!retval) {
 		pr_info("%s: registered new device driver %s\n",
@@ -1020,7 +1027,7 @@ void usb_deregister_device_driver(struct usb_device_driver *udriver)
 	pr_info("%s: deregistering device driver %s\n",
 			usbcore_name, udriver->name);
 
-	driver_unregister(&udriver->drvwrap.driver);
+	driver_unregister(&udriver->driver);
 }
 EXPORT_SYMBOL_GPL(usb_deregister_device_driver);
 
@@ -1048,18 +1055,17 @@ int usb_register_driver(struct usb_driver *new_driver, struct module *owner,
 	if (usb_disabled())
 		return -ENODEV;
 
-	new_driver->drvwrap.for_devices = 0;
-	new_driver->drvwrap.driver.name = new_driver->name;
-	new_driver->drvwrap.driver.bus = &usb_bus_type;
-	new_driver->drvwrap.driver.probe = usb_probe_interface;
-	new_driver->drvwrap.driver.remove = usb_unbind_interface;
-	new_driver->drvwrap.driver.owner = owner;
-	new_driver->drvwrap.driver.mod_name = mod_name;
-	new_driver->drvwrap.driver.dev_groups = new_driver->dev_groups;
+	new_driver->driver.name = new_driver->name;
+	new_driver->driver.bus = &usb_bus_type;
+	new_driver->driver.probe = usb_probe_interface;
+	new_driver->driver.remove = usb_unbind_interface;
+	new_driver->driver.owner = owner;
+	new_driver->driver.mod_name = mod_name;
+	new_driver->driver.dev_groups = new_driver->dev_groups;
 	spin_lock_init(&new_driver->dynids.lock);
 	INIT_LIST_HEAD(&new_driver->dynids.list);
 
-	retval = driver_register(&new_driver->drvwrap.driver);
+	retval = driver_register(&new_driver->driver);
 	if (retval)
 		goto out;
 
@@ -1074,7 +1080,7 @@ out:
 	return retval;
 
 out_newid:
-	driver_unregister(&new_driver->drvwrap.driver);
+	driver_unregister(&new_driver->driver);
 
 	pr_err("%s: error %d registering interface driver %s\n",
 		usbcore_name, retval, new_driver->name);
@@ -1099,7 +1105,7 @@ void usb_deregister(struct usb_driver *driver)
 			usbcore_name, driver->name);
 
 	usb_remove_newid_files(driver);
-	driver_unregister(&driver->drvwrap.driver);
+	driver_unregister(&driver->driver);
 	usb_free_dynids(driver);
 }
 EXPORT_SYMBOL_GPL(usb_deregister);

@@ -14,6 +14,7 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include "builtin.h"
+#include "config.h"
 #include "hist.h"
 #include "intlist.h"
 #include "tests.h"
@@ -32,6 +33,7 @@
 
 static bool dont_fork;
 const char *dso_to_test;
+const char *test_objdump_path = "objdump";
 
 /*
  * List of architecture specific tests. Not a weak symbol as the array length is
@@ -60,8 +62,6 @@ static struct test_suite *generic_tests[] = {
 	&suite__pmu,
 	&suite__pmu_events,
 	&suite__dso_data,
-	&suite__dso_data_cache,
-	&suite__dso_data_reopen,
 	&suite__perf_evsel__roundtrip_name_test,
 #ifdef HAVE_LIBTRACEEVENT
 	&suite__perf_evsel__tp_sched_test,
@@ -513,6 +513,15 @@ static int run_workload(const char *work, int argc, const char **argv)
 	return -1;
 }
 
+static int perf_test__config(const char *var, const char *value,
+			     void *data __maybe_unused)
+{
+	if (!strcmp(var, "annotate.objdump"))
+		test_objdump_path = value;
+
+	return 0;
+}
+
 int cmd_test(int argc, const char **argv)
 {
 	const char *test_usage[] = {
@@ -529,6 +538,8 @@ int cmd_test(int argc, const char **argv)
 		    "Do not fork for testcase"),
 	OPT_STRING('w', "workload", &workload, "work", "workload to run for testing"),
 	OPT_STRING(0, "dso", &dso_to_test, "dso", "dso to test"),
+	OPT_STRING(0, "objdump", &test_objdump_path, "path",
+		   "objdump binary to use for disassembly and annotations"),
 	OPT_END()
 	};
 	const char * const test_subcommands[] = { "list", NULL };
@@ -537,6 +548,8 @@ int cmd_test(int argc, const char **argv)
 
         if (ret < 0)
                 return ret;
+
+	perf_config(perf_test__config, NULL);
 
 	/* Unbuffered output */
 	setvbuf(stdout, NULL, _IONBF, 0);

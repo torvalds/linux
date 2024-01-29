@@ -295,7 +295,6 @@ through which it can issue requests and negotiate::
 	struct netfs_request_ops {
 		void (*init_request)(struct netfs_io_request *rreq, struct file *file);
 		void (*free_request)(struct netfs_io_request *rreq);
-		int (*begin_cache_operation)(struct netfs_io_request *rreq);
 		void (*expand_readahead)(struct netfs_io_request *rreq);
 		bool (*clamp_length)(struct netfs_io_subrequest *subreq);
 		void (*issue_read)(struct netfs_io_subrequest *subreq);
@@ -316,20 +315,6 @@ The operations are as follows:
 
    [Optional] This is called as the request is being deallocated so that the
    filesystem can clean up any state it has attached there.
-
- * ``begin_cache_operation()``
-
-   [Optional] This is called to ask the network filesystem to call into the
-   cache (if present) to initialise the caching state for this read.  The netfs
-   library module cannot access the cache directly, so the cache should call
-   something like fscache_begin_read_operation() to do this.
-
-   The cache gets to store its state in ->cache_resources and must set a table
-   of operations of its own there (though of a different type).
-
-   This should return 0 on success and an error code otherwise.  If an error is
-   reported, the operation may proceed anyway, just without local caching (only
-   out of memory and interruption errors cause failure here).
 
  * ``expand_readahead()``
 
@@ -460,14 +445,14 @@ When implementing a local cache to be used by the read helpers, two things are
 required: some way for the network filesystem to initialise the caching for a
 read request and a table of operations for the helpers to call.
 
-The network filesystem's ->begin_cache_operation() method is called to set up a
-cache and this must call into the cache to do the work.  If using fscache, for
-example, the cache would call::
+To begin a cache operation on an fscache object, the following function is
+called::
 
 	int fscache_begin_read_operation(struct netfs_io_request *rreq,
 					 struct fscache_cookie *cookie);
 
-passing in the request pointer and the cookie corresponding to the file.
+passing in the request pointer and the cookie corresponding to the file.  This
+fills in the cache resources mentioned below.
 
 The netfs_io_request object contains a place for the cache to hang its
 state::

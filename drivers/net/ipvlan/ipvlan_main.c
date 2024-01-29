@@ -387,6 +387,7 @@ static const struct header_ops ipvlan_header_ops = {
 	.parse		= eth_header_parse,
 	.cache		= eth_header_cache,
 	.cache_update	= eth_header_cache_update,
+	.parse_protocol	= eth_header_parse_protocol,
 };
 
 static void ipvlan_adjust_mtu(struct ipvl_dev *ipvlan, struct net_device *dev)
@@ -600,15 +601,15 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 		port->dev_id_start = 0x1;
 
 	/* Since L2 address is shared among all IPvlan slaves including
-	 * master, use unique 16 bit dev-ids to diffentiate among them.
+	 * master, use unique 16 bit dev-ids to differentiate among them.
 	 * Assign IDs between 0x1 and 0xFFFE (used by the master) to each
 	 * slave link [see addrconf_ifid_eui48()].
 	 */
-	err = ida_simple_get(&port->ida, port->dev_id_start, 0xFFFE,
-			     GFP_KERNEL);
+	err = ida_alloc_range(&port->ida, port->dev_id_start, 0xFFFD,
+			      GFP_KERNEL);
 	if (err < 0)
-		err = ida_simple_get(&port->ida, 0x1, port->dev_id_start,
-				     GFP_KERNEL);
+		err = ida_alloc_range(&port->ida, 0x1, port->dev_id_start - 1,
+				      GFP_KERNEL);
 	if (err < 0)
 		goto unregister_netdev;
 	dev->dev_id = err;
@@ -640,7 +641,7 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 unlink_netdev:
 	netdev_upper_dev_unlink(phy_dev, dev);
 remove_ida:
-	ida_simple_remove(&port->ida, dev->dev_id);
+	ida_free(&port->ida, dev->dev_id);
 unregister_netdev:
 	unregister_netdevice(dev);
 	return err;
@@ -660,7 +661,7 @@ void ipvlan_link_delete(struct net_device *dev, struct list_head *head)
 	}
 	spin_unlock_bh(&ipvlan->addrs_lock);
 
-	ida_simple_remove(&ipvlan->port->ida, dev->dev_id);
+	ida_free(&ipvlan->port->ida, dev->dev_id);
 	list_del_rcu(&ipvlan->pnode);
 	unregister_netdevice_queue(dev, head);
 	netdev_upper_dev_unlink(ipvlan->phy_dev, dev);

@@ -35,6 +35,11 @@ properties:
               - sprd,ums512-1h10
           - const: sprd,ums512
 
+      - items:
+          - enum:
+              - sprd,ums9620-2h10
+          - const: sprd,ums9620
+
 additionalProperties: true
 
 ...

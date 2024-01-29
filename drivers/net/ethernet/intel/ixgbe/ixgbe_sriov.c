@@ -363,8 +363,7 @@ int ixgbe_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 static int ixgbe_set_vf_multicasts(struct ixgbe_adapter *adapter,
 				   u32 *msgbuf, u32 vf)
 {
-	int entries = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK)
-		       >> IXGBE_VT_MSGINFO_SHIFT;
+	int entries = FIELD_GET(IXGBE_VT_MSGINFO_MASK, msgbuf[0]);
 	u16 *hash_list = (u16 *)&msgbuf[1];
 	struct vf_data_storage *vfinfo = &adapter->vfinfo[vf];
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -969,7 +968,7 @@ static int ixgbe_set_vf_mac_addr(struct ixgbe_adapter *adapter,
 static int ixgbe_set_vf_vlan_msg(struct ixgbe_adapter *adapter,
 				 u32 *msgbuf, u32 vf)
 {
-	u32 add = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >> IXGBE_VT_MSGINFO_SHIFT;
+	u32 add = FIELD_GET(IXGBE_VT_MSGINFO_MASK, msgbuf[0]);
 	u32 vid = (msgbuf[1] & IXGBE_VLVF_VLANID_MASK);
 	u8 tcs = adapter->hw_tcs;
 
@@ -992,8 +991,7 @@ static int ixgbe_set_vf_macvlan_msg(struct ixgbe_adapter *adapter,
 				    u32 *msgbuf, u32 vf)
 {
 	u8 *new_mac = ((u8 *)(&msgbuf[1]));
-	int index = (msgbuf[0] & IXGBE_VT_MSGINFO_MASK) >>
-		    IXGBE_VT_MSGINFO_SHIFT;
+	int index = FIELD_GET(IXGBE_VT_MSGINFO_MASK, msgbuf[0]);
 	int err;
 
 	if (adapter->vfinfo[vf].pf_set_mac && !adapter->vfinfo[vf].trusted &&
@@ -1327,7 +1325,7 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);
-		retval = IXGBE_ERR_MBX;
+		retval = -EIO;
 		break;
 	}
 
@@ -1849,5 +1847,6 @@ int ixgbe_ndo_get_vf_config(struct net_device *netdev,
 	ivi->spoofchk = adapter->vfinfo[vf].spoofchk_enabled;
 	ivi->rss_query_en = adapter->vfinfo[vf].rss_query_enabled;
 	ivi->trusted = adapter->vfinfo[vf].trusted;
+	ivi->linkstate = adapter->vfinfo[vf].link_state;
 	return 0;
 }

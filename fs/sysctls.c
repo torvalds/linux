@@ -26,7 +26,6 @@ static struct ctl_table fs_shared_sysctls[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_MAXOLDUID,
 	},
-	{ }
 };
 
 static int __init init_fs_sysctls(void)

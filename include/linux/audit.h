@@ -36,6 +36,7 @@ struct mqstat;
 struct audit_watch;
 struct audit_tree;
 struct sk_buff;
+struct kern_ipc_perm;
 
 struct audit_krule {
 	u32			pflags;

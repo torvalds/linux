@@ -2298,6 +2298,7 @@ static uint32_t ci_get_mac_definition(uint32_t value)
 	case SMU_MAX_ENTRIES_SMIO:
 		return SMU7_MAX_ENTRIES_SMIO;
 	case SMU_MAX_LEVELS_VDDC:
+	case SMU_MAX_LEVELS_VDDGFX:
 		return SMU7_MAX_LEVELS_VDDC;
 	case SMU_MAX_LEVELS_VDDCI:
 		return SMU7_MAX_LEVELS_VDDCI;

@@ -814,7 +814,7 @@ err:
 	fimc_clk_put(fimc);
 	dev_err(&fimc->pdev->dev, "failed to get clock: %s\n",
 		fimc_clocks[i]);
-	return -ENXIO;
+	return ret;
 }
 
 #ifdef CONFIG_PM

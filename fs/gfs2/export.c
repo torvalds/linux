@@ -138,8 +138,6 @@ static struct dentry *gfs2_get_dentry(struct super_block *sb,
 		return ERR_PTR(-ESTALE);
 	inode = gfs2_lookup_by_inum(sdp, inum->no_addr, inum->no_formal_ino,
 				    GFS2_BLKST_DINODE);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
 	return d_obtain_alias(inode);
 }
 
@@ -192,5 +190,6 @@ const struct export_operations gfs2_export_ops = {
 	.fh_to_parent = gfs2_fh_to_parent,
 	.get_name = gfs2_get_name,
 	.get_parent = gfs2_get_parent,
+	.flags = EXPORT_OP_ASYNC_LOCK,
 };
 

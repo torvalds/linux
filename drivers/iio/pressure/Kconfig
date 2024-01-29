@@ -109,6 +109,28 @@ config HP03
 	  To compile this driver as a module, choose M here: the module
 	  will be called hp03.
 
+config HSC030PA
+	tristate "Honeywell HSC/SSC TruStability pressure sensor series"
+	depends on (I2C || SPI_MASTER)
+	select HSC030PA_I2C if I2C
+	select HSC030PA_SPI if SPI_MASTER
+	help
+	  Say Y here to build support for the Honeywell TruStability
+	  HSC and SSC pressure and temperature sensor series.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hsc030pa.
+
+config HSC030PA_I2C
+	tristate
+	depends on HSC030PA
+	depends on I2C
+
+config HSC030PA_SPI
+	tristate
+	depends on HSC030PA
+	depends on SPI_MASTER
+
 config ICP10100
 	tristate "InvenSense ICP-101xx pressure and temperature sensor"
 	depends on I2C

@@ -333,7 +333,7 @@ static int dw_xdata_pcie_probe(struct pci_dev *pdev,
 
 	dw->pdev = pdev;
 
-	id = ida_simple_get(&xdata_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&xdata_ida, GFP_KERNEL);
 	if (id < 0) {
 		dev_err(dev, "xData: unable to get id\n");
 		return id;
@@ -377,7 +377,7 @@ err_kfree_name:
 	kfree(dw->misc_dev.name);
 
 err_ida_remove:
-	ida_simple_remove(&xdata_ida, id);
+	ida_free(&xdata_ida, id);
 
 	return err;
 }
@@ -396,7 +396,7 @@ static void dw_xdata_pcie_remove(struct pci_dev *pdev)
 	dw_xdata_stop(dw);
 	misc_deregister(&dw->misc_dev);
 	kfree(dw->misc_dev.name);
-	ida_simple_remove(&xdata_ida, id);
+	ida_free(&xdata_ida, id);
 }
 
 static const struct pci_device_id dw_xdata_pcie_id_table[] = {

@@ -71,7 +71,7 @@ Transaction:
  - Physical I2C transaction on bus A, slave address 0x20
  - ATR chip detects transaction on address 0x20, finds it in table,
    propagates transaction on bus B with address translated to 0x10,
-   keeps clock streched on bus A waiting for reply
+   keeps clock stretched on bus A waiting for reply
  - Slave X chip (on bus B) detects transaction at its own physical
    address 0x10 and replies normally
  - ATR chip stops clock stretching and forwards reply on bus A,

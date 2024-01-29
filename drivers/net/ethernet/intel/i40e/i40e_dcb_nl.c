@@ -21,8 +21,7 @@ static void i40e_get_pfc_delay(struct i40e_hw *hw, u16 *delay)
 	u32 val;
 
 	val = rd32(hw, I40E_PRTDCB_GENC);
-	*delay = (u16)((val & I40E_PRTDCB_GENC_PFCLDA_MASK) >>
-		       I40E_PRTDCB_GENC_PFCLDA_SHIFT);
+	*delay = FIELD_GET(I40E_PRTDCB_GENC_PFCLDA_MASK, val);
 }
 
 /**
@@ -310,8 +309,8 @@ static u8 i40e_dcbnl_getstate(struct net_device *netdev)
 	struct i40e_pf *pf = i40e_netdev_to_pf(netdev);
 
 	dev_dbg(&pf->pdev->dev, "DCB state=%d\n",
-		!!(pf->flags & I40E_FLAG_DCB_ENABLED));
-	return !!(pf->flags & I40E_FLAG_DCB_ENABLED);
+		test_bit(I40E_FLAG_DCB_ENA, pf->flags) ? 1 : 0);
+	return test_bit(I40E_FLAG_DCB_ENA, pf->flags) ? 1 : 0;
 }
 
 /**
@@ -331,19 +330,19 @@ static u8 i40e_dcbnl_setstate(struct net_device *netdev, u8 state)
 		return ret;
 
 	dev_dbg(&pf->pdev->dev, "new state=%d current state=%d\n",
-		state, (pf->flags & I40E_FLAG_DCB_ENABLED) ? 1 : 0);
+		state, test_bit(I40E_FLAG_DCB_ENA, pf->flags) ? 1 : 0);
 	/* Nothing to do */
-	if (!state == !(pf->flags & I40E_FLAG_DCB_ENABLED))
+	if (!state == !test_bit(I40E_FLAG_DCB_ENA, pf->flags))
 		return ret;
 
 	if (i40e_is_sw_dcb(pf)) {
 		if (state) {
-			pf->flags |= I40E_FLAG_DCB_ENABLED;
+			set_bit(I40E_FLAG_DCB_ENA, pf->flags);
 			memcpy(&pf->hw.desired_dcbx_config,
 			       &pf->hw.local_dcbx_config,
 			       sizeof(struct i40e_dcbx_config));
 		} else {
-			pf->flags &= ~I40E_FLAG_DCB_ENABLED;
+			clear_bit(I40E_FLAG_DCB_ENA, pf->flags);
 		}
 	} else {
 		/* Cannot directly manipulate FW LLDP Agent */
@@ -653,7 +652,7 @@ static u8 i40e_dcbnl_get_cap(struct net_device *netdev, int capid, u8 *cap)
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(netdev);
 
-	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
+	if (!test_bit(I40E_FLAG_DCB_CAPABLE, pf->flags))
 		return I40E_DCBNL_STATUS_ERROR;
 
 	switch (capid) {
@@ -693,7 +692,7 @@ static int i40e_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(netdev);
 
-	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
+	if (!test_bit(I40E_FLAG_DCB_CAPABLE, pf->flags))
 		return -EINVAL;
 
 	*num = I40E_MAX_TRAFFIC_CLASS;
@@ -827,15 +826,12 @@ static void i40e_dcbnl_get_perm_hw_addr(struct net_device *dev,
 					u8 *perm_addr)
 {
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
-	int i, j;
+	int i;
 
 	memset(perm_addr, 0xff, MAX_ADDR_LEN);
 
 	for (i = 0; i < dev->addr_len; i++)
 		perm_addr[i] = pf->hw.mac.perm_addr[i];
-
-	for (j = 0; j < dev->addr_len; j++, i++)
-		perm_addr[i] = pf->hw.mac.san_addr[j];
 }
 
 static const struct dcbnl_rtnl_ops dcbnl_ops = {
@@ -891,11 +887,11 @@ void i40e_dcbnl_set_all(struct i40e_vsi *vsi)
 		return;
 
 	/* DCB not enabled */
-	if (!(pf->flags & I40E_FLAG_DCB_ENABLED))
+	if (!test_bit(I40E_FLAG_DCB_ENA, pf->flags))
 		return;
 
 	/* MFP mode but not an iSCSI PF so return */
-	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(hw->func_caps.iscsi))
+	if (test_bit(I40E_FLAG_MFP_ENA, pf->flags) && !(hw->func_caps.iscsi))
 		return;
 
 	dcbxcfg = &hw->local_dcbx_config;
@@ -1002,7 +998,7 @@ void i40e_dcbnl_flush_apps(struct i40e_pf *pf,
 	int i;
 
 	/* MFP mode but not an iSCSI PF so return */
-	if ((pf->flags & I40E_FLAG_MFP_ENABLED) && !(pf->hw.func_caps.iscsi))
+	if (test_bit(I40E_FLAG_MFP_ENA, pf->flags) && !(pf->hw.func_caps.iscsi))
 		return;
 
 	for (i = 0; i < old_cfg->numapps; i++) {
@@ -1025,7 +1021,7 @@ void i40e_dcbnl_setup(struct i40e_vsi *vsi)
 	struct i40e_pf *pf = i40e_netdev_to_pf(dev);
 
 	/* Not DCB capable */
-	if (!(pf->flags & I40E_FLAG_DCB_CAPABLE))
+	if (!test_bit(I40E_FLAG_DCB_CAPABLE, pf->flags))
 		return;
 
 	dev->dcbnl_ops = &dcbnl_ops;

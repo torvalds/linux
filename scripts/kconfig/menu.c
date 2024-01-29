@@ -673,19 +673,6 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 	return menu;
 }
 
-bool menu_has_help(struct menu *menu)
-{
-	return menu->help != NULL;
-}
-
-const char *menu_get_help(struct menu *menu)
-{
-	if (menu->help)
-		return menu->help;
-	else
-		return "";
-}
-
 static void get_def_str(struct gstr *r, struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
@@ -856,10 +843,10 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 	struct symbol *sym = menu->sym;
 	const char *help_text = nohelp_text;
 
-	if (menu_has_help(menu)) {
+	if (menu->help) {
 		if (sym->name)
 			str_printf(help, "%s%s:\n\n", CONFIG_, sym->name);
-		help_text = menu_get_help(menu);
+		help_text = menu->help;
 	}
 	str_printf(help, "%s\n", help_text);
 	if (sym)

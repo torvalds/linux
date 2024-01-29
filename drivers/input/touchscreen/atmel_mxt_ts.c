@@ -2546,7 +2546,7 @@ static const struct vb2_queue mxt_queue = {
 	.ops = &mxt_queue_ops,
 	.mem_ops = &vb2_vmalloc_memops,
 	.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC,
-	.min_buffers_needed = 1,
+	.min_queued_buffers = 1,
 };
 
 static int mxt_vidioc_querycap(struct file *file, void *priv,
@@ -2818,8 +2818,8 @@ static ssize_t mxt_fw_version_show(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	struct mxt_info *info = data->info;
-	return scnprintf(buf, PAGE_SIZE, "%u.%u.%02X\n",
-			 info->version >> 4, info->version & 0xf, info->build);
+	return sysfs_emit(buf, "%u.%u.%02X\n",
+			  info->version >> 4, info->version & 0xf, info->build);
 }
 
 /* Hardware Version is returned as FamilyID.VariantID */
@@ -2828,8 +2828,7 @@ static ssize_t mxt_hw_version_show(struct device *dev,
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	struct mxt_info *info = data->info;
-	return scnprintf(buf, PAGE_SIZE, "%u.%u\n",
-			 info->family_id, info->variant_id);
+	return sysfs_emit(buf, "%u.%u\n", info->family_id, info->variant_id);
 }
 
 static ssize_t mxt_show_instance(char *buf, int count,
@@ -2839,19 +2838,18 @@ static ssize_t mxt_show_instance(char *buf, int count,
 	int i;
 
 	if (mxt_obj_instances(object) > 1)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				   "Instance %u\n", instance);
+		count += sysfs_emit_at(buf, count, "Instance %u\n", instance);
 
 	for (i = 0; i < mxt_obj_size(object); i++)
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				"\t[%2u]: %02x (%d)\n", i, val[i], val[i]);
-	count += scnprintf(buf + count, PAGE_SIZE - count, "\n");
+		count += sysfs_emit_at(buf, count, "\t[%2u]: %02x (%d)\n",
+				       i, val[i], val[i]);
+	count += sysfs_emit_at(buf, count, "\n");
 
 	return count;
 }
 
 static ssize_t mxt_object_show(struct device *dev,
-				    struct device_attribute *attr, char *buf)
+			       struct device_attribute *attr, char *buf)
 {
 	struct mxt_data *data = dev_get_drvdata(dev);
 	struct mxt_object *object;
@@ -2872,8 +2870,7 @@ static ssize_t mxt_object_show(struct device *dev,
 		if (!mxt_object_readable(object->type))
 			continue;
 
-		count += scnprintf(buf + count, PAGE_SIZE - count,
-				"T%u:\n", object->type);
+		count += sysfs_emit_at(buf, count, "T%u:\n", object->type);
 
 		for (j = 0; j < mxt_obj_instances(object); j++) {
 			u16 size = mxt_obj_size(object);

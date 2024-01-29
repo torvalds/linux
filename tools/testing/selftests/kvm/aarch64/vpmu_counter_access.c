@@ -42,13 +42,12 @@ struct pmreg_sets {
 
 static uint64_t get_pmcr_n(uint64_t pmcr)
 {
-	return (pmcr >> ARMV8_PMU_PMCR_N_SHIFT) & ARMV8_PMU_PMCR_N_MASK;
+	return FIELD_GET(ARMV8_PMU_PMCR_N, pmcr);
 }
 
 static void set_pmcr_n(uint64_t *pmcr, uint64_t pmcr_n)
 {
-	*pmcr = *pmcr & ~(ARMV8_PMU_PMCR_N_MASK << ARMV8_PMU_PMCR_N_SHIFT);
-	*pmcr |= (pmcr_n << ARMV8_PMU_PMCR_N_SHIFT);
+	u64p_replace_bits((__u64 *) pmcr, pmcr_n, ARMV8_PMU_PMCR_N);
 }
 
 static uint64_t get_counters_mask(uint64_t n)

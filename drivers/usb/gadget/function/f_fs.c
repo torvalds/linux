@@ -831,7 +831,7 @@ static void ffs_user_copy_worker(struct work_struct *work)
 	io_data->kiocb->ki_complete(io_data->kiocb, ret);
 
 	if (io_data->ffs->ffs_eventfd && !kiocb_has_eventfd)
-		eventfd_signal(io_data->ffs->ffs_eventfd, 1);
+		eventfd_signal(io_data->ffs->ffs_eventfd);
 
 	if (io_data->read)
 		kfree(io_data->to_free);
@@ -2738,7 +2738,7 @@ static void __ffs_event_add(struct ffs_data *ffs,
 	ffs->ev.types[ffs->ev.count++] = type;
 	wake_up_locked(&ffs->ev.waitq);
 	if (ffs->ffs_eventfd)
-		eventfd_signal(ffs->ffs_eventfd, 1);
+		eventfd_signal(ffs->ffs_eventfd);
 }
 
 static void ffs_event_add(struct ffs_data *ffs,
@@ -2931,9 +2931,8 @@ static int __ffs_func_bind_do_os_desc(enum ffs_os_desc_type type,
 
 		t = &func->function.os_desc_table[desc->bFirstInterfaceNumber];
 		t->if_id = func->interfaces_nums[desc->bFirstInterfaceNumber];
-		memcpy(t->os_desc->ext_compat_id, &desc->CompatibleID,
-		       ARRAY_SIZE(desc->CompatibleID) +
-		       ARRAY_SIZE(desc->SubCompatibleID));
+		memcpy(t->os_desc->ext_compat_id, &desc->IDs,
+		       sizeof_field(struct usb_ext_compat_desc, IDs));
 		length = sizeof(*desc);
 	}
 		break;

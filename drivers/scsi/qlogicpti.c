@@ -1409,7 +1409,7 @@ fail_unlink:
 	return -ENODEV;
 }
 
-static int qpti_sbus_remove(struct platform_device *op)
+static void qpti_sbus_remove(struct platform_device *op)
 {
 	struct qlogicpti *qpti = dev_get_drvdata(&op->dev);
 
@@ -1438,8 +1438,6 @@ static int qpti_sbus_remove(struct platform_device *op)
 		of_iounmap(&op->resource[0], qpti->sreg, sizeof(unsigned char));
 
 	scsi_host_put(qpti->qhost);
-
-	return 0;
 }
 
 static const struct of_device_id qpti_match[] = {
@@ -1465,7 +1463,7 @@ static struct platform_driver qpti_sbus_driver = {
 		.of_match_table = qpti_match,
 	},
 	.probe		= qpti_sbus_probe,
-	.remove		= qpti_sbus_remove,
+	.remove_new	= qpti_sbus_remove,
 };
 module_platform_driver(qpti_sbus_driver);
 

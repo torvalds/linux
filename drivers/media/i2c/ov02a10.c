@@ -315,7 +315,7 @@ static int ov02a10_set_fmt(struct v4l2_subdev *sd,
 	ov02a10_fill_fmt(ov02a10->cur_mode, mbus_fmt);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		frame_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		frame_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 	else
 		frame_fmt = &ov02a10->fmt;
 
@@ -336,8 +336,8 @@ static int ov02a10_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&ov02a10->mutex);
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		fmt->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	} else {
 		fmt->format = ov02a10->fmt;
 		mbus_fmt->code = ov02a10->fmt.code;
@@ -511,8 +511,8 @@ static int __ov02a10_stop_stream(struct ov02a10 *ov02a10)
 					 SC_CTRL_MODE_STANDBY);
 }
 
-static int ov02a10_entity_init_cfg(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_state *sd_state)
+static int ov02a10_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = {
 		.which = V4L2_SUBDEV_FORMAT_TRY,
@@ -709,7 +709,6 @@ static const struct v4l2_subdev_video_ops ov02a10_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops ov02a10_pad_ops = {
-	.init_cfg = ov02a10_entity_init_cfg,
 	.enum_mbus_code = ov02a10_enum_mbus_code,
 	.enum_frame_size = ov02a10_enum_frame_sizes,
 	.get_fmt = ov02a10_get_fmt,
@@ -719,6 +718,10 @@ static const struct v4l2_subdev_pad_ops ov02a10_pad_ops = {
 static const struct v4l2_subdev_ops ov02a10_subdev_ops = {
 	.video	= &ov02a10_video_ops,
 	.pad	= &ov02a10_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov02a10_internal_ops = {
+	.init_state = ov02a10_init_state,
 };
 
 static const struct media_entity_operations ov02a10_subdev_entity_ops = {
@@ -869,6 +872,7 @@ static int ov02a10_probe(struct i2c_client *client)
 				     "failed to check HW configuration\n");
 
 	v4l2_i2c_subdev_init(&ov02a10->subdev, client, &ov02a10_subdev_ops);
+	ov02a10->subdev.internal_ops = &ov02a10_internal_ops;
 
 	ov02a10->mipi_clock_voltage = OV02A10_MIPI_TX_SPEED_DEFAULT;
 	ov02a10->fmt.code = MEDIA_BUS_FMT_SBGGR10_1X10;

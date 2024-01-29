@@ -425,7 +425,6 @@
 	ti,driver-strength-ohm = <50>;
 	ti,fails-without-test-cd;
 	/* Enabled by overlay */
-	status = "disabled";
 };
 
 &tscadc0 {

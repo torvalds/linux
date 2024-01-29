@@ -35,6 +35,21 @@
 		reg = <0x0 0x40000000 0 0x80000000>;
 	};
 
+	connector {
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon1>;
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "Type-C";
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -182,8 +197,6 @@
 
 	tpm@0 {
 		compatible = "tcg,tpm_tis-spi";
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
 		reg = <0x0>;
 		spi-max-frequency = <36000000>;
 	};
@@ -694,13 +707,10 @@
 	role-switch-default-mode = "peripheral";
 	status = "okay";
 
-	connector {
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbcon1>;
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		type = "micro";
-		label = "Type-C";
-		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

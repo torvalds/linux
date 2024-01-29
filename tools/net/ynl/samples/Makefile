@@ -18,7 +18,9 @@ include $(wildcard *.d)
 
 all: $(BINS)
 
-$(BINS): ../lib/ynl.a ../generated/protos.a
+CFLAGS_page-pool=$(CFLAGS_netdev)
+
+$(BINS): ../lib/ynl.a ../generated/protos.a $(SRCS)
 	@echo -e '\tCC sample $@'
 	@$(COMPILE.c) $(CFLAGS_$@) $@.c -o $@.o
 	@$(LINK.c) $@.o -o $@  $(LDLIBS)

@@ -73,24 +73,19 @@ static inline void unimac_mdio_start(struct unimac_mdio_priv *priv)
 	unimac_mdio_writel(priv, reg, MDIO_CMD);
 }
 
-static inline unsigned int unimac_mdio_busy(struct unimac_mdio_priv *priv)
-{
-	return unimac_mdio_readl(priv, MDIO_CMD) & MDIO_START_BUSY;
-}
-
 static int unimac_mdio_poll(void *wait_func_data)
 {
 	struct unimac_mdio_priv *priv = wait_func_data;
-	unsigned int timeout = 1000;
+	u32 val;
 
-	do {
-		if (!unimac_mdio_busy(priv))
-			return 0;
+	/*
+	 * C22 transactions should take ~25 usec, will need to adjust
+	 * if C45 support is added.
+	 */
+	udelay(30);
 
-		usleep_range(1000, 2000);
-	} while (--timeout);
-
-	return -ETIMEDOUT;
+	return read_poll_timeout(unimac_mdio_readl, val, !(val & MDIO_START_BUSY),
+				 2000, 100000, false, priv, MDIO_CMD);
 }
 
 static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)

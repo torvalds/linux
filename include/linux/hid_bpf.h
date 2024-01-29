@@ -115,7 +115,7 @@ struct hid_bpf_ops {
 				  size_t len, enum hid_report_type rtype,
 				  enum hid_class_request reqtype);
 	struct module *owner;
-	struct bus_type *bus_type;
+	const struct bus_type *bus_type;
 };
 
 extern struct hid_bpf_ops *hid_bpf_ops;

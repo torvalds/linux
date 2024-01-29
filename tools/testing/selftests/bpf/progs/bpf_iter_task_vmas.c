@@ -35,7 +35,7 @@ SEC("iter/task_vma") int proc_maps(struct bpf_iter__task_vma *ctx)
 		return 0;
 
 	file = vma->vm_file;
-	if (task->tgid != pid) {
+	if (task->tgid != (pid_t)pid) {
 		if (one_task)
 			one_task_error = 1;
 		return 0;

@@ -95,6 +95,8 @@ config HDLC_X25
 comment "X.25/LAPB support is disabled"
 	depends on HDLC && (LAPB!=m || HDLC!=m) && LAPB!=y
 
+source "drivers/net/wan/framer/Kconfig"
+
 config PCI200SYN
 	tristate "Goramo PCI200SYN support"
 	depends on HDLC && PCI

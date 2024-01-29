@@ -47,6 +47,14 @@ static inline enum bch_compression_type bch2_compression_opt_to_type(unsigned v)
 	return __bch2_compression_opt_to_type[bch2_compression_decode(v).type];
 }
 
+static inline void bch2_prt_compression_type(struct printbuf *out, enum bch_compression_type type)
+{
+	if (type < BCH_COMPRESSION_TYPE_NR)
+		prt_str(out, __bch2_compression_types[type]);
+	else
+		prt_printf(out, "(invalid compression type %u)", type);
+}
+
 int bch2_bio_uncompress_inplace(struct bch_fs *, struct bio *,
 				struct bch_extent_crc_unpacked *);
 int bch2_bio_uncompress(struct bch_fs *, struct bio *, struct bio *,

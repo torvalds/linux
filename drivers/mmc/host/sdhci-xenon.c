@@ -18,6 +18,8 @@
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/mm.h>
+#include <linux/dma-mapping.h>
 
 #include "sdhci-pltfm.h"
 #include "sdhci-xenon.h"
@@ -422,6 +424,7 @@ static int xenon_probe_params(struct platform_device *pdev)
 	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
 	u32 sdhc_id, nr_sdhc;
 	u32 tuning_count;
+	struct sysinfo si;
 
 	/* Disable HS200 on Armada AP806 */
 	if (priv->hw_version == XENON_AP806)
@@ -449,6 +452,23 @@ static int xenon_probe_params(struct platform_device *pdev)
 		}
 	}
 	priv->tuning_count = tuning_count;
+
+	/*
+	 * AC5/X/IM HW has only 31-bits passed in the crossbar switch.
+	 * If we have more than 2GB of memory, this means we might pass
+	 * memory pointers which are above 2GB and which cannot be properly
+	 * represented. In this case, disable ADMA, 64-bit DMA and allow only SDMA.
+	 * This effectively will enable bounce buffer quirk in the
+	 * generic SDHCI driver, which will make sure DMA is only done
+	 * from supported memory regions:
+	 */
+	if (priv->hw_version == XENON_AC5) {
+		si_meminfo(&si);
+		if (si.totalram * si.mem_unit > SZ_2G) {
+			host->quirks |= SDHCI_QUIRK_BROKEN_ADMA;
+			host->quirks2 |= SDHCI_QUIRK2_BROKEN_64_BIT_DMA;
+		}
+	}
 
 	return xenon_phy_parse_params(dev, host);
 }
@@ -562,6 +582,16 @@ static int xenon_probe(struct platform_device *pdev)
 		goto remove_sdhc;
 
 	pm_runtime_put_autosuspend(&pdev->dev);
+	/*
+	 * If we previously detected AC5 with over 2GB of memory,
+	 * then we disable ADMA and 64-bit DMA.
+	 * This means generic SDHCI driver has set the DMA mask to
+	 * 32-bit. Since DDR starts at 0x2_0000_0000, we must use
+	 * 34-bit DMA mask to access this DDR memory:
+	 */
+	if (priv->hw_version == XENON_AC5 &&
+	    host->quirks2 & SDHCI_QUIRK2_BROKEN_64_BIT_DMA)
+		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(34));
 
 	return 0;
 
@@ -680,6 +710,7 @@ static const struct of_device_id sdhci_xenon_dt_ids[] = {
 	{ .compatible = "marvell,armada-ap807-sdhci", .data = (void *)XENON_AP807},
 	{ .compatible = "marvell,armada-cp110-sdhci", .data =  (void *)XENON_CP110},
 	{ .compatible = "marvell,armada-3700-sdhci", .data =  (void *)XENON_A3700},
+	{ .compatible = "marvell,ac5-sdhci",	     .data =  (void *)XENON_AC5},
 	{}
 };
 MODULE_DEVICE_TABLE(of, sdhci_xenon_dt_ids);

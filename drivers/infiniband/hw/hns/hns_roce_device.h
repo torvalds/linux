@@ -35,6 +35,7 @@
 
 #include <rdma/ib_verbs.h>
 #include <rdma/hns-abi.h>
+#include "hns_roce_debugfs.h"
 
 #define PCI_REVISION_ID_HIP08			0x21
 #define PCI_REVISION_ID_HIP09			0x30
@@ -869,6 +870,29 @@ enum hns_roce_hw_pkt_stat_index {
 	HNS_ROCE_HW_CNT_TOTAL
 };
 
+enum hns_roce_sw_dfx_stat_index {
+	HNS_ROCE_DFX_AEQE_CNT,
+	HNS_ROCE_DFX_CEQE_CNT,
+	HNS_ROCE_DFX_CMDS_CNT,
+	HNS_ROCE_DFX_CMDS_ERR_CNT,
+	HNS_ROCE_DFX_MBX_POSTED_CNT,
+	HNS_ROCE_DFX_MBX_POLLED_CNT,
+	HNS_ROCE_DFX_MBX_EVENT_CNT,
+	HNS_ROCE_DFX_QP_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_QP_MODIFY_ERR_CNT,
+	HNS_ROCE_DFX_CQ_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_CQ_MODIFY_ERR_CNT,
+	HNS_ROCE_DFX_SRQ_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_SRQ_MODIFY_ERR_CNT,
+	HNS_ROCE_DFX_XRCD_ALLOC_ERR_CNT,
+	HNS_ROCE_DFX_MR_REG_ERR_CNT,
+	HNS_ROCE_DFX_MR_REREG_ERR_CNT,
+	HNS_ROCE_DFX_AH_CREATE_ERR_CNT,
+	HNS_ROCE_DFX_MMAP_ERR_CNT,
+	HNS_ROCE_DFX_UCTX_ALLOC_ERR_CNT,
+	HNS_ROCE_DFX_CNT_TOTAL
+};
+
 struct hns_roce_hw {
 	int (*cmq_init)(struct hns_roce_dev *hr_dev);
 	void (*cmq_exit)(struct hns_roce_dev *hr_dev);
@@ -979,6 +1003,8 @@ struct hns_roce_dev {
 	u32 is_vf;
 	u32 cong_algo_tmpl_id;
 	u64 dwqe_page;
+	struct hns_roce_dev_debugfs dbgfs;
+	atomic64_t *dfx_cnt;
 };
 
 static inline struct hns_roce_dev *to_hr_dev(struct ib_device *ib_dev)

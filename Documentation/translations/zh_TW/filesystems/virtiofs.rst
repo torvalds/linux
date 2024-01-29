@@ -10,7 +10,7 @@
 	中文版維護者： 王文虎 Wang Wenhu <wenhu.wang@vivo.com>
 	中文版翻譯者： 王文虎 Wang Wenhu <wenhu.wang@vivo.com>
 	中文版校譯者： 王文虎 Wang Wenhu <wenhu.wang@vivo.com>
-	繁體中文版校譯者：胡皓文 Hu Haowen <src.res.211@gmail.com>
+	繁體中文版校譯者：胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 ===========================================
 virtiofs: virtio-fs 主機<->客機共享文件系統

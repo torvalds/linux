@@ -556,23 +556,12 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 	if (!vm_ctx)
 		return ERR_PTR(-ENOMEM);
 
-	drm_gem_private_object_init(&pvr_dev->base, &vm_ctx->dummy_gem, 0);
-
 	vm_ctx->pvr_dev = pvr_dev;
-	kref_init(&vm_ctx->ref_count);
-	mutex_init(&vm_ctx->lock);
-
-	drm_gpuvm_init(&vm_ctx->gpuvm_mgr,
-		       is_userspace_context ? "PowerVR-user-VM" : "PowerVR-FW-VM",
-		       0, &pvr_dev->base, &vm_ctx->dummy_gem,
-		       0, 1ULL << device_addr_bits, 0, 0, &pvr_vm_gpuva_ops);
 
 	vm_ctx->mmu_ctx = pvr_mmu_context_create(pvr_dev);
-	err = PTR_ERR_OR_ZERO(&vm_ctx->mmu_ctx);
-	if (err) {
-		vm_ctx->mmu_ctx = NULL;
-		goto err_put_ctx;
-	}
+	err = PTR_ERR_OR_ZERO(vm_ctx->mmu_ctx);
+	if (err)
+		goto err_free;
 
 	if (is_userspace_context) {
 		err = pvr_fw_object_create(pvr_dev, sizeof(struct rogue_fwif_fwmemcontext),
@@ -583,13 +572,22 @@ pvr_vm_create_context(struct pvr_device *pvr_dev, bool is_userspace_context)
 			goto err_page_table_destroy;
 	}
 
+	drm_gem_private_object_init(&pvr_dev->base, &vm_ctx->dummy_gem, 0);
+	drm_gpuvm_init(&vm_ctx->gpuvm_mgr,
+		       is_userspace_context ? "PowerVR-user-VM" : "PowerVR-FW-VM",
+		       0, &pvr_dev->base, &vm_ctx->dummy_gem,
+		       0, 1ULL << device_addr_bits, 0, 0, &pvr_vm_gpuva_ops);
+
+	mutex_init(&vm_ctx->lock);
+	kref_init(&vm_ctx->ref_count);
+
 	return vm_ctx;
 
 err_page_table_destroy:
 	pvr_mmu_context_destroy(vm_ctx->mmu_ctx);
 
-err_put_ctx:
-	pvr_vm_context_put(vm_ctx);
+err_free:
+	kfree(vm_ctx);
 
 	return ERR_PTR(err);
 }

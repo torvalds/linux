@@ -7,6 +7,7 @@
  *   Wei WANG <wei_wang@realsil.com.cn>
  */
 
+#include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/highmem.h>
@@ -947,7 +948,7 @@ static int sd_power_on(struct realtek_pci_sdmmc *host, unsigned char power_mode)
 	/* send at least 74 clocks */
 	rtsx_pci_write_register(pcr, SD_BUS_STAT, SD_CLK_TOGGLE_EN, SD_CLK_TOGGLE_EN);
 
-	if (PCI_PID(pcr) == PID_5261) {
+	if ((PCI_PID(pcr) == PID_5261) || (PCI_PID(pcr) == PID_5264)) {
 		/*
 		 * If test mode is set switch to SD Express mandatorily,
 		 * this is only for factory testing.
@@ -1364,6 +1365,14 @@ static int sdmmc_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct realtek_pci_sdmmc *host = mmc_priv(mmc);
 	struct rtsx_pcr *pcr = host->pcr;
 
+	if (PCI_PID(pcr) == PID_5264) {
+		pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL2,
+				PCI_EXP_LNKCTL2_TLS, PCI_EXP_LNKCTL2_TLS_2_5GT);
+		pci_write_config_byte(pcr->pci, 0x80e, 0x02);
+		pcie_capability_clear_and_set_word(pcr->pci, PCI_EXP_LNKCTL2,
+				PCI_EXP_LNKCTL2_TLS, PCI_EXP_LNKCTL2_TLS_5_0GT);
+	}
+
 	/* Set relink_time for changing to PCIe card */
 	relink_time = 0x8FFF;
 
@@ -1378,6 +1387,12 @@ static int sdmmc_init_sd_express(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	if (pcr->ops->disable_auto_blink)
 		pcr->ops->disable_auto_blink(pcr);
+
+	if (PCI_PID(pcr) == PID_5264) {
+		rtsx_pci_write_register(pcr, RTS5264_AUTOLOAD_CFG2,
+			RTS5264_CHIP_RST_N_SEL, RTS5264_CHIP_RST_N_SEL);
+		rtsx_pci_write_register(pcr, GPIO_CTL, 0x02, 0x00);
+	}
 
 	/* For PCIe/NVMe mode can't enter delink issue */
 	pcr->hw_param.interrupt_en &= ~(SD_INT_EN);

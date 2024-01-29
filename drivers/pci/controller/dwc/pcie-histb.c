@@ -198,7 +198,7 @@ static int histb_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops histb_pcie_host_ops = {
-	.host_init = histb_pcie_host_init,
+	.init = histb_pcie_host_init,
 };
 
 static void histb_pcie_host_disable(struct histb_pcie *hipcie)

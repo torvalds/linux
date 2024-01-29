@@ -259,17 +259,17 @@ const struct nbio_hdp_flush_reg nbio_v7_11_hdp_flush_reg = {
 
 static void nbio_v7_11_init_registers(struct amdgpu_device *adev)
 {
-/*	uint32_t def, data;
+	uint32_t def, data;
 
-		def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3);
-		data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
-			CI_SWUS_MAX_READ_REQUEST_SIZE_MODE, 1);
-		data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
-			CI_SWUS_MAX_READ_REQUEST_SIZE_PRIV, 1);
+	def = data = RREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3);
+	data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
+				CI_SWUS_MAX_READ_REQUEST_SIZE_MODE, 1);
+	data = REG_SET_FIELD(data, BIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3,
+				CI_SWUS_MAX_READ_REQUEST_SIZE_PRIV, 1);
 
-		if (def != data)
-			WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3, data);
-*/
+	if (def != data)
+		WREG32_SOC15(NBIO, 0, regBIF_BIF256_CI256_RC3X4_USB4_PCIE_MST_CTRL_3, data);
+
 }
 
 static void nbio_v7_11_update_medium_grain_clock_gating(struct amdgpu_device *adev,

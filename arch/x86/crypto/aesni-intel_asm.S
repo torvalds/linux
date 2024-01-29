@@ -666,7 +666,7 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 
 .ifc \operation, dec
 	movdqa	%xmm1, %xmm3
-	pxor	%xmm1, %xmm9		# Cyphertext XOR E(K, Yn)
+	pxor	%xmm1, %xmm9		# Ciphertext XOR E(K, Yn)
 
 	mov	\PLAIN_CYPH_LEN, %r10
 	add	%r13, %r10

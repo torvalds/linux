@@ -151,7 +151,7 @@ fetch_store_string(unsigned long addr, void *dest, void *base)
 		return -ENOMEM;
 
 	if (addr == FETCH_TOKEN_COMM)
-		ret = strlcpy(dst, current->comm, maxlen);
+		ret = strscpy(dst, current->comm, maxlen);
 	else
 		ret = strncpy_from_user(dst, src, maxlen);
 	if (ret >= 0) {

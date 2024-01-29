@@ -1476,8 +1476,6 @@ static int aqc_raw_event(struct hid_device *hdev, struct hid_report *report, u8 
 	return 0;
 }
 
-#ifdef CONFIG_DEBUG_FS
-
 static int serial_number_show(struct seq_file *seqf, void *unused)
 {
 	struct aqc_data *priv = seqf->private;
@@ -1526,14 +1524,6 @@ static void aqc_debugfs_init(struct aqc_data *priv)
 	if (priv->power_cycle_count_offset != 0)
 		debugfs_create_file("power_cycles", 0444, priv->debugfs, priv, &power_cycles_fops);
 }
-
-#else
-
-static void aqc_debugfs_init(struct aqc_data *priv)
-{
-}
-
-#endif
 
 static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {

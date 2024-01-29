@@ -199,7 +199,7 @@ static int cs_etm_validate_config(struct auxtrace_record *itr,
 {
 	int i, err = -EINVAL;
 	struct perf_cpu_map *event_cpus = evsel->evlist->core.user_requested_cpus;
-	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
+	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 
 	/* Set option of each CPU we have */
 	for (i = 0; i < cpu__max_cpu().cpu; i++) {
@@ -211,7 +211,7 @@ static int cs_etm_validate_config(struct auxtrace_record *itr,
 		 * program can run on any CPUs in this case, thus don't skip
 		 * validation.
 		 */
-		if (!perf_cpu_map__empty(event_cpus) &&
+		if (!perf_cpu_map__has_any_cpu_or_is_empty(event_cpus) &&
 		    !perf_cpu_map__has(event_cpus, cpu))
 			continue;
 
@@ -435,7 +435,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	 * Also the case of per-cpu mmaps, need the contextID in order to be notified
 	 * when a context switch happened.
 	 */
-	if (!perf_cpu_map__empty(cpus)) {
+	if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus)) {
 		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
 					   "timestamp", 1);
 		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
@@ -461,7 +461,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	evsel->core.attr.sample_period = 1;
 
 	/* In per-cpu case, always need the time of mmap events etc */
-	if (!perf_cpu_map__empty(cpus))
+	if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus))
 		evsel__set_sample_bit(evsel, TIME);
 
 	err = cs_etm_validate_config(itr, cs_etm_evsel);
@@ -536,10 +536,10 @@ cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 	int i;
 	int etmv3 = 0, etmv4 = 0, ete = 0;
 	struct perf_cpu_map *event_cpus = evlist->core.user_requested_cpus;
-	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
+	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 
 	/* cpu map is not empty, we have specific CPUs to work with */
-	if (!perf_cpu_map__empty(event_cpus)) {
+	if (!perf_cpu_map__has_any_cpu_or_is_empty(event_cpus)) {
 		for (i = 0; i < cpu__max_cpu().cpu; i++) {
 			struct perf_cpu cpu = { .cpu = i, };
 
@@ -802,7 +802,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	u64 nr_cpu, type;
 	struct perf_cpu_map *cpu_map;
 	struct perf_cpu_map *event_cpus = session->evlist->core.user_requested_cpus;
-	struct perf_cpu_map *online_cpus = perf_cpu_map__new(NULL);
+	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 	struct cs_etm_recording *ptr =
 			container_of(itr, struct cs_etm_recording, itr);
 	struct perf_pmu *cs_etm_pmu = ptr->cs_etm_pmu;
@@ -814,7 +814,7 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 		return -EINVAL;
 
 	/* If the cpu_map is empty all online CPUs are involved */
-	if (perf_cpu_map__empty(event_cpus)) {
+	if (perf_cpu_map__has_any_cpu_or_is_empty(event_cpus)) {
 		cpu_map = online_cpus;
 	} else {
 		/* Make sure all specified CPUs are online */

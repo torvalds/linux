@@ -89,9 +89,11 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/leds/common.h>
-    spmi {
+
+    pmic {
         #address-cells = <1>;
         #size-cells = <0>;
+
         led-controller@ee00 {
             compatible = "qcom,pm8350c-flash-led", "qcom,spmi-flash-led";
             reg = <0xee00>;

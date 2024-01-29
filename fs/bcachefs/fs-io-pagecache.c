@@ -309,39 +309,49 @@ void bch2_mark_pagecache_unallocated(struct bch_inode_info *inode,
 	}
 }
 
-void bch2_mark_pagecache_reserved(struct bch_inode_info *inode,
-				  u64 start, u64 end)
+int bch2_mark_pagecache_reserved(struct bch_inode_info *inode,
+				 u64 *start, u64 end,
+				 bool nonblocking)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	pgoff_t index = start >> PAGE_SECTORS_SHIFT;
+	pgoff_t index = *start >> PAGE_SECTORS_SHIFT;
 	pgoff_t end_index = (end - 1) >> PAGE_SECTORS_SHIFT;
 	struct folio_batch fbatch;
 	s64 i_sectors_delta = 0;
-	unsigned i, j;
+	int ret = 0;
 
-	if (end <= start)
-		return;
+	if (end <= *start)
+		return 0;
 
 	folio_batch_init(&fbatch);
 
 	while (filemap_get_folios(inode->v.i_mapping,
 				  &index, end_index, &fbatch)) {
-		for (i = 0; i < folio_batch_count(&fbatch); i++) {
+		for (unsigned i = 0; i < folio_batch_count(&fbatch); i++) {
 			struct folio *folio = fbatch.folios[i];
+
+			if (!nonblocking)
+				folio_lock(folio);
+			else if (!folio_trylock(folio)) {
+				folio_batch_release(&fbatch);
+				ret = -EAGAIN;
+				break;
+			}
+
 			u64 folio_start = folio_sector(folio);
 			u64 folio_end = folio_end_sector(folio);
-			unsigned folio_offset = max(start, folio_start) - folio_start;
-			unsigned folio_len = min(end, folio_end) - folio_offset - folio_start;
-			struct bch_folio *s;
 
 			BUG_ON(end <= folio_start);
 
-			folio_lock(folio);
-			s = bch2_folio(folio);
+			*start = min(end, folio_end);
 
+			struct bch_folio *s = bch2_folio(folio);
 			if (s) {
+				unsigned folio_offset = max(*start, folio_start) - folio_start;
+				unsigned folio_len = min(end, folio_end) - folio_offset - folio_start;
+
 				spin_lock(&s->lock);
-				for (j = folio_offset; j < folio_offset + folio_len; j++) {
+				for (unsigned j = folio_offset; j < folio_offset + folio_len; j++) {
 					i_sectors_delta -= s->s[j].state == SECTOR_dirty;
 					bch2_folio_sector_set(folio, s, j,
 						folio_sector_reserve(s->s[j].state));
@@ -356,6 +366,7 @@ void bch2_mark_pagecache_reserved(struct bch_inode_info *inode,
 	}
 
 	bch2_i_sectors_acct(c, inode, NULL, i_sectors_delta);
+	return ret;
 }
 
 static inline unsigned sectors_to_reserve(struct bch_folio_sector *s,

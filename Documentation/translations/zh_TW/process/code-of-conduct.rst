@@ -4,7 +4,7 @@
 
 :Original: :ref:`Documentation/process/code-of-conduct.rst <code_of_conduct>`
 :Translator: Alex Shi <alex.shi@linux.alibaba.com>
-             Hu Haowen <src.res.211@gmail.com>
+             Hu Haowen <2023002089@link.tyut.edu.cn>
 
 .. _tw_code_of_conduct:
 

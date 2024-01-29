@@ -101,27 +101,26 @@ void vsp1_entity_configure_partition(struct vsp1_entity *entity,
  */
 
 /**
- * vsp1_entity_get_pad_config - Get the pad configuration for an entity
+ * vsp1_entity_get_state - Get the subdev state for an entity
  * @entity: the entity
  * @sd_state: the TRY state
- * @which: configuration selector (ACTIVE or TRY)
+ * @which: state selector (ACTIVE or TRY)
  *
  * When called with which set to V4L2_SUBDEV_FORMAT_ACTIVE the caller must hold
  * the entity lock to access the returned configuration.
  *
- * Return the pad configuration requested by the which argument. The TRY
- * configuration is passed explicitly to the function through the cfg argument
- * and simply returned when requested. The ACTIVE configuration comes from the
- * entity structure.
+ * Return the subdev state requested by the which argument. The TRY state is
+ * passed explicitly to the function through the sd_state argument and simply
+ * returned when requested. The ACTIVE state comes from the entity structure.
  */
 struct v4l2_subdev_state *
-vsp1_entity_get_pad_config(struct vsp1_entity *entity,
-			   struct v4l2_subdev_state *sd_state,
-			   enum v4l2_subdev_format_whence which)
+vsp1_entity_get_state(struct vsp1_entity *entity,
+		      struct v4l2_subdev_state *sd_state,
+		      enum v4l2_subdev_format_whence which)
 {
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return entity->config;
+		return entity->state;
 	case V4L2_SUBDEV_FORMAT_TRY:
 	default:
 		return sd_state;
@@ -142,7 +141,7 @@ vsp1_entity_get_pad_format(struct vsp1_entity *entity,
 			   struct v4l2_subdev_state *sd_state,
 			   unsigned int pad)
 {
-	return v4l2_subdev_get_try_format(&entity->subdev, sd_state, pad);
+	return v4l2_subdev_state_get_format(sd_state, pad);
 }
 
 /**
@@ -163,46 +162,18 @@ vsp1_entity_get_pad_selection(struct vsp1_entity *entity,
 {
 	switch (target) {
 	case V4L2_SEL_TGT_COMPOSE:
-		return v4l2_subdev_get_try_compose(&entity->subdev, sd_state,
-						   pad);
+		return v4l2_subdev_state_get_compose(sd_state, pad);
 	case V4L2_SEL_TGT_CROP:
-		return v4l2_subdev_get_try_crop(&entity->subdev, sd_state,
-						pad);
+		return v4l2_subdev_state_get_crop(sd_state, pad);
 	default:
 		return NULL;
 	}
 }
 
 /*
- * vsp1_entity_init_cfg - Initialize formats on all pads
- * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
- *
- * Initialize all pad formats with default values in the given pad config. This
- * function can be used as a handler for the subdev pad::init_cfg operation.
- */
-int vsp1_entity_init_cfg(struct v4l2_subdev *subdev,
-			 struct v4l2_subdev_state *sd_state)
-{
-	unsigned int pad;
-
-	for (pad = 0; pad < subdev->entity.num_pads - 1; ++pad) {
-		struct v4l2_subdev_format format = {
-			.pad = pad,
-			.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
-			       : V4L2_SUBDEV_FORMAT_ACTIVE,
-		};
-
-		v4l2_subdev_call(subdev, pad, set_fmt, sd_state, &format);
-	}
-
-	return 0;
-}
-
-/*
  * vsp1_subdev_get_pad_format - Subdev pad get_fmt handler
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: V4L2 subdev format
  *
  * This function implements the subdev get_fmt pad operation. It can be used as
@@ -213,14 +184,14 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 
-	config = vsp1_entity_get_pad_config(entity, sd_state, fmt->which);
-	if (!config)
+	state = vsp1_entity_get_state(entity, sd_state, fmt->which);
+	if (!state)
 		return -EINVAL;
 
 	mutex_lock(&entity->lock);
-	fmt->format = *vsp1_entity_get_pad_format(entity, config, fmt->pad);
+	fmt->format = *vsp1_entity_get_pad_format(entity, state, fmt->pad);
 	mutex_unlock(&entity->lock);
 
 	return 0;
@@ -229,7 +200,7 @@ int vsp1_subdev_get_pad_format(struct v4l2_subdev *subdev,
 /*
  * vsp1_subdev_enum_mbus_code - Subdev pad enum_mbus_code handler
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code: Media bus code enumeration
  * @codes: Array of supported media bus codes
  * @ncodes: Number of supported media bus codes
@@ -252,7 +223,7 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 
 		code->code = codes[code->index];
 	} else {
-		struct v4l2_subdev_state *config;
+		struct v4l2_subdev_state *state;
 		struct v4l2_mbus_framefmt *format;
 
 		/*
@@ -262,13 +233,12 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 		if (code->index)
 			return -EINVAL;
 
-		config = vsp1_entity_get_pad_config(entity, sd_state,
-						    code->which);
-		if (!config)
+		state = vsp1_entity_get_state(entity, sd_state, code->which);
+		if (!state)
 			return -EINVAL;
 
 		mutex_lock(&entity->lock);
-		format = vsp1_entity_get_pad_format(entity, config, 0);
+		format = vsp1_entity_get_pad_format(entity, state, 0);
 		code->code = format->code;
 		mutex_unlock(&entity->lock);
 	}
@@ -279,7 +249,7 @@ int vsp1_subdev_enum_mbus_code(struct v4l2_subdev *subdev,
 /*
  * vsp1_subdev_enum_frame_size - Subdev pad enum_frame_size handler
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fse: Frame size enumeration
  * @min_width: Minimum image width
  * @min_height: Minimum image height
@@ -298,15 +268,15 @@ int vsp1_subdev_enum_frame_size(struct v4l2_subdev *subdev,
 				unsigned int max_width, unsigned int max_height)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
-	config = vsp1_entity_get_pad_config(entity, sd_state, fse->which);
-	if (!config)
+	state = vsp1_entity_get_state(entity, sd_state, fse->which);
+	if (!state)
 		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(entity, config, fse->pad);
+	format = vsp1_entity_get_pad_format(entity, state, fse->pad);
 
 	mutex_lock(&entity->lock);
 
@@ -339,7 +309,7 @@ done:
 /*
  * vsp1_subdev_set_pad_format - Subdev pad set_fmt handler
  * @subdev: V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt: V4L2 subdev format
  * @codes: Array of supported media bus codes
  * @ncodes: Number of supported media bus codes
@@ -362,7 +332,7 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 			       unsigned int max_width, unsigned int max_height)
 {
 	struct vsp1_entity *entity = to_vsp1_entity(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *selection;
 	unsigned int i;
@@ -370,13 +340,13 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 
 	mutex_lock(&entity->lock);
 
-	config = vsp1_entity_get_pad_config(entity, sd_state, fmt->which);
-	if (!config) {
+	state = vsp1_entity_get_state(entity, sd_state, fmt->which);
+	if (!state) {
 		ret = -EINVAL;
 		goto done;
 	}
 
-	format = vsp1_entity_get_pad_format(entity, config, fmt->pad);
+	format = vsp1_entity_get_pad_format(entity, state, fmt->pad);
 
 	if (fmt->pad == entity->source_pad) {
 		/* The output format can't be modified. */
@@ -404,18 +374,18 @@ int vsp1_subdev_set_pad_format(struct v4l2_subdev *subdev,
 	fmt->format = *format;
 
 	/* Propagate the format to the source pad. */
-	format = vsp1_entity_get_pad_format(entity, config, entity->source_pad);
+	format = vsp1_entity_get_pad_format(entity, state, entity->source_pad);
 	*format = fmt->format;
 
 	/* Reset the crop and compose rectangles. */
-	selection = vsp1_entity_get_pad_selection(entity, config, fmt->pad,
+	selection = vsp1_entity_get_pad_selection(entity, state, fmt->pad,
 						  V4L2_SEL_TGT_CROP);
 	selection->left = 0;
 	selection->top = 0;
 	selection->width = format->width;
 	selection->height = format->height;
 
-	selection = vsp1_entity_get_pad_selection(entity, config, fmt->pad,
+	selection = vsp1_entity_get_pad_selection(entity, state, fmt->pad,
 						  V4L2_SEL_TGT_COMPOSE);
 	selection->left = 0;
 	selection->top = 0;
@@ -426,6 +396,29 @@ done:
 	mutex_unlock(&entity->lock);
 	return ret;
 }
+
+static int vsp1_entity_init_state(struct v4l2_subdev *subdev,
+				  struct v4l2_subdev_state *sd_state)
+{
+	unsigned int pad;
+
+	/* Initialize all pad formats with default values. */
+	for (pad = 0; pad < subdev->entity.num_pads - 1; ++pad) {
+		struct v4l2_subdev_format format = {
+			.pad = pad,
+			.which = sd_state ? V4L2_SUBDEV_FORMAT_TRY
+			       : V4L2_SUBDEV_FORMAT_ACTIVE,
+		};
+
+		v4l2_subdev_call(subdev, pad, set_fmt, sd_state, &format);
+	}
+
+	return 0;
+}
+
+static const struct v4l2_subdev_internal_ops vsp1_entity_internal_ops = {
+	.init_state = vsp1_entity_init_state,
+};
 
 /* -----------------------------------------------------------------------------
  * Media Operations
@@ -661,6 +654,7 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	/* Initialize the V4L2 subdev. */
 	subdev = &entity->subdev;
 	v4l2_subdev_init(subdev, ops);
+	subdev->internal_ops = &vsp1_entity_internal_ops;
 
 	subdev->entity.function = function;
 	subdev->entity.ops = &vsp1->media_ops;
@@ -669,21 +663,21 @@ int vsp1_entity_init(struct vsp1_device *vsp1, struct vsp1_entity *entity,
 	snprintf(subdev->name, sizeof(subdev->name), "%s %s",
 		 dev_name(vsp1->dev), name);
 
-	vsp1_entity_init_cfg(subdev, NULL);
+	vsp1_entity_init_state(subdev, NULL);
 
 	/*
-	 * Allocate the pad configuration to store formats and selection
+	 * Allocate the subdev state to store formats and selection
 	 * rectangles.
 	 */
 	/*
 	 * FIXME: Drop this call, drivers are not supposed to use
 	 * __v4l2_subdev_state_alloc().
 	 */
-	entity->config = __v4l2_subdev_state_alloc(&entity->subdev,
-						   "vsp1:config->lock", &key);
-	if (IS_ERR(entity->config)) {
+	entity->state = __v4l2_subdev_state_alloc(&entity->subdev,
+						  "vsp1:state->lock", &key);
+	if (IS_ERR(entity->state)) {
 		media_entity_cleanup(&entity->subdev.entity);
-		return PTR_ERR(entity->config);
+		return PTR_ERR(entity->state);
 	}
 
 	return 0;
@@ -695,6 +689,6 @@ void vsp1_entity_destroy(struct vsp1_entity *entity)
 		entity->ops->destroy(entity);
 	if (entity->subdev.ctrl_handler)
 		v4l2_ctrl_handler_free(entity->subdev.ctrl_handler);
-	__v4l2_subdev_state_free(entity->config);
+	__v4l2_subdev_state_free(entity->state);
 	media_entity_cleanup(&entity->subdev.entity);
 }

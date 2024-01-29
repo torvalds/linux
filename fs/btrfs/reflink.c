@@ -141,9 +141,9 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (datal < block_size)
 		memzero_page(page, datal, block_size - datal);
 
-	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
-	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);
-	btrfs_page_set_dirty(fs_info, page, file_offset, block_size);
+	btrfs_folio_set_uptodate(fs_info, page_folio(page), file_offset, block_size);
+	btrfs_folio_clear_checked(fs_info, page_folio(page), file_offset, block_size);
+	btrfs_folio_set_dirty(fs_info, page_folio(page), file_offset, block_size);
 out_unlock:
 	if (page) {
 		unlock_page(page);

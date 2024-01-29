@@ -473,8 +473,8 @@ enum {
  */
 
 struct disk_info {
-	struct md_rdev	__rcu *rdev;
-	struct md_rdev  __rcu *replacement;
+	struct md_rdev	*rdev;
+	struct md_rdev	*replacement;
 	struct page	*extra_page; /* extra page to use in prexor */
 };
 

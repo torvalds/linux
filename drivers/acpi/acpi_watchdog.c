@@ -81,7 +81,7 @@ static const struct acpi_table_wdat *acpi_watchdog_get_wdat(void)
 	return wdat;
 }
 
-/**
+/*
  * Returns true if this system should prefer ACPI based watchdog instead of
  * the native one (which are typically the same hardware).
  */

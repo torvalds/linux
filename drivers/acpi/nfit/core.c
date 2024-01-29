@@ -1186,7 +1186,7 @@ static ssize_t bus_dsm_mask_show(struct device *dev,
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 
-	return sprintf(buf, "%#lx\n", acpi_desc->bus_dsm_mask);
+	return sysfs_emit(buf, "%#lx\n", acpi_desc->bus_dsm_mask);
 }
 static struct device_attribute dev_attr_bus_dsm_mask =
 		__ATTR(dsm_mask, 0444, bus_dsm_mask_show, NULL);
@@ -1198,7 +1198,7 @@ static ssize_t revision_show(struct device *dev,
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 
-	return sprintf(buf, "%d\n", acpi_desc->acpi_header.revision);
+	return sysfs_emit(buf, "%d\n", acpi_desc->acpi_header.revision);
 }
 static DEVICE_ATTR_RO(revision);
 
@@ -1209,7 +1209,7 @@ static ssize_t hw_error_scrub_show(struct device *dev,
 	struct nvdimm_bus_descriptor *nd_desc = to_nd_desc(nvdimm_bus);
 	struct acpi_nfit_desc *acpi_desc = to_acpi_desc(nd_desc);
 
-	return sprintf(buf, "%d\n", acpi_desc->scrub_mode);
+	return sysfs_emit(buf, "%d\n", acpi_desc->scrub_mode);
 }
 
 /*
@@ -1278,7 +1278,7 @@ static ssize_t scrub_show(struct device *dev,
 	mutex_lock(&acpi_desc->init_mutex);
 	busy = test_bit(ARS_BUSY, &acpi_desc->scrub_flags)
 		&& !test_bit(ARS_CANCEL, &acpi_desc->scrub_flags);
-	rc = sprintf(buf, "%d%s", acpi_desc->scrub_count, busy ? "+\n" : "\n");
+	rc = sysfs_emit(buf, "%d%s", acpi_desc->scrub_count, busy ? "+\n" : "\n");
 	/* Allow an admin to poll the busy state at a higher rate */
 	if (busy && capable(CAP_SYS_RAWIO) && !test_and_set_bit(ARS_POLL,
 				&acpi_desc->scrub_flags)) {
@@ -1382,7 +1382,7 @@ static ssize_t handle_show(struct device *dev,
 {
 	struct acpi_nfit_memory_map *memdev = to_nfit_memdev(dev);
 
-	return sprintf(buf, "%#x\n", memdev->device_handle);
+	return sysfs_emit(buf, "%#x\n", memdev->device_handle);
 }
 static DEVICE_ATTR_RO(handle);
 
@@ -1391,7 +1391,7 @@ static ssize_t phys_id_show(struct device *dev,
 {
 	struct acpi_nfit_memory_map *memdev = to_nfit_memdev(dev);
 
-	return sprintf(buf, "%#x\n", memdev->physical_id);
+	return sysfs_emit(buf, "%#x\n", memdev->physical_id);
 }
 static DEVICE_ATTR_RO(phys_id);
 
@@ -1400,7 +1400,7 @@ static ssize_t vendor_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->vendor_id));
+	return sysfs_emit(buf, "0x%04x\n", be16_to_cpu(dcr->vendor_id));
 }
 static DEVICE_ATTR_RO(vendor);
 
@@ -1409,7 +1409,7 @@ static ssize_t rev_id_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->revision_id));
+	return sysfs_emit(buf, "0x%04x\n", be16_to_cpu(dcr->revision_id));
 }
 static DEVICE_ATTR_RO(rev_id);
 
@@ -1418,7 +1418,7 @@ static ssize_t device_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->device_id));
+	return sysfs_emit(buf, "0x%04x\n", be16_to_cpu(dcr->device_id));
 }
 static DEVICE_ATTR_RO(device);
 
@@ -1427,7 +1427,7 @@ static ssize_t subsystem_vendor_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->subsystem_vendor_id));
+	return sysfs_emit(buf, "0x%04x\n", be16_to_cpu(dcr->subsystem_vendor_id));
 }
 static DEVICE_ATTR_RO(subsystem_vendor);
 
@@ -1436,7 +1436,7 @@ static ssize_t subsystem_rev_id_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n",
+	return sysfs_emit(buf, "0x%04x\n",
 			be16_to_cpu(dcr->subsystem_revision_id));
 }
 static DEVICE_ATTR_RO(subsystem_rev_id);
@@ -1446,7 +1446,7 @@ static ssize_t subsystem_device_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", be16_to_cpu(dcr->subsystem_device_id));
+	return sysfs_emit(buf, "0x%04x\n", be16_to_cpu(dcr->subsystem_device_id));
 }
 static DEVICE_ATTR_RO(subsystem_device);
 
@@ -1465,7 +1465,7 @@ static ssize_t format_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%04x\n", le16_to_cpu(dcr->code));
+	return sysfs_emit(buf, "0x%04x\n", le16_to_cpu(dcr->code));
 }
 static DEVICE_ATTR_RO(format);
 
@@ -1498,7 +1498,7 @@ static ssize_t format1_show(struct device *dev,
 				continue;
 			if (nfit_dcr->dcr->code == dcr->code)
 				continue;
-			rc = sprintf(buf, "0x%04x\n",
+			rc = sysfs_emit(buf, "0x%04x\n",
 					le16_to_cpu(nfit_dcr->dcr->code));
 			break;
 		}
@@ -1515,7 +1515,7 @@ static ssize_t formats_show(struct device *dev,
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 
-	return sprintf(buf, "%d\n", num_nvdimm_formats(nvdimm));
+	return sysfs_emit(buf, "%d\n", num_nvdimm_formats(nvdimm));
 }
 static DEVICE_ATTR_RO(formats);
 
@@ -1524,7 +1524,7 @@ static ssize_t serial_show(struct device *dev,
 {
 	struct acpi_nfit_control_region *dcr = to_nfit_dcr(dev);
 
-	return sprintf(buf, "0x%08x\n", be32_to_cpu(dcr->serial_number));
+	return sysfs_emit(buf, "0x%08x\n", be32_to_cpu(dcr->serial_number));
 }
 static DEVICE_ATTR_RO(serial);
 
@@ -1536,7 +1536,7 @@ static ssize_t family_show(struct device *dev,
 
 	if (nfit_mem->family < 0)
 		return -ENXIO;
-	return sprintf(buf, "%d\n", nfit_mem->family);
+	return sysfs_emit(buf, "%d\n", nfit_mem->family);
 }
 static DEVICE_ATTR_RO(family);
 
@@ -1548,7 +1548,7 @@ static ssize_t dsm_mask_show(struct device *dev,
 
 	if (nfit_mem->family < 0)
 		return -ENXIO;
-	return sprintf(buf, "%#lx\n", nfit_mem->dsm_mask);
+	return sysfs_emit(buf, "%#lx\n", nfit_mem->dsm_mask);
 }
 static DEVICE_ATTR_RO(dsm_mask);
 
@@ -1562,7 +1562,7 @@ static ssize_t flags_show(struct device *dev,
 	if (test_bit(NFIT_MEM_DIRTY, &nfit_mem->flags))
 		flags |= ACPI_NFIT_MEM_FLUSH_FAILED;
 
-	return sprintf(buf, "%s%s%s%s%s%s%s\n",
+	return sysfs_emit(buf, "%s%s%s%s%s%s%s\n",
 		flags & ACPI_NFIT_MEM_SAVE_FAILED ? "save_fail " : "",
 		flags & ACPI_NFIT_MEM_RESTORE_FAILED ? "restore_fail " : "",
 		flags & ACPI_NFIT_MEM_FLUSH_FAILED ? "flush_fail " : "",
@@ -1579,7 +1579,7 @@ static ssize_t id_show(struct device *dev,
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
-	return sprintf(buf, "%s\n", nfit_mem->id);
+	return sysfs_emit(buf, "%s\n", nfit_mem->id);
 }
 static DEVICE_ATTR_RO(id);
 
@@ -1589,7 +1589,7 @@ static ssize_t dirty_shutdown_show(struct device *dev,
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 
-	return sprintf(buf, "%d\n", nfit_mem->dirty_shutdown);
+	return sysfs_emit(buf, "%d\n", nfit_mem->dirty_shutdown);
 }
 static DEVICE_ATTR_RO(dirty_shutdown);
 
@@ -2172,7 +2172,7 @@ static ssize_t range_index_show(struct device *dev,
 	struct nd_region *nd_region = to_nd_region(dev);
 	struct nfit_spa *nfit_spa = nd_region_provider_data(nd_region);
 
-	return sprintf(buf, "%d\n", nfit_spa->spa->range_index);
+	return sysfs_emit(buf, "%d\n", nfit_spa->spa->range_index);
 }
 static DEVICE_ATTR_RO(range_index);
 
@@ -2257,25 +2257,22 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 		struct nd_region_desc *ndr_desc,
 		struct acpi_nfit_system_address *spa)
 {
+	u16 nr = ndr_desc->num_mappings;
+	struct nfit_set_info2 *info2 __free(kfree) =
+		kcalloc(nr, sizeof(*info2), GFP_KERNEL);
+	struct nfit_set_info *info __free(kfree) =
+		kcalloc(nr, sizeof(*info), GFP_KERNEL);
 	struct device *dev = acpi_desc->dev;
 	struct nd_interleave_set *nd_set;
-	u16 nr = ndr_desc->num_mappings;
-	struct nfit_set_info2 *info2;
-	struct nfit_set_info *info;
 	int i;
+
+	if (!info || !info2)
+		return -ENOMEM;
 
 	nd_set = devm_kzalloc(dev, sizeof(*nd_set), GFP_KERNEL);
 	if (!nd_set)
 		return -ENOMEM;
 	import_guid(&nd_set->type_guid, spa->range_guid);
-
-	info = devm_kcalloc(dev, nr, sizeof(*info), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
-
-	info2 = devm_kcalloc(dev, nr, sizeof(*info2), GFP_KERNEL);
-	if (!info2)
-		return -ENOMEM;
 
 	for (i = 0; i < nr; i++) {
 		struct nd_mapping_desc *mapping = &ndr_desc->mapping[i];
@@ -2337,8 +2334,6 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 	}
 
 	ndr_desc->nd_set = nd_set;
-	devm_kfree(dev, info);
-	devm_kfree(dev, info2);
 
 	return 0;
 }

@@ -155,6 +155,17 @@ include::itrace.txt[]
 	stdio or stdio2 (Default: 0).  Note that this is about selection of
 	functions to display, not about lines within the function.
 
+--data-type[=TYPE_NAME]::
+	Display data type annotation instead of code.  It infers data type of
+	samples (if they are memory accessing instructions) using DWARF debug
+	information.  It can take an optional argument of data type name.  In
+	that case it'd show annotation for the type only, otherwise it'd show
+	all data types it finds.
+
+--type-stat::
+	Show stats for the data type annotation.
+
+
 SEE ALSO
 --------
 linkperf:perf-record[1], linkperf:perf-report[1]

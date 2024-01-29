@@ -19,7 +19,7 @@
  *
  * Ordering barriers can be more efficient than completion barriers, since:
  *
- *   a) Ordering barriers only require memory access instructions which preceed
+ *   a) Ordering barriers only require memory access instructions which precede
  *      them in program order (older instructions) to reach a point in the
  *      load/store datapath beyond which reordering is not possible before
  *      allowing memory access instructions which follow them (younger

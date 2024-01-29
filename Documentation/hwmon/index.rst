@@ -73,6 +73,7 @@ Hardware Monitoring Kernel Drivers
    ftsteutates
    g760a
    g762
+   gigabyte_waterforce
    gsc-hwmon
    gl518sm
    gxp-fan-ctrl
@@ -128,6 +129,7 @@ Hardware Monitoring Kernel Drivers
    ltc4245
    ltc4260
    ltc4261
+   ltc4286
    max127
    max15301
    max16064
@@ -156,9 +158,11 @@ Hardware Monitoring Kernel Drivers
    mcp3021
    menf21bmc
    mlxreg-fan
+   mp2856
    mp2888
    mp2975
    mp5023
+   mp5990
    nct6683
    nct6775
    nct7802

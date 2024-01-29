@@ -10,6 +10,11 @@ static inline void linkmode_zero(unsigned long *dst)
 	bitmap_zero(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
+static inline void linkmode_fill(unsigned long *dst)
+{
+	bitmap_fill(dst, __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
 static inline void linkmode_copy(unsigned long *dst, const unsigned long *src)
 {
 	bitmap_copy(dst, src, __ETHTOOL_LINK_MODE_MASK_NBITS);

@@ -76,7 +76,7 @@ static int hda_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct bus_type snd_hda_bus_type = {
+const struct bus_type snd_hda_bus_type = {
 	.name = "hdaudio",
 	.match = hda_bus_match,
 	.uevent = hda_uevent,

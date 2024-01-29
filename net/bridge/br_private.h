@@ -186,6 +186,7 @@ enum {
  * struct net_bridge_vlan - per-vlan entry
  *
  * @vnode: rhashtable member
+ * @tnode: rhashtable member
  * @vid: VLAN id
  * @flags: bridge vlan flags
  * @priv_flags: private (in-kernel) bridge vlan flags
@@ -196,6 +197,7 @@ enum {
  * @refcnt: if MASTER flag set, this is bumped for each port referencing it
  * @brvlan: if MASTER flag unset, this points to the global per-VLAN context
  *          for this VLAN entry
+ * @tinfo: bridge tunnel info
  * @br_mcast_ctx: if MASTER flag set, this is the global vlan multicast context
  * @port_mcast_ctx: if MASTER flag unset, this is the per-port/vlan multicast
  *                  context
@@ -1020,6 +1022,8 @@ int br_mdb_add(struct net_device *dev, struct nlattr *tb[], u16 nlmsg_flags,
 	       struct netlink_ext_ack *extack);
 int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
 	       struct netlink_ext_ack *extack);
+int br_mdb_del_bulk(struct net_device *dev, struct nlattr *tb[],
+		    struct netlink_ext_ack *extack);
 int br_mdb_dump(struct net_device *dev, struct sk_buff *skb,
 		struct netlink_callback *cb);
 int br_mdb_get(struct net_device *dev, struct nlattr *tb[], u32 portid, u32 seq,
@@ -1424,6 +1428,12 @@ static inline int br_mdb_add(struct net_device *dev, struct nlattr *tb[],
 
 static inline int br_mdb_del(struct net_device *dev, struct nlattr *tb[],
 			     struct netlink_ext_ack *extack)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_mdb_del_bulk(struct net_device *dev, struct nlattr *tb[],
+				  struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

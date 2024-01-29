@@ -130,6 +130,28 @@ bool dwb3_disable(struct dwbc *dwbc)
 	return true;
 }
 
+void dwb3_set_fc_enable(struct dwbc *dwbc, enum dwb_frame_capture_enable enable)
+{
+	struct dcn30_dwbc *dwbc30 = TO_DCN30_DWBC(dwbc);
+	unsigned int pre_locked;
+
+	REG_GET(DWB_UPDATE_CTRL, DWB_UPDATE_LOCK, &pre_locked);
+
+	/* Lock DWB registers */
+	if (pre_locked == 0)
+		REG_UPDATE(DWB_UPDATE_CTRL, DWB_UPDATE_LOCK, 1);
+
+	/* Disable FC */
+	REG_UPDATE(FC_MODE_CTRL, FC_FRAME_CAPTURE_EN, enable);
+
+	/* Unlock DWB registers */
+	if (pre_locked == 0)
+		REG_UPDATE(DWB_UPDATE_CTRL, DWB_UPDATE_LOCK, 0);
+
+	DC_LOG_DWB("%s dwb3_fc_disabled at inst = %d", __func__, dwbc->inst);
+}
+
+
 bool dwb3_update(struct dwbc *dwbc, struct dc_dwb_params *params)
 {
 	struct dcn30_dwbc *dwbc30 = TO_DCN30_DWBC(dwbc);
@@ -226,6 +248,7 @@ static const struct dwbc_funcs dcn30_dwbc_funcs = {
 	.disable		= dwb3_disable,
 	.update			= dwb3_update,
 	.is_enabled		= dwb3_is_enabled,
+	.set_fc_enable		= dwb3_set_fc_enable,
 	.set_stereo		= dwb3_set_stereo,
 	.set_new_content	= dwb3_set_new_content,
 	.dwb_program_output_csc	= NULL,

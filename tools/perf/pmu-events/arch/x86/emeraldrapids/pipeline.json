@@ -1,21 +1,5 @@
 [
     {
-        "BriefDescription": "AMX retired arithmetic BF16 operations.",
-        "EventCode": "0xce",
-        "EventName": "AMX_OPS_RETIRED.BF16",
-        "PublicDescription": "Number of AMX-based retired arithmetic bfloat16 (BF16) floating-point operations. Counts TDPBF16PS FP instructions. SW to use operation multiplier of 4",
-        "SampleAfterValue": "1000003",
-        "UMask": "0x2"
-    },
-    {
-        "BriefDescription": "AMX retired arithmetic integer 8-bit operations.",
-        "EventCode": "0xce",
-        "EventName": "AMX_OPS_RETIRED.INT8",
-        "PublicDescription": "Number of AMX-based retired arithmetic integer operations of 8-bit width source operands. Counts TDPB[SS,UU,US,SU]D instructions. SW should use operation multiplier of 8.",
-        "SampleAfterValue": "1000003",
-        "UMask": "0x1"
-    },
-    {
         "BriefDescription": "This event is deprecated. Refer to new event ARITH.DIV_ACTIVE",
         "CounterMask": "1",
         "Deprecated": "1",
@@ -505,7 +489,7 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
+        "BriefDescription": "Bubble cycles of BAClear (Unknown Branch).",
         "EventCode": "0xad",
         "EventName": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
         "MSRIndex": "0x3F7",

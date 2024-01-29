@@ -1206,3 +1206,13 @@ int mlx5_port_max_linkspeed(struct mlx5_core_dev *mdev, u32 *speed)
 	*speed = max_speed;
 	return 0;
 }
+
+int mlx5_query_mpir_reg(struct mlx5_core_dev *dev, u32 *mpir)
+{
+	u32 in[MLX5_ST_SZ_DW(mpir_reg)] = {};
+	int sz = MLX5_ST_SZ_BYTES(mpir_reg);
+
+	MLX5_SET(mpir_reg, in, local_port, 1);
+
+	return mlx5_core_access_reg(dev, in, sz, mpir, sz, MLX5_REG_MPIR, 0, 0);
+}

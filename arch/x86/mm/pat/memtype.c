@@ -14,7 +14,7 @@
  * memory ranges: uncached, write-combining, write-through, write-protected,
  * and the most commonly used and default attribute: write-back caching.
  *
- * PAT support supercedes and augments MTRR support in a compatible fashion: MTRR is
+ * PAT support supersedes and augments MTRR support in a compatible fashion: MTRR is
  * a hardware interface to enumerate a limited number of physical memory ranges
  * and set their caching attributes explicitly, programmed into the CPU via MSRs.
  * Even modern CPUs have MTRRs enabled - but these are typically not touched

@@ -28,7 +28,7 @@ Sphinx Install
 ==============
 
 The ReST markups currently used by the Documentation/ files are meant to be
-built with ``Sphinx`` version 1.7 or higher.
+built with ``Sphinx`` version 2.4.4 or higher.
 
 There's a script that checks for the Sphinx requirements. Please see
 :ref:`sphinx-pre-install` for further details.
@@ -434,6 +434,15 @@ path.
 
 For information on cross-referencing to kernel-doc functions or types, see
 Documentation/doc-guide/kernel-doc.rst.
+
+Referencing commits
+~~~~~~~~~~~~~~~~~~~
+
+References to git commits are automatically hyperlinked given that they are
+written in one of these formats::
+
+    commit 72bf4f1767f0
+    commit 72bf4f1767f0 ("net: do not leave an empty skb in write queue")
 
 .. _sphinx_kfigure:
 

@@ -46,6 +46,7 @@ static int __report_module(struct addr_location *al, u64 ip,
 {
 	Dwfl_Module *mod;
 	struct dso *dso = NULL;
+	Dwarf_Addr base;
 	/*
 	 * Some callers will use al->sym, so we can't just use the
 	 * cheaper thread__find_map() here.
@@ -58,13 +59,25 @@ static int __report_module(struct addr_location *al, u64 ip,
 	if (!dso)
 		return 0;
 
+	/*
+	 * The generated JIT DSO files only map the code segment without
+	 * ELF headers.  Since JIT codes used to be packed in a memory
+	 * segment, calculating the base address using pgoff falls into
+	 * a different code in another DSO.  So just use the map->start
+	 * directly to pick the correct one.
+	 */
+	if (!strncmp(dso->long_name, "/tmp/jitted-", 12))
+		base = map__start(al->map);
+	else
+		base = map__start(al->map) - map__pgoff(al->map);
+
 	mod = dwfl_addrmodule(ui->dwfl, ip);
 	if (mod) {
 		Dwarf_Addr s;
 
 		dwfl_module_info(mod, NULL, &s, NULL, NULL, NULL, NULL, NULL);
-		if (s != map__start(al->map) - map__pgoff(al->map))
-			mod = 0;
+		if (s != base)
+			mod = NULL;
 	}
 
 	if (!mod) {
@@ -72,14 +85,14 @@ static int __report_module(struct addr_location *al, u64 ip,
 
 		__symbol__join_symfs(filename, sizeof(filename), dso->long_name);
 		mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
-				      map__start(al->map) - map__pgoff(al->map), false);
+				      base, false);
 	}
 	if (!mod) {
 		char filename[PATH_MAX];
 
 		if (dso__build_id_filename(dso, filename, sizeof(filename), false))
 			mod = dwfl_report_elf(ui->dwfl, dso->short_name, filename, -1,
-					      map__start(al->map) - map__pgoff(al->map), false);
+					      base, false);
 	}
 
 	if (mod) {

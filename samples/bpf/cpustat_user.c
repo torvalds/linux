@@ -66,10 +66,10 @@ static void cpu_stat_print(void)
 
 		printf("CPU-%-6d ", j);
 		for (i = 0; i < MAX_CSTATE_ENTRIES; i++)
-			printf("%-11ld ", data->cstate[i] / 1000000);
+			printf("%-11lu ", data->cstate[i] / 1000000);
 
 		for (i = 0; i < MAX_PSTATE_ENTRIES; i++)
-			printf("%-11ld ", data->pstate[i] / 1000000);
+			printf("%-11lu ", data->pstate[i] / 1000000);
 
 		printf("\n");
 	}

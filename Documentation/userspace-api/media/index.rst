@@ -21,13 +21,8 @@ Documentation/driver-api/media/index.rst
     media devices;
 
 
-.. only:: html
-
-   .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+    :caption: Table of Contents
     :maxdepth: 1
 
     intro
