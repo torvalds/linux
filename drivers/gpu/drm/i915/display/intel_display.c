@@ -443,6 +443,14 @@ void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state)
 		return;
 	}
 
+	/* Wa_1409098942:adlp+ */
+	if (DISPLAY_VER(dev_priv) >= 13 &&
+	    new_crtc_state->dsc.compression_enable) {
+		val &= ~TRANSCONF_PIXEL_COUNT_SCALING_MASK;
+		val |= REG_FIELD_PREP(TRANSCONF_PIXEL_COUNT_SCALING_MASK,
+				      TRANSCONF_PIXEL_COUNT_SCALING_X4);
+	}
+
 	intel_de_write(dev_priv, TRANSCONF(cpu_transcoder),
 		       val | TRANSCONF_ENABLE);
 	intel_de_posting_read(dev_priv, TRANSCONF(cpu_transcoder));
@@ -488,6 +496,11 @@ void intel_disable_transcoder(const struct intel_crtc_state *old_crtc_state)
 	/* Don't disable pipe or pipe PLLs if needed */
 	if (!IS_I830(dev_priv))
 		val &= ~TRANSCONF_ENABLE;
+
+	/* Wa_1409098942:adlp+ */
+	if (DISPLAY_VER(dev_priv) >= 13 &&
+	    old_crtc_state->dsc.compression_enable)
+		val &= ~TRANSCONF_PIXEL_COUNT_SCALING_MASK;
 
 	intel_de_write(dev_priv, TRANSCONF(cpu_transcoder), val);
 
