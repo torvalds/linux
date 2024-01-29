@@ -400,17 +400,6 @@ int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base)
 	unsigned int val;
 	int ret;
 
-	/* Nothing to re-patch if we haven't done any patching yet. */
-	if (!cs35l56_base->fw_patched)
-		return false;
-
-	/*
-	 * If we have control of RESET we will have asserted it so the firmware
-	 * will need re-patching.
-	 */
-	if (cs35l56_base->reset_gpio)
-		return true;
-
 	/*
 	 * In secure mode FIRMWARE_MISSING is cleared by the BIOS loader so
 	 * can't be used here to test for memory retention.
