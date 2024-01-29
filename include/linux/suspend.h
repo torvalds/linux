@@ -41,7 +41,8 @@ typedef int __bitwise suspend_state_t;
 #define PM_SUSPEND_MAX		((__force suspend_state_t) 4)
 
 enum suspend_stat_step {
-	SUSPEND_FREEZE = 1,
+	SUSPEND_WORKING = 0,
+	SUSPEND_FREEZE,
 	SUSPEND_PREPARE,
 	SUSPEND_SUSPEND,
 	SUSPEND_SUSPEND_LATE,

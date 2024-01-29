@@ -319,25 +319,17 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 power_attr(pm_test);
 #endif /* CONFIG_PM_SLEEP_DEBUG */
 
-static char *suspend_step_name(enum suspend_stat_step step)
-{
-	switch (step) {
-	case SUSPEND_FREEZE:
-		return "freeze";
-	case SUSPEND_PREPARE:
-		return "prepare";
-	case SUSPEND_SUSPEND:
-		return "suspend";
-	case SUSPEND_SUSPEND_NOIRQ:
-		return "suspend_noirq";
-	case SUSPEND_RESUME_NOIRQ:
-		return "resume_noirq";
-	case SUSPEND_RESUME:
-		return "resume";
-	default:
-		return "";
-	}
-}
+static const char * const suspend_step_names[] = {
+	[SUSPEND_WORKING] = "",
+	[SUSPEND_FREEZE] = "freeze",
+	[SUSPEND_PREPARE] = "prepare",
+	[SUSPEND_SUSPEND] = "suspend",
+	[SUSPEND_SUSPEND_LATE] = "suspend_late",
+	[SUSPEND_SUSPEND_NOIRQ] = "suspend_noirq",
+	[SUSPEND_RESUME_NOIRQ] = "resume_noirq",
+	[SUSPEND_RESUME_EARLY] = "resume_early",
+	[SUSPEND_RESUME] = "resume",
+};
 
 #define suspend_attr(_name, format_str)				\
 static ssize_t _name##_show(struct kobject *kobj,		\
@@ -392,16 +384,14 @@ static struct kobj_attribute last_failed_errno = __ATTR_RO(last_failed_errno);
 static ssize_t last_failed_step_show(struct kobject *kobj,
 		struct kobj_attribute *attr, char *buf)
 {
-	int index;
 	enum suspend_stat_step step;
-	char *last_failed_step = NULL;
+	int index;
 
 	index = suspend_stats.last_failed_step + REC_FAILED_NUM - 1;
 	index %= REC_FAILED_NUM;
 	step = suspend_stats.failed_steps[index];
-	last_failed_step = suspend_step_name(step);
 
-	return sprintf(buf, "%s\n", last_failed_step);
+	return sprintf(buf, "%s\n", suspend_step_names[step]);
 }
 static struct kobj_attribute last_failed_step = __ATTR_RO(last_failed_step);
 
@@ -473,30 +463,26 @@ static int suspend_stats_show(struct seq_file *s, void *unused)
 			"failed_resume_noirq",
 				suspend_stats.failed_resume_noirq);
 	seq_printf(s,	"failures:\n  last_failed_dev:\t%-s\n",
-			suspend_stats.failed_devs[last_dev]);
+		   suspend_stats.failed_devs[last_dev]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
 		index = last_dev + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
-		seq_printf(s, "\t\t\t%-s\n",
-			suspend_stats.failed_devs[index]);
+		seq_printf(s, "\t\t\t%-s\n", suspend_stats.failed_devs[index]);
 	}
 	seq_printf(s,	"  last_failed_errno:\t%-d\n",
 			suspend_stats.errno[last_errno]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
 		index = last_errno + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
-		seq_printf(s, "\t\t\t%-d\n",
-			suspend_stats.errno[index]);
+		seq_printf(s, "\t\t\t%-d\n", suspend_stats.errno[index]);
 	}
 	seq_printf(s,	"  last_failed_step:\t%-s\n",
-			suspend_step_name(
-				suspend_stats.failed_steps[last_step]));
+		   suspend_step_names[suspend_stats.failed_steps[last_step]]);
 	for (i = 1; i < REC_FAILED_NUM; i++) {
 		index = last_step + REC_FAILED_NUM - i;
 		index %= REC_FAILED_NUM;
 		seq_printf(s, "\t\t\t%-s\n",
-			suspend_step_name(
-				suspend_stats.failed_steps[index]));
+			   suspend_step_names[suspend_stats.failed_steps[index]]);
 	}
 
 	return 0;
