@@ -804,7 +804,7 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 	}
 };
 
-static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
+static void cs35l56_reinit_patch(struct cs35l56_private *cs35l56)
 {
 	int ret;
 
@@ -816,18 +816,9 @@ static void cs35l56_secure_patch(struct cs35l56_private *cs35l56)
 		cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 }
 
-static void cs35l56_patch(struct cs35l56_private *cs35l56)
+static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing)
 {
-	unsigned int firmware_missing;
 	int ret;
-
-	ret = regmap_read(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS, &firmware_missing);
-	if (ret) {
-		dev_err(cs35l56->base.dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
-		return;
-	}
-
-	firmware_missing &= CS35L56_FIRMWARE_MISSING;
 
 	/*
 	 * Disable SoundWire interrupts to prevent race with IRQ work.
@@ -901,34 +892,49 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	struct cs35l56_private *cs35l56 = container_of(work,
 						       struct cs35l56_private,
 						       dsp_work);
+	unsigned int firmware_version;
+	bool firmware_missing;
+	int ret;
 
 	if (!cs35l56->base.init_done)
 		return;
 
 	pm_runtime_get_sync(cs35l56->base.dev);
 
+	ret = cs35l56_read_prot_status(&cs35l56->base, &firmware_missing, &firmware_version);
+	if (ret)
+		goto err;
+
 	/* Populate fw file qualifier with the revision and security state */
-	if (!cs35l56->dsp.fwf_name) {
-		cs35l56->dsp.fwf_name = kasprintf(GFP_KERNEL, "%02x%s-dsp1",
+	kfree(cs35l56->dsp.fwf_name);
+	if (firmware_missing) {
+		cs35l56->dsp.fwf_name = kasprintf(GFP_KERNEL, "%02x-dsp1", cs35l56->base.rev);
+	} else {
+		/* Firmware files must match the running firmware version */
+		cs35l56->dsp.fwf_name = kasprintf(GFP_KERNEL,
+						  "%02x%s-%06x-dsp1",
 						  cs35l56->base.rev,
-						  cs35l56->base.secured ? "-s" : "");
-		if (!cs35l56->dsp.fwf_name)
-			goto err;
+						  cs35l56->base.secured ? "-s" : "",
+						  firmware_version);
 	}
+
+	if (!cs35l56->dsp.fwf_name)
+		goto err;
 
 	dev_dbg(cs35l56->base.dev, "DSP fwf name: '%s' system name: '%s'\n",
 		cs35l56->dsp.fwf_name, cs35l56->dsp.system_name);
 
 	/*
-	 * When the device is running in secure mode the firmware files can
-	 * only contain insecure tunings and therefore we do not need to
-	 * shutdown the firmware to apply them and can use the lower cost
-	 * reinit sequence instead.
+	 * The firmware cannot be patched if it is already running from
+	 * patch RAM. In this case the firmware files are versioned to
+	 * match the running firmware version and will only contain
+	 * tunings. We do not need to shutdown the firmware to apply
+	 * tunings so can use the lower cost reinit sequence instead.
 	 */
-	if (cs35l56->base.secured)
-		cs35l56_secure_patch(cs35l56);
+	if (!firmware_missing)
+		cs35l56_reinit_patch(cs35l56);
 	else
-		cs35l56_patch(cs35l56);
+		cs35l56_patch(cs35l56, firmware_missing);
 
 
 	/*

@@ -628,10 +628,35 @@ void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_ds
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, SND_SOC_CS35L56_SHARED);
 
+int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
+			     bool *fw_missing, unsigned int *fw_version)
+{
+	unsigned int prot_status;
+	int ret;
+
+	ret = regmap_read(cs35l56_base->regmap, CS35L56_PROTECTION_STATUS, &prot_status);
+	if (ret) {
+		dev_err(cs35l56_base->dev, "Get PROTECTION_STATUS failed: %d\n", ret);
+		return ret;
+	}
+
+	*fw_missing = !!(prot_status & CS35L56_FIRMWARE_MISSING);
+
+	ret = regmap_read(cs35l56_base->regmap, CS35L56_DSP1_FW_VER, fw_version);
+	if (ret) {
+		dev_err(cs35l56_base->dev, "Get FW VER failed: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_read_prot_status, SND_SOC_CS35L56_SHARED);
+
 int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 {
 	int ret;
-	unsigned int devid, revid, otpid, secured;
+	unsigned int devid, revid, otpid, secured, fw_ver;
+	bool fw_missing;
 
 	/*
 	 * When the system is not using a reset_gpio ensure the device is
@@ -690,8 +715,13 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 		return ret;
 	}
 
-	dev_info(cs35l56_base->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d\n",
-		 cs35l56_base->secured ? "s" : "", cs35l56_base->rev, otpid);
+	ret = cs35l56_read_prot_status(cs35l56_base, &fw_missing, &fw_ver);
+	if (ret)
+		return ret;
+
+	dev_info(cs35l56_base->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d fw:%d.%d.%d (patched=%u)\n",
+		 cs35l56_base->secured ? "s" : "", cs35l56_base->rev, otpid,
+		 fw_ver >> 16, (fw_ver >> 8) & 0xff, fw_ver & 0xff, !fw_missing);
 
 	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
 	regmap_write(cs35l56_base->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
