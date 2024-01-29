@@ -59,6 +59,135 @@ static int cs35l56_dspwait_put_volsw(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
+static const unsigned short cs35l56_asp1_mixer_regs[] = {
+	CS35L56_ASP1TX1_INPUT, CS35L56_ASP1TX2_INPUT,
+	CS35L56_ASP1TX3_INPUT, CS35L56_ASP1TX4_INPUT,
+};
+
+static const char * const cs35l56_asp1_mux_control_names[] = {
+	"ASP1 TX1 Source", "ASP1 TX2 Source", "ASP1 TX3 Source", "ASP1 TX4 Source"
+};
+
+static int cs35l56_dspwait_asp1tx_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	int index = e->shift_l;
+	unsigned int addr, val;
+	int ret;
+
+	/* Wait for mux to be initialized */
+	cs35l56_wait_dsp_ready(cs35l56);
+	flush_work(&cs35l56->mux_init_work);
+
+	addr = cs35l56_asp1_mixer_regs[index];
+	ret = regmap_read(cs35l56->base.regmap, addr, &val);
+	if (ret)
+		return ret;
+
+	val &= CS35L56_ASP_TXn_SRC_MASK;
+	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(e, val);
+
+	return 0;
+}
+
+static int cs35l56_dspwait_asp1tx_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	int item = ucontrol->value.enumerated.item[0];
+	int index = e->shift_l;
+	unsigned int addr, val;
+	bool changed;
+	int ret;
+
+	/* Wait for mux to be initialized */
+	cs35l56_wait_dsp_ready(cs35l56);
+	flush_work(&cs35l56->mux_init_work);
+
+	addr = cs35l56_asp1_mixer_regs[index];
+	val = snd_soc_enum_item_to_val(e, item);
+
+	ret = regmap_update_bits_check(cs35l56->base.regmap, addr,
+				       CS35L56_ASP_TXn_SRC_MASK, val, &changed);
+	if (!ret)
+		return ret;
+
+	if (changed)
+		snd_soc_dapm_mux_update_power(dapm, kcontrol, item, e, NULL);
+
+	return changed;
+}
+
+static void cs35l56_mark_asp1_mixer_widgets_dirty(struct cs35l56_private *cs35l56)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cs35l56->component);
+	const char *prefix = cs35l56->component->name_prefix;
+	char full_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	const char *name;
+	struct snd_kcontrol *kcontrol;
+	struct soc_enum *e;
+	unsigned int val[4];
+	int i, item, ret;
+
+	/*
+	 * Resume so we can read the registers from silicon if the regmap
+	 * cache has not yet been populated.
+	 */
+	ret = pm_runtime_resume_and_get(cs35l56->base.dev);
+	if (ret < 0)
+		return;
+
+	ret = regmap_bulk_read(cs35l56->base.regmap, CS35L56_ASP1TX1_INPUT,
+			       val, ARRAY_SIZE(val));
+
+	pm_runtime_mark_last_busy(cs35l56->base.dev);
+	pm_runtime_put_autosuspend(cs35l56->base.dev);
+
+	if (ret) {
+		dev_err(cs35l56->base.dev, "Failed to read ASP1 mixer regs: %d\n", ret);
+		return;
+	}
+
+	snd_soc_card_mutex_lock(dapm->card);
+	WARN_ON(!dapm->card->instantiated);
+
+	for (i = 0; i < ARRAY_SIZE(cs35l56_asp1_mux_control_names); ++i) {
+		name = cs35l56_asp1_mux_control_names[i];
+
+		if (prefix) {
+			snprintf(full_name, sizeof(full_name), "%s %s", prefix, name);
+			name = full_name;
+		}
+
+		kcontrol = snd_soc_card_get_kcontrol(dapm->card, name);
+		if (!kcontrol) {
+			dev_warn(cs35l56->base.dev, "Could not find control %s\n", name);
+			continue;
+		}
+
+		e = (struct soc_enum *)kcontrol->private_value;
+		item = snd_soc_enum_val_to_item(e, val[i] & CS35L56_ASP_TXn_SRC_MASK);
+		snd_soc_dapm_mux_update_power(dapm, kcontrol, item, e, NULL);
+	}
+
+	snd_soc_card_mutex_unlock(dapm->card);
+}
+
+static void cs35l56_mux_init_work(struct work_struct *work)
+{
+	struct cs35l56_private *cs35l56 = container_of(work,
+						       struct cs35l56_private,
+						       mux_init_work);
+
+	cs35l56_mark_asp1_mixer_widgets_dirty(cs35l56);
+}
+
 static DECLARE_TLV_DB_SCALE(vol_tlv, -10000, 25, 0);
 
 static const struct snd_kcontrol_new cs35l56_controls[] = {
@@ -77,40 +206,44 @@ static const struct snd_kcontrol_new cs35l56_controls[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,
-				  CS35L56_ASP1TX1_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  0, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx1_mux =
-	SOC_DAPM_ENUM("ASP1TX1 SRC", cs35l56_asp1tx1_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX1 SRC", cs35l56_asp1tx1_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx2_enum,
-				  CS35L56_ASP1TX2_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  1, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx2_mux =
-	SOC_DAPM_ENUM("ASP1TX2 SRC", cs35l56_asp1tx2_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX2 SRC", cs35l56_asp1tx2_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx3_enum,
-				  CS35L56_ASP1TX3_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  2, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx3_mux =
-	SOC_DAPM_ENUM("ASP1TX3 SRC", cs35l56_asp1tx3_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX3 SRC", cs35l56_asp1tx3_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx4_enum,
-				  CS35L56_ASP1TX4_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  3, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx4_mux =
-	SOC_DAPM_ENUM("ASP1TX4 SRC", cs35l56_asp1tx4_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX4 SRC", cs35l56_asp1tx4_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx1_enum,
 				CS35L56_SWIRE_DP3_CH1_INPUT,
@@ -785,6 +918,15 @@ static void cs35l56_dsp_work(struct work_struct *work)
 	else
 		cs35l56_patch(cs35l56);
 
+
+	/*
+	 * Set starting value of ASP1 mux widgets. Updating a mux takes
+	 * the DAPM mutex. Post this to a separate job so that DAPM
+	 * power-up can wait for dsp_work to complete without deadlocking
+	 * on the DAPM mutex.
+	 */
+	queue_work(cs35l56->dsp_wq, &cs35l56->mux_init_work);
+
 	pm_runtime_mark_last_busy(cs35l56->base.dev);
 	pm_runtime_put_autosuspend(cs35l56->base.dev);
 }
@@ -830,6 +972,7 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 
 	cancel_work_sync(&cs35l56->dsp_work);
+	cancel_work_sync(&cs35l56->mux_init_work);
 
 	if (cs35l56->dsp.cs_dsp.booted)
 		wm_adsp_power_down(&cs35l56->dsp);
@@ -897,8 +1040,10 @@ int cs35l56_system_suspend(struct device *dev)
 
 	dev_dbg(dev, "system_suspend\n");
 
-	if (cs35l56->component)
+	if (cs35l56->component) {
 		flush_work(&cs35l56->dsp_work);
+		cancel_work_sync(&cs35l56->mux_init_work);
+	}
 
 	/*
 	 * The interrupt line is normally shared, but after we start suspending
@@ -1049,6 +1194,7 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 		return -ENOMEM;
 
 	INIT_WORK(&cs35l56->dsp_work, cs35l56_dsp_work);
+	INIT_WORK(&cs35l56->mux_init_work, cs35l56_mux_init_work);
 
 	dsp = &cs35l56->dsp;
 	cs35l56_init_cs_dsp(&cs35l56->base, &dsp->cs_dsp);
