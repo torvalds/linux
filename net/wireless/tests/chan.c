@@ -2,7 +2,7 @@
 /*
  * KUnit tests for channel helper functions
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 #include <net/cfg80211.h>
 #include <kunit/test.h>
@@ -139,6 +139,52 @@ static const struct chandef_compat_case {
 			.center_freq1 = 6475 - 10,
 		},
 		.compat = true,
+	},
+	{
+		.desc = "matching primary 160 MHz & punctured secondary 160 Mhz",
+		.c1 = {
+			.width = NL80211_CHAN_WIDTH_160,
+			.chan = &chan_6ghz_105,
+			.center_freq1 = 6475 + 70,
+		},
+		.c2 = {
+			.width = NL80211_CHAN_WIDTH_320,
+			.chan = &chan_6ghz_105,
+			.center_freq1 = 6475 - 10,
+			.punctured = 0xf,
+		},
+		.compat = true,
+	},
+	{
+		.desc = "matching primary 160 MHz & punctured matching",
+		.c1 = {
+			.width = NL80211_CHAN_WIDTH_160,
+			.chan = &chan_6ghz_105,
+			.center_freq1 = 6475 + 70,
+			.punctured = 0xc0,
+		},
+		.c2 = {
+			.width = NL80211_CHAN_WIDTH_320,
+			.chan = &chan_6ghz_105,
+			.center_freq1 = 6475 - 10,
+			.punctured = 0xc000,
+		},
+		.compat = true,
+	},
+	{
+		.desc = "matching primary 160 MHz & punctured not matching",
+		.c1 = {
+			.width = NL80211_CHAN_WIDTH_160,
+			.chan = &chan_6ghz_105,
+			.center_freq1 = 6475 + 70,
+			.punctured = 0x80,
+		},
+		.c2 = {
+			.width = NL80211_CHAN_WIDTH_320,
+			.chan = &chan_6ghz_105,
+			.center_freq1 = 6475 - 10,
+			.punctured = 0xc000,
+		},
 	},
 };
 

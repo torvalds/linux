@@ -6,7 +6,7 @@
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * utilities for mac80211
  */
@@ -2810,9 +2810,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				    sdata->vif.bss_conf.protected_keep_alive)
 					changed |= BSS_CHANGED_KEEP_ALIVE;
 
-				if (sdata->vif.bss_conf.eht_puncturing)
-					changed |= BSS_CHANGED_EHT_PUNCTURING;
-
 				ieee80211_bss_info_change_notify(sdata,
 								 changed);
 			} else if (!WARN_ON(!link)) {
@@ -4365,13 +4362,16 @@ EXPORT_SYMBOL(ieee80211_radar_detected);
 void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 				 struct ieee80211_conn_settings *conn)
 {
-	/* no-HT indicates nothing to do */
-	enum nl80211_chan_width new_primary_width = NL80211_CHAN_WIDTH_20_NOHT;
+	enum nl80211_chan_width new_primary_width;
 	struct ieee80211_conn_settings _ignored = {};
 
 	/* allow passing NULL if caller doesn't care */
 	if (!conn)
 		conn = &_ignored;
+
+again:
+	/* no-HT indicates nothing to do */
+	new_primary_width = NL80211_CHAN_WIDTH_20_NOHT;
 
 	switch (c->width) {
 	default:
@@ -4382,6 +4382,7 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 		c->width = NL80211_CHAN_WIDTH_20_NOHT;
 		conn->mode = IEEE80211_CONN_MODE_LEGACY;
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_20;
+		c->punctured = 0;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		c->width = NL80211_CHAN_WIDTH_20;
@@ -4389,6 +4390,7 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 		if (conn->mode == IEEE80211_CONN_MODE_VHT)
 			conn->mode = IEEE80211_CONN_MODE_HT;
 		conn->bw_limit = IEEE80211_CONN_BW_LIMIT_20;
+		c->punctured = 0;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		new_primary_width = NL80211_CHAN_WIDTH_40;
@@ -4429,10 +4431,18 @@ void ieee80211_chandef_downgrade(struct cfg80211_chan_def *c,
 	}
 
 	if (new_primary_width != NL80211_CHAN_WIDTH_20_NOHT) {
-		c->center_freq1 =
-			cfg80211_chandef_primary_freq(c, new_primary_width);
+		c->center_freq1 = cfg80211_chandef_primary(c, new_primary_width,
+							   &c->punctured);
 		c->width = new_primary_width;
 	}
+
+	/*
+	 * With an 80 MHz channel, we might have the puncturing in the primary
+	 * 40 Mhz channel, but that's not valid when downgraded to 40 MHz width.
+	 * In that case, downgrade again.
+	 */
+	if (!cfg80211_chandef_valid(c) && c->punctured)
+		goto again;
 
 	WARN_ON_ONCE(!cfg80211_chandef_valid(c));
 }

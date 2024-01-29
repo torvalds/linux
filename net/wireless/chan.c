@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018-2023	Intel Corporation
+ * Copyright 2018-2024	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -27,11 +27,10 @@ void cfg80211_chandef_create(struct cfg80211_chan_def *chandef,
 	if (WARN_ON(!chan))
 		return;
 
-	chandef->chan = chan;
-	chandef->freq1_offset = chan->freq_offset;
-	chandef->center_freq2 = 0;
-	chandef->edmg.bw_config = 0;
-	chandef->edmg.channels = 0;
+	*chandef = (struct cfg80211_chan_def) {
+		.chan = chan,
+		.freq1_offset = chan->freq_offset,
+	};
 
 	switch (chan_type) {
 	case NL80211_CHAN_NO_HT:
@@ -87,10 +86,9 @@ static const struct cfg80211_per_bw_puncturing_values per_bw_puncturing[] = {
 	CFG80211_PER_BW_VALID_PUNCTURING_VALUES(320)
 };
 
-bool cfg80211_valid_disable_subchannel_bitmap(u16 *bitmap,
-					      const struct cfg80211_chan_def *chandef)
+static bool valid_puncturing_bitmap(const struct cfg80211_chan_def *chandef)
 {
-	u32 idx, i, start_freq;
+	u32 idx, i, start_freq, primary_center = chandef->chan->center_freq;
 
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_80:
@@ -106,24 +104,23 @@ bool cfg80211_valid_disable_subchannel_bitmap(u16 *bitmap,
 		start_freq = chandef->center_freq1 - 160;
 		break;
 	default:
-		*bitmap = 0;
-		break;
+		return chandef->punctured == 0;
 	}
 
-	if (!*bitmap)
+	if (!chandef->punctured)
 		return true;
 
 	/* check if primary channel is punctured */
-	if (*bitmap & (u16)BIT((chandef->chan->center_freq - start_freq) / 20))
+	if (chandef->punctured & (u16)BIT((primary_center - start_freq) / 20))
 		return false;
 
-	for (i = 0; i < per_bw_puncturing[idx].len; i++)
-		if (per_bw_puncturing[idx].valid_values[i] == *bitmap)
+	for (i = 0; i < per_bw_puncturing[idx].len; i++) {
+		if (per_bw_puncturing[idx].valid_values[i] == chandef->punctured)
 			return true;
+	}
 
 	return false;
 }
-EXPORT_SYMBOL(cfg80211_valid_disable_subchannel_bitmap);
 
 static bool cfg80211_edmg_chandef_valid(const struct cfg80211_chan_def *chandef)
 {
@@ -386,17 +383,19 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 	    !cfg80211_edmg_chandef_valid(chandef))
 		return false;
 
-	return true;
+	return valid_puncturing_bitmap(chandef);
 }
 EXPORT_SYMBOL(cfg80211_chandef_valid);
 
-int cfg80211_chandef_primary_freq(const struct cfg80211_chan_def *c,
-				  enum nl80211_chan_width primary_chan_width)
+int cfg80211_chandef_primary(const struct cfg80211_chan_def *c,
+			     enum nl80211_chan_width primary_chan_width,
+			     u16 *punctured)
 {
 	int pri_width = nl80211_chan_width_to_mhz(primary_chan_width);
 	int width = cfg80211_chandef_get_width(c);
 	u32 control = c->chan->center_freq;
 	u32 center = c->center_freq1;
+	u16 _punct = 0;
 
 	if (WARN_ON_ONCE(pri_width < 0 || width < 0))
 		return -1;
@@ -405,26 +404,41 @@ int cfg80211_chandef_primary_freq(const struct cfg80211_chan_def *c,
 	if (WARN_ON_ONCE(pri_width > width))
 		return -1;
 
+	if (!punctured)
+		punctured = &_punct;
+
+	*punctured = c->punctured;
+
 	while (width > pri_width) {
-		if (control > center)
+		unsigned int bits_to_drop = width / 20 / 2;
+
+		if (control > center) {
 			center += width / 4;
-		else
+			*punctured >>= bits_to_drop;
+		} else {
 			center -= width / 4;
+			*punctured &= (1 << bits_to_drop) - 1;
+		}
 		width /= 2;
 	}
 
 	return center;
 }
-EXPORT_SYMBOL(cfg80211_chandef_primary_freq);
+EXPORT_SYMBOL(cfg80211_chandef_primary);
 
 static const struct cfg80211_chan_def *
 check_chandef_primary_compat(const struct cfg80211_chan_def *c1,
 			     const struct cfg80211_chan_def *c2,
 			     enum nl80211_chan_width primary_chan_width)
 {
+	u16 punct_c1 = 0, punct_c2 = 0;
+
 	/* check primary is compatible -> error if not */
-	if (cfg80211_chandef_primary_freq(c1, primary_chan_width) !=
-	    cfg80211_chandef_primary_freq(c2, primary_chan_width))
+	if (cfg80211_chandef_primary(c1, primary_chan_width, &punct_c1) !=
+	    cfg80211_chandef_primary(c2, primary_chan_width, &punct_c2))
+		return ERR_PTR(-EINVAL);
+
+	if (punct_c1 != punct_c2)
 		return ERR_PTR(-EINVAL);
 
 	/* assumes c1 is smaller width, if that was just checked -> done */

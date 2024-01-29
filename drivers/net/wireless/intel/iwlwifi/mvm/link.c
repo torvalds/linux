@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 - 2023 Intel Corporation
+ * Copyright (C) 2022 - 2024 Intel Corporation
  */
 #include "mvm.h"
 #include "time-event.h"
@@ -195,12 +195,20 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	if (changes & LINK_CONTEXT_MODIFY_EHT_PARAMS) {
+		struct ieee80211_chanctx_conf *ctx;
+		struct cfg80211_chan_def *def = NULL;
+
+		rcu_read_lock();
+		ctx = rcu_dereference(link_conf->chanctx_conf);
+		if (ctx)
+			def = iwl_mvm_chanctx_def(mvm, ctx);
+
 		if (iwlwifi_mod_params.disable_11be ||
-		    !link_conf->eht_support)
+		    !link_conf->eht_support || !def)
 			changes &= ~LINK_CONTEXT_MODIFY_EHT_PARAMS;
 		else
-			cmd.puncture_mask =
-				cpu_to_le16(link_conf->eht_puncturing);
+			cmd.puncture_mask = cpu_to_le16(def->punctured);
+		rcu_read_unlock();
 	}
 
 	cmd.bss_color = link_conf->he_bss_color.color;

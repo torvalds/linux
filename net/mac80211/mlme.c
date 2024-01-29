@@ -94,83 +94,6 @@ MODULE_PARM_DESC(probe_wait_ms,
 #define IEEE80211_SIGNAL_AVE_MIN_COUNT	4
 
 /*
- * Extract from the given disabled subchannel bitmap (raw format
- * from the EHT Operation Element) the bits for the subchannel
- * we're using right now.
- */
-static u16
-ieee80211_extract_dis_subch_bmap(const struct ieee80211_eht_operation *eht_oper,
-				 struct cfg80211_chan_def *chandef, u16 bitmap)
-{
-	struct ieee80211_eht_operation_info *info = (void *)eht_oper->optional;
-	struct cfg80211_chan_def ap_chandef = *chandef;
-	u32 ap_center_freq, local_center_freq;
-	u32 ap_bw, local_bw;
-	int ap_start_freq, local_start_freq;
-	u16 shift, mask;
-
-	if (!(eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT) ||
-	    !(eht_oper->params &
-	      IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT))
-		return 0;
-
-	/* set 160/320 supported to get the full AP definition */
-	ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
-				   &ap_chandef);
-	ap_center_freq = ap_chandef.center_freq1;
-	ap_bw = 20 * BIT(u8_get_bits(info->control,
-				     IEEE80211_EHT_OPER_CHAN_WIDTH));
-	ap_start_freq = ap_center_freq - ap_bw / 2;
-	local_center_freq = chandef->center_freq1;
-	local_bw = 20 * BIT(ieee80211_chan_width_to_rx_bw(chandef->width));
-	local_start_freq = local_center_freq - local_bw / 2;
-	shift = (local_start_freq - ap_start_freq) / 20;
-	mask = BIT(local_bw / 20) - 1;
-
-	return (bitmap >> shift) & mask;
-}
-
-/*
- * Handle the puncturing bitmap, possibly downgrading bandwidth to get a
- * valid bitmap.
- */
-static void
-ieee80211_handle_puncturing_bitmap(struct ieee80211_link_data *link,
-				   const struct ieee80211_eht_operation *eht_oper,
-				   u16 bitmap, u64 *changed)
-{
-	struct cfg80211_chan_def *chandef = &link->conf->chanreq.oper;
-	struct ieee80211_local *local = link->sdata->local;
-	u16 extracted;
-	u64 _changed = 0;
-
-	if (!changed)
-		changed = &_changed;
-
-	while (chandef->width > NL80211_CHAN_WIDTH_40) {
-		extracted =
-			ieee80211_extract_dis_subch_bmap(eht_oper, chandef,
-							 bitmap);
-
-		if (cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-							     chandef) &&
-		    !(bitmap && ieee80211_hw_check(&local->hw,
-						   DISALLOW_PUNCTURING)))
-			break;
-		ieee80211_chandef_downgrade(chandef, &link->u.mgd.conn);
-		*changed |= BSS_CHANGED_BANDWIDTH;
-	}
-
-	if (chandef->width <= NL80211_CHAN_WIDTH_40)
-		extracted = 0;
-
-	if (link->conf->eht_puncturing != extracted) {
-		link->conf->eht_puncturing = extracted;
-		*changed |= BSS_CHANGED_EHT_PUNCTURING;
-	}
-}
-
-/*
  * We can have multiple work items (and connection probing)
  * scheduling this timer, but we need to take care to only
  * reschedule it when it should fire _earlier_ than it was
@@ -395,6 +318,9 @@ ieee80211_determine_ap_chan(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
 					   &eht_chandef);
+
+		eht_chandef.punctured =
+			ieee80211_eht_oper_dis_subchan_bitmap(eht_oper);
 
 		if (!cfg80211_chandef_valid(&eht_chandef)) {
 			sdata_info(sdata,
@@ -661,13 +587,27 @@ ieee80211_verify_sta_eht_mcs_support(struct ieee80211_sub_if_data *sdata,
 	return true;
 }
 
+static bool ieee80211_chandef_usable(struct ieee80211_sub_if_data *sdata,
+				     const struct cfg80211_chan_def *chandef,
+				     u32 prohibited_flags)
+{
+	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy,
+				     chandef, prohibited_flags))
+		return false;
+
+	if (chandef->punctured &&
+	    ieee80211_hw_check(&sdata->local->hw, DISALLOW_PUNCTURING))
+		return false;
+
+	return true;
+}
+
 static struct ieee802_11_elems *
 ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 			      struct ieee80211_conn_settings *conn,
 			      struct cfg80211_bss *cbss, int link_id,
 			      struct ieee80211_chan_req *chanreq)
 {
-	struct ieee80211_local *local = sdata->local;
 	const struct cfg80211_bss_ies *ies = rcu_dereference(cbss->ies);
 	struct ieee80211_bss *bss = (void *)cbss->priv;
 	struct ieee80211_channel *channel = cbss->channel;
@@ -761,8 +701,8 @@ again:
 	else
 		chanreq->ap.chan = NULL;
 
-	while (!cfg80211_chandef_usable(sdata->local->hw.wiphy, &chanreq->oper,
-					IEEE80211_CHAN_DISABLED)) {
+	while (!ieee80211_chandef_usable(sdata, &chanreq->oper,
+					 IEEE80211_CHAN_DISABLED)) {
 		if (WARN_ON(chanreq->oper.width == NL80211_CHAN_WIDTH_20_NOHT)) {
 			ret = -EINVAL;
 			goto free;
@@ -810,30 +750,6 @@ again:
 				       conn->bw_limit,
 				       IEEE80211_CONN_BW_LIMIT_160);
 		sdata_info(sdata, "required MCSes not supported, disabling EHT\n");
-	}
-
-	if (conn->mode >= IEEE80211_CONN_MODE_EHT) {
-		u16 bitmap;
-
-		if (WARN_ON_ONCE(!elems->eht_operation)) {
-			ret = -EINVAL;
-			goto free;
-		}
-
-		bitmap = ieee80211_eht_oper_dis_subchan_bitmap(elems->eht_operation);
-
-		if (!cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-							      &ap_chandef) ||
-		    (bitmap &&
-		     ieee80211_hw_check(&local->hw, DISALLOW_PUNCTURING))) {
-			conn->mode = IEEE80211_CONN_MODE_HE;
-			conn->bw_limit = min_t(enum ieee80211_conn_bw_limit,
-					       conn->bw_limit,
-					       IEEE80211_CONN_BW_LIMIT_160);
-			sdata_info(sdata,
-				   "AP has invalid/unsupported puncturing, disabling EHT\n");
-		}
-		/* FIXME: store puncturing bitmap */
 	}
 
 	/* the mode can only decrease, so this must terminate */
@@ -2127,7 +2043,7 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 	}
 
 	cfg80211_ch_switch_notify(sdata->dev, &link->reserved.oper,
-				  link->link_id, 0);
+				  link->link_id);
 }
 
 void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
@@ -2330,7 +2246,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chanreq.oper,
 					  link->link_id, csa_ie.count,
-					  csa_ie.mode, 0);
+					  csa_ie.mode);
 
 	if (local->ops->channel_switch) {
 		/* use driver's channel switch callback */
@@ -3393,8 +3309,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.u.mgd.have_beacon = false;
 	sdata->deflink.u.mgd.tracking_signal_avg = false;
 	sdata->deflink.u.mgd.disable_wmm_tracking = false;
-
-	sdata->vif.bss_conf.eht_puncturing = 0;
 
 	ifmgd->flags = 0;
 
@@ -4625,7 +4539,6 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 							    link_sta);
 
 			bss_conf->eht_support = link_sta->pub->eht_cap.has_eht;
-			*changed |= BSS_CHANGED_EHT_PUNCTURING;
 		} else {
 			bss_conf->eht_support = false;
 		}
@@ -5865,40 +5778,6 @@ static bool ieee80211_rx_our_beacon(const u8 *tx_bssid,
 	return ether_addr_equal(tx_bssid, bss->transmitted_bss->bssid);
 }
 
-static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
-					const struct ieee80211_eht_operation *eht_oper,
-					u64 *changed)
-{
-	struct ieee80211_local *local = link->sdata->local;
-	u16 bitmap, extracted;
-
-	bitmap = ieee80211_eht_oper_dis_subchan_bitmap(eht_oper);
-	extracted = ieee80211_extract_dis_subch_bmap(eht_oper,
-						     &link->conf->chanreq.oper,
-						     bitmap);
-
-	/* accept if there are no changes */
-	if (!(*changed & BSS_CHANGED_BANDWIDTH) &&
-	    extracted == link->conf->eht_puncturing)
-		return true;
-
-	if (!cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-						      &link->conf->chanreq.oper)) {
-		link_info(link,
-			  "Got an invalid disable subchannel bitmap from AP %pM: bitmap = 0x%x, bw = 0x%x. disconnect\n",
-			  link->u.mgd.bssid,
-			  bitmap,
-			  link->conf->chanreq.oper.width);
-		return false;
-	}
-
-	if (bitmap && ieee80211_hw_check(&local->hw, DISALLOW_PUNCTURING))
-		return false;
-
-	ieee80211_handle_puncturing_bitmap(link, eht_oper, bitmap, changed);
-	return true;
-}
-
 static void ieee80211_ml_reconf_work(struct wiphy *wiphy,
 				     struct wiphy_work *work)
 {
@@ -6613,21 +6492,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 					       elems->country_elem_len,
 					       elems->pwr_constr_elem,
 					       elems->cisco_dtpc_elem);
-
-	if (elems->eht_operation &&
-	    link->u.mgd.conn.mode >= IEEE80211_CONN_MODE_EHT) {
-		if (!ieee80211_config_puncturing(link, elems->eht_operation,
-						 &changed)) {
-			ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
-					       WLAN_REASON_DEAUTH_LEAVING,
-					       true, deauth_buf);
-			ieee80211_report_disconnect(sdata, deauth_buf,
-						    sizeof(deauth_buf), true,
-						    WLAN_REASON_DEAUTH_LEAVING,
-						    false);
-			goto free;
-		}
-	}
 
 	ieee80211_ml_reconfiguration(sdata, elems);
 	ieee80211_process_adv_ttlm(sdata, elems,
