@@ -953,7 +953,8 @@ ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
 					struct cfg80211_fils_discovery *params,
 					struct ieee80211_link_data *link,
-					struct ieee80211_bss_conf *link_conf)
+					struct ieee80211_bss_conf *link_conf,
+					u64 *changed)
 {
 	struct fils_discovery_data *new, *old = NULL;
 	struct ieee80211_fils_discovery *fd;
@@ -980,7 +981,8 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
 		RCU_INIT_POINTER(link->u.ap.fils_discovery, NULL);
 	}
 
-	return BSS_CHANGED_FILS_DISCOVERY;
+	*changed |= BSS_CHANGED_FILS_DISCOVERY;
+	return 0;
 }
 
 static int
@@ -1443,10 +1445,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		goto error;
 
 	err = ieee80211_set_fils_discovery(sdata, &params->fils_discovery,
-					   link, link_conf);
+					   link, link_conf, &changed);
 	if (err < 0)
 		goto error;
-	changed |= err;
 
 	err = ieee80211_set_unsol_bcast_probe_resp(sdata,
 						   &params->unsol_bcast_probe_resp,
@@ -1518,10 +1519,9 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 		return err;
 
 	err = ieee80211_set_fils_discovery(sdata, &params->fils_discovery,
-					   link, link_conf);
+					   link, link_conf, &changed);
 	if (err < 0)
 		return err;
-	changed |= err;
 
 	err = ieee80211_set_unsol_bcast_probe_resp(sdata,
 						   &params->unsol_bcast_probe_resp,
