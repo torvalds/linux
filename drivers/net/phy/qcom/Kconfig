@@ -3,9 +3,14 @@ config QCOM_NET_PHYLIB
 	tristate
 
 config AT803X_PHY
-	tristate "Qualcomm Atheros AR803X PHYs and QCA833x PHYs"
+	tristate "Qualcomm Atheros AR803X PHYs"
 	select QCOM_NET_PHYLIB
 	depends on REGULATOR
 	help
-	  Currently supports the AR8030, AR8031, AR8033, AR8035 and internal
-	  QCA8337(Internal qca8k PHY) model
+	  Currently supports the AR8030, AR8031, AR8033, AR8035 model
+
+config QCA83XX_PHY
+	tristate "Qualcomm Atheros QCA833x PHYs"
+	select QCOM_NET_PHYLIB
+	help
+	  Currently supports the internal QCA8337(Internal qca8k PHY) model
