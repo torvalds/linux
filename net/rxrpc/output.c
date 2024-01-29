@@ -231,6 +231,7 @@ int rxrpc_send_ack_packet(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 	txb->ack.previousPacket	= htonl(call->rx_highest_seq);
 
 	iov_iter_kvec(&msg.msg_iter, WRITE, iov, 1, len);
+	rxrpc_local_dont_fragment(conn->local, false);
 	ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 	call->peer->last_tx_at = ktime_get_seconds();
 	if (ret < 0) {
@@ -406,6 +407,7 @@ dont_set_request_ack:
 	 * think it's small enough */
 	if (txb->len >= call->peer->maxdata)
 		goto send_fragmentable;
+	rxrpc_local_dont_fragment(conn->local, true);
 
 	txb->wire.flags = txb->flags & RXRPC_TXBUF_WIRE_FLAGS;
 	txb->last_sent = ktime_get_real();
@@ -492,8 +494,6 @@ send_fragmentable:
 		rxrpc_inc_stat(call->rxnet, stat_tx_data_send_frag);
 		ret = do_udp_sendmsg(conn->local->socket, &msg, len);
 		conn->peer->last_tx_at = ktime_get_seconds();
-
-		rxrpc_local_dont_fragment(conn->local, true);
 		break;
 
 	default:
