@@ -1082,6 +1082,9 @@ struct hal_rx_ops {
 
 struct hal_ops {
 	int (*create_srng_config)(struct ath12k_base *ab);
+	u16 (*rxdma_ring_wmask_rx_mpdu_start)(void);
+	u32 (*rxdma_ring_wmask_rx_msdu_end)(void);
+	const struct hal_rx_ops *(*get_hal_rx_compact_ops)(void);
 	const struct ath12k_hal_tcl_to_wbm_rbm_map *tcl_to_wbm_rbm_map;
 };
 
@@ -1089,6 +1092,7 @@ extern const struct hal_ops hal_qcn9274_ops;
 extern const struct hal_ops hal_wcn7850_ops;
 
 extern const struct hal_rx_ops hal_rx_qcn9274_ops;
+extern const struct hal_rx_ops hal_rx_qcn9274_compact_ops;
 extern const struct hal_rx_ops hal_rx_wcn7850_ops;
 
 u32 ath12k_hal_reo_qdesc_size(u32 ba_window_size, u8 tid);
