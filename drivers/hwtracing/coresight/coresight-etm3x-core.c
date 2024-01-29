@@ -556,14 +556,12 @@ static int etm_enable(struct coresight_device *csdev, struct perf_event *event,
 		      enum cs_mode mode)
 {
 	int ret;
-	u32 val;
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
-	val = local_cmpxchg(&drvdata->csdev->mode, CS_MODE_DISABLED, mode);
-
-	/* Someone is already using the tracer */
-	if (val)
+	if (!coresight_take_mode(csdev, mode)) {
+		/* Someone is already using the tracer */
 		return -EBUSY;
+	}
 
 	switch (mode) {
 	case CS_MODE_SYSFS:

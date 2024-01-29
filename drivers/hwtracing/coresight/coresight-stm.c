@@ -193,17 +193,15 @@ static void stm_enable_hw(struct stm_drvdata *drvdata)
 static int stm_enable(struct coresight_device *csdev, struct perf_event *event,
 		      enum cs_mode mode)
 {
-	u32 val;
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
 	if (mode != CS_MODE_SYSFS)
 		return -EINVAL;
 
-	val = local_cmpxchg(&csdev->mode, CS_MODE_DISABLED, mode);
-
-	/* Someone is already using the tracer */
-	if (val)
+	if (!coresight_take_mode(csdev, mode)) {
+		/* Someone is already using the tracer */
 		return -EBUSY;
+	}
 
 	pm_runtime_get_sync(csdev->dev.parent);
 

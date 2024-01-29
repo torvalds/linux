@@ -580,6 +580,17 @@ static inline bool coresight_is_percpu_sink(struct coresight_device *csdev)
 	       (csdev->subtype.sink_subtype == CORESIGHT_DEV_SUBTYPE_SINK_PERCPU_SYSMEM);
 }
 
+/*
+ * Atomically try to take the device and set a new mode. Returns true on
+ * success, false if the device is already taken by someone else.
+ */
+static inline bool coresight_take_mode(struct coresight_device *csdev,
+				       enum cs_mode new_mode)
+{
+	return local_cmpxchg(&csdev->mode, CS_MODE_DISABLED, new_mode) ==
+	       CS_MODE_DISABLED;
+}
+
 extern struct coresight_device *
 coresight_register(struct coresight_desc *desc);
 extern void coresight_unregister(struct coresight_device *csdev);
