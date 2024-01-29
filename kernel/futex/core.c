@@ -627,12 +627,21 @@ retry:
 }
 
 /*
- * PI futexes can not be requeued and must remove themselves from the
- * hash bucket. The hash bucket lock (i.e. lock_ptr) is held.
+ * PI futexes can not be requeued and must remove themselves from the hash
+ * bucket. The hash bucket lock (i.e. lock_ptr) is held.
  */
 void futex_unqueue_pi(struct futex_q *q)
 {
-	__futex_unqueue(q);
+	/*
+	 * If the lock was not acquired (due to timeout or signal) then the
+	 * rt_waiter is removed before futex_q is. If this is observed by
+	 * an unlocker after dropping the rtmutex wait lock and before
+	 * acquiring the hash bucket lock, then the unlocker dequeues the
+	 * futex_q from the hash bucket list to guarantee consistent state
+	 * vs. userspace. Therefore the dequeue here must be conditional.
+	 */
+	if (!plist_node_empty(&q->list))
+		__futex_unqueue(q);
 
 	BUG_ON(!q->pi_state);
 	put_pi_state(q->pi_state);

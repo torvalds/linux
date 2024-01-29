@@ -122,6 +122,11 @@ extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
 extern void smb2_set_next_command(struct cifs_tcon *tcon,
 				  struct smb_rqst *rqst);
 extern void smb2_set_related(struct smb_rqst *rqst);
+extern void smb2_set_replay(struct TCP_Server_Info *server,
+			    struct smb_rqst *rqst);
+extern bool smb2_should_replay(struct cifs_tcon *tcon,
+			  int *pretries,
+			  int *pcur_sleep);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
