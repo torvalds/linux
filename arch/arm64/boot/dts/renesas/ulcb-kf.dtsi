@@ -59,11 +59,13 @@
 		enable-active-high;
 	};
 
-	snd_vcc5v: regulator-snd_vcc5v {
+	reg_5v: regulator-5v {
 		compatible = "regulator-fixed";
-		regulator-name = "snd-vcc5v";
+		regulator-name = "fixed-5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	wlan_en: regulator-wlan_en {
@@ -210,10 +212,10 @@
 
 				VDD1-supply = <&reg_3p3v>;
 				VDD2-supply = <&reg_3p3v>;
-				VCCAD1-supply = <&snd_vcc5v>;
-				VCCAD2-supply = <&snd_vcc5v>;
-				VCCDA1-supply = <&snd_vcc5v>;
-				VCCDA2-supply = <&snd_vcc5v>;
+				VCCAD1-supply = <&reg_5v>;
+				VCCAD2-supply = <&reg_5v>;
+				VCCDA1-supply = <&reg_5v>;
+				VCCDA2-supply = <&reg_5v>;
 			};
 
 			gyroscope@6b {
