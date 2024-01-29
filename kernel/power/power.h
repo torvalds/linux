@@ -327,3 +327,5 @@ static inline void pm_sleep_enable_secondary_cpus(void)
 	suspend_enable_secondary_cpus();
 	cpuidle_resume();
 }
+
+void dpm_save_errno(int err);

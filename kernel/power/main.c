@@ -95,19 +95,6 @@ int unregister_pm_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(unregister_pm_notifier);
 
-void pm_report_hw_sleep_time(u64 t)
-{
-	suspend_stats.last_hw_sleep = t;
-	suspend_stats.total_hw_sleep += t;
-}
-EXPORT_SYMBOL_GPL(pm_report_hw_sleep_time);
-
-void pm_report_max_hw_sleep(u64 t)
-{
-	suspend_stats.max_hw_sleep = t;
-}
-EXPORT_SYMBOL_GPL(pm_report_max_hw_sleep);
-
 int pm_notifier_call_chain_robust(unsigned long val_up, unsigned long val_down)
 {
 	int ret;
@@ -318,6 +305,69 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 
 power_attr(pm_test);
 #endif /* CONFIG_PM_SLEEP_DEBUG */
+
+#define SUSPEND_NR_STEPS	SUSPEND_RESUME
+#define REC_FAILED_NUM		2
+
+struct suspend_stats {
+	unsigned int step_failures[SUSPEND_NR_STEPS];
+	unsigned int success;
+	unsigned int fail;
+	int last_failed_dev;
+	char failed_devs[REC_FAILED_NUM][40];
+	int last_failed_errno;
+	int errno[REC_FAILED_NUM];
+	int last_failed_step;
+	u64 last_hw_sleep;
+	u64 total_hw_sleep;
+	u64 max_hw_sleep;
+	enum suspend_stat_step failed_steps[REC_FAILED_NUM];
+};
+
+static struct suspend_stats suspend_stats;
+
+void dpm_save_failed_dev(const char *name)
+{
+	strscpy(suspend_stats.failed_devs[suspend_stats.last_failed_dev],
+		name, sizeof(suspend_stats.failed_devs[0]));
+	suspend_stats.last_failed_dev++;
+	suspend_stats.last_failed_dev %= REC_FAILED_NUM;
+}
+
+void dpm_save_failed_step(enum suspend_stat_step step)
+{
+	suspend_stats.step_failures[step-1]++;
+	suspend_stats.failed_steps[suspend_stats.last_failed_step] = step;
+	suspend_stats.last_failed_step++;
+	suspend_stats.last_failed_step %= REC_FAILED_NUM;
+}
+
+void dpm_save_errno(int err)
+{
+	if (!err) {
+		suspend_stats.success++;
+		return;
+	}
+
+	suspend_stats.fail++;
+
+	suspend_stats.errno[suspend_stats.last_failed_errno] = err;
+	suspend_stats.last_failed_errno++;
+	suspend_stats.last_failed_errno %= REC_FAILED_NUM;
+}
+
+void pm_report_hw_sleep_time(u64 t)
+{
+	suspend_stats.last_hw_sleep = t;
+	suspend_stats.total_hw_sleep += t;
+}
+EXPORT_SYMBOL_GPL(pm_report_hw_sleep_time);
+
+void pm_report_max_hw_sleep(u64 t)
+{
+	suspend_stats.max_hw_sleep = t;
+}
+EXPORT_SYMBOL_GPL(pm_report_max_hw_sleep);
 
 static const char * const suspend_step_names[] = {
 	[SUSPEND_WORKING] = "",
