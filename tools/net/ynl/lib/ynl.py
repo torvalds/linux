@@ -113,20 +113,6 @@ class NlAttr:
                 else format.little
         return format.native
 
-    @classmethod
-    def formatted_string(cls, raw, display_hint):
-        if display_hint == 'mac':
-            formatted = ':'.join('%02x' % b for b in raw)
-        elif display_hint == 'hex':
-            formatted = bytes.hex(raw, ' ')
-        elif display_hint in [ 'ipv4', 'ipv6' ]:
-            formatted = format(ipaddress.ip_address(raw))
-        elif display_hint == 'uuid':
-            formatted = str(uuid.UUID(bytes=raw))
-        else:
-            formatted = raw
-        return formatted
-
     def as_scalar(self, attr_type, byte_order=None):
         format = self.get_format(attr_type, byte_order)
         return format.unpack(self.raw)[0]
@@ -530,7 +516,7 @@ class YnlFamily(SpecFamily):
         else:
             decoded = attr.as_bin()
             if attr_spec.display_hint:
-                decoded = NlAttr.formatted_string(decoded, attr_spec.display_hint)
+                decoded = self._formatted_string(decoded, attr_spec.display_hint)
         return decoded
 
     def _decode_array_nest(self, attr, attr_spec):
@@ -715,7 +701,7 @@ class YnlFamily(SpecFamily):
                 if m.enum:
                     value = self._decode_enum(value, m)
                 elif m.display_hint:
-                    value = NlAttr.formatted_string(value, m.display_hint)
+                    value = self._formatted_string(value, m.display_hint)
                 attrs[m.name] = value
         return attrs
 
@@ -737,6 +723,19 @@ class YnlFamily(SpecFamily):
                 format = NlAttr.get_format(m.type, m.byte_order)
                 attr_payload += format.pack(value)
         return attr_payload
+
+    def _formatted_string(self, raw, display_hint):
+        if display_hint == 'mac':
+            formatted = ':'.join('%02x' % b for b in raw)
+        elif display_hint == 'hex':
+            formatted = bytes.hex(raw, ' ')
+        elif display_hint in [ 'ipv4', 'ipv6' ]:
+            formatted = format(ipaddress.ip_address(raw))
+        elif display_hint == 'uuid':
+            formatted = str(uuid.UUID(bytes=raw))
+        else:
+            formatted = raw
+        return formatted
 
     def handle_ntf(self, decoded):
         msg = dict()
