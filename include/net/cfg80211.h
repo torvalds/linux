@@ -2910,6 +2910,8 @@ struct cfg80211_bss_ies {
  *	own the beacon_ies, but they're just pointers to the ones from the
  *	@hidden_beacon_bss struct)
  * @proberesp_ies: the information elements from the last Probe Response frame
+ * @proberesp_ecsa_stuck: ECSA element is stuck in the Probe Response frame,
+ *	cannot rely on it having valid data
  * @hidden_beacon_bss: in case this BSS struct represents a probe response from
  *	a BSS that hides the SSID in its beacon, this points to the BSS struct
  *	that holds the beacon data. @beacon_ies is still valid, of course, and
@@ -2949,6 +2951,8 @@ struct cfg80211_bss {
 	u8 bssid[ETH_ALEN];
 	u8 chains;
 	s8 chain_signal[IEEE80211_MAX_CHAINS];
+
+	u8 proberesp_ecsa_stuck:1;
 
 	u8 bssid_index;
 	u8 max_bssid_indicator;
