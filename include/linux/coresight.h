@@ -391,8 +391,6 @@ struct coresight_ops {
 	const struct coresight_ops_helper *helper_ops;
 };
 
-#if IS_ENABLED(CONFIG_CORESIGHT)
-
 static inline u32 csdev_access_relaxed_read32(struct csdev_access *csa,
 					      u32 offset)
 {
@@ -610,83 +608,6 @@ u64 coresight_read64(struct coresight_device *csdev, u32 offset);
 void coresight_relaxed_write64(struct coresight_device *csdev,
 			       u64 val, u32 offset);
 void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset);
-
-#else
-static inline struct coresight_device *
-coresight_register(struct coresight_desc *desc) { return NULL; }
-static inline void coresight_unregister(struct coresight_device *csdev) {}
-static inline int
-coresight_enable_sysfs(struct coresight_device *csdev) { return -ENOSYS; }
-static inline void coresight_disable_sysfs(struct coresight_device *csdev) {}
-
-static inline int coresight_timeout(struct csdev_access *csa, u32 offset,
-				    int position, int value)
-{
-	return 1;
-}
-
-static inline int coresight_claim_device_unlocked(struct coresight_device *csdev)
-{
-	return -EINVAL;
-}
-
-static inline int coresight_claim_device(struct coresight_device *csdev)
-{
-	return -EINVAL;
-}
-
-static inline void coresight_disclaim_device(struct coresight_device *csdev) {}
-static inline void coresight_disclaim_device_unlocked(struct coresight_device *csdev) {}
-
-static inline bool coresight_loses_context_with_cpu(struct device *dev)
-{
-	return false;
-}
-
-static inline u32 coresight_relaxed_read32(struct coresight_device *csdev, u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline u32 coresight_read32(struct coresight_device *csdev, u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline void coresight_write32(struct coresight_device *csdev, u32 val, u32 offset)
-{
-}
-
-static inline void coresight_relaxed_write32(struct coresight_device *csdev,
-					     u32 val, u32 offset)
-{
-}
-
-static inline u64 coresight_relaxed_read64(struct coresight_device *csdev,
-					   u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline u64 coresight_read64(struct coresight_device *csdev, u32 offset)
-{
-	WARN_ON_ONCE(1);
-	return 0;
-}
-
-static inline void coresight_relaxed_write64(struct coresight_device *csdev,
-					     u64 val, u32 offset)
-{
-}
-
-static inline void coresight_write64(struct coresight_device *csdev, u64 val, u32 offset)
-{
-}
-
-#endif		/* IS_ENABLED(CONFIG_CORESIGHT) */
 
 extern int coresight_get_cpu(struct device *dev);
 
