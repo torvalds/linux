@@ -397,12 +397,10 @@ dont_set_request_ack:
 
 	/* Track what we've attempted to transmit at least once so that the
 	 * retransmission algorithm doesn't try to resend what we haven't sent
-	 * yet.  However, this can race as we can receive an ACK before we get
-	 * to this point.  But, OTOH, if we won't get an ACK mentioning this
-	 * packet unless the far side received it (though it could have
-	 * discarded it anyway and NAK'd it).
+	 * yet.
 	 */
-	cmpxchg(&call->tx_transmitted, txb->seq - 1, txb->seq);
+	if (txb->seq == call->tx_transmitted + 1)
+		call->tx_transmitted = txb->seq;
 
 	/* send the packet with the don't fragment bit set if we currently
 	 * think it's small enough */

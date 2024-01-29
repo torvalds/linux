@@ -115,7 +115,7 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_txbuf *txb;
 	unsigned long resend_at;
-	rxrpc_seq_t transmitted = READ_ONCE(call->tx_transmitted);
+	rxrpc_seq_t transmitted = call->tx_transmitted;
 	ktime_t now, max_age, oldest, ack_ts;
 	bool unacked = false;
 	unsigned int i;
@@ -184,16 +184,14 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 	 * seen.  Anything between the soft-ACK table and that point will get
 	 * ACK'd or NACK'd in due course, so don't worry about it here; here we
 	 * need to consider retransmitting anything beyond that point.
-	 *
-	 * Note that ACK for a packet can beat the update of tx_transmitted.
 	 */
-	if (after_eq(READ_ONCE(call->acks_prev_seq), READ_ONCE(call->tx_transmitted)))
+	if (after_eq(call->acks_prev_seq, call->tx_transmitted))
 		goto no_further_resend;
 
 	list_for_each_entry_from(txb, &call->tx_buffer, call_link) {
-		if (before_eq(txb->seq, READ_ONCE(call->acks_prev_seq)))
+		if (before_eq(txb->seq, call->acks_prev_seq))
 			continue;
-		if (after(txb->seq, READ_ONCE(call->tx_transmitted)))
+		if (after(txb->seq, call->tx_transmitted))
 			break; /* Not transmitted yet */
 
 		if (ack && ack->reason == RXRPC_ACK_PING_RESPONSE &&
