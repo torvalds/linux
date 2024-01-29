@@ -207,6 +207,8 @@ struct ath12k_hw_params {
 
 	u8 def_num_link;
 	u16 max_mlo_peer;
+
+	u32 otp_board_id_register;
 };
 
 struct ath12k_hw_ops {

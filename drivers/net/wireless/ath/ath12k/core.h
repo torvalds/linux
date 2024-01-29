@@ -832,6 +832,8 @@ struct ath12k_base {
 		const struct firmware *fw;
 		const u8 *amss_data;
 		size_t amss_len;
+		const u8 *amss_dualmac_data;
+		size_t amss_dualmac_len;
 		const u8 *m3_data;
 		size_t m3_len;
 

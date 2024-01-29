@@ -119,6 +119,13 @@ static int ath12k_fw_request_firmware_api_n(struct ath12k_base *ab,
 			ab->fw.m3_data = data;
 			ab->fw.m3_len = ie_len;
 			break;
+		case ATH12K_FW_IE_AMSS_DUALMAC_IMAGE:
+			ath12k_dbg(ab, ATH12K_DBG_BOOT,
+				   "found dualmac fw image ie (%zd B)\n",
+				   ie_len);
+			ab->fw.amss_dualmac_data = data;
+			ab->fw.amss_dualmac_len = ie_len;
+			break;
 		default:
 			ath12k_warn(ab, "Unknown FW IE: %u\n", ie_id);
 			break;
