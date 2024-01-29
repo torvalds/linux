@@ -2506,9 +2506,6 @@ u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata);
 u8 *ieee80211_ie_build_he_cap(const struct ieee80211_conn_settings *conn,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *pos, u8 *end);
-void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
-				    enum ieee80211_smps_mode smps_mode,
-				    struct sk_buff *skb);
 u8 *ieee80211_ie_build_he_oper(u8 *pos, struct cfg80211_chan_def *chandef);
 u8 *ieee80211_ie_build_eht_oper(u8 *pos, struct cfg80211_chan_def *chandef,
 				const struct ieee80211_sta_eht_cap *eht_cap);
@@ -2528,6 +2525,11 @@ void ieee80211_add_s1g_capab_ie(struct ieee80211_sub_if_data *sdata,
 void ieee80211_add_aid_request_ie(struct ieee80211_sub_if_data *sdata,
 				  struct sk_buff *skb);
 u8 *ieee80211_ie_build_s1g_cap(u8 *pos, struct ieee80211_sta_s1g_cap *s1g_cap);
+
+/* element building in SKBs */
+void ieee80211_put_he_6ghz_cap(struct sk_buff *skb,
+			       struct ieee80211_sub_if_data *sdata,
+			       enum ieee80211_smps_mode smps_mode);
 
 /* channel management */
 bool ieee80211_chandef_ht_oper(const struct ieee80211_ht_operation *ht_oper,

@@ -1067,7 +1067,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
 
-	ieee80211_ie_build_he_6ghz_cap(sdata, smps_mode, skb);
+	ieee80211_put_he_6ghz_cap(skb, sdata, smps_mode);
 }
 
 static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,

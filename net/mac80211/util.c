@@ -3413,9 +3413,9 @@ end:
 	return pos;
 }
 
-void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
-				    enum ieee80211_smps_mode smps_mode,
-				    struct sk_buff *skb)
+void ieee80211_put_he_6ghz_cap(struct sk_buff *skb,
+			       struct ieee80211_sub_if_data *sdata,
+			       enum ieee80211_smps_mode smps_mode)
 {
 	struct ieee80211_supported_band *sband;
 	const struct ieee80211_sband_iftype_data *iftd;
