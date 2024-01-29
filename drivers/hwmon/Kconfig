@@ -1695,6 +1695,16 @@ config SENSORS_NZXT_KRAKEN2
 	  This driver can also be built as a module. If so, the module
 	  will be called nzxt-kraken2.
 
+config SENSORS_NZXT_KRAKEN3
+	tristate "NZXT Kraken X53/X63/X73, Z53/Z63/Z73 coolers"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  NZXT Kraken X53/X63/X73, Z53/Z63/Z73 all-in-one CPU liquid coolers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nzxt-kraken3.
+
 config SENSORS_NZXT_SMART2
 	tristate "NZXT RGB & Fan Controller/Smart Device v2"
 	depends on USB_HID

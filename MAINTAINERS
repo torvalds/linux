@@ -15840,6 +15840,14 @@ S:	Maintained
 F:	Documentation/hwmon/nzxt-kraken2.rst
 F:	drivers/hwmon/nzxt-kraken2.c
 
+NZXT-KRAKEN3 HARDWARE MONITORING DRIVER
+M:	Jonas Malaco <jonas@protocubo.io>
+M:	Aleksa Savic <savicaleksa83@gmail.com>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/hwmon/nzxt-kraken3.rst
+F:	drivers/hwmon/nzxt-kraken3.c
+
 NZXT-SMART2 HARDWARE MONITORING DRIVER
 M:	Aleksandr Mezin <mezin.alexander@gmail.com>
 L:	linux-hwmon@vger.kernel.org

@@ -174,6 +174,7 @@ Hardware Monitoring Kernel Drivers
    nsa320
    ntc_thermistor
    nzxt-kraken2
+   nzxt-kraken3
    nzxt-smart2
    occ
    oxp-sensors
