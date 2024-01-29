@@ -645,23 +645,27 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret,
 		return true;
 	}
 
-	if (!mshot_finished) {
-		if (io_fill_cqe_req_aux(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
-					*ret, cflags | IORING_CQE_F_MORE)) {
-			io_recv_prep_retry(req);
-			/* Known not-empty or unknown state, retry */
-			if (cflags & IORING_CQE_F_SOCK_NONEMPTY ||
-			    msg->msg_inq == -1)
-				return false;
-			if (issue_flags & IO_URING_F_MULTISHOT)
-				*ret = IOU_ISSUE_SKIP_COMPLETE;
-			else
-				*ret = -EAGAIN;
-			return true;
-		}
-		/* Otherwise stop multishot but use the current result. */
-	}
+	if (mshot_finished)
+		goto finish;
 
+	/*
+	 * Fill CQE for this receive and see if we should keep trying to
+	 * receive from this socket.
+	 */
+	if (io_fill_cqe_req_aux(req, issue_flags & IO_URING_F_COMPLETE_DEFER,
+				*ret, cflags | IORING_CQE_F_MORE)) {
+		io_recv_prep_retry(req);
+		/* Known not-empty or unknown state, retry */
+		if (cflags & IORING_CQE_F_SOCK_NONEMPTY || msg->msg_inq == -1)
+			return false;
+		if (issue_flags & IO_URING_F_MULTISHOT)
+			*ret = IOU_ISSUE_SKIP_COMPLETE;
+		else
+			*ret = -EAGAIN;
+		return true;
+	}
+	/* Otherwise stop multishot but use the current result. */
+finish:
 	io_req_set_res(req, *ret, cflags);
 
 	if (issue_flags & IO_URING_F_MULTISHOT)
