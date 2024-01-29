@@ -182,6 +182,7 @@ def define_pitti():
         "drivers/virt/gunyah/gh_rm_drv.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
         "drivers/virt/gunyah/gunyah_loader.ko",
+        "kernel/sched/walt/sched-walt.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
         "sound/usb/snd-usb-audio-qmi.ko",
