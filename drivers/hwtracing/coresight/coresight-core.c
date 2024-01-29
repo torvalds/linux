@@ -279,16 +279,8 @@ EXPORT_SYMBOL_GPL(coresight_add_helper);
 static int coresight_enable_sink(struct coresight_device *csdev,
 				 enum cs_mode mode, void *data)
 {
-	int ret;
+	int ret = sink_ops(csdev)->enable(csdev, mode, data);
 
-	/*
-	 * We need to make sure the "new" session is compatible with the
-	 * existing "mode" of operation.
-	 */
-	if (!sink_ops(csdev)->enable)
-		return -EINVAL;
-
-	ret = sink_ops(csdev)->enable(csdev, mode, data);
 	if (ret)
 		return ret;
 
@@ -299,12 +291,7 @@ static int coresight_enable_sink(struct coresight_device *csdev,
 
 static void coresight_disable_sink(struct coresight_device *csdev)
 {
-	int ret;
-
-	if (!sink_ops(csdev)->disable)
-		return;
-
-	ret = sink_ops(csdev)->disable(csdev);
+	int ret = sink_ops(csdev)->disable(csdev);
 	if (ret)
 		return;
 	csdev->enable = false;
@@ -330,11 +317,9 @@ static int coresight_enable_link(struct coresight_device *csdev,
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_SPLIT && IS_ERR(outconn))
 		return PTR_ERR(outconn);
 
-	if (link_ops(csdev)->enable) {
-		ret = link_ops(csdev)->enable(csdev, inconn, outconn);
-		if (!ret)
-			csdev->enable = true;
-	}
+	ret = link_ops(csdev)->enable(csdev, inconn, outconn);
+	if (!ret)
+		csdev->enable = true;
 
 	return ret;
 }
@@ -354,9 +339,7 @@ static void coresight_disable_link(struct coresight_device *csdev,
 	outconn = coresight_find_out_connection(csdev, child);
 	link_subtype = csdev->subtype.link_subtype;
 
-	if (link_ops(csdev)->disable) {
-		link_ops(csdev)->disable(csdev, inconn, outconn);
-	}
+	link_ops(csdev)->disable(csdev, inconn, outconn);
 
 	if (link_subtype == CORESIGHT_DEV_SUBTYPE_LINK_MERG) {
 		for (i = 0; i < csdev->pdata->nr_inconns; i++)
@@ -382,11 +365,9 @@ int coresight_enable_source(struct coresight_device *csdev, enum cs_mode mode,
 	int ret;
 
 	if (!csdev->enable) {
-		if (source_ops(csdev)->enable) {
-			ret = source_ops(csdev)->enable(csdev, data, mode);
-			if (ret)
-				return ret;
-		}
+		ret = source_ops(csdev)->enable(csdev, data, mode);
+		if (ret)
+			return ret;
 		csdev->enable = true;
 	}
 
@@ -404,11 +385,8 @@ static bool coresight_is_helper(struct coresight_device *csdev)
 static int coresight_enable_helper(struct coresight_device *csdev,
 				   enum cs_mode mode, void *data)
 {
-	int ret;
+	int ret = helper_ops(csdev)->enable(csdev, mode, data);
 
-	if (!helper_ops(csdev)->enable)
-		return 0;
-	ret = helper_ops(csdev)->enable(csdev, mode, data);
 	if (ret)
 		return ret;
 
@@ -418,12 +396,8 @@ static int coresight_enable_helper(struct coresight_device *csdev,
 
 static void coresight_disable_helper(struct coresight_device *csdev)
 {
-	int ret;
+	int ret = helper_ops(csdev)->disable(csdev, NULL);
 
-	if (!helper_ops(csdev)->disable)
-		return;
-
-	ret = helper_ops(csdev)->disable(csdev, NULL);
 	if (ret)
 		return;
 	csdev->enable = false;
@@ -453,8 +427,7 @@ static void coresight_disable_helpers(struct coresight_device *csdev)
  */
 void coresight_disable_source(struct coresight_device *csdev, void *data)
 {
-	if (source_ops(csdev)->disable)
-		source_ops(csdev)->disable(csdev, data);
+	source_ops(csdev)->disable(csdev, data);
 	coresight_disable_helpers(csdev);
 }
 EXPORT_SYMBOL_GPL(coresight_disable_source);
