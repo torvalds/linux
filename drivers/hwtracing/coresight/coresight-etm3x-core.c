@@ -676,7 +676,7 @@ static void etm_disable(struct coresight_device *csdev,
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
-	mode = local_read(&csdev->mode);
+	mode = coresight_get_mode(csdev);
 
 	switch (mode) {
 	case CS_MODE_DISABLED:
@@ -727,7 +727,7 @@ static int etm_starting_cpu(unsigned int cpu)
 		etmdrvdata[cpu]->os_unlock = true;
 	}
 
-	if (local_read(&etmdrvdata[cpu]->csdev->mode))
+	if (coresight_get_mode(etmdrvdata[cpu]->csdev))
 		etm_enable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;
@@ -739,7 +739,7 @@ static int etm_dying_cpu(unsigned int cpu)
 		return 0;
 
 	spin_lock(&etmdrvdata[cpu]->spinlock);
-	if (local_read(&etmdrvdata[cpu]->csdev->mode))
+	if (coresight_get_mode(etmdrvdata[cpu]->csdev))
 		etm_disable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;

@@ -558,7 +558,7 @@ static void tmc_shutdown(struct amba_device *adev)
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_DISABLED)
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_DISABLED)
 		goto out;
 
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR)

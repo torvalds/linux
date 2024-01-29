@@ -89,7 +89,7 @@ static void __tmc_etb_disable_hw(struct tmc_drvdata *drvdata)
 	 * When operating in sysFS mode the content of the buffer needs to be
 	 * read before the TMC is disabled.
 	 */
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_SYSFS)
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS)
 		tmc_etb_dump_hw(drvdata);
 	tmc_disable_hw(drvdata);
 
@@ -205,7 +205,7 @@ static int tmc_enable_etf_sink_sysfs(struct coresight_device *csdev)
 	 * sink is already enabled no memory is needed and the HW need not be
 	 * touched.
 	 */
-	if (local_read(&csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(csdev) == CS_MODE_SYSFS) {
 		csdev->refcnt++;
 		goto out;
 	}
@@ -262,7 +262,7 @@ static int tmc_enable_etf_sink_perf(struct coresight_device *csdev, void *data)
 		 * No need to continue if the ETB/ETF is already operated
 		 * from sysFS.
 		 */
-		if (local_read(&csdev->mode) == CS_MODE_SYSFS) {
+		if (coresight_get_mode(csdev) == CS_MODE_SYSFS) {
 			ret = -EBUSY;
 			break;
 		}
@@ -345,7 +345,7 @@ static int tmc_disable_etf_sink(struct coresight_device *csdev)
 	}
 
 	/* Complain if we (somehow) got out of sync */
-	WARN_ON_ONCE(local_read(&csdev->mode) == CS_MODE_DISABLED);
+	WARN_ON_ONCE(coresight_get_mode(csdev) == CS_MODE_DISABLED);
 	tmc_etb_disable_hw(drvdata);
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
@@ -485,7 +485,7 @@ static unsigned long tmc_update_etf_buffer(struct coresight_device *csdev,
 		return 0;
 
 	/* This shouldn't happen */
-	if (WARN_ON_ONCE(local_read(&csdev->mode) != CS_MODE_PERF))
+	if (WARN_ON_ONCE(coresight_get_mode(csdev) != CS_MODE_PERF))
 		return 0;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
@@ -631,7 +631,7 @@ int tmc_read_prepare_etb(struct tmc_drvdata *drvdata)
 	}
 
 	/* Don't interfere if operated from Perf */
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_PERF) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_PERF) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -643,7 +643,7 @@ int tmc_read_prepare_etb(struct tmc_drvdata *drvdata)
 	}
 
 	/* Disable the TMC if need be */
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS) {
 		/* There is no point in reading a TMC in HW FIFO mode */
 		mode = readl_relaxed(drvdata->base + TMC_MODE);
 		if (mode != TMC_MODE_CIRCULAR_BUFFER) {
@@ -675,7 +675,7 @@ int tmc_read_unprepare_etb(struct tmc_drvdata *drvdata)
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Re-enable the TMC if need be */
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS) {
 		/* There is no point in reading a TMC in HW FIFO mode */
 		mode = readl_relaxed(drvdata->base + TMC_MODE);
 		if (mode != TMC_MODE_CIRCULAR_BUFFER) {

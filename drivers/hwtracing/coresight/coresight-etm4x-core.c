@@ -1007,7 +1007,7 @@ static void etm4_disable(struct coresight_device *csdev,
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
-	mode = local_read(&csdev->mode);
+	mode = coresight_get_mode(csdev);
 
 	switch (mode) {
 	case CS_MODE_DISABLED:
@@ -1659,7 +1659,7 @@ static int etm4_starting_cpu(unsigned int cpu)
 	if (!etmdrvdata[cpu]->os_unlock)
 		etm4_os_unlock(etmdrvdata[cpu]);
 
-	if (local_read(&etmdrvdata[cpu]->csdev->mode))
+	if (coresight_get_mode(etmdrvdata[cpu]->csdev))
 		etm4_enable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;
@@ -1671,7 +1671,7 @@ static int etm4_dying_cpu(unsigned int cpu)
 		return 0;
 
 	spin_lock(&etmdrvdata[cpu]->spinlock);
-	if (local_read(&etmdrvdata[cpu]->csdev->mode))
+	if (coresight_get_mode(etmdrvdata[cpu]->csdev))
 		etm4_disable_hw(etmdrvdata[cpu]);
 	spin_unlock(&etmdrvdata[cpu]->spinlock);
 	return 0;
@@ -1829,7 +1829,7 @@ static int etm4_cpu_save(struct etmv4_drvdata *drvdata)
 	 * Save and restore the ETM Trace registers only if
 	 * the ETM is active.
 	 */
-	if (local_read(&drvdata->csdev->mode) && drvdata->save_state)
+	if (coresight_get_mode(drvdata->csdev) && drvdata->save_state)
 		ret = __etm4_cpu_save(drvdata);
 	return ret;
 }

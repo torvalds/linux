@@ -62,7 +62,7 @@ static int coresight_enable_source_sysfs(struct coresight_device *csdev,
 	 * change with coresight_mutex held, which we already have here.
 	 */
 	lockdep_assert_held(&coresight_mutex);
-	if (local_read(&csdev->mode) != CS_MODE_SYSFS) {
+	if (coresight_get_mode(csdev) != CS_MODE_SYSFS) {
 		ret = source_ops(csdev)->enable(csdev, data, mode);
 		if (ret)
 			return ret;
@@ -87,7 +87,7 @@ static bool coresight_disable_source_sysfs(struct coresight_device *csdev,
 					   void *data)
 {
 	lockdep_assert_held(&coresight_mutex);
-	if (local_read(&csdev->mode) != CS_MODE_SYSFS)
+	if (coresight_get_mode(csdev) != CS_MODE_SYSFS)
 		return false;
 
 	csdev->refcnt--;
@@ -184,7 +184,7 @@ int coresight_enable_sysfs(struct coresight_device *csdev)
 	 * coresight_enable_source() so can still race with Perf mode which
 	 * doesn't hold coresight_mutex.
 	 */
-	if (local_read(&csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(csdev) == CS_MODE_SYSFS) {
 		/*
 		 * There could be multiple applications driving the software
 		 * source. So keep the refcount for each such user when the
@@ -338,7 +338,7 @@ static ssize_t enable_source_show(struct device *dev,
 
 	guard(mutex)(&coresight_mutex);
 	return scnprintf(buf, PAGE_SIZE, "%u\n",
-			 local_read(&csdev->mode) == CS_MODE_SYSFS);
+			 coresight_get_mode(csdev) == CS_MODE_SYSFS);
 }
 
 static ssize_t enable_source_store(struct device *dev,

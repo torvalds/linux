@@ -148,12 +148,12 @@ static int etb_enable_sysfs(struct coresight_device *csdev)
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* Don't messup with perf sessions. */
-	if (local_read(&csdev->mode) == CS_MODE_PERF) {
+	if (coresight_get_mode(csdev) == CS_MODE_PERF) {
 		ret = -EBUSY;
 		goto out;
 	}
 
-	if (local_read(&csdev->mode) == CS_MODE_DISABLED) {
+	if (coresight_get_mode(csdev) == CS_MODE_DISABLED) {
 		ret = etb_enable_hw(drvdata);
 		if (ret)
 			goto out;
@@ -179,7 +179,7 @@ static int etb_enable_perf(struct coresight_device *csdev, void *data)
 	spin_lock_irqsave(&drvdata->spinlock, flags);
 
 	/* No need to continue if the component is already in used by sysFS. */
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS) {
 		ret = -EBUSY;
 		goto out;
 	}
@@ -361,7 +361,7 @@ static int etb_disable(struct coresight_device *csdev)
 	}
 
 	/* Complain if we (somehow) got out of sync */
-	WARN_ON_ONCE(local_read(&csdev->mode) == CS_MODE_DISABLED);
+	WARN_ON_ONCE(coresight_get_mode(csdev) == CS_MODE_DISABLED);
 	etb_disable_hw(drvdata);
 	/* Dissociate from monitored process. */
 	drvdata->pid = -1;
@@ -588,7 +588,7 @@ static void etb_dump(struct etb_drvdata *drvdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&drvdata->spinlock, flags);
-	if (local_read(&drvdata->csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(drvdata->csdev) == CS_MODE_SYSFS) {
 		__etb_disable_hw(drvdata);
 		etb_dump_hw(drvdata);
 		__etb_enable_hw(drvdata);

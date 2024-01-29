@@ -262,7 +262,7 @@ static void stm_disable(struct coresight_device *csdev,
 	 * change its status.  As such we can read the status here without
 	 * fearing it will change under us.
 	 */
-	if (local_read(&csdev->mode) == CS_MODE_SYSFS) {
+	if (coresight_get_mode(csdev) == CS_MODE_SYSFS) {
 		spin_lock(&drvdata->spinlock);
 		stm_disable_hw(drvdata);
 		spin_unlock(&drvdata->spinlock);
@@ -369,7 +369,7 @@ static long stm_generic_set_options(struct stm_data *stm_data,
 {
 	struct stm_drvdata *drvdata = container_of(stm_data,
 						   struct stm_drvdata, stm);
-	if (!(drvdata && local_read(&drvdata->csdev->mode)))
+	if (!(drvdata && coresight_get_mode(drvdata->csdev)))
 		return -EINVAL;
 
 	if (channel >= drvdata->numsp)
@@ -404,7 +404,7 @@ static ssize_t notrace stm_generic_packet(struct stm_data *stm_data,
 						   struct stm_drvdata, stm);
 	unsigned int stm_flags;
 
-	if (!(drvdata && local_read(&drvdata->csdev->mode)))
+	if (!(drvdata && coresight_get_mode(drvdata->csdev)))
 		return -EACCES;
 
 	if (channel >= drvdata->numsp)
@@ -511,7 +511,7 @@ static ssize_t port_select_show(struct device *dev,
 	struct stm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val;
 
-	if (!local_read(&drvdata->csdev->mode)) {
+	if (!coresight_get_mode(drvdata->csdev)) {
 		val = drvdata->stmspscr;
 	} else {
 		spin_lock(&drvdata->spinlock);
@@ -537,7 +537,7 @@ static ssize_t port_select_store(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	drvdata->stmspscr = val;
 
-	if (local_read(&drvdata->csdev->mode)) {
+	if (coresight_get_mode(drvdata->csdev)) {
 		CS_UNLOCK(drvdata->base);
 		/* Process as per ARM's TRM recommendation */
 		stmsper = readl_relaxed(drvdata->base + STMSPER);
@@ -558,7 +558,7 @@ static ssize_t port_enable_show(struct device *dev,
 	struct stm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	unsigned long val;
 
-	if (!local_read(&drvdata->csdev->mode)) {
+	if (!coresight_get_mode(drvdata->csdev)) {
 		val = drvdata->stmsper;
 	} else {
 		spin_lock(&drvdata->spinlock);
@@ -584,7 +584,7 @@ static ssize_t port_enable_store(struct device *dev,
 	spin_lock(&drvdata->spinlock);
 	drvdata->stmsper = val;
 
-	if (local_read(&drvdata->csdev->mode)) {
+	if (coresight_get_mode(drvdata->csdev)) {
 		CS_UNLOCK(drvdata->base);
 		writel_relaxed(drvdata->stmsper, drvdata->base + STMSPER);
 		CS_LOCK(drvdata->base);

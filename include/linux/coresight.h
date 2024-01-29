@@ -591,6 +591,11 @@ static inline bool coresight_take_mode(struct coresight_device *csdev,
 	       CS_MODE_DISABLED;
 }
 
+static inline enum cs_mode coresight_get_mode(struct coresight_device *csdev)
+{
+	return local_read(&csdev->mode);
+}
+
 extern struct coresight_device *
 coresight_register(struct coresight_desc *desc);
 extern void coresight_unregister(struct coresight_device *csdev);
