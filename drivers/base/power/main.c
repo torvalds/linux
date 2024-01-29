@@ -707,9 +707,9 @@ static void dpm_noirq_resume_devices(pm_message_t state)
 	trace_suspend_resume(TPS("dpm_resume_noirq"), state.event, true);
 
 	async_error = 0;
+	pm_transition = state;
 
 	mutex_lock(&dpm_list_mtx);
-	pm_transition = state;
 
 	/*
 	 * Trigger the resume of "async" devices upfront so they don't have to
@@ -847,9 +847,9 @@ void dpm_resume_early(pm_message_t state)
 	trace_suspend_resume(TPS("dpm_resume_early"), state.event, true);
 
 	async_error = 0;
+	pm_transition = state;
 
 	mutex_lock(&dpm_list_mtx);
-	pm_transition = state;
 
 	/*
 	 * Trigger the resume of "async" devices upfront so they don't have to
@@ -1012,9 +1012,10 @@ void dpm_resume(pm_message_t state)
 	trace_suspend_resume(TPS("dpm_resume"), state.event, true);
 	might_sleep();
 
-	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
 	async_error = 0;
+
+	mutex_lock(&dpm_list_mtx);
 
 	/*
 	 * Trigger the resume of "async" devices upfront so they don't have to
@@ -1294,9 +1295,11 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend_noirq"), state.event, true);
-	mutex_lock(&dpm_list_mtx);
+
 	pm_transition = state;
 	async_error = 0;
+
+	mutex_lock(&dpm_list_mtx);
 
 	while (!list_empty(&dpm_late_early_list)) {
 		struct device *dev = to_device(dpm_late_early_list.prev);
@@ -1320,7 +1323,9 @@ static int dpm_noirq_suspend_devices(pm_message_t state)
 		if (error || async_error)
 			break;
 	}
+
 	mutex_unlock(&dpm_list_mtx);
+
 	async_synchronize_full();
 	if (!error)
 		error = async_error;
@@ -1470,10 +1475,13 @@ int dpm_suspend_late(pm_message_t state)
 	int error = 0;
 
 	trace_suspend_resume(TPS("dpm_suspend_late"), state.event, true);
-	wake_up_all_idle_cpus();
-	mutex_lock(&dpm_list_mtx);
+
 	pm_transition = state;
 	async_error = 0;
+
+	wake_up_all_idle_cpus();
+
+	mutex_lock(&dpm_list_mtx);
 
 	while (!list_empty(&dpm_suspended_list)) {
 		struct device *dev = to_device(dpm_suspended_list.prev);
@@ -1498,7 +1506,9 @@ int dpm_suspend_late(pm_message_t state)
 		if (error || async_error)
 			break;
 	}
+
 	mutex_unlock(&dpm_list_mtx);
+
 	async_synchronize_full();
 	if (!error)
 		error = async_error;
@@ -1745,9 +1755,11 @@ int dpm_suspend(pm_message_t state)
 	devfreq_suspend();
 	cpufreq_suspend();
 
-	mutex_lock(&dpm_list_mtx);
 	pm_transition = state;
 	async_error = 0;
+
+	mutex_lock(&dpm_list_mtx);
+
 	while (!list_empty(&dpm_prepared_list)) {
 		struct device *dev = to_device(dpm_prepared_list.prev);
 
@@ -1771,7 +1783,9 @@ int dpm_suspend(pm_message_t state)
 		if (error || async_error)
 			break;
 	}
+
 	mutex_unlock(&dpm_list_mtx);
+
 	async_synchronize_full();
 	if (!error)
 		error = async_error;
