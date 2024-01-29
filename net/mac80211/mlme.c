@@ -813,36 +813,27 @@ again:
 	}
 
 	if (conn->mode >= IEEE80211_CONN_MODE_EHT) {
-		const struct ieee80211_eht_operation *eht_oper;
+		u16 bitmap;
 
-		eht_oper = elems->eht_operation;
-
-		if (WARN_ON_ONCE(!eht_oper)) {
+		if (WARN_ON_ONCE(!elems->eht_operation)) {
 			ret = -EINVAL;
 			goto free;
 		}
 
-		if (eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT &&
-		    eht_oper->params & IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT) {
-			const struct ieee80211_eht_operation_info *info =
-				(void *)eht_oper->optional;
-			const u8 *disable_subchannel_bitmap = info->optional;
-			u16 bitmap;
+		bitmap = ieee80211_eht_oper_dis_subchan_bitmap(elems->eht_operation);
 
-			bitmap = get_unaligned_le16(disable_subchannel_bitmap);
-			if (!cfg80211_valid_disable_subchannel_bitmap(&bitmap,
-								      &ap_chandef) ||
-			    (bitmap &&
-			     ieee80211_hw_check(&local->hw, DISALLOW_PUNCTURING))) {
-				conn->mode = IEEE80211_CONN_MODE_HE;
-				conn->bw_limit = min_t(enum ieee80211_conn_bw_limit,
-						       conn->bw_limit,
-						       IEEE80211_CONN_BW_LIMIT_160);
-				sdata_info(sdata,
-					   "AP has invalid/unsupported puncturing, disabling EHT\n");
-			}
-			/* FIXME: store puncturing bitmap */
+		if (!cfg80211_valid_disable_subchannel_bitmap(&bitmap,
+							      &ap_chandef) ||
+		    (bitmap &&
+		     ieee80211_hw_check(&local->hw, DISALLOW_PUNCTURING))) {
+			conn->mode = IEEE80211_CONN_MODE_HE;
+			conn->bw_limit = min_t(enum ieee80211_conn_bw_limit,
+					       conn->bw_limit,
+					       IEEE80211_CONN_BW_LIMIT_160);
+			sdata_info(sdata,
+				   "AP has invalid/unsupported puncturing, disabling EHT\n");
 		}
+		/* FIXME: store puncturing bitmap */
 	}
 
 	/* the mode can only decrease, so this must terminate */
@@ -5879,18 +5870,9 @@ static bool ieee80211_config_puncturing(struct ieee80211_link_data *link,
 					u64 *changed)
 {
 	struct ieee80211_local *local = link->sdata->local;
-	u16 bitmap = 0, extracted;
+	u16 bitmap, extracted;
 
-	if ((eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT) &&
-	    (eht_oper->params &
-	     IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT)) {
-		const struct ieee80211_eht_operation_info *info =
-			(void *)eht_oper->optional;
-		const u8 *disable_subchannel_bitmap = info->optional;
-
-		bitmap = get_unaligned_le16(disable_subchannel_bitmap);
-	}
-
+	bitmap = ieee80211_eht_oper_dis_subchan_bitmap(eht_oper);
 	extracted = ieee80211_extract_dis_subch_bmap(eht_oper,
 						     &link->conf->chanreq.oper,
 						     bitmap);

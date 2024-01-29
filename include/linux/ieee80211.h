@@ -3189,6 +3189,22 @@ ieee80211_eht_oper_size_ok(const u8 *data, u8 len)
 	return len >= needed;
 }
 
+/* must validate ieee80211_eht_oper_size_ok() first */
+static inline u16
+ieee80211_eht_oper_dis_subchan_bitmap(const struct ieee80211_eht_operation *eht_oper)
+{
+	const struct ieee80211_eht_operation_info *info =
+		(const void *)eht_oper->optional;
+
+	if (!(eht_oper->params & IEEE80211_EHT_OPER_INFO_PRESENT))
+		return 0;
+
+	if (!(eht_oper->params & IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT))
+		return 0;
+
+	return get_unaligned_le16(info->optional);
+}
+
 #define IEEE80211_BW_IND_DIS_SUBCH_PRESENT	BIT(1)
 
 struct ieee80211_bandwidth_indication {
