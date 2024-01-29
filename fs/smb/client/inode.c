@@ -759,6 +759,8 @@ static void cifs_open_info_to_fattr(struct cifs_fattr *fattr,
 	fattr->cf_bytes = le64_to_cpu(info->AllocationSize);
 	fattr->cf_createtime = le64_to_cpu(info->CreationTime);
 	fattr->cf_nlink = le32_to_cpu(info->NumberOfLinks);
+	fattr->cf_uid = cifs_sb->ctx->linux_uid;
+	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 
 	fattr->cf_mode = cifs_sb->ctx->file_mode;
 	if (cifs_open_data_reparse(data) &&
@@ -801,9 +803,6 @@ out_reparse:
 		fattr->cf_symlink_target = data->symlink_target;
 		data->symlink_target = NULL;
 	}
-
-	fattr->cf_uid = cifs_sb->ctx->linux_uid;
-	fattr->cf_gid = cifs_sb->ctx->linux_gid;
 }
 
 static int

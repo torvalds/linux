@@ -8,6 +8,8 @@
 
 #include <linux/fs.h>
 #include <linux/stat.h>
+#include <linux/uidgid.h>
+#include "fs_context.h"
 #include "cifsglob.h"
 
 static inline dev_t reparse_nfs_mkdev(struct reparse_posix_data *buf)
@@ -15,6 +17,33 @@ static inline dev_t reparse_nfs_mkdev(struct reparse_posix_data *buf)
 	u64 v = le64_to_cpu(*(__le64 *)buf->DataBuffer);
 
 	return MKDEV(v >> 32, v & 0xffffffff);
+}
+
+static inline dev_t wsl_mkdev(void *ptr)
+{
+	u64 v = le64_to_cpu(*(__le64 *)ptr);
+
+	return MKDEV(v & 0xffffffff, v >> 32);
+}
+
+static inline kuid_t wsl_make_kuid(struct cifs_sb_info *cifs_sb,
+				   void *ptr)
+{
+	u32 uid = le32_to_cpu(*(__le32 *)ptr);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_UID)
+		return cifs_sb->ctx->linux_uid;
+	return make_kuid(current_user_ns(), uid);
+}
+
+static inline kgid_t wsl_make_kgid(struct cifs_sb_info *cifs_sb,
+				   void *ptr)
+{
+	u32 gid = le32_to_cpu(*(__le32 *)ptr);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_OVERR_GID)
+		return cifs_sb->ctx->linux_gid;
+	return make_kgid(current_user_ns(), gid);
 }
 
 static inline u64 reparse_mode_nfs_type(mode_t mode)

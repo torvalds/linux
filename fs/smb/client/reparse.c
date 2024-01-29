@@ -258,7 +258,9 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 {
 	struct cifs_open_info_data data;
 	struct reparse_data_buffer buf;
+	struct smb2_create_ea_ctx *cc;
 	struct inode *new;
+	unsigned int len;
 	struct kvec reparse_iov, xattr_iov;
 	int rc;
 
@@ -274,6 +276,11 @@ static int mknod_wsl(unsigned int xid, struct inode *inode,
 		.reparse_point = true,
 		.reparse = { .tag = le32_to_cpu(buf.ReparseTag), .buf = &buf, },
 	};
+
+	cc = xattr_iov.iov_base;
+	len = le32_to_cpu(cc->ctx.DataLength);
+	memcpy(data.wsl.eas, &cc->ea, len);
+	data.wsl.eas_len = len;
 
 	new = smb2_get_reparse_inode(&data, inode->i_sb,
 				     xid, tcon, full_path,
@@ -408,6 +415,62 @@ int smb2_parse_reparse_point(struct cifs_sb_info *cifs_sb,
 	return parse_reparse_point(buf, plen, cifs_sb, true, data);
 }
 
+static void wsl_to_fattr(struct cifs_open_info_data *data,
+			 struct cifs_sb_info *cifs_sb,
+			 u32 tag, struct cifs_fattr *fattr)
+{
+	struct smb2_file_full_ea_info *ea;
+	u32 next = 0;
+
+	switch (tag) {
+	case IO_REPARSE_TAG_LX_SYMLINK:
+		fattr->cf_mode |= S_IFLNK;
+		break;
+	case IO_REPARSE_TAG_LX_FIFO:
+		fattr->cf_mode |= S_IFIFO;
+		break;
+	case IO_REPARSE_TAG_AF_UNIX:
+		fattr->cf_mode |= S_IFSOCK;
+		break;
+	case IO_REPARSE_TAG_LX_CHR:
+		fattr->cf_mode |= S_IFCHR;
+		break;
+	case IO_REPARSE_TAG_LX_BLK:
+		fattr->cf_mode |= S_IFBLK;
+		break;
+	}
+
+	if (!data->wsl.eas_len)
+		goto out;
+
+	ea = (struct smb2_file_full_ea_info *)data->wsl.eas;
+	do {
+		const char *name;
+		void *v;
+		u8 nlen;
+
+		ea = (void *)((u8 *)ea + next);
+		next = le32_to_cpu(ea->next_entry_offset);
+		if (!le16_to_cpu(ea->ea_value_length))
+			continue;
+
+		name = ea->ea_data;
+		nlen = ea->ea_name_length;
+		v = (void *)((u8 *)ea->ea_data + ea->ea_name_length + 1);
+
+		if (!strncmp(name, SMB2_WSL_XATTR_UID, nlen))
+			fattr->cf_uid = wsl_make_kuid(cifs_sb, v);
+		else if (!strncmp(name, SMB2_WSL_XATTR_GID, nlen))
+			fattr->cf_gid = wsl_make_kgid(cifs_sb, v);
+		else if (!strncmp(name, SMB2_WSL_XATTR_MODE, nlen))
+			fattr->cf_mode = (umode_t)le32_to_cpu(*(__le32 *)v);
+		else if (!strncmp(name, SMB2_WSL_XATTR_DEV, nlen))
+			fattr->cf_rdev = wsl_mkdev(v);
+	} while (next);
+out:
+	fattr->cf_dtype = S_DT(fattr->cf_mode);
+}
+
 bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 				 struct cifs_fattr *fattr,
 				 struct cifs_open_info_data *data)
@@ -448,24 +511,11 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 
 	switch (tag) {
 	case IO_REPARSE_TAG_LX_SYMLINK:
-		fattr->cf_mode |= S_IFLNK;
-		fattr->cf_dtype = DT_LNK;
-		break;
 	case IO_REPARSE_TAG_LX_FIFO:
-		fattr->cf_mode |= S_IFIFO;
-		fattr->cf_dtype = DT_FIFO;
-		break;
 	case IO_REPARSE_TAG_AF_UNIX:
-		fattr->cf_mode |= S_IFSOCK;
-		fattr->cf_dtype = DT_SOCK;
-		break;
 	case IO_REPARSE_TAG_LX_CHR:
-		fattr->cf_mode |= S_IFCHR;
-		fattr->cf_dtype = DT_CHR;
-		break;
 	case IO_REPARSE_TAG_LX_BLK:
-		fattr->cf_mode |= S_IFBLK;
-		fattr->cf_dtype = DT_BLK;
+		wsl_to_fattr(data, cifs_sb, tag, fattr);
 		break;
 	case 0: /* SMB1 symlink */
 	case IO_REPARSE_TAG_SYMLINK:
