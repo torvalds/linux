@@ -465,13 +465,18 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
 		return NULL;
 
 	/*
-	 * can't be compatible if one of them is 5 or 10 MHz,
+	 * can't be compatible if one of them is 5/10 MHz or S1G
 	 * but they don't have the same width.
 	 */
-	if (c1->width == NL80211_CHAN_WIDTH_5 ||
-	    c1->width == NL80211_CHAN_WIDTH_10 ||
-	    c2->width == NL80211_CHAN_WIDTH_5 ||
-	    c2->width == NL80211_CHAN_WIDTH_10)
+#define NARROW_OR_S1G(width)	((width) == NL80211_CHAN_WIDTH_5 || \
+				 (width) == NL80211_CHAN_WIDTH_10 || \
+				 (width) == NL80211_CHAN_WIDTH_1 || \
+				 (width) == NL80211_CHAN_WIDTH_2 || \
+				 (width) == NL80211_CHAN_WIDTH_4 || \
+				 (width) == NL80211_CHAN_WIDTH_8 || \
+				 (width) == NL80211_CHAN_WIDTH_16)
+
+	if (NARROW_OR_S1G(c1->width) || NARROW_OR_S1G(c2->width))
 		return NULL;
 
 	if (c1->width == NL80211_CHAN_WIDTH_20_NOHT ||
