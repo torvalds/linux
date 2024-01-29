@@ -45,6 +45,7 @@ struct cs35l56_private {
 	bool sdw_attached;
 	struct completion init_completion;
 
+	int speaker_id;
 	u32 rx_mask;
 	u32 tx_mask;
 	u8 asp_slot_width;

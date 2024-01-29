@@ -5,6 +5,7 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/types.h>
@@ -735,6 +736,41 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	return 0;
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_hw_init, SND_SOC_CS35L56_SHARED);
+
+int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base)
+{
+	struct gpio_descs *descs;
+	int speaker_id;
+	int i, ret;
+
+	/* Read the speaker type qualifier from the motherboard GPIOs */
+	descs = gpiod_get_array_optional(cs35l56_base->dev, "spk-id", GPIOD_IN);
+	if (!descs) {
+		return -ENOENT;
+	} else if (IS_ERR(descs)) {
+		ret = PTR_ERR(descs);
+		return dev_err_probe(cs35l56_base->dev, ret, "Failed to get spk-id-gpios\n");
+	}
+
+	speaker_id = 0;
+	for (i = 0; i < descs->ndescs; i++) {
+		ret = gpiod_get_value_cansleep(descs->desc[i]);
+		if (ret < 0) {
+			dev_err_probe(cs35l56_base->dev, ret, "Failed to read spk-id[%d]\n", i);
+			goto err;
+		}
+
+		speaker_id |= (ret << i);
+	}
+
+	dev_dbg(cs35l56_base->dev, "Speaker ID = %d\n", speaker_id);
+	ret = speaker_id;
+err:
+	gpiod_put_array(descs);
+
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_speaker_id, SND_SOC_CS35L56_SHARED);
 
 static const u32 cs35l56_bclk_valid_for_pll_freq_table[] = {
 	[0x0C] = 128000,
