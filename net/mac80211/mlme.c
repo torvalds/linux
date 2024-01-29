@@ -3351,6 +3351,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
 				  &ifmgd->neg_ttlm_timeout_work);
 	ieee80211_vif_set_links(sdata, 0, 0);
+
+	ifmgd->mcast_seq_last = IEEE80211_SN_MODULO;
 }
 
 static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
@@ -7512,6 +7514,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	spin_lock_init(&ifmgd->teardown_lock);
 	ifmgd->teardown_skb = NULL;
 	ifmgd->orig_teardown_skb = NULL;
+	ifmgd->mcast_seq_last = IEEE80211_SN_MODULO;
 }
 
 static void ieee80211_recalc_smps_work(struct wiphy *wiphy,

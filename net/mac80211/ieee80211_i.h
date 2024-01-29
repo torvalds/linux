@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 
 #ifndef IEEE80211_I_H
@@ -522,6 +522,8 @@ struct ieee80211_if_managed {
 	bool broken_ap; /* AP is broken -- turn off powersave */
 
 	unsigned int flags;
+
+	u16 mcast_seq_last;
 
 	bool status_acked;
 	bool status_received;

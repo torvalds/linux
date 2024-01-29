@@ -191,6 +191,11 @@ static inline bool ieee80211_sn_less(u16 sn1, u16 sn2)
 	return ((sn1 - sn2) & IEEE80211_SN_MASK) > (IEEE80211_SN_MODULO >> 1);
 }
 
+static inline bool ieee80211_sn_less_eq(u16 sn1, u16 sn2)
+{
+	return ((sn2 - sn1) & IEEE80211_SN_MASK) <= (IEEE80211_SN_MODULO >> 1);
+}
+
 static inline u16 ieee80211_sn_add(u16 sn1, u16 sn2)
 {
 	return (sn1 + sn2) & IEEE80211_SN_MASK;

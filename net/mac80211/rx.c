@@ -1434,12 +1434,30 @@ ieee80211_rx_h_check_dup(struct ieee80211_rx_data *rx)
 		return RX_CONTINUE;
 
 	if (ieee80211_is_ctl(hdr->frame_control) ||
-	    ieee80211_is_any_nullfunc(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1))
+	    ieee80211_is_any_nullfunc(hdr->frame_control))
 		return RX_CONTINUE;
 
 	if (!rx->sta)
 		return RX_CONTINUE;
+
+	if (unlikely(is_multicast_ether_addr(hdr->addr1))) {
+		struct ieee80211_sub_if_data *sdata = rx->sdata;
+		u16 sn = ieee80211_get_sn(hdr);
+
+		if (!ieee80211_is_data_present(hdr->frame_control))
+			return RX_CONTINUE;
+
+		if (!ieee80211_vif_is_mld(&sdata->vif) ||
+		    sdata->vif.type != NL80211_IFTYPE_STATION)
+			return RX_CONTINUE;
+
+		if (sdata->u.mgd.mcast_seq_last != IEEE80211_SN_MODULO &&
+		    ieee80211_sn_less_eq(sn, sdata->u.mgd.mcast_seq_last))
+			return RX_DROP_U_DUP;
+
+		sdata->u.mgd.mcast_seq_last = sn;
+		return RX_CONTINUE;
+	}
 
 	if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
 		     rx->sta->last_seq_ctrl[rx->seqno_idx] == hdr->seq_ctrl)) {
