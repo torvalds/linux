@@ -175,6 +175,36 @@ static void clk_branch2_disable(struct clk_hw *hw)
 	clk_branch_toggle(hw, false, clk_branch2_check_halt);
 }
 
+static int clk_branch2_mem_enable(struct clk_hw *hw)
+{
+	struct clk_mem_branch *mem_br = to_clk_mem_branch(hw);
+	struct clk_branch branch = mem_br->branch;
+	u32 val;
+	int ret;
+
+	regmap_update_bits(branch.clkr.regmap, mem_br->mem_enable_reg,
+			   mem_br->mem_enable_ack_mask, mem_br->mem_enable_ack_mask);
+
+	ret = regmap_read_poll_timeout(branch.clkr.regmap, mem_br->mem_ack_reg,
+				       val, val & mem_br->mem_enable_ack_mask, 0, 200);
+	if (ret) {
+		WARN(1, "%s mem enable failed\n", clk_hw_get_name(&branch.clkr.hw));
+		return ret;
+	}
+
+	return clk_branch2_enable(hw);
+}
+
+static void clk_branch2_mem_disable(struct clk_hw *hw)
+{
+	struct clk_mem_branch *mem_br = to_clk_mem_branch(hw);
+
+	regmap_update_bits(mem_br->branch.clkr.regmap, mem_br->mem_enable_reg,
+			   mem_br->mem_enable_ack_mask, 0);
+
+	return clk_branch2_disable(hw);
+}
+
 static int clk_branch2_force_off_enable(struct clk_hw *hw)
 {
 	struct clk_regmap *rclk = to_clk_regmap(hw);
@@ -198,6 +228,7 @@ static void clk_branch2_force_off_disable(struct clk_hw *hw)
 static void clk_branch2_list_registers(struct seq_file *f, struct clk_hw *hw)
 {
 	struct clk_branch *br = to_clk_branch(hw);
+	struct clk_mem_branch *mem_br = to_clk_mem_branch(hw);
 	struct clk_regmap *rclk = to_clk_regmap(hw);
 	int size, i, val;
 
@@ -243,16 +274,16 @@ static void clk_branch2_list_registers(struct seq_file *f, struct clk_hw *hw)
 		}
 	}
 
-	if (br->mem_enable_reg && br->mem_ack_reg) {
-		regmap_read(br->clkr.regmap, br->mem_enable_reg +
+	if (mem_br->mem_enable_reg && mem_br->mem_ack_reg) {
+		regmap_read(mem_br->branch.clkr.regmap, mem_br->mem_enable_reg +
 						data2[0].offset, &val);
 		clock_debug_output(f, "%20s: 0x%.8x\n", data2[0].name, val);
 
-		regmap_read(br->clkr.regmap, br->mem_ack_reg +
+		regmap_read(mem_br->branch.clkr.regmap, mem_br->mem_ack_reg +
 						data2[1].offset, &val);
 		clock_debug_output(f, "%20s: 0x%.8x\n", data2[1].name, val);
 		clock_debug_output(f, "%20s: 0x%.8x\n", data2[2].name,
-						br->mem_enable_ack_bit);
+						mem_br->mem_enable_ack_mask);
 	}
 
 	if (br->sreg_enable_reg) {
@@ -320,30 +351,6 @@ static int clk_branch2_init(struct clk_hw *hw)
 	return 0;
 }
 
-static int clk_branch2_mem_enable(struct clk_hw *hw)
-{
-	struct clk_branch *br = to_clk_branch(hw);
-	u32 val;
-	int count = 200;
-
-	regmap_update_bits(br->clkr.regmap, br->mem_enable_reg,
-			br->mem_enable_ack_bit, br->mem_enable_ack_bit);
-
-	regmap_read(br->clkr.regmap, br->mem_ack_reg, &val);
-
-	pr_debug("%s Val 0x%x\n", __func__, val);
-	while (count-- > 0) {
-		if (val & br->mem_enable_ack_bit) {
-			pr_debug("%s Val 0x%x\n", __func__, val);
-			return clk_branch2_enable(hw);
-		}
-		udelay(1);
-		regmap_read(br->clkr.regmap, br->mem_ack_reg, &val);
-	}
-
-	return -EBUSY;
-}
-
 static int clk_branch2_sreg_enable(struct clk_hw *hw)
 {
 	struct clk_branch *br = to_clk_branch(hw);
@@ -365,15 +372,6 @@ static int clk_branch2_sreg_enable(struct clk_hw *hw)
 	}
 
 	return -EBUSY;
-}
-
-static void clk_branch2_mem_disable(struct clk_hw *hw)
-{
-	struct clk_branch *br = to_clk_branch(hw);
-
-	regmap_update_bits(br->clkr.regmap, br->mem_enable_reg,
-						br->mem_enable_ack_bit, 0);
-	return clk_branch2_disable(hw);
 }
 
 static void clk_branch2_sreg_disable(struct clk_hw *hw)
@@ -455,7 +453,7 @@ const struct clk_ops clk_branch2_mem_ops = {
 	.init = clk_branch2_init,
 	.debug_init = clk_branch_debug_init,
 };
-EXPORT_SYMBOL(clk_branch2_mem_ops);
+EXPORT_SYMBOL_GPL(clk_branch2_mem_ops);
 
 const struct clk_ops clk_branch2_sreg_ops = {
 	.enable = clk_branch2_sreg_enable,
