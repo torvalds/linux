@@ -600,7 +600,13 @@ err_out:
 
 static void pdsc_check_pci_health(struct pdsc *pdsc)
 {
-	u8 fw_status = ioread8(&pdsc->info_regs->fw_status);
+	u8 fw_status;
+
+	/* some sort of teardown already in progress */
+	if (!pdsc->info_regs)
+		return;
+
+	fw_status = ioread8(&pdsc->info_regs->fw_status);
 
 	/* is PCI broken? */
 	if (fw_status != PDS_RC_BAD_PCI)
