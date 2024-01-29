@@ -400,6 +400,8 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_sub_if_data *sdata)
 					 req->ie, req->ie_len,
 					 bands_used, req->rates, &chandef,
 					 flags);
+	if (ielen < 0)
+		return false;
 	local->hw_scan_req->req.ie_len = ielen;
 	local->hw_scan_req->req.no_cck = req->no_cck;
 	ether_addr_copy(local->hw_scan_req->req.mac_addr, req->mac_addr);
@@ -1322,10 +1324,12 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_prepare_scan_chandef(&chandef);
 
-	ieee80211_build_preq_ies(sdata, ie, num_bands * iebufsz,
-				 &sched_scan_ies, req->ie,
-				 req->ie_len, bands_used, rate_masks, &chandef,
-				 flags);
+	ret = ieee80211_build_preq_ies(sdata, ie, num_bands * iebufsz,
+				       &sched_scan_ies, req->ie,
+				       req->ie_len, bands_used, rate_masks,
+				       &chandef, flags);
+	if (ret < 0)
+		goto error;
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);
 	if (ret == 0) {
@@ -1333,8 +1337,8 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		rcu_assign_pointer(local->sched_scan_req, req);
 	}
 
+error:
 	kfree(ie);
-
 out:
 	if (ret) {
 		/* Clean in case of failure after HW restart or upon resume. */
