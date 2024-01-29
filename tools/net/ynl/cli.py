@@ -9,6 +9,15 @@ import time
 from lib import YnlFamily, Netlink
 
 
+class YnlEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, bytes):
+            return bytes.hex(obj)
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
 def main():
     parser = argparse.ArgumentParser(description='YNL CLI sample')
     parser.add_argument('--spec', dest='spec', type=str, required=True)
@@ -28,7 +37,14 @@ def main():
     parser.add_argument('--append', dest='flags', action='append_const',
                         const=Netlink.NLM_F_APPEND)
     parser.add_argument('--process-unknown', action=argparse.BooleanOptionalAction)
+    parser.add_argument('--output-json', action='store_true')
     args = parser.parse_args()
+
+    def output(msg):
+        if args.output_json:
+            print(json.dumps(msg, cls=YnlEncoder))
+        else:
+            pprint.PrettyPrinter().pprint(msg)
 
     if args.no_schema:
         args.schema = ''
@@ -47,14 +63,14 @@ def main():
 
     if args.do:
         reply = ynl.do(args.do, attrs, args.flags)
-        pprint.PrettyPrinter().pprint(reply)
+        output(reply)
     if args.dump:
         reply = ynl.dump(args.dump, attrs)
-        pprint.PrettyPrinter().pprint(reply)
+        output(reply)
 
     if args.ntf:
         ynl.check_ntf()
-        pprint.PrettyPrinter().pprint(ynl.async_msg_queue)
+        output(ynl.async_msg_queue)
 
 
 if __name__ == "__main__":
