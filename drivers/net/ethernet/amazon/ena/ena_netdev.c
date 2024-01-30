@@ -2134,6 +2134,12 @@ int ena_up(struct ena_adapter *adapter)
 	 */
 	ena_init_napi_in_range(adapter, 0, io_queue_count);
 
+	/* Enabling DIM needs to happen before enabling IRQs since DIM
+	 * is run from napi routine
+	 */
+	if (ena_com_interrupt_moderation_supported(adapter->ena_dev))
+		ena_com_enable_adaptive_moderation(adapter->ena_dev);
+
 	rc = ena_request_io_irq(adapter);
 	if (rc)
 		goto err_req_irq;
