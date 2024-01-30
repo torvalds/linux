@@ -276,9 +276,6 @@ static inline struct zswap_tree *swap_zswap_tree(swp_entry_t swp)
 	pr_debug("%s pool %s/%s\n", msg, (p)->tfm_name,		\
 		 zpool_get_type((p)->zpools[0]))
 
-static int zswap_writeback_entry(struct zswap_entry *entry,
-				 swp_entry_t swpentry);
-
 static bool zswap_is_full(void)
 {
 	return totalram_pages() * zswap_max_pool_percent / 100 <
@@ -1164,6 +1161,96 @@ static void zswap_decompress(struct zswap_entry *entry, struct page *page)
 }
 
 /*********************************
+* writeback code
+**********************************/
+/*
+ * Attempts to free an entry by adding a folio to the swap cache,
+ * decompressing the entry data into the folio, and issuing a
+ * bio write to write the folio back to the swap device.
+ *
+ * This can be thought of as a "resumed writeback" of the folio
+ * to the swap device.  We are basically resuming the same swap
+ * writeback path that was intercepted with the zswap_store()
+ * in the first place.  After the folio has been decompressed into
+ * the swap cache, the compressed version stored by zswap can be
+ * freed.
+ */
+static int zswap_writeback_entry(struct zswap_entry *entry,
+				 swp_entry_t swpentry)
+{
+	struct zswap_tree *tree;
+	struct folio *folio;
+	struct mempolicy *mpol;
+	bool folio_was_allocated;
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_NONE,
+	};
+
+	/* try to allocate swap cache folio */
+	mpol = get_task_policy(current);
+	folio = __read_swap_cache_async(swpentry, GFP_KERNEL, mpol,
+				NO_INTERLEAVE_INDEX, &folio_was_allocated, true);
+	if (!folio)
+		return -ENOMEM;
+
+	/*
+	 * Found an existing folio, we raced with swapin or concurrent
+	 * shrinker. We generally writeback cold folios from zswap, and
+	 * swapin means the folio just became hot, so skip this folio.
+	 * For unlikely concurrent shrinker case, it will be unlinked
+	 * and freed when invalidated by the concurrent shrinker anyway.
+	 */
+	if (!folio_was_allocated) {
+		folio_put(folio);
+		return -EEXIST;
+	}
+
+	/*
+	 * folio is locked, and the swapcache is now secured against
+	 * concurrent swapping to and from the slot. Verify that the
+	 * swap entry hasn't been invalidated and recycled behind our
+	 * backs (our zswap_entry reference doesn't prevent that), to
+	 * avoid overwriting a new swap folio with old compressed data.
+	 */
+	tree = swap_zswap_tree(swpentry);
+	spin_lock(&tree->lock);
+	if (zswap_rb_search(&tree->rbroot, swp_offset(swpentry)) != entry) {
+		spin_unlock(&tree->lock);
+		delete_from_swap_cache(folio);
+		folio_unlock(folio);
+		folio_put(folio);
+		return -ENOMEM;
+	}
+
+	/* Safe to deref entry after the entry is verified above. */
+	zswap_entry_get(entry);
+	spin_unlock(&tree->lock);
+
+	zswap_decompress(entry, &folio->page);
+
+	count_vm_event(ZSWPWB);
+	if (entry->objcg)
+		count_objcg_event(entry->objcg, ZSWPWB);
+
+	spin_lock(&tree->lock);
+	zswap_invalidate_entry(tree, entry);
+	zswap_entry_put(entry);
+	spin_unlock(&tree->lock);
+
+	/* folio is up to date */
+	folio_mark_uptodate(folio);
+
+	/* move it to the tail of the inactive list after end_writeback */
+	folio_set_reclaim(folio);
+
+	/* start writeback */
+	__swap_writepage(folio, &wbc);
+	folio_put(folio);
+
+	return 0;
+}
+
+/*********************************
 * shrinker functions
 **********************************/
 static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_one *l,
@@ -1417,96 +1504,6 @@ resched:
 		cond_resched();
 	} while (!zswap_can_accept());
 	zswap_pool_put(pool);
-}
-
-/*********************************
-* writeback code
-**********************************/
-/*
- * Attempts to free an entry by adding a folio to the swap cache,
- * decompressing the entry data into the folio, and issuing a
- * bio write to write the folio back to the swap device.
- *
- * This can be thought of as a "resumed writeback" of the folio
- * to the swap device.  We are basically resuming the same swap
- * writeback path that was intercepted with the zswap_store()
- * in the first place.  After the folio has been decompressed into
- * the swap cache, the compressed version stored by zswap can be
- * freed.
- */
-static int zswap_writeback_entry(struct zswap_entry *entry,
-				 swp_entry_t swpentry)
-{
-	struct zswap_tree *tree;
-	struct folio *folio;
-	struct mempolicy *mpol;
-	bool folio_was_allocated;
-	struct writeback_control wbc = {
-		.sync_mode = WB_SYNC_NONE,
-	};
-
-	/* try to allocate swap cache folio */
-	mpol = get_task_policy(current);
-	folio = __read_swap_cache_async(swpentry, GFP_KERNEL, mpol,
-				NO_INTERLEAVE_INDEX, &folio_was_allocated, true);
-	if (!folio)
-		return -ENOMEM;
-
-	/*
-	 * Found an existing folio, we raced with swapin or concurrent
-	 * shrinker. We generally writeback cold folios from zswap, and
-	 * swapin means the folio just became hot, so skip this folio.
-	 * For unlikely concurrent shrinker case, it will be unlinked
-	 * and freed when invalidated by the concurrent shrinker anyway.
-	 */
-	if (!folio_was_allocated) {
-		folio_put(folio);
-		return -EEXIST;
-	}
-
-	/*
-	 * folio is locked, and the swapcache is now secured against
-	 * concurrent swapping to and from the slot. Verify that the
-	 * swap entry hasn't been invalidated and recycled behind our
-	 * backs (our zswap_entry reference doesn't prevent that), to
-	 * avoid overwriting a new swap folio with old compressed data.
-	 */
-	tree = swap_zswap_tree(swpentry);
-	spin_lock(&tree->lock);
-	if (zswap_rb_search(&tree->rbroot, swp_offset(swpentry)) != entry) {
-		spin_unlock(&tree->lock);
-		delete_from_swap_cache(folio);
-		folio_unlock(folio);
-		folio_put(folio);
-		return -ENOMEM;
-	}
-
-	/* Safe to deref entry after the entry is verified above. */
-	zswap_entry_get(entry);
-	spin_unlock(&tree->lock);
-
-	zswap_decompress(entry, &folio->page);
-
-	count_vm_event(ZSWPWB);
-	if (entry->objcg)
-		count_objcg_event(entry->objcg, ZSWPWB);
-
-	spin_lock(&tree->lock);
-	zswap_invalidate_entry(tree, entry);
-	zswap_entry_put(entry);
-	spin_unlock(&tree->lock);
-
-	/* folio is up to date */
-	folio_mark_uptodate(folio);
-
-	/* move it to the tail of the inactive list after end_writeback */
-	folio_set_reclaim(folio);
-
-	/* start writeback */
-	__swap_writepage(folio, &wbc);
-	folio_put(folio);
-
-	return 0;
 }
 
 static int zswap_is_page_same_filled(void *ptr, unsigned long *value)
