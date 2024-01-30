@@ -826,8 +826,8 @@ static int __ap_revise_reserved(struct device *dev, void *dummy)
 		drvres = to_ap_drv(dev->driver)->flags
 			& AP_DRIVER_FLAG_DEFAULT;
 		if (!!devres != !!drvres) {
-			AP_DBF_DBG("%s reprobing queue=%02x.%04x\n",
-				   __func__, card, queue);
+			pr_debug("%s reprobing queue=%02x.%04x\n",
+				 __func__, card, queue);
 			rc = device_reprobe(dev);
 			if (rc)
 				AP_DBF_WARN("%s reprobing queue=%02x.%04x failed\n",
@@ -1030,7 +1030,7 @@ EXPORT_SYMBOL(ap_bus_force_rescan);
  */
 void ap_bus_cfg_chg(void)
 {
-	AP_DBF_DBG("%s config change, forcing bus rescan\n", __func__);
+	pr_debug("%s config change, forcing bus rescan\n", __func__);
 
 	ap_bus_force_rescan();
 }
@@ -1888,8 +1888,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 				aq->last_err_rc = AP_RESPONSE_CHECKSTOPPED;
 			}
 			spin_unlock_bh(&aq->lock);
-			AP_DBF_DBG("%s(%d,%d) queue dev checkstop on\n",
-				   __func__, ac->id, dom);
+			pr_debug("%s(%d,%d) queue dev checkstop on\n",
+				 __func__, ac->id, dom);
 			/* 'receive' pending messages with -EAGAIN */
 			ap_flush_queue(aq);
 			goto put_dev_and_continue;
@@ -1899,8 +1899,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
 				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
-			AP_DBF_DBG("%s(%d,%d) queue dev checkstop off\n",
-				   __func__, ac->id, dom);
+			pr_debug("%s(%d,%d) queue dev checkstop off\n",
+				 __func__, ac->id, dom);
 			goto put_dev_and_continue;
 		}
 		/* config state change */
@@ -1912,8 +1912,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 				aq->last_err_rc = AP_RESPONSE_DECONFIGURED;
 			}
 			spin_unlock_bh(&aq->lock);
-			AP_DBF_DBG("%s(%d,%d) queue dev config off\n",
-				   __func__, ac->id, dom);
+			pr_debug("%s(%d,%d) queue dev config off\n",
+				 __func__, ac->id, dom);
 			ap_send_config_uevent(&aq->ap_dev, aq->config);
 			/* 'receive' pending messages with -EAGAIN */
 			ap_flush_queue(aq);
@@ -1924,8 +1924,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
 				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
-			AP_DBF_DBG("%s(%d,%d) queue dev config on\n",
-				   __func__, ac->id, dom);
+			pr_debug("%s(%d,%d) queue dev config on\n",
+				 __func__, ac->id, dom);
 			ap_send_config_uevent(&aq->ap_dev, aq->config);
 			goto put_dev_and_continue;
 		}
@@ -1997,8 +1997,8 @@ static inline void ap_scan_adapter(int ap)
 			ap_scan_rm_card_dev_and_queue_devs(ac);
 			put_device(dev);
 		} else {
-			AP_DBF_DBG("%s(%d) no type info (no APQN found), ignored\n",
-				   __func__, ap);
+			pr_debug("%s(%d) no type info (no APQN found), ignored\n",
+				 __func__, ap);
 		}
 		return;
 	}
@@ -2010,8 +2010,8 @@ static inline void ap_scan_adapter(int ap)
 			ap_scan_rm_card_dev_and_queue_devs(ac);
 			put_device(dev);
 		} else {
-			AP_DBF_DBG("%s(%d) no valid type (0) info, ignored\n",
-				   __func__, ap);
+			pr_debug("%s(%d) no valid type (0) info, ignored\n",
+				 __func__, ap);
 		}
 		return;
 	}
@@ -2144,13 +2144,13 @@ static void ap_scan_bus(struct work_struct *unused)
 {
 	int ap, config_changed = 0;
 
+	pr_debug(">%s\n", __func__);
+
 	/* config change notify */
 	config_changed = ap_get_configuration();
 	if (config_changed)
 		notify_config_changed();
 	ap_select_domain();
-
-	AP_DBF_DBG("%s running\n", __func__);
 
 	/* loop over all possible adapters */
 	for (ap = 0; ap <= ap_max_adapter_id; ap++)
@@ -2174,12 +2174,14 @@ static void ap_scan_bus(struct work_struct *unused)
 	}
 
 	if (atomic64_inc_return(&ap_scan_bus_count) == 1) {
-		AP_DBF_DBG("%s init scan complete\n", __func__);
+		pr_debug("%s init scan complete\n", __func__);
 		ap_send_init_scan_done_uevent();
 		ap_check_bindings_complete();
 	}
 
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
+
+	pr_debug("<%s\n", __func__);
 }
 
 static void ap_config_timeout(struct timer_list *unused)

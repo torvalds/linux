@@ -169,6 +169,9 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 		aq->queue_count = 0;
 		list_splice_init(&aq->pendingq, &aq->requestq);
 		aq->requestq_count += aq->pendingq_count;
+		pr_debug("%s queue 0x%02x.%04x rescheduled %d reqs (new req %d)\n",
+			 __func__, AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid),
+			 aq->pendingq_count, aq->requestq_count);
 		aq->pendingq_count = 0;
 		break;
 	default:
@@ -446,9 +449,9 @@ static enum ap_sm_wait ap_sm_assoc_wait(struct ap_queue *aq)
 	case AP_BS_Q_USABLE:
 		/* association is through */
 		aq->sm_state = AP_SM_STATE_IDLE;
-		AP_DBF_DBG("%s queue 0x%02x.%04x associated with %u\n",
-			   __func__, AP_QID_CARD(aq->qid),
-			   AP_QID_QUEUE(aq->qid), aq->assoc_idx);
+		pr_debug("%s queue 0x%02x.%04x associated with %u\n",
+			 __func__, AP_QID_CARD(aq->qid),
+			 AP_QID_QUEUE(aq->qid), aq->assoc_idx);
 		return AP_SM_WAIT_NONE;
 	case AP_BS_Q_USABLE_NO_SECURE_KEY:
 		/* association still pending */
@@ -690,9 +693,9 @@ static ssize_t ap_functions_show(struct device *dev,
 
 	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code > AP_RESPONSE_BUSY) {
-		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
-			   __func__, status.response_code,
-			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		pr_debug("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			 __func__, status.response_code,
+			 AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return -EIO;
 	}
 
@@ -846,9 +849,9 @@ static ssize_t se_bind_show(struct device *dev,
 
 	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code > AP_RESPONSE_BUSY) {
-		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
-			   __func__, status.response_code,
-			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		pr_debug("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			 __func__, status.response_code,
+			 AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return -EIO;
 	}
 
@@ -974,9 +977,9 @@ static ssize_t se_associate_show(struct device *dev,
 
 	status = ap_test_queue(aq->qid, 1, &hwinfo);
 	if (status.response_code > AP_RESPONSE_BUSY) {
-		AP_DBF_DBG("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
-			   __func__, status.response_code,
-			   AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+		pr_debug("%s RC 0x%02x on tapq(0x%02x.%04x)\n",
+			 __func__, status.response_code,
+			 AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
 		return -EIO;
 	}
 

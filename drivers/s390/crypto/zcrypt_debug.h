@@ -27,8 +27,6 @@
 	debug_sprintf_event(zcrypt_dbf_info, DBF_WARN, ##__VA_ARGS__)
 #define ZCRYPT_DBF_INFO(...)					\
 	debug_sprintf_event(zcrypt_dbf_info, DBF_INFO, ##__VA_ARGS__)
-#define ZCRYPT_DBF_DBG(...)					\
-	debug_sprintf_event(zcrypt_dbf_info, DBF_DEBUG, ##__VA_ARGS__)
 
 extern debug_info_t *zcrypt_dbf_info;
 
