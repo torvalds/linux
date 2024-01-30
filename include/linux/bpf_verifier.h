@@ -610,6 +610,7 @@ struct bpf_subprog_arg_info {
 	enum bpf_arg_type arg_type;
 	union {
 		u32 mem_size;
+		u32 btf_id;
 	};
 };
 
