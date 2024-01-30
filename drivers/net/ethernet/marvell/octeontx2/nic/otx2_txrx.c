@@ -1403,7 +1403,7 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 				     struct otx2_cq_queue *cq,
 				     bool *need_xdp_flush)
 {
-	unsigned char *hard_start, *data;
+	unsigned char *hard_start;
 	int qidx = cq->cq_idx;
 	struct xdp_buff xdp;
 	struct page *page;
@@ -1417,9 +1417,8 @@ static bool otx2_xdp_rcv_pkt_handler(struct otx2_nic *pfvf,
 
 	xdp_init_buff(&xdp, pfvf->rbsize, &cq->xdp_rxq);
 
-	data = (unsigned char *)phys_to_virt(pa);
-	hard_start = page_address(page);
-	xdp_prepare_buff(&xdp, hard_start, data - hard_start,
+	hard_start = (unsigned char *)phys_to_virt(pa);
+	xdp_prepare_buff(&xdp, hard_start, OTX2_HEAD_ROOM,
 			 cqe->sg.seg_size, false);
 
 	act = bpf_prog_run_xdp(prog, &xdp);
