@@ -804,6 +804,7 @@ struct rxrpc_txbuf {
 #define RXRPC_TXBUF_WIRE_FLAGS	0xff		/* The wire protocol flags */
 #define RXRPC_TXBUF_RESENT	0x100		/* Set if has been resent */
 	__be16			cksum;		/* Checksum to go in header */
+	unsigned short		ack_rwind;	/* ACK receive window */
 	u8 /*enum rxrpc_propose_ack_trace*/ ack_why;	/* If ack, why */
 	u8			nr_kvec;
 	struct kvec		kvec[1];
@@ -812,11 +813,11 @@ struct rxrpc_txbuf {
 		 * that data[] aligns correctly for any crypto blocksize.
 		 */
 		u8		pad[64 - sizeof(struct rxrpc_wire_header)];
-		struct rxrpc_wire_header wire;	/* Network-ready header */
+		struct rxrpc_wire_header _wire;	/* Network-ready header */
 		union {
 			u8	data[RXRPC_JUMBO_DATALEN]; /* Data packet */
 			struct {
-				struct rxrpc_ackpacket ack;
+				struct rxrpc_ackpacket _ack;
 				DECLARE_FLEX_ARRAY(u8, acks);
 			};
 		};

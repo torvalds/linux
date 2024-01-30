@@ -19,10 +19,13 @@ atomic_t rxrpc_nr_txbuf;
 struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 				      gfp_t gfp)
 {
+	struct rxrpc_wire_header *whdr;
 	struct rxrpc_txbuf *txb;
 
 	txb = kmalloc(sizeof(*txb), gfp);
 	if (txb) {
+		whdr = &txb->_wire;
+
 		INIT_LIST_HEAD(&txb->call_link);
 		INIT_LIST_HEAD(&txb->tx_link);
 		refcount_set(&txb->ref, 1);
@@ -37,18 +40,18 @@ struct rxrpc_txbuf *rxrpc_alloc_txbuf(struct rxrpc_call *call, u8 packet_type,
 		txb->serial		= 0;
 		txb->cksum		= 0;
 		txb->nr_kvec		= 1;
-		txb->kvec[0].iov_base	= &txb->wire;
-		txb->kvec[0].iov_len	= sizeof(txb->wire);
-		txb->wire.epoch		= htonl(call->conn->proto.epoch);
-		txb->wire.cid		= htonl(call->cid);
-		txb->wire.callNumber	= htonl(call->call_id);
-		txb->wire.seq		= htonl(txb->seq);
-		txb->wire.type		= packet_type;
-		txb->wire.flags		= 0;
-		txb->wire.userStatus	= 0;
-		txb->wire.securityIndex	= call->security_ix;
-		txb->wire._rsvd		= 0;
-		txb->wire.serviceId	= htons(call->dest_srx.srx_service);
+		txb->kvec[0].iov_base	= whdr;
+		txb->kvec[0].iov_len	= sizeof(*whdr);
+		whdr->epoch		= htonl(call->conn->proto.epoch);
+		whdr->cid		= htonl(call->cid);
+		whdr->callNumber	= htonl(call->call_id);
+		whdr->seq		= htonl(txb->seq);
+		whdr->type		= packet_type;
+		whdr->flags		= 0;
+		whdr->userStatus	= 0;
+		whdr->securityIndex	= call->security_ix;
+		whdr->_rsvd		= 0;
+		whdr->serviceId		= htons(call->dest_srx.srx_service);
 
 		trace_rxrpc_txbuf(txb->debug_id,
 				  txb->call_debug_id, txb->seq, 1,
