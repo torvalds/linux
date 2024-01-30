@@ -1716,6 +1716,9 @@ struct intel_psr {
 	struct {
 		u8 io_wake_lines;
 		u8 fast_wake_lines;
+
+		/* LNL and beyond */
+		u8 check_entry_lines;
 	} alpm_parameters;
 
 	ktime_t last_entry_attempt;
