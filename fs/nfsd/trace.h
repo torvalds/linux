@@ -653,7 +653,8 @@ DEFINE_STATESEQID_EVENT(open_confirm);
 #define show_stid_status(x)						\
 	__print_flags(x, "|",						\
 		{ SC_STATUS_CLOSED,		"CLOSED" },		\
-		{ SC_STATUS_REVOKED,		"REVOKED" })		\
+		{ SC_STATUS_REVOKED,		"REVOKED" },		\
+		{ SC_STATUS_ADMIN_REVOKED,	"ADMIN_REVOKED" })
 
 DECLARE_EVENT_CLASS(nfsd_stid_class,
 	TP_PROTO(
