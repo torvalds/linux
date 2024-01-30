@@ -47,19 +47,44 @@ static int ena_restore_device(struct ena_adapter *adapter);
 
 static void ena_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_OS_NETDEV_WD;
 	struct ena_adapter *adapter = netdev_priv(dev);
+	unsigned int time_since_last_napi, threshold;
+	struct ena_ring *tx_ring;
+	int napi_scheduled;
 
+	if (txqueue >= adapter->num_io_queues) {
+		netdev_err(dev, "TX timeout on invalid queue %u\n", txqueue);
+		goto schedule_reset;
+	}
+
+	threshold = jiffies_to_usecs(dev->watchdog_timeo);
+	tx_ring = &adapter->tx_ring[txqueue];
+
+	time_since_last_napi = jiffies_to_usecs(jiffies - tx_ring->tx_stats.last_napi_jiffies);
+	napi_scheduled = !!(tx_ring->napi->state & NAPIF_STATE_SCHED);
+
+	netdev_err(dev,
+		   "TX q %d is paused for too long (threshold %u). Time since last napi %u usec. napi scheduled: %d\n",
+		   txqueue,
+		   threshold,
+		   time_since_last_napi,
+		   napi_scheduled);
+
+	if (threshold < time_since_last_napi && napi_scheduled) {
+		netdev_err(dev,
+			   "napi handler hasn't been called for a long time but is scheduled\n");
+			   reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
+	}
+schedule_reset:
 	/* Change the state of the device to trigger reset
 	 * Check that we are not in the middle or a trigger already
 	 */
-
 	if (test_and_set_bit(ENA_FLAG_TRIGGER_RESET, &adapter->flags))
 		return;
 
-	ena_reset_device(adapter, ENA_REGS_RESET_OS_NETDEV_WD);
+	ena_reset_device(adapter, reset_reason);
 	ena_increase_stat(&adapter->dev_stats.tx_timeout, 1, &adapter->syncp);
-
-	netif_err(adapter, tx_err, dev, "Transmit time out\n");
 }
 
 static void update_rx_ring_mtu(struct ena_adapter *adapter, int mtu)
@@ -3374,13 +3399,17 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 					  struct ena_ring *tx_ring)
 {
 	struct ena_napi *ena_napi = container_of(tx_ring->napi, struct ena_napi, napi);
+	enum ena_regs_reset_reason_types reset_reason = ENA_REGS_RESET_MISS_TX_CMPL;
 	unsigned int time_since_last_napi;
 	unsigned int missing_tx_comp_to;
 	bool is_tx_comp_time_expired;
 	struct ena_tx_buffer *tx_buf;
 	unsigned long last_jiffies;
+	int napi_scheduled;
 	u32 missed_tx = 0;
 	int i, rc = 0;
+
+	missing_tx_comp_to = jiffies_to_msecs(adapter->missing_tx_completion_to);
 
 	for (i = 0; i < tx_ring->ring_size; i++) {
 		tx_buf = &tx_ring->tx_buffer_info[i];
@@ -3408,25 +3437,45 @@ static int check_missing_comp_in_tx_queue(struct ena_adapter *adapter,
 			adapter->missing_tx_completion_to);
 
 		if (unlikely(is_tx_comp_time_expired)) {
-			if (!tx_buf->print_once) {
-				time_since_last_napi = jiffies_to_usecs(jiffies - tx_ring->tx_stats.last_napi_jiffies);
-				missing_tx_comp_to = jiffies_to_msecs(adapter->missing_tx_completion_to);
-				netif_notice(adapter, tx_err, adapter->netdev,
-					     "Found a Tx that wasn't completed on time, qid %d, index %d. %u usecs have passed since last napi execution. Missing Tx timeout value %u msecs\n",
-					     tx_ring->qid, i, time_since_last_napi, missing_tx_comp_to);
+			time_since_last_napi =
+				jiffies_to_usecs(jiffies - tx_ring->tx_stats.last_napi_jiffies);
+			napi_scheduled = !!(ena_napi->napi.state & NAPIF_STATE_SCHED);
+
+			if (missing_tx_comp_to < time_since_last_napi && napi_scheduled) {
+				/* We suspect napi isn't called because the
+				 * bottom half is not run. Require a bigger
+				 * timeout for these cases
+				 */
+				if (!time_is_before_jiffies(last_jiffies +
+					2 * adapter->missing_tx_completion_to))
+					continue;
+
+				reset_reason = ENA_REGS_RESET_SUSPECTED_POLL_STARVATION;
 			}
 
-			tx_buf->print_once = 1;
 			missed_tx++;
+
+			if (tx_buf->print_once)
+				continue;
+
+			netif_notice(adapter, tx_err, adapter->netdev,
+				     "TX hasn't completed, qid %d, index %d. %u usecs from last napi execution, napi scheduled: %d\n",
+				     tx_ring->qid, i, time_since_last_napi, napi_scheduled);
+
+			tx_buf->print_once = 1;
 		}
 	}
 
 	if (unlikely(missed_tx > adapter->missing_tx_completion_threshold)) {
 		netif_err(adapter, tx_err, adapter->netdev,
-			  "The number of lost tx completions is above the threshold (%d > %d). Reset the device\n",
+			  "Lost TX completions are above the threshold (%d > %d). Completion transmission timeout: %u.\n",
 			  missed_tx,
-			  adapter->missing_tx_completion_threshold);
-		ena_reset_device(adapter, ENA_REGS_RESET_MISS_TX_CMPL);
+			  adapter->missing_tx_completion_threshold,
+			  missing_tx_comp_to);
+		netif_err(adapter, tx_err, adapter->netdev,
+			  "Resetting the device\n");
+
+		ena_reset_device(adapter, reset_reason);
 		rc = -EIO;
 	}
 
