@@ -217,46 +217,11 @@ static int skip_nops(u8 *buf, int offset, int len)
 }
 
 /*
- * Optimize a sequence of NOPs, possibly preceded by an unconditional jump
- * to the end of the NOP sequence into a single NOP.
- */
-static bool
-__optimize_nops(const u8 * const instr, u8 *buf, size_t len, struct insn *insn, int *next, int *prev, int *target)
-{
-	int i = *next - insn->length;
-
-	switch (insn->opcode.bytes[0]) {
-	case JMP8_INSN_OPCODE:
-	case JMP32_INSN_OPCODE:
-		*prev = i;
-		*target = *next + insn->immediate.value;
-		return false;
-	}
-
-	if (insn_is_nop(insn)) {
-		int nop = i;
-
-		*next = skip_nops(buf, *next, len);
-		if (*target && *next == *target)
-			nop = *prev;
-
-		add_nop(buf + nop, *next - nop);
-		DUMP_BYTES(ALT, buf, len, "%px: [%d:%d) optimized NOPs: ", instr, nop, *next);
-		return true;
-	}
-
-	*target = 0;
-	return false;
-}
-
-/*
  * "noinline" to cause control flow change and thus invalidate I$ and
  * cause refetch after modification.
  */
-static void __init_or_module noinline optimize_nops(const u8 * const instr, u8 *buf, size_t len)
+static void noinline optimize_nops(const u8 * const instr, u8 *buf, size_t len)
 {
-	int prev, target = 0;
-
 	for (int next, i = 0; i < len; i = next) {
 		struct insn insn;
 
@@ -265,7 +230,14 @@ static void __init_or_module noinline optimize_nops(const u8 * const instr, u8 *
 
 		next = i + insn.length;
 
-		__optimize_nops(instr, buf, len, &insn, &next, &prev, &target);
+		if (insn_is_nop(&insn)) {
+			int nop = i;
+
+			next = skip_nops(buf, next, len);
+
+			add_nop(buf + nop, next - nop);
+			DUMP_BYTES(ALT, buf, len, "%px: [%d:%d) optimized NOPs: ", instr, nop, next);
+		}
 	}
 }
 
@@ -339,10 +311,8 @@ bool need_reloc(unsigned long offset, u8 *src, size_t src_len)
 	return (target < src || target > src + src_len);
 }
 
-void apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl, size_t repl_len)
+static void __apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl, size_t repl_len)
 {
-	int prev, target = 0;
-
 	for (int next, i = 0; i < instrlen; i = next) {
 		struct insn insn;
 
@@ -350,9 +320,6 @@ void apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl
 			return;
 
 		next = i + insn.length;
-
-		if (__optimize_nops(instr, buf, instrlen, &insn, &next, &prev, &target))
-			continue;
 
 		switch (insn.opcode.bytes[0]) {
 		case 0x0f:
@@ -396,6 +363,12 @@ void apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl
 			}
 		}
 	}
+}
+
+void apply_relocation(u8 *buf, const u8 * const instr, size_t instrlen, u8 *repl, size_t repl_len)
+{
+	__apply_relocation(buf, instr, instrlen, repl, repl_len);
+	optimize_nops(instr, buf, repl_len);
 }
 
 /* Low-level backend functions usable from alternative code replacements. */
