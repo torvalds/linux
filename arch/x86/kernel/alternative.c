@@ -445,9 +445,9 @@ static int alt_replace_call(u8 *instr, u8 *insn_buff, struct alt_instr *a)
 void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 						  struct alt_instr *end)
 {
-	struct alt_instr *a;
-	u8 *instr, *replacement;
 	u8 insn_buff[MAX_PATCH_LEN];
+	u8 *instr, *replacement;
+	struct alt_instr *a;
 
 	DPRINTK(ALT, "alt table %px, -> %px", start, end);
 
