@@ -9,6 +9,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/device.h>
+#include <linux/device/bus.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
@@ -82,25 +83,28 @@ static int mtk_socinfo_create_socinfo_node(struct mtk_socinfo *mtk_socinfop)
 static u32 mtk_socinfo_read_cell(struct device *dev, const char *name)
 {
 	struct nvmem_device *nvmemp;
-	struct device_node *np = dev->of_node;
+	struct device_node *np, *nvmem_node = dev->parent->of_node;
 	u32 offset;
 	u32 cell_val = CELL_NOT_USED;
 
-	nvmemp = devm_nvmem_device_get(dev, "mtk-efuse0");
+	/* should never fail since the nvmem driver registers this child */
+	nvmemp = nvmem_device_find(nvmem_node, device_match_of_node);
 	if (IS_ERR(nvmemp))
 		goto out;
 
-	np = of_find_node_by_name(NULL, name);
+	np = of_get_child_by_name(nvmem_node, name);
 	if (!np)
-		goto out;
+		goto put_device;
 
 	if (of_property_read_u32_index(np, "reg", 0, &offset))
-		goto out;
+		goto put_node;
 
 	nvmem_device_read(nvmemp, offset, sizeof(cell_val), &cell_val);
 
+put_node:
+	of_node_put(np);
+put_device:
 	nvmem_device_put(nvmemp);
-
 out:
 	return cell_val;
 }
