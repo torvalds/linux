@@ -5740,7 +5740,7 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 
 	if (vif->bss_conf.csa_active) {
 		if (ieee80211_beacon_cntdwn_is_complete(vif)) {
-			ieee80211_csa_finish(vif);
+			ieee80211_csa_finish(vif, 0);
 			return;
 		}
 		schedule_delayed_work(&priv->update_beacon_work,
