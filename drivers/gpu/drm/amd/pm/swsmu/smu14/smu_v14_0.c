@@ -53,6 +53,8 @@
 
 MODULE_FIRMWARE("amdgpu/smu_14_0_2.bin");
 
+#define ENABLE_IMU_ARG_GFXOFF_ENABLE		1
+
 int smu_v14_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -1633,11 +1635,16 @@ int smu_v14_0_baco_exit(struct smu_context *smu)
 int smu_v14_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 {
 	uint16_t index;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnableGfxImu,
+						       ENABLE_IMU_ARG_GFXOFF_ENABLE, NULL);
+	}
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 					       SMU_MSG_EnableGfxImu);
-	/* Param 1 to tell PMFW to enable GFXOFF feature */
-	return smu_cmn_send_msg_without_waiting(smu, index, 1);
+	return smu_cmn_send_msg_without_waiting(smu, index, ENABLE_IMU_ARG_GFXOFF_ENABLE);
 }
 
 int smu_v14_0_set_default_dpm_tables(struct smu_context *smu)
