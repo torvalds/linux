@@ -62,7 +62,7 @@ enum request_stage {
 	STAGE_MESSAGE,
 };
 
-int __must_check uds_make_index(struct configuration *config,
+int __must_check uds_make_index(struct uds_configuration *config,
 				enum uds_open_index_type open_type,
 				struct index_load_context *load_context,
 				index_callback_fn callback, struct uds_index **new_index);

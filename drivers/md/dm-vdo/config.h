@@ -11,7 +11,7 @@
 #include "uds.h"
 
 /*
- * The configuration records a variety of parameters used to configure a new UDS index. Some
+ * The uds_configuration records a variety of parameters used to configure a new UDS index. Some
  * parameters are provided by the client, while others are fixed or derived from user-supplied
  * values. It is created when an index is created, and it is recorded in the index metadata.
  */
@@ -24,7 +24,7 @@ enum {
 };
 
 /* A set of configuration parameters for the indexer. */
-struct configuration {
+struct uds_configuration {
 	/* Storage device for the index */
 	struct block_device *bdev;
 
@@ -109,16 +109,16 @@ struct uds_configuration_6_02 {
 } __packed;
 
 int __must_check uds_make_configuration(const struct uds_parameters *params,
-					struct configuration **config_ptr);
+					struct uds_configuration **config_ptr);
 
-void uds_free_configuration(struct configuration *config);
+void uds_free_configuration(struct uds_configuration *config);
 
 int __must_check uds_validate_config_contents(struct buffered_reader *reader,
-					      struct configuration *config);
+					      struct uds_configuration *config);
 
 int __must_check uds_write_config_contents(struct buffered_writer *writer,
-					   struct configuration *config, u32 version);
+					   struct uds_configuration *config, u32 version);
 
-void uds_log_configuration(struct configuration *config);
+void uds_log_configuration(struct uds_configuration *config);
 
 #endif /* UDS_CONFIG_H */

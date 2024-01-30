@@ -314,7 +314,7 @@ static int initialize_index_session(struct uds_index_session *index_session,
 				    enum uds_open_index_type open_type)
 {
 	int result;
-	struct configuration *config;
+	struct uds_configuration *config;
 
 	result = uds_make_configuration(&index_session->parameters, &config);
 	if (result != UDS_SUCCESS) {

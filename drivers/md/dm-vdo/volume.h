@@ -121,7 +121,7 @@ struct volume {
 	unsigned int reserved_buffers;
 };
 
-int __must_check uds_make_volume(const struct configuration *config,
+int __must_check uds_make_volume(const struct uds_configuration *config,
 				 struct index_layout *layout,
 				 struct volume **new_volume);
 

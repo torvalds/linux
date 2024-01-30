@@ -1162,7 +1162,7 @@ static int make_index_zone(struct uds_index *index, unsigned int zone_number)
 	return UDS_SUCCESS;
 }
 
-int uds_make_index(struct configuration *config, enum uds_open_index_type open_type,
+int uds_make_index(struct uds_configuration *config, enum uds_open_index_type open_type,
 		   struct index_load_context *load_context, index_callback_fn callback,
 		   struct uds_index **new_index)
 {

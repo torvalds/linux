@@ -27,9 +27,9 @@ static bool is_version(const u8 *version, u8 *buffer)
 	return memcmp(version, buffer, INDEX_CONFIG_VERSION_LENGTH) == 0;
 }
 
-static bool are_matching_configurations(struct configuration *saved_config,
+static bool are_matching_configurations(struct uds_configuration *saved_config,
 					struct index_geometry *saved_geometry,
-					struct configuration *user)
+					struct uds_configuration *user)
 {
 	struct index_geometry *geometry = user->geometry;
 	bool result = true;
@@ -93,10 +93,10 @@ static bool are_matching_configurations(struct configuration *saved_config,
 
 /* Read the configuration and validate it against the provided one. */
 int uds_validate_config_contents(struct buffered_reader *reader,
-				 struct configuration *user_config)
+				 struct uds_configuration *user_config)
 {
 	int result;
-	struct configuration config;
+	struct uds_configuration config;
 	struct index_geometry geometry;
 	u8 version_buffer[INDEX_CONFIG_VERSION_LENGTH];
 	u32 bytes_per_page;
@@ -174,7 +174,7 @@ int uds_validate_config_contents(struct buffered_reader *reader,
  * been reduced by one chapter.
  */
 int uds_write_config_contents(struct buffered_writer *writer,
-			      struct configuration *config, u32 version)
+			      struct uds_configuration *config, u32 version)
 {
 	int result;
 	struct index_geometry *geometry = config->geometry;
@@ -313,9 +313,9 @@ static unsigned int __must_check normalize_read_threads(unsigned int requested)
 }
 
 int uds_make_configuration(const struct uds_parameters *params,
-			   struct configuration **config_ptr)
+			   struct uds_configuration **config_ptr)
 {
-	struct configuration *config;
+	struct uds_configuration *config;
 	u32 chapters_per_volume = 0;
 	u32 record_pages_per_chapter = 0;
 	u32 sparse_chapters_per_volume = 0;
@@ -327,7 +327,7 @@ int uds_make_configuration(const struct uds_parameters *params,
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = uds_allocate(1, struct configuration, __func__, &config);
+	result = uds_allocate(1, struct uds_configuration, __func__, &config);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -354,7 +354,7 @@ int uds_make_configuration(const struct uds_parameters *params,
 	return UDS_SUCCESS;
 }
 
-void uds_free_configuration(struct configuration *config)
+void uds_free_configuration(struct uds_configuration *config)
 {
 	if (config != NULL) {
 		uds_free_index_geometry(config->geometry);
@@ -362,7 +362,7 @@ void uds_free_configuration(struct configuration *config)
 	}
 }
 
-void uds_log_configuration(struct configuration *config)
+void uds_log_configuration(struct uds_configuration *config)
 {
 	struct index_geometry *geometry = config->geometry;
 

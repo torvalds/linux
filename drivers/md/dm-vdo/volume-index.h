@@ -136,13 +136,13 @@ struct volume_index_record {
 	struct delta_index_entry delta_entry;
 };
 
-int __must_check uds_make_volume_index(const struct configuration *config,
+int __must_check uds_make_volume_index(const struct uds_configuration *config,
 				       u64 volume_nonce,
 				       struct volume_index **volume_index);
 
 void uds_free_volume_index(struct volume_index *volume_index);
 
-int __must_check uds_compute_volume_index_save_blocks(const struct configuration *config,
+int __must_check uds_compute_volume_index_save_blocks(const struct uds_configuration *config,
 						      size_t block_size,
 						      u64 *block_count);
 
