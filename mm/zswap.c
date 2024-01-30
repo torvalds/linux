@@ -590,6 +590,162 @@ static struct zswap_pool *zswap_pool_find_get(char *type, char *compressor)
 	return NULL;
 }
 
+/*********************************
+* param callbacks
+**********************************/
+
+static bool zswap_pool_changed(const char *s, const struct kernel_param *kp)
+{
+	/* no change required */
+	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
+		return false;
+	return true;
+}
+
+/* val must be a null-terminated string */
+static int __zswap_param_set(const char *val, const struct kernel_param *kp,
+			     char *type, char *compressor)
+{
+	struct zswap_pool *pool, *put_pool = NULL;
+	char *s = strstrip((char *)val);
+	int ret = 0;
+	bool new_pool = false;
+
+	mutex_lock(&zswap_init_lock);
+	switch (zswap_init_state) {
+	case ZSWAP_UNINIT:
+		/* if this is load-time (pre-init) param setting,
+		 * don't create a pool; that's done during init.
+		 */
+		ret = param_set_charp(s, kp);
+		break;
+	case ZSWAP_INIT_SUCCEED:
+		new_pool = zswap_pool_changed(s, kp);
+		break;
+	case ZSWAP_INIT_FAILED:
+		pr_err("can't set param, initialization failed\n");
+		ret = -ENODEV;
+	}
+	mutex_unlock(&zswap_init_lock);
+
+	/* no need to create a new pool, return directly */
+	if (!new_pool)
+		return ret;
+
+	if (!type) {
+		if (!zpool_has_pool(s)) {
+			pr_err("zpool %s not available\n", s);
+			return -ENOENT;
+		}
+		type = s;
+	} else if (!compressor) {
+		if (!crypto_has_acomp(s, 0, 0)) {
+			pr_err("compressor %s not available\n", s);
+			return -ENOENT;
+		}
+		compressor = s;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	spin_lock(&zswap_pools_lock);
+
+	pool = zswap_pool_find_get(type, compressor);
+	if (pool) {
+		zswap_pool_debug("using existing", pool);
+		WARN_ON(pool == zswap_pool_current());
+		list_del_rcu(&pool->list);
+	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!pool)
+		pool = zswap_pool_create(type, compressor);
+
+	if (pool)
+		ret = param_set_charp(s, kp);
+	else
+		ret = -EINVAL;
+
+	spin_lock(&zswap_pools_lock);
+
+	if (!ret) {
+		put_pool = zswap_pool_current();
+		list_add_rcu(&pool->list, &zswap_pools);
+		zswap_has_pool = true;
+	} else if (pool) {
+		/* add the possibly pre-existing pool to the end of the pools
+		 * list; if it's new (and empty) then it'll be removed and
+		 * destroyed by the put after we drop the lock
+		 */
+		list_add_tail_rcu(&pool->list, &zswap_pools);
+		put_pool = pool;
+	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!zswap_has_pool && !pool) {
+		/* if initial pool creation failed, and this pool creation also
+		 * failed, maybe both compressor and zpool params were bad.
+		 * Allow changing this param, so pool creation will succeed
+		 * when the other param is changed. We already verified this
+		 * param is ok in the zpool_has_pool() or crypto_has_acomp()
+		 * checks above.
+		 */
+		ret = param_set_charp(s, kp);
+	}
+
+	/* drop the ref from either the old current pool,
+	 * or the new pool we failed to add
+	 */
+	if (put_pool)
+		zswap_pool_put(put_pool);
+
+	return ret;
+}
+
+static int zswap_compressor_param_set(const char *val,
+				      const struct kernel_param *kp)
+{
+	return __zswap_param_set(val, kp, zswap_zpool_type, NULL);
+}
+
+static int zswap_zpool_param_set(const char *val,
+				 const struct kernel_param *kp)
+{
+	return __zswap_param_set(val, kp, NULL, zswap_compressor);
+}
+
+static int zswap_enabled_param_set(const char *val,
+				   const struct kernel_param *kp)
+{
+	int ret = -ENODEV;
+
+	/* if this is load-time (pre-init) param setting, only set param. */
+	if (system_state != SYSTEM_RUNNING)
+		return param_set_bool(val, kp);
+
+	mutex_lock(&zswap_init_lock);
+	switch (zswap_init_state) {
+	case ZSWAP_UNINIT:
+		if (zswap_setup())
+			break;
+		fallthrough;
+	case ZSWAP_INIT_SUCCEED:
+		if (!zswap_has_pool)
+			pr_err("can't enable, no pool configured\n");
+		else
+			ret = param_set_bool(val, kp);
+		break;
+	case ZSWAP_INIT_FAILED:
+		pr_err("can't enable, initialization failed\n");
+	}
+	mutex_unlock(&zswap_init_lock);
+
+	return ret;
+}
+
 /* should be called under RCU */
 #ifdef CONFIG_MEMCG
 static inline struct mem_cgroup *mem_cgroup_from_entry(struct zswap_entry *entry)
@@ -1160,162 +1316,6 @@ resched:
 		cond_resched();
 	} while (!zswap_can_accept());
 	zswap_pool_put(pool);
-}
-
-/*********************************
-* param callbacks
-**********************************/
-
-static bool zswap_pool_changed(const char *s, const struct kernel_param *kp)
-{
-	/* no change required */
-	if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
-		return false;
-	return true;
-}
-
-/* val must be a null-terminated string */
-static int __zswap_param_set(const char *val, const struct kernel_param *kp,
-			     char *type, char *compressor)
-{
-	struct zswap_pool *pool, *put_pool = NULL;
-	char *s = strstrip((char *)val);
-	int ret = 0;
-	bool new_pool = false;
-
-	mutex_lock(&zswap_init_lock);
-	switch (zswap_init_state) {
-	case ZSWAP_UNINIT:
-		/* if this is load-time (pre-init) param setting,
-		 * don't create a pool; that's done during init.
-		 */
-		ret = param_set_charp(s, kp);
-		break;
-	case ZSWAP_INIT_SUCCEED:
-		new_pool = zswap_pool_changed(s, kp);
-		break;
-	case ZSWAP_INIT_FAILED:
-		pr_err("can't set param, initialization failed\n");
-		ret = -ENODEV;
-	}
-	mutex_unlock(&zswap_init_lock);
-
-	/* no need to create a new pool, return directly */
-	if (!new_pool)
-		return ret;
-
-	if (!type) {
-		if (!zpool_has_pool(s)) {
-			pr_err("zpool %s not available\n", s);
-			return -ENOENT;
-		}
-		type = s;
-	} else if (!compressor) {
-		if (!crypto_has_acomp(s, 0, 0)) {
-			pr_err("compressor %s not available\n", s);
-			return -ENOENT;
-		}
-		compressor = s;
-	} else {
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	spin_lock(&zswap_pools_lock);
-
-	pool = zswap_pool_find_get(type, compressor);
-	if (pool) {
-		zswap_pool_debug("using existing", pool);
-		WARN_ON(pool == zswap_pool_current());
-		list_del_rcu(&pool->list);
-	}
-
-	spin_unlock(&zswap_pools_lock);
-
-	if (!pool)
-		pool = zswap_pool_create(type, compressor);
-
-	if (pool)
-		ret = param_set_charp(s, kp);
-	else
-		ret = -EINVAL;
-
-	spin_lock(&zswap_pools_lock);
-
-	if (!ret) {
-		put_pool = zswap_pool_current();
-		list_add_rcu(&pool->list, &zswap_pools);
-		zswap_has_pool = true;
-	} else if (pool) {
-		/* add the possibly pre-existing pool to the end of the pools
-		 * list; if it's new (and empty) then it'll be removed and
-		 * destroyed by the put after we drop the lock
-		 */
-		list_add_tail_rcu(&pool->list, &zswap_pools);
-		put_pool = pool;
-	}
-
-	spin_unlock(&zswap_pools_lock);
-
-	if (!zswap_has_pool && !pool) {
-		/* if initial pool creation failed, and this pool creation also
-		 * failed, maybe both compressor and zpool params were bad.
-		 * Allow changing this param, so pool creation will succeed
-		 * when the other param is changed. We already verified this
-		 * param is ok in the zpool_has_pool() or crypto_has_acomp()
-		 * checks above.
-		 */
-		ret = param_set_charp(s, kp);
-	}
-
-	/* drop the ref from either the old current pool,
-	 * or the new pool we failed to add
-	 */
-	if (put_pool)
-		zswap_pool_put(put_pool);
-
-	return ret;
-}
-
-static int zswap_compressor_param_set(const char *val,
-				      const struct kernel_param *kp)
-{
-	return __zswap_param_set(val, kp, zswap_zpool_type, NULL);
-}
-
-static int zswap_zpool_param_set(const char *val,
-				 const struct kernel_param *kp)
-{
-	return __zswap_param_set(val, kp, NULL, zswap_compressor);
-}
-
-static int zswap_enabled_param_set(const char *val,
-				   const struct kernel_param *kp)
-{
-	int ret = -ENODEV;
-
-	/* if this is load-time (pre-init) param setting, only set param. */
-	if (system_state != SYSTEM_RUNNING)
-		return param_set_bool(val, kp);
-
-	mutex_lock(&zswap_init_lock);
-	switch (zswap_init_state) {
-	case ZSWAP_UNINIT:
-		if (zswap_setup())
-			break;
-		fallthrough;
-	case ZSWAP_INIT_SUCCEED:
-		if (!zswap_has_pool)
-			pr_err("can't enable, no pool configured\n");
-		else
-			ret = param_set_bool(val, kp);
-		break;
-	case ZSWAP_INIT_FAILED:
-		pr_err("can't enable, initialization failed\n");
-	}
-	mutex_unlock(&zswap_init_lock);
-
-	return ret;
 }
 
 static bool zswap_compress(struct folio *folio, struct zswap_entry *entry)
