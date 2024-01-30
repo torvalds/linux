@@ -1427,11 +1427,6 @@ int ena_com_create_io_cq(struct ena_com_dev *ena_dev,
 	io_cq->unmask_reg = (u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
 		cmd_completion.cq_interrupt_unmask_register_offset);
 
-	if (cmd_completion.cq_head_db_register_offset)
-		io_cq->cq_head_db_reg =
-			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +
-			cmd_completion.cq_head_db_register_offset);
-
 	if (cmd_completion.numa_node_register_offset)
 		io_cq->numa_node_cfg_reg =
 			(u32 __iomem *)((uintptr_t)ena_dev->reg_bar +

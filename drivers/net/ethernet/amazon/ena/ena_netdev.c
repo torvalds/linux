@@ -856,7 +856,6 @@ static int ena_clean_tx_irq(struct ena_ring *tx_ring, u32 budget)
 
 	tx_ring->next_to_clean = next_to_clean;
 	ena_com_comp_ack(tx_ring->ena_com_io_sq, total_done);
-	ena_com_update_dev_comp_head(tx_ring->ena_com_io_cq);
 
 	netdev_tx_completed_queue(txq, tx_pkts, tx_bytes);
 
@@ -1303,10 +1302,8 @@ static int ena_clean_rx_irq(struct ena_ring *rx_ring, struct napi_struct *napi,
 		      ENA_RX_REFILL_THRESH_PACKET);
 
 	/* Optimization, try to batch new rx buffers */
-	if (refill_required > refill_threshold) {
-		ena_com_update_dev_comp_head(rx_ring->ena_com_io_cq);
+	if (refill_required > refill_threshold)
 		ena_refill_rx_bufs(rx_ring, refill_required);
-	}
 
 	if (xdp_flags & ENA_XDP_REDIRECT)
 		xdp_do_flush();
