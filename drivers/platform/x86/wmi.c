@@ -1202,8 +1202,7 @@ static int wmi_notify_device(struct device *dev, void *data)
 		wblock->handler(*event, wblock->handler_data);
 	}
 
-	acpi_bus_generate_netlink_event(wblock->acpi_device->pnp.device_class,
-					acpi_dev_name(wblock->acpi_device), *event, 0);
+	acpi_bus_generate_netlink_event("wmi", acpi_dev_name(wblock->acpi_device), *event, 0);
 
 	return -EBUSY;
 }
