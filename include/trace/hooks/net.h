@@ -25,6 +25,13 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sk_alloc,
 DECLARE_RESTRICTED_HOOK(android_rvh_sk_free,
 	TP_PROTO(struct sock *sock), TP_ARGS(sock), 1);
 
+struct poll_table_struct;
+typedef struct poll_table_struct poll_table;
+DECLARE_HOOK(android_vh_netlink_poll,
+	TP_PROTO(struct file *file, struct socket *sock, poll_table *wait,
+		__poll_t *mask),
+	TP_ARGS(file, sock, wait, mask));
+
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_NET_VH_H */

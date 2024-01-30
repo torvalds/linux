@@ -72,6 +72,11 @@ enum pkvm_psci_notification {
  *				@register_host_perm_fault_handler), otherwise
  *				pKVM will be unable to handle this fault and the
  *				CPU will be stuck in an infinite loop.
+ * @host_stage2_mod_prot_range:	Similar to @host_stage2_mod_prot, but takes a
+ *				range as an argument (@nr_pages). This
+ *				considerably speeds up the process for a
+ *				contiguous memory region, compared to the
+ *				per-page @host_stage2_mod_prot.
  * @host_stage2_get_leaf:	Query the host's stage2 page-table entry for
  *				the page @phys.
  * @register_host_smc_handler:	@cb is called whenever the host issues an SMC
@@ -153,7 +158,8 @@ struct pkvm_module_ops {
 	void* (*hyp_va)(phys_addr_t phys);
 	unsigned long (*kern_hyp_va)(unsigned long x);
 
-	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_USE(1, int (*host_stage2_mod_prot_range)(u64 pfn, enum kvm_pgtable_prot prot, u64 nr_pages));
+
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);

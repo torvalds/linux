@@ -1093,9 +1093,13 @@ void __init net_ns_init(void)
 	struct net_generic *ng;
 
 #ifdef CONFIG_NET_NS
-	net_cachep = kmem_cache_create("net_namespace", sizeof(struct net),
-					SMP_CACHE_BYTES,
-					SLAB_PANIC|SLAB_ACCOUNT, NULL);
+	/* Allocate size for struct ext_net instead of struct net
+	 * to fix a KMI issue when CONFIG_NETFILTER_FAMILY_BRIDGE
+	 * is enabled
+	 */
+	net_cachep = kmem_cache_create("net_namespace", sizeof(struct ext_net),
+				       SMP_CACHE_BYTES,
+				       SLAB_PANIC | SLAB_ACCOUNT, NULL);
 
 	/* Create workqueue for cleanup */
 	netns_wq = create_singlethread_workqueue("netns");

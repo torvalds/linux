@@ -196,6 +196,7 @@ static int gh_vcpu_run(struct gh_vcpu *vcpu)
 		}
 
 		gh_error = gh_hypercall_vcpu_run(vcpu->rsc->capid, state_data, &vcpu_run_resp);
+		memset(state_data, 0, sizeof(state_data));
 		if (gh_error == GH_ERROR_OK) {
 			switch (vcpu_run_resp.state) {
 			case GH_VCPU_STATE_READY:
