@@ -39,10 +39,14 @@ enum ipa_modem_state {
 /**
  * struct ipa_priv - IPA network device private data
  * @ipa:	IPA pointer
+ * @tx:		Transmit endpoint pointer
+ * @rx:		Receive endpoint pointer
  * @work:	Work structure used to wake the modem netdev TX queue
  */
 struct ipa_priv {
 	struct ipa *ipa;
+	struct ipa_endpoint *tx;
+	struct ipa_endpoint *rx;
 	struct work_struct work;
 };
 
@@ -59,11 +63,11 @@ static int ipa_open(struct net_device *netdev)
 	if (ret < 0)
 		goto err_power_put;
 
-	ret = ipa_endpoint_enable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	ret = ipa_endpoint_enable_one(priv->tx);
 	if (ret)
 		goto err_power_put;
 
-	ret = ipa_endpoint_enable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
+	ret = ipa_endpoint_enable_one(priv->rx);
 	if (ret)
 		goto err_disable_tx;
 
@@ -75,7 +79,7 @@ static int ipa_open(struct net_device *netdev)
 	return 0;
 
 err_disable_tx:
-	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	ipa_endpoint_disable_one(priv->tx);
 err_power_put:
 	pm_runtime_put_noidle(dev);
 
@@ -97,8 +101,8 @@ static int ipa_stop(struct net_device *netdev)
 
 	netif_stop_queue(netdev);
 
-	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
-	ipa_endpoint_disable_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	ipa_endpoint_disable_one(priv->rx);
+	ipa_endpoint_disable_one(priv->tx);
 out_power_put:
 	pm_runtime_mark_last_busy(dev);
 	(void)pm_runtime_put_autosuspend(dev);
@@ -233,14 +237,14 @@ static void ipa_modem_netdev_setup(struct net_device *netdev)
  */
 void ipa_modem_suspend(struct net_device *netdev)
 {
-	struct ipa_priv *priv = netdev_priv(netdev);
-	struct ipa *ipa = priv->ipa;
+	struct ipa_priv *priv;
 
 	if (!(netdev->flags & IFF_UP))
 		return;
 
-	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
-	ipa_endpoint_suspend_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
+	priv = netdev_priv(netdev);
+	ipa_endpoint_suspend_one(priv->rx);
+	ipa_endpoint_suspend_one(priv->tx);
 }
 
 /**
@@ -268,14 +272,14 @@ static void ipa_modem_wake_queue_work(struct work_struct *work)
  */
 void ipa_modem_resume(struct net_device *netdev)
 {
-	struct ipa_priv *priv = netdev_priv(netdev);
-	struct ipa *ipa = priv->ipa;
+	struct ipa_priv *priv;
 
 	if (!(netdev->flags & IFF_UP))
 		return;
 
-	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]);
-	ipa_endpoint_resume_one(ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]);
+	priv = netdev_priv(netdev);
+	ipa_endpoint_resume_one(priv->tx);
+	ipa_endpoint_resume_one(priv->rx);
 
 	/* Arrange for the TX queue to be restarted */
 	(void)queue_pm_work(&priv->work);
@@ -306,16 +310,21 @@ int ipa_modem_start(struct ipa *ipa)
 	SET_NETDEV_DEV(netdev, &ipa->pdev->dev);
 	priv = netdev_priv(netdev);
 	priv->ipa = ipa;
+	priv->tx = ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX];
+	priv->rx = ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX];
 	INIT_WORK(&priv->work, ipa_modem_wake_queue_work);
-	ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = netdev;
-	ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = netdev;
+
+	priv->tx->netdev = netdev;
+	priv->rx->netdev = netdev;
+
 	ipa->modem_netdev = netdev;
 
 	ret = register_netdev(netdev);
 	if (ret) {
 		ipa->modem_netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
+		priv->rx->netdev = NULL;
+		priv->tx->netdev = NULL;
+
 		free_netdev(netdev);
 	}
 
@@ -355,9 +364,11 @@ int ipa_modem_stop(struct ipa *ipa)
 		if (netdev->flags & IFF_UP)
 			(void)ipa_stop(netdev);
 		unregister_netdev(netdev);
+
 		ipa->modem_netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_RX]->netdev = NULL;
-		ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX]->netdev = NULL;
+		priv->rx->netdev = NULL;
+		priv->tx->netdev = NULL;
+
 		free_netdev(netdev);
 	}
 
