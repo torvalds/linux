@@ -1198,6 +1198,7 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 
 static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 {
+	struct dc_dmub_srv *dc_dmub_srv;
 	union dmub_rb_cmd cmd = {0};
 
 	if (dc->debug.dmcub_emulation)
@@ -1205,6 +1206,8 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
+
+	dc_dmub_srv = dc->ctx->dmub_srv;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
@@ -1216,10 +1219,32 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
 
 	if (allow_idle) {
+		volatile struct dmub_shared_state_ips_driver *ips_driver =
+			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER].data.ips_driver;
+		union dmub_shared_state_ips_driver_signals new_signals;
+
 		dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
-		if (dc->hwss.set_idle_state)
-			dc->hwss.set_idle_state(dc, true);
+		memset(&new_signals, 0, sizeof(new_signals));
+
+		if (dc->config.disable_ips == DMUB_IPS_ENABLE ||
+		    dc->config.disable_ips == DMUB_IPS_DISABLE_DYNAMIC) {
+			new_signals.bits.allow_pg = 1;
+			new_signals.bits.allow_ips1 = 1;
+			new_signals.bits.allow_ips2 = 1;
+			new_signals.bits.allow_z10 = 1;
+		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS1) {
+			new_signals.bits.allow_ips1 = 1;
+		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2) {
+			new_signals.bits.allow_pg = 1;
+			new_signals.bits.allow_ips1 = 1;
+		} else if (dc->config.disable_ips == DMUB_IPS_DISABLE_IPS2_Z10) {
+			new_signals.bits.allow_pg = 1;
+			new_signals.bits.allow_ips1 = 1;
+			new_signals.bits.allow_ips2 = 1;
+		}
+
+		ips_driver->signals = new_signals;
 	}
 
 	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
@@ -1229,8 +1254,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
-	uint32_t allow_state = 0;
-	uint32_t commit_state = 0;
+	struct dc_dmub_srv *dc_dmub_srv;
 
 	if (dc->debug.dmcub_emulation)
 		return;
@@ -1238,61 +1262,44 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
 		return;
 
-	if (dc->hwss.get_idle_state &&
-		dc->hwss.set_idle_state &&
-		dc->clk_mgr->funcs->exit_low_power_state) {
+	dc_dmub_srv = dc->ctx->dmub_srv;
 
-		allow_state = dc->hwss.get_idle_state(dc);
-		dc->hwss.set_idle_state(dc, false);
+	if (dc->clk_mgr->funcs->exit_low_power_state) {
+		volatile const struct dmub_shared_state_ips_fw *ips_fw =
+			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_FW].data.ips_fw;
+		volatile struct dmub_shared_state_ips_driver *ips_driver =
+			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER].data.ips_driver;
+		union dmub_shared_state_ips_driver_signals prev_driver_signals = ips_driver->signals;
 
-		if (!(allow_state & DMUB_IPS2_ALLOW_MASK)) {
-			// Wait for evaluation time
-			for (;;) {
-				udelay(dc->debug.ips2_eval_delay_us);
-				commit_state = dc->hwss.get_idle_state(dc);
-				if (commit_state & DMUB_IPS2_ALLOW_MASK)
-					break;
+		ips_driver->signals.all = 0;
 
-				/* allow was still set, retry eval delay */
-				dc->hwss.set_idle_state(dc, false);
-			}
+		if (prev_driver_signals.bits.allow_ips2) {
+			udelay(dc->debug.ips2_eval_delay_us);
 
-			if (!(commit_state & DMUB_IPS2_COMMIT_MASK)) {
+			if (ips_fw->signals.bits.ips2_commit) {
 				// Tell PMFW to exit low power state
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
 				// Wait for IPS2 entry upper bound
 				udelay(dc->debug.ips2_entry_delay_us);
+
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
 
-				for (;;) {
-					commit_state = dc->hwss.get_idle_state(dc);
-					if (commit_state & DMUB_IPS2_COMMIT_MASK)
-						break;
-
+				while (ips_fw->signals.bits.ips2_commit)
 					udelay(1);
-				}
 
 				if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 					ASSERT(0);
 
-				/* TODO: See if we can return early here - IPS2 should go
-				 * back directly to IPS0 and clear the flags, but it will
-				 * be safer to directly notify DMCUB of this.
-				 */
-				allow_state = dc->hwss.get_idle_state(dc);
+				dmub_srv_sync_inbox1(dc->ctx->dmub_srv->dmub);
 			}
 		}
 
 		dc_dmub_srv_notify_idle(dc, false);
-		if (!(allow_state & DMUB_IPS1_ALLOW_MASK)) {
-			for (;;) {
-				commit_state = dc->hwss.get_idle_state(dc);
-				if (commit_state & DMUB_IPS1_COMMIT_MASK)
-					break;
-
+		if (prev_driver_signals.bits.allow_ips1) {
+			while (ips_fw->signals.bits.ips1_commit)
 				udelay(1);
-			}
+
 		}
 	}
 
