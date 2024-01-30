@@ -587,6 +587,8 @@ static const char * const hwmon_humidity_attr_templates[] = {
 	[hwmon_humidity_fault] = "humidity%d_fault",
 	[hwmon_humidity_rated_min] = "humidity%d_rated_min",
 	[hwmon_humidity_rated_max] = "humidity%d_rated_max",
+	[hwmon_humidity_min_alarm] = "humidity%d_min_alarm",
+	[hwmon_humidity_max_alarm] = "humidity%d_max_alarm",
 };
 
 static const char * const hwmon_fan_attr_templates[] = {

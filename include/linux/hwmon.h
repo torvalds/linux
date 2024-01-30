@@ -295,6 +295,8 @@ enum hwmon_humidity_attributes {
 	hwmon_humidity_fault,
 	hwmon_humidity_rated_min,
 	hwmon_humidity_rated_max,
+	hwmon_humidity_min_alarm,
+	hwmon_humidity_max_alarm,
 };
 
 #define HWMON_H_ENABLE			BIT(hwmon_humidity_enable)
@@ -308,6 +310,8 @@ enum hwmon_humidity_attributes {
 #define HWMON_H_FAULT			BIT(hwmon_humidity_fault)
 #define HWMON_H_RATED_MIN		BIT(hwmon_humidity_rated_min)
 #define HWMON_H_RATED_MAX		BIT(hwmon_humidity_rated_max)
+#define HWMON_H_MIN_ALARM		BIT(hwmon_humidity_min_alarm)
+#define HWMON_H_MAX_ALARM		BIT(hwmon_humidity_max_alarm)
 
 enum hwmon_fan_attributes {
 	hwmon_fan_enable,
