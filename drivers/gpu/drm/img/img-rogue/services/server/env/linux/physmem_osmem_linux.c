@@ -1958,7 +1958,7 @@ _AllocOSPages_Fast(PMR_OSPAGEARRAY_DATA *psPageArrayData)
 	{
 		eError = _MemsetPageArray(uiOSPagesToAlloc - uiDevPagesFromPool,
 		                          ppsPageAttributeArray, PAGE_KERNEL,
-					PVRSRV_ZERO_VALUE, 0);
+					PVRSRV_ZERO_VALUE, 1);
 		if (eError != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "Failed to zero pages (fast)"));
@@ -1971,14 +1971,14 @@ _AllocOSPages_Fast(PMR_OSPAGEARRAY_DATA *psPageArrayData)
 		 * can point to different allocations: first for pages obtained from
 		 * the pool and then the remaining pages */
 		eError = _MemsetPageArray(uiDevPagesFromPool, ppsPageArray, PAGE_KERNEL,
-			PVRSRV_POISON_ON_ALLOC_VALUE, 0);
+			PVRSRV_POISON_ON_ALLOC_VALUE, 1);
 		if (eError != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "Failed to poison pages (fast)"));
 		}
 		eError = _MemsetPageArray(uiOSPagesToAlloc - uiDevPagesFromPool,
 		                          ppsPageAttributeArray, PAGE_KERNEL,
-						PVRSRV_POISON_ON_ALLOC_VALUE, 0);
+						PVRSRV_POISON_ON_ALLOC_VALUE, 1);
 		if (eError != PVRSRV_OK)
 		{
 			PVR_DPF((PVR_DBG_ERROR, "Failed to poison pages (fast)"));
