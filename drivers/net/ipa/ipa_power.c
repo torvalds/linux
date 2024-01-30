@@ -233,28 +233,32 @@ void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
-/* The next few functions coordinate stopping and starting the modem
+/* The next few functions are used when stopping and starting the modem
  * network device transmit queue.
  *
- * Transmit can be running concurrent with power resume, and there's a
- * chance the resume completes before the transmit path stops the queue,
- * leaving the queue in a stopped state.  The next two functions are used
- * to avoid this: ipa_power_modem_queue_stop() is used by ipa_start_xmit()
- * to conditionally stop the TX queue; and ipa_power_modem_queue_start()
- * is used by ipa_runtime_resume() to conditionally restart it.
+ * Transmit can run concurrent with power resume.  When transmitting,
+ * we disable further transmits until we can determine whether power
+ * is ACTIVE.  If it is, future transmits are re-enabled and the buffer
+ * gets sent (or dropped).  If power is not ACTIVE, it will eventually
+ * be, and transmits stay disabled until after it is.
  *
- * Two flags and a spinlock are used.  If the queue is stopped, the STOPPED
- * power flag is set.  And if the queue is started, the STARTED flag is set.
- * The queue is only started on resume if the STOPPED flag is set.  And the
- * queue is only started in ipa_start_xmit() if the STARTED flag is *not*
- * set.  As a result, the queue remains operational if the two activites
- * happen concurrently regardless of the order they complete.  The spinlock
- * ensures the flag and TX queue operations are done atomically.
+ * Two flags and a spinlock are used when managing this.  If the queue
+ * is stopped, the STOPPED power flag is set.  And if the queue is
+ * started, the STARTED flag is set.
  *
  * The first function stops the modem netdev transmit queue, but only if
- * the STARTED flag is *not* set.  That flag is cleared if it was set.
- * If the queue is stopped, the STOPPED flag is set.  This is called only
- * from the power ->runtime_resume operation.
+ * the STARTED flag is *not* set.  This previously avoided a race where
+ * the TX path stops further transmits after power has become ACTIVE.
+ * The STARTED flag is cleared by this function.
+ *
+ * The second function starts the transmit queue, but only if the
+ * STOPPED flag is set.  This avoids enabling transmits repeatedly
+ * immediately after power has become ACTIVE (not really a big deal).
+ * If the STOPPED flag was set, it is cleared and the STARTED flag
+ * is set by this function.
+ *
+ * The third function enables transmits again and clears the STARTED
+ * flag in case it was set, to return it to initial state.
  */
 void ipa_power_modem_queue_stop(struct ipa *ipa)
 {
@@ -291,9 +295,13 @@ void ipa_power_modem_queue_wake(struct ipa *ipa)
 	spin_unlock_irqrestore(&power->spinlock, flags);
 }
 
-/* This function clears the STARTED flag once the TX queue is operating */
+/* This function is run after power has become ACTIVE.  It enables transmits
+ * again clears the STARTED flag to indicate the TX queue is operating and
+ * can be stopped again if necessary.
+ */
 void ipa_power_modem_queue_active(struct ipa *ipa)
 {
+	netif_wake_queue(ipa->modem_netdev);
 	clear_bit(IPA_POWER_FLAG_STARTED, ipa->power->flags);
 }
 

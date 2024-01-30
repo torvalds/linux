@@ -110,13 +110,16 @@ out_power_put:
 	return 0;
 }
 
-/** ipa_start_xmit() - Transmits an skb.
- * @skb: skb to be transmitted
- * @dev: network device
+/** ipa_start_xmit() - Transmit an skb
+ * @skb:	Socket buffer to be transmitted
+ * @netdev:	Network device
  *
- * Return codes:
- * NETDEV_TX_OK: Success
- * NETDEV_TX_BUSY: Error while transmitting the skb. Try again later
+ * Return: NETDEV_TX_OK if successful (or dropped), NETDEV_TX_BUSY otherwise
+
+ * Normally NETDEV_TX_OK indicates the buffer was successfully transmitted.
+ * If the buffer has an unexpected protocol or its size is out of range it
+ * is quietly dropped, returning NETDEV_TX_OK.  NETDEV_TX_BUSY indicates
+ * the buffer cannot be sent at this time and should retried later.
  */
 static netdev_tx_t
 ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
@@ -136,7 +139,25 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (endpoint->config.qmap && skb->protocol != htons(ETH_P_MAP))
 		goto err_drop_skb;
 
-	/* The hardware must be powered for us to transmit */
+	/* The hardware must be powered for us to transmit, so if we're not
+	 * ready we want the network stack to stop queueing until power is
+	 * ACTIVE.  Once runtime resume has completed, we inform the network
+	 * stack it's OK to try transmitting again.
+	 *
+	 * We learn from pm_runtime_get() whether the hardware is powered.
+	 * If it was not, powering up is either started or already underway.
+	 * And in that case we want to disable queueing, expecting it to be
+	 * re-enabled once power is ACTIVE.  But runtime PM and network
+	 * transmit run concurrently, and if we're not careful the requests
+	 * to stop and start queueing could occur in the wrong order.
+	 *
+	 * For that reason we *always* stop queueing here, *before* the call
+	 * to pm_runtime_get().  If we determine here that power is ACTIVE,
+	 * we restart queueing before transmitting the SKB.  Otherwise
+	 * queueing will eventually be enabled after resume completes.
+	 */
+	ipa_power_modem_queue_stop(ipa);
+
 	dev = &ipa->pdev->dev;
 	ret = pm_runtime_get(dev);
 	if (ret < 1) {
@@ -146,12 +167,6 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 			pm_runtime_put_noidle(dev);
 			goto err_drop_skb;
 		}
-
-		/* No power (yet).  Stop the network stack from transmitting
-		 * until we're resumed; ipa_modem_resume() arranges for the
-		 * TX queue to be started again.
-		 */
-		ipa_power_modem_queue_stop(ipa);
 
 		pm_runtime_put_noidle(dev);
 
