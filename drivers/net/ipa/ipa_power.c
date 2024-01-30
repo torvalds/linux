@@ -227,19 +227,6 @@ void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
-/* Transmit can run concurrent with power resume.  When transmitting,
- * we disable further transmits until we can determine whether power
- * is ACTIVE.  If it is, future transmits are re-enabled and the buffer
- * gets sent (or dropped).  If power is not ACTIVE, it will eventually
- * be, and transmits stay disabled until after it is.  This function
- * starts the transmit queue and is used in the power resume path after
- * power has become ACTIVE.
- */
-void ipa_power_modem_queue_wake(struct ipa *ipa)
-{
-	netif_wake_queue(ipa->modem_netdev);
-}
-
 static int ipa_power_retention_init(struct ipa_power *power)
 {
 	struct qmp *qmp = qmp_get(power->dev);
