@@ -2008,7 +2008,7 @@ int zcrypt_wait_api_operational(void)
 	switch (zcrypt_wait_api_state) {
 	case 0:
 		/* initial state, invoke wait for the ap bus complete */
-		rc = ap_wait_init_apqn_bindings_complete(
+		rc = ap_wait_apqn_bindings_complete(
 			msecs_to_jiffies(60 * 1000));
 		switch (rc) {
 		case 0:

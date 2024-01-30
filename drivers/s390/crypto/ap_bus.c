@@ -90,8 +90,8 @@ static atomic64_t ap_scan_bus_count;
 /* # of bindings complete since init */
 static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
 
-/* completion for initial APQN bindings complete */
-static DECLARE_COMPLETION(ap_init_apqn_bindings_complete);
+/* completion for APQN bindings complete */
+static DECLARE_COMPLETION(ap_apqn_bindings_complete);
 
 static struct ap_config_info *ap_qci_info;
 static struct ap_config_info *ap_qci_info_old;
@@ -754,7 +754,7 @@ static void ap_calc_bound_apqns(unsigned int *apqns, unsigned int *bound)
 }
 
 /*
- * After initial ap bus scan do check if all existing APQNs are
+ * After ap bus scan do check if all existing APQNs are
  * bound to device drivers.
  */
 static void ap_check_bindings_complete(void)
@@ -764,9 +764,9 @@ static void ap_check_bindings_complete(void)
 	if (atomic64_read(&ap_scan_bus_count) >= 1) {
 		ap_calc_bound_apqns(&apqns, &bound);
 		if (bound == apqns) {
-			if (!completion_done(&ap_init_apqn_bindings_complete)) {
-				complete_all(&ap_init_apqn_bindings_complete);
-				AP_DBF_INFO("%s complete\n", __func__);
+			if (!completion_done(&ap_apqn_bindings_complete)) {
+				complete_all(&ap_apqn_bindings_complete);
+				pr_debug("%s all apqn bindings complete\n", __func__);
 			}
 			ap_send_bindings_complete_uevent();
 		}
@@ -783,27 +783,29 @@ static void ap_check_bindings_complete(void)
  * -ETIME is returned. On failures negative return values are
  * returned to the caller.
  */
-int ap_wait_init_apqn_bindings_complete(unsigned long timeout)
+int ap_wait_apqn_bindings_complete(unsigned long timeout)
 {
+	int rc = 0;
 	long l;
 
-	if (completion_done(&ap_init_apqn_bindings_complete))
+	if (completion_done(&ap_apqn_bindings_complete))
 		return 0;
 
 	if (timeout)
 		l = wait_for_completion_interruptible_timeout(
-			&ap_init_apqn_bindings_complete, timeout);
+			&ap_apqn_bindings_complete, timeout);
 	else
 		l = wait_for_completion_interruptible(
-			&ap_init_apqn_bindings_complete);
+			&ap_apqn_bindings_complete);
 	if (l < 0)
-		return l == -ERESTARTSYS ? -EINTR : l;
+		rc = l == -ERESTARTSYS ? -EINTR : l;
 	else if (l == 0 && timeout)
-		return -ETIME;
+		rc = -ETIME;
 
-	return 0;
+	pr_debug("%s rc=%d\n", __func__, rc);
+	return rc;
 }
-EXPORT_SYMBOL(ap_wait_init_apqn_bindings_complete);
+EXPORT_SYMBOL(ap_wait_apqn_bindings_complete);
 
 static int __ap_queue_devices_with_id_unregister(struct device *dev, void *data)
 {
@@ -940,8 +942,6 @@ static int ap_device_probe(struct device *dev)
 		if (is_queue_dev(dev))
 			hash_del(&to_ap_queue(dev)->hnode);
 		spin_unlock_bh(&ap_queues_lock);
-	} else {
-		ap_check_bindings_complete();
 	}
 
 out:
@@ -2136,6 +2136,49 @@ static bool ap_get_configuration(void)
 		      sizeof(struct ap_config_info)) != 0;
 }
 
+/*
+ * ap_config_has_new_aps - Check current against old qci info if
+ * new adapters have appeared. Returns true if at least one new
+ * adapter in the apm mask is showing up. Existing adapters or
+ * receding adapters are not counted.
+ */
+static bool ap_config_has_new_aps(void)
+{
+
+	unsigned long m[BITS_TO_LONGS(AP_DEVICES)];
+
+	if (!ap_qci_info)
+		return false;
+
+	bitmap_andnot(m, (unsigned long *)ap_qci_info->apm,
+		      (unsigned long *)ap_qci_info_old->apm, AP_DEVICES);
+	if (!bitmap_empty(m, AP_DEVICES))
+		return true;
+
+	return false;
+}
+
+/*
+ * ap_config_has_new_doms - Check current against old qci info if
+ * new (usage) domains have appeared. Returns true if at least one
+ * new domain in the aqm mask is showing up. Existing domains or
+ * receding domains are not counted.
+ */
+static bool ap_config_has_new_doms(void)
+{
+	unsigned long m[BITS_TO_LONGS(AP_DOMAINS)];
+
+	if (!ap_qci_info)
+		return false;
+
+	bitmap_andnot(m, (unsigned long *)ap_qci_info->aqm,
+		      (unsigned long *)ap_qci_info_old->aqm, AP_DOMAINS);
+	if (!bitmap_empty(m, AP_DOMAINS))
+		return true;
+
+	return false;
+}
+
 /**
  * ap_scan_bus(): Scan the AP bus for new devices
  * Runs periodically, workqueue timer (ap_config_time)
@@ -2147,10 +2190,21 @@ static void ap_scan_bus(struct work_struct *unused)
 
 	pr_debug(">%s\n", __func__);
 
-	/* config change notify */
+	/* (re-)fetch configuration via QCI */
 	config_changed = ap_get_configuration();
-	if (config_changed)
+	if (config_changed) {
+		if (ap_config_has_new_aps() || ap_config_has_new_doms()) {
+			/*
+			 * Appearance of new adapters and/or domains need to
+			 * build new ap devices which need to get bound to an
+			 * device driver. Thus reset the APQN bindings complete
+			 * completion.
+			 */
+			reinit_completion(&ap_apqn_bindings_complete);
+		}
+		/* post a config change notify */
 		notify_config_changed();
+	}
 	ap_select_domain();
 
 	/* loop over all possible adapters */
@@ -2177,8 +2231,9 @@ static void ap_scan_bus(struct work_struct *unused)
 	if (atomic64_inc_return(&ap_scan_bus_count) == 1) {
 		pr_debug("%s init scan complete\n", __func__);
 		ap_send_init_scan_done_uevent();
-		ap_check_bindings_complete();
 	}
+
+	ap_check_bindings_complete();
 
 	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
 
