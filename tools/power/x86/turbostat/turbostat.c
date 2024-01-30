@@ -5818,6 +5818,14 @@ static int has_instr_count_access(void)
 	return has_access;
 }
 
+bool is_aperf_access_required(void)
+{
+	return BIC_IS_ENABLED(BIC_Avg_MHz)
+	    || BIC_IS_ENABLED(BIC_Busy)
+	    || BIC_IS_ENABLED(BIC_Bzy_MHz)
+	    || BIC_IS_ENABLED(BIC_IPC);
+}
+
 /*
  * Linux-perf manages the HW instructions-retired counter
  * by enabling when requested, and hiding rollover
@@ -5833,8 +5841,7 @@ void linux_perf_init(void)
 			err(-1, "calloc fd_instr_count_percpu");
 	}
 
-	const bool aperf_required = BIC_IS_ENABLED(BIC_Avg_MHz) || BIC_IS_ENABLED(BIC_Busy) ||
-	    BIC_IS_ENABLED(BIC_Bzy_MHz) || BIC_IS_ENABLED(BIC_IPC);
+	const bool aperf_required = is_aperf_access_required();
 	if (aperf_required && has_aperf && amperf_source == AMPERF_SOURCE_PERF) {
 		fd_amperf_percpu = calloc(topo.max_cpu_num + 1, sizeof(*fd_amperf_percpu));
 		if (fd_amperf_percpu == NULL)
@@ -5903,6 +5910,9 @@ static int has_amperf_access_via_perf(void)
 /* Check if we can access APERF and MPERF */
 static int has_amperf_access(void)
 {
+	if (!is_aperf_access_required())
+		return 0;
+
 	if (!no_msr && has_amperf_access_via_msr())
 		return 1;
 
@@ -6581,7 +6591,8 @@ static void set_amperf_source(void)
 {
 	amperf_source = AMPERF_SOURCE_PERF;
 
-	if (no_perf || !has_amperf_access_via_perf())
+	const bool aperf_required = is_aperf_access_required();
+	if (no_perf || !aperf_required || !has_amperf_access_via_perf())
 		amperf_source = AMPERF_SOURCE_MSR;
 
 	if (quiet || !debug)
@@ -6590,8 +6601,51 @@ static void set_amperf_source(void)
 	fprintf(outf, "aperf/mperf source preference: %s\n", amperf_source == AMPERF_SOURCE_MSR ? "msr" : "perf");
 }
 
+bool is_msr_access_required(void)
+{
+	/* TODO: add detection for dynamic counters from add_counter() */
+	if (no_msr)
+		return false;
+
+	return BIC_IS_ENABLED(BIC_SMI)
+	    || BIC_IS_ENABLED(BIC_CPU_c1)
+	    || BIC_IS_ENABLED(BIC_CPU_c3)
+	    || BIC_IS_ENABLED(BIC_CPU_c6)
+	    || BIC_IS_ENABLED(BIC_CPU_c7)
+	    || BIC_IS_ENABLED(BIC_Mod_c6)
+	    || BIC_IS_ENABLED(BIC_CoreTmp)
+	    || BIC_IS_ENABLED(BIC_Totl_c0)
+	    || BIC_IS_ENABLED(BIC_Any_c0)
+	    || BIC_IS_ENABLED(BIC_GFX_c0)
+	    || BIC_IS_ENABLED(BIC_CPUGFX)
+	    || BIC_IS_ENABLED(BIC_Pkgpc3)
+	    || BIC_IS_ENABLED(BIC_Pkgpc6)
+	    || BIC_IS_ENABLED(BIC_Pkgpc2)
+	    || BIC_IS_ENABLED(BIC_Pkgpc7)
+	    || BIC_IS_ENABLED(BIC_Pkgpc8)
+	    || BIC_IS_ENABLED(BIC_Pkgpc9)
+	    || BIC_IS_ENABLED(BIC_Pkgpc10)
+	    || BIC_IS_ENABLED(BIC_CorWatt)
+	    || BIC_IS_ENABLED(BIC_Cor_J)
+	    || BIC_IS_ENABLED(BIC_PkgWatt)
+	    || BIC_IS_ENABLED(BIC_CorWatt)
+	    || BIC_IS_ENABLED(BIC_GFXWatt)
+	    || BIC_IS_ENABLED(BIC_RAMWatt)
+	    || BIC_IS_ENABLED(BIC_Pkg_J)
+	    || BIC_IS_ENABLED(BIC_Cor_J)
+	    || BIC_IS_ENABLED(BIC_GFX_J)
+	    || BIC_IS_ENABLED(BIC_RAM_J)
+	    || BIC_IS_ENABLED(BIC_PKG__)
+	    || BIC_IS_ENABLED(BIC_RAM__)
+	    || BIC_IS_ENABLED(BIC_PkgTmp)
+	    || (is_aperf_access_required() && !has_amperf_access_via_perf());
+}
+
 void check_msr_access(void)
 {
+	if (!is_msr_access_required())
+		no_msr = 1;
+
 	check_dev_msr();
 	check_msr_permission();
 
@@ -6601,10 +6655,12 @@ void check_msr_access(void)
 
 void check_perf_access(void)
 {
-	if (no_perf || !has_instr_count_access())
+	const bool intrcount_required = BIC_IS_ENABLED(BIC_IPC);
+	if (no_perf || !intrcount_required || !has_instr_count_access())
 		bic_enabled &= ~BIC_IPC;
 
-	if (!has_amperf_access()) {
+	const bool aperf_required = is_aperf_access_required();
+	if (!aperf_required || !has_amperf_access()) {
 		bic_enabled &= ~BIC_Avg_MHz;
 		bic_enabled &= ~BIC_Busy;
 		bic_enabled &= ~BIC_Bzy_MHz;
