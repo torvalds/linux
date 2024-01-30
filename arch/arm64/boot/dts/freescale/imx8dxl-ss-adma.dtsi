@@ -45,6 +45,18 @@
 		     <GIC_SPI 303 IRQ_TYPE_LEVEL_HIGH>;
 };
 
+&flexcan1 {
+	interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&flexcan2 {
+	interrupts = <GIC_SPI 239 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&flexcan3 {
+	interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+};
+
 &i2c0 {
 	compatible = "fsl,imx8dxl-lpi2c", "fsl,imx7ulp-lpi2c";
 	interrupts = <GIC_SPI 222 IRQ_TYPE_LEVEL_HIGH>;
