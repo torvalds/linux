@@ -643,23 +643,17 @@ DEFINE_EVENT(nfsd_stateseqid_class, nfsd_##name, \
 DEFINE_STATESEQID_EVENT(preprocess);
 DEFINE_STATESEQID_EVENT(open_confirm);
 
-TRACE_DEFINE_ENUM(NFS4_OPEN_STID);
-TRACE_DEFINE_ENUM(NFS4_LOCK_STID);
-TRACE_DEFINE_ENUM(NFS4_DELEG_STID);
-TRACE_DEFINE_ENUM(NFS4_CLOSED_STID);
-TRACE_DEFINE_ENUM(NFS4_REVOKED_DELEG_STID);
-TRACE_DEFINE_ENUM(NFS4_CLOSED_DELEG_STID);
-TRACE_DEFINE_ENUM(NFS4_LAYOUT_STID);
-
 #define show_stid_type(x)						\
 	__print_flags(x, "|",						\
-		{ NFS4_OPEN_STID,		"OPEN" },		\
-		{ NFS4_LOCK_STID,		"LOCK" },		\
-		{ NFS4_DELEG_STID,		"DELEG" },		\
-		{ NFS4_CLOSED_STID,		"CLOSED" },		\
-		{ NFS4_REVOKED_DELEG_STID,	"REVOKED" },		\
-		{ NFS4_CLOSED_DELEG_STID,	"CLOSED_DELEG" },	\
-		{ NFS4_LAYOUT_STID,		"LAYOUT" })
+		{ SC_TYPE_OPEN,		"OPEN" },		\
+		{ SC_TYPE_LOCK,		"LOCK" },		\
+		{ SC_TYPE_DELEG,		"DELEG" },		\
+		{ SC_TYPE_LAYOUT,		"LAYOUT" })
+
+#define show_stid_status(x)						\
+	__print_flags(x, "|",						\
+		{ SC_STATUS_CLOSED,		"CLOSED" },		\
+		{ SC_STATUS_REVOKED,		"REVOKED" })		\
 
 DECLARE_EVENT_CLASS(nfsd_stid_class,
 	TP_PROTO(
@@ -668,6 +662,7 @@ DECLARE_EVENT_CLASS(nfsd_stid_class,
 	TP_ARGS(stid),
 	TP_STRUCT__entry(
 		__field(unsigned long, sc_type)
+		__field(unsigned long, sc_status)
 		__field(int, sc_count)
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
@@ -678,16 +673,18 @@ DECLARE_EVENT_CLASS(nfsd_stid_class,
 		const stateid_t *stp = &stid->sc_stateid;
 
 		__entry->sc_type = stid->sc_type;
+		__entry->sc_status = stid->sc_status;
 		__entry->sc_count = refcount_read(&stid->sc_count);
 		__entry->cl_boot = stp->si_opaque.so_clid.cl_boot;
 		__entry->cl_id = stp->si_opaque.so_clid.cl_id;
 		__entry->si_id = stp->si_opaque.so_id;
 		__entry->si_generation = stp->si_generation;
 	),
-	TP_printk("client %08x:%08x stateid %08x:%08x ref=%d type=%s",
+	TP_printk("client %08x:%08x stateid %08x:%08x ref=%d type=%s state=%s",
 		__entry->cl_boot, __entry->cl_id,
 		__entry->si_id, __entry->si_generation,
-		__entry->sc_count, show_stid_type(__entry->sc_type)
+		__entry->sc_count, show_stid_type(__entry->sc_type),
+		show_stid_status(__entry->sc_status)
 	)
 );
 

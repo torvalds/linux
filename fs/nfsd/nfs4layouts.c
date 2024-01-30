@@ -236,7 +236,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	nfsd4_init_cb(&ls->ls_recall, clp, &nfsd4_cb_layout_ops,
 			NFSPROC4_CLNT_CB_LAYOUT);
 
-	if (parent->sc_type == NFS4_DELEG_STID)
+	if (parent->sc_type == SC_TYPE_DELEG)
 		ls->ls_file = nfsd_file_get(fp->fi_deleg_file);
 	else
 		ls->ls_file = find_any_file(fp);
@@ -250,7 +250,7 @@ nfsd4_alloc_layout_stateid(struct nfsd4_compound_state *cstate,
 	}
 
 	spin_lock(&clp->cl_lock);
-	stp->sc_type = NFS4_LAYOUT_STID;
+	stp->sc_type = SC_TYPE_LAYOUT;
 	list_add(&ls->ls_perclnt, &clp->cl_lo_states);
 	spin_unlock(&clp->cl_lock);
 
@@ -269,13 +269,13 @@ nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 {
 	struct nfs4_layout_stateid *ls;
 	struct nfs4_stid *stid;
-	unsigned char typemask = NFS4_LAYOUT_STID;
+	unsigned short typemask = SC_TYPE_LAYOUT;
 	__be32 status;
 
 	if (create)
-		typemask |= (NFS4_OPEN_STID | NFS4_LOCK_STID | NFS4_DELEG_STID);
+		typemask |= (SC_TYPE_OPEN | SC_TYPE_LOCK | SC_TYPE_DELEG);
 
-	status = nfsd4_lookup_stateid(cstate, stateid, typemask, &stid,
+	status = nfsd4_lookup_stateid(cstate, stateid, typemask, 0, &stid,
 			net_generic(SVC_NET(rqstp), nfsd_net_id));
 	if (status)
 		goto out;
@@ -286,7 +286,7 @@ nfsd4_preprocess_layout_stateid(struct svc_rqst *rqstp,
 		goto out_put_stid;
 	}
 
-	if (stid->sc_type != NFS4_LAYOUT_STID) {
+	if (stid->sc_type != SC_TYPE_LAYOUT) {
 		ls = nfsd4_alloc_layout_stateid(cstate, stid, layout_type);
 		nfs4_put_stid(stid);
 
@@ -518,7 +518,7 @@ nfsd4_return_file_layouts(struct svc_rqst *rqstp,
 		lrp->lrs_present = true;
 	} else {
 		trace_nfsd_layoutstate_unhash(&ls->ls_stid.sc_stateid);
-		nfs4_unhash_stid(&ls->ls_stid);
+		ls->ls_stid.sc_status |= SC_STATUS_CLOSED;
 		lrp->lrs_present = false;
 	}
 	spin_unlock(&ls->ls_lock);
