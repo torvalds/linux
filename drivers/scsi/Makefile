@@ -24,6 +24,8 @@ obj-$(CONFIG_SCSI_COMMON)	+= scsi_common.o
 
 obj-$(CONFIG_RAID_ATTRS)	+= raid_class.o
 
+obj-$(CONFIG_SCSI_PROTO_TEST)	+= scsi_proto_test.o
+
 # --- NOTE ORDERING HERE ---
 # For kernel non-modular link, transport attributes need to
 # be initialised before drivers
