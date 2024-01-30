@@ -23,8 +23,8 @@ static void test_ubsan_divrem_overflow(void)
 static void test_ubsan_shift_out_of_bounds(void)
 {
 	volatile int neg = -1, wrap = 4;
-	int val1 = 10;
-	int val2 = INT_MAX;
+	volatile int val1 = 10;
+	volatile int val2 = INT_MAX;
 
 	UBSAN_TEST(CONFIG_UBSAN_SHIFT, "negative exponent");
 	val1 <<= neg;
