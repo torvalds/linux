@@ -1090,7 +1090,7 @@ static int __init __damon_dbgfs_init(void)
 {
 	struct dentry *dbgfs_root;
 	const char * const file_names[] = {"mk_contexts", "rm_contexts",
-		"monitor_on", "DEPRECATED"};
+		"monitor_on_DEPRECATED", "DEPRECATED"};
 	const struct file_operations *fops[] = {&mk_contexts_fops,
 		&rm_contexts_fops, &monitor_on_fops, &deprecated_fops};
 	int i;
