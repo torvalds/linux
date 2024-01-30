@@ -100,6 +100,7 @@ log_test()
 	local rc=$1
 	local expected=$2
 	local msg="$3"
+	local ans
 
 	[ "${VERBOSE}" = "1" ] && echo
 
@@ -113,16 +114,16 @@ log_test()
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
-			read a
-			[ "$a" = "q" ] && exit 1
+			read ans
+			[ "$ans" = "q" ] && exit 1
 		fi
 	fi
 
 	if [ "${PAUSE}" = "yes" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
-		read a
-		[ "$a" = "q" ] && exit 1
+		read ans
+		[ "$ans" = "q" ] && exit 1
 	fi
 
 	kill_procs
