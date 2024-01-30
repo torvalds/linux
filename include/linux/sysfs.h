@@ -61,22 +61,32 @@ do {							\
 /**
  * struct attribute_group - data structure used to declare an attribute group.
  * @name:	Optional: Attribute group name
- *		If specified, the attribute group will be created in
- *		a new subdirectory with this name.
+ *		If specified, the attribute group will be created in a
+ *		new subdirectory with this name. Additionally when a
+ *		group is named, @is_visible and @is_bin_visible may
+ *		return SYSFS_GROUP_INVISIBLE to control visibility of
+ *		the directory itself.
  * @is_visible:	Optional: Function to return permissions associated with an
- *		attribute of the group. Will be called repeatedly for each
- *		non-binary attribute in the group. Only read/write
+ *		attribute of the group. Will be called repeatedly for
+ *		each non-binary attribute in the group. Only read/write
  *		permissions as well as SYSFS_PREALLOC are accepted. Must
- *		return 0 if an attribute is not visible. The returned value
- *		will replace static permissions defined in struct attribute.
+ *		return 0 if an attribute is not visible. The returned
+ *		value will replace static permissions defined in struct
+ *		attribute. Use SYSFS_GROUP_VISIBLE() when assigning this
+ *		callback to specify separate _group_visible() and
+ *		_attr_visible() handlers.
  * @is_bin_visible:
  *		Optional: Function to return permissions associated with a
  *		binary attribute of the group. Will be called repeatedly
  *		for each binary attribute in the group. Only read/write
- *		permissions as well as SYSFS_PREALLOC are accepted. Must
- *		return 0 if a binary attribute is not visible. The returned
- *		value will replace static permissions defined in
- *		struct bin_attribute.
+ *		permissions as well as SYSFS_PREALLOC (and the
+ *		visibility flags for named groups) are accepted. Must
+ *		return 0 if a binary attribute is not visible. The
+ *		returned value will replace static permissions defined
+ *		in struct bin_attribute. If @is_visible is not set, Use
+ *		SYSFS_GROUP_VISIBLE() when assigning this callback to
+ *		specify separate _group_visible() and _attr_visible()
+ *		handlers.
  * @attrs:	Pointer to NULL terminated list of attributes.
  * @bin_attrs:	Pointer to NULL terminated list of binary attributes.
  *		Either attrs or bin_attrs or both must be provided.
@@ -91,12 +101,41 @@ struct attribute_group {
 	struct bin_attribute	**bin_attrs;
 };
 
+#define SYSFS_PREALLOC		010000
+#define SYSFS_GROUP_INVISIBLE	020000
+
+/*
+ * The first call to is_visible() in the create / update path may
+ * indicate visibility for the entire group
+ */
+#define DEFINE_SYSFS_GROUP_VISIBLE(name)                             \
+	static inline umode_t sysfs_group_visible_##name(            \
+		struct kobject *kobj, struct attribute *attr, int n) \
+	{                                                            \
+		if (n == 0 && !name##_group_visible(kobj))           \
+			return SYSFS_GROUP_INVISIBLE;                \
+		return name##_attr_visible(kobj, attr, n);           \
+	}
+
+/*
+ * Same as DEFINE_SYSFS_GROUP_VISIBLE, but for groups with only binary
+ * attributes
+ */
+#define DEFINE_SYSFS_BIN_GROUP_VISIBLE(name)                             \
+	static inline umode_t sysfs_group_visible_##name(                \
+		struct kobject *kobj, struct bin_attribute *attr, int n) \
+	{                                                                \
+		if (n == 0 && !name##_group_visible(kobj))               \
+			return SYSFS_GROUP_INVISIBLE;                    \
+		return name##_attr_visible(kobj, attr, n);               \
+	}
+
+#define SYSFS_GROUP_VISIBLE(fn) sysfs_group_visible_##fn
+
 /*
  * Use these macros to make defining attributes easier.
  * See include/linux/device.h for examples..
  */
-
-#define SYSFS_PREALLOC 010000
 
 #define __ATTR(_name, _mode, _show, _store) {				\
 	.attr = {.name = __stringify(_name),				\
