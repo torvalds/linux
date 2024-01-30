@@ -263,6 +263,7 @@ enum nvme_ctrl_flags {
 struct nvme_ctrl {
 	bool comp_seen;
 	bool identified;
+	bool passthru_err_log_enabled;
 	enum nvme_ctrl_state state;
 	spinlock_t lock;
 	struct mutex scan_lock;
@@ -522,7 +523,7 @@ struct nvme_ns {
 	struct device		cdev_device;
 
 	struct nvme_fault_inject fault_inject;
-
+	bool			passthru_err_log_enabled;
 };
 
 /* NVMe ns supports metadata actions by the controller (generate/strip) */
