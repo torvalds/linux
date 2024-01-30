@@ -117,6 +117,15 @@ static void axp20x_usb_power_poll_vbus(struct work_struct *work)
 	if (val != power->old_status)
 		power_supply_changed(power->supply);
 
+	if (power->usb_bc_en_bit && (val & AXP20X_PWR_STATUS_VBUS_PRESENT) !=
+		(power->old_status & AXP20X_PWR_STATUS_VBUS_PRESENT)) {
+		dev_dbg(power->dev, "Cable status changed, re-enabling USB BC");
+		ret = regmap_field_write(power->usb_bc_en_bit, 1);
+		if (ret)
+			dev_err(power->dev, "failed to enable USB BC: errno %d",
+				ret);
+	}
+
 	power->old_status = val;
 	power->online = val & AXP20X_PWR_STATUS_VBUS_USED;
 
@@ -265,11 +274,25 @@ static int axp20x_usb_power_set_voltage_min(struct axp20x_usb_power *power,
 static int axp20x_usb_power_set_input_current_limit(struct axp20x_usb_power *power,
 						    int intval)
 {
+	int ret;
 	unsigned int reg;
 	const unsigned int max = power->axp_data->curr_lim_table_size;
 
 	if (intval == -1)
 		return -EINVAL;
+
+	/*
+	 * BC1.2 detection can cause a race condition if we try to set a current
+	 * limit while it's in progress. When it finishes it will overwrite the
+	 * current limit we just set.
+	 */
+	if (power->usb_bc_en_bit) {
+		dev_dbg(power->dev,
+			"disabling BC1.2 detection because current limit was set");
+		ret = regmap_field_write(power->usb_bc_en_bit, 0);
+		if (ret)
+			return ret;
+	}
 
 	for (reg = max - 1; reg > 0; reg--)
 		if (power->axp_data->curr_lim_table[reg] <= intval)
