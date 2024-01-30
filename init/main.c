@@ -99,6 +99,7 @@
 #include <linux/init_syscalls.h>
 #include <linux/stackdepot.h>
 #include <linux/randomize_kstack.h>
+#include <linux/ptdump.h>
 #include <net/net_namespace.h>
 
 #include <asm/io.h>
@@ -1408,6 +1409,7 @@ static void mark_readonly(void)
 		 */
 		rcu_barrier();
 		mark_rodata_ro();
+		debug_checkwx();
 		rodata_test();
 	} else
 		pr_info("Kernel memory protection disabled.\n");

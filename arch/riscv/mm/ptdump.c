@@ -9,7 +9,6 @@
 #include <linux/seq_file.h>
 #include <linux/ptdump.h>
 
-#include <asm/ptdump.h>
 #include <linux/pgtable.h>
 #include <asm/kasan.h>
 

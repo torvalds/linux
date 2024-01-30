@@ -433,6 +433,9 @@ void ptdump_walk_user_pgd_level_checkwx(void)
 
 void ptdump_walk_pgd_level_checkwx(void)
 {
+	if (!(__supported_pte_mask & _PAGE_NX))
+		return;
+
 	ptdump_walk_pgd_level_core(NULL, &init_mm, INIT_PGD, true, false);
 }
 

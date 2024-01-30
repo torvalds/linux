@@ -150,9 +150,6 @@ void mark_rodata_ro(void)
 		radix__mark_rodata_ro();
 	else
 		hash__mark_rodata_ro();
-
-	// mark_initmem_nx() should have already run by now
-	ptdump_check_wx();
 }
 
 void mark_initmem_nx(void)

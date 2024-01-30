@@ -19,5 +19,12 @@ struct ptdump_state {
 };
 
 void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm, pgd_t *pgd);
+void ptdump_check_wx(void);
+
+static inline void debug_checkwx(void)
+{
+	if (IS_ENABLED(CONFIG_DEBUG_WX))
+		ptdump_check_wx();
+}
 
 #endif /* _LINUX_PTDUMP_H */

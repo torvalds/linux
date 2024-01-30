@@ -6,7 +6,6 @@
 #include <linux/mm.h>
 #include <linux/kfence.h>
 #include <linux/kasan.h>
-#include <asm/ptdump.h>
 #include <asm/kasan.h>
 #include <asm/abs_lowcore.h>
 #include <asm/nospec-branch.h>

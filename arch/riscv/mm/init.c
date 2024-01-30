@@ -29,7 +29,6 @@
 #include <asm/io.h>
 #include <asm/numa.h>
 #include <asm/pgtable.h>
-#include <asm/ptdump.h>
 #include <asm/sections.h>
 #include <asm/soc.h>
 #include <asm/tlbflush.h>
@@ -723,8 +722,6 @@ void mark_rodata_ro(void)
 	if (IS_ENABLED(CONFIG_64BIT))
 		set_kernel_memory(lm_alias(__start_rodata), lm_alias(_data),
 				  set_memory_ro);
-
-	debug_checkwx();
 }
 #else
 static __init pgprot_t pgprot_from_va(uintptr_t va)

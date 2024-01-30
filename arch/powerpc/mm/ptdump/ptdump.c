@@ -343,6 +343,9 @@ void ptdump_check_wx(void)
 		}
 	};
 
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !mmu_has_feature(MMU_FTR_KERNEL_RO))
+		return;
+
 	ptdump_walk_pgd(&st.ptdump, &init_mm, NULL);
 
 	if (st.wx_pages)
