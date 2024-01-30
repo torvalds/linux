@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "Minidump: " fmt
@@ -24,7 +24,6 @@
 #include "elf.h"
 
 /* Protect elfheader and smem table from deferred calls contention */
-static DEFINE_SPINLOCK(mdt_lock);
 static DEFINE_RWLOCK(mdt_remove_lock);
 struct workqueue_struct *minidump_rm_wq;
 static bool md_init_done;
@@ -339,19 +338,33 @@ static int md_rm_remove_md_region(const struct md_region *entry)
 static int md_rm_add_md_region(const struct md_region *entry)
 {
 	int ret = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&mdt_lock, flags);
+
+	if (md_num_regions >= MAX_NUM_ENTRIES) {
+		printk_deferred("Maximum entries reached\n");
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	/* Ensure that init completes before register region */
 	if (smp_load_acquire(&md_init_done)) {
 		if (md_elf_entry_number(entry) >= 0) {
 			printk_deferred("Entry name already exist\n");
 			ret = -EEXIST;
-			return ret;
+			goto out;
 		}
 		ret = md_rm_add_region(entry);
 		md_rm_add_elf_header(entry);
 		if (ret)
-			return ret;
+			goto out;
 	}
+	ret = md_num_regions;
+	md_num_regions++;
+
+out:
+	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	return ret;
 }
