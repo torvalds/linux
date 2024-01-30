@@ -67,11 +67,10 @@ static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
  */
 static void rxrpc_set_keepalive(struct rxrpc_call *call)
 {
-	unsigned long now = jiffies, keepalive_at = call->next_rx_timo / 6;
+	unsigned long now = jiffies;
 
-	keepalive_at += now;
-	WRITE_ONCE(call->keepalive_at, keepalive_at);
-	rxrpc_reduce_call_timer(call, keepalive_at, now,
+	call->keepalive_at = now + call->next_rx_timo / 6;
+	rxrpc_reduce_call_timer(call, call->keepalive_at, now,
 				rxrpc_timer_set_for_keepalive);
 }
 
@@ -449,7 +448,7 @@ done:
 
 				ack_lost_at = rxrpc_get_rto_backoff(call->peer, false);
 				ack_lost_at += nowj;
-				WRITE_ONCE(call->ack_lost_at, ack_lost_at);
+				call->ack_lost_at = ack_lost_at;
 				rxrpc_reduce_call_timer(call, ack_lost_at, nowj,
 							rxrpc_timer_set_for_lost_ack);
 			}
@@ -458,11 +457,10 @@ done:
 		if (txb->seq == 1 &&
 		    !test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER,
 				      &call->flags)) {
-			unsigned long nowj = jiffies, expect_rx_by;
+			unsigned long nowj = jiffies;
 
-			expect_rx_by = nowj + call->next_rx_timo;
-			WRITE_ONCE(call->expect_rx_by, expect_rx_by);
-			rxrpc_reduce_call_timer(call, expect_rx_by, nowj,
+			call->expect_rx_by = nowj + call->next_rx_timo;
+			rxrpc_reduce_call_timer(call, call->expect_rx_by, nowj,
 						rxrpc_timer_set_for_normal);
 		}
 
@@ -724,7 +722,7 @@ void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 		unsigned long now = jiffies;
 		unsigned long resend_at = now + call->peer->rto_j;
 
-		WRITE_ONCE(call->resend_at, resend_at);
+		call->resend_at = resend_at;
 		rxrpc_reduce_call_timer(call, resend_at, now,
 					rxrpc_timer_set_for_send);
 	}

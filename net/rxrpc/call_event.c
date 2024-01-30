@@ -27,7 +27,7 @@ void rxrpc_propose_ping(struct rxrpc_call *call, u32 serial,
 	unsigned long ping_at = now + rxrpc_idle_ack_delay;
 
 	if (time_before(ping_at, call->ping_at)) {
-		WRITE_ONCE(call->ping_at, ping_at);
+		call->ping_at = ping_at;
 		rxrpc_reduce_call_timer(call, ping_at, now,
 					rxrpc_timer_set_for_ping);
 		trace_rxrpc_propose_ack(call, why, RXRPC_ACK_PING, serial);
@@ -53,7 +53,7 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t serial,
 	ack_at += READ_ONCE(call->tx_backoff);
 	ack_at += now;
 	if (time_before(ack_at, call->delay_ack_at)) {
-		WRITE_ONCE(call->delay_ack_at, ack_at);
+		call->delay_ack_at = ack_at;
 		rxrpc_reduce_call_timer(call, ack_at, now,
 					rxrpc_timer_set_for_ack);
 	}
@@ -220,7 +220,7 @@ no_resend:
 	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
 	resend_at += jiffies + rxrpc_get_rto_backoff(call->peer,
 						     !list_empty(&retrans_queue));
-	WRITE_ONCE(call->resend_at, resend_at);
+	call->resend_at = resend_at;
 
 	if (unacked)
 		rxrpc_congestion_timeout(call);
@@ -260,7 +260,7 @@ static void rxrpc_begin_service_reply(struct rxrpc_call *call)
 	unsigned long now = jiffies;
 
 	rxrpc_set_call_state(call, RXRPC_CALL_SERVER_SEND_REPLY);
-	WRITE_ONCE(call->delay_ack_at, now + MAX_JIFFY_OFFSET);
+	call->delay_ack_at = now + MAX_JIFFY_OFFSET;
 	if (call->ackr_reason == RXRPC_ACK_DELAY)
 		call->ackr_reason = 0;
 	trace_rxrpc_timer(call, rxrpc_timer_init_for_send_reply, now);
@@ -399,13 +399,13 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 
 	/* If we see our async-event poke, check for timeout trippage. */
 	now = jiffies;
-	t = READ_ONCE(call->expect_rx_by);
+	t = call->expect_rx_by;
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_normal, now);
 		expired = true;
 	}
 
-	t = READ_ONCE(call->expect_req_by);
+	t = call->expect_req_by;
 	if (__rxrpc_call_state(call) == RXRPC_CALL_SERVER_RECV_REQUEST &&
 	    time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_idle, now);
@@ -418,41 +418,41 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		expired = true;
 	}
 
-	t = READ_ONCE(call->delay_ack_at);
+	t = call->delay_ack_at;
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_ack, now);
-		cmpxchg(&call->delay_ack_at, t, now + MAX_JIFFY_OFFSET);
+		call->delay_ack_at = now + MAX_JIFFY_OFFSET;
 		rxrpc_send_ACK(call, RXRPC_ACK_DELAY, 0,
 			       rxrpc_propose_ack_ping_for_lost_ack);
 	}
 
-	t = READ_ONCE(call->ack_lost_at);
+	t = call->ack_lost_at;
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_lost_ack, now);
-		cmpxchg(&call->ack_lost_at, t, now + MAX_JIFFY_OFFSET);
+		call->ack_lost_at = now + MAX_JIFFY_OFFSET;
 		set_bit(RXRPC_CALL_EV_ACK_LOST, &call->events);
 	}
 
-	t = READ_ONCE(call->keepalive_at);
+	t = call->keepalive_at;
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_keepalive, now);
-		cmpxchg(&call->keepalive_at, t, now + MAX_JIFFY_OFFSET);
+		call->keepalive_at = now + MAX_JIFFY_OFFSET;
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_keepalive);
 	}
 
-	t = READ_ONCE(call->ping_at);
+	t = call->ping_at;
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_ping, now);
-		cmpxchg(&call->ping_at, t, now + MAX_JIFFY_OFFSET);
+		call->ping_at = now + MAX_JIFFY_OFFSET;
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_keepalive);
 	}
 
-	t = READ_ONCE(call->resend_at);
+	t = call->resend_at;
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_resend, now);
-		cmpxchg(&call->resend_at, t, now + MAX_JIFFY_OFFSET);
+		call->resend_at = now + MAX_JIFFY_OFFSET;
 		resend = true;
 	}
 

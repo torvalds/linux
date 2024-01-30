@@ -288,14 +288,12 @@ static void rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	unsigned long now, timo;
+	unsigned long now;
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
 	if (call->ackr_reason) {
 		now = jiffies;
-		timo = now + MAX_JIFFY_OFFSET;
-
-		WRITE_ONCE(call->delay_ack_at, timo);
+		call->delay_ack_at = now + MAX_JIFFY_OFFSET;
 		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, now);
 	}
 
@@ -594,7 +592,7 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 		if (timo) {
 			now = jiffies;
 			expect_req_by = now + timo;
-			WRITE_ONCE(call->expect_req_by, expect_req_by);
+			call->expect_req_by = now + timo;
 			rxrpc_reduce_call_timer(call, expect_req_by, now,
 						rxrpc_timer_set_for_idle);
 		}
@@ -1048,11 +1046,10 @@ void rxrpc_input_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 	timo = READ_ONCE(call->next_rx_timo);
 	if (timo) {
-		unsigned long now = jiffies, expect_rx_by;
+		unsigned long now = jiffies;
 
-		expect_rx_by = now + timo;
-		WRITE_ONCE(call->expect_rx_by, expect_rx_by);
-		rxrpc_reduce_call_timer(call, expect_rx_by, now,
+		call->expect_rx_by = now + timo;
+		rxrpc_reduce_call_timer(call, call->expect_rx_by, now,
 					rxrpc_timer_set_for_normal);
 	}
 
