@@ -2362,10 +2362,18 @@ static void __queue_delayed_work(int cpu, struct workqueue_struct *wq,
 	dwork->cpu = cpu;
 	timer->expires = jiffies + delay;
 
-	if (unlikely(cpu != WORK_CPU_UNBOUND))
+	if (housekeeping_enabled(HK_TYPE_TIMER)) {
+		/* If the current cpu is a housekeeping cpu, use it. */
+		cpu = smp_processor_id();
+		if (!housekeeping_test_cpu(cpu, HK_TYPE_TIMER))
+			cpu = housekeeping_any_cpu(HK_TYPE_TIMER);
 		add_timer_on(timer, cpu);
-	else
-		add_timer(timer);
+	} else {
+		if (likely(cpu == WORK_CPU_UNBOUND))
+			add_timer(timer);
+		else
+			add_timer_on(timer, cpu);
+	}
 }
 
 /**
