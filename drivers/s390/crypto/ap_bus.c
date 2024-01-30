@@ -104,8 +104,8 @@ debug_info_t *ap_dbf_info;
 static atomic64_t ap_scan_bus_count; /* counter ap_scan_bus() invocations */
 static int ap_scan_bus_time = AP_CONFIG_TIME;
 static struct timer_list ap_scan_bus_timer;
-static void ap_scan_bus(struct work_struct *);
-static DECLARE_WORK(ap_scan_bus_work, ap_scan_bus);
+static void ap_scan_bus_wq_callback(struct work_struct *);
+static DECLARE_WORK(ap_scan_bus_work, ap_scan_bus_wq_callback);
 
 /*
  * Tasklet & timer for AP request polling and interrupts
@@ -2179,12 +2179,13 @@ static bool ap_config_has_new_doms(void)
 
 /**
  * ap_scan_bus(): Scan the AP bus for new devices
- * Runs periodically, workqueue timer (ap_scan_bus_time)
- * @unused: Unused pointer.
+ * Returns true if any config change has been detected
+ * otherwise false.
  */
-static void ap_scan_bus(struct work_struct *unused)
+static bool ap_scan_bus(void)
 {
-	int ap, config_changed = 0;
+	bool config_changed;
+	int ap;
 
 	pr_debug(">%s\n", __func__);
 
@@ -2235,11 +2236,14 @@ static void ap_scan_bus(struct work_struct *unused)
 
 	mod_timer(&ap_scan_bus_timer, jiffies + ap_scan_bus_time * HZ);
 
-	pr_debug("<%s\n", __func__);
+	pr_debug("<%s config_changed=%d\n", __func__, config_changed);
+
+	return config_changed;
 }
 
 /*
  * Callback for the ap_scan_bus_timer
+ * Runs periodically, workqueue timer (ap_scan_bus_time)
  */
 static void ap_scan_bus_timer_callback(struct timer_list *unused)
 {
@@ -2248,6 +2252,15 @@ static void ap_scan_bus_timer_callback(struct timer_list *unused)
 	 * the work is finally executed, calls the AP bus scan.
 	 */
 	queue_work(system_long_wq, &ap_scan_bus_work);
+}
+
+/*
+ * Callback for the ap_scan_bus_work
+ */
+static void ap_scan_bus_wq_callback(struct work_struct *unused)
+{
+	/* now finally do the AP bus scan */
+	ap_scan_bus();
 }
 
 static int __init ap_debug_init(void)
