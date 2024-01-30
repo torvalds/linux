@@ -2296,7 +2296,11 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io)
 		 * irqs_disabled(): the kernel may run some IO completion from the idle thread, but
 		 * it is being executed with irqs disabled.
 		 */
-		if (!(in_hardirq() || irqs_disabled())) {
+		if (in_hardirq() || irqs_disabled()) {
+			INIT_WORK(&io->work, kcryptd_crypt);
+			queue_work(system_bh_wq, &io->work);
+			return;
+		} else {
 			kcryptd_crypt(&io->work);
 			return;
 		}
