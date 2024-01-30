@@ -57,7 +57,7 @@ int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg);
 
 void io_kbuf_mmap_list_free(struct io_ring_ctx *ctx);
 
-unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
+void __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
 
 bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
 
@@ -108,41 +108,54 @@ static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	return false;
 }
 
-static inline unsigned int __io_put_kbuf_list(struct io_kiocb *req,
-					      struct list_head *list)
+static inline void __io_put_kbuf_ring(struct io_kiocb *req)
 {
-	unsigned int ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	if (req->buf_list) {
+		req->buf_index = req->buf_list->bgid;
+		req->buf_list->head++;
+	}
+	req->flags &= ~REQ_F_BUFFER_RING;
+}
 
+static inline void __io_put_kbuf_list(struct io_kiocb *req,
+				      struct list_head *list)
+{
 	if (req->flags & REQ_F_BUFFER_RING) {
-		if (req->buf_list) {
-			req->buf_index = req->buf_list->bgid;
-			req->buf_list->head++;
-		}
-		req->flags &= ~REQ_F_BUFFER_RING;
+		__io_put_kbuf_ring(req);
 	} else {
 		req->buf_index = req->kbuf->bgid;
 		list_add(&req->kbuf->list, list);
 		req->flags &= ~REQ_F_BUFFER_SELECTED;
 	}
-
-	return ret;
 }
 
 static inline unsigned int io_put_kbuf_comp(struct io_kiocb *req)
 {
+	unsigned int ret;
+
 	lockdep_assert_held(&req->ctx->completion_lock);
 
 	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
 		return 0;
-	return __io_put_kbuf_list(req, &req->ctx->io_buffers_comp);
+
+	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	__io_put_kbuf_list(req, &req->ctx->io_buffers_comp);
+	return ret;
 }
 
 static inline unsigned int io_put_kbuf(struct io_kiocb *req,
 				       unsigned issue_flags)
 {
+	unsigned int ret;
 
-	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
+	if (!(req->flags & (REQ_F_BUFFER_RING | REQ_F_BUFFER_SELECTED)))
 		return 0;
-	return __io_put_kbuf(req, issue_flags);
+
+	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	if (req->flags & REQ_F_BUFFER_RING)
+		__io_put_kbuf_ring(req);
+	else
+		__io_put_kbuf(req, issue_flags);
+	return ret;
 }
 #endif
