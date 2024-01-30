@@ -1266,7 +1266,7 @@ void tctx_task_work(struct callback_head *cb)
 
 	node = llist_del_all(&tctx->task_list);
 	if (node)
-		count = handle_tw_list(node, &ctx, &ts);
+		count = handle_tw_list(llist_reverse_order(node), &ctx, &ts);
 
 	ctx_flush_and_put(ctx, &ts);
 
