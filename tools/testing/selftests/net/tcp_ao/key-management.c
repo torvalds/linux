@@ -843,7 +843,7 @@ static void end_server(const char *tst_name, int sk,
 	synchronize_threads(); /* 4: verified => closed */
 	close(sk);
 
-	verify_counters(tst_name, true, false, begin, &end);
+	verify_counters(tst_name, false, true, begin, &end);
 	synchronize_threads(); /* 5: counters */
 }
 
