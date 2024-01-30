@@ -156,7 +156,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 * we restart queueing before transmitting the SKB.  Otherwise
 	 * queueing will eventually be enabled after resume completes.
 	 */
-	ipa_power_modem_queue_stop(ipa);
+	netif_stop_queue(netdev);
 
 	dev = &ipa->pdev->dev;
 	ret = pm_runtime_get(dev);
