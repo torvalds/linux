@@ -227,26 +227,15 @@ void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
 	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
-/* The next two functions are used when stopping and starting the modem
- * network device transmit queue.
- *
- * Transmit can run concurrent with power resume.  When transmitting,
+/* Transmit can run concurrent with power resume.  When transmitting,
  * we disable further transmits until we can determine whether power
  * is ACTIVE.  If it is, future transmits are re-enabled and the buffer
  * gets sent (or dropped).  If power is not ACTIVE, it will eventually
- * be, and transmits stay disabled until after it is.
- *
- * The first function starts the transmit queue and is used in the power
- * resume path after power has become ACTIVE.  The second function also
- * enables transmits again, and is used by ipa_start_xmit() once it
- * knows power is active.
+ * be, and transmits stay disabled until after it is.  This function
+ * starts the transmit queue and is used in the power resume path after
+ * power has become ACTIVE.
  */
 void ipa_power_modem_queue_wake(struct ipa *ipa)
-{
-	netif_wake_queue(ipa->modem_netdev);
-}
-
-void ipa_power_modem_queue_active(struct ipa *ipa)
 {
 	netif_wake_queue(ipa->modem_netdev);
 }

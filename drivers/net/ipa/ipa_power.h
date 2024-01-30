@@ -30,12 +30,6 @@ u32 ipa_core_clock_rate(struct ipa *ipa);
 void ipa_power_modem_queue_wake(struct ipa *ipa);
 
 /**
- * ipa_power_modem_queue_active() - Report modem netdev TX queue active
- * @ipa:	IPA pointer
- */
-void ipa_power_modem_queue_active(struct ipa *ipa);
-
-/**
  * ipa_power_retention() - Control register retention on power collapse
  * @ipa:	IPA pointer
  * @enable:	Whether retention should be enabled or disabled

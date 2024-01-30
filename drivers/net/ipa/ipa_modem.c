@@ -163,7 +163,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (ret < 1) {
 		/* If a resume won't happen, just drop the packet */
 		if (ret < 0 && ret != -EINPROGRESS) {
-			ipa_power_modem_queue_active(ipa);
+			netif_wake_queue(netdev);
 			pm_runtime_put_noidle(dev);
 			goto err_drop_skb;
 		}
@@ -173,7 +173,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	ipa_power_modem_queue_active(ipa);
+	netif_wake_queue(netdev);
 
 	ret = ipa_endpoint_skb_tx(endpoint, skb);
 
