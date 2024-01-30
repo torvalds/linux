@@ -4,6 +4,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include <bpf/bpf_core_read.h>
+#include "bpf_kfuncs.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
@@ -18,9 +19,6 @@ int ifindex, ingress_ifindex;
 char name[IFNAMSIZ];
 unsigned int inum;
 unsigned int meta_len, frag0_len, kskb_len, kskb2_len;
-
-void *bpf_cast_to_kern_ctx(void *) __ksym;
-void *bpf_rdonly_cast(void *, __u32) __ksym;
 
 SEC("?xdp")
 int md_xdp(struct xdp_md *ctx)

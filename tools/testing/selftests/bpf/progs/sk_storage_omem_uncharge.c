@@ -12,8 +12,6 @@ int cookie_found = 0;
 __u64 cookie = 0;
 __u32 omem = 0;
 
-void *bpf_rdonly_cast(void *, __u32) __ksym;
-
 struct {
 	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
 	__uint(map_flags, BPF_F_NO_PREALLOC);
