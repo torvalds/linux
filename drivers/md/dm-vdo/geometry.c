@@ -52,18 +52,15 @@
  * chapter it was moved to.
  */
 
-int uds_make_geometry(size_t bytes_per_page,
-		      u32 record_pages_per_chapter,
-		      u32 chapters_per_volume,
-		      u32 sparse_chapters_per_volume,
-		      u64 remapped_virtual,
-		      u64 remapped_physical,
-		      struct geometry **geometry_ptr)
+int uds_make_index_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
+			    u32 chapters_per_volume, u32 sparse_chapters_per_volume,
+			    u64 remapped_virtual, u64 remapped_physical,
+			    struct index_geometry **geometry_ptr)
 {
 	int result;
-	struct geometry *geometry;
+	struct index_geometry *geometry;
 
-	result = uds_allocate(1, struct geometry, "geometry", &geometry);
+	result = uds_allocate(1, struct index_geometry, "geometry", &geometry);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -110,27 +107,28 @@ int uds_make_geometry(size_t bytes_per_page,
 	return UDS_SUCCESS;
 }
 
-int uds_copy_geometry(struct geometry *source, struct geometry **geometry_ptr)
+int uds_copy_index_geometry(struct index_geometry *source,
+			    struct index_geometry **geometry_ptr)
 {
-	return uds_make_geometry(source->bytes_per_page,
-				 source->record_pages_per_chapter,
-				 source->chapters_per_volume,
-				 source->sparse_chapters_per_volume,
-				 source->remapped_virtual, source->remapped_physical,
-				 geometry_ptr);
+	return uds_make_index_geometry(source->bytes_per_page,
+				       source->record_pages_per_chapter,
+				       source->chapters_per_volume,
+				       source->sparse_chapters_per_volume,
+				       source->remapped_virtual, source->remapped_physical,
+				       geometry_ptr);
 }
 
-void uds_free_geometry(struct geometry *geometry)
+void uds_free_index_geometry(struct index_geometry *geometry)
 {
 	uds_free(geometry);
 }
 
-u32 __must_check uds_map_to_physical_chapter(const struct geometry *geometry,
+u32 __must_check uds_map_to_physical_chapter(const struct index_geometry *geometry,
 					     u64 virtual_chapter)
 {
 	u64 delta;
 
-	if (!uds_is_reduced_geometry(geometry))
+	if (!uds_is_reduced_index_geometry(geometry))
 		return virtual_chapter % geometry->chapters_per_volume;
 
 	if (likely(virtual_chapter > geometry->remapped_virtual)) {
@@ -153,25 +151,26 @@ u32 __must_check uds_map_to_physical_chapter(const struct geometry *geometry,
 }
 
 /* Check whether any sparse chapters are in use. */
-bool uds_has_sparse_chapters(const struct geometry *geometry, u64 oldest_virtual_chapter,
-			     u64 newest_virtual_chapter)
+bool uds_has_sparse_chapters(const struct index_geometry *geometry,
+			     u64 oldest_virtual_chapter, u64 newest_virtual_chapter)
 {
-	return uds_is_sparse_geometry(geometry) &&
-	       ((newest_virtual_chapter - oldest_virtual_chapter + 1) >
-		geometry->dense_chapters_per_volume);
+	return uds_is_sparse_index_geometry(geometry) &&
+		((newest_virtual_chapter - oldest_virtual_chapter + 1) >
+		 geometry->dense_chapters_per_volume);
 }
 
-bool uds_is_chapter_sparse(const struct geometry *geometry, u64 oldest_virtual_chapter,
-			   u64 newest_virtual_chapter, u64 virtual_chapter_number)
+bool uds_is_chapter_sparse(const struct index_geometry *geometry,
+			   u64 oldest_virtual_chapter, u64 newest_virtual_chapter,
+			   u64 virtual_chapter_number)
 {
 	return uds_has_sparse_chapters(geometry, oldest_virtual_chapter,
 				       newest_virtual_chapter) &&
-	       ((virtual_chapter_number + geometry->dense_chapters_per_volume) <=
-		newest_virtual_chapter);
+		((virtual_chapter_number + geometry->dense_chapters_per_volume) <=
+		 newest_virtual_chapter);
 }
 
 /* Calculate how many chapters to expire after opening the newest chapter. */
-u32 uds_chapters_to_expire(const struct geometry *geometry, u64 newest_chapter)
+u32 uds_chapters_to_expire(const struct index_geometry *geometry, u64 newest_chapter)
 {
 	/* If the index isn't full yet, don't expire anything. */
 	if (newest_chapter < geometry->chapters_per_volume)

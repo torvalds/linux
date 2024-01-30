@@ -43,7 +43,7 @@ static inline u32 uds_extract_sampling_bytes(const struct uds_record_name *name)
 
 /* Compute the chapter delta list for a given name. */
 static inline u32 uds_hash_to_chapter_delta_list(const struct uds_record_name *name,
-						 const struct geometry *geometry)
+						 const struct index_geometry *geometry)
 {
 	return ((uds_extract_chapter_index_bytes(name) >> geometry->chapter_address_bits) &
 		((1 << geometry->chapter_delta_list_bits) - 1));
@@ -51,7 +51,7 @@ static inline u32 uds_hash_to_chapter_delta_list(const struct uds_record_name *n
 
 /* Compute the chapter delta address for a given name. */
 static inline u32 uds_hash_to_chapter_delta_address(const struct uds_record_name *name,
-						    const struct geometry *geometry)
+						    const struct index_geometry *geometry)
 {
 	return uds_extract_chapter_index_bytes(name) & ((1 << geometry->chapter_address_bits) - 1);
 }

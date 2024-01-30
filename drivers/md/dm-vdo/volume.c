@@ -84,22 +84,22 @@ union invalidate_counter {
 	};
 };
 
-static inline u32 map_to_page_number(struct geometry *geometry, u32 physical_page)
+static inline u32 map_to_page_number(struct index_geometry *geometry, u32 physical_page)
 {
 	return (physical_page - HEADER_PAGES_PER_VOLUME) % geometry->pages_per_chapter;
 }
 
-static inline u32 map_to_chapter_number(struct geometry *geometry, u32 physical_page)
+static inline u32 map_to_chapter_number(struct index_geometry *geometry, u32 physical_page)
 {
 	return (physical_page - HEADER_PAGES_PER_VOLUME) / geometry->pages_per_chapter;
 }
 
-static inline bool is_record_page(struct geometry *geometry, u32 physical_page)
+static inline bool is_record_page(struct index_geometry *geometry, u32 physical_page)
 {
 	return map_to_page_number(geometry, physical_page) >= geometry->index_pages_per_chapter;
 }
 
-static u32 map_to_physical_page(const struct geometry *geometry, u32 chapter, u32 page)
+static u32 map_to_physical_page(const struct index_geometry *geometry, u32 chapter, u32 page)
 {
 	/* Page zero is the header page, so the first chapter index page is page one. */
 	return HEADER_PAGES_PER_VOLUME + (geometry->pages_per_chapter * chapter) + page;
@@ -423,7 +423,7 @@ static int init_chapter_index_page(const struct volume *volume, u8 *index_page,
 	u32 ci_chapter;
 	u32 lowest_list;
 	u32 highest_list;
-	struct geometry *geometry = volume->geometry;
+	struct index_geometry *geometry = volume->geometry;
 	int result;
 
 	result = uds_initialize_chapter_index_page(chapter_index_page, geometry,
@@ -469,7 +469,7 @@ static int initialize_index_page(const struct volume *volume, u32 physical_page,
 
 static bool search_record_page(const u8 record_page[],
 			       const struct uds_record_name *name,
-			       const struct geometry *geometry,
+			       const struct index_geometry *geometry,
 			       struct uds_record_data *metadata)
 {
 	/*
@@ -882,7 +882,7 @@ int uds_search_cached_record_page(struct volume *volume, struct uds_request *req
 				  u32 chapter, u16 record_page_number, bool *found)
 {
 	struct cached_page *record_page;
-	struct geometry *geometry = volume->geometry;
+	struct index_geometry *geometry = volume->geometry;
 	int result;
 	u32 physical_page, page_number;
 
@@ -924,7 +924,7 @@ int uds_search_cached_record_page(struct volume *volume, struct uds_request *req
 
 void uds_prefetch_volume_chapter(const struct volume *volume, u32 chapter)
 {
-	const struct geometry *geometry = volume->geometry;
+	const struct index_geometry *geometry = volume->geometry;
 	u32 physical_page = map_to_physical_page(geometry, chapter, 0);
 
 	dm_bufio_prefetch(volume->client, physical_page, geometry->pages_per_chapter);
@@ -936,7 +936,7 @@ int uds_read_chapter_index_from_volume(const struct volume *volume, u64 virtual_
 {
 	int result;
 	u32 i;
-	const struct geometry *geometry = volume->geometry;
+	const struct index_geometry *geometry = volume->geometry;
 	u32 physical_chapter = uds_map_to_physical_chapter(geometry, virtual_chapter);
 	u32 physical_page = map_to_physical_page(geometry, physical_chapter, 0);
 
@@ -995,7 +995,7 @@ int uds_search_volume_page_cache_for_rebuild(struct volume *volume,
 					     u64 virtual_chapter, bool *found)
 {
 	int result;
-	struct geometry *geometry = volume->geometry;
+	struct index_geometry *geometry = volume->geometry;
 	struct cached_page *page;
 	u32 physical_chapter = uds_map_to_physical_chapter(geometry, virtual_chapter);
 	u32 index_page_number;
@@ -1096,7 +1096,7 @@ static int donate_index_page_locked(struct volume *volume, u32 physical_chapter,
 static int write_index_pages(struct volume *volume, u32 physical_chapter_number,
 			     struct open_chapter_index *chapter_index)
 {
-	struct geometry *geometry = volume->geometry;
+	struct index_geometry *geometry = volume->geometry;
 	struct dm_buffer *page_buffer;
 	u32 first_index_page = map_to_physical_page(geometry, physical_chapter_number, 0);
 	u32 delta_list_number = 0;
@@ -1207,7 +1207,7 @@ static int write_record_pages(struct volume *volume, u32 physical_chapter_number
 			      const struct uds_volume_record *records)
 {
 	u32 record_page_number;
-	struct geometry *geometry = volume->geometry;
+	struct index_geometry *geometry = volume->geometry;
 	struct dm_buffer *page_buffer;
 	const struct uds_volume_record *next_record = records;
 	u32 first_record_page = map_to_physical_page(geometry, physical_chapter_number,
@@ -1268,7 +1268,7 @@ int uds_write_chapter(struct volume *volume, struct open_chapter_index *chapter_
 static void probe_chapter(struct volume *volume, u32 chapter_number,
 			  u64 *virtual_chapter_number)
 {
-	const struct geometry *geometry = volume->geometry;
+	const struct index_geometry *geometry = volume->geometry;
 	u32 expected_list_number = 0;
 	u32 i;
 	u64 vcn = BAD_CHAPTER;
@@ -1352,7 +1352,7 @@ static void find_real_end_of_volume(struct volume *volume, u32 limit, u32 *limit
 static int find_chapter_limits(struct volume *volume, u32 chapter_limit, u64 *lowest_vcn,
 			       u64 *highest_vcn)
 {
-	struct geometry *geometry = volume->geometry;
+	struct index_geometry *geometry = volume->geometry;
 	u64 zero_vcn;
 	u64 lowest = BAD_CHAPTER;
 	u64 highest = BAD_CHAPTER;
@@ -1490,7 +1490,7 @@ int __must_check uds_replace_volume_storage(struct volume *volume,
 }
 
 static int __must_check initialize_page_cache(struct page_cache *cache,
-					      const struct geometry *geometry,
+					      const struct index_geometry *geometry,
 					      u32 chapters_in_cache,
 					      unsigned int zone_count)
 {
@@ -1543,7 +1543,7 @@ int uds_make_volume(const struct configuration *config, struct index_layout *lay
 {
 	unsigned int i;
 	struct volume *volume = NULL;
-	struct geometry *geometry;
+	struct index_geometry *geometry;
 	unsigned int reserved_buffers;
 	int result;
 
@@ -1553,7 +1553,7 @@ int uds_make_volume(const struct configuration *config, struct index_layout *lay
 
 	volume->nonce = uds_get_volume_nonce(layout);
 
-	result = uds_copy_geometry(config->geometry, &volume->geometry);
+	result = uds_copy_index_geometry(config->geometry, &volume->geometry);
 	if (result != UDS_SUCCESS) {
 		uds_free_volume(volume);
 		return uds_log_warning_strerror(result,
@@ -1567,7 +1567,7 @@ int uds_make_volume(const struct configuration *config, struct index_layout *lay
 	 */
 	reserved_buffers = config->cache_chapters * geometry->record_pages_per_chapter;
 	reserved_buffers += 1;
-	if (uds_is_sparse_geometry(geometry))
+	if (uds_is_sparse_index_geometry(geometry))
 		reserved_buffers += (config->cache_chapters * geometry->index_pages_per_chapter);
 	volume->reserved_buffers = reserved_buffers;
 	result = uds_open_volume_bufio(layout, geometry->bytes_per_page,
@@ -1592,7 +1592,7 @@ int uds_make_volume(const struct configuration *config, struct index_layout *lay
 		return result;
 	}
 
-	if (uds_is_sparse_geometry(geometry)) {
+	if (uds_is_sparse_index_geometry(geometry)) {
 		size_t page_size = sizeof(struct delta_index_page) + geometry->bytes_per_page;
 
 		result = uds_make_sparse_cache(geometry, config->cache_chapters,

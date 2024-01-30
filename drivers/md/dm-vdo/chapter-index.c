@@ -13,7 +13,7 @@
 #include "uds.h"
 
 int uds_make_open_chapter_index(struct open_chapter_index **chapter_index,
-				const struct geometry *geometry, u64 volume_nonce)
+				const struct index_geometry *geometry, u64 volume_nonce)
 {
 	int result;
 	size_t memory_size;
@@ -79,7 +79,7 @@ int uds_put_open_chapter_index_record(struct open_chapter_index *chapter_index,
 	u32 list_number;
 	const u8 *found_name;
 	bool found;
-	const struct geometry *geometry = chapter_index->geometry;
+	const struct index_geometry *geometry = chapter_index->geometry;
 	u64 chapter_number = chapter_index->virtual_chapter_number;
 	u32 record_pages = geometry->record_pages_per_chapter;
 
@@ -128,7 +128,7 @@ int uds_pack_open_chapter_index_page(struct open_chapter_index *chapter_index,
 	struct delta_index_stats stats;
 	u64 nonce = chapter_index->volume_nonce;
 	u64 chapter_number = chapter_index->virtual_chapter_number;
-	const struct geometry *geometry = chapter_index->geometry;
+	const struct index_geometry *geometry = chapter_index->geometry;
 	u32 list_count = geometry->delta_lists_per_chapter;
 	unsigned int removals = 0;
 	struct delta_index_entry entry;
@@ -206,8 +206,8 @@ int uds_pack_open_chapter_index_page(struct open_chapter_index *chapter_index,
 
 /* Make a new chapter index page, initializing it with the data from a given index_page buffer. */
 int uds_initialize_chapter_index_page(struct delta_index_page *index_page,
-				      const struct geometry *geometry, u8 *page_buffer,
-				      u64 volume_nonce)
+				      const struct index_geometry *geometry,
+				      u8 *page_buffer, u64 volume_nonce)
 {
 	return uds_initialize_delta_index_page(index_page, volume_nonce,
 					       geometry->chapter_mean_delta,
@@ -217,7 +217,7 @@ int uds_initialize_chapter_index_page(struct delta_index_page *index_page,
 
 /* Validate a chapter index page read during rebuild. */
 int uds_validate_chapter_index_page(const struct delta_index_page *index_page,
-				    const struct geometry *geometry)
+				    const struct index_geometry *geometry)
 {
 	int result;
 	const struct delta_index *delta_index = &index_page->delta_index;
@@ -266,7 +266,7 @@ int uds_validate_chapter_index_page(const struct delta_index_page *index_page,
  * the name.
  */
 int uds_search_chapter_index_page(struct delta_index_page *index_page,
-				  const struct geometry *geometry,
+				  const struct index_geometry *geometry,
 				  const struct uds_record_name *name,
 				  u16 *record_page_ptr)
 {

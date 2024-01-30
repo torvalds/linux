@@ -37,7 +37,7 @@ struct configuration {
 	/* Parameters for the volume */
 
 	/* The volume layout */
-	struct geometry *geometry;
+	struct index_geometry *geometry;
 
 	/* Index owner's nonce */
 	u64 nonce;

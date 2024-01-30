@@ -16,13 +16,13 @@
  */
 
 struct index_page_map {
-	const struct geometry *geometry;
+	const struct index_geometry *geometry;
 	u64 last_update;
 	u32 entries_per_chapter;
 	u16 *entries;
 };
 
-int __must_check uds_make_index_page_map(const struct geometry *geometry,
+int __must_check uds_make_index_page_map(const struct index_geometry *geometry,
 					 struct index_page_map **map_ptr);
 
 void uds_free_index_page_map(struct index_page_map *map);
@@ -45,6 +45,6 @@ void uds_get_list_number_bounds(const struct index_page_map *map, u32 chapter_nu
 				u32 index_page_number, u32 *lowest_list,
 				u32 *highest_list);
 
-u64 uds_compute_index_page_map_save_size(const struct geometry *geometry);
+u64 uds_compute_index_page_map_save_size(const struct index_geometry *geometry);
 
 #endif /* UDS_INDEX_PAGE_MAP_H */

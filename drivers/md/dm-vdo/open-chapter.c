@@ -61,7 +61,7 @@ static inline size_t slots_size(size_t slot_count)
 	return sizeof(struct open_chapter_zone_slot) * slot_count;
 }
 
-int uds_make_open_chapter(const struct geometry *geometry, unsigned int zone_count,
+int uds_make_open_chapter(const struct index_geometry *geometry, unsigned int zone_count,
 			  struct open_chapter_zone **open_chapter_ptr)
 {
 	int result;
@@ -346,7 +346,7 @@ int uds_save_open_chapter(struct uds_index *index, struct buffered_writer *write
 	return uds_flush_buffered_writer(writer);
 }
 
-u64 uds_compute_saved_open_chapter_size(struct geometry *geometry)
+u64 uds_compute_saved_open_chapter_size(struct index_geometry *geometry)
 {
 	unsigned int records_per_chapter = geometry->records_per_chapter;
 

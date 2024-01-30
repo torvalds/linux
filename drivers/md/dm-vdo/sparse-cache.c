@@ -142,7 +142,7 @@ struct search_list {
 };
 
 struct sparse_cache {
-	const struct geometry *geometry;
+	const struct index_geometry *geometry;
 	unsigned int capacity;
 	unsigned int zone_count;
 
@@ -157,7 +157,7 @@ struct sparse_cache {
 };
 
 static int __must_check initialize_cached_chapter_index(struct cached_chapter_index *chapter,
-							const struct geometry *geometry)
+							const struct index_geometry *geometry)
 {
 	int result;
 
@@ -197,7 +197,7 @@ static int __must_check make_search_list(struct sparse_cache *cache,
 	return UDS_SUCCESS;
 }
 
-int uds_make_sparse_cache(const struct geometry *geometry, unsigned int capacity,
+int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int capacity,
 			  unsigned int zone_count, struct sparse_cache **cache_ptr)
 {
 	int result;
@@ -512,7 +512,7 @@ static inline bool should_skip_chapter(struct cached_chapter_index *chapter,
 }
 
 static int __must_check search_cached_chapter_index(struct cached_chapter_index *chapter,
-						    const struct geometry *geometry,
+						    const struct index_geometry *geometry,
 						    const struct index_page_map *index_page_map,
 						    const struct uds_record_name *name,
 						    u16 *record_page_ptr)

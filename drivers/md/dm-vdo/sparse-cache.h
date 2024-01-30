@@ -26,7 +26,7 @@
 struct index_zone;
 struct sparse_cache;
 
-int __must_check uds_make_sparse_cache(const struct geometry *geometry,
+int __must_check uds_make_sparse_cache(const struct index_geometry *geometry,
 				       unsigned int capacity, unsigned int zone_count,
 				       struct sparse_cache **cache_ptr);
 

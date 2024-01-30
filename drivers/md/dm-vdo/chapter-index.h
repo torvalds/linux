@@ -24,7 +24,7 @@ enum {
 };
 
 struct open_chapter_index {
-	const struct geometry *geometry;
+	const struct index_geometry *geometry;
 	struct delta_index delta_index;
 	u64 virtual_chapter_number;
 	u64 volume_nonce;
@@ -32,7 +32,7 @@ struct open_chapter_index {
 };
 
 int __must_check uds_make_open_chapter_index(struct open_chapter_index **chapter_index,
-					     const struct geometry *geometry,
+					     const struct index_geometry *geometry,
 					     u64 volume_nonce);
 
 void uds_free_open_chapter_index(struct open_chapter_index *chapter_index);
@@ -49,14 +49,14 @@ int __must_check uds_pack_open_chapter_index_page(struct open_chapter_index *cha
 						  bool last_page, u32 *lists_packed);
 
 int __must_check uds_initialize_chapter_index_page(struct delta_index_page *index_page,
-						   const struct geometry *geometry,
+						   const struct index_geometry *geometry,
 						   u8 *page_buffer, u64 volume_nonce);
 
 int __must_check uds_validate_chapter_index_page(const struct delta_index_page *index_page,
-						 const struct geometry *geometry);
+						 const struct index_geometry *geometry);
 
 int __must_check uds_search_chapter_index_page(struct delta_index_page *index_page,
-					       const struct geometry *geometry,
+					       const struct index_geometry *geometry,
 					       const struct uds_record_name *name,
 					       u16 *record_page_ptr);
 

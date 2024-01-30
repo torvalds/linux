@@ -81,11 +81,11 @@ struct sub_index_parameters {
 struct split_config {
 	/* The hook subindex configuration */
 	struct configuration hook_config;
-	struct geometry hook_geometry;
+	struct index_geometry hook_geometry;
 
 	/* The non-hook subindex configuration */
 	struct configuration non_hook_config;
-	struct geometry non_hook_geometry;
+	struct index_geometry non_hook_geometry;
 };
 
 struct chapter_range {
@@ -204,7 +204,7 @@ static int compute_volume_sub_index_parameters(const struct configuration *confi
 	u64 index_size_in_bits;
 	size_t expected_index_size;
 	u64 min_delta_lists = MAX_ZONES * MAX_ZONES;
-	struct geometry *geometry = config->geometry;
+	struct index_geometry *geometry = config->geometry;
 	u64 records_per_chapter = geometry->records_per_chapter;
 
 	params->chapter_count = geometry->chapters_per_volume;
@@ -214,7 +214,7 @@ static int compute_volume_sub_index_parameters(const struct configuration *confi
 	 * index delta list.
 	 */
 	rounded_chapters = params->chapter_count;
-	if (uds_is_reduced_geometry(geometry))
+	if (uds_is_reduced_index_geometry(geometry))
 		rounded_chapters += 1;
 	delta_list_records = records_per_chapter * rounded_chapters;
 	address_count = config->volume_index_mean_delta * DELTA_LIST_SIZE;
@@ -353,7 +353,7 @@ static int compute_volume_index_save_bytes(const struct configuration *config,
 	struct split_config split;
 	int result;
 
-	if (!uds_is_sparse_geometry(config->geometry))
+	if (!uds_is_sparse_index_geometry(config->geometry))
 		return compute_volume_sub_index_save_bytes(config, bytes);
 
 	split_configuration(config, &split);
@@ -1236,7 +1236,7 @@ int uds_make_volume_index(const struct configuration *config, u64 volume_nonce,
 
 	volume_index->zone_count = config->zone_count;
 
-	if (!uds_is_sparse_geometry(config->geometry)) {
+	if (!uds_is_sparse_index_geometry(config->geometry)) {
 		result = initialize_volume_sub_index(config, volume_nonce, 'm',
 						     &volume_index->vi_non_hook);
 		if (result != UDS_SUCCESS) {

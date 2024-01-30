@@ -226,7 +226,7 @@ static int __must_check compute_sizes(const struct configuration *config,
 				      struct save_layout_sizes *sls)
 {
 	int result;
-	struct geometry *geometry = config->geometry;
+	struct index_geometry *geometry = config->geometry;
 
 	memset(sls, 0, sizeof(*sls));
 	sls->save_count = MAX_SAVES;

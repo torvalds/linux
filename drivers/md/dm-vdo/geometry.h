@@ -3,18 +3,18 @@
  * Copyright 2023 Red Hat
  */
 
-#ifndef UDS_GEOMETRY_H
-#define UDS_GEOMETRY_H
+#ifndef UDS_INDEX_GEOMETRY_H
+#define UDS_INDEX_GEOMETRY_H
 
 #include "uds.h"
 
 /*
- * The geometry records parameters that define the layout of a UDS index volume, and the size and
+ * The index_geometry records parameters that define the layout of a UDS index volume, and the size and
  * shape of various index structures. It is created when the index is created, and is referenced by
  * many index sub-components.
  */
 
-struct geometry {
+struct index_geometry {
 	/* Size of a chapter page, in bytes */
 	size_t bytes_per_page;
 	/* Number of record pages in a chapter */
@@ -95,44 +95,46 @@ enum {
 	HEADER_PAGES_PER_VOLUME = 1,
 };
 
-int __must_check uds_make_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
-				   u32 chapters_per_volume,
-				   u32 sparse_chapters_per_volume, u64 remapped_virtual,
-				   u64 remapped_physical,
-				   struct geometry **geometry_ptr);
+int __must_check uds_make_index_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
+					 u32 chapters_per_volume,
+					 u32 sparse_chapters_per_volume, u64 remapped_virtual,
+					 u64 remapped_physical,
+					 struct index_geometry **geometry_ptr);
 
-int __must_check uds_copy_geometry(struct geometry *source,
-				   struct geometry **geometry_ptr);
+int __must_check uds_copy_index_geometry(struct index_geometry *source,
+					 struct index_geometry **geometry_ptr);
 
-void uds_free_geometry(struct geometry *geometry);
+void uds_free_index_geometry(struct index_geometry *geometry);
 
-u32 __must_check uds_map_to_physical_chapter(const struct geometry *geometry,
+u32 __must_check uds_map_to_physical_chapter(const struct index_geometry *geometry,
 					     u64 virtual_chapter);
 
 /*
  * Check whether this geometry is reduced by a chapter. This will only be true if the volume was
  * converted from a non-lvm volume to an lvm volume.
  */
-static inline bool __must_check uds_is_reduced_geometry(const struct geometry *geometry)
+static inline bool __must_check
+uds_is_reduced_index_geometry(const struct index_geometry *geometry)
 {
 	return !!(geometry->chapters_per_volume & 1);
 }
 
-static inline bool __must_check uds_is_sparse_geometry(const struct geometry *geometry)
+static inline bool __must_check
+uds_is_sparse_index_geometry(const struct index_geometry *geometry)
 {
 	return geometry->sparse_chapters_per_volume > 0;
 }
 
-bool __must_check uds_has_sparse_chapters(const struct geometry *geometry,
+bool __must_check uds_has_sparse_chapters(const struct index_geometry *geometry,
 					  u64 oldest_virtual_chapter,
 					  u64 newest_virtual_chapter);
 
-bool __must_check uds_is_chapter_sparse(const struct geometry *geometry,
+bool __must_check uds_is_chapter_sparse(const struct index_geometry *geometry,
 					u64 oldest_virtual_chapter,
 					u64 newest_virtual_chapter,
 					u64 virtual_chapter_number);
 
-u32 __must_check uds_chapters_to_expire(const struct geometry *geometry,
+u32 __must_check uds_chapters_to_expire(const struct index_geometry *geometry,
 					u64 newest_chapter);
 
-#endif /* UDS_GEOMETRY_H */
+#endif /* UDS_INDEX_GEOMETRY_H */

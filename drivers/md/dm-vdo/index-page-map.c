@@ -28,12 +28,12 @@ enum {
 	PAGE_MAP_MAGIC_LENGTH = sizeof(PAGE_MAP_MAGIC) - 1,
 };
 
-static inline u32 get_entry_count(const struct geometry *geometry)
+static inline u32 get_entry_count(const struct index_geometry *geometry)
 {
 	return geometry->chapters_per_volume * (geometry->index_pages_per_chapter - 1);
 }
 
-int uds_make_index_page_map(const struct geometry *geometry,
+int uds_make_index_page_map(const struct index_geometry *geometry,
 			    struct index_page_map **map_ptr)
 {
 	int result;
@@ -106,7 +106,7 @@ void uds_get_list_number_bounds(const struct index_page_map *map, u32 chapter_nu
 			 map->geometry->delta_lists_per_chapter - 1);
 }
 
-u64 uds_compute_index_page_map_save_size(const struct geometry *geometry)
+u64 uds_compute_index_page_map_save_size(const struct index_geometry *geometry)
 {
 	return PAGE_MAP_MAGIC_LENGTH + sizeof(u64) + sizeof(u16) * get_entry_count(geometry);
 }

@@ -153,7 +153,7 @@ static int simulate_index_zone_barrier_message(struct index_zone *zone,
 	u64 sparse_virtual_chapter;
 
 	if ((zone->index->zone_count > 1) ||
-	    !uds_is_sparse_geometry(zone->index->volume->geometry))
+	    !uds_is_sparse_index_geometry(zone->index->volume->geometry))
 		return UDS_SUCCESS;
 
 	sparse_virtual_chapter = triage_index_request(zone->index, request);
@@ -472,7 +472,7 @@ static int search_index_zone(struct index_zone *zone, struct uds_request *reques
 			found = true;
 		} else if (request->location == UDS_LOCATION_UNAVAILABLE) {
 			found = false;
-		} else if (uds_is_sparse_geometry(zone->index->volume->geometry) &&
+		} else if (uds_is_sparse_index_geometry(zone->index->volume->geometry) &&
 			   !uds_is_volume_index_sample(zone->index->volume_index,
 						       &request->record_name)) {
 			result = search_sparse_cache_in_zone(zone, request, NO_CHAPTER,
@@ -647,7 +647,7 @@ static void execute_zone_request(struct uds_request *request)
 }
 
 static int initialize_index_queues(struct uds_index *index,
-				   const struct geometry *geometry)
+				   const struct index_geometry *geometry)
 {
 	int result;
 	unsigned int i;
@@ -660,7 +660,7 @@ static int initialize_index_queues(struct uds_index *index,
 	}
 
 	/* The triage queue is only needed for sparse multi-zone indexes. */
-	if ((index->zone_count > 1) && uds_is_sparse_geometry(geometry)) {
+	if ((index->zone_count > 1) && uds_is_sparse_index_geometry(geometry)) {
 		result = uds_make_request_queue("triageW", &triage_request,
 						&index->triage_queue);
 		if (result != UDS_SUCCESS)
@@ -840,7 +840,7 @@ static int rebuild_index_page_map(struct uds_index *index, u64 vcn)
 {
 	int result;
 	struct delta_index_page *chapter_index_page;
-	struct geometry *geometry = index->volume->geometry;
+	struct index_geometry *geometry = index->volume->geometry;
 	u32 chapter = uds_map_to_physical_chapter(geometry, vcn);
 	u32 expected_list_number = 0;
 	u32 index_page_number;
@@ -987,7 +987,7 @@ static int replay_chapter(struct uds_index *index, u64 virtual, bool sparse)
 	int result;
 	u32 i;
 	u32 j;
-	const struct geometry *geometry;
+	const struct index_geometry *geometry;
 	u32 physical_chapter;
 
 	if (check_for_suspend(index)) {
