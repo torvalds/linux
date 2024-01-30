@@ -1541,14 +1541,11 @@ bool zswap_store(struct folio *folio)
 {
 	swp_entry_t swp = folio->swap;
 	pgoff_t offset = swp_offset(swp);
-	struct page *page = &folio->page;
 	struct zswap_tree *tree = swap_zswap_tree(swp);
 	struct zswap_entry *entry, *dupentry;
 	struct obj_cgroup *objcg = NULL;
 	struct mem_cgroup *memcg = NULL;
-	struct zswap_pool *pool;
-	unsigned long value;
-	u8 *src;
+	struct zswap_pool *shrink_pool;
 
 	VM_WARN_ON_ONCE(!folio_test_locked(folio));
 	VM_WARN_ON_ONCE(!folio_test_swapcache(folio));
@@ -1563,10 +1560,10 @@ bool zswap_store(struct folio *folio)
 	 * the tree, and it might be written back overriding the new data.
 	 */
 	spin_lock(&tree->lock);
-	dupentry = zswap_rb_search(&tree->rbroot, offset);
-	if (dupentry) {
+	entry = zswap_rb_search(&tree->rbroot, offset);
+	if (entry) {
+		zswap_invalidate_entry(tree, entry);
 		zswap_duplicate_entry++;
-		zswap_invalidate_entry(tree, dupentry);
 	}
 	spin_unlock(&tree->lock);
 
@@ -1598,17 +1595,19 @@ bool zswap_store(struct folio *folio)
 	}
 
 	/* allocate entry */
-	entry = zswap_entry_cache_alloc(GFP_KERNEL, page_to_nid(page));
+	entry = zswap_entry_cache_alloc(GFP_KERNEL, folio_nid(folio));
 	if (!entry) {
 		zswap_reject_kmemcache_fail++;
 		goto reject;
 	}
 
 	if (zswap_same_filled_pages_enabled) {
-		src = kmap_local_page(page);
+		unsigned long value;
+		u8 *src;
+
+		src = kmap_local_folio(folio, 0);
 		if (zswap_is_page_same_filled(src, &value)) {
 			kunmap_local(src);
-			entry->swpentry = swp;
 			entry->length = 0;
 			entry->value = value;
 			atomic_inc(&zswap_same_filled_pages);
@@ -1637,9 +1636,8 @@ bool zswap_store(struct folio *folio)
 	if (!zswap_compress(folio, entry))
 		goto put_pool;
 
-	entry->swpentry = swp;
-
 insert_entry:
+	entry->swpentry = swp;
 	entry->objcg = objcg;
 	if (objcg) {
 		obj_cgroup_charge_zswap(objcg, entry->length);
@@ -1684,9 +1682,9 @@ reject:
 	return false;
 
 shrink:
-	pool = zswap_pool_last_get();
-	if (pool && !queue_work(shrink_wq, &pool->shrink_work))
-		zswap_pool_put(pool);
+	shrink_pool = zswap_pool_last_get();
+	if (shrink_pool && !queue_work(shrink_wq, &shrink_pool->shrink_work))
+		zswap_pool_put(shrink_pool);
 	goto reject;
 }
 
