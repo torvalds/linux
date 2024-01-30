@@ -1175,12 +1175,11 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, struct io_tw_state *ts)
 
 static unsigned int handle_tw_list(struct llist_node *node,
 				   struct io_ring_ctx **ctx,
-				   struct io_tw_state *ts,
-				   struct llist_node *last)
+				   struct io_tw_state *ts)
 {
 	unsigned int count = 0;
 
-	while (node && node != last) {
+	do {
 		struct llist_node *next = node->next;
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
@@ -1204,7 +1203,7 @@ static unsigned int handle_tw_list(struct llist_node *node,
 			*ctx = NULL;
 			cond_resched();
 		}
-	}
+	} while (node);
 
 	return count;
 }
@@ -1221,22 +1220,6 @@ static inline struct llist_node *io_llist_xchg(struct llist_head *head,
 					       struct llist_node *new)
 {
 	return xchg(&head->first, new);
-}
-
-/**
- * io_llist_cmpxchg - possibly swap all entries in a lock-less list
- * @head:	the head of lock-less list to delete all entries
- * @old:	expected old value of the first entry of the list
- * @new:	new entry as the head of the list
- *
- * perform a cmpxchg on the first entry of the list.
- */
-
-static inline struct llist_node *io_llist_cmpxchg(struct llist_head *head,
-						  struct llist_node *old,
-						  struct llist_node *new)
-{
-	return cmpxchg(&head->first, old, new);
 }
 
 static __cold void io_fallback_tw(struct io_uring_task *tctx, bool sync)
@@ -1273,9 +1256,7 @@ void tctx_task_work(struct callback_head *cb)
 	struct io_ring_ctx *ctx = NULL;
 	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
 						  task_work);
-	struct llist_node fake = {};
 	struct llist_node *node;
-	unsigned int loops = 0;
 	unsigned int count = 0;
 
 	if (unlikely(current->flags & PF_EXITING)) {
@@ -1283,21 +1264,9 @@ void tctx_task_work(struct callback_head *cb)
 		return;
 	}
 
-	do {
-		loops++;
-		node = io_llist_xchg(&tctx->task_list, &fake);
-		count += handle_tw_list(node, &ctx, &ts, &fake);
-
-		/* skip expensive cmpxchg if there are items in the list */
-		if (READ_ONCE(tctx->task_list.first) != &fake)
-			continue;
-		if (ts.locked && !wq_list_empty(&ctx->submit_state.compl_reqs)) {
-			io_submit_flush_completions(ctx);
-			if (READ_ONCE(tctx->task_list.first) != &fake)
-				continue;
-		}
-		node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
-	} while (node != &fake);
+	node = llist_del_all(&tctx->task_list);
+	if (node)
+		count = handle_tw_list(node, &ctx, &ts);
 
 	ctx_flush_and_put(ctx, &ts);
 
@@ -1305,7 +1274,7 @@ void tctx_task_work(struct callback_head *cb)
 	if (unlikely(atomic_read(&tctx->in_cancel)))
 		io_uring_drop_tctx_refs(current);
 
-	trace_io_uring_task_work_run(tctx, count, loops);
+	trace_io_uring_task_work_run(tctx, count, 1);
 }
 
 static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
