@@ -118,10 +118,11 @@ mlx5_dpll_pin_ffo_get(struct mlx5_dpll_synce_status *synce_status,
 	return 0;
 }
 
-static int mlx5_dpll_device_lock_status_get(const struct dpll_device *dpll,
-					    void *priv,
-					    enum dpll_lock_status *status,
-					    struct netlink_ext_ack *extack)
+static int
+mlx5_dpll_device_lock_status_get(const struct dpll_device *dpll, void *priv,
+				 enum dpll_lock_status *status,
+				 enum dpll_lock_status_error *status_error,
+				 struct netlink_ext_ack *extack)
 {
 	struct mlx5_dpll_synce_status synce_status;
 	struct mlx5_dpll *mdpll = priv;
