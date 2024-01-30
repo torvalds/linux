@@ -2717,6 +2717,8 @@ static int nfs4_show_open(struct seq_file *s, struct nfs4_stid *st)
 	}
 	spin_unlock(&nf->fi_lock);
 	nfs4_show_owner(s, oo);
+	if (st->sc_status & SC_STATUS_ADMIN_REVOKED)
+		seq_puts(s, ", admin-revoked");
 	seq_puts(s, " }\n");
 	return 0;
 }
@@ -2753,6 +2755,8 @@ static int nfs4_show_lock(struct seq_file *s, struct nfs4_stid *st)
 		seq_puts(s, ", ");
 	}
 	nfs4_show_owner(s, oo);
+	if (st->sc_status & SC_STATUS_ADMIN_REVOKED)
+		seq_puts(s, ", admin-revoked");
 	seq_puts(s, " }\n");
 	spin_unlock(&nf->fi_lock);
 	return 0;
@@ -2784,8 +2788,10 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 		seq_puts(s, ", ");
 		nfs4_show_fname(s, file);
 	}
-	seq_puts(s, " }\n");
 	spin_unlock(&nf->fi_lock);
+	if (st->sc_status & SC_STATUS_ADMIN_REVOKED)
+		seq_puts(s, ", admin-revoked");
+	seq_puts(s, " }\n");
 	return 0;
 }
 
@@ -2809,6 +2815,8 @@ static int nfs4_show_layout(struct seq_file *s, struct nfs4_stid *st)
 		seq_puts(s, ", ");
 		nfs4_show_fname(s, file);
 	}
+	if (st->sc_status & SC_STATUS_ADMIN_REVOKED)
+		seq_puts(s, ", admin-revoked");
 	seq_puts(s, " }\n");
 
 	return 0;
