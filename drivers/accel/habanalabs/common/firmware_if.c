@@ -2724,7 +2724,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 
 	if (hdev->asic_prop.support_dynamic_resereved_fw_size)
 		hdev->asic_prop.reserved_fw_mem_size =
-				le32_to_cpu(fw_loader->dynamic_loader.comm_desc.rsvd_mem_size_mb);
+			le32_to_cpu(fw_loader->dynamic_loader.comm_desc.rsvd_mem_size_mb) * SZ_1M;
 
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
 		struct lkd_fw_binning_info *binning_info;

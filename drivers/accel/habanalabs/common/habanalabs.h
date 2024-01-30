@@ -650,7 +650,7 @@ struct hl_hints_range {
  * @glbl_err_max_cause_num: global err max cause number.
  * @hbw_flush_reg: register to read to generate HBW flush. value of 0 means HBW flush is
  *                 not supported.
- * @reserved_fw_mem_size: size in MB of dram memory reserved for FW.
+ * @reserved_fw_mem_size: size of dram memory reserved for FW.
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
