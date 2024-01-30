@@ -629,8 +629,9 @@ debugfs Interface (DEPRECATED!)
   linux-mm@kvack.org.
 
 DAMON exports nine files, ``DEPRECATED``, ``attrs``, ``target_ids``,
-``init_regions``, ``schemes``, ``monitor_on``, ``kdamond_pid``, ``mk_contexts``
-and ``rm_contexts`` under its debugfs directory, ``<debugfs>/damon/``.
+``init_regions``, ``schemes``, ``monitor_on_DEPRECATED``, ``kdamond_pid``,
+``mk_contexts`` and ``rm_contexts`` under its debugfs directory,
+``<debugfs>/damon/``.
 
 
 ``DEPRECATED`` is a read-only file for the DAMON debugfs interface deprecation
@@ -855,16 +856,16 @@ Turning On/Off
 
 Setting the files as described above doesn't incur effect unless you explicitly
 start the monitoring.  You can start, stop, and check the current status of the
-monitoring by writing to and reading from the ``monitor_on`` file.  Writing
-``on`` to the file starts the monitoring of the targets with the attributes.
-Writing ``off`` to the file stops those.  DAMON also stops if every target
-process is terminated.  Below example commands turn on, off, and check the
-status of DAMON::
+monitoring by writing to and reading from the ``monitor_on_DEPRECATED`` file.
+Writing ``on`` to the file starts the monitoring of the targets with the
+attributes.  Writing ``off`` to the file stops those.  DAMON also stops if
+every target process is terminated.  Below example commands turn on, off, and
+check the status of DAMON::
 
     # cd <debugfs>/damon
-    # echo on > monitor_on
-    # echo off > monitor_on
-    # cat monitor_on
+    # echo on > monitor_on_DEPRECATED
+    # echo off > monitor_on_DEPRECATED
+    # cat monitor_on_DEPRECATED
     off
 
 Please note that you cannot write to the above-mentioned debugfs files while
@@ -880,11 +881,11 @@ can get the pid of the thread by reading the ``kdamond_pid`` file.  When the
 monitoring is turned off, reading the file returns ``none``. ::
 
     # cd <debugfs>/damon
-    # cat monitor_on
+    # cat monitor_on_DEPRECATED
     off
     # cat kdamond_pid
     none
-    # echo on > monitor_on
+    # echo on > monitor_on_DEPRECATED
     # cat kdamond_pid
     18594
 
@@ -914,5 +915,5 @@ directory by putting the name of the context to the ``rm_contexts`` file. ::
     # ls foo
     # ls: cannot access 'foo': No such file or directory
 
-Note that ``mk_contexts``, ``rm_contexts``, and ``monitor_on`` files are in the
-root directory only.
+Note that ``mk_contexts``, ``rm_contexts``, and ``monitor_on_DEPRECATED`` files
+are in the root directory only.
