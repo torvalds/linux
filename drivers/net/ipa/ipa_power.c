@@ -38,13 +38,11 @@
  * enum ipa_power_flag - IPA power flags
  * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
  * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (not runtime) suspended
- * @IPA_POWER_FLAG_STOPPED:	Modem TX is disabled by ipa_start_xmit()
  * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
  */
 enum ipa_power_flag {
 	IPA_POWER_FLAG_RESUMED,
 	IPA_POWER_FLAG_SYSTEM,
-	IPA_POWER_FLAG_STOPPED,
 	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
 };
 
@@ -53,7 +51,6 @@ enum ipa_power_flag {
  * @dev:		IPA device pointer
  * @core:		IPA core clock
  * @qmp:		QMP handle for AOSS communication
- * @spinlock:		Protects modem TX queue enable/disable
  * @flags:		Boolean state flags
  * @interconnect_count:	Number of elements in interconnect[]
  * @interconnect:	Interconnect array
@@ -62,7 +59,6 @@ struct ipa_power {
 	struct device *dev;
 	struct clk *core;
 	struct qmp *qmp;
-	spinlock_t spinlock;	/* used with STOPPED power flag */
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
 	struct icc_bulk_data interconnect[] __counted_by(interconnect_count);
@@ -240,47 +236,22 @@ void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
  * gets sent (or dropped).  If power is not ACTIVE, it will eventually
  * be, and transmits stay disabled until after it is.
  *
- * A flag and a spinlock are used when managing this.  If the queue gets
- * stopped, the STOPPED power flag is set.
- *
  * The first function stops the modem netdev transmit queue.  The second
- * function starts the transmit queue, but only if the STOPPED flag is
- * set.  This avoids enabling transmits repeatedly immediately after
- * power has become ACTIVE (not really a big deal).  If the STOPPED flag
- * was set, it is cleared by this function.
- *
- * The third function just enables transmits again.
+ * function starts the transmit queue and is used in the power resume
+ * path after power has become ACTIVE.  The third function also enables
+ * transmits again, and is used by ipa_start_xmit() once it knows power
+ * is active.
  */
 void ipa_power_modem_queue_stop(struct ipa *ipa)
 {
-	struct ipa_power *power = ipa->power;
-	unsigned long flags;
-
-	spin_lock_irqsave(&power->spinlock, flags);
-
 	netif_stop_queue(ipa->modem_netdev);
-	__set_bit(IPA_POWER_FLAG_STOPPED, power->flags);
-
-	spin_unlock_irqrestore(&power->spinlock, flags);
 }
 
-/* This function starts the modem netdev transmit queue, but only if the
- * STOPPED flag is set.  That flag is cleared if it was set.
- */
 void ipa_power_modem_queue_wake(struct ipa *ipa)
 {
-	struct ipa_power *power = ipa->power;
-	unsigned long flags;
-
-	spin_lock_irqsave(&power->spinlock, flags);
-
-	if (__test_and_clear_bit(IPA_POWER_FLAG_STOPPED, power->flags))
-		netif_wake_queue(ipa->modem_netdev);
-
-	spin_unlock_irqrestore(&power->spinlock, flags);
+	netif_wake_queue(ipa->modem_netdev);
 }
 
-/* This function enables transmits again after power has become ACTIVE. */
 void ipa_power_modem_queue_active(struct ipa *ipa)
 {
 	netif_wake_queue(ipa->modem_netdev);
@@ -374,7 +345,6 @@ ipa_power_init(struct device *dev, const struct ipa_power_data *data)
 	}
 	power->dev = dev;
 	power->core = clk;
-	spin_lock_init(&power->spinlock);
 	power->interconnect_count = data->interconnect_count;
 
 	ret = ipa_interconnect_init(power, data->interconnect_data);
