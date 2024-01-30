@@ -1739,15 +1739,10 @@ void zswap_invalidate(int type, pgoff_t offset)
 	struct zswap_tree *tree = swap_zswap_tree(swp_entry(type, offset));
 	struct zswap_entry *entry;
 
-	/* find */
 	spin_lock(&tree->lock);
 	entry = zswap_rb_search(&tree->rbroot, offset);
-	if (!entry) {
-		/* entry was written back */
-		spin_unlock(&tree->lock);
-		return;
-	}
-	zswap_invalidate_entry(tree, entry);
+	if (entry)
+		zswap_invalidate_entry(tree, entry);
 	spin_unlock(&tree->lock);
 }
 
