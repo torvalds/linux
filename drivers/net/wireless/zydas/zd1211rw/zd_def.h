@@ -12,7 +12,7 @@
 #include <linux/stringify.h>
 #include <linux/device.h>
 
-typedef u16 __nocast zd_addr_t;
+typedef u16 zd_addr_t;
 
 #define dev_printk_f(level, dev, fmt, args...) \
 	dev_printk(level, dev, "%s() " fmt, __func__, ##args)
