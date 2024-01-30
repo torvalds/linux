@@ -52,7 +52,7 @@ static int reserve_video_engine_memory(struct AstRVAS *pAstRVAS);
 static void init_jpeg_table(void);
 static void video_set_scaling(struct AstRVAS *pAstRVAS);
 static int video_capture_trigger(struct AstRVAS *pAstRVAS);
-static void dump_buffer(u32 dwPhyStreamAddress, u32 size);
+static void dump_buffer(phys_addr_t qwPhyStreamAddress, u32 size);
 
 //
 // function definitions
@@ -152,7 +152,7 @@ void ioctl_set_video_engine_config(struct VideoConfig  *pVideoConfig, struct Ast
 }
 
 //
-void ioctl_get_video_engine_data(struct MultiJpegConfig *pArrayMJConfig, struct AstRVAS *pAstRVAS, u32 dwPhyStreamAddress)
+void ioctl_get_video_engine_data(struct MultiJpegConfig *pArrayMJConfig, struct AstRVAS *pAstRVAS, phys_addr_t dwPhyStreamAddress)
 {
 	u32 yuv_shift;
 	u32 yuv_msk;
@@ -162,7 +162,7 @@ void ioctl_get_video_engine_data(struct MultiJpegConfig *pArrayMJConfig, struct 
 	u32 y0;
 	int i = 0;
 	u32 dw_w_h;
-	u32 start_addr;
+	phys_addr_t start_addr;
 	u32 multi_jpeg_data = 0;
 	u32 VR044;
 	u32 nextFrameOffset = 0;
@@ -470,7 +470,7 @@ static u32 get_vga_mem_base(struct AstRVAS *pAstRVAS)
 	return (mem_size - vga_mem_size);
 }
 
-static void dump_buffer(u32 dwPhyStreamAddress, u32 size)
+static void dump_buffer(phys_addr_t dwPhyStreamAddress, u32 size)
 {
 	u32 iC;
 	u32 val = 0;
@@ -516,7 +516,7 @@ void video_ctrl_init(struct AstRVAS *pAstRVAS)
 	// =============================  JPEG init ===========================================
 	init_jpeg_table();
 	VIDEO_ENG_DBG("JpegTable in Memory:%#x\n", vem.jpegTable.pVirt);
-	dump_buffer(vem.jpegTable.phy, 80);
+	//dump_buffer(vem.jpegTable.phy, 80);
 
 	// ===================================================================================
 	//Specification define bit 12:13 must always 0;

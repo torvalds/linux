@@ -264,7 +264,7 @@ struct INTERNAL_MODE {
 // ioctl functions
 void ioctl_get_video_engine_config(struct VideoConfig  *pVideoConfig, struct AstRVAS *pAstRVAS);
 void ioctl_set_video_engine_config(struct VideoConfig  *pVideoConfig, struct AstRVAS *pAstRVAS);
-void ioctl_get_video_engine_data(struct MultiJpegConfig *pArrayMJConfig, struct AstRVAS *pAstRVAS,  u32 dwPhyStreamAddress);
+void ioctl_get_video_engine_data(struct MultiJpegConfig *pArrayMJConfig, struct AstRVAS *pAstRVAS,  phys_addr_t dwPhyStreamAddress);
 
 //local functions
 irqreturn_t ast_video_isr(int this_irq, void *dev_id);
