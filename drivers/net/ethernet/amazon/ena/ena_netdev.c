@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 #define ENA_MAX_RINGS min_t(unsigned int, ENA_MAX_NUM_IO_QUEUES, num_possible_cpus())
 
 #define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | \
-		NETIF_MSG_TX_DONE | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
+		NETIF_MSG_IFDOWN | NETIF_MSG_TX_ERR | NETIF_MSG_RX_ERR)
 
 static struct ena_aenq_handlers aenq_handlers;
 
@@ -2212,7 +2212,7 @@ void ena_down(struct ena_adapter *adapter)
 {
 	int io_queue_count = adapter->num_io_queues + adapter->xdp_num_queues;
 
-	netif_info(adapter, ifdown, adapter->netdev, "%s\n", __func__);
+	netif_dbg(adapter, ifdown, adapter->netdev, "%s\n", __func__);
 
 	clear_bit(ENA_FLAG_DEV_UP, &adapter->flags);
 
