@@ -8,6 +8,7 @@
 
 #include "xe_sched_job_types.h"
 
+struct drm_printer;
 struct xe_vm;
 
 #define XE_SCHED_HANG_LIMIT 1
@@ -76,5 +77,9 @@ xe_sched_job_add_migrate_flush(struct xe_sched_job *job, u32 flags)
 }
 
 bool xe_sched_job_is_migration(struct xe_exec_queue *q);
+
+struct xe_sched_job_snapshot *xe_sched_job_snapshot_capture(struct xe_sched_job *job);
+void xe_sched_job_snapshot_free(struct xe_sched_job_snapshot *snapshot);
+void xe_sched_job_snapshot_print(struct xe_sched_job_snapshot *snapshot, struct drm_printer *p);
 
 #endif

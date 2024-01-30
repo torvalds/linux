@@ -43,4 +43,9 @@ struct xe_sched_job {
 	u64 batch_addr[];
 };
 
+struct xe_sched_job_snapshot {
+	u16 batch_addr_len;
+	u64 batch_addr[];
+};
+
 #endif
