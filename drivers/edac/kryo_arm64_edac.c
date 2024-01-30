@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -480,7 +480,7 @@ static int kryo_cpu_erp_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct erp_drvdata *drv;
 	int rc = 0;
-	int fail = 0;
+	int erp_pass = 0;
 	int num_irqs = 0;
 
 	init_regs_on_cpu(true);
@@ -513,27 +513,6 @@ static int kryo_cpu_erp_probe(struct platform_device *pdev)
 		goto out_mem;
 
 	panic_handler_drvdata = drv;
-
-	if (request_erp_irq(pdev, "l1-l2-faultirq",
-			"KRYO L1-L2 ECC FAULTIRQ",
-			kryo_l1_l2_handler, drv, 1))
-		fail++;
-
-	if (request_erp_irq(pdev, "l3-scu-faultirq",
-			"KRYO L3-SCU ECC FAULTIRQ",
-			kryo_l3_scu_handler, drv, 0))
-		fail++;
-
-	if (request_erp_irq(pdev, "l3-c0-scu-faultirq",
-			"KRYO L3-SCU ECC FAULTIRQ CLUSTER 0",
-			kryo_l3_scu_handler, drv, 0))
-		fail++;
-
-	if (request_erp_irq(pdev, "l3-c1-scu-faultirq",
-			"KRYO L3-SCU ECC FAULTIRQ CLUSTER 1",
-			kryo_l3_scu_handler, drv, 0))
-		fail++;
-
 	num_irqs = platform_irq_count(pdev);
 	if (num_irqs == 0) {
 		pr_err("KRYO ERP: No irqs found for error reporting\n");
@@ -546,7 +525,28 @@ static int kryo_cpu_erp_probe(struct platform_device *pdev)
 		goto out_dev;
 	}
 
-	if (fail >= platform_irq_count(pdev)) {
+	if (!request_erp_irq(pdev, "l1-l2-faultirq",
+			"KRYO L1-L2 ECC FAULTIRQ",
+			kryo_l1_l2_handler, drv, 1))
+		erp_pass++;
+
+	if (!request_erp_irq(pdev, "l3-scu-faultirq",
+			"KRYO L3-SCU ECC FAULTIRQ",
+			kryo_l3_scu_handler, drv, 0))
+		erp_pass++;
+
+	if (!request_erp_irq(pdev, "l3-c0-scu-faultirq",
+			"KRYO L3-SCU ECC FAULTIRQ CLUSTER 0",
+			kryo_l3_scu_handler, drv, 0))
+		erp_pass++;
+
+	if (!request_erp_irq(pdev, "l3-c1-scu-faultirq",
+			"KRYO L3-SCU ECC FAULTIRQ CLUSTER 1",
+			kryo_l3_scu_handler, drv, 0))
+		erp_pass++;
+
+	/* Return if none of the IRQ is valid */
+	if (!erp_pass) {
 		pr_err("KRYO ERP: Could not request any IRQs. Giving up.\n");
 		rc = -ENODEV;
 		goto out_dev;
