@@ -11,13 +11,18 @@
 #include <asm/io.h>
 
 #define LTPI_AUTO_CAP_LOW			0x24
-#define   LTPI_I2C_DATA_FRAME_MUX		GENMASK(29, 24)
+#define   LTPI_I2C_IO_FRAME_EN			GENMASK(29, 24)
 #define LTPI_AUTO_CAP_HIGH			0x28
+
 #define LTPI_LINK_CONTROLL			0x80
-#define   LTPI_MANUAL_CONTROLL			GENMASK(10, 10)
+#define   LTPI_AUTO_CONFIG			BIT(10)
+
 #define LTPI_INTR_STATUS			0x100
 #define LTPI_INTR_EN				0x104
 #define   LTPI_INTR_EN_OP_LINK_LOST		BIT(4)
+#define LTPI_LINK_MANAGE_ST			0x108
+#define   LTPI_LINK_PARTNER_FLAG		BIT(24)
+
 #define LTPI_MANUAL_CAP_LOW			0x118
 #define LTPI_MANUAL_CAP_HIGH			0x11C
 
@@ -48,18 +53,24 @@ static irqreturn_t aspeed_ltpi_irq_handler(int irq, void *dev_id)
 static int aspeed_ltpi_init_mux(struct aspeed_ltpi_priv *priv)
 {
 	u32 reg;
+	bool link_partner_ast1700;
 
-	/* Switch I2C mux into data frame*/
+	reg = readl(priv->regs + LTPI_LINK_MANAGE_ST);
+	link_partner_ast1700 = !!(reg & LTPI_LINK_PARTNER_FLAG);
+
 	reg = readl(priv->regs + LTPI_AUTO_CAP_LOW);
-	reg &= ~(LTPI_I2C_DATA_FRAME_MUX);
+	if (link_partner_ast1700)
+		reg &= ~LTPI_I2C_IO_FRAME_EN;
+	else
+		reg |= LTPI_I2C_IO_FRAME_EN;
 	writel(reg, priv->regs + LTPI_MANUAL_CAP_LOW);
 
 	reg = readl(priv->regs + LTPI_AUTO_CAP_HIGH);
 	writel(reg, priv->regs + LTPI_MANUAL_CAP_HIGH);
 
-	/* Apply ltpi as manual mode */
+	/* Apply LTPI manual configuration */
 	reg = readl(priv->regs + LTPI_LINK_CONTROLL);
-	reg &= ~(LTPI_MANUAL_CONTROLL);
+	reg &= ~LTPI_AUTO_CONFIG;
 	writel(reg, priv->regs + LTPI_LINK_CONTROLL);
 
 	return 0;
