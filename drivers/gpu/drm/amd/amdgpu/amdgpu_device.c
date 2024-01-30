@@ -5695,6 +5695,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		/* Aldebaran and gfx_11_0_3 support ras in SRIOV, so need resume ras during reset */
 		if (amdgpu_ip_version(adev, GC_HWIP, 0) ==
 			    IP_VERSION(9, 4, 2) ||
+		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
 		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3))
 			amdgpu_ras_resume(adev);
 	} else {
