@@ -135,10 +135,10 @@ struct amdgpu_mem_stats;
 #define AMDGPU_IS_MMHUB0(x) ((x) >= AMDGPU_MMHUB0_START && (x) < AMDGPU_MMHUB1_START)
 #define AMDGPU_IS_MMHUB1(x) ((x) >= AMDGPU_MMHUB1_START && (x) < AMDGPU_MAX_VMHUBS)
 
-/* Reserve 2MB at top/bottom of address space for kernel use */
+/* Reserve space at top/bottom of address space for kernel use */
 #define AMDGPU_VA_RESERVED_CSA_SIZE		(2ULL << 20)
 #define AMDGPU_VA_RESERVED_SEQ64_SIZE		(2ULL << 20)
-#define AMDGPU_VA_RESERVED_BOTTOM		(2ULL << 20)
+#define AMDGPU_VA_RESERVED_BOTTOM		(1ULL << 16)
 #define AMDGPU_VA_RESERVED_TOP			(AMDGPU_VA_RESERVED_SEQ64_SIZE + \
 						 AMDGPU_VA_RESERVED_CSA_SIZE)
 
