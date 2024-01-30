@@ -519,7 +519,7 @@ static struct zpool *zswap_find_zpool(struct zswap_entry *entry)
  * Carries out the common pattern of freeing and entry's zpool allocation,
  * freeing the entry itself, and decrementing the number of stored pages.
  */
-static void zswap_free_entry(struct zswap_entry *entry)
+static void zswap_entry_free(struct zswap_entry *entry)
 {
 	if (!entry->length)
 		atomic_dec(&zswap_same_filled_pages);
@@ -554,7 +554,7 @@ static void zswap_entry_put(struct zswap_entry *entry)
 	WARN_ON_ONCE(refcount < 0);
 	if (refcount == 0) {
 		WARN_ON_ONCE(!RB_EMPTY_NODE(&entry->rbnode));
-		zswap_free_entry(entry);
+		zswap_entry_free(entry);
 	}
 }
 
