@@ -50,6 +50,7 @@ struct axp_data {
 	const char * const		*irq_names;
 	unsigned int			num_irq_names;
 	const int			*curr_lim_table;
+	int				curr_lim_table_size;
 	struct reg_field		curr_lim_fld;
 	struct reg_field		vbus_valid_bit;
 	struct reg_field		vbus_mon_bit;
@@ -166,7 +167,11 @@ static int axp20x_usb_power_get_property(struct power_supply *psy,
 		if (ret)
 			return ret;
 
-		val->intval = power->axp_data->curr_lim_table[v];
+		if (v < power->axp_data->curr_lim_table_size)
+			val->intval = power->axp_data->curr_lim_table[v];
+		else
+			val->intval = power->axp_data->curr_lim_table[
+				power->axp_data->curr_lim_table_size - 1];
 		return 0;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		if (IS_ENABLED(CONFIG_AXP20X_ADC)) {
@@ -261,8 +266,7 @@ static int axp20x_usb_power_set_input_current_limit(struct axp20x_usb_power *pow
 						    int intval)
 {
 	unsigned int reg;
-	const unsigned int max = GENMASK(power->axp_data->curr_lim_fld.msb,
-					 power->axp_data->curr_lim_fld.lsb);
+	const unsigned int max = power->axp_data->curr_lim_table_size;
 
 	if (intval == -1)
 		return -EINVAL;
@@ -394,10 +398,15 @@ static int axp221_usb_curr_lim_table[] = {
 };
 
 static int axp813_usb_curr_lim_table[] = {
+	100000,
+	500000,
 	900000,
 	1500000,
 	2000000,
 	2500000,
+	3000000,
+	3500000,
+	4000000,
 };
 
 static const struct axp_data axp192_data = {
@@ -405,6 +414,7 @@ static const struct axp_data axp192_data = {
 	.irq_names	= axp20x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
 	.curr_lim_table = axp192_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp192_usb_curr_lim_table),
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.vbus_valid_bit = REG_FIELD(AXP192_USB_OTG_STATUS, 2, 2),
 	.vbus_mon_bit   = REG_FIELD(AXP20X_VBUS_MON, 3, 3),
@@ -415,6 +425,7 @@ static const struct axp_data axp202_data = {
 	.irq_names	= axp20x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp20x_irq_names),
 	.curr_lim_table = axp20x_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp20x_usb_curr_lim_table),
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.vbus_valid_bit = REG_FIELD(AXP20X_USB_OTG_STATUS, 2, 2),
 	.vbus_mon_bit   = REG_FIELD(AXP20X_VBUS_MON, 3, 3),
@@ -425,6 +436,7 @@ static const struct axp_data axp221_data = {
 	.irq_names	= axp22x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
 	.curr_lim_table = axp221_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp221_usb_curr_lim_table),
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.vbus_needs_polling = true,
 };
@@ -434,6 +446,7 @@ static const struct axp_data axp223_data = {
 	.irq_names	= axp22x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
 	.curr_lim_table = axp20x_usb_curr_lim_table,
+	.curr_lim_table_size = ARRAY_SIZE(axp20x_usb_curr_lim_table),
 	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
 	.vbus_needs_polling = true,
 };
@@ -443,7 +456,8 @@ static const struct axp_data axp813_data = {
 	.irq_names	= axp22x_irq_names,
 	.num_irq_names	= ARRAY_SIZE(axp22x_irq_names),
 	.curr_lim_table = axp813_usb_curr_lim_table,
-	.curr_lim_fld   = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 0, 1),
+	.curr_lim_table_size = ARRAY_SIZE(axp813_usb_curr_lim_table),
+	.curr_lim_fld	= REG_FIELD(AXP22X_CHRG_CTRL3, 4, 7),
 	.usb_bc_en_bit	= REG_FIELD(AXP288_BC_GLOBAL, 0, 0),
 	.vbus_disable_bit = REG_FIELD(AXP20X_VBUS_IPSOUT_MGMT, 7, 7),
 	.vbus_needs_polling = true,
