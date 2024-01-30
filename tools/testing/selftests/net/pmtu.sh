@@ -1348,7 +1348,7 @@ test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception() {
 
 		sleep 1
 
-		dd if=/dev/zero of=/dev/stdout status=none bs=1M count=1 | ${target} socat -T 3 -u STDIN $TCPDST,connect-timeout=3
+		dd if=/dev/zero status=none bs=1M count=1 | ${target} socat -T 3 -u STDIN $TCPDST,connect-timeout=3
 
 		size=$(du -sb $tmpoutfile)
 		size=${size%%/tmp/*}
