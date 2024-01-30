@@ -558,19 +558,6 @@ static void zswap_entry_put(struct zswap_entry *entry)
 	}
 }
 
-/* caller must hold the tree lock */
-static struct zswap_entry *zswap_entry_find_get(struct rb_root *root,
-				pgoff_t offset)
-{
-	struct zswap_entry *entry;
-
-	entry = zswap_rb_search(root, offset);
-	if (entry)
-		zswap_entry_get(entry);
-
-	return entry;
-}
-
 /*********************************
 * shrinker functions
 **********************************/
@@ -1708,13 +1695,13 @@ bool zswap_load(struct folio *folio)
 
 	VM_WARN_ON_ONCE(!folio_test_locked(folio));
 
-	/* find */
 	spin_lock(&tree->lock);
-	entry = zswap_entry_find_get(&tree->rbroot, offset);
+	entry = zswap_rb_search(&tree->rbroot, offset);
 	if (!entry) {
 		spin_unlock(&tree->lock);
 		return false;
 	}
+	zswap_entry_get(entry);
 	spin_unlock(&tree->lock);
 
 	if (entry->length)
