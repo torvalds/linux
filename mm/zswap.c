@@ -278,8 +278,6 @@ static inline struct zswap_tree *swap_zswap_tree(swp_entry_t swp)
 
 static int zswap_writeback_entry(struct zswap_entry *entry,
 				 swp_entry_t swpentry);
-static int zswap_pool_get(struct zswap_pool *pool);
-static void zswap_pool_put(struct zswap_pool *pool);
 
 static bool zswap_is_full(void)
 {
@@ -470,6 +468,53 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 	for (i = 0; i < ZSWAP_NR_ZPOOLS; i++)
 		zpool_destroy_pool(pool->zpools[i]);
 	kfree(pool);
+}
+
+static void __zswap_pool_release(struct work_struct *work)
+{
+	struct zswap_pool *pool = container_of(work, typeof(*pool),
+						release_work);
+
+	synchronize_rcu();
+
+	/* nobody should have been able to get a kref... */
+	WARN_ON(kref_get_unless_zero(&pool->kref));
+
+	/* pool is now off zswap_pools list and has no references. */
+	zswap_pool_destroy(pool);
+}
+
+static struct zswap_pool *zswap_pool_current(void);
+
+static void __zswap_pool_empty(struct kref *kref)
+{
+	struct zswap_pool *pool;
+
+	pool = container_of(kref, typeof(*pool), kref);
+
+	spin_lock(&zswap_pools_lock);
+
+	WARN_ON(pool == zswap_pool_current());
+
+	list_del_rcu(&pool->list);
+
+	INIT_WORK(&pool->release_work, __zswap_pool_release);
+	schedule_work(&pool->release_work);
+
+	spin_unlock(&zswap_pools_lock);
+}
+
+static int __must_check zswap_pool_get(struct zswap_pool *pool)
+{
+	if (!pool)
+		return 0;
+
+	return kref_get_unless_zero(&pool->kref);
+}
+
+static void zswap_pool_put(struct zswap_pool *pool)
+{
+	kref_put(&pool->kref, __zswap_pool_empty);
 }
 
 /* should be called under RCU */
@@ -1119,51 +1164,6 @@ resched:
 		cond_resched();
 	} while (!zswap_can_accept());
 	zswap_pool_put(pool);
-}
-
-static int __must_check zswap_pool_get(struct zswap_pool *pool)
-{
-	if (!pool)
-		return 0;
-
-	return kref_get_unless_zero(&pool->kref);
-}
-
-static void __zswap_pool_release(struct work_struct *work)
-{
-	struct zswap_pool *pool = container_of(work, typeof(*pool),
-						release_work);
-
-	synchronize_rcu();
-
-	/* nobody should have been able to get a kref... */
-	WARN_ON(kref_get_unless_zero(&pool->kref));
-
-	/* pool is now off zswap_pools list and has no references. */
-	zswap_pool_destroy(pool);
-}
-
-static void __zswap_pool_empty(struct kref *kref)
-{
-	struct zswap_pool *pool;
-
-	pool = container_of(kref, typeof(*pool), kref);
-
-	spin_lock(&zswap_pools_lock);
-
-	WARN_ON(pool == zswap_pool_current());
-
-	list_del_rcu(&pool->list);
-
-	INIT_WORK(&pool->release_work, __zswap_pool_release);
-	schedule_work(&pool->release_work);
-
-	spin_unlock(&zswap_pools_lock);
-}
-
-static void zswap_pool_put(struct zswap_pool *pool)
-{
-	kref_put(&pool->kref, __zswap_pool_empty);
 }
 
 /*********************************
