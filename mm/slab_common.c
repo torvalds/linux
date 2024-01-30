@@ -853,9 +853,10 @@ static unsigned int __kmalloc_minalign(void)
 	return max(minalign, arch_slab_minalign());
 }
 
-void __init
-new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
+static void __init
+new_kmalloc_cache(int idx, enum kmalloc_cache_type type)
 {
+	slab_flags_t flags = 0;
 	unsigned int minalign = __kmalloc_minalign();
 	unsigned int aligned_size = kmalloc_info[idx].size;
 	int aligned_idx = idx;
@@ -902,7 +903,7 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
  * may already have been created because they were needed to
  * enable allocations for slab creation.
  */
-void __init create_kmalloc_caches(slab_flags_t flags)
+void __init create_kmalloc_caches(void)
 {
 	int i;
 	enum kmalloc_cache_type type;
@@ -913,7 +914,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 	for (type = KMALLOC_NORMAL; type < NR_KMALLOC_TYPES; type++) {
 		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
 			if (!kmalloc_caches[type][i])
-				new_kmalloc_cache(i, type, flags);
+				new_kmalloc_cache(i, type);
 
 			/*
 			 * Caches that are not of the two-to-the-power-of size.
@@ -922,10 +923,10 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 			 */
 			if (KMALLOC_MIN_SIZE <= 32 && i == 6 &&
 					!kmalloc_caches[type][1])
-				new_kmalloc_cache(1, type, flags);
+				new_kmalloc_cache(1, type);
 			if (KMALLOC_MIN_SIZE <= 64 && i == 7 &&
 					!kmalloc_caches[type][2])
-				new_kmalloc_cache(2, type, flags);
+				new_kmalloc_cache(2, type);
 		}
 	}
 #ifdef CONFIG_RANDOM_KMALLOC_CACHES

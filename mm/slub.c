@@ -5668,7 +5668,7 @@ void __init kmem_cache_init(void)
 
 	/* Now we can use the kmem_cache to allocate kmalloc slabs */
 	setup_kmalloc_cache_index_table();
-	create_kmalloc_caches(0);
+	create_kmalloc_caches();
 
 	/* Setup random freelists for each cache */
 	init_freelist_randomization();
