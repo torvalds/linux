@@ -32,7 +32,7 @@ int iter_tcp_soreuse(struct bpf_iter__tcp *ctx)
 	if (!sk)
 		return 0;
 
-	sk = bpf_rdonly_cast(sk, bpf_core_type_id_kernel(struct sock));
+	sk = bpf_core_cast(sk, struct sock);
 	if (sk->sk_family != AF_INET6 ||
 	    sk->sk_state != TCP_LISTEN ||
 	    !ipv6_addr_loopback(&sk->sk_v6_rcv_saddr))
@@ -68,7 +68,7 @@ int iter_udp_soreuse(struct bpf_iter__udp *ctx)
 	if (!sk)
 		return 0;
 
-	sk = bpf_rdonly_cast(sk, bpf_core_type_id_kernel(struct sock));
+	sk = bpf_core_cast(sk, struct sock);
 	if (sk->sk_family != AF_INET6 ||
 	    !ipv6_addr_loopback(&sk->sk_v6_rcv_saddr))
 		return 0;

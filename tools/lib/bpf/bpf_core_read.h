@@ -2,6 +2,8 @@
 #ifndef __BPF_CORE_READ_H__
 #define __BPF_CORE_READ_H__
 
+#include <bpf/bpf_helpers.h>
+
 /*
  * enum bpf_field_info_kind is passed as a second argument into
  * __builtin_preserve_field_info() built-in to get a specific aspect of
@@ -291,6 +293,17 @@ enum bpf_enum_value_kind {
 /* NOTE: see comments for BPF_CORE_READ_USER() about the proper types use. */
 #define bpf_core_read_user_str(dst, sz, src)				    \
 	bpf_probe_read_user_str(dst, sz, (const void *)__builtin_preserve_access_index(src))
+
+extern void *bpf_rdonly_cast(const void *obj, __u32 btf_id) __ksym __weak;
+
+/*
+ * Cast provided pointer *ptr* into a pointer to a specified *type* in such
+ * a way that BPF verifier will become aware of associated kernel-side BTF
+ * type. This allows to access members of kernel types directly without the
+ * need to use BPF_CORE_READ() macros.
+ */
+#define bpf_core_cast(ptr, type)					    \
+	((typeof(type) *)bpf_rdonly_cast((ptr), bpf_core_type_id_kernel(type)))
 
 #define ___concat(a, b) a ## b
 #define ___apply(fn, n) ___concat(fn, n)
