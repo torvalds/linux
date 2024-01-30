@@ -84,9 +84,6 @@ EXPORT_SYMBOL(ap_perms);
 DEFINE_MUTEX(ap_perms_mutex);
 EXPORT_SYMBOL(ap_perms_mutex);
 
-/* # of bus scans since init */
-static atomic64_t ap_scan_bus_count;
-
 /* # of bindings complete since init */
 static atomic64_t ap_bindings_complete_count = ATOMIC64_INIT(0);
 
@@ -102,12 +99,13 @@ static struct ap_config_info *ap_qci_info_old;
 debug_info_t *ap_dbf_info;
 
 /*
- * Workqueue timer for bus rescan.
+ * AP bus rescan related things.
  */
-static struct timer_list ap_config_timer;
-static int ap_config_time = AP_CONFIG_TIME;
+static atomic64_t ap_scan_bus_count; /* counter ap_scan_bus() invocations */
+static int ap_scan_bus_time = AP_CONFIG_TIME;
+static struct timer_list ap_scan_bus_timer;
 static void ap_scan_bus(struct work_struct *);
-static DECLARE_WORK(ap_scan_work, ap_scan_bus);
+static DECLARE_WORK(ap_scan_bus_work, ap_scan_bus);
 
 /*
  * Tasklet & timer for AP request polling and interrupts
@@ -1020,9 +1018,9 @@ void ap_bus_force_rescan(void)
 		return;
 
 	/* processing a asynchronous bus rescan */
-	del_timer(&ap_config_timer);
-	queue_work(system_long_wq, &ap_scan_work);
-	flush_work(&ap_scan_work);
+	del_timer(&ap_scan_bus_timer);
+	queue_work(system_long_wq, &ap_scan_bus_work);
+	flush_work(&ap_scan_bus_work);
 }
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
@@ -1251,7 +1249,7 @@ static BUS_ATTR_RO(ap_interrupts);
 
 static ssize_t config_time_show(const struct bus_type *bus, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", ap_config_time);
+	return sysfs_emit(buf, "%d\n", ap_scan_bus_time);
 }
 
 static ssize_t config_time_store(const struct bus_type *bus,
@@ -1261,8 +1259,8 @@ static ssize_t config_time_store(const struct bus_type *bus,
 
 	if (sscanf(buf, "%d\n", &time) != 1 || time < 5 || time > 120)
 		return -EINVAL;
-	ap_config_time = time;
-	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
+	ap_scan_bus_time = time;
+	mod_timer(&ap_scan_bus_timer, jiffies + ap_scan_bus_time * HZ);
 	return count;
 }
 
@@ -2181,7 +2179,7 @@ static bool ap_config_has_new_doms(void)
 
 /**
  * ap_scan_bus(): Scan the AP bus for new devices
- * Runs periodically, workqueue timer (ap_config_time)
+ * Runs periodically, workqueue timer (ap_scan_bus_time)
  * @unused: Unused pointer.
  */
 static void ap_scan_bus(struct work_struct *unused)
@@ -2235,14 +2233,21 @@ static void ap_scan_bus(struct work_struct *unused)
 
 	ap_check_bindings_complete();
 
-	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
+	mod_timer(&ap_scan_bus_timer, jiffies + ap_scan_bus_time * HZ);
 
 	pr_debug("<%s\n", __func__);
 }
 
-static void ap_config_timeout(struct timer_list *unused)
+/*
+ * Callback for the ap_scan_bus_timer
+ */
+static void ap_scan_bus_timer_callback(struct timer_list *unused)
 {
-	queue_work(system_long_wq, &ap_scan_work);
+	/*
+	 * schedule work into the system long wq which when
+	 * the work is finally executed, calls the AP bus scan.
+	 */
+	queue_work(system_long_wq, &ap_scan_bus_work);
 }
 
 static int __init ap_debug_init(void)
@@ -2332,7 +2337,7 @@ static int __init ap_module_init(void)
 	ap_root_device->bus = &ap_bus_type;
 
 	/* Setup the AP bus rescan timer. */
-	timer_setup(&ap_config_timer, ap_config_timeout, 0);
+	timer_setup(&ap_scan_bus_timer, ap_scan_bus_timer_callback, 0);
 
 	/*
 	 * Setup the high resolution poll timer.
@@ -2350,7 +2355,7 @@ static int __init ap_module_init(void)
 			goto out_work;
 	}
 
-	queue_work(system_long_wq, &ap_scan_work);
+	queue_work(system_long_wq, &ap_scan_bus_work);
 
 	return 0;
 
