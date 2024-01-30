@@ -2614,8 +2614,6 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(rc))
 		goto error_drop_packet;
 
-	skb_tx_timestamp(skb);
-
 	next_to_use = tx_ring->next_to_use;
 	req_id = tx_ring->free_ids[next_to_use];
 	tx_info = &tx_ring->tx_buffer_info[req_id];
@@ -2678,6 +2676,8 @@ static netdev_tx_t ena_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					  &tx_ring->syncp);
 		}
 	}
+
+	skb_tx_timestamp(skb);
 
 	if (netif_xmit_stopped(txq) || !netdev_xmit_more())
 		/* trigger the dma engine. ena_ring_tx_doorbell()
