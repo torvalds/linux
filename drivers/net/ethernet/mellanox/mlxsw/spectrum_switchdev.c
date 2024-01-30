@@ -61,7 +61,7 @@ struct mlxsw_sp_bridge_port {
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct list_head list;
 	struct list_head vlans_list;
-	unsigned int ref_count;
+	refcount_t ref_count;
 	u8 stp_state;
 	unsigned long flags;
 	bool mrouter;
@@ -495,7 +495,7 @@ mlxsw_sp_bridge_port_create(struct mlxsw_sp_bridge_device *bridge_device,
 			     BR_MCAST_FLOOD;
 	INIT_LIST_HEAD(&bridge_port->vlans_list);
 	list_add(&bridge_port->list, &bridge_device->ports_list);
-	bridge_port->ref_count = 1;
+	refcount_set(&bridge_port->ref_count, 1);
 
 	err = switchdev_bridge_port_offload(brport_dev, mlxsw_sp_port->dev,
 					    NULL, NULL, NULL, false, extack);
@@ -531,7 +531,7 @@ mlxsw_sp_bridge_port_get(struct mlxsw_sp_bridge *bridge,
 
 	bridge_port = mlxsw_sp_bridge_port_find(bridge, brport_dev);
 	if (bridge_port) {
-		bridge_port->ref_count++;
+		refcount_inc(&bridge_port->ref_count);
 		return bridge_port;
 	}
 
@@ -558,7 +558,7 @@ static void mlxsw_sp_bridge_port_put(struct mlxsw_sp_bridge *bridge,
 {
 	struct mlxsw_sp_bridge_device *bridge_device;
 
-	if (--bridge_port->ref_count != 0)
+	if (!refcount_dec_and_test(&bridge_port->ref_count))
 		return;
 	bridge_device = bridge_port->bridge_device;
 	mlxsw_sp_bridge_port_destroy(bridge_port);
