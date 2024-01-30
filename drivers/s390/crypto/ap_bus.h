@@ -266,7 +266,7 @@ int ap_sb_available(void);
 bool ap_is_se_guest(void);
 void ap_wait(enum ap_sm_wait wait);
 void ap_request_timeout(struct timer_list *t);
-void ap_bus_force_rescan(void);
+bool ap_bus_force_rescan(void);
 
 int ap_test_config_usage_domain(unsigned int domain);
 int ap_test_config_ctrl_domain(unsigned int domain);

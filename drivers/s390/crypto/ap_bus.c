@@ -101,6 +101,9 @@ debug_info_t *ap_dbf_info;
 /*
  * AP bus rescan related things.
  */
+static bool ap_scan_bus(void);
+static bool ap_scan_bus_result; /* result of last ap_scan_bus() */
+static DEFINE_MUTEX(ap_scan_bus_mutex); /* mutex ap_scan_bus() invocations */
 static atomic64_t ap_scan_bus_count; /* counter ap_scan_bus() invocations */
 static int ap_scan_bus_time = AP_CONFIG_TIME;
 static struct timer_list ap_scan_bus_timer;
@@ -1011,16 +1014,47 @@ void ap_driver_unregister(struct ap_driver *ap_drv)
 }
 EXPORT_SYMBOL(ap_driver_unregister);
 
-void ap_bus_force_rescan(void)
+/*
+ * Enforce a synchronous AP bus rescan.
+ * Returns true if the bus scan finds a change in the AP configuration
+ * and AP devices have been added or deleted when this function returns.
+ */
+bool ap_bus_force_rescan(void)
 {
-	/* Only trigger AP bus scans after the initial scan is done */
-	if (atomic64_read(&ap_scan_bus_count) <= 0)
-		return;
+	unsigned long scan_counter = atomic64_read(&ap_scan_bus_count);
+	bool rc = false;
 
-	/* processing a asynchronous bus rescan */
-	del_timer(&ap_scan_bus_timer);
-	queue_work(system_long_wq, &ap_scan_bus_work);
-	flush_work(&ap_scan_bus_work);
+	pr_debug(">%s scan counter=%lu\n", __func__, scan_counter);
+
+	/* Only trigger AP bus scans after the initial scan is done */
+	if (scan_counter <= 0)
+		goto out;
+
+	/* Try to acquire the AP scan bus mutex */
+	if (mutex_trylock(&ap_scan_bus_mutex)) {
+		/* mutex acquired, run the AP bus scan */
+		ap_scan_bus_result = ap_scan_bus();
+		rc = ap_scan_bus_result;
+		mutex_unlock(&ap_scan_bus_mutex);
+		goto out;
+	}
+
+	/*
+	 * Mutex acquire failed. So there is currently another task
+	 * already running the AP bus scan. Then let's simple wait
+	 * for the lock which means the other task has finished and
+	 * stored the result in ap_scan_bus_result.
+	 */
+	if (mutex_lock_interruptible(&ap_scan_bus_mutex)) {
+		/* some error occurred, ignore and go out */
+		goto out;
+	}
+	rc = ap_scan_bus_result;
+	mutex_unlock(&ap_scan_bus_mutex);
+
+out:
+	pr_debug("%s rc=%d\n", __func__, rc);
+	return rc;
 }
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
@@ -2179,8 +2213,10 @@ static bool ap_config_has_new_doms(void)
 
 /**
  * ap_scan_bus(): Scan the AP bus for new devices
+ * Always run under mutex ap_scan_bus_mutex protection
+ * which needs to get locked/unlocked by the caller!
  * Returns true if any config change has been detected
- * otherwise false.
+ * during the scan, otherwise false.
  */
 static bool ap_scan_bus(void)
 {
@@ -2259,8 +2295,19 @@ static void ap_scan_bus_timer_callback(struct timer_list *unused)
  */
 static void ap_scan_bus_wq_callback(struct work_struct *unused)
 {
-	/* now finally do the AP bus scan */
-	ap_scan_bus();
+	/*
+	 * Try to invoke an ap_scan_bus(). If the mutex acquisition
+	 * fails there is currently another task already running the
+	 * AP scan bus and there is no need to wait and re-trigger the
+	 * scan again. Please note at the end of the scan bus function
+	 * the AP scan bus timer is re-armed which triggers then the
+	 * ap_scan_bus_timer_callback which enqueues a work into the
+	 * system_long_wq which invokes this function here again.
+	 */
+	if (mutex_trylock(&ap_scan_bus_mutex)) {
+		ap_scan_bus_result = ap_scan_bus();
+		mutex_unlock(&ap_scan_bus_mutex);
+	}
 }
 
 static int __init ap_debug_init(void)
