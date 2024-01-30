@@ -545,15 +545,11 @@ static void zswap_entry_get(struct zswap_entry *entry)
 	entry->refcount++;
 }
 
-/* caller must hold the tree lock
-* remove from the tree and free it, if nobody reference the entry
-*/
+/* caller must hold the tree lock */
 static void zswap_entry_put(struct zswap_entry *entry)
 {
-	int refcount = --entry->refcount;
-
-	WARN_ON_ONCE(refcount < 0);
-	if (refcount == 0) {
+	WARN_ON_ONCE(!entry->refcount);
+	if (--entry->refcount == 0) {
 		WARN_ON_ONCE(!RB_EMPTY_NODE(&entry->rbnode));
 		zswap_entry_free(entry);
 	}
