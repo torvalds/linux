@@ -214,7 +214,7 @@ struct thermal_zone_device {
  * @governor_list:	node in thermal_governor_list (in thermal_core.c)
  */
 struct thermal_governor {
-	char name[THERMAL_NAME_LENGTH];
+	const char *name;
 	int (*bind_to_tz)(struct thermal_zone_device *tz);
 	void (*unbind_from_tz)(struct thermal_zone_device *tz);
 	int (*throttle)(struct thermal_zone_device *tz,
@@ -226,7 +226,7 @@ struct thermal_governor {
 
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
-	char governor_name[THERMAL_NAME_LENGTH];
+	const char *governor_name;
 
 	/*
 	 * a boolean to indicate if the thermal to hwmon sysfs interface
