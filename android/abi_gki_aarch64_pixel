@@ -2581,6 +2581,7 @@
   update_devfreq
   ___update_load_avg
   ___update_load_sum
+  update_misfit_status
   update_rq_clock
   up_read
   up_write
