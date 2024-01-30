@@ -1274,7 +1274,7 @@ void tctx_task_work(struct callback_head *cb)
 	if (unlikely(atomic_read(&tctx->in_cancel)))
 		io_uring_drop_tctx_refs(current);
 
-	trace_io_uring_task_work_run(tctx, count, 1);
+	trace_io_uring_task_work_run(tctx, count);
 }
 
 static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)

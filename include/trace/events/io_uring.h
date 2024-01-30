@@ -602,29 +602,25 @@ TRACE_EVENT(io_uring_cqe_overflow,
  *
  * @tctx:		pointer to a io_uring_task
  * @count:		how many functions it ran
- * @loops:		how many loops it ran
  *
  */
 TRACE_EVENT(io_uring_task_work_run,
 
-	TP_PROTO(void *tctx, unsigned int count, unsigned int loops),
+	TP_PROTO(void *tctx, unsigned int count),
 
-	TP_ARGS(tctx, count, loops),
+	TP_ARGS(tctx, count),
 
 	TP_STRUCT__entry (
 		__field(  void *,		tctx		)
 		__field(  unsigned int,		count		)
-		__field(  unsigned int,		loops		)
 	),
 
 	TP_fast_assign(
 		__entry->tctx		= tctx;
 		__entry->count		= count;
-		__entry->loops		= loops;
 	),
 
-	TP_printk("tctx %p, count %u, loops %u",
-		 __entry->tctx, __entry->count, __entry->loops)
+	TP_printk("tctx %p, count %u", __entry->tctx, __entry->count)
 );
 
 TRACE_EVENT(io_uring_short_write,
