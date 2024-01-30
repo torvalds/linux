@@ -48,12 +48,10 @@ static const char rxrpc_keepalive_string[] = "";
 static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
 {
 	if (ret < 0) {
-		u16 tx_backoff = READ_ONCE(call->tx_backoff);
-
-		if (tx_backoff < HZ)
-			WRITE_ONCE(call->tx_backoff, tx_backoff + 1);
+		if (call->tx_backoff < 1000)
+			call->tx_backoff += 100;
 	} else {
-		WRITE_ONCE(call->tx_backoff, 0);
+		call->tx_backoff = 0;
 	}
 }
 
@@ -67,11 +65,10 @@ static void rxrpc_tx_backoff(struct rxrpc_call *call, int ret)
  */
 static void rxrpc_set_keepalive(struct rxrpc_call *call)
 {
-	unsigned long now = jiffies;
+	ktime_t delay = ms_to_ktime(READ_ONCE(call->next_rx_timo) / 6);
 
-	call->keepalive_at = now + call->next_rx_timo / 6;
-	rxrpc_reduce_call_timer(call, call->keepalive_at, now,
-				rxrpc_timer_set_for_keepalive);
+	call->keepalive_at = ktime_add(ktime_get_real(), delay);
+	trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_keepalive);
 }
 
 /*
@@ -515,24 +512,21 @@ done:
 		if (txb->flags & RXRPC_REQUEST_ACK) {
 			call->peer->rtt_last_req = txb->last_sent;
 			if (call->peer->rtt_count > 1) {
-				unsigned long nowj = jiffies, ack_lost_at;
+				ktime_t delay = rxrpc_get_rto_backoff(call->peer, false);
+				ktime_t now = ktime_get_real();
 
-				ack_lost_at = rxrpc_get_rto_backoff(call->peer, false);
-				ack_lost_at += nowj;
-				call->ack_lost_at = ack_lost_at;
-				rxrpc_reduce_call_timer(call, ack_lost_at, nowj,
-							rxrpc_timer_set_for_lost_ack);
+				call->ack_lost_at = ktime_add(now, delay);
+				trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_lost_ack);
 			}
 		}
 
 		if (txb->seq == 1 &&
 		    !test_and_set_bit(RXRPC_CALL_BEGAN_RX_TIMER,
 				      &call->flags)) {
-			unsigned long nowj = jiffies;
+			ktime_t delay = ms_to_ktime(READ_ONCE(call->next_rx_timo));
 
-			call->expect_rx_by = nowj + call->next_rx_timo;
-			rxrpc_reduce_call_timer(call, call->expect_rx_by, nowj,
-						rxrpc_timer_set_for_normal);
+			call->expect_rx_by = ktime_add(ktime_get_real(), delay);
+			trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_expect_rx);
 		}
 
 		rxrpc_set_keepalive(call);
@@ -755,11 +749,9 @@ void rxrpc_transmit_one(struct rxrpc_call *call, struct rxrpc_txbuf *txb)
 			rxrpc_instant_resend(call, txb);
 		}
 	} else {
-		unsigned long now = jiffies;
-		unsigned long resend_at = now + call->peer->rto_j;
+		ktime_t delay = ns_to_ktime(call->peer->rto_us * NSEC_PER_USEC);
 
-		call->resend_at = resend_at;
-		rxrpc_reduce_call_timer(call, resend_at, now,
-					rxrpc_timer_set_for_send);
+		call->resend_at = ktime_add(ktime_get_real(), delay);
+		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_resend_tx);
 	}
 }

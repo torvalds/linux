@@ -17,22 +17,22 @@
 unsigned int rxrpc_max_backlog __read_mostly = 10;
 
 /*
- * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
+ * How long to wait before scheduling an ACK with subtype DELAY (in ms).
  *
  * We use this when we've received new data packets.  If those packets aren't
  * all consumed within this time we will send a DELAY ACK if an ACK was not
  * requested to let the sender know it doesn't need to resend.
  */
-unsigned long rxrpc_soft_ack_delay = HZ;
+unsigned long rxrpc_soft_ack_delay = 1000;
 
 /*
- * How long to wait before scheduling an ACK with subtype IDLE (in jiffies).
+ * How long to wait before scheduling an ACK with subtype IDLE (in ms).
  *
  * We use this when we've consumed some previously soft-ACK'd packets when
  * further packets aren't immediately received to decide when to send an IDLE
  * ACK let the other end know that it can free up its Tx buffer space.
  */
-unsigned long rxrpc_idle_ack_delay = HZ / 2;
+unsigned long rxrpc_idle_ack_delay = 500;
 
 /*
  * Receive window size in packets.  This indicates the maximum number of

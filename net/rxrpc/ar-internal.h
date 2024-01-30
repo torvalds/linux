@@ -352,8 +352,8 @@ struct rxrpc_peer {
 	u32			mdev_us;	/* medium deviation			*/
 	u32			mdev_max_us;	/* maximal mdev for the last rtt period	*/
 	u32			rttvar_us;	/* smoothed mdev_max			*/
-	u32			rto_j;		/* Retransmission timeout in jiffies */
-	u8			backoff;	/* Backoff timeout */
+	u32			rto_us;		/* Retransmission timeout in usec */
+	u8			backoff;	/* Backoff timeout (as shift) */
 
 	u8			cong_ssthresh;	/* Congestion slow-start threshold */
 };
@@ -620,17 +620,17 @@ struct rxrpc_call {
 	const struct rxrpc_security *security;	/* applied security module */
 	struct mutex		user_mutex;	/* User access mutex */
 	struct sockaddr_rxrpc	dest_srx;	/* Destination address */
-	unsigned long		delay_ack_at;	/* When DELAY ACK needs to happen */
-	unsigned long		ack_lost_at;	/* When ACK is figured as lost */
-	unsigned long		resend_at;	/* When next resend needs to happen */
-	unsigned long		ping_at;	/* When next to send a ping */
-	unsigned long		keepalive_at;	/* When next to send a keepalive ping */
-	unsigned long		expect_rx_by;	/* When we expect to get a packet by */
-	unsigned long		expect_req_by;	/* When we expect to get a request DATA packet by */
-	unsigned long		expect_term_by;	/* When we expect call termination by */
-	u32			next_rx_timo;	/* Timeout for next Rx packet (jif) */
-	u32			next_req_timo;	/* Timeout for next Rx request packet (jif) */
-	u32			hard_timo;	/* Maximum lifetime or 0 (jif) */
+	ktime_t			delay_ack_at;	/* When DELAY ACK needs to happen */
+	ktime_t			ack_lost_at;	/* When ACK is figured as lost */
+	ktime_t			resend_at;	/* When next resend needs to happen */
+	ktime_t			ping_at;	/* When next to send a ping */
+	ktime_t			keepalive_at;	/* When next to send a keepalive ping */
+	ktime_t			expect_rx_by;	/* When we expect to get a packet by */
+	ktime_t			expect_req_by;	/* When we expect to get a request DATA packet by */
+	ktime_t			expect_term_by;	/* When we expect call termination by */
+	u32			next_rx_timo;	/* Timeout for next Rx packet (ms) */
+	u32			next_req_timo;	/* Timeout for next Rx request packet (ms) */
+	u32			hard_timo;	/* Maximum lifetime or 0 (s) */
 	struct timer_list	timer;		/* Combined event timer */
 	struct work_struct	destroyer;	/* In-process-context destroyer */
 	rxrpc_notify_rx_t	notify_rx;	/* kernel service Rx notification function */
@@ -675,7 +675,7 @@ struct rxrpc_call {
 	rxrpc_seq_t		tx_transmitted;	/* Highest packet transmitted */
 	rxrpc_seq_t		tx_prepared;	/* Highest Tx slot prepared. */
 	rxrpc_seq_t		tx_top;		/* Highest Tx slot allocated. */
-	u16			tx_backoff;	/* Delay to insert due to Tx failure */
+	u16			tx_backoff;	/* Delay to insert due to Tx failure (ms) */
 	u8			tx_winsize;	/* Maximum size of Tx window */
 #define RXRPC_TX_MAX_WINDOW	128
 	ktime_t			tx_last_sent;	/* Last time a transmission occurred */
@@ -865,11 +865,6 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *, rxrpc_serial_t,
 			     enum rxrpc_propose_ack_trace);
 void rxrpc_shrink_call_tx_buffer(struct rxrpc_call *);
 void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb);
-
-void rxrpc_reduce_call_timer(struct rxrpc_call *call,
-			     unsigned long expire_at,
-			     unsigned long now,
-			     enum rxrpc_timer_trace why);
 
 bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb);
 
@@ -1214,7 +1209,7 @@ static inline int rxrpc_abort_eproto(struct rxrpc_call *call,
  */
 void rxrpc_peer_add_rtt(struct rxrpc_call *, enum rxrpc_rtt_rx_trace, int,
 			rxrpc_serial_t, rxrpc_serial_t, ktime_t, ktime_t);
-unsigned long rxrpc_get_rto_backoff(struct rxrpc_peer *, bool);
+ktime_t rxrpc_get_rto_backoff(struct rxrpc_peer *peer, bool retrans);
 void rxrpc_peer_init_rtt(struct rxrpc_peer *);
 
 /*

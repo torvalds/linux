@@ -609,7 +609,6 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 	__releases(&rx->sk.sk_lock.slock)
 {
 	struct rxrpc_call *call;
-	unsigned long now, j;
 	bool dropped_lock = false;
 	int ret;
 
@@ -687,25 +686,21 @@ int rxrpc_do_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg, size_t len)
 
 	switch (p.call.nr_timeouts) {
 	case 3:
-		j = msecs_to_jiffies(p.call.timeouts.normal);
-		if (p.call.timeouts.normal > 0 && j == 0)
-			j = 1;
-		WRITE_ONCE(call->next_rx_timo, j);
+		WRITE_ONCE(call->next_rx_timo, p.call.timeouts.normal);
 		fallthrough;
 	case 2:
-		j = msecs_to_jiffies(p.call.timeouts.idle);
-		if (p.call.timeouts.idle > 0 && j == 0)
-			j = 1;
-		WRITE_ONCE(call->next_req_timo, j);
+		WRITE_ONCE(call->next_req_timo, p.call.timeouts.idle);
 		fallthrough;
 	case 1:
 		if (p.call.timeouts.hard > 0) {
-			j = p.call.timeouts.hard * HZ;
-			now = jiffies;
-			j += now;
-			WRITE_ONCE(call->expect_term_by, j);
-			rxrpc_reduce_call_timer(call, j, now,
-						rxrpc_timer_set_for_hard);
+			ktime_t delay = ms_to_ktime(p.call.timeouts.hard * MSEC_PER_SEC);
+
+			WRITE_ONCE(call->expect_term_by,
+				   ktime_add(p.call.timeouts.hard,
+					     ktime_get_real()));
+			trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_hard);
+			rxrpc_poke_call(call, rxrpc_call_poke_set_timeout);
+
 		}
 		break;
 	}

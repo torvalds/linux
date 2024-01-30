@@ -252,6 +252,9 @@ static void rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 {
 	ASSERT(test_bit(RXRPC_CALL_TX_LAST, &call->flags));
 
+	call->resend_at = KTIME_MAX;
+	trace_rxrpc_timer_can(call, rxrpc_timer_trace_resend);
+
 	if (unlikely(call->cong_last_nack)) {
 		rxrpc_free_skb(call->cong_last_nack, rxrpc_skb_put_last_nack);
 		call->cong_last_nack = NULL;
@@ -288,13 +291,11 @@ static void rxrpc_end_tx_phase(struct rxrpc_call *call, bool reply_begun,
 static bool rxrpc_receiving_reply(struct rxrpc_call *call)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	unsigned long now;
 	rxrpc_seq_t top = READ_ONCE(call->tx_top);
 
 	if (call->ackr_reason) {
-		now = jiffies;
-		call->delay_ack_at = now + MAX_JIFFY_OFFSET;
-		trace_rxrpc_timer(call, rxrpc_timer_init_for_reply, now);
+		call->delay_ack_at = KTIME_MAX;
+		trace_rxrpc_timer_can(call, rxrpc_timer_trace_delayed_ack);
 	}
 
 	if (!test_bit(RXRPC_CALL_TX_LAST, &call->flags)) {
@@ -327,7 +328,7 @@ static void rxrpc_end_rx_phase(struct rxrpc_call *call, rxrpc_serial_t serial)
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST:
 		rxrpc_set_call_state(call, RXRPC_CALL_SERVER_ACK_REQUEST);
-		call->expect_req_by = jiffies + MAX_JIFFY_OFFSET;
+		call->expect_req_by = KTIME_MAX;
 		rxrpc_propose_delay_ACK(call, serial, rxrpc_propose_ack_processing_op);
 		break;
 
@@ -587,14 +588,12 @@ static void rxrpc_input_data(struct rxrpc_call *call, struct sk_buff *skb)
 
 	case RXRPC_CALL_SERVER_RECV_REQUEST: {
 		unsigned long timo = READ_ONCE(call->next_req_timo);
-		unsigned long now, expect_req_by;
 
 		if (timo) {
-			now = jiffies;
-			expect_req_by = now + timo;
-			call->expect_req_by = now + timo;
-			rxrpc_reduce_call_timer(call, expect_req_by, now,
-						rxrpc_timer_set_for_idle);
+			ktime_t delay = ms_to_ktime(timo);
+
+			call->expect_req_by = ktime_add(ktime_get_real(), delay);
+			trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_idle);
 		}
 		break;
 	}
@@ -1046,11 +1045,10 @@ void rxrpc_input_call_packet(struct rxrpc_call *call, struct sk_buff *skb)
 
 	timo = READ_ONCE(call->next_rx_timo);
 	if (timo) {
-		unsigned long now = jiffies;
+		ktime_t delay = ms_to_ktime(timo);
 
-		call->expect_rx_by = now + timo;
-		rxrpc_reduce_call_timer(call, call->expect_rx_by, now,
-					rxrpc_timer_set_for_normal);
+		call->expect_rx_by = ktime_add(ktime_get_real(), delay);
+		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_expect_rx);
 	}
 
 	switch (sp->hdr.type) {
