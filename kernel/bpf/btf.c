@@ -7056,6 +7056,7 @@ enum btf_arg_tag {
 	ARG_TAG_CTX = 0x1,
 	ARG_TAG_NONNULL = 0x2,
 	ARG_TAG_TRUSTED = 0x4,
+	ARG_TAG_NULLABLE = 0x8,
 };
 
 /* Process BTF of a function to produce high-level expectation of function
@@ -7161,6 +7162,8 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				tags |= ARG_TAG_TRUSTED;
 			} else if (strcmp(tag, "nonnull") == 0) {
 				tags |= ARG_TAG_NONNULL;
+			} else if (strcmp(tag, "nullable") == 0) {
+				tags |= ARG_TAG_NULLABLE;
 			} else {
 				bpf_log(log, "arg#%d has unsupported set of tags\n", i);
 				return -EOPNOTSUPP;
@@ -7210,11 +7213,18 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 				return kern_type_id;
 
 			sub->args[i].arg_type = ARG_PTR_TO_BTF_ID | PTR_TRUSTED;
+			if (tags & ARG_TAG_NULLABLE)
+				sub->args[i].arg_type |= PTR_MAYBE_NULL;
 			sub->args[i].btf_id = kern_type_id;
 			continue;
 		}
 		if (is_global) { /* generic user data pointer */
 			u32 mem_size;
+
+			if (tags & ARG_TAG_NULLABLE) {
+				bpf_log(log, "arg#%d has invalid combination of tags\n", i);
+				return -EINVAL;
+			}
 
 			t = btf_type_skip_modifiers(btf, t->type, NULL);
 			ref_t = btf_resolve_size(btf, t, &mem_size);
