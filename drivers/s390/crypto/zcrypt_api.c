@@ -60,10 +60,6 @@ DEFINE_SPINLOCK(zcrypt_list_lock);
 LIST_HEAD(zcrypt_card_list);
 
 static atomic_t zcrypt_open_count = ATOMIC_INIT(0);
-static atomic_t zcrypt_rescan_count = ATOMIC_INIT(0);
-
-atomic_t zcrypt_rescan_req = ATOMIC_INIT(0);
-EXPORT_SYMBOL(zcrypt_rescan_req);
 
 static LIST_HEAD(zcrypt_ops_list);
 
@@ -72,20 +68,15 @@ debug_info_t *zcrypt_dbf_info;
 
 /*
  * Process a rescan of the transport layer.
- *
- * Returns 1, if the rescan has been processed, otherwise 0.
+ * Runs a synchronous AP bus rescan.
+ * Returns true if something has changed (for example the
+ * bus scan has found and build up new devices) and it is
+ * worth to do a retry. Otherwise false is returned meaning
+ * no changes on the AP bus level.
  */
-static inline int zcrypt_process_rescan(void)
+static inline bool zcrypt_process_rescan(void)
 {
-	if (atomic_read(&zcrypt_rescan_req)) {
-		atomic_set(&zcrypt_rescan_req, 0);
-		atomic_inc(&zcrypt_rescan_count);
-		ap_bus_force_rescan();
-		ZCRYPT_DBF_INFO("%s rescan count=%07d\n", __func__,
-				atomic_inc_return(&zcrypt_rescan_count));
-		return 1;
-	}
-	return 0;
+	return ap_bus_force_rescan();
 }
 
 void zcrypt_msgtype_register(struct zcrypt_ops *zops)
@@ -1481,16 +1472,13 @@ static int icarsamodexpo_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = zcrypt_rsa_modexpo(perms, &tr, &mex);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_modexpo(perms, &tr, &mex);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc) {
@@ -1513,16 +1501,13 @@ static int icarsacrt_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = zcrypt_rsa_crt(perms, &tr, &crt);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_crt(perms, &tr, &crt);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc) {
@@ -1545,16 +1530,13 @@ static int zsecsendcprb_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
@@ -1578,16 +1560,13 @@ static int zsendep11cprb_ioctl(struct ap_perms *perms, unsigned long arg)
 
 	do {
 		rc = _zcrypt_send_ep11_cprb(true, perms, &tr, &xcrb);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = _zcrypt_send_ep11_cprb(true, perms, &tr, &xcrb);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
@@ -1758,16 +1737,13 @@ static long trans_modexpo32(struct ap_perms *perms, struct file *filp,
 	mex64.n_modulus = compat_ptr(mex32.n_modulus);
 	do {
 		rc = zcrypt_rsa_modexpo(perms, &tr, &mex64);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_modexpo(perms, &tr, &mex64);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
@@ -1811,16 +1787,13 @@ static long trans_modexpo_crt32(struct ap_perms *perms, struct file *filp,
 	crt64.u_mult_inv = compat_ptr(crt32.u_mult_inv);
 	do {
 		rc = zcrypt_rsa_crt(perms, &tr, &crt64);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = zcrypt_rsa_crt(perms, &tr, &crt64);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	if (rc)
@@ -1883,16 +1856,13 @@ static long trans_xcrb32(struct ap_perms *perms, struct file *filp,
 	xcrb64.status = xcrb32.status;
 	do {
 		rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb64);
-		if (rc == -EAGAIN)
-			tr.again_counter++;
-	} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
-	/* on failure: retry once again after a requested rescan */
-	if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+	} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
+
+	/* on ENODEV failure: retry once again after a requested rescan */
+	if (rc == -ENODEV && zcrypt_process_rescan())
 		do {
 			rc = _zcrypt_send_cprb(true, perms, &tr, &xcrb64);
-			if (rc == -EAGAIN)
-				tr.again_counter++;
-		} while (rc == -EAGAIN && tr.again_counter < TRACK_AGAIN_MAX);
+		} while (rc == -EAGAIN && ++tr.again_counter < TRACK_AGAIN_MAX);
 	if (rc == -EAGAIN && tr.again_counter >= TRACK_AGAIN_MAX)
 		rc = -EIO;
 	xcrb32.reply_control_blk_length = xcrb64.reply_control_blk_length;
@@ -1964,8 +1934,8 @@ static int zcrypt_rng_data_read(struct hwrng *rng, u32 *data)
 	 */
 	if (zcrypt_rng_buffer_index == 0) {
 		rc = zcrypt_rng((char *)zcrypt_rng_buffer);
-		/* on failure: retry once again after a requested rescan */
-		if ((rc == -ENODEV) && (zcrypt_process_rescan()))
+		/* on ENODEV failure: retry once again after an AP bus rescan */
+		if (rc == -ENODEV && zcrypt_process_rescan())
 			rc = zcrypt_rng((char *)zcrypt_rng_buffer);
 		if (rc < 0)
 			return -EIO;
@@ -2027,7 +1997,7 @@ void zcrypt_rng_device_remove(void)
  * an asynchronous job. This function waits until these initial jobs
  * are done and so the zcrypt api should be ready to serve crypto
  * requests - if there are resources available. The function uses an
- * internal timeout of 60s. The very first caller will either wait for
+ * internal timeout of 30s. The very first caller will either wait for
  * ap bus bindings complete or the timeout happens. This state will be
  * remembered for further callers which will only be blocked until a
  * decision is made (timeout or bindings complete).
@@ -2047,7 +2017,7 @@ int zcrypt_wait_api_operational(void)
 	case 0:
 		/* initial state, invoke wait for the ap bus complete */
 		rc = ap_wait_apqn_bindings_complete(
-			msecs_to_jiffies(60 * 1000));
+			msecs_to_jiffies(ZCRYPT_WAIT_BINDINGS_COMPLETE_MS));
 		switch (rc) {
 		case 0:
 			/* ap bus bindings are complete */
