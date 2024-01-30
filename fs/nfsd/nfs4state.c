@@ -2711,7 +2711,6 @@ static int nfs4_show_deleg(struct seq_file *s, struct nfs4_stid *st)
 	nfs4_show_stateid(s, &st->sc_stateid);
 	seq_printf(s, ": { type: deleg, ");
 
-	/* Kinda dead code as long as we only support read delegs: */
 	seq_printf(s, "access: %s, ",
 		ds->dl_type == NFS4_OPEN_DELEGATE_READ ? "r" : "w");
 
