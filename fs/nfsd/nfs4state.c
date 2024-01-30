@@ -1721,7 +1721,7 @@ void nfsd4_revoke_states(struct net *net, struct super_block *sb)
 	unsigned int idhashval;
 	unsigned int sc_types;
 
-	sc_types = SC_TYPE_OPEN | SC_TYPE_LOCK | SC_TYPE_DELEG;
+	sc_types = SC_TYPE_OPEN | SC_TYPE_LOCK | SC_TYPE_DELEG | SC_TYPE_LAYOUT;
 
 	spin_lock(&nn->client_lock);
 	for (idhashval = 0; idhashval < CLIENT_HASH_MASK; idhashval++) {
@@ -1734,6 +1734,7 @@ void nfsd4_revoke_states(struct net *net, struct super_block *sb)
 			if (stid) {
 				struct nfs4_ol_stateid *stp;
 				struct nfs4_delegation *dp;
+				struct nfs4_layout_stateid *ls;
 
 				spin_unlock(&nn->client_lock);
 				switch (stid->sc_type) {
@@ -1788,6 +1789,10 @@ void nfsd4_revoke_states(struct net *net, struct super_block *sb)
 					spin_unlock(&state_lock);
 					if (dp)
 						revoke_delegation(dp);
+					break;
+				case SC_TYPE_LAYOUT:
+					ls = layoutstateid(stid);
+					nfsd4_close_layout(ls);
 					break;
 				}
 				nfs4_put_stid(stid);
@@ -2868,7 +2873,6 @@ static int nfs4_show_layout(struct seq_file *s, struct nfs4_stid *st)
 	struct nfsd_file *file;
 
 	ls = container_of(st, struct nfs4_layout_stateid, ls_stid);
-	file = ls->ls_file;
 
 	seq_puts(s, "- ");
 	nfs4_show_stateid(s, &st->sc_stateid);
@@ -2876,12 +2880,15 @@ static int nfs4_show_layout(struct seq_file *s, struct nfs4_stid *st)
 
 	/* XXX: What else would be useful? */
 
+	spin_lock(&ls->ls_stid.sc_file->fi_lock);
+	file = ls->ls_file;
 	if (file) {
 		seq_puts(s, ", ");
 		nfs4_show_superblock(s, file);
 		seq_puts(s, ", ");
 		nfs4_show_fname(s, file);
 	}
+	spin_unlock(&ls->ls_stid.sc_file->fi_lock);
 	if (st->sc_status & SC_STATUS_ADMIN_REVOKED)
 		seq_puts(s, ", admin-revoked");
 	seq_puts(s, " }\n");

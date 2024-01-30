@@ -152,6 +152,23 @@ void nfsd4_setup_layout_type(struct svc_export *exp)
 #endif
 }
 
+void nfsd4_close_layout(struct nfs4_layout_stateid *ls)
+{
+	struct nfsd_file *fl;
+
+	spin_lock(&ls->ls_stid.sc_file->fi_lock);
+	fl = ls->ls_file;
+	ls->ls_file = NULL;
+	spin_unlock(&ls->ls_stid.sc_file->fi_lock);
+
+	if (fl) {
+		if (!nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
+			vfs_setlease(fl->nf_file, F_UNLCK, NULL,
+				     (void **)&ls);
+		nfsd_file_put(fl);
+	}
+}
+
 static void
 nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 {
@@ -169,9 +186,7 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 	list_del_init(&ls->ls_perfile);
 	spin_unlock(&fp->fi_lock);
 
-	if (!nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
-		vfs_setlease(ls->ls_file->nf_file, F_UNLCK, NULL, (void **)&ls);
-	nfsd_file_put(ls->ls_file);
+	nfsd4_close_layout(ls);
 
 	if (ls->ls_recalled)
 		atomic_dec(&ls->ls_stid.sc_file->fi_lo_recalls);
@@ -605,7 +620,7 @@ nfsd4_return_all_file_layouts(struct nfs4_client *clp, struct nfs4_file *fp)
 }
 
 static void
-nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
+nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls, struct nfsd_file *file)
 {
 	struct nfs4_client *clp = ls->ls_stid.sc_client;
 	char addr_str[INET6_ADDRSTRLEN];
@@ -627,7 +642,7 @@ nfsd4_cb_layout_fail(struct nfs4_layout_stateid *ls)
 
 	argv[0] = (char *)nfsd_recall_failed;
 	argv[1] = addr_str;
-	argv[2] = ls->ls_file->nf_file->f_path.mnt->mnt_sb->s_id;
+	argv[2] = file->nf_file->f_path.mnt->mnt_sb->s_id;
 	argv[3] = NULL;
 
 	error = call_usermodehelper(nfsd_recall_failed, argv, envp,
@@ -657,6 +672,7 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 	struct nfsd_net *nn;
 	ktime_t now, cutoff;
 	const struct nfsd4_layout_ops *ops;
+	struct nfsd_file *fl;
 
 	trace_nfsd_cb_layout_done(&ls->ls_stid.sc_stateid, task);
 	switch (task->tk_status) {
@@ -688,12 +704,17 @@ nfsd4_cb_layout_done(struct nfsd4_callback *cb, struct rpc_task *task)
 		 * Unknown error or non-responding client, we'll need to fence.
 		 */
 		trace_nfsd_layout_recall_fail(&ls->ls_stid.sc_stateid);
-
-		ops = nfsd4_layout_ops[ls->ls_layout_type];
-		if (ops->fence_client)
-			ops->fence_client(ls);
-		else
-			nfsd4_cb_layout_fail(ls);
+		rcu_read_lock();
+		fl = nfsd_file_get(ls->ls_file);
+		rcu_read_unlock();
+		if (fl) {
+			ops = nfsd4_layout_ops[ls->ls_layout_type];
+			if (ops->fence_client)
+				ops->fence_client(ls, fl);
+			else
+				nfsd4_cb_layout_fail(ls, fl);
+			nfsd_file_put(fl);
+		}
 		return 1;
 	case -NFS4ERR_NOMATCHING_LAYOUT:
 		trace_nfsd_layout_recall_done(&ls->ls_stid.sc_stateid);
