@@ -15,6 +15,11 @@
 #include <linux/page_idle.h>
 #include <linux/slab.h>
 
+#define DAMON_DBGFS_DEPRECATION_NOTICE					\
+	"DAMON debugfs interface is deprecated, so users should move "	\
+	"to DAMON_SYSFS. If you cannot, please report your usecase to "	\
+	"damon@lists.linux.dev and linux-mm@kvack.org.\n"
+
 static struct damon_ctx **dbgfs_ctxs;
 static int dbgfs_nr_ctxs;
 static struct dentry **dbgfs_dirs;
@@ -22,10 +27,7 @@ static DEFINE_MUTEX(damon_dbgfs_lock);
 
 static void damon_dbgfs_warn_deprecation(void)
 {
-	pr_warn_once("DAMON debugfs interface is deprecated, "
-		     "so users should move to DAMON_SYSFS. If you cannot, "
-		     "please report your usecase to damon@lists.linux.dev and "
-		     "linux-mm@kvack.org.\n");
+	pr_warn_once(DAMON_DBGFS_DEPRECATION_NOTICE);
 }
 
 /*
@@ -808,10 +810,7 @@ static void dbgfs_destroy_ctx(struct damon_ctx *ctx)
 static ssize_t damon_dbgfs_deprecated_read(struct file *file,
 		char __user *buf, size_t count, loff_t *ppos)
 {
-	static const char kbuf[512] = "DAMON debugfs interface is deprecated, "
-		     "so users should move to DAMON_SYSFS. If you cannot, "
-		     "please report your usecase to damon@lists.linux.dev and "
-		     "linux-mm@kvack.org.\n";
+	static const char kbuf[512] = DAMON_DBGFS_DEPRECATION_NOTICE;
 
 	return simple_read_from_buffer(buf, count, ppos, kbuf, strlen(kbuf));
 }
