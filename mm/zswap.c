@@ -541,6 +541,7 @@ static void zswap_entry_free(struct zswap_entry *entry)
 /* caller must hold the tree lock */
 static void zswap_entry_get(struct zswap_entry *entry)
 {
+	WARN_ON_ONCE(!entry->refcount);
 	entry->refcount++;
 }
 
