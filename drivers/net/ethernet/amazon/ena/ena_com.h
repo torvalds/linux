@@ -158,7 +158,6 @@ struct ena_com_io_sq {
 	struct ena_com_io_desc_addr desc_addr;
 
 	u32 __iomem *db_addr;
-	u8 __iomem *header_addr;
 
 	enum queue_direction direction;
 	enum ena_admin_placement_policy_type mem_queue_type;

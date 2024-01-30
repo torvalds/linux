@@ -1284,9 +1284,6 @@ static int ena_com_create_io_sq(struct ena_com_dev *ena_dev,
 		(uintptr_t)cmd_completion.sq_doorbell_offset);
 
 	if (io_sq->mem_queue_type == ENA_ADMIN_PLACEMENT_POLICY_DEV) {
-		io_sq->header_addr = (u8 __iomem *)((uintptr_t)ena_dev->mem_bar
-				+ cmd_completion.llq_headers_offset);
-
 		io_sq->desc_addr.pbuf_dev_addr =
 			(u8 __iomem *)((uintptr_t)ena_dev->mem_bar +
 			cmd_completion.llq_descriptors_offset);
