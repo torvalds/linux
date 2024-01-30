@@ -62,43 +62,6 @@ void rxrpc_propose_delay_ACK(struct rxrpc_call *call, rxrpc_serial_t serial,
 }
 
 /*
- * Queue an ACK for immediate transmission.
- */
-void rxrpc_send_ACK(struct rxrpc_call *call, u8 ack_reason,
-		    rxrpc_serial_t serial, enum rxrpc_propose_ack_trace why)
-{
-	struct rxrpc_txbuf *txb;
-
-	if (test_bit(RXRPC_CALL_DISCONNECTED, &call->flags))
-		return;
-
-	rxrpc_inc_stat(call->rxnet, stat_tx_acks[ack_reason]);
-
-	txb = rxrpc_alloc_txbuf(call, RXRPC_PACKET_TYPE_ACK,
-				rcu_read_lock_held() ? GFP_ATOMIC | __GFP_NOWARN : GFP_NOFS);
-	if (!txb) {
-		kleave(" = -ENOMEM");
-		return;
-	}
-
-	txb->ack_why		= why;
-	txb->wire.seq		= 0;
-	txb->wire.type		= RXRPC_PACKET_TYPE_ACK;
-	txb->flags		|= RXRPC_SLOW_START_OK;
-	txb->ack.bufferSpace	= 0;
-	txb->ack.maxSkew	= 0;
-	txb->ack.firstPacket	= 0;
-	txb->ack.previousPacket	= 0;
-	txb->ack.serial		= htonl(serial);
-	txb->ack.reason		= ack_reason;
-	txb->ack.nAcks		= 0;
-
-	trace_rxrpc_send_ack(call, why, ack_reason, serial);
-	rxrpc_send_ack_packet(call, txb);
-	rxrpc_put_txbuf(txb, rxrpc_txbuf_put_ack_tx);
-}
-
-/*
  * Handle congestion being detected by the retransmit timeout.
  */
 static void rxrpc_congestion_timeout(struct rxrpc_call *call)
