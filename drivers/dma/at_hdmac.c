@@ -224,6 +224,12 @@ struct atdma_sg {
  * @total_len: total transaction byte count
  * @sglen: number of sg entries.
  * @sg: array of sgs.
+ * @boundary: number of transfers to perform before the automatic address increment operation
+ * @dst_hole: value to add to the destination address when the boundary has been reached
+ * @src_hole: value to add to the source address when the boundary has been reached
+ * @memset_buffer: buffer used for the memset operation
+ * @memset_paddr: physical address of the buffer used for the memset operation
+ * @memset_vaddr: virtual address of the buffer used for the memset operation
  */
 struct at_desc {
 	struct				virt_dma_desc vd;
@@ -246,6 +252,9 @@ struct at_desc {
 
 /**
  * enum atc_status - information bits stored in channel status flag
+ *
+ * @ATC_IS_PAUSED: If channel is pauses
+ * @ATC_IS_CYCLIC: If channel is cyclic
  *
  * Manipulated with atomic operations.
  */
@@ -282,7 +291,6 @@ struct at_dma_chan {
 	u32			save_cfg;
 	u32			save_dscr;
 	struct dma_slave_config	dma_sconfig;
-	bool			cyclic;
 	struct at_desc		*desc;
 };
 
@@ -333,6 +341,7 @@ static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
  * @save_imr: interrupt mask register that is saved on suspend/resume cycle
  * @all_chan_mask: all channels availlable in a mask
  * @lli_pool: hw lli table
+ * @memset_pool: hw memset pool
  * @chan: channels table to store at_dma_chan structures
  */
 struct at_dma {
