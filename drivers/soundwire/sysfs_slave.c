@@ -184,18 +184,40 @@ static struct attribute *dp0_attrs[] = {
 	NULL,
 };
 
+static umode_t dp0_attr_visible(struct kobject *kobj, struct attribute *attr,
+			      int n)
+{
+	struct sdw_slave *slave = dev_to_sdw_dev(kobj_to_dev(kobj));
+
+	if (slave->prop.dp0_prop)
+		return attr->mode;
+	return 0;
+}
+
+static bool dp0_group_visible(struct kobject *kobj)
+{
+	struct sdw_slave *slave = dev_to_sdw_dev(kobj_to_dev(kobj));
+
+	if (slave->prop.dp0_prop)
+		return true;
+	return false;
+}
+DEFINE_SYSFS_GROUP_VISIBLE(dp0);
+
 /*
  * we don't use ATTRIBUTES_GROUP here since we want to add a subdirectory
  * for dp0-level properties
  */
 static const struct attribute_group dp0_group = {
 	.attrs = dp0_attrs,
+	.is_visible = SYSFS_GROUP_VISIBLE(dp0),
 	.name = "dp0",
 };
 
 static const struct attribute_group *slave_groups[] = {
 	&slave_attr_group,
 	&sdw_slave_dev_attr_group,
+	&dp0_group,
 	NULL,
 };
 
@@ -206,12 +228,6 @@ int sdw_slave_sysfs_init(struct sdw_slave *slave)
 	ret = devm_device_add_groups(&slave->dev, slave_groups);
 	if (ret < 0)
 		return ret;
-
-	if (slave->prop.dp0_prop) {
-		ret = devm_device_add_group(&slave->dev, &dp0_group);
-		if (ret < 0)
-			return ret;
-	}
 
 	if (slave->prop.source_ports || slave->prop.sink_ports) {
 		ret = sdw_slave_sysfs_dpn_init(slave);
