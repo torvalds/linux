@@ -630,9 +630,9 @@ static void locks_delete_global_locks(struct file_lock *fl)
 }
 
 static unsigned long
-posix_owner_key(struct file_lock *fl)
+posix_owner_key(struct file_lock_core *flc)
 {
-	return (unsigned long) fl->c.flc_owner;
+	return (unsigned long) flc->flc_owner;
 }
 
 static void locks_insert_global_blocked(struct file_lock *waiter)
@@ -640,7 +640,7 @@ static void locks_insert_global_blocked(struct file_lock *waiter)
 	lockdep_assert_held(&blocked_lock_lock);
 
 	hash_add(blocked_hash, &waiter->c.flc_link,
-		 posix_owner_key(waiter));
+		 posix_owner_key(&waiter->c));
 }
 
 static void locks_delete_global_blocked(struct file_lock *waiter)
@@ -977,7 +977,7 @@ static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
 {
 	struct file_lock *fl;
 
-	hash_for_each_possible(blocked_hash, fl, c.flc_link, posix_owner_key(block_fl)) {
+	hash_for_each_possible(blocked_hash, fl, c.flc_link, posix_owner_key(&block_fl->c)) {
 		if (posix_same_owner(&fl->c, &block_fl->c)) {
 			while (fl->c.flc_blocker)
 				fl = fl->c.flc_blocker;
