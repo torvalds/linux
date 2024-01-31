@@ -896,9 +896,6 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	union acpi_object *wifi_pkg, *data, *flags;
 	int i, j, ret, tbl_rev, num_sub_bands = 0;
 	int idx = 2;
-	u8 cmd_ver;
-
-	fwrt->ppag_table_valid = false;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_PPAG_METHOD);
 	if (IS_ERR(data))
@@ -945,18 +942,6 @@ read_table:
 	}
 
 	fwrt->ppag_flags = flags->integer.value & IWL_PPAG_ETSI_CHINA_MASK;
-	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
-					WIDE_ID(PHY_OPS_GROUP,
-						PER_PLATFORM_ANT_GAIN_CMD),
-					IWL_FW_CMD_VER_UNKNOWN);
-	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN) {
-		ret = -EINVAL;
-		goto out_free;
-	}
-	if (!fwrt->ppag_flags && cmd_ver <= 3) {
-		ret = 0;
-		goto out_free;
-	}
 
 	/*
 	 * read, verify gain values and save them into the PPAG table.
@@ -974,22 +959,9 @@ read_table:
 			}
 
 			fwrt->ppag_chains[i].subbands[j] = ent->integer.value;
-			/* from ver 4 the fw deals with out of range values */
-			if (cmd_ver >= 4)
-				continue;
-			if ((j == 0 &&
-				(fwrt->ppag_chains[i].subbands[j] > IWL_PPAG_MAX_LB ||
-				 fwrt->ppag_chains[i].subbands[j] < IWL_PPAG_MIN_LB)) ||
-				(j != 0 &&
-				(fwrt->ppag_chains[i].subbands[j] > IWL_PPAG_MAX_HB ||
-				fwrt->ppag_chains[i].subbands[j] < IWL_PPAG_MIN_HB))) {
-					ret = -EINVAL;
-					goto out_free;
-				}
 		}
 	}
 
-	fwrt->ppag_table_valid = true;
 	ret = 0;
 
 out_free:

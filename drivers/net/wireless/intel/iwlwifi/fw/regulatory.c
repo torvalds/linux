@@ -206,12 +206,28 @@ int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 }
 IWL_EXPORT_SYMBOL(iwl_sar_fill_profile);
 
+static bool iwl_ppag_value_valid(struct iwl_fw_runtime *fwrt, int chain,
+				 int subband)
+{
+	s8 ppag_val = fwrt->ppag_chains[chain].subbands[subband];
+
+	if ((subband == 0 &&
+	     (ppag_val > IWL_PPAG_MAX_LB || ppag_val < IWL_PPAG_MIN_LB)) ||
+	    (subband != 0 &&
+	     (ppag_val > IWL_PPAG_MAX_HB || ppag_val < IWL_PPAG_MIN_HB))) {
+		IWL_DEBUG_RADIO(fwrt, "Invalid PPAG value: %d\n", ppag_val);
+		return false;
+	}
+	return true;
+}
+
 int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 			union iwl_ppag_table_cmd *cmd, int *cmd_size)
 {
 	u8 cmd_ver;
 	int i, j, num_sub_bands;
 	s8 *gain;
+	bool send_ppag_always;
 
 	/* many firmware images for JF lie about this */
 	if (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id) ==
@@ -226,9 +242,15 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 
 	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
 					WIDE_ID(PHY_OPS_GROUP,
-						PER_PLATFORM_ANT_GAIN_CMD),
-					IWL_FW_CMD_VER_UNKNOWN);
-	if (!fwrt->ppag_table_valid || (cmd_ver <= 3 && !fwrt->ppag_flags)) {
+						PER_PLATFORM_ANT_GAIN_CMD), 1);
+	/*
+	 * Starting from ver 4, driver needs to send the PPAG CMD regradless
+	 * if PPAG is enabled/disabled or valid/invalid.
+	 */
+	send_ppag_always = cmd_ver > 3;
+
+	/* Don't send PPAG if it is disabled */
+	if (!send_ppag_always && !fwrt->ppag_flags) {
 		IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
 		return -EINVAL;
 	}
@@ -283,6 +305,10 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
 		for (j = 0; j < num_sub_bands; j++) {
+			if (!send_ppag_always &&
+			    !iwl_ppag_value_valid(fwrt, i, j))
+				return -EINVAL;
+
 			gain[i * num_sub_bands + j] =
 				fwrt->ppag_chains[i].subbands[j];
 			IWL_DEBUG_RADIO(fwrt,
