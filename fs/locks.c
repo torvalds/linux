@@ -635,19 +635,18 @@ posix_owner_key(struct file_lock_core *flc)
 	return (unsigned long) flc->flc_owner;
 }
 
-static void locks_insert_global_blocked(struct file_lock *waiter)
+static void locks_insert_global_blocked(struct file_lock_core *waiter)
 {
 	lockdep_assert_held(&blocked_lock_lock);
 
-	hash_add(blocked_hash, &waiter->c.flc_link,
-		 posix_owner_key(&waiter->c));
+	hash_add(blocked_hash, &waiter->flc_link, posix_owner_key(waiter));
 }
 
-static void locks_delete_global_blocked(struct file_lock *waiter)
+static void locks_delete_global_blocked(struct file_lock_core *waiter)
 {
 	lockdep_assert_held(&blocked_lock_lock);
 
-	hash_del(&waiter->c.flc_link);
+	hash_del(&waiter->flc_link);
 }
 
 /* Remove waiter from blocker's block list.
@@ -657,7 +656,7 @@ static void locks_delete_global_blocked(struct file_lock *waiter)
  */
 static void __locks_delete_block(struct file_lock *waiter)
 {
-	locks_delete_global_blocked(waiter);
+	locks_delete_global_blocked(&waiter->c);
 	list_del_init(&waiter->c.flc_blocked_member);
 }
 
@@ -768,7 +767,7 @@ new_blocker:
 	list_add_tail(&waiter->c.flc_blocked_member,
 		      &blocker->c.flc_blocked_requests);
 	if ((blocker->c.flc_flags & (FL_POSIX|FL_OFDLCK)) == FL_POSIX)
-		locks_insert_global_blocked(waiter);
+		locks_insert_global_blocked(&waiter->c);
 
 	/* The requests in waiter->fl_blocked are known to conflict with
 	 * waiter, but might not conflict with blocker, or the requests
