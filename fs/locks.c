@@ -69,6 +69,11 @@
 
 #include <linux/uaccess.h>
 
+static struct file_lock *file_lock(struct file_lock_core *flc)
+{
+	return container_of(flc, struct file_lock, c);
+}
+
 static bool lease_breaking(struct file_lock *fl)
 {
 	return fl->c.flc_flags & (FL_UNLOCK_PENDING | FL_DOWNGRADE_PENDING);
@@ -654,31 +659,35 @@ static void locks_delete_global_blocked(struct file_lock_core *waiter)
  *
  * Must be called with blocked_lock_lock held.
  */
-static void __locks_delete_block(struct file_lock *waiter)
+static void __locks_delete_block(struct file_lock_core *waiter)
 {
-	locks_delete_global_blocked(&waiter->c);
-	list_del_init(&waiter->c.flc_blocked_member);
+	locks_delete_global_blocked(waiter);
+	list_del_init(&waiter->flc_blocked_member);
 }
 
-static void __locks_wake_up_blocks(struct file_lock *blocker)
+static void __locks_wake_up_blocks(struct file_lock_core *blocker)
 {
-	while (!list_empty(&blocker->c.flc_blocked_requests)) {
-		struct file_lock *waiter;
+	while (!list_empty(&blocker->flc_blocked_requests)) {
+		struct file_lock_core *waiter;
+		struct file_lock *fl;
 
-		waiter = list_first_entry(&blocker->c.flc_blocked_requests,
-					  struct file_lock, c.flc_blocked_member);
+		waiter = list_first_entry(&blocker->flc_blocked_requests,
+					  struct file_lock_core, flc_blocked_member);
+
+		fl = file_lock(waiter);
 		__locks_delete_block(waiter);
-		if (waiter->fl_lmops && waiter->fl_lmops->lm_notify)
-			waiter->fl_lmops->lm_notify(waiter);
+		if ((waiter->flc_flags & (FL_POSIX | FL_FLOCK)) &&
+		    fl->fl_lmops && fl->fl_lmops->lm_notify)
+			fl->fl_lmops->lm_notify(fl);
 		else
-			locks_wake_up(waiter);
+			locks_wake_up(fl);
 
 		/*
-		 * The setting of fl_blocker to NULL marks the "done"
+		 * The setting of flc_blocker to NULL marks the "done"
 		 * point in deleting a block. Paired with acquire at the top
 		 * of locks_delete_block().
 		 */
-		smp_store_release(&waiter->c.flc_blocker, NULL);
+		smp_store_release(&waiter->flc_blocker, NULL);
 	}
 }
 
@@ -720,8 +729,8 @@ int locks_delete_block(struct file_lock *waiter)
 	spin_lock(&blocked_lock_lock);
 	if (waiter->c.flc_blocker)
 		status = 0;
-	__locks_wake_up_blocks(waiter);
-	__locks_delete_block(waiter);
+	__locks_wake_up_blocks(&waiter->c);
+	__locks_delete_block(&waiter->c);
 
 	/*
 	 * The setting of fl_blocker to NULL marks the "done" point in deleting
@@ -773,7 +782,7 @@ new_blocker:
 	 * waiter, but might not conflict with blocker, or the requests
 	 * and lock which block it.  So they all need to be woken.
 	 */
-	__locks_wake_up_blocks(waiter);
+	__locks_wake_up_blocks(&waiter->c);
 }
 
 /* Must be called with flc_lock held. */
@@ -805,7 +814,7 @@ static void locks_wake_up_blocks(struct file_lock *blocker)
 		return;
 
 	spin_lock(&blocked_lock_lock);
-	__locks_wake_up_blocks(blocker);
+	__locks_wake_up_blocks(&blocker->c);
 	spin_unlock(&blocked_lock_lock);
 }
 
@@ -1159,7 +1168,7 @@ retry:
 			 * Ensure that we don't find any locks blocked on this
 			 * request during deadlock detection.
 			 */
-			__locks_wake_up_blocks(request);
+			__locks_wake_up_blocks(&request->c);
 			if (likely(!posix_locks_deadlock(request, fl))) {
 				error = FILE_LOCK_DEFERRED;
 				__locks_insert_block(fl, request,
