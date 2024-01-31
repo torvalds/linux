@@ -131,22 +131,6 @@ struct file_lock {
 	} fl_u;
 } __randomize_layout;
 
-/* Temporary macros to allow building during coccinelle conversion */
-#ifdef _NEED_FILE_LOCK_FIELD_MACROS
-#define fl_list c.flc_list
-#define fl_blocker c.flc_blocker
-#define fl_link c.flc_link
-#define fl_blocked_requests c.flc_blocked_requests
-#define fl_blocked_member c.flc_blocked_member
-#define fl_owner c.flc_owner
-#define fl_flags c.flc_flags
-#define fl_type c.flc_type
-#define fl_pid c.flc_pid
-#define fl_link_cpu c.flc_link_cpu
-#define fl_wait c.flc_wait
-#define fl_file c.flc_file
-#endif
-
 struct file_lock_context {
 	spinlock_t		flc_lock;
 	struct list_head	flc_flock;
