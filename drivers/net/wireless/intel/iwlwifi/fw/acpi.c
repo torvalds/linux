@@ -956,7 +956,6 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	int idx = 2;
 	u8 cmd_ver;
 
-	fwrt->ppag_flags = 0;
 	fwrt->ppag_table_valid = false;
 
 	data = iwl_acpi_get_object(fwrt->dev, ACPI_PPAG_METHOD);
@@ -1057,7 +1056,8 @@ out_free:
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_ppag_table);
 
-int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *cmd,
+int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
+			union iwl_ppag_table_cmd *cmd,
 			int *cmd_size)
 {
         u8 cmd_ver;
@@ -1117,7 +1117,7 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
 	/* ppag mode */
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits were read from bios: %d\n",
-			cmd->v1.flags & cpu_to_le32(ACPI_PPAG_MASK));
+			cmd->v1.flags);
 	if ((cmd_ver == 1 && !fw_has_capa(&fwrt->fw->ucode_capa,
 					  IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) ||
 	    (cmd_ver == 2 && fwrt->ppag_ver == 2)) {
@@ -1129,7 +1129,7 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
 
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits going to be sent: %d\n",
-			cmd->v1.flags & cpu_to_le32(ACPI_PPAG_MASK));
+			cmd->v1.flags);
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
                 for (j = 0; j < num_sub_bands; j++) {
@@ -1143,7 +1143,7 @@ int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *c
 
 	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_read_ppag_table);
+IWL_EXPORT_SYMBOL(iwl_fill_ppag_table);
 
 bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 {

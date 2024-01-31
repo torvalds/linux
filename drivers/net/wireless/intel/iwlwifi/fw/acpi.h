@@ -207,7 +207,8 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 
-int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt, union iwl_ppag_table_cmd *cmd,
+int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
+			union iwl_ppag_table_cmd *cmd,
 			int *cmd_size);
 
 bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt);
@@ -283,8 +284,9 @@ static inline int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	return -ENOENT;
 }
 
-static inline int iwl_read_ppag_table(struct iwl_fw_runtime *fwrt,
-				    union iwl_ppag_table_cmd *cmd, int *cmd_size)
+static inline int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
+				      union iwl_ppag_table_cmd *cmd,
+				      int *cmd_size)
 {
 	return -ENOENT;
 }

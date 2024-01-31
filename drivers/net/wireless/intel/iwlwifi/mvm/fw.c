@@ -1085,7 +1085,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 	union iwl_ppag_table_cmd cmd;
 	int ret, cmd_size;
 
-	ret = iwl_read_ppag_table(&mvm->fwrt, &cmd, &cmd_size);
+	ret = iwl_fill_ppag_table(&mvm->fwrt, &cmd, &cmd_size);
 	/* Not supporting PPAG table is a valid scenario */
 	if (ret < 0)
 		return 0;
