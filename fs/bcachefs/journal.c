@@ -27,6 +27,26 @@ static const char * const bch2_journal_errors[] = {
 	NULL
 };
 
+static inline bool journal_seq_unwritten(struct journal *j, u64 seq)
+{
+	return seq > j->seq_ondisk;
+}
+
+static bool __journal_entry_is_open(union journal_res_state state)
+{
+	return state.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL;
+}
+
+static inline unsigned nr_unwritten_journal_entries(struct journal *j)
+{
+	return atomic64_read(&j->seq) - j->seq_ondisk;
+}
+
+static bool journal_entry_is_open(struct journal *j)
+{
+	return __journal_entry_is_open(j->reservations);
+}
+
 static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u64 seq)
 {
 	union journal_res_state s = READ_ONCE(j->reservations);
@@ -66,26 +86,7 @@ static void bch2_journal_bufs_to_text(struct printbuf *out, struct journal *j)
 	     seq <= journal_cur_seq(j);
 	     seq++)
 		bch2_journal_buf_to_text(out, j, seq);
-}
-
-static inline bool journal_seq_unwritten(struct journal *j, u64 seq)
-{
-	return seq > j->seq_ondisk;
-}
-
-static bool __journal_entry_is_open(union journal_res_state state)
-{
-	return state.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL;
-}
-
-static inline unsigned nr_unwritten_journal_entries(struct journal *j)
-{
-	return atomic64_read(&j->seq) - j->seq_ondisk;
-}
-
-static bool journal_entry_is_open(struct journal *j)
-{
-	return __journal_entry_is_open(j->reservations);
+	prt_printf(out, "last buf %s\n", journal_entry_is_open(j) ? "open" : "closed");
 }
 
 static inline struct journal_buf *
@@ -468,16 +469,24 @@ retry:
 	if (journal_res_get_fast(j, res, flags))
 		return 0;
 
+	if ((flags & BCH_WATERMARK_MASK) < j->watermark) {
+		ret = JOURNAL_ERR_journal_full;
+		can_discard = j->can_discard;
+		goto out;
+	}
+
+	if (j->blocked)
+		return -BCH_ERR_journal_res_get_blocked;
+
 	if (bch2_journal_error(j))
 		return -BCH_ERR_erofs_journal_err;
 
-	spin_lock(&j->lock);
-
-	/* check once more in case somebody else shut things down... */
-	if (bch2_journal_error(j)) {
-		spin_unlock(&j->lock);
-		return -BCH_ERR_erofs_journal_err;
+	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf) && !journal_entry_is_open(j)) {
+		ret = JOURNAL_ERR_max_in_flight;
+		goto out;
 	}
+
+	spin_lock(&j->lock);
 
 	/*
 	 * Recheck after taking the lock, so we don't race with another thread
@@ -485,16 +494,7 @@ retry:
 	 * unnecessarily
 	 */
 	if (journal_res_get_fast(j, res, flags)) {
-		spin_unlock(&j->lock);
-		return 0;
-	}
-
-	if ((flags & BCH_WATERMARK_MASK) < j->watermark) {
-		/*
-		 * Don't want to close current journal entry, just need to
-		 * invoke reclaim:
-		 */
-		ret = JOURNAL_ERR_journal_full;
+		ret = 0;
 		goto unlock;
 	}
 
@@ -510,29 +510,30 @@ retry:
 		j->buf_size_want = max(j->buf_size_want, buf->buf_size << 1);
 
 	__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, false);
-	ret = journal_entry_open(j);
-
-	if (ret == JOURNAL_ERR_max_in_flight) {
-		track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
-				   &j->max_in_flight_start, true);
-		if (trace_journal_entry_full_enabled()) {
-			struct printbuf buf = PRINTBUF;
-			buf.atomic++;
-
-			bch2_journal_bufs_to_text(&buf, j);
-			trace_journal_entry_full(c, buf.buf);
-			printbuf_exit(&buf);
-		}
-		count_event(c, journal_entry_full);
-	}
+	ret = journal_entry_open(j) ?: JOURNAL_ERR_retry;
 unlock:
 	can_discard = j->can_discard;
 	spin_unlock(&j->lock);
-
-	if (!ret)
+out:
+	if (ret == JOURNAL_ERR_retry)
 		goto retry;
+	if (!ret)
+		return 0;
+
 	if (journal_error_check_stuck(j, ret, flags))
 		ret = -BCH_ERR_journal_res_get_blocked;
+
+	if (ret == JOURNAL_ERR_max_in_flight &&
+	    track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
+			       &j->max_in_flight_start, true)) {
+
+		struct printbuf buf = PRINTBUF;
+		prt_printf(&buf, "seq %llu\n", journal_cur_seq(j));
+		bch2_journal_bufs_to_text(&buf, j);
+		trace_journal_entry_full(c, buf.buf);
+		printbuf_exit(&buf);
+		count_event(c, journal_entry_full);
+	}
 
 	/*
 	 * Journal is full - can't rely on reclaim from work item due to

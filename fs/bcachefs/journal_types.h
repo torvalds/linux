@@ -134,6 +134,7 @@ enum journal_flags {
 /* Reasons we may fail to get a journal reservation: */
 #define JOURNAL_ERRORS()		\
 	x(ok)				\
+	x(retry)			\
 	x(blocked)			\
 	x(max_in_flight)		\
 	x(journal_full)			\
