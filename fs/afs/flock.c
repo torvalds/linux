@@ -93,13 +93,13 @@ static void afs_grant_locks(struct afs_vnode *vnode)
 	bool exclusive = (vnode->lock_type == AFS_LOCK_WRITE);
 
 	list_for_each_entry_safe(p, _p, &vnode->pending_locks, fl_u.afs.link) {
-		if (!exclusive && p->fl_type == F_WRLCK)
+		if (!exclusive && lock_is_write(p))
 			continue;
 
 		list_move_tail(&p->fl_u.afs.link, &vnode->granted_locks);
 		p->fl_u.afs.state = AFS_LOCK_GRANTED;
 		trace_afs_flock_op(vnode, p, afs_flock_op_grant);
-		wake_up(&p->fl_wait);
+		locks_wake_up(p);
 	}
 }
 
@@ -112,25 +112,25 @@ static void afs_next_locker(struct afs_vnode *vnode, int error)
 {
 	struct file_lock *p, *_p, *next = NULL;
 	struct key *key = vnode->lock_key;
-	unsigned int fl_type = F_RDLCK;
+	unsigned int type = F_RDLCK;
 
 	_enter("");
 
 	if (vnode->lock_type == AFS_LOCK_WRITE)
-		fl_type = F_WRLCK;
+		type = F_WRLCK;
 
 	list_for_each_entry_safe(p, _p, &vnode->pending_locks, fl_u.afs.link) {
 		if (error &&
-		    p->fl_type == fl_type &&
+		    p->fl_type == type &&
 		    afs_file_key(p->fl_file) == key) {
 			list_del_init(&p->fl_u.afs.link);
 			p->fl_u.afs.state = error;
-			wake_up(&p->fl_wait);
+			locks_wake_up(p);
 		}
 
 		/* Select the next locker to hand off to. */
 		if (next &&
-		    (next->fl_type == F_WRLCK || p->fl_type == F_RDLCK))
+		    (lock_is_write(next) || lock_is_read(p)))
 			continue;
 		next = p;
 	}
@@ -142,7 +142,7 @@ static void afs_next_locker(struct afs_vnode *vnode, int error)
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_SETTING);
 		next->fl_u.afs.state = AFS_LOCK_YOUR_TRY;
 		trace_afs_flock_op(vnode, next, afs_flock_op_wake);
-		wake_up(&next->fl_wait);
+		locks_wake_up(next);
 	} else {
 		afs_set_lock_state(vnode, AFS_VNODE_LOCK_NONE);
 		trace_afs_flock_ev(vnode, NULL, afs_flock_no_lockers, 0);
@@ -166,7 +166,7 @@ static void afs_kill_lockers_enoent(struct afs_vnode *vnode)
 			       struct file_lock, fl_u.afs.link);
 		list_del_init(&p->fl_u.afs.link);
 		p->fl_u.afs.state = -ENOENT;
-		wake_up(&p->fl_wait);
+		locks_wake_up(p);
 	}
 
 	key_put(vnode->lock_key);
@@ -471,7 +471,7 @@ static int afs_do_setlk(struct file *file, struct file_lock *fl)
 	fl->fl_u.afs.state = AFS_LOCK_PENDING;
 
 	partial = (fl->fl_start != 0 || fl->fl_end != OFFSET_MAX);
-	type = (fl->fl_type == F_RDLCK) ? AFS_LOCK_READ : AFS_LOCK_WRITE;
+	type = lock_is_read(fl) ? AFS_LOCK_READ : AFS_LOCK_WRITE;
 	if (mode == afs_flock_mode_write && partial)
 		type = AFS_LOCK_WRITE;
 
@@ -734,7 +734,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 
 	/* check local lock records first */
 	posix_test_lock(file, fl);
-	if (fl->fl_type == F_UNLCK) {
+	if (lock_is_unlock(fl)) {
 		/* no local locks; consult the server */
 		ret = afs_fetch_status(vnode, key, false, NULL);
 		if (ret < 0)
@@ -778,7 +778,7 @@ int afs_lock(struct file *file, int cmd, struct file_lock *fl)
 	fl->fl_u.afs.debug_id = atomic_inc_return(&afs_file_lock_debug_id);
 	trace_afs_flock_op(vnode, fl, afs_flock_op_lock);
 
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		ret = afs_do_unlk(file, fl);
 	else
 		ret = afs_do_setlk(file, fl);
@@ -820,7 +820,7 @@ int afs_flock(struct file *file, int cmd, struct file_lock *fl)
 	trace_afs_flock_op(vnode, fl, afs_flock_op_flock);
 
 	/* we're simulating flock() locks using posix locks on the server */
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		ret = afs_do_unlk(file, fl);
 	else
 		ret = afs_do_setlk(file, fl);
