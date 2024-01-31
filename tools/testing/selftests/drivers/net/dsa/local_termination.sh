@@ -1,1 +1,1 @@
-../../../net/forwarding/local_termination.sh
+run_net_forwarding_test.sh
