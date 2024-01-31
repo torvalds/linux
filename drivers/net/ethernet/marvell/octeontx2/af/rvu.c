@@ -2618,6 +2618,9 @@ static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc)
 	 * 3. Cleanup pools (NPA)
 	 */
 
+	/* Free allocated BPIDs */
+	rvu_nix_flr_free_bpids(rvu, pcifunc);
+
 	/* Free multicast/mirror node associated with the 'pcifunc' */
 	rvu_nix_mcast_flr_free_entries(rvu, pcifunc);
 
