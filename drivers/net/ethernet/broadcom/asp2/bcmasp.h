@@ -337,7 +337,7 @@ struct bcmasp_intf {
 	int				wol_irq;
 	unsigned int			wol_irq_enabled:1;
 
-	struct ethtool_eee		eee;
+	struct ethtool_keee		eee;
 };
 
 #define NUM_NET_FILTERS				32

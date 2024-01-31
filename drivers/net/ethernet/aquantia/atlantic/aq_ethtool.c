@@ -697,7 +697,7 @@ static u32 eee_mask_to_ethtool_mask(u32 speed)
 	return rate;
 }
 
-static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
+static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_keee *eee)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	u32 rate, supported_rates;
@@ -713,14 +713,14 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	if (err < 0)
 		return err;
 
-	eee->supported = eee_mask_to_ethtool_mask(supported_rates);
+	eee->supported_u32 = eee_mask_to_ethtool_mask(supported_rates);
 
 	if (aq_nic->aq_nic_cfg.eee_speeds)
-		eee->advertised = eee->supported;
+		eee->advertised_u32 = eee->supported_u32;
 
-	eee->lp_advertised = eee_mask_to_ethtool_mask(rate);
+	eee->lp_advertised_u32 = eee_mask_to_ethtool_mask(rate);
 
-	eee->eee_enabled = !!eee->advertised;
+	eee->eee_enabled = !!eee->advertised_u32;
 
 	eee->tx_lpi_enabled = eee->eee_enabled;
 	if ((supported_rates & rate) & AQ_NIC_RATE_EEE_MSK)
@@ -729,7 +729,7 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	return 0;
 }
 
-static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
+static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_keee *eee)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	u32 rate, supported_rates;

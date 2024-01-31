@@ -168,7 +168,7 @@ struct igc_ring {
 struct igc_adapter {
 	struct net_device *netdev;
 
-	struct ethtool_eee eee;
+	struct ethtool_keee eee;
 	u16 eee_advert;
 
 	unsigned long state;

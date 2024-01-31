@@ -1776,7 +1776,7 @@ static int qede_get_tunable(struct net_device *dev,
 	return 0;
 }
 
-static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int qede_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
@@ -1790,17 +1790,17 @@ static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	}
 
 	if (current_link.eee.adv_caps & QED_EEE_1G_ADV)
-		edata->advertised = ADVERTISED_1000baseT_Full;
+		edata->advertised_u32 = ADVERTISED_1000baseT_Full;
 	if (current_link.eee.adv_caps & QED_EEE_10G_ADV)
-		edata->advertised |= ADVERTISED_10000baseT_Full;
+		edata->advertised_u32 |= ADVERTISED_10000baseT_Full;
 	if (current_link.sup_caps & QED_EEE_1G_ADV)
-		edata->supported = ADVERTISED_1000baseT_Full;
+		edata->supported_u32 = ADVERTISED_1000baseT_Full;
 	if (current_link.sup_caps & QED_EEE_10G_ADV)
-		edata->supported |= ADVERTISED_10000baseT_Full;
+		edata->supported_u32 |= ADVERTISED_10000baseT_Full;
 	if (current_link.eee.lp_adv_caps & QED_EEE_1G_ADV)
-		edata->lp_advertised = ADVERTISED_1000baseT_Full;
+		edata->lp_advertised_u32 = ADVERTISED_1000baseT_Full;
 	if (current_link.eee.lp_adv_caps & QED_EEE_10G_ADV)
-		edata->lp_advertised |= ADVERTISED_10000baseT_Full;
+		edata->lp_advertised_u32 |= ADVERTISED_10000baseT_Full;
 
 	edata->tx_lpi_timer = current_link.eee.tx_lpi_timer;
 	edata->eee_enabled = current_link.eee.enable;
@@ -1810,7 +1810,7 @@ static int qede_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
-static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int qede_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct qede_dev *edev = netdev_priv(dev);
 	struct qed_link_output current_link;
@@ -1832,20 +1832,20 @@ static int qede_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 	memset(&params, 0, sizeof(params));
 	params.override_flags |= QED_LINK_OVERRIDE_EEE_CONFIG;
 
-	if (!(edata->advertised & (ADVERTISED_1000baseT_Full |
-				   ADVERTISED_10000baseT_Full)) ||
-	    ((edata->advertised & (ADVERTISED_1000baseT_Full |
-				   ADVERTISED_10000baseT_Full)) !=
-	     edata->advertised)) {
+	if (!(edata->advertised_u32 & (ADVERTISED_1000baseT_Full |
+				       ADVERTISED_10000baseT_Full)) ||
+	    ((edata->advertised_u32 & (ADVERTISED_1000baseT_Full |
+				       ADVERTISED_10000baseT_Full)) !=
+	     edata->advertised_u32)) {
 		DP_VERBOSE(edev, QED_MSG_DEBUG,
 			   "Invalid advertised capabilities %d\n",
-			   edata->advertised);
+			   edata->advertised_u32);
 		return -EINVAL;
 	}
 
-	if (edata->advertised & ADVERTISED_1000baseT_Full)
+	if (edata->advertised_u32 & ADVERTISED_1000baseT_Full)
 		params.eee.adv_caps = QED_EEE_1G_ADV;
-	if (edata->advertised & ADVERTISED_10000baseT_Full)
+	if (edata->advertised_u32 & ADVERTISED_10000baseT_Full)
 		params.eee.adv_caps |= QED_EEE_10G_ADV;
 	params.eee.enable = edata->eee_enabled;
 	params.eee.tx_lpi_enable = edata->tx_lpi_enabled;

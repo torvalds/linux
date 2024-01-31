@@ -1451,14 +1451,14 @@ static void mv88e6xxx_get_regs(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_get_mac_eee(struct dsa_switch *ds, int port,
-				 struct ethtool_eee *e)
+				 struct ethtool_keee *e)
 {
 	/* Nothing to do on the port's MAC */
 	return 0;
 }
 
 static int mv88e6xxx_set_mac_eee(struct dsa_switch *ds, int port,
-				 struct ethtool_eee *e)
+				 struct ethtool_keee *e)
 {
 	/* Nothing to do on the port's MAC */
 	return 0;

@@ -3884,10 +3884,10 @@ static int bnxt_set_eeprom(struct net_device *dev,
 				eeprom->len);
 }
 
-static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnxt_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnxt *bp = netdev_priv(dev);
-	struct ethtool_eee *eee = &bp->eee;
+	struct ethtool_keee *eee = &bp->eee;
 	struct bnxt_link_info *link_info = &bp->link_info;
 	u32 advertising;
 	int rc = 0;
@@ -3919,16 +3919,16 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 			edata->tx_lpi_timer = eee->tx_lpi_timer;
 		}
 	}
-	if (!edata->advertised) {
-		edata->advertised = advertising & eee->supported;
-	} else if (edata->advertised & ~advertising) {
+	if (!edata->advertised_u32) {
+		edata->advertised_u32 = advertising & eee->supported_u32;
+	} else if (edata->advertised_u32 & ~advertising) {
 		netdev_warn(dev, "EEE advertised %x must be a subset of autoneg advertised speeds %x\n",
-			    edata->advertised, advertising);
+			    edata->advertised_u32, advertising);
 		rc = -EINVAL;
 		goto eee_exit;
 	}
 
-	eee->advertised = edata->advertised;
+	eee->advertised_u32 = edata->advertised_u32;
 	eee->tx_lpi_enabled = edata->tx_lpi_enabled;
 	eee->tx_lpi_timer = edata->tx_lpi_timer;
 eee_ok:
@@ -3942,7 +3942,7 @@ eee_exit:
 	return rc;
 }
 
-static int bnxt_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnxt_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
@@ -3954,12 +3954,12 @@ static int bnxt_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 		/* Preserve tx_lpi_timer so that the last value will be used
 		 * by default when it is re-enabled.
 		 */
-		edata->advertised = 0;
+		edata->advertised_u32 = 0;
 		edata->tx_lpi_enabled = 0;
 	}
 
 	if (!bp->eee.eee_active)
-		edata->lp_advertised = 0;
+		edata->lp_advertised_u32 = 0;
 
 	return 0;
 }

@@ -852,7 +852,7 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 }
 
 static int stmmac_ethtool_op_get_eee(struct net_device *dev,
-				     struct ethtool_eee *edata)
+				     struct ethtool_keee *edata)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
@@ -868,7 +868,7 @@ static int stmmac_ethtool_op_get_eee(struct net_device *dev,
 }
 
 static int stmmac_ethtool_op_set_eee(struct net_device *dev,
-				     struct ethtool_eee *edata)
+				     struct ethtool_keee *edata)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;

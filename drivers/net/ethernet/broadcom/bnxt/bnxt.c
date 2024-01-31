@@ -10621,10 +10621,10 @@ static int bnxt_hwrm_phy_qcaps(struct bnxt *bp)
 
 	bp->phy_flags = resp->flags | (le16_to_cpu(resp->flags2) << 8);
 	if (resp->flags & PORT_PHY_QCAPS_RESP_FLAGS_EEE_SUPPORTED) {
-		struct ethtool_eee *eee = &bp->eee;
+		struct ethtool_keee *eee = &bp->eee;
 		u16 fw_speeds = le16_to_cpu(resp->supported_speeds_eee_mode);
 
-		eee->supported = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
+		eee->supported_u32 = _bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
 		bp->lpi_tmr_lo = le32_to_cpu(resp->tx_lpi_timer_low) &
 				 PORT_PHY_QCAPS_RESP_TX_LPI_TIMER_LOW_MASK;
 		bp->lpi_tmr_hi = le32_to_cpu(resp->valid_tx_lpi_timer_high) &
@@ -10766,7 +10766,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 	link_info->module_status = resp->module_status;
 
 	if (bp->phy_flags & BNXT_PHY_FL_EEE_CAP) {
-		struct ethtool_eee *eee = &bp->eee;
+		struct ethtool_keee *eee = &bp->eee;
 		u16 fw_speeds;
 
 		eee->eee_active = 0;
@@ -10775,7 +10775,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 			eee->eee_active = 1;
 			fw_speeds = le16_to_cpu(
 				resp->link_partner_adv_eee_link_speed_mask);
-			eee->lp_advertised =
+			eee->lp_advertised_u32 =
 				_bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
 		}
 
@@ -10786,7 +10786,7 @@ int bnxt_update_link(struct bnxt *bp, bool chng_link_state)
 				eee->eee_enabled = 1;
 
 			fw_speeds = le16_to_cpu(resp->adv_eee_link_speed_mask);
-			eee->advertised =
+			eee->advertised_u32 =
 				_bnxt_fw_to_ethtool_adv_spds(fw_speeds, 0);
 
 			if (resp->eee_config_phy_addr &
@@ -10957,7 +10957,7 @@ int bnxt_hwrm_set_pause(struct bnxt *bp)
 static void bnxt_hwrm_set_eee(struct bnxt *bp,
 			      struct hwrm_port_phy_cfg_input *req)
 {
-	struct ethtool_eee *eee = &bp->eee;
+	struct ethtool_keee *eee = &bp->eee;
 
 	if (eee->eee_enabled) {
 		u16 eee_speeds;
@@ -10969,7 +10969,7 @@ static void bnxt_hwrm_set_eee(struct bnxt *bp,
 			flags |= PORT_PHY_CFG_REQ_FLAGS_EEE_TX_LPI_DISABLE;
 
 		req->flags |= cpu_to_le32(flags);
-		eee_speeds = bnxt_get_fw_auto_link_speeds(eee->advertised);
+		eee_speeds = bnxt_get_fw_auto_link_speeds(eee->advertised_u32);
 		req->eee_link_speed_mask = cpu_to_le16(eee_speeds);
 		req->tx_lpi_timer = cpu_to_le32(eee->tx_lpi_timer);
 	} else {
@@ -11322,7 +11322,7 @@ static void bnxt_get_wol_settings(struct bnxt *bp)
 
 static bool bnxt_eee_config_ok(struct bnxt *bp)
 {
-	struct ethtool_eee *eee = &bp->eee;
+	struct ethtool_keee *eee = &bp->eee;
 	struct bnxt_link_info *link_info = &bp->link_info;
 
 	if (!(bp->phy_flags & BNXT_PHY_FL_EEE_CAP))
@@ -11336,8 +11336,8 @@ static bool bnxt_eee_config_ok(struct bnxt *bp)
 			eee->eee_enabled = 0;
 			return false;
 		}
-		if (eee->advertised & ~advertising) {
-			eee->advertised = advertising & eee->supported;
+		if (eee->advertised_u32 & ~advertising) {
+			eee->advertised_u32 = advertising & eee->supported_u32;
 			return false;
 		}
 	}

@@ -3122,7 +3122,7 @@ static int fec_enet_us_to_tx_cycle(struct net_device *ndev, int us)
 static int fec_enet_eee_mode_set(struct net_device *ndev, bool enable)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct ethtool_eee *p = &fep->eee;
+	struct ethtool_keee *p = &fep->eee;
 	unsigned int sleep_cycle, wake_cycle;
 	int ret = 0;
 
@@ -3149,10 +3149,10 @@ static int fec_enet_eee_mode_set(struct net_device *ndev, bool enable)
 }
 
 static int
-fec_enet_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
+fec_enet_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct ethtool_eee *p = &fep->eee;
+	struct ethtool_keee *p = &fep->eee;
 
 	if (!(fep->quirks & FEC_QUIRK_HAS_EEE))
 		return -EOPNOTSUPP;
@@ -3169,10 +3169,10 @@ fec_enet_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
 }
 
 static int
-fec_enet_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
+fec_enet_set_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
-	struct ethtool_eee *p = &fep->eee;
+	struct ethtool_keee *p = &fep->eee;
 	int ret = 0;
 
 	if (!(fep->quirks & FEC_QUIRK_HAS_EEE))

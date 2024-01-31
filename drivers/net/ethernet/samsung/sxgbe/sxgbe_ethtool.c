@@ -133,7 +133,7 @@ static const struct sxgbe_stats sxgbe_gstrings_stats[] = {
 #define SXGBE_STATS_LEN ARRAY_SIZE(sxgbe_gstrings_stats)
 
 static int sxgbe_get_eee(struct net_device *dev,
-			 struct ethtool_eee *edata)
+			 struct ethtool_keee *edata)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 
@@ -148,7 +148,7 @@ static int sxgbe_get_eee(struct net_device *dev,
 }
 
 static int sxgbe_set_eee(struct net_device *dev,
-			 struct ethtool_eee *edata)
+			 struct ethtool_keee *edata)
 {
 	struct sxgbe_priv_data *priv = netdev_priv(dev);
 

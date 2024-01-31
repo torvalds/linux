@@ -1508,22 +1508,71 @@ static int ethtool_set_wol(struct net_device *dev, char __user *useraddr)
 	return 0;
 }
 
+static void eee_to_keee(struct ethtool_keee *keee,
+			const struct ethtool_eee *eee)
+{
+	memset(keee, 0, sizeof(*keee));
+
+	keee->supported_u32 = eee->supported;
+	keee->advertised_u32 = eee->advertised;
+	keee->lp_advertised_u32 = eee->lp_advertised;
+	keee->eee_active = eee->eee_active;
+	keee->eee_enabled = eee->eee_enabled;
+	keee->tx_lpi_enabled = eee->tx_lpi_enabled;
+	keee->tx_lpi_timer = eee->tx_lpi_timer;
+
+	ethtool_convert_legacy_u32_to_link_mode(keee->supported,
+						eee->supported);
+	ethtool_convert_legacy_u32_to_link_mode(keee->advertised,
+						eee->advertised);
+	ethtool_convert_legacy_u32_to_link_mode(keee->lp_advertised,
+						eee->lp_advertised);
+}
+
+static void keee_to_eee(struct ethtool_eee *eee,
+			const struct ethtool_keee *keee)
+{
+	memset(eee, 0, sizeof(*eee));
+
+	eee->eee_active = keee->eee_active;
+	eee->eee_enabled = keee->eee_enabled;
+	eee->tx_lpi_enabled = keee->tx_lpi_enabled;
+	eee->tx_lpi_timer = keee->tx_lpi_timer;
+
+	if (ethtool_eee_use_linkmodes(keee)) {
+		bool overflow;
+
+		overflow = !ethtool_convert_link_mode_to_legacy_u32(&eee->supported,
+								    keee->supported);
+		ethtool_convert_link_mode_to_legacy_u32(&eee->advertised,
+							keee->advertised);
+		ethtool_convert_link_mode_to_legacy_u32(&eee->lp_advertised,
+							keee->lp_advertised);
+		if (overflow)
+			pr_warn("Ethtool ioctl interface doesn't support passing EEE linkmodes beyond bit 32\n");
+	} else {
+		eee->supported = keee->supported_u32;
+		eee->advertised = keee->advertised_u32;
+		eee->lp_advertised = keee->lp_advertised_u32;
+	}
+}
+
 static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_eee edata;
+	struct ethtool_keee keee;
+	struct ethtool_eee eee;
 	int rc;
 
 	if (!dev->ethtool_ops->get_eee)
 		return -EOPNOTSUPP;
 
-	memset(&edata, 0, sizeof(struct ethtool_eee));
-	edata.cmd = ETHTOOL_GEEE;
-	rc = dev->ethtool_ops->get_eee(dev, &edata);
-
+	memset(&keee, 0, sizeof(keee));
+	rc = dev->ethtool_ops->get_eee(dev, &keee);
 	if (rc)
 		return rc;
 
-	if (copy_to_user(useraddr, &edata, sizeof(edata)))
+	keee_to_eee(&eee, &keee);
+	if (copy_to_user(useraddr, &eee, sizeof(eee)))
 		return -EFAULT;
 
 	return 0;
@@ -1531,16 +1580,18 @@ static int ethtool_get_eee(struct net_device *dev, char __user *useraddr)
 
 static int ethtool_set_eee(struct net_device *dev, char __user *useraddr)
 {
-	struct ethtool_eee edata;
+	struct ethtool_keee keee;
+	struct ethtool_eee eee;
 	int ret;
 
 	if (!dev->ethtool_ops->set_eee)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&edata, useraddr, sizeof(edata)))
+	if (copy_from_user(&eee, useraddr, sizeof(eee)))
 		return -EFAULT;
 
-	ret = dev->ethtool_ops->set_eee(dev, &edata);
+	eee_to_keee(&keee, &eee);
+	ret = dev->ethtool_ops->set_eee(dev, &keee);
 	if (!ret)
 		ethtool_notify(dev, ETHTOOL_MSG_EEE_NTF, NULL);
 	return ret;

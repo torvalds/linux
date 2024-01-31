@@ -2108,7 +2108,7 @@ static u32 bnx2x_adv_to_eee(u32 modes, u32 shift)
 	return eee_adv << shift;
 }
 
-static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnx2x_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 eee_cfg;
@@ -2120,14 +2120,14 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 
 	eee_cfg = bp->link_vars.eee_status;
 
-	edata->supported =
+	edata->supported_u32 =
 		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_SUPPORTED_MASK) >>
 				 SHMEM_EEE_SUPPORTED_SHIFT);
 
-	edata->advertised =
+	edata->advertised_u32 =
 		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_ADV_STATUS_MASK) >>
 				 SHMEM_EEE_ADV_STATUS_SHIFT);
-	edata->lp_advertised =
+	edata->lp_advertised_u32 =
 		bnx2x_eee_to_adv((eee_cfg & SHMEM_EEE_LP_ADV_STATUS_MASK) >>
 				 SHMEM_EEE_LP_ADV_STATUS_SHIFT);
 
@@ -2141,7 +2141,7 @@ static int bnx2x_get_eee(struct net_device *dev, struct ethtool_eee *edata)
 	return 0;
 }
 
-static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+static int bnx2x_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 eee_cfg;
@@ -2162,7 +2162,7 @@ static int bnx2x_set_eee(struct net_device *dev, struct ethtool_eee *edata)
 		return -EOPNOTSUPP;
 	}
 
-	advertised = bnx2x_adv_to_eee(edata->advertised,
+	advertised = bnx2x_adv_to_eee(edata->advertised_u32,
 				      SHMEM_EEE_ADV_STATUS_SHIFT);
 	if ((advertised != (eee_cfg & SHMEM_EEE_ADV_STATUS_MASK))) {
 		DP(BNX2X_MSG_ETHTOOL,

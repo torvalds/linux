@@ -645,7 +645,7 @@ struct bcmgenet_priv {
 
 	struct bcmgenet_mib_counters mib;
 
-	struct ethtool_eee eee;
+	struct ethtool_keee eee;
 };
 
 #define GENET_IO_MACRO(name, offset)					\

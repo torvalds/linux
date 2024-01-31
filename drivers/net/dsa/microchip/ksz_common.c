@@ -2852,7 +2852,7 @@ static int ksz_validate_eee(struct dsa_switch *ds, int port)
 }
 
 static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
-			   struct ethtool_eee *e)
+			   struct ethtool_keee *e)
 {
 	int ret;
 
@@ -2872,7 +2872,7 @@ static int ksz_get_mac_eee(struct dsa_switch *ds, int port,
 }
 
 static int ksz_set_mac_eee(struct dsa_switch *ds, int port,
-			   struct ethtool_eee *e)
+			   struct ethtool_keee *e)
 {
 	struct ksz_device *dev = ds->priv;
 	int ret;

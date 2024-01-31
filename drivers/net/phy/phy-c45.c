@@ -1443,17 +1443,17 @@ EXPORT_SYMBOL(genphy_c45_eee_is_active);
 /**
  * genphy_c45_ethtool_get_eee - get EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: it reports the Supported/Advertisement/LP Advertisement
  * capabilities.
  */
 int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data)
+			       struct ethtool_keee *data)
 {
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv) = {};
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp) = {};
-	bool overflow = false, is_enabled;
+	bool is_enabled;
 	int ret;
 
 	ret = genphy_c45_eee_is_active(phydev, adv, lp, &is_enabled);
@@ -1462,17 +1462,9 @@ int genphy_c45_ethtool_get_eee(struct phy_device *phydev,
 
 	data->eee_enabled = is_enabled;
 	data->eee_active = ret;
-
-	if (!ethtool_convert_link_mode_to_legacy_u32(&data->supported,
-						     phydev->supported_eee))
-		overflow = true;
-	if (!ethtool_convert_link_mode_to_legacy_u32(&data->advertised, adv))
-		overflow = true;
-	if (!ethtool_convert_link_mode_to_legacy_u32(&data->lp_advertised, lp))
-		overflow = true;
-
-	if (overflow)
-		phydev_warn(phydev, "Not all supported or advertised EEE link modes were passed to the user space\n");
+	linkmode_copy(data->supported, phydev->supported_eee);
+	linkmode_copy(data->advertised, adv);
+	linkmode_copy(data->lp_advertised, lp);
 
 	return 0;
 }
@@ -1481,7 +1473,7 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
 /**
  * genphy_c45_ethtool_set_eee - set EEE supported and status
  * @phydev: target phy_device struct
- * @data: ethtool_eee data
+ * @data: ethtool_keee data
  *
  * Description: sets the Supported/Advertisement/LP Advertisement
  * capabilities. If eee_enabled is false, no links modes are
@@ -1490,29 +1482,27 @@ EXPORT_SYMBOL(genphy_c45_ethtool_get_eee);
  * non-destructive way.
  */
 int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
-			       struct ethtool_eee *data)
+			       struct ethtool_keee *data)
 {
 	int ret;
 
 	if (data->eee_enabled) {
-		if (data->advertised) {
-			__ETHTOOL_DECLARE_LINK_MODE_MASK(adv);
+		unsigned long *adv = data->advertised;
 
-			ethtool_convert_legacy_u32_to_link_mode(adv,
-								data->advertised);
-			linkmode_andnot(adv, adv, phydev->supported_eee);
-			if (!linkmode_empty(adv)) {
+		if (!linkmode_empty(adv)) {
+			__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp);
+			bool unsupp;
+
+			unsupp = linkmode_andnot(tmp, adv, phydev->supported_eee);
+			if (unsupp) {
 				phydev_warn(phydev, "At least some EEE link modes are not supported.\n");
 				return -EINVAL;
 			}
-
-			ethtool_convert_legacy_u32_to_link_mode(phydev->advertising_eee,
-								data->advertised);
 		} else {
-			linkmode_copy(phydev->advertising_eee,
-				      phydev->supported_eee);
+			adv = phydev->supported_eee;
 		}
 
+		linkmode_copy(phydev->advertising_eee, adv);
 		phydev->eee_enabled = true;
 	} else {
 		phydev->eee_enabled = false;

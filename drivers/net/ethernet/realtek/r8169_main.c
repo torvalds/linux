@@ -1974,7 +1974,7 @@ static int rtl_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
+static int rtl8169_get_eee(struct net_device *dev, struct ethtool_keee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 
@@ -1984,7 +1984,7 @@ static int rtl8169_get_eee(struct net_device *dev, struct ethtool_eee *data)
 	return phy_ethtool_get_eee(tp->phydev, data);
 }
 
-static int rtl8169_set_eee(struct net_device *dev, struct ethtool_eee *data)
+static int rtl8169_set_eee(struct net_device *dev, struct ethtool_keee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
 	int ret;
