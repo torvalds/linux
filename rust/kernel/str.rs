@@ -191,9 +191,9 @@ impl CStr {
     /// ```
     /// # use kernel::c_str;
     /// # use kernel::str::CStr;
+    /// let bar = c_str!("ツ");
     /// // SAFETY: String literals are guaranteed to be valid UTF-8
     /// // by the Rust compiler.
-    /// let bar = c_str!("ツ");
     /// assert_eq!(unsafe { bar.as_str_unchecked() }, "ツ");
     /// ```
     #[inline]
