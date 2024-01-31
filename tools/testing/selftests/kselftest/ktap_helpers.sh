@@ -87,6 +87,13 @@ ktap_test_result() {
 	fi
 }
 
+ktap_exit_fail_msg() {
+	echo "Bail out! " $@
+	ktap_print_totals
+
+	exit "$KSFT_FAIL"
+}
+
 ktap_print_totals() {
 	echo "# Totals: pass:$KTAP_CNT_PASS fail:$KTAP_CNT_FAIL xfail:0 xpass:0 skip:$KTAP_CNT_SKIP error:0"
 }
