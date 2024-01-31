@@ -21940,7 +21940,6 @@ F:	drivers/i2c/busses/i2c-davinci.c
 
 TI DAVINCI SERIES CLOCK DRIVER
 M:	David Lechner <david@lechnology.com>
-R:	Sekhar Nori <nsekhar@ti.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/clock/ti/davinci/
 F:	drivers/clk/davinci/
