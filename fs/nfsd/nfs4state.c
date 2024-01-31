@@ -7493,8 +7493,8 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	int lkflg;
 	int err;
 	bool new = false;
-	unsigned char fl_type;
-	unsigned int fl_flags = FL_POSIX;
+	unsigned char type;
+	unsigned int flags = FL_POSIX;
 	struct net *net = SVC_NET(rqstp);
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
@@ -7557,14 +7557,14 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 
 	if (lock->lk_reclaim)
-		fl_flags |= FL_RECLAIM;
+		flags |= FL_RECLAIM;
 
 	fp = lock_stp->st_stid.sc_file;
 	switch (lock->lk_type) {
 		case NFS4_READW_LT:
 			if (nfsd4_has_session(cstate) ||
 			    exportfs_lock_op_is_async(sb->s_export_op))
-				fl_flags |= FL_SLEEP;
+				flags |= FL_SLEEP;
 			fallthrough;
 		case NFS4_READ_LT:
 			spin_lock(&fp->fi_lock);
@@ -7572,12 +7572,12 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			if (nf)
 				get_lock_access(lock_stp, NFS4_SHARE_ACCESS_READ);
 			spin_unlock(&fp->fi_lock);
-			fl_type = F_RDLCK;
+			type = F_RDLCK;
 			break;
 		case NFS4_WRITEW_LT:
 			if (nfsd4_has_session(cstate) ||
 			    exportfs_lock_op_is_async(sb->s_export_op))
-				fl_flags |= FL_SLEEP;
+				flags |= FL_SLEEP;
 			fallthrough;
 		case NFS4_WRITE_LT:
 			spin_lock(&fp->fi_lock);
@@ -7585,7 +7585,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 			if (nf)
 				get_lock_access(lock_stp, NFS4_SHARE_ACCESS_WRITE);
 			spin_unlock(&fp->fi_lock);
-			fl_type = F_WRLCK;
+			type = F_WRLCK;
 			break;
 		default:
 			status = nfserr_inval;
@@ -7605,7 +7605,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * on those filesystems:
 	 */
 	if (!exportfs_lock_op_is_async(sb->s_export_op))
-		fl_flags &= ~FL_SLEEP;
+		flags &= ~FL_SLEEP;
 
 	nbl = find_or_allocate_block(lock_sop, &fp->fi_fhandle, nn);
 	if (!nbl) {
@@ -7615,11 +7615,11 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 
 	file_lock = &nbl->nbl_lock;
-	file_lock->fl_type = fl_type;
+	file_lock->fl_type = type;
 	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lock_sop->lo_owner));
 	file_lock->fl_pid = current->tgid;
 	file_lock->fl_file = nf->nf_file;
-	file_lock->fl_flags = fl_flags;
+	file_lock->fl_flags = flags;
 	file_lock->fl_lmops = &nfsd_posix_mng_ops;
 	file_lock->fl_start = lock->lk_offset;
 	file_lock->fl_end = last_byte_offset(lock->lk_offset, lock->lk_length);
@@ -7632,7 +7632,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto out;
 	}
 
-	if (fl_flags & FL_SLEEP) {
+	if (flags & FL_SLEEP) {
 		nbl->nbl_time = ktime_get_boottime_seconds();
 		spin_lock(&nn->blocked_locks_lock);
 		list_add_tail(&nbl->nbl_list, &lock_sop->lo_blocked);
@@ -7669,7 +7669,7 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 out:
 	if (nbl) {
 		/* dequeue it if we queued it before */
-		if (fl_flags & FL_SLEEP) {
+		if (flags & FL_SLEEP) {
 			spin_lock(&nn->blocked_locks_lock);
 			if (!list_empty(&nbl->nbl_list) &&
 			    !list_empty(&nbl->nbl_lru)) {
@@ -7926,7 +7926,7 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 
 	if (flctx && !list_empty_careful(&flctx->flc_posix)) {
 		spin_lock(&flctx->flc_lock);
-		list_for_each_entry(fl, &flctx->flc_posix, fl_list) {
+		for_each_file_lock(fl, &flctx->flc_posix) {
 			if (fl->fl_owner == (fl_owner_t)lowner) {
 				status = true;
 				break;
@@ -8455,7 +8455,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 	if (!ctx)
 		return 0;
 	spin_lock(&ctx->flc_lock);
-	list_for_each_entry(fl, &ctx->flc_lease, fl_list) {
+	for_each_file_lock(fl, &ctx->flc_lease) {
 		if (fl->fl_flags == FL_LAYOUT)
 			continue;
 		if (fl->fl_lmops != &nfsd_lease_mng_ops) {
@@ -8464,11 +8464,11 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 			 * we are done; there isn't any write delegation
 			 * on this inode
 			 */
-			if (fl->fl_type == F_RDLCK)
+			if (lock_is_read(fl))
 				break;
 			goto break_lease;
 		}
-		if (fl->fl_type == F_WRLCK) {
+		if (lock_is_write(fl)) {
 			dp = fl->fl_owner;
 			if (dp->dl_recall.cb_clp == *(rqstp->rq_lease_breaker)) {
 				spin_unlock(&ctx->flc_lock);
