@@ -400,7 +400,7 @@ static void locks_move_blocks(struct file_lock *new, struct file_lock *fl)
 
 	/*
 	 * As ctx->flc_lock is held, new requests cannot be added to
-	 * ->fl_blocked_requests, so we don't need a lock to check if it
+	 * ->flc_blocked_requests, so we don't need a lock to check if it
 	 * is empty.
 	 */
 	if (list_empty(&fl->c.flc_blocked_requests))
@@ -410,7 +410,7 @@ static void locks_move_blocks(struct file_lock *new, struct file_lock *fl)
 			 &new->c.flc_blocked_requests);
 	list_for_each_entry(f, &new->c.flc_blocked_requests,
 			    c.flc_blocked_member)
-		f->c.flc_blocker = new;
+		f->c.flc_blocker = &new->c;
 	spin_unlock(&blocked_lock_lock);
 }
 
@@ -773,7 +773,7 @@ new_blocker:
 			blocker =  flc;
 			goto new_blocker;
 		}
-	waiter->flc_blocker = file_lock(blocker);
+	waiter->flc_blocker = blocker;
 	list_add_tail(&waiter->flc_blocked_member,
 		      &blocker->flc_blocked_requests);
 
@@ -996,7 +996,7 @@ static struct file_lock_core *what_owner_is_waiting_for(struct file_lock_core *b
 	hash_for_each_possible(blocked_hash, flc, flc_link, posix_owner_key(blocker)) {
 		if (posix_same_owner(flc, blocker)) {
 			while (flc->flc_blocker)
-				flc = &flc->flc_blocker->c;
+				flc = flc->flc_blocker;
 			return flc;
 		}
 	}
@@ -2798,9 +2798,9 @@ static struct file_lock *get_next_blocked_member(struct file_lock *node)
 
 	/* Next member in the linked list could be itself */
 	tmp = list_next_entry(node, c.flc_blocked_member);
-	if (list_entry_is_head(tmp, &node->c.flc_blocker->c.flc_blocked_requests,
-				c.flc_blocked_member)
-	    || tmp == node) {
+	if (list_entry_is_head(tmp, &node->c.flc_blocker->flc_blocked_requests,
+			       c.flc_blocked_member)
+		|| tmp == node) {
 		return NULL;
 	}
 
@@ -2841,7 +2841,7 @@ static int locks_show(struct seq_file *f, void *v)
 			tmp = get_next_blocked_member(cur);
 			/* Fall back to parent node */
 			while (tmp == NULL && cur->c.flc_blocker != NULL) {
-				cur = cur->c.flc_blocker;
+				cur = file_lock(cur->c.flc_blocker);
 				level--;
 				tmp = get_next_blocked_member(cur);
 			}

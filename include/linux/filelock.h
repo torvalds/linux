@@ -87,7 +87,7 @@ bool opens_in_grace(struct net *);
  */
 
 struct file_lock_core {
-	struct file_lock *flc_blocker;	/* The lock that is blocking us */
+	struct file_lock_core *flc_blocker;	/* The lock that is blocking us */
 	struct list_head flc_list;	/* link into file_lock_context */
 	struct hlist_node flc_link;	/* node in global lists */
 	struct list_head flc_blocked_requests;	/* list of requests with
