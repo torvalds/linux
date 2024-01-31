@@ -62,6 +62,12 @@ properties:
       interface.
     type: object
 
+  soc-nvmem:
+    $ref: /schemas/nvmem/xlnx,zynqmp-nvmem.yaml#
+    description: The ZynqMP MPSoC provides access to the hardware related data
+      like SOC revision, IDCODE and specific purpose efuses.
+    type: object
+
   pcap:
     $ref: /schemas/fpga/xlnx,zynqmp-pcap-fpga.yaml
     description: The ZynqMP SoC uses the PCAP (Processor Configuration Port) to
@@ -110,6 +116,18 @@ examples:
     firmware {
       zynqmp_firmware: zynqmp-firmware {
         #power-domain-cells = <1>;
+        soc-nvmem {
+          compatible = "xlnx,zynqmp-nvmem-fw";
+          nvmem-layout {
+            compatible = "fixed-layout";
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            soc_revision: soc-revision@0 {
+                reg = <0x0 0x4>;
+            };
+          };
+        };
         gpio {
           compatible = "xlnx,zynqmp-gpio-modepin";
           gpio-controller;
