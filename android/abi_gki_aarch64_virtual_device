@@ -1349,6 +1349,9 @@
   snd_card_free
   snd_card_new
   snd_card_register
+  snd_ctl_add
+  snd_ctl_new1
+  snd_ctl_notify
   snd_jack_new
   snd_jack_report
   snd_pcm_add_chmap_ctls
