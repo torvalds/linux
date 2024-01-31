@@ -247,6 +247,19 @@ void led_trigger_remove(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_trigger_remove);
 
+static bool led_match_default_trigger(struct led_classdev *led_cdev,
+				      struct led_trigger *trig)
+{
+	if (!strcmp(led_cdev->default_trigger, trig->name) &&
+	    trigger_relevant(led_cdev, trig)) {
+		led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
+		led_trigger_set(led_cdev, trig);
+		return true;
+	}
+
+	return false;
+}
+
 void led_trigger_set_default(struct led_classdev *led_cdev)
 {
 	struct led_trigger *trig;
@@ -258,13 +271,9 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 	down_read(&triggers_list_lock);
 	down_write(&led_cdev->trigger_lock);
 	list_for_each_entry(trig, &trigger_list, next_trig) {
-		if (!strcmp(led_cdev->default_trigger, trig->name) &&
-		    trigger_relevant(led_cdev, trig)) {
-			found = true;
-			led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
-			led_trigger_set(led_cdev, trig);
+		found = led_match_default_trigger(led_cdev, trig);
+		if (found)
 			break;
-		}
 	}
 	up_write(&led_cdev->trigger_lock);
 	up_read(&triggers_list_lock);
@@ -306,12 +315,8 @@ int led_trigger_register(struct led_trigger *trig)
 	down_read(&leds_list_lock);
 	list_for_each_entry(led_cdev, &leds_list, node) {
 		down_write(&led_cdev->trigger_lock);
-		if (!led_cdev->trigger && led_cdev->default_trigger &&
-		    !strcmp(led_cdev->default_trigger, trig->name) &&
-		    trigger_relevant(led_cdev, trig)) {
-			led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
-			led_trigger_set(led_cdev, trig);
-		}
+		if (!led_cdev->trigger && led_cdev->default_trigger)
+			led_match_default_trigger(led_cdev, trig);
 		up_write(&led_cdev->trigger_lock);
 	}
 	up_read(&leds_list_lock);
