@@ -744,7 +744,7 @@ static int user_plock(struct ocfs2_cluster_connection *conn,
 		return dlm_posix_cancel(conn->cc_lockspace, ino, file, fl);
 	else if (IS_GETLK(cmd))
 		return dlm_posix_get(conn->cc_lockspace, ino, file, fl);
-	else if (fl->fl_type == F_UNLCK)
+	else if (lock_is_unlock(fl))
 		return dlm_posix_unlock(conn->cc_lockspace, ino, file, fl);
 	else
 		return dlm_posix_lock(conn->cc_lockspace, ino, file, cmd, fl);

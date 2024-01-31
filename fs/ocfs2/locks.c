@@ -27,7 +27,7 @@ static int ocfs2_do_flock(struct file *file, struct inode *inode,
 	struct ocfs2_file_private *fp = file->private_data;
 	struct ocfs2_lock_res *lockres = &fp->fp_flock;
 
-	if (fl->fl_type == F_WRLCK)
+	if (lock_is_write(fl))
 		level = 1;
 	if (!IS_SETLKW(cmd))
 		trylock = 1;
@@ -107,7 +107,7 @@ int ocfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 	    ocfs2_mount_local(osb))
 		return locks_lock_file_wait(file, fl);
 
-	if (fl->fl_type == F_UNLCK)
+	if (lock_is_unlock(fl))
 		return ocfs2_do_funlock(file, cmd, fl);
 	else
 		return ocfs2_do_flock(file, inode, cmd, fl);
