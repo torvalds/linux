@@ -4661,7 +4661,7 @@ bpf_object__probe_loading(struct bpf_object *obj)
 
 bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 {
-	if (obj && obj->gen_loader)
+	if (obj->gen_loader)
 		/* To generate loader program assume the latest kernel
 		 * to avoid doing extra prog_load, map_create syscalls.
 		 */
