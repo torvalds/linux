@@ -175,7 +175,7 @@ const char *nvme_get_error_status_str(u16 status)
 {
 	status &= 0x7ff;
 	if (status < ARRAY_SIZE(nvme_statuses) && nvme_statuses[status])
-		return nvme_statuses[status & 0x7ff];
+		return nvme_statuses[status];
 	return "Unknown";
 }
 
