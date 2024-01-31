@@ -76,6 +76,17 @@ ktap_test_fail() {
 	KTAP_CNT_FAIL=$((KTAP_CNT_FAIL+1))
 }
 
+ktap_test_result() {
+	description="$1"
+	shift
+
+	if $@; then
+		ktap_test_pass "$description"
+	else
+		ktap_test_fail "$description"
+	fi
+}
+
 ktap_print_totals() {
 	echo "# Totals: pass:$KTAP_CNT_PASS fail:$KTAP_CNT_FAIL xfail:0 xpass:0 skip:$KTAP_CNT_SKIP error:0"
 }
