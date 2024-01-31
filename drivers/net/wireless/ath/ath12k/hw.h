@@ -192,6 +192,9 @@ struct ath12k_hw_params {
 	u32 rfkill_on_level;
 
 	u32 rddm_size;
+
+	u8 def_num_link;
+	u16 max_mlo_peer;
 };
 
 struct ath12k_hw_ops {
@@ -242,10 +245,16 @@ enum ath12k_bd_ie_board_type {
 	ATH12K_BD_IE_BOARD_DATA = 1,
 };
 
+enum ath12k_bd_ie_regdb_type {
+	ATH12K_BD_IE_REGDB_NAME = 0,
+	ATH12K_BD_IE_REGDB_DATA = 1,
+};
+
 enum ath12k_bd_ie_type {
 	/* contains sub IEs of enum ath12k_bd_ie_board_type */
 	ATH12K_BD_IE_BOARD = 0,
-	ATH12K_BD_IE_BOARD_EXT = 1,
+	/* contains sub IEs of enum ath12k_bd_ie_regdb_type */
+	ATH12K_BD_IE_REGDB = 1,
 };
 
 struct ath12k_hw_regs {
@@ -314,6 +323,18 @@ struct ath12k_hw_regs {
 
 	u32 hal_reo_status_ring_base;
 };
+
+static inline const char *ath12k_bd_ie_type_str(enum ath12k_bd_ie_type type)
+{
+	switch (type) {
+	case ATH12K_BD_IE_BOARD:
+		return "board data";
+	case ATH12K_BD_IE_REGDB:
+		return "regdb data";
+	}
+
+	return "unknown";
+}
 
 int ath12k_hw_init(struct ath12k_base *ab);
 
