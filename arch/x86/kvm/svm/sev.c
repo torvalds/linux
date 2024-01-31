@@ -179,7 +179,8 @@ again:
 
 	mutex_unlock(&sev_bitmap_lock);
 
-	return asid;
+	sev->asid = asid;
+	return 0;
 e_uncharge:
 	sev_misc_cg_uncharge(sev);
 	put_misc_cg(sev->misc_cg);
@@ -246,7 +247,7 @@ static void sev_unbind_asid(struct kvm *kvm, unsigned int handle)
 static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 {
 	struct kvm_sev_info *sev = &to_kvm_svm(kvm)->sev_info;
-	int asid, ret;
+	int ret;
 
 	if (kvm->created_vcpus)
 		return -EINVAL;
@@ -257,10 +258,9 @@ static int sev_guest_init(struct kvm *kvm, struct kvm_sev_cmd *argp)
 
 	sev->active = true;
 	sev->es_active = argp->id == KVM_SEV_ES_INIT;
-	asid = sev_asid_new(sev);
-	if (asid < 0)
+	ret = sev_asid_new(sev);
+	if (ret)
 		goto e_no_asid;
-	sev->asid = asid;
 
 	ret = sev_platform_init(&argp->error);
 	if (ret)
