@@ -186,8 +186,10 @@ void bch2_journal_buf_put_final(struct journal *j, u64 seq, bool write)
 
 	if (__bch2_journal_pin_put(j, seq))
 		bch2_journal_reclaim_fast(j);
-	if (write)
-		closure_call(&j->io, bch2_journal_write, j->wq, NULL);
+	if (write) {
+		struct journal_buf *w = j->buf + (seq & JOURNAL_BUF_MASK);
+		closure_call(&w->io, bch2_journal_write, j->wq, NULL);
+	}
 }
 
 /*
@@ -1274,10 +1276,14 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 	unsigned nr_bvecs = DIV_ROUND_UP(JOURNAL_ENTRY_SIZE_MAX, PAGE_SIZE);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(ja->bio); i++) {
-		ja->bio[i] = bio_kmalloc(nr_bvecs, GFP_KERNEL);
+		ja->bio[i] = kmalloc(struct_size(ja->bio[i], bio.bi_inline_vecs,
+				     nr_bvecs), GFP_KERNEL);
 		if (!ja->bio[i])
 			return -BCH_ERR_ENOMEM_dev_journal_init;
-		bio_init(ja->bio[i], NULL, ja->bio[i]->bi_inline_vecs, nr_bvecs, 0);
+
+		ja->bio[i]->ca = ca;
+		ja->bio[i]->buf_idx = i;
+		bio_init(&ja->bio[i]->bio, NULL, ja->bio[i]->bio.bi_inline_vecs, nr_bvecs, 0);
 	}
 
 	ja->buckets = kcalloc(ja->nr, sizeof(u64), GFP_KERNEL);
@@ -1340,6 +1346,7 @@ int bch2_fs_journal_init(struct journal *j)
 		j->buf[i].data = kvpmalloc(j->buf[i].buf_size, GFP_KERNEL);
 		if (!j->buf[i].data)
 			return -BCH_ERR_ENOMEM_journal_buf;
+		j->buf[i].idx = i;
 	}
 
 	j->pin.front = j->pin.back = 1;
@@ -1459,7 +1466,6 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 {
 	struct journal_entry_pin_list *pin_list;
 	struct journal_entry_pin *pin;
-	unsigned i;
 
 	spin_lock(&j->lock);
 	*seq = max(*seq, j->pin.front);
@@ -1477,7 +1483,7 @@ bool bch2_journal_seq_pins_to_text(struct printbuf *out, struct journal *j, u64 
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	for (i = 0; i < ARRAY_SIZE(pin_list->list); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(pin_list->list); i++)
 		list_for_each_entry(pin, &pin_list->list[i], list) {
 			prt_printf(out, "\t%px %ps", pin, pin->flush);
 			prt_newline(out);

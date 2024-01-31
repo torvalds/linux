@@ -1597,9 +1597,9 @@ static inline struct journal_buf *journal_last_unwritten_buf(struct journal *j)
 
 static CLOSURE_CALLBACK(journal_write_done)
 {
-	closure_type(j, struct journal, io);
+	closure_type(w, struct journal_buf, io);
+	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_buf *w = journal_last_unwritten_buf(j);
 	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
 	u64 v, seq;
@@ -1676,8 +1676,9 @@ static CLOSURE_CALLBACK(journal_write_done)
 
 	if (!journal_state_count(new, new.unwritten_idx) &&
 	    journal_last_unwritten_seq(j) <= journal_cur_seq(j)) {
+		struct journal_buf *w = j->buf + (journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK);
 		spin_unlock(&j->lock);
-		closure_call(&j->io, bch2_journal_write, j->wq, NULL);
+		closure_call(&w->io, bch2_journal_write, j->wq, NULL);
 	} else if (journal_last_unwritten_seq(j) == journal_cur_seq(j) &&
 		   new.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL) {
 		struct journal_buf *buf = journal_cur_buf(j);
@@ -1698,31 +1699,32 @@ static CLOSURE_CALLBACK(journal_write_done)
 
 static void journal_write_endio(struct bio *bio)
 {
-	struct bch_dev *ca = bio->bi_private;
+	struct journal_bio *jbio = container_of(bio, struct journal_bio, bio);
+	struct bch_dev *ca = jbio->ca;
 	struct journal *j = &ca->fs->journal;
-	struct journal_buf *w = journal_last_unwritten_buf(j);
-	unsigned long flags;
+	struct journal_buf *w = j->buf + jbio->buf_idx;
 
 	if (bch2_dev_io_err_on(bio->bi_status, ca, BCH_MEMBER_ERROR_write,
 			       "error writing journal entry %llu: %s",
 			       le64_to_cpu(w->data->seq),
 			       bch2_blk_status_to_str(bio->bi_status)) ||
 	    bch2_meta_write_fault("journal")) {
+		unsigned long flags;
+
 		spin_lock_irqsave(&j->err_lock, flags);
 		bch2_dev_list_drop_dev(&w->devs_written, ca->dev_idx);
 		spin_unlock_irqrestore(&j->err_lock, flags);
 	}
 
-	closure_put(&j->io);
+	closure_put(&w->io);
 	percpu_ref_put(&ca->io_ref);
 }
 
 static CLOSURE_CALLBACK(do_journal_write)
 {
-	closure_type(j, struct journal, io);
+	closure_type(w, struct journal_buf, io);
+	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	unsigned buf_idx = journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK;
-	struct journal_buf *w = j->buf + buf_idx;
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 
 	extent_for_each_ptr(bkey_i_to_s_extent(&w->key), ptr) {
@@ -1738,7 +1740,7 @@ static CLOSURE_CALLBACK(do_journal_write)
 		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_journal],
 			     sectors);
 
-		struct bio *bio = ja->bio[buf_idx];
+		struct bio *bio = &ja->bio[w->idx]->bio;
 		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= ptr->offset;
 		bio->bi_end_io		= journal_write_endio;
@@ -1937,10 +1939,9 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 
 CLOSURE_CALLBACK(bch2_journal_write)
 {
-	closure_type(j, struct journal, io);
+	closure_type(w, struct journal_buf, io);
+	struct journal *j = container_of(w, struct journal, buf[w->idx]);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	unsigned buf_idx = journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK;
-	struct journal_buf *w = j->buf + buf_idx;
 	struct bch_replicas_padded replicas;
 	struct printbuf journal_debug_buf = PRINTBUF;
 	unsigned nr_rw_members = 0;
@@ -2019,12 +2020,15 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	if (ret)
 		goto err;
 
+	if (!JSET_NO_FLUSH(w->data))
+		closure_wait_event(&j->async_wait, j->seq_ondisk + 1 == le64_to_cpu(w->data->seq));
+
 	if (!JSET_NO_FLUSH(w->data) && w->separate_flush) {
 		for_each_rw_member(c, ca) {
 			percpu_ref_get(&ca->io_ref);
 
 			struct journal_device *ja = &ca->journal;
-			struct bio *bio = ja->bio[buf_idx];
+			struct bio *bio = &ja->bio[w->idx]->bio;
 			bio_reset(bio, ca->disk_sb.bdev,
 				  REQ_OP_WRITE|REQ_SYNC|REQ_META|REQ_PREFLUSH);
 			bio->bi_end_io		= journal_write_endio;

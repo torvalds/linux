@@ -18,6 +18,7 @@
  * the journal that are being staged or in flight.
  */
 struct journal_buf {
+	struct closure		io;
 	struct jset		*data;
 
 	__BKEY_PADDED(key, BCH_REPLICAS_MAX);
@@ -37,6 +38,7 @@ struct journal_buf {
 	bool			must_flush;	/* something wants a flush */
 	bool			separate_flush;
 	bool			need_flush_to_write_buffer;
+	u8			idx;
 };
 
 /*
@@ -150,6 +152,13 @@ enum journal_errors {
 
 typedef DARRAY(u64)		darray_u64;
 
+struct journal_bio {
+	struct bch_dev		*ca;
+	unsigned		buf_idx;
+
+	struct bio		bio;
+};
+
 /* Embedded in struct bch_fs */
 struct journal {
 	/* Fastpath stuff up front: */
@@ -204,7 +213,6 @@ struct journal {
 	wait_queue_head_t	wait;
 	struct closure_waitlist	async_wait;
 
-	struct closure		io;
 	struct delayed_work	write_work;
 	struct workqueue_struct *wq;
 
@@ -315,7 +323,7 @@ struct journal_device {
 	u64			*buckets;
 
 	/* Bio for journal reads/writes to this device */
-	struct bio		*bio[JOURNAL_BUF_NR];
+	struct journal_bio	*bio[JOURNAL_BUF_NR];
 
 	/* for bch_journal_read_device */
 	struct closure		read;
