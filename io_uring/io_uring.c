@@ -1184,8 +1184,6 @@ static unsigned int handle_tw_list(struct llist_node *node,
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
 
-		prefetch(container_of(next, struct io_kiocb, io_task_work.node));
-
 		if (req->ctx != *ctx) {
 			ctx_flush_and_put(*ctx, ts);
 			*ctx = req->ctx;
@@ -1408,7 +1406,6 @@ again:
 		struct llist_node *next = node->next;
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
-		prefetch(container_of(next, struct io_kiocb, io_task_work.node));
 		INDIRECT_CALL_2(req->io_task_work.func,
 				io_poll_task_func, io_req_rw_complete,
 				req, ts);
