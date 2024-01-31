@@ -87,6 +87,8 @@ pub struct CondVar {
 
     /// A condvar needs to be pinned because it contains a [`struct list_head`] that is
     /// self-referential, so it cannot be safely moved once it is initialised.
+    ///
+    /// [`struct list_head`]: srctree/include/linux/types.h
     #[pin]
     _pin: PhantomPinned,
 }
