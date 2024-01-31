@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1342,6 +1342,10 @@ static const char * const gpio_groups[] = {
 	"gpio186", "gpio187", "gpio187", "gpio188", "gpio188", "gpio189",
 };
 static const char * const egpio_groups[] = {
+	"gpio155", "gpio156", "gpio157", "gpio158",
+	"gpio159", "gpio160", "gpio161", "gpio162",
+	"gpio163", "gpio164", "gpio165", "gpio166",
+	"gpio167", "gpio168",
 	"gpio169", "gpio172", "gpio173", "gpio174",
 };
 static const char * const cci_i2c_groups[] = {
@@ -2183,33 +2187,33 @@ static const struct msm_pingroup sdmshrike_groups[] = {
 	[154] = PINGROUP(154, WEST, btfm_slimbus, NA, NA, NA, NA, NA, NA, NA,
 			 NA),
 	[155] = PINGROUP(155, WEST, hs1_mi2s, NA, phase_flag12, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[156] = PINGROUP(156, WEST, hs1_mi2s, NA, phase_flag11, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[157] = PINGROUP(157, WEST, hs1_mi2s, NA, phase_flag10, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[158] = PINGROUP(158, WEST, hs1_mi2s, NA, phase_flag9, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[159] = PINGROUP(159, WEST, hs1_mi2s, cri_trng0, NA, phase_flag8, NA,
-			 NA, NA, NA, NA),
+			 NA, NA, NA, egpio),
 	[160] = PINGROUP(160, WEST, hs2_mi2s, cri_trng1, NA, phase_flag7, NA,
-			 NA, NA, NA, NA),
+			 NA, NA, NA, egpio),
 	[161] = PINGROUP(161, WEST, hs2_mi2s, qspi11, cri_trng, NA,
-			 phase_flag24, NA, NA, NA, NA),
+			 phase_flag24, NA, NA, NA, egpio),
 	[162] = PINGROUP(162, WEST, hs2_mi2s, qspi10, sp_cmu, NA, phase_flag6,
-			 NA, NA, NA, NA),
+			 NA, NA, NA, egpio),
 	[163] = PINGROUP(163, WEST, hs2_mi2s, qspi1_clk, prng_rosc, NA,
-			 phase_flag5, NA, NA, NA, NA),
+			 phase_flag5, NA, NA, NA, egpio),
 	[164] = PINGROUP(164, WEST, hs2_mi2s, qspi1_cs, NA, phase_flag31, NA,
-			 NA, NA, NA, NA),
+			 NA, NA, NA, egpio),
 	[165] = PINGROUP(165, WEST, hs3_mi2s, NA, phase_flag30, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[166] = PINGROUP(166, WEST, hs3_mi2s, NA, phase_flag27, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[167] = PINGROUP(167, WEST, hs3_mi2s, NA, phase_flag26, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[168] = PINGROUP(168, WEST, hs3_mi2s, NA, phase_flag25, NA, NA, NA, NA,
-			 NA, NA),
+			 NA, egpio),
 	[169] = PINGROUP(169, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, egpio),
 	[170] = PINGROUP(170, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
 	[171] = PINGROUP(171, SOUTH, NA, NA, NA, NA, NA, NA, NA, NA, NA),
