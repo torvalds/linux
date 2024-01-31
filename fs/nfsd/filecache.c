@@ -722,15 +722,13 @@ nfsd_file_cache_init(void)
 		return ret;
 
 	ret = -ENOMEM;
-	nfsd_file_slab = kmem_cache_create("nfsd_file",
-				sizeof(struct nfsd_file), 0, 0, NULL);
+	nfsd_file_slab = KMEM_CACHE(nfsd_file, 0);
 	if (!nfsd_file_slab) {
 		pr_err("nfsd: unable to create nfsd_file_slab\n");
 		goto out_err;
 	}
 
-	nfsd_file_mark_slab = kmem_cache_create("nfsd_file_mark",
-					sizeof(struct nfsd_file_mark), 0, 0, NULL);
+	nfsd_file_mark_slab = KMEM_CACHE(nfsd_file_mark, 0);
 	if (!nfsd_file_mark_slab) {
 		pr_err("nfsd: unable to create nfsd_file_mark_slab\n");
 		goto out_err;
