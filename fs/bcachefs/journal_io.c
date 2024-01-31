@@ -1602,7 +1602,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct bch_replicas_padded replicas;
 	union journal_res_state old, new;
-	u64 v, seq;
+	u64 v, seq = le64_to_cpu(w->data->seq);
 	int err = 0;
 
 	bch2_time_stats_update(!JSET_NO_FLUSH(w->data)
@@ -1622,64 +1622,69 @@ static CLOSURE_CALLBACK(journal_write_done)
 	if (err)
 		bch2_fatal_error(c);
 
-	spin_lock(&j->lock);
-	seq = le64_to_cpu(w->data->seq);
+	closure_debug_destroy(cl);
 
+	spin_lock(&j->lock);
 	if (seq >= j->pin.front)
 		journal_seq_pin(j, seq)->devs = w->devs_written;
+	if (err && (!j->err_seq || seq < j->err_seq))
+		j->err_seq	= seq;
+	w->write_done = true;
 
-	if (!err) {
-		if (!JSET_NO_FLUSH(w->data)) {
+	bool completed = false;
+
+	for (seq = journal_last_unwritten_seq(j);
+	     seq <= journal_cur_seq(j);
+	     seq++) {
+		w = j->buf + (seq & JOURNAL_BUF_MASK);
+		if (!w->write_done)
+			break;
+
+		if (!j->err_seq && !JSET_NO_FLUSH(w->data)) {
 			j->flushed_seq_ondisk = seq;
 			j->last_seq_ondisk = w->last_seq;
 
 			bch2_do_discards(c);
 			closure_wake_up(&c->freelist_wait);
-
 			bch2_reset_alloc_cursors(c);
 		}
-	} else if (!j->err_seq || seq < j->err_seq)
-		j->err_seq	= seq;
 
-	j->seq_ondisk		= seq;
+		j->seq_ondisk = seq;
 
-	/*
-	 * Updating last_seq_ondisk may let bch2_journal_reclaim_work() discard
-	 * more buckets:
-	 *
-	 * Must come before signaling write completion, for
-	 * bch2_fs_journal_stop():
-	 */
-	if (j->watermark != BCH_WATERMARK_stripe)
-		journal_reclaim_kick(&c->journal);
+		/*
+		 * Updating last_seq_ondisk may let bch2_journal_reclaim_work() discard
+		 * more buckets:
+		 *
+		 * Must come before signaling write completion, for
+		 * bch2_fs_journal_stop():
+		 */
+		if (j->watermark != BCH_WATERMARK_stripe)
+			journal_reclaim_kick(&c->journal);
 
-	/* also must come before signalling write completion: */
-	closure_debug_destroy(cl);
+		v = atomic64_read(&j->reservations.counter);
+		do {
+			old.v = new.v = v;
+			BUG_ON(journal_state_count(new, new.unwritten_idx));
+			BUG_ON(new.unwritten_idx != (seq & JOURNAL_BUF_MASK));
 
-	v = atomic64_read(&j->reservations.counter);
-	do {
-		old.v = new.v = v;
-		BUG_ON(journal_state_count(new, new.unwritten_idx));
+			new.unwritten_idx++;
+		} while ((v = atomic64_cmpxchg(&j->reservations.counter, old.v, new.v)) != old.v);
 
-		new.unwritten_idx++;
-	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
-				       old.v, new.v)) != old.v);
+		completed = true;
+	}
 
-	bch2_journal_reclaim_fast(j);
-	bch2_journal_space_available(j);
+	if (completed) {
+		bch2_journal_reclaim_fast(j);
+		bch2_journal_space_available(j);
 
-	track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
-			   &j->max_in_flight_start, false);
+		track_event_change(&c->times[BCH_TIME_blocked_journal_max_in_flight],
+				   &j->max_in_flight_start, false);
 
-	closure_wake_up(&w->wait);
-	journal_wake(j);
+		closure_wake_up(&w->wait);
+		journal_wake(j);
+	}
 
-	if (!journal_state_count(new, new.unwritten_idx) &&
-	    journal_last_unwritten_seq(j) <= journal_cur_seq(j)) {
-		struct journal_buf *w = j->buf + (journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK);
-		spin_unlock(&j->lock);
-		closure_call(&w->io, bch2_journal_write, j->wq, NULL);
-	} else if (journal_last_unwritten_seq(j) == journal_cur_seq(j) &&
+	if (journal_last_unwritten_seq(j) == journal_cur_seq(j) &&
 		   new.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL) {
 		struct journal_buf *buf = journal_cur_buf(j);
 		long delta = buf->expires - jiffies;
@@ -1689,12 +1694,10 @@ static CLOSURE_CALLBACK(journal_write_done)
 		 * previous entries still in flight - the current journal entry
 		 * might want to be written now:
 		 */
-
-		spin_unlock(&j->lock);
 		mod_delayed_work(j->wq, &j->write_work, max(0L, delta));
-	} else {
-		spin_unlock(&j->lock);
 	}
+
+	spin_unlock(&j->lock);
 }
 
 static void journal_write_endio(struct bio *bio)
@@ -1948,6 +1951,7 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	int ret;
 
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
+	BUG_ON(w->write_allocated);
 
 	j->write_start_time = local_clock();
 
@@ -1991,12 +1995,14 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	 * bch2_journal_space_available():
 	 */
 	w->sectors = 0;
+	w->write_allocated = true;
 
 	/*
 	 * journal entry has been compacted and allocated, recalculate space
 	 * available:
 	 */
 	bch2_journal_space_available(j);
+	bch2_journal_do_writes(j);
 	spin_unlock(&j->lock);
 
 	w->devs_written = bch2_bkey_devs(bkey_i_to_s_c(&w->key));

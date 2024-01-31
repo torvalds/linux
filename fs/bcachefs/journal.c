@@ -74,6 +74,13 @@ static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u6
 	prt_printf(out, "%li jiffies", buf->expires - jiffies);
 	prt_newline(out);
 
+	if (buf->write_done)
+		prt_printf(out, "write done\n");
+	else if (buf->write_allocated)
+		prt_printf(out, "write allocated\n");
+	else if (buf->write_started)
+		prt_printf(out, "write started\n");
+
 	printbuf_indent_sub(out, 2);
 }
 
@@ -175,21 +182,40 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
 	return stuck;
 }
 
+void bch2_journal_do_writes(struct journal *j)
+{
+	for (u64 seq = journal_last_unwritten_seq(j);
+	     seq <= journal_cur_seq(j);
+	     seq++) {
+		unsigned idx = seq & JOURNAL_BUF_MASK;
+		struct journal_buf *w = j->buf + idx;
+
+		if (w->write_started && !w->write_allocated)
+			break;
+		if (w->write_started)
+			continue;
+
+		if (!journal_state_count(j->reservations, idx)) {
+			w->write_started = true;
+			closure_call(&w->io, bch2_journal_write, j->wq, NULL);
+		}
+
+		break;
+	}
+}
+
 /*
  * Final processing when the last reference of a journal buffer has been
  * dropped. Drop the pin list reference acquired at journal entry open and write
  * the buffer, if requested.
  */
-void bch2_journal_buf_put_final(struct journal *j, u64 seq, bool write)
+void bch2_journal_buf_put_final(struct journal *j, u64 seq)
 {
 	lockdep_assert_held(&j->lock);
 
 	if (__bch2_journal_pin_put(j, seq))
 		bch2_journal_reclaim_fast(j);
-	if (write) {
-		struct journal_buf *w = j->buf + (seq & JOURNAL_BUF_MASK);
-		closure_call(&w->io, bch2_journal_write, j->wq, NULL);
-	}
+	bch2_journal_do_writes(j);
 }
 
 /*
@@ -381,11 +407,14 @@ static int journal_entry_open(struct journal *j)
 	BUG_ON(j->buf + (journal_cur_seq(j) & JOURNAL_BUF_MASK) != buf);
 
 	bkey_extent_init(&buf->key);
-	buf->noflush	= false;
-	buf->must_flush	= false;
-	buf->separate_flush = false;
-	buf->flush_time	= 0;
+	buf->noflush		= false;
+	buf->must_flush		= false;
+	buf->separate_flush	= false;
+	buf->flush_time		= 0;
 	buf->need_flush_to_write_buffer = true;
+	buf->write_started	= false;
+	buf->write_allocated	= false;
+	buf->write_done		= false;
 
 	memset(buf->data, 0, sizeof(*buf->data));
 	buf->data->seq	= cpu_to_le64(journal_cur_seq(j));

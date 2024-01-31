@@ -34,10 +34,13 @@ struct journal_buf {
 	unsigned		disk_sectors;	/* maximum size entry could have been, if
 						   buf_size was bigger */
 	unsigned		u64s_reserved;
-	bool			noflush;	/* write has already been kicked off, and was noflush */
-	bool			must_flush;	/* something wants a flush */
-	bool			separate_flush;
-	bool			need_flush_to_write_buffer;
+	bool			noflush:1;	/* write has already been kicked off, and was noflush */
+	bool			must_flush:1;	/* something wants a flush */
+	bool			separate_flush:1;
+	bool			need_flush_to_write_buffer:1;
+	bool			write_started:1;
+	bool			write_allocated:1;
+	bool			write_done:1;
 	u8			idx;
 };
 
