@@ -1078,8 +1078,6 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
 }
 
-#ifdef CONFIG_ACPI
-
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
 	union iwl_ppag_table_cmd cmd;
@@ -1109,6 +1107,8 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
+
+#ifdef CONFIG_ACPI
 
 static const struct dmi_system_id dmi_tas_approved_list[] = {
 	{ .ident = "HP",
@@ -1389,16 +1389,6 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 
 #else /* CONFIG_ACPI */
 
-int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
-{
-	return -ENOENT;
-}
-
-static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
-{
-	return 0;
-}
-
 static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 }
@@ -1426,7 +1416,7 @@ void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
 	iwl_acpi_get_guid_lock_status(&mvm->fwrt);
 
 	/* read PPAG table */
-	ret = iwl_acpi_get_ppag_table(&mvm->fwrt);
+	ret = iwl_bios_get_ppag_table(&mvm->fwrt);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"PPAG BIOS table invalid or unavailable. (%d)\n",

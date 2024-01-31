@@ -15,6 +15,7 @@
 #define IWL_UEFI_WRDS_NAME		L"UefiCnvWlanWRDS"
 #define IWL_UEFI_EWRD_NAME		L"UefiCnvWlanEWRD"
 #define IWL_UEFI_WGDS_NAME		L"UefiCnvWlanWGDS"
+#define IWL_UEFI_PPAG_NAME		L"UefiCnvWlanPPAG"
 
 #define IWL_SGOM_MAP_SIZE		339
 #define IWL_UATS_MAP_SIZE		339
@@ -22,6 +23,8 @@
 #define IWL_UEFI_WRDS_REVISION		2
 #define IWL_UEFI_EWRD_REVISION		2
 #define IWL_UEFI_WGDS_REVISION		3
+#define IWL_UEFI_MIN_PPAG_REV		1
+#define IWL_UEFI_MAX_PPAG_REV		3
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -100,6 +103,19 @@ struct uefi_cnv_var_wgds {
 } __packed;
 
 /*
+ * struct uefi_cnv_var_ppag - PPAG table as defined in UEFI
+ * @revision: the revision of the table
+ * @ppag_modes: bit 0 - PPAG is enabled/disabled in ETSI,
+ *	bit 1 - PPAG is enabled/disabled in China
+ * @ppag_chains: the PPAG values per chain and band
+ */
+struct uefi_cnv_var_ppag {
+	u8 revision;
+	u32 ppag_modes;
+	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
+} __packed;
+
+/*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
  * disable the feature in old kernels.
@@ -116,6 +132,7 @@ int iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
 int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -158,6 +175,11 @@ static inline int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
 }

@@ -521,3 +521,32 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_ppag *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_PPAG_NAME,
+					      "PPAG", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision < IWL_UEFI_MIN_PPAG_REV ||
+	    data->revision > IWL_UEFI_MAX_PPAG_REV) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI PPAG revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	fwrt->ppag_ver = data->revision;
+	fwrt->ppag_flags = data->ppag_modes & IWL_PPAG_ETSI_CHINA_MASK;
+
+	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
+	memcpy(&fwrt->ppag_chains, &data->ppag_chains,
+	       sizeof(data->ppag_chains));
+out:
+	kfree(data);
+	return ret;
+}

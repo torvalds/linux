@@ -968,7 +968,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_ppag_table);
 
 void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 			      struct iwl_phy_specific_cfg *filters)

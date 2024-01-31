@@ -113,4 +113,5 @@ int iwl_bios_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
+int iwl_bios_get_ppag_table(struct iwl_fw_runtime *fwrt);
 #endif /* __fw_regulatory_h__ */

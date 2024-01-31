@@ -24,6 +24,7 @@ IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name ## _table)
 IWL_BIOS_TABLE_LOADER(wrds);
 IWL_BIOS_TABLE_LOADER(ewrd);
 IWL_BIOS_TABLE_LOADER(wgds);
+IWL_BIOS_TABLE_LOADER(ppag);
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
 	{ .ident = "HP",
