@@ -589,14 +589,15 @@ struct lpfc_vport {
 	struct list_head fc_nodes;
 
 	/* Keep counters for the number of entries in each list. */
-	uint16_t fc_plogi_cnt;
-	uint16_t fc_adisc_cnt;
-	uint16_t fc_reglogin_cnt;
-	uint16_t fc_prli_cnt;
-	uint16_t fc_unmap_cnt;
-	uint16_t fc_map_cnt;
-	uint16_t fc_npr_cnt;
-	uint16_t fc_unused_cnt;
+	atomic_t fc_plogi_cnt;
+	atomic_t fc_adisc_cnt;
+	atomic_t fc_reglogin_cnt;
+	atomic_t fc_prli_cnt;
+	atomic_t fc_unmap_cnt;
+	atomic_t fc_map_cnt;
+	atomic_t fc_npr_cnt;
+	atomic_t fc_unused_cnt;
+
 	struct serv_parm fc_sparam;	/* buffer for our service parameters */
 
 	uint32_t fc_myDID;	/* fibre channel S_ID */

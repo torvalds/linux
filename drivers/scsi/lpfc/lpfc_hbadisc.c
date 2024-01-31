@@ -4023,7 +4023,7 @@ lpfc_mbx_cmpl_reg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	spin_unlock_irq(shost->host_lock);
 	vport->num_disc_nodes = 0;
 	/* go thru NPR list and issue ELS PLOGIs */
-	if (vport->fc_npr_cnt)
+	if (atomic_read(&vport->fc_npr_cnt))
 		lpfc_els_disc_plogi(vport);
 
 	if (!vport->num_disc_nodes) {
@@ -4600,40 +4600,35 @@ lpfc_unregister_remote_port(struct lpfc_nodelist *ndlp)
 static void
 lpfc_nlp_counters(struct lpfc_vport *vport, int state, int count)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
-	unsigned long iflags;
-
-	spin_lock_irqsave(shost->host_lock, iflags);
 	switch (state) {
 	case NLP_STE_UNUSED_NODE:
-		vport->fc_unused_cnt += count;
+		atomic_add(count, &vport->fc_unused_cnt);
 		break;
 	case NLP_STE_PLOGI_ISSUE:
-		vport->fc_plogi_cnt += count;
+		atomic_add(count, &vport->fc_plogi_cnt);
 		break;
 	case NLP_STE_ADISC_ISSUE:
-		vport->fc_adisc_cnt += count;
+		atomic_add(count, &vport->fc_adisc_cnt);
 		break;
 	case NLP_STE_REG_LOGIN_ISSUE:
-		vport->fc_reglogin_cnt += count;
+		atomic_add(count, &vport->fc_reglogin_cnt);
 		break;
 	case NLP_STE_PRLI_ISSUE:
-		vport->fc_prli_cnt += count;
+		atomic_add(count, &vport->fc_prli_cnt);
 		break;
 	case NLP_STE_UNMAPPED_NODE:
-		vport->fc_unmap_cnt += count;
+		atomic_add(count, &vport->fc_unmap_cnt);
 		break;
 	case NLP_STE_MAPPED_NODE:
-		vport->fc_map_cnt += count;
+		atomic_add(count, &vport->fc_map_cnt);
 		break;
 	case NLP_STE_NPR_NODE:
-		if (vport->fc_npr_cnt == 0 && count == -1)
-			vport->fc_npr_cnt = 0;
+		if (!atomic_read(&vport->fc_npr_cnt) && count == -1)
+			atomic_set(&vport->fc_npr_cnt, 0);
 		else
-			vport->fc_npr_cnt += count;
+			atomic_add(count, &vport->fc_npr_cnt);
 		break;
 	}
-	spin_unlock_irqrestore(shost->host_lock, iflags);
 }
 
 /* Register a node with backend if not already done */
@@ -5034,8 +5029,9 @@ lpfc_set_disctmo(struct lpfc_vport *vport)
 			 "0247 Start Discovery Timer state x%x "
 			 "Data: x%x x%lx x%x x%x\n",
 			 vport->port_state, tmo,
-			 (unsigned long)&vport->fc_disctmo, vport->fc_plogi_cnt,
-			 vport->fc_adisc_cnt);
+			 (unsigned long)&vport->fc_disctmo,
+			 atomic_read(&vport->fc_plogi_cnt),
+			 atomic_read(&vport->fc_adisc_cnt));
 
 	return;
 }
@@ -5070,7 +5066,8 @@ lpfc_can_disctmo(struct lpfc_vport *vport)
 			 "0248 Cancel Discovery Timer state x%x "
 			 "Data: x%x x%x x%x\n",
 			 vport->port_state, vport->fc_flag,
-			 vport->fc_plogi_cnt, vport->fc_adisc_cnt);
+			 atomic_read(&vport->fc_plogi_cnt),
+			 atomic_read(&vport->fc_adisc_cnt));
 	return 0;
 }
 
@@ -5951,8 +5948,10 @@ lpfc_disc_start(struct lpfc_vport *vport)
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0202 Start Discovery port state x%x "
 			 "flg x%x Data: x%x x%x x%x\n",
-			 vport->port_state, vport->fc_flag, vport->fc_plogi_cnt,
-			 vport->fc_adisc_cnt, vport->fc_npr_cnt);
+			 vport->port_state, vport->fc_flag,
+			 atomic_read(&vport->fc_plogi_cnt),
+			 atomic_read(&vport->fc_adisc_cnt),
+			 atomic_read(&vport->fc_npr_cnt));
 
 	/* First do ADISCs - if any */
 	num_sent = lpfc_els_disc_adisc(vport);
@@ -5981,7 +5980,7 @@ lpfc_disc_start(struct lpfc_vport *vport)
 		if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
 			vport->num_disc_nodes = 0;
 			/* go thru NPR nodes and issue ELS PLOGIs */
-			if (vport->fc_npr_cnt)
+			if (atomic_read(&vport->fc_npr_cnt))
 				lpfc_els_disc_plogi(vport);
 
 			if (!vport->num_disc_nodes) {
@@ -6077,7 +6076,8 @@ lpfc_disc_flush_list(struct lpfc_vport *vport)
 	struct lpfc_nodelist *ndlp, *next_ndlp;
 	struct lpfc_hba *phba = vport->phba;
 
-	if (vport->fc_plogi_cnt || vport->fc_adisc_cnt) {
+	if (atomic_read(&vport->fc_plogi_cnt) ||
+	    atomic_read(&vport->fc_adisc_cnt)) {
 		list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes,
 					 nlp_listp) {
 			if (ndlp->nlp_state == NLP_STE_PLOGI_ISSUE ||

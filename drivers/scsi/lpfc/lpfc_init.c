@@ -4770,6 +4770,14 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 	vport->fc_rscn_flush = 0;
+	atomic_set(&vport->fc_plogi_cnt, 0);
+	atomic_set(&vport->fc_adisc_cnt, 0);
+	atomic_set(&vport->fc_reglogin_cnt, 0);
+	atomic_set(&vport->fc_prli_cnt, 0);
+	atomic_set(&vport->fc_unmap_cnt, 0);
+	atomic_set(&vport->fc_map_cnt, 0);
+	atomic_set(&vport->fc_npr_cnt, 0);
+	atomic_set(&vport->fc_unused_cnt, 0);
 	lpfc_get_vport_cfgparam(vport);
 
 	/* Adjust value in vport */
@@ -4946,7 +4954,8 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		goto finished;
 	if (vport->num_disc_nodes || vport->fc_prli_sent)
 		goto finished;
-	if (vport->fc_map_cnt == 0 && time < msecs_to_jiffies(2 * 1000))
+	if (!atomic_read(&vport->fc_map_cnt) &&
+	    time < msecs_to_jiffies(2 * 1000))
 		goto finished;
 	if ((phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE) != 0)
 		goto finished;
