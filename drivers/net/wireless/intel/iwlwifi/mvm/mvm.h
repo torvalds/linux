@@ -359,6 +359,7 @@ struct iwl_mvm_vif_link_info {
  * @pm_enabled - indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
+ * @bt_coex_esr_disabled: indicates if esr is disabled due to bt coex
  * @low_latency: bit flags for low latency
  *	see enum &iwl_mvm_low_latency_cause for causes.
  * @low_latency_actual: boolean, indicates low latency is set,
@@ -389,6 +390,7 @@ struct iwl_mvm_vif {
 	bool pm_enabled;
 	bool monitor_active;
 	bool esr_active;
+	bool bt_coex_esr_disabled;
 
 	u8 low_latency: 6;
 	u8 low_latency_actual: 1;
@@ -1570,13 +1572,17 @@ static inline int iwl_mvm_max_active_links(struct iwl_mvm *mvm,
 					   struct ieee80211_vif *vif)
 {
 	struct iwl_trans *trans = mvm->fwrt.trans;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
 
 	if (vif->type == NL80211_IFTYPE_AP)
 		return mvm->fw->ucode_capa.num_beacons;
 
-	if (iwl_mvm_is_esr_supported(trans) ||
-	    (CSR_HW_RFID_TYPE(trans->hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
-	     CSR_HW_RFID_IS_CDB(trans->hw_rf_id)))
+	if ((iwl_mvm_is_esr_supported(trans) &&
+	     !mvmvif->bt_coex_esr_disabled) ||
+	    ((CSR_HW_RFID_TYPE(trans->hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
+	     CSR_HW_RFID_IS_CDB(trans->hw_rf_id))))
 		return IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM;
 
 	return 1;
@@ -2119,6 +2125,12 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
+bool iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					int link_id, int primary_link);
+void iwl_mvm_bt_coex_update_vif_esr(struct iwl_mvm *mvm,
+				    struct ieee80211_vif *vif,
+				    int link_id);
 
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
@@ -2733,4 +2745,7 @@ bool iwl_mvm_enable_fils(struct iwl_mvm *mvm,
 			 struct ieee80211_chanctx_conf *ctx);
 void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      bool valid_links_changed);
+int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 unsigned long usable_links);
 #endif /* __IWL_MVM_H__ */

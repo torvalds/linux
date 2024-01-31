@@ -841,6 +841,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 		struct iwl_stats_ntfy_per_link *link_stats;
 		struct ieee80211_bss_conf *bss_conf;
 		struct iwl_mvm_vif *mvmvif;
+		struct iwl_mvm_vif_link_info *link_info;
 		int link_id;
 		int sig;
 
@@ -857,19 +858,25 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 			continue;
 
 		mvmvif = iwl_mvm_vif_from_mac80211(bss_conf->vif);
-		if (!mvmvif || !mvmvif->link[link_id])
+		link_info = mvmvif->link[link_id];
+		if (!link_info)
 			continue;
 
 		link_stats = &per_link[fw_link_id];
 
-		mvmvif->link[link_id]->beacon_stats.num_beacons =
+		link_info->beacon_stats.num_beacons =
 			le32_to_cpu(link_stats->beacon_counter);
 
 		/* we basically just use the u8 to store 8 bits and then treat
 		 * it as a s8 whenever we take it out to a different type.
 		 */
-		mvmvif->link[link_id]->beacon_stats.avg_signal =
+		link_info->beacon_stats.avg_signal =
 			-le32_to_cpu(link_stats->beacon_average_energy);
+
+		if (link_info->phy_ctxt &&
+		    link_info->phy_ctxt->channel->band == NL80211_BAND_2GHZ)
+			iwl_mvm_bt_coex_update_vif_esr(mvm, bss_conf->vif,
+						       link_id);
 
 		/* make sure that beacon statistics don't go backwards with TCM
 		 * request to clear statistics
