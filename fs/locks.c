@@ -806,7 +806,7 @@ static void locks_insert_block(struct file_lock_core *blocker,
  *
  * Must be called with the inode->flc_lock held!
  */
-static void locks_wake_up_blocks(struct file_lock *blocker)
+static void locks_wake_up_blocks(struct file_lock_core *blocker)
 {
 	/*
 	 * Avoid taking global lock if list is empty. This is safe since new
@@ -815,11 +815,11 @@ static void locks_wake_up_blocks(struct file_lock *blocker)
 	 * fl_blocked_requests list does not require the flc_lock, so we must
 	 * recheck list_empty() after acquiring the blocked_lock_lock.
 	 */
-	if (list_empty(&blocker->c.flc_blocked_requests))
+	if (list_empty(&blocker->flc_blocked_requests))
 		return;
 
 	spin_lock(&blocked_lock_lock);
-	__locks_wake_up_blocks(&blocker->c);
+	__locks_wake_up_blocks(blocker);
 	spin_unlock(&blocked_lock_lock);
 }
 
@@ -835,7 +835,7 @@ locks_unlink_lock_ctx(struct file_lock *fl)
 {
 	locks_delete_global_locks(&fl->c);
 	list_del_init(&fl->c.flc_list);
-	locks_wake_up_blocks(fl);
+	locks_wake_up_blocks(&fl->c);
 }
 
 static void
@@ -1328,11 +1328,11 @@ retry:
 			locks_insert_lock_ctx(left, &fl->c.flc_list);
 		}
 		right->fl_start = request->fl_end + 1;
-		locks_wake_up_blocks(right);
+		locks_wake_up_blocks(&right->c);
 	}
 	if (left) {
 		left->fl_end = request->fl_start - 1;
-		locks_wake_up_blocks(left);
+		locks_wake_up_blocks(&left->c);
 	}
  out:
 	spin_unlock(&ctx->flc_lock);
@@ -1414,7 +1414,7 @@ int lease_modify(struct file_lock *fl, int arg, struct list_head *dispose)
 	if (error)
 		return error;
 	lease_clear_pending(fl, arg);
-	locks_wake_up_blocks(fl);
+	locks_wake_up_blocks(&fl->c);
 	if (arg == F_UNLCK) {
 		struct file *filp = fl->c.flc_file;
 
