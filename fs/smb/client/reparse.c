@@ -230,7 +230,7 @@ static int wsl_set_xattrs(struct inode *inode, umode_t _mode,
 	}
 
 	cc = ea_create_context(dlen, &cc_len);
-	if (!cc)
+	if (IS_ERR(cc))
 		return PTR_ERR(cc);
 
 	ea = &cc->ea;
