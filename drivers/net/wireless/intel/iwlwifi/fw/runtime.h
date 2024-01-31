@@ -14,6 +14,7 @@
 #include "fw/api/power.h"
 #include "iwl-eeprom-parse.h"
 #include "fw/acpi.h"
+#include "fw/regulatory.h"
 
 struct iwl_fw_runtime_ops {
 	void (*dump_start)(void *ctx);
@@ -103,6 +104,8 @@ struct iwl_txf_iter_data {
  * @uefi_tables_lock_status: The status of the WIFI GUID UEFI variables lock:
  *	0: Unlocked, 1 and 2: Locked.
  *	Only read the UEFI variables if locked.
+ * @sar_profiles: sar profiles as read from WRDS/EWRD BIOS tables
+ * @geo_profiles: geographic profiles as read from WGDS BIOS table
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -162,10 +165,10 @@ struct iwl_fw_runtime {
 	bool tpc_enabled;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 #ifdef CONFIG_ACPI
-	struct iwl_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
+	struct iwl_sar_profile sar_profiles[BIOS_SAR_MAX_PROFILE_NUM];
 	u8 sar_chain_a_profile;
 	u8 sar_chain_b_profile;
-	struct iwl_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES_REV3];
+	struct iwl_geo_profile geo_profiles[BIOS_GEO_MAX_PROFILE_NUM];
 	u32 geo_rev;
 	u32 geo_num_profiles;
 	bool geo_enabled;

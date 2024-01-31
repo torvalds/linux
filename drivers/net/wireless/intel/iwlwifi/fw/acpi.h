@@ -62,7 +62,6 @@
 /* revision 0 and 1 are identical, except for the semantics in the FW */
 #define ACPI_GEO_NUM_BANDS_REV0		2
 #define ACPI_GEO_NUM_BANDS_REV2		3
-#define ACPI_GEO_NUM_CHAINS		2
 
 #define ACPI_WRDD_WIFI_DATA_SIZE	2
 #define ACPI_SPLC_WIFI_DATA_SIZE	2
@@ -111,26 +110,6 @@
  * turn a superset of revision 0.  So we can store all revisions
  * inside revision 2, which is what we represent here.
  */
-struct iwl_sar_profile_chain {
-	u8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
-};
-
-struct iwl_sar_profile {
-	bool enabled;
-	struct iwl_sar_profile_chain chains[ACPI_SAR_NUM_CHAINS_REV2];
-};
-
-/* Same thing as with SAR, all revisions fit in revision 2 */
-struct iwl_geo_profile_band {
-	u8 max;
-	u8 chains[ACPI_GEO_NUM_CHAINS];
-};
-
-struct iwl_geo_profile {
-	struct iwl_geo_profile_band bands[ACPI_GEO_NUM_BANDS_REV2];
-};
-
-/* Same thing as with SAR, all revisions fit in revision 2 */
 struct iwl_ppag_chain {
 	s8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
 };
@@ -212,21 +191,11 @@ u64 iwl_acpi_get_pwr_limit(struct device *dev);
  */
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
 
-int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
-			   int prof_a, int prof_b);
+int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 
-int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt);
+int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 
-int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt);
-
-int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt);
-
-bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
-
-int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset *table,
-		     u32 n_bands, u32 n_profiles);
+int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		     union iwl_tas_config_cmd *cmd, int fw_ver);
@@ -280,31 +249,19 @@ static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 	return -ENOENT;
 }
 
-static inline int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
-			   int prof_a, int prof_b)
+static inline int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
 }
 
-static inline int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
+static inline int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
 }
 
-static inline int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
-{
-	return -ENOENT;
-}
-
-static inline int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
+static inline int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
 	return 1;
-}
-
-static inline bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
-{
-	return false;
 }
 
 static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,

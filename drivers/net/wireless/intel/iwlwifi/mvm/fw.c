@@ -936,9 +936,9 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	/* all structs have the same common part, add it */
 	len += sizeof(cmd.common);
 
-	ret = iwl_sar_select_profile(&mvm->fwrt, per_chain,
-				     IWL_NUM_CHAIN_TABLES,
-				     n_subbands, prof_a, prof_b);
+	ret = iwl_sar_fill_profile(&mvm->fwrt, per_chain,
+				   IWL_NUM_CHAIN_TABLES,
+				   n_subbands, prof_a, prof_b);
 
 	/* return on error or if the profile is disabled (positive number) */
 	if (ret)
@@ -994,7 +994,7 @@ int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
 	resp = (void *)cmd.resp_pkt->data;
 	ret = le32_to_cpu(resp->profile_idx);
 
-	if (WARN_ON(ret > ACPI_NUM_GEO_PROFILES_REV3))
+	if (WARN_ON(ret > BIOS_GEO_MAX_PROFILE_NUM))
 		ret = -EIO;
 
 	iwl_free_resp(&cmd);
@@ -1028,24 +1028,24 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	if (cmd_ver == 5) {
 		len = sizeof(cmd.v5);
 		n_bands = ARRAY_SIZE(cmd.v5.table[0]);
-		n_profiles = ACPI_NUM_GEO_PROFILES_REV3;
+		n_profiles = BIOS_GEO_MAX_PROFILE_NUM;
 	} else if (cmd_ver == 4) {
 		len = sizeof(cmd.v4);
 		n_bands = ARRAY_SIZE(cmd.v4.table[0]);
-		n_profiles = ACPI_NUM_GEO_PROFILES_REV3;
+		n_profiles = BIOS_GEO_MAX_PROFILE_NUM;
 	} else if (cmd_ver == 3) {
 		len = sizeof(cmd.v3);
 		n_bands = ARRAY_SIZE(cmd.v3.table[0]);
-		n_profiles = ACPI_NUM_GEO_PROFILES;
+		n_profiles = BIOS_GEO_MIN_PROFILE_NUM;
 	} else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			      IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
 		len = sizeof(cmd.v2);
 		n_bands = ARRAY_SIZE(cmd.v2.table[0]);
-		n_profiles = ACPI_NUM_GEO_PROFILES;
+		n_profiles = BIOS_GEO_MIN_PROFILE_NUM;
 	} else {
 		len = sizeof(cmd.v1);
 		n_bands = ARRAY_SIZE(cmd.v1.table[0]);
-		n_profiles = ACPI_NUM_GEO_PROFILES;
+		n_profiles = BIOS_GEO_MIN_PROFILE_NUM;
 	}
 
 	BUILD_BUG_ON(offsetof(struct iwl_geo_tx_power_profiles_cmd_v1, table) !=
@@ -1057,8 +1057,8 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v4, table) !=
 		     offsetof(struct iwl_geo_tx_power_profiles_cmd_v5, table));
 	/* the table is at the same position for all versions, so set use v1 */
-	ret = iwl_sar_geo_init(&mvm->fwrt, &cmd.v1.table[0][0],
-			       n_bands, n_profiles);
+	ret = iwl_sar_geo_fill_table(&mvm->fwrt, &cmd.v1.table[0][0],
+				     n_bands, n_profiles);
 
 	/*
 	 * It is a valid scenario to not support SAR, or miss wgds table,
@@ -1076,7 +1076,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	 * element name is misleading, as it doesn't contain the table
 	 * revision number, but whether the South Korea variation
 	 * should be used.
-	 * This must be done after calling iwl_sar_geo_init().
+	 * This must be done after calling iwl_sar_geo_fill_table().
 	 */
 	if (cmd_ver == 5)
 		cmd.v5.table_revision = cpu_to_le32(sk);
@@ -1413,7 +1413,7 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 	}
 
 	/* read SAR tables */
-	ret = iwl_sar_get_wrds_table(&mvm->fwrt);
+	ret = iwl_acpi_get_wrds_table(&mvm->fwrt);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
@@ -1422,7 +1422,7 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 		 * If not available, don't fail and don't bother with EWRD and
 		 * WGDS */
 
-		if (!iwl_sar_get_wgds_table(&mvm->fwrt)) {
+		if (!iwl_acpi_get_wgds_table(&mvm->fwrt)) {
 			/*
 			 * If basic SAR is not available, we check for WGDS,
 			 * which should *not* be available either.  If it is
@@ -1433,7 +1433,7 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 		}
 
 	} else {
-		ret = iwl_sar_get_ewrd_table(&mvm->fwrt);
+		ret = iwl_acpi_get_ewrd_table(&mvm->fwrt);
 		/* if EWRD is not available, we can still use
 		* WRDS, so don't fail */
 		if (ret < 0)
@@ -1443,7 +1443,7 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 
 		/* read geo SAR table */
 		if (iwl_sar_geo_support(&mvm->fwrt)) {
-			ret = iwl_sar_get_wgds_table(&mvm->fwrt);
+			ret = iwl_acpi_get_wgds_table(&mvm->fwrt);
 			if (ret < 0)
 				IWL_DEBUG_RADIO(mvm,
 						"Geo SAR BIOS table invalid or unavailable. (%d)\n",

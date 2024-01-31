@@ -501,9 +501,10 @@ out_free:
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_eckv);
 
-static int iwl_sar_set_profile(union acpi_object *table,
-			       struct iwl_sar_profile *profile,
-			       bool enabled, u8 num_chains, u8 num_sub_bands)
+static int iwl_acpi_sar_set_profile(union acpi_object *table,
+				    struct iwl_sar_profile *profile,
+				    bool enabled, u8 num_chains,
+				    u8 num_sub_bands)
 {
 	int i, j, idx = 0;
 
@@ -511,8 +512,8 @@ static int iwl_sar_set_profile(union acpi_object *table,
 	 * The table from ACPI is flat, but we store it in a
 	 * structured array.
 	 */
-	for (i = 0; i < ACPI_SAR_NUM_CHAINS_REV2; i++) {
-		for (j = 0; j < ACPI_SAR_NUM_SUB_BANDS_REV2; j++) {
+	for (i = 0; i < BIOS_SAR_MAX_CHAINS_PER_PROFILE; i++) {
+		for (j = 0; j < BIOS_SAR_MAX_SUB_BANDS_NUM; j++) {
 			/* if we don't have the values, use the default */
 			if (i >= num_chains || j >= num_sub_bands) {
 				profile->chains[i].subbands[j] = 0;
@@ -535,73 +536,7 @@ static int iwl_sar_set_profile(union acpi_object *table,
 	return 0;
 }
 
-static int iwl_sar_fill_table(struct iwl_fw_runtime *fwrt,
-			      __le16 *per_chain, u32 n_subbands,
-			      int prof_a, int prof_b)
-{
-	int profs[ACPI_SAR_NUM_CHAINS_REV0] = { prof_a, prof_b };
-	int i, j;
-
-	for (i = 0; i < ACPI_SAR_NUM_CHAINS_REV0; i++) {
-		struct iwl_sar_profile *prof;
-
-		/* don't allow SAR to be disabled (profile 0 means disable) */
-		if (profs[i] == 0)
-			return -EPERM;
-
-		/* we are off by one, so allow up to ACPI_SAR_PROFILE_NUM */
-		if (profs[i] > ACPI_SAR_PROFILE_NUM)
-			return -EINVAL;
-
-		/* profiles go from 1 to 4, so decrement to access the array */
-		prof = &fwrt->sar_profiles[profs[i] - 1];
-
-		/* if the profile is disabled, do nothing */
-		if (!prof->enabled) {
-			IWL_DEBUG_RADIO(fwrt, "SAR profile %d is disabled.\n",
-					profs[i]);
-			/*
-			 * if one of the profiles is disabled, we
-			 * ignore all of them and return 1 to
-			 * differentiate disabled from other failures.
-			 */
-			return 1;
-		}
-
-		IWL_DEBUG_INFO(fwrt,
-			       "SAR EWRD: chain %d profile index %d\n",
-			       i, profs[i]);
-		IWL_DEBUG_RADIO(fwrt, "  Chain[%d]:\n", i);
-		for (j = 0; j < n_subbands; j++) {
-			per_chain[i * n_subbands + j] =
-				cpu_to_le16(prof->chains[i].subbands[j]);
-			IWL_DEBUG_RADIO(fwrt, "    Band[%d] = %d * .125dBm\n",
-					j, prof->chains[i].subbands[j]);
-		}
-	}
-
-	return 0;
-}
-
-int iwl_sar_select_profile(struct iwl_fw_runtime *fwrt,
-			   __le16 *per_chain, u32 n_tables, u32 n_subbands,
-			   int prof_a, int prof_b)
-{
-	int i, ret = 0;
-
-	for (i = 0; i < n_tables; i++) {
-		ret = iwl_sar_fill_table(fwrt,
-			 &per_chain[i * n_subbands * ACPI_SAR_NUM_CHAINS_REV0],
-			 n_subbands, prof_a, prof_b);
-		if (ret)
-			break;
-	}
-
-	return ret;
-}
-IWL_EXPORT_SYMBOL(iwl_sar_select_profile);
-
-int iwl_sar_get_wrds_table(struct iwl_fw_runtime *fwrt)
+int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *table, *data;
 	int ret, tbl_rev;
@@ -680,16 +615,16 @@ read_table:
 	/* The profile from WRDS is officially profile 1, but goes
 	 * into sar_profiles[0] (because we don't have a profile 0).
 	 */
-	ret = iwl_sar_set_profile(table, &fwrt->sar_profiles[0],
-				  flags & IWL_SAR_ENABLE_MSK,
-				  num_chains, num_sub_bands);
+	ret = iwl_acpi_sar_set_profile(table, &fwrt->sar_profiles[0],
+				       flags & IWL_SAR_ENABLE_MSK,
+				       num_chains, num_sub_bands);
 out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_sar_get_wrds_table);
+IWL_EXPORT_SYMBOL(iwl_acpi_get_wrds_table);
 
-int iwl_sar_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *data;
 	bool enabled;
@@ -767,7 +702,7 @@ read_table:
 	 * from index 1, so the maximum value allowed here is
 	 * ACPI_SAR_PROFILES_NUM - 1.
 	 */
-	if (n_profiles >= ACPI_SAR_PROFILE_NUM) {
+	if (n_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
 		ret = -EINVAL;
 		goto out_free;
 	}
@@ -776,13 +711,15 @@ read_table:
 	pos = 3;
 
 	for (i = 0; i < n_profiles; i++) {
+		union acpi_object *table = &wifi_pkg->package.elements[pos];
 		/* The EWRD profiles officially go from 2 to 4, but we
 		 * save them in sar_profiles[1-3] (because we don't
 		 * have profile 0).  So in the array we start from 1.
 		 */
-		ret = iwl_sar_set_profile(&wifi_pkg->package.elements[pos],
-					  &fwrt->sar_profiles[i + 1], enabled,
-					  num_chains, num_sub_bands);
+		ret = iwl_acpi_sar_set_profile(table,
+					       &fwrt->sar_profiles[i + 1],
+					       enabled, num_chains,
+					       num_sub_bands);
 		if (ret < 0)
 			break;
 
@@ -794,9 +731,9 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_sar_get_ewrd_table);
+IWL_EXPORT_SYMBOL(iwl_acpi_get_ewrd_table);
 
-int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
+int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
 	union acpi_object *wifi_pkg, *data;
 	int i, j, k, ret, tbl_rev;
@@ -897,7 +834,7 @@ int iwl_sar_get_wgds_table(struct iwl_fw_runtime *fwrt)
 read_table:
 	fwrt->geo_rev = tbl_rev;
 	for (i = 0; i < num_profiles; i++) {
-		for (j = 0; j < ACPI_GEO_NUM_BANDS_REV2; j++) {
+		for (j = 0; j < BIOS_GEO_MAX_NUM_BANDS; j++) {
 			union acpi_object *entry;
 
 			/*
@@ -921,7 +858,7 @@ read_table:
 					entry->integer.value;
 			}
 
-			for (k = 0; k < ACPI_GEO_NUM_CHAINS; k++) {
+			for (k = 0; k < BIOS_GEO_NUM_CHAINS; k++) {
 				/* same here as above */
 				if (j >= num_bands) {
 					fwrt->geo_profiles[i].bands[j].chains[k] =
@@ -949,63 +886,7 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_sar_get_wgds_table);
-
-bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
-{
-	/*
-	 * The PER_CHAIN_LIMIT_OFFSET_CMD command is not supported on
-	 * earlier firmware versions.  Unfortunately, we don't have a
-	 * TLV API flag to rely on, so rely on the major version which
-	 * is in the first byte of ucode_ver.  This was implemented
-	 * initially on version 38 and then backported to 17.  It was
-	 * also backported to 29, but only for 7265D devices.  The
-	 * intention was to have it in 36 as well, but not all 8000
-	 * family got this feature enabled.  The 8000 family is the
-	 * only one using version 36, so skip this version entirely.
-	 */
-	return IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) >= 38 ||
-		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 17 &&
-		 fwrt->trans->hw_rev != CSR_HW_REV_TYPE_3160) ||
-		(IWL_UCODE_SERIAL(fwrt->fw->ucode_ver) == 29 &&
-		 ((fwrt->trans->hw_rev & CSR_HW_REV_TYPE_MSK) ==
-		  CSR_HW_REV_TYPE_7265D));
-}
-IWL_EXPORT_SYMBOL(iwl_sar_geo_support);
-
-int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
-		     struct iwl_per_chain_offset *table,
-		     u32 n_bands, u32 n_profiles)
-{
-	int i, j;
-
-	if (!fwrt->geo_enabled)
-		return -ENODATA;
-
-	if (!iwl_sar_geo_support(fwrt))
-		return -EOPNOTSUPP;
-
-	for (i = 0; i < n_profiles; i++) {
-		for (j = 0; j < n_bands; j++) {
-			struct iwl_per_chain_offset *chain =
-				&table[i * n_bands + j];
-
-			chain->max_tx_power =
-				cpu_to_le16(fwrt->geo_profiles[i].bands[j].max);
-			chain->chain_a = fwrt->geo_profiles[i].bands[j].chains[0];
-			chain->chain_b = fwrt->geo_profiles[i].bands[j].chains[1];
-			IWL_DEBUG_RADIO(fwrt,
-					"SAR geographic profile[%d] Band[%d]: chain A = %d chain B = %d max_tx_power = %d\n",
-					i, j,
-					fwrt->geo_profiles[i].bands[j].chains[0],
-					fwrt->geo_profiles[i].bands[j].chains[1],
-					fwrt->geo_profiles[i].bands[j].max);
-		}
-	}
-
-	return 0;
-}
-IWL_EXPORT_SYMBOL(iwl_sar_geo_init);
+IWL_EXPORT_SYMBOL(iwl_acpi_get_wgds_table);
 
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
