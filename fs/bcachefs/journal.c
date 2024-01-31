@@ -416,9 +416,10 @@ static int journal_entry_open(struct journal *j)
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
-	mod_delayed_work(j->wq,
-			 &j->write_work,
-			 msecs_to_jiffies(c->opts.journal_flush_delay));
+	if (nr_unwritten_journal_entries(j) == 1)
+		mod_delayed_work(j->wq,
+				 &j->write_work,
+				 msecs_to_jiffies(c->opts.journal_flush_delay));
 	journal_wake(j);
 
 	if (j->early_journal_entries.nr)
@@ -443,19 +444,16 @@ static void journal_quiesce(struct journal *j)
 static void journal_write_work(struct work_struct *work)
 {
 	struct journal *j = container_of(work, struct journal, write_work.work);
-	long delta;
 
 	spin_lock(&j->lock);
-	if (!__journal_entry_is_open(j->reservations))
-		goto unlock;
+	if (__journal_entry_is_open(j->reservations)) {
+		long delta = journal_cur_buf(j)->expires - jiffies;
 
-	delta = journal_cur_buf(j)->expires - jiffies;
-
-	if (delta > 0)
-		mod_delayed_work(j->wq, &j->write_work, delta);
-	else
-		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
-unlock:
+		if (delta > 0)
+			mod_delayed_work(j->wq, &j->write_work, delta);
+		else
+			__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
+	}
 	spin_unlock(&j->lock);
 }
 
