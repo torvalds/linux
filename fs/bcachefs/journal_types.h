@@ -315,7 +315,7 @@ struct journal_device {
 	u64			*buckets;
 
 	/* Bio for journal reads/writes to this device */
-	struct bio		*bio;
+	struct bio		*bio[JOURNAL_BUF_NR];
 
 	/* for bch_journal_read_device */
 	struct closure		read;

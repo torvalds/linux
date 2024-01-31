@@ -1235,13 +1235,17 @@ int bch2_fs_journal_start(struct journal *j, u64 cur_seq)
 
 void bch2_dev_journal_exit(struct bch_dev *ca)
 {
-	kfree(ca->journal.bio);
-	kfree(ca->journal.buckets);
-	kfree(ca->journal.bucket_seq);
+	struct journal_device *ja = &ca->journal;
 
-	ca->journal.bio		= NULL;
-	ca->journal.buckets	= NULL;
-	ca->journal.bucket_seq	= NULL;
+	for (unsigned i = 0; i < ARRAY_SIZE(ja->bio); i++) {
+		kfree(ja->bio[i]);
+		ja->bio[i] = NULL;
+	}
+
+	kfree(ja->buckets);
+	kfree(ja->bucket_seq);
+	ja->buckets	= NULL;
+	ja->bucket_seq	= NULL;
 }
 
 int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
@@ -1251,14 +1255,13 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 		bch2_sb_field_get(sb, journal);
 	struct bch_sb_field_journal_v2 *journal_buckets_v2 =
 		bch2_sb_field_get(sb, journal_v2);
-	unsigned i, nr_bvecs;
 
 	ja->nr = 0;
 
 	if (journal_buckets_v2) {
 		unsigned nr = bch2_sb_field_journal_v2_nr_entries(journal_buckets_v2);
 
-		for (i = 0; i < nr; i++)
+		for (unsigned i = 0; i < nr; i++)
 			ja->nr += le64_to_cpu(journal_buckets_v2->d[i].nr);
 	} else if (journal_buckets) {
 		ja->nr = bch2_nr_journal_buckets(journal_buckets);
@@ -1268,13 +1271,14 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 	if (!ja->bucket_seq)
 		return -BCH_ERR_ENOMEM_dev_journal_init;
 
-	nr_bvecs = DIV_ROUND_UP(JOURNAL_ENTRY_SIZE_MAX, PAGE_SIZE);
+	unsigned nr_bvecs = DIV_ROUND_UP(JOURNAL_ENTRY_SIZE_MAX, PAGE_SIZE);
 
-	ca->journal.bio = bio_kmalloc(nr_bvecs, GFP_KERNEL);
-	if (!ca->journal.bio)
-		return -BCH_ERR_ENOMEM_dev_journal_init;
-
-	bio_init(ca->journal.bio, NULL, ca->journal.bio->bi_inline_vecs, nr_bvecs, 0);
+	for (unsigned i = 0; i < ARRAY_SIZE(ja->bio); i++) {
+		ja->bio[i] = bio_kmalloc(nr_bvecs, GFP_KERNEL);
+		if (!ja->bio[i])
+			return -BCH_ERR_ENOMEM_dev_journal_init;
+		bio_init(ja->bio[i], NULL, ja->bio[i]->bi_inline_vecs, nr_bvecs, 0);
+	}
 
 	ja->buckets = kcalloc(ja->nr, sizeof(u64), GFP_KERNEL);
 	if (!ja->buckets)
@@ -1282,14 +1286,14 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 
 	if (journal_buckets_v2) {
 		unsigned nr = bch2_sb_field_journal_v2_nr_entries(journal_buckets_v2);
-		unsigned j, dst = 0;
+		unsigned dst = 0;
 
-		for (i = 0; i < nr; i++)
-			for (j = 0; j < le64_to_cpu(journal_buckets_v2->d[i].nr); j++)
+		for (unsigned i = 0; i < nr; i++)
+			for (unsigned j = 0; j < le64_to_cpu(journal_buckets_v2->d[i].nr); j++)
 				ja->buckets[dst++] =
 					le64_to_cpu(journal_buckets_v2->d[i].start) + j;
 	} else if (journal_buckets) {
-		for (i = 0; i < ja->nr; i++)
+		for (unsigned i = 0; i < ja->nr; i++)
 			ja->buckets[i] = le64_to_cpu(journal_buckets->buckets[i]);
 	}
 

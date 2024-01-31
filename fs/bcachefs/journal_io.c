@@ -1721,13 +1721,14 @@ static CLOSURE_CALLBACK(do_journal_write)
 {
 	closure_type(j, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct bch_dev *ca;
-	struct journal_buf *w = journal_last_unwritten_buf(j);
-	struct bio *bio;
+	unsigned buf_idx = journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK;
+	struct journal_buf *w = j->buf + buf_idx;
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 
 	extent_for_each_ptr(bkey_i_to_s_extent(&w->key), ptr) {
-		ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct journal_device *ja = &ca->journal;
+
 		if (!percpu_ref_tryget(&ca->io_ref)) {
 			/* XXX: fix this */
 			bch_err(c, "missing device for journal write\n");
@@ -1737,7 +1738,7 @@ static CLOSURE_CALLBACK(do_journal_write)
 		this_cpu_add(ca->io_done->sectors[WRITE][BCH_DATA_journal],
 			     sectors);
 
-		bio = ca->journal.bio;
+		struct bio *bio = ja->bio[buf_idx];
 		bio_reset(bio, ca->disk_sb.bdev, REQ_OP_WRITE|REQ_SYNC|REQ_META);
 		bio->bi_iter.bi_sector	= ptr->offset;
 		bio->bi_end_io		= journal_write_endio;
@@ -1756,8 +1757,7 @@ static CLOSURE_CALLBACK(do_journal_write)
 		trace_and_count(c, journal_write, bio);
 		closure_bio_submit(bio, cl);
 
-		ca->journal.bucket_seq[ca->journal.cur_idx] =
-			le64_to_cpu(w->data->seq);
+		ja->bucket_seq[ja->cur_idx] = le64_to_cpu(w->data->seq);
 	}
 
 	continue_at(cl, journal_write_done, j->wq);
@@ -1939,9 +1939,9 @@ CLOSURE_CALLBACK(bch2_journal_write)
 {
 	closure_type(j, struct journal, io);
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	struct journal_buf *w = journal_last_unwritten_buf(j);
+	unsigned buf_idx = journal_last_unwritten_seq(j) & JOURNAL_BUF_MASK;
+	struct journal_buf *w = j->buf + buf_idx;
 	struct bch_replicas_padded replicas;
-	struct bio *bio;
 	struct printbuf journal_debug_buf = PRINTBUF;
 	unsigned nr_rw_members = 0;
 	int ret;
@@ -2023,7 +2023,8 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		for_each_rw_member(c, ca) {
 			percpu_ref_get(&ca->io_ref);
 
-			bio = ca->journal.bio;
+			struct journal_device *ja = &ca->journal;
+			struct bio *bio = ja->bio[buf_idx];
 			bio_reset(bio, ca->disk_sb.bdev,
 				  REQ_OP_WRITE|REQ_SYNC|REQ_META|REQ_PREFLUSH);
 			bio->bi_end_io		= journal_write_endio;
