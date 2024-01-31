@@ -119,7 +119,10 @@ static const char *nvme_trace_get_lba_status(struct trace_seq *p,
 static const char *nvme_trace_admin_format_nvm(struct trace_seq *p, u8 *cdw10)
 {
 	const char *ret = trace_seq_buffer_ptr(p);
-	u8 lbaf = cdw10[0] & 0xF;
+	/*
+	 * lbafu(bit 13:12) is already in the upper 4 bits, lbafl: bit 03:00.
+	 */
+	u8 lbaf = (cdw10[1] & 0x30) | (cdw10[0] & 0xF);
 	u8 mset = (cdw10[0] >> 4) & 0x1;
 	u8 pi = (cdw10[0] >> 5) & 0x7;
 	u8 pil = cdw10[1] & 0x1;
