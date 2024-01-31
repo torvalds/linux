@@ -11,7 +11,7 @@ maintainers:
 
 description: |
   This module is part of the DA9061/DA9062. For more details about entire
-  DA9062 and DA9061 chips see Documentation/devicetree/bindings/mfd/da9062.txt
+  DA906{1,2} chips see Documentation/devicetree/bindings/mfd/dlg,da9063.yaml
 
   Junction temperature thermal module uses an interrupt signal to identify
   high THERMAL_TRIP_HOT temperatures for the PMIC device.
