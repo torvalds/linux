@@ -757,39 +757,41 @@ EXPORT_SYMBOL(locks_delete_block);
  * waiters, and add beneath any waiter that blocks the new waiter.
  * Thus wakeups don't happen until needed.
  */
-static void __locks_insert_block(struct file_lock *blocker,
-				 struct file_lock *waiter,
-				 bool conflict(struct file_lock *,
-					       struct file_lock *))
+static void __locks_insert_block(struct file_lock *blocker_fl,
+				 struct file_lock *waiter_fl,
+				 bool conflict(struct file_lock_core *,
+					       struct file_lock_core *))
 {
-	struct file_lock *fl;
-	BUG_ON(!list_empty(&waiter->c.flc_blocked_member));
+	struct file_lock_core *blocker = &blocker_fl->c;
+	struct file_lock_core *waiter = &waiter_fl->c;
+	struct file_lock_core *flc;
 
+	BUG_ON(!list_empty(&waiter->flc_blocked_member));
 new_blocker:
-	list_for_each_entry(fl, &blocker->c.flc_blocked_requests,
-			    c.flc_blocked_member)
-		if (conflict(fl, waiter)) {
-			blocker =  fl;
+	list_for_each_entry(flc, &blocker->flc_blocked_requests, flc_blocked_member)
+		if (conflict(flc, waiter)) {
+			blocker =  flc;
 			goto new_blocker;
 		}
-	waiter->c.flc_blocker = blocker;
-	list_add_tail(&waiter->c.flc_blocked_member,
-		      &blocker->c.flc_blocked_requests);
-	if ((blocker->c.flc_flags & (FL_POSIX|FL_OFDLCK)) == FL_POSIX)
-		locks_insert_global_blocked(&waiter->c);
+	waiter->flc_blocker = file_lock(blocker);
+	list_add_tail(&waiter->flc_blocked_member,
+		      &blocker->flc_blocked_requests);
 
-	/* The requests in waiter->fl_blocked are known to conflict with
+	if ((blocker->flc_flags & (FL_POSIX|FL_OFDLCK)) == (FL_POSIX|FL_OFDLCK))
+		locks_insert_global_blocked(waiter);
+
+	/* The requests in waiter->flc_blocked are known to conflict with
 	 * waiter, but might not conflict with blocker, or the requests
 	 * and lock which block it.  So they all need to be woken.
 	 */
-	__locks_wake_up_blocks(&waiter->c);
+	__locks_wake_up_blocks(waiter);
 }
 
 /* Must be called with flc_lock held. */
 static void locks_insert_block(struct file_lock *blocker,
 			       struct file_lock *waiter,
-			       bool conflict(struct file_lock *,
-					     struct file_lock *))
+			       bool conflict(struct file_lock_core *,
+					     struct file_lock_core *))
 {
 	spin_lock(&blocked_lock_lock);
 	__locks_insert_block(blocker, waiter, conflict);
@@ -846,12 +848,12 @@ locks_delete_lock_ctx(struct file_lock *fl, struct list_head *dispose)
 /* Determine if lock sys_fl blocks lock caller_fl. Common functionality
  * checks for shared/exclusive status of overlapping locks.
  */
-static bool locks_conflict(struct file_lock *caller_fl,
-			   struct file_lock *sys_fl)
+static bool locks_conflict(struct file_lock_core *caller_flc,
+			   struct file_lock_core *sys_flc)
 {
-	if (lock_is_write(sys_fl))
+	if (sys_flc->flc_type == F_WRLCK)
 		return true;
-	if (lock_is_write(caller_fl))
+	if (caller_flc->flc_type == F_WRLCK)
 		return true;
 	return false;
 }
@@ -859,20 +861,23 @@ static bool locks_conflict(struct file_lock *caller_fl,
 /* Determine if lock sys_fl blocks lock caller_fl. POSIX specific
  * checking before calling the locks_conflict().
  */
-static bool posix_locks_conflict(struct file_lock *caller_fl,
-				 struct file_lock *sys_fl)
+static bool posix_locks_conflict(struct file_lock_core *caller_flc,
+				 struct file_lock_core *sys_flc)
 {
+	struct file_lock *caller_fl = file_lock(caller_flc);
+	struct file_lock *sys_fl = file_lock(sys_flc);
+
 	/* POSIX locks owned by the same process do not conflict with
 	 * each other.
 	 */
-	if (posix_same_owner(&caller_fl->c, &sys_fl->c))
+	if (posix_same_owner(caller_flc, sys_flc))
 		return false;
 
 	/* Check whether they overlap */
 	if (!locks_overlap(caller_fl, sys_fl))
 		return false;
 
-	return locks_conflict(caller_fl, sys_fl);
+	return locks_conflict(caller_flc, sys_flc);
 }
 
 /* Determine if lock sys_fl blocks lock caller_fl. Used on xx_GETLK
@@ -881,28 +886,31 @@ static bool posix_locks_conflict(struct file_lock *caller_fl,
 static bool posix_test_locks_conflict(struct file_lock *caller_fl,
 				      struct file_lock *sys_fl)
 {
+	struct file_lock_core *caller = &caller_fl->c;
+	struct file_lock_core *sys = &sys_fl->c;
+
 	/* F_UNLCK checks any locks on the same fd. */
 	if (lock_is_unlock(caller_fl)) {
-		if (!posix_same_owner(&caller_fl->c, &sys_fl->c))
+		if (!posix_same_owner(caller, sys))
 			return false;
 		return locks_overlap(caller_fl, sys_fl);
 	}
-	return posix_locks_conflict(caller_fl, sys_fl);
+	return posix_locks_conflict(caller, sys);
 }
 
 /* Determine if lock sys_fl blocks lock caller_fl. FLOCK specific
  * checking before calling the locks_conflict().
  */
-static bool flock_locks_conflict(struct file_lock *caller_fl,
-				 struct file_lock *sys_fl)
+static bool flock_locks_conflict(struct file_lock_core *caller_flc,
+				 struct file_lock_core *sys_flc)
 {
 	/* FLOCK locks referring to the same filp do not conflict with
 	 * each other.
 	 */
-	if (caller_fl->c.flc_file == sys_fl->c.flc_file)
+	if (caller_flc->flc_file == sys_flc->flc_file)
 		return false;
 
-	return locks_conflict(caller_fl, sys_fl);
+	return locks_conflict(caller_flc, sys_flc);
 }
 
 void
@@ -980,25 +988,27 @@ EXPORT_SYMBOL(posix_test_lock);
 
 #define MAX_DEADLK_ITERATIONS 10
 
-/* Find a lock that the owner of the given block_fl is blocking on. */
-static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
+/* Find a lock that the owner of the given @blocker is blocking on. */
+static struct file_lock_core *what_owner_is_waiting_for(struct file_lock_core *blocker)
 {
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 
-	hash_for_each_possible(blocked_hash, fl, c.flc_link, posix_owner_key(&block_fl->c)) {
-		if (posix_same_owner(&fl->c, &block_fl->c)) {
-			while (fl->c.flc_blocker)
-				fl = fl->c.flc_blocker;
-			return fl;
+	hash_for_each_possible(blocked_hash, flc, flc_link, posix_owner_key(blocker)) {
+		if (posix_same_owner(flc, blocker)) {
+			while (flc->flc_blocker)
+				flc = &flc->flc_blocker->c;
+			return flc;
 		}
 	}
 	return NULL;
 }
 
 /* Must be called with the blocked_lock_lock held! */
-static int posix_locks_deadlock(struct file_lock *caller_fl,
-				struct file_lock *block_fl)
+static bool posix_locks_deadlock(struct file_lock *caller_fl,
+				 struct file_lock *block_fl)
 {
+	struct file_lock_core *caller = &caller_fl->c;
+	struct file_lock_core *blocker = &block_fl->c;
 	int i = 0;
 
 	lockdep_assert_held(&blocked_lock_lock);
@@ -1007,16 +1017,16 @@ static int posix_locks_deadlock(struct file_lock *caller_fl,
 	 * This deadlock detector can't reasonably detect deadlocks with
 	 * FL_OFDLCK locks, since they aren't owned by a process, per-se.
 	 */
-	if (caller_fl->c.flc_flags & FL_OFDLCK)
-		return 0;
+	if (caller->flc_flags & FL_OFDLCK)
+		return false;
 
-	while ((block_fl = what_owner_is_waiting_for(block_fl))) {
+	while ((blocker = what_owner_is_waiting_for(blocker))) {
 		if (i++ > MAX_DEADLK_ITERATIONS)
-			return 0;
-		if (posix_same_owner(&caller_fl->c, &block_fl->c))
-			return 1;
+			return false;
+		if (posix_same_owner(caller, blocker))
+			return true;
 	}
-	return 0;
+	return false;
 }
 
 /* Try to create a FLOCK lock on filp. We always insert new FLOCK locks
@@ -1071,7 +1081,7 @@ static int flock_lock_inode(struct inode *inode, struct file_lock *request)
 
 find_conflict:
 	list_for_each_entry(fl, &ctx->flc_flock, c.flc_list) {
-		if (!flock_locks_conflict(request, fl))
+		if (!flock_locks_conflict(&request->c, &fl->c))
 			continue;
 		error = -EAGAIN;
 		if (!(request->c.flc_flags & FL_SLEEP))
@@ -1140,7 +1150,7 @@ retry:
 	 */
 	if (request->c.flc_type != F_UNLCK) {
 		list_for_each_entry(fl, &ctx->flc_posix, c.flc_list) {
-			if (!posix_locks_conflict(request, fl))
+			if (!posix_locks_conflict(&request->c, &fl->c))
 				continue;
 			if (fl->fl_lmops && fl->fl_lmops->lm_lock_expirable
 				&& (*fl->fl_lmops->lm_lock_expirable)(fl)) {
@@ -1442,23 +1452,25 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
 	}
 }
 
-static bool leases_conflict(struct file_lock *lease, struct file_lock *breaker)
+static bool leases_conflict(struct file_lock_core *lc, struct file_lock_core *bc)
 {
 	bool rc;
+	struct file_lock *lease = file_lock(lc);
+	struct file_lock *breaker = file_lock(bc);
 
 	if (lease->fl_lmops->lm_breaker_owns_lease
 			&& lease->fl_lmops->lm_breaker_owns_lease(lease))
 		return false;
-	if ((breaker->c.flc_flags & FL_LAYOUT) != (lease->c.flc_flags & FL_LAYOUT)) {
+	if ((bc->flc_flags & FL_LAYOUT) != (lc->flc_flags & FL_LAYOUT)) {
 		rc = false;
 		goto trace;
 	}
-	if ((breaker->c.flc_flags & FL_DELEG) && (lease->c.flc_flags & FL_LEASE)) {
+	if ((bc->flc_flags & FL_DELEG) && (lc->flc_flags & FL_LEASE)) {
 		rc = false;
 		goto trace;
 	}
 
-	rc = locks_conflict(breaker, lease);
+	rc = locks_conflict(bc, lc);
 trace:
 	trace_leases_conflict(rc, lease, breaker);
 	return rc;
@@ -1468,12 +1480,12 @@ static bool
 any_leases_conflict(struct inode *inode, struct file_lock *breaker)
 {
 	struct file_lock_context *ctx = inode->i_flctx;
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 
 	lockdep_assert_held(&ctx->flc_lock);
 
-	list_for_each_entry(fl, &ctx->flc_lease, c.flc_list) {
-		if (leases_conflict(fl, breaker))
+	list_for_each_entry(flc, &ctx->flc_lease, flc_list) {
+		if (leases_conflict(flc, &breaker->c))
 			return true;
 	}
 	return false;
@@ -1529,7 +1541,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	}
 
 	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, c.flc_list) {
-		if (!leases_conflict(fl, new_fl))
+		if (!leases_conflict(&fl->c, &new_fl->c))
 			continue;
 		if (want_write) {
 			if (fl->c.flc_flags & FL_UNLOCK_PENDING)
