@@ -324,7 +324,7 @@ struct iwl_wowlan_patterns_cmd {
 	u8 n_patterns;
 
 	/**
-	 * @n_patterns: sta_id
+	 * @sta_id: sta_id
 	 */
 	u8 sta_id;
 
