@@ -21,14 +21,21 @@ pub mod spinlock;
 /// # Safety
 ///
 /// - Implementers must ensure that only one thread/CPU may access the protected data once the lock
-///   is owned, that is, between calls to `lock` and `unlock`.
-/// - Implementers must also ensure that `relock` uses the same locking method as the original
+///   is owned, that is, between calls to [`lock`] and [`unlock`].
+/// - Implementers must also ensure that [`relock`] uses the same locking method as the original
 ///   lock operation.
+///
+/// [`lock`]: Backend::lock
+/// [`unlock`]: Backend::unlock
+/// [`relock`]: Backend::relock
 pub unsafe trait Backend {
     /// The state required by the lock.
     type State;
 
-    /// The state required to be kept between `lock` and `unlock`.
+    /// The state required to be kept between [`lock`] and [`unlock`].
+    ///
+    /// [`lock`]: Backend::lock
+    /// [`unlock`]: Backend::unlock
     type GuardState;
 
     /// Initialises the lock.
