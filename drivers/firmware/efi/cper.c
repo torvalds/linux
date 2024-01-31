@@ -523,6 +523,17 @@ static void cper_print_tstamp(const char *pfx,
 	}
 }
 
+struct ignore_section {
+	guid_t guid;
+	const char *name;
+};
+
+static const struct ignore_section ignore_sections[] = {
+	{ .guid = CPER_SEC_CXL_GEN_MEDIA_GUID, .name = "CXL General Media Event" },
+	{ .guid = CPER_SEC_CXL_DRAM_GUID, .name = "CXL DRAM Event" },
+	{ .guid = CPER_SEC_CXL_MEM_MODULE_GUID, .name = "CXL Memory Module Event" },
+};
+
 static void
 cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata,
 			   int sec_no)
@@ -543,6 +554,14 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 		printk("%s""fru_text: %.20s\n", pfx, gdata->fru_text);
 
 	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
+
+	for (int i = 0; i < ARRAY_SIZE(ignore_sections); i++) {
+		if (guid_equal(sec_type, &ignore_sections[i].guid)) {
+			printk("%ssection_type: %s\n", newpfx, ignore_sections[i].name);
+			return;
+		}
+	}
+
 	if (guid_equal(sec_type, &CPER_SEC_PROC_GENERIC)) {
 		struct cper_sec_proc_generic *proc_err = acpi_hest_get_payload(gdata);
 
