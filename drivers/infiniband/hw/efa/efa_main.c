@@ -322,7 +322,9 @@ static int efa_create_eqs(struct efa_dev *dev)
 	int err;
 	int i;
 
-	neqs = min_t(unsigned int, neqs, num_online_cpus());
+	neqs = min_t(unsigned int, neqs,
+		     dev->num_irq_vectors - EFA_COMP_EQS_VEC_BASE);
+
 	dev->neqs = neqs;
 	dev->eqs = kcalloc(neqs, sizeof(*dev->eqs), GFP_KERNEL);
 	if (!dev->eqs)
@@ -468,34 +470,30 @@ static void efa_disable_msix(struct efa_dev *dev)
 
 static int efa_enable_msix(struct efa_dev *dev)
 {
-	int msix_vecs, irq_num;
+	int max_vecs, num_vecs;
 
 	/*
 	 * Reserve the max msix vectors we might need, one vector is reserved
 	 * for admin.
 	 */
-	msix_vecs = min_t(int, pci_msix_vec_count(dev->pdev),
-			  num_online_cpus() + 1);
+	max_vecs = min_t(int, pci_msix_vec_count(dev->pdev),
+			 num_online_cpus() + 1);
 	dev_dbg(&dev->pdev->dev, "Trying to enable MSI-X, vectors %d\n",
-		msix_vecs);
+		max_vecs);
 
 	dev->admin_msix_vector_idx = EFA_MGMNT_MSIX_VEC_IDX;
-	irq_num = pci_alloc_irq_vectors(dev->pdev, msix_vecs,
-					msix_vecs, PCI_IRQ_MSIX);
+	num_vecs = pci_alloc_irq_vectors(dev->pdev, 1,
+					 max_vecs, PCI_IRQ_MSIX);
 
-	if (irq_num < 0) {
-		dev_err(&dev->pdev->dev, "Failed to enable MSI-X. irq_num %d\n",
-			irq_num);
+	if (num_vecs < 0) {
+		dev_err(&dev->pdev->dev, "Failed to enable MSI-X. error %d\n",
+			num_vecs);
 		return -ENOSPC;
 	}
 
-	if (irq_num != msix_vecs) {
-		efa_disable_msix(dev);
-		dev_err(&dev->pdev->dev,
-			"Allocated %d MSI-X (out of %d requested)\n",
-			irq_num, msix_vecs);
-		return -ENOSPC;
-	}
+	dev_dbg(&dev->pdev->dev, "Allocated %d MSI-X vectors\n", num_vecs);
+
+	dev->num_irq_vectors = num_vecs;
 
 	return 0;
 }
