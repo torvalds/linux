@@ -82,11 +82,11 @@ DECLARE_EVENT_CLASS(filelock_lock,
 		__entry->fl = fl ? fl : NULL;
 		__entry->s_dev = inode->i_sb->s_dev;
 		__entry->i_ino = inode->i_ino;
-		__entry->blocker = fl ? fl->fl_blocker : NULL;
-		__entry->owner = fl ? fl->fl_owner : NULL;
-		__entry->pid = fl ? fl->fl_pid : 0;
-		__entry->flags = fl ? fl->fl_flags : 0;
-		__entry->type = fl ? fl->fl_type : 0;
+		__entry->blocker = fl ? fl->c.flc_blocker : NULL;
+		__entry->owner = fl ? fl->c.flc_owner : NULL;
+		__entry->pid = fl ? fl->c.flc_pid : 0;
+		__entry->flags = fl ? fl->c.flc_flags : 0;
+		__entry->type = fl ? fl->c.flc_type : 0;
 		__entry->fl_start = fl ? fl->fl_start : 0;
 		__entry->fl_end = fl ? fl->fl_end : 0;
 		__entry->ret = ret;
@@ -137,10 +137,10 @@ DECLARE_EVENT_CLASS(filelock_lease,
 		__entry->fl = fl ? fl : NULL;
 		__entry->s_dev = inode->i_sb->s_dev;
 		__entry->i_ino = inode->i_ino;
-		__entry->blocker = fl ? fl->fl_blocker : NULL;
-		__entry->owner = fl ? fl->fl_owner : NULL;
-		__entry->flags = fl ? fl->fl_flags : 0;
-		__entry->type = fl ? fl->fl_type : 0;
+		__entry->blocker = fl ? fl->c.flc_blocker : NULL;
+		__entry->owner = fl ? fl->c.flc_owner : NULL;
+		__entry->flags = fl ? fl->c.flc_flags : 0;
+		__entry->type = fl ? fl->c.flc_type : 0;
 		__entry->break_time = fl ? fl->fl_break_time : 0;
 		__entry->downgrade_time = fl ? fl->fl_downgrade_time : 0;
 	),
@@ -190,9 +190,9 @@ TRACE_EVENT(generic_add_lease,
 		__entry->wcount = atomic_read(&inode->i_writecount);
 		__entry->rcount = atomic_read(&inode->i_readcount);
 		__entry->icount = atomic_read(&inode->i_count);
-		__entry->owner = fl->fl_owner;
-		__entry->flags = fl->fl_flags;
-		__entry->type = fl->fl_type;
+		__entry->owner = fl->c.flc_owner;
+		__entry->flags = fl->c.flc_flags;
+		__entry->type = fl->c.flc_type;
 	),
 
 	TP_printk("dev=0x%x:0x%x ino=0x%lx wcount=%d rcount=%d icount=%d fl_owner=%p fl_flags=%s fl_type=%s",
@@ -220,11 +220,11 @@ TRACE_EVENT(leases_conflict,
 
 	TP_fast_assign(
 		__entry->lease = lease;
-		__entry->l_fl_flags = lease->fl_flags;
-		__entry->l_fl_type = lease->fl_type;
+		__entry->l_fl_flags = lease->c.flc_flags;
+		__entry->l_fl_type = lease->c.flc_type;
 		__entry->breaker = breaker;
-		__entry->b_fl_flags = breaker->fl_flags;
-		__entry->b_fl_type = breaker->fl_type;
+		__entry->b_fl_flags = breaker->c.flc_flags;
+		__entry->b_fl_type = breaker->c.flc_type;
 		__entry->conflict = conflict;
 	),
 
