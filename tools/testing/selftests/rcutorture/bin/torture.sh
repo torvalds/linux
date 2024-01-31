@@ -425,7 +425,7 @@ fi
 if test "$do_scftorture" = "yes"
 then
 	# Scale memory based on the number of CPUs.
-	scfmem=$((2+HALF_ALLOTED_CPUS/16))
+	scfmem=$((3+HALF_ALLOTED_CPUS/16))
 	torture_bootargs="scftorture.nthreads=$HALF_ALLOTED_CPUS torture.disable_onoff_at_boot csdlock_debug=1"
 	torture_set "scftorture" tools/testing/selftests/rcutorture/bin/kvm.sh --torture scf --allcpus --duration "$duration_scftorture" --configs "$configs_scftorture" --kconfig "CONFIG_NR_CPUS=$HALF_ALLOTED_CPUS" --memory ${scfmem}G --trust-make
 fi
