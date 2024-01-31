@@ -29,6 +29,7 @@ struct ipu6_isys_pixelformat {
 	u32 bpp_packed;
 	u32 code;
 	u32 css_pixelformat;
+	bool is_meta;
 };
 
 struct sequence_info {
@@ -91,7 +92,7 @@ struct ipu6_isys_video {
 	struct media_pad pad;
 	struct video_device vdev;
 	struct v4l2_pix_format pix_fmt;
-	const struct ipu6_isys_pixelformat *pfmt;
+	struct v4l2_meta_format meta_fmt;
 	struct ipu6_isys *isys;
 	struct ipu6_isys_csi2 *csi2;
 	struct ipu6_isys_stream *stream;
@@ -108,6 +109,8 @@ struct ipu6_isys_video {
 extern const struct ipu6_isys_pixelformat ipu6_isys_pfmts[];
 extern const struct ipu6_isys_pixelformat ipu6_isys_pfmts_packed[];
 
+const struct ipu6_isys_pixelformat *
+ipu6_isys_get_isys_format(u32 pixelformat, u32 code);
 int ipu6_isys_video_prepare_stream(struct ipu6_isys_video *av,
 				   struct media_entity *source_entity,
 				   int nr_queues);
@@ -128,5 +131,11 @@ ipu6_isys_query_stream_by_source(struct ipu6_isys *isys, int source, u8 vc);
 void ipu6_isys_configure_stream_watermark(struct ipu6_isys_video *av,
 					  bool state);
 void ipu6_isys_update_stream_watermark(struct ipu6_isys_video *av, bool state);
+
+u32 ipu6_isys_get_format(struct ipu6_isys_video *av);
+u32 ipu6_isys_get_data_size(struct ipu6_isys_video *av);
+u32 ipu6_isys_get_bytes_per_line(struct ipu6_isys_video *av);
+u32 ipu6_isys_get_frame_width(struct ipu6_isys_video *av);
+u32 ipu6_isys_get_frame_height(struct ipu6_isys_video *av);
 
 #endif /* IPU6_ISYS_VIDEO_H */

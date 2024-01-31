@@ -249,7 +249,6 @@ static int isys_register_video_devices(struct ipu6_isys *isys)
 			av->isys = isys;
 			av->aq.vbq.buf_struct_size =
 				sizeof(struct ipu6_isys_video_buffer);
-			av->pfmt = &ipu6_isys_pfmts[0];
 
 			ret = ipu6_isys_video_init(av);
 			if (ret)
