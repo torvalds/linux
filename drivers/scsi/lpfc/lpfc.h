@@ -587,6 +587,7 @@ struct lpfc_vport {
 #define FC_CT_RPRT_DEFER	0x20	 /* Defer issuing FDMI RPRT */
 
 	struct list_head fc_nodes;
+	spinlock_t fc_nodes_list_lock; /* spinlock for fc_nodes list */
 
 	/* Keep counters for the number of entries in each list. */
 	atomic_t fc_plogi_cnt;

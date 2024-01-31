@@ -1853,11 +1853,10 @@ static uint32_t
 lpfc_find_map_node(struct lpfc_vport *vport)
 {
 	struct lpfc_nodelist *ndlp, *next_ndlp;
-	struct Scsi_Host  *shost;
+	unsigned long iflags;
 	uint32_t cnt = 0;
 
-	shost = lpfc_shost_from_vport(vport);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
 		if (ndlp->nlp_type & NLP_FABRIC)
 			continue;
@@ -1865,7 +1864,7 @@ lpfc_find_map_node(struct lpfc_vport *vport)
 		    (ndlp->nlp_state == NLP_STE_UNMAPPED_NODE))
 			cnt++;
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 	return cnt;
 }
 

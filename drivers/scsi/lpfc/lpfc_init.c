@@ -3829,7 +3829,6 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 			vports[i]->fc_flag &= ~FC_VFI_REGISTERED;
 			spin_unlock_irq(shost->host_lock);
 
-			shost =	lpfc_shost_from_vport(vports[i]);
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
 						 nlp_listp) {
@@ -4833,6 +4832,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	/* Initialize all internally managed lists. */
 	INIT_LIST_HEAD(&vport->fc_nodes);
+	spin_lock_init(&vport->fc_nodes_list_lock);
 	INIT_LIST_HEAD(&vport->rcv_buffer_list);
 	spin_lock_init(&vport->work_port_lock);
 
