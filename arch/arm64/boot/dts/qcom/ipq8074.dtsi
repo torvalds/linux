@@ -252,6 +252,8 @@
 			clocks = <&gcc GCC_MDIO_AHB_CLK>;
 			clock-names = "gcc_mdio_ahb_clk";
 
+			clock-frequency = <6250000>;
+
 			status = "disabled";
 		};
 
