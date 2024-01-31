@@ -369,7 +369,7 @@ xrep_ibt_check_inode_ext(
 	 * On a sparse inode fs, this cluster could be part of a sparse chunk.
 	 * Sparse clusters must be aligned to sparse chunk alignment.
 	 */
-	if (xfs_has_sparseinodes(mp) &&
+	if (xfs_has_sparseinodes(mp) && mp->m_sb.sb_spino_align &&
 	    (!IS_ALIGNED(agbno, mp->m_sb.sb_spino_align) ||
 	     !IS_ALIGNED(agbno + len, mp->m_sb.sb_spino_align)))
 		return -EFSCORRUPTED;
