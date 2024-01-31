@@ -1648,7 +1648,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 	if (!journal_state_count(new, new.unwritten_idx) &&
 	    journal_last_unwritten_seq(j) <= journal_cur_seq(j)) {
 		spin_unlock(&j->lock);
-		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
+		closure_call(&j->io, bch2_journal_write, j->wq, NULL);
 	} else if (journal_last_unwritten_seq(j) == journal_cur_seq(j) &&
 		   new.cur_entry_offset < JOURNAL_ENTRY_CLOSED_VAL) {
 		struct journal_buf *buf = journal_cur_buf(j);
@@ -1661,7 +1661,7 @@ static CLOSURE_CALLBACK(journal_write_done)
 		 */
 
 		spin_unlock(&j->lock);
-		mod_delayed_work(c->io_complete_wq, &j->write_work, max(0L, delta));
+		mod_delayed_work(j->wq, &j->write_work, max(0L, delta));
 	} else {
 		spin_unlock(&j->lock);
 	}
@@ -1731,7 +1731,7 @@ static CLOSURE_CALLBACK(do_journal_write)
 			le64_to_cpu(w->data->seq);
 	}
 
-	continue_at(cl, journal_write_done, c->io_complete_wq);
+	continue_at(cl, journal_write_done, j->wq);
 }
 
 static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
@@ -1998,12 +1998,12 @@ CLOSURE_CALLBACK(bch2_journal_write)
 		}
 	}
 
-	continue_at(cl, do_journal_write, c->io_complete_wq);
+	continue_at(cl, do_journal_write, j->wq);
 	return;
 no_io:
-	continue_at(cl, journal_write_done, c->io_complete_wq);
+	continue_at(cl, journal_write_done, j->wq);
 	return;
 err:
 	bch2_fatal_error(c);
-	continue_at(cl, journal_write_done, c->io_complete_wq);
+	continue_at(cl, journal_write_done, j->wq);
 }

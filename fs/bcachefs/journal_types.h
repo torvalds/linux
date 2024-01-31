@@ -205,6 +205,7 @@ struct journal {
 
 	struct closure		io;
 	struct delayed_work	write_work;
+	struct workqueue_struct *wq;
 
 	/* Sequence number of most recent journal entry (last entry in @pin) */
 	atomic64_t		seq;

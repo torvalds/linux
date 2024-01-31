@@ -181,14 +181,12 @@ journal_error_check_stuck(struct journal *j, int error, unsigned flags)
  */
 void bch2_journal_buf_put_final(struct journal *j, u64 seq, bool write)
 {
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-
 	lockdep_assert_held(&j->lock);
 
 	if (__bch2_journal_pin_put(j, seq))
 		bch2_journal_reclaim_fast(j);
 	if (write)
-		closure_call(&j->io, bch2_journal_write, c->io_complete_wq, NULL);
+		closure_call(&j->io, bch2_journal_write, j->wq, NULL);
 }
 
 /*
@@ -418,7 +416,7 @@ static int journal_entry_open(struct journal *j)
 	} while ((v = atomic64_cmpxchg(&j->reservations.counter,
 				       old.v, new.v)) != old.v);
 
-	mod_delayed_work(c->io_complete_wq,
+	mod_delayed_work(j->wq,
 			 &j->write_work,
 			 msecs_to_jiffies(c->opts.journal_flush_delay));
 	journal_wake(j);
@@ -445,7 +443,6 @@ static void journal_quiesce(struct journal *j)
 static void journal_write_work(struct work_struct *work)
 {
 	struct journal *j = container_of(work, struct journal, write_work.work);
-	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	long delta;
 
 	spin_lock(&j->lock);
@@ -455,7 +452,7 @@ static void journal_write_work(struct work_struct *work)
 	delta = journal_cur_buf(j)->expires - jiffies;
 
 	if (delta > 0)
-		mod_delayed_work(c->io_complete_wq, &j->write_work, delta);
+		mod_delayed_work(j->wq, &j->write_work, delta);
 	else
 		__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
 unlock:
@@ -1303,11 +1300,12 @@ int bch2_dev_journal_init(struct bch_dev *ca, struct bch_sb *sb)
 
 void bch2_fs_journal_exit(struct journal *j)
 {
-	unsigned i;
+	if (j->wq)
+		destroy_workqueue(j->wq);
 
 	darray_exit(&j->early_journal_entries);
 
-	for (i = 0; i < ARRAY_SIZE(j->buf); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(j->buf); i++)
 		kvpfree(j->buf[i].data, j->buf[i].buf_size);
 	free_fifo(&j->pin);
 }
@@ -1315,7 +1313,6 @@ void bch2_fs_journal_exit(struct journal *j)
 int bch2_fs_journal_init(struct journal *j)
 {
 	static struct lock_class_key res_key;
-	unsigned i;
 
 	mutex_init(&j->buf_lock);
 	spin_lock_init(&j->lock);
@@ -1336,7 +1333,7 @@ int bch2_fs_journal_init(struct journal *j)
 	if (!(init_fifo(&j->pin, JOURNAL_PIN, GFP_KERNEL)))
 		return -BCH_ERR_ENOMEM_journal_pin_fifo;
 
-	for (i = 0; i < ARRAY_SIZE(j->buf); i++) {
+	for (unsigned i = 0; i < ARRAY_SIZE(j->buf); i++) {
 		j->buf[i].buf_size = JOURNAL_ENTRY_SIZE_MIN;
 		j->buf[i].data = kvpmalloc(j->buf[i].buf_size, GFP_KERNEL);
 		if (!j->buf[i].data)
@@ -1344,6 +1341,11 @@ int bch2_fs_journal_init(struct journal *j)
 	}
 
 	j->pin.front = j->pin.back = 1;
+
+	j->wq = alloc_workqueue("bcachefs_journal",
+				WQ_HIGHPRI|WQ_FREEZABLE|WQ_UNBOUND|WQ_MEM_RECLAIM, 512);
+	if (!j->wq)
+		return -BCH_ERR_ENOMEM_fs_other_alloc;
 	return 0;
 }
 
