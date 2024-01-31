@@ -439,13 +439,13 @@ static void flock_make_lock(struct file *filp, struct file_lock *fl, int type)
 	fl->fl_end = OFFSET_MAX;
 }
 
-static int assign_type(struct file_lock *fl, int type)
+static int assign_type(struct file_lock_core *flc, int type)
 {
 	switch (type) {
 	case F_RDLCK:
 	case F_WRLCK:
 	case F_UNLCK:
-		fl->c.flc_type = type;
+		flc->flc_type = type;
 		break;
 	default:
 		return -EINVAL;
@@ -497,7 +497,7 @@ static int flock64_to_posix_lock(struct file *filp, struct file_lock *fl,
 	fl->fl_ops = NULL;
 	fl->fl_lmops = NULL;
 
-	return assign_type(fl, l->l_type);
+	return assign_type(&fl->c, l->l_type);
 }
 
 /* Verify a "struct flock" and copy it to a "struct file_lock" as a POSIX
@@ -552,7 +552,7 @@ static const struct lock_manager_operations lease_manager_ops = {
  */
 static int lease_init(struct file *filp, int type, struct file_lock *fl)
 {
-	if (assign_type(fl, type) != 0)
+	if (assign_type(&fl->c, type) != 0)
 		return -EINVAL;
 
 	fl->c.flc_owner = filp;
@@ -1409,7 +1409,7 @@ static void lease_clear_pending(struct file_lock *fl, int arg)
 /* We already had a lease on this file; just change its type */
 int lease_modify(struct file_lock *fl, int arg, struct list_head *dispose)
 {
-	int error = assign_type(fl, arg);
+	int error = assign_type(&fl->c, arg);
 
 	if (error)
 		return error;
