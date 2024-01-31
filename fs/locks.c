@@ -697,9 +697,10 @@ static void __locks_wake_up_blocks(struct file_lock_core *blocker)
  *
  *	lockd/nfsd need to disconnect the lock while working on it.
  */
-int locks_delete_block(struct file_lock *waiter)
+int locks_delete_block(struct file_lock *waiter_fl)
 {
 	int status = -ENOENT;
+	struct file_lock_core *waiter = &waiter_fl->c;
 
 	/*
 	 * If fl_blocker is NULL, it won't be set again as this thread "owns"
@@ -722,21 +723,21 @@ int locks_delete_block(struct file_lock *waiter)
 	 * no new locks can be inserted into its fl_blocked_requests list, and
 	 * can avoid doing anything further if the list is empty.
 	 */
-	if (!smp_load_acquire(&waiter->c.flc_blocker) &&
-	    list_empty(&waiter->c.flc_blocked_requests))
+	if (!smp_load_acquire(&waiter->flc_blocker) &&
+	    list_empty(&waiter->flc_blocked_requests))
 		return status;
 
 	spin_lock(&blocked_lock_lock);
-	if (waiter->c.flc_blocker)
+	if (waiter->flc_blocker)
 		status = 0;
-	__locks_wake_up_blocks(&waiter->c);
-	__locks_delete_block(&waiter->c);
+	__locks_wake_up_blocks(waiter);
+	__locks_delete_block(waiter);
 
 	/*
 	 * The setting of fl_blocker to NULL marks the "done" point in deleting
 	 * a block. Paired with acquire at the top of this function.
 	 */
-	smp_store_release(&waiter->c.flc_blocker, NULL);
+	smp_store_release(&waiter->flc_blocker, NULL);
 	spin_unlock(&blocked_lock_lock);
 	return status;
 }
