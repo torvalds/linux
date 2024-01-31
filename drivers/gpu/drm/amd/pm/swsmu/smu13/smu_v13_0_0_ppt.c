@@ -2944,7 +2944,7 @@ static bool smu_v13_0_0_wbrf_support_check(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	switch (adev->ip_versions[MP1_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(13, 0, 0):
 		return smu->smc_fw_version >= 0x004e6300;
 	case IP_VERSION(13, 0, 10):
