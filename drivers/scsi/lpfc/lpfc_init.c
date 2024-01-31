@@ -94,6 +94,7 @@ static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
 static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
 static void lpfc_setup_bg(struct lpfc_hba *, struct Scsi_Host *);
 static int lpfc_sli4_cgn_parm_chg_evt(struct lpfc_hba *);
+static void lpfc_sli4_async_cmstat_evt(struct lpfc_hba *phba);
 static void lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
@@ -6636,6 +6637,11 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				acqe_sli->event_data1, acqe_sli->event_data2,
 				acqe_sli->event_data3);
 		break;
+	case LPFC_SLI_EVENT_TYPE_RESET_CM_STATS:
+		lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT,
+				"2905 Reset CM statistics\n");
+		lpfc_sli4_async_cmstat_evt(phba);
+		break;
 	default:
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"3193 Unrecognized SLI event, type: 0x%x",
@@ -7345,9 +7351,6 @@ void lpfc_sli4_async_event_proc(struct lpfc_hba *phba)
 			break;
 		case LPFC_TRAILER_CODE_SLI:
 			lpfc_sli4_async_sli_evt(phba, &cq_event->cqe.acqe_sli);
-			break;
-		case LPFC_TRAILER_CODE_CMSTAT:
-			lpfc_sli4_async_cmstat_evt(phba);
 			break;
 		default:
 			lpfc_printf_log(phba, KERN_ERR,
