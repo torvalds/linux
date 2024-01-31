@@ -629,7 +629,6 @@ struct rtl8169_private {
 	struct rtl8169_counters *counters;
 	struct rtl8169_tc_offsets tc_offset;
 	u32 saved_wolopts;
-	int eee_adv;
 
 	const char *fw_name;
 	struct rtl_fw *rtl_fw;
@@ -1987,17 +1986,11 @@ static int rtl8169_get_eee(struct net_device *dev, struct ethtool_keee *data)
 static int rtl8169_set_eee(struct net_device *dev, struct ethtool_keee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
-	int ret;
 
 	if (!rtl_supports_eee(tp))
 		return -EOPNOTSUPP;
 
-	ret = phy_ethtool_set_eee(tp->phydev, data);
-
-	if (!ret)
-		tp->eee_adv = phy_read_mmd(dev->phydev, MDIO_MMD_AN,
-					   MDIO_AN_EEE_ADV);
-	return ret;
+	return phy_ethtool_set_eee(tp->phydev, data);
 }
 
 static void rtl8169_get_ringparam(struct net_device *dev,
@@ -2061,21 +2054,6 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_pauseparam		= rtl8169_get_pauseparam,
 	.set_pauseparam		= rtl8169_set_pauseparam,
 };
-
-static void rtl_enable_eee(struct rtl8169_private *tp)
-{
-	struct phy_device *phydev = tp->phydev;
-	int adv;
-
-	/* respect EEE advertisement the user may have set */
-	if (tp->eee_adv >= 0)
-		adv = tp->eee_adv;
-	else
-		adv = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE);
-
-	if (adv >= 0)
-		phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
-}
 
 static enum mac_version rtl8169_get_mac_version(u16 xid, bool gmii)
 {
@@ -2312,9 +2290,6 @@ static void rtl8169_init_phy(struct rtl8169_private *tp)
 
 	/* We may have called phy_speed_down before */
 	phy_speed_up(tp->phydev);
-
-	if (rtl_supports_eee(tp))
-		rtl_enable_eee(tp);
 
 	genphy_soft_reset(tp->phydev);
 }
@@ -5058,7 +5033,9 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 	}
 
 	tp->phydev->mac_managed_pm = true;
-
+	if (rtl_supports_eee(tp))
+		linkmode_copy(tp->phydev->advertising_eee,
+			      tp->phydev->supported_eee);
 	phy_support_asym_pause(tp->phydev);
 
 	/* PHY will be woken up in rtl_open() */
@@ -5193,7 +5170,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->dev = dev;
 	tp->pci_dev = pdev;
 	tp->supports_gmii = ent->driver_data == RTL_CFG_NO_GBIT ? 0 : 1;
-	tp->eee_adv = -1;
 	tp->ocp_base = OCP_STD_PHY_BASE;
 
 	raw_spin_lock_init(&tp->cfg9346_usage_lock);
