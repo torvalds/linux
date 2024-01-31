@@ -777,13 +777,11 @@ nfsd4_init_pnfs(void)
 	for (i = 0; i < DEVID_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&nfsd_devid_hash[i]);
 
-	nfs4_layout_cache = kmem_cache_create("nfs4_layout",
-			sizeof(struct nfs4_layout), 0, 0, NULL);
+	nfs4_layout_cache = KMEM_CACHE(nfs4_layout, 0);
 	if (!nfs4_layout_cache)
 		return -ENOMEM;
 
-	nfs4_layout_stateid_cache = kmem_cache_create("nfs4_layout_stateid",
-			sizeof(struct nfs4_layout_stateid), 0, 0, NULL);
+	nfs4_layout_stateid_cache = KMEM_CACHE(nfs4_layout_stateid, 0);
 	if (!nfs4_layout_stateid_cache) {
 		kmem_cache_destroy(nfs4_layout_cache);
 		return -ENOMEM;
