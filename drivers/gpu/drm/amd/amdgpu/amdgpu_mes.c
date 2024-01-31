@@ -1565,9 +1565,9 @@ void amdgpu_debugfs_mes_event_log_init(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
-
-	debugfs_create_file("amdgpu_mes_event_log", 0444, root,
-			    adev, &amdgpu_debugfs_mes_event_log_fops);
+	if (adev->enable_mes)
+		debugfs_create_file("amdgpu_mes_event_log", 0444, root,
+				    adev, &amdgpu_debugfs_mes_event_log_fops);
 
 #endif
 }
