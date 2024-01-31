@@ -5214,7 +5214,6 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			 */
 
 			if (!status->link_valid && pubsta->mlo) {
-				struct ieee80211_hdr *hdr = (void *)skb->data;
 				struct link_sta_info *link_sta;
 
 				link_sta = link_sta_info_get_bss(rx.sdata,
