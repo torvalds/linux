@@ -58,7 +58,7 @@ int pa_serialize_tlb_flushes __ro_after_init;
 
 struct pdc_cache_info cache_info __ro_after_init;
 #ifndef CONFIG_PA20
-struct pdc_btlb_info btlb_info __ro_after_init;
+struct pdc_btlb_info btlb_info;
 #endif
 
 DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
