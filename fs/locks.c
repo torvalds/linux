@@ -596,20 +596,20 @@ static int posix_same_owner(struct file_lock_core *fl1, struct file_lock_core *f
 }
 
 /* Must be called with the flc_lock held! */
-static void locks_insert_global_locks(struct file_lock *fl)
+static void locks_insert_global_locks(struct file_lock_core *flc)
 {
 	struct file_lock_list_struct *fll = this_cpu_ptr(&file_lock_list);
 
 	percpu_rwsem_assert_held(&file_rwsem);
 
 	spin_lock(&fll->lock);
-	fl->c.flc_link_cpu = smp_processor_id();
-	hlist_add_head(&fl->c.flc_link, &fll->hlist);
+	flc->flc_link_cpu = smp_processor_id();
+	hlist_add_head(&flc->flc_link, &fll->hlist);
 	spin_unlock(&fll->lock);
 }
 
 /* Must be called with the flc_lock held! */
-static void locks_delete_global_locks(struct file_lock *fl)
+static void locks_delete_global_locks(struct file_lock_core *flc)
 {
 	struct file_lock_list_struct *fll;
 
@@ -620,12 +620,12 @@ static void locks_delete_global_locks(struct file_lock *fl)
 	 * is done while holding the flc_lock, and new insertions into the list
 	 * also require that it be held.
 	 */
-	if (hlist_unhashed(&fl->c.flc_link))
+	if (hlist_unhashed(&flc->flc_link))
 		return;
 
-	fll = per_cpu_ptr(&file_lock_list, fl->c.flc_link_cpu);
+	fll = per_cpu_ptr(&file_lock_list, flc->flc_link_cpu);
 	spin_lock(&fll->lock);
-	hlist_del_init(&fl->c.flc_link);
+	hlist_del_init(&flc->flc_link);
 	spin_unlock(&fll->lock);
 }
 
@@ -814,13 +814,13 @@ static void
 locks_insert_lock_ctx(struct file_lock *fl, struct list_head *before)
 {
 	list_add_tail(&fl->c.flc_list, before);
-	locks_insert_global_locks(fl);
+	locks_insert_global_locks(&fl->c);
 }
 
 static void
 locks_unlink_lock_ctx(struct file_lock *fl)
 {
-	locks_delete_global_locks(fl);
+	locks_delete_global_locks(&fl->c);
 	list_del_init(&fl->c.flc_list);
 	locks_wake_up_blocks(fl);
 }
