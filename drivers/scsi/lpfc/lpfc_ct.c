@@ -943,8 +943,8 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		goto out;
 	}
 
-	/* Don't bother processing response if vport is being torn down. */
-	if (vport->load_flag & FC_UNLOADING) {
+	/* Skip processing response on pport if unloading */
+	if (vport == phba->pport && vport->load_flag & FC_UNLOADING) {
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		goto out;
@@ -1166,8 +1166,8 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		goto out;
 	}
 
-	/* Don't bother processing response if vport is being torn down. */
-	if (vport->load_flag & FC_UNLOADING) {
+	/* Skip processing response on pport if unloading */
+	if (vport == phba->pport && vport->load_flag & FC_UNLOADING) {
 		if (vport->fc_flag & FC_RSCN_MODE)
 			lpfc_els_flush_rscn(vport);
 		goto out;
