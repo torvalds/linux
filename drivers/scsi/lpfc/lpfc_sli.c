@@ -1036,7 +1036,7 @@ lpfc_handle_rrq_active(struct lpfc_hba *phba)
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if ((!list_empty(&phba->active_rrq_list)) &&
-	    (!(phba->pport->load_flag & FC_UNLOADING)))
+	    (!test_bit(FC_UNLOADING, &phba->pport->load_flag)))
 		mod_timer(&phba->rrq_tmr, next_time);
 	list_for_each_entry_safe(rrq, nextrrq, &send_rrq, list) {
 		list_del(&rrq->list);
@@ -1180,12 +1180,12 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		return -EINVAL;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	if (phba->pport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 		goto out;
 	}
 
-	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
+	if (ndlp->vport && test_bit(FC_UNLOADING, &ndlp->vport->load_flag))
 		goto out;
 
 	if (!ndlp->active_rrqs_xri_bitmap)
@@ -1732,7 +1732,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	   (ulp_command != CMD_ABORT_XRI_CN) &&
 	   (ulp_command != CMD_CLOSE_XRI_CN)) {
 		BUG_ON(!piocb->vport);
-		if (!(piocb->vport->load_flag & FC_UNLOADING))
+		if (!test_bit(FC_UNLOADING, &piocb->vport->load_flag))
 			mod_timer(&piocb->vport->els_tmofunc,
 				  jiffies +
 				  msecs_to_jiffies(1000 * (phba->fc_ratov << 1)));
@@ -2882,7 +2882,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * If a REG_LOGIN succeeded  after node is destroyed or node
 	 * is in re-discovery driver need to cleanup the RPI.
 	 */
-	if (!(phba->pport->load_flag & FC_UNLOADING) &&
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
 	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
 	    !pmb->u.mb.mbxStatus) {
 		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
@@ -2904,7 +2904,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	if ((pmb->u.mb.mbxCommand == MBX_REG_VPI) &&
-		!(phba->pport->load_flag & FC_UNLOADING) &&
+		!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
 		!pmb->u.mb.mbxStatus) {
 		shost = lpfc_shost_from_vport(vport);
 		spin_lock_irq(shost->host_lock);
@@ -2927,7 +2927,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				vport,
 				KERN_INFO, LOG_MBOX | LOG_DISCOVERY,
 				"1438 UNREG cmpl deferred mbox x%x "
-				"on NPort x%x Data: x%x x%x x%px x%x x%x\n",
+				"on NPort x%x Data: x%x x%x x%px x%lx x%x\n",
 				ndlp->nlp_rpi, ndlp->nlp_DID,
 				ndlp->nlp_flag, ndlp->nlp_defer_did,
 				ndlp, vport->load_flag, kref_read(&ndlp->kref));
@@ -3235,7 +3235,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	lpfc_nvmeio_data(phba, "NVME LS    RCV: xri x%x sz %d from %06x\n",
 			 oxid, size, sid);
 
-	if (phba->pport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		failwhy = "Driver Unloading";
 	} else if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
 		failwhy = "NVME FC4 Disabled";
@@ -3940,7 +3940,7 @@ void lpfc_poll_eratt(struct timer_list *t)
 	if (!(phba->hba_flag & HBA_SETUP))
 		return;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	/* Here we will also keep track of interrupts per sec of the hba */
@@ -12428,7 +12428,7 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * If we're unloading, don't abort iocb on the ELS ring, but change
 	 * the callback so that nothing happens when it finishes.
 	 */
-	if ((vport->load_flag & FC_UNLOADING) &&
+	if (test_bit(FC_UNLOADING, &vport->load_flag) &&
 	    pring->ringno == LPFC_ELS_RING) {
 		if (cmdiocb->cmd_flag & LPFC_IO_FABRIC)
 			cmdiocb->fabric_cmd_cmpl = lpfc_ignore_els_cmpl;
@@ -14658,7 +14658,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 		    fc_hdr->fh_r_ctl == FC_RCTL_DD_UNSOL_DATA) {
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			/* Handle MDS Loopback frames */
-			if  (!(phba->pport->load_flag & FC_UNLOADING))
+			if  (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 				lpfc_sli4_handle_mds_loopback(phba->pport,
 							      dma_buf);
 			else
@@ -19457,7 +19457,7 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	    fc_hdr->fh_r_ctl == FC_RCTL_DD_UNSOL_DATA) {
 		vport = phba->pport;
 		/* Handle MDS Loopback frames */
-		if  (!(phba->pport->load_flag & FC_UNLOADING))
+		if  (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 			lpfc_sli4_handle_mds_loopback(vport, dmabuf);
 		else
 			lpfc_in_buf_free(phba, &dmabuf->dbuf);

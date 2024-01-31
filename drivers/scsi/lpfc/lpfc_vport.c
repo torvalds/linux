@@ -408,7 +408,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	vport->fc_vport = fc_vport;
 
 	/* At this point we are fully registered with SCSI Layer.  */
-	vport->load_flag |= FC_ALLOW_FDMI;
+	set_bit(FC_ALLOW_FDMI, &vport->load_flag);
 	if (phba->cfg_enable_SmartSAN ||
 	    (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) {
 		/* Setup appropriate attribute masks */
@@ -538,7 +538,7 @@ disable_vport(struct fc_vport *fc_vport)
 	struct lpfc_nodelist *ndlp = NULL;
 
 	/* Can't disable during an outstanding delete. */
-	if (vport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		return 0;
 
 	ndlp = lpfc_findnode_did(vport, Fabric_DID);
@@ -571,7 +571,6 @@ enable_vport(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
 	    (phba->fc_topology == LPFC_TOPOLOGY_LOOP)) {
@@ -579,9 +578,7 @@ enable_vport(struct fc_vport *fc_vport)
 		return VPORT_OK;
 	}
 
-	spin_lock_irq(shost->host_lock);
-	vport->load_flag |= FC_LOADING;
-	spin_unlock_irq(shost->host_lock);
+	set_bit(FC_LOADING, &vport->load_flag);
 	if (test_bit(FC_VPORT_NEEDS_INIT_VPI, &vport->fc_flag)) {
 		lpfc_issue_init_vpi(vport);
 		goto out;
@@ -639,22 +636,20 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 
 	/* If the vport is a static vport fail the deletion. */
 	if ((vport->vport_flag & STATIC_VPORT) &&
-		!(phba->pport->load_flag & FC_UNLOADING)) {
+		!test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "1837 vport_delete failed: Cannot delete "
 				 "static vport.\n");
 		return VPORT_ERROR;
 	}
 
-	spin_lock_irq(&phba->hbalock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(&phba->hbalock);
+	set_bit(FC_UNLOADING, &vport->load_flag);
 
 	/*
 	 * If we are not unloading the driver then prevent the vport_delete
 	 * from happening until after this vport's discovery is finished.
 	 */
-	if (!(phba->pport->load_flag & FC_UNLOADING)) {
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		int check_count = 0;
 		while (check_count < ((phba->fc_ratov * 3) + 3) &&
 		       vport->port_state > LPFC_VPORT_FAILED &&
@@ -721,7 +716,7 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 			goto skip_logo;
 	}
 
-	if (!(phba->pport->load_flag & FC_UNLOADING))
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		lpfc_discovery_wait(vport);
 
 skip_logo:
@@ -732,7 +727,7 @@ skip_logo:
 	lpfc_sli_host_down(vport);
 	lpfc_stop_vport_timers(vport);
 
-	if (!(phba->pport->load_flag & FC_UNLOADING)) {
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		lpfc_unreg_all_rpis(vport);
 		lpfc_unreg_default_rpis(vport);
 		/*
@@ -769,7 +764,7 @@ lpfc_create_vport_work_array(struct lpfc_hba *phba)
 		return NULL;
 	spin_lock_irq(&phba->port_list_lock);
 	list_for_each_entry(port_iterator, &phba->port_list, listentry) {
-		if (port_iterator->load_flag & FC_UNLOADING)
+		if (test_bit(FC_UNLOADING, &port_iterator->load_flag))
 			continue;
 		if (!scsi_host_get(lpfc_shost_from_vport(port_iterator))) {
 			lpfc_printf_vlog(port_iterator, KERN_ERR,

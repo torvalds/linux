@@ -169,13 +169,13 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
 			 "3181 dev_loss_callbk x%06x, rport x%px flg x%x "
-			 "load_flag x%x refcnt %u state %d xpt x%x\n",
+			 "load_flag x%lx refcnt %u state %d xpt x%x\n",
 			 ndlp->nlp_DID, ndlp->rport, ndlp->nlp_flag,
 			 vport->load_flag, kref_read(&ndlp->kref),
 			 ndlp->nlp_state, ndlp->fc4_xpt_flags);
 
 	/* Don't schedule a worker thread event if the vport is going down. */
-	if (vport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &vport->load_flag)) {
 		spin_lock_irqsave(&ndlp->lock, iflags);
 		ndlp->rport = NULL;
 
@@ -263,7 +263,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 	} else {
 		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
 				 "3188 worker thread is stopped %s x%06x, "
-				 " rport x%px flg x%x load_flag x%x refcnt "
+				 " rport x%px flg x%x load_flag x%lx refcnt "
 				 "%d\n", __func__, ndlp->nlp_DID,
 				 ndlp->rport, ndlp->nlp_flag,
 				 vport->load_flag, kref_read(&ndlp->kref));
@@ -911,7 +911,7 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 			free_evt = 0;
 			break;
 		case LPFC_EVT_RESET_HBA:
-			if (!(phba->pport->load_flag & FC_UNLOADING))
+			if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 				lpfc_reset_hba(phba);
 			break;
 		}
@@ -1358,7 +1358,7 @@ lpfc_linkup_port(struct lpfc_vport *vport)
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_hba  *phba = vport->phba;
 
-	if ((vport->load_flag & FC_UNLOADING) != 0)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		return;
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
@@ -3924,7 +3924,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"2798 Unreg_vpi failed vpi 0x%x, mb status = 0x%x\n",
 			vport->vpi, mb->mbxStatus);
-		if (!(phba->pport->load_flag & FC_UNLOADING))
+		if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 			lpfc_workq_post_event(phba, NULL, NULL,
 				LPFC_EVT_RESET_HBA);
 	}
@@ -3939,7 +3939,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * This shost reference might have been taken at the beginning of
 	 * lpfc_vport_delete()
 	 */
-	if ((vport->load_flag & FC_UNLOADING) && (vport != phba->pport))
+	if (test_bit(FC_UNLOADING, &vport->load_flag) && vport != phba->pport)
 		scsi_host_put(shost);
 }
 
@@ -4490,7 +4490,7 @@ lpfc_register_remote_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			      ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	/* Don't add the remote port if unloading. */
-	if (vport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		return;
 
 	ndlp->rport = rport = fc_remote_port_add(shost, 0, &rport_ids);
@@ -5235,13 +5235,13 @@ lpfc_set_unreg_login_mbx_cmpl(struct lpfc_hba *phba, struct lpfc_vport *vport,
 		mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
 
 	} else if (phba->sli_rev == LPFC_SLI_REV4 &&
-		   (!(vport->load_flag & FC_UNLOADING)) &&
+		   !test_bit(FC_UNLOADING, &vport->load_flag) &&
 		    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 				      LPFC_SLI_INTF_IF_TYPE_2) &&
 		    (kref_read(&ndlp->kref) > 0)) {
 		mbox->mbox_cmpl = lpfc_sli4_unreg_rpi_cmpl_clr;
 	} else {
-		if (vport->load_flag & FC_UNLOADING) {
+		if (test_bit(FC_UNLOADING, &vport->load_flag)) {
 			if (phba->sli_rev == LPFC_SLI_REV4) {
 				spin_lock_irqsave(&ndlp->lock, iflags);
 				ndlp->nlp_flag |= NLP_RELEASE_RPI;
@@ -5349,7 +5349,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			 * will issue a LOGO here and keep the rpi alive if
 			 * not unloading.
 			 */
-			if (!(vport->load_flag & FC_UNLOADING)) {
+			if (!test_bit(FC_UNLOADING, &vport->load_flag)) {
 				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 				lpfc_issue_els_logo(vport, ndlp, 0);
 				ndlp->nlp_prev_state = ndlp->nlp_state;
@@ -6925,8 +6925,8 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 	 * If driver is not unloading, check if there is any other
 	 * FCF record that can be used for discovery.
 	 */
-	if ((phba->pport->load_flag & FC_UNLOADING) ||
-	    (phba->link_state < LPFC_LINK_UP))
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag) ||
+	    phba->link_state < LPFC_LINK_UP)
 		return;
 
 	/* This is considered as the initial FCF discovery scan */

@@ -298,7 +298,7 @@ lpfc_ct_handle_mibreq(struct lpfc_hba *phba, struct lpfc_iocbq *ctiocbq)
 	}
 
 	/* Ignore traffic received during vport shutdown */
-	if (test_bit(FC_UNLOADING, &vport->fc_flag))
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		return;
 
 	ndlp = lpfc_findnode_did(vport, did);
@@ -943,7 +943,7 @@ lpfc_cmpl_ct_cmd_gid_ft(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* Skip processing response on pport if unloading */
-	if (vport == phba->pport && vport->load_flag & FC_UNLOADING) {
+	if (vport == phba->pport && test_bit(FC_UNLOADING, &vport->load_flag)) {
 		if (test_bit(FC_RSCN_MODE, &vport->fc_flag))
 			lpfc_els_flush_rscn(vport);
 		goto out;
@@ -1159,7 +1159,7 @@ lpfc_cmpl_ct_cmd_gid_pt(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 
 	/* Skip processing response on pport if unloading */
-	if (vport == phba->pport && vport->load_flag & FC_UNLOADING) {
+	if (vport == phba->pport && test_bit(FC_UNLOADING, &vport->load_flag)) {
 		if (test_bit(FC_RSCN_MODE, &vport->fc_flag))
 			lpfc_els_flush_rscn(vport);
 		goto out;
@@ -3583,7 +3583,8 @@ lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    (ctrsp->Explanation != SLI_CT_APP_ID_NOT_AVAILABLE)) {
 			/* If DALLAPP_ID failed retry later */
 			if (cmd == SLI_CTAS_DALLAPP_ID)
-				vport->load_flag |= FC_DEREGISTER_ALL_APP_ID;
+				set_bit(FC_DEREGISTER_ALL_APP_ID,
+					&vport->load_flag);
 			goto free_res;
 		}
 	}
@@ -3639,7 +3640,7 @@ lpfc_cmpl_ct_cmd_vmid(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if (!hash_empty(vport->hash_table))
 			hash_for_each(vport->hash_table, bucket, cur, hnode)
 				hash_del(&cur->hnode);
-		vport->load_flag |= FC_ALLOW_VMID;
+		set_bit(FC_ALLOW_VMID, &vport->load_flag);
 		break;
 	default:
 		lpfc_printf_vlog(vport, KERN_DEBUG, LOG_DISCOVERY,

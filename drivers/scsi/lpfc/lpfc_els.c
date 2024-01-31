@@ -4964,7 +4964,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		retry = 0;
 	}
 
-	if ((vport->load_flag & FC_UNLOADING) != 0)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		retry = 0;
 
 out_retry:
@@ -8232,7 +8232,7 @@ lpfc_els_handle_rscn(struct lpfc_vport *vport)
 	struct lpfc_hba  *phba = vport->phba;
 
 	/* Ignore RSCN if the port is being torn down. */
-	if (vport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &vport->load_flag)) {
 		lpfc_els_flush_rscn(vport);
 		return 0;
 	}
@@ -9449,11 +9449,11 @@ lpfc_els_timeout(struct timer_list *t)
 
 	spin_lock_irqsave(&vport->work_port_lock, iflag);
 	tmo_posted = vport->work_port_events & WORKER_ELS_TMO;
-	if ((!tmo_posted) && (!(vport->load_flag & FC_UNLOADING)))
+	if (!tmo_posted && !test_bit(FC_UNLOADING, &vport->load_flag))
 		vport->work_port_events |= WORKER_ELS_TMO;
 	spin_unlock_irqrestore(&vport->work_port_lock, iflag);
 
-	if ((!tmo_posted) && (!(vport->load_flag & FC_UNLOADING)))
+	if (!tmo_posted && !test_bit(FC_UNLOADING, &vport->load_flag))
 		lpfc_worker_wake_up(phba);
 	return;
 }
@@ -9489,7 +9489,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	if (unlikely(!pring))
 		return;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	spin_lock_irq(&phba->hbalock);
@@ -9565,7 +9565,7 @@ lpfc_els_timeout_handler(struct lpfc_vport *vport)
 	lpfc_issue_hb_tmo(phba);
 
 	if (!list_empty(&pring->txcmplq))
-		if (!(phba->pport->load_flag & FC_UNLOADING))
+		if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 			mod_timer(&vport->els_tmofunc,
 				  jiffies + msecs_to_jiffies(1000 * timeout));
 }
@@ -10364,7 +10364,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		goto dropit;
 
 	/* Ignore traffic received during vport shutdown. */
-	if (vport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &vport->load_flag))
 		goto dropit;
 
 	/* If NPort discovery is delayed drop incoming ELS */
@@ -10785,7 +10785,7 @@ lsrjt:
 	return;
 
 dropit:
-	if (vport && !(vport->load_flag & FC_UNLOADING))
+	if (vport && !test_bit(FC_UNLOADING, &vport->load_flag))
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 			"0111 Dropping received ELS cmd "
 			"Data: x%x x%x x%x x%x\n",
@@ -10981,8 +10981,8 @@ lpfc_do_scr_ns_plogi(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 
 	if ((phba->cfg_enable_SmartSAN ||
-	     (phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT)) &&
-	     (vport->load_flag & FC_ALLOW_FDMI))
+	     phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT) &&
+	    test_bit(FC_ALLOW_FDMI, &vport->load_flag))
 		lpfc_start_fdmi(vport);
 }
 
@@ -12014,7 +12014,7 @@ lpfc_sli4_vport_delete_els_xri_aborted(struct lpfc_vport *vport)
 			 * node and the vport is unloading, the xri aborted wcqe
 			 * likely isn't coming back.  Just release the sgl.
 			 */
-			if ((vport->load_flag & FC_UNLOADING) &&
+			if (test_bit(FC_UNLOADING, &vport->load_flag) &&
 			    ndlp->nlp_DID == Fabric_DID) {
 				list_del(&sglq_entry->list);
 				sglq_entry->state = SGL_FREED;

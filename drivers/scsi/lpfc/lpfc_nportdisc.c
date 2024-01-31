@@ -859,8 +859,8 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 * If we are here first then vport_delete is going to wait
 		 * for discovery to complete.
 		 */
-		if (!(vport->load_flag & FC_UNLOADING) &&
-					active_vlink_present) {
+		if (!test_bit(FC_UNLOADING, &vport->load_flag) &&
+		    active_vlink_present) {
 			/*
 			 * If there are other active VLinks present,
 			 * re-instantiate the Vlink using FDISC.
@@ -1145,9 +1145,8 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	phba = vport->phba;
 	/* Release the RPI if reglogin completing */
-	if (!(phba->pport->load_flag & FC_UNLOADING) &&
-		(evt == NLP_EVT_CMPL_REG_LOGIN) &&
-		(!pmb->u.mb.mbxStatus)) {
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
+	    evt == NLP_EVT_CMPL_REG_LOGIN && !pmb->u.mb.mbxStatus) {
 		rpi = pmb->u.mb.un.varWords[0];
 		lpfc_release_rpi(phba, vport, ndlp, rpi);
 	}
@@ -1571,8 +1570,8 @@ lpfc_cmpl_reglogin_plogi_issue(struct lpfc_vport *vport,
 
 	phba = vport->phba;
 	/* Release the RPI */
-	if (!(phba->pport->load_flag & FC_UNLOADING) &&
-		!mb->mbxStatus) {
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
+	    !mb->mbxStatus) {
 		rpi = pmb->u.mb.un.varWords[0];
 		lpfc_release_rpi(phba, vport, ndlp, rpi);
 	}

@@ -565,6 +565,14 @@ enum lpfc_fc_flag {
 	FC_DISC_DELAYED,		/* Delay NPort discovery */
 };
 
+enum lpfc_load_flag {
+	FC_LOADING,			/* HBA in process of loading drvr */
+	FC_UNLOADING,			/* HBA in process of unloading drvr */
+	FC_ALLOW_FDMI,			/* port is ready for FDMI requests */
+	FC_ALLOW_VMID,			/* Allow VMID I/Os */
+	FC_DEREGISTER_ALL_APP_ID	/* Deregister all VMIDs */
+};
+
 struct lpfc_vport {
 	struct lpfc_hba *phba;
 	struct list_head listentry;
@@ -647,12 +655,7 @@ struct lpfc_vport {
 	struct timer_list els_tmofunc;
 	struct timer_list delayed_disc_tmo;
 
-	uint8_t load_flag;
-#define FC_LOADING		0x1	/* HBA in process of loading drvr */
-#define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
-#define FC_ALLOW_FDMI		0x4	/* port is ready for FDMI requests */
-#define FC_ALLOW_VMID		0x8	/* Allow VMID I/Os */
-#define FC_DEREGISTER_ALL_APP_ID	0x10	/* Deregister all VMIDs */
+	unsigned long load_flag;
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;

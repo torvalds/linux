@@ -892,7 +892,7 @@ lpfc_hba_down_prep(struct lpfc_hba *phba)
 		readl(phba->HCregaddr); /* flush */
 	}
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		lpfc_cleanup_discovery_resources(phba->pport);
 	else {
 		vports = lpfc_create_vport_work_array(phba);
@@ -1232,13 +1232,13 @@ lpfc_rrq_timeout(struct timer_list *t)
 
 	phba = from_timer(phba, t, rrq_tmr);
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
-	if (!(phba->pport->load_flag & FC_UNLOADING))
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		phba->hba_flag |= HBA_RRQ_ACTIVE;
 	else
 		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
 
-	if (!(phba->pport->load_flag & FC_UNLOADING))
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		lpfc_worker_wake_up(phba);
 }
 
@@ -1271,7 +1271,7 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 	if (!test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag) &&
 	    !(phba->link_state == LPFC_HBA_ERROR) &&
-	    !(phba->pport->load_flag & FC_UNLOADING))
+	    !test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		mod_timer(&phba->hb_tmofunc,
 			  jiffies +
 			  msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
@@ -1298,7 +1298,7 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 	u32 i, idle_percent;
 	u64 wall, wall_idle, diff_wall, diff_idle, busy_time;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	if (phba->link_state == LPFC_HBA_ERROR ||
@@ -1359,7 +1359,8 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 	uint32_t usdelay;
 	int i;
 
-	if (!phba->cfg_auto_imax || phba->pport->load_flag & FC_UNLOADING)
+	if (!phba->cfg_auto_imax ||
+	    test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	if (phba->link_state == LPFC_HBA_ERROR ||
@@ -1534,9 +1535,9 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
-	if ((phba->link_state == LPFC_HBA_ERROR) ||
-		(phba->pport->load_flag & FC_UNLOADING) ||
-		test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
+	if (phba->link_state == LPFC_HBA_ERROR ||
+	    test_bit(FC_UNLOADING, &phba->pport->load_flag) ||
+	    test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		return;
 
 	if (phba->elsbuf_cnt &&
@@ -1737,7 +1738,7 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 			break;
 		}
 		/* If driver is unloading let the worker thread continue */
-		if (phba->pport->load_flag & FC_UNLOADING) {
+		if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 			phba->work_hs = 0;
 			break;
 		}
@@ -1748,7 +1749,7 @@ lpfc_handle_deferred_eratt(struct lpfc_hba *phba)
 	 * first write to the host attention register clear the
 	 * host status register.
 	 */
-	if ((!phba->work_hs) && (!(phba->pport->load_flag & FC_UNLOADING)))
+	if (!phba->work_hs && !test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		phba->work_hs = old_host_status & ~HS_FFER1;
 
 	spin_lock_irq(&phba->hbalock);
@@ -3086,7 +3087,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 	 * The flush here is only when the pci slot
 	 * is offline.
 	 */
-	if (vport->load_flag & FC_UNLOADING &&
+	if (test_bit(FC_UNLOADING, &vport->load_flag) &&
 	    pci_channel_offline(phba->pcidev))
 		lpfc_sli_flush_io_rings(vport->phba);
 
@@ -3412,7 +3413,7 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 		return;
 
 	for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-		if (vports[i]->load_flag & FC_UNLOADING)
+		if (test_bit(FC_UNLOADING, &vports[i]->load_flag))
 			continue;
 
 		list_for_each_entry_safe(ndlp, next_ndlp,
@@ -3612,7 +3613,7 @@ static void lpfc_destroy_multixri_pools(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		lpfc_destroy_expedite_pool(phba);
 
-	if (!(phba->pport->load_flag & FC_UNLOADING))
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		lpfc_sli_flush_io_rings(phba);
 
 	hwq_count = phba->cfg_hdw_queue;
@@ -3818,7 +3819,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			if (vports[i]->load_flag & FC_UNLOADING)
+			if (test_bit(FC_UNLOADING, &vports[i]->load_flag))
 				continue;
 			shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);
@@ -4764,7 +4765,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	vport = (struct lpfc_vport *) shost->hostdata;
 	vport->phba = phba;
-	vport->load_flag |= FC_LOADING;
+	set_bit(FC_LOADING, &vport->load_flag);
 	set_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
 	vport->fc_rscn_flush = 0;
 	atomic_set(&vport->fc_plogi_cnt, 0);
@@ -4928,7 +4929,7 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 
 	spin_lock_irq(shost->host_lock);
 
-	if (vport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &vport->load_flag)) {
 		stat = 1;
 		goto finished;
 	}
@@ -5042,9 +5043,7 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	fc_host_active_fc4s(shost)[7] = 1;
 
 	fc_host_max_npiv_vports(shost) = phba->max_vpi;
-	spin_lock_irq(shost->host_lock);
-	vport->load_flag &= ~FC_LOADING;
-	spin_unlock_irq(shost->host_lock);
+	clear_bit(FC_LOADING, &vport->load_flag);
 }
 
 /**
@@ -5180,7 +5179,7 @@ lpfc_vmid_poll(struct timer_list *t)
 
 	/* Is the vmid inactivity timer enabled */
 	if (phba->pport->vmid_inactivity_timeout ||
-	    phba->pport->load_flag & FC_DEREGISTER_ALL_APP_ID) {
+	    test_bit(FC_DEREGISTER_ALL_APP_ID, &phba->pport->load_flag)) {
 		wake_up = 1;
 		phba->pport->work_port_events |= WORKER_CHECK_INACTIVE_VMID;
 	}
@@ -6914,8 +6913,8 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		 * If we are here first then vport_delete is going to wait
 		 * for discovery to complete.
 		 */
-		if (!(vport->load_flag & FC_UNLOADING) &&
-					active_vlink_present) {
+		if (!test_bit(FC_UNLOADING, &vport->load_flag) &&
+		    active_vlink_present) {
 			/*
 			 * If there are other active VLinks present,
 			 * re-instantiate the Vlink using FDISC.
@@ -9093,7 +9092,7 @@ lpfc_setup_fdmi_mask(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 
-	vport->load_flag |= FC_ALLOW_FDMI;
+	set_bit(FC_ALLOW_FDMI, &vport->load_flag);
 	if (phba->cfg_enable_SmartSAN ||
 	    phba->cfg_fdmi_on == LPFC_FDMI_SUPPORT) {
 		/* Setup appropriate attribute masks */
@@ -12805,7 +12804,7 @@ static void lpfc_cpuhp_add(struct lpfc_hba *phba)
 
 static int __lpfc_cpuhp_checks(struct lpfc_hba *phba, int *retval)
 {
-	if (phba->pport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		*retval = -EAGAIN;
 		return true;
 	}
@@ -13325,12 +13324,7 @@ lpfc_sli4_disable_intr(struct lpfc_hba *phba)
 static void
 lpfc_unset_hba(struct lpfc_hba *phba)
 {
-	struct lpfc_vport *vport = phba->pport;
-	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-
-	spin_lock_irq(shost->host_lock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(shost->host_lock);
+	set_bit(FC_UNLOADING, &phba->pport->load_flag);
 
 	kfree(phba->vpi_bmask);
 	kfree(phba->vpi_ids);
@@ -14122,9 +14116,7 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	struct lpfc_hba   *phba = vport->phba;
 	int i;
 
-	spin_lock_irq(&phba->hbalock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(&phba->hbalock);
+	set_bit(FC_UNLOADING, &vport->load_flag);
 
 	lpfc_free_sysfs_attr(vport);
 
@@ -14967,9 +14959,7 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	int i;
 
 	/* Mark the device unloading flag */
-	spin_lock_irq(&phba->hbalock);
-	vport->load_flag |= FC_UNLOADING;
-	spin_unlock_irq(&phba->hbalock);
+	set_bit(FC_UNLOADING, &vport->load_flag);
 	if (phba->cgn_i)
 		lpfc_unreg_congestion_buf(phba);
 
