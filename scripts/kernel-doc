@@ -1509,6 +1509,15 @@ sub create_parameterlist($$$$) {
 	    $type =~ s/([^\(]+\(\*?)\s*$param/$1/;
 	    save_struct_actual($param);
 	    push_parameter($param, $type, $arg, $file, $declaration_name);
+	} elsif ($arg =~ m/\(.+\)\s*\[/) {
+	    # array-of-pointers
+	    $arg =~ tr/#/,/;
+	    $arg =~ m/[^\(]+\(\s*\*\s*([\w\[\]\.]*?)\s*(\s*\[\s*[\w]+\s*\]\s*)*\)/;
+	    $param = $1;
+	    $type = $arg;
+	    $type =~ s/([^\(]+\(\*?)\s*$param/$1/;
+	    save_struct_actual($param);
+	    push_parameter($param, $type, $arg, $file, $declaration_name);
 	} elsif ($arg) {
 	    $arg =~ s/\s*:\s*/:/g;
 	    $arg =~ s/\s*\[/\[/g;
