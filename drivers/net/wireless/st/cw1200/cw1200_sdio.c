@@ -8,7 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sdio_func.h>
@@ -178,12 +178,15 @@ static int cw1200_sdio_irq_unsubscribe(struct hwbus_priv *self)
 	return ret;
 }
 
+/* Like the rest of the driver, this only supports one device per system */
+static struct gpio_desc *cw1200_reset;
+static struct gpio_desc *cw1200_powerup;
+
 static int cw1200_sdio_off(const struct cw1200_platform_data_sdio *pdata)
 {
-	if (pdata->reset) {
-		gpio_set_value(pdata->reset, 0);
+	if (cw1200_reset) {
+		gpiod_set_value(cw1200_reset, 0);
 		msleep(30); /* Min is 2 * CLK32K cycles */
-		gpio_free(pdata->reset);
 	}
 
 	if (pdata->power_ctrl)
@@ -196,16 +199,21 @@ static int cw1200_sdio_off(const struct cw1200_platform_data_sdio *pdata)
 
 static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 {
-	/* Ensure I/Os are pulled low */
-	if (pdata->reset) {
-		gpio_request(pdata->reset, "cw1200_wlan_reset");
-		gpio_direction_output(pdata->reset, 0);
+	/* Ensure I/Os are pulled low (reset is active low) */
+	cw1200_reset = devm_gpiod_get_optional(NULL, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(cw1200_reset)) {
+		pr_err("could not get CW1200 SDIO reset GPIO\n");
+		return PTR_ERR(cw1200_reset);
 	}
-	if (pdata->powerup) {
-		gpio_request(pdata->powerup, "cw1200_wlan_powerup");
-		gpio_direction_output(pdata->powerup, 0);
+	gpiod_set_consumer_name(cw1200_reset, "cw1200_wlan_reset");
+	cw1200_powerup = devm_gpiod_get_optional(NULL, "powerup", GPIOD_OUT_LOW);
+	if (IS_ERR(cw1200_powerup)) {
+		pr_err("could not get CW1200 SDIO powerup GPIO\n");
+		return PTR_ERR(cw1200_powerup);
 	}
-	if (pdata->reset || pdata->powerup)
+	gpiod_set_consumer_name(cw1200_powerup, "cw1200_wlan_powerup");
+
+	if (cw1200_reset || cw1200_powerup)
 		msleep(10); /* Settle time? */
 
 	/* Enable 3v3 and 1v8 to hardware */
@@ -226,13 +234,13 @@ static int cw1200_sdio_on(const struct cw1200_platform_data_sdio *pdata)
 	}
 
 	/* Enable POWERUP signal */
-	if (pdata->powerup) {
-		gpio_set_value(pdata->powerup, 1);
+	if (cw1200_powerup) {
+		gpiod_set_value(cw1200_powerup, 1);
 		msleep(250); /* or more..? */
 	}
-	/* Enable RSTn signal */
-	if (pdata->reset) {
-		gpio_set_value(pdata->reset, 1);
+	/* Deassert RSTn signal, note active low */
+	if (cw1200_reset) {
+		gpiod_set_value(cw1200_reset, 0);
 		msleep(50); /* Or more..? */
 	}
 	return 0;
