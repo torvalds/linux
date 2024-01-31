@@ -1008,7 +1008,7 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	u16 len;
 	u32 n_bands;
 	u32 n_profiles;
-	u32 sk = 0;
+	__le32 sk = cpu_to_le32(0);
 	int ret;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
 					   IWL_FW_CMD_VER_UNKNOWN);
@@ -1025,23 +1025,31 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	/* the ops field is at the same spot for all versions, so set in v1 */
 	cmd.v1.ops = cpu_to_le32(IWL_PER_CHAIN_OFFSET_SET_TABLES);
 
+	/* Only set to South Korea if the table revision is 1 */
+	if (mvm->fwrt.geo_rev == 1)
+		sk = cpu_to_le32(1);
+
 	if (cmd_ver == 5) {
 		len = sizeof(cmd.v5);
 		n_bands = ARRAY_SIZE(cmd.v5.table[0]);
 		n_profiles = BIOS_GEO_MAX_PROFILE_NUM;
+		cmd.v5.table_revision = sk;
 	} else if (cmd_ver == 4) {
 		len = sizeof(cmd.v4);
 		n_bands = ARRAY_SIZE(cmd.v4.table[0]);
 		n_profiles = BIOS_GEO_MAX_PROFILE_NUM;
+		cmd.v4.table_revision = sk;
 	} else if (cmd_ver == 3) {
 		len = sizeof(cmd.v3);
 		n_bands = ARRAY_SIZE(cmd.v3.table[0]);
 		n_profiles = BIOS_GEO_MIN_PROFILE_NUM;
+		cmd.v3.table_revision = sk;
 	} else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
 			      IWL_UCODE_TLV_API_SAR_TABLE_VER)) {
 		len = sizeof(cmd.v2);
 		n_bands = ARRAY_SIZE(cmd.v2.table[0]);
 		n_profiles = BIOS_GEO_MIN_PROFILE_NUM;
+		cmd.v2.table_revision = sk;
 	} else {
 		len = sizeof(cmd.v1);
 		n_bands = ARRAY_SIZE(cmd.v1.table[0]);
@@ -1066,27 +1074,6 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	 */
 	if (ret)
 		return 0;
-
-	/* Only set to South Korea if the table revision is 1 */
-	if (mvm->fwrt.geo_rev == 1)
-		sk = 1;
-
-	/*
-	 * Set the table_revision to South Korea (1) or not (0).  The
-	 * element name is misleading, as it doesn't contain the table
-	 * revision number, but whether the South Korea variation
-	 * should be used.
-	 * This must be done after calling iwl_sar_geo_fill_table().
-	 */
-	if (cmd_ver == 5)
-		cmd.v5.table_revision = cpu_to_le32(sk);
-	else if (cmd_ver == 4)
-		cmd.v4.table_revision = cpu_to_le32(sk);
-	else if (cmd_ver == 3)
-		cmd.v3.table_revision = cpu_to_le32(sk);
-	else if (fw_has_api(&mvm->fwrt.fw->ucode_capa,
-			    IWL_UCODE_TLV_API_SAR_TABLE_VER))
-		cmd.v2.table_revision = cpu_to_le32(sk);
 
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
 }
