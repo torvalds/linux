@@ -183,6 +183,7 @@ def define_pitti():
         "kernel/sched/walt/sched-walt.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
+        "net/wireless/cfg80211.ko",
         "sound/usb/snd-usb-audio-qmi.ko",
     ]
 
