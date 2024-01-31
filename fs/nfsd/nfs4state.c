@@ -4922,7 +4922,7 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 
 /* Called from break_lease() with flc_lock held. */
 static bool
-nfsd_break_deleg_cb(struct file_lock *fl)
+nfsd_break_deleg_cb(struct file_lease *fl)
 {
 	struct nfs4_delegation *dp = (struct nfs4_delegation *) fl->c.flc_owner;
 	struct nfs4_file *fp = dp->dl_stid.sc_file;
@@ -4960,7 +4960,7 @@ nfsd_break_deleg_cb(struct file_lock *fl)
  *   %true: Lease conflict was resolved
  *   %false: Lease conflict was not resolved.
  */
-static bool nfsd_breaker_owns_lease(struct file_lock *fl)
+static bool nfsd_breaker_owns_lease(struct file_lease *fl)
 {
 	struct nfs4_delegation *dl = fl->c.flc_owner;
 	struct svc_rqst *rqst;
@@ -4977,7 +4977,7 @@ static bool nfsd_breaker_owns_lease(struct file_lock *fl)
 }
 
 static int
-nfsd_change_deleg_cb(struct file_lock *onlist, int arg,
+nfsd_change_deleg_cb(struct file_lease *onlist, int arg,
 		     struct list_head *dispose)
 {
 	struct nfs4_delegation *dp = (struct nfs4_delegation *) onlist->c.flc_owner;
@@ -4991,7 +4991,7 @@ nfsd_change_deleg_cb(struct file_lock *onlist, int arg,
 		return -EAGAIN;
 }
 
-static const struct lock_manager_operations nfsd_lease_mng_ops = {
+static const struct lease_manager_operations nfsd_lease_mng_ops = {
 	.lm_breaker_owns_lease = nfsd_breaker_owns_lease,
 	.lm_break = nfsd_break_deleg_cb,
 	.lm_change = nfsd_change_deleg_cb,
@@ -5331,18 +5331,17 @@ static bool nfsd4_cb_channel_good(struct nfs4_client *clp)
 	return clp->cl_minorversion && clp->cl_cb_state == NFSD4_CB_UNKNOWN;
 }
 
-static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
+static struct file_lease *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
 						int flag)
 {
-	struct file_lock *fl;
+	struct file_lease *fl;
 
-	fl = locks_alloc_lock();
+	fl = locks_alloc_lease();
 	if (!fl)
 		return NULL;
 	fl->fl_lmops = &nfsd_lease_mng_ops;
 	fl->c.flc_flags = FL_DELEG;
 	fl->c.flc_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
-	fl->fl_end = OFFSET_MAX;
 	fl->c.flc_owner = (fl_owner_t)dp;
 	fl->c.flc_pid = current->tgid;
 	fl->c.flc_file = dp->dl_stid.sc_file->fi_deleg_file->nf_file;
@@ -5463,7 +5462,7 @@ nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	struct nfs4_clnt_odstate *odstate = stp->st_clnt_odstate;
 	struct nfs4_delegation *dp;
 	struct nfsd_file *nf = NULL;
-	struct file_lock *fl;
+	struct file_lease *fl;
 	u32 dl_type;
 
 	/*
@@ -5536,7 +5535,7 @@ nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	status = vfs_setlease(fp->fi_deleg_file->nf_file,
 			      fl->c.flc_type, &fl, NULL);
 	if (fl)
-		locks_free_lock(fl);
+		locks_free_lease(fl);
 	if (status)
 		goto out_clnt_odstate;
 
@@ -8449,7 +8448,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 {
 	__be32 status;
 	struct file_lock_context *ctx;
-	struct file_lock *fl;
+	struct file_lease *fl;
 	struct nfs4_delegation *dp;
 
 	ctx = locks_inode_context(inode);
@@ -8457,6 +8456,8 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 		return 0;
 	spin_lock(&ctx->flc_lock);
 	for_each_file_lock(fl, &ctx->flc_lease) {
+		unsigned char type = fl->c.flc_type;
+
 		if (fl->c.flc_flags == FL_LAYOUT)
 			continue;
 		if (fl->fl_lmops != &nfsd_lease_mng_ops) {
@@ -8465,11 +8466,11 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 			 * we are done; there isn't any write delegation
 			 * on this inode
 			 */
-			if (lock_is_read(fl))
+			if (type == F_RDLCK)
 				break;
 			goto break_lease;
 		}
-		if (lock_is_write(fl)) {
+		if (type == F_WRLCK) {
 			dp = fl->c.flc_owner;
 			if (dp->dl_recall.cb_clp == *(rqstp->rq_lease_breaker)) {
 				spin_unlock(&ctx->flc_lock);

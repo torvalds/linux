@@ -74,12 +74,17 @@ static struct file_lock *file_lock(struct file_lock_core *flc)
 	return container_of(flc, struct file_lock, c);
 }
 
-static bool lease_breaking(struct file_lock *fl)
+static struct file_lease *file_lease(struct file_lock_core *flc)
+{
+	return container_of(flc, struct file_lease, c);
+}
+
+static bool lease_breaking(struct file_lease *fl)
 {
 	return fl->c.flc_flags & (FL_UNLOCK_PENDING | FL_DOWNGRADE_PENDING);
 }
 
-static int target_leasetype(struct file_lock *fl)
+static int target_leasetype(struct file_lease *fl)
 {
 	if (fl->c.flc_flags & FL_UNLOCK_PENDING)
 		return F_UNLCK;
@@ -166,6 +171,7 @@ static DEFINE_SPINLOCK(blocked_lock_lock);
 
 static struct kmem_cache *flctx_cache __ro_after_init;
 static struct kmem_cache *filelock_cache __ro_after_init;
+static struct kmem_cache *filelease_cache __ro_after_init;
 
 static struct file_lock_context *
 locks_get_lock_context(struct inode *inode, int type)
@@ -275,6 +281,18 @@ struct file_lock *locks_alloc_lock(void)
 }
 EXPORT_SYMBOL_GPL(locks_alloc_lock);
 
+/* Allocate an empty lock structure. */
+struct file_lease *locks_alloc_lease(void)
+{
+	struct file_lease *fl = kmem_cache_zalloc(filelease_cache, GFP_KERNEL);
+
+	if (fl)
+		locks_init_lock_heads(&fl->c);
+
+	return fl;
+}
+EXPORT_SYMBOL_GPL(locks_alloc_lease);
+
 void locks_release_private(struct file_lock *fl)
 {
 	struct file_lock_core *flc = &fl->c;
@@ -336,15 +354,25 @@ void locks_free_lock(struct file_lock *fl)
 }
 EXPORT_SYMBOL(locks_free_lock);
 
+/* Free a lease which is not in use. */
+void locks_free_lease(struct file_lease *fl)
+{
+	kmem_cache_free(filelease_cache, fl);
+}
+EXPORT_SYMBOL(locks_free_lease);
+
 static void
 locks_dispose_list(struct list_head *dispose)
 {
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 
 	while (!list_empty(dispose)) {
-		fl = list_first_entry(dispose, struct file_lock, c.flc_list);
-		list_del_init(&fl->c.flc_list);
-		locks_free_lock(fl);
+		flc = list_first_entry(dispose, struct file_lock_core, flc_list);
+		list_del_init(&flc->flc_list);
+		if (flc->flc_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
+			locks_free_lease(file_lease(flc));
+		else
+			locks_free_lock(file_lock(flc));
 	}
 }
 
@@ -354,6 +382,13 @@ void locks_init_lock(struct file_lock *fl)
 	locks_init_lock_heads(&fl->c);
 }
 EXPORT_SYMBOL(locks_init_lock);
+
+void locks_init_lease(struct file_lease *fl)
+{
+	memset(fl, 0, sizeof(*fl));
+	locks_init_lock_heads(&fl->c);
+}
+EXPORT_SYMBOL(locks_init_lease);
 
 /*
  * Initialize a new lock from an existing file_lock structure.
@@ -518,14 +553,14 @@ static int flock_to_posix_lock(struct file *filp, struct file_lock *fl,
 
 /* default lease lock manager operations */
 static bool
-lease_break_callback(struct file_lock *fl)
+lease_break_callback(struct file_lease *fl)
 {
 	kill_fasync(&fl->fl_fasync, SIGIO, POLL_MSG);
 	return false;
 }
 
 static void
-lease_setup(struct file_lock *fl, void **priv)
+lease_setup(struct file_lease *fl, void **priv)
 {
 	struct file *filp = fl->c.flc_file;
 	struct fasync_struct *fa = *priv;
@@ -541,7 +576,7 @@ lease_setup(struct file_lock *fl, void **priv)
 	__f_setown(filp, task_pid(current), PIDTYPE_TGID, 0);
 }
 
-static const struct lock_manager_operations lease_manager_ops = {
+static const struct lease_manager_operations lease_manager_ops = {
 	.lm_break = lease_break_callback,
 	.lm_change = lease_modify,
 	.lm_setup = lease_setup,
@@ -550,7 +585,7 @@ static const struct lock_manager_operations lease_manager_ops = {
 /*
  * Initialize a lease, use the default lock manager operations
  */
-static int lease_init(struct file *filp, int type, struct file_lock *fl)
+static int lease_init(struct file *filp, int type, struct file_lease *fl)
 {
 	if (assign_type(&fl->c, type) != 0)
 		return -EINVAL;
@@ -560,17 +595,14 @@ static int lease_init(struct file *filp, int type, struct file_lock *fl)
 
 	fl->c.flc_file = filp;
 	fl->c.flc_flags = FL_LEASE;
-	fl->fl_start = 0;
-	fl->fl_end = OFFSET_MAX;
-	fl->fl_ops = NULL;
 	fl->fl_lmops = &lease_manager_ops;
 	return 0;
 }
 
 /* Allocate a file_lock initialised to this type of lease */
-static struct file_lock *lease_alloc(struct file *filp, int type)
+static struct file_lease *lease_alloc(struct file *filp, int type)
 {
-	struct file_lock *fl = locks_alloc_lock();
+	struct file_lease *fl = locks_alloc_lease();
 	int error = -ENOMEM;
 
 	if (fl == NULL)
@@ -578,7 +610,7 @@ static struct file_lock *lease_alloc(struct file *filp, int type)
 
 	error = lease_init(filp, type, fl);
 	if (error) {
-		locks_free_lock(fl);
+		locks_free_lease(fl);
 		return ERR_PTR(error);
 	}
 	return fl;
@@ -1395,7 +1427,7 @@ static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 	return error;
 }
 
-static void lease_clear_pending(struct file_lock *fl, int arg)
+static void lease_clear_pending(struct file_lease *fl, int arg)
 {
 	switch (arg) {
 	case F_UNLCK:
@@ -1407,7 +1439,7 @@ static void lease_clear_pending(struct file_lock *fl, int arg)
 }
 
 /* We already had a lease on this file; just change its type */
-int lease_modify(struct file_lock *fl, int arg, struct list_head *dispose)
+int lease_modify(struct file_lease *fl, int arg, struct list_head *dispose)
 {
 	int error = assign_type(&fl->c, arg);
 
@@ -1442,7 +1474,7 @@ static bool past_time(unsigned long then)
 static void time_out_leases(struct inode *inode, struct list_head *dispose)
 {
 	struct file_lock_context *ctx = inode->i_flctx;
-	struct file_lock *fl, *tmp;
+	struct file_lease *fl, *tmp;
 
 	lockdep_assert_held(&ctx->flc_lock);
 
@@ -1458,8 +1490,8 @@ static void time_out_leases(struct inode *inode, struct list_head *dispose)
 static bool leases_conflict(struct file_lock_core *lc, struct file_lock_core *bc)
 {
 	bool rc;
-	struct file_lock *lease = file_lock(lc);
-	struct file_lock *breaker = file_lock(bc);
+	struct file_lease *lease = file_lease(lc);
+	struct file_lease *breaker = file_lease(bc);
 
 	if (lease->fl_lmops->lm_breaker_owns_lease
 			&& lease->fl_lmops->lm_breaker_owns_lease(lease))
@@ -1480,7 +1512,7 @@ trace:
 }
 
 static bool
-any_leases_conflict(struct inode *inode, struct file_lock *breaker)
+any_leases_conflict(struct inode *inode, struct file_lease *breaker)
 {
 	struct file_lock_context *ctx = inode->i_flctx;
 	struct file_lock_core *flc;
@@ -1511,7 +1543,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 {
 	int error = 0;
 	struct file_lock_context *ctx;
-	struct file_lock *new_fl, *fl, *tmp;
+	struct file_lease *new_fl, *fl, *tmp;
 	unsigned long break_time;
 	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 	LIST_HEAD(dispose);
@@ -1571,7 +1603,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 	}
 
 restart:
-	fl = list_first_entry(&ctx->flc_lease, struct file_lock, c.flc_list);
+	fl = list_first_entry(&ctx->flc_lease, struct file_lease, c.flc_list);
 	break_time = fl->fl_break_time;
 	if (break_time != 0)
 		break_time -= jiffies;
@@ -1590,7 +1622,7 @@ restart:
 	percpu_down_read(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
 	trace_break_lease_unblock(inode, new_fl);
-	locks_delete_block(new_fl);
+	__locks_delete_block(&new_fl->c);
 	if (error >= 0) {
 		/*
 		 * Wait for the next conflicting lease that has not been
@@ -1607,7 +1639,7 @@ out:
 	percpu_up_read(&file_rwsem);
 	locks_dispose_list(&dispose);
 free_lock:
-	locks_free_lock(new_fl);
+	locks_free_lease(new_fl);
 	return error;
 }
 EXPORT_SYMBOL(__break_lease);
@@ -1625,14 +1657,14 @@ void lease_get_mtime(struct inode *inode, struct timespec64 *time)
 {
 	bool has_lease = false;
 	struct file_lock_context *ctx;
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 
 	ctx = locks_inode_context(inode);
 	if (ctx && !list_empty_careful(&ctx->flc_lease)) {
 		spin_lock(&ctx->flc_lock);
-		fl = list_first_entry_or_null(&ctx->flc_lease,
-					      struct file_lock, c.flc_list);
-		if (fl && lock_is_write(fl))
+		flc = list_first_entry_or_null(&ctx->flc_lease,
+					       struct file_lock_core, flc_list);
+		if (flc && flc->flc_type == F_WRLCK)
 			has_lease = true;
 		spin_unlock(&ctx->flc_lock);
 	}
@@ -1667,7 +1699,7 @@ EXPORT_SYMBOL(lease_get_mtime);
  */
 int fcntl_getlease(struct file *filp)
 {
-	struct file_lock *fl;
+	struct file_lease *fl;
 	struct inode *inode = file_inode(filp);
 	struct file_lock_context *ctx;
 	int type = F_UNLCK;
@@ -1739,9 +1771,9 @@ check_conflicting_open(struct file *filp, const int arg, int flags)
 }
 
 static int
-generic_add_lease(struct file *filp, int arg, struct file_lock **flp, void **priv)
+generic_add_lease(struct file *filp, int arg, struct file_lease **flp, void **priv)
 {
-	struct file_lock *fl, *my_fl = NULL, *lease;
+	struct file_lease *fl, *my_fl = NULL, *lease;
 	struct inode *inode = file_inode(filp);
 	struct file_lock_context *ctx;
 	bool is_deleg = (*flp)->c.flc_flags & FL_DELEG;
@@ -1850,7 +1882,7 @@ out:
 static int generic_delete_lease(struct file *filp, void *owner)
 {
 	int error = -EAGAIN;
-	struct file_lock *fl, *victim = NULL;
+	struct file_lease *fl, *victim = NULL;
 	struct inode *inode = file_inode(filp);
 	struct file_lock_context *ctx;
 	LIST_HEAD(dispose);
@@ -1890,7 +1922,7 @@ static int generic_delete_lease(struct file *filp, void *owner)
  *	The (input) flp->fl_lmops->lm_break function is required
  *	by break_lease().
  */
-int generic_setlease(struct file *filp, int arg, struct file_lock **flp,
+int generic_setlease(struct file *filp, int arg, struct file_lease **flp,
 			void **priv)
 {
 	struct inode *inode = file_inode(filp);
@@ -1937,7 +1969,7 @@ lease_notifier_chain_init(void)
 }
 
 static inline void
-setlease_notifier(int arg, struct file_lock *lease)
+setlease_notifier(int arg, struct file_lease *lease)
 {
 	if (arg != F_UNLCK)
 		srcu_notifier_call_chain(&lease_notifier_chain, arg, lease);
@@ -1973,7 +2005,7 @@ EXPORT_SYMBOL_GPL(lease_unregister_notifier);
  * may be NULL if the lm_setup operation doesn't require it.
  */
 int
-vfs_setlease(struct file *filp, int arg, struct file_lock **lease, void **priv)
+vfs_setlease(struct file *filp, int arg, struct file_lease **lease, void **priv)
 {
 	if (lease)
 		setlease_notifier(arg, *lease);
@@ -1986,7 +2018,7 @@ EXPORT_SYMBOL_GPL(vfs_setlease);
 
 static int do_fcntl_add_lease(unsigned int fd, struct file *filp, int arg)
 {
-	struct file_lock *fl;
+	struct file_lease *fl;
 	struct fasync_struct *new;
 	int error;
 
@@ -1996,14 +2028,14 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, int arg)
 
 	new = fasync_alloc();
 	if (!new) {
-		locks_free_lock(fl);
+		locks_free_lease(fl);
 		return -ENOMEM;
 	}
 	new->fa_fd = fd;
 
 	error = vfs_setlease(filp, arg, &fl, (void **)&new);
 	if (fl)
-		locks_free_lock(fl);
+		locks_free_lease(fl);
 	if (new)
 		fasync_free(new);
 	return error;
@@ -2626,7 +2658,7 @@ locks_remove_flock(struct file *filp, struct file_lock_context *flctx)
 static void
 locks_remove_lease(struct file *filp, struct file_lock_context *ctx)
 {
-	struct file_lock *fl, *tmp;
+	struct file_lease *fl, *tmp;
 	LIST_HEAD(dispose);
 
 	if (list_empty(&ctx->flc_lease))
@@ -2755,14 +2787,16 @@ static void lock_get_status(struct seq_file *f, struct file_lock_core *flc,
 	} else if (flc->flc_flags & FL_FLOCK) {
 		seq_puts(f, "FLOCK  ADVISORY  ");
 	} else if (flc->flc_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT)) {
-		type = target_leasetype(fl);
+		struct file_lease *lease = file_lease(flc);
+
+		type = target_leasetype(lease);
 
 		if (flc->flc_flags & FL_DELEG)
 			seq_puts(f, "DELEG  ");
 		else
 			seq_puts(f, "LEASE  ");
 
-		if (lease_breaking(fl))
+		if (lease_breaking(lease))
 			seq_puts(f, "BREAKING  ");
 		else if (flc->flc_file)
 			seq_puts(f, "ACTIVE    ");
@@ -2944,6 +2978,9 @@ static int __init filelock_init(void)
 
 	filelock_cache = kmem_cache_create("file_lock_cache",
 			sizeof(struct file_lock), 0, SLAB_PANIC, NULL);
+
+	filelease_cache = kmem_cache_create("file_lock_cache",
+			sizeof(struct file_lease), 0, SLAB_PANIC, NULL);
 
 	for_each_possible_cpu(i) {
 		struct file_lock_list_struct *fll = per_cpu_ptr(&file_lock_list, i);

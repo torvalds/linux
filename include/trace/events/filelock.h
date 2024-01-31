@@ -117,12 +117,12 @@ DEFINE_EVENT(filelock_lock, flock_lock_inode,
 		TP_ARGS(inode, fl, ret));
 
 DECLARE_EVENT_CLASS(filelock_lease,
-	TP_PROTO(struct inode *inode, struct file_lock *fl),
+	TP_PROTO(struct inode *inode, struct file_lease *fl),
 
 	TP_ARGS(inode, fl),
 
 	TP_STRUCT__entry(
-		__field(struct file_lock *, fl)
+		__field(struct file_lease *, fl)
 		__field(unsigned long, i_ino)
 		__field(dev_t, s_dev)
 		__field(struct file_lock_core *, blocker)
@@ -153,23 +153,23 @@ DECLARE_EVENT_CLASS(filelock_lease,
 		__entry->break_time, __entry->downgrade_time)
 );
 
-DEFINE_EVENT(filelock_lease, break_lease_noblock, TP_PROTO(struct inode *inode, struct file_lock *fl),
+DEFINE_EVENT(filelock_lease, break_lease_noblock, TP_PROTO(struct inode *inode, struct file_lease *fl),
 		TP_ARGS(inode, fl));
 
-DEFINE_EVENT(filelock_lease, break_lease_block, TP_PROTO(struct inode *inode, struct file_lock *fl),
+DEFINE_EVENT(filelock_lease, break_lease_block, TP_PROTO(struct inode *inode, struct file_lease *fl),
 		TP_ARGS(inode, fl));
 
-DEFINE_EVENT(filelock_lease, break_lease_unblock, TP_PROTO(struct inode *inode, struct file_lock *fl),
+DEFINE_EVENT(filelock_lease, break_lease_unblock, TP_PROTO(struct inode *inode, struct file_lease *fl),
 		TP_ARGS(inode, fl));
 
-DEFINE_EVENT(filelock_lease, generic_delete_lease, TP_PROTO(struct inode *inode, struct file_lock *fl),
+DEFINE_EVENT(filelock_lease, generic_delete_lease, TP_PROTO(struct inode *inode, struct file_lease *fl),
 		TP_ARGS(inode, fl));
 
-DEFINE_EVENT(filelock_lease, time_out_leases, TP_PROTO(struct inode *inode, struct file_lock *fl),
+DEFINE_EVENT(filelock_lease, time_out_leases, TP_PROTO(struct inode *inode, struct file_lease *fl),
 		TP_ARGS(inode, fl));
 
 TRACE_EVENT(generic_add_lease,
-	TP_PROTO(struct inode *inode, struct file_lock *fl),
+	TP_PROTO(struct inode *inode, struct file_lease *fl),
 
 	TP_ARGS(inode, fl),
 
@@ -204,7 +204,7 @@ TRACE_EVENT(generic_add_lease,
 );
 
 TRACE_EVENT(leases_conflict,
-	TP_PROTO(bool conflict, struct file_lock *lease, struct file_lock *breaker),
+	TP_PROTO(bool conflict, struct file_lease *lease, struct file_lease *breaker),
 
 	TP_ARGS(conflict, lease, breaker),
 

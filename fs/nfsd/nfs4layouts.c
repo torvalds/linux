@@ -25,7 +25,7 @@ static struct kmem_cache *nfs4_layout_cache;
 static struct kmem_cache *nfs4_layout_stateid_cache;
 
 static const struct nfsd4_callback_ops nfsd4_cb_layout_ops;
-static const struct lock_manager_operations nfsd4_layouts_lm_ops;
+static const struct lease_manager_operations nfsd4_layouts_lm_ops;
 
 const struct nfsd4_layout_ops *nfsd4_layout_ops[LAYOUT_TYPE_MAX] =  {
 #ifdef CONFIG_NFSD_FLEXFILELAYOUT
@@ -182,20 +182,19 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 static int
 nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 {
-	struct file_lock *fl;
+	struct file_lease *fl;
 	int status;
 
 	if (nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
 		return 0;
 
-	fl = locks_alloc_lock();
+	fl = locks_alloc_lease();
 	if (!fl)
 		return -ENOMEM;
-	locks_init_lock(fl);
+	locks_init_lease(fl);
 	fl->fl_lmops = &nfsd4_layouts_lm_ops;
 	fl->c.flc_flags = FL_LAYOUT;
 	fl->c.flc_type = F_RDLCK;
-	fl->fl_end = OFFSET_MAX;
 	fl->c.flc_owner = ls;
 	fl->c.flc_pid = current->tgid;
 	fl->c.flc_file = ls->ls_file->nf_file;
@@ -203,7 +202,7 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 	status = vfs_setlease(fl->c.flc_file, fl->c.flc_type, &fl,
 			      NULL);
 	if (status) {
-		locks_free_lock(fl);
+		locks_free_lease(fl);
 		return status;
 	}
 	BUG_ON(fl != NULL);
@@ -724,7 +723,7 @@ static const struct nfsd4_callback_ops nfsd4_cb_layout_ops = {
 };
 
 static bool
-nfsd4_layout_lm_break(struct file_lock *fl)
+nfsd4_layout_lm_break(struct file_lease *fl)
 {
 	/*
 	 * We don't want the locks code to timeout the lease for us;
@@ -737,14 +736,14 @@ nfsd4_layout_lm_break(struct file_lock *fl)
 }
 
 static int
-nfsd4_layout_lm_change(struct file_lock *onlist, int arg,
+nfsd4_layout_lm_change(struct file_lease *onlist, int arg,
 		struct list_head *dispose)
 {
 	BUG_ON(!(arg & F_UNLCK));
 	return lease_modify(onlist, arg, dispose);
 }
 
-static const struct lock_manager_operations nfsd4_layouts_lm_ops = {
+static const struct lease_manager_operations nfsd4_layouts_lm_ops = {
 	.lm_break	= nfsd4_layout_lm_break,
 	.lm_change	= nfsd4_layout_lm_change,
 };
