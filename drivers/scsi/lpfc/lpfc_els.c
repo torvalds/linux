@@ -1696,17 +1696,12 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t keepDID = 0, keep_nlp_flag = 0;
+	int rc;
 	uint32_t keep_new_nlp_flag = 0;
 	uint16_t keep_nlp_state;
 	u32 keep_nlp_fc4_type = 0;
 	struct lpfc_nvme_rport *keep_nrport = NULL;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
-
-	/* Fabric nodes can have the same WWPN so we don't bother searching
-	 * by WWPN.  Just return the ndlp that was given to us.
-	 */
-	if (ndlp->nlp_type & NLP_FABRIC)
-		return ndlp;
 
 	sp = (struct serv_parm *) ((uint8_t *) prsp + sizeof(uint32_t));
 	memset(name, 0, sizeof(struct lpfc_name));
@@ -1717,14 +1712,8 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	new_ndlp = lpfc_findnode_wwpn(vport, &sp->portName);
 
 	/* return immediately if the WWPN matches ndlp */
-	if (!new_ndlp || (new_ndlp == ndlp))
+	if (new_ndlp == ndlp)
 		return ndlp;
-
-	/*
-	 * Unregister from backend if not done yet. Could have been skipped
-	 * due to ADISC
-	 */
-	lpfc_nlp_unreg_node(vport, new_ndlp);
 
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		active_rrqs_xri_bitmap = mempool_alloc(phba->active_rrq_pool,
@@ -1742,11 +1731,37 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			 (new_ndlp ? new_ndlp->nlp_flag : 0),
 			 (new_ndlp ? new_ndlp->nlp_fc4_type : 0));
 
-	keepDID = new_ndlp->nlp_DID;
+	if (!new_ndlp) {
+		rc = memcmp(&ndlp->nlp_portname, name,
+			    sizeof(struct lpfc_name));
+		if (!rc) {
+			if (active_rrqs_xri_bitmap)
+				mempool_free(active_rrqs_xri_bitmap,
+					     phba->active_rrq_pool);
+			return ndlp;
+		}
+		new_ndlp = lpfc_nlp_init(vport, ndlp->nlp_DID);
+		if (!new_ndlp) {
+			if (active_rrqs_xri_bitmap)
+				mempool_free(active_rrqs_xri_bitmap,
+					     phba->active_rrq_pool);
+			return ndlp;
+		}
+	} else {
+		if (phba->sli_rev == LPFC_SLI_REV4 &&
+		    active_rrqs_xri_bitmap)
+			memcpy(active_rrqs_xri_bitmap,
+			       new_ndlp->active_rrqs_xri_bitmap,
+			       phba->cfg_rrq_xri_bitmap_sz);
 
-	if (phba->sli_rev == LPFC_SLI_REV4 && active_rrqs_xri_bitmap)
-		memcpy(active_rrqs_xri_bitmap, new_ndlp->active_rrqs_xri_bitmap,
-		       phba->cfg_rrq_xri_bitmap_sz);
+		/*
+		 * Unregister from backend if not done yet. Could have been
+		 * skipped due to ADISC
+		 */
+		lpfc_nlp_unreg_node(vport, new_ndlp);
+	}
+
+	keepDID = new_ndlp->nlp_DID;
 
 	/* At this point in this routine, we know new_ndlp will be
 	 * returned. however, any previous GID_FTs that were done
