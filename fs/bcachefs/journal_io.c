@@ -1991,7 +1991,7 @@ CLOSURE_CALLBACK(bch2_journal_write)
 
 			bio = ca->journal.bio;
 			bio_reset(bio, ca->disk_sb.bdev,
-				  REQ_OP_WRITE|REQ_PREFLUSH);
+				  REQ_OP_WRITE|REQ_SYNC|REQ_META|REQ_PREFLUSH);
 			bio->bi_end_io		= journal_write_endio;
 			bio->bi_private		= ca;
 			closure_bio_submit(bio, cl);
