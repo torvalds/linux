@@ -100,8 +100,8 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 
 static int ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 {
-	int ret_val;
 	u16 list_offset, data_offset, data_value;
+	int ret_val;
 
 	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
 		ixgbe_init_mac_link_ops_82599(hw);
@@ -503,11 +503,11 @@ static void ixgbe_stop_mac_link_on_d3_82599(struct ixgbe_hw *hw)
 static int ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete)
 {
+	bool got_lock = false;
+	int status = 0;
 	u32 autoc_reg;
 	u32 links_reg;
 	u32 i;
-	int status = 0;
-	bool got_lock = false;
 
 	if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
 		status = hw->mac.ops.acquire_swfw_sync(hw,
@@ -661,11 +661,11 @@ static int ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 					   ixgbe_link_speed speed,
 					   bool autoneg_wait_to_complete)
 {
-	int status = 0;
 	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
-	s32 i, j;
-	bool link_up = false;
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	bool link_up = false;
+	int status = 0;
+	s32 i, j;
 
 	 /* Set autoneg_advertised value based on input link speed */
 	hw->phy.autoneg_advertised = 0;
@@ -771,12 +771,11 @@ static int ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 				      ixgbe_link_speed speed,
 				      bool autoneg_wait_to_complete)
 {
+	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
+	u32 pma_pmd_10g_serial, pma_pmd_1g, link_mode, links_reg, i;
+	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
 	bool autoneg = false;
 	int status;
-	u32 pma_pmd_1g, link_mode, links_reg, i;
-	u32 autoc2 = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
-	u32 pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
-	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
 
 	/* holds the value of AUTOC register at this current point in time */
 	u32 current_autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -784,6 +783,8 @@ static int ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	u32 orig_autoc = 0;
 	/* temporary variable used for comparison purposes */
 	u32 autoc = current_autoc;
+
+	pma_pmd_10g_serial = autoc2 & IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_MASK;
 
 	/* Check to see if speed passed in is supported. */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_capabilities,
@@ -908,10 +909,10 @@ static int ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
 static int ixgbe_reset_hw_82599(struct ixgbe_hw *hw)
 {
 	ixgbe_link_speed link_speed;
-	int status;
 	u32 ctrl, i, autoc, autoc2;
-	u32 curr_lms;
 	bool link_up = false;
+	u32 curr_lms;
+	int status;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -1101,10 +1102,10 @@ static int ixgbe_fdir_check_cmd_complete(struct ixgbe_hw *hw, u32 *fdircmd)
  **/
 int ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 {
-	int i;
 	u32 fdirctrl = IXGBE_READ_REG(hw, IXGBE_FDIRCTRL);
 	u32 fdircmd;
 	int err;
+	int i;
 
 	fdirctrl &= ~IXGBE_FDIRCTRL_INIT_DONE;
 
@@ -1869,8 +1870,8 @@ static int ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw)
 {
 	u16 fw_offset, fw_ptp_cfg_offset;
 	int status = -EACCES;
-	u16 offset;
 	u16 fw_version = 0;
+	u16 offset;
 
 	/* firmware check is only necessary for SFI devices */
 	if (hw->phy.media_type != ixgbe_media_type_fiber)
@@ -2008,9 +2009,9 @@ static int ixgbe_read_eeprom_82599(struct ixgbe_hw *hw,
  **/
 static int ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw)
 {
-	int ret_val;
-	u32 anlp1_reg = 0;
 	u32 i, autoc_reg, autoc2_reg;
+	u32 anlp1_reg = 0;
+	int ret_val;
 
 	/* Enable link if disabled in NVM */
 	autoc2_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC2);
@@ -2064,9 +2065,9 @@ reset_pipeline_out:
 static int ixgbe_read_i2c_byte_82599(struct ixgbe_hw *hw, u8 byte_offset,
 				     u8 dev_addr, u8 *data)
 {
-	u32 esdp;
-	int status;
 	s32 timeout = 200;
+	int status;
+	u32 esdp;
 
 	if (hw->phy.qsfp_shared_i2c_bus == true) {
 		/* Acquire I2C bus ownership. */
@@ -2118,9 +2119,9 @@ release_i2c_access:
 static int ixgbe_write_i2c_byte_82599(struct ixgbe_hw *hw, u8 byte_offset,
 				      u8 dev_addr, u8 data)
 {
-	u32 esdp;
-	int status;
 	s32 timeout = 200;
+	int status;
+	u32 esdp;
 
 	if (hw->phy.qsfp_shared_i2c_bus == true) {
 		/* Acquire I2C bus ownership. */

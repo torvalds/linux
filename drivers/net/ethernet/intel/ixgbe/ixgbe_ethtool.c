@@ -3326,9 +3326,9 @@ static int ixgbe_get_module_info(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	int status;
 	u8 sff8472_rev, addr_mode;
 	bool page_swap = false;
+	int status;
 
 	if (hw->phy.type == ixgbe_phy_fw)
 		return -ENXIO;

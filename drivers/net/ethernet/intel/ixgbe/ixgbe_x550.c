@@ -927,10 +927,10 @@ static int ixgbe_checksum_ptr_x550(struct ixgbe_hw *hw, u16 ptr,
 				   u16 size, u16 *csum, u16 *buffer,
 				   u32 buffer_size)
 {
-	u16 buf[256];
-	int status;
 	u16 length, bufsz, i, start;
 	u16 *local_buffer;
+	u16 buf[256];
+	int status;
 
 	bufsz = ARRAY_SIZE(buf);
 
@@ -995,10 +995,10 @@ static int ixgbe_calc_checksum_X550(struct ixgbe_hw *hw, u16 *buffer,
 				    u32 buffer_size)
 {
 	u16 eeprom_ptrs[IXGBE_EEPROM_LAST_WORD + 1];
-	u16 *local_buffer;
-	int status;
-	u16 checksum = 0;
 	u16 pointer, i, size;
+	u16 *local_buffer;
+	u16 checksum = 0;
+	int status;
 
 	hw->eeprom.ops.init_params(hw);
 
@@ -1121,9 +1121,9 @@ static int ixgbe_read_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 *data)
 static int ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
 					       u16 *checksum_val)
 {
-	int status;
-	u16 checksum;
 	u16 read_checksum = 0;
+	u16 checksum;
+	int status;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
 	 * not continue or we could be in for a very long wait while every
@@ -1171,8 +1171,8 @@ static int ixgbe_validate_eeprom_checksum_X550(struct ixgbe_hw *hw,
 static int ixgbe_write_ee_hostif_data_X550(struct ixgbe_hw *hw, u16 offset,
 					   u16 data)
 {
-	int status;
 	struct ixgbe_hic_write_shadow_ram buffer;
+	int status;
 
 	buffer.hdr.req.cmd = FW_WRITE_SHADOW_RAM_CMD;
 	buffer.hdr.req.buf_lenh = 0;
@@ -1218,8 +1218,8 @@ static int ixgbe_write_ee_hostif_X550(struct ixgbe_hw *hw, u16 offset, u16 data)
  **/
 static int ixgbe_update_flash_X550(struct ixgbe_hw *hw)
 {
-	int status = 0;
 	union ixgbe_hic_hdr2 buffer;
+	int status = 0;
 
 	buffer.req.cmd = FW_SHADOW_RAM_DUMP_CMD;
 	buffer.req.buf_lenh = 0;
@@ -1269,9 +1269,9 @@ static bool ixgbe_fw_recovery_mode_X550(struct ixgbe_hw *hw)
  **/
 static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
 {
+	struct ixgbe_hic_disable_rxen fw_cmd;
 	u32 rxctrl, pfdtxgswc;
 	int status;
-	struct ixgbe_hic_disable_rxen fw_cmd;
 
 	rxctrl = IXGBE_READ_REG(hw, IXGBE_RXCTRL);
 	if (rxctrl & IXGBE_RXCTRL_RXEN) {
@@ -1313,8 +1313,8 @@ static void ixgbe_disable_rx_x550(struct ixgbe_hw *hw)
  **/
 static int ixgbe_update_eeprom_checksum_X550(struct ixgbe_hw *hw)
 {
-	int status;
 	u16 checksum = 0;
+	int status;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
 	 * not continue or we could be in for a very long wait while every
@@ -1432,8 +1432,8 @@ out:
  **/
 static int ixgbe_setup_ixfi_x550em_x(struct ixgbe_hw *hw)
 {
-	int status;
 	u32 reg_val;
+	int status;
 
 	/* Disable training protocol FSM. */
 	status = ixgbe_read_iosf_sb_reg_x550(hw,
@@ -1504,8 +1504,8 @@ static int ixgbe_setup_ixfi_x550em_x(struct ixgbe_hw *hw)
  **/
 static int ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
 {
-	int status;
 	u32 link_ctrl;
+	int status;
 
 	/* Restart auto-negotiation. */
 	status = hw->mac.ops.read_iosf_sb_reg(hw,
@@ -1554,8 +1554,8 @@ static int ixgbe_restart_an_internal_phy_x550em(struct ixgbe_hw *hw)
 static int ixgbe_setup_ixfi_x550em(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
-	int status;
 	u32 reg_val;
+	int status;
 
 	/* iXFI is only supported with X552 */
 	if (mac->type != ixgbe_mac_X550EM_x)
@@ -1650,9 +1650,9 @@ ixgbe_setup_mac_link_sfp_x550em(struct ixgbe_hw *hw,
 				ixgbe_link_speed speed,
 				__always_unused bool autoneg_wait_to_complete)
 {
-	int status;
-	u16 reg_slice, reg_val;
 	bool setup_linear = false;
+	u16 reg_slice, reg_val;
+	int status;
 
 	/* Check if SFP module is supported and linear */
 	status = ixgbe_supported_sfp_modules_X550em(hw, &setup_linear);
@@ -1694,8 +1694,8 @@ ixgbe_setup_mac_link_sfp_x550em(struct ixgbe_hw *hw,
 static int ixgbe_setup_sfi_x550a(struct ixgbe_hw *hw, ixgbe_link_speed *speed)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
-	int status;
 	u32 reg_val;
+	int status;
 
 	/* Disable all AN and force speed to 10G Serial. */
 	status = mac->ops.read_iosf_sb_reg(hw,
@@ -1922,8 +1922,8 @@ static int ixgbe_setup_mac_link_t_X550em(struct ixgbe_hw *hw,
 					 ixgbe_link_speed speed,
 					 bool autoneg_wait)
 {
-	int status;
 	ixgbe_link_speed force_speed;
+	int status;
 
 	/* Setup internal/external PHY link speed to iXFI (10G), unless
 	 * only 1G is auto advertised then setup KX link.
@@ -2278,8 +2278,8 @@ static void ixgbe_init_mac_link_ops_X550em(struct ixgbe_hw *hw)
  */
 static int ixgbe_setup_sfp_modules_X550em(struct ixgbe_hw *hw)
 {
-	int status;
 	bool linear;
+	int status;
 
 	/* Check if SFP module is supported */
 	status = ixgbe_supported_sfp_modules_X550em(hw, &linear);
@@ -2582,8 +2582,8 @@ static int ixgbe_handle_lasi_ext_t_x550em(struct ixgbe_hw *hw,
 static int ixgbe_setup_kr_speed_x550em(struct ixgbe_hw *hw,
 				       ixgbe_link_speed speed)
 {
-	int status;
 	u32 reg_val;
+	int status;
 
 	status = hw->mac.ops.read_iosf_sb_reg(hw,
 					IXGBE_KRM_LINK_CTRL_1(hw->bus.lan_id),
@@ -2869,9 +2869,9 @@ static int ixgbe_set_fw_drv_ver_x550(struct ixgbe_hw *hw, u8 maj, u8 min,
 static int ixgbe_get_lcd_t_x550em(struct ixgbe_hw *hw,
 				  ixgbe_link_speed *lcd_speed)
 {
+	u16 word = hw->eeprom.ctrl_word_3;
 	u16 an_lp_status;
 	int status;
-	u16 word = hw->eeprom.ctrl_word_3;
 
 	*lcd_speed = IXGBE_LINK_SPEED_UNKNOWN;
 
@@ -3076,10 +3076,10 @@ static void ixgbe_fc_autoneg_fiber_x550em_a(struct ixgbe_hw *hw)
 static int ixgbe_enter_lplu_t_x550em(struct ixgbe_hw *hw)
 {
 	u16 an_10g_cntl_reg, autoneg_reg, speed;
-	int status;
 	ixgbe_link_speed lcd_speed;
 	u32 save_autoneg;
 	bool link_up;
+	int status;
 
 	/* If blocked by MNG FW, then don't restart AN */
 	if (ixgbe_check_reset_blocked(hw))
@@ -3443,12 +3443,12 @@ static void ixgbe_set_mdio_speed(struct ixgbe_hw *hw)
  **/
 static int ixgbe_reset_hw_X550em(struct ixgbe_hw *hw)
 {
-	ixgbe_link_speed link_speed;
-	int status;
-	u32 ctrl = 0;
-	u32 i;
-	bool link_up = false;
 	u32 swfw_mask = hw->phy.phy_semaphore_mask;
+	ixgbe_link_speed link_speed;
+	bool link_up = false;
+	u32 ctrl = 0;
+	int status;
+	u32 i;
 
 	/* Call adapter stop to disable Tx/Rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -3611,8 +3611,8 @@ static void ixgbe_set_source_address_pruning_X550(struct ixgbe_hw *hw,
  **/
 static int ixgbe_setup_fc_backplane_x550em_a(struct ixgbe_hw *hw)
 {
-	int status = 0;
 	u32 an_cntl = 0;
+	int status = 0;
 
 	/* Validate the requested mode */
 	if (hw->fc.strict_ieee && hw->fc.requested_mode == ixgbe_fc_rx_pause) {

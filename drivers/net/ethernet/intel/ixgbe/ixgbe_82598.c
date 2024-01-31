@@ -97,8 +97,8 @@ static int ixgbe_init_phy_ops_82598(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
 	struct ixgbe_phy_info *phy = &hw->phy;
-	int ret_val;
 	u16 list_offset, data_offset;
+	int ret_val;
 
 	/* Identify the PHY */
 	phy->ops.identify(hw);
@@ -414,10 +414,10 @@ static int ixgbe_fc_enable_82598(struct ixgbe_hw *hw)
 static int ixgbe_start_mac_link_82598(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete)
 {
+	int status = 0;
 	u32 autoc_reg;
 	u32 links_reg;
 	u32 i;
-	int status = 0;
 
 	/* Restart link */
 	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -649,13 +649,13 @@ static int ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
  **/
 static int ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 {
-	int status;
 	int phy_status = 0;
-	u32 ctrl;
-	u32 gheccr;
-	u32 i;
-	u32 autoc;
 	u8  analog_val;
+	u32 gheccr;
+	int status;
+	u32 autoc;
+	u32 ctrl;
+	u32 i;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -951,10 +951,10 @@ static int ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val)
 static int ixgbe_read_i2c_phy_82598(struct ixgbe_hw *hw, u8 dev_addr,
 				    u8 byte_offset, u8 *eeprom_data)
 {
-	int status = 0;
 	u16 sfp_addr = 0;
 	u16 sfp_data = 0;
 	u16 sfp_stat = 0;
+	int status = 0;
 	u16 gssr;
 	u32 i;
 

@@ -113,10 +113,10 @@ bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
  **/
 int ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
 {
-	int ret_val = 0;
 	u32 reg = 0, reg_bp = 0;
-	u16 reg_cu = 0;
 	bool locked = false;
+	int ret_val = 0;
+	u16 reg_cu = 0;
 
 	/*
 	 * Validate the requested mode.  Strict IEEE mode does not allow
@@ -269,9 +269,9 @@ int ixgbe_setup_fc_generic(struct ixgbe_hw *hw)
  **/
 int ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 {
-	int ret_val;
-	u32 ctrl_ext;
 	u16 device_caps;
+	u32 ctrl_ext;
+	int ret_val;
 
 	/* Set the media type */
 	hw->phy.media_type = hw->mac.ops.get_media_type(hw);
@@ -493,10 +493,10 @@ int ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
 				  u32 pba_num_size)
 {
 	int ret_val;
-	u16 data;
 	u16 pba_ptr;
 	u16 offset;
 	u16 length;
+	u16 data;
 
 	if (pba_num == NULL) {
 		hw_dbg(hw, "PBA string buffer was null\n");
@@ -898,8 +898,8 @@ int ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw)
 int ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 					       u16 words, u16 *data)
 {
-	int status;
 	u16 i, count;
+	int status;
 
 	hw->eeprom.ops.init_params(hw);
 
@@ -945,11 +945,11 @@ int ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 static int ixgbe_write_eeprom_buffer_bit_bang(struct ixgbe_hw *hw, u16 offset,
 					      u16 words, u16 *data)
 {
+	u8 write_opcode = IXGBE_EEPROM_WRITE_OPCODE_SPI;
+	u16 page_size;
 	int status;
 	u16 word;
-	u16 page_size;
 	u16 i;
-	u8 write_opcode = IXGBE_EEPROM_WRITE_OPCODE_SPI;
 
 	/* Prepare the EEPROM for writing  */
 	status = ixgbe_acquire_eeprom(hw);
@@ -1041,8 +1041,8 @@ int ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data)
 int ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 					      u16 words, u16 *data)
 {
-	int status;
 	u16 i, count;
+	int status;
 
 	hw->eeprom.ops.init_params(hw);
 
@@ -1080,9 +1080,9 @@ int ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 static int ixgbe_read_eeprom_buffer_bit_bang(struct ixgbe_hw *hw, u16 offset,
 					     u16 words, u16 *data)
 {
-	int status;
-	u16 word_in;
 	u8 read_opcode = IXGBE_EEPROM_READ_OPCODE_SPI;
+	u16 word_in;
+	int status;
 	u16 i;
 
 	/* Prepare the EEPROM for reading  */
@@ -1152,8 +1152,8 @@ int ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 int ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 				   u16 words, u16 *data)
 {
-	u32 eerd;
 	int status;
+	u32 eerd;
 	u32 i;
 
 	hw->eeprom.ops.init_params(hw);
@@ -1246,8 +1246,8 @@ int ixgbe_read_eerd_generic(struct ixgbe_hw *hw, u16 offset, u16 *data)
 int ixgbe_write_eewr_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 				    u16 words, u16 *data)
 {
-	u32 eewr;
 	int status;
+	u32 eewr;
 	u16 i;
 
 	hw->eeprom.ops.init_params(hw);
@@ -1742,9 +1742,9 @@ int ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw)
 int ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 					   u16 *checksum_val)
 {
-	int status;
-	u16 checksum;
 	u16 read_checksum = 0;
+	u16 checksum;
+	int status;
 
 	/*
 	 * Read the first word from the EEPROM. If this times out or fails, do
@@ -1788,8 +1788,8 @@ int ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
  **/
 int ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw)
 {
-	int status;
 	u16 checksum;
+	int status;
 
 	/*
 	 * Read the first word from the EEPROM. If this times out or fails, do
@@ -2736,10 +2736,10 @@ int ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval)
  **/
 int ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
 {
-	ixgbe_link_speed speed = 0;
-	bool link_up = false;
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
+	ixgbe_link_speed speed = 0;
+	bool link_up = false;
 	bool locked = false;
 	int ret_val;
 
@@ -2784,9 +2784,9 @@ int ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index)
  **/
 int ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index)
 {
-	u32 autoc_reg = 0;
 	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	bool locked = false;
+	u32 autoc_reg = 0;
 	int ret_val;
 
 	if (index > 3)
@@ -2852,8 +2852,8 @@ static int ixgbe_get_san_mac_addr_offset(struct ixgbe_hw *hw,
 int ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr)
 {
 	u16 san_mac_data, san_mac_offset;
-	u8 i;
 	int ret_val;
+	u8 i;
 
 	/*
 	 * First read the EEPROM pointer to see if the MAC addresses are
@@ -3682,8 +3682,8 @@ int ixgbe_host_interface_command(struct ixgbe_hw *hw, void *buffer,
 {
 	u32 hdr_size = sizeof(struct ixgbe_hic_hdr);
 	struct ixgbe_hic_hdr *hdr = buffer;
-	u32 *u32arr = buffer;
 	u16 buf_len, dword_len;
+	u32 *u32arr = buffer;
 	int status;
 	u32 bi;
 
@@ -3758,8 +3758,8 @@ int ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 				 __always_unused const char *driver_ver)
 {
 	struct ixgbe_hic_drv_info fw_cmd;
-	int i;
 	int ret_val;
+	int i;
 
 	fw_cmd.hdr.cmd = FW_CEM_CMD_DRIVER_INFO;
 	fw_cmd.hdr.buf_len = FW_CEM_CMD_DRIVER_INFO_LEN;
@@ -3905,11 +3905,11 @@ static int ixgbe_get_ets_data(struct ixgbe_hw *hw, u16 *ets_cfg,
  **/
 int ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw)
 {
-	int status;
 	u16 ets_offset;
-	u16 ets_cfg;
 	u16 ets_sensor;
 	u8  num_sensors;
+	u16 ets_cfg;
+	int status;
 	u8  i;
 	struct ixgbe_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
 
@@ -3961,15 +3961,15 @@ int ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw)
  **/
 int ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 {
-	int status;
-	u16 ets_offset;
-	u16 ets_cfg;
-	u16 ets_sensor;
+	struct ixgbe_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
 	u8  low_thresh_delta;
 	u8  num_sensors;
 	u8  therm_limit;
+	u16 ets_sensor;
+	u16 ets_offset;
+	u16 ets_cfg;
+	int status;
 	u8  i;
-	struct ixgbe_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
 
 	memset(data, 0, sizeof(struct ixgbe_thermal_sensor_data));
 
@@ -4196,12 +4196,12 @@ int ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 					  ixgbe_link_speed speed,
 					  bool autoneg_wait_to_complete)
 {
-	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
 	ixgbe_link_speed highest_link_speed = IXGBE_LINK_SPEED_UNKNOWN;
-	int status = 0;
-	u32 speedcnt = 0;
-	u32 i = 0;
+	ixgbe_link_speed link_speed = IXGBE_LINK_SPEED_UNKNOWN;
 	bool autoneg, link_up = false;
+	u32 speedcnt = 0;
+	int status = 0;
+	u32 i = 0;
 
 	/* Mask off requested but non-supported speeds */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_speed, &autoneg);
@@ -4340,8 +4340,8 @@ out:
 void ixgbe_set_soft_rate_select_speed(struct ixgbe_hw *hw,
 				      ixgbe_link_speed speed)
 {
-	int status;
 	u8 rs, eeprom_data;
+	int status;
 
 	switch (speed) {
 	case IXGBE_LINK_SPEED_10GB_FULL:

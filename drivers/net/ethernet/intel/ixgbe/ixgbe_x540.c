@@ -68,9 +68,9 @@ int ixgbe_setup_mac_link_X540(struct ixgbe_hw *hw, ixgbe_link_speed speed,
  **/
 int ixgbe_reset_hw_X540(struct ixgbe_hw *hw)
 {
-	int status;
-	u32 ctrl, i;
 	u32 swfw_mask = hw->phy.phy_semaphore_mask;
+	u32 ctrl, i;
+	int status;
 
 	/* Call adapter stop to disable tx/rx and clear interrupts */
 	status = hw->mac.ops.stop_adapter(hw);
@@ -382,9 +382,9 @@ static int ixgbe_calc_eeprom_checksum_X540(struct ixgbe_hw *hw)
 static int ixgbe_validate_eeprom_checksum_X540(struct ixgbe_hw *hw,
 					       u16 *checksum_val)
 {
-	int status;
-	u16 checksum;
 	u16 read_checksum = 0;
+	u16 checksum;
+	int status;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
 	 * not continue or we could be in for a very long wait while every
@@ -441,8 +441,8 @@ out:
  **/
 static int ixgbe_update_eeprom_checksum_X540(struct ixgbe_hw *hw)
 {
-	int status;
 	u16 checksum;
+	int status;
 
 	/* Read the first word from the EEPROM. If this times out or fails, do
 	 * not continue or we could be in for a very long wait while every
@@ -486,8 +486,8 @@ out:
  **/
 static int ixgbe_update_flash_X540(struct ixgbe_hw *hw)
 {
-	u32 flup;
 	int status;
+	u32 flup;
 
 	status = ixgbe_poll_flash_update_done_X540(hw);
 	if (status == -EIO) {
