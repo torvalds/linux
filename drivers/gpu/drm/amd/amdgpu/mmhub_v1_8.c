@@ -707,24 +707,27 @@ static const struct amdgpu_ras_block_hw_ops mmhub_v1_8_ras_hw_ops = {
 };
 
 static int mmhub_v1_8_aca_bank_generate_report(struct aca_handle *handle,
-					       struct aca_bank *bank, enum aca_error_type type,
+					       struct aca_bank *bank, enum aca_smu_type type,
 					       struct aca_bank_report *report, void *data)
 {
-	u64 status, misc0;
+	u64 misc0;
 	int ret;
 
-	status = bank->regs[ACA_REG_IDX_STATUS];
-	if ((type == ACA_ERROR_TYPE_UE &&
-	     ACA_REG__STATUS__ERRORCODEEXT(status) == ACA_EXTERROR_CODE_FAULT) ||
-	    (type == ACA_ERROR_TYPE_CE &&
-	     ACA_REG__STATUS__ERRORCODEEXT(status) == ACA_EXTERROR_CODE_CE)) {
+	ret = aca_bank_info_decode(bank, &report->info);
+	if (ret)
+		return ret;
 
-		ret = aca_bank_info_decode(bank, &report->info);
-		if (ret)
-			return ret;
+	misc0 = bank->regs[ACA_REG_IDX_MISC0];
 
-		misc0 = bank->regs[ACA_REG_IDX_MISC0];
-		report->count[type] = ACA_REG__MISC0__ERRCNT(misc0);
+	switch (type) {
+	case ACA_SMU_TYPE_UE:
+		report->count[ACA_ERROR_TYPE_UE] = 1ULL;
+		break;
+	case ACA_SMU_TYPE_CE:
+		report->count[ACA_ERROR_TYPE_CE] = ACA_REG__MISC0__ERRCNT(misc0);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -741,7 +744,7 @@ static int mmhub_v1_8_err_codes[] = {
 };
 
 static bool mmhub_v1_8_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
-					 enum aca_error_type type, void *data)
+					 enum aca_smu_type type, void *data)
 {
 	u32 instlo;
 

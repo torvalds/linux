@@ -99,7 +99,14 @@ enum aca_error_type {
 	ACA_ERROR_TYPE_COUNT
 };
 
+enum aca_smu_type {
+	ACA_SMU_TYPE_UE = 0,
+	ACA_SMU_TYPE_CE,
+	ACA_SMU_TYPE_COUNT,
+};
+
 struct aca_bank {
+	enum aca_smu_type type;
 	u64 regs[ACA_MAX_REGS_COUNT];
 };
 
@@ -157,9 +164,9 @@ struct aca_handle {
 };
 
 struct aca_bank_ops {
-	int (*aca_bank_generate_report)(struct aca_handle *handle, struct aca_bank *bank, enum aca_error_type type,
+	int (*aca_bank_generate_report)(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type,
 					struct aca_bank_report *report, void *data);
-	bool (*aca_bank_is_valid)(struct aca_handle *handle, struct aca_bank *bank, enum aca_error_type type,
+	bool (*aca_bank_is_valid)(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type,
 				  void *data);
 };
 
@@ -167,8 +174,8 @@ struct aca_smu_funcs {
 	int max_ue_bank_count;
 	int max_ce_bank_count;
 	int (*set_debug_mode)(struct amdgpu_device *adev, bool enable);
-	int (*get_valid_aca_count)(struct amdgpu_device *adev, enum aca_error_type type, u32 *count);
-	int (*get_valid_aca_bank)(struct amdgpu_device *adev, enum aca_error_type type, int idx, struct aca_bank *bank);
+	int (*get_valid_aca_count)(struct amdgpu_device *adev, enum aca_smu_type type, u32 *count);
+	int (*get_valid_aca_bank)(struct amdgpu_device *adev, enum aca_smu_type type, int idx, struct aca_bank *bank);
 };
 
 struct amdgpu_aca {

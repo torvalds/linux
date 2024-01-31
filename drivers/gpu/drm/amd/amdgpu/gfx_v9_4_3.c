@@ -681,37 +681,40 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 };
 
 static int gfx_v9_4_3_aca_bank_generate_report(struct aca_handle *handle,
-					       struct aca_bank *bank, enum aca_error_type type,
+					       struct aca_bank *bank, enum aca_smu_type type,
 					       struct aca_bank_report *report, void *data)
 {
-	u64 status, misc0;
+	u64 misc0;
 	u32 instlo;
 	int ret;
 
-	status = bank->regs[ACA_REG_IDX_STATUS];
-	if ((type == ACA_ERROR_TYPE_UE &&
-	     ACA_REG__STATUS__ERRORCODEEXT(status) == ACA_EXTERROR_CODE_FAULT) ||
-	    (type == ACA_ERROR_TYPE_CE &&
-	     ACA_REG__STATUS__ERRORCODEEXT(status) == ACA_EXTERROR_CODE_CE)) {
+	ret = aca_bank_info_decode(bank, &report->info);
+	if (ret)
+		return ret;
 
-		ret = aca_bank_info_decode(bank, &report->info);
-		if (ret)
-			return ret;
+	/* NOTE: overwrite info.die_id with xcd id for gfx */
+	instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
+	instlo &= GENMASK(31, 1);
+	report->info.die_id = instlo == mmSMNAID_XCD0_MCA_SMU ? 0 : 1;
 
-		/* NOTE: overwrite info.die_id with xcd id for gfx */
-		instlo = ACA_REG__IPID__INSTANCEIDLO(bank->regs[ACA_REG_IDX_IPID]);
-		instlo &= GENMASK(31, 1);
-		report->info.die_id = instlo == mmSMNAID_XCD0_MCA_SMU ? 0 : 1;
+	misc0 = bank->regs[ACA_REG_IDX_MISC0];
 
-		misc0 = bank->regs[ACA_REG_IDX_MISC0];
-		report->count[type] = ACA_REG__MISC0__ERRCNT(misc0);
+	switch (type) {
+	case ACA_SMU_TYPE_UE:
+		report->count[ACA_ERROR_TYPE_UE] = 1ULL;
+		break;
+	case ACA_SMU_TYPE_CE:
+		report->count[ACA_ERROR_TYPE_CE] = ACA_REG__MISC0__ERRCNT(misc0);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
 }
 
 static bool gfx_v9_4_3_aca_bank_is_valid(struct aca_handle *handle, struct aca_bank *bank,
-					 enum aca_error_type type, void *data)
+					 enum aca_smu_type type, void *data)
 {
 	u32 instlo;
 

@@ -504,7 +504,7 @@ const struct amdgpu_ras_block_hw_ops umc_v12_0_ras_hw_ops = {
 	.query_ras_error_address = umc_v12_0_query_ras_error_address,
 };
 
-static int umc_v12_0_aca_bank_generate_report(struct aca_handle *handle, struct aca_bank *bank, enum aca_error_type type,
+static int umc_v12_0_aca_bank_generate_report(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type,
 					      struct aca_bank_report *report, void *data)
 {
 	struct amdgpu_device *adev = handle->adev;
@@ -517,14 +517,14 @@ static int umc_v12_0_aca_bank_generate_report(struct aca_handle *handle, struct 
 
 	status = bank->regs[ACA_REG_IDX_STATUS];
 	switch (type) {
-	case ACA_ERROR_TYPE_UE:
+	case ACA_SMU_TYPE_UE:
 		if (umc_v12_0_is_uncorrectable_error(adev, status)) {
-			report->count[type] = 1;
+			report->count[ACA_ERROR_TYPE_UE] = 1;
 		}
 		break;
-	case ACA_ERROR_TYPE_CE:
+	case ACA_SMU_TYPE_CE:
 		if (umc_v12_0_is_correctable_error(adev, status)) {
-			report->count[type] = 1;
+			report->count[ACA_ERROR_TYPE_CE] = 1;
 		}
 		break;
 	default:

@@ -2984,7 +2984,7 @@ static int aca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
 	return smu_v13_0_6_mca_set_debug_mode(smu, enable);
 }
 
-static int smu_v13_0_6_get_valid_aca_count(struct smu_context *smu, enum aca_error_type type, u32 *count)
+static int smu_v13_0_6_get_valid_aca_count(struct smu_context *smu, enum aca_smu_type type, u32 *count)
 {
 	uint32_t msg;
 	int ret;
@@ -2993,10 +2993,10 @@ static int smu_v13_0_6_get_valid_aca_count(struct smu_context *smu, enum aca_err
 		return -EINVAL;
 
 	switch (type) {
-	case ACA_ERROR_TYPE_UE:
+	case ACA_SMU_TYPE_UE:
 		msg = SMU_MSG_QueryValidMcaCount;
 		break;
-	case ACA_ERROR_TYPE_CE:
+	case ACA_SMU_TYPE_CE:
 		msg = SMU_MSG_QueryValidMcaCeCount;
 		break;
 	default:
@@ -3013,14 +3013,14 @@ static int smu_v13_0_6_get_valid_aca_count(struct smu_context *smu, enum aca_err
 }
 
 static int aca_smu_get_valid_aca_count(struct amdgpu_device *adev,
-				       enum aca_error_type type, u32 *count)
+				       enum aca_smu_type type, u32 *count)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
 	int ret;
 
 	switch (type) {
-	case ACA_ERROR_TYPE_UE:
-	case ACA_ERROR_TYPE_CE:
+	case ACA_SMU_TYPE_UE:
+	case ACA_SMU_TYPE_CE:
 		ret = smu_v13_0_6_get_valid_aca_count(smu, type, count);
 		break;
 	default:
@@ -3031,16 +3031,16 @@ static int aca_smu_get_valid_aca_count(struct amdgpu_device *adev,
 	return ret;
 }
 
-static int __smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_type type,
+static int __smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_smu_type type,
 				       int idx, int offset, u32 *val)
 {
 	uint32_t msg, param;
 
 	switch (type) {
-	case ACA_ERROR_TYPE_UE:
+	case ACA_SMU_TYPE_UE:
 		msg = SMU_MSG_McaBankDumpDW;
 		break;
-	case ACA_ERROR_TYPE_CE:
+	case ACA_SMU_TYPE_CE:
 		msg = SMU_MSG_McaBankCeDumpDW;
 		break;
 	default:
@@ -3052,7 +3052,7 @@ static int __smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_t
 	return smu_cmn_send_smc_msg_with_param(smu, msg, param, (uint32_t *)val);
 }
 
-static int smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_type type,
+static int smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_smu_type type,
 				     int idx, int offset, u32 *val, int count)
 {
 	int ret, i;
@@ -3069,7 +3069,7 @@ static int smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_typ
 	return 0;
 }
 
-static int aca_bank_read_reg(struct amdgpu_device *adev, enum aca_error_type type,
+static int aca_bank_read_reg(struct amdgpu_device *adev, enum aca_smu_type type,
 			     int idx, int reg_idx, u64 *val)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
@@ -3086,13 +3086,13 @@ static int aca_bank_read_reg(struct amdgpu_device *adev, enum aca_error_type typ
 	*val = (u64)data[1] << 32 | data[0];
 
 	dev_dbg(adev->dev, "mca read bank reg: type:%s, index: %d, reg_idx: %d, val: 0x%016llx\n",
-		type == ACA_ERROR_TYPE_UE ? "UE" : "CE", idx, reg_idx, *val);
+		type == ACA_SMU_TYPE_UE ? "UE" : "CE", idx, reg_idx, *val);
 
 	return 0;
 }
 
 static int aca_smu_get_valid_aca_bank(struct amdgpu_device *adev,
-				      enum aca_error_type type, int idx, struct aca_bank *bank)
+				      enum aca_smu_type type, int idx, struct aca_bank *bank)
 {
 	int i, ret, count;
 
