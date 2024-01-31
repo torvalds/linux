@@ -1260,6 +1260,14 @@ static int tsnep_rx_refill_zc(struct tsnep_rx *rx, int count, bool reuse)
 	return desc_refilled;
 }
 
+static void tsnep_xsk_rx_need_wakeup(struct tsnep_rx *rx, int desc_available)
+{
+	if (desc_available)
+		xsk_set_rx_need_wakeup(rx->xsk_pool);
+	else
+		xsk_clear_rx_need_wakeup(rx->xsk_pool);
+}
+
 static bool tsnep_xdp_run_prog(struct tsnep_rx *rx, struct bpf_prog *prog,
 			       struct xdp_buff *xdp, int *status,
 			       struct netdev_queue *tx_nq, struct tsnep_tx *tx)
@@ -1621,10 +1629,7 @@ static int tsnep_rx_poll_zc(struct tsnep_rx *rx, struct napi_struct *napi,
 		desc_available -= tsnep_rx_refill_zc(rx, desc_available, false);
 
 	if (xsk_uses_need_wakeup(rx->xsk_pool)) {
-		if (desc_available)
-			xsk_set_rx_need_wakeup(rx->xsk_pool);
-		else
-			xsk_clear_rx_need_wakeup(rx->xsk_pool);
+		tsnep_xsk_rx_need_wakeup(rx, desc_available);
 
 		return done;
 	}
@@ -1769,14 +1774,8 @@ static void tsnep_rx_reopen_xsk(struct tsnep_rx *rx)
 	 * first polling would be too late as need wakeup signalisation would
 	 * be delayed for an indefinite time
 	 */
-	if (xsk_uses_need_wakeup(rx->xsk_pool)) {
-		int desc_available = tsnep_rx_desc_available(rx);
-
-		if (desc_available)
-			xsk_set_rx_need_wakeup(rx->xsk_pool);
-		else
-			xsk_clear_rx_need_wakeup(rx->xsk_pool);
-	}
+	if (xsk_uses_need_wakeup(rx->xsk_pool))
+		tsnep_xsk_rx_need_wakeup(rx, tsnep_rx_desc_available(rx));
 }
 
 static bool tsnep_pending(struct tsnep_queue *queue)
