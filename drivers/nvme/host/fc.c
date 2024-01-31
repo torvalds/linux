@@ -2574,6 +2574,7 @@ static enum blk_eh_timer_return nvme_fc_timeout(struct request *rq)
 {
 	struct nvme_fc_fcp_op *op = blk_mq_rq_to_pdu(rq);
 	struct nvme_fc_ctrl *ctrl = op->ctrl;
+	u16 qnum = op->queue->qnum;
 	struct nvme_fc_cmd_iu *cmdiu = &op->cmd_iu;
 	struct nvme_command *sqe = &cmdiu->sqe;
 
@@ -2582,10 +2583,11 @@ static enum blk_eh_timer_return nvme_fc_timeout(struct request *rq)
 	 * will detect the aborted io and will fail the connection.
 	 */
 	dev_info(ctrl->ctrl.device,
-		"NVME-FC{%d.%d}: io timeout: opcode %d fctype %d w10/11: "
+		"NVME-FC{%d.%d}: io timeout: opcode %d fctype %d (%s) w10/11: "
 		"x%08x/x%08x\n",
-		ctrl->cnum, op->queue->qnum, sqe->common.opcode,
-		sqe->connect.fctype, sqe->common.cdw10, sqe->common.cdw11);
+		ctrl->cnum, qnum, sqe->common.opcode, sqe->fabrics.fctype,
+		nvme_fabrics_opcode_str(qnum, sqe),
+		sqe->common.cdw10, sqe->common.cdw11);
 	if (__nvme_fc_abort_op(ctrl, op))
 		nvme_fc_error_recovery(ctrl, "io timeout abort failed");
 
