@@ -386,6 +386,8 @@ static const char *wq_affn_names[WQ_AFFN_NR_TYPES] = {
 	[WQ_AFFN_SYSTEM]		= "system",
 };
 
+static bool wq_topo_initialized __read_mostly = false;
+
 /*
  * Per-cpu work items which run for longer than the following threshold are
  * automatically considered CPU intensive and excluded from concurrency
@@ -1509,6 +1511,9 @@ static void wq_update_node_max_active(struct workqueue_struct *wq, int off_cpu)
 	int total_cpus, node;
 
 	lockdep_assert_held(&wq->mutex);
+
+	if (!wq_topo_initialized)
+		return;
 
 	if (off_cpu >= 0 && !cpumask_test_cpu(off_cpu, effective))
 		off_cpu = -1;
@@ -4356,6 +4361,7 @@ static void free_node_nr_active(struct wq_node_nr_active **nna_ar)
 
 static void init_node_nr_active(struct wq_node_nr_active *nna)
 {
+	nna->max = WQ_DFL_MIN_ACTIVE;
 	atomic_set(&nna->nr, 0);
 	raw_spin_lock_init(&nna->lock);
 	INIT_LIST_HEAD(&nna->pending_pwqs);
@@ -7399,6 +7405,8 @@ void __init workqueue_init_topology(void)
 	init_pod_type(&wq_pod_types[WQ_AFFN_SMT], cpus_share_smt);
 	init_pod_type(&wq_pod_types[WQ_AFFN_CACHE], cpus_share_cache);
 	init_pod_type(&wq_pod_types[WQ_AFFN_NUMA], cpus_share_numa);
+
+	wq_topo_initialized = true;
 
 	mutex_lock(&wq_pool_mutex);
 
