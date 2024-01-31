@@ -2710,8 +2710,12 @@ static int tb_resume_noirq(struct tb *tb)
 
 	tb_dbg(tb, "resuming...\n");
 
-	/* remove any pci devices the firmware might have setup */
-	tb_switch_reset(tb->root_switch);
+	/*
+	 * For non-USB4 hosts (Apple systems) remove any PCIe devices
+	 * the firmware might have setup.
+	 */
+	if (!tb_switch_is_usb4(tb->root_switch))
+		tb_switch_reset(tb->root_switch);
 
 	tb_switch_resume(tb->root_switch);
 	tb_free_invalid_tunnels(tb);
