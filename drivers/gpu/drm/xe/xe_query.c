@@ -198,7 +198,7 @@ static int query_engines(struct xe_device *xe,
 		return -EINVAL;
 	}
 
-	engines = kmalloc(size, GFP_KERNEL);
+	engines = kzalloc(size, GFP_KERNEL);
 	if (!engines)
 		return -ENOMEM;
 
@@ -212,14 +212,10 @@ static int query_engines(struct xe_device *xe,
 			engines->engines[i].instance.engine_instance =
 				hwe->logical_instance;
 			engines->engines[i].instance.gt_id = gt->info.id;
-			engines->engines[i].instance.pad = 0;
-			memset(engines->engines[i].reserved, 0,
-			       sizeof(engines->engines[i].reserved));
 
 			i++;
 		}
 
-	engines->pad = 0;
 	engines->num_engines = i;
 
 	if (copy_to_user(query_ptr, engines, size)) {
