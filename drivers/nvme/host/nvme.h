@@ -1164,11 +1164,18 @@ static inline const char *nvme_get_fabrics_opcode_str(u8 opcode)
 }
 #endif /* CONFIG_NVME_VERBOSE_ERRORS */
 
-static inline const char *nvme_opcode_str(int qid, u8 opcode, u8 fctype)
+static inline const char *nvme_opcode_str(int qid, u8 opcode)
 {
-	if (opcode == nvme_fabrics_command)
-		return nvme_get_fabrics_opcode_str(fctype);
 	return qid ? nvme_get_opcode_str(opcode) :
 		nvme_get_admin_opcode_str(opcode);
+}
+
+static inline const char *nvme_fabrics_opcode_str(
+		int qid, const struct nvme_command *cmd)
+{
+	if (nvme_is_fabrics(cmd))
+		return nvme_get_fabrics_opcode_str(cmd->fabrics.fctype);
+
+	return nvme_opcode_str(qid, cmd->common.opcode);
 }
 #endif /* _NVME_H */
