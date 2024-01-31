@@ -824,28 +824,28 @@ static void locks_wake_up_blocks(struct file_lock_core *blocker)
 }
 
 static void
-locks_insert_lock_ctx(struct file_lock *fl, struct list_head *before)
+locks_insert_lock_ctx(struct file_lock_core *fl, struct list_head *before)
 {
-	list_add_tail(&fl->c.flc_list, before);
-	locks_insert_global_locks(&fl->c);
+	list_add_tail(&fl->flc_list, before);
+	locks_insert_global_locks(fl);
 }
 
 static void
-locks_unlink_lock_ctx(struct file_lock *fl)
+locks_unlink_lock_ctx(struct file_lock_core *fl)
 {
-	locks_delete_global_locks(&fl->c);
-	list_del_init(&fl->c.flc_list);
-	locks_wake_up_blocks(&fl->c);
+	locks_delete_global_locks(fl);
+	list_del_init(&fl->flc_list);
+	locks_wake_up_blocks(fl);
 }
 
 static void
-locks_delete_lock_ctx(struct file_lock *fl, struct list_head *dispose)
+locks_delete_lock_ctx(struct file_lock_core *fl, struct list_head *dispose)
 {
 	locks_unlink_lock_ctx(fl);
 	if (dispose)
-		list_add(&fl->c.flc_list, dispose);
+		list_add(&fl->flc_list, dispose);
 	else
-		locks_free_lock(fl);
+		locks_free_lock(file_lock(fl));
 }
 
 /* Determine if lock sys_fl blocks lock caller_fl. Common functionality
@@ -1072,7 +1072,7 @@ static int flock_lock_inode(struct inode *inode, struct file_lock *request)
 		if (request->c.flc_type == fl->c.flc_type)
 			goto out;
 		found = true;
-		locks_delete_lock_ctx(fl, &dispose);
+		locks_delete_lock_ctx(&fl->c, &dispose);
 		break;
 	}
 
@@ -1097,7 +1097,7 @@ find_conflict:
 		goto out;
 	locks_copy_lock(new_fl, request);
 	locks_move_blocks(new_fl, request);
-	locks_insert_lock_ctx(new_fl, &ctx->flc_flock);
+	locks_insert_lock_ctx(&new_fl->c, &ctx->flc_flock);
 	new_fl = NULL;
 	error = 0;
 
@@ -1236,7 +1236,7 @@ retry:
 			else
 				request->fl_end = fl->fl_end;
 			if (added) {
-				locks_delete_lock_ctx(fl, &dispose);
+				locks_delete_lock_ctx(&fl->c, &dispose);
 				continue;
 			}
 			request = fl;
@@ -1265,7 +1265,7 @@ retry:
 				 * one (This may happen several times).
 				 */
 				if (added) {
-					locks_delete_lock_ctx(fl, &dispose);
+					locks_delete_lock_ctx(&fl->c, &dispose);
 					continue;
 				}
 				/*
@@ -1282,9 +1282,9 @@ retry:
 				locks_move_blocks(new_fl, request);
 				request = new_fl;
 				new_fl = NULL;
-				locks_insert_lock_ctx(request,
+				locks_insert_lock_ctx(&request->c,
 						      &fl->c.flc_list);
-				locks_delete_lock_ctx(fl, &dispose);
+				locks_delete_lock_ctx(&fl->c, &dispose);
 				added = true;
 			}
 		}
@@ -1313,7 +1313,7 @@ retry:
 		}
 		locks_copy_lock(new_fl, request);
 		locks_move_blocks(new_fl, request);
-		locks_insert_lock_ctx(new_fl, &fl->c.flc_list);
+		locks_insert_lock_ctx(&new_fl->c, &fl->c.flc_list);
 		fl = new_fl;
 		new_fl = NULL;
 	}
@@ -1325,7 +1325,7 @@ retry:
 			left = new_fl2;
 			new_fl2 = NULL;
 			locks_copy_lock(left, right);
-			locks_insert_lock_ctx(left, &fl->c.flc_list);
+			locks_insert_lock_ctx(&left->c, &fl->c.flc_list);
 		}
 		right->fl_start = request->fl_end + 1;
 		locks_wake_up_blocks(&right->c);
@@ -1425,7 +1425,7 @@ int lease_modify(struct file_lock *fl, int arg, struct list_head *dispose)
 			printk(KERN_ERR "locks_delete_lock: fasync == %p\n", fl->fl_fasync);
 			fl->fl_fasync = NULL;
 		}
-		locks_delete_lock_ctx(fl, dispose);
+		locks_delete_lock_ctx(&fl->c, dispose);
 	}
 	return 0;
 }
@@ -1558,7 +1558,7 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
 			fl->fl_downgrade_time = break_time;
 		}
 		if (fl->fl_lmops->lm_break(fl))
-			locks_delete_lock_ctx(fl, &dispose);
+			locks_delete_lock_ctx(&fl->c, &dispose);
 	}
 
 	if (list_empty(&ctx->flc_lease))
@@ -1816,7 +1816,7 @@ generic_add_lease(struct file *filp, int arg, struct file_lock **flp, void **pri
 	if (!leases_enable)
 		goto out;
 
-	locks_insert_lock_ctx(lease, &ctx->flc_lease);
+	locks_insert_lock_ctx(&lease->c, &ctx->flc_lease);
 	/*
 	 * The check in break_lease() is lockless. It's possible for another
 	 * open to race in after we did the earlier check for a conflicting
@@ -1829,7 +1829,7 @@ generic_add_lease(struct file *filp, int arg, struct file_lock **flp, void **pri
 	smp_mb();
 	error = check_conflicting_open(filp, arg, lease->c.flc_flags);
 	if (error) {
-		locks_unlink_lock_ctx(lease);
+		locks_unlink_lock_ctx(&lease->c);
 		goto out;
 	}
 
