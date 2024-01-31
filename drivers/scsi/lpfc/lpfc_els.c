@@ -10131,6 +10131,9 @@ lpfc_els_rcv_fpin_peer_cgn(struct lpfc_hba *phba, struct fc_tlv_desc *tlv)
 	pc_evt_str = lpfc_get_fpin_congn_event_nm(pc_evt);
 	cnt = be32_to_cpu(pc->pname_count);
 
+	/* Capture FPIN frequency */
+	phba->cgn_fpin_frequency = be32_to_cpu(pc->event_period);
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_CGN_MGMT | LOG_ELS,
 			"4684 FPIN Peer Congestion %s (x%x) "
 			"Duration %d mSecs "
