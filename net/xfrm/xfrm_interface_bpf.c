@@ -93,10 +93,10 @@ __bpf_kfunc int bpf_skb_set_xfrm_info(struct __sk_buff *skb_ctx, const struct bp
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(xfrm_ifc_kfunc_set)
+BTF_KFUNCS_START(xfrm_ifc_kfunc_set)
 BTF_ID_FLAGS(func, bpf_skb_get_xfrm_info)
 BTF_ID_FLAGS(func, bpf_skb_set_xfrm_info)
-BTF_SET8_END(xfrm_ifc_kfunc_set)
+BTF_KFUNCS_END(xfrm_ifc_kfunc_set)
 
 static const struct btf_kfunc_id_set xfrm_interface_kfunc_set = {
 	.owner = THIS_MODULE,
