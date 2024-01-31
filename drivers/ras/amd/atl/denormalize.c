@@ -405,7 +405,7 @@ static const u16 phy_to_log_coh_st_map_mi300[] = {
 
 static u16 get_logical_coh_st_fabric_id_mi300(struct addr_ctx *ctx)
 {
-	if (ctx->inst_id >= sizeof(phy_to_log_coh_st_map_mi300)) {
+	if (ctx->inst_id >= ARRAY_SIZE(phy_to_log_coh_st_map_mi300)) {
 		atl_debug(ctx, "Instance ID out of range");
 		return ~0;
 	}
