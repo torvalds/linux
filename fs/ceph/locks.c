@@ -7,6 +7,7 @@
 
 #include "super.h"
 #include "mds_client.h"
+#define _NEED_FILE_LOCK_FIELD_MACROS
 #include <linux/filelock.h>
 #include <linux/ceph/pagelist.h>
 

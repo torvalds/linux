@@ -85,23 +85,28 @@ bool opens_in_grace(struct net *);
  *
  * Obviously, the last two criteria only matter for POSIX locks.
  */
-struct file_lock {
-	struct file_lock *fl_blocker;	/* The lock, that is blocking us */
-	struct list_head fl_list;	/* link into file_lock_context */
-	struct hlist_node fl_link;	/* node in global lists */
-	struct list_head fl_blocked_requests;	/* list of requests with
+
+struct file_lock_core {
+	struct file_lock *flc_blocker;	/* The lock that is blocking us */
+	struct list_head flc_list;	/* link into file_lock_context */
+	struct hlist_node flc_link;	/* node in global lists */
+	struct list_head flc_blocked_requests;	/* list of requests with
 						 * ->fl_blocker pointing here
 						 */
-	struct list_head fl_blocked_member;	/* node in
+	struct list_head flc_blocked_member;	/* node in
 						 * ->fl_blocker->fl_blocked_requests
 						 */
-	fl_owner_t fl_owner;
-	unsigned int fl_flags;
-	unsigned char fl_type;
-	pid_t fl_pid;
-	int fl_link_cpu;		/* what cpu's list is this on? */
-	wait_queue_head_t fl_wait;
-	struct file *fl_file;
+	fl_owner_t flc_owner;
+	unsigned int flc_flags;
+	unsigned char flc_type;
+	pid_t flc_pid;
+	int flc_link_cpu;		/* what cpu's list is this on? */
+	wait_queue_head_t flc_wait;
+	struct file *flc_file;
+};
+
+struct file_lock {
+	struct file_lock_core c;
 	loff_t fl_start;
 	loff_t fl_end;
 
@@ -126,6 +131,22 @@ struct file_lock {
 	} fl_u;
 } __randomize_layout;
 
+/* Temporary macros to allow building during coccinelle conversion */
+#ifdef _NEED_FILE_LOCK_FIELD_MACROS
+#define fl_list c.flc_list
+#define fl_blocker c.flc_blocker
+#define fl_link c.flc_link
+#define fl_blocked_requests c.flc_blocked_requests
+#define fl_blocked_member c.flc_blocked_member
+#define fl_owner c.flc_owner
+#define fl_flags c.flc_flags
+#define fl_type c.flc_type
+#define fl_pid c.flc_pid
+#define fl_link_cpu c.flc_link_cpu
+#define fl_wait c.flc_wait
+#define fl_file c.flc_file
+#endif
+
 struct file_lock_context {
 	spinlock_t		flc_lock;
 	struct list_head	flc_flock;
@@ -149,26 +170,26 @@ int fcntl_getlease(struct file *filp);
 
 static inline bool lock_is_unlock(struct file_lock *fl)
 {
-	return fl->fl_type == F_UNLCK;
+	return fl->c.flc_type == F_UNLCK;
 }
 
 static inline bool lock_is_read(struct file_lock *fl)
 {
-	return fl->fl_type == F_RDLCK;
+	return fl->c.flc_type == F_RDLCK;
 }
 
 static inline bool lock_is_write(struct file_lock *fl)
 {
-	return fl->fl_type == F_WRLCK;
+	return fl->c.flc_type == F_WRLCK;
 }
 
 static inline void locks_wake_up(struct file_lock *fl)
 {
-	wake_up(&fl->fl_wait);
+	wake_up(&fl->c.flc_wait);
 }
 
 /* for walking lists of file_locks linked by fl_list */
-#define for_each_file_lock(_fl, _head)	list_for_each_entry(_fl, _head, fl_list)
+#define for_each_file_lock(_fl, _head)	list_for_each_entry(_fl, _head, c.flc_list)
 
 /* fs/locks.c */
 void locks_free_lock_context(struct inode *inode);

@@ -48,6 +48,7 @@
  * children.
  *
  */
+#define _NEED_FILE_LOCK_FIELD_MACROS
 
 #include <linux/capability.h>
 #include <linux/file.h>
