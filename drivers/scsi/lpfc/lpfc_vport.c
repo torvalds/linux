@@ -238,12 +238,8 @@ lpfc_unique_wwpn(struct lpfc_hba *phba, struct lpfc_vport *new_vport)
 static void lpfc_discovery_wait(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
-	uint32_t wait_flags = 0;
 	unsigned long wait_time_max;
 	unsigned long start_time;
-
-	wait_flags = FC_RSCN_MODE | FC_RSCN_DISCOVERY | FC_NLP_MORE |
-		     FC_RSCN_DEFERRED | FC_NDISC_ACTIVE | FC_DISC_TMO;
 
 	/*
 	 * The time constraint on this loop is a balance between the
@@ -255,14 +251,19 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 	start_time = jiffies;
 	while (time_before(jiffies, wait_time_max)) {
 		if ((vport->num_disc_nodes > 0)    ||
-		    (vport->fc_flag & wait_flags)  ||
+		    test_bit(FC_RSCN_MODE, &vport->fc_flag) ||
+		    test_bit(FC_RSCN_DISCOVERY, &vport->fc_flag) ||
+		    test_bit(FC_NLP_MORE, &vport->fc_flag) ||
+		    test_bit(FC_RSCN_DEFERRED, &vport->fc_flag) ||
+		    test_bit(FC_NDISC_ACTIVE, &vport->fc_flag) ||
+		    test_bit(FC_DISC_TMO, &vport->fc_flag) ||
 		    ((vport->port_state > LPFC_VPORT_FAILED) &&
 		     (vport->port_state < LPFC_VPORT_READY))) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
-					"1833 Vport discovery quiesce Wait:"
-					" state x%x fc_flags x%x"
-					" num_nodes x%x, waiting 1000 msecs"
-					" total wait msecs x%x\n",
+					"1833 Vport discovery quiesce Wait: "
+					"state x%x fc_flags x%lx "
+					"num_nodes x%x, waiting 1000 msecs "
+					"total wait msecs x%x\n",
 					vport->port_state, vport->fc_flag,
 					vport->num_disc_nodes,
 					jiffies_to_msecs(jiffies - start_time));
@@ -270,9 +271,9 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 		} else {
 			/* Base case.  Wait variants satisfied.  Break out */
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_VPORT,
-					 "1834 Vport discovery quiesced:"
-					 " state x%x fc_flags x%x"
-					 " wait msecs x%x\n",
+					 "1834 Vport discovery quiesced: "
+					 "state x%x fc_flags x%lx "
+					 "wait msecs x%x\n",
 					 vport->port_state, vport->fc_flag,
 					 jiffies_to_msecs(jiffies
 						- start_time));
@@ -283,7 +284,7 @@ static void lpfc_discovery_wait(struct lpfc_vport *vport)
 	if (time_after(jiffies, wait_time_max))
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 				 "1835 Vport discovery quiesce failed:"
-				 " state x%x fc_flags x%x wait msecs x%x\n",
+				 " state x%x fc_flags x%lx wait msecs x%x\n",
 				 vport->port_state, vport->fc_flag,
 				 jiffies_to_msecs(jiffies - start_time));
 }
@@ -420,7 +421,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * by the port.
 	 */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-	    (pport->fc_flag & FC_VFI_REGISTERED)) {
+	    test_bit(FC_VFI_REGISTERED, &pport->fc_flag)) {
 		rc = lpfc_sli4_init_vpi(vport);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
@@ -435,7 +436,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 		 * Driver cannot INIT_VPI now. Set the flags to
 		 * init_vpi when reg_vfi complete.
 		 */
-		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+		set_bit(FC_VPORT_NEEDS_INIT_VPI, &vport->fc_flag);
 		lpfc_vport_set_state(vport, FC_VPORT_LINKDOWN);
 		rc = VPORT_OK;
 		goto out;
@@ -535,7 +536,6 @@ disable_vport(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	/* Can't disable during an outstanding delete. */
 	if (vport->load_flag & FC_UNLOADING)
@@ -556,11 +556,8 @@ disable_vport(struct fc_vport *fc_vport)
 	 * scsi_host_put() to release the vport.
 	 */
 	lpfc_mbx_unreg_vpi(vport);
-	if (phba->sli_rev == LPFC_SLI_REV4) {
-		spin_lock_irq(shost->host_lock);
-		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
-		spin_unlock_irq(shost->host_lock);
-	}
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		set_bit(FC_VPORT_NEEDS_INIT_VPI, &vport->fc_flag);
 
 	lpfc_vport_set_state(vport, FC_VPORT_DISABLED);
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_VPORT,
@@ -584,14 +581,13 @@ enable_vport(struct fc_vport *fc_vport)
 
 	spin_lock_irq(shost->host_lock);
 	vport->load_flag |= FC_LOADING;
-	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI) {
-		spin_unlock_irq(shost->host_lock);
+	spin_unlock_irq(shost->host_lock);
+	if (test_bit(FC_VPORT_NEEDS_INIT_VPI, &vport->fc_flag)) {
 		lpfc_issue_init_vpi(vport);
 		goto out;
 	}
 
-	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-	spin_unlock_irq(shost->host_lock);
+	set_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
 
 	/* Use the Physical nodes Fabric NDLP to determine if the link is
 	 * up and ready to FDISC.

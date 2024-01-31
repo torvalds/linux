@@ -1269,9 +1269,9 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 
 	/* Check and reset heart-beat timer if necessary */
 	mempool_free(pmboxq, phba->mbox_mem_pool);
-	if (!(phba->pport->fc_flag & FC_OFFLINE_MODE) &&
-		!(phba->link_state == LPFC_HBA_ERROR) &&
-		!(phba->pport->load_flag & FC_UNLOADING))
+	if (!test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag) &&
+	    !(phba->link_state == LPFC_HBA_ERROR) &&
+	    !(phba->pport->load_flag & FC_UNLOADING))
 		mod_timer(&phba->hb_tmofunc,
 			  jiffies +
 			  msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
@@ -1302,7 +1302,7 @@ lpfc_idle_stat_delay_work(struct work_struct *work)
 		return;
 
 	if (phba->link_state == LPFC_HBA_ERROR ||
-	    phba->pport->fc_flag & FC_OFFLINE_MODE ||
+	    test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag) ||
 	    phba->cmf_active_mode != LPFC_CFG_OFF)
 		goto requeue;
 
@@ -1363,7 +1363,7 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 		return;
 
 	if (phba->link_state == LPFC_HBA_ERROR ||
-	    phba->pport->fc_flag & FC_OFFLINE_MODE)
+	    test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		goto requeue;
 
 	ena_delay = kcalloc(phba->sli4_hba.num_possible_cpu, sizeof(*ena_delay),
@@ -1536,7 +1536,7 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 
 	if ((phba->link_state == LPFC_HBA_ERROR) ||
 		(phba->pport->load_flag & FC_UNLOADING) ||
-		(phba->pport->fc_flag & FC_OFFLINE_MODE))
+		test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		return;
 
 	if (phba->elsbuf_cnt &&
@@ -3698,7 +3698,7 @@ lpfc_online(struct lpfc_hba *phba)
 		return 0;
 	vport = phba->pport;
 
-	if (!(vport->fc_flag & FC_OFFLINE_MODE))
+	if (!test_bit(FC_OFFLINE_MODE, &vport->fc_flag))
 		return 0;
 
 	lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
@@ -3738,20 +3738,18 @@ lpfc_online(struct lpfc_hba *phba)
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL) {
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
-			struct Scsi_Host *shost;
-			shost = lpfc_shost_from_vport(vports[i]);
-			spin_lock_irq(shost->host_lock);
-			vports[i]->fc_flag &= ~FC_OFFLINE_MODE;
+			clear_bit(FC_OFFLINE_MODE, &vports[i]->fc_flag);
 			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
-				vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+				set_bit(FC_VPORT_NEEDS_REG_VPI,
+					&vports[i]->fc_flag);
 			if (phba->sli_rev == LPFC_SLI_REV4) {
-				vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+				set_bit(FC_VPORT_NEEDS_INIT_VPI,
+					&vports[i]->fc_flag);
 				if ((vpis_cleared) &&
 				    (vports[i]->port_type !=
 					LPFC_PHYSICAL_PORT))
 					vports[i]->vpi = 0;
 			}
-			spin_unlock_irq(shost->host_lock);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -3806,7 +3804,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 	int offline;
 	bool hba_pci_err;
 
-	if (vport->fc_flag & FC_OFFLINE_MODE)
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag))
 		return;
 
 	lpfc_block_mgmt_io(phba, mbx_action);
@@ -3825,9 +3823,9 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 			shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);
 			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
-			vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			vports[i]->fc_flag &= ~FC_VFI_REGISTERED;
 			spin_unlock_irq(shost->host_lock);
+			set_bit(FC_VPORT_NEEDS_REG_VPI, &vports[i]->fc_flag);
+			clear_bit(FC_VFI_REGISTERED, &vports[i]->fc_flag);
 
 			list_for_each_entry_safe(ndlp, next_ndlp,
 						 &vports[i]->fc_nodes,
@@ -3910,7 +3908,7 @@ lpfc_offline(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	int i;
 
-	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+	if (test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		return;
 
 	/* stop port and all timers associated with this hba */
@@ -3941,14 +3939,14 @@ lpfc_offline(struct lpfc_hba *phba)
 			shost = lpfc_shost_from_vport(vports[i]);
 			spin_lock_irq(shost->host_lock);
 			vports[i]->work_port_events = 0;
-			vports[i]->fc_flag |= FC_OFFLINE_MODE;
 			spin_unlock_irq(shost->host_lock);
+			set_bit(FC_OFFLINE_MODE, &vports[i]->fc_flag);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 	/* If OFFLINE flag is clear (i.e. unloading), cpuhp removal is handled
 	 * in hba_unset
 	 */
-	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+	if (test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		__lpfc_cpuhp_remove(phba);
 
 	if (phba->cfg_xri_rebalancing)
@@ -4767,7 +4765,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	vport = (struct lpfc_vport *) shost->hostdata;
 	vport->phba = phba;
 	vport->load_flag |= FC_LOADING;
-	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+	set_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
 	vport->fc_rscn_flush = 0;
 	atomic_set(&vport->fc_plogi_cnt, 0);
 	atomic_set(&vport->fc_adisc_cnt, 0);
@@ -6704,9 +6702,7 @@ lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
 		return NULL;
 	lpfc_linkdown_port(vport);
 	lpfc_cleanup_pending_mbox(vport);
-	spin_lock_irq(shost->host_lock);
-	vport->fc_flag |= FC_VPORT_CVL_RCVD;
-	spin_unlock_irq(shost->host_lock);
+	set_bit(FC_VPORT_CVL_RCVD, &vport->fc_flag);
 
 	return ndlp;
 }
@@ -6903,9 +6899,9 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		if (vports) {
 			for (i = 0; i <= phba->max_vports && vports[i] != NULL;
 					i++) {
-				if ((!(vports[i]->fc_flag &
-					FC_VPORT_CVL_RCVD)) &&
-					(vports[i]->port_state > LPFC_FDISC)) {
+				if (!test_bit(FC_VPORT_CVL_RCVD,
+					      &vports[i]->fc_flag) &&
+				    vports[i]->port_state > LPFC_FDISC) {
 					active_vlink_present = 1;
 					break;
 				}
@@ -12783,7 +12779,8 @@ static void __lpfc_cpuhp_remove(struct lpfc_hba *phba)
 
 static void lpfc_cpuhp_remove(struct lpfc_hba *phba)
 {
-	if (phba->pport && (phba->pport->fc_flag & FC_OFFLINE_MODE))
+	if (phba->pport &&
+	    test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		return;
 
 	__lpfc_cpuhp_remove(phba);
