@@ -3593,7 +3593,7 @@ static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv, int port_num)
 		reg = REG_MACID1;
 		break;
 	default:
-		WARN_ONCE("%s: invalid port_num\n", __func__);
+		WARN_ONCE(1, "%s: invalid port_num\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3618,7 +3618,7 @@ static int rtl8xxxu_set_bssid(struct rtl8xxxu_priv *priv, const u8 *bssid, int p
 		reg = REG_BSSID1;
 		break;
 	default:
-		WARN_ONCE("%s: invalid port_num\n", __func__);
+		WARN_ONCE(1, "%s: invalid port_num\n", __func__);
 		return -EINVAL;
 	}
 
