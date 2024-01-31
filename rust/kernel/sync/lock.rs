@@ -28,7 +28,7 @@ pub unsafe trait Backend {
     /// The state required by the lock.
     type State;
 
-    /// The state required to be kept between lock and unlock.
+    /// The state required to be kept between `lock` and `unlock`.
     type GuardState;
 
     /// Initialises the lock.
