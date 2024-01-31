@@ -484,7 +484,7 @@ static ssize_t mmu_asid_va_write(struct file *file, const char __user *buf,
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
-	char kbuf[MMU_KBUF_SIZE];
+	char kbuf[MMU_KBUF_SIZE] = {0};
 	char *c;
 	ssize_t rc;
 
@@ -546,7 +546,7 @@ static ssize_t mmu_ack_error_value_write(struct file *file,
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
-	char kbuf[MMU_KBUF_SIZE];
+	char kbuf[MMU_KBUF_SIZE] = {0};
 	ssize_t rc;
 
 	if (count > sizeof(kbuf) - 1)
