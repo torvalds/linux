@@ -19,6 +19,11 @@ ktap_print_header() {
 	echo "TAP version 13"
 }
 
+ktap_print_msg()
+{
+	echo "#" $@
+}
+
 ktap_set_plan() {
 	num_tests="$1"
 
