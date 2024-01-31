@@ -2695,11 +2695,11 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			    loff_t id, char *pfx, int repeat)
 {
 	struct inode *inode = NULL;
-	unsigned int fl_pid;
+	unsigned int pid;
 	struct pid_namespace *proc_pidns = proc_pid_ns(file_inode(f->file)->i_sb);
 	int type;
 
-	fl_pid = locks_translate_pid(fl, proc_pidns);
+	pid = locks_translate_pid(fl, proc_pidns);
 	/*
 	 * If lock owner is dead (and pid is freed) or not visible in current
 	 * pidns, zero is shown as a pid value. Check lock info from
@@ -2747,11 +2747,11 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 			     (type == F_RDLCK) ? "READ" : "UNLCK");
 	if (inode) {
 		/* userspace relies on this representation of dev_t */
-		seq_printf(f, "%d %02x:%02x:%lu ", fl_pid,
+		seq_printf(f, "%d %02x:%02x:%lu ", pid,
 				MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino);
 	} else {
-		seq_printf(f, "%d <none>:0 ", fl_pid);
+		seq_printf(f, "%d <none>:0 ", pid);
 	}
 	if (IS_POSIX(fl)) {
 		if (fl->fl_end == OFFSET_MAX)
