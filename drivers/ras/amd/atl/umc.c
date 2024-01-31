@@ -49,6 +49,204 @@ static u8 get_coh_st_inst_id_mi300(struct atl_err *err)
 	return i;
 }
 
+/* XOR the bits in @val. */
+static u16 bitwise_xor_bits(u16 val)
+{
+	u16 tmp = 0;
+	u8 i;
+
+	for (i = 0; i < 16; i++)
+		tmp ^= (val >> i) & 0x1;
+
+	return tmp;
+}
+
+struct xor_bits {
+	bool	xor_enable;
+	u16	col_xor;
+	u32	row_xor;
+};
+
+#define NUM_BANK_BITS	4
+
+static struct {
+	/* UMC::CH::AddrHashBank */
+	struct xor_bits	bank[NUM_BANK_BITS];
+
+	/* UMC::CH::AddrHashPC */
+	struct xor_bits	pc;
+
+	/* UMC::CH::AddrHashPC2 */
+	u8		bank_xor;
+} addr_hash;
+
+#define MI300_UMC_CH_BASE	0x90000
+#define MI300_ADDR_HASH_BANK0	(MI300_UMC_CH_BASE + 0xC8)
+#define MI300_ADDR_HASH_PC	(MI300_UMC_CH_BASE + 0xE0)
+#define MI300_ADDR_HASH_PC2	(MI300_UMC_CH_BASE + 0xE4)
+
+#define ADDR_HASH_XOR_EN	BIT(0)
+#define ADDR_HASH_COL_XOR	GENMASK(13, 1)
+#define ADDR_HASH_ROW_XOR	GENMASK(31, 14)
+#define ADDR_HASH_BANK_XOR	GENMASK(5, 0)
+
+/*
+ * Read UMC::CH::AddrHash{Bank,PC,PC2} registers to get XOR bits used
+ * for hashing. Do this during module init, since the values will not
+ * change during run time.
+ *
+ * These registers are instantiated for each UMC across each AMD Node.
+ * However, they should be identically programmed due to the fixed hardware
+ * design of MI300 systems. So read the values from Node 0 UMC 0 and keep a
+ * single global structure for simplicity.
+ */
+int get_addr_hash_mi300(void)
+{
+	u32 temp;
+	int ret;
+	u8 i;
+
+	for (i = 0; i < NUM_BANK_BITS; i++) {
+		ret = amd_smn_read(0, MI300_ADDR_HASH_BANK0 + (i * 4), &temp);
+		if (ret)
+			return ret;
+
+		addr_hash.bank[i].xor_enable = FIELD_GET(ADDR_HASH_XOR_EN,  temp);
+		addr_hash.bank[i].col_xor    = FIELD_GET(ADDR_HASH_COL_XOR, temp);
+		addr_hash.bank[i].row_xor    = FIELD_GET(ADDR_HASH_ROW_XOR, temp);
+	}
+
+	ret = amd_smn_read(0, MI300_ADDR_HASH_PC, &temp);
+	if (ret)
+		return ret;
+
+	addr_hash.pc.xor_enable = FIELD_GET(ADDR_HASH_XOR_EN,  temp);
+	addr_hash.pc.col_xor    = FIELD_GET(ADDR_HASH_COL_XOR, temp);
+	addr_hash.pc.row_xor    = FIELD_GET(ADDR_HASH_ROW_XOR, temp);
+
+	ret = amd_smn_read(0, MI300_ADDR_HASH_PC2, &temp);
+	if (ret)
+		return ret;
+
+	addr_hash.bank_xor = FIELD_GET(ADDR_HASH_BANK_XOR, temp);
+
+	return 0;
+}
+
+/*
+ * MI300 systems report a DRAM address in MCA_ADDR for DRAM ECC errors. This must
+ * be converted to the intermediate normalized address (NA) before translating to a
+ * system physical address.
+ *
+ * The DRAM address includes bank, row, and column. Also included are bits for
+ * pseudochannel (PC) and stack ID (SID).
+ *
+ * Abbreviations: (S)tack ID, (P)seudochannel, (R)ow, (B)ank, (C)olumn, (Z)ero
+ *
+ * The MCA address format is as follows:
+ *	MCA_ADDR[27:0] = {S[1:0], P[0], R[14:0], B[3:0], C[4:0], Z[0]}
+ *
+ * The normalized address format is fixed in hardware and is as follows:
+ *	NA[30:0] = {S[1:0], R[13:0], C4, B[1:0], B[3:2], C[3:2], P, C[1:0], Z[4:0]}
+ *
+ * Additionally, the PC and Bank bits may be hashed. This must be accounted for before
+ * reconstructing the normalized address.
+ */
+#define MI300_UMC_MCA_COL	GENMASK(5, 1)
+#define MI300_UMC_MCA_BANK	GENMASK(9, 6)
+#define MI300_UMC_MCA_ROW	GENMASK(24, 10)
+#define MI300_UMC_MCA_PC	BIT(25)
+#define MI300_UMC_MCA_SID	GENMASK(27, 26)
+
+#define MI300_NA_COL_1_0	GENMASK(6, 5)
+#define MI300_NA_PC		BIT(7)
+#define MI300_NA_COL_3_2	GENMASK(9, 8)
+#define MI300_NA_BANK_3_2	GENMASK(11, 10)
+#define MI300_NA_BANK_1_0	GENMASK(13, 12)
+#define MI300_NA_COL_4		BIT(14)
+#define MI300_NA_ROW		GENMASK(28, 15)
+#define MI300_NA_SID		GENMASK(30, 29)
+
+static unsigned long convert_dram_to_norm_addr_mi300(unsigned long addr)
+{
+	u16 i, col, row, bank, pc, sid, temp;
+
+	col  = FIELD_GET(MI300_UMC_MCA_COL,  addr);
+	bank = FIELD_GET(MI300_UMC_MCA_BANK, addr);
+	row  = FIELD_GET(MI300_UMC_MCA_ROW,  addr);
+	pc   = FIELD_GET(MI300_UMC_MCA_PC,   addr);
+	sid  = FIELD_GET(MI300_UMC_MCA_SID,  addr);
+
+	/* Calculate hash for each Bank bit. */
+	for (i = 0; i < NUM_BANK_BITS; i++) {
+		if (!addr_hash.bank[i].xor_enable)
+			continue;
+
+		temp  = bitwise_xor_bits(col & addr_hash.bank[i].col_xor);
+		temp ^= bitwise_xor_bits(row & addr_hash.bank[i].row_xor);
+		bank ^= temp << i;
+	}
+
+	/* Calculate hash for PC bit. */
+	if (addr_hash.pc.xor_enable) {
+		/* Bits SID[1:0] act as Bank[6:5] for PC hash, so apply them here. */
+		bank |= sid << 5;
+
+		temp  = bitwise_xor_bits(col  & addr_hash.pc.col_xor);
+		temp ^= bitwise_xor_bits(row  & addr_hash.pc.row_xor);
+		temp ^= bitwise_xor_bits(bank & addr_hash.bank_xor);
+		pc   ^= temp;
+
+		/* Drop SID bits for the sake of debug printing later. */
+		bank &= 0x1F;
+	}
+
+	/* Reconstruct the normalized address starting with NA[4:0] = 0 */
+	addr  = 0;
+
+	/* NA[6:5] = Column[1:0] */
+	temp  = col & 0x3;
+	addr |= FIELD_PREP(MI300_NA_COL_1_0, temp);
+
+	/* NA[7] = PC */
+	addr |= FIELD_PREP(MI300_NA_PC, pc);
+
+	/* NA[9:8] = Column[3:2] */
+	temp  = (col >> 2) & 0x3;
+	addr |= FIELD_PREP(MI300_NA_COL_3_2, temp);
+
+	/* NA[11:10] = Bank[3:2] */
+	temp  = (bank >> 2) & 0x3;
+	addr |= FIELD_PREP(MI300_NA_BANK_3_2, temp);
+
+	/* NA[13:12] = Bank[1:0] */
+	temp  = bank & 0x3;
+	addr |= FIELD_PREP(MI300_NA_BANK_1_0, temp);
+
+	/* NA[14] = Column[4] */
+	temp  = (col >> 4) & 0x1;
+	addr |= FIELD_PREP(MI300_NA_COL_4, temp);
+
+	/* NA[28:15] = Row[13:0] */
+	addr |= FIELD_PREP(MI300_NA_ROW, row);
+
+	/* NA[30:29] = SID[1:0] */
+	addr |= FIELD_PREP(MI300_NA_SID, sid);
+
+	pr_debug("Addr=0x%016lx", addr);
+	pr_debug("Bank=%u Row=%u Column=%u PC=%u SID=%u", bank, row, col, pc, sid);
+
+	return addr;
+}
+
+static unsigned long get_addr(unsigned long addr)
+{
+	if (df_cfg.rev == DF4p5 && df_cfg.flags.heterogeneous)
+		return convert_dram_to_norm_addr_mi300(addr);
+
+	return addr;
+}
+
 #define MCA_IPID_INST_ID_HI	GENMASK_ULL(47, 44)
 static u8 get_die_id(struct atl_err *err)
 {
@@ -82,7 +280,7 @@ unsigned long convert_umc_mca_addr_to_sys_addr(struct atl_err *err)
 {
 	u8 socket_id = topology_physical_package_id(err->cpu);
 	u8 coh_st_inst_id = get_coh_st_inst_id(err);
-	unsigned long addr = err->addr;
+	unsigned long addr = get_addr(err->addr);
 	u8 die_id = get_die_id(err);
 
 	pr_debug("socket_id=0x%x die_id=0x%x coh_st_inst_id=0x%x addr=0x%016lx",
