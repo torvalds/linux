@@ -4,7 +4,6 @@
  * Copyright (C) 2019-2023 Intel Corporation
  */
 #include <linux/uuid.h>
-#include <linux/dmi.h>
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "acpi.h"
@@ -19,63 +18,6 @@ const guid_t iwl_rfi_guid = GUID_INIT(0x7266172C, 0x220B, 0x4B29,
 				      0x81, 0x4F, 0x75, 0xE4,
 				      0xDD, 0x26, 0xB5, 0xFD);
 IWL_EXPORT_SYMBOL(iwl_rfi_guid);
-
-static const struct dmi_system_id dmi_ppag_approved_list[] = {
-	{ .ident = "HP",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-		},
-	},
-	{ .ident = "SAMSUNG",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
-		},
-	},
-	{ .ident = "MSFT",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
-		},
-	},
-	{ .ident = "ASUS",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-		},
-	},
-	{ .ident = "GOOGLE-HP",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
-		},
-	},
-	{ .ident = "GOOGLE-ASUS",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTek COMPUTER INC."),
-		},
-	},
-	{ .ident = "GOOGLE-SAMSUNG",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-			DMI_MATCH(DMI_BOARD_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
-		},
-	},
-	{ .ident = "DELL",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		},
-	},
-	{ .ident = "DELL",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Alienware"),
-		},
-	},
-	{ .ident = "RAZER",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Razer"),
-		},
-	},
-	{}
-};
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 			       acpi_handle *ret_handle)
@@ -1002,7 +944,7 @@ read_table:
 		goto out_free;
 	}
 
-	fwrt->ppag_flags = flags->integer.value & ACPI_PPAG_MASK;
+	fwrt->ppag_flags = flags->integer.value & IWL_PPAG_ETSI_CHINA_MASK;
 	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
 					WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD),
@@ -1036,11 +978,11 @@ read_table:
 			if (cmd_ver >= 4)
 				continue;
 			if ((j == 0 &&
-				(fwrt->ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_LB ||
-				 fwrt->ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_LB)) ||
+				(fwrt->ppag_chains[i].subbands[j] > IWL_PPAG_MAX_LB ||
+				 fwrt->ppag_chains[i].subbands[j] < IWL_PPAG_MIN_LB)) ||
 				(j != 0 &&
-				(fwrt->ppag_chains[i].subbands[j] > ACPI_PPAG_MAX_HB ||
-				fwrt->ppag_chains[i].subbands[j] < ACPI_PPAG_MIN_HB))) {
+				(fwrt->ppag_chains[i].subbands[j] > IWL_PPAG_MAX_HB ||
+				fwrt->ppag_chains[i].subbands[j] < IWL_PPAG_MIN_HB))) {
 					ret = -EINVAL;
 					goto out_free;
 				}
@@ -1055,110 +997,6 @@ out_free:
 	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_ppag_table);
-
-int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
-			union iwl_ppag_table_cmd *cmd,
-			int *cmd_size)
-{
-        u8 cmd_ver;
-        int i, j, num_sub_bands;
-        s8 *gain;
-
-	/* many firmware images for JF lie about this */
-	if (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id) ==
-	    CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_JF))
-		return -EOPNOTSUPP;
-
-        if (!fw_has_capa(&fwrt->fw->ucode_capa, IWL_UCODE_TLV_CAPA_SET_PPAG)) {
-                IWL_DEBUG_RADIO(fwrt,
-                                "PPAG capability not supported by FW, command not sent.\n");
-                return -EINVAL;
-	}
-
-	cmd_ver = iwl_fw_lookup_cmd_ver(fwrt->fw,
-					WIDE_ID(PHY_OPS_GROUP,
-						PER_PLATFORM_ANT_GAIN_CMD),
-					IWL_FW_CMD_VER_UNKNOWN);
-	if (!fwrt->ppag_table_valid || (cmd_ver <= 3 && !fwrt->ppag_flags)) {
-		IWL_DEBUG_RADIO(fwrt, "PPAG not enabled, command not sent.\n");
-		return -EINVAL;
-	}
-
-        /* The 'flags' field is the same in v1 and in v2 so we can just
-         * use v1 to access it.
-         */
-        cmd->v1.flags = cpu_to_le32(fwrt->ppag_flags);
-
-	IWL_DEBUG_RADIO(fwrt, "PPAG cmd ver is %d\n", cmd_ver);
-	if (cmd_ver == 1) {
-                num_sub_bands = IWL_NUM_SUB_BANDS_V1;
-                gain = cmd->v1.gain[0];
-                *cmd_size = sizeof(cmd->v1);
-                if (fwrt->ppag_ver == 1 || fwrt->ppag_ver == 2) {
-			/* in this case FW supports revision 0 */
-                        IWL_DEBUG_RADIO(fwrt,
-					"PPAG table rev is %d, send truncated table\n",
-                                        fwrt->ppag_ver);
-		}
-	} else if (cmd_ver >= 2 && cmd_ver <= 4) {
-                num_sub_bands = IWL_NUM_SUB_BANDS_V2;
-                gain = cmd->v2.gain[0];
-                *cmd_size = sizeof(cmd->v2);
-                if (fwrt->ppag_ver == 0) {
-			/* in this case FW supports revisions 1 or 2 */
-                        IWL_DEBUG_RADIO(fwrt,
-					"PPAG table rev is 0, send padded table\n");
-                }
-        } else {
-                IWL_DEBUG_RADIO(fwrt, "Unsupported PPAG command version\n");
-                return -EINVAL;
-        }
-
-	/* ppag mode */
-	IWL_DEBUG_RADIO(fwrt,
-			"PPAG MODE bits were read from bios: %d\n",
-			cmd->v1.flags);
-	if ((cmd_ver == 1 && !fw_has_capa(&fwrt->fw->ucode_capa,
-					  IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) ||
-	    (cmd_ver == 2 && fwrt->ppag_ver == 2)) {
-		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
-		IWL_DEBUG_RADIO(fwrt, "masking ppag China bit\n");
-	} else {
-		IWL_DEBUG_RADIO(fwrt, "isn't masking ppag China bit\n");
-	}
-
-	IWL_DEBUG_RADIO(fwrt,
-			"PPAG MODE bits going to be sent: %d\n",
-			cmd->v1.flags);
-
-	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
-                for (j = 0; j < num_sub_bands; j++) {
-                        gain[i * num_sub_bands + j] =
-                                fwrt->ppag_chains[i].subbands[j];
-                        IWL_DEBUG_RADIO(fwrt,
-                                        "PPAG table: chain[%d] band[%d]: gain = %d\n",
-                                        i, j, gain[i * num_sub_bands + j]);
-                }
-        }
-
-	return 0;
-}
-IWL_EXPORT_SYMBOL(iwl_fill_ppag_table);
-
-bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
-{
-
-	if (!dmi_check_system(dmi_ppag_approved_list)) {
-		IWL_DEBUG_RADIO(fwrt,
-			"System vendor '%s' is not in the approved list, disabling PPAG.\n",
-			dmi_get_system_info(DMI_SYS_VENDOR));
-			fwrt->ppag_flags = 0;
-			return false;
-	}
-
-	return true;
-}
-IWL_EXPORT_SYMBOL(iwl_acpi_is_ppag_approved);
 
 void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 			      struct iwl_phy_specific_cfg *filters)

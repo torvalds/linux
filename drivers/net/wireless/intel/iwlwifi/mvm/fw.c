@@ -1104,7 +1104,7 @@ int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 {
 	/* no need to read the table, done in INIT stage */
-	if (!(iwl_acpi_is_ppag_approved(&mvm->fwrt)))
+	if (!(iwl_is_ppag_approved(&mvm->fwrt)))
 		return 0;
 
 	return iwl_mvm_ppag_send_cmd(mvm);

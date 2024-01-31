@@ -31,6 +31,15 @@
 
 #define IWL_SAR_ENABLE_MSK		BIT(0)
 
+/* PPAG gain value bounds in 1/8 dBm */
+#define IWL_PPAG_MIN_LB	-16
+#define IWL_PPAG_MAX_LB 24
+#define IWL_PPAG_MIN_HB -16
+#define IWL_PPAG_MAX_HB 40
+
+#define IWL_PPAG_ETSI_CHINA_MASK	3
+#define IWL_PPAG_ETSI_MASK		BIT(0)
+
 /*
  * The profile for revision 2 is a superset of revision 1, which is in
  * turn a superset of revision 0.  So we can store all revisions
@@ -75,6 +84,11 @@ struct iwl_geo_profile {
 	struct iwl_geo_profile_band bands[BIOS_GEO_MAX_NUM_BANDS];
 };
 
+/* Same thing as with SAR, all revisions fit in revision 2 */
+struct iwl_ppag_chain {
+	s8 subbands[BIOS_SAR_MAX_SUB_BANDS_NUM];
+};
+
 struct iwl_fw_runtime;
 
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
@@ -86,6 +100,12 @@ int iwl_sar_geo_fill_table(struct iwl_fw_runtime *fwrt,
 int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 			 __le16 *per_chain, u32 n_tables, u32 n_subbands,
 			 int prof_a, int prof_b);
+
+int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
+			union iwl_ppag_table_cmd *cmd,
+			int *cmd_size);
+
+bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_wrds_table(struct iwl_fw_runtime *fwrt);
 

@@ -94,28 +94,11 @@
 #define ACPI_PPAG_WIFI_DATA_SIZE_V2	((IWL_NUM_CHAIN_LIMITS * \
 					  IWL_NUM_SUB_BANDS_V2) + 2)
 
-/* PPAG gain value bounds in 1/8 dBm */
-#define ACPI_PPAG_MIN_LB -16
-#define ACPI_PPAG_MAX_LB 24
-#define ACPI_PPAG_MIN_HB -16
-#define ACPI_PPAG_MAX_HB 40
-#define ACPI_PPAG_MASK 3
-#define IWL_PPAG_ETSI_MASK BIT(0)
-
 #define IWL_SAR_ENABLE_MSK		BIT(0)
 #define IWL_REDUCE_POWER_FLAGS_POS	1
 
 /* The Inidcator whether UEFI WIFI GUID tables are locked is read from ACPI */
 #define UEFI_WIFI_GUID_UNLOCKED		0
-
-/*
- * The profile for revision 2 is a superset of revision 1, which is in
- * turn a superset of revision 0.  So we can store all revisions
- * inside revision 2, which is what we represent here.
- */
-struct iwl_ppag_chain {
-	s8 subbands[ACPI_SAR_NUM_SUB_BANDS_REV2];
-};
 
 enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_QUERY = 0,
@@ -207,12 +190,6 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 
-int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
-			union iwl_ppag_table_cmd *cmd,
-			int *cmd_size);
-
-bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt);
-
 void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 			      struct iwl_phy_specific_cfg *filters);
 
@@ -282,18 +259,6 @@ static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt
 static inline int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
-}
-
-static inline int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
-				      union iwl_ppag_table_cmd *cmd,
-				      int *cmd_size)
-{
-	return -ENOENT;
-}
-
-static inline bool iwl_acpi_is_ppag_approved(struct iwl_fw_runtime *fwrt)
-{
-	return false;
 }
 
 static inline void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
