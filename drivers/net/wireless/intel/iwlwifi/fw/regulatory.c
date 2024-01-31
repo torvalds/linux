@@ -9,22 +9,32 @@
 #include "fw/runtime.h"
 #include "fw/uefi.h"
 
-#define IWL_BIOS_TABLE_LOADER(__name)					\
-int iwl_bios_get_ ## __name ## _table(struct iwl_fw_runtime *fwrt)	\
-{									\
+#define GET_BIOS_TABLE(__name, ...)					\
+do {									\
 	int ret = -ENOENT;						\
 	if (fwrt->uefi_tables_lock_status > UEFI_WIFI_GUID_UNLOCKED)	\
-		ret = iwl_uefi_get_ ## __name ## _table(fwrt);		\
+		ret = iwl_uefi_get_ ## __name(__VA_ARGS__);		\
 	if (ret < 0)							\
-		ret = iwl_acpi_get_ ## __name ## _table(fwrt);		\
+		ret = iwl_acpi_get_ ## __name(__VA_ARGS__);		\
 	return ret;							\
-}									\
-IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name ## _table)
+} while (0)
 
-IWL_BIOS_TABLE_LOADER(wrds);
-IWL_BIOS_TABLE_LOADER(ewrd);
-IWL_BIOS_TABLE_LOADER(wgds);
-IWL_BIOS_TABLE_LOADER(ppag);
+#define IWL_BIOS_TABLE_LOADER(__name)					\
+int iwl_bios_get_ ## __name(struct iwl_fw_runtime *fwrt)		\
+{GET_BIOS_TABLE(__name, fwrt); }					\
+IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name)
+
+#define IWL_BIOS_TABLE_LOADER_DATA(__name, data_type)			\
+int iwl_bios_get_ ## __name(struct iwl_fw_runtime *fwrt,		\
+			    data_type * data)				\
+{GET_BIOS_TABLE(__name, fwrt, data); }					\
+IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name)
+
+IWL_BIOS_TABLE_LOADER(wrds_table);
+IWL_BIOS_TABLE_LOADER(ewrd_table);
+IWL_BIOS_TABLE_LOADER(wgds_table);
+IWL_BIOS_TABLE_LOADER(ppag_table);
+IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
 	{ .ident = "HP",

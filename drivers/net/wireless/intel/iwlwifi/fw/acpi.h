@@ -175,8 +175,8 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
-int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     struct iwl_tas_data *data);
+int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
+			   struct iwl_tas_data *data);
 
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
@@ -237,8 +237,8 @@ static inline int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 	return 1;
 }
 
-static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-				   struct iwl_tas_data *data)
+static inline int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
+					 struct iwl_tas_data *data)
 {
 	return -ENOENT;
 }

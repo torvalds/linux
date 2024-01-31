@@ -1108,10 +1108,6 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 	return iwl_mvm_ppag_send_cmd(mvm);
 }
 
-#ifdef CONFIG_ACPI
-
-
-
 static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
 {
 	int i;
@@ -1149,7 +1145,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	ret = iwl_acpi_get_tas(&mvm->fwrt, &data);
+	ret = iwl_bios_get_tas_table(&mvm->fwrt, &data);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"TAS table invalid or unavailable. (%d)\n",
@@ -1204,6 +1200,8 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (ret < 0)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }
+
+#ifdef CONFIG_ACPI
 
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
@@ -1344,10 +1342,6 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 }
 
 #else /* CONFIG_ACPI */
-
-static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
-{
-}
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {

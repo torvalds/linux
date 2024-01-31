@@ -249,9 +249,8 @@ iwl_acpi_get_wifi_pkg(struct device *dev,
 					   tbl_rev);
 }
 
-
-int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     struct iwl_tas_data *tas_data)
+int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
+			   struct iwl_tas_data *tas_data)
 {
 	union acpi_object *wifi_pkg, *data;
 	int ret, tbl_rev, i, block_list_size, enabled;
@@ -326,7 +325,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_tas);
 
 int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 {

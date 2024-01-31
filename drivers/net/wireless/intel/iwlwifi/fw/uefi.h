@@ -16,6 +16,7 @@
 #define IWL_UEFI_EWRD_NAME		L"UefiCnvWlanEWRD"
 #define IWL_UEFI_WGDS_NAME		L"UefiCnvWlanWGDS"
 #define IWL_UEFI_PPAG_NAME		L"UefiCnvWlanPPAG"
+#define IWL_UEFI_WTAS_NAME		L"UefiCnvWlanWTAS"
 
 #define IWL_SGOM_MAP_SIZE		339
 #define IWL_UATS_MAP_SIZE		339
@@ -25,6 +26,7 @@
 #define IWL_UEFI_WGDS_REVISION		3
 #define IWL_UEFI_MIN_PPAG_REV		1
 #define IWL_UEFI_MAX_PPAG_REV		3
+#define IWL_UEFI_WTAS_REVISION		1
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -115,6 +117,19 @@ struct uefi_cnv_var_ppag {
 	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 } __packed;
 
+/* struct uefi_cnv_var_wtas - WTAS tabled as defined in UEFI
+ * @revision: the revision of the table
+ * @tas_selection: different options of TAS enablement.
+ * @black_list_size: the number of defined entried in the black list
+ * @black_list: a list of countries that are not allowed to use the TAS feature
+ */
+struct uefi_cnv_var_wtas {
+	u8 revision;
+	u32 tas_selection;
+	u8 black_list_size;
+	u16 black_list[IWL_WTAS_BLACK_LIST_MAX];
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
@@ -133,6 +148,8 @@ int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
+			   struct iwl_tas_data *data);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -180,6 +197,12 @@ static inline int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
+					 struct iwl_tas_data *data)
 {
 	return -ENOENT;
 }

@@ -179,8 +179,8 @@ struct iwl_fw_runtime {
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
 	struct iwl_uats_table_cmd uats_table;
-	u8 uefi_tables_lock_status;
 #endif
+	u8 uefi_tables_lock_status;
 	bool uats_enabled;
 };
 
