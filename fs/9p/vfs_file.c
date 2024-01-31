@@ -121,7 +121,6 @@ static int v9fs_file_do_lock(struct file *filp, int cmd, struct file_lock *fl)
 	struct p9_fid *fid;
 	uint8_t status = P9_LOCK_ERROR;
 	int res = 0;
-	unsigned char fl_type;
 	struct v9fs_session_info *v9ses;
 
 	fid = filp->private_data;
@@ -208,11 +207,12 @@ out_unlock:
 	 * it locally
 	 */
 	if (res < 0 && fl->fl_type != F_UNLCK) {
-		fl_type = fl->fl_type;
+		unsigned char type = fl->fl_type;
+
 		fl->fl_type = F_UNLCK;
 		/* Even if this fails we want to return the remote error */
 		locks_lock_file_wait(filp, fl);
-		fl->fl_type = fl_type;
+		fl->fl_type = type;
 	}
 	if (flock.client_id != fid->clnt->name)
 		kfree(flock.client_id);
