@@ -335,6 +335,21 @@ static int _iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
 	return ret;
 }
 
+int iwl_mvm_sec_key_del_pasn(struct iwl_mvm *mvm,
+			     struct ieee80211_vif *vif,
+			     u32 sta_mask,
+			     struct ieee80211_key_conf *keyconf)
+{
+	u32 key_flags = iwl_mvm_get_sec_flags(mvm, vif, NULL, keyconf) |
+		IWL_SEC_KEY_FLAG_MFP;
+
+	if (WARN_ON(!sta_mask))
+		return -EINVAL;
+
+	return  __iwl_mvm_sec_key_del(mvm, sta_mask, key_flags, keyconf->keyidx,
+				      0);
+}
+
 int iwl_mvm_sec_key_del(struct iwl_mvm *mvm,
 			struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta,

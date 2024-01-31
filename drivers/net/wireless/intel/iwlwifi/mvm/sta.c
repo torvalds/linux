@@ -4298,12 +4298,12 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 
 int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct iwl_mvm_int_sta *sta, u8 *addr, u32 cipher,
-			 u8 *key, u32 key_len)
+			 u8 *key, u32 key_len,
+			 struct ieee80211_key_conf *keyconf)
 {
 	int ret;
 	u16 queue;
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct ieee80211_key_conf *keyconf;
 	unsigned int wdg_timeout =
 		iwl_mvm_get_wd_timeout(mvm, vif, false, false);
 	bool mld = iwl_mvm_has_mld_api(mvm->fw);
@@ -4328,12 +4328,6 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		goto out;
 
-	keyconf = kzalloc(sizeof(*keyconf) + key_len, GFP_KERNEL);
-	if (!keyconf) {
-		ret = -ENOBUFS;
-		goto out;
-	}
-
 	keyconf->cipher = cipher;
 	memcpy(keyconf->key, key, key_len);
 	keyconf->keylen = key_len;
@@ -4354,10 +4348,9 @@ int iwl_mvm_add_pasn_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 					   0, NULL, 0, 0, true);
 	}
 
-	kfree(keyconf);
-	return 0;
 out:
-	iwl_mvm_dealloc_int_sta(mvm, sta);
+	if (ret)
+		iwl_mvm_dealloc_int_sta(mvm, sta);
 	return ret;
 }
 
