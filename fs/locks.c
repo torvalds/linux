@@ -2169,17 +2169,17 @@ EXPORT_SYMBOL_GPL(vfs_test_lock);
  *
  * Used to translate a fl_pid into a namespace virtual pid number
  */
-static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
+static pid_t locks_translate_pid(struct file_lock_core *fl, struct pid_namespace *ns)
 {
 	pid_t vnr;
 	struct pid *pid;
 
-	if (fl->c.flc_flags & FL_OFDLCK)
+	if (fl->flc_flags & FL_OFDLCK)
 		return -1;
 
 	/* Remote locks report a negative pid value */
-	if (fl->c.flc_pid <= 0)
-		return fl->c.flc_pid;
+	if (fl->flc_pid <= 0)
+		return fl->flc_pid;
 
 	/*
 	 * If the flock owner process is dead and its pid has been already
@@ -2187,10 +2187,10 @@ static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
 	 * flock owner pid number in init pidns.
 	 */
 	if (ns == &init_pid_ns)
-		return (pid_t) fl->c.flc_pid;
+		return (pid_t) fl->flc_pid;
 
 	rcu_read_lock();
-	pid = find_pid_ns(fl->c.flc_pid, &init_pid_ns);
+	pid = find_pid_ns(fl->flc_pid, &init_pid_ns);
 	vnr = pid_nr_ns(pid, ns);
 	rcu_read_unlock();
 	return vnr;
@@ -2198,7 +2198,7 @@ static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
 
 static int posix_lock_to_flock(struct flock *flock, struct file_lock *fl)
 {
-	flock->l_pid = locks_translate_pid(fl, task_active_pid_ns(current));
+	flock->l_pid = locks_translate_pid(&fl->c, task_active_pid_ns(current));
 #if BITS_PER_LONG == 32
 	/*
 	 * Make sure we can represent the posix lock via
@@ -2220,7 +2220,7 @@ static int posix_lock_to_flock(struct flock *flock, struct file_lock *fl)
 #if BITS_PER_LONG == 32
 static void posix_lock_to_flock64(struct flock64 *flock, struct file_lock *fl)
 {
-	flock->l_pid = locks_translate_pid(fl, task_active_pid_ns(current));
+	flock->l_pid = locks_translate_pid(&fl->c, task_active_pid_ns(current));
 	flock->l_start = fl->fl_start;
 	flock->l_len = fl->fl_end == OFFSET_MAX ? 0 :
 		fl->fl_end - fl->fl_start + 1;
@@ -2726,7 +2726,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	struct pid_namespace *proc_pidns = proc_pid_ns(file_inode(f->file)->i_sb);
 	int type = fl->c.flc_type;
 
-	pid = locks_translate_pid(fl, proc_pidns);
+	pid = locks_translate_pid(&fl->c, proc_pidns);
 	/*
 	 * If lock owner is dead (and pid is freed) or not visible in current
 	 * pidns, zero is shown as a pid value. Check lock info from
@@ -2819,7 +2819,7 @@ static int locks_show(struct seq_file *f, void *v)
 
 	cur = hlist_entry(v, struct file_lock, c.flc_link);
 
-	if (locks_translate_pid(cur, proc_pidns) == 0)
+	if (locks_translate_pid(&cur->c, proc_pidns) == 0)
 		return 0;
 
 	/* View this crossed linked list as a binary tree, the first member of fl_blocked_requests
