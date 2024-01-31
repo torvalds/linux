@@ -6721,6 +6721,10 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 		 *
 		 * The barrier matches a full barrier in the proximity of
 		 * the membarrier system call entry.
+		 *
+		 * On RISC-V, this barrier pairing is also needed for the
+		 * SYNC_CORE command when switching between processes, cf.
+		 * the inline comments in membarrier_arch_switch_mm().
 		 */
 		++*switch_count;
 
