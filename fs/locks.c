@@ -674,7 +674,7 @@ static void __locks_wake_up_blocks(struct file_lock *blocker)
 		if (waiter->fl_lmops && waiter->fl_lmops->lm_notify)
 			waiter->fl_lmops->lm_notify(waiter);
 		else
-			wake_up(&waiter->fl_wait);
+			locks_wake_up(waiter);
 
 		/*
 		 * The setting of fl_blocker to NULL marks the "done"
@@ -841,9 +841,9 @@ locks_delete_lock_ctx(struct file_lock *fl, struct list_head *dispose)
 static bool locks_conflict(struct file_lock *caller_fl,
 			   struct file_lock *sys_fl)
 {
-	if (sys_fl->fl_type == F_WRLCK)
+	if (lock_is_write(sys_fl))
 		return true;
-	if (caller_fl->fl_type == F_WRLCK)
+	if (lock_is_write(caller_fl))
 		return true;
 	return false;
 }
@@ -874,7 +874,7 @@ static bool posix_test_locks_conflict(struct file_lock *caller_fl,
 				      struct file_lock *sys_fl)
 {
 	/* F_UNLCK checks any locks on the same fd. */
-	if (caller_fl->fl_type == F_UNLCK) {
+	if (lock_is_unlock(caller_fl)) {
 		if (!posix_same_owner(caller_fl, sys_fl))
 			return false;
 		return locks_overlap(caller_fl, sys_fl);
@@ -1055,7 +1055,7 @@ static int flock_lock_inode(struct inode *inode, struct file_lock *request)
 		break;
 	}
 
-	if (request->fl_type == F_UNLCK) {
+	if (lock_is_unlock(request)) {
 		if ((request->fl_flags & FL_EXISTS) && !found)
 			error = -ENOENT;
 		goto out;
@@ -1107,7 +1107,7 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 
 	ctx = locks_get_lock_context(inode, request->fl_type);
 	if (!ctx)
-		return (request->fl_type == F_UNLCK) ? 0 : -ENOMEM;
+		return lock_is_unlock(request) ? 0 : -ENOMEM;
 
 	/*
 	 * We may need two file_lock structures for this operation,
@@ -1228,7 +1228,7 @@ retry:
 				continue;
 			if (fl->fl_start > request->fl_end)
 				break;
-			if (request->fl_type == F_UNLCK)
+			if (lock_is_unlock(request))
 				added = true;
 			if (fl->fl_start < request->fl_start)
 				left = fl;
@@ -1279,7 +1279,7 @@ retry:
 
 	error = 0;
 	if (!added) {
-		if (request->fl_type == F_UNLCK) {
+		if (lock_is_unlock(request)) {
 			if (request->fl_flags & FL_EXISTS)
 				error = -ENOENT;
 			goto out;
@@ -1608,7 +1608,7 @@ void lease_get_mtime(struct inode *inode, struct timespec64 *time)
 		spin_lock(&ctx->flc_lock);
 		fl = list_first_entry_or_null(&ctx->flc_lease,
 					      struct file_lock, fl_list);
-		if (fl && (fl->fl_type == F_WRLCK))
+		if (fl && lock_is_write(fl))
 			has_lease = true;
 		spin_unlock(&ctx->flc_lock);
 	}

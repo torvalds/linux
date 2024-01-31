@@ -147,6 +147,29 @@ int fcntl_setlk64(unsigned int, struct file *, unsigned int,
 int fcntl_setlease(unsigned int fd, struct file *filp, int arg);
 int fcntl_getlease(struct file *filp);
 
+static inline bool lock_is_unlock(struct file_lock *fl)
+{
+	return fl->fl_type == F_UNLCK;
+}
+
+static inline bool lock_is_read(struct file_lock *fl)
+{
+	return fl->fl_type == F_RDLCK;
+}
+
+static inline bool lock_is_write(struct file_lock *fl)
+{
+	return fl->fl_type == F_WRLCK;
+}
+
+static inline void locks_wake_up(struct file_lock *fl)
+{
+	wake_up(&fl->fl_wait);
+}
+
+/* for walking lists of file_locks linked by fl_list */
+#define for_each_file_lock(_fl, _head)	list_for_each_entry(_fl, _head, fl_list)
+
 /* fs/locks.c */
 void locks_free_lock_context(struct inode *inode);
 void locks_free_lock(struct file_lock *fl);
@@ -222,6 +245,27 @@ static inline int fcntl_getlease(struct file *filp)
 {
 	return F_UNLCK;
 }
+
+static inline bool lock_is_unlock(struct file_lock *fl)
+{
+	return false;
+}
+
+static inline bool lock_is_read(struct file_lock *fl)
+{
+	return false;
+}
+
+static inline bool lock_is_write(struct file_lock *fl)
+{
+	return false;
+}
+
+static inline void locks_wake_up(struct file_lock *fl)
+{
+}
+
+#define for_each_file_lock(_fl, _head)	while(false)
 
 static inline void
 locks_free_lock_context(struct inode *inode)
