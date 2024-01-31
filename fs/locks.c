@@ -70,12 +70,6 @@
 
 #include <linux/uaccess.h>
 
-#define IS_POSIX(fl)	(fl->fl_flags & FL_POSIX)
-#define IS_FLOCK(fl)	(fl->fl_flags & FL_FLOCK)
-#define IS_LEASE(fl)	(fl->fl_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT))
-#define IS_OFDLCK(fl)	(fl->fl_flags & FL_OFDLCK)
-#define IS_REMOTELCK(fl)	(fl->fl_pid <= 0)
-
 static bool lease_breaking(struct file_lock *fl)
 {
 	return fl->fl_flags & (FL_UNLOCK_PENDING | FL_DOWNGRADE_PENDING);
@@ -767,7 +761,7 @@ new_blocker:
 		}
 	waiter->fl_blocker = blocker;
 	list_add_tail(&waiter->fl_blocked_member, &blocker->fl_blocked_requests);
-	if (IS_POSIX(blocker) && !IS_OFDLCK(blocker))
+	if ((blocker->fl_flags & (FL_POSIX|FL_OFDLCK)) == FL_POSIX)
 		locks_insert_global_blocked(waiter);
 
 	/* The requests in waiter->fl_blocked are known to conflict with
@@ -999,7 +993,7 @@ static int posix_locks_deadlock(struct file_lock *caller_fl,
 	 * This deadlock detector can't reasonably detect deadlocks with
 	 * FL_OFDLCK locks, since they aren't owned by a process, per-se.
 	 */
-	if (IS_OFDLCK(caller_fl))
+	if (caller_fl->fl_flags & FL_OFDLCK)
 		return 0;
 
 	while ((block_fl = what_owner_is_waiting_for(block_fl))) {
@@ -2150,10 +2144,13 @@ static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
 	pid_t vnr;
 	struct pid *pid;
 
-	if (IS_OFDLCK(fl))
+	if (fl->fl_flags & FL_OFDLCK)
 		return -1;
-	if (IS_REMOTELCK(fl))
+
+	/* Remote locks report a negative pid value */
+	if (fl->fl_pid <= 0)
 		return fl->fl_pid;
+
 	/*
 	 * If the flock owner process is dead and its pid has been already
 	 * freed, the translation below won't work, but we still want to show
@@ -2697,7 +2694,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	struct inode *inode = NULL;
 	unsigned int pid;
 	struct pid_namespace *proc_pidns = proc_pid_ns(file_inode(f->file)->i_sb);
-	int type;
+	int type = fl->fl_type;
 
 	pid = locks_translate_pid(fl, proc_pidns);
 	/*
@@ -2714,19 +2711,21 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	if (repeat)
 		seq_printf(f, "%*s", repeat - 1 + (int)strlen(pfx), pfx);
 
-	if (IS_POSIX(fl)) {
+	if (fl->fl_flags & FL_POSIX) {
 		if (fl->fl_flags & FL_ACCESS)
 			seq_puts(f, "ACCESS");
-		else if (IS_OFDLCK(fl))
+		else if (fl->fl_flags & FL_OFDLCK)
 			seq_puts(f, "OFDLCK");
 		else
 			seq_puts(f, "POSIX ");
 
 		seq_printf(f, " %s ",
 			     (inode == NULL) ? "*NOINODE*" : "ADVISORY ");
-	} else if (IS_FLOCK(fl)) {
+	} else if (fl->fl_flags & FL_FLOCK) {
 		seq_puts(f, "FLOCK  ADVISORY  ");
-	} else if (IS_LEASE(fl)) {
+	} else if (fl->fl_flags & (FL_LEASE|FL_DELEG|FL_LAYOUT)) {
+		type = target_leasetype(fl);
+
 		if (fl->fl_flags & FL_DELEG)
 			seq_puts(f, "DELEG  ");
 		else
@@ -2741,7 +2740,6 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	} else {
 		seq_puts(f, "UNKNOWN UNKNOWN  ");
 	}
-	type = IS_LEASE(fl) ? target_leasetype(fl) : fl->fl_type;
 
 	seq_printf(f, "%s ", (type == F_WRLCK) ? "WRITE" :
 			     (type == F_RDLCK) ? "READ" : "UNLCK");
@@ -2753,7 +2751,7 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 	} else {
 		seq_printf(f, "%d <none>:0 ", pid);
 	}
-	if (IS_POSIX(fl)) {
+	if (fl->fl_flags & FL_POSIX) {
 		if (fl->fl_end == OFFSET_MAX)
 			seq_printf(f, "%Ld EOF\n", fl->fl_start);
 		else
