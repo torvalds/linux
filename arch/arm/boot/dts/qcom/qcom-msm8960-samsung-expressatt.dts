@@ -85,6 +85,27 @@
 	status = "okay";
 };
 
+&gsbi3 {
+	qcom,mode = <GSBI_PROT_I2C>;
+	status = "okay";
+};
+
+&gsbi3_i2c {
+	status = "okay";
+
+	// Atmel mXT224S touchscreen
+	touchscreen@4a {
+		compatible = "atmel,maxtouch";
+		reg = <0x4a>;
+		interrupt-parent = <&msmgpio>;
+		interrupts = <11 IRQ_TYPE_EDGE_FALLING>;
+		vdda-supply = <&pm8921_lvs6>;
+		vdd-supply = <&pm8921_l17>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchscreen>;
+	};
+};
+
 &msmgpio {
 	spi1_default: spi1-default-state {
 		mosi-pins {
@@ -122,6 +143,14 @@
 		function = "gpio";
 		drive-strength = <8>;
 		bias-disable;
+	};
+
+	touchscreen: touchscreen-int-state {
+		pins = "gpio11";
+		function = "gpio";
+		output-enable;
+		bias-disable;
+		drive-strength = <2>;
 	};
 };
 
@@ -285,7 +314,7 @@
 		};
 
 		pm8921_l17: l17 {
-			regulator-min-microvolt = <1800000>;
+			regulator-min-microvolt = <3300000>;
 			regulator-max-microvolt = <3300000>;
 			bias-pull-down;
 		};
