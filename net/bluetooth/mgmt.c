@@ -3126,6 +3126,7 @@ failed:
 static u8 link_to_bdaddr(u8 link_type, u8 addr_type)
 {
 	switch (link_type) {
+	case ISO_LINK:
 	case LE_LINK:
 		switch (addr_type) {
 		case ADDR_LE_DEV_PUBLIC:
@@ -9617,6 +9618,9 @@ void mgmt_device_connected(struct hci_dev *hdev, struct hci_conn *conn,
 	struct mgmt_ev_device_connected *ev;
 	u16 eir_len = 0;
 	u32 flags = 0;
+
+	if (test_and_set_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags))
+		return;
 
 	/* allocate buff for LE or BR/EDR adv */
 	if (conn->le_adv_data_len > 0)
