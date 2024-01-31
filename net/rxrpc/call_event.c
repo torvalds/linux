@@ -71,22 +71,17 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 	struct rxrpc_skb_priv *sp;
 	struct rxrpc_txbuf *txb;
 	rxrpc_seq_t transmitted = call->tx_transmitted;
-	ktime_t now, max_age, oldest, ack_ts, delay;
-	bool unacked = false;
+	ktime_t next_resend = KTIME_MAX, rto = ns_to_ktime(call->peer->rto_us * NSEC_PER_USEC);
+	ktime_t resend_at = KTIME_MAX, now, delay;
+	bool unacked = false, did_send = false;
 	unsigned int i;
-	LIST_HEAD(retrans_queue);
 
 	_enter("{%d,%d}", call->acks_hard_ack, call->tx_top);
 
 	now = ktime_get_real();
-	max_age = ktime_sub_us(now, call->peer->rto_us);
-	oldest = now;
 
 	if (list_empty(&call->tx_buffer))
 		goto no_resend;
-
-	if (list_empty(&call->tx_buffer))
-		goto no_further_resend;
 
 	trace_rxrpc_resend(call, ack_skb);
 	txb = list_first_entry(&call->tx_buffer, struct rxrpc_txbuf, call_link);
@@ -115,19 +110,23 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 			goto no_further_resend;
 
 		found_txb:
-			if (after(txb->serial, call->acks_highest_serial))
+			resend_at = ktime_add(txb->last_sent, rto);
+			if (after(txb->serial, call->acks_highest_serial)) {
+				if (ktime_after(resend_at, now) &&
+				    ktime_before(resend_at, next_resend))
+					next_resend = resend_at;
 				continue; /* Ack point not yet reached */
+			}
 
 			rxrpc_see_txbuf(txb, rxrpc_txbuf_see_unacked);
 
-			if (list_empty(&txb->tx_link)) {
-				list_add_tail(&txb->tx_link, &retrans_queue);
-				txb->flags |= RXRPC_TXBUF_RESENT;
-			}
-
 			trace_rxrpc_retransmit(call, txb->seq, txb->serial,
-					       ktime_to_ns(ktime_sub(txb->last_sent,
-								     max_age)));
+					       ktime_sub(resend_at, now));
+
+			txb->flags |= RXRPC_TXBUF_RESENT;
+			rxrpc_transmit_one(call, txb);
+			did_send = true;
+			now = ktime_get_real();
 
 			if (list_is_last(&txb->call_link, &call->tx_buffer))
 				goto no_further_resend;
@@ -144,6 +143,8 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 		goto no_further_resend;
 
 	list_for_each_entry_from(txb, &call->tx_buffer, call_link) {
+		resend_at = ktime_add(txb->last_sent, rto);
+
 		if (before_eq(txb->seq, call->acks_prev_seq))
 			continue;
 		if (after(txb->seq, call->tx_transmitted))
@@ -153,25 +154,30 @@ void rxrpc_resend(struct rxrpc_call *call, struct sk_buff *ack_skb)
 		    before(txb->serial, ntohl(ack->serial)))
 			goto do_resend; /* Wasn't accounted for by a more recent ping. */
 
-		if (ktime_after(txb->last_sent, max_age)) {
-			if (ktime_before(txb->last_sent, oldest))
-				oldest = txb->last_sent;
+		if (ktime_after(resend_at, now)) {
+			if (ktime_before(resend_at, next_resend))
+				next_resend = resend_at;
 			continue;
 		}
 
 	do_resend:
 		unacked = true;
-		if (list_empty(&txb->tx_link)) {
-			list_add_tail(&txb->tx_link, &retrans_queue);
-			txb->flags |= RXRPC_TXBUF_RESENT;
-			rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
-		}
+
+		txb->flags |= RXRPC_TXBUF_RESENT;
+		rxrpc_transmit_one(call, txb);
+		did_send = true;
+		rxrpc_inc_stat(call->rxnet, stat_tx_data_retrans);
+		now = ktime_get_real();
 	}
 
 no_further_resend:
 no_resend:
-	delay = rxrpc_get_rto_backoff(call->peer, !list_empty(&retrans_queue));
-	call->resend_at = ktime_add(oldest, delay);
+	if (resend_at < KTIME_MAX) {
+		delay = rxrpc_get_rto_backoff(call->peer, did_send);
+		resend_at = ktime_add(resend_at, delay);
+		trace_rxrpc_timer_set(call, resend_at - now, rxrpc_timer_trace_resend_reset);
+	}
+	call->resend_at = resend_at;
 
 	if (unacked)
 		rxrpc_congestion_timeout(call);
@@ -180,24 +186,15 @@ no_resend:
 	 * that an ACK got lost somewhere.  Send a ping to find out instead of
 	 * retransmitting data.
 	 */
-	if (list_empty(&retrans_queue)) {
-		trace_rxrpc_timer_set(call, delay, rxrpc_timer_trace_resend_reset);
-		ack_ts = ktime_sub(now, call->acks_latest_ts);
-		if (ktime_to_us(ack_ts) < (call->peer->srtt_us >> 3))
-			goto out;
-		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
-			       rxrpc_propose_ack_ping_for_0_retrans);
-		goto out;
+	if (!did_send) {
+		ktime_t next_ping = ktime_add_us(call->acks_latest_ts,
+						 call->peer->srtt_us >> 3);
+
+		if (ktime_sub(next_ping, now) <= 0)
+			rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
+				       rxrpc_propose_ack_ping_for_0_retrans);
 	}
 
-	/* Retransmit the queue */
-	while ((txb = list_first_entry_or_null(&retrans_queue,
-					       struct rxrpc_txbuf, tx_link))) {
-		list_del_init(&txb->tx_link);
-		rxrpc_transmit_one(call, txb);
-	}
-
-out:
 	_leave("");
 }
 
