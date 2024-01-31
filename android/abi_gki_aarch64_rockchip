@@ -2,6 +2,7 @@
 # commonly used symbols
   add_timer
   alloc_chrdev_region
+  alloc_etherdev_mqs
   alloc_iova_fast
   __alloc_pages
   __alloc_skb
@@ -827,9 +828,25 @@
   param_ops_int
   param_ops_string
   param_ops_uint
+  param_ops_ulong
+  pci_disable_device
+  pci_disable_link_state
   pcie_capability_clear_and_set_word
+  pci_find_capability
+  pcim_enable_device
+  pcim_iomap_table
+  pcim_pin_device
+  pci_read_config_byte
   pci_read_config_dword
+  pci_read_config_word
+  __pci_register_driver
+  pci_restore_state
+  pci_save_state
+  pci_set_master
+  pci_set_power_state
+  pci_unregister_driver
   pci_write_config_dword
+  pci_write_config_word
   __per_cpu_offset
   perf_trace_buf_alloc
   perf_trace_run_bpf_submit
@@ -1023,7 +1040,11 @@
   sched_set_fifo
   schedule
   schedule_timeout
+  schedule_timeout_uninterruptible
   scnprintf
+  scsi_command_size_tbl
+  scsi_device_get
+  scsi_device_put
   __sdhci_add_host
   sdhci_cleanup_host
   sdhci_enable_clk
@@ -1247,6 +1268,15 @@
   usb_submit_urb
   __usecs_to_jiffies
   usleep_range_state
+  __v4l2_async_nf_add_fwnode_remote
+  v4l2_async_nf_cleanup
+  v4l2_async_nf_init
+  v4l2_async_nf_parse_fwnode_endpoints
+  v4l2_async_nf_register
+  v4l2_async_register_subdev
+  v4l2_async_register_subdev_sensor
+  v4l2_async_subdev_nf_register
+  v4l2_async_unregister_subdev
   v4l2_ctrl_find
   v4l2_ctrl_g_ctrl
   v4l2_ctrl_g_ctrl_int64
@@ -1274,6 +1304,9 @@
   v4l2_event_subscribe
   v4l2_event_unsubscribe
   v4l2_fh_open
+  v4l2_fwnode_endpoint_alloc_parse
+  v4l2_fwnode_endpoint_free
+  v4l2_fwnode_endpoint_parse
   v4l2_i2c_subdev_init
   v4l2_match_dv_timings
   v4l2_pipeline_link_notify
@@ -1325,6 +1358,7 @@
   vunmap
   vzalloc
   wait_for_completion
+  wait_for_completion_interruptible
   wait_for_completion_timeout
   __wake_up
   wake_up_process
@@ -1346,15 +1380,23 @@
   skcipher_walk_aead_decrypt
   skcipher_walk_aead_encrypt
 
+# required by ahci.ko
+  pci_alloc_irq_vectors_affinity
+  pci_free_irq_vectors
+  pci_intx
+  pci_irq_vector
+  pci_match_id
+  pcim_iomap_regions_request_all
+  sysfs_add_file_to_group
+  sysfs_remove_file_from_group
+
 # required by analogix_dp.ko
   drm_atomic_get_old_connector_for_encoder
 
 # required by aspm_ext.ko
-  pci_find_capability
   pci_find_ext_capability
 
 # required by bcmdhd.ko
-  alloc_etherdev_mqs
   cpu_bit_bitmap
   down_interruptible
   down_timeout
@@ -1872,6 +1914,60 @@
 
 # required by ledtrig-heartbeat.ko
   avenrun
+
+# required by libahci.ko
+  __printk_ratelimit
+
+# required by libahci_platform.ko
+  reset_control_rearm
+
+# required by libata.ko
+  async_schedule_node
+  async_synchronize_cookie
+  attribute_container_register
+  attribute_container_unregister
+  autoremove_wake_function
+  blk_abort_request
+  blk_queue_max_hw_sectors
+  blk_queue_max_segments
+  blk_queue_update_dma_alignment
+  blk_queue_update_dma_pad
+  glob_match
+  pci_bus_type
+  pcim_iomap_regions
+  prepare_to_wait
+  __scsi_add_device
+  scsi_add_host_with_dma
+  scsi_build_sense
+  scsi_change_queue_depth
+  scsi_check_sense
+  scsi_device_set_state
+  scsi_done
+  scsi_eh_finish_cmd
+  scsi_eh_flush_done_q
+  scsi_execute_cmd
+  __scsi_format_command
+  scsi_host_alloc
+  scsi_host_put
+  scsi_remove_device
+  scsi_remove_host
+  scsi_rescan_device
+  scsi_schedule_eh
+  scsi_sense_desc_find
+  scsi_set_sense_field_pointer
+  scsi_set_sense_information
+  sdev_evt_send_simple
+  system_entering_hibernation
+  trace_seq_printf
+  trace_seq_putc
+  transport_add_device
+  transport_class_register
+  transport_class_unregister
+  transport_configure_device
+  transport_destroy_device
+  transport_remove_device
+  transport_setup_device
+  vscnprintf
 
 # required by mac80211.ko
   alloc_netdev_mqs
@@ -2787,9 +2883,11 @@
 
 # required by video_rkcif.ko
   media_entity_setup_link
+  __v4l2_async_nf_add_fwnode
 
 # required by video_rkisp.ko
   param_ops_ullong
+  v4l2_async_nf_unregister
   v4l2_ctrl_poll
 
 # required by videobuf2-cma-sg.ko

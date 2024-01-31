@@ -167,6 +167,7 @@ static void read_pages(struct readahead_control *rac)
 		psi_memstall_enter(&rac->_pflags);
 	blk_start_plug(&plug);
 
+	trace_android_vh_read_pages(rac);
 	if (aops->readahead) {
 		aops->readahead(rac);
 		/*

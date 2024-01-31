@@ -26,6 +26,7 @@
 #include <trace/hooks/printk.h>
 #include <trace/hooks/epoch.h>
 #include <trace/hooks/cpufreq.h>
+#include <trace/hooks/fs.h>
 #include <trace/hooks/preemptirq.h>
 #include <trace/hooks/ftrace_dump.h>
 #include <trace/hooks/ufshcd.h>
@@ -94,6 +95,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_task_blocks_on_rtmutex);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rtmutex_waiter_prio);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rtmutex_wait_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rtmutex_wait_finish);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_rt_mutex_steal);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_opt_spin_start);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_opt_spin_finish);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mutex_can_spin_on_owner);
@@ -310,6 +312,7 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_thermal_unregister);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_get_thermal_zone_device);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_thermal_power_cap);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_enable_thermal_power_throttle);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_read_pages);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_pages_reclaim_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_pages_failure_bypass);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_madvise_pageout_swap_entry);
@@ -364,3 +367,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_mmc_blk_mq_rw_recovery);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sd_update_bus_speed_mode);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_slab_folio_alloced);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_kmalloc_large_alloced);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_netlink_poll);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_ep_create_wakeup_source);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_timerfd_create);

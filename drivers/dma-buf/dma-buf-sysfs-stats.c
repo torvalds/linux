@@ -11,6 +11,7 @@
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
+#include <linux/workqueue.h>
 
 #include "dma-buf-sysfs-stats.h"
 
@@ -168,35 +169,76 @@ void dma_buf_uninit_sysfs_statistics(void)
 	kset_unregister(dma_buf_stats_kset);
 }
 
+struct dma_buf_create_sysfs_entry {
+	struct dma_buf *dmabuf;
+	struct work_struct work;
+};
+
+union dma_buf_create_sysfs_work_entry {
+	struct dma_buf_create_sysfs_entry create_entry;
+	struct dma_buf_sysfs_entry sysfs_entry;
+};
+
+static void sysfs_add_workfn(struct work_struct *work)
+{
+	struct dma_buf_create_sysfs_entry *create_entry =
+		container_of(work, struct dma_buf_create_sysfs_entry, work);
+	struct dma_buf *dmabuf = create_entry->dmabuf;
+
+	/*
+	 * A dmabuf is ref-counted via its file member. If this handler holds the only
+	 * reference to the dmabuf, there is no need for sysfs kobject creation. This is an
+	 * optimization and a race; when the reference count drops to 1 immediately after
+	 * this check it is not harmful as the sysfs entry will still get cleaned up in
+	 * dma_buf_stats_teardown, which won't get called until the final dmabuf reference
+	 * is released, and that can't happen until the end of this function.
+	 */
+	if (file_count(dmabuf->file) > 1) {
+		dmabuf->sysfs_entry->dmabuf = dmabuf;
+		/*
+		 * kobject_init_and_add expects kobject to be zero-filled, but we have populated it
+		 * (the sysfs_add_work union member) to trigger this work function.
+		 */
+		memset(&dmabuf->sysfs_entry->kobj, 0, sizeof(dmabuf->sysfs_entry->kobj));
+		dmabuf->sysfs_entry->kobj.kset = dma_buf_per_buffer_stats_kset;
+		if (kobject_init_and_add(&dmabuf->sysfs_entry->kobj, &dma_buf_ktype, NULL,
+						"%lu", file_inode(dmabuf->file)->i_ino)) {
+			kobject_put(&dmabuf->sysfs_entry->kobj);
+			dmabuf->sysfs_entry = NULL;
+		}
+	} else {
+		/*
+		 * Free the sysfs_entry and reset the pointer so dma_buf_stats_teardown doesn't
+		 * attempt to operate on it.
+		 */
+		kfree(dmabuf->sysfs_entry);
+		dmabuf->sysfs_entry = NULL;
+	}
+	dma_buf_put(dmabuf);
+}
+
 int dma_buf_stats_setup(struct dma_buf *dmabuf, struct file *file)
 {
-	struct dma_buf_sysfs_entry *sysfs_entry;
-	int ret;
+	struct dma_buf_create_sysfs_entry *create_entry;
+	union dma_buf_create_sysfs_work_entry *work_entry;
 
 	if (!dmabuf->exp_name) {
 		pr_err("exporter name must not be empty if stats needed\n");
 		return -EINVAL;
 	}
 
-	sysfs_entry = kzalloc(sizeof(struct dma_buf_sysfs_entry), GFP_KERNEL);
-	if (!sysfs_entry)
+	work_entry = kmalloc(sizeof(union dma_buf_create_sysfs_work_entry), GFP_KERNEL);
+	if (!work_entry)
 		return -ENOMEM;
 
-	sysfs_entry->kobj.kset = dma_buf_per_buffer_stats_kset;
-	sysfs_entry->dmabuf = dmabuf;
+	dmabuf->sysfs_entry = &work_entry->sysfs_entry;
 
-	dmabuf->sysfs_entry = sysfs_entry;
+	create_entry = &work_entry->create_entry;
+	create_entry->dmabuf = dmabuf;
 
-	/* create the directory for buffer stats */
-	ret = kobject_init_and_add(&sysfs_entry->kobj, &dma_buf_ktype, NULL,
-				   "%lu", file_inode(file)->i_ino);
-	if (ret)
-		goto err_sysfs_dmabuf;
+	INIT_WORK(&create_entry->work, sysfs_add_workfn);
+	get_dma_buf(dmabuf); /* This reference will be dropped in sysfs_add_workfn. */
+	schedule_work(&create_entry->work);
 
 	return 0;
-
-err_sysfs_dmabuf:
-	kobject_put(&sysfs_entry->kobj);
-	dmabuf->sysfs_entry = NULL;
-	return ret;
 }

@@ -12017,15 +12017,17 @@ static int nl80211_wiphy_netns(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
-static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
+static int nl80211_set_pmksa(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
-	int (*rdev_ops)(struct wiphy *wiphy, struct net_device *dev,
-			struct cfg80211_pmksa *pmksa) = NULL;
 	struct net_device *dev = info->user_ptr[1];
 	struct cfg80211_pmksa pmksa;
+	bool ap_pmksa_caching_support = false;
 
 	memset(&pmksa, 0, sizeof(struct cfg80211_pmksa));
+
+	ap_pmksa_caching_support = wiphy_ext_feature_isset(&rdev->wiphy,
+		NL80211_EXT_FEATURE_AP_PMKSA_CACHING);
 
 	if (!info->attrs[NL80211_ATTR_PMKID])
 		return -EINVAL;
@@ -12035,16 +12037,15 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
 	if (info->attrs[NL80211_ATTR_MAC]) {
 		pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
 	} else if (info->attrs[NL80211_ATTR_SSID] &&
-		   info->attrs[NL80211_ATTR_FILS_CACHE_ID] &&
-		   (info->genlhdr->cmd == NL80211_CMD_DEL_PMKSA ||
-		    info->attrs[NL80211_ATTR_PMK])) {
+	           info->attrs[NL80211_ATTR_FILS_CACHE_ID] &&
+	           info->attrs[NL80211_ATTR_PMK]) {
 		pmksa.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
 		pmksa.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
-		pmksa.cache_id =
-			nla_data(info->attrs[NL80211_ATTR_FILS_CACHE_ID]);
+		pmksa.cache_id = nla_data(info->attrs[NL80211_ATTR_FILS_CACHE_ID]);
 	} else {
 		return -EINVAL;
 	}
+
 	if (info->attrs[NL80211_ATTR_PMK]) {
 		pmksa.pmk = nla_data(info->attrs[NL80211_ATTR_PMK]);
 		pmksa.pmk_len = nla_len(info->attrs[NL80211_ATTR_PMK]);
@@ -12056,32 +12057,71 @@ static int nl80211_setdel_pmksa(struct sk_buff *skb, struct genl_info *info)
 
 	if (info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD])
 		pmksa.pmk_reauth_threshold =
-			nla_get_u8(
-				info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD]);
+			nla_get_u8(info->attrs[NL80211_ATTR_PMK_REAUTH_THRESHOLD]);
 
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT &&
-	    !(dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP &&
-	      wiphy_ext_feature_isset(&rdev->wiphy,
-				      NL80211_EXT_FEATURE_AP_PMKSA_CACHING)))
+	    !((dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP ||
+	       dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO) &&
+	       ap_pmksa_caching_support))
 		return -EOPNOTSUPP;
 
-	switch (info->genlhdr->cmd) {
-	case NL80211_CMD_SET_PMKSA:
-		rdev_ops = rdev->ops->set_pmksa;
-		break;
-	case NL80211_CMD_DEL_PMKSA:
-		rdev_ops = rdev->ops->del_pmksa;
-		break;
-	default:
-		WARN_ON(1);
-		break;
+	if (!rdev->ops->set_pmksa)
+		return -EOPNOTSUPP;
+
+	return rdev_set_pmksa(rdev, dev, &pmksa);
+}
+
+static int nl80211_del_pmksa(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
+	struct net_device *dev = info->user_ptr[1];
+	struct cfg80211_pmksa pmksa;
+	bool sae_offload_support = false;
+	bool owe_offload_support = false;
+	bool ap_pmksa_caching_support = false;
+
+	memset(&pmksa, 0, sizeof(struct cfg80211_pmksa));
+
+	sae_offload_support = wiphy_ext_feature_isset(&rdev->wiphy,
+		NL80211_EXT_FEATURE_SAE_OFFLOAD);
+	owe_offload_support = wiphy_ext_feature_isset(&rdev->wiphy,
+		NL80211_EXT_FEATURE_OWE_OFFLOAD);
+	ap_pmksa_caching_support = wiphy_ext_feature_isset(&rdev->wiphy,
+		NL80211_EXT_FEATURE_AP_PMKSA_CACHING);
+
+	if (info->attrs[NL80211_ATTR_PMKID])
+		pmksa.pmkid = nla_data(info->attrs[NL80211_ATTR_PMKID]);
+
+	if (info->attrs[NL80211_ATTR_MAC]) {
+		pmksa.bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
+	} else if (info->attrs[NL80211_ATTR_SSID]) {
+		/* SSID based pmksa flush suppported only for FILS,
+		 * OWE/SAE OFFLOAD cases
+		 */
+		if (info->attrs[NL80211_ATTR_FILS_CACHE_ID] &&
+		    info->attrs[NL80211_ATTR_PMK]) {
+			pmksa.cache_id = nla_data(info->attrs[NL80211_ATTR_FILS_CACHE_ID]);
+		} else if (!sae_offload_support && !owe_offload_support) {
+			return -EINVAL;
+		}
+		pmksa.ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
+		pmksa.ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
+	} else {
+		return -EINVAL;
 	}
 
-	if (!rdev_ops)
+	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
+	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT &&
+	    !((dev->ieee80211_ptr->iftype == NL80211_IFTYPE_AP ||
+	       dev->ieee80211_ptr->iftype == NL80211_IFTYPE_P2P_GO) &&
+	       ap_pmksa_caching_support))
 		return -EOPNOTSUPP;
 
-	return rdev_ops(&rdev->wiphy, dev, &pmksa);
+	if (!rdev->ops->del_pmksa)
+		return -EOPNOTSUPP;
+
+	return rdev_del_pmksa(rdev, dev, &pmksa);
 }
 
 static int nl80211_flush_pmksa(struct sk_buff *skb, struct genl_info *info)
@@ -16817,7 +16857,7 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_PMKSA,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = nl80211_setdel_pmksa,
+		.doit = nl80211_set_pmksa,
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP |
 					 NL80211_FLAG_CLEAR_SKB),
@@ -16825,7 +16865,7 @@ static const struct genl_small_ops nl80211_small_ops[] = {
 	{
 		.cmd = NL80211_CMD_DEL_PMKSA,
 		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = nl80211_setdel_pmksa,
+		.doit = nl80211_del_pmksa,
 		.flags = GENL_UNS_ADMIN_PERM,
 		.internal_flags = IFLAGS(NL80211_FLAG_NEED_NETDEV_UP),
 	},

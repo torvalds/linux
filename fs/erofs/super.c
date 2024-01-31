@@ -597,68 +597,6 @@ static int erofs_fc_parse_param(struct fs_context *fc,
 	return 0;
 }
 
-#ifdef CONFIG_EROFS_FS_ZIP
-static const struct address_space_operations managed_cache_aops;
-
-static bool erofs_managed_cache_release_folio(struct folio *folio, gfp_t gfp)
-{
-	bool ret = true;
-	struct address_space *const mapping = folio->mapping;
-
-	DBG_BUGON(!folio_test_locked(folio));
-	DBG_BUGON(mapping->a_ops != &managed_cache_aops);
-
-	if (folio_test_private(folio))
-		ret = erofs_try_to_free_cached_page(&folio->page);
-
-	return ret;
-}
-
-/*
- * It will be called only on inode eviction. In case that there are still some
- * decompression requests in progress, wait with rescheduling for a bit here.
- * We could introduce an extra locking instead but it seems unnecessary.
- */
-static void erofs_managed_cache_invalidate_folio(struct folio *folio,
-					       size_t offset, size_t length)
-{
-	const size_t stop = length + offset;
-
-	DBG_BUGON(!folio_test_locked(folio));
-
-	/* Check for potential overflow in debug mode */
-	DBG_BUGON(stop > folio_size(folio) || stop < length);
-
-	if (offset == 0 && stop == folio_size(folio))
-		while (!erofs_managed_cache_release_folio(folio, GFP_NOFS))
-			cond_resched();
-}
-
-static const struct address_space_operations managed_cache_aops = {
-	.release_folio = erofs_managed_cache_release_folio,
-	.invalidate_folio = erofs_managed_cache_invalidate_folio,
-};
-
-static int erofs_init_managed_cache(struct super_block *sb)
-{
-	struct erofs_sb_info *const sbi = EROFS_SB(sb);
-	struct inode *const inode = new_inode(sb);
-
-	if (!inode)
-		return -ENOMEM;
-
-	set_nlink(inode, 1);
-	inode->i_size = OFFSET_MAX;
-
-	inode->i_mapping->a_ops = &managed_cache_aops;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
-	sbi->managed_cache = inode;
-	return 0;
-}
-#else
-static int erofs_init_managed_cache(struct super_block *sb) { return 0; }
-#endif
-
 static struct inode *erofs_nfs_get_inode(struct super_block *sb,
 					 u64 ino, u32 generation)
 {
