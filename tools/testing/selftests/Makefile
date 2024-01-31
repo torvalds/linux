@@ -67,6 +67,7 @@ TARGETS += nsfs
 TARGETS += perf_events
 TARGETS += pidfd
 TARGETS += pid_namespace
+TARGETS += power_supply
 TARGETS += powerpc
 TARGETS += prctl
 TARGETS += proc
