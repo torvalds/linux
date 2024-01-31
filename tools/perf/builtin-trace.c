@@ -1049,6 +1049,8 @@ static const struct syscall_fmt syscall_fmts[] = {
 	  .arg = { [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ }, }, },
 	{ .name	    = "name_to_handle_at",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
+	{ .name	    = "nanosleep",
+	  .arg = { [0] = { .scnprintf = SCA_TIMESPEC,  /* req */ }, }, },
 	{ .name	    = "newfstatat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
 	{ .name	    = "open",
