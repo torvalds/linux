@@ -662,8 +662,8 @@ nfsd_file_lease_notifier_call(struct notifier_block *nb, unsigned long arg,
 	struct file_lock *fl = data;
 
 	/* Only close files for F_SETLEASE leases */
-	if (fl->fl_flags & FL_LEASE)
-		nfsd_file_close_inode(file_inode(fl->fl_file));
+	if (fl->c.flc_flags & FL_LEASE)
+		nfsd_file_close_inode(file_inode(fl->c.flc_file));
 	return 0;
 }
 

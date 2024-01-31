@@ -193,14 +193,15 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 		return -ENOMEM;
 	locks_init_lock(fl);
 	fl->fl_lmops = &nfsd4_layouts_lm_ops;
-	fl->fl_flags = FL_LAYOUT;
-	fl->fl_type = F_RDLCK;
+	fl->c.flc_flags = FL_LAYOUT;
+	fl->c.flc_type = F_RDLCK;
 	fl->fl_end = OFFSET_MAX;
-	fl->fl_owner = ls;
-	fl->fl_pid = current->tgid;
-	fl->fl_file = ls->ls_file->nf_file;
+	fl->c.flc_owner = ls;
+	fl->c.flc_pid = current->tgid;
+	fl->c.flc_file = ls->ls_file->nf_file;
 
-	status = vfs_setlease(fl->fl_file, fl->fl_type, &fl, NULL);
+	status = vfs_setlease(fl->c.flc_file, fl->c.flc_type, &fl,
+			      NULL);
 	if (status) {
 		locks_free_lock(fl);
 		return status;
@@ -731,7 +732,7 @@ nfsd4_layout_lm_break(struct file_lock *fl)
 	 * in time:
 	 */
 	fl->fl_break_time = 0;
-	nfsd4_recall_file_layout(fl->fl_owner);
+	nfsd4_recall_file_layout(fl->c.flc_owner);
 	return false;
 }
 

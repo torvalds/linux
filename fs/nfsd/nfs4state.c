@@ -4924,7 +4924,7 @@ static void nfsd_break_one_deleg(struct nfs4_delegation *dp)
 static bool
 nfsd_break_deleg_cb(struct file_lock *fl)
 {
-	struct nfs4_delegation *dp = (struct nfs4_delegation *)fl->fl_owner;
+	struct nfs4_delegation *dp = (struct nfs4_delegation *) fl->c.flc_owner;
 	struct nfs4_file *fp = dp->dl_stid.sc_file;
 	struct nfs4_client *clp = dp->dl_stid.sc_client;
 	struct nfsd_net *nn;
@@ -4962,7 +4962,7 @@ nfsd_break_deleg_cb(struct file_lock *fl)
  */
 static bool nfsd_breaker_owns_lease(struct file_lock *fl)
 {
-	struct nfs4_delegation *dl = fl->fl_owner;
+	struct nfs4_delegation *dl = fl->c.flc_owner;
 	struct svc_rqst *rqst;
 	struct nfs4_client *clp;
 
@@ -4980,7 +4980,7 @@ static int
 nfsd_change_deleg_cb(struct file_lock *onlist, int arg,
 		     struct list_head *dispose)
 {
-	struct nfs4_delegation *dp = (struct nfs4_delegation *)onlist->fl_owner;
+	struct nfs4_delegation *dp = (struct nfs4_delegation *) onlist->c.flc_owner;
 	struct nfs4_client *clp = dp->dl_stid.sc_client;
 
 	if (arg & F_UNLCK) {
@@ -5340,12 +5340,12 @@ static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp,
 	if (!fl)
 		return NULL;
 	fl->fl_lmops = &nfsd_lease_mng_ops;
-	fl->fl_flags = FL_DELEG;
-	fl->fl_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
+	fl->c.flc_flags = FL_DELEG;
+	fl->c.flc_type = flag == NFS4_OPEN_DELEGATE_READ? F_RDLCK: F_WRLCK;
 	fl->fl_end = OFFSET_MAX;
-	fl->fl_owner = (fl_owner_t)dp;
-	fl->fl_pid = current->tgid;
-	fl->fl_file = dp->dl_stid.sc_file->fi_deleg_file->nf_file;
+	fl->c.flc_owner = (fl_owner_t)dp;
+	fl->c.flc_pid = current->tgid;
+	fl->c.flc_file = dp->dl_stid.sc_file->fi_deleg_file->nf_file;
 	return fl;
 }
 
@@ -5533,7 +5533,8 @@ nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	if (!fl)
 		goto out_clnt_odstate;
 
-	status = vfs_setlease(fp->fi_deleg_file->nf_file, fl->fl_type, &fl, NULL);
+	status = vfs_setlease(fp->fi_deleg_file->nf_file,
+			      fl->c.flc_type, &fl, NULL);
 	if (fl)
 		locks_free_lock(fl);
 	if (status)
@@ -7149,7 +7150,7 @@ nfsd4_lm_put_owner(fl_owner_t owner)
 static bool
 nfsd4_lm_lock_expirable(struct file_lock *cfl)
 {
-	struct nfs4_lockowner *lo = (struct nfs4_lockowner *)cfl->fl_owner;
+	struct nfs4_lockowner *lo = (struct nfs4_lockowner *) cfl->c.flc_owner;
 	struct nfs4_client *clp = lo->lo_owner.so_client;
 	struct nfsd_net *nn;
 
@@ -7171,7 +7172,7 @@ nfsd4_lm_expire_lock(void)
 static void
 nfsd4_lm_notify(struct file_lock *fl)
 {
-	struct nfs4_lockowner		*lo = (struct nfs4_lockowner *)fl->fl_owner;
+	struct nfs4_lockowner		*lo = (struct nfs4_lockowner *) fl->c.flc_owner;
 	struct net			*net = lo->lo_owner.so_client->net;
 	struct nfsd_net			*nn = net_generic(net, nfsd_net_id);
 	struct nfsd4_blocked_lock	*nbl = container_of(fl,
@@ -7208,7 +7209,7 @@ nfs4_set_lock_denied(struct file_lock *fl, struct nfsd4_lock_denied *deny)
 	struct nfs4_lockowner *lo;
 
 	if (fl->fl_lmops == &nfsd_posix_mng_ops) {
-		lo = (struct nfs4_lockowner *) fl->fl_owner;
+		lo = (struct nfs4_lockowner *) fl->c.flc_owner;
 		xdr_netobj_dup(&deny->ld_owner, &lo->lo_owner.so_owner,
 						GFP_KERNEL);
 		if (!deny->ld_owner.data)
@@ -7227,7 +7228,7 @@ nevermind:
 	if (fl->fl_end != NFS4_MAX_UINT64)
 		deny->ld_length = fl->fl_end - fl->fl_start + 1;        
 	deny->ld_type = NFS4_READ_LT;
-	if (fl->fl_type != F_RDLCK)
+	if (fl->c.flc_type != F_RDLCK)
 		deny->ld_type = NFS4_WRITE_LT;
 }
 
@@ -7615,11 +7616,11 @@ nfsd4_lock(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 
 	file_lock = &nbl->nbl_lock;
-	file_lock->fl_type = type;
-	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lock_sop->lo_owner));
-	file_lock->fl_pid = current->tgid;
-	file_lock->fl_file = nf->nf_file;
-	file_lock->fl_flags = flags;
+	file_lock->c.flc_type = type;
+	file_lock->c.flc_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(&lock_sop->lo_owner));
+	file_lock->c.flc_pid = current->tgid;
+	file_lock->c.flc_file = nf->nf_file;
+	file_lock->c.flc_flags = flags;
 	file_lock->fl_lmops = &nfsd_posix_mng_ops;
 	file_lock->fl_start = lock->lk_offset;
 	file_lock->fl_end = last_byte_offset(lock->lk_offset, lock->lk_length);
@@ -7737,9 +7738,9 @@ static __be32 nfsd_test_lock(struct svc_rqst *rqstp, struct svc_fh *fhp, struct 
 	err = nfserrno(nfsd_open_break_lease(inode, NFSD_MAY_READ));
 	if (err)
 		goto out;
-	lock->fl_file = nf->nf_file;
+	lock->c.flc_file = nf->nf_file;
 	err = nfserrno(vfs_test_lock(nf->nf_file, lock));
-	lock->fl_file = NULL;
+	lock->c.flc_file = NULL;
 out:
 	inode_unlock(inode);
 	nfsd_file_put(nf);
@@ -7784,11 +7785,11 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (lockt->lt_type) {
 		case NFS4_READ_LT:
 		case NFS4_READW_LT:
-			file_lock->fl_type = F_RDLCK;
+			file_lock->c.flc_type = F_RDLCK;
 			break;
 		case NFS4_WRITE_LT:
 		case NFS4_WRITEW_LT:
-			file_lock->fl_type = F_WRLCK;
+			file_lock->c.flc_type = F_WRLCK;
 			break;
 		default:
 			dprintk("NFSD: nfs4_lockt: bad lock type!\n");
@@ -7798,9 +7799,9 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	lo = find_lockowner_str(cstate->clp, &lockt->lt_owner);
 	if (lo)
-		file_lock->fl_owner = (fl_owner_t)lo;
-	file_lock->fl_pid = current->tgid;
-	file_lock->fl_flags = FL_POSIX;
+		file_lock->c.flc_owner = (fl_owner_t)lo;
+	file_lock->c.flc_pid = current->tgid;
+	file_lock->c.flc_flags = FL_POSIX;
 
 	file_lock->fl_start = lockt->lt_offset;
 	file_lock->fl_end = last_byte_offset(lockt->lt_offset, lockt->lt_length);
@@ -7811,7 +7812,7 @@ nfsd4_lockt(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		goto out;
 
-	if (file_lock->fl_type != F_UNLCK) {
+	if (file_lock->c.flc_type != F_UNLCK) {
 		status = nfserr_denied;
 		nfs4_set_lock_denied(file_lock, &lockt->lt_denied);
 	}
@@ -7867,11 +7868,11 @@ nfsd4_locku(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		goto put_file;
 	}
 
-	file_lock->fl_type = F_UNLCK;
-	file_lock->fl_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(stp->st_stateowner));
-	file_lock->fl_pid = current->tgid;
-	file_lock->fl_file = nf->nf_file;
-	file_lock->fl_flags = FL_POSIX;
+	file_lock->c.flc_type = F_UNLCK;
+	file_lock->c.flc_owner = (fl_owner_t)lockowner(nfs4_get_stateowner(stp->st_stateowner));
+	file_lock->c.flc_pid = current->tgid;
+	file_lock->c.flc_file = nf->nf_file;
+	file_lock->c.flc_flags = FL_POSIX;
 	file_lock->fl_lmops = &nfsd_posix_mng_ops;
 	file_lock->fl_start = locku->lu_offset;
 
@@ -7927,7 +7928,7 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 	if (flctx && !list_empty_careful(&flctx->flc_posix)) {
 		spin_lock(&flctx->flc_lock);
 		for_each_file_lock(fl, &flctx->flc_posix) {
-			if (fl->fl_owner == (fl_owner_t)lowner) {
+			if (fl->c.flc_owner == (fl_owner_t)lowner) {
 				status = true;
 				break;
 			}
@@ -8456,7 +8457,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 		return 0;
 	spin_lock(&ctx->flc_lock);
 	for_each_file_lock(fl, &ctx->flc_lease) {
-		if (fl->fl_flags == FL_LAYOUT)
+		if (fl->c.flc_flags == FL_LAYOUT)
 			continue;
 		if (fl->fl_lmops != &nfsd_lease_mng_ops) {
 			/*
@@ -8469,7 +8470,7 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 			goto break_lease;
 		}
 		if (lock_is_write(fl)) {
-			dp = fl->fl_owner;
+			dp = fl->c.flc_owner;
 			if (dp->dl_recall.cb_clp == *(rqstp->rq_lease_breaker)) {
 				spin_unlock(&ctx->flc_lock);
 				return 0;
