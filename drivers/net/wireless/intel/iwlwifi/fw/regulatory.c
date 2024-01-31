@@ -3,7 +3,6 @@
  * Copyright (C) 2023 Intel Corporation
  */
 #include <linux/dmi.h>
-#include "fw/api/nvm-reg.h"
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "regulatory.h"
@@ -400,11 +399,11 @@ bool iwl_is_tas_approved(void)
 IWL_EXPORT_SYMBOL(iwl_is_tas_approved);
 
 int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
-			    union iwl_tas_config_cmd *cmd, int fw_ver,
+			    struct iwl_tas_data *tas_data,
 			    const u32 tas_selection)
 {
 	u8 override_iec = u32_get_bits(tas_selection,
-					IWL_WTAS_OVERRIDE_IEC_MSK);
+				       IWL_WTAS_OVERRIDE_IEC_MSK);
 	u8 enabled_iec = u32_get_bits(tas_selection, IWL_WTAS_ENABLE_IEC_MSK);
 	u8 usa_tas_uhb = u32_get_bits(tas_selection, IWL_WTAS_USA_UHB_MSK);
 	int enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
@@ -412,17 +411,9 @@ int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
 	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
 			tas_selection);
 
-	if (fw_ver < 3)
-		return enabled;
-
-	if (fw_ver == 3) {
-		cmd->v3.override_tas_iec = cpu_to_le16(override_iec);
-		cmd->v3.enable_tas_iec = cpu_to_le16(enabled_iec);
-	} else {
-		cmd->v4.usa_tas_uhb_allowed = usa_tas_uhb;
-		cmd->v4.override_tas_iec = override_iec;
-		cmd->v4.enable_tas_iec = enabled_iec;
-	}
+	tas_data->usa_tas_uhb_allowed = usa_tas_uhb;
+	tas_data->override_tas_iec = override_iec;
+	tas_data->enable_tas_iec = enabled_iec;
 
 	return enabled;
 }

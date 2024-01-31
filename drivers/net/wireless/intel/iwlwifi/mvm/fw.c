@@ -1135,10 +1135,13 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 {
 	u32 cmd_id = WIDE_ID(REGULATORY_AND_NVM_GROUP, TAS_CONFIG);
 	int ret;
-	union iwl_tas_config_cmd cmd = {};
+	struct iwl_tas_data data = {};
+	struct iwl_tas_config_cmd cmd = {};
 	int cmd_size, fw_ver;
 
-	BUILD_BUG_ON(ARRAY_SIZE(cmd.v3.block_list_array) <
+	BUILD_BUG_ON(ARRAY_SIZE(data.block_list_array) !=
+		     IWL_WTAS_BLACK_LIST_MAX);
+	BUILD_BUG_ON(ARRAY_SIZE(cmd.common.block_list_array) !=
 		     IWL_WTAS_BLACK_LIST_MAX);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
@@ -1146,10 +1149,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		return;
 	}
 
-	fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
-				       IWL_FW_CMD_VER_UNKNOWN);
-
-	ret = iwl_acpi_get_tas(&mvm->fwrt, &cmd, fw_ver);
+	ret = iwl_acpi_get_tas(&mvm->fwrt, &data);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
 				"TAS table invalid or unavailable. (%d)\n",
@@ -1164,12 +1164,12 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR));
-		if ((!iwl_mvm_add_to_tas_block_list(cmd.v4.block_list_array,
-						    &cmd.v4.block_list_size,
-							IWL_MCC_US)) ||
-		    (!iwl_mvm_add_to_tas_block_list(cmd.v4.block_list_array,
-						    &cmd.v4.block_list_size,
-							IWL_MCC_CANADA))) {
+		if ((!iwl_mvm_add_to_tas_block_list(data.block_list_array,
+						    &data.block_list_size,
+						    IWL_MCC_US)) ||
+		    (!iwl_mvm_add_to_tas_block_list(data.block_list_array,
+						    &data.block_list_size,
+						    IWL_MCC_CANADA))) {
 			IWL_DEBUG_RADIO(mvm,
 					"Unable to add US/Canada to TAS block list, disabling TAS\n");
 			return;
@@ -1180,10 +1180,25 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 				dmi_get_system_info(DMI_SYS_VENDOR));
 	}
 
-	/* v4 is the same size as v3, so no need to differentiate here */
-	cmd_size = fw_ver < 3 ?
-		sizeof(struct iwl_tas_config_cmd_v2) :
-		sizeof(struct iwl_tas_config_cmd_v3);
+	fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
+				       IWL_FW_CMD_VER_UNKNOWN);
+
+	memcpy(&cmd.common, &data, sizeof(struct iwl_tas_config_cmd_common));
+
+	/* Set v3 or v4 specific parts. will be trunctated for fw_ver < 3 */
+	if (fw_ver == 4) {
+		cmd.v4.override_tas_iec = data.override_tas_iec;
+		cmd.v4.enable_tas_iec = data.enable_tas_iec;
+		cmd.v4.usa_tas_uhb_allowed = data.usa_tas_uhb_allowed;
+	} else {
+		cmd.v3.override_tas_iec = cpu_to_le16(data.override_tas_iec);
+		cmd.v3.enable_tas_iec = cpu_to_le16(data.enable_tas_iec);
+	}
+
+	cmd_size = sizeof(struct iwl_tas_config_cmd_common);
+	if (fw_ver >= 3)
+		/* v4 is the same size as v3 */
+		cmd_size += sizeof(struct iwl_tas_config_cmd_v3);
 
 	ret = iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, cmd_size, &cmd);
 	if (ret < 0)

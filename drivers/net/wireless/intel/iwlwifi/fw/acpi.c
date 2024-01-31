@@ -251,7 +251,7 @@ iwl_acpi_get_wifi_pkg(struct device *dev,
 
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     union iwl_tas_config_cmd *cmd, int fw_ver)
+		     struct iwl_tas_data *tas_data)
 {
 	union acpi_object *wifi_pkg, *data;
 	int ret, tbl_rev, i, block_list_size, enabled;
@@ -274,7 +274,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		u32 tas_selection =
 			(u32)wifi_pkg->package.elements[1].integer.value;
 
-		enabled = iwl_parse_tas_selection(fwrt, cmd, fw_ver,
+		enabled = iwl_parse_tas_selection(fwrt, tas_data,
 						  tas_selection);
 
 	} else if (tbl_rev == 0 &&
@@ -301,7 +301,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		goto out_free;
 	}
 	block_list_size = wifi_pkg->package.elements[2].integer.value;
-	cmd->v4.block_list_size = cpu_to_le32(block_list_size);
+	tas_data->block_list_size = cpu_to_le32(block_list_size);
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
 
@@ -317,7 +317,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		}
 
 		country = wifi_pkg->package.elements[3 + i].integer.value;
-		cmd->v4.block_list_array[i] = cpu_to_le32(country);
+		tas_data->block_list_array[i] = cpu_to_le32(country);
 		IWL_DEBUG_RADIO(fwrt, "TAS block list country %d\n", country);
 	}
 

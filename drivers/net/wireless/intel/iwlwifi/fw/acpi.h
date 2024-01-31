@@ -7,6 +7,7 @@
 #define __iwl_fw_acpi__
 
 #include <linux/acpi.h>
+#include "fw/regulatory.h"
 #include "fw/api/commands.h"
 #include "fw/api/power.h"
 #include "fw/api/phy.h"
@@ -175,7 +176,7 @@ int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt);
 int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-		     union iwl_tas_config_cmd *cmd, int fw_ver);
+		     struct iwl_tas_data *data);
 
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
@@ -237,7 +238,7 @@ static inline int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
-				   union iwl_tas_config_cmd *cmd, int fw_ver)
+				   struct iwl_tas_data *data)
 {
 	return -ENOENT;
 }
