@@ -1280,6 +1280,9 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 	if (primary_link < 0)
 		return false;
 
+	if (!(vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
+		return false;
+
 	for_each_set_bit(link_id, &desired_links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf =
 			link_conf_dereference_protected(vif, link_id);
