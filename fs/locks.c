@@ -197,13 +197,12 @@ out:
 static void
 locks_dump_ctx_list(struct list_head *list, char *list_type)
 {
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 
-	list_for_each_entry(fl, list, c.flc_list) {
-		pr_warn("%s: fl_owner=%p fl_flags=0x%x fl_type=0x%x fl_pid=%u\n", list_type,
-			fl->c.flc_owner, fl->c.flc_flags,
-			fl->c.flc_type, fl->c.flc_pid);
-	}
+	list_for_each_entry(flc, list, flc_list)
+		pr_warn("%s: fl_owner=%p fl_flags=0x%x fl_type=0x%x fl_pid=%u\n",
+			list_type, flc->flc_owner, flc->flc_flags,
+			flc->flc_type, flc->flc_pid);
 }
 
 static void
@@ -224,20 +223,19 @@ locks_check_ctx_lists(struct inode *inode)
 }
 
 static void
-locks_check_ctx_file_list(struct file *filp, struct list_head *list,
-				char *list_type)
+locks_check_ctx_file_list(struct file *filp, struct list_head *list, char *list_type)
 {
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 	struct inode *inode = file_inode(filp);
 
-	list_for_each_entry(fl, list, c.flc_list)
-		if (fl->c.flc_file == filp)
+	list_for_each_entry(flc, list, flc_list)
+		if (flc->flc_file == filp)
 			pr_warn("Leaked %s lock on dev=0x%x:0x%x ino=0x%lx "
 				" fl_owner=%p fl_flags=0x%x fl_type=0x%x fl_pid=%u\n",
 				list_type, MAJOR(inode->i_sb->s_dev),
 				MINOR(inode->i_sb->s_dev), inode->i_ino,
-				fl->c.flc_owner, fl->c.flc_flags,
-				fl->c.flc_type, fl->c.flc_pid);
+				flc->flc_owner, flc->flc_flags,
+				flc->flc_type, flc->flc_pid);
 }
 
 void
@@ -274,11 +272,13 @@ EXPORT_SYMBOL_GPL(locks_alloc_lock);
 
 void locks_release_private(struct file_lock *fl)
 {
-	BUG_ON(waitqueue_active(&fl->c.flc_wait));
-	BUG_ON(!list_empty(&fl->c.flc_list));
-	BUG_ON(!list_empty(&fl->c.flc_blocked_requests));
-	BUG_ON(!list_empty(&fl->c.flc_blocked_member));
-	BUG_ON(!hlist_unhashed(&fl->c.flc_link));
+	struct file_lock_core *flc = &fl->c;
+
+	BUG_ON(waitqueue_active(&flc->flc_wait));
+	BUG_ON(!list_empty(&flc->flc_list));
+	BUG_ON(!list_empty(&flc->flc_blocked_requests));
+	BUG_ON(!list_empty(&flc->flc_blocked_member));
+	BUG_ON(!hlist_unhashed(&flc->flc_link));
 
 	if (fl->fl_ops) {
 		if (fl->fl_ops->fl_release_private)
@@ -288,8 +288,8 @@ void locks_release_private(struct file_lock *fl)
 
 	if (fl->fl_lmops) {
 		if (fl->fl_lmops->lm_put_owner) {
-			fl->fl_lmops->lm_put_owner(fl->c.flc_owner);
-			fl->c.flc_owner = NULL;
+			fl->fl_lmops->lm_put_owner(flc->flc_owner);
+			flc->flc_owner = NULL;
 		}
 		fl->fl_lmops = NULL;
 	}
@@ -305,16 +305,15 @@ EXPORT_SYMBOL_GPL(locks_release_private);
  *   %true: @owner has at least one blocker
  *   %false: @owner has no blockers
  */
-bool locks_owner_has_blockers(struct file_lock_context *flctx,
-		fl_owner_t owner)
+bool locks_owner_has_blockers(struct file_lock_context *flctx, fl_owner_t owner)
 {
-	struct file_lock *fl;
+	struct file_lock_core *flc;
 
 	spin_lock(&flctx->flc_lock);
-	list_for_each_entry(fl, &flctx->flc_posix, c.flc_list) {
-		if (fl->c.flc_owner != owner)
+	list_for_each_entry(flc, &flctx->flc_posix, flc_list) {
+		if (flc->flc_owner != owner)
 			continue;
-		if (!list_empty(&fl->c.flc_blocked_requests)) {
+		if (!list_empty(&flc->flc_blocked_requests)) {
 			spin_unlock(&flctx->flc_lock);
 			return true;
 		}
