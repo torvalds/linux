@@ -98,7 +98,7 @@ struct file_lock {
 	fl_owner_t fl_owner;
 	unsigned int fl_flags;
 	unsigned char fl_type;
-	unsigned int fl_pid;
+	pid_t fl_pid;
 	int fl_link_cpu;		/* what cpu's list is this on? */
 	wait_queue_head_t fl_wait;
 	struct file *fl_file;
