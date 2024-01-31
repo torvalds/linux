@@ -1114,14 +1114,27 @@ nvmet_fc_schedule_delete_assoc(struct nvmet_fc_tgt_assoc *assoc)
 	queue_work(nvmet_wq, &assoc->del_work);
 }
 
+static bool
+nvmet_fc_assoc_exits(struct nvmet_fc_tgtport *tgtport, u64 association_id)
+{
+	struct nvmet_fc_tgt_assoc *a;
+
+	list_for_each_entry_rcu(a, &tgtport->assoc_list, a_list) {
+		if (association_id == a->association_id)
+			return true;
+	}
+
+	return false;
+}
+
 static struct nvmet_fc_tgt_assoc *
 nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 {
-	struct nvmet_fc_tgt_assoc *assoc, *tmpassoc;
+	struct nvmet_fc_tgt_assoc *assoc;
 	unsigned long flags;
+	bool done;
 	u64 ran;
 	int idx;
-	bool needrandom = true;
 
 	if (!tgtport->pe)
 		return NULL;
@@ -1145,24 +1158,21 @@ nvmet_fc_alloc_target_assoc(struct nvmet_fc_tgtport *tgtport, void *hosthandle)
 	INIT_WORK(&assoc->del_work, nvmet_fc_delete_assoc_work);
 	atomic_set(&assoc->terminating, 0);
 
-	while (needrandom) {
+	done = false;
+	do {
 		get_random_bytes(&ran, sizeof(ran) - BYTES_FOR_QID);
 		ran = ran << BYTES_FOR_QID_SHIFT;
 
 		spin_lock_irqsave(&tgtport->lock, flags);
-		needrandom = false;
-		list_for_each_entry(tmpassoc, &tgtport->assoc_list, a_list) {
-			if (ran == tmpassoc->association_id) {
-				needrandom = true;
-				break;
-			}
-		}
-		if (!needrandom) {
+		rcu_read_lock();
+		if (!nvmet_fc_assoc_exits(tgtport, ran)) {
 			assoc->association_id = ran;
 			list_add_tail_rcu(&assoc->a_list, &tgtport->assoc_list);
+			done = true;
 		}
+		rcu_read_unlock();
 		spin_unlock_irqrestore(&tgtport->lock, flags);
-	}
+	} while (!done);
 
 	return assoc;
 
