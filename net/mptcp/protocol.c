@@ -2336,9 +2336,6 @@ bool __mptcp_retransmit_pending_data(struct sock *sk)
 	if (__mptcp_check_fallback(mptcp_sk(sk)))
 		return false;
 
-	if (tcp_rtx_and_write_queues_empty(sk))
-		return false;
-
 	/* the closing socket has some data untransmitted and/or unacked:
 	 * some data in the mptcp rtx queue has not really xmitted yet.
 	 * keep it simple and re-inject the whole mptcp level rtx queue
