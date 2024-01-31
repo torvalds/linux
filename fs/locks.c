@@ -590,9 +590,9 @@ static inline int locks_overlap(struct file_lock *fl1, struct file_lock *fl2)
 /*
  * Check whether two locks have the same owner.
  */
-static int posix_same_owner(struct file_lock *fl1, struct file_lock *fl2)
+static int posix_same_owner(struct file_lock_core *fl1, struct file_lock_core *fl2)
 {
-	return fl1->c.flc_owner == fl2->c.flc_owner;
+	return fl1->flc_owner == fl2->flc_owner;
 }
 
 /* Must be called with the flc_lock held! */
@@ -857,7 +857,7 @@ static bool posix_locks_conflict(struct file_lock *caller_fl,
 	/* POSIX locks owned by the same process do not conflict with
 	 * each other.
 	 */
-	if (posix_same_owner(caller_fl, sys_fl))
+	if (posix_same_owner(&caller_fl->c, &sys_fl->c))
 		return false;
 
 	/* Check whether they overlap */
@@ -875,7 +875,7 @@ static bool posix_test_locks_conflict(struct file_lock *caller_fl,
 {
 	/* F_UNLCK checks any locks on the same fd. */
 	if (lock_is_unlock(caller_fl)) {
-		if (!posix_same_owner(caller_fl, sys_fl))
+		if (!posix_same_owner(&caller_fl->c, &sys_fl->c))
 			return false;
 		return locks_overlap(caller_fl, sys_fl);
 	}
@@ -978,7 +978,7 @@ static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
 	struct file_lock *fl;
 
 	hash_for_each_possible(blocked_hash, fl, c.flc_link, posix_owner_key(block_fl)) {
-		if (posix_same_owner(fl, block_fl)) {
+		if (posix_same_owner(&fl->c, &block_fl->c)) {
 			while (fl->c.flc_blocker)
 				fl = fl->c.flc_blocker;
 			return fl;
@@ -1005,7 +1005,7 @@ static int posix_locks_deadlock(struct file_lock *caller_fl,
 	while ((block_fl = what_owner_is_waiting_for(block_fl))) {
 		if (i++ > MAX_DEADLK_ITERATIONS)
 			return 0;
-		if (posix_same_owner(caller_fl, block_fl))
+		if (posix_same_owner(&caller_fl->c, &block_fl->c))
 			return 1;
 	}
 	return 0;
@@ -1178,13 +1178,13 @@ retry:
 
 	/* Find the first old lock with the same owner as the new lock */
 	list_for_each_entry(fl, &ctx->flc_posix, c.flc_list) {
-		if (posix_same_owner(request, fl))
+		if (posix_same_owner(&request->c, &fl->c))
 			break;
 	}
 
 	/* Process locks with this owner. */
 	list_for_each_entry_safe_from(fl, tmp, &ctx->flc_posix, c.flc_list) {
-		if (!posix_same_owner(request, fl))
+		if (!posix_same_owner(&request->c, &fl->c))
 			break;
 
 		/* Detect adjacent or overlapping regions (if same lock type) */
