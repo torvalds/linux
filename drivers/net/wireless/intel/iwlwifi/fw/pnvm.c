@@ -268,21 +268,27 @@ static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
 	struct pnvm_sku_package *package;
 	u8 *image = NULL;
 
-	/* First attempt to get the PNVM from BIOS */
-	package = iwl_uefi_get_pnvm(trans_p, len);
-	if (!IS_ERR_OR_NULL(package)) {
-		if (*len >= sizeof(*package)) {
-			/* we need only the data */
-			*len -= sizeof(*package);
-			image = kmemdup(package->data, *len, GFP_KERNEL);
+	/* Get PNVM from BIOS for non-Intel SKU */
+	if (trans_p->sku_id[2]) {
+		package = iwl_uefi_get_pnvm(trans_p, len);
+		if (!IS_ERR_OR_NULL(package)) {
+			if (*len >= sizeof(*package)) {
+				/* we need only the data */
+				*len -= sizeof(*package);
+				image = kmemdup(package->data,
+						*len, GFP_KERNEL);
+			}
+			/*
+			 * free package regardless of whether kmemdup
+			 * succeeded
+			 */
+			kfree(package);
+			if (image)
+				return image;
 		}
-		/* free package regardless of whether kmemdup succeeded */
-		kfree(package);
-		if (image)
-			return image;
 	}
 
-	/* If it's not available, try from the filesystem */
+	/* If it's not available, or for Intel SKU, try from the filesystem */
 	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
 		return NULL;
 	return image;
