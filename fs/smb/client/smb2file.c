@@ -7,7 +7,6 @@
  *
  */
 #include <linux/fs.h>
-#define _NEED_FILE_LOCK_FIELD_MACROS
 #include <linux/filelock.h>
 #include <linux/stat.h>
 #include <linux/slab.h>
@@ -229,7 +228,7 @@ smb2_unlock_range(struct cifsFileInfo *cfile, struct file_lock *flock,
 			 * flock and OFD lock are associated with an open
 			 * file description, not the process.
 			 */
-			if (!(flock->fl_flags & (FL_FLOCK | FL_OFDLCK)))
+			if (!(flock->c.flc_flags & (FL_FLOCK | FL_OFDLCK)))
 				continue;
 		if (cinode->can_cache_brlcks) {
 			/*
