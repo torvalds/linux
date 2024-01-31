@@ -5774,14 +5774,6 @@ lpfc_setup_disc_node(struct lpfc_vport *vport, uint32_t did)
 			if (vport->phba->nvmet_support)
 				return ndlp;
 
-			/* If we've already received a PLOGI from this NPort
-			 * we don't need to try to discover it again.
-			 */
-			if (ndlp->nlp_flag & NLP_RCV_PLOGI &&
-			    !(ndlp->nlp_type &
-			     (NLP_FCP_TARGET | NLP_NVME_TARGET)))
-				return NULL;
-
 			if (ndlp->nlp_state > NLP_STE_UNUSED_NODE &&
 			    ndlp->nlp_state < NLP_STE_PRLI_ISSUE) {
 				lpfc_disc_state_machine(vport, ndlp, NULL,
