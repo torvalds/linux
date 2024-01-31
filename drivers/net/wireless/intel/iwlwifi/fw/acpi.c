@@ -317,12 +317,6 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 	cmd->v4.block_list_size = cpu_to_le32(block_list_size);
 
 	IWL_DEBUG_RADIO(fwrt, "TAS array size %u\n", block_list_size);
-	if (block_list_size > APCI_WTAS_BLACK_LIST_MAX) {
-		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size value %u\n",
-				block_list_size);
-		ret = -EINVAL;
-		goto out_free;
-	}
 
 	for (i = 0; i < block_list_size; i++) {
 		u32 country;
