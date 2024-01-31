@@ -157,7 +157,7 @@ static int nfs_delegation_claim_locks(struct nfs4_state *state, const nfs4_state
 	spin_lock(&flctx->flc_lock);
 restart:
 	for_each_file_lock(fl, list) {
-		if (nfs_file_open_context(fl->fl_file)->state != state)
+		if (nfs_file_open_context(fl->c.flc_file)->state != state)
 			continue;
 		spin_unlock(&flctx->flc_lock);
 		status = nfs4_lock_delegation_recall(fl, state, stateid);
