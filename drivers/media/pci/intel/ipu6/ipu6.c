@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2013 - 2024 Intel Corporation
+ * Copyright (C) 2013--2024 Intel Corporation
  */
 
 #include <linux/bitfield.h>
@@ -364,47 +364,20 @@ static void ipu6_internal_pdata_init(struct ipu6_device *isp)
 	}
 }
 
-static int ipu6_isys_check_fwnode_graph(struct fwnode_handle *fwnode)
-{
-	struct fwnode_handle *endpoint;
-
-	if (IS_ERR_OR_NULL(fwnode))
-		return -EINVAL;
-
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (endpoint) {
-		fwnode_handle_put(endpoint);
-		return 0;
-	}
-
-	return ipu6_isys_check_fwnode_graph(fwnode->secondary);
-}
-
 static struct ipu6_bus_device *
 ipu6_isys_init(struct pci_dev *pdev, struct device *parent,
 	       struct ipu6_buttress_ctrl *ctrl, void __iomem *base,
 	       const struct ipu6_isys_internal_pdata *ipdata)
 {
 	struct device *dev = &pdev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct ipu6_bus_device *isys_adev;
 	struct ipu6_isys_pdata *pdata;
 	int ret;
 
-	/* check fwnode at first, fallback into bridge if no fwnode graph */
-	ret = ipu6_isys_check_fwnode_graph(fwnode);
+	ret = ipu_bridge_init(dev, ipu_bridge_parse_ssdb);
 	if (ret) {
-		if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary)) {
-			dev_err(dev,
-				"fwnode graph has no endpoints connection\n");
-			return ERR_PTR(-EINVAL);
-		}
-
-		ret = ipu_bridge_init(dev, ipu_bridge_parse_ssdb);
-		if (ret) {
-			dev_err_probe(dev, ret, "IPU6 bridge init failed\n");
-			return ERR_PTR(ret);
-		}
+		dev_err_probe(dev, ret, "IPU6 bridge init failed\n");
+		return ERR_PTR(ret);
 	}
 
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
