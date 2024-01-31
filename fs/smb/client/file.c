@@ -1409,7 +1409,7 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 	down_read(&cinode->lock_sem);
 	posix_test_lock(file, flock);
 
-	if (flock->fl_type == F_UNLCK && !cinode->can_cache_brlcks) {
+	if (lock_is_unlock(flock) && !cinode->can_cache_brlcks) {
 		flock->fl_type = saved_type;
 		rc = 1;
 	}
@@ -1581,7 +1581,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 
 	el = locks_to_send.next;
 	spin_lock(&flctx->flc_lock);
-	list_for_each_entry(flock, &flctx->flc_posix, fl_list) {
+	for_each_file_lock(flock, &flctx->flc_posix) {
 		if (el == &locks_to_send) {
 			/*
 			 * The list ended. We don't have enough allocated
@@ -1591,7 +1591,7 @@ cifs_push_posix_locks(struct cifsFileInfo *cfile)
 			break;
 		}
 		length = cifs_flock_len(flock);
-		if (flock->fl_type == F_RDLCK || flock->fl_type == F_SHLCK)
+		if (lock_is_read(flock) || flock->fl_type == F_SHLCK)
 			type = CIFS_RDLCK;
 		else
 			type = CIFS_WRLCK;
@@ -1681,16 +1681,16 @@ cifs_read_flock(struct file_lock *flock, __u32 *type, int *lock, int *unlock,
 		cifs_dbg(FYI, "Unknown lock flags 0x%x\n", flock->fl_flags);
 
 	*type = server->vals->large_lock_type;
-	if (flock->fl_type == F_WRLCK) {
+	if (lock_is_write(flock)) {
 		cifs_dbg(FYI, "F_WRLCK\n");
 		*type |= server->vals->exclusive_lock_type;
 		*lock = 1;
-	} else if (flock->fl_type == F_UNLCK) {
+	} else if (lock_is_unlock(flock)) {
 		cifs_dbg(FYI, "F_UNLCK\n");
 		*type |= server->vals->unlock_lock_type;
 		*unlock = 1;
 		/* Check if unlock includes more than one lock range */
-	} else if (flock->fl_type == F_RDLCK) {
+	} else if (lock_is_read(flock)) {
 		cifs_dbg(FYI, "F_RDLCK\n");
 		*type |= server->vals->shared_lock_type;
 		*lock = 1;
