@@ -242,9 +242,9 @@ struct iwl_mac_low_latency_cmd {
  * @esr_transition_timeout: the timeout required by the AP for the
  *	eSR transition.
  *	Available only from version 2 of the command.
- *	This values comes from the EMLSR transition delay in the EML
+ *	This value comes from the EMLSR transition delay in the EML
  *	Capabilities subfield.
- * @medium_sync_delay: the value as it appeasr in P802.11be_D2.2 Figure 9-1002j.
+ * @medium_sync_delay: the value as it appears in P802.11be_D2.2 Figure 9-1002j.
  * @assoc_id: unique ID assigned by the AP during association
  * @reserved1: alignment
  * @data_policy: see &enum iwl_mac_data_policy
@@ -317,7 +317,6 @@ enum iwl_mac_config_filter_flags {
  *	If the NIC is not ACK_ENABLED it may use the EOF-bit in first non-0
  *	len delim to determine if AGG or single.
  * @client: client mac data
- * @go_ibss: mac data for go or ibss
  * @p2p_dev: mac data for p2p device
  */
 struct iwl_mac_config_cmd {
