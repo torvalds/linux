@@ -1812,7 +1812,7 @@ struct nvme_command {
 	};
 };
 
-static inline bool nvme_is_fabrics(struct nvme_command *cmd)
+static inline bool nvme_is_fabrics(const struct nvme_command *cmd)
 {
 	return cmd->common.opcode == nvme_fabrics_command;
 }
@@ -1831,7 +1831,7 @@ struct nvme_error_slot {
 	__u8		resv2[24];
 };
 
-static inline bool nvme_is_write(struct nvme_command *cmd)
+static inline bool nvme_is_write(const struct nvme_command *cmd)
 {
 	/*
 	 * What a mess...
