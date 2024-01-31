@@ -273,19 +273,19 @@ int ceph_lock(struct file *file, int cmd, struct file_lock *fl)
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	if (err < 0) {
-		if (op == CEPH_MDS_OP_SETFILELOCK && F_UNLCK == fl->fl_type)
+		if (op == CEPH_MDS_OP_SETFILELOCK && lock_is_unlock(fl))
 			posix_lock_file(file, fl, NULL);
 		return err;
 	}
 
-	if (F_RDLCK == fl->fl_type)
+	if (lock_is_read(fl))
 		lock_cmd = CEPH_LOCK_SHARED;
-	else if (F_WRLCK == fl->fl_type)
+	else if (lock_is_write(fl))
 		lock_cmd = CEPH_LOCK_EXCL;
 	else
 		lock_cmd = CEPH_LOCK_UNLOCK;
 
-	if (op == CEPH_MDS_OP_SETFILELOCK && F_UNLCK == fl->fl_type) {
+	if (op == CEPH_MDS_OP_SETFILELOCK && lock_is_unlock(fl)) {
 		err = try_unlock_file(file, fl);
 		if (err <= 0)
 			return err;
@@ -333,7 +333,7 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	}
 	spin_unlock(&ci->i_ceph_lock);
 	if (err < 0) {
-		if (F_UNLCK == fl->fl_type)
+		if (lock_is_unlock(fl))
 			locks_lock_file_wait(file, fl);
 		return err;
 	}
@@ -341,14 +341,14 @@ int ceph_flock(struct file *file, int cmd, struct file_lock *fl)
 	if (IS_SETLKW(cmd))
 		wait = 1;
 
-	if (F_RDLCK == fl->fl_type)
+	if (lock_is_read(fl))
 		lock_cmd = CEPH_LOCK_SHARED;
-	else if (F_WRLCK == fl->fl_type)
+	else if (lock_is_write(fl))
 		lock_cmd = CEPH_LOCK_EXCL;
 	else
 		lock_cmd = CEPH_LOCK_UNLOCK;
 
-	if (F_UNLCK == fl->fl_type) {
+	if (lock_is_unlock(fl)) {
 		err = try_unlock_file(file, fl);
 		if (err <= 0)
 			return err;
@@ -385,9 +385,9 @@ void ceph_count_locks(struct inode *inode, int *fcntl_count, int *flock_count)
 	ctx = locks_inode_context(inode);
 	if (ctx) {
 		spin_lock(&ctx->flc_lock);
-		list_for_each_entry(lock, &ctx->flc_posix, fl_list)
+		for_each_file_lock(lock, &ctx->flc_posix)
 			++(*fcntl_count);
-		list_for_each_entry(lock, &ctx->flc_flock, fl_list)
+		for_each_file_lock(lock, &ctx->flc_flock)
 			++(*flock_count);
 		spin_unlock(&ctx->flc_lock);
 	}
@@ -453,7 +453,7 @@ int ceph_encode_locks_to_buffer(struct inode *inode,
 		return 0;
 
 	spin_lock(&ctx->flc_lock);
-	list_for_each_entry(lock, &ctx->flc_posix, fl_list) {
+	for_each_file_lock(lock, &ctx->flc_posix) {
 		++seen_fcntl;
 		if (seen_fcntl > num_fcntl_locks) {
 			err = -ENOSPC;
@@ -464,7 +464,7 @@ int ceph_encode_locks_to_buffer(struct inode *inode,
 			goto fail;
 		++l;
 	}
-	list_for_each_entry(lock, &ctx->flc_flock, fl_list) {
+	for_each_file_lock(lock, &ctx->flc_flock) {
 		++seen_flock;
 		if (seen_flock > num_flock_locks) {
 			err = -ENOSPC;
