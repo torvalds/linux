@@ -16,6 +16,7 @@
 #include "fw/acpi.h"
 #include "fw/pnvm.h"
 #include "fw/uefi.h"
+#include "fw/regulatory.h"
 
 #include "mvm.h"
 #include "fw/dbg.h"
@@ -895,7 +896,6 @@ static int iwl_mvm_config_ltr(struct iwl_mvm *mvm)
 				    sizeof(cmd), &cmd);
 }
 
-#ifdef CONFIG_ACPI
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 {
 	u32 cmd_id = REDUCE_TX_POWER_CMD;
@@ -1077,6 +1077,8 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 
 	return iwl_mvm_send_cmd_pdu(mvm, cmd_id, 0, len, &cmd);
 }
+
+#ifdef CONFIG_ACPI
 
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
@@ -1385,79 +1387,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 		mvm->fwrt.uats_enabled = TRUE;
 }
 
-void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
-{
-	int ret;
-
-	iwl_acpi_get_guid_lock_status(&mvm->fwrt);
-
-	/* read PPAG table */
-	ret = iwl_acpi_get_ppag_table(&mvm->fwrt);
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
-				"PPAG BIOS table invalid or unavailable. (%d)\n",
-				ret);
-	}
-
-	/* read SAR tables */
-	ret = iwl_acpi_get_wrds_table(&mvm->fwrt);
-	if (ret < 0) {
-		IWL_DEBUG_RADIO(mvm,
-				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
-				ret);
-		/*
-		 * If not available, don't fail and don't bother with EWRD and
-		 * WGDS */
-
-		if (!iwl_acpi_get_wgds_table(&mvm->fwrt)) {
-			/*
-			 * If basic SAR is not available, we check for WGDS,
-			 * which should *not* be available either.  If it is
-			 * available, issue an error, because we can't use SAR
-			 * Geo without basic SAR.
-			 */
-			IWL_ERR(mvm, "BIOS contains WGDS but no WRDS\n");
-		}
-
-	} else {
-		ret = iwl_acpi_get_ewrd_table(&mvm->fwrt);
-		/* if EWRD is not available, we can still use
-		* WRDS, so don't fail */
-		if (ret < 0)
-			IWL_DEBUG_RADIO(mvm,
-					"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
-					ret);
-
-		/* read geo SAR table */
-		if (iwl_sar_geo_support(&mvm->fwrt)) {
-			ret = iwl_acpi_get_wgds_table(&mvm->fwrt);
-			if (ret < 0)
-				IWL_DEBUG_RADIO(mvm,
-						"Geo SAR BIOS table invalid or unavailable. (%d)\n",
-						ret);
-				/* we don't fail if the table is not available */
-		}
-	}
-
-	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
-}
 #else /* CONFIG_ACPI */
-
-inline int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm,
-				      int prof_a, int prof_b)
-{
-	return 1;
-}
-
-inline int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
-{
-	return -ENOENT;
-}
-
-static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
-{
-	return 0;
-}
 
 int iwl_mvm_ppag_send_cmd(struct iwl_mvm *mvm)
 {
@@ -1487,11 +1417,64 @@ static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 	return DSM_VALUE_RFI_DISABLE;
 }
 
-void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
-{
-}
-
 #endif /* CONFIG_ACPI */
+
+void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
+{
+	int ret;
+
+	iwl_acpi_get_guid_lock_status(&mvm->fwrt);
+
+	/* read PPAG table */
+	ret = iwl_acpi_get_ppag_table(&mvm->fwrt);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"PPAG BIOS table invalid or unavailable. (%d)\n",
+				ret);
+	}
+
+	/* read SAR tables */
+	ret = iwl_bios_get_wrds_table(&mvm->fwrt);
+	if (ret < 0) {
+		IWL_DEBUG_RADIO(mvm,
+				"WRDS SAR BIOS table invalid or unavailable. (%d)\n",
+				ret);
+		/*
+		 * If not available, don't fail and don't bother with EWRD and
+		 * WGDS */
+
+		if (!iwl_bios_get_wgds_table(&mvm->fwrt)) {
+			/*
+			 * If basic SAR is not available, we check for WGDS,
+			 * which should *not* be available either.  If it is
+			 * available, issue an error, because we can't use SAR
+			 * Geo without basic SAR.
+			 */
+			IWL_ERR(mvm, "BIOS contains WGDS but no WRDS\n");
+		}
+
+	} else {
+		ret = iwl_bios_get_ewrd_table(&mvm->fwrt);
+		/* if EWRD is not available, we can still use
+		* WRDS, so don't fail */
+		if (ret < 0)
+			IWL_DEBUG_RADIO(mvm,
+					"EWRD SAR BIOS table invalid or unavailable. (%d)\n",
+					ret);
+
+		/* read geo SAR table */
+		if (iwl_sar_geo_support(&mvm->fwrt)) {
+			ret = iwl_bios_get_wgds_table(&mvm->fwrt);
+			if (ret < 0)
+				IWL_DEBUG_RADIO(mvm,
+						"Geo SAR BIOS table invalid or unavailable. (%d)\n",
+						ret);
+				/* we don't fail if the table is not available */
+		}
+	}
+
+	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
+}
 
 static void iwl_mvm_disconnect_iterator(void *data, u8 *mac,
 					struct ieee80211_vif *vif)

@@ -622,7 +622,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_wrds_table);
 
 int iwl_acpi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
 {
@@ -731,7 +730,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_ewrd_table);
 
 int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 {
@@ -748,7 +746,7 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt)
 			.revisions = BIT(3),
 			.bands = ACPI_GEO_NUM_BANDS_REV2,
 			.profiles = ACPI_NUM_GEO_PROFILES_REV3,
-			.min_profiles = 3,
+			.min_profiles = BIOS_GEO_MIN_PROFILE_NUM,
 		},
 		{
 			.revisions = BIT(2),
@@ -886,7 +884,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_wgds_table);
 
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {

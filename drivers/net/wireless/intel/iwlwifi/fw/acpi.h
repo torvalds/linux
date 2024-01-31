@@ -105,6 +105,9 @@
 #define IWL_SAR_ENABLE_MSK		BIT(0)
 #define IWL_REDUCE_POWER_FLAGS_POS	1
 
+/* The Inidcator whether UEFI WIFI GUID tables are locked is read from ACPI */
+#define UEFI_WIFI_GUID_UNLOCKED		0
+
 /*
  * The profile for revision 2 is a superset of revision 1, which is in
  * turn a superset of revision 0.  So we can store all revisions

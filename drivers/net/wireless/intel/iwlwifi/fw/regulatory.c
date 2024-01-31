@@ -6,6 +6,23 @@
 #include "iwl-debug.h"
 #include "regulatory.h"
 #include "fw/runtime.h"
+#include "fw/uefi.h"
+
+#define IWL_BIOS_TABLE_LOADER(__name)					\
+int iwl_bios_get_ ## __name ## _table(struct iwl_fw_runtime *fwrt)	\
+{									\
+	int ret = -ENOENT;						\
+	if (fwrt->uefi_tables_lock_status > UEFI_WIFI_GUID_UNLOCKED)	\
+		ret = iwl_uefi_get_ ## __name ## _table(fwrt);		\
+	if (ret < 0)							\
+		ret = iwl_acpi_get_ ## __name ## _table(fwrt);		\
+	return ret;							\
+}									\
+IWL_EXPORT_SYMBOL(iwl_bios_get_ ## __name ## _table)
+
+IWL_BIOS_TABLE_LOADER(wrds);
+IWL_BIOS_TABLE_LOADER(ewrd);
+IWL_BIOS_TABLE_LOADER(wgds);
 
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt)
 {

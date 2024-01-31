@@ -164,21 +164,21 @@ struct iwl_fw_runtime {
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	bool tpc_enabled;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
-#ifdef CONFIG_ACPI
 	struct iwl_sar_profile sar_profiles[BIOS_SAR_MAX_PROFILE_NUM];
 	u8 sar_chain_a_profile;
 	u8 sar_chain_b_profile;
+	u8 reduced_power_flags;
 	struct iwl_geo_profile geo_profiles[BIOS_GEO_MAX_PROFILE_NUM];
 	u32 geo_rev;
 	u32 geo_num_profiles;
 	bool geo_enabled;
+#ifdef CONFIG_ACPI
 	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 	u32 ppag_flags;
 	u32 ppag_ver;
 	bool ppag_table_valid;
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
-	u8 reduced_power_flags;
 	struct iwl_uats_table_cmd uats_table;
 	u8 uefi_tables_lock_status;
 #endif

@@ -87,4 +87,10 @@ int iwl_sar_fill_profile(struct iwl_fw_runtime *fwrt,
 			 __le16 *per_chain, u32 n_tables, u32 n_subbands,
 			 int prof_a, int prof_b);
 
+int iwl_bios_get_wrds_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_ewrd_table(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_wgds_table(struct iwl_fw_runtime *fwrt);
+
 #endif /* __fw_regulatory_h__ */

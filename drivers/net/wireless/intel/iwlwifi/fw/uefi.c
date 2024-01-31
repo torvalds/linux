@@ -413,3 +413,111 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
 #endif /* CONFIG_ACPI */
+
+static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
+				     struct uefi_sar_profile *uefi_sar_prof,
+				     u8 prof_index, bool enabled)
+{
+	memcpy(&fwrt->sar_profiles[prof_index].chains, uefi_sar_prof,
+	       sizeof(struct uefi_sar_profile));
+
+	fwrt->sar_profiles[prof_index].enabled = enabled & IWL_SAR_ENABLE_MSK;
+}
+
+int iwl_uefi_get_wrds_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_wrds *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WRDS_NAME,
+					      "WRDS", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WRDS_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDS revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	/* The profile from WRDS is officially profile 1, but goes
+	 * into sar_profiles[0] (because we don't have a profile 0).
+	 */
+	iwl_uefi_set_sar_profile(fwrt, &data->sar_profile, 0, data->mode);
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_ewrd_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_ewrd *data;
+	int i, ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_EWRD_NAME,
+					      "EWRD", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_EWRD_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI EWRD revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (data->num_profiles >= BIOS_SAR_MAX_PROFILE_NUM) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	for (i = 0; i < data->num_profiles; i++)
+		/* The EWRD profiles officially go from 2 to 4, but we
+		 * save them in sar_profiles[1-3] (because we don't
+		 * have profile 0).  So in the array we start from 1.
+		 */
+		iwl_uefi_set_sar_profile(fwrt, &data->sar_profiles[i], i + 1,
+					 data->mode);
+
+out:
+	kfree(data);
+	return ret;
+}
+
+int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt)
+{
+	struct uefi_cnv_var_wgds *data;
+	int i, ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WGDS_NAME,
+					      "WGDS", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WGDS_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WGDS revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (data->num_profiles < BIOS_GEO_MIN_PROFILE_NUM ||
+	    data->num_profiles > BIOS_GEO_MAX_PROFILE_NUM) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Invalid number of profiles in WGDS: %d\n",
+				data->num_profiles);
+		goto out;
+	}
+
+	fwrt->geo_rev = data->revision;
+	for (i = 0; i < data->num_profiles; i++)
+		memcpy(&fwrt->geo_profiles[i], &data->geo_profiles[i],
+		       sizeof(struct iwl_geo_profile));
+
+	fwrt->geo_num_profiles = data->num_profiles;
+	fwrt->geo_enabled = true;
+out:
+	kfree(data);
+	return ret;
+}
