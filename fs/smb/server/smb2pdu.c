@@ -6841,7 +6841,7 @@ static void smb2_remove_blocked_lock(void **argv)
 	struct file_lock *flock = (struct file_lock *)argv[0];
 
 	ksmbd_vfs_posix_lock_unblock(flock);
-	wake_up(&flock->fl_wait);
+	locks_wake_up(flock);
 }
 
 static inline bool lock_defer_pending(struct file_lock *fl)
@@ -6991,7 +6991,7 @@ int smb2_lock(struct ksmbd_work *work)
 				    file_inode(smb_lock->fl->fl_file))
 					continue;
 
-				if (smb_lock->fl->fl_type == F_UNLCK) {
+				if (lock_is_unlock(smb_lock->fl)) {
 					if (cmp_lock->fl->fl_file == smb_lock->fl->fl_file &&
 					    cmp_lock->start == smb_lock->start &&
 					    cmp_lock->end == smb_lock->end &&
@@ -7051,7 +7051,7 @@ int smb2_lock(struct ksmbd_work *work)
 		}
 		up_read(&conn_list_lock);
 out_check_cl:
-		if (smb_lock->fl->fl_type == F_UNLCK && nolock) {
+		if (lock_is_unlock(smb_lock->fl) && nolock) {
 			pr_err("Try to unlock nolocked range\n");
 			rsp->hdr.Status = STATUS_RANGE_NOT_LOCKED;
 			goto out;
