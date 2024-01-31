@@ -400,10 +400,17 @@ unmask:
 						  server->conn_id, server->hostname);
 	}
 smbd_done:
-	if (rc < 0 && rc != -EINTR)
+	/*
+	 * there's hardly any use for the layers above to know the
+	 * actual error code here. All they should do at this point is
+	 * to retry the connection and hope it goes away.
+	 */
+	if (rc < 0 && rc != -EINTR && rc != -EAGAIN) {
 		cifs_server_dbg(VFS, "Error %d sending data on socket to server\n",
 			 rc);
-	else if (rc > 0)
+		rc = -ECONNABORTED;
+		cifs_signal_cifsd_for_reconnect(server, false);
+	} else if (rc > 0)
 		rc = 0;
 out:
 	cifs_in_send_dec(server);
@@ -1024,6 +1031,9 @@ struct TCP_Server_Info *cifs_pick_channel(struct cifs_ses *ses)
 	for (i = 0; i < ses->chan_count; i++) {
 		server = ses->chans[i].server;
 		if (!server || server->terminate)
+			continue;
+
+		if (CIFS_CHAN_NEEDS_RECONNECT(ses, i))
 			continue;
 
 		/*
