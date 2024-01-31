@@ -1110,66 +1110,7 @@ static int iwl_mvm_ppag_init(struct iwl_mvm *mvm)
 
 #ifdef CONFIG_ACPI
 
-static const struct dmi_system_id dmi_tas_approved_list[] = {
-	{ .ident = "HP",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-		},
-	},
-	{ .ident = "SAMSUNG",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
-		},
-	},
-		{ .ident = "LENOVO",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-		},
-	},
-	{ .ident = "DELL",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
-		},
-	},
-	{ .ident = "MSFT",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
-		},
-	},
-	{ .ident = "Acer",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
-		},
-	},
-	{ .ident = "ASUS",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
-		},
-	},
-	{ .ident = "GOOGLE-HP",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
-		},
-	},
-	{ .ident = "MSI",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
-		},
-	},
-	{ .ident = "Honor",
-	  .matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
-		},
-	},
-	/* keep last */
-	{}
-};
 
-bool iwl_mvm_is_vendor_in_approved_list(void)
-{
-	return dmi_check_system(dmi_tas_approved_list);
-}
 
 static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigned int mcc)
 {
@@ -1177,7 +1118,7 @@ static bool iwl_mvm_add_to_tas_block_list(__le32 *list, __le32 *le_size, unsigne
 	u32 size = le32_to_cpu(*le_size);
 
 	/* Verify that there is room for another country */
-	if (size >= IWL_TAS_BLOCK_LIST_MAX)
+	if (size >= IWL_WTAS_BLACK_LIST_MAX)
 		return false;
 
 	for (i = 0; i < size; i++) {
@@ -1198,7 +1139,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	int cmd_size, fw_ver;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cmd.v3.block_list_array) <
-		     APCI_WTAS_BLACK_LIST_MAX);
+		     IWL_WTAS_BLACK_LIST_MAX);
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_TAS_CFG)) {
 		IWL_DEBUG_RADIO(mvm, "TAS not enabled in FW\n");
@@ -1219,7 +1160,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (ret == 0)
 		return;
 
-	if (!iwl_mvm_is_vendor_in_approved_list()) {
+	if (!iwl_is_tas_approved()) {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR));
@@ -1395,11 +1336,6 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
-}
-
-bool iwl_mvm_is_vendor_in_approved_list(void)
-{
-	return false;
 }
 
 static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)

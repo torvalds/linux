@@ -7,6 +7,7 @@
 #ifndef __iwl_fw_api_nvm_reg_h__
 #define __iwl_fw_api_nvm_reg_h__
 
+#include "fw/regulatory.h"
 /**
  * enum iwl_regulatory_and_nvm_subcmd_ids - regulatory/NVM commands
  */
@@ -438,7 +439,6 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
-#define IWL_TAS_BLOCK_LIST_MAX 16
 /**
  * struct iwl_tas_config_cmd_v2 - configures the TAS
  * @block_list_size: size of relevant field in block_list_array
@@ -446,7 +446,7 @@ enum iwl_mcc_source {
  */
 struct iwl_tas_config_cmd_v2 {
 	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le32 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
 
 /**
@@ -459,7 +459,7 @@ struct iwl_tas_config_cmd_v2 {
  */
 struct iwl_tas_config_cmd_v3 {
 	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le32 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
 	__le16 override_tas_iec;
 	__le16 enable_tas_iec;
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
@@ -476,7 +476,7 @@ struct iwl_tas_config_cmd_v3 {
 */
 struct iwl_tas_config_cmd_v4 {
 	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le32 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
 	u8 override_tas_iec;
 	u8 enable_tas_iec;
 	u8 usa_tas_uhb_allowed;

@@ -273,22 +273,9 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 		ACPI_TYPE_INTEGER) {
 		u32 tas_selection =
 			(u32)wifi_pkg->package.elements[1].integer.value;
-		u16 override_iec =
-			(tas_selection & ACPI_WTAS_OVERRIDE_IEC_MSK) >> ACPI_WTAS_OVERRIDE_IEC_POS;
-		u16 enabled_iec = (tas_selection & ACPI_WTAS_ENABLE_IEC_MSK) >>
-			ACPI_WTAS_ENABLE_IEC_POS;
-		u8 usa_tas_uhb = (tas_selection & ACPI_WTAS_USA_UHB_MSK) >> ACPI_WTAS_USA_UHB_POS;
 
-
-		enabled = tas_selection & ACPI_WTAS_ENABLED_MSK;
-		if (fw_ver <= 3) {
-			cmd->v3.override_tas_iec = cpu_to_le16(override_iec);
-			cmd->v3.enable_tas_iec = cpu_to_le16(enabled_iec);
-		} else {
-			cmd->v4.usa_tas_uhb_allowed = usa_tas_uhb;
-			cmd->v4.override_tas_iec = (u8)override_iec;
-			cmd->v4.enable_tas_iec = (u8)enabled_iec;
-		}
+		enabled = iwl_parse_tas_selection(fwrt, cmd, fw_ver,
+						  tas_selection);
 
 	} else if (tbl_rev == 0 &&
 		wifi_pkg->package.elements[1].type == ACPI_TYPE_INTEGER) {
@@ -307,7 +294,7 @@ int iwl_acpi_get_tas(struct iwl_fw_runtime *fwrt,
 	IWL_DEBUG_RADIO(fwrt, "Reading TAS table revision %d\n", tbl_rev);
 	if (wifi_pkg->package.elements[2].type != ACPI_TYPE_INTEGER ||
 	    wifi_pkg->package.elements[2].integer.value >
-	    APCI_WTAS_BLACK_LIST_MAX) {
+	    IWL_WTAS_BLACK_LIST_MAX) {
 		IWL_DEBUG_RADIO(fwrt, "TAS invalid array size %llu\n",
 				wifi_pkg->package.elements[2].integer.value);
 		ret = -EINVAL;

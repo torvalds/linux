@@ -2620,7 +2620,6 @@ static inline bool iwl_mvm_mei_filter_scan(struct iwl_mvm *mvm,
 void iwl_mvm_send_roaming_forbidden_event(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
 					  bool forbidden);
-bool iwl_mvm_is_vendor_in_approved_list(void);
 
 /* Callbacks for ieee80211_ops */
 void iwl_mvm_mac_tx(struct ieee80211_hw *hw,

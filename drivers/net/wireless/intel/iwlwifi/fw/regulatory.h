@@ -10,7 +10,6 @@
 #include "fw/api/commands.h"
 #include "fw/api/power.h"
 #include "fw/api/phy.h"
-#include "fw/api/nvm-reg.h"
 #include "fw/api/config.h"
 #include "fw/img.h"
 #include "iwl-trans.h"
@@ -39,6 +38,12 @@
 
 #define IWL_PPAG_ETSI_CHINA_MASK	3
 #define IWL_PPAG_ETSI_MASK		BIT(0)
+
+#define IWL_WTAS_BLACK_LIST_MAX	16
+#define IWL_WTAS_ENABLED_MSK		0x1
+#define IWL_WTAS_OVERRIDE_IEC_MSK	0x2
+#define IWL_WTAS_ENABLE_IEC_MSK	0x4
+#define IWL_WTAS_USA_UHB_MSK		BIT(16)
 
 /*
  * The profile for revision 2 is a superset of revision 1, which is in
@@ -91,6 +96,8 @@ struct iwl_ppag_chain {
 
 struct iwl_fw_runtime;
 
+union iwl_tas_config_cmd;
+
 bool iwl_sar_geo_support(struct iwl_fw_runtime *fwrt);
 
 int iwl_sar_geo_fill_table(struct iwl_fw_runtime *fwrt,
@@ -106,6 +113,12 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 			int *cmd_size);
 
 bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt);
+
+bool iwl_is_tas_approved(void);
+
+int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
+			    union iwl_tas_config_cmd *cmd, int fw_ver,
+			    const u32 tas_selection);
 
 int iwl_bios_get_wrds_table(struct iwl_fw_runtime *fwrt);
 

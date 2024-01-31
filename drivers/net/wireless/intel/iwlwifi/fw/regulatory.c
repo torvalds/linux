@@ -3,6 +3,7 @@
  * Copyright (C) 2023 Intel Corporation
  */
 #include <linux/dmi.h>
+#include "fw/api/nvm-reg.h"
 #include "iwl-drv.h"
 #include "iwl-debug.h"
 #include "regulatory.h"
@@ -80,6 +81,62 @@ static const struct dmi_system_id dmi_ppag_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Razer"),
 		},
 	},
+	{}
+};
+
+static const struct dmi_system_id dmi_tas_approved_list[] = {
+	{ .ident = "HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+		},
+	},
+	{ .ident = "SAMSUNG",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD"),
+		},
+	},
+		{ .ident = "LENOVO",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		},
+	},
+	{ .ident = "DELL",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+		},
+	},
+	{ .ident = "MSFT",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+		},
+	},
+	{ .ident = "Acer",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		},
+	},
+	{ .ident = "ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		},
+	},
+	{ .ident = "GOOGLE-HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+		},
+	},
+	{ .ident = "MSI",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
+		},
+	},
+	{ .ident = "Honor",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
+		},
+	},
+	/* keep last */
 	{}
 };
 
@@ -335,3 +392,37 @@ bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 	return true;
 }
 IWL_EXPORT_SYMBOL(iwl_is_ppag_approved);
+
+bool iwl_is_tas_approved(void)
+{
+	return dmi_check_system(dmi_tas_approved_list);
+}
+IWL_EXPORT_SYMBOL(iwl_is_tas_approved);
+
+int iwl_parse_tas_selection(struct iwl_fw_runtime *fwrt,
+			    union iwl_tas_config_cmd *cmd, int fw_ver,
+			    const u32 tas_selection)
+{
+	u8 override_iec = u32_get_bits(tas_selection,
+					IWL_WTAS_OVERRIDE_IEC_MSK);
+	u8 enabled_iec = u32_get_bits(tas_selection, IWL_WTAS_ENABLE_IEC_MSK);
+	u8 usa_tas_uhb = u32_get_bits(tas_selection, IWL_WTAS_USA_UHB_MSK);
+	int enabled = tas_selection & IWL_WTAS_ENABLED_MSK;
+
+	IWL_DEBUG_RADIO(fwrt, "TAS selection as read from BIOS: 0x%x\n",
+			tas_selection);
+
+	if (fw_ver < 3)
+		return enabled;
+
+	if (fw_ver == 3) {
+		cmd->v3.override_tas_iec = cpu_to_le16(override_iec);
+		cmd->v3.enable_tas_iec = cpu_to_le16(enabled_iec);
+	} else {
+		cmd->v4.usa_tas_uhb_allowed = usa_tas_uhb;
+		cmd->v4.override_tas_iec = override_iec;
+		cmd->v4.enable_tas_iec = enabled_iec;
+	}
+
+	return enabled;
+}
