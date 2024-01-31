@@ -253,7 +253,7 @@ impl<T: FnOnce()> WorkItem for ClosureWork<T> {
 /// actual value of the id is not important as long as you use different ids for different fields
 /// of the same struct. (Fields of different structs need not use different ids.)
 ///
-/// Note that the id is used only to select the right method to call during compilation. It wont be
+/// Note that the id is used only to select the right method to call during compilation. It won't be
 /// part of the final executable.
 ///
 /// # Safety

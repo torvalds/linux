@@ -112,7 +112,7 @@ unsafe impl super::Backend for SpinLockBackend {
 
     unsafe fn unlock(ptr: *mut Self::State, _guard_state: &Self::GuardState) {
         // SAFETY: The safety requirements of this function ensure that `ptr` is valid and that the
-        // caller is the owner of the mutex.
+        // caller is the owner of the spinlock.
         unsafe { bindings::spin_unlock(ptr) }
     }
 }
