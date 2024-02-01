@@ -248,6 +248,7 @@ class SpecStructMember(SpecElement):
         len         integer, optional byte length of binary types
         display_hint  string, hint to help choose format specifier
                       when displaying the value
+        struct      string, name of nested struct type
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
@@ -256,6 +257,7 @@ class SpecStructMember(SpecElement):
         self.enum = yaml.get('enum')
         self.len = yaml.get('len')
         self.display_hint = yaml.get('display-hint')
+        self.struct = yaml.get('struct')
 
 
 class SpecStruct(SpecElement):
