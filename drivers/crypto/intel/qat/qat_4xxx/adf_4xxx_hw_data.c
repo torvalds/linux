@@ -463,6 +463,7 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 		hw_data->fw_name = ADF_402XX_FW;
 		hw_data->fw_mmp_name = ADF_402XX_MMP;
 		hw_data->uof_get_name = uof_get_name_402xx;
+		hw_data->get_ena_thd_mask = get_ena_thd_mask;
 		break;
 	case ADF_401XX_PCI_DEVICE_ID:
 		hw_data->fw_name = ADF_4XXX_FW;
