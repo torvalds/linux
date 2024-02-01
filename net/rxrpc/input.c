@@ -710,20 +710,19 @@ static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
 					      rxrpc_seq_t seq)
 {
 	struct sk_buff *skb = call->cong_last_nack;
-	struct rxrpc_ackpacket ack;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int i, new_acks = 0, retained_nacks = 0;
-	rxrpc_seq_t old_seq = sp->first_ack;
-	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(ack);
+	rxrpc_seq_t old_seq = sp->ack.first_ack;
+	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
-	if (after_eq(seq, old_seq + sp->nr_acks)) {
-		summary->nr_new_acks += sp->nr_nacks;
-		summary->nr_new_acks += seq - (old_seq + sp->nr_acks);
+	if (after_eq(seq, old_seq + sp->ack.nr_acks)) {
+		summary->nr_new_acks += sp->ack.nr_nacks;
+		summary->nr_new_acks += seq - (old_seq + sp->ack.nr_acks);
 		summary->nr_retained_nacks = 0;
 	} else if (seq == old_seq) {
-		summary->nr_retained_nacks = sp->nr_nacks;
+		summary->nr_retained_nacks = sp->ack.nr_nacks;
 	} else {
-		for (i = 0; i < sp->nr_acks; i++) {
+		for (i = 0; i < sp->ack.nr_acks; i++) {
 			if (acks[i] == RXRPC_ACK_TYPE_NACK) {
 				if (before(old_seq + i, seq))
 					new_acks++;
@@ -736,7 +735,7 @@ static rxrpc_seq_t rxrpc_input_check_prev_ack(struct rxrpc_call *call,
 		summary->nr_retained_nacks = retained_nacks;
 	}
 
-	return old_seq + sp->nr_acks;
+	return old_seq + sp->ack.nr_acks;
 }
 
 /*
@@ -756,10 +755,10 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 {
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	unsigned int i, old_nacks = 0;
-	rxrpc_seq_t lowest_nak = seq + sp->nr_acks;
+	rxrpc_seq_t lowest_nak = seq + sp->ack.nr_acks;
 	u8 *acks = skb->data + sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
-	for (i = 0; i < sp->nr_acks; i++) {
+	for (i = 0; i < sp->ack.nr_acks; i++) {
 		if (acks[i] == RXRPC_ACK_TYPE_ACK) {
 			summary->nr_acks++;
 			if (after_eq(seq, since))
@@ -771,7 +770,7 @@ static void rxrpc_input_soft_acks(struct rxrpc_call *call,
 				old_nacks++;
 			} else {
 				summary->nr_new_nacks++;
-				sp->nr_nacks++;
+				sp->ack.nr_nacks++;
 			}
 
 			if (before(seq, lowest_nak))
@@ -832,7 +831,6 @@ static bool rxrpc_is_ack_valid(struct rxrpc_call *call,
 static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 {
 	struct rxrpc_ack_summary summary = { 0 };
-	struct rxrpc_ackpacket ack;
 	struct rxrpc_skb_priv *sp = rxrpc_skb(skb);
 	struct rxrpc_acktrailer trailer;
 	rxrpc_serial_t ack_serial, acked_serial;
@@ -841,29 +839,24 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 
 	_enter("");
 
-	offset = sizeof(struct rxrpc_wire_header);
-	if (skb_copy_bits(skb, offset, &ack, sizeof(ack)) < 0)
-		return rxrpc_proto_abort(call, 0, rxrpc_badmsg_short_ack);
-	offset += sizeof(ack);
+	offset = sizeof(struct rxrpc_wire_header) + sizeof(struct rxrpc_ackpacket);
 
-	ack_serial = sp->hdr.serial;
-	acked_serial = ntohl(ack.serial);
-	first_soft_ack = ntohl(ack.firstPacket);
-	prev_pkt = ntohl(ack.previousPacket);
-	hard_ack = first_soft_ack - 1;
-	nr_acks = ack.nAcks;
-	sp->first_ack = first_soft_ack;
-	sp->nr_acks = nr_acks;
-	summary.ack_reason = (ack.reason < RXRPC_ACK__INVALID ?
-			      ack.reason : RXRPC_ACK__INVALID);
+	ack_serial	= sp->hdr.serial;
+	acked_serial	= sp->ack.acked_serial;
+	first_soft_ack	= sp->ack.first_ack;
+	prev_pkt	= sp->ack.prev_ack;
+	nr_acks		= sp->ack.nr_acks;
+	hard_ack	= first_soft_ack - 1;
+	summary.ack_reason = (sp->ack.reason < RXRPC_ACK__INVALID ?
+			      sp->ack.reason : RXRPC_ACK__INVALID);
 
 	trace_rxrpc_rx_ack(call, ack_serial, acked_serial,
 			   first_soft_ack, prev_pkt,
 			   summary.ack_reason, nr_acks);
-	rxrpc_inc_stat(call->rxnet, stat_rx_acks[ack.reason]);
+	rxrpc_inc_stat(call->rxnet, stat_rx_acks[summary.ack_reason]);
 
 	if (acked_serial != 0) {
-		switch (ack.reason) {
+		switch (summary.ack_reason) {
 		case RXRPC_ACK_PING_RESPONSE:
 			rxrpc_complete_rtt_probe(call, skb->tstamp, acked_serial, ack_serial,
 						 rxrpc_rtt_rx_ping_response);
@@ -883,7 +876,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	 * indicates that the client address changed due to NAT.  The server
 	 * lost the call because it switched to a different peer.
 	 */
-	if (unlikely(ack.reason == RXRPC_ACK_EXCEEDS_WINDOW) &&
+	if (unlikely(summary.ack_reason == RXRPC_ACK_EXCEEDS_WINDOW) &&
 	    first_soft_ack == 1 &&
 	    prev_pkt == 0 &&
 	    rxrpc_is_client_call(call)) {
@@ -896,7 +889,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	 * indicate a change of address.  However, we can retransmit the call
 	 * if we still have it buffered to the beginning.
 	 */
-	if (unlikely(ack.reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
+	if (unlikely(summary.ack_reason == RXRPC_ACK_OUT_OF_SEQUENCE) &&
 	    first_soft_ack == 1 &&
 	    prev_pkt == 0 &&
 	    call->acks_hard_ack == 0 &&
@@ -937,7 +930,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	call->acks_first_seq = first_soft_ack;
 	call->acks_prev_seq = prev_pkt;
 
-	switch (ack.reason) {
+	switch (summary.ack_reason) {
 	case RXRPC_ACK_PING:
 		break;
 	default:
@@ -994,7 +987,7 @@ static void rxrpc_input_ack(struct rxrpc_call *call, struct sk_buff *skb)
 	rxrpc_congestion_management(call, skb, &summary, acked_serial);
 
 send_response:
-	if (ack.reason == RXRPC_ACK_PING)
+	if (summary.ack_reason == RXRPC_ACK_PING)
 		rxrpc_send_ACK(call, RXRPC_ACK_PING_RESPONSE, ack_serial,
 			       rxrpc_propose_ack_respond_to_ping);
 	else if (sp->hdr.flags & RXRPC_REQUEST_ACK)

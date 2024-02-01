@@ -198,8 +198,8 @@ struct rxrpc_host_header {
  * - max 48 bytes (struct sk_buff::cb)
  */
 struct rxrpc_skb_priv {
-	struct rxrpc_connection *conn;	/* Connection referred to (poke packet) */
 	union {
+		struct rxrpc_connection *conn;	/* Connection referred to (poke packet) */
 		struct {
 			u16		offset;		/* Offset of data */
 			u16		len;		/* Length of data */
@@ -208,9 +208,12 @@ struct rxrpc_skb_priv {
 		};
 		struct {
 			rxrpc_seq_t	first_ack;	/* First packet in acks table */
+			rxrpc_seq_t	prev_ack;	/* Highest seq seen */
+			rxrpc_serial_t	acked_serial;	/* Packet in response to (or 0) */
+			u8		reason;		/* Reason for ack */
 			u8		nr_acks;	/* Number of acks+nacks */
 			u8		nr_nacks;	/* Number of nacks */
-		};
+		} ack;
 	};
 	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
 };
