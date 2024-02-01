@@ -598,3 +598,26 @@ out:
 	kfree(uefi_tas);
 	return ret;
 }
+
+int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+			   u64 *dflt_pwr_limit)
+{
+	struct uefi_cnv_var_splc *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_SPLC_NAME,
+					      "SPLC", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_SPLC_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI SPLC revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*dflt_pwr_limit = data->default_pwr_limit;
+out:
+	kfree(data);
+	return ret;
+}

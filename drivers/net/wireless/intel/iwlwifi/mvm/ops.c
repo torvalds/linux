@@ -689,7 +689,7 @@ static u32 iwl_mvm_min_backoff(struct iwl_mvm *mvm)
 	if (!backoff)
 		return 0;
 
-	iwl_acpi_get_pwr_limit(&mvm->fwrt, &dflt_pwr_limit);
+	iwl_bios_get_pwr_limit(&mvm->fwrt, &dflt_pwr_limit);
 
 	while (backoff->pwr) {
 		if (dflt_pwr_limit >= backoff->pwr)

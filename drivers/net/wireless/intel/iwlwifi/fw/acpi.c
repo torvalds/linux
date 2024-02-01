@@ -385,7 +385,6 @@ out_free:
 out:
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_pwr_limit);
 
 int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
 {

@@ -17,6 +17,8 @@
 #define IWL_UEFI_WGDS_NAME		L"UefiCnvWlanWGDS"
 #define IWL_UEFI_PPAG_NAME		L"UefiCnvWlanPPAG"
 #define IWL_UEFI_WTAS_NAME		L"UefiCnvWlanWTAS"
+#define IWL_UEFI_SPLC_NAME		L"UefiCnvWlanSPLC"
+
 
 #define IWL_SGOM_MAP_SIZE		339
 #define IWL_UATS_MAP_SIZE		339
@@ -27,6 +29,7 @@
 #define IWL_UEFI_MIN_PPAG_REV		1
 #define IWL_UEFI_MAX_PPAG_REV		3
 #define IWL_UEFI_WTAS_REVISION		1
+#define IWL_UEFI_SPLC_REVISION		0
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -130,6 +133,15 @@ struct uefi_cnv_var_wtas {
 	u16 black_list[IWL_WTAS_BLACK_LIST_MAX];
 } __packed;
 
+/* struct uefi_cnv_var_splc - SPLC tabled as defined in UEFI
+ * @revision: the revision of the table
+ * @default_pwr_limit: The default maximum power per device
+ */
+struct uefi_cnv_var_splc {
+	u8 revision;
+	u32 default_pwr_limit;
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
@@ -150,6 +162,8 @@ int iwl_uefi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *data);
+int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+			   u64 *dflt_pwr_limit);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -205,6 +219,13 @@ static inline int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 					 struct iwl_tas_data *data)
 {
 	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+					 u64 *dflt_pwr_limit)
+{
+	*dflt_pwr_limit = 0;
+	return 0;
 }
 #endif /* CONFIG_EFI */
 

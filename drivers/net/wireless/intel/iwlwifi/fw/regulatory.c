@@ -35,6 +35,8 @@ IWL_BIOS_TABLE_LOADER(ewrd_table);
 IWL_BIOS_TABLE_LOADER(wgds_table);
 IWL_BIOS_TABLE_LOADER(ppag_table);
 IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
+IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
+
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
 	{ .ident = "HP",

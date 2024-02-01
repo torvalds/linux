@@ -137,4 +137,6 @@ int iwl_bios_get_ppag_table(struct iwl_fw_runtime *fwrt);
 int iwl_bios_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *data);
 
+int iwl_bios_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+			   u64 *dflt_pwr_limit);
 #endif /* __fw_regulatory_h__ */
