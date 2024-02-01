@@ -18,12 +18,57 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&a76_0>;
+				};
+				core1 {
+					cpu = <&a76_1>;
+				};
+				core2 {
+					cpu = <&a76_2>;
+				};
+				core3 {
+					cpu = <&a76_3>;
+				};
+			};
+		};
+
 		a76_0: cpu@0 {
 			compatible = "arm,cortex-a76";
 			reg = <0>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A779H0_PD_A1E0D0C0>;
 			next-level-cache = <&L3_CA76>;
+			enable-method = "psci";
+		};
+
+		a76_1: cpu@100 {
+			compatible = "arm,cortex-a76";
+			reg = <0x100>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779H0_PD_A1E0D0C1>;
+			next-level-cache = <&L3_CA76>;
+			enable-method = "psci";
+		};
+
+		a76_2: cpu@200 {
+			compatible = "arm,cortex-a76";
+			reg = <0x200>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779H0_PD_A1E0D0C2>;
+			next-level-cache = <&L3_CA76>;
+			enable-method = "psci";
+		};
+
+		a76_3: cpu@300 {
+			compatible = "arm,cortex-a76";
+			reg = <0x300>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779H0_PD_A1E0D0C3>;
+			next-level-cache = <&L3_CA76>;
+			enable-method = "psci";
 		};
 
 		L3_CA76: cache-controller {
@@ -51,6 +96,11 @@
 	pmu-a76 {
 		compatible = "arm,cortex-a76-pmu";
 		interrupts-extended = <&gic GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
+		method = "smc";
 	};
 
 	/* External SCIF clock - to be overridden by boards that provide it */
