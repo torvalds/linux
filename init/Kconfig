@@ -876,6 +876,18 @@ config CC_NO_ARRAY_BOUNDS
 	bool
 	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC11_NO_ARRAY_BOUNDS
 
+# Currently, disable -Wstringop-overflow for GCC 11, globally.
+config GCC11_NO_STRINGOP_OVERFLOW
+	def_bool y
+
+config CC_NO_STRINGOP_OVERFLOW
+	bool
+	default y if CC_IS_GCC && GCC_VERSION >= 110000 && GCC_VERSION < 120000 && GCC11_NO_STRINGOP_OVERFLOW
+
+config CC_STRINGOP_OVERFLOW
+	bool
+	default y if CC_IS_GCC && !CC_NO_STRINGOP_OVERFLOW
+
 #
 # For architectures that know their GCC __int128 support is sound
 #

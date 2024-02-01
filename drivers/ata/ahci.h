@@ -247,6 +247,7 @@ enum {
 	AHCI_HFLAG_SUSPEND_PHYS		= BIT(26), /* handle PHYs during
 						      suspend/resume */
 	AHCI_HFLAG_NO_SXS		= BIT(28), /* SXS not supported */
+	AHCI_HFLAG_43BIT_ONLY		= BIT(29), /* 43bit DMA addr limit */
 
 	/* ap->flags bits */
 

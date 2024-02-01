@@ -23,6 +23,8 @@
 #include <asm/sn/intr.h>
 #include <asm/sn/irq_alloc.h>
 
+#include "ip27-common.h"
+
 struct hub_irq_data {
 	u64	*irq_mask[2];
 	cpuid_t	cpu;
