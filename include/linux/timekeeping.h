@@ -273,10 +273,15 @@ struct system_device_crosststamp {
  * @cycles:	System counter value
  * @cs:		Clocksource corresponding to system counter value. Used by
  *		timekeeping code to verify comparibility of two cycle values
+ * @cs_id:	Clocksource ID corresponding to system counter value. To be
+ *		used instead of cs in the future.
+ *		The default ID, CSID_GENERIC, does not identify a specific
+ *		clocksource.
  */
 struct system_counterval_t {
 	u64			cycles;
 	struct clocksource	*cs;
+	enum clocksource_ids	cs_id;
 };
 
 /*
