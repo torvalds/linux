@@ -205,18 +205,21 @@ void fuse_finish_open(struct inode *inode, struct file *file)
 	else if (ff->open_flags & FOPEN_NONSEEKABLE)
 		nonseekable_open(inode, file);
 
-	if (fc->atomic_o_trunc && (file->f_flags & O_TRUNC)) {
-		struct fuse_inode *fi = get_fuse_inode(inode);
-
-		spin_lock(&fi->lock);
-		fi->attr_version = atomic64_inc_return(&fc->attr_version);
-		i_size_write(inode, 0);
-		spin_unlock(&fi->lock);
-		file_update_time(file);
-		fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
-	}
 	if ((file->f_mode & FMODE_WRITE) && fc->writeback_cache)
 		fuse_link_write_file(file);
+}
+
+static void fuse_truncate_update_attr(struct inode *inode, struct file *file)
+{
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_inode *fi = get_fuse_inode(inode);
+
+	spin_lock(&fi->lock);
+	fi->attr_version = atomic64_inc_return(&fc->attr_version);
+	i_size_write(inode, 0);
+	spin_unlock(&fi->lock);
+	file_update_time(file);
+	fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
 }
 
 int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
@@ -224,11 +227,9 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 	struct fuse_mount *fm = get_fuse_mount(inode);
 	struct fuse_conn *fc = fm->fc;
 	int err;
-	bool is_wb_truncate = (file->f_flags & O_TRUNC) &&
-			  fc->atomic_o_trunc &&
-			  fc->writeback_cache;
-	bool dax_truncate = (file->f_flags & O_TRUNC) &&
-			  fc->atomic_o_trunc && FUSE_IS_DAX(inode);
+	bool is_truncate = (file->f_flags & O_TRUNC) && fc->atomic_o_trunc;
+	bool is_wb_truncate = is_truncate && fc->writeback_cache;
+	bool dax_truncate = is_truncate && FUSE_IS_DAX(inode);
 
 	if (fuse_is_bad(inode))
 		return -EIO;
@@ -251,15 +252,18 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 		fuse_set_nowrite(inode);
 
 	err = fuse_do_open(fm, get_node_id(inode), file, isdir);
-	if (!err)
+	if (!err) {
 		fuse_finish_open(inode, file);
+		if (is_truncate)
+			fuse_truncate_update_attr(inode, file);
+	}
 
 	if (is_wb_truncate || dax_truncate)
 		fuse_release_nowrite(inode);
 	if (!err) {
 		struct fuse_file *ff = file->private_data;
 
-		if (fc->atomic_o_trunc && (file->f_flags & O_TRUNC))
+		if (is_truncate)
 			truncate_pagecache(inode, 0);
 		else if (!(ff->open_flags & FOPEN_KEEP_CACHE))
 			invalidate_inode_pages2(inode->i_mapping);
