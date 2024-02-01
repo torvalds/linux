@@ -149,12 +149,12 @@ int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
  *
- * @dev: the struct device
+ * @fwrt: the fw runtime struct
  * @mcc: output buffer (3 bytes) that will get the MCC
  *
  * This function tries to read the current MCC from ACPI if available.
  */
-int iwl_acpi_get_mcc(struct device *dev, char *mcc);
+int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 
 int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt, u64 *dflt_pwr_limit);
 
@@ -207,7 +207,7 @@ static inline int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
 	return -ENOENT;
 }
 
-static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
+static inline int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
 {
 	return -ENOENT;
 }

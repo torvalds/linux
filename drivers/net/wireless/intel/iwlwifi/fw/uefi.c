@@ -621,3 +621,34 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
+{
+	struct uefi_cnv_var_wrdd *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_WRDD_NAME,
+					      "WRDD", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_WRDD_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDD revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (data->mcc != UEFI_MCC_CHINA) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "UEFI WRDD is supported only for CN\n");
+		goto out;
+	}
+
+	mcc[0] = (data->mcc >> 8) & 0xff;
+	mcc[1] = data->mcc & 0xff;
+	mcc[2] = '\0';
+out:
+	kfree(data);
+	return ret;
+}

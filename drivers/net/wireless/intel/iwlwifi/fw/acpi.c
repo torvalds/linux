@@ -326,17 +326,18 @@ out_free:
 	return ret;
 }
 
-int iwl_acpi_get_mcc(struct device *dev, char *mcc)
+int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
 {
 	union acpi_object *wifi_pkg, *data;
 	u32 mcc_val;
 	int ret, tbl_rev;
 
-	data = iwl_acpi_get_object(dev, ACPI_WRDD_METHOD);
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_WRDD_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_WRDD_WIFI_DATA_SIZE,
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_WRDD_WIFI_DATA_SIZE,
 					 &tbl_rev);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
@@ -360,7 +361,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_mcc);
 
 int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt, u64 *dflt_pwr_limit)
 {

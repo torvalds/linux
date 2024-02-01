@@ -36,6 +36,7 @@ IWL_BIOS_TABLE_LOADER(wgds_table);
 IWL_BIOS_TABLE_LOADER(ppag_table);
 IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
 IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
+IWL_BIOS_TABLE_LOADER_DATA(mcc, char);
 
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {

@@ -139,4 +139,6 @@ int iwl_bios_get_tas_table(struct iwl_fw_runtime *fwrt,
 
 int iwl_bios_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 			   u64 *dflt_pwr_limit);
+
+int iwl_bios_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 #endif /* __fw_regulatory_h__ */
