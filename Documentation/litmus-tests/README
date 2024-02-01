@@ -21,6 +21,22 @@ Atomic-RMW-ops-are-atomic-WRT-atomic_set.litmus
     Test that atomic_set() cannot break the atomicity of atomic RMWs.
     NOTE: Require herd7 7.56 or later which supports "(void)expr".
 
+cmpxchg-fail-ordered-1.litmus
+    Demonstrate that a failing cmpxchg() operation acts as a full barrier
+    when followed by smp_mb__after_atomic().
+
+cmpxchg-fail-ordered-2.litmus
+    Demonstrate that a failing cmpxchg() operation acts as an acquire
+    operation when followed by smp_mb__after_atomic().
+
+cmpxchg-fail-unordered-1.litmus
+    Demonstrate that a failing cmpxchg() operation does not act as a
+    full barrier.
+
+cmpxchg-fail-unordered-2.litmus
+    Demonstrate that a failing cmpxchg() operation does not act as an
+    acquire operation.
+
 
 locking (/locking directory)
 ----------------------------
