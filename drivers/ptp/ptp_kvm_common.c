@@ -30,14 +30,13 @@ static int ptp_kvm_get_time_fn(ktime_t *device_time,
 {
 	enum clocksource_ids cs_id;
 	struct timespec64 tspec;
-	struct clocksource *cs;
 	u64 cycle;
 	int ret;
 
 	spin_lock(&kvm_ptp_lock);
 
 	preempt_disable_notrace();
-	ret = kvm_arch_ptp_get_crosststamp(&cycle, &tspec, &cs, &cs_id);
+	ret = kvm_arch_ptp_get_crosststamp(&cycle, &tspec, &cs_id);
 	if (ret) {
 		spin_unlock(&kvm_ptp_lock);
 		preempt_enable_notrace();
@@ -47,7 +46,6 @@ static int ptp_kvm_get_time_fn(ktime_t *device_time,
 	preempt_enable_notrace();
 
 	system_counter->cycles = cycle;
-	system_counter->cs = cs;
 	system_counter->cs_id = cs_id;
 
 	*device_time = timespec64_to_ktime(tspec);

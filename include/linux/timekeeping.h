@@ -271,8 +271,6 @@ struct system_device_crosststamp {
  * struct system_counterval_t - system counter value with the ID of the
  *				corresponding clocksource
  * @cycles:	System counter value
- * @cs:		Clocksource corresponding to system counter value. Timekeeping
- *		code now evaluates cs_id instead.
  * @cs_id:	Clocksource ID corresponding to system counter value. Used by
  *		timekeeping code to verify comparability of two cycle values.
  *		The default ID, CSID_GENERIC, does not identify a specific
@@ -280,7 +278,6 @@ struct system_device_crosststamp {
  */
 struct system_counterval_t {
 	u64			cycles;
-	struct clocksource	*cs;
 	enum clocksource_ids	cs_id;
 };
 
