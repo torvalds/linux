@@ -1201,8 +1201,6 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 		IWL_DEBUG_RADIO(mvm, "failed to send TAS_CONFIG (%d)\n", ret);
 }
 
-#ifdef CONFIG_ACPI
-
 static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
 	u8 value = 0;
@@ -1349,19 +1347,6 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	    le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_AFC_AP_SUPPORTED)
 		mvm->fwrt.uats_enabled = TRUE;
 }
-
-#else /* CONFIG_ACPI */
-
-static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
-{
-}
-
-static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
-{
-	return false;
-}
-
-#endif /* CONFIG_ACPI */
 
 void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
 {

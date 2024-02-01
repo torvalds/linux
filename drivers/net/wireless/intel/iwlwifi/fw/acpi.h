@@ -243,11 +243,6 @@ static inline int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 	return -ENOENT;
 }
 
-static inline __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
-{
-	return 0;
-}
-
 static inline int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {
 	return -ENOENT;
