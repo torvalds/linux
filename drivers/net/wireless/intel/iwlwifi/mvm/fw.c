@@ -1409,6 +1409,9 @@ void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
 	}
 
 	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
+
+	if (iwl_bios_get_eckv(&mvm->fwrt, &mvm->ext_clock_valid))
+		IWL_DEBUG_RADIO(mvm, "ECKV table doesn't exist in BIOS\n");
 }
 
 static void iwl_mvm_disconnect_iterator(void *data, u8 *mac,
@@ -1704,9 +1707,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (!mvm->ptp_data.ptp_clock)
 		iwl_mvm_ptp_init(mvm);
-
-	if (iwl_acpi_get_eckv(mvm->dev, &mvm->ext_clock_valid))
-		IWL_DEBUG_INFO(mvm, "ECKV table doesn't exist in BIOS\n");
 
 	ret = iwl_mvm_ppag_init(mvm);
 	if (ret)

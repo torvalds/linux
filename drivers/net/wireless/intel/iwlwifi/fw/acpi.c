@@ -386,16 +386,17 @@ out:
 	return ret;
 }
 
-int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
+int iwl_acpi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
 {
 	union acpi_object *wifi_pkg, *data;
 	int ret, tbl_rev;
 
-	data = iwl_acpi_get_object(dev, ACPI_ECKV_METHOD);
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_ECKV_METHOD);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data, ACPI_ECKV_WIFI_DATA_SIZE,
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
+					 ACPI_ECKV_WIFI_DATA_SIZE,
 					 &tbl_rev);
 	if (IS_ERR(wifi_pkg)) {
 		ret = PTR_ERR(wifi_pkg);
@@ -416,7 +417,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_eckv);
 
 static int iwl_acpi_sar_set_profile(union acpi_object *table,
 				    struct iwl_sar_profile *profile,

@@ -19,6 +19,7 @@
 #define IWL_UEFI_WTAS_NAME		L"UefiCnvWlanWTAS"
 #define IWL_UEFI_SPLC_NAME		L"UefiCnvWlanSPLC"
 #define IWL_UEFI_WRDD_NAME		L"UefiCnvWlanWRDD"
+#define IWL_UEFI_ECKV_NAME		L"UefiCnvWlanECKV"
 
 
 #define IWL_SGOM_MAP_SIZE		339
@@ -32,6 +33,7 @@
 #define IWL_UEFI_WTAS_REVISION		1
 #define IWL_UEFI_SPLC_REVISION		0
 #define IWL_UEFI_WRDD_REVISION		0
+#define IWL_UEFI_ECKV_REVISION		0
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -155,6 +157,15 @@ struct uefi_cnv_var_wrdd {
 	u32 mcc;
 } __packed;
 
+/* struct uefi_cnv_var_eckv - ECKV table as defined in UEFI
+ * @revision: the revision of the table
+ * @ext_clock_valid: indicates if external 32KHz clock is valid
+ */
+struct uefi_cnv_var_eckv {
+	u8 revision;
+	u32 ext_clock_valid;
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
@@ -178,6 +189,7 @@ int iwl_uefi_get_tas_table(struct iwl_fw_runtime *fwrt,
 int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 			   u64 *dflt_pwr_limit);
 int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
+int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -243,6 +255,11 @@ static inline int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 }
 
 static inline int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
 {
 	return -ENOENT;
 }

@@ -652,3 +652,25 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
+{
+	struct uefi_cnv_var_eckv *data;
+	int ret = 0;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_ECKV_NAME,
+					      "ECKV", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_ECKV_REVISION) {
+		ret = -EINVAL;
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI WRDD revision:%d\n",
+				data->revision);
+		goto out;
+	}
+	*extl_clk = data->ext_clock_valid;
+out:
+	kfree(data);
+	return ret;
+}

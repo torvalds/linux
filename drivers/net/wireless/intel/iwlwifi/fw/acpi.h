@@ -161,13 +161,13 @@ int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt, u64 *dflt_pwr_limit);
 /*
  * iwl_acpi_get_eckv - read external clock validation from ACPI, if available
  *
- * @dev: the struct device
+ * @fwrt: the fw runtime struct
  * @extl_clk: output var (2 bytes) that will get the clk indication.
  *
  * This function tries to read the external clock indication
  * from ACPI if available.
  */
-int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk);
+int iwl_acpi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk);
 
 int iwl_acpi_get_wrds_table(struct iwl_fw_runtime *fwrt);
 
@@ -219,7 +219,7 @@ static inline int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 	return 0;
 }
 
-static inline int iwl_acpi_get_eckv(struct device *dev, u32 *extl_clk)
+static inline int iwl_acpi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
 {
 	return -ENOENT;
 }
