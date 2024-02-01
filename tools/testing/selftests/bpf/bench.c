@@ -323,14 +323,14 @@ static error_t parse_arg(int key, char *arg, struct argp_state *state)
 		break;
 	case 'p':
 		env.producer_cnt = strtol(arg, NULL, 10);
-		if (env.producer_cnt <= 0) {
+		if (env.producer_cnt < 0) {
 			fprintf(stderr, "Invalid producer count: %s\n", arg);
 			argp_usage(state);
 		}
 		break;
 	case 'c':
 		env.consumer_cnt = strtol(arg, NULL, 10);
-		if (env.consumer_cnt <= 0) {
+		if (env.consumer_cnt < 0) {
 			fprintf(stderr, "Invalid consumer count: %s\n", arg);
 			argp_usage(state);
 		}
@@ -607,6 +607,10 @@ static void setup_benchmark(void)
 		bench->setup();
 
 	for (i = 0; i < env.consumer_cnt; i++) {
+		if (!bench->consumer_thread) {
+			fprintf(stderr, "benchmark doesn't support consumers!\n");
+			exit(1);
+		}
 		err = pthread_create(&state.consumers[i], NULL,
 				     bench->consumer_thread, (void *)(long)i);
 		if (err) {
@@ -626,6 +630,10 @@ static void setup_benchmark(void)
 		env.prod_cpus.next_cpu = env.cons_cpus.next_cpu;
 
 	for (i = 0; i < env.producer_cnt; i++) {
+		if (!bench->producer_thread) {
+			fprintf(stderr, "benchmark doesn't support producers!\n");
+			exit(1);
+		}
 		err = pthread_create(&state.producers[i], NULL,
 				     bench->producer_thread, (void *)(long)i);
 		if (err) {
