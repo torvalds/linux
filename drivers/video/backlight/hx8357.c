@@ -574,7 +574,7 @@ static int hx8357_probe(struct spi_device *spi)
 	hx8357_init_fn init_fn;
 	int i, ret;
 
-	lcd = devm_kzalloc(&spi->dev, sizeof(*lcd), GFP_KERNEL);
+	lcd = devm_kzalloc(dev, sizeof(*lcd), GFP_KERNEL);
 	if (!lcd)
 		return -ENOMEM;
 
@@ -604,8 +604,7 @@ static int hx8357_probe(struct spi_device *spi)
 			gpiod_set_consumer_name(lcd->im_pins->desc[i], "im_pins");
 	}
 
-	lcdev = devm_lcd_device_register(&spi->dev, "mxsfb", &spi->dev, lcd,
-					&hx8357_ops);
+	lcdev = devm_lcd_device_register(dev, "mxsfb", dev, lcd, &hx8357_ops);
 	if (IS_ERR(lcdev)) {
 		ret = PTR_ERR(lcdev);
 		return ret;
@@ -618,7 +617,7 @@ static int hx8357_probe(struct spi_device *spi)
 	if (ret)
 		return dev_err_probe(dev, ret, "Couldn't initialize panel\n");
 
-	dev_info(&spi->dev, "Panel probed\n");
+	dev_info(dev, "Panel probed\n");
 
 	return 0;
 }
