@@ -1254,6 +1254,13 @@ static void intel_spi_fill_partition(struct intel_spi *ispi,
 		if (end > part->size)
 			part->size = end;
 	}
+
+	/*
+	 * Regions can refer to the second chip too so in this case we
+	 * just make the BIOS partition to occupy the whole chip.
+	 */
+	if (ispi->chip0_size && part->size > ispi->chip0_size)
+		part->size = MTDPART_SIZ_FULL;
 }
 
 static int intel_spi_read_desc(struct intel_spi *ispi)
@@ -1350,6 +1357,10 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 	struct spi_board_info chip;
 	int ret;
 
+	ret = intel_spi_read_desc(ispi);
+	if (ret)
+		return ret;
+
 	pdata = devm_kzalloc(ispi->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
@@ -1368,10 +1379,6 @@ static int intel_spi_populate_chip(struct intel_spi *ispi)
 
 	if (!spi_new_device(ispi->host, &chip))
 		return -ENODEV;
-
-	ret = intel_spi_read_desc(ispi);
-	if (ret)
-		return ret;
 
 	/* Add the second chip if present */
 	if (ispi->host->num_chipselect < 2)
