@@ -693,11 +693,10 @@ void rtl92e_link_change(struct net_device *dev)
 		u32 reg;
 
 		reg = rtl92e_readl(dev, RCR);
-		if (priv->rtllib->link_state == MAC80211_LINKED) {
+		if (priv->rtllib->link_state == MAC80211_LINKED)
 			priv->receive_config = reg |= RCR_CBSSID;
-		} else {
+		else
 			priv->receive_config = reg &= ~RCR_CBSSID;
-		}
 
 		rtl92e_writel(dev, RCR, reg);
 	}
