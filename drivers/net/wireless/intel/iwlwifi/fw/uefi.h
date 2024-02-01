@@ -20,6 +20,7 @@
 #define IWL_UEFI_SPLC_NAME		L"UefiCnvWlanSPLC"
 #define IWL_UEFI_WRDD_NAME		L"UefiCnvWlanWRDD"
 #define IWL_UEFI_ECKV_NAME		L"UefiCnvWlanECKV"
+#define IWL_UEFI_DSM_NAME		L"UefiCnvWlanGeneralCfg"
 
 
 #define IWL_SGOM_MAP_SIZE		339
@@ -34,6 +35,7 @@
 #define IWL_UEFI_SPLC_REVISION		0
 #define IWL_UEFI_WRDD_REVISION		0
 #define IWL_UEFI_ECKV_REVISION		0
+#define IWL_UEFI_DSM_REVISION		4
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -166,6 +168,17 @@ struct uefi_cnv_var_eckv {
 	u32 ext_clock_valid;
 } __packed;
 
+#define UEFI_MAX_DSM_FUNCS 32
+
+/* struct uefi_cnv_var_general_cfg - DSM-like table as defined in UEFI
+ * @revision: the revision of the table
+ * @functions: payload of the different DSM functions
+ */
+struct uefi_cnv_var_general_cfg {
+	u8 revision;
+	u32 functions[UEFI_MAX_DSM_FUNCS];
+} __packed;
+
 /*
  * This is known to be broken on v4.19 and to work on v5.4.  Until we
  * figure out why this is the case and how to make it work, simply
@@ -190,6 +203,8 @@ int iwl_uefi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 			   u64 *dflt_pwr_limit);
 int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk);
+int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
+		     u32 *value);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -260,6 +275,12 @@ static inline int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
 }
 
 static inline int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk)
+{
+	return -ENOENT;
+}
+
+static inline int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt,
+				   enum iwl_dsm_funcs func, u32 *value)
 {
 	return -ENOENT;
 }

@@ -186,4 +186,7 @@ int iwl_bios_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_bios_get_eckv(struct iwl_fw_runtime *fwrt, u32 *ext_clk);
 
 __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
+
+int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
+		     u32 *value);
 #endif /* __fw_regulatory_h__ */

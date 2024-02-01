@@ -187,7 +187,6 @@ int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
 
 	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm);
 
 static union acpi_object *
 iwl_acpi_get_wifi_pkg_range(struct device *dev,

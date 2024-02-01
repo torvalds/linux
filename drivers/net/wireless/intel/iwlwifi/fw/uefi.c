@@ -674,3 +674,36 @@ out:
 	kfree(data);
 	return ret;
 }
+
+int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
+		     u32 *value)
+{
+	struct uefi_cnv_var_general_cfg *data;
+	int ret = EINVAL;
+
+	/* Not supported function index */
+	if (func >= DSM_FUNC_NUM_FUNCS || func == 5)
+		return -EOPNOTSUPP;
+
+	data = iwl_uefi_get_verified_variable(fwrt->trans, IWL_UEFI_DSM_NAME,
+					      "DSM", sizeof(*data), NULL);
+	if (IS_ERR(data))
+		return -EINVAL;
+
+	if (data->revision != IWL_UEFI_DSM_REVISION) {
+		IWL_DEBUG_RADIO(fwrt, "Unsupported UEFI DSM revision:%d\n",
+				data->revision);
+		goto out;
+	}
+
+	if (ARRAY_SIZE(data->functions) != UEFI_MAX_DSM_FUNCS) {
+		IWL_DEBUG_RADIO(fwrt, "Invalid size of DSM functions array\n");
+		goto out;
+	}
+
+	*value = data->functions[func];
+	ret = 0;
+out:
+	kfree(data);
+	return ret;
+}

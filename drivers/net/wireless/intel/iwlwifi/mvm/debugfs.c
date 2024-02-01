@@ -391,7 +391,7 @@ static ssize_t iwl_dbgfs_wifi_6e_enable_read(struct file *file,
 	char buf[12];
 	u32 value;
 
-	err = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_6E, &value);
+	err = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_6E, &value);
 	if (err)
 		return err;
 
