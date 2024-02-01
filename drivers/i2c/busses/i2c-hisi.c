@@ -266,7 +266,7 @@ static int hisi_i2c_read_rx_fifo(struct hisi_i2c_controller *ctlr)
 
 static void hisi_i2c_xfer_msg(struct hisi_i2c_controller *ctlr)
 {
-	int max_write = HISI_I2C_TX_FIFO_DEPTH;
+	int max_write = HISI_I2C_TX_FIFO_DEPTH - HISI_I2C_TX_F_AE_THRESH;
 	bool need_restart = false, last_msg;
 	struct i2c_msg *cur_msg;
 	u32 cmd, fifo_state;
