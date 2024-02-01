@@ -209,6 +209,8 @@ struct ath12k_hw_params {
 	u16 max_mlo_peer;
 
 	u32 otp_board_id_register;
+
+	bool supports_sta_ps;
 };
 
 struct ath12k_hw_ops {

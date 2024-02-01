@@ -266,6 +266,7 @@ struct ath12k_vif {
 	u8 tx_encap_type;
 	u8 vdev_stats_id;
 	u32 punct_bitmap;
+	bool ps;
 };
 
 struct ath12k_vif_iter {
