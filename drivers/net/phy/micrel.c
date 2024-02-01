@@ -120,6 +120,12 @@
  */
 #define LAN8814_1PPM_FORMAT			17179
 
+/* Represents 1ppm adjustment in 2^32 format with
+ * each nsec contains 8 clock cycles.
+ * The value is calculated as following: (1/1000000)/((2^-32)/8)
+ */
+#define LAN8841_1PPM_FORMAT			34360
+
 #define PTP_RX_VERSION				0x0248
 #define PTP_TX_VERSION				0x0288
 #define PTP_MAX_VERSION(x)			(((x) & GENMASK(7, 0)) << 8)
@@ -4115,8 +4121,8 @@ static int lan8841_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 		faster = false;
 	}
 
-	rate = LAN8814_1PPM_FORMAT * (upper_16_bits(scaled_ppm));
-	rate += (LAN8814_1PPM_FORMAT * (lower_16_bits(scaled_ppm))) >> 16;
+	rate = LAN8841_1PPM_FORMAT * (upper_16_bits(scaled_ppm));
+	rate += (LAN8841_1PPM_FORMAT * (lower_16_bits(scaled_ppm))) >> 16;
 
 	mutex_lock(&ptp_priv->ptp_lock);
 	phy_write_mmd(phydev, 2, LAN8841_PTP_LTC_RATE_ADJ_HI,
