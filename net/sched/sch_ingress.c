@@ -168,6 +168,7 @@ static struct Qdisc_ops ingress_qdisc_ops __read_mostly = {
 	.ingress_block_get	=	ingress_ingress_block_get,
 	.owner			=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("ingress");
 
 struct clsact_sched_data {
 	struct tcf_block *ingress_block;
@@ -344,6 +345,7 @@ static struct Qdisc_ops clsact_qdisc_ops __read_mostly = {
 	.egress_block_get	=	clsact_egress_block_get,
 	.owner			=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("clsact");
 
 static int __init ingress_module_init(void)
 {

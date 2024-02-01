@@ -287,6 +287,7 @@ static struct Qdisc_ops codel_qdisc_ops __read_mostly = {
 	.dump_stats	=	codel_dump_stats,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("codel");
 
 static int __init codel_module_init(void)
 {
