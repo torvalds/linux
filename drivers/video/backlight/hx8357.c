@@ -566,19 +566,6 @@ static struct lcd_ops hx8357_ops = {
 
 typedef int (*hx8357_init_fn)(struct lcd_device *);
 
-static const struct of_device_id hx8357_dt_ids[] = {
-	{
-		.compatible = "himax,hx8357",
-		.data = hx8357_lcd_init,
-	},
-	{
-		.compatible = "himax,hx8369",
-		.data = hx8369_lcd_init,
-	},
-	{},
-};
-MODULE_DEVICE_TABLE(of, hx8357_dt_ids);
-
 static int hx8357_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
@@ -639,6 +626,19 @@ static int hx8357_probe(struct spi_device *spi)
 
 	return 0;
 }
+
+static const struct of_device_id hx8357_dt_ids[] = {
+	{
+		.compatible = "himax,hx8357",
+		.data = hx8357_lcd_init,
+	},
+	{
+		.compatible = "himax,hx8369",
+		.data = hx8369_lcd_init,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, hx8357_dt_ids);
 
 static struct spi_driver hx8357_driver = {
 	.probe  = hx8357_probe,
