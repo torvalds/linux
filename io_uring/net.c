@@ -875,6 +875,7 @@ retry_multishot:
 		if (!buf)
 			return -ENOBUFS;
 		sr->buf = buf;
+		sr->len = len;
 	}
 
 	ret = import_single_range(ITER_DEST, sr->buf, len, &iov, &msg.msg_iter);
