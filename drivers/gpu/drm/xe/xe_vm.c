@@ -1984,6 +1984,7 @@ static int xe_vm_prefetch(struct xe_vm *vm, struct xe_vma *vma,
 					xe_exec_queue_last_fence_get(wait_exec_queue, vm);
 
 				xe_sync_entry_signal(&syncs[i], NULL, fence);
+				dma_fence_put(fence);
 			}
 		}
 
