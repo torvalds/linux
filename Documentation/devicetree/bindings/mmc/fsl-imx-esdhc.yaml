@@ -163,6 +163,9 @@ properties:
       - const: ahb
       - const: per
 
+  iommus:
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 
