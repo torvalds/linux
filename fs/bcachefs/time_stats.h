@@ -26,6 +26,7 @@
 
 #include <linux/sched/clock.h>
 #include <linux/spinlock_types.h>
+#include <linux/string.h>
 
 #include "mean_and_variance.h"
 
@@ -68,7 +69,7 @@ struct time_stat_buffer {
 
 struct bch2_time_stats {
 	spinlock_t	lock;
-	bool		quantiles_enabled;
+	bool		have_quantiles;
 	/* all fields are in nanoseconds */
 	u64             min_duration;
 	u64		max_duration;
@@ -77,7 +78,6 @@ struct bch2_time_stats {
 	u64             min_freq;
 	u64		last_event;
 	u64		last_event_start;
-	struct quantiles quantiles;
 
 	struct mean_and_variance	  duration_stats;
 	struct mean_and_variance	  freq_stats;
@@ -89,6 +89,18 @@ struct bch2_time_stats {
 	struct mean_and_variance_weighted freq_stats_weighted;
 	struct time_stat_buffer __percpu *buffer;
 };
+
+struct bch2_time_stats_quantiles {
+	struct bch2_time_stats	stats;
+	struct quantiles	quantiles;
+};
+
+static inline struct quantiles *time_stats_to_quantiles(struct bch2_time_stats *stats)
+{
+	return stats->have_quantiles
+		? &container_of(stats, struct bch2_time_stats_quantiles, stats)->quantiles
+		: NULL;
+}
 
 void __bch2_time_stats_clear_buffer(struct bch2_time_stats *, struct time_stat_buffer *);
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64, u64);
@@ -132,5 +144,16 @@ static inline bool track_event_change(struct bch2_time_stats *stats, bool v)
 
 void bch2_time_stats_exit(struct bch2_time_stats *);
 void bch2_time_stats_init(struct bch2_time_stats *);
+
+static inline void bch2_time_stats_quantiles_exit(struct bch2_time_stats_quantiles *statq)
+{
+	bch2_time_stats_exit(&statq->stats);
+}
+static inline void bch2_time_stats_quantiles_init(struct bch2_time_stats_quantiles *statq)
+{
+	bch2_time_stats_init(&statq->stats);
+	statq->stats.have_quantiles = true;
+	memset(&statq->quantiles, 0, sizeof(statq->quantiles));
+}
 
 #endif /* _BCACHEFS_TIME_STATS_H */

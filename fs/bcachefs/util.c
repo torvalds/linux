@@ -365,6 +365,7 @@ static inline void pr_name_and_units(struct printbuf *out, const char *name, u64
 
 void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats)
 {
+	struct quantiles *quantiles = time_stats_to_quantiles(stats);
 	s64 f_mean = 0, d_mean = 0;
 	u64 f_stddev = 0, d_stddev = 0;
 
@@ -465,17 +466,17 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 
 	printbuf_tabstops_reset(out);
 
-	if (stats->quantiles_enabled) {
+	if (quantiles) {
 		int i = eytzinger0_first(NR_QUANTILES);
 		const struct time_unit *u =
-			bch2_pick_time_units(stats->quantiles.entries[i].m);
+			bch2_pick_time_units(quantiles->entries[i].m);
 		u64 last_q = 0;
 
 		prt_printf(out, "quantiles (%s):\t", u->name);
 		eytzinger0_for_each(i, NR_QUANTILES) {
 			bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
 
-			u64 q = max(stats->quantiles.entries[i].m, last_q);
+			u64 q = max(quantiles->entries[i].m, last_q);
 			prt_printf(out, "%llu ", div_u64(q, u->nsecs));
 			if (is_last)
 				prt_newline(out);

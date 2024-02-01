@@ -88,7 +88,7 @@ void bch2_latency_acct(struct bch_dev *ca, u64 submit_time, int rw)
 
 	bch2_congested_acct(ca, io_latency, now, rw);
 
-	__bch2_time_stats_update(&ca->io_latency[rw], submit_time, now);
+	__bch2_time_stats_update(&ca->io_latency[rw].stats, submit_time, now);
 }
 
 #endif

@@ -73,6 +73,8 @@ static inline void time_stats_update_one(struct bch2_time_stats *stats,
 	bool initted = stats->last_event != 0;
 
 	if (time_after64(end, start)) {
+		struct quantiles *quantiles = time_stats_to_quantiles(stats);
+
 		duration = end - start;
 		mean_and_variance_update(&stats->duration_stats, duration);
 		mean_and_variance_weighted_update(&stats->duration_stats_weighted,
@@ -81,8 +83,8 @@ static inline void time_stats_update_one(struct bch2_time_stats *stats,
 		stats->min_duration = min(stats->min_duration, duration);
 		stats->total_duration += duration;
 
-		if (stats->quantiles_enabled)
-			quantiles_update(&stats->quantiles, duration);
+		if (quantiles)
+			quantiles_update(quantiles, duration);
 	}
 
 	if (stats->last_event && time_after64(end, stats->last_event)) {
