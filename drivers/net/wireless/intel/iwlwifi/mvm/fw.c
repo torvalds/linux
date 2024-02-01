@@ -1242,7 +1242,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE), 1);
 
-	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
+	cmd.config_bitmap = iwl_get_lari_config_bitmap(&mvm->fwrt);
 
 	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_11AX_ENABLEMENT, &value);
 	if (!ret)

@@ -157,7 +157,7 @@ out:
  * In case the expected size is smaller than 32-bit, padding will be added.
  */
 int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
-		     enum iwl_dsm_funcs_rev_0 func, u32 *value)
+		     enum iwl_dsm_funcs func, u32 *value)
 {
 	size_t expected_size;
 	u64 tmp;
@@ -807,64 +807,6 @@ out_free:
 	kfree(data);
 	return ret;
 }
-
-__le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
-{
-	int ret;
-	u32 val;
-	__le32 config_bitmap = 0;
-
-	/*
-	 * Evaluate func 'DSM_FUNC_ENABLE_INDONESIA_5G2'.
-	 * Setting config_bitmap Indonesia bit is valid only for HR/JF.
-	 */
-	switch (CSR_HW_RFID_TYPE(fwrt->trans->hw_rf_id)) {
-	case IWL_CFG_RF_TYPE_HR1:
-	case IWL_CFG_RF_TYPE_HR2:
-	case IWL_CFG_RF_TYPE_JF1:
-	case IWL_CFG_RF_TYPE_JF2:
-		ret = iwl_acpi_get_dsm(fwrt, DSM_FUNC_ENABLE_INDONESIA_5G2,
-				       &val);
-
-		if (!ret && val == DSM_VALUE_INDONESIA_ENABLE)
-			config_bitmap |=
-			    cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
-		break;
-	default:
-		break;
-	}
-
-	/*
-	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
-	 */
-	ret = iwl_acpi_get_dsm(fwrt, DSM_FUNC_DISABLE_SRD, &val);
-	if (!ret) {
-		if (val == DSM_VALUE_SRD_PASSIVE)
-			config_bitmap |=
-				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
-		else if (val == DSM_VALUE_SRD_DISABLE)
-			config_bitmap |=
-				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
-	}
-
-	if (fw_has_capa(&fwrt->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT)) {
-		/*
-		 ** Evaluate func 'DSM_FUNC_REGULATORY_CONFIG'
-		 */
-		ret = iwl_acpi_get_dsm(fwrt, DSM_FUNC_REGULATORY_CONFIG, &val);
-		/*
-		 * China 2022 enable if the BIOS object does not exist or
-		 * if it is enabled in BIOS.
-		 */
-		if (ret < 0 || val & DSM_MASK_CHINA_22_REG)
-			config_bitmap |=
-				cpu_to_le32(LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK);
-	}
-
-	return config_bitmap;
-}
-IWL_EXPORT_SYMBOL(iwl_acpi_get_lari_config_bitmap);
 
 int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 {

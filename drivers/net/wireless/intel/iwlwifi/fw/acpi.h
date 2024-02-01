@@ -94,47 +94,6 @@
 
 #define ACPI_DSM_REV 0
 
-enum iwl_dsm_funcs_rev_0 {
-	DSM_FUNC_QUERY = 0,
-	DSM_FUNC_DISABLE_SRD = 1,
-	DSM_FUNC_ENABLE_INDONESIA_5G2 = 2,
-	DSM_FUNC_ENABLE_6E = 3,
-	DSM_FUNC_REGULATORY_CONFIG = 4,
-	DSM_FUNC_11AX_ENABLEMENT = 6,
-	DSM_FUNC_ENABLE_UNII4_CHAN = 7,
-	DSM_FUNC_ACTIVATE_CHANNEL = 8,
-	DSM_FUNC_FORCE_DISABLE_CHANNELS = 9,
-	DSM_FUNC_ENERGY_DETECTION_THRESHOLD = 10,
-	DSM_FUNC_RFI_CONFIG = 11,
-	DSM_FUNC_NUM_FUNCS = 12,
-};
-
-enum iwl_dsm_values_srd {
-	DSM_VALUE_SRD_ACTIVE,
-	DSM_VALUE_SRD_PASSIVE,
-	DSM_VALUE_SRD_DISABLE,
-	DSM_VALUE_SRD_MAX
-};
-
-enum iwl_dsm_values_indonesia {
-	DSM_VALUE_INDONESIA_DISABLE,
-	DSM_VALUE_INDONESIA_ENABLE,
-	DSM_VALUE_INDONESIA_RESERVED,
-	DSM_VALUE_INDONESIA_MAX
-};
-
-enum iwl_dsm_values_rfi {
-	DSM_VALUE_RFI_DLVR_DISABLE	= BIT(0),
-	DSM_VALUE_RFI_DDR_DISABLE	= BIT(1),
-};
-
-#define DSM_VALUE_RFI_DISABLE	(DSM_VALUE_RFI_DLVR_DISABLE |\
-				 DSM_VALUE_RFI_DDR_DISABLE)
-
-enum iwl_dsm_masks_reg {
-	DSM_MASK_CHINA_22_REG = BIT(2)
-};
-
 #ifdef CONFIG_ACPI
 
 struct iwl_fw_runtime;
@@ -173,8 +132,6 @@ int iwl_acpi_get_wgds_table(struct iwl_fw_runtime *fwrt);
 int iwl_acpi_get_tas_table(struct iwl_fw_runtime *fwrt,
 			   struct iwl_tas_data *data);
 
-__le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
-
 int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt);
 
 void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
@@ -183,7 +140,7 @@ void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
 
 int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
-		     enum iwl_dsm_funcs_rev_0 func, u32 *value);
+		     enum iwl_dsm_funcs func, u32 *value);
 
 #else /* CONFIG_ACPI */
 
@@ -246,8 +203,7 @@ static inline void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 }
 
 static inline int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
-				   enum iwl_dsm_funcs_rev_0 func,
-				   u32 *value)
+				   enum iwl_dsm_funcs func, u32 *value)
 {
 	return -ENOENT;
 }
