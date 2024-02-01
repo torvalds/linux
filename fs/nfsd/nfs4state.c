@@ -4503,32 +4503,25 @@ nfsd4_free_slabs(void)
 int
 nfsd4_init_slabs(void)
 {
-	client_slab = kmem_cache_create("nfsd4_clients",
-			sizeof(struct nfs4_client), 0, 0, NULL);
+	client_slab = KMEM_CACHE(nfs4_client, 0);
 	if (client_slab == NULL)
 		goto out;
-	openowner_slab = kmem_cache_create("nfsd4_openowners",
-			sizeof(struct nfs4_openowner), 0, 0, NULL);
+	openowner_slab = KMEM_CACHE(nfs4_openowner, 0);
 	if (openowner_slab == NULL)
 		goto out_free_client_slab;
-	lockowner_slab = kmem_cache_create("nfsd4_lockowners",
-			sizeof(struct nfs4_lockowner), 0, 0, NULL);
+	lockowner_slab = KMEM_CACHE(nfs4_lockowner, 0);
 	if (lockowner_slab == NULL)
 		goto out_free_openowner_slab;
-	file_slab = kmem_cache_create("nfsd4_files",
-			sizeof(struct nfs4_file), 0, 0, NULL);
+	file_slab = KMEM_CACHE(nfs4_file, 0);
 	if (file_slab == NULL)
 		goto out_free_lockowner_slab;
-	stateid_slab = kmem_cache_create("nfsd4_stateids",
-			sizeof(struct nfs4_ol_stateid), 0, 0, NULL);
+	stateid_slab = KMEM_CACHE(nfs4_ol_stateid, 0);
 	if (stateid_slab == NULL)
 		goto out_free_file_slab;
-	deleg_slab = kmem_cache_create("nfsd4_delegations",
-			sizeof(struct nfs4_delegation), 0, 0, NULL);
+	deleg_slab = KMEM_CACHE(nfs4_delegation, 0);
 	if (deleg_slab == NULL)
 		goto out_free_stateid_slab;
-	odstate_slab = kmem_cache_create("nfsd4_odstate",
-			sizeof(struct nfs4_clnt_odstate), 0, 0, NULL);
+	odstate_slab = KMEM_CACHE(nfs4_clnt_odstate, 0);
 	if (odstate_slab == NULL)
 		goto out_free_deleg_slab;
 	return 0;
