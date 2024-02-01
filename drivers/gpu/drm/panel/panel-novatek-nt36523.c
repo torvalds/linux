@@ -1268,6 +1268,8 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
+	pinfo->panel.prepare_prev_first = true;
+
 	if (pinfo->desc->has_dcs_backlight) {
 		pinfo->panel.backlight = nt36523_create_backlight(dsi);
 		if (IS_ERR(pinfo->panel.backlight))
