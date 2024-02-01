@@ -54,6 +54,20 @@ int kunit_bus_init(void)
 	return error;
 }
 
+/* Unregister the 'kunit_bus' in case the KUnit module is unloaded. */
+void kunit_bus_shutdown(void)
+{
+	/* Make sure the bus exists before we unregister it. */
+	if (IS_ERR_OR_NULL(kunit_bus_device))
+		return;
+
+	bus_unregister(&kunit_bus_type);
+
+	root_device_unregister(kunit_bus_device);
+
+	kunit_bus_device = NULL;
+}
+
 /* Release a 'fake' KUnit device. */
 static void kunit_device_release(struct device *d)
 {
