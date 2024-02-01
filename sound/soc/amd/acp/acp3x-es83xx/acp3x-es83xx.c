@@ -358,6 +358,14 @@ static const struct dmi_system_id acp3x_es83xx_dmi_table[] = {
 		.matches = {
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "HUAWEI"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "HVY-WXX9"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "M1010"),
+		},
+		.driver_data = (void *)(ES83XX_ENABLE_DMIC),
+	},
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "HUAWEI"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "HVY-WXX9"),
 			DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "M1020"),
 		},
 		.driver_data = (void *)(ES83XX_ENABLE_DMIC),
