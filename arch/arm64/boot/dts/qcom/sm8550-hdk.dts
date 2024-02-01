@@ -211,9 +211,9 @@
 				"AMIC1", "MIC BIAS1",
 				"AMIC2", "MIC BIAS2",
 				"AMIC5", "MIC BIAS4",
-				"TX SWR_ADC0", "ADC1_OUTPUT",
-				"TX SWR_ADC1", "ADC2_OUTPUT",
-				"TX SWR_ADC3", "ADC4_OUTPUT";
+				"TX SWR_INPUT0", "ADC1_OUTPUT",
+				"TX SWR_INPUT1", "ADC2_OUTPUT",
+				"TX SWR_INPUT1", "ADC4_OUTPUT";
 
 		wcd-playback-dai-link {
 			link-name = "WCD Playback";
@@ -1139,6 +1139,13 @@
 		compatible = "sdw20217010d00";
 		reg = <0 4>;
 
+		/*
+		 * WCD9385 RX Port 1 (HPH_L/R)      <=> SWR1 Port 1 (HPH_L/R)
+		 * WCD9385 RX Port 2 (CLSH)         <=> SWR1 Port 2 (CLSH)
+		 * WCD9385 RX Port 3 (COMP_L/R)     <=> SWR1 Port 3 (COMP_L/R)
+		 * WCD9385 RX Port 4 (LO)           <=> SWR1 Port 4 (LO)
+		 * WCD9385 RX Port 5 (DSD_L/R)      <=> SWR1 Port 5 (DSD_L/R)
+		 */
 		qcom,rx-port-mapping = <1 2 3 4 5>;
 	};
 };
@@ -1151,7 +1158,13 @@
 		compatible = "sdw20217010d00";
 		reg = <0 3>;
 
-		qcom,tx-port-mapping = <1 1 2 3>;
+		/*
+		 * WCD9385 TX Port 1 (ADC1,2)             <=> SWR2 Port 2 (TX SWR_INPUT 0,1,2,3)
+		 * WCD9385 TX Port 2 (ADC3,4)             <=> SWR2 Port 2 (TX SWR_INPUT 0,1,2,3)
+		 * WCD9385 TX Port 3 (DMIC0,1,2,3 & MBHC) <=> SWR2 Port 3 (TX SWR_INPUT 4,5,6,7)
+		 * WCD9385 TX Port 4 (DMIC4,5,6,7)        <=> SWR2 Port 4 (TX SWR_INPUT 8,9,10,11)
+		 */
+		qcom,tx-port-mapping = <2 2 3 4>;
 	};
 };
 
