@@ -72,7 +72,7 @@
 		vin-supply = <&vcc3v3_sys>;
 	};
 
-	vcc5v0_usb30_host: vcc5v0-usb30-host-regulator {
+	vcc5v0_usb_host1: vcc5v0_usb_host2: vcc5v0-usb-host-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v0_host";
 		regulator-boot-on;
@@ -188,12 +188,12 @@
 };
 
 &u2phy2_host {
-	phy-supply = <&vcc5v0_usb30_host>;
+	phy-supply = <&vcc5v0_usb_host1>;
 	status = "okay";
 };
 
 &u2phy3_host {
-	phy-supply = <&vcc5v0_usb30_host>;
+	phy-supply = <&vcc5v0_usb_host2>;
 	status = "okay";
 };
 
