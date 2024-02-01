@@ -108,6 +108,7 @@ struct blk_integrity {
 	const struct blk_integrity_profile	*profile;
 	unsigned char				flags;
 	unsigned char				tuple_size;
+	unsigned char				pi_offset;
 	unsigned char				interval_exp;
 	unsigned char				tag_size;
 };
