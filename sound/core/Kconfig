@@ -42,6 +42,7 @@ config SND_UMP_LEGACY_RAWMIDI
 config SND_CORE_TEST
 	tristate "Sound core KUnit test"
 	depends on KUNIT
+	select SND_PCM
 	default KUNIT_ALL_TESTS
 	help
 	  This options enables the sound core functions KUnit test.
