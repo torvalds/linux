@@ -820,8 +820,8 @@ static int qca808x_led_brightness_set(struct phy_device *phydev,
 
 	return phy_modify_mmd(phydev, MDIO_MMD_AN, reg,
 			      QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_MODE_MASK,
-			      QCA808X_LED_FORCE_EN | value ? QCA808X_LED_FORCE_ON :
-							     QCA808X_LED_FORCE_OFF);
+			      QCA808X_LED_FORCE_EN | (value ? QCA808X_LED_FORCE_ON :
+							     QCA808X_LED_FORCE_OFF));
 }
 
 static int qca808x_led_blink_set(struct phy_device *phydev, u8 index,
