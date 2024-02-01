@@ -2531,13 +2531,25 @@ retry_userptr:
 	}
 	drm_exec_fini(&exec);
 
-	if (err == -EAGAIN && xe_vma_is_userptr(vma)) {
+	if (err == -EAGAIN) {
 		lockdep_assert_held_write(&vm->lock);
-		err = xe_vma_userptr_pin_pages(to_userptr_vma(vma));
-		if (!err)
-			goto retry_userptr;
 
-		trace_xe_vma_fail(vma);
+		if (op->base.op == DRM_GPUVA_OP_REMAP) {
+			if (!op->remap.unmap_done)
+				vma = gpuva_to_vma(op->base.remap.unmap->va);
+			else if (op->remap.prev)
+				vma = op->remap.prev;
+			else
+				vma = op->remap.next;
+		}
+
+		if (xe_vma_is_userptr(vma)) {
+			err = xe_vma_userptr_pin_pages(to_userptr_vma(vma));
+			if (!err)
+				goto retry_userptr;
+
+			trace_xe_vma_fail(vma);
+		}
 	}
 
 	return err;
