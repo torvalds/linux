@@ -37,56 +37,28 @@
 #define EUSB2_TUNE_EUSB_EQU		0x5A
 #define EUSB2_TUNE_EUSB_HS_COMP_CUR	0x5B
 
-#define QCOM_EUSB2_REPEATER_INIT_CFG(r, v)	\
-	{					\
-		.reg = r,			\
-		.val = v,			\
-	}
+enum eusb2_reg_layout {
+	TUNE_EUSB_HS_COMP_CUR,
+	TUNE_EUSB_EQU,
+	TUNE_EUSB_SLEW,
+	TUNE_USB2_HS_COMP_CUR,
+	TUNE_USB2_PREEM,
+	TUNE_USB2_EQU,
+	TUNE_USB2_SLEW,
+	TUNE_SQUELCH_U,
+	TUNE_HSDISC,
+	TUNE_RES_FSDIF,
+	TUNE_IUSB2,
+	TUNE_USB2_CROSSOVER,
+	NUM_TUNE_FIELDS,
 
-enum reg_fields {
-	F_TUNE_EUSB_HS_COMP_CUR,
-	F_TUNE_EUSB_EQU,
-	F_TUNE_EUSB_SLEW,
-	F_TUNE_USB2_HS_COMP_CUR,
-	F_TUNE_USB2_PREEM,
-	F_TUNE_USB2_EQU,
-	F_TUNE_USB2_SLEW,
-	F_TUNE_SQUELCH_U,
-	F_TUNE_HSDISC,
-	F_TUNE_RES_FSDIF,
-	F_TUNE_IUSB2,
-	F_TUNE_USB2_CROSSOVER,
-	F_NUM_TUNE_FIELDS,
+	FORCE_VAL_5 = NUM_TUNE_FIELDS,
+	FORCE_EN_5,
 
-	F_FORCE_VAL_5 = F_NUM_TUNE_FIELDS,
-	F_FORCE_EN_5,
+	EN_CTL1,
 
-	F_EN_CTL1,
-
-	F_RPTR_STATUS,
-	F_NUM_FIELDS,
-};
-
-static struct reg_field eusb2_repeater_tune_reg_fields[F_NUM_FIELDS] = {
-	[F_TUNE_EUSB_HS_COMP_CUR] = REG_FIELD(EUSB2_TUNE_EUSB_HS_COMP_CUR, 0, 1),
-	[F_TUNE_EUSB_EQU] = REG_FIELD(EUSB2_TUNE_EUSB_EQU, 0, 1),
-	[F_TUNE_EUSB_SLEW] = REG_FIELD(EUSB2_TUNE_EUSB_SLEW, 0, 1),
-	[F_TUNE_USB2_HS_COMP_CUR] = REG_FIELD(EUSB2_TUNE_USB2_HS_COMP_CUR, 0, 1),
-	[F_TUNE_USB2_PREEM] = REG_FIELD(EUSB2_TUNE_USB2_PREEM, 0, 2),
-	[F_TUNE_USB2_EQU] = REG_FIELD(EUSB2_TUNE_USB2_EQU, 0, 1),
-	[F_TUNE_USB2_SLEW] = REG_FIELD(EUSB2_TUNE_USB2_SLEW, 0, 1),
-	[F_TUNE_SQUELCH_U] = REG_FIELD(EUSB2_TUNE_SQUELCH_U, 0, 2),
-	[F_TUNE_HSDISC] = REG_FIELD(EUSB2_TUNE_HSDISC, 0, 2),
-	[F_TUNE_RES_FSDIF] = REG_FIELD(EUSB2_TUNE_RES_FSDIF, 0, 2),
-	[F_TUNE_IUSB2] = REG_FIELD(EUSB2_TUNE_IUSB2, 0, 3),
-	[F_TUNE_USB2_CROSSOVER] = REG_FIELD(EUSB2_TUNE_USB2_CROSSOVER, 0, 2),
-
-	[F_FORCE_VAL_5] = REG_FIELD(EUSB2_FORCE_VAL_5, 0, 7),
-	[F_FORCE_EN_5] = REG_FIELD(EUSB2_FORCE_EN_5, 0, 7),
-
-	[F_EN_CTL1] = REG_FIELD(EUSB2_EN_CTL1, 0, 7),
-
-	[F_RPTR_STATUS] = REG_FIELD(EUSB2_RPTR_STATUS, 0, 7),
+	RPTR_STATUS,
+	LAYOUT_SIZE,
 };
 
 struct eusb2_repeater_cfg {
@@ -98,10 +70,11 @@ struct eusb2_repeater_cfg {
 
 struct eusb2_repeater {
 	struct device *dev;
-	struct regmap_field *regs[F_NUM_FIELDS];
+	struct regmap *regmap;
 	struct phy *phy;
 	struct regulator_bulk_data *vregs;
 	const struct eusb2_repeater_cfg *cfg;
+	u32 base;
 	enum phy_mode mode;
 };
 
@@ -109,10 +82,10 @@ static const char * const pm8550b_vreg_l[] = {
 	"vdd18", "vdd3",
 };
 
-static const u32 pm8550b_init_tbl[F_NUM_TUNE_FIELDS] = {
-	[F_TUNE_IUSB2] = 0x8,
-	[F_TUNE_SQUELCH_U] = 0x3,
-	[F_TUNE_USB2_PREEM] = 0x5,
+static const u32 pm8550b_init_tbl[NUM_TUNE_FIELDS] = {
+	[TUNE_IUSB2] = 0x8,
+	[TUNE_SQUELCH_U] = 0x3,
+	[TUNE_USB2_PREEM] = 0x5,
 };
 
 static const struct eusb2_repeater_cfg pm8550b_eusb2_cfg = {
@@ -140,47 +113,42 @@ static int eusb2_repeater_init_vregs(struct eusb2_repeater *rptr)
 
 static int eusb2_repeater_init(struct phy *phy)
 {
-	struct reg_field *regfields = eusb2_repeater_tune_reg_fields;
 	struct eusb2_repeater *rptr = phy_get_drvdata(phy);
 	struct device_node *np = rptr->dev->of_node;
-	u32 init_tbl[F_NUM_TUNE_FIELDS] = { 0 };
-	u8 override;
+	struct regmap *regmap = rptr->regmap;
+	const u32 *init_tbl = rptr->cfg->init_tbl;
+	u8 tune_usb2_preem = init_tbl[TUNE_USB2_PREEM];
+	u8 tune_hsdisc = init_tbl[TUNE_HSDISC];
+	u8 tune_iusb2 = init_tbl[TUNE_IUSB2];
+	u32 base = rptr->base;
 	u32 val;
 	int ret;
-	int i;
+
+	of_property_read_u8(np, "qcom,tune-usb2-amplitude", &tune_iusb2);
+	of_property_read_u8(np, "qcom,tune-usb2-disc-thres", &tune_hsdisc);
+	of_property_read_u8(np, "qcom,tune-usb2-preem", &tune_usb2_preem);
 
 	ret = regulator_bulk_enable(rptr->cfg->num_vregs, rptr->vregs);
 	if (ret)
 		return ret;
 
-	regmap_field_update_bits(rptr->regs[F_EN_CTL1], EUSB2_RPTR_EN, EUSB2_RPTR_EN);
+	regmap_write(regmap, base + EUSB2_EN_CTL1, EUSB2_RPTR_EN);
 
-	for (i = 0; i < F_NUM_TUNE_FIELDS; i++) {
-		if (init_tbl[i]) {
-			regmap_field_update_bits(rptr->regs[i], init_tbl[i], init_tbl[i]);
-		} else {
-			/* Write 0 if there's no value set */
-			u32 mask = GENMASK(regfields[i].msb, regfields[i].lsb);
+	regmap_write(regmap, base + EUSB2_TUNE_EUSB_HS_COMP_CUR, init_tbl[TUNE_EUSB_HS_COMP_CUR]);
+	regmap_write(regmap, base + EUSB2_TUNE_EUSB_EQU, init_tbl[TUNE_EUSB_EQU]);
+	regmap_write(regmap, base + EUSB2_TUNE_EUSB_SLEW, init_tbl[TUNE_EUSB_SLEW]);
+	regmap_write(regmap, base + EUSB2_TUNE_USB2_HS_COMP_CUR, init_tbl[TUNE_USB2_HS_COMP_CUR]);
+	regmap_write(regmap, base + EUSB2_TUNE_USB2_EQU, init_tbl[TUNE_USB2_EQU]);
+	regmap_write(regmap, base + EUSB2_TUNE_USB2_SLEW, init_tbl[TUNE_USB2_SLEW]);
+	regmap_write(regmap, base + EUSB2_TUNE_SQUELCH_U, init_tbl[TUNE_SQUELCH_U]);
+	regmap_write(regmap, base + EUSB2_TUNE_RES_FSDIF, init_tbl[TUNE_RES_FSDIF]);
+	regmap_write(regmap, base + EUSB2_TUNE_USB2_CROSSOVER, init_tbl[TUNE_USB2_CROSSOVER]);
 
-			regmap_field_update_bits(rptr->regs[i], mask, 0);
-		}
-	}
-	memcpy(init_tbl, rptr->cfg->init_tbl, sizeof(init_tbl));
+	regmap_write(regmap, base + EUSB2_TUNE_USB2_PREEM, tune_usb2_preem);
+	regmap_write(regmap, base + EUSB2_TUNE_HSDISC, tune_hsdisc);
+	regmap_write(regmap, base + EUSB2_TUNE_IUSB2, tune_iusb2);
 
-	if (!of_property_read_u8(np, "qcom,tune-usb2-amplitude", &override))
-		init_tbl[F_TUNE_IUSB2] = override;
-
-	if (!of_property_read_u8(np, "qcom,tune-usb2-disc-thres", &override))
-		init_tbl[F_TUNE_HSDISC] = override;
-
-	if (!of_property_read_u8(np, "qcom,tune-usb2-preem", &override))
-		init_tbl[F_TUNE_USB2_PREEM] = override;
-
-	for (i = 0; i < F_NUM_TUNE_FIELDS; i++)
-		regmap_field_update_bits(rptr->regs[i], init_tbl[i], init_tbl[i]);
-
-	ret = regmap_field_read_poll_timeout(rptr->regs[F_RPTR_STATUS],
-					     val, val & RPTR_OK, 10, 5);
+	ret = regmap_read_poll_timeout(regmap, base + EUSB2_RPTR_STATUS, val, val & RPTR_OK, 10, 5);
 	if (ret)
 		dev_err(rptr->dev, "initialization timed-out\n");
 
@@ -191,6 +159,8 @@ static int eusb2_repeater_set_mode(struct phy *phy,
 				   enum phy_mode mode, int submode)
 {
 	struct eusb2_repeater *rptr = phy_get_drvdata(phy);
+	struct regmap *regmap = rptr->regmap;
+	u32 base = rptr->base;
 
 	switch (mode) {
 	case PHY_MODE_USB_HOST:
@@ -199,10 +169,8 @@ static int eusb2_repeater_set_mode(struct phy *phy,
 		 * per eUSB 1.2 Spec. Below implement software workaround until
 		 * PHY and controller is fixing seen observation.
 		 */
-		regmap_field_update_bits(rptr->regs[F_FORCE_EN_5],
-					 F_CLK_19P2M_EN, F_CLK_19P2M_EN);
-		regmap_field_update_bits(rptr->regs[F_FORCE_VAL_5],
-					 V_CLK_19P2M_EN, V_CLK_19P2M_EN);
+		regmap_write(regmap, base + EUSB2_FORCE_EN_5, F_CLK_19P2M_EN);
+		regmap_write(regmap, base + EUSB2_FORCE_VAL_5, V_CLK_19P2M_EN);
 		break;
 	case PHY_MODE_USB_DEVICE:
 		/*
@@ -211,10 +179,8 @@ static int eusb2_repeater_set_mode(struct phy *phy,
 		 * repeater doesn't clear previous value due to shared
 		 * regulators (say host <-> device mode switch).
 		 */
-		regmap_field_update_bits(rptr->regs[F_FORCE_EN_5],
-					 F_CLK_19P2M_EN, 0);
-		regmap_field_update_bits(rptr->regs[F_FORCE_VAL_5],
-					 V_CLK_19P2M_EN, 0);
+		regmap_write(regmap, base + EUSB2_FORCE_EN_5, 0);
+		regmap_write(regmap, base + EUSB2_FORCE_VAL_5, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -243,9 +209,8 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct phy_provider *phy_provider;
 	struct device_node *np = dev->of_node;
-	struct regmap *regmap;
-	int i, ret;
 	u32 res;
+	int ret;
 
 	rptr = devm_kzalloc(dev, sizeof(*rptr), GFP_KERNEL);
 	if (!rptr)
@@ -258,22 +223,15 @@ static int eusb2_repeater_probe(struct platform_device *pdev)
 	if (!rptr->cfg)
 		return -EINVAL;
 
-	regmap = dev_get_regmap(dev->parent, NULL);
-	if (!regmap)
+	rptr->regmap = dev_get_regmap(dev->parent, NULL);
+	if (!rptr->regmap)
 		return -ENODEV;
 
 	ret = of_property_read_u32(np, "reg", &res);
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < F_NUM_FIELDS; i++)
-		eusb2_repeater_tune_reg_fields[i].reg += res;
-
-	ret = devm_regmap_field_bulk_alloc(dev, regmap, rptr->regs,
-					   eusb2_repeater_tune_reg_fields,
-					   F_NUM_FIELDS);
-	if (ret)
-		return ret;
+	rptr->base = res;
 
 	ret = eusb2_repeater_init_vregs(rptr);
 	if (ret < 0) {
