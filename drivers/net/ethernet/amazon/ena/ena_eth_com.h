@@ -8,8 +8,6 @@
 
 #include "ena_com.h"
 
-/* head update threshold in units of (queue size / ENA_COMP_HEAD_THRESH) */
-#define ENA_COMP_HEAD_THRESH 4
 /* we allow 2 DMA descriptors per LLQ entry */
 #define ENA_LLQ_ENTRY_DESC_CHUNK_SIZE	(2 * sizeof(struct ena_eth_io_tx_desc))
 #define ENA_LLQ_HEADER		(128UL - ENA_LLQ_ENTRY_DESC_CHUNK_SIZE)
@@ -145,8 +143,8 @@ static inline bool ena_com_is_doorbell_needed(struct ena_com_io_sq *io_sq,
 	}
 
 	netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
-		   "Queue: %d num_descs: %d num_entries_needed: %d\n",
-		   io_sq->qid, num_descs, num_entries_needed);
+		   "Queue: %d num_descs: %d num_entries_needed: %d\n", io_sq->qid, num_descs,
+		   num_entries_needed);
 
 	return num_entries_needed > io_sq->entries_in_tx_burst_left;
 }
@@ -157,38 +155,15 @@ static inline int ena_com_write_sq_doorbell(struct ena_com_io_sq *io_sq)
 	u16 tail = io_sq->tail;
 
 	netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
-		   "Write submission queue doorbell for queue: %d tail: %d\n",
-		   io_sq->qid, tail);
+		   "Write submission queue doorbell for queue: %d tail: %d\n", io_sq->qid, tail);
 
 	writel(tail, io_sq->db_addr);
 
 	if (is_llq_max_tx_burst_exists(io_sq)) {
 		netdev_dbg(ena_com_io_sq_to_ena_dev(io_sq)->net_device,
-			   "Reset available entries in tx burst for queue %d to %d\n",
-			   io_sq->qid, max_entries_in_tx_burst);
+			   "Reset available entries in tx burst for queue %d to %d\n", io_sq->qid,
+			   max_entries_in_tx_burst);
 		io_sq->entries_in_tx_burst_left = max_entries_in_tx_burst;
-	}
-
-	return 0;
-}
-
-static inline int ena_com_update_dev_comp_head(struct ena_com_io_cq *io_cq)
-{
-	u16 unreported_comp, head;
-	bool need_update;
-
-	if (unlikely(io_cq->cq_head_db_reg)) {
-		head = io_cq->head;
-		unreported_comp = head - io_cq->last_head_update;
-		need_update = unreported_comp > (io_cq->q_depth / ENA_COMP_HEAD_THRESH);
-
-		if (unlikely(need_update)) {
-			netdev_dbg(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-				   "Write completion queue doorbell for queue %d: head: %d\n",
-				   io_cq->qid, head);
-			writel(head, io_cq->cq_head_db_reg);
-			io_cq->last_head_update = head;
-		}
 	}
 
 	return 0;
@@ -248,8 +223,8 @@ static inline int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq,
 
 	*req_id = READ_ONCE(cdesc->req_id);
 	if (unlikely(*req_id >= io_cq->q_depth)) {
-		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device,
-			   "Invalid req id %d\n", cdesc->req_id);
+		netdev_err(ena_com_io_cq_to_ena_dev(io_cq)->net_device, "Invalid req id %d\n",
+			   cdesc->req_id);
 		return -EINVAL;
 	}
 
