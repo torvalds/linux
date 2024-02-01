@@ -238,6 +238,7 @@
   cpufreq_driver_resolve_freq
   __cpufreq_driver_target
   cpufreq_driver_target
+  cpufreq_driver_test_flags
   cpufreq_enable_fast_switch
   cpufreq_freq_transition_begin
   cpufreq_freq_transition_end
