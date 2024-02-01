@@ -384,6 +384,34 @@ int bch2_inode_write_flags(struct btree_trans *trans,
 	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, flags);
 }
 
+int __bch2_fsck_write_inode(struct btree_trans *trans,
+			 struct bch_inode_unpacked *inode,
+			 u32 snapshot)
+{
+	struct bkey_inode_buf *inode_p =
+		bch2_trans_kmalloc(trans, sizeof(*inode_p));
+
+	if (IS_ERR(inode_p))
+		return PTR_ERR(inode_p);
+
+	bch2_inode_pack(inode_p, inode);
+	inode_p->inode.k.p.snapshot = snapshot;
+
+	return bch2_btree_insert_nonextent(trans, BTREE_ID_inodes,
+				&inode_p->inode.k_i,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+}
+
+int bch2_fsck_write_inode(struct btree_trans *trans,
+			    struct bch_inode_unpacked *inode,
+			    u32 snapshot)
+{
+	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			    __bch2_fsck_write_inode(trans, inode, snapshot));
+	bch_err_fn(trans->c, ret);
+	return ret;
+}
+
 struct bkey_i *bch2_inode_to_v3(struct btree_trans *trans, struct bkey_i *k)
 {
 	struct bch_inode_unpacked u;
