@@ -400,6 +400,7 @@
   device_property_present
   device_property_read_string
   device_property_read_u32_array
+  device_property_read_u8_array
   device_register
   device_remove_file
   device_remove_groups
@@ -826,6 +827,7 @@
   drm_self_refresh_helper_alter_state
   drm_send_event
   drm_send_event_locked
+  drm_sysfs_connector_status_event
   drm_universal_plane_init
   drm_vblank_init
   drm_writeback_connector_init
@@ -1864,6 +1866,7 @@
   remove_proc_entry
   remove_wait_queue
   request_firmware
+  request_firmware_direct
   request_firmware_nowait
   __request_percpu_irq
   __request_region
@@ -2319,6 +2322,7 @@
   __traceiter_android_rvh_set_user_nice_locked
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_ufs_reprogram_all_keys
   __traceiter_android_rvh_update_blocked_fair
   __traceiter_android_rvh_update_load_avg
   __traceiter_android_rvh_update_load_sum
@@ -2370,6 +2374,7 @@
   __traceiter_cpu_frequency
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
+  __traceiter_dwc3_readl
   __traceiter_gpu_mem_total
   __traceiter_hrtimer_expire_entry
   __traceiter_hrtimer_expire_exit
@@ -2432,6 +2437,7 @@
   __tracepoint_android_rvh_set_user_nice_locked
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_ufs_reprogram_all_keys
   __tracepoint_android_rvh_update_blocked_fair
   __tracepoint_android_rvh_update_load_avg
   __tracepoint_android_rvh_update_load_sum
@@ -2483,6 +2489,7 @@
   __tracepoint_cpu_frequency
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
+  __tracepoint_dwc3_readl
   __tracepoint_gpu_mem_total
   __tracepoint_hrtimer_expire_entry
   __tracepoint_hrtimer_expire_exit
