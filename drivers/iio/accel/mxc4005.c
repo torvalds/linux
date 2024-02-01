@@ -472,6 +472,7 @@ static int mxc4005_probe(struct i2c_client *client)
 static const struct acpi_device_id mxc4005_acpi_match[] = {
 	{"MXC4005",	0},
 	{"MXC6655",	0},
+	{"MDA6655",	0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, mxc4005_acpi_match);
