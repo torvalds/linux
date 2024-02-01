@@ -362,31 +362,28 @@ out_free:
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_mcc);
 
-u64 iwl_acpi_get_pwr_limit(struct device *dev)
+int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt, u64 *dflt_pwr_limit)
 {
 	union acpi_object *data, *wifi_pkg;
-	u64 dflt_pwr_limit;
-	int tbl_rev;
+	int tbl_rev, ret = -EINVAL;
 
-	data = iwl_acpi_get_object(dev, ACPI_SPLC_METHOD);
-	if (IS_ERR(data)) {
-		dflt_pwr_limit = 0;
+	*dflt_pwr_limit = 0;
+	data = iwl_acpi_get_object(fwrt->dev, ACPI_SPLC_METHOD);
+	if (IS_ERR(data))
 		goto out;
-	}
 
-	wifi_pkg = iwl_acpi_get_wifi_pkg(dev, data,
+	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 					 ACPI_SPLC_WIFI_DATA_SIZE, &tbl_rev);
 	if (IS_ERR(wifi_pkg) || tbl_rev != 0 ||
-	    wifi_pkg->package.elements[1].integer.value != ACPI_TYPE_INTEGER) {
-		dflt_pwr_limit = 0;
+	    wifi_pkg->package.elements[1].integer.value != ACPI_TYPE_INTEGER)
 		goto out_free;
-	}
 
-	dflt_pwr_limit = wifi_pkg->package.elements[1].integer.value;
+	*dflt_pwr_limit = wifi_pkg->package.elements[1].integer.value;
+	ret = 0;
 out_free:
 	kfree(data);
 out:
-	return dflt_pwr_limit;
+	return ret;
 }
 IWL_EXPORT_SYMBOL(iwl_acpi_get_pwr_limit);
 

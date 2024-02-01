@@ -156,7 +156,7 @@ int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
  */
 int iwl_acpi_get_mcc(struct device *dev, char *mcc);
 
-u64 iwl_acpi_get_pwr_limit(struct device *dev);
+int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt, u64 *dflt_pwr_limit);
 
 /*
  * iwl_acpi_get_eckv - read external clock validation from ACPI, if available
@@ -212,8 +212,10 @@ static inline int iwl_acpi_get_mcc(struct device *dev, char *mcc)
 	return -ENOENT;
 }
 
-static inline u64 iwl_acpi_get_pwr_limit(struct device *dev)
+static inline int iwl_acpi_get_pwr_limit(struct iwl_fw_runtime *fwrt,
+					 u64 *dflt_pwr_limit)
 {
+	*dflt_pwr_limit = 0;
 	return 0;
 }
 
