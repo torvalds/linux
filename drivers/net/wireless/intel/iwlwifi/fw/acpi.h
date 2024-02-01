@@ -92,6 +92,8 @@
 /* The Inidcator whether UEFI WIFI GUID tables are locked is read from ACPI */
 #define UEFI_WIFI_GUID_UNLOCKED		0
 
+#define ACPI_DSM_REV 0
+
 enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_QUERY = 0,
 	DSM_FUNC_DISABLE_SRD = 1,
@@ -103,7 +105,8 @@ enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_ACTIVATE_CHANNEL = 8,
 	DSM_FUNC_FORCE_DISABLE_CHANNELS = 9,
 	DSM_FUNC_ENERGY_DETECTION_THRESHOLD = 10,
-	DSM_FUNC_RFI_CONFIG = 11
+	DSM_FUNC_RFI_CONFIG = 11,
+	DSM_FUNC_NUM_FUNCS = 12,
 };
 
 enum iwl_dsm_values_srd {
@@ -137,12 +140,6 @@ enum iwl_dsm_masks_reg {
 struct iwl_fw_runtime;
 
 extern const guid_t iwl_guid;
-
-int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
-			const guid_t *guid, u8 *value);
-
-int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
-			 const guid_t *guid, u32 *value);
 
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
@@ -185,24 +182,15 @@ void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 
 void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt);
 
+int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
+		     enum iwl_dsm_funcs_rev_0 func, u32 *value);
+
 #else /* CONFIG_ACPI */
 
 static inline void *iwl_acpi_get_dsm_object(struct device *dev, int rev,
 					    int func, union acpi_object *args)
 {
 	return ERR_PTR(-ENOENT);
-}
-
-static inline int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
-				      const guid_t *guid, u8 *value)
-{
-	return -ENOENT;
-}
-
-static inline int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
-				       const guid_t *guid, u32 *value)
-{
-	return -ENOENT;
 }
 
 static inline int iwl_acpi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc)
@@ -255,6 +243,13 @@ static inline void iwl_acpi_get_phy_filters(struct iwl_fw_runtime *fwrt,
 
 static inline void iwl_acpi_get_guid_lock_status(struct iwl_fw_runtime *fwrt)
 {
+}
+
+static inline int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
+				   enum iwl_dsm_funcs_rev_0 func,
+				   u32 *value)
+{
+	return -ENOENT;
 }
 #endif /* CONFIG_ACPI */
 

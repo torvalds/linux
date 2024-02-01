@@ -1203,12 +1203,11 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
-	u8 value = 0;
+	u32 value = 0;
 	/* default behaviour is disabled */
 	bool bios_enable_rfi = false;
-	int ret  = iwl_acpi_get_dsm_u8(mvm->fwrt.dev, 0,
-				       DSM_FUNC_RFI_CONFIG, &iwl_guid,
-				       &value);
+	int ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_RFI_CONFIG, &value);
+
 
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm, "Failed to get DSM RFI, ret=%d\n", ret);
@@ -1245,41 +1244,32 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
-	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0, DSM_FUNC_11AX_ENABLEMENT,
-				   &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_11AX_ENABLEMENT, &value);
 	if (!ret)
 		cmd.oem_11ax_allow_bitmap = cpu_to_le32(value);
 
-	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_ENABLE_UNII4_CHAN,
-				   &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_UNII4_CHAN, &value);
 	if (!ret)
 		cmd.oem_unii4_allow_bitmap = cpu_to_le32(value);
 
-	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_ACTIVATE_CHANNEL,
-				   &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_ACTIVATE_CHANNEL, &value);
 	if (!ret) {
 		if (cmd_ver < 8)
 			value &= ~ACTIVATE_5G2_IN_WW_MASK;
 		cmd.chan_state_active_bitmap = cpu_to_le32(value);
 	}
 
-	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_ENABLE_6E,
-				   &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_6E, &value);
 	if (!ret)
 		cmd.oem_uhb_allow_bitmap = cpu_to_le32(value);
 
-	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_FORCE_DISABLE_CHANNELS,
-				   &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_FORCE_DISABLE_CHANNELS,
+			       &value);
 	if (!ret)
 		cmd.force_disable_channels_bitmap = cpu_to_le32(value);
 
-	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_ENERGY_DETECTION_THRESHOLD,
-				   &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(&mvm->fwrt, DSM_FUNC_ENERGY_DETECTION_THRESHOLD,
+			       &value);
 	if (!ret)
 		cmd.edt_bitmap = cpu_to_le32(value);
 

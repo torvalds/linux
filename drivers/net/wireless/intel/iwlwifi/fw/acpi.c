@@ -12,7 +12,22 @@
 const guid_t iwl_guid = GUID_INIT(0xF21202BF, 0x8F78, 0x4DC6,
 				  0xA5, 0xB3, 0x1F, 0x73,
 				  0x8E, 0x28, 0x5A, 0xDE);
-IWL_EXPORT_SYMBOL(iwl_guid);
+
+static const size_t acpi_dsm_size[DSM_FUNC_NUM_FUNCS] = {
+	[DSM_FUNC_QUERY] =			sizeof(u32),
+	[DSM_FUNC_DISABLE_SRD] =		sizeof(u8),
+	[DSM_FUNC_ENABLE_INDONESIA_5G2] =	sizeof(u8),
+	[DSM_FUNC_ENABLE_6E] =			sizeof(u32),
+	[DSM_FUNC_REGULATORY_CONFIG] =		sizeof(u32),
+	/* Not supported in driver */
+	[5] =					(size_t)0,
+	[DSM_FUNC_11AX_ENABLEMENT] =		sizeof(u32),
+	[DSM_FUNC_ENABLE_UNII4_CHAN] =		sizeof(u32),
+	[DSM_FUNC_ACTIVATE_CHANNEL] =		sizeof(u32),
+	[DSM_FUNC_FORCE_DISABLE_CHANNELS] =	sizeof(u32),
+	[DSM_FUNC_ENERGY_DETECTION_THRESHOLD] =	sizeof(u32),
+	[DSM_FUNC_RFI_CONFIG] =			sizeof(u32),
+};
 
 static int iwl_acpi_get_handle(struct device *dev, acpi_string method,
 			       acpi_handle *ret_handle)
@@ -137,46 +152,42 @@ out:
 }
 
 /*
- * Evaluate a DSM with no arguments and a u8 return value,
+ * This function receives a DSM function number, calculates its expected size
+ * according to Intel BIOS spec, and fills in the value in a 32-bit field.
+ * In case the expected size is smaller than 32-bit, padding will be added.
  */
-int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
-			const guid_t *guid, u8 *value)
+int iwl_acpi_get_dsm(struct iwl_fw_runtime *fwrt,
+		     enum iwl_dsm_funcs_rev_0 func, u32 *value)
 {
+	size_t expected_size;
+	u64 tmp;
 	int ret;
-	u64 val;
 
-	ret = iwl_acpi_get_dsm_integer(dev, rev, func,
-				       guid, &val, sizeof(u8));
+	BUILD_BUG_ON(ARRAY_SIZE(acpi_dsm_size) != DSM_FUNC_NUM_FUNCS);
 
-	if (ret < 0)
+	if (WARN_ON(func >= ARRAY_SIZE(acpi_dsm_size)))
+		return -EINVAL;
+
+	expected_size = acpi_dsm_size[func];
+
+	/* Currently all ACPI DSMs are either 8-bit or 32-bit */
+	if (expected_size != sizeof(u8) && expected_size != sizeof(u32))
+		return -EOPNOTSUPP;
+
+	ret = iwl_acpi_get_dsm_integer(fwrt->dev, ACPI_DSM_REV, func,
+				       &iwl_guid, &tmp, expected_size);
+	if (ret)
 		return ret;
 
-	/* cast val (u64) to be u8 */
-	*value = (u8)val;
+	if ((expected_size == sizeof(u8) && tmp != (u8)tmp) ||
+	    (expected_size == sizeof(u32) && tmp != (u32)tmp))
+		IWL_DEBUG_RADIO(fwrt,
+				"DSM value overflows the expected size, truncating\n");
+	*value = (u32)tmp;
+
 	return 0;
 }
-IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u8);
-
-/*
- * Evaluate a DSM with no arguments and a u32 return value,
- */
-int iwl_acpi_get_dsm_u32(struct device *dev, int rev, int func,
-			 const guid_t *guid, u32 *value)
-{
-	int ret;
-	u64 val;
-
-	ret = iwl_acpi_get_dsm_integer(dev, rev, func,
-				       guid, &val, sizeof(u32));
-
-	if (ret < 0)
-		return ret;
-
-	/* cast val (u64) to be u32 */
-	*value = (u32)val;
-	return 0;
-}
-IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm_u32);
+IWL_EXPORT_SYMBOL(iwl_acpi_get_dsm);
 
 static union acpi_object *
 iwl_acpi_get_wifi_pkg_range(struct device *dev,
@@ -800,7 +811,6 @@ out_free:
 __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 {
 	int ret;
-	u8 value;
 	u32 val;
 	__le32 config_bitmap = 0;
 
@@ -813,11 +823,10 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	case IWL_CFG_RF_TYPE_HR2:
 	case IWL_CFG_RF_TYPE_JF1:
 	case IWL_CFG_RF_TYPE_JF2:
-		ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
-					  DSM_FUNC_ENABLE_INDONESIA_5G2,
-					  &iwl_guid, &value);
+		ret = iwl_acpi_get_dsm(fwrt, DSM_FUNC_ENABLE_INDONESIA_5G2,
+				       &val);
 
-		if (!ret && value == DSM_VALUE_INDONESIA_ENABLE)
+		if (!ret && val == DSM_VALUE_INDONESIA_ENABLE)
 			config_bitmap |=
 			    cpu_to_le32(LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK);
 		break;
@@ -828,14 +837,12 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 	/*
 	 ** Evaluate func 'DSM_FUNC_DISABLE_SRD'
 	 */
-	ret = iwl_acpi_get_dsm_u8(fwrt->dev, 0,
-				  DSM_FUNC_DISABLE_SRD,
-				  &iwl_guid, &value);
+	ret = iwl_acpi_get_dsm(fwrt, DSM_FUNC_DISABLE_SRD, &val);
 	if (!ret) {
-		if (value == DSM_VALUE_SRD_PASSIVE)
+		if (val == DSM_VALUE_SRD_PASSIVE)
 			config_bitmap |=
 				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK);
-		else if (value == DSM_VALUE_SRD_DISABLE)
+		else if (val == DSM_VALUE_SRD_DISABLE)
 			config_bitmap |=
 				cpu_to_le32(LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK);
 	}
@@ -845,9 +852,7 @@ __le32 iwl_acpi_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt)
 		/*
 		 ** Evaluate func 'DSM_FUNC_REGULATORY_CONFIG'
 		 */
-		ret = iwl_acpi_get_dsm_u32(fwrt->dev, 0,
-					   DSM_FUNC_REGULATORY_CONFIG,
-					   &iwl_guid, &val);
+		ret = iwl_acpi_get_dsm(fwrt, DSM_FUNC_REGULATORY_CONFIG, &val);
 		/*
 		 * China 2022 enable if the BIOS object does not exist or
 		 * if it is enabled in BIOS.
