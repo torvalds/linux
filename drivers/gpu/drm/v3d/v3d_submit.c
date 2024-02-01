@@ -147,6 +147,13 @@ v3d_job_allocate(void **container, size_t size)
 	return 0;
 }
 
+static void
+v3d_job_deallocate(void **container)
+{
+	kfree(*container);
+	*container = NULL;
+}
+
 static int
 v3d_job_init(struct v3d_dev *v3d, struct drm_file *file_priv,
 	     struct v3d_job *job, void (*free)(struct kref *ref),
@@ -273,8 +280,10 @@ v3d_setup_csd_jobs_and_bos(struct drm_file *file_priv,
 
 	ret = v3d_job_init(v3d, file_priv, &(*job)->base,
 			   v3d_job_free, args->in_sync, se, V3D_CSD);
-	if (ret)
+	if (ret) {
+		v3d_job_deallocate((void *)job);
 		return ret;
+	}
 
 	ret = v3d_job_allocate((void *)clean_job, sizeof(**clean_job));
 	if (ret)
@@ -282,8 +291,10 @@ v3d_setup_csd_jobs_and_bos(struct drm_file *file_priv,
 
 	ret = v3d_job_init(v3d, file_priv, *clean_job,
 			   v3d_job_free, 0, NULL, V3D_CACHE_CLEAN);
-	if (ret)
+	if (ret) {
+		v3d_job_deallocate((void *)clean_job);
 		return ret;
+	}
 
 	(*job)->args = *args;
 
@@ -860,8 +871,10 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	ret = v3d_job_init(v3d, file_priv, &render->base,
 			   v3d_render_job_free, args->in_sync_rcl, &se, V3D_RENDER);
-	if (ret)
+	if (ret) {
+		v3d_job_deallocate((void *)&render);
 		goto fail;
+	}
 
 	render->start = args->rcl_start;
 	render->end = args->rcl_end;
@@ -874,8 +887,10 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 		ret = v3d_job_init(v3d, file_priv, &bin->base,
 				   v3d_job_free, args->in_sync_bcl, &se, V3D_BIN);
-		if (ret)
+		if (ret) {
+			v3d_job_deallocate((void *)&bin);
 			goto fail;
+		}
 
 		bin->start = args->bcl_start;
 		bin->end = args->bcl_end;
@@ -892,8 +907,10 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 		ret = v3d_job_init(v3d, file_priv, clean_job,
 				   v3d_job_free, 0, NULL, V3D_CACHE_CLEAN);
-		if (ret)
+		if (ret) {
+			v3d_job_deallocate((void *)&clean_job);
 			goto fail;
+		}
 
 		last_job = clean_job;
 	} else {
@@ -1015,8 +1032,10 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	ret = v3d_job_init(v3d, file_priv, &job->base,
 			   v3d_job_free, args->in_sync, &se, V3D_TFU);
-	if (ret)
+	if (ret) {
+		v3d_job_deallocate((void *)&job);
 		goto fail;
+	}
 
 	job->base.bo = kcalloc(ARRAY_SIZE(args->bo_handles),
 			       sizeof(*job->base.bo), GFP_KERNEL);
@@ -1233,8 +1252,10 @@ v3d_submit_cpu_ioctl(struct drm_device *dev, void *data,
 
 	ret = v3d_job_init(v3d, file_priv, &cpu_job->base,
 			   v3d_job_free, 0, &se, V3D_CPU);
-	if (ret)
+	if (ret) {
+		v3d_job_deallocate((void *)&cpu_job);
 		goto fail;
+	}
 
 	clean_job = cpu_job->indirect_csd.clean_job;
 	csd_job = cpu_job->indirect_csd.job;

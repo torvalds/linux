@@ -1457,6 +1457,14 @@ static int btrfs_reconfigure(struct fs_context *fc)
 
 	btrfs_info_to_ctx(fs_info, &old_ctx);
 
+	/*
+	 * This is our "bind mount" trick, we don't want to allow the user to do
+	 * anything other than mount a different ro/rw and a different subvol,
+	 * all of the mount options should be maintained.
+	 */
+	if (mount_reconfigure)
+		ctx->mount_opt = old_ctx.mount_opt;
+
 	sync_filesystem(sb);
 	set_bit(BTRFS_FS_STATE_REMOUNTING, &fs_info->fs_state);
 

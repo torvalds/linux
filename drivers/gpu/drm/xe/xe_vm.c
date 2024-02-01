@@ -1855,10 +1855,8 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 	mutex_lock(&xef->vm.lock);
 	err = xa_alloc(&xef->vm.xa, &id, vm, xa_limit_32b, GFP_KERNEL);
 	mutex_unlock(&xef->vm.lock);
-	if (err) {
-		xe_vm_close_and_put(vm);
-		return err;
-	}
+	if (err)
+		goto err_close_and_put;
 
 	if (xe->info.has_asid) {
 		mutex_lock(&xe->usm.lock);
@@ -1866,11 +1864,9 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 				      XA_LIMIT(1, XE_MAX_ASID - 1),
 				      &xe->usm.next_asid, GFP_KERNEL);
 		mutex_unlock(&xe->usm.lock);
-		if (err < 0) {
-			xe_vm_close_and_put(vm);
-			return err;
-		}
-		err = 0;
+		if (err < 0)
+			goto err_free_id;
+
 		vm->usm.asid = asid;
 	}
 
@@ -1888,6 +1884,15 @@ int xe_vm_create_ioctl(struct drm_device *dev, void *data,
 #endif
 
 	return 0;
+
+err_free_id:
+	mutex_lock(&xef->vm.lock);
+	xa_erase(&xef->vm.xa, id);
+	mutex_unlock(&xef->vm.lock);
+err_close_and_put:
+	xe_vm_close_and_put(vm);
+
+	return err;
 }
 
 int xe_vm_destroy_ioctl(struct drm_device *dev, void *data,

@@ -10,6 +10,7 @@ What:		/sys/devices/platform/silicom-platform/power_cycle
 Date:		November 2023
 KernelVersion:	6.7
 Contact:	Henry Shi <henrys@silicom-usa.com>
+Description:
 		This file allow user to power cycle the platform.
 		Default value is 0; when set to 1, it powers down
 		the platform, waits 5 seconds, then powers on the
