@@ -19,14 +19,32 @@
 	};
 };
 
-/*
- * Unknown Goodix touchscreen at i2c2 0x14. Needs testing before it's
- * enabled.
- */
 &i2c2 {
 	pinctrl-0 = <&i2c2m1_xfer>;
 	pinctrl-names = "default";
 	status = "okay";
+
+	touchscreen@14 {
+		compatible = "goodix,gt927";
+		reg = <0x14>;
+		interrupt-parent = <&gpio4>;
+		interrupts = <RK_PB1 IRQ_TYPE_EDGE_FALLING>;
+		irq-gpios = <&gpio4 RK_PB1 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&touch_int>;
+		pinctrl-names = "default";
+		reset-gpios = <&gpio4 RK_PA6 GPIO_ACTIVE_HIGH>;
+		touchscreen-inverted-y;
+		touchscreen-size-x = <640>;
+		touchscreen-size-y = <480>;
+	};
+};
+
+&pinctrl {
+	touchscreen {
+		touch_int: touch_int {
+			rockchip,pins = <4 RK_PB1 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
 };
 
 &sdhci {
