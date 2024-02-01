@@ -2262,7 +2262,7 @@ static void fix_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 	int sectors = r1_bio->sectors;
 	int read_disk = r1_bio->read_disk;
 	struct mddev *mddev = conf->mddev;
-	struct md_rdev *rdev = rcu_dereference(conf->mirrors[read_disk].rdev);
+	struct md_rdev *rdev = conf->mirrors[read_disk].rdev;
 
 	if (exceed_read_errors(mddev, rdev)) {
 		r1_bio->bios[r1_bio->read_disk] = IO_BLOCKED;
