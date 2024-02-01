@@ -579,10 +579,8 @@ static int hx8357_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	ret = spi_setup(spi);
-	if (ret < 0) {
-		dev_err(&spi->dev, "SPI setup failed.\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "SPI setup failed.\n");
 
 	lcd->spi = spi;
 
@@ -617,10 +615,8 @@ static int hx8357_probe(struct spi_device *spi)
 	hx8357_lcd_reset(lcdev);
 
 	ret = init_fn(lcdev);
-	if (ret) {
-		dev_err(&spi->dev, "Couldn't initialize panel\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Couldn't initialize panel\n");
 
 	dev_info(&spi->dev, "Panel probed\n");
 
