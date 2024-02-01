@@ -663,8 +663,13 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 			       XE_UC_FIRMWARE_SELECTED :
 			       XE_UC_FIRMWARE_NOT_SUPPORTED);
 
-	if (!xe_uc_fw_is_supported(uc_fw))
+	if (!xe_uc_fw_is_supported(uc_fw)) {
+		if (uc_fw->type == XE_UC_FW_TYPE_GUC) {
+			drm_err(&xe->drm, "No GuC firmware defined for platform\n");
+			return -ENOENT;
+		}
 		return 0;
+	}
 
 	/* an empty path means the firmware is disabled */
 	if (!xe_device_uc_enabled(xe) || !(*uc_fw->path)) {
