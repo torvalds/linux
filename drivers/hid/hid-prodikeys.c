@@ -66,9 +66,7 @@ struct pcmidi_snd {
 	struct snd_card			*card;
 	struct snd_rawmidi		*rwmidi;
 	struct snd_rawmidi_substream	*in_substream;
-	struct snd_rawmidi_substream	*out_substream;
 	unsigned long			in_triggered;
-	unsigned long			out_active;
 };
 
 #define PK_QUIRK_NOGET	0x00010000
