@@ -30,14 +30,23 @@
   *  ASP1_RX_WL = 24 bits per sample
   *  ASP1_TX_WL = 24 bits per sample
   *  ASP1_RXn_EN 1..3 and ASP1_TXn_EN 1..4 disabled
+  *
+  * Override any Windows-specific mixer settings applied by the firmware.
   */
 static const struct reg_sequence cs35l56_hda_dai_config[] = {
 	{ CS35L56_ASP1_CONTROL1,	0x00000021 },
 	{ CS35L56_ASP1_CONTROL2,	0x20200200 },
 	{ CS35L56_ASP1_CONTROL3,	0x00000003 },
+	{ CS35L56_ASP1_FRAME_CONTROL1,	0x03020100 },
+	{ CS35L56_ASP1_FRAME_CONTROL5,	0x00020100 },
 	{ CS35L56_ASP1_DATA_CONTROL5,	0x00000018 },
 	{ CS35L56_ASP1_DATA_CONTROL1,	0x00000018 },
 	{ CS35L56_ASP1_ENABLES1,	0x00000000 },
+	{ CS35L56_ASP1TX1_INPUT,	0x00000018 },
+	{ CS35L56_ASP1TX2_INPUT,	0x00000019 },
+	{ CS35L56_ASP1TX3_INPUT,	0x00000020 },
+	{ CS35L56_ASP1TX4_INPUT,	0x00000028 },
+
 };
 
 static void cs35l56_hda_play(struct cs35l56_hda *cs35l56)
@@ -132,6 +141,10 @@ static int cs35l56_hda_runtime_resume(struct device *dev)
 			goto err;
 		}
 	}
+
+	ret = cs35l56_force_sync_asp1_registers_from_cache(&cs35l56->base);
+	if (ret)
+		goto err;
 
 	return 0;
 
@@ -384,7 +397,7 @@ static const struct cs_dsp_client_ops cs35l56_hda_client_ops = {
 
 static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 					     const struct firmware **firmware, char **filename,
-					     const char *dir, const char *system_name,
+					     const char *base_name, const char *system_name,
 					     const char *amp_name,
 					     const char *filetype)
 {
@@ -392,17 +405,13 @@ static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 	int ret = 0;
 
 	if (system_name && amp_name)
-		*filename = kasprintf(GFP_KERNEL, "%scs35l56%s-%02x-dsp1-misc-%s-%s.%s", dir,
-				      cs35l56->base.secured ? "s" : "", cs35l56->base.rev,
+		*filename = kasprintf(GFP_KERNEL, "%s-%s-%s.%s", base_name,
 				      system_name, amp_name, filetype);
 	else if (system_name)
-		*filename = kasprintf(GFP_KERNEL, "%scs35l56%s-%02x-dsp1-misc-%s.%s", dir,
-				      cs35l56->base.secured ? "s" : "", cs35l56->base.rev,
+		*filename = kasprintf(GFP_KERNEL, "%s-%s.%s", base_name,
 				      system_name, filetype);
 	else
-		*filename = kasprintf(GFP_KERNEL, "%scs35l56%s-%02x-dsp1-misc.%s", dir,
-				      cs35l56->base.secured ? "s" : "", cs35l56->base.rev,
-				      filetype);
+		*filename = kasprintf(GFP_KERNEL, "%s.%s", base_name, filetype);
 
 	if (!*filename)
 		return -ENOMEM;
@@ -435,8 +444,8 @@ static int cs35l56_hda_request_firmware_file(struct cs35l56_hda *cs35l56,
 	return 0;
 }
 
-static const char cirrus_dir[] = "cirrus/";
 static void cs35l56_hda_request_firmware_files(struct cs35l56_hda *cs35l56,
+					       unsigned int preloaded_fw_ver,
 					       const struct firmware **wmfw_firmware,
 					       char **wmfw_filename,
 					       const struct firmware **coeff_firmware,
@@ -444,55 +453,73 @@ static void cs35l56_hda_request_firmware_files(struct cs35l56_hda *cs35l56,
 {
 	const char *system_name = cs35l56->system_name;
 	const char *amp_name = cs35l56->amp_name;
+	char base_name[37];
 	int ret;
+
+	if (preloaded_fw_ver) {
+		snprintf(base_name, sizeof(base_name),
+			 "cirrus/cs35l56-%02x%s-%06x-dsp1-misc",
+			 cs35l56->base.rev,
+			 cs35l56->base.secured ? "-s" : "",
+			 preloaded_fw_ver & 0xffffff);
+	} else {
+		snprintf(base_name, sizeof(base_name),
+			 "cirrus/cs35l56-%02x%s-dsp1-misc",
+			 cs35l56->base.rev,
+			 cs35l56->base.secured ? "-s" : "");
+	}
 
 	if (system_name && amp_name) {
 		if (!cs35l56_hda_request_firmware_file(cs35l56, wmfw_firmware, wmfw_filename,
-						       cirrus_dir, system_name, amp_name, "wmfw")) {
+						       base_name, system_name, amp_name, "wmfw")) {
 			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  cirrus_dir, system_name, amp_name, "bin");
+							  base_name, system_name, amp_name, "bin");
 			return;
 		}
 	}
 
 	if (system_name) {
 		if (!cs35l56_hda_request_firmware_file(cs35l56, wmfw_firmware, wmfw_filename,
-						       cirrus_dir, system_name, NULL, "wmfw")) {
+						       base_name, system_name, NULL, "wmfw")) {
 			if (amp_name)
 				cs35l56_hda_request_firmware_file(cs35l56,
 								  coeff_firmware, coeff_filename,
-								  cirrus_dir, system_name,
+								  base_name, system_name,
 								  amp_name, "bin");
 			if (!*coeff_firmware)
 				cs35l56_hda_request_firmware_file(cs35l56,
 								  coeff_firmware, coeff_filename,
-								  cirrus_dir, system_name,
+								  base_name, system_name,
 								  NULL, "bin");
 			return;
 		}
+
+		/*
+		 * Check for system-specific bin files without wmfw before
+		 * falling back to generic firmware
+		 */
+		if (amp_name)
+			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
+							  base_name, system_name, amp_name, "bin");
+		if (!*coeff_firmware)
+			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
+							  base_name, system_name, NULL, "bin");
+
+		if (*coeff_firmware)
+			return;
 	}
 
 	ret = cs35l56_hda_request_firmware_file(cs35l56, wmfw_firmware, wmfw_filename,
-						cirrus_dir, NULL, NULL, "wmfw");
+						base_name, NULL, NULL, "wmfw");
 	if (!ret) {
 		cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-						  cirrus_dir, NULL, NULL, "bin");
+						  base_name, NULL, NULL, "bin");
 		return;
-	}
-
-	/* When a firmware file is not found must still search for the coeff files */
-	if (system_name) {
-		if (amp_name)
-			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  cirrus_dir, system_name, amp_name, "bin");
-		if (!*coeff_firmware)
-			cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-							  cirrus_dir, system_name, NULL, "bin");
 	}
 
 	if (!*coeff_firmware)
 		cs35l56_hda_request_firmware_file(cs35l56, coeff_firmware, coeff_filename,
-						  cirrus_dir, NULL, NULL, "bin");
+						  base_name, NULL, NULL, "bin");
 }
 
 static void cs35l56_hda_release_firmware_files(const struct firmware *wmfw_firmware,
@@ -526,7 +553,8 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	const struct firmware *wmfw_firmware = NULL;
 	char *coeff_filename = NULL;
 	char *wmfw_filename = NULL;
-	unsigned int firmware_missing;
+	unsigned int preloaded_fw_ver;
+	bool firmware_missing;
 	int ret = 0;
 
 	/* Prepare for a new DSP power-up */
@@ -537,24 +565,21 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 
 	pm_runtime_get_sync(cs35l56->base.dev);
 
-	ret = regmap_read(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS, &firmware_missing);
-	if (ret) {
-		dev_err(cs35l56->base.dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
-		goto err_pm_put;
-	}
-
-	firmware_missing &= CS35L56_FIRMWARE_MISSING;
-
 	/*
-	 * Firmware can only be downloaded if the CS35L56 is secured or is
-	 * running from the built-in ROM. If it is secured the BIOS will have
-	 * downloaded firmware, and the wmfw/bin files will only contain
-	 * tunings that are safe to download with the firmware running.
+	 * The firmware can only be upgraded if it is currently running
+	 * from the built-in ROM. If not, the wmfw/bin must be for the
+	 * version of firmware that is running on the chip.
 	 */
-	if (cs35l56->base.secured || firmware_missing) {
-		cs35l56_hda_request_firmware_files(cs35l56, &wmfw_firmware, &wmfw_filename,
-						   &coeff_firmware, &coeff_filename);
-	}
+	ret = cs35l56_read_prot_status(&cs35l56->base, &firmware_missing, &preloaded_fw_ver);
+	if (ret)
+		goto err_pm_put;
+
+	if (firmware_missing)
+		preloaded_fw_ver = 0;
+
+	cs35l56_hda_request_firmware_files(cs35l56, preloaded_fw_ver,
+					   &wmfw_firmware, &wmfw_filename,
+					   &coeff_firmware, &coeff_filename);
 
 	/*
 	 * If the BIOS didn't patch the firmware a bin file is mandatory to
@@ -569,12 +594,12 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	mutex_lock(&cs35l56->base.irq_lock);
 
 	/*
-	 * When the device is running in secure mode the firmware files can
-	 * only contain insecure tunings and therefore we do not need to
-	 * shutdown the firmware to apply them and can use the lower cost
-	 * reinit sequence instead.
+	 * If the firmware hasn't been patched it must be shutdown before
+	 * doing a full patch and reset afterwards. If it is already
+	 * running a patched version the firmware files only contain
+	 * tunings and we can use the lower cost reinit sequence instead.
 	 */
-	if (!cs35l56->base.secured && (wmfw_firmware || coeff_firmware)) {
+	if (firmware_missing && (wmfw_firmware || coeff_firmware)) {
 		ret = cs35l56_firmware_shutdown(&cs35l56->base);
 		if (ret)
 			goto err;
@@ -593,7 +618,7 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 	if (coeff_filename)
 		dev_dbg(cs35l56->base.dev, "Loaded Coefficients: %s\n", coeff_filename);
 
-	if (cs35l56->base.secured) {
+	if (!firmware_missing) {
 		ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 		if (ret)
 			goto err_powered_up;
@@ -976,6 +1001,9 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int id)
 
 	regmap_multi_reg_write(cs35l56->base.regmap, cs35l56_hda_dai_config,
 			       ARRAY_SIZE(cs35l56_hda_dai_config));
+	ret = cs35l56_force_sync_asp1_registers_from_cache(&cs35l56->base);
+	if (ret)
+		goto err;
 
 	/*
 	 * By default only enable one ASP1TXn, where n=amplifier index,
@@ -1034,16 +1062,6 @@ const struct dev_pm_ops cs35l56_hda_pm_ops = {
 				  cs35l56_hda_system_resume_no_irq)
 };
 EXPORT_SYMBOL_NS_GPL(cs35l56_hda_pm_ops, SND_HDA_SCODEC_CS35L56);
-
-#if IS_ENABLED(CONFIG_SND_HDA_SCODEC_CS35L56_KUNIT_TEST)
-/* Hooks to export static function to KUnit test */
-
-int cs35l56_hda_test_hook_get_speaker_id(struct device *dev, int amp_index, int num_amps)
-{
-	return cs35l56_hda_get_speaker_id(dev, amp_index, num_amps);
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_hda_test_hook_get_speaker_id, SND_HDA_SCODEC_CS35L56);
-#endif
 
 MODULE_DESCRIPTION("CS35L56 HDA Driver");
 MODULE_IMPORT_NS(SND_HDA_CIRRUS_SCODEC);

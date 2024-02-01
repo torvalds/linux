@@ -128,7 +128,7 @@ SYSCALL_DEFINE1(uselib, const char __user *, library)
 	struct filename *tmp = getname(library);
 	int error = PTR_ERR(tmp);
 	static const struct open_flags uselib_flags = {
-		.open_flag = O_LARGEFILE | O_RDONLY | __FMODE_EXEC,
+		.open_flag = O_LARGEFILE | O_RDONLY,
 		.acc_mode = MAY_READ | MAY_EXEC,
 		.intent = LOOKUP_OPEN,
 		.lookup_flags = LOOKUP_FOLLOW,
@@ -904,6 +904,10 @@ EXPORT_SYMBOL(transfer_args_to_stack);
 
 #endif /* CONFIG_MMU */
 
+/*
+ * On success, caller must call do_close_execat() on the returned
+ * struct file to close it.
+ */
 static struct file *do_open_execat(int fd, struct filename *name, int flags)
 {
 	struct file *file;
@@ -948,6 +952,17 @@ exit:
 	return ERR_PTR(err);
 }
 
+/**
+ * open_exec - Open a path name for execution
+ *
+ * @name: path name to open with the intent of executing it.
+ *
+ * Returns ERR_PTR on failure or allocated struct file on success.
+ *
+ * As this is a wrapper for the internal do_open_execat(), callers
+ * must call allow_write_access() before fput() on release. Also see
+ * do_close_execat().
+ */
 struct file *open_exec(const char *name)
 {
 	struct filename *filename = getname_kernel(name);
@@ -1409,6 +1424,9 @@ int begin_new_exec(struct linux_binprm * bprm)
 
 out_unlock:
 	up_write(&me->signal->exec_update_lock);
+	if (!bprm->cred)
+		mutex_unlock(&me->signal->cred_guard_mutex);
+
 out:
 	return retval;
 }
@@ -1484,6 +1502,15 @@ static int prepare_bprm_creds(struct linux_binprm *bprm)
 	return -ENOMEM;
 }
 
+/* Matches do_open_execat() */
+static void do_close_execat(struct file *file)
+{
+	if (!file)
+		return;
+	allow_write_access(file);
+	fput(file);
+}
+
 static void free_bprm(struct linux_binprm *bprm)
 {
 	if (bprm->mm) {
@@ -1495,10 +1522,7 @@ static void free_bprm(struct linux_binprm *bprm)
 		mutex_unlock(&current->signal->cred_guard_mutex);
 		abort_creds(bprm->cred);
 	}
-	if (bprm->file) {
-		allow_write_access(bprm->file);
-		fput(bprm->file);
-	}
+	do_close_execat(bprm->file);
 	if (bprm->executable)
 		fput(bprm->executable);
 	/* If a binfmt changed the interp, free it. */
@@ -1520,8 +1544,7 @@ static struct linux_binprm *alloc_bprm(int fd, struct filename *filename, int fl
 
 	bprm = kzalloc(sizeof(*bprm), GFP_KERNEL);
 	if (!bprm) {
-		allow_write_access(file);
-		fput(file);
+		do_close_execat(file);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -1610,6 +1633,7 @@ static void check_unsafe_exec(struct linux_binprm *bprm)
 	}
 	rcu_read_unlock();
 
+	/* "users" and "in_exec" locked for copy_fs() */
 	if (p->fs->users > n_fs)
 		bprm->unsafe |= LSM_UNSAFE_SHARE;
 	else
@@ -1826,9 +1850,6 @@ static int exec_binprm(struct linux_binprm *bprm)
 	return 0;
 }
 
-/*
- * sys_execve() executes a new program.
- */
 static int bprm_execve(struct linux_binprm *bprm)
 {
 	int retval;

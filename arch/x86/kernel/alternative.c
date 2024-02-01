@@ -403,7 +403,7 @@ noinstr void BUG_func(void)
 {
 	BUG();
 }
-EXPORT_SYMBOL_GPL(BUG_func);
+EXPORT_SYMBOL(BUG_func);
 
 #define CALL_RIP_REL_OPCODE	0xff
 #define CALL_RIP_REL_MODRM	0x15
