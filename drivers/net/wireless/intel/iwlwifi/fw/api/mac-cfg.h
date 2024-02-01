@@ -446,6 +446,7 @@ enum iwl_link_ctx_flags {
  * @listen_lmac: indicates whether the link should be allocated on the Listen
  *	Lmac or on the Main Lmac. Cannot be changed on an active Link.
  *	Relevant only for eSR.
+ * @reserved1: in version 2, listen_lmac became reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
  * @cck_short_preamble: 1 for enabling short preamble, 0 otherwise
@@ -471,10 +472,10 @@ enum iwl_link_ctx_flags {
  * @bssid_index: index of the associated VAP
  * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
  * @spec_link_id: link_id as the AP knows it
- * @reserved: alignment
+ * @reserved2: alignment
  * @ibss_bssid_addr: bssid for ibss
  * @reserved_for_ibss_bssid_addr: reserved
- * @reserved1: reserved for future use
+ * @reserved3: reserved for future use
  */
 struct iwl_link_config_cmd {
 	__le32 action;
@@ -485,7 +486,10 @@ struct iwl_link_config_cmd {
 	__le16 reserved_for_local_link_addr;
 	__le32 modify_mask;
 	__le32 active;
-	__le32 listen_lmac;
+	union {
+		__le32 listen_lmac;
+		__le32 reserved1;
+	};
 	__le32 cck_rates;
 	__le32 ofdm_rates;
 	__le32 cck_short_preamble;
@@ -511,11 +515,13 @@ struct iwl_link_config_cmd {
 	u8 bssid_index;
 	u8 bss_color;
 	u8 spec_link_id;
-	u8 reserved;
+	u8 reserved2;
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
-	__le32 reserved1[8];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 */
+	__le32 reserved3[8];
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 and
+	     * LINK_CONTEXT_CONFIG_CMD_API_S_VER_2
+	     */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.
