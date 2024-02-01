@@ -658,14 +658,13 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 	xe_assert(xe, !uc_fw->path);
 
 	uc_fw_auto_select(xe, uc_fw);
+	uc_fw_override(uc_fw);
 	xe_uc_fw_change_status(uc_fw, uc_fw->path ?
 			       XE_UC_FIRMWARE_SELECTED :
 			       XE_UC_FIRMWARE_NOT_SUPPORTED);
 
 	if (!xe_uc_fw_is_supported(uc_fw))
 		return 0;
-
-	uc_fw_override(uc_fw);
 
 	/* an empty path means the firmware is disabled */
 	if (!xe_device_uc_enabled(xe) || !(*uc_fw->path)) {
