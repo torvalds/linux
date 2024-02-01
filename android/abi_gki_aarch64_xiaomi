@@ -345,3 +345,8 @@
 #required by mi_asap.ko
   __traceiter_android_vh_read_pages
   __tracepoint_android_vh_read_pages
+  page_cache_sync_ra
+  page_cache_async_ra
+  pagecache_get_page
+  filemap_get_folios
+  find_get_pages_range_tag

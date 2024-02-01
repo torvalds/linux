@@ -543,6 +543,7 @@
   dma_buf_fd
   dma_buf_get
   dma_buf_map_attachment
+  dma_buf_map_attachment_unlocked
   dma_buf_mmap
   dmabuf_page_pool_alloc
   dmabuf_page_pool_create
@@ -552,6 +553,7 @@
   dma_buf_put
   dma_buf_set_name
   dma_buf_unmap_attachment
+  dma_buf_unmap_attachment_unlocked
   dma_buf_vmap
   dma_buf_vunmap
   dma_direct_alloc
@@ -995,6 +997,7 @@
   gpiod_get_raw_value_cansleep
   gpiod_get_value
   gpiod_get_value_cansleep
+  gpiod_set_debounce
   gpiod_set_raw_value
   gpiod_set_raw_value_cansleep
   gpiod_set_value
@@ -1054,6 +1057,12 @@
   ida_alloc_range
   ida_destroy
   ida_free
+  idle_inject_get_duration
+  idle_inject_register
+  idle_inject_set_duration
+  idle_inject_set_latency
+  idle_inject_start
+  idle_inject_stop
   idr_alloc
   idr_alloc_cyclic
   idr_destroy
@@ -1314,6 +1323,7 @@
   loops_per_jiffy
   mac_pton
   mas_empty_area_rev
+  max_load_balance_interval
   mbox_chan_received_data
   mbox_controller_register
   mbox_controller_unregister
@@ -1788,6 +1798,7 @@
   register_inet6addr_notifier
   register_inetaddr_notifier
   register_kernel_break_hook
+  register_kretprobe
   register_netdev
   register_netdevice
   register_netdevice_notifier
@@ -1826,6 +1837,7 @@
   regulator_enable_regmap
   regulator_get
   regulator_get_optional
+  regulator_get_voltage
   regulator_get_voltage_sel_regmap
   regulator_is_enabled
   regulator_is_enabled_regmap
@@ -1931,6 +1943,7 @@
   scsi_set_sense_information
   scsi_unblock_requests
   sdev_prefix_printk
+  send_sig_info
   seq_hex_dump
   seq_lseek
   seq_open
@@ -2133,6 +2146,7 @@
   srcu_notifier_chain_unregister
   sscanf
   __stack_chk_fail
+  static_key_count
   static_key_disable
   static_key_enable
   static_key_slow_dec
@@ -2277,6 +2291,9 @@
   __traceiter_android_rvh_enqueue_task
   __traceiter_android_rvh_enqueue_task_fair
   __traceiter_android_rvh_find_lowest_rq
+  __traceiter_android_rvh_iommu_alloc_insert_iova
+  __traceiter_android_rvh_iommu_iovad_init_alloc_algo
+  __traceiter_android_rvh_iommu_limit_align_shift
   __traceiter_android_rvh_irqs_disable
   __traceiter_android_rvh_irqs_enable
   __traceiter_android_rvh_post_init_entity_util_avg
@@ -2386,6 +2403,9 @@
   __tracepoint_android_rvh_enqueue_task
   __tracepoint_android_rvh_enqueue_task_fair
   __tracepoint_android_rvh_find_lowest_rq
+  __tracepoint_android_rvh_iommu_alloc_insert_iova
+  __tracepoint_android_rvh_iommu_iovad_init_alloc_algo
+  __tracepoint_android_rvh_iommu_limit_align_shift
   __tracepoint_android_rvh_irqs_disable
   __tracepoint_android_rvh_irqs_enable
   __tracepoint_android_rvh_post_init_entity_util_avg
@@ -2541,6 +2561,7 @@
   unregister_chrdev_region
   unregister_inet6addr_notifier
   unregister_inetaddr_notifier
+  unregister_kretprobe
   unregister_netdev
   unregister_netdevice_many
   unregister_netdevice_notifier
@@ -2560,6 +2581,7 @@
   update_devfreq
   ___update_load_avg
   ___update_load_sum
+  update_misfit_status
   update_rq_clock
   up_read
   up_write

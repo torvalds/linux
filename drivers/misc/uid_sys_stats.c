@@ -76,9 +76,6 @@ struct uid_entry {
 	int state;
 	struct io_stats io[UID_STATE_SIZE];
 	struct hlist_node hash;
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-	DECLARE_HASHTABLE(task_entries, UID_HASH_BITS);
-#endif
 };
 
 static inline int trylock_uid(uid_t uid)
@@ -148,182 +145,6 @@ static void compute_io_bucket_stats(struct io_stats *io_bucket,
 	memset(io_dead, 0, sizeof(struct io_stats));
 }
 
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-static void get_full_task_comm(struct task_entry *task_entry,
-		struct task_struct *task)
-{
-	int i = 0, offset = 0, len = 0;
-	/* save one byte for terminating null character */
-	int unused_len = MAX_TASK_COMM_LEN - TASK_COMM_LEN - 1;
-	char buf[MAX_TASK_COMM_LEN - TASK_COMM_LEN - 1];
-	struct mm_struct *mm = task->mm;
-
-	/* fill the first TASK_COMM_LEN bytes with thread name */
-	__get_task_comm(task_entry->comm, TASK_COMM_LEN, task);
-	i = strlen(task_entry->comm);
-	while (i < TASK_COMM_LEN)
-		task_entry->comm[i++] = ' ';
-
-	/* next the executable file name */
-	if (mm) {
-		mmap_write_lock(mm);
-		if (mm->exe_file) {
-			char *pathname = d_path(&mm->exe_file->f_path, buf,
-					unused_len);
-
-			if (!IS_ERR(pathname)) {
-				len = strlcpy(task_entry->comm + i, pathname,
-						unused_len);
-				i += len;
-				task_entry->comm[i++] = ' ';
-				unused_len--;
-			}
-		}
-		mmap_write_unlock(mm);
-	}
-	unused_len -= len;
-
-	/* fill the rest with command line argument
-	 * replace each null or new line character
-	 * between args in argv with whitespace */
-	len = get_cmdline(task, buf, unused_len);
-	while (offset < len) {
-		if (buf[offset] != '\0' && buf[offset] != '\n')
-			task_entry->comm[i++] = buf[offset];
-		else
-			task_entry->comm[i++] = ' ';
-		offset++;
-	}
-
-	/* get rid of trailing whitespaces in case when arg is memset to
-	 * zero before being reset in userspace
-	 */
-	while (task_entry->comm[i-1] == ' ')
-		i--;
-	task_entry->comm[i] = '\0';
-}
-
-static struct task_entry *find_task_entry(struct uid_entry *uid_entry,
-		struct task_struct *task)
-{
-	struct task_entry *task_entry;
-
-	hash_for_each_possible(uid_entry->task_entries, task_entry, hash,
-			task->pid) {
-		if (task->pid == task_entry->pid) {
-			/* if thread name changed, update the entire command */
-			int len = strnchr(task_entry->comm, ' ', TASK_COMM_LEN)
-				- task_entry->comm;
-
-			if (strncmp(task_entry->comm, task->comm, len))
-				get_full_task_comm(task_entry, task);
-			return task_entry;
-		}
-	}
-	return NULL;
-}
-
-static struct task_entry *find_or_register_task(struct uid_entry *uid_entry,
-		struct task_struct *task)
-{
-	struct task_entry *task_entry;
-	pid_t pid = task->pid;
-
-	task_entry = find_task_entry(uid_entry, task);
-	if (task_entry)
-		return task_entry;
-
-	task_entry = kzalloc(sizeof(struct task_entry), GFP_ATOMIC);
-	if (!task_entry)
-		return NULL;
-
-	get_full_task_comm(task_entry, task);
-
-	task_entry->pid = pid;
-	hash_add(uid_entry->task_entries, &task_entry->hash, (unsigned int)pid);
-
-	return task_entry;
-}
-
-static void remove_uid_tasks(struct uid_entry *uid_entry)
-{
-	struct task_entry *task_entry;
-	unsigned long bkt_task;
-	struct hlist_node *tmp_task;
-
-	hash_for_each_safe(uid_entry->task_entries, bkt_task,
-			tmp_task, task_entry, hash) {
-		hash_del(&task_entry->hash);
-		kfree(task_entry);
-	}
-}
-
-static void set_io_uid_tasks_zero(struct uid_entry *uid_entry)
-{
-	struct task_entry *task_entry;
-	unsigned long bkt_task;
-
-	hash_for_each(uid_entry->task_entries, bkt_task, task_entry, hash) {
-		memset(&task_entry->io[UID_STATE_TOTAL_CURR], 0,
-			sizeof(struct io_stats));
-	}
-}
-
-static void add_uid_tasks_io_stats(struct task_entry *task_entry,
-				   struct task_io_accounting *ioac, int slot)
-{
-	struct io_stats *task_io_slot = &task_entry->io[slot];
-
-	task_io_slot->read_bytes += ioac->read_bytes;
-	task_io_slot->write_bytes += compute_write_bytes(ioac);
-	task_io_slot->rchar += ioac->rchar;
-	task_io_slot->wchar += ioac->wchar;
-	task_io_slot->fsync += ioac->syscfs;
-}
-
-static void compute_io_uid_tasks(struct uid_entry *uid_entry)
-{
-	struct task_entry *task_entry;
-	unsigned long bkt_task;
-
-	hash_for_each(uid_entry->task_entries, bkt_task, task_entry, hash) {
-		compute_io_bucket_stats(&task_entry->io[uid_entry->state],
-					&task_entry->io[UID_STATE_TOTAL_CURR],
-					&task_entry->io[UID_STATE_TOTAL_LAST],
-					&task_entry->io[UID_STATE_DEAD_TASKS]);
-	}
-}
-
-static void show_io_uid_tasks(struct seq_file *m, struct uid_entry *uid_entry)
-{
-	struct task_entry *task_entry;
-	unsigned long bkt_task;
-
-	hash_for_each(uid_entry->task_entries, bkt_task, task_entry, hash) {
-		/* Separated by comma because space exists in task comm */
-		seq_printf(m, "task,%s,%lu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu,%llu\n",
-				task_entry->comm,
-				(unsigned long)task_entry->pid,
-				task_entry->io[UID_STATE_FOREGROUND].rchar,
-				task_entry->io[UID_STATE_FOREGROUND].wchar,
-				task_entry->io[UID_STATE_FOREGROUND].read_bytes,
-				task_entry->io[UID_STATE_FOREGROUND].write_bytes,
-				task_entry->io[UID_STATE_BACKGROUND].rchar,
-				task_entry->io[UID_STATE_BACKGROUND].wchar,
-				task_entry->io[UID_STATE_BACKGROUND].read_bytes,
-				task_entry->io[UID_STATE_BACKGROUND].write_bytes,
-				task_entry->io[UID_STATE_FOREGROUND].fsync,
-				task_entry->io[UID_STATE_BACKGROUND].fsync);
-	}
-}
-#else
-static void remove_uid_tasks(struct uid_entry *uid_entry) {};
-static void set_io_uid_tasks_zero(struct uid_entry *uid_entry) {};
-static void compute_io_uid_tasks(struct uid_entry *uid_entry) {};
-static void show_io_uid_tasks(struct seq_file *m,
-		struct uid_entry *uid_entry) {}
-#endif
-
 static struct uid_entry *find_uid_entry(uid_t uid)
 {
 	struct uid_entry *uid_entry;
@@ -347,9 +168,6 @@ static struct uid_entry *find_or_register_uid(uid_t uid)
 		return NULL;
 
 	uid_entry->uid = uid;
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-	hash_init(uid_entry->task_entries);
-#endif
 	hash_add(hash_table, &uid_entry->hash, uid);
 
 	return uid_entry;
@@ -465,7 +283,6 @@ static ssize_t uid_remove_write(struct file *file,
 		hash_for_each_possible_safe(hash_table, uid_entry, tmp,
 							hash, (uid_t)uid_start) {
 			if (uid_start == uid_entry->uid) {
-				remove_uid_tasks(uid_entry);
 				hash_del(&uid_entry->hash);
 				kfree(uid_entry);
 			}
@@ -503,10 +320,6 @@ static void add_uid_io_stats(struct uid_entry *uid_entry,
 	if (slot != UID_STATE_DEAD_TASKS && (task->flags & PF_EXITING))
 		return;
 
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-	task_entry = find_or_register_task(uid_entry, task);
-	add_uid_tasks_io_stats(task_entry, &task->ioac, slot);
-#endif
 	__add_uid_io_stats(uid_entry, &task->ioac, slot);
 }
 
@@ -524,7 +337,6 @@ static void update_io_stats_all(void)
 		hlist_for_each_entry(uid_entry, &hash_table[bkt], hash) {
 			memset(&uid_entry->io[UID_STATE_TOTAL_CURR], 0,
 				sizeof(struct io_stats));
-			set_io_uid_tasks_zero(uid_entry);
 		}
 		unlock_uid_by_bkt(bkt);
 	}
@@ -552,24 +364,18 @@ static void update_io_stats_all(void)
 						&uid_entry->io[UID_STATE_TOTAL_CURR],
 						&uid_entry->io[UID_STATE_TOTAL_LAST],
 						&uid_entry->io[UID_STATE_DEAD_TASKS]);
-			compute_io_uid_tasks(uid_entry);
 		}
 		unlock_uid_by_bkt(bkt);
 	}
 }
 
-#ifndef CONFIG_UID_SYS_STATS_DEBUG
 static void update_io_stats_uid(struct uid_entry *uid_entry)
-#else
-static void update_io_stats_uid_locked(struct uid_entry *uid_entry)
-#endif
 {
 	struct task_struct *task, *temp;
 	struct user_namespace *user_ns = current_user_ns();
 
 	memset(&uid_entry->io[UID_STATE_TOTAL_CURR], 0,
 		sizeof(struct io_stats));
-	set_io_uid_tasks_zero(uid_entry);
 
 	rcu_read_lock();
 	do_each_thread(temp, task) {
@@ -583,7 +389,6 @@ static void update_io_stats_uid_locked(struct uid_entry *uid_entry)
 				&uid_entry->io[UID_STATE_TOTAL_CURR],
 				&uid_entry->io[UID_STATE_TOTAL_LAST],
 				&uid_entry->io[UID_STATE_DEAD_TASKS]);
-	compute_io_uid_tasks(uid_entry);
 }
 
 
@@ -610,8 +415,6 @@ static int uid_io_show(struct seq_file *m, void *v)
 				uid_entry->io[UID_STATE_BACKGROUND].write_bytes,
 				uid_entry->io[UID_STATE_FOREGROUND].fsync,
 				uid_entry->io[UID_STATE_BACKGROUND].fsync);
-
-			show_io_uid_tasks(m, uid_entry);
 		}
 		unlock_uid_by_bkt(bkt);
 	}
@@ -643,9 +446,7 @@ static ssize_t uid_procstat_write(struct file *file,
 	uid_t uid;
 	int argc, state;
 	char input[128];
-#ifndef CONFIG_UID_SYS_STATS_DEBUG
 	struct uid_entry uid_entry_tmp;
-#endif
 
 	if (count >= sizeof(input))
 		return -EINVAL;
@@ -674,7 +475,6 @@ static ssize_t uid_procstat_write(struct file *file,
 		return count;
 	}
 
-#ifndef CONFIG_UID_SYS_STATS_DEBUG
 	/*
 	 * Update_io_stats_uid_locked would take a long lock-time of uid_lock
 	 * due to call do_each_thread to compute uid_entry->io, which would
@@ -684,9 +484,8 @@ static ssize_t uid_procstat_write(struct file *file,
 	 * so that we can unlock_uid during update_io_stats_uid, in order
 	 * to avoid the unnecessary lock-time of uid_lock.
 	 */
-	uid_entry_tmp.uid = uid_entry->uid;
-	memcpy(uid_entry_tmp.io, uid_entry->io,
-				sizeof(struct io_stats) * UID_STATE_SIZE);
+	uid_entry_tmp = *uid_entry;
+
 	unlock_uid(uid);
 	update_io_stats_uid(&uid_entry_tmp);
 
@@ -700,13 +499,6 @@ static ssize_t uid_procstat_write(struct file *file,
 		}
 	}
 	unlock_uid(uid);
-#else
-	update_io_stats_uid_locked(uid_entry);
-
-	uid_entry->state = state;
-
-	unlock_uid(uid);
-#endif
 
 	return count;
 }
@@ -719,9 +511,6 @@ static const struct proc_ops uid_procstat_fops = {
 
 struct update_stats_work {
 	uid_t uid;
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-	struct task_struct *task;
-#endif
 	struct task_io_accounting ioac;
 	u64 utime;
 	u64 stime;
@@ -747,19 +536,9 @@ static void update_stats_workfn(struct work_struct *work)
 		uid_entry->utime += usw->utime;
 		uid_entry->stime += usw->stime;
 
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-		task_entry = find_task_entry(uid_entry, usw->task);
-		if (!task_entry)
-			goto next;
-		add_uid_tasks_io_stats(task_entry, &usw->ioac,
-				       UID_STATE_DEAD_TASKS);
-#endif
 		__add_uid_io_stats(uid_entry, &usw->ioac, UID_STATE_DEAD_TASKS);
 next:
 		unlock_uid(usw->uid);
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-		put_task_struct(usw->task);
-#endif
 		kfree(usw);
 	}
 
@@ -784,9 +563,6 @@ static int process_notifier(struct notifier_block *self,
 		usw = kmalloc(sizeof(struct update_stats_work), GFP_KERNEL);
 		if (usw) {
 			usw->uid = uid;
-#ifdef CONFIG_UID_SYS_STATS_DEBUG
-			usw->task = get_task_struct(task);
-#endif
 			/*
 			 * Copy task->ioac since task might be destroyed before
 			 * the work is later performed.
