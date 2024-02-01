@@ -1203,28 +1203,37 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 
 #ifdef CONFIG_ACPI
 
-static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
+static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
-	u8 value;
-	int ret = iwl_acpi_get_dsm_u8(mvm->fwrt.dev, 0, DSM_RFI_FUNC_ENABLE,
-				      &iwl_rfi_guid, &value);
+	u8 value = 0;
+	/* default behaviour is disabled */
+	bool bios_enable_rfi = false;
+	int ret  = iwl_acpi_get_dsm_u8(mvm->fwrt.dev, 0,
+				       DSM_FUNC_RFI_CONFIG, &iwl_guid,
+				       &value);
 
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm, "Failed to get DSM RFI, ret=%d\n", ret);
-
-	} else if (value >= DSM_VALUE_RFI_MAX) {
-		IWL_DEBUG_RADIO(mvm, "DSM RFI got invalid value, ret=%d\n",
-				value);
-
-	} else if (value == DSM_VALUE_RFI_ENABLE) {
-		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to enable\n");
-		return DSM_VALUE_RFI_ENABLE;
+		return bios_enable_rfi;
 	}
 
-	IWL_DEBUG_RADIO(mvm, "DSM RFI is disabled\n");
+	value &= DSM_VALUE_RFI_DISABLE;
+	/* RFI BIOS CONFIG value can be 0 or 3 only.
+	 * i.e 0 means DDR and DLVR enabled. 3 means DDR and DLVR disabled.
+	 * 1 and 2 are invalid BIOS configurations, So, it's not possible to
+	 * disable ddr/dlvr separately.
+	 */
+	if (!value) {
+		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to enable\n");
+		bios_enable_rfi = true;
+	} else if (value == DSM_VALUE_RFI_DISABLE) {
+		IWL_DEBUG_RADIO(mvm, "DSM RFI is evaluated to disable\n");
+	} else {
+		IWL_DEBUG_RADIO(mvm,
+				"DSM RFI got invalid value, value=%d\n", value);
+	}
 
-	/* default behaviour is disabled */
-	return DSM_VALUE_RFI_DISABLE;
+	return bios_enable_rfi;
 }
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
@@ -1347,9 +1356,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 }
 
-static u8 iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
+static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 {
-	return DSM_VALUE_RFI_DISABLE;
+	return false;
 }
 
 #endif /* CONFIG_ACPI */
@@ -1727,7 +1736,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	iwl_mvm_uats_init(mvm);
 
 	if (iwl_rfi_supported(mvm)) {
-		if (iwl_mvm_eval_dsm_rfi(mvm) == DSM_VALUE_RFI_ENABLE)
+		if (iwl_mvm_eval_dsm_rfi(mvm))
 			iwl_rfi_send_config_cmd(mvm, NULL);
 	}
 

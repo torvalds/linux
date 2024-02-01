@@ -103,6 +103,7 @@ enum iwl_dsm_funcs_rev_0 {
 	DSM_FUNC_ACTIVATE_CHANNEL = 8,
 	DSM_FUNC_FORCE_DISABLE_CHANNELS = 9,
 	DSM_FUNC_ENERGY_DETECTION_THRESHOLD = 10,
+	DSM_FUNC_RFI_CONFIG = 11
 };
 
 enum iwl_dsm_values_srd {
@@ -119,15 +120,13 @@ enum iwl_dsm_values_indonesia {
 	DSM_VALUE_INDONESIA_MAX
 };
 
-/* DSM RFI uses a different GUID, so need separate definitions */
-
-#define DSM_RFI_FUNC_ENABLE 3
-
 enum iwl_dsm_values_rfi {
-	DSM_VALUE_RFI_ENABLE,
-	DSM_VALUE_RFI_DISABLE,
-	DSM_VALUE_RFI_MAX
+	DSM_VALUE_RFI_DLVR_DISABLE	= BIT(0),
+	DSM_VALUE_RFI_DDR_DISABLE	= BIT(1),
 };
+
+#define DSM_VALUE_RFI_DISABLE	(DSM_VALUE_RFI_DLVR_DISABLE |\
+				 DSM_VALUE_RFI_DDR_DISABLE)
 
 enum iwl_dsm_masks_reg {
 	DSM_MASK_CHINA_22_REG = BIT(2)
@@ -138,7 +137,6 @@ enum iwl_dsm_masks_reg {
 struct iwl_fw_runtime;
 
 extern const guid_t iwl_guid;
-extern const guid_t iwl_rfi_guid;
 
 int iwl_acpi_get_dsm_u8(struct device *dev, int rev, int func,
 			const guid_t *guid, u8 *value);
