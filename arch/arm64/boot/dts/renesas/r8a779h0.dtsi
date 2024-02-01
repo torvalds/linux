@@ -23,6 +23,14 @@
 			reg = <0>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A779H0_PD_A1E0D0C0>;
+			next-level-cache = <&L3_CA76>;
+		};
+
+		L3_CA76: cache-controller {
+			compatible = "cache";
+			power-domains = <&sysc R8A779H0_PD_A2E0D0>;
+			cache-unified;
+			cache-level = <3>;
 		};
 	};
 
