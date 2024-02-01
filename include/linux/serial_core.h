@@ -748,8 +748,17 @@ struct uart_driver {
 
 void uart_write_wakeup(struct uart_port *port);
 
-#define __uart_port_tx(uport, ch, tx_ready, put_char, tx_done, for_test,      \
-		for_post)						      \
+/**
+ * enum UART_TX_FLAGS -- flags for uart_port_tx_flags()
+ *
+ * @UART_TX_NOSTOP: don't call port->ops->stop_tx() on empty buffer
+ */
+enum UART_TX_FLAGS {
+	UART_TX_NOSTOP = BIT(0),
+};
+
+#define __uart_port_tx(uport, ch, flags, tx_ready, put_char, tx_done,	      \
+		       for_test, for_post)				      \
 ({									      \
 	struct uart_port *__port = (uport);				      \
 	struct circ_buf *xmit = &__port->state->xmit;			      \
@@ -777,7 +786,7 @@ void uart_write_wakeup(struct uart_port *port);
 	if (pending < WAKEUP_CHARS) {					      \
 		uart_write_wakeup(__port);				      \
 									      \
-		if (pending == 0)					      \
+		if (!((flags) & UART_TX_NOSTOP) && pending == 0)	      \
 			__port->ops->stop_tx(__port);			      \
 	}								      \
 									      \
@@ -812,7 +821,7 @@ void uart_write_wakeup(struct uart_port *port);
  */
 #define uart_port_tx_limited(port, ch, count, tx_ready, put_char, tx_done) ({ \
 	unsigned int __count = (count);					      \
-	__uart_port_tx(port, ch, tx_ready, put_char, tx_done, __count,	      \
+	__uart_port_tx(port, ch, 0, tx_ready, put_char, tx_done, __count,     \
 			__count--);					      \
 })
 
@@ -826,8 +835,21 @@ void uart_write_wakeup(struct uart_port *port);
  * See uart_port_tx_limited() for more details.
  */
 #define uart_port_tx(port, ch, tx_ready, put_char)			\
-	__uart_port_tx(port, ch, tx_ready, put_char, ({}), true, ({}))
+	__uart_port_tx(port, ch, 0, tx_ready, put_char, ({}), true, ({}))
 
+
+/**
+ * uart_port_tx_flags -- transmit helper for uart_port with flags
+ * @port: uart port
+ * @ch: variable to store a character to be written to the HW
+ * @flags: %UART_TX_NOSTOP or similar
+ * @tx_ready: can HW accept more data function
+ * @put_char: function to write a character
+ *
+ * See uart_port_tx_limited() for more details.
+ */
+#define uart_port_tx_flags(port, ch, flags, tx_ready, put_char)		\
+	__uart_port_tx(port, ch, flags, tx_ready, put_char, ({}), true, ({}))
 /*
  * Baud rate helpers.
  */
