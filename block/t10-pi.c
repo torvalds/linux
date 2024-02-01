@@ -12,14 +12,14 @@
 #include <net/checksum.h>
 #include <asm/unaligned.h>
 
-typedef __be16 (csum_fn) (void *, unsigned int);
+typedef __be16 (csum_fn) (__be16, void *, unsigned int);
 
-static __be16 t10_pi_crc_fn(void *data, unsigned int len)
+static __be16 t10_pi_crc_fn(__be16 crc, void *data, unsigned int len)
 {
-	return cpu_to_be16(crc_t10dif(data, len));
+	return cpu_to_be16(crc_t10dif_update(be16_to_cpu(crc), data, len));
 }
 
-static __be16 t10_pi_ip_fn(void *data, unsigned int len)
+static __be16 t10_pi_ip_fn(__be16 csum, void *data, unsigned int len)
 {
 	return (__force __be16)ip_compute_csum(data, len);
 }
@@ -37,7 +37,7 @@ static blk_status_t t10_pi_generate(struct blk_integrity_iter *iter,
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
 		struct t10_pi_tuple *pi = iter->prot_buf;
 
-		pi->guard_tag = fn(iter->data_buf, iter->interval);
+		pi->guard_tag = fn(0, iter->data_buf, iter->interval);
 		pi->app_tag = 0;
 
 		if (type == T10_PI_TYPE1_PROTECTION)
@@ -83,7 +83,7 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 				goto next;
 		}
 
-		csum = fn(iter->data_buf, iter->interval);
+		csum = fn(0, iter->data_buf, iter->interval);
 
 		if (pi->guard_tag != csum) {
 			pr_err("%s: guard tag error at sector %llu " \
@@ -280,9 +280,9 @@ const struct blk_integrity_profile t10_pi_type3_ip = {
 };
 EXPORT_SYMBOL(t10_pi_type3_ip);
 
-static __be64 ext_pi_crc64(void *data, unsigned int len)
+static __be64 ext_pi_crc64(u64 crc, void *data, unsigned int len)
 {
-	return cpu_to_be64(crc64_rocksoft(data, len));
+	return cpu_to_be64(crc64_rocksoft_update(crc, data, len));
 }
 
 static blk_status_t ext_pi_crc64_generate(struct blk_integrity_iter *iter,
@@ -293,7 +293,7 @@ static blk_status_t ext_pi_crc64_generate(struct blk_integrity_iter *iter,
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
 		struct crc64_pi_tuple *pi = iter->prot_buf;
 
-		pi->guard_tag = ext_pi_crc64(iter->data_buf, iter->interval);
+		pi->guard_tag = ext_pi_crc64(0, iter->data_buf, iter->interval);
 		pi->app_tag = 0;
 
 		if (type == T10_PI_TYPE1_PROTECTION)
@@ -343,7 +343,7 @@ static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 				goto next;
 		}
 
-		csum = ext_pi_crc64(iter->data_buf, iter->interval);
+		csum = ext_pi_crc64(0, iter->data_buf, iter->interval);
 		if (pi->guard_tag != csum) {
 			pr_err("%s: guard tag error at sector %llu " \
 			       "(rcvd %016llx, want %016llx)\n",
