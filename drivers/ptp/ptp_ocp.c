@@ -4209,10 +4209,11 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 	device_unregister(&bp->dev);
 }
 
-static int ptp_ocp_dpll_lock_status_get(const struct dpll_device *dpll,
-					void *priv,
-					enum dpll_lock_status *status,
-					struct netlink_ext_ack *extack)
+static int
+ptp_ocp_dpll_lock_status_get(const struct dpll_device *dpll, void *priv,
+			     enum dpll_lock_status *status,
+			     enum dpll_lock_status_error *status_error,
+			     struct netlink_ext_ack *extack)
 {
 	struct ptp_ocp *bp = priv;
 

@@ -12705,6 +12705,14 @@ enum mlx5_msees_oper_status {
 	MLX5_MSEES_OPER_STATUS_FAIL_FREE_RUNNING	= 0x5,
 };
 
+enum mlx5_msees_failure_reason {
+	MLX5_MSEES_FAILURE_REASON_UNDEFINED_ERROR		= 0x0,
+	MLX5_MSEES_FAILURE_REASON_PORT_DOWN			= 0x1,
+	MLX5_MSEES_FAILURE_REASON_TOO_HIGH_FREQUENCY_DIFF	= 0x2,
+	MLX5_MSEES_FAILURE_REASON_NET_SYNCHRONIZER_DEVICE_ERROR	= 0x3,
+	MLX5_MSEES_FAILURE_REASON_LACK_OF_RESOURCES		= 0x4,
+};
+
 struct mlx5_ifc_msees_reg_bits {
 	u8         reserved_at_0[0x8];
 	u8         local_port[0x8];
