@@ -370,6 +370,5 @@ static void __exit ingress_module_exit(void)
 module_init(ingress_module_init);
 module_exit(ingress_module_exit);
 
-MODULE_ALIAS("sch_clsact");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Ingress and clsact based ingress and egress qdiscs");
