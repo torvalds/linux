@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
-// Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2023-24, Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/of.h>
@@ -1021,6 +1021,10 @@ static const char * const gpio_groups[] = {
 };
 
 static const char * const egpio_groups[] = {
+	"gpio155", "gpio156", "gpio157", "gpio158",
+	"gpio159", "gpio160", "gpio161", "gpio162",
+	"gpio163", "gpio164", "gpio165", "gpio166",
+	"gpio167", "gpio168",
 	"gpio169", "gpio172", "gpio173", "gpio174",
 };
 
@@ -1493,20 +1497,20 @@ static const struct msm_pingroup sm8150_groups[] = {
 	[152] = PINGROUP(152, SOUTH, lpass_slimbus, spkr_i2s, _, _, _, _, _, _, _),
 	[153] = PINGROUP(153, SOUTH, btfm_slimbus, _, _, _, _, _, _, _, _),
 	[154] = PINGROUP(154, SOUTH, btfm_slimbus, _, _, _, _, _, _, _, _),
-	[155] = PINGROUP(155, WEST, hs1_mi2s, _, _, _, _, _, _, _, _),
-	[156] = PINGROUP(156, WEST, hs1_mi2s, _, _, _, _, _, _, _, _),
-	[157] = PINGROUP(157, WEST, hs1_mi2s, _, _, _, _, _, _, _, _),
-	[158] = PINGROUP(158, WEST, hs1_mi2s, _, _, _, _, _, _, _, _),
-	[159] = PINGROUP(159, WEST, hs1_mi2s, cri_trng0, _, _, _, _, _, _, _),
-	[160] = PINGROUP(160, WEST, hs2_mi2s, cri_trng1, _, _, _, _, _, _, _),
-	[161] = PINGROUP(161, WEST, hs2_mi2s, cri_trng, _, _, _, _, _, _, _),
-	[162] = PINGROUP(162, WEST, hs2_mi2s, sp_cmu, _, _, _, _, _, _, _),
-	[163] = PINGROUP(163, WEST, hs2_mi2s, prng_rosc, _, _, _, _, _, _, _),
-	[164] = PINGROUP(164, WEST, hs2_mi2s, _, _, _, _, _, _, _, _),
-	[165] = PINGROUP(165, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
-	[166] = PINGROUP(166, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
-	[167] = PINGROUP(167, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
-	[168] = PINGROUP(168, WEST, hs3_mi2s, _, _, _, _, _, _, _, _),
+	[155] = PINGROUP(155, WEST, hs1_mi2s, _, _, _, _, _, _, _, egpio),
+	[156] = PINGROUP(156, WEST, hs1_mi2s, _, _, _, _, _, _, _, egpio),
+	[157] = PINGROUP(157, WEST, hs1_mi2s, _, _, _, _, _, _, _, egpio),
+	[158] = PINGROUP(158, WEST, hs1_mi2s, _, _, _, _, _, _, _, egpio),
+	[159] = PINGROUP(159, WEST, hs1_mi2s, cri_trng0, _, _, _, _, _, _, egpio),
+	[160] = PINGROUP(160, WEST, hs2_mi2s, cri_trng1, _, _, _, _, _, _, egpio),
+	[161] = PINGROUP(161, WEST, hs2_mi2s, cri_trng, _, _, _, _, _, _, egpio),
+	[162] = PINGROUP(162, WEST, hs2_mi2s, sp_cmu, _, _, _, _, _, _, egpio),
+	[163] = PINGROUP(163, WEST, hs2_mi2s, prng_rosc, _, _, _, _, _, _, egpio),
+	[164] = PINGROUP(164, WEST, hs2_mi2s, _, _, _, _, _, _, _, egpio),
+	[165] = PINGROUP(165, WEST, hs3_mi2s, _, _, _, _, _, _, _, egpio),
+	[166] = PINGROUP(166, WEST, hs3_mi2s, _, _, _, _, _, _, _, egpio),
+	[167] = PINGROUP(167, WEST, hs3_mi2s, _, _, _, _, _, _, _, egpio),
+	[168] = PINGROUP(168, WEST, hs3_mi2s, _, _, _, _, _, _, _, egpio),
 	[169] = PINGROUP(169, NORTH, _, _, _, _, _, _, _, _, egpio),
 	[170] = PINGROUP(170, NORTH, _, _, _, _, _, _, _, _, _),
 	[171] = PINGROUP(171, NORTH, _, _, _, _, _, _, _, _, _),
