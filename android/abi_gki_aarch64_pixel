@@ -614,6 +614,7 @@
   down_read_trylock
   down_trylock
   down_write
+  d_path
   dput
   drain_workqueue
   driver_register
@@ -883,6 +884,7 @@
   find_pid_ns
   find_task_by_vpid
   find_vma_intersection
+  find_vpid
   finish_wait
   firmware_request_nowarn
   flush_dcache_page
@@ -972,6 +974,7 @@
   get_sg_io_hdr
   __get_task_comm
   get_task_cred
+  get_task_mm
   get_thermal_instance
   get_unused_fd_flags
   get_user_pages
@@ -1323,6 +1326,7 @@
   loops_per_jiffy
   mac_pton
   mas_empty_area_rev
+  mas_find
   max_load_balance_interval
   mbox_chan_received_data
   mbox_controller_register
@@ -1377,6 +1381,7 @@
   __mmap_lock_do_trace_released
   __mmap_lock_do_trace_start_locking
   __mmdrop
+  mmput
   mod_delayed_work_on
   mod_node_page_state
   mod_timer
@@ -2303,6 +2308,7 @@
   __traceiter_android_rvh_remove_entity_load_avg
   __traceiter_android_rvh_rtmutex_prepare_setprio
   __traceiter_android_rvh_sched_newidle_balance
+  __traceiter_android_rvh_sched_setaffinity
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
   __traceiter_android_rvh_set_cpus_allowed_by_task
@@ -2415,6 +2421,7 @@
   __tracepoint_android_rvh_remove_entity_load_avg
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_sched_newidle_balance
+  __tracepoint_android_rvh_sched_setaffinity
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_cpus_allowed_by_task
