@@ -47,6 +47,11 @@
 	status = "okay";
 };
 
+&rwdt {
+	timeout-sec = <60>;
+	status = "okay";
+};
+
 &scif_clk {
 	clock-frequency = <24000000>;
 };
