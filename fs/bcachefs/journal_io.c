@@ -84,8 +84,7 @@ static void __journal_replay_free(struct bch_fs *c,
 
 	BUG_ON(*p != i);
 	*p = NULL;
-	kvpfree(i, offsetof(struct journal_replay, j) +
-		vstruct_bytes(&i->j));
+	kvfree(i);
 }
 
 static void journal_replay_free(struct bch_fs *c, struct journal_replay *i)
@@ -196,7 +195,7 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 		goto out;
 	}
 replace:
-	i = kvpmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
+	i = kvmalloc(offsetof(struct journal_replay, j) + bytes, GFP_KERNEL);
 	if (!i)
 		return -BCH_ERR_ENOMEM_journal_entry_add;
 
@@ -965,11 +964,11 @@ static int journal_read_buf_realloc(struct journal_read_buf *b,
 		return -BCH_ERR_ENOMEM_journal_read_buf_realloc;
 
 	new_size = roundup_pow_of_two(new_size);
-	n = kvpmalloc(new_size, GFP_KERNEL);
+	n = kvmalloc(new_size, GFP_KERNEL);
 	if (!n)
 		return -BCH_ERR_ENOMEM_journal_read_buf_realloc;
 
-	kvpfree(b->data, b->size);
+	kvfree(b->data);
 	b->data = n;
 	b->size = new_size;
 	return 0;
@@ -1195,7 +1194,7 @@ found:
 		ja->dirty_idx = (ja->cur_idx + 1) % ja->nr;
 out:
 	bch_verbose(c, "journal read done on device %s, ret %i", ca->name, ret);
-	kvpfree(buf.data, buf.size);
+	kvfree(buf.data);
 	percpu_ref_put(&ca->io_ref);
 	closure_return(cl);
 	return;
@@ -1576,7 +1575,7 @@ static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 	if (bch2_btree_write_buffer_resize(c, btree_write_buffer_size))
 		return;
 
-	new_buf = kvpmalloc(new_size, GFP_NOFS|__GFP_NOWARN);
+	new_buf = kvmalloc(new_size, GFP_NOFS|__GFP_NOWARN);
 	if (!new_buf)
 		return;
 
@@ -1587,7 +1586,7 @@ static void journal_buf_realloc(struct journal *j, struct journal_buf *buf)
 	swap(buf->buf_size,	new_size);
 	spin_unlock(&j->lock);
 
-	kvpfree(new_buf, new_size);
+	kvfree(new_buf);
 }
 
 static inline struct journal_buf *journal_last_unwritten_buf(struct journal *j)

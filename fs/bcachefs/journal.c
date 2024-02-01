@@ -1343,7 +1343,7 @@ void bch2_fs_journal_exit(struct journal *j)
 	darray_exit(&j->early_journal_entries);
 
 	for (unsigned i = 0; i < ARRAY_SIZE(j->buf); i++)
-		kvpfree(j->buf[i].data, j->buf[i].buf_size);
+		kvfree(j->buf[i].data);
 	free_fifo(&j->pin);
 }
 
@@ -1372,7 +1372,7 @@ int bch2_fs_journal_init(struct journal *j)
 
 	for (unsigned i = 0; i < ARRAY_SIZE(j->buf); i++) {
 		j->buf[i].buf_size = JOURNAL_ENTRY_SIZE_MIN;
-		j->buf[i].data = kvpmalloc(j->buf[i].buf_size, GFP_KERNEL);
+		j->buf[i].data = kvmalloc(j->buf[i].buf_size, GFP_KERNEL);
 		if (!j->buf[i].data)
 			return -BCH_ERR_ENOMEM_journal_buf;
 		j->buf[i].idx = i;

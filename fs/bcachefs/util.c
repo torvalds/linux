@@ -1007,28 +1007,6 @@ void sort_cmp_size(void *base, size_t num, size_t size,
 	}
 }
 
-static void mempool_free_vp(void *element, void *pool_data)
-{
-	size_t size = (size_t) pool_data;
-
-	vpfree(element, size);
-}
-
-static void *mempool_alloc_vp(gfp_t gfp_mask, void *pool_data)
-{
-	size_t size = (size_t) pool_data;
-
-	return vpmalloc(size, gfp_mask);
-}
-
-int mempool_init_kvpmalloc_pool(mempool_t *pool, int min_nr, size_t size)
-{
-	return size < PAGE_SIZE
-		? mempool_init_kmalloc_pool(pool, min_nr, size)
-		: mempool_init(pool, min_nr, mempool_alloc_vp,
-			       mempool_free_vp, (void *) size);
-}
-
 #if 0
 void eytzinger1_test(void)
 {

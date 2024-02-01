@@ -53,38 +53,6 @@ static inline size_t buf_pages(void *p, size_t len)
 			    PAGE_SIZE);
 }
 
-static inline void vpfree(void *p, size_t size)
-{
-	if (is_vmalloc_addr(p))
-		vfree(p);
-	else
-		free_pages((unsigned long) p, get_order(size));
-}
-
-static inline void *vpmalloc(size_t size, gfp_t gfp_mask)
-{
-	return (void *) __get_free_pages(gfp_mask|__GFP_NOWARN,
-					 get_order(size)) ?:
-		__vmalloc(size, gfp_mask);
-}
-
-static inline void kvpfree(void *p, size_t size)
-{
-	if (size < PAGE_SIZE)
-		kfree(p);
-	else
-		vpfree(p, size);
-}
-
-static inline void *kvpmalloc(size_t size, gfp_t gfp_mask)
-{
-	return size < PAGE_SIZE
-		? kmalloc(size, gfp_mask)
-		: vpmalloc(size, gfp_mask);
-}
-
-int mempool_init_kvpmalloc_pool(mempool_t *, int, size_t);
-
 #define HEAP(type)							\
 struct {								\
 	size_t size, used;						\
@@ -97,13 +65,13 @@ struct {								\
 ({									\
 	(heap)->used = 0;						\
 	(heap)->size = (_size);						\
-	(heap)->data = kvpmalloc((heap)->size * sizeof((heap)->data[0]),\
+	(heap)->data = kvmalloc((heap)->size * sizeof((heap)->data[0]),\
 				 (gfp));				\
 })
 
 #define free_heap(heap)							\
 do {									\
-	kvpfree((heap)->data, (heap)->size * sizeof((heap)->data[0]));	\
+	kvfree((heap)->data);						\
 	(heap)->data = NULL;						\
 } while (0)
 

@@ -1193,9 +1193,7 @@ static void bch2_gc_free(struct bch_fs *c)
 	genradix_free(&c->gc_stripes);
 
 	for_each_member_device(c, ca) {
-		kvpfree(rcu_dereference_protected(ca->buckets_gc, 1),
-			sizeof(struct bucket_array) +
-			ca->mi.nbuckets * sizeof(struct bucket));
+		kvfree(rcu_dereference_protected(ca->buckets_gc, 1));
 		ca->buckets_gc = NULL;
 
 		free_percpu(ca->usage_gc);
@@ -1494,7 +1492,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 {
 	for_each_member_device(c, ca) {
-		struct bucket_array *buckets = kvpmalloc(sizeof(struct bucket_array) +
+		struct bucket_array *buckets = kvmalloc(sizeof(struct bucket_array) +
 				ca->mi.nbuckets * sizeof(struct bucket),
 				GFP_KERNEL|__GFP_ZERO);
 		if (!buckets) {

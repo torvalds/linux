@@ -60,7 +60,7 @@ static void btree_node_data_free(struct bch_fs *c, struct btree *b)
 
 	clear_btree_node_just_written(b);
 
-	kvpfree(b->data, btree_buf_bytes(b));
+	kvfree(b->data);
 	b->data = NULL;
 #ifdef __KERNEL__
 	kvfree(b->aux_data);
@@ -94,7 +94,7 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 {
 	BUG_ON(b->data || b->aux_data);
 
-	b->data = kvpmalloc(btree_buf_bytes(b), gfp);
+	b->data = kvmalloc(btree_buf_bytes(b), gfp);
 	if (!b->data)
 		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
 #ifdef __KERNEL__
@@ -107,7 +107,7 @@ static int btree_node_data_alloc(struct bch_fs *c, struct btree *b, gfp_t gfp)
 		b->aux_data = NULL;
 #endif
 	if (!b->aux_data) {
-		kvpfree(b->data, btree_buf_bytes(b));
+		kvfree(b->data);
 		b->data = NULL;
 		return -BCH_ERR_ENOMEM_btree_node_mem_alloc;
 	}
@@ -408,7 +408,7 @@ void bch2_fs_btree_cache_exit(struct bch_fs *c)
 	if (c->verify_data)
 		list_move(&c->verify_data->list, &bc->live);
 
-	kvpfree(c->verify_ondisk, c->opts.btree_node_size);
+	kvfree(c->verify_ondisk);
 
 	for (i = 0; i < btree_id_nr_alive(c); i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);

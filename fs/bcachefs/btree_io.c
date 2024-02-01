@@ -103,7 +103,7 @@ static void btree_bounce_free(struct bch_fs *c, size_t size,
 	if (used_mempool)
 		mempool_free(p, &c->btree_bounce_pool);
 	else
-		vpfree(p, size);
+		kvfree(p);
 }
 
 static void *btree_bounce_alloc(struct bch_fs *c, size_t size,
@@ -115,7 +115,7 @@ static void *btree_bounce_alloc(struct bch_fs *c, size_t size,
 	BUG_ON(size > c->opts.btree_node_size);
 
 	*used_mempool = false;
-	p = vpmalloc(size, __GFP_NOWARN|GFP_NOWAIT);
+	p = kvmalloc(size, __GFP_NOWARN|GFP_NOWAIT);
 	if (!p) {
 		*used_mempool = true;
 		p = mempool_alloc(&c->btree_bounce_pool, GFP_NOFS);

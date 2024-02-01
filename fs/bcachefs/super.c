@@ -576,7 +576,7 @@ static void __bch2_fs_free(struct bch_fs *c)
 		destroy_workqueue(c->btree_update_wq);
 
 	bch2_free_super(&c->disk_sb);
-	kvpfree(c, sizeof(*c));
+	kvfree(c);
 	module_put(THIS_MODULE);
 }
 
@@ -715,7 +715,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	unsigned i, iter_size;
 	int ret = 0;
 
-	c = kvpmalloc(sizeof(struct bch_fs), GFP_KERNEL|__GFP_ZERO);
+	c = kvmalloc(sizeof(struct bch_fs), GFP_KERNEL|__GFP_ZERO);
 	if (!c) {
 		c = ERR_PTR(-BCH_ERR_ENOMEM_fs_alloc);
 		goto out;
@@ -882,8 +882,8 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			BIOSET_NEED_BVECS) ||
 	    !(c->pcpu = alloc_percpu(struct bch_fs_pcpu)) ||
 	    !(c->online_reserved = alloc_percpu(u64)) ||
-	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
-					c->opts.btree_node_size) ||
+	    mempool_init_kvmalloc_pool(&c->btree_bounce_pool, 1,
+				       c->opts.btree_node_size) ||
 	    mempool_init_kmalloc_pool(&c->large_bkey_pool, 1, 2048) ||
 	    !(c->unused_inode_hints = kcalloc(1U << c->inode_shard_bits,
 					      sizeof(u64), GFP_KERNEL))) {

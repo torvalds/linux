@@ -447,9 +447,7 @@ void bch2_journal_entries_free(struct bch_fs *c)
 	struct genradix_iter iter;
 
 	genradix_for_each(&c->journal_entries, iter, i)
-		if (*i)
-			kvpfree(*i, offsetof(struct journal_replay, j) +
-				vstruct_bytes(&(*i)->j));
+		kvfree(*i);
 	genradix_free(&c->journal_entries);
 }
 
