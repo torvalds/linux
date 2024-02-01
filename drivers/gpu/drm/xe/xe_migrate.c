@@ -1214,8 +1214,11 @@ static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
 	}
 	if (q) {
 		fence = xe_exec_queue_last_fence_get(q, vm);
-		if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+			dma_fence_put(fence);
 			return false;
+		}
+		dma_fence_put(fence);
 	}
 
 	return true;
