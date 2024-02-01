@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2011-2016, 2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 /*
@@ -27,8 +27,7 @@
 #include <soc/qcom/bam_dmux.h>
 #include <linux/soc/qcom/smem.h>
 #include <linux/soc/qcom/smem_state.h>
-#include <soc/qcom/subsystem_restart.h>
-#include <soc/qcom/subsystem_notif.h>
+#include <linux/remoteproc/qcom_rproc.h>
 #include <linux/irq.h>
 #include <linux/of_irq.h>
 
@@ -201,7 +200,6 @@ static void bam_mux_write_done(struct work_struct *work);
 static void handle_bam_mux_cmd(struct work_struct *work);
 static void rx_timer_work_func(struct work_struct *work);
 static void queue_rx_work_func(struct work_struct *work);
-static int ssrestart_check(void);
 
 static DECLARE_WORK(rx_timer_work, rx_timer_work_func);
 static DECLARE_WORK(queue_rx_work, queue_rx_work_func);
@@ -562,7 +560,6 @@ static void set_ul_mtu(int mtu_code, bool reset)
 		if (ul_mtu != SZ_2K && !first) {
 			BAM_DMUX_LOG("%s: bad request for 2k, ul_mtu is %d\n",
 							__func__, ul_mtu);
-			ssrestart_check();
 		}
 		ul_mtu = SZ_2K;
 		break;
@@ -570,7 +567,6 @@ static void set_ul_mtu(int mtu_code, bool reset)
 		if (ul_mtu != SZ_4K && !first) {
 			BAM_DMUX_LOG("%s: bad request for 4k, ul_mtu is %d\n",
 							__func__, ul_mtu);
-			ssrestart_check();
 		}
 		ul_mtu = SZ_4K;
 		break;
@@ -578,7 +574,6 @@ static void set_ul_mtu(int mtu_code, bool reset)
 		if (ul_mtu != SZ_8K && !first) {
 			BAM_DMUX_LOG("%s: bad request for 8k, ul_mtu is %d\n",
 							__func__, ul_mtu);
-			ssrestart_check();
 		}
 		ul_mtu = SZ_8K;
 		break;
@@ -586,13 +581,11 @@ static void set_ul_mtu(int mtu_code, bool reset)
 		if (ul_mtu != SZ_16K && !first) {
 			BAM_DMUX_LOG("%s: bad request for 16k, ul_mtu is %d\n",
 							__func__, ul_mtu);
-			ssrestart_check();
 		}
 		ul_mtu = SZ_16K;
 		break;
 	default:
 		BAM_DMUX_LOG("%s: bad request %d\n", __func__, mtu_code);
-		ssrestart_check();
 		break;
 	}
 
@@ -1855,26 +1848,6 @@ static void ul_timeout(struct work_struct *work)
 	ul_powerdown_finish();
 }
 
-static int ssrestart_check(void)
-{
-	int ret = 0;
-
-	if (in_global_reset) {
-		DMUX_LOG_KERR("%s: already in SSR\n",
-			__func__);
-		return 1;
-	}
-
-	DMUX_LOG_KERR(
-		"%s: fatal modem interaction: BAM DMUX disabled for SSR\n",
-								__func__);
-	in_global_reset = 1;
-	ret = subsystem_restart("modem");
-	if (ret == -ENODEV)
-		panic("modem subsystem restart failed\n");
-	return 1;
-}
-
 static void ul_wakeup(void)
 {
 	int ret;
@@ -1951,7 +1924,7 @@ static void ul_wakeup(void)
 					msecs_to_jiffies(UL_WAKEUP_TIMEOUT_MS));
 		wait_for_ack = 0;
 		if (unlikely(in_global_reset == 1)
-			|| (unlikely(ret == 0) && ssrestart_check())) {
+			|| (unlikely(ret == 0))) {
 			mutex_unlock(&wakeup_lock);
 			BAM_DMUX_LOG("%s timeout previous ack\n", __func__);
 			return;
@@ -1963,7 +1936,7 @@ static void ul_wakeup(void)
 	ret = wait_for_completion_timeout(&ul_wakeup_ack_completion,
 					msecs_to_jiffies(UL_WAKEUP_TIMEOUT_MS));
 	if (unlikely(in_global_reset == 1)
-		|| (unlikely(ret == 0) && ssrestart_check())) {
+		|| (unlikely(ret == 0))) {
 		mutex_unlock(&wakeup_lock);
 		BAM_DMUX_LOG("%s timeout wakeup ack\n", __func__);
 		return;
@@ -1972,7 +1945,7 @@ static void ul_wakeup(void)
 	ret = wait_for_completion_timeout(&bam_connection_completion,
 					msecs_to_jiffies(UL_WAKEUP_TIMEOUT_MS));
 	if (unlikely(in_global_reset == 1)
-		|| (unlikely(ret == 0) && ssrestart_check())) {
+		|| (unlikely(ret == 0))) {
 		mutex_unlock(&wakeup_lock);
 		BAM_DMUX_LOG("%s timeout power on\n", __func__);
 		return;
@@ -2052,7 +2025,6 @@ static void disconnect_to_bam(void)
 			DMUX_LOG_KERR("%s: shutdown completion timed out\n",
 					__func__);
 			log_rx_timestamp();
-			ssrestart_check();
 		}
 	}
 
@@ -2202,7 +2174,7 @@ static int restart_notifier_cb(struct notifier_block *this,
 	 * processing.  We do not wat to access the bam hardware during SSR
 	 * because a watchdog crash from a bus stall would likely occur.
 	 */
-	if (code == SUBSYS_BEFORE_SHUTDOWN) {
+	if (code == QCOM_SSR_BEFORE_SHUTDOWN) {
 		in_global_reset = 1;
 		/* wakeup ul_wakeup() thread*/
 		complete_all(&ul_wakeup_ack_completion);
@@ -2212,9 +2184,9 @@ static int restart_notifier_cb(struct notifier_block *this,
 		BAM_DMUX_LOG("%s: ssr signaling complete\n", __func__);
 		flush_workqueue(bam_mux_rx_workqueue);
 	}
-	if (code == SUBSYS_BEFORE_POWERUP)
+	if (code == QCOM_SSR_BEFORE_POWERUP)
 		in_global_reset = 0;
-	if (code != SUBSYS_AFTER_SHUTDOWN)
+	if (code != QCOM_SSR_AFTER_SHUTDOWN)
 		return NOTIFY_DONE;
 
 	/* Handle uplink Powerdown */
@@ -2566,10 +2538,10 @@ EXPORT_SYMBOL_GPL(msm_bam_dmux_set_bam_ops);
  */
 void msm_bam_dmux_deinit(void)
 {
-	restart_notifier_cb(NULL, SUBSYS_BEFORE_SHUTDOWN, NULL);
-	restart_notifier_cb(NULL, SUBSYS_AFTER_SHUTDOWN, NULL);
-	restart_notifier_cb(NULL, SUBSYS_BEFORE_POWERUP, NULL);
-	restart_notifier_cb(NULL, SUBSYS_AFTER_POWERUP, NULL);
+	restart_notifier_cb(NULL, QCOM_SSR_BEFORE_SHUTDOWN, NULL);
+	restart_notifier_cb(NULL, QCOM_SSR_AFTER_SHUTDOWN, NULL);
+	restart_notifier_cb(NULL, QCOM_SSR_BEFORE_POWERUP, NULL);
+	restart_notifier_cb(NULL, QCOM_SSR_AFTER_POWERUP, NULL);
 	in_global_reset = 0;
 }
 EXPORT_SYMBOL_GPL(msm_bam_dmux_deinit);
@@ -2807,7 +2779,7 @@ static int bam_dmux_probe(struct platform_device *pdev)
 	bam_wakelock = wakeup_source_register(&pdev->dev, "bam_dmux_wakelock");
 	init_srcu_struct(&bam_dmux_srcu);
 
-	subsys_h = subsys_notif_register_notifier("modem", &restart_notifier);
+	subsys_h = qcom_register_ssr_notifier("mpss", &restart_notifier);
 	if (IS_ERR(subsys_h)) {
 		rc = PTR_ERR(subsys_h);
 		pr_err("%s: failed to register for ssr rc: %d\n", __func__, rc);
@@ -2865,7 +2837,7 @@ free_pwr_ack_state:
 free_pwr_state:
 	bam_ops->smsm_put_state_ptr(bam_ops->pwr_state);
 free_subsys_reg:
-	subsys_notif_unregister_notifier(subsys_h, &restart_notifier);
+	qcom_unregister_ssr_notifier(subsys_h, &restart_notifier);
 free_platform_dev:
 	for (i = 0; i < BAM_DMUX_NUM_CHANNELS; i++) {
 		if (bam_ch[i].pdev) {
