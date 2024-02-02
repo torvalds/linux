@@ -15,6 +15,7 @@ struct adf_fatal_error_data {
 };
 
 static struct workqueue_struct *device_reset_wq;
+static struct workqueue_struct *device_sriov_wq;
 
 static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
 					   pci_channel_state_t state)
@@ -41,6 +42,13 @@ struct adf_reset_dev_data {
 	struct adf_accel_dev *accel_dev;
 	struct completion compl;
 	struct work_struct reset_work;
+};
+
+/* sriov dev data */
+struct adf_sriov_dev_data {
+	struct adf_accel_dev *accel_dev;
+	struct completion compl;
+	struct work_struct sriov_work;
 };
 
 void adf_reset_sbr(struct adf_accel_dev *accel_dev)
@@ -88,11 +96,22 @@ void adf_dev_restore(struct adf_accel_dev *accel_dev)
 	}
 }
 
+static void adf_device_sriov_worker(struct work_struct *work)
+{
+	struct adf_sriov_dev_data *sriov_data =
+		container_of(work, struct adf_sriov_dev_data, sriov_work);
+
+	adf_reenable_sriov(sriov_data->accel_dev);
+	complete(&sriov_data->compl);
+}
+
 static void adf_device_reset_worker(struct work_struct *work)
 {
 	struct adf_reset_dev_data *reset_data =
 		  container_of(work, struct adf_reset_dev_data, reset_work);
 	struct adf_accel_dev *accel_dev = reset_data->accel_dev;
+	unsigned long wait_jiffies = msecs_to_jiffies(10000);
+	struct adf_sriov_dev_data sriov_data;
 
 	adf_dev_restarting_notify(accel_dev);
 	if (adf_dev_restart(accel_dev)) {
@@ -103,6 +122,14 @@ static void adf_device_reset_worker(struct work_struct *work)
 		WARN(1, "QAT: device restart failed. Device is unusable\n");
 		return;
 	}
+
+	sriov_data.accel_dev = accel_dev;
+	init_completion(&sriov_data.compl);
+	INIT_WORK(&sriov_data.sriov_work, adf_device_sriov_worker);
+	queue_work(device_sriov_wq, &sriov_data.sriov_work);
+	if (wait_for_completion_timeout(&sriov_data.compl, wait_jiffies))
+		adf_pf2vf_notify_restarted(accel_dev);
+
 	adf_dev_restarted_notify(accel_dev);
 	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 
@@ -216,7 +243,14 @@ int adf_init_aer(void)
 {
 	device_reset_wq = alloc_workqueue("qat_device_reset_wq",
 					  WQ_MEM_RECLAIM, 0);
-	return !device_reset_wq ? -EFAULT : 0;
+	if (!device_reset_wq)
+		return -EFAULT;
+
+	device_sriov_wq = alloc_workqueue("qat_device_sriov_wq", 0, 0);
+	if (!device_sriov_wq)
+		return -EFAULT;
+
+	return 0;
 }
 
 void adf_exit_aer(void)
@@ -224,4 +258,8 @@ void adf_exit_aer(void)
 	if (device_reset_wq)
 		destroy_workqueue(device_reset_wq);
 	device_reset_wq = NULL;
+
+	if (device_sriov_wq)
+		destroy_workqueue(device_sriov_wq);
+	device_sriov_wq = NULL;
 }

@@ -49,5 +49,6 @@
 	ADF_ETRMGR_BANK "%d" ADF_ETRMGR_CORE_AFFINITY
 #define ADF_ACCEL_STR "Accelerator%d"
 #define ADF_HEARTBEAT_TIMER  "HeartbeatTimer"
+#define ADF_SRIOV_ENABLED "SriovEnabled"
 
 #endif

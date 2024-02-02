@@ -192,6 +192,7 @@ bool adf_misc_wq_queue_delayed_work(struct delayed_work *work,
 #if defined(CONFIG_PCI_IOV)
 int adf_sriov_configure(struct pci_dev *pdev, int numvfs);
 void adf_disable_sriov(struct adf_accel_dev *accel_dev);
+void adf_reenable_sriov(struct adf_accel_dev *accel_dev);
 void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask);
 void adf_disable_all_vf2pf_interrupts(struct adf_accel_dev *accel_dev);
 bool adf_recv_and_handle_pf2vf_msg(struct adf_accel_dev *accel_dev);
@@ -209,6 +210,10 @@ void adf_flush_vf_wq(struct adf_accel_dev *accel_dev);
 #define adf_sriov_configure NULL
 
 static inline void adf_disable_sriov(struct adf_accel_dev *accel_dev)
+{
+}
+
+static inline void adf_reenable_sriov(struct adf_accel_dev *accel_dev)
 {
 }
 
