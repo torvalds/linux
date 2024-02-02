@@ -81,6 +81,7 @@ struct temp_data {
 	int tjmax;
 	unsigned long last_updated;
 	unsigned int cpu;
+	unsigned int index;
 	u32 cpu_core_id;
 	u32 status_reg;
 	int attr_size;
@@ -474,13 +475,35 @@ static struct platform_device *coretemp_get_pdev(unsigned int cpu)
 	return NULL;
 }
 
-static struct temp_data *init_temp_data(unsigned int cpu, int pkg_flag)
+static struct temp_data *
+init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 {
 	struct temp_data *tdata;
+	int index;
 
 	tdata = kzalloc(sizeof(struct temp_data), GFP_KERNEL);
 	if (!tdata)
 		return NULL;
+
+	/*
+	 * Get the index of tdata in pdata->core_data[]
+	 * tdata for package: pdata->core_data[1]
+	 * tdata for core: pdata->core_data[2] .. pdata->core_data[NUM_REAL_CORES + 1]
+	 */
+	if (pkg_flag) {
+		index = PKG_SYSFS_ATTR_NO;
+	} else {
+		index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
+		if (index < 0) {
+			kfree(tdata);
+			return NULL;
+		}
+		index += BASE_SYSFS_ATTR_NO;
+	}
+	/* Index in pdata->core_data[] */
+	tdata->index = index;
+
+	pdata->core_data[index] = tdata;
 
 	tdata->status_reg = pkg_flag ? MSR_IA32_PACKAGE_THERM_STATUS :
 							MSR_IA32_THERM_STATUS;
@@ -492,6 +515,30 @@ static struct temp_data *init_temp_data(unsigned int cpu, int pkg_flag)
 	return tdata;
 }
 
+static void destroy_temp_data(struct platform_data *pdata, struct temp_data *tdata)
+{
+	pdata->core_data[tdata->index] = NULL;
+	if (!tdata->is_pkg_data)
+		ida_free(&pdata->ida, tdata->index - BASE_SYSFS_ATTR_NO);
+	kfree(tdata);
+}
+
+static struct temp_data *get_temp_data(struct platform_data *pdata, int cpu)
+{
+	int i;
+
+	/* cpu < 0 means get pkg temp_data */
+	if (cpu < 0)
+		return pdata->core_data[PKG_SYSFS_ATTR_NO];
+
+	for (i = BASE_SYSFS_ATTR_NO; i < MAX_CORE_DATA; i++) {
+		if (pdata->core_data[i] &&
+		    pdata->core_data[i]->cpu_core_id == topology_core_id(cpu))
+			return pdata->core_data[i];
+	}
+	return NULL;
+}
+
 static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 			    int pkg_flag)
 {
@@ -499,36 +546,19 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 	struct platform_data *pdata = platform_get_drvdata(pdev);
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	u32 eax, edx;
-	int err, index;
+	int err;
 
 	if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
 		return 0;
 
-	/*
-	 * Get the index of tdata in pdata->core_data[]
-	 * tdata for package: pdata->core_data[1]
-	 * tdata for core: pdata->core_data[2] .. pdata->core_data[NUM_REAL_CORES + 1]
-	 */
-	if (pkg_flag) {
-		index = PKG_SYSFS_ATTR_NO;
-	} else {
-		index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
-		if (index < 0)
-			return index;
-
-		index += BASE_SYSFS_ATTR_NO;
-	}
-
-	tdata = init_temp_data(cpu, pkg_flag);
-	if (!tdata) {
-		err = -ENOMEM;
-		goto ida_free;
-	}
+	tdata = init_temp_data(pdata, cpu, pkg_flag);
+	if (!tdata)
+		return -ENOMEM;
 
 	/* Test if we can access the status register */
 	err = rdmsr_safe_on_cpu(cpu, tdata->status_reg, &eax, &edx);
 	if (err)
-		goto exit_free;
+		goto err;
 
 	/* Make sure tdata->tjmax is a valid indicator for dynamic/static tjmax */
 	get_tjmax(tdata, &pdev->dev);
@@ -542,20 +572,15 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 		if (get_ttarget(tdata, &pdev->dev) >= 0)
 			tdata->attr_size++;
 
-	pdata->core_data[index] = tdata;
-
 	/* Create sysfs interfaces */
 	err = create_core_attrs(tdata, pdata->hwmon_dev);
 	if (err)
-		goto exit_free;
+		goto err;
 
 	return 0;
-exit_free:
-	pdata->core_data[index] = NULL;
-	kfree(tdata);
-ida_free:
-	if (!pkg_flag)
-		ida_free(&pdata->ida, index - BASE_SYSFS_ATTR_NO);
+
+err:
+	destroy_temp_data(pdata, tdata);
 	return err;
 }
 
@@ -566,10 +591,8 @@ coretemp_add_core(struct platform_device *pdev, unsigned int cpu, int pkg_flag)
 		dev_err(&pdev->dev, "Adding Core %u failed\n", cpu);
 }
 
-static void coretemp_remove_core(struct platform_data *pdata, int indx)
+static void coretemp_remove_core(struct platform_data *pdata, struct temp_data *tdata)
 {
-	struct temp_data *tdata = pdata->core_data[indx];
-
 	/* if we errored on add then this is already gone */
 	if (!tdata)
 		return;
@@ -577,11 +600,7 @@ static void coretemp_remove_core(struct platform_data *pdata, int indx)
 	/* Remove the sysfs attributes */
 	sysfs_remove_group(&pdata->hwmon_dev->kobj, &tdata->attr_group);
 
-	kfree(pdata->core_data[indx]);
-	pdata->core_data[indx] = NULL;
-
-	if (indx >= BASE_SYSFS_ATTR_NO)
-		ida_free(&pdata->ida, indx - BASE_SYSFS_ATTR_NO);
+	destroy_temp_data(pdata, tdata);
 }
 
 static int coretemp_device_add(int zoneid)
@@ -694,7 +713,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	struct platform_device *pdev = coretemp_get_pdev(cpu);
 	struct platform_data *pd;
 	struct temp_data *tdata;
-	int i, target;
+	int target;
 
 	/* No need to tear down any interfaces for suspend */
 	if (cpuhp_tasks_frozen)
@@ -705,16 +724,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	if (!pd->hwmon_dev)
 		return 0;
 
-	for (i = BASE_SYSFS_ATTR_NO; i < MAX_CORE_DATA; i++) {
-		if (pd->core_data[i] && pd->core_data[i]->cpu_core_id == topology_core_id(cpu))
-			break;
-	}
-
-	/* Too many cores and this core is not populated, just return */
-	if (i == MAX_CORE_DATA)
-		return 0;
-
-	tdata = pd->core_data[i];
+	tdata = get_temp_data(pd, cpu);
 
 	cpumask_clear_cpu(cpu, &pd->cpumask);
 
@@ -725,7 +735,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	 */
 	target = cpumask_any_and(&pd->cpumask, topology_sibling_cpumask(cpu));
 	if (target >= nr_cpu_ids) {
-		coretemp_remove_core(pd, i);
+		coretemp_remove_core(pd, tdata);
 	} else if (tdata && tdata->cpu == cpu) {
 		mutex_lock(&tdata->update_lock);
 		tdata->cpu = target;
@@ -735,10 +745,10 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	/*
 	 * If all cores in this pkg are offline, remove the interface.
 	 */
-	tdata = pd->core_data[PKG_SYSFS_ATTR_NO];
+	tdata = get_temp_data(pd, -1);
 	if (cpumask_empty(&pd->cpumask)) {
 		if (tdata)
-			coretemp_remove_core(pd, PKG_SYSFS_ATTR_NO);
+			coretemp_remove_core(pd, tdata);
 		hwmon_device_unregister(pd->hwmon_dev);
 		pd->hwmon_dev = NULL;
 		return 0;
