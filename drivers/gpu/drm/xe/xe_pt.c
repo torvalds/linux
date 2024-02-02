@@ -618,8 +618,8 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 
 	if (!xe_vma_is_null(vma)) {
 		if (xe_vma_is_userptr(vma))
-			xe_res_first_sg(vma->userptr.sg, 0, xe_vma_size(vma),
-					&curs);
+			xe_res_first_sg(to_userptr_vma(vma)->userptr.sg, 0,
+					xe_vma_size(vma), &curs);
 		else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
 			xe_res_first(bo->ttm.resource, xe_vma_bo_offset(vma),
 				     xe_vma_size(vma), &curs);
@@ -906,17 +906,17 @@ static void xe_vm_dbg_print_entries(struct xe_device *xe,
 
 #ifdef CONFIG_DRM_XE_USERPTR_INVAL_INJECT
 
-static int xe_pt_userptr_inject_eagain(struct xe_vma *vma)
+static int xe_pt_userptr_inject_eagain(struct xe_userptr_vma *uvma)
 {
-	u32 divisor = vma->userptr.divisor ? vma->userptr.divisor : 2;
+	u32 divisor = uvma->userptr.divisor ? uvma->userptr.divisor : 2;
 	static u32 count;
 
 	if (count++ % divisor == divisor - 1) {
-		struct xe_vm *vm = xe_vma_vm(vma);
+		struct xe_vm *vm = xe_vma_vm(&uvma->vma);
 
-		vma->userptr.divisor = divisor << 1;
+		uvma->userptr.divisor = divisor << 1;
 		spin_lock(&vm->userptr.invalidated_lock);
-		list_move_tail(&vma->userptr.invalidate_link,
+		list_move_tail(&uvma->userptr.invalidate_link,
 			       &vm->userptr.invalidated);
 		spin_unlock(&vm->userptr.invalidated_lock);
 		return true;
@@ -927,7 +927,7 @@ static int xe_pt_userptr_inject_eagain(struct xe_vma *vma)
 
 #else
 
-static bool xe_pt_userptr_inject_eagain(struct xe_vma *vma)
+static bool xe_pt_userptr_inject_eagain(struct xe_userptr_vma *uvma)
 {
 	return false;
 }
@@ -1000,9 +1000,9 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 {
 	struct xe_pt_migrate_pt_update *userptr_update =
 		container_of(pt_update, typeof(*userptr_update), base);
-	struct xe_vma *vma = pt_update->vma;
-	unsigned long notifier_seq = vma->userptr.notifier_seq;
-	struct xe_vm *vm = xe_vma_vm(vma);
+	struct xe_userptr_vma *uvma = to_userptr_vma(pt_update->vma);
+	unsigned long notifier_seq = uvma->userptr.notifier_seq;
+	struct xe_vm *vm = xe_vma_vm(&uvma->vma);
 	int err = xe_pt_vm_dependencies(pt_update->job,
 					&vm->rftree[pt_update->tile_id],
 					pt_update->start,
@@ -1023,7 +1023,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	 */
 	do {
 		down_read(&vm->userptr.notifier_lock);
-		if (!mmu_interval_read_retry(&vma->userptr.notifier,
+		if (!mmu_interval_read_retry(&uvma->userptr.notifier,
 					     notifier_seq))
 			break;
 
@@ -1032,11 +1032,11 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 		if (userptr_update->bind)
 			return -EAGAIN;
 
-		notifier_seq = mmu_interval_read_begin(&vma->userptr.notifier);
+		notifier_seq = mmu_interval_read_begin(&uvma->userptr.notifier);
 	} while (true);
 
 	/* Inject errors to test_whether they are handled correctly */
-	if (userptr_update->bind && xe_pt_userptr_inject_eagain(vma)) {
+	if (userptr_update->bind && xe_pt_userptr_inject_eagain(uvma)) {
 		up_read(&vm->userptr.notifier_lock);
 		return -EAGAIN;
 	}
@@ -1297,7 +1297,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 		vma->tile_present |= BIT(tile->id);
 
 		if (bind_pt_update.locked) {
-			vma->userptr.initial_bind = true;
+			to_userptr_vma(vma)->userptr.initial_bind = true;
 			up_read(&vm->userptr.notifier_lock);
 			xe_bo_put_commit(&deferred);
 		}
@@ -1642,7 +1642,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 
 		if (!vma->tile_present) {
 			spin_lock(&vm->userptr.invalidated_lock);
-			list_del_init(&vma->userptr.invalidate_link);
+			list_del_init(&to_userptr_vma(vma)->userptr.invalidate_link);
 			spin_unlock(&vm->userptr.invalidated_lock);
 		}
 		up_read(&vm->userptr.notifier_lock);
