@@ -488,6 +488,14 @@ void conf_parse(const char *name)
 		yydebug = 1;
 	yyparse();
 
+	/*
+	 * FIXME:
+	 * cur_filename and cur_lineno are used even after yyparse();
+	 * menu_finalize() calls menu_add_symbol(). This should be fixed.
+	 */
+	cur_filename = "<none>";
+	cur_lineno = 0;
+
 	str_printf(&autoconf_cmd,
 		   "\n"
 		   "$(autoconfig): $(deps_config)\n"

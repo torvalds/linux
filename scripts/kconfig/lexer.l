@@ -274,24 +274,17 @@ repeat:
 	token = yylex1();
 
 	if (prev_token == T_EOL || prev_token == T_HELPTEXT) {
-		if (token == T_EOL) {
+		if (token == T_EOL)
 			/* Do not pass unneeded T_EOL to the parser. */
 			goto repeat;
-		} else {
+		else
 			/*
-			 * For the parser, update file/lineno at the first token
+			 * For the parser, update lineno at the first token
 			 * of each statement. Generally, \n is a statement
 			 * terminator in Kconfig, but it is not always true
 			 * because \n could be escaped by a backslash.
-			 *
-			 * FIXME:
-			 * cur_filename and cur_lineno are used even after
-			 * yyparse(); menu_finalize() calls menu_add_symbol().
-			 * This should be fixed.
 			 */
-			cur_filename = current_file ? current_file->name : "<none>";
 			cur_lineno = yylineno;
-		}
 	}
 
 	if (prev_prev_token == T_EOL && prev_token == T_WORD &&
@@ -407,6 +400,7 @@ void zconf_initscan(const char *name)
 	}
 
 	current_file = file_lookup(name);
+	cur_filename = current_file->name;
 	yylineno = 1;
 }
 
@@ -448,6 +442,7 @@ void zconf_nextfile(const char *name)
 	}
 
 	yylineno = 1;
+	cur_filename = file->name;
 	current_file = file;
 }
 
@@ -456,6 +451,8 @@ static void zconf_endfile(void)
 	struct buffer *tmp;
 
 	current_file = current_file->parent;
+	if (current_file)
+		cur_filename = current_file->name;
 
 	if (!current_buf)
 		return;
