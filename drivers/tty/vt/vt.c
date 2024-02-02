@@ -1588,7 +1588,7 @@ static void default_attr(struct vc_data *vc)
 
 struct rgb { u8 r; u8 g; u8 b; };
 
-static void rgb_from_256(int i, struct rgb *c)
+static void rgb_from_256(unsigned int i, struct rgb *c)
 {
 	if (i < 8) {            /* Standard colours. */
 		c->r = i&1 ? 0xaa : 0x00;
@@ -1599,9 +1599,12 @@ static void rgb_from_256(int i, struct rgb *c)
 		c->g = i&2 ? 0xff : 0x55;
 		c->b = i&4 ? 0xff : 0x55;
 	} else if (i < 232) {   /* 6x6x6 colour cube. */
-		c->r = (i - 16) / 36 * 85 / 2;
-		c->g = (i - 16) / 6 % 6 * 85 / 2;
-		c->b = (i - 16) % 6 * 85 / 2;
+		i -= 16;
+		c->b = i % 6 * 255 / 6;
+		i /= 6;
+		c->g = i % 6 * 255 / 6;
+		i /= 6;
+		c->r = i     * 255 / 6;
 	} else                  /* Grayscale ramp. */
 		c->r = c->g = c->b = i * 10 - 2312;
 }
