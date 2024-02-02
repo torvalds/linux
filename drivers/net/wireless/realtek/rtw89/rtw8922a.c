@@ -1379,6 +1379,14 @@ static void rtw8922a_rfk_init(struct rtw89_dev *rtwdev)
 	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
 }
 
+static void rtw8922a_rfk_init_late(struct rtw89_dev *rtwdev)
+{
+	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, RTW89_PHY_0, 5);
+
+	rtw89_phy_rfk_dack_and_wait(rtwdev, RTW89_PHY_0, 58);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, 32);
+}
+
 static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
 {
 	u32 rf_mode;
@@ -1687,6 +1695,7 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.fem_setup		= NULL,
 	.rfe_gpio		= NULL,
 	.rfk_init		= rtw8922a_rfk_init,
+	.rfk_init_late		= rtw8922a_rfk_init_late,
 	.rfk_channel		= rtw8922a_rfk_channel,
 	.rfk_band_changed	= rtw8922a_rfk_band_changed,
 	.rfk_scan		= rtw8922a_rfk_scan,
