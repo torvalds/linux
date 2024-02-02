@@ -8242,6 +8242,7 @@ found:
 	switch ((int)reg->type) {
 	case PTR_TO_BTF_ID:
 	case PTR_TO_BTF_ID | PTR_TRUSTED:
+	case PTR_TO_BTF_ID | PTR_TRUSTED | PTR_MAYBE_NULL:
 	case PTR_TO_BTF_ID | MEM_RCU:
 	case PTR_TO_BTF_ID | PTR_MAYBE_NULL:
 	case PTR_TO_BTF_ID | PTR_MAYBE_NULL | MEM_RCU:
