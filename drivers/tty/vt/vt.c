@@ -2197,28 +2197,26 @@ enum {
 	ASCII_EXT_CSI		= 128 + ASCII_ESCAPE,
 };
 
-/* console_lock is held */
-static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
+/*
+ * Handle ascii characters in control sequences and change states accordingly.
+ * E.g. ESC sets the state of vc to ESesc.
+ *
+ * Returns: true if @c handled.
+ */
+static bool handle_ascii(struct tty_struct *tty, struct vc_data *vc, u8 c)
 {
-	/*
-	 *  Control characters can be used in the _middle_
-	 *  of an escape sequence, aside from ANSI control strings.
-	 */
-	if (ansi_control_string(vc->vc_state) && c >= ASCII_IGNORE_FIRST &&
-	    c <= ASCII_IGNORE_LAST)
-		return;
 	switch (c) {
 	case ASCII_NULL:
-		return;
+		return true;
 	case ASCII_BELL:
 		if (ansi_control_string(vc->vc_state))
 			vc->vc_state = ESnormal;
 		else if (vc->vc_bell_duration)
 			kd_mksound(vc->vc_bell_pitch, vc->vc_bell_duration);
-		return;
+		return true;
 	case ASCII_BACKSPACE:
 		bs(vc);
-		return;
+		return true;
 	case ASCII_HTAB:
 		vc->vc_pos -= (vc->state.x << 1);
 
@@ -2230,41 +2228,59 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 
 		vc->vc_pos += (vc->state.x << 1);
 		notify_write(vc, '\t');
-		return;
+		return true;
 	case ASCII_LINEFEED:
 	case ASCII_VTAB:
 	case ASCII_FORMFEED:
 		lf(vc);
 		if (!is_kbd(vc, lnm))
-			return;
+			return true;
 		fallthrough;
 	case ASCII_CAR_RET:
 		cr(vc);
-		return;
+		return true;
 	case ASCII_SHIFTOUT:
 		vc->state.charset = 1;
 		vc->vc_translate = set_translate(vc->state.Gx_charset[1], vc);
 		vc->vc_disp_ctrl = 1;
-		return;
+		return true;
 	case ASCII_SHIFTIN:
 		vc->state.charset = 0;
 		vc->vc_translate = set_translate(vc->state.Gx_charset[0], vc);
 		vc->vc_disp_ctrl = 0;
-		return;
+		return true;
 	case ASCII_CANCEL:
 	case ASCII_SUBSTITUTE:
 		vc->vc_state = ESnormal;
-		return;
+		return true;
 	case ASCII_ESCAPE:
 		vc->vc_state = ESesc;
-		return;
+		return true;
 	case ASCII_DEL:
 		del(vc);
-		return;
+		return true;
 	case ASCII_EXT_CSI:
 		vc->vc_state = ESsquare;
-		return;
+		return true;
 	}
+
+	return false;
+}
+
+/* console_lock is held */
+static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
+{
+	/*
+	 *  Control characters can be used in the _middle_
+	 *  of an escape sequence, aside from ANSI control strings.
+	 */
+	if (ansi_control_string(vc->vc_state) && c >= ASCII_IGNORE_FIRST &&
+	    c <= ASCII_IGNORE_LAST)
+		return;
+
+	if (handle_ascii(tty, vc, c))
+		return;
+
 	switch(vc->vc_state) {
 	case ESesc:
 		vc->vc_state = ESnormal;
