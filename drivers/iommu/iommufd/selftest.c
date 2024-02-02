@@ -191,6 +191,34 @@ static int mock_domain_set_dirty_tracking(struct iommu_domain *domain,
 	return 0;
 }
 
+static bool mock_test_and_clear_dirty(struct mock_iommu_domain *mock,
+				      unsigned long iova, size_t page_size,
+				      unsigned long flags)
+{
+	unsigned long cur, end = iova + page_size - 1;
+	bool dirty = false;
+	void *ent, *old;
+
+	for (cur = iova; cur < end; cur += MOCK_IO_PAGE_SIZE) {
+		ent = xa_load(&mock->pfns, cur / MOCK_IO_PAGE_SIZE);
+		if (!ent || !(xa_to_value(ent) & MOCK_PFN_DIRTY_IOVA))
+			continue;
+
+		dirty = true;
+		/* Clear dirty */
+		if (!(flags & IOMMU_DIRTY_NO_CLEAR)) {
+			unsigned long val;
+
+			val = xa_to_value(ent) & ~MOCK_PFN_DIRTY_IOVA;
+			old = xa_store(&mock->pfns, cur / MOCK_IO_PAGE_SIZE,
+				       xa_mk_value(val), GFP_KERNEL);
+			WARN_ON_ONCE(ent != old);
+		}
+	}
+
+	return dirty;
+}
+
 static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 					    unsigned long iova, size_t size,
 					    unsigned long flags,
@@ -198,31 +226,29 @@ static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 {
 	struct mock_iommu_domain *mock =
 		container_of(domain, struct mock_iommu_domain, domain);
-	unsigned long i, max = size / MOCK_IO_PAGE_SIZE;
-	void *ent, *old;
+	unsigned long end = iova + size;
+	void *ent;
 
 	if (!(mock->flags & MOCK_DIRTY_TRACK) && dirty->bitmap)
 		return -EINVAL;
 
-	for (i = 0; i < max; i++) {
-		unsigned long cur = iova + i * MOCK_IO_PAGE_SIZE;
+	do {
+		unsigned long pgsize = MOCK_IO_PAGE_SIZE;
+		unsigned long head;
 
-		ent = xa_load(&mock->pfns, cur / MOCK_IO_PAGE_SIZE);
-		if (ent && (xa_to_value(ent) & MOCK_PFN_DIRTY_IOVA)) {
-			/* Clear dirty */
-			if (!(flags & IOMMU_DIRTY_NO_CLEAR)) {
-				unsigned long val;
-
-				val = xa_to_value(ent) & ~MOCK_PFN_DIRTY_IOVA;
-				old = xa_store(&mock->pfns,
-					       cur / MOCK_IO_PAGE_SIZE,
-					       xa_mk_value(val), GFP_KERNEL);
-				WARN_ON_ONCE(ent != old);
-			}
-			iommu_dirty_bitmap_record(dirty, cur,
-						  MOCK_IO_PAGE_SIZE);
+		ent = xa_load(&mock->pfns, iova / MOCK_IO_PAGE_SIZE);
+		if (!ent) {
+			iova += pgsize;
+			continue;
 		}
-	}
+
+		head = iova & ~(pgsize - 1);
+
+		/* Clear dirty */
+		if (mock_test_and_clear_dirty(mock, head, pgsize, flags))
+			iommu_dirty_bitmap_record(dirty, head, pgsize);
+		iova = head + pgsize;
+	} while (iova < end);
 
 	return 0;
 }
