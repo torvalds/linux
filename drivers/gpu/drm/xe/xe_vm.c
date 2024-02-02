@@ -114,11 +114,8 @@ retry:
 					  num_pages - pinned,
 					  read_only ? 0 : FOLL_WRITE,
 					  &pages[pinned]);
-		if (ret < 0) {
-			if (in_kthread)
-				ret = 0;
+		if (ret < 0)
 			break;
-		}
 
 		pinned += ret;
 		ret = 0;
