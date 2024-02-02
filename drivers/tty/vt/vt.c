@@ -2091,9 +2091,44 @@ static void restore_cur(struct vc_data *vc)
 	vc->vc_need_wrap = 0;
 }
 
-enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
-	EShash, ESsetG0, ESsetG1, ESpercent, EScsiignore, ESnonstd,
-	ESpalette, ESosc, ESapc, ESpm, ESdcs };
+/**
+ * enum vc_ctl_state - control characters state of a vt
+ *
+ * @ESnormal:		initial state, no control characters parsed
+ * @ESesc:		ESC parsed
+ * @ESsquare:		CSI parsed -- modifiers/parameters/ctrl chars expected
+ * @ESgetpars:		CSI parsed -- parameters/ctrl chars expected
+ * @ESfunckey:		CSI [ parsed
+ * @EShash:		ESC # parsed
+ * @ESsetG0:		ESC ( parsed
+ * @ESsetG1:		ESC ) parsed
+ * @ESpercent:		ESC % parsed
+ * @EScsiignore:	CSI [0x20-0x3f] parsed
+ * @ESnonstd:		OSC parsed
+ * @ESpalette:		OSC P parsed
+ * @ESosc:		OSC [0-9] parsed
+ * @ESapc:		ESC _ parsed
+ * @ESpm:		ESC ^ parsed
+ * @ESdcs:		ESC P parsed
+ */
+enum vc_ctl_state {
+	ESnormal,
+	ESesc,
+	ESsquare,
+	ESgetpars,
+	ESfunckey,
+	EShash,
+	ESsetG0,
+	ESsetG1,
+	ESpercent,
+	EScsiignore,
+	ESnonstd,
+	ESpalette,
+	ESosc,
+	ESapc,
+	ESpm,
+	ESdcs,
+};
 
 /* console_lock is held (except via vc_init()) */
 static void reset_terminal(struct vc_data *vc, int do_clear)
@@ -2527,10 +2562,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		return;
 
 	switch(vc->vc_state) {
-	case ESesc:
+	case ESesc:	/* ESC */
 		handle_esc(tty, vc, c);
 		return;
-	case ESnonstd:
+	case ESnonstd:	/* ESC ] aka OSC */
 		if (c=='P') {   /* palette escape sequence */
 			for (vc->vc_npar = 0; vc->vc_npar < NPAR; vc->vc_npar++)
 				vc->vc_par[vc->vc_npar] = 0;
@@ -2545,7 +2580,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		else
 			vc->vc_state = ESnormal;
 		return;
-	case ESpalette:
+	case ESpalette:	/* ESC ] P aka OSC P */
 		if (isxdigit(c)) {
 			vc->vc_par[vc->vc_npar++] = hex_to_bin(c);
 			if (vc->vc_npar == 7) {
@@ -2562,7 +2597,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		} else
 			vc->vc_state = ESnormal;
 		return;
-	case ESsquare:
+	case ESsquare:	/* ESC [ aka CSI, parameters or modifiers expected */
 		for (vc->vc_npar = 0; vc->vc_npar < NPAR; vc->vc_npar++)
 			vc->vc_par[vc->vc_npar] = 0;
 		vc->vc_npar = 0;
@@ -2587,7 +2622,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		}
 		vc->vc_priv = EPecma;
 		fallthrough;
-	case ESgetpars:
+	case ESgetpars: /* ESC [ aka CSI, parameters expected */
 		if (c == ';' && vc->vc_npar < NPAR - 1) {
 			vc->vc_npar++;
 			return;
@@ -2600,6 +2635,9 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			vc->vc_state = EScsiignore;
 			return;
 		}
+
+		/* parameters done, handle the control char @c */
+
 		vc->vc_state = ESnormal;
 
 		switch (vc->vc_priv) {
@@ -2617,7 +2655,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			return;
 		vc->vc_state = ESnormal;
 		return;
-	case ESpercent:
+	case ESpercent:	/* ESC % */
 		vc->vc_state = ESnormal;
 		switch (c) {
 		case '@':  /* defined in ISO 2022 */
@@ -2629,10 +2667,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			return;
 		}
 		return;
-	case ESfunckey:
+	case ESfunckey:	/* ESC [ [ aka CSI [ */
 		vc->vc_state = ESnormal;
 		return;
-	case EShash:
+	case EShash:	/* ESC # */
 		vc->vc_state = ESnormal;
 		if (c == '8') {
 			/* DEC screen alignment test. kludge :-) */
@@ -2644,21 +2682,21 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			do_update_region(vc, vc->vc_origin, vc->vc_screenbuf_size / 2);
 		}
 		return;
-	case ESsetG0:
+	case ESsetG0:	/* ESC ( */
 		vc_setGx(vc, 0, c);
 		vc->vc_state = ESnormal;
 		return;
-	case ESsetG1:
+	case ESsetG1:	/* ESC ) */
 		vc_setGx(vc, 1, c);
 		vc->vc_state = ESnormal;
 		return;
-	case ESapc:
+	case ESapc:	/* ESC _ */
 		return;
-	case ESosc:
+	case ESosc:	/* ESC ] [0-9] aka OSC [0-9] */
 		return;
-	case ESpm:
+	case ESpm:	/* ESC ^ */
 		return;
-	case ESdcs:
+	case ESdcs:	/* ESC P */
 		return;
 	default:
 		vc->vc_state = ESnormal;
