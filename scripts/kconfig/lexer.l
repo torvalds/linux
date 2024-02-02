@@ -22,10 +22,14 @@
 
 #define START_STRSIZE	16
 
-static struct {
-	struct file *file;
-	int lineno;
-} current_pos;
+/* The Kconfig file currently being parsed.  */
+static const char *cur_filename;
+
+/*
+ * The line number of the current statement. This does not match yylineno.
+ * yylineno is used by the lexer, while cur_lineno is used by the parser.
+ */
+static int cur_lineno;
 
 static int prev_prev_token = T_EOL;
 static int prev_token = T_EOL;
@@ -279,9 +283,14 @@ repeat:
 			 * of each statement. Generally, \n is a statement
 			 * terminator in Kconfig, but it is not always true
 			 * because \n could be escaped by a backslash.
+			 *
+			 * FIXME:
+			 * cur_filename and cur_lineno are used even after
+			 * yyparse(); menu_finalize() calls menu_add_symbol().
+			 * This should be fixed.
 			 */
-			current_pos.file = current_file;
-			current_pos.lineno = yylineno;
+			cur_filename = current_file ? current_file->name : "<none>";
+			cur_lineno = yylineno;
 		}
 	}
 
@@ -462,10 +471,10 @@ static void zconf_endfile(void)
 
 int zconf_lineno(void)
 {
-	return current_pos.lineno;
+	return cur_lineno;
 }
 
 const char *zconf_curname(void)
 {
-	return current_pos.file ? current_pos.file->name : "<none>";
+	return cur_filename;
 }
