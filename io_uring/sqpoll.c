@@ -18,6 +18,7 @@
 #include "sqpoll.h"
 
 #define IORING_SQPOLL_CAP_ENTRIES_VALUE 8
+#define IORING_TW_CAP_ENTRIES_VALUE	8
 
 enum {
 	IO_SQ_THREAD_SHOULD_STOP = 0,
@@ -219,8 +220,31 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 	return did_sig || test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
 }
 
+/*
+ * Run task_work, processing the retry_list first. The retry_list holds
+ * entries that we passed on in the previous run, if we had more task_work
+ * than we were asked to process. Newly queued task_work isn't run until the
+ * retry list has been fully processed.
+ */
+static unsigned int io_sq_tw(struct llist_node **retry_list, int max_entries)
+{
+	struct io_uring_task *tctx = current->io_uring;
+	unsigned int count = 0;
+
+	if (*retry_list) {
+		*retry_list = io_handle_tw_list(*retry_list, &count, max_entries);
+		if (count >= max_entries)
+			return count;
+		max_entries -= count;
+	}
+
+	*retry_list = tctx_task_work_run(tctx, max_entries, &count);
+	return count;
+}
+
 static int io_sq_thread(void *data)
 {
+	struct llist_node *retry_list = NULL;
 	struct io_sq_data *sqd = data;
 	struct io_ring_ctx *ctx;
 	unsigned long timeout = 0;
@@ -257,7 +281,7 @@ static int io_sq_thread(void *data)
 			if (!sqt_spin && (ret > 0 || !wq_list_empty(&ctx->iopoll_list)))
 				sqt_spin = true;
 		}
-		if (io_run_task_work())
+		if (io_sq_tw(&retry_list, IORING_TW_CAP_ENTRIES_VALUE))
 			sqt_spin = true;
 
 		if (sqt_spin || !time_after(jiffies, timeout)) {
@@ -311,6 +335,9 @@ static int io_sq_thread(void *data)
 		finish_wait(&sqd->wait, &wait);
 		timeout = jiffies + sqd->sq_thread_idle;
 	}
+
+	if (retry_list)
+		io_sq_tw(&retry_list, UINT_MAX);
 
 	io_uring_cancel_generic(true, sqd);
 	sqd->thread = NULL;
