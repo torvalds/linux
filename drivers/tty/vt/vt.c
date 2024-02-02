@@ -1955,62 +1955,76 @@ static void csi_hl(struct vc_data *vc, bool on_off)
 		}
 }
 
+enum CSI_right_square_bracket {
+	CSI_RSB_COLOR_FOR_UNDERLINE		= 1,
+	CSI_RSB_COLOR_FOR_HALF_BRIGHT		= 2,
+	CSI_RSB_MAKE_CUR_COLOR_DEFAULT		= 8,
+	CSI_RSB_BLANKING_INTERVAL		= 9,
+	CSI_RSB_BELL_FREQUENCY			= 10,
+	CSI_RSB_BELL_DURATION			= 11,
+	CSI_RSB_BRING_CONSOLE_TO_FRONT		= 12,
+	CSI_RSB_UNBLANK				= 13,
+	CSI_RSB_VESA_OFF_INTERVAL		= 14,
+	CSI_RSB_BRING_PREV_CONSOLE_TO_FRONT	= 15,
+	CSI_RSB_CURSOR_BLINK_INTERVAL		= 16,
+};
+
 /* console_lock is held */
 static void setterm_command(struct vc_data *vc)
 {
 	switch (vc->vc_par[0]) {
-	case 1:	/* set color for underline mode */
+	case CSI_RSB_COLOR_FOR_UNDERLINE:
 		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
 			vc->vc_ulcolor = color_table[vc->vc_par[1]];
 			if (vc->state.underline)
 				update_attr(vc);
 		}
 		break;
-	case 2:	/* set color for half intensity mode */
+	case CSI_RSB_COLOR_FOR_HALF_BRIGHT:
 		if (vc->vc_can_do_color && vc->vc_par[1] < 16) {
 			vc->vc_halfcolor = color_table[vc->vc_par[1]];
 			if (vc->state.intensity == VCI_HALF_BRIGHT)
 				update_attr(vc);
 		}
 		break;
-	case 8:	/* store colors as defaults */
+	case CSI_RSB_MAKE_CUR_COLOR_DEFAULT:
 		vc->vc_def_color = vc->vc_attr;
 		if (vc->vc_hi_font_mask == 0x100)
 			vc->vc_def_color >>= 1;
 		default_attr(vc);
 		update_attr(vc);
 		break;
-	case 9:	/* set blanking interval */
+	case CSI_RSB_BLANKING_INTERVAL:
 		blankinterval = min(vc->vc_par[1], 60U) * 60;
 		poke_blanked_console();
 		break;
-	case 10: /* set bell frequency in Hz */
+	case CSI_RSB_BELL_FREQUENCY:
 		if (vc->vc_npar >= 1)
 			vc->vc_bell_pitch = vc->vc_par[1];
 		else
 			vc->vc_bell_pitch = DEFAULT_BELL_PITCH;
 		break;
-	case 11: /* set bell duration in msec */
+	case CSI_RSB_BELL_DURATION:
 		if (vc->vc_npar >= 1)
 			vc->vc_bell_duration = (vc->vc_par[1] < 2000) ?
 				msecs_to_jiffies(vc->vc_par[1]) : 0;
 		else
 			vc->vc_bell_duration = DEFAULT_BELL_DURATION;
 		break;
-	case 12: /* bring specified console to the front */
+	case CSI_RSB_BRING_CONSOLE_TO_FRONT:
 		if (vc->vc_par[1] >= 1 && vc_cons_allocated(vc->vc_par[1] - 1))
 			set_console(vc->vc_par[1] - 1);
 		break;
-	case 13: /* unblank the screen */
+	case CSI_RSB_UNBLANK:
 		poke_blanked_console();
 		break;
-	case 14: /* set vesa powerdown interval */
+	case CSI_RSB_VESA_OFF_INTERVAL:
 		vesa_off_interval = min(vc->vc_par[1], 60U) * 60 * HZ;
 		break;
-	case 15: /* activate the previous console */
+	case CSI_RSB_BRING_PREV_CONSOLE_TO_FRONT:
 		set_console(last_console);
 		break;
-	case 16: /* set cursor blink duration in msec */
+	case CSI_RSB_CURSOR_BLINK_INTERVAL:
 		if (vc->vc_npar >= 1 && vc->vc_par[1] >= 50 &&
 				vc->vc_par[1] <= USHRT_MAX)
 			vc->vc_cur_blink_ms = vc->vc_par[1];
