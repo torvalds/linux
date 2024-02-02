@@ -165,7 +165,8 @@ retry_userptr:
 		goto unlock_vm;
 	}
 
-	if (!xe_vma_is_userptr(vma) || !xe_vma_userptr_check_repin(vma)) {
+	if (!xe_vma_is_userptr(vma) ||
+	    !xe_vma_userptr_check_repin(to_userptr_vma(vma))) {
 		downgrade_write(&vm->lock);
 		write_locked = false;
 	}
@@ -181,11 +182,13 @@ retry_userptr:
 	/* TODO: Validate fault */
 
 	if (xe_vma_is_userptr(vma) && write_locked) {
+		struct xe_userptr_vma *uvma = to_userptr_vma(vma);
+
 		spin_lock(&vm->userptr.invalidated_lock);
-		list_del_init(&vma->userptr.invalidate_link);
+		list_del_init(&uvma->userptr.invalidate_link);
 		spin_unlock(&vm->userptr.invalidated_lock);
 
-		ret = xe_vma_userptr_pin_pages(vma);
+		ret = xe_vma_userptr_pin_pages(uvma);
 		if (ret)
 			goto unlock_vm;
 
@@ -220,7 +223,7 @@ retry_userptr:
 	dma_fence_put(fence);
 
 	if (xe_vma_is_userptr(vma))
-		ret = xe_vma_userptr_check_repin(vma);
+		ret = xe_vma_userptr_check_repin(to_userptr_vma(vma));
 	vma->usm.tile_invalidated &= ~BIT(tile->id);
 
 unlock_dma_resv:
