@@ -5874,6 +5874,7 @@ void rtw89_phy_dm_init(struct rtw89_dev *rtwdev)
 	rtw89_chip_rfe_gpio(rtwdev);
 	rtw89_phy_antdiv_set_ant(rtwdev);
 
+	rtw89_chip_rfk_hw_init(rtwdev);
 	rtw89_phy_init_rf_nctl(rtwdev);
 	rtw89_chip_rfk_init(rtwdev);
 	rtw89_chip_set_txpwr_ctrl(rtwdev);

@@ -2310,6 +2310,7 @@ static const struct rtw89_chip_ops rtw8851b_chip_ops = {
 	.read_phycap		= rtw8851b_read_phycap,
 	.fem_setup		= NULL,
 	.rfe_gpio		= rtw8851b_rfe_gpio,
+	.rfk_hw_init		= NULL,
 	.rfk_init		= rtw8851b_rfk_init,
 	.rfk_init_late		= NULL,
 	.rfk_channel		= rtw8851b_rfk_channel,

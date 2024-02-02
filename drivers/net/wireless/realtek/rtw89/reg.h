@@ -7402,6 +7402,7 @@
 #define RR_MOD_M_RXBB GENMASK(9, 5)
 #define RR_MOD_LO_SEL BIT(1)
 #define RR_MODOPT 0x01
+#define RR_TXG_SEL GENMASK(19, 17)
 #define RR_MODOPT_M_TXPWR GENMASK(5, 0)
 #define RR_WLSEL 0x02
 #define RR_WLSEL_AG GENMASK(18, 16)
@@ -7594,6 +7595,7 @@
 #define RR_MIXER_GN GENMASK(4, 3)
 #define RR_POW 0xa0
 #define RR_POW_SYN GENMASK(3, 2)
+#define RR_POW_SYN_V1 GENMASK(3, 0)
 #define RR_LOGEN 0xa3
 #define RR_LOGEN_RPT GENMASK(19, 16)
 #define RR_SX 0xaf
@@ -8734,6 +8736,8 @@
 #define B_COEF_SEL_IQC BIT(0)
 #define B_COEF_SEL_IQC_V1 GENMASK(1, 0)
 #define B_COEF_SEL_MDPD BIT(8)
+#define B_COEF_SEL_MDPD_V1 GENMASK(9, 8)
+#define B_COEF_SEL_EN BIT(31)
 #define R_CFIR_SYS 0x8120
 #define R_IQK_RES 0x8124
 #define B_IQK_RES_K BIT(28)
@@ -8755,8 +8759,10 @@
 #define B_RFGAIN_BND GENMASK(4, 0)
 #define R_CFIR_MAP 0x8150
 #define R_CFIR_LUT 0x8154
+#define R_CFIR_LUT_C1 0x8254
 #define B_CFIR_LUT_SEL BIT(8)
 #define B_CFIR_LUT_SET BIT(4)
+#define B_CFIR_LUT_G5 BIT(5)
 #define B_CFIR_LUT_G3 BIT(3)
 #define B_CFIR_LUT_G2 BIT(2)
 #define B_CFIR_LUT_GP_V1 GENMASK(2, 0)

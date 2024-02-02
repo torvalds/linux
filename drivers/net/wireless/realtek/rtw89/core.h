@@ -3156,6 +3156,7 @@ struct rtw89_chip_ops {
 	int (*read_phycap)(struct rtw89_dev *rtwdev, u8 *phycap_map);
 	void (*fem_setup)(struct rtw89_dev *rtwdev);
 	void (*rfe_gpio)(struct rtw89_dev *rtwdev);
+	void (*rfk_hw_init)(struct rtw89_dev *rtwdev);
 	void (*rfk_init)(struct rtw89_dev *rtwdev);
 	void (*rfk_init_late)(struct rtw89_dev *rtwdev);
 	void (*rfk_channel)(struct rtw89_dev *rtwdev);
@@ -5602,6 +5603,14 @@ static inline void rtw89_chip_rfe_gpio(struct rtw89_dev *rtwdev)
 
 	if (chip->ops->rfe_gpio)
 		chip->ops->rfe_gpio(rtwdev);
+}
+
+static inline void rtw89_chip_rfk_hw_init(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	if (chip->ops->rfk_hw_init)
+		chip->ops->rfk_hw_init(rtwdev);
 }
 
 static inline

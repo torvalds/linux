@@ -8,5 +8,6 @@
 #include "core.h"
 
 void rtw8922a_tssi_cont_en_phyidx(struct rtw89_dev *rtwdev, bool en, u8 phy_idx);
+void rtw8922a_rfk_hw_init(struct rtw89_dev *rtwdev);
 
 #endif
