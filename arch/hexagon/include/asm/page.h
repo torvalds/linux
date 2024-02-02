@@ -133,12 +133,6 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 	return __pa(kaddr) >> PAGE_SHIFT;
 }
 
-static inline void *pfn_to_virt(unsigned long pfn)
-{
-	return (void *)((unsigned long)__va(pfn) << PAGE_SHIFT);
-}
-
-
 #define page_to_virt(page)	__va(page_to_phys(page))
 
 #include <asm/mem-layout.h>
