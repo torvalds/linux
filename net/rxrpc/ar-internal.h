@@ -198,11 +198,19 @@ struct rxrpc_host_header {
  */
 struct rxrpc_skb_priv {
 	struct rxrpc_connection *conn;	/* Connection referred to (poke packet) */
-	u16		offset;		/* Offset of data */
-	u16		len;		/* Length of data */
-	u8		flags;
+	union {
+		struct {
+			u16		offset;		/* Offset of data */
+			u16		len;		/* Length of data */
+			u8		flags;
 #define RXRPC_RX_VERIFIED	0x01
-
+		};
+		struct {
+			rxrpc_seq_t	first_ack;	/* First packet in acks table */
+			u8		nr_acks;	/* Number of acks+nacks */
+			u8		nr_nacks;	/* Number of nacks */
+		};
+	};
 	struct rxrpc_host_header hdr;	/* RxRPC packet header from this packet */
 };
 
@@ -688,6 +696,7 @@ struct rxrpc_call {
 	u8			cong_dup_acks;	/* Count of ACKs showing missing packets */
 	u8			cong_cumul_acks; /* Cumulative ACK count */
 	ktime_t			cong_tstamp;	/* Last time cwnd was changed */
+	struct sk_buff		*cong_last_nack; /* Last ACK with nacks received */
 
 	/* Receive-phase ACK management (ACKs we send). */
 	u8			ackr_reason;	/* reason to ACK */
@@ -725,7 +734,8 @@ struct rxrpc_call {
 struct rxrpc_ack_summary {
 	u16			nr_acks;		/* Number of ACKs in packet */
 	u16			nr_new_acks;		/* Number of new ACKs in packet */
-	u16			nr_rot_new_acks;	/* Number of rotated new ACKs */
+	u16			nr_new_nacks;		/* Number of new nacks in packet */
+	u16			nr_retained_nacks;	/* Number of nacks retained between ACKs */
 	u8			ack_reason;
 	bool			saw_nacks;		/* Saw NACKs in packet */
 	bool			new_low_nack;		/* T if new low NACK found */
