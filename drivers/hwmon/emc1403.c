@@ -385,7 +385,7 @@ static bool emc1403_regmap_is_volatile(struct device *dev, unsigned int reg)
 static const struct regmap_config emc1403_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = emc1403_regmap_is_volatile,
 };
 
