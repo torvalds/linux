@@ -107,11 +107,6 @@ elif [ -x /usr/bin/kernel-install ]; then
 kernel-install remove %{KERNELRELEASE}
 fi
 
-%postun
-if [ -x /sbin/update-bootloader ]; then
-/sbin/update-bootloader --remove %{KERNELRELEASE}
-fi
-
 %files -f %{buildroot}/kernel.list
 %defattr (-, root, root)
 %exclude /kernel.list
