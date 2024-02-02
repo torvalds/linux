@@ -513,12 +513,12 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 	WRITE_ONCE(*ptep, pteval);
 }
 
-void flush_icache_pte(pte_t pte);
+void flush_icache_pte(struct mm_struct *mm, pte_t pte);
 
-static inline void __set_pte_at(pte_t *ptep, pte_t pteval)
+static inline void __set_pte_at(struct mm_struct *mm, pte_t *ptep, pte_t pteval)
 {
 	if (pte_present(pteval) && pte_exec(pteval))
-		flush_icache_pte(pteval);
+		flush_icache_pte(mm, pteval);
 
 	set_pte(ptep, pteval);
 }
@@ -529,7 +529,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 	page_table_check_ptes_set(mm, ptep, pteval, nr);
 
 	for (;;) {
-		__set_pte_at(ptep, pteval);
+		__set_pte_at(mm, ptep, pteval);
 		if (--nr == 0)
 			break;
 		ptep++;
@@ -541,7 +541,7 @@ static inline void set_ptes(struct mm_struct *mm, unsigned long addr,
 static inline void pte_clear(struct mm_struct *mm,
 	unsigned long addr, pte_t *ptep)
 {
-	__set_pte_at(ptep, __pte(0));
+	__set_pte_at(mm, ptep, __pte(0));
 }
 
 #define __HAVE_ARCH_PTEP_SET_ACCESS_FLAGS	/* defined in mm/pgtable.c */
@@ -713,14 +713,14 @@ static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 				pmd_t *pmdp, pmd_t pmd)
 {
 	page_table_check_pmd_set(mm, pmdp, pmd);
-	return __set_pte_at((pte_t *)pmdp, pmd_pte(pmd));
+	return __set_pte_at(mm, (pte_t *)pmdp, pmd_pte(pmd));
 }
 
 static inline void set_pud_at(struct mm_struct *mm, unsigned long addr,
 				pud_t *pudp, pud_t pud)
 {
 	page_table_check_pud_set(mm, pudp, pud);
-	return __set_pte_at((pte_t *)pudp, pud_pte(pud));
+	return __set_pte_at(mm, (pte_t *)pudp, pud_pte(pud));
 }
 
 #ifdef CONFIG_PAGE_TABLE_CHECK
