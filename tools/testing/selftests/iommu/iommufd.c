@@ -12,6 +12,7 @@
 static unsigned long HUGEPAGE_SIZE;
 
 #define MOCK_PAGE_SIZE (PAGE_SIZE / 2)
+#define MOCK_HUGE_PAGE_SIZE (512 * MOCK_PAGE_SIZE)
 
 static unsigned long get_huge_page_size(void)
 {
@@ -1716,10 +1717,12 @@ FIXTURE(iommufd_dirty_tracking)
 FIXTURE_VARIANT(iommufd_dirty_tracking)
 {
 	unsigned long buffer_size;
+	bool hugepages;
 };
 
 FIXTURE_SETUP(iommufd_dirty_tracking)
 {
+	int mmap_flags;
 	void *vrc;
 	int rc;
 
@@ -1732,9 +1735,17 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 			   variant->buffer_size, rc);
 	}
 
+	mmap_flags = MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED;
+	if (variant->hugepages) {
+		/*
+		 * MAP_POPULATE will cause the kernel to fail mmap if THPs are
+		 * not available.
+		 */
+		mmap_flags |= MAP_HUGETLB | MAP_POPULATE;
+	}
 	assert((uintptr_t)self->buffer % HUGEPAGE_SIZE == 0);
 	vrc = mmap(self->buffer, variant->buffer_size, PROT_READ | PROT_WRITE,
-		   MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+		   mmap_flags, -1, 0);
 	assert(vrc == self->buffer);
 
 	self->page_size = MOCK_PAGE_SIZE;
@@ -1749,8 +1760,16 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 	assert((uintptr_t)self->bitmap % PAGE_SIZE == 0);
 
 	test_ioctl_ioas_alloc(&self->ioas_id);
-	test_cmd_mock_domain(self->ioas_id, &self->stdev_id, &self->hwpt_id,
-			     &self->idev_id);
+	/* Enable 1M mock IOMMU hugepages */
+	if (variant->hugepages) {
+		test_cmd_mock_domain_flags(self->ioas_id,
+					   MOCK_FLAGS_DEVICE_HUGE_IOVA,
+					   &self->stdev_id, &self->hwpt_id,
+					   &self->idev_id);
+	} else {
+		test_cmd_mock_domain(self->ioas_id, &self->stdev_id,
+				     &self->hwpt_id, &self->idev_id);
+	}
 }
 
 FIXTURE_TEARDOWN(iommufd_dirty_tracking)
@@ -1784,10 +1803,24 @@ FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128M)
 	.buffer_size = 128UL * 1024UL * 1024UL,
 };
 
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128M_huge)
+{
+	/* 4K bitmap (128M IOVA range) */
+	.buffer_size = 128UL * 1024UL * 1024UL,
+	.hugepages = true,
+};
+
 FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty256M)
 {
 	/* 8K bitmap (256M IOVA range) */
 	.buffer_size = 256UL * 1024UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty256M_huge)
+{
+	/* 8K bitmap (256M IOVA range) */
+	.buffer_size = 256UL * 1024UL * 1024UL,
+	.hugepages = true,
 };
 
 TEST_F(iommufd_dirty_tracking, enforce_dirty)
@@ -1853,6 +1886,9 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
 	uint32_t hwpt_id;
 	uint32_t ioas_id;
 
+	if (variant->hugepages)
+		page_size = MOCK_HUGE_PAGE_SIZE;
+
 	test_ioctl_ioas_alloc(&ioas_id);
 	test_ioctl_ioas_map_fixed_id(ioas_id, self->buffer,
 				     variant->buffer_size, MOCK_APERTURE_START);
@@ -1886,6 +1922,9 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap_no_clear)
 	uint32_t page_size = MOCK_PAGE_SIZE;
 	uint32_t hwpt_id;
 	uint32_t ioas_id;
+
+	if (variant->hugepages)
+		page_size = MOCK_HUGE_PAGE_SIZE;
 
 	test_ioctl_ioas_alloc(&ioas_id);
 	test_ioctl_ioas_map_fixed_id(ioas_id, self->buffer,
