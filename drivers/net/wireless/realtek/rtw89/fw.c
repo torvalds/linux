@@ -4593,6 +4593,54 @@ fail:
 	return ret;
 }
 
+int rtw89_fw_h2c_rf_tssi(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			 enum rtw89_tssi_mode tssi_mode)
+{
+	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev,
+						       RTW89_SUB_ENTITY_0);
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_h2c_rf_tssi *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c RF TSSI\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_rf_tssi *)skb->data;
+
+	h2c->len = cpu_to_le16(len);
+	h2c->phy = phy_idx;
+	h2c->ch = chan->channel;
+	h2c->bw = chan->band_width;
+	h2c->band = chan->band_type;
+	h2c->hwtx_en = true;
+	h2c->cv = hal->cv;
+	h2c->tssi_mode = tssi_mode;
+
+	rtw89_phy_rfk_tssi_fill_fwcmd_efuse_to_de(rtwdev, phy_idx, chan, h2c);
+	rtw89_phy_rfk_tssi_fill_fwcmd_tmeter_tbl(rtwdev, phy_idx, chan, h2c);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_RFK,
+			      H2C_FUNC_RFK_TSSI_OFFLOAD, 0, 0, len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	struct rtw89_h2c_rf_iqk *h2c;

@@ -888,6 +888,14 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 void rtw89_phy_rfk_report_prep(struct rtw89_dev *rtwdev);
 int rtw89_phy_rfk_report_wait(struct rtw89_dev *rtwdev, const char *rfk_name,
 			      unsigned int ms);
+void rtw89_phy_rfk_tssi_fill_fwcmd_efuse_to_de(struct rtw89_dev *rtwdev,
+					       enum rtw89_phy_idx phy,
+					       const struct rtw89_chan *chan,
+					       struct rtw89_h2c_rf_tssi *h2c);
+void rtw89_phy_rfk_tssi_fill_fwcmd_tmeter_tbl(struct rtw89_dev *rtwdev,
+					      enum rtw89_phy_idx phy,
+					      const struct rtw89_chan *chan,
+					      struct rtw89_h2c_rf_tssi *h2c);
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_cfo_track_work(struct work_struct *work);
 void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,

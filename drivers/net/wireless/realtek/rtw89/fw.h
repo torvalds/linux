@@ -3935,6 +3935,7 @@ enum rtw89_mcc_h2c_func {
 #define H2C_CL_OUTSRC_RF_FW_RFK		0xb
 
 enum rtw89_rfk_offload_h2c_func {
+	H2C_FUNC_RFK_TSSI_OFFLOAD = 0x0,
 	H2C_FUNC_RFK_IQK_OFFLOAD = 0x1,
 	H2C_FUNC_RFK_DPK_OFFLOAD = 0x3,
 	H2C_FUNC_RFK_TXGAPK_OFFLOAD = 0x4,
@@ -3985,6 +3986,35 @@ struct rtw89_fw_h2c_rfk_pre_info {
 		__le32 ch[NUM_OF_RTW89_FW_RFK_PATH];
 		__le32 band[NUM_OF_RTW89_FW_RFK_PATH];
 	} __packed mlo;
+} __packed;
+
+struct rtw89_h2c_rf_tssi {
+	__le16 len;
+	u8 phy;
+	u8 ch;
+	u8 bw;
+	u8 band;
+	u8 hwtx_en;
+	u8 cv;
+	s8 curr_tssi_cck_de[2];
+	s8 curr_tssi_cck_de_20m[2];
+	s8 curr_tssi_cck_de_40m[2];
+	s8 curr_tssi_efuse_cck_de[2];
+	s8 curr_tssi_ofdm_de[2];
+	s8 curr_tssi_ofdm_de_20m[2];
+	s8 curr_tssi_ofdm_de_40m[2];
+	s8 curr_tssi_ofdm_de_80m[2];
+	s8 curr_tssi_ofdm_de_160m[2];
+	s8 curr_tssi_ofdm_de_320m[2];
+	s8 curr_tssi_efuse_ofdm_de[2];
+	s8 curr_tssi_ofdm_de_diff_20m[2];
+	s8 curr_tssi_ofdm_de_diff_80m[2];
+	s8 curr_tssi_ofdm_de_diff_160m[2];
+	s8 curr_tssi_ofdm_de_diff_320m[2];
+	s8 curr_tssi_trim_de[2];
+	u8 pg_thermal[2];
+	u8 ftable[2][128];
+	u8 tssi_mode;
 } __packed;
 
 struct rtw89_h2c_rf_iqk {
@@ -4218,6 +4248,8 @@ int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx);
+int rtw89_fw_h2c_rf_tssi(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx,
+			 enum rtw89_tssi_mode tssi_mode);
 int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_txgapk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
