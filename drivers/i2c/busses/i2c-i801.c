@@ -328,11 +328,27 @@ MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
 	"\t\t  0x10  don't use interrupts\n"
 	"\t\t  0x20  disable SMBus Host Notify ");
 
+static int i801_check_and_clear_pec_error(struct i801_priv *priv)
+{
+	u8 status;
+
+	if (!(priv->features & FEATURE_SMBUS_PEC))
+		return 0;
+
+	status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
+	if (status) {
+		outb_p(status, SMBAUXSTS(priv));
+		return -EBADMSG;
+	}
+
+	return 0;
+}
+
 /* Make sure the SMBus host is ready to start transmitting.
    Return 0 if it is, -EBUSY if it is not. */
 static int i801_check_pre(struct i801_priv *priv)
 {
-	int status;
+	int status, result;
 
 	status = inb_p(SMBHSTSTS(priv));
 	if (status & SMBHSTSTS_HOST_BUSY) {
@@ -353,13 +369,9 @@ static int i801_check_pre(struct i801_priv *priv)
 	 * the hardware was already in this state when the driver
 	 * started.
 	 */
-	if (priv->features & FEATURE_SMBUS_PEC) {
-		status = inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE;
-		if (status) {
-			pci_dbg(priv->pci_dev, "Clearing aux status flags (%02x)\n", status);
-			outb_p(status, SMBAUXSTS(priv));
-		}
-	}
+	result = i801_check_and_clear_pec_error(priv);
+	if (result)
+		pci_dbg(priv->pci_dev, "Clearing aux status flag CRCE\n");
 
 	return 0;
 }
@@ -408,14 +420,12 @@ static int i801_check_post(struct i801_priv *priv, int status)
 		 * bit is harmless as long as it's cleared before
 		 * the next operation.
 		 */
-		if ((priv->features & FEATURE_SMBUS_PEC) &&
-		    (inb_p(SMBAUXSTS(priv)) & SMBAUXSTS_CRCE)) {
-			outb_p(SMBAUXSTS_CRCE, SMBAUXSTS(priv));
-			result = -EBADMSG;
-			dev_dbg(&priv->pci_dev->dev, "PEC error\n");
+		result = i801_check_and_clear_pec_error(priv);
+		if (result) {
+			pci_dbg(priv->pci_dev, "PEC error\n");
 		} else {
 			result = -ENXIO;
-			dev_dbg(&priv->pci_dev->dev, "No response\n");
+			pci_dbg(priv->pci_dev, "No response\n");
 		}
 	}
 	if (status & SMBHSTSTS_BUS_ERR) {
