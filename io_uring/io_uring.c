@@ -1173,10 +1173,10 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, struct io_tw_state *ts)
 	percpu_ref_put(&ctx->refs);
 }
 
-static unsigned int handle_tw_list(struct llist_node *node,
-				   struct io_ring_ctx **ctx,
-				   struct io_tw_state *ts)
+static unsigned int handle_tw_list(struct llist_node *node)
 {
+	struct io_ring_ctx *ctx = NULL;
+	struct io_tw_state ts = { };
 	unsigned int count = 0;
 
 	do {
@@ -1184,25 +1184,26 @@ static unsigned int handle_tw_list(struct llist_node *node,
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
 
-		if (req->ctx != *ctx) {
-			ctx_flush_and_put(*ctx, ts);
-			*ctx = req->ctx;
+		if (req->ctx != ctx) {
+			ctx_flush_and_put(ctx, &ts);
+			ctx = req->ctx;
 			/* if not contended, grab and improve batching */
-			ts->locked = mutex_trylock(&(*ctx)->uring_lock);
-			percpu_ref_get(&(*ctx)->refs);
+			ts.locked = mutex_trylock(&ctx->uring_lock);
+			percpu_ref_get(&ctx->refs);
 		}
 		INDIRECT_CALL_2(req->io_task_work.func,
 				io_poll_task_func, io_req_rw_complete,
-				req, ts);
+				req, &ts);
 		node = next;
 		count++;
 		if (unlikely(need_resched())) {
-			ctx_flush_and_put(*ctx, ts);
-			*ctx = NULL;
+			ctx_flush_and_put(ctx, &ts);
+			ctx = NULL;
 			cond_resched();
 		}
 	} while (node);
 
+	ctx_flush_and_put(ctx, &ts);
 	return count;
 }
 
@@ -1250,8 +1251,6 @@ static __cold void io_fallback_tw(struct io_uring_task *tctx, bool sync)
 
 void tctx_task_work(struct callback_head *cb)
 {
-	struct io_tw_state ts = {};
-	struct io_ring_ctx *ctx = NULL;
 	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
 						  task_work);
 	struct llist_node *node;
@@ -1264,9 +1263,7 @@ void tctx_task_work(struct callback_head *cb)
 
 	node = llist_del_all(&tctx->task_list);
 	if (node)
-		count = handle_tw_list(llist_reverse_order(node), &ctx, &ts);
-
-	ctx_flush_and_put(ctx, &ts);
+		count = handle_tw_list(llist_reverse_order(node));
 
 	/* relaxed read is enough as only the task itself sets ->in_cancel */
 	if (unlikely(atomic_read(&tctx->in_cancel)))
