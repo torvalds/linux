@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/minmax.h>
 #include "misc.h"
 #include "ctree.h"
 #include "space-info.h"
@@ -190,6 +191,8 @@ void btrfs_clear_space_info_full(struct btrfs_fs_info *info)
  */
 #define BTRFS_DEFAULT_ZONED_RECLAIM_THRESH			(75)
 
+#define BTRFS_UNALLOC_BLOCK_GROUP_TARGET			(10ULL)
+
 /*
  * Calculate chunk size depending on volume type (regular or zoned).
  */
@@ -341,11 +344,32 @@ struct btrfs_space_info *btrfs_find_space_info(struct btrfs_fs_info *info,
 	return NULL;
 }
 
+static u64 calc_effective_data_chunk_size(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_space_info *data_sinfo;
+	u64 data_chunk_size;
+
+	/*
+	 * Calculate the data_chunk_size, space_info->chunk_size is the
+	 * "optimal" chunk size based on the fs size.  However when we actually
+	 * allocate the chunk we will strip this down further, making it no
+	 * more than 10% of the disk or 1G, whichever is smaller.
+	 *
+	 * On the zoned mode, we need to use zone_size (= data_sinfo->chunk_size)
+	 * as it is.
+	 */
+	data_sinfo = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
+	if (btrfs_is_zoned(fs_info))
+		return data_sinfo->chunk_size;
+	data_chunk_size = min(data_sinfo->chunk_size,
+			      mult_perc(fs_info->fs_devices->total_rw_bytes, 10));
+	return min_t(u64, data_chunk_size, SZ_1G);
+}
+
 static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 			  struct btrfs_space_info *space_info,
 			  enum btrfs_reserve_flush_enum flush)
 {
-	struct btrfs_space_info *data_sinfo;
 	u64 profile;
 	u64 avail;
 	u64 data_chunk_size;
@@ -369,23 +393,7 @@ static u64 calc_available_free_space(struct btrfs_fs_info *fs_info,
 	if (avail == 0)
 		return 0;
 
-	/*
-	 * Calculate the data_chunk_size, space_info->chunk_size is the
-	 * "optimal" chunk size based on the fs size.  However when we actually
-	 * allocate the chunk we will strip this down further, making it no more
-	 * than 10% of the disk or 1G, whichever is smaller.
-	 *
-	 * On the zoned mode, we need to use zone_size (=
-	 * data_sinfo->chunk_size) as it is.
-	 */
-	data_sinfo = btrfs_find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
-	if (!btrfs_is_zoned(fs_info)) {
-		data_chunk_size = min(data_sinfo->chunk_size,
-				      mult_perc(fs_info->fs_devices->total_rw_bytes, 10));
-		data_chunk_size = min_t(u64, data_chunk_size, SZ_1G);
-	} else {
-		data_chunk_size = data_sinfo->chunk_size;
-	}
+	data_chunk_size = calc_effective_data_chunk_size(fs_info);
 
 	/*
 	 * Since data allocations immediately use block groups as part of the
@@ -1877,4 +1885,87 @@ u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo)
 	spin_unlock(&sinfo->lock);
 
 	return free_bytes;
+}
+
+static u64 calc_pct_ratio(u64 x, u64 y)
+{
+	int err;
+
+	if (!y)
+		return 0;
+again:
+	err = check_mul_overflow(100, x, &x);
+	if (err)
+		goto lose_precision;
+	return div64_u64(x, y);
+lose_precision:
+	x >>= 10;
+	y >>= 10;
+	if (!y)
+		y = 1;
+	goto again;
+}
+
+/*
+ * A reasonable buffer for unallocated space is 10 data block_groups.
+ * If we claw this back repeatedly, we can still achieve efficient
+ * utilization when near full, and not do too much reclaim while
+ * always maintaining a solid buffer for workloads that quickly
+ * allocate and pressure the unallocated space.
+ */
+static u64 calc_unalloc_target(struct btrfs_fs_info *fs_info)
+{
+	return BTRFS_UNALLOC_BLOCK_GROUP_TARGET * calc_effective_data_chunk_size(fs_info);
+}
+
+/*
+ * The fundamental goal of automatic reclaim is to protect the filesystem's
+ * unallocated space and thus minimize the probability of the filesystem going
+ * read only when a metadata allocation failure causes a transaction abort.
+ *
+ * However, relocations happen into the space_info's unused space, therefore
+ * automatic reclaim must also back off as that space runs low. There is no
+ * value in doing trivial "relocations" of re-writing the same block group
+ * into a fresh one.
+ *
+ * Furthermore, we want to avoid doing too much reclaim even if there are good
+ * candidates. This is because the allocator is pretty good at filling up the
+ * holes with writes. So we want to do just enough reclaim to try and stay
+ * safe from running out of unallocated space but not be wasteful about it.
+ *
+ * Therefore, the dynamic reclaim threshold is calculated as follows:
+ * - calculate a target unallocated amount of 5 block group sized chunks
+ * - ratchet up the intensity of reclaim depending on how far we are from
+ *   that target by using a formula of unalloc / target to set the threshold.
+ *
+ * Typically with 10 block groups as the target, the discrete values this comes
+ * out to are 0, 10, 20, ... , 80, 90, and 99.
+ */
+static int calc_dynamic_reclaim_threshold(struct btrfs_space_info *space_info)
+{
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
+	u64 unalloc = atomic64_read(&fs_info->free_chunk_space);
+	u64 target = calc_unalloc_target(fs_info);
+	u64 alloc = space_info->total_bytes;
+	u64 used = btrfs_space_info_used(space_info, false);
+	u64 unused = alloc - used;
+	u64 want = target > unalloc ? target - unalloc : 0;
+	u64 data_chunk_size = calc_effective_data_chunk_size(fs_info);
+	/* Cast to int is OK because want <= target */
+	int ratio = calc_pct_ratio(want, target);
+
+	/* If we have no unused space, don't bother, it won't work anyway */
+	if (unused < data_chunk_size)
+		return 0;
+
+	return ratio;
+}
+
+int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info)
+{
+	lockdep_assert_held(&space_info->lock);
+
+	if (READ_ONCE(space_info->dynamic_reclaim))
+		return calc_dynamic_reclaim_threshold(space_info);
+	return READ_ONCE(space_info->bg_reclaim_threshold);
 }

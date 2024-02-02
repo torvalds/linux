@@ -905,8 +905,12 @@ static ssize_t btrfs_sinfo_bg_reclaim_threshold_show(struct kobject *kobj,
 						     char *buf)
 {
 	struct btrfs_space_info *space_info = to_space_info(kobj);
+	ssize_t ret;
 
-	return sysfs_emit(buf, "%d\n", READ_ONCE(space_info->bg_reclaim_threshold));
+	spin_lock(&space_info->lock);
+	ret = sysfs_emit(buf, "%d\n", btrfs_calc_reclaim_threshold(space_info));
+	spin_unlock(&space_info->lock);
+	return ret;
 }
 
 static ssize_t btrfs_sinfo_bg_reclaim_threshold_store(struct kobject *kobj,
@@ -916,6 +920,9 @@ static ssize_t btrfs_sinfo_bg_reclaim_threshold_store(struct kobject *kobj,
 	struct btrfs_space_info *space_info = to_space_info(kobj);
 	int thresh;
 	int ret;
+
+	if (READ_ONCE(space_info->dynamic_reclaim))
+		return -EINVAL;
 
 	ret = kstrtoint(buf, 10, &thresh);
 	if (ret)
@@ -932,6 +939,39 @@ static ssize_t btrfs_sinfo_bg_reclaim_threshold_store(struct kobject *kobj,
 BTRFS_ATTR_RW(space_info, bg_reclaim_threshold,
 	      btrfs_sinfo_bg_reclaim_threshold_show,
 	      btrfs_sinfo_bg_reclaim_threshold_store);
+
+static ssize_t btrfs_sinfo_dynamic_reclaim_show(struct kobject *kobj,
+						struct kobj_attribute *a,
+						char *buf)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+
+	return sysfs_emit(buf, "%d\n", READ_ONCE(space_info->dynamic_reclaim));
+}
+
+static ssize_t btrfs_sinfo_dynamic_reclaim_store(struct kobject *kobj,
+						 struct kobj_attribute *a,
+						 const char *buf, size_t len)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+	int dynamic_reclaim;
+	int ret;
+
+	ret = kstrtoint(buf, 10, &dynamic_reclaim);
+	if (ret)
+		return ret;
+
+	if (dynamic_reclaim < 0)
+		return -EINVAL;
+
+	WRITE_ONCE(space_info->dynamic_reclaim, dynamic_reclaim != 0);
+
+	return len;
+}
+
+BTRFS_ATTR_RW(space_info, dynamic_reclaim,
+	      btrfs_sinfo_dynamic_reclaim_show,
+	      btrfs_sinfo_dynamic_reclaim_store);
 
 /*
  * Allocation information about block group types.
@@ -950,6 +990,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(space_info, disk_used),
 	BTRFS_ATTR_PTR(space_info, disk_total),
 	BTRFS_ATTR_PTR(space_info, bg_reclaim_threshold),
+	BTRFS_ATTR_PTR(space_info, dynamic_reclaim),
 	BTRFS_ATTR_PTR(space_info, chunk_size),
 	BTRFS_ATTR_PTR(space_info, size_classes),
 	BTRFS_ATTR_PTR(space_info, reclaim_count),
