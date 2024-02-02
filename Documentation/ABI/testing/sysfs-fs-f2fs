@@ -205,7 +205,7 @@ Description:	Controls the idle timing of system, if there is no FS operation
 What:		/sys/fs/f2fs/<disk>/discard_idle_interval
 Date:		September 2018
 Contact:	"Chao Yu" <yuchao0@huawei.com>
-Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Contact:	"Sahitya Tummala" <quic_stummala@quicinc.com>
 Description:	Controls the idle timing of discard thread given
 		this time interval.
 		Default is 5 secs.
@@ -213,7 +213,7 @@ Description:	Controls the idle timing of discard thread given
 What:		/sys/fs/f2fs/<disk>/gc_idle_interval
 Date:		September 2018
 Contact:	"Chao Yu" <yuchao0@huawei.com>
-Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Contact:	"Sahitya Tummala" <quic_stummala@quicinc.com>
 Description:    Controls the idle timing for gc path. Set to 5 seconds by default.
 
 What:		/sys/fs/f2fs/<disk>/iostat_enable
