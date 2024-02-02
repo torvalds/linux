@@ -1144,11 +1144,6 @@ static int de_thread(struct task_struct *tsk)
 		BUG_ON(leader->exit_state != EXIT_ZOMBIE);
 		leader->exit_state = EXIT_DEAD;
 		/*
-		 * leader and tsk exhanged their pids, the old pid dies,
-		 * wake up the PIDFD_THREAD waiters.
-		 */
-		do_notify_pidfd(leader);
-		/*
 		 * We are going to release_task()->ptrace_unlink() silently,
 		 * the tracer can sleep in do_wait(). EXIT_DEAD guarantees
 		 * the tracer won't block again waiting for this thread.
