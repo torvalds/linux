@@ -506,7 +506,7 @@ struct rxrpc_connection {
 	enum rxrpc_call_completion completion;	/* Completion condition */
 	s32			abort_code;	/* Abort code of connection abort */
 	int			debug_id;	/* debug ID for printks */
-	atomic_t		serial;		/* packet serial number counter */
+	rxrpc_serial_t		tx_serial;	/* Outgoing packet serial number counter */
 	unsigned int		hi_serial;	/* highest serial number received */
 	u32			service_id;	/* Service ID, possibly upgraded */
 	u32			security_level;	/* Security level selected */
@@ -817,6 +817,20 @@ static inline bool rxrpc_sending_to_client(const struct rxrpc_txbuf *txb)
 }
 
 #include <trace/events/rxrpc.h>
+
+/*
+ * Allocate the next serial number on a connection.  0 must be skipped.
+ */
+static inline rxrpc_serial_t rxrpc_get_next_serial(struct rxrpc_connection *conn)
+{
+	rxrpc_serial_t serial;
+
+	serial = conn->tx_serial;
+	if (serial == 0)
+		serial = 1;
+	conn->tx_serial = serial + 1;
+	return serial;
+}
 
 /*
  * af_rxrpc.c
