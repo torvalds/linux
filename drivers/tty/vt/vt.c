@@ -2628,10 +2628,14 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		vc->vc_priv = EPecma;
 		fallthrough;
 	case ESgetpars: /* ESC [ aka CSI, parameters expected */
-		if (c == ';' && vc->vc_npar < NPAR - 1) {
-			vc->vc_npar++;
-			return;
-		} else if (c>='0' && c<='9') {
+		switch (c) {
+		case ';':
+			if (vc->vc_npar < NPAR - 1) {
+				vc->vc_npar++;
+				return;
+			}
+			break;
+		case '0' ... '9':
 			vc->vc_par[vc->vc_npar] *= 10;
 			vc->vc_par[vc->vc_npar] += c - '0';
 			return;
