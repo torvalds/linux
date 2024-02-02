@@ -8730,7 +8730,9 @@
 #define B_PRT_COM_RXBB_V1 GENMASK(4, 0)
 #define B_PRT_COM_DONE BIT(0)
 #define R_COEF_SEL 0x8104
+#define R_COEF_SEL_C1 0x8204
 #define B_COEF_SEL_IQC BIT(0)
+#define B_COEF_SEL_IQC_V1 GENMASK(1, 0)
 #define B_COEF_SEL_MDPD BIT(8)
 #define R_CFIR_SYS 0x8120
 #define R_IQK_RES 0x8124

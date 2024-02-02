@@ -4520,6 +4520,79 @@ fail:
 }
 EXPORT_SYMBOL(rtw89_fw_h2c_rf_ntfy_mcc);
 
+int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
+			     enum rtw89_phy_idx phy_idx)
+{
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
+	struct rtw89_fw_h2c_rfk_pre_info *h2c;
+	u8 tbl_sel = rfk_mcc->table_idx;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	u8 tbl, path;
+	u32 val32;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c rfk_pre_ntfy\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_fw_h2c_rfk_pre_info *)skb->data;
+
+	h2c->mlo_mode = cpu_to_le32(rtwdev->mlo_dbcc_mode);
+
+	BUILD_BUG_ON(NUM_OF_RTW89_FW_RFK_TBL > RTW89_RFK_CHS_NR);
+
+	for (tbl = 0; tbl < NUM_OF_RTW89_FW_RFK_TBL; tbl++) {
+		for (path = 0; path < NUM_OF_RTW89_FW_RFK_PATH; path++) {
+			h2c->dbcc.ch[path][tbl] = cpu_to_le32(rfk_mcc->ch[tbl]);
+			h2c->dbcc.band[path][tbl] = cpu_to_le32(rfk_mcc->band[tbl]);
+		}
+	}
+
+	for (path = 0; path < NUM_OF_RTW89_FW_RFK_PATH; path++) {
+		h2c->tbl.cur_ch[path] = cpu_to_le32(rfk_mcc->ch[tbl_sel]);
+		h2c->tbl.cur_band[path] = cpu_to_le32(rfk_mcc->band[tbl_sel]);
+	}
+
+	h2c->phy_idx = cpu_to_le32(phy_idx);
+	h2c->cur_band = cpu_to_le32(rfk_mcc->band[tbl_sel]);
+	h2c->cur_bw = cpu_to_le32(rfk_mcc->bw[tbl_sel]);
+	h2c->cur_center_ch = cpu_to_le32(rfk_mcc->ch[tbl_sel]);
+
+	val32 = rtw89_phy_read32_mask(rtwdev, R_COEF_SEL, B_COEF_SEL_IQC_V1);
+	h2c->ktbl_sel0 = cpu_to_le32(val32);
+	val32 = rtw89_phy_read32_mask(rtwdev, R_COEF_SEL_C1, B_COEF_SEL_IQC_V1);
+	h2c->ktbl_sel1 = cpu_to_le32(val32);
+	val32 = rtw89_read_rf(rtwdev, RF_PATH_A, RR_CFGCH, RFREG_MASK);
+	h2c->rfmod0 = cpu_to_le32(val32);
+	val32 = rtw89_read_rf(rtwdev, RF_PATH_B, RR_CFGCH, RFREG_MASK);
+	h2c->rfmod1 = cpu_to_le32(val32);
+
+	if (rtw89_is_mlo_1_1(rtwdev))
+		h2c->mlo_1_1 = cpu_to_le32(1);
+
+	h2c->rfe_type = cpu_to_le32(rtwdev->efuse.rfe_type);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, H2C_CL_OUTSRC_RF_FW_RFK,
+			      H2C_FUNC_RFK_PRE_NOTIFY, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack)

@@ -4282,14 +4282,17 @@ struct rtw89_dack_info {
 	bool msbk_timeout[RTW89_DACK_PATH_NR];
 };
 
-#define RTW89_IQK_CHS_NR 2
-#define RTW89_IQK_PATH_NR 4
+#define RTW89_RFK_CHS_NR 3
 
 struct rtw89_rfk_mcc_info {
-	u8 ch[RTW89_IQK_CHS_NR];
-	u8 band[RTW89_IQK_CHS_NR];
+	u8 ch[RTW89_RFK_CHS_NR];
+	u8 band[RTW89_RFK_CHS_NR];
+	u8 bw[RTW89_RFK_CHS_NR];
 	u8 table_idx;
 };
+
+#define RTW89_IQK_CHS_NR 2
+#define RTW89_IQK_PATH_NR 4
 
 struct rtw89_lck_info {
 	u8 thermal[RF_PATH_MAX];

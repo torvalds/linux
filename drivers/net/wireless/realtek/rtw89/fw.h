@@ -3932,6 +3932,11 @@ enum rtw89_mcc_h2c_func {
 #define H2C_CL_OUTSRC_RF_REG_B		0x9
 #define H2C_CL_OUTSRC_RF_FW_NOTIFY	0xa
 #define H2C_FUNC_OUTSRC_RF_GET_MCCCH	0x2
+#define H2C_CL_OUTSRC_RF_FW_RFK		0xb
+
+enum rtw89_rfk_offload_h2c_func {
+	H2C_FUNC_RFK_PRE_NOTIFY = 0x8,
+};
 
 struct rtw89_fw_h2c_rf_get_mccch {
 	__le32 ch_0;
@@ -3940,6 +3945,41 @@ struct rtw89_fw_h2c_rf_get_mccch {
 	__le32 band_1;
 	__le32 current_channel;
 	__le32 current_band_type;
+} __packed;
+
+#define NUM_OF_RTW89_FW_RFK_PATH 2
+#define NUM_OF_RTW89_FW_RFK_TBL 3
+
+struct rtw89_fw_h2c_rfk_pre_info {
+	struct {
+		__le32 ch[NUM_OF_RTW89_FW_RFK_PATH][NUM_OF_RTW89_FW_RFK_TBL];
+		__le32 band[NUM_OF_RTW89_FW_RFK_PATH][NUM_OF_RTW89_FW_RFK_TBL];
+	} __packed dbcc;
+
+	__le32 mlo_mode;
+	struct {
+		__le32 cur_ch[NUM_OF_RTW89_FW_RFK_PATH];
+		__le32 cur_band[NUM_OF_RTW89_FW_RFK_PATH];
+	} __packed tbl;
+
+	__le32 phy_idx;
+	__le32 cur_band;
+	__le32 cur_bw;
+	__le32 cur_center_ch;
+
+	__le32 ktbl_sel0;
+	__le32 ktbl_sel1;
+	__le32 rfmod0;
+	__le32 rfmod1;
+
+	__le32 mlo_1_1;
+	__le32 rfe_type;
+	__le32 drv_mode;
+
+	struct {
+		__le32 ch[NUM_OF_RTW89_FW_RFK_PATH];
+		__le32 band[NUM_OF_RTW89_FW_RFK_PATH];
+	} __packed mlo;
 } __packed;
 
 enum rtw89_rf_log_type {
@@ -4127,6 +4167,8 @@ int rtw89_fw_h2c_rf_reg(struct rtw89_dev *rtwdev,
 			struct rtw89_fw_h2c_rf_reg_info *info,
 			u16 len, u8 page);
 int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
+			     enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack);
