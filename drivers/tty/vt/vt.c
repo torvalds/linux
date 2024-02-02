@@ -2573,17 +2573,19 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		handle_esc(tty, vc, c);
 		return;
 	case ESnonstd:	/* ESC ] aka OSC */
-		if (c=='P') {   /* palette escape sequence */
+		switch (c) {
+		case 'P': /* palette escape sequence */
 			vc_reset_params(vc);
 			vc->vc_state = ESpalette;
 			return;
-		} else if (c=='R') {   /* reset palette */
+		case 'R': /* reset palette */
 			reset_palette(vc);
-			vc->vc_state = ESnormal;
-		} else if (c>='0' && c<='9')
+			break;
+		case '0' ... '9':
 			vc->vc_state = ESosc;
-		else
-			vc->vc_state = ESnormal;
+			return;
+		}
+		vc->vc_state = ESnormal;
 		return;
 	case ESpalette:	/* ESC ] P aka OSC P */
 		if (isxdigit(c)) {
