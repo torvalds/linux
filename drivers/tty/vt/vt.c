@@ -2548,6 +2548,12 @@ static void csi_ECMA(struct tty_struct *tty, struct vc_data *vc, u8 c)
 
 }
 
+static void vc_reset_params(struct vc_data *vc)
+{
+	memset(vc->vc_par, 0, sizeof(vc->vc_par));
+	vc->vc_npar = 0;
+}
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 {
@@ -2568,9 +2574,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 		return;
 	case ESnonstd:	/* ESC ] aka OSC */
 		if (c=='P') {   /* palette escape sequence */
-			for (vc->vc_npar = 0; vc->vc_npar < NPAR; vc->vc_npar++)
-				vc->vc_par[vc->vc_npar] = 0;
-			vc->vc_npar = 0;
+			vc_reset_params(vc);
 			vc->vc_state = ESpalette;
 			return;
 		} else if (c=='R') {   /* reset palette */
@@ -2599,9 +2603,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			vc->vc_state = ESnormal;
 		return;
 	case ESsquare:	/* ESC [ aka CSI, parameters or modifiers expected */
-		for (vc->vc_npar = 0; vc->vc_npar < NPAR; vc->vc_npar++)
-			vc->vc_par[vc->vc_npar] = 0;
-		vc->vc_npar = 0;
+		vc_reset_params(vc);
+
 		vc->vc_state = ESgetpars;
 		switch (c) {
 		case '[': /* Function key */
