@@ -20,6 +20,14 @@ menuconfig COMMON_CLK_QCOM
 
 if COMMON_CLK_QCOM
 
+config CLK_X1E80100_CAMCC
+	tristate "X1E80100 Camera Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	help
+	  Support for the camera clock controller on X1E80100 devices.
+	  Say Y if you want to support camera devices and camera functionality.
+
 config CLK_X1E80100_DISPCC
 	tristate "X1E80100 Display Clock Controller"
 	depends on ARM64 || COMPILE_TEST
