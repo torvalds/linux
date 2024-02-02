@@ -7,6 +7,7 @@
 #include <linux/delay.h>
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
+#include "adf_pfvf_pf_msg.h"
 
 struct adf_fatal_error_data {
 	struct adf_accel_dev *accel_dev;
@@ -189,6 +190,8 @@ static void adf_notify_fatal_error_worker(struct work_struct *work)
 		/* Disable arbitration to stop processing of new requests */
 		if (hw_device->exit_arb)
 			hw_device->exit_arb(accel_dev);
+		if (accel_dev->pf.vf_info)
+			adf_pf2vf_notify_fatal_error(accel_dev);
 	}
 
 	kfree(wq_data);

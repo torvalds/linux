@@ -103,6 +103,7 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 		return;
 
 	adf_pf2vf_notify_restarting(accel_dev);
+	adf_pf2vf_wait_for_restarting_complete(accel_dev);
 	pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
 	/* Disable VF to PF interrupts */
