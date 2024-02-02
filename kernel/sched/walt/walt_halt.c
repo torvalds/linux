@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
@@ -288,7 +288,7 @@ void restrict_cpus_and_freq(struct cpumask *cpus)
 		}
 	}
 
-	update_fmax_cap_capacities(PARTIAL_HALT_CAP);
+	update_fmax_cap_capacities();
 }
 
 struct task_struct *walt_drain_thread;
