@@ -1413,7 +1413,7 @@ int phy_sfp_probe(struct phy_device *phydev,
 }
 EXPORT_SYMBOL(phy_sfp_probe);
 
-static bool phy_drv_supports_irq(struct phy_driver *phydrv)
+static bool phy_drv_supports_irq(const struct phy_driver *phydrv)
 {
 	return phydrv->config_intr && phydrv->handle_interrupt;
 }
@@ -1867,7 +1867,7 @@ int phy_suspend(struct phy_device *phydev)
 {
 	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct net_device *netdev = phydev->attached_dev;
-	struct phy_driver *phydrv = phydev->drv;
+	const struct phy_driver *phydrv = phydev->drv;
 	int ret;
 
 	if (phydev->suspended)
@@ -1892,7 +1892,7 @@ EXPORT_SYMBOL(phy_suspend);
 
 int __phy_resume(struct phy_device *phydev)
 {
-	struct phy_driver *phydrv = phydev->drv;
+	const struct phy_driver *phydrv = phydev->drv;
 	int ret;
 
 	lockdep_assert_held(&phydev->lock);

@@ -638,7 +638,7 @@ struct phy_device {
 
 	/* Information about the PHY type */
 	/* And management functions */
-	struct phy_driver *drv;
+	const struct phy_driver *drv;
 
 	struct device_link *devlink;
 
