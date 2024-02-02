@@ -511,10 +511,9 @@ static int hgsl_alloc_pages(struct device *dev, uint32_t requested_pcount,
 		for (i = 0; i < pcount; i++)
 			pages[i] = nth_page(page, i);
 		_dma_cache_op(dev, page, pcount, GSL_CACHEFLAGS_FLUSH);
-	}
-
-	mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
+		mod_node_page_state(page_pgdat(page), NR_KERNEL_MISC_RECLAIMABLE,
 						(1 << order));
+	}
 
 	return pcount;
 }
