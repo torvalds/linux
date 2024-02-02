@@ -2338,6 +2338,43 @@ static void handle_esc(struct tty_struct *tty, struct vc_data *vc, u8 c)
 	}
 }
 
+/*
+ * Handle special DEC control sequences ("ESC [ ? parameters char"). Parameters
+ * are in @vc->vc_par and the char is in @c here.
+ */
+static void csi_DEC(struct tty_struct *tty, struct vc_data *vc, u8 c)
+{
+	switch (c) {
+	case 'h':
+		csi_DEC_hl(vc, true);
+		break;
+	case 'l':
+		csi_DEC_hl(vc, false);
+		break;
+	case 'c':
+		if (vc->vc_par[0])
+			vc->vc_cursor_type = CUR_MAKE(vc->vc_par[0],
+						      vc->vc_par[1],
+						      vc->vc_par[2]);
+		else
+			vc->vc_cursor_type = cur_default;
+		break;
+	case 'm':
+		clear_selection();
+		if (vc->vc_par[0])
+			vc->vc_complement_mask = vc->vc_par[0] << 8 | vc->vc_par[1];
+		else
+			vc->vc_complement_mask = vc->vc_s_complement_mask;
+		break;
+	case 'n':
+		if (vc->vc_par[0] == 5)
+			status_report(tty);
+		else if (vc->vc_par[0] == 6)
+			cursor_report(vc, tty);
+		break;
+	}
+}
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 {
@@ -2427,40 +2464,16 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			return;
 		}
 		vc->vc_state = ESnormal;
-		switch(c) {
-		case 'h':
-			if (vc->vc_priv == EPdec)
-				csi_DEC_hl(vc, true);
+
+		switch (vc->vc_priv) {
+		case EPdec:
+			csi_DEC(tty, vc, c);
 			return;
-		case 'l':
-			if (vc->vc_priv == EPdec)
-				csi_DEC_hl(vc, false);
+		case EPecma:
+			break;
+		default:
 			return;
-		case 'c':
-			if (vc->vc_priv == EPdec) {
-				if (vc->vc_par[0])
-					vc->vc_cursor_type =
-						CUR_MAKE(vc->vc_par[0],
-							 vc->vc_par[1],
-							 vc->vc_par[2]);
-				else
-					vc->vc_cursor_type = cur_default;
-				return;
-			}
-			break;
-		case 'm':
-			if (vc->vc_priv == EPdec) {
-				clear_selection();
-				if (vc->vc_par[0])
-					vc->vc_complement_mask = vc->vc_par[0] << 8 | vc->vc_par[1];
-				else
-					vc->vc_complement_mask = vc->vc_s_complement_mask;
-				return;
-			}
-			break;
 		}
-		if (vc->vc_priv != EPecma)
-			return;
 
 		switch(c) {
 		case 'G':
