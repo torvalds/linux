@@ -155,6 +155,43 @@ static const struct file_operations adf_hb_cfg_fops = {
 	.write = adf_hb_cfg_write,
 };
 
+static ssize_t adf_hb_error_inject_write(struct file *file,
+					 const char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct adf_accel_dev *accel_dev = file->private_data;
+	size_t written_chars;
+	char buf[3];
+	int ret;
+
+	/* last byte left as string termination */
+	if (count != 2)
+		return -EINVAL;
+
+	written_chars = simple_write_to_buffer(buf, sizeof(buf) - 1,
+					       ppos, user_buf, count);
+	if (buf[0] != '1')
+		return -EINVAL;
+
+	ret = adf_heartbeat_inject_error(accel_dev);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev),
+			"Heartbeat error injection failed with status %d\n",
+			ret);
+		return ret;
+	}
+
+	dev_info(&GET_DEV(accel_dev), "Heartbeat error injection enabled\n");
+
+	return written_chars;
+}
+
+static const struct file_operations adf_hb_error_inject_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.write = adf_hb_error_inject_write,
+};
+
 void adf_heartbeat_dbgfs_add(struct adf_accel_dev *accel_dev)
 {
 	struct adf_heartbeat *hb = accel_dev->heartbeat;
@@ -171,6 +208,17 @@ void adf_heartbeat_dbgfs_add(struct adf_accel_dev *accel_dev)
 					       &hb->hb_failed_counter, &adf_hb_stats_fops);
 	hb->dbgfs.cfg = debugfs_create_file("config", 0600, hb->dbgfs.base_dir,
 					    accel_dev, &adf_hb_cfg_fops);
+
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_QAT_ERROR_INJECTION)) {
+		struct dentry *inject_error __maybe_unused;
+
+		inject_error = debugfs_create_file("inject_error", 0200,
+						   hb->dbgfs.base_dir, accel_dev,
+						   &adf_hb_error_inject_fops);
+#ifdef CONFIG_CRYPTO_DEV_QAT_ERROR_INJECTION
+		hb->dbgfs.inject_error = inject_error;
+#endif
+	}
 }
 EXPORT_SYMBOL_GPL(adf_heartbeat_dbgfs_add);
 
@@ -189,6 +237,10 @@ void adf_heartbeat_dbgfs_rm(struct adf_accel_dev *accel_dev)
 	hb->dbgfs.failed = NULL;
 	debugfs_remove(hb->dbgfs.cfg);
 	hb->dbgfs.cfg = NULL;
+#ifdef CONFIG_CRYPTO_DEV_QAT_ERROR_INJECTION
+	debugfs_remove(hb->dbgfs.inject_error);
+	hb->dbgfs.inject_error = NULL;
+#endif
 	debugfs_remove(hb->dbgfs.base_dir);
 	hb->dbgfs.base_dir = NULL;
 }

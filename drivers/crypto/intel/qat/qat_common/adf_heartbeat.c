@@ -23,12 +23,6 @@
 
 #define ADF_HB_EMPTY_SIG 0xA5A5A5A5
 
-/* Heartbeat counter pair */
-struct hb_cnt_pair {
-	__u16 resp_heartbeat_cnt;
-	__u16 req_heartbeat_cnt;
-};
-
 static int adf_hb_check_polling_freq(struct adf_accel_dev *accel_dev)
 {
 	u64 curr_time = adf_clock_get_current_time();
