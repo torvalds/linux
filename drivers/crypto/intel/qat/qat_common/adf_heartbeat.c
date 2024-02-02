@@ -229,6 +229,9 @@ void adf_heartbeat_status(struct adf_accel_dev *accel_dev,
 			"Heartbeat ERROR: QAT is not responding.\n");
 		*hb_status = HB_DEV_UNRESPONSIVE;
 		hb->hb_failed_counter++;
+		if (adf_notify_fatal_error(accel_dev))
+			dev_err(&GET_DEV(accel_dev),
+				"Failed to notify fatal error\n");
 		return;
 	}
 

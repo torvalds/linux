@@ -139,8 +139,13 @@ static bool adf_handle_ras_int(struct adf_accel_dev *accel_dev)
 
 	if (ras_ops->handle_interrupt &&
 	    ras_ops->handle_interrupt(accel_dev, &reset_required)) {
-		if (reset_required)
+		if (reset_required) {
 			dev_err(&GET_DEV(accel_dev), "Fatal error, reset required\n");
+			if (adf_notify_fatal_error(accel_dev))
+				dev_err(&GET_DEV(accel_dev),
+					"Failed to notify fatal error\n");
+		}
+
 		return true;
 	}
 
