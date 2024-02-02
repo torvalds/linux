@@ -181,8 +181,16 @@ static void adf_notify_fatal_error_worker(struct work_struct *work)
 	struct adf_fatal_error_data *wq_data =
 			container_of(work, struct adf_fatal_error_data, work);
 	struct adf_accel_dev *accel_dev = wq_data->accel_dev;
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
 
 	adf_error_notifier(accel_dev);
+
+	if (!accel_dev->is_vf) {
+		/* Disable arbitration to stop processing of new requests */
+		if (hw_device->exit_arb)
+			hw_device->exit_arb(accel_dev);
+	}
+
 	kfree(wq_data);
 }
 
