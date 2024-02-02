@@ -3193,7 +3193,7 @@ struct sock *mptcp_sk_clone_init(const struct sock *sk,
 	__mptcp_init_sock(nsk);
 
 	msk = mptcp_sk(nsk);
-	msk->local_key = subflow_req->local_key;
+	WRITE_ONCE(msk->local_key, subflow_req->local_key);
 	msk->token = subflow_req->token;
 	msk->in_accept_queue = 1;
 	WRITE_ONCE(msk->fully_established, false);
