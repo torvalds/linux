@@ -39,11 +39,8 @@ static int force_tjmax;
 module_param_named(tjmax, force_tjmax, int, 0444);
 MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 
-#define PKG_SYSFS_ATTR_NO	1	/* Sysfs attribute for package temp */
-#define BASE_SYSFS_ATTR_NO	2	/* Sysfs Base attr no for coretemp */
 #define NUM_REAL_CORES		512	/* Number of Real cores per cpu */
 #define CORETEMP_NAME_LENGTH	28	/* String Length of attrs */
-#define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
 
 enum coretemp_attr_index {
 	ATTR_LABEL,
@@ -99,7 +96,8 @@ struct platform_data {
 	u16			pkg_id;
 	struct ida		ida;
 	struct cpumask		cpumask;
-	struct temp_data	*core_data[MAX_CORE_DATA];
+	struct temp_data	*pkg_data;
+	struct temp_data	*core_data[NUM_REAL_CORES];
 	struct device_attribute name_attr;
 };
 
@@ -479,31 +477,21 @@ static struct temp_data *
 init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 {
 	struct temp_data *tdata;
-	int index;
 
 	tdata = kzalloc(sizeof(struct temp_data), GFP_KERNEL);
 	if (!tdata)
 		return NULL;
 
-	/*
-	 * Get the index of tdata in pdata->core_data[]
-	 * tdata for package: pdata->core_data[1]
-	 * tdata for core: pdata->core_data[2] .. pdata->core_data[NUM_REAL_CORES + 1]
-	 */
 	if (pkg_flag) {
-		index = PKG_SYSFS_ATTR_NO;
+		pdata->pkg_data = tdata;
 	} else {
-		index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
-		if (index < 0) {
+		tdata->index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
+		if (tdata->index < 0) {
 			kfree(tdata);
 			return NULL;
 		}
-		index += BASE_SYSFS_ATTR_NO;
+		pdata->core_data[tdata->index] = tdata;
 	}
-	/* Index in pdata->core_data[] */
-	tdata->index = index;
-
-	pdata->core_data[index] = tdata;
 
 	tdata->status_reg = pkg_flag ? MSR_IA32_PACKAGE_THERM_STATUS :
 							MSR_IA32_THERM_STATUS;
@@ -517,9 +505,12 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 
 static void destroy_temp_data(struct platform_data *pdata, struct temp_data *tdata)
 {
-	pdata->core_data[tdata->index] = NULL;
-	if (!tdata->is_pkg_data)
-		ida_free(&pdata->ida, tdata->index - BASE_SYSFS_ATTR_NO);
+	if (tdata->is_pkg_data) {
+		pdata->pkg_data = NULL;
+	} else {
+		pdata->core_data[tdata->index] = NULL;
+		ida_free(&pdata->ida, tdata->index);
+	}
 	kfree(tdata);
 }
 
@@ -529,9 +520,9 @@ static struct temp_data *get_temp_data(struct platform_data *pdata, int cpu)
 
 	/* cpu < 0 means get pkg temp_data */
 	if (cpu < 0)
-		return pdata->core_data[PKG_SYSFS_ATTR_NO];
+		return pdata->pkg_data;
 
-	for (i = BASE_SYSFS_ATTR_NO; i < MAX_CORE_DATA; i++) {
+	for (i = 0; i < NUM_REAL_CORES; i++) {
 		if (pdata->core_data[i] &&
 		    pdata->core_data[i]->cpu_core_id == topology_core_id(cpu))
 			return pdata->core_data[i];
