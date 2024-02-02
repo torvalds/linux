@@ -70,19 +70,16 @@ enum coretemp_attr_index {
  * @status_reg: One of IA32_THERM_STATUS or IA32_PACKAGE_THERM_STATUS,
  *		from where the temperature values should be read.
  * @attr_size:  Total number of pre-core attrs displayed in the sysfs.
- * @is_pkg_data: If this is 1, the temp_data holds pkgtemp data.
- *		Otherwise, temp_data holds coretemp data.
  */
 struct temp_data {
 	int temp;
 	int tjmax;
 	unsigned long last_updated;
 	unsigned int cpu;
-	unsigned int index;
+	int index;
 	u32 cpu_core_id;
 	u32 status_reg;
 	int attr_size;
-	bool is_pkg_data;
 	struct device_attribute sd_attrs[TOTAL_ATTRS];
 	char attr_name[TOTAL_ATTRS][CORETEMP_NAME_LENGTH];
 	struct attribute *attrs[TOTAL_ATTRS + 1];
@@ -148,6 +145,11 @@ static const struct tjmax_model tjmax_model_table[] = {
 				 * PCI table
 				 */
 };
+
+static bool is_pkg_temp_data(struct temp_data *tdata)
+{
+	return tdata->index < 0;
+}
 
 static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 {
@@ -341,7 +343,7 @@ static ssize_t show_label(struct device *dev,
 	struct platform_data *pdata = dev_get_drvdata(dev);
 	struct temp_data *tdata = container_of(devattr, struct temp_data, sd_attrs[ATTR_LABEL]);
 
-	if (tdata->is_pkg_data)
+	if (is_pkg_temp_data(tdata))
 		return sprintf(buf, "Package id %u\n", pdata->pkg_id);
 
 	return sprintf(buf, "Core %u\n", tdata->cpu_core_id);
@@ -433,7 +435,7 @@ static int create_core_attrs(struct temp_data *tdata, struct device *dev)
 		 * The attr number is always core id + 2
 		 * The Pkgtemp will always show up as temp1_*, if available
 		 */
-		int attr_no = tdata->is_pkg_data ? 1 : tdata->cpu_core_id + 2;
+		int attr_no = is_pkg_temp_data(tdata) ? 1 : tdata->cpu_core_id + 2;
 
 		snprintf(tdata->attr_name[i], CORETEMP_NAME_LENGTH,
 			 "temp%d_%s", attr_no, suffixes[i]);
@@ -484,6 +486,8 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 
 	if (pkg_flag) {
 		pdata->pkg_data = tdata;
+		/* Use tdata->index as indicator of package temp data */
+		tdata->index = -1;
 	} else {
 		tdata->index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
 		if (tdata->index < 0) {
@@ -495,7 +499,6 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 
 	tdata->status_reg = pkg_flag ? MSR_IA32_PACKAGE_THERM_STATUS :
 							MSR_IA32_THERM_STATUS;
-	tdata->is_pkg_data = pkg_flag;
 	tdata->cpu = cpu;
 	tdata->cpu_core_id = topology_core_id(cpu);
 	tdata->attr_size = MAX_CORE_ATTRS;
@@ -505,7 +508,7 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 
 static void destroy_temp_data(struct platform_data *pdata, struct temp_data *tdata)
 {
-	if (tdata->is_pkg_data) {
+	if (is_pkg_temp_data(tdata)) {
 		pdata->pkg_data = NULL;
 	} else {
 		pdata->core_data[tdata->index] = NULL;
