@@ -227,7 +227,7 @@ static void fuse_truncate_update_attr(struct inode *inode, struct file *file)
 	fuse_invalidate_attr_mask(inode, FUSE_STATX_MODSIZE);
 }
 
-int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
+static int fuse_open(struct inode *inode, struct file *file)
 {
 	struct fuse_mount *fm = get_fuse_mount(inode);
 	struct fuse_conn *fc = fm->fc;
@@ -256,7 +256,7 @@ int fuse_open_common(struct inode *inode, struct file *file, bool isdir)
 	if (is_wb_truncate || dax_truncate)
 		fuse_set_nowrite(inode);
 
-	err = fuse_do_open(fm, get_node_id(inode), file, isdir);
+	err = fuse_do_open(fm, get_node_id(inode), file, false);
 	if (!err) {
 		fuse_finish_open(inode, file);
 		if (is_truncate)
@@ -352,11 +352,6 @@ void fuse_release_common(struct file *file, bool isdir)
 {
 	fuse_file_release(file_inode(file), file->private_data, file->f_flags,
 			  (fl_owner_t) file, isdir);
-}
-
-static int fuse_open(struct inode *inode, struct file *file)
-{
-	return fuse_open_common(inode, file, false);
 }
 
 static int fuse_release(struct inode *inode, struct file *file)

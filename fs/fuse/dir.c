@@ -1630,7 +1630,30 @@ out_err:
 
 static int fuse_dir_open(struct inode *inode, struct file *file)
 {
-	return fuse_open_common(inode, file, true);
+	struct fuse_mount *fm = get_fuse_mount(inode);
+	int err;
+
+	if (fuse_is_bad(inode))
+		return -EIO;
+
+	err = generic_file_open(inode, file);
+	if (err)
+		return err;
+
+	err = fuse_do_open(fm, get_node_id(inode), file, true);
+	if (!err) {
+		struct fuse_file *ff = file->private_data;
+
+		/*
+		 * Keep handling FOPEN_STREAM and FOPEN_NONSEEKABLE for
+		 * directories for backward compatibility, though it's unlikely
+		 * to be useful.
+		 */
+		if (ff->open_flags & (FOPEN_STREAM | FOPEN_NONSEEKABLE))
+			nonseekable_open(inode, file);
+	}
+
+	return err;
 }
 
 static int fuse_dir_release(struct inode *inode, struct file *file)
