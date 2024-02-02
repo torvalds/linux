@@ -241,11 +241,7 @@ struct bpf_map {
 	 */
 	atomic64_t refcnt ____cacheline_aligned;
 	atomic64_t usercnt;
-	/* rcu is used before freeing and work is only used during freeing */
-	union {
-		struct work_struct work;
-		struct rcu_head rcu;
-	};
+	struct work_struct work;
 	struct mutex freeze_mutex;
 	atomic64_t writecnt;
 	/* 'Ownership' of program-containing map is claimed by the first program
@@ -261,7 +257,6 @@ struct bpf_map {
 	} owner;
 	bool bypass_spec_v1;
 	bool frozen; /* write-once; write-protected by freeze_mutex */
-	bool free_after_mult_rcu_gp;
 	s64 __percpu *elem_count;
 };
 
