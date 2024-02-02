@@ -1030,7 +1030,7 @@ u64 __mptcp_expand_seq(u64 old_seq, u64 cur_seq)
 static void __mptcp_snd_una_update(struct mptcp_sock *msk, u64 new_snd_una)
 {
 	msk->bytes_acked += new_snd_una - msk->snd_una;
-	msk->snd_una = new_snd_una;
+	WRITE_ONCE(msk->snd_una, new_snd_una);
 }
 
 static void ack_update_msk(struct mptcp_sock *msk,
@@ -1057,7 +1057,7 @@ static void ack_update_msk(struct mptcp_sock *msk,
 	new_wnd_end = new_snd_una + tcp_sk(ssk)->snd_wnd;
 
 	if (after64(new_wnd_end, msk->wnd_end))
-		msk->wnd_end = new_wnd_end;
+		WRITE_ONCE(msk->wnd_end, new_wnd_end);
 
 	/* this assumes mptcp_incoming_options() is invoked after tcp_ack() */
 	if (after64(msk->wnd_end, snd_nxt))
@@ -1071,7 +1071,7 @@ static void ack_update_msk(struct mptcp_sock *msk,
 
 	trace_ack_update_msk(mp_opt->data_ack,
 			     old_snd_una, new_snd_una,
-			     new_wnd_end, msk->wnd_end);
+			     new_wnd_end, READ_ONCE(msk->wnd_end));
 }
 
 bool mptcp_update_rcv_data_fin(struct mptcp_sock *msk, u64 data_fin_seq, bool use_64bit)
