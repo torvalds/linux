@@ -1741,9 +1741,9 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 	self->bitmap_size =
 		variant->buffer_size / self->page_size / BITS_PER_BYTE;
 
-	/* Provision with an extra (MOCK_PAGE_SIZE) for the unaligned case */
+	/* Provision with an extra (PAGE_SIZE) for the unaligned case */
 	rc = posix_memalign(&self->bitmap, PAGE_SIZE,
-			    self->bitmap_size + MOCK_PAGE_SIZE);
+			    self->bitmap_size + PAGE_SIZE);
 	assert(!rc);
 	assert(self->bitmap);
 	assert((uintptr_t)self->bitmap % PAGE_SIZE == 0);
@@ -1873,6 +1873,13 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
 				self->bitmap + MOCK_PAGE_SIZE,
 				self->bitmap_size, 0, _metadata);
 
+	/* u64 unaligned bitmap */
+	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
+				MOCK_APERTURE_START, self->page_size,
+				self->bitmap + 0xff1,
+				self->bitmap_size, 0, _metadata);
+
+
 	test_ioctl_destroy(stddev_id);
 	test_ioctl_destroy(hwpt_id);
 }
@@ -1903,6 +1910,14 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap_no_clear)
 	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
 				MOCK_APERTURE_START, self->page_size,
 				self->bitmap + MOCK_PAGE_SIZE,
+				self->bitmap_size,
+				IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR,
+				_metadata);
+
+	/* u64 unaligned bitmap */
+	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
+				MOCK_APERTURE_START, self->page_size,
+				self->bitmap + 0xff1,
 				self->bitmap_size,
 				IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR,
 				_metadata);
