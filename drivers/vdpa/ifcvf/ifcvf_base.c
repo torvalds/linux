@@ -69,9 +69,12 @@ static int ifcvf_read_config_range(struct pci_dev *dev,
 	return 0;
 }
 
-static u16 ifcvf_get_vq_size(struct ifcvf_hw *hw, u16 qid)
+u16 ifcvf_get_vq_size(struct ifcvf_hw *hw, u16 qid)
 {
 	u16 queue_size;
+
+	if (qid >= hw->nr_vring)
+		return 0;
 
 	vp_iowrite16(qid, &hw->common_cfg->queue_select);
 	queue_size = vp_ioread16(&hw->common_cfg->queue_size);

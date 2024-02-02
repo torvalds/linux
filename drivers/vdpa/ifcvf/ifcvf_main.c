@@ -597,6 +597,14 @@ static int ifcvf_vdpa_get_vq_irq(struct vdpa_device *vdpa_dev,
 		return -EINVAL;
 }
 
+static u16 ifcvf_vdpa_get_vq_size(struct vdpa_device *vdpa_dev,
+			     u16 qid)
+{
+	struct ifcvf_hw *vf = vdpa_to_vf(vdpa_dev);
+
+	return ifcvf_get_vq_size(vf, qid);
+}
+
 static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_device *vdpa_dev,
 							       u16 idx)
 {
@@ -632,6 +640,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.set_vq_num	= ifcvf_vdpa_set_vq_num,
 	.set_vq_address	= ifcvf_vdpa_set_vq_address,
 	.get_vq_irq	= ifcvf_vdpa_get_vq_irq,
+	.get_vq_size	= ifcvf_vdpa_get_vq_size,
 	.kick_vq	= ifcvf_vdpa_kick_vq,
 	.get_generation	= ifcvf_vdpa_get_generation,
 	.get_device_id	= ifcvf_vdpa_get_device_id,
