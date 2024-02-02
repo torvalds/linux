@@ -113,6 +113,9 @@ struct iova_bitmap {
 
 	/* length of the IOVA range for the whole bitmap */
 	size_t length;
+
+	/* length of the IOVA range set ahead the pinned pages */
+	unsigned long set_ahead_length;
 };
 
 /*
@@ -341,6 +344,32 @@ static bool iova_bitmap_done(struct iova_bitmap *bitmap)
 	return bitmap->mapped_base_index >= bitmap->mapped_total_index;
 }
 
+static int iova_bitmap_set_ahead(struct iova_bitmap *bitmap,
+				 size_t set_ahead_length)
+{
+	int ret = 0;
+
+	while (set_ahead_length > 0 && !iova_bitmap_done(bitmap)) {
+		unsigned long length = iova_bitmap_mapped_length(bitmap);
+		unsigned long iova = iova_bitmap_mapped_iova(bitmap);
+
+		ret = iova_bitmap_get(bitmap);
+		if (ret)
+			break;
+
+		length = min(length, set_ahead_length);
+		iova_bitmap_set(bitmap, iova, length);
+
+		set_ahead_length -= length;
+		bitmap->mapped_base_index +=
+			iova_bitmap_offset_to_index(bitmap, length - 1) + 1;
+		iova_bitmap_put(bitmap);
+	}
+
+	bitmap->set_ahead_length = 0;
+	return ret;
+}
+
 /*
  * Advances to the next range, releases the current pinned
  * pages and pins the next set of bitmap pages.
@@ -356,6 +385,15 @@ static int iova_bitmap_advance(struct iova_bitmap *bitmap)
 	iova_bitmap_put(bitmap);
 	if (iova_bitmap_done(bitmap))
 		return 0;
+
+	/* Iterate, set and skip any bits requested for next iteration */
+	if (bitmap->set_ahead_length) {
+		int ret;
+
+		ret = iova_bitmap_set_ahead(bitmap, bitmap->set_ahead_length);
+		if (ret)
+			return ret;
+	}
 
 	/* When advancing the index we pin the next set of bitmap pages */
 	return iova_bitmap_get(bitmap);
@@ -426,5 +464,10 @@ void iova_bitmap_set(struct iova_bitmap *bitmap,
 		kunmap_local(kaddr);
 		cur_bit += nbits;
 	} while (cur_bit <= last_bit);
+
+	if (unlikely(cur_bit <= last_bit)) {
+		bitmap->set_ahead_length =
+			((last_bit - cur_bit + 1) << bitmap->mapped.pgshift);
+	}
 }
 EXPORT_SYMBOL_NS_GPL(iova_bitmap_set, IOMMUFD);
