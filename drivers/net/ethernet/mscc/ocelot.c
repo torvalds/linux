@@ -3078,5 +3078,5 @@ void ocelot_deinit_port(struct ocelot *ocelot, int port)
 }
 EXPORT_SYMBOL(ocelot_deinit_port);
 
-MODULE_DESCRIPTION("Microsemi Ocelot (VSC7514) Switch driver");
+MODULE_DESCRIPTION("Microsemi Ocelot switch family library");
 MODULE_LICENSE("Dual MIT/GPL");
