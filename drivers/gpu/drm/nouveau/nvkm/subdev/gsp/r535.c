@@ -1950,20 +1950,20 @@ nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
  * See kgspCreateRadix3_IMPL
  */
 static int
-nvkm_gsp_radix3_sg(struct nvkm_device *device, struct sg_table *sgt, u64 size,
+nvkm_gsp_radix3_sg(struct nvkm_gsp *gsp, struct sg_table *sgt, u64 size,
 		   struct nvkm_gsp_radix3 *rx3)
 {
 	u64 addr;
 
 	for (int i = ARRAY_SIZE(rx3->mem) - 1; i >= 0; i--) {
 		u64 *ptes;
-		int idx;
+		size_t bufsize;
+		int ret, idx;
 
-		rx3->mem[i].size = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
-		rx3->mem[i].data = dma_alloc_coherent(device->dev, rx3->mem[i].size,
-						      &rx3->mem[i].addr, GFP_KERNEL);
-		if (WARN_ON(!rx3->mem[i].data))
-			return -ENOMEM;
+		bufsize = ALIGN((size / GSP_PAGE_SIZE) * sizeof(u64), GSP_PAGE_SIZE);
+		ret = nvkm_gsp_mem_ctor(gsp, bufsize, &rx3->mem[i]);
+		if (ret)
+			return ret;
 
 		ptes = rx3->mem[i].data;
 		if (i == 2) {
@@ -2003,7 +2003,7 @@ r535_gsp_fini(struct nvkm_gsp *gsp, bool suspend)
 		if (ret)
 			return ret;
 
-		ret = nvkm_gsp_radix3_sg(gsp->subdev.device, &gsp->sr.sgt, len, &gsp->sr.radix3);
+		ret = nvkm_gsp_radix3_sg(gsp, &gsp->sr.sgt, len, &gsp->sr.radix3);
 		if (ret)
 			return ret;
 
@@ -2211,7 +2211,7 @@ r535_gsp_oneinit(struct nvkm_gsp *gsp)
 	memcpy(gsp->sig.data, data, size);
 
 	/* Build radix3 page table for ELF image. */
-	ret = nvkm_gsp_radix3_sg(device, &gsp->fw.mem.sgt, gsp->fw.len, &gsp->radix3);
+	ret = nvkm_gsp_radix3_sg(gsp, &gsp->fw.mem.sgt, gsp->fw.len, &gsp->radix3);
 	if (ret)
 		return ret;
 
