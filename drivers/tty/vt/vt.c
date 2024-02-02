@@ -1881,7 +1881,7 @@ enum {
 };
 
 /* console_lock is held */
-static void set_mode(struct vc_data *vc, int on_off)
+static void csi_hl(struct vc_data *vc, bool on_off)
 {
 	int i;
 
@@ -2380,11 +2380,11 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		switch(c) {
 		case 'h':
 			if (vc->vc_priv <= EPdec)
-				set_mode(vc, 1);
+				csi_hl(vc, true);
 			return;
 		case 'l':
 			if (vc->vc_priv <= EPdec)
-				set_mode(vc, 0);
+				csi_hl(vc, false);
 			return;
 		case 'c':
 			if (vc->vc_priv == EPdec) {
