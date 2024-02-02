@@ -803,15 +803,6 @@ bool sym_is_changeable(struct symbol *sym)
 	return sym->visible > sym->rev_dep.tri;
 }
 
-static unsigned strhash(const char *s)
-{
-	/* fnv32 hash */
-	unsigned hash = 2166136261U;
-	for (; *s; s++)
-		hash = (hash ^ *s) * 0x01000193;
-	return hash;
-}
-
 struct symbol *sym_lookup(const char *name, int flags)
 {
 	struct symbol *symbol;

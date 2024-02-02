@@ -9,6 +9,16 @@
 #include <string.h>
 #include "lkc.h"
 
+unsigned int strhash(const char *s)
+{
+	/* fnv32 hash */
+	unsigned int hash = 2166136261U;
+
+	for (; *s; s++)
+		hash = (hash ^ *s) * 0x01000193;
+	return hash;
+}
+
 struct file {
 	struct file *next;
 	char name[];
