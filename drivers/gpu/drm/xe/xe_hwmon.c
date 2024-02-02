@@ -419,7 +419,7 @@ static int xe_hwmon_pcode_read_i1(struct xe_gt *gt, u32 *uval)
 
 	return xe_pcode_read(gt, PCODE_MBOX(PCODE_POWER_SETUP,
 			     POWER_SETUP_SUBCOMMAND_READ_I1, 0),
-			     uval, 0);
+			     uval, NULL);
 }
 
 static int xe_hwmon_pcode_write_i1(struct xe_gt *gt, u32 uval)
