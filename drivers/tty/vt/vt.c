@@ -2267,6 +2267,77 @@ static bool handle_ascii(struct tty_struct *tty, struct vc_data *vc, u8 c)
 	return false;
 }
 
+/*
+ * Handle a character (@c) following an ESC (when @vc is in the ESesc state).
+ * E.g. previous ESC with @c == '[' here yields the ESsquare state (that is:
+ * CSI).
+ */
+static void handle_esc(struct tty_struct *tty, struct vc_data *vc, u8 c)
+{
+	vc->vc_state = ESnormal;
+	switch (c) {
+	case '[':
+		vc->vc_state = ESsquare;
+		break;
+	case ']':
+		vc->vc_state = ESnonstd;
+		break;
+	case '_':
+		vc->vc_state = ESapc;
+		break;
+	case '^':
+		vc->vc_state = ESpm;
+		break;
+	case '%':
+		vc->vc_state = ESpercent;
+		break;
+	case 'E':
+		cr(vc);
+		lf(vc);
+		break;
+	case 'M':
+		ri(vc);
+		break;
+	case 'D':
+		lf(vc);
+		break;
+	case 'H':
+		if (vc->state.x < VC_TABSTOPS_COUNT)
+			set_bit(vc->state.x, vc->vc_tab_stop);
+		break;
+	case 'P':
+		vc->vc_state = ESdcs;
+		break;
+	case 'Z':
+		respond_ID(tty);
+		break;
+	case '7':
+		save_cur(vc);
+		break;
+	case '8':
+		restore_cur(vc);
+		break;
+	case '(':
+		vc->vc_state = ESsetG0;
+		break;
+	case ')':
+		vc->vc_state = ESsetG1;
+		break;
+	case '#':
+		vc->vc_state = EShash;
+		break;
+	case 'c':
+		reset_terminal(vc, 1);
+		break;
+	case '>':  /* Numeric keypad */
+		clr_kbd(vc, kbdapplic);
+		break;
+	case '=':  /* Appl. keypad */
+		set_kbd(vc, kbdapplic);
+		break;
+	}
+}
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 {
@@ -2283,68 +2354,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 
 	switch(vc->vc_state) {
 	case ESesc:
-		vc->vc_state = ESnormal;
-		switch (c) {
-		case '[':
-			vc->vc_state = ESsquare;
-			return;
-		case ']':
-			vc->vc_state = ESnonstd;
-			return;
-		case '_':
-			vc->vc_state = ESapc;
-			return;
-		case '^':
-			vc->vc_state = ESpm;
-			return;
-		case '%':
-			vc->vc_state = ESpercent;
-			return;
-		case 'E':
-			cr(vc);
-			lf(vc);
-			return;
-		case 'M':
-			ri(vc);
-			return;
-		case 'D':
-			lf(vc);
-			return;
-		case 'H':
-			if (vc->state.x < VC_TABSTOPS_COUNT)
-				set_bit(vc->state.x, vc->vc_tab_stop);
-			return;
-		case 'P':
-			vc->vc_state = ESdcs;
-			return;
-		case 'Z':
-			respond_ID(tty);
-			return;
-		case '7':
-			save_cur(vc);
-			return;
-		case '8':
-			restore_cur(vc);
-			return;
-		case '(':
-			vc->vc_state = ESsetG0;
-			return;
-		case ')':
-			vc->vc_state = ESsetG1;
-			return;
-		case '#':
-			vc->vc_state = EShash;
-			return;
-		case 'c':
-			reset_terminal(vc, 1);
-			return;
-		case '>':  /* Numeric keypad */
-			clr_kbd(vc, kbdapplic);
-			return;
-		case '=':  /* Appl. keypad */
-			set_kbd(vc, kbdapplic);
-			return;
-		}
+		handle_esc(tty, vc, c);
 		return;
 	case ESnonstd:
 		if (c=='P') {   /* palette escape sequence */
