@@ -330,6 +330,18 @@ MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
 	"\t\t  0x10  don't use interrupts\n"
 	"\t\t  0x20  disable SMBus Host Notify ");
 
+static int i801_get_block_len(struct i801_priv *priv)
+{
+	u8 len = inb_p(SMBHSTDAT0(priv));
+
+	if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
+		pci_err(priv->pci_dev, "Illegal SMBus block read size %u\n", len);
+		return -EPROTO;
+	}
+
+	return len;
+}
+
 static int i801_check_and_clear_pec_error(struct i801_priv *priv)
 {
 	u8 status;
@@ -525,12 +537,11 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 
 	if (read_write == I2C_SMBUS_READ ||
 	    command == I2C_SMBUS_BLOCK_PROC_CALL) {
-		len = inb_p(SMBHSTDAT0(priv));
-		if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
-			status = -EPROTO;
+		status = i801_get_block_len(priv);
+		if (status < 0)
 			goto out;
-		}
 
+		len = status;
 		data->block[0] = len;
 		for (i = 0; i < len; i++)
 			data->block[i + 1] = inb_p(SMBBLKDAT(priv));
@@ -549,14 +560,11 @@ static void i801_isr_byte_done(struct i801_priv *priv)
 		 * and read the block length from SMBHSTDAT0.
 		 */
 		if (priv->len == SMBUS_LEN_SENTINEL) {
-			priv->len = inb_p(SMBHSTDAT0(priv));
-			if (priv->len < 1 || priv->len > I2C_SMBUS_BLOCK_MAX) {
-				dev_err(&priv->pci_dev->dev,
-					"Illegal SMBus block read size %d\n",
-					priv->len);
+			priv->len = i801_get_block_len(priv);
+			if (priv->len < 0)
 				/* FIXME: Recover */
 				priv->len = I2C_SMBUS_BLOCK_MAX;
-			}
+
 			priv->data[-1] = priv->len;
 		}
 
@@ -709,11 +717,8 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		 * and read the block length from SMBHSTDAT0.
 		 */
 		if (len == SMBUS_LEN_SENTINEL) {
-			len = inb_p(SMBHSTDAT0(priv));
-			if (len < 1 || len > I2C_SMBUS_BLOCK_MAX) {
-				dev_err(&priv->pci_dev->dev,
-					"Illegal SMBus block read size %d\n",
-					len);
+			len = i801_get_block_len(priv);
+			if (len < 0) {
 				/* Recover */
 				while (inb_p(SMBHSTSTS(priv)) &
 				       SMBHSTSTS_HOST_BUSY)
