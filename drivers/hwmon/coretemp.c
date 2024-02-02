@@ -91,10 +91,11 @@ struct temp_data {
 struct platform_data {
 	struct device		*hwmon_dev;
 	u16			pkg_id;
+	int			nr_cores;
 	struct ida		ida;
 	struct cpumask		cpumask;
 	struct temp_data	*pkg_data;
-	struct temp_data	*core_data[NUM_REAL_CORES];
+	struct temp_data	**core_data;
 	struct device_attribute name_attr;
 };
 
@@ -480,6 +481,20 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 {
 	struct temp_data *tdata;
 
+	if (!pdata->core_data) {
+		/*
+		 * TODO:
+		 * The information of actual possible cores in a package is broken for now.
+		 * Will replace hardcoded NUM_REAL_CORES with actual per package core count
+		 * when this information becomes available.
+		 */
+		pdata->nr_cores = NUM_REAL_CORES;
+		pdata->core_data = kcalloc(pdata->nr_cores, sizeof(struct temp_data *),
+					   GFP_KERNEL);
+		if (!pdata->core_data)
+			return NULL;
+	}
+
 	tdata = kzalloc(sizeof(struct temp_data), GFP_KERNEL);
 	if (!tdata)
 		return NULL;
@@ -489,7 +504,7 @@ init_temp_data(struct platform_data *pdata, unsigned int cpu, int pkg_flag)
 		/* Use tdata->index as indicator of package temp data */
 		tdata->index = -1;
 	} else {
-		tdata->index = ida_alloc_max(&pdata->ida, NUM_REAL_CORES - 1, GFP_KERNEL);
+		tdata->index = ida_alloc_max(&pdata->ida, pdata->nr_cores - 1, GFP_KERNEL);
 		if (tdata->index < 0) {
 			kfree(tdata);
 			return NULL;
@@ -510,6 +525,9 @@ static void destroy_temp_data(struct platform_data *pdata, struct temp_data *tda
 {
 	if (is_pkg_temp_data(tdata)) {
 		pdata->pkg_data = NULL;
+		kfree(pdata->core_data);
+		pdata->core_data = NULL;
+		pdata->nr_cores = 0;
 	} else {
 		pdata->core_data[tdata->index] = NULL;
 		ida_free(&pdata->ida, tdata->index);
@@ -525,7 +543,7 @@ static struct temp_data *get_temp_data(struct platform_data *pdata, int cpu)
 	if (cpu < 0)
 		return pdata->pkg_data;
 
-	for (i = 0; i < NUM_REAL_CORES; i++) {
+	for (i = 0; i < pdata->nr_cores; i++) {
 		if (pdata->core_data[i] &&
 		    pdata->core_data[i]->cpu_core_id == topology_core_id(cpu))
 			return pdata->core_data[i];
