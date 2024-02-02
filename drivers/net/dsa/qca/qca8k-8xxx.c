@@ -954,7 +954,7 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 
 	mdio = of_get_child_by_name(dev->of_node, "mdio");
 	if (mdio && !of_device_is_available(mdio))
-		goto out;
+		goto out_put_node;
 
 	bus = devm_mdiobus_alloc(dev);
 	if (!bus) {
@@ -988,7 +988,6 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 
 out_put_node:
 	of_node_put(mdio);
-out:
 	return err;
 }
 
