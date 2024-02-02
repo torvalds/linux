@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "internal.h"
 #include "list.h"
 #include "lkc.h"
 #include "preprocess.h"
@@ -22,7 +23,7 @@ static void __attribute__((noreturn)) pperror(const char *format, ...)
 {
 	va_list ap;
 
-	fprintf(stderr, "%s:%d: ", current_file->name, yylineno);
+	fprintf(stderr, "%s:%d: ", cur_filename, yylineno);
 	va_start(ap, format);
 	vfprintf(stderr, format, ap);
 	va_end(ap);
@@ -123,7 +124,7 @@ static char *do_error_if(int argc, char *argv[])
 
 static char *do_filename(int argc, char *argv[])
 {
-	return xstrdup(current_file->name);
+	return xstrdup(cur_filename);
 }
 
 static char *do_info(int argc, char *argv[])
@@ -185,8 +186,7 @@ static char *do_shell(int argc, char *argv[])
 static char *do_warning_if(int argc, char *argv[])
 {
 	if (!strcmp(argv[0], "y"))
-		fprintf(stderr, "%s:%d: %s\n",
-			current_file->name, yylineno, argv[1]);
+		fprintf(stderr, "%s:%d: %s\n", cur_filename, yylineno, argv[1]);
 
 	return xstrdup("");
 }
