@@ -402,6 +402,7 @@ struct adf_accel_dev {
 	struct adf_error_counters ras_errors;
 	struct mutex state_lock; /* protect state of the device */
 	bool is_vf;
+	bool autoreset_on_error;
 	u32 accel_id;
 };
 #endif

@@ -141,3 +141,23 @@ Description:
 			64
 
 		This attribute is only available for qat_4xxx devices.
+
+What:		/sys/bus/pci/devices/<BDF>/qat/auto_reset
+Date:		March 2024
+KernelVersion:	6.8
+Contact:	qat-linux@intel.com
+Description:	(RW) Reports the current state of the autoreset feature
+		for a QAT device
+
+		Write to the attribute to enable or disable device auto reset.
+
+		Device auto reset is disabled by default.
+
+		The values are::
+
+		* 1/Yy/on: auto reset enabled. If the device encounters an
+		  unrecoverable error, it will be reset automatically.
+		* 0/Nn/off: auto reset disabled. If the device encounters an
+		  unrecoverable error, it will not be reset.
+
+		This attribute is only available for qat_4xxx devices.

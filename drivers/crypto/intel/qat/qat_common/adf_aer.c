@@ -204,6 +204,14 @@ const struct pci_error_handlers adf_err_handler = {
 };
 EXPORT_SYMBOL_GPL(adf_err_handler);
 
+int adf_dev_autoreset(struct adf_accel_dev *accel_dev)
+{
+	if (accel_dev->autoreset_on_error)
+		return adf_dev_aer_schedule_reset(accel_dev, ADF_DEV_RESET_ASYNC);
+
+	return 0;
+}
+
 static void adf_notify_fatal_error_worker(struct work_struct *work)
 {
 	struct adf_fatal_error_data *wq_data =
@@ -215,10 +223,11 @@ static void adf_notify_fatal_error_worker(struct work_struct *work)
 
 	if (!accel_dev->is_vf) {
 		/* Disable arbitration to stop processing of new requests */
-		if (hw_device->exit_arb)
+		if (accel_dev->autoreset_on_error && hw_device->exit_arb)
 			hw_device->exit_arb(accel_dev);
 		if (accel_dev->pf.vf_info)
 			adf_pf2vf_notify_fatal_error(accel_dev);
+		adf_dev_autoreset(accel_dev);
 	}
 
 	kfree(wq_data);
