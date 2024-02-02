@@ -288,6 +288,16 @@ enum rvu_pfvf_flags {
 
 #define RVU_CLEAR_VF_PERM  ~GENMASK(PF_SET_VF_TRUSTED, PF_SET_VF_MAC)
 
+struct nix_bp {
+	struct rsrc_bmap bpids; /* free bpids bitmap */
+	u16 cgx_bpid_cnt;
+	u16 sdp_bpid_cnt;
+	u16 free_pool_base;
+	u16 *fn_map; /* pcifunc mapping */
+	u8 *intf_map;  /* interface type map */
+	u8 *ref_cnt;
+};
+
 struct nix_txsch {
 	struct rsrc_bmap schq;
 	u8   lvl;
@@ -363,6 +373,7 @@ struct nix_hw {
 	struct nix_lso lso;
 	struct nix_txvlan txvlan;
 	struct nix_ipolicer *ipolicer;
+	struct nix_bp bp;
 	u64    *tx_credits;
 	u8	cc_mcs_cnt;
 };
@@ -503,6 +514,7 @@ struct rvu {
 	struct mutex		rsrc_lock; /* Serialize resource alloc/free */
 	struct mutex		alias_lock; /* Serialize bar2 alias access */
 	int			vfs; /* Number of VFs attached to RVU */
+	u16			vf_devid; /* VF devices id */
 	int			nix_blkaddr[MAX_NIX_BLKS];
 
 	/* Mbox */
@@ -732,9 +744,11 @@ static inline bool is_rvu_supports_nix1(struct rvu *rvu)
 /* Function Prototypes
  * RVU
  */
-static inline bool is_afvf(u16 pcifunc)
+#define	RVU_LBK_VF_DEVID	0xA0F8
+static inline bool is_lbk_vf(struct rvu *rvu, u16 pcifunc)
 {
-	return !(pcifunc & ~RVU_PFVF_FUNC_MASK);
+	return (!(pcifunc & ~RVU_PFVF_FUNC_MASK) &&
+		(rvu->vf_devid == RVU_LBK_VF_DEVID));
 }
 
 static inline bool is_vf(u16 pcifunc)
@@ -794,7 +808,7 @@ void rvu_aq_free(struct rvu *rvu, struct admin_queue *aq);
 int rvu_sdp_init(struct rvu *rvu);
 bool is_sdp_pfvf(u16 pcifunc);
 bool is_sdp_pf(u16 pcifunc);
-bool is_sdp_vf(u16 pcifunc);
+bool is_sdp_vf(struct rvu *rvu, u16 pcifunc);
 
 /* CGX APIs */
 static inline bool is_pf_cgxmapped(struct rvu *rvu, u8 pf)
@@ -873,6 +887,7 @@ int rvu_nix_mcast_get_mce_index(struct rvu *rvu, u16 pcifunc,
 				u32 mcast_grp_idx);
 int rvu_nix_mcast_update_mcam_entry(struct rvu *rvu, u16 pcifunc,
 				    u32 mcast_grp_idx, u16 mcam_index);
+void rvu_nix_flr_free_bpids(struct rvu *rvu, u16 pcifunc);
 
 /* NPC APIs */
 void rvu_npc_freemem(struct rvu *rvu);
