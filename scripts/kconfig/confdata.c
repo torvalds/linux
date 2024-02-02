@@ -20,6 +20,8 @@
 
 #include "lkc.h"
 
+struct gstr autoconf_cmd;
+
 /* return true if 'path' exists, false otherwise */
 static bool is_present(const char *path)
 {
@@ -972,7 +974,6 @@ end_check:
 static int conf_write_autoconf_cmd(const char *autoconf_name)
 {
 	char name[PATH_MAX], tmp[PATH_MAX];
-	struct file *file;
 	FILE *out;
 	int ret;
 
@@ -993,9 +994,7 @@ static int conf_write_autoconf_cmd(const char *autoconf_name)
 		return -1;
 	}
 
-	fprintf(out, "deps_config := \\\n");
-	for (file = file_list; file; file = file->next)
-		fprintf(out, "\t%s \\\n", file->name);
+	fputs(str_get(&autoconf_cmd), out);
 
 	fprintf(out, "\n%s: $(deps_config)\n\n", autoconf_name);
 

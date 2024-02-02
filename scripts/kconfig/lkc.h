@@ -40,6 +40,7 @@ int zconf_lineno(void);
 const char *zconf_curname(void);
 
 /* confdata.c */
+extern struct gstr autoconf_cmd;
 const char *conf_get_configname(void);
 void set_all_choice_values(struct symbol *csym);
 

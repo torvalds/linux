@@ -480,6 +480,10 @@ void conf_parse(const char *name)
 	struct symbol *sym;
 	int i;
 
+	autoconf_cmd = str_new();
+
+	str_printf(&autoconf_cmd, "deps_config := \\\n");
+
 	zconf_initscan(name);
 
 	_menu_init();

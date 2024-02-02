@@ -25,6 +25,9 @@ struct file *file_lookup(const char *name)
 	file->name = xstrdup(name);
 	file->next = file_list;
 	file_list = file;
+
+	str_printf(&autoconf_cmd, "\t%s \\\n", name);
+
 	return file;
 }
 
