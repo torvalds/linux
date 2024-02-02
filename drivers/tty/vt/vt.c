@@ -1862,6 +1862,24 @@ int mouse_reporting(void)
 	return vc_cons[fg_console].d->vc_report_mouse;
 }
 
+enum {
+	CSI_DEC_hl_CURSOR_KEYS	= 1,	/* CKM: cursor keys send ^[Ox/^[[x */
+	CSI_DEC_hl_132_COLUMNS	= 3,	/* COLM: 80/132 mode switch */
+	CSI_DEC_hl_REVERSE_VIDEO = 5,	/* SCNM */
+	CSI_DEC_hl_ORIGIN_MODE	= 6,	/* OM: origin relative/absolute */
+	CSI_DEC_hl_AUTOWRAP	= 7,	/* AWM */
+	CSI_DEC_hl_AUTOREPEAT	= 8,	/* ARM */
+	CSI_DEC_hl_MOUSE_X10	= 9,
+	CSI_DEC_hl_SHOW_CURSOR	= 25,	/* TCEM */
+	CSI_DEC_hl_MOUSE_VT200	= 1000,
+};
+
+enum {
+	CSI_hl_DISPLAY_CTRL	= 3,	/* handle ansi control chars */
+	CSI_hl_INSERT		= 4,	/* IRM: insert/replace */
+	CSI_hl_AUTO_NL		= 20,	/* LNM: Enter == CrLf/Lf */
+};
+
 /* console_lock is held */
 static void set_mode(struct vc_data *vc, int on_off)
 {
@@ -1870,20 +1888,20 @@ static void set_mode(struct vc_data *vc, int on_off)
 	for (i = 0; i <= vc->vc_npar; i++)
 		if (vc->vc_priv == EPdec) {
 			switch(vc->vc_par[i]) {	/* DEC private modes set/reset */
-			case 1:			/* Cursor keys send ^[Ox/^[[x */
+			case CSI_DEC_hl_CURSOR_KEYS:
 				if (on_off)
 					set_kbd(vc, decckm);
 				else
 					clr_kbd(vc, decckm);
 				break;
-			case 3:	/* 80/132 mode switch unimplemented */
+			case CSI_DEC_hl_132_COLUMNS:	/* unimplemented */
 #if 0
 				vc_resize(deccolm ? 132 : 80, vc->vc_rows);
 				/* this alone does not suffice; some user mode
 				   utility has to change the hardware regs */
 #endif
 				break;
-			case 5:			/* Inverted screen on/off */
+			case CSI_DEC_hl_REVERSE_VIDEO:
 				if (vc->vc_decscnm != on_off) {
 					vc->vc_decscnm = on_off;
 					invert_screen(vc, 0,
@@ -1892,38 +1910,38 @@ static void set_mode(struct vc_data *vc, int on_off)
 					update_attr(vc);
 				}
 				break;
-			case 6:			/* Origin relative/absolute */
+			case CSI_DEC_hl_ORIGIN_MODE:
 				vc->vc_decom = on_off;
 				gotoxay(vc, 0, 0);
 				break;
-			case 7:			/* Autowrap on/off */
+			case CSI_DEC_hl_AUTOWRAP:
 				vc->vc_decawm = on_off;
 				break;
-			case 8:			/* Autorepeat on/off */
+			case CSI_DEC_hl_AUTOREPEAT:
 				if (on_off)
 					set_kbd(vc, decarm);
 				else
 					clr_kbd(vc, decarm);
 				break;
-			case 9:
+			case CSI_DEC_hl_MOUSE_X10:
 				vc->vc_report_mouse = on_off ? 1 : 0;
 				break;
-			case 25:		/* Cursor on/off */
+			case CSI_DEC_hl_SHOW_CURSOR:
 				vc->vc_deccm = on_off;
 				break;
-			case 1000:
+			case CSI_DEC_hl_MOUSE_VT200:
 				vc->vc_report_mouse = on_off ? 2 : 0;
 				break;
 			}
 		} else {
 			switch(vc->vc_par[i]) {	/* ANSI modes set/reset */
-			case 3:			/* Monitor (display ctrls) */
+			case CSI_hl_DISPLAY_CTRL:
 				vc->vc_disp_ctrl = on_off;
 				break;
-			case 4:			/* Insert Mode on/off */
+			case CSI_hl_INSERT:
 				vc->vc_decim = on_off;
 				break;
-			case 20:		/* Lf, Enter == CrLf/Lf */
+			case CSI_hl_AUTO_NL:
 				if (on_off)
 					set_kbd(vc, lnm);
 				else
