@@ -311,6 +311,17 @@ static void vdpasim_set_vq_num(struct vdpa_device *vdpa, u16 idx, u32 num)
 	vq->num = num;
 }
 
+static u16 vdpasim_get_vq_size(struct vdpa_device *vdpa, u16 idx)
+{
+	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
+	struct vdpasim_virtqueue *vq = &vdpasim->vqs[idx];
+
+	if (vdpasim->status & VIRTIO_CONFIG_S_DRIVER_OK)
+		return vq->num;
+	else
+		return VDPASIM_QUEUE_MAX;
+}
+
 static void vdpasim_kick_vq(struct vdpa_device *vdpa, u16 idx)
 {
 	struct vdpasim *vdpasim = vdpa_to_sim(vdpa);
@@ -775,6 +786,7 @@ static const struct vdpa_config_ops vdpasim_config_ops = {
 	.get_driver_features    = vdpasim_get_driver_features,
 	.set_config_cb          = vdpasim_set_config_cb,
 	.get_vq_num_max         = vdpasim_get_vq_num_max,
+	.get_vq_size		= vdpasim_get_vq_size,
 	.get_device_id          = vdpasim_get_device_id,
 	.get_vendor_id          = vdpasim_get_vendor_id,
 	.get_status             = vdpasim_get_status,
