@@ -47,6 +47,7 @@ extern int rtnl_lock_killable(void);
 extern bool refcount_dec_and_rtnl_lock(refcount_t *r);
 
 extern wait_queue_head_t netdev_unregistering_wq;
+extern atomic_t dev_unreg_count;
 extern struct rw_semaphore pernet_ops_rwsem;
 extern struct rw_semaphore net_rwsem;
 
