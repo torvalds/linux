@@ -3,9 +3,11 @@
  * Copyright © 2021 Intel Corporation
  */
 
+#include "gem/i915_gem_lmem.h"
 #include "gem/i915_gem_region.h"
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
+#include "intel_crtc.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
@@ -138,6 +140,7 @@ initial_plane_vma(struct drm_i915_private *i915,
 {
 	struct intel_memory_region *mem;
 	struct drm_i915_gem_object *obj;
+	struct drm_mm_node orig_mm = {};
 	struct i915_vma *vma;
 	resource_size_t phys_base;
 	u32 base, size;
@@ -195,23 +198,66 @@ initial_plane_vma(struct drm_i915_private *i915,
 		goto err_obj;
 	}
 
+	/*
+	 * MTL GOP likes to place the framebuffer high up in ggtt,
+	 * which can cause problems for ggtt_reserve_guc_top().
+	 * Try to pin it to a low ggtt address instead to avoid that.
+	 */
+	base = 0;
+
+	if (base != plane_config->base) {
+		struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
+		int ret;
+
+		/*
+		 * Make sure the original and new locations
+		 * can't overlap. That would corrupt the original
+		 * PTEs which are still being used for scanout.
+		 */
+		ret = i915_gem_gtt_reserve(&ggtt->vm, NULL, &orig_mm,
+					   size, plane_config->base,
+					   I915_COLOR_UNEVICTABLE, PIN_NOEVICT);
+		if (ret)
+			goto err_obj;
+	}
+
 	vma = i915_vma_instance(obj, &to_gt(i915)->ggtt->vm, NULL);
 	if (IS_ERR(vma))
 		goto err_obj;
 
+retry:
 	pinctl = PIN_GLOBAL | PIN_OFFSET_FIXED | base;
-	if (HAS_GMCH(i915))
+	if (!i915_gem_object_is_lmem(obj))
 		pinctl |= PIN_MAPPABLE;
-	if (i915_vma_pin(vma, 0, 0, pinctl))
+	if (i915_vma_pin(vma, 0, 0, pinctl)) {
+		if (drm_mm_node_allocated(&orig_mm)) {
+			drm_mm_remove_node(&orig_mm);
+			/*
+			 * Try again, but this time pin
+			 * it to its original location.
+			 */
+			base = plane_config->base;
+			goto retry;
+		}
 		goto err_obj;
+	}
 
 	if (i915_gem_object_is_tiled(obj) &&
 	    !i915_vma_is_map_and_fenceable(vma))
 		goto err_obj;
 
+	if (drm_mm_node_allocated(&orig_mm))
+		drm_mm_remove_node(&orig_mm);
+
+	drm_dbg_kms(&i915->drm,
+		    "Initial plane fb bound to 0x%x in the ggtt (original 0x%x)\n",
+		    i915_ggtt_offset(vma), plane_config->base);
+
 	return vma;
 
 err_obj:
+	if (drm_mm_node_allocated(&orig_mm))
+		drm_mm_remove_node(&orig_mm);
 	i915_gem_object_put(obj);
 	return NULL;
 }
@@ -385,6 +431,9 @@ void intel_initial_plane_config(struct drm_i915_private *i915)
 		 * just get the first one.
 		 */
 		intel_find_initial_plane_obj(crtc, plane_configs);
+
+		if (i915->display.funcs.display->fixup_initial_plane_config(crtc, plane_config))
+			intel_crtc_wait_for_next_vblank(crtc);
 
 		plane_config_fini(plane_config);
 	}

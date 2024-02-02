@@ -7850,6 +7850,7 @@ static const struct intel_display_funcs skl_display_funcs = {
 	.crtc_disable = hsw_crtc_disable,
 	.commit_modeset_enables = skl_commit_modeset_enables,
 	.get_initial_plane_config = skl_get_initial_plane_config,
+	.fixup_initial_plane_config = skl_fixup_initial_plane_config,
 };
 
 static const struct intel_display_funcs ddi_display_funcs = {
@@ -7858,6 +7859,7 @@ static const struct intel_display_funcs ddi_display_funcs = {
 	.crtc_disable = hsw_crtc_disable,
 	.commit_modeset_enables = intel_commit_modeset_enables,
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
+	.fixup_initial_plane_config = i9xx_fixup_initial_plane_config,
 };
 
 static const struct intel_display_funcs pch_split_display_funcs = {
@@ -7866,6 +7868,7 @@ static const struct intel_display_funcs pch_split_display_funcs = {
 	.crtc_disable = ilk_crtc_disable,
 	.commit_modeset_enables = intel_commit_modeset_enables,
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
+	.fixup_initial_plane_config = i9xx_fixup_initial_plane_config,
 };
 
 static const struct intel_display_funcs vlv_display_funcs = {
@@ -7874,6 +7877,7 @@ static const struct intel_display_funcs vlv_display_funcs = {
 	.crtc_disable = i9xx_crtc_disable,
 	.commit_modeset_enables = intel_commit_modeset_enables,
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
+	.fixup_initial_plane_config = i9xx_fixup_initial_plane_config,
 };
 
 static const struct intel_display_funcs i9xx_display_funcs = {
@@ -7882,6 +7886,7 @@ static const struct intel_display_funcs i9xx_display_funcs = {
 	.crtc_disable = i9xx_crtc_disable,
 	.commit_modeset_enables = intel_commit_modeset_enables,
 	.get_initial_plane_config = i9xx_get_initial_plane_config,
+	.fixup_initial_plane_config = i9xx_fixup_initial_plane_config,
 };
 
 /**

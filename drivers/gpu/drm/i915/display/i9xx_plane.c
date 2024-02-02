@@ -1060,3 +1060,33 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 
 	plane_config->fb = intel_fb;
 }
+
+bool i9xx_fixup_initial_plane_config(struct intel_crtc *crtc,
+				     const struct intel_initial_plane_config *plane_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	const struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+	enum i9xx_plane_id i9xx_plane = plane->i9xx_plane;
+	u32 base;
+
+	if (!plane_state->uapi.visible)
+		return false;
+
+	base = intel_plane_ggtt_offset(plane_state);
+
+	/*
+	 * We may have moved the surface to a different
+	 * part of ggtt, make the plane aware of that.
+	 */
+	if (plane_config->base == base)
+		return false;
+
+	if (DISPLAY_VER(dev_priv) >= 4)
+		intel_de_write(dev_priv, DSPSURF(i9xx_plane), base);
+	else
+		intel_de_write(dev_priv, DSPADDR(i9xx_plane), base);
+
+	return true;
+}

@@ -10,6 +10,7 @@
 
 #include "i915_drv.h"
 #include "intel_atomic_plane.h"
+#include "intel_crtc.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
@@ -294,6 +295,9 @@ void intel_initial_plane_config(struct drm_i915_private *i915)
 		 * just get the first one.
 		 */
 		intel_find_initial_plane_obj(crtc, plane_configs);
+
+		if (i915->display.funcs.display->fixup_initial_plane_config(crtc, plane_config))
+			intel_crtc_wait_for_next_vblank(crtc);
 
 		plane_config_fini(plane_config);
 	}
