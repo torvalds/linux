@@ -353,6 +353,7 @@ properties:
       - items:
           - enum:
               - mediatek,mt8395-evk
+              - radxa,nio-12l
           - const: mediatek,mt8395
           - const: mediatek,mt8195
       - items:
