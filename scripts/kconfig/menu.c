@@ -17,7 +17,6 @@ struct menu rootmenu;
 static struct menu **last_entry_ptr;
 
 struct file *file_list;
-struct file *current_file;
 
 void menu_warn(struct menu *menu, const char *fmt, ...)
 {

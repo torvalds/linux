@@ -40,6 +40,8 @@ struct buffer {
 	struct buffer *parent;
 	YY_BUFFER_STATE state;
 	int yylineno;
+	const char *filename;
+	int source_lineno;
 };
 
 static struct buffer *current_buf;
@@ -255,7 +257,7 @@ n	[A-Za-z0-9_-]
 		fprintf(stderr, "%s:%d:warning: no new line at end of file\n",
 			cur_filename, yylineno);
 
-	if (current_file) {
+	if (current_buf) {
 		zconf_endfile();
 		return T_EOL;
 	}
@@ -399,19 +401,20 @@ void zconf_initscan(const char *name)
 		exit(1);
 	}
 
-	current_file = file_lookup(name);
-	cur_filename = current_file->name;
+	cur_filename = file_lookup(name)->name;
 	yylineno = 1;
 }
 
 void zconf_nextfile(const char *name)
 {
-	struct file *iter;
 	struct file *file = file_lookup(name);
 	struct buffer *buf = xmalloc(sizeof(*buf));
+	bool recur_include = false;
 
 	buf->state = YY_CURRENT_BUFFER;
 	buf->yylineno = yylineno;
+	buf->filename = cur_filename;
+	buf->source_lineno = cur_lineno;
 	buf->parent = current_buf;
 	current_buf = buf;
 	yyin = zconf_fopen(name);
@@ -422,45 +425,36 @@ void zconf_nextfile(const char *name)
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
 
-	current_file->lineno = cur_lineno;
-	file->parent = current_file;
+	for (buf = current_buf; buf; buf = buf->parent) {
+		if (!strcmp(buf->filename, name))
+			recur_include = true;
+	}
 
-	for (iter = current_file; iter; iter = iter->parent) {
-		if (!strcmp(iter->name, name)) {
-			fprintf(stderr,
-				"Recursive inclusion detected.\n"
-				"Inclusion path:\n"
-				"  current file : %s\n", name);
-			iter = file;
-			do {
-				iter = iter->parent;
-				fprintf(stderr, "  included from: %s:%d\n",
-					iter->name, iter->lineno);
-			} while (strcmp(iter->name, name));
-			exit(1);
-		}
+	if (recur_include) {
+		fprintf(stderr,
+			"Recursive inclusion detected.\n"
+			"Inclusion path:\n"
+			"  current file : %s\n", name);
+
+		for (buf = current_buf; buf; buf = buf->parent)
+			fprintf(stderr, "  included from: %s:%d\n",
+				buf->filename, buf->source_lineno);
+		exit(1);
 	}
 
 	yylineno = 1;
 	cur_filename = file->name;
-	current_file = file;
 }
 
 static void zconf_endfile(void)
 {
 	struct buffer *tmp;
 
-	current_file = current_file->parent;
-	if (current_file)
-		cur_filename = current_file->name;
-
-	if (!current_buf)
-		return;
-
 	fclose(yyin);
 	yy_delete_buffer(YY_CURRENT_BUFFER);
 	yy_switch_to_buffer(current_buf->state);
 	yylineno = current_buf->yylineno;
+	cur_filename = current_buf->filename;
 	tmp = current_buf;
 	current_buf = current_buf->parent;
 	free(tmp);

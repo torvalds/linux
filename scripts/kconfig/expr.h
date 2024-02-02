@@ -19,9 +19,7 @@ extern "C" {
 
 struct file {
 	struct file *next;
-	struct file *parent;
 	const char *name;
-	int lineno;
 };
 
 typedef enum tristate {
@@ -278,7 +276,6 @@ struct jump_key {
 };
 
 extern struct file *file_list;
-extern struct file *current_file;
 
 extern struct symbol symbol_yes, symbol_no, symbol_mod;
 extern struct symbol *modules_sym;
