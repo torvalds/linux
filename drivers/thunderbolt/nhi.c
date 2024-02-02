@@ -48,7 +48,7 @@
 
 static bool host_reset = true;
 module_param(host_reset, bool, 0444);
-MODULE_PARM_DESC(host_reset, "reset USBv2 host router (default: true)");
+MODULE_PARM_DESC(host_reset, "reset USB4 host router (default: true)");
 
 static int ring_interrupt_index(const struct tb_ring *ring)
 {
