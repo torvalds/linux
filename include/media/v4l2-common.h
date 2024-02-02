@@ -536,9 +536,10 @@ int v4l2_fill_pixfmt_mp(struct v4l2_pix_format_mplane *pixfmt, u32 pixelformat,
  * V4L2_CID_LINK_FREQ control implemented by the transmitter, or value
  * calculated based on the V4L2_CID_PIXEL_RATE implemented by the transmitter.
  *
- * Returns link frequency on success, otherwise a negative error code:
- *	-ENOENT: Link frequency or pixel rate control not found
- *	-EINVAL: Invalid link frequency value
+ * Return:
+ * * >0: Link frequency
+ * * %-ENOENT: Link frequency or pixel rate control not found
+ * * %-EINVAL: Invalid link frequency value
  */
 s64 v4l2_get_link_freq(struct v4l2_ctrl_handler *handler, unsigned int mul,
 		       unsigned int div);
@@ -560,11 +561,11 @@ u32 v4l2_fraction_to_interval(u32 numerator, u32 denominator);
  * system firmware and sets the corresponding bits in @bitmap (after first
  * zeroing it).
  *
- * Return values:
- *	0: Success
- *	-ENOENT: No match found between driver-supported link frequencies and
- *		 those available in firmware.
- *	-ENODATA: No link frequencies were specified in firmware.
+ * Return:
+ * * %0: Success
+ * * %-ENOENT: No match found between driver-supported link frequencies and
+ *   those available in firmware.
+ * * %-ENODATA: No link frequencies were specified in firmware.
  */
 int v4l2_link_freq_to_bitmap(struct device *dev, const u64 *fw_link_freqs,
 			     unsigned int num_of_fw_link_freqs,
