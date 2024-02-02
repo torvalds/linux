@@ -60,7 +60,7 @@ static const struct regmap_config regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = 0x5B,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = max31760_volatile_reg,
 };
 
