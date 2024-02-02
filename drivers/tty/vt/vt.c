@@ -2144,7 +2144,7 @@ static void reset_terminal(struct vc_data *vc, int do_clear)
 	    csi_J(vc, CSI_J_VISIBLE);
 }
 
-static void vc_setGx(struct vc_data *vc, unsigned int which, int c)
+static void vc_setGx(struct vc_data *vc, unsigned int which, u8 c)
 {
 	unsigned char *charset = &vc->state.Gx_charset[which];
 
@@ -2198,7 +2198,7 @@ enum {
 };
 
 /* console_lock is held */
-static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
+static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 {
 	/*
 	 *  Control characters can be used in the _middle_
@@ -2963,7 +2963,7 @@ static int do_con_write(struct tty_struct *tty, const u8 *buf, int count)
 	param.vc = vc;
 
 	while (!tty->flow.stopped && count) {
-		int orig = *buf;
+		u8 orig = *buf;
 		buf++;
 		n++;
 		count--;
