@@ -5942,6 +5942,7 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 			    struct btrfs_chunk_map *map, int first,
 			    int dev_replace_is_ongoing)
 {
+	const enum btrfs_read_policy policy = READ_ONCE(fs_info->fs_devices->read_policy);
 	int i;
 	int num_stripes;
 	int preferred_mirror;
@@ -5956,13 +5957,12 @@ static int find_live_mirror(struct btrfs_fs_info *fs_info,
 	else
 		num_stripes = map->num_stripes;
 
-	switch (fs_info->fs_devices->read_policy) {
+	switch (policy) {
 	default:
 		/* Shouldn't happen, just warn and use pid instead of failing */
-		btrfs_warn_rl(fs_info,
-			      "unknown read_policy type %u, reset to pid",
-			      fs_info->fs_devices->read_policy);
-		fs_info->fs_devices->read_policy = BTRFS_READ_POLICY_PID;
+		btrfs_warn_rl(fs_info, "unknown read_policy type %u, reset to pid",
+			      policy);
+		WRITE_ONCE(fs_info->fs_devices->read_policy, BTRFS_READ_POLICY_PID);
 		fallthrough;
 	case BTRFS_READ_POLICY_PID:
 		preferred_mirror = first + (current->pid % num_stripes);
