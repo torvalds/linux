@@ -2834,9 +2834,61 @@ void (* const rtw89_phy_c2h_rfk_log_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK] = rtw89_phy_c2h_rfk_log_txgapk,
 };
 
+void rtw89_phy_rfk_report_prep(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_rfk_wait_info *wait = &rtwdev->rfk_wait;
+
+	wait->state = RTW89_RFK_STATE_START;
+	wait->start_time = ktime_get();
+	reinit_completion(&wait->completion);
+}
+
+int rtw89_phy_rfk_report_wait(struct rtw89_dev *rtwdev, const char *rfk_name,
+			      unsigned int ms)
+{
+	struct rtw89_rfk_wait_info *wait = &rtwdev->rfk_wait;
+	unsigned long time_left;
+
+	/* Since we can't receive C2H event during SER, use a fixed delay. */
+	if (test_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags)) {
+		fsleep(1000 * ms / 2);
+		goto out;
+	}
+
+	time_left = wait_for_completion_timeout(&wait->completion,
+						msecs_to_jiffies(ms));
+	if (time_left == 0) {
+		rtw89_warn(rtwdev, "failed to wait RF %s\n", rfk_name);
+		return -ETIMEDOUT;
+	} else if (wait->state != RTW89_RFK_STATE_OK) {
+		rtw89_warn(rtwdev, "failed to do RF %s result from state %d\n",
+			   rfk_name, wait->state);
+		return -EFAULT;
+	}
+
+out:
+	rtw89_debug(rtwdev, RTW89_DBG_RFK, "RF %s takes %lld ms to complete\n",
+		    rfk_name, ktime_ms_delta(ktime_get(), wait->start_time));
+
+	return 0;
+}
+
 static void
 rtw89_phy_c2h_rfk_report_state(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
 {
+	const struct rtw89_c2h_rfk_report *report =
+		(const struct rtw89_c2h_rfk_report *)c2h->data;
+	struct rtw89_rfk_wait_info *wait = &rtwdev->rfk_wait;
+
+	wait->state = report->state;
+	wait->version = report->version;
+
+	complete(&wait->completion);
+
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "RFK report state %d with version %d (%*ph)\n",
+		    wait->state, wait->version,
+		    (int)(len - sizeof(report->hdr)), &report->state);
 }
 
 static

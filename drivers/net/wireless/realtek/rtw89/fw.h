@@ -4013,6 +4013,12 @@ struct rtw89_c2h_rf_txgapk_rpt_log {
 	u8 rsv1;
 } __packed;
 
+struct rtw89_c2h_rfk_report {
+	struct rtw89_c2h_hdr hdr;
+	u8 state; /* enum rtw89_rfk_report_state */
+	u8 version;
+} __packed;
+
 #define RTW89_FW_RSVD_PLE_SIZE 0x800
 
 #define RTW89_FW_BACKTRACE_INFO_SIZE 8

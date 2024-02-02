@@ -4252,6 +4252,21 @@ struct rtw89_phy_stat {
 	struct rtw89_pkt_stat last_pkt_stat;
 };
 
+enum rtw89_rfk_report_state {
+	RTW89_RFK_STATE_START = 0x0,
+	RTW89_RFK_STATE_OK = 0x1,
+	RTW89_RFK_STATE_FAIL = 0x2,
+	RTW89_RFK_STATE_TIMEOUT = 0x3,
+	RTW89_RFK_STATE_H2C_CMD_ERR = 0x4,
+};
+
+struct rtw89_rfk_wait_info {
+	struct completion completion;
+	ktime_t start_time;
+	enum rtw89_rfk_report_state state;
+	u8 version;
+};
+
 #define RTW89_DACK_PATH_NR 2
 #define RTW89_DACK_IDX_NR 2
 #define RTW89_DACK_MSBK_NR 16
@@ -4944,6 +4959,7 @@ struct rtw89_dev {
 	DECLARE_BITMAP(pkt_offload, RTW89_MAX_PKT_OFLD_NUM);
 
 	struct rtw89_phy_stat phystat;
+	struct rtw89_rfk_wait_info rfk_wait;
 	struct rtw89_dack_info dack;
 	struct rtw89_iqk_info iqk;
 	struct rtw89_dpk_info dpk;

@@ -4205,6 +4205,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	INIT_WORK(&btc->icmp_notify_work, rtw89_btc_ntfy_icmp_packet_work);
 
 	init_completion(&rtwdev->fw.req.completion);
+	init_completion(&rtwdev->rfk_wait.completion);
 
 	schedule_work(&rtwdev->load_firmware_work);
 

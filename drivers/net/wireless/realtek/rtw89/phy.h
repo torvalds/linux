@@ -885,6 +885,9 @@ void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 bool rtw89_phy_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func);
 void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			  u32 len, u8 class, u8 func);
+void rtw89_phy_rfk_report_prep(struct rtw89_dev *rtwdev);
+int rtw89_phy_rfk_report_wait(struct rtw89_dev *rtwdev, const char *rfk_name,
+			      unsigned int ms);
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_cfo_track_work(struct work_struct *work);
 void rtw89_phy_cfo_parse(struct rtw89_dev *rtwdev, s16 cfo_val,
