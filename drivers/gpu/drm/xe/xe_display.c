@@ -134,8 +134,6 @@ static void xe_display_fini_nommio(struct drm_device *dev, void *dummy)
 
 int xe_display_init_nommio(struct xe_device *xe)
 {
-	int err;
-
 	if (!xe->info.enable_display)
 		return 0;
 
@@ -144,10 +142,6 @@ int xe_display_init_nommio(struct xe_device *xe)
 
 	/* This must be called before any calls to HAS_PCH_* */
 	intel_detect_pch(xe);
-
-	err = intel_power_domains_init(xe);
-	if (err)
-		return err;
 
 	return drmm_add_action_or_reset(&xe->drm, xe_display_fini_nommio, xe);
 }
