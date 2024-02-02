@@ -87,14 +87,17 @@ static char *env_expand(const char *name)
 	return xstrdup(value);
 }
 
-void env_write_dep(FILE *f, const char *autoconfig_name)
+void env_write_dep(struct gstr *s)
 {
 	struct env *e, *tmp;
 
 	list_for_each_entry_safe(e, tmp, &env_list, node) {
-		fprintf(f, "ifneq \"$(%s)\" \"%s\"\n", e->name, e->value);
-		fprintf(f, "%s: FORCE\n", autoconfig_name);
-		fprintf(f, "endif\n");
+		str_printf(s,
+			   "\n"
+			   "ifneq \"$(%s)\" \"%s\"\n"
+			   "$(autoconfig): FORCE\n"
+			   "endif\n",
+			   e->name, e->value);
 		env_del(e);
 	}
 }

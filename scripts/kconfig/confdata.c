@@ -994,13 +994,9 @@ static int conf_write_autoconf_cmd(const char *autoconf_name)
 		return -1;
 	}
 
+	fprintf(out, "autoconfig := %s\n", autoconf_name);
+
 	fputs(str_get(&autoconf_cmd), out);
-
-	fprintf(out, "\n%s: $(deps_config)\n\n", autoconf_name);
-
-	env_write_dep(out, autoconf_name);
-
-	fprintf(out, "\n$(deps_config): ;\n");
 
 	fflush(out);
 	ret = ferror(out); /* error check for all fprintf() calls */

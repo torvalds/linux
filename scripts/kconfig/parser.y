@@ -482,7 +482,7 @@ void conf_parse(const char *name)
 
 	autoconf_cmd = str_new();
 
-	str_printf(&autoconf_cmd, "deps_config := \\\n");
+	str_printf(&autoconf_cmd, "\ndeps_config := \\\n");
 
 	zconf_initscan(name);
 
@@ -491,6 +491,13 @@ void conf_parse(const char *name)
 	if (getenv("ZCONF_DEBUG"))
 		yydebug = 1;
 	yyparse();
+
+	str_printf(&autoconf_cmd,
+		   "\n"
+		   "$(autoconfig): $(deps_config)\n"
+		   "$(deps_config): ;\n");
+
+	env_write_dep(&autoconf_cmd);
 
 	/* Variables are expanded in the parse phase. We can free them here. */
 	variable_all_del();
