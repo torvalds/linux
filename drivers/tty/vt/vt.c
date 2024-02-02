@@ -2421,10 +2421,9 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			}
 			return;
 		}
-		if (vc->vc_priv != EPecma) {
-			vc->vc_priv = EPecma;
+		if (vc->vc_priv != EPecma)
 			return;
-		}
+
 		switch(c) {
 		case 'G': case '`':
 			if (vc->vc_par[0])
