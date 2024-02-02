@@ -83,7 +83,7 @@ struct arm64_ftr_bits {
  * to full-0 denotes that this field has no override
  *
  * A @mask field set to full-0 with the corresponding @val field set
- * to full-1 denotes thath this field has an invalid override.
+ * to full-1 denotes that this field has an invalid override.
  */
 struct arm64_ftr_override {
 	u64		val;
