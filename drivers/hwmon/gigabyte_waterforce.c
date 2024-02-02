@@ -146,7 +146,7 @@ static int waterforce_get_status(struct waterforce_data *priv)
 	/* Send command for getting status */
 	ret = waterforce_write_expanded(priv, get_status_cmd, GET_STATUS_CMD_LENGTH);
 	if (ret < 0)
-		return ret;
+		goto unlock_and_return;
 
 	ret = wait_for_completion_interruptible_timeout(&priv->status_report_received,
 							msecs_to_jiffies(STATUS_VALIDITY));
