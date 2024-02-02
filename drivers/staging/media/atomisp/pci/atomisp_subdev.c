@@ -765,7 +765,7 @@ static int atomisp_init_subdev_pipe(struct atomisp_sub_device *asd,
 
 	/* Init videobuf2 queue structure */
 	pipe->vb_queue.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	pipe->vb_queue.io_modes = VB2_MMAP | VB2_USERPTR;
+	pipe->vb_queue.io_modes = VB2_MMAP | VB2_DMABUF;
 	pipe->vb_queue.buf_struct_size = sizeof(struct ia_css_frame);
 	pipe->vb_queue.ops = &atomisp_vb2_ops;
 	pipe->vb_queue.mem_ops = &vb2_vmalloc_memops;

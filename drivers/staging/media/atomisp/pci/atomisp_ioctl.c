@@ -1666,6 +1666,7 @@ const struct v4l2_ioctl_ops atomisp_ioctl_ops = {
 	.vidioc_querybuf = vb2_ioctl_querybuf,
 	.vidioc_qbuf = atomisp_qbuf_wrapper,
 	.vidioc_dqbuf = atomisp_dqbuf_wrapper,
+	.vidioc_expbuf = vb2_ioctl_expbuf,
 	.vidioc_streamon = vb2_ioctl_streamon,
 	.vidioc_streamoff = vb2_ioctl_streamoff,
 	.vidioc_default = atomisp_vidioc_default,
