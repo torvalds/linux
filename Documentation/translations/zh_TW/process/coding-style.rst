@@ -526,9 +526,9 @@ Linux 裏這是提倡的做法，因爲這樣可以很簡單的給讀者提供�
 
 .. code-block:: c
 
-	 err_free_bar:
+	err_free_bar:
 		kfree(foo->bar);
-	 err_free_foo:
+	err_free_foo:
 		kfree(foo);
 		return ret;
 

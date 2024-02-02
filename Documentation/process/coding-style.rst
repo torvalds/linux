@@ -586,9 +586,9 @@ fix for this is to split it up into two error labels ``err_free_bar:`` and
 
 .. code-block:: c
 
-	 err_free_bar:
+	err_free_bar:
 		kfree(foo->bar);
-	 err_free_foo:
+	err_free_foo:
 		kfree(foo);
 		return ret;
 
@@ -679,7 +679,7 @@ values.  To do the latter, you can stick the following in your .emacs file:
           (c-offsets-alist . (
                   (arglist-close         . c-lineup-arglist-tabs-only)
                   (arglist-cont-nonempty .
-		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
                   (arglist-intro         . +)
                   (brace-list-intro      . +)
                   (c                     . c-lineup-C-comments)
