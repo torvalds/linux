@@ -2893,9 +2893,13 @@ static bool vc_is_control(struct vc_data *vc, int tc, int c)
 	 * as cursor movement) and should not be displayed as a glyph unless
 	 * the disp_ctrl mode is explicitly enabled.
 	 */
-	static const u32 CTRL_ACTION = 0x0d00ff81;
+	static const u32 CTRL_ACTION = BIT(ASCII_NULL) |
+		GENMASK(ASCII_SHIFTIN, ASCII_BELL) | BIT(ASCII_CANCEL) |
+		BIT(ASCII_SUBSTITUTE) | BIT(ASCII_ESCAPE);
 	/* Cannot be overridden by disp_ctrl */
-	static const u32 CTRL_ALWAYS = 0x0800f501;
+	static const u32 CTRL_ALWAYS = BIT(ASCII_NULL) | BIT(ASCII_BACKSPACE) |
+		BIT(ASCII_LINEFEED) | BIT(ASCII_SHIFTIN) | BIT(ASCII_SHIFTOUT) |
+		BIT(ASCII_CAR_RET) | BIT(ASCII_FORMFEED) | BIT(ASCII_ESCAPE);
 
 	if (vc->vc_state != ESnormal)
 		return true;
@@ -2912,7 +2916,7 @@ static bool vc_is_control(struct vc_data *vc, int tc, int c)
 	 * useless without them; to display an arbitrary font position use the
 	 * direct-to-font zone in UTF-8 mode.
 	 */
-	if (c < ' ') {
+	if (c < BITS_PER_TYPE(CTRL_ALWAYS)) {
 		if (vc->vc_disp_ctrl)
 			return CTRL_ALWAYS & BIT(c);
 		else
