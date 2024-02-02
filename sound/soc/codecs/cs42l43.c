@@ -2115,6 +2115,9 @@ static void cs42l43_component_remove(struct snd_soc_component *component)
 {
 	struct cs42l43_codec *priv = snd_soc_component_get_drvdata(component);
 
+	cancel_work_sync(&priv->hp_ilimit_work);
+	cancel_delayed_work_sync(&priv->hp_ilimit_clear_work);
+
 	priv->component = NULL;
 }
 
