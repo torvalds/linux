@@ -494,7 +494,7 @@ void conf_parse(const char *name)
 	if (yynerrs)
 		exit(1);
 	if (!modules_sym)
-		modules_sym = sym_find( "n" );
+		modules_sym = &symbol_no;
 
 	if (!menu_has_prompt(&rootmenu)) {
 		current_entry = &rootmenu;
