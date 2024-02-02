@@ -126,7 +126,7 @@ static int rxe_mr_fill_pages_from_sgt(struct rxe_mr *mr, struct sg_table *sgt)
 	return xas_error(&xas);
 }
 
-int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
+int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 		     int access, struct rxe_mr *mr)
 {
 	struct ib_umem *umem;
