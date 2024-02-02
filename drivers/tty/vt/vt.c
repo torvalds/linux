@@ -2412,14 +2412,6 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				return;
 			}
 			break;
-		case 'n':
-			if (vc->vc_priv == EPecma) {
-				if (vc->vc_par[0] == 5)
-					status_report(tty);
-				else if (vc->vc_par[0] == 6)
-					cursor_report(vc, tty);
-			}
-			return;
 		}
 		if (vc->vc_priv != EPecma)
 			return;
@@ -2505,6 +2497,12 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 		case 'm':
 			csi_m(vc);
+			return;
+		case 'n':
+			if (vc->vc_par[0] == 5)
+				status_report(tty);
+			else if (vc->vc_par[0] == 6)
+				cursor_report(vc, tty);
 			return;
 		case 'q': /* DECLL - but only 3 leds */
 			/* map 0,1,2,3 to 0,1,2,4 */
