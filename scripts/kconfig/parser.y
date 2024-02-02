@@ -557,7 +557,7 @@ static void zconf_error(const char *err, ...)
 
 static void yyerror(const char *err)
 {
-	fprintf(stderr, "%s:%d: %s\n", zconf_curname(), zconf_lineno() + 1, err);
+	fprintf(stderr, "%s:%d: %s\n", zconf_curname(), zconf_lineno(), err);
 }
 
 static void print_quoted_string(FILE *out, const char *str)
