@@ -197,38 +197,37 @@ static int cs_etm_validate_timestamp(struct auxtrace_record *itr,
 static int cs_etm_validate_config(struct auxtrace_record *itr,
 				  struct evsel *evsel)
 {
-	int i, err = -EINVAL;
+	int idx, err = 0;
 	struct perf_cpu_map *event_cpus = evsel->evlist->core.user_requested_cpus;
-	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
+	struct perf_cpu_map *intersect_cpus;
+	struct perf_cpu cpu;
 
-	/* Set option of each CPU we have */
-	for (i = 0; i < cpu__max_cpu().cpu; i++) {
-		struct perf_cpu cpu = { .cpu = i, };
+	/*
+	 * Set option of each CPU we have. In per-cpu case, do the validation
+	 * for CPUs to work with. In per-thread case, the CPU map has the "any"
+	 * CPU value. Since the traced program can run on any CPUs in this case,
+	 * thus don't skip validation.
+	 */
+	if (!perf_cpu_map__has_any_cpu(event_cpus)) {
+		struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 
-		/*
-		 * In per-cpu case, do the validation for CPUs to work with.
-		 * In per-thread case, the CPU map is empty.  Since the traced
-		 * program can run on any CPUs in this case, thus don't skip
-		 * validation.
-		 */
-		if (!perf_cpu_map__has_any_cpu_or_is_empty(event_cpus) &&
-		    !perf_cpu_map__has(event_cpus, cpu))
-			continue;
-
-		if (!perf_cpu_map__has(online_cpus, cpu))
-			continue;
-
-		err = cs_etm_validate_context_id(itr, evsel, i);
-		if (err)
-			goto out;
-		err = cs_etm_validate_timestamp(itr, evsel, i);
-		if (err)
-			goto out;
+		intersect_cpus = perf_cpu_map__intersect(event_cpus, online_cpus);
+		perf_cpu_map__put(online_cpus);
+	} else {
+		intersect_cpus = perf_cpu_map__new_online_cpus();
 	}
 
-	err = 0;
-out:
-	perf_cpu_map__put(online_cpus);
+	perf_cpu_map__for_each_cpu_skip_any(cpu, idx, intersect_cpus) {
+		err = cs_etm_validate_context_id(itr, evsel, cpu.cpu);
+		if (err)
+			break;
+
+		err = cs_etm_validate_timestamp(itr, evsel, cpu.cpu);
+		if (err)
+			break;
+	}
+
+	perf_cpu_map__put(intersect_cpus);
 	return err;
 }
 
@@ -435,7 +434,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	 * Also the case of per-cpu mmaps, need the contextID in order to be notified
 	 * when a context switch happened.
 	 */
-	if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus)) {
+	if (!perf_cpu_map__is_any_cpu_or_is_empty(cpus)) {
 		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
 					   "timestamp", 1);
 		evsel__set_config_if_unset(cs_etm_pmu, cs_etm_evsel,
@@ -461,7 +460,7 @@ static int cs_etm_recording_options(struct auxtrace_record *itr,
 	evsel->core.attr.sample_period = 1;
 
 	/* In per-cpu case, always need the time of mmap events etc */
-	if (!perf_cpu_map__has_any_cpu_or_is_empty(cpus))
+	if (!perf_cpu_map__is_any_cpu_or_is_empty(cpus))
 		evsel__set_sample_bit(evsel, TIME);
 
 	err = cs_etm_validate_config(itr, cs_etm_evsel);
@@ -533,45 +532,31 @@ static size_t
 cs_etm_info_priv_size(struct auxtrace_record *itr __maybe_unused,
 		      struct evlist *evlist __maybe_unused)
 {
-	int i;
+	int idx;
 	int etmv3 = 0, etmv4 = 0, ete = 0;
 	struct perf_cpu_map *event_cpus = evlist->core.user_requested_cpus;
-	struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
+	struct perf_cpu_map *intersect_cpus;
+	struct perf_cpu cpu;
 
-	/* cpu map is not empty, we have specific CPUs to work with */
-	if (!perf_cpu_map__has_any_cpu_or_is_empty(event_cpus)) {
-		for (i = 0; i < cpu__max_cpu().cpu; i++) {
-			struct perf_cpu cpu = { .cpu = i, };
+	if (!perf_cpu_map__has_any_cpu(event_cpus)) {
+		/* cpu map is not "any" CPU , we have specific CPUs to work with */
+		struct perf_cpu_map *online_cpus = perf_cpu_map__new_online_cpus();
 
-			if (!perf_cpu_map__has(event_cpus, cpu) ||
-			    !perf_cpu_map__has(online_cpus, cpu))
-				continue;
-
-			if (cs_etm_is_ete(itr, i))
-				ete++;
-			else if (cs_etm_is_etmv4(itr, i))
-				etmv4++;
-			else
-				etmv3++;
-		}
+		intersect_cpus = perf_cpu_map__intersect(event_cpus, online_cpus);
+		perf_cpu_map__put(online_cpus);
 	} else {
-		/* get configuration for all CPUs in the system */
-		for (i = 0; i < cpu__max_cpu().cpu; i++) {
-			struct perf_cpu cpu = { .cpu = i, };
-
-			if (!perf_cpu_map__has(online_cpus, cpu))
-				continue;
-
-			if (cs_etm_is_ete(itr, i))
-				ete++;
-			else if (cs_etm_is_etmv4(itr, i))
-				etmv4++;
-			else
-				etmv3++;
-		}
+		/* Event can be "any" CPU so count all online CPUs. */
+		intersect_cpus = perf_cpu_map__new_online_cpus();
 	}
-
-	perf_cpu_map__put(online_cpus);
+	perf_cpu_map__for_each_cpu_skip_any(cpu, idx, intersect_cpus) {
+		if (cs_etm_is_ete(itr, cpu.cpu))
+			ete++;
+		else if (cs_etm_is_etmv4(itr, cpu.cpu))
+			etmv4++;
+		else
+			etmv3++;
+	}
+	perf_cpu_map__put(intersect_cpus);
 
 	return (CS_ETM_HEADER_SIZE +
 	       (ete   * CS_ETE_PRIV_SIZE) +
@@ -813,16 +798,15 @@ static int cs_etm_info_fill(struct auxtrace_record *itr,
 	if (!session->evlist->core.nr_mmaps)
 		return -EINVAL;
 
-	/* If the cpu_map is empty all online CPUs are involved */
-	if (perf_cpu_map__has_any_cpu_or_is_empty(event_cpus)) {
+	/* If the cpu_map has the "any" CPU all online CPUs are involved */
+	if (perf_cpu_map__has_any_cpu(event_cpus)) {
 		cpu_map = online_cpus;
 	} else {
 		/* Make sure all specified CPUs are online */
-		for (i = 0; i < perf_cpu_map__nr(event_cpus); i++) {
-			struct perf_cpu cpu = { .cpu = i, };
+		struct perf_cpu cpu;
 
-			if (perf_cpu_map__has(event_cpus, cpu) &&
-			    !perf_cpu_map__has(online_cpus, cpu))
+		perf_cpu_map__for_each_cpu(cpu, i, event_cpus) {
+			if (!perf_cpu_map__has(online_cpus, cpu))
 				return -EINVAL;
 		}
 
