@@ -273,9 +273,10 @@ static ssize_t avoid_reset_quirk_store(struct device *dev,
 				      const char *buf, size_t count)
 {
 	struct usb_device	*udev = to_usb_device(dev);
-	int			val, rc;
+	bool			val;
+	int			rc;
 
-	if (sscanf(buf, "%d", &val) != 1 || val < 0 || val > 1)
+	if (kstrtobool(buf, &val) != 0)
 		return -EINVAL;
 	rc = usb_lock_device_interruptible(udev);
 	if (rc < 0)
@@ -322,13 +323,14 @@ static ssize_t persist_store(struct device *dev, struct device_attribute *attr,
 			     const char *buf, size_t count)
 {
 	struct usb_device *udev = to_usb_device(dev);
-	int value, rc;
+	bool value;
+	int rc;
 
 	/* Hubs are always enabled for USB_PERSIST */
 	if (udev->descriptor.bDeviceClass == USB_CLASS_HUB)
 		return -EPERM;
 
-	if (sscanf(buf, "%d", &value) != 1)
+	if (kstrtobool(buf, &value) != 0)
 		return -EINVAL;
 
 	rc = usb_lock_device_interruptible(udev);
@@ -739,14 +741,14 @@ static ssize_t authorized_store(struct device *dev,
 {
 	ssize_t result;
 	struct usb_device *usb_dev = to_usb_device(dev);
-	unsigned val;
-	result = sscanf(buf, "%u\n", &val);
-	if (result != 1)
+	bool val;
+
+	if (kstrtobool(buf, &val) != 0)
 		result = -EINVAL;
-	else if (val == 0)
-		result = usb_deauthorize_device(usb_dev);
-	else
+	else if (val)
 		result = usb_authorize_device(usb_dev);
+	else
+		result = usb_deauthorize_device(usb_dev);
 	return result < 0 ? result : size;
 }
 static DEVICE_ATTR_IGNORE_LOCKDEP(authorized, S_IRUGO | S_IWUSR,
