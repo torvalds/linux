@@ -16,8 +16,6 @@ static const char nohelp_text[] = "There is no help available for this option.";
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
 
-struct file *file_list;
-
 void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;

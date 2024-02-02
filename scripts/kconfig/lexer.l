@@ -401,13 +401,12 @@ void zconf_initscan(const char *name)
 		exit(1);
 	}
 
-	cur_filename = file_lookup(name)->name;
+	cur_filename = file_lookup(name);
 	yylineno = 1;
 }
 
 void zconf_nextfile(const char *name)
 {
-	struct file *file = file_lookup(name);
 	struct buffer *buf = xmalloc(sizeof(*buf));
 	bool recur_include = false;
 
@@ -443,7 +442,7 @@ void zconf_nextfile(const char *name)
 	}
 
 	yylineno = 1;
-	cur_filename = file->name;
+	cur_filename = file_lookup(name);
 }
 
 static void zconf_endfile(void)

@@ -17,11 +17,6 @@ extern "C" {
 #include <stdbool.h>
 #endif
 
-struct file {
-	struct file *next;
-	char name[];
-};
-
 typedef enum tristate {
 	no, mod, yes
 } tristate;
@@ -274,8 +269,6 @@ struct jump_key {
 	size_t offset;
 	struct menu *target;
 };
-
-extern struct file *file_list;
 
 extern struct symbol symbol_yes, symbol_no, symbol_mod;
 extern struct symbol *modules_sym;

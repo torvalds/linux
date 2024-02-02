@@ -9,15 +9,22 @@
 #include <string.h>
 #include "lkc.h"
 
+struct file {
+	struct file *next;
+	char name[];
+};
+
+static struct file *file_list;
+
 /* file already present in list? If not add it */
-struct file *file_lookup(const char *name)
+const char *file_lookup(const char *name)
 {
 	struct file *file;
 	size_t len;
 
 	for (file = file_list; file; file = file->next) {
 		if (!strcmp(name, file->name)) {
-			return file;
+			return file->name;
 		}
 	}
 
@@ -31,7 +38,7 @@ struct file *file_lookup(const char *name)
 
 	str_printf(&autoconf_cmd, "\t%s \\\n", name);
 
-	return file;
+	return file->name;
 }
 
 /* Allocate initial growable string */
