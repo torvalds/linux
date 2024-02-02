@@ -20,6 +20,16 @@ menuconfig COMMON_CLK_QCOM
 
 if COMMON_CLK_QCOM
 
+config CLK_X1E80100_DISPCC
+	tristate "X1E80100 Display Clock Controller"
+	depends on ARM64 || COMPILE_TEST
+	select CLK_X1E80100_GCC
+	help
+	  Support for the two display clock controllers on Qualcomm
+	  Technologies, Inc. X1E80100 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
+
 config CLK_X1E80100_GCC
 	tristate "X1E80100 Global Clock Controller"
 	depends on ARM64 || COMPILE_TEST
