@@ -11,6 +11,7 @@
 
 #include "list.h"
 #include "lkc.h"
+#include "preprocess.h"
 
 #define ARRAY_SIZE(arr)		(sizeof(arr) / sizeof((arr)[0]))
 

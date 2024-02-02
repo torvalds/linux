@@ -13,6 +13,7 @@
 
 #include "lkc.h"
 #include "internal.h"
+#include "preprocess.h"
 
 #define printd(mask, fmt...) if (cdebug & (mask)) printf(fmt)
 
