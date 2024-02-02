@@ -1173,11 +1173,10 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, struct io_tw_state *ts)
 	percpu_ref_put(&ctx->refs);
 }
 
-static unsigned int handle_tw_list(struct llist_node *node)
+static void handle_tw_list(struct llist_node *node, unsigned int *count)
 {
 	struct io_ring_ctx *ctx = NULL;
 	struct io_tw_state ts = { };
-	unsigned int count = 0;
 
 	do {
 		struct llist_node *next = node->next;
@@ -1195,7 +1194,7 @@ static unsigned int handle_tw_list(struct llist_node *node)
 				io_poll_task_func, io_req_rw_complete,
 				req, &ts);
 		node = next;
-		count++;
+		(*count)++;
 		if (unlikely(need_resched())) {
 			ctx_flush_and_put(ctx, &ts);
 			ctx = NULL;
@@ -1204,7 +1203,6 @@ static unsigned int handle_tw_list(struct llist_node *node)
 	} while (node);
 
 	ctx_flush_and_put(ctx, &ts);
-	return count;
 }
 
 /**
@@ -1263,7 +1261,7 @@ void tctx_task_work(struct callback_head *cb)
 
 	node = llist_del_all(&tctx->task_list);
 	if (node)
-		count = handle_tw_list(llist_reverse_order(node));
+		handle_tw_list(llist_reverse_order(node), &count);
 
 	/* relaxed read is enough as only the task itself sets ->in_cancel */
 	if (unlikely(atomic_read(&tctx->in_cancel)))
