@@ -2375,6 +2375,143 @@ static void csi_DEC(struct tty_struct *tty, struct vc_data *vc, u8 c)
 	}
 }
 
+/*
+ * Handle Control Sequence Introducer control characters. That is
+ * "ESC [ parameters char". Parameters are in @vc->vc_par and the char is in
+ * @c here.
+ */
+static void csi_ECMA(struct tty_struct *tty, struct vc_data *vc, u8 c)
+{
+	switch (c) {
+	case 'G':
+	case '`':
+		if (vc->vc_par[0])
+			vc->vc_par[0]--;
+		gotoxy(vc, vc->vc_par[0], vc->state.y);
+		break;
+	case 'A':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		gotoxy(vc, vc->state.x, vc->state.y - vc->vc_par[0]);
+		break;
+	case 'B':
+	case 'e':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		gotoxy(vc, vc->state.x, vc->state.y + vc->vc_par[0]);
+		break;
+	case 'C':
+	case 'a':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		gotoxy(vc, vc->state.x + vc->vc_par[0], vc->state.y);
+		break;
+	case 'D':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		gotoxy(vc, vc->state.x - vc->vc_par[0], vc->state.y);
+		break;
+	case 'E':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		gotoxy(vc, 0, vc->state.y + vc->vc_par[0]);
+		break;
+	case 'F':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		gotoxy(vc, 0, vc->state.y - vc->vc_par[0]);
+		break;
+	case 'd':
+		if (vc->vc_par[0])
+			vc->vc_par[0]--;
+		gotoxay(vc, vc->state.x ,vc->vc_par[0]);
+		break;
+	case 'H':
+	case 'f':
+		if (vc->vc_par[0])
+			vc->vc_par[0]--;
+		if (vc->vc_par[1])
+			vc->vc_par[1]--;
+		gotoxay(vc, vc->vc_par[1], vc->vc_par[0]);
+		break;
+	case 'J':
+		csi_J(vc, vc->vc_par[0]);
+		break;
+	case 'K':
+		csi_K(vc);
+		break;
+	case 'L':
+		csi_L(vc);
+		break;
+	case 'M':
+		csi_M(vc);
+		break;
+	case 'P':
+		csi_P(vc);
+		break;
+	case 'c':
+		if (!vc->vc_par[0])
+			respond_ID(tty);
+		break;
+	case 'g':
+		if (!vc->vc_par[0] && vc->state.x < VC_TABSTOPS_COUNT)
+			set_bit(vc->state.x, vc->vc_tab_stop);
+		else if (vc->vc_par[0] == 3)
+			bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
+		break;
+	case 'h':
+		csi_hl(vc, true);
+		break;
+	case 'l':
+		csi_hl(vc, false);
+		break;
+	case 'm':
+		csi_m(vc);
+		break;
+	case 'n':
+		if (vc->vc_par[0] == 5)
+			status_report(tty);
+		else if (vc->vc_par[0] == 6)
+			cursor_report(vc, tty);
+		break;
+	case 'q': /* DECLL - but only 3 leds */
+		/* map 0,1,2,3 to 0,1,2,4 */
+		if (vc->vc_par[0] < 4)
+			vt_set_led_state(vc->vc_num,
+				    (vc->vc_par[0] < 3) ? vc->vc_par[0] : 4);
+		break;
+	case 'r':
+		if (!vc->vc_par[0])
+			vc->vc_par[0]++;
+		if (!vc->vc_par[1])
+			vc->vc_par[1] = vc->vc_rows;
+		/* Minimum allowed region is 2 lines */
+		if (vc->vc_par[0] < vc->vc_par[1] &&
+		    vc->vc_par[1] <= vc->vc_rows) {
+			vc->vc_top = vc->vc_par[0] - 1;
+			vc->vc_bottom = vc->vc_par[1];
+			gotoxay(vc, 0, 0);
+		}
+		break;
+	case 's':
+		save_cur(vc);
+		break;
+	case 'u':
+		restore_cur(vc);
+		break;
+	case 'X':
+		csi_X(vc);
+		break;
+	case '@':
+		csi_at(vc, vc->vc_par[0]);
+		break;
+	case ']':
+		csi_RSB(vc);
+		break;
+	}
+
+}
+
 /* console_lock is held */
 static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 {
@@ -2470,139 +2607,11 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			csi_DEC(tty, vc, c);
 			return;
 		case EPecma:
-			break;
+			csi_ECMA(tty, vc, c);
+			return;
 		default:
 			return;
 		}
-
-		switch(c) {
-		case 'G':
-		case '`':
-			if (vc->vc_par[0])
-				vc->vc_par[0]--;
-			gotoxy(vc, vc->vc_par[0], vc->state.y);
-			return;
-		case 'A':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			gotoxy(vc, vc->state.x, vc->state.y - vc->vc_par[0]);
-			return;
-		case 'B':
-		case 'e':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			gotoxy(vc, vc->state.x, vc->state.y + vc->vc_par[0]);
-			return;
-		case 'C':
-		case 'a':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			gotoxy(vc, vc->state.x + vc->vc_par[0], vc->state.y);
-			return;
-		case 'D':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			gotoxy(vc, vc->state.x - vc->vc_par[0], vc->state.y);
-			return;
-		case 'E':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			gotoxy(vc, 0, vc->state.y + vc->vc_par[0]);
-			return;
-		case 'F':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			gotoxy(vc, 0, vc->state.y - vc->vc_par[0]);
-			return;
-		case 'd':
-			if (vc->vc_par[0])
-				vc->vc_par[0]--;
-			gotoxay(vc, vc->state.x ,vc->vc_par[0]);
-			return;
-		case 'H':
-		case 'f':
-			if (vc->vc_par[0])
-				vc->vc_par[0]--;
-			if (vc->vc_par[1])
-				vc->vc_par[1]--;
-			gotoxay(vc, vc->vc_par[1], vc->vc_par[0]);
-			return;
-		case 'J':
-			csi_J(vc, vc->vc_par[0]);
-			return;
-		case 'K':
-			csi_K(vc);
-			return;
-		case 'L':
-			csi_L(vc);
-			return;
-		case 'M':
-			csi_M(vc);
-			return;
-		case 'P':
-			csi_P(vc);
-			return;
-		case 'c':
-			if (!vc->vc_par[0])
-				respond_ID(tty);
-			return;
-		case 'g':
-			if (!vc->vc_par[0] && vc->state.x < VC_TABSTOPS_COUNT)
-				set_bit(vc->state.x, vc->vc_tab_stop);
-			else if (vc->vc_par[0] == 3)
-				bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
-			return;
-		case 'h':
-			csi_hl(vc, true);
-			return;
-		case 'l':
-			csi_hl(vc, false);
-			return;
-		case 'm':
-			csi_m(vc);
-			return;
-		case 'n':
-			if (vc->vc_par[0] == 5)
-				status_report(tty);
-			else if (vc->vc_par[0] == 6)
-				cursor_report(vc, tty);
-			return;
-		case 'q': /* DECLL - but only 3 leds */
-			/* map 0,1,2,3 to 0,1,2,4 */
-			if (vc->vc_par[0] < 4)
-				vt_set_led_state(vc->vc_num,
-					    (vc->vc_par[0] < 3) ? vc->vc_par[0] : 4);
-			return;
-		case 'r':
-			if (!vc->vc_par[0])
-				vc->vc_par[0]++;
-			if (!vc->vc_par[1])
-				vc->vc_par[1] = vc->vc_rows;
-			/* Minimum allowed region is 2 lines */
-			if (vc->vc_par[0] < vc->vc_par[1] &&
-			    vc->vc_par[1] <= vc->vc_rows) {
-				vc->vc_top = vc->vc_par[0] - 1;
-				vc->vc_bottom = vc->vc_par[1];
-				gotoxay(vc, 0, 0);
-			}
-			return;
-		case 's':
-			save_cur(vc);
-			return;
-		case 'u':
-			restore_cur(vc);
-			return;
-		case 'X':
-			csi_X(vc);
-			return;
-		case '@':
-			csi_at(vc, vc->vc_par[0]);
-			return;
-		case ']':
-			csi_RSB(vc);
-			return;
-		}
-		return;
 	case EScsiignore:
 		if (c >= ASCII_CSI_IGNORE_FIRST && c <= ASCII_CSI_IGNORE_LAST)
 			return;
