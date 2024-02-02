@@ -101,9 +101,7 @@ if [ ! -e "/lib/modules/%{KERNELRELEASE}/modules.dep" ]; then
 fi
 
 %preun
-if [ -x /sbin/new-kernel-pkg ]; then
-new-kernel-pkg --remove %{KERNELRELEASE} --rminitrd --initrdfile=/boot/initramfs-%{KERNELRELEASE}.img
-elif [ -x /usr/bin/kernel-install ]; then
+if [ -x /usr/bin/kernel-install ]; then
 kernel-install remove %{KERNELRELEASE}
 fi
 
