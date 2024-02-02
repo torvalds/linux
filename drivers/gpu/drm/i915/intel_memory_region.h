@@ -71,8 +71,7 @@ struct intel_memory_region {
 	struct io_mapping iomap;
 	struct resource region;
 
-	resource_size_t io_start;
-	resource_size_t io_size;
+	struct resource io;
 	resource_size_t min_page_size;
 	resource_size_t total;
 

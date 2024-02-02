@@ -144,8 +144,8 @@ region_lmem_init(struct intel_memory_region *mem)
 	int ret;
 
 	if (!io_mapping_init_wc(&mem->iomap,
-				mem->io_start,
-				mem->io_size))
+				mem->io.start,
+				resource_size(&mem->io)))
 		return -EIO;
 
 	ret = intel_region_ttm_init(mem);
@@ -274,12 +274,7 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		goto err_region_put;
 
 	drm_dbg(&i915->drm, "Local memory: %pR\n", &mem->region);
-	drm_dbg(&i915->drm, "Local memory IO start: %pa\n",
-		&mem->io_start);
-	drm_info(&i915->drm, "Local memory IO size: %pa\n",
-		 &mem->io_size);
-	drm_info(&i915->drm, "Local memory available: %pa\n",
-		 &lmem_size);
+	drm_dbg(&i915->drm, "Local memory IO: %pR\n", &mem->io);
 
 	if (io_size < lmem_size)
 		drm_info(&i915->drm, "Using a reduced BAR size of %lluMiB. Consider enabling 'Resizable BAR' or similar, if available in the BIOS.\n",
