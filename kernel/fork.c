@@ -2071,20 +2071,6 @@ static void pidfd_show_fdinfo(struct seq_file *m, struct file *f)
 }
 #endif
 
-static bool pidfd_task_exited(struct pid *pid, bool thread)
-{
-	struct task_struct *task;
-	bool exited;
-
-	rcu_read_lock();
-	task = pid_task(pid, PIDTYPE_PID);
-	exited = !task ||
-		(READ_ONCE(task->exit_state) && (thread || thread_group_empty(task)));
-	rcu_read_unlock();
-
-	return exited;
-}
-
 /*
  * Poll support for process exit notification.
  */
@@ -2092,6 +2078,7 @@ static __poll_t pidfd_poll(struct file *file, struct poll_table_struct *pts)
 {
 	struct pid *pid = file->private_data;
 	bool thread = file->f_flags & PIDFD_THREAD;
+	struct task_struct *task;
 	__poll_t poll_flags = 0;
 
 	poll_wait(file, &pid->wait_pidfd, pts);
@@ -2099,8 +2086,13 @@ static __poll_t pidfd_poll(struct file *file, struct poll_table_struct *pts)
 	 * Depending on PIDFD_THREAD, inform pollers when the thread
 	 * or the whole thread-group exits.
 	 */
-	if (pidfd_task_exited(pid, thread))
+	rcu_read_lock();
+	task = pid_task(pid, PIDTYPE_PID);
+	if (!task)
+		poll_flags = EPOLLIN | EPOLLRDNORM | EPOLLHUP;
+	else if (task->exit_state && (thread || thread_group_empty(task)))
 		poll_flags = EPOLLIN | EPOLLRDNORM;
+	rcu_read_unlock();
 
 	return poll_flags;
 }
