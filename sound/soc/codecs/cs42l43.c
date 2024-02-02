@@ -2111,10 +2111,18 @@ static int cs42l43_component_probe(struct snd_soc_component *component)
 	return 0;
 }
 
+static void cs42l43_component_remove(struct snd_soc_component *component)
+{
+	struct cs42l43_codec *priv = snd_soc_component_get_drvdata(component);
+
+	priv->component = NULL;
+}
+
 static const struct snd_soc_component_driver cs42l43_component_drv = {
 	.name			= "cs42l43-codec",
 
 	.probe			= cs42l43_component_probe,
+	.remove			= cs42l43_component_remove,
 	.set_sysclk		= cs42l43_set_sysclk,
 	.set_jack		= cs42l43_set_jack,
 
