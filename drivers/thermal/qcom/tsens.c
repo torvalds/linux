@@ -1144,6 +1144,7 @@ MODULE_DEVICE_TABLE(of, tsens_table);
 static const struct thermal_zone_device_ops tsens_of_ops = {
 	.get_temp = tsens_get_temp,
 	.set_trips = tsens_set_trips,
+	.get_trend = qti_tz_get_trend,
 };
 
 static const struct thermal_zone_device_ops tsens_cold_of_ops = {
