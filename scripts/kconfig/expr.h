@@ -195,7 +195,7 @@ struct property {
 	struct menu *menu;         /* the menu the property are associated with
 	                            * valid for: P_SELECT, P_RANGE, P_CHOICE,
 	                            * P_PROMPT, P_DEFAULT, P_MENU, P_COMMENT */
-	struct file *file;         /* what file was this property defined */
+	const char *filename;      /* what file was this property defined */
 	int lineno;                /* what lineno was this property defined */
 };
 

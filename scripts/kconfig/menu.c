@@ -33,7 +33,7 @@ static void prop_warn(struct property *prop, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", prop->file->name, prop->lineno);
+	fprintf(stderr, "%s:%d:warning: ", prop->filename, prop->lineno);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -134,7 +134,7 @@ static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 	prop = xmalloc(sizeof(*prop));
 	memset(prop, 0, sizeof(*prop));
 	prop->type = type;
-	prop->file = current_file;
+	prop->filename = cur_filename;
 	prop->lineno = cur_lineno;
 	prop->menu = current_entry;
 	prop->expr = expr;
