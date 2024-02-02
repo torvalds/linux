@@ -77,6 +77,10 @@ ssize_t sized_strscpy(char *, const char *, size_t);
 	sized_strscpy(dst, src, sizeof(dst) + __must_be_array(dst))
 #define __strscpy1(dst, src, size)	sized_strscpy(dst, src, size)
 
+#define __strscpy_pad0(dst, src, ...)	\
+	sized_strscpy_pad(dst, src, sizeof(dst) + __must_be_array(dst))
+#define __strscpy_pad1(dst, src, size)	sized_strscpy_pad(dst, src, size)
+
 /**
  * strscpy - Copy a C-string into a sized buffer
  * @dst: Where to copy the string to
@@ -102,11 +106,23 @@ ssize_t sized_strscpy(char *, const char *, size_t);
 #define strscpy(dst, src, ...)	\
 	CONCATENATE(__strscpy, COUNT_ARGS(__VA_ARGS__))(dst, src, __VA_ARGS__)
 
+#define sized_strscpy_pad(dest, src, count)	({			\
+	char *__dst = (dest);						\
+	const char *__src = (src);					\
+	const size_t __count = (count);					\
+	ssize_t __wrote;						\
+									\
+	__wrote = sized_strscpy(__dst, __src, __count);			\
+	if (__wrote >= 0 && __wrote < __count)				\
+		memset(__dst + __wrote + 1, 0, __count - __wrote - 1);	\
+	__wrote;							\
+})
+
 /**
  * strscpy_pad() - Copy a C-string into a sized buffer
- * @dest: Where to copy the string to
+ * @dst: Where to copy the string to
  * @src: Where to copy the string from
- * @count: Size of destination buffer
+ * @...: Size of destination buffer
  *
  * Copy the string, or as much of it as fits, into the dest buffer. The
  * behavior is undefined if the string buffers overlap. The destination
@@ -122,17 +138,8 @@ ssize_t sized_strscpy(char *, const char *, size_t);
  * * The number of characters copied (not including the trailing %NULs)
  * * -E2BIG if count is 0 or @src was truncated.
  */
-#define strscpy_pad(dest, src, count)	({			\
-	char *__dst = (dest);						\
-	const char *__src = (src);					\
-	const size_t __count = (count);					\
-	ssize_t __wrote;						\
-									\
-	__wrote = strscpy(__dst, __src, __count);			\
-	if (__wrote >= 0 && __wrote < __count)				\
-		memset(__dst + __wrote + 1, 0, __count - __wrote - 1);	\
-	__wrote;							\
-})
+#define strscpy_pad(dst, src, ...)	\
+	CONCATENATE(__strscpy_pad, COUNT_ARGS(__VA_ARGS__))(dst, src, __VA_ARGS__)
 
 #ifndef __HAVE_ARCH_STRCAT
 extern char * strcat(char *, const char *);
