@@ -341,10 +341,8 @@ int pdsc_dev_init(struct pdsc *pdsc)
 
 	/* Get intr_info struct array for tracking */
 	pdsc->intr_info = kcalloc(nintrs, sizeof(*pdsc->intr_info), GFP_KERNEL);
-	if (!pdsc->intr_info) {
-		err = -ENOMEM;
-		goto err_out;
-	}
+	if (!pdsc->intr_info)
+		return -ENOMEM;
 
 	err = pci_alloc_irq_vectors(pdsc->pdev, nintrs, nintrs, PCI_IRQ_MSIX);
 	if (err != nintrs) {
