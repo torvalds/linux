@@ -82,10 +82,6 @@ u16 ifcvf_get_vq_size(struct ifcvf_hw *hw, u16 qid)
 	return queue_size;
 }
 
-/* This function returns the max allowed safe size for
- * all virtqueues. It is the minimal size that can be
- * suppprted by all virtqueues.
- */
 u16 ifcvf_get_max_vq_size(struct ifcvf_hw *hw)
 {
 	u16 queue_size, max_size, qid;
@@ -97,7 +93,7 @@ u16 ifcvf_get_max_vq_size(struct ifcvf_hw *hw)
 		if (!queue_size)
 			continue;
 
-		max_size = min(queue_size, max_size);
+		max_size = max(queue_size, max_size);
 	}
 
 	return max_size;
