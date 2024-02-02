@@ -37,7 +37,7 @@
  *        bit 1: running binary
  *        bit 2: memory statistic
  */
-unsigned int dbgopt = OPTION_BIN_LIST;
+static unsigned int dbgopt = OPTION_BIN_LIST;
 
 static inline int iunit_dump_dbgopt(struct atomisp_device *isp,
 				    unsigned int opt)
