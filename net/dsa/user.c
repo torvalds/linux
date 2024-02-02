@@ -210,7 +210,7 @@ static int dsa_user_sync_uc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 static int dsa_user_unsync_uc(struct net_device *dev,
@@ -230,7 +230,7 @@ static int dsa_user_unsync_uc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 static int dsa_user_sync_mc(struct net_device *dev,
@@ -250,7 +250,7 @@ static int dsa_user_sync_mc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 static int dsa_user_unsync_mc(struct net_device *dev,
@@ -270,7 +270,7 @@ static int dsa_user_unsync_mc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 void dsa_user_sync_ha(struct net_device *dev)
