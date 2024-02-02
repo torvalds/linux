@@ -3606,7 +3606,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 
 	assert(pipeline || pipe_id == IA_CSS_PIPE_ID_COPY);
 
-	assert(sizeof(NULL) <= sizeof(ddr_buffer.kernel_ptr));
+	assert(sizeof(void *) <= sizeof(ddr_buffer.kernel_ptr));
 	ddr_buffer.kernel_ptr = HOST_ADDRESS(NULL);
 	ddr_buffer.cookie_ptr = buffer->driver_cookie;
 	ddr_buffer.timing_data = buffer->timing_data;
