@@ -1969,8 +1969,14 @@ enum CSI_right_square_bracket {
 	CSI_RSB_CURSOR_BLINK_INTERVAL		= 16,
 };
 
-/* console_lock is held */
-static void setterm_command(struct vc_data *vc)
+/*
+ * csi_RSB - csi+] (Right Square Bracket) handler
+ *
+ * These are linux console private sequences.
+ *
+ * console_lock is held
+ */
+static void csi_RSB(struct vc_data *vc)
 {
 	switch (vc->vc_par[0]) {
 	case CSI_RSB_COLOR_FOR_UNDERLINE:
@@ -2549,8 +2555,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		case '@':
 			csi_at(vc, vc->vc_par[0]);
 			return;
-		case ']': /* setterm functions */
-			setterm_command(vc);
+		case ']':
+			csi_RSB(vc);
 			return;
 		}
 		return;
