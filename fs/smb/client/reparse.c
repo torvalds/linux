@@ -482,34 +482,35 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 		switch (le64_to_cpu(buf->InodeType)) {
 		case NFS_SPECFILE_CHR:
 			fattr->cf_mode |= S_IFCHR;
-			fattr->cf_dtype = DT_CHR;
 			fattr->cf_rdev = reparse_nfs_mkdev(buf);
 			break;
 		case NFS_SPECFILE_BLK:
 			fattr->cf_mode |= S_IFBLK;
-			fattr->cf_dtype = DT_BLK;
 			fattr->cf_rdev = reparse_nfs_mkdev(buf);
 			break;
 		case NFS_SPECFILE_FIFO:
 			fattr->cf_mode |= S_IFIFO;
-			fattr->cf_dtype = DT_FIFO;
 			break;
 		case NFS_SPECFILE_SOCK:
 			fattr->cf_mode |= S_IFSOCK;
-			fattr->cf_dtype = DT_SOCK;
 			break;
 		case NFS_SPECFILE_LNK:
 			fattr->cf_mode |= S_IFLNK;
-			fattr->cf_dtype = DT_LNK;
 			break;
 		default:
 			WARN_ON_ONCE(1);
 			return false;
 		}
-		return true;
+		goto out;
 	}
 
 	switch (tag) {
+	case IO_REPARSE_TAG_DFS:
+	case IO_REPARSE_TAG_DFSR:
+	case IO_REPARSE_TAG_MOUNT_POINT:
+		/* See cifs_create_junction_fattr() */
+		fattr->cf_mode = S_IFDIR | 0711;
+		break;
 	case IO_REPARSE_TAG_LX_SYMLINK:
 	case IO_REPARSE_TAG_LX_FIFO:
 	case IO_REPARSE_TAG_AF_UNIX:
@@ -521,10 +522,11 @@ bool cifs_reparse_point_to_fattr(struct cifs_sb_info *cifs_sb,
 	case IO_REPARSE_TAG_SYMLINK:
 	case IO_REPARSE_TAG_NFS:
 		fattr->cf_mode |= S_IFLNK;
-		fattr->cf_dtype = DT_LNK;
 		break;
 	default:
 		return false;
 	}
+out:
+	fattr->cf_dtype = S_DT(fattr->cf_mode);
 	return true;
 }
