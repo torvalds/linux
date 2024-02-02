@@ -14,7 +14,10 @@ YNL_GEN_ARG_ethtool:=--user-header linux/ethtool_netlink.h \
 
 TOOL:=../ynl-gen-c.py
 
-GENS:=ethtool devlink dpll handshake fou mptcp_pm netdev nfsd ovs_datapath ovs_vport ovs_flow
+GENS_PATHS=$(shell grep -nrI --files-without-match \
+		'protocol: netlink' \
+		../../../../Documentation/netlink/specs/)
+GENS=$(patsubst ../../../../Documentation/netlink/specs/%.yaml,%,${GENS_PATHS})
 SRCS=$(patsubst %,%-user.c,${GENS})
 HDRS=$(patsubst %,%-user.h,${GENS})
 OBJS=$(patsubst %,%-user.o,${GENS})
