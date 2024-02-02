@@ -396,8 +396,7 @@ void exchange_tids(struct task_struct *left, struct task_struct *right)
 void transfer_pid(struct task_struct *old, struct task_struct *new,
 			   enum pid_type type)
 {
-	if (type == PIDTYPE_PID)
-		new->thread_pid = old->thread_pid;
+	WARN_ON_ONCE(type == PIDTYPE_PID);
 	hlist_replace_rcu(&old->pid_links[type], &new->pid_links[type]);
 }
 
