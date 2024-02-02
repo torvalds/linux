@@ -293,11 +293,7 @@ static int video_open(struct inode *pin, struct file *file)
 
 	// make sure the rvas clk is running.
 	//	 if it's already enabled, clk_enable will just return.
-#ifdef MANUAL_ENABLE_CLK
-	enable_rvas_engines(pAstRVAS);
-#else
 	clk_enable(pAstRVAS->rvasclk);
-#endif
 
 	return 0;
 }
@@ -1086,47 +1082,6 @@ void enable_video_engines(struct AstRVAS *pAstRVAS)
 	clk_enable(pAstRVAS->vclk);
 }
 
-#ifdef MANUAL_ENABLE_CLK
-void disable_rvas_engines(struct AstRVAS *pAstRVAS)
-{
-	u32 reg_val;
-	//disable rvas0
-	//printk("disable rvas engines\n");
-	regmap_write(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, 0x2000000);
-	regmap_read(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, &reg_val);
-	//printk("after rvas disable: SCU240=0x%x\n", reg_val);
-	//disable rvas1
-	//regmap_write(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, 0x10000000);
-}
-
-void enable_rvas_engines(struct AstRVAS *pAstRVAS)
-{
-	// clk enable does
-	//	reset engine reset at SCU200
-	//	delay 100 us
-	//	enable clock at SCU244
-	//	delay 10ms
-	//	disable engine reset at SCU204
-	u32 reg_val;
-	//enable rvas0
-	//printk("enable rvas engines\n");
-	regmap_write(pAstRVAS->scu, SCU200_System_Reset_Control_Register, 0x200);
-	usleep_range(100, 200);
-	regmap_write(pAstRVAS->scu, SCU244_Clock_Stop_Control_Clear_Register, 0x2000000);
-	mdelay(10);
-	regmap_write(pAstRVAS->scu, SCU204_System_Reset_Control_Clear_Register, 0x200);
-
-	//enable rvas1
-	//regmap_write(pAstRVAS->scu, SCU200_System_Reset_Control_Register, 0x400);
-	//udelay(100);
-	//regmap_write(pAstRVAS->scu, SCU244_Clock_Stop_Control_Clear_Register, 0x10000000);
-	//mdelay(10);
-	//regmap_write(pAstRVAS->scu, SCU204_System_Reset_Control_Clear_Register, 0x400);
-
-	regmap_read(pAstRVAS->scu, SCU240_Clock_Stop_Control_Register, &reg_val);
-	//printk("after rvas enable: SCU240=0x%x\n", reg_val);
-}
-#else
 void disable_rvas_engines(struct AstRVAS *pAstRVAS)
 {
 	clk_disable(pAstRVAS->rvasclk);
@@ -1134,20 +1089,23 @@ void disable_rvas_engines(struct AstRVAS *pAstRVAS)
 
 void enable_rvas_engines(struct AstRVAS *pAstRVAS)
 {
-	// clk enable does
+	//  ast2600 clk enable does
 	//	reset engine reset at SCU040
 	//	delay 100 us
 	//	enable clock at SCU080
 	//	delay 10ms
 	//	disable engine reset at SCU040
+
+	// ast2700 clk enable only enable clock at SCU240
 	clk_enable(pAstRVAS->rvasclk);
 }
-#endif
-
 
 static void reset_rvas_engine(struct AstRVAS *pAstRVAS)
 {
 	disable_rvas_engines(pAstRVAS);
+#ifdef CONFIG_MACH_ASPEED_G7
+	reset_control_deassert(pAstRVAS->rvas_reset);
+#endif
 	enable_rvas_engines(pAstRVAS);
 	rvas_init(pAstRVAS);
 }
@@ -1463,7 +1421,7 @@ static int video_drv_get_clock(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no eclk clock defined\n");
 		return PTR_ERR(pAstRVAS->eclk);
 	}
-#if 1
+
 	clk_prepare_enable(pAstRVAS->eclk);
 
 	pAstRVAS->vclk = devm_clk_get(&pdev->dev, "vclk");
@@ -1473,15 +1431,7 @@ static int video_drv_get_clock(struct platform_device *pdev)
 	}
 
 	clk_prepare_enable(pAstRVAS->vclk);
-#else
-	{
-		u32 reg_scu080 = 0;
 
-		regmap_read(pAstRVAS->scu, 0x80, &reg_scu080);
-		if (reg_scu080 & 0x8)
-			regmap_write(pAstRVAS->scu, 0x84, 0x8);
-	}
-#endif
 #ifdef CONFIG_MACH_ASPEED_G7
 	pAstRVAS->rvasclk = devm_clk_get(&pdev->dev, "rvasclk");
 	if (IS_ERR(pAstRVAS->rvasclk)) {
@@ -1591,7 +1541,9 @@ static int video_drv_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get rvas reset\n");
 		return -ENOENT;
 	}
-
+#ifdef CONFIG_MACH_ASPEED_G7
+	reset_control_deassert(pAstRVAS->rvas_reset);
+#endif
 	pAstRVAS->video_engine_reset = devm_reset_control_get_by_index(&pdev->dev, 1);
 	if (IS_ERR(pAstRVAS->video_engine_reset)) {
 		dev_err(&pdev->dev, "can't get video engine reset\n");

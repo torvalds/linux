@@ -39,9 +39,6 @@
 
 #ifdef CONFIG_MACH_ASPEED_G7
 
-#define MANUAL_ENABLE_CLK
-#define AST2700
-
 #define SCU200_System_Reset_Control_Register (0x200)
 #define SCU204_System_Reset_Control_Clear_Register (0x204)
 #define SCU240_Clock_Stop_Control_Register (0x240)
@@ -63,8 +60,10 @@
 #define VGA0_PWR_OFF_VDAC			BIT(2)
 #define VGA1_PWR_OFF_VDAC			BIT(3)
 
-#define SCU_RVAS_ENGINE_BIT		BIT(9)
-#define SCU_RVAS_STOP_CLOCK_BIT		BIT(25)
+#define SCU_RVAS1_ENGINE_BIT		BIT(10)
+#define SCU_RVAS0_ENGINE_BIT		BIT(9)
+#define SCU_RVAS1_STOP_CLOCK_BIT		BIT(28)
+#define SCU_RVAS0_STOP_CLOCK_BIT		BIT(25)
 #else
 //SCU
 #define SCU000_Protection_Key_Register	(0x000)
@@ -227,7 +226,7 @@
 //#define TSE_INTR_COUNT			(0x196E00)	//50MHz clock ~1/30 sec
 #define TIMER_INTR_COUNT			(0x65000)	// 25MHz clock ~1/60 sec
 
-#ifndef AST2700
+#ifdef CONFIG_MACH_ASPEED_G6
 //Timer
 /* Register byte offsets */
 // AST2600 Timer registers
@@ -275,7 +274,6 @@
 #define NUM_SNOOP_ROWS				(64)
 
 #ifdef CONFIG_MACH_ASPEED_G7
-
 //vga memory information
 #define SCU010						(0x10)
 #define DDR_SIZE_CONFIG_BITS				(0x3)
