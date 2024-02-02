@@ -3936,6 +3936,7 @@ enum rtw89_mcc_h2c_func {
 
 enum rtw89_rfk_offload_h2c_func {
 	H2C_FUNC_RFK_IQK_OFFLOAD = 0x1,
+	H2C_FUNC_RFK_RXDCK_OFFLOAD = 0x6,
 	H2C_FUNC_RFK_PRE_NOTIFY = 0x8,
 };
 
@@ -3986,6 +3987,17 @@ struct rtw89_fw_h2c_rfk_pre_info {
 struct rtw89_h2c_rf_iqk {
 	__le32 phy_idx;
 	__le32 dbcc;
+} __packed;
+
+struct rtw89_h2c_rf_rxdck {
+	u8 len;
+	u8 phy;
+	u8 is_afe;
+	u8 kpath;
+	u8 cur_band;
+	u8 cur_bw;
+	u8 cur_ch;
+	u8 rxdck_dbg_en;
 } __packed;
 
 enum rtw89_rf_log_type {
@@ -4176,6 +4188,7 @@ int rtw89_fw_h2c_rf_ntfy_mcc(struct rtw89_dev *rtwdev);
 int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
+int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
 			      u8 h2c_class, u8 h2c_func, u8 *buf, u16 len,
 			      bool rack, bool dack);
