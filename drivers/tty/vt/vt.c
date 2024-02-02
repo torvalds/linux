@@ -1874,6 +1874,59 @@ enum {
 	CSI_DEC_hl_MOUSE_VT200	= 1000,
 };
 
+/* console_lock is held */
+static void csi_DEC_hl(struct vc_data *vc, bool on_off)
+{
+	unsigned int i;
+
+	for (i = 0; i <= vc->vc_npar; i++)
+		switch (vc->vc_par[i]) {
+		case CSI_DEC_hl_CURSOR_KEYS:
+			if (on_off)
+				set_kbd(vc, decckm);
+			else
+				clr_kbd(vc, decckm);
+			break;
+		case CSI_DEC_hl_132_COLUMNS:	/* unimplemented */
+#if 0
+			vc_resize(deccolm ? 132 : 80, vc->vc_rows);
+			/* this alone does not suffice; some user mode
+			   utility has to change the hardware regs */
+#endif
+			break;
+		case CSI_DEC_hl_REVERSE_VIDEO:
+			if (vc->vc_decscnm != on_off) {
+				vc->vc_decscnm = on_off;
+				invert_screen(vc, 0, vc->vc_screenbuf_size,
+					      false);
+				update_attr(vc);
+			}
+			break;
+		case CSI_DEC_hl_ORIGIN_MODE:
+			vc->vc_decom = on_off;
+			gotoxay(vc, 0, 0);
+			break;
+		case CSI_DEC_hl_AUTOWRAP:
+			vc->vc_decawm = on_off;
+			break;
+		case CSI_DEC_hl_AUTOREPEAT:
+			if (on_off)
+				set_kbd(vc, decarm);
+			else
+				clr_kbd(vc, decarm);
+			break;
+		case CSI_DEC_hl_MOUSE_X10:
+			vc->vc_report_mouse = on_off ? 1 : 0;
+			break;
+		case CSI_DEC_hl_SHOW_CURSOR:
+			vc->vc_deccm = on_off;
+			break;
+		case CSI_DEC_hl_MOUSE_VT200:
+			vc->vc_report_mouse = on_off ? 2 : 0;
+			break;
+		}
+}
+
 enum {
 	CSI_hl_DISPLAY_CTRL	= 3,	/* handle ansi control chars */
 	CSI_hl_INSERT		= 4,	/* IRM: insert/replace */
@@ -1883,71 +1936,22 @@ enum {
 /* console_lock is held */
 static void csi_hl(struct vc_data *vc, bool on_off)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 0; i <= vc->vc_npar; i++)
-		if (vc->vc_priv == EPdec) {
-			switch(vc->vc_par[i]) {	/* DEC private modes set/reset */
-			case CSI_DEC_hl_CURSOR_KEYS:
-				if (on_off)
-					set_kbd(vc, decckm);
-				else
-					clr_kbd(vc, decckm);
-				break;
-			case CSI_DEC_hl_132_COLUMNS:	/* unimplemented */
-#if 0
-				vc_resize(deccolm ? 132 : 80, vc->vc_rows);
-				/* this alone does not suffice; some user mode
-				   utility has to change the hardware regs */
-#endif
-				break;
-			case CSI_DEC_hl_REVERSE_VIDEO:
-				if (vc->vc_decscnm != on_off) {
-					vc->vc_decscnm = on_off;
-					invert_screen(vc, 0,
-							vc->vc_screenbuf_size,
-							false);
-					update_attr(vc);
-				}
-				break;
-			case CSI_DEC_hl_ORIGIN_MODE:
-				vc->vc_decom = on_off;
-				gotoxay(vc, 0, 0);
-				break;
-			case CSI_DEC_hl_AUTOWRAP:
-				vc->vc_decawm = on_off;
-				break;
-			case CSI_DEC_hl_AUTOREPEAT:
-				if (on_off)
-					set_kbd(vc, decarm);
-				else
-					clr_kbd(vc, decarm);
-				break;
-			case CSI_DEC_hl_MOUSE_X10:
-				vc->vc_report_mouse = on_off ? 1 : 0;
-				break;
-			case CSI_DEC_hl_SHOW_CURSOR:
-				vc->vc_deccm = on_off;
-				break;
-			case CSI_DEC_hl_MOUSE_VT200:
-				vc->vc_report_mouse = on_off ? 2 : 0;
-				break;
-			}
-		} else {
-			switch(vc->vc_par[i]) {	/* ANSI modes set/reset */
-			case CSI_hl_DISPLAY_CTRL:
-				vc->vc_disp_ctrl = on_off;
-				break;
-			case CSI_hl_INSERT:
-				vc->vc_decim = on_off;
-				break;
-			case CSI_hl_AUTO_NL:
-				if (on_off)
-					set_kbd(vc, lnm);
-				else
-					clr_kbd(vc, lnm);
-				break;
-			}
+		switch (vc->vc_par[i]) {	/* ANSI modes set/reset */
+		case CSI_hl_DISPLAY_CTRL:
+			vc->vc_disp_ctrl = on_off;
+			break;
+		case CSI_hl_INSERT:
+			vc->vc_decim = on_off;
+			break;
+		case CSI_hl_AUTO_NL:
+			if (on_off)
+				set_kbd(vc, lnm);
+			else
+				clr_kbd(vc, lnm);
+			break;
 		}
 }
 
@@ -2379,12 +2383,12 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 		vc->vc_state = ESnormal;
 		switch(c) {
 		case 'h':
-			if (vc->vc_priv <= EPdec)
-				csi_hl(vc, true);
+			if (vc->vc_priv == EPdec)
+				csi_DEC_hl(vc, true);
 			return;
 		case 'l':
-			if (vc->vc_priv <= EPdec)
-				csi_hl(vc, false);
+			if (vc->vc_priv == EPdec)
+				csi_DEC_hl(vc, false);
 			return;
 		case 'c':
 			if (vc->vc_priv == EPdec) {
@@ -2493,6 +2497,12 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				set_bit(vc->state.x, vc->vc_tab_stop);
 			else if (vc->vc_par[0] == 3)
 				bitmap_zero(vc->vc_tab_stop, VC_TABSTOPS_COUNT);
+			return;
+		case 'h':
+			csi_hl(vc, true);
+			return;
+		case 'l':
+			csi_hl(vc, false);
 			return;
 		case 'm':
 			csi_m(vc);
