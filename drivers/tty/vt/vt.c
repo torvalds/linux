@@ -3240,22 +3240,23 @@ static void vt_console_print(struct console *co, const char *b, unsigned count)
 	cnt = 0;
 	while (count--) {
 		c = *b++;
-		if (c == 10 || c == 13 || c == 8 || vc->vc_need_wrap) {
+		if (c == ASCII_LINEFEED || c == ASCII_CAR_RET ||
+		    c == ASCII_BACKSPACE || vc->vc_need_wrap) {
 			if (cnt && con_is_visible(vc))
 				vc->vc_sw->con_putcs(vc, start, cnt, vc->state.y, start_x);
 			cnt = 0;
-			if (c == 8) {		/* backspace */
+			if (c == ASCII_BACKSPACE) {
 				bs(vc);
 				start = (ushort *)vc->vc_pos;
 				start_x = vc->state.x;
 				continue;
 			}
-			if (c != 13)
+			if (c != ASCII_CAR_RET)
 				lf(vc);
 			cr(vc);
 			start = (ushort *)vc->vc_pos;
 			start_x = vc->state.x;
-			if (c == 10 || c == 13)
+			if (c == ASCII_LINEFEED || c == ASCII_CAR_RET)
 				continue;
 		}
 		vc_uniscr_putc(vc, c);
