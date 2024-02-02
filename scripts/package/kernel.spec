@@ -77,6 +77,10 @@ ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEA
 		echo "%ghost /lib/modules/%{KERNELRELEASE}/modules.${x}"
 	done
 
+	for x in System.map config vmlinuz; do
+		echo "%ghost /boot/${x}-%{KERNELRELEASE}"
+	done
+
 	echo "%exclude /lib/modules/%{KERNELRELEASE}/build"
 } > %{buildroot}/kernel.list
 
