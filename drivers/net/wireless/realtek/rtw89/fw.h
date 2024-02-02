@@ -3937,6 +3937,7 @@ enum rtw89_mcc_h2c_func {
 enum rtw89_rfk_offload_h2c_func {
 	H2C_FUNC_RFK_IQK_OFFLOAD = 0x1,
 	H2C_FUNC_RFK_DPK_OFFLOAD = 0x3,
+	H2C_FUNC_RFK_TXGAPK_OFFLOAD = 0x4,
 	H2C_FUNC_RFK_DACK_OFFLOAD = 0x5,
 	H2C_FUNC_RFK_RXDCK_OFFLOAD = 0x6,
 	H2C_FUNC_RFK_PRE_NOTIFY = 0x8,
@@ -4000,6 +4001,17 @@ struct rtw89_h2c_rf_dpk {
 	u8 cur_bw;
 	u8 cur_ch;
 	u8 dpk_dbg_en;
+} __packed;
+
+struct rtw89_h2c_rf_txgapk {
+	u8 len;
+	u8 ktype;
+	u8 phy;
+	u8 kpath;
+	u8 band;
+	u8 bw;
+	u8 ch;
+	u8 cv;
 } __packed;
 
 struct rtw89_h2c_rf_dack {
@@ -4208,6 +4220,7 @@ int rtw89_fw_h2c_rf_pre_ntfy(struct rtw89_dev *rtwdev,
 			     enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_iqk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
+int rtw89_fw_h2c_rf_txgapk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_dack(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_rf_rxdck(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx);
 int rtw89_fw_h2c_raw_with_hdr(struct rtw89_dev *rtwdev,
