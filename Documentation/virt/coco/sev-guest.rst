@@ -71,6 +71,7 @@ The host ioctls are issued to a file descriptor of the /dev/sev device.
 The ioctl accepts the command ID/input structure documented below.
 
 ::
+
         struct sev_issue_cmd {
                 /* Command ID */
                 __u32 cmd;
