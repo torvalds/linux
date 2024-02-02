@@ -101,7 +101,7 @@ struct menu *current_menu, *current_entry;
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
-		$$->file->name, $$->lineno);
+		$$->filename, $$->lineno);
 	if (current_menu == $$)
 		menu_end_menu();
 } if_entry menu_entry choice_entry
@@ -527,11 +527,11 @@ static bool zconf_endtoken(const char *tokenname,
 		yynerrs++;
 		return false;
 	}
-	if (current_menu->file != current_file) {
+	if (strcmp(current_menu->filename, cur_filename)) {
 		zconf_error("'%s' in different file than '%s'",
 			    tokenname, expected_tokenname);
 		fprintf(stderr, "%s:%d: location of the '%s'\n",
-			current_menu->file->name, current_menu->lineno,
+			current_menu->filename, current_menu->lineno,
 			expected_tokenname);
 		yynerrs++;
 		return false;

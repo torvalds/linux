@@ -23,7 +23,7 @@ void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", menu->file->name, menu->lineno);
+	fprintf(stderr, "%s:%d:warning: ", menu->filename, menu->lineno);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -53,7 +53,7 @@ void menu_add_entry(struct symbol *sym)
 	memset(menu, 0, sizeof(*menu));
 	menu->sym = sym;
 	menu->parent = current_menu;
-	menu->file = current_file;
+	menu->filename = cur_filename;
 	menu->lineno = cur_lineno;
 
 	*last_entry_ptr = menu;
@@ -676,7 +676,7 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 static void get_def_str(struct gstr *r, struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
-		   menu->file->name, menu->lineno);
+		   menu->filename, menu->lineno);
 }
 
 static void get_dep_str(struct gstr *r, struct expr *expr, const char *prefix)

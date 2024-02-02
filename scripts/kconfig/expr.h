@@ -256,7 +256,7 @@ struct menu {
 	char *help;
 
 	/* The location where the menu node appears in the Kconfig files */
-	struct file *file;
+	const char *filename;
 	int lineno;
 
 	/* For use by front ends that need to store auxiliary data */
