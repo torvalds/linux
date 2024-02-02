@@ -7597,7 +7597,8 @@ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
 	u8 pwr_lvl_idx, num_pwr_levels, pwr_reduction;
 	bool is_psd_power = false, is_tpe_present = false;
 	s8 max_tx_power[IEEE80211_MAX_NUM_PWR_LEVEL],
-		psd_power, tx_power, eirp_power;
+		psd_power, tx_power;
+	s8 eirp_power = 0;
 	u16 start_freq, center_freq;
 
 	chan = ctx->def.chan;
