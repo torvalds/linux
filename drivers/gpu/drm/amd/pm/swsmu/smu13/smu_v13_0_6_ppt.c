@@ -2552,8 +2552,12 @@ static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct 
 				     enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
 {
 	uint64_t status0;
+	uint32_t ext_error_code;
+	uint32_t odecc_err_cnt;
 
 	status0 = entry->regs[MCA_REG_IDX_STATUS];
+	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(status0);
+	odecc_err_cnt = MCA_REG__MISC0__ERRCNT(entry->regs[MCA_REG_IDX_MISC0]);
 
 	if (!REG_GET_FIELD(status0, MCMP1_STATUST0, Val)) {
 		*count = 0;
@@ -2563,7 +2567,7 @@ static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct 
 	if (umc_v12_0_is_deferred_error(adev, status0) ||
 	    umc_v12_0_is_uncorrectable_error(adev, status0) ||
 	    umc_v12_0_is_correctable_error(adev, status0))
-		*count = 1;
+		*count = (ext_error_code == 0) ? odecc_err_cnt : 1;
 
 	return 0;
 }
