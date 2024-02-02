@@ -33,6 +33,19 @@ static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
 
+	set_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
+	if (accel_dev->hw_device->exit_arb) {
+		dev_dbg(&pdev->dev, "Disabling arbitration\n");
+		accel_dev->hw_device->exit_arb(accel_dev);
+	}
+	adf_error_notifier(accel_dev);
+	adf_pf2vf_notify_fatal_error(accel_dev);
+	adf_dev_restarting_notify(accel_dev);
+	adf_pf2vf_notify_restarting(accel_dev);
+	adf_pf2vf_wait_for_restarting_complete(accel_dev);
+	pci_clear_master(pdev);
+	adf_dev_down(accel_dev, false);
+
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
@@ -180,14 +193,25 @@ static int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,
 static pci_ers_result_t adf_slot_reset(struct pci_dev *pdev)
 {
 	struct adf_accel_dev *accel_dev = adf_devmgr_pci_to_accel_dev(pdev);
+	int res = 0;
 
 	if (!accel_dev) {
 		pr_err("QAT: Can't find acceleration device\n");
 		return PCI_ERS_RESULT_DISCONNECT;
 	}
-	if (adf_dev_aer_schedule_reset(accel_dev, ADF_DEV_RESET_SYNC))
+
+	if (!pdev->is_busmaster)
+		pci_set_master(pdev);
+	pci_restore_state(pdev);
+	pci_save_state(pdev);
+	res = adf_dev_up(accel_dev, false);
+	if (res && res != -EALREADY)
 		return PCI_ERS_RESULT_DISCONNECT;
 
+	adf_reenable_sriov(accel_dev);
+	adf_pf2vf_notify_restarted(accel_dev);
+	adf_dev_restarted_notify(accel_dev);
+	clear_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
 	return PCI_ERS_RESULT_RECOVERED;
 }
 
