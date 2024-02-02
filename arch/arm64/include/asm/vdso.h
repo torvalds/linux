@@ -17,9 +17,6 @@
 #ifndef __ASSEMBLY__
 
 #include <generated/vdso-offsets.h>
-#ifdef CONFIG_COMPAT_VDSO
-#include <generated/vdso32-offsets.h>
-#endif
 
 #define VDSO_SYMBOL(base, name)						   \
 ({									   \
