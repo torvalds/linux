@@ -1834,13 +1834,13 @@ static struct vmap_area *alloc_vmap_area(unsigned long size,
 		va = kmem_cache_alloc_node(vmap_area_cachep, gfp_mask, node);
 		if (unlikely(!va))
 			return ERR_PTR(-ENOMEM);
-	}
 
-	/*
-	 * Only scan the relevant parts containing pointers to other objects
-	 * to avoid false negatives.
-	 */
-	kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask);
+		/*
+		 * Only scan the relevant parts containing pointers to other objects
+		 * to avoid false negatives.
+		 */
+		kmemleak_scan_area(&va->rb_node, SIZE_MAX, gfp_mask);
+	}
 
 retry:
 	if (addr == vend) {
