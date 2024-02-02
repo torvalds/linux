@@ -893,7 +893,7 @@
 			reg = <0x0 0x120b8000 0x0 0x800>,
 				  <0x0 0x12c14000 0x0 0x800>,
 				  <0x0 0x120a0000 0x0 0x1000>;
-			clocks = <&syscon0 AST2700_SOC0_CLK_RVAS0>,
+			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_RVAS0CLK>,
 					<&syscon0 AST2700_SOC0_CLK_GATE_VCLK>,
 					<&syscon0 AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "rvasclk", "vclk", "eclk";
@@ -907,7 +907,7 @@
 			reg = <0x0 0x120bc000 0x0 0x800>,
 				  <0x0 0x12c14800 0x0 0x800>,
 				  <0x0 0x120a0000 0x0 0x1000>;
-			clocks = <&syscon0 AST2700_SOC0_CLK_RVAS1>,
+			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_RVAS1CLK>,
 					<&syscon0 AST2700_SOC0_CLK_GATE_VCLK>,
 					<&syscon0 AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "rvas2clk", "vclk", "eclk";
