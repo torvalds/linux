@@ -1969,3 +1969,54 @@ int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info)
 		return calc_dynamic_reclaim_threshold(space_info);
 	return READ_ONCE(space_info->bg_reclaim_threshold);
 }
+
+static int do_reclaim_sweep(struct btrfs_fs_info *fs_info,
+			    struct btrfs_space_info *space_info, int raid)
+{
+	struct btrfs_block_group *bg;
+	int thresh_pct;
+
+	spin_lock(&space_info->lock);
+	thresh_pct = btrfs_calc_reclaim_threshold(space_info);
+	spin_unlock(&space_info->lock);
+
+	down_read(&space_info->groups_sem);
+	list_for_each_entry(bg, &space_info->block_groups[raid], list) {
+		u64 thresh;
+		bool reclaim = false;
+
+		btrfs_get_block_group(bg);
+		spin_lock(&bg->lock);
+		thresh = mult_perc(bg->length, thresh_pct);
+		if (bg->used < thresh && bg->reclaim_mark)
+			reclaim = true;
+		bg->reclaim_mark++;
+		spin_unlock(&bg->lock);
+		if (reclaim)
+			btrfs_mark_bg_to_reclaim(bg);
+		btrfs_put_block_group(bg);
+	}
+	up_read(&space_info->groups_sem);
+	return 0;
+}
+
+int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
+{
+	int ret;
+	int raid;
+	struct btrfs_space_info *space_info;
+
+	list_for_each_entry(space_info, &fs_info->space_info, list) {
+		if (space_info->flags & BTRFS_BLOCK_GROUP_SYSTEM)
+			continue;
+		if (!READ_ONCE(space_info->periodic_reclaim))
+			continue;
+		for (raid = 0; raid < BTRFS_NR_RAID_TYPES; raid++) {
+			ret = do_reclaim_sweep(fs_info, space_info, raid);
+			if (ret)
+				return ret;
+		}
+	}
+
+	return ret;
+}

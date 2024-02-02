@@ -973,6 +973,39 @@ BTRFS_ATTR_RW(space_info, dynamic_reclaim,
 	      btrfs_sinfo_dynamic_reclaim_show,
 	      btrfs_sinfo_dynamic_reclaim_store);
 
+static ssize_t btrfs_sinfo_periodic_reclaim_show(struct kobject *kobj,
+						struct kobj_attribute *a,
+						char *buf)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+
+	return sysfs_emit(buf, "%d\n", READ_ONCE(space_info->periodic_reclaim));
+}
+
+static ssize_t btrfs_sinfo_periodic_reclaim_store(struct kobject *kobj,
+						 struct kobj_attribute *a,
+						 const char *buf, size_t len)
+{
+	struct btrfs_space_info *space_info = to_space_info(kobj);
+	int periodic_reclaim;
+	int ret;
+
+	ret = kstrtoint(buf, 10, &periodic_reclaim);
+	if (ret)
+		return ret;
+
+	if (periodic_reclaim < 0)
+		return -EINVAL;
+
+	WRITE_ONCE(space_info->periodic_reclaim, periodic_reclaim != 0);
+
+	return len;
+}
+
+BTRFS_ATTR_RW(space_info, periodic_reclaim,
+	      btrfs_sinfo_periodic_reclaim_show,
+	      btrfs_sinfo_periodic_reclaim_store);
+
 /*
  * Allocation information about block group types.
  *
@@ -996,6 +1029,7 @@ static struct attribute *space_info_attrs[] = {
 	BTRFS_ATTR_PTR(space_info, reclaim_count),
 	BTRFS_ATTR_PTR(space_info, reclaim_bytes),
 	BTRFS_ATTR_PTR(space_info, reclaim_errors),
+	BTRFS_ATTR_PTR(space_info, periodic_reclaim),
 #ifdef CONFIG_BTRFS_DEBUG
 	BTRFS_ATTR_PTR(space_info, force_chunk_alloc),
 #endif

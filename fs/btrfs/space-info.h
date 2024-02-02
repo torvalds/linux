@@ -190,6 +190,12 @@ struct btrfs_space_info {
 	 * fixed bg_reclaim_threshold.
 	 */
 	bool dynamic_reclaim;
+
+	/*
+	 * Periodically check all block groups against the reclaim
+	 * threshold in the cleaner thread.
+	 */
+	bool periodic_reclaim;
 };
 
 struct reserve_ticket {
@@ -273,5 +279,6 @@ void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info);
 u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo);
 
 int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info);
+int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info);
 
 #endif /* BTRFS_SPACE_INFO_H */
