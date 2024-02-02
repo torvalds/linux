@@ -305,12 +305,6 @@ void menu_finalize(struct menu *parent)
 					}
 				}
 			}
-			/* set the type of the remaining choice values */
-			for (menu = parent->list; menu; menu = menu->next) {
-				current_entry = menu;
-				if (menu->sym && menu->sym->type == S_UNKNOWN)
-					menu_set_type(sym->type);
-			}
 
 			/*
 			 * Use the choice itself as the parent dependency of
