@@ -2584,6 +2584,7 @@ static int tb_scan_finalize_switch(struct device *dev, void *data)
 static int tb_start(struct tb *tb, bool reset)
 {
 	struct tb_cm *tcm = tb_priv(tb);
+	bool discover = true;
 	int ret;
 
 	tb->root_switch = tb_switch_alloc(tb, &tb->dev, 0);
@@ -2629,9 +2630,13 @@ static int tb_start(struct tb *tb, bool reset)
 	 * reset the ports to handle it as new hotplug for USB4 v1
 	 * routers (for USB4 v2 and beyond we already do host reset).
 	 */
-	if (reset && usb4_switch_version(tb->root_switch) == 1) {
-		tb_switch_reset(tb->root_switch);
-	} else {
+	if (reset && tb_switch_is_usb4(tb->root_switch)) {
+		discover = false;
+		if (usb4_switch_version(tb->root_switch) == 1)
+			tb_switch_reset(tb->root_switch);
+	}
+
+	if (discover) {
 		/* Full scan to discover devices added before the driver was loaded. */
 		tb_scan_switch(tb->root_switch);
 		/* Find out tunnels created by the boot firmware */
