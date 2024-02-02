@@ -1850,8 +1850,10 @@ static int tx_macro_component_probe(struct snd_soc_component *comp)
 	snd_soc_component_update_bits(comp, CDC_TX0_TX_PATH_SEC7, 0x3F,
 				      0x0A);
 	/* Enable swr mic0 and mic1 clock */
-	snd_soc_component_update_bits(comp, CDC_TX_TOP_CSR_SWR_AMIC0_CTL, 0xFF, 0x00);
-	snd_soc_component_update_bits(comp, CDC_TX_TOP_CSR_SWR_AMIC1_CTL, 0xFF, 0x00);
+	snd_soc_component_write(comp, CDC_TX_TOP_CSR_SWR_AMIC0_CTL,
+				CDC_TX_SWR_MIC_CLK_DEFAULT);
+	snd_soc_component_write(comp, CDC_TX_TOP_CSR_SWR_AMIC1_CTL,
+				CDC_TX_SWR_MIC_CLK_DEFAULT);
 
 	return 0;
 }
