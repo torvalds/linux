@@ -7,6 +7,8 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "hashtable.h"
 #include "lkc.h"
 
 unsigned int strhash(const char *s)
@@ -19,32 +21,32 @@ unsigned int strhash(const char *s)
 	return hash;
 }
 
+/* hash table of all parsed Kconfig files */
+static HASHTABLE_DEFINE(file_hashtable, 1U << 11);
+
 struct file {
-	struct file *next;
+	struct hlist_node node;
 	char name[];
 };
-
-static struct file *file_list;
 
 /* file already present in list? If not add it */
 const char *file_lookup(const char *name)
 {
 	struct file *file;
 	size_t len;
+	int hash = strhash(name);
 
-	for (file = file_list; file; file = file->next) {
-		if (!strcmp(name, file->name)) {
+	hash_for_each_possible(file_hashtable, file, node, hash)
+		if (!strcmp(name, file->name))
 			return file->name;
-		}
-	}
 
 	len = strlen(name);
 	file = xmalloc(sizeof(*file) + len + 1);
 	memset(file, 0, sizeof(*file));
 	memcpy(file->name, name, len);
 	file->name[len] = '\0';
-	file->next = file_list;
-	file_list = file;
+
+	hash_add(file_hashtable, &file->node, hash);
 
 	str_printf(&autoconf_cmd, "\t%s \\\n", name);
 
