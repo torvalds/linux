@@ -96,7 +96,6 @@ struct temp_data {
 struct platform_data {
 	struct device		*hwmon_dev;
 	u16			pkg_id;
-	u16			cpu_map[NUM_REAL_CORES];
 	struct ida		ida;
 	struct cpumask		cpumask;
 	struct temp_data	*core_data[MAX_CORE_DATA];
@@ -517,7 +516,6 @@ static int create_core_data(struct platform_device *pdev, unsigned int cpu,
 		if (index < 0)
 			return index;
 
-		pdata->cpu_map[index] = topology_core_id(cpu);
 		index += BASE_SYSFS_ATTR_NO;
 	}
 
@@ -696,7 +694,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	struct platform_device *pdev = coretemp_get_pdev(cpu);
 	struct platform_data *pd;
 	struct temp_data *tdata;
-	int i, indx = -1, target;
+	int i, target;
 
 	/* No need to tear down any interfaces for suspend */
 	if (cpuhp_tasks_frozen)
@@ -707,18 +705,16 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	if (!pd->hwmon_dev)
 		return 0;
 
-	for (i = 0; i < NUM_REAL_CORES; i++) {
-		if (pd->cpu_map[i] == topology_core_id(cpu)) {
-			indx = i + BASE_SYSFS_ATTR_NO;
+	for (i = BASE_SYSFS_ATTR_NO; i < MAX_CORE_DATA; i++) {
+		if (pd->core_data[i] && pd->core_data[i]->cpu_core_id == topology_core_id(cpu))
 			break;
-		}
 	}
 
 	/* Too many cores and this core is not populated, just return */
-	if (indx < 0)
+	if (i == MAX_CORE_DATA)
 		return 0;
 
-	tdata = pd->core_data[indx];
+	tdata = pd->core_data[i];
 
 	cpumask_clear_cpu(cpu, &pd->cpumask);
 
@@ -729,7 +725,7 @@ static int coretemp_cpu_offline(unsigned int cpu)
 	 */
 	target = cpumask_any_and(&pd->cpumask, topology_sibling_cpumask(cpu));
 	if (target >= nr_cpu_ids) {
-		coretemp_remove_core(pd, indx);
+		coretemp_remove_core(pd, i);
 	} else if (tdata && tdata->cpu == cpu) {
 		mutex_lock(&tdata->update_lock);
 		tdata->cpu = target;
