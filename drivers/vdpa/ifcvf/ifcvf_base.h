@@ -28,6 +28,7 @@
 #define IFCVF_PCI_MAX_RESOURCE	6
 
 #define IFCVF_LM_BAR			4
+#define IFCVF_MIN_VQ_SIZE		64
 
 #define IFCVF_ERR(pdev, fmt, ...)	dev_err(&pdev->dev, fmt, ##__VA_ARGS__)
 #define IFCVF_DBG(pdev, fmt, ...)	dev_dbg(&pdev->dev, fmt, ##__VA_ARGS__)
