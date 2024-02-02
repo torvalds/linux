@@ -2528,6 +2528,7 @@ static struct Qdisc_ops taprio_qdisc_ops __read_mostly = {
 	.dump_stats	= taprio_dump_stats,
 	.owner		= THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("taprio");
 
 static struct notifier_block taprio_device_notifier = {
 	.notifier_call = taprio_dev_notifier,

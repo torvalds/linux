@@ -709,6 +709,7 @@ static struct Qdisc_ops sfb_qdisc_ops __read_mostly = {
 	.dump_stats	=	sfb_dump_stats,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("sfb");
 
 static int __init sfb_module_init(void)
 {

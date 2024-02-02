@@ -702,6 +702,7 @@ static struct Qdisc_ops hhf_qdisc_ops __read_mostly = {
 	.dump_stats	=	hhf_dump_stats,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("hhf");
 
 static int __init hhf_module_init(void)
 {
