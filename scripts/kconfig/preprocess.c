@@ -9,12 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "array_size.h"
 #include "internal.h"
 #include "list.h"
 #include "lkc.h"
 #include "preprocess.h"
-
-#define ARRAY_SIZE(arr)		(sizeof(arr) / sizeof((arr)[0]))
 
 static char *expand_string_with_args(const char *in, int argc, char *argv[]);
 static char *expand_string(const char *in);
