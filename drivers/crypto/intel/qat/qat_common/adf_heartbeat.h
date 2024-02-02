@@ -13,6 +13,8 @@ struct dentry;
 #define ADF_CFG_HB_TIMER_DEFAULT_MS 500
 #define ADF_CFG_HB_COUNT_THRESHOLD 3
 
+#define ADF_CFG_HB_RESET_MS 5000
+
 enum adf_device_heartbeat_status {
 	HB_DEV_UNRESPONSIVE = 0,
 	HB_DEV_ALIVE,
@@ -30,6 +32,7 @@ struct adf_heartbeat {
 	unsigned int hb_failed_counter;
 	unsigned int hb_timer;
 	u64 last_hb_check_time;
+	u64 last_hb_reset_time;
 	bool ctrs_cnt_checked;
 	struct hb_dma_addr {
 		dma_addr_t phy_addr;
