@@ -77,6 +77,36 @@ DEFINE_NFS4_CLIENTID_EVENT(nfs4_bind_conn_to_session);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_sequence);
 DEFINE_NFS4_CLIENTID_EVENT(nfs4_reclaim_complete);
 
+TRACE_EVENT(nfs4_trunked_exchange_id,
+		TP_PROTO(
+			const struct nfs_client *clp,
+			const char *addr,
+			int error
+		),
+
+		TP_ARGS(clp, addr, error),
+
+		TP_STRUCT__entry(
+			__string(main_addr, clp->cl_hostname)
+			__string(trunk_addr, addr)
+			__field(unsigned long, error)
+		),
+
+		TP_fast_assign(
+			__entry->error = error < 0 ? -error : 0;
+			__assign_str(main_addr, clp->cl_hostname);
+			__assign_str(trunk_addr, addr);
+		),
+
+		TP_printk(
+			"error=%ld (%s) main_addr=%s trunk_addr=%s",
+			-__entry->error,
+			show_nfs4_status(__entry->error),
+			__get_str(main_addr),
+			__get_str(trunk_addr)
+		)
+);
+
 TRACE_EVENT(nfs4_sequence_done,
 		TP_PROTO(
 			const struct nfs4_session *session,
