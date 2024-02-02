@@ -405,6 +405,7 @@ void iova_bitmap_set(struct iova_bitmap *bitmap,
 			mapped->pgshift) + mapped->pgoff * BITS_PER_BYTE;
 	unsigned long last_bit = (((iova + length - 1) - mapped->iova) >>
 			mapped->pgshift) + mapped->pgoff * BITS_PER_BYTE;
+	unsigned long last_page_idx = mapped->npages - 1;
 
 	do {
 		unsigned int page_idx = cur_bit / BITS_PER_PAGE;
@@ -412,6 +413,9 @@ void iova_bitmap_set(struct iova_bitmap *bitmap,
 		unsigned int nbits = min(BITS_PER_PAGE - offset,
 					 last_bit - cur_bit + 1);
 		void *kaddr;
+
+		if (unlikely(page_idx > last_page_idx))
+			break;
 
 		kaddr = kmap_local_page(mapped->pages[page_idx]);
 		bitmap_set(kaddr, offset, nbits);
