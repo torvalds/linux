@@ -6,4 +6,7 @@ struct menu;
 
 extern struct menu *current_menu, *current_entry;
 
+extern const char *cur_filename;
+extern int cur_lineno;
+
 #endif /* INTERNAL_H */

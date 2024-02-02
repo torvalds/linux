@@ -54,7 +54,7 @@ void menu_add_entry(struct symbol *sym)
 	menu->sym = sym;
 	menu->parent = current_menu;
 	menu->file = current_file;
-	menu->lineno = zconf_lineno();
+	menu->lineno = cur_lineno;
 
 	*last_entry_ptr = menu;
 	last_entry_ptr = &menu->next;
@@ -135,7 +135,7 @@ static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 	memset(prop, 0, sizeof(*prop));
 	prop->type = type;
 	prop->file = current_file;
-	prop->lineno = zconf_lineno();
+	prop->lineno = cur_lineno;
 	prop->menu = current_entry;
 	prop->expr = expr;
 	prop->visible.expr = dep;

@@ -23,13 +23,13 @@
 #define START_STRSIZE	16
 
 /* The Kconfig file currently being parsed.  */
-static const char *cur_filename;
+const char *cur_filename;
 
 /*
  * The line number of the current statement. This does not match yylineno.
  * yylineno is used by the lexer, while cur_lineno is used by the parser.
  */
-static int cur_lineno;
+int cur_lineno;
 
 static int prev_prev_token = T_EOL;
 static int prev_token = T_EOL;
@@ -187,7 +187,7 @@ n	[A-Za-z0-9_-]
 	\n	{
 		fprintf(stderr,
 			"%s:%d:warning: multi-line strings not supported\n",
-			zconf_curname(), zconf_lineno());
+			cur_filename, cur_lineno);
 		unput('\n');
 		BEGIN(INITIAL);
 		yylval.string = text;
@@ -423,12 +423,12 @@ void zconf_nextfile(const char *name)
 	yyin = zconf_fopen(file->name);
 	if (!yyin) {
 		fprintf(stderr, "%s:%d: can't open file \"%s\"\n",
-			zconf_curname(), zconf_lineno(), file->name);
+			cur_filename, cur_lineno, file->name);
 		exit(1);
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
 
-	current_file->lineno = zconf_lineno();
+	current_file->lineno = cur_lineno;
 	file->parent = current_file;
 
 	for (iter = current_file; iter; iter = iter->parent) {
@@ -467,14 +467,4 @@ static void zconf_endfile(void)
 	tmp = current_buf;
 	current_buf = current_buf->parent;
 	free(tmp);
-}
-
-int zconf_lineno(void)
-{
-	return cur_lineno;
-}
-
-const char *zconf_curname(void)
-{
-	return cur_filename;
 }
