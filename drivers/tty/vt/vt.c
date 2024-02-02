@@ -2603,11 +2603,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, u8 c)
 			vc->vc_par[vc->vc_npar] = 0;
 		vc->vc_npar = 0;
 		vc->vc_state = ESgetpars;
-		if (c == '[') { /* Function key */
-			vc->vc_state=ESfunckey;
-			return;
-		}
 		switch (c) {
+		case '[': /* Function key */
+			vc->vc_state = ESfunckey;
+			return;
 		case '?':
 			vc->vc_priv = EPdec;
 			return;
