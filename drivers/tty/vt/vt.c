@@ -2437,7 +2437,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			return;
 
 		switch(c) {
-		case 'G': case '`':
+		case 'G':
+		case '`':
 			if (vc->vc_par[0])
 				vc->vc_par[0]--;
 			gotoxy(vc, vc->vc_par[0], vc->state.y);
@@ -2447,12 +2448,14 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				vc->vc_par[0]++;
 			gotoxy(vc, vc->state.x, vc->state.y - vc->vc_par[0]);
 			return;
-		case 'B': case 'e':
+		case 'B':
+		case 'e':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
 			gotoxy(vc, vc->state.x, vc->state.y + vc->vc_par[0]);
 			return;
-		case 'C': case 'a':
+		case 'C':
+		case 'a':
 			if (!vc->vc_par[0])
 				vc->vc_par[0]++;
 			gotoxy(vc, vc->state.x + vc->vc_par[0], vc->state.y);
@@ -2477,7 +2480,8 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 				vc->vc_par[0]--;
 			gotoxay(vc, vc->state.x ,vc->vc_par[0]);
 			return;
-		case 'H': case 'f':
+		case 'H':
+		case 'f':
 			if (vc->vc_par[0])
 				vc->vc_par[0]--;
 			if (vc->vc_par[1])
