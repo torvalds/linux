@@ -13,6 +13,7 @@
 struct file *file_lookup(const char *name)
 {
 	struct file *file;
+	size_t len;
 
 	for (file = file_list; file; file = file->next) {
 		if (!strcmp(name, file->name)) {
@@ -20,9 +21,11 @@ struct file *file_lookup(const char *name)
 		}
 	}
 
-	file = xmalloc(sizeof(*file));
+	len = strlen(name);
+	file = xmalloc(sizeof(*file) + len + 1);
 	memset(file, 0, sizeof(*file));
-	file->name = xstrdup(name);
+	memcpy(file->name, name, len);
+	file->name[len] = '\0';
 	file->next = file_list;
 	file_list = file;
 

@@ -19,7 +19,7 @@ extern "C" {
 
 struct file {
 	struct file *next;
-	const char *name;
+	char name[];
 };
 
 typedef enum tristate {
