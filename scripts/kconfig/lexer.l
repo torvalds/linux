@@ -420,10 +420,10 @@ void zconf_nextfile(const char *name)
 	buf->yylineno = yylineno;
 	buf->parent = current_buf;
 	current_buf = buf;
-	yyin = zconf_fopen(file->name);
+	yyin = zconf_fopen(name);
 	if (!yyin) {
 		fprintf(stderr, "%s:%d: can't open file \"%s\"\n",
-			cur_filename, cur_lineno, file->name);
+			cur_filename, cur_lineno, name);
 		exit(1);
 	}
 	yy_switch_to_buffer(yy_create_buffer(yyin, YY_BUF_SIZE));
@@ -432,17 +432,17 @@ void zconf_nextfile(const char *name)
 	file->parent = current_file;
 
 	for (iter = current_file; iter; iter = iter->parent) {
-		if (!strcmp(iter->name, file->name)) {
+		if (!strcmp(iter->name, name)) {
 			fprintf(stderr,
 				"Recursive inclusion detected.\n"
 				"Inclusion path:\n"
-				"  current file : %s\n", file->name);
+				"  current file : %s\n", name);
 			iter = file;
 			do {
 				iter = iter->parent;
 				fprintf(stderr, "  included from: %s:%d\n",
 					iter->name, iter->lineno);
-			} while (strcmp(iter->name, file->name));
+			} while (strcmp(iter->name, name));
 			exit(1);
 		}
 	}
