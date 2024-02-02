@@ -2107,9 +2107,11 @@ static void restore_cur(struct vc_data *vc)
  * @ESnonstd:		OSC parsed
  * @ESpalette:		OSC P parsed
  * @ESosc:		OSC [0-9] parsed
+ * @ESANSI_first:	first state for ignoring ansi control sequences
  * @ESapc:		ESC _ parsed
  * @ESpm:		ESC ^ parsed
  * @ESdcs:		ESC P parsed
+ * @ESANSI_last:	last state for ignoring ansi control sequences
  */
 enum vc_ctl_state {
 	ESnormal,
@@ -2125,9 +2127,11 @@ enum vc_ctl_state {
 	ESnonstd,
 	ESpalette,
 	ESosc,
+	ESANSI_first = ESosc,
 	ESapc,
 	ESpm,
 	ESdcs,
+	ESANSI_last = ESdcs,
 };
 
 /* console_lock is held (except via vc_init()) */
@@ -2202,12 +2206,9 @@ static void vc_setGx(struct vc_data *vc, unsigned int which, u8 c)
 		vc->vc_translate = set_translate(*charset, vc);
 }
 
-/* is this state an ANSI control string? */
-static bool ansi_control_string(unsigned int state)
+static bool ansi_control_string(enum vc_ctl_state state)
 {
-	if (state == ESosc || state == ESapc || state == ESpm || state == ESdcs)
-		return true;
-	return false;
+	return state >= ESANSI_first && state <= ESANSI_last;
 }
 
 enum {
