@@ -52,6 +52,7 @@ struct port_io_ops pio_ops;
 
 memptr free_mem_ptr;
 memptr free_mem_end_ptr;
+int spurious_nmi_count;
 
 static char *vidmem;
 static int vidport;
@@ -505,6 +506,12 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 
 	/* Disable exception handling before booting the kernel */
 	cleanup_exception_handling();
+
+	if (spurious_nmi_count) {
+		error_putstr("Spurious early NMIs ignored: ");
+		error_putdec(spurious_nmi_count);
+		error_putstr("\n");
+	}
 
 	return output + entry_offset;
 }
