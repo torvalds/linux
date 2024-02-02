@@ -164,21 +164,34 @@ void __putstr(const char *s)
 	outb(0xff & (pos >> 1), vidport+1);
 }
 
+static noinline void __putnum(unsigned long value, unsigned int base,
+			      int mindig)
+{
+	char buf[8*sizeof(value)+1];
+	char *p;
+
+	p = buf + sizeof(buf);
+	*--p = '\0';
+
+	while (mindig-- > 0 || value) {
+		unsigned char digit = value % base;
+		digit += (digit >= 10) ? ('a'-10) : '0';
+		*--p = digit;
+
+		value /= base;
+	}
+
+	__putstr(p);
+}
+
 void __puthex(unsigned long value)
 {
-	char alpha[2] = "0";
-	int bits;
+	__putnum(value, 16, sizeof(value)*2);
+}
 
-	for (bits = sizeof(value) * 8 - 4; bits >= 0; bits -= 4) {
-		unsigned long digit = (value >> bits) & 0xf;
-
-		if (digit < 0xA)
-			alpha[0] = '0' + digit;
-		else
-			alpha[0] = 'a' + (digit - 0xA);
-
-		__putstr(alpha);
-	}
+void __putdec(unsigned long value)
+{
+	__putnum(value, 10, 1);
 }
 
 #ifdef CONFIG_X86_NEED_RELOCS
