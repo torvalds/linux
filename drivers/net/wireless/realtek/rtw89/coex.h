@@ -23,6 +23,7 @@ enum btc_wl_rfk_type {
 	BTC_WRFKT_DACK = 4,
 	BTC_WRFKT_RXDCK = 5,
 	BTC_WRFKT_TSSI = 6,
+	BTC_WRFKT_CHLK = 7,
 };
 
 #define NM_EXEC false

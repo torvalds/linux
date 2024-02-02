@@ -2,6 +2,7 @@
 /* Copyright(c) 2023  Realtek Corporation
  */
 
+#include "coex.h"
 #include "debug.h"
 #include "efuse.h"
 #include "fw.h"
@@ -1369,6 +1370,69 @@ void rtw8922a_hal_reset(struct rtw89_dev *rtwdev,
 	}
 }
 
+static void rtw8922a_rfk_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
+
+	rtwdev->is_tssi_mode[RF_PATH_A] = false;
+	rtwdev->is_tssi_mode[RF_PATH_B] = false;
+	memset(rfk_mcc, 0, sizeof(*rfk_mcc));
+}
+
+static void _wait_rx_mode(struct rtw89_dev *rtwdev, u8 kpath)
+{
+	u32 rf_mode;
+	u8 path;
+	int ret;
+
+	for (path = 0; path < RF_PATH_NUM_8922A; path++) {
+		if (!(kpath & BIT(path)))
+			continue;
+
+		ret = read_poll_timeout_atomic(rtw89_read_rf, rf_mode, rf_mode != 2,
+					       2, 5000, false, rtwdev, path, 0x00,
+					       RR_MOD_MASK);
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "[RFK] Wait S%d to Rx mode!! (ret = %d)\n",
+			    path, ret);
+	}
+}
+
+static void rtw8922a_rfk_channel(struct rtw89_dev *rtwdev)
+{
+	enum rtw89_phy_idx phy_idx = RTW89_PHY_0;
+	u8 phy_map = rtw89_btc_phymap(rtwdev, phy_idx, RF_AB);
+	u32 tx_en;
+
+	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_START);
+	rtw89_chip_stop_sch_tx(rtwdev, phy_idx, &tx_en, RTW89_SCH_TX_SEL_ALL);
+	_wait_rx_mode(rtwdev, RF_AB);
+
+	rtw89_phy_rfk_pre_ntfy_and_wait(rtwdev, phy_idx, 5);
+	rtw89_phy_rfk_txgapk_and_wait(rtwdev, phy_idx, 54);
+	rtw89_phy_rfk_iqk_and_wait(rtwdev, phy_idx, 84);
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_NORMAL, 6);
+	rtw89_phy_rfk_dpk_and_wait(rtwdev, phy_idx, 34);
+	rtw89_phy_rfk_rxdck_and_wait(rtwdev, RTW89_PHY_0, 32);
+
+	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
+	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_CHLK, BTC_WRFK_STOP);
+}
+
+static void rtw8922a_rfk_band_changed(struct rtw89_dev *rtwdev,
+				      enum rtw89_phy_idx phy_idx)
+{
+	rtw89_phy_rfk_tssi_and_wait(rtwdev, phy_idx, RTW89_TSSI_SCAN, 6);
+}
+
+static void rtw8922a_rfk_scan(struct rtw89_dev *rtwdev, bool start)
+{
+}
+
+static void rtw8922a_rfk_track(struct rtw89_dev *rtwdev)
+{
+}
+
 static void rtw8922a_set_txpwr_ref(struct rtw89_dev *rtwdev,
 				   enum rtw89_phy_idx phy_idx)
 {
@@ -1622,6 +1686,11 @@ static const struct rtw89_chip_ops rtw8922a_chip_ops = {
 	.read_phycap		= rtw8922a_read_phycap,
 	.fem_setup		= NULL,
 	.rfe_gpio		= NULL,
+	.rfk_init		= rtw8922a_rfk_init,
+	.rfk_channel		= rtw8922a_rfk_channel,
+	.rfk_band_changed	= rtw8922a_rfk_band_changed,
+	.rfk_scan		= rtw8922a_rfk_scan,
+	.rfk_track		= rtw8922a_rfk_track,
 	.power_trim		= rtw8922a_power_trim,
 	.set_txpwr		= rtw8922a_set_txpwr,
 	.set_txpwr_ctrl		= rtw8922a_set_txpwr_ctrl,

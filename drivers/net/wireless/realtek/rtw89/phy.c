@@ -2834,6 +2834,7 @@ void (* const rtw89_phy_c2h_rfk_log_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK] = rtw89_phy_c2h_rfk_log_txgapk,
 };
 
+static
 void rtw89_phy_rfk_report_prep(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_rfk_wait_info *wait = &rtwdev->rfk_wait;
@@ -2843,6 +2844,7 @@ void rtw89_phy_rfk_report_prep(struct rtw89_dev *rtwdev)
 	reinit_completion(&wait->completion);
 }
 
+static
 int rtw89_phy_rfk_report_wait(struct rtw89_dev *rtwdev, const char *rfk_name,
 			      unsigned int ms)
 {
@@ -2958,6 +2960,119 @@ void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	}
 	handler(rtwdev, skb, len);
 }
+
+int rtw89_phy_rfk_pre_ntfy_and_wait(struct rtw89_dev *rtwdev,
+				    enum rtw89_phy_idx phy_idx,
+				    unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_pre_ntfy(rtwdev, phy_idx);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "PRE_NTFY", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_pre_ntfy_and_wait);
+
+int rtw89_phy_rfk_tssi_and_wait(struct rtw89_dev *rtwdev,
+				enum rtw89_phy_idx phy_idx,
+				enum rtw89_tssi_mode tssi_mode,
+				unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_tssi(rtwdev, phy_idx, tssi_mode);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "TSSI", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_tssi_and_wait);
+
+int rtw89_phy_rfk_iqk_and_wait(struct rtw89_dev *rtwdev,
+			       enum rtw89_phy_idx phy_idx,
+			       unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_iqk(rtwdev, phy_idx);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "IQK", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_iqk_and_wait);
+
+int rtw89_phy_rfk_dpk_and_wait(struct rtw89_dev *rtwdev,
+			       enum rtw89_phy_idx phy_idx,
+			       unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_dpk(rtwdev, phy_idx);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "DPK", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_dpk_and_wait);
+
+int rtw89_phy_rfk_txgapk_and_wait(struct rtw89_dev *rtwdev,
+				  enum rtw89_phy_idx phy_idx,
+				  unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_txgapk(rtwdev, phy_idx);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "TXGAPK", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_txgapk_and_wait);
+
+int rtw89_phy_rfk_dack_and_wait(struct rtw89_dev *rtwdev,
+				enum rtw89_phy_idx phy_idx,
+				unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_dack(rtwdev, phy_idx);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "DACK", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_dack_and_wait);
+
+int rtw89_phy_rfk_rxdck_and_wait(struct rtw89_dev *rtwdev,
+				 enum rtw89_phy_idx phy_idx,
+				 unsigned int ms)
+{
+	int ret;
+
+	rtw89_phy_rfk_report_prep(rtwdev);
+
+	ret = rtw89_fw_h2c_rf_rxdck(rtwdev, phy_idx);
+	if (ret)
+		return ret;
+
+	return rtw89_phy_rfk_report_wait(rtwdev, "RX_DCK", ms);
+}
+EXPORT_SYMBOL(rtw89_phy_rfk_rxdck_and_wait);
 
 static u32 phy_tssi_get_cck_group(u8 ch)
 {
