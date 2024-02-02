@@ -1874,11 +1874,17 @@ bool apply_policy_zone(struct mempolicy *policy, enum zone_type zone)
 
 static unsigned int weighted_interleave_nodes(struct mempolicy *policy)
 {
-	unsigned int node = current->il_prev;
+	unsigned int node;
+	unsigned int cpuset_mems_cookie;
 
+retry:
+	/* to prevent miscount use tsk->mems_allowed_seq to detect rebind */
+	cpuset_mems_cookie = read_mems_allowed_begin();
+	node = current->il_prev;
 	if (!current->il_weight || !node_isset(node, policy->nodes)) {
 		node = next_node_in(node, policy->nodes);
-		/* can only happen if nodemask is being rebound */
+		if (read_mems_allowed_retry(cpuset_mems_cookie))
+			goto retry;
 		if (node == MAX_NUMNODES)
 			return node;
 		current->il_prev = node;
@@ -1892,8 +1898,14 @@ static unsigned int weighted_interleave_nodes(struct mempolicy *policy)
 static unsigned int interleave_nodes(struct mempolicy *policy)
 {
 	unsigned int nid;
+	unsigned int cpuset_mems_cookie;
 
-	nid = next_node_in(current->il_prev, policy->nodes);
+	/* to prevent miscount, use tsk->mems_allowed_seq to detect rebind */
+	do {
+		cpuset_mems_cookie = read_mems_allowed_begin();
+		nid = next_node_in(current->il_prev, policy->nodes);
+	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+
 	if (nid < MAX_NUMNODES)
 		current->il_prev = nid;
 	return nid;
@@ -2370,6 +2382,7 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 		struct page **page_array)
 {
 	struct task_struct *me = current;
+	unsigned int cpuset_mems_cookie;
 	unsigned long total_allocated = 0;
 	unsigned long nr_allocated = 0;
 	unsigned long rounds;
@@ -2387,7 +2400,13 @@ static unsigned long alloc_pages_bulk_array_weighted_interleave(gfp_t gfp,
 	if (!nr_pages)
 		return 0;
 
-	nnodes = read_once_policy_nodemask(pol, &nodes);
+	/* read the nodes onto the stack, retry if done during rebind */
+	do {
+		cpuset_mems_cookie = read_mems_allowed_begin();
+		nnodes = read_once_policy_nodemask(pol, &nodes);
+	} while (read_mems_allowed_retry(cpuset_mems_cookie));
+
+	/* if the nodemask has become invalid, we cannot do anything */
 	if (!nnodes)
 		return 0;
 
