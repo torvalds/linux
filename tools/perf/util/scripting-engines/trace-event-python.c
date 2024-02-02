@@ -1699,13 +1699,15 @@ static void python_process_stat(struct perf_stat_config *config,
 {
 	struct perf_thread_map *threads = counter->core.threads;
 	struct perf_cpu_map *cpus = counter->core.cpus;
-	int cpu, thread;
 
-	for (thread = 0; thread < perf_thread_map__nr(threads); thread++) {
-		for (cpu = 0; cpu < perf_cpu_map__nr(cpus); cpu++) {
-			process_stat(counter, perf_cpu_map__cpu(cpus, cpu),
+	for (int thread = 0; thread < perf_thread_map__nr(threads); thread++) {
+		int idx;
+		struct perf_cpu cpu;
+
+		perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
+			process_stat(counter, cpu,
 				     perf_thread_map__pid(threads, thread), tstamp,
-				     perf_counts(counter->counts, cpu, thread));
+				     perf_counts(counter->counts, idx, thread));
 		}
 	}
 }
