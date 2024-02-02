@@ -8,6 +8,11 @@
 #include "adf_accel_devices.h"
 #include "adf_common_drv.h"
 
+struct adf_fatal_error_data {
+	struct adf_accel_dev *accel_dev;
+	struct work_struct work;
+};
+
 static struct workqueue_struct *device_reset_wq;
 
 static pci_ers_result_t adf_error_detected(struct pci_dev *pdev,
@@ -170,6 +175,31 @@ const struct pci_error_handlers adf_err_handler = {
 	.resume = adf_resume,
 };
 EXPORT_SYMBOL_GPL(adf_err_handler);
+
+static void adf_notify_fatal_error_worker(struct work_struct *work)
+{
+	struct adf_fatal_error_data *wq_data =
+			container_of(work, struct adf_fatal_error_data, work);
+	struct adf_accel_dev *accel_dev = wq_data->accel_dev;
+
+	adf_error_notifier(accel_dev);
+	kfree(wq_data);
+}
+
+int adf_notify_fatal_error(struct adf_accel_dev *accel_dev)
+{
+	struct adf_fatal_error_data *wq_data;
+
+	wq_data = kzalloc(sizeof(*wq_data), GFP_ATOMIC);
+	if (!wq_data)
+		return -ENOMEM;
+
+	wq_data->accel_dev = accel_dev;
+	INIT_WORK(&wq_data->work, adf_notify_fatal_error_worker);
+	adf_misc_wq_queue_work(&wq_data->work);
+
+	return 0;
+}
 
 int adf_init_aer(void)
 {

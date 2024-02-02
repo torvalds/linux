@@ -40,6 +40,7 @@ enum adf_event {
 	ADF_EVENT_SHUTDOWN,
 	ADF_EVENT_RESTARTING,
 	ADF_EVENT_RESTARTED,
+	ADF_EVENT_FATAL_ERROR,
 };
 
 struct service_hndl {
@@ -60,6 +61,8 @@ int adf_dev_restart(struct adf_accel_dev *accel_dev);
 
 void adf_devmgr_update_class_index(struct adf_hw_device_data *hw_data);
 void adf_clean_vf_map(bool);
+int adf_notify_fatal_error(struct adf_accel_dev *accel_dev);
+void adf_error_notifier(struct adf_accel_dev *accel_dev);
 int adf_devmgr_add_dev(struct adf_accel_dev *accel_dev,
 		       struct adf_accel_dev *pf);
 void adf_devmgr_rm_dev(struct adf_accel_dev *accel_dev,

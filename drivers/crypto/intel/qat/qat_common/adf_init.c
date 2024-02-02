@@ -433,6 +433,18 @@ int adf_dev_restarted_notify(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 
+void adf_error_notifier(struct adf_accel_dev *accel_dev)
+{
+	struct service_hndl *service;
+
+	list_for_each_entry(service, &service_table, list) {
+		if (service->event_hld(accel_dev, ADF_EVENT_FATAL_ERROR))
+			dev_err(&GET_DEV(accel_dev),
+				"Failed to send error event to %s.\n",
+				service->name);
+	}
+}
+
 static int adf_dev_shutdown_cache_cfg(struct adf_accel_dev *accel_dev)
 {
 	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
