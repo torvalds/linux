@@ -36,12 +36,47 @@ asm(".include \"asm/fpu-insn-asm.h\"\n");
  * barrier.
  */
 
+static __always_inline void fpu_cefbr(u8 f1, s32 val)
+{
+	asm volatile("cefbr	%[f1],%[val]\n"
+		     :
+		     : [f1] "I" (f1), [val] "d" (val)
+		     : "memory");
+}
+
+static __always_inline unsigned long fpu_cgebr(u8 f2, u8 mode)
+{
+	unsigned long val;
+
+	asm volatile("cgebr	%[val],%[mode],%[f2]\n"
+		     : [val] "=d" (val)
+		     : [f2] "I" (f2), [mode] "I" (mode)
+		     : "memory");
+	return val;
+}
+
+static __always_inline void fpu_debr(u8 f1, u8 f2)
+{
+	asm volatile("debr	%[f1],%[f2]\n"
+		     :
+		     : [f1] "I" (f1), [f2] "I" (f2)
+		     : "memory");
+}
+
 static __always_inline void fpu_ld(unsigned short fpr, freg_t *reg)
 {
 	instrument_read(reg, sizeof(*reg));
 	asm volatile("ld	 %[fpr],%[reg]\n"
 		     :
 		     : [fpr] "I" (fpr), [reg] "Q" (reg->ui)
+		     : "memory");
+}
+
+static __always_inline void fpu_ldgr(u8 f1, u32 val)
+{
+	asm volatile("ldgr	%[f1],%[val]\n"
+		     :
+		     : [f1] "I" (f1), [val] "d" (val)
 		     : "memory");
 }
 

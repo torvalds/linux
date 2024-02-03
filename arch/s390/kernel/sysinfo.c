@@ -447,21 +447,14 @@ void s390_adjust_jiffies(void)
 		 * point division ..
 		 */
 		kernel_fpu_begin(&fpu, KERNEL_FPR);
-		asm volatile(
-			"	sfpc	%3\n"
-			"	l	%0,%1\n"
-			"	tmlh	%0,0xff80\n"
-			"	jnz	0f\n"
-			"	cefbr	%%f2,%0\n"
-			"	j	1f\n"
-			"0:	le	%%f2,%1\n"
-			"1:	cefbr	%%f0,%2\n"
-			"	debr	%%f0,%%f2\n"
-			"	cgebr	%0,5,%%f0\n"
-			: "=&d" (capability)
-			: "Q" (info->capability), "d" (10000000), "d" (0)
-			: "cc"
-			);
+		fpu_sfpc(0);
+		if (info->capability & 0xff800000)
+			fpu_ldgr(2, info->capability);
+		else
+			fpu_cefbr(2, info->capability);
+		fpu_cefbr(0, 10000000);
+		fpu_debr(0, 2);
+		capability = fpu_cgebr(0, 5);
 		kernel_fpu_end(&fpu, KERNEL_FPR);
 	} else
 		/*
