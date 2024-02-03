@@ -191,7 +191,7 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 void execve_tail(void)
 {
 	current->thread.fpu.fpc = 0;
-	asm volatile("sfpc %0" : : "d" (0));
+	fpu_sfpc(0);
 }
 
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)

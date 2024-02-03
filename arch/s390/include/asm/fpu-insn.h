@@ -45,6 +45,15 @@ static __always_inline void fpu_ld(unsigned short fpr, freg_t *reg)
 		     : "memory");
 }
 
+static __always_inline void fpu_lfpc(unsigned int *fpc)
+{
+	instrument_read(fpc, sizeof(*fpc));
+	asm volatile("lfpc	%[fpc]"
+		     :
+		     : [fpc] "Q" (*fpc)
+		     : "memory");
+}
+
 /**
  * fpu_lfpc_safe - Load floating point control register safely.
  * @fpc: new value for floating point control register
@@ -79,6 +88,23 @@ static __always_inline void fpu_std(unsigned short fpr, freg_t *reg)
 	asm volatile("std	 %[fpr],%[reg]\n"
 		     : [reg] "=Q" (reg->ui)
 		     : [fpr] "I" (fpr)
+		     : "memory");
+}
+
+static __always_inline void fpu_sfpc(unsigned int fpc)
+{
+	asm volatile("sfpc	%[fpc]"
+		     :
+		     : [fpc] "d" (fpc)
+		     : "memory");
+}
+
+static __always_inline void fpu_stfpc(unsigned int *fpc)
+{
+	instrument_write(fpc, sizeof(*fpc));
+	asm volatile("stfpc	%[fpc]"
+		     : [fpc] "=Q" (*fpc)
+		     :
 		     : "memory");
 }
 

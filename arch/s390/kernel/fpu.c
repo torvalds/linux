@@ -17,10 +17,8 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 	 * in use by the previous context.
 	 */
 	flags &= state->mask;
-	if (flags & KERNEL_FPC) {
-		/* Save floating point control */
-		asm volatile("stfpc %0" : "=Q" (state->fpc));
-	}
+	if (flags & KERNEL_FPC)
+		fpu_stfpc(&state->fpc);
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW)
 			save_fp_regs(state->fprs);
@@ -80,10 +78,8 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 	 * current context.
 	 */
 	flags &= state->mask;
-	if (flags & KERNEL_FPC) {
-		/* Restore floating-point controls */
-		asm volatile("lfpc %0" : : "Q" (state->fpc));
-	}
+	if (flags & KERNEL_FPC)
+		fpu_lfpc(&state->fpc);
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW)
 			load_fp_regs(state->fprs);
@@ -176,7 +172,7 @@ void save_fpu_regs(void)
 	state = &current->thread.fpu;
 	regs = current->thread.fpu.regs;
 
-	asm volatile("stfpc %0" : "=Q" (state->fpc));
+	fpu_stfpc(&state->fpc);
 	if (likely(cpu_has_vx())) {
 		asm volatile("lgr	1,%0\n"
 			     "VSTM	0,15,0,1\n"
