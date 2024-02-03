@@ -12,6 +12,9 @@
 
 void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {
+	__vector128 *vxrs = state->vxrs;
+	u32 mask;
+
 	/*
 	 * Limit the save to the FPU/vector registers already
 	 * in use by the previous context.
@@ -24,54 +27,42 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 			save_fp_regs(state->fprs);
 		return;
 	}
-	/* Test and save vector registers */
-	asm volatile (
-		/*
-		 * Test if any vector register must be saved and, if so,
-		 * test if all register can be saved.
-		 */
-		"	la	1,%[vxrs]\n"	/* load save area */
-		"	tmll	%[m],30\n"	/* KERNEL_VXR */
-		"	jz	7f\n"		/* no work -> done */
-		"	jo	5f\n"		/* -> save V0..V31 */
-		/*
-		 * Test for special case KERNEL_FPU_MID only. In this
-		 * case a vstm V8..V23 is the best instruction
-		 */
-		"	chi	%[m],12\n"	/* KERNEL_VXR_MID */
-		"	jne	0f\n"		/* -> save V8..V23 */
-		"	VSTM	8,23,128,1\n"	/* vstm %v8,%v23,128(%r1) */
-		"	j	7f\n"
-		/* Test and save the first half of 16 vector registers */
-		"0:	tmll	%[m],6\n"	/* KERNEL_VXR_LOW */
-		"	jz	3f\n"		/* -> KERNEL_VXR_HIGH */
-		"	jo	2f\n"		/* 11 -> save V0..V15 */
-		"	brc	2,1f\n"		/* 10 -> save V8..V15 */
-		"	VSTM	0,7,0,1\n"	/* vstm %v0,%v7,0(%r1) */
-		"	j	3f\n"
-		"1:	VSTM	8,15,128,1\n"	/* vstm %v8,%v15,128(%r1) */
-		"	j	3f\n"
-		"2:	VSTM	0,15,0,1\n"	/* vstm %v0,%v15,0(%r1) */
-		/* Test and save the second half of 16 vector registers */
-		"3:	tmll	%[m],24\n"	/* KERNEL_VXR_HIGH */
-		"	jz	7f\n"
-		"	jo	6f\n"		/* 11 -> save V16..V31 */
-		"	brc	2,4f\n"		/* 10 -> save V24..V31 */
-		"	VSTM	16,23,256,1\n"	/* vstm %v16,%v23,256(%r1) */
-		"	j	7f\n"
-		"4:	VSTM	24,31,384,1\n"	/* vstm %v24,%v31,384(%r1) */
-		"	j	7f\n"
-		"5:	VSTM	0,15,0,1\n"	/* vstm %v0,%v15,0(%r1) */
-		"6:	VSTM	16,31,256,1\n"	/* vstm %v16,%v31,256(%r1) */
-		"7:"
-		: [vxrs] "=Q" (*(struct vx_array *) &state->vxrs)
-		: [m] "d" (flags)
-		: "1", "cc");
+	mask = flags & KERNEL_VXR;
+	if (mask == KERNEL_VXR) {
+		fpu_vstm(0, 15, &vxrs[0]);
+		fpu_vstm(16, 31, &vxrs[16]);
+		return;
+	}
+	if (mask == KERNEL_VXR_MID) {
+		fpu_vstm(8, 23, &vxrs[8]);
+		return;
+	}
+	mask = flags & KERNEL_VXR_LOW;
+	if (mask) {
+		if (mask == KERNEL_VXR_LOW)
+			fpu_vstm(0, 15, &vxrs[0]);
+		else if (mask == KERNEL_VXR_V0V7)
+			fpu_vstm(0, 7, &vxrs[0]);
+		else
+			fpu_vstm(8, 15, &vxrs[8]);
+	}
+	mask = flags & KERNEL_VXR_HIGH;
+	if (mask) {
+		if (mask == KERNEL_VXR_HIGH)
+			fpu_vstm(16, 31, &vxrs[16]);
+		else if (mask == KERNEL_VXR_V16V23)
+			fpu_vstm(16, 23, &vxrs[16]);
+		else
+			fpu_vstm(24, 31, &vxrs[24]);
+	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
 
 void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 {
+	__vector128 *vxrs = state->vxrs;
+	u32 mask;
+
 	/*
 	 * Limit the restore to the FPU/vector registers of the
 	 * previous context that have been overwritten by the
@@ -85,49 +76,34 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 			load_fp_regs(state->fprs);
 		return;
 	}
-	/* Test and restore (load) vector registers */
-	asm volatile (
-		/*
-		 * Test if any vector register must be loaded and, if so,
-		 * test if all registers can be loaded at once.
-		 */
-		"	la	1,%[vxrs]\n"	/* load restore area */
-		"	tmll	%[m],30\n"	/* KERNEL_VXR */
-		"	jz	7f\n"		/* no work -> done */
-		"	jo	5f\n"		/* -> restore V0..V31 */
-		/*
-		 * Test for special case KERNEL_FPU_MID only. In this
-		 * case a vlm V8..V23 is the best instruction
-		 */
-		"	chi	%[m],12\n"	/* KERNEL_VXR_MID */
-		"	jne	0f\n"		/* -> restore V8..V23 */
-		"	VLM	8,23,128,1\n"	/* vlm %v8,%v23,128(%r1) */
-		"	j	7f\n"
-		/* Test and restore the first half of 16 vector registers */
-		"0:	tmll	%[m],6\n"	/* KERNEL_VXR_LOW */
-		"	jz	3f\n"		/* -> KERNEL_VXR_HIGH */
-		"	jo	2f\n"		/* 11 -> restore V0..V15 */
-		"	brc	2,1f\n"		/* 10 -> restore V8..V15 */
-		"	VLM	0,7,0,1\n"	/* vlm %v0,%v7,0(%r1) */
-		"	j	3f\n"
-		"1:	VLM	8,15,128,1\n"	/* vlm %v8,%v15,128(%r1) */
-		"	j	3f\n"
-		"2:	VLM	0,15,0,1\n"	/* vlm %v0,%v15,0(%r1) */
-		/* Test and restore the second half of 16 vector registers */
-		"3:	tmll	%[m],24\n"	/* KERNEL_VXR_HIGH */
-		"	jz	7f\n"
-		"	jo	6f\n"		/* 11 -> restore V16..V31 */
-		"	brc	2,4f\n"		/* 10 -> restore V24..V31 */
-		"	VLM	16,23,256,1\n"	/* vlm %v16,%v23,256(%r1) */
-		"	j	7f\n"
-		"4:	VLM	24,31,384,1\n"	/* vlm %v24,%v31,384(%r1) */
-		"	j	7f\n"
-		"5:	VLM	0,15,0,1\n"	/* vlm %v0,%v15,0(%r1) */
-		"6:	VLM	16,31,256,1\n"	/* vlm %v16,%v31,256(%r1) */
-		"7:"
-		: [vxrs] "=Q" (*(struct vx_array *) &state->vxrs)
-		: [m] "d" (flags)
-		: "1", "cc");
+	mask = flags & KERNEL_VXR;
+	if (mask == KERNEL_VXR) {
+		fpu_vlm(0, 15, &vxrs[0]);
+		fpu_vlm(16, 31, &vxrs[16]);
+		return;
+	}
+	if (mask == KERNEL_VXR_MID) {
+		fpu_vlm(8, 23, &vxrs[8]);
+		return;
+	}
+	mask = flags & KERNEL_VXR_LOW;
+	if (mask) {
+		if (mask == KERNEL_VXR_LOW)
+			fpu_vlm(0, 15, &vxrs[0]);
+		else if (mask == KERNEL_VXR_V0V7)
+			fpu_vlm(0, 7, &vxrs[0]);
+		else
+			fpu_vlm(8, 15, &vxrs[8]);
+	}
+	mask = flags & KERNEL_VXR_HIGH;
+	if (mask) {
+		if (mask == KERNEL_VXR_HIGH)
+			fpu_vlm(16, 31, &vxrs[16]);
+		else if (mask == KERNEL_VXR_V16V23)
+			fpu_vlm(16, 23, &vxrs[16]);
+		else
+			fpu_vlm(24, 31, &vxrs[24]);
+	}
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
