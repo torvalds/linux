@@ -1572,7 +1572,6 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * number:
 	 */
 	u64 avail_inodes = ((usage.capacity - usage.used) << 3);
-	u64 fsid;
 
 	buf->f_type	= BCACHEFS_STATFS_MAGIC;
 	buf->f_bsize	= sb->s_blocksize;
@@ -1583,10 +1582,7 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files	= usage.nr_inodes + avail_inodes;
 	buf->f_ffree	= avail_inodes;
 
-	fsid = le64_to_cpup((void *) c->sb.user_uuid.b) ^
-	       le64_to_cpup((void *) c->sb.user_uuid.b + sizeof(u64));
-	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
-	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
+	buf->f_fsid	= uuid_to_fsid(c->sb.user_uuid.b);
 	buf->f_namelen	= BCH_NAME_MAX;
 
 	return 0;
