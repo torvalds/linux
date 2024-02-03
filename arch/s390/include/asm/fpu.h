@@ -58,10 +58,6 @@ static inline bool cpu_has_vx(void)
 	return likely(test_facility(129));
 }
 
-void save_user_fpu_regs(void);
-void load_user_fpu_regs(void);
-void __load_user_fpu_regs(void);
-
 enum {
 	KERNEL_FPC_BIT = 0,
 	KERNEL_VXR_V0V7_BIT,
@@ -83,6 +79,8 @@ enum {
 #define KERNEL_VXR		(KERNEL_VXR_LOW	   | KERNEL_VXR_HIGH)
 #define KERNEL_FPR		(KERNEL_FPC	   | KERNEL_VXR_LOW)
 
+void load_fpu_state(struct fpu *state, int flags);
+void save_fpu_state(struct fpu *state, int flags);
 void __kernel_fpu_begin(struct kernel_fpu *state, int flags);
 void __kernel_fpu_end(struct kernel_fpu *state, int flags);
 
@@ -162,26 +160,57 @@ static __always_inline void load_fp_regs_vx(__vector128 *vxrs)
 	__load_fp_regs(fprs, sizeof(__vector128) / sizeof(freg_t));
 }
 
-static inline void _kernel_fpu_begin(struct kernel_fpu *state, int flags)
+static inline void load_user_fpu_regs(void)
 {
-	state->hdr.mask = READ_ONCE(current->thread.kfpu_flags);
-	if (!test_thread_flag(TIF_FPU)) {
-		/* Save user space FPU state and register contents */
-		save_user_fpu_regs();
-	} else if (state->hdr.mask & flags) {
-		/* Save FPU/vector register in-use by the kernel */
-		__kernel_fpu_begin(state, flags);
-	}
-	__atomic_or(flags, &current->thread.kfpu_flags);
+	struct thread_struct *thread = &current->thread;
+
+	if (!thread->ufpu_flags)
+		return;
+	load_fpu_state(&thread->ufpu, thread->ufpu_flags);
+	thread->ufpu_flags = 0;
 }
 
-static inline void _kernel_fpu_end(struct kernel_fpu *state, int flags)
+static __always_inline void __save_user_fpu_regs(struct thread_struct *thread, int flags)
 {
-	WRITE_ONCE(current->thread.kfpu_flags, state->hdr.mask);
-	if (state->hdr.mask & flags) {
-		/* Restore FPU/vector register in-use by the kernel */
+	save_fpu_state(&thread->ufpu, flags);
+	__atomic_or(flags, &thread->ufpu_flags);
+}
+
+static inline void save_user_fpu_regs(void)
+{
+	struct thread_struct *thread = &current->thread;
+	int mask, flags;
+
+	mask = __atomic_or(KERNEL_FPC | KERNEL_VXR, &thread->kfpu_flags);
+	flags = ~READ_ONCE(thread->ufpu_flags) & (KERNEL_FPC | KERNEL_VXR);
+	if (flags)
+		__save_user_fpu_regs(thread, flags);
+	barrier();
+	WRITE_ONCE(thread->kfpu_flags, mask);
+}
+
+static __always_inline void _kernel_fpu_begin(struct kernel_fpu *state, int flags)
+{
+	struct thread_struct *thread = &current->thread;
+	int mask, uflags;
+
+	mask = __atomic_or(flags, &thread->kfpu_flags);
+	state->hdr.mask = mask;
+	uflags = READ_ONCE(thread->ufpu_flags);
+	if ((uflags & flags) != flags)
+		__save_user_fpu_regs(thread, ~uflags & flags);
+	if (mask & flags)
+		__kernel_fpu_begin(state, flags);
+}
+
+static __always_inline void _kernel_fpu_end(struct kernel_fpu *state, int flags)
+{
+	int mask = state->hdr.mask;
+
+	if (mask & flags)
 		__kernel_fpu_end(state, flags);
-	}
+	barrier();
+	WRITE_ONCE(current->thread.kfpu_flags, mask);
 }
 
 void __kernel_fpu_invalid_size(void);
@@ -222,28 +251,16 @@ static __always_inline void kernel_fpu_check_size(int flags, unsigned int size)
 
 static inline void save_kernel_fpu_regs(struct thread_struct *thread)
 {
-	struct fpu *state = &thread->kfpu;
-
 	if (!thread->kfpu_flags)
 		return;
-	fpu_stfpc(&state->fpc);
-	if (likely(cpu_has_vx()))
-		save_vx_regs(state->vxrs);
-	else
-		save_fp_regs_vx(state->vxrs);
+	save_fpu_state(&thread->kfpu, thread->kfpu_flags);
 }
 
 static inline void restore_kernel_fpu_regs(struct thread_struct *thread)
 {
-	struct fpu *state = &thread->kfpu;
-
 	if (!thread->kfpu_flags)
 		return;
-	fpu_lfpc(&state->fpc);
-	if (likely(cpu_has_vx()))
-		load_vx_regs(state->vxrs);
-	else
-		load_fp_regs_vx(state->vxrs);
+	load_fpu_state(&thread->kfpu, thread->kfpu_flags);
 }
 
 static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)

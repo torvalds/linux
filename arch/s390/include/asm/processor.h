@@ -166,6 +166,7 @@ struct thread_struct {
 	unsigned int gmap_write_flag;		/* gmap fault write indication */
 	unsigned int gmap_int_code;		/* int code of last gmap fault */
 	unsigned int gmap_pfault;		/* signal of a pending guest pfault */
+	int ufpu_flags;				/* user fpu flags */
 	int kfpu_flags;				/* kernel fpu flags */
 
 	/* Per-thread information related to debugging */
