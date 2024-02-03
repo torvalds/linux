@@ -443,6 +443,13 @@ static void ast2600_i2c_slave_packet_dma_irq(struct ast2600_i2c_bus *i2c_bus, u3
 	case AST2600_I2CS_WAIT_RX_DMA:
 	case AST2600_I2CS_SLAVE_MATCH:
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+		if (readl(i2c_bus->reg_base + AST2600_I2CS_CMD_STS) & AST2600_I2CS_RX_DMA_EN) {
+			cmd = 0;
+		} else {
+			cmd = SLAVE_TRIGGER_CMD | AST2600_I2CS_RX_DMA_EN;
+			writel(AST2600_I2CC_SET_RX_BUF_LEN(i2c_bus->buf_size),
+			       i2c_bus->reg_base + AST2600_I2CC_BUFF_CTRL);
+		}
 		break;
 #endif
 	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_WAIT_RX_DMA:
