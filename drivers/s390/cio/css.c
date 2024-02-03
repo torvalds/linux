@@ -39,7 +39,7 @@ int max_ssid;
 
 #define MAX_CSS_IDX 0
 struct channel_subsystem *channel_subsystems[MAX_CSS_IDX + 1];
-static struct bus_type css_bus_type;
+static const struct bus_type css_bus_type;
 
 int
 for_each_subchannel(int(*fn)(struct subchannel_id, void *), void *data)
@@ -1409,7 +1409,7 @@ static int css_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return ret;
 }
 
-static struct bus_type css_bus_type = {
+static const struct bus_type css_bus_type = {
 	.name     = "css",
 	.match    = css_bus_match,
 	.probe    = css_probe,
