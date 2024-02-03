@@ -32,6 +32,9 @@ static inline __wsum cksm(const void *buff, int len, __wsum sum)
 
 __wsum csum_partial(const void *buff, int len, __wsum sum);
 
+#define _HAVE_ARCH_CSUM_AND_COPY
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
+
 /*
  * Fold a partial checksum without adding pseudo headers.
  */

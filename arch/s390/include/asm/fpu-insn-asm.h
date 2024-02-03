@@ -531,6 +531,16 @@
 	MRXBOPC 0, 0x37, v1
 .endm
 
+/* VECTOR STORE WITH LENGTH */
+.macro VSTL	v, gr, disp, base
+	VX_NUM	v1, \v
+	GR_NUM	b2, \base
+	GR_NUM	r3, \gr
+	.word	0xE700 | ((v1&15) << 4) | r3
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC 0, 0x3f, v1
+.endm
+
 /* Vector integer instructions */
 
 /* VECTOR AND */
