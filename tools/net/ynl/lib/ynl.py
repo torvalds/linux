@@ -444,6 +444,13 @@ class YnlFamily(SpecFamily):
         except KeyError:
             raise Exception(f"Space '{space}' has no attribute '{name}'")
         nl_type = attr.value
+
+        if attr.is_multi and isinstance(value, list):
+            attr_payload = b''
+            for subvalue in value:
+                attr_payload += self._add_attr(space, name, subvalue, search_attrs)
+            return attr_payload
+
         if attr["type"] == 'nest':
             nl_type |= Netlink.NLA_F_NESTED
             attr_payload = b''
