@@ -47,6 +47,7 @@
 #include <linux/processor.h>
 #include <linux/preempt.h>
 #include <linux/string.h>
+#include <linux/sched.h>
 #include <asm/sigcontext.h>
 #include <asm/fpu-types.h>
 #include <asm/fpu-insn.h>
@@ -82,13 +83,6 @@ enum {
 #define KERNEL_VXR		(KERNEL_VXR_LOW	   | KERNEL_VXR_HIGH)
 #define KERNEL_FPR		(KERNEL_FPC	   | KERNEL_VXR_LOW)
 
-/*
- * Note the functions below must be called with preemption disabled.
- * Do not enable preemption before calling __kernel_fpu_end() to prevent
- * an corruption of an existing kernel FPU state.
- *
- * Prefer using the kernel_fpu_begin()/kernel_fpu_end() pair of functions.
- */
 void __kernel_fpu_begin(struct kernel_fpu *state, int flags);
 void __kernel_fpu_end(struct kernel_fpu *state, int flags);
 
@@ -146,8 +140,7 @@ static __always_inline void load_fp_regs(freg_t *fprs)
 
 static inline void kernel_fpu_begin(struct kernel_fpu *state, int flags)
 {
-	preempt_disable();
-	state->mask = S390_lowcore.fpu_flags;
+	state->mask = READ_ONCE(current->thread.kfpu_flags);
 	if (!test_thread_flag(TIF_FPU)) {
 		/* Save user space FPU state and register contents */
 		save_user_fpu_regs();
@@ -155,17 +148,42 @@ static inline void kernel_fpu_begin(struct kernel_fpu *state, int flags)
 		/* Save FPU/vector register in-use by the kernel */
 		__kernel_fpu_begin(state, flags);
 	}
-	S390_lowcore.fpu_flags |= flags;
+	__atomic_or(flags, &current->thread.kfpu_flags);
 }
 
 static inline void kernel_fpu_end(struct kernel_fpu *state, int flags)
 {
-	S390_lowcore.fpu_flags = state->mask;
+	WRITE_ONCE(current->thread.kfpu_flags, state->mask);
 	if (state->mask & flags) {
 		/* Restore FPU/vector register in-use by the kernel */
 		__kernel_fpu_end(state, flags);
 	}
-	preempt_enable();
+}
+
+static inline void save_kernel_fpu_regs(struct thread_struct *thread)
+{
+	struct fpu *state = &thread->kfpu;
+
+	if (!thread->kfpu_flags)
+		return;
+	fpu_stfpc(&state->fpc);
+	if (likely(cpu_has_vx()))
+		save_vx_regs(state->vxrs);
+	else
+		save_fp_regs(state->fprs);
+}
+
+static inline void restore_kernel_fpu_regs(struct thread_struct *thread)
+{
+	struct fpu *state = &thread->kfpu;
+
+	if (!thread->kfpu_flags)
+		return;
+	fpu_lfpc(&state->fpc);
+	if (likely(cpu_has_vx()))
+		load_vx_regs(state->vxrs);
+	else
+		load_fp_regs(state->fprs);
 }
 
 static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)

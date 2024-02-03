@@ -95,6 +95,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 
 	*dst = *src;
 	dst->thread.ufpu.regs = dst->thread.ufpu.fprs;
+	dst->thread.kfpu_flags = 0;
 
 	/*
 	 * Don't transfer over the runtime instrumentation or the guarded
@@ -197,10 +198,12 @@ void execve_tail(void)
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
 	save_user_fpu_regs();
+	save_kernel_fpu_regs(&prev->thread);
 	save_access_regs(&prev->thread.acrs[0]);
 	save_ri_cb(prev->thread.ri_cb);
 	save_gs_cb(prev->thread.gs_cb);
 	update_cr_regs(next);
+	restore_kernel_fpu_regs(&next->thread);
 	restore_access_regs(&next->thread.acrs[0]);
 	restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);
 	restore_gs_cb(next->thread.gs_cb);

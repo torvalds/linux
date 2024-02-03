@@ -166,6 +166,7 @@ struct thread_struct {
 	unsigned int gmap_write_flag;		/* gmap fault write indication */
 	unsigned int gmap_int_code;		/* int code of last gmap fault */
 	unsigned int gmap_pfault;		/* signal of a pending guest pfault */
+	int kfpu_flags;				/* kernel fpu flags */
 
 	/* Per-thread information related to debugging */
 	struct per_regs per_user;		/* User specified PER registers */
@@ -182,6 +183,7 @@ struct thread_struct {
 	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
 	struct pgm_tdb trap_tdb;		/* Transaction abort diagnose block */
 	struct fpu ufpu;			/* User FP and VX register save area */
+	struct fpu kfpu;			/* Kernel FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
