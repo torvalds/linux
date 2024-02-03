@@ -110,7 +110,8 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 
 #ifdef CONFIG_CC_IS_CLANG
 
-#define fpu_vlm(_v1, _v3, _vxrs) do {					\
+#define fpu_vlm(_v1, _v3, _vxrs)					\
+({									\
 	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
 	struct {							\
 		__vector128 _v[(_v3) - (_v1) + 1];			\
@@ -124,11 +125,13 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 		: [vxrs] "R" (*_v),					\
 		  [v1] "I" (_v1), [v3] "I" (_v3)			\
 		: "memory", "1");					\
-} while (0)
+	(_v3) - (_v1) + 1;						\
+})
 
 #else /* CONFIG_CC_IS_CLANG */
 
-#define fpu_vlm(_v1, _v3, _vxrs) do {					\
+#define fpu_vlm(_v1, _v3, _vxrs)					\
+({									\
 	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
 	struct {							\
 		__vector128 _v[(_v3) - (_v1) + 1];			\
@@ -140,13 +143,15 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 		     : [vxrs] "Q" (*_v),				\
 		       [v1] "I" (_v1), [v3] "I" (_v3)			\
 		     : "memory");					\
-} while (0)
+	(_v3) - (_v1) + 1;						\
+})
 
 #endif /* CONFIG_CC_IS_CLANG */
 
 #ifdef CONFIG_CC_IS_CLANG
 
-#define fpu_vstm(_v1, _v3, _vxrs) do {					\
+#define fpu_vstm(_v1, _v3, _vxrs)					\
+({									\
 	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
 	struct {							\
 		__vector128 _v[(_v3) - (_v1) + 1];			\
@@ -159,11 +164,13 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 		: [vxrs] "=R" (*_v)					\
 		: [v1] "I" (_v1), [v3] "I" (_v3)			\
 		: "memory", "1");					\
-} while (0)
+	(_v3) - (_v1) + 1;						\
+})
 
 #else /* CONFIG_CC_IS_CLANG */
 
-#define fpu_vstm(_v1, _v3, _vxrs) do {					\
+#define fpu_vstm(_v1, _v3, _vxrs)					\
+({									\
 	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
 	struct {							\
 		__vector128 _v[(_v3) - (_v1) + 1];			\
@@ -174,7 +181,8 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 		     : [vxrs] "=Q" (*_v)				\
 		     : [v1] "I" (_v1), [v3] "I" (_v3)			\
 		     : "memory");					\
-} while (0)
+	(_v3) - (_v1) + 1;						\
+})
 
 #endif /* CONFIG_CC_IS_CLANG */
 
