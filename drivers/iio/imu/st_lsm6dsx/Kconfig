@@ -16,6 +16,7 @@ config IIO_ST_LSM6DSX
 	  - asm330lhb
 	  - asm330lhh
 	  - asm330lhhx
+	  - asm330lhhxg1
 	  - ism330dhcx
 	  - ism330dlc
 	  - ism330is

@@ -33,6 +33,7 @@
  *
  * - ASM330LHH
  * - ASM330LHHX
+ * - ASM330LHHXG1
  * - ISM330DHCX
  * - ISM330IS
  * - LSM6DSO
@@ -835,6 +836,10 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			}, {
 				.hw_id = ST_ASM330LHHX_ID,
 				.name = ST_ASM330LHHX_DEV_NAME,
+				.wai = 0x6b,
+			}, {
+				.hw_id = ST_ASM330LHHXG1_ID,
+				.name = ST_ASM330LHHXG1_DEV_NAME,
 				.wai = 0x6b,
 			}, {
 				.hw_id = ST_LSM6DSTX_ID,
