@@ -5091,8 +5091,7 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 
 	tp->phydev->mac_managed_pm = true;
 	if (rtl_supports_eee(tp))
-		linkmode_copy(tp->phydev->advertising_eee,
-			      tp->phydev->supported_eee);
+		phy_advertise_eee_all(tp->phydev);
 	phy_support_asym_pause(tp->phydev);
 
 	/* PHY will be woken up in rtl_open() */
