@@ -13,7 +13,6 @@
 
 struct fpu {
 	__u32 fpc;		/* Floating-point control */
-	void *regs;		/* Pointer to the current save area */
 	union {
 		/* Floating-point register save area */
 		freg_t fprs[__NUM_FPRS];

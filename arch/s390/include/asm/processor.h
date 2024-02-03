@@ -202,7 +202,6 @@ typedef struct thread_struct thread_struct;
 
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
-	.ufpu.regs = (void *)init_task.thread.ufpu.fprs,		\
 	.last_break = 1,						\
 }
 

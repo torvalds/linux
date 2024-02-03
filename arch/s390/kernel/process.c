@@ -94,7 +94,6 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	save_user_fpu_regs();
 
 	*dst = *src;
-	dst->thread.ufpu.regs = dst->thread.ufpu.fprs;
 	dst->thread.kfpu_flags = 0;
 
 	/*

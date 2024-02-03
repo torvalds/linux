@@ -110,13 +110,12 @@ EXPORT_SYMBOL(__kernel_fpu_end);
 void __load_user_fpu_regs(void)
 {
 	struct fpu *state = &current->thread.ufpu;
-	void *regs = current->thread.ufpu.regs;
 
 	fpu_lfpc_safe(&state->fpc);
 	if (likely(cpu_has_vx()))
-		load_vx_regs(regs);
+		load_vx_regs(state->vxrs);
 	else
-		load_fp_regs(regs);
+		load_fp_regs(state->fprs);
 	clear_thread_flag(TIF_FPU);
 }
 
@@ -132,7 +131,6 @@ void save_user_fpu_regs(void)
 {
 	unsigned long flags;
 	struct fpu *state;
-	void *regs;
 
 	local_irq_save(flags);
 
@@ -140,13 +138,12 @@ void save_user_fpu_regs(void)
 		goto out;
 
 	state = &current->thread.ufpu;
-	regs = current->thread.ufpu.regs;
 
 	fpu_stfpc(&state->fpc);
 	if (likely(cpu_has_vx()))
-		save_vx_regs(regs);
+		save_vx_regs(state->vxrs);
 	else
-		save_fp_regs(regs);
+		save_fp_regs(state->fprs);
 	set_thread_flag(TIF_FPU);
 out:
 	local_irq_restore(flags);
