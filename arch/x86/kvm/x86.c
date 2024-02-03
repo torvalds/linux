@@ -8806,8 +8806,7 @@ static bool reexecute_instruction(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa,
 	 * then zap the SPTE to unprotect the gfn, and then do it all over
 	 * again.  Report the error to userspace.
 	 */
-	return vcpu->arch.mmu->root_role.direct ||
-	       !(emulation_type & EMULTYPE_WRITE_PF_TO_SP);
+	return !(emulation_type & EMULTYPE_WRITE_PF_TO_SP);
 }
 
 static bool retry_instruction(struct x86_emulate_ctxt *ctxt,
