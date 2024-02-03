@@ -20,11 +20,11 @@ static inline bool cpu_has_vx(void)
 
 static inline void save_vx_regs(__vector128 *vxrs)
 {
-	asm volatile(
+	asm volatile("\n"
 		"	la	1,%0\n"
 		"	.word	0xe70f,0x1000,0x003e\n"	/* vstm 0,15,0(1) */
 		"	.word	0xe70f,0x1100,0x0c3e\n"	/* vstm 16,31,256(1) */
-		: "=Q" (*(struct vx_array *) vxrs) : : "1");
+		: "=Q" (*(struct vx_array *)vxrs) : : "1");
 }
 
 static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)
@@ -50,8 +50,7 @@ static inline void fpregs_store(_s390_fp_regs *fpregs, struct fpu *fpu)
 	if (cpu_has_vx())
 		convert_vx_to_fp((freg_t *)&fpregs->fprs, fpu->vxrs);
 	else
-		memcpy((freg_t *)&fpregs->fprs, fpu->fprs,
-		       sizeof(fpregs->fprs));
+		memcpy((freg_t *)&fpregs->fprs, fpu->fprs, sizeof(fpregs->fprs));
 }
 
 static inline void fpregs_load(_s390_fp_regs *fpregs, struct fpu *fpu)
@@ -60,8 +59,7 @@ static inline void fpregs_load(_s390_fp_regs *fpregs, struct fpu *fpu)
 	if (cpu_has_vx())
 		convert_fp_to_vx(fpu->vxrs, (freg_t *)&fpregs->fprs);
 	else
-		memcpy(fpu->fprs, (freg_t *)&fpregs->fprs,
-		       sizeof(fpregs->fprs));
+		memcpy(fpu->fprs, (freg_t *)&fpregs->fprs, sizeof(fpregs->fprs));
 }
 
 #endif /* _ASM_S390_FPU_INTERNAL_H */

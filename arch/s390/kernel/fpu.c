@@ -16,14 +16,13 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {
 	/*
 	 * Limit the save to the FPU/vector registers already
-	 * in use by the previous context
+	 * in use by the previous context.
 	 */
 	flags &= state->mask;
-
-	if (flags & KERNEL_FPC)
+	if (flags & KERNEL_FPC) {
 		/* Save floating point control */
 		asm volatile("stfpc %0" : "=Q" (state->fpc));
-
+	}
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW) {
 			/* Save floating-point registers */
@@ -46,7 +45,6 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 		}
 		return;
 	}
-
 	/* Test and save vector registers */
 	asm volatile (
 		/*
@@ -97,15 +95,14 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 {
 	/*
 	 * Limit the restore to the FPU/vector registers of the
-	 * previous context that have been overwritte by the
-	 * current context
+	 * previous context that have been overwritten by the
+	 * current context.
 	 */
 	flags &= state->mask;
-
-	if (flags & KERNEL_FPC)
+	if (flags & KERNEL_FPC) {
 		/* Restore floating-point controls */
 		asm volatile("lfpc %0" : : "Q" (state->fpc));
-
+	}
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW) {
 			/* Restore floating-point registers */
@@ -128,7 +125,6 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 		}
 		return;
 	}
-
 	/* Test and restore (load) vector registers */
 	asm volatile (
 		/*

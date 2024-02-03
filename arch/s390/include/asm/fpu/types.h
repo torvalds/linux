@@ -23,7 +23,9 @@ struct fpu {
 };
 
 /* VX array structure for address operand constraints in inline assemblies */
-struct vx_array { __vector128 _[__NUM_VXRS]; };
+struct vx_array {
+	__vector128 _[__NUM_VXRS];
+};
 
 /* In-kernel FPU state structure */
 struct kernel_fpu {
