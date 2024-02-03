@@ -287,35 +287,6 @@ static void isp_get_fmt_rect(struct v4l2_subdev *sd,
 	}
 }
 
-static void isp_subdev_propagate(struct v4l2_subdev *sd,
-				 struct v4l2_subdev_state *sd_state,
-				 u32 which, uint32_t pad, uint32_t target,
-				 uint32_t flags)
-{
-	struct v4l2_mbus_framefmt *ffmt[ATOMISP_SUBDEV_PADS_NUM];
-	struct v4l2_rect *crop[ATOMISP_SUBDEV_PADS_NUM],
-		       *comp[ATOMISP_SUBDEV_PADS_NUM];
-
-	if (flags & V4L2_SEL_FLAG_KEEP_CONFIG)
-		return;
-
-	isp_get_fmt_rect(sd, sd_state, which, ffmt, crop, comp);
-
-	switch (pad) {
-	case ATOMISP_SUBDEV_PAD_SINK: {
-		struct v4l2_rect r = {0};
-
-		/* Only crop target supported on sink pad. */
-		r.width = ffmt[pad]->width;
-		r.height = ffmt[pad]->height;
-
-		atomisp_subdev_set_selection(sd, sd_state, which, pad,
-					     target, flags, &r);
-		break;
-	}
-	}
-}
-
 static int isp_subdev_get_selection(struct v4l2_subdev *sd,
 				    struct v4l2_subdev_state *sd_state,
 				    struct v4l2_subdev_selection *sel)
@@ -541,6 +512,7 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 	case ATOMISP_SUBDEV_PAD_SINK: {
 		const struct atomisp_in_fmt_conv *fc =
 		    atomisp_find_in_fmt_conv(ffmt->code);
+		struct v4l2_rect r = {};
 
 		if (!fc) {
 			fc = atomisp_in_fmt_conv;
@@ -551,8 +523,12 @@ void atomisp_subdev_set_ffmt(struct v4l2_subdev *sd,
 
 		*__ffmt = *ffmt;
 
-		isp_subdev_propagate(sd, sd_state, which, pad,
-				     V4L2_SEL_TGT_CROP, 0);
+		/* Propagate new ffmt to selection */
+		r.width = ffmt->width;
+		r.height = ffmt->height;
+		/* Only crop target supported on sink pad. */
+		atomisp_subdev_set_selection(sd, sd_state, which, pad,
+					     V4L2_SEL_TGT_CROP, 0, &r);
 
 		if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
 			atomisp_css_input_set_resolution(isp_sd,
