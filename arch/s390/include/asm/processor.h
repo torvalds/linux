@@ -181,7 +181,7 @@ struct thread_struct {
 	struct gs_cb *gs_cb;			/* Current guarded storage cb */
 	struct gs_cb *gs_bc_cb;			/* Broadcast guarded storage cb */
 	struct pgm_tdb trap_tdb;		/* Transaction abort diagnose block */
-	struct fpu fpu;				/* FP and VX register save area */
+	struct fpu ufpu;			/* User FP and VX register save area */
 };
 
 /* Flag to disable transactions. */
@@ -200,7 +200,7 @@ typedef struct thread_struct thread_struct;
 
 #define INIT_THREAD {							\
 	.ksp = sizeof(init_stack) + (unsigned long) &init_stack,	\
-	.fpu.regs = (void *) init_task.thread.fpu.fprs,			\
+	.ufpu.regs = (void *)init_task.thread.ufpu.fprs,		\
 	.last_break = 1,						\
 }
 

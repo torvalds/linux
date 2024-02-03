@@ -4830,7 +4830,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			       sizeof(sie_page->pv_grregs));
 		}
 		if (test_thread_flag(TIF_FPU))
-			load_fpu_regs();
+			load_user_fpu_regs();
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);
 		if (kvm_s390_pv_cpu_is_protected(vcpu)) {
@@ -4952,14 +4952,14 @@ static void sync_regs(struct kvm_vcpu *vcpu)
 	save_access_regs(vcpu->arch.host_acrs);
 	restore_access_regs(vcpu->run->s.regs.acrs);
 	/* save host (userspace) fprs/vrs */
-	save_fpu_regs();
-	vcpu->arch.host_fpregs.fpc = current->thread.fpu.fpc;
-	vcpu->arch.host_fpregs.regs = current->thread.fpu.regs;
+	save_user_fpu_regs();
+	vcpu->arch.host_fpregs.fpc = current->thread.ufpu.fpc;
+	vcpu->arch.host_fpregs.regs = current->thread.ufpu.regs;
 	if (cpu_has_vx())
-		current->thread.fpu.regs = vcpu->run->s.regs.vrs;
+		current->thread.ufpu.regs = vcpu->run->s.regs.vrs;
 	else
-		current->thread.fpu.regs = vcpu->run->s.regs.fprs;
-	current->thread.fpu.fpc = vcpu->run->s.regs.fpc;
+		current->thread.ufpu.regs = vcpu->run->s.regs.fprs;
+	current->thread.ufpu.fpc = vcpu->run->s.regs.fpc;
 
 	/* Sync fmt2 only data */
 	if (likely(!kvm_s390_pv_cpu_is_protected(vcpu))) {
@@ -5022,11 +5022,11 @@ static void store_regs(struct kvm_vcpu *vcpu)
 	save_access_regs(vcpu->run->s.regs.acrs);
 	restore_access_regs(vcpu->arch.host_acrs);
 	/* Save guest register state */
-	save_fpu_regs();
-	vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
+	save_user_fpu_regs();
+	vcpu->run->s.regs.fpc = current->thread.ufpu.fpc;
 	/* Restore will be done lazily at return */
-	current->thread.fpu.fpc = vcpu->arch.host_fpregs.fpc;
-	current->thread.fpu.regs = vcpu->arch.host_fpregs.regs;
+	current->thread.ufpu.fpc = vcpu->arch.host_fpregs.fpc;
+	current->thread.ufpu.regs = vcpu->arch.host_fpregs.regs;
 	if (likely(!kvm_s390_pv_cpu_is_protected(vcpu)))
 		store_regs_fmt2(vcpu);
 }
@@ -5172,8 +5172,8 @@ int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	 * switch in the run ioctl. Let's update our copies before we save
 	 * it into the save area
 	 */
-	save_fpu_regs();
-	vcpu->run->s.regs.fpc = current->thread.fpu.fpc;
+	save_user_fpu_regs();
+	vcpu->run->s.regs.fpc = current->thread.ufpu.fpc;
 	save_access_regs(vcpu->run->s.regs.acrs);
 
 	return kvm_s390_store_status_unloaded(vcpu, addr);

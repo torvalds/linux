@@ -42,7 +42,7 @@ static __always_inline void arch_exit_to_user_mode_work(struct pt_regs *regs,
 static __always_inline void arch_exit_to_user_mode(void)
 {
 	if (test_thread_flag(TIF_FPU))
-		__load_fpu_regs();
+		__load_user_fpu_regs();
 
 	if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 		debug_user_asce(1);

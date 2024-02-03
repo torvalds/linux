@@ -57,9 +57,9 @@ static inline bool cpu_has_vx(void)
 	return likely(test_facility(129));
 }
 
-void save_fpu_regs(void);
-void load_fpu_regs(void);
-void __load_fpu_regs(void);
+void save_user_fpu_regs(void);
+void load_user_fpu_regs(void);
+void __load_user_fpu_regs(void);
 
 enum {
 	KERNEL_FPC_BIT = 0,
@@ -150,7 +150,7 @@ static inline void kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 	state->mask = S390_lowcore.fpu_flags;
 	if (!test_thread_flag(TIF_FPU)) {
 		/* Save user space FPU state and register contents */
-		save_fpu_regs();
+		save_user_fpu_regs();
 	} else if (state->mask & flags) {
 		/* Save FPU/vector register in-use by the kernel */
 		__kernel_fpu_begin(state, flags);

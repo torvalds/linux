@@ -91,10 +91,10 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 * task and set the TIF_FPU flag to lazy restore the FPU register
 	 * state when returning to user space.
 	 */
-	save_fpu_regs();
+	save_user_fpu_regs();
 
 	*dst = *src;
-	dst->thread.fpu.regs = dst->thread.fpu.fprs;
+	dst->thread.ufpu.regs = dst->thread.ufpu.fprs;
 
 	/*
 	 * Don't transfer over the runtime instrumentation or the guarded
@@ -190,13 +190,13 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 
 void execve_tail(void)
 {
-	current->thread.fpu.fpc = 0;
+	current->thread.ufpu.fpc = 0;
 	fpu_sfpc(0);
 }
 
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
-	save_fpu_regs();
+	save_user_fpu_regs();
 	save_access_regs(&prev->thread.acrs[0]);
 	save_ri_cb(prev->thread.ri_cb);
 	save_gs_cb(prev->thread.gs_cb);

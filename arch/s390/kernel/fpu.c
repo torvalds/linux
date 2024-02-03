@@ -107,10 +107,10 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 }
 EXPORT_SYMBOL(__kernel_fpu_end);
 
-void __load_fpu_regs(void)
+void __load_user_fpu_regs(void)
 {
-	struct fpu *state = &current->thread.fpu;
-	void *regs = current->thread.fpu.regs;
+	struct fpu *state = &current->thread.ufpu;
+	void *regs = current->thread.ufpu.regs;
 
 	fpu_lfpc_safe(&state->fpc);
 	if (likely(cpu_has_vx()))
@@ -120,15 +120,15 @@ void __load_fpu_regs(void)
 	clear_thread_flag(TIF_FPU);
 }
 
-void load_fpu_regs(void)
+void load_user_fpu_regs(void)
 {
 	raw_local_irq_disable();
-	__load_fpu_regs();
+	__load_user_fpu_regs();
 	raw_local_irq_enable();
 }
-EXPORT_SYMBOL(load_fpu_regs);
+EXPORT_SYMBOL(load_user_fpu_regs);
 
-void save_fpu_regs(void)
+void save_user_fpu_regs(void)
 {
 	unsigned long flags;
 	struct fpu *state;
@@ -139,8 +139,8 @@ void save_fpu_regs(void)
 	if (test_thread_flag(TIF_FPU))
 		goto out;
 
-	state = &current->thread.fpu;
-	regs = current->thread.fpu.regs;
+	state = &current->thread.ufpu;
+	regs = current->thread.ufpu.regs;
 
 	fpu_stfpc(&state->fpc);
 	if (likely(cpu_has_vx()))
@@ -151,4 +151,4 @@ void save_fpu_regs(void)
 out:
 	local_irq_restore(flags);
 }
-EXPORT_SYMBOL(save_fpu_regs);
+EXPORT_SYMBOL(save_user_fpu_regs);

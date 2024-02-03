@@ -20,9 +20,9 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 
 		idx -= PERF_REG_S390_FP0;
 		if (cpu_has_vx())
-			fp = *(freg_t *)(current->thread.fpu.vxrs + idx);
+			fp = *(freg_t *)(current->thread.ufpu.vxrs + idx);
 		else
-			fp = current->thread.fpu.fprs[idx];
+			fp = current->thread.ufpu.fprs[idx];
 		return fp.ui;
 	}
 
@@ -64,6 +64,6 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	 */
 	regs_user->regs = task_pt_regs(current);
 	if (user_mode(regs_user->regs))
-		save_fpu_regs();
+		save_user_fpu_regs();
 	regs_user->abi = perf_reg_abi(current);
 }
