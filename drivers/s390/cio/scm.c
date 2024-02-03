@@ -42,7 +42,7 @@ static int scmdev_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return add_uevent_var(env, "MODALIAS=scm:scmdev");
 }
 
-static struct bus_type scm_bus_type = {
+static const struct bus_type scm_bus_type = {
 	.name  = "scm",
 	.probe = scmdev_probe,
 	.remove = scmdev_remove,
