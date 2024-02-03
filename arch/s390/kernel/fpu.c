@@ -174,7 +174,7 @@ void __load_fpu_regs(void)
 	unsigned long *regs = current->thread.fpu.regs;
 	struct fpu *state = &current->thread.fpu;
 
-	sfpc_safe(state->fpc);
+	fpu_lfpc_safe(&state->fpc);
 	if (likely(cpu_has_vx())) {
 		asm volatile("lgr	1,%0\n"
 			     "VLM	0,15,0,1\n"
