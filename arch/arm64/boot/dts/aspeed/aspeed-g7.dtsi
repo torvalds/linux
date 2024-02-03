@@ -54,6 +54,8 @@
 		mdio2 = &mdio2;
 		video0 = &video0;
 		video1 = &video1;
+		rvas0 = &rvas0;
+		rvas1 = &rvas1;
 		xdma0 = &xdma0;
 		xdma1 = &xdma1;
 	};
@@ -906,12 +908,12 @@
 			compatible = "aspeed,ast2700-rvas";
 			reg = <0x0 0x120bc000 0x0 0x800>,
 				  <0x0 0x12c14800 0x0 0x800>,
-				  <0x0 0x120a0000 0x0 0x1000>;
+				  <0x0 0x120a1000 0x0 0x1000>;
 			clocks = <&syscon0 AST2700_SOC0_CLK_GATE_RVAS1CLK>,
 					<&syscon0 AST2700_SOC0_CLK_GATE_VCLK>,
 					<&syscon0 AST2700_SOC0_CLK_GATE_ECLK>;
 			clock-names = "rvas2clk", "vclk", "eclk";
-			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 41 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>, <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&syscon0 ASPEED_RESET_RVAS1>, <&syscon0 ASPEED_RESET_VIDEO>;
 			status = "disabled";
 		};
