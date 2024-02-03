@@ -135,7 +135,7 @@ static int ap_max_domain_id = 15;
 /* Maximum adapter id, if not given via qci */
 static int ap_max_adapter_id = 63;
 
-static struct bus_type ap_bus_type;
+static const struct bus_type ap_bus_type;
 
 /* Adapter interrupt definitions */
 static void ap_interrupt_handler(struct airq_struct *airq,
@@ -1603,7 +1603,7 @@ static struct attribute *ap_bus_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ap_bus);
 
-static struct bus_type ap_bus_type = {
+static const struct bus_type ap_bus_type = {
 	.name = "ap",
 	.bus_groups = ap_bus_groups,
 	.match = &ap_bus_match,
