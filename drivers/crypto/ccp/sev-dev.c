@@ -107,7 +107,7 @@ static void *sev_init_ex_buffer;
  *   Array containing range of pages that firmware transitions to HV-fixed
  *   page state.
  */
-struct sev_data_range_list *snp_range_list;
+static struct sev_data_range_list *snp_range_list;
 
 static inline bool sev_version_greater_or_equal(u8 maj, u8 min)
 {
