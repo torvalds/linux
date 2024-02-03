@@ -19,15 +19,41 @@ __weak int subprog_trusted_task_nullable(struct task_struct *task __arg_trusted 
 	return task->pid + task->tgid;
 }
 
-SEC("?kprobe")
+__weak int subprog_trusted_task_nullable_extra_layer(struct task_struct *task __arg_trusted __arg_nullable)
+{
+	return subprog_trusted_task_nullable(task) + subprog_trusted_task_nullable(NULL);
+}
+
+SEC("?tp_btf/task_newtask")
 __success __log_level(2)
 __msg("Validating subprog_trusted_task_nullable() func#1...")
 __msg(": R1=trusted_ptr_or_null_task_struct(")
 int trusted_task_arg_nullable(void *ctx)
 {
-	struct task_struct *t = bpf_get_current_task_btf();
+	struct task_struct *t1 = bpf_get_current_task_btf();
+	struct task_struct *t2 = bpf_task_acquire(t1);
+	int res = 0;
 
-	return subprog_trusted_task_nullable(t) + subprog_trusted_task_nullable(NULL);
+	/* known NULL */
+	res += subprog_trusted_task_nullable(NULL);
+
+	/* known non-NULL */
+	res += subprog_trusted_task_nullable(t1);
+	res += subprog_trusted_task_nullable_extra_layer(t1);
+
+	/* unknown if NULL or not */
+	res += subprog_trusted_task_nullable(t2);
+	res += subprog_trusted_task_nullable_extra_layer(t2);
+
+	if (t2) {
+		/* known non-NULL after explicit NULL check, just in case */
+		res += subprog_trusted_task_nullable(t2);
+		res += subprog_trusted_task_nullable_extra_layer(t2);
+
+		bpf_task_release(t2);
+	}
+
+	return res;
 }
 
 __weak int subprog_trusted_task_nonnull(struct task_struct *task __arg_trusted)

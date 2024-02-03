@@ -7122,6 +7122,8 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	args = (const struct btf_param *)(t + 1);
 	nargs = btf_type_vlen(t);
 	if (nargs > MAX_BPF_FUNC_REG_ARGS) {
+		if (!is_global)
+			return -EINVAL;
 		bpf_log(log, "Global function %s() with %d > %d args. Buggy compiler.\n",
 			tname, nargs, MAX_BPF_FUNC_REG_ARGS);
 		return -EINVAL;
@@ -7131,6 +7133,8 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
 	if (!btf_type_is_int(t) && !btf_is_any_enum(t)) {
+		if (!is_global)
+			return -EINVAL;
 		bpf_log(log,
 			"Global function %s() doesn't return scalar. Only those are supported.\n",
 			tname);
@@ -7251,6 +7255,8 @@ skip_pointer:
 			sub->args[i].arg_type = ARG_ANYTHING;
 			continue;
 		}
+		if (!is_global)
+			return -EINVAL;
 		bpf_log(log, "Arg#%d type %s in %s() is not supported yet.\n",
 			i, btf_type_str(t), tname);
 		return -EINVAL;
