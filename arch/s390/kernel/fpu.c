@@ -22,25 +22,8 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 		asm volatile("stfpc %0" : "=Q" (state->fpc));
 	}
 	if (!cpu_has_vx()) {
-		if (flags & KERNEL_VXR_LOW) {
-			/* Save floating-point registers */
-			asm volatile("std 0,%0" : "=Q" (state->fprs[0]));
-			asm volatile("std 1,%0" : "=Q" (state->fprs[1]));
-			asm volatile("std 2,%0" : "=Q" (state->fprs[2]));
-			asm volatile("std 3,%0" : "=Q" (state->fprs[3]));
-			asm volatile("std 4,%0" : "=Q" (state->fprs[4]));
-			asm volatile("std 5,%0" : "=Q" (state->fprs[5]));
-			asm volatile("std 6,%0" : "=Q" (state->fprs[6]));
-			asm volatile("std 7,%0" : "=Q" (state->fprs[7]));
-			asm volatile("std 8,%0" : "=Q" (state->fprs[8]));
-			asm volatile("std 9,%0" : "=Q" (state->fprs[9]));
-			asm volatile("std 10,%0" : "=Q" (state->fprs[10]));
-			asm volatile("std 11,%0" : "=Q" (state->fprs[11]));
-			asm volatile("std 12,%0" : "=Q" (state->fprs[12]));
-			asm volatile("std 13,%0" : "=Q" (state->fprs[13]));
-			asm volatile("std 14,%0" : "=Q" (state->fprs[14]));
-			asm volatile("std 15,%0" : "=Q" (state->fprs[15]));
-		}
+		if (flags & KERNEL_VXR_LOW)
+			save_fp_regs(state->fprs);
 		return;
 	}
 	/* Test and save vector registers */
@@ -102,25 +85,8 @@ void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 		asm volatile("lfpc %0" : : "Q" (state->fpc));
 	}
 	if (!cpu_has_vx()) {
-		if (flags & KERNEL_VXR_LOW) {
-			/* Restore floating-point registers */
-			asm volatile("ld 0,%0" : : "Q" (state->fprs[0]));
-			asm volatile("ld 1,%0" : : "Q" (state->fprs[1]));
-			asm volatile("ld 2,%0" : : "Q" (state->fprs[2]));
-			asm volatile("ld 3,%0" : : "Q" (state->fprs[3]));
-			asm volatile("ld 4,%0" : : "Q" (state->fprs[4]));
-			asm volatile("ld 5,%0" : : "Q" (state->fprs[5]));
-			asm volatile("ld 6,%0" : : "Q" (state->fprs[6]));
-			asm volatile("ld 7,%0" : : "Q" (state->fprs[7]));
-			asm volatile("ld 8,%0" : : "Q" (state->fprs[8]));
-			asm volatile("ld 9,%0" : : "Q" (state->fprs[9]));
-			asm volatile("ld 10,%0" : : "Q" (state->fprs[10]));
-			asm volatile("ld 11,%0" : : "Q" (state->fprs[11]));
-			asm volatile("ld 12,%0" : : "Q" (state->fprs[12]));
-			asm volatile("ld 13,%0" : : "Q" (state->fprs[13]));
-			asm volatile("ld 14,%0" : : "Q" (state->fprs[14]));
-			asm volatile("ld 15,%0" : : "Q" (state->fprs[15]));
-		}
+		if (flags & KERNEL_VXR_LOW)
+			load_fp_regs(state->fprs);
 		return;
 	}
 	/* Test and restore (load) vector registers */
@@ -171,8 +137,8 @@ EXPORT_SYMBOL(__kernel_fpu_end);
 
 void __load_fpu_regs(void)
 {
-	unsigned long *regs = current->thread.fpu.regs;
 	struct fpu *state = &current->thread.fpu;
+	void *regs = current->thread.fpu.regs;
 
 	fpu_lfpc_safe(&state->fpc);
 	if (likely(cpu_has_vx())) {
@@ -183,22 +149,7 @@ void __load_fpu_regs(void)
 			     : "d" (regs)
 			     : "1", "cc", "memory");
 	} else {
-		asm volatile("ld 0,%0" : : "Q" (regs[0]));
-		asm volatile("ld 1,%0" : : "Q" (regs[1]));
-		asm volatile("ld 2,%0" : : "Q" (regs[2]));
-		asm volatile("ld 3,%0" : : "Q" (regs[3]));
-		asm volatile("ld 4,%0" : : "Q" (regs[4]));
-		asm volatile("ld 5,%0" : : "Q" (regs[5]));
-		asm volatile("ld 6,%0" : : "Q" (regs[6]));
-		asm volatile("ld 7,%0" : : "Q" (regs[7]));
-		asm volatile("ld 8,%0" : : "Q" (regs[8]));
-		asm volatile("ld 9,%0" : : "Q" (regs[9]));
-		asm volatile("ld 10,%0" : : "Q" (regs[10]));
-		asm volatile("ld 11,%0" : : "Q" (regs[11]));
-		asm volatile("ld 12,%0" : : "Q" (regs[12]));
-		asm volatile("ld 13,%0" : : "Q" (regs[13]));
-		asm volatile("ld 14,%0" : : "Q" (regs[14]));
-		asm volatile("ld 15,%0" : : "Q" (regs[15]));
+		load_fp_regs(regs);
 	}
 	clear_cpu_flag(CIF_FPU);
 }
@@ -213,8 +164,9 @@ EXPORT_SYMBOL(load_fpu_regs);
 
 void save_fpu_regs(void)
 {
-	unsigned long flags, *regs;
+	unsigned long flags;
 	struct fpu *state;
+	void *regs;
 
 	local_irq_save(flags);
 
@@ -233,22 +185,7 @@ void save_fpu_regs(void)
 			     : "d" (regs)
 			     : "1", "cc", "memory");
 	} else {
-		asm volatile("std 0,%0" : "=Q" (regs[0]));
-		asm volatile("std 1,%0" : "=Q" (regs[1]));
-		asm volatile("std 2,%0" : "=Q" (regs[2]));
-		asm volatile("std 3,%0" : "=Q" (regs[3]));
-		asm volatile("std 4,%0" : "=Q" (regs[4]));
-		asm volatile("std 5,%0" : "=Q" (regs[5]));
-		asm volatile("std 6,%0" : "=Q" (regs[6]));
-		asm volatile("std 7,%0" : "=Q" (regs[7]));
-		asm volatile("std 8,%0" : "=Q" (regs[8]));
-		asm volatile("std 9,%0" : "=Q" (regs[9]));
-		asm volatile("std 10,%0" : "=Q" (regs[10]));
-		asm volatile("std 11,%0" : "=Q" (regs[11]));
-		asm volatile("std 12,%0" : "=Q" (regs[12]));
-		asm volatile("std 13,%0" : "=Q" (regs[13]));
-		asm volatile("std 14,%0" : "=Q" (regs[14]));
-		asm volatile("std 15,%0" : "=Q" (regs[15]));
+		save_fp_regs(regs);
 	}
 	set_cpu_flag(CIF_FPU);
 out:

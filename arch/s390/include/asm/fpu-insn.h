@@ -36,6 +36,15 @@ asm(".include \"asm/fpu-insn-asm.h\"\n");
  * barrier.
  */
 
+static __always_inline void fpu_ld(unsigned short fpr, freg_t *reg)
+{
+	instrument_read(reg, sizeof(*reg));
+	asm volatile("ld	 %[fpr],%[reg]\n"
+		     :
+		     : [fpr] "I" (fpr), [reg] "Q" (reg->ui)
+		     : "memory");
+}
+
 /**
  * fpu_lfpc_safe - Load floating point control register safely.
  * @fpc: new value for floating point control register
@@ -62,6 +71,15 @@ static inline void fpu_lfpc_safe(unsigned int *fpc)
 		: [tmp] "=d" (tmp)
 		: [fpc] "Q" (*fpc)
 		: "memory");
+}
+
+static __always_inline void fpu_std(unsigned short fpr, freg_t *reg)
+{
+	instrument_write(reg, sizeof(*reg));
+	asm volatile("std	 %[fpr],%[reg]\n"
+		     : [reg] "=Q" (reg->ui)
+		     : [fpr] "I" (fpr)
+		     : "memory");
 }
 
 #endif /* __ASSEMBLY__ */

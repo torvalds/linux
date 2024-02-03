@@ -84,6 +84,46 @@ void __load_fpu_regs(void);
 void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags);
 void __kernel_fpu_end(struct kernel_fpu *state, u32 flags);
 
+static __always_inline void save_fp_regs(freg_t *fprs)
+{
+	fpu_std(0, &fprs[0]);
+	fpu_std(1, &fprs[1]);
+	fpu_std(2, &fprs[2]);
+	fpu_std(3, &fprs[3]);
+	fpu_std(4, &fprs[4]);
+	fpu_std(5, &fprs[5]);
+	fpu_std(6, &fprs[6]);
+	fpu_std(7, &fprs[7]);
+	fpu_std(8, &fprs[8]);
+	fpu_std(9, &fprs[9]);
+	fpu_std(10, &fprs[10]);
+	fpu_std(11, &fprs[11]);
+	fpu_std(12, &fprs[12]);
+	fpu_std(13, &fprs[13]);
+	fpu_std(14, &fprs[14]);
+	fpu_std(15, &fprs[15]);
+}
+
+static __always_inline void load_fp_regs(freg_t *fprs)
+{
+	fpu_ld(0, &fprs[0]);
+	fpu_ld(1, &fprs[1]);
+	fpu_ld(2, &fprs[2]);
+	fpu_ld(3, &fprs[3]);
+	fpu_ld(4, &fprs[4]);
+	fpu_ld(5, &fprs[5]);
+	fpu_ld(6, &fprs[6]);
+	fpu_ld(7, &fprs[7]);
+	fpu_ld(8, &fprs[8]);
+	fpu_ld(9, &fprs[9]);
+	fpu_ld(10, &fprs[10]);
+	fpu_ld(11, &fprs[11]);
+	fpu_ld(12, &fprs[12]);
+	fpu_ld(13, &fprs[13]);
+	fpu_ld(14, &fprs[14]);
+	fpu_ld(15, &fprs[15]);
+}
+
 static inline void kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {
 	preempt_disable();
