@@ -63,7 +63,7 @@ static void media_devnode_release(struct device *cd)
 	pr_debug("%s: Media Devnode Deallocated\n", __func__);
 }
 
-static struct bus_type media_bus_type = {
+static const struct bus_type media_bus_type = {
 	.name = MEDIA_NAME,
 };
 
