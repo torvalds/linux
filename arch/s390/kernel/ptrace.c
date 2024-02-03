@@ -31,7 +31,7 @@
 #include <asm/unistd.h>
 #include <asm/runtime_instr.h>
 #include <asm/facility.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 
 #include "entry.h"
 

@@ -29,7 +29,7 @@
 #include <linux/uaccess.h>
 #include <asm/lowcore.h>
 #include <asm/vdso.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 #include "compat_linux.h"
 #include "compat_ptrace.h"
 #include "entry.h"

@@ -13,7 +13,7 @@
 #include <linux/cpufeature.h>
 #include <linux/crc32.h>
 #include <crypto/internal/hash.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 
 
 #define CRC32_BLOCK_SIZE	1

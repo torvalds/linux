@@ -9,11 +9,11 @@
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 
-#ifndef __ASM_S390_VX_INSN_INTERNAL_H
-#define __ASM_S390_VX_INSN_INTERNAL_H
+#ifndef __ASM_S390_FPU_INSN_ASM_H
+#define __ASM_S390_FPU_INSN_ASM_H
 
-#ifndef __ASM_S390_VX_INSN_H
-#error only <asm/vx-insn.h> can be included directly
+#ifndef __ASM_S390_FPU_INSN_H
+#error only <asm/fpu-insn.h> can be included directly
 #endif
 
 #ifdef __ASSEMBLY__
@@ -700,4 +700,4 @@
 .endm
 
 #endif	/* __ASSEMBLY__ */
-#endif	/* __ASM_S390_VX_INSN_INTERNAL_H */
+#endif	/* __ASM_S390_FPU_INSN_ASM_H */

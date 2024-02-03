@@ -23,6 +23,7 @@
 #include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/ctlreg.h>
+#include <asm/fpu.h>
 #include <asm/smp.h>
 #include <asm/stp.h>
 #include <asm/cputime.h>
@@ -30,8 +31,6 @@
 #include <asm/crw.h>
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
-#include <asm/vx-insn.h>
-#include <asm/fpu/api.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;

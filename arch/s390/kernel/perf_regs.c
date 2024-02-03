@@ -5,8 +5,7 @@
 #include <linux/errno.h>
 #include <linux/bug.h>
 #include <asm/ptrace.h>
-#include <asm/fpu/api.h>
-#include <asm/fpu/types.h>
+#include <asm/fpu.h>
 
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {

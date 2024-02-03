@@ -20,7 +20,7 @@
 #include <asm/sysinfo.h>
 #include <asm/cpcmd.h>
 #include <asm/topology.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 
 int topology_max_mnest;
 

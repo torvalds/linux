@@ -20,9 +20,9 @@
 #include <asm/asm-extable.h>
 #include <linux/memblock.h>
 #include <asm/access-regs.h>
-#include <asm/fpu/api.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
+#include <asm/fpu.h>
 #include <asm/ipl.h>
 #include <asm/lowcore.h>
 #include <asm/processor.h>

@@ -42,6 +42,7 @@
 #include <asm/pfault.h>
 #include <asm/diag.h>
 #include <asm/facility.h>
+#include <asm/fpu.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
 #include <asm/irq.h>

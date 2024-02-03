@@ -39,6 +39,7 @@
 #include <asm/ptrace.h>
 #include <asm/vtimer.h>
 #include <asm/exec.h>
+#include <asm/fpu.h>
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>

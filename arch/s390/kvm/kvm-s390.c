@@ -43,9 +43,9 @@
 #include <asm/sclp.h>
 #include <asm/cpacf.h>
 #include <asm/timex.h>
+#include <asm/fpu.h>
 #include <asm/ap.h>
 #include <asm/uv.h>
-#include <asm/fpu/api.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 #include "pci.h"

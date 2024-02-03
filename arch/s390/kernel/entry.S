@@ -24,7 +24,7 @@
 #include <asm/page.h>
 #include <asm/sigp.h>
 #include <asm/irq.h>
-#include <asm/vx-insn.h>
+#include <asm/fpu-insn.h>
 #include <asm/setup.h>
 #include <asm/nmi.h>
 #include <asm/nospec-insn.h>

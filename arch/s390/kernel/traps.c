@@ -28,8 +28,8 @@
 #include <linux/cpu.h>
 #include <linux/entry-common.h>
 #include <asm/asm-extable.h>
-#include <asm/fpu/api.h>
 #include <asm/vtime.h>
+#include <asm/fpu.h>
 #include "entry.h"
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)

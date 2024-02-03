@@ -41,39 +41,25 @@
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 
-#ifndef _ASM_S390_FPU_API_H
-#define _ASM_S390_FPU_API_H
+#ifndef _ASM_S390_FPU_H
+#define _ASM_S390_FPU_H
 
+#include <linux/processor.h>
 #include <linux/preempt.h>
-#include <asm/asm-extable.h>
-#include <asm/fpu/internal.h>
+#include <linux/string.h>
+#include <asm/sigcontext.h>
+#include <asm/fpu-types.h>
+#include <asm/fpu-insn.h>
+#include <asm/facility.h>
+
+static inline bool cpu_has_vx(void)
+{
+	return likely(test_facility(129));
+}
 
 void save_fpu_regs(void);
 void load_fpu_regs(void);
 void __load_fpu_regs(void);
-
-/**
- * sfpc_safe - Set floating point control register safely.
- * @fpc: new value for floating point control register
- *
- * Set floating point control register. This may lead to an exception,
- * since a saved value may have been modified by user space (ptrace,
- * signal return, kvm registers) to an invalid value. In such a case
- * set the floating point control register to zero.
- */
-static inline void sfpc_safe(u32 fpc)
-{
-	asm volatile("\n"
-		"0:	sfpc	%[fpc]\n"
-		"1:	nopr	%%r7\n"
-		".pushsection .fixup, \"ax\"\n"
-		"2:	lghi	%[fpc],0\n"
-		"	jg	0b\n"
-		".popsection\n"
-		EX_TABLE(1b, 2b)
-		: [fpc] "+d" (fpc)
-		: : "memory");
-}
 
 #define KERNEL_FPC		1
 #define KERNEL_VXR_V0V7		2
@@ -87,8 +73,6 @@ static inline void sfpc_safe(u32 fpc)
 
 #define KERNEL_VXR		(KERNEL_VXR_LOW	   | KERNEL_VXR_HIGH)
 #define KERNEL_FPR		(KERNEL_FPC	   | KERNEL_VXR_LOW)
-
-struct kernel_fpu;
 
 /*
  * Note the functions below must be called with preemption disabled.
@@ -124,4 +108,48 @@ static inline void kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 	preempt_enable();
 }
 
-#endif /* _ASM_S390_FPU_API_H */
+static inline void save_vx_regs(__vector128 *vxrs)
+{
+	asm volatile("\n"
+		"	la	1,%0\n"
+		"	.word	0xe70f,0x1000,0x003e\n" /* vstm 0,15,0(1) */
+		"	.word	0xe70f,0x1100,0x0c3e\n" /* vstm 16,31,256(1) */
+		: "=Q" (*(struct vx_array *)vxrs) : : "1");
+}
+
+static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)
+{
+	int i;
+
+	for (i = 0; i < __NUM_FPRS; i++)
+		fprs[i].ui = vxrs[i].high;
+}
+
+static inline void convert_fp_to_vx(__vector128 *vxrs, freg_t *fprs)
+{
+	int i;
+
+	for (i = 0; i < __NUM_FPRS; i++)
+		vxrs[i].high = fprs[i].ui;
+}
+
+static inline void fpregs_store(_s390_fp_regs *fpregs, struct fpu *fpu)
+{
+	fpregs->pad = 0;
+	fpregs->fpc = fpu->fpc;
+	if (cpu_has_vx())
+		convert_vx_to_fp((freg_t *)&fpregs->fprs, fpu->vxrs);
+	else
+		memcpy((freg_t *)&fpregs->fprs, fpu->fprs, sizeof(fpregs->fprs));
+}
+
+static inline void fpregs_load(_s390_fp_regs *fpregs, struct fpu *fpu)
+{
+	fpu->fpc = fpregs->fpc;
+	if (cpu_has_vx())
+		convert_fp_to_vx(fpu->vxrs, (freg_t *)&fpregs->fprs);
+	else
+		memcpy(fpu->fprs, (freg_t *)&fpregs->fprs, sizeof(fpregs->fprs));
+}
+
+#endif /* _ASM_S390_FPU_H */

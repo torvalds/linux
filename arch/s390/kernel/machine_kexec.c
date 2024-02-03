@@ -16,6 +16,7 @@
 #include <asm/guarded_storage.h>
 #include <asm/pfault.h>
 #include <asm/cio.h>
+#include <asm/fpu.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 #include <asm/ipl.h>

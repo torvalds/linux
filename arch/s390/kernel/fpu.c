@@ -8,9 +8,7 @@
 #include <linux/kernel.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include <asm/fpu/types.h>
-#include <asm/fpu/api.h>
-#include <asm/vx-insn.h>
+#include <asm/fpu.h>
 
 void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {

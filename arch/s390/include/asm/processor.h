@@ -33,13 +33,12 @@
 #include <linux/cpumask.h>
 #include <linux/linkage.h>
 #include <linux/irqflags.h>
+#include <asm/fpu-types.h>
 #include <asm/cpu.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
 #include <asm/setup.h>
 #include <asm/runtime_instr.h>
-#include <asm/fpu/types.h>
-#include <asm/fpu/internal.h>
 #include <asm/irqflags.h>
 
 typedef long (*sys_call_ptr_t)(struct pt_regs *regs);

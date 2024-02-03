@@ -15,7 +15,7 @@
 
 #include <linux/linkage.h>
 #include <asm/nospec-insn.h>
-#include <asm/vx-insn.h>
+#include <asm/fpu-insn.h>
 
 /* Vector register range containing CRC-32 constants */
 #define CONST_PERM_LE2BE	%v9
