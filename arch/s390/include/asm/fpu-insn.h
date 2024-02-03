@@ -15,6 +15,26 @@
 
 asm(".include \"asm/fpu-insn-asm.h\"\n");
 
+/*
+ * Various small helper functions, which can and should be used within
+ * kernel fpu code sections. Each function represents only one floating
+ * point or vector instruction (except for helper functions which require
+ * exception handling).
+ *
+ * This allows to use floating point and vector instructions like C
+ * functions, which has the advantage that all supporting code, like
+ * e.g. loops, can be written in easy to read C code.
+ *
+ * Each of the helper functions provides support for code instrumentation,
+ * like e.g. KASAN. Therefore instrumentation is also covered automatically
+ * when using these functions.
+ *
+ * In order to ensure that code generated with the helper functions stays
+ * within kernel fpu sections, which are guarded with kernel_fpu_begin()
+ * and kernel_fpu_end() calls, each function has a mandatory "memory"
+ * barrier.
+ */
+
 /**
  * sfpc_safe - Set floating point control register safely.
  * @fpc: new value for floating point control register
