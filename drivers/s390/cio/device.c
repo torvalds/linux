@@ -49,7 +49,7 @@ static const unsigned long recovery_delay[] = { 3, 30, 300 };
 
 static atomic_t ccw_device_init_count = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(ccw_device_init_wq);
-static struct bus_type ccw_bus_type;
+static const struct bus_type ccw_bus_type;
 
 /******************* bus type handling ***********************/
 
@@ -1776,7 +1776,7 @@ static void ccw_device_shutdown(struct device *dev)
 	__disable_cmf(cdev);
 }
 
-static struct bus_type ccw_bus_type = {
+static const struct bus_type ccw_bus_type = {
 	.name   = "ccw",
 	.match  = ccw_bus_match,
 	.uevent = ccw_uevent,
