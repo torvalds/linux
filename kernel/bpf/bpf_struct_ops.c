@@ -189,19 +189,16 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 		}
 	}
 
-	if (i == btf_type_vlen(t)) {
-		if (st_ops->init(btf)) {
-			pr_warn("Error in init bpf_struct_ops %s\n",
-				st_ops->name);
-			return -EINVAL;
-		} else {
-			st_ops_desc->type_id = type_id;
-			st_ops_desc->type = t;
-			st_ops_desc->value_id = value_id;
-			st_ops_desc->value_type = btf_type_by_id(btf,
-								 value_id);
-		}
+	if (st_ops->init(btf)) {
+		pr_warn("Error in init bpf_struct_ops %s\n",
+			st_ops->name);
+		return -EINVAL;
 	}
+
+	st_ops_desc->type_id = type_id;
+	st_ops_desc->type = t;
+	st_ops_desc->value_id = value_id;
+	st_ops_desc->value_type = btf_type_by_id(btf, value_id);
 
 	return 0;
 }
