@@ -290,7 +290,17 @@ static int qca808x_probe(struct phy_device *phydev)
 
 static int qca808x_config_init(struct phy_device *phydev)
 {
+	struct qca808x_priv *priv = phydev->priv;
 	int ret;
+
+	/* Default to LED Active High if active-low not in DT */
+	if (priv->led_polarity_mode == -1) {
+		ret = phy_set_bits_mmd(phydev, MDIO_MMD_AN,
+				       QCA808X_MMD7_LED_POLARITY_CTRL,
+				       QCA808X_LED_ACTIVE_HIGH);
+		if (ret)
+			return ret;
+	}
 
 	/* Active adc&vga on 802.3az for the link 1000M and 100M */
 	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS, QCA808X_PHY_MMD3_ADDR_CLD_CTRL7,
@@ -820,8 +830,8 @@ static int qca808x_led_brightness_set(struct phy_device *phydev,
 
 	return phy_modify_mmd(phydev, MDIO_MMD_AN, reg,
 			      QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_MODE_MASK,
-			      QCA808X_LED_FORCE_EN | value ? QCA808X_LED_FORCE_ON :
-							     QCA808X_LED_FORCE_OFF);
+			      QCA808X_LED_FORCE_EN | (value ? QCA808X_LED_FORCE_ON :
+							     QCA808X_LED_FORCE_OFF));
 }
 
 static int qca808x_led_blink_set(struct phy_device *phydev, u8 index,
