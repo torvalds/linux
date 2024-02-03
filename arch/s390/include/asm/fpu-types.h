@@ -12,23 +12,15 @@
 #include <asm/sigcontext.h>
 
 struct fpu {
-	__u32 fpc;		/* Floating-point control */
-	union {
-		/* Floating-point register save area */
-		freg_t fprs[__NUM_FPRS];
-		/* Vector register save area */
-		__vector128 vxrs[__NUM_VXRS];
-	};
+	u32 fpc;
+	__vector128 vxrs[__NUM_VXRS] __aligned(8);
 };
 
 /* In-kernel FPU state structure */
 struct kernel_fpu {
 	int	    mask;
 	u32	    fpc;
-	union {
-		freg_t fprs[__NUM_FPRS];
-		__vector128 vxrs[__NUM_VXRS];
-	};
+	__vector128 vxrs[__NUM_VXRS] __aligned(8);
 };
 
 #define DECLARE_KERNEL_FPU_ONSTACK(name)	\

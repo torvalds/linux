@@ -98,44 +98,68 @@ static __always_inline void load_vx_regs(__vector128 *vxrs)
 	fpu_vlm(16, 31, &vxrs[16]);
 }
 
+static __always_inline void __save_fp_regs(freg_t *fprs, unsigned int offset)
+{
+	fpu_std(0, &fprs[0 * offset]);
+	fpu_std(1, &fprs[1 * offset]);
+	fpu_std(2, &fprs[2 * offset]);
+	fpu_std(3, &fprs[3 * offset]);
+	fpu_std(4, &fprs[4 * offset]);
+	fpu_std(5, &fprs[5 * offset]);
+	fpu_std(6, &fprs[6 * offset]);
+	fpu_std(7, &fprs[7 * offset]);
+	fpu_std(8, &fprs[8 * offset]);
+	fpu_std(9, &fprs[9 * offset]);
+	fpu_std(10, &fprs[10 * offset]);
+	fpu_std(11, &fprs[11 * offset]);
+	fpu_std(12, &fprs[12 * offset]);
+	fpu_std(13, &fprs[13 * offset]);
+	fpu_std(14, &fprs[14 * offset]);
+	fpu_std(15, &fprs[15 * offset]);
+}
+
+static __always_inline void __load_fp_regs(freg_t *fprs, unsigned int offset)
+{
+	fpu_ld(0, &fprs[0 * offset]);
+	fpu_ld(1, &fprs[1 * offset]);
+	fpu_ld(2, &fprs[2 * offset]);
+	fpu_ld(3, &fprs[3 * offset]);
+	fpu_ld(4, &fprs[4 * offset]);
+	fpu_ld(5, &fprs[5 * offset]);
+	fpu_ld(6, &fprs[6 * offset]);
+	fpu_ld(7, &fprs[7 * offset]);
+	fpu_ld(8, &fprs[8 * offset]);
+	fpu_ld(9, &fprs[9 * offset]);
+	fpu_ld(10, &fprs[10 * offset]);
+	fpu_ld(11, &fprs[11 * offset]);
+	fpu_ld(12, &fprs[12 * offset]);
+	fpu_ld(13, &fprs[13 * offset]);
+	fpu_ld(14, &fprs[14 * offset]);
+	fpu_ld(15, &fprs[15 * offset]);
+}
+
 static __always_inline void save_fp_regs(freg_t *fprs)
 {
-	fpu_std(0, &fprs[0]);
-	fpu_std(1, &fprs[1]);
-	fpu_std(2, &fprs[2]);
-	fpu_std(3, &fprs[3]);
-	fpu_std(4, &fprs[4]);
-	fpu_std(5, &fprs[5]);
-	fpu_std(6, &fprs[6]);
-	fpu_std(7, &fprs[7]);
-	fpu_std(8, &fprs[8]);
-	fpu_std(9, &fprs[9]);
-	fpu_std(10, &fprs[10]);
-	fpu_std(11, &fprs[11]);
-	fpu_std(12, &fprs[12]);
-	fpu_std(13, &fprs[13]);
-	fpu_std(14, &fprs[14]);
-	fpu_std(15, &fprs[15]);
+	__save_fp_regs(fprs, sizeof(freg_t) / sizeof(freg_t));
 }
 
 static __always_inline void load_fp_regs(freg_t *fprs)
 {
-	fpu_ld(0, &fprs[0]);
-	fpu_ld(1, &fprs[1]);
-	fpu_ld(2, &fprs[2]);
-	fpu_ld(3, &fprs[3]);
-	fpu_ld(4, &fprs[4]);
-	fpu_ld(5, &fprs[5]);
-	fpu_ld(6, &fprs[6]);
-	fpu_ld(7, &fprs[7]);
-	fpu_ld(8, &fprs[8]);
-	fpu_ld(9, &fprs[9]);
-	fpu_ld(10, &fprs[10]);
-	fpu_ld(11, &fprs[11]);
-	fpu_ld(12, &fprs[12]);
-	fpu_ld(13, &fprs[13]);
-	fpu_ld(14, &fprs[14]);
-	fpu_ld(15, &fprs[15]);
+	__load_fp_regs(fprs, sizeof(freg_t) / sizeof(freg_t));
+}
+
+static __always_inline void save_fp_regs_vx(__vector128 *vxrs)
+{
+	freg_t *fprs = (freg_t *)&vxrs[0].high;
+
+	__save_fp_regs(fprs, sizeof(__vector128) / sizeof(freg_t));
+}
+
+static __always_inline void load_fp_regs_vx(__vector128 *vxrs)
+{
+	freg_t *fprs = (freg_t *)&vxrs[0].high;
+
+	__load_fp_regs(fprs, sizeof(__vector128) / sizeof(freg_t));
 }
 
 static inline void kernel_fpu_begin(struct kernel_fpu *state, int flags)
@@ -170,7 +194,7 @@ static inline void save_kernel_fpu_regs(struct thread_struct *thread)
 	if (likely(cpu_has_vx()))
 		save_vx_regs(state->vxrs);
 	else
-		save_fp_regs(state->fprs);
+		save_fp_regs_vx(state->vxrs);
 }
 
 static inline void restore_kernel_fpu_regs(struct thread_struct *thread)
@@ -183,7 +207,7 @@ static inline void restore_kernel_fpu_regs(struct thread_struct *thread)
 	if (likely(cpu_has_vx()))
 		load_vx_regs(state->vxrs);
 	else
-		load_fp_regs(state->fprs);
+		load_fp_regs_vx(state->vxrs);
 }
 
 static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)
@@ -206,19 +230,13 @@ static inline void fpregs_store(_s390_fp_regs *fpregs, struct fpu *fpu)
 {
 	fpregs->pad = 0;
 	fpregs->fpc = fpu->fpc;
-	if (cpu_has_vx())
-		convert_vx_to_fp((freg_t *)&fpregs->fprs, fpu->vxrs);
-	else
-		memcpy((freg_t *)&fpregs->fprs, fpu->fprs, sizeof(fpregs->fprs));
+	convert_vx_to_fp((freg_t *)&fpregs->fprs, fpu->vxrs);
 }
 
 static inline void fpregs_load(_s390_fp_regs *fpregs, struct fpu *fpu)
 {
 	fpu->fpc = fpregs->fpc;
-	if (cpu_has_vx())
-		convert_fp_to_vx(fpu->vxrs, (freg_t *)&fpregs->fprs);
-	else
-		memcpy(fpu->fprs, (freg_t *)&fpregs->fprs, sizeof(fpregs->fprs));
+	convert_fp_to_vx(fpu->vxrs, (freg_t *)&fpregs->fprs);
 }
 
 #endif /* _ASM_S390_FPU_H */

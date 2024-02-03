@@ -24,7 +24,7 @@ void __kernel_fpu_begin(struct kernel_fpu *state, int flags)
 		fpu_stfpc(&state->fpc);
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW)
-			save_fp_regs(state->fprs);
+			save_fp_regs_vx(state->vxrs);
 		return;
 	}
 	mask = flags & KERNEL_VXR;
@@ -73,7 +73,7 @@ void __kernel_fpu_end(struct kernel_fpu *state, int flags)
 		fpu_lfpc(&state->fpc);
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW)
-			load_fp_regs(state->fprs);
+			load_fp_regs_vx(state->vxrs);
 		return;
 	}
 	mask = flags & KERNEL_VXR;
@@ -115,7 +115,7 @@ void __load_user_fpu_regs(void)
 	if (likely(cpu_has_vx()))
 		load_vx_regs(state->vxrs);
 	else
-		load_fp_regs(state->fprs);
+		load_fp_regs_vx(state->vxrs);
 	clear_thread_flag(TIF_FPU);
 }
 
@@ -143,7 +143,7 @@ void save_user_fpu_regs(void)
 	if (likely(cpu_has_vx()))
 		save_vx_regs(state->vxrs);
 	else
-		save_fp_regs(state->fprs);
+		save_fp_regs_vx(state->vxrs);
 	set_thread_flag(TIF_FPU);
 out:
 	local_irq_restore(flags);
