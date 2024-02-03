@@ -89,8 +89,8 @@ enum {
  *
  * Prefer using the kernel_fpu_begin()/kernel_fpu_end() pair of functions.
  */
-void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags);
-void __kernel_fpu_end(struct kernel_fpu *state, u32 flags);
+void __kernel_fpu_begin(struct kernel_fpu *state, int flags);
+void __kernel_fpu_end(struct kernel_fpu *state, int flags);
 
 static __always_inline void save_vx_regs(__vector128 *vxrs)
 {
@@ -144,7 +144,7 @@ static __always_inline void load_fp_regs(freg_t *fprs)
 	fpu_ld(15, &fprs[15]);
 }
 
-static inline void kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
+static inline void kernel_fpu_begin(struct kernel_fpu *state, int flags)
 {
 	preempt_disable();
 	state->mask = S390_lowcore.fpu_flags;
@@ -158,7 +158,7 @@ static inline void kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 	S390_lowcore.fpu_flags |= flags;
 }
 
-static inline void kernel_fpu_end(struct kernel_fpu *state, u32 flags)
+static inline void kernel_fpu_end(struct kernel_fpu *state, int flags)
 {
 	S390_lowcore.fpu_flags = state->mask;
 	if (state->mask & flags) {

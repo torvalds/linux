@@ -24,7 +24,7 @@ struct fpu {
 
 /* In-kernel FPU state structure */
 struct kernel_fpu {
-	u32	    mask;
+	int	    mask;
 	u32	    fpc;
 	union {
 		freg_t fprs[__NUM_FPRS];

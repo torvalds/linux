@@ -10,10 +10,10 @@
 #include <linux/sched.h>
 #include <asm/fpu.h>
 
-void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
+void __kernel_fpu_begin(struct kernel_fpu *state, int flags)
 {
 	__vector128 *vxrs = state->vxrs;
-	u32 mask;
+	int mask;
 
 	/*
 	 * Limit the save to the FPU/vector registers already
@@ -58,10 +58,10 @@ void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
 
-void __kernel_fpu_end(struct kernel_fpu *state, u32 flags)
+void __kernel_fpu_end(struct kernel_fpu *state, int flags)
 {
 	__vector128 *vxrs = state->vxrs;
-	u32 mask;
+	int mask;
 
 	/*
 	 * Limit the restore to the FPU/vector registers of the
