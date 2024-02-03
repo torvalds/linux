@@ -76,16 +76,16 @@ static bool stdio_redirect_has_output(struct stdio_redirect *stdio)
 	return stdio->output.buf.nr || stdio->done;
 }
 
-#define WRITE_BUFFER		4096
+#define STDIO_REDIRECT_BUFSIZE		4096
 
 static bool stdio_redirect_has_input_space(struct stdio_redirect *stdio)
 {
-	return stdio->input.buf.nr < WRITE_BUFFER || stdio->done;
+	return stdio->input.buf.nr < STDIO_REDIRECT_BUFSIZE || stdio->done;
 }
 
 static bool stdio_redirect_has_output_space(struct stdio_redirect *stdio)
 {
-	return stdio->output.buf.nr < WRITE_BUFFER || stdio->done;
+	return stdio->output.buf.nr < STDIO_REDIRECT_BUFSIZE || stdio->done;
 }
 
 static void stdio_buf_init(struct stdio_buf *buf)
@@ -171,11 +171,12 @@ static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubu
 		}
 
 		spin_lock(&buf->lock);
-		if (buf->buf.nr < WRITE_BUFFER)
-			darray_make_room_gfp(&buf->buf, min(b, WRITE_BUFFER - buf->buf.nr), __GFP_NOWARN);
+		if (buf->buf.nr < STDIO_REDIRECT_BUFSIZE)
+			darray_make_room_gfp(&buf->buf,
+				min(b, STDIO_REDIRECT_BUFSIZE - buf->buf.nr), GFP_NOWAIT);
 		b = min(len, darray_room(buf->buf));
 
-		if (b && !copy_from_user_nofault(&buf->buf.data[buf->buf.nr], ubuf, b)) {
+		if (b && !copy_from_user_nofault(&darray_top(buf->buf), ubuf, b)) {
 			buf->buf.nr += b;
 			ubuf	+= b;
 			len	-= b;
@@ -338,7 +339,7 @@ void bch2_stdio_redirect_vprintf(struct stdio_redirect *stdio, bool nonblocking,
 		return;
 
 	spin_lock_irqsave(&buf->lock, flags);
-	bch2_darray_vprintf(&buf->buf, nonblocking ? __GFP_NOWARN : GFP_KERNEL, fmt, args);
+	bch2_darray_vprintf(&buf->buf, nonblocking ? GFP_NOWAIT : GFP_KERNEL, fmt, args);
 	spin_unlock_irqrestore(&buf->lock, flags);
 
 	wake_up(&buf->wait);
