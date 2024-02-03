@@ -16,14 +16,32 @@ struct fpu {
 	__vector128 vxrs[__NUM_VXRS] __aligned(8);
 };
 
-/* In-kernel FPU state structure */
-struct kernel_fpu {
-	int	    mask;
-	u32	    fpc;
-	__vector128 vxrs[__NUM_VXRS] __aligned(8);
+struct kernel_fpu_hdr {
+	int	mask;
+	u32	fpc;
 };
 
-#define DECLARE_KERNEL_FPU_ONSTACK(name)	\
-	struct kernel_fpu name __uninitialized
+struct kernel_fpu {
+	struct kernel_fpu_hdr hdr;
+	__vector128 vxrs[] __aligned(8);
+};
+
+#define KERNEL_FPU_STRUCT(vxr_size)				\
+struct kernel_fpu_##vxr_size {					\
+	struct kernel_fpu_hdr hdr;				\
+	__vector128 vxrs[vxr_size] __aligned(8);		\
+}
+
+KERNEL_FPU_STRUCT(16);
+KERNEL_FPU_STRUCT(32);
+
+#define DECLARE_KERNEL_FPU_ONSTACK(vxr_size, name)		\
+	struct kernel_fpu_##vxr_size name __uninitialized
+
+#define DECLARE_KERNEL_FPU_ONSTACK16(name)			\
+	DECLARE_KERNEL_FPU_ONSTACK(16, name)
+
+#define DECLARE_KERNEL_FPU_ONSTACK32(name)			\
+	DECLARE_KERNEL_FPU_ONSTACK(32, name)
 
 #endif /* _ASM_S390_FPU_TYPES_H */

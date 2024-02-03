@@ -50,7 +50,7 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 				unsigned char const *data, size_t datalen)  \
 	{								    \
 		unsigned long prealign, aligned, remaining;		    \
-		DECLARE_KERNEL_FPU_ONSTACK(vxstate);			    \
+		DECLARE_KERNEL_FPU_ONSTACK16(vxstate);			    \
 									    \
 		if (datalen < VX_MIN_LEN + VX_ALIGN_MASK)		    \
 			return ___crc32_sw(crc, data, datalen);		    \

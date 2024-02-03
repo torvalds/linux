@@ -426,7 +426,7 @@ subsys_initcall(create_proc_service_level);
  */
 void s390_adjust_jiffies(void)
 {
-	DECLARE_KERNEL_FPU_ONSTACK(fpu);
+	DECLARE_KERNEL_FPU_ONSTACK16(fpu);
 	struct sysinfo_1_2_2 *info;
 	unsigned long capability;
 

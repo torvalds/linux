@@ -19,41 +19,41 @@ void __kernel_fpu_begin(struct kernel_fpu *state, int flags)
 	 * Limit the save to the FPU/vector registers already
 	 * in use by the previous context.
 	 */
-	flags &= state->mask;
+	flags &= state->hdr.mask;
 	if (flags & KERNEL_FPC)
-		fpu_stfpc(&state->fpc);
+		fpu_stfpc(&state->hdr.fpc);
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW)
-			save_fp_regs_vx(state->vxrs);
+			save_fp_regs_vx(vxrs);
 		return;
 	}
 	mask = flags & KERNEL_VXR;
 	if (mask == KERNEL_VXR) {
-		fpu_vstm(0, 15, &vxrs[0]);
-		fpu_vstm(16, 31, &vxrs[16]);
+		vxrs += fpu_vstm(0, 15, vxrs);
+		vxrs += fpu_vstm(16, 31, vxrs);
 		return;
 	}
 	if (mask == KERNEL_VXR_MID) {
-		fpu_vstm(8, 23, &vxrs[8]);
+		vxrs += fpu_vstm(8, 23, vxrs);
 		return;
 	}
 	mask = flags & KERNEL_VXR_LOW;
 	if (mask) {
 		if (mask == KERNEL_VXR_LOW)
-			fpu_vstm(0, 15, &vxrs[0]);
+			vxrs += fpu_vstm(0, 15, vxrs);
 		else if (mask == KERNEL_VXR_V0V7)
-			fpu_vstm(0, 7, &vxrs[0]);
+			vxrs += fpu_vstm(0, 7, vxrs);
 		else
-			fpu_vstm(8, 15, &vxrs[8]);
+			vxrs += fpu_vstm(8, 15, vxrs);
 	}
 	mask = flags & KERNEL_VXR_HIGH;
 	if (mask) {
 		if (mask == KERNEL_VXR_HIGH)
-			fpu_vstm(16, 31, &vxrs[16]);
+			vxrs += fpu_vstm(16, 31, vxrs);
 		else if (mask == KERNEL_VXR_V16V23)
-			fpu_vstm(16, 23, &vxrs[16]);
+			vxrs += fpu_vstm(16, 23, vxrs);
 		else
-			fpu_vstm(24, 31, &vxrs[24]);
+			vxrs += fpu_vstm(24, 31, vxrs);
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_begin);
@@ -68,41 +68,41 @@ void __kernel_fpu_end(struct kernel_fpu *state, int flags)
 	 * previous context that have been overwritten by the
 	 * current context.
 	 */
-	flags &= state->mask;
+	flags &= state->hdr.mask;
 	if (flags & KERNEL_FPC)
-		fpu_lfpc(&state->fpc);
+		fpu_lfpc(&state->hdr.fpc);
 	if (!cpu_has_vx()) {
 		if (flags & KERNEL_VXR_LOW)
-			load_fp_regs_vx(state->vxrs);
+			load_fp_regs_vx(vxrs);
 		return;
 	}
 	mask = flags & KERNEL_VXR;
 	if (mask == KERNEL_VXR) {
-		fpu_vlm(0, 15, &vxrs[0]);
-		fpu_vlm(16, 31, &vxrs[16]);
+		vxrs += fpu_vlm(0, 15, vxrs);
+		vxrs += fpu_vlm(16, 31, vxrs);
 		return;
 	}
 	if (mask == KERNEL_VXR_MID) {
-		fpu_vlm(8, 23, &vxrs[8]);
+		vxrs += fpu_vlm(8, 23, vxrs);
 		return;
 	}
 	mask = flags & KERNEL_VXR_LOW;
 	if (mask) {
 		if (mask == KERNEL_VXR_LOW)
-			fpu_vlm(0, 15, &vxrs[0]);
+			vxrs += fpu_vlm(0, 15, vxrs);
 		else if (mask == KERNEL_VXR_V0V7)
-			fpu_vlm(0, 7, &vxrs[0]);
+			vxrs += fpu_vlm(0, 7, vxrs);
 		else
-			fpu_vlm(8, 15, &vxrs[8]);
+			vxrs += fpu_vlm(8, 15, vxrs);
 	}
 	mask = flags & KERNEL_VXR_HIGH;
 	if (mask) {
 		if (mask == KERNEL_VXR_HIGH)
-			fpu_vlm(16, 31, &vxrs[16]);
+			vxrs += fpu_vlm(16, 31, vxrs);
 		else if (mask == KERNEL_VXR_V16V23)
-			fpu_vlm(16, 23, &vxrs[16]);
+			vxrs += fpu_vlm(16, 23, vxrs);
 		else
-			fpu_vlm(24, 31, &vxrs[24]);
+			vxrs += fpu_vlm(24, 31, vxrs);
 	}
 }
 EXPORT_SYMBOL(__kernel_fpu_end);

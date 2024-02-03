@@ -162,26 +162,62 @@ static __always_inline void load_fp_regs_vx(__vector128 *vxrs)
 	__load_fp_regs(fprs, sizeof(__vector128) / sizeof(freg_t));
 }
 
-static inline void kernel_fpu_begin(struct kernel_fpu *state, int flags)
+static inline void _kernel_fpu_begin(struct kernel_fpu *state, int flags)
 {
-	state->mask = READ_ONCE(current->thread.kfpu_flags);
+	state->hdr.mask = READ_ONCE(current->thread.kfpu_flags);
 	if (!test_thread_flag(TIF_FPU)) {
 		/* Save user space FPU state and register contents */
 		save_user_fpu_regs();
-	} else if (state->mask & flags) {
+	} else if (state->hdr.mask & flags) {
 		/* Save FPU/vector register in-use by the kernel */
 		__kernel_fpu_begin(state, flags);
 	}
 	__atomic_or(flags, &current->thread.kfpu_flags);
 }
 
-static inline void kernel_fpu_end(struct kernel_fpu *state, int flags)
+static inline void _kernel_fpu_end(struct kernel_fpu *state, int flags)
 {
-	WRITE_ONCE(current->thread.kfpu_flags, state->mask);
-	if (state->mask & flags) {
+	WRITE_ONCE(current->thread.kfpu_flags, state->hdr.mask);
+	if (state->hdr.mask & flags) {
 		/* Restore FPU/vector register in-use by the kernel */
 		__kernel_fpu_end(state, flags);
 	}
+}
+
+void __kernel_fpu_invalid_size(void);
+
+static __always_inline void kernel_fpu_check_size(int flags, unsigned int size)
+{
+	unsigned int cnt = 0;
+
+	if (flags & KERNEL_VXR_V0V7)
+		cnt += 8;
+	if (flags & KERNEL_VXR_V8V15)
+		cnt += 8;
+	if (flags & KERNEL_VXR_V16V23)
+		cnt += 8;
+	if (flags & KERNEL_VXR_V24V31)
+		cnt += 8;
+	if (cnt != size)
+		__kernel_fpu_invalid_size();
+}
+
+#define kernel_fpu_begin(state, flags)					\
+{									\
+	typeof(state) s = (state);					\
+	int _flags = (flags);						\
+									\
+	kernel_fpu_check_size(_flags, ARRAY_SIZE(s->vxrs));		\
+	_kernel_fpu_begin((struct kernel_fpu *)s, _flags);		\
+}
+
+#define kernel_fpu_end(state, flags)					\
+{									\
+	typeof(state) s = (state);					\
+	int _flags = (flags);						\
+									\
+	kernel_fpu_check_size(_flags, ARRAY_SIZE(s->vxrs));		\
+	_kernel_fpu_end((struct kernel_fpu *)s, _flags);		\
 }
 
 static inline void save_kernel_fpu_regs(struct thread_struct *thread)

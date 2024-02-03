@@ -80,7 +80,7 @@ static inline void COPY_VEC(int x, int y)
 
 static void raid6_s390vx$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 {
-	DECLARE_KERNEL_FPU_ONSTACK(vxstate);
+	DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 	u8 **dptr, *p, *q;
 	int d, z, z0;
 
@@ -113,7 +113,7 @@ static void raid6_s390vx$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 static void raid6_s390vx$#_xor_syndrome(int disks, int start, int stop,
 					size_t bytes, void **ptrs)
 {
-	DECLARE_KERNEL_FPU_ONSTACK(vxstate);
+	DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 	u8 **dptr, *p, *q;
 	int d, z, z0;
 

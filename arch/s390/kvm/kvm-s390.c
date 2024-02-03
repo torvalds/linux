@@ -5026,7 +5026,7 @@ static void store_regs(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *kvm_run = vcpu->run;
-	DECLARE_KERNEL_FPU_ONSTACK(fpu);
+	DECLARE_KERNEL_FPU_ONSTACK32(fpu);
 	int rc;
 
 	/*
