@@ -84,6 +84,18 @@ void __load_fpu_regs(void);
 void __kernel_fpu_begin(struct kernel_fpu *state, u32 flags);
 void __kernel_fpu_end(struct kernel_fpu *state, u32 flags);
 
+static __always_inline void save_vx_regs(__vector128 *vxrs)
+{
+	fpu_vstm(0, 15, &vxrs[0]);
+	fpu_vstm(16, 31, &vxrs[16]);
+}
+
+static __always_inline void load_vx_regs(__vector128 *vxrs)
+{
+	fpu_vlm(0, 15, &vxrs[0]);
+	fpu_vlm(16, 31, &vxrs[16]);
+}
+
 static __always_inline void save_fp_regs(freg_t *fprs)
 {
 	fpu_std(0, &fprs[0]);
@@ -146,15 +158,6 @@ static inline void kernel_fpu_end(struct kernel_fpu *state, u32 flags)
 		__kernel_fpu_end(state, flags);
 	}
 	preempt_enable();
-}
-
-static inline void save_vx_regs(__vector128 *vxrs)
-{
-	asm volatile("\n"
-		"	la	1,%0\n"
-		"	.word	0xe70f,0x1000,0x003e\n" /* vstm 0,15,0(1) */
-		"	.word	0xe70f,0x1100,0x0c3e\n" /* vstm 16,31,256(1) */
-		: "=Q" (*(struct vx_array *)vxrs) : : "1");
 }
 
 static inline void convert_vx_to_fp(freg_t *fprs, __vector128 *vxrs)

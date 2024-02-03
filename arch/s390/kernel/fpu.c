@@ -137,16 +137,10 @@ void __load_fpu_regs(void)
 	void *regs = current->thread.fpu.regs;
 
 	fpu_lfpc_safe(&state->fpc);
-	if (likely(cpu_has_vx())) {
-		asm volatile("lgr	1,%0\n"
-			     "VLM	0,15,0,1\n"
-			     "VLM	16,31,256,1\n"
-			     :
-			     : "d" (regs)
-			     : "1", "cc", "memory");
-	} else {
+	if (likely(cpu_has_vx()))
+		load_vx_regs(regs);
+	else
 		load_fp_regs(regs);
-	}
 	clear_cpu_flag(CIF_FPU);
 }
 
@@ -173,16 +167,10 @@ void save_fpu_regs(void)
 	regs = current->thread.fpu.regs;
 
 	fpu_stfpc(&state->fpc);
-	if (likely(cpu_has_vx())) {
-		asm volatile("lgr	1,%0\n"
-			     "VSTM	0,15,0,1\n"
-			     "VSTM	16,31,256,1\n"
-			     :
-			     : "d" (regs)
-			     : "1", "cc", "memory");
-	} else {
+	if (likely(cpu_has_vx()))
+		save_vx_regs(regs);
+	else
 		save_fp_regs(regs);
-	}
 	set_cpu_flag(CIF_FPU);
 out:
 	local_irq_restore(flags);

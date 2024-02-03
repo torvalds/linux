@@ -108,5 +108,75 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 		     : "memory");
 }
 
+#ifdef CONFIG_CC_IS_CLANG
+
+#define fpu_vlm(_v1, _v3, _vxrs) do {					\
+	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
+	struct {							\
+		__vector128 _v[(_v3) - (_v1) + 1];			\
+	} *_v = (void *)(_vxrs);					\
+									\
+	instrument_read(_v, size);					\
+	asm volatile("\n"						\
+		"	la	1,%[vxrs]\n"				\
+		"	VLM	%[v1],%[v3],0,1\n"			\
+		:							\
+		: [vxrs] "R" (*_v),					\
+		  [v1] "I" (_v1), [v3] "I" (_v3)			\
+		: "memory", "1");					\
+} while (0)
+
+#else /* CONFIG_CC_IS_CLANG */
+
+#define fpu_vlm(_v1, _v3, _vxrs) do {					\
+	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
+	struct {							\
+		__vector128 _v[(_v3) - (_v1) + 1];			\
+	} *_v = (void *)(_vxrs);					\
+									\
+	instrument_read(_v, size);					\
+	asm volatile("VLM	%[v1],%[v3],%O[vxrs],%R[vxrs]\n"	\
+		     :							\
+		     : [vxrs] "Q" (*_v),				\
+		       [v1] "I" (_v1), [v3] "I" (_v3)			\
+		     : "memory");					\
+} while (0)
+
+#endif /* CONFIG_CC_IS_CLANG */
+
+#ifdef CONFIG_CC_IS_CLANG
+
+#define fpu_vstm(_v1, _v3, _vxrs) do {					\
+	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
+	struct {							\
+		__vector128 _v[(_v3) - (_v1) + 1];			\
+	} *_v = (void *)(_vxrs);					\
+									\
+	instrument_write(_v, size);					\
+	asm volatile("\n"						\
+		"	la	1,%[vxrs]\n"				\
+		"	VSTM	%[v1],%[v3],0,1\n"			\
+		: [vxrs] "=R" (*_v)					\
+		: [v1] "I" (_v1), [v3] "I" (_v3)			\
+		: "memory", "1");					\
+} while (0)
+
+#else /* CONFIG_CC_IS_CLANG */
+
+#define fpu_vstm(_v1, _v3, _vxrs) do {					\
+	unsigned int size = ((_v3) - (_v1) + 1) * sizeof(__vector128);	\
+	struct {							\
+		__vector128 _v[(_v3) - (_v1) + 1];			\
+	} *_v = (void *)(_vxrs);					\
+									\
+	instrument_write(_v, size);					\
+	asm volatile("VSTM	%[v1],%[v3],%O[vxrs],%R[vxrs]\n"	\
+		     : [vxrs] "=Q" (*_v)				\
+		     : [v1] "I" (_v1), [v3] "I" (_v3)			\
+		     : "memory");					\
+} while (0)
+
+#endif /* CONFIG_CC_IS_CLANG */
+
 #endif /* __ASSEMBLY__ */
 #endif	/* __ASM_S390_FPU_INSN_H */
