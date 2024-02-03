@@ -15,6 +15,21 @@
 #include <linux/instrumented.h>
 #include <linux/in6.h>
 
+static inline __wsum cksm(const void *buff, int len, __wsum sum)
+{
+	union register_pair rp = {
+		.even = (unsigned long)buff,
+		.odd = (unsigned long)len,
+	};
+
+	instrument_read(buff, len);
+	asm volatile("\n"
+		"0:	cksm	%[sum],%[rp]\n"
+		"	jo	0b\n"
+		: [sum] "+&d" (sum), [rp] "+&d" (rp.pair) : : "cc", "memory");
+	return sum;
+}
+
 /*
  * Computes the checksum of a memory block at buff, length len,
  * and adds in "sum" (32-bit).
@@ -29,17 +44,7 @@
  */
 static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
-	union register_pair rp = {
-		.even = (unsigned long) buff,
-		.odd = (unsigned long) len,
-	};
-
-	instrument_read(buff, len);
-	asm volatile(
-		"0:	cksm	%[sum],%[rp]\n"
-		"	jo	0b\n"
-		: [sum] "+&d" (sum), [rp] "+&d" (rp.pair) : : "cc", "memory");
-	return sum;
+	return cksm(buff, len, sum);
 }
 
 /*
