@@ -350,7 +350,7 @@
 	VX_NUM	v3, \vr
 	.word	0xE700 | (r1 << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
-	MRXBOPC	\m, 0x21, v3
+	MRXBOPC	\m, 0x21, 0, v3
 .endm
 .macro	VLGVB	gr, vr, disp, base="%r0"
 	VLGV	\gr, \vr, \disp, \base, 0
