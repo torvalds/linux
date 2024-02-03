@@ -1544,7 +1544,7 @@ static int video_drv_probe(struct platform_device *pdev)
 #ifdef CONFIG_MACH_ASPEED_G7
 	reset_control_deassert(pAstRVAS->rvas_reset);
 #endif
-	pAstRVAS->video_engine_reset = devm_reset_control_get_by_index(&pdev->dev, 1);
+	pAstRVAS->video_engine_reset = devm_reset_control_get_shared_by_index(&pdev->dev, 1);
 	if (IS_ERR(pAstRVAS->video_engine_reset)) {
 		dev_err(&pdev->dev, "can't get video engine reset\n");
 		return -ENOENT;
@@ -1599,6 +1599,10 @@ static int video_drv_probe(struct platform_device *pdev)
 #endif
 	pAstRVAS->scu = sdram_scu;
 	pAstRVAS->rvas_dev = video_misc;
+#ifdef CONFIG_MACH_ASPEED_G7
+	if (of_alias_get_id(pdev->dev.of_node, "rvas") == 1)
+		pAstRVAS->rvas_dev.name = "rvas1";
+#endif
 	pAstRVAS->rvas_dev.parent = &pdev->dev;
 	result = misc_register(&pAstRVAS->rvas_dev);
 	if (result) {
