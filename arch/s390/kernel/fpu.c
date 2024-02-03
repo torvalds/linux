@@ -117,7 +117,7 @@ void __load_fpu_regs(void)
 		load_vx_regs(regs);
 	else
 		load_fp_regs(regs);
-	clear_cpu_flag(CIF_FPU);
+	clear_thread_flag(TIF_FPU);
 }
 
 void load_fpu_regs(void)
@@ -136,7 +136,7 @@ void save_fpu_regs(void)
 
 	local_irq_save(flags);
 
-	if (test_cpu_flag(CIF_FPU))
+	if (test_thread_flag(TIF_FPU))
 		goto out;
 
 	state = &current->thread.fpu;
@@ -147,7 +147,7 @@ void save_fpu_regs(void)
 		save_vx_regs(regs);
 	else
 		save_fp_regs(regs);
-	set_cpu_flag(CIF_FPU);
+	set_thread_flag(TIF_FPU);
 out:
 	local_irq_restore(flags);
 }

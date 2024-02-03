@@ -1149,7 +1149,7 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 */
 	vcpu->arch.sie_block->prog0c |= PROG_IN_SIE;
 	barrier();
-	if (test_cpu_flag(CIF_FPU))
+	if (test_thread_flag(TIF_FPU))
 		load_fpu_regs();
 	if (!kvm_s390_vcpu_sie_inhibited(vcpu))
 		rc = sie64a(scb_s, vcpu->run->s.regs.gprs);

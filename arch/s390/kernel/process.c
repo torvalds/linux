@@ -88,7 +88,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	/*
 	 * Save the floating-point or vector register state of the current
-	 * task and set the CIF_FPU flag to lazy restore the FPU register
+	 * task and set the TIF_FPU flag to lazy restore the FPU register
 	 * state when returning to user space.
 	 */
 	save_fpu_regs();
@@ -196,11 +196,6 @@ void execve_tail(void)
 
 struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
 {
-	/*
-	 * save_fpu_regs() sets the CIF_FPU flag, which enforces
-	 * a restore of the floating point / vector registers as
-	 * soon as the next task returns to user space.
-	 */
 	save_fpu_regs();
 	save_access_regs(&prev->thread.acrs[0]);
 	save_ri_cb(prev->thread.ri_cb);

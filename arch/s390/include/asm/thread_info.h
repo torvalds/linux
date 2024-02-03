@@ -69,6 +69,7 @@ void arch_setup_new_exec(void);
 #define TIF_PATCH_PENDING	5	/* pending live patching update */
 #define TIF_PGSTE		6	/* New mm's will use 4K page tables */
 #define TIF_NOTIFY_SIGNAL	7	/* signal notifications exist */
+#define TIF_FPU			8	/* restore FPU registers on exit to usermode */
 #define TIF_ISOLATE_BP_GUEST	9	/* Run KVM guests with isolated BP */
 #define TIF_PER_TRAP		10	/* Need to handle PER trap on exit to usermode */
 
@@ -92,6 +93,7 @@ void arch_setup_new_exec(void);
 #define _TIF_UPROBE		BIT(TIF_UPROBE)
 #define _TIF_GUARDED_STORAGE	BIT(TIF_GUARDED_STORAGE)
 #define _TIF_PATCH_PENDING	BIT(TIF_PATCH_PENDING)
+#define _TIF_FPU		BIT(TIF_FPU)
 #define _TIF_ISOLATE_BP_GUEST	BIT(TIF_ISOLATE_BP_GUEST)
 #define _TIF_PER_TRAP		BIT(TIF_PER_TRAP)
 

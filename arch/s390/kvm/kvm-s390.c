@@ -4829,7 +4829,7 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 			       vcpu->run->s.regs.gprs,
 			       sizeof(sie_page->pv_grregs));
 		}
-		if (test_cpu_flag(CIF_FPU))
+		if (test_thread_flag(TIF_FPU))
 			load_fpu_regs();
 		exit_reason = sie64a(vcpu->arch.sie_block,
 				     vcpu->run->s.regs.gprs);

@@ -148,7 +148,7 @@ static inline void kernel_fpu_begin(struct kernel_fpu *state, u32 flags)
 {
 	preempt_disable();
 	state->mask = S390_lowcore.fpu_flags;
-	if (!test_cpu_flag(CIF_FPU)) {
+	if (!test_thread_flag(TIF_FPU)) {
 		/* Save user space FPU state and register contents */
 		save_fpu_regs();
 	} else if (state->mask & flags) {

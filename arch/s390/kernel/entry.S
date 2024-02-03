@@ -220,7 +220,7 @@ SYM_FUNC_START(__sie64a)
 	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
 	tm	__SIE_PROG20+3(%r14),3		# last exit...
 	jnz	.Lsie_skip
-	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
+	TSTMSK	__SF_SIE_FLAGS(%r15),_TIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
 	lg	%r14,__SF_SIE_CONTROL_PHYS(%r15)	# get sie block phys addr
 	BPEXIT	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
