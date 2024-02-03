@@ -14,7 +14,7 @@
 #include <linux/crc32.h>
 #include <crypto/internal/hash.h>
 #include <asm/fpu.h>
-
+#include "crc32-vx.h"
 
 #define CRC32_BLOCK_SIZE	1
 #define CRC32_DIGEST_SIZE	4
@@ -33,7 +33,6 @@ struct crc_desc_ctx {
 
 /* Prototypes for functions in assembly files */
 u32 crc32_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
-u32 crc32_be_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 
 /*
