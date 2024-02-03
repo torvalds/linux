@@ -30,22 +30,7 @@ static inline __wsum cksm(const void *buff, int len, __wsum sum)
 	return sum;
 }
 
-/*
- * Computes the checksum of a memory block at buff, length len,
- * and adds in "sum" (32-bit).
- *
- * Returns a 32-bit number suitable for feeding into itself
- * or csum_tcpudp_magic.
- *
- * This function must be called with even lengths, except
- * for the last fragment, which may be odd.
- *
- * It's best to have buff aligned on a 32-bit boundary.
- */
-static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
-{
-	return cksm(buff, len, sum);
-}
+__wsum csum_partial(const void *buff, int len, __wsum sum);
 
 /*
  * Fold a partial checksum without adding pseudo headers.

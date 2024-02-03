@@ -32,11 +32,15 @@ struct kernel_fpu_##vxr_size {					\
 	__vector128 vxrs[vxr_size] __aligned(8);		\
 }
 
+KERNEL_FPU_STRUCT(8);
 KERNEL_FPU_STRUCT(16);
 KERNEL_FPU_STRUCT(32);
 
 #define DECLARE_KERNEL_FPU_ONSTACK(vxr_size, name)		\
 	struct kernel_fpu_##vxr_size name __uninitialized
+
+#define DECLARE_KERNEL_FPU_ONSTACK8(name)			\
+	DECLARE_KERNEL_FPU_ONSTACK(8, name)
 
 #define DECLARE_KERNEL_FPU_ONSTACK16(name)			\
 	DECLARE_KERNEL_FPU_ONSTACK(16, name)

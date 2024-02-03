@@ -108,6 +108,89 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 		     : "memory");
 }
 
+static __always_inline void fpu_vcksm(u8 v1, u8 v2, u8 v3)
+{
+	asm volatile("VCKSM	%[v1],%[v2],%[v3]"
+		     :
+		     : [v1] "I" (v1), [v2] "I" (v2), [v3] "I" (v3)
+		     : "memory");
+}
+
+#ifdef CONFIG_CC_IS_CLANG
+
+static __always_inline void fpu_vl(u8 v1, const void *vxr)
+{
+	instrument_read(vxr, sizeof(__vector128));
+	asm volatile("\n"
+		"	la	1,%[vxr]\n"
+		"	VL	%[v1],0,,1\n"
+		:
+		: [vxr] "R" (*(__vector128 *)vxr),
+		  [v1] "I" (v1)
+		: "memory", "1");
+}
+
+#else /* CONFIG_CC_IS_CLANG */
+
+static __always_inline void fpu_vl(u8 v1, const void *vxr)
+{
+	instrument_read(vxr, sizeof(__vector128));
+	asm volatile("VL	%[v1],%O[vxr],,%R[vxr]\n"
+		     :
+		     : [vxr] "Q" (*(__vector128 *)vxr),
+		       [v1] "I" (v1)
+		     : "memory");
+}
+
+#endif /* CONFIG_CC_IS_CLANG */
+
+static __always_inline u64 fpu_vlgvf(u8 v, u16 index)
+{
+	u64 val;
+
+	asm volatile("VLGVF	%[val],%[v],%[index]"
+		     : [val] "=d" (val)
+		     : [v] "I" (v), [index] "L" (index)
+		     : "memory");
+	return val;
+}
+
+#ifdef CONFIG_CC_IS_CLANG
+
+static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
+{
+	unsigned int size;
+
+	size = min(index + 1, sizeof(__vector128));
+	instrument_read(vxr, size);
+	asm volatile("\n"
+		"	la	1,%[vxr]\n"
+		"	VLL	%[v1],%[index],0,1\n"
+		:
+		: [vxr] "R" (*(u8 *)vxr),
+		  [index] "d" (index),
+		  [v1] "I" (v1)
+		: "memory", "1");
+}
+
+#else /* CONFIG_CC_IS_CLANG */
+
+static __always_inline void fpu_vll(u8 v1, u32 index, const void *vxr)
+{
+	unsigned int size;
+
+	size = min(index + 1, sizeof(__vector128));
+	instrument_read(vxr, size);
+	asm volatile("VLL	%[v1],%[index],%O[vxr],%R[vxr]\n"
+		     :
+		     : [vxr] "Q" (*(u8 *)vxr),
+		       [index] "d" (index),
+		       [v1] "I" (v1)
+		     : "memory");
+}
+
+#endif /* CONFIG_CC_IS_CLANG */
+
 #ifdef CONFIG_CC_IS_CLANG
 
 #define fpu_vlm(_v1, _v3, _vxrs)					\
@@ -148,6 +231,14 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 
 #endif /* CONFIG_CC_IS_CLANG */
 
+static __always_inline void fpu_vlvgf(u8 v, u32 val, u16 index)
+{
+	asm volatile("VLVGF	%[v],%[val],%[index]"
+		     :
+		     : [v] "I" (v), [val] "d" (val), [index] "L" (index)
+		     : "memory");
+}
+
 #ifdef CONFIG_CC_IS_CLANG
 
 #define fpu_vstm(_v1, _v3, _vxrs)					\
@@ -185,6 +276,14 @@ static __always_inline void fpu_stfpc(unsigned int *fpc)
 })
 
 #endif /* CONFIG_CC_IS_CLANG */
+
+static __always_inline void fpu_vzero(u8 v)
+{
+	asm volatile("VZERO	%[v]"
+		     :
+		     : [v] "I" (v)
+		     : "memory");
+}
 
 #endif /* __ASSEMBLY__ */
 #endif	/* __ASM_S390_FPU_INSN_H */

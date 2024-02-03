@@ -521,6 +521,15 @@
 	VMRL	\vr1, \vr2, \vr3, 3
 .endm
 
+/* VECTOR LOAD WITH LENGTH */
+.macro VLL	v, gr, disp, base
+	VX_NUM	v1, \v
+	GR_NUM	b2, \base
+	GR_NUM	r3, \gr
+	.word	0xE700 | ((v1&15) << 4) | r3
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC 0, 0x37, v1
+.endm
 
 /* Vector integer instructions */
 
@@ -532,6 +541,16 @@
 	.word	0xE700 | ((v1&15) << 4) | (v2&15)
 	.word	((v3&15) << 12)
 	MRXBOPC	0, 0x68, v1, v2, v3
+.endm
+
+/* VECTOR CHECKSUM */
+.macro VCKSM	vr1, vr2, vr3
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC 0, 0x66, v1, v2, v3
 .endm
 
 /* VECTOR EXCLUSIVE OR */
