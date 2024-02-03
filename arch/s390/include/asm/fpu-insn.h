@@ -167,6 +167,22 @@ static __always_inline void fpu_vesravb(u8 v1, u8 v2, u8 v3)
 		     : "memory");
 }
 
+static __always_inline void fpu_vgfmag(u8 v1, u8 v2, u8 v3, u8 v4)
+{
+	asm volatile("VGFMAG	%[v1],%[v2],%[v3],%[v4]"
+		     :
+		     : [v1] "I" (v1), [v2] "I" (v2), [v3] "I" (v3), [v4] "I" (v4)
+		     : "memory");
+}
+
+static __always_inline void fpu_vgfmg(u8 v1, u8 v2, u8 v3)
+{
+	asm volatile("VGFMG	%[v1],%[v2],%[v3]"
+		     :
+		     : [v1] "I" (v1), [v2] "I" (v2), [v3] "I" (v3)
+		     : "memory");
+}
+
 #ifdef CONFIG_CC_IS_CLANG
 
 static __always_inline void fpu_vl(u8 v1, const void *vxr)
@@ -194,6 +210,22 @@ static __always_inline void fpu_vl(u8 v1, const void *vxr)
 }
 
 #endif /* CONFIG_CC_IS_CLANG */
+
+static __always_inline void fpu_vleib(u8 v, s16 val, u8 index)
+{
+	asm volatile("VLEIB	%[v],%[val],%[index]"
+		     :
+		     : [v] "I" (v), [val] "K" (val), [index] "I" (index)
+		     : "memory");
+}
+
+static __always_inline void fpu_vleig(u8 v, s16 val, u8 index)
+{
+	asm volatile("VLEIG	%[v],%[val],%[index]"
+		     :
+		     : [v] "I" (v), [val] "K" (val), [index] "I" (index)
+		     : "memory");
+}
 
 static __always_inline u64 fpu_vlgvf(u8 v, u16 index)
 {
@@ -306,11 +338,27 @@ static __always_inline void fpu_vn(u8 v1, u8 v2, u8 v3)
 		     : "memory");
 }
 
+static __always_inline void fpu_vperm(u8 v1, u8 v2, u8 v3, u8 v4)
+{
+	asm volatile("VPERM	%[v1],%[v2],%[v3],%[v4]"
+		     :
+		     : [v1] "I" (v1), [v2] "I" (v2), [v3] "I" (v3), [v4] "I" (v4)
+		     : "memory");
+}
+
 static __always_inline void fpu_vrepib(u8 v1, s16 i2)
 {
 	asm volatile("VREPIB	%[v1],%[i2]"
 		     :
 		     : [v1] "I" (v1), [i2] "K" (i2)
+		     : "memory");
+}
+
+static __always_inline void fpu_vsrlb(u8 v1, u8 v2, u8 v3)
+{
+	asm volatile("VSRLB	%[v1],%[v2],%[v3]"
+		     :
+		     : [v1] "I" (v1), [v2] "I" (v2), [v3] "I" (v3)
 		     : "memory");
 }
 
@@ -409,6 +457,14 @@ static __always_inline void fpu_vstl(u8 v1, u32 index, const void *vxr)
 })
 
 #endif /* CONFIG_CC_IS_CLANG */
+
+static __always_inline void fpu_vupllf(u8 v1, u8 v2)
+{
+	asm volatile("VUPLLF	%[v1],%[v2]"
+		     :
+		     : [v1] "I" (v1), [v2] "I" (v2)
+		     : "memory");
+}
 
 static __always_inline void fpu_vx(u8 v1, u8 v2, u8 v3)
 {
