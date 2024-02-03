@@ -375,7 +375,7 @@
 };
 
 &i2c7 {
-	clock-frequency = <100000>;
+	clock-frequency = <1000000>;
 
 	pinctrl-0 = <&i2c7_active>;
 	pinctrl-names = "default";
