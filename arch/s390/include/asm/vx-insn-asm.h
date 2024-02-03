@@ -195,10 +195,26 @@
 /* RXB - Compute most significant bit used vector registers
  *
  * @rxb:	Operand to store computed RXB value
- * @v1:		First vector register designated operand
- * @v2:		Second vector register designated operand
- * @v3:		Third vector register designated operand
- * @v4:		Fourth vector register designated operand
+ * @v1:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 0 (instruction bit 36) and whose remaining bits
+ *		are stored in instruction bits 8-11.
+ * @v2:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 1 (instruction bit 37) and whose remaining bits
+ *		are stored in instruction bits 12-15.
+ * @v3:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 2 (instruction bit 38) and whose remaining bits
+ *		are stored in instruction bits 16-19.
+ * @v4:		Vector register designated operand whose MSB is stored in
+ *		RXB bit 3 (instruction bit 39) and whose remaining bits
+ *		are stored in instruction bits 32-35.
+ *
+ * Note: In most vector instruction formats [1] V1, V2, V3, and V4 directly
+ * correspond to @v1, @v2, @v3, and @v4. But there are exceptions, such as but
+ * not limited to the vector instruction formats VRR-g, VRR-h, VRS-a, VRS-d,
+ * and VSI.
+ *
+ * [1] IBM z/Architecture Principles of Operation, chapter "Program
+ * Execution, section "Instructions", subsection "Instruction Formats".
  */
 .macro	RXB	rxb v1 v2=0 v3=0 v4=0
 	\rxb = 0
@@ -223,6 +239,9 @@
  * @v2:		Second vector register designated operand (for RXB)
  * @v3:		Third vector register designated operand (for RXB)
  * @v4:		Fourth vector register designated operand (for RXB)
+ *
+ * Note: For @v1, @v2, @v3, and @v4 also refer to the RXB macro
+ * description for further details.
  */
 .macro	MRXB	m v1 v2=0 v3=0 v4=0
 	rxb = 0
@@ -238,6 +257,9 @@
  * @v2:		Second vector register designated operand (for RXB)
  * @v3:		Third vector register designated operand (for RXB)
  * @v4:		Fourth vector register designated operand (for RXB)
+ *
+ * Note: For @v1, @v2, @v3, and @v4 also refer to the RXB macro
+ * description for further details.
  */
 .macro	MRXBOPC	m opc v1 v2=0 v3=0 v4=0
 	MRXB	\m, \v1, \v2, \v3, \v4
