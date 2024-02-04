@@ -4180,6 +4180,8 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_free_irq;
 	}
 
+	set_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags);
+
 	return 0;
 
 err_free_irq:
