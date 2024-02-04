@@ -130,7 +130,7 @@ static int parport_probe(struct device *dev)
 	return drv->probe(to_pardevice(dev));
 }
 
-static struct bus_type parport_bus_type = {
+static const struct bus_type parport_bus_type = {
 	.name = "parport",
 	.probe = parport_probe,
 };
