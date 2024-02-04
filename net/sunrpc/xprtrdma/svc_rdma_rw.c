@@ -601,45 +601,63 @@ static int svc_rdma_xb_write(const struct xdr_buf *xdr, void *data)
 	return xdr->len;
 }
 
-/**
- * svc_rdma_send_write_chunk - Write all segments in a Write chunk
- * @rdma: controlling RDMA transport
- * @chunk: Write chunk provided by the client
- * @xdr: xdr_buf containing the data payload
- *
- * Returns a non-negative number of bytes the chunk consumed, or
- *	%-E2BIG if the payload was larger than the Write chunk,
- *	%-EINVAL if client provided too many segments,
- *	%-ENOMEM if rdma_rw context pool was exhausted,
- *	%-ENOTCONN if posting failed (connection is lost),
- *	%-EIO if rdma_rw initialization failed (DMA mapping, etc).
- */
-int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
-			      const struct svc_rdma_chunk *chunk,
-			      const struct xdr_buf *xdr)
+static int svc_rdma_send_write_chunk(struct svcxprt_rdma *rdma,
+				     const struct svc_rdma_chunk *chunk,
+				     const struct xdr_buf *xdr)
 {
 	struct svc_rdma_write_info *info;
 	struct svc_rdma_chunk_ctxt *cc;
+	struct xdr_buf payload;
 	int ret;
+
+	if (xdr_buf_subsegment(xdr, &payload, chunk->ch_position,
+			       chunk->ch_payload_length))
+		return -EMSGSIZE;
 
 	info = svc_rdma_write_info_alloc(rdma, chunk);
 	if (!info)
 		return -ENOMEM;
 	cc = &info->wi_cc;
 
-	ret = svc_rdma_xb_write(xdr, info);
-	if (ret != xdr->len)
+	ret = svc_rdma_xb_write(&payload, info);
+	if (ret != payload.len)
 		goto out_err;
 
 	trace_svcrdma_post_write_chunk(&cc->cc_cid, cc->cc_sqecount);
 	ret = svc_rdma_post_chunk_ctxt(rdma, cc);
 	if (ret < 0)
 		goto out_err;
-	return xdr->len;
+	return 0;
 
 out_err:
 	svc_rdma_write_info_free(info);
 	return ret;
+}
+
+/**
+ * svc_rdma_send_write_list - Send all chunks on the Write list
+ * @rdma: controlling RDMA transport
+ * @rctxt: Write list provisioned by the client
+ * @xdr: xdr_buf containing an RPC Reply message
+ *
+ * Returns zero on success, or a negative errno if one or more
+ * Write chunks could not be sent.
+ */
+int svc_rdma_send_write_list(struct svcxprt_rdma *rdma,
+			     const struct svc_rdma_recv_ctxt *rctxt,
+			     const struct xdr_buf *xdr)
+{
+	struct svc_rdma_chunk *chunk;
+	int ret;
+
+	pcl_for_each_chunk(chunk, &rctxt->rc_write_pcl) {
+		if (!chunk->ch_payload_length)
+			break;
+		ret = svc_rdma_send_write_chunk(rdma, chunk, xdr);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
 }
 
 /**
