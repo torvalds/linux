@@ -2484,9 +2484,9 @@ __bpf_kfunc void *bpf_cast_to_kern_ctx(void *obj)
 	return obj;
 }
 
-__bpf_kfunc void *bpf_rdonly_cast(void *obj__ign, u32 btf_id__k)
+__bpf_kfunc void *bpf_rdonly_cast(const void *obj__ign, u32 btf_id__k)
 {
-	return obj__ign;
+	return (void *)obj__ign;
 }
 
 __bpf_kfunc void bpf_rcu_read_lock(void)
