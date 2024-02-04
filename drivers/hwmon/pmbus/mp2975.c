@@ -126,6 +126,21 @@ static const struct regulator_desc __maybe_unused mp2975_reg_desc[] = {
 
 #define to_mp2975_data(x)  container_of(x, struct mp2975_data, info)
 
+static int mp2975_read_byte_data(struct i2c_client *client, int page, int reg)
+{
+	switch (reg) {
+	case PMBUS_VOUT_MODE:
+		/*
+		 * Report direct format as configured by MFR_DC_LOOP_CTRL.
+		 * Unlike on MP2971/MP2973 the reported VOUT_MODE isn't automatically
+		 * internally updated, but always reads as PB_VOUT_MODE_VID.
+		 */
+		return PB_VOUT_MODE_DIRECT;
+	default:
+		return -ENODATA;
+	}
+}
+
 static int
 mp2975_read_word_helper(struct i2c_client *client, int page, int phase, u8 reg,
 			u16 mask)
@@ -869,6 +884,7 @@ static struct pmbus_driver_info mp2975_info = {
 		PMBUS_HAVE_IIN | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
 		PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP | PMBUS_HAVE_POUT |
 		PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT | PMBUS_PHASE_VIRTUAL,
+	.read_byte_data = mp2975_read_byte_data,
 	.read_word_data = mp2975_read_word_data,
 #if IS_ENABLED(CONFIG_SENSORS_MP2975_REGULATOR)
 	.num_regulators = 1,

@@ -720,7 +720,7 @@ static void kunit_device_cleanup_test(struct kunit *test)
 	long action_was_run = 0;
 
 	test_device = kunit_device_register(test, "my_device");
-	KUNIT_ASSERT_NOT_NULL(test, test_device);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, test_device);
 
 	/* Add an action to verify cleanup. */
 	devm_add_action(test_device, test_dev_action, &action_was_run);

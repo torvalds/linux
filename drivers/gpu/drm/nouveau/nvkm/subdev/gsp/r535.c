@@ -1078,7 +1078,6 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 	if (IS_ERR(rpc))
 		return PTR_ERR(rpc);
 
-	rpc->size = sizeof(*rpc);
 	rpc->numEntries = NV_GSP_REG_NUM_ENTRIES;
 
 	str_offset = offsetof(typeof(*rpc), entries[NV_GSP_REG_NUM_ENTRIES]);
@@ -1094,6 +1093,7 @@ r535_gsp_rpc_set_registry(struct nvkm_gsp *gsp)
 		strings += name_len;
 		str_offset += name_len;
 	}
+	rpc->size = str_offset;
 
 	return nvkm_gsp_rpc_wr(gsp, rpc, false);
 }

@@ -2018,22 +2018,6 @@ static int vcn_v4_0_set_powergating_state(void *handle, enum amd_powergating_sta
 }
 
 /**
- * vcn_v4_0_set_interrupt_state - set VCN block interrupt state
- *
- * @adev: amdgpu_device pointer
- * @source: interrupt sources
- * @type: interrupt types
- * @state: interrupt states
- *
- * Set VCN block interrupt state
- */
-static int vcn_v4_0_set_interrupt_state(struct amdgpu_device *adev, struct amdgpu_irq_src *source,
-      unsigned type, enum amdgpu_interrupt_state state)
-{
-	return 0;
-}
-
-/**
  * vcn_v4_0_set_ras_interrupt_state - set VCN block RAS interrupt state
  *
  * @adev: amdgpu_device pointer
@@ -2097,7 +2081,6 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 }
 
 static const struct amdgpu_irq_src_funcs vcn_v4_0_irq_funcs = {
-	.set = vcn_v4_0_set_interrupt_state,
 	.process = vcn_v4_0_process_interrupt,
 };
 

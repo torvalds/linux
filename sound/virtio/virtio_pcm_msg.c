@@ -358,8 +358,6 @@ static inline void virtsnd_pcm_notify_cb(struct virtio_snd_queue *queue)
 		virtqueue_disable_cb(queue->vqueue);
 		while ((msg = virtqueue_get_buf(queue->vqueue, &written_bytes)))
 			virtsnd_pcm_msg_complete(msg, written_bytes);
-		if (unlikely(virtqueue_is_broken(queue->vqueue)))
-			break;
 	} while (!virtqueue_enable_cb(queue->vqueue));
 	spin_unlock_irqrestore(&queue->lock, flags);
 }
