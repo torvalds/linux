@@ -17,7 +17,7 @@
 
 static DEFINE_MUTEX(pci_epf_mutex);
 
-static struct bus_type pci_epf_bus_type;
+static const struct bus_type pci_epf_bus_type;
 static const struct device_type pci_epf_type;
 
 /**
@@ -507,7 +507,7 @@ static void pci_epf_device_remove(struct device *dev)
 	epf->driver = NULL;
 }
 
-static struct bus_type pci_epf_bus_type = {
+static const struct bus_type pci_epf_bus_type = {
 	.name		= "pci-epf",
 	.match		= pci_epf_device_match,
 	.probe		= pci_epf_device_probe,
