@@ -193,12 +193,6 @@ struct zswap_pool {
  *
  * rbnode - links the entry into red-black tree for the appropriate swap type
  * swpentry - associated swap entry, the offset indexes into the red-black tree
- * refcount - the number of outstanding reference to the entry. This is needed
- *            to protect against premature freeing of the entry by code
- *            concurrent calls to load, invalidate, and writeback.  The lock
- *            for the zswap_tree structure that contains the entry must
- *            be held while changing the refcount.  Since the lock must
- *            be held, there is no reason to also make refcount atomic.
  * length - the length in bytes of the compressed page data.  Needed during
  *          decompression. For a same value filled page length is 0, and both
  *          pool and lru are invalid and must be ignored.
@@ -211,7 +205,6 @@ struct zswap_pool {
 struct zswap_entry {
 	struct rb_node rbnode;
 	swp_entry_t swpentry;
-	int refcount;
 	unsigned int length;
 	struct zswap_pool *pool;
 	union {
@@ -222,11 +215,6 @@ struct zswap_entry {
 	struct list_head lru;
 };
 
-/*
- * The tree lock in the zswap_tree struct protects a few things:
- * - the rbtree
- * - the refcount field of each entry in the tree
- */
 struct zswap_tree {
 	struct rb_root rbroot;
 	spinlock_t lock;
@@ -890,14 +878,10 @@ static int zswap_rb_insert(struct rb_root *root, struct zswap_entry *entry,
 	return 0;
 }
 
-static bool zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
+static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
 {
-	if (!RB_EMPTY_NODE(&entry->rbnode)) {
-		rb_erase(&entry->rbnode, root);
-		RB_CLEAR_NODE(&entry->rbnode);
-		return true;
-	}
-	return false;
+	rb_erase(&entry->rbnode, root);
+	RB_CLEAR_NODE(&entry->rbnode);
 }
 
 /*********************************
@@ -911,7 +895,6 @@ static struct zswap_entry *zswap_entry_cache_alloc(gfp_t gfp, int nid)
 	entry = kmem_cache_alloc_node(zswap_entry_cache, gfp, nid);
 	if (!entry)
 		return NULL;
-	entry->refcount = 1;
 	RB_CLEAR_NODE(&entry->rbnode);
 	return entry;
 }
@@ -954,33 +937,15 @@ static void zswap_entry_free(struct zswap_entry *entry)
 	zswap_update_total_size();
 }
 
-/* caller must hold the tree lock */
-static void zswap_entry_get(struct zswap_entry *entry)
-{
-	WARN_ON_ONCE(!entry->refcount);
-	entry->refcount++;
-}
-
-/* caller must hold the tree lock */
-static void zswap_entry_put(struct zswap_entry *entry)
-{
-	WARN_ON_ONCE(!entry->refcount);
-	if (--entry->refcount == 0) {
-		WARN_ON_ONCE(!RB_EMPTY_NODE(&entry->rbnode));
-		zswap_entry_free(entry);
-	}
-}
-
 /*
- * If the entry is still valid in the tree, drop the initial ref and remove it
- * from the tree. This function must be called with an additional ref held,
- * otherwise it may race with another invalidation freeing the entry.
+ * The caller hold the tree lock and search the entry from the tree,
+ * so it must be on the tree, remove it from the tree and free it.
  */
 static void zswap_invalidate_entry(struct zswap_tree *tree,
 				   struct zswap_entry *entry)
 {
-	if (zswap_rb_erase(&tree->rbroot, entry))
-		zswap_entry_put(entry);
+	zswap_rb_erase(&tree->rbroot, entry);
+	zswap_entry_free(entry);
 }
 
 /*********************************
@@ -1219,7 +1184,7 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 	}
 
 	/* Safe to deref entry after the entry is verified above. */
-	zswap_entry_get(entry);
+	zswap_rb_erase(&tree->rbroot, entry);
 	spin_unlock(&tree->lock);
 
 	zswap_decompress(entry, &folio->page);
@@ -1228,10 +1193,7 @@ static int zswap_writeback_entry(struct zswap_entry *entry,
 	if (entry->objcg)
 		count_objcg_event(entry->objcg, ZSWPWB);
 
-	spin_lock(&tree->lock);
-	zswap_invalidate_entry(tree, entry);
-	zswap_entry_put(entry);
-	spin_unlock(&tree->lock);
+	zswap_entry_free(entry);
 
 	/* folio is up to date */
 	folio_mark_uptodate(folio);
@@ -1703,7 +1665,7 @@ bool zswap_load(struct folio *folio)
 		spin_unlock(&tree->lock);
 		return false;
 	}
-	zswap_entry_get(entry);
+	zswap_rb_erase(&tree->rbroot, entry);
 	spin_unlock(&tree->lock);
 
 	if (entry->length)
@@ -1718,10 +1680,7 @@ bool zswap_load(struct folio *folio)
 	if (entry->objcg)
 		count_objcg_event(entry->objcg, ZSWPIN);
 
-	spin_lock(&tree->lock);
-	zswap_invalidate_entry(tree, entry);
-	zswap_entry_put(entry);
-	spin_unlock(&tree->lock);
+	zswap_entry_free(entry);
 
 	folio_mark_dirty(folio);
 
