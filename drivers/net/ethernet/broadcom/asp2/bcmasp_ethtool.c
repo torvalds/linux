@@ -360,7 +360,6 @@ void bcmasp_eee_enable_set(struct bcmasp_intf *intf, bool enable)
 	umac_wl(intf, reg, UMC_EEE_CTRL);
 
 	intf->eee.eee_enabled = enable;
-	intf->eee.eee_active = enable;
 }
 
 static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
@@ -371,8 +370,6 @@ static int bcmasp_get_eee(struct net_device *dev, struct ethtool_keee *e)
 	if (!dev->phydev)
 		return -ENODEV;
 
-	e->eee_enabled = p->eee_enabled;
-	e->eee_active = p->eee_active;
 	e->tx_lpi_enabled = p->tx_lpi_enabled;
 	e->tx_lpi_timer = umac_rl(intf, UMC_EEE_LPI_TIMER);
 
@@ -399,7 +396,6 @@ static int bcmasp_set_eee(struct net_device *dev, struct ethtool_keee *e)
 		}
 
 		umac_wl(intf, e->tx_lpi_timer, UMC_EEE_LPI_TIMER);
-		intf->eee.eee_active = ret >= 0;
 		intf->eee.tx_lpi_enabled = e->tx_lpi_enabled;
 		bcmasp_eee_enable_set(intf, true);
 	}
