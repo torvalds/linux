@@ -1155,6 +1155,20 @@ static void get_crf_id(struct iwl_trans *iwl_trans)
 	iwl_trans->hw_cnv_id =
 		iwl_read_prph_no_grab(iwl_trans, CNVI_AUX_MISC_CHIP);
 
+	/* In BZ, the MAC step must be read from the CNVI aux register */
+	if (CSR_HW_REV_TYPE(iwl_trans->hw_rev) == IWL_CFG_MAC_TYPE_BZ) {
+		u8 step = CNVI_AUX_MISC_CHIP_MAC_STEP(iwl_trans->hw_cnv_id);
+
+		/* For BZ-U, take B step also when A step is indicated */
+		if ((CNVI_AUX_MISC_CHIP_PROD_TYPE(iwl_trans->hw_cnv_id) ==
+		    CNVI_AUX_MISC_CHIP_PROD_TYPE_BZ_U) &&
+		    step == SILICON_A_STEP)
+			step = SILICON_B_STEP;
+
+		iwl_trans->hw_rev_step = step;
+		iwl_trans->hw_rev |= step;
+	}
+
 	/* Read cdb info (also contains the jacket info if needed in the future */
 	iwl_trans->hw_wfpm_id =
 		iwl_read_umac_prph_no_grab(iwl_trans, WFPM_OTP_CFG1_ADDR);
