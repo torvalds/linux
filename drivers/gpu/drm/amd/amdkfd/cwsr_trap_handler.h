@@ -674,7 +674,7 @@ static const uint32_t cwsr_trap_gfx9_hex[] = {
 	0x86ea6a6a, 0x8f6e837a,
 	0xb96ee0c2, 0xbf800002,
 	0xb97a0002, 0xbf8a0000,
-	0xbe801f6c, 0xbf810000,
+	0xbe801f6c, 0xbf9b0000,
 };
 
 static const uint32_t cwsr_trap_nv1x_hex[] = {
@@ -1091,7 +1091,7 @@ static const uint32_t cwsr_trap_nv1x_hex[] = {
 	0xb9eef807, 0x876dff6d,
 	0x0000ffff, 0x87fe7e7e,
 	0x87ea6a6a, 0xb9faf802,
-	0xbe80226c, 0xbf810000,
+	0xbe80226c, 0xbf9b0000,
 	0xbf9f0000, 0xbf9f0000,
 	0xbf9f0000, 0xbf9f0000,
 	0xbf9f0000, 0x00000000,
@@ -1574,7 +1574,7 @@ static const uint32_t cwsr_trap_arcturus_hex[] = {
 	0x86ea6a6a, 0x8f6e837a,
 	0xb96ee0c2, 0xbf800002,
 	0xb97a0002, 0xbf8a0000,
-	0xbe801f6c, 0xbf810000,
+	0xbe801f6c, 0xbf9b0000,
 };
 
 static const uint32_t cwsr_trap_aldebaran_hex[] = {
@@ -2065,7 +2065,7 @@ static const uint32_t cwsr_trap_aldebaran_hex[] = {
 	0x86ea6a6a, 0x8f6e837a,
 	0xb96ee0c2, 0xbf800002,
 	0xb97a0002, 0xbf8a0000,
-	0xbe801f6c, 0xbf810000,
+	0xbe801f6c, 0xbf9b0000,
 };
 
 static const uint32_t cwsr_trap_gfx10_hex[] = {
@@ -2500,7 +2500,7 @@ static const uint32_t cwsr_trap_gfx10_hex[] = {
 	0x876dff6d, 0x0000ffff,
 	0x87fe7e7e, 0x87ea6a6a,
 	0xb9faf802, 0xbe80226c,
-	0xbf810000, 0xbf9f0000,
+	0xbf9b0000, 0xbf9f0000,
 	0xbf9f0000, 0xbf9f0000,
 	0xbf9f0000, 0xbf9f0000,
 };
@@ -2944,7 +2944,7 @@ static const uint32_t cwsr_trap_gfx11_hex[] = {
 	0xb8eef802, 0xbf0d866e,
 	0xbfa20002, 0xb97af802,
 	0xbe80486c, 0xb97af802,
-	0xbe804a6c, 0xbfb00000,
+	0xbe804a6c, 0xbfb10000,
 	0xbf9f0000, 0xbf9f0000,
 	0xbf9f0000, 0xbf9f0000,
 	0xbf9f0000, 0x00000000,
@@ -3436,5 +3436,5 @@ static const uint32_t cwsr_trap_gfx9_4_3_hex[] = {
 	0x86ea6a6a, 0x8f6e837a,
 	0xb96ee0c2, 0xbf800002,
 	0xb97a0002, 0xbf8a0000,
-	0xbe801f6c, 0xbf810000,
+	0xbe801f6c, 0xbf9b0000,
 };

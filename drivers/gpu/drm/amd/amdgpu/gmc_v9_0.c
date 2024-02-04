@@ -1950,7 +1950,8 @@ static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
 	u32 vram_info;
 
-	if (!amdgpu_sriov_vf(adev)) {
+	/* Only for dGPU, vendor informaton is reliable */
+	if (!amdgpu_sriov_vf(adev) && !(adev->flags & AMD_IS_APU)) {
 		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
 		adev->gmc.vram_vendor = vram_info & 0xF;
 	}
@@ -2340,8 +2341,8 @@ static int gmc_v9_0_hw_init(void *handle)
 
 	if (amdgpu_emu_mode == 1)
 		return amdgpu_gmc_vram_checking(adev);
-	else
-		return r;
+
+	return 0;
 }
 
 /**

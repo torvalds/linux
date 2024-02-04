@@ -132,6 +132,8 @@ static void __init node_mem_init(unsigned int node)
 
 		/* Reserve pfn range 0~node[0]->node_start_pfn */
 		memblock_reserve(0, PAGE_SIZE * start_pfn);
+		/* set nid for reserved memory on node 0 */
+		memblock_set_node(0, 1ULL << 44, &memblock.reserved, 0);
 	}
 }
 

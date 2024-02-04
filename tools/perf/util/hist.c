@@ -491,8 +491,8 @@ static int hist_entry__init(struct hist_entry *he,
 	}
 
 	if (symbol_conf.res_sample) {
-		he->res_samples = calloc(sizeof(struct res_sample),
-					symbol_conf.res_sample);
+		he->res_samples = calloc(symbol_conf.res_sample,
+					sizeof(struct res_sample));
 		if (!he->res_samples)
 			goto err_srcline;
 	}

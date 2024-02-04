@@ -127,9 +127,6 @@ obj-vdso := $(c-obj-vdso) $(c-obj-vdso-gettimeofday) $(asm-obj-vdso)
 targets += vdso.lds
 CPPFLAGS_vdso.lds += -P -C -U$(ARCH)
 
-include/generated/vdso32-offsets.h: $(obj)/vdso32.so.dbg FORCE
-	$(call if_changed,vdsosym)
-
 # Strip rule for vdso.so
 $(obj)/vdso.so: OBJCOPYFLAGS := -S
 $(obj)/vdso.so: $(obj)/vdso32.so.dbg FORCE
@@ -166,9 +163,3 @@ quiet_cmd_vdsoas = AS32    $@
 
 quiet_cmd_vdsomunge = MUNGE   $@
       cmd_vdsomunge = $(obj)/$(munge) $< $@
-
-# Generate vDSO offsets using helper script (borrowed from the 64-bit vDSO)
-gen-vdsosym := $(srctree)/$(src)/../vdso/gen_vdso_offsets.sh
-quiet_cmd_vdsosym = VDSOSYM $@
-# The AArch64 nm should be able to read an AArch32 binary
-      cmd_vdsosym = $(NM) $< | $(gen-vdsosym) | LC_ALL=C sort > $@
