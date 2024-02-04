@@ -31,6 +31,7 @@
 #include "atomisp_compat.h"
 #include "atomisp_fops.h"
 #include "atomisp_internal.h"
+#include "atomisp_ioctl.h"
 
 const struct atomisp_in_fmt_conv atomisp_in_fmt_conv[] = {
 	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8, 8, ATOMISP_INPUT_FORMAT_RAW_8, IA_CSS_BAYER_ORDER_BGGR },
@@ -634,8 +635,59 @@ static void isp_subdev_init_params(struct atomisp_sub_device *asd)
 }
 
 /* media operations */
+static int atomisp_link_setup(struct media_entity *entity,
+			      const struct media_pad *local,
+			      const struct media_pad *remote, u32 flags)
+{
+	struct v4l2_subdev *sd = container_of(entity, struct v4l2_subdev,
+					      entity);
+	struct atomisp_sub_device *asd = v4l2_get_subdevdata(sd);
+	struct atomisp_device *isp = asd->isp;
+	int i, csi_idx, ret;
+
+	/* ISP's source is immutable */
+	if (local != &asd->pads[ATOMISP_SUBDEV_PAD_SINK]) {
+		v4l2_err(sd, "Error pad %d does not support changing flags\n",
+			 local->index);
+		return -EINVAL;
+	}
+
+	for (csi_idx = 0; csi_idx < ATOMISP_CAMERA_NR_PORTS; csi_idx++) {
+		if (&isp->csi2_port[csi_idx].pads[CSI2_PAD_SOURCE] == remote)
+			break;
+	}
+
+	if (csi_idx == ATOMISP_CAMERA_NR_PORTS) {
+		v4l2_err(sd, "Error cannot find CSI receiver for remote pad\n");
+		return -EINVAL;
+	}
+
+	/* Ignore disables, input_curr should only be updated on enables */
+	if (!(flags & MEDIA_LNK_FL_ENABLED))
+		return 0;
+
+	for (i = 0; i < isp->input_cnt; i++) {
+		if (isp->inputs[i].camera == isp->sensor_subdevs[csi_idx])
+			break;
+	}
+
+	if (i == isp->input_cnt) {
+		v4l2_err(sd, "Error no sensor for CSI receiver %d\n", csi_idx);
+		return -EINVAL;
+	}
+
+	mutex_lock(&isp->mutex);
+	ret = atomisp_pipe_check(&asd->video_out, true);
+	if (ret == 0)
+		asd->input_curr = i;
+	mutex_unlock(&isp->mutex);
+
+	return ret;
+}
+
 static const struct media_entity_operations isp_subdev_media_ops = {
 	.link_validate = v4l2_subdev_link_validate,
+	.link_setup = atomisp_link_setup,
 	/*	 .set_power = v4l2_subdev_set_power,	*/
 };
 
