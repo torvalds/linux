@@ -349,6 +349,12 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 	}
 
 	if (hltk && hltk_len) {
+		if (!fw_has_capa(&mvm->fw->ucode_capa,
+				 IWL_UCODE_TLV_CAPA_SECURE_LTF_SUPPORT)) {
+			IWL_ERR(mvm, "No support for secure LTF measurement\n");
+			return -EINVAL;
+		}
+
 		hltk_data.cipher = iwl_mvm_cipher_to_location_cipher(cipher);
 		if (hltk_data.cipher == IWL_LOCATION_CIPHER_INVALID) {
 			IWL_ERR(mvm, "invalid cipher: %u\n", cipher);

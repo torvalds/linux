@@ -710,6 +710,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 				  IWL_FW_CMD_VER_UNKNOWN) >= 11) {
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE);
+
+		if (fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_SECURE_LTF_SUPPORT))
+			wiphy_ext_feature_set(hw->wiphy,
+					      NL80211_EXT_FEATURE_SECURE_LTF);
 	}
 
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
