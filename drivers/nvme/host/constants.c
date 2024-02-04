@@ -171,15 +171,15 @@ static const char * const nvme_statuses[] = {
 	[NVME_SC_HOST_ABORTED_CMD] = "Host Aborted Command",
 };
 
-const unsigned char *nvme_get_error_status_str(u16 status)
+const char *nvme_get_error_status_str(u16 status)
 {
 	status &= 0x7ff;
 	if (status < ARRAY_SIZE(nvme_statuses) && nvme_statuses[status])
-		return nvme_statuses[status & 0x7ff];
+		return nvme_statuses[status];
 	return "Unknown";
 }
 
-const unsigned char *nvme_get_opcode_str(u8 opcode)
+const char *nvme_get_opcode_str(u8 opcode)
 {
 	if (opcode < ARRAY_SIZE(nvme_ops) && nvme_ops[opcode])
 		return nvme_ops[opcode];
@@ -187,7 +187,7 @@ const unsigned char *nvme_get_opcode_str(u8 opcode)
 }
 EXPORT_SYMBOL_GPL(nvme_get_opcode_str);
 
-const unsigned char *nvme_get_admin_opcode_str(u8 opcode)
+const char *nvme_get_admin_opcode_str(u8 opcode)
 {
 	if (opcode < ARRAY_SIZE(nvme_admin_ops) && nvme_admin_ops[opcode])
 		return nvme_admin_ops[opcode];
@@ -195,7 +195,7 @@ const unsigned char *nvme_get_admin_opcode_str(u8 opcode)
 }
 EXPORT_SYMBOL_GPL(nvme_get_admin_opcode_str);
 
-const unsigned char *nvme_get_fabrics_opcode_str(u8 opcode) {
+const char *nvme_get_fabrics_opcode_str(u8 opcode) {
 	if (opcode < ARRAY_SIZE(nvme_fabrics_ops) && nvme_fabrics_ops[opcode])
 		return nvme_fabrics_ops[opcode];
 	return "Unknown";
