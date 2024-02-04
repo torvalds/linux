@@ -327,7 +327,7 @@ static struct attribute *dfl_dev_attrs[] = {
 };
 ATTRIBUTE_GROUPS(dfl_dev);
 
-static struct bus_type dfl_bus_type = {
+static const struct bus_type dfl_bus_type = {
 	.name		= "dfl",
 	.match		= dfl_bus_match,
 	.probe		= dfl_bus_probe,
