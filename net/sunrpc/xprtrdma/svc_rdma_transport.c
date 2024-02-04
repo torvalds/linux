@@ -460,7 +460,8 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		qp_attr.cap.max_send_wr, qp_attr.cap.max_recv_wr);
 	dprintk("    cap.max_send_sge = %d, cap.max_recv_sge = %d\n",
 		qp_attr.cap.max_send_sge, qp_attr.cap.max_recv_sge);
-
+	dprintk("    send CQ depth = %u, recv CQ depth = %u\n",
+		newxprt->sc_sq_depth, rq_depth);
 	ret = rdma_create_qp(newxprt->sc_cm_id, newxprt->sc_pd, &qp_attr);
 	if (ret) {
 		trace_svcrdma_qp_err(newxprt, ret);
