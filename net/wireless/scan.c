@@ -537,7 +537,7 @@ cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list)
 		kfree(ap);
 	}
 }
-EXPORT_SYMBOL_IF_KUNIT(cfg80211_free_coloc_ap_list);
+EXPORT_SYMBOL_IF_CFG80211_KUNIT(cfg80211_free_coloc_ap_list);
 
 static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 				  const u8 *pos, u8 length,
@@ -710,7 +710,7 @@ error:
 	list_splice_tail(&ap_list, list);
 	return n_coloc;
 }
-EXPORT_SYMBOL_IF_KUNIT(cfg80211_parse_colocated_ap);
+EXPORT_SYMBOL_IF_CFG80211_KUNIT(cfg80211_parse_colocated_ap);
 
 static  void cfg80211_scan_req_add_chan(struct cfg80211_scan_request *request,
 					struct ieee80211_channel *chan,
