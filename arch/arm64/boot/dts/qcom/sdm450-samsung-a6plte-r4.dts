@@ -720,7 +720,7 @@
 };
 
 &sound_card {
-	model = "samsung-a2015";
+	model = "samsung-gmax";
 	audio-routing =
 		"AMIC1", "MIC BIAS External1",
 		"AMIC2", "MIC BIAS Internal2",
