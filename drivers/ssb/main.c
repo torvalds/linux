@@ -384,7 +384,7 @@ static struct attribute *ssb_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ssb_device);
 
-static struct bus_type ssb_bustype = {
+static const struct bus_type ssb_bustype = {
 	.name		= "ssb",
 	.match		= ssb_bus_match,
 	.probe		= ssb_device_probe,
