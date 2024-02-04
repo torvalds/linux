@@ -1999,6 +1999,8 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 	 */
 	pwq = get_work_pwq(work);
 	if (pwq && pwq->pool == pool) {
+		unsigned long work_data;
+
 		debug_work_deactivate(work);
 
 		/*
@@ -2016,11 +2018,15 @@ static int try_to_grab_pending(struct work_struct *work, bool is_dwork,
 
 		list_del_init(&work->entry);
 
-		/* work->data points to pwq iff queued, point to pool */
+		/*
+		 * work->data points to pwq iff queued. Let's point to pool. As
+		 * this destroys work->data needed by the next step, stash it.
+		 */
+		work_data = *work_data_bits(work);
 		set_work_pool_and_keep_pending(work, pool->id);
 
 		/* must be the last step, see the function comment */
-		pwq_dec_nr_in_flight(pwq, *work_data_bits(work));
+		pwq_dec_nr_in_flight(pwq, work_data);
 
 		raw_spin_unlock(&pool->lock);
 		rcu_read_unlock();
