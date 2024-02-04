@@ -1468,7 +1468,7 @@ static struct attribute *clocksource_attrs[] = {
 };
 ATTRIBUTE_GROUPS(clocksource);
 
-static struct bus_type clocksource_subsys = {
+static const struct bus_type clocksource_subsys = {
 	.name = "clocksource",
 	.dev_name = "clocksource",
 };
