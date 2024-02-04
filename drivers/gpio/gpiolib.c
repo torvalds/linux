@@ -63,7 +63,7 @@ static int gpio_bus_match(struct device *dev, struct device_driver *drv)
 	return 1;
 }
 
-static struct bus_type gpio_bus_type = {
+static const struct bus_type gpio_bus_type = {
 	.name = "gpio",
 	.match = gpio_bus_match,
 };
