@@ -11,6 +11,8 @@
 
 /* CMB Subunit Registers */
 #define TPDM_CMB_CR		(0xA00)
+/* CMB subunit timestamp insertion enable register */
+#define TPDM_CMB_TIER		(0xA04)
 /* CMB subunit timestamp pattern registers */
 #define TPDM_CMB_TPR(n)		(0xA08 + (n * 4))
 /* CMB subunit timestamp pattern mask registers */
@@ -24,6 +26,12 @@
 #define TPDM_CMB_CR_ENA		BIT(0)
 /* Trace collection mode for CMB subunit */
 #define TPDM_CMB_CR_MODE	BIT(1)
+/* Timestamp control for pattern match */
+#define TPDM_CMB_TIER_PATT_TSENAB	BIT(0)
+/* CMB CTI timestamp request */
+#define TPDM_CMB_TIER_XTRIG_TSENAB	BIT(1)
+/* For timestamp fo all trace */
+#define TPDM_CMB_TIER_TS_ALL		BIT(2)
 
 /* Patten register number */
 #define TPDM_CMB_MAX_PATT		2
@@ -134,6 +142,15 @@
 	   }								\
 	})[0].attr.attr)
 
+#define tpdm_patt_enable_ts(name, mem)				\
+	(&((struct tpdm_dataset_attribute[]) {			\
+	   {							\
+		__ATTR(name, 0644, enable_ts_show,		\
+		enable_ts_store),		\
+		mem,						\
+	   }							\
+	})[0].attr.attr)
+
 #define DSB_EDGE_CTRL_ATTR(nr)					\
 		tpdm_simple_dataset_ro(edcr##nr,		\
 		DSB_EDGE_CTRL, nr)
@@ -158,6 +175,10 @@
 		tpdm_simple_dataset_rw(tpmr##nr,		\
 		DSB_PATT_MASK, nr)
 
+#define DSB_PATT_ENABLE_TS					\
+		tpdm_patt_enable_ts(enable_ts,			\
+		DSB_PATT)
+
 #define DSB_MSR_ATTR(nr)					\
 		tpdm_simple_dataset_rw(msr##nr,			\
 		DSB_MSR, nr)
@@ -177,6 +198,10 @@
 #define CMB_PATT_MASK_ATTR(nr)					\
 		tpdm_simple_dataset_rw(tpmr##nr,		\
 		CMB_PATT_MASK, nr)
+
+#define CMB_PATT_ENABLE_TS					\
+		tpdm_patt_enable_ts(enable_ts,			\
+		CMB_PATT)
 
 /**
  * struct dsb_dataset - specifics associated to dsb dataset
@@ -217,6 +242,9 @@ struct dsb_dataset {
  * @patt_mask:        Save value for pattern mask
  * @trig_patt:        Save value for trigger pattern
  * @trig_patt_mask:   Save value for trigger pattern mask
+ * @patt_ts:          Indicates if pattern match for timestamp is enabled.
+ * @trig_ts:          Indicates if CTI trigger for timestamp is enabled.
+ * @ts_all:           Indicates if timestamp is enabled for all packets.
  */
 struct cmb_dataset {
 	u32			trace_mode;
@@ -224,6 +252,9 @@ struct cmb_dataset {
 	u32			patt_mask[TPDM_CMB_MAX_PATT];
 	u32			trig_patt[TPDM_CMB_MAX_PATT];
 	u32			trig_patt_mask[TPDM_CMB_MAX_PATT];
+	bool			patt_ts;
+	bool			trig_ts;
+	bool			ts_all;
 };
 
 /**
