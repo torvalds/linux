@@ -716,7 +716,7 @@ out_unlock:
 /*
  * STP subsys sysfs interface functions
  */
-static struct bus_type stp_subsys = {
+static const struct bus_type stp_subsys = {
 	.name		= "stp",
 	.dev_name	= "stp",
 };
