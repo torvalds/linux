@@ -526,6 +526,7 @@ struct rtw89_fw_hdr {
 #define FW_HDR_W4_MIN GENMASK(31, 24)
 #define FW_HDR_W5_YEAR GENMASK(31, 0)
 #define FW_HDR_W6_SEC_NUM GENMASK(15, 8)
+#define FW_HDR_W7_PART_SIZE GENMASK(15, 0)
 #define FW_HDR_W7_DYN_HDR BIT(16)
 #define FW_HDR_W7_CMD_VERSERION GENMASK(31, 24)
 
@@ -577,12 +578,8 @@ struct rtw89_fw_hdr_v1 {
 #define FW_HDR_V1_W5_HDR_SIZE GENMASK(31, 16)
 #define FW_HDR_V1_W6_SEC_NUM GENMASK(15, 8)
 #define FW_HDR_V1_W6_DSP_CHKSUM BIT(24)
+#define FW_HDR_V1_W7_PART_SIZE GENMASK(15, 0)
 #define FW_HDR_V1_W7_DYN_HDR BIT(16)
-
-static inline void SET_FW_HDR_PART_SIZE(void *fwhdr, u32 val)
-{
-	le32p_replace_bits((__le32 *)fwhdr + 7, val, GENMASK(15, 0));
-}
 
 enum rtw89_fw_mss_pool_rmp_tbl_type {
 	MSS_POOL_RMP_TBL_BITMASK = 0x0,

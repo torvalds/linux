@@ -1098,9 +1098,56 @@ static void rtw89_h2c_pkt_set_hdr_fwdl(struct rtw89_dev *rtwdev,
 					   len + H2C_HEADER_LEN));
 }
 
-static int __rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 len)
+static u32 __rtw89_fw_download_tweak_hdr_v0(struct rtw89_dev *rtwdev,
+					    struct rtw89_fw_bin_info *info,
+					    struct rtw89_fw_hdr *fw_hdr)
 {
+	le32p_replace_bits(&fw_hdr->w7, FWDL_SECTION_PER_PKT_LEN,
+			   FW_HDR_W7_PART_SIZE);
+
+	return 0;
+}
+
+static u32 __rtw89_fw_download_tweak_hdr_v1(struct rtw89_dev *rtwdev,
+					    struct rtw89_fw_bin_info *info,
+					    struct rtw89_fw_hdr_v1 *fw_hdr)
+{
+	struct rtw89_fw_hdr_section_info *section_info;
+	struct rtw89_fw_hdr_section_v1 *section;
+	u8 dst_sec_idx = 0;
+	u8 sec_idx;
+
+	le32p_replace_bits(&fw_hdr->w7, FWDL_SECTION_PER_PKT_LEN,
+			   FW_HDR_V1_W7_PART_SIZE);
+
+	for (sec_idx = 0; sec_idx < info->section_num; sec_idx++) {
+		section_info = &info->section_info[sec_idx];
+		section = &fw_hdr->sections[sec_idx];
+
+		if (section_info->ignore)
+			continue;
+
+		if (dst_sec_idx != sec_idx)
+			fw_hdr->sections[dst_sec_idx] = *section;
+
+		dst_sec_idx++;
+	}
+
+	le32p_replace_bits(&fw_hdr->w6, dst_sec_idx, FW_HDR_V1_W6_SEC_NUM);
+
+	return (info->section_num - dst_sec_idx) * sizeof(*section);
+}
+
+static int __rtw89_fw_download_hdr(struct rtw89_dev *rtwdev,
+				   const struct rtw89_fw_suit *fw_suit,
+				   struct rtw89_fw_bin_info *info)
+{
+	u32 len = info->hdr_len - info->dynamic_hdr_len;
+	struct rtw89_fw_hdr_v1 *fw_hdr_v1;
+	const u8 *fw = fw_suit->data;
+	struct rtw89_fw_hdr *fw_hdr;
 	struct sk_buff *skb;
+	u32 truncated;
 	u32 ret = 0;
 
 	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
@@ -1110,7 +1157,26 @@ static int __rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 l
 	}
 
 	skb_put_data(skb, fw, len);
-	SET_FW_HDR_PART_SIZE(skb->data, FWDL_SECTION_PER_PKT_LEN);
+
+	switch (fw_suit->hdr_ver) {
+	case 0:
+		fw_hdr = (struct rtw89_fw_hdr *)skb->data;
+		truncated = __rtw89_fw_download_tweak_hdr_v0(rtwdev, info, fw_hdr);
+		break;
+	case 1:
+		fw_hdr_v1 = (struct rtw89_fw_hdr_v1 *)skb->data;
+		truncated = __rtw89_fw_download_tweak_hdr_v1(rtwdev, info, fw_hdr_v1);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		goto fail;
+	}
+
+	if (truncated) {
+		len -= truncated;
+		skb_trim(skb, len);
+	}
+
 	rtw89_h2c_pkt_set_hdr_fwdl(rtwdev, skb, FWCMD_TYPE_H2C,
 				   H2C_CAT_MAC, H2C_CL_MAC_FWDL,
 				   H2C_FUNC_MAC_FWHDR_DL, len);
@@ -1129,12 +1195,14 @@ fail:
 	return ret;
 }
 
-static int rtw89_fw_download_hdr(struct rtw89_dev *rtwdev, const u8 *fw, u32 len)
+static int rtw89_fw_download_hdr(struct rtw89_dev *rtwdev,
+				 const struct rtw89_fw_suit *fw_suit,
+				 struct rtw89_fw_bin_info *info)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	int ret;
 
-	ret = __rtw89_fw_download_hdr(rtwdev, fw, len);
+	ret = __rtw89_fw_download_hdr(rtwdev, fw_suit, info);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]FW header download\n");
 		return ret;
@@ -1158,8 +1226,20 @@ static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 	struct sk_buff *skb;
 	const u8 *section = info->addr;
 	u32 residue_len = info->len;
+	bool copy_key = false;
 	u32 pkt_len;
 	int ret;
+
+	if (info->ignore)
+		return 0;
+
+	if (info->key_addr && info->key_len) {
+		if (info->len > FWDL_SECTION_PER_PKT_LEN || info->len < info->key_len)
+			rtw89_warn(rtwdev, "ignore to copy key data because of len %d, %d, %d\n",
+				   info->len, FWDL_SECTION_PER_PKT_LEN, info->key_len);
+		else
+			copy_key = true;
+	}
 
 	while (residue_len) {
 		if (residue_len >= FWDL_SECTION_PER_PKT_LEN)
@@ -1173,6 +1253,10 @@ static int __rtw89_fw_download_main(struct rtw89_dev *rtwdev,
 			return -ENOMEM;
 		}
 		skb_put_data(skb, section, pkt_len);
+
+		if (copy_key)
+			memcpy(skb->data + pkt_len - info->key_len,
+			       info->key_addr, info->key_len);
 
 		ret = rtw89_h2c_tx(rtwdev, skb, true);
 		if (ret) {
@@ -1299,8 +1383,7 @@ static int rtw89_fw_download_suit(struct rtw89_dev *rtwdev,
 		return ret;
 	}
 
-	ret = rtw89_fw_download_hdr(rtwdev, fw_suit->data, info.hdr_len -
-							   info.dynamic_hdr_len);
+	ret = rtw89_fw_download_hdr(rtwdev, fw_suit, &info);
 	if (ret)
 		return ret;
 
