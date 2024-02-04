@@ -1739,9 +1739,10 @@ bool zswap_load(struct folio *folio)
 	return true;
 }
 
-void zswap_invalidate(int type, pgoff_t offset)
+void zswap_invalidate(swp_entry_t swp)
 {
-	struct zswap_tree *tree = swap_zswap_tree(swp_entry(type, offset));
+	pgoff_t offset = swp_offset(swp);
+	struct zswap_tree *tree = swap_zswap_tree(swp);
 	struct zswap_entry *entry;
 
 	spin_lock(&tree->lock);

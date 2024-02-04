@@ -29,7 +29,7 @@ struct zswap_lruvec_state {
 
 bool zswap_store(struct folio *folio);
 bool zswap_load(struct folio *folio);
-void zswap_invalidate(int type, pgoff_t offset);
+void zswap_invalidate(swp_entry_t swp);
 int zswap_swapon(int type, unsigned long nr_pages);
 void zswap_swapoff(int type);
 void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg);
@@ -50,7 +50,7 @@ static inline bool zswap_load(struct folio *folio)
 	return false;
 }
 
-static inline void zswap_invalidate(int type, pgoff_t offset) {}
+static inline void zswap_invalidate(swp_entry_t swp) {}
 static inline int zswap_swapon(int type, unsigned long nr_pages)
 {
 	return 0;
