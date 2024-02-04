@@ -43,6 +43,10 @@ MODULE_DESCRIPTION("Console driver for network interfaces");
 MODULE_LICENSE("GPL");
 
 #define MAX_PARAM_LENGTH	256
+#define MAX_USERDATA_NAME_LENGTH	54
+#define MAX_USERDATA_VALUE_LENGTH	200
+#define MAX_USERDATA_ENTRY_LENGTH	256
+#define MAX_USERDATA_ITEMS		16
 #define MAX_PRINT_CHUNK		1000
 
 static char config[MAX_PARAM_LENGTH];
@@ -80,6 +84,7 @@ static struct console netconsole_ext;
  * struct netconsole_target - Represents a configured netconsole target.
  * @list:	Links this target into the target_list.
  * @group:	Links us into the configfs subsystem hierarchy.
+ * @userdata_group:	Links to the userdata configfs hierarchy
  * @enabled:	On / off knob to enable / disable target.
  *		Visible from userspace (read-write).
  *		We maintain a strict 1:1 correspondence between this and
@@ -103,6 +108,7 @@ struct netconsole_target {
 	struct list_head	list;
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
 	struct config_group	group;
+	struct config_group	userdata_group;
 #endif
 	bool			enabled;
 	bool			extended;
@@ -215,6 +221,10 @@ static struct netconsole_target *alloc_and_init(void)
  *				|	remote_ip
  *				|	local_mac
  *				|	remote_mac
+ *				|	userdata/
+ *				|		<key>/
+ *				|			value
+ *				|		...
  *				|
  *				<target>/...
  */
@@ -596,6 +606,123 @@ out_unlock:
 	return -EINVAL;
 }
 
+struct userdatum {
+	struct config_item item;
+	char value[MAX_USERDATA_VALUE_LENGTH];
+};
+
+static struct userdatum *to_userdatum(struct config_item *item)
+{
+	return container_of(item, struct userdatum, item);
+}
+
+struct userdata {
+	struct config_group group;
+};
+
+static struct userdata *to_userdata(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct userdata, group);
+}
+
+static struct netconsole_target *userdata_to_target(struct userdata *ud)
+{
+	struct config_group *netconsole_group;
+
+	netconsole_group = to_config_group(ud->group.cg_item.ci_parent);
+	return to_target(&netconsole_group->cg_item);
+}
+
+static ssize_t userdatum_value_show(struct config_item *item, char *buf)
+{
+	return sysfs_emit(buf, "%s\n", &(to_userdatum(item)->value[0]));
+}
+
+static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
+				     size_t count)
+{
+	struct userdatum *udm = to_userdatum(item);
+	int ret;
+
+	if (count > MAX_USERDATA_VALUE_LENGTH)
+		return -EMSGSIZE;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+
+	ret = strscpy(udm->value, buf, sizeof(udm->value));
+	if (ret < 0)
+		goto out_unlock;
+	trim_newline(udm->value, sizeof(udm->value));
+
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return count;
+out_unlock:
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return ret;
+}
+
+CONFIGFS_ATTR(userdatum_, value);
+
+static struct configfs_attribute *userdatum_attrs[] = {
+	&userdatum_attr_value,
+	NULL,
+};
+
+static void userdatum_release(struct config_item *item)
+{
+	kfree(to_userdatum(item));
+}
+
+static struct configfs_item_operations userdatum_ops = {
+	.release = userdatum_release,
+};
+
+static const struct config_item_type userdatum_type = {
+	.ct_item_ops	= &userdatum_ops,
+	.ct_attrs	= userdatum_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct config_item *userdatum_make_item(struct config_group *group,
+					       const char *name)
+{
+	struct netconsole_target *nt;
+	struct userdatum *udm;
+	struct userdata *ud;
+	size_t child_count;
+
+	if (strlen(name) > MAX_USERDATA_NAME_LENGTH)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	ud = to_userdata(&group->cg_item);
+	nt = userdata_to_target(ud);
+	child_count = list_count_nodes(&nt->userdata_group.cg_children);
+	if (child_count >= MAX_USERDATA_ITEMS)
+		return ERR_PTR(-ENOSPC);
+
+	udm = kzalloc(sizeof(*udm), GFP_KERNEL);
+	if (!udm)
+		return ERR_PTR(-ENOMEM);
+
+	config_item_init_type_name(&udm->item, name, &userdatum_type);
+	return &udm->item;
+}
+
+static struct configfs_attribute *userdata_attrs[] = {
+	NULL,
+};
+
+static struct configfs_group_operations userdata_ops = {
+	.make_item		= userdatum_make_item,
+};
+
+static struct config_item_type userdata_type = {
+	.ct_item_ops	= &userdatum_ops,
+	.ct_group_ops	= &userdata_ops,
+	.ct_attrs	= userdata_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 CONFIGFS_ATTR(, enabled);
 CONFIGFS_ATTR(, extended);
 CONFIGFS_ATTR(, dev_name);
@@ -640,6 +767,15 @@ static const struct config_item_type netconsole_target_type = {
 	.ct_owner		= THIS_MODULE,
 };
 
+static void init_target_config_group(struct netconsole_target *nt,
+				     const char *name)
+{
+	config_group_init_type_name(&nt->group, name, &netconsole_target_type);
+	config_group_init_type_name(&nt->userdata_group, "userdata",
+				    &userdata_type);
+	configfs_add_default_group(&nt->userdata_group, &nt->group);
+}
+
 static struct netconsole_target *find_cmdline_target(const char *name)
 {
 	struct netconsole_target *nt, *ret = NULL;
@@ -674,16 +810,18 @@ static struct config_group *make_netconsole_target(struct config_group *group,
 	if (!strncmp(name, NETCONSOLE_PARAM_TARGET_PREFIX,
 		     strlen(NETCONSOLE_PARAM_TARGET_PREFIX))) {
 		nt = find_cmdline_target(name);
-		if (nt)
+		if (nt) {
+			init_target_config_group(nt, name);
 			return &nt->group;
+		}
 	}
 
 	nt = alloc_and_init();
 	if (!nt)
 		return ERR_PTR(-ENOMEM);
 
-	/* Initialize the config_item member */
-	config_group_init_type_name(&nt->group, name, &netconsole_target_type);
+	/* Initialize the config_group member */
+	init_target_config_group(nt, name);
 
 	/* Adding, but it is disabled */
 	spin_lock_irqsave(&target_list_lock, flags);
@@ -740,8 +878,7 @@ static void populate_configfs_item(struct netconsole_target *nt,
 
 	snprintf(target_name, sizeof(target_name), "%s%d",
 		 NETCONSOLE_PARAM_TARGET_PREFIX, cmdline_count);
-	config_group_init_type_name(&nt->group, target_name,
-				    &netconsole_target_type);
+	init_target_config_group(nt, target_name);
 }
 
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
