@@ -71,8 +71,6 @@ static u64 zswap_reject_compress_poor;
 static u64 zswap_reject_alloc_fail;
 /* Store failed because the entry metadata could not be allocated (rare) */
 static u64 zswap_reject_kmemcache_fail;
-/* Duplicate store was encountered (rare) */
-static u64 zswap_duplicate_entry;
 
 /* Shrinker work queue */
 static struct workqueue_struct *shrink_wq;
@@ -1568,10 +1566,8 @@ bool zswap_store(struct folio *folio)
 	 */
 	spin_lock(&tree->lock);
 	entry = zswap_rb_search(&tree->rbroot, offset);
-	if (entry) {
+	if (entry)
 		zswap_invalidate_entry(tree, entry);
-		zswap_duplicate_entry++;
-	}
 	spin_unlock(&tree->lock);
 
 	if (!zswap_enabled)
@@ -1662,7 +1658,6 @@ insert_entry:
 	 */
 	while (zswap_rb_insert(&tree->rbroot, entry, &dupentry) == -EEXIST) {
 		WARN_ON(1);
-		zswap_duplicate_entry++;
 		zswap_invalidate_entry(tree, dupentry);
 	}
 	if (entry->length) {
@@ -1823,8 +1818,6 @@ static int zswap_debugfs_init(void)
 			   zswap_debugfs_root, &zswap_reject_compress_poor);
 	debugfs_create_u64("written_back_pages", 0444,
 			   zswap_debugfs_root, &zswap_written_back_pages);
-	debugfs_create_u64("duplicate_entry", 0444,
-			   zswap_debugfs_root, &zswap_duplicate_entry);
 	debugfs_create_u64("pool_total_size", 0444,
 			   zswap_debugfs_root, &zswap_pool_total_size);
 	debugfs_create_atomic_t("stored_pages", 0444,
