@@ -316,12 +316,17 @@ flushed:
  * @rdma: transport on which to post the WR
  * @ctxt: send ctxt with a Send WR ready to post
  *
+ * Copy fields in @ctxt to stack variables in order to guarantee
+ * that these values remain available after the ib_post_send() call.
+ * In some error flow cases, svc_rdma_wc_send() releases @ctxt.
+ *
  * Returns zero if the Send WR was posted successfully. Otherwise, a
  * negative errno is returned.
  */
 int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 {
 	struct ib_send_wr *wr = &ctxt->sc_send_wr;
+	struct rpc_rdma_cid cid = ctxt->sc_cid;
 	int ret;
 
 	might_sleep();
@@ -337,12 +342,12 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 		if ((atomic_dec_return(&rdma->sc_sq_avail) < 0)) {
 			svc_rdma_wake_send_waiters(rdma, 1);
 			percpu_counter_inc(&svcrdma_stat_sq_starve);
-			trace_svcrdma_sq_full(rdma, &ctxt->sc_cid);
+			trace_svcrdma_sq_full(rdma, &cid);
 			wait_event(rdma->sc_send_wait,
 				   atomic_read(&rdma->sc_sq_avail) > 0);
 			if (test_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags))
 				return -ENOTCONN;
-			trace_svcrdma_sq_retry(rdma, &ctxt->sc_cid);
+			trace_svcrdma_sq_retry(rdma, &cid);
 			continue;
 		}
 
@@ -353,7 +358,7 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 		return 0;
 	}
 
-	trace_svcrdma_sq_post_err(rdma, &ctxt->sc_cid, ret);
+	trace_svcrdma_sq_post_err(rdma, &cid, ret);
 	svc_xprt_deferred_close(&rdma->sc_xprt);
 	svc_rdma_wake_send_waiters(rdma, 1);
 	return ret;
