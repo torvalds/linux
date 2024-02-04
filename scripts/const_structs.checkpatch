@@ -2,6 +2,7 @@ acpi_dock_ops
 address_space_operations
 backlight_ops
 block_device_operations
+bus_type
 clk_ops
 comedi_lrange
 component_ops
