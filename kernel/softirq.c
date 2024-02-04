@@ -27,6 +27,7 @@
 #include <linux/tick.h>
 #include <linux/irq.h>
 #include <linux/wait_bit.h>
+#include <linux/workqueue.h>
 
 #include <asm/softirq_stack.h>
 
@@ -802,11 +803,13 @@ static void tasklet_action_common(struct softirq_action *a,
 
 static __latent_entropy void tasklet_action(struct softirq_action *a)
 {
+	workqueue_softirq_action(false);
 	tasklet_action_common(a, this_cpu_ptr(&tasklet_vec), TASKLET_SOFTIRQ);
 }
 
 static __latent_entropy void tasklet_hi_action(struct softirq_action *a)
 {
+	workqueue_softirq_action(true);
 	tasklet_action_common(a, this_cpu_ptr(&tasklet_hi_vec), HI_SOFTIRQ);
 }
 
