@@ -680,15 +680,19 @@ static int rtl822x_config_aneg(struct phy_device *phydev)
 	int ret = 0;
 
 	if (phydev->autoneg == AUTONEG_ENABLE) {
-		u16 adv2500 = 0;
+		u16 adv = 0;
 
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 				      phydev->advertising))
-			adv2500 = MDIO_AN_10GBT_CTRL_ADV2_5G;
+			adv |= MDIO_AN_10GBT_CTRL_ADV2_5G;
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				      phydev->advertising))
+			adv |= MDIO_AN_10GBT_CTRL_ADV5G;
 
 		ret = phy_modify_paged_changed(phydev, 0xa5d, 0x12,
-					       MDIO_AN_10GBT_CTRL_ADV2_5G,
-					       adv2500);
+					       MDIO_AN_10GBT_CTRL_ADV2_5G |
+					       MDIO_AN_10GBT_CTRL_ADV5G,
+					       adv);
 		if (ret < 0)
 			return ret;
 	}
