@@ -179,7 +179,7 @@ static ssize_t rtl_set_state(struct device *dev,
 	return ret;
 }
 
-static struct bus_type rtl_subsys = {
+static const struct bus_type rtl_subsys = {
 	.name = "ibm_rtl",
 	.dev_name = "ibm_rtl",
 };
