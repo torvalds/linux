@@ -208,6 +208,9 @@ out:
 	ctxt->sc_send_wr.num_sge = 0;
 	ctxt->sc_cur_sge_no = 0;
 	ctxt->sc_page_count = 0;
+	ctxt->sc_wr_chain = &ctxt->sc_send_wr;
+	ctxt->sc_sqecount = 1;
+
 	return ctxt;
 
 out_empty:
@@ -293,7 +296,7 @@ static void svc_rdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 	struct svc_rdma_send_ctxt *ctxt =
 		container_of(cqe, struct svc_rdma_send_ctxt, sc_cqe);
 
-	svc_rdma_wake_send_waiters(rdma, 1);
+	svc_rdma_wake_send_waiters(rdma, ctxt->sc_sqecount);
 
 	if (unlikely(wc->status != IB_WC_SUCCESS))
 		goto flushed;
@@ -312,36 +315,44 @@ flushed:
 }
 
 /**
- * svc_rdma_send - Post a single Send WR
- * @rdma: transport on which to post the WR
- * @ctxt: send ctxt with a Send WR ready to post
+ * svc_rdma_post_send - Post a WR chain to the Send Queue
+ * @rdma: transport context
+ * @ctxt: WR chain to post
  *
  * Copy fields in @ctxt to stack variables in order to guarantee
  * that these values remain available after the ib_post_send() call.
  * In some error flow cases, svc_rdma_wc_send() releases @ctxt.
  *
+ * Note there is potential for starvation when the Send Queue is
+ * full because there is no order to when waiting threads are
+ * awoken. The transport is typically provisioned with a deep
+ * enough Send Queue that SQ exhaustion should be a rare event.
+ *
  * Return values:
  *   %0: @ctxt's WR chain was posted successfully
  *   %-ENOTCONN: The connection was lost
  */
-int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
+int svc_rdma_post_send(struct svcxprt_rdma *rdma,
+		       struct svc_rdma_send_ctxt *ctxt)
 {
-	struct ib_send_wr *wr = &ctxt->sc_send_wr;
+	struct ib_send_wr *first_wr = ctxt->sc_wr_chain;
+	struct ib_send_wr *send_wr = &ctxt->sc_send_wr;
+	const struct ib_send_wr *bad_wr = first_wr;
 	struct rpc_rdma_cid cid = ctxt->sc_cid;
-	int ret;
+	int ret, sqecount = ctxt->sc_sqecount;
 
 	might_sleep();
 
 	/* Sync the transport header buffer */
 	ib_dma_sync_single_for_device(rdma->sc_pd->device,
-				      wr->sg_list[0].addr,
-				      wr->sg_list[0].length,
+				      send_wr->sg_list[0].addr,
+				      send_wr->sg_list[0].length,
 				      DMA_TO_DEVICE);
 
 	/* If the SQ is full, wait until an SQ entry is available */
 	while (!test_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags)) {
-		if ((atomic_dec_return(&rdma->sc_sq_avail) < 0)) {
-			svc_rdma_wake_send_waiters(rdma, 1);
+		if (atomic_sub_return(sqecount, &rdma->sc_sq_avail) < 0) {
+			svc_rdma_wake_send_waiters(rdma, sqecount);
 
 			/* When the transport is torn down, assume
 			 * ib_drain_sq() will trigger enough Send
@@ -358,12 +369,18 @@ int svc_rdma_send(struct svcxprt_rdma *rdma, struct svc_rdma_send_ctxt *ctxt)
 		}
 
 		trace_svcrdma_post_send(ctxt);
-		ret = ib_post_send(rdma->sc_qp, wr, NULL);
+		ret = ib_post_send(rdma->sc_qp, first_wr, &bad_wr);
 		if (ret) {
 			trace_svcrdma_sq_post_err(rdma, &cid, ret);
 			svc_xprt_deferred_close(&rdma->sc_xprt);
-			svc_rdma_wake_send_waiters(rdma, 1);
-			break;
+
+			/* If even one WR was posted, there will be a
+			 * Send completion that bumps sc_sq_avail.
+			 */
+			if (bad_wr == first_wr) {
+				svc_rdma_wake_send_waiters(rdma, sqecount);
+				break;
+			}
 		}
 		return 0;
 	}
@@ -884,7 +901,7 @@ static int svc_rdma_send_reply_msg(struct svcxprt_rdma *rdma,
 		sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	}
 
-	return svc_rdma_send(rdma, sctxt);
+	return svc_rdma_post_send(rdma, sctxt);
 }
 
 /**
@@ -948,7 +965,7 @@ void svc_rdma_send_error_msg(struct svcxprt_rdma *rdma,
 	sctxt->sc_send_wr.num_sge = 1;
 	sctxt->sc_send_wr.opcode = IB_WR_SEND;
 	sctxt->sc_sges[0].length = sctxt->sc_hdrbuf.len;
-	if (svc_rdma_send(rdma, sctxt))
+	if (svc_rdma_post_send(rdma, sctxt))
 		goto put_ctxt;
 	return;
 

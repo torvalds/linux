@@ -210,6 +210,8 @@ struct svc_rdma_send_ctxt {
 
 	struct svcxprt_rdma	*sc_rdma;
 	struct ib_send_wr	sc_send_wr;
+	struct ib_send_wr	*sc_wr_chain;
+	int			sc_sqecount;
 	struct ib_cqe		sc_cqe;
 	struct xdr_buf		sc_hdrbuf;
 	struct xdr_stream	sc_stream;
@@ -258,8 +260,8 @@ extern struct svc_rdma_send_ctxt *
 		svc_rdma_send_ctxt_get(struct svcxprt_rdma *rdma);
 extern void svc_rdma_send_ctxt_put(struct svcxprt_rdma *rdma,
 				   struct svc_rdma_send_ctxt *ctxt);
-extern int svc_rdma_send(struct svcxprt_rdma *rdma,
-			 struct svc_rdma_send_ctxt *ctxt);
+extern int svc_rdma_post_send(struct svcxprt_rdma *rdma,
+			      struct svc_rdma_send_ctxt *ctxt);
 extern int svc_rdma_map_reply_msg(struct svcxprt_rdma *rdma,
 				  struct svc_rdma_send_ctxt *sctxt,
 				  const struct svc_rdma_pcl *write_pcl,
