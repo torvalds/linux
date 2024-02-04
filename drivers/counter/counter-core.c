@@ -54,7 +54,7 @@ static struct device_type counter_device_type = {
 	.release = counter_device_release,
 };
 
-static struct bus_type counter_bus_type = {
+static const struct bus_type counter_bus_type = {
 	.name = "counter",
 	.dev_name = "counter",
 };
