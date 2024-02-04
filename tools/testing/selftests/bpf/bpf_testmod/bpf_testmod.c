@@ -554,9 +554,8 @@ static const struct bpf_verifier_ops bpf_testmod_verifier_ops = {
 static int bpf_dummy_reg(void *kdata)
 {
 	struct bpf_testmod_ops *ops = kdata;
-	int r;
 
-	r = ops->test_2(4, 3);
+	ops->test_2(4, 3);
 
 	return 0;
 }
@@ -570,9 +569,8 @@ static int bpf_testmod_test_1(void)
 	return 0;
 }
 
-static int bpf_testmod_test_2(int a, int b)
+static void bpf_testmod_test_2(int a, int b)
 {
-	return 0;
 }
 
 static struct bpf_testmod_ops __bpf_testmod_ops = {

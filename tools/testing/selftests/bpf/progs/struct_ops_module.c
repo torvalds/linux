@@ -16,10 +16,9 @@ int BPF_PROG(test_1)
 }
 
 SEC("struct_ops/test_2")
-int BPF_PROG(test_2, int a, int b)
+void BPF_PROG(test_2, int a, int b)
 {
 	test_2_result = a + b;
-	return a + b;
 }
 
 SEC(".struct_ops.link")
