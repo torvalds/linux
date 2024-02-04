@@ -542,7 +542,6 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	ret = dmaengine_slave_config(dma->chan_rx, &cfg);
 	if (ret) {
 		dev_err(dev, "can't configure rx dma channel\n");
-		ret = -EINVAL;
 		goto err_slave_config;
 	}
 
@@ -550,7 +549,6 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	ret = dmaengine_slave_config(dma->chan_tx, &cfg);
 	if (ret) {
 		dev_err(dev, "can't configure tx dma channel\n");
-		ret = -EINVAL;
 		goto err_slave_config;
 	}
 
