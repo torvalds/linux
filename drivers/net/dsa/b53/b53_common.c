@@ -2227,15 +2227,9 @@ EXPORT_SYMBOL(b53_eee_init);
 int b53_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_keee *e)
 {
 	struct b53_device *dev = ds->priv;
-	struct ethtool_keee *p = &dev->ports[port].eee;
-	u16 reg;
 
 	if (is5325(dev) || is5365(dev))
 		return -EOPNOTSUPP;
-
-	b53_read16(dev, B53_EEE_PAGE, B53_EEE_LPI_INDICATE, &reg);
-	e->eee_enabled = p->eee_enabled;
-	e->eee_active = !!(reg & BIT(port));
 
 	return 0;
 }
