@@ -139,10 +139,6 @@ static bool zswap_non_same_filled_pages_enabled = true;
 module_param_named(non_same_filled_pages_enabled, zswap_non_same_filled_pages_enabled,
 		   bool, 0644);
 
-static bool zswap_exclusive_loads_enabled = IS_ENABLED(
-		CONFIG_ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON);
-module_param_named(exclusive_loads, zswap_exclusive_loads_enabled, bool, 0644);
-
 /* Number of zpools in zswap_pool (empirically determined for scalability) */
 #define ZSWAP_NR_ZPOOLS 32
 
@@ -1723,15 +1719,11 @@ bool zswap_load(struct folio *folio)
 		count_objcg_event(entry->objcg, ZSWPIN);
 
 	spin_lock(&tree->lock);
-	if (zswap_exclusive_loads_enabled) {
-		zswap_invalidate_entry(tree, entry);
-		folio_mark_dirty(folio);
-	} else if (entry->length) {
-		zswap_lru_del(&entry->pool->list_lru, entry);
-		zswap_lru_add(&entry->pool->list_lru, entry);
-	}
+	zswap_invalidate_entry(tree, entry);
 	zswap_entry_put(entry);
 	spin_unlock(&tree->lock);
+
+	folio_mark_dirty(folio);
 
 	return true;
 }
