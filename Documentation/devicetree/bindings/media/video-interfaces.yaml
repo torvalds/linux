@@ -190,7 +190,7 @@ properties:
       Allow MIPI CSI-2 non-continuous clock mode.
 
   link-frequencies:
-    $ref: /schemas/types.yaml#/definitions/uint32-array
+    $ref: /schemas/types.yaml#/definitions/uint64-array
     description:
       Allowed data bus frequencies. For MIPI CSI-2, for instance, this is the
       actual frequency of the bus, not bits per clock per lane value. An array

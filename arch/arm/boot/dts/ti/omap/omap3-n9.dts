@@ -26,7 +26,7 @@
 		flash-leds = <&as3645a_flash &as3645a_indicator>;
 		port {
 			smia_1_1: endpoint {
-				link-frequencies = /bits/ 32 <199200000 210000000 499200000>;
+				link-frequencies = /bits/ 64 <199200000 210000000 499200000>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
 				remote-endpoint = <&csi2a_ep>;
