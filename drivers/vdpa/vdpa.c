@@ -115,7 +115,7 @@ static const struct attribute_group vdpa_dev_group = {
 };
 __ATTRIBUTE_GROUPS(vdpa_dev);
 
-static struct bus_type vdpa_bus = {
+static const struct bus_type vdpa_bus = {
 	.name  = "vdpa",
 	.dev_groups = vdpa_dev_groups,
 	.match = vdpa_dev_match,
