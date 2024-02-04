@@ -263,6 +263,19 @@ static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 	writel_relaxed(val, drvdata->base + TPDM_DSB_CR);
 }
 
+static void tpdm_enable_cmb(struct tpdm_drvdata *drvdata)
+{
+	u32 val;
+
+	if (!tpdm_has_cmb_dataset(drvdata))
+		return;
+
+	val = readl_relaxed(drvdata->base + TPDM_CMB_CR);
+	/* Set the enable bit of CMB control register to 1 */
+	val |= TPDM_CMB_CR_ENA;
+	writel_relaxed(val, drvdata->base + TPDM_CMB_CR);
+}
+
 /*
  * TPDM enable operations
  * The TPDM or Monitor serves as data collection component for various
@@ -276,6 +289,7 @@ static void __tpdm_enable(struct tpdm_drvdata *drvdata)
 	CS_UNLOCK(drvdata->base);
 
 	tpdm_enable_dsb(drvdata);
+	tpdm_enable_cmb(drvdata);
 
 	CS_LOCK(drvdata->base);
 }
@@ -312,12 +326,26 @@ static void tpdm_disable_dsb(struct tpdm_drvdata *drvdata)
 	writel_relaxed(val, drvdata->base + TPDM_DSB_CR);
 }
 
+static void tpdm_disable_cmb(struct tpdm_drvdata *drvdata)
+{
+	u32 val;
+
+	if (!tpdm_has_cmb_dataset(drvdata))
+		return;
+
+	val = readl_relaxed(drvdata->base + TPDM_CMB_CR);
+	/* Set the enable bit of CMB control register to 0 */
+	val &= ~TPDM_CMB_CR_ENA;
+	writel_relaxed(val, drvdata->base + TPDM_CMB_CR);
+}
+
 /* TPDM disable operations */
 static void __tpdm_disable(struct tpdm_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
 
 	tpdm_disable_dsb(drvdata);
+	tpdm_disable_cmb(drvdata);
 
 	CS_LOCK(drvdata->base);
 }
