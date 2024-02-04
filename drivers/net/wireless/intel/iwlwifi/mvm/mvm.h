@@ -1810,18 +1810,18 @@ void iwl_mvm_rx_shared_mem_cfg_notif(struct iwl_mvm *mvm,
 /* MVM PHY */
 struct iwl_mvm_phy_ctxt *iwl_mvm_get_free_phy_ctxt(struct iwl_mvm *mvm);
 int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
-			 struct cfg80211_chan_def *chandef,
+			 const struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic);
 int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
-			     struct cfg80211_chan_def *chandef,
+			     const struct cfg80211_chan_def *chandef,
 			     u8 chains_static, u8 chains_dynamic);
 void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm,
 			  struct iwl_mvm_phy_ctxt *ctxt);
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm,
 			    struct iwl_mvm_phy_ctxt *ctxt);
 int iwl_mvm_phy_ctx_count(struct iwl_mvm *mvm);
-u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef);
-u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef);
+u8 iwl_mvm_get_channel_width(const struct cfg80211_chan_def *chandef);
+u8 iwl_mvm_get_ctrl_pos(const struct cfg80211_chan_def *chandef);
 int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 			 u8 chains_static, u8 chains_dynamic);
 
@@ -2530,7 +2530,7 @@ static inline void iwl_mvm_set_chan_info(struct iwl_mvm *mvm,
 static inline void
 iwl_mvm_set_chan_info_chandef(struct iwl_mvm *mvm,
 			      struct iwl_fw_channel_info *ci,
-			      struct cfg80211_chan_def *chandef)
+			      const struct cfg80211_chan_def *chandef)
 {
 	enum nl80211_band band = chandef->chan->band;
 
