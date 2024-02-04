@@ -49,7 +49,7 @@ static char config[MAX_PARAM_LENGTH];
 module_param_string(netconsole, config, MAX_PARAM_LENGTH, 0);
 MODULE_PARM_DESC(netconsole, " netconsole=[src-port]@[src-ip]/[dev],[tgt-port]@<tgt-ip>/[tgt-macaddr]");
 
-static bool oops_only = false;
+static bool oops_only;
 module_param(oops_only, bool, 0600);
 MODULE_PARM_DESC(oops_only, "Only log oops messages");
 
@@ -501,6 +501,7 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 
 	if (strnchr(buf, count, ':')) {
 		const char *end;
+
 		if (in6_pton(buf, count, nt->np.local_ip.in6.s6_addr, -1, &end) > 0) {
 			if (*end && *end != '\n') {
 				pr_err("invalid IPv6 address at: <%c>\n", *end);
@@ -510,9 +511,9 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 		} else
 			goto out_unlock;
 	} else {
-		if (!nt->np.ipv6) {
+		if (!nt->np.ipv6)
 			nt->np.local_ip.ip = in_aton(buf);
-		} else
+		else
 			goto out_unlock;
 	}
 
@@ -537,6 +538,7 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 
 	if (strnchr(buf, count, ':')) {
 		const char *end;
+
 		if (in6_pton(buf, count, nt->np.remote_ip.in6.s6_addr, -1, &end) > 0) {
 			if (*end && *end != '\n') {
 				pr_err("invalid IPv6 address at: <%c>\n", *end);
@@ -546,9 +548,9 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 		} else
 			goto out_unlock;
 	} else {
-		if (!nt->np.ipv6) {
+		if (!nt->np.ipv6)
 			nt->np.remote_ip.ip = in_aton(buf);
-		} else
+		else
 			goto out_unlock;
 	}
 
@@ -781,6 +783,7 @@ restart:
 	spin_unlock_irqrestore(&target_list_lock, flags);
 	if (stopped) {
 		const char *msg = "had an event";
+
 		switch (event) {
 		case NETDEV_UNREGISTER:
 			msg = "unregistered";
