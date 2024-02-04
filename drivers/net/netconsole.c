@@ -1085,24 +1085,48 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	memcpy(buf + release_len, header, header_len);
 	header_len += release_len;
 
-	while (offset < body_len) {
+	while (offset < body_len + userdata_len) {
 		int this_header = header_len;
-		int this_chunk;
+		int this_offset = 0;
+		int this_chunk = 0;
 
 		this_header += scnprintf(buf + this_header,
 					 sizeof(buf) - this_header,
-					 ",ncfrag=%d/%d;", offset, body_len);
+					 ",ncfrag=%d/%d;", offset,
+					 body_len + userdata_len);
 
-		this_chunk = min(body_len - offset,
-				 MAX_PRINT_CHUNK - this_header);
-		if (WARN_ON_ONCE(this_chunk <= 0))
-			return;
+		/* Not all body data has been written yet */
+		if (offset < body_len) {
+			this_chunk = min(body_len - offset,
+					 MAX_PRINT_CHUNK - this_header);
+			if (WARN_ON_ONCE(this_chunk <= 0))
+				return;
+			memcpy(buf + this_header, body + offset, this_chunk);
+			this_offset += this_chunk;
+		}
+		/* Body is fully written and there is pending userdata to write,
+		 * append userdata in this chunk
+		 */
+		if (offset + this_offset >= body_len &&
+		    offset + this_offset < userdata_len + body_len) {
+			int sent_userdata = (offset + this_offset) - body_len;
+			int preceding_bytes = this_chunk + this_header;
 
-		memcpy(buf + this_header, body + offset, this_chunk);
+			if (WARN_ON_ONCE(sent_userdata < 0))
+				return;
 
-		netpoll_send_udp(&nt->np, buf, this_header + this_chunk);
+			this_chunk = min(userdata_len - sent_userdata,
+					 MAX_PRINT_CHUNK - preceding_bytes);
+			if (WARN_ON_ONCE(this_chunk <= 0))
+				return;
+			memcpy(buf + this_header + this_offset,
+			       userdata + sent_userdata,
+			       this_chunk);
+			this_offset += this_chunk;
+		}
 
-		offset += this_chunk;
+		netpoll_send_udp(&nt->np, buf, this_header + this_offset);
+		offset += this_offset;
 	}
 }
 
