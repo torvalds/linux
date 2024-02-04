@@ -230,6 +230,10 @@ struct rtw89_fw_hdr_section_info {
 	u32 dladdr;
 	u32 mssc;
 	u8 type;
+	bool ignore;
+	const u8 *key_addr;
+	u32 key_len;
+	u32 key_idx;
 };
 
 struct rtw89_fw_bin_info {
@@ -238,6 +242,7 @@ struct rtw89_fw_bin_info {
 	bool dynamic_hdr_en;
 	u32 dynamic_hdr_len;
 	bool dsp_checksum;
+	bool secure_section_exist;
 	struct rtw89_fw_hdr_section_info section_info[FWDL_SECTION_MAX_NUM];
 };
 
@@ -538,6 +543,7 @@ struct rtw89_fw_hdr_section_v1 {
 #define FWSECTION_HDR_V1_W1_CHECKSUM BIT(28)
 #define FWSECTION_HDR_V1_W1_REDL BIT(29)
 #define FWSECTION_HDR_V1_W2_MSSC GENMASK(7, 0)
+#define FORMATTED_MSSC 0xFF
 #define FWSECTION_HDR_V1_W2_BBMCU_IDX GENMASK(27, 24)
 
 struct rtw89_fw_hdr_v1 {
@@ -577,6 +583,39 @@ static inline void SET_FW_HDR_PART_SIZE(void *fwhdr, u32 val)
 {
 	le32p_replace_bits((__le32 *)fwhdr + 7, val, GENMASK(15, 0));
 }
+
+enum rtw89_fw_mss_pool_rmp_tbl_type {
+	MSS_POOL_RMP_TBL_BITMASK = 0x0,
+	MSS_POOL_RMP_TBL_RECORD = 0x1,
+};
+
+#define FWDL_MSS_POOL_DEFKEYSETS_SIZE 8
+
+struct rtw89_fw_mss_pool_hdr {
+	u8 signature[8]; /* equal to mss_signature[] */
+	__le32 rmp_tbl_offset;
+	__le32 key_raw_offset;
+	u8 defen;
+	u8 rsvd[3];
+	u8 rmpfmt; /* enum rtw89_fw_mss_pool_rmp_tbl_type */
+	u8 mssdev_max;
+	__le16 keypair_num;
+	__le16 msscust_max;
+	__le16 msskey_num_max;
+	__le32 rsvd3;
+	u8 rmp_tbl[];
+} __packed;
+
+union rtw89_fw_section_mssc_content {
+	struct {
+		u8 pad[58];
+		__le32 v;
+	} __packed sb_sel_ver;
+	struct {
+		u8 pad[60];
+		__le16 v;
+	} __packed key_sign_len;
+} __packed;
 
 static inline void SET_CTRL_INFO_MACID(void *table, u32 val)
 {
