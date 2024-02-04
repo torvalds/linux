@@ -111,9 +111,8 @@ enum atomisp_input_format {
 
 enum intel_v4l2_subdev_type {
 	RAW_CAMERA = 1,
-	CAMERA_MOTOR = 2,
-	LED_FLASH = 3,
-	TEST_PATTERN = 4,
+	LED_FLASH = 2,
+	TEST_PATTERN = 3,
 };
 
 struct intel_v4l2_subdev_id {

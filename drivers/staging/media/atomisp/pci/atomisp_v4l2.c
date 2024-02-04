@@ -823,13 +823,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			isp->sensor_lanes[mipi_port] = subdevs->lanes;
 			isp->sensor_subdevs[subdevs->port] = subdevs->subdev;
 			break;
-		case CAMERA_MOTOR:
-			if (isp->motor) {
-				dev_warn(isp->dev, "too many atomisp motors\n");
-				continue;
-			}
-			isp->motor = subdevs->subdev;
-			break;
 		case LED_FLASH:
 			if (isp->flash) {
 				dev_warn(isp->dev, "too many atomisp flash devices\n");
@@ -1065,14 +1058,6 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		input->camera = isp->sensor_subdevs[i];
 
 		atomisp_init_sensor(input);
-
-		/*
-		 * HACK: Currently VCM belongs to primary sensor only, but correct
-		 * approach must be to acquire from platform code which sensor
-		 * owns it.
-		 */
-		if (i == ATOMISP_CAMERA_PORT_PRIMARY)
-			input->motor = isp->motor;
 
 		err = media_create_pad_link(&input->camera->entity, 0,
 					    &isp->csi2_port[i].subdev.entity,

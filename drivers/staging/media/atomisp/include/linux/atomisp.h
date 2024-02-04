@@ -914,9 +914,6 @@ enum atomisp_burst_capture_options {
 /* VCM step time */
 #define V4L2_CID_VCM_TIMING                (V4L2_CID_CAMERA_LASTP1 + 12)
 
-/* Query Focus Status */
-#define V4L2_CID_FOCUS_STATUS              (V4L2_CID_CAMERA_LASTP1 + 14)
-
 /* number of frames to skip at stream start */
 #define V4L2_CID_G_SKIP_FRAMES		   (V4L2_CID_CAMERA_LASTP1 + 17)
 

@@ -557,7 +557,6 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	int index = input->index;
-	struct v4l2_subdev *motor;
 
 	if (index >= isp->input_cnt)
 		return -EINVAL;
@@ -568,28 +567,6 @@ static int atomisp_enum_input(struct file *file, void *fh,
 	memset(input, 0, sizeof(struct v4l2_input));
 	strscpy(input->name, isp->inputs[index].camera->name,
 		sizeof(input->name));
-
-	/*
-	 * HACK: append actuator's name to sensor's
-	 * As currently userspace can't talk directly to subdev nodes, this
-	 * ioctl is the only way to enum inputs + possible external actuators
-	 * for 3A tuning purpose.
-	 */
-	if (!IS_ISP2401)
-		motor = isp->inputs[index].motor;
-	else
-		motor = isp->motor;
-
-	if (motor && strlen(motor->name) > 0) {
-		const int cur_len = strlen(input->name);
-		const int max_size = sizeof(input->name) - cur_len - 1;
-
-		if (max_size > 1) {
-			input->name[cur_len] = '+';
-			strscpy(&input->name[cur_len + 1],
-				motor->name, max_size);
-		}
-	}
 
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	input->index = index;
@@ -629,7 +606,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev *camera = NULL;
-	struct v4l2_subdev *motor;
 	int ret;
 
 	ret = atomisp_pipe_check(pipe, true);
@@ -665,17 +641,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		dev_err(isp->dev, "Failed to power-on sensor\n");
 		return ret;
 	}
-
-	if (!IS_ISP2401) {
-		motor = isp->inputs[input].motor;
-	} else {
-		motor = isp->motor;
-		if (motor)
-			ret = v4l2_subdev_call(motor, core, s_power, 1);
-	}
-
-	if (motor)
-		ret = v4l2_subdev_call(motor, core, init, 1);
 
 	asd->input_curr = input;
 	/* mark this camera is used by the current stream */
@@ -1433,26 +1398,8 @@ static int atomisp_s_ctrl(struct file *file, void *fh,
 static int atomisp_queryctl(struct file *file, void *fh,
 			    struct v4l2_queryctrl *qc)
 {
-	int i, ret = -EINVAL;
 	struct video_device *vdev = video_devdata(file);
-	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
-	struct atomisp_device *isp = video_get_drvdata(vdev);
-
-	switch (qc->id) {
-	case V4L2_CID_FOCUS_ABSOLUTE:
-	case V4L2_CID_FOCUS_RELATIVE:
-	case V4L2_CID_FOCUS_STATUS:
-		if (!IS_ISP2401) {
-			return v4l2_queryctrl(isp->inputs[asd->input_curr].camera->
-					    ctrl_handler, qc);
-		}
-		/* ISP2401 */
-		if (isp->motor)
-			return v4l2_queryctrl(isp->motor->ctrl_handler, qc);
-		else
-			return v4l2_queryctrl(isp->inputs[asd->input_curr].
-					      camera->ctrl_handler, qc);
-	}
+	int i, ret = -EINVAL;
 
 	if (qc->id & V4L2_CTRL_FLAG_NEXT_CTRL)
 		return ret;
@@ -1478,15 +1425,9 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct v4l2_subdev *motor;
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
-
-	if (!IS_ISP2401)
-		motor = isp->inputs[asd->input_curr].motor;
-	else
-		motor = isp->motor;
 
 	for (i = 0; i < c->count; i++) {
 		ctrl.id = c->controls[i].id;
@@ -1508,13 +1449,6 @@ static int atomisp_camera_g_ext_ctrls(struct file *file, void *fh,
 			ret =
 			    v4l2_g_ctrl(isp->inputs[asd->input_curr].camera->
 					ctrl_handler, &ctrl);
-			break;
-		case V4L2_CID_FOCUS_ABSOLUTE:
-		case V4L2_CID_FOCUS_RELATIVE:
-		case V4L2_CID_FOCUS_STATUS:
-		case V4L2_CID_FOCUS_AUTO:
-			if (motor)
-				ret = v4l2_g_ctrl(motor->ctrl_handler, &ctrl);
 			break;
 		case V4L2_CID_FLASH_STATUS:
 		case V4L2_CID_FLASH_INTENSITY:
@@ -1584,15 +1518,9 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
-	struct v4l2_subdev *motor;
 	struct v4l2_control ctrl;
 	int i;
 	int ret = 0;
-
-	if (!IS_ISP2401)
-		motor = isp->inputs[asd->input_curr].motor;
-	else
-		motor = isp->motor;
 
 	for (i = 0; i < c->count; i++) {
 		struct v4l2_ctrl *ctr;
@@ -1615,18 +1543,6 @@ static int atomisp_camera_s_ext_ctrls(struct file *file, void *fh,
 			ret = v4l2_s_ctrl(NULL,
 					  isp->inputs[asd->input_curr].camera->
 					  ctrl_handler, &ctrl);
-			break;
-		case V4L2_CID_FOCUS_ABSOLUTE:
-		case V4L2_CID_FOCUS_RELATIVE:
-		case V4L2_CID_FOCUS_STATUS:
-		case V4L2_CID_FOCUS_AUTO:
-			if (motor)
-				ret = v4l2_s_ctrl(NULL, motor->ctrl_handler,
-						  &ctrl);
-			else
-				ret = v4l2_s_ctrl(NULL,
-						  isp->inputs[asd->input_curr].
-						  camera->ctrl_handler, &ctrl);
 			break;
 		case V4L2_CID_FLASH_STATUS:
 		case V4L2_CID_FLASH_INTENSITY:
