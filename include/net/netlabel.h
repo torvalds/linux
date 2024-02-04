@@ -145,15 +145,14 @@ struct netlbl_lsm_cache {
  * processing.
  *
  */
-#define NETLBL_CATMAP_MAPTYPE           u64
 #define NETLBL_CATMAP_MAPCNT            4
-#define NETLBL_CATMAP_MAPSIZE           (sizeof(NETLBL_CATMAP_MAPTYPE) * 8)
+#define NETLBL_CATMAP_MAPSIZE           (sizeof(u64) * 8)
 #define NETLBL_CATMAP_SIZE              (NETLBL_CATMAP_MAPSIZE * \
 					 NETLBL_CATMAP_MAPCNT)
-#define NETLBL_CATMAP_BIT               (NETLBL_CATMAP_MAPTYPE)0x01
+#define NETLBL_CATMAP_BIT               ((u64)0x01)
 struct netlbl_lsm_catmap {
 	u32 startbit;
-	NETLBL_CATMAP_MAPTYPE bitmap[NETLBL_CATMAP_MAPCNT];
+	u64 bitmap[NETLBL_CATMAP_MAPCNT];
 	struct netlbl_lsm_catmap *next;
 };
 
