@@ -1034,19 +1034,34 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	const char *msg_ready = msg;
 	const char *release;
 	int release_len = 0;
+	int userdata_len = 0;
+	char *userdata = NULL;
+
+#ifdef CONFIG_NETCONSOLE_DYNAMIC
+	userdata = nt->userdata_complete;
+	userdata_len = nt->userdata_length;
+#endif
 
 	if (nt->release) {
 		release = init_utsname()->release;
 		release_len = strlen(release) + 1;
 	}
 
-	if (msg_len + release_len <= MAX_PRINT_CHUNK) {
+	if (msg_len + release_len + userdata_len <= MAX_PRINT_CHUNK) {
 		/* No fragmentation needed */
 		if (nt->release) {
 			scnprintf(buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
 			msg_len += release_len;
-			msg_ready = buf;
+		} else {
+			memcpy(buf, msg, msg_len);
 		}
+
+		if (userdata)
+			msg_len += scnprintf(&buf[msg_len],
+					     MAX_PRINT_CHUNK - msg_len,
+					     "%s", userdata);
+
+		msg_ready = buf;
 		netpoll_send_udp(&nt->np, msg_ready, msg_len);
 		return;
 	}
