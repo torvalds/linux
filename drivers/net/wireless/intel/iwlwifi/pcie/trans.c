@@ -1484,12 +1484,9 @@ void iwl_trans_pcie_rf_kill(struct iwl_trans *trans, bool state, bool from_irq)
 
 	IWL_WARN(trans, "reporting RF_KILL (radio %s)\n",
 		 state ? "disabled" : "enabled");
-	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state)) {
-		if (trans->trans_cfg->gen2)
-			_iwl_trans_pcie_gen2_stop_device(trans);
-		else
-			_iwl_trans_pcie_stop_device(trans, from_irq);
-	}
+	if (iwl_op_mode_hw_rf_kill(trans->op_mode, state) &&
+	    !WARN_ON(trans->trans_cfg->gen2))
+		_iwl_trans_pcie_stop_device(trans, from_irq);
 }
 
 void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
