@@ -1090,7 +1090,8 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		return err;
 
 	err = media_create_pad_link(&isp->asd.subdev.entity, ATOMISP_SUBDEV_PAD_SOURCE,
-				    &isp->asd.video_out.vdev.entity, 0, 0);
+				    &isp->asd.video_out.vdev.entity, 0,
+				    MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE);
 	if (err)
 		return err;
 
