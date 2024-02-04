@@ -817,15 +817,15 @@ int iwl_acpi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
-	/* try to read ppag table rev 2 or 1 (both have the same data size) */
+	/* try to read ppag table rev 3, 2 or 1 (all have the same data size) */
 	wifi_pkg = iwl_acpi_get_wifi_pkg(fwrt->dev, data,
 				ACPI_PPAG_WIFI_DATA_SIZE_V2, &tbl_rev);
 
 	if (!IS_ERR(wifi_pkg)) {
-		if (tbl_rev == 1 || tbl_rev == 2) {
+		if (tbl_rev >= 1 && tbl_rev <= 3) {
 			num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 			IWL_DEBUG_RADIO(fwrt,
-					"Reading PPAG table v2 (tbl_rev=%d)\n",
+					"Reading PPAG table (tbl_rev=%d)\n",
 					tbl_rev);
 			goto read_table;
 		} else {
@@ -857,7 +857,8 @@ read_table:
 		goto out_free;
 	}
 
-	fwrt->ppag_flags = flags->integer.value & IWL_PPAG_ETSI_CHINA_MASK;
+	fwrt->ppag_flags = iwl_bios_get_ppag_flags(flags->integer.value,
+						   fwrt->ppag_ver);
 
 	/*
 	 * read, verify gain values and save them into the PPAG table.

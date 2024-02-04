@@ -541,7 +541,8 @@ int iwl_uefi_get_ppag_table(struct iwl_fw_runtime *fwrt)
 	}
 
 	fwrt->ppag_ver = data->revision;
-	fwrt->ppag_flags = data->ppag_modes & IWL_PPAG_ETSI_CHINA_MASK;
+	fwrt->ppag_flags = iwl_bios_get_ppag_flags(data->ppag_modes,
+						   fwrt->ppag_ver);
 
 	BUILD_BUG_ON(sizeof(fwrt->ppag_chains) != sizeof(data->ppag_chains));
 	memcpy(&fwrt->ppag_chains, &data->ppag_chains,

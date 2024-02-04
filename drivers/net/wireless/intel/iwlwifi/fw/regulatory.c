@@ -320,7 +320,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 					WIDE_ID(PHY_OPS_GROUP,
 						PER_PLATFORM_ANT_GAIN_CMD), 1);
 	/*
-	 * Starting from ver 4, driver needs to send the PPAG CMD regradless
+	 * Starting from ver 4, driver needs to send the PPAG CMD regardless
 	 * if PPAG is enabled/disabled or valid/invalid.
 	 */
 	send_ppag_always = cmd_ver > 3;
@@ -341,18 +341,18 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 		num_sub_bands = IWL_NUM_SUB_BANDS_V1;
 		gain = cmd->v1.gain[0];
 		*cmd_size = sizeof(cmd->v1);
-		if (fwrt->ppag_ver == 1 || fwrt->ppag_ver == 2) {
+		if (fwrt->ppag_ver >= 1) {
 			/* in this case FW supports revision 0 */
 			IWL_DEBUG_RADIO(fwrt,
 					"PPAG table rev is %d, send truncated table\n",
 					fwrt->ppag_ver);
 		}
-	} else if (cmd_ver >= 2 && cmd_ver <= 4) {
+	} else if (cmd_ver >= 2 && cmd_ver <= 5) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 		gain = cmd->v2.gain[0];
 		*cmd_size = sizeof(cmd->v2);
 		if (fwrt->ppag_ver == 0) {
-			/* in this case FW supports revisions 1 or 2 */
+			/* in this case FW supports revisions 1,2 or 3 */
 			IWL_DEBUG_RADIO(fwrt,
 					"PPAG table rev is 0, send padded table\n");
 		}
@@ -364,11 +364,17 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 	/* ppag mode */
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits were read from bios: %d\n",
-			cmd->v1.flags);
+			le32_to_cpu(cmd->v1.flags));
+
+	if (cmd_ver == 5)
+		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V5_MASK);
+	else if (cmd_ver < 5)
+		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_CMD_V4_MASK);
+
 	if ((cmd_ver == 1 &&
 	     !fw_has_capa(&fwrt->fw->ucode_capa,
 			  IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT)) ||
-	    (cmd_ver == 2 && fwrt->ppag_ver == 2)) {
+	    (cmd_ver == 2 && fwrt->ppag_ver >= 2)) {
 		cmd->v1.flags &= cpu_to_le32(IWL_PPAG_ETSI_MASK);
 		IWL_DEBUG_RADIO(fwrt, "masking ppag China bit\n");
 	} else {
@@ -377,7 +383,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 
 	IWL_DEBUG_RADIO(fwrt,
 			"PPAG MODE bits going to be sent: %d\n",
-			cmd->v1.flags);
+			le32_to_cpu(cmd->v1.flags));
 
 	for (i = 0; i < IWL_NUM_CHAIN_LIMITS; i++) {
 		for (j = 0; j < num_sub_bands; j++) {

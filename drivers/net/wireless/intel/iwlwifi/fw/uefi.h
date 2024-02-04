@@ -116,8 +116,7 @@ struct uefi_cnv_var_wgds {
 /*
  * struct uefi_cnv_var_ppag - PPAG table as defined in UEFI
  * @revision: the revision of the table
- * @ppag_modes: bit 0 - PPAG is enabled/disabled in ETSI,
- *	bit 1 - PPAG is enabled/disabled in China
+ * @ppag_modes: values from &enum iwl_ppag_flags
  * @ppag_chains: the PPAG values per chain and band
  */
 struct uefi_cnv_var_ppag {

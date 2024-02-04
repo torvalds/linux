@@ -37,7 +37,7 @@
 #define IWL_PPAG_MAX_HB 40
 
 #define IWL_PPAG_ETSI_CHINA_MASK	3
-#define IWL_PPAG_ETSI_MASK		BIT(0)
+#define IWL_PPAG_REV3_MASK		0x7FF
 
 #define IWL_WTAS_BLACK_LIST_MAX	16
 #define IWL_WTAS_ENABLED_MSK		0x1
@@ -189,4 +189,11 @@ __le32 iwl_get_lari_config_bitmap(struct iwl_fw_runtime *fwrt);
 
 int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		     u32 *value);
+
+static inline u32 iwl_bios_get_ppag_flags(const u32 ppag_modes,
+					  const u8 ppag_ver)
+{
+	return ppag_modes & (ppag_ver < 3 ? IWL_PPAG_ETSI_CHINA_MASK :
+					    IWL_PPAG_REV3_MASK);
+}
 #endif /* __fw_regulatory_h__ */

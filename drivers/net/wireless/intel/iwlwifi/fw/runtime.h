@@ -174,7 +174,7 @@ struct iwl_fw_runtime {
 	bool geo_enabled;
 	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
 	u32 ppag_flags;
-	u32 ppag_ver;
+	u8 ppag_ver;
 #ifdef CONFIG_ACPI
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
