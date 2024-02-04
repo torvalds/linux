@@ -3721,9 +3721,9 @@ apply_min_padding:
 	*padding_h = max_t(u32, *padding_h, min_pad_h);
 }
 
-static int atomisp_set_crop_and_fmt(struct atomisp_device *isp,
-				    struct v4l2_mbus_framefmt *ffmt,
-				    int which)
+static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
+					   struct v4l2_mbus_framefmt *ffmt,
+					   int which)
 {
 	struct atomisp_input_subdev *input = &isp->inputs[isp->asd.input_curr];
 	struct v4l2_subdev_selection sel = {
@@ -3817,7 +3817,7 @@ int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 
 	dev_dbg(isp->dev, "try_mbus_fmt: try %ux%u\n", ffmt.width, ffmt.height);
 
-	ret = atomisp_set_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_TRY);
+	ret = atomisp_set_sensor_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_TRY);
 	if (ret)
 		return ret;
 
@@ -4263,7 +4263,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 
 	/* Disable dvs if resolution can't be supported by sensor */
 	if (asd->params.video_dis_en && asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-		ret = atomisp_set_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_TRY);
+		ret = atomisp_set_sensor_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_TRY);
 		if (ret)
 			return ret;
 
@@ -4281,7 +4281,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev, const struct v4l2_p
 		}
 	}
 
-	ret = atomisp_set_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_ACTIVE);
+	ret = atomisp_set_sensor_crop_and_fmt(isp, &ffmt, V4L2_SUBDEV_FORMAT_ACTIVE);
 	if (ret)
 		return ret;
 
