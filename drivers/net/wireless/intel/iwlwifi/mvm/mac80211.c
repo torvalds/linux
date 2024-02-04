@@ -2611,9 +2611,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	 */
 	if (changes & BSS_CHANGED_ASSOC && vif->cfg.assoc) {
 		if ((vif->bss_conf.he_support &&
-		     !iwlwifi_mod_params.disable_11ax) ||
-		    (vif->bss_conf.eht_support &&
-		     !iwlwifi_mod_params.disable_11be))
+		     !iwlwifi_mod_params.disable_11ax))
 			iwl_mvm_cfg_he_sta(mvm, vif, mvmvif->deflink.ap_sta_id);
 
 		iwl_mvm_mac_ctxt_recalc_tsf_id(mvm, vif);
@@ -2622,10 +2620,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 	/* Update MU EDCA params */
 	if (changes & BSS_CHANGED_QOS && mvmvif->associated &&
 	    vif->cfg.assoc &&
-	    ((vif->bss_conf.he_support &&
-	      !iwlwifi_mod_params.disable_11ax) ||
-	     (vif->bss_conf.eht_support &&
-	      !iwlwifi_mod_params.disable_11be)))
+	    (vif->bss_conf.he_support && !iwlwifi_mod_params.disable_11ax))
 		iwl_mvm_cfg_he_sta(mvm, vif, mvmvif->deflink.ap_sta_id);
 
 	/*
@@ -3737,10 +3732,8 @@ iwl_mvm_sta_state_auth_to_assoc(struct ieee80211_hw *hw,
 		 * the default bss_conf
 		 */
 		if (!mvm->mld_api_is_used &&
-		    ((vif->bss_conf.he_support &&
-		      !iwlwifi_mod_params.disable_11ax) ||
-		    (vif->bss_conf.eht_support &&
-		     !iwlwifi_mod_params.disable_11be)))
+		    (vif->bss_conf.he_support &&
+		     !iwlwifi_mod_params.disable_11ax))
 			iwl_mvm_cfg_he_sta(mvm, vif, mvm_sta->deflink.sta_id);
 	} else if (vif->type == NL80211_IFTYPE_STATION) {
 		iwl_mvm_vif_set_he_support(hw, vif, sta, true);
