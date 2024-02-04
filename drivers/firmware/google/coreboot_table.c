@@ -53,7 +53,7 @@ static void coreboot_bus_remove(struct device *dev)
 		driver->remove(device);
 }
 
-static struct bus_type coreboot_bus_type = {
+static const struct bus_type coreboot_bus_type = {
 	.name		= "coreboot",
 	.match		= coreboot_bus_match,
 	.probe		= coreboot_bus_probe,
