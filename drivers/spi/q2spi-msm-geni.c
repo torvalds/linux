@@ -100,11 +100,13 @@ void __q2spi_dump_ipc(struct q2spi_geni *q2spi, char *prefix,
  * q2spi_dump_ipc - Log dump function for debugging
  * @q2spi: Pointer to main q2spi_geni structure
  * @ipc_ctx: IPC context pointer to dump logs in IPC
- * @Prefix: Prefix to use in log
+ * @prefix: Prefix to use in log
  * @str: String to dump in log
- * @Size: Size of data bytes per line
- * free bulk dma mapped buffers allocated by q2spi_pre_alloc_buffers api.
+ * @size: Size of data bytes per line
  *
+ * free bulk dma mapped buffers allocated by q2spi_pre_alloc_buffers api
+ *
+ * Return: none
  */
 void q2spi_dump_ipc(struct q2spi_geni *q2spi, void *ipc_ctx, char *prefix,
 		    char *str, int size)
@@ -366,7 +368,35 @@ static int q2spi_free_var1_buf(struct q2spi_geni *q2spi)
 }
 
 /**
- * q2spi_free_dma_buf - free dma mapped buffers
+ * q2spi_free_resp_buf - free resp buffers from pool
+ * @q2spi: Pointer to main q2spi_geni structure
+ *
+ * free response dma mapped buffers allocated by q2spi_pre_alloc_buffers api.
+ *
+ * Return: 0 for success, negative number if buffer is not found
+ */
+static int q2spi_free_resp_buf(struct q2spi_geni *q2spi)
+{
+	void *buf;
+	dma_addr_t dma_addr;
+	int i;
+	size_t size;
+
+	for (i = 0; i < Q2SPI_MAX_RESP_BUF; i++) {
+		if (!q2spi->resp_buf[i])
+			continue;
+		if (q2spi->resp_buf_used[i])
+			return -1;
+		buf = q2spi->resp_buf[i];
+		dma_addr = q2spi->resp_dma_buf[i];
+		size = Q2SPI_RESP_BUF_SIZE;
+		geni_se_common_iommu_free_buf(q2spi->wrapper_dev, &dma_addr, buf, size);
+	}
+	return 0;
+}
+
+/**
+ * q2spi_free_dma_buf - free preallocated dma mapped buffers
  * @q2spi: Pointer to main q2spi_geni structure
  *
  * free dma mapped buffers allocated by q2spi_pre_alloc_buffers api.
@@ -386,6 +416,9 @@ static void q2spi_free_dma_buf(struct q2spi_geni *q2spi)
 
 	if (q2spi_free_var1_buf(q2spi))
 		Q2SPI_ERROR(q2spi, "%s Err free var1 buf fail\n", __func__);
+
+	if (q2spi_free_resp_buf(q2spi))
+		Q2SPI_ERROR(q2spi, "%s Err free resp buf fail\n", __func__);
 }
 
 /**
@@ -428,7 +461,6 @@ static int q2spi_pre_alloc_buffers(struct q2spi_geni *q2spi)
 			Q2SPI_ERROR(q2spi, "%s Err cr buf alloc fail\n", __func__);
 			goto exit_dealloc;
 		}
-		memset(q2spi->cr_buf[i], 0xFF, RX_DMA_CR_BUF_SIZE);
 
 		q2spi->bulk_buf[i] =
 			geni_se_common_iommu_alloc_buf(q2spi->wrapper_dev, &q2spi->bulk_dma_buf[i],
@@ -438,18 +470,28 @@ static int q2spi_pre_alloc_buffers(struct q2spi_geni *q2spi)
 			Q2SPI_ERROR(q2spi, "%s Err bulk buf alloc fail\n", __func__);
 			goto exit_dealloc;
 		}
-		Q2SPI_DEBUG(q2spi, "%s var1_buf[%d] virt:%p phy:%p\n",
-			    __func__, i, (void *)q2spi->var1_buf[i],
-			    (void *)q2spi->var1_dma_buf[i]);
-		Q2SPI_DEBUG(q2spi, "%s var5_buf[%d] virt:%p phy:%p\n",
-			    __func__, i, (void *)q2spi->var5_buf[i],
-			    (void *)q2spi->var5_dma_buf[i]);
-		Q2SPI_DEBUG(q2spi, "%s cr_buf[%d] virt:%p phy:%p\n",
-			    __func__, i, (void *)q2spi->cr_buf[i],
-			    (void *)q2spi->cr_dma_buf[i]);
-		Q2SPI_DEBUG(q2spi, "%s bulk_buf[%d] virt:%p phy:%p\n",
-			    __func__, i, (void *)q2spi->bulk_buf[i],
-			    (void *)q2spi->bulk_dma_buf[i]);
+
+		Q2SPI_DEBUG(q2spi, "%s var1_buf[%d] virt:%p phy:%p\n", __func__, i,
+			    (void *)q2spi->var1_buf[i], (void *)q2spi->var1_dma_buf[i]);
+		Q2SPI_DEBUG(q2spi, "%s var5_buf[%d] virt:%p phy:%p\n", __func__, i,
+			    (void *)q2spi->var5_buf[i], (void *)q2spi->var5_dma_buf[i]);
+		Q2SPI_DEBUG(q2spi, "%s cr_buf[%d] virt:%p phy:%p\n", __func__, i,
+			    (void *)q2spi->cr_buf[i], (void *)q2spi->cr_dma_buf[i]);
+		Q2SPI_DEBUG(q2spi, "%s bulk_buf[%d] virt:%p phy:%p\n", __func__, i,
+			    (void *)q2spi->bulk_buf[i], (void *)q2spi->bulk_dma_buf[i]);
+	}
+
+	for (i = 0; i < Q2SPI_MAX_RESP_BUF; i++) {
+		q2spi->resp_buf[i] =
+			geni_se_common_iommu_alloc_buf(q2spi->wrapper_dev, &q2spi->resp_dma_buf[i],
+						       Q2SPI_RESP_BUF_SIZE);
+		if (IS_ERR_OR_NULL(q2spi->resp_buf[i])) {
+			Q2SPI_ERROR(q2spi, "%s Err resp buf alloc fail\n", __func__);
+			goto exit_dealloc;
+		}
+
+		Q2SPI_DEBUG(q2spi, "%s resp_buf[%d] virt:%p phy:%p\n", __func__, i,
+			    (void *)q2spi->resp_buf[i], (void *)q2spi->resp_dma_buf[i]);
 	}
 	return 0;
 exit_dealloc:
@@ -536,32 +578,69 @@ q2spi_unmap_dma_buf_used(struct q2spi_geni *q2spi, dma_addr_t tx_dma, dma_addr_t
 static int q2spi_get_doorbell_rx_buf(struct q2spi_geni *q2spi)
 {
 	struct q2spi_dma_transfer *xfer = q2spi->db_xfer;
-	int i, ret = 0;
+	int i;
 
 	/* Pick rx buffers from pre allocated pool */
 	for (i = 0; i < Q2SPI_MAX_BUF; i++) {
-		if (!q2spi->cr_buf_used[i])
-			break;
+		if (!q2spi->cr_buf_used[i]) {
+			Q2SPI_DEBUG(q2spi, "%s q2spi_db_xfer:%p\n", __func__, q2spi->db_xfer);
+			xfer->rx_buf = q2spi->cr_buf[i];
+			xfer->rx_dma = q2spi->cr_dma_buf[i];
+			q2spi->cr_buf_used[i] = q2spi->cr_buf[i];
+			q2spi->rx_buf = xfer->rx_buf;
+			Q2SPI_DEBUG(q2spi, "ALLOC %s db rx_buf:%p rx_dma:%p\n",
+				    __func__, xfer->rx_buf, (void *)xfer->rx_dma);
+			memset(xfer->rx_buf, 0xdb, RX_DMA_CR_BUF_SIZE);
+			return 0;
+		}
 	}
-	if (i < Q2SPI_MAX_BUF) {
-		Q2SPI_DEBUG(q2spi, "%s q2spi_db_xfer:%p\n", __func__, q2spi->db_xfer);
-		xfer->rx_buf = q2spi->cr_buf[i];
-		xfer->rx_dma = q2spi->cr_dma_buf[i];
-		q2spi->cr_buf_used[i] = q2spi->cr_buf[i];
-		q2spi->rx_buf = xfer->rx_buf;
-		Q2SPI_DEBUG(q2spi, "ALLOC %s rx_buf:%p rx_dma:%p\n",
-			    __func__, xfer->rx_buf, (void *)xfer->rx_dma);
-		memset(xfer->rx_buf, 0xdb, RX_DMA_CR_BUF_SIZE);
-	}
-	if (!xfer->rx_buf || !xfer->rx_dma) {
-		Q2SPI_ERROR(q2spi, "%s Err RX dma alloc failed\n", __func__);
-		ret = -ENOMEM;
-	}
-	return ret;
+
+	Q2SPI_ERROR(q2spi, "%s Err DB RX dma alloc failed\n", __func__);
+	return -ENOMEM;
 }
 
 /**
- * q2spi_alloc_rx_buf - allocate RX DMA buffers
+ * q2spi_unmap_rx_buf - release RX DMA buffers
+ * @q2spi_pkt: Pointer to q2spi packet
+ *
+ * This function will release rx buffers back to preallocated pool
+ *
+ * Return: None
+ */
+static void q2spi_unmap_rx_buf(struct q2spi_packet *q2spi_pkt)
+{
+	struct q2spi_dma_transfer *xfer = q2spi_pkt->xfer;
+	struct q2spi_geni *q2spi = q2spi_pkt->q2spi;
+	int i = 0;
+	bool unmapped = false;
+
+	if (!xfer->rx_buf || !xfer->rx_dma) {
+		Q2SPI_ERROR(q2spi, "%s Err RX buffer NULL\n", __func__);
+		return;
+	}
+
+	Q2SPI_DEBUG(q2spi, "%s PID:%d rx_buf %p %p\n", __func__,
+		    current->pid, (void *)xfer->rx_buf, (void *)xfer->rx_dma);
+
+	for (i = 0; i < Q2SPI_MAX_RESP_BUF; i++) {
+		if (xfer->rx_dma == q2spi->resp_dma_buf[i]) {
+			if (q2spi->resp_buf_used[i]) {
+				Q2SPI_DEBUG(q2spi, "%s UNMAP rx_buf[%d] virt:%p phy:%p\n",
+					    __func__, i, (void *)q2spi->resp_buf[i],
+					    (void *)q2spi->resp_dma_buf[i]);
+				q2spi->resp_buf_used[i] = NULL;
+				unmapped = true;
+			}
+		}
+	}
+	if (!unmapped)
+		Q2SPI_ERROR(q2spi, "%s PID:%d Err unmap fail for rx_dma:%p\n",
+			    __func__, current->pid, (void *)xfer->rx_dma);
+	Q2SPI_DEBUG(q2spi, "%s End PID=%d\n", __func__, current->pid);
+}
+
+/**
+ * q2spi_get_rx_buf - obtain RX DMA buffer from preallocated pool
  * @q2spi_pkt: Pointer to q2spi packet
  * @len: size of the memory to be allocate
  *
@@ -571,30 +650,32 @@ static int q2spi_get_doorbell_rx_buf(struct q2spi_geni *q2spi)
  *
  * Return: 0 for success, negative number for error condition.
  */
-static int q2spi_alloc_rx_buf(struct q2spi_packet *q2spi_pkt, int len)
+static int q2spi_get_rx_buf(struct q2spi_packet *q2spi_pkt, int len)
 {
 	struct q2spi_geni *q2spi = q2spi_pkt->q2spi;
 	struct q2spi_dma_transfer *xfer = q2spi_pkt->xfer;
-	int ret = 0;
+	int i;
 
 	Q2SPI_DEBUG(q2spi, "%s len:%d\n", __func__, len);
 	if (!len) {
 		Q2SPI_ERROR(q2spi, "%s Err Zero length for alloc\n", __func__);
-		ret = -EINVAL;
-		goto fail;
+		return -EINVAL;
 	}
 
-	xfer->rx_buf = geni_se_common_iommu_alloc_buf(q2spi->wrapper_dev, &xfer->rx_dma, len);
-	if (IS_ERR_OR_NULL(xfer->rx_buf)) {
-		Q2SPI_ERROR(q2spi, "%s Err iommu alloc buf failed\n", __func__);
-		ret = -ENOMEM;
-		goto fail;
+	for (i = 0; i < Q2SPI_MAX_RESP_BUF; i++) {
+		if (!q2spi->resp_buf_used[i]) {
+			q2spi->resp_buf_used[i] = q2spi->resp_buf[i];
+			xfer->rx_buf = q2spi->resp_buf[i];
+			xfer->rx_dma = q2spi->resp_dma_buf[i];
+			memset(xfer->rx_buf, 0xba, Q2SPI_RESP_BUF_SIZE);
+			Q2SPI_DEBUG(q2spi, "%s ALLOC rx buf %p dma_buf:%p\n",
+				    __func__, (void *)q2spi->resp_buf[i],
+				    (void *)q2spi->resp_dma_buf[i]);
+			return 0;
+		}
 	}
-	Q2SPI_DEBUG(q2spi, "%s rx_buf=%p rx_dma=%p\n", __func__, xfer->rx_buf,
-		    (void *)xfer->rx_dma);
-	memset(xfer->rx_buf, 0xba, len);
-fail:
-	return ret;
+	Q2SPI_ERROR(q2spi, "%s: Err RX dma buf get failed\n", __func__);
+	return -ENOMEM;
 }
 
 /**
@@ -690,9 +771,12 @@ void q2spi_wait_for_doorbell_setup_ready(struct q2spi_geni *q2spi)
  */
 void q2spi_unmap_doorbell_rx_buf(struct q2spi_geni *q2spi)
 {
+	if (!q2spi->db_xfer->rx_dma) {
+		Q2SPI_DEBUG(q2spi, "%s Doorbell DMA buffer already unmapped\n", __func__);
+		return;
+	}
 	q2spi_unmap_dma_buf_used(q2spi, (dma_addr_t)NULL, q2spi->db_xfer->rx_dma);
 	q2spi->db_xfer->rx_dma = (dma_addr_t)NULL;
-	q2spi_kfree(q2spi, q2spi->db_xfer->q2spi_pkt, __LINE__);
 	q2spi->doorbell_setup = false;
 }
 
@@ -721,11 +805,8 @@ int q2spi_map_doorbell_rx_buf(struct q2spi_geni *q2spi)
 		return 0;
 	}
 
-	q2spi_pkt = q2spi_kzalloc(q2spi, sizeof(struct q2spi_packet), __LINE__);
-	if (!q2spi_pkt) {
-		Q2SPI_ERROR(q2spi, "%s Err q2spi_pkt alloc fail\n", __func__);
-		return -ENOMEM;
-	}
+	memset(q2spi->db_q2spi_pkt, 0x00, sizeof(struct q2spi_packet));
+	q2spi_pkt = q2spi->db_q2spi_pkt;
 	q2spi_pkt->q2spi = q2spi;
 	q2spi_pkt->m_cmd_param = Q2SPI_RX_ONLY;
 	memset(q2spi->db_xfer, 0, sizeof(struct q2spi_dma_transfer));
@@ -737,6 +818,7 @@ int q2spi_map_doorbell_rx_buf(struct q2spi_geni *q2spi)
 		Q2SPI_ERROR(q2spi, "%s Err failed to alloc RX DMA buf", __func__);
 		return ret;
 	}
+
 	/* Map RX DMA descriptor on RX channel */
 	q2spi->db_xfer->cmd = Q2SPI_RX_ONLY;
 	q2spi->db_xfer->rx_data_len = RX_DMA_CR_BUF_SIZE; /* 96 byte for 4 crs in doorbell */
@@ -1083,11 +1165,9 @@ int q2spi_frame_lra(struct q2spi_geni *q2spi, struct q2spi_request q2spi_req,
 	if (q2spi_req.cmd == LOCAL_REG_READ || q2spi_req.cmd == HRF_READ) {
 		q2spi_hc_var1->cmd = HC_DATA_READ;
 		q2spi_pkt->m_cmd_param = Q2SPI_TX_RX;
-		ret = q2spi_alloc_rx_buf(q2spi_pkt, q2spi_req.data_len);
-		if (ret) {
-			Q2SPI_ERROR(q2spi, "%s Err failed to alloc RX DMA buf", __func__);
-			return -ENOMEM;
-		}
+		ret = q2spi_get_rx_buf(q2spi_pkt, q2spi_req.data_len);
+		if (ret)
+			return ret;
 	} else if (q2spi_req.cmd == LOCAL_REG_WRITE || q2spi_req.cmd == HRF_WRITE) {
 		q2spi_hc_var1->cmd = HC_DATA_WRITE;
 		q2spi_pkt->m_cmd_param = Q2SPI_TX_ONLY;
@@ -1173,11 +1253,9 @@ int q2spi_sma_format(struct q2spi_geni *q2spi, struct q2spi_request q2spi_req,
 	if (q2spi_req.cmd == DATA_READ || q2spi_req.cmd == HRF_READ) {
 		q2spi_hc_var5->cmd = HC_SMA_READ;
 		q2spi_pkt->m_cmd_param = Q2SPI_TX_RX;
-		ret = q2spi_alloc_rx_buf(q2spi_pkt, q2spi_req.data_len);
-		if (ret) {
-			Q2SPI_ERROR(q2spi, "%s Err failed to alloc RX DMA buf\n", __func__);
-			return -ENOMEM;
-		}
+		ret = q2spi_get_rx_buf(q2spi_pkt, q2spi_req.data_len);
+		if (ret)
+			return ret;
 	} else if (q2spi_req.cmd == DATA_WRITE || q2spi_req.cmd == HRF_WRITE) {
 		q2spi_hc_var5->cmd = HC_SMA_WRITE;
 		q2spi_pkt->m_cmd_param = Q2SPI_TX_ONLY;
@@ -1521,16 +1599,16 @@ bool q2spi_cmd_type_valid(struct q2spi_geni *q2spi, struct q2spi_request *q2spi_
 	return true;
 }
 
-static int q2spi_check_var1_avail_buff(struct q2spi_geni *q2spi)
+static int q2spi_check_resp_avail_buff(struct q2spi_geni *q2spi)
 {
 	unsigned int i, count = 0;
 
-	for (i = 0; i < Q2SPI_MAX_BUF; i++) {
-		if (!q2spi->var1_buf_used[i])
+	for (i = 0; i < Q2SPI_MAX_RESP_BUF; i++) {
+		if (!q2spi->resp_buf_used[i])
 			count++;
 		else
-			Q2SPI_DEBUG(q2spi, "%s Var1 buffer in use %p\n",
-				    __func__, q2spi->var1_buf_used[i]);
+			Q2SPI_DEBUG(q2spi, "%s resp buffer in use %p\n",
+				    __func__, q2spi->resp_buf_used[i]);
 	}
 	return count;
 }
@@ -1590,8 +1668,7 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 				usleep_range(5000, 10000);
 			return 0;
 		}
-		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p bulk_wait completed free buffers:%d\n",
-			    __func__, q2spi_pkt, q2spi_check_var1_avail_buff(q2spi));
+		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p bulk_wait completed\n", __func__, q2spi_pkt);
 		timeout = wait_event_interruptible(q2spi->read_wq,
 						   !atomic_read(&q2spi->doorbell_pending));
 		if (timeout) {
@@ -1661,8 +1738,8 @@ static int q2spi_transfer_check(struct q2spi_geni *q2spi, struct q2spi_request *
 		return -EPIPE;
 	}
 
-	if (!q2spi_check_var1_avail_buff(q2spi)) {
-		Q2SPI_DEBUG(q2spi, "%s Err Short of var1 buffers\n", __func__);
+	if (!q2spi_check_resp_avail_buff(q2spi)) {
+		Q2SPI_ERROR(q2spi, "%s Err Short of resp buffers\n", __func__);
 		return -EAGAIN;
 	}
 
@@ -1716,9 +1793,8 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 		return -EINVAL;
 	}
 	q2spi = filp->private_data;
+	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d\n", __func__, current->pid);
 	q2spi_wait_for_doorbell_setup_ready(q2spi);
-	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d free_buffers:%d\n",
-		    __func__, current->pid, q2spi_check_var1_avail_buff(q2spi));
 
 	if (q2spi_transfer_check(q2spi, &q2spi_req, buf, len))
 		return -EINVAL;
@@ -1929,6 +2005,7 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 	q2spi_tx_queue_status(q2spi);
 	Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p state:%s\n",
 		    __func__, q2spi_pkt, q2spi_pkt_state(q2spi_pkt));
+	q2spi_unmap_rx_buf(q2spi_pkt);
 	q2spi_pkt->state = IN_DELETION;
 	if (q2spi_del_pkt_from_tx_queue(q2spi, q2spi_pkt))
 		q2spi_free_q2spi_pkt(q2spi_pkt, __LINE__);
@@ -3557,6 +3634,14 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 		Q2SPI_ERROR(q2spi, "Err failed to alloc buffers");
 		goto destroy_worker;
 	}
+
+	q2spi->db_q2spi_pkt = devm_kzalloc(q2spi->dev, sizeof(struct q2spi_packet), GFP_KERNEL);
+	if (!q2spi->db_q2spi_pkt) {
+		ret = -ENOMEM;
+		Q2SPI_ERROR(q2spi, "%s Err failed to allocated db_q2spi_pkt\n", __func__);
+		goto free_buf;
+	}
+	q2spi->db_q2spi_pkt->q2spi = q2spi;
 
 	q2spi->db_xfer = devm_kzalloc(q2spi->dev, sizeof(struct q2spi_dma_transfer), GFP_KERNEL);
 	if (!q2spi->db_xfer) {

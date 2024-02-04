@@ -19,11 +19,13 @@
 #include "q2spi-gsi.h"
 
 #define DATA_WORD_LEN			4
-#define SMA_BUF_SIZE			4096
+#define SMA_BUF_SIZE			(4096)
 #define MAX_CR_SIZE			24 /* Max CR size is 24 bytes per CR */
 #define MAX_RX_CRS			4
 #define RX_DMA_CR_BUF_SIZE		(MAX_CR_SIZE * MAX_RX_CRS)
 #define Q2SPI_MAX_BUF			2
+#define Q2SPI_MAX_RESP_BUF		40
+#define Q2SPI_RESP_BUF_SIZE		SMA_BUF_SIZE
 #define XFER_TIMEOUT_OFFSET		(500 * 4)
 #define TIMEOUT_MSECONDS		10 /* 10 milliseconds */
 #define RETRIES				1
@@ -428,16 +430,23 @@ struct q2spi_dma_transfer {
  * @tid_idr: tid id allocator
  * @readq: waitqueue for rx data
  * @hrf_flow: flag to indicate HRF flow
+ * @db_q2spi_pkt: pointer to doorbell q2spi packet
  * @db_setup_wait: wait for doorbell setup done
- * @var1_buf: virtual pointer for varient1
- * @var1_dma_buf: physical dma pointer for varient1
- * @var5_buf: virtual pointer for varient5
- * @var5_dma_buf: physical dma pointer for varient5
+ * @var1_buf: virtual pointer for variant1
+ * @var1_dma_buf: physical dma pointer for variant1
+ * @var1_buf_used: pointer to store variant1 buffer used
+ * @var5_buf: virtual pointer for variant5
+ * @var5_dma_buf: physical dma pointer for variant5
+ * @var5_buf_used: pointer to store variant5 buffer used
  * @cr_buf: virtual pointer for CR
  * @cr_dma_buf: physical dma pointer for CR
- * @var1_buf_used: pointer to store varient1 buffer used
- * @var5_buf_used: pointer to store varient5 buffer used
  * @cr_buf_used: pointer to store CR buffer used
+ * @bulk_buf: virtual pointer for bulk buffer
+ * @bulk_dma_buf: physical dma pointer for bulk buffer
+ * @bulk_buf_used: pointer to store bulk buffer used
+ * @resp_buf: virtual pointer for resp buffer
+ * @resp_dma_buf: physical dma pointer for resp buffer
+ * @resp_buf_used: pointer to store resp buffer used
  * @sma_wait: completion for SMA
  * @hw_state_is_bad: used when HW is in un-recoverable state
  * @max_dump_data_size: max size of data to be dumped as part of dump_ipc function
@@ -495,19 +504,23 @@ struct q2spi_geni {
 	void *rx_buf;
 	dma_addr_t rx_dma;
 	bool hrf_flow;
+	struct q2spi_packet *db_q2spi_pkt;
 	struct completion db_setup_wait;
 	void *var1_buf[Q2SPI_MAX_BUF];
 	dma_addr_t var1_dma_buf[Q2SPI_MAX_BUF];
+	void *var1_buf_used[Q2SPI_MAX_BUF];
 	void *var5_buf[Q2SPI_MAX_BUF];
 	dma_addr_t var5_dma_buf[Q2SPI_MAX_BUF];
+	void *var5_buf_used[Q2SPI_MAX_BUF];
 	void *cr_buf[Q2SPI_MAX_BUF];
 	dma_addr_t cr_dma_buf[Q2SPI_MAX_BUF];
-	void *var1_buf_used[Q2SPI_MAX_BUF];
-	void *var5_buf_used[Q2SPI_MAX_BUF];
 	void *cr_buf_used[Q2SPI_MAX_BUF];
 	void *bulk_buf[Q2SPI_MAX_BUF];
 	dma_addr_t bulk_dma_buf[Q2SPI_MAX_BUF];
 	void *bulk_buf_used[Q2SPI_MAX_BUF];
+	void *resp_buf[Q2SPI_MAX_RESP_BUF];
+	dma_addr_t resp_dma_buf[Q2SPI_MAX_RESP_BUF];
+	void *resp_buf_used[Q2SPI_MAX_RESP_BUF];
 	dma_addr_t dma_buf;
 	struct completion sma_wait;
 	void *ipc;

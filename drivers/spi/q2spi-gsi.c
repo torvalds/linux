@@ -191,7 +191,7 @@ static void q2spi_geni_deallocate_chan(struct q2spi_gsi *gsi)
 void q2spi_geni_gsi_release(struct q2spi_geni *q2spi)
 {
 	q2spi_geni_deallocate_chan(q2spi->gsi);
-	q2spi_kfree(q2spi, q2spi->gsi, __LINE__);
+	kfree(q2spi->gsi);
 }
 
 /**
@@ -206,7 +206,7 @@ int q2spi_geni_gsi_setup(struct q2spi_geni *q2spi)
 	struct q2spi_gsi *gsi = NULL;
 	int ret = 0;
 
-	gsi = q2spi_kzalloc(q2spi, sizeof(struct q2spi_gsi), __LINE__);
+	gsi = kzalloc(sizeof(struct q2spi_gsi), GFP_ATOMIC);
 	if (!gsi) {
 		Q2SPI_ERROR(q2spi, "%s Err GSI structure memory alloc failed\n", __func__);
 		return -ENOMEM;
