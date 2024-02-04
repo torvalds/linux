@@ -397,9 +397,9 @@ bool iwl_is_ppag_approved(struct iwl_fw_runtime *fwrt)
 	if (!dmi_check_system(dmi_ppag_approved_list)) {
 		IWL_DEBUG_RADIO(fwrt,
 				"System vendor '%s' is not in the approved list, disabling PPAG.\n",
-				dmi_get_system_info(DMI_SYS_VENDOR));
-				fwrt->ppag_flags = 0;
-				return false;
+				dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
+		fwrt->ppag_flags = 0;
+		return false;
 	}
 
 	return true;
