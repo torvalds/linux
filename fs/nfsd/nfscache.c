@@ -166,8 +166,7 @@ nfsd_reply_cache_free(struct nfsd_drc_bucket *b, struct nfsd_cacherep *rp,
 
 int nfsd_drc_slab_create(void)
 {
-	drc_slab = kmem_cache_create("nfsd_drc",
-				sizeof(struct nfsd_cacherep), 0, 0, NULL);
+	drc_slab = KMEM_CACHE(nfsd_cacherep, 0);
 	return drc_slab ? 0: -ENOMEM;
 }
 
