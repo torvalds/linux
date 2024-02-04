@@ -464,7 +464,7 @@ static void pata_parport_bus_release(struct device *dev)
 	/* nothing to do here but required to avoid warning on device removal */
 }
 
-static struct bus_type pata_parport_bus_type = {
+static const struct bus_type pata_parport_bus_type = {
 	.name = DRV_NAME,
 };
 
