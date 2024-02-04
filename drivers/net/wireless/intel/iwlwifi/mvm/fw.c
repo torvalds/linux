@@ -1159,7 +1159,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (!iwl_is_tas_approved()) {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
-				dmi_get_system_info(DMI_SYS_VENDOR));
+				dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
 		if ((!iwl_mvm_add_to_tas_block_list(data.block_list_array,
 						    &data.block_list_size,
 						    IWL_MCC_US)) ||
@@ -1173,7 +1173,7 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	} else {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is in the approved list.\n",
-				dmi_get_system_info(DMI_SYS_VENDOR));
+				dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
 	}
 
 	fw_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
