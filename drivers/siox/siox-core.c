@@ -543,7 +543,7 @@ static void siox_shutdown(struct device *dev)
 		sdriver->shutdown(sdevice);
 }
 
-static struct bus_type siox_bus_type = {
+static const struct bus_type siox_bus_type = {
 	.name = "siox",
 	.match = siox_match,
 	.probe = siox_probe,
