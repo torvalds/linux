@@ -219,7 +219,7 @@ static int wmidev_match_guid(struct device *dev, const void *data)
 	return 0;
 }
 
-static struct bus_type wmi_bus_type;
+static const struct bus_type wmi_bus_type;
 
 static struct wmi_device *wmi_find_device_by_guid(const char *guid_string)
 {
@@ -899,7 +899,7 @@ static struct class wmi_bus_class = {
 	.name = "wmi_bus",
 };
 
-static struct bus_type wmi_bus_type = {
+static const struct bus_type wmi_bus_type = {
 	.name = "wmi",
 	.dev_groups = wmi_groups,
 	.match = wmi_dev_match,
