@@ -467,6 +467,7 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 		trace_svcrdma_qp_err(newxprt, ret);
 		goto errout;
 	}
+	newxprt->sc_max_send_sges = qp_attr.cap.max_send_sge;
 	newxprt->sc_qp = newxprt->sc_cm_id->qp;
 
 	if (!(dev->attrs.device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS))
