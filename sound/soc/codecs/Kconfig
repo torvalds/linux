@@ -2084,6 +2084,7 @@ config SND_SOC_WCD939X
 
 config SND_SOC_WCD939X_SDW
 	tristate "WCD9390/WCD9395 Codec - SDW"
+	depends on TYPEC || !TYPEC
 	select SND_SOC_WCD939X
 	select SND_SOC_WCD_MBHC
 	select REGMAP_IRQ
