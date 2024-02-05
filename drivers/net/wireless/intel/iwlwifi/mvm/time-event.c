@@ -45,31 +45,23 @@ void iwl_mvm_te_clear_data(struct iwl_mvm *mvm,
 	te_data->link_id = -1;
 }
 
-void iwl_mvm_roc_done_wk(struct work_struct *wk)
+static void iwl_mvm_cleanup_roc(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, roc_done_wk);
-
 	/*
 	 * Clear the ROC_RUNNING status bit.
 	 * This will cause the TX path to drop offchannel transmissions.
 	 * That would also be done by mac80211, but it is racy, in particular
-	 * in the case that the time event actually completed in the firmware
-	 * (which is handled in iwl_mvm_te_handle_notif).
-	 */
-	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
-
-	synchronize_net();
-
-	/*
-	 * Flush the offchannel queue -- this is called when the time
+	 * in the case that the time event actually completed in the firmware.
+	 *
+	 * Also flush the offchannel queue -- this is called when the time
 	 * event finishes or is canceled, so that frames queued for it
 	 * won't get stuck on the queue and be transmitted in the next
 	 * time event.
 	 */
-
-	mutex_lock(&mvm->mutex);
-	if (test_and_clear_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status)) {
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status)) {
 		struct iwl_mvm_vif *mvmvif;
+
+		synchronize_net();
 
 		/*
 		 * NB: access to this pointer would be racy, but the flush bit
@@ -105,21 +97,16 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 		}
 	}
 
-	/*
-	 * Clear the ROC_AUX_RUNNING status bit.
-	 * This will cause the TX path to drop offchannel transmissions.
-	 * That would also be done by mac80211, but it is racy, in particular
-	 * in the case that the time event actually completed in the firmware
-	 * (which is handled in iwl_mvm_te_handle_notif).
-	 */
+	/* Do the same for AUX ROC */
 	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status)) {
-		/* do the same in case of hot spot 2.0 */
+		synchronize_net();
+
 		iwl_mvm_flush_sta(mvm, mvm->aux_sta.sta_id,
 				  mvm->aux_sta.tfd_queue_msk);
 
 		if (mvm->mld_api_is_used) {
 			iwl_mvm_mld_rm_aux_sta(mvm);
-			goto out_unlock;
+			return;
 		}
 
 		/* In newer version of this command an aux station is added only
@@ -128,8 +115,14 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 		if (iwl_mvm_has_new_station_api(mvm->fw))
 			iwl_mvm_rm_aux_sta(mvm);
 	}
+}
 
-out_unlock:
+void iwl_mvm_roc_done_wk(struct work_struct *wk)
+{
+	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, roc_done_wk);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_cleanup_roc(mvm);
 	mutex_unlock(&mvm->mutex);
 }
 
@@ -294,18 +287,6 @@ static void iwl_mvm_te_check_trigger(struct iwl_mvm *mvm,
 	}
 }
 
-static void iwl_mvm_p2p_roc_finished(struct iwl_mvm *mvm)
-{
-	/*
-	 * If the IWL_MVM_STATUS_NEED_FLUSH_P2P is already set, then the
-	 * roc_done_wk is already scheduled or running, so don't schedule it
-	 * again to avoid a race where the roc_done_wk clears this bit after
-	 * it is set here, affecting the next run of the roc_done_wk.
-	 */
-	if (!test_and_set_bit(IWL_MVM_STATUS_NEED_FLUSH_P2P, &mvm->status))
-		iwl_mvm_roc_finished(mvm);
-}
-
 /*
  * Handles a FW notification for an event that is known to the driver.
  *
@@ -357,7 +338,7 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 		switch (te_data->vif->type) {
 		case NL80211_IFTYPE_P2P_DEVICE:
 			ieee80211_remain_on_channel_expired(mvm->hw);
-			iwl_mvm_p2p_roc_finished(mvm);
+			iwl_mvm_roc_finished(mvm);
 			break;
 		case NL80211_IFTYPE_STATION:
 			/*
@@ -782,7 +763,7 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 			iwl_mvm_cancel_session_protection(mvm, vif, id,
 							  link_id);
 			if (iftype == NL80211_IFTYPE_P2P_DEVICE) {
-				iwl_mvm_p2p_roc_finished(mvm);
+				iwl_mvm_roc_finished(mvm);
 			}
 		}
 		return false;
@@ -972,7 +953,7 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 		/* End TE, notify mac80211 */
 		mvmvif->time_event_data.id = SESSION_PROTECT_CONF_MAX_ID;
 		mvmvif->time_event_data.link_id = -1;
-		iwl_mvm_p2p_roc_finished(mvm);
+		iwl_mvm_roc_finished(mvm);
 		ieee80211_remain_on_channel_expired(mvm->hw);
 	} else if (le32_to_cpu(notif->start)) {
 		if (WARN_ON(mvmvif->time_event_data.id !=
@@ -1244,17 +1225,13 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
 		mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+		if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 			iwl_mvm_cancel_session_protection(mvm, vif,
 							  mvmvif->time_event_data.id,
 							  mvmvif->time_event_data.link_id);
-			iwl_mvm_p2p_roc_finished(mvm);
-		} else {
+		else
 			iwl_mvm_roc_station_remove(mvm, mvmvif);
-			iwl_mvm_roc_finished(mvm);
-		}
-
-		return;
+		goto cleanup_roc;
 	}
 
 	te_data = iwl_mvm_get_roc_te(mvm);
@@ -1265,13 +1242,21 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 	mvmvif = iwl_mvm_vif_from_mac80211(te_data->vif);
 
-	if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+	if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		iwl_mvm_remove_time_event(mvm, mvmvif, te_data);
-		iwl_mvm_p2p_roc_finished(mvm);
-	} else {
+	else
 		iwl_mvm_remove_aux_roc_te(mvm, mvmvif, te_data);
-		iwl_mvm_roc_finished(mvm);
-	}
+
+cleanup_roc:
+	/*
+	 * In case we get here before the ROC event started,
+	 * (so the status bit isn't set) set it here so iwl_mvm_cleanup_roc will
+	 * cleanup things properly
+	 */
+	set_bit(vif->type == NL80211_IFTYPE_P2P_DEVICE ?
+		IWL_MVM_STATUS_ROC_RUNNING : IWL_MVM_STATUS_ROC_AUX_RUNNING,
+		&mvm->status);
+	iwl_mvm_cleanup_roc(mvm);
 }
 
 void iwl_mvm_remove_csa_period(struct iwl_mvm *mvm,

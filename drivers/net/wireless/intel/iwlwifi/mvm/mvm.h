@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1221,7 +1221,6 @@ struct iwl_mvm {
  * @IWL_MVM_STATUS_IN_HW_RESTART: HW restart is active
  * @IWL_MVM_STATUS_ROC_AUX_RUNNING: AUX remain-on-channel is running
  * @IWL_MVM_STATUS_FIRMWARE_RUNNING: firmware is running
- * @IWL_MVM_STATUS_NEED_FLUSH_P2P: need to flush P2P bcast STA
  * @IWL_MVM_STATUS_IN_D3: in D3 (or at least about to go into it)
  * @IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE: suppress one error log
  *	if this is set, when intentionally triggered
@@ -1236,7 +1235,6 @@ enum iwl_mvm_status {
 	IWL_MVM_STATUS_IN_HW_RESTART,
 	IWL_MVM_STATUS_ROC_AUX_RUNNING,
 	IWL_MVM_STATUS_FIRMWARE_RUNNING,
-	IWL_MVM_STATUS_NEED_FLUSH_P2P,
 	IWL_MVM_STATUS_IN_D3,
 	IWL_MVM_STATUS_SUPPRESS_ERROR_LOG_ONCE,
 	IWL_MVM_STATUS_STARTING,
