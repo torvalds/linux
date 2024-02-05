@@ -4246,9 +4246,23 @@ static void bnxt_init_vnics(struct bnxt *bp)
 				u8 *key = (void *)vnic->rss_hash_key;
 				int k;
 
+				if (!bp->rss_hash_key_valid &&
+				    !bp->rss_hash_key_updated) {
+					get_random_bytes(bp->rss_hash_key,
+							 HW_HASH_KEY_SIZE);
+					bp->rss_hash_key_updated = true;
+				}
+
+				memcpy(vnic->rss_hash_key, bp->rss_hash_key,
+				       HW_HASH_KEY_SIZE);
+
+				if (!bp->rss_hash_key_updated)
+					continue;
+
+				bp->rss_hash_key_updated = false;
+				bp->rss_hash_key_valid = true;
+
 				bp->toeplitz_prefix = 0;
-				get_random_bytes(vnic->rss_hash_key,
-					      HW_HASH_KEY_SIZE);
 				for (k = 0; k < 8; k++) {
 					bp->toeplitz_prefix <<= 8;
 					bp->toeplitz_prefix |= key[k];

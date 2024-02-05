@@ -2222,6 +2222,10 @@ struct bnxt {
 #define BNXT_RSS_CAP_NEW_RSS_CAP		BIT(2)
 #define BNXT_RSS_CAP_RSS_TCAM			BIT(3)
 
+	u8			rss_hash_key[HW_HASH_KEY_SIZE];
+	u8			rss_hash_key_valid:1;
+	u8			rss_hash_key_updated:1;
+
 	u16			max_mtu;
 	u8			max_tc;
 	u8			max_lltc;	/* lossless TCs */

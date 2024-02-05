@@ -1755,8 +1755,10 @@ static int bnxt_set_rxfh(struct net_device *dev,
 	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (rxfh->key)
-		return -EOPNOTSUPP;
+	if (rxfh->key) {
+		memcpy(bp->rss_hash_key, rxfh->key, HW_HASH_KEY_SIZE);
+		bp->rss_hash_key_updated = true;
+	}
 
 	if (rxfh->indir) {
 		u32 i, pad, tbl_size = bnxt_get_rxfh_indir_size(dev);
