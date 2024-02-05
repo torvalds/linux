@@ -20,7 +20,8 @@ ath12k-y += core.o \
 	    mhi.o \
 	    pci.o \
 	    dp_mon.o \
-	    fw.o
+	    fw.o \
+	    p2p.o
 
 ath12k-$(CONFIG_ATH12K_TRACING) += trace.o
 
