@@ -2100,15 +2100,11 @@ static bool iwl_mvm_setup_connection_keep(struct iwl_mvm *mvm,
 		.status = status,
 	};
 	int i;
-
 	u32 disconnection_reasons =
 		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_MISSED_BEACON |
 		IWL_WOWLAN_WAKEUP_BY_DISCONNECTION_ON_DEAUTH;
 
 	if (!status || !vif->bss_conf.bssid)
-		return false;
-
-	if (status->wakeup_reasons & disconnection_reasons)
 		return false;
 
 	if (iwl_mvm_lookup_wowlan_status_ver(mvm) > 6 ||
@@ -2170,6 +2166,9 @@ out:
 		/* +0x10 because the set API expects next-to-use, not last-used */
 		mvmvif->seqno = status->non_qos_seq_ctr + 0x10;
 	}
+
+	if (status->wakeup_reasons & disconnection_reasons)
+		return false;
 
 	return true;
 }
