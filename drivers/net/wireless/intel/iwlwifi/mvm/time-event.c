@@ -706,8 +706,7 @@ static int iwl_mvm_get_session_prot_id(struct iwl_mvm *mvm,
 		 "Invalid link ID for session protection: %u\n", link_id))
 		return -EINVAL;
 
-	if (WARN(ieee80211_vif_is_mld(vif) &&
-		 !(vif->active_links & BIT(link_id)),
+	if (WARN(!mvmvif->link[link_id]->active,
 		 "Session Protection on an inactive link: %u\n", link_id))
 		return -EINVAL;
 
