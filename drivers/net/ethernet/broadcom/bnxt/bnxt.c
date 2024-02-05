@@ -4840,7 +4840,7 @@ static int bnxt_alloc_ntp_fltrs(struct bnxt *bp)
 		INIT_HLIST_HEAD(&bp->ntp_fltr_hash_tbl[i]);
 
 	bp->ntp_fltr_count = 0;
-	bp->ntp_fltr_bmap = bitmap_zalloc(BNXT_MAX_FLTR, GFP_KERNEL);
+	bp->ntp_fltr_bmap = bitmap_zalloc(bp->max_fltr, GFP_KERNEL);
 
 	if (!bp->ntp_fltr_bmap)
 		rc = -ENOMEM;
@@ -5480,7 +5480,7 @@ static int bnxt_init_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr,
 		int bit_id;
 
 		bit_id = bitmap_find_free_region(bp->ntp_fltr_bmap,
-						 BNXT_MAX_FLTR, 0);
+						 bp->max_fltr, 0);
 		if (bit_id < 0)
 			return -ENOMEM;
 		fltr->base.sw_id = (u16)bit_id;
@@ -8709,6 +8709,13 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 	hw_resc->max_vnics = le16_to_cpu(resp->max_vnics);
 	hw_resc->max_stat_ctxs = le16_to_cpu(resp->max_stat_ctx);
 
+	hw_resc->max_encap_records = le32_to_cpu(resp->max_encap_records);
+	hw_resc->max_decap_records = le32_to_cpu(resp->max_decap_records);
+	hw_resc->max_tx_em_flows = le32_to_cpu(resp->max_tx_em_flows);
+	hw_resc->max_tx_wm_flows = le32_to_cpu(resp->max_tx_wm_flows);
+	hw_resc->max_rx_em_flows = le32_to_cpu(resp->max_rx_em_flows);
+	hw_resc->max_rx_wm_flows = le32_to_cpu(resp->max_rx_wm_flows);
+
 	if (BNXT_PF(bp)) {
 		struct bnxt_pf_info *pf = &bp->pf;
 
@@ -8717,12 +8724,6 @@ static int __bnxt_hwrm_func_qcaps(struct bnxt *bp)
 		memcpy(pf->mac_addr, resp->mac_address, ETH_ALEN);
 		pf->first_vf_id = le16_to_cpu(resp->first_vf_id);
 		pf->max_vfs = le16_to_cpu(resp->max_vfs);
-		pf->max_encap_records = le32_to_cpu(resp->max_encap_records);
-		pf->max_decap_records = le32_to_cpu(resp->max_decap_records);
-		pf->max_tx_em_flows = le32_to_cpu(resp->max_tx_em_flows);
-		pf->max_tx_wm_flows = le32_to_cpu(resp->max_tx_wm_flows);
-		pf->max_rx_em_flows = le32_to_cpu(resp->max_rx_em_flows);
-		pf->max_rx_wm_flows = le32_to_cpu(resp->max_rx_wm_flows);
 		bp->flags &= ~BNXT_FLAG_WOL_CAP;
 		if (flags & FUNC_QCAPS_RESP_FLAGS_WOL_MAGICPKT_SUPPORTED)
 			bp->flags |= BNXT_FLAG_WOL_CAP;
@@ -13900,7 +13901,7 @@ int bnxt_insert_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr,
 	int bit_id;
 
 	spin_lock_bh(&bp->ntp_fltr_lock);
-	bit_id = bitmap_find_free_region(bp->ntp_fltr_bmap, BNXT_MAX_FLTR, 0);
+	bit_id = bitmap_find_free_region(bp->ntp_fltr_bmap, bp->max_fltr, 0);
 	if (bit_id < 0) {
 		spin_unlock_bh(&bp->ntp_fltr_lock);
 		return -ENOMEM;
@@ -14670,6 +14671,7 @@ void bnxt_print_device_info(struct bnxt *bp)
 
 static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
+	struct bnxt_hw_resc *hw_resc;
 	struct net_device *dev;
 	struct bnxt *bp;
 	int rc, max_irqs;
@@ -14828,6 +14830,12 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		goto init_err_pci_clean;
 
+	hw_resc = &bp->hw_resc;
+	bp->max_fltr = hw_resc->max_rx_em_flows + hw_resc->max_rx_wm_flows +
+		       BNXT_L2_FLTR_MAX_FLTR;
+	/* Older firmware may not report these filters properly */
+	if (bp->max_fltr < BNXT_MAX_FLTR)
+		bp->max_fltr = BNXT_MAX_FLTR;
 	bnxt_init_l2_fltr_tbl(bp);
 	bnxt_set_rx_skb_mode(bp, false);
 	bnxt_set_tpa_flags(bp);

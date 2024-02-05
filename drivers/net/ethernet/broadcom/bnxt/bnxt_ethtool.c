@@ -1077,7 +1077,7 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	struct flow_keys *fkeys;
 	int rc = -EINVAL;
 
-	if (fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
+	if (fs->location >= bp->max_fltr)
 		return rc;
 
 	rcu_read_lock();
@@ -1521,7 +1521,7 @@ static int bnxt_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 
 	case ETHTOOL_GRXCLSRLCNT:
 		cmd->rule_cnt = bp->ntp_fltr_count;
-		cmd->data = BNXT_NTP_FLTR_MAX_FLTR | RX_CLS_LOC_SPECIAL;
+		cmd->data = bp->max_fltr | RX_CLS_LOC_SPECIAL;
 		break;
 
 	case ETHTOOL_GRXCLSRLALL:

@@ -1281,6 +1281,12 @@ struct bnxt_hw_resc {
 	u16	max_nqs;
 	u16	max_irqs;
 	u16	resv_irqs;
+	u32	max_encap_records;
+	u32	max_decap_records;
+	u32	max_tx_em_flows;
+	u32	max_tx_wm_flows;
+	u32	max_rx_em_flows;
+	u32	max_rx_wm_flows;
 };
 
 #if defined(CONFIG_BNXT_SRIOV)
@@ -1315,12 +1321,6 @@ struct bnxt_pf_info {
 	u16	active_vfs;
 	u16	registered_vfs;
 	u16	max_vfs;
-	u32	max_encap_records;
-	u32	max_decap_records;
-	u32	max_tx_em_flows;
-	u32	max_tx_wm_flows;
-	u32	max_rx_em_flows;
-	u32	max_rx_wm_flows;
 	unsigned long	*vf_event_bmap;
 	u16	hwrm_cmd_req_pages;
 	u8	vf_resv_strategy;
@@ -2428,6 +2428,7 @@ struct bnxt {
 
 	unsigned long		*ntp_fltr_bmap;
 	int			ntp_fltr_count;
+	int			max_fltr;
 
 #define BNXT_L2_FLTR_MAX_FLTR	1024
 #define BNXT_L2_FLTR_HASH_SIZE	32
