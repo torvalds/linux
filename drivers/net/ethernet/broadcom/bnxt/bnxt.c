@@ -4871,6 +4871,17 @@ void bnxt_del_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
 		list_del_init(&fltr->list);
 }
 
+void bnxt_clear_usr_fltrs(struct bnxt *bp, bool all)
+{
+	struct bnxt_filter_base *usr_fltr, *tmp;
+
+	list_for_each_entry_safe(usr_fltr, tmp, &bp->usr_fltr_list, list) {
+		if (!all && usr_fltr->type == BNXT_FLTR_TYPE_L2)
+			continue;
+		bnxt_del_one_usr_fltr(bp, usr_fltr);
+	}
+}
+
 static void bnxt_del_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
 {
 	hlist_del(&fltr->hash);
@@ -12415,6 +12426,8 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 
 	if (features & NETIF_F_NTUPLE)
 		flags |= BNXT_FLAG_RFS;
+	else
+		bnxt_clear_usr_fltrs(bp, true);
 
 	changes = flags ^ bp->flags;
 	if (changes & BNXT_FLAG_TPA) {
@@ -13912,6 +13925,7 @@ static int bnxt_change_mac_addr(struct net_device *dev, void *p)
 		return rc;
 
 	eth_hw_addr_set(dev, addr->sa_data);
+	bnxt_clear_usr_fltrs(bp, true);
 	if (netif_running(dev)) {
 		bnxt_close_nic(bp, false, false);
 		rc = bnxt_open_nic(bp, false, false);
