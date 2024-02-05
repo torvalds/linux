@@ -2563,8 +2563,7 @@ static int tsnep_probe(struct platform_device *pdev)
 	mutex_init(&adapter->rxnfc_lock);
 	INIT_LIST_HEAD(&adapter->rxnfc_rules);
 
-	io = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adapter->addr = devm_ioremap_resource(&pdev->dev, io);
+	adapter->addr = devm_platform_get_and_ioremap_resource(pdev, 0, &io);
 	if (IS_ERR(adapter->addr))
 		return PTR_ERR(adapter->addr);
 	netdev->mem_start = io->start;
