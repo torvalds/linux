@@ -151,6 +151,20 @@
 			clocks = <&clk IMX8MM_CLK_SAI3_ROOT>;
 		};
 	};
+
+	sound-micfil {
+		compatible = "fsl,imx-audio-card";
+		model = "micfil-audio";
+
+		pri-dai-link {
+			link-name = "micfil hifi";
+			format = "i2s";
+
+			cpu {
+				sound-dai = <&micfil>;
+			};
+		};
+	};
 };
 
 &A53_0 {
@@ -434,6 +448,16 @@
 	status = "okay";
 };
 
+&micfil {
+	#sound-dai-cells = <0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pdm>;
+	assigned-clocks = <&clk IMX8MM_CLK_PDM>;
+	assigned-clock-parents = <&clk IMX8MM_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <196608000>;
+	status = "okay";
+};
+
 &mipi_csi {
 	status = "okay";
 
@@ -633,6 +657,18 @@
 	pinctrl_pcie0_reg: pcie0reggrp {
 		fsl,pins = <
 			MX8MM_IOMUXC_GPIO1_IO05_GPIO1_IO5       0x41
+		>;
+	};
+
+	pinctrl_pdm: pdmgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SAI5_MCLK_SAI5_MCLK        0xd6
+			MX8MM_IOMUXC_SAI5_RXC_PDM_CLK           0xd6
+			MX8MM_IOMUXC_SAI5_RXFS_SAI5_RX_SYNC     0xd6
+			MX8MM_IOMUXC_SAI5_RXD0_PDM_DATA0        0xd6
+			MX8MM_IOMUXC_SAI5_RXD1_PDM_DATA1        0xd6
+			MX8MM_IOMUXC_SAI5_RXD2_PDM_DATA2        0xd6
+			MX8MM_IOMUXC_SAI5_RXD3_PDM_DATA3        0xd6
 		>;
 	};
 
