@@ -1595,9 +1595,11 @@ static int vdec_stop_session(struct vpu_inst *inst, u32 type)
 	if (V4L2_TYPE_IS_OUTPUT(type)) {
 		vdec_update_state(inst, VPU_CODEC_STATE_SEEK, 0);
 		vdec->drain = 0;
+		vdec_abort(inst);
 	} else {
 		if (inst->state != VPU_CODEC_STATE_DYAMIC_RESOLUTION_CHANGE) {
-			vdec_abort(inst);
+			if (vb2_is_streaming(v4l2_m2m_get_src_vq(inst->fh.m2m_ctx)))
+				vdec_abort(inst);
 			vdec->eos_received = 0;
 		}
 		vdec_clear_slots(inst);
