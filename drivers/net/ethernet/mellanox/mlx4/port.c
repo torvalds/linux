@@ -2118,7 +2118,7 @@ static void mlx4_qsfp_eeprom_params_set(u8 *i2c_addr, u8 *page_num, u16 *offset)
  * @data: output buffer to put the requested data into.
  *
  * Reads cable module eeprom data, puts the outcome data into
- * data pointer paramer.
+ * data pointer parameter.
  * Returns num of read bytes on success or a negative error
  * code.
  */
