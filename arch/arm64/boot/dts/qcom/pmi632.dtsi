@@ -157,6 +157,11 @@
 			status = "disabled";
 		};
 
+		pmi632_pbs_client3: pbs@7400 {
+			compatible = "qcom,pmi632-pbs", "qcom,pbs";
+			reg = <0x7400>;
+		};
+
 		pmi632_sdam_7: nvram@b600 {
 			compatible = "qcom,spmi-sdam";
 			reg = <0xb600>;
@@ -184,6 +189,10 @@
 
 		pmi632_lpg: pwm {
 			compatible = "qcom,pmi632-lpg";
+
+			nvmem = <&pmi632_sdam_7>;
+			nvmem-names = "lpg_chan_sdam";
+			qcom,pbs = <&pmi632_pbs_client3>;
 
 			#address-cells = <1>;
 			#size-cells = <0>;
