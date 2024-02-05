@@ -6046,6 +6046,7 @@ void iwl_mvm_mac_event_callback(struct ieee80211_hw *hw,
 	}
 }
 
+#define SYNC_RX_QUEUE_TIMEOUT (HZ)
 void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 				     enum iwl_mvm_rxq_notif_type type,
 				     bool sync,
@@ -6095,7 +6096,7 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 		ret = wait_event_timeout(mvm->rx_sync_waitq,
 					 READ_ONCE(mvm->queue_sync_state) == 0 ||
 					 iwl_mvm_is_radio_killed(mvm),
-					 HZ);
+					 SYNC_RX_QUEUE_TIMEOUT);
 		WARN_ONCE(!ret && !iwl_mvm_is_radio_killed(mvm),
 			  "queue sync: failed to sync, state is 0x%lx, cookie %d\n",
 			  mvm->queue_sync_state,
