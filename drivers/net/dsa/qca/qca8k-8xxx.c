@@ -950,15 +950,15 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 	struct device *dev = ds->dev;
 	struct device_node *mdio;
 	struct mii_bus *bus;
-	int err = 0;
+	int ret = 0;
 
 	mdio = of_get_child_by_name(dev->of_node, "mdio");
 	if (mdio && !of_device_is_available(mdio))
-		goto out;
+		goto out_put_node;
 
 	bus = devm_mdiobus_alloc(dev);
 	if (!bus) {
-		err = -ENOMEM;
+		ret = -ENOMEM;
 		goto out_put_node;
 	}
 
@@ -984,12 +984,11 @@ qca8k_mdio_register(struct qca8k_priv *priv)
 		bus->write = qca8k_legacy_mdio_write;
 	}
 
-	err = devm_of_mdiobus_register(dev, bus, mdio);
+	ret = devm_of_mdiobus_register(dev, bus, mdio);
 
 out_put_node:
 	of_node_put(mdio);
-out:
-	return err;
+	return ret;
 }
 
 static int
@@ -998,7 +997,7 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
 	struct device_node *ports, *port;
 	phy_interface_t mode;
-	int err;
+	int ret;
 
 	ports = of_get_child_by_name(priv->dev->of_node, "ports");
 	if (!ports)
@@ -1008,11 +1007,11 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 		return -EINVAL;
 
 	for_each_available_child_of_node(ports, port) {
-		err = of_property_read_u32(port, "reg", &reg);
-		if (err) {
+		ret = of_property_read_u32(port, "reg", &reg);
+		if (ret) {
 			of_node_put(port);
 			of_node_put(ports);
-			return err;
+			return ret;
 		}
 
 		if (!dsa_is_user_port(priv->ds, reg))
