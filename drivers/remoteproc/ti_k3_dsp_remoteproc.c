@@ -598,16 +598,13 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	/* use remaining reserved memory regions for static carveouts */
 	for (i = 0; i < num_rmems; i++) {
 		rmem_np = of_parse_phandle(np, "memory-region", i + 1);
-		if (!rmem_np) {
-			ret = -EINVAL;
-			goto unmap_rmem;
-		}
+		if (!rmem_np)
+			return -EINVAL;
 
 		rmem = of_reserved_mem_lookup(rmem_np);
 		if (!rmem) {
 			of_node_put(rmem_np);
-			ret = -EINVAL;
-			goto unmap_rmem;
+			return -EINVAL;
 		}
 		of_node_put(rmem_np);
 
@@ -615,12 +612,11 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 		/* 64-bit address regions currently not supported */
 		kproc->rmem[i].dev_addr = (u32)rmem->base;
 		kproc->rmem[i].size = rmem->size;
-		kproc->rmem[i].cpu_addr = ioremap_wc(rmem->base, rmem->size);
+		kproc->rmem[i].cpu_addr = devm_ioremap_wc(dev, rmem->base, rmem->size);
 		if (!kproc->rmem[i].cpu_addr) {
 			dev_err(dev, "failed to map reserved memory#%d at %pa of size %pa\n",
 				i + 1, &rmem->base, &rmem->size);
-			ret = -ENOMEM;
-			goto unmap_rmem;
+			return -ENOMEM;
 		}
 
 		dev_dbg(dev, "reserved memory%d: bus addr %pa size 0x%zx va %pK da 0x%x\n",
@@ -631,19 +627,6 @@ static int k3_dsp_reserved_mem_init(struct k3_dsp_rproc *kproc)
 	kproc->num_rmems = num_rmems;
 
 	return 0;
-
-unmap_rmem:
-	for (i--; i >= 0; i--)
-		iounmap(kproc->rmem[i].cpu_addr);
-	return ret;
-}
-
-static void k3_dsp_reserved_mem_exit(struct k3_dsp_rproc *kproc)
-{
-	int i;
-
-	for (i = 0; i < kproc->num_rmems; i++)
-		iounmap(kproc->rmem[i].cpu_addr);
 }
 
 static void k3_dsp_release_tsp(void *data)
@@ -752,10 +735,8 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 
 	ret = kproc->ti_sci->ops.dev_ops.is_on(kproc->ti_sci, kproc->ti_sci_id,
 					       NULL, &p_state);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to get initial state, mode cannot be determined\n");
-		goto release_mem;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to get initial state, mode cannot be determined\n");
 
 	/* configure J721E devices for either remoteproc or IPC-only mode */
 	if (p_state) {
@@ -779,8 +760,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 		if (data->uses_lreset) {
 			ret = reset_control_status(kproc->reset);
 			if (ret < 0) {
-				dev_err_probe(dev, ret, "failed to get reset status\n");
-				goto release_mem;
+				return dev_err_probe(dev, ret, "failed to get reset status\n");
 			} else if (ret == 0) {
 				dev_warn(dev, "local reset is deasserted for device\n");
 				k3_dsp_rproc_reset(kproc);
@@ -789,18 +769,12 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	}
 
 	ret = rproc_add(rproc);
-	if (ret) {
-		dev_err_probe(dev, ret, "failed to add register device with remoteproc core\n");
-		goto release_mem;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to add register device with remoteproc core\n");
 
 	platform_set_drvdata(pdev, kproc);
 
 	return 0;
-
-release_mem:
-	k3_dsp_reserved_mem_exit(kproc);
-	return ret;
 }
 
 static void k3_dsp_rproc_remove(struct platform_device *pdev)
@@ -820,8 +794,6 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 	}
 
 	rproc_del(kproc->rproc);
-
-	k3_dsp_reserved_mem_exit(kproc);
 }
 
 static const struct k3_dsp_mem_data c66_mems[] = {
