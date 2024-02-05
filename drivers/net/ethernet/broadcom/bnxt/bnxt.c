@@ -4841,6 +4841,16 @@ static void bnxt_clear_ring_indices(struct bnxt *bp)
 	}
 }
 
+static void bnxt_del_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
+{
+	hlist_del(&fltr->hash);
+	if (fltr->flags) {
+		clear_bit(fltr->sw_id, bp->ntp_fltr_bmap);
+		bp->ntp_fltr_count--;
+	}
+	kfree(fltr);
+}
+
 static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 {
 	int i;
@@ -4858,10 +4868,7 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 			bnxt_del_l2_filter(bp, fltr->l2_fltr);
 			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
 				continue;
-			hlist_del(&fltr->base.hash);
-			clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
-			bp->ntp_fltr_count--;
-			kfree(fltr);
+			bnxt_del_fltr(bp, &fltr->base);
 		}
 	}
 	if (!all)
@@ -4904,12 +4911,7 @@ static void bnxt_free_l2_filters(struct bnxt *bp, bool all)
 		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
 			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
 				continue;
-			hlist_del(&fltr->base.hash);
-			if (fltr->base.flags) {
-				clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
-				bp->ntp_fltr_count--;
-			}
-			kfree(fltr);
+			bnxt_del_fltr(bp, &fltr->base);
 		}
 	}
 }

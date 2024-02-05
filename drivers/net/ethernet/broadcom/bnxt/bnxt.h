@@ -1365,6 +1365,7 @@ extern const struct bnxt_flow_masks BNXT_FLOW_IPV6_MASK_ALL;
 extern const struct bnxt_flow_masks BNXT_FLOW_IPV4_MASK_ALL;
 
 struct bnxt_ntuple_filter {
+	/* base filter must be the first member */
 	struct bnxt_filter_base	base;
 	struct flow_keys	fkeys;
 	struct bnxt_flow_masks	fmasks;
@@ -1395,6 +1396,7 @@ struct bnxt_ipv6_tuple {
 #define BNXT_L2_KEY_SIZE	(sizeof(struct bnxt_l2_key) / 4)
 
 struct bnxt_l2_filter {
+	/* base filter must be the first member */
 	struct bnxt_filter_base	base;
 	struct bnxt_l2_key	l2_key;
 	atomic_t		refcnt;
