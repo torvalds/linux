@@ -614,8 +614,13 @@ static void mlx5vf_save_callback(int status, struct mlx5_async_work *context)
 
 err:
 	/* The error flow can't run from an interrupt context */
-	if (status == -EREMOTEIO)
+	if (status == -EREMOTEIO) {
 		status = MLX5_GET(save_vhca_state_out, async_data->out, status);
+		/* Failed in FW, print cmd out failure details */
+		mlx5_cmd_out_err(migf->mvdev->mdev, MLX5_CMD_OP_SAVE_VHCA_STATE, 0,
+				 async_data->out);
+	}
+
 	async_data->status = status;
 	queue_work(migf->mvdev->cb_wq, &async_data->work);
 }
