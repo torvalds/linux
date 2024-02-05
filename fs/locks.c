@@ -1925,18 +1925,6 @@ static int generic_delete_lease(struct file *filp, void *owner)
 int generic_setlease(struct file *filp, int arg, struct file_lease **flp,
 			void **priv)
 {
-	struct inode *inode = file_inode(filp);
-	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(filp), inode);
-	int error;
-
-	if ((!vfsuid_eq_kuid(vfsuid, current_fsuid())) && !capable(CAP_LEASE))
-		return -EACCES;
-	if (!S_ISREG(inode->i_mode))
-		return -EINVAL;
-	error = security_file_lock(filp, arg);
-	if (error)
-		return error;
-
 	switch (arg) {
 	case F_UNLCK:
 		return generic_delete_lease(filp, *priv);
@@ -1987,6 +1975,19 @@ void lease_unregister_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(lease_unregister_notifier);
 
+
+int
+kernel_setlease(struct file *filp, int arg, struct file_lease **lease, void **priv)
+{
+	if (lease)
+		setlease_notifier(arg, *lease);
+	if (filp->f_op->setlease)
+		return filp->f_op->setlease(filp, arg, lease, priv);
+	else
+		return generic_setlease(filp, arg, lease, priv);
+}
+EXPORT_SYMBOL_GPL(kernel_setlease);
+
 /**
  * vfs_setlease        -       sets a lease on an open file
  * @filp:	file pointer
@@ -2007,12 +2008,18 @@ EXPORT_SYMBOL_GPL(lease_unregister_notifier);
 int
 vfs_setlease(struct file *filp, int arg, struct file_lease **lease, void **priv)
 {
-	if (lease)
-		setlease_notifier(arg, *lease);
-	if (filp->f_op->setlease)
-		return filp->f_op->setlease(filp, arg, lease, priv);
-	else
-		return generic_setlease(filp, arg, lease, priv);
+	struct inode *inode = file_inode(filp);
+	vfsuid_t vfsuid = i_uid_into_vfsuid(file_mnt_idmap(filp), inode);
+	int error;
+
+	if ((!vfsuid_eq_kuid(vfsuid, current_fsuid())) && !capable(CAP_LEASE))
+		return -EACCES;
+	if (!S_ISREG(inode->i_mode))
+		return -EINVAL;
+	error = security_file_lock(filp, arg);
+	if (error)
+		return error;
+	return kernel_setlease(filp, arg, lease, priv);
 }
 EXPORT_SYMBOL_GPL(vfs_setlease);
 

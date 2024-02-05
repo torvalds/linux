@@ -170,7 +170,7 @@ nfsd4_free_layout_stateid(struct nfs4_stid *stid)
 	spin_unlock(&fp->fi_lock);
 
 	if (!nfsd4_layout_ops[ls->ls_layout_type]->disable_recalls)
-		vfs_setlease(ls->ls_file->nf_file, F_UNLCK, NULL, (void **)&ls);
+		kernel_setlease(ls->ls_file->nf_file, F_UNLCK, NULL, (void **)&ls);
 	nfsd_file_put(ls->ls_file);
 
 	if (ls->ls_recalled)
@@ -199,8 +199,7 @@ nfsd4_layout_setlease(struct nfs4_layout_stateid *ls)
 	fl->c.flc_pid = current->tgid;
 	fl->c.flc_file = ls->ls_file->nf_file;
 
-	status = vfs_setlease(fl->c.flc_file, fl->c.flc_type, &fl,
-			      NULL);
+	status = kernel_setlease(fl->c.flc_file, fl->c.flc_type, &fl, NULL);
 	if (status) {
 		locks_free_lease(fl);
 		return status;
