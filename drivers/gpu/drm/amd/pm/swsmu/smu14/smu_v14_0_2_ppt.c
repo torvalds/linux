@@ -1637,7 +1637,13 @@ static int smu_v14_0_2_mode1_reset(struct smu_context *smu)
 {
 	int ret = 0;
 
-	// TODO
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+	if (!ret) {
+		if (amdgpu_emu_mode == 1)
+			msleep(50000);
+		else
+			msleep(500);
+	}
 
 	return ret;
 }
