@@ -3389,6 +3389,7 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 				    size_t count, loff_t *ppos)
 {
 	struct iwl_mvm *mvm = file->private_data;
+	unsigned long end = jiffies + 60 * HZ;
 	u32 pme_asserted;
 
 	while (true) {
@@ -3402,6 +3403,12 @@ static ssize_t iwl_mvm_d3_test_read(struct file *file, char __user *user_buf,
 
 		if (msleep_interruptible(100))
 			break;
+
+		if (time_is_before_jiffies(end)) {
+			IWL_ERR(mvm,
+				"ending pseudo-D3 with timeout after ~60 seconds\n");
+			return -ETIMEDOUT;
+		}
 	}
 
 	return 0;
