@@ -19,6 +19,8 @@
 #include <linux/kernel.h>
 #include <asm/asm-extable.h>
 #include <linux/memblock.h>
+#include <asm/access-regs.h>
+#include <asm/fpu/api.h>
 #include <asm/diag.h>
 #include <asm/ebcdic.h>
 #include <asm/ipl.h>
@@ -31,7 +33,6 @@
 #include <asm/sclp.h>
 #include <asm/facility.h>
 #include <asm/boot_data.h>
-#include <asm/switch_to.h>
 #include "entry.h"
 
 #define decompressor_handled_param(param)			\

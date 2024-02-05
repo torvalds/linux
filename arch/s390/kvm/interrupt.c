@@ -19,13 +19,13 @@
 #include <linux/slab.h>
 #include <linux/bitmap.h>
 #include <linux/vmalloc.h>
+#include <asm/access-regs.h>
 #include <asm/asm-offsets.h>
 #include <asm/dis.h>
 #include <linux/uaccess.h>
 #include <asm/sclp.h>
 #include <asm/isc.h>
 #include <asm/gmap.h>
-#include <asm/switch_to.h>
 #include <asm/nmi.h>
 #include <asm/airq.h>
 #include <asm/tpi.h>

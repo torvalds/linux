@@ -11,11 +11,11 @@
 #include <linux/err.h>
 #include <linux/pgtable.h>
 #include <linux/bitfield.h>
+#include <asm/access-regs.h>
 #include <asm/fault.h>
 #include <asm/gmap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
-#include <asm/switch_to.h>
 
 union asce {
 	unsigned long val;

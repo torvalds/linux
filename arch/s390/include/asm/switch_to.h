@@ -10,25 +10,12 @@
 
 #include <linux/thread_info.h>
 #include <asm/fpu/api.h>
+#include <asm/access-regs.h>
 #include <asm/ptrace.h>
 #include <asm/guarded_storage.h>
 
 extern struct task_struct *__switch_to(void *, void *);
 extern void update_cr_regs(struct task_struct *task);
-
-static inline void save_access_regs(unsigned int *acrs)
-{
-	typedef struct { int _[NUM_ACRS]; } acrstype;
-
-	asm volatile("stam 0,15,%0" : "=Q" (*(acrstype *)acrs));
-}
-
-static inline void restore_access_regs(unsigned int *acrs)
-{
-	typedef struct { int _[NUM_ACRS]; } acrstype;
-
-	asm volatile("lam 0,15,%0" : : "Q" (*(acrstype *)acrs));
-}
 
 #define switch_to(prev, next, last) do {				\
 	/* save_fpu_regs() sets the CIF_FPU flag, which enforces	\

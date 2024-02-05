@@ -30,8 +30,8 @@
 #include <linux/compat.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
+#include <asm/access-regs.h>
 #include <asm/lowcore.h>
-#include <asm/switch_to.h>
 #include <asm/vdso.h>
 #include "entry.h"
 

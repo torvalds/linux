@@ -24,6 +24,7 @@
 #include <linux/seccomp.h>
 #include <linux/compat.h>
 #include <trace/syscall.h>
+#include <asm/access-regs.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
