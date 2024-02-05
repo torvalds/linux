@@ -539,8 +539,7 @@ static int w5300_hw_probe(struct platform_device *pdev)
 		eth_hw_addr_random(ndev);
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, mem);
+	priv->base = devm_platform_get_and_ioremap_resource(pdev, 0, &mem);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
