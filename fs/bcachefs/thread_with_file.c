@@ -67,16 +67,15 @@ err:
 
 static inline bool thread_with_stdio_has_output(struct thread_with_stdio *thr)
 {
-	return thr->stdio.output_buf.pos ||
-		thr->output2.nr ||
-		thr->thr.done;
+	return thr->stdio.output_buf.pos || thr->thr.done;
 }
 
-static ssize_t thread_with_stdio_read(struct file *file, char __user *buf,
+static ssize_t thread_with_stdio_read(struct file *file, char __user *ubuf,
 				      size_t len, loff_t *ppos)
 {
 	struct thread_with_stdio *thr =
 		container_of(file->private_data, struct thread_with_stdio, thr);
+	struct printbuf *buf = &thr->stdio.output_buf;
 	size_t copied = 0, b;
 	int ret = 0;
 
@@ -89,44 +88,25 @@ static ssize_t thread_with_stdio_read(struct file *file, char __user *buf,
 	if (ret)
 		return ret;
 
-	if (thr->thr.done)
-		return 0;
-
-	while (len) {
-		ret = darray_make_room(&thr->output2, thr->stdio.output_buf.pos);
-		if (ret)
-			break;
-
-		spin_lock_irq(&thr->stdio.output_lock);
-		b = min_t(size_t, darray_room(thr->output2), thr->stdio.output_buf.pos);
-
-		memcpy(&darray_top(thr->output2), thr->stdio.output_buf.buf, b);
-		memmove(thr->stdio.output_buf.buf,
-			thr->stdio.output_buf.buf + b,
-			thr->stdio.output_buf.pos - b);
-
-		thr->output2.nr += b;
-		thr->stdio.output_buf.pos -= b;
-		spin_unlock_irq(&thr->stdio.output_lock);
-
-		b = min(len, thr->output2.nr);
-		if (!b)
-			break;
-
-		b -= copy_to_user(buf, thr->output2.data, b);
-		if (!b) {
+	while (len && buf->pos) {
+		if (fault_in_writeable(ubuf, len) == len) {
 			ret = -EFAULT;
 			break;
 		}
 
-		copied	+= b;
-		buf	+= b;
-		len	-= b;
+		spin_lock_irq(&thr->stdio.output_lock);
+		b = min_t(size_t, len, buf->pos);
 
-		memmove(thr->output2.data,
-			thr->output2.data + b,
-			thr->output2.nr - b);
-		thr->output2.nr -= b;
+		if (b && !copy_to_user_nofault(ubuf, buf->buf, b)) {
+			memmove(buf->buf,
+				buf->buf + b,
+				buf->pos - b);
+			buf->pos -= b;
+			ubuf	+= b;
+			len	-= b;
+			copied	+= b;
+		}
+		spin_unlock_irq(&thr->stdio.output_lock);
 	}
 
 	return copied ?: ret;
@@ -140,7 +120,6 @@ static int thread_with_stdio_release(struct inode *inode, struct file *file)
 	bch2_thread_with_file_exit(&thr->thr);
 	printbuf_exit(&thr->stdio.input_buf);
 	printbuf_exit(&thr->stdio.output_buf);
-	darray_exit(&thr->output2);
 	thr->exit(thr);
 	return 0;
 }
@@ -245,7 +224,6 @@ int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
 	spin_lock_init(&thr->stdio.output_lock);
 	init_waitqueue_head(&thr->stdio.output_wait);
 
-	darray_init(&thr->output2);
 	thr->exit = exit;
 
 	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdio_fops, fn);

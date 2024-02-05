@@ -20,7 +20,6 @@ int bch2_run_thread_with_file(struct thread_with_file *,
 struct thread_with_stdio {
 	struct thread_with_file	thr;
 	struct stdio_redirect	stdio;
-	DARRAY(char)		output2;
 	void			(*exit)(struct thread_with_stdio *);
 };
 
