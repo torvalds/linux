@@ -1616,7 +1616,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	link_conf->ema_ap = false;
 	link_conf->bssid_indicator = 0;
 
-	__sta_info_flush(sdata, true, -1);
+	__sta_info_flush(sdata, true, link_id);
 	ieee80211_free_keys(sdata, true);
 
 	link_conf->enable_beacon = false;
