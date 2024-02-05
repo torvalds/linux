@@ -501,7 +501,7 @@ int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type)
 						0, &result);
 
 	if (rc)
-		dev_err(hdev->dev, "failed to unmask RAZWI IRQ %d", event_type);
+		dev_err(hdev->dev, "failed to unmask event %d", event_type);
 
 	return rc;
 }
@@ -540,7 +540,7 @@ int hl_fw_unmask_irq_arr(struct hl_device *hdev, const u32 *irq_arr,
 						total_pkt_size, 0, &result);
 
 	if (rc)
-		dev_err(hdev->dev, "failed to unmask IRQ array\n");
+		dev_err(hdev->dev, "failed to unmask event array\n");
 
 	kfree(pkt);
 
