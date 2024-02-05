@@ -197,6 +197,7 @@ struct mlx5vf_pci_core_device {
 enum {
 	MLX5VF_QUERY_INC = (1UL << 0),
 	MLX5VF_QUERY_FINAL = (1UL << 1),
+	MLX5VF_QUERY_CLEANUP = (1UL << 2),
 };
 
 int mlx5vf_cmd_suspend_vhca(struct mlx5vf_pci_core_device *mvdev, u16 op_mod);
@@ -232,7 +233,8 @@ int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
 struct page *mlx5vf_get_migration_page(struct mlx5_vhca_data_buffer *buf,
 				       unsigned long offset);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);
-void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev);
+void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev,
+			enum mlx5_vf_migf_state *last_save_state);
 void mlx5vf_mig_file_cleanup_cb(struct work_struct *_work);
 void mlx5vf_mig_file_set_save_work(struct mlx5_vf_migration_file *migf,
 				   u8 chunk_num, size_t next_required_umem_size);

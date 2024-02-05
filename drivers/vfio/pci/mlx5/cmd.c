@@ -108,8 +108,9 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 		ret = wait_for_completion_interruptible(&mvdev->saving_migf->save_comp);
 		if (ret)
 			return ret;
-		if (mvdev->saving_migf->state ==
-		    MLX5_MIGF_STATE_PRE_COPY_ERROR) {
+		/* Upon cleanup, ignore previous pre_copy error state */
+		if (mvdev->saving_migf->state == MLX5_MIGF_STATE_PRE_COPY_ERROR &&
+		    !(query_flags & MLX5VF_QUERY_CLEANUP)) {
 			/*
 			 * In case we had a PRE_COPY error, only query full
 			 * image for final image
@@ -200,7 +201,7 @@ void mlx5vf_cmd_close_migratable(struct mlx5vf_pci_core_device *mvdev)
 	/* Must be done outside the lock to let it progress */
 	set_tracker_error(mvdev);
 	mutex_lock(&mvdev->state_mutex);
-	mlx5vf_disable_fds(mvdev);
+	mlx5vf_disable_fds(mvdev, NULL);
 	_mlx5vf_free_page_tracker_resources(mvdev);
 	mlx5vf_state_mutex_unlock(mvdev);
 }
@@ -639,6 +640,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	u32 in[MLX5_ST_SZ_DW(save_vhca_state_in)] = {};
 	struct mlx5_vhca_data_buffer *header_buf = NULL;
 	struct mlx5vf_async_data *async_data;
+	bool pre_copy_cleanup = false;
 	int err;
 
 	lockdep_assert_held(&mvdev->state_mutex);
@@ -648,6 +650,10 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 	err = wait_for_completion_interruptible(&migf->save_comp);
 	if (err)
 		return err;
+
+	if ((migf->state == MLX5_MIGF_STATE_PRE_COPY ||
+	     migf->state == MLX5_MIGF_STATE_PRE_COPY_ERROR) && !track && !inc)
+		pre_copy_cleanup = true;
 
 	if (migf->state == MLX5_MIGF_STATE_PRE_COPY_ERROR)
 		/*
@@ -667,7 +673,7 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 
 	async_data = &migf->async_data;
 	async_data->buf = buf;
-	async_data->stop_copy_chunk = !track;
+	async_data->stop_copy_chunk = (!track && !pre_copy_cleanup);
 	async_data->out = kvzalloc(out_size, GFP_KERNEL);
 	if (!async_data->out) {
 		err = -ENOMEM;

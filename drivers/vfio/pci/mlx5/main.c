@@ -1146,7 +1146,8 @@ end:
 	return ERR_PTR(ret);
 }
 
-void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev)
+void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev,
+			enum mlx5_vf_migf_state *last_save_state)
 {
 	if (mvdev->resuming_migf) {
 		mlx5vf_disable_fd(mvdev->resuming_migf);
@@ -1157,6 +1158,8 @@ void mlx5vf_disable_fds(struct mlx5vf_pci_core_device *mvdev)
 	if (mvdev->saving_migf) {
 		mlx5_cmd_cleanup_async_ctx(&mvdev->saving_migf->async_ctx);
 		cancel_work_sync(&mvdev->saving_migf->async_data.work);
+		if (last_save_state)
+			*last_save_state = mvdev->saving_migf->state;
 		mlx5vf_disable_fd(mvdev->saving_migf);
 		wake_up_interruptible(&mvdev->saving_migf->poll_wait);
 		mlx5fv_cmd_clean_migf_resources(mvdev->saving_migf);
@@ -1217,12 +1220,34 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 		return migf->filp;
 	}
 
-	if ((cur == VFIO_DEVICE_STATE_STOP_COPY && new == VFIO_DEVICE_STATE_STOP) ||
-	    (cur == VFIO_DEVICE_STATE_PRE_COPY && new == VFIO_DEVICE_STATE_RUNNING) ||
+	if (cur == VFIO_DEVICE_STATE_STOP_COPY && new == VFIO_DEVICE_STATE_STOP) {
+		mlx5vf_disable_fds(mvdev, NULL);
+		return NULL;
+	}
+
+	if ((cur == VFIO_DEVICE_STATE_PRE_COPY && new == VFIO_DEVICE_STATE_RUNNING) ||
 	    (cur == VFIO_DEVICE_STATE_PRE_COPY_P2P &&
 	     new == VFIO_DEVICE_STATE_RUNNING_P2P)) {
-		mlx5vf_disable_fds(mvdev);
-		return NULL;
+		struct mlx5_vf_migration_file *migf = mvdev->saving_migf;
+		struct mlx5_vhca_data_buffer *buf;
+		enum mlx5_vf_migf_state state;
+		size_t size;
+
+		ret = mlx5vf_cmd_query_vhca_migration_state(mvdev, &size, NULL,
+					MLX5VF_QUERY_INC | MLX5VF_QUERY_CLEANUP);
+		if (ret)
+			return ERR_PTR(ret);
+		buf = mlx5vf_get_data_buffer(migf, size, DMA_FROM_DEVICE);
+		if (IS_ERR(buf))
+			return ERR_CAST(buf);
+		/* pre_copy cleanup */
+		ret = mlx5vf_cmd_save_vhca_state(mvdev, migf, buf, false, false);
+		if (ret) {
+			mlx5vf_put_data_buffer(buf);
+			return ERR_PTR(ret);
+		}
+		mlx5vf_disable_fds(mvdev, &state);
+		return (state != MLX5_MIGF_STATE_ERROR) ? NULL : ERR_PTR(-EIO);
 	}
 
 	if (cur == VFIO_DEVICE_STATE_STOP && new == VFIO_DEVICE_STATE_RESUMING) {
@@ -1244,7 +1269,7 @@ mlx5vf_pci_step_device_state_locked(struct mlx5vf_pci_core_device *mvdev,
 			if (ret)
 				return ERR_PTR(ret);
 		}
-		mlx5vf_disable_fds(mvdev);
+		mlx5vf_disable_fds(mvdev, NULL);
 		return NULL;
 	}
 
@@ -1289,7 +1314,7 @@ again:
 		mvdev->deferred_reset = false;
 		spin_unlock(&mvdev->reset_lock);
 		mvdev->mig_state = VFIO_DEVICE_STATE_RUNNING;
-		mlx5vf_disable_fds(mvdev);
+		mlx5vf_disable_fds(mvdev, NULL);
 		goto again;
 	}
 	mutex_unlock(&mvdev->state_mutex);
