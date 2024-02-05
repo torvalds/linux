@@ -35,4 +35,7 @@ struct kernel_fpu {
 	};
 };
 
+#define DECLARE_KERNEL_FPU_ONSTACK(name)	\
+	struct kernel_fpu name __uninitialized
+
 #endif /* _ASM_S390_FPU_TYPES_H */

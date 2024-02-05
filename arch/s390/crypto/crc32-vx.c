@@ -49,8 +49,8 @@ u32 crc32c_le_vgfm_16(u32 crc, unsigned char const *buf, size_t size);
 	static u32 __pure ___fname(u32 crc,				    \
 				unsigned char const *data, size_t datalen)  \
 	{								    \
-		struct kernel_fpu vxstate;				    \
 		unsigned long prealign, aligned, remaining;		    \
+		DECLARE_KERNEL_FPU_ONSTACK(vxstate);			    \
 									    \
 		if (datalen < VX_MIN_LEN + VX_ALIGN_MASK)		    \
 			return ___crc32_sw(crc, data, datalen);		    \
