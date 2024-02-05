@@ -9589,25 +9589,17 @@ static int gaudi2_handle_pcie_p2p_msix(struct hl_device *hdev, u16 event_type)
 static int gaudi2_handle_pcie_drain(struct hl_device *hdev,
 			struct hl_eq_pcie_drain_ind_data *drain_data)
 {
-	u64 lbw_rd, lbw_wr, hbw_rd, hbw_wr, cause, error_count = 0;
+	u64 cause, error_count = 0;
 
 	cause = le64_to_cpu(drain_data->intr_cause.intr_cause_data);
-	lbw_rd = le64_to_cpu(drain_data->drain_rd_addr_lbw);
-	lbw_wr = le64_to_cpu(drain_data->drain_wr_addr_lbw);
-	hbw_rd = le64_to_cpu(drain_data->drain_rd_addr_hbw);
-	hbw_wr = le64_to_cpu(drain_data->drain_wr_addr_hbw);
 
 	if (cause & BIT_ULL(0)) {
-		dev_err_ratelimited(hdev->dev,
-			"PCIE AXI drain LBW completed, read_err %u, write_err %u\n",
-			!!lbw_rd, !!lbw_wr);
+		dev_err_ratelimited(hdev->dev, "PCIE AXI drain LBW completed\n");
 		error_count++;
 	}
 
 	if (cause & BIT_ULL(1)) {
-		dev_err_ratelimited(hdev->dev,
-			"PCIE AXI drain HBW completed, raddr %#llx, waddr %#llx\n",
-			hbw_rd, hbw_wr);
+		dev_err_ratelimited(hdev->dev, "PCIE AXI drain HBW completed\n");
 		error_count++;
 	}
 
