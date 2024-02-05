@@ -6,6 +6,7 @@
  */
 
 #include <asm/byteorder.h>
+#include <linux/average.h>
 
 #define RTL8XXXU_DEBUG_REG_WRITE	0x01
 #define RTL8XXXU_DEBUG_REG_READ		0x02
@@ -1858,6 +1859,8 @@ struct rtl8xxxu_priv {
 	int next_mbox;
 	int nr_out_eps;
 
+	/* Ensure no added or deleted stas while iterating */
+	struct mutex sta_mutex;
 	struct mutex h2c_mutex;
 	/* Protect the indirect register accesses of RTL8710BU. */
 	struct mutex syson_indirect_access_mutex;
@@ -1892,7 +1895,6 @@ struct rtl8xxxu_priv {
 	u8 pi_enabled:1;
 	u8 no_pape:1;
 	u8 int_buf[USB_INTR_CONTENT_LENGTH];
-	u8 rssi_level;
 	DECLARE_BITMAP(tx_aggr_started, IEEE80211_NUM_TIDS);
 	DECLARE_BITMAP(tid_tx_operational, IEEE80211_NUM_TIDS);
 
@@ -1913,11 +1915,15 @@ struct rtl8xxxu_priv {
 	DECLARE_BITMAP(cam_map, RTL8XXXU_MAX_SEC_CAM_NUM);
 };
 
+DECLARE_EWMA(rssi, 10, 16);
+
 struct rtl8xxxu_sta_info {
 	struct ieee80211_sta *sta;
 	struct ieee80211_vif *vif;
 
 	u8 macid;
+	struct ewma_rssi avg_rssi;
+	u8 rssi_level;
 };
 
 struct rtl8xxxu_vif {
