@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/atomic.h>
@@ -236,6 +236,8 @@ enum gpi_ch_state {
 	CH_STATE_STARTED = 0x2,
 	CH_STATE_STOPPED = 0x3,
 	CH_STATE_STOP_IN_PROC = 0x4,
+	CH_STATE_ENABLE_HID = 0x5,
+	CH_STATE_DISABLE_HID = 0x6,
 	CH_STATE_ERROR = 0xf,
 	MAX_CH_STATES
 };
@@ -246,6 +248,8 @@ static const char *const gpi_ch_state_str[MAX_CH_STATES] = {
 	[CH_STATE_STARTED] = "STARTED",
 	[CH_STATE_STOPPED] = "STOPPED",
 	[CH_STATE_STOP_IN_PROC] = "STOP IN PROCESS",
+	[CH_STATE_ENABLE_HID] = "HID ENABLE",
+	[CH_STATE_DISABLE_HID] = "HID DISABLE",
 	[CH_STATE_ERROR] = "ERROR",
 };
 
@@ -262,7 +266,9 @@ enum gpi_cmd {
 	GPI_CH_CMD_UART_SW_STALE,
 	GPI_CH_CMD_UART_RFR_READY,
 	GPI_CH_CMD_UART_RFR_NOT_READY,
-	GPI_CH_CMD_END = GPI_CH_CMD_UART_RFR_NOT_READY,
+	GPI_CH_CMD_ENABLE_HID,
+	GPI_CH_CMD_DISABLE_HID,
+	GPI_CH_CMD_END = GPI_CH_CMD_DISABLE_HID,
 	GPI_EV_CMD_BEGIN,
 	GPI_EV_CMD_ALLOCATE = GPI_EV_CMD_BEGIN,
 	GPI_EV_CMD_RESET,
@@ -282,6 +288,8 @@ static const char *const gpi_cmd_str[GPI_MAX_CMD] = {
 	[GPI_CH_CMD_UART_SW_STALE] = "UART SW STALE",
 	[GPI_CH_CMD_UART_RFR_READY] = "UART RFR READY",
 	[GPI_CH_CMD_UART_RFR_NOT_READY] = "UART RFR NOT READY",
+	[GPI_CH_CMD_ENABLE_HID] = "CH Enable HID interrupt",
+	[GPI_CH_CMD_DISABLE_HID] = "CH Disable HID interrupt",
 	[GPI_EV_CMD_ALLOCATE] = "EV ALLOCATE",
 	[GPI_EV_CMD_RESET] = "EV RESET",
 	[GPI_EV_CMD_DEALLOC] = "EV DEALLOC",
@@ -298,6 +306,7 @@ static const char *const gpi_cb_event_str[MSM_GPI_QUP_MAX_EVENT] = {
 	[MSM_GPI_QUP_PENDING_EVENT] = "PENDING EVENT",
 	[MSM_GPI_QUP_EOT_DESC_MISMATCH] = "EOT/DESC MISMATCH",
 	[MSM_GPI_QUP_SW_ERROR] = "SW ERROR",
+	[MSM_GPI_QUP_CR_HEADER] = "Doorbell CR EVENT"
 };
 
 #define TO_GPI_CB_EVENT_STR(event) ((event >= MSM_GPI_QUP_MAX_EVENT) ? \
@@ -397,6 +406,18 @@ static const struct {
 		GPI_CH_CMD_UART_RFR_NOT_READY,
 		GPI_GPII_n_CH_CMD_UART_RFR_NOT_READY,
 		STATE_IGNORE,
+		CMD_TIMEOUT_MS,
+	},
+	{
+		GPI_CH_CMD_ENABLE_HID,
+		GPI_GPII_n_CH_CMD_ENABLE_HID,
+		CH_STATE_ENABLE_HID,
+		CMD_TIMEOUT_MS,
+	},
+	{
+		GPI_CH_CMD_DISABLE_HID,
+		GPI_GPII_n_CH_CMD_DISABLE_HID,
+		CH_STATE_DISABLE_HID,
 		CMD_TIMEOUT_MS,
 	},
 	{
@@ -632,6 +653,8 @@ static irqreturn_t gpi_handle_irq(int irq, void *data);
 static void gpi_ring_recycle_ev_element(struct gpi_ring *ring);
 static int gpi_ring_add_element(struct gpi_ring *ring, void **wp);
 static void gpi_process_events(struct gpii *gpii);
+static int gpi_start_chan(struct gpii_chan *gpii_chan);
+static void gpi_free_chan_desc(struct gpii_chan *gpii_chan);
 
 static inline struct gpii_chan *to_gpii_chan(struct dma_chan *dma_chan)
 {
@@ -1635,6 +1658,85 @@ static int gpi_send_cmd(struct gpii *gpii,
 	return -EIO;
 }
 
+/*
+ * geni_gsi_ch_start() - gsi channel commands to start GSI RX and TX channles
+ *
+ * @chan: gsi channel handle
+ *
+ * Return: Returns success or failure
+ */
+int geni_gsi_ch_start(struct dma_chan *chan)
+{
+	struct gpii_chan *gpii_chan = to_gpii_chan(chan);
+	struct gpii *gpii = gpii_chan->gpii;
+	int i, ret = 0;
+
+	GPII_VERB(gpii, gpii_chan->chid, "Enter\n");
+	mutex_lock(&gpii->ctrl_lock);
+	for (i = 1; i >= 0; i--) {
+		gpii_chan = &gpii->gpii_chan[i];
+		GPII_INFO(gpii, gpii_chan->chid, "Start chan:%d\n", i);
+		/* send start command to start the channels */
+		ret = gpi_start_chan(gpii_chan);
+		if (ret) {
+			GPII_ERR(gpii, gpii_chan->chid,
+				 "Error Starting Channel ret:%d\n", ret);
+			mutex_unlock(&gpii->ctrl_lock);
+			return -ECONNRESET;
+		}
+	}
+	mutex_unlock(&gpii->ctrl_lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(geni_gsi_ch_start);
+
+/*
+ * geni_gsi_ch_disconenct_doorbell() - gsi channel commond to disconnect doorbell to GSI
+ * @chan: gsi channel handle
+ *
+ * Return: Returns success or failure
+ */
+int geni_gsi_ch_disconnect_doorbell(struct dma_chan *chan)
+{
+	struct gpii_chan *gpii_chan = to_gpii_chan(chan);
+	struct gpii *gpii = gpii_chan->gpii;
+	int i, ret = 0;
+
+	/*
+	 * Use asynchronous channel command 49 (see section 3.10.7) to dis-connect
+	 * io_6 input from GSI interrupt input.
+	 */
+	GPII_VERB(gpii, gpii_chan->chid, "Enter\n");
+	mutex_lock(&gpii->ctrl_lock);
+	ret = gpi_send_cmd(gpii, gpii_chan, GPI_CH_CMD_DISABLE_HID);
+	if (ret)
+		GPII_ERR(gpii, gpii_chan->chid,
+			 "Error disable Chan:%d HID interrupt\n", ret);
+	for (i = 1; i >= 0 ; i--) {
+		gpii_chan = &gpii->gpii_chan[i];
+		GPII_INFO(gpii, gpii_chan->chid, "Stop chan:%d\n", i);
+		ret = gpi_send_cmd(gpii, gpii_chan, GPI_CH_CMD_STOP);
+		if (ret) {
+			GPII_ERR(gpii, gpii_chan->chid,
+				 "Error Stopping Chan:%d resetting\n", ret);
+			/* If STOP cmd fails, send command to Stop the channel */
+			ret = gpi_send_cmd(gpii, gpii_chan, GPI_CH_CMD_RESET);
+			if (ret) {
+				GPII_ERR(gpii, gpii_chan->chid,
+					 "error resetting channel:%d\n", ret);
+				mutex_unlock(&gpii->ctrl_lock);
+				return ret;
+			}
+		}
+	}
+	GPII_VERB(gpii, gpii_chan->chid, "Free chan desc\n");
+	gpi_free_chan_desc(&gpii->gpii_chan[1]);
+	mutex_unlock(&gpii->ctrl_lock);
+	GPII_VERB(gpii, gpii_chan->chid, "End\n");
+	return ret;
+}
+EXPORT_SYMBOL_GPL(geni_gsi_ch_disconnect_doorbell);
+
 /* program transfer ring DB register */
 static inline void gpi_write_ch_db(struct gpii_chan *gpii_chan,
 				   struct gpi_ring *ring,
@@ -1727,6 +1829,10 @@ static void gpi_process_ch_ctrl_irq(struct gpii *gpii)
 		 */
 		if (gpii->gpi_cmd == GPI_CH_CMD_DE_ALLOC)
 			state = DEFAULT_CH_STATE;
+		else if (gpii->gpi_cmd == GPI_CH_CMD_ENABLE_HID)
+			state = CH_STATE_ENABLE_HID;
+		else if (gpii->gpi_cmd == GPI_CH_CMD_DISABLE_HID)
+			state = CH_STATE_DISABLE_HID;
 		gpii_chan->ch_state = state;
 		GPII_VERB(gpii, chid, "setting channel to state:%s\n",
 			  TO_GPI_CH_STATE_STR(gpii_chan->ch_state));
@@ -1969,8 +2075,15 @@ static void gpi_free_chan_desc(struct gpii_chan *gpii_chan)
 	struct gpi_desc *gpi_desc;
 	unsigned long flags;
 
+	GPII_VERB(gpii_chan->gpii, gpii_chan->chid, "Enter\n");
 	spin_lock_irqsave(&gpii_chan->vc.lock, flags);
 	vd = vchan_next_desc(&gpii_chan->vc);
+	if (!vd) {
+		GPII_VERB(gpii_chan->gpii, gpii_chan->chid, "vd is NULL!!!\n");
+		spin_unlock_irqrestore(&gpii_chan->vc.lock, flags);
+		return;
+	}
+
 	gpi_desc = to_gpi_desc(vd);
 	list_del(&vd->node);
 	spin_unlock_irqrestore(&gpii_chan->vc.lock, flags);
