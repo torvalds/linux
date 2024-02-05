@@ -4908,7 +4908,7 @@ static int smack_inode_copy_up_xattr(struct dentry *src, const char *name)
 }
 
 static int smack_dentry_create_files_as(struct dentry *dentry, int mode,
-					struct qstr *name,
+					const struct qstr *name,
 					const struct cred *old,
 					struct cred *new)
 {

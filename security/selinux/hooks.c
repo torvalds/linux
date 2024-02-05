@@ -2901,7 +2901,7 @@ static int selinux_dentry_init_security(struct dentry *dentry, int mode,
 }
 
 static int selinux_dentry_create_files_as(struct dentry *dentry, int mode,
-					  struct qstr *name,
+					  const struct qstr *name,
 					  const struct cred *old,
 					  struct cred *new)
 {
