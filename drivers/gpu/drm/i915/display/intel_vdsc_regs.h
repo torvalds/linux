@@ -51,8 +51,8 @@
 #define DSCC_PICTURE_PARAMETER_SET_0		_MMIO(0x6BA00)
 #define _DSCA_PPS_0				0x6B200
 #define _DSCC_PPS_0				0x6BA00
-#define DSCA_PPS(pps)				_MMIO(_DSCA_PPS_0 + (pps) * 4)
-#define DSCC_PPS(pps)				_MMIO(_DSCC_PPS_0 + (pps) * 4)
+#define DSCA_PPS(pps)				_MMIO(_DSCA_PPS_0 + ((pps) < 12 ? (pps) : (pps) + 12) * 4)
+#define DSCC_PPS(pps)				_MMIO(_DSCC_PPS_0 + ((pps) < 12 ? (pps) : (pps) + 12) * 4)
 #define _ICL_DSC0_PICTURE_PARAMETER_SET_0_PB	0x78270
 #define _ICL_DSC1_PICTURE_PARAMETER_SET_0_PB	0x78370
 #define _ICL_DSC0_PICTURE_PARAMETER_SET_0_PC	0x78470
