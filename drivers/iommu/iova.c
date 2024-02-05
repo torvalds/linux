@@ -254,26 +254,20 @@ static void free_iova_mem(struct iova *iova)
 
 int iova_cache_get(void)
 {
+	int err = -ENOMEM;
+
 	mutex_lock(&iova_cache_mutex);
 	if (!iova_cache_users) {
-		int ret;
+		iova_cache = kmem_cache_create("iommu_iova", sizeof(struct iova), 0,
+					       SLAB_HWCACHE_ALIGN, NULL);
+		if (!iova_cache)
+			goto out_err;
 
-		ret = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead", NULL,
-					iova_cpuhp_dead);
-		if (ret) {
-			mutex_unlock(&iova_cache_mutex);
-			pr_err("Couldn't register cpuhp handler\n");
-			return ret;
-		}
-
-		iova_cache = kmem_cache_create(
-			"iommu_iova", sizeof(struct iova), 0,
-			SLAB_HWCACHE_ALIGN, NULL);
-		if (!iova_cache) {
-			cpuhp_remove_multi_state(CPUHP_IOMMU_IOVA_DEAD);
-			mutex_unlock(&iova_cache_mutex);
-			pr_err("Couldn't create iova cache\n");
-			return -ENOMEM;
+		err = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead",
+					      NULL, iova_cpuhp_dead);
+		if (err) {
+			pr_err("IOVA: Couldn't register cpuhp handler: %pe\n", ERR_PTR(err));
+			goto out_err;
 		}
 	}
 
@@ -281,6 +275,11 @@ int iova_cache_get(void)
 	mutex_unlock(&iova_cache_mutex);
 
 	return 0;
+
+out_err:
+	kmem_cache_destroy(iova_cache);
+	mutex_unlock(&iova_cache_mutex);
+	return err;
 }
 EXPORT_SYMBOL_GPL(iova_cache_get);
 
