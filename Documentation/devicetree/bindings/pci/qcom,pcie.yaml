@@ -28,7 +28,6 @@ properties:
           - qcom,pcie-ipq8074-gen3
           - qcom,pcie-msm8996
           - qcom,pcie-qcs404
-          - qcom,pcie-sa8775p
           - qcom,pcie-sdm845
           - qcom,pcie-sdx55
       - items:
@@ -200,7 +199,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-sa8775p
               - qcom,pcie-sdx55
     then:
       properties:
@@ -496,41 +494,6 @@ allOf:
             - const: pci # PCIe core reset
 
   - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,pcie-sa8775p
-    then:
-      properties:
-        clocks:
-          minItems: 5
-          maxItems: 5
-        clock-names:
-          items:
-            - const: aux # Auxiliary clock
-            - const: cfg # Configuration clock
-            - const: bus_master # Master AXI clock
-            - const: bus_slave # Slave AXI clock
-            - const: slave_q2a # Slave Q2A clock
-        resets:
-          maxItems: 1
-        reset-names:
-          items:
-            - const: pci # PCIe core reset
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
-              - qcom,pcie-sa8775p
-    then:
-      required:
-        - interconnects
-        - interconnect-names
-
-  - if:
       not:
         properties:
           compatible:
@@ -565,7 +528,6 @@ allOf:
           contains:
             enum:
               - qcom,pcie-msm8996
-              - qcom,pcie-sa8775p
               - qcom,pcie-sdm845
     then:
       oneOf:
