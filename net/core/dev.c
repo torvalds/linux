@@ -10345,7 +10345,7 @@ EXPORT_SYMBOL(register_netdevice);
  *	that need to tie several hardware interfaces to a single NAPI
  *	poll scheduler due to HW limitations.
  */
-int init_dummy_netdev(struct net_device *dev)
+void init_dummy_netdev(struct net_device *dev)
 {
 	/* Clear everything. Note we don't initialize spinlocks
 	 * are they aren't supposed to be taken by any of the
@@ -10373,8 +10373,6 @@ int init_dummy_netdev(struct net_device *dev)
 	 * because users of this 'device' dont need to change
 	 * its refcount.
 	 */
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(init_dummy_netdev);
 
