@@ -659,7 +659,7 @@ struct ti_sci_proc *k3_dsp_rproc_of_get_tsp(struct device *dev,
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	tsp = kzalloc(sizeof(*tsp), GFP_KERNEL);
+	tsp = devm_kzalloc(dev, sizeof(*tsp), GFP_KERNEL);
 	if (!tsp)
 		return ERR_PTR(-ENOMEM);
 
@@ -730,7 +730,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	ret = ti_sci_proc_request(kproc->tsp);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "ti_sci_proc_request failed\n");
-		goto free_tsp;
+		return ret;
 	}
 
 	ret = k3_dsp_rproc_of_get_memories(pdev, kproc);
@@ -797,8 +797,6 @@ release_tsp:
 	ret1 = ti_sci_proc_release(kproc->tsp);
 	if (ret1)
 		dev_err(dev, "failed to release proc (%pe)\n", ERR_PTR(ret1));
-free_tsp:
-	kfree(kproc->tsp);
 	return ret;
 }
 
@@ -823,8 +821,6 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 	ret = ti_sci_proc_release(kproc->tsp);
 	if (ret)
 		dev_err(dev, "failed to release proc (%pe)\n", ERR_PTR(ret));
-
-	kfree(kproc->tsp);
 
 	k3_dsp_reserved_mem_exit(kproc);
 }
