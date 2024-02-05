@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2021-2023 Intel Corporation
+ * Copyright(c) 2021-2024 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -324,7 +324,6 @@ void iwl_uefi_get_step_table(struct iwl_trans *trans)
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_step_table);
 
-#ifdef CONFIG_ACPI
 static int iwl_uefi_sgom_parse(struct uefi_cnv_wlan_sgom_data *sgom_data,
 			       struct iwl_fw_runtime *fwrt)
 {
@@ -412,7 +411,6 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 	return 0;
 }
 IWL_EXPORT_SYMBOL(iwl_uefi_get_uats_table);
-#endif /* CONFIG_ACPI */
 
 static void iwl_uefi_set_sar_profile(struct iwl_fw_runtime *fwrt,
 				     struct uefi_sar_profile *uefi_sar_prof,
