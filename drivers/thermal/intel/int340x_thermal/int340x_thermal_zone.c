@@ -61,12 +61,6 @@ static void int340x_thermal_critical(struct thermal_zone_device *zone)
 	dev_dbg(&zone->device, "%s: critical temperature reached\n", zone->type);
 }
 
-static struct thermal_zone_device_ops int340x_thermal_zone_ops = {
-	.get_temp       = int340x_thermal_get_zone_temp,
-	.set_trip_temp	= int340x_thermal_set_trip_temp,
-	.critical	= int340x_thermal_critical,
-};
-
 static inline void *int_to_trip_priv(int i)
 {
 	return (void *)(long)i;
@@ -126,6 +120,11 @@ static struct thermal_zone_params int340x_thermal_params = {
 struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 						     int (*get_temp) (struct thermal_zone_device *, int *))
 {
+	const struct thermal_zone_device_ops zone_ops = {
+		.set_trip_temp = int340x_thermal_set_trip_temp,
+		.critical = int340x_thermal_critical,
+		.get_temp = get_temp ? get_temp : int340x_thermal_get_zone_temp,
+	};
 	struct int34x_thermal_zone *int34x_zone;
 	struct thermal_trip *zone_trips;
 	unsigned long long trip_cnt = 0;
@@ -139,16 +138,6 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 		return ERR_PTR(-ENOMEM);
 
 	int34x_zone->adev = adev;
-
-	int34x_zone->ops = kmemdup(&int340x_thermal_zone_ops,
-				   sizeof(int340x_thermal_zone_ops), GFP_KERNEL);
-	if (!int34x_zone->ops) {
-		ret = -ENOMEM;
-		goto err_ops_alloc;
-	}
-
-	if (get_temp)
-		int34x_zone->ops->get_temp = get_temp;
 
 	status = acpi_evaluate_integer(adev->handle, "PATC", NULL, &trip_cnt);
 	if (ACPI_SUCCESS(status)) {
@@ -185,7 +174,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 							acpi_device_bid(adev),
 							zone_trips, trip_cnt,
 							trip_mask, int34x_zone,
-							int34x_zone->ops,
+							&zone_ops,
 							&int340x_thermal_params,
 							0, 0);
 	kfree(zone_trips);
@@ -205,8 +194,6 @@ err_enable:
 err_thermal_zone:
 	acpi_lpat_free_conversion_table(int34x_zone->lpat_table);
 err_trips_alloc:
-	kfree(int34x_zone->ops);
-err_ops_alloc:
 	kfree(int34x_zone);
 	return ERR_PTR(ret);
 }
@@ -216,7 +203,6 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone *int34x_zone)
 {
 	thermal_zone_device_unregister(int34x_zone->zone);
 	acpi_lpat_free_conversion_table(int34x_zone->lpat_table);
-	kfree(int34x_zone->ops);
 	kfree(int34x_zone);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);

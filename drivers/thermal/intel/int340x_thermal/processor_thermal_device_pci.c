@@ -233,7 +233,7 @@ static int get_trip_temp(struct proc_thermal_pci *pci_info)
 	return temp;
 }
 
-static struct thermal_zone_device_ops tzone_ops = {
+static const struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
 	.set_trip_temp	= sys_set_trip_temp,
 };

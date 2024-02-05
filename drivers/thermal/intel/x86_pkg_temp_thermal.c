@@ -166,7 +166,7 @@ sys_set_trip_temp(struct thermal_zone_device *tzd, int trip, int temp)
 }
 
 /* Thermal zone callback registry */
-static struct thermal_zone_device_ops tzone_ops = {
+static const struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
 	.set_trip_temp = sys_set_trip_temp,
 };

@@ -132,7 +132,7 @@ static void pch_critical(struct thermal_zone_device *tzd)
 		thermal_zone_device_type(tzd));
 }
 
-static struct thermal_zone_device_ops tzd_ops = {
+static const struct thermal_zone_device_ops tzd_ops = {
 	.get_temp = pch_thermal_get_temp,
 	.critical = pch_critical,
 };
