@@ -590,6 +590,8 @@ struct iova_rcache {
 	struct delayed_work work;
 };
 
+static struct kmem_cache *iova_magazine_cache;
+
 unsigned long iova_rcache_range(void)
 {
 	return PAGE_SIZE << (IOVA_RANGE_CACHE_MAX_SIZE - 1);
@@ -599,7 +601,7 @@ static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 {
 	struct iova_magazine *mag;
 
-	mag = kmalloc(sizeof(*mag), flags);
+	mag = kmem_cache_alloc(iova_magazine_cache, flags);
 	if (mag)
 		mag->size = 0;
 
@@ -608,7 +610,7 @@ static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 
 static void iova_magazine_free(struct iova_magazine *mag)
 {
-	kfree(mag);
+	kmem_cache_free(iova_magazine_cache, mag);
 }
 
 static void
@@ -953,6 +955,12 @@ int iova_cache_get(void)
 		if (!iova_cache)
 			goto out_err;
 
+		iova_magazine_cache = kmem_cache_create("iommu_iova_magazine",
+							sizeof(struct iova_magazine),
+							0, SLAB_HWCACHE_ALIGN, NULL);
+		if (!iova_magazine_cache)
+			goto out_err;
+
 		err = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead",
 					      NULL, iova_cpuhp_dead);
 		if (err) {
@@ -968,6 +976,7 @@ int iova_cache_get(void)
 
 out_err:
 	kmem_cache_destroy(iova_cache);
+	kmem_cache_destroy(iova_magazine_cache);
 	mutex_unlock(&iova_cache_mutex);
 	return err;
 }
@@ -984,6 +993,7 @@ void iova_cache_put(void)
 	if (!iova_cache_users) {
 		cpuhp_remove_multi_state(CPUHP_IOMMU_IOVA_DEAD);
 		kmem_cache_destroy(iova_cache);
+		kmem_cache_destroy(iova_magazine_cache);
 	}
 	mutex_unlock(&iova_cache_mutex);
 }
