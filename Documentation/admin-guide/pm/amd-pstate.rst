@@ -381,7 +381,7 @@ driver receives a message with the highest performance change, it will
 update the core ranking and set the cpu's priority.
 
 ``amd-pstate`` Preferred Core Switch
-=================================
+=====================================
 Kernel Parameters
 -----------------
 
