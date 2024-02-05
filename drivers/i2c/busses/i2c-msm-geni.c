@@ -2924,6 +2924,7 @@ static int geni_i2c_resume_early(struct device *device)
 {
 	struct geni_i2c_dev *gi2c = dev_get_drvdata(device);
 
+	geni_se_ssc_clk_enable(&gi2c->rsc, true);
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s ret=%d\n", __func__, true);
 
 	if (pm_suspend_target_state == PM_SUSPEND_MEM) {
@@ -2939,6 +2940,8 @@ static int geni_i2c_hib_resume_noirq(struct device *device)
 
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s\n", __func__);
 	gi2c->se_mode = UNINITIALIZED;
+	geni_se_ssc_clk_enable(&gi2c->rsc, true);
+
 	return 0;
 }
 
@@ -3211,6 +3214,7 @@ static int geni_i2c_suspend_late(struct device *device)
 		pm_runtime_enable(device);
 	}
 
+	geni_se_ssc_clk_enable(&gi2c->rsc, false);
 	i2c_unlock_bus(&gi2c->adap, I2C_LOCK_SEGMENT);
 	I2C_LOG_DBG(gi2c->ipcl, false, gi2c->dev, "%s ret=%d\n", __func__, ret);
 	geni_capture_stop_time(&gi2c->i2c_rsc, gi2c->ipc_log_kpi, __func__,
