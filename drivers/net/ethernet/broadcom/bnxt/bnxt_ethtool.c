@@ -1058,11 +1058,17 @@ static struct bnxt_filter_base *bnxt_get_one_fltr_rcu(struct bnxt *bp,
 static int bnxt_grxclsrlall(struct bnxt *bp, struct ethtool_rxnfc *cmd,
 			    u32 *rule_locs)
 {
+	u32 count;
+
 	cmd->data = bp->ntp_fltr_count;
 	rcu_read_lock();
+	count = bnxt_get_all_fltr_ids_rcu(bp, bp->l2_fltr_hash_tbl,
+					  BNXT_L2_FLTR_HASH_SIZE, rule_locs, 0,
+					  cmd->rule_cnt);
 	cmd->rule_cnt = bnxt_get_all_fltr_ids_rcu(bp, bp->ntp_fltr_hash_tbl,
 						  BNXT_NTP_FLTR_HASH_SIZE,
-						  rule_locs, 0, cmd->rule_cnt);
+						  rule_locs, count,
+						  cmd->rule_cnt);
 	rcu_read_unlock();
 
 	return 0;
@@ -1081,6 +1087,36 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		return rc;
 
 	rcu_read_lock();
+	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->l2_fltr_hash_tbl,
+					  BNXT_L2_FLTR_HASH_SIZE,
+					  fs->location);
+	if (fltr_base) {
+		struct ethhdr *h_ether = &fs->h_u.ether_spec;
+		struct ethhdr *m_ether = &fs->m_u.ether_spec;
+		struct bnxt_l2_filter *l2_fltr;
+		struct bnxt_l2_key *l2_key;
+
+		l2_fltr = container_of(fltr_base, struct bnxt_l2_filter, base);
+		l2_key = &l2_fltr->l2_key;
+		fs->flow_type = ETHER_FLOW;
+		ether_addr_copy(h_ether->h_dest, l2_key->dst_mac_addr);
+		eth_broadcast_addr(m_ether->h_dest);
+		if (l2_key->vlan) {
+			struct ethtool_flow_ext *m_ext = &fs->m_ext;
+			struct ethtool_flow_ext *h_ext = &fs->h_ext;
+
+			fs->flow_type |= FLOW_EXT;
+			m_ext->vlan_tci = htons(0xfff);
+			h_ext->vlan_tci = htons(l2_key->vlan);
+		}
+		if (fltr_base->flags & BNXT_ACT_RING_DST)
+			fs->ring_cookie = fltr_base->rxq;
+		if (fltr_base->flags & BNXT_ACT_FUNC_DST)
+			fs->ring_cookie = (u64)(fltr_base->vf_idx + 1) <<
+					  ETHTOOL_RX_FLOW_SPEC_RING_VF_OFF;
+		rcu_read_unlock();
+		return 0;
+	}
 	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->ntp_fltr_hash_tbl,
 					  BNXT_NTP_FLTR_HASH_SIZE,
 					  fs->location);
