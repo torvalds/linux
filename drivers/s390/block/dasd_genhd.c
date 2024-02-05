@@ -127,15 +127,15 @@ void dasd_gendisk_free(struct dasd_block *block)
  */
 int dasd_scan_partitions(struct dasd_block *block)
 {
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	int rc;
 
-	bdev_handle = bdev_open_by_dev(disk_devt(block->gdp), BLK_OPEN_READ,
+	bdev_file = bdev_file_open_by_dev(disk_devt(block->gdp), BLK_OPEN_READ,
 				       NULL, NULL);
-	if (IS_ERR(bdev_handle)) {
+	if (IS_ERR(bdev_file)) {
 		DBF_DEV_EVENT(DBF_ERR, block->base,
 			      "scan partitions error, blkdev_get returned %ld",
-			      PTR_ERR(bdev_handle));
+			      PTR_ERR(bdev_file));
 		return -ENODEV;
 	}
 
@@ -147,15 +147,15 @@ int dasd_scan_partitions(struct dasd_block *block)
 				"scan partitions error, rc %d", rc);
 
 	/*
-	 * Since the matching bdev_release() call to the
-	 * bdev_open_by_path() in this function is not called before
+	 * Since the matching fput() call to the
+	 * bdev_file_open_by_path() in this function is not called before
 	 * dasd_destroy_partitions the offline open_count limit needs to be
-	 * increased from 0 to 1. This is done by setting device->bdev_handle
+	 * increased from 0 to 1. This is done by setting device->bdev_file
 	 * (see dasd_generic_set_offline). As long as the partition detection
 	 * is running no offline should be allowed. That is why the assignment
-	 * to block->bdev_handle is done AFTER the BLKRRPART ioctl.
+	 * to block->bdev_file is done AFTER the BLKRRPART ioctl.
 	 */
-	block->bdev_handle = bdev_handle;
+	block->bdev_file = bdev_file;
 	return 0;
 }
 
@@ -165,21 +165,21 @@ int dasd_scan_partitions(struct dasd_block *block)
  */
 void dasd_destroy_partitions(struct dasd_block *block)
 {
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 
 	/*
-	 * Get the bdev_handle pointer from the device structure and clear
-	 * device->bdev_handle to lower the offline open_count limit again.
+	 * Get the bdev_file pointer from the device structure and clear
+	 * device->bdev_file to lower the offline open_count limit again.
 	 */
-	bdev_handle = block->bdev_handle;
-	block->bdev_handle = NULL;
+	bdev_file = block->bdev_file;
+	block->bdev_file = NULL;
 
-	mutex_lock(&bdev_handle->bdev->bd_disk->open_mutex);
-	bdev_disk_changed(bdev_handle->bdev->bd_disk, true);
-	mutex_unlock(&bdev_handle->bdev->bd_disk->open_mutex);
+	mutex_lock(&file_bdev(bdev_file)->bd_disk->open_mutex);
+	bdev_disk_changed(file_bdev(bdev_file)->bd_disk, true);
+	mutex_unlock(&file_bdev(bdev_file)->bd_disk->open_mutex);
 
 	/* Matching blkdev_put to the blkdev_get in dasd_scan_partitions. */
-	bdev_release(bdev_handle);
+	fput(bdev_file);
 }
 
 int dasd_gendisk_init(void)

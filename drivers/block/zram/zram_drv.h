@@ -132,7 +132,7 @@ struct zram {
 	spinlock_t wb_limit_lock;
 	bool wb_limit_enable;
 	u64 bd_wb_limit;
-	struct bdev_handle *bdev_handle;
+	struct file *bdev_file;
 	unsigned long *bitmap;
 	unsigned long nr_pages;
 #endif

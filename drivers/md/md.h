@@ -59,7 +59,7 @@ struct md_rdev {
 	 */
 	struct block_device *meta_bdev;
 	struct block_device *bdev;	/* block device handle */
-	struct bdev_handle *bdev_handle;	/* Handle from open for bdev */
+	struct file *bdev_file;		/* Handle from open for bdev */
 
 	struct page	*sb_page, *bb_page;
 	int		sb_loaded;

@@ -431,7 +431,7 @@ int updateSuper(struct super_block *sb, uint state)
 	if (state == FM_MOUNT) {
 		/* record log's dev_t and mount serial number */
 		j_sb->s_logdev = cpu_to_le32(
-			new_encode_dev(sbi->log->bdev_handle->bdev->bd_dev));
+			new_encode_dev(file_bdev(sbi->log->bdev_file)->bd_dev));
 		j_sb->s_logserial = cpu_to_le32(sbi->log->serial);
 	} else if (state == FM_CLEAN) {
 		/*

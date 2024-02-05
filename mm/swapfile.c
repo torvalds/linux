@@ -2532,10 +2532,10 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
 	exit_swap_address_space(p->type);
 
 	inode = mapping->host;
-	if (p->bdev_handle) {
+	if (p->bdev_file) {
 		set_blocksize(p->bdev, old_block_size);
-		bdev_release(p->bdev_handle);
-		p->bdev_handle = NULL;
+		fput(p->bdev_file);
+		p->bdev_file = NULL;
 	}
 
 	inode_lock(inode);
@@ -2765,14 +2765,14 @@ static int claim_swapfile(struct swap_info_struct *p, struct inode *inode)
 	int error;
 
 	if (S_ISBLK(inode->i_mode)) {
-		p->bdev_handle = bdev_open_by_dev(inode->i_rdev,
+		p->bdev_file = bdev_file_open_by_dev(inode->i_rdev,
 				BLK_OPEN_READ | BLK_OPEN_WRITE, p, NULL);
-		if (IS_ERR(p->bdev_handle)) {
-			error = PTR_ERR(p->bdev_handle);
-			p->bdev_handle = NULL;
+		if (IS_ERR(p->bdev_file)) {
+			error = PTR_ERR(p->bdev_file);
+			p->bdev_file = NULL;
 			return error;
 		}
-		p->bdev = p->bdev_handle->bdev;
+		p->bdev = file_bdev(p->bdev_file);
 		p->old_block_size = block_size(p->bdev);
 		error = set_blocksize(p->bdev, PAGE_SIZE);
 		if (error < 0)
@@ -3208,10 +3208,10 @@ bad_swap:
 	p->percpu_cluster = NULL;
 	free_percpu(p->cluster_next_cpu);
 	p->cluster_next_cpu = NULL;
-	if (p->bdev_handle) {
+	if (p->bdev_file) {
 		set_blocksize(p->bdev, p->old_block_size);
-		bdev_release(p->bdev_handle);
-		p->bdev_handle = NULL;
+		fput(p->bdev_file);
+		p->bdev_file = NULL;
 	}
 	inode = NULL;
 	destroy_swap_extents(p);

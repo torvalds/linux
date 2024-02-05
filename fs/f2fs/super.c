@@ -1605,7 +1605,7 @@ static void destroy_device_list(struct f2fs_sb_info *sbi)
 
 	for (i = 0; i < sbi->s_ndevs; i++) {
 		if (i > 0)
-			bdev_release(FDEV(i).bdev_handle);
+			fput(FDEV(i).bdev_file);
 #ifdef CONFIG_BLK_DEV_ZONED
 		kvfree(FDEV(i).blkz_seq);
 #endif
@@ -4247,7 +4247,7 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 
 	for (i = 0; i < max_devices; i++) {
 		if (i == 0)
-			FDEV(0).bdev_handle = sbi->sb->s_bdev_handle;
+			FDEV(0).bdev_file = sbi->sb->s_bdev_file;
 		else if (!RDEV(i).path[0])
 			break;
 
@@ -4267,14 +4267,14 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 				FDEV(i).end_blk = FDEV(i).start_blk +
 					(FDEV(i).total_segments <<
 					sbi->log_blocks_per_seg) - 1;
-				FDEV(i).bdev_handle = bdev_open_by_path(
+				FDEV(i).bdev_file = bdev_file_open_by_path(
 					FDEV(i).path, mode, sbi->sb, NULL);
 			}
 		}
-		if (IS_ERR(FDEV(i).bdev_handle))
-			return PTR_ERR(FDEV(i).bdev_handle);
+		if (IS_ERR(FDEV(i).bdev_file))
+			return PTR_ERR(FDEV(i).bdev_file);
 
-		FDEV(i).bdev = FDEV(i).bdev_handle->bdev;
+		FDEV(i).bdev = file_bdev(FDEV(i).bdev_file);
 		/* to release errored devices */
 		sbi->s_ndevs = i + 1;
 
