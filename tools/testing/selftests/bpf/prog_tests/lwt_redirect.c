@@ -54,6 +54,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define NETNS "ns_lwt_redirect"
 #include "lwt_helpers.h"
 #include "test_progs.h"
 #include "network_helpers.h"

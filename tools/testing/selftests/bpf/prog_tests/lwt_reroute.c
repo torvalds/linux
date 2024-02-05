@@ -48,6 +48,7 @@
  *  For case 2, force UDP packets to overflow fq limit. As long as kernel
  *  is not crashed, it is considered successful.
  */
+#define NETNS "ns_lwt_reroute"
 #include "lwt_helpers.h"
 #include "network_helpers.h"
 #include <linux/net_tstamp.h>
