@@ -1152,6 +1152,58 @@ fltr_err:
 	return rc;
 }
 
+static int bnxt_add_l2_cls_rule(struct bnxt *bp,
+				struct ethtool_rx_flow_spec *fs)
+{
+	u32 ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
+	u8 vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
+	struct ethhdr *h_ether = &fs->h_u.ether_spec;
+	struct ethhdr *m_ether = &fs->m_u.ether_spec;
+	struct bnxt_l2_filter *fltr;
+	struct bnxt_l2_key key;
+	u16 vnic_id;
+	u8 flags;
+	int rc;
+
+	if (BNXT_CHIP_P5_PLUS(bp))
+		return -EOPNOTSUPP;
+
+	if (!is_broadcast_ether_addr(m_ether->h_dest))
+		return -EINVAL;
+	ether_addr_copy(key.dst_mac_addr, h_ether->h_dest);
+	key.vlan = 0;
+	if (fs->flow_type & FLOW_EXT) {
+		struct ethtool_flow_ext *m_ext = &fs->m_ext;
+		struct ethtool_flow_ext *h_ext = &fs->h_ext;
+
+		if (m_ext->vlan_tci != htons(0xfff) || !h_ext->vlan_tci)
+			return -EINVAL;
+		key.vlan = ntohs(h_ext->vlan_tci);
+	}
+
+	if (vf) {
+		flags = BNXT_ACT_FUNC_DST;
+		vnic_id = 0xffff;
+		vf--;
+	} else {
+		flags = BNXT_ACT_RING_DST;
+		vnic_id = bp->vnic_info[ring + 1].fw_vnic_id;
+	}
+	fltr = bnxt_alloc_new_l2_filter(bp, &key, flags);
+	if (IS_ERR(fltr))
+		return PTR_ERR(fltr);
+
+	fltr->base.fw_vnic_id = vnic_id;
+	fltr->base.rxq = ring;
+	fltr->base.vf_idx = vf;
+	rc = bnxt_hwrm_l2_filter_alloc(bp, fltr);
+	if (rc)
+		bnxt_del_l2_filter(bp, fltr);
+	else
+		fs->location = fltr->base.sw_id;
+	return rc;
+}
+
 #define IPV4_ALL_MASK		((__force __be32)~0)
 #define L4_PORT_ALL_MASK	((__force __be16)~0)
 
@@ -1335,7 +1387,7 @@ static int bnxt_srxclsrlins(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		return -EINVAL;
 	flow_type &= ~FLOW_EXT;
 	if (flow_type == ETHER_FLOW)
-		rc = -EOPNOTSUPP;
+		rc = bnxt_add_l2_cls_rule(bp, fs);
 	else
 		rc = bnxt_add_ntuple_cls_rule(bp, fs);
 	return rc;
@@ -1346,11 +1398,22 @@ static int bnxt_srxclsrldel(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	struct ethtool_rx_flow_spec *fs = &cmd->fs;
 	struct bnxt_filter_base *fltr_base;
 	struct bnxt_ntuple_filter *fltr;
+	u32 id = fs->location;
 
 	rcu_read_lock();
+	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->l2_fltr_hash_tbl,
+					  BNXT_L2_FLTR_HASH_SIZE, id);
+	if (fltr_base) {
+		struct bnxt_l2_filter *l2_fltr;
+
+		l2_fltr = container_of(fltr_base, struct bnxt_l2_filter, base);
+		rcu_read_unlock();
+		bnxt_hwrm_l2_filter_free(bp, l2_fltr);
+		bnxt_del_l2_filter(bp, l2_fltr);
+		return 0;
+	}
 	fltr_base = bnxt_get_one_fltr_rcu(bp, bp->ntp_fltr_hash_tbl,
-					  BNXT_NTP_FLTR_HASH_SIZE,
-					  fs->location);
+					  BNXT_NTP_FLTR_HASH_SIZE, id);
 	if (!fltr_base) {
 		rcu_read_unlock();
 		return -ENOENT;
