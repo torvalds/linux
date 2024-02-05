@@ -7590,7 +7590,7 @@ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
 				  struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_vif *arvif = (void *)vif->drv_priv;
+	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath11k_reg_tpc_power_info *reg_tpc_info = &arvif->reg_tpc_info;
 	struct ieee80211_channel *chan, *temp_chan;
@@ -7764,7 +7764,7 @@ static void ath11k_mac_parse_tx_pwr_env(struct ath11k *ar,
 					struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_vif *arvif = (void *)vif->drv_priv;
+	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ieee80211_tx_pwr_env *single_tpe;
 	enum wmi_reg_6ghz_client_type client_type;
