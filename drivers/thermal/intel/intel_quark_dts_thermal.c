@@ -105,7 +105,6 @@ struct soc_sensor_entry {
 	u32 store_ptps;
 	u32 store_dts_enable;
 	struct thermal_zone_device *tzone;
-	struct thermal_trip trips[QRK_MAX_DTS_TRIPS];
 };
 
 static struct soc_sensor_entry *soc_dts;
@@ -320,6 +319,7 @@ static void free_soc_dts(struct soc_sensor_entry *aux_entry)
 
 static struct soc_sensor_entry *alloc_soc_dts(void)
 {
+	struct thermal_trip trips[QRK_MAX_DTS_TRIPS] = { 0 };
 	struct soc_sensor_entry *aux_entry;
 	int err;
 	u32 out;
@@ -362,14 +362,14 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 			goto err_ret;
 	}
 
-	aux_entry->trips[QRK_DTS_ID_TP_CRITICAL].temperature = get_trip_temp(QRK_DTS_ID_TP_CRITICAL);
-	aux_entry->trips[QRK_DTS_ID_TP_CRITICAL].type = THERMAL_TRIP_CRITICAL;
+	trips[QRK_DTS_ID_TP_CRITICAL].temperature = get_trip_temp(QRK_DTS_ID_TP_CRITICAL);
+	trips[QRK_DTS_ID_TP_CRITICAL].type = THERMAL_TRIP_CRITICAL;
 
-	aux_entry->trips[QRK_DTS_ID_TP_HOT].temperature = get_trip_temp(QRK_DTS_ID_TP_HOT);
-	aux_entry->trips[QRK_DTS_ID_TP_HOT].type = THERMAL_TRIP_HOT;
+	trips[QRK_DTS_ID_TP_HOT].temperature = get_trip_temp(QRK_DTS_ID_TP_HOT);
+	trips[QRK_DTS_ID_TP_HOT].type = THERMAL_TRIP_HOT;
 
 	aux_entry->tzone = thermal_zone_device_register_with_trips("quark_dts",
-								   aux_entry->trips,
+								   trips,
 								   QRK_MAX_DTS_TRIPS,
 								   wr_mask,
 								   aux_entry, &tzone_ops,

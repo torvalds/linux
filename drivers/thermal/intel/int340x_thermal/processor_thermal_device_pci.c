@@ -233,10 +233,6 @@ static int get_trip_temp(struct proc_thermal_pci *pci_info)
 	return temp;
 }
 
-static struct thermal_trip psv_trip = {
-	.type = THERMAL_TRIP_PASSIVE,
-};
-
 static struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
 	.set_trip_temp	= sys_set_trip_temp,
@@ -251,6 +247,9 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 {
 	struct proc_thermal_device *proc_priv;
 	struct proc_thermal_pci *pci_info;
+	struct thermal_trip psv_trip = {
+		.type = THERMAL_TRIP_PASSIVE,
+	};
 	int irq_flag = 0, irq, ret;
 	bool msi_irq = false;
 

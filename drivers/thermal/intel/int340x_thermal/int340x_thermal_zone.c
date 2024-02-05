@@ -179,8 +179,6 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	for (i = 0; i < trip_cnt; ++i)
 		zone_trips[i].hysteresis = hyst;
 
-	int34x_zone->trips = zone_trips;
-
 	int34x_zone->lpat_table = acpi_lpat_get_conversion_table(adev->handle);
 
 	int34x_zone->zone = thermal_zone_device_register_with_trips(
@@ -190,6 +188,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 							int34x_zone->ops,
 							&int340x_thermal_params,
 							0, 0);
+	kfree(zone_trips);
+
 	if (IS_ERR(int34x_zone->zone)) {
 		ret = PTR_ERR(int34x_zone->zone);
 		goto err_thermal_zone;
@@ -203,7 +203,6 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 err_enable:
 	thermal_zone_device_unregister(int34x_zone->zone);
 err_thermal_zone:
-	kfree(int34x_zone->trips);
 	acpi_lpat_free_conversion_table(int34x_zone->lpat_table);
 err_trips_alloc:
 	kfree(int34x_zone->ops);
@@ -217,7 +216,6 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone *int34x_zone)
 {
 	thermal_zone_device_unregister(int34x_zone->zone);
 	acpi_lpat_free_conversion_table(int34x_zone->lpat_table);
-	kfree(int34x_zone->trips);
 	kfree(int34x_zone->ops);
 	kfree(int34x_zone);
 }
