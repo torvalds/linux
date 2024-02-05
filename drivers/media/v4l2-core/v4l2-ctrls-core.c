@@ -1504,11 +1504,12 @@ int check_range(enum v4l2_ctrl_type type,
 		return 0;
 	case V4L2_CTRL_TYPE_MENU:
 	case V4L2_CTRL_TYPE_INTEGER_MENU:
-		if (min > max || def < min || def > max)
+		if (min > max || def < min || def > max ||
+		    min < 0 || (step && max >= BITS_PER_LONG_LONG))
 			return -ERANGE;
 		/* Note: step == menu_skip_mask for menu controls.
 		   So here we check if the default value is masked out. */
-		if (step && ((1 << def) & step))
+		if (def < BITS_PER_LONG_LONG && (step & BIT_ULL(def)))
 			return -EINVAL;
 		return 0;
 	case V4L2_CTRL_TYPE_STRING:
