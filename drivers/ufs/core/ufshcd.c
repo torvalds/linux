@@ -2949,7 +2949,7 @@ bool ufshcd_cmd_inflight(struct scsi_cmnd *cmd)
  */
 static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 {
-	u32 mask = 1U << task_tag;
+	u32 mask;
 	unsigned long flags;
 	int err;
 
@@ -2966,6 +2966,8 @@ static int ufshcd_clear_cmd(struct ufs_hba *hba, u32 task_tag)
 		}
 		return 0;
 	}
+
+	mask = 1U << task_tag;
 
 	/* clear outstanding transaction before retry */
 	spin_lock_irqsave(hba->host->host_lock, flags);
