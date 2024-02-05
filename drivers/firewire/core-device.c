@@ -366,7 +366,7 @@ static ssize_t show_text_leaf(struct device *dev,
 			// in the root directory follows to the directory entry for vendor ID
 			// instead of the immediate value for vendor ID.
 			result = fw_csr_string(directories[i], CSR_DIRECTORY | attr->key, buf,
-					       bufsize);
+					       PAGE_SIZE - 1);
 			if (result >= 0)
 				ret = result;
 		}
