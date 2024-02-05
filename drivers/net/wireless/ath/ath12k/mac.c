@@ -8302,6 +8302,7 @@ int ath12k_mac_allocate(struct ath12k_base *ab)
 		if (!ah) {
 			ath12k_warn(ab, "failed to allocate mac80211 hw device for hw_idx %d\n",
 				    i);
+			ret = -ENOMEM;
 			goto err;
 		}
 
