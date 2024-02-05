@@ -47,12 +47,13 @@
 //TO DO local monitor on off
 //single node - vga and dp
 //dual node- node 0- vga only, node 1- dp only
-#define SCU418_Pin_Ctrl (0x418)
+#define SCU000_Silicon_Revision_ID (0x0)
+#define SCU448_Pin_Ctrl (0x448)
 #define SCU0C0_Misc1_Ctrl (0x0C0)
 #define SCU0D0_Misc3_Ctrl (0x0D0)
- //SCU418
-#define VGAVS_ENBL			BIT(31)
-#define VGAHS_ENBL			BIT(30)
+ //SCU448
+#define VGAVS_ENBL			(0x70000000)
+#define VGAHS_ENBL			(0x7000000)
 //SCU0C0
 #define VGA0_CRT_DISBL			BIT(1)
 #define VGA1_CRT_DISBL			BIT(2)
@@ -434,7 +435,7 @@ struct AstRVAS {
 	u8 video_intr_occurred;
 	u8 timer_irq_requested;
 	u8 display_out;
-	u8 vga_index;
+	u8 rvas_index;
 	struct ContextTable *ppctContextTable[MAX_NUM_CONTEXT];
 	u32 dwMemoryTableSize;
 	u32 dwScreenOffset;

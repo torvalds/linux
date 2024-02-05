@@ -536,17 +536,21 @@ void ioctl_free(struct RvasIoctl *pri, struct AstRVAS *pAstRVAS)
 }
 
 #ifdef CONFIG_MACH_ASPEED_G7
+//AST2700 has both VGA output and DP out.
+//AST2750 has VGA output for host node 0/VGA0 and DP output for host node 1/VGA1.
 void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 {
-	u32 reg_scu418 = 0;
+	u32 reg_scu000 = 0;
+	u32 reg_scu448 = 0;
 	u32 reg_scu0C0 = 0;
 	u32 reg_scu0D0 = 0;
 	u32 reg_dptx100 = 0;
 	u32 reg_dptx104 = 0;
+	u32 chip_efuse_option = 0;
 	u32 vga_crt_disbl = 0;
 	u32 vga_pwr_off_vdac = 0;
 
-	if (pAstRVAS->vga_index == 0x0) {
+	if (pAstRVAS->rvas_index == 0x0) {
 		vga_crt_disbl = VGA0_CRT_DISBL;
 		vga_pwr_off_vdac = VGA0_PWR_OFF_VDAC;
 	} else {
@@ -554,18 +558,22 @@ void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 		vga_pwr_off_vdac = VGA1_PWR_OFF_VDAC;
 	}
 
-	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_scu418);
+	regmap_read(pAstRVAS->scu, SCU000_Silicon_Revision_ID, &reg_scu000);
+	chip_efuse_option = (reg_scu000 & 0xff00) >> 8;
+	regmap_read(pAstRVAS->scu, SCU448_Pin_Ctrl, &reg_scu448);
 	regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_scu0C0);
 	regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_scu0D0);
-	if (pAstRVAS->dp_base) {
-		reg_dptx100 = readl(pAstRVAS->dp_base + DPTX_Configuration_Register);
-		reg_dptx104 = readl(pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
+	if ((chip_efuse_option == 0 && pAstRVAS->rvas_index == 0x1) || chip_efuse_option == 1) {
+		if (pAstRVAS->dp_base) {
+			reg_dptx100 = readl(pAstRVAS->dp_base + DPTX_Configuration_Register);
+			reg_dptx104 = readl(pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
+		}
 	}
 
 	if (lms_on) {
-		if (!(reg_scu418 & (VGAVS_ENBL | VGAHS_ENBL))) {
-			reg_scu418 |= (VGAVS_ENBL | VGAHS_ENBL);
-			regmap_write(pAstRVAS->scu, SCU418_Pin_Ctrl, reg_scu418);
+		if ((reg_scu448 & VGAVS_ENBL) == 0 && (reg_scu448 & VGAHS_ENBL) == 0) {
+			reg_scu448 |= (VGAVS_ENBL | VGAHS_ENBL);
+			regmap_write(pAstRVAS->scu, SCU448_Pin_Ctrl, reg_scu448);
 		}
 		if (reg_scu0C0 & vga_crt_disbl) {
 			reg_scu0C0 &= ~vga_crt_disbl;
@@ -581,9 +589,9 @@ void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 			writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
 		}
 	} else { //turn off
-		if (reg_scu418 & (VGAVS_ENBL | VGAHS_ENBL)) {
-			reg_scu418 &= ~(VGAVS_ENBL | VGAHS_ENBL);
-			regmap_write(pAstRVAS->scu, SCU418_Pin_Ctrl, reg_scu418);
+		if ((reg_scu448 & VGAVS_ENBL) == 1 || (reg_scu448 & VGAHS_ENBL) == 1) {
+			reg_scu448 &= ~(VGAVS_ENBL | VGAHS_ENBL);
+			regmap_write(pAstRVAS->scu, SCU448_Pin_Ctrl, reg_scu448);
 		}
 		if (!(reg_scu0C0 & vga_crt_disbl)) {
 			reg_scu0C0 |= vga_crt_disbl;
@@ -594,11 +602,13 @@ void ioctl_update_lms(u8 lms_on, struct AstRVAS *pAstRVAS)
 			regmap_write(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, reg_scu0D0);
 		}
 		//dp output
-		if (pAstRVAS->dp_base) {
-			reg_dptx100 &= ~(1 << AUX_RESETN);
-			writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
-			reg_dptx104 &= ~(1 << DP_TX_I_MAIN_ON);
-			writel(reg_dptx104, pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
+		if ((chip_efuse_option == 0 && pAstRVAS->rvas_index == 0x1) || chip_efuse_option == 1) {
+			if (pAstRVAS->dp_base) {
+				reg_dptx100 &= ~(1 << AUX_RESETN);
+				writel(reg_dptx100, pAstRVAS->dp_base + DPTX_Configuration_Register);
+				reg_dptx104 &= ~(1 << DP_TX_I_MAIN_ON);
+				writel(reg_dptx104, pAstRVAS->dp_base + DPTX_PHY_Configuration_Register);
+			}
 		}
 	}
 }
@@ -607,10 +617,10 @@ u32 ioctl_get_lm_status(struct AstRVAS *pAstRVAS)
 {
 	u32 reg_val = 0;
 
-	regmap_read(pAstRVAS->scu, SCU418_Pin_Ctrl, &reg_val);
-	if (reg_val & (VGAVS_ENBL | VGAHS_ENBL)) {
+	regmap_read(pAstRVAS->scu, SCU448_Pin_Ctrl, &reg_val);
+	if ((reg_val & VGAVS_ENBL) == 1 || (reg_val & VGAHS_ENBL) == 1) {
 		regmap_read(pAstRVAS->scu, SCU0C0_Misc1_Ctrl, &reg_val);
-		if (pAstRVAS->vga_index == 0x0) {
+		if (pAstRVAS->rvas_index == 0x0) {
 			if (!(reg_val & VGA0_CRT_DISBL)) {
 				regmap_read(pAstRVAS->scu, SCU0D0_Misc3_Ctrl, &reg_val);
 				if (!(reg_val & VGA0_PWR_OFF_VDAC))
@@ -1600,8 +1610,12 @@ static int video_drv_probe(struct platform_device *pdev)
 	pAstRVAS->scu = sdram_scu;
 	pAstRVAS->rvas_dev = video_misc;
 #ifdef CONFIG_MACH_ASPEED_G7
-	if (of_alias_get_id(pdev->dev.of_node, "rvas") == 1)
+	if (of_alias_get_id(pdev->dev.of_node, "rvas") == 1) {
+		pAstRVAS->rvas_index = 1;
 		pAstRVAS->rvas_dev.name = "rvas1";
+	} else {
+		pAstRVAS->rvas_index = 0;
+	}
 #endif
 	pAstRVAS->rvas_dev.parent = &pdev->dev;
 	result = misc_register(&pAstRVAS->rvas_dev);
