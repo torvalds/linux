@@ -29,7 +29,6 @@ properties:
           - qcom,pcie-msm8996
           - qcom,pcie-qcs404
           - qcom,pcie-sa8775p
-          - qcom,pcie-sc7280
           - qcom,pcie-sdm845
           - qcom,pcie-sdx55
       - items:
@@ -92,9 +91,6 @@ properties:
 
   vdda_refclk-supply:
     description: A phandle to the core analog power supply for IC which generates reference clock
-
-  vddpe-3v3-supply:
-    description: A phandle to the PCIe endpoint power supply
 
   phys:
     maxItems: 1
@@ -205,7 +201,6 @@ allOf:
           contains:
             enum:
               - qcom,pcie-sa8775p
-              - qcom,pcie-sc7280
               - qcom,pcie-sdx55
     then:
       properties:
@@ -436,38 +431,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - qcom,pcie-sc7280
-    then:
-      properties:
-        clocks:
-          minItems: 13
-          maxItems: 13
-        clock-names:
-          items:
-            - const: pipe # PIPE clock
-            - const: pipe_mux # PIPE MUX
-            - const: phy_pipe # PIPE output clock
-            - const: ref # REFERENCE clock
-            - const: aux # Auxiliary clock
-            - const: cfg # Configuration clock
-            - const: bus_master # Master AXI clock
-            - const: bus_slave # Slave AXI clock
-            - const: slave_q2a # Slave Q2A clock
-            - const: tbu # PCIe TBU clock
-            - const: ddrss_sf_tbu # PCIe SF TBU clock
-            - const: aggre0 # Aggre NoC PCIe CENTER SF AXI clock
-            - const: aggre1 # Aggre NoC PCIe1 AXI clock
-        resets:
-          maxItems: 1
-        reset-names:
-          items:
-            - const: pci # PCIe core reset
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            enum:
               - qcom,pcie-sdm845
     then:
       oneOf:
@@ -603,7 +566,6 @@ allOf:
             enum:
               - qcom,pcie-msm8996
               - qcom,pcie-sa8775p
-              - qcom,pcie-sc7280
               - qcom,pcie-sdm845
     then:
       oneOf:
