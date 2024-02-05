@@ -403,7 +403,7 @@ static ssize_t base_show(struct device *dev,
 {
 	const struct gpio_device *gdev = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%d\n", gdev->chip->base);
+	return sysfs_emit(buf, "%d\n", gdev->base);
 }
 static DEVICE_ATTR_RO(base);
 
@@ -412,7 +412,7 @@ static ssize_t label_show(struct device *dev,
 {
 	const struct gpio_device *gdev = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%s\n", gdev->chip->label ?: "");
+	return sysfs_emit(buf, "%s\n", gdev->label);
 }
 static DEVICE_ATTR_RO(label);
 
@@ -421,7 +421,7 @@ static ssize_t ngpio_show(struct device *dev,
 {
 	const struct gpio_device *gdev = dev_get_drvdata(dev);
 
-	return sysfs_emit(buf, "%u\n", gdev->chip->ngpio);
+	return sysfs_emit(buf, "%u\n", gdev->ngpio);
 }
 static DEVICE_ATTR_RO(ngpio);
 
