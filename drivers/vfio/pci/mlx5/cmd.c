@@ -121,6 +121,11 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 			}
 			query_flags &= ~MLX5VF_QUERY_INC;
 		}
+		/* Block incremental query which is state-dependent */
+		if (mvdev->saving_migf->state == MLX5_MIGF_STATE_ERROR) {
+			complete(&mvdev->saving_migf->save_comp);
+			return -ENODEV;
+		}
 	}
 
 	MLX5_SET(query_vhca_migration_state_in, in, opcode,
