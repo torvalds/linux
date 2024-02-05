@@ -141,6 +141,11 @@ struct dbc_rsp {
 	__le16	status;
 } __packed;
 
+static inline bool bo_queued(struct qaic_bo *bo)
+{
+	return !list_empty(&bo->xfer_list);
+}
+
 inline int get_dbc_req_elem_size(void)
 {
 	return sizeof(struct dbc_req);
@@ -569,6 +574,9 @@ static void qaic_free_sgt(struct sg_table *sgt)
 {
 	struct scatterlist *sg;
 
+	if (!sgt)
+		return;
+
 	for (sg = sgt->sgl; sg; sg = sg_next(sg))
 		if (sg_page(sg))
 			__free_pages(sg_page(sg), get_order(sg->length));
@@ -648,6 +656,7 @@ static void qaic_init_bo(struct qaic_bo *bo, bool reinit)
 	}
 	complete_all(&bo->xfer_done);
 	INIT_LIST_HEAD(&bo->slices);
+	INIT_LIST_HEAD(&bo->xfer_list);
 }
 
 static struct qaic_bo *qaic_alloc_init_bo(void)
@@ -709,9 +718,13 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 	if (ret)
 		goto free_bo;
 
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto free_bo;
+
 	ret = drm_gem_handle_create(file_priv, obj, &args->handle);
 	if (ret)
-		goto free_sgt;
+		goto free_bo;
 
 	bo->handle = args->handle;
 	drm_gem_object_put(obj);
@@ -720,10 +733,8 @@ int qaic_create_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *fi
 
 	return 0;
 
-free_sgt:
-	qaic_free_sgt(bo->sgt);
 free_bo:
-	kfree(bo);
+	drm_gem_object_put(obj);
 unlock_dev_srcu:
 	srcu_read_unlock(&qdev->dev_lock, qdev_rcu_id);
 unlock_usr_srcu:
@@ -738,7 +749,7 @@ int qaic_mmap_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	struct drm_gem_object *obj;
 	struct qaic_device *qdev;
 	struct qaic_user *usr;
-	int ret;
+	int ret = 0;
 
 	usr = file_priv->driver_priv;
 	usr_rcu_id = srcu_read_lock(&usr->qddev_lock);
@@ -760,9 +771,7 @@ int qaic_mmap_bo_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 		goto unlock_dev_srcu;
 	}
 
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret == 0)
-		args->offset = drm_vma_node_offset_addr(&obj->vma_node);
+	args->offset = drm_vma_node_offset_addr(&obj->vma_node);
 
 	drm_gem_object_put(obj);
 
@@ -828,9 +837,6 @@ static int qaic_prepare_import_bo(struct qaic_bo *bo, struct qaic_attach_slice_h
 	struct sg_table *sgt;
 	int ret;
 
-	if (obj->import_attach->dmabuf->size < hdr->size)
-		return -EINVAL;
-
 	sgt = dma_buf_map_attachment(obj->import_attach, hdr->dir);
 	if (IS_ERR(sgt)) {
 		ret = PTR_ERR(sgt);
@@ -846,9 +852,6 @@ static int qaic_prepare_export_bo(struct qaic_device *qdev, struct qaic_bo *bo,
 				  struct qaic_attach_slice_hdr *hdr)
 {
 	int ret;
-
-	if (bo->base.size < hdr->size)
-		return -EINVAL;
 
 	ret = dma_map_sgtable(&qdev->pdev->dev, bo->sgt, hdr->dir, 0);
 	if (ret)
@@ -950,9 +953,6 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 	if (arg_size / args->hdr.count != sizeof(*slice_ent))
 		return -EINVAL;
 
-	if (args->hdr.size == 0)
-		return -EINVAL;
-
 	if (!(args->hdr.dir == DMA_TO_DEVICE || args->hdr.dir == DMA_FROM_DEVICE))
 		return -EINVAL;
 
@@ -992,15 +992,15 @@ int qaic_attach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 		goto free_slice_ent;
 	}
 
-	ret = qaic_validate_req(qdev, slice_ent, args->hdr.count, args->hdr.size);
-	if (ret)
-		goto free_slice_ent;
-
 	obj = drm_gem_object_lookup(file_priv, args->hdr.handle);
 	if (!obj) {
 		ret = -ENOENT;
 		goto free_slice_ent;
 	}
+
+	ret = qaic_validate_req(qdev, slice_ent, args->hdr.count, obj->size);
+	if (ret)
+		goto put_bo;
 
 	bo = to_qaic_bo(obj);
 	ret = mutex_lock_interruptible(&bo->lock);
@@ -1173,7 +1173,6 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 	struct bo_slice *slice;
 	unsigned long flags;
 	struct qaic_bo *bo;
-	bool queued;
 	int i, j;
 	int ret;
 
@@ -1205,9 +1204,7 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 		}
 
 		spin_lock_irqsave(&dbc->xfer_lock, flags);
-		queued = bo->queued;
-		bo->queued = true;
-		if (queued) {
+		if (bo_queued(bo)) {
 			spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 			ret = -EINVAL;
 			goto unlock_bo;
@@ -1230,7 +1227,6 @@ static int send_bo_list_to_device(struct qaic_device *qdev, struct drm_file *fil
 			else
 				ret = copy_exec_reqs(qdev, slice, dbc->id, head, tail);
 			if (ret) {
-				bo->queued = false;
 				spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 				goto unlock_bo;
 			}
@@ -1253,8 +1249,7 @@ failed_to_send_bo:
 		spin_lock_irqsave(&dbc->xfer_lock, flags);
 		bo = list_last_entry(&dbc->xfer_list, struct qaic_bo, xfer_list);
 		obj = &bo->base;
-		bo->queued = false;
-		list_del(&bo->xfer_list);
+		list_del_init(&bo->xfer_list);
 		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 		dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, bo->dir);
 		drm_gem_object_put(obj);
@@ -1615,8 +1610,7 @@ read_fifo:
 			 */
 			dma_sync_sgtable_for_cpu(&qdev->pdev->dev, bo->sgt, bo->dir);
 			bo->nr_slice_xfer_done = 0;
-			bo->queued = false;
-			list_del(&bo->xfer_list);
+			list_del_init(&bo->xfer_list);
 			bo->perf_stats.req_processed_ts = ktime_get_ns();
 			complete_all(&bo->xfer_done);
 			drm_gem_object_put(&bo->base);
@@ -1875,7 +1869,7 @@ int qaic_detach_slice_bo_ioctl(struct drm_device *dev, void *data, struct drm_fi
 
 	/* Check if BO is committed to H/W for DMA */
 	spin_lock_irqsave(&dbc->xfer_lock, flags);
-	if (bo->queued) {
+	if (bo_queued(bo)) {
 		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 		ret = -EBUSY;
 		goto unlock_ch_srcu;
@@ -1905,8 +1899,7 @@ static void empty_xfer_list(struct qaic_device *qdev, struct dma_bridge_chan *db
 	spin_lock_irqsave(&dbc->xfer_lock, flags);
 	while (!list_empty(&dbc->xfer_list)) {
 		bo = list_first_entry(&dbc->xfer_list, typeof(*bo), xfer_list);
-		bo->queued = false;
-		list_del(&bo->xfer_list);
+		list_del_init(&bo->xfer_list);
 		spin_unlock_irqrestore(&dbc->xfer_lock, flags);
 		bo->nr_slice_xfer_done = 0;
 		bo->req_id = 0;

@@ -24,11 +24,14 @@
 #define __DRM_EDID_H__
 
 #include <linux/types.h>
-#include <linux/hdmi.h>
-#include <drm/drm_mode.h>
 
+enum hdmi_quantization_range;
+struct drm_connector;
 struct drm_device;
+struct drm_display_mode;
 struct drm_edid;
+struct hdmi_avi_infoframe;
+struct hdmi_vendor_infoframe;
 struct i2c_adapter;
 
 #define EDID_LENGTH 128
@@ -46,7 +49,7 @@ struct est_timings {
 	u8 t1;
 	u8 t2;
 	u8 mfg_rsvd;
-} __attribute__((packed));
+} __packed;
 
 /* 00=16:10, 01=4:3, 10=5:4, 11=16:9 */
 #define EDID_TIMING_ASPECT_SHIFT 6
@@ -59,7 +62,7 @@ struct est_timings {
 struct std_timing {
 	u8 hsize; /* need to multiply by 8 then add 248 */
 	u8 vfreq_aspect;
-} __attribute__((packed));
+} __packed;
 
 #define DRM_EDID_PT_HSYNC_POSITIVE (1 << 1)
 #define DRM_EDID_PT_VSYNC_POSITIVE (1 << 2)
@@ -85,12 +88,12 @@ struct detailed_pixel_timing {
 	u8 hborder;
 	u8 vborder;
 	u8 misc;
-} __attribute__((packed));
+} __packed;
 
 /* If it's not pixel timing, it'll be one of the below */
 struct detailed_data_string {
 	u8 str[13];
-} __attribute__((packed));
+} __packed;
 
 #define DRM_EDID_RANGE_OFFSET_MIN_VFREQ (1 << 0) /* 1.4 */
 #define DRM_EDID_RANGE_OFFSET_MAX_VFREQ (1 << 1) /* 1.4 */
@@ -120,7 +123,7 @@ struct detailed_data_monitor_range {
 			__le16 m;
 			u8 k;
 			u8 j; /* need to divide by 2 */
-		} __attribute__((packed)) gtf2;
+		} __packed gtf2;
 		struct {
 			u8 version;
 			u8 data1; /* high 6 bits: extra clock resolution */
@@ -129,27 +132,27 @@ struct detailed_data_monitor_range {
 			u8 flags; /* preferred aspect and blanking support */
 			u8 supported_scalings;
 			u8 preferred_refresh;
-		} __attribute__((packed)) cvt;
-	} __attribute__((packed)) formula;
-} __attribute__((packed));
+		} __packed cvt;
+	} __packed formula;
+} __packed;
 
 struct detailed_data_wpindex {
 	u8 white_yx_lo; /* Lower 2 bits each */
 	u8 white_x_hi;
 	u8 white_y_hi;
 	u8 gamma; /* need to divide by 100 then add 1 */
-} __attribute__((packed));
+} __packed;
 
 struct detailed_data_color_point {
 	u8 windex1;
 	u8 wpindex1[3];
 	u8 windex2;
 	u8 wpindex2[3];
-} __attribute__((packed));
+} __packed;
 
 struct cvt_timing {
 	u8 code[3];
-} __attribute__((packed));
+} __packed;
 
 struct detailed_non_pixel {
 	u8 pad1;
@@ -163,8 +166,8 @@ struct detailed_non_pixel {
 		struct detailed_data_wpindex color;
 		struct std_timing timings[6];
 		struct cvt_timing cvt[4];
-	} __attribute__((packed)) data;
-} __attribute__((packed));
+	} __packed data;
+} __packed;
 
 #define EDID_DETAIL_EST_TIMINGS 0xf7
 #define EDID_DETAIL_CVT_3BYTE 0xf8
@@ -181,8 +184,8 @@ struct detailed_timing {
 	union {
 		struct detailed_pixel_timing pixel_data;
 		struct detailed_non_pixel other_data;
-	} __attribute__((packed)) data;
-} __attribute__((packed));
+	} __packed data;
+} __packed;
 
 #define DRM_EDID_INPUT_SERRATION_VSYNC (1 << 0)
 #define DRM_EDID_INPUT_SYNC_ON_GREEN   (1 << 1)
@@ -307,7 +310,7 @@ struct edid {
 	u8 extensions;
 	/* Checksum */
 	u8 checksum;
-} __attribute__((packed));
+} __packed;
 
 #define EDID_PRODUCT_ID(e) ((e)->prod_code[0] | ((e)->prod_code[1] << 8))
 
@@ -318,11 +321,6 @@ struct cea_sad {
 	u8 freq;
 	u8 byte2; /* meaning depends on format */
 };
-
-struct drm_encoder;
-struct drm_connector;
-struct drm_connector_state;
-struct drm_display_mode;
 
 int drm_edid_to_sad(const struct edid *edid, struct cea_sad **sads);
 int drm_edid_to_speaker_allocation(const struct edid *edid, u8 **sadb);
@@ -426,8 +424,6 @@ enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,
 			 int hdisplay, int vdisplay);
-void drm_set_preferred_mode(struct drm_connector *connector,
-			    int hpref, int vpref);
 
 int drm_edid_header_is_valid(const void *edid);
 bool drm_edid_block_valid(u8 *raw_edid, int block, bool print_bad_edid,
