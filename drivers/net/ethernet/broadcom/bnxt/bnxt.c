@@ -4883,7 +4883,8 @@ static void bnxt_free_ntp_fltrs(struct bnxt *bp, bool all)
 		head = &bp->ntp_fltr_hash_tbl[i];
 		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
 			bnxt_del_l2_filter(bp, fltr->l2_fltr);
-			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
+			if (!all && ((fltr->base.flags & BNXT_ACT_FUNC_DST) ||
+				     !list_empty(&fltr->base.list)))
 				continue;
 			bnxt_del_fltr(bp, &fltr->base);
 		}
@@ -4926,7 +4927,8 @@ static void bnxt_free_l2_filters(struct bnxt *bp, bool all)
 
 		head = &bp->l2_fltr_hash_tbl[i];
 		hlist_for_each_entry_safe(fltr, tmp, head, base.hash) {
-			if (!all && (fltr->base.flags & BNXT_ACT_FUNC_DST))
+			if (!all && ((fltr->base.flags & BNXT_ACT_FUNC_DST) ||
+				     !list_empty(&fltr->base.list)))
 				continue;
 			bnxt_del_fltr(bp, &fltr->base);
 		}
@@ -5851,7 +5853,8 @@ static void bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 			struct bnxt_l2_filter *fltr = vnic->l2_filters[j];
 
 			bnxt_hwrm_l2_filter_free(bp, fltr);
-			bnxt_del_l2_filter(bp, fltr);
+			if (list_empty(&fltr->base.list))
+				bnxt_del_l2_filter(bp, fltr);
 		}
 		vnic->uc_filter_count = 0;
 	}
