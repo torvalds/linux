@@ -1080,6 +1080,7 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		(struct ethtool_rx_flow_spec *)&cmd->fs;
 	struct bnxt_filter_base *fltr_base;
 	struct bnxt_ntuple_filter *fltr;
+	struct bnxt_flow_masks *fmasks;
 	struct flow_keys *fkeys;
 	int rc = -EINVAL;
 
@@ -1127,6 +1128,7 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	fltr = container_of(fltr_base, struct bnxt_ntuple_filter, base);
 
 	fkeys = &fltr->fkeys;
+	fmasks = &fltr->fmasks;
 	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
 		if (fkeys->basic.ip_proto == IPPROTO_TCP)
 			fs->flow_type = TCP_V4_FLOW;
@@ -1135,22 +1137,14 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		else
 			goto fltr_err;
 
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
-			fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
-			fs->m_u.tcp_ip4_spec.ip4src = cpu_to_be32(~0);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
-			fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
-			fs->m_u.tcp_ip4_spec.ip4dst = cpu_to_be32(~0);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) {
-			fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-			fs->m_u.tcp_ip4_spec.psrc = cpu_to_be16(~0);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) {
-			fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-			fs->m_u.tcp_ip4_spec.pdst = cpu_to_be16(~0);
-		}
+		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
+		fs->m_u.tcp_ip4_spec.ip4src = fmasks->addrs.v4addrs.src;
+		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
+		fs->m_u.tcp_ip4_spec.ip4dst = fmasks->addrs.v4addrs.dst;
+		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip4_spec.psrc = fmasks->ports.src;
+		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip4_spec.pdst = fmasks->ports.dst;
 	} else {
 		if (fkeys->basic.ip_proto == IPPROTO_TCP)
 			fs->flow_type = TCP_V6_FLOW;
@@ -1159,24 +1153,18 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		else
 			goto fltr_err;
 
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
-			*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
-				fkeys->addrs.v6addrs.src;
-			bnxt_fill_ipv6_mask(fs->m_u.tcp_ip6_spec.ip6src);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
-			*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
-				fkeys->addrs.v6addrs.dst;
-			bnxt_fill_ipv6_mask(fs->m_u.tcp_ip6_spec.ip6dst);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) {
-			fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
-			fs->m_u.tcp_ip6_spec.psrc = cpu_to_be16(~0);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) {
-			fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
-			fs->m_u.tcp_ip6_spec.pdst = cpu_to_be16(~0);
-		}
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
+			fkeys->addrs.v6addrs.src;
+		*(struct in6_addr *)&fs->m_u.tcp_ip6_spec.ip6src[0] =
+			fmasks->addrs.v6addrs.src;
+		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6dst[0] =
+			fkeys->addrs.v6addrs.dst;
+		*(struct in6_addr *)&fs->m_u.tcp_ip6_spec.ip6dst[0] =
+			fmasks->addrs.v6addrs.dst;
+		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+		fs->m_u.tcp_ip6_spec.psrc = fmasks->ports.src;
+		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+		fs->m_u.tcp_ip6_spec.pdst = fmasks->ports.dst;
 	}
 
 	fs->ring_cookie = fltr->base.rxq;
@@ -1240,19 +1228,6 @@ static int bnxt_add_l2_cls_rule(struct bnxt *bp,
 	return rc;
 }
 
-#define IPV4_ALL_MASK		((__force __be32)~0)
-#define L4_PORT_ALL_MASK	((__force __be16)~0)
-
-static bool ipv6_mask_is_full(__be32 mask[4])
-{
-	return (mask[0] & mask[1] & mask[2] & mask[3]) == IPV4_ALL_MASK;
-}
-
-static bool ipv6_mask_is_zero(__be32 mask[4])
-{
-	return !(mask[0] | mask[1] | mask[2] | mask[3]);
-}
-
 static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 				    struct ethtool_rx_flow_spec *fs)
 {
@@ -1260,6 +1235,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 	u32 ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
 	struct bnxt_ntuple_filter *new_fltr, *fltr;
 	struct bnxt_l2_filter *l2_fltr;
+	struct bnxt_flow_masks *fmasks;
 	u32 flow_type = fs->flow_type;
 	struct flow_keys *fkeys;
 	u32 idx;
@@ -1278,6 +1254,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 	l2_fltr = bp->vnic_info[0].l2_filters[0];
 	atomic_inc(&l2_fltr->refcnt);
 	new_fltr->l2_fltr = l2_fltr;
+	fmasks = &new_fltr->fmasks;
 	fkeys = &new_fltr->fkeys;
 
 	rc = -EOPNOTSUPP;
@@ -1291,32 +1268,14 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 		if (flow_type == UDP_V4_FLOW)
 			fkeys->basic.ip_proto = IPPROTO_UDP;
 		fkeys->basic.n_proto = htons(ETH_P_IP);
-
-		if (ip_mask->ip4src == IPV4_ALL_MASK) {
-			fkeys->addrs.v4addrs.src = ip_spec->ip4src;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_IP;
-		} else if (ip_mask->ip4src) {
-			goto ntuple_err;
-		}
-		if (ip_mask->ip4dst == IPV4_ALL_MASK) {
-			fkeys->addrs.v4addrs.dst = ip_spec->ip4dst;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_IP;
-		} else if (ip_mask->ip4dst) {
-			goto ntuple_err;
-		}
-
-		if (ip_mask->psrc == L4_PORT_ALL_MASK) {
-			fkeys->ports.src = ip_spec->psrc;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_PORT;
-		} else if (ip_mask->psrc) {
-			goto ntuple_err;
-		}
-		if (ip_mask->pdst == L4_PORT_ALL_MASK) {
-			fkeys->ports.dst = ip_spec->pdst;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_PORT;
-		} else if (ip_mask->pdst) {
-			goto ntuple_err;
-		}
+		fkeys->addrs.v4addrs.src = ip_spec->ip4src;
+		fmasks->addrs.v4addrs.src = ip_mask->ip4src;
+		fkeys->addrs.v4addrs.dst = ip_spec->ip4dst;
+		fmasks->addrs.v4addrs.dst = ip_mask->ip4dst;
+		fkeys->ports.src = ip_spec->psrc;
+		fmasks->ports.src = ip_mask->psrc;
+		fkeys->ports.dst = ip_spec->pdst;
+		fmasks->ports.dst = ip_mask->pdst;
 		break;
 	}
 	case TCP_V6_FLOW:
@@ -1329,40 +1288,21 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 			fkeys->basic.ip_proto = IPPROTO_UDP;
 		fkeys->basic.n_proto = htons(ETH_P_IPV6);
 
-		if (ipv6_mask_is_full(ip_mask->ip6src)) {
-			fkeys->addrs.v6addrs.src =
-				*(struct in6_addr *)&ip_spec->ip6src;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_IP;
-		} else if (!ipv6_mask_is_zero(ip_mask->ip6src)) {
-			goto ntuple_err;
-		}
-		if (ipv6_mask_is_full(ip_mask->ip6dst)) {
-			fkeys->addrs.v6addrs.dst =
-				*(struct in6_addr *)&ip_spec->ip6dst;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_IP;
-		} else if (!ipv6_mask_is_zero(ip_mask->ip6dst)) {
-			goto ntuple_err;
-		}
-
-		if (ip_mask->psrc == L4_PORT_ALL_MASK) {
-			fkeys->ports.src = ip_spec->psrc;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_SRC_PORT;
-		} else if (ip_mask->psrc) {
-			goto ntuple_err;
-		}
-		if (ip_mask->pdst == L4_PORT_ALL_MASK) {
-			fkeys->ports.dst = ip_spec->pdst;
-			new_fltr->ntuple_flags |= BNXT_NTUPLE_MATCH_DST_PORT;
-		} else if (ip_mask->pdst) {
-			goto ntuple_err;
-		}
+		fkeys->addrs.v6addrs.src = *(struct in6_addr *)&ip_spec->ip6src;
+		fmasks->addrs.v6addrs.src = *(struct in6_addr *)&ip_mask->ip6src;
+		fkeys->addrs.v6addrs.dst = *(struct in6_addr *)&ip_spec->ip6dst;
+		fmasks->addrs.v6addrs.dst = *(struct in6_addr *)&ip_mask->ip6dst;
+		fkeys->ports.src = ip_spec->psrc;
+		fmasks->ports.src = ip_mask->psrc;
+		fkeys->ports.dst = ip_spec->pdst;
+		fmasks->ports.dst = ip_mask->pdst;
 		break;
 	}
 	default:
 		rc = -EOPNOTSUPP;
 		goto ntuple_err;
 	}
-	if (!new_fltr->ntuple_flags)
+	if (!memcmp(&BNXT_FLOW_MASK_NONE, fmasks, sizeof(*fmasks)))
 		goto ntuple_err;
 
 	idx = bnxt_get_ntp_filter_idx(bp, fkeys, NULL);

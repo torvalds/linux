@@ -246,6 +246,49 @@ static const u16 bnxt_async_events_arr[] = {
 
 static struct workqueue_struct *bnxt_pf_wq;
 
+#define BNXT_IPV6_MASK_ALL {{{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, \
+			       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }}}
+#define BNXT_IPV6_MASK_NONE {{{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }}}
+
+const struct bnxt_flow_masks BNXT_FLOW_MASK_NONE = {
+	.ports = {
+		.src = 0,
+		.dst = 0,
+	},
+	.addrs = {
+		.v6addrs = {
+			.src = BNXT_IPV6_MASK_NONE,
+			.dst = BNXT_IPV6_MASK_NONE,
+		},
+	},
+};
+
+const struct bnxt_flow_masks BNXT_FLOW_IPV6_MASK_ALL = {
+	.ports = {
+		.src = cpu_to_be16(0xffff),
+		.dst = cpu_to_be16(0xffff),
+	},
+	.addrs = {
+		.v6addrs = {
+			.src = BNXT_IPV6_MASK_ALL,
+			.dst = BNXT_IPV6_MASK_ALL,
+		},
+	},
+};
+
+const struct bnxt_flow_masks BNXT_FLOW_IPV4_MASK_ALL = {
+	.ports = {
+		.src = cpu_to_be16(0xffff),
+		.dst = cpu_to_be16(0xffff),
+	},
+	.addrs = {
+		.v4addrs = {
+			.src = cpu_to_be32(0xffffffff),
+			.dst = cpu_to_be32(0xffffffff),
+		},
+	},
+};
+
 static bool bnxt_vf_pciid(enum board_idx idx)
 {
 	return (idx == NETXTREME_C_VF || idx == NETXTREME_E_VF ||
@@ -5690,6 +5733,7 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 {
 	struct hwrm_cfa_ntuple_filter_alloc_output *resp;
 	struct hwrm_cfa_ntuple_filter_alloc_input *req;
+	struct bnxt_flow_masks *masks = &fltr->fmasks;
 	struct flow_keys *keys = &fltr->fkeys;
 	struct bnxt_l2_filter *l2_fltr;
 	struct bnxt_vnic_info *vnic;
@@ -5722,25 +5766,15 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 		req->ethertype = htons(ETH_P_IPV6);
 		req->ip_addr_type =
 			CFA_NTUPLE_FILTER_ALLOC_REQ_IP_ADDR_TYPE_IPV6;
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
-			*(struct in6_addr *)&req->src_ipaddr[0] =
-				keys->addrs.v6addrs.src;
-			bnxt_fill_ipv6_mask(req->src_ipaddr_mask);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
-			*(struct in6_addr *)&req->dst_ipaddr[0] =
-				keys->addrs.v6addrs.dst;
-			bnxt_fill_ipv6_mask(req->dst_ipaddr_mask);
-		}
+		*(struct in6_addr *)&req->src_ipaddr[0] = keys->addrs.v6addrs.src;
+		*(struct in6_addr *)&req->src_ipaddr_mask[0] = masks->addrs.v6addrs.src;
+		*(struct in6_addr *)&req->dst_ipaddr[0] = keys->addrs.v6addrs.dst;
+		*(struct in6_addr *)&req->dst_ipaddr_mask[0] = masks->addrs.v6addrs.dst;
 	} else {
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) {
-			req->src_ipaddr[0] = keys->addrs.v4addrs.src;
-			req->src_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-		}
-		if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) {
-			req->dst_ipaddr[0] = keys->addrs.v4addrs.dst;
-			req->dst_ipaddr_mask[0] = cpu_to_be32(0xffffffff);
-		}
+		req->src_ipaddr[0] = keys->addrs.v4addrs.src;
+		req->src_ipaddr_mask[0] = masks->addrs.v4addrs.src;
+		req->dst_ipaddr[0] = keys->addrs.v4addrs.dst;
+		req->dst_ipaddr_mask[0] = masks->addrs.v4addrs.dst;
 	}
 	if (keys->control.flags & FLOW_DIS_ENCAPSULATION) {
 		req->enables |= cpu_to_le32(BNXT_NTP_TUNNEL_FLTR_FLAG);
@@ -5748,14 +5782,10 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 			CFA_NTUPLE_FILTER_ALLOC_REQ_TUNNEL_TYPE_ANYTUNNEL;
 	}
 
-	if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) {
-		req->src_port = keys->ports.src;
-		req->src_port_mask = cpu_to_be16(0xffff);
-	}
-	if (fltr->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) {
-		req->dst_port = keys->ports.dst;
-		req->dst_port_mask = cpu_to_be16(0xffff);
-	}
+	req->src_port = keys->ports.src;
+	req->src_port_mask = masks->ports.src;
+	req->dst_port = keys->ports.dst;
+	req->dst_port_mask = masks->ports.dst;
 
 	resp = hwrm_req_hold(bp, req);
 	rc = hwrm_req_send(bp, req);
@@ -13956,45 +13986,39 @@ int bnxt_insert_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr,
 static bool bnxt_fltr_match(struct bnxt_ntuple_filter *f1,
 			    struct bnxt_ntuple_filter *f2)
 {
+	struct bnxt_flow_masks *masks1 = &f1->fmasks;
+	struct bnxt_flow_masks *masks2 = &f2->fmasks;
 	struct flow_keys *keys1 = &f1->fkeys;
 	struct flow_keys *keys2 = &f2->fkeys;
-
-	if (f1->ntuple_flags != f2->ntuple_flags)
-		return false;
 
 	if (keys1->basic.n_proto != keys2->basic.n_proto ||
 	    keys1->basic.ip_proto != keys2->basic.ip_proto)
 		return false;
 
 	if (keys1->basic.n_proto == htons(ETH_P_IP)) {
-		if (((f1->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) &&
-		     keys1->addrs.v4addrs.src != keys2->addrs.v4addrs.src) ||
-		    ((f1->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) &&
-		     keys1->addrs.v4addrs.dst != keys2->addrs.v4addrs.dst))
+		if (keys1->addrs.v4addrs.src != keys2->addrs.v4addrs.src ||
+		    masks1->addrs.v4addrs.src != masks2->addrs.v4addrs.src ||
+		    keys1->addrs.v4addrs.dst != keys2->addrs.v4addrs.dst ||
+		    masks1->addrs.v4addrs.dst != masks2->addrs.v4addrs.dst)
 			return false;
 	} else {
-		if (((f1->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_IP) &&
-		     memcmp(&keys1->addrs.v6addrs.src,
-			    &keys2->addrs.v6addrs.src,
-			    sizeof(keys1->addrs.v6addrs.src))) ||
-		    ((f1->ntuple_flags & BNXT_NTUPLE_MATCH_DST_IP) &&
-		     memcmp(&keys1->addrs.v6addrs.dst,
-			    &keys2->addrs.v6addrs.dst,
-			    sizeof(keys1->addrs.v6addrs.dst))))
+		if (!ipv6_addr_equal(&keys1->addrs.v6addrs.src,
+				     &keys2->addrs.v6addrs.src) ||
+		    !ipv6_addr_equal(&masks1->addrs.v6addrs.src,
+				     &masks2->addrs.v6addrs.src) ||
+		    !ipv6_addr_equal(&keys1->addrs.v6addrs.dst,
+				     &keys2->addrs.v6addrs.dst) ||
+		    !ipv6_addr_equal(&masks1->addrs.v6addrs.dst,
+				     &masks2->addrs.v6addrs.dst))
 			return false;
 	}
 
-	if (((f1->ntuple_flags & BNXT_NTUPLE_MATCH_SRC_PORT) &&
-	     keys1->ports.src != keys2->ports.src) ||
-	    ((f1->ntuple_flags & BNXT_NTUPLE_MATCH_DST_PORT) &&
-	     keys1->ports.dst != keys2->ports.dst))
-		return false;
-
-	if (keys1->control.flags == keys2->control.flags &&
-	    f1->l2_fltr == f2->l2_fltr)
-		return true;
-
-	return false;
+	return keys1->ports.src == keys2->ports.src &&
+	       masks1->ports.src == masks2->ports.src &&
+	       keys1->ports.dst == keys2->ports.dst &&
+	       masks1->ports.dst == masks2->ports.dst &&
+	       keys1->control.flags == keys2->control.flags &&
+	       f1->l2_fltr == f2->l2_fltr;
 }
 
 struct bnxt_ntuple_filter *
@@ -14059,10 +14083,13 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
-	if (fkeys->basic.n_proto == htons(ETH_P_IPV6) &&
-	    bp->hwrm_spec_code < 0x10601) {
-		rc = -EPROTONOSUPPORT;
-		goto err_free;
+	new_fltr->fmasks = BNXT_FLOW_IPV4_MASK_ALL;
+	if (fkeys->basic.n_proto == htons(ETH_P_IPV6)) {
+		if (bp->hwrm_spec_code < 0x10601) {
+			rc = -EPROTONOSUPPORT;
+			goto err_free;
+		}
+		new_fltr->fmasks = BNXT_FLOW_IPV6_MASK_ALL;
 	}
 	flags = fkeys->control.flags;
 	if (((flags & FLOW_DIS_ENCAPSULATION) &&
@@ -14070,9 +14097,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 		rc = -EPROTONOSUPPORT;
 		goto err_free;
 	}
-
 	new_fltr->l2_fltr = l2_fltr;
-	new_fltr->ntuple_flags = BNXT_NTUPLE_MATCH_ALL;
 
 	idx = bnxt_get_ntp_filter_idx(bp, fkeys, skb);
 	rcu_read_lock();

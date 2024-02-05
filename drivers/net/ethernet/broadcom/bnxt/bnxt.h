@@ -1355,19 +1355,20 @@ struct bnxt_filter_base {
 	struct rcu_head         rcu;
 };
 
+struct bnxt_flow_masks {
+	struct flow_dissector_key_ports ports;
+	struct flow_dissector_key_addrs addrs;
+};
+
+extern const struct bnxt_flow_masks BNXT_FLOW_MASK_NONE;
+extern const struct bnxt_flow_masks BNXT_FLOW_IPV6_MASK_ALL;
+extern const struct bnxt_flow_masks BNXT_FLOW_IPV4_MASK_ALL;
+
 struct bnxt_ntuple_filter {
 	struct bnxt_filter_base	base;
 	struct flow_keys	fkeys;
+	struct bnxt_flow_masks	fmasks;
 	struct bnxt_l2_filter	*l2_fltr;
-	u32			ntuple_flags;
-#define BNXT_NTUPLE_MATCH_SRC_IP	1
-#define BNXT_NTUPLE_MATCH_DST_IP	2
-#define BNXT_NTUPLE_MATCH_SRC_PORT	4
-#define BNXT_NTUPLE_MATCH_DST_PORT	8
-#define BNXT_NTUPLE_MATCH_ALL		(BNXT_NTUPLE_MATCH_SRC_IP |	\
-					 BNXT_NTUPLE_MATCH_DST_IP |	\
-					 BNXT_NTUPLE_MATCH_SRC_PORT |	\
-					 BNXT_NTUPLE_MATCH_DST_PORT)
 	u32			flow_id;
 };
 
