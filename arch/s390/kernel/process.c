@@ -31,15 +31,18 @@
 #include <linux/init_task.h>
 #include <linux/entry-common.h>
 #include <linux/io.h>
+#include <asm/guarded_storage.h>
+#include <asm/access-regs.h>
+#include <asm/switch_to.h>
 #include <asm/cpu_mf.h>
 #include <asm/processor.h>
+#include <asm/ptrace.h>
 #include <asm/vtimer.h>
 #include <asm/exec.h>
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
 #include <asm/stacktrace.h>
-#include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
 #include <asm/unwind.h>
 #include "entry.h"
@@ -188,6 +191,24 @@ void execve_tail(void)
 {
 	current->thread.fpu.fpc = 0;
 	asm volatile("sfpc %0" : : "d" (0));
+}
+
+struct task_struct *__switch_to(struct task_struct *prev, struct task_struct *next)
+{
+	/*
+	 * save_fpu_regs() sets the CIF_FPU flag, which enforces
+	 * a restore of the floating point / vector registers as
+	 * soon as the next task returns to user space.
+	 */
+	save_fpu_regs();
+	save_access_regs(&prev->thread.acrs[0]);
+	save_ri_cb(prev->thread.ri_cb);
+	save_gs_cb(prev->thread.gs_cb);
+	update_cr_regs(next);
+	restore_access_regs(&next->thread.acrs[0]);
+	restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);
+	restore_gs_cb(next->thread.gs_cb);
+	return __switch_to_asm(prev, next);
 }
 
 unsigned long __get_wchan(struct task_struct *p)

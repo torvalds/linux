@@ -171,13 +171,13 @@ _LPP_OFFSET	= __LC_LPP
 	nop	0
 
 /*
- * Scheduler resume function, called by switch_to
- *  gpr2 = (task_struct *) prev
- *  gpr3 = (task_struct *) next
+ * Scheduler resume function, called by __switch_to
+ *  gpr2 = (task_struct *)prev
+ *  gpr3 = (task_struct *)next
  * Returns:
  *  gpr2 = prev
  */
-SYM_FUNC_START(__switch_to)
+SYM_FUNC_START(__switch_to_asm)
 	stmg	%r6,%r15,__SF_GPRS(%r15)	# store gprs of prev task
 	lghi	%r4,__TASK_stack
 	lghi	%r1,__TASK_thread
@@ -193,7 +193,7 @@ SYM_FUNC_START(__switch_to)
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
-SYM_FUNC_END(__switch_to)
+SYM_FUNC_END(__switch_to_asm)
 
 #if IS_ENABLED(CONFIG_KVM)
 /*

@@ -24,11 +24,11 @@
 #include <linux/seccomp.h>
 #include <linux/compat.h>
 #include <trace/syscall.h>
+#include <asm/guarded_storage.h>
 #include <asm/access-regs.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
 #include <asm/facility.h>
 #include <asm/fpu/api.h>

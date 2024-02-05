@@ -28,7 +28,6 @@
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
-#include <asm/switch_to.h>
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
 #include <asm/vx-insn.h>
