@@ -1532,7 +1532,7 @@ void disable_trace_on_warning(void)
 bool tracer_tracing_is_on(struct trace_array *tr)
 {
 	if (tr->array_buffer.buffer)
-		return ring_buffer_record_is_on(tr->array_buffer.buffer);
+		return ring_buffer_record_is_set_on(tr->array_buffer.buffer);
 	return !tr->buffer_disabled;
 }
 
