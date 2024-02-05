@@ -646,6 +646,13 @@ static void k3_dsp_reserved_mem_exit(struct k3_dsp_rproc *kproc)
 		iounmap(kproc->rmem[i].cpu_addr);
 }
 
+static void k3_dsp_release_tsp(void *data)
+{
+	struct ti_sci_proc *tsp = data;
+
+	ti_sci_proc_release(tsp);
+}
+
 static
 struct ti_sci_proc *k3_dsp_rproc_of_get_tsp(struct device *dev,
 					    const struct ti_sci_handle *sci)
@@ -682,7 +689,6 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	const char *fw_name;
 	bool p_state = false;
 	int ret = 0;
-	int ret1;
 
 	data = of_device_get_match_data(dev);
 	if (!data)
@@ -732,16 +738,17 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 		dev_err_probe(dev, ret, "ti_sci_proc_request failed\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, k3_dsp_release_tsp, kproc->tsp);
+	if (ret)
+		return ret;
 
 	ret = k3_dsp_rproc_of_get_memories(pdev, kproc);
 	if (ret)
-		goto release_tsp;
+		return ret;
 
 	ret = k3_dsp_reserved_mem_init(kproc);
-	if (ret) {
-		dev_err_probe(dev, ret, "reserved memory init failed\n");
-		goto release_tsp;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "reserved memory init failed\n");
 
 	ret = kproc->ti_sci->ops.dev_ops.is_on(kproc->ti_sci, kproc->ti_sci_id,
 					       NULL, &p_state);
@@ -793,10 +800,6 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 
 release_mem:
 	k3_dsp_reserved_mem_exit(kproc);
-release_tsp:
-	ret1 = ti_sci_proc_release(kproc->tsp);
-	if (ret1)
-		dev_err(dev, "failed to release proc (%pe)\n", ERR_PTR(ret1));
 	return ret;
 }
 
@@ -817,10 +820,6 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 	}
 
 	rproc_del(kproc->rproc);
-
-	ret = ti_sci_proc_release(kproc->tsp);
-	if (ret)
-		dev_err(dev, "failed to release proc (%pe)\n", ERR_PTR(ret));
 
 	k3_dsp_reserved_mem_exit(kproc);
 }
