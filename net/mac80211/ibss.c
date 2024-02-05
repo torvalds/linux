@@ -237,7 +237,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	drv_reset_tsf(local, sdata);
 
 	if (!ether_addr_equal(ifibss->bssid, bssid))
-		sta_info_flush(sdata);
+		sta_info_flush(sdata, -1);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
 	if (sdata->vif.cfg.ibss_joined) {
@@ -682,7 +682,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 
 	ifibss->state = IEEE80211_IBSS_MLME_SEARCH;
 
-	sta_info_flush(sdata);
+	sta_info_flush(sdata, -1);
 
 	spin_lock_bh(&ifibss->incomplete_lock);
 	while (!list_empty(&ifibss->incomplete_stations)) {

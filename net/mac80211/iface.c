@@ -511,7 +511,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	 * would have removed them, but in other modes there shouldn't
 	 * be any stations.
 	 */
-	flushed = sta_info_flush(sdata);
+	flushed = sta_info_flush(sdata, -1);
 	WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_AP_VLAN && flushed > 0);
 
 	/* don't count this interface for allmulti while it is down */

@@ -1214,7 +1214,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	netif_carrier_off(sdata->dev);
 
 	/* flush STAs and mpaths on this iface */
-	sta_info_flush(sdata);
+	sta_info_flush(sdata, -1);
 	ieee80211_free_keys(sdata, true);
 	mesh_path_flush_by_iface(sdata);
 

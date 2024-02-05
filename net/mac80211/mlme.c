@@ -3151,7 +3151,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.cfg.ssid_len = 0;
 
 	/* remove AP and TDLS peers */
-	sta_info_flush(sdata);
+	sta_info_flush(sdata, -1);
 
 	/* finally reset all BSS / config parameters */
 	if (!ieee80211_vif_is_mld(&sdata->vif))

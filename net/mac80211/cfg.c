@@ -1616,7 +1616,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	link_conf->ema_ap = false;
 	link_conf->bssid_indicator = 0;
 
-	__sta_info_flush(sdata, true);
+	__sta_info_flush(sdata, true, -1);
 	ieee80211_free_keys(sdata, true);
 
 	link_conf->enable_beacon = false;
@@ -2096,7 +2096,7 @@ static int ieee80211_del_station(struct wiphy *wiphy, struct net_device *dev,
 	if (params->mac)
 		return sta_info_destroy_addr_bss(sdata, params->mac);
 
-	sta_info_flush(sdata);
+	sta_info_flush(sdata, params->link_id);
 	return 0;
 }
 
