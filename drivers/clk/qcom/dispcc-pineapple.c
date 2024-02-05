@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -722,12 +722,19 @@ static struct clk_rcg2 disp_cc_mdss_dptx3_pixel0_clk_src = {
 	},
 };
 
+static const struct freq_tbl ftbl_disp_cc_mdss_esc0_clk_src[] = {
+	F(9600000, P_BI_TCXO, 2, 0, 0),
+	F(12800000, P_BI_TCXO, 1.5, 0, 0),
+	F(19200000, P_BI_TCXO, 1, 0, 0),
+	{ }
+};
+
 static struct clk_rcg2 disp_cc_mdss_esc0_clk_src = {
 	.cmd_rcgr = 0x8140,
 	.mnd_width = 0,
 	.hid_width = 5,
 	.parent_map = disp_cc_parent_map_5,
-	.freq_tbl = ftbl_disp_cc_mdss_byte0_clk_src,
+	.freq_tbl = ftbl_disp_cc_mdss_esc0_clk_src,
 	.clkr.hw.init = &(const struct clk_init_data){
 		.name = "disp_cc_mdss_esc0_clk_src",
 		.parent_data = disp_cc_parent_data_5,
@@ -749,7 +756,7 @@ static struct clk_rcg2 disp_cc_mdss_esc1_clk_src = {
 	.mnd_width = 0,
 	.hid_width = 5,
 	.parent_map = disp_cc_parent_map_5,
-	.freq_tbl = ftbl_disp_cc_mdss_byte0_clk_src,
+	.freq_tbl = ftbl_disp_cc_mdss_esc0_clk_src,
 	.clkr.hw.init = &(const struct clk_init_data){
 		.name = "disp_cc_mdss_esc1_clk_src",
 		.parent_data = disp_cc_parent_data_5,
