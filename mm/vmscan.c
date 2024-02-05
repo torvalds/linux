@@ -1744,17 +1744,17 @@ bool folio_isolate_lru(struct folio *folio)
  * the LRU list will go small and be scanned faster than necessary, leading to
  * unnecessary swapping, thrashing and OOM.
  */
-static int too_many_isolated(struct pglist_data *pgdat, int file,
+static bool too_many_isolated(struct pglist_data *pgdat, int file,
 		struct scan_control *sc)
 {
 	unsigned long inactive, isolated;
 	bool too_many;
 
 	if (current_is_kswapd())
-		return 0;
+		return false;
 
 	if (!writeback_throttling_sane(sc))
-		return 0;
+		return false;
 
 	if (file) {
 		inactive = node_page_state(pgdat, NR_INACTIVE_FILE);
