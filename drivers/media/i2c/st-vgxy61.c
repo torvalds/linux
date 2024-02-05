@@ -629,7 +629,7 @@ static int vgxy61_try_fmt_internal(struct v4l2_subdev *sd,
 				   const struct vgxy61_mode_info **new_mode)
 {
 	struct vgxy61_dev *sensor = to_vgxy61_dev(sd);
-	const struct vgxy61_mode_info *mode = sensor->sensor_modes;
+	const struct vgxy61_mode_info *mode;
 	unsigned int index;
 
 	for (index = 0; index < ARRAY_SIZE(vgxy61_supported_codes); index++) {
