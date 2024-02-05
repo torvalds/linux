@@ -824,6 +824,9 @@ int ath12k_wmi_vdev_create(struct ath12k *ar, u8 *macaddr,
 	cmd->vdev_stats_id = cpu_to_le32(args->if_stats_id);
 	ether_addr_copy(cmd->vdev_macaddr.addr, macaddr);
 
+	if (args->if_stats_id != ATH12K_INVAL_VDEV_STATS_ID)
+		cmd->vdev_stats_id_valid = cpu_to_le32(BIT(0));
+
 	ptr = skb->data + sizeof(*cmd);
 	len = WMI_NUM_SUPPORTED_BAND_MAX * sizeof(*txrx_streams);
 
