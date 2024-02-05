@@ -1130,28 +1130,50 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	fkeys = &fltr->fkeys;
 	fmasks = &fltr->fmasks;
 	if (fkeys->basic.n_proto == htons(ETH_P_IP)) {
-		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+		if (fkeys->basic.ip_proto == IPPROTO_ICMP ||
+		    fkeys->basic.ip_proto == IPPROTO_RAW) {
+			fs->flow_type = IP_USER_FLOW;
+			fs->h_u.usr_ip4_spec.ip_ver = ETH_RX_NFC_IP4;
+			if (fkeys->basic.ip_proto == IPPROTO_ICMP)
+				fs->h_u.usr_ip4_spec.proto = IPPROTO_ICMP;
+			else
+				fs->h_u.usr_ip4_spec.proto = IPPROTO_RAW;
+			fs->m_u.usr_ip4_spec.proto = BNXT_IP_PROTO_FULL_MASK;
+		} else if (fkeys->basic.ip_proto == IPPROTO_TCP) {
 			fs->flow_type = TCP_V4_FLOW;
-		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+		} else if (fkeys->basic.ip_proto == IPPROTO_UDP) {
 			fs->flow_type = UDP_V4_FLOW;
-		else
+		} else {
 			goto fltr_err;
+		}
 
 		fs->h_u.tcp_ip4_spec.ip4src = fkeys->addrs.v4addrs.src;
 		fs->m_u.tcp_ip4_spec.ip4src = fmasks->addrs.v4addrs.src;
 		fs->h_u.tcp_ip4_spec.ip4dst = fkeys->addrs.v4addrs.dst;
 		fs->m_u.tcp_ip4_spec.ip4dst = fmasks->addrs.v4addrs.dst;
-		fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
-		fs->m_u.tcp_ip4_spec.psrc = fmasks->ports.src;
-		fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
-		fs->m_u.tcp_ip4_spec.pdst = fmasks->ports.dst;
+		if (fs->flow_type == TCP_V4_FLOW ||
+		    fs->flow_type == UDP_V4_FLOW) {
+			fs->h_u.tcp_ip4_spec.psrc = fkeys->ports.src;
+			fs->m_u.tcp_ip4_spec.psrc = fmasks->ports.src;
+			fs->h_u.tcp_ip4_spec.pdst = fkeys->ports.dst;
+			fs->m_u.tcp_ip4_spec.pdst = fmasks->ports.dst;
+		}
 	} else {
-		if (fkeys->basic.ip_proto == IPPROTO_TCP)
+		if (fkeys->basic.ip_proto == IPPROTO_ICMPV6 ||
+		    fkeys->basic.ip_proto == IPPROTO_RAW) {
+			fs->flow_type = IPV6_USER_FLOW;
+			if (fkeys->basic.ip_proto == IPPROTO_ICMPV6)
+				fs->h_u.usr_ip6_spec.l4_proto = IPPROTO_ICMPV6;
+			else
+				fs->h_u.usr_ip6_spec.l4_proto = IPPROTO_RAW;
+			fs->m_u.usr_ip6_spec.l4_proto = BNXT_IP_PROTO_FULL_MASK;
+		} else if (fkeys->basic.ip_proto == IPPROTO_TCP) {
 			fs->flow_type = TCP_V6_FLOW;
-		else if (fkeys->basic.ip_proto == IPPROTO_UDP)
+		} else if (fkeys->basic.ip_proto == IPPROTO_UDP) {
 			fs->flow_type = UDP_V6_FLOW;
-		else
+		} else {
 			goto fltr_err;
+		}
 
 		*(struct in6_addr *)&fs->h_u.tcp_ip6_spec.ip6src[0] =
 			fkeys->addrs.v6addrs.src;
@@ -1161,10 +1183,13 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 			fkeys->addrs.v6addrs.dst;
 		*(struct in6_addr *)&fs->m_u.tcp_ip6_spec.ip6dst[0] =
 			fmasks->addrs.v6addrs.dst;
-		fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
-		fs->m_u.tcp_ip6_spec.psrc = fmasks->ports.src;
-		fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
-		fs->m_u.tcp_ip6_spec.pdst = fmasks->ports.dst;
+		if (fs->flow_type == TCP_V6_FLOW ||
+		    fs->flow_type == UDP_V6_FLOW) {
+			fs->h_u.tcp_ip6_spec.psrc = fkeys->ports.src;
+			fs->m_u.tcp_ip6_spec.psrc = fmasks->ports.src;
+			fs->h_u.tcp_ip6_spec.pdst = fkeys->ports.dst;
+			fs->m_u.tcp_ip6_spec.pdst = fmasks->ports.dst;
+		}
 	}
 
 	fs->ring_cookie = fltr->base.rxq;
@@ -1228,6 +1253,28 @@ static int bnxt_add_l2_cls_rule(struct bnxt *bp,
 	return rc;
 }
 
+static bool bnxt_verify_ntuple_ip4_flow(struct ethtool_usrip4_spec *ip_spec,
+					struct ethtool_usrip4_spec *ip_mask)
+{
+	if (ip_mask->l4_4_bytes || ip_mask->tos ||
+	    ip_spec->ip_ver != ETH_RX_NFC_IP4 ||
+	    ip_mask->proto != BNXT_IP_PROTO_FULL_MASK ||
+	    (ip_spec->proto != IPPROTO_RAW && ip_spec->proto != IPPROTO_ICMP))
+		return false;
+	return true;
+}
+
+static bool bnxt_verify_ntuple_ip6_flow(struct ethtool_usrip6_spec *ip_spec,
+					struct ethtool_usrip6_spec *ip_mask)
+{
+	if (ip_mask->l4_4_bytes || ip_mask->tclass ||
+	    ip_mask->l4_proto != BNXT_IP_PROTO_FULL_MASK ||
+	    (ip_spec->l4_proto != IPPROTO_RAW &&
+	     ip_spec->l4_proto != IPPROTO_ICMPV6))
+		return false;
+	return true;
+}
+
 static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 				    struct ethtool_rx_flow_spec *fs)
 {
@@ -1247,6 +1294,18 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 	if ((flow_type & (FLOW_MAC_EXT | FLOW_EXT)) || vf)
 		return -EOPNOTSUPP;
 
+	if (flow_type == IP_USER_FLOW) {
+		if (!bnxt_verify_ntuple_ip4_flow(&fs->h_u.usr_ip4_spec,
+						 &fs->m_u.usr_ip4_spec))
+			return -EOPNOTSUPP;
+	}
+
+	if (flow_type == IPV6_USER_FLOW) {
+		if (!bnxt_verify_ntuple_ip6_flow(&fs->h_u.usr_ip6_spec,
+						 &fs->m_u.usr_ip6_spec))
+			return -EOPNOTSUPP;
+	}
+
 	new_fltr = kzalloc(sizeof(*new_fltr), GFP_KERNEL);
 	if (!new_fltr)
 		return -ENOMEM;
@@ -1259,6 +1318,18 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 
 	rc = -EOPNOTSUPP;
 	switch (flow_type) {
+	case IP_USER_FLOW: {
+		struct ethtool_usrip4_spec *ip_spec = &fs->h_u.usr_ip4_spec;
+		struct ethtool_usrip4_spec *ip_mask = &fs->m_u.usr_ip4_spec;
+
+		fkeys->basic.ip_proto = ip_spec->proto;
+		fkeys->basic.n_proto = htons(ETH_P_IP);
+		fkeys->addrs.v4addrs.src = ip_spec->ip4src;
+		fmasks->addrs.v4addrs.src = ip_mask->ip4src;
+		fkeys->addrs.v4addrs.dst = ip_spec->ip4dst;
+		fmasks->addrs.v4addrs.dst = ip_mask->ip4dst;
+		break;
+	}
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW: {
 		struct ethtool_tcpip4_spec *ip_spec = &fs->h_u.tcp_ip4_spec;
@@ -1276,6 +1347,18 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 		fmasks->ports.src = ip_mask->psrc;
 		fkeys->ports.dst = ip_spec->pdst;
 		fmasks->ports.dst = ip_mask->pdst;
+		break;
+	}
+	case IPV6_USER_FLOW: {
+		struct ethtool_usrip6_spec *ip_spec = &fs->h_u.usr_ip6_spec;
+		struct ethtool_usrip6_spec *ip_mask = &fs->m_u.usr_ip6_spec;
+
+		fkeys->basic.ip_proto = ip_spec->l4_proto;
+		fkeys->basic.n_proto = htons(ETH_P_IPV6);
+		fkeys->addrs.v6addrs.src = *(struct in6_addr *)&ip_spec->ip6src;
+		fmasks->addrs.v6addrs.src = *(struct in6_addr *)&ip_mask->ip6src;
+		fkeys->addrs.v6addrs.dst = *(struct in6_addr *)&ip_spec->ip6dst;
+		fmasks->addrs.v6addrs.dst = *(struct in6_addr *)&ip_mask->ip6dst;
 		break;
 	}
 	case TCP_V6_FLOW:
@@ -1349,6 +1432,15 @@ static int bnxt_srxclsrlins(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	if (fs->location != RX_CLS_LOC_ANY)
 		return -EINVAL;
 
+	flow_type = fs->flow_type;
+	if ((flow_type == IP_USER_FLOW ||
+	     flow_type == IPV6_USER_FLOW) &&
+	    !(bp->fw_cap & BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO))
+		return -EOPNOTSUPP;
+	if (flow_type & (FLOW_MAC_EXT | FLOW_RSS))
+		return -EINVAL;
+	flow_type &= ~FLOW_EXT;
+
 	ring = ethtool_get_flow_spec_ring(fs->ring_cookie);
 	vf = ethtool_get_flow_spec_ring_vf(fs->ring_cookie);
 	if (BNXT_VF(bp) && vf)
@@ -1358,10 +1450,6 @@ static int bnxt_srxclsrlins(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	if (!vf && ring >= bp->rx_nr_rings)
 		return -EINVAL;
 
-	flow_type = fs->flow_type;
-	if (flow_type & (FLOW_MAC_EXT | FLOW_RSS))
-		return -EINVAL;
-	flow_type &= ~FLOW_EXT;
 	if (flow_type == ETHER_FLOW)
 		rc = bnxt_add_l2_cls_rule(bp, fs);
 	else
