@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -1828,12 +1828,8 @@ static void iwl_mvm_wake_sw_queue(struct iwl_op_mode *op_mode, int hw_queue)
 
 static void iwl_mvm_set_rfkill_state(struct iwl_mvm *mvm)
 {
-	bool state = iwl_mvm_is_radio_killed(mvm);
-
-	if (state)
-		wake_up(&mvm->rx_sync_waitq);
-
-	wiphy_rfkill_set_hw_state(mvm->hw->wiphy, state);
+	wiphy_rfkill_set_hw_state(mvm->hw->wiphy,
+				  iwl_mvm_is_radio_killed(mvm));
 }
 
 void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state)
@@ -1858,10 +1854,12 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	bool rfkill_safe_init_done = READ_ONCE(mvm->rfkill_safe_init_done);
 	bool unified = iwl_mvm_has_unified_ucode(mvm);
 
-	if (state)
+	if (state) {
 		set_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
-	else
+		wake_up(&mvm->rx_sync_waitq);
+	} else {
 		clear_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status);
+	}
 
 	iwl_mvm_set_rfkill_state(mvm);
 
