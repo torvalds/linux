@@ -470,7 +470,6 @@ static int tda18271_powerscan(struct dvb_frontend *fe,
 	/* algorithm initialization */
 	sgn = 1;
 	*freq_out = *freq_in;
-	bcal = 0;
 	count = 0;
 	wait = false;
 
