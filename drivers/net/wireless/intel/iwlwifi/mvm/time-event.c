@@ -1224,13 +1224,21 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (fw_has_capa(&mvm->fw->ucode_capa,
 			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
 		mvmvif = iwl_mvm_vif_from_mac80211(vif);
+		te_data = &mvmvif->time_event_data;
 
-		if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
+		if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
+			if (te_data->id >= SESSION_PROTECT_CONF_MAX_ID) {
+				IWL_DEBUG_TE(mvm,
+					     "No remain on channel event\n");
+				return;
+			}
+
 			iwl_mvm_cancel_session_protection(mvm, vif,
-							  mvmvif->time_event_data.id,
-							  mvmvif->time_event_data.link_id);
-		else
+							  te_data->id,
+							  te_data->link_id);
+		} else {
 			iwl_mvm_roc_station_remove(mvm, mvmvif);
+		}
 		goto cleanup_roc;
 	}
 
