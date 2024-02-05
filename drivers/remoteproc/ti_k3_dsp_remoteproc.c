@@ -768,7 +768,7 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = rproc_add(rproc);
+	ret = devm_rproc_add(dev, rproc);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to add register device with remoteproc core\n");
 
@@ -786,14 +786,9 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 
 	if (rproc->state == RPROC_ATTACHED) {
 		ret = rproc_detach(rproc);
-		if (ret) {
-			/* Note this error path leaks resources */
+		if (ret)
 			dev_err(dev, "failed to detach proc (%pe)\n", ERR_PTR(ret));
-			return;
-		}
 	}
-
-	rproc_del(kproc->rproc);
 }
 
 static const struct k3_dsp_mem_data c66_mems[] = {
