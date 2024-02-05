@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -6097,8 +6097,9 @@ void iwl_mvm_sync_rx_queues_internal(struct iwl_mvm *mvm,
 					 iwl_mvm_is_radio_killed(mvm),
 					 HZ);
 		WARN_ONCE(!ret && !iwl_mvm_is_radio_killed(mvm),
-			  "queue sync: failed to sync, state is 0x%lx\n",
-			  mvm->queue_sync_state);
+			  "queue sync: failed to sync, state is 0x%lx, cookie %d\n",
+			  mvm->queue_sync_state,
+			  mvm->queue_sync_cookie);
 	}
 
 out:
