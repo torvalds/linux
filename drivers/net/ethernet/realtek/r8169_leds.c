@@ -129,7 +129,6 @@ static void rtl8168_setup_ldev(struct r8169_led_classdev *ldev,
 
 	r8169_get_led_name(tp, index, led_name, LED_MAX_NAME_SIZE);
 	led_cdev->name = led_name;
-	led_cdev->default_trigger = "netdev";
 	led_cdev->hw_control_trigger = "netdev";
 	led_cdev->flags |= LED_RETAIN_AT_SHUTDOWN;
 	led_cdev->hw_control_is_supported = rtl8168_led_hw_control_is_supported;
