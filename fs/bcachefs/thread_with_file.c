@@ -277,25 +277,36 @@ int bch2_stdio_redirect_read(struct stdio_redirect *stdio, char *ubuf, size_t le
 int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, char *ubuf, size_t len)
 {
 	struct stdio_buf *buf = &stdio->input;
-
+	size_t copied = 0;
+	ssize_t ret = 0;
+again:
 	wait_event(buf->wait, stdio_redirect_has_input(stdio));
-	if (stdio->done)
-		return -1;
+	if (stdio->done) {
+		ret = -1;
+		goto out;
+	}
 
 	spin_lock(&buf->lock);
-	int ret = min(len, buf->buf.nr);
-	char *n = memchr(buf->buf.data, '\n', ret);
-	if (!n)
-		ret = min(ret, n + 1 - buf->buf.data);
-	buf->buf.nr -= ret;
-	memcpy(ubuf, buf->buf.data, ret);
+	size_t b = min(len, buf->buf.nr);
+	char *n = memchr(buf->buf.data, '\n', b);
+	if (n)
+		b = min_t(size_t, b, n + 1 - buf->buf.data);
+	buf->buf.nr -= b;
+	memcpy(ubuf, buf->buf.data, b);
 	memmove(buf->buf.data,
-		buf->buf.data + ret,
+		buf->buf.data + b,
 		buf->buf.nr);
+	ubuf += b;
+	len -= b;
+	copied += b;
 	spin_unlock(&buf->lock);
 
 	wake_up(&buf->wait);
-	return ret;
+
+	if (!n && len)
+		goto again;
+out:
+	return copied ?: ret;
 }
 
 __printf(3, 0)
