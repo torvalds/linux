@@ -708,30 +708,24 @@ static int k3_dsp_rproc_probe(struct platform_device *pdev)
 	kproc->dev = dev;
 	kproc->data = data;
 
-	kproc->ti_sci = ti_sci_get_by_phandle(np, "ti,sci");
+	kproc->ti_sci = devm_ti_sci_get_by_phandle(dev, "ti,sci");
 	if (IS_ERR(kproc->ti_sci))
 		return dev_err_probe(dev, PTR_ERR(kproc->ti_sci),
 				     "failed to get ti-sci handle\n");
 
 	ret = of_property_read_u32(np, "ti,sci-dev-id", &kproc->ti_sci_id);
-	if (ret) {
-		dev_err_probe(dev, ret, "missing 'ti,sci-dev-id' property\n");
-		goto put_sci;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "missing 'ti,sci-dev-id' property\n");
 
 	kproc->reset = devm_reset_control_get_exclusive(dev, NULL);
-	if (IS_ERR(kproc->reset)) {
-		ret = dev_err_probe(dev, PTR_ERR(kproc->reset),
-				    "failed to get reset\n");
-		goto put_sci;
-	}
+	if (IS_ERR(kproc->reset))
+		return dev_err_probe(dev, PTR_ERR(kproc->reset),
+				     "failed to get reset\n");
 
 	kproc->tsp = k3_dsp_rproc_of_get_tsp(dev, kproc->ti_sci);
-	if (IS_ERR(kproc->tsp)) {
-		ret = dev_err_probe(dev, PTR_ERR(kproc->tsp),
-				    "failed to construct ti-sci proc control\n");
-		goto put_sci;
-	}
+	if (IS_ERR(kproc->tsp))
+		return dev_err_probe(dev, PTR_ERR(kproc->tsp),
+				     "failed to construct ti-sci proc control\n");
 
 	ret = ti_sci_proc_request(kproc->tsp);
 	if (ret < 0) {
@@ -805,10 +799,6 @@ release_tsp:
 		dev_err(dev, "failed to release proc (%pe)\n", ERR_PTR(ret1));
 free_tsp:
 	kfree(kproc->tsp);
-put_sci:
-	ret1 = ti_sci_put_handle(kproc->ti_sci);
-	if (ret1)
-		dev_err(dev, "failed to put ti_sci handle (%pe)\n", ERR_PTR(ret1));
 	return ret;
 }
 
@@ -835,10 +825,6 @@ static void k3_dsp_rproc_remove(struct platform_device *pdev)
 		dev_err(dev, "failed to release proc (%pe)\n", ERR_PTR(ret));
 
 	kfree(kproc->tsp);
-
-	ret = ti_sci_put_handle(kproc->ti_sci);
-	if (ret)
-		dev_err(dev, "failed to put ti_sci handle (%pe)\n", ERR_PTR(ret));
 
 	k3_dsp_reserved_mem_exit(kproc);
 }
