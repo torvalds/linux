@@ -6099,10 +6099,13 @@ static void
 __bnxt_hwrm_vnic_set_rss(struct bnxt *bp, struct hwrm_vnic_rss_cfg_input *req,
 			 struct bnxt_vnic_info *vnic)
 {
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		bnxt_fill_hw_rss_tbl_p5(bp, vnic);
-	else
+		if (bp->flags & BNXT_FLAG_CHIP_P7)
+			req->flags |= VNIC_RSS_CFG_REQ_FLAGS_IPSEC_HASH_TYPE_CFG_SUPPORT;
+	} else {
 		bnxt_fill_hw_rss_tbl(bp, vnic);
+	}
 
 	if (bp->rss_hash_delta) {
 		req->hash_type = cpu_to_le32(bp->rss_hash_delta);
@@ -6465,6 +6468,14 @@ static int bnxt_hwrm_vnic_qcaps(struct bnxt *bp)
 		}
 		if (flags & VNIC_QCAPS_RESP_FLAGS_HW_TUNNEL_TPA_CAP)
 			bp->fw_cap |= BNXT_FW_CAP_VNIC_TUNNEL_TPA;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_AH_SPI_IPV4_CAP)
+			bp->rss_cap |= BNXT_RSS_CAP_AH_V4_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_AH_SPI_IPV6_CAP)
+			bp->rss_cap |= BNXT_RSS_CAP_AH_V6_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_ESP_SPI_IPV4_CAP)
+			bp->rss_cap |= BNXT_RSS_CAP_ESP_V4_RSS_CAP;
+		if (flags & VNIC_QCAPS_RESP_FLAGS_RSS_IPSEC_ESP_SPI_IPV6_CAP)
+			bp->rss_cap |= BNXT_RSS_CAP_ESP_V6_RSS_CAP;
 	}
 	hwrm_req_drop(bp, req);
 	return rc;

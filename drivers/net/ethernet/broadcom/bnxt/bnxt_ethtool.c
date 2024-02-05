@@ -1533,8 +1533,14 @@ static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
 				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		fallthrough;
-	case SCTP_V4_FLOW:
 	case AH_ESP_V4_FLOW:
+		if (bp->rss_hash_cfg &
+		    (VNIC_RSS_CFG_REQ_HASH_TYPE_AH_SPI_IPV4 |
+		     VNIC_RSS_CFG_REQ_HASH_TYPE_ESP_SPI_IPV4))
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		fallthrough;
+	case SCTP_V4_FLOW:
 	case AH_V4_FLOW:
 	case ESP_V4_FLOW:
 	case IPV4_FLOW:
@@ -1552,8 +1558,14 @@ static int bnxt_grxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
 				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
 		fallthrough;
-	case SCTP_V6_FLOW:
 	case AH_ESP_V6_FLOW:
+		if (bp->rss_hash_cfg &
+		    (VNIC_RSS_CFG_REQ_HASH_TYPE_AH_SPI_IPV6 |
+		     VNIC_RSS_CFG_REQ_HASH_TYPE_ESP_SPI_IPV6))
+			cmd->data |= RXH_IP_SRC | RXH_IP_DST |
+				     RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		fallthrough;
+	case SCTP_V6_FLOW:
 	case AH_V6_FLOW:
 	case ESP_V6_FLOW:
 	case IPV6_FLOW:
@@ -1600,6 +1612,24 @@ static int bnxt_srxfh(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 		rss_hash_cfg &= ~VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 		if (tuple == 4)
 			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
+	} else if (cmd->flow_type == AH_ESP_V4_FLOW) {
+		if (tuple == 4 && (!(bp->rss_cap & BNXT_RSS_CAP_AH_V4_RSS_CAP) ||
+				   !(bp->rss_cap & BNXT_RSS_CAP_ESP_V4_RSS_CAP)))
+			return -EINVAL;
+		rss_hash_cfg &= ~(VNIC_RSS_CFG_REQ_HASH_TYPE_AH_SPI_IPV4 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_ESP_SPI_IPV4);
+		if (tuple == 4)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_AH_SPI_IPV4 |
+					VNIC_RSS_CFG_REQ_HASH_TYPE_ESP_SPI_IPV4;
+	} else if (cmd->flow_type == AH_ESP_V6_FLOW) {
+		if (tuple == 4 && (!(bp->rss_cap & BNXT_RSS_CAP_AH_V6_RSS_CAP) ||
+				   !(bp->rss_cap & BNXT_RSS_CAP_ESP_V6_RSS_CAP)))
+			return -EINVAL;
+		rss_hash_cfg &= ~(VNIC_RSS_CFG_REQ_HASH_TYPE_AH_SPI_IPV6 |
+				  VNIC_RSS_CFG_REQ_HASH_TYPE_ESP_SPI_IPV6);
+		if (tuple == 4)
+			rss_hash_cfg |= VNIC_RSS_CFG_REQ_HASH_TYPE_AH_SPI_IPV6 |
+					VNIC_RSS_CFG_REQ_HASH_TYPE_ESP_SPI_IPV6;
 	} else if (tuple == 4) {
 		return -EINVAL;
 	}

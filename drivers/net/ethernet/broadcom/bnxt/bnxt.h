@@ -2221,6 +2221,10 @@ struct bnxt {
 #define BNXT_RSS_CAP_UDP_RSS_CAP		BIT(1)
 #define BNXT_RSS_CAP_NEW_RSS_CAP		BIT(2)
 #define BNXT_RSS_CAP_RSS_TCAM			BIT(3)
+#define BNXT_RSS_CAP_AH_V4_RSS_CAP		BIT(4)
+#define BNXT_RSS_CAP_AH_V6_RSS_CAP		BIT(5)
+#define BNXT_RSS_CAP_ESP_V4_RSS_CAP		BIT(6)
+#define BNXT_RSS_CAP_ESP_V6_RSS_CAP		BIT(7)
 
 	u8			rss_hash_key[HW_HASH_KEY_SIZE];
 	u8			rss_hash_key_valid:1;
