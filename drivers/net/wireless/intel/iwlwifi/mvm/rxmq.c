@@ -519,11 +519,9 @@ static bool iwl_mvm_is_dup(struct ieee80211_sta *sta, int queue,
 	 * (IEEE 802.11-2012: 9.3.2.10 "Duplicate detection and recovery")
 	 */
 	if (ieee80211_is_ctl(hdr->frame_control) ||
-	    ieee80211_is_qos_nullfunc(hdr->frame_control) ||
-	    is_multicast_ether_addr(hdr->addr1)) {
-		rx_status->flag |= RX_FLAG_DUP_VALIDATED;
+	    ieee80211_is_any_nullfunc(hdr->frame_control) ||
+	    is_multicast_ether_addr(hdr->addr1))
 		return false;
-	}
 
 	if (ieee80211_is_data_qos(hdr->frame_control)) {
 		/* frame has qos control */
