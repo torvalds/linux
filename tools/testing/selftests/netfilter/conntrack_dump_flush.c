@@ -13,7 +13,7 @@
 #include "../kselftest_harness.h"
 
 #define TEST_ZONE_ID 123
-#define CTA_FILTER_F_CTA_TUPLE_ZONE (1 << 2)
+#define NF_CT_DEFAULT_ZONE_ID 0
 
 static int reply_counter;
 
@@ -336,6 +336,9 @@ FIXTURE_SETUP(conntrack_dump_flush)
 	ret = conntrack_data_generate_v4(self->sock, 0xf4f4f4f4, 0xf5f5f5f5,
 					 TEST_ZONE_ID + 2);
 	EXPECT_EQ(ret, 0);
+	ret = conntrack_data_generate_v4(self->sock, 0xf6f6f6f6, 0xf7f7f7f7,
+					 NF_CT_DEFAULT_ZONE_ID);
+	EXPECT_EQ(ret, 0);
 
 	src = (struct in6_addr) {{
 		.__u6_addr32 = {
@@ -395,6 +398,26 @@ FIXTURE_SETUP(conntrack_dump_flush)
 					 TEST_ZONE_ID + 2);
 	EXPECT_EQ(ret, 0);
 
+	src = (struct in6_addr) {{
+		.__u6_addr32 = {
+			0xb80d0120,
+			0x00000000,
+			0x00000000,
+			0x07000000
+		}
+	}};
+	dst = (struct in6_addr) {{
+		.__u6_addr32 = {
+			0xb80d0120,
+			0x00000000,
+			0x00000000,
+			0x08000000
+		}
+	}};
+	ret = conntrack_data_generate_v6(self->sock, src, dst,
+					 NF_CT_DEFAULT_ZONE_ID);
+	EXPECT_EQ(ret, 0);
+
 	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
 	EXPECT_GE(ret, 2);
 	if (ret > 2)
@@ -425,6 +448,24 @@ TEST_F(conntrack_dump_flush, test_flush_by_zone)
 	EXPECT_EQ(ret, 2);
 	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 2);
 	EXPECT_EQ(ret, 2);
+	ret = conntracK_count_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
+	EXPECT_EQ(ret, 2);
+}
+
+TEST_F(conntrack_dump_flush, test_flush_by_zone_default)
+{
+	int ret;
+
+	ret = conntrack_flush_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
+	EXPECT_EQ(ret, 0);
+	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
+	EXPECT_EQ(ret, 2);
+	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 1);
+	EXPECT_EQ(ret, 2);
+	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID + 2);
+	EXPECT_EQ(ret, 2);
+	ret = conntracK_count_zone(self->sock, NF_CT_DEFAULT_ZONE_ID);
+	EXPECT_EQ(ret, 0);
 }
 
 TEST_HARNESS_MAIN
