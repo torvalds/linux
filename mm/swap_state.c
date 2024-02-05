@@ -680,9 +680,10 @@ skip:
 	/* The page was likely read above, so no need for plugging here */
 	folio = __read_swap_cache_async(entry, gfp_mask, mpol, ilx,
 					&page_allocated, false);
-	if (unlikely(page_allocated))
+	if (unlikely(page_allocated)) {
+		zswap_folio_swapin(folio);
 		swap_read_folio(folio, false, NULL);
-	zswap_folio_swapin(folio);
+	}
 	return folio;
 }
 
@@ -855,9 +856,10 @@ skip:
 	/* The folio was likely read above, so no need for plugging here */
 	folio = __read_swap_cache_async(targ_entry, gfp_mask, mpol, targ_ilx,
 					&page_allocated, false);
-	if (unlikely(page_allocated))
+	if (unlikely(page_allocated)) {
+		zswap_folio_swapin(folio);
 		swap_read_folio(folio, false, NULL);
-	zswap_folio_swapin(folio);
+	}
 	return folio;
 }
 

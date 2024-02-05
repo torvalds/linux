@@ -377,10 +377,9 @@ void zswap_folio_swapin(struct folio *folio)
 {
 	struct lruvec *lruvec;
 
-	if (folio) {
-		lruvec = folio_lruvec(folio);
-		atomic_long_inc(&lruvec->zswap_lruvec_state.nr_zswap_protected);
-	}
+	VM_WARN_ON_ONCE(!folio_test_locked(folio));
+	lruvec = folio_lruvec(folio);
+	atomic_long_inc(&lruvec->zswap_lruvec_state.nr_zswap_protected);
 }
 
 /*********************************
