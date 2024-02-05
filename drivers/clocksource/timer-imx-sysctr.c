@@ -9,12 +9,15 @@
 #include "timer-of.h"
 
 #define CMP_OFFSET	0x10000
+#define RD_OFFSET	0x20000
 
 #define CNTCV_LO	0x8
 #define CNTCV_HI	0xc
 #define CMPCV_LO	(CMP_OFFSET + 0x20)
 #define CMPCV_HI	(CMP_OFFSET + 0x24)
 #define CMPCR		(CMP_OFFSET + 0x2c)
+#define CNTCV_LO_IMX95	(RD_OFFSET + 0x8)
+#define CNTCV_HI_IMX95	(RD_OFFSET + 0xc)
 
 #define SYS_CTR_EN		0x1
 #define SYS_CTR_IRQ_MASK	0x2
@@ -23,6 +26,8 @@
 
 struct sysctr_private {
 	u32 cmpcr;
+	u32 lo_off;
+	u32 hi_off;
 };
 
 static void sysctr_timer_enable(struct clock_event_device *evt, bool enable)
@@ -47,13 +52,14 @@ static void sysctr_irq_acknowledge(struct clock_event_device *evt)
 static inline u64 sysctr_read_counter(struct clock_event_device *evt)
 {
 	struct timer_of *to = to_timer_of(evt);
+	struct sysctr_private *priv = to->private_data;
 	void __iomem *base = timer_of_base(to);
 	u32 cnt_hi, tmp_hi, cnt_lo;
 
 	do {
-		cnt_hi = readl_relaxed(base + CNTCV_HI);
-		cnt_lo = readl_relaxed(base + CNTCV_LO);
-		tmp_hi = readl_relaxed(base + CNTCV_HI);
+		cnt_hi = readl_relaxed(base + priv->hi_off);
+		cnt_lo = readl_relaxed(base + priv->lo_off);
+		tmp_hi = readl_relaxed(base + priv->hi_off);
 	} while (tmp_hi != cnt_hi);
 
 	return  ((u64) cnt_hi << 32) | cnt_lo;
@@ -127,7 +133,7 @@ static struct timer_of to_sysctr = {
 	},
 };
 
-static int __init sysctr_timer_init(struct device_node *np)
+static int __init __sysctr_timer_init(struct device_node *np)
 {
 	struct sysctr_private *priv;
 	void __iomem *base;
@@ -154,9 +160,48 @@ static int __init sysctr_timer_init(struct device_node *np)
 	base = timer_of_base(&to_sysctr);
 	priv->cmpcr = readl(base + CMPCR) & ~SYS_CTR_EN;
 
+	return 0;
+}
+
+static int __init sysctr_timer_init(struct device_node *np)
+{
+	struct sysctr_private *priv;
+	int ret;
+
+	ret = __sysctr_timer_init(np);
+	if (ret)
+		return ret;
+
+	priv = to_sysctr.private_data;
+	priv->lo_off = CNTCV_LO;
+	priv->hi_off = CNTCV_HI;
+
 	clockevents_config_and_register(&to_sysctr.clkevt,
 					timer_of_rate(&to_sysctr),
 					0xff, 0x7fffffff);
+
 	return 0;
 }
+
+static int __init sysctr_timer_imx95_init(struct device_node *np)
+{
+	struct sysctr_private *priv;
+	int ret;
+
+	ret = __sysctr_timer_init(np);
+	if (ret)
+		return ret;
+
+	priv = to_sysctr.private_data;
+	priv->lo_off = CNTCV_LO_IMX95;
+	priv->hi_off = CNTCV_HI_IMX95;
+
+	clockevents_config_and_register(&to_sysctr.clkevt,
+					timer_of_rate(&to_sysctr),
+					0xff, 0x7fffffff);
+
+	return 0;
+}
+
 TIMER_OF_DECLARE(sysctr_timer, "nxp,sysctr-timer", sysctr_timer_init);
+TIMER_OF_DECLARE(sysctr_timer_imx95, "nxp,imx95-sysctr-timer", sysctr_timer_imx95_init);
