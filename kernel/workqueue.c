@@ -7604,7 +7604,7 @@ static bool __init cpus_share_numa(int cpu0, int cpu1)
 /**
  * workqueue_init_topology - initialize CPU pods for unbound workqueues
  *
- * This is the third step of there-staged workqueue subsystem initialization and
+ * This is the third step of three-staged workqueue subsystem initialization and
  * invoked after SMP and topology information are fully initialized. It
  * initializes the unbound CPU pods accordingly.
  */
