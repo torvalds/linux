@@ -5747,8 +5747,9 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 	l2_fltr = fltr->l2_fltr;
 	req->l2_filter_id = l2_fltr->base.filter_id;
 
-
-	if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2) {
+	if (fltr->base.flags & BNXT_ACT_DROP) {
+		flags = CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DROP;
+	} else if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2) {
 		flags = CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DEST_RFS_RING_IDX;
 		req->dst_id = cpu_to_le16(fltr->base.rxq);
 	} else {
