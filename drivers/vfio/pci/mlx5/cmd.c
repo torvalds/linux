@@ -149,6 +149,12 @@ int mlx5vf_cmd_query_vhca_migration_state(struct mlx5vf_pci_core_device *mvdev,
 	return 0;
 }
 
+static void set_tracker_change_event(struct mlx5vf_pci_core_device *mvdev)
+{
+	mvdev->tracker.object_changed = true;
+	complete(&mvdev->tracker_comp);
+}
+
 static void set_tracker_error(struct mlx5vf_pci_core_device *mvdev)
 {
 	/* Mark the tracker under an error and wake it up if it's running */
@@ -900,6 +906,29 @@ static int mlx5vf_cmd_modify_tracker(struct mlx5_core_dev *mdev,
 	return mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
 }
 
+static int mlx5vf_cmd_query_tracker(struct mlx5_core_dev *mdev,
+				    struct mlx5_vhca_page_tracker *tracker)
+{
+	u32 out[MLX5_ST_SZ_DW(query_page_track_obj_out)] = {};
+	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
+	void *obj_context;
+	void *cmd_hdr;
+	int err;
+
+	cmd_hdr = MLX5_ADDR_OF(modify_page_track_obj_in, in, general_obj_in_cmd_hdr);
+	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, opcode, MLX5_CMD_OP_QUERY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, obj_type, MLX5_OBJ_TYPE_PAGE_TRACK);
+	MLX5_SET(general_obj_in_cmd_hdr, cmd_hdr, obj_id, tracker->id);
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	obj_context = MLX5_ADDR_OF(query_page_track_obj_out, out, obj_context);
+	tracker->status = MLX5_GET(page_track, obj_context, state);
+	return 0;
+}
+
 static int alloc_cq_frag_buf(struct mlx5_core_dev *mdev,
 			     struct mlx5_vhca_cq_buf *buf, int nent,
 			     int cqe_size)
@@ -957,9 +986,11 @@ static int mlx5vf_event_notifier(struct notifier_block *nb, unsigned long type,
 		mlx5_nb_cof(nb, struct mlx5_vhca_page_tracker, nb);
 	struct mlx5vf_pci_core_device *mvdev = container_of(
 		tracker, struct mlx5vf_pci_core_device, tracker);
+	struct mlx5_eqe_obj_change *object;
 	struct mlx5_eqe *eqe = data;
 	u8 event_type = (u8)type;
 	u8 queue_type;
+	u32 obj_id;
 	int qp_num;
 
 	switch (event_type) {
@@ -974,6 +1005,12 @@ static int mlx5vf_event_notifier(struct notifier_block *nb, unsigned long type,
 		    qp_num != tracker->fw_qp->qpn)
 			break;
 		set_tracker_error(mvdev);
+		break;
+	case MLX5_EVENT_TYPE_OBJECT_CHANGE:
+		object = &eqe->data.obj_change;
+		obj_id = be32_to_cpu(object->obj_id);
+		if (obj_id == tracker->id)
+			set_tracker_change_event(mvdev);
 		break;
 	default:
 		break;
@@ -1634,6 +1671,11 @@ int mlx5vf_tracker_read_and_clear(struct vfio_device *vdev, unsigned long iova,
 		goto end;
 	}
 
+	if (tracker->is_err) {
+		err = -EIO;
+		goto end;
+	}
+
 	mdev = mvdev->mdev;
 	err = mlx5vf_cmd_modify_tracker(mdev, tracker->id, iova, length,
 					MLX5_PAGE_TRACK_STATE_REPORTING);
@@ -1652,6 +1694,12 @@ int mlx5vf_tracker_read_and_clear(struct vfio_device *vdev, unsigned long iova,
 						      dirty, &tracker->status);
 			if (poll_err == CQ_EMPTY) {
 				wait_for_completion(&mvdev->tracker_comp);
+				if (tracker->object_changed) {
+					tracker->object_changed = false;
+					err = mlx5vf_cmd_query_tracker(mdev, tracker);
+					if (err)
+						goto end;
+				}
 				continue;
 			}
 		}
