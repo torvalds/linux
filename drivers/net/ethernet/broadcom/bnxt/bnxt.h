@@ -1334,6 +1334,7 @@ struct bnxt_pf_info {
 
 struct bnxt_filter_base {
 	struct hlist_node	hash;
+	struct list_head	list;
 	__le64			filter_id;
 	u8			type;
 #define BNXT_FLTR_TYPE_NTUPLE	1
@@ -2442,6 +2443,8 @@ struct bnxt {
 	u32			hash_seed;
 	u64			toeplitz_prefix;
 
+	struct list_head	usr_fltr_list;
+
 	/* To protect link related settings during link changes and
 	 * ethtool settings changes.
 	 */
@@ -2646,6 +2649,8 @@ u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx);
 void bnxt_set_tpa_flags(struct bnxt *bp);
 void bnxt_set_ring_params(struct bnxt *);
 int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
+void bnxt_insert_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr);
+void bnxt_del_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap,
 			    int bmap_size, bool async_only);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp);

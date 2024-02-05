@@ -4841,9 +4841,26 @@ static void bnxt_clear_ring_indices(struct bnxt *bp)
 	}
 }
 
+void bnxt_insert_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
+{
+	u8 type = fltr->type, flags = fltr->flags;
+
+	INIT_LIST_HEAD(&fltr->list);
+	if ((type == BNXT_FLTR_TYPE_L2 && flags & BNXT_ACT_RING_DST) ||
+	    (type == BNXT_FLTR_TYPE_NTUPLE && flags & BNXT_ACT_NO_AGING))
+		list_add_tail(&fltr->list, &bp->usr_fltr_list);
+}
+
+void bnxt_del_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
+{
+	if (!list_empty(&fltr->list))
+		list_del_init(&fltr->list);
+}
+
 static void bnxt_del_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
 {
 	hlist_del(&fltr->hash);
+	bnxt_del_one_usr_fltr(bp, fltr);
 	if (fltr->flags) {
 		clear_bit(fltr->sw_id, bp->ntp_fltr_bmap);
 		bp->ntp_fltr_count--;
@@ -5387,6 +5404,7 @@ void bnxt_del_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr)
 		return;
 	}
 	hlist_del_rcu(&fltr->base.hash);
+	bnxt_del_one_usr_fltr(bp, &fltr->base);
 	if (fltr->base.flags) {
 		clear_bit(fltr->base.sw_id, bp->ntp_fltr_bmap);
 		bp->ntp_fltr_count--;
@@ -5533,6 +5551,7 @@ static int bnxt_init_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr,
 	}
 	head = &bp->l2_fltr_hash_tbl[idx];
 	hlist_add_head_rcu(&fltr->base.hash, head);
+	bnxt_insert_usr_fltr(bp, &fltr->base);
 	set_bit(BNXT_FLTR_INSERTED, &fltr->base.state);
 	atomic_set(&fltr->refcnt, 1);
 	return 0;
@@ -13985,6 +14004,7 @@ int bnxt_insert_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr,
 	head = &bp->ntp_fltr_hash_tbl[idx];
 	hlist_add_head_rcu(&fltr->base.hash, head);
 	set_bit(BNXT_FLTR_INSERTED, &fltr->base.state);
+	bnxt_insert_usr_fltr(bp, &fltr->base);
 	bp->ntp_fltr_count++;
 	spin_unlock_bh(&bp->ntp_fltr_lock);
 	return 0;
@@ -14139,6 +14159,7 @@ void bnxt_del_ntp_filter(struct bnxt *bp, struct bnxt_ntuple_filter *fltr)
 		return;
 	}
 	hlist_del_rcu(&fltr->base.hash);
+	bnxt_del_one_usr_fltr(bp, &fltr->base);
 	bp->ntp_fltr_count--;
 	spin_unlock_bh(&bp->ntp_fltr_lock);
 	bnxt_del_l2_filter(bp, fltr->l2_fltr);
@@ -14954,6 +14975,8 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = bnxt_dl_register(bp);
 	if (rc)
 		goto init_err_dl;
+
+	INIT_LIST_HEAD(&bp->usr_fltr_list);
 
 	rc = register_netdev(dev);
 	if (rc)
