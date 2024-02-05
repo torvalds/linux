@@ -228,15 +228,29 @@ static const struct file_operations thread_with_stdio_fops = {
 	.release	= thread_with_stdio_release,
 };
 
+static int thread_with_stdio_fn(void *arg)
+{
+	struct thread_with_stdio *thr = arg;
+
+	thr->fn(thr);
+
+	thr->thr.done = true;
+	thr->stdio.done = true;
+	wake_up(&thr->stdio.input.wait);
+	wake_up(&thr->stdio.output.wait);
+	return 0;
+}
+
 int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
 			       void (*exit)(struct thread_with_stdio *),
-			       int (*fn)(void *))
+			       void (*fn)(struct thread_with_stdio *))
 {
 	stdio_buf_init(&thr->stdio.input);
 	stdio_buf_init(&thr->stdio.output);
-	thr->exit = exit;
+	thr->exit	= exit;
+	thr->fn		= fn;
 
-	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdio_fops, fn);
+	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdio_fops, thread_with_stdio_fn);
 }
 
 int bch2_stdio_redirect_read(struct stdio_redirect *stdio, char *ubuf, size_t len)

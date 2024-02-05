@@ -21,19 +21,12 @@ struct thread_with_stdio {
 	struct thread_with_file	thr;
 	struct stdio_redirect	stdio;
 	void			(*exit)(struct thread_with_stdio *);
+	void			(*fn)(struct thread_with_stdio *);
 };
-
-static inline void thread_with_stdio_done(struct thread_with_stdio *thr)
-{
-	thr->thr.done = true;
-	thr->stdio.done = true;
-	wake_up(&thr->stdio.input.wait);
-	wake_up(&thr->stdio.output.wait);
-}
 
 int bch2_run_thread_with_stdio(struct thread_with_stdio *,
 			       void (*exit)(struct thread_with_stdio *),
-			       int (*fn)(void *));
+			       void (*fn)(struct thread_with_stdio *));
 int bch2_stdio_redirect_read(struct stdio_redirect *, char *, size_t);
 int bch2_stdio_redirect_readline(struct stdio_redirect *, char *, size_t);
 
