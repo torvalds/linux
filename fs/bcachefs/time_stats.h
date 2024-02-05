@@ -64,7 +64,7 @@ struct time_stat_buffer {
 	struct time_stat_buffer_entry {
 		u64	start;
 		u64	end;
-	}		entries[32];
+	}		entries[31];
 };
 
 struct bch2_time_stats {
