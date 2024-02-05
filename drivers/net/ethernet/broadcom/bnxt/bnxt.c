@@ -5853,8 +5853,7 @@ static void bnxt_hwrm_clear_vnic_filter(struct bnxt *bp)
 			struct bnxt_l2_filter *fltr = vnic->l2_filters[j];
 
 			bnxt_hwrm_l2_filter_free(bp, fltr);
-			if (list_empty(&fltr->base.list))
-				bnxt_del_l2_filter(bp, fltr);
+			bnxt_del_l2_filter(bp, fltr);
 		}
 		vnic->uc_filter_count = 0;
 	}
@@ -11538,6 +11537,42 @@ static int bnxt_reinit_after_abort(struct bnxt *bp)
 	return rc;
 }
 
+static void bnxt_cfg_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr)
+{
+	struct bnxt_ntuple_filter *ntp_fltr;
+	struct bnxt_l2_filter *l2_fltr;
+
+	if (list_empty(&fltr->list))
+		return;
+
+	if (fltr->type == BNXT_FLTR_TYPE_NTUPLE) {
+		ntp_fltr = container_of(fltr, struct bnxt_ntuple_filter, base);
+		l2_fltr = bp->vnic_info[0].l2_filters[0];
+		atomic_inc(&l2_fltr->refcnt);
+		ntp_fltr->l2_fltr = l2_fltr;
+		if (bnxt_hwrm_cfa_ntuple_filter_alloc(bp, ntp_fltr)) {
+			bnxt_del_ntp_filter(bp, ntp_fltr);
+			netdev_err(bp->dev, "restoring previously configured ntuple filter id %d failed\n",
+				   fltr->sw_id);
+		}
+	} else if (fltr->type == BNXT_FLTR_TYPE_L2) {
+		l2_fltr = container_of(fltr, struct bnxt_l2_filter, base);
+		if (bnxt_hwrm_l2_filter_alloc(bp, l2_fltr)) {
+			bnxt_del_l2_filter(bp, l2_fltr);
+			netdev_err(bp->dev, "restoring previously configured l2 filter id %d failed\n",
+				   fltr->sw_id);
+		}
+	}
+}
+
+static void bnxt_cfg_usr_fltrs(struct bnxt *bp)
+{
+	struct bnxt_filter_base *usr_fltr, *tmp;
+
+	list_for_each_entry_safe(usr_fltr, tmp, &bp->usr_fltr_list, list)
+		bnxt_cfg_one_usr_fltr(bp, usr_fltr);
+}
+
 static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 {
 	int rc = 0;
@@ -11624,6 +11659,7 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		bnxt_vf_reps_open(bp);
 	bnxt_ptp_init_rtc(bp, true);
 	bnxt_ptp_cfg_tstamp_filters(bp);
+	bnxt_cfg_usr_fltrs(bp);
 	return 0;
 
 open_err_irq:
