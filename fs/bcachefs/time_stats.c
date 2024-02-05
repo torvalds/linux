@@ -17,6 +17,9 @@ static const struct time_unit time_units[] = {
 	{ "s",		NSEC_PER_SEC	 },
 	{ "m",          (u64) NSEC_PER_SEC * 60},
 	{ "h",          (u64) NSEC_PER_SEC * 3600},
+	{ "d",          (u64) NSEC_PER_SEC * 3600 * 24},
+	{ "w",          (u64) NSEC_PER_SEC * 3600 * 24 * 7},
+	{ "y",          (u64) NSEC_PER_SEC * ((3600 * 24 * 7 * 365) + (3600 * (24 / 4) * 7))}, /* 365.25d */
 	{ "eon",        U64_MAX          },
 };
 
