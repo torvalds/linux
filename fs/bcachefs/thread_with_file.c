@@ -2,7 +2,6 @@
 #ifndef NO_BCACHEFS_FS
 
 #include "bcachefs.h"
-#include "printbuf.h"
 #include "thread_with_file.h"
 
 #include <linux/anon_inodes.h>
@@ -65,48 +64,74 @@ err:
 	return ret;
 }
 
-static inline bool thread_with_stdio_has_output(struct thread_with_stdio *thr)
+/* stdio_redirect */
+
+static bool stdio_redirect_has_input(struct stdio_redirect *stdio)
 {
-	return thr->stdio.output_buf.pos || thr->thr.done;
+	return stdio->input.buf.nr || stdio->done;
 }
+
+static bool stdio_redirect_has_output(struct stdio_redirect *stdio)
+{
+	return stdio->output.buf.nr || stdio->done;
+}
+
+#define WRITE_BUFFER		4096
+
+static bool stdio_redirect_has_input_space(struct stdio_redirect *stdio)
+{
+	return stdio->input.buf.nr < WRITE_BUFFER || stdio->done;
+}
+
+static bool stdio_redirect_has_output_space(struct stdio_redirect *stdio)
+{
+	return stdio->output.buf.nr < WRITE_BUFFER || stdio->done;
+}
+
+static void stdio_buf_init(struct stdio_buf *buf)
+{
+	spin_lock_init(&buf->lock);
+	init_waitqueue_head(&buf->wait);
+	darray_init(&buf->buf);
+}
+
+/* thread_with_stdio */
 
 static ssize_t thread_with_stdio_read(struct file *file, char __user *ubuf,
 				      size_t len, loff_t *ppos)
 {
 	struct thread_with_stdio *thr =
 		container_of(file->private_data, struct thread_with_stdio, thr);
-	struct printbuf *buf = &thr->stdio.output_buf;
+	struct stdio_buf *buf = &thr->stdio.output;
 	size_t copied = 0, b;
 	int ret = 0;
 
-	if ((file->f_flags & O_NONBLOCK) &&
-	    !thread_with_stdio_has_output(thr))
+	if (!(file->f_flags & O_NONBLOCK)) {
+		ret = wait_event_interruptible(buf->wait, stdio_redirect_has_output(&thr->stdio));
+		if (ret)
+			return ret;
+	} else if (!stdio_redirect_has_output(&thr->stdio))
 		return -EAGAIN;
 
-	ret = wait_event_interruptible(thr->stdio.output_wait,
-		thread_with_stdio_has_output(thr));
-	if (ret)
-		return ret;
-
-	while (len && buf->pos) {
+	while (len && buf->buf.nr) {
 		if (fault_in_writeable(ubuf, len) == len) {
 			ret = -EFAULT;
 			break;
 		}
 
-		spin_lock_irq(&thr->stdio.output_lock);
-		b = min_t(size_t, len, buf->pos);
+		spin_lock_irq(&buf->lock);
+		b = min_t(size_t, len, buf->buf.nr);
 
-		if (b && !copy_to_user_nofault(ubuf, buf->buf, b)) {
-			memmove(buf->buf,
-				buf->buf + b,
-				buf->pos - b);
-			buf->pos -= b;
+		if (b && !copy_to_user_nofault(ubuf, buf->buf.data, b)) {
 			ubuf	+= b;
 			len	-= b;
 			copied	+= b;
+			buf->buf.nr -= b;
+			memmove(buf->buf.data,
+				buf->buf.data + b,
+				buf->buf.nr);
 		}
-		spin_unlock_irq(&thr->stdio.output_lock);
+		spin_unlock_irq(&buf->lock);
 	}
 
 	return copied ?: ret;
@@ -118,17 +143,10 @@ static int thread_with_stdio_release(struct inode *inode, struct file *file)
 		container_of(file->private_data, struct thread_with_stdio, thr);
 
 	bch2_thread_with_file_exit(&thr->thr);
-	printbuf_exit(&thr->stdio.input_buf);
-	printbuf_exit(&thr->stdio.output_buf);
+	darray_exit(&thr->stdio.input.buf);
+	darray_exit(&thr->stdio.output.buf);
 	thr->exit(thr);
 	return 0;
-}
-
-#define WRITE_BUFFER		4096
-
-static inline bool thread_with_stdio_has_input_space(struct thread_with_stdio *thr)
-{
-	return thr->stdio.input_buf.pos < WRITE_BUFFER || thr->thr.done;
 }
 
 static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubuf,
@@ -136,7 +154,7 @@ static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubu
 {
 	struct thread_with_stdio *thr =
 		container_of(file->private_data, struct thread_with_stdio, thr);
-	struct printbuf *buf = &thr->stdio.input_buf;
+	struct stdio_buf *buf = &thr->stdio.input;
 	size_t copied = 0;
 	ssize_t ret = 0;
 
@@ -152,29 +170,29 @@ static ssize_t thread_with_stdio_write(struct file *file, const char __user *ubu
 			break;
 		}
 
-		spin_lock(&thr->stdio.input_lock);
-		if (buf->pos < WRITE_BUFFER)
-			bch2_printbuf_make_room(buf, min(b, WRITE_BUFFER - buf->pos));
-		b = min(len, printbuf_remaining_size(buf));
+		spin_lock(&buf->lock);
+		if (buf->buf.nr < WRITE_BUFFER)
+			darray_make_room_gfp(&buf->buf, min(b, WRITE_BUFFER - buf->buf.nr), __GFP_NOWARN);
+		b = min(len, darray_room(buf->buf));
 
-		if (b && !copy_from_user_nofault(&buf->buf[buf->pos], ubuf, b)) {
-			ubuf += b;
-			len -= b;
-			copied += b;
-			buf->pos += b;
+		if (b && !copy_from_user_nofault(&buf->buf.data[buf->buf.nr], ubuf, b)) {
+			buf->buf.nr += b;
+			ubuf	+= b;
+			len	-= b;
+			copied	+= b;
 		}
-		spin_unlock(&thr->stdio.input_lock);
+		spin_unlock(&buf->lock);
 
 		if (b) {
-			wake_up(&thr->stdio.input_wait);
+			wake_up(&buf->wait);
 		} else {
 			if ((file->f_flags & O_NONBLOCK)) {
 				ret = -EAGAIN;
 				break;
 			}
 
-			ret = wait_event_interruptible(thr->stdio.input_wait,
-					thread_with_stdio_has_input_space(thr));
+			ret = wait_event_interruptible(buf->wait,
+					stdio_redirect_has_input_space(&thr->stdio));
 			if (ret)
 				break;
 		}
@@ -188,14 +206,14 @@ static __poll_t thread_with_stdio_poll(struct file *file, struct poll_table_stru
 	struct thread_with_stdio *thr =
 		container_of(file->private_data, struct thread_with_stdio, thr);
 
-	poll_wait(file, &thr->stdio.output_wait, wait);
-	poll_wait(file, &thr->stdio.input_wait, wait);
+	poll_wait(file, &thr->stdio.output.wait, wait);
+	poll_wait(file, &thr->stdio.input.wait, wait);
 
 	__poll_t mask = 0;
 
-	if (thread_with_stdio_has_output(thr))
+	if (stdio_redirect_has_output(&thr->stdio))
 		mask |= EPOLLIN;
-	if (thread_with_stdio_has_input_space(thr))
+	if (stdio_redirect_has_input_space(&thr->stdio))
 		mask |= EPOLLOUT;
 	if (thr->thr.done)
 		mask |= EPOLLHUP|EPOLLERR;
@@ -203,75 +221,112 @@ static __poll_t thread_with_stdio_poll(struct file *file, struct poll_table_stru
 }
 
 static const struct file_operations thread_with_stdio_fops = {
-	.release	= thread_with_stdio_release,
+	.llseek		= no_llseek,
 	.read		= thread_with_stdio_read,
 	.write		= thread_with_stdio_write,
 	.poll		= thread_with_stdio_poll,
-	.llseek		= no_llseek,
+	.release	= thread_with_stdio_release,
 };
 
 int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
 			       void (*exit)(struct thread_with_stdio *),
 			       int (*fn)(void *))
 {
-	thr->stdio.input_buf = PRINTBUF;
-	thr->stdio.input_buf.atomic++;
-	spin_lock_init(&thr->stdio.input_lock);
-	init_waitqueue_head(&thr->stdio.input_wait);
-
-	thr->stdio.output_buf = PRINTBUF;
-	thr->stdio.output_buf.atomic++;
-	spin_lock_init(&thr->stdio.output_lock);
-	init_waitqueue_head(&thr->stdio.output_wait);
-
+	stdio_buf_init(&thr->stdio.input);
+	stdio_buf_init(&thr->stdio.output);
 	thr->exit = exit;
 
 	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdio_fops, fn);
 }
 
-int bch2_stdio_redirect_read(struct stdio_redirect *stdio, char *buf, size_t len)
+int bch2_stdio_redirect_read(struct stdio_redirect *stdio, char *ubuf, size_t len)
 {
-	wait_event(stdio->input_wait,
-		   stdio->input_buf.pos || stdio->done);
+	struct stdio_buf *buf = &stdio->input;
 
+	wait_event(buf->wait, stdio_redirect_has_input(stdio));
 	if (stdio->done)
 		return -1;
 
-	spin_lock(&stdio->input_lock);
-	int ret = min(len, stdio->input_buf.pos);
-	stdio->input_buf.pos -= ret;
-	memcpy(buf, stdio->input_buf.buf, ret);
-	memmove(stdio->input_buf.buf,
-		stdio->input_buf.buf + ret,
-		stdio->input_buf.pos);
-	spin_unlock(&stdio->input_lock);
+	spin_lock(&buf->lock);
+	int ret = min(len, buf->buf.nr);
+	buf->buf.nr -= ret;
+	memcpy(ubuf, buf->buf.data, ret);
+	memmove(buf->buf.data,
+		buf->buf.data + ret,
+		buf->buf.nr);
+	spin_unlock(&buf->lock);
 
-	wake_up(&stdio->input_wait);
+	wake_up(&buf->wait);
 	return ret;
 }
 
-int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, char *buf, size_t len)
+int bch2_stdio_redirect_readline(struct stdio_redirect *stdio, char *ubuf, size_t len)
 {
-	wait_event(stdio->input_wait,
-		   stdio->input_buf.pos || stdio->done);
+	struct stdio_buf *buf = &stdio->input;
 
+	wait_event(buf->wait, stdio_redirect_has_input(stdio));
 	if (stdio->done)
 		return -1;
 
-	spin_lock(&stdio->input_lock);
-	int ret = min(len, stdio->input_buf.pos);
-	char *n = memchr(stdio->input_buf.buf, '\n', ret);
-	if (n)
-		ret = min(ret, n + 1 - stdio->input_buf.buf);
-	stdio->input_buf.pos -= ret;
-	memcpy(buf, stdio->input_buf.buf, ret);
-	memmove(stdio->input_buf.buf,
-		stdio->input_buf.buf + ret,
-		stdio->input_buf.pos);
-	spin_unlock(&stdio->input_lock);
+	spin_lock(&buf->lock);
+	int ret = min(len, buf->buf.nr);
+	char *n = memchr(buf->buf.data, '\n', ret);
+	if (!n)
+		ret = min(ret, n + 1 - buf->buf.data);
+	buf->buf.nr -= ret;
+	memcpy(ubuf, buf->buf.data, ret);
+	memmove(buf->buf.data,
+		buf->buf.data + ret,
+		buf->buf.nr);
+	spin_unlock(&buf->lock);
 
-	wake_up(&stdio->input_wait);
+	wake_up(&buf->wait);
 	return ret;
+}
+
+__printf(3, 0)
+static void bch2_darray_vprintf(darray_char *out, gfp_t gfp, const char *fmt, va_list args)
+{
+	size_t len;
+
+	do {
+		va_list args2;
+		va_copy(args2, args);
+
+		len = vsnprintf(out->data + out->nr, darray_room(*out), fmt, args2);
+	} while (len + 1 > darray_room(*out) && !darray_make_room_gfp(out, len + 1, gfp));
+
+	out->nr += min(len, darray_room(*out));
+}
+
+void bch2_stdio_redirect_vprintf(struct stdio_redirect *stdio, bool nonblocking,
+				 const char *fmt, va_list args)
+{
+	struct stdio_buf *buf = &stdio->output;
+	unsigned long flags;
+
+	if (!nonblocking)
+		wait_event(buf->wait, stdio_redirect_has_output_space(stdio));
+	else if (!stdio_redirect_has_output_space(stdio))
+		return;
+	if (stdio->done)
+		return;
+
+	spin_lock_irqsave(&buf->lock, flags);
+	bch2_darray_vprintf(&buf->buf, nonblocking ? __GFP_NOWARN : GFP_KERNEL, fmt, args);
+	spin_unlock_irqrestore(&buf->lock, flags);
+
+	wake_up(&buf->wait);
+}
+
+void bch2_stdio_redirect_printf(struct stdio_redirect *stdio, bool nonblocking,
+				const char *fmt, ...)
+{
+
+	va_list args;
+	va_start(args, fmt);
+	bch2_stdio_redirect_vprintf(stdio, nonblocking, fmt, args);
+	va_end(args);
 }
 
 #endif /* NO_BCACHEFS_FS */

@@ -56,6 +56,7 @@
 #include "super.h"
 #include "super-io.h"
 #include "sysfs.h"
+#include "thread_with_file.h"
 #include "trace.h"
 
 #include <linux/backing-dev.h>
@@ -95,16 +96,10 @@ void __bch2_print(struct bch_fs *c, const char *fmt, ...)
 	if (likely(!stdio)) {
 		vprintk(fmt, args);
 	} else {
-		unsigned long flags;
-
 		if (fmt[0] == KERN_SOH[0])
 			fmt += 2;
 
-		spin_lock_irqsave(&stdio->output_lock, flags);
-		prt_vprintf(&stdio->output_buf, fmt, args);
-		spin_unlock_irqrestore(&stdio->output_lock, flags);
-
-		wake_up(&stdio->output_wait);
+		bch2_stdio_redirect_vprintf(stdio, true, fmt, args);
 	}
 	va_end(args);
 }
