@@ -23089,13 +23089,6 @@ L:	kvm@vger.kernel.org
 S:	Maintained
 F:	drivers/vfio/pci/mlx5/
 
-VFIO VIRTIO PCI DRIVER
-M:	Yishai Hadas <yishaih@nvidia.com>
-L:	kvm@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
-S:	Maintained
-F:	drivers/vfio/pci/virtio
-
 VFIO PCI DEVICE SPECIFIC DRIVERS
 R:	Jason Gunthorpe <jgg@nvidia.com>
 R:	Yishai Hadas <yishaih@nvidia.com>
@@ -23118,6 +23111,13 @@ M:	Eric Auger <eric.auger@redhat.com>
 L:	kvm@vger.kernel.org
 S:	Maintained
 F:	drivers/vfio/platform/
+
+VFIO VIRTIO PCI DRIVER
+M:	Yishai Hadas <yishaih@nvidia.com>
+L:	kvm@vger.kernel.org
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/vfio/pci/virtio
 
 VGA_SWITCHEROO
 R:	Lukas Wunner <lukas@wunner.de>
