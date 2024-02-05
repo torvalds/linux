@@ -649,10 +649,8 @@ static void iwl_mvm_release_frames_from_notif(struct iwl_mvm *mvm,
 	rcu_read_lock();
 
 	ba_data = rcu_dereference(mvm->baid_map[baid]);
-	if (!ba_data) {
-		WARN(true, "BAID %d not found in map\n", baid);
+	if (WARN(!ba_data, "BAID %d not found in map\n", baid))
 		goto out;
-	}
 
 	/* pick any STA ID to find the pointer */
 	sta_id = ffs(ba_data->sta_mask) - 1;
