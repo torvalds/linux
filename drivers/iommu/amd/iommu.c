@@ -86,7 +86,7 @@ static void set_dte_entry(struct amd_iommu *iommu,
 
 static inline bool pdom_is_v2_pgtbl_mode(struct protection_domain *pdom)
 {
-	return (pdom && (pdom->flags & PD_IOMMUV2_MASK));
+	return (pdom && (pdom->pd_mode == PD_MODE_V2));
 }
 
 static inline int get_acpihid_device_id(struct device *dev,
