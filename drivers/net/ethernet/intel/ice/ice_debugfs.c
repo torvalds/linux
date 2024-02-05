@@ -645,6 +645,16 @@ err_create_module_files:
 }
 
 /**
+ * ice_debugfs_pf_deinit - cleanup PF's debugfs
+ * @pf: pointer to the PF struct
+ */
+void ice_debugfs_pf_deinit(struct ice_pf *pf)
+{
+	debugfs_remove_recursive(pf->ice_debugfs_pf);
+	pf->ice_debugfs_pf = NULL;
+}
+
+/**
  * ice_debugfs_init - create root directory for debugfs entries
  */
 void ice_debugfs_init(void)
