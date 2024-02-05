@@ -4632,8 +4632,8 @@ S:	Maintained
 F:	net/sched/sch_cake.c
 
 CAN NETWORK DRIVERS
-M:	Wolfgang Grandegger <wg@grandegger.com>
 M:	Marc Kleine-Budde <mkl@pengutronix.de>
+M:	Vincent Mailhol <mailhol.vincent@wanadoo.fr>
 L:	linux-can@vger.kernel.org
 S:	Maintained
 W:	https://github.com/linux-can
