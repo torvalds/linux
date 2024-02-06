@@ -453,17 +453,7 @@ static struct platform_driver video_cc_sm8550_driver = {
 	},
 };
 
-static int __init video_cc_sm8550_init(void)
-{
-	return platform_driver_register(&video_cc_sm8550_driver);
-}
-subsys_initcall(video_cc_sm8550_init);
-
-static void __exit video_cc_sm8550_exit(void)
-{
-	platform_driver_unregister(&video_cc_sm8550_driver);
-}
-module_exit(video_cc_sm8550_exit);
+module_platform_driver(video_cc_sm8550_driver);
 
 MODULE_DESCRIPTION("QTI VIDEOCC SM8550 Driver");
 MODULE_LICENSE("GPL");

@@ -402,17 +402,7 @@ static struct platform_driver video_cc_sm8250_driver = {
 	},
 };
 
-static int __init video_cc_sm8250_init(void)
-{
-	return platform_driver_register(&video_cc_sm8250_driver);
-}
-subsys_initcall(video_cc_sm8250_init);
-
-static void __exit video_cc_sm8250_exit(void)
-{
-	platform_driver_unregister(&video_cc_sm8250_driver);
-}
-module_exit(video_cc_sm8250_exit);
+module_platform_driver(video_cc_sm8250_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("QTI VIDEOCC SM8250 Driver");
