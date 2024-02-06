@@ -129,8 +129,7 @@ static void osnoise_hist_update_multiple(struct osnoise_tool *tool, int cpu,
 	if (params->output_divisor)
 		duration = duration / params->output_divisor;
 
-	if (data->bucket_size)
-		bucket = duration / data->bucket_size;
+	bucket = duration / data->bucket_size;
 
 	total_duration = duration * count;
 
