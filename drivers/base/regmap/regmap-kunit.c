@@ -1202,7 +1202,8 @@ static void raw_noinc_write(struct kunit *test)
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
-	unsigned int val, val_test, val_last;
+	unsigned int val;
+	u16 val_test, val_last;
 	u16 val_array[BLOCK_TEST_SIZE];
 
 	config = raw_regmap_config;
