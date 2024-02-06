@@ -214,31 +214,32 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 {
+	DECLARE_BITMAP(recalc_map, NUM_OF_RTW89_SUB_ENTITY) = {};
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct cfg80211_chan_def *chandef;
 	enum rtw89_entity_mode mode;
 	struct rtw89_chan chan;
 	u8 weight;
-	u8 last;
 	u8 idx;
 
 	lockdep_assert_held(&rtwdev->mutex);
+
+	bitmap_copy(recalc_map, hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 
 	weight = bitmap_weight(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 	switch (weight) {
 	default:
 		rtw89_warn(rtwdev, "unknown ent chan weight: %d\n", weight);
-		bitmap_zero(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
+		bitmap_zero(recalc_map, NUM_OF_RTW89_SUB_ENTITY);
 		fallthrough;
 	case 0:
 		rtw89_config_default_chandef(rtwdev);
+		set_bit(RTW89_SUB_ENTITY_0, recalc_map);
 		fallthrough;
 	case 1:
-		last = RTW89_SUB_ENTITY_0;
 		mode = RTW89_ENTITY_MODE_SCC;
 		break;
 	case 2:
-		last = RTW89_SUB_ENTITY_1;
 		mode = rtw89_get_entity_mode(rtwdev);
 		if (mode == RTW89_ENTITY_MODE_MCC)
 			break;
@@ -247,7 +248,7 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 		break;
 	}
 
-	for (idx = 0; idx <= last; idx++) {
+	for_each_set_bit(idx, recalc_map, NUM_OF_RTW89_SUB_ENTITY) {
 		chandef = rtw89_chandef_get(rtwdev, idx);
 		rtw89_get_channel_params(chandef, &chan);
 		if (chan.channel == 0) {
