@@ -117,6 +117,7 @@ corresponds to a set of instructions that are mandatory.  That is, each
 instruction has one or more conformance groups of which it is a member.
 
 This document defines the following conformance groups:
+
 * base32: includes all instructions defined in this
   specification unless otherwise noted.
 * base64: includes base32, plus instructions explicitly noted
@@ -289,11 +290,11 @@ where '(u32)' indicates that the upper 32 bits are zeroed.
 
 ``BPF_XOR | BPF_K | BPF_ALU`` means::
 
-  dst = (u32) dst ^ (u32) imm32
+  dst = (u32) dst ^ (u32) imm
 
 ``BPF_XOR | BPF_K | BPF_ALU64`` means::
 
-  dst = dst ^ imm32
+  dst = dst ^ imm
 
 Note that most instructions have instruction offset of 0. Only three instructions
 (``BPF_SDIV``, ``BPF_SMOD``, ``BPF_MOVSX``) have a non-zero offset.
@@ -511,7 +512,7 @@ instructions that transfer data between a register and memory.
 
 ``BPF_MEM | <size> | BPF_ST`` means::
 
-  *(size *) (dst + offset) = imm32
+  *(size *) (dst + offset) = imm
 
 ``BPF_MEM | <size> | BPF_LDX`` means::
 
