@@ -557,6 +557,10 @@ struct ieee80211_fils_discovery {
  * to that BSS) that can change during the lifetime of the BSS.
  *
  * @vif: reference to owning VIF
+ * @bss: the cfg80211 bss descriptor. Valid only for a station, and only
+ *	when associated. Note: This contains information which is not
+ *	necessarily authenticated. For example, information coming from probe
+ *	responses.
  * @addr: (link) address used locally
  * @link_id: link ID, or 0 for non-MLO
  * @htc_trig_based_pkt_ext: default PE in 4us units, if BSS supports HE
@@ -700,6 +704,7 @@ struct ieee80211_fils_discovery {
  */
 struct ieee80211_bss_conf {
 	struct ieee80211_vif *vif;
+	struct cfg80211_bss *bss;
 
 	const u8 *bssid;
 	unsigned int link_id;

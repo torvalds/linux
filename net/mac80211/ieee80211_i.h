@@ -1006,8 +1006,6 @@ struct ieee80211_link_data_managed {
 	int mu_edca_last_param_set;
 
 	u8 bss_param_ch_cnt;
-
-	struct cfg80211_bss *bss;
 };
 
 struct ieee80211_link_data_ap {
