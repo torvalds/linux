@@ -41,6 +41,7 @@ struct eventfs_inode *eventfs_create_dir(const char *name, struct eventfs_inode 
 					 const struct eventfs_entry *entries,
 					 int size, void *data);
 
+void eventfs_remove_events_dir(struct eventfs_inode *ei);
 void eventfs_remove_dir(struct eventfs_inode *ei);
 
 struct dentry *tracefs_create_file(const char *name, umode_t mode,
