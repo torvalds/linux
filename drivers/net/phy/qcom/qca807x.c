@@ -57,8 +57,18 @@
 #define QCA807X_MMD7_LED_CTRL(x)			(0x8074 + ((x) * 2))
 #define QCA807X_MMD7_LED_FORCE_CTRL(x)			(0x8075 + ((x) * 2))
 
-#define QCA807X_GPIO_FORCE_EN				BIT(15)
-#define QCA807X_GPIO_FORCE_MODE_MASK			GENMASK(14, 13)
+/* LED hw control pattern for fiber port */
+#define QCA807X_LED_FIBER_PATTERN_MASK			GENMASK(11, 1)
+#define QCA807X_LED_FIBER_TXACT_BLK_EN			BIT(10)
+#define QCA807X_LED_FIBER_RXACT_BLK_EN			BIT(9)
+#define QCA807X_LED_FIBER_FDX_ON_EN			BIT(6)
+#define QCA807X_LED_FIBER_HDX_ON_EN			BIT(5)
+#define QCA807X_LED_FIBER_1000BX_ON_EN			BIT(2)
+#define QCA807X_LED_FIBER_100FX_ON_EN			BIT(1)
+
+/* Some device repurpose the LED as GPIO out */
+#define QCA807X_GPIO_FORCE_EN				QCA808X_LED_FORCE_EN
+#define QCA807X_GPIO_FORCE_MODE_MASK			QCA808X_LED_FORCE_MODE_MASK
 
 #define QCA807X_FUNCTION_CONTROL			0x10
 #define QCA807X_FC_MDI_CROSSOVER_MODE_MASK		GENMASK(6, 5)
@@ -119,6 +129,233 @@ static int qca807x_cable_test_start(struct phy_device *phydev)
 {
 	/* we do all the (time consuming) work later */
 	return 0;
+}
+
+static int qca807x_led_parse_netdev(struct phy_device *phydev, unsigned long rules,
+				    u16 *offload_trigger)
+{
+	/* Parsing specific to netdev trigger */
+	switch (phydev->port) {
+	case PORT_TP:
+		if (test_bit(TRIGGER_NETDEV_TX, &rules))
+			*offload_trigger |= QCA808X_LED_TX_BLINK;
+		if (test_bit(TRIGGER_NETDEV_RX, &rules))
+			*offload_trigger |= QCA808X_LED_RX_BLINK;
+		if (test_bit(TRIGGER_NETDEV_LINK_10, &rules))
+			*offload_trigger |= QCA808X_LED_SPEED10_ON;
+		if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+			*offload_trigger |= QCA808X_LED_SPEED100_ON;
+		if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+			*offload_trigger |= QCA808X_LED_SPEED1000_ON;
+		if (test_bit(TRIGGER_NETDEV_HALF_DUPLEX, &rules))
+			*offload_trigger |= QCA808X_LED_HALF_DUPLEX_ON;
+		if (test_bit(TRIGGER_NETDEV_FULL_DUPLEX, &rules))
+			*offload_trigger |= QCA808X_LED_FULL_DUPLEX_ON;
+		break;
+	case PORT_FIBRE:
+		if (test_bit(TRIGGER_NETDEV_TX, &rules))
+			*offload_trigger |= QCA807X_LED_FIBER_TXACT_BLK_EN;
+		if (test_bit(TRIGGER_NETDEV_RX, &rules))
+			*offload_trigger |= QCA807X_LED_FIBER_RXACT_BLK_EN;
+		if (test_bit(TRIGGER_NETDEV_LINK_100, &rules))
+			*offload_trigger |= QCA807X_LED_FIBER_100FX_ON_EN;
+		if (test_bit(TRIGGER_NETDEV_LINK_1000, &rules))
+			*offload_trigger |= QCA807X_LED_FIBER_1000BX_ON_EN;
+		if (test_bit(TRIGGER_NETDEV_HALF_DUPLEX, &rules))
+			*offload_trigger |= QCA807X_LED_FIBER_HDX_ON_EN;
+		if (test_bit(TRIGGER_NETDEV_FULL_DUPLEX, &rules))
+			*offload_trigger |= QCA807X_LED_FIBER_FDX_ON_EN;
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	if (rules && !*offload_trigger)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int qca807x_led_hw_control_enable(struct phy_device *phydev, u8 index)
+{
+	u16 reg;
+
+	if (index > 1)
+		return -EINVAL;
+
+	reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+	return qca808x_led_reg_hw_control_enable(phydev, reg);
+}
+
+static int qca807x_led_hw_is_supported(struct phy_device *phydev, u8 index,
+				       unsigned long rules)
+{
+	u16 offload_trigger = 0;
+
+	if (index > 1)
+		return -EINVAL;
+
+	return qca807x_led_parse_netdev(phydev, rules, &offload_trigger);
+}
+
+static int qca807x_led_hw_control_set(struct phy_device *phydev, u8 index,
+				      unsigned long rules)
+{
+	u16 reg, mask, offload_trigger = 0;
+	int ret;
+
+	if (index > 1)
+		return -EINVAL;
+
+	ret = qca807x_led_parse_netdev(phydev, rules, &offload_trigger);
+	if (ret)
+		return ret;
+
+	ret = qca807x_led_hw_control_enable(phydev, index);
+	if (ret)
+		return ret;
+
+	switch (phydev->port) {
+	case PORT_TP:
+		reg = QCA807X_MMD7_LED_CTRL(index);
+		mask = QCA808X_LED_PATTERN_MASK;
+		break;
+	case PORT_FIBRE:
+		/* HW control pattern bits are in LED FORCE reg */
+		reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+		mask = QCA807X_LED_FIBER_PATTERN_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return phy_modify_mmd(phydev, MDIO_MMD_AN, reg, mask,
+			      offload_trigger);
+}
+
+static bool qca807x_led_hw_control_status(struct phy_device *phydev, u8 index)
+{
+	u16 reg;
+
+	if (index > 1)
+		return false;
+
+	reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+	return qca808x_led_reg_hw_control_status(phydev, reg);
+}
+
+static int qca807x_led_hw_control_get(struct phy_device *phydev, u8 index,
+				      unsigned long *rules)
+{
+	u16 reg;
+	int val;
+
+	if (index > 1)
+		return -EINVAL;
+
+	/* Check if we have hw control enabled */
+	if (qca807x_led_hw_control_status(phydev, index))
+		return -EINVAL;
+
+	/* Parsing specific to netdev trigger */
+	switch (phydev->port) {
+	case PORT_TP:
+		reg = QCA807X_MMD7_LED_CTRL(index);
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, reg);
+		if (val & QCA808X_LED_TX_BLINK)
+			set_bit(TRIGGER_NETDEV_TX, rules);
+		if (val & QCA808X_LED_RX_BLINK)
+			set_bit(TRIGGER_NETDEV_RX, rules);
+		if (val & QCA808X_LED_SPEED10_ON)
+			set_bit(TRIGGER_NETDEV_LINK_10, rules);
+		if (val & QCA808X_LED_SPEED100_ON)
+			set_bit(TRIGGER_NETDEV_LINK_100, rules);
+		if (val & QCA808X_LED_SPEED1000_ON)
+			set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+		if (val & QCA808X_LED_HALF_DUPLEX_ON)
+			set_bit(TRIGGER_NETDEV_HALF_DUPLEX, rules);
+		if (val & QCA808X_LED_FULL_DUPLEX_ON)
+			set_bit(TRIGGER_NETDEV_FULL_DUPLEX, rules);
+		break;
+	case PORT_FIBRE:
+		/* HW control pattern bits are in LED FORCE reg */
+		reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, reg);
+		if (val & QCA807X_LED_FIBER_TXACT_BLK_EN)
+			set_bit(TRIGGER_NETDEV_TX, rules);
+		if (val & QCA807X_LED_FIBER_RXACT_BLK_EN)
+			set_bit(TRIGGER_NETDEV_RX, rules);
+		if (val & QCA807X_LED_FIBER_100FX_ON_EN)
+			set_bit(TRIGGER_NETDEV_LINK_100, rules);
+		if (val & QCA807X_LED_FIBER_1000BX_ON_EN)
+			set_bit(TRIGGER_NETDEV_LINK_1000, rules);
+		if (val & QCA807X_LED_FIBER_HDX_ON_EN)
+			set_bit(TRIGGER_NETDEV_HALF_DUPLEX, rules);
+		if (val & QCA807X_LED_FIBER_FDX_ON_EN)
+			set_bit(TRIGGER_NETDEV_FULL_DUPLEX, rules);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int qca807x_led_hw_control_reset(struct phy_device *phydev, u8 index)
+{
+	u16 reg, mask;
+
+	if (index > 1)
+		return -EINVAL;
+
+	switch (phydev->port) {
+	case PORT_TP:
+		reg = QCA807X_MMD7_LED_CTRL(index);
+		mask = QCA808X_LED_PATTERN_MASK;
+		break;
+	case PORT_FIBRE:
+		/* HW control pattern bits are in LED FORCE reg */
+		reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+		mask = QCA807X_LED_FIBER_PATTERN_MASK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_AN, reg, mask);
+}
+
+static int qca807x_led_brightness_set(struct phy_device *phydev,
+				      u8 index, enum led_brightness value)
+{
+	u16 reg;
+	int ret;
+
+	if (index > 1)
+		return -EINVAL;
+
+	/* If we are setting off the LED reset any hw control rule */
+	if (!value) {
+		ret = qca807x_led_hw_control_reset(phydev, index);
+		if (ret)
+			return ret;
+	}
+
+	reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+	return qca808x_led_reg_brightness_set(phydev, reg, value);
+}
+
+static int qca807x_led_blink_set(struct phy_device *phydev, u8 index,
+				 unsigned long *delay_on,
+				 unsigned long *delay_off)
+{
+	u16 reg;
+
+	if (index > 1)
+		return -EINVAL;
+
+	reg = QCA807X_MMD7_LED_FORCE_CTRL(index);
+	return qca808x_led_reg_blink_set(phydev, reg, delay_on, delay_off);
 }
 
 #ifdef CONFIG_GPIOLIB
@@ -496,6 +733,16 @@ static int qca807x_probe(struct phy_device *phydev)
 								     "qcom,dac-disable-bias-current-tweak");
 
 	if (IS_ENABLED(CONFIG_GPIOLIB)) {
+		/* Make sure we don't have mixed leds node and gpio-controller
+		 * to prevent registering leds and having gpio-controller usage
+		 * conflicting with them.
+		 */
+		if (of_find_property(node, "leds", NULL) &&
+		    of_find_property(node, "gpio-controller", NULL)) {
+			phydev_err(phydev, "Invalid property detected. LEDs and gpio-controller are mutually exclusive.");
+			return -EINVAL;
+		}
+
 		/* Do not register a GPIO controller unless flagged for it */
 		if (of_property_read_bool(node, "gpio-controller")) {
 			ret = qca807x_gpio(phydev);
@@ -580,6 +827,11 @@ static struct phy_driver qca807x_drivers[] = {
 		.suspend	= genphy_suspend,
 		.cable_test_start	= qca807x_cable_test_start,
 		.cable_test_get_status	= qca808x_cable_test_get_status,
+		.led_brightness_set = qca807x_led_brightness_set,
+		.led_blink_set = qca807x_led_blink_set,
+		.led_hw_is_supported = qca807x_led_hw_is_supported,
+		.led_hw_control_set = qca807x_led_hw_control_set,
+		.led_hw_control_get = qca807x_led_hw_control_get,
 	},
 };
 module_phy_driver(qca807x_drivers);
