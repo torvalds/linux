@@ -581,8 +581,7 @@ static int __btree_err(int ret,
 		break;
 	case -BCH_ERR_btree_node_read_err_bad_node:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
-		bch2_topology_error(c);
-		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?: -EIO;
+		ret = bch2_topology_error(c);
 		break;
 	case -BCH_ERR_btree_node_read_err_incompatible:
 		bch2_print_string_as_lines(KERN_ERR, out.buf);
@@ -1746,7 +1745,7 @@ static int __bch2_btree_root_read(struct btree_trans *trans, enum btree_id id,
 		list_move(&b->list, &c->btree_cache.freeable);
 		mutex_unlock(&c->btree_cache.lock);
 
-		ret = -EIO;
+		ret = -BCH_ERR_btree_node_read_error;
 		goto err;
 	}
 
@@ -1850,7 +1849,7 @@ static void btree_node_write_work(struct work_struct *work)
 		bch2_dev_list_has_dev(wbio->wbio.failed, ptr->dev));
 
 	if (!bch2_bkey_nr_ptrs(bkey_i_to_s_c(&wbio->key))) {
-		ret = -BCH_ERR_btree_write_all_failed;
+		ret = -BCH_ERR_btree_node_write_all_failed;
 		goto err;
 	}
 

@@ -2307,7 +2307,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 		btree_iter_path(trans, iter)->level);
 
 	if (iter->flags & BTREE_ITER_WITH_JOURNAL)
-		return bkey_s_c_err(-EIO);
+		return bkey_s_c_err(-BCH_ERR_btree_iter_with_journal_not_supported);
 
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);

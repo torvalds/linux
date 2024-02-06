@@ -131,8 +131,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 	printbuf_exit(&buf);
 
 	if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers) {
-		bch2_inconsistent_error(c);
-		return -EIO;
+		return bch2_inconsistent_error(c) ? BCH_ERR_erofs_unfixed_errors : 0;
 	} else {
 		return 0;
 	}

@@ -407,7 +407,7 @@ again:
 		printbuf_reset(&buf);
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur_k.k));
 
-		if (mustfix_fsck_err_on(ret == -EIO, c,
+		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO), c,
 				btree_node_unreadable,
 				"Topology repair: unreadable btree node at btree %s level %u:\n"
 				"  %s",
@@ -979,7 +979,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 						false);
 			ret = PTR_ERR_OR_ZERO(child);
 
-			if (ret == -EIO) {
+			if (bch2_err_matches(ret, EIO)) {
 				bch2_topology_error(c);
 
 				if (__fsck_err(c,

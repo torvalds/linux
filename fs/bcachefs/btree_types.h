@@ -727,7 +727,7 @@ struct btree_root {
 	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 	u8			level;
 	u8			alive;
-	s8			error;
+	s16			error;
 };
 
 enum btree_gc_coalesce_fail_reason {

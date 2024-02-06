@@ -178,6 +178,7 @@
 	x(EINVAL,			opt_parse_error)			\
 	x(EINVAL,			remove_with_metadata_missing_unimplemented)\
 	x(EINVAL,			remove_would_lose_data)			\
+	x(EINVAL,			btree_iter_with_journal_not_supported)	\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
 	x(EROFS,			erofs_journal_err)			\
@@ -227,7 +228,10 @@
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				btree_node_read_err)			\
 	x(EIO,				sb_not_downgraded)			\
-	x(EIO,				btree_write_all_failed)			\
+	x(EIO,				btree_node_write_all_failed)		\
+	x(EIO,				btree_node_read_error)			\
+	x(EIO,				btree_node_read_validate_error)		\
+	x(EIO,				btree_need_topology_repair)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\

@@ -275,7 +275,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 			bkey_copy(&r->key, (struct bkey_i *) entry->start);
 			r->error = 0;
 		} else {
-			r->error = -EIO;
+			r->error = -BCH_ERR_btree_node_read_error;
 		}
 		r->alive = true;
 		break;

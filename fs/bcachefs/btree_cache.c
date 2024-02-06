@@ -905,7 +905,7 @@ retry:
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_type(&b->c.lock, lock_type);
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-BCH_ERR_btree_node_read_error);
 	}
 
 	EBUG_ON(b->c.btree_id != path->btree_id);
@@ -996,7 +996,7 @@ struct btree *bch2_btree_node_get(struct btree_trans *trans, struct btree_path *
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_type(&b->c.lock, lock_type);
-		return ERR_PTR(-EIO);
+		return ERR_PTR(-BCH_ERR_btree_node_read_error);
 	}
 
 	EBUG_ON(b->c.btree_id != path->btree_id);
@@ -1079,7 +1079,7 @@ lock_node:
 
 	if (unlikely(btree_node_read_error(b))) {
 		six_unlock_read(&b->c.lock);
-		b = ERR_PTR(-EIO);
+		b = ERR_PTR(-BCH_ERR_btree_node_read_error);
 		goto out;
 	}
 

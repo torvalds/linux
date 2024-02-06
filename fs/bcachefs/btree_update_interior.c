@@ -1894,8 +1894,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 			__func__, buf1.buf, buf2.buf);
 		printbuf_exit(&buf1);
 		printbuf_exit(&buf2);
-		bch2_topology_error(c);
-		ret = -EIO;
+		ret = bch2_topology_error(c);
 		goto err;
 	}
 
