@@ -525,11 +525,7 @@ static int arm_cspmu_alloc_attr_groups(struct arm_cspmu *cspmu)
 
 static inline void arm_cspmu_reset_counters(struct arm_cspmu *cspmu)
 {
-	u32 pmcr = 0;
-
-	pmcr |= PMCR_P;
-	pmcr |= PMCR_C;
-	writel(pmcr, cspmu->base0 + PMCR);
+	writel(PMCR_C | PMCR_P, cspmu->base0 + PMCR);
 }
 
 static inline void arm_cspmu_start_counters(struct arm_cspmu *cspmu)
@@ -1187,7 +1183,6 @@ static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 	};
 
 	/* Hardware counter init */
-	arm_cspmu_stop_counters(cspmu);
 	arm_cspmu_reset_counters(cspmu);
 
 	ret = perf_pmu_register(&cspmu->pmu, cspmu->name, -1);
