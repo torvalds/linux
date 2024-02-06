@@ -176,6 +176,8 @@
 	x(EINVAL,			invalid)				\
 	x(EINVAL,			internal_fsck_err)			\
 	x(EINVAL,			opt_parse_error)			\
+	x(EINVAL,			remove_with_metadata_missing_unimplemented)\
+	x(EINVAL,			remove_would_lose_data)			\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
 	x(EROFS,			erofs_journal_err)			\
