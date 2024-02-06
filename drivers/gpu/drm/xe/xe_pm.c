@@ -125,17 +125,26 @@ int xe_pm_resume(struct xe_device *xe)
 	return 0;
 }
 
-static bool xe_pm_pci_d3cold_capable(struct pci_dev *pdev)
+static bool xe_pm_pci_d3cold_capable(struct xe_device *xe)
 {
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct pci_dev *root_pdev;
 
 	root_pdev = pcie_find_root_port(pdev);
 	if (!root_pdev)
 		return false;
 
-	/* D3Cold requires PME capability and _PR3 power resource */
-	if (!pci_pme_capable(root_pdev, PCI_D3cold) || !pci_pr3_present(root_pdev))
+	/* D3Cold requires PME capability */
+	if (!pci_pme_capable(root_pdev, PCI_D3cold)) {
+		drm_dbg(&xe->drm, "d3cold: PME# not supported\n");
 		return false;
+	}
+
+	/* D3Cold requires _PR3 power resource */
+	if (!pci_pr3_present(root_pdev)) {
+		drm_dbg(&xe->drm, "d3cold: ACPI _PR3 not present\n");
+		return false;
+	}
 
 	return true;
 }
@@ -171,15 +180,13 @@ void xe_pm_init_early(struct xe_device *xe)
 
 void xe_pm_init(struct xe_device *xe)
 {
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
 		return;
 
 	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
 
-	xe->d3cold.capable = xe_pm_pci_d3cold_capable(pdev);
+	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
 
 	if (xe->d3cold.capable) {
 		xe_device_sysfs_init(xe);
