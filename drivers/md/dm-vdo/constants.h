@@ -44,6 +44,9 @@ enum {
 	/** The default size of each slab journal, in blocks */
 	DEFAULT_VDO_SLAB_JOURNAL_SIZE = 224,
 
+	/** Unit test minimum */
+	MINIMUM_VDO_SLAB_JOURNAL_BLOCKS = 2,
+
 	/*
 	 * The initial size of lbn_operations and pbn_operations, which is based upon the expected
 	 * maximum number of outstanding VIOs. This value was chosen to make it highly unlikely
@@ -89,14 +92,5 @@ enum {
 	/** The physical block number reserved for storing the zero block */
 	VDO_ZERO_BLOCK = 0,
 };
-
-/** The maximum logical space is 4 petabytes, which is 1 terablock. */
-static const block_count_t MAXIMUM_VDO_LOGICAL_BLOCKS = 1024ULL * 1024 * 1024 * 1024;
-
-/** The maximum physical space is 256 terabytes, which is 64 gigablocks. */
-static const block_count_t MAXIMUM_VDO_PHYSICAL_BLOCKS = 1024ULL * 1024 * 1024 * 64;
-
-/** unit test minimum */
-static const block_count_t MINIMUM_VDO_SLAB_JOURNAL_BLOCKS = 2;
 
 #endif /* VDO_CONSTANTS_H */

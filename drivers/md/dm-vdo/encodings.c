@@ -15,6 +15,12 @@
 #include "status-codes.h"
 #include "types.h"
 
+/** The maximum logical space is 4 petabytes, which is 1 terablock. */
+static const block_count_t MAXIMUM_VDO_LOGICAL_BLOCKS = 1024ULL * 1024 * 1024 * 1024;
+
+/** The maximum physical space is 256 terabytes, which is 64 gigablocks. */
+static const block_count_t MAXIMUM_VDO_PHYSICAL_BLOCKS = 1024ULL * 1024 * 1024 * 64;
+
 struct geometry_block {
 	char magic_number[VDO_GEOMETRY_MAGIC_NUMBER_SIZE];
 	struct packed_header header;
