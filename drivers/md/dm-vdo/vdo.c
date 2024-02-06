@@ -889,7 +889,8 @@ int vdo_synchronous_flush(struct vdo *vdo)
 	int result;
 	struct bio bio;
 
-	bio_init(&bio, vdo_get_backing_device(vdo), 0, 0, REQ_OP_WRITE | REQ_PREFLUSH);
+	bio_init(&bio, vdo_get_backing_device(vdo), NULL, 0,
+		 REQ_OP_WRITE | REQ_PREFLUSH);
 	submit_bio_wait(&bio);
 	result = blk_status_to_errno(bio.bi_status);
 

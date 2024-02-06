@@ -732,18 +732,18 @@ static void close_chapters(void *arg)
 
 static void stop_chapter_writer(struct chapter_writer *writer)
 {
-	struct thread *writer_thread = 0;
+	struct thread *writer_thread = NULL;
 
 	uds_lock_mutex(&writer->mutex);
-	if (writer->thread != 0) {
+	if (writer->thread != NULL) {
 		writer_thread = writer->thread;
-		writer->thread = 0;
+		writer->thread = NULL;
 		writer->stop = true;
 		uds_broadcast_cond(&writer->cond);
 	}
 	uds_unlock_mutex(&writer->mutex);
 
-	if (writer_thread != 0)
+	if (writer_thread != NULL)
 		uds_join_threads(writer_thread);
 }
 
