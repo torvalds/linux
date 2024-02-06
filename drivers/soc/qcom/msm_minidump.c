@@ -29,9 +29,10 @@ struct md_core {
 	const struct md_ops	*ops;
 };
 
-static DEFINE_SPINLOCK(mdt_lock);
 static bool md_init_done;
 static struct md_core md_core;
+
+DEFINE_SPINLOCK(mdt_lock);
 
 unsigned int md_num_regions;
 EXPORT_SYMBOL_GPL(md_num_regions);
@@ -180,8 +181,6 @@ int msm_minidump_clear_headers(const struct md_region *entry)
 }
 EXPORT_SYMBOL_GPL(msm_minidump_clear_headers);
 
-
-
 bool msm_minidump_enabled(void)
 {
 	bool ret = false;
@@ -247,36 +246,32 @@ int msm_minidump_add_region(const struct md_region *entry)
 	if (validate_region(entry))
 		return -EINVAL;
 
-	spin_lock_irqsave(&mdt_lock, flags);
-
-	if (md_num_regions >= MAX_NUM_ENTRIES) {
-		printk_deferred("Maximum entries reached\n");
-		ret = -ENOMEM;
-		goto out;
-	}
-
 	if (md_core.ops) {
 		ret = md_core.ops->add_region(entry);
-		if (ret)
-			goto out;
 	} else {
 		/* Local table not initialized
 		 * add to pending list, need free after initialized
 		 */
 		pr_info("Minidump driver hasn't probe, add region to pending list\n");
+		spin_lock_irqsave(&mdt_lock, flags);
+
+		if (md_num_regions >= MAX_NUM_ENTRIES) {
+			printk_deferred("Maximum entries reached\n");
+			spin_unlock_irqrestore(&mdt_lock, flags);
+			return -ENOMEM;
+		}
+
 		pending_region = kzalloc(sizeof(*pending_region), GFP_ATOMIC);
 		if (!pending_region) {
-			ret = -ENOMEM;
-			goto out;
+			spin_unlock_irqrestore(&mdt_lock, flags);
+			return -ENOMEM;
 		}
 		pending_region->entry = *entry;
 		list_add_tail(&pending_region->list, &pending_list);
+		ret = md_num_regions;
+		md_num_regions++;
+		spin_unlock_irqrestore(&mdt_lock, flags);
 	}
-	ret = md_num_regions;
-	md_num_regions++;
-
-out:
-	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	return ret;
 }
