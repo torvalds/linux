@@ -1655,9 +1655,9 @@ static void ahci_mark_external_port(struct ata_port *ap)
 		ap->pflags |= ATA_PFLAG_EXTERNAL;
 }
 
-static void ahci_update_initial_lpm_policy(struct ata_port *ap,
-					   struct ahci_host_priv *hpriv)
+static void ahci_update_initial_lpm_policy(struct ata_port *ap)
 {
+	struct ahci_host_priv *hpriv = ap->host->private_data;
 	int policy = CONFIG_SATA_MOBILE_LPM_POLICY;
 
 
@@ -1949,7 +1949,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		ahci_mark_external_port(ap);
 
-		ahci_update_initial_lpm_policy(ap, hpriv);
+		ahci_update_initial_lpm_policy(ap);
 
 		/* disabled/not-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
