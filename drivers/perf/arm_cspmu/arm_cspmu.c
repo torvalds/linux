@@ -27,6 +27,7 @@
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
 
@@ -114,7 +115,9 @@ static void arm_cspmu_set_ev_filter(struct arm_cspmu *cspmu,
 
 static struct acpi_apmt_node *arm_cspmu_apmt_node(struct device *dev)
 {
-	return *(struct acpi_apmt_node **)dev_get_platdata(dev);
+	struct acpi_apmt_node **ptr = dev_get_platdata(dev);
+
+	return ptr ? *ptr : NULL;
 }
 
 /*
@@ -310,6 +313,10 @@ static const char *arm_cspmu_get_name(const struct arm_cspmu *cspmu)
 
 	dev = cspmu->dev;
 	apmt_node = arm_cspmu_apmt_node(dev);
+	if (!apmt_node)
+		return devm_kasprintf(dev, GFP_KERNEL, PMUNAME "_%u",
+				      atomic_fetch_inc(&pmu_idx[0]));
+
 	pmu_type = apmt_node->type;
 
 	if (pmu_type >= ACPI_APMT_NODE_TYPE_COUNT) {
@@ -425,7 +432,7 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 	};
 
 	/* Firmware may override implementer/product ID from PMIIDR */
-	if (apmt_node->impl_id)
+	if (apmt_node && apmt_node->impl_id)
 		cspmu->impl.pmiidr = apmt_node->impl_id;
 
 	/* Find implementer specific attribute ops. */
@@ -940,7 +947,14 @@ static struct arm_cspmu *arm_cspmu_alloc(struct platform_device *pdev)
 	platform_set_drvdata(pdev, cspmu);
 
 	apmt_node = arm_cspmu_apmt_node(dev);
-	cspmu->has_atomic_dword = apmt_node->flags & ACPI_APMT_FLAGS_ATOMIC;
+	if (apmt_node) {
+		cspmu->has_atomic_dword = apmt_node->flags & ACPI_APMT_FLAGS_ATOMIC;
+	} else {
+		u32 width = 0;
+
+		device_property_read_u32(dev, "reg-io-width", &width);
+		cspmu->has_atomic_dword = (width == 8);
+	}
 
 	return cspmu;
 }
@@ -1131,11 +1145,6 @@ static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 		}
 	}
 
-	if (cpumask_empty(&cspmu->associated_cpus)) {
-		dev_dbg(cspmu->dev, "No cpu associated with the PMU\n");
-		return -ENODEV;
-	}
-
 	return 0;
 }
 #else
@@ -1145,9 +1154,36 @@ static int arm_cspmu_acpi_get_cpus(struct arm_cspmu *cspmu)
 }
 #endif
 
+static int arm_cspmu_of_get_cpus(struct arm_cspmu *cspmu)
+{
+	struct of_phandle_iterator it;
+	int ret, cpu;
+
+	of_for_each_phandle(&it, ret, dev_of_node(cspmu->dev), "cpus", NULL, 0) {
+		cpu = of_cpu_node_to_id(it.node);
+		if (cpu < 0)
+			continue;
+		cpumask_set_cpu(cpu, &cspmu->associated_cpus);
+	}
+	return ret == -ENOENT ? 0 : ret;
+}
+
 static int arm_cspmu_get_cpus(struct arm_cspmu *cspmu)
 {
-	return arm_cspmu_acpi_get_cpus(cspmu);
+	int ret = 0;
+
+	if (arm_cspmu_apmt_node(cspmu->dev))
+		ret = arm_cspmu_acpi_get_cpus(cspmu);
+	else if (device_property_present(cspmu->dev, "cpus"))
+		ret = arm_cspmu_of_get_cpus(cspmu);
+	else
+		cpumask_copy(&cspmu->associated_cpus, cpu_possible_mask);
+
+	if (!ret && cpumask_empty(&cspmu->associated_cpus)) {
+		dev_dbg(cspmu->dev, "No cpu associated with the PMU\n");
+		ret = -ENODEV;
+	}
+	return ret;
 }
 
 static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
@@ -1242,11 +1278,18 @@ static const struct platform_device_id arm_cspmu_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, arm_cspmu_id);
 
+static const struct of_device_id arm_cspmu_of_match[] = {
+	{ .compatible = "arm,coresight-pmu" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, arm_cspmu_of_match);
+
 static struct platform_driver arm_cspmu_driver = {
 	.driver = {
-			.name = DRVNAME,
-			.suppress_bind_attrs = true,
-		},
+		.name = DRVNAME,
+		.of_match_table = arm_cspmu_of_match,
+		.suppress_bind_attrs = true,
+	},
 	.probe = arm_cspmu_device_probe,
 	.remove_new = arm_cspmu_device_remove,
 	.id_table = arm_cspmu_id,
