@@ -1665,6 +1665,15 @@ static void ahci_update_initial_lpm_policy(struct ata_port *ap)
 	if (!(hpriv->flags & AHCI_HFLAG_USE_LPM_POLICY))
 		return;
 
+	/*
+	 * AHCI contains a known incompatibility between LPM and hot-plug
+	 * removal events, see 7.3.1 Hot Plug Removal Detection and Power
+	 * Management Interaction in AHCI 1.3.1. Therefore, do not enable
+	 * LPM if the port advertises itself as an external port.
+	 */
+	if (ap->pflags & ATA_PFLAG_EXTERNAL)
+		return;
+
 	/* user modified policy via module param */
 	if (mobile_lpm_policy != -1) {
 		policy = mobile_lpm_policy;
