@@ -10032,7 +10032,7 @@ static bool update_sd_pick_busiest(struct lb_env *env,
 		 * If we have more than one misfit sg go with the biggest
 		 * misfit.
 		 */
-		if (sgs->group_misfit_task_load < busiest->group_misfit_task_load)
+		if (sgs->group_misfit_task_load <= busiest->group_misfit_task_load)
 			return false;
 		break;
 
