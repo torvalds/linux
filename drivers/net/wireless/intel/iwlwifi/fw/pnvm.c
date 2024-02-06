@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2020-2023 Intel Corporation
+ * Copyright(c) 2020-2024 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -252,7 +252,7 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	}
 
 	new_len = pnvm->size;
-	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	*data = kvmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
 	release_firmware(pnvm);
 
 	if (!*data)
@@ -275,8 +275,8 @@ static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
 			if (*len >= sizeof(*package)) {
 				/* we need only the data */
 				*len -= sizeof(*package);
-				image = kmemdup(package->data,
-						*len, GFP_KERNEL);
+				image = kvmemdup(package->data,
+						 *len, GFP_KERNEL);
 			}
 			/*
 			 * free package regardless of whether kmemdup
@@ -333,7 +333,7 @@ static void iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 set:
 	iwl_trans_set_pnvm(trans, capa);
 free:
-	kfree(data);
+	kvfree(data);
 	kfree(pnvm_data);
 }
 
