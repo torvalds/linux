@@ -274,25 +274,25 @@ static struct aca_bank_error *get_bank_error(struct aca_error *aerr, struct aca_
 	return new_bank_error(aerr, info);
 }
 
-static int aca_log_errors(struct aca_handle *handle, enum aca_error_type type,
-			  struct aca_bank_report *report)
+int aca_error_cache_log_bank_error(struct aca_handle *handle, struct aca_bank_info *info,
+				   enum aca_error_type type, u64 count)
 {
 	struct aca_error_cache *error_cache = &handle->error_cache;
 	struct aca_bank_error *bank_error;
 	struct aca_error *aerr;
 
-	if (!handle || !report)
+	if (!handle || !info || type >= ACA_ERROR_TYPE_COUNT)
 		return -EINVAL;
 
-	if (!report->count[type])
+	if (!count)
 		return 0;
 
 	aerr = &error_cache->errors[type];
-	bank_error = get_bank_error(aerr, &report->info);
+	bank_error = get_bank_error(aerr, info);
 	if (!bank_error)
 		return -ENOMEM;
 
-	bank_error->count[type] += report->count[type];
+	bank_error->count += count;
 
 	return 0;
 }
@@ -317,28 +317,9 @@ static int handler_aca_log_bank_error(struct aca_handle *handle, struct aca_bank
 				      enum aca_smu_type smu_type, void *data)
 {
 	struct aca_bank_report report;
-	enum aca_error_type type;
 	int ret;
 
-	switch (smu_type) {
-	case ACA_SMU_TYPE_UE:
-		type = ACA_ERROR_TYPE_UE;
-		break;
-	case ACA_SMU_TYPE_CE:
-		type = ACA_ERROR_TYPE_CE;
-		break;
-	default:
-		return -EINVAL;
-	}
-
 	ret = aca_generate_bank_report(handle, bank, smu_type, &report);
-	if (ret)
-		return ret;
-
-	if (!report.count[type])
-		return 0;
-
-	ret = aca_log_errors(handle, type, &report);
 	if (ret)
 		return ret;
 
@@ -440,7 +421,7 @@ static int aca_log_aca_error_data(struct aca_bank_error *bank_error, enum aca_er
 	if (type >= ACA_ERROR_TYPE_COUNT)
 		return -EINVAL;
 
-	count = bank_error->count[type];
+	count = bank_error->count;
 	if (!count)
 		return 0;
 

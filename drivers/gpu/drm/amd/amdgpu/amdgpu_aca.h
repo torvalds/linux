@@ -130,7 +130,7 @@ struct aca_bank_report {
 struct aca_bank_error {
 	struct list_head node;
 	struct aca_bank_info info;
-	u64 count[ACA_ERROR_TYPE_COUNT];
+	u64 count;
 };
 
 struct aca_error {
@@ -206,4 +206,6 @@ int amdgpu_aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *han
 				     enum aca_error_type type, void *data);
 int amdgpu_aca_smu_set_debug_mode(struct amdgpu_device *adev, bool en);
 void amdgpu_aca_smu_debugfs_init(struct amdgpu_device *adev, struct dentry *root);
+int aca_error_cache_log_bank_error(struct aca_handle *handle, struct aca_bank_info *info,
+				   enum aca_error_type type, u64 count);
 #endif
