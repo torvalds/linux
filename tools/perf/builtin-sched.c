@@ -3199,14 +3199,44 @@ static void perf_sched__merge_lat(struct perf_sched *sched)
 	}
 }
 
+static int setup_cpus_switch_event(struct perf_sched *sched)
+{
+	unsigned int i;
+
+	sched->cpu_last_switched = calloc(MAX_CPUS, sizeof(*(sched->cpu_last_switched)));
+	if (!sched->cpu_last_switched)
+		return -1;
+
+	sched->curr_pid = malloc(MAX_CPUS * sizeof(*(sched->curr_pid)));
+	if (!sched->curr_pid) {
+		zfree(&sched->cpu_last_switched);
+		return -1;
+	}
+
+	for (i = 0; i < MAX_CPUS; i++)
+		sched->curr_pid[i] = -1;
+
+	return 0;
+}
+
+static void free_cpus_switch_event(struct perf_sched *sched)
+{
+	zfree(&sched->curr_pid);
+	zfree(&sched->cpu_last_switched);
+}
+
 static int perf_sched__lat(struct perf_sched *sched)
 {
+	int rc = -1;
 	struct rb_node *next;
 
 	setup_pager();
 
+	if (setup_cpus_switch_event(sched))
+		return rc;
+
 	if (perf_sched__read_events(sched))
-		return -1;
+		goto out_free_cpus_switch_event;
 
 	perf_sched__merge_lat(sched);
 	perf_sched__sort_lat(sched);
@@ -3235,7 +3265,11 @@ static int perf_sched__lat(struct perf_sched *sched)
 	print_bad_events(sched);
 	printf("\n");
 
-	return 0;
+	rc = 0;
+
+out_free_cpus_switch_event:
+	free_cpus_switch_event(sched);
+	return rc;
 }
 
 static int setup_map_cpus(struct perf_sched *sched)
@@ -3302,8 +3336,11 @@ static int perf_sched__map(struct perf_sched *sched)
 	if (!sched->curr_thread)
 		return rc;
 
-	if (setup_map_cpus(sched))
+	if (setup_cpus_switch_event(sched))
 		goto out_free_curr_thread;
+
+	if (setup_map_cpus(sched))
+		goto out_free_cpus_switch_event;
 
 	if (setup_color_pids(sched))
 		goto out_put_map_cpus;
@@ -3328,6 +3365,9 @@ out_put_map_cpus:
 	zfree(&sched->map.comp_cpus);
 	perf_cpu_map__put(sched->map.cpus);
 
+out_free_cpus_switch_event:
+	free_cpus_switch_event(sched);
+
 out_free_curr_thread:
 	zfree(&sched->curr_thread);
 	return rc;
@@ -3341,6 +3381,10 @@ static int perf_sched__replay(struct perf_sched *sched)
 	mutex_init(&sched->start_work_mutex);
 	mutex_init(&sched->work_done_wait_mutex);
 
+	ret = setup_cpus_switch_event(sched);
+	if (ret)
+		goto out_mutex_destroy;
+
 	calibrate_run_measurement_overhead(sched);
 	calibrate_sleep_measurement_overhead(sched);
 
@@ -3348,7 +3392,7 @@ static int perf_sched__replay(struct perf_sched *sched)
 
 	ret = perf_sched__read_events(sched);
 	if (ret)
-		goto out_mutex_destroy;
+		goto out_free_cpus_switch_event;
 
 	printf("nr_run_events:        %ld\n", sched->nr_run_events);
 	printf("nr_sleep_events:      %ld\n", sched->nr_sleep_events);
@@ -3373,6 +3417,9 @@ static int perf_sched__replay(struct perf_sched *sched)
 
 	sched->thread_funcs_exit = true;
 	destroy_tasks(sched);
+
+out_free_cpus_switch_event:
+	free_cpus_switch_event(sched);
 
 out_mutex_destroy:
 	mutex_destroy(&sched->start_work_mutex);
@@ -3612,21 +3659,7 @@ int cmd_sched(int argc, const char **argv)
 		.switch_event	    = replay_switch_event,
 		.fork_event	    = replay_fork_event,
 	};
-	unsigned int i;
-	int ret = 0;
-
-	sched.cpu_last_switched = calloc(MAX_CPUS, sizeof(*sched.cpu_last_switched));
-	if (!sched.cpu_last_switched) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	sched.curr_pid = malloc(MAX_CPUS * sizeof(*sched.curr_pid));
-	if (!sched.curr_pid) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	for (i = 0; i < MAX_CPUS; i++)
-		sched.curr_pid[i] = -1;
+	int ret;
 
 	argc = parse_options_subcommand(argc, argv, sched_options, sched_subcommands,
 					sched_usage, PARSE_OPT_STOP_AT_NON_OPTION);
@@ -3637,9 +3670,9 @@ int cmd_sched(int argc, const char **argv)
 	 * Aliased to 'perf script' for now:
 	 */
 	if (!strcmp(argv[0], "script")) {
-		ret = cmd_script(argc, argv);
+		return cmd_script(argc, argv);
 	} else if (strlen(argv[0]) > 2 && strstarts("record", argv[0])) {
-		ret = __cmd_record(argc, argv);
+		return __cmd_record(argc, argv);
 	} else if (strlen(argv[0]) > 2 && strstarts("latency", argv[0])) {
 		sched.tp_handler = &lat_ops;
 		if (argc > 1) {
@@ -3648,7 +3681,7 @@ int cmd_sched(int argc, const char **argv)
 				usage_with_options(latency_usage, latency_options);
 		}
 		setup_sorting(&sched, latency_options, latency_usage);
-		ret = perf_sched__lat(&sched);
+		return perf_sched__lat(&sched);
 	} else if (!strcmp(argv[0], "map")) {
 		if (argc) {
 			argc = parse_options(argc, argv, map_options, map_usage, 0);
@@ -3657,7 +3690,7 @@ int cmd_sched(int argc, const char **argv)
 		}
 		sched.tp_handler = &map_ops;
 		setup_sorting(&sched, latency_options, latency_usage);
-		ret = perf_sched__map(&sched);
+		return perf_sched__map(&sched);
 	} else if (strlen(argv[0]) > 2 && strstarts("replay", argv[0])) {
 		sched.tp_handler = &replay_ops;
 		if (argc) {
@@ -3665,7 +3698,7 @@ int cmd_sched(int argc, const char **argv)
 			if (argc)
 				usage_with_options(replay_usage, replay_options);
 		}
-		ret = perf_sched__replay(&sched);
+		return perf_sched__replay(&sched);
 	} else if (!strcmp(argv[0], "timehist")) {
 		if (argc) {
 			argc = parse_options(argc, argv, timehist_options,
@@ -3681,21 +3714,16 @@ int cmd_sched(int argc, const char **argv)
 				parse_options_usage(NULL, timehist_options, "w", true);
 			if (sched.show_next)
 				parse_options_usage(NULL, timehist_options, "n", true);
-			ret = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 		ret = symbol__validate_sym_arguments();
 		if (ret)
-			goto out;
+			return ret;
 
-		ret = perf_sched__timehist(&sched);
+		return perf_sched__timehist(&sched);
 	} else {
 		usage_with_options(sched_usage, sched_options);
 	}
 
-out:
-	free(sched.curr_pid);
-	free(sched.cpu_last_switched);
-
-	return ret;
+	return 0;
 }
