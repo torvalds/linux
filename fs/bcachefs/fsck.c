@@ -1461,16 +1461,15 @@ fsck_err:
 	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
-static int check_dirent_target(struct btree_trans *trans,
-			       struct btree_iter *iter,
-			       struct bkey_s_c_dirent d,
-			       struct bch_inode_unpacked *target,
-			       u32 target_snapshot)
+static int check_inode_backpointer(struct btree_trans *trans,
+				   struct btree_iter *iter,
+				   struct bkey_s_c_dirent d,
+				   struct bch_inode_unpacked *target,
+				   u32 target_snapshot)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_i_dirent *n;
-	struct printbuf buf = PRINTBUF;
 	struct btree_iter bp_iter = { NULL };
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (!target->bi_dir &&
@@ -1541,6 +1540,29 @@ static int check_dirent_target(struct btree_trans *trans,
 				goto err;
 		}
 	}
+out:
+err:
+fsck_err:
+	bch2_trans_iter_exit(trans, &bp_iter);
+	printbuf_exit(&buf);
+	bch_err_fn(c, ret);
+	return ret;
+}
+
+static int check_dirent_target(struct btree_trans *trans,
+			       struct btree_iter *iter,
+			       struct bkey_s_c_dirent d,
+			       struct bch_inode_unpacked *target,
+			       u32 target_snapshot)
+{
+	struct bch_fs *c = trans->c;
+	struct bkey_i_dirent *n;
+	struct printbuf buf = PRINTBUF;
+	int ret = 0;
+
+	ret = check_inode_backpointer(trans, iter, d, target, target_snapshot);
+	if (ret)
+		goto err;
 
 	if (fsck_err_on(d.v->d_type != inode_d_type(target),
 			c, dirent_d_type_wrong,
@@ -1584,10 +1606,8 @@ static int check_dirent_target(struct btree_trans *trans,
 
 		d = dirent_i_to_s_c(n);
 	}
-out:
 err:
 fsck_err:
-	bch2_trans_iter_exit(trans, &bp_iter);
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
