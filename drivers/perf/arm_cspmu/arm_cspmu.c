@@ -501,23 +501,16 @@ arm_cspmu_alloc_format_attr_group(struct arm_cspmu *cspmu)
 	return format_group;
 }
 
-static struct attribute_group **
-arm_cspmu_alloc_attr_group(struct arm_cspmu *cspmu)
+static int arm_cspmu_alloc_attr_groups(struct arm_cspmu *cspmu)
 {
-	struct attribute_group **attr_groups = NULL;
-	struct device *dev = cspmu->dev;
+	const struct attribute_group **attr_groups = cspmu->attr_groups;
 	const struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
 
 	cspmu->identifier = impl_ops->get_identifier(cspmu);
 	cspmu->name = impl_ops->get_name(cspmu);
 
 	if (!cspmu->identifier || !cspmu->name)
-		return NULL;
-
-	attr_groups = devm_kcalloc(dev, 5, sizeof(struct attribute_group *),
-				   GFP_KERNEL);
-	if (!attr_groups)
-		return NULL;
+		return -ENOMEM;
 
 	attr_groups[0] = arm_cspmu_alloc_event_attr_group(cspmu);
 	attr_groups[1] = arm_cspmu_alloc_format_attr_group(cspmu);
@@ -525,9 +518,9 @@ arm_cspmu_alloc_attr_group(struct arm_cspmu *cspmu)
 	attr_groups[3] = &arm_cspmu_cpumask_attr_group;
 
 	if (!attr_groups[0] || !attr_groups[1])
-		return NULL;
+		return -ENOMEM;
 
-	return attr_groups;
+	return 0;
 }
 
 static inline void arm_cspmu_reset_counters(struct arm_cspmu *cspmu)
@@ -1164,11 +1157,10 @@ static int arm_cspmu_get_cpus(struct arm_cspmu *cspmu)
 static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 {
 	int ret, capabilities;
-	struct attribute_group **attr_groups;
 
-	attr_groups = arm_cspmu_alloc_attr_group(cspmu);
-	if (!attr_groups)
-		return -ENOMEM;
+	ret = arm_cspmu_alloc_attr_groups(cspmu);
+	if (ret)
+		return ret;
 
 	ret = cpuhp_state_add_instance(arm_cspmu_cpuhp_state,
 				       &cspmu->cpuhp_node);
@@ -1190,7 +1182,7 @@ static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 		.start		= arm_cspmu_start,
 		.stop		= arm_cspmu_stop,
 		.read		= arm_cspmu_read,
-		.attr_groups	= (const struct attribute_group **)attr_groups,
+		.attr_groups	= cspmu->attr_groups,
 		.capabilities	= capabilities,
 	};
 
