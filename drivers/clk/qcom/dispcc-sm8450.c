@@ -1815,17 +1815,7 @@ static struct platform_driver disp_cc_sm8450_driver = {
 	},
 };
 
-static int __init disp_cc_sm8450_init(void)
-{
-	return platform_driver_register(&disp_cc_sm8450_driver);
-}
-subsys_initcall(disp_cc_sm8450_init);
-
-static void __exit disp_cc_sm8450_exit(void)
-{
-	platform_driver_unregister(&disp_cc_sm8450_driver);
-}
-module_exit(disp_cc_sm8450_exit);
+module_platform_driver(disp_cc_sm8450_driver);
 
 MODULE_DESCRIPTION("QTI DISPCC SM8450 Driver");
 MODULE_LICENSE("GPL");

@@ -539,17 +539,7 @@ static struct platform_driver disp_cc_qcm2290_driver = {
 	},
 };
 
-static int __init disp_cc_qcm2290_init(void)
-{
-	return platform_driver_register(&disp_cc_qcm2290_driver);
-}
-subsys_initcall(disp_cc_qcm2290_init);
-
-static void __exit disp_cc_qcm2290_exit(void)
-{
-	platform_driver_unregister(&disp_cc_qcm2290_driver);
-}
-module_exit(disp_cc_qcm2290_exit);
+module_platform_driver(disp_cc_qcm2290_driver);
 
 MODULE_DESCRIPTION("QTI DISP_CC qcm2290 Driver");
 MODULE_LICENSE("GPL v2");
