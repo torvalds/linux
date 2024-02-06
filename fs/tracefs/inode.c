@@ -210,6 +210,7 @@ repeat:
 	next = this_parent->d_subdirs.next;
 resume:
 	while (next != &this_parent->d_subdirs) {
+		struct tracefs_inode *ti;
 		struct list_head *tmp = next;
 		struct dentry *dentry = list_entry(tmp, struct dentry, d_child);
 		next = tmp->next;
@@ -217,6 +218,11 @@ resume:
 		spin_lock_nested(&dentry->d_lock, DENTRY_D_LOCK_NESTED);
 
 		change_gid(dentry, gid);
+
+		/* If this is the events directory, update that too */
+		ti = get_tracefs(dentry->d_inode);
+		if (ti && (ti->flags & TRACEFS_EVENT_INODE))
+			eventfs_update_gid(dentry, gid);
 
 		if (!list_empty(&dentry->d_subdirs)) {
 			spin_unlock(&this_parent->d_lock);
