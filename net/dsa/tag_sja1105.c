@@ -75,7 +75,7 @@ sja1105_tagger_private(struct dsa_switch *ds)
 }
 
 /* Similar to is_link_local_ether_addr(hdr->h_dest) but also covers PTP */
-static inline bool sja1105_is_link_local(const struct sk_buff *skb)
+static bool sja1105_is_link_local(const struct sk_buff *skb)
 {
 	const struct ethhdr *hdr = eth_hdr(skb);
 	u64 dmac = ether_addr_to_u64(hdr->h_dest);
@@ -121,7 +121,7 @@ static void sja1105_meta_unpack(const struct sk_buff *skb,
 	packing(buf + 7, &meta->switch_id,   7, 0, 1, UNPACK, 0);
 }
 
-static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
+static bool sja1105_is_meta_frame(const struct sk_buff *skb)
 {
 	const struct ethhdr *hdr = eth_hdr(skb);
 	u64 smac = ether_addr_to_u64(hdr->h_source);
