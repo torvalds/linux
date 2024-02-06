@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include <linux/module.h>
 #include <linux/stringify.h>
@@ -33,6 +33,10 @@
 #define IWL_SC_A_GF_A_FW_PRE		"iwlwifi-sc-a0-gf-a0"
 #define IWL_SC_A_GF4_A_FW_PRE		"iwlwifi-sc-a0-gf4-a0"
 #define IWL_SC_A_WH_A_FW_PRE		"iwlwifi-sc-a0-wh-a0"
+#define IWL_SC2_A_FM_C_FW_PRE		"iwlwifi-sc2-a0-fm-c0"
+#define IWL_SC2_A_WH_A_FW_PRE		"iwlwifi-sc2-a0-wh-a0"
+#define IWL_SC2F_A_FM_C_FW_PRE		"iwlwifi-sc2f-a0-fm-c0"
+#define IWL_SC2F_A_WH_A_FW_PRE		"iwlwifi-sc2f-a0-wh-a0"
 
 #define IWL_SC_A_FM_B_FW_MODULE_FIRMWARE(api) \
 	IWL_SC_A_FM_B_FW_PRE "-" __stringify(api) ".ucode"
@@ -48,6 +52,14 @@
 	IWL_SC_A_GF4_A_FW_PRE "-" __stringify(api) ".ucode"
 #define IWL_SC_A_WH_A_FW_MODULE_FIRMWARE(api) \
 	IWL_SC_A_WH_A_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_SC2_A_FM_C_FW_MODULE_FIRMWARE(api) \
+	IWL_SC2_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_SC2_A_WH_A_FW_MODULE_FIRMWARE(api) \
+	IWL_SC2_A_WH_A_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_SC2F_A_FM_C_FW_MODULE_FIRMWARE(api) \
+	IWL_SC2F_A_FM_C_FW_PRE "-" __stringify(api) ".ucode"
+#define IWL_SC2F_A_WH_A_FW_MODULE_FIRMWARE(api) \
+	IWL_SC2F_A_WH_A_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl_sc_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_32K,
@@ -124,6 +136,9 @@ static const struct iwl_base_params iwl_sc_base_params = {
 
 #define IWL_DEVICE_SC							\
 	IWL_DEVICE_BZ_COMMON,						\
+	.uhb_supported = true,						\
+	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,		\
+	.num_rbds = IWL_NUM_RBDS_SC_EHT,				\
 	.ht_params = &iwl_22000_ht_params
 
 /*
@@ -149,10 +164,21 @@ const char iwl_sc_name[] = "Intel(R) TBD Sc device";
 
 const struct iwl_cfg iwl_cfg_sc = {
 	.fw_name_mac = "sc",
-	.uhb_supported = true,
 	IWL_DEVICE_SC,
-	.features = IWL_TX_CSUM_NETIF_FLAGS | NETIF_F_RXCSUM,
-	.num_rbds = IWL_NUM_RBDS_SC_EHT,
+};
+
+const char iwl_sc2_name[] = "Intel(R) TBD Sc2 device";
+
+const struct iwl_cfg iwl_cfg_sc2 = {
+	.fw_name_mac = "sc2",
+	IWL_DEVICE_SC,
+};
+
+const char iwl_sc2f_name[] = "Intel(R) TBD Sc2f device";
+
+const struct iwl_cfg iwl_cfg_sc2f = {
+	.fw_name_mac = "sc2f",
+	IWL_DEVICE_SC,
 };
 
 MODULE_FIRMWARE(IWL_SC_A_FM_B_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
@@ -162,3 +188,7 @@ MODULE_FIRMWARE(IWL_SC_A_HR_B_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SC_A_GF_A_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SC_A_GF4_A_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL_SC_A_WH_A_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SC2_A_FM_C_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SC2_A_WH_A_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SC2F_A_FM_C_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL_SC2F_A_WH_A_FW_MODULE_FIRMWARE(IWL_SC_UCODE_API_MAX));

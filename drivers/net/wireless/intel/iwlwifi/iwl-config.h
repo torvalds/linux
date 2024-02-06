@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #ifndef __IWL_CONFIG_H__
 #define __IWL_CONFIG_H__
@@ -419,6 +419,8 @@ struct iwl_cfg {
 #define IWL_CFG_MAC_TYPE_BZ		0x46
 #define IWL_CFG_MAC_TYPE_GL		0x47
 #define IWL_CFG_MAC_TYPE_SC		0x48
+#define IWL_CFG_MAC_TYPE_SC2		0x49
+#define IWL_CFG_MAC_TYPE_SC2F		0x4A
 
 #define IWL_CFG_RF_TYPE_TH		0x105
 #define IWL_CFG_RF_TYPE_TH1		0x108
@@ -541,6 +543,8 @@ extern const char iwl_ax411_name[];
 extern const char iwl_bz_name[];
 extern const char iwl_mtp_name[];
 extern const char iwl_sc_name[];
+extern const char iwl_sc2_name[];
+extern const char iwl_sc2f_name[];
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
@@ -646,6 +650,8 @@ extern const struct iwl_cfg iwl_cfg_bz;
 extern const struct iwl_cfg iwl_cfg_gl;
 
 extern const struct iwl_cfg iwl_cfg_sc;
+extern const struct iwl_cfg iwl_cfg_sc2;
+extern const struct iwl_cfg iwl_cfg_sc2f;
 #endif /* CONFIG_IWLMVM */
 
 #endif /* __IWL_CONFIG_H__ */
