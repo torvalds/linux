@@ -958,6 +958,15 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	}
 
 	if (wblock->gblock.flags & ACPI_WMI_METHOD) {
+		get_acpi_method_name(wblock, 'M', method);
+		if (!acpi_has_method(device->handle, method)) {
+			dev_warn(wmi_bus_dev,
+				 FW_BUG "%s method block execution control method not found\n",
+				 method);
+
+			return -ENXIO;
+		}
+
 		wblock->dev.dev.type = &wmi_type_method;
 		goto out_init;
 	}
