@@ -63,6 +63,7 @@ struct aspeed_sgpio_pdata {
 	const u32 pin_mask;
 	const u16 ctrl_reg;
 	const int version;
+	const bool slave;
 };
 
 struct aspeed_sgpio {
@@ -265,6 +266,8 @@ static int sgpio_g7_set_value(struct gpio_chip *gc, unsigned int offset,
 	if (aspeed_sgpio_is_input(offset))
 		return -EINVAL;
 
+	// Ensure the serial out value control by the software.
+	ast_clr_bits(addr, SGPIO_G7_HW_BYPASS_EN | SGPIO_G7_HW_IN_SEL);
 	reg = ioread32(addr);
 
 	if (val)
@@ -795,11 +798,19 @@ static const struct aspeed_sgpio_pdata ast2700_sgpiom_pdata = {
 	.version = 7,
 };
 
+static const struct aspeed_sgpio_pdata ast2700_sgpios_pdata = {
+	.pin_mask = GENMASK(11, 6),
+	.ctrl_reg = 0x0,
+	.version = 7,
+	.slave = 1,
+};
+
 static const struct of_device_id aspeed_sgpio_of_table[] = {
 	{ .compatible = "aspeed,ast2400-sgpio", .data = &ast2400_sgpio_pdata, },
 	{ .compatible = "aspeed,ast2500-sgpio", .data = &ast2400_sgpio_pdata, },
 	{ .compatible = "aspeed,ast2600-sgpiom", .data = &ast2600_sgpiom_pdata, },
 	{ .compatible = "aspeed,ast2700-sgpiom", .data = &ast2700_sgpiom_pdata, },
+	{ .compatible = "aspeed,ast2700-sgpios", .data = &ast2700_sgpios_pdata, },
 	{}
 };
 
@@ -841,48 +852,52 @@ static int __init aspeed_sgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (gpio->version == 7)
+	if (gpio->version == 7 && !pdata->slave)
 		for (i = 0; i < nr_gpios; i++) {
 			addr = gpio->base + SGPIO_G7_CTRL_REG_OFFSET(i);
 			ast_clr_bits(addr, SGPIO_G7_HW_BYPASS_EN |
 						   SGPIO_G7_HW_IN_SEL);
 		}
 
-	rc = device_property_read_u32(&pdev->dev, "bus-frequency", &sgpio_freq);
-	if (rc < 0) {
-		dev_err(&pdev->dev, "Could not read bus-frequency property\n");
-		return -EINVAL;
+	if (!pdata->slave) {
+		rc = device_property_read_u32(&pdev->dev, "bus-frequency", &sgpio_freq);
+		if (rc < 0) {
+			dev_err(&pdev->dev, "Could not read bus-frequency property\n");
+			return -EINVAL;
+		}
+
+		gpio->pclk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(gpio->pclk)) {
+			dev_err(&pdev->dev, "devm_clk_get failed\n");
+			return PTR_ERR(gpio->pclk);
+		}
+
+		apb_freq = clk_get_rate(gpio->pclk);
+
+		/*
+		 * From the datasheet,
+		 *	SGPIO period = 1/PCLK * 2 * (GPIO254[31:16] + 1)
+		 *	period = 2 * (GPIO254[31:16] + 1) / PCLK
+		 *	frequency = 1 / (2 * (GPIO254[31:16] + 1) / PCLK)
+		 *	frequency = PCLK / (2 * (GPIO254[31:16] + 1))
+		 *	frequency * 2 * (GPIO254[31:16] + 1) = PCLK
+		 *	GPIO254[31:16] = PCLK / (frequency * 2) - 1
+		 */
+		if (sgpio_freq == 0)
+			return -EINVAL;
+
+		sgpio_clk_div = (apb_freq / (sgpio_freq * 2)) - 1;
+
+		if (sgpio_clk_div > (1 << 16) - 1)
+			return -EINVAL;
+
+		gpio_cnt_regval = ((nr_gpios / 8) << ASPEED_SGPIO_PINS_SHIFT) & pin_mask;
+		iowrite32(FIELD_PREP(ASPEED_SGPIO_CLK_DIV_MASK, sgpio_clk_div) |
+				gpio_cnt_regval | ASPEED_SGPIO_ENABLE,
+			gpio->base + pdata->ctrl_reg);
+	} else {
+		iowrite32(ASPEED_SGPIO_ENABLE, gpio->base + pdata->ctrl_reg);
 	}
-
-	gpio->pclk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(gpio->pclk)) {
-		dev_err(&pdev->dev, "devm_clk_get failed\n");
-		return PTR_ERR(gpio->pclk);
-	}
-
-	apb_freq = clk_get_rate(gpio->pclk);
-
-	/*
-	 * From the datasheet,
-	 *	SGPIO period = 1/PCLK * 2 * (GPIO254[31:16] + 1)
-	 *	period = 2 * (GPIO254[31:16] + 1) / PCLK
-	 *	frequency = 1 / (2 * (GPIO254[31:16] + 1) / PCLK)
-	 *	frequency = PCLK / (2 * (GPIO254[31:16] + 1))
-	 *	frequency * 2 * (GPIO254[31:16] + 1) = PCLK
-	 *	GPIO254[31:16] = PCLK / (frequency * 2) - 1
-	 */
-	if (sgpio_freq == 0)
-		return -EINVAL;
-
-	sgpio_clk_div = (apb_freq / (sgpio_freq * 2)) - 1;
-
-	if (sgpio_clk_div > (1 << 16) - 1)
-		return -EINVAL;
-
-	gpio_cnt_regval = ((nr_gpios / 8) << ASPEED_SGPIO_PINS_SHIFT) & pin_mask;
-	iowrite32(FIELD_PREP(ASPEED_SGPIO_CLK_DIV_MASK, sgpio_clk_div) |
-			  gpio_cnt_regval | ASPEED_SGPIO_ENABLE,
-		  gpio->base + pdata->ctrl_reg);
 
 	raw_spin_lock_init(&gpio->lock);
 

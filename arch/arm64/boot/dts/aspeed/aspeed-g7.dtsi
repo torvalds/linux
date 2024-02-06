@@ -1972,6 +1972,20 @@
 			reg = <0x0 0x14c37080 0x0 0x40>;
 		};
 
+		sgpios: sgpios@14c3c000 {
+			#gpio-cells = <2>;
+			gpio-controller;
+			compatible = "aspeed,ast2700-sgpios";
+			reg = <0x0 0x14c3c000 0x0 0x100>;
+			interrupts-extended = <&intc2 29>;
+			clocks = <&syscon1 AST2700_SOC1_CLK_APB>;
+			interrupt-controller;
+			ngpios = <136>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&pinctrl_sgps_default>;
+			status = "disabled";
+		};
+
 		fsim0: fsi@21800000 {
 			compatible = "aspeed,ast2700-fsi-master", "fsi-master";
 			reg = <0x0 0x21800000 0x0 0x94>;

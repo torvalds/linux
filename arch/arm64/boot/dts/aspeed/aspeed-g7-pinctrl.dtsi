@@ -214,6 +214,11 @@
 		groups = "SGPM1";
 	};
 
+	pinctrl_sgps_default: sgps_default {
+		function = "SGPS";
+		groups = "SGPS";
+	};
+
 	pinctrl_adc0_default: adc0_default {
 		function = "ADC0";
 		groups = "ADC0";
