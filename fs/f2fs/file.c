@@ -822,8 +822,6 @@ static bool f2fs_force_buffered_io(struct inode *inode, int rw)
 	 */
 	if (f2fs_sb_has_blkzoned(sbi) && (rw == WRITE))
 		return true;
-	if (f2fs_lfs_mode(sbi) && rw == WRITE && F2FS_IO_ALIGNED(sbi))
-		return true;
 	if (is_sbi_flag_set(sbi, SBI_CP_DISABLED))
 		return true;
 

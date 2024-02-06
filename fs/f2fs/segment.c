@@ -3507,9 +3507,6 @@ void f2fs_allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 	if (fio) {
 		struct f2fs_bio_info *io;
 
-		if (F2FS_IO_ALIGNED(sbi))
-			fio->retry = 0;
-
 		INIT_LIST_HEAD(&fio->list);
 		fio->in_list = 1;
 		io = sbi->write_io[fio->type] + fio->temp;
@@ -3557,7 +3554,7 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 
 	if (keep_order)
 		f2fs_down_read(&fio->sbi->io_order_lock);
-reallocate:
+
 	f2fs_allocate_data_block(fio->sbi, fio->page, fio->old_blkaddr,
 			&fio->new_blkaddr, sum, type, fio);
 	if (GET_SEGNO(fio->sbi, fio->old_blkaddr) != NULL_SEGNO)
@@ -3565,10 +3562,6 @@ reallocate:
 
 	/* writeout dirty page into bdev */
 	f2fs_submit_page_write(fio);
-	if (fio->retry) {
-		fio->old_blkaddr = fio->new_blkaddr;
-		goto reallocate;
-	}
 
 	f2fs_update_device_state(fio->sbi, fio->ino, fio->new_blkaddr, 1);
 
