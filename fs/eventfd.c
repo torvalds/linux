@@ -251,7 +251,7 @@ static ssize_t eventfd_write(struct file *file, const char __user *buf, size_t c
 	ssize_t res;
 	__u64 ucnt;
 
-	if (count < sizeof(ucnt))
+	if (count != sizeof(ucnt))
 		return -EINVAL;
 	if (copy_from_user(&ucnt, buf, sizeof(ucnt)))
 		return -EFAULT;
