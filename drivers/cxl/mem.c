@@ -221,18 +221,8 @@ static ssize_t ram_qos_class_show(struct device *dev,
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
-	struct cxl_dpa_perf *dpa_perf;
 
-	if (!dev->driver)
-		return -ENOENT;
-
-	if (list_empty(&mds->ram_perf_list))
-		return -ENOENT;
-
-	dpa_perf = list_first_entry(&mds->ram_perf_list, struct cxl_dpa_perf,
-				    list);
-
-	return sysfs_emit(buf, "%d\n", dpa_perf->qos_class);
+	return sysfs_emit(buf, "%d\n", mds->ram_perf.qos_class);
 }
 
 static struct device_attribute dev_attr_ram_qos_class =
@@ -244,18 +234,8 @@ static ssize_t pmem_qos_class_show(struct device *dev,
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_memdev_state *mds = to_cxl_memdev_state(cxlds);
-	struct cxl_dpa_perf *dpa_perf;
 
-	if (!dev->driver)
-		return -ENOENT;
-
-	if (list_empty(&mds->pmem_perf_list))
-		return -ENOENT;
-
-	dpa_perf = list_first_entry(&mds->pmem_perf_list, struct cxl_dpa_perf,
-				    list);
-
-	return sysfs_emit(buf, "%d\n", dpa_perf->qos_class);
+	return sysfs_emit(buf, "%d\n", mds->pmem_perf.qos_class);
 }
 
 static struct device_attribute dev_attr_pmem_qos_class =
@@ -273,11 +253,11 @@ static umode_t cxl_mem_visible(struct kobject *kobj, struct attribute *a, int n)
 			return 0;
 
 	if (a == &dev_attr_pmem_qos_class.attr)
-		if (list_empty(&mds->pmem_perf_list))
+		if (mds->pmem_perf.qos_class == CXL_QOS_CLASS_INVALID)
 			return 0;
 
 	if (a == &dev_attr_ram_qos_class.attr)
-		if (list_empty(&mds->ram_perf_list))
+		if (mds->ram_perf.qos_class == CXL_QOS_CLASS_INVALID)
 			return 0;
 
 	return a->mode;
